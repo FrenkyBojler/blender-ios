@@ -17,6 +17,7 @@
 #include "COM_algorithm_jump_flooding.hh"
 #include "COM_algorithm_morphological_distance.hh"
 #include "COM_algorithm_morphological_distance_feather.hh"
+#include "COM_algorithm_morphological_distance_jump_flooding.hh"
 #include "COM_node_operation.hh"
 #include "COM_utilities.hh"
 
@@ -324,7 +325,17 @@ class DilateErodeOperation : public NodeOperation {
 
   void execute_distance()
   {
-    morphological_distance(context(), get_input("Mask"), get_result("Mask"), this->get_size());
+    if (false && math::abs(this->get_size()) < 8) {
+      morphological_distance(
+          this->context(), this->get_input("Mask"), this->get_result("Mask"), this->get_size());
+    }
+    else {
+      morphological_distance_jump_flooding(this->context(),
+                                           this->get_input("Mask"),
+                                           this->get_result("Mask"),
+                                           math::abs(this->get_size()),
+                                           this->get_morphological_operator_type());
+    }
   }
 
   /* ------------------------------------------
@@ -518,6 +529,12 @@ class DilateErodeOperation : public NodeOperation {
   bool is_dilation()
   {
     return this->get_size() > 0;
+  }
+
+  MorphologicalOperatorType get_morphological_operator_type()
+  {
+    return this->get_size() > 0 ? MorphologicalOperatorType::Dilate :
+                                  MorphologicalOperatorType::Erode;
   }
 
   /* The signed radius of the structuring element, that is, half the structuring element size. The

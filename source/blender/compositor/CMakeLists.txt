@@ -82,6 +82,7 @@ set(SRC
   algorithms/intern/morphological_blur.cc
   algorithms/intern/morphological_distance.cc
   algorithms/intern/morphological_distance_feather.cc
+  algorithms/intern/morphological_distance_jump_flooding.cc
   algorithms/intern/pad.cc
   algorithms/intern/parallel_reduction.cc
   algorithms/intern/recursive_gaussian_blur.cc
@@ -100,6 +101,7 @@ set(SRC
   algorithms/COM_algorithm_morphological_blur.hh
   algorithms/COM_algorithm_morphological_distance.hh
   algorithms/COM_algorithm_morphological_distance_feather.hh
+  algorithms/COM_algorithm_morphological_distance_jump_flooding.hh
   algorithms/COM_algorithm_pad.hh
   algorithms/COM_algorithm_parallel_reduction.hh
   algorithms/COM_algorithm_recursive_gaussian_blur.hh
@@ -208,6 +210,7 @@ set(GLSL_SRC
   shaders/infos/compositor_mask_to_sdf_infos.hh
   shaders/infos/compositor_morphological_blur_infos.hh
   shaders/infos/compositor_morphological_distance_feather_infos.hh
+  shaders/infos/compositor_morphological_distance_jump_flooding_infos.hh
   shaders/infos/compositor_morphological_distance_infos.hh
   shaders/infos/compositor_morphological_distance_threshold_infos.hh
   shaders/infos/compositor_morphological_step_infos.hh
@@ -308,6 +311,7 @@ set(GLSL_SRC
   shaders/compositor_morphological_blur.glsl
   shaders/compositor_morphological_distance.glsl
   shaders/compositor_morphological_distance_feather.glsl
+  shaders/compositor_morphological_distance_jump_flooding.glsl
   shaders/compositor_morphological_distance_threshold.glsl
   shaders/compositor_morphological_distance_threshold_seeds.glsl
   shaders/compositor_morphological_step.glsl

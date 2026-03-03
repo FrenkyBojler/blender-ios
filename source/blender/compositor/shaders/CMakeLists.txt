@@ -82,6 +82,7 @@ set(SRC_GLSL_COMP
   compositor_mask_to_sdf_compute_distance.glsl
   compositor_morphological_blur.glsl
   compositor_morphological_distance_feather.glsl
+  compositor_morphological_distance_jump_flooding.glsl
   compositor_morphological_distance_threshold.glsl
   compositor_morphological_distance_threshold_seeds.glsl
   compositor_morphological_distance.glsl
