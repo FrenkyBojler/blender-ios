@@ -16,8 +16,8 @@ namespace blender::bke {
 
 using mf::DataType;
 
-template<typename From, typename To, To (*ConversionF)(const From &), typename AddFn>
-static void add_implicit_conversion_common(DataTypeConversions &conversions, AddFn &&add_fn)
+template<typename From, typename To, To (*ConversionF)(const From &)>
+static void add_implicit_conversion(DataTypeConversions &conversions)
 {
   static const CPPType &from_type = CPPType::get<From>();
   static const CPPType &to_type = CPPType::get<To>();
@@ -35,50 +35,11 @@ static void add_implicit_conversion_common(DataTypeConversions &conversions, Add
   static auto convert_single_to_uninitialized = [](const void *src, void *dst) {
     new (dst) To(ConversionF(*static_cast<const From *>(src)));
   };
-  std::forward<AddFn>(add_fn)(conversions,
-                              mf::DataType::ForSingle<From>(),
-                              mf::DataType::ForSingle<To>(),
-                              multi_function,
-                              convert_single_to_initialized,
-                              convert_single_to_uninitialized);
-}
-
-template<typename From, typename To, To (*ConversionF)(const From &)>
-static void add_implicit_conversion(DataTypeConversions &conversions)
-{
-  add_implicit_conversion_common<From, To, ConversionF>(
-      conversions,
-      [](DataTypeConversions &conversions,
-         const mf::DataType &from_type,
-         const mf::DataType &to_type,
-         const mf::MultiFunction &multi_function,
-         void (*convert_single_to_initialized)(const void *src, void *dst),
-         void (*convert_single_to_uninitialized)(const void *src, void *dst)) {
-        conversions.add(from_type,
-                        to_type,
-                        multi_function,
-                        convert_single_to_initialized,
-                        convert_single_to_uninitialized);
-      });
-}
-
-template<typename From, typename To, To (*ConversionF)(const From &)>
-static void add_implicit_backward_conversion(DataTypeConversions &conversions)
-{
-  add_implicit_conversion_common<From, To, ConversionF>(
-      conversions,
-      [](DataTypeConversions &conversions,
-         const mf::DataType &from_type,
-         const mf::DataType &to_type,
-         const mf::MultiFunction &multi_function,
-         void (*convert_single_to_initialized)(const void *src, void *dst),
-         void (*convert_single_to_uninitialized)(const void *src, void *dst)) {
-        conversions.add_backward(from_type,
-                                 to_type,
-                                 multi_function,
-                                 convert_single_to_initialized,
-                                 convert_single_to_uninitialized);
-      });
+  conversions.add(mf::DataType::ForSingle<From>(),
+                  mf::DataType::ForSingle<To>(),
+                  multi_function,
+                  convert_single_to_initialized,
+                  convert_single_to_uninitialized);
 }
 
 static float2 float_to_float2(const float &a)
@@ -564,24 +525,6 @@ static float4x4 quaternion_to_float4x4(const math::Quaternion &a)
   return math::from_rotation<float4x4>(a);
 }
 
-static float float3_to_float_backward(const float3 &a)
-{
-  /* In backward propagation, we assume a.x == a.y == a.z. The different element will be the
-   * modified one. */
-  if (a.x == a.y) {
-    return a.z;
-  }
-  else if (a.y == a.z) {
-    return a.x;
-  }
-  else if (a.x == a.z) {
-    return a.y;
-  }
-  else {
-    return (a.x + a.y + a.z) / 3.0f;
-  }
-}
-
 static DataTypeConversions create_implicit_conversions()
 {
   DataTypeConversions conversions;
@@ -716,8 +659,6 @@ static DataTypeConversions create_implicit_conversions()
   add_implicit_conversion<math::Quaternion, float4, quaternion_to_float4>(conversions);
   add_implicit_conversion<math::Quaternion, float4x4, quaternion_to_float4x4>(conversions);
 
-  add_implicit_backward_conversion<float3, float, float3_to_float_backward>(conversions);
-
   return conversions;
 }
 
@@ -739,23 +680,6 @@ void DataTypeConversions::convert_to_uninitialized(const CPPType &from_type,
 
   const ConversionFunctions *functions = this->get_conversion_functions(
       DataType::ForSingle(from_type), DataType::ForSingle(to_type));
-  BLI_assert(functions != nullptr);
-
-  functions->convert_single_to_uninitialized(from_value, to_value);
-}
-
-void DataTypeConversions::convert_to_uninitialized_backward(const CPPType &from_type,
-                                                            const CPPType &to_type,
-                                                            const void *from_value,
-                                                            void *to_value) const
-{
-  if (from_type == to_type) {
-    from_type.copy_construct(from_value, to_value);
-    return;
-  }
-
-  const ConversionFunctions *functions = this->get_backward_conversion_functions(from_type,
-                                                                                 to_type);
   BLI_assert(functions != nullptr);
 
   functions->convert_single_to_uninitialized(from_value, to_value);
