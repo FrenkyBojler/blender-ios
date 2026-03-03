@@ -13,6 +13,7 @@ TEST(ANIM_rna, is_rotation_path)
 
   EXPECT_FALSE(is_rotation_path("xrotation_euler"));
   EXPECT_FALSE(is_rotation_path("rotation_euler2"));
+  EXPECT_FALSE(is_rotation_path("pose.bones[\"test\"][\"rotation_euler\"]"));
 }
 
 TEST(ANIM_rna, rotation_mode_from_path)
