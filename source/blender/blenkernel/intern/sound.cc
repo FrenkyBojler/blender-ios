@@ -994,6 +994,8 @@ void BKE_sound_move_scene_sound_defaults(Scene *scene, Strip *strip)
       offset_time = strip->sound->offset_time + strip->sound_offset;
     }
     if (strip->type == STRIP_TYPE_META) {
+      /* For countering the meta_sound_sequence offset that happens when strips are out of the meta
+       * strips bounds. */
       offset_time += strip->startofs / scene->frames_per_second();
     }
     BKE_sound_move_scene_sound(scene,
