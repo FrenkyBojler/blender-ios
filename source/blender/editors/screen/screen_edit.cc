@@ -1955,7 +1955,7 @@ void ED_screen_animation_timer(
 
     sad->sfra = scene->r.cfra;
     /* Make sure that were are inside the scene or preview frame range. */
-    BKE_scene_frame_clamp_to_playback_range(scene, enable > 0);
+    BKE_scene_frame_clamp_for_playback(scene, enable > 0);
     if (scene->r.cfra != sad->sfra) {
       sad->flag |= ANIMPLAY_FLAG_JUMPED;
     }

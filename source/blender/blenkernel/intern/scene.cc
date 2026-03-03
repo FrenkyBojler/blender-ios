@@ -2514,28 +2514,23 @@ int2 BKE_scene_get_playback_range(const Scene *scene)
   return {scene->r.sfra, scene->r.efra};
 }
 
-void BKE_scene_frame_clamp_to_playback_range(Scene *scene, const bool is_playing_forward)
+void BKE_scene_frame_clamp_for_playback(Scene *scene, const bool is_playing_forward)
 {
   const int2 range = BKE_scene_get_playback_range(scene);
-  if (scene->r.flag & SCER_ALLOW_PREROLL) {
-    if (is_playing_forward) {
-      if (scene->r.cfra > range.y) {
-        scene->r.cfra = range[0];
-      }
-    }
-    else {
-      if (scene->r.cfra < range.x) {
-        scene->r.cfra = range[1];
-      }
+  /* To avoid a flicker to the last frame, reset the current frame to the start of the playback
+   * range relative to the playback direction. */
+  if (is_playing_forward) {
+    if (scene->r.cfra > range[1]) {
+      scene->r.cfra = range[0];
     }
   }
   else {
-    if (is_playing_forward) {
-      scene->r.cfra = range[0];
-    }
-    else {
+    if (scene->r.cfra < range[0]) {
       scene->r.cfra = range[1];
     }
+  }
+  if (!(scene->r.flag & SCER_ALLOW_PREROLL)) {
+    scene->r.cfra = clamp_i(scene->r.cfra, range[0], range[1]);
   }
 }
 

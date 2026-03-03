@@ -579,7 +579,7 @@ static void change_frame_apply(bContext *C, wmOperator *op, const bool always_up
   if (screen->animtimer) {
     wmTimer *wt = screen->animtimer;
     ScreenAnimData *sad = static_cast<ScreenAnimData *>(wt->customdata);
-    BKE_scene_frame_clamp_to_playback_range(scene, (sad->flag & ANIMPLAY_FLAG_REVERSE) == 0);
+    BKE_scene_frame_clamp_for_playback(scene, (sad->flag & ANIMPLAY_FLAG_REVERSE) == 0);
   }
   FRAMENUMBER_MIN_CLAMP(scene->r.cfra);
 
