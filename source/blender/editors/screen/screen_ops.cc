@@ -10,7 +10,6 @@
 #include <cstring>
 #include <fmt/format.h>
 
-#include "BLI_compiler_attrs.h"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_build_config.h"
