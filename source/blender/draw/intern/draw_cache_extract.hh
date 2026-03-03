@@ -243,7 +243,7 @@ struct MeshExtractLooseGeom {
   /** Indices of all edges not used by faces in the #Mesh or #BMesh. */
   IndexMask edges;
 
-  std::optional<LinearAllocator<>> allocator;
+  std::unique_ptr<LinearAllocator<>> allocator;
 };
 
 struct SortedFaceData {

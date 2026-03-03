@@ -67,10 +67,12 @@ MeshRuntime::~MeshRuntime()
 
 static void set_bools(MutableSpan<bool> bools, const Span<int> indices_to_set)
 {
-  threading::parallel_for(indices_to_set.index_range(), 8192, [&](const IndexRange range) {
-    for (const int i : range) {
-      bools[i] = true;
-    }
+  threading::memory_bandwidth_bound_task(indices_to_set.size(), [&]() {
+    threading::parallel_for(indices_to_set.index_range(), 8192, [&](const IndexRange range) {
+      for (const int i : range) {
+        bools[i] = true;
+      }
+    });
   });
 }
 

@@ -25,9 +25,12 @@ static void extract_vert_normals_mesh(const MeshRenderData &mr,
 
   Array<gpu::PackedNormal> converted(vert_normals.size());
   convert_normals(vert_normals, converted.as_mutable_span());
-  array_utils::gather(converted.as_span(), mr.corner_verts, corners_data);
+  static_assert(sizeof(gpu::PackedNormal) == sizeof(int32_t));
+  array_utils::gather(
+      converted.as_span().cast<int32_t>(), mr.corner_verts, corners_data.cast<int32_t>());
   extract_mesh_loose_edge_data(converted.as_span(), mr.edges, mr.loose_edges, loose_edge_data);
-  array_utils::gather(converted.as_span(), mr.loose_verts, loose_vert_data);
+  array_utils::gather(
+      converted.as_span().cast<int32_t>(), mr.loose_verts, loose_vert_data.cast<int32_t>());
 }
 
 static void extract_vert_normals_bm(const MeshRenderData &mr,
