@@ -62,6 +62,21 @@ std::optional<SocketValueVariant> convert_single_socket_value(const bNodeSocket 
     void *new_value_ptr = new_value.allocate_single(new_type);
     type_conversions.convert_to_uninitialized(
         *old_cpp_type, *new_cpp_type, old_value_ptr, new_value_ptr);
+
+    if (old_type == SOCK_VECTOR && new_type == SOCK_FLOAT) {
+      /* Need to correct the backward conversion. In backward propagation, we assume a.x == a.y ==
+       * a.z. The different element will be considered as the modified one. */
+      const float3 vector_value = old_value.get<float3>();
+      if (vector_value.x == vector_value.y) {
+        *(float *)new_value_ptr = vector_value.z;
+      }
+      else if (vector_value.y == vector_value.z) {
+        *(float *)new_value_ptr = vector_value.x;
+      }
+      else if (vector_value.x == vector_value.z) {
+        *(float *)new_value_ptr = vector_value.y;
+      }
+    }
     return new_value;
   }
   return std::nullopt;
