@@ -192,6 +192,8 @@ void Instance::init(const int2 &output_res,
     is_image_render = true;
   }
 
+  GPUSamplerState::anisotropic_samples_set(anisotropic_filtering, scene->r.anisotropic_filter);
+
   sampling.init(scene);
   camera.init();
   film.init(output_res, output_rect);

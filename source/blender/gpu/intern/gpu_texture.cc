@@ -683,7 +683,7 @@ void GPU_texture_anisotropic_filter(gpu::Texture *texture, int samples)
 {
   Texture *tex = texture;
   /* Stencil and integer format does not support filtering. */
-  BLI_assert(!(use_aniso) ||
+  BLI_assert(!(samples > 1) ||
              !(tex->format_flag_get() & (GPU_FORMAT_STENCIL | GPU_FORMAT_INTEGER)));
   GPUSamplerFiltering filtering = GPU_SAMPLER_FILTERING_DEFAULT;
   GPUSamplerState::anisotropic_samples_set(filtering, samples);

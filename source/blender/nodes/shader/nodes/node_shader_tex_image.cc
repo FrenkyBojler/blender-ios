@@ -87,7 +87,7 @@ static int node_shader_gpu_tex_image(GPUMaterial *mat,
 
   if (tex->interpolation != SHD_INTERP_CLOSEST) {
     /* TODO(fclem): For now assume mipmap is always enabled. */
-    sampler_state.filtering = GPU_SAMPLER_FILTERING_ANISOTROPIC_2 | GPU_SAMPLER_FILTERING_LINEAR |
+    sampler_state.filtering = GPU_SAMPLER_FILTERING_ANISOTROPIC_MASK | GPU_SAMPLER_FILTERING_LINEAR |
                               GPU_SAMPLER_FILTERING_MIPMAP;
   }
   const bool use_cubic = ELEM(tex->interpolation, SHD_INTERP_CUBIC, SHD_INTERP_SMART);

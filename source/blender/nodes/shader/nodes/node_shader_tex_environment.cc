@@ -49,7 +49,7 @@ static int node_shader_gpu_tex_environment(GPUMaterial *mat,
   NodeTexImage *tex_original = static_cast<NodeTexImage *>(node_original->storage);
   ImageUser *iuser = &tex_original->iuser;
   // TODO: Determine correct anisotropic samples. disable when not needed.
-  GPUSamplerState sampler = {GPU_SAMPLER_FILTERING_LINEAR | GPU_SAMPLER_FILTERING_ANISOTROPIC_2,
+  GPUSamplerState sampler = {GPU_SAMPLER_FILTERING_LINEAR | GPU_SAMPLER_FILTERING_ANISOTROPIC_MASK,
                              GPU_SAMPLER_EXTEND_MODE_REPEAT,
                              GPU_SAMPLER_EXTEND_MODE_REPEAT};
   /* TODO(@fclem): For now assume mipmap is always enabled. */
