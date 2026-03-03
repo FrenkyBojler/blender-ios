@@ -469,28 +469,40 @@ class SocketUsageInferencerImpl {
     const NodeInContext node = socket.owner_node();
     const SocketInContext show_input_socket = node.input_socket(0);
     const SocketInContext message_input_socket = node.input_socket(1);
-    const SocketInContext output_socket = node.output_socket(0);
-    if (socket == show_input_socket) {
-      if (output_socket->is_directly_linked()) {
-        /* In this case the show input usage depends on the output usage. */
+    const SocketInContext show_output_socket = node.output_socket(0);
+    if (show_output_socket->is_directly_linked()) {
+      if (socket == show_input_socket) {
         this->usage_task__with_dependent_sockets(
-            show_input_socket, {&*output_socket}, {}, socket.context);
+            show_input_socket, {&*show_output_socket}, {}, socket.context);
       }
-      else {
-        /* The the output socket is unused, the show input is always used. */
-        all_socket_usages_.add_new(show_input_socket, true);
+      if (socket == message_input_socket) {
+        this->usage_task__with_dependent_sockets(
+            message_input_socket, {&*show_output_socket}, {&*show_input_socket}, socket.context);
       }
+      return;
     }
-    else {
-      /* The message socket is used if the show socket is used and it is true. */
-      if (output_socket->is_directly_linked()) {
-        this->usage_task__with_dependent_sockets(
-            message_input_socket, {&*output_socket}, {&*show_input_socket}, socket.context);
-      }
-      else {
-        this->usage_task__with_dependent_sockets(
-            message_input_socket, {}, {&*show_input_socket}, socket.context);
-      }
+    const ComputeContext *context = node.context;
+    const bool is_in_zone = !dynamic_cast<const bke::GroupNodeComputeContext *>(context);
+    if (is_in_zone) {
+      /* Warning nodes where the output is not linked must not be in a zone. */
+      all_socket_usages_.add_new(socket, false);
+      return;
+    }
+    const bNode *output_node = node->owner_tree().group_output_node();
+    if (!output_node) {
+      all_socket_usages_.add_new(socket, false);
+      return;
+    }
+    const Span<const bNodeSocket *> group_output_sockets = output_node->input_sockets().drop_back(
+        1);
+    /* The warning is used if any of the group outputs is used. */
+    if (socket == show_input_socket) {
+      this->usage_task__with_dependent_sockets(
+          show_input_socket, group_output_sockets, {}, context);
+    }
+    if (socket == message_input_socket) {
+      this->usage_task__with_dependent_sockets(
+          message_input_socket, group_output_sockets, {&*show_input_socket}, context);
     }
   }
 
