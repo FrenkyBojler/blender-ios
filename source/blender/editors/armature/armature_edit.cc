@@ -756,6 +756,14 @@ static wmOperatorStatus armature_fill_bones_exec(bContext *C, wmOperator *op)
 
     /* Create a bone */
     newbone = add_points_bone(obedit, ebp->vec, curs);
+
+    /* Copy bone collection membership. */
+    if (ebp->head_owner) {
+      BLI_duplicatelisttolist(&newbone->bone_collections, &ebp->head_owner->bone_collections);
+    }
+    if (ebp->tail_owner) {
+      BLI_duplicatelisttolist(&newbone->bone_collections, &ebp->tail_owner->bone_collections);
+    }
   }
   else if (count == 2) {
     EditBonePoint *ebp_a, *ebp_b;
@@ -844,6 +852,20 @@ static wmOperatorStatus armature_fill_bones_exec(bContext *C, wmOperator *op)
       /* don't set for bone connecting two head points of bones */
       if (ebp_a->tail_owner || ebp_b->tail_owner) {
         newbone->flag |= BONE_CONNECTED;
+      }
+
+      /* Copy bone collection membership. */
+      if (ebp_a->head_owner) {
+        BLI_duplicatelisttolist(&newbone->bone_collections, &ebp_a->head_owner->bone_collections);
+      }
+      if (ebp_a->tail_owner) {
+        BLI_duplicatelisttolist(&newbone->bone_collections, &ebp_a->tail_owner->bone_collections);
+      }
+      if (ebp_b->head_owner) {
+        BLI_duplicatelisttolist(&newbone->bone_collections, &ebp_b->head_owner->bone_collections);
+      }
+      if (ebp_b->tail_owner) {
+        BLI_duplicatelisttolist(&newbone->bone_collections, &ebp_b->tail_owner->bone_collections);
       }
     }
   }

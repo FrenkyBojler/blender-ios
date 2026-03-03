@@ -847,6 +847,19 @@ void BLI_duplicatelist(ListBase *dst, const ListBase *src)
   }
 }
 
+void BLI_duplicatelisttolist(ListBase *dst, const ListBase *src)
+{
+  Link *dst_link, *src_link;
+  src_link = static_cast<Link *>(src->first);
+
+  while (src_link) {
+    dst_link = MEM_dupalloc(src_link);
+    BLI_addtail(dst, dst_link);
+
+    src_link = src_link->next;
+  }
+}
+
 void BLI_listbase_reverse(ListBase *lb)
 {
   Link *curr = static_cast<Link *>(lb->first);
