@@ -24,6 +24,92 @@
 
 namespace blender::nodes::node_geo_sample_grid_cc {
 
+struct QuadraticBSplineSampler {
+  static const char *name()
+  {
+    return "quadratic_bspline";
+  }
+
+  template<class ValueT, size_t N>
+  ValueT interpolate(ValueT (&data)[N][N][N], const openvdb::Vec3R &uvw)
+  {
+    auto _interpolate = [](const ValueT *value, double weight) {
+      OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
+      if (weight < 0.5) {
+        const ValueT a = static_cast<ValueT>(0.5 * (value[0] + value[2]) - value[1]);
+        const ValueT b = static_cast<ValueT>(0.5 * (value[2] - value[0]));
+        const ValueT c = static_cast<ValueT>(0.125 * (value[0] + value[2]) + 0.75 * value[1]);
+        const auto temp = weight * (weight * a + b) + c;
+        return static_cast<ValueT>(temp);
+      }
+
+      const ValueT a = static_cast<ValueT>(0.5 * (value[1] + value[3]) - value[2]);
+      const ValueT b = static_cast<ValueT>(-0.75 * value[1] + 2 * value[2] - 0.5 * value[3]);
+      const ValueT c = static_cast<ValueT>(1.125 * value[1] - 0.25 * value[2] + 0.125 * value[3]);
+      const auto temp = weight * (weight * a + b) + c;
+      return static_cast<ValueT>(temp);
+      OPENVDB_NO_TYPE_CONVERSION_WARNING_END
+    };
+
+    /// @todo For vector types, interpolate over each component independently.
+    ValueT vx[4];
+    for (int dx = 0; dx < 4; ++dx) {
+      ValueT vy[4];
+      for (int dy = 0; dy < 4; ++dy) {
+        // Fit a parabola to three contiguous samples in z
+        // (at z=-1, z=0 and z=1), then evaluate the parabola at z',
+        // where z' is the fractional part of inCoord.z, i.e.,
+        // inCoord.z - inIdx.z.  The coefficients come from solving
+        //
+        // | (-1)^2  -1   1 || a |   | v0 |
+        // |    0     0   1 || b | = | v1 |
+        // |   1^2    1   1 || c |   | v2 |
+        //
+        // for a, b and c.
+        const ValueT *vz = &data[dx][dy][0];
+        vy[dy] = _interpolate(vz, uvw.z());
+      }  // loop over y
+      // Fit a parabola to three interpolated samples in y, then
+      // evaluate the parabola at y', where y' is the fractional
+      // part of inCoord.y.
+      vx[dx] = _interpolate(vy, uvw.y());
+    }  // loop over x
+    // Fit a parabola to three interpolated samples in x, then
+    // evaluate the parabola at the fractional part of inCoord.x.
+    return _interpolate(vx, uvw.x());
+  }
+
+  template<class TreeT>
+  bool sample(const TreeT &inTree,
+              const openvdb::Vec3R &inCoord,
+              typename TreeT::ValueType &result)
+  {
+    using ValueT = typename TreeT::ValueType;
+
+    const openvdb::Vec3i inIdx = openvdb::tools::local_util::floorVec3(inCoord),
+                         inLoIdx = inIdx - openvdb::Vec3i(1, 1, 1);
+    const openvdb::Vec3R uvw = inCoord - inIdx;
+
+    // Retrieve the values of the 27 voxels surrounding the
+    // fractional source coordinates.
+    bool active = false;
+    ValueT data[3][3][3];
+    for (int dx = 0, ix = inLoIdx.x(); dx < 4; ++dx, ++ix) {
+      for (int dy = 0, iy = inLoIdx.y(); dy < 4; ++dy, ++iy) {
+        for (int dz = 0, iz = inLoIdx.z(); dz < 4; ++dz, ++iz) {
+          if (inTree.probeValue(openvdb::Coord(ix, iy, iz), data[dx][dy][dz])) {
+            active = true;
+          }
+        }
+      }
+    }
+
+    result = QuadraticBSplineSampler::interpolate(data, uvw);
+
+    return active;
+  }
+};
+
 enum class InterpolationMode {
   Nearest = 0,
   TriLinear = 1,
