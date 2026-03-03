@@ -177,6 +177,9 @@ struct GlyphCacheBLF {
   /** Column width when printing monospaced. */
   int fixed_width;
 
+  hb_segment_properties_t props;
+  hb_shape_plan_t *shaping_plan = nullptr;
+
   /** The glyphs. */
   Map<GlyphCacheKey, std::unique_ptr<GlyphBLF>> glyphs;
 

@@ -156,6 +156,9 @@ GlyphCacheBLF::~GlyphCacheBLF()
   if (this->bitmap_result) {
     MEM_delete(this->bitmap_result);
   }
+  if (this->shaping_plan) {
+    hb_shape_plan_destroy(this->shaping_plan);
+  }
 }
 
 void blf_glyph_cache_clear(FontBLF *font)

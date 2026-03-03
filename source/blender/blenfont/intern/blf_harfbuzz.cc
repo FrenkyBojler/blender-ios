@@ -171,8 +171,32 @@ ShapingData::ShapingData(FontBLF *font,
       }
     }
 
-    hb_shape_full(
-        segment_font->hb_font, hb_buf, otf_features.data(), uint(otf_features.size()), nullptr);
+    const bool need_release = (!gc || segment_font != font);
+    GlyphCacheBLF *segment_gc = need_release ? blf_glyph_cache_acquire(segment_font) : gc;
+
+    hb_segment_properties_t props;
+    hb_buffer_get_segment_properties(hb_buf, &props);
+
+    if (segment_gc->shaping_plan != nullptr &&
+        (segment_gc->props.direction != props.direction ||
+         segment_gc->props.script != props.script || segment_gc->props.language != props.language))
+    {
+      hb_shape_plan_destroy(segment_gc->shaping_plan);
+      segment_gc->shaping_plan = nullptr;
+    }
+
+    if (segment_gc->shaping_plan == nullptr) {
+      hb_face_t *face = hb_font_get_face(segment_font->hb_font);
+      hb_buffer_get_segment_properties(hb_buf, &segment_gc->props);
+      segment_gc->shaping_plan = hb_shape_plan_create_cached(
+          face, &segment_gc->props, otf_features.data(), uint(otf_features.size()), nullptr);
+    }
+
+    hb_shape_plan_execute(segment_gc->shaping_plan,
+                          segment_font->hb_font,
+                          hb_buf,
+                          otf_features.data(),
+                          uint(otf_features.size()));
 
     /* Unlikely. Drawing monospaced but changed mid-string to a proportional font. */
     bool set_mono = segment_font != font && font->flags & BLF_MONOSPACED &&
@@ -187,9 +211,6 @@ ShapingData::ShapingData(FontBLF *font,
     uint glyph_count;
     hb_glyph_info_t *hb_glyph_info = hb_buffer_get_glyph_infos(hb_buf, &glyph_count);
     hb_glyph_position_t *glyph_pos = hb_buffer_get_glyph_positions(hb_buf, nullptr);
-
-    const bool need_release = (!gc || segment_font != font);
-    GlyphCacheBLF *segment_gc = need_release ? blf_glyph_cache_acquire(segment_font) : gc;
 
     size_t str8_offset = 0;
     for (i = 0; i < glyph_count; i++) {
