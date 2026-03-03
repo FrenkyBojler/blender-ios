@@ -44,6 +44,7 @@ template<class T, class U> struct is_layout_compatible : std::false_type {};
 
 template<> struct is_layout_compatible<float2, pxr::GfVec2f> : std::true_type {};
 template<> struct is_layout_compatible<float3, pxr::GfVec3f> : std::true_type {};
+template<> struct is_layout_compatible<float4, pxr::GfVec4f> : std::true_type {};
 
 template<> struct is_layout_compatible<pxr::GfVec2f, float2> : std::true_type {};
 template<> struct is_layout_compatible<pxr::GfVec3f, float3> : std::true_type {};
