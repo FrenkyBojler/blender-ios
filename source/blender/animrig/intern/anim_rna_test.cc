@@ -19,7 +19,8 @@ TEST(ANIM_rna, rotation_mode_from_path)
 {
   EXPECT_EQ(ROT_MODE_QUAT, get_rotation_mode_from_path("rotation_quaternion").value());
   EXPECT_EQ(ROT_MODE_EUL, get_rotation_mode_from_path("rotation_euler").value());
-  EXPECT_EQ(ROT_MODE_EUL, get_rotation_mode_from_path("pose.bones[\"test\"].rotation_euler").value());
+  EXPECT_EQ(ROT_MODE_EUL,
+            get_rotation_mode_from_path("pose.bones[\"test\"].rotation_euler").value());
   /* Even though this is not a real path it is still identified as euler. */
   EXPECT_EQ(ROT_MODE_EUL, get_rotation_mode_from_path(".rotation_euler").value());
   EXPECT_EQ(ROT_MODE_AXISANGLE, get_rotation_mode_from_path("rotation_axis_angle").value());

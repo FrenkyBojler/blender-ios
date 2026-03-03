@@ -578,7 +578,7 @@ static void animsys_write_orig_anim_rna(PointerRNA *ptr,
  * separate code should be used.
  */
 static void animsys_evaluate_fcurves(PointerRNA *ptr,
-                                     Span<FCurve *> fcurves,
+                                     const Span<FCurve *> fcurves,
                                      const AnimationEvalContext *anim_eval_context,
                                      bool flush_to_original)
 {
@@ -607,7 +607,7 @@ static void animsys_evaluate_fcurves(PointerRNA *ptr,
  */
 static void animsys_quaternion_evaluate_fcurves(PointerRNA &ptr,
                                                 PropertyRNA *prop,
-                                                Span<FCurve *> quat_fcurves,
+                                                const Span<FCurve *> quat_fcurves,
                                                 const AnimationEvalContext *anim_eval_context,
                                                 float r_quaternion[4])
 {
@@ -641,7 +641,7 @@ static void animsys_quaternion_evaluate_fcurves(PointerRNA &ptr,
  */
 static void animsys_blend_fcurves_quaternion(PointerRNA &ptr,
                                              PropertyRNA *prop,
-                                             Span<FCurve *> quaternion_fcurves,
+                                             const Span<FCurve *> quaternion_fcurves,
                                              const AnimationEvalContext *anim_eval_context,
                                              const float blend_factor)
 {
@@ -660,6 +660,9 @@ static void animsys_blend_fcurves_quaternion(PointerRNA &ptr,
   RNA_property_float_set_array(&ptr, prop, blended_quat);
 }
 
+/**
+ * LERP between current value (blend_factor=0.0) and the value from the FCurve (blend_factor=1.0).
+ */
 static float get_fcurve_blend_value(FCurve &fcu,
                                     PathResolvedRNA &anim_rna,
                                     const AnimationEvalContext *anim_eval_context,
@@ -679,9 +682,8 @@ static float get_fcurve_blend_value(FCurve &fcu,
   switch (RNA_property_type(anim_rna.prop)) {
     case PROP_BOOLEAN: /* Without this, anything less than 1.0 is converted to 'False' by
                         * ANIMSYS_FLOAT_AS_BOOL(). This is probably not desirable for blends,
-                        * where anything
-                        * above a 50% blend should act more like the FCurve than like the
-                        * current value. */
+                        * where anything above a 50% blend should act more like the FCurve than
+                        * like the current value. */
     case PROP_INT:
     case PROP_ENUM:
       value_to_write = roundf(value_to_write);
@@ -696,42 +698,45 @@ static float get_fcurve_blend_value(FCurve &fcu,
 /**
  * Apply the rotation fcurves to the `ptr` by converting them to a matrix first. This means the
  * rotation can be applied regardless of rotation mode.
+ *
+ * \param blend_factor LERP between the current rotation value of the ptr and the value of the
+ * rotation_fcurves. A `1` means the rotation_fcurves will be applied at 100%.
  */
 static void blend_rotation_with_conversion(PointerRNA &ptr,
-                                           Span<FCurve *> rotation_fcurves,
+                                           const Span<FCurve *> rotation_fcurves,
                                            const eRotationModes fcurve_rotation_mode,
                                            const float eval_time,
                                            const float blend_factor)
 {
   /* The rotation data is 0 initialized for reasonable defaults in case some indices have no
    * FCurves associated with them. */
-  float4 rotation_data(0.0);
+  float4 fcurve_rotation_values(0.0);
   if (fcurve_rotation_mode == ROT_MODE_QUAT) {
     /* Default W value for quaternions. */
-    rotation_data[0] = 1.0;
+    fcurve_rotation_values[0] = 1.0;
   }
 
   for (FCurve *fcurve : rotation_fcurves) {
     BLI_assert_msg(fcurve->array_index >= 0 && fcurve->array_index < 4,
                    "Rotation properties have at most 4 components.");
-    rotation_data[fcurve->array_index] = evaluate_fcurve(fcurve, eval_time);
+    fcurve_rotation_values[fcurve->array_index] = evaluate_fcurve(fcurve, eval_time);
   }
 
   /* Converting to a 3x3 matrix makes it easy to apply afterwards. */
   float rotation_matrix[3][3];
   switch (fcurve_rotation_mode) {
     case ROT_MODE_QUAT: {
-      quat_to_mat3(rotation_matrix, rotation_data);
+      quat_to_mat3(rotation_matrix, fcurve_rotation_values);
       break;
     }
     case ROT_MODE_EUL: {
       /* TODO: determine the rotation order for euler angles. This has to be stored at the
        * point of pose creation. */
-      eulO_to_mat3(rotation_matrix, rotation_data, ROT_MODE_XYZ);
+      eulO_to_mat3(rotation_matrix, fcurve_rotation_values, ROT_MODE_XYZ);
       break;
     }
     case ROT_MODE_AXISANGLE: {
-      axis_angle_to_mat3(rotation_matrix, &rotation_data[1], rotation_data[0]);
+      axis_angle_to_mat3(rotation_matrix, &fcurve_rotation_values[1], fcurve_rotation_values[0]);
       break;
     }
     default: {
@@ -762,7 +767,7 @@ static void blend_rotation_with_conversion(PointerRNA &ptr,
 
 static void blend_rotation(PointerRNA &ptr,
                            PropertyRNA *prop,
-                           Span<FCurve *> rotation_fcurves,
+                           const Span<FCurve *> rotation_fcurves,
                            const eRotationModes fcurve_rotation_mode,
                            const AnimationEvalContext *anim_eval_context,
                            const float blend_factor)
@@ -786,7 +791,7 @@ static void blend_rotation(PointerRNA &ptr,
 /* LERP between current value (blend_factor=0.0) and the value from the FCurve (blend_factor=1.0)
  */
 static void animsys_blend_in_fcurves(PointerRNA *ptr,
-                                     Span<FCurve *> fcurves,
+                                     const Span<FCurve *> fcurves,
                                      const AnimationEvalContext *anim_eval_context,
                                      const float blend_factor)
 {
@@ -971,7 +976,7 @@ void animsys_evaluate_action(PointerRNA *ptr,
   /* Note that this is _only_ for evaluation of actions linked by NLA strips. As in, legacy code
    * paths that I (Sybren) tried to keep as much intact as possible when adding support for slotted
    * Actions. This code will go away when we implement layered Actions. */
-  Span<FCurve *> fcurves = animrig::fcurves_for_action_slot(action, action_slot_handle);
+  const Span<FCurve *> fcurves = animrig::fcurves_for_action_slot(action, action_slot_handle);
   animsys_evaluate_fcurves(ptr, fcurves, anim_eval_context, flush_to_original);
 }
 
