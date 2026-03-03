@@ -21,3 +21,4 @@ Referenced by issue #154974, The UV Project and the UV Warp modifiers don't allo
 Referenced by pull request #154993, Fix #154974: impossible to set UV maps in modifiers via UI
 Referenced by commit 5ec945e363cfeae4cf8672f65996719940ab3d41, Fix #154974: impossible to set UV maps in modifiers via UI
 Referenced by issue #155021, Empty attribute names crash blender entering Edit mode (e.g. from importing with legacy FBX importer)
+Referenced by pull request #155108, Fix #155021: attributes.new() can create attributes with empty name
