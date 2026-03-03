@@ -26,22 +26,22 @@ static void node_declare(NodeDeclarationBuilder &b)
 static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Curves");
-  const Field<float> weight = params.extract_input<Field<float>>("Weight");
+  Field<bool> selection = params.extract_input<Field<bool>>("Selection");
 
-  static auto mask_negative = mf::build::SI2_SO<bool, float, bool>(
-      "And", [](bool a, float b) { return a && (b > 0.0f); });
+  static auto clamp_negative = mf::build::SI1_SO<float, float>(
+      "Clamp Negative", [](float value) { return std::max(value, 0.0f); });
+  Field<float> weight(
+      FieldOperation::from(clamp_negative, {params.extract_input<Field<float>>("Weight")}));
 
-  const Field<bool> selection(FieldOperation::from(
-      mask_negative, {params.extract_input<Field<bool>>("Selection"), weight}));
-
+  std::atomic<bool> has_curves = false;
   std::atomic<bool> has_nurbs = false;
 
   geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     if (Curves *curves_id = geometry_set.get_curves_for_write()) {
       bke::CurvesGeometry &curves = curves_id->geometry.wrap();
-      const bke::CurvesFieldContext field_context(*curves_id, AttrDomain::Point);
-
+      has_curves = true;
       if (curves.has_curve_with_type(CURVE_TYPE_NURBS)) {
+        const bke::CurvesFieldContext field_context(*curves_id, AttrDomain::Point);
         bke::try_capture_field_on_geometry(curves.attributes_for_write(),
                                            field_context,
                                            "nurbs_weight",
@@ -58,10 +58,9 @@ static void node_geo_exec(GeoNodeExecParams params)
         if (drawing == nullptr) {
           continue;
         }
-
+        has_curves = true;
         bke::CurvesGeometry &curves = drawing->strokes_for_write();
         if (curves.has_curve_with_type(CURVE_TYPE_NURBS)) {
-          has_nurbs = true;
           bke::try_capture_field_on_geometry(
               curves.attributes_for_write(),
               bke::GreasePencilLayerFieldContext(*grease_pencil, AttrDomain::Point, layer_index),
@@ -69,12 +68,13 @@ static void node_geo_exec(GeoNodeExecParams params)
               bke::AttrDomain::Point,
               selection,
               weight);
+          has_nurbs = true;
         }
       }
     };
   });
 
-  if (!has_nurbs && geometry_set.has_curves()) {
+  if (has_curves && !has_nurbs) {
     params.error_message_add(NodeWarningType::Info, TIP_("Input curves do not have NURBS type"));
   }
 
