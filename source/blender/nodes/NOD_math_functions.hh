@@ -34,6 +34,19 @@ const FloatMathOperationInfo *get_float_math_operation_info(int operation);
 const FloatMathOperationInfo *get_float3_math_operation_info(int operation);
 const FloatMathOperationInfo *get_float_compare_operation_info(int operation);
 
+struct IntegerMathOperationInfo {
+  StringRefNull title_case_name;
+  StringRefNull shader_name;
+
+  IntegerMathOperationInfo() = delete;
+  IntegerMathOperationInfo(StringRefNull title_case_name, StringRefNull shader_name)
+      : title_case_name(title_case_name), shader_name(shader_name)
+  {
+  }
+};
+
+const IntegerMathOperationInfo *get_integer_math_operation_info(int operation);
+
 /**
  * This calls the `callback` with two arguments:
  * 1. The math function that takes a float as input and outputs a new float.

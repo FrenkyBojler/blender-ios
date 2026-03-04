@@ -291,4 +291,57 @@ const FloatMathOperationInfo *get_float3_math_operation_info(const int operation
   return nullptr;
 }
 
+const IntegerMathOperationInfo *get_integer_math_operation_info(const int operation)
+{
+#define RETURN_OPERATION_INFO(title_case_name, shader_name) \
+  { \
+    static const IntegerMathOperationInfo info{title_case_name, shader_name}; \
+    return &info; \
+  } \
+  ((void)0)
+
+  switch (operation) {
+    case NODE_INTEGER_MATH_ADD:
+      RETURN_OPERATION_INFO("Add", "integer_math_add");
+    case NODE_INTEGER_MATH_SUBTRACT:
+      RETURN_OPERATION_INFO("Subtract", "integer_math_subtract");
+    case NODE_INTEGER_MATH_MULTIPLY:
+      RETURN_OPERATION_INFO("Multiply", "integer_math_multiply");
+    case NODE_INTEGER_MATH_DIVIDE:
+      RETURN_OPERATION_INFO("Divide", "integer_math_divide");
+    case NODE_INTEGER_MATH_DIVIDE_FLOOR:
+      RETURN_OPERATION_INFO("Divide Floor", "integer_math_divide_floor");
+    case NODE_INTEGER_MATH_DIVIDE_CEIL:
+      RETURN_OPERATION_INFO("Divide Ceil", "integer_math_divide_ceil");
+    case NODE_INTEGER_MATH_DIVIDE_ROUND:
+      RETURN_OPERATION_INFO("Divide Round", "integer_math_divide_round");
+    case NODE_INTEGER_MATH_POWER:
+      RETURN_OPERATION_INFO("Power", "integer_math_power");
+    case NODE_INTEGER_MATH_MULTIPLY_ADD:
+      RETURN_OPERATION_INFO("Multiply Add", "integer_math_multiply_add");
+    case NODE_INTEGER_MATH_FLOORED_MODULO:
+      RETURN_OPERATION_INFO("Floored Modulo", "integer_math_floored_modulo");
+    case NODE_INTEGER_MATH_MODULO:
+      RETURN_OPERATION_INFO("Modulo", "integer_math_modulo");
+    case NODE_INTEGER_MATH_ABSOLUTE:
+      RETURN_OPERATION_INFO("Absolute", "integer_math_absolute");
+    case NODE_INTEGER_MATH_SIGN:
+      RETURN_OPERATION_INFO("Sign", "integer_math_sign");
+    case NODE_INTEGER_MATH_MINIMUM:
+      RETURN_OPERATION_INFO("Minimum", "integer_math_minimum");
+    case NODE_INTEGER_MATH_MAXIMUM:
+      RETURN_OPERATION_INFO("Maximum", "integer_math_maximum");
+    case NODE_INTEGER_MATH_GCD:
+      RETURN_OPERATION_INFO("GCD", "integer_math_gcd");
+    case NODE_INTEGER_MATH_LCM:
+      RETURN_OPERATION_INFO("LCM", "integer_math_lcm");
+    case NODE_INTEGER_MATH_NEGATE:
+      RETURN_OPERATION_INFO("Negate", "integer_math_negate");
+  }
+
+#undef RETURN_OPERATION_INFO
+
+  return nullptr;
+}
+
 }  // namespace blender::nodes

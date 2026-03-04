@@ -13,11 +13,13 @@
 #include "UI_resources.hh"
 
 #include "NOD_inverse_eval_params.hh"
+#include "NOD_math_functions.hh"
 #include "NOD_rna_define.hh"
 #include "NOD_socket_search_link.hh"
 #include "NOD_value_elem_eval.hh"
 
 #include "node_function_util.hh"
+#include "node_shader_util.hh"
 
 namespace blender::nodes::node_fn_integer_math_cc {
 
@@ -226,6 +228,33 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
   builder.set_matching_fn(fn);
 }
 
+static const char *gpu_shader_get_name(int mode)
+{
+  const IntegerMathOperationInfo *info = get_integer_math_operation_info(mode);
+  if (!info) {
+    return nullptr;
+  }
+  if (info->shader_name.is_empty()) {
+    return nullptr;
+  }
+  return info->shader_name.c_str();
+}
+
+static int gpu_shader_integer_math(GPUMaterial *mat,
+                                   bNode *node,
+                                   bNodeExecData * /*execdata*/,
+                                   GPUNodeStack *in,
+                                   GPUNodeStack *out)
+{
+  const char *name = gpu_shader_get_name(node->custom1);
+  if (name != nullptr) {
+    int ret = GPU_stack_link(mat, node, name, in, out);
+    return ret;
+  }
+
+  return 0;
+}
+
 static void node_eval_elem(value_elem::ElemEvalParams &params)
 {
   using namespace value_elem;
@@ -321,6 +350,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
   ntype.labelfunc = node_label;
+  ntype.gpu_fn = gpu_shader_integer_math;
   ntype.updatefunc = node_update;
   ntype.build_multi_function = node_build_multi_function;
   ntype.draw_buttons = node_layout;

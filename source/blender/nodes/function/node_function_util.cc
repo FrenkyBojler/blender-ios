@@ -17,9 +17,9 @@ static bool fn_node_poll_default(const bke::bNodeType * /*ntype*/,
                                  const bNodeTree *ntree,
                                  const char **r_disabled_hint)
 {
-  /* Function nodes are only supported in simulation node trees so far. */
-  if (!STREQ(ntree->idname, "GeometryNodeTree")) {
-    *r_disabled_hint = RPT_("Not a geometry node tree");
+  /* Function nodes are supported in Geometry and Compositor node trees. */
+  if (!STREQ(ntree->idname, "GeometryNodeTree") && !STREQ(ntree->idname, "CompositorNodeTree")) {
+    *r_disabled_hint = RPT_("Not a geometry or compositor node tree");
     return false;
   }
   return true;
