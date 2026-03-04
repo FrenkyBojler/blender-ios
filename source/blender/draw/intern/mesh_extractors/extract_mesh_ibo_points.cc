@@ -55,12 +55,12 @@ static void process_ibo_verts_mesh(const MeshRenderData &mr, const Fn &process_v
         process_vert_fn(loose_edges_start + pos * 2 + 0, edge[0]);
         process_vert_fn(loose_edges_start + pos * 2 + 1, edge[1]);
       },
-      exec_mode::grain_size(2048));
+      exec_mode::grain_size(8196));
 
   const int loose_verts_start = mr.corners_num + mr.loose_edges.size() * 2;
   mr.loose_verts.foreach_index_optimized<int>(
       [&](const int i, const int pos) { process_vert_fn(loose_verts_start + pos, i); },
-      exec_mode::grain_size(2048));
+      exec_mode::grain_size(8196));
 }
 
 static gpu::IndexBufPtr extract_points_mesh(const MeshRenderData &mr)
@@ -121,12 +121,12 @@ static void process_ibo_verts_bm(const MeshRenderData &mr, const Fn &process_ver
         process_vert_fn(loose_edges_start + pos * 2 + 0, BM_elem_index_get(edge.v1));
         process_vert_fn(loose_edges_start + pos * 2 + 1, BM_elem_index_get(edge.v2));
       },
-      exec_mode::grain_size(2048));
+      exec_mode::grain_size(4096));
 
   const int loose_verts_start = mr.corners_num + mr.loose_edges.size() * 2;
   mr.loose_verts.foreach_index_optimized<int>(
       [&](const int i, const int pos) { process_vert_fn(loose_verts_start + pos, i); },
-      exec_mode::grain_size(2048));
+      exec_mode::grain_size(4096));
 }
 
 static gpu::IndexBufPtr extract_points_bm(const MeshRenderData &mr)
@@ -211,10 +211,8 @@ static gpu::IndexBufPtr extract_points_subdiv_mesh(const MeshRenderData &mr,
                                                    const DRWSubdivCache &subdiv_cache)
 {
   const Span<int2> coarse_edges = mr.edges;
-  const IndexMask &loose_verts = mr.loose_verts;
-  const IndexMask &loose_edges = mr.loose_edges;
   const int verts_per_edge = subdiv_verts_per_coarse_edge(subdiv_cache);
-  const int loose_edge_verts_num = verts_per_edge * loose_edges.size();
+  const int loose_edge_verts_num = verts_per_edge * mr.loose_edges.size();
 
   const Span<bool> hide_vert = mr.hide_vert;
   const Span<int> corner_orig_verts = subdiv_cache.verts_orig_index->data<int>();
@@ -227,16 +225,16 @@ static gpu::IndexBufPtr extract_points_subdiv_mesh(const MeshRenderData &mr,
   visible_corners = calc_vert_visibility_mapped_mesh(
       mr, visible_corners, corner_orig_verts, memory);
 
-  Array<int, 64> loose_verts_random_access(mr.loose_verts.size());
-  mr.loose_verts.to_indices(loose_verts_random_access.as_mutable_span());
+  Array<int, 64> loose_verts(mr.loose_verts.size());
+  mr.loose_verts.to_indices(loose_verts.as_mutable_span());
   const IndexMask visible_loose = calc_vert_visibility_mapped_mesh(
-      mr, IndexMask(loose_verts.size()), loose_verts_random_access, memory);
+      mr, IndexMask(loose_verts.size()), loose_verts, memory);
 
   const int max_index = subdiv_cache.num_subdiv_loops + loose_edge_verts_num + loose_verts.size();
   GPUIndexBufBuilder builder;
   GPU_indexbuf_init(&builder,
                     GPU_PRIM_POINTS,
-                    visible_corners.size() + loose_edges.size() * 2 + visible_loose.size(),
+                    visible_corners.size() + mr.loose_edges.size() * 2 + visible_loose.size(),
                     max_index);
   MutableSpan<uint> data = GPU_indexbuf_get_data(&builder);
 
@@ -252,14 +250,14 @@ static gpu::IndexBufPtr extract_points_subdiv_mesh(const MeshRenderData &mr,
     return true;
   };
 
-  MutableSpan loose_edge_data = data.slice(visible_corners.size(), loose_edges.size() * 2);
+  MutableSpan loose_edge_data = data.slice(visible_corners.size(), mr.loose_edges.size() * 2);
   const int loose_geom_start = subdiv_cache.num_subdiv_loops;
-  for (const int i : loose_edges.index_range()) {
-    const int2 edge = coarse_edges[loose_edges[i]];
-    const IndexRange edge_range(loose_geom_start + i * verts_per_edge, verts_per_edge);
-    loose_edge_data[i * 2 + 0] = show_vert(edge[0]) ? edge_range.first() : gpu::RESTART_INDEX;
-    loose_edge_data[i * 2 + 1] = show_vert(edge[1]) ? edge_range.last() : gpu::RESTART_INDEX;
-  }
+  mr.loose_edges.foreach_index([&](const int i, const int pos) {
+    const int2 edge = coarse_edges[i];
+    const IndexRange edge_range(loose_geom_start + pos * verts_per_edge, verts_per_edge);
+    loose_edge_data[pos * 2 + 0] = show_vert(edge[0]) ? edge_range.first() : gpu::RESTART_INDEX;
+    loose_edge_data[pos * 2 + 1] = show_vert(edge[1]) ? edge_range.last() : gpu::RESTART_INDEX;
+  });
 
   MutableSpan loose_vert_data = data.take_back(visible_loose.size()).cast<int32_t>();
   const int loose_verts_start = loose_geom_start + loose_edge_verts_num;

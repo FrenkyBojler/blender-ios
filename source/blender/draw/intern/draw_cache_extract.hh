@@ -242,7 +242,7 @@ struct MeshExtractLooseGeom {
   IndexMask verts;
   /** Indices of all edges not used by faces in the #Mesh or #BMesh. */
   IndexMask edges;
-
+  /** Used for BMesh which does not cache loose geometry index masks. */
   std::unique_ptr<LinearAllocator<>> allocator;
 };
 

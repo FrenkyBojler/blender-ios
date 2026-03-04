@@ -1839,7 +1839,7 @@ std::optional<Mesh *> mesh_merge_by_distance_connected(const Mesh &mesh,
 
   /* Collapse Edges that are shorter than the threshold. */
 
-  IndexMask mask = only_loose_edges ? mesh.loose_edges() : IndexMask(mesh.edges().size());
+  const IndexMask mask = only_loose_edges ? mesh.loose_edges() : IndexMask(mesh.edges().size());
 
   mask.foreach_index([&](const int i) {
     int v1 = edges[i][0];

@@ -8,7 +8,6 @@
 
 #pragma once
 
-#include "BLI_index_mask_fwd.hh"
 #include "DNA_ID.h"
 #include "DNA_attribute_types.h"
 #include "DNA_customdata_types.h"
@@ -16,6 +15,7 @@
 
 #include <optional>
 
+#include "BLI_index_mask_fwd.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_memory_counter_fwd.hh"
 #include "BLI_vector_set.hh"

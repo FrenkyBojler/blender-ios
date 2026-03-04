@@ -160,7 +160,7 @@ static void extract_edit_data_mesh(const MeshRenderData &mr, MutableSpan<EditLoo
           mesh_render_data_vert_flag(mr, bm_vert, value_2);
         }
       },
-      exec_mode::grain_size(4096));
+      exec_mode::grain_size(2048));
 
   mr.loose_verts.foreach_index(
       [&](const int vert, const int pos) {
@@ -169,7 +169,7 @@ static void extract_edit_data_mesh(const MeshRenderData &mr, MutableSpan<EditLoo
           mesh_render_data_vert_flag(mr, eve, loose_vert_data[pos]);
         }
       },
-      exec_mode::grain_size(4096));
+      exec_mode::grain_size(2048));
 }
 
 static void extract_edit_data_bm(const MeshRenderData &mr, MutableSpan<EditLoopData> vbo_data)
@@ -209,7 +209,7 @@ static void extract_edit_data_bm(const MeshRenderData &mr, MutableSpan<EditLoopD
         mesh_render_data_vert_flag(mr, edge.v1, value_1);
         mesh_render_data_vert_flag(mr, edge.v2, value_2);
       },
-      exec_mode::grain_size(4096));
+      exec_mode::grain_size(2048));
 
   mr.loose_verts.foreach_index(
       [&](const int vert_i, const int pos) {
@@ -217,7 +217,7 @@ static void extract_edit_data_bm(const MeshRenderData &mr, MutableSpan<EditLoopD
         const BMVert &vert = *BM_vert_at_index(&const_cast<BMesh &>(bm), vert_i);
         mesh_render_data_vert_flag(mr, &vert, loose_vert_data[pos]);
       },
-      exec_mode::grain_size(4096));
+      exec_mode::grain_size(2048));
 }
 
 gpu::VertBufPtr extract_edit_data(const MeshRenderData &mr)
@@ -302,7 +302,7 @@ static void extract_edit_subdiv_data_mesh(const MeshRenderData &mr,
           mesh_render_data_vert_flag(mr, bm_vert, data.last());
         }
       },
-      exec_mode::grain_size(4096));
+      exec_mode::grain_size(2048));
 
   mr.loose_verts.foreach_index(
       [&](const int vert, const int pos) {
@@ -311,7 +311,7 @@ static void extract_edit_subdiv_data_mesh(const MeshRenderData &mr,
           mesh_render_data_vert_flag(mr, eve, loose_vert_data[pos]);
         }
       },
-      exec_mode::grain_size(4096));
+      exec_mode::grain_size(2048));
 }
 
 static void extract_edit_subdiv_data_bm(const MeshRenderData &mr,
@@ -369,7 +369,7 @@ static void extract_edit_subdiv_data_bm(const MeshRenderData &mr,
         mesh_render_data_vert_flag(mr, edge->v1, data.first());
         mesh_render_data_vert_flag(mr, edge->v2, data.last());
       },
-      exec_mode::grain_size(4096));
+      exec_mode::grain_size(2048));
 
   mr.loose_verts.foreach_index(
       [&](const int vert_i, const int pos) {
@@ -377,7 +377,7 @@ static void extract_edit_subdiv_data_bm(const MeshRenderData &mr,
         const BMVert *vert = BM_vert_at_index(&bm, vert_i);
         mesh_render_data_vert_flag(mr, vert, loose_vert_data[pos]);
       },
-      exec_mode::grain_size(4096));
+      exec_mode::grain_size(2048));
 }
 
 gpu::VertBufPtr extract_edit_data_subdiv(const MeshRenderData &mr,
