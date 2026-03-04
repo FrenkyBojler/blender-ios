@@ -255,4 +255,13 @@ void BlenderSession::builtin_images_load()
   manager->device_load_builtin(device, session->scene.get(), session->progress);
 }
 
+size_t BlenderImageLoader::get_update_count() const
+{
+  if (b_image == nullptr) {
+    return (size_t)0;
+  }
+
+  return b_image->runtime->update_count;
+}
+
 CCL_NAMESPACE_END
