@@ -78,34 +78,11 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   double time = (frame + frame_offset) / 24;
 
-  Object *self_object = const_cast<Object *>(params.self_object());
-  const char *err_str = nullptr;
-  GeometrySet geometry_set;
-  Mesh *mesh = BKE_mesh_new_nomain(0, 0, 0, 0);
-  geometry_set.replace_mesh(mesh);
-
 #ifdef WITH_ALEMBIC
   const std::optional<std::string> path = params.ensure_absolute_path(
       params.extract_input<std::string>("Path"));
   const std::string object_path = params.extract_input<std::string>("Object Path");
   if (!path) {
-    params.set_default_remaining_outputs();
-    return;
-  }
-
-  CacheArchiveHandle *handle = ABC_create_handle(params.bmain(), path->c_str(), nullptr, nullptr);
-  if (!handle) {
-    params.error_message_add(NodeWarningType::Error, TIP_("No handle"));
-    params.set_default_remaining_outputs();
-    return;
-  }
-
-  CacheReader *reader = CacheReader_open_alembic_object(
-      handle, nullptr, self_object, object_path.c_str(), is_sequence);
-
-  if (!reader) {
-    ABC_free_handle(handle);
-    params.error_message_add(NodeWarningType::Error, TIP_("No reader/object"));
     params.set_default_remaining_outputs();
     return;
   }
@@ -117,20 +94,16 @@ static void node_geo_exec(GeoNodeExecParams params)
   read_params.read_flags = (MOD_MESHSEQ_READ_VERT | MOD_MESHSEQ_READ_POLY | MOD_MESHSEQ_READ_UV |
                             MOD_MESHSEQ_READ_COLOR | MOD_MESHSEQ_READ_ATTRIBUTES);
 
-  ABC_read_geometry(reader, self_object, geometry_set, &read_params, &err_str);
-
-  if (err_str) {
-    params.error_message_add(NodeWarningType::Error, err_str);
-  }
-  if (geometry_set.is_empty()) {
-    params.error_message_add(NodeWarningType::Error, "No geometry");
-  }
-
   Vector<bke::GeometrySet> geometries;
-  geometries.append(geometry_set);
+  Vector<float4x4> f4x4s;
 
-  float mat[4][4];
-  ABC_get_transform(reader, mat, read_params.time, 1);
+  ABC_geo_and_trans(params.bmain(), path->c_str(), &read_params, geometries, f4x4s);
+
+  if (geometries.size() == 0) {
+    params.error_message_add(NodeWarningType::Error, "No geometry");
+    params.set_default_remaining_outputs();
+    return;
+  }
 
   auto instances = std::make_unique<bke::Instances>(geometries.size());
   MutableSpan<int> handles = instances->reference_handles_for_write();
@@ -138,13 +111,10 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   for (const int i : geometries.index_range()) {
     handles[i] = instances->add_reference(bke::InstanceReference{std::move(geometries[i])});
-    transforms[i] = float4x4(mat);
+    transforms[i] = f4x4s[i];
   }
 
   params.set_output("Instances", bke::GeometrySet::from_instances(std::move(instances)));
-
-  ABC_CacheReader_free(reader);
-  ABC_free_handle(handle);
 
 #else
   params.error_message_add(NodeWarningType::Error,

@@ -12,6 +12,8 @@
 
 #include "DEG_depsgraph.hh"
 
+#include "BKE_geometry_set.hh"
+
 namespace blender {
 
 struct CacheArchiveHandle;
@@ -154,5 +156,11 @@ struct CacheReader *CacheReader_open_alembic_object(struct CacheArchiveHandle *h
                                                     struct Object *object,
                                                     const char *object_path,
                                                     bool is_sequence);
+
+void ABC_geo_and_trans(Main *bmain,
+                       const char *filepath,
+                       const ABCReadParams *params,
+                       Vector<bke::GeometrySet> &geometries,
+                       Vector<float4x4> &transforms);
 
 }  // namespace blender

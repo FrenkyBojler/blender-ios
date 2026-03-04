@@ -61,6 +61,9 @@
 
 #include "CLG_log.h"
 
+#include "BKE_geometry_set.hh"
+#include "BKE_mesh.h"
+
 namespace blender {
 
 static CLG_LogRef LOG = {"io.alembic"};
@@ -957,6 +960,83 @@ CacheReader *CacheReader_open_alembic_object(CacheArchiveHandle *handle,
   abc_reader->incref();
 
   return reinterpret_cast<CacheReader *>(abc_reader);
+}
+
+void ABC_geo_and_trans(Main *bmain,
+                       const char *filepath,
+                       const ABCReadParams *params,
+                       Vector<bke::GeometrySet> &geometries,
+                       Vector<float4x4> &transforms)
+{
+  ArchiveReader *archive = ArchiveReader::get(bmain, {filepath});
+  if (!archive || !archive->valid()) {
+    printf("No archive");
+    delete archive;
+    return;
+  }
+
+  ImportSettings settings;
+  Vector<ArchiveReader *> archives;
+  AbcObjectReader::ptr_vector assign_as_parent;
+  std::vector<AbcObjectReader *> readers{};
+
+  CacheFile cache_file = {};
+  STRNCPY(cache_file.filepath, filepath);
+
+  archives.append(archive);
+  settings.cache_file = &cache_file;
+  settings.blender_archive_version_prior_44 = archive->is_blender_archive_version_prior_44();
+
+  visit_object(archive->getTop(), readers, settings, assign_as_parent);
+  sort_readers(readers);
+
+  ISampleSelector sample_sel = sample_selector_for_time(params->time);
+
+  std::vector<AbcObjectReader *>::iterator iter;
+  for (iter = readers.begin(); iter != readers.end(); ++iter) {
+    AbcObjectReader *reader = *iter;
+
+    const char *err_str = nullptr;
+    bke::GeometrySet geometry_set;
+    Mesh *mesh = BKE_mesh_new_nomain(0, 0, 0, 0);
+    geometry_set.replace_mesh(mesh);
+
+    // Object *ob = reader->object();
+
+    reader->read_geometry(geometry_set,
+                          sample_sel,
+                          params->read_flags,
+                          params->velocity_name,
+                          params->velocity_scale,
+                          &err_str);
+    if (err_str) {
+      printf("%s\n", err_str);
+      return;
+    }
+
+    if (!geometry_set.is_empty()) {
+      geometry_set.name = std::string(reader->name());
+
+      Object ob = {};
+      reader->object(&ob);
+
+      float mat[4][4];
+      bool is_constant = false;
+      reader->read_matrix(mat, params->time, 1.0f, is_constant);
+
+      geometries.append(geometry_set);
+      transforms.append(float4x4(mat));
+    }
+  }
+
+  for (AbcObjectReader *reader : readers) {
+    reader->decref();
+
+    if (reader->refcount() == 0) {
+      delete reader;
+    }
+  }
+  delete archive;
 }
 
 }  // namespace blender
