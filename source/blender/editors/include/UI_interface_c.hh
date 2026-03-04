@@ -1922,6 +1922,19 @@ void button_func_tooltip_custom_set(Button *but,
                                     void *arg,
                                     FreeArgFunc free_arg);
 
+template<typename Func> void button_func_tooltip_custom_set_cpp(Button &but, Func &&func)
+{
+  Func *allocated = MEM_new<Func>(__func__, std::forward<Func>(func));
+  button_func_tooltip_custom_set(
+      &but,
+      [](bContext &C, ui::TooltipData &data, ui::Button * /*but*/, void *argN) {
+        const Func &func = *static_cast<Func *>(argN);
+        func(C, data);
+      },
+      allocated,
+      [](void *arg) { MEM_delete<Func>(static_cast<Func *>(arg)); });
+}
+
 /**
  * \param text: Allocated text (transfer ownership to `data`) or null.
  * \param suffix: Allocated text (transfer ownership to `data`) or null.
@@ -2844,7 +2857,7 @@ int fontstyle_height_max(const uiFontStyle *fs);
 /**
  * Triangle 'icon' for panel header and other cases.
  */
-void draw_icon_tri(float x, float y, char dir, const float[4]);
+void draw_icon_tri(float x, float y, char dir, const float[4], float aspect = 1.0f);
 
 /**
  * Read a style (without any scaling applied).
