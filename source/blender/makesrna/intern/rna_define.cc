@@ -885,6 +885,13 @@ void RNA_free(BlenderRNA *brna)
 
     /* Reverse iteration to make removing from vector faster. */
     for (auto srna = brna->structs.rbegin(); srna != brna->structs.rend(); srna++) {
+      if (brna->runtime) {
+#ifdef RNA_RUNTIME
+#  ifdef WITH_PYTHON
+        BPY_free_srna_pytype(srna->get());
+#  endif
+#endif
+      }
       RNA_struct_free(brna, srna->get());
     }
 
