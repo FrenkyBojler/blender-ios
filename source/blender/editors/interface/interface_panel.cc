@@ -871,9 +871,9 @@ static void ui_offset_panel_block(Block *block)
   const int panels_space = style->panelspace;
   const int ofsy = block->panel->sizey - panels_space;
 
-  for (const std::unique_ptr<Button> &but : block->buttons) {
-    but->rect.ymin += ofsy;
-    but->rect.ymax += ofsy;
+  for (Button &but : block->buttons()) {
+    but.rect.ymin += ofsy;
+    but.rect.ymax += ofsy;
   }
   for (LayoutPanelBody &body : block->panel->runtime->layout_panels.bodies) {
     body.start_y -= panels_space;
@@ -960,8 +960,8 @@ static void panel_remove_invisible_layouts_recursive(Panel *panel, const Panel *
   if (parent_panel != nullptr && panel_is_closed(parent_panel)) {
     /* The parent panel is closed, so this panel can be completely removed. */
     block_set_search_only(block, true);
-    for (const std::unique_ptr<Button> &but : block->buttons) {
-      but->flag |= UI_HIDDEN;
+    for (Button &but : block->buttons()) {
+      but.flag |= UI_HIDDEN;
     }
   }
   else if (panel_is_closed(panel)) {
@@ -1934,8 +1934,11 @@ static void ui_do_animate(bContext *C, Panel *panel)
   HandlePanelData *data = static_cast<HandlePanelData *>(panel->activedata);
   ARegion *region = CTX_wm_region(C);
 
-  float fac = (BLI_time_now_seconds() - data->starttime) / ANIMATION_TIME;
-  fac = min_ff(sqrtf(fac), 1.0f);
+  float fac = 1.0f;
+  if (!(U.uiflag & USER_REDUCE_MOTION)) {
+    fac = (BLI_time_now_seconds() - data->starttime) / ANIMATION_TIME;
+    fac = min_ff(sqrtf(fac), 1.0f);
+  }
 
   if (uiAlignPanelStep(region, fac, false)) {
     ED_region_tag_redraw(region);

@@ -2021,6 +2021,9 @@ struct bNodeTree {
   int interface_input_index(const bNodeTreeInterfaceSocket &io_socket) const;
   int interface_output_index(const bNodeTreeInterfaceSocket &io_socket) const;
   int interface_item_index(const bNodeTreeInterfaceItem &io_item) const;
+
+  int interface_input_index_by_identifier(StringRef identifier) const;
+  int interface_output_index_by_identifier(StringRef identifier) const;
 #endif
 };
 
@@ -2138,6 +2141,13 @@ struct NodeFrame {
 
 struct NodeReroute {
   DNA_DEFINE_CXX_METHODS(NodeReroute)
+
+  /** Name of the socket type (e.g. `NodeSocketFloat`). */
+  char type_idname[64] = "";
+};
+
+struct NodeImplicitConversion {
+  DNA_DEFINE_CXX_METHODS(NodeImplicitConversion)
 
   /** Name of the socket type (e.g. `NodeSocketFloat`). */
   char type_idname[64] = "";
@@ -2339,7 +2349,9 @@ struct NodeCompositorFileOutput {
   int active_item_index = 0;
   /* Apply the render part of the display transform when saving non-linear images. */
   char save_as_render = 0;
-  char _pad[7] = {};
+  /* Add a file extension to the file name. */
+  char use_file_extension = 0;
+  char _pad[6] = {};
 };
 
 struct NodeImageMultiFileSocket {
@@ -2976,6 +2988,13 @@ struct NodeInputInt {
   int integer = 0;
 };
 
+struct NodeInputMenu {
+  DNA_DEFINE_CXX_METHODS(NodeInputMenu)
+
+  /* Note: enum items are determined by the node output socket. */
+  int value = 0;
+};
+
 struct NodeInputRotation {
   DNA_DEFINE_CXX_METHODS(NodeInputRotation)
 
@@ -2985,7 +3004,8 @@ struct NodeInputRotation {
 struct NodeInputVector {
   DNA_DEFINE_CXX_METHODS(NodeInputVector)
 
-  float vector[3] = {};
+  float vector[4] = {};
+  int dimensions = 3;
 };
 
 struct NodeInputColor {
