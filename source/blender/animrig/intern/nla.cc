@@ -94,8 +94,8 @@ ActionSlotAssignmentResult assign_action_slot_handle(NlaStrip &strip,
 
 /* Check indices that were intended to be remapped and report any failed remaps. */
 static void get_keyframe_values_create_reports(ReportList *reports,
-                                               PointerRNA ptr,
-                                               PropertyRNA *prop,
+                                               const PointerRNA &ptr,
+                                               const PropertyRNA *prop,
                                                const int index,
                                                const int count,
                                                const bool force_all,
@@ -139,7 +139,7 @@ static void get_keyframe_values_create_reports(ReportList *reports,
               RNA_property_ui_name(prop),
               str_failed_indices);
 
-  MEM_freeN(str_failed_indices);
+  MEM_delete(str_failed_indices);
 }
 
 static BitVector<> nla_map_keyframe_values_and_generate_reports(

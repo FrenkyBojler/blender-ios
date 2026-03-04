@@ -434,7 +434,7 @@ SingleKeyingResult insert_keyframe_value(FCurve *fcu,
                                          const eBezTriple_KeyframeType keytype,
                                          const eInsertKeyFlags flag)
 {
-  if (!BKE_fcurve_is_keyframable(fcu)) {
+  if (!BKE_fcurve_is_keyframable(*fcu)) {
     return SingleKeyingResult::FCURVE_NOT_KEYFRAMEABLE;
   }
 

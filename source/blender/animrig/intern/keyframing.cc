@@ -88,6 +88,8 @@ void generate_single_keying_result_report(const SingleKeyingResult result, Repor
     case SingleKeyingResult::CANNOT_RESOLVE_PATH:
       BKE_reportf(reports, RPT_ERROR, "Invalid RNA path. Cannot insert key.");
       break;
+    case SingleKeyingResult::_KEYING_RESULT_MAX:
+      break;
   }
 }
 
