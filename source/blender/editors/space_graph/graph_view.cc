@@ -585,7 +585,7 @@ static wmOperatorStatus graphview_fcurves_isolate_exec(bContext *C, wmOperator *
   bAnimContext ac;
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   SpaceGraph *sipo = CTX_wm_space_graph(C);
-  bool enter_local_view = (sipo->local_view_bits == 0);
+  const bool enter_local_view = (sipo->local_view_bits == 0);
   bool changed = false;
 
   if (ANIM_animdata_get_context(C, &ac) == 0) {
