@@ -95,7 +95,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeSetNurbsOrder");
+  geo_node_type_base(&ntype, "GeometryNodeSetNURBSOrder");
   ntype.ui_name = "Set NURBS Order";
   ntype.ui_description =
       "Control how many curve control points influence each evaluated point by changing the "

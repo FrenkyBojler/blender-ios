@@ -101,7 +101,7 @@ class NODE_MT_gn_curve_write_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeSetCurveTilt")
         self.node_operator(layout, "GeometryNodeSetCurveHandlePositions")
         self.node_operator(layout, "GeometryNodeCurveSetHandles")
-        self.node_operator(layout, "GeometryNodeSetNurbsOrder")
+        self.node_operator(layout, "GeometryNodeSetNURBSOrder")
         self.node_operator(layout, "GeometryNodeSetSplineCyclic")
         self.node_operator(layout, "GeometryNodeSetSplineResolution")
         self.node_operator(layout, "GeometryNodeCurveSplineType")
