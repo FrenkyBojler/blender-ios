@@ -572,10 +572,6 @@ bool vertex_paint_mode_poll(bContext *C)
     return false;
   }
 
-  if (!BKE_id_attributes_color_find(&mesh->id, mesh->active_color_attribute)) {
-    return false;
-  }
-
   return true;
 }
 
@@ -1023,11 +1019,13 @@ bool VertexPaintStroke::test_start(wmOperator *op, const float mouse[2])
     return false;
   }
 
-  ED_mesh_color_ensure(mesh, nullptr);
+  if (!ED_mesh_color_ensure(mesh, nullptr)) {
+    return false;
+  }
 
   const std::optional<bke::AttributeMetaData> meta_data = mesh->attributes().lookup_meta_data(
       mesh->active_color_attribute);
-  if (!BKE_id_attributes_color_find(&mesh->id, mesh->active_color_attribute)) {
+  if (!meta_data) {
     return false;
   }
 
