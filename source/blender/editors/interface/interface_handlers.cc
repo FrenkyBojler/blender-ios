@@ -11960,7 +11960,7 @@ static constexpr float menu_dim_step_in = 0.015f;
 static constexpr float menu_dim_step_out = -0.025f;
 static constexpr float menu_dim_step_interval = 0.015f;
 
-bool menu_dim_recursive(bContext *C, PopupBlockHandle *menu, const wmEvent *event, int level)
+static bool menu_dim_recursive(bContext *C, PopupBlockHandle *menu, const wmEvent *event, int level)
 {
   Button *but = region_find_active_but(menu->region);
   HandleButtonData *data = (but) ? but->active : nullptr;
