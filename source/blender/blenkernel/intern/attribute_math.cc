@@ -2,13 +2,13 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <algorithm>
+
 #include "BLI_array_utils.hh"
-#include "BLI_math_euler.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_quaternion.hh"
 
 #include "BKE_attribute_math.hh"
-#include <algorithm>
 
 namespace blender::bke::attribute_math {
 
@@ -299,8 +299,8 @@ void mix_groups(const Span<bool> src,
                 MutableSpan<bool> dst)
 {
   for (const int dst_i : groups.index_range()) {
-    const Span<int> indices = all_indices.slice(groups[dst_i]);
-    dst[dst_i] = std::ranges::any_of(indices, [&](const int i) { return src[i]; });
+    dst[dst_i] = std::ranges::any_of(all_indices.slice(groups[dst_i]),
+                                     [&](const int i) { return src[i]; });
   }
 }
 
