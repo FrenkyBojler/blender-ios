@@ -30,8 +30,8 @@ class TransformOperators(unittest.TestCase):
         bpy.context.view_layer.objects.active = test_monkey
 
         window = bpy.context.window_manager.windows[0]
-        viewarea_3D = next(area for area in window.screen.areas if area.type=='VIEW_3D')
-        window_region = next(region for region in viewarea_3D.regions if region.type=='WINDOW')
+        viewarea_3D = next(area for area in window.screen.areas if area.type == 'VIEW_3D')
+        window_region = next(region for region in viewarea_3D.regions if region.type == 'WINDOW')
         override_context = {
             "window": window,
             "area": viewarea_3D,
