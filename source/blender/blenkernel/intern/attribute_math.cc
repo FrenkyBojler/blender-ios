@@ -272,25 +272,18 @@ void for_chunk_ranges(const IndexRange range, const int chunk_size, const Fn &fn
 
 template<typename T>
 void mix_groups(const Span<T> src,
-                const OffsetIndices<int> all_groups,
+                const OffsetIndices<int> groups,
                 const Span<int> all_indices,
-                MutableSpan<T> all_dst)
+                MutableSpan<T> dst)
 {
-  for_chunk_ranges(all_dst.index_range(), CHUNK_SIZE, [&](const IndexRange range) {
-    const OffsetIndices<int> groups = all_groups.slice(range);
-    MutableSpan<T> dst = all_dst.slice(range);
 
-    dst.fill(T());
-    for (const int dst_i : range.index_range()) {
-      for (const int src_i : all_indices.slice(groups[dst_i])) {
-        dst[dst_i] += src[src_i];
-      }
+  for (const int dst_i : dst.index_range()) {
+    T accum(0);
+    for (const int src_i : all_indices.slice(groups[dst_i])) {
+      accum += src[src_i];
     }
-
-    for (const int dst_i : range.index_range()) {
-      dst[dst_i] *= math::safe_rcp(float(groups[dst_i].size()));
-    }
-  });
+    dst[dst_i] = accum * math::safe_rcp(float(groups[dst_i].size()));
+  }
 }
 
 template<>
@@ -307,30 +300,21 @@ void mix_groups(const Span<bool> src,
 
 template<typename T, typename ToAccumFn, typename ToFinalFn>
 void mix_groups(const Span<T> src,
-                const OffsetIndices<int> all_groups,
+                const OffsetIndices<int> groups,
                 const Span<int> all_indices,
                 const ToAccumFn &to_accum_fn,
                 const ToFinalFn &to_final_fn,
-                MutableSpan<T> all_dst)
+                MutableSpan<T> dst)
 {
   using AccumT = std::invoke_result_t<ToAccumFn, T>;
   static_assert(std::is_same_v<std::invoke_result_t<ToFinalFn, AccumT>, T>);
-
-  for_chunk_ranges(all_dst.index_range(), CHUNK_SIZE, [&](const IndexRange range) {
-    const OffsetIndices<int> groups = all_groups.slice(range);
-    MutableSpan<T> dst = all_dst.slice(range);
-
-    Array<AccumT, CHUNK_SIZE> accum(dst.size(), AccumT(0));
-    for (const int dst_i : dst.index_range()) {
-      for (const int src_i : all_indices.slice(groups[dst_i])) {
-        accum[dst_i] += to_accum_fn(src[src_i]);
-      }
+  for (const int dst_i : dst.index_range()) {
+    AccumT accum(0);
+    for (const int src_i : all_indices.slice(groups[dst_i])) {
+      accum += to_accum_fn(src[src_i]);
     }
-
-    for (const int dst_i : dst.index_range()) {
-      dst[dst_i] = to_final_fn(accum[dst_i] * math::safe_rcp(float(groups[dst_i].size())));
-    }
-  });
+    dst[dst_i] = to_final_fn(accum * math::safe_rcp(float(groups[dst_i].size())));
+  }
 }
 
 static double int_to_double(const int &value)

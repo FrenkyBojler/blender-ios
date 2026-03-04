@@ -6,6 +6,7 @@
 #include "BLI_kdtree.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_task.hh"
+#include "BLI_timeit.hh"
 
 #include "DNA_pointcloud_types.h"
 
@@ -125,6 +126,7 @@ PointCloud *point_merge_by_distance(const PointCloud &src_points,
   }
 
   /* Transfer all other attributes. */
+  SCOPED_TIMER_AVERAGED("PointCloud::merge_by_distance::transfer_attributes");
   for (const StringRef id : attribute_names) {
     if (attribute_filter.allow_skip(id)) {
       continue;
