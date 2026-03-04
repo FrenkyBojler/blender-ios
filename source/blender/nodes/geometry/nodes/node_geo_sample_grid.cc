@@ -199,15 +199,21 @@ static typename TreeT::ValueType sample_tree_gradient(const TreeT &tree,
  *
  * This results in the following expressions for sampling in one dimension:
  * For 0 <= x < 1/2:
- *   v(x) = x^2*(1/2*A - B + 1/2*C) + x*(-1/2*A       + 1/2*C) + (1/8*A + 6/8*B + 1/8*C)
+ *   v(x) =   x^2*( 1/2*A     - B + 1/2*C)
+ *          +   x*(-1/2*A         + 1/2*C)
+ *          +     ( 1/8*A + 6/8*B + 1/8*C)
  * For 1/2 <= x < 1:
- *   v(x) = x^2*(1/2*B - C + 1/2*D) + x*(-3/2*B + 2*C - 1/2*D) + (9/8*B - 2/8*C + 1/8*D)
+ *   v(x) =   x^2*( 1/2*B     - C + 1/2*D)
+ *          +   x*(-3/2*B   + 2*C - 1/2*D)
+ *          +     ( 9/8*B - 2/8*C + 1/8*D)
  *
  * and for the derivative:
  * For 0 <= x < 1/2:
- *   dv(x) = x*(A - 2*B - C) + (-1/2*A       - 1/2*C)
+ *   dv(x) =    x*(     A   - 2*B     + C)
+ *           +    (-1/2*A         + 1/2*C)
  * For 1/2 <= x < 1:
- *   dv(x) = x*(B + 2*C - D) + (-3/2*B - 2*C + 1/2*D)
+ *   dv(x) =    x*(     B   - 2*C     + D)
+ *           +    (-3/2*B   + 2*C - 1/2*D)
  */
 struct QuadraticBSplineKernel {
   static constexpr int size = 4;
@@ -233,13 +239,13 @@ struct QuadraticBSplineKernel {
   {
     OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
     if (weight < 0.5) {
-      const ValueT lin = value[0] - 2.0 * value[1] - value[2];
-      const ValueT con = -0.5 * value[0] - 0.5 * value[2];
+      const ValueT lin = value[0] - 2.0 * value[1] + value[2];
+      const ValueT con = 0.5 * (value[2] - value[0]);
       return weight * lin + con;
     }
 
-    const ValueT lin = value[1] + 2.0 * value[2] - value[3];
-    const ValueT con = -1.5 * value[1] - 2.0 * value[2] + 0.5 * value[3];
+    const ValueT lin = value[1] - 2.0 * value[2] + value[3];
+    const ValueT con = -1.5 * value[1] + 2.0 * value[2] - 0.5 * value[3];
     return weight * lin + con;
     OPENVDB_NO_TYPE_CONVERSION_WARNING_END
   }
@@ -280,6 +286,101 @@ struct QuadraticBSplineGradientSampler {
   static typename TreeT::ValueType sample(const TreeT &tree, const openvdb::Vec3R &coord)
   {
     return sample_tree_gradient<QuadraticBSplineKernel>(tree, coord);
+  }
+};
+
+/**
+ * Cubic B-spline kernel function as described in
+ * Steffen et al., "Analysis and reduction of quadrature errors in the material point method (MPM)"
+ *
+ * The kernel is a piece-wise cubic spline with two parts:
+ * f(x) = 1/2*|x|^3 - |x|^2 + 2/3           for 0 <= |x| < 1
+ * f(x) = -1/6*|x|^3 + |x|^2 - 2*|x| + 4/3  for 1 <= |x| < 2
+ * f(x) = 0                                 for 2 <= |x|
+ *
+ * The derivative is a piece-wise quadratic function:
+ * f(x) = 3/2*|x|^2 - 2*|x|                 for 0 <= |x| < 1
+ * f(x) = -1/2*|x|^2 + 2*|x| - 2            for 1 <= |x| < 2
+ * f(x) = 0                                 for 2 <= |x|
+ *
+ * This kernel has a range of 2 voxels. For sampling in the index space of i <= x <= i+1
+ * the contribution of points [i-1, i, i+1, i+2] must be considered.
+ * Shifting the kernel function to these voxel locations yields these contributions:
+ * v(x) = v[i-1]*f(x+1) +   v[i]*f(x) + v[i+1]*f(x-1) + v[i+2]*f(x-2)
+ *      =      A*f(x+1) +      B*f(x) +      C*f(x-1) +      D*f(x-2)
+ *
+ * This results in the following expression for sampling in one dimension:
+ * v(x) =   x^3*(-1/6*A + 1/2*B - 1/2*C + 1/6*D)
+ *        + x^2*( 1/2*A     - B + 1/2*C)
+ *        + x  *(-1/2*A         + 1/2*C)
+ *        +     ( 1/6*A + 2/3*B + 1/6*C)
+ *
+ * and for the derivative:
+ * dv(x) =  x^2*(-1/2*A + 3/2*B - 3/2*C + 1/2*D)
+ *        + x  *(     A   - 2*B     + C)
+ *        +     (-1/2*A         + 1/2*C)
+ */
+struct CubicBSplineKernel {
+  static constexpr int size = 4;
+
+  template<class ValueT> static ValueT weight(const ValueT *value, double weight)
+  {
+    OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
+    constexpr double inv6 = 1.0 / 6.0;
+    const ValueT cub = inv6 * (value[3] - value[0]) + 0.5 * (value[1] - value[2]);
+    const ValueT sqr = 0.5 * (value[0] + value[2]) - value[1];
+    const ValueT lin = 0.5 * (value[2] - value[0]);
+    const ValueT con = inv6 * (value[0] + 4.0 * value[1] + value[2]);
+    return weight * (weight * (weight * cub + sqr) + lin) + con;
+    OPENVDB_NO_TYPE_CONVERSION_WARNING_END
+  }
+
+  template<class ValueT> static ValueT derivative(const ValueT *value, double weight)
+  {
+    OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
+    const ValueT sqr = 0.5 * (value[3] - value[0]) + 1.5 * (value[1] - value[2]);
+    const ValueT lin = value[0] - 2.0 * value[1] + value[2];
+    const ValueT con = 0.5 * (value[2] - value[0]);
+    return weight * (weight * sqr + lin) + con;
+    OPENVDB_NO_TYPE_CONVERSION_WARNING_END
+  }
+};
+
+/**
+ * Grid value sampler using cubic B-spline kernels.
+ */
+struct CubicBSplineSampler {
+  template<class TreeT>
+  static bool sample(const TreeT &tree,
+                     const openvdb::Vec3R &coord,
+                     typename TreeT::ValueType &result)
+  {
+    return sample_tree<CubicBSplineKernel>(tree, coord, result);
+  }
+
+  template<class TreeT>
+  static typename TreeT::ValueType sample(const TreeT &tree, const openvdb::Vec3R &coord)
+  {
+    return sample_tree<CubicBSplineKernel>(tree, coord);
+  }
+};
+
+/**
+ * Grid gradient sampler using cubic B-spline kernels.
+ */
+struct CubicBSplineGradientSampler {
+  template<class TreeT>
+  static bool sample(const TreeT &tree,
+                     const openvdb::Vec3R &coord,
+                     typename TreeT::ValueType &result)
+  {
+    return sample_tree_gradient<CubicBSplineKernel>(tree, coord, result);
+  }
+
+  template<class TreeT>
+  static typename TreeT::ValueType sample(const TreeT &tree, const openvdb::Vec3R &coord)
+  {
+    return sample_tree_gradient<CubicBSplineKernel>(tree, coord);
   }
 };
 
@@ -440,11 +541,11 @@ void sample_grid(const bke::OpenvdbGridType<T> &grid,
       break;
     }
     case InterpolationMode::CubicBSpline: {
-      sample_data.template operator()<openvdb::tools::PointSampler>();
+      sample_data.template operator()<CubicBSplineSampler>();
       break;
     }
     case InterpolationMode::CubicBSplineGradient: {
-      sample_data.template operator()<openvdb::tools::PointSampler>();
+      sample_data.template operator()<CubicBSplineGradientSampler>();
       break;
     }
   }
