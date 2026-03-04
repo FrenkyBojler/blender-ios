@@ -5,6 +5,7 @@
 #include <algorithm>
 
 #include "BLI_array_utils.hh"
+#include "BLI_math_euler.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_quaternion.hh"
 
