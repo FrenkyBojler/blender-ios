@@ -29,7 +29,7 @@ namespace blender::nodes::node_geo_sample_grid_cc {
  *
  * The kernel is a piece-wise quadratic spline with two parts:
  * f(x) = -|x|^2 + 3/4               for   0 <= |x| < 1/2
- * f(x) = 1/2*|x|^2 + 3/2*|x| + 9/8  for 1/2 <= |x| < 3/2
+ * f(x) = 1/2*|x|^2 - 3/2*|x| + 9/8  for 1/2 <= |x| < 3/2
  * f(x) = 0                          for 3/2 <= |x|
  *
  * This kernel has a range of 1.5 voxels. For sampling in the index space of i <= x <= i+1
@@ -65,6 +65,116 @@ struct QuadraticBSplineSampler {
     const ValueT lin = static_cast<ValueT>(-0.75 * value[1] + 2 * value[2] - 0.5 * value[3]);
     const ValueT con = static_cast<ValueT>(1.125 * value[1] - 0.25 * value[2] + 0.125 * value[3]);
     const auto temp = weight * (weight * sqr + lin) + con;
+    return static_cast<ValueT>(temp);
+    OPENVDB_NO_TYPE_CONVERSION_WARNING_END
+  }
+
+  template<class ValueT, size_t N>
+  static ValueT interpolate_3d(ValueT (&data)[N][N][N], const openvdb::Vec3R &uvw)
+  {
+    ValueT vx[4];
+    for (int dx = 0; dx < 4; ++dx) {
+      ValueT vy[4];
+      for (int dy = 0; dy < 4; ++dy) {
+        const ValueT *vz = &data[dx][dy][0];
+        vy[dy] = interpolate(vz, uvw.z());
+      }
+      vx[dx] = interpolate(vy, uvw.y());
+    }
+    return interpolate(vx, uvw.x());
+  }
+
+  template<class TreeT>
+  bool sample(const TreeT &inTree,
+              const openvdb::Vec3R &inCoord,
+              typename TreeT::ValueType &result)
+  {
+    using ValueT = typename TreeT::ValueType;
+
+    const openvdb::Vec3i inIdx = openvdb::tools::local_util::floorVec3(inCoord),
+                         inLoIdx = inIdx - openvdb::Vec3i(1, 1, 1);
+    const openvdb::Vec3R uvw = inCoord - inIdx;
+
+    /* Retrieve the values of the 64 voxels surrounding the fractional source coordinates. */
+    bool active = false;
+    ValueT data[4][4][4];
+    for (int dx = 0, ix = inLoIdx.x(); dx < 4; ++dx, ++ix) {
+      for (int dy = 0, iy = inLoIdx.y(); dy < 4; ++dy, ++iy) {
+        for (int dz = 0, iz = inLoIdx.z(); dz < 4; ++dz, ++iz) {
+          if (inTree.probeValue(openvdb::Coord(ix, iy, iz), data[dx][dy][dz])) {
+            active = true;
+          }
+        }
+      }
+    }
+
+    result = interpolate_3d(data, uvw);
+
+    return active;
+  }
+
+  template<class TreeT>
+  typename TreeT::ValueType sample(const TreeT &inTree, const openvdb::Vec3R &inCoord)
+  {
+    using ValueT = typename TreeT::ValueType;
+
+    const openvdb::Vec3i inIdx = openvdb::tools::local_util::floorVec3(inCoord),
+                         inLoIdx = inIdx - openvdb::Vec3i(1, 1, 1);
+    const openvdb::Vec3R uvw = inCoord - inIdx;
+
+    /* Retrieve the values of the 64 voxels surrounding the fractional source coordinates. */
+    ValueT data[4][4][4];
+    for (int dx = 0, ix = inLoIdx.x(); dx < 4; ++dx, ++ix) {
+      for (int dy = 0, iy = inLoIdx.y(); dy < 4; ++dy, ++iy) {
+        for (int dz = 0, iz = inLoIdx.z(); dz < 4; ++dz, ++iz) {
+          inTree.getValue(openvdb::Coord(ix, iy, iz));
+        }
+      }
+    }
+
+    return interpolate_3d(data, uvw);
+  }
+};
+
+/** Grid sampler for the derivative of the quadratic B-spline basis function described in
+ * Steffen et al., "Analysis and reduction of quadrature errors in the material point method (MPM)"
+ *
+ * The kernel is a piece-wise linear function with two parts:
+ * f(x) = -2*|x|                     for   0 <= |x| < 1/2
+ * f(x) = |x| - 3/2                  for 1/2 <= |x| < 3/2
+ * f(x) = 0                          for 3/2 <= |x|
+ *
+ * This kernel has a range of 1.5 voxels. For sampling in the index space of i <= x <= i+1
+ * the contribution of points [i-1, i, i+1, i+2] must be considered.
+ * Shifting the kernel function to these voxel locations yields these contributions:
+ * v(x) = v[i-1]*f(x+1) +   v[i]*f(x) + v[i+1]*f(x-1) + v[i+2]*f(x-2)
+ *      =      A*f(x+1) +      B*f(x) +      C*f(x-1) +      D*f(x-2)
+ *
+ * This results in the following expressions for sampling in one dimension:
+ * For 0 <= x < 1/2:
+ *   v(x) = x*(A - 2*B + C) + (-1/2*A       - 5/2*C)
+ * For 1/2 <= x < 1:
+ *   v(x) = x*(B - 2*C + D) + (-3/2*B - 2*C + 7/2*D)
+ */
+struct QuadraticBSplineGradientSampler {
+  static const char *name()
+  {
+    return "quadratic_bspline_gradient";
+  }
+
+  template<class ValueT> static ValueT interpolate(const ValueT *value, double weight)
+  {
+    OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
+    if (weight < 0.5) {
+      const ValueT lin = static_cast<ValueT>(value[0] - 2.0 * value[1] + value[2]);
+      const ValueT con = static_cast<ValueT>(-0.5 * value[0] - 2.5 * value[2]);
+      const auto temp = weight * lin + con;
+      return static_cast<ValueT>(temp);
+    }
+
+    const ValueT lin = static_cast<ValueT>(value[1] - 2.0 * value[2] + value[3]);
+    const ValueT con = static_cast<ValueT>(-1.5 * value[1] - 2.0 * value[2] - 3.5 * value[3]);
+    const auto temp = weight * lin + con;
     return static_cast<ValueT>(temp);
     OPENVDB_NO_TYPE_CONVERSION_WARNING_END
   }
@@ -289,7 +399,7 @@ void sample_grid(const bke::OpenvdbGridType<T> &grid,
       break;
     }
     case InterpolationMode::QuadraticBSplineGradient: {
-      sample_data.template operator()<openvdb::tools::PointSampler>();
+      sample_data.template operator()<QuadraticBSplineGradientSampler>();
       break;
     }
     case InterpolationMode::CubicBSpline: {
