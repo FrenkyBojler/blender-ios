@@ -581,7 +581,7 @@ bool handleNumInput(bContext *C, NumInput *n, const wmEvent *event)
     const float val_prev = n->val[idx];
     Scene *sce = CTX_data_scene(C);
     char *error = nullptr;
-    
+
 #ifdef USE_FAKE_EDIT
     const bool negate = (n->val_flag[idx] & NUM_NEGATE) != 0;
     const bool inverse = (n->val_flag[idx] & NUM_INVERSE) != 0;
