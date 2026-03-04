@@ -16,6 +16,7 @@
 #include "BKE_subdiv_ccg.hh"
 
 #include "BLI_enumerable_thread_specific.hh"
+#include "BLI_math_matrix.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_task.hh"
 
@@ -31,14 +32,36 @@ inline namespace draw_cc {
 
 struct LocalData {
   Vector<float3> positions;
+  Vector<float3> local_positions;
   Vector<float> factors;
   Vector<float> distances;
   Vector<float3> translations;
 };
 
+/**
+ * Transforms positions from object space positions to brush-local space.
+ */
+static void calc_local_positions(const Span<float3> vert_positions,
+                                 const Span<int> verts,
+                                 const float4x4 &mat,
+                                 const MutableSpan<float3> local_positions)
+{
+  BLI_assert(local_positions.size() == verts.size());
+
+  for (const int i : verts.index_range()) {
+    const float3 position = math::transform_point(mat, vert_positions[verts[i]]);
+
+
+    local_positions[i] = position.xyz();
+  }
+}
+
+
+
 static void calc_faces(const Depsgraph &depsgraph,
                        const Sculpt &sd,
                        const Brush &brush,
+                       const float4x4 &mat,
                        const float3 &offset,
                        const MeshAttributeData &attribute_data,
                        const Span<float3> vert_normals,
@@ -48,18 +71,42 @@ static void calc_faces(const Depsgraph &depsgraph,
                        const PositionDeformData &position_data)
 {
   const SculptSession &ss = *object.runtime->sculpt_session;
+  const StrokeCache &cache = *ss.cache;
 
   const Span<int> verts = node.verts();
 
-  calc_factors_common_mesh_indexed(depsgraph,
-                                   brush,
-                                   object,
-                                   attribute_data,
-                                   position_data.eval,
-                                   vert_normals,
-                                   node,
-                                   tls.factors,
-                                   tls.distances);
+  /* Fill initial factors from hide and mask, and apply front face culling and region clipping. */
+  tls.factors.resize(verts.size());
+  const MutableSpan<float> factors = tls.factors;
+  fill_factor_from_hide_and_mask(attribute_data.hide_vert, attribute_data.mask, verts, factors);
+  filter_region_clip_factors(ss, position_data.eval, verts, factors);
+  if (brush.flag & BRUSH_FRONTFACE) {
+    calc_front_face(cache.view_normal_symm, vert_normals, verts, factors);
+  }
+
+  /* Find local xy positions. */
+  tls.local_positions.resize(verts.size());
+  MutableSpan<float3> local_positions = tls.local_positions;
+  calc_local_positions(position_data.eval, verts, mat, local_positions);
+
+  /* Find the cube distance. */
+  tls.distances.resize(verts.size());
+  const MutableSpan<float> distances = tls.distances;
+  calc_brush_cube_distances<float3>(brush, local_positions, distances);
+  filter_distances_with_radius(1.0f, distances, factors);
+  apply_hardness_to_distances(1.0f, cache.hardness, distances);
+
+
+  /* Apply falloff curve. */ 
+  BKE_brush_calc_curve_factors(eBrushCurvePreset(brush.curve_distance_falloff_preset),
+                               brush.curve_distance_falloff,
+                               distances,
+                               1.0f,
+                               factors);
+
+  auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
+
+  calc_brush_texture_factors(ss, brush, position_data.eval, verts, factors);
 
   tls.translations.resize(verts.size());
   const MutableSpan<float3> translations = tls.translations;
@@ -97,6 +144,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
                        const Sculpt &sd,
                        Object &object,
                        const Brush &brush,
+                       const float4x4 &mat,
                        const float3 &offset,
                        bke::pbvh::BMeshNode &node,
                        LocalData &tls)
@@ -128,6 +176,10 @@ static void offset_positions(const Depsgraph &depsgraph,
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
 
   threading::EnumerableThreadSpecific<LocalData> all_tls;
+
+  float4x4 mat;
+  SCULPT_cube_tip_init(sd, object, brush, mat.ptr());
+
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh: {
       const Mesh &mesh = *id_cast<Mesh *>(object.data);
@@ -141,6 +193,7 @@ static void offset_positions(const Depsgraph &depsgraph,
             calc_faces(depsgraph,
                        sd,
                        brush,
+                       mat,
                        offset,
                        attribute_data,
                        vert_normals,
@@ -171,7 +224,7 @@ static void offset_positions(const Depsgraph &depsgraph,
       node_mask.foreach_index(
           [&](const int i) {
             LocalData &tls = all_tls.local();
-            calc_bmesh(depsgraph, sd, object, brush, offset, nodes[i], tls);
+            calc_bmesh(depsgraph, sd, object, brush, mat, offset, nodes[i], tls);
             bke::pbvh::update_node_bounds_bmesh(nodes[i]);
           },
           exec_mode::grain_size(1));

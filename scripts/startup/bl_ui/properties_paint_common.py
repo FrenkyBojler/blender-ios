@@ -892,6 +892,13 @@ def brush_settings(layout, context, brush, popover=False):
 
             row = layout.row()
             row.prop(brush, "tip_scale_x")
+        
+        elif sculpt_brush_type == 'DRAW':
+            row = layout.row()
+            row.prop(brush, "tip_roundness")
+
+            row = layout.row()
+            row.prop(brush, "tip_scale_x")
 
         elif sculpt_brush_type == 'ELASTIC_DEFORM':
             layout.separator()
