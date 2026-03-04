@@ -287,7 +287,8 @@ void mix_groups(const Span<T> src,
     }
 
     for (const int dst_i : range.index_range()) {
-      dst[dst_i] /= float(groups[dst_i].size());
+      const float weight_inv = math::safe_rcp(float(groups[dst_i].size()));
+      dst[dst_i] *= weight_inv;
     }
   });
 }
@@ -327,7 +328,8 @@ void mix_groups(const Span<T> src,
     }
 
     for (const int dst_i : dst.index_range()) {
-      dst[dst_i] = to_final_fn(accumulation_values[dst_i] / AccumT(groups[dst_i].size()));
+      const float weight_inv = math::safe_rcp(float(groups[dst_i].size()));
+      dst[dst_i] = to_final_fn(accumulation_values[dst_i] * weight_inv);
     }
   });
 }
@@ -461,7 +463,7 @@ void mix_groups(const Span<ColorGeometry4f> src,
     }
 
     for (const int dst_i : dst.index_range()) {
-      const float weight_inv = math::rcp(float(groups[dst_i].size()));
+      const float weight_inv = math::safe_rcp(float(groups[dst_i].size()));
       dst[dst_i].r *= weight_inv;
       dst[dst_i].g *= weight_inv;
       dst[dst_i].b *= weight_inv;
@@ -490,11 +492,11 @@ void mix_groups(const Span<float4x4> src,
       scale_accum += scale;
     }
 
-    const float factor = 1.0f / float(groups.size());
+    const float weight_inv = math::safe_rcp(float(groups[dst_i].size()));
     dst[dst_i] = math::from_loc_rot_scale<float4x4>(
-        location_accum * factor,
-        math::Quaternion::expmap(expmap_accum * factor),
-        scale_accum * factor);
+        location_accum * weight_inv,
+        math::Quaternion::expmap(expmap_accum * weight_inv),
+        scale_accum * weight_inv);
   }
 }
 
@@ -521,7 +523,7 @@ void mix_groups(const Span<T> src,
     }
 
     for (const int dst_i : dst.index_range()) {
-      dst[dst_i] /= total_weights[dst_i];
+      dst[dst_i] *= math::safe_rcp(total_weights[dst_i]);
     }
   });
 }
@@ -553,7 +555,8 @@ void mix_groups(const Span<T> src,
     }
 
     for (const int dst_i : dst.index_range()) {
-      dst[dst_i] = to_final_fn(accumulation_values[dst_i] / AccumT(groups[dst_i].size()));
+      const float weight_inv = math::safe_rcp(total_weights[dst_i]);
+      dst[dst_i] = to_final_fn(accumulation_values[dst_i] * weight_inv);
     }
   });
 }
@@ -645,7 +648,7 @@ void mix_groups(const Span<ColorGeometry4f> src,
     }
 
     for (const int dst_i : dst.index_range()) {
-      const float weight_inv = math::rcp(total_weights[dst_i]);
+      const float weight_inv = math::safe_rcp(total_weights[dst_i]);
       dst[dst_i].r *= weight_inv;
       dst[dst_i].g *= weight_inv;
       dst[dst_i].b *= weight_inv;
@@ -679,11 +682,11 @@ void mix_groups(const Span<float4x4> src,
       total_weight += weight;
     }
 
-    const float factor = math::rcp(total_weight);
+    const float weight_inv = math::safe_rcp(total_weight);
     dst[dst_i] = math::from_loc_rot_scale<float4x4>(
-        location_accum * factor,
-        math::Quaternion::expmap(expmap_accum * factor),
-        scale_accum * factor);
+        location_accum * weight_inv,
+        math::Quaternion::expmap(expmap_accum * weight_inv),
+        scale_accum * weight_inv);
   }
 }
 
