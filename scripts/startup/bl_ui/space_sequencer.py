@@ -2076,7 +2076,7 @@ class SEQUENCER_PT_captions_style(bpy.types.Panel):
         space = context.space_data
         scene = context.scene
         editor = scene.sequence_editor
-        strips = editor.captions_strips
+        captions = editor.captions
         
         style = editor.captions_style
         if(style is None):
@@ -2127,24 +2127,32 @@ class SEQUENCER_PT_captions_editor(bpy.types.Panel):
     bl_category = "Captions"
     bl_order = 0
 
-    def draw_caption(self, layout, item):
+    def draw_caption(self, layout, item, draw_ops=True):
+        strip = item.strip
+        
         split = layout.split(factor=0.35)
         col1 = split.column(align=True)
-        col1.prop(item, "frame_start", text="")
-        col1.prop(item, "frame_final_end", text="")
+        col1.prop(strip, "frame_start", text="")
+        col1.prop(strip, "frame_final_end", text="")
         
-        col2 = split.column()
-        col2.scale_y = 2
-        col2.prop(item, "text", text="")
+        col2 = split.column(align=True)
+        text_col = col2.column(align=True)
+        text_col.scale_y = 2
+        text_col.prop(strip, "text", text="")
+        
+        if(draw_ops):
+            ops_row = col2.row(align=True)
+            ops_row.prop(item, "use_custom_style", icon_only=True)
+            ops_row.operator("sequencer.caption_add", text="Add After", icon="ADD")
 
     def draw(self, context):
         layout = self.layout
         space = context.space_data
-        strips = context.scene.sequence_editor.captions_strips
+        captions = context.scene.sequence_editor.captions
         
-        for strip in strips:
-            if strip:
-                self.draw_caption(layout, strip)
+        for caption in captions:
+            if caption:
+                self.draw_caption(layout, caption)
         
         layout.operator("sequencer.caption_add", text="Add", icon='ADD')
         

@@ -1521,7 +1521,7 @@ static void rna_SequenceEditor_captions_strips_begin(CollectionPropertyIterator 
   
    // TODO: For some reason, handling cache update here makes the fancy UI Animations disapper, also it's currently not working and should be here, BTW is it the right place for that at all?
   if (ed->captions_cache_dirty) {
-   // blender::update_current_strips(ed->seq_scene); TODO: FIND THE RIGHT WAY TO GET SCENE
+   // blender::update_current_strips(ed->seq_scene); //TODO: FIND THE RIGHT WAY TO GET SCENE
   }
   
   rna_iterator_listbase_begin(iter, ptr, &ed->captions_strips, nullptr);
@@ -1534,7 +1534,7 @@ static PointerRNA rna_SequenceEditor_captions_strips_get(CollectionPropertyItera
         return PointerRNA_NULL;
     }
 
-    return RNA_pointer_create_discrete(iter->parent.owner_id, RNA_Strip, ref->strip);
+    return RNA_pointer_create_discrete(iter->parent.owner_id, RNA_Caption, ref);
 }
 
 static void rna_SequenceEditor_captions_strips_update(Main * /*bmain*/, Scene * scene, PointerRNA * ptr)
@@ -2858,12 +2858,35 @@ static void rna_def_strips_top_level(BlenderRNA *brna)
 }
 
 static void rna_def_text(StructRNA *srna); /* forward declaration */
-static void rna_def_captions_style(BlenderRNA *brna){
-  StructRNA *style_srna = RNA_def_struct(brna, "CaptionsStyle", nullptr);
-  RNA_def_struct_ui_text(style_srna, "Captions Style", "Text styling properties for captions");
-  RNA_def_struct_sdna(style_srna, "TextVars");
-  rna_def_text(style_srna);
+static void rna_def_captions(BlenderRNA *brna){
+  StructRNA *srna = RNA_def_struct(brna, "CaptionsStyle", nullptr);
+  RNA_def_struct_ui_text(srna, "Captions Style", "Text styling properties for captions");
+  RNA_def_struct_sdna(srna, "TextVars");
+  rna_def_text(srna);
+
+  srna = RNA_def_struct(brna, "Caption", nullptr);
+  RNA_def_struct_ui_text(srna, "Caption", "A single caption");
+  RNA_def_struct_sdna(srna, "CaptionsStripRef");
+
+  PropertyRNA *prop = RNA_def_property(srna, "strip", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, nullptr, "strip");
+  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop, "Caption Strip", "The strip this caption points to");
+
+  prop = RNA_def_boolean(srna,
+    "use_custom_style",
+    false,
+    "Use Custom Style",
+    "When enabled, use a custom style for this caption");
+    RNA_def_property_boolean_sdna(prop, nullptr, "use_custom_style", 1);
+  RNA_def_property_ui_icon(prop, ICON_FONT_DATA, false);
+  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+  //RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_text_update");
+
+
 }
+
 static void rna_def_editor(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -3016,11 +3039,11 @@ static void rna_def_editor(BlenderRNA *brna)
       prop, "Final Cache Size", "Size of final rendered images cache in megabytes");
 
   /* Captions props */
-  prop = RNA_def_property(srna, "captions_strips", PROP_COLLECTION, PROP_NONE);
+  prop = RNA_def_property(srna, "captions", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_collection_sdna(prop, nullptr, "captions_strips", nullptr);
-  RNA_def_property_struct_type(prop, "Strip");
+  RNA_def_property_struct_type(prop, "Caption");
   RNA_def_property_ui_text(
-      prop, "Captions Strips", "Current text strips manipulated by the captions space");
+      prop, "Captions", "Current captions in the sequencer");
   RNA_def_property_collection_funcs(prop,
                                     "rna_SequenceEditor_captions_strips_begin",
                                     nullptr,
@@ -4671,7 +4694,7 @@ void RNA_def_sequencer(BlenderRNA *brna)
   rna_def_strip_transform(brna);
 
   rna_def_strip(brna);
-  rna_def_captions_style(brna);
+  rna_def_captions(brna);
   rna_def_editor(brna);
   rna_def_channel(brna);
 

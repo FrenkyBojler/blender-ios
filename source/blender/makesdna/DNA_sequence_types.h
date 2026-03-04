@@ -553,6 +553,15 @@ struct StripConnection {
   Strip *strip_ref = nullptr;
 };
 
+struct CaptionsStripRef {
+  struct CaptionsStripRef *next, *prev;
+  Strip *strip = nullptr;
+
+  char use_custom_style = 0;
+  char _pad[7];
+};
+
+
 /** #Editing::overlay_frame_flag */
 enum eEditingOverlayFrameFlag {
   SEQ_EDIT_OVERLAY_FRAME_SHOW = 1,

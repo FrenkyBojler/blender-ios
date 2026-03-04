@@ -18,12 +18,6 @@ namespace blender {
   struct Editing;
   struct TextVars;
   
-  typedef struct CaptionsStripRef {
-    struct CaptionsStripRef *next, *prev;
-    Strip *strip = nullptr;
-    char use_custom_style = 0;
-  } CaptionsStripRef;
-
 namespace seq {
     
 void captions_update_strips(struct Scene *scene);

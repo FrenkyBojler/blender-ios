@@ -4408,6 +4408,54 @@ void SEQUENCER_OT_caption_add(wmOperatorType *ot)
 
 }
 
+/* -------------------------------------------------------------------- */
+/** \name Toggle Caption custom style Operator
+  * \{ */
+
+  static wmOperatorStatus captions_style_toggle_exec(bContext *C, wmOperator *op)
+  {
+      return OPERATOR_FINISHED;
+  }
+  
+  // TODO: Remove? technically would be always true
+  static bool captions_style_toggle_poll(bContext *C)
+  {
+      ScrArea *area = CTX_wm_area(C);
+      if(area == nullptr || area->spacetype != SPACE_SEQ) {
+          return false;
+      }
+      return true;
+  }
+  
+  void SEQUENCER_OT_captions_style_toggle(wmOperatorType *ot)
+  {
+      /* Identifiers. */
+      ot->name = "Toggle Custmo Style";
+      ot->idname = "SEQUENCER_OT_captions_style_toggle";
+      ot->description = "Toggle custom style mode for a certain caption";
+  
+      /* API callbacks. */
+      //  ot->invoke = sequencer_snap_invoke;
+      ot->exec = captions_style_toggle_exec;
+      ot->poll = captions_style_toggle_poll;
+  
+      /* Flags. */
+      ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  
+      /* Properties. */
+      PropertyRNA *prop = RNA_def_int(ot->srna,
+                        "length",
+                        100,  // TODO: change to DEFAULT_IMG_STRIP_LENGTH
+                        MINAFRAME,
+                        MAXFRAME,
+                        "Length",
+                        "Length of the caption strip in frames",
+                        1,
+                        500);
+      RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+  
+  }
+
 /** \} */
 
 }  // namespace blender::ed::vse
