@@ -62,7 +62,7 @@ struct QuadraticBSplineSampler {
     }
 
     const ValueT sqr = static_cast<ValueT>(0.5 * (value[1] + value[3]) - value[2]);
-    const ValueT lin = static_cast<ValueT>(-0.75 * value[1] + 2 * value[2] - 0.5 * value[3]);
+    const ValueT lin = static_cast<ValueT>(-1.5 * value[1] + 2 * value[2] - 0.5 * value[3]);
     const ValueT con = static_cast<ValueT>(1.125 * value[1] - 0.25 * value[2] + 0.125 * value[3]);
     const auto temp = weight * (weight * sqr + lin) + con;
     return static_cast<ValueT>(temp);
@@ -77,11 +77,11 @@ struct QuadraticBSplineSampler {
       ValueT vy[4];
       for (int dy = 0; dy < 4; ++dy) {
         const ValueT *vz = &data[dx][dy][0];
-        vy[dy] = interpolate(vz, uvw.z());
+        vy[dy] = QuadraticBSplineSampler::interpolate(vz, uvw.z());
       }
-      vx[dx] = interpolate(vy, uvw.y());
+      vx[dx] = QuadraticBSplineSampler::interpolate(vy, uvw.y());
     }
-    return interpolate(vx, uvw.x());
+    return QuadraticBSplineSampler::interpolate(vx, uvw.x());
   }
 
   template<class TreeT>
@@ -108,7 +108,7 @@ struct QuadraticBSplineSampler {
       }
     }
 
-    result = interpolate_3d(data, uvw);
+    result = QuadraticBSplineSampler::interpolate_3d(data, uvw);
 
     return active;
   }
@@ -132,7 +132,7 @@ struct QuadraticBSplineSampler {
       }
     }
 
-    return interpolate_3d(data, uvw);
+    return QuadraticBSplineSampler::interpolate_3d(data, uvw);
   }
 };
 
@@ -152,9 +152,9 @@ struct QuadraticBSplineSampler {
  *
  * This results in the following expressions for sampling in one dimension:
  * For 0 <= x < 1/2:
- *   v(x) = x*(A - 2*B + C) + (-1/2*A       - 5/2*C)
+ *   v(x) = x*(A - 2*B - C) + (-1/2*A       - 1/2*C)
  * For 1/2 <= x < 1:
- *   v(x) = x*(B - 2*C + D) + (-3/2*B - 2*C + 7/2*D)
+ *   v(x) = x*(B + 2*C - D) + (-3/2*B - 2*C + 1/2*D)
  */
 struct QuadraticBSplineGradientSampler {
   static const char *name()
@@ -164,34 +164,37 @@ struct QuadraticBSplineGradientSampler {
 
   template<class ValueT> static ValueT interpolate(const ValueT *value, double weight)
   {
-    OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
+    // OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
     if (weight < 0.5) {
-      const ValueT lin = static_cast<ValueT>(value[0] - 2.0 * value[1] + value[2]);
-      const ValueT con = static_cast<ValueT>(-0.5 * value[0] - 2.5 * value[2]);
-      const auto temp = weight * lin + con;
-      return static_cast<ValueT>(temp);
+      const ValueT lin = value[0] - 2.0 * value[1] - value[2];
+      const ValueT con = -0.5 * value[0] - 0.5 * value[2];
+      return weight * lin + con;
     }
 
-    const ValueT lin = static_cast<ValueT>(value[1] - 2.0 * value[2] + value[3]);
-    const ValueT con = static_cast<ValueT>(-1.5 * value[1] - 2.0 * value[2] - 3.5 * value[3]);
-    const auto temp = weight * lin + con;
-    return static_cast<ValueT>(temp);
-    OPENVDB_NO_TYPE_CONVERSION_WARNING_END
+    const ValueT lin = value[1] + 2.0 * value[2] - value[3];
+    const ValueT con = -1.5 * value[1] - 2.0 * value[2] + 0.5 * value[3];
+    return weight * lin + con;
+    // OPENVDB_NO_TYPE_CONVERSION_WARNING_END
   }
 
   template<class ValueT, size_t N>
   static ValueT interpolate_3d(ValueT (&data)[N][N][N], const openvdb::Vec3R &uvw)
   {
-    ValueT vx[4];
+    ValueT vvx[4], vgx[4], gvx[4];
     for (int dx = 0; dx < 4; ++dx) {
-      ValueT vy[4];
+      ValueT vy[4], gy[4];
       for (int dy = 0; dy < 4; ++dy) {
         const ValueT *vz = &data[dx][dy][0];
-        vy[dy] = interpolate(vz, uvw.z());
+        vy[dy] = QuadraticBSplineSampler::interpolate(vz, uvw.z());
+        gy[dy] = QuadraticBSplineGradientSampler::interpolate(vz, uvw.z());
       }
-      vx[dx] = interpolate(vy, uvw.y());
+      vvx[dx] = QuadraticBSplineSampler::interpolate(vy, uvw.y());
+      vgx[dx] = QuadraticBSplineSampler::interpolate(gy, uvw.y());
+      gvx[dx] = QuadraticBSplineGradientSampler::interpolate(vy, uvw.y());
     }
-    return interpolate(vx, uvw.x());
+    return QuadraticBSplineGradientSampler::interpolate(vvx, uvw.x()) +
+           QuadraticBSplineSampler::interpolate(gvx, uvw.x()) +
+           QuadraticBSplineSampler::interpolate(vgx, uvw.x());
   }
 
   template<class TreeT>
@@ -218,7 +221,7 @@ struct QuadraticBSplineGradientSampler {
       }
     }
 
-    result = interpolate_3d(data, uvw);
+    result = QuadraticBSplineGradientSampler::interpolate_3d(data, uvw);
 
     return active;
   }
@@ -242,7 +245,7 @@ struct QuadraticBSplineGradientSampler {
       }
     }
 
-    return interpolate_3d(data, uvw);
+    return QuadraticBSplineGradientSampler::interpolate_3d(data, uvw);
   }
 };
 
