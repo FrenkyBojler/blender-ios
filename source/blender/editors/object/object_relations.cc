@@ -1041,7 +1041,7 @@ static wmOperatorStatus parent_set_invoke_menu(bContext *C, wmOperatorType *ot)
     RNA_enum_set(&op_ptr, "type", PAR_BONE_RELATIVE);
   }
   else if (parent->type == OB_CURVES_LEGACY) {
-    op_ptr = layout.op(ot, IFACE_("Curve Deform"), ICON_CURVE_DATA);
+    op_ptr = layout.op(ot, IFACE_("Curve Deform"), ICON_OUTLINER_OB_CURVE);
     RNA_enum_set(&op_ptr, "type", PAR_CURVE);
     op_ptr = layout.op(ot, IFACE_("Follow Path"), ICON_CURVE_PATH);
     RNA_enum_set(&op_ptr, "type", PAR_FOLLOW);
