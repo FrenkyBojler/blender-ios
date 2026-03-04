@@ -130,7 +130,7 @@ void update_autoflags_fcurve_direct(FCurve *fcu, PropertyType prop_type);
  * array. Otherwise the vector has just 1 element.
  * All property types are cast to float.
  */
-Vector<float> get_keyframe_values(PointerRNA *ptr, PropertyRNA *prop, const bool visual_key);
+Vector<float> get_property_values(PointerRNA *ptr, PropertyRNA *prop, bool visual_key);
 
 /**
  * \brief Main key-frame insertion API.
@@ -178,8 +178,8 @@ CombinedKeyingResult insert_keyframes(Main *bmain,
 /**
  * \brief Secondary Insert Key-framing API call.
  *
- * Retrieves the value of the PropertyRNA at the index of the given FCurve and sets a key at
- * `fcurve_frame`.
+ * Retrieves the value of the PropertyRNA and sets a key at `fcurve_frame`. If the property is an
+ * array, the FCurve's array_index is used to find the element's value.
  *
  * \warning This bypasses all animation layer and strip logic. Use with caution. If unsure, use
  * `insert_keyframes` instead.
@@ -192,6 +192,9 @@ CombinedKeyingResult insert_keyframes(Main *bmain,
  * \param flag: Used for special settings that alter the behavior of the keyframe insertion.
  * These include the 'visual' key-framing modes, quick refresh,
  * and extra keyframe filtering.
+ *
+ * \note this function no longer deals with the NLA. For NLA support use
+ * animrig::nla::insert_keyframe_direct
  *
  * \return Success.
  */

@@ -379,7 +379,7 @@ bool key_insertion_may_create_fcurve(const eInsertKeyFlags insert_key_flags)
   return (insert_key_flags & (INSERTKEY_REPLACE | INSERTKEY_AVAILABLE)) == 0;
 }
 
-Vector<float> get_keyframe_values(PointerRNA *ptr, PropertyRNA *prop, const bool visual_key)
+Vector<float> get_property_values(PointerRNA *ptr, PropertyRNA *prop, const bool visual_key)
 {
   Vector<float> values;
 
@@ -427,11 +427,15 @@ SingleKeyingResult insert_keyframe_direct(PointerRNA &ptr,
     return SingleKeyingResult::UNKNOWN_FAILURE;
   }
 
+  if (!BKE_fcurve_is_keyframable(fcu)) {
+    return SingleKeyingResult::FCURVE_NOT_KEYFRAMEABLE;
+  }
+
   /* Update F-Curve flags to ensure proper behavior for property type. */
   update_autoflags_fcurve_direct(&fcu, RNA_property_type(&prop));
 
   const bool visual_keyframing = flag & INSERTKEY_MATRIX;
-  Vector<float> values = get_keyframe_values(&ptr, &prop, visual_keyframing);
+  Vector<float> values = get_property_values(&ptr, &prop, visual_keyframing);
 
   const int index = fcu.array_index;
   float current_value = 0.0f;
@@ -444,10 +448,10 @@ SingleKeyingResult insert_keyframe_direct(PointerRNA &ptr,
     BLI_assert_unreachable();
   }
 
-  const SingleKeyingResult result = insert_keyframe_value(
-      &fcu, fcurve_frame, current_value, keytype, flag);
+  KeyframeSettings settings = get_keyframe_settings((flag & INSERTKEY_NO_USERPREF) == 0);
+  settings.keyframe_type = keytype;
 
-  return result;
+  return insert_vert_fcurve(&fcu, {fcurve_frame, current_value}, settings, flag);
 }
 
 /* ************************************************** */
@@ -776,7 +780,7 @@ CombinedKeyingResult insert_keyframes(Main *bmain,
       continue;
     }
 
-    Vector<float> rna_values = get_keyframe_values(&ptr, prop, visual_keyframing);
+    Vector<float> rna_values = get_property_values(&ptr, prop, visual_keyframing);
     BitVector<> rna_values_mask(rna_values.size(), false);
     bool force_all;
 

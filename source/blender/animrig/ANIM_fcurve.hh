@@ -142,14 +142,6 @@ SingleKeyingResult insert_vert_fcurve(FCurve *fcu,
                                       eInsertKeyFlags flag);
 
 /**
- * Insert the specified keyframe value into a single F-Curve.
- * Higher level keyframe insertion function than `insert_vert_fcurve`. This function will check if
- * the FCurve can be keyed and generate the KeyframeSettings.
- */
-SingleKeyingResult insert_keyframe_value(
-    FCurve *fcu, float cfra, float curval, eBezTriple_KeyframeType keytype, eInsertKeyFlags flag);
-
-/**
  * \param sample_rate: indicates how many samples per frame should be generated.
  * \param r_samples: Is expected to be an array large enough to hold `sample_count`.
  */

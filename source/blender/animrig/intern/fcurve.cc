@@ -428,22 +428,6 @@ static float2 remap_cyclic_keyframe_location(const FCurve &fcu,
   return position;
 }
 
-SingleKeyingResult insert_keyframe_value(FCurve *fcu,
-                                         const float cfra,
-                                         const float curval,
-                                         const eBezTriple_KeyframeType keytype,
-                                         const eInsertKeyFlags flag)
-{
-  if (!BKE_fcurve_is_keyframable(*fcu)) {
-    return SingleKeyingResult::FCURVE_NOT_KEYFRAMEABLE;
-  }
-
-  KeyframeSettings settings = get_keyframe_settings((flag & INSERTKEY_NO_USERPREF) == 0);
-  settings.keyframe_type = keytype;
-
-  return insert_vert_fcurve(fcu, {cfra, curval}, settings, flag);
-}
-
 SingleKeyingResult insert_vert_fcurve(FCurve *fcu,
                                       const float2 position,
                                       const KeyframeSettings &settings,

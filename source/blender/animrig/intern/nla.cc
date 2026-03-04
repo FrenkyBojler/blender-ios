@@ -169,9 +169,13 @@ bool insert_keyframe_direct(ReportList *reports,
                             NlaKeyframingContext *nla_context,
                             eInsertKeyFlags flag)
 {
-
   if (fcu == nullptr) {
     BKE_report(reports, RPT_ERROR, "No F-Curve to add keyframes to");
+    return false;
+  }
+
+  if (!BKE_fcurve_is_keyframable(*fcu)) {
+    BKE_report(reports, RPT_ERROR, "FCurve is not keyable. Cannot insert keyframes");
     return false;
   }
 
@@ -205,7 +209,7 @@ bool insert_keyframe_direct(ReportList *reports,
 
   const int index = fcu->array_index;
   const bool visual_keyframing = flag & INSERTKEY_MATRIX;
-  Vector<float> values = get_keyframe_values(&ptr, prop, visual_keyframing);
+  Vector<float> values = get_property_values(&ptr, prop, visual_keyframing);
 
   BitVector<> successful_remaps = nla_map_keyframe_values_and_generate_reports(
       values.as_mutable_span(),
@@ -227,8 +231,11 @@ bool insert_keyframe_direct(ReportList *reports,
     return false;
   }
 
-  const SingleKeyingResult result = insert_keyframe_value(
-      fcu, anim_eval_context->eval_time, current_value, keytype, flag);
+  KeyframeSettings settings = get_keyframe_settings((flag & INSERTKEY_NO_USERPREF) == 0);
+  settings.keyframe_type = keytype;
+
+  const SingleKeyingResult result = insert_vert_fcurve(
+      fcu, {anim_eval_context->eval_time, current_value}, settings, flag);
 
   if (result != SingleKeyingResult::SUCCESS) {
     BKE_reportf(reports,
