@@ -256,19 +256,69 @@ void float4x4Mixer::finalize(const IndexMask &mask)
   });
 }
 
+template<typename T>
+void mix_groups(const Span<T> src,
+                const OffsetIndices<int> groups,
+                const Span<int> all_indices,
+                const std::optional<Span<float>> all_weights,
+                MutableSpan<T> dst)
+{
+  DefaultPropagationMixer<T> mixer(dst);
+  if (all_weights) {
+    for (const int dst_i : groups.index_range()) {
+      const Span<int> indices = all_indices.slice(groups[dst_i]);
+      for (const int i : indices.index_range()) {
+        const int src_i = indices[i];
+        mixer.mix_in(dst_i, src[src_i], (*all_weights)[i]);
+      }
+    }
+  }
+  else {
+    for (const int dst_i : groups.index_range()) {
+      for (const int src_i : all_indices.slice(groups[dst_i])) {
+        mixer.mix_in(dst_i, src[src_i]);
+      }
+    }
+  }
+  mixer.finalize();
+}
+
+void mix_groups(const GSpan src,
+                const OffsetIndices<int> groups,
+                const Span<int> all_indices,
+                const std::optional<Span<float>> all_weights,
+                GMutableSpan dst)
+{
+  BLI_assert(groups.size() == dst.size());
+  BLI_assert(groups.total_size() == all_indices.size());
+  BLI_assert(!all_weights || groups.total_size() == all_weights->size());
+
+  to_static_type(src.type(), [&]<typename T>() {
+    if constexpr (!std::is_void_v<DefaultMixer<T>>) {
+      mix_groups(src.typed<T>(), groups, all_indices, all_weights, dst.typed<T>());
+    }
+  });
+}
+
 void gather(const GSpan src, const Span<int> map, GMutableSpan dst)
 {
-  attribute_math::convert_to_static_type(src.type(), [&](auto dummy) {
-    using T = decltype(dummy);
-    array_utils::gather(src.typed<T>(), map, dst.typed<T>());
-  });
+  gather(GVArray::from_span(src), map, IndexRange(dst.size()), dst);
 }
 
 void gather(const GVArray &src, const Span<int> map, GMutableSpan dst)
 {
-  attribute_math::convert_to_static_type(src.type(), [&](auto dummy) {
-    using T = decltype(dummy);
-    array_utils::gather(src.typed<T>(), map, dst.typed<T>());
+  gather(src, map, IndexRange(dst.size()), dst);
+}
+
+void gather(const GSpan src, const Span<int> map, const IndexMask &dst_mask, GMutableSpan dst)
+{
+  gather(GVArray::from_span(src), map, dst_mask, dst);
+}
+
+void gather(const GVArray &src, const Span<int> map, const IndexMask &dst_mask, GMutableSpan dst)
+{
+  to_static_type(src.type(), [&]<typename T>() {
+    array_utils::gather(src.typed<T>(), map, dst_mask, dst.typed<T>());
   });
 }
 
@@ -278,8 +328,7 @@ void gather_group_to_group(const OffsetIndices<int> src_offsets,
                            const GSpan src,
                            GMutableSpan dst)
 {
-  attribute_math::convert_to_static_type(src.type(), [&](auto dummy) {
-    using T = decltype(dummy);
+  attribute_math::to_static_type(src.type(), [&]<typename T>() {
     array_utils::gather_group_to_group(
         src_offsets, dst_offsets, selection, src.typed<T>(), dst.typed<T>());
   });
@@ -290,8 +339,7 @@ void gather_ranges_to_groups(const Span<IndexRange> src_ranges,
                              const GSpan src,
                              GMutableSpan dst)
 {
-  attribute_math::convert_to_static_type(src.type(), [&](auto dummy) {
-    using T = decltype(dummy);
+  attribute_math::to_static_type(src.type(), [&]<typename T>() {
     Span<T> src_span = src.typed<T>();
     MutableSpan<T> dst_span = dst.typed<T>();
 
@@ -308,8 +356,7 @@ void gather_to_groups(const OffsetIndices<int> dst_offsets,
                       const GSpan src,
                       GMutableSpan dst)
 {
-  attribute_math::convert_to_static_type(src.type(), [&](auto dummy) {
-    using T = decltype(dummy);
+  attribute_math::to_static_type(src.type(), [&]<typename T>() {
     array_utils::gather_to_groups(dst_offsets, src_selection, src.typed<T>(), dst.typed<T>());
   });
 }

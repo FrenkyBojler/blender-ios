@@ -542,7 +542,7 @@ static bool uv_shortest_path_pick_ex(Scene *scene,
     }
 
     if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
-      DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
+      DEG_id_tag_update(obedit->data, ID_RECALC_SELECT);
     }
     else {
       Object *obedit_eval = DEG_get_evaluated(depsgraph, obedit);
@@ -848,7 +848,7 @@ static wmOperatorStatus uv_shortest_path_select_exec(bContext *C, wmOperator *op
         ele_src = ele_array[0];
         ele_dst = ele_array[1];
       }
-      MEM_freeN(ele_array);
+      MEM_delete(ele_array);
     }
 
     if (ele_src && ele_dst) {
@@ -876,7 +876,7 @@ void UV_OT_shortest_path_select(wmOperatorType *ot)
   /* identifiers */
   ot->name = "Select Shortest Path";
   ot->idname = "UV_OT_shortest_path_select";
-  ot->description = "Selected shortest path between two vertices/edges/faces";
+  ot->description = "Select shortest path between two vertices/edges/faces";
 
   /* API callbacks. */
   ot->exec = uv_shortest_path_select_exec;

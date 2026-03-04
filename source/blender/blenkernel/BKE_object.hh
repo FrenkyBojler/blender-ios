@@ -412,6 +412,7 @@ bool BKE_object_parent_loop_check(const Object *parent, const Object *ob);
 
 void *BKE_object_tfm_backup(Object *ob);
 void BKE_object_tfm_restore(Object *ob, void *obtfm_pt);
+void BKE_object_tfm_free(void *obtfm_pt);
 
 struct ObjectTfmProtectedChannels {
   float loc[3], dloc[3];
@@ -562,7 +563,11 @@ int BKE_object_is_modified(Scene *scene, Object *ob);
  * and we can still if there was actual deformation afterwards.
  */
 int BKE_object_is_deform_modified(Scene *scene, Object *ob);
-
+/**
+ * Populates r_axis with the mirror axes that are currently active
+ * and have merging enabled on an object.
+ */
+void BKE_object_get_mirror_axes(const Object *ob, bool r_axis[3]);
 /**
  * Check of objects moves in time.
  *

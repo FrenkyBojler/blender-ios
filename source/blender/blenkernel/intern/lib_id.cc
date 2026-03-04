@@ -87,34 +87,34 @@ using namespace bke::id;
 static CLG_LogRef LOG = {"lib.id"};
 
 IDTypeInfo IDType_ID_LINK_PLACEHOLDER = {
-    /*id_code*/ ID_LINK_PLACEHOLDER,
-    /*id_filter*/ 0,
-    /*dependencies_id_types*/ 0,
-    /*main_listbase_index*/ INDEX_ID_NULL,
-    /*struct_size*/ sizeof(ID),
-    /*name*/ "LinkPlaceholder",
-    /*name_plural*/ N_("link_placeholders"),
-    /*translation_context*/ BLT_I18NCONTEXT_ID_ID,
-    /*flags*/ IDTYPE_FLAGS_NO_COPY | IDTYPE_FLAGS_NO_LIBLINKING,
-    /*asset_type_info*/ nullptr,
+    .id_code = ID_LINK_PLACEHOLDER,
+    .id_filter = 0,
+    .dependencies_id_types = 0,
+    .main_listbase_index = INDEX_ID_NULL,
+    .struct_size = sizeof(ID),
+    .name = "LinkPlaceholder",
+    .name_plural = N_("link_placeholders"),
+    .translation_context = BLT_I18NCONTEXT_ID_ID,
+    .flags = IDTYPE_FLAGS_NO_COPY | IDTYPE_FLAGS_NO_LIBLINKING,
+    .asset_type_info = nullptr,
 
-    /*init_data*/ nullptr,
-    /*copy_data*/ nullptr,
-    /*free_data*/ nullptr,
-    /*make_local*/ nullptr,
-    /*foreach_id*/ nullptr,
-    /*foreach_cache*/ nullptr,
-    /*foreach_path*/ nullptr,
-    /*foreach_working_space_color*/ nullptr,
-    /*owner_pointer_get*/ nullptr,
+    .init_data = nullptr,
+    .copy_data = nullptr,
+    .free_data = nullptr,
+    .make_local = nullptr,
+    .foreach_id = nullptr,
+    .foreach_cache = nullptr,
+    .foreach_path = nullptr,
+    .foreach_working_space_color = nullptr,
+    .owner_pointer_get = nullptr,
 
-    /*blend_write*/ nullptr,
-    /*blend_read_data*/ nullptr,
-    /*blend_read_after_liblink*/ nullptr,
+    .blend_write = nullptr,
+    .blend_read_data = nullptr,
+    .blend_read_after_liblink = nullptr,
 
-    /*blend_read_undo_preserve*/ nullptr,
+    .blend_read_undo_preserve = nullptr,
 
-    /*lib_override_apply_post*/ nullptr,
+    .lib_override_apply_post = nullptr,
 };
 
 /* GS reads the memory pointed at in a specific ordering.
@@ -1280,7 +1280,7 @@ void BKE_main_id_repair_duplicate_names_listbase(Main *bmain, ListBaseT<ID> *lb)
   }
 
   /* Fill an array because renaming sorts. */
-  ID **id_array = MEM_malloc_arrayN<ID *>(size_t(lb_len), __func__);
+  ID **id_array = MEM_new_array_uninitialized<ID *>(size_t(lb_len), __func__);
   Set<StringRef> name_set;
   int i = 0;
   for (ID &id : *lb) {
@@ -1295,7 +1295,7 @@ void BKE_main_id_repair_duplicate_names_listbase(Main *bmain, ListBaseT<ID> *lb)
           *bmain, *lb, *id_array[i], nullptr, IDNewNameMode::RenameExistingNever, false);
     }
   }
-  MEM_freeN(id_array);
+  MEM_delete(id_array);
 }
 
 void BKE_main_lib_objects_recalc_all(Main *bmain)
@@ -1353,7 +1353,7 @@ ID *BKE_libblock_alloc_notest(short type)
   const char *name;
   size_t size = BKE_libblock_get_alloc_info(type, &name);
   if (size != 0) {
-    ID *id = static_cast<ID *>(MEM_callocN(size, name));
+    ID *id = static_cast<ID *>(MEM_new_zeroed(size, name));
     return id;
   }
   BLI_assert_msg(0, "Request to allocate unknown data type");
@@ -2586,7 +2586,7 @@ Vector<ID *> BKE_id_ordered_list(const ListBaseT<ID> *lb)
     ordered.append(&id);
   }
 
-  std::sort(ordered.begin(), ordered.end(), id_order_compare);
+  std::ranges::sort(ordered, id_order_compare);
 
   for (const int i : ordered.index_range()) {
     if (int *order = id_order_get(ordered[i])) {

@@ -82,11 +82,6 @@ if(WITH_TBB)
   endif()
 endif()
 
-if(WIN32)
-  # Windows.h will define min/max macros that will collide with the STL versions.
-  add_definitions(-DNOMINMAX)
-endif()
-
 if(WITH_USD)
   # USD links libMaterialX, when using pre-compiled libraries
   # ensures `usd_ms` can find `MaterialXRender` and friends.
@@ -115,6 +110,10 @@ endif()
 
 if(WITH_SDL)
   add_definitions(-DWITH_SDL)
+endif()
+
+if(WITH_INPUT_NDOF)
+  add_definitions(-DWITH_INPUT_NDOF)
 endif()
 
 if(WITH_BINRELOC)
@@ -565,6 +564,18 @@ if(WIN32)
       CONFIGURATIONS Debug
     )
   endif()
+  if(EXISTS ${LIBDIR}/ceres/bin/ceres.dll) # 5.1+
+    windows_install_shared_manifest(
+      FILES
+        ${LIBDIR}/ceres/bin/ceres.dll
+      RELEASE
+    )
+    windows_install_shared_manifest(
+      FILES
+        ${LIBDIR}/ceres/bin/ceres-debug.dll
+      DEBUG
+    )
+  endif()
   if(EXISTS ${LIBDIR}/osl/bin/oslquery.dll) # 4.1+
     windows_install_shared_manifest(
       FILES
@@ -593,14 +604,31 @@ if(WIN32)
       DEBUG
     )
   endif()
-  if(EXISTS ${LIBDIR}/opencolorio/bin/opencolorio_2_3.dll) # 4.1
+  if(EXISTS ${LIBDIR}/opencolorio/bin/opencolorio_2_5.dll) # 5.1
     windows_install_shared_manifest(
-      FILES ${LIBDIR}/opencolorio/bin/opencolorio_2_3.dll
+      FILES ${LIBDIR}/opencolorio/bin/opencolorio_2_5.dll
       RELEASE
     )
     windows_install_shared_manifest(
-      FILES ${LIBDIR}/opencolorio/bin/opencolorio_d_2_3.dll
+      FILES ${LIBDIR}/opencolorio/bin/opencolorio_d_2_5.dll
       DEBUG
+    )
+  endif()
+  if(EXISTS ${LIBDIR}/openjph/bin/openjph.0.25.dll) # 5.1
+    windows_install_shared_manifest(
+      FILES ${LIBDIR}/openjph/bin/openjph.0.25.dll
+      RELEASE
+    )
+    windows_install_shared_manifest(
+      FILES ${LIBDIR}/openjph/bin/openjph.0.25d.dll
+      DEBUG
+    )
+  endif()
+  if(EXISTS "${LIBDIR}/aom/bin/aom.dll") # 5.1
+    windows_install_shared_manifest(
+      FILES
+        ${LIBDIR}/aom/bin/aom.dll
+      ALL
     )
   endif()
   install(
@@ -1236,7 +1264,7 @@ elseif(WIN32)
     string(REPLACE "." "" _PYTHON_VERSION_NO_DOTS ${PYTHON_VERSION})
 
     if(NOT WITH_PYTHON_MODULE)
-      if(NOT CMAKE_COMPILER_IS_GNUCC)
+      if(NOT CMAKE_C_COMPILER_ID STREQUAL "GNU")
         install(
           FILES
             ${LIBDIR}/python/${_PYTHON_VERSION_NO_DOTS}/bin/python${_PYTHON_VERSION_NO_DOTS}.dll
@@ -1853,7 +1881,7 @@ unset(TARGETDIR_TEXT)
 
 # Geometry icons.
 get_property(_icon_names GLOBAL PROPERTY ICON_GEOM_NAMES)
-set(_icon_files)
+set(_icon_files "")
 foreach(_f ${_icon_names})
   list(APPEND _icon_files
     "${CMAKE_SOURCE_DIR}/release/datafiles/icons/${_f}.dat"
@@ -1999,36 +2027,17 @@ if((DEFINED LIBDIR) AND TARGETDIR_LIB AND WITH_MATERIALX)
   )
 endif()
 
-if(WIN32 AND DEFINED BOOST_LIBPATH)
-  if(EXISTS ${BOOST_LIBPATH})
-    set(BOOST_COMPONENTS atomic chrono date_time filesystem
-      iostreams locale program_options regex
-      serialization system thread wave wserialization
-      python${_PYTHON_VERSION_NO_DOTS} numpy${_PYTHON_VERSION_NO_DOTS}
-    )
-    foreach(component ${BOOST_COMPONENTS})
-      if(EXISTS ${BOOST_LIBPATH}/${BOOST_PREFIX}boost_${component}-${BOOST_POSTFIX}.dll)
-        windows_install_shared_manifest(
-          FILES ${BOOST_LIBPATH}/${BOOST_PREFIX}boost_${component}-${BOOST_POSTFIX}.dll
-          RELEASE
-        )
-        windows_install_shared_manifest(
-          FILES ${BOOST_LIBPATH}/${BOOST_PREFIX}boost_${component}-${BOOST_DEBUG_POSTFIX}.dll
-          DEBUG
-        )
-      endif()
-    endforeach()
-  endif()
-endif()
-
 if(WIN32)
   if(WITH_CYCLES_DEVICE_HIPRT)
-    if(EXISTS ${LIBDIR}/hiprt/bin/hiprt64.dll)
-      install(
-        FILES ${LIBDIR}/hiprt/bin/hiprt64.dll
-        DESTINATION "./"
-      )
-    endif()
+    # Cycles does `find_package(HIPRT)` for its compilation purposes, and the variables defined by
+    # the FindHIPRT.cmake are only available in Cycles. In order to access HIPRT_VERSION need to
+    # find the package from here as well.
+    # For the strict compilation rely on Cycles to take care of set_and_warn_library_found().
+    find_package(HIPRT)
+    windows_install_shared_manifest(
+      FILES ${LIBDIR}/hiprt/bin/hiprt${HIPRT_VERSION}64.dll
+      ALL
+    )
   endif()
 endif()
 

@@ -8,6 +8,7 @@
 
 #include <cstring>
 
+#include "DNA_space_types.h"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
@@ -42,7 +43,8 @@ static SpaceLink *userpref_create(const ScrArea *area, const Scene * /*scene*/)
   ARegion *region;
   SpaceUserPref *spref;
 
-  spref = MEM_new_for_free<SpaceUserPref>("inituserpref");
+  spref = MEM_new<SpaceUserPref>("inituserpref");
+  spref->runtime = MEM_new<SpaceUserPref_Runtime>(__func__);
   spref->spacetype = SPACE_USERPREF;
 
   /* header */
@@ -91,28 +93,14 @@ static void userpref_free(SpaceLink *sl)
 }
 
 /* spacetype; init callback */
-static void userpref_init(wmWindowManager * /*wm*/, ScrArea *area)
-{
-  SpaceUserPref *spref = (SpaceUserPref *)area->spacedata.first;
-  if (spref->runtime == nullptr) {
-    spref->runtime = MEM_new<SpaceUserPref_Runtime>(__func__);
-    spref->runtime->search_string[0] = '\0';
-    spref->runtime->tab_search_results.resize(USER_SECTION_DEVELOPER_TOOLS * 2, false);
-  }
-}
+static void userpref_init(wmWindowManager * /*wm*/, ScrArea * /*area*/) {}
 
 static SpaceLink *userpref_duplicate(SpaceLink *sl)
 {
   SpaceUserPref *sprefn_old = (SpaceUserPref *)sl;
-  SpaceUserPref *sprefn = static_cast<SpaceUserPref *>(MEM_dupallocN(sl));
+  SpaceUserPref *sprefn = static_cast<SpaceUserPref *>(MEM_dupalloc(sprefn_old));
 
-  if (sprefn_old->runtime != nullptr) {
-    sprefn->runtime = static_cast<SpaceUserPref_Runtime *>(MEM_dupallocN(sprefn_old->runtime));
-    sprefn->runtime->search_string[0] = '\0';
-    sprefn->runtime->tab_search_results.resize(USER_SECTION_DEVELOPER_TOOLS * 2, false);
-  }
-
-  /* clear or remove stuff from old */
+  sprefn->runtime = MEM_new<SpaceUserPref_Runtime>(__func__);
 
   return reinterpret_cast<SpaceLink *>(sprefn);
 }
@@ -141,17 +129,17 @@ static void userpref_main_region_init(wmWindowManager *wm, ARegion *region)
 
 const char *ED_userpref_search_string_get(SpaceUserPref *spref)
 {
-  return spref->runtime->search_string;
+  return spref->runtime->search_string.c_str();
 }
 
 int ED_userpref_search_string_length(SpaceUserPref *spref)
 {
-  return BLI_strnlen(spref->runtime->search_string, sizeof(spref->runtime->search_string));
+  return spref->runtime->search_string.size();
 }
 
 void ED_userpref_search_string_set(SpaceUserPref *spref, const char *value)
 {
-  STRNCPY(spref->runtime->search_string, value);
+  spref->runtime->search_string = value ? value : "";
 }
 
 bool ED_userpref_tab_has_search_result(SpaceUserPref *spref, const int index)
@@ -234,7 +222,7 @@ static void userpref_search_all_tabs(const bContext *C,
   region_copy->runtime->visible = true;
   CTX_wm_area_set(const_cast<bContext *>(C), &area_copy);
   CTX_wm_region_set(const_cast<bContext *>(C), region_copy);
-  SpaceUserPref sprefs_copy = blender::dna::shallow_copy(*sprefs);
+  SpaceUserPref sprefs_copy = dna::shallow_copy(*sprefs);
   sprefs_copy.runtime = MEM_new<SpaceUserPref_Runtime>(__func__, *sprefs->runtime);
   sprefs_copy.runtime->tab_search_results.fill(false);
   BLI_listbase_clear(&area_copy.spacedata);
@@ -254,11 +242,11 @@ static void userpref_search_all_tabs(const bContext *C,
     }
     /* Actually do the search and store the result in the bitmap. */
     const bool found = property_search_for_context(C, region_copy, context_tabs_array[i]);
-    sprefs->runtime->tab_search_results[i].set(found);
+    sprefs->runtime->tab_search_results[i] = found;
     ui::blocklist_free(C, region_copy);
   }
   BKE_area_region_free(area_copy.type, region_copy);
-  MEM_freeN(region_copy);
+  MEM_delete(region_copy);
   userpref_free(reinterpret_cast<SpaceLink *>(&sprefs_copy));
   CTX_wm_area_set(const_cast<bContext *>(C), area_original);
   CTX_wm_region_set(const_cast<bContext *>(C), region_original);
@@ -290,7 +278,7 @@ static void userpref_main_region_property_search(const bContext *C,
   }
   BLI_assert(current_tab_index != -1);
   /* Update the tab search match flag for the current tab. */
-  sprefs->runtime->tab_search_results[current_tab_index].set(current_tab_has_search_match);
+  sprefs->runtime->tab_search_results[current_tab_index] = current_tab_has_search_match;
   /* Move to the next tab with a result */
   if (!current_tab_has_search_match) {
     if (region->flag & RGN_FLAG_SEARCH_FILTER_UPDATE) {
@@ -392,6 +380,12 @@ static void userpref_navigation_region_listener(const wmRegionListenerParams * /
 
 static void userpref_execute_region_listener(const wmRegionListenerParams * /*params*/) {}
 
+static void userpref_blend_read_data(BlendDataReader * /*reader*/, SpaceLink *sl)
+{
+  SpaceUserPref *spref = reinterpret_cast<SpaceUserPref *>(sl);
+  spref->runtime = MEM_new<SpaceUserPref_Runtime>(__func__);
+}
+
 static void userpref_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 {
   writer->write_struct_cast<SpaceUserPref>(sl);
@@ -411,10 +405,11 @@ void ED_spacetype_userpref()
   st->duplicate = userpref_duplicate;
   st->operatortypes = userpref_operatortypes;
   st->keymap = userpref_keymap;
+  st->blend_read_data = userpref_blend_read_data;
   st->blend_write = userpref_space_blend_write;
 
   /* regions: main window */
-  art = MEM_callocN<ARegionType>("spacetype userpref region");
+  art = MEM_new_zeroed<ARegionType>("spacetype userpref region");
   art->regionid = RGN_TYPE_WINDOW;
   art->init = userpref_main_region_init;
   art->layout = userpref_main_region_layout;
@@ -425,7 +420,7 @@ void ED_spacetype_userpref()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: header */
-  art = MEM_callocN<ARegionType>("spacetype userpref region");
+  art = MEM_new_zeroed<ARegionType>("spacetype userpref region");
   art->regionid = RGN_TYPE_HEADER;
   art->prefsizey = HEADERY;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_HEADER;
@@ -436,7 +431,7 @@ void ED_spacetype_userpref()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: navigation window */
-  art = MEM_callocN<ARegionType>("spacetype userpref region");
+  art = MEM_new_zeroed<ARegionType>("spacetype userpref region");
   art->regionid = RGN_TYPE_UI;
   art->prefsizex = UI_NAVIGATION_REGION_WIDTH;
   art->init = userpref_navigation_region_init;
@@ -447,7 +442,7 @@ void ED_spacetype_userpref()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: execution window */
-  art = MEM_callocN<ARegionType>("spacetype userpref region");
+  art = MEM_new_zeroed<ARegionType>("spacetype userpref region");
   art->regionid = RGN_TYPE_EXECUTE;
   art->prefsizey = HEADERY;
   art->poll = userpref_execute_region_poll;

@@ -85,6 +85,8 @@
 
 #include "readfile.hh"
 
+#include "versioning_common.hh"
+
 namespace blender {
 
 /** Without empty statements, clang-format fails (tested with v12 & v15). */
@@ -114,40 +116,50 @@ static void do_versions_nodetree_convert_angle(bNodeTree *ntree)
           ((bNodeSocketValueFloat *)sock->default_value)->value);
     }
     else if (node.type_legacy == CMP_NODE_DBLUR) {
-      /* Convert degrees to radians. */
-      NodeDBlurData *ndbd = static_cast<NodeDBlurData *>(node.storage);
-      ndbd->angle = DEG2RADF(ndbd->angle);
-      ndbd->spin = DEG2RADF(ndbd->spin);
+      if (version_node_ensure_storage_or_invalidate(node)) {
+        /* Convert degrees to radians. */
+        NodeDBlurData *ndbd = static_cast<NodeDBlurData *>(node.storage);
+        ndbd->angle = DEG2RADF(ndbd->angle);
+        ndbd->spin = DEG2RADF(ndbd->spin);
+      }
     }
     else if (node.type_legacy == CMP_NODE_DEFOCUS) {
-      /* Convert degrees to radians. */
-      NodeDefocus *nqd = static_cast<NodeDefocus *>(node.storage);
-      /* XXX DNA char to float conversion seems to map the char value
-       * into the [0.0f, 1.0f] range. */
-      nqd->rotation = DEG2RADF(nqd->rotation * 255.0f);
+      if (version_node_ensure_storage_or_invalidate(node)) {
+        /* Convert degrees to radians. */
+        NodeDefocus *nqd = static_cast<NodeDefocus *>(node.storage);
+        /* XXX DNA char to float conversion seems to map the char value
+         * into the [0.0f, 1.0f] range. */
+        nqd->rotation = DEG2RADF(nqd->rotation * 255.0f);
+      }
     }
     else if (node.type_legacy == CMP_NODE_CHROMA_MATTE) {
-      /* Convert degrees to radians. */
-      NodeChroma *ndc = static_cast<NodeChroma *>(node.storage);
-      ndc->t1 = DEG2RADF(ndc->t1);
-      ndc->t2 = DEG2RADF(ndc->t2);
+      if (version_node_ensure_storage_or_invalidate(node)) {
+        /* Convert degrees to radians. */
+        NodeChroma *ndc = static_cast<NodeChroma *>(node.storage);
+        ndc->t1 = DEG2RADF(ndc->t1);
+        ndc->t2 = DEG2RADF(ndc->t2);
+      }
     }
     else if (node.type_legacy == CMP_NODE_GLARE) {
-      /* Convert degrees to radians. */
-      NodeGlare *ndg = static_cast<NodeGlare *>(node.storage);
-      /* XXX DNA char to float conversion seems to map the char value
-       * into the [0.0f, 1.0f] range. */
-      ndg->angle_ofs = DEG2RADF(ndg->angle_ofs * 255.0f);
+      if (version_node_ensure_storage_or_invalidate(node)) {
+        /* Convert degrees to radians. */
+        NodeGlare *ndg = static_cast<NodeGlare *>(node.storage);
+        /* XXX DNA char to float conversion seems to map the char value
+         * into the [0.0f, 1.0f] range. */
+        ndg->angle_ofs = DEG2RADF(ndg->angle_ofs * 255.0f);
+      }
     }
     /* XXX TexMapping struct is used by other nodes too (at least node_composite_mapValue),
      *     but not the rot part...
      */
     else if (node.type_legacy == SH_NODE_MAPPING) {
-      /* Convert degrees to radians. */
-      TexMapping *tmap = static_cast<TexMapping *>(node.storage);
-      tmap->rot[0] = DEG2RADF(tmap->rot[0]);
-      tmap->rot[1] = DEG2RADF(tmap->rot[1]);
-      tmap->rot[2] = DEG2RADF(tmap->rot[2]);
+      if (version_node_ensure_storage_or_invalidate(node)) {
+        /* Convert degrees to radians. */
+        TexMapping *tmap = static_cast<TexMapping *>(node.storage);
+        tmap->rot[0] = DEG2RADF(tmap->rot[0]);
+        tmap->rot[1] = DEG2RADF(tmap->rot[1]);
+        tmap->rot[2] = DEG2RADF(tmap->rot[2]);
+      }
     }
   }
 }
@@ -328,12 +340,15 @@ static bNodeSocket *ntreeCompositOutputFileAddSocket(bNodeTree *ntree,
                                                      const char *name,
                                                      const ImageFormatData *im_format)
 {
+  if (!version_node_ensure_storage_or_invalidate(*node)) {
+    return nullptr;
+  }
   NodeCompositorFileOutput *nimf = static_cast<NodeCompositorFileOutput *>(node->storage);
   bNodeSocket *sock = bke::node_add_static_socket(
       *ntree, *node, SOCK_IN, SOCK_RGBA, PROP_NONE, "", name);
 
   /* create format data for the input socket */
-  NodeImageMultiFileSocket *sockdata = MEM_new_for_free<NodeImageMultiFileSocket>(__func__);
+  NodeImageMultiFileSocket *sockdata = MEM_new<NodeImageMultiFileSocket>(__func__);
   sock->storage = sockdata;
 
   STRNCPY_UTF8(sockdata->path, name);
@@ -368,8 +383,7 @@ static void do_versions_nodetree_multi_file_output_format_2_62_1(Scene *sce, bNo
     if (node.type_legacy == CMP_NODE_OUTPUT_FILE) {
       /* previous CMP_NODE_OUTPUT_FILE nodes get converted to multi-file outputs */
       NodeImageFile *old_data = static_cast<NodeImageFile *>(node.storage);
-      NodeCompositorFileOutput *nimf = MEM_new_for_free<NodeCompositorFileOutput>(
-          "node image multi file");
+      NodeCompositorFileOutput *nimf = MEM_new<NodeCompositorFileOutput>("node image multi file");
       bNodeSocket *old_image = static_cast<bNodeSocket *>(BLI_findlink(&node.inputs, 0));
       bNodeSocket *old_z = static_cast<bNodeSocket *>(BLI_findlink(&node.inputs, 1));
 
@@ -409,6 +423,9 @@ static void do_versions_nodetree_multi_file_output_format_2_62_1(Scene *sce, bNo
         SNPRINTF_UTF8(sockpath, "%s_Image", filename);
         bNodeSocket *sock = ntreeCompositOutputFileAddSocket(
             ntree, &node, sockpath, &nimf->format);
+        if (!sock) {
+          continue;
+        }
         /* XXX later do_versions copies path from socket name, need to set this explicitly */
         STRNCPY_UTF8(sock->name, sockpath);
         if (old_image->link) {
@@ -418,6 +435,9 @@ static void do_versions_nodetree_multi_file_output_format_2_62_1(Scene *sce, bNo
 
         SNPRINTF_UTF8(sockpath, "%s_Z", filename);
         sock = ntreeCompositOutputFileAddSocket(ntree, &node, sockpath, &nimf->format);
+        if (!sock) {
+          continue;
+        }
         /* XXX later do_versions copies path from socket name, need to set this explicitly */
         STRNCPY_UTF8(sock->name, sockpath);
         if (old_z->link) {
@@ -428,6 +448,9 @@ static void do_versions_nodetree_multi_file_output_format_2_62_1(Scene *sce, bNo
       else {
         bNodeSocket *sock = ntreeCompositOutputFileAddSocket(
             ntree, &node, filename, &nimf->format);
+        if (!sock) {
+          continue;
+        }
         /* XXX later do_versions copies path from socket name, need to set this explicitly */
         STRNCPY_UTF8(sock->name, filename);
         if (old_image->link) {
@@ -439,28 +462,30 @@ static void do_versions_nodetree_multi_file_output_format_2_62_1(Scene *sce, bNo
       bke::node_remove_socket(*ntree, node, *old_image);
       bke::node_remove_socket(*ntree, node, *old_z);
       if (old_data) {
-        MEM_freeN(old_data);
+        MEM_delete(old_data);
       }
     }
     else if (node.type_legacy == CMP_NODE_OUTPUT_MULTI_FILE__DEPRECATED) {
-      NodeCompositorFileOutput *nimf = static_cast<NodeCompositorFileOutput *>(node.storage);
+      if (version_node_ensure_storage_or_invalidate(node)) {
+        NodeCompositorFileOutput *nimf = static_cast<NodeCompositorFileOutput *>(node.storage);
 
-      /* #CMP_NODE_OUTPUT_MULTI_FILE has been re-declared as #CMP_NODE_OUTPUT_FILE. */
-      node.type_legacy = CMP_NODE_OUTPUT_FILE;
+        /* #CMP_NODE_OUTPUT_MULTI_FILE has been re-declared as #CMP_NODE_OUTPUT_FILE. */
+        node.type_legacy = CMP_NODE_OUTPUT_FILE;
 
-      /* initialize the node-wide image format from render data, if available */
-      if (sce) {
-        nimf->format = sce->r.im_format;
+        /* initialize the node-wide image format from render data, if available */
+        if (sce) {
+          nimf->format = sce->r.im_format;
+        }
+
+        /* transfer render format toggle to node format toggle */
+        for (bNodeSocket &sock : node.inputs) {
+          NodeImageMultiFileSocket *simf = static_cast<NodeImageMultiFileSocket *>(sock.storage);
+          simf->use_node_format = simf->use_render_format;
+        }
+
+        /* we do have preview now */
+        node.flag |= NODE_PREVIEW;
       }
-
-      /* transfer render format toggle to node format toggle */
-      for (bNodeSocket &sock : node.inputs) {
-        NodeImageMultiFileSocket *simf = static_cast<NodeImageMultiFileSocket *>(sock.storage);
-        simf->use_node_format = simf->use_render_format;
-      }
-
-      /* we do have preview now */
-      node.flag |= NODE_PREVIEW;
     }
   }
 }
@@ -517,7 +542,7 @@ static void do_versions_nodetree_image_layer_2_64_5(bNodeTree *ntree)
   for (bNode &node : ntree->nodes) {
     if (node.type_legacy == CMP_NODE_IMAGE) {
       for (bNodeSocket &sock : node.outputs) {
-        NodeImageLayer *output = MEM_new_for_free<NodeImageLayer>("node image layer");
+        NodeImageLayer *output = MEM_new<NodeImageLayer>("node image layer");
 
         /* Take pass index both from current storage pointer (actually an int). */
         output->pass_index = POINTER_AS_INT(sock.storage);
@@ -535,7 +560,7 @@ static void do_versions_nodetree_frame_2_64_6(bNodeTree *ntree)
     if (node.type_legacy == NODE_FRAME) {
       /* initialize frame node storage data */
       if (node.storage == nullptr) {
-        NodeFrame *data = MEM_new_for_free<NodeFrame>("frame node storage");
+        NodeFrame *data = MEM_new<NodeFrame>("frame node storage");
         node.storage = data;
 
         /* copy current flags */
@@ -1120,24 +1145,28 @@ static void do_versions_nodetree_customnodes(bNodeTree *ntree, int /*is_group*/)
  * but this keeps settings comparable. */
 static void color_balance_node_cdl_from_lgg(bNode *node)
 {
-  NodeColorBalance *n = static_cast<NodeColorBalance *>(node->storage);
+  if (version_node_ensure_storage_or_invalidate(*node)) {
+    NodeColorBalance *n = static_cast<NodeColorBalance *>(node->storage);
 
-  for (int c = 0; c < 3; c++) {
-    n->slope[c] = (2.0f - n->lift[c]) * n->gain[c];
-    n->offset[c] = (n->lift[c] - 1.0f) * n->gain[c];
-    n->power[c] = (n->gamma[c] != 0.0f) ? 1.0f / n->gamma[c] : 1000000.0f;
+    for (int c = 0; c < 3; c++) {
+      n->slope[c] = (2.0f - n->lift[c]) * n->gain[c];
+      n->offset[c] = (n->lift[c] - 1.0f) * n->gain[c];
+      n->power[c] = (n->gamma[c] != 0.0f) ? 1.0f / n->gamma[c] : 1000000.0f;
+    }
   }
 }
 
 static void color_balance_node_lgg_from_cdl(bNode *node)
 {
-  NodeColorBalance *n = static_cast<NodeColorBalance *>(node->storage);
+  if (version_node_ensure_storage_or_invalidate(*node)) {
+    NodeColorBalance *n = static_cast<NodeColorBalance *>(node->storage);
 
-  for (int c = 0; c < 3; c++) {
-    float d = n->slope[c] + n->offset[c];
-    n->lift[c] = (d != 0.0f ? n->slope[c] + 2.0f * n->offset[c] / d : 0.0f);
-    n->gain[c] = d;
-    n->gamma[c] = (n->power[c] != 0.0f) ? 1.0f / n->power[c] : 1000000.0f;
+    for (int c = 0; c < 3; c++) {
+      float d = n->slope[c] + n->offset[c];
+      n->lift[c] = (d != 0.0f ? n->slope[c] + 2.0f * n->offset[c] / d : 0.0f);
+      n->gain[c] = d;
+      n->gamma[c] = (n->power[c] != 0.0f) ? 1.0f / n->power[c] : 1000000.0f;
+    }
   }
 }
 
@@ -1158,7 +1187,7 @@ static bool strip_colorbalance_update_cb(Strip *strip, void * /*user_data*/)
     cbmd->color_multiply = strip->mul;
     strip->mul = 1.0f;
 
-    MEM_freeN(data->color_balance_legacy);
+    MEM_delete(data->color_balance_legacy);
     data->color_balance_legacy = nullptr;
   }
   return true;
@@ -1194,7 +1223,7 @@ static bNodeSocket *version_make_socket_stub(const char *idname,
                                              const void *default_value,
                                              const IDProperty *prop)
 {
-  bNodeSocket *socket = MEM_new_for_free<bNodeSocket>(__func__);
+  bNodeSocket *socket = MEM_new<bNodeSocket>(__func__);
   socket->runtime = MEM_new<bke::bNodeSocketRuntime>(__func__);
   STRNCPY_UTF8(socket->idname, idname);
   socket->type = int(type);
@@ -1210,7 +1239,7 @@ static bNodeSocket *version_make_socket_stub(const char *idname,
   /* NOTE: technically socket values can store ref-counted ID pointers, but at this stage the
    * refcount can be ignored. It gets recomputed after lib-linking for all ID pointers. Socket
    * values don't have allocated data, so a simple duplication works here. */
-  socket->default_value = default_value ? MEM_dupallocN(default_value) : nullptr;
+  socket->default_value = default_value ? MEM_dupalloc_void(default_value) : nullptr;
   socket->prop = prop ? IDP_CopyProperty(prop) : nullptr;
 
   return socket;
@@ -1223,7 +1252,7 @@ static bNode *version_add_group_in_out_node(bNodeTree *ntree, const int type)
   ListBaseT<bNodeSocket> *node_socket_list = nullptr;
   eNodeSocketInOut socket_in_out = SOCK_IN;
 
-  bNode *node = MEM_new_for_free<bNode>("new node");
+  bNode *node = MEM_new<bNode>("new node");
   switch (type) {
     case NODE_GROUP_INPUT:
       STRNCPY_UTF8(node->idname, "NodeGroupInput");
@@ -1333,10 +1362,12 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
       if (ntree->type == NTREE_SHADER) {
         for (bNode &node : ntree->nodes) {
           if (node.type_legacy == SH_NODE_MAPPING) {
-            TexMapping *tex_mapping = static_cast<TexMapping *>(node.storage);
-            tex_mapping->projx = PROJ_X;
-            tex_mapping->projy = PROJ_Y;
-            tex_mapping->projz = PROJ_Z;
+            if (version_node_ensure_storage_or_invalidate(node)) {
+              TexMapping *tex_mapping = static_cast<TexMapping *>(node.storage);
+              tex_mapping->projx = PROJ_X;
+              tex_mapping->projy = PROJ_Y;
+              tex_mapping->projz = PROJ_Z;
+            }
           }
         }
       }
@@ -1856,10 +1887,12 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
       if (ntree->type == NTREE_SHADER) {
         for (bNode &node : ntree->nodes) {
           if (ELEM(node.type_legacy, SH_NODE_TEX_IMAGE, SH_NODE_TEX_ENVIRONMENT)) {
-            NodeTexImage *tex = static_cast<NodeTexImage *>(node.storage);
+            if (version_node_ensure_storage_or_invalidate(node)) {
+              NodeTexImage *tex = static_cast<NodeTexImage *>(node.storage);
 
-            tex->iuser.frames = 1;
-            tex->iuser.sfra = 1;
+              tex->iuser.frames = 1;
+              tex->iuser.sfra = 1;
+            }
           }
         }
       }
@@ -1874,9 +1907,11 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
         if (ntree->type == NTREE_COMPOSIT) {
           for (bNode &node : ntree->nodes) {
             if (node.type_legacy == CMP_NODE_DEFOCUS) {
-              NodeDefocus *data = static_cast<NodeDefocus *>(node.storage);
-              if (data->maxblur == 0.0f) {
-                data->maxblur = 16.0f;
+              if (version_node_ensure_storage_or_invalidate(node)) {
+                NodeDefocus *data = static_cast<NodeDefocus *>(node.storage);
+                if (data->maxblur == 0.0f) {
+                  data->maxblur = 16.0f;
+                }
               }
             }
           }
@@ -1927,7 +1962,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
         for (bNode &node : ntree->nodes) {
           if (node.type_legacy == CMP_NODE_DILATEERODE) {
             if (node.storage == nullptr) {
-              NodeDilateErode *data = MEM_new_for_free<NodeDilateErode>(__func__);
+              NodeDilateErode *data = MEM_new<NodeDilateErode>(__func__);
               data->falloff = PROP_SMOOTH;
               node.storage = data;
             }
@@ -1943,10 +1978,12 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
       if (ntree->type == NTREE_COMPOSIT) {
         for (bNode &node : ntree->nodes) {
           if (node.type_legacy == CMP_NODE_KEYING) {
-            NodeKeyingData *data = static_cast<NodeKeyingData *>(node.storage);
+            if (version_node_ensure_storage_or_invalidate(node)) {
+              NodeKeyingData *data = static_cast<NodeKeyingData *>(node.storage);
 
-            if (data->despill_balance == 0.0f) {
-              data->despill_balance = 0.5f;
+              if (data->despill_balance == 0.0f) {
+                data->despill_balance = 0.5f;
+              }
             }
           }
         }
@@ -1970,7 +2007,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
         for (bNode &node : ntree->nodes) {
           if (node.type_legacy == CMP_NODE_MASK) {
             if (node.storage == nullptr) {
-              NodeMask *data = MEM_new_for_free<NodeMask>(__func__);
+              NodeMask *data = MEM_new<NodeMask>(__func__);
               /* move settings into own struct */
               data->size_x = int(node.custom3);
               data->size_y = int(node.custom4);
@@ -2312,7 +2349,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
       if (ntree->type == NTREE_COMPOSIT) {
         for (bNode &node : ntree->nodes) {
           if (node.type_legacy == CMP_NODE_TRANSLATE && node.storage == nullptr) {
-            node.storage = MEM_new_for_free<NodeTranslateData>("node translate data");
+            node.storage = MEM_new<NodeTranslateData>("node translate data");
           }
         }
       }
@@ -2788,19 +2825,21 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
       if (ntree->type == NTREE_COMPOSIT) {
         for (bNode &node : ntree->nodes) {
           if (node.type_legacy == CMP_NODE_COLORBALANCE) {
-            NodeColorBalance *n = static_cast<NodeColorBalance *>(node.storage);
-            if (node.custom1 == 0) {
-              /* LGG mode stays the same, just init CDL settings */
-              color_balance_node_cdl_from_lgg(&node);
-            }
-            else if (node.custom1 == 1) {
-              /* CDL previously used same variables as LGG, copy them over
-               * and then sync LGG for comparable results in both modes.
-               */
-              copy_v3_v3(n->offset, n->lift);
-              copy_v3_v3(n->power, n->gamma);
-              copy_v3_v3(n->slope, n->gain);
-              color_balance_node_lgg_from_cdl(&node);
+            if (version_node_ensure_storage_or_invalidate(node)) {
+              NodeColorBalance *n = static_cast<NodeColorBalance *>(node.storage);
+              if (node.custom1 == 0) {
+                /* LGG mode stays the same, just init CDL settings */
+                color_balance_node_cdl_from_lgg(&node);
+              }
+              else if (node.custom1 == 1) {
+                /* CDL previously used same variables as LGG, copy them over
+                 * and then sync LGG for comparable results in both modes.
+                 */
+                copy_v3_v3(n->offset, n->lift);
+                copy_v3_v3(n->power, n->gamma);
+                copy_v3_v3(n->slope, n->gain);
+                color_balance_node_lgg_from_cdl(&node);
+              }
             }
           }
         }
@@ -2909,16 +2948,22 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
         if (ntree->type == NTREE_COMPOSIT) {
           for (bNode &node : ntree->nodes) {
             if (node.type_legacy == CMP_NODE_BOKEHIMAGE) {
-              NodeBokehImage *n = static_cast<NodeBokehImage *>(node.storage);
-              n->angle = DEG2RADF(n->angle);
+              if (version_node_ensure_storage_or_invalidate(node)) {
+                NodeBokehImage *n = static_cast<NodeBokehImage *>(node.storage);
+                n->angle = DEG2RADF(n->angle);
+              }
             }
             if (node.type_legacy == CMP_NODE_MASK_BOX) {
-              NodeBoxMask *n = static_cast<NodeBoxMask *>(node.storage);
-              n->rotation = DEG2RADF(n->rotation);
+              if (version_node_ensure_storage_or_invalidate(node)) {
+                NodeBoxMask *n = static_cast<NodeBoxMask *>(node.storage);
+                n->rotation = DEG2RADF(n->rotation);
+              }
             }
             if (node.type_legacy == CMP_NODE_MASK_ELLIPSE) {
-              NodeEllipseMask *n = static_cast<NodeEllipseMask *>(node.storage);
-              n->rotation = DEG2RADF(n->rotation);
+              if (version_node_ensure_storage_or_invalidate(node)) {
+                NodeEllipseMask *n = static_cast<NodeEllipseMask *>(node.storage);
+                n->rotation = DEG2RADF(n->rotation);
+              }
             }
           }
         }

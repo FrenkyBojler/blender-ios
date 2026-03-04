@@ -61,6 +61,8 @@ StringRefNull rna_property_name_for_type(const bke::AttrType type)
       return "value_float_vector_2d";
     case bke::AttrType::Float3:
       return "value_float_vector_3d";
+    case bke::AttrType::Float4:
+      return "value_float_vector_4d";
     case bke::AttrType::ColorByte:
     case bke::AttrType::ColorFloat:
       return "value_color";
@@ -108,6 +110,16 @@ void register_rna_properties_for_attribute_types(StructRNA &srna)
                       "",
                       -FLT_MAX,
                       FLT_MAX);
+  RNA_def_float_array(&srna,
+                      "value_float_vector_4d",
+                      4,
+                      nullptr,
+                      -FLT_MAX,
+                      FLT_MAX,
+                      "Value",
+                      "",
+                      -FLT_MAX,
+                      FLT_MAX);
   RNA_def_int(&srna, "value_int", 0, INT_MIN, INT_MAX, "Value", "", INT_MIN, INT_MAX);
   RNA_def_int_array(
       &srna, "value_int_vector_2d", 2, nullptr, INT_MIN, INT_MAX, "Value", "", INT_MIN, INT_MAX);
@@ -129,6 +141,9 @@ GPointer rna_property_for_attribute_type_retrieve_value(PointerRNA &ptr,
       RNA_float_get_array(&ptr, prop_name.c_str(), static_cast<float *>(buffer));
       break;
     case bke::AttrType::Float3:
+      RNA_float_get_array(&ptr, prop_name.c_str(), static_cast<float *>(buffer));
+      break;
+    case bke::AttrType::Float4:
       RNA_float_get_array(&ptr, prop_name.c_str(), static_cast<float *>(buffer));
       break;
     case bke::AttrType::ColorFloat:
@@ -178,6 +193,9 @@ void rna_property_for_attribute_type_set_value(PointerRNA &ptr,
       break;
     case bke::AttrType::Float3:
       RNA_property_float_set_array(&ptr, &prop, *value.get<float3>());
+      break;
+    case bke::AttrType::Float4:
+      RNA_property_float_set_array(&ptr, &prop, *value.get<float4>());
       break;
     case bke::AttrType::ColorByte:
       RNA_property_float_set_array(&ptr, &prop, color::decode(*value.get<ColorGeometry4b>()));
@@ -336,19 +354,22 @@ static wmOperatorStatus geometry_attribute_add_exec(bContext *C, wmOperator *op)
 
   if (owner.type() == AttributeOwnerType::Mesh) {
     Mesh &mesh = *id_cast<Mesh *>(id);
-    CustomDataLayer *layer = BKE_attribute_new(owner, name, cd_type, domain, op->reports);
-    if (layer == nullptr) {
-      return OPERATOR_CANCELLED;
+    if (BMEditMesh *em = mesh.runtime->edit_mesh.get()) {
+      CustomDataLayer *layer = BKE_attribute_new(
+          mesh, *em->bm, name, cd_type, domain, op->reports);
+      if (layer == nullptr) {
+        return OPERATOR_CANCELLED;
+      }
+      const StringRefNull new_name = layer->name;
+      BKE_attributes_active_set(owner, new_name);
+
+      set_active_default_status_on_add(mesh, domain, type, new_name);
+
+      DEG_id_tag_update(id, ID_RECALC_GEOMETRY);
+      WM_main_add_notifier(NC_GEOM | ND_DATA, id);
+
+      return OPERATOR_FINISHED;
     }
-    const StringRefNull new_name = layer->name;
-    BKE_attributes_active_set(owner, new_name);
-
-    set_active_default_status_on_add(mesh, domain, type, new_name);
-
-    DEG_id_tag_update(id, ID_RECALC_GEOMETRY);
-    WM_main_add_notifier(NC_GEOM | ND_DATA, id);
-
-    return OPERATOR_FINISHED;
   }
 
   bke::MutableAttributeAccessor accessor = *owner.get_accessor();
@@ -367,6 +388,10 @@ static wmOperatorStatus geometry_attribute_add_exec(bContext *C, wmOperator *op)
       bke::Attribute::ArrayData::from_default_value(cpp_type, domain_size));
 
   BKE_attributes_active_set(owner, attr.name());
+
+  if (owner.type() == AttributeOwnerType::Mesh) {
+    set_active_default_status_on_add(*owner.get_mesh(), domain, type, attr.name());
+  }
 
   DEG_id_tag_update(id, ID_RECALC_GEOMETRY);
   WM_main_add_notifier(NC_GEOM | ND_DATA, id);
@@ -395,7 +420,7 @@ static wmOperatorStatus geometry_attribute_add_invoke(bContext *C,
       RNA_property_enum_set(op->ptr, prop, items[0].value);
     }
     if (free) {
-      MEM_freeN(items);
+      MEM_delete(items);
     }
   }
   return WM_operator_props_popup_confirm_ex(
@@ -498,19 +523,22 @@ static wmOperatorStatus geometry_color_attribute_add_exec(bContext *C, wmOperato
   const std::string unique_name = BKE_attribute_calc_unique_name(owner, name);
 
   if (owner.type() == AttributeOwnerType::Mesh) {
-    CustomDataLayer *layer = BKE_attribute_new(owner, unique_name, type, domain, op->reports);
-    if (layer == nullptr) {
-      return OPERATOR_CANCELLED;
+    Mesh *mesh = owner.get_mesh();
+    if (BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
+      CustomDataLayer *layer = BKE_attribute_new(*mesh, *em->bm, name, type, domain, op->reports);
+      if (layer == nullptr) {
+        return OPERATOR_CANCELLED;
+      }
+      BKE_id_attributes_active_color_set(id, unique_name);
+      if (!BKE_id_attributes_color_find(id, BKE_id_attributes_default_color_name(id).value_or("")))
+      {
+        BKE_id_attributes_default_color_set(id, unique_name);
+      }
+      sculpt_paint::object_active_color_fill(*ob, color, false);
+      DEG_id_tag_update(id, ID_RECALC_GEOMETRY);
+      WM_main_add_notifier(NC_GEOM | ND_DATA, id);
+      return OPERATOR_FINISHED;
     }
-
-    BKE_id_attributes_active_color_set(id, unique_name);
-    if (!BKE_id_attributes_color_find(id, BKE_id_attributes_default_color_name(id).value_or(""))) {
-      BKE_id_attributes_default_color_set(id, unique_name);
-    }
-    sculpt_paint::object_active_color_fill(*ob, color, false);
-    DEG_id_tag_update(id, ID_RECALC_GEOMETRY);
-    WM_main_add_notifier(NC_GEOM | ND_DATA, id);
-    return OPERATOR_FINISHED;
   }
 
   bke::MutableAttributeAccessor attributes = *owner.get_accessor();
@@ -593,12 +621,12 @@ bool convert_attribute(AttributeOwner &owner,
   const GVArray varray = *attributes.lookup_or_default(name_copy, dst_domain, dst_type);
 
   const CPPType &cpp_type = varray.type();
-  void *new_data = MEM_mallocN_aligned(
+  void *new_data = MEM_new_uninitialized_aligned(
       varray.size() * cpp_type.size, cpp_type.alignment, __func__);
   varray.materialize_to_uninitialized(new_data);
   attributes.remove(name_copy);
   if (!attributes.add(name_copy, dst_domain, dst_type, bke::AttributeInitMoveArray(new_data))) {
-    MEM_freeN(new_data);
+    MEM_delete_void(new_data);
   }
 
   if (was_active) {
@@ -812,7 +840,7 @@ static bool geometry_color_attributes_remove_poll(bContext *C)
   }
 
   const Object *ob = object::context_object(C);
-  const ID *data = static_cast<ID *>(ob->data);
+  const ID *data = ob->data;
 
   if (BKE_id_attributes_color_find(data, BKE_id_attributes_active_color_name(data).value_or(""))) {
     return true;
@@ -876,7 +904,7 @@ static bool geometry_color_attributes_duplicate_poll(bContext *C)
   }
 
   const Object *ob = object::context_object(C);
-  const ID *data = static_cast<ID *>(ob->data);
+  const ID *data = ob->data;
 
   if (BKE_id_attributes_color_find(data, BKE_id_attributes_active_color_name(data).value_or(""))) {
     return true;

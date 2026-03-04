@@ -56,8 +56,8 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometrySetCurveHandlePositions *data =
-      MEM_new_for_free<NodeGeometrySetCurveHandlePositions>(__func__);
+  NodeGeometrySetCurveHandlePositions *data = MEM_new<NodeGeometrySetCurveHandlePositions>(
+      __func__);
 
   data->mode = GEO_NODE_CURVE_HANDLE_LEFT;
   node->storage = data;
@@ -147,16 +147,18 @@ static void set_position_in_component(Curves &curves_id,
       },
       std::logical_or<>());
 
-  selection.foreach_segment(GrainSize(2048), [&](const IndexMaskSegment segment) {
-    for (const int i : segment) {
-      bke::curves::bezier::set_handle_position(positions[i],
-                                               HandleType(handle_types[i]),
-                                               HandleType(handle_types_other[i]),
-                                               new_positions[i] + new_offsets[i],
-                                               handle_positions[i],
-                                               handle_positions_other[i]);
-    }
-  });
+  selection.foreach_segment(
+      [&](const IndexMaskSegment segment) {
+        for (const int i : segment) {
+          bke::curves::bezier::set_handle_position(positions[i],
+                                                   HandleType(handle_types[i]),
+                                                   HandleType(handle_types_other[i]),
+                                                   new_positions[i] + new_offsets[i],
+                                                   handle_positions[i],
+                                                   handle_positions_other[i]);
+        }
+      },
+      exec_mode::grain_size(2048));
 
   if (types_changed) {
     curves.tag_topology_changed();
