@@ -71,6 +71,7 @@ void sequencer_operatortypes()
   WM_operatortype_append(SEQUENCER_OT_scene_frame_range_update);
 
   WM_operatortype_append(SEQUENCER_OT_caption_add);
+  WM_operatortype_append(SEQUENCER_OT_caption_add_at_frame);
 
   /* `sequencer_retiming.cc` */
   WM_operatortype_append(SEQUENCER_OT_retiming_reset);

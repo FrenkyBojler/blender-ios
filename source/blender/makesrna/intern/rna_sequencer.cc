@@ -243,6 +243,7 @@ static void rna_Strip_mute_update(bContext *C, PointerRNA *ptr)
   rna_Strip_invalidate_raw_update(nullptr, nullptr, ptr);
 }
 
+/* Attention! the text property doesn't call this on update because we don't want it to update the captions style! */
 static void rna_Strip_text_update(bContext *C, PointerRNA *ptr)
 {
   ScrArea *area = CTX_wm_area(C);
@@ -4038,8 +4039,7 @@ void rna_def_text(StructRNA *srna)
         prop, "rna_Strip_text_get", "rna_Strip_text_length", "rna_Strip_text_set");
     RNA_def_property_ui_text(prop, "Text", "Text that will be displayed");
     RNA_def_property_flag(prop, PROP_TEXTEDIT_UPDATE);
-    RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
-    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_text_update");
+    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
 
     prop = RNA_def_property(srna, "use_shadow", PROP_BOOLEAN, PROP_NONE);
     RNA_def_property_boolean_sdna(prop, nullptr, "flag", SEQ_TEXT_SHADOW);

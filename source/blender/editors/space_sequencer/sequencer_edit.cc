@@ -4319,6 +4319,7 @@ void SEQUENCER_OT_scene_frame_range_update(wmOperatorType *ot)
 /** \name Add Caption Operator
   * \{ */
 
+// TODO: GD;; Tons of duplicate code in the next few operators (just for quick test, etc.), have to change that before merge
 static wmOperatorStatus captions_add_exec(bContext *C, wmOperator *op)
 {
     seq::LoadData load_data;
@@ -4341,6 +4342,10 @@ static wmOperatorStatus captions_add_exec(bContext *C, wmOperator *op)
     }
     }
     length = get_extend_right(start_frame, channel, &ed->captions_strips, length);
+    if(length == 0) {
+      BKE_report(op->reports, RPT_ERROR, "A strip already exists at that frame");
+      return OPERATOR_CANCELLED;
+    }
 
     load_data.effect.length = length;
 
@@ -4409,7 +4414,114 @@ void SEQUENCER_OT_caption_add(wmOperatorType *ot)
 }
 
 /* -------------------------------------------------------------------- */
-/** \name Toggle Caption custom style Operator
+/** \name Add Caption at Frame Operator
+  * \{ */
+
+  static wmOperatorStatus captions_add_at_frame_exec(bContext *C, wmOperator *op)
+  {
+      seq::LoadData load_data;
+      memset(&load_data, 0, sizeof(load_data));
+      Scene *scene = CTX_data_sequencer_scene(C);
+      Editing *ed = seq::editing_ensure(scene);
+  
+      int channel = ed->captions_act_channel->index;
+  
+      /* Maybe add RNA option for that */
+      load_data.channel = channel;
+      load_data.effect.type = STRIP_TYPE_TEXT;
+  
+      int start_frame = 0; // TODO: change to DEFAULT_IMG_STRIP_LENGTH 
+      if(op->ptr != nullptr && op != nullptr){
+        if (RNA_struct_find_property(op->ptr, "start_frame")) {
+          start_frame = RNA_int_get(op->ptr, "start_frame");
+        }
+      }
+      load_data.start_frame = start_frame;
+  
+
+      int length = 100; // TODO: change to DEFAULT_IMG_STRIP_LENGTH 
+      if(op->ptr != nullptr && op != nullptr){
+        if (RNA_struct_find_property(op->ptr, "length")) {
+            length = RNA_int_get(op->ptr, "length");
+        }
+      }
+      length = get_extend_right(start_frame, channel, &ed->captions_strips, length);
+      printf("Length: %p", length);
+      if(length == 0) {
+        BKE_report(op->reports, RPT_ERROR, "A strip already exists at that frame");
+        return OPERATOR_CANCELLED;
+      }
+
+      load_data.effect.length = length;
+  
+      Strip *strip = seq::add_effect_strip(scene, &ed->seqbase, &load_data);
+  
+      DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
+  
+      ed->captions_cache_dirty = true;
+  //    tag_redraw(CTX_wm_region(C), scene);
+  
+      WM_main_add_notifier(NC_SCENE | ND_SEQUENCER | NA_ADDED, CTX_data_sequencer_scene(C));
+  
+      return OPERATOR_FINISHED;
+  }
+  
+  static bool captions_add_at_frame_poll(bContext *C)
+  {
+      Scene *scene = CTX_data_sequencer_scene(C);
+      if(scene == nullptr) {
+        return false;
+      }
+      Editing *ed = seq::editing_ensure(scene);
+  
+      if(ed -> captions_cache_dirty) {
+        seq::captions_update_strips(scene);
+      }
+  
+      return true;
+  }
+  
+  void SEQUENCER_OT_caption_add_at_frame(wmOperatorType *ot)
+  {
+      /* Identifiers. */
+      ot->name = "Add Caption at frame";
+      ot->idname = "SEQUENCER_OT_caption_add_at_frame";
+      ot->description = "Add a new caption at a certain frame";
+  
+      /* API callbacks. */
+      //  ot->invoke = sequencer_snap_invoke;
+      ot->exec = captions_add_at_frame_exec;
+      ot->poll = captions_add_at_frame_poll;
+
+      /* Flags. */
+      ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  
+      /* Properties. */                        
+      PropertyRNA *prop = RNA_def_int(ot->srna,
+        "start_frame",
+        0,  // TODO: change to DEFAULT_IMG_STRIP_LENGTH
+        MINAFRAME,
+        MAXFRAME,
+        "Start Frame",
+        "Start Frame of the captiom",
+        0,
+        1000);
+      RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+
+      prop = RNA_def_int(ot->srna,
+        "length",
+        100,  // TODO: change to DEFAULT_IMG_STRIP_LENGTH
+        MINAFRAME,
+        MAXFRAME,
+        "Length",
+        "Length of the caption strip in frames",
+        1,
+        1000);
+      RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+  }
+
+/* -------------------------------------------------------------------- */
+/** \name Toggle Caption custom style toggle Operator
   * \{ */
 
   static wmOperatorStatus captions_style_toggle_exec(bContext *C, wmOperator *op)

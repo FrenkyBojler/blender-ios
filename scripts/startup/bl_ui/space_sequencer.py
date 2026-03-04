@@ -2130,7 +2130,9 @@ class SEQUENCER_PT_captions_editor(bpy.types.Panel):
     def draw_caption(self, layout, item, draw_ops=True):
         strip = item.strip
         
-        split = layout.split(factor=0.35)
+        cell = layout.column(align=True)
+        
+        split = cell.split(factor=0.35, align=True)
         col1 = split.column(align=True)
         col1.prop(strip, "frame_start", text="")
         col1.prop(strip, "frame_final_end", text="")
@@ -2141,9 +2143,12 @@ class SEQUENCER_PT_captions_editor(bpy.types.Panel):
         text_col.prop(strip, "text", text="")
         
         if(draw_ops):
-            ops_row = col2.row(align=True)
+            ops_row = cell.row(align=True)
+            
             ops_row.prop(item, "use_custom_style", icon_only=True)
-            ops_row.operator("sequencer.caption_add", text="Add After", icon="ADD")
+            
+            op = ops_row.operator("sequencer.caption_add_at_frame", text="Add After", icon="ADD")
+            op.start_frame = strip.frame_final_end
 
     def draw(self, context):
         layout = self.layout
