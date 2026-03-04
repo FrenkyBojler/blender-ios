@@ -258,18 +258,6 @@ void float4x4Mixer::finalize(const IndexMask &mask)
   });
 }
 
-constexpr int CHUNK_SIZE = 256;
-
-template<typename Fn>
-void for_chunk_ranges(const IndexRange range, const int chunk_size, const Fn &fn)
-{
-  const int64_t slice_end = range.one_after_last();
-  for (int64_t start = range.start(); start < slice_end; start += chunk_size) {
-    const int64_t end = std::min<int64_t>(start + chunk_size, slice_end);
-    fn(IndexRange::from_begin_end(start, end));
-  }
-}
-
 template<typename T>
 void mix_groups(const Span<T> src,
                 const OffsetIndices<int> groups,
@@ -464,62 +452,47 @@ void mix_groups(const Span<float4x4> src,
 
 template<typename T>
 void mix_groups(const Span<T> src,
-                const OffsetIndices<int> all_groups,
+                const OffsetIndices<int> groups,
                 const Span<int> all_indices,
                 const Span<float> all_weights,
-                MutableSpan<T> all_dst)
+                MutableSpan<T> dst)
 {
-  for_chunk_ranges(all_dst.index_range(), CHUNK_SIZE, [&](const IndexRange range) {
-    const OffsetIndices<int> groups = all_groups.slice(range);
-    MutableSpan<T> dst = all_dst.slice(range);
-
-    dst.fill(T());
-    Array<float, CHUNK_SIZE> weights_accum(dst.size(), 0.0f);
-    for (const int dst_i : dst.index_range()) {
-      for (const int i : groups[dst_i]) {
-        const int src_i = all_indices[i];
-        const float weight = all_weights[i];
-        dst[dst_i] += src[src_i] * weight;
-        weights_accum[dst_i] += weight;
-      }
+  for (const int dst_i : dst.index_range()) {
+    T accum(0);
+    float weight_accum = 0.0f;
+    for (const int i : groups[dst_i]) {
+      const int src_i = all_indices[i];
+      const float weight = all_weights[i];
+      accum += src[src_i] * weight;
+      weight_accum += weight;
     }
-
-    for (const int dst_i : dst.index_range()) {
-      dst[dst_i] *= math::safe_rcp(weights_accum[dst_i]);
-    }
-  });
+    dst[dst_i] = accum * math::safe_rcp(weight_accum);
+  }
 }
 
 template<typename T, typename ToAccumFn, typename ToFinalFn>
 void mix_groups(const Span<T> src,
-                const OffsetIndices<int> all_groups,
+                const OffsetIndices<int> groups,
                 const Span<int> all_indices,
                 const Span<float> all_weights,
                 const ToAccumFn &to_accum_fn,
                 const ToFinalFn &to_final_fn,
-                MutableSpan<T> all_dst)
+                MutableSpan<T> dst)
 {
   using AccumT = std::invoke_result_t<ToAccumFn, T>;
   static_assert(std::is_same_v<std::invoke_result_t<ToFinalFn, AccumT>, T>);
-  for_chunk_ranges(all_dst.index_range(), CHUNK_SIZE, [&](const IndexRange range) {
-    const OffsetIndices<int> groups = all_groups.slice(range);
-    MutableSpan<T> dst = all_dst.slice(range);
 
-    Array<AccumT, CHUNK_SIZE> accum(dst.size(), AccumT(0));
-    Array<float, CHUNK_SIZE> weights_accum(dst.size(), 0.0f);
-    for (const int dst_i : dst.index_range()) {
-      for (const int i : groups[dst_i]) {
-        const int src_i = all_indices[i];
-        const float weight = all_weights[i];
-        accum[dst_i] += to_accum_fn(src[src_i]) * weight;
-        weights_accum[dst_i] += weight;
-      }
+  for (const int dst_i : dst.index_range()) {
+    AccumT accum(0);
+    float weight_accum = 0.0f;
+    for (const int i : groups[dst_i]) {
+      const int src_i = all_indices[i];
+      const float weight = all_weights[i];
+      accum += to_accum_fn(src[src_i]) * weight;
+      weight_accum += weight;
     }
-
-    for (const int dst_i : dst.index_range()) {
-      dst[dst_i] = to_final_fn(accum[dst_i] * math::safe_rcp(weights_accum[dst_i]));
-    }
-  });
+    dst[dst_i] = to_final_fn(accum * math::safe_rcp(weight_accum));
+  }
 }
 
 template<>
