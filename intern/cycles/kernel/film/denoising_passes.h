@@ -41,7 +41,7 @@ ccl_device_forceinline void film_write_denoising_features_surface(KernelGlobals 
   Spectrum transparent_albedo = zero_spectrum();
   float specular_roughness = 0.0f;
   float sum_weight = 0.0f;
-  float sum_nonspecular_weight = 0.0f;
+  float sum_diffuse_weight = 0.0f;
 
   for (int i = 0; i < sd->num_closure; i++) {
     const ccl_private ShaderClosure *sc = &sd->closure[i];
@@ -63,7 +63,6 @@ ccl_device_forceinline void film_write_denoising_features_surface(KernelGlobals 
     /* If far-field hair, use fiber tangent as feature instead of normal. */
     normal += (sc->type == CLOSURE_BSDF_HAIR_HUANG_ID ? safe_normalize(sd->dPdu) : sc->N) *
               closure_weight;
-    sum_weight += closure_weight;
 
     const float roughness = sqrtf(bsdf_get_specular_roughness_squared(sc));
     /* Transition smoothly from specular to diffuse between 0.0 and 0.15 roughness. */
@@ -74,7 +73,9 @@ ccl_device_forceinline void film_write_denoising_features_surface(KernelGlobals 
     diffuse_albedo += closure_albedo * diffuse_weight;
     specular_albedo += closure_albedo * (1.0f - diffuse_weight);
     specular_roughness += roughness * closure_weight;
-    sum_nonspecular_weight += closure_weight * diffuse_weight;
+
+    sum_weight += closure_weight;
+    sum_diffuse_weight += closure_weight * diffuse_weight;
   }
 
   if (kernel_data.film.pass_denoising_depth != PASS_UNUSED) {
@@ -96,71 +97,47 @@ ccl_device_forceinline void film_write_denoising_features_surface(KernelGlobals 
   if (sum_weight > 0.0f) {
     normal /= sum_weight;
     specular_roughness /= sum_weight;
-    feature_weight = smoothstep(0.0f, 0.5f, sum_nonspecular_weight / sum_weight);
+
+    feature_weight = smoothstep(0.0f, 0.5f, sum_diffuse_weight / sum_weight);
   }
 
+  const Spectrum denoising_feature_throughput = INTEGRATOR_STATE(
+      state, path, denoising_feature_throughput);
 
-  if (!(path_flag & PATH_RAY_SINGLE_PASS_DONE) && !(sd->flag & (SD_TRANSPARENT | SD_RAY_PORTAL))) {
-    if (kernel_data.film.pass_denoising_roughness != PASS_UNUSED) {
-      const float denoising_roughness = sqrtf(specular_roughness);
-      film_write_pass_float(buffer + kernel_data.film.pass_denoising_roughness,
-                            denoising_roughness);
-    }
+  if (kernel_data.film.pass_denoising_roughness != PASS_UNUSED) {
+    const float denoising_roughness = ensure_finite(sqrtf(specular_roughness) *
+                                                    average(denoising_feature_throughput));
+    film_write_pass_float(buffer + kernel_data.film.pass_denoising_roughness, denoising_roughness);
+  }
 
-    if (kernel_data.film.pass_denoising_specular_albedo != PASS_UNUSED) {
-      const Spectrum denoising_feature_throughput = INTEGRATOR_STATE(
-          state, path, denoising_feature_throughput);
+  if (kernel_data.film.pass_denoising_specular_albedo != PASS_UNUSED) {
+    const Spectrum denoising_specular_albedo = ensure_finite(specular_albedo *
+                                                             denoising_feature_throughput);
+    film_write_pass_spectrum(buffer + kernel_data.film.pass_denoising_specular_albedo,
+                             denoising_specular_albedo);
 
-      /* Approximation of specular BRDF integral, see equation 4 in Ray Tracing Gems chapter 32. */
-      const float alpha = specular_roughness;
-      const float alpha2 = alpha * alpha;
-      const float alpha3 = alpha2 * alpha;
-      const float omega = fabsf(dot(-sd->wi, normal));
-      const float omega2 = omega * omega;
-      const float omega3 = omega2 * omega;
-
-      float bias = max(0.0f,
-                       ((0.99044f + -1.28514f * omega) + (1.29678f + -0.755907f * omega) * alpha) /
-                           ((1.0f + 2.92338f * omega + 59.4188f * omega3) +
-                            (20.3225f + -27.0302f * omega + 222.592f * omega3) * alpha +
-                            (121.563f + 626.13f * omega + 316.627f * omega3) * alpha3));
-      float scale = max(0.0f,
-                        ((0.0365463f + 3.32707f * omega) + (9.0632f + -9.04756f * omega) * alpha) /
-                            ((1.0f + 3.59685f * omega2 + -1.36772f * omega3) +
-                             (9.04401f + -16.3174f * omega2 + 9.22949f * omega3) * alpha +
-                             (5.56589f + 19.7886f * omega2 + -20.2123f * omega3) * alpha3));
-
-      /* This is a hack for specular reflectance of zero. */
-      bias *= saturate(specular_albedo * 50).y;
-
-      const Spectrum denoising_specular_albedo = ensure_finite(
-          denoising_feature_throughput *
-          (specular_albedo * (1.0f - feature_weight) * scale + make_float3(bias)));
-      film_write_pass_spectrum(buffer + kernel_data.film.pass_denoising_specular_albedo,
-                               denoising_specular_albedo);
-    }
+    /* If there is a separate specular albedo pass, both diffuse and specular albedo is fully
+     * written, so do not defer diffuse feature. */
+    feature_weight = 1.0f;
   }
 
   if (feature_weight > 0.0f) {
-    const Spectrum denoising_feature_throughput = INTEGRATOR_STATE(
-        state, path, denoising_feature_throughput);
-
     if (kernel_data.film.pass_denoising_normal != PASS_UNUSED) {
       /* Transform normal into camera space. It should be transformed using the inverse transpose
        * of the transformation matrix, but since we ignore scaling for camera transformations, it's
        * equivalent to applying the transform directly. */
       const Transform worldtocamera = kernel_data.cam.worldtocamera;
-      float3 denoising_normal = transform_direction(&worldtocamera, normal);
+      normal = transform_direction(&worldtocamera, normal);
       const float opaque_fraction = (total_weight > 0.0f) ? (sum_weight / total_weight) : 1.0f;
 
-      denoising_normal = ensure_finite(denoising_normal * average(denoising_feature_throughput) *
-                                       opaque_fraction * feature_weight);
+      const float3 denoising_normal = ensure_finite(
+          normal * average(denoising_feature_throughput) * opaque_fraction * feature_weight);
       film_write_pass_float3(buffer + kernel_data.film.pass_denoising_normal, denoising_normal);
     }
 
     if (kernel_data.film.pass_denoising_albedo != PASS_UNUSED) {
-      const Spectrum denoising_albedo = ensure_finite(denoising_feature_throughput *
-                                                      diffuse_albedo * feature_weight);
+      const Spectrum denoising_albedo = ensure_finite(diffuse_albedo * feature_weight *
+                                                      denoising_feature_throughput);
       film_write_pass_spectrum(buffer + kernel_data.film.pass_denoising_albedo, denoising_albedo);
     }
   }
