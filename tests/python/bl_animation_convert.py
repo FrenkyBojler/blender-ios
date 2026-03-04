@@ -177,7 +177,6 @@ class ConvertRotationMode(unittest.TestCase):
             self.assertNotEqual(quat, prev_quat, f"Identical Quaternions on frame {i}")
             prev_quat = quat
 
-
     def test_convert_keyed_rotation_mode(self):
         """ When the rotation mode itself is keyed and changes during the animation,
         the conversion has to make sure the animation is preserved. """
@@ -216,7 +215,20 @@ class ConvertRotationMode(unittest.TestCase):
 
     def test_result_is_euler_filtered(self):
         """ When converting rotation modes we should not have sudden 180 degree jumps in euler mode. """
-        pass
+        self.bone_euler_360.convert_rotation_mode('XZY', bake=True)
+        fcurves = _get_fcurves_with_rna_path(
+            self.action,
+            self.action_slot,
+            'pose.bones["bone_euler_rotation_360"].rotation_euler')
+        for fcurve in fcurves:
+            if fcurve.array_index != 0:
+                # Only expecting rotation on x.
+                continue
+            prev_value = fcurve.evaluate(frame=1)
+            for i in range(2, 21):
+                value = fcurve.evaluate(i)
+                # Whatever rotation, the code should choose the one closest to the previous rotation.
+                self.assertLess(abs(prev_value - value), 2 * math.pi)
 
     def test_convert_partially_keyed_rotation(self):
         """ When converting rotations without baking the resulting animation will have all channels keyed if at least one channel has a key on a frame. """

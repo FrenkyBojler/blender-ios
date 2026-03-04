@@ -137,7 +137,9 @@ bool convert_pose_bone_rotation_keys(Main *bmain,
       /* Cannot use the FCurve directly from the channelbag. Modifying that while converting the
        * rotation mode would influence the result. */
       FCurveDescriptor descriptor = {new_rotation_path, 0, PROP_FLOAT, PROP_EULER, pchan.name};
-      /* Both rotation modes are euler so 3 elements. */
+      BLI_assert_msg(evaluation_buffer_count == insertion_buffer_count &&
+                         evaluation_buffer_count == 3,
+                     "Both rotation modes are euler so should have 3 elements.");
       for (int i : IndexRange(3)) {
         descriptor.array_index = i;
         insertion_buffer[i] = &item.key->fcurve_ensure(bmain, descriptor);
