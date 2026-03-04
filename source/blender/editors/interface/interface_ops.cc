@@ -1000,10 +1000,10 @@ static wmOperatorStatus dynamic_override_add_button_exec(bContext *C, wmOperator
   int index;
   const bool all = RNA_boolean_get(op->ptr, "all");
 
-  /* try to reset the nominated setting to its default value */
   context_active_but_prop_get(C, &ptr, &prop, &index);
 
-  BLI_assert(ptr.owner_id != nullptr);
+  ID *owner_id = ptr.owner_id;
+  BLI_assert(owner_id != nullptr);
 
   if (all) {
     index = -1;
@@ -1014,8 +1014,34 @@ static wmOperatorStatus dynamic_override_add_button_exec(bContext *C, wmOperator
     return OPERATOR_CANCELLED;
   }
 
+  const char *rna_path_prefix;
+  if (owner_id->flag & (ID_FLAG_EMBEDDED_DATA | ID_FLAG_EMBEDDED_DATA_LIB_OVERRIDE)) {
+    /* XXX this is very bad band-aid code, but for now it will do.
+     * We should at least use a #define for those prop names.
+     * Ideally RNA as a whole should be aware of those PITA of embedded IDs, and have a way to
+     * retrieve their owner IDs and generate paths from those.
+     */
+    /* TODO: Copied from library override code in `rna_access_compare_override.cc`, needs to be
+     * deduplicated. */
+
+    switch (GS(owner_id->name)) {
+      case ID_KE:
+        owner_id = (id_cast<Key *>(owner_id))->from;
+        rna_path_prefix = "shape_keys.";
+        break;
+      case ID_GR:
+      case ID_NT:
+        /* Master collections, Root node trees. */
+        owner_id = RNA_find_real_ID_and_path(owner_id, &rna_path_prefix);
+        break;
+      default:
+        BLI_assert_unreachable();
+    }
+    rna_path_str.emplace(fmt::format("{}.{}", rna_path_prefix, *rna_path_str));
+  }
+
   DynamicOverrideRuleIDData &dynamic_override_rule = bke::dynamic_override_rule_ensure_for_id(
-      *scene->dynamic_override, *ptr.owner_id);
+      *scene->dynamic_override, *owner_id);
 
   RNAPath rna_path = {*rna_path_str};
   DynamicOverrideRuleProperty *dynamic_override_rule_property =
