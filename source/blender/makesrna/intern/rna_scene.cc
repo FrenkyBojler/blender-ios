@@ -4454,10 +4454,17 @@ static void rna_def_sequencer_tool_settings(BlenderRNA *brna)
       prop, "Snap Current Frame to Strips", "Snap current frame to strip start or end");
 
   prop = RNA_def_property(srna, "snap_distance", PROP_INT, PROP_PIXEL);
-  RNA_def_property_int_sdna(prop, nullptr, "snap_distance");
   RNA_def_property_int_default(prop, 15);
-  RNA_def_property_ui_range(prop, 0, 50, 1, 1);
-  RNA_def_property_ui_text(prop, "Snapping Distance", "Maximum distance for snapping in pixels");
+  RNA_def_property_ui_range(prop, 0, 100, 1, 1);
+  RNA_def_property_ui_text(prop,
+                           "Timeline Snap Distance",
+                           "Maximum pixel distance within which a timeline snap occurs");
+
+  prop = RNA_def_property(srna, "snap_distance_preview", PROP_INT, PROP_PIXEL);
+  RNA_def_property_int_default(prop, 15);
+  RNA_def_property_ui_range(prop, 0, 100, 1, 1);
+  RNA_def_property_ui_text(
+      prop, "Preview Snap Distance", "Maximum pixel distance within which a preview snap occurs");
 
   /* Transform overlap handling. */
   prop = RNA_def_property(srna, "overlap_mode", PROP_ENUM, PROP_NONE);

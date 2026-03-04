@@ -425,14 +425,20 @@ static void points_build_targets_preview_origin(const Scene *scene,
 
 static float seq_snap_threshold_get_view_distance(const TransInfo *t)
 {
-  const int snap_distance = seq::tool_settings_snap_distance_get(t->scene);
   const View2D *v2d = &t->region->v2d;
-  return ui::view2d_region_to_view_x(v2d, snap_distance) - ui::view2d_region_to_view_x(v2d, 0);
+
+  const int snap_distance = seq::tool_settings_snap_distance_preview_get(t->scene);
+  const float view_per_pixel = BLI_rctf_size_x(&v2d->cur) / float(BLI_rcti_size_x(&v2d->mask) + 1);
+  return snap_distance * view_per_pixel;
 }
 
 static int seq_snap_threshold_get_frame_distance(const TransInfo *t)
 {
-  return round_fl_to_int(seq_snap_threshold_get_view_distance(t));
+  const View2D *v2d = &t->region->v2d;
+
+  const int snap_distance = seq::tool_settings_snap_distance_get(t->scene);
+  const float view_per_pixel = BLI_rctf_size_x(&v2d->cur) / float(BLI_rcti_size_x(&v2d->mask) + 1);
+  return round_fl_to_int(snap_distance * view_per_pixel);
 }
 
 /** \} */

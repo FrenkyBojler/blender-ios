@@ -375,6 +375,7 @@ SequencerToolSettings *tool_settings_init()
                              SEQ_SNAP_TO_PREVIEW_BORDERS | SEQ_SNAP_TO_PREVIEW_CENTER |
                              SEQ_SNAP_TO_STRIPS_PREVIEW | SEQ_SNAP_TO_FRAME_RANGE;
   tool_settings->snap_distance = 15;
+  tool_settings->snap_distance_preview = 15;
   tool_settings->overlap_mode = SEQ_OVERLAP_SHUFFLE;
   tool_settings->pivot_point = V3D_AROUND_LOCAL_ORIGINS;
 
@@ -419,6 +420,12 @@ int tool_settings_snap_distance_get(Scene *scene)
 {
   const SequencerToolSettings *tool_settings = tool_settings_ensure(scene);
   return tool_settings->snap_distance;
+}
+
+int tool_settings_snap_distance_preview_get(Scene *scene)
+{
+  const SequencerToolSettings *tool_settings = tool_settings_ensure(scene);
+  return tool_settings->snap_distance_preview;
 }
 
 void tool_settings_fit_method_set(Scene *scene, eSeqImageFitMethod fit_method)

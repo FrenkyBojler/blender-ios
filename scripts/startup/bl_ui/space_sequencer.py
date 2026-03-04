@@ -112,6 +112,13 @@ class SEQUENCER_HT_header(Header):
             sub = row.row(align=True)
             sub.popover(panel="SEQUENCER_PT_snapping")
 
+        if sequencer_tool_settings and st.view_type in {'SEQUENCER', 'SEQUENCER_PREVIEW'}:
+            row = layout.row(align=True)
+            row.prop(sequencer_tool_settings, "snap_distance")
+        elif sequencer_tool_settings and st.view_type == 'PREVIEW':
+            row = layout.row(align=True)
+            row.prop(sequencer_tool_settings, "snap_distance_preview")
+
         layout.separator_spacer()
 
         if st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'}:

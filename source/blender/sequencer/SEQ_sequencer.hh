@@ -133,6 +133,7 @@ void tool_settings_fit_method_set(Scene *scene, eSeqImageFitMethod fit_method);
 short tool_settings_snap_flag_get(Scene *scene);
 short tool_settings_snap_mode_get(Scene *scene);
 int tool_settings_snap_distance_get(Scene *scene);
+int tool_settings_snap_distance_preview_get(Scene *scene);
 eSeqOverlapMode tool_settings_overlap_mode_get(Scene *scene);
 int tool_settings_pivot_point_get(Scene *scene);
 SequencerToolSettings *tool_settings_copy(SequencerToolSettings *tool_settings);

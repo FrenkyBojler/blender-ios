@@ -1788,11 +1788,9 @@ struct SequencerToolSettings {
   short snap_flag = 0;
   /** #eSeqOverlapMode. */
   int overlap_mode = 0;
-  /**
-   * When there are many snap points,
-   * 0-1 range corresponds to resolution from bound-box to all possible snap points.
-   */
+  /** Distance in pixels before a snap occurs. */
   int snap_distance = 0;
+  int snap_distance_preview = 0;
   int pivot_point = 0;
 };
 

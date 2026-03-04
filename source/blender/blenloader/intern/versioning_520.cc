@@ -18,6 +18,8 @@
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
 
+#include "SEQ_sequencer.hh"
+
 #include "readfile.hh"
 
 #include "versioning_common.hh"
@@ -94,6 +96,13 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
     }
     FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 7)) {
+    for (Scene &scene : bmain->scenes) {
+      SequencerToolSettings *sequencer_tool_settings = seq::tool_settings_ensure(&scene);
+      sequencer_tool_settings->snap_distance_preview = 15;
+    }
   }
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
