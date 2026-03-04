@@ -143,10 +143,10 @@ void Scene::free_memory(bool final)
     volume_manager->device_free(&dscene);
 
     if (final) {
-      image_manager->device_free(device);
+      image_manager->device_free(this);
     }
     else {
-      image_manager->device_free_builtin(device);
+      image_manager->device_free_builtin(this);
     }
 
     lookup_tables->device_free(device, &dscene);
@@ -436,9 +436,6 @@ bool Scene::need_global_attribute(AttributeStandard std)
   if (std == ATTR_STD_MOTION_VERTEX_POSITION) {
     return need_motion() != MOTION_NONE;
   }
-  if (std == ATTR_STD_MOTION_VERTEX_NORMAL) {
-    return need_motion() == MOTION_BLUR;
-  }
   if (std == ATTR_STD_VOLUME_VELOCITY || std == ATTR_STD_VOLUME_VELOCITY_X ||
       std == ATTR_STD_VOLUME_VELOCITY_Y || std == ATTR_STD_VOLUME_VELOCITY_Z)
   {
@@ -505,7 +502,7 @@ void Scene::device_free()
 void Scene::collect_statistics(RenderStats *stats)
 {
   geometry_manager->collect_statistics(this, stats);
-  image_manager->collect_statistics(stats);
+  image_manager->collect_statistics(stats, this);
 }
 
 void Scene::enable_update_stats()

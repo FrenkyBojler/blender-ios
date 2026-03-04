@@ -369,11 +369,12 @@ static void foreach_active_gizmo_in_open_editors(const wmWindowManager &wm,
 }
 
 static void foreach_active_gizmo_exposed_to_modifier(
+    const Object &object,
     const NodesModifierData &nmd,
     bke::ComputeContextCache &compute_context_cache,
     const ForeachGizmoInModifierFn fn)
 {
-  if (!nmd.node_group) {
+  if (!nmd.node_group || ID_MISSING(nmd.node_group)) {
     return;
   }
   const bNodeTree &tree = *nmd.node_group;
@@ -395,7 +396,9 @@ static void foreach_active_gizmo_exposed_to_modifier(
   socket_usage_inference::SocketUsageInferencer usage_inferencer(
       *nmd.node_group, scope, value_inferencer, compute_context_cache);
 
-  const ComputeContext &root_compute_context = compute_context_cache.for_modifier(nullptr, nmd);
+  const ComputeContext &object_context = compute_context_cache.for_data_block(nullptr, object.id);
+  const ComputeContext &root_compute_context = compute_context_cache.for_modifier(&object_context,
+                                                                                  nmd);
   for (auto &&item : tree.runtime->gizmo_propagation->gizmo_inputs_by_group_inputs.items()) {
     const ie::GroupInputElem &group_input_elem = item.key;
     if (item.value.is_empty()) {
@@ -416,7 +419,7 @@ void foreach_active_gizmo_in_modifier(const Object &object,
                                       bke::ComputeContextCache &compute_context_cache,
                                       const ForeachGizmoInModifierFn fn)
 {
-  if (!nmd.node_group) {
+  if (!nmd.node_group || ID_MISSING(nmd.node_group)) {
     return;
   }
 
@@ -435,7 +438,7 @@ void foreach_active_gizmo_in_modifier(const Object &object,
                                          fn(compute_context, gizmo_node, gizmo_socket);
                                        });
 
-  foreach_active_gizmo_exposed_to_modifier(nmd, compute_context_cache, fn);
+  foreach_active_gizmo_exposed_to_modifier(object, nmd, compute_context_cache, fn);
 }
 
 void foreach_active_gizmo(const bContext &C,
@@ -461,6 +464,7 @@ void foreach_active_gizmo(const bContext &C,
       if (md->type == eModifierType_Nodes) {
         const NodesModifierData &nmd = *reinterpret_cast<const NodesModifierData *>(md);
         foreach_active_gizmo_exposed_to_modifier(
+            *active_object,
             nmd,
             compute_context_cache,
             [&](const ComputeContext &compute_context,

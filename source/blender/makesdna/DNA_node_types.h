@@ -660,6 +660,18 @@ enum {
   SHD_SPACE_BLENDER_WORLD = 4,
 };
 
+/* normal map, convention */
+enum {
+  SHD_NORMAL_MAP_CONVENTION_OPENGL = 0,
+  SHD_NORMAL_MAP_CONVENTION_DIRECTX = 1,
+};
+
+/* normal map, base */
+enum {
+  SHD_NORMAL_MAP_BASE_ORIGINAL = 0,
+  SHD_NORMAL_MAP_BASE_DISPLACED = 1,
+};
+
 enum {
   SHD_AO_INSIDE = 1,
   SHD_AO_LOCAL = 2,
@@ -764,6 +776,7 @@ enum NodeVectorMathOperation {
   NODE_VECTOR_MATH_MULTIPLY_ADD = 26,
   NODE_VECTOR_MATH_POWER = 27,
   NODE_VECTOR_MATH_SIGN = 28,
+  NODE_VECTOR_MATH_ROUND = 29,
 };
 
 enum NodeBooleanMathOperation {
@@ -1266,6 +1279,14 @@ enum GeometryNodeRaycastMapMode {
 enum GeometryNodeCurveFillMode {
   GEO_NODE_CURVE_FILL_MODE_TRIANGULATED = 0,
   GEO_NODE_CURVE_FILL_MODE_NGONS = 1,
+};
+
+/** See #CDT_output_type in BLI_delaunay_2d.hh for winding rule details. */
+enum GeometryNodeCurveFillRule {
+  /** Even-odd winding rule for hole detection. */
+  GEO_NODE_CURVE_FILL_RULE_EVEN_ODD = 0,
+  /** Non-zero winding rule. */
+  GEO_NODE_CURVE_FILL_RULE_NON_ZERO = 1,
 };
 
 enum GeometryNodeMeshToPointsMode {
@@ -2000,6 +2021,9 @@ struct bNodeTree {
   int interface_input_index(const bNodeTreeInterfaceSocket &io_socket) const;
   int interface_output_index(const bNodeTreeInterfaceSocket &io_socket) const;
   int interface_item_index(const bNodeTreeInterfaceItem &io_item) const;
+
+  int interface_input_index_by_identifier(StringRef identifier) const;
+  int interface_output_index_by_identifier(StringRef identifier) const;
 #endif
 };
 
@@ -2117,6 +2141,13 @@ struct NodeFrame {
 
 struct NodeReroute {
   DNA_DEFINE_CXX_METHODS(NodeReroute)
+
+  /** Name of the socket type (e.g. `NodeSocketFloat`). */
+  char type_idname[64] = "";
+};
+
+struct NodeImplicitConversion {
+  DNA_DEFINE_CXX_METHODS(NodeImplicitConversion)
 
   /** Name of the socket type (e.g. `NodeSocketFloat`). */
   char type_idname[64] = "";
@@ -2318,7 +2349,9 @@ struct NodeCompositorFileOutput {
   int active_item_index = 0;
   /* Apply the render part of the display transform when saving non-linear images. */
   char save_as_render = 0;
-  char _pad[7] = {};
+  /* Add a file extension to the file name. */
+  char use_file_extension = 0;
+  char _pad[6] = {};
 };
 
 struct NodeImageMultiFileSocket {
@@ -2812,6 +2845,9 @@ struct NodeShaderNormalMap {
 
   int space = 0;
   char uv_map[/*MAX_CUSTOMDATA_LAYER_NAME_NO_PREFIX*/ 64] = "";
+  char convention = SHD_NORMAL_MAP_CONVENTION_OPENGL;
+  char base = SHD_NORMAL_MAP_BASE_DISPLACED;
+  char _pad[6];
 };
 
 struct NodeRadialTiling {
@@ -2952,6 +2988,13 @@ struct NodeInputInt {
   int integer = 0;
 };
 
+struct NodeInputMenu {
+  DNA_DEFINE_CXX_METHODS(NodeInputMenu)
+
+  /* Note: enum items are determined by the node output socket. */
+  int value = 0;
+};
+
 struct NodeInputRotation {
   DNA_DEFINE_CXX_METHODS(NodeInputRotation)
 
@@ -2961,7 +3004,8 @@ struct NodeInputRotation {
 struct NodeInputVector {
   DNA_DEFINE_CXX_METHODS(NodeInputVector)
 
-  float vector[3] = {};
+  float vector[4] = {};
+  int dimensions = 3;
 };
 
 struct NodeInputColor {
@@ -3259,7 +3303,10 @@ struct NodeGeometryRaycast {
 struct NodeGeometryCurveFill {
   DNA_DEFINE_CXX_METHODS(NodeGeometryCurveFill)
 
+  /** #GeometryNodeCurveFillMode. */
   uint8_t mode = 0;
+  /** #GeometryNodeCurveFillRule. */
+  uint8_t fill_rule = 0;
 };
 
 struct NodeGeometryMeshToPoints {

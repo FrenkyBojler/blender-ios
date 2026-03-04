@@ -328,7 +328,7 @@ static void object_free_data(ID *id)
     ob->runtime->curve_cache = nullptr;
   }
 
-  BKE_previewimg_free(&ob->preview);
+  BKE_previewimg_id_free(&ob->id);
 
   MEM_SAFE_DELETE(ob->lightgroup);
   BKE_light_linking_delete(ob, LIB_ID_CREATE_NO_USER_REFCOUNT);
@@ -1074,35 +1074,35 @@ static AssetTypeInfo AssetType_OB = {
 };
 
 IDTypeInfo IDType_ID_OB = {
-    /*id_code*/ Object::id_type,
-    /*id_filter*/ FILTER_ID_OB,
-    /* Could be more specific, but simpler to just always say 'yes' here. */
-    /*dependencies_id_types*/ FILTER_ID_ALL,
-    /*main_listbase_index*/ INDEX_ID_OB,
-    /*struct_size*/ sizeof(Object),
-    /*name*/ "Object",
-    /*name_plural*/ N_("objects"),
-    /*translation_context*/ BLT_I18NCONTEXT_ID_OBJECT,
-    /*flags*/ 0,
-    /*asset_type_info*/ &AssetType_OB,
+    .id_code = Object::id_type,
+    .id_filter = FILTER_ID_OB,
+    /* Could be more specific, but simpler to just always say 'yes' here.*/
+    .dependencies_id_types = FILTER_ID_ALL,
+    .main_listbase_index = INDEX_ID_OB,
+    .struct_size = sizeof(Object),
+    .name = "Object",
+    .name_plural = N_("objects"),
+    .translation_context = BLT_I18NCONTEXT_ID_OBJECT,
+    .flags = 0,
+    .asset_type_info = &AssetType_OB,
 
-    /*init_data*/ object_init_data,
-    /*copy_data*/ object_copy_data,
-    /*free_data*/ object_free_data,
-    /*make_local*/ nullptr,
-    /*foreach_id*/ object_foreach_id,
-    /*foreach_cache*/ object_foreach_cache,
-    /*foreach_path*/ object_foreach_path,
-    /*foreach_working_space_color*/ object_foreach_working_space_color,
-    /*owner_pointer_get*/ nullptr,
+    .init_data = object_init_data,
+    .copy_data = object_copy_data,
+    .free_data = object_free_data,
+    .make_local = nullptr,
+    .foreach_id = object_foreach_id,
+    .foreach_cache = object_foreach_cache,
+    .foreach_path = object_foreach_path,
+    .foreach_working_space_color = object_foreach_working_space_color,
+    .owner_pointer_get = nullptr,
 
-    /*blend_write*/ object_blend_write,
-    /*blend_read_data*/ object_blend_read_data,
-    /*blend_read_after_liblink*/ object_blend_read_after_liblink,
+    .blend_write = object_blend_write,
+    .blend_read_data = object_blend_read_data,
+    .blend_read_after_liblink = object_blend_read_after_liblink,
 
-    /*blend_read_undo_preserve*/ nullptr,
+    .blend_read_undo_preserve = nullptr,
 
-    /*lib_override_apply_post*/ object_lib_override_apply_post,
+    .lib_override_apply_post = object_lib_override_apply_post,
 };
 
 void BKE_object_workob_clear(Object *workob)
@@ -3902,6 +3902,12 @@ void BKE_object_tfm_restore(Object *ob, void *obtfm_pt)
   copy_m4_m4(ob->runtime->world_to_object.ptr(), obtfm->imat);
 }
 
+void BKE_object_tfm_free(void *obtfm_pt)
+{
+  ObTfmBack *obtfm = static_cast<ObTfmBack *>(obtfm_pt);
+  MEM_delete(obtfm);
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -4776,6 +4782,34 @@ int BKE_object_is_deform_modified(Scene *scene, Object *ob)
   }
 
   return flag;
+}
+
+void BKE_object_get_mirror_axes(const Object *ob, bool r_axis[3])
+{
+  r_axis[0] = r_axis[1] = r_axis[2] = false;
+
+  for (ModifierData &md : ob->modifiers) {
+    if (md.type == eModifierType_Mirror && (md.mode & eModifierMode_Realtime)) {
+      const MirrorModifierData *mmd = reinterpret_cast<MirrorModifierData *>(&md);
+      if (mmd->mirror_ob) {
+        /* Mirror objects may have an arbitrary transform, so the mirrored
+         * geometry isn't guaranteed to be continuous with the original. */
+        continue;
+      }
+      if (mmd->flag & MOD_MIR_NO_MERGE) {
+        continue;
+      }
+      if (mmd->flag & MOD_MIR_AXIS_X) {
+        r_axis[0] = true;
+      }
+      if (mmd->flag & MOD_MIR_AXIS_Y) {
+        r_axis[1] = true;
+      }
+      if (mmd->flag & MOD_MIR_AXIS_Z) {
+        r_axis[2] = true;
+      }
+    }
+  }
 }
 
 int BKE_object_scenes_users_get(Main *bmain, Object *ob)

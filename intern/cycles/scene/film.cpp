@@ -783,8 +783,8 @@ uint Film::get_kernel_features(const Scene *scene) const
     const bool has_denoise_pass = (pass_mode == PassMode::DENOISED) &&
                                   !is_volume_guiding_pass(pass_type);
 
-    if (has_denoise_pass || pass_type == PASS_DENOISING_NORMAL ||
-        pass_type == PASS_DENOISING_ALBEDO || pass_type == PASS_DENOISING_DEPTH)
+    if (has_denoise_pass ||
+        (pass_type >= PASS_DENOISING_ALBEDO && pass_type <= PASS_DENOISING_DEPTH))
     {
       kernel_features |= KERNEL_FEATURE_DENOISING;
     }

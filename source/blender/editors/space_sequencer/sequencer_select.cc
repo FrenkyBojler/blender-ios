@@ -38,7 +38,6 @@
 
 #include "SEQ_channels.hh"
 #include "SEQ_connect.hh"
-#include "SEQ_effects.hh"
 #include "SEQ_iterator.hh"
 #include "SEQ_relations.hh"
 #include "SEQ_retiming.hh"
@@ -425,7 +424,7 @@ static wmOperatorStatus sequencer_de_select_all_exec(bContext *C, wmOperator *op
     return OPERATOR_CANCELLED;
   }
 
-  if (sequencer_retiming_mode_is_active(scene) && retiming_overlay_enabled(CTX_wm_space_seq(C))) {
+  if (seq::retiming_keys_are_selected(scene) && retiming_overlay_enabled(CTX_wm_space_seq(C))) {
     return sequencer_retiming_select_all_exec(C, op);
   }
 
@@ -969,7 +968,7 @@ static float inner_clickable_handle_size_get(const Scene *scene,
 
 bool can_select_handle(const Scene *scene, const Strip *strip, const View2D *v2d)
 {
-  if (seq::effect_get_num_inputs(strip->type) > 0) {
+  if (strip->is_effect_with_inputs()) {
     return false;
   }
 
@@ -1068,7 +1067,7 @@ static Vector<Strip *> padded_strips_under_mouse_get(const Scene *scene,
     strips.append(&strip);
   }
 
-  std::sort(strips.begin(), strips.end(), [&](const Strip *strip1, const Strip *strip2) {
+  std::ranges::sort(strips, [&](const Strip *strip1, const Strip *strip2) {
     return strip_to_frame_distance(scene, v2d, strip1, mouse_co[0]) <
            strip_to_frame_distance(scene, v2d, strip2, mouse_co[0]);
   });
@@ -1181,7 +1180,7 @@ wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op)
     }
   }
 
-  const bool was_retiming = sequencer_retiming_mode_is_active(scene);
+  const bool was_retiming = seq::retiming_keys_are_selected(scene);
 
   MouseCoords mouse_co(v2d, RNA_int_get(op->ptr, "mouse_x"), RNA_int_get(op->ptr, "mouse_y"));
 
@@ -1191,7 +1190,7 @@ wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op)
   SeqRetimingKey *key = retiming_mouseover_key_get(scene, v2d, mouse_co.region, &strip_key_owner);
 
   if (strip_key_owner != nullptr && retiming_overlay_enabled(CTX_wm_space_seq(C)) &&
-      seq::retiming_data_is_editable(strip_key_owner))
+      seq::retiming_show_keys(strip_key_owner))
   {
     /* If no key was found, the mouse cursor may still intersect with a "fake key" that has not
      * been realized yet. */
@@ -2050,7 +2049,7 @@ void SEQUENCER_OT_select_side(wmOperatorType *ot)
   /* Properties. */
   RNA_def_enum(ot->srna,
                "side",
-               prop_side_types,
+               prop_split_side_types,
                seq::SIDE_BOTH,
                "Side",
                "The side to which the selection is applied");
@@ -2123,7 +2122,7 @@ static wmOperatorStatus sequencer_box_select_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  if (sequencer_retiming_mode_is_active(scene) && retiming_overlay_enabled(CTX_wm_space_seq(C))) {
+  if (seq::retiming_keys_are_selected(scene) && retiming_overlay_enabled(CTX_wm_space_seq(C))) {
     return sequencer_retiming_box_select_exec(C, op);
   }
 

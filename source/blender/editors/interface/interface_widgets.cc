@@ -555,11 +555,11 @@ static void draw_anti_tria(
   GPU_blend(GPU_BLEND_NONE);
 }
 
-void draw_icon_tri(float x, float y, char dir, const float color[4])
+void draw_icon_tri(float x, float y, char dir, const float color[4], float aspect)
 {
-  const float f3 = 0.05 * U.widget_unit;
-  const float f5 = 0.15 * U.widget_unit;
-  const float f7 = 0.25 * U.widget_unit;
+  const float f3 = 0.05 * U.widget_unit / aspect;
+  const float f5 = 0.15 * U.widget_unit / aspect;
+  const float f7 = 0.25 * U.widget_unit / aspect;
 
   if (dir == 'h') {
     draw_anti_tria(x - f3, y - f5, x - f3, y + f5, x + f7, y, color);
@@ -4396,7 +4396,7 @@ static void widget_menu_pie_itembut(Button *but,
                                     int /*roundboxalign*/,
                                     const float zoom)
 {
-  const float fac = but->block->pie_data.alphafac;
+  const float fac = but->block->pie_data ? but->block->pie_data->alphafac : 1.0f;
 
   WidgetBase wtb;
   widget_init(&wtb);
@@ -5411,12 +5411,18 @@ static void ui_draw_clip_tri(Block *block, const rcti *rect, WidgetType *wt)
     draw_color[3] = 1.0f;
 
     if (block->flag & BLOCK_CLIPTOP) {
-      /* XXX no scaling for UI here yet */
-      draw_icon_tri(BLI_rcti_cent_x(rect), rect->ymax - 6 * UI_SCALE_FAC, 't', draw_color);
+      draw_icon_tri(BLI_rcti_cent_x(rect),
+                    rect->ymax - (6 * UI_SCALE_FAC) / block->aspect,
+                    't',
+                    draw_color,
+                    block->aspect);
     }
     if (block->flag & BLOCK_CLIPBOTTOM) {
-      /* XXX no scaling for UI here yet */
-      draw_icon_tri(BLI_rcti_cent_x(rect), rect->ymin + 10 * UI_SCALE_FAC, 'v', draw_color);
+      draw_icon_tri(BLI_rcti_cent_x(rect),
+                    rect->ymin + (10 * UI_SCALE_FAC) / block->aspect,
+                    'v',
+                    draw_color,
+                    block->aspect);
     }
   }
 }
@@ -5624,10 +5630,10 @@ static void draw_disk_shaded(float start,
 void draw_pie_center(Block *block)
 {
   bTheme *btheme = theme::theme_get();
-  const float cx = block->pie_data.pie_center_spawned[0];
-  const float cy = block->pie_data.pie_center_spawned[1];
+  const float cx = block->pie_data->pie_center_spawned[0];
+  const float cy = block->pie_data->pie_center_spawned[1];
 
-  const float *pie_dir = block->pie_data.pie_dir;
+  const float *pie_dir = block->pie_data->pie_dir;
 
   const float pie_radius_internal = UI_SCALE_FAC * U.pie_menu_threshold;
   const float pie_radius_external = UI_SCALE_FAC * (U.pie_menu_threshold + 7.0f);
@@ -5636,8 +5642,8 @@ void draw_pie_center(Block *block)
 
   const float angle = atan2f(pie_dir[1], pie_dir[0]);
   /* Use a smaller range if there are both axis aligned & diagonal buttons. */
-  const bool has_aligned = (block->pie_data.pie_dir_mask & UI_RADIAL_MASK_ALL_AXIS_ALIGNED) != 0;
-  const bool has_diagonal = (block->pie_data.pie_dir_mask & UI_RADIAL_MASK_ALL_DIAGONAL) != 0;
+  const bool has_aligned = (block->pie_data->pie_dir_mask & UI_RADIAL_MASK_ALL_AXIS_ALIGNED) != 0;
+  const bool has_diagonal = (block->pie_data->pie_dir_mask & UI_RADIAL_MASK_ALL_DIAGONAL) != 0;
   const float range = (has_aligned && has_diagonal) ? M_PI_4 : M_PI_2;
 
   GPU_matrix_push();
@@ -5665,7 +5671,7 @@ void draw_pie_center(Block *block)
                      false);
   }
 
-  if (!(block->pie_data.flags & PIE_INVALID_DIR)) {
+  if (!(block->pie_data->flags & PIE_INVALID_DIR)) {
     if (btheme->tui.wcol_pie_menu.shaded) {
       uchar col1[4], col2[4];
       shadecolors4(btheme->tui.wcol_pie_menu.inner_sel,
@@ -5704,7 +5710,7 @@ void draw_pie_center(Block *block)
 
   immUnbindProgram();
 
-  if (U.pie_menu_confirm > 0 && !(block->pie_data.flags & (PIE_INVALID_DIR | PIE_CLICK_STYLE))) {
+  if (U.pie_menu_confirm > 0 && !(block->pie_data->flags & (PIE_INVALID_DIR | PIE_CLICK_STYLE))) {
     const float pie_confirm_radius = UI_SCALE_FAC * (pie_radius_internal + U.pie_menu_confirm);
     const float pie_confirm_external = UI_SCALE_FAC *
                                        (pie_radius_internal + U.pie_menu_confirm + 7.0f);
