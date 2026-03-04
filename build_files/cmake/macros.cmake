@@ -1527,6 +1527,7 @@ macro(with_shader_cpp_compilation_config)
     add_cxx_flag("-Wno-unused-parameter")
     # To compile libraries.
     add_cxx_flag("-Wno-pragma-once-outside-header")
+    add_cxx_flag("-Wno-unknown-pragmas")
   elseif(MSVC)
     # Equivalent to "-Wno-uninitialized"
     add_cxx_flag("/wd4700")
