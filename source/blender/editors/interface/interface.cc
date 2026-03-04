@@ -1117,6 +1117,17 @@ static bool ui_but_update_from_old_block(Block *block,
 
   BLI_assert(!matched_old_buttons.contains(oldbut));
 
+  if (oldbut->type == ButtonType::TextBox) {
+    ButtonTextBox *textbox = static_cast<ButtonTextBox *>(but);
+    ButtonTextBox *old_textbox = static_cast<ButtonTextBox *>(oldbut);
+    textbox->line_scroll = old_textbox->line_scroll;
+    textbox->last_total_lines = old_textbox->last_total_lines;
+    /* Steal text wrap cache if the old textbox is not active. */
+    if (!(oldbut->active || oldbut->semi_modal_state)) {
+      textbox->wrap_cache = std::move(old_textbox->wrap_cache);
+    }
+  }
+
   if (oldbut->active || oldbut->semi_modal_state) {
     /* Move button over from oldblock to new block. */
     oldbut_uptr->swap(*but_uptr);
@@ -1148,16 +1159,6 @@ static bool ui_but_update_from_old_block(Block *block,
     }
 
     but->flag = (but->flag & ~flag_copy) | (oldbut->flag & flag_copy);
-
-    if (oldbut->type == ButtonType::TextBox) {
-      /* Steal text wrap cache from the old textbox. */
-      ButtonTextBox *textbox = static_cast<ButtonTextBox *>(but);
-      ButtonTextBox *old_textbox = static_cast<ButtonTextBox *>(oldbut);
-      textbox->line_scroll = old_textbox->line_scroll;
-      textbox->last_total_lines = old_textbox->last_total_lines;
-      textbox->visible_lines = old_textbox->visible_lines;
-      std::swap(textbox->wrap_cache, old_textbox->wrap_cache);
-    }
   }
 
   return found_active;
