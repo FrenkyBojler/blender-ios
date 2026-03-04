@@ -52,11 +52,21 @@ static void node_layout_ex(ui::Layout &layout, bContext *C, PointerRNA *current_
     if (ui::Layout *panel = layout.panel(C, "input_items", false, IFACE_("Input Items"))) {
       socket_items::ui::draw_items_list_with_operators<ClosureInputItemsAccessor>(
           C, panel, ntree, output_node);
+      auto &storage = *static_cast<NodeClosureOutput *>(output_node.storage);
       socket_items::ui::draw_active_item_props<ClosureInputItemsAccessor>(
           ntree, output_node, [&](PointerRNA *item_ptr) {
+            NodeClosureInputItem &active_item = storage.input_items.items[storage.input_items.active_index];
+            const auto socket_type = eNodeSocketDatatype(active_item.socket_type);
             panel->use_property_split_set(true);
             panel->use_property_decorate_set(false);
             panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+            if (ELEM(socket_type, SOCK_VECTOR, SOCK_FLOAT, SOCK_INT)) {
+              panel->prop(item_ptr, "socket_subtype", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+            }
+            if (socket_type == SOCK_VECTOR) {
+              panel->prop(
+                  item_ptr, "vector_socket_dimensions", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+            }
             panel->prop(item_ptr, "structure_type", UI_ITEM_NONE, IFACE_("Shape"), ICON_NONE);
           });
     }
@@ -65,11 +75,22 @@ static void node_layout_ex(ui::Layout &layout, bContext *C, PointerRNA *current_
     if (ui::Layout *panel = layout.panel(C, "output_items", false, IFACE_("Output Items"))) {
       socket_items::ui::draw_items_list_with_operators<ClosureOutputItemsAccessor>(
           C, panel, ntree, output_node);
+      auto &storage = *static_cast<NodeClosureOutput *>(output_node.storage);
       socket_items::ui::draw_active_item_props<ClosureOutputItemsAccessor>(
           ntree, output_node, [&](PointerRNA *item_ptr) {
+            NodeClosureOutputItem &active_item =
+                storage.output_items.items[storage.output_items.active_index];
+            const auto socket_type = eNodeSocketDatatype(active_item.socket_type);
             panel->use_property_split_set(true);
             panel->use_property_decorate_set(false);
             panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+            if (ELEM(socket_type, SOCK_VECTOR, SOCK_FLOAT, SOCK_INT)) {
+              panel->prop(item_ptr, "socket_subtype", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+            }
+            if (socket_type == SOCK_VECTOR) {
+              panel->prop(
+                  item_ptr, "vector_socket_dimensions", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+            }
             panel->prop(item_ptr, "structure_type", UI_ITEM_NONE, IFACE_("Shape"), ICON_NONE);
           });
     }
@@ -93,12 +114,32 @@ static void node_declare(NodeDeclarationBuilder &b)
         const NodeClosureInputItem &item = output_storage.input_items.items[i];
         const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
         const std::string identifier = ClosureInputItemsAccessor::socket_identifier_for_item(item);
-        auto &decl = b.add_output(socket_type, item.name, identifier);
-        if (item.structure_type != NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
-          decl.structure_type(StructureType(item.structure_type));
+        BaseSocketDeclarationBuilder *decl = nullptr;
+        if (socket_type == SOCK_VECTOR) {
+          int dimensions = int(item.vector_socket_dimensions);
+          if (!ELEM(dimensions, 2, 3, 4)) {
+            dimensions = 3;
+          }
+          decl = &b.add_output<decl::Vector>(item.name, identifier)
+                      .dimensions(dimensions)
+                      .subtype(PropertySubType(item.socket_subtype));
+        }
+        else if (socket_type == SOCK_FLOAT) {
+          decl = &b.add_output<decl::Float>(item.name, identifier)
+                      .subtype(PropertySubType(item.socket_subtype));
+        }
+        else if (socket_type == SOCK_INT) {
+          decl = &b.add_output<decl::Int>(item.name, identifier)
+                      .subtype(PropertySubType(item.socket_subtype));
         }
         else {
-          decl.structure_type(StructureType::Dynamic);
+          decl = &b.add_output(socket_type, item.name, identifier);
+        }
+        if (item.structure_type != NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
+          decl->structure_type(StructureType(item.structure_type));
+        }
+        else {
+          decl->structure_type(StructureType::Dynamic);
         }
       }
     }
@@ -165,12 +206,33 @@ static void node_declare(NodeDeclarationBuilder &b)
       const NodeClosureOutputItem &item = storage.output_items.items[i];
       const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
       const std::string identifier = ClosureOutputItemsAccessor::socket_identifier_for_item(item);
-      auto &decl = b.add_input(socket_type, item.name, identifier).supports_field();
-      if (item.structure_type != NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
-        decl.structure_type(StructureType(item.structure_type));
+      BaseSocketDeclarationBuilder *decl = nullptr;
+      if (socket_type == SOCK_VECTOR) {
+        int dimensions = int(item.vector_socket_dimensions);
+        if (!ELEM(dimensions, 2, 3, 4)) {
+          dimensions = 3;
+        }
+        decl = &b.add_input<decl::Vector>(item.name, identifier)
+                    .dimensions(dimensions)
+                    .subtype(PropertySubType(item.socket_subtype));
+      }
+      else if (socket_type == SOCK_FLOAT) {
+        decl = &b.add_input<decl::Float>(item.name, identifier)
+                    .subtype(PropertySubType(item.socket_subtype));
+      }
+      else if (socket_type == SOCK_INT) {
+        decl = &b.add_input<decl::Int>(item.name, identifier)
+                    .subtype(PropertySubType(item.socket_subtype));
       }
       else {
-        decl.structure_type(StructureType::Dynamic);
+        decl = &b.add_input(socket_type, item.name, identifier);
+      }
+      decl->supports_field();
+      if (item.structure_type != NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
+        decl->structure_type(StructureType(item.structure_type));
+      }
+      else {
+        decl->structure_type(StructureType::Dynamic);
       }
     }
   }

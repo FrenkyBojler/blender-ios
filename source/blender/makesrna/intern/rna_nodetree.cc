@@ -3924,6 +3924,142 @@ static const EnumPropertyItem *rna_RepeatItem_socket_subtype_itemf(bContext * /*
   }
 }
 
+static const EnumPropertyItem *rna_ClosureInputItem_socket_subtype_itemf(bContext * /*C*/,
+                                                                         PointerRNA *ptr,
+                                                                         PropertyRNA * /*prop*/,
+                                                                         bool *r_free)
+{
+  const NodeClosureInputItem *item = static_cast<const NodeClosureInputItem *>(ptr->data);
+  if (item == nullptr) {
+    return rna_enum_dummy_NULL_items;
+  }
+
+  *r_free = true;
+
+  const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item->socket_type);
+  switch (socket_type) {
+    case SOCK_FLOAT:
+      return itemf_function_check(rna_enum_property_subtype_items, [](const EnumPropertyItem *it) {
+        switch (it->value) {
+          case PROP_PERCENTAGE:
+          case PROP_FACTOR:
+          case PROP_MASS:
+          case PROP_ANGLE:
+          case PROP_TIME:
+          case PROP_TIME_ABSOLUTE:
+          case PROP_DISTANCE:
+          case PROP_WAVELENGTH:
+          case PROP_COLOR_TEMPERATURE:
+          case PROP_FREQUENCY:
+          case PROP_NONE:
+            return true;
+          default:
+            return false;
+        }
+      });
+    case SOCK_INT:
+      return itemf_function_check(rna_enum_property_subtype_items, [](const EnumPropertyItem *it) {
+        switch (it->value) {
+          case PROP_PERCENTAGE:
+          case PROP_FACTOR:
+          case PROP_NONE:
+            return true;
+          default:
+            return false;
+        }
+      });
+    case SOCK_VECTOR:
+      return itemf_function_check(rna_enum_property_subtype_items, [](const EnumPropertyItem *it) {
+        switch (it->value) {
+          case PROP_FACTOR:
+          case PROP_PERCENTAGE:
+          case PROP_TRANSLATION:
+          case PROP_DIRECTION:
+          case PROP_VELOCITY:
+          case PROP_ACCELERATION:
+          case PROP_EULER:
+          case PROP_XYZ:
+          case PROP_NONE:
+            return true;
+          default:
+            return false;
+        }
+      });
+    default:
+      return itemf_function_check(rna_enum_property_subtype_items, [](const EnumPropertyItem *it) {
+        return it->value == PROP_NONE;
+      });
+  }
+}
+
+static const EnumPropertyItem *rna_ClosureOutputItem_socket_subtype_itemf(bContext * /*C*/,
+                                                                          PointerRNA *ptr,
+                                                                          PropertyRNA * /*prop*/,
+                                                                          bool *r_free)
+{
+  const NodeClosureOutputItem *item = static_cast<const NodeClosureOutputItem *>(ptr->data);
+  if (item == nullptr) {
+    return rna_enum_dummy_NULL_items;
+  }
+
+  *r_free = true;
+
+  const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item->socket_type);
+  switch (socket_type) {
+    case SOCK_FLOAT:
+      return itemf_function_check(rna_enum_property_subtype_items, [](const EnumPropertyItem *it) {
+        switch (it->value) {
+          case PROP_PERCENTAGE:
+          case PROP_FACTOR:
+          case PROP_MASS:
+          case PROP_ANGLE:
+          case PROP_TIME:
+          case PROP_TIME_ABSOLUTE:
+          case PROP_DISTANCE:
+          case PROP_WAVELENGTH:
+          case PROP_COLOR_TEMPERATURE:
+          case PROP_FREQUENCY:
+          case PROP_NONE:
+            return true;
+          default:
+            return false;
+        }
+      });
+    case SOCK_INT:
+      return itemf_function_check(rna_enum_property_subtype_items, [](const EnumPropertyItem *it) {
+        switch (it->value) {
+          case PROP_PERCENTAGE:
+          case PROP_FACTOR:
+          case PROP_NONE:
+            return true;
+          default:
+            return false;
+        }
+      });
+    case SOCK_VECTOR:
+      return itemf_function_check(rna_enum_property_subtype_items, [](const EnumPropertyItem *it) {
+        switch (it->value) {
+          case PROP_FACTOR:
+          case PROP_PERCENTAGE:
+          case PROP_TRANSLATION:
+          case PROP_DIRECTION:
+          case PROP_VELOCITY:
+          case PROP_ACCELERATION:
+          case PROP_EULER:
+          case PROP_XYZ:
+          case PROP_NONE:
+            return true;
+          default:
+            return false;
+        }
+      });
+    default:
+      return itemf_function_check(rna_enum_property_subtype_items, [](const EnumPropertyItem *it) {
+        return it->value == PROP_NONE;
+      });
+  }
+}
+
 static const EnumPropertyItem *rna_ForeachGeometryElementInputItem_socket_subtype_itemf(
     bContext * /*C*/, PointerRNA *ptr, PropertyRNA * /*prop*/, bool *r_free)
 {
@@ -8140,7 +8276,19 @@ static void rna_def_closure_input_item(BlenderRNA *brna)
   RNA_def_struct_ui_text(srna, "Closure Input Item", "");
   RNA_def_struct_sdna(srna, "NodeClosureInputItem");
 
-  rna_def_node_item_array_socket_item_common(srna, "ClosureInputItemsAccessor", true);
+  rna_def_node_item_array_socket_item_common(srna, "ClosureInputItemsAccessor", true, true);
+
+  prop = RNA_def_property(srna, "socket_subtype", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_property_subtype_items);
+  RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_ClosureInputItem_socket_subtype_itemf");
+  RNA_def_property_enum_sdna(prop, nullptr, "socket_subtype");
+  RNA_def_property_ui_text(
+      prop,
+      "Subtype",
+      "Visual subtype for the socket (only affects how values are displayed in the UI)");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(
+      prop, NC_NODE | NA_EDITED, "rna_Node_ItemArray_item_update<ClosureInputItemsAccessor>");
 
   prop = RNA_def_property(srna, "structure_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, rna_enum_node_socket_structure_type_items);
@@ -8177,7 +8325,20 @@ static void rna_def_closure_output_item(BlenderRNA *brna)
   RNA_def_struct_ui_text(srna, "Closure Output Item", "");
   RNA_def_struct_sdna(srna, "NodeClosureOutputItem");
 
-  rna_def_node_item_array_socket_item_common(srna, "ClosureOutputItemsAccessor", true);
+  rna_def_node_item_array_socket_item_common(srna, "ClosureOutputItemsAccessor", true, true);
+
+  prop = RNA_def_property(srna, "socket_subtype", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_property_subtype_items);
+  RNA_def_property_enum_funcs(
+      prop, nullptr, nullptr, "rna_ClosureOutputItem_socket_subtype_itemf");
+  RNA_def_property_enum_sdna(prop, nullptr, "socket_subtype");
+  RNA_def_property_ui_text(
+      prop,
+      "Subtype",
+      "Visual subtype for the socket (only affects how values are displayed in the UI)");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(
+      prop, NC_NODE | NA_EDITED, "rna_Node_ItemArray_item_update<ClosureOutputItemsAccessor>");
 
   prop = RNA_def_property(srna, "structure_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, rna_enum_node_socket_structure_type_items);

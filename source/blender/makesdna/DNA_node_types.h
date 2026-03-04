@@ -3643,8 +3643,13 @@ struct NodeClosureInputItem {
   short socket_type = 0;
   /** #NodeSocketInterfaceStructureType. */
   int8_t structure_type = 0;
-  char _pad[1] = {};
+  /** The number of dimensions in the vector socket if the socket type is vector, otherwise unused.
+   */
+  char vector_socket_dimensions = 0;
+  /** #PropertySubType. For now only used for the socket UI (units), not evaluation. */
+  int socket_subtype = 0;
   int identifier = 0;
+  int _pad[1] = {};
 };
 
 struct NodeClosureOutputItem {
@@ -3653,8 +3658,13 @@ struct NodeClosureOutputItem {
   short socket_type = 0;
   /** #NodeSocketInterfaceStructureType. */
   int8_t structure_type = 0;
-  char _pad[1] = {};
+  /** The number of dimensions in the vector socket if the socket type is vector, otherwise unused.
+   */
+  char vector_socket_dimensions = 0;
+  /** #PropertySubType. For now only used for the socket UI (units), not evaluation. */
+  int socket_subtype = 0;
   int identifier = 0;
+  int _pad[1] = {};
 };
 
 struct NodeClosureInputItems {
