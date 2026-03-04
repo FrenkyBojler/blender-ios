@@ -380,7 +380,7 @@ namespace ed::space_node {
  * \{ */
 
 static bool socket_is_occluded(const float2 &cursor,
-                               const float2 &location,
+                               const bNodeSocket &socket,
                                const bNode &node_the_socket_belongs_to,
                                const Span<bNode *> sorted_nodes)
 {
@@ -395,12 +395,21 @@ static bool socket_is_occluded(const float2 &cursor,
       return true;
     }
 
-    /* The hitbox of the socket is larger than the socket symbol to make dragging links easier.
-    Check, if the socket symbol is fully occluded to prevent picking them from behind nodes.*/
-    rctf socket_draw_bounds;
-    const float socket_draw_radius = NODE_SOCKSIZE - 0.1f * U.widget_unit;
-    BLI_rctf_init_pt_radius(&socket_draw_bounds, location, socket_draw_radius);
-    if (BLI_rctf_inside_rctf(&node->runtime->draw_bounds, &socket_draw_bounds)) {
+    /* The hitbox of the socket is larger than the socket symbol to make dragging links easier. So
+     * we check, if the socket is fully occluded to prevent dragging links from behind nodes.
+     * Subtract some tolerance to avoid picking the socket when it's is only barely visible.
+     */
+    const float2 &location = socket.runtime->location;
+    const float tolerance = 0.1f * U.widget_unit;
+    const float socket_width = NODE_SOCKSIZE - tolerance;
+    const float socket_height = node_socket_calculate_height(socket) - tolerance;
+
+    const rctf socket_bounds = {location.x - socket_width,
+                                location.x + socket_width,
+                                location.y - socket_height,
+                                location.y + socket_height};
+
+    if (BLI_rctf_inside_rctf(&node->runtime->draw_bounds, &socket_bounds)) {
       return true;
     }
   }
@@ -799,8 +808,7 @@ bNodeSocket *node_find_indicated_socket(SpaceNode &snode,
   bNodeSocket *best_socket = nullptr;
 
   auto update_best_socket = [&](bNodeSocket *socket, const float distance) {
-    if (socket_is_occluded(cursor, socket->runtime->location, socket->owner_node(), sorted_nodes))
-    {
+    if (socket_is_occluded(cursor, *socket, socket->owner_node(), sorted_nodes)) {
       return;
     }
     if (distance < best_distance) {
