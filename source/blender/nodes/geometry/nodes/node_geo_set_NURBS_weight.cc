@@ -9,7 +9,7 @@
 
 #include "node_geometry_util.hh"
 
-namespace blender::nodes::node_geo_set_curve_weight_cc {
+namespace blender::nodes::node_geo_set_NURBS_weight_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -85,8 +85,8 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeSetCurveWeight");
-  ntype.ui_name = "Set Curve Weight";
+  geo_node_type_base(&ntype, "GeometryNodeSetNurbsWeight");
+  ntype.ui_name = "Set NURBS Weight";
   ntype.ui_description =
       "Control the influence of each NURBS control point on the curve by changing the "
       "\"nurbs_weight\" attribute";
@@ -97,4 +97,4 @@ static void node_register()
 }
 NOD_REGISTER_NODE(node_register)
 
-}  // namespace blender::nodes::node_geo_set_curve_weight_cc
+}  // namespace blender::nodes::node_geo_set_NURBS_weight_cc
