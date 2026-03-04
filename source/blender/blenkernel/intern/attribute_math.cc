@@ -9,7 +9,6 @@
 
 #include "BKE_attribute_math.hh"
 #include <algorithm>
-#include <type_traits>
 
 namespace blender::bke::attribute_math {
 
