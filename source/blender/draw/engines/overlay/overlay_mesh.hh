@@ -85,7 +85,7 @@ class Meshes : Overlay {
    */
   static constexpr float cage_ndc_offset_ = 0.5f;
   static constexpr float edge_ndc_offset_ = 1.0f;
-  static constexpr float vert_ndc_offset_ = 2.0f;
+  static constexpr float vert_ndc_offset_ = 1.5f;
 
   /* TODO(fclem): This is quite wasteful and expensive, prefer in shader Z modification like the
    * retopology offset. */
@@ -242,8 +242,8 @@ class Meshes : Overlay {
       auto &pass = edit_mesh_edges_ps_;
       pass.init();
       /* Change first vertex convention to match blender loop structure. */
-      pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL |
-                         DRW_STATE_BLEND_ALPHA | DRW_STATE_FIRST_VERTEX_CONVENTION,
+      pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_BLEND_ALPHA |
+                         DRW_STATE_FIRST_VERTEX_CONVENTION,
                      state.clipping_plane_count);
       pass.shader_set(res.shaders->mesh_edit_edge.get());
       pass.push_constant("do_smooth_wire", do_smooth_wire);
