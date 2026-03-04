@@ -1545,7 +1545,7 @@ macro(with_shader_cpp_compilation_config)
 endmacro()
 
 function(compile_sources_as_cpp
-  executable
+  library
   sources
   define
   )
@@ -1554,12 +1554,12 @@ function(compile_sources_as_cpp
     set_source_files_properties(${glsl_file} PROPERTIES LANGUAGE CXX)
   endforeach()
 
-  add_library(${executable} OBJECT ${sources})
-  set_target_properties(${executable} PROPERTIES LINKER_LANGUAGE CXX)
-  target_include_directories(${executable} PUBLIC ${INC_GLSL})
-  target_compile_definitions(${executable} PRIVATE ${define})
+  add_library(${library} OBJECT ${sources})
+  set_target_properties(${library} PROPERTIES LINKER_LANGUAGE CXX)
+  target_include_directories(${library} PUBLIC ${INC_GLSL})
+  target_compile_definitions(${library} PRIVATE ${define})
   if(WIN32 AND NOT MSVC_CLANG)
-    set_target_properties(${executable} PROPERTIES STATIC_LIBRARY_OPTIONS "-ignore:4006")
+    set_target_properties(${library} PROPERTIES STATIC_LIBRARY_OPTIONS "-ignore:4006")
   endif()
 endfunction()
 
