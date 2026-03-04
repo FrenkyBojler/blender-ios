@@ -956,7 +956,7 @@ mark_as_advanced(
   WITH_GPU_SHADER_ASSERT
 )
 
-if((POLICY CMP0119) AND (NOT MSVC))
+if(POLICY CMP0119)
   option(WITH_GPU_SHADER_CPP_COMPILATION "\
   Compiler shaders using C++. \
   Allows testing shader compilation offline and enable C++ IDE support for shader code"

@@ -209,8 +209,8 @@ struct NoConstants {};
 template<typename VertFn,
          typename FragFn,
          typename ConstT1 = NoConstants,
-         typename ConstT2 = ConstT1,
-         typename ConstT3 = ConstT2>
+         typename ConstT2 = NoConstants,
+         typename ConstT3 = NoConstants>
 struct PipelineGraphic {
   VertFn vert;
   FragFn frag;
@@ -247,8 +247,8 @@ struct PipelineGraphic {
 
 template<typename CompFn,
          typename ConstT1 = NoConstants,
-         typename ConstT2 = ConstT1,
-         typename ConstT3 = ConstT2>
+         typename ConstT2 = NoConstants,
+         typename ConstT3 = NoConstants>
 struct PipelineCompute {
   CompFn comp;
   /* Constant values. */
