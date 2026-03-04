@@ -446,28 +446,7 @@ void mix_groups(const Span<ColorGeometry4f> src,
                 const Span<int> all_indices,
                 MutableSpan<ColorGeometry4f> all_dst)
 {
-  for_chunk_ranges(all_dst.index_range(), CHUNK_SIZE, [&](const IndexRange range) {
-    const OffsetIndices<int> groups = all_groups.slice(range);
-    MutableSpan<ColorGeometry4f> dst = all_dst.slice(range);
-
-    dst.fill(ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f));
-    for (const int dst_i : dst.index_range()) {
-      for (const int src_i : all_indices.slice(groups[dst_i])) {
-        dst[dst_i].r += src[src_i].r;
-        dst[dst_i].g += src[src_i].g;
-        dst[dst_i].b += src[src_i].b;
-        dst[dst_i].a += src[src_i].a;
-      }
-    }
-
-    for (const int dst_i : dst.index_range()) {
-      const float weight_inv = math::safe_rcp(float(groups[dst_i].size()));
-      dst[dst_i].r *= weight_inv;
-      dst[dst_i].g *= weight_inv;
-      dst[dst_i].b *= weight_inv;
-      dst[dst_i].a *= weight_inv;
-    }
-  });
+  mix_groups(src.cast<float4>(), all_groups, all_indices, all_dst.cast<float4>());
 }
 
 template<>
@@ -626,27 +605,7 @@ void mix_groups(const Span<ColorGeometry4f> src,
                 const Span<float> all_weights,
                 MutableSpan<ColorGeometry4f> all_dst)
 {
-  const Span<float4> src_float = src.cast<float4>();
-  MutableSpan<float4> dst_float = all_dst.cast<float4>();
-  for_chunk_ranges(all_dst.index_range(), CHUNK_SIZE, [&](const IndexRange range) {
-    const OffsetIndices<int> groups = all_groups.slice(range);
-    MutableSpan<float4> dst = dst_float.slice(range);
-
-    dst.fill(float4(0));
-    Array<float, CHUNK_SIZE> weights_accum(dst.size(), 0.0f);
-    for (const int dst_i : dst.index_range()) {
-      for (const int i : groups[dst_i]) {
-        const int src_i = all_indices[i];
-        const float weight = all_weights[i];
-        dst[dst_i] += src_float[src_i] * weight;
-        weights_accum[dst_i] += weight;
-      }
-    }
-
-    for (const int dst_i : dst.index_range()) {
-      dst[dst_i] *= math::safe_rcp(weights_accum[dst_i]);
-    }
-  });
+  mix_groups(src.cast<float4>(), all_groups, all_indices, all_weights, all_dst.cast<float4>());
 }
 
 template<>
