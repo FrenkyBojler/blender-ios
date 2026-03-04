@@ -98,7 +98,7 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 6)) {
     for (Material &materials : bmain->materials) {
       if (materials.gp_style != nullptr) {
-        materials.gp_style->placement_mode = GP_MATERIAL_PLACEMENT_SINGLE;
+        materials.gp_style->placement_mode = GP_MATERIAL_PLACEMENT_COUNT;
         materials.gp_style->placement_count = 1;
         materials.gp_style->placement_density = 10.0f;
         materials.gp_style->placement_radius_spacing = 100.0f;

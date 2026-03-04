@@ -43,6 +43,8 @@ void main()
   gpMaterial gp_mat = gp_materials[point_data1.mat + gp_material_offset];
   gpMaterialFlag gp_flag = gpMaterialFlag(floatBitsToUint(gp_mat._flag));
 
+  gp_interp_flat.point_length.z = gp_mat._stroke_u_scale;
+
   gl_Position = gpencil_vertex(float4(viewport_size, 1.0f / viewport_size),
                                gp_flag,
                                gp_mat._alignment_rot,
@@ -64,8 +66,6 @@ void main()
     if (!flag_test(gp_flag, GP_STROKE_ALIGNMENT)) {
       gp_interp.uv.x *= gp_mat._stroke_u_scale;
     }
-
-    gp_interp_flat.point_length.z = gp_mat._stroke_u_scale;
 
     /* Special case: We don't use vertex color if material Holdout. */
     if (flag_test(gp_flag, GP_STROKE_HOLDOUT)) {

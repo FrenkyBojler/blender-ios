@@ -1423,10 +1423,10 @@ static void grease_pencil_geom_batch_ensure(Object &object,
           return u_scale * u + u_translation;
         }
         switch (gp_style->placement_mode) {
-          case GP_MATERIAL_PLACEMENT_SINGLE: {
-            return float(i + int(u_translation));
-          }
           case GP_MATERIAL_PLACEMENT_COUNT: {
+            if (gp_style->placement_count == 1) {
+              return float(i + int(u_translation));
+            }
             return u_scale * float(i) + u_translation;
           }
           case GP_MATERIAL_PLACEMENT_RADIUS: {
