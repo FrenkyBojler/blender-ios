@@ -349,7 +349,7 @@ void drawSnapping(TransInfo *t)
     }
     else {
       const short snap_flag = seq::tool_settings_snap_flag_get(t->scene);
-      if (snap_flag & SEQ_SNAP_TO_ALL_CHANNEL_STRIPS) {
+      if ((snap_flag & SEQ_SNAP_TO_ALL_CHANNEL_STRIPS) || target_y == 0) {
         draw_vline(region->v2d.cur.ymin, region->v2d.cur.ymax, col[3]);
       }
       else {
