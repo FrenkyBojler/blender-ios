@@ -124,10 +124,6 @@ static Block *colorband_tools_fn(bContext *C, ARegion *region, void *cb_v)
       rna_update_cb(C, cb);
     });
   }
-
-  Layout &column = layout.column(true);
-  column.enabled_set(coba->tot > 1);
-
   {
     Button *but = uiDefIconTextBut(block,
                                    ButtonType::ButMenu,
@@ -145,7 +141,8 @@ static Block *colorband_tools_fn(bContext *C, ARegion *region, void *cb_v)
       rna_update_cb(C, cb);
     });
 
-    if (!column.enabled()) {
+    if (coba->tot < 2) {
+      button_flag_enable(but, BUT_DISABLED);
       button_func_tooltip_custom_set(but, colorramp_tip_func, nullptr, nullptr);
     }
   }
@@ -166,7 +163,8 @@ static Block *colorband_tools_fn(bContext *C, ARegion *region, void *cb_v)
       rna_update_cb(C, cb);
     });
 
-    if (!column.enabled()) {
+    if (coba->tot < 2) {
+      button_flag_enable(but, BUT_DISABLED);
       button_func_tooltip_custom_set(but, colorramp_tip_func, nullptr, nullptr);
     }
   }
