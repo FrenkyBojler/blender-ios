@@ -24,59 +24,64 @@
 
 namespace blender::nodes::node_geo_sample_grid_cc {
 
+/** Grid sampler using a quadratic B-spline basis function as described in
+ * Steffen et al., "Analysis and reduction of quadrature errors in the material point method (MPM)"
+ *
+ * The kernel is a piece-wise quadratic spline with two parts:
+ * f(x) = -|x|^2 + 3/4               for   0 <= |x| < 1/2
+ * f(x) = 1/2*|x|^2 + 3/2*|x| + 9/8  for 1/2 <= |x| < 3/2
+ * f(x) = 0                          for 3/2 <= |x|
+ *
+ * This kernel has a range of 1.5 voxels. For sampling in the index space of i <= x <= i+1
+ * the contribution of points [i-1, i, i+1, i+2] must be considered.
+ * Shifting the kernel function to these voxel locations yields these contributions:
+ * v(x) = v[i-1]*f(x+1) +   v[i]*f(x) + v[i+1]*f(x-1) + v[i+2]*f(x-2)
+ *      =      A*f(x+1) +      B*f(x) +      C*f(x-1) +      D*f(x-2)
+ *
+ * This results in the following expressions for sampling in one dimension:
+ * For 0 <= x < 1/2:
+ *   v(x) = x^2*(1/2*A - B + 1/2*C) + x*(-1/2*A       + 1/2*C) + (1/8*A + 6/8*B + 1/8*C)
+ * For 1/2 <= x < 1:
+ *   v(x) = x^2*(1/2*B - C + 1/2*D) + x*(-3/2*B + 2*C - 1/2*D) + (9/8*B - 2/8*C + 1/8*D)
+ */
 struct QuadraticBSplineSampler {
   static const char *name()
   {
     return "quadratic_bspline";
   }
 
-  template<class ValueT, size_t N>
-  ValueT interpolate(ValueT (&data)[N][N][N], const openvdb::Vec3R &uvw)
+  template<class ValueT> static ValueT interpolate(const ValueT *value, double weight)
   {
-    auto _interpolate = [](const ValueT *value, double weight) {
-      OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
-      if (weight < 0.5) {
-        const ValueT a = static_cast<ValueT>(0.5 * (value[0] + value[2]) - value[1]);
-        const ValueT b = static_cast<ValueT>(0.5 * (value[2] - value[0]));
-        const ValueT c = static_cast<ValueT>(0.125 * (value[0] + value[2]) + 0.75 * value[1]);
-        const auto temp = weight * (weight * a + b) + c;
-        return static_cast<ValueT>(temp);
-      }
-
-      const ValueT a = static_cast<ValueT>(0.5 * (value[1] + value[3]) - value[2]);
-      const ValueT b = static_cast<ValueT>(-0.75 * value[1] + 2 * value[2] - 0.5 * value[3]);
-      const ValueT c = static_cast<ValueT>(1.125 * value[1] - 0.25 * value[2] + 0.125 * value[3]);
-      const auto temp = weight * (weight * a + b) + c;
+    OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
+    if (weight < 0.5) {
+      const ValueT sqr = static_cast<ValueT>(0.5 * (value[0] + value[2]) - value[1]);
+      const ValueT lin = static_cast<ValueT>(0.5 * (value[2] - value[0]));
+      const ValueT con = static_cast<ValueT>(0.125 * (value[0] + value[2]) + 0.75 * value[1]);
+      const auto temp = weight * (weight * sqr + lin) + con;
       return static_cast<ValueT>(temp);
-      OPENVDB_NO_TYPE_CONVERSION_WARNING_END
-    };
+    }
 
-    /// @todo For vector types, interpolate over each component independently.
+    const ValueT sqr = static_cast<ValueT>(0.5 * (value[1] + value[3]) - value[2]);
+    const ValueT lin = static_cast<ValueT>(-0.75 * value[1] + 2 * value[2] - 0.5 * value[3]);
+    const ValueT con = static_cast<ValueT>(1.125 * value[1] - 0.25 * value[2] + 0.125 * value[3]);
+    const auto temp = weight * (weight * sqr + lin) + con;
+    return static_cast<ValueT>(temp);
+    OPENVDB_NO_TYPE_CONVERSION_WARNING_END
+  }
+
+  template<class ValueT, size_t N>
+  static ValueT interpolate_3d(ValueT (&data)[N][N][N], const openvdb::Vec3R &uvw)
+  {
     ValueT vx[4];
     for (int dx = 0; dx < 4; ++dx) {
       ValueT vy[4];
       for (int dy = 0; dy < 4; ++dy) {
-        // Fit a parabola to three contiguous samples in z
-        // (at z=-1, z=0 and z=1), then evaluate the parabola at z',
-        // where z' is the fractional part of inCoord.z, i.e.,
-        // inCoord.z - inIdx.z.  The coefficients come from solving
-        //
-        // | (-1)^2  -1   1 || a |   | v0 |
-        // |    0     0   1 || b | = | v1 |
-        // |   1^2    1   1 || c |   | v2 |
-        //
-        // for a, b and c.
         const ValueT *vz = &data[dx][dy][0];
-        vy[dy] = _interpolate(vz, uvw.z());
-      }  // loop over y
-      // Fit a parabola to three interpolated samples in y, then
-      // evaluate the parabola at y', where y' is the fractional
-      // part of inCoord.y.
-      vx[dx] = _interpolate(vy, uvw.y());
-    }  // loop over x
-    // Fit a parabola to three interpolated samples in x, then
-    // evaluate the parabola at the fractional part of inCoord.x.
-    return _interpolate(vx, uvw.x());
+        vy[dy] = interpolate(vz, uvw.z());
+      }
+      vx[dx] = interpolate(vy, uvw.y());
+    }
+    return interpolate(vx, uvw.x());
   }
 
   template<class TreeT>
@@ -90,10 +95,9 @@ struct QuadraticBSplineSampler {
                          inLoIdx = inIdx - openvdb::Vec3i(1, 1, 1);
     const openvdb::Vec3R uvw = inCoord - inIdx;
 
-    // Retrieve the values of the 27 voxels surrounding the
-    // fractional source coordinates.
+    /* Retrieve the values of the 64 voxels surrounding the fractional source coordinates. */
     bool active = false;
-    ValueT data[3][3][3];
+    ValueT data[4][4][4];
     for (int dx = 0, ix = inLoIdx.x(); dx < 4; ++dx, ++ix) {
       for (int dy = 0, iy = inLoIdx.y(); dy < 4; ++dy, ++iy) {
         for (int dz = 0, iz = inLoIdx.z(); dz < 4; ++dz, ++iz) {
@@ -104,9 +108,31 @@ struct QuadraticBSplineSampler {
       }
     }
 
-    result = QuadraticBSplineSampler::interpolate(data, uvw);
+    result = interpolate_3d(data, uvw);
 
     return active;
+  }
+
+  template<class TreeT>
+  typename TreeT::ValueType sample(const TreeT &inTree, const openvdb::Vec3R &inCoord)
+  {
+    using ValueT = typename TreeT::ValueType;
+
+    const openvdb::Vec3i inIdx = openvdb::tools::local_util::floorVec3(inCoord),
+                         inLoIdx = inIdx - openvdb::Vec3i(1, 1, 1);
+    const openvdb::Vec3R uvw = inCoord - inIdx;
+
+    /* Retrieve the values of the 64 voxels surrounding the fractional source coordinates. */
+    ValueT data[4][4][4];
+    for (int dx = 0, ix = inLoIdx.x(); dx < 4; ++dx, ++ix) {
+      for (int dy = 0, iy = inLoIdx.y(); dy < 4; ++dy, ++iy) {
+        for (int dz = 0, iz = inLoIdx.z(); dz < 4; ++dz, ++iz) {
+          inTree.getValue(openvdb::Coord(ix, iy, iz));
+        }
+      }
+    }
+
+    return interpolate_3d(data, uvw);
   }
 };
 
