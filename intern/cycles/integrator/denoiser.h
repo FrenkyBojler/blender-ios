@@ -91,9 +91,9 @@ class Denoiser {
    * example, caused by misconfigured denoiser) or when user requested to cancel rendering. */
   virtual bool denoise_buffer(const BufferParams &buffer_params,
                               RenderBuffers *render_buffers,
-                              const int num_samples,
-                              const bool allow_inplace_modification,
-                              const float2 jitter = {}) = 0;
+                              int num_samples,
+                              bool allow_inplace_modification,
+                              float2 pixel_jitter = {}) = 0;
 
   /* Get a device which is used to perform actual denoising.
    *
