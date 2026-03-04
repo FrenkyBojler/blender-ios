@@ -287,8 +287,7 @@ void mix_groups(const Span<T> src,
     }
 
     for (const int dst_i : range.index_range()) {
-      const float weight_inv = math::safe_rcp(float(groups[dst_i].size()));
-      dst[dst_i] *= weight_inv;
+      dst[dst_i] *= math::safe_rcp(float(groups[dst_i].size()));
     }
   });
 }
@@ -320,16 +319,15 @@ void mix_groups(const Span<T> src,
     const OffsetIndices<int> groups = all_groups.slice(range);
     MutableSpan<T> dst = all_dst.slice(range);
 
-    Array<AccumT, CHUNK_SIZE> accumulation_values(dst.size(), AccumT(0));
+    Array<AccumT, CHUNK_SIZE> accum(dst.size(), AccumT(0));
     for (const int dst_i : dst.index_range()) {
       for (const int src_i : all_indices.slice(groups[dst_i])) {
-        accumulation_values[dst_i] += to_accum_fn(src[src_i]);
+        accum[dst_i] += to_accum_fn(src[src_i]);
       }
     }
 
     for (const int dst_i : dst.index_range()) {
-      const float weight_inv = math::safe_rcp(float(groups[dst_i].size()));
-      dst[dst_i] = to_final_fn(accumulation_values[dst_i] * weight_inv);
+      dst[dst_i] = to_final_fn(accum[dst_i] * math::safe_rcp(float(groups[dst_i].size())));
     }
   });
 }
@@ -512,18 +510,18 @@ void mix_groups(const Span<T> src,
     MutableSpan<T> dst = all_dst.slice(range);
 
     dst.fill(T());
-    Array<float, CHUNK_SIZE> total_weights(dst.size(), 0.0f);
+    Array<float, CHUNK_SIZE> weights_accum(dst.size(), 0.0f);
     for (const int dst_i : dst.index_range()) {
       for (const int i : groups[dst_i]) {
         const int src_i = all_indices[i];
         const float weight = all_weights[i];
         dst[dst_i] += src[src_i] * weight;
-        total_weights[dst_i] += weight;
+        weights_accum[dst_i] += weight;
       }
     }
 
     for (const int dst_i : dst.index_range()) {
-      dst[dst_i] *= math::safe_rcp(total_weights[dst_i]);
+      dst[dst_i] *= math::safe_rcp(weights_accum[dst_i]);
     }
   });
 }
@@ -543,20 +541,19 @@ void mix_groups(const Span<T> src,
     const OffsetIndices<int> groups = all_groups.slice(range);
     MutableSpan<T> dst = all_dst.slice(range);
 
-    Array<AccumT, CHUNK_SIZE> accumulation_values(dst.size(), AccumT(0));
-    Array<float, CHUNK_SIZE> total_weights(dst.size(), 0.0f);
+    Array<AccumT, CHUNK_SIZE> accum(dst.size(), AccumT(0));
+    Array<float, CHUNK_SIZE> weights_accum(dst.size(), 0.0f);
     for (const int dst_i : dst.index_range()) {
       for (const int i : groups[dst_i]) {
         const int src_i = all_indices[i];
         const float weight = all_weights[i];
-        accumulation_values[dst_i] += to_accum_fn(src[src_i]) * weight;
-        total_weights[dst_i] += weight;
+        accum[dst_i] += to_accum_fn(src[src_i]) * weight;
+        weights_accum[dst_i] += weight;
       }
     }
 
     for (const int dst_i : dst.index_range()) {
-      const float weight_inv = math::safe_rcp(total_weights[dst_i]);
-      dst[dst_i] = to_final_fn(accumulation_values[dst_i] * weight_inv);
+      dst[dst_i] = to_final_fn(accum[dst_i] * math::safe_rcp(weights_accum[dst_i]));
     }
   });
 }
@@ -629,30 +626,25 @@ void mix_groups(const Span<ColorGeometry4f> src,
                 const Span<float> all_weights,
                 MutableSpan<ColorGeometry4f> all_dst)
 {
+  const Span<float4> src_float = src.cast<float4>();
+  MutableSpan<float4> dst_float = all_dst.cast<float4>();
   for_chunk_ranges(all_dst.index_range(), CHUNK_SIZE, [&](const IndexRange range) {
     const OffsetIndices<int> groups = all_groups.slice(range);
-    MutableSpan<ColorGeometry4f> dst = all_dst.slice(range);
+    MutableSpan<float4> dst = dst_float.slice(range);
 
-    dst.fill(ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f));
-    Array<float, CHUNK_SIZE> total_weights(dst.size(), 0.0f);
+    dst.fill(float4(0));
+    Array<float, CHUNK_SIZE> weights_accum(dst.size(), 0.0f);
     for (const int dst_i : dst.index_range()) {
       for (const int i : groups[dst_i]) {
         const int src_i = all_indices[i];
         const float weight = all_weights[i];
-        dst[dst_i].r += src[src_i].r * weight;
-        dst[dst_i].g += src[src_i].g * weight;
-        dst[dst_i].b += src[src_i].b * weight;
-        dst[dst_i].a += src[src_i].a * weight;
-        total_weights[dst_i] += weight;
+        dst[dst_i] += src_float[src_i] * weight;
+        weights_accum[dst_i] += weight;
       }
     }
 
     for (const int dst_i : dst.index_range()) {
-      const float weight_inv = math::safe_rcp(total_weights[dst_i]);
-      dst[dst_i].r *= weight_inv;
-      dst[dst_i].g *= weight_inv;
-      dst[dst_i].b *= weight_inv;
-      dst[dst_i].a *= weight_inv;
+      dst[dst_i] *= math::safe_rcp(weights_accum[dst_i]);
     }
   });
 }
