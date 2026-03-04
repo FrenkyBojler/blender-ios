@@ -18,59 +18,69 @@
 
 namespace blender::animrig {
 
-/* Builds a set of frames where at least one of the given FCurves has a key. This uses int instead
- * of float to avoid precision issues. The maximum subframe resolution is dicated by
- * BEZT_BINARYSEARCH_THRESH so this is used to convert to a unique integer. */
-static Set<int64_t> build_keyframe_ids(const Span<const FCurve *> fcurves)
+static int compare_int(const void *a, const void *b)
 {
-  Set<int64_t> keyframe_ids;
+  return *(static_cast<const int *>(a)) - *(static_cast<const int *>(b));
+}
+/*
+ * Builds an array of unique frames where at least one of the given FCurves has a key. This uses
+ * int instead of float to avoid precision issues. The maximum subframe resolution is dicated by
+ * BEZT_BINARYSEARCH_THRESH so this is used to convert to a unique integer.
+ */
+static Vector<int64_t> build_keyframe_ids(const Span<const FCurve *> fcurves)
+{
+  Vector<int64_t> keyframe_ids;
+  Set<int64_t> existing_ids;
   for (const FCurve *fcurve : fcurves) {
     if (!fcurve || !fcurve->bezt) {
       continue;
     }
     for (int i = 0; i < fcurve->totvert; i++) {
       const int64_t value = int64_t(fcurve->bezt[i].vec[1][0] / BEZT_BINARYSEARCH_THRESH);
-      keyframe_ids.add(value);
+      if (existing_ids.add(value)) {
+        keyframe_ids.append(value);
+      }
     }
   }
+  qsort(keyframe_ids.data(), sizeof(int64_t), keyframe_ids.size(), compare_int);
   return keyframe_ids;
 }
 
-static void rotation_values_to_matrix(const float4 &rotation_values,
-                                      const eRotationModes mode,
-                                      float r_matrix[3][3])
+static void rotation_values_to_quat(const float4 &rotation_values,
+                                    const eRotationModes mode,
+                                    float4 &r_quat)
 {
   switch (mode) {
     case ROT_MODE_QUAT:
-      quat_to_mat3(r_matrix, rotation_values);
+      copy_qt_qt(r_quat, rotation_values);
       break;
 
     case ROT_MODE_AXISANGLE:
-      axis_angle_to_mat3(r_matrix, &rotation_values[1], rotation_values[0]);
+      axis_angle_to_quat(r_quat, &rotation_values[1], rotation_values[0]);
       break;
 
     default:
-      eulO_to_mat3(r_matrix, rotation_values, mode);
+      eulO_to_quat(r_quat, rotation_values, mode);
       break;
   }
 }
 
-static void matrix_to_rotation_values(const float matrix[3][3],
-                                      const eRotationModes mode,
-                                      const float reference_rotation[4],
-                                      float r_rotation_values[4])
+static void quat_to_rotation_values(const float4 &quat,
+                                    const eRotationModes mode,
+                                    const float4 &reference_rotation,
+                                    float4 &r_rotation_values)
 {
   switch (mode) {
     case ROT_MODE_QUAT:
-      mat3_to_quat(r_rotation_values, matrix);
+      copy_qt_qt(r_rotation_values, quat);
       break;
 
     case ROT_MODE_AXISANGLE:
-      mat3_to_axis_angle(&r_rotation_values[1], r_rotation_values, matrix);
+      quat_to_axis_angle(&r_rotation_values[1], r_rotation_values, quat);
       break;
 
     default:
-      mat3_to_compatible_eulO(r_rotation_values, reference_rotation, mode, matrix);
+      quat_to_compatible_eulO(r_rotation_values, reference_rotation, mode, quat);
       break;
   }
 }
@@ -99,6 +109,9 @@ bool convert_pose_bone_rotation_keys(Main *bmain,
                                      const RNAPathFCurveMap &fcurves_by_rna_path,
                                      const eRotationModes to_mode)
 {
+  if (pchan.rotmode == to_mode) {
+    return false;
+  }
   PointerRNA ptr = RNA_pointer_create_discrete(&owner_id, RNA_PoseBone, &pchan);
   const std::optional<std::string> pchan_path = RNA_path_from_ID_to_struct(&ptr);
   if (!pchan_path) {
@@ -122,7 +135,7 @@ bool convert_pose_bone_rotation_keys(Main *bmain,
   float4 previous_conversion(0);
   float4 converted_rotation(0);
   float4 rotation_values(0);
-  float rotation_matrix[3][3];
+  float4 rot_quat;
 
   const int evaluation_buffer_count = current_mode > ROT_MODE_QUAT ? 3 : 4;
   const int insertion_buffer_count = to_mode > ROT_MODE_QUAT ? 3 : 4;
@@ -156,7 +169,7 @@ bool convert_pose_bone_rotation_keys(Main *bmain,
         insertion_buffer[i] = &item.key->fcurve_ensure(bmain, descriptor);
       }
     }
-    Set<int64_t> keyframe_ids = build_keyframe_ids(evaluation_buffer);
+    Vector<int64_t> keyframe_ids = build_keyframe_ids(evaluation_buffer);
     get_rotation_values(pchan, rotation_values);
     KeyframeSettings settings = {BEZT_KEYTYPE_KEYFRAME, HD_AUTO_ANIM, BEZT_IPO_BEZ};
     for (FCurve *fcurve : evaluation_buffer) {
@@ -182,15 +195,14 @@ bool convert_pose_bone_rotation_keys(Main *bmain,
         rotation_values[fcurve->array_index] = evaluate_fcurve(fcurve, frame);
       }
       /* Convert those to the new rotation mode. */
-      rotation_values_to_matrix(rotation_values, current_mode, rotation_matrix);
-      matrix_to_rotation_values(rotation_matrix, to_mode, previous_conversion, converted_rotation);
+      rotation_values_to_quat(rotation_values, current_mode, rot_quat);
+      quat_to_rotation_values(rot_quat, to_mode, previous_conversion, converted_rotation);
       for (int i : IndexRange(insertion_buffer_count)) {
         FCurve *fcurve = insertion_buffer[i];
         BLI_assert_msg(fcurve, "For insertion all FCurves are expected to be created before");
         insert_vert_fcurve(fcurve, {frame, converted_rotation[i]}, settings, eInsertKeyFlags(0));
       }
-
-      std::swap(converted_rotation, previous_conversion);
+      previous_conversion = converted_rotation;
     }
 
     if (is_rotation_order_change) {
