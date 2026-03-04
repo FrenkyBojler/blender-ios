@@ -1143,7 +1143,7 @@ static wmOperatorStatus text_cut_exec(bContext *C, wmOperator * /*op*/)
   if (!has_selection) {
     text->curc = 0;
     text->selc = 0;
-    /* Merge next line into the active line when cutting line.  */
+    /* Merge next line into the active line when cutting the active line.  */
     txt_move_down(text, false);
     txt_backspace_char(text);
   }
