@@ -167,13 +167,14 @@ struct PaintStroke : NonCopyable, NonMovable {
   bool roll_virtual_prepended_ = false;     /* true after virtual backward segments are prepended */
   bool has_trailing_roll_segment_ = false; /* true when a trailing extension segment exists */
   int n_virtual_segments_ = 0;             /* number of virtual backward segments prepended */
+  void *roll_cursor_ = nullptr;           /* always-on preview of unflushed spline portion */
   void *debug_cursor_ = nullptr;
   int stroke_sample_index_ = 0;
+  int last_painted_roll_idx_ = -1;       /* ring buffer index of the last deferred dab placed */
   float spacing_raw_ = 0.0f;
   PaintStrokePoint points_[PAINT_MAX_INPUT_SAMPLES];
   int num_points_ = 0;
   int cur_point_ = 0;
-  int tot_points_ = 0;
   std::unique_ptr<BezierSpline2f> spline_;
   std::unique_ptr<BezierSpline3f> world_spline_;
 
@@ -193,6 +194,8 @@ struct PaintStroke : NonCopyable, NonMovable {
   float cached_size_pressure_ = 0.0f;
   /* last pressure will store last pressure value for use in interpolation for space strokes */
   float last_pressure_ = 0.0f;
+  /* last smoothed mouse position (for stabilize stroke finalization) */
+  float2 last_smoothed_mouse_ = float2(0.0f, 0.0f);
   BrushStrokeMode stroke_mode_ = BrushStrokeMode::Normal;
   BrushSwitchMode brush_switch_mode_ = BrushSwitchMode::None;
 
@@ -278,6 +281,9 @@ struct PaintStroke : NonCopyable, NonMovable {
 
   /** Debug: draw the roll spline overlay in the viewport. */
   void draw_debug_roll(bContext *C) const;
+
+  /** Draw the unflushed portion of the roll spline as an always-on preview. */
+  void draw_roll_preview(bContext *C) const;
 
  protected:
   ~PaintStroke() = default;

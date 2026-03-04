@@ -114,13 +114,13 @@ void PaintStroke::prepend_virtual_roll_points()
   const int max_pts = roll_max_points();
   const int oldest = (cur_point_ - num_points_ + max_pts) % max_pts;
   const int next_oldest = (oldest + 1) % max_pts;
-  const int newest = (cur_point_ - 1 + max_pts) % max_pts;
 
   const float3 p_start = points_[oldest].location;
   const float2 m_start = points_[oldest].mouse_out;
 
-  float3 dir3 = points_[newest].location - p_start;
-  float2 dir2 = points_[newest].mouse_out - m_start;
+  /* Direction from 1st to 2nd point (local tangent at stroke start). */
+  float3 dir3 = points_[next_oldest].location - p_start;
+  float2 dir2 = points_[next_oldest].mouse_out - m_start;
 
   const float len3 = math::length(dir3);
   const float len2 = math::length(dir2);
@@ -138,20 +138,85 @@ void PaintStroke::prepend_virtual_roll_points()
 
   /* Extend backward from the stroke start by 3 brush radii so that early
    * dabs have generous spline coverage behind them.
-   * 12 straight-line bezier segments subdivide this linear extrapolation. */
+   * 12 bezier segments subdivide this extension; with curvature they form an arc. */
   constexpr int n_backward = 12;
   const float total_backward_3d = r_world * 3.0f;
   const float total_backward_2d = r_screen * 3.0f;
   const float step_3d = total_backward_3d / float(n_backward);
   const float step_2d = total_backward_2d / float(n_backward);
 
-  /* v[0] = farthest backward, v[n_backward] = p_start = points_[oldest]. */
+  /* Measure curvature from the angle between 1st→2nd and 2nd→3rd segments.
+   * Each virtual step rotates the direction by a proportional amount so the
+   * extension follows the same arc the user started drawing. */
+  float angle_2d = 0.0f;
+  float angle_3d = 0.0f;
+  float3 rot_axis = float3(0);
+  bool has_rot_3d = false;
+
+  if (num_points_ >= 3) {
+    const int third = (oldest + 2) % max_pts;
+
+    /* 2D curvature. */
+    const float2 seg1 = points_[next_oldest].mouse_out - m_start;
+    const float2 seg2 = points_[third].mouse_out - points_[next_oldest].mouse_out;
+    const float cross2 = seg1.x * seg2.y - seg1.y * seg2.x;
+    const float dot2 = math::dot(seg1, seg2);
+    const float total_a2 = atan2f(cross2, dot2);
+    const float seg_len2 = math::length(seg1);
+    if (seg_len2 > 1e-7f) {
+      angle_2d = total_a2 * (step_2d / seg_len2);
+    }
+
+    /* 3D curvature (Rodrigues rotation). */
+    const float3 s1 = points_[next_oldest].location - p_start;
+    const float3 s2 = points_[third].location - points_[next_oldest].location;
+    const float3 n1 = math::normalize(s1);
+    const float3 n2 = math::normalize(s2);
+    const float3 c3 = math::cross(n1, n2);
+    const float c3_len = math::length(c3);
+    const float d3 = math::dot(n1, n2);
+    if (c3_len > 1e-7f) {
+      rot_axis = c3 / c3_len;
+      const float total_a3 = atan2f(c3_len, d3);
+      const float seg_len3 = math::length(s1);
+      if (seg_len3 > 1e-7f) {
+        angle_3d = total_a3 * (step_3d / seg_len3);
+        has_rot_3d = true;
+      }
+    }
+  }
+
+  /* Build extension points walking backward from p_start.
+   * v[n_backward] = p_start, v[0] = farthest backward.
+   * Rotation is applied before each step so that curvature is active
+   * from the very first virtual segment. */
   float3 v3d[n_backward + 1];
   float2 v2d[n_backward + 1];
-  for (int i = 0; i <= n_backward; i++) {
-    const float t = float(n_backward - i);
-    v3d[i] = p_start - dir3 * (t * step_3d);
-    v2d[i] = m_start - dir2 * (t * step_2d);
+  v3d[n_backward] = p_start;
+  v2d[n_backward] = m_start;
+
+  float2 cur_dir_2d = dir2;
+  float3 cur_dir_3d = dir3;
+
+  for (int i = n_backward - 1; i >= 0; i--) {
+    /* Rotate direction by -angle before stepping (continue arc backward). */
+    if (angle_2d != 0.0f) {
+      const float c = cosf(-angle_2d);
+      const float s = sinf(-angle_2d);
+      cur_dir_2d = float2(cur_dir_2d.x * c - cur_dir_2d.y * s,
+                          cur_dir_2d.x * s + cur_dir_2d.y * c);
+    }
+    if (has_rot_3d) {
+      /* Rodrigues: v' = v*cos + (k x v)*sin + k*(k.v)*(1-cos). */
+      const float c = cosf(-angle_3d);
+      const float s = sinf(-angle_3d);
+      const float3 kxv = math::cross(rot_axis, cur_dir_3d);
+      const float kdv = math::dot(rot_axis, cur_dir_3d);
+      cur_dir_3d = cur_dir_3d * c + kxv * s + rot_axis * kdv * (1.0f - c);
+    }
+
+    v2d[i] = v2d[i + 1] - cur_dir_2d * step_2d;
+    v3d[i] = v3d[i + 1] - cur_dir_3d * step_3d;
   }
 
   /* Splines are empty at this point, so these become the leading segments.
@@ -237,6 +302,16 @@ void PaintStroke::make_roll_spline(bContext *C)
   float2 c_pt = points_[ic].mouse_out;
   float2 d = points_[id].mouse_out;
 
+  /* Catmull-Rom to cubic Bezier conversion.
+   *
+   * Given four Catmull-Rom knots P0 (b_pt), P1 (a), P2 (d), P3 (c_pt),
+   * the equivalent cubic Bezier control points are:
+   *   B0 = P1
+   *   B1 = P1 + (P2 - P0) / 6
+   *   B2 = P2 - (P3 - P1) / 6
+   *   B3 = P2
+   *
+   * Below, scale = 1/3 combined with the 0.5 interpolation yields the 1/6 factor. */
   float scale = 1.0f / 3.0f;
 
   float2 tmp1 = d - a;
@@ -412,13 +487,14 @@ void PaintStroke::finish_roll_stroke(bContext *C,
   if (num_points_ >= 2 && spline_->segments.size() > 0) {
     const int max_pts = roll_max_points();
     const int newest = (cur_point_ - 1 + max_pts) % max_pts;
-    const int oldest = (cur_point_ - num_points_ + max_pts) % max_pts;
+    const int prev_newest = (newest - 1 + max_pts) % max_pts;
 
     const float3 p_end = points_[newest].location;
     const float2 m_end = points_[newest].mouse_out;
 
-    float3 dir3 = p_end - points_[oldest].location;
-    float2 dir2 = m_end - points_[oldest].mouse_out;
+    /* Direction from 2nd-to-last to last point (local tangent at stroke end). */
+    float3 dir3 = p_end - points_[prev_newest].location;
+    float2 dir2 = m_end - points_[prev_newest].mouse_out;
     const float len3 = math::length(dir3);
     const float len2 = math::length(dir2);
 
@@ -435,12 +511,74 @@ void PaintStroke::finish_roll_stroke(bContext *C,
       const float step_3d = total_fwd_3d / float(n_forward);
       const float step_2d = total_fwd_2d / float(n_forward);
 
-      /* v[0] = p_end (newest), v[n_forward] = farthest forward. */
+      /* Measure curvature from the angle between the last two segments
+       * to continue the arc forward beyond the stroke end. */
+      float angle_2d = 0.0f;
+      float angle_3d = 0.0f;
+      float3 rot_axis = float3(0);
+      bool has_rot_3d = false;
+
+      if (num_points_ >= 3) {
+        const int prev2 = (prev_newest - 1 + max_pts) % max_pts;
+
+        /* 2D curvature. */
+        const float2 seg1 = points_[prev_newest].mouse_out - points_[prev2].mouse_out;
+        const float2 seg2 = m_end - points_[prev_newest].mouse_out;
+        const float cross2 = seg1.x * seg2.y - seg1.y * seg2.x;
+        const float dot2 = math::dot(seg1, seg2);
+        const float total_a2 = atan2f(cross2, dot2);
+        const float seg_len2 = math::length(seg2);
+        if (seg_len2 > 1e-7f) {
+          angle_2d = total_a2 * (step_2d / seg_len2);
+        }
+
+        /* 3D curvature (Rodrigues rotation). */
+        const float3 s1 = points_[prev_newest].location - points_[prev2].location;
+        const float3 s2 = p_end - points_[prev_newest].location;
+        const float3 n1 = math::normalize(s1);
+        const float3 n2 = math::normalize(s2);
+        const float3 c3 = math::cross(n1, n2);
+        const float c3_len = math::length(c3);
+        const float d3 = math::dot(n1, n2);
+        if (c3_len > 1e-7f) {
+          rot_axis = c3 / c3_len;
+          const float total_a3 = atan2f(c3_len, d3);
+          const float seg_len3 = math::length(s2);
+          if (seg_len3 > 1e-7f) {
+            angle_3d = total_a3 * (step_3d / seg_len3);
+            has_rot_3d = true;
+          }
+        }
+      }
+
+      /* Build extension points walking forward from p_end with curvature.
+       * v[0] = p_end, v[n_forward] = farthest forward. */
       float3 v3d[n_forward + 1];
       float2 v2d[n_forward + 1];
-      for (int i = 0; i <= n_forward; i++) {
-        v3d[i] = p_end + dir3 * (float(i) * step_3d);
-        v2d[i] = m_end + dir2 * (float(i) * step_2d);
+      v3d[0] = p_end;
+      v2d[0] = m_end;
+
+      float2 cur_dir_2d = dir2;
+      float3 cur_dir_3d = dir3;
+
+      for (int i = 1; i <= n_forward; i++) {
+        /* Rotate direction by +angle before stepping (continue arc forward). */
+        if (angle_2d != 0.0f) {
+          const float c = cosf(angle_2d);
+          const float s = sinf(angle_2d);
+          cur_dir_2d = float2(cur_dir_2d.x * c - cur_dir_2d.y * s,
+                              cur_dir_2d.x * s + cur_dir_2d.y * c);
+        }
+        if (has_rot_3d) {
+          const float c = cosf(angle_3d);
+          const float s = sinf(angle_3d);
+          const float3 kxv = math::cross(rot_axis, cur_dir_3d);
+          const float kdv = math::dot(rot_axis, cur_dir_3d);
+          cur_dir_3d = cur_dir_3d * c + kxv * s + rot_axis * kdv * (1.0f - c);
+        }
+
+        v2d[i] = v2d[i - 1] + cur_dir_2d * step_2d;
+        v3d[i] = v3d[i - 1] + cur_dir_3d * step_3d;
       }
 
       for (int i = 0; i < n_forward; i++) {
@@ -470,20 +608,28 @@ void PaintStroke::finish_roll_stroke(bContext *C,
   const int half = (max_pts >> 1) + 2;
   const int oldest_idx = (cur_point_ - num_points_ + max_pts) % max_pts;
 
-  /* Where the last placed dab was (or would be). */
+  /* Where the last placed dab was. Use the explicitly tracked index
+   * rather than recalculating, since space_stroke() and add_roll_point()
+   * in steps 1-2 above may have advanced cur_point_. */
   int flush_start;
-  if (num_points_ <= half) {
+  if (last_painted_roll_idx_ >= 0) {
+    flush_start = last_painted_roll_idx_;
+  }
+  else if (num_points_ <= half) {
     flush_start = oldest_idx;
   }
   else {
     flush_start = (cur_point_ - half + max_pts) % max_pts;
   }
 
-  /* Advance one step at a time toward the newest point. */
+  /* Advance one step at a time toward (but not including) the newest point.
+   * The newest entry is the force-recorded mouse-up position which may sit
+   * arbitrarily close to the previous point — including it would create an
+   * overlapping dab at the stroke end. */
   const int newest = (cur_point_ - 1 + max_pts) % max_pts;
   int idx = (flush_start + 1) % max_pts;
 
-  while (idx != ((newest + 1) % max_pts)) {
+  while (idx != newest) {
     PaintStrokePoint *point = &points_[idx];
 
     PointerRNA itemptr;
@@ -681,6 +827,85 @@ static void paint_draw_roll_debug(bContext *C,
 {
   PaintStroke *stroke = static_cast<PaintStroke *>(customdata);
   stroke->draw_debug_roll(C);
+}
+
+void PaintStroke::draw_roll_preview(bContext *C) const
+{
+  if (!need_roll_mapping_ || !spline_ || spline_->segments.size() == 0) {
+    return;
+  }
+
+  ARegion *region = CTX_wm_region(C);
+  if (!region) {
+    return;
+  }
+
+  const int n_segs = int(spline_->segments.size());
+
+  /* Determine which segment index corresponds to the last-painted dab.
+   * Segments from painted_seg onward are "unflushed" and shown as preview. */
+  const int max_pts = roll_max_points();
+  const int half = (max_pts >> 1) + 2;
+
+  int painted_seg;
+  if (last_painted_roll_idx_ < 0 || num_points_ < half) {
+    /* Haven't painted any deferred dabs yet — show full real portion. */
+    painted_seg = n_virtual_segments_;
+  }
+  else {
+    /* Distance from oldest to last_painted in ring buffer → segment offset. */
+    const int oldest_idx = (cur_point_ - num_points_ + max_pts) % max_pts;
+    int dist = (last_painted_roll_idx_ - oldest_idx + max_pts) % max_pts;
+    painted_seg = n_virtual_segments_ + dist;
+    painted_seg = std::min(painted_seg, n_segs - 1);
+  }
+
+  if (painted_seg >= n_segs) {
+    return;
+  }
+
+  const float ox = float(region->winrct.xmin);
+  const float oy = float(region->winrct.ymin);
+
+  GPU_line_smooth(true);
+  GPU_blend(GPU_BLEND_ALPHA);
+
+  const uint pos_attr = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
+  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+
+  /* Same color as the stabilize stroke line. */
+  immUniformColor4ub(255, 100, 100, 128);
+
+  GPU_line_width(2.0f);
+  for (int seg_idx = painted_seg; seg_idx < n_segs; seg_idx++) {
+    const auto &b = spline_->segments[seg_idx].bezier;
+    constexpr int steps = 16;
+    immBegin(GPU_PRIM_LINE_STRIP, steps + 1);
+    for (int j = 0; j <= steps; j++) {
+      const float t = float(j) / float(steps);
+      const float omt = 1.0f - t;
+      const float x = omt * omt * omt * b.ps[0][0] + 3.0f * omt * omt * t * b.ps[1][0] +
+                       3.0f * omt * t * t * b.ps[2][0] + t * t * t * b.ps[3][0];
+      const float y = omt * omt * omt * b.ps[0][1] + 3.0f * omt * omt * t * b.ps[1][1] +
+                       3.0f * omt * t * t * b.ps[2][1] + t * t * t * b.ps[3][1];
+      immVertex2f(pos_attr, x + ox, y + oy);
+    }
+    immEnd();
+  }
+
+  immUnbindProgram();
+  GPU_blend(GPU_BLEND_NONE);
+  GPU_line_smooth(false);
+}
+
+static void paint_draw_roll_preview(bContext *C,
+                                    const int2 & /*xy*/,
+                                    const float2 & /*tilt*/,
+                                    void *customdata)
+{
+  PaintStroke *stroke = static_cast<PaintStroke *>(customdata);
+  stroke->draw_roll_preview(C);
 }
 
 /** \} */
@@ -1216,7 +1441,6 @@ void PaintStroke::add_step(bContext *C, wmOperator *op, const float2 mval, float
    * (requires 4 recorded points). Virtual backward segments are prepended at that
    * point so the first dab already has full spline coverage. */
   PaintStrokePoint *point;
-  PaintStrokePoint temp;
 
   if (need_roll_mapping_) {
     const int max_pts = roll_max_points();
@@ -1249,25 +1473,13 @@ void PaintStroke::add_step(bContext *C, wmOperator *op, const float2 mval, float
       look_back = (cur_point_ - half + max_pts) % max_pts;
     }
 
-    PaintStrokePoint *p1 = &points_[look_back];
-    /* Clamp p2 so it never wraps past the oldest point in the ring buffer.
-     * Previously (look_back - 1 + num_points_) % num_points_ would wrap to
-     * the newest point when look_back was at the oldest slot. */
-    int p2_idx;
-    if (look_back == oldest_idx) {
-      p2_idx = oldest_idx; /* can't go before oldest, use same point */
-    }
-    else {
-      p2_idx = (look_back - 1 + max_pts) % max_pts;
-    }
-    PaintStrokePoint *p2 = &points_[p2_idx];
+    last_painted_roll_idx_ = look_back;
 
-    point = &temp;
-    temp = *p1;
-
-    temp.location = math::interpolate(p1->location, p2->location, 0.5f);
-    temp.mouse_in = math::interpolate(p1->mouse_in, p2->mouse_in, 0.5f);
-    temp.mouse_out = math::interpolate(p1->mouse_out, p2->mouse_out, 0.5f);
+    /* Place the dab exactly at the look_back position.  Earlier code
+     * interpolated halfway to the previous point for smoothing, but that
+     * introduced a systematic half-spacing offset at the start of every
+     * stroke and a matching gap before finalization. */
+    point = &points_[look_back];
   }
   else {
     point = &points_[(cur_point_ - 1 + num_points_) % num_points_];
@@ -1612,6 +1824,9 @@ PaintStroke::PaintStroke(bContext *C, wmOperator *op, int event_type) : event_ty
   if (need_roll_mapping_) {
     spline_ = std::make_unique<BezierSpline2f>();
     world_spline_ = std::make_unique<BezierSpline3f>();
+    /* Always-on preview of the unflushed portion of the roll spline. */
+    roll_cursor_ = WM_paint_cursor_activate(
+        SPACE_TYPE_ANY, RGN_TYPE_ANY, paint_brush_cursor_poll, paint_draw_roll_preview, this);
     /* Register the roll spline debug overlay only when the developer
      * "Paint Debug" option is enabled (Preferences → Developer Extras). */
     if (U.experimental.use_paint_debug) {
@@ -1688,6 +1903,9 @@ void PaintStroke::free(bContext *C, wmOperator * /*op*/)
 
   if (stroke_cursor_) {
     WM_paint_cursor_end(static_cast<wmPaintCursor *>(stroke_cursor_));
+  }
+  if (roll_cursor_) {
+    WM_paint_cursor_end(static_cast<wmPaintCursor *>(roll_cursor_));
   }
   if (debug_cursor_) {
     WM_paint_cursor_end(static_cast<wmPaintCursor *>(debug_cursor_));
@@ -1808,7 +2026,10 @@ bool paint_supports_smooth_stroke(const Brush &brush,
     return true;
   }
   if (!(brush.flag & BRUSH_SMOOTH_STROKE) ||
-      ELEM(brush.stroke_method, BRUSH_STROKE_ANCHORED | BRUSH_STROKE_DRAG_DOT | BRUSH_STROKE_LINE))
+      ELEM(brush.stroke_method,
+           BRUSH_STROKE_ANCHORED,
+           BRUSH_STROKE_DRAG_DOT,
+           BRUSH_STROKE_LINE))
   {
     return false;
   }
@@ -2102,6 +2323,11 @@ bool PaintStroke::curve_end(bContext *C, wmOperator *op)
     }
   }
 
+  /* Flush remaining deferred roll dabs before finishing the curve stroke. */
+  if (need_roll_mapping_) {
+    this->finish_roll_stroke(C, op, this->last_mouse_position, 1.0f);
+  }
+
   this->stroke_done(C, op, false);
 
 #ifdef DEBUG_TIME
@@ -2301,15 +2527,23 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
       if (this->constrain_line) {
         paint_stroke_line_constrain(this->last_mouse_position, this->constrained_pos, mouse);
       }
-      this->finish_roll_stroke(C, op, mouse, pressure);
       this->line_end(C, op, mouse);
+      /* For smooth stroke, finalize at the last smoothed position,
+       * not the raw cursor position. */
+      const float2 roll_mouse =
+          paint_supports_smooth_stroke(*br, mode, brush_switch_mode_) ?
+              last_smoothed_mouse_ : mouse;
+      this->finish_roll_stroke(C, op, roll_mouse, pressure);
       this->stroke_done(C, op, false);
       return OPERATOR_FINISHED;
     }
   }
   else if (ELEM(event->type, EVT_RETKEY, EVT_SPACEKEY)) {
-    this->finish_roll_stroke(C, op, sample_average.mouse, pressure);
     this->line_end(C, op, sample_average.mouse);
+    const float2 roll_mouse2 =
+        paint_supports_smooth_stroke(*br, mode, brush_switch_mode_) ?
+            last_smoothed_mouse_ : sample_average.mouse;
+    this->finish_roll_stroke(C, op, roll_mouse2, pressure);
     this->stroke_done(C, op, false);
     return OPERATOR_FINISHED;
   }
@@ -2350,6 +2584,7 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
                             mouse,
                             pressure))
     {
+      last_smoothed_mouse_ = mouse;
       if (stroke_started_) {
         if (paint_space_stroke_enabled(*br, mode)) {
           if (this->space_stroke(C, op, mouse, pressure)) {
