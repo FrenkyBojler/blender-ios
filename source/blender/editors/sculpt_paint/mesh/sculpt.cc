@@ -7385,6 +7385,8 @@ void calc_brush_cube_distances(const Brush &brush,
   const float roundness = brush.tip_roundness;
   const float roundness_rcp = math::safe_rcp(roundness);
   const float hardness = 1.0f - roundness;
+  const T hardness_vec(hardness);
+  const T zero(0.0f);
 
   for (const int i : positions.index_range()) {
     const T local = math::abs(positions[i]);
@@ -7393,19 +7395,15 @@ void calc_brush_cube_distances(const Brush &brush,
       r_distances[i] = 1.0f;
       continue;
     }
-    if (std::min(local.x, local.y) > hardness) {
-      /* Corner, distance to the center of the corner circle. */
-      r_distances[i] = math::distance(float2(hardness), float2(local)) * roundness_rcp;
-      continue;
-    }
-    if (std::max(local.x, local.y) > hardness) {
-      /* Side, distance to the square XY axis. */
-      r_distances[i] = (std::max(local.x, local.y) - hardness) * roundness_rcp;
+
+    const T excess = math::max(local - hardness_vec, zero);
+    if (math::reduce_max(excess) == 0.0f) {
+      r_distances[i] = 0.0f;
       continue;
     }
 
-    /* Inside the square, constant distance. */
-    r_distances[i] = 0.0f;
+    const float distance = math::min(math::length(excess) * roundness_rcp, 1.0f);
+    r_distances[i] = distance;
   }
 }
 template void calc_brush_cube_distances<float2>(const Brush &brush,
