@@ -28,7 +28,6 @@ class BlenderImageLoader : public ImageLoader {
   bool equals(const ImageLoader &other) const override;
 
   int get_tile_number() const override;
-  size_t get_update_count() const;
 
   blender::Image *b_image;
   blender::ImageUser b_iuser;

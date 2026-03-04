@@ -72,12 +72,6 @@ class ImageLoader {
 
   /* Test if this loader will load NanoVDB. */
   virtual bool is_vdb_loader() const;
-  /* For finegrained change tracking. If update_count differs the
-     image will be reloaded */
-  virtual size_t get_update_count() const
-  {
-    return (size_t)0;
-  }
 };
 
 CCL_NAMESPACE_END

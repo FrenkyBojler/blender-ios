@@ -121,7 +121,6 @@ class ImageSingle : public ImageTexture {
 
   bool need_metadata = true;
   bool builtin = false;
-  size_t update_count = 0;
 
   thread_mutex mutex;
 

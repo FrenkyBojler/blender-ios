@@ -337,11 +337,6 @@ ImageSingle *ImageManager::add_image_texture(unique_ptr<ImageLoader> &&loader,
   for (image_texture_id = 0; image_texture_id < images.size(); image_texture_id++) {
     ImageSingle *img = images[image_texture_id];
     if (img && ImageLoader::equals(img->loader.get(), loader.get()) && img->params == params) {
-      if (loader.get()->get_update_count() != img->update_count) {
-        tag_update();
-        img->need_load = true;
-        img->update_count = loader.get()->get_update_count();
-      }
       return img;
     }
   }
