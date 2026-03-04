@@ -586,8 +586,8 @@ bool handleNumInput(bContext *C, NumInput *n, const wmEvent *event)
     const bool negate = (n->val_flag[idx] & NUM_NEGATE) != 0;
     const bool inverse = (n->val_flag[idx] & NUM_INVERSE) != 0;
     const char *str_to_pass = n->str;
+    char eval_str[NUM_STR_REP_LEN];
     if (negate || inverse) {
-      char eval_str[NUM_STR_REP_LEN];
       if (negate && inverse) {
         BLI_snprintf(eval_str, sizeof(eval_str), "-1/(%s)", n->str);
       }
