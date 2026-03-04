@@ -1601,6 +1601,9 @@ static char *rna_def_property_lookup_int_func(FILE *f,
   }
 
   if (!manualfunc) {
+    /* Solution [2]: get rid of the check, dont return here.
+     * This will make sure we get a proper "lookup_int" function even for RNA types lacking DNA
+     * backing type [so defined without #RNA_def_struct_sdna()]. */
     if (!dp->dnastructname || !dp->dnaname) {
       return nullptr;
     }
