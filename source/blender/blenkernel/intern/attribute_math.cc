@@ -264,13 +264,13 @@ void mix_groups(const Span<T> src,
                 const Span<int> all_indices,
                 MutableSpan<T> dst)
 {
-
   for (const int dst_i : dst.index_range()) {
+    const float weight = math::rcp(float(groups[dst_i].size()));
     T accum(0);
     for (const int src_i : all_indices.slice(groups[dst_i])) {
-      accum += src[src_i];
+      accum += src[src_i] * weight;
     }
-    dst[dst_i] = accum * math::safe_rcp(float(groups[dst_i].size()));
+    dst[dst_i] = accum;
   }
 }
 
@@ -297,11 +297,12 @@ void mix_groups(const Span<T> src,
   using AccumT = std::invoke_result_t<ToAccumFn, T>;
   static_assert(std::is_same_v<std::invoke_result_t<ToFinalFn, AccumT>, T>);
   for (const int dst_i : dst.index_range()) {
+    const float weight = math::rcp(float(groups[dst_i].size()));
     AccumT accum(0);
     for (const int src_i : all_indices.slice(groups[dst_i])) {
-      accum += to_accum_fn(src[src_i]);
+      accum += to_accum_fn(src[src_i]) * weight;
     }
-    dst[dst_i] = to_final_fn(accum * math::safe_rcp(float(groups[dst_i].size())));
+    dst[dst_i] = to_final_fn(accum);
   }
 }
 
