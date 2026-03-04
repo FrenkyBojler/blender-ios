@@ -567,12 +567,32 @@ void DynamicOverrideDepsgraphCtx::gather_id_targets(const bool force_reset)
           /* Dynamic overrides are not allowed to be overridden by other dynamic overrides!
            * NOTE: Once implemented, dynoverride imports will be a different case. */
           BLI_assert(GS(id_rule.owner_id->name) != ID_OV);
-          id_targets_.add_as(id_rule.owner_id);
+          id_targets_.lookup_or_add(id_rule.owner_id, {}).append(&rule_iter);
         }
       }
     }
   }
   id_targets_are_gathered_ = true;
+}
+
+DynamicOverride *DynamicOverrideDepsgraphCtx::get_override_for_id(ID &id) const
+{
+  BLI_assert(dynamic_overrides_are_gathered_ && id_targets_are_gathered_);
+  /* TODO once there are several dynoverride IDs composed together, should be a mapping returning
+   * the 'root' override ID for a given ID. */
+  if (id_targets_.contains(&id)) {
+    return dynamic_overrides_[0];
+  }
+  return nullptr;
+}
+
+Span<const DynamicOverrideRule *> DynamicOverrideDepsgraphCtx::get_override_rules_for_id(
+    ID &id) const
+{
+  BLI_assert(dynamic_overrides_are_gathered_ && id_targets_are_gathered_);
+  /* TODO once there are several dynoverride IDs composed together, should be a mapping returning
+   * the 'root' override ID for a given ID. */
+  return id_targets_.lookup_default(&id, {});
 }
 
 DynamicOverride *DynamicOverrideDepsgraphCtx::get_evaluated_override_for_id(Depsgraph &depsgraph,

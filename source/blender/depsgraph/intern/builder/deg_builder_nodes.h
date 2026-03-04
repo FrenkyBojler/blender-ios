@@ -262,7 +262,7 @@ class DepsgraphNodeBuilder : public DepsgraphBuilder {
 
   virtual void build_parameters(ID *id);
   /** Ensure that the root dynamic override affecting the given ID is built. */
-  virtual void build_id_dynamic_override(ID *id);
+  virtual void build_dynamic_override_target(ID *id);
   virtual void build_dimensions(Object *object);
   /** IK Solver Eval Steps. */
   virtual void build_ik_pose(Object *object, bPoseChannel *pchan, bConstraint *con);

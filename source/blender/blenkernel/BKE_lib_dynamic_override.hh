@@ -8,7 +8,8 @@
  * \ingroup bke
  */
 
-#include "BLI_set.hh"
+#include "BLI_map.hh"
+#include "BLI_span.hh"
 #include "BLI_vector_set.hh"
 
 namespace blender {
@@ -56,9 +57,10 @@ class DynamicOverrideDepsgraphCtx {
 
   /**
    * All ID targets, i.e. all overridden IDs according to the active DynamicOverride
-   * data-blocks in the evaluated scene & view layer.
+   * data-blocks in the evaluated scene & view layer, with all the DynamicOverrideRules affecting
+   * them.
    */
-  Set<ID *> id_targets_ = {};
+  Map<ID *, Vector<const DynamicOverrideRule *>> id_targets_ = {};
   bool id_targets_are_gathered_ = false;
 
   /**
@@ -111,16 +113,12 @@ class DynamicOverrideDepsgraphCtx {
   /**
    * Return the top-most orig DynamicOverride ID affecting the given (orig) ID, in the context.
    */
-  DynamicOverride *get_override_for_id(ID &id) const
-  {
-    BLI_assert(dynamic_overrides_are_gathered_ && id_targets_are_gathered_);
-    /* TODO once there are several dynoverride IDs composed together, should be a mapping returning
-     * the 'root' override ID for a given ID. */
-    if (id_targets_.contains(&id)) {
-      return dynamic_overrides_[0];
-    }
-    return nullptr;
-  }
+  DynamicOverride *get_override_for_id(ID &id) const;
+  /**
+   * Return the gathered list of rules affecting the given ID.
+   */
+  Span<const DynamicOverrideRule *> get_override_rules_for_id(ID &id) const;
+
   /**
    * Return the top-most evaluated DynamicOverride ID affecting the given (orig) ID, in the
    * context.

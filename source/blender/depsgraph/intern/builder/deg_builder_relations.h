@@ -219,10 +219,10 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
 
   virtual void build_parameters(ID *id);
   /**
-   * Ensure that the root dynamic override affecting the given ID, and related relations, are
-   * built.
+   * Ensure that the root dynamic override affecting the given target ID, and related relations,
+   * are built.
    */
-  virtual void build_id_dynamic_override(ID *id);
+  virtual void build_dynamic_override_target(ID *id);
   virtual void build_dimensions(Object *object);
   virtual void build_world(World *world);
   virtual void build_rigidbody(Scene *scene);

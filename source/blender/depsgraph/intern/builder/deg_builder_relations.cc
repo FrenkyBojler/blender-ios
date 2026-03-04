@@ -629,7 +629,7 @@ void DepsgraphRelationBuilder::build_generic_id(ID *id)
   build_idproperties(id->system_properties);
   build_animdata(id);
   build_parameters(id);
-  build_id_dynamic_override(id);
+  build_dynamic_override_target(id);
 }
 
 void DepsgraphRelationBuilder::build_idproperties(IDProperty *id_property)
@@ -646,7 +646,7 @@ void DepsgraphRelationBuilder::build_collection(LayerCollection *from_layer_coll
     build_idproperties(collection->id.properties);
     build_idproperties(collection->id.system_properties);
     build_parameters(&collection->id);
-    build_id_dynamic_override(&collection->id);
+    build_dynamic_override_target(&collection->id);
   }
 
   if (from_layer_collection != nullptr) {
@@ -866,7 +866,7 @@ void DepsgraphRelationBuilder::build_object(Object *object)
 
   /* Parameters. */
   build_parameters(&object->id);
-  build_id_dynamic_override(&object->id);
+  build_dynamic_override_target(&object->id);
 
   /* Visibility.
    * Evaluate visibility node after the object's base_flags has been updated to the current state
@@ -1864,7 +1864,7 @@ void DepsgraphRelationBuilder::build_action(bAction *dna_action)
   const BuilderStack::ScopedEntry stack_entry = stack_.trace(dna_action->id);
 
   build_parameters(&dna_action->id);
-  build_id_dynamic_override(&dna_action->id);
+  build_dynamic_override_target(&dna_action->id);
   build_idproperties(dna_action->id.properties);
   build_idproperties(dna_action->id.system_properties);
 
@@ -2253,7 +2253,7 @@ void DepsgraphRelationBuilder::build_parameters(ID *id)
   add_relation(parameters_eval_key, parameters_exit_key, "Entry -> Exit");
 }
 
-void DepsgraphRelationBuilder::build_id_dynamic_override(ID *id)
+void DepsgraphRelationBuilder::build_dynamic_override_target(ID *id)
 {
   DynamicOverride *dynamic_override = dynamic_override_ctx_->get_override_for_id(*id);
   if (!dynamic_override) {
@@ -2270,13 +2270,56 @@ void DepsgraphRelationBuilder::build_id_dynamic_override(ID *id)
   ComponentKey overridden_key(id, NodeType::DYNAMIC_OVERRIDE);
   add_relation(dynamic_override_key, overridden_key, "DynamicOverride -> OverriddenID");
 
-  OperationKey parameters_entry_key(id, NodeType::PARAMETERS, OperationCode::PARAMETERS_ENTRY);
-  ComponentKey dynamic_override_exit_key(id, NodeType::DYNAMIC_OVERRIDE);
-  add_relation(dynamic_override_exit_key, parameters_entry_key, "DynamicOverride -> Parameters");
+  Node *node_from = get_node(overridden_key);
+  BLI_assert(node_from != nullptr);
+  OperationNode *operation_from = node_from->get_exit_operation();
+  BLI_assert(operation_from != nullptr);
 
-  if (GS(id->name) == ID_OB) {
-    ComponentKey transform_entry_key(id, NodeType::TRANSFORM);
-    add_relation(dynamic_override_exit_key, transform_entry_key, "DynamicOverride -> Parameters");
+  PointerRNA id_ptr = RNA_id_pointer_create(id);
+
+  for (const DynamicOverrideRule *rule_iter :
+       dynamic_override_ctx_->get_override_rules_for_id(*id))
+  {
+    if (rule_iter->type != DynamicOverrideRuleType::IDDATA) {
+      continue;
+    }
+    const DynamicOverrideRuleIDData *id_rule = reinterpret_cast<const DynamicOverrideRuleIDData *>(
+        rule_iter);
+    for (const DynamicOverrideRuleProperty &property_iter : id_rule->properties) {
+      PointerRNA ptr;
+      PropertyRNA *prop;
+      int index;
+      if (!RNA_path_resolve_full(&id_ptr, property_iter.rna_path, &ptr, &prop, &index)) {
+        continue;
+      }
+      Node *node_to = rna_node_query_.find_node(&ptr, prop, RNAPointerSource::ENTRY);
+      if (node_to == nullptr) {
+        continue;
+      }
+      OperationNode *operation_to = node_to->get_entry_operation();
+      /* NOTE: Special case for bones, avoid relation from animation to
+       * each of the bones. Bone evaluation could only start from pose
+       * init anyway. */
+      if (operation_to->opcode == OperationCode::BONE_LOCAL) {
+        OperationKey pose_init_key(id, NodeType::EVAL_POSE, OperationCode::POSE_INIT);
+        add_relation(
+            overridden_key, pose_init_key, "DynamicOverride -> Prop", RELATION_CHECK_BEFORE_ADD);
+        continue;
+      }
+      graph_->add_new_relation(
+          operation_from, operation_to, "DynamicOverride -> Prop", RELATION_CHECK_BEFORE_ADD);
+      /* It is possible that dynamicoverride is affecting a nested ID data-block, need to make sure
+       * that dynamicoverride is evaluated after target ID is copied. */
+      const IDNode *id_node_from = operation_from->owner->owner;
+      const IDNode *id_node_to = operation_to->owner->owner;
+      if (id_node_from != id_node_to) {
+        ComponentKey cow_key(id_node_to->id_orig, NodeType::COPY_ON_EVAL);
+        add_relation(cow_key,
+                     overridden_key,
+                     "DynamicOverride Copy-on-Eval -> OverriddenID",
+                     RELATION_CHECK_BEFORE_ADD | RELATION_FLAG_NO_FLUSH);
+      }
+    }
   }
 }
 
@@ -2302,7 +2345,7 @@ void DepsgraphRelationBuilder::build_world(World *world)
   /* animation */
   build_animdata(&world->id);
   build_parameters(&world->id);
-  build_id_dynamic_override(&world->id);
+  build_dynamic_override_target(&world->id);
 
   /* Animated / driven parameters (without nodetree). */
   OperationKey world_key(&world->id, NodeType::SHADING, OperationCode::WORLD_UPDATE);
@@ -2540,7 +2583,7 @@ void DepsgraphRelationBuilder::build_particle_settings(ParticleSettings *part)
   /* Animation data relations. */
   build_animdata(&part->id);
   build_parameters(&part->id);
-  build_id_dynamic_override(&part->id);
+  build_dynamic_override_target(&part->id);
   OperationKey particle_settings_init_key(
       &part->id, NodeType::PARTICLE_SETTINGS, OperationCode::PARTICLE_SETTINGS_INIT);
   OperationKey particle_settings_eval_key(
@@ -2604,7 +2647,7 @@ void DepsgraphRelationBuilder::build_shapekeys(Key *key)
   /* Attach animdata to geometry. */
   build_animdata(&key->id);
   build_parameters(&key->id);
-  build_id_dynamic_override(&key->id);
+  build_dynamic_override_target(&key->id);
   /* Connect all blocks properties to the final result evaluation. */
   ComponentKey geometry_key(&key->id, NodeType::GEOMETRY);
   OperationKey parameters_eval_key(&key->id, NodeType::PARAMETERS, OperationCode::PARAMETERS_EVAL);
@@ -2760,7 +2803,7 @@ void DepsgraphRelationBuilder::build_object_data_geometry_datablock(ID *obdata)
   /* Animation. */
   build_animdata(obdata);
   build_parameters(obdata);
-  build_id_dynamic_override(obdata);
+  build_dynamic_override_target(obdata);
   /* ShapeKeys. */
   Key *key = BKE_key_from_id(obdata);
   if (key != nullptr) {
@@ -2930,7 +2973,7 @@ void DepsgraphRelationBuilder::build_armature(bArmature *armature)
   build_idproperties(armature->id.system_properties);
   build_animdata(&armature->id);
   build_parameters(&armature->id);
-  build_id_dynamic_override(&armature->id);
+  build_dynamic_override_target(&armature->id);
   build_armature_bones(&armature->bonebase);
   build_armature_bone_collections(armature->collections_span());
 }
@@ -2964,7 +3007,7 @@ void DepsgraphRelationBuilder::build_camera(Camera *camera)
   build_idproperties(camera->id.system_properties);
   build_animdata(&camera->id);
   build_parameters(&camera->id);
-  build_id_dynamic_override(&camera->id);
+  build_dynamic_override_target(&camera->id);
   if (camera->dof.focus_object != nullptr) {
     build_object(camera->dof.focus_object);
     ComponentKey camera_parameters_key(&camera->id, NodeType::PARAMETERS);
@@ -2993,7 +3036,7 @@ void DepsgraphRelationBuilder::build_light(Light *lamp)
   build_idproperties(lamp->id.system_properties);
   build_animdata(&lamp->id);
   build_parameters(&lamp->id);
-  build_id_dynamic_override(&lamp->id);
+  build_dynamic_override_target(&lamp->id);
 
   ComponentKey lamp_parameters_key(&lamp->id, NodeType::PARAMETERS);
 
@@ -3090,7 +3133,7 @@ void DepsgraphRelationBuilder::build_nodetree(bNodeTree *ntree)
   build_idproperties(ntree->id.system_properties);
   build_animdata(&ntree->id);
   build_parameters(&ntree->id);
-  build_id_dynamic_override(&ntree->id);
+  build_dynamic_override_target(&ntree->id);
   OperationKey ntree_output_key(&ntree->id, NodeType::NTREE_OUTPUT, OperationCode::NTREE_OUTPUT);
   OperationKey ntree_geo_preprocess_key(
       &ntree->id, NodeType::NTREE_GEOMETRY_PREPROCESS, OperationCode::NTREE_GEOMETRY_PREPROCESS);
@@ -3246,7 +3289,7 @@ void DepsgraphRelationBuilder::build_material(Material *material, ID *owner)
   /* animation */
   build_animdata(&material->id);
   build_parameters(&material->id);
-  build_id_dynamic_override(&material->id);
+  build_dynamic_override_target(&material->id);
 
   /* Animated / driven parameters (without nodetree). */
   OperationKey material_key(&material->id, NodeType::SHADING, OperationCode::MATERIAL_UPDATE);
@@ -3288,7 +3331,7 @@ void DepsgraphRelationBuilder::build_texture(Tex *texture)
   build_idproperties(texture->id.system_properties);
   build_animdata(&texture->id);
   build_parameters(&texture->id);
-  build_id_dynamic_override(&texture->id);
+  build_dynamic_override_target(&texture->id);
 
   /* texture's nodetree */
   if (texture->nodetree) {
@@ -3331,7 +3374,7 @@ void DepsgraphRelationBuilder::build_image(Image *image)
   build_idproperties(image->id.properties);
   build_idproperties(image->id.system_properties);
   build_parameters(&image->id);
-  build_id_dynamic_override(&image->id);
+  build_dynamic_override_target(&image->id);
 }
 
 void DepsgraphRelationBuilder::build_cachefile(CacheFile *cache_file)
@@ -3347,7 +3390,7 @@ void DepsgraphRelationBuilder::build_cachefile(CacheFile *cache_file)
   /* Animation. */
   build_animdata(&cache_file->id);
   build_parameters(&cache_file->id);
-  build_id_dynamic_override(&cache_file->id);
+  build_dynamic_override_target(&cache_file->id);
   if (check_id_has_anim_component(&cache_file->id)) {
     ComponentKey animation_key(&cache_file->id, NodeType::ANIMATION);
     ComponentKey datablock_key(&cache_file->id, NodeType::CACHE);
@@ -3382,7 +3425,7 @@ void DepsgraphRelationBuilder::build_mask(Mask *mask)
   /* F-Curve animation. */
   build_animdata(mask_id);
   build_parameters(mask_id);
-  build_id_dynamic_override(mask_id);
+  build_dynamic_override_target(mask_id);
   /* Own mask animation. */
   OperationKey mask_animation_key(mask_id, NodeType::ANIMATION, OperationCode::MASK_ANIMATION);
   TimeSourceKey time_src_key;
@@ -3420,7 +3463,7 @@ void DepsgraphRelationBuilder::build_freestyle_linestyle(FreestyleLineStyle *lin
 
   ID *linestyle_id = &linestyle->id;
   build_parameters(linestyle_id);
-  build_id_dynamic_override(linestyle_id);
+  build_dynamic_override_target(linestyle_id);
   build_idproperties(linestyle_id->properties);
   build_idproperties(linestyle_id->system_properties);
   build_animdata(linestyle_id);
@@ -3440,7 +3483,7 @@ void DepsgraphRelationBuilder::build_movieclip(MovieClip *clip)
   build_idproperties(clip->id.system_properties);
   build_animdata(&clip->id);
   build_parameters(&clip->id);
-  build_id_dynamic_override(&clip->id);
+  build_dynamic_override_target(&clip->id);
 }
 
 void DepsgraphRelationBuilder::build_lightprobe(LightProbe *probe)
@@ -3455,7 +3498,7 @@ void DepsgraphRelationBuilder::build_lightprobe(LightProbe *probe)
   build_idproperties(probe->id.system_properties);
   build_animdata(&probe->id);
   build_parameters(&probe->id);
-  build_id_dynamic_override(&probe->id);
+  build_dynamic_override_target(&probe->id);
 }
 
 void DepsgraphRelationBuilder::build_speaker(Speaker *speaker)
@@ -3470,7 +3513,7 @@ void DepsgraphRelationBuilder::build_speaker(Speaker *speaker)
   build_idproperties(speaker->id.system_properties);
   build_animdata(&speaker->id);
   build_parameters(&speaker->id);
-  build_id_dynamic_override(&speaker->id);
+  build_dynamic_override_target(&speaker->id);
   if (speaker->sound != nullptr) {
     build_sound(speaker->sound);
     ComponentKey speaker_key(&speaker->id, NodeType::AUDIO);
@@ -3491,7 +3534,7 @@ void DepsgraphRelationBuilder::build_sound(bSound *sound)
   build_idproperties(sound->id.system_properties);
   build_animdata(&sound->id);
   build_parameters(&sound->id);
-  build_id_dynamic_override(&sound->id);
+  build_dynamic_override_target(&sound->id);
 
   const ComponentKey parameters_key(&sound->id, NodeType::PARAMETERS);
   const ComponentKey audio_key(&sound->id, NodeType::AUDIO);
@@ -3622,7 +3665,7 @@ void DepsgraphRelationBuilder::build_vfont(VFont *vfont)
   const BuilderStack::ScopedEntry stack_entry = stack_.trace(vfont->id);
 
   build_parameters(&vfont->id);
-  build_id_dynamic_override(&vfont->id);
+  build_dynamic_override_target(&vfont->id);
   build_idproperties(vfont->id.properties);
   build_idproperties(vfont->id.system_properties);
 }

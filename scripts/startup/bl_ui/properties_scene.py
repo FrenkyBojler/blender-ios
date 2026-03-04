@@ -59,7 +59,6 @@ class SCENE_PT_scene(SceneButtonsPanel, Panel):
         layout.prop(scene, "camera")
         layout.prop(scene, "background_set")
         layout.prop(scene, "active_clip", text="Active Clip")
-        layout.template_ID(scene, "dynamic_override", new="dynamic_override.new")
 
 
 class SCENE_PT_scene_dynamic_override(SceneButtonsPanel, Panel):

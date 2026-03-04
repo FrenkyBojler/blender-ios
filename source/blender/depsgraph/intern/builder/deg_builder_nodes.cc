@@ -685,7 +685,7 @@ void DepsgraphNodeBuilder::build_generic_id(ID *id)
   build_idproperties(id->system_properties);
   build_animdata(id);
   build_parameters(id);
-  build_id_dynamic_override(id);
+  build_dynamic_override_target(id);
 }
 
 void DepsgraphNodeBuilder::build_idproperties(IDProperty *id_property)
@@ -730,7 +730,7 @@ void DepsgraphNodeBuilder::build_collection(LayerCollection *from_layer_collecti
     build_idproperties(collection->id.properties);
     build_idproperties(collection->id.system_properties);
     build_parameters(&collection->id);
-    build_id_dynamic_override(&collection->id);
+    build_dynamic_override_target(&collection->id);
     add_operation_node(&collection->id, NodeType::GEOMETRY, OperationCode::GEOMETRY_EVAL_DONE);
   }
   if (from_layer_collection != nullptr) {
@@ -833,7 +833,7 @@ void DepsgraphNodeBuilder::build_object(int base_index,
   /* Parameters, used by both drivers/animation and also to inform dependency
    * from object's data. */
   build_parameters(&object->id);
-  build_id_dynamic_override(&object->id);
+  build_dynamic_override_target(&object->id);
   build_idproperties(object->id.properties);
   build_idproperties(object->id.system_properties);
   /* Build animation data,
@@ -1328,7 +1328,7 @@ void DepsgraphNodeBuilder::build_action(bAction *action)
 
   /* To make it possible to use animation data as a variable for drivers: */
   build_parameters(&action->id);
-  // build_id_dynamic_override(&action->id); ???
+  // build_dynamic_override_target(&action->id); ???
 
   build_idproperties(action->id.properties);
   build_idproperties(action->id.system_properties);
@@ -1498,7 +1498,7 @@ void DepsgraphNodeBuilder::build_parameters(ID *id)
   op_node->set_as_exit();
 }
 
-void DepsgraphNodeBuilder::build_id_dynamic_override(ID *id)
+void DepsgraphNodeBuilder::build_dynamic_override_target(ID *id)
 {
   DynamicOverride *dynamic_override = dynamic_override_ctx_->get_override_for_id(*id);
   if (!dynamic_override) {
@@ -1547,7 +1547,7 @@ void DepsgraphNodeBuilder::build_world(World *world)
   /* Animation. */
   build_animdata(&world->id);
   build_parameters(&world->id);
-  build_id_dynamic_override(&world->id);
+  build_dynamic_override_target(&world->id);
   /* World's nodetree. */
   build_nodetree(world->nodetree);
 }
@@ -1745,7 +1745,7 @@ void DepsgraphNodeBuilder::build_shapekeys(Key *key)
   build_idproperties(key->id.system_properties);
   build_animdata(&key->id);
   build_parameters(&key->id);
-  build_id_dynamic_override(&key->id);
+  build_dynamic_override_target(&key->id);
   /* This is an exit operation for the entire key datablock, is what is used
    * as dependency for modifiers evaluation. */
   add_operation_node(&key->id, NodeType::GEOMETRY, OperationCode::GEOMETRY_SHAPEKEY);
@@ -1910,7 +1910,7 @@ void DepsgraphNodeBuilder::build_object_data_geometry_datablock(ID *obdata)
   op_node->set_as_exit();
   /* Parameters for driver sources. */
   build_parameters(obdata);
-  build_id_dynamic_override(obdata);
+  build_dynamic_override_target(obdata);
   /* Batch cache. */
   add_operation_node(obdata,
                      NodeType::BATCH_CACHE,
@@ -1932,7 +1932,7 @@ void DepsgraphNodeBuilder::build_armature(bArmature *armature)
   build_idproperties(armature->id.system_properties);
   build_animdata(&armature->id);
   build_parameters(&armature->id);
-  build_id_dynamic_override(&armature->id);
+  build_dynamic_override_target(&armature->id);
   /* This operation is no longer necessary, as it was updating things with the bone layers (which
    * got replaced by bone collections). However, it's still used by other depsgraph components as a
    * dependency, so for now the node itself is kept as a no-op.
@@ -1973,7 +1973,7 @@ void DepsgraphNodeBuilder::build_camera(Camera *camera)
   build_idproperties(camera->id.system_properties);
   build_animdata(&camera->id);
   build_parameters(&camera->id);
-  build_id_dynamic_override(&camera->id);
+  build_dynamic_override_target(&camera->id);
   if (camera->dof.focus_object != nullptr) {
     build_object(-1, camera->dof.focus_object, DEG_ID_LINKED_INDIRECTLY, false);
   }
@@ -1988,7 +1988,7 @@ void DepsgraphNodeBuilder::build_light(Light *lamp)
   build_idproperties(lamp->id.system_properties);
   build_animdata(&lamp->id);
   build_parameters(&lamp->id);
-  build_id_dynamic_override(&lamp->id);
+  build_dynamic_override_target(&lamp->id);
   /* light's nodetree */
   build_nodetree(lamp->nodetree);
 
@@ -2051,7 +2051,7 @@ void DepsgraphNodeBuilder::build_nodetree(bNodeTree *ntree)
   add_id_node(&ntree->id);
   /* General parameters. */
   build_parameters(&ntree->id);
-  build_id_dynamic_override(&ntree->id);
+  build_dynamic_override_target(&ntree->id);
   build_idproperties(ntree->id.properties);
   build_idproperties(ntree->id.system_properties);
   /* Animation, */
@@ -2168,7 +2168,7 @@ void DepsgraphNodeBuilder::build_material(Material *material)
   /* Material animation. */
   build_animdata(&material->id);
   build_parameters(&material->id);
-  build_id_dynamic_override(&material->id);
+  build_dynamic_override_target(&material->id);
   /* Material's nodetree. */
   build_nodetree(material->nodetree);
 }
@@ -2195,7 +2195,7 @@ void DepsgraphNodeBuilder::build_texture(Tex *texture)
   build_idproperties(texture->id.system_properties);
   build_animdata(&texture->id);
   build_parameters(&texture->id);
-  build_id_dynamic_override(&texture->id);
+  build_dynamic_override_target(&texture->id);
   /* Texture's nodetree. */
   build_nodetree(texture->nodetree);
   /* Special cases for different IDs which texture uses. */
@@ -2218,7 +2218,7 @@ void DepsgraphNodeBuilder::build_image(Image *image)
     return;
   }
   build_parameters(&image->id);
-  build_id_dynamic_override(&image->id);
+  build_dynamic_override_target(&image->id);
   build_idproperties(image->id.properties);
   build_idproperties(image->id.system_properties);
   add_operation_node(
@@ -2238,7 +2238,7 @@ void DepsgraphNodeBuilder::build_cachefile(CacheFile *cache_file)
   /* Animation, */
   build_animdata(cache_file_id);
   build_parameters(cache_file_id);
-  build_id_dynamic_override(cache_file_id);
+  build_dynamic_override_target(cache_file_id);
   /* Cache evaluation itself. */
   add_operation_node(cache_file_id,
                      NodeType::CACHE,
@@ -2260,7 +2260,7 @@ void DepsgraphNodeBuilder::build_mask(Mask *mask)
   /* F-Curve based animation. */
   build_animdata(mask_id);
   build_parameters(mask_id);
-  build_id_dynamic_override(mask_id);
+  build_dynamic_override_target(mask_id);
   /* Animation based on mask's shapes. */
   add_operation_node(
       mask_id,
@@ -2296,7 +2296,7 @@ void DepsgraphNodeBuilder::build_freestyle_linestyle(FreestyleLineStyle *linesty
 
   ID *linestyle_id = &linestyle->id;
   build_parameters(linestyle_id);
-  build_id_dynamic_override(linestyle_id);
+  build_dynamic_override_target(linestyle_id);
   build_idproperties(linestyle->id.properties);
   build_idproperties(linestyle->id.system_properties);
   build_animdata(linestyle_id);
@@ -2315,7 +2315,7 @@ void DepsgraphNodeBuilder::build_movieclip(MovieClip *clip)
   /* Animation. */
   build_animdata(clip_id);
   build_parameters(clip_id);
-  build_id_dynamic_override(clip_id);
+  build_dynamic_override_target(clip_id);
   /* Movie clip evaluation. */
   add_operation_node(clip_id,
                      NodeType::PARAMETERS,
@@ -2336,7 +2336,7 @@ void DepsgraphNodeBuilder::build_lightprobe(LightProbe *probe)
   build_idproperties(probe->id.system_properties);
   build_animdata(&probe->id);
   build_parameters(&probe->id);
-  build_id_dynamic_override(&probe->id);
+  build_dynamic_override_target(&probe->id);
 }
 
 void DepsgraphNodeBuilder::build_speaker(Speaker *speaker)
@@ -2350,7 +2350,7 @@ void DepsgraphNodeBuilder::build_speaker(Speaker *speaker)
   build_idproperties(speaker->id.system_properties);
   build_animdata(&speaker->id);
   build_parameters(&speaker->id);
-  build_id_dynamic_override(&speaker->id);
+  build_dynamic_override_target(&speaker->id);
   if (speaker->sound != nullptr) {
     build_sound(speaker->sound);
   }
@@ -2373,7 +2373,7 @@ void DepsgraphNodeBuilder::build_sound(bSound *sound)
   build_idproperties(sound->id.system_properties);
   build_animdata(&sound->id);
   build_parameters(&sound->id);
-  build_id_dynamic_override(&sound->id);
+  build_dynamic_override_target(&sound->id);
 }
 
 void DepsgraphNodeBuilder::build_vfont(VFont *vfont)
@@ -2382,7 +2382,7 @@ void DepsgraphNodeBuilder::build_vfont(VFont *vfont)
     return;
   }
   build_parameters(&vfont->id);
-  build_id_dynamic_override(&vfont->id);
+  build_dynamic_override_target(&vfont->id);
   build_idproperties(vfont->id.properties);
   build_idproperties(vfont->id.system_properties);
 }
