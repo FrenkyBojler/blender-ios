@@ -978,11 +978,11 @@ void tooltip_uibut_python_add(TooltipData &data,
 
 static const char *icon_id_to_name(BIFIconID icon_value)
 {
-  const char *identifier = NULL;
+  const char *identifier = nullptr;
   if (RNA_enum_identifier(rna_enum_icon_items, icon_value, &identifier)) {
     return identifier;
   }
-  return NULL;
+  return nullptr;
 }
 
 static void tooltip_uibut_icon_add(TooltipData &data, Button &but)
