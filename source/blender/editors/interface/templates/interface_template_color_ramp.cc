@@ -110,6 +110,10 @@ static Block *colorband_tools_fn(bContext *C, ARegion *region, void *cb_v)
       rna_update_cb(C, cb);
     });
   }
+
+  Layout &column = layout.column(true);
+  column.enabled_set(coba->tot > 1);
+
   {
     Button *but = uiDefIconTextBut(block,
                                    ButtonType::ButMenu,
@@ -254,6 +258,9 @@ static void colorband_buttons_layout(Layout &layout,
       ED_undo_push(&C, "Delete Color Ramp Stop");
     }
   });
+  if (coba->tot < 2) {
+    button_flag_enable(bt, BUT_DISABLED);
+  }
 
   RNAUpdateCb *tools_cb = MEM_new<RNAUpdateCb>(__func__, cb);
   bt = uiDefIconBlockBut(block,
