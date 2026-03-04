@@ -107,6 +107,7 @@ enum eNodeSocketDatatype {
   SOCK_TEXT_ID = 21,
   SOCK_MASK = 22,
   SOCK_SOUND = 23,
+  SOCK_INT_VECTOR = 24,
 };
 
 /** Socket shape. */
@@ -2056,6 +2057,16 @@ struct bNodeSocketValueVector {
   float value[4] = {};
   float min = 0, max = 0;
   /* The number of dimensions of the vector. Can be 2, 3, or 4. */
+  int dimensions = 0;
+};
+
+struct bNodeSocketValueIntVector {
+  /** RNA subtype. */
+  int subtype = 0;
+  /* Only some of the values might be used depending on the dimensions. */
+  int value[3] = {};
+  int min = 0, max = 0;
+  /* The number of dimensions of the vector. Can be 2 or 3. */
   int dimensions = 0;
 };
 

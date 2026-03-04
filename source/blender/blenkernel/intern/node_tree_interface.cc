@@ -249,6 +249,14 @@ template<> void socket_data_init_impl(bNodeSocketValueMenu &data)
   data.enum_items = nullptr;
   data.runtime_flag = 0;
 }
+template<> void socket_data_init_impl(bNodeSocketValueIntVector &data)
+{
+  data.subtype = PROP_NONE;
+  data.dimensions = 3;
+  zero_v3_int(data.value);
+  data.min = -INT_MAX;
+  data.max = INT_MAX;
+}
 
 static void *make_socket_data(const StringRef socket_type)
 {
@@ -425,6 +433,10 @@ inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueMenu &da
 {
   writer->write_struct(&data);
 }
+inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueIntVector &data)
+{
+  writer->write_struct(&data);
+}
 
 static void socket_data_write(BlendWriter *writer, bNodeTreeInterfaceSocket &socket)
 {
@@ -546,6 +558,10 @@ template<> StringRefNull socket_type_from_data_impl(const bNodeSocketValueSound 
 template<> StringRefNull socket_type_from_data_impl(const bNodeSocketValueMenu & /*data*/)
 {
   return *bke::node_static_socket_type(SOCK_MENU, PROP_NONE);
+}
+template<> StringRefNull socket_type_from_data_impl(const bNodeSocketValueIntVector &data)
+{
+  return *bke::node_static_socket_type(SOCK_INT_VECTOR, data.subtype, data.dimensions);
 }
 
 static StringRefNull socket_type_from_data(const bNodeTreeInterfaceSocket &socket)
