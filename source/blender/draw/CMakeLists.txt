@@ -652,8 +652,8 @@ set(GLSL_SRC
   intern/shaders/subdiv_normals_accumulate_comp.glsl
   intern/shaders/subdiv_patch_evaluation_comp.glsl
   intern/shaders/subdiv_vbo_edge_fac_comp.glsl
-  intern/shaders/subdiv_vbo_edituv_strech_angle_comp.glsl
-  intern/shaders/subdiv_vbo_edituv_strech_area_comp.glsl
+  intern/shaders/subdiv_vbo_edituv_stretch_angle_comp.glsl
+  intern/shaders/subdiv_vbo_edituv_stretch_area_comp.glsl
   intern/shaders/subdiv_vbo_lnor_comp.glsl
   intern/shaders/subdiv_vbo_paint_overlay_flag_comp.glsl
   intern/shaders/subdiv_vbo_sculpt_data_comp.glsl
@@ -702,6 +702,7 @@ set(GLSL_SRC
   engines/gpencil/shaders/gpencil_mask_invert_frag.glsl
   engines/gpencil/shaders/gpencil_depth_merge_frag.glsl
   engines/gpencil/shaders/gpencil_depth_merge_vert.glsl
+  engines/gpencil/shaders/gpencil_depth_pass_merge_frag.glsl
   engines/gpencil/shaders/gpencil_vfx_frag.glsl
 
   engines/gpencil/gpencil_defines.hh
