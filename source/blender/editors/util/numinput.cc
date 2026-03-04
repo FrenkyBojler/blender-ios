@@ -581,10 +581,29 @@ bool handleNumInput(bContext *C, NumInput *n, const wmEvent *event)
     const float val_prev = n->val[idx];
     Scene *sce = CTX_data_scene(C);
     char *error = nullptr;
+    
+#ifdef USE_FAKE_EDIT
+    const bool negate = (n->val_flag[idx] & NUM_NEGATE) != 0;
+    const bool inverse = (n->val_flag[idx] & NUM_INVERSE) != 0;
+    const char *str_to_pass = n->str;
+    if (negate || inverse) {
+      char eval_str[NUM_STR_REP_LEN];
+      if (negate && inverse) {
+        BLI_snprintf(eval_str, sizeof(eval_str), "-1/(%s)", n->str);
+      }
+      else if (inverse) {
+        BLI_snprintf(eval_str, sizeof(eval_str), "1/(%s)", n->str);
+      }
+      else {
+        BLI_snprintf(eval_str, sizeof(eval_str), "-(%s)", n->str);
+      }
+      str_to_pass = eval_str;
+    }
+#endif
 
     double val;
     int success = user_string_to_number(
-        C, n->str, sce->unit, n->unit_type[idx], &val, false, &error);
+        C, str_to_pass, sce->unit, n->unit_type[idx], &val, false, &error);
 
     if (error) {
       ReportList *reports = CTX_wm_reports(C);
@@ -601,25 +620,6 @@ bool handleNumInput(bContext *C, NumInput *n, const wmEvent *event)
     else {
       n->val_flag[idx] |= NUM_INVALID;
     }
-
-#ifdef USE_FAKE_EDIT
-    if (n->val_flag[idx] & NUM_NEGATE) {
-      n->val[idx] = -n->val[idx];
-    }
-    if (n->val_flag[idx] & NUM_INVERSE) {
-      val = n->val[idx];
-      /* If we invert on radians when user is in degrees,
-       * you get unexpected results... See #53463. */
-      if (!n->unit_use_radians && n->unit_type[idx] == B_UNIT_ROTATION) {
-        val = RAD2DEG(val);
-      }
-      val = 1.0 / val;
-      if (!n->unit_use_radians && n->unit_type[idx] == B_UNIT_ROTATION) {
-        val = DEG2RAD(val);
-      }
-      n->val[idx] = float(val);
-    }
-#endif
 
     if (UNLIKELY(!isfinite(n->val[idx]))) {
       n->val[idx] = val_prev;
