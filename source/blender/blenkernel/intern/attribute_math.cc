@@ -272,24 +272,25 @@ void for_chunk_ranges(const IndexRange range, const int chunk_size, const Fn &fn
 
 template<typename T>
 void mix_groups(const Span<T> src,
-                const OffsetIndices<int> groups,
+                const OffsetIndices<int> all_groups,
                 const Span<int> all_indices,
-                MutableSpan<T> dst)
+                MutableSpan<T> all_dst)
 {
-  /* Zero initialize for addition accumulation. */
-  dst.fill(T());
+  for_chunk_ranges(all_dst.index_range(), CHUNK_SIZE, [&](const IndexRange range) {
+    const OffsetIndices<int> groups = all_groups.slice(range);
+    MutableSpan<T> dst = all_dst.slice(range);
 
-  for (const int dst_i : groups.index_range()) {
-    const Span<int> indices = all_indices.slice(groups[dst_i]);
-    for (const int i : indices.index_range()) {
-      const int src_i = indices[i];
-      dst[dst_i] += src[src_i];
+    dst.fill(T());
+    for (const int dst_i : range.index_range()) {
+      for (const int src_i : all_indices.slice(groups[dst_i])) {
+        dst[dst_i] += src[src_i];
+      }
     }
-  }
 
-  for (const int dst_i : groups.index_range()) {
-    dst[dst_i] /= float(groups[dst_i].size());
-  }
+    for (const int dst_i : range.index_range()) {
+      dst[dst_i] /= float(groups[dst_i].size());
+    }
+  });
 }
 
 template<>
@@ -306,28 +307,30 @@ void mix_groups(const Span<bool> src,
 
 template<typename T, typename ToAccumFn, typename ToFinalFn>
 void mix_groups(const Span<T> src,
-                const OffsetIndices<int> groups,
+                const OffsetIndices<int> all_groups,
                 const Span<int> all_indices,
                 const ToAccumFn &to_accum_fn,
                 const ToFinalFn &to_final_fn,
-                MutableSpan<T> dst)
+                MutableSpan<T> all_dst)
 {
   using AccumT = std::invoke_result_t<ToAccumFn, T>;
   static_assert(std::is_same_v<std::invoke_result_t<ToFinalFn, AccumT>, T>);
-  std::array<AccumT, CHUNK_SIZE> accumulation_values;
-  accumulation_values.fill(AccumT(0));
 
-  for (const int dst_i : groups.index_range()) {
-    const Span<int> indices = all_indices.slice(groups[dst_i]);
-    for (const int i : indices.index_range()) {
-      const int src_i = indices[i];
-      accumulation_values[dst_i] += to_accum_fn(src[src_i]);
+  for_chunk_ranges(all_dst.index_range(), CHUNK_SIZE, [&](const IndexRange range) {
+    const OffsetIndices<int> groups = all_groups.slice(range);
+    MutableSpan<T> dst = all_dst.slice(range);
+
+    Array<AccumT, CHUNK_SIZE> accumulation_values(dst.size(), AccumT(0));
+    for (const int dst_i : dst.index_range()) {
+      for (const int src_i : all_indices.slice(groups[dst_i])) {
+        accumulation_values[dst_i] += to_accum_fn(src[src_i]);
+      }
     }
-  }
 
-  for (const int dst_i : groups.index_range()) {
-    dst[dst_i] = to_final_fn(accumulation_values[dst_i] / AccumT(groups[dst_i].size()));
-  }
+    for (const int dst_i : dst.index_range()) {
+      dst[dst_i] = to_final_fn(accumulation_values[dst_i] / AccumT(groups[dst_i].size()));
+    }
+  });
 }
 
 static double int_to_double(const int &value)
@@ -345,7 +348,7 @@ void mix_groups(const Span<int> src,
                 const Span<int> all_indices,
                 MutableSpan<int> dst)
 {
-  mix_groups<int>(src, groups, all_indices, int_to_double, double_to_int, dst);
+  mix_groups(src, groups, all_indices, int_to_double, double_to_int, dst);
 }
 
 static double2 int2_to_double2(const int2 &value)
@@ -363,7 +366,7 @@ void mix_groups(const Span<int2> src,
                 const Span<int> all_indices,
                 MutableSpan<int2> dst)
 {
-  mix_groups<int2>(src, groups, all_indices, int2_to_double2, double2_to_int2, dst);
+  mix_groups(src, groups, all_indices, int2_to_double2, double2_to_int2, dst);
 }
 
 static float int8_t_to_float(const int8_t &value)
@@ -381,7 +384,7 @@ void mix_groups(const Span<int8_t> src,
                 const Span<int> all_indices,
                 MutableSpan<int8_t> dst)
 {
-  mix_groups<int8_t>(src, groups, all_indices, int8_t_to_float, float_to_int8_t, dst);
+  mix_groups(src, groups, all_indices, int8_t_to_float, float_to_int8_t, dst);
 }
 
 static float2 short2_to_float2(const short2 &value)
@@ -399,7 +402,73 @@ void mix_groups(const Span<short2> src,
                 const Span<int> all_indices,
                 MutableSpan<short2> dst)
 {
-  mix_groups<short2>(src, groups, all_indices, short2_to_float2, float2_to_short2, dst);
+  mix_groups(src, groups, all_indices, short2_to_float2, float2_to_short2, dst);
+}
+
+static float3 quat_to_expmap(const math::Quaternion &value)
+{
+  return value.expmap();
+}
+static math::Quaternion expmap_to_quat(const float3 &value)
+{
+  return math::Quaternion::expmap(value);
+}
+
+template<>
+void mix_groups(const Span<math::Quaternion> src,
+                const OffsetIndices<int> groups,
+                const Span<int> all_indices,
+                MutableSpan<math::Quaternion> dst)
+{
+  mix_groups(src, groups, all_indices, quat_to_expmap, expmap_to_quat, dst);
+}
+
+static float4 byte_color_to_float4(const ColorGeometry4b &value)
+{
+  return float4(value.r, value.g, value.b, value.a);
+}
+static ColorGeometry4b float4_to_byte_color(const float4 &value)
+{
+  return ColorGeometry4b(value.x, value.y, value.z, value.w);
+}
+
+template<>
+void mix_groups(const Span<ColorGeometry4b> src,
+                const OffsetIndices<int> groups,
+                const Span<int> all_indices,
+                MutableSpan<ColorGeometry4b> dst)
+{
+  mix_groups(src, groups, all_indices, byte_color_to_float4, float4_to_byte_color, dst);
+}
+
+template<>
+void mix_groups(const Span<ColorGeometry4f> src,
+                const OffsetIndices<int> all_groups,
+                const Span<int> all_indices,
+                MutableSpan<ColorGeometry4f> all_dst)
+{
+  for_chunk_ranges(all_dst.index_range(), CHUNK_SIZE, [&](const IndexRange range) {
+    const OffsetIndices<int> groups = all_groups.slice(range);
+    MutableSpan<ColorGeometry4f> dst = all_dst.slice(range);
+
+    dst.fill(ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f));
+    for (const int dst_i : dst.index_range()) {
+      for (const int src_i : all_indices.slice(groups[dst_i])) {
+        dst[dst_i].r += src[src_i].r;
+        dst[dst_i].g += src[src_i].g;
+        dst[dst_i].b += src[src_i].b;
+        dst[dst_i].a += src[src_i].a;
+      }
+    }
+
+    for (const int dst_i : dst.index_range()) {
+      const float weight_inv = math::rcp(float(groups[dst_i].size()));
+      dst[dst_i].r *= weight_inv;
+      dst[dst_i].g *= weight_inv;
+      dst[dst_i].b *= weight_inv;
+      dst[dst_i].a *= weight_inv;
+    }
+  });
 }
 
 template<>
@@ -409,13 +478,10 @@ void mix_groups(const Span<float4x4> src,
                 MutableSpan<float4x4> dst)
 {
   for (const int dst_i : groups.index_range()) {
-    const Span<int> indices = all_indices.slice(groups[dst_i]);
-
-    float3 location_accum;
-    float3 expmap_accum;
-    float3 scale_accum;
-    for (const int i : indices.index_range()) {
-      const int src_i = indices[i];
+    float3 location_accum(0);
+    float3 expmap_accum(0);
+    float3 scale_accum(0);
+    for (const int src_i : all_indices.slice(groups[dst_i])) {
       float3 location;
       math::Quaternion rotation;
       float3 scale;
@@ -435,30 +501,190 @@ void mix_groups(const Span<float4x4> src,
 
 template<typename T>
 void mix_groups(const Span<T> src,
+                const OffsetIndices<int> all_groups,
+                const Span<int> all_indices,
+                const Span<float> all_weights,
+                MutableSpan<T> all_dst)
+{
+  for_chunk_ranges(all_dst.index_range(), CHUNK_SIZE, [&](const IndexRange range) {
+    const OffsetIndices<int> groups = all_groups.slice(range);
+    MutableSpan<T> dst = all_dst.slice(range);
+
+    dst.fill(T());
+    Array<float, CHUNK_SIZE> total_weights(dst.size(), 0.0f);
+    for (const int dst_i : dst.index_range()) {
+      for (const int i : groups[dst_i]) {
+        const int src_i = all_indices[i];
+        const float weight = all_weights[i];
+        dst[dst_i] += src[src_i] * weight;
+        total_weights[dst_i] += weight;
+      }
+    }
+
+    for (const int dst_i : dst.index_range()) {
+      dst[dst_i] /= total_weights[dst_i];
+    }
+  });
+}
+
+template<typename T, typename ToAccumFn, typename ToFinalFn>
+void mix_groups(const Span<T> src,
+                const OffsetIndices<int> all_groups,
+                const Span<int> all_indices,
+                const Span<float> all_weights,
+                const ToAccumFn &to_accum_fn,
+                const ToFinalFn &to_final_fn,
+                MutableSpan<T> all_dst)
+{
+  using AccumT = std::invoke_result_t<ToAccumFn, T>;
+  static_assert(std::is_same_v<std::invoke_result_t<ToFinalFn, AccumT>, T>);
+  for_chunk_ranges(all_dst.index_range(), CHUNK_SIZE, [&](const IndexRange range) {
+    const OffsetIndices<int> groups = all_groups.slice(range);
+    MutableSpan<T> dst = all_dst.slice(range);
+
+    Array<AccumT, CHUNK_SIZE> accumulation_values(dst.size(), AccumT(0));
+    Array<float, CHUNK_SIZE> total_weights(dst.size(), 0.0f);
+    for (const int dst_i : dst.index_range()) {
+      for (const int i : groups[dst_i]) {
+        const int src_i = all_indices[i];
+        const float weight = all_weights[i];
+        accumulation_values[dst_i] += to_accum_fn(src[src_i]) * weight;
+        total_weights[dst_i] += weight;
+      }
+    }
+
+    for (const int dst_i : dst.index_range()) {
+      dst[dst_i] = to_final_fn(accumulation_values[dst_i] / AccumT(groups[dst_i].size()));
+    }
+  });
+}
+
+template<>
+void mix_groups(const Span<int> src,
                 const OffsetIndices<int> groups,
                 const Span<int> all_indices,
                 const Span<float> all_weights,
-                MutableSpan<T> dst)
+                MutableSpan<int> dst)
 {
-  /* Zero initialize for addition accumulation. */
-  dst.fill(T());
+  mix_groups(src, groups, all_indices, all_weights, int_to_double, double_to_int, dst);
+}
 
-  std::array<float, CHUNK_SIZE> total_weights;
-  total_weights.fill(0.0f);
+template<>
+void mix_groups(const Span<int2> src,
+                const OffsetIndices<int> groups,
+                const Span<int> all_indices,
+                const Span<float> all_weights,
+                MutableSpan<int2> dst)
+{
+  mix_groups(src, groups, all_indices, all_weights, int2_to_double2, double2_to_int2, dst);
+}
 
-  for (const int dst_i : groups.index_range()) {
-    const Span<int> indices = all_indices.slice(groups[dst_i]);
-    const Span<float> weights = all_weights.slice(groups[dst_i]);
-    for (const int i : indices.index_range()) {
-      const int src_i = indices[i];
-      const float weight = weights[i];
-      dst[dst_i] += src[src_i] * weight;
-      total_weights[dst_i] += weight;
+template<>
+void mix_groups(const Span<int8_t> src,
+                const OffsetIndices<int> groups,
+                const Span<int> all_indices,
+                const Span<float> all_weights,
+                MutableSpan<int8_t> dst)
+{
+  mix_groups(src, groups, all_indices, all_weights, int8_t_to_float, float_to_int8_t, dst);
+}
+
+template<>
+void mix_groups(const Span<short2> src,
+                const OffsetIndices<int> groups,
+                const Span<int> all_indices,
+                const Span<float> all_weights,
+                MutableSpan<short2> dst)
+{
+  mix_groups(src, groups, all_indices, all_weights, short2_to_float2, float2_to_short2, dst);
+}
+
+template<>
+void mix_groups(const Span<math::Quaternion> src,
+                const OffsetIndices<int> groups,
+                const Span<int> all_indices,
+                const Span<float> all_weights,
+                MutableSpan<math::Quaternion> dst)
+{
+  mix_groups(src, groups, all_indices, all_weights, quat_to_expmap, expmap_to_quat, dst);
+}
+
+template<>
+void mix_groups(const Span<ColorGeometry4b> src,
+                const OffsetIndices<int> groups,
+                const Span<int> all_indices,
+                const Span<float> all_weights,
+                MutableSpan<ColorGeometry4b> dst)
+{
+  mix_groups(
+      src, groups, all_indices, all_weights, byte_color_to_float4, float4_to_byte_color, dst);
+}
+
+template<>
+void mix_groups(const Span<ColorGeometry4f> src,
+                const OffsetIndices<int> all_groups,
+                const Span<int> all_indices,
+                const Span<float> all_weights,
+                MutableSpan<ColorGeometry4f> all_dst)
+{
+  for_chunk_ranges(all_dst.index_range(), CHUNK_SIZE, [&](const IndexRange range) {
+    const OffsetIndices<int> groups = all_groups.slice(range);
+    MutableSpan<ColorGeometry4f> dst = all_dst.slice(range);
+
+    dst.fill(ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f));
+    Array<float, CHUNK_SIZE> total_weights(dst.size(), 0.0f);
+    for (const int dst_i : dst.index_range()) {
+      for (const int i : groups[dst_i]) {
+        const int src_i = all_indices[i];
+        const float weight = all_weights[i];
+        dst[dst_i].r += src[src_i].r * weight;
+        dst[dst_i].g += src[src_i].g * weight;
+        dst[dst_i].b += src[src_i].b * weight;
+        dst[dst_i].a += src[src_i].a * weight;
+        total_weights[dst_i] += weight;
+      }
     }
-  }
 
+    for (const int dst_i : dst.index_range()) {
+      const float weight_inv = math::rcp(total_weights[dst_i]);
+      dst[dst_i].r *= weight_inv;
+      dst[dst_i].g *= weight_inv;
+      dst[dst_i].b *= weight_inv;
+      dst[dst_i].a *= weight_inv;
+    }
+  });
+}
+
+template<>
+void mix_groups(const Span<float4x4> src,
+                const OffsetIndices<int> groups,
+                const Span<int> all_indices,
+                const Span<float> all_weights,
+                MutableSpan<float4x4> dst)
+{
   for (const int dst_i : groups.index_range()) {
-    dst[dst_i] /= total_weights[dst_i];
+    float total_weight = 0.0f;
+    float3 location_accum(0);
+    float3 expmap_accum(0);
+    float3 scale_accum(0);
+    for (const int i : groups[dst_i]) {
+      const int src_i = all_indices[i];
+      const float weight = all_weights[i];
+      float3 location;
+      math::Quaternion rotation;
+      float3 scale;
+      math::to_loc_rot_scale_safe<true>(src[src_i], location, rotation, scale);
+      location_accum += location * weight;
+      expmap_accum += rotation.expmap() * weight;
+      scale_accum += scale * weight;
+      total_weight += weight;
+    }
+
+    const float factor = math::rcp(total_weight);
+    dst[dst_i] = math::from_loc_rot_scale<float4x4>(
+        location_accum * factor,
+        math::Quaternion::expmap(expmap_accum * factor),
+        scale_accum * factor);
   }
 }
 
@@ -488,7 +714,7 @@ void mix_groups(const GSpan src,
   BLI_assert(!all_weights || groups.total_size() == all_weights->size());
 
   to_static_type(src.type(), [&]<typename T>() {
-    if constexpr (!std::is_void_v<DefaultMixer<T>>) {
+    if constexpr (!std::is_same_v<T, std::string>) {
       threading::parallel_for(groups.index_range(), 2048, [&](const IndexRange range) {
         if (all_weights) {
           mix_groups(src.typed<T>(),
