@@ -85,9 +85,9 @@ struct QuadraticBSplineSampler {
   }
 
   template<class TreeT>
-  bool sample(const TreeT &inTree,
-              const openvdb::Vec3R &inCoord,
-              typename TreeT::ValueType &result)
+  static bool sample(const TreeT &inTree,
+                     const openvdb::Vec3R &inCoord,
+                     typename TreeT::ValueType &result)
   {
     using ValueT = typename TreeT::ValueType;
 
@@ -114,7 +114,7 @@ struct QuadraticBSplineSampler {
   }
 
   template<class TreeT>
-  typename TreeT::ValueType sample(const TreeT &inTree, const openvdb::Vec3R &inCoord)
+  static typename TreeT::ValueType sample(const TreeT &inTree, const openvdb::Vec3R &inCoord)
   {
     using ValueT = typename TreeT::ValueType;
 
@@ -195,9 +195,9 @@ struct QuadraticBSplineGradientSampler {
   }
 
   template<class TreeT>
-  bool sample(const TreeT &inTree,
-              const openvdb::Vec3R &inCoord,
-              typename TreeT::ValueType &result)
+  static bool sample(const TreeT &inTree,
+                     const openvdb::Vec3R &inCoord,
+                     typename TreeT::ValueType &result)
   {
     using ValueT = typename TreeT::ValueType;
 
@@ -224,7 +224,7 @@ struct QuadraticBSplineGradientSampler {
   }
 
   template<class TreeT>
-  typename TreeT::ValueType sample(const TreeT &inTree, const openvdb::Vec3R &inCoord)
+  static typename TreeT::ValueType sample(const TreeT &inTree, const openvdb::Vec3R &inCoord)
   {
     using ValueT = typename TreeT::ValueType;
 
