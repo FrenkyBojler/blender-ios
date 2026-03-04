@@ -246,10 +246,10 @@ enum eBrushPlaneInversionMode {
   BRUSH_PLANE_SWAP_HEIGHT_AND_DEPTH = 1,
 };
 
-typedef enum eBrushProjectRayDirection {
+enum eBrushProjectRayDirection {
   BRUSH_PROJECT_RAY_DIRECTION_VIEW_NORMAL = 0,
   BRUSH_PROJECT_RAY_DIRECTION_PLANE_NORMAL = 1,
-} eBrushProjectDirection;
+};
 
 /** #Gpencilsettings.Vertex_mode */
 enum eGp_Vertex_Mode {

@@ -126,9 +126,7 @@ static void object_raycast(const ProjectBrushTarget &project_target,
   const float3 ray_direction = math::transform_direction(project_target.active_to_target_matrix,
                                                          normal);
 
-  for (const int i : positions.index_range()) {
-    ray_origins[i] = math::transform_point(project_target.active_to_target_matrix, positions[i]);
-  }
+  math::transform_points(positions, project_target.active_to_target_matrix, ray_origins, false);
 
   threading::isolate_task([&]() {
     threading::parallel_for(positions.index_range(), 256, [&](IndexRange range) {
@@ -161,7 +159,7 @@ static void object_raycast(const ProjectBrushTarget &project_target,
  * Casts rays from the active object's positions to find the closest hits with the target objects
  * in the scene, storing distances in `r_hit_distances`.
  */
-static void scene_raycast(const MutableSpan<ProjectBrushTarget> project_targets,
+static void scene_raycast(const Span<ProjectBrushTarget> project_targets,
                           const bool bidirectional,
                           const float minimum_distance,
                           const float3 &normal,
