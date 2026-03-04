@@ -682,7 +682,10 @@ void snap_sequencer_image_apply_translate(TransInfo *t, float vec[2])
 /** \name Drag and Drop Snapping
  * \{ */
 
-static int snap_sequencer_calc_drag_drop_impl(TransInfo *t, const int frame_1, const int frame_2)
+static int snap_sequencer_calc_drag_drop_impl(TransInfo *t,
+                                              const int left_frame,
+                                              const int right_frame,
+                                              const int channel)
 {
   Scene *scene = t->scene;
   TransSeqSnapData *snap_data = MEM_new<TransSeqSnapData>(__func__);
@@ -690,14 +693,13 @@ static int snap_sequencer_calc_drag_drop_impl(TransInfo *t, const int frame_1, c
   VectorSet<Strip *> empty_col;
   VectorSet<Strip *> snap_targets = query_snap_targets_timeline(scene, empty_col, false);
 
-  BLI_assert(frame_1 <= frame_2);
+  BLI_assert(left_frame <= right_frame);
 
-  snap_data->source_snap_points.append(float2(frame_1));
-  snap_data->source_snap_points.append(float2(frame_2));
-
-  short snap_mode = t->tsnap.mode;
+  snap_data->source_snap_points.append(float2(left_frame, channel));
+  snap_data->source_snap_points.append(float2(right_frame, channel));
 
   /* Build arrays of snap target frames. */
+  const short snap_mode = t->tsnap.mode;
   points_build_targets_timeline(scene, snap_mode, snap_data, snap_targets);
 
   t->tsnap.seq_context = snap_data;
@@ -719,10 +721,11 @@ static int snap_sequencer_calc_drag_drop_impl(TransInfo *t, const int frame_1, c
 
 bool snap_sequencer_calc_drag_drop(Scene *scene,
                                    ARegion *region,
-                                   const int frame_1,
-                                   const int frame_2,
+                                   const int left_frame,
+                                   const int right_frame,
+                                   const int channel,
                                    int *r_snap_distance,
-                                   float *r_snap_frame)
+                                   float2 *r_snap_point)
 {
   TransInfo t = {nullptr};
   t.scene = scene;
@@ -731,23 +734,24 @@ bool snap_sequencer_calc_drag_drop(Scene *scene,
   t.data_type = &TransConvertType_Sequencer;
 
   t.tsnap.mode = eSnapMode(seq::tool_settings_snap_mode_get(scene));
-  *r_snap_distance = snap_sequencer_calc_drag_drop_impl(&t, frame_1, frame_2);
-  *r_snap_frame = t.tsnap.snap_target[0];
+  t.tsnap.flag = eSnapFlag(seq::tool_settings_snap_flag_get(scene));
+  *r_snap_distance = snap_sequencer_calc_drag_drop_impl(&t, left_frame, right_frame, channel);
+  copy_v2_v2(*r_snap_point, t.tsnap.snap_target);
   return validSnap(&t);
 }
 
-void snap_sequencer_draw_drag_drop(Scene *scene, ARegion *region, const float snap_point)
+void snap_sequencer_draw_drag_drop(Scene *scene, ARegion *region, const float2 snap_point)
 {
   /* Reuse the snapping drawing code from the transform system. */
   TransInfo t = {nullptr};
+  t.scene = scene;
+  t.region = region;
   t.mode = TFM_SEQ_SLIDE;
   t.modifiers = MOD_SNAP;
   t.spacetype = SPACE_SEQ;
   t.tsnap.flag = SCE_SNAP;
   t.tsnap.status = (SNAP_TARGET_FOUND | SNAP_SOURCE_FOUND);
-  t.tsnap.snap_target[0] = snap_point;
-  t.scene = scene;
-  t.region = region;
+  copy_v2_v2(t.tsnap.snap_target, snap_point);
 
   drawSnapping(&t);
 }
