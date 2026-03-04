@@ -1,1 +1,2 @@
 Referenced by issue #155159, Regression: Vertex Paint: Invoking "Dirty Vertex Colors" freezes
+Referenced by pull request #155194, Fix #155159: attribute value lookup by index is very slow
