@@ -55,7 +55,8 @@ static void node_layout_ex(ui::Layout &layout, bContext *C, PointerRNA *current_
       auto &storage = *static_cast<NodeClosureOutput *>(output_node.storage);
       socket_items::ui::draw_active_item_props<ClosureInputItemsAccessor>(
           ntree, output_node, [&](PointerRNA *item_ptr) {
-            NodeClosureInputItem &active_item = storage.input_items.items[storage.input_items.active_index];
+            NodeClosureInputItem &active_item =
+                storage.input_items.items[storage.input_items.active_index];
             const auto socket_type = eNodeSocketDatatype(active_item.socket_type);
             panel->use_property_split_set(true);
             panel->use_property_decorate_set(false);
