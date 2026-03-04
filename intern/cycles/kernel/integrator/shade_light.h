@@ -61,7 +61,7 @@ ccl_device_inline void integrate_light_forward(KernelGlobals kg,
 
   /* MIS weighting. */
   const float mis_weight = light_sample_mis_weight_forward_lamp(
-      kg, state, path_flag, isect.prim, light_eval.pdf, ray_P);
+      kg, state, path_flag, isect.object, light_eval.pdf, ray_P);
 
   /* Write to render buffer. */
   guiding_record_surface_emission(kg, state, eval, mis_weight);
@@ -206,7 +206,7 @@ ccl_device bool integrate_light_nee(KernelGlobals kg, IntegratorShadowState stat
 }
 
 /* Evaluate light shader for next event estimation, after shade_surface and shade_volume and before
- * shadow ray intersection. Only when the light has non-constant emisison. */
+ * shadow ray intersection. Only when the light has non-constant emission. */
 ccl_device void integrator_shade_light_nee(KernelGlobals kg,
                                            IntegratorShadowState state,
                                            ccl_global float *ccl_restrict /*render_buffer*/)

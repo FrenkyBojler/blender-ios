@@ -115,6 +115,8 @@ class Integrator : public Node {
     UPDATE_NONE = 0u,
   };
 
+  bool shadow_catcher_needs_recalc_ = true;
+
   Integrator();
   ~Integrator() override;
 
@@ -128,6 +130,9 @@ class Integrator : public Node {
   AdaptiveSampling get_adaptive_sampling() const;
   DenoiseParams get_denoise_params() const;
   GuidingParams get_guiding_params(const Device *device) const;
+
+  bool is_modified() const;
+  void clear_modified();
 };
 
 CCL_NAMESPACE_END

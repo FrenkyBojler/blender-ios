@@ -996,7 +996,7 @@ static bool apply_grease_pencil_for_modifier_all_keyframes(Depsgraph *depsgraph,
   for (const int key : layer_indices_to_apply_per_frame.keys()) {
     sorted_frame_times[i++] = key;
   }
-  std::sort(sorted_frame_times.begin(), sorted_frame_times.end());
+  std::ranges::sort(sorted_frame_times);
 
   const int prev_frame = int(DEG_get_ctime(depsgraph));
   bool changed = false;
@@ -3542,7 +3542,7 @@ static wmOperatorStatus geometry_node_tree_copy_assign_exec(bContext *C, wmOpera
 
   NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(md);
   bNodeTree *tree = nmd->node_group;
-  if (tree == nullptr) {
+  if (tree == nullptr || ID_MISSING(tree)) {
     return OPERATOR_CANCELLED;
   }
 
