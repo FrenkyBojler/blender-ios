@@ -140,12 +140,12 @@ integrate_transparent_surface_shadow(KernelGlobals kg,
 }
 
 #  ifdef __VOLUME__
-ccl_device_inline ShaderEvalResult
-integrate_transparent_volume_shadow(KernelGlobals kg,
-                                    IntegratorShadowState state,
-                                    const int hit,
-                                    const int num_recorded_hits,
-                                    ccl_private Spectrum *ccl_restrict throughput)
+ccl_device_inline bool integrate_transparent_volume_shadow(KernelGlobals kg,
+                                                           IntegratorShadowState state,
+                                                           const int hit,
+                                                           const int num_recorded_hits,
+                                                           ccl_private Spectrum *ccl_restrict
+                                                               throughput)
 {
   PROFILING_INIT(kg, PROFILING_SHADE_SHADOW_VOLUME);
 
@@ -170,9 +170,13 @@ integrate_transparent_volume_shadow(KernelGlobals kg,
 
   if (kernel_data.integrator.volume_ray_marching) {
     const float step_size = volume_stack_step_size<true>(kg, state);
-    return volume_shadow_ray_marching(kg, state, &ray, shadow_sd, throughput, step_size);
+    volume_shadow_ray_marching(kg, state, &ray, shadow_sd, throughput, step_size);
   }
-  return volume_shadow_null_scattering(kg, state, &ray, shadow_sd, throughput);
+  else {
+    volume_shadow_null_scattering(kg, state, &ray, shadow_sd, throughput);
+  }
+
+  return shadow_sd->flag & SD_CACHE_MISS;
 }
 #  endif
 
@@ -199,13 +203,13 @@ ccl_device_inline TransparentShadowEvalResult integrate_transparent_shadow(
 #  ifdef __VOLUME__
       if (!integrator_state_shadow_volume_stack_is_empty(kg, state)) {
         Spectrum throughput = INTEGRATOR_STATE(state, shadow_path, throughput);
-        const ShaderEvalResult result = integrate_transparent_volume_shadow(
+        const bool cache_miss = integrate_transparent_volume_shadow(
             kg, state, hit, num_recorded_hits, &throughput);
         if (is_zero(throughput)) {
           return TRANSPARENT_SHADOW_EVAL_OPAQUE;
         }
 
-        if (result == SHADER_EVAL_CACHE_MISS) {
+        if (cache_miss) {
           /* Store resume state: restart at this hit, redo volume. */
           INTEGRATOR_STATE_WRITE(state, shadow_path, num_hits) = shadow_num_hits_pack(
               num_hits, hit, false);
