@@ -21,11 +21,10 @@ namespace blender::animrig {
 /* Builds a set of frames where at least one of the given FCurves has a key. This uses int instead
  * of float to avoid precision issues. The maximum subframe resolution is dicated by
  * BEZT_BINARYSEARCH_THRESH so this is used to convert to a unique integer. */
-static Set<int64_t> build_keyframe_ids(FCurve *fcurves[4])
+static Set<int64_t> build_keyframe_ids(const Span<const FCurve *> fcurves)
 {
   Set<int64_t> keyframe_ids;
-  const Span<FCurve *> fcurve_span(fcurves, 4);
-  for (FCurve *fcurve : fcurve_span) {
+  for (const FCurve *fcurve : fcurves) {
     if (!fcurve || !fcurve->bezt) {
       continue;
     }
@@ -37,7 +36,7 @@ static Set<int64_t> build_keyframe_ids(FCurve *fcurves[4])
   return keyframe_ids;
 }
 
-static void rotation_values_to_matrix(const float rotation_values[4],
+static void rotation_values_to_matrix(const float4 &rotation_values,
                                       const eRotationModes mode,
                                       float r_matrix[3][3])
 {
@@ -76,7 +75,7 @@ static void matrix_to_rotation_values(const float matrix[3][3],
   }
 }
 
-static void get_rotation_values(const bPoseChannel &pose_bone, float rotation_values[4])
+static void get_rotation_values(const bPoseChannel &pose_bone, float4 &rotation_values)
 {
   switch (pose_bone.rotmode) {
     case ROT_MODE_QUAT:
@@ -120,9 +119,9 @@ bool convert_pose_bone_rotation_keys(Main *bmain,
   std::string new_rotation_path = pchan_path.value() + "." + rotation_mode_name;
 
   /* Storing the previous rotation for euler angles larger than 180 degrees. */
-  float previous_conversion[4] = {0, 0, 0, 0};
-  float converted_rotation[4];
-  float rotation_values[4];
+  float4 previous_conversion(0);
+  float4 converted_rotation(0);
+  float4 rotation_values(0);
   float rotation_matrix[3][3];
 
   const int evaluation_buffer_count = current_mode > ROT_MODE_QUAT ? 3 : 4;
@@ -130,14 +129,15 @@ bool convert_pose_bone_rotation_keys(Main *bmain,
   /* True if the conversion is just between different euler rotations. */
   const bool is_rotation_order_change = current_mode > ROT_MODE_QUAT && to_mode > ROT_MODE_QUAT;
 
-  for (const auto &item : channelbag_map->items()) {
-    FCurve *evaluation_buffer[4] = {nullptr, nullptr, nullptr, nullptr};
-    FCurve *insertion_buffer[4] = {nullptr, nullptr, nullptr, nullptr};
+  Array<FCurve *> evaluation_buffer(evaluation_buffer_count);
+  Array<FCurve *> insertion_buffer(insertion_buffer_count);
 
+  for (const auto &item : channelbag_map->items()) {
     if (is_rotation_order_change) {
       /* Cannot use the FCurve directly from the channelbag. Modifying that while converting the
-       * rotation mode could influence the result. */
+       * rotation mode would influence the result. */
       FCurveDescriptor descriptor = {new_rotation_path, 0, PROP_FLOAT, PROP_EULER, pchan.name};
+      /* Both rotation modes are euler so 3 elements. */
       for (int i : IndexRange(3)) {
         descriptor.array_index = i;
         insertion_buffer[i] = &item.key->fcurve_ensure(bmain, descriptor);
@@ -157,8 +157,7 @@ bool convert_pose_bone_rotation_keys(Main *bmain,
     Set<int64_t> keyframe_ids = build_keyframe_ids(evaluation_buffer);
     get_rotation_values(pchan, rotation_values);
     KeyframeSettings settings = {BEZT_KEYTYPE_KEYFRAME, HD_AUTO_ANIM, BEZT_IPO_BEZ};
-    for (int i : IndexRange(evaluation_buffer_count)) {
-      FCurve *fcurve = evaluation_buffer[i];
+    for (FCurve *fcurve : evaluation_buffer) {
       if (!fcurve || !fcurve->bezt) {
         continue;
       }
@@ -174,8 +173,7 @@ bool convert_pose_bone_rotation_keys(Main *bmain,
     for (const int64_t frame_id : keyframe_ids) {
       const float frame = frame_id * BEZT_BINARYSEARCH_THRESH;
       /* Generate the current rotation values respecting missing FCurves. */
-      for (int i : IndexRange(evaluation_buffer_count)) {
-        FCurve *fcurve = evaluation_buffer[i];
+      for (FCurve *fcurve : evaluation_buffer) {
         if (!fcurve) {
           continue;
         }
@@ -195,15 +193,15 @@ bool convert_pose_bone_rotation_keys(Main *bmain,
 
     if (is_rotation_order_change) {
       /* Free the FCurves that have been duplicated beforehand. */
-      for (int i = 0; i < evaluation_buffer_count; i++) {
-        BKE_fcurve_free(evaluation_buffer[i]);
+      for (FCurve *fcurve : evaluation_buffer) {
+        BKE_fcurve_free(fcurve);
       }
     }
     else {
       /* When changing between euler, axis angle or quaternion the currently existing rotation
        * FCurves need to be removed. */
-      for (int i : IndexRange(evaluation_buffer_count)) {
-        item.key->fcurve_remove(*evaluation_buffer[i]);
+      for (FCurve *fcurve : evaluation_buffer) {
+        item.key->fcurve_remove(*fcurve);
       }
     }
   }
