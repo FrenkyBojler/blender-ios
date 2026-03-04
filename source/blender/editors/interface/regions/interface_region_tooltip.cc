@@ -1290,6 +1290,9 @@ static std::unique_ptr<TooltipData> ui_tooltip_data_from_button_or_extra_icon(
 
   if (U.flag & USER_TOOLTIPS_PYTHON) {
     tooltip_uibut_python_add(*data, *C, *but, extra_icon);
+  }
+
+  if (U.flag & USER_DEVELOPER_UI) {
     tooltip_uibut_icon_add(*data, *but);
   }
 
