@@ -136,7 +136,7 @@ uint64_t Profiler::get_event(ProfilingEvent event)
   if (event_samples.empty()) {
     return 0;
   }
-  assert(event_samples.size() >= event);
+  assert(event_samples.size() > event);
   return event_samples[event];
 }
 
@@ -148,7 +148,7 @@ bool Profiler::get_shader(const int shader, uint64_t &samples, uint64_t &hits)
     hits = 0;
     return false;
   }
-  assert(shader_samples.size() >= shader);
+  assert(shader_samples.size() > shader);
   if (shader_samples[shader] == 0) {
     return false;
   }
@@ -165,7 +165,7 @@ bool Profiler::get_object(const int object, uint64_t &samples, uint64_t &hits)
     hits = 0;
     return false;
   }
-  assert(shader_samples.size() >= object);
+  assert(object_samples.size() > object);
   if (object_samples[object] == 0) {
     return false;
   }
