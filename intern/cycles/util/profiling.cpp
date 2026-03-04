@@ -160,7 +160,7 @@ bool Profiler::get_shader(const int shader, uint64_t &samples, uint64_t &hits)
 bool Profiler::get_object(const int object, uint64_t &samples, uint64_t &hits)
 {
   assert(worker == nullptr);
-  if (shader_hits.empty()) {
+  if (object_samples.empty()) {
     samples = 0;
     hits = 0;
     return false;
