@@ -23,9 +23,9 @@ class OIDNDenoiser : public Denoiser {
   bool denoise_buffer(const BufferParams &buffer_params,
                       const BufferParams &denoised_buffer_params,
                       RenderBuffers *render_buffers,
-                      const int num_samples,
-                      const bool allow_inplace_modification,
-                      const float2 jitter) override;
+                      int num_samples,
+                      bool allow_inplace_modification,
+                      float2 pixel_jitter) override;
 
 #ifdef WITH_OPENIMAGEDENOISE
   OIDNDenoiserBase base_;

@@ -153,7 +153,7 @@ NODE_DEFINE(Integrator)
               SAMPLING_PATTERN_TABULATED_SOBOL);
   SOCKET_FLOAT(scrambling_distance, "Scrambling Distance", 1.0f);
 
-  SOCKET_BOOLEAN(use_jitter, "Use Jitter", false);
+  SOCKET_BOOLEAN(use_pixel_jitter, "Use Pixel Jitter", false);
   SOCKET_INT(frame, "Frame Index", 0);
 
   static NodeEnum denoiser_type_enum;
@@ -330,8 +330,8 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
     kintegrator->blue_noise_sequence_length -= 1;
   }
 
-  /* Randomize the seed every frame when applying jitter. */
-  if (use_jitter) {
+  /* Randomize the seed every frame when applying pixel jitter. */
+  if (use_pixel_jitter) {
     kintegrator->seed = hash_uint2(seed, frame);
   }
   /* The blue-noise sampler needs a randomized seed to scramble properly, providing e.g. 0 won't
@@ -382,11 +382,11 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
 
   kintegrator->has_shadow_catcher = scene->has_shadow_catcher();
 
-  if (use_jitter) {
-    kintegrator->jitter = halton_jitter_pattern(frame);
+  if (use_pixel_jitter) {
+    kintegrator->pixel_jitter = halton_jitter_pattern(frame);
   }
   else {
-    kintegrator->jitter = zero_float2();
+    kintegrator->pixel_jitter = zero_float2();
   }
 
   dscene->sample_pattern_lut.clear_modified();

@@ -558,7 +558,7 @@ void BlenderSync::sync_integrator(blender::ViewLayer &b_view_layer,
     integrator->set_denoiser_upscale_factor(denoise_params.upscale_factor);
   }
 
-  integrator->set_use_jitter(denoise_params.use && denoise_params.type == DENOISER_DLSS);
+  integrator->set_use_pixel_jitter(denoise_params.use && denoise_params.type == DENOISER_DLSS);
 
   /* UPDATE_NONE as we don't want to tag the integrator as modified (this was done by the
    * set calls above), but we need to make sure that the dependent things are tagged. */

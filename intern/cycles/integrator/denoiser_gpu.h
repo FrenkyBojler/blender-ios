@@ -21,9 +21,9 @@ class DenoiserGPU : public Denoiser {
   bool denoise_buffer(const BufferParams &buffer_params,
                       const BufferParams &denoised_buffer_params,
                       RenderBuffers *render_buffers,
-                      const int num_samples,
-                      const bool allow_inplace_modification,
-                      const float2 jitter) override;
+                      int num_samples,
+                      bool allow_inplace_modification,
+                      float2 pixel_jitter) override;
 
  protected:
   class DenoisePass;
@@ -101,9 +101,9 @@ class DenoiserGPU : public Denoiser {
                             const BufferParams &buffer_params,
                             const BufferParams &denoised_buffer_params,
                             RenderBuffers *render_buffers,
-                            const int num_samples,
-                            const bool allow_inplace_modification,
-                            const float2 jitter);
+                            int num_samples,
+                            bool allow_inplace_modification,
+                            float2 pixel_jitter);
 
     const DenoiseParams &denoise_params;
 
@@ -152,7 +152,8 @@ class DenoiserGPU : public Denoiser {
      * the fake values and denoising of passes which do need albedo can no longer happen. */
     bool albedo_replaced_with_fake = false;
 
-    float2 jitter;
+    /* Sub-pixel jitter offset of the current frame. This can be used for upscaling. */
+    float2 pixel_jitter;
   };
 };
 
