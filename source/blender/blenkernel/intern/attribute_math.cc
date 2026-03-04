@@ -669,19 +669,24 @@ void mix_groups(const GSpan src,
 
   to_static_type(src.type(), [&]<typename T>() {
     if constexpr (!std::is_same_v<T, std::string>) {
-      threading::parallel_for(groups.index_range(), 2048, [&](const IndexRange range) {
-        if (all_weights) {
-          mix_groups(src.typed<T>(),
-                     groups.slice(range),
-                     all_indices,
-                     *all_weights,
-                     dst.typed<T>().slice(range));
-        }
-        else {
-          mix_groups(
-              src.typed<T>(), groups.slice(range), all_indices, dst.typed<T>().slice(range));
-        }
-      });
+      threading::parallel_for(
+          groups.index_range(),
+          2048,
+          [&](const IndexRange range) {
+            if (all_weights) {
+              mix_groups(src.typed<T>(),
+                         groups.slice(range),
+                         all_indices,
+                         *all_weights,
+                         dst.typed<T>().slice(range));
+            }
+            else {
+              mix_groups(
+                  src.typed<T>(), groups.slice(range), all_indices, dst.typed<T>().slice(range));
+            }
+          },
+          threading::accumulated_task_sizes(
+              [&](const IndexRange range) { return groups[range].size(); }));
     }
   });
 }
