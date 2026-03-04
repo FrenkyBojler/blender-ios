@@ -66,6 +66,20 @@ static void colorband_distribute(bContext *C, ColorBand *coba, bool evenly)
   }
 }
 
+void colorramp_tip_func(bContext & /*C*/, TooltipData &tip, Button *but, void * /*space*/)
+{
+  const bool has_tip = !but->tip.is_empty();
+  if (has_tip) {
+    tooltip_text_field_add(tip, but->tip + ".", {}, TIP_STYLE_HEADER, TIP_LC_NORMAL, false);
+  }
+  tooltip_text_field_add(tip,
+                         TIP_("Disabled: Color ramp only has one stop"),
+                         {},
+                         TIP_STYLE_NORMAL,
+                         TIP_LC_ALERT,
+                         has_tip);
+};
+
 static Block *colorband_tools_fn(bContext *C, ARegion *region, void *cb_v)
 {
   RNAUpdateCb &cb = *static_cast<RNAUpdateCb *>(cb_v);
@@ -130,6 +144,10 @@ static Block *colorband_tools_fn(bContext *C, ARegion *region, void *cb_v)
       ED_region_tag_redraw(CTX_wm_region(&C));
       rna_update_cb(C, cb);
     });
+
+    if (!column.enabled()) {
+      button_func_tooltip_custom_set(but, colorramp_tip_func, nullptr, nullptr);
+    }
   }
   {
     Button *but = uiDefIconTextBut(block,
@@ -147,6 +165,10 @@ static Block *colorband_tools_fn(bContext *C, ARegion *region, void *cb_v)
       ED_region_tag_redraw(CTX_wm_region(&C));
       rna_update_cb(C, cb);
     });
+
+    if (!column.enabled()) {
+      button_func_tooltip_custom_set(but, colorramp_tip_func, nullptr, nullptr);
+    }
   }
 
   layout.separator();
@@ -260,6 +282,7 @@ static void colorband_buttons_layout(Layout &layout,
   });
   if (coba->tot < 2) {
     button_flag_enable(bt, BUT_DISABLED);
+    button_func_tooltip_custom_set(bt, colorramp_tip_func, nullptr, nullptr);
   }
 
   RNAUpdateCb *tools_cb = MEM_new<RNAUpdateCb>(__func__, cb);
