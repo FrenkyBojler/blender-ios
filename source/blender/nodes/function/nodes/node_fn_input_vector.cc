@@ -14,6 +14,11 @@ namespace blender::nodes::node_fn_input_vector_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+
+  b.add_default_layout();
+
   int dimensions = 3;
   if (const bNode *node = b.node_or_null()) {
     const auto &storage = *static_cast<NodeInputVector *>(node->storage);
@@ -80,10 +85,8 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
   node->storage = data;
 }
 
-static void node_layout_ex(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout.use_property_split_set(true);
-  layout.use_property_decorate_set(false);
   layout.prop(ptr, "vector_dimensions", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
@@ -99,7 +102,7 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   ntype.gpu_fn = gpu_shader_vector;
-  ntype.draw_buttons_ex = node_layout_ex;
+  ntype.draw_buttons = node_layout;
   bke::node_type_storage(
       ntype, "NodeInputVector", node_free_standard_storage, node_copy_standard_storage);
   ntype.build_multi_function = node_build_multi_function;
