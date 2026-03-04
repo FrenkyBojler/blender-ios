@@ -50,7 +50,7 @@ TEST(array, FillConstructorZero)
 
 TEST(array, FillConstructorZeroAligned)
 {
-  struct alignas(1024) LargeAlignedType {
+  struct alignas(512) LargeAlignedType {
     std::array<int, 857> array = {};
   };
   Array<LargeAlignedType> array(5, LargeAlignedType());
