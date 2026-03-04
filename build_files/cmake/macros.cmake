@@ -1534,6 +1534,11 @@ macro(with_shader_cpp_compilation_config)
     add_cxx_flag("/wd4100")
     # Disable "potential divide by 0" warning
     add_cxx_flag("/wd4723")
+    # Disable unkown pragma warning
+    add_cxx_flag("/wd4068")
+    # Disable unknown attribute warning
+    add_cxx_flag("/wd5030")
+    add_cxx_flag("/wd5222")
   endif()
   add_definitions(-DGPU_SHADER)
 endmacro()
@@ -1552,6 +1557,9 @@ function(compile_sources_as_cpp
   set_target_properties(${executable} PROPERTIES LINKER_LANGUAGE CXX)
   target_include_directories(${executable} PUBLIC ${INC_GLSL})
   target_compile_definitions(${executable} PRIVATE ${define})
+  if(WIN32 AND NOT MSVC_CLANG)
+    set_target_properties(${executable} PROPERTIES STATIC_LIBRARY_OPTIONS "-ignore:4006")
+  endif()
 endfunction()
 
 macro(optimize_debug_target executable)
