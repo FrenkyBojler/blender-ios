@@ -197,7 +197,11 @@ void deg_graph_build_finalize(Main *bmain, Depsgraph *graph)
     }
     const bool is_expanded = deg_eval_copy_is_expanded(id_node->id_cow);
     if (!is_expanded) {
-      flag |= ID_RECALC_SYNC_TO_EVAL;
+      /* FIXME Most likely do not want to enforce DYNAMIC_OVERRIDE here?
+       *
+       * Not sure how animation ensures its initial evaluation... Without this tag here,
+       * dynoverrides are not applied on initial blendfile opening e.g., or in render graphs... */
+      flag |= ID_RECALC_SYNC_TO_EVAL | ID_RECALC_DYNAMIC_OVERRIDE;
       /* This means ID is being added to the dependency graph first
        * time, which is similar to "ob-visible-change" */
       if (id_type == ID_OB) {
