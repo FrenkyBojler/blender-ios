@@ -23,9 +23,9 @@ static int compare_int(const void *a, const void *b)
   return *(static_cast<const int *>(a)) - *(static_cast<const int *>(b));
 }
 /*
- * Builds an array of unique frames where at least one of the given FCurves has a key. This uses
- * int instead of float to avoid precision issues. The maximum subframe resolution is dicated by
- * BEZT_BINARYSEARCH_THRESH so this is used to convert to a unique integer.
+ * Builds a sorted array of unique frames where at least one of the given FCurves has a key. This
+ * uses int instead of float to avoid precision issues. The maximum subframe resolution is dicated
+ * by BEZT_BINARYSEARCH_THRESH so this is used to convert to a unique integer.
  */
 static Vector<int64_t> build_keyframe_ids(const Span<const FCurve *> fcurves)
 {
@@ -42,6 +42,7 @@ static Vector<int64_t> build_keyframe_ids(const Span<const FCurve *> fcurves)
       }
     }
   }
+  /* Keys have to be sorted to produce euler filtered results. */
   qsort(keyframe_ids.data(), keyframe_ids.size(), sizeof(int64_t), compare_int);
   return keyframe_ids;
 }
@@ -228,22 +229,21 @@ static bool is_rotation_path(const StringRefNull rna_path)
          rna_path.endswith(".rotation_axis_angle");
 }
 
-void build_rotation_fcurve_map(RNAPathFCurveMap &r_pchan_rotations,
-                               Action &action,
-                               const slot_handle_t slot_handle)
+RNAPathFCurveMap build_rotation_fcurve_map(Action &action, const slot_handle_t slot_handle)
 {
-  r_pchan_rotations.clear();
+  RNAPathFCurveMap rotation_map;
   for (Channelbag *channelbag : channelbags_for_action_slot(action, slot_handle)) {
     for (FCurve *fcurve : channelbag->fcurves()) {
       StringRefNull rna_path(fcurve->rna_path);
       if (!is_rotation_path(rna_path)) {
         continue;
       }
-      ChannelbagFCurveMap &rotations = r_pchan_rotations.lookup_or_add(rna_path, {});
+      ChannelbagFCurveMap &rotations = rotation_map.lookup_or_add(rna_path, {});
       RotationFCurves &fcurve_group = rotations.lookup_or_add(channelbag, {});
-      fcurve_group.fcurves[fcurve->array_index] = fcurve;
+      fcurve_group.insert_fcurve(fcurve);
     }
   }
+  return rotation_map;
 }
 
 }  // namespace blender::animrig

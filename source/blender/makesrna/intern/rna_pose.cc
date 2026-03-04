@@ -277,8 +277,9 @@ static void rna_PoseChannel_convert_rotation_mode(ID *id,
 
   AnimData *adt = BKE_animdata_from_id(id);
   if (adt && adt->action && adt->slot_handle != animrig::Slot::unassigned) {
-    animrig::RNAPathFCurveMap fcurves_by_rna_path;
-    animrig::build_rotation_fcurve_map(fcurves_by_rna_path, adt->action->wrap(), adt->slot_handle);
+    animrig::RNAPathFCurveMap fcurves_by_rna_path = animrig::build_rotation_fcurve_map(
+        adt->action->wrap(), adt->slot_handle);
+
     if (bake) {
       std::string rotation_rna_path = fmt::format(
           "{}.{}",

@@ -20,9 +20,15 @@ namespace animrig {
 
 struct Channelbag;
 
-/* Rotation FCurves of one entity. The last index is a nullptr for euler. */
+/* Rotation FCurves belonging to a single rotation property. They will be sorted by array index.
+ * The last index is a nullptr for euler. */
 struct RotationFCurves {
   FCurve *fcurves[4];
+
+  void insert_fcurve(FCurve *fcurve)
+  {
+    fcurves[fcurve->array_index] = fcurve;
+  }
 };
 
 /* Rotation FCurves sorted by the channelbag which they are in. */
@@ -42,11 +48,10 @@ bool convert_pose_bone_rotation_keys(Main *bmain,
                                      eRotationModes to_mode);
 
 /**
- *
+ * Creates a map of RNA paths and the rotation FCurves associated with that rna path.
+ * That means `rotation_euler` and `rotation_quaternion` will have different entries in the map.
  */
-void build_rotation_fcurve_map(RNAPathFCurveMap &r_pchan_rotations,
-                               Action &action,
-                               slot_handle_t slot_handle);
+RNAPathFCurveMap build_rotation_fcurve_map(Action &action, slot_handle_t slot_handle);
 
 }  // namespace animrig
 }  // namespace blender

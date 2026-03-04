@@ -33,6 +33,9 @@ std::string get_pose_bone_rna_path(const bPoseChannel &pose_bone);
 /** Get the rna path for the given rotation mode. */
 StringRef get_rotation_mode_path(eRotationModes rotation_mode);
 
+/* TODO replace with implementation from #154200. */
+std::optional<eRotationModes> get_rotation_mode_from_path(StringRefNull rna_path);
+
 /**
  * Returns a Vector of ID properties on the given pointer that can be animated. Not all pointer
  * types are supported. Unsupported pointer types will return an empty vector.

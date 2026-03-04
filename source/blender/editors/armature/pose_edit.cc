@@ -626,6 +626,7 @@ static wmOperatorStatus pose_bone_rotmode_exec(bContext *C, wmOperator *op)
   /* A map built per object to make it quicker to find the FCurves of one bPoseChannel. */
   animrig::RNAPathFCurveMap fcurves_by_rna_path;
 
+  bool rebuild_map = true;
   /* Set rotation mode of selected bones. */
   CTX_DATA_BEGIN_WITH_ID (C, bPoseChannel *, pchan, selected_pose_bones, Object *, ob) {
     if (pchan->rotmode == mode) {
@@ -634,9 +635,10 @@ static wmOperatorStatus pose_bone_rotmode_exec(bContext *C, wmOperator *op)
     }
     AnimData *adt = BKE_animdata_from_id(&ob->id);
     if (adt && adt->action && adt->slot_handle != animrig::Slot::unassigned) {
-      if (prev_ob != ob) {
-        animrig::build_rotation_fcurve_map(
-            fcurves_by_rna_path, adt->action->wrap(), adt->slot_handle);
+      if (rebuild_map) {
+        fcurves_by_rna_path = animrig::build_rotation_fcurve_map(adt->action->wrap(),
+                                                                 adt->slot_handle);
+        rebuild_map = false;
       }
       animrig::convert_pose_bone_rotation_keys(
           CTX_data_main(C), ob->id, *pchan, fcurves_by_rna_path, eRotationModes(mode));
@@ -657,6 +659,7 @@ static wmOperatorStatus pose_bone_rotmode_exec(bContext *C, wmOperator *op)
       WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, ob);
       WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
       prev_ob = ob;
+      rebuild_map = true;
     }
   }
   CTX_DATA_END;
