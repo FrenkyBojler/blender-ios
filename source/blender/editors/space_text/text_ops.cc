@@ -1074,12 +1074,15 @@ void TEXT_OT_duplicate_line(wmOperatorType *ot)
 /** \name Copy Operator
  * \{ */
 
-static void txt_copy_clipboard(const Text *text)
+static void txt_copy_clipboard(Text *text)
 {
   char *buf;
-
-  if (!txt_has_sel(text)) {
-    return;
+  const int curc = text->curc;
+  const bool has_selection = txt_has_sel(text);
+  /* Copy whole line when nothing is selected. */
+  if (!has_selection) {
+    text->curc = 0;
+    text->selc = text->curl->len;
   }
 
   buf = txt_sel_to_buf(text, nullptr);
@@ -1088,11 +1091,15 @@ static void txt_copy_clipboard(const Text *text)
     WM_clipboard_text_set(buf, false);
     MEM_delete(buf);
   }
+  if (!has_selection) {
+    text->curc = curc;
+    text->selc = curc;
+  }
 }
 
 static wmOperatorStatus text_copy_exec(bContext *C, wmOperator * /*op*/)
 {
-  const Text *text = CTX_data_edit_text(C);
+  Text *text = CTX_data_edit_text(C);
 
   txt_copy_clipboard(text);
 
@@ -1123,11 +1130,23 @@ static wmOperatorStatus text_cut_exec(bContext *C, wmOperator * /*op*/)
   Text *text = CTX_data_edit_text(C);
 
   space_text_drawcache_tag_update(st, false);
-
+  const bool has_selection = txt_has_sel(text);
   txt_copy_clipboard(text);
 
   ED_text_undo_push_init(C);
+  /* Cut whole line when nothing is selected. */
+  if (!has_selection) {
+    text->curc = 0;
+    text->selc = text->curl->len;
+  }
   txt_delete_selected(text);
+  if (!has_selection) {
+    text->curc = 0;
+    text->selc = 0;
+    /* Merge next line into the active line when cutting line.  */
+    txt_move_down(text, false);
+    txt_backspace_char(text);
+  }
 
   space_text_update_cursor_moved(C);
   WM_event_add_notifier(C, NC_TEXT | NA_EDITED, text);
