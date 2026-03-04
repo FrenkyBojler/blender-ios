@@ -692,6 +692,19 @@ LayerCollection *BKE_layer_collection_activate_parent(ViewLayer *view_layer, Lay
   return lc;
 }
 
+LayerCollection *BKE_layer_collection_get_active_editable(ViewLayer *view_layer)
+{
+  LayerCollection *lc = BKE_layer_collection_get_active(view_layer);
+  while (!ID_IS_EDITABLE(lc->collection)) {
+    LayerCollection *parent_lc = BKE_layer_collection_activate_parent(view_layer, lc);
+    if (parent_lc == lc) {
+      break;
+    }
+    lc = parent_lc;
+  }
+  return lc;
+}
+
 /**
  * Recursively get the count of collections
  */
@@ -2118,7 +2131,10 @@ static void object_bases_iterator_next(BLI_Iterator *iter, const int flag)
 
 static void object_bases_iterator_end(BLI_Iterator *iter)
 {
-  MEM_SAFE_DELETE_VOID(iter->data);
+  if (iter->data) {
+    MEM_delete(static_cast<LayerObjectBaseIteratorData *>(iter->data));
+    iter->data = nullptr;
+  }
 }
 
 static void objects_iterator_begin(BLI_Iterator *iter, void *data_in, const int flag)
