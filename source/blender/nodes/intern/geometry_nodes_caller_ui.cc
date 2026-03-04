@@ -149,7 +149,7 @@ SearchInfo SocketSearchData::info(const bContext &C) const
       return {};
     }
     const NodesModifierData *nmd = object_and_modifier->nmd;
-    if (nmd->node_group == nullptr) {
+    if (nmd->node_group != nullptr || ID_MISSING(nmd->node_group)) {
       return {};
     }
     geo_log::GeoTreeLog *tree_log = get_root_tree_log(*object_and_modifier->object, *nmd);
@@ -838,7 +838,7 @@ static void draw_warnings(const bContext *C,
   for (const int i : warnings.index_range()) {
     warnings[i] = &tree_log->all_warnings[i];
   }
-  std::sort(warnings.begin(), warnings.end(), [](const NodeWarning *a, const NodeWarning *b) {
+  std::ranges::sort(warnings, [](const NodeWarning *a, const NodeWarning *b) {
     const int severity_a = node_warning_type_severity(a->type);
     const int severity_b = node_warning_type_severity(b->type);
     if (severity_a > severity_b) {
@@ -871,7 +871,7 @@ static void draw_warnings(const bContext *C,
 
 static bool has_output_attribute(const bNodeTree *tree)
 {
-  if (!tree) {
+  if (!tree || ID_MISSING(tree)) {
     return false;
   }
   for (const bNodeTreeInterfaceSocket *interface_socket : tree->interface_outputs()) {
@@ -957,11 +957,9 @@ static void draw_named_attributes_panel(ui::Layout &layout, Object &object, Node
   for (auto &&item : usage_by_attribute.items()) {
     sorted_used_attribute.append({item.key, item.value});
   }
-  std::sort(sorted_used_attribute.begin(),
-            sorted_used_attribute.end(),
-            [](const NameWithUsage &a, const NameWithUsage &b) {
-              return BLI_strcasecmp_natural(a.name.c_str(), b.name.c_str()) < 0;
-            });
+  std::ranges::sort(sorted_used_attribute, [](const NameWithUsage &a, const NameWithUsage &b) {
+    return BLI_strcasecmp_natural(a.name.c_str(), b.name.c_str()) < 0;
+  });
 
   for (const NameWithUsage &attribute : sorted_used_attribute) {
     const StringRef attribute_name = attribute.name;
@@ -1068,7 +1066,9 @@ void draw_geometry_nodes_modifier_ui(const bContext &C,
     template_id(&layout, &C, modifier_ptr, "node_group", newop, nullptr, nullptr);
   }
 
-  if (nmd.node_group != nullptr && nmd.settings.properties != nullptr) {
+  if (nmd.node_group != nullptr && !ID_MISSING(nmd.node_group) &&
+      nmd.settings.properties != nullptr)
+  {
     nmd.runtime->usage_cache.ensure(nmd);
     ctx.input_usages = nmd.runtime->usage_cache.inputs;
     ctx.output_usages = nmd.runtime->usage_cache.outputs;

@@ -84,6 +84,8 @@ class ImageSlotTextureNode : public TextureNode {
     return TextureNode::equals(other) && handle == other_node.handle;
   }
 
+  virtual void update_images(const SVMCompiler &compiler) = 0;
+
   ImageHandle handle;
 };
 
@@ -104,6 +106,8 @@ class ImageTextureNode : public ImageSlotTextureNode {
   }
 
   ImageParams image_params() const;
+
+  void update_images(const SVMCompiler &compiler) override;
 
   /* Parameters. */
   NODE_SOCKET_API(ustring, filename)
@@ -138,6 +142,8 @@ class EnvironmentTextureNode : public ImageSlotTextureNode {
   }
 
   ImageParams image_params() const;
+
+  void update_images(const SVMCompiler &compiler) override;
 
   /* Parameters. */
   NODE_SOCKET_API(ustring, filename)
@@ -435,7 +441,6 @@ class ConvertNode : public ShaderNode {
   ustring value_string;
 
   static const int MAX_TYPE = 13;
-  static bool register_types(const NodeType *node_types[MAX_TYPE][MAX_TYPE]);
   static unique_ptr<Node> create(const NodeType *type);
   static const NodeType *(&get_node_types())[MAX_TYPE][MAX_TYPE];
 };
@@ -1680,6 +1685,7 @@ class NormalMapNode : public ShaderNode {
   NODE_SOCKET_API(float, strength)
   NODE_SOCKET_API(float3, color)
   NODE_SOCKET_API(int, convention)
+  NODE_SOCKET_API(int, base)
 };
 
 class RadialTilingNode : public ShaderNode {

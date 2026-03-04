@@ -126,6 +126,8 @@ enum class UpdateType {
   FaceSet,
 };
 
+static constexpr int face_set_none_id = 0;
+
 }  // namespace ed::sculpt_paint
 
 /* Factor of brush to have rake point following behind
@@ -259,7 +261,7 @@ struct StrokeCache {
   SculptRakeData rake_data;
 
   /* The face set being painted. */
-  int paint_face_set = SCULPT_FACE_SET_NONE;
+  int paint_face_set = face_set_none_id;
 
   /**
    * Symmetry index between 0 and 7 bit combo.
@@ -772,7 +774,7 @@ void sculpt_apply_texture(const SculptSession &ss,
                           const float brush_point[3],
                           int thread_id,
                           float *r_value,
-                          float r_rgba[4]);
+                          float4 &r_rgba);
 
 /**
  * Calculates the vertex offset for a single vertex depending on the brush setting rgb as vector

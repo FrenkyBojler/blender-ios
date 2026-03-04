@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'1ece094312b3')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'fd269015ba63')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-02 14:51+0000\n"
+"POT-Creation-Date: 2026-03-02 13:27+0000\n"
 "PO-Revision-Date: 2025-07-23 14:56+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Serbian (Latin script) <https://translate.blender.org/projects/blender-ui/ui/sr_Latn/>\n"
@@ -1983,46 +1983,6 @@ msgstr "Bela tačka"
 
 msgid "Blend Factor"
 msgstr "Faktor preliva"
-
-
-msgid "Blend Type"
-msgstr "Vrsta prelaza"
-
-
-msgid "Mix"
-msgstr "Mešanje"
-
-
-msgid "Darken"
-msgstr "Tamnije"
-
-
-msgid "Lighten"
-msgstr "Svetlije"
-
-
-msgid "Screen"
-msgstr "Ekran"
-
-
-msgid "Overlay"
-msgstr "Preklapanje"
-
-
-msgid "Soft Light"
-msgstr "Meko svetlo"
-
-
-msgid "Linear Light"
-msgstr "Linearno svetlo"
-
-
-msgid "Difference"
-msgstr "Razlika"
-
-
-msgid "Divide"
-msgstr "Podeljeno"
 
 
 msgid "Brightness"
@@ -4096,6 +4056,10 @@ msgid "Give randomness to the modified F-Curve"
 msgstr "Izuzeti okvir iz konačne slike"
 
 
+msgid "Blend Type"
+msgstr "Vrsta prelaza"
+
+
 msgid "Phase"
 msgstr "Faza"
 
@@ -4856,6 +4820,10 @@ msgid "Grease Pencil Layer"
 msgstr "Sloj skice"
 
 
+msgid "Divide"
+msgstr "Podeljeno"
+
+
 msgid "Local Matrix"
 msgstr "Lokalna matrica"
 
@@ -4928,20 +4896,8 @@ msgid "X-Axis Mirror"
 msgstr "Mod izmene "
 
 
-msgid "Exclusion"
-msgstr "Isključenje"
-
-
-msgid "Erase Alpha"
-msgstr "Koristi dodatnu providnost"
-
-
 msgid "Erase alpha while painting"
 msgstr "Bojenjem briši providnost"
-
-
-msgid "Add Alpha"
-msgstr "Dodaj alfu"
 
 
 msgid "Add alpha while painting"
@@ -6260,10 +6216,6 @@ msgstr "Drvo čvorova slaganja"
 
 msgid "Node tree consisting of linked nodes used for compositing"
 msgstr "Drvo čvorova koji čine čvorovi za slaganje"
-
-
-msgid "Use boundaries for viewer nodes and composite backdrop"
-msgstr "Koristi okvir za čvorove prikaza i složenu pozadinu"
 
 
 msgid "Edit"
@@ -8196,6 +8148,14 @@ msgid "Name of the modifier"
 msgstr "Ime modifikatora"
 
 
+msgid "Mix"
+msgstr "Mešanje"
+
+
+msgid "Difference"
+msgstr "Razlika"
+
+
 msgid "Curve used for the curve mapping"
 msgstr "Kriva korišćena za mapiranje krive"
 
@@ -8226,6 +8186,34 @@ msgstr "Maks. ugao"
 
 msgid "Min Angle"
 msgstr "Min. ugao"
+
+
+msgid "Darken"
+msgstr "Tamnije"
+
+
+msgid "Lighten"
+msgstr "Svetlije"
+
+
+msgid "Screen"
+msgstr "Ekran"
+
+
+msgid "Overlay"
+msgstr "Preklapanje"
+
+
+msgid "Soft Light"
+msgstr "Meko svetlo"
+
+
+msgid "Linear Light"
+msgstr "Linearno svetlo"
+
+
+msgid "Exclusion"
+msgstr "Isključenje"
 
 
 msgid "2D Transform"
@@ -8489,10 +8477,6 @@ msgid "Material slot name"
 msgstr "Naziv slota materijala"
 
 
-msgid "Math"
-msgstr "Matematika"
-
-
 msgid "UV"
 msgstr "UV"
 
@@ -8547,6 +8531,10 @@ msgstr "Zbirka tastera"
 
 msgid "Tracking"
 msgstr "Praćenje"
+
+
+msgid "Math"
+msgstr "Matematika"
 
 
 msgid "Light"
@@ -9997,10 +9985,6 @@ msgid "Use global coordinates"
 msgstr "Lokalne koordinate"
 
 
-msgid "Use Channel"
-msgstr "Koristi kanal"
-
-
 msgid "Masking texture"
 msgstr "Tekstura maske"
 
@@ -10891,6 +10875,10 @@ msgstr "Opseg mape"
 
 msgid "Mix Shader"
 msgstr "Mešanje senčenja"
+
+
+msgid "Base"
+msgstr "Osnova"
 
 
 msgid "Space of the input normal"
@@ -14944,10 +14932,6 @@ msgid "Minor Radius"
 msgstr "Sporedni poluprečnik"
 
 
-msgid "Radius of the torus' cross section"
-msgstr "Poluprečnik preseka prstena torusa"
-
-
 msgid "Minor Segments"
 msgstr "Sporedni delovi"
 
@@ -14992,10 +14976,6 @@ msgstr "Otkriva sva sakrivena temena, ivice i stranice"
 msgctxt "Operator"
 msgid "Rip"
 msgstr "Pocepaj"
-
-
-msgid "Disconnect vertex or edges from connected geometry"
-msgstr "Razdvaja temena ili ivice od povezane geometrije"
 
 
 msgid "Fill the ripped region"
@@ -15621,10 +15601,6 @@ msgid "Tree Type"
 msgstr "Vrsta drveta"
 
 
-msgid "Current"
-msgstr "Tekuće"
-
-
 msgctxt "Operator"
 msgid "Toggle Node Options"
 msgstr "Manje/više informacija"
@@ -15957,10 +15933,6 @@ msgstr "Deformacija meša"
 msgctxt "Operator"
 msgid "Add Metaball"
 msgstr "Dodaj meta-loptu"
-
-
-msgid "Add an metaball object to the scene"
-msgstr "Dodaje objekat meta-lopte na scenu"
 
 
 msgctxt "Operator"
@@ -17609,10 +17581,6 @@ msgstr "Čuvaj memoriju zvuka u ostavi."
 msgctxt "Operator"
 msgid "Jump to Strip"
 msgstr "Iseci trake"
-
-
-msgid "Move frame to previous edit point"
-msgstr "Premesti kadar na prethodnu tačku uređenja"
 
 
 msgid "Next Strip"
@@ -20333,10 +20301,6 @@ msgid "Translate Tooltips"
 msgstr "Prevodi opise"
 
 
-msgid "Base"
-msgstr "Osnova"
-
-
 msgid "Case"
 msgstr "Velika/mala slova"
 
@@ -21274,6 +21238,10 @@ msgid "Show reference frame only"
 msgstr "Prikaži samo referentni kadar"
 
 
+msgid "Current"
+msgstr "Tekuće"
+
+
 msgid "Show current frame only"
 msgstr "Prikaži samo tekući kadar"
 
@@ -21563,6 +21531,16 @@ msgstr "Orig. širina"
 
 msgid "Original image width"
 msgstr "Originalna širina slike"
+
+
+msgctxt "Sequence"
+msgid "Color Balance"
+msgstr "Odnos boja"
+
+
+msgctxt "Sequence"
+msgid "Curves"
+msgstr "Krive"
 
 
 msgid "Adaptation"
@@ -22275,10 +22253,6 @@ msgstr "Prikaži Z osu"
 
 msgid "Draw Normals"
 msgstr "Prikaži normale"
-
-
-msgid "Display 3D curve normals in editmode"
-msgstr "Prikaži normale 3D krive u režimu izmene"
 
 
 msgid "Face Angles"
@@ -25365,16 +25339,6 @@ msgstr "Očisti grupu temena"
 
 msgid "All render layers are disabled"
 msgstr "Sva pravila su prosečna"
-
-
-msgctxt "Sequence"
-msgid "Color Balance"
-msgstr "Odnos boja"
-
-
-msgctxt "Sequence"
-msgid "Curves"
-msgstr "Krive"
 
 
 msgid "Strips must be the same length"

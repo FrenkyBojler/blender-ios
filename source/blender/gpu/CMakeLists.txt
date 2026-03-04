@@ -185,8 +185,8 @@ set(SRC
   intern/gpu_shader_private.hh
   intern/gpu_state_private.hh
   intern/gpu_storage_buffer_private.hh
-  intern/gpu_texture_private.hh
   intern/gpu_texture_pool_private.hh
+  intern/gpu_texture_private.hh
   intern/gpu_uniform_buffer_private.hh
   intern/gpu_vertex_format_private.hh
 
@@ -620,6 +620,7 @@ set(GLSL_SRC
   shaders/common/gpu_shader_shared_exponent_lib.glsl
   shaders/common/gpu_shader_smaa_lib.glsl
   shaders/common/gpu_shader_test_lib.glsl
+  shaders/common/gpu_shader_tiled_image_lookup_lib.glsl
   shaders/common/gpu_shader_utildefines_lib.glsl
 
   shaders/material/gpu_shader_material_add_shader.glsl
@@ -887,10 +888,6 @@ target_link_libraries(bf_gpu PUBLIC
   bf_gpu_shaders
   bf_imbuf_opencolorio_shaders
 )
-
-if(WITH_OPENGL_BACKEND AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  target_link_libraries(bf_gpu PUBLIC rt)
-endif()
 
 # If `execinfo.h` exists on a *BSD system then also link in `libexecinfo`.
 # Needed for `backtrace` / `backtrace_symbols` (GNU extensions)

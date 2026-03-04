@@ -1,10 +1,10 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'1ece094312b3')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'fd269015ba63')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-02 14:51+0000\n"
-"PO-Revision-Date: 2025-10-14 21:59+0000\n"
+"POT-Creation-Date: 2026-03-02 13:27+0000\n"
+"PO-Revision-Date: 2026-02-06 22:29+0000\n"
 "Last-Translator: Hoang Duy Tran <hoangduytran1960@googlemail.com>\n"
 "Language-Team: Vietnamese <https://translate.blender.org/projects/blender-ui/ui/vi/>\n"
 "Language: vi\n"
@@ -12,7 +12,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
-"X-Generator: Weblate 5.12.1"
+"X-Generator: Weblate 5.14.3"
 
 
 msgid "Shader AOV"
@@ -4804,7 +4804,7 @@ msgstr "Hiển thị xương như các đường 2D đơn giản với các dấ
 
 
 msgid "B-Bone"
-msgstr "B-Bone (Bendy Bones: Xương-dẻo)"
+msgstr "Xương-dẻo"
 
 
 msgid "Display bones as boxes, showing subdivision and B-Splines"
@@ -7835,48 +7835,78 @@ msgid "Blend Factor"
 msgstr "Hệ Số Pha Trộn"
 
 
-msgid "Blend Type"
-msgstr "Kiểu Pha Trộn"
-
-
 msgid "Mode used to mix with texture output color"
 msgstr "Chế độ sử dụng để hòa trộn với màu xuất chất liệu"
 
 
-msgid "Mix"
-msgstr "Hòa Trộn"
-
-
+msgctxt "Color"
 msgid "Darken"
 msgstr "Làm Tối"
 
 
+msgctxt "Color"
+msgid "Multiply"
+msgstr "Nhân"
+
+
+msgctxt "Color"
 msgid "Lighten"
 msgstr "Làm Sáng"
 
 
+msgctxt "Color"
 msgid "Screen"
 msgstr "Màn Hình"
 
 
+msgctxt "Color"
+msgid "Add"
+msgstr "Cộng"
+
+
+msgctxt "Color"
 msgid "Overlay"
 msgstr "Vẽ Lồng"
 
 
+msgctxt "Color"
 msgid "Soft Light"
 msgstr "Ánh Sáng Mềm Mại"
 
 
+msgctxt "Color"
 msgid "Linear Light"
 msgstr "Ánh Sáng Tuyến Tính"
 
 
+msgctxt "Color"
 msgid "Difference"
 msgstr "Hiệu"
 
 
-msgid "Divide"
-msgstr "Chia"
+msgctxt "Color"
+msgid "Subtract"
+msgstr "Khấu Trừ"
+
+
+msgctxt "Color"
+msgid "Hue"
+msgstr "Sắc Màu"
+
+
+msgctxt "Color"
+msgid "Saturation"
+msgstr "Độ Bão Hòa"
+
+
+msgctxt "Color"
+msgid "Color"
+msgstr "Màu"
+
+
+msgctxt "Color"
+msgid "Value"
+msgstr "Giá Trị"
 
 
 msgid "Brightness"
@@ -13672,6 +13702,10 @@ msgid "Give randomness to the modified F-Curve"
 msgstr "Gây cho Đường Cong-F bị thay đổi một cách ngẫu nhiên"
 
 
+msgid "Blend Type"
+msgstr "Kiểu Pha Trộn"
+
+
 msgid "Method of modifying the existing F-Curve"
 msgstr "Phương pháp sửa đổi Đường Cong-F hiện có"
 
@@ -17934,6 +17968,10 @@ msgid "Hard Light"
 msgstr "Ánh Sáng Mạnh"
 
 
+msgid "Divide"
+msgstr "Chia"
+
+
 msgid "Grease Pencil frames"
 msgstr "Các khung hình Bút Chì Dầu"
 
@@ -18706,6 +18744,7 @@ msgid "View Normal Limit"
 msgstr "Giới Hạn Pháp Tuyến Góc Nhìn"
 
 
+msgctxt "Color"
 msgid "Blending Mode"
 msgstr "Chế độ pha trộn"
 
@@ -18726,6 +18765,7 @@ msgid "Use Multiply blending mode while painting"
 msgstr "Dùng chế độ pha trộn nhân gấp lên (Multiply) trong khi sơn"
 
 
+msgctxt "Color"
 msgid "Color Burn"
 msgstr "Đốt Cháy Màu"
 
@@ -18734,6 +18774,7 @@ msgid "Use Color Burn blending mode while painting"
 msgstr "Dùng chế độ pha trộn Đốt Cháy Màu (Color Burn) trong khi sơn"
 
 
+msgctxt "Color"
 msgid "Linear Burn"
 msgstr "Đốt Cháy Tuyến Tính"
 
@@ -18750,6 +18791,7 @@ msgid "Use Screen blending mode while painting"
 msgstr "Dùng chế độ pha trộn Màn Hình (Screen) trong khi sơn"
 
 
+msgctxt "Color"
 msgid "Color Dodge"
 msgstr "Tránh Né Màu"
 
@@ -18770,10 +18812,16 @@ msgid "Use Soft Light blending mode while painting"
 msgstr "Sử dụng chế độ pha trộn Ánh Sáng Mềm Mại (Soft Light) trong khi sơn"
 
 
+msgctxt "Color"
+msgid "Hard Light"
+msgstr "Ánh Sáng Mạnh"
+
+
 msgid "Use Hard Light blending mode while painting"
 msgstr "Dùng chế độ pha trộn Ánh Sáng Đường Đột/Cứng/Mạnh (Hard Light) trong khi sơn"
 
 
+msgctxt "Color"
 msgid "Vivid Light"
 msgstr "Ánh Sáng Rực Rỡ"
 
@@ -18786,6 +18834,7 @@ msgid "Use Linear Light blending mode while painting"
 msgstr "Sử dụng chế độ pha trộn Ánh Sáng Tiếp Tuyến (Linear Light) trong khi sơn"
 
 
+msgctxt "Color"
 msgid "Pin Light"
 msgstr "Ánh Sáng Hội Tụ"
 
@@ -18798,6 +18847,7 @@ msgid "Use Difference blending mode while painting"
 msgstr "Dùng chế độ pha trộn Hiệu Số (Difference) trong khi sơn"
 
 
+msgctxt "Color"
 msgid "Exclusion"
 msgstr "Loại Trừ"
 
@@ -18826,16 +18876,8 @@ msgid "Use Value blending mode while painting"
 msgstr "Sử dụng chế độ pha trộn Giá Trị (Value) trong khi sơn"
 
 
-msgid "Erase Alpha"
-msgstr "Xóa Alpha"
-
-
 msgid "Erase alpha while painting"
 msgstr "Xóa alpha trong khi sơn"
-
-
-msgid "Add Alpha"
-msgstr "Thêm Alpha"
 
 
 msgid "Add alpha while painting"
@@ -25207,10 +25249,6 @@ msgstr "Cây nút bao gồm các nút đã kết nối, dùng cho quá trình t�
 
 msgid "Viewer Region"
 msgstr "Quan Sát Khu Vực"
-
-
-msgid "Use boundaries for viewer nodes and composite backdrop"
-msgstr "Khoanh ranh giới khu vực cho các nút quan sát và làm phông nền cho quá trình tổng hợp"
 
 
 msgid "Geometry Node Tree"
@@ -32873,6 +32911,14 @@ msgid "Specify how the modifier value is blended into the base value"
 msgstr "Xác định phương pháp pha trộn giá trị của bộ điều chỉnh với giá trị cơ sở"
 
 
+msgid "Mix"
+msgstr "Hòa Trộn"
+
+
+msgid "Difference"
+msgstr "Hiệu"
+
+
 msgid "Curve used for the curve mapping"
 msgstr "Đường cong dùng để ánh xạ đường cong"
 
@@ -33079,6 +33125,42 @@ msgstr "Loại cơ sở để xác định bộ điều chỉnh màu nét"
 
 msgid "Change line color along stroke"
 msgstr "Đổi màu dọc theo nét vẽ"
+
+
+msgid "Darken"
+msgstr "Làm Tối"
+
+
+msgid "Color Burn"
+msgstr "Đốt Cháy Màu"
+
+
+msgid "Lighten"
+msgstr "Làm Sáng"
+
+
+msgid "Screen"
+msgstr "Màn Hình"
+
+
+msgid "Color Dodge"
+msgstr "Tránh Né Màu"
+
+
+msgid "Overlay"
+msgstr "Vẽ Lồng"
+
+
+msgid "Soft Light"
+msgstr "Ánh Sáng Mềm Mại"
+
+
+msgid "Linear Light"
+msgstr "Ánh Sáng Tuyến Tính"
+
+
+msgid "Exclusion"
+msgstr "Loại Trừ"
 
 
 msgid "Color ramp used to change line color"
@@ -34253,10 +34335,6 @@ msgid "Editor menu containing buttons"
 msgstr "Trình đơn của trình biên soạn có chứa các nút"
 
 
-msgid "Math"
-msgstr "Toán"
-
-
 msgid "UV"
 msgstr "UV"
 
@@ -34265,12 +34343,12 @@ msgid "Metaball"
 msgstr "Siêu Cầu"
 
 
-msgid "Show/Hide"
-msgstr "Hiện/Ẩn Giấu"
-
-
 msgid "Read"
 msgstr "Đọc"
+
+
+msgid "Show/Hide"
+msgstr "Hiện/Ẩn Giấu"
 
 
 msgid "Write"
@@ -34281,12 +34359,12 @@ msgid "Sample"
 msgstr "Lấy Mẫu Vật"
 
 
-msgid "Names"
-msgstr "Tên"
-
-
 msgid "Primitives"
 msgstr "Hình Cơ Bản"
+
+
+msgid "Names"
+msgstr "Tên"
 
 
 msgid "Bone Roll"
@@ -34377,12 +34455,12 @@ msgid "Select Linked"
 msgstr "Chọn cái Kết Nối"
 
 
-msgid "Select Loops"
-msgstr "Chọn Vòng Mạch"
-
-
 msgid "Render Preview"
 msgstr "Góc Nhìn Kết Xuất"
+
+
+msgid "Select Loops"
+msgstr "Chọn Vòng Mạch"
 
 
 msgid "Adjust"
@@ -34403,6 +34481,10 @@ msgstr "Giám Sát"
 
 msgid "Utilities"
 msgstr "Thường Trình"
+
+
+msgid "Math"
+msgstr "Toán"
 
 
 msgid "Creative"
@@ -34509,12 +34591,12 @@ msgid "Mesh Select Mode"
 msgstr "Chế Độ Chọn Khung Lưới"
 
 
-msgid "Face Data"
-msgstr "Dữ Liệu Mặt"
-
-
 msgid "Gizmo"
 msgstr "Dụng Cụ"
+
+
+msgid "Face Data"
+msgstr "Dữ Liệu Mặt"
 
 
 msgid "Instances"
@@ -34545,12 +34627,12 @@ msgid "Special Characters"
 msgstr "Các Ký Tự Đặc Biệt"
 
 
-msgid "Kerning"
-msgstr "Tinh Chỉnh Khoảng Cách Ký Tự"
-
-
 msgid "List"
 msgstr "Nâng"
+
+
+msgid "Kerning"
+msgstr "Tinh Chỉnh Khoảng Cách Ký Tự"
 
 
 msgid "Keyframe Insert Pie"
@@ -34780,13 +34862,13 @@ msgid "Track"
 msgstr "Dãnh"
 
 
-msgid "Node"
-msgstr "Nút"
-
-
 msgctxt "NodeTree"
 msgid "Constant"
 msgstr "Hằng Số"
+
+
+msgid "Node"
+msgstr "Nút"
 
 
 msgid "Node Color Specials"
@@ -41823,10 +41905,6 @@ msgstr "Dùng tọa độ sinh tạo địa phương của một đối tượng
 
 msgid "Use coordinates from a UV layer"
 msgstr "Sử dụng tọa độ từ một tầng lớp UV"
-
-
-msgid "Use Channel"
-msgstr "Dùng Kênh"
 
 
 msgid "Which texture channel to use for masking"
@@ -49045,6 +49123,10 @@ msgid "Mix values by a factor"
 msgstr "Hòa trộn các giá trị với nhau theo hệ số"
 
 
+msgid "Blending Mode"
+msgstr "Chế độ pha trộn"
+
+
 msgid "Clamp Factor"
 msgstr "Hạn Định Hệ Số"
 
@@ -49107,6 +49189,14 @@ msgstr "Sinh tạo một vectơ pháp tuyến và một tích vô hướng"
 
 msgid "Generate a perturbed normal from an RGB normal map image. Typically used for faking highly detailed surfaces"
 msgstr "Sinh tạo pháp tuyến nhiễu loạn từ hình ảnh ánh xạ pháp tuyến RGB. Thường được sử dụng để làm giả các bề mặt có độ chi tiết cao"
+
+
+msgid "Base"
+msgstr "Cơ Sở"
+
+
+msgid "OpenGL"
+msgstr "OpenCL"
 
 
 msgid "Space of the input normal"
@@ -54768,10 +54858,6 @@ msgid "Select keyframe points using lasso selection"
 msgstr "Chọn các điểm khung khóa dùng lựa chọn dây thòng lọng"
 
 
-msgid "Higher values gives a smoother stroke"
-msgstr "Các giá trị cao sẽ làm cho nét vẽ càng trơn tru hơn"
-
-
 msgid "Minimum distance from last point before selection continues"
 msgstr "Khoảng cách tối thiểu từ điểm cuối cùng trước khi lựa chọn tiếp tục"
 
@@ -56874,10 +56960,6 @@ msgid "Move layer in the list, layers further down the list will overwrite data 
 msgstr "Di chuyển tầng lớp trong danh sách, các dữ liệu của các tầng lớp nằm dưới trong danh sách sẽ được sử dụng để viết đè lên dữ liệu từ các lớp cao hơn ở trên"
 
 
-msgid "Direction to move the active vertex group towards"
-msgstr "Phương hướng để di chuyển cho nhóm điểm đỉnh đang hoạt động tới"
-
-
 msgid "Remove an override layer from the archive"
 msgstr "Xóa một tầng lớp vượt quyền khỏi kho lưu trữ"
 
@@ -57583,14 +57665,6 @@ msgstr "Đặt chiều hướng trục của cảnh bằng cách xoay máy quay 
 
 msgid "Axis to use to align bundle along"
 msgstr "Trục sử dụng để căn chỉnh bộ điểm theo"
-
-
-msgid "Align bundle align X axis"
-msgstr "Căn chỉnh bộ điểm theo trục X"
-
-
-msgid "Align bundle align Y axis"
-msgstr "Căn chỉnh bộ điểm theo trục Y"
 
 
 msgctxt "Operator"
@@ -58521,10 +58595,6 @@ msgid "Toggle Cyclic"
 msgstr "Bật/Tắt Tuần Hoàn"
 
 
-msgid "Make active curve closed/opened loop"
-msgstr "Làm cho đường cong đang hoạt động trở thành vòng tròn khép kín/mở"
-
-
 msgid "Remove selected control points or curves"
 msgstr "Xóa các điểm điều khiển hoặc các đường cong đã chọn"
 
@@ -58740,10 +58810,6 @@ msgid "Select Random"
 msgstr "Chọn Ngẫu Nhiên"
 
 
-msgid "Randomizes existing selection or create new random selection"
-msgstr "Ngẫu nhiên hóa lựa chọn hiện có hoặc kiến tạo lựa chọn ngẫu nhiên mới"
-
-
 msgid "Probability"
 msgstr "Xác Suất"
 
@@ -58827,10 +58893,6 @@ msgstr "Xóa Xoay Nghiêng"
 
 msgid "Clear the tilt of selected control points"
 msgstr "Xóa sự xoay nghiêng của các điểm điều khiển lựa chọn"
-
-
-msgid "Make active spline closed/opened loop"
-msgstr "Làm cho chốt trục đang hoạt động trở thành vòng kín/mở"
 
 
 msgid "Direction to make surface cyclic in"
@@ -59532,10 +59594,6 @@ msgstr "Bãi bỏ hành động trước đây"
 msgctxt "Operator"
 msgid "Undo History"
 msgstr "Lịch Sử Hoàn Tác"
-
-
-msgid "Redo specific action in history"
-msgstr "Tái thực hiện hành động nhất định nào đó trong lịch sử"
 
 
 msgid "Item"
@@ -64798,10 +64856,6 @@ msgid "Vertex Paint Set Color"
 msgstr "Đặt Màu cho Sơn Điểm Đỉnh"
 
 
-msgid "Set active color to all selected vertex"
-msgstr "Đặt màu đang hoạt động cho toàn bộ các điểm đỉnh được chọn"
-
-
 msgctxt "Operator"
 msgid "Normalize Vertex Group"
 msgstr "Bình Thường Hóa Nhóm Điểm Đỉnh"
@@ -65298,10 +65352,6 @@ msgid "Match Movie Length"
 msgstr "Khớp với Độ Dài của Đoạn Phim"
 
 
-msgid "Set image's user's length to the one of this video"
-msgstr "Đặt độ dài hình ảnh của người dùng bằng độ dài của phim video này"
-
-
 msgctxt "Operator"
 msgid "New Image"
 msgstr "Hình Ảnh Mới"
@@ -65660,10 +65710,6 @@ msgstr "Hiển thị toàn bộ hình ảnh"
 msgctxt "Operator"
 msgid "Cursor To Center View"
 msgstr "Con Trỏ về Trung Tâm của Góc Nhìn"
-
-
-msgid "Set 2D Cursor To Center View location"
-msgstr "Đặt Con Trỏ 2D về vị trí Trung Tâm của Góc Nhìn"
 
 
 msgctxt "Operator"
@@ -66128,10 +66174,6 @@ msgid "Select mirrored lattice points"
 msgstr "Chọn các điểm lưới rào phản chiếu đối xứng"
 
 
-msgid "Select vertex directly linked to already selected ones"
-msgstr "Chọn điểm đỉnh kết nối trực tiếp với những cái đã được chọn"
-
-
 msgid "Randomly select UVW control points"
 msgstr "Chọn các điểm điều khiển UVW một cách ngẫu nhiên"
 
@@ -66431,14 +66473,6 @@ msgstr "Dán chốt trục từ bảng nhớ tạm nội bộ vào"
 
 msgid "Add new circle-shaped spline"
 msgstr "Thêm hình tròn bằng chốt trục mới"
-
-
-msgid "Location of new circle"
-msgstr "Vị trí của vòng tròn mới"
-
-
-msgid "Size of new circle"
-msgstr "Kích thước của vòng tròn mới"
 
 
 msgctxt "Operator"
@@ -67745,10 +67779,6 @@ msgid "Only cut the front most geometry"
 msgstr "Chỉ cắt hình học nằm ở phía trước nhất mà thôi"
 
 
-msgid "Measurements"
-msgstr "Đo Lường"
-
-
 msgid "Visible distance and angle measurements"
 msgstr "Các đo lường về khoảng cách và góc độ sẽ được biểu hiện"
 
@@ -67763,6 +67793,11 @@ msgstr "Hiển thị cả hai, khoảng cách và góc độ"
 
 msgid "Show just distance measurements"
 msgstr "Chỉ hiển thị các đo lường về khoảng cách mà thôi"
+
+
+msgctxt "Mesh"
+msgid "Angle"
+msgstr "Góc Độ"
 
 
 msgid "Show just angle measurements"
@@ -68391,10 +68426,6 @@ msgid "Minor Radius"
 msgstr "Bán Kính Phụ"
 
 
-msgid "Radius of the torus' cross section"
-msgstr "Bán kính mặt cắt của hình xuyến"
-
-
 msgid "Minor Segments"
 msgstr "Số Phân Đoạn Phụ"
 
@@ -68473,10 +68504,6 @@ msgstr "Hiện toàn bộ các điểm đỉnh, các cạnh, và các mặt bị
 msgctxt "Operator"
 msgid "Rip"
 msgstr "Phân Xé"
-
-
-msgid "Disconnect vertex or edges from connected geometry"
-msgstr "Tách của các điểm đỉnh hoặc các cạnh khỏi hình học được kết nối với nhau"
 
 
 msgctxt "Mesh"
@@ -69004,10 +69031,6 @@ msgid "Select Shortest Path"
 msgstr "Chọn Đường Ngắn Nhất"
 
 
-msgid "Selected shortest path between two vertices/edges/faces"
-msgstr "Đường ngắn nhất được chọn giữa hai điểm đỉnh/cạnh/các mặt"
-
-
 msgctxt "Operator"
 msgid "Smooth Normals Vectors"
 msgstr "Làm Mịn Véctơ Pháp Tuyến"
@@ -69308,10 +69331,6 @@ msgstr "Kết nối các điểm đỉnh của những mặt được chọn, ph
 msgctxt "Operator"
 msgid "Split Concave Faces"
 msgstr "Phân Chia các Mặt Lõm"
-
-
-msgid "Make all faces convex"
-msgstr "Làm cho toàn bộ các mặt lồi ra"
 
 
 msgctxt "Operator"
@@ -69704,10 +69723,6 @@ msgstr "Bật/Tắt Hoạt Tính"
 
 msgid "Mute or un-mute selected strips"
 msgstr "Giải hoạt/chặn hoặc kích hoạt các dải được chọn"
-
-
-msgid "Set Preview Range based on extends of selected strips"
-msgstr "Đặt Phạm Vi Xem Trước dựa trên diện tích của các dải đã chọn"
 
 
 msgid "Select or deselect all NLA-Strips"
@@ -70696,20 +70711,12 @@ msgid "Linear Light Mode"
 msgstr "Chế Độ Ánh Sáng Tuyến Tính"
 
 
-msgid "Current"
-msgstr "Hiện Tại"
-
-
 msgid "Leave at current state"
 msgstr "Để nguyên ở trạng thái hiện tại"
 
 
 msgid "Next blend type/operation"
 msgstr "Kiểu/thao tác pha trộn tiếp theo"
-
-
-msgid "Prev"
-msgstr "Trước"
 
 
 msgid "Previous blend type/operation"
@@ -71310,10 +71317,6 @@ msgstr "Đổi cỡ khung nhìn để bạn có thể nhìn thấy được toà
 msgctxt "Operator"
 msgid "Viewer Region"
 msgstr "Định Khu Vực Quan Sát"
-
-
-msgid "Set the boundaries for viewer operations"
-msgstr "Đặt ranh giới cho các thao tác quan sát"
 
 
 msgid "Viewer Index"
@@ -72868,10 +72871,6 @@ msgstr "Kết buộc khung lưới với khung lồng trong bộ điều chỉnh
 msgctxt "Operator"
 msgid "Add Metaball"
 msgstr "Thêm Siêu Cầu"
-
-
-msgid "Add an metaball object to the scene"
-msgstr "Thêm một Siêu Cầu vào cảnh"
 
 
 msgid "Primitive"
@@ -74649,6 +74648,10 @@ msgid "Move the active vertex group up/down in the list"
 msgstr "Di chuyển nhóm điểm đỉnh lên/xuống trong danh sách"
 
 
+msgid "Direction to move the active vertex group towards"
+msgstr "Phương hướng để di chuyển cho nhóm điểm đỉnh đang hoạt động tới"
+
+
 msgid "Normalize weights of the active vertex group, so that the highest ones are now 1.0"
 msgstr "Bình thường hóa trọng lượng của nhóm điểm đỉnh đang hoạt động, hầu cho các giá trị lớn nhất hiện tại là 1.0"
 
@@ -75376,10 +75379,6 @@ msgstr "Kéo và thả phần tử sang một chỗ khác"
 msgctxt "Operator"
 msgid "Open/Close"
 msgstr "Mở/Đóng"
-
-
-msgid "Toggle whether item under cursor is enabled or closed"
-msgstr "Lật đảo trạng thái của phần tử nằm dưới con trỏ là hoạt động hay đóng lại"
 
 
 msgid "Close or open all items"
@@ -76767,10 +76766,6 @@ msgid "Remove Doubles"
 msgstr "Xóa Điểm Đỉnh Kép"
 
 
-msgid "Remove selected particles close enough of others"
-msgstr "Xóa các hạt đã chọn nằm gần vừa đủ với các cái khác"
-
-
 msgid "Threshold distance within which particles are removed"
 msgstr "Những hạt nào nằm trong khoảng cách này sẽ bị xóa đi"
 
@@ -76902,10 +76897,6 @@ msgstr "Xóa các điểm đã chọn"
 
 msgid "Copy selected points"
 msgstr "Sao chép các điểm đã chọn"
-
-
-msgid "(De)select all point cloud"
-msgstr "(Bỏ) chọn toàn bộ đám mây điểm"
 
 
 msgid "Chance of every point being included in the selection"
@@ -77533,10 +77524,6 @@ msgid "Select Connected"
 msgstr "Chọn cái có Kết Nối"
 
 
-msgid "Select bones linked by parent/child connections under the mouse cursor"
-msgstr "Chọn các xương kết nối bởi sự liên kết giữa phụ huynh và con cái nằm dưới con trỏ chuột"
-
-
 msgctxt "Operator"
 msgid "Select Parent Bone"
 msgstr "Chọn Xương Phụ Huynh"
@@ -78048,10 +78035,6 @@ msgstr "Tròn"
 msgctxt "Operator"
 msgid "Cancel Render View"
 msgstr "Hủy Cảnh Kết Xuất"
-
-
-msgid "Cancel show render view"
-msgstr "Hủy (không) hiển thị cảnh kết xuất"
 
 
 msgctxt "Operator"
@@ -79190,6 +79173,10 @@ msgstr "Chọn các đường cong nằm gần với các đường cong đã đ
 
 msgid "By how much to grow the selection"
 msgstr "Phát triển vùng lựa chọn ra bao nhiêu"
+
+
+msgid "Randomizes existing selection or create new random selection"
+msgstr "Ngẫu nhiên hóa lựa chọn hiện có hoặc kiến tạo lựa chọn ngẫu nhiên mới"
 
 
 msgid "Constant per Curve"
@@ -81333,10 +81320,6 @@ msgid "Jump to Strip"
 msgstr "Nhảy đến Dải"
 
 
-msgid "Move frame to previous edit point"
-msgstr "Di chuyển khung hình đến điểm biên soạn trước"
-
-
 msgid "Use Strip Center"
 msgstr "Dùng Trung Tâm của Dải"
 
@@ -81541,11 +81524,6 @@ msgid "Set cursor position in text"
 msgstr "Đặt vị trí con trỏ"
 
 
-msgctxt "Operator"
-msgid "Delete Character"
-msgstr "Ký Tự Tiếp Theo"
-
-
 msgid "Delete text at cursor position"
 msgstr "Xóa văn bản theo vị trí của con trỏ"
 
@@ -81574,11 +81552,6 @@ msgstr "Biên Soạn Cây"
 
 msgid "Toggle text editing"
 msgstr "Bật/Tắt Kiểm Thử Chiều Sâu"
-
-
-msgctxt "Operator"
-msgid "Insert Character"
-msgstr "Chèn Ký Tự Unicode"
 
 
 msgid "String to be inserted at cursor position"
@@ -81908,17 +81881,9 @@ msgid "Add Surface Circle"
 msgstr "Thêm Vòng Tròn Bề Mặt"
 
 
-msgid "Construct a Nurbs surface Circle"
-msgstr "Kiến tạo một Vòng Tròn Bề Mặt Nurbs (Non-uniform rational basis spline)"
-
-
 msgctxt "Operator"
 msgid "Add Surface Curve"
 msgstr "Thêm Đường Cong Bề Mặt"
-
-
-msgid "Construct a Nurbs surface Curve"
-msgstr "Kiến tạo một Đường Cong Bề Mặt Nurbs (Non-uniform rational basis spline)"
 
 
 msgctxt "Operator"
@@ -81926,17 +81891,9 @@ msgid "Add Surface Cylinder"
 msgstr "Thêm Hình Trụ Bề Mặt"
 
 
-msgid "Construct a Nurbs surface Cylinder"
-msgstr "Kiến tạo một Hình Trụ Bề Mặt Nurbs (Non-uniform rational basis spline)"
-
-
 msgctxt "Operator"
 msgid "Add Surface Sphere"
 msgstr "Thêm Hình Cầu Bề Mặt"
-
-
-msgid "Construct a Nurbs surface Sphere"
-msgstr "Kiến tạo một Hình Cầu Bề Mặt Nurbs (Non-uniform rational basis spline)"
 
 
 msgctxt "Operator"
@@ -81944,17 +81901,9 @@ msgid "Add Surface Patch"
 msgstr "Thêm Miếng Bề Mặt"
 
 
-msgid "Construct a Nurbs surface Patch"
-msgstr "Kiến tạo một miếng Bề Mặt Nurbs (Non-uniform rational basis spline)"
-
-
 msgctxt "Operator"
 msgid "Add Surface Torus"
 msgstr "Thêm Hình Xuyến Bề Mặt"
-
-
-msgid "Construct a Nurbs surface Torus"
-msgstr "Kiến tạo một Hình Xuyến với Bề Mặt Nurbs (Non-uniform rational basis spline)"
 
 
 msgctxt "Operator"
@@ -81987,10 +81936,6 @@ msgstr "Di chuyển khe chất liệu lên và xuống"
 msgctxt "Operator"
 msgid "Paste Texture Slot Settings"
 msgstr "Dán Sắp Đặt của Khe Chất Liệu"
-
-
-msgid "Copy the texture settings and nodes"
-msgstr "Sao chép các sắp đặt và các nút về chất liệu"
 
 
 msgctxt "Operator"
@@ -82833,14 +82778,6 @@ msgid "Amount to warp about the cursor"
 msgstr "Lượng uốn oằn quanh con trỏ"
 
 
-msgid "UP"
-msgstr "LÊN"
-
-
-msgid "DOWN"
-msgstr "XUỐNG"
-
-
 msgctxt "Operator"
 msgid "Assign Value as Default"
 msgstr "Ấn Định Giá Trị làm Mặc Định"
@@ -83225,6 +83162,14 @@ msgstr "Hoàn lại giá trị của tính chất này về giá trị mặc đ�
 
 msgid "Add an entry to the list"
 msgstr "Thêm một mục vào danh sách"
+
+
+msgid "UP"
+msgstr "LÊN"
+
+
+msgid "DOWN"
+msgstr "XUỐNG"
 
 
 msgctxt "Operator"
@@ -93484,10 +93429,6 @@ msgid "GPU backend to use (requires restarting Blender for changes to take effec
 msgstr "GPU phụ trợ nền sẽ sử dụng (đòi hỏi phải khởi động lại Blender để các thay đổi có hiệu lực)"
 
 
-msgid "OpenGL"
-msgstr "OpenCL"
-
-
 msgid "Use OpenGL backend"
 msgstr "Sử dụng nền phụ trợ OpenGL"
 
@@ -93974,10 +93915,6 @@ msgstr "Tiếng Ả Rập (ﺔﻴﺑﺮﻌﻟﺍ)"
 
 msgid "Basque - Euskara"
 msgstr "Tiếng Euskara (Euskara)"
-
-
-msgid "Belarusian - беларуску"
-msgstr "Tiếng Belarus (беларуску)"
 
 
 msgid "Bulgarian - Български"
@@ -94810,10 +94747,6 @@ msgstr "Bỏ Qua Lưu"
 
 msgid "True when the property uses ghost values"
 msgstr "Đúng (True) khi tính chất sử dụng giá trị ma (đang đổi sang RNA_property_is_set_or_remembered #125242)"
-
-
-msgid "Base"
-msgstr "Cơ Sở"
 
 
 msgid "Struct definition used for properties assigned to this item"
@@ -103156,6 +103089,10 @@ msgid "Show reference frame only"
 msgstr "Chỉ hiển thị khung hình tham khảo mà thôi"
 
 
+msgid "Current"
+msgstr "Hiện Tại"
+
+
 msgid "Show current frame only"
 msgstr "Chỉ hiển thị khung hình hiện tại mà thôi"
 
@@ -104033,11 +103970,6 @@ msgid "Type of stretch to display"
 msgstr "Thể loại kéo giãn để hiển thị"
 
 
-msgctxt "Mesh"
-msgid "Angle"
-msgstr "Góc Độ"
-
-
 msgid "Angular distortion between UV and 3D angles"
 msgstr "Biến dạng của góc giữa UV và các góc 3D"
 
@@ -104518,118 +104450,8 @@ msgid "Percentage of how much the strip's colors affect other strips"
 msgstr "Lượng phần trăm mà màu của dải ảnh hưởng đến các dải khác"
 
 
-msgctxt "Color"
-msgid "Blending Mode"
-msgstr "Chế độ pha trộn"
-
-
 msgid "Method for controlling how the strip combines with other strips"
 msgstr "Phương pháp điều chế sự pha trộn của các dải phim"
-
-
-msgctxt "Color"
-msgid "Darken"
-msgstr "Làm Tối"
-
-
-msgctxt "Color"
-msgid "Multiply"
-msgstr "Nhân"
-
-
-msgctxt "Color"
-msgid "Color Burn"
-msgstr "Đốt Cháy Màu"
-
-
-msgctxt "Color"
-msgid "Linear Burn"
-msgstr "Đốt Cháy Tuyến Tính"
-
-
-msgctxt "Color"
-msgid "Lighten"
-msgstr "Làm Sáng"
-
-
-msgctxt "Color"
-msgid "Screen"
-msgstr "Màn Hình"
-
-
-msgctxt "Color"
-msgid "Color Dodge"
-msgstr "Tránh Né Màu"
-
-
-msgctxt "Color"
-msgid "Add"
-msgstr "Cộng"
-
-
-msgctxt "Color"
-msgid "Overlay"
-msgstr "Vẽ Lồng"
-
-
-msgctxt "Color"
-msgid "Soft Light"
-msgstr "Ánh Sáng Mềm Mại"
-
-
-msgctxt "Color"
-msgid "Hard Light"
-msgstr "Ánh Sáng Mạnh"
-
-
-msgctxt "Color"
-msgid "Vivid Light"
-msgstr "Ánh Sáng Rực Rỡ"
-
-
-msgctxt "Color"
-msgid "Linear Light"
-msgstr "Ánh Sáng Tuyến Tính"
-
-
-msgctxt "Color"
-msgid "Pin Light"
-msgstr "Ánh Sáng Hội Tụ"
-
-
-msgctxt "Color"
-msgid "Difference"
-msgstr "Hiệu"
-
-
-msgctxt "Color"
-msgid "Exclusion"
-msgstr "Loại Trừ"
-
-
-msgctxt "Color"
-msgid "Subtract"
-msgstr "Khấu Trừ"
-
-
-msgctxt "Color"
-msgid "Hue"
-msgstr "Sắc Màu"
-
-
-msgctxt "Color"
-msgid "Saturation"
-msgstr "Độ Bão Hòa"
-
-
-msgctxt "Color"
-msgid "Color"
-msgstr "Màu"
-
-
-msgctxt "Color"
-msgid "Value"
-msgstr "Giá Trị"
 
 
 msgid "Strip Color"
@@ -105614,12 +105436,34 @@ msgid "Mute expanded settings for the modifier"
 msgstr "Chặn/Tắt sắp đặt mở rộng cho bộ điều chỉnh"
 
 
-msgid "Tone Map"
-msgstr "Ánh Xạ Sắc Thái"
+msgctxt "Sequence"
+msgid "Brightness/Contrast"
+msgstr "Độ Sáng/Độ Tương Phản"
 
 
-msgid "Sound Equalizer"
-msgstr "Bộ Cân Bằng Âm Thanh"
+msgctxt "Sequence"
+msgid "Color Balance"
+msgstr "Cân Bằng Màu"
+
+
+msgctxt "Sequence"
+msgid "Compositor"
+msgstr "Trình Tổng Hợp"
+
+
+msgctxt "Sequence"
+msgid "Curves"
+msgstr "Đường Cong"
+
+
+msgctxt "Sequence"
+msgid "Hue Correct"
+msgstr "Chỉnh Sắc Màu"
+
+
+msgctxt "Sequence"
+msgid "White Balance"
+msgstr "Cân Bằng Trắng"
 
 
 msgid "Bright/contrast modifier data for sequence strip"
@@ -109529,10 +109373,6 @@ msgid "Display Handles"
 msgstr "Hiển Thị các Tay Cầm"
 
 
-msgid "Limit the display of curve handles in edit mode"
-msgstr "Giới hạn sự hiển thị các tay cầm của đường cong trong chế độ biên soạn"
-
-
 msgid "Strength of the fade effect"
 msgstr "Cường độ của hiệu ứng nhòe mờ dần"
 
@@ -109699,10 +109539,6 @@ msgstr "Hiển Thị Vẽ Lồng của Con Trỏ 3D"
 
 msgid "Draw Normals"
 msgstr "Vẽ Pháp Tuyến"
-
-
-msgid "Display 3D curve normals in editmode"
-msgstr "Hiển thị pháp tuyến của đường cong 3D trong Chế Độ Biên Soạn"
 
 
 msgid "Display Bevel Weights"
@@ -115349,6 +115185,10 @@ msgstr "Tập lệnh tô bóng bên ngoài phải có đuôi .osl hay .oso, ho�
 
 msgid "Cannot read OSO bytecode to store in node at {!r}"
 msgstr "Không thể đọc mã byte OSO (định dạng Open Shading Compiled Object: Open Shading Compiled Object: Đối Tượng Tô Bóng Mở Biên Dịch) để lưu trong nút tại %r"
+
+
+msgid "Classic"
+msgstr "Kinh-Điển"
 
 
 msgid "Use Intel OpenImageDenoise AI denoiser"
@@ -121857,11 +121697,6 @@ msgstr "Sao Chép sang các Dải được Chọn"
 
 
 msgctxt "Operator"
-msgid "Toggle Retiming Keys"
-msgstr "Bật/Tắt các Khóa Tính Lại Thời Gian"
-
-
-msgctxt "Operator"
 msgid "Slip Strip Contents"
 msgstr "Xê Dịch Nội Dung Đoạn Phim"
 
@@ -124821,10 +124656,6 @@ msgid "Close"
 msgstr "Đóng Lại"
 
 
-msgid "Toggle X-Ray"
-msgstr "Bật/Tắt X-Quang"
-
-
 msgid "To 3D Cursor"
 msgstr "Về Vị Trí của Con Trỏ 3D"
 
@@ -127404,10 +127235,6 @@ msgid "Delete envelope control point"
 msgstr "Xóa điểm điều khiển phong bao"
 
 
-msgid "Coefficient"
-msgstr "Hệ số"
-
-
 msgctxt "Action"
 msgid "A"
 msgstr "A"
@@ -128370,10 +128197,6 @@ msgid "Eyes"
 msgstr "Con Mắt"
 
 
-msgid "Pupils"
-msgstr "Tròng Mắt"
-
-
 msgid "Bake Object Transform to Grease Pencil"
 msgstr "Nướng Biến Hóa Đối Tượng thành Bút Chì Dầu"
 
@@ -128416,6 +128239,10 @@ msgstr "Không có khung hình Bút Chì Dầu nào để vẽ lên cả"
 
 msgid "Couldn't find matching layer, pasting into active layer"
 msgstr "Không tìm thấy tầng lớp nào xứng khớp cả. Dán vào tầng lớp đang hoạt động vậy"
+
+
+msgid "No active Grease Pencil layer"
+msgstr "Không có tầng lớp Bút Chì Dầu nào đang hoạt động cả"
 
 
 msgid "Active object is not a selected Grease Pencil"
@@ -128484,10 +128311,6 @@ msgstr "Đối tượng đang hoạt động không phải là một đối tư�
 
 msgid "Baking Line Art..."
 msgstr "Nướng Line Art"
-
-
-msgid "No active Grease Pencil layer"
-msgstr "Không có tầng lớp Bút Chì Dầu nào đang hoạt động cả"
 
 
 msgid "Active layer is locked or hidden"
@@ -128885,10 +128708,6 @@ msgstr "Độ Bão Hòa:"
 
 msgid "Lightness:"
 msgstr "Độ Sáng:"
-
-
-msgid "Value:"
-msgstr "Giá Trị:"
 
 
 msgid "Alpha:"
@@ -133321,6 +133140,10 @@ msgstr "Biểu Thức:"
 
 msgid "Add Input Variable"
 msgstr "Thêm Biến Số Đầu Vào"
+
+
+msgid "Value:"
+msgstr "Giá Trị:"
 
 
 msgid "Update Dependencies"
@@ -139001,10 +138824,6 @@ msgid "Topology Mapping"
 msgstr "Ánh Xạ Cấu Trúc Liên Kết"
 
 
-msgid "Face Count: %d"
-msgstr "Số Lượng Mặt: %d"
-
-
 msgid "Modifier requires more than 3 input faces"
 msgstr "Bộ điều chỉnh đòi hỏi hơn 3 các mặt cung cấp ở đầu vào"
 
@@ -140551,10 +140370,6 @@ msgstr "Khóa"
 
 msgid "Specifies the smoothness of the keying screen"
 msgstr "Chỉ định độ mượt của màn hình khóa hóa"
-
-
-msgid "Classic"
-msgstr "Kinh-Điển"
 
 
 msgid "Uniformity"
@@ -144613,31 +144428,6 @@ msgstr "Thể Loại Màn Chắn Lọc Cung Cấp"
 
 
 msgctxt "Sequence"
-msgid "Brightness/Contrast"
-msgstr "Độ Sáng/Độ Tương Phản"
-
-
-msgctxt "Sequence"
-msgid "Color Balance"
-msgstr "Cân Bằng Màu"
-
-
-msgctxt "Sequence"
-msgid "Compositor"
-msgstr "Trình Tổng Hợp"
-
-
-msgctxt "Sequence"
-msgid "Curves"
-msgstr "Đường Cong"
-
-
-msgctxt "Sequence"
-msgid "Hue Correct"
-msgstr "Chỉnh Sắc Màu"
-
-
-msgctxt "Sequence"
 msgid "None"
 msgstr "Không Có"
 
@@ -144650,11 +144440,6 @@ msgstr "Bộ Điều Chỉnh Cân Bằng"
 msgctxt "Sequence"
 msgid "Tonemap"
 msgstr "Điều Chỉnh Sắc Thái"
-
-
-msgctxt "Sequence"
-msgid "White Balance"
-msgstr "Cân Bằng Trắng"
 
 
 msgid "Strips must be the same length"
@@ -144746,10 +144531,6 @@ msgstr "trình quản lý cửa sổ"
 
 msgid "Dragging {} files"
 msgstr "Kéo rê {} tập tin"
-
-
-msgid "Input pending "
-msgstr "Đầu vào đang chờ "
 
 
 msgid "Blender File View"

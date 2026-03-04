@@ -296,10 +296,10 @@ struct PaintOperationExecutor {
       ColorGeometry4f color_base;
       copy_v3_v3(color_base, brush_->color);
       color_base.a = settings_->vertex_factor;
-      if (ELEM(settings_->vertex_mode, GPPAINT_MODE_STROKE, GPPAINT_MODE_BOTH)) {
+      if (settings_->flag2 & GP_BRUSH_USE_STROKE) {
         vertex_color_ = color_base;
       }
-      if (ELEM(settings_->vertex_mode, GPPAINT_MODE_FILL, GPPAINT_MODE_BOTH)) {
+      if (settings_->flag2 & GP_BRUSH_USE_FILL) {
         fill_color_ = color_base;
       }
     }
@@ -407,7 +407,7 @@ struct PaintOperationExecutor {
         "material_index", bke::AttrDomain::Curve);
     bke::SpanAttributeWriter<bool> cyclic = attributes.lookup_or_add_for_write_span<bool>(
         "cyclic", bke::AttrDomain::Curve);
-    cyclic.span[active_curve] = false;
+    cyclic.span[active_curve] = use_fill;
     materials.span[active_curve] = material_index;
     curve_attributes_to_skip.add_multiple({"material_index", "cyclic"});
     cyclic.finish();
@@ -485,9 +485,7 @@ struct PaintOperationExecutor {
     if (use_fill && (start_opacity < 1.0f || attributes.contains("fill_opacity"))) {
       if (bke::SpanAttributeWriter<float> fill_opacities =
               attributes.lookup_or_add_for_write_span<float>(
-                  "fill_opacity",
-                  bke::AttrDomain::Curve,
-                  bke::AttributeInitVArray(VArray<float>::from_single(1.0f, curves.curves_num()))))
+                  "fill_opacity", bke::AttrDomain::Curve, bke::AttributeInitValue(1.0f)))
       {
         fill_opacities.span[active_curve] = start_opacity;
         curve_attributes_to_skip.add("fill_opacity");
