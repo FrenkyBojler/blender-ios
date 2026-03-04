@@ -311,7 +311,7 @@ static bool logging_enabled(const ModifierEvalContext *ctx)
 
 static void update_id_properties_from_node_group(NodesModifierData *nmd)
 {
-  if (nmd->node_group == nullptr) {
+  if (nmd->node_group == nullptr || ID_MISSING(nmd->node_group)) {
     if (nmd->settings.properties) {
       IDP_FreeProperty(nmd->settings.properties);
       nmd->settings.properties = nullptr;
@@ -362,7 +362,7 @@ static void update_bakes_from_node_group(NodesModifierData &nmd)
   }
 
   Vector<int> new_bake_ids;
-  if (nmd.node_group) {
+  if (nmd.node_group && !ID_MISSING(nmd.node_group)) {
     for (const bNestedNodeRef &ref : nmd.node_group->nested_node_refs_span()) {
       const bNode *node = nmd.node_group->find_nested_node(ref.id);
       if (node) {
@@ -419,7 +419,7 @@ static void update_panels_from_node_group(NodesModifierData &nmd)
   }
 
   Vector<const bNodeTreeInterfacePanel *> interface_panels;
-  if (nmd.node_group) {
+  if (nmd.node_group && !ID_MISSING(nmd.node_group)) {
     nmd.node_group->ensure_interface_cache();
     nmd.node_group->tree_interface.foreach_item([&](const bNodeTreeInterfaceItem &item) {
       if (item.item_type != NODE_INTERFACE_PANEL) {
@@ -490,7 +490,7 @@ static void try_add_side_effect_node(const ModifierEvalContext &ctx,
                                      const NodesModifierData &nmd,
                                      nodes::GeoNodesSideEffectNodes &r_side_effect_nodes)
 {
-  if (nmd.node_group == nullptr) {
+  if (nmd.node_group == nullptr || ID_MISSING(nmd.node_group)) {
     return;
   }
 
@@ -501,7 +501,7 @@ static void try_add_side_effect_node(const ModifierEvalContext &ctx,
   std::reverse(compute_context_vec.begin(), compute_context_vec.end());
 
   const auto *modifier_compute_context = dynamic_cast<const bke::ModifierComputeContext *>(
-      compute_context_vec[0]);
+      compute_context_vec[1]);
   if (modifier_compute_context == nullptr) {
     return;
   }
@@ -516,7 +516,7 @@ static void try_add_side_effect_node(const ModifierEvalContext &ctx,
    * caller. This is easier than changing r_side_effect_nodes directly and then undoing changes in
    * case of errors. */
   nodes::GeoNodesSideEffectNodes local_side_effect_nodes;
-  for (const ComputeContext *compute_context_generic : compute_context_vec.as_span().drop_front(1))
+  for (const ComputeContext *compute_context_generic : compute_context_vec.as_span().drop_front(2))
   {
     const bke::bNodeTreeZones *current_zones = current_tree->zones();
     if (current_zones == nullptr) {
@@ -727,7 +727,9 @@ static void find_side_effect_nodes_for_viewer_path(
   }
 
   bke::ComputeContextCache compute_context_cache;
-  const ComputeContext *current = &compute_context_cache.for_modifier(nullptr, nmd);
+  const ComputeContext *object_context = &compute_context_cache.for_data_block(
+      nullptr, parsed_path->object->id);
+  const ComputeContext *current = &compute_context_cache.for_modifier(object_context, nmd);
   for (const ViewerPathElem *elem : parsed_path->node_path) {
     current = ed::viewer_path::compute_context_for_viewer_path_elem(
         *elem, compute_context_cache, current);
@@ -746,7 +748,9 @@ static void find_side_effect_nodes_for_nested_node(
     nodes::GeoNodesSideEffectNodes &r_side_effect_nodes)
 {
   bke::ComputeContextCache compute_context_cache;
-  const ComputeContext *compute_context = &compute_context_cache.for_modifier(nullptr, nmd);
+  const ComputeContext *object_context = &compute_context_cache.for_data_block(nullptr,
+                                                                               ctx.object->id);
+  const ComputeContext *compute_context = &compute_context_cache.for_modifier(object_context, nmd);
 
   int nested_node_id = root_nested_node_id;
   const bNodeTree *tree = nmd.node_group;
@@ -1115,7 +1119,7 @@ static bool try_find_baked_data(const NodesModifierBake &bake,
     /* Make sure frames processed in the right order. */
     Vector<SubFrame> frames;
     frames.extend(file_by_frame.keys().begin(), file_by_frame.keys().end());
-    std::sort(frames.begin(), frames.end());
+    std::ranges::sort(frames);
 
     for (const SubFrame &frame : frames) {
       const NodesModifierBakeFile &meta_file = *file_by_frame.lookup(frame);
@@ -1900,7 +1904,8 @@ static void modifyGeometry(ModifierData *md,
   find_side_effect_nodes(*nmd, *ctx, side_effect_nodes, socket_log_contexts);
   call_data.side_effect_nodes = &side_effect_nodes;
 
-  bke::ModifierComputeContext modifier_compute_context{nullptr, *nmd};
+  bke::DataBlockComputeContext data_block_compute_context{nullptr, ctx->object->id};
+  bke::ModifierComputeContext modifier_compute_context{&data_block_compute_context, *nmd};
 
   geometry_set = nodes::execute_geometry_nodes_on_geometry(tree,
                                                            nmd->settings.properties,
@@ -1964,11 +1969,7 @@ static void modify_geometry_set(ModifierData *md,
 
 void NodesModifierUsageInferenceCache::ensure(const NodesModifierData &nmd)
 {
-  if (!nmd.node_group) {
-    this->reset();
-    return;
-  }
-  if (ID_MISSING(&nmd.node_group->id)) {
+  if (!nmd.node_group || ID_MISSING(nmd.node_group)) {
     this->reset();
     return;
   }

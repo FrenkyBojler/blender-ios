@@ -485,7 +485,9 @@ static const ComputeContext *get_node_editor_root_compute_context(
         if (!object_and_modifier) {
           return nullptr;
         }
-        return &compute_context_cache.for_modifier(nullptr, *object_and_modifier->nmd);
+        const bke::DataBlockComputeContext &object_context = compute_context_cache.for_data_block(
+            nullptr, object_and_modifier->object->id);
+        return &compute_context_cache.for_modifier(&object_context, *object_and_modifier->nmd);
       }
       case SNODE_GEOMETRY_TOOL: {
         return &compute_context_cache.for_operator(nullptr);
@@ -782,6 +784,7 @@ static void node_area_listener(const wmSpaceTypeListenerParams *params)
     case NC_SCREEN:
       switch (wmn->data) {
         case ND_ANIMPLAY:
+        case ND_ANIMATION_PLAYBACK:
           node_area_tag_tree_recalc(snode, area);
           break;
       }
@@ -1465,7 +1468,17 @@ static int /*eContextResult*/ node_context(const bContext *C,
     }
     return CTX_RESULT_OK;
   }
-
+  if (CTX_data_equals(member, "edit_image")) {
+    if (snode->edittree != nullptr) {
+      if (bNode *node = bke::node_get_active(*snode->edittree)) {
+        if (ELEM(node->type_legacy, SH_NODE_TEX_IMAGE, SH_NODE_TEX_ENVIRONMENT)) {
+          Image *image = id_cast<Image *>(node->id);
+          CTX_data_id_pointer_set(result, &image->id);
+          return CTX_RESULT_OK;
+        }
+      }
+    }
+  }
   return CTX_RESULT_MEMBER_NOT_FOUND;
 }
 

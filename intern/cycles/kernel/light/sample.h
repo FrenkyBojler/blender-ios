@@ -166,11 +166,11 @@ ccl_device_inline float3 shadow_ray_smooth_surface_offset(
   float3 N[3];
 
   if (sd->type == PRIMITIVE_MOTION_TRIANGLE) {
-    motion_triangle_vertices_and_normals(kg, sd->object, sd->prim, sd->time, V, N);
+    motion_triangle_vertices_and_normals(kg, sd, V, N);
   }
   else {
     kernel_assert(sd->type == PRIMITIVE_TRIANGLE);
-    triangle_vertices_and_normals(kg, sd->prim, V, N);
+    triangle_vertices_and_normals(kg, sd, V, N);
   }
 
   const float u = 1.0f - sd->u - sd->v;
@@ -508,7 +508,7 @@ ccl_device_inline float light_sample_mis_weight_forward_surface(KernelGlobals kg
 ccl_device_inline float light_sample_mis_weight_forward_lamp(KernelGlobals kg,
                                                              IntegratorState state,
                                                              const uint32_t path_flag,
-                                                             const int light_id,
+                                                             const int object_id,
                                                              const float light_sample_pdf,
                                                              const float3 P)
 {
@@ -530,7 +530,7 @@ ccl_device_inline float light_sample_mis_weight_forward_lamp(KernelGlobals kg,
                           dt,
                           path_flag,
                           0,
-                          kernel_data_fetch(light_to_tree, light_id),
+                          kernel_data_fetch(light_to_tree, object_id),
                           light_link_receiver_forward(kg, state));
   }
   else
@@ -545,12 +545,12 @@ ccl_device_inline float light_sample_mis_weight_forward_lamp(KernelGlobals kg,
 ccl_device_inline float light_sample_mis_weight_forward_distant(KernelGlobals kg,
                                                                 IntegratorState state,
                                                                 const uint32_t path_flag,
-                                                                const int light_id,
+                                                                const int object_id,
                                                                 const float light_sample_pdf)
 {
   const float3 ray_P = INTEGRATOR_STATE(state, ray, P);
   return light_sample_mis_weight_forward_lamp(
-      kg, state, path_flag, light_id, light_sample_pdf, ray_P);
+      kg, state, path_flag, object_id, light_sample_pdf, ray_P);
 }
 
 ccl_device_inline float light_sample_mis_weight_forward_background(KernelGlobals kg,
@@ -573,7 +573,7 @@ ccl_device_inline float light_sample_mis_weight_forward_background(KernelGlobals
   if (kernel_data.integrator.use_light_tree) {
     const float3 N = INTEGRATOR_STATE(state, path, mis_origin_n);
     const float dt = INTEGRATOR_STATE(state, ray, previous_dt);
-    const uint light = kernel_data_fetch(light_to_tree, kernel_data.background.light_index);
+    const uint light = kernel_data_fetch(light_to_tree, kernel_data.background.object_index);
     pdf *= light_tree_pdf(
         kg, ray_P, N, dt, path_flag, 0, light, light_link_receiver_forward(kg, state));
   }

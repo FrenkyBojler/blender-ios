@@ -17,7 +17,6 @@ set(LIB
   cycles_session
   cycles_graph
   bf::dependencies::epoxy
-  ${BOOST_PYTHON_LIBRARIES}
 )
 cycles_external_libraries_append(LIB)
 
@@ -102,6 +101,8 @@ target_compile_definitions(cycles_hydra
 
 target_link_libraries(cycles_hydra
   PUBLIC
+  bf::dependencies::openimageio
+  bf::dependencies::optional::tbb
   bf::dependencies::optional::usd
   bf::dependencies::optional::python
   PRIVATE
