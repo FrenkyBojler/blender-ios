@@ -1440,7 +1440,6 @@ static void outliner_set_properties_tab(bContext *C, TreeElement *te, TreeStoreE
         context = BCONTEXT_COLLECTION;
         break;
     }
-
   }
   if (ptr.data) {
     outliner_sync_to_properties_editors(C, &ptr, context);
