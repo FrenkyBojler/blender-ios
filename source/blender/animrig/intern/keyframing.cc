@@ -30,8 +30,6 @@
 
 #include "DNA_scene_types.h"
 
-#include "BLI_bit_vector.hh"
-#include "BLI_dynstr.h"
 #include "BLI_math_base.h"
 #include "BLI_utildefines.h"
 #include "BLT_translation.hh"
