@@ -42,7 +42,7 @@ static Vector<int64_t> build_keyframe_ids(const Span<const FCurve *> fcurves)
       }
     }
   }
-  qsort(keyframe_ids.data(), sizeof(int64_t), keyframe_ids.size(), compare_int);
+  qsort(keyframe_ids.data(), keyframe_ids.size(), sizeof(int64_t), compare_int);
   return keyframe_ids;
 }
 
