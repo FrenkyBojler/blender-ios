@@ -158,7 +158,7 @@ float point_i_to_local_t(float i, float4 p1, float4 p2)
     return r1 * (E_i - 1.0f) / a;
   }
   else if (placement_mode == GP_DOTS_PLACEMENT_MODE_DENSITY ||
-           placement_mode == GP_DOTS_PLACEMENT_MODE_SUBDIV)
+           placement_mode == GP_DOTS_PLACEMENT_MODE_COUNT)
   {
     return (i / point_density - i_start) / i_delta;
   }
@@ -200,7 +200,7 @@ float local_t_to_point_i(float t, float4 p1, float4 p2)
     return (2.0f * log(E_i) / log(E) + i_start) * point_density;
   }
   else if (placement_mode == GP_DOTS_PLACEMENT_MODE_DENSITY ||
-           placement_mode == GP_DOTS_PLACEMENT_MODE_SUBDIV)
+           placement_mode == GP_DOTS_PLACEMENT_MODE_COUNT)
   {
     return (t * i_delta + i_start) * point_density;
   }

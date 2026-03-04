@@ -580,10 +580,10 @@ static void rna_def_material_greasepencil(BlenderRNA *brna)
 
   static EnumPropertyItem placement_mode_items[] = {
       {GP_MATERIAL_PLACEMENT_SINGLE, "SINGLE", 0, "Single", "Place one dot on every stroke point"},
-      {GP_MATERIAL_PLACEMENT_SUBDIV,
-       "SUBDIVIDE",
+      {GP_MATERIAL_PLACEMENT_COUNT,
+       "COUNT",
        0,
-       "Subdivide",
+       "Count",
        "Place dots evenly along each segment of the stroke"},
       {GP_MATERIAL_PLACEMENT_DENSITY,
        "DENSITY",
@@ -760,11 +760,11 @@ static void rna_def_material_greasepencil(BlenderRNA *brna)
       prop, "Placement", "Defines how Dots or Squares are placed along strokes");
   RNA_def_property_update(prop, NC_GPENCIL | ND_SHADING, "rna_MaterialGpencil_update");
 
-  /* Placement subdivisions. */
-  prop = RNA_def_property(srna, "placement_subdivisions", PROP_INT, PROP_NONE);
-  RNA_def_property_int_sdna(prop, nullptr, "placement_subdivisions");
+  /* Placement count. */
+  prop = RNA_def_property(srna, "placement_count", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "placement_count");
   RNA_def_property_range(prop, 1, INT_MAX);
-  RNA_def_property_ui_text(prop, "Subdivisions", "Number of dots placed per segment");
+  RNA_def_property_ui_text(prop, "Count", "Number of dots placed per segment");
   RNA_def_property_update(prop, NC_GPENCIL | ND_SHADING, "rna_MaterialGpencil_update");
 
   /* Placement density. */

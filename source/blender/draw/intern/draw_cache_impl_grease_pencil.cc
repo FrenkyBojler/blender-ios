@@ -1426,7 +1426,7 @@ static void grease_pencil_geom_batch_ensure(Object &object,
           case GP_MATERIAL_PLACEMENT_SINGLE: {
             return float(i + int(u_translation));
           }
-          case GP_MATERIAL_PLACEMENT_SUBDIV: {
+          case GP_MATERIAL_PLACEMENT_COUNT: {
             return u_scale * float(i) + u_translation;
           }
           case GP_MATERIAL_PLACEMENT_RADIUS: {

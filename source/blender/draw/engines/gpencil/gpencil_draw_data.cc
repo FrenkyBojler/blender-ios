@@ -226,8 +226,8 @@ MaterialPool *gpencil_material_pool_create(Instance *inst,
         case GP_MATERIAL_PLACEMENT_DENSITY:
           mat_data->flag |= GP_DOTS_PLACEMENT_MODE_DENSITY;
           break;
-        case GP_MATERIAL_PLACEMENT_SUBDIV:
-          mat_data->flag |= GP_DOTS_PLACEMENT_MODE_SUBDIV;
+        case GP_MATERIAL_PLACEMENT_COUNT:
+          mat_data->flag |= GP_DOTS_PLACEMENT_MODE_COUNT;
           break;
         case GP_MATERIAL_PLACEMENT_SINGLE:
         default:
@@ -268,8 +268,8 @@ MaterialPool *gpencil_material_pool_create(Instance *inst,
         case GP_MATERIAL_PLACEMENT_DENSITY:
           mat_data->stroke_u_scale = gp_style->placement_density;
           break;
-        case GP_MATERIAL_PLACEMENT_SUBDIV:
-          mat_data->stroke_u_scale = gp_style->placement_subdivisions;
+        case GP_MATERIAL_PLACEMENT_COUNT:
+          mat_data->stroke_u_scale = gp_style->placement_count;
           break;
         case GP_MATERIAL_PLACEMENT_SINGLE:
         default:

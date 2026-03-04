@@ -290,7 +290,7 @@ void BKE_gpencil_material_attr_init(Material *ma)
     gp_style->texture_pixsize = 100.0f;
     gp_style->mix_factor = 0.5f;
     gp_style->placement_mode = GP_MATERIAL_PLACEMENT_SINGLE;
-    gp_style->placement_subdivisions = 1;
+    gp_style->placement_count = 1;
     gp_style->placement_density = 10.0f;
     gp_style->placement_radius_spacing = 100.0f;
   }
