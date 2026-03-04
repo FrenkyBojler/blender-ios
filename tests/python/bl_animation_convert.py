@@ -148,7 +148,35 @@ class ConvertRotationMode(unittest.TestCase):
     def test_convert_360_rotation_bake(self):
         """ When converting rotations >180 degrees baking has to
         be used to ensure the interpolation is preserved. """
-        pass
+        fcurves = _get_fcurves_with_rna_path(
+            self.action,
+            self.action_slot,
+            'pose.bones["bone_euler_rotation_360"].rotation_euler')
+
+        for fcurve in fcurves:
+            self.assertEqual(len(fcurve.keyframe_points), 2)
+            self.assertAlmostEqual(fcurve.keyframe_points[1].co[0], 21, 2)
+
+        self.bone_euler_360.convert_rotation_mode('QUATERNION', bake=True)
+
+        fcurves = _get_fcurves_with_rna_path(
+            self.action,
+            self.action_slot,
+            'pose.bones["bone_euler_rotation_360"].rotation_quaternion')
+
+        for fcurve in fcurves:
+            self.assertEqual(len(fcurve.keyframe_points), 21)
+
+        bpy.context.scene.frame_set(1)
+        # Converting to a list so the value is copied. Otherwise it will be
+        # modified while stepping through the timeline.
+        prev_quat = list(self.bone_euler_360.rotation_quaternion)
+        for i in range(2, 21):
+            bpy.context.scene.frame_set(i)
+            quat = list(self.bone_euler_360.rotation_quaternion)
+            self.assertNotEqual(quat, prev_quat, f"Identical Quaternions on frame {i}")
+            prev_quat = quat
+
 
     def test_convert_keyed_rotation_mode(self):
         """ When the rotation mode itself is keyed and changes during the animation,

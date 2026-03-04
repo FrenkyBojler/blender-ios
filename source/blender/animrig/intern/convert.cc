@@ -30,7 +30,8 @@ static Set<int64_t> build_keyframe_ids(FCurve *fcurves[4])
       continue;
     }
     for (int i = 0; i < fcurve->totvert; i++) {
-      keyframe_ids.add(int64_t(fcurve->bezt[i].vec[1][0] / BEZT_BINARYSEARCH_THRESH));
+      const int64_t value = int64_t(fcurve->bezt[i].vec[1][0] / BEZT_BINARYSEARCH_THRESH);
+      keyframe_ids.add(value);
     }
   }
   return keyframe_ids;
@@ -128,10 +129,10 @@ bool convert_pose_bone_rotation_keys(Main *bmain,
   const int insertion_buffer_count = to_mode > ROT_MODE_QUAT ? 3 : 4;
   /* True if the conversion is just between different euler rotations. */
   const bool is_rotation_order_change = current_mode > ROT_MODE_QUAT && to_mode > ROT_MODE_QUAT;
-  FCurve *evaluation_buffer[4];
-  FCurve *insertion_buffer[4];
 
   for (const auto &item : channelbag_map->items()) {
+    FCurve *evaluation_buffer[4] = {nullptr, nullptr, nullptr, nullptr};
+    FCurve *insertion_buffer[4] = {nullptr, nullptr, nullptr, nullptr};
 
     if (is_rotation_order_change) {
       /* Cannot use the FCurve directly from the channelbag. Modifying that while converting the
@@ -184,7 +185,6 @@ bool convert_pose_bone_rotation_keys(Main *bmain,
       rotation_values_to_matrix(rotation_values, current_mode, rotation_matrix);
       matrix_to_rotation_values(rotation_matrix, to_mode, previous_conversion, converted_rotation);
       for (int i : IndexRange(insertion_buffer_count)) {
-        /* Insert a key */
         FCurve *fcurve = insertion_buffer[i];
         BLI_assert_msg(fcurve, "For insertion all FCurves are expected to be created before");
         insert_vert_fcurve(fcurve, {frame, converted_rotation[i]}, settings, eInsertKeyFlags(0));

@@ -26,6 +26,7 @@
 #include "WM_types.hh"
 
 #include "BKE_anim_data.hh"
+#include "BKE_fcurve.hh"
 
 #include "ANIM_action.hh"
 #include "ANIM_convert.hh"
@@ -144,10 +145,7 @@ static std::optional<std::string> rna_Pose_path(const PointerRNA * /*ptr*/)
 static std::optional<std::string> rna_PoseBone_path(const PointerRNA *ptr)
 {
   const bPoseChannel *pchan = static_cast<const bPoseChannel *>(ptr->data);
-  char name_esc[sizeof(pchan->name) * 2];
-
-  BLI_str_escape(name_esc, pchan->name, sizeof(name_esc));
-  return fmt::format("pose.bones[\"{}\"]", name_esc);
+  return animrig::get_pose_bone_rna_path(*pchan);
 }
 
 /* shared for actions groups and bone groups */
@@ -282,10 +280,27 @@ static void rna_PoseChannel_convert_rotation_mode(ID *id,
     animrig::RNAPathFCurveMap fcurves_by_rna_path;
     animrig::build_rotation_fcurve_map(fcurves_by_rna_path, adt->action->wrap(), adt->slot_handle);
     if (bake) {
-      std::string foo = "pose.bones[\"" + pchan->name + "\"]" +
-                        animrig::get_rotation_mode_path(eRotationModes(pchan->rotmode));
-      // TODO implement baking
+      std::string rotation_rna_path = fmt::format(
+          "{}.{}",
+          animrig::get_pose_bone_rna_path(*pchan),
+          animrig::get_rotation_mode_path(eRotationModes(pchan->rotmode)));
+      animrig::ChannelbagFCurveMap *channelbag_fcu_map = fcurves_by_rna_path.lookup_ptr(
+          rotation_rna_path);
+      if (channelbag_fcu_map) {
+        for (animrig::RotationFCurves &bar : channelbag_fcu_map->values()) {
+          for (int i : IndexRange(4)) {
+            FCurve *fcu = bar.fcurves[i];
+            if (!fcu || !fcu->bezt) {
+              continue;
+            }
+            float2 range;
+            BKE_fcurve_calc_range(fcu, &range[0], &range[1], false);
+            animrig::bake_fcurve(fcu, int2(range), 1, animrig::BakeCurveRemove::ALL);
+          }
+        }
+      }
     }
+
     const bool converted = animrig::convert_pose_bone_rotation_keys(
         main, *id, *pchan, fcurves_by_rna_path, eRotationModes(rotation_mode));
     if (converted) {
@@ -1012,12 +1027,11 @@ static void rna_def_pose_channel(BlenderRNA *brna)
                                    "The rotation mode to change to");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 
-  PropertyRNA *parm = RNA_def_boolean(
-      func,
-      "bake",
-      false,
-      "Bake",
-      "Insert a key on every frame to ensure interpolation is preserved");
+  parm = RNA_def_boolean(func,
+                         "bake",
+                         false,
+                         "Bake",
+                         "Insert a key on every frame to ensure interpolation is preserved");
 
   /* Curved bones settings - Applied on top of rest-pose values. */
   rna_def_bone_curved_common(srna, true, false);
