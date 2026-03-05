@@ -610,7 +610,7 @@ void GLTexture::samplers_init()
           glSamplerParameterf(
               sampler,
               GL_TEXTURE_MAX_ANISOTROPY_EXT,
-              min_ff(float(GPUSamplerState::anisotropic_samples_get(filtering)), max_anisotropy));
+              min_ff(float(GPU_anisotropic_samples_get(filtering)), max_anisotropy));
         }
 
         /* Other states are left to default:

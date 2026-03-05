@@ -330,6 +330,48 @@ static constexpr GPUSamplerFiltering GPU_SAMPLER_FILTERING_ANISOTROPIC_ENABLE =
      GPU_SAMPLER_FILTERING_ANISOTROPIC_8 | GPU_SAMPLER_FILTERING_ANISOTROPIC_16);
 
 /**
+ * Convenience function to create a GPUSamplerFiltering with only the anisotropic filtering flags
+ * set that represents the given samples.
+ */
+static inline GPUSamplerFiltering GPU_anisotropic_filtering_flags(int anisotropic_samples)
+{
+  if (anisotropic_samples <= 1) {
+    return GPU_SAMPLER_FILTERING_DEFAULT;
+  }
+
+  if (IndexRange::from_begin_end_inclusive(2, 3).contains(anisotropic_samples)) {
+    return GPU_SAMPLER_FILTERING_ANISOTROPIC_2;
+  }
+  else if (IndexRange::from_begin_end_inclusive(4, 7).contains(anisotropic_samples)) {
+    return GPU_SAMPLER_FILTERING_ANISOTROPIC_4;
+  }
+  else if (IndexRange::from_begin_end_inclusive(8, 15).contains(anisotropic_samples)) {
+    return GPU_SAMPLER_FILTERING_ANISOTROPIC_8;
+  }
+
+  /* 16 or higher. */
+  return GPU_SAMPLER_FILTERING_ANISOTROPIC_16;
+}
+
+static inline int GPU_anisotropic_samples_get(GPUSamplerFiltering filtering_flags)
+{
+  switch (filtering_flags & GPU_SAMPLER_FILTERING_ANISOTROPIC_MASK) {
+    case GPU_SAMPLER_FILTERING_ANISOTROPIC_2:
+      return 2;
+    case GPU_SAMPLER_FILTERING_ANISOTROPIC_4:
+      return 4;
+    case GPU_SAMPLER_FILTERING_ANISOTROPIC_8:
+      return 8;
+    case GPU_SAMPLER_FILTERING_ANISOTROPIC_16:
+      return 16;
+    default:
+      return 1;
+  }
+  BLI_assert_unreachable();
+  return 1;
+}
+
+/**
  * The `GPUSamplerExtendMode` specifies how the texture will be extrapolated for out-of-bound
  * texture sampling.
  */
@@ -543,49 +585,6 @@ struct GPUSamplerState {
     }
     else {
       this->disable_filtering_flag(filtering_flags);
-    }
-  }
-
-  static int anisotropic_samples_get(const GPUSamplerFiltering filtering_flags)
-  {
-    switch (filtering_flags & GPU_SAMPLER_FILTERING_ANISOTROPIC_MASK) {
-      case GPU_SAMPLER_FILTERING_ANISOTROPIC_2:
-        return 2;
-      case GPU_SAMPLER_FILTERING_ANISOTROPIC_4:
-        return 4;
-      case GPU_SAMPLER_FILTERING_ANISOTROPIC_8:
-        return 8;
-      case GPU_SAMPLER_FILTERING_ANISOTROPIC_16:
-        return 16;
-      default:
-        return 1;
-    }
-    BLI_assert_unreachable();
-    return 1;
-  }
-
-  /**
-   * Update the sampler with the given filter (number of anisotropic samples).
-   */
-  static void anisotropic_samples_set(GPUSamplerFiltering &filtering_flags,
-                                      int anisotropic_samples)
-  {
-    filtering_flags &= ~GPU_SAMPLER_FILTERING_ANISOTROPIC_MASK;
-    if (anisotropic_samples <= 1) {
-      return;
-    }
-
-    if (IndexRange::from_begin_end_inclusive(2, 3).contains(anisotropic_samples)) {
-      filtering_flags |= GPU_SAMPLER_FILTERING_ANISOTROPIC_2;
-    }
-    else if (IndexRange::from_begin_end_inclusive(4, 7).contains(anisotropic_samples)) {
-      filtering_flags |= GPU_SAMPLER_FILTERING_ANISOTROPIC_4;
-    }
-    else if (IndexRange::from_begin_end_inclusive(8, 15).contains(anisotropic_samples)) {
-      filtering_flags |= GPU_SAMPLER_FILTERING_ANISOTROPIC_8;
-    }
-    else {
-      filtering_flags |= GPU_SAMPLER_FILTERING_ANISOTROPIC_16;
     }
   }
 
