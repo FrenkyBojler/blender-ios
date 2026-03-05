@@ -4521,53 +4521,58 @@ void SEQUENCER_OT_caption_add(wmOperatorType *ot)
   }
 
 /* -------------------------------------------------------------------- */
-/** \name Toggle Caption custom style toggle Operator
+/** \name Remove Caption by Index
   * \{ */
 
-  static wmOperatorStatus captions_style_toggle_exec(bContext *C, wmOperator *op)
+  static wmOperatorStatus captions_remove_exec(bContext *C, wmOperator *op)
   {
-      return OPERATOR_FINISHED;
-  }
-  
-  // TODO: Remove? technically would be always true
-  static bool captions_style_toggle_poll(bContext *C)
-  {
-      ScrArea *area = CTX_wm_area(C);
-      if(area == nullptr || area->spacetype != SPACE_SEQ) {
-          return false;
-      }
-      return true;
-  }
-  
-  void SEQUENCER_OT_captions_style_toggle(wmOperatorType *ot)
-  {
-      /* Identifiers. */
-      ot->name = "Toggle Custmo Style";
-      ot->idname = "SEQUENCER_OT_captions_style_toggle";
-      ot->description = "Toggle custom style mode for a certain caption";
-  
-      /* API callbacks. */
-      //  ot->invoke = sequencer_snap_invoke;
-      ot->exec = captions_style_toggle_exec;
-      ot->poll = captions_style_toggle_poll;
-  
-      /* Flags. */
-      ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-  
-      /* Properties. */
-      PropertyRNA *prop = RNA_def_int(ot->srna,
-                        "length",
-                        100,  // TODO: change to DEFAULT_IMG_STRIP_LENGTH
-                        MINAFRAME,
-                        MAXFRAME,
-                        "Length",
-                        "Length of the caption strip in frames",
-                        1,
-                        500);
-      RNA_def_property_flag(prop, PROP_SKIP_SAVE);
-  
+
+    return OPERATOR_FINISHED;
   }
 
+  static bool captions_remove_poll(bContext *C)
+  {
+      Scene *scene = CTX_data_sequencer_scene(C);
+      if(scene == nullptr) {
+        return false;
+      }
+      Editing *ed = seq::editing_ensure(scene);
+
+      if(ed -> captions_cache_dirty) {
+          seq::captions_update_strips(scene);
+      }
+
+      return true;
+  }
+
+void SEQUENCER_OT_caption_remove(wmOperatorType *ot)
+{
+    /* Identifiers. */
+    ot->name = "Add Caption";
+    ot->idname = "SEQUENCER_OT_caption_add";
+    ot->description = "Remove a caption in a certain index";
+
+    /* API callbacks. */
+    //  ot->invoke = sequencer_snap_invoke;
+    ot->exec = captions_remove_exec;
+    ot->poll = captions_remove_poll; 
+
+    /* Flags. */
+    ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+    /* Properties. */
+    PropertyRNA *prop = RNA_def_int(ot->srna,
+                      "index",
+                      0,
+                      MINAFRAME,
+                      MAXFRAME,
+                      "Index",
+                      "Index of the caption to be removed",
+                      0,
+                      INT_MAX);
+    RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+
+  }
 /** \} */
 
 }  // namespace blender::ed::vse

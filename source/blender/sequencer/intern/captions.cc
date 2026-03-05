@@ -92,6 +92,7 @@ void captions_update_strips_style(Scene *scene)
 {
     if(scene == nullptr){
         return;
+        
     }
 
     Editing *ed = seq::editing_get(scene);
@@ -148,7 +149,8 @@ void captions_update_strips_style(Scene *scene)
         }
     }
 
-TextVars *captions_style_ensure(Editing *ed) {
+
+    TextVars *captions_style_ensure(Editing *ed) {
     if(ed->captions_style == nullptr) {
         captions_init_default_style(ed);
     }

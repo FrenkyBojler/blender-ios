@@ -1544,6 +1544,12 @@ static void rna_SequenceEditor_captions_strips_update(Main * /*bmain*/, Scene * 
   ///blender::seq::relations_invalidate_cache(scene, (Strip *)ptr->data);
 }
 
+static void rna_Caption_use_custom_style_update(Main * /*bmain*/, Scene * scene, PointerRNA * ptr) {
+  //TODO: Should allow updating style of single strips, as of now update the whole list
+  seq::captions_update_strips_style(scene);
+}
+
+
 static bool modifier_strip_cmp_fn(Strip *strip, void *arg_pt)
 {
   StripSearchData *data = static_cast<StripSearchData *>(arg_pt);
@@ -2879,11 +2885,11 @@ static void rna_def_captions(BlenderRNA *brna){
     false,
     "Use Custom Style",
     "When enabled, use a custom style for this caption");
-    RNA_def_property_boolean_sdna(prop, nullptr, "use_custom_style", 1);
+  RNA_def_property_boolean_sdna(prop, nullptr, "use_custom_style", 1);
   RNA_def_property_ui_icon(prop, ICON_FONT_DATA, false);
   RNA_def_property_flag(prop, PROP_EDITABLE);
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
-  //RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_text_update");
+  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Caption_use_custom_style_update");
 
 
 }
