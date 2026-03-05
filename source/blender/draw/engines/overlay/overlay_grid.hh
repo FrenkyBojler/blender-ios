@@ -84,6 +84,8 @@ class Grid : Overlay {
       sub.bind_ubo("grid_buf", &grid_ubo_);
 
       for (int grid_iter = 0; grid_iter < num_iters_; grid_iter++) {
+        /* NOTE(not_mark): Only the first iteration draws to depth as a workaround for
+         * clipping with the mesh edit overlay while it's drawn after (See #154540). */
         if (grid_iter == 0) {
           sub.state_set(grid_draw_state | DRW_STATE_WRITE_DEPTH);
         }
