@@ -971,6 +971,7 @@ endif()
 # this optionn was not made to work with MSVC.
 if(MSVC)
   set(WITH_GPU_SHADER_CPP_COMPILATION OFF)
+  message(STATUS "WITH_GPU_SHADER_CPP_COMPILATION not supported with MSVC, disabling")
 endif()
 
 
