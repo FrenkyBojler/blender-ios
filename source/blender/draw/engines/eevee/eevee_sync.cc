@@ -89,7 +89,8 @@ void SyncModule::sync_mesh(Object *ob, ObjectHandle &ob_handle, const ObjectRef 
 
   bool has_motion = inst_.velocity.step_object_sync(ob_handle, res_handle);
 
-  MaterialSyncArray &material_array = inst_.materials.material_array_get(ob_handle, has_motion);
+  MaterialSyncArray &material_array = inst_.materials.material_array_get(
+      ob_handle, has_motion, true);
 
   Span<gpu::Batch *> mat_geom = DRW_cache_object_surface_material_get(
       ob, material_array.gpu_materials);

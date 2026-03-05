@@ -394,7 +394,9 @@ class MaterialModule {
   /**
    * Returned Material references are valid until the next call to this function or material_get().
    */
-  MaterialSyncArray &material_array_get(const ObjectHandle &ob_handle, bool has_motion);
+  MaterialSyncArray &material_array_get(const ObjectHandle &ob_handle,
+                                        bool has_motion,
+                                        bool use_subpass_arrays = false);
   /**
    * Returned Material references are valid until the next call to this function or
    * material_array_get().
@@ -402,7 +404,8 @@ class MaterialModule {
   MaterialSync material_get(const ObjectHandle &ob_handle,
                             bool has_motion,
                             int mat_nr,
-                            eMaterialGeometry geometry_type);
+                            eMaterialGeometry geometry_type,
+                            bool use_subpass_arrays = false);
 
   /* Request default materials and return DEFAULT_MATERIALS if they are compiled. */
   ShaderGroups default_materials_load_async()
@@ -419,7 +422,8 @@ class MaterialModule {
                           blender::Material *blender_mat,
                           SubPassArrays &sub_pass_arrays,
                           eMaterialGeometry geometry_type,
-                          bool has_motion);
+                          bool has_motion,
+                          bool use_subpass_arrays);
 
   /** Return correct material or empty default material if slot is empty. */
   blender::Material *material_from_slot(Object *ob, int slot);

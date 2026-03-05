@@ -296,7 +296,8 @@ Material &MaterialModule::material_sync(const ObjectHandle &ob_handle,
                                         blender::Material *blender_mat,
                                         SubPassArrays &sub_pass_arrays,
                                         eMaterialGeometry geometry_type,
-                                        bool has_motion)
+                                        bool has_motion,
+                                        bool use_subpass_arrays)
 {
   Object *ob = ob_handle.ref.object;
   bool hide_on_camera = ob->visibility_flag & OB_HIDE_CAMERA;
@@ -410,6 +411,16 @@ Material &MaterialModule::material_sync(const ObjectHandle &ob_handle,
                                             mat.shading.gpumat,
                                             sub_pass_arrays.overlap_masking_sub_passes,
                                             sub_pass_arrays.shading_blend_transparent_sub_passes);
+
+    if (!use_subpass_arrays && !sub_pass_arrays.overlap_masking_sub_passes.is_empty()) {
+      BLI_assert(sub_pass_arrays.overlap_masking_sub_passes.size() == 1);
+      mat.overlap_masking.sub_pass = sub_pass_arrays.overlap_masking_sub_passes.first();
+    }
+
+    if (!use_subpass_arrays && !sub_pass_arrays.shading_blend_transparent_sub_passes.is_empty()) {
+      BLI_assert(sub_pass_arrays.shading_blend_transparent_sub_passes.size() == 1);
+      mat.shading.sub_pass = sub_pass_arrays.shading_blend_transparent_sub_passes.first();
+    }
   }
 
   if (mat.has_volume) {
@@ -439,7 +450,8 @@ blender::Material *MaterialModule::material_from_slot(Object *ob, int slot)
 }
 
 MaterialSyncArray &MaterialModule::material_array_get(const ObjectHandle &ob_handle,
-                                                      bool has_motion)
+                                                      bool has_motion,
+                                                      bool use_subpass_arrays)
 {
   Object *ob = ob_handle.ref.object;
 
@@ -458,8 +470,12 @@ MaterialSyncArray &MaterialModule::material_array_get(const ObjectHandle &ob_han
   for (auto i : IndexRange(materials_len)) {
     blender::Material *blender_mat = (material_override) ? material_override :
                                                            material_from_slot(ob, i);
-    MaterialSync mat = material_sync(
-        ob_handle, blender_mat, sub_pass_arrays_[i], to_material_geometry(ob), has_motion);
+    MaterialSync mat = material_sync(ob_handle,
+                                     blender_mat,
+                                     sub_pass_arrays_[i],
+                                     to_material_geometry(ob),
+                                     has_motion,
+                                     use_subpass_arrays);
     mat.sub_pass_arrays = &sub_pass_arrays_[i];
 
     /* \note Perform a whole copy since next material_sync() can move the Material memory location
@@ -473,7 +489,8 @@ MaterialSyncArray &MaterialModule::material_array_get(const ObjectHandle &ob_han
 MaterialSync MaterialModule::material_get(const ObjectHandle &ob_handle,
                                           bool has_motion,
                                           int mat_nr,
-                                          eMaterialGeometry geometry_type)
+                                          eMaterialGeometry geometry_type,
+                                          bool use_subpass_arrays)
 {
   blender::Material *blender_mat = (material_override) ?
                                        material_override :
@@ -487,7 +504,7 @@ MaterialSync MaterialModule::material_get(const ObjectHandle &ob_handle,
   }
 
   MaterialSync mat = material_sync(
-      ob_handle, blender_mat, sub_pass_arrays_[0], geometry_type, has_motion);
+      ob_handle, blender_mat, sub_pass_arrays_[0], geometry_type, has_motion, use_subpass_arrays);
   mat.sub_pass_arrays = &sub_pass_arrays_[0];
 
   return mat;
