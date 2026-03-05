@@ -12,6 +12,7 @@ from ..utils.nodes import (
     nw_check_selected,
     get_nodes_links,
     force_update,
+    trace_recursive_connected_nodes
 )
 
 #### ------------------------------ OPERATORS ------------------------------ ####
@@ -32,12 +33,18 @@ class NODE_OT_swap_links(Operator, NWBase):
         selected_nodes = context.selected_nodes
         n1 = selected_nodes[0]
 
+
         # Swap outputs
         if len(selected_nodes) == 2:
             n2 = selected_nodes[1]
-            if any(link for link in links if link.from_node in selected_nodes and link.to_node in selected_nodes):
-                self.report({'WARNING'}, "One of the selected nodes is connected to another selected node")
+            
+            n1_network = trace_recursive_connected_nodes(n1)
+            n2_network = trace_recursive_connected_nodes(n2)
+
+            if n2 in n1_network or n1 in n2_network:
+                self.report({'WARNING'}, "Can't swap these two nodes")
                 return {'CANCELLED'}
+            
             if n1.outputs and n2.outputs:
                 n1_outputs = []
                 n2_outputs = []
