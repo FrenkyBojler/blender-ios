@@ -68,7 +68,10 @@ template<typename T> T select_result(float occlusion, SphericalHarmonicL1 sh)
 /* AO only implementation. */
 template float3 sample_radiance<float>(sampler2D screen_radiance_tx, float2 uv);
 template float3 sample_normal<float>(sampler2D screen_normal_tx, float2 uv);
-template float select_result<float>(float occlusion, SphericalHarmonicL1 sh);
+template<> float select_result<float>(float occlusion, SphericalHarmonicL1 sh)
+{
+  return occlusion;
+}
 
 /* GI implementation. */
 template<> float3 sample_radiance<SphericalHarmonicL1>(sampler2D screen_radiance_tx, float2 uv)
@@ -306,7 +309,7 @@ struct SampleInput {
   {
     float4 normal = texelFetch(screen_normal_tx, texel, 0);
     is_processed = (normal.w != 0.0f);
-    return normal.xyz * 2.0f - 1.0f;
+    return drw_normal_view_to_world(normal.xyz * 2.0f - 1.0f);
   }
 
   /* Used for denoise. */
