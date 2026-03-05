@@ -28,8 +28,7 @@ void select_id_output(uint id)
 
   if (select_info_buf.mode == SELECT_ALL) {
     if (select_info_buf.radius > 0) {
-      /* When the radius is set, we assume that the center is cursor is the center of the circle.
-       */
+      /* When the radius is set, we assume that the center is cursor is the center of a circle. */
       int2 coord = int2(gl_FragCoord.xy) - select_info_buf.cursor;
       uint dist_sq = uint(coord.x * coord.x + coord.y * coord.y);
       uint rad_sq = select_info_buf.radius * select_info_buf.radius;
