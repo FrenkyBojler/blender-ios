@@ -1516,34 +1516,6 @@ macro(windows_process_platform_bundled_libraries library_deps)
   endif()
 endmacro()
 
-macro(with_shader_cpp_compilation_config)
-  # avoid noisy warnings
-  if((CMAKE_C_COMPILER_ID STREQUAL "GNU") OR (CMAKE_C_COMPILER_ID MATCHES "Clang"))
-    add_c_flag("-Wno-unused-result")
-    remove_cc_flag("-Wmissing-declarations")
-    # Would be nice to enable the warning once we support references.
-    add_cxx_flag("-Wno-uninitialized")
-    # Would be nice to enable the warning once we support nameless parameters.
-    add_cxx_flag("-Wno-unused-parameter")
-    # To compile libraries.
-    add_cxx_flag("-Wno-pragma-once-outside-header")
-    add_cxx_flag("-Wno-unknown-pragmas")
-  elseif(MSVC)
-    # Equivalent to "-Wno-uninitialized"
-    add_cxx_flag("/wd4700")
-    # Equivalent to "-Wno-unused-parameter"
-    add_cxx_flag("/wd4100")
-    # Disable "potential divide by 0" warning
-    add_cxx_flag("/wd4723")
-    # Disable unkown pragma warning
-    add_cxx_flag("/wd4068")
-    # Disable unknown attribute warning
-    add_cxx_flag("/wd5030")
-    add_cxx_flag("/wd5222")
-  endif()
-  add_definitions(-DGPU_SHADER)
-endmacro()
-
 function(compile_sources_as_cpp
   library
   sources
@@ -1557,7 +1529,32 @@ function(compile_sources_as_cpp
   add_library(${library} OBJECT ${sources})
   set_target_properties(${library} PROPERTIES LINKER_LANGUAGE CXX)
   target_include_directories(${library} PUBLIC ${INC_GLSL})
-  target_compile_definitions(${library} PRIVATE ${define})
+  target_compile_definitions(${library} PRIVATE ${define} -DGPU_SHADER)
+
+  # avoid noisy warnings
+  if((CMAKE_C_COMPILER_ID STREQUAL "GNU") OR (CMAKE_C_COMPILER_ID MATCHES "Clang"))
+    target_compile_options(${library} PRIVATE "-Wno-unused-result")
+    target_compile_options(${library} PRIVATE "-Wno-missing-declarations")
+    # Would be nice to enable the warning once we support references.
+    target_compile_options(${library} PRIVATE "-Wno-uninitialized")
+    # Would be nice to enable the warning once we support nameless parameters.
+    target_compile_options(${library} PRIVATE "-Wno-unused-parameter")
+    # To compile libraries.
+    target_compile_options(${library} PRIVATE "-Wno-pragma-once-outside-header")
+    target_compile_options(${library} PRIVATE "-Wno-unknown-pragmas")
+  elseif(MSVC)
+    # Equivalent to "-Wno-uninitialized"
+    target_compile_options(${library} PRIVATE "/wd4700")
+    # Equivalent to "-Wno-unused-parameter"
+    target_compile_options(${library} PRIVATE "/wd4100")
+    # Disable "potential divide by 0" warning
+    target_compile_options(${library} PRIVATE "/wd4723")
+    # Disable unkown pragma warning
+    target_compile_options(${library} PRIVATE "/wd4068")
+    # Disable unknown attribute warning
+    target_compile_options(${library} PRIVATE "/wd5030")
+    target_compile_options(${library} PRIVATE "/wd5222")
+  endif()
   if(WIN32 AND NOT MSVC_CLANG)
     set_target_properties(${library} PROPERTIES STATIC_LIBRARY_OPTIONS "-ignore:4006")
   endif()

@@ -28,7 +28,7 @@
 
 #ifdef _MSC_VER
 /* Equivalent to "-Wno-unused-parameter".
- * Must be declared here since the setup from with_shader_cpp_compilation_config seems to be
+ * Must be declared here since the setup from compile_sources_as_cpp seems to be
  * overridden otherwise. */
 #  pragma warning(disable : 4100)
 #endif
