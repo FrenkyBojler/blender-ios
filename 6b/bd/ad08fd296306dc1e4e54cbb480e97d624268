@@ -1,1 +1,2 @@
 Referenced by issue #154128, Cycles normal map rendering is wrong on some objects
+Referenced by pull request #155223, Fix #155171: Cycles renders flat faces with custom normals wrong
