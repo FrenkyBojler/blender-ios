@@ -233,7 +233,7 @@ void WM_init(bContext *C, int argc, const char **argv)
 
   BLF_init();
 
-  uimemory.init_async();
+  ui_memory::memory.init_async();
 
   BLT_lang_init();
   /* Must call first before doing any `.blend` file reading,
@@ -621,7 +621,7 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
   WM_uilisttype_free();
 
   BLF_exit();
-  uimemory.save();
+  ui_memory::memory.save();
 
   BLT_lang_free();
 

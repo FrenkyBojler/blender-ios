@@ -778,8 +778,8 @@ static void file_tools_region_exit(wmWindowManager * /*wm*/, ARegion *region)
     return a->sortorder < b->sortorder;
   });
 
-  MemorySection sortorder = uimemory.open("panel.sortorder");
-  MemorySection open = uimemory.open("panel.open");
+  ui_memory::Section sortorder = ui_memory::memory.open("panel.sortorder");
+  ui_memory::Section open = ui_memory::memory.open("panel.open");
   for (const int i : panels.index_range()) {
     Panel *panel = panels[i];
     const bool is_open = !(panel->flag & PNL_CLOSED);

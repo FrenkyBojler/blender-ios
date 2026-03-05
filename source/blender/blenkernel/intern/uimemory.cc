@@ -5,7 +5,7 @@
 /** \file
  * \ingroup bli
  *
- * Implementation of MemoryFile / MemorySection backed by TOML.
+ * Implementation of Memory / Section backed by TOML.
  */
 
 #include "../../../extern/toml11/toml.hpp"
@@ -24,7 +24,7 @@
 #include "BLI_mutex.hh"
 #include "BLI_path_utils.hh"
 
-namespace blender {
+namespace blender::ui_memory {
 
 constexpr toml::spec version = toml::spec::v(1, 1, 0);
 #define UIMEMORY_FILE_NAME "uimemory.toml"
@@ -86,13 +86,13 @@ static void uimemory_init_impl()
 }
 
 /* Manager implementation (thin wrapper around free functions but exposes ensure_init). */
-void MemoryFile::init_async()
+void Memory::init_async()
 {
   std::call_once(uimemory_init_once,
                  []() { std::thread([]() { uimemory_init_impl(); }).detach(); });
 }
 
-void MemoryFile::ensure_init()
+void Memory::ensure_init()
 {
   if (uimemory_ready.load(std::memory_order_acquire)) {
     return;
@@ -102,7 +102,7 @@ void MemoryFile::ensure_init()
   uimemory_init_cv.wait(lock, [] { return uimemory_ready.load(std::memory_order_acquire); });
 }
 
-bool MemoryFile::save() const
+bool Memory::save() const
 {
   std::lock_guard<Mutex> lock(uimemory_mutex);
   if (uimemory_current.is_empty()) {
@@ -151,7 +151,7 @@ static const toml::value *uimemory_find_in(const toml::value &root,
   return nullptr;
 }
 
-template<typename T> T MemorySection::get(const StringRef item) const
+template<typename T> T Section::get(const StringRef item) const
 {
   if (!uimemory_ready.load(std::memory_order_acquire)) {
     std::unique_lock<Mutex> lock(uimemory_init_mutex);
@@ -190,7 +190,7 @@ template<typename T> T MemorySection::get(const StringRef item) const
   return T{};
 }
 
-template<typename T> void MemorySection::set(const StringRef item, const T &value)
+template<typename T> void Section::set(const StringRef item, const T &value)
 {
   if (!uimemory_ready.load(std::memory_order_acquire)) {
     std::unique_lock<Mutex> lock(uimemory_init_mutex);
@@ -208,7 +208,7 @@ template<typename T> void MemorySection::set(const StringRef item, const T &valu
   }
 }
 
-void MemorySection::remove(const StringRef item)
+void Section::remove(const StringRef item)
 {
   if (!uimemory_ready.load(std::memory_order_acquire)) {
     std::unique_lock<Mutex> lock(uimemory_init_mutex);
@@ -236,7 +236,7 @@ void MemorySection::remove(const StringRef item)
   sec_tbl.erase(key);
 }
 
-void MemorySection::remove_section()
+void Section::remove_section()
 {
   if (!uimemory_ready.load(std::memory_order_acquire)) {
     std::unique_lock<Mutex> lock(uimemory_init_mutex);
@@ -250,52 +250,51 @@ void MemorySection::remove_section()
   root_tbl.erase(section);
 }
 
-template std::string MemorySection::get<std::string>(const StringRef item) const;
-template void MemorySection::set<std::string>(const StringRef item, const std::string &value);
+template std::string Section::get<std::string>(const StringRef item) const;
+template void Section::set<std::string>(const StringRef item, const std::string &value);
 
-template char MemorySection::get<char>(const StringRef item) const;
-template void MemorySection::set<char>(const StringRef item, const char &value);
+template char Section::get<char>(const StringRef item) const;
+template void Section::set<char>(const StringRef item, const char &value);
 
-template bool MemorySection::get<bool>(const StringRef item) const;
-template void MemorySection::set<bool>(const StringRef item, const bool &value);
+template bool Section::get<bool>(const StringRef item) const;
+template void Section::set<bool>(const StringRef item, const bool &value);
 
-template int16_t MemorySection::get<int16_t>(const StringRef item) const;
-template void MemorySection::set<int16_t>(const StringRef item, const int16_t &value);
+template int16_t Section::get<int16_t>(const StringRef item) const;
+template void Section::set<int16_t>(const StringRef item, const int16_t &value);
 
-template uint16_t MemorySection::get<uint16_t>(const StringRef item) const;
-template void MemorySection::set<uint16_t>(const StringRef item, const uint16_t &value);
+template uint16_t Section::get<uint16_t>(const StringRef item) const;
+template void Section::set<uint16_t>(const StringRef item, const uint16_t &value);
 
-template int32_t MemorySection::get<int32_t>(const StringRef item) const;
-template void MemorySection::set<int32_t>(const StringRef item, const int32_t &value);
+template int32_t Section::get<int32_t>(const StringRef item) const;
+template void Section::set<int32_t>(const StringRef item, const int32_t &value);
 
-template uint32_t MemorySection::get<uint32_t>(const StringRef item) const;
-template void MemorySection::set<uint32_t>(const StringRef item, const uint32_t &value);
+template uint32_t Section::get<uint32_t>(const StringRef item) const;
+template void Section::set<uint32_t>(const StringRef item, const uint32_t &value);
 
-template int64_t MemorySection::get<int64_t>(const StringRef item) const;
-template void MemorySection::set<int64_t>(const StringRef item, const int64_t &value);
+template int64_t Section::get<int64_t>(const StringRef item) const;
+template void Section::set<int64_t>(const StringRef item, const int64_t &value);
 
-template uint64_t MemorySection::get<uint64_t>(const StringRef item) const;
-template void MemorySection::set<uint64_t>(const StringRef item, const uint64_t &value);
+template uint64_t Section::get<uint64_t>(const StringRef item) const;
+template void Section::set<uint64_t>(const StringRef item, const uint64_t &value);
 
-template float MemorySection::get<float>(const StringRef item) const;
-template void MemorySection::set<float>(const StringRef item, const float &value);
+template float Section::get<float>(const StringRef item) const;
+template void Section::set<float>(const StringRef item, const float &value);
 
-template double MemorySection::get<double>(const StringRef item) const;
-template void MemorySection::set<double>(const StringRef item, const double &value);
+template double Section::get<double>(const StringRef item) const;
+template void Section::set<double>(const StringRef item, const double &value);
 
-template std::vector<int> MemorySection::get<std::vector<int>>(const StringRef item) const;
-template void MemorySection::set<std::vector<int>>(const StringRef item,
-                                                   const std::vector<int> &value);
+template std::vector<int> Section::get<std::vector<int>>(const StringRef item) const;
+template void Section::set<std::vector<int>>(const StringRef item, const std::vector<int> &value);
 
-template std::vector<double> MemorySection::get<std::vector<double>>(const StringRef item) const;
-template void MemorySection::set<std::vector<double>>(const StringRef item,
-                                                      const std::vector<double> &value);
+template std::vector<double> Section::get<std::vector<double>>(const StringRef item) const;
+template void Section::set<std::vector<double>>(const StringRef item,
+                                                const std::vector<double> &value);
 
-template std::vector<float> MemorySection::get<std::vector<float>>(const StringRef item) const;
-template void MemorySection::set<std::vector<float>>(const StringRef item,
-                                                     const std::vector<float> &value);
+template std::vector<float> Section::get<std::vector<float>>(const StringRef item) const;
+template void Section::set<std::vector<float>>(const StringRef item,
+                                               const std::vector<float> &value);
 
 /* Global instance */
-MemoryFile uimemory;
+Memory memory;
 
-}  // namespace blender
+}  // namespace blender::ui_memory

@@ -5,7 +5,7 @@
 /** \file
  * \ingroup bli
  *
- * MemoryFile / MemorySection API for persisted UI state.
+ * Memory / Section API for persisted UI state.
  */
 
 #pragma once
@@ -15,15 +15,15 @@
 
 #include "BLI_string_ref.hh"
 
-namespace blender {
+namespace blender::ui_memory {
 
-struct MemorySection {
+struct Section {
   std::string section;
 
-  MemorySection() = default;
-  MemorySection(const StringRef sec) : section(sec.data(), sec.size()) {}
-  MemorySection(const std::string &sec) : section(sec) {}
-  MemorySection(const char *sec) : section(sec) {}
+  Section() = default;
+  Section(const StringRef sec) : section(sec.data(), sec.size()) {}
+  Section(const std::string &sec) : section(sec) {}
+  Section(const char *sec) : section(sec) {}
 
   template<typename T> T get(const StringRef item) const;
   template<typename T> void set(const StringRef item, const T &value);
@@ -42,29 +42,29 @@ struct MemorySection {
 
     template<typename T> operator T() const
     {
-      return MemorySection(*section_ptr).get<T>(StringRef(key));
+      return Section(*section_ptr).get<T>(StringRef(key));
     }
 
     operator std::string() const
     {
-      return MemorySection(*section_ptr).get<std::string>(StringRef(key));
+      return Section(*section_ptr).get<std::string>(StringRef(key));
     }
 
     template<typename T> Proxy &operator=(const T &value)
     {
-      MemorySection(*section_ptr).set(StringRef(key), value);
+      Section(*section_ptr).set(StringRef(key), value);
       return *this;
     }
 
     Proxy &operator=(const std::string &s)
     {
-      MemorySection(*section_ptr).set(StringRef(key), s);
+      Section(*section_ptr).set(StringRef(key), s);
       return *this;
     }
 
     Proxy &operator=(const char *s)
     {
-      MemorySection(*section_ptr).set(StringRef(key), std::string(s));
+      Section(*section_ptr).set(StringRef(key), std::string(s));
       return *this;
     }
   };
@@ -80,11 +80,11 @@ struct MemorySection {
 
     template<typename T> operator T() const
     {
-      return MemorySection(*section_ptr).get<T>(StringRef(key));
+      return Section(*section_ptr).get<T>(StringRef(key));
     }
     operator std::string() const
     {
-      return MemorySection(*section_ptr).get<std::string>(StringRef(key));
+      return Section(*section_ptr).get<std::string>(StringRef(key));
     }
   };
 
@@ -98,19 +98,19 @@ struct MemorySection {
   }
 };
 
-struct MemoryFile {
+struct Memory {
   void init_async();
   void ensure_init();
   bool save() const;
   /* Open a section handle. */
-  MemorySection open(const StringRef section) const
+  Section open(const StringRef section) const
   {
-    return MemorySection(section);
+    return Section(section);
   }
 };
 
 /* Global instance used by callers. */
-extern MemoryFile uimemory;
+extern Memory memory;
 
 /**********************************/
 
@@ -152,4 +152,4 @@ _default = true
 
 )_delim_";
 
-}  // namespace blender
+}  // namespace blender::ui_memory

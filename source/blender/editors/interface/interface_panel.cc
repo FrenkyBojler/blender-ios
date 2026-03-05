@@ -704,7 +704,7 @@ Panel *panel_begin(
     }
 
     if (region->regiontype == RGN_TYPE_TOOLS && STRPREFIX(pt->idname, "FILEBROWSER_PT_")) {
-      MemorySection mem = uimemory.open("panel.sortorder");
+      ui_memory::Section mem = ui_memory::memory.open("panel.sortorder");
       panel->sortorder = mem[pt->idname];
       mem.section = "panel.open";
       SET_FLAG_FROM_TEST(panel->flag, !mem[pt->idname], PNL_CLOSED);
