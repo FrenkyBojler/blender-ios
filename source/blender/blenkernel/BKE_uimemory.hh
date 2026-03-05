@@ -29,29 +29,29 @@ struct Section {
   void remove_section();
 
   struct Proxy {
-    std::string *section_ptr;
+    Section *section_ptr;
     std::string key; /* Owning copy of the key */
 
-    Proxy(std::string *section_p, const StringRef key_)
+    Proxy(Section *section_p, const StringRef key_)
         : section_ptr(section_p), key(key_.data(), key_.size())
     {
     }
 
     template<typename T> operator T() const
     {
-      return Section(*section_ptr).get<T>(StringRef(key));
+      return this->section_ptr->get<T>(StringRef(this->key));
     }
 
     template<typename T> Proxy &operator=(const T &value)
     {
-      Section(*section_ptr).set(StringRef(key), value);
+      this->section_ptr->set(StringRef(this->key), value);
       return *this;
     }
   };
 
   Proxy operator[](const StringRef item)
   {
-    return Proxy(&section, item);
+    return Proxy(this, item);
   }
 };
 
