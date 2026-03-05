@@ -4823,14 +4823,16 @@ static int ui_do_but_BUT(bContext *C, Button *but, HandleButtonData *data, const
     }
   }
 #endif
-  if (button_opens_link(but)) {
+  if (button_opens_link(but) || button_opens_link_preset(but)) {
     if (!data->changed_cursor) {
       WM_cursor_set(data->window, WM_CURSOR_HAND_POINT);
       data->changed_cursor = true;
     }
-    WorkspaceStatus status(C);
-    status.item(RNA_string_get(but->opptr, "url"), ICON_NONE);
-    data->changed_wokspace_status = true;
+    if (button_opens_link(but)) {
+      WorkspaceStatus status(C);
+      status.item(RNA_string_get(but->opptr, "url"), ICON_NONE);
+      data->changed_wokspace_status = true;
+    }
   }
   if (data->state == BUTTON_STATE_HIGHLIGHT) {
     if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
