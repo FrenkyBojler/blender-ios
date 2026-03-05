@@ -794,9 +794,9 @@ static FModifier *rna_FCurve_modifiers_new(FCurve *fcu, ReportList *reports, int
   if (success == false) {
     const FModifierTypeInfo *fmi = get_fmodifier_typeinfo(type);
     BKE_reportf(reports,
-              RPT_ERROR,
-              "Cannot add '%s' modifier to F-Curve, as it can only be first in stack.",
-              fmi->name);
+                RPT_ERROR,
+                "Cannot add '%s' modifier to F-Curve, as it can only be first in stack.",
+                fmi->name);
   }
   return fcm;
 }

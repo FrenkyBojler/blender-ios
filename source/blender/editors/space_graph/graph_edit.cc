@@ -2919,9 +2919,9 @@ static wmOperatorStatus graph_fmodifier_add_exec(bContext *C, wmOperator *op)
     if (success == false) {
       const FModifierTypeInfo *fmi = get_fmodifier_typeinfo(type);
       BKE_reportf(op->reports,
-                RPT_ERROR,
-                "Cannot add '%s' modifier to F-Curve, as it can only be first in stack.",
-                fmi->name);
+                  RPT_ERROR,
+                  "Cannot add '%s' modifier to F-Curve, as it can only be first in stack.",
+                  fmi->name);
     }
   }
 
