@@ -6,14 +6,11 @@ import bpy
 from bpy.types import Operator
 from bpy.props import IntProperty
 
-from copy import copy
-
 from ..utils.nodes import (
     NWBase,
     nw_check,
     nw_check_not_empty,
     nw_check_selected,
-    get_nodes_links,
 )
 
 
@@ -123,7 +120,6 @@ class NODE_OT_align_selected(Operator, NWBase):
 
         return min_x, max_x, min_y, max_y
     
-    # TODO - Make this take in a single tuple
     def move_children(self, frame, offset, axis):
         children = self.frame_children(frame)
 
@@ -161,7 +157,6 @@ class NODE_OT_align_selected(Operator, NWBase):
         else:
             nodes = sorted(nodes, key=self.get_middle, reverse=True)
 
-        # Alignment
         if horizontal:
             current_pos = min_x
             margin = self.margin
@@ -196,7 +191,6 @@ class NODE_OT_align_selected(Operator, NWBase):
                     else:
                         node.location_absolute.y = current_pos
                 
-                # Use half-margin for vertical alignment.
                 current_pos -= margin + self.get_height(node)
 
                 target_x = mid_x - (self.get_width(node) / 2)
@@ -205,20 +199,24 @@ class NODE_OT_align_selected(Operator, NWBase):
                 else:
                     node.location_absolute.x = target_x
 
-    def execute(self, context):
-        nodes = context.selected_nodes
-        active_node = context.active_node
+    @staticmethod
+    def create_parent_map(nodes):
         parent_map = {}
-        self.tree = context.space_data.edit_tree
-
         for node in nodes:
             children = parent_map.get(node.parent, None)
             if children is None:
                 parent_map[node.parent] = []
 
             parent_map[node.parent].append(node)
+        
+        return parent_map
 
-        self.parent_map = parent_map
+    def execute(self, context):
+        nodes = context.selected_nodes
+        active_node = context.active_node
+        parent_map = self.create_parent_map(nodes)
+
+        self.tree = context.space_data.edit_tree
 
         if not nodes:
             self.report({'WARNING'}, "No nodes to arrange in selection.")
