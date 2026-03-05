@@ -1,2 +1,2 @@
-Referenced by issue #155053, Segfault on undo
+Referenced by issue #155053, VSE: Segfault on undo (5.2)
 Referenced by pull request #155265, Fix #155053: VSE crash after undo
