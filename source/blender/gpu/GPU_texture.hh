@@ -307,10 +307,10 @@ enum GPUSamplerFiltering {
    * Enable Anisotropic filtering. This only has effect if `GPU_SAMPLER_FILTERING_MIPMAP` is set.
    * The filtered result is implementation dependent.
    */
-  GPU_SAMPLER_FILTERING_ANISOTROPIC_2 = (1 << 2),
-  GPU_SAMPLER_FILTERING_ANISOTROPIC_4 = (2 << 2),
-  GPU_SAMPLER_FILTERING_ANISOTROPIC_8 = (3 << 2),
-  GPU_SAMPLER_FILTERING_ANISOTROPIC_16 = (4 << 2),
+  GPU_SAMPLER_FILTERING_ANISOTROPIC_2 = (2 << 2),
+  GPU_SAMPLER_FILTERING_ANISOTROPIC_4 = (3 << 2),
+  GPU_SAMPLER_FILTERING_ANISOTROPIC_8 = (4 << 2),
+  GPU_SAMPLER_FILTERING_ANISOTROPIC_16 = (5 << 2),
 };
 
 ENUM_OPERATORS(GPUSamplerFiltering)
@@ -1088,7 +1088,7 @@ void GPU_texture_mipmap_mode(gpu::Texture *texture, bool use_mipmap, bool use_fi
 
 /**
  * Set anisotropic filter usage. Filter sample count is determined globally by
- * `U.anisotropic_filter` and updated when `GPU_samplers_update` is called.
+ * `U.anisotropic_filter`.
  */
 void GPU_texture_anisotropic_filter(gpu::Texture *texture, bool use_aniso);
 
@@ -1279,11 +1279,6 @@ const char *GPU_texture_format_name(gpu::TextureFormat format);
  * memory back and forth depending on usage.
  */
 unsigned int GPU_texture_memory_usage_get();
-
-/**
- * Update sampler states depending on user settings.
- */
-void GPU_samplers_update();
 
 /** \} */
 

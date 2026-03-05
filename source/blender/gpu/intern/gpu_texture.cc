@@ -8,6 +8,8 @@
 
 #include "BLI_string.h"
 
+#include "DNA_userdef_types.h"
+
 #include "GPU_framebuffer.hh"
 #include "GPU_texture.hh"
 
@@ -679,15 +681,16 @@ void GPU_texture_mipmap_mode(gpu::Texture *texture, bool use_mipmap, bool use_fi
   tex->sampler_state.set_filtering_flag_from_test(GPU_SAMPLER_FILTERING_LINEAR, use_filter);
 }
 
-void GPU_texture_anisotropic_filter(gpu::Texture *texture, int samples)
+void GPU_texture_anisotropic_filter(gpu::Texture *texture, bool use_aniso)
 {
   Texture *tex = texture;
+  int samples = use_aniso ? U.anisotropic_filter : 1;
   /* Stencil and integer format does not support filtering. */
   BLI_assert(!(samples > 1) ||
              !(tex->format_flag_get() & (GPU_FORMAT_STENCIL | GPU_FORMAT_INTEGER)));
   GPUSamplerFiltering filtering = GPU_SAMPLER_FILTERING_DEFAULT;
   GPUSamplerState::anisotropic_samples_set(filtering, samples);
-  tex->sampler_state.set_filtering_flag_from_test(filtering, samples > 1);
+  tex->sampler_state.enable_filtering_flag(filtering);
 }
 
 void GPU_texture_extend_mode_x(gpu::Texture *texture, GPUSamplerExtendMode extend_mode)
