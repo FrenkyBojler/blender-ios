@@ -34,7 +34,7 @@ namespace blender {
  * That can happen when the function returns a reference to statically allocated data or
  * dynamically allocated data depending on some condition.
  */
-class ResourceScope : NonCopyable, NonMovable {
+class ResourceScope : NonMovable {
  private:
   struct ResourceData {
     void *data;
@@ -42,16 +42,38 @@ class ResourceScope : NonCopyable, NonMovable {
   };
   using ResourceDataList = linear_allocator::ChunkedList<ResourceData, 4>;
 
+  /** This stores all resources. They are later freed in the reverse order of construction. */
   ResourceDataList resources_;
+  /**
+   * Used allocator. This may be provided by the caller or is owned by this #ResourceScope itself.
+   * In the latter case, the ownership of the allocator is also tracked by #resources_ above.
+   */
   LinearAllocator<> &allocator_;
 
  public:
+  /**
+   * Construct a #ResourceScope with an initial free buffer of the given size.
+   */
   explicit ResourceScope(int64_t initial_size = 32);
+
+  /**
+   * Construct a #ResourceScope in the provided buffer. It may allocate additional memory if
+   * necessary though.
+   */
   template<size_t Size, size_t Alignment>
   explicit ResourceScope(AlignedBuffer<Size, Alignment> &buffer);
+
+  /**
+   * Construct a #ResourceScope in the provided buffer. It may allocate additional memory if
+   * necessary though.
+   */
   ResourceScope(void *buffer, int64_t size);
 
+  /**
+   * Construct a #ResourceScope that uses the given allocator instead of creating a new one.
+   */
   explicit ResourceScope(LinearAllocator<> &allocator);
+
   ~ResourceScope();
 
   /**
@@ -114,6 +136,12 @@ class ResourceScope : NonCopyable, NonMovable {
                                                            int64_t size,
                                                            bool free_on_destruct);
 };
+
+/* This tests the expected size of #ResourceScope. It's currently easy to break by e.g. inheriting
+ * from #NonCopyable. That happens because then there would be two #NonCopyable types at the same
+ * address which is not allowed. The proper solution is probably to change how NonCopyable and
+ * NonMovable are used overall. */
+static_assert(sizeof(ResourceScope) == 16);
 
 /* -------------------------------------------------------------------- */
 /** \name #ResourceScope Inline Methods

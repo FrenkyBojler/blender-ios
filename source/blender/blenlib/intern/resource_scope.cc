@@ -17,6 +17,7 @@ ResourceScope::ResourceScope(const int64_t initial_size)
 
 ResourceScope::ResourceScope(void *buffer, const int64_t size)
     : allocator_(
+          /* At least the allocator itself has to fit into this buffer, otherwise it's not used. */
           size >= sizeof(LinearAllocator<>) ?
               ResourceScope::create_own_allocator_in_buffer(resources_, buffer, size, false) :
               ResourceScope::create_own_allocator(resources_, 0))
@@ -47,6 +48,8 @@ LinearAllocator<> &ResourceScope::create_own_allocator_in_buffer(ResourceDataLis
    * because `ChunkedList` is trivially destructible by design. */
   static_assert(std::is_trivially_destructible_v<ResourceDataList>);
 
+  /* The allocator has to be destructed. However, the memory only has to be freed if it's actually
+   * owned by the #ResourceScope. */
   auto free_fn = free_on_destruct ?
                      [](void *buffer) {
                        LinearAllocator<> *allocator = static_cast<LinearAllocator<> *>(buffer);
@@ -67,7 +70,8 @@ LinearAllocator<> &ResourceScope::create_own_allocator(ResourceDataList &r_resou
 {
   /* Since we are doing an allocation already, we might as well allocate a slightly larger buffer
    * to initialize memory in the linear allocator. */
-  const int64_t alloc_size = sizeof(LinearAllocator<>) + initial_size;
+  const int64_t alloc_size = sizeof(LinearAllocator<>) + sizeof(ResourceDataList::Segment) +
+                             initial_size;
   void *buffer = MEM_new_uninitialized_aligned(alloc_size, alignof(LinearAllocator<>), __func__);
 
   return ResourceScope::create_own_allocator_in_buffer(r_resources, buffer, alloc_size, true);

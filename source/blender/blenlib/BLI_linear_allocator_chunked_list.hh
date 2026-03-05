@@ -53,8 +53,10 @@ template<typename T, int64_t Capacity> struct ChunkedListSegment {
  * - It wastes less memory due to over-allocations.
  */
 template<typename T, int64_t SegmentCapacity = 4> class ChunkedList : NonCopyable {
- private:
+ public:
   using Segment = ChunkedListSegment<T, SegmentCapacity>;
+
+ private:
   Segment *current_segment_ = nullptr;
 
  public:
@@ -75,10 +77,10 @@ template<typename T, int64_t SegmentCapacity = 4> class ChunkedList : NonCopyabl
     requires std::is_trivially_destructible_v<T>
   = default;
 
+  /** If the contained type is not trivially destructible, all the elements are destructed. */
   ~ChunkedList()
     requires(!std::is_trivially_destructible_v<T>)
   {
-    /* Free all contained elements. */
     for (Segment *segment = current_segment_; segment; segment = segment->next) {
       for (const int64_t i : IndexRange(segment->size)) {
         T &value = *segment->values[i];
