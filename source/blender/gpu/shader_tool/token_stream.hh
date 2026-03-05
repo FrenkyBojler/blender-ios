@@ -26,18 +26,14 @@ struct LexerBase : lexit::TokenBuffer {
   static const std::array<CharClass, 128> default_char_class_table;
 
   /** Compact visualization of token_types.  */
-  std::string_view token_types_str;
-
-  /* --- Structure of Array style data for tokens. --- */
-
-  /** Ranges of characters per token. */
-  OffsetIndices token_offsets;
+  std::string_view token_types_str() const
+  {
+    return std::string_view((const char *)types_.get(), size_);
+  }
 
  protected:
   /* Change words into keyword (ex: `if`, `struct`, `template`). */
   void identify_keywords();
-
-  void update_string_view();
 };
 
 /**
@@ -48,8 +44,6 @@ struct SimpleLexer : LexerBase {
   void lexical_analysis(std::string_view input)
   {
     process(input, bsl_char_class_table.data());
-    token_types_str = std::string_view((const char *)types_.get(), size_);
-    token_offsets = {offsets_.get(), size_ + 1};
   }
 };
 
@@ -62,10 +56,6 @@ struct ExpressionLexer : LexerBase {
     process(input, default_char_class_table.data());
     merge_complex_literals();
     identify_keywords();
-    update_string_view();
-
-    token_types_str = std::string_view((const char *)types_.get(), size_);
-    token_offsets = {offsets_.get(), size_ + 1};
   }
 };
 
@@ -80,10 +70,6 @@ struct FullLexer : LexerBase {
     process(input, bsl_char_class_table.data());
     merge_complex_literals();
     identify_keywords();
-    update_string_view();
-
-    token_types_str = std::string_view((const char *)types_.get(), size_);
-    token_offsets = {offsets_.get(), size_ + 1};
   }
 };
 

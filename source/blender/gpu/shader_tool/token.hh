@@ -35,8 +35,7 @@ struct Token {
       return invalid();
     }
 #ifndef NDEBUG
-    IndexRange index_range = data->lex.token_offsets[index];
-    return {data->lex.str_.substr(index_range.start, index_range.size), data, index};
+    return {data->lex[index].str(), data, index};
 #else
     return {data, index};
 #endif
@@ -57,7 +56,8 @@ struct Token {
     if (is_invalid()) {
       return {0, 0};
     }
-    return data->lex.token_offsets[index];
+    return IndexRange{int64_t(data->lex.offsets_[index]),
+                      int64_t(data->lex.offsets_[index + 1] - data->lex.offsets_[index])};
   }
 
   Token prev() const
@@ -152,7 +152,7 @@ struct Token {
     if (is_invalid()) {
       return "";
     }
-    return data->lex.str_.substr(index_range().start, index_range().size);
+    return data->lex[index].str_with_whitespace();
   }
 
   std::string str_with_whitespace() const

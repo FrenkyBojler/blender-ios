@@ -30,10 +30,8 @@ struct Scope {
   {
 #ifndef NDEBUG
     IndexRange index_range = parser.scope_ranges[index];
-    int str_start = parser.lex.token_offsets[index_range.start].start;
-    int str_end = parser.lex.token_offsets[index_range.last()].last();
-    return {parser.lex.token_types_str.substr(index_range.start, index_range.size),
-            parser.lex.str_.substr(str_start, str_end - str_start + 1),
+    return {parser.lex.token_types_str().substr(index_range.start, index_range.size),
+            parser.lex.substr(parser.lex[index_range.start], parser.lex[index_range.last()]),
             &parser,
             index};
 #else
@@ -186,7 +184,7 @@ struct Scope {
     if (this->is_invalid()) {
       return Token::invalid();
     }
-    size_t pos = data->lex.token_types_str.substr(range().start, range().size).find(token_type);
+    size_t pos = data->lex.token_types_str().substr(range().start, range().size).find(token_type);
     return (pos != std::string::npos) ? Token::from_position(data, range().start + pos) :
                                         Token::invalid();
   }
@@ -231,8 +229,8 @@ struct Scope {
       return;
     }
 
-    const std::string_view scope_tokens = data->lex.token_types_str.substr(range().start,
-                                                                           range().size);
+    const std::string_view scope_tokens = data->lex.token_types_str().substr(range().start,
+                                                                             range().size);
 
     auto count_match = [](const std::string_view &s, const std::string_view &pattern) {
       size_t pos = 0, occurrences = 0;
@@ -344,7 +342,7 @@ struct Scope {
   void foreach_token(const TokenType token_type, Callback callback) const
   {
     IndexRange index_range = data->scope_ranges[index];
-    std::string_view view(data->lex.token_types_str);
+    std::string_view view(data->lex.token_types_str());
 
     size_t offset = index_range.start;
     for (const char c : view.substr(index_range.start, index_range.size)) {

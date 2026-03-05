@@ -305,8 +305,7 @@ void ParserBase::build_scope_tree(report_callback &report_error)
             break;
           }
 
-          IndexRange range = lex.token_offsets[tok_id];
-          std::string_view tok_str = {lex.str_.substr(range.start, range.size)};
+          std::string_view tok_str = lex[tok_id].str_with_whitespace();
           size_t new_line_offset = -1;
           while ((new_line_offset = tok_str.find("\n", new_line_offset + 1)) != std::string::npos)
           {
@@ -407,7 +406,7 @@ void ParserBase::build_scope_tree(report_callback &report_error)
         break;
       case AngleOpen:
         if (tok_id >= 1) {
-          char prev_char = lex.str_[lex.token_offsets[tok_id - 1].last()];
+          char prev_char = lex[tok_id - 1].str_with_whitespace().back();
           /* Rely on the fact that template are formatted without spaces but comparison isn't. */
           if ((prev_char != ' ' && prev_char != '\n' && prev_char != '<') ||
               lex.types_[tok_id - 1] == Template)
@@ -587,14 +586,6 @@ void ParserBase::build_token_to_scope_map()
 Token ParserBase::operator[](int i) const
 {
   return Token::from_position(this, i);
-}
-
-void LexerBase::update_string_view()
-{
-  assert(this->types_.get() != nullptr);
-  assert(this->size_ > 0);
-  this->token_types_str = std::string_view((const char *)types_.get(), size_);
-  this->token_offsets = {offsets_.get(), size_ + 1};
 }
 
 void ParserBase::update_string_view()

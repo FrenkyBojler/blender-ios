@@ -100,26 +100,6 @@ template<typename T> struct MutableSpan {
   }
 };
 
-/** Poor man's OffsetIndices. */
-struct OffsetIndices {
-  MutableSpan<uint32_t> offsets;
-
-  IndexRange operator[](const int64_t index) const
-  {
-    return {int64_t(offsets[index]), int64_t(offsets[index + 1] - offsets[index])};
-  }
-
-  uint32_t *data()
-  {
-    return offsets.data();
-  }
-
-  uint32_t size() const
-  {
-    return offsets.size() - 1;
-  }
-};
-
 /** Return the line number this token is found at. Take into account the #line directives. */
 size_t line_number(const std::string_view &str, size_t pos);
 /** Return the offset to the start of the line. */
