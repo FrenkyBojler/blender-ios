@@ -623,10 +623,10 @@ static wmOperatorStatus pose_bone_rotmode_exec(bContext *C, wmOperator *op)
 {
   const short mode = RNA_enum_get(op->ptr, "type");
   Object *prev_ob = nullptr;
-  /* A map built per object to make it quicker to find the FCurves of one bPoseChannel. */
-  animrig::RNAPathFCurveMap fcurves_by_rna_path;
 
-  bool rebuild_map = true;
+  /* A map built per action to make it quicker to find the FCurves of one bPoseChannel. */
+  Map<std::pair<bAction *, int32_t>, animrig::RNAPathFCurveMap> data_map;
+
   /* Set rotation mode of selected bones. */
   CTX_DATA_BEGIN_WITH_ID (C, bPoseChannel *, pchan, selected_pose_bones, Object *, ob) {
     if (pchan->rotmode == mode) {
@@ -635,11 +635,13 @@ static wmOperatorStatus pose_bone_rotmode_exec(bContext *C, wmOperator *op)
     }
     AnimData *adt = BKE_animdata_from_id(&ob->id);
     if (adt && adt->action && adt->slot_handle != animrig::Slot::unassigned) {
-      if (rebuild_map) {
-        fcurves_by_rna_path = animrig::build_rotation_fcurve_map(adt->action->wrap(),
-                                                                 adt->slot_handle);
-        rebuild_map = false;
+      if (!data_map.contains({adt->action, adt->slot_handle})) {
+        animrig::RNAPathFCurveMap fcurve_map = animrig::build_rotation_fcurve_map(
+            adt->action->wrap(), adt->slot_handle);
+        data_map.add({adt->action, adt->slot_handle}, fcurve_map);
       }
+      animrig::RNAPathFCurveMap &fcurves_by_rna_path = data_map.lookup(
+          {adt->action, adt->slot_handle});
       animrig::convert_pose_bone_rotation_keys(
           CTX_data_main(C), ob->id, *pchan, fcurves_by_rna_path, eRotationModes(mode));
       DEG_id_tag_update(&adt->action->id, ID_RECALC_ANIMATION);
@@ -659,7 +661,6 @@ static wmOperatorStatus pose_bone_rotmode_exec(bContext *C, wmOperator *op)
       WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, ob);
       WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
       prev_ob = ob;
-      rebuild_map = true;
     }
   }
   CTX_DATA_END;
