@@ -1502,6 +1502,16 @@ bNode *create_proxy_const_input_node(const eNodeSocketDatatype socket_type,
           {src_property_path, get_node_property_path(dst_tree, *node, "vector")});
       return node;
     }
+    case SOCK_INT_VECTOR: {
+      bNode *node = bke::node_add_node(&C, dst_tree, "FunctionNodeInputIntVector");
+      auto &node_storage = *static_cast<NodeInputIntVector *>(node->storage);
+      const auto &socket_value = *static_cast<const bNodeSocketValueIntVector *>(value);
+      node_storage.dimensions = socket_value.dimensions;
+      copy_v3_v3_int(node_storage.vector, socket_value.value);
+      anim_basepaths.append(
+          {src_property_path, get_node_property_path(dst_tree, *node, "vector")});
+      return node;
+    }
     case SOCK_RGBA: {
       switch (dst_tree.type) {
         case NTREE_COMPOSIT: {
@@ -1631,6 +1641,7 @@ bNode *create_proxy_implicit_input_node(const eNodeSocketDatatype socket_type,
     case SOCK_CUSTOM:
     case SOCK_FLOAT:
     case SOCK_RGBA:
+    case SOCK_INT_VECTOR:
     case SOCK_BOOLEAN:
     case SOCK_STRING:
     case SOCK_SHADER:

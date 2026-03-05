@@ -3019,6 +3019,13 @@ struct NodeInputVector {
   int dimensions = 3;
 };
 
+struct NodeInputIntVector {
+  DNA_DEFINE_CXX_METHODS(NodeInputIntVector)
+
+  int vector[3] = {};
+  int dimensions = 3;
+};
+
 struct NodeInputColor {
   DNA_DEFINE_CXX_METHODS(NodeInputColor)
 
