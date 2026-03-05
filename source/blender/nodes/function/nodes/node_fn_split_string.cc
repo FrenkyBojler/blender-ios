@@ -13,7 +13,10 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::String>("String").optional_label();
   b.add_input<decl::String>("Separator").optional_label();
-  b.add_output<decl::String>("List").structure_type(StructureType::List);
+  b.add_output<decl::String>("List")
+      .structure_type(StructureType::List)
+      .description(
+          "The parts of the input string. This contains at least one element but it may be empty");
 }
 
 static Vector<std::string> split_string(const StringRef original_str, const StringRef separator)
@@ -23,16 +26,15 @@ static Vector<std::string> split_string(const StringRef original_str, const Stri
   }
   StringRef remaining = original_str;
   Vector<std::string> result;
-  while (!remaining.is_empty()) {
+  while (true) {
     const int separator_pos = remaining.find(separator);
-    if (separator_pos == -1) {
+    if (separator_pos == StringRef::not_found) {
       result.append(remaining);
-      break;
+      return result;
     }
     result.append(remaining.substr(0, separator_pos));
     remaining = remaining.substr(separator_pos + separator.size());
   }
-  return result;
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
