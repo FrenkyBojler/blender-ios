@@ -214,6 +214,10 @@ class NODE_OT_align_selected(Operator, NWBase):
         if not nodes:
             self.report({'WARNING'}, "No nodes to arrange in selection.")
             return {'CANCELLED'}
+        
+        min_x, max_x, min_y, max_y = self.get_bounds(tuple((n for n in nodes if (n.bl_idname != "NodeFrame"))))
+        old_mid_x = (max_x + min_x) / 2
+        old_mid_y = (max_y + min_y) / 2
 
         sorted_keys = sorted(parent_map.keys(), key=self.parent_depth, reverse=True)
         for parent in sorted_keys:
@@ -237,5 +241,15 @@ class NODE_OT_align_selected(Operator, NWBase):
                 self.move_children(parent, offset=old_top - self.get_top(parent), axis="Y")
 
         # TODO - Anchoring to active node / bounds mid_point
+        min_x, max_x, min_y, max_y = self.get_bounds(tuple((n for n in nodes if (n.bl_idname != "NodeFrame"))))
+        new_mid_x = (max_x + min_x) / 2
+        new_mid_y = (max_y + min_y) / 2
+
+        offset_x = old_mid_x - new_mid_x
+        offset_y = old_mid_y - new_mid_y
+
+        for node in nodes:
+            node.location_absolute.x += offset_x
+            node.location_absolute.y += offset_y
 
         return {'FINISHED'}
