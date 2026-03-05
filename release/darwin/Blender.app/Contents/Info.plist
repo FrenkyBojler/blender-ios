@@ -36,7 +36,8 @@
 	<key>CFBundleGetInfoString</key>
 	<string>${MACOSX_BUNDLE_LONG_VERSION_STRING}, Blender Foundation</string>
 	<key>CFBundleIconFile</key>
-	<string>blender_icon.icns</string>
+	<!-- Legacy, non-liquid glass icon, used on pre-Tahoe / 26 macOS versions -->
+	<string>blender_icon_legacy.icns</string>
 	<key>CFBundleIdentifier</key>
 	<string>org.blenderfoundation.blender</string>
 	<key>CFBundleInfoDictionaryVersion</key>
