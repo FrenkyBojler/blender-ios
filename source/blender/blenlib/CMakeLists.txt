@@ -430,7 +430,9 @@ set(LIB
   PRIVATE bf::dependencies::optional::fftw3
 )
 
-if(NOT WITH_PYTHON_MODULE)
+if(WITH_PYTHON_MODULE)
+  add_definitions(-DWITH_PYTHON_MODULE)
+else()
   list(APPEND SRC
     intern/BLI_args.cc
 

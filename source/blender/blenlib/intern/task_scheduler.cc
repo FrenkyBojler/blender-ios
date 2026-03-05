@@ -22,6 +22,7 @@
 #    include <tbb/global_control.h>
 #    define WITH_TBB_GLOBAL_CONTROL
 #  endif
+#  include <new>
 #endif
 
 namespace blender {
@@ -63,12 +64,14 @@ void BLI_task_scheduler_exit()
   MEM_delete(task_scheduler_global_control);
 #endif
 
+#if defined(WITH_TBB) && !defined(WITH_PYTHON_MODULE)
   /* Terminate all TBB threads. */
   tbb::task_scheduler_handle handle{tbb::attach{}};
   const bool success = tbb::finalize(handle, std::nothrow_t{});
   if (!success) {
     fprintf(stderr, "Warning: TBB workers failed to cleanly shut down.\n");
   }
+#endif
 }
 
 int BLI_task_scheduler_num_threads()
