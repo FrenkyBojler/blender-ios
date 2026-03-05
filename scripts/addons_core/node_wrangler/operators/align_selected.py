@@ -139,6 +139,13 @@ class NODE_OT_align_selected(Operator, NWBase):
                 else:
                     node.location_absolute.y += offset
 
+    def get_bounds_center(self, nodes):
+        min_x, max_x, min_y, max_y = self.get_bounds(nodes)
+        mid_x = (max_x + min_x) / 2
+        mid_y = (max_y + min_y) / 2
+
+        return mid_x, mid_y
+
     def arrange_nodes(self, nodes):
         min_x, max_x, min_y, max_y = self.get_bounds(nodes)
         mid_x = (max_x + min_x) / 2
@@ -219,9 +226,7 @@ class NODE_OT_align_selected(Operator, NWBase):
         if active_node is not None:
             old_x, old_y = self.get_left(active_node), self.get_top(active_node)
         else:
-            min_x, max_x, min_y, max_y = self.get_bounds(tuple((n for n in nodes if (n.bl_idname != "NodeFrame"))))
-            old_x = (max_x + min_x) / 2
-            old_y = (max_y + min_y) / 2
+            old_x, old_y = self.get_bounds_center(tuple((n for n in nodes if (n.bl_idname != "NodeFrame"))))
 
         sorted_keys = sorted(parent_map.keys(), key=self.parent_depth, reverse=True)
         for parent in sorted_keys:
@@ -248,9 +253,7 @@ class NODE_OT_align_selected(Operator, NWBase):
             new_x = self.get_left(active_node) 
             new_y = self.get_top(active_node)
         else:
-            min_x, max_x, min_y, max_y = self.get_bounds(tuple((n for n in nodes if (n.bl_idname != "NodeFrame"))))
-            new_x = (max_x + min_x) / 2
-            new_y = (max_y + min_y) / 2
+            old_x, old_y = self.get_bounds_center(tuple((n for n in nodes if (n.bl_idname != "NodeFrame"))))
 
         offset_x = old_x - new_x
         offset_y = old_y - new_y
