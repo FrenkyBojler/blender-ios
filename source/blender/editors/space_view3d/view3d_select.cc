@@ -2467,10 +2467,11 @@ static Base *ed_view3d_give_base_under_cursor_ex(bContext *C,
   view3d_operator_needs_gpu(C);
   BKE_object_update_select_id(CTX_data_main(C));
 
-  const ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
+  ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
 
   const bool do_nearest = !XRAY_ACTIVE(vc.v3d);
   const bool do_material_slot_selection = r_material_slot != nullptr;
+  vc.obedit = nullptr;
   const int hits = mixed_bones_object_selectbuffer(
       &vc, &buffer, mval, VIEW3D_SELECT_FILTER_NOP, do_nearest, false, do_material_slot_selection);
 
