@@ -134,7 +134,7 @@ const FModifierTypeInfo *get_fmodifier_typeinfo(int type);
 FModifier *add_fmodifier(ListBaseT<FModifier> *modifiers,
                          int type,
                          FCurve *owner_fcu,
-                         ReportList *reports = nullptr);
+                         bool *sucess = nullptr);
 /**
  * Make a copy of the specified F-Modifier.
  */

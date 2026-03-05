@@ -789,7 +789,16 @@ static void rna_FCurve_active_modifier_set(PointerRNA *ptr,
 
 static FModifier *rna_FCurve_modifiers_new(FCurve *fcu, ReportList *reports, int type)
 {
-  return add_fmodifier(&fcu->modifiers, type, fcu, reports);
+  bool success = true;
+  FModifier *fcm = add_fmodifier(&fcu->modifiers, type, fcu, &success);
+  if (success == false) {
+    const FModifierTypeInfo *fmi = get_fmodifier_typeinfo(type);
+    BKE_reportf(reports,
+              RPT_ERROR,
+              "Cannot add '%s' modifier to F-Curve, as it can only be first in stack.",
+              fmi->name);
+  }
+  return fcm;
 }
 
 static void rna_FCurve_modifiers_remove(FCurve *fcu, ReportList *reports, PointerRNA *fcm_ptr)

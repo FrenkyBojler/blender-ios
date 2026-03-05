@@ -1182,7 +1182,7 @@ const FModifierTypeInfo *fmodifier_get_typeinfo(const FModifier *fcm)
 FModifier *add_fmodifier(ListBaseT<FModifier> *modifiers,
                          int type,
                          FCurve *owner_fcu,
-                         ReportList *reports)
+                         bool *sucess)
 {
   const FModifierTypeInfo *fmi = get_fmodifier_typeinfo(type);
   FModifier *fcm;
@@ -1197,10 +1197,9 @@ FModifier *add_fmodifier(ListBaseT<FModifier> *modifiers,
     /* Modifiers requiring original data must be first in stack, so for now, don't add if it can't
      * be. */
     /* TODO: perhaps there is some better way, but for now, */
-    BKE_reportf(reports,
-                RPT_ERROR,
-                "Cannot add '%s' modifier to F-Curve, as it can only be first in stack.",
-                fmi->name);
+    if (sucess) {
+      *sucess = false;
+    }
     return nullptr;
   }
 

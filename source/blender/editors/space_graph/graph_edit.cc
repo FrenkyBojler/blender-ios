@@ -2910,9 +2910,18 @@ static wmOperatorStatus graph_fmodifier_add_exec(bContext *C, wmOperator *op)
     FCurve *fcu = static_cast<FCurve *>(ale.data);
 
     /* Add F-Modifier of specified type to active F-Curve, and make it the active one. */
-    if (FModifier *fcm = add_fmodifier(&fcu->modifiers, type, fcu, op->reports)) {
+    bool success = true;
+    if (FModifier *fcm = add_fmodifier(&fcu->modifiers, type, fcu, &success)) {
       set_active_fmodifier(&fcu->modifiers, fcm);
       ale.update |= ANIM_UPDATE_DEPS;
+    }
+
+    if (success == false) {
+      const FModifierTypeInfo *fmi = get_fmodifier_typeinfo(type);
+      BKE_reportf(op->reports,
+                RPT_ERROR,
+                "Cannot add '%s' modifier to F-Curve, as it can only be first in stack.",
+                fmi->name);
     }
   }
 

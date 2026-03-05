@@ -2612,7 +2612,16 @@ static wmOperatorStatus nla_fmodifier_add_exec(bContext *C, wmOperator *op)
       }
 
       /* add F-Modifier of specified type to selected, and make it the active one */
-      fcm = add_fmodifier(&strip.modifiers, type, nullptr, op->reports);
+      bool success = true;
+      fcm = add_fmodifier(&strip.modifiers, type, nullptr, &success);
+      if (success == false) {
+        const FModifierTypeInfo *fmi = get_fmodifier_typeinfo(type);
+        BKE_reportf(op->reports,
+                  RPT_ERROR,
+                  "Cannot add '%s' modifier to F-Curve, as it can only be first in stack.",
+                  fmi->name);
+        continue;
+      }
 
       if (fcm) {
         set_active_fmodifier(&strip.modifiers, fcm);
