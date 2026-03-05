@@ -120,15 +120,13 @@ ccl_device_forceinline void film_write_denoising_features_surface(KernelGlobals 
 
   if (feature_weight > 0.0f) {
     if (kernel_data.film.pass_denoising_normal != PASS_UNUSED) {
-      /* Transform normal into camera space. It should be transformed using the inverse transpose
-       * of the transformation matrix, but since we ignore scaling for camera transformations, it's
-       * equivalent to applying the transform directly. */
+      /* Transform normal into camera space. */
       const Transform worldtocamera = kernel_data.cam.worldtocamera;
-      normal = transform_direction(&worldtocamera, normal);
+      float3 denoising_normal = transform_direction(&worldtocamera, normal);
       const float opaque_fraction = (total_weight > 0.0f) ? (sum_weight / total_weight) : 1.0f;
 
-      const float3 denoising_normal = ensure_finite(
-          normal * average(denoising_feature_throughput) * opaque_fraction * feature_weight);
+      denoising_normal = ensure_finite(denoising_normal * average(denoising_feature_throughput) *
+                                       opaque_fraction * feature_weight);
       film_write_pass_float3(buffer + kernel_data.film.pass_denoising_normal, denoising_normal);
     }
 
