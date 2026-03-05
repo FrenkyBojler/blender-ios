@@ -164,7 +164,6 @@ class CompositorModifierContext : public CompositorContext {
   ImBuf *mask_buffer_;
   float3x3 xform_;
   float2 result_translation_ = float2(0, 0);
-  const Strip *strip_;
   PointerRNA properties_ptr_;
 
   /* Identified if the output of the viewer was written. */
