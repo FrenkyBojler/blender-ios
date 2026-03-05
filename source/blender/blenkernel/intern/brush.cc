@@ -1814,6 +1814,13 @@ bool supports_normal_radius(const Brush &brush)
    * way. Update after initial commit to avoid confusing PRs. */
   return !ELEM(brush.sculpt_brush_type, SCULPT_BRUSH_TYPE_POSE);
 }
+bool supports_tip_roundness(const Brush &brush)
+{
+  return ELEM(brush.sculpt_brush_type,
+              SCULPT_BRUSH_TYPE_CLAY_STRIPS,
+              SCULPT_BRUSH_TYPE_DRAW,
+              SCULPT_BRUSH_TYPE_PAINT);
+}
 bool supports_hardness(const Brush &brush)
 {
   return brush.sculpt_brush_type != SCULPT_BRUSH_TYPE_POSE;
