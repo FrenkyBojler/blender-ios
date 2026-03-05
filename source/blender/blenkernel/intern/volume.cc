@@ -492,14 +492,14 @@ bool BKE_volume_load(const Volume *volume, const Main *bmain)
   CLOG_INFO(&LOG, "Volume %s: load %s", volume_name, filepath);
 
   /* Test if file exists. */
-  if (!BLI_exists(filepath)) {
+  if (!BLI_exists(filepath) && volume->packedfile == nullptr) {
     grids.error_msg = BLI_path_basename(filepath) + std::string(" not found");
     CLOG_INFO(&LOG, "Volume %s: %s", volume_name, grids.error_msg.c_str());
     return false;
   }
 
   bke::volume_grid::file_cache::GridsFromFile grids_from_file =
-      bke::volume_grid::file_cache::get_all_grids_from_file(filepath, 0);
+      bke::volume_grid::file_cache::get_all_grids_from_file(volume->packedfile, filepath, 0);
 
   if (!grids_from_file.error_message.empty()) {
     grids.error_msg = grids_from_file.error_message;
@@ -672,7 +672,7 @@ static void volume_update_simplify_level(Main *bmain, Volume *volume, const Deps
     std::list<GVolumeGrid> new_grids;
     for (const GVolumeGrid &old_grid : grids) {
       GVolumeGrid simple_grid = bke::volume_grid::file_cache::get_grid_from_file(
-          grids.filepath, old_grid->name(), simplify_level);
+          volume->packedfile, grids.filepath, old_grid->name(), simplify_level);
       BLI_assert(simple_grid);
       new_grids.push_back(std::move(simple_grid));
     }

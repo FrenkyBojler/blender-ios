@@ -20,13 +20,19 @@
  * levels which are used when the "volume resolution" simplify scene setting is reduced. Working
  * with reduced resolution can improve performance and uses less memory.
  */
-namespace blender::bke::volume_grid::file_cache {
+namespace blender {
+
+struct PackedFile;
+namespace bke::volume_grid::file_cache {
 
 /**
  * Get the volume grid identified by the parameters from a cache. This does not load the tree data
  * in grid because that is done on demand when it is accessed.
  */
-GVolumeGrid get_grid_from_file(StringRef file_path, StringRef grid_name, int simplify_level = 0);
+GVolumeGrid get_grid_from_file(const PackedFile *packed_file,
+                               StringRef file_path,
+                               StringRef grid_name,
+                               int simplify_level = 0);
 
 struct GridsFromFile {
   /**
@@ -47,13 +53,16 @@ struct GridsFromFile {
  * Get all the data stored in a `.vdb` file.
  * This does not actually load the tree data, which is done on demand.
  */
-GridsFromFile get_all_grids_from_file(StringRef file_path, int simplify_level = 0);
+GridsFromFile get_all_grids_from_file(const PackedFile *packed_file,
+                                      StringRef file_path,
+                                      int simplify_level = 0);
 
 /**
  * Remove all cached volume grids that are currently not referenced outside of the cache.
  */
 void unload_unused();
 
-}  // namespace blender::bke::volume_grid::file_cache
+}  // namespace bke::volume_grid::file_cache
+}  // namespace blender
 
 #endif

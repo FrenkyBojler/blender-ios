@@ -35,7 +35,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   bke::volume_grid::file_cache::GridsFromFile grids_from_file =
-      bke::volume_grid::file_cache::get_all_grids_from_file(*path);
+      bke::volume_grid::file_cache::get_all_grids_from_file(nullptr, *path);
   if (!grids_from_file.error_message.empty()) {
     params.error_message_add(NodeWarningType::Error, grids_from_file.error_message);
     params.set_default_remaining_outputs();
