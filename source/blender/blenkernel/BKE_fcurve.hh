@@ -131,7 +131,10 @@ const FModifierTypeInfo *get_fmodifier_typeinfo(int type);
 /**
  * Add a new F-Curve Modifier to the given F-Curve of a certain type.
  */
-FModifier *add_fmodifier(ListBaseT<FModifier> *modifiers, int type, FCurve *owner_fcu, ReportList *reports = nullptr);
+FModifier *add_fmodifier(ListBaseT<FModifier> *modifiers,
+                         int type,
+                         FCurve *owner_fcu,
+                         ReportList *reports = nullptr);
 /**
  * Make a copy of the specified F-Modifier.
  */
