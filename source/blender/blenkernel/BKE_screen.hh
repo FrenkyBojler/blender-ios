@@ -431,6 +431,8 @@ enum {
   PANEL_TYPE_INSTANCED = (1 << 4),
   /** Don't search panels with this type during property search. */
   PANEL_TYPE_NO_SEARCH = (1 << 7),
+  /** Make panel not draggable and skip grip button drawing. */
+  PANEL_TYPE_NO_GRIP = (1 << 8),
 };
 
 struct LayoutPanelHeader {

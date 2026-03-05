@@ -1190,17 +1190,19 @@ static void panel_draw_aligned_widgets(const uiStyle *style,
   }
 
   /* Draw drag widget. */
-  if (!is_subpanel && show_background) {
-    const float x = widget_rect.xmax - scaled_unit * 1.15;
-    const float y = widget_rect.ymin + (header_height - (header_height * 0.7f)) * 0.5f;
-    const bool is_pin = panel_custom_pin_to_last_get(panel);
-    const int icon = is_pin ? ICON_PINNED : ICON_GRIP;
-    const float size = aspect * UI_INV_SCALE_FAC;
-    float alpha = is_pin ? 1.0f : 0.5f;
-    if (header_width < (scaled_unit * 5)) {
-      alpha *= std::max((header_width - scaled_unit) / float(scaled_unit * 4), 0.0f);
+  if ((panel->type->flag & PANEL_TYPE_NO_GRIP) == 0) {
+    if (!is_subpanel && show_background) {
+      const float x = widget_rect.xmax - scaled_unit * 1.15;
+      const float y = widget_rect.ymin + (header_height - (header_height * 0.7f)) * 0.5f;
+      const bool is_pin = panel_custom_pin_to_last_get(panel);
+      const int icon = is_pin ? ICON_PINNED : ICON_GRIP;
+      const float size = aspect * UI_INV_SCALE_FAC;
+      float alpha = is_pin ? 1.0f : 0.5f;
+      if (header_width < (scaled_unit * 5)) {
+        alpha *= std::max((header_width - scaled_unit) / float(scaled_unit * 4), 0.0f);
+      }
+      icon_draw_ex(x, y, icon, size, alpha, 0.0f, title_color, false, UI_NO_ICON_OVERLAY_TEXT);
     }
-    icon_draw_ex(x, y, icon, size, alpha, 0.0f, title_color, false, UI_NO_ICON_OVERLAY_TEXT);
   }
 }
 
@@ -2349,6 +2351,9 @@ static void ui_handle_panel_header(const bContext *C,
     if (IN_RANGE(mx, drag_area_xmin, drag_area_xmax)) {
       if (panel_custom_pin_to_last_get(panel)) {
         panel_custom_pin_to_last_set(C, panel, false);
+        return;
+      }
+      if (panel->type->flag & PANEL_TYPE_NO_GRIP) {
         return;
       }
       panel_activate_state(C, panel, PANEL_STATE_DRAG);

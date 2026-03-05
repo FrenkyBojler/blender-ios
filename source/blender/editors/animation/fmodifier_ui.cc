@@ -178,6 +178,10 @@ static PanelType *fmodifier_panel_register(ARegionType *region_type,
   /* Give the panel the special flag that says it was built here and corresponds to a
    * modifier rather than a #PanelType. */
   panel_type->flag = PANEL_TYPE_HEADER_EXPAND | PANEL_TYPE_INSTANCED;
+  if (fmi->requires_flag & FMI_REQUIRES_ORIGINAL_DATA) {
+    panel_type->flag |= PANEL_TYPE_NO_GRIP;
+  }
+
   panel_type->reorder = fmodifier_reorder;
   panel_type->get_list_data_expand_flag = get_fmodifier_expand_flag;
   panel_type->set_list_data_expand_flag = set_fmodifier_expand_flag;
