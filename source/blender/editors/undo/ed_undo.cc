@@ -790,7 +790,8 @@ static wmOperatorStatus undo_clear_history_invoke(bContext *C,
       step_count++;
     }
   }
-  std::string message = fmt::format(N_("All {} undo steps will be deleted."), step_count);
+  std::string message = fmt::format(fmt::runtime(TIP_("All {} undo steps will be deleted.")),
+                                    step_count);
   return WM_operator_confirm_ex(C,
                                 op,
                                 IFACE_("Clear undo history?"),
