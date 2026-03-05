@@ -765,29 +765,12 @@ static void file_tools_region_init(wmWindowManager *wm, ARegion *region)
 
 static void file_tools_region_exit(wmWindowManager * /*wm*/, ARegion *region)
 {
-  /* Collect all file browser tool panels */
-  Vector<Panel *> panels;
-  for (Panel &panel : region->panels) {
-    if (panel.type && STRPREFIX(panel.type->idname, "FILEBROWSER_PT_")) {
-      panels.append(&panel);
-    }
-  }
-
-  /* Sort by sortorder. */
-  std::stable_sort(panels.begin(), panels.end(), [](const Panel *a, const Panel *b) {
-    return a->sortorder < b->sortorder;
-  });
-
   ui_memory::Section sortorder = ui_memory::memory.open("panel.sortorder");
   ui_memory::Section open = ui_memory::memory.open("panel.open");
-  for (const int i : panels.index_range()) {
-    Panel *panel = panels[i];
-    const bool is_open = !(panel->flag & PNL_CLOSED);
-    sortorder[panel->type->idname] = i;
-    open[panel->type->idname] = is_open;
+  for (Panel &panel : region->panels) {
+    sortorder[panel.panelname] = panel.sortorder;
+    open[panel.panelname] = !(panel.flag & PNL_CLOSED);
   }
-
-  U.runtime.is_dirty = true;
 }
 
 static void file_tools_region_draw(const bContext *C, ARegion *region)
