@@ -13,20 +13,46 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.allow_any_socket_order();
   b.add_input<decl::String>("String").optional_label();
   b.add_output<decl::String>("String").align_with_previous();
-  b.add_input<decl::String>("Characters").optional_label();
-  b.add_input<decl::Bool>("Whitespace").default_value(true);
+  b.add_input<decl::String>("Characters")
+      .optional_label()
+      .description("Individual characters to trim. The order of characters does not matter");
+  b.add_input<decl::Bool>("Whitespace")
+      .default_value(true)
+      .description("Trim whitespace characters in addition to the provided characters");
+  b.add_input<decl::Bool>("Start").default_value(true).description(
+      "Trim the beginning of the string");
+  b.add_input<decl::Bool>("End").default_value(true).description("Trim at the end of the string");
 }
 
 static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 {
-  static auto trim_fn = mf::build::SI3_SO<std::string, std::string, bool, std::string>(
+  static auto trim_fn = mf::build::SI5_SO<std::string, std::string, bool, bool, bool, std::string>(
       "Trim",
-      [](const std::string &input_str, const std::string &characters, const bool trim_whitespace) {
+      [](const std::string &input_str,
+         const std::string &characters,
+         const bool trim_whitespace,
+         const bool trim_start,
+         const bool trim_end) {
         std::string characters_to_trim = characters;
         if (trim_whitespace) {
           characters_to_trim.append(" \t\n\r");
         }
-        std::string result = StringRef(input_str).trim(characters_to_trim);
+        StringRef str = input_str;
+        int64_t start = 0;
+        int64_t end = str.size();
+        if (trim_start) {
+          const int64_t i = str.find_first_not_of(characters_to_trim);
+          if (i != StringRef::not_found) {
+            start = i;
+          }
+        }
+        if (trim_end) {
+          const int64_t i = str.find_last_not_of(characters_to_trim);
+          if (i != StringRef::not_found) {
+            end = i + 1;
+          }
+        }
+        std::string result = str.substr(start, end - start);
         return result;
       });
   builder.set_matching_fn(&trim_fn);
