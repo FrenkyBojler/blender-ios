@@ -383,7 +383,7 @@ inline constexpr int64_t power_of_2_max(const int64_t x)
   ((void)0)
 
 #ifdef __cplusplus
-constexpr bool memory_is_zero(const void *data, const int64_t size)
+constexpr bool memory_is_zero(const void *data, const size_t size)
 {
   const char *arr_byte = static_cast<const char *>(data);
   const char *arr_end = static_cast<const char *>(data) + size;
