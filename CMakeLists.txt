@@ -967,6 +967,12 @@ else()
   set(WITH_GPU_SHADER_CPP_COMPILATION OFF)
 endif()
 
+# Force disable the option for MSVC to avoid accidental failure when switching to 5.1 branch where
+# this optionn was not made to work with MSVC.
+if(MSVC)
+  set(WITH_GPU_SHADER_CPP_COMPILATION OFF)
+endif()
+
 
 # OpenGL
 if(NOT APPLE)
