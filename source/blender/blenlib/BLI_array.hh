@@ -135,7 +135,7 @@ class Array {
       : Array(NoExceptConstructor(), allocator)
   {
     BLI_assert(size >= 0);
-    if (BLI_memory_is_zero(&value, sizeof(T))) {
+    if (std::is_trivially_copyable_v<T> && BLI_memory_is_zero(&value, sizeof(T))) {
       data_ = this->get_buffer_for_size(size, true);
     }
     else {
@@ -469,9 +469,10 @@ class Array {
 
   T *allocate(int64_t size, const bool zero)
   {
-    return zero ? static_cast<T *>(
-                      allocator_.allocate_zero(size_t(size) * sizeof(T), alignof(T), AT)) :
-                  static_cast<T *>(allocator_.allocate(size_t(size) * sizeof(T), alignof(T), AT));
+    if (zero) {
+      return static_cast<T *>(allocator_.allocate_zero(size_t(size) * sizeof(T), alignof(T), AT));
+    }
+    return static_cast<T *>(allocator_.allocate(size_t(size) * sizeof(T), alignof(T), AT));
   }
 
   void deallocate_if_not_inline(T *ptr)
