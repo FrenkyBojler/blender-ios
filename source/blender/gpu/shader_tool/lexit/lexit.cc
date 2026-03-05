@@ -24,7 +24,7 @@
 
 namespace lexit {
 
-int builtin_ctzll(uint64_t a)
+static int builtin_ctzll(uint64_t a)
 {
 #ifdef _MSC_VER
   unsigned long ctz;
@@ -733,9 +733,10 @@ void TokenBuffer::atomize_words(IdentifierMap &identifiers, const KeywordTable &
     /* Iterate over the bitmasks. */
     const int end = divide_ceil(size_, stride);
     /* The atomize_short_tokens_in_mask can read past the end of each token by 8 bytes.
-     * For this reason we process the last chunk separately. */
+     * For this reason we process the last chunks that contains the last 8 tokens separately. */
+    const int end_safe = divide_ceil(int(size_) - 8, stride) - 1;
     int chunk = 0;
-    for (; chunk < end - 1; ++chunk) {
+    for (; chunk < end_safe; ++chunk) {
       const Masks small = masks_small_id[chunk];
       atomize_short_tokens_in_mask<1>(small.mask8, chunk * stride, identifiers, keywords);
       atomize_short_tokens_in_mask<2>(small.mask16, chunk * stride, identifiers, keywords);
