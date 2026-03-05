@@ -590,6 +590,7 @@ if(WITH_GTESTS)
     tests/BLI_task_test.cc
     tests/BLI_tempfile_test.cc
     tests/BLI_unique_sorted_indices_test.cc
+    tests/BLI_ustring_test.cc
     tests/BLI_utildefines_test.cc
     tests/BLI_uuid_test.cc
     tests/BLI_vector_list_test.cc

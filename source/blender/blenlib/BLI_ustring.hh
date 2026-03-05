@@ -7,6 +7,7 @@
 #include <OpenImageIO/ustring.h>
 
 #include "BLI_fixed_string.hh"
+#include "BLI_hash.hh"
 #include "BLI_string_ref.hh"
 
 namespace blender {
@@ -18,24 +19,70 @@ namespace blender {
  * See the OpenImageIO documentation for more details:
  * https://openimageio.readthedocs.io/en/stable/imageioapi.html#efficient-unique-strings-ustring
  */
-class UString : public OpenImageIO::ustring {
- public:
-  /** Inherit constructors.  */
-  using OpenImageIO::ustring::ustring;
+class UString {
+ private:
+  /**
+   * Using a member instead of inheritance because it simplifies avoiding various ambiguities with
+   * operator overloads (especially equality comparison between UString, StringRef, std::string,
+   * std::string_view, OpenImageIO::string_view, etc.).
+   */
+  OpenImageIO::ustring ustr_;
 
-  /** Construct from a StringRef.  */
-  explicit UString(const StringRef str) : OpenImageIO::ustring(std::string_view(str)) {}
+ public:
+  UString() = default;
+  explicit UString(const StringRef str) : ustr_(std::string_view(str)) {}
 
   /** Implicit conversion to StringRef. */
   operator StringRef() const
   {
-    return StringRef(this->c_str(), this->length());
+    return StringRef(ustr_.c_str(), ustr_.length());
   }
 
   /** Implicit conversion to StringRefNull. */
   operator StringRefNull() const
   {
-    return StringRefNull(this->c_str(), this->length());
+    return StringRefNull(ustr_.c_str(), ustr_.length());
+  }
+
+  const std::string &string() const
+  {
+    return ustr_.string();
+  }
+
+  const char *c_str() const
+  {
+    return ustr_.c_str();
+  }
+
+  friend bool operator==(const UString &a, const UString &b)
+  {
+    return a.ustr_ == b.ustr_;
+  }
+
+  uint64_t hash() const
+  {
+    return ustr_.hash();
+  }
+};
+
+/**
+ * Define DefaultHash for UString keys so that it uses the cached hash on ustrings but also
+ * supports hashing arbitrary (non-unique) strings in the same way.
+ *
+ * Note: The string hashes produced here are different from e.g. DefaultHash<StringRef>. That is
+ * fine though. The only requirement is that all hashes defined in this template specialization are
+ * compatible with each other.
+ */
+template<> struct DefaultHash<UString> {
+  uint64_t operator()(const UString &value) const
+  {
+    return value.hash();
+  }
+
+  constexpr uint64_t operator()(const StringRef value) const
+  {
+    /* This is the hash function used by OpenImageIO::ustring::make_unique internally. */
+    return OpenImageIO::Strutil::strhash64(value.size(), value.data());
   }
 };
 
