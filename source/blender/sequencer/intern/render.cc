@@ -2077,9 +2077,8 @@ float get_render_scale_factor(const RenderData &context)
   return get_render_scale_factor(context.preview_render_size, context.scene->r.size);
 }
 
-GPUContext *render_begin_gpu(const RenderData &rd)
+void render_begin_gpu(const RenderData &rd)
 {
-  GPUContext *prev_context = GPU_context_active_get();
   if (rd.gpu_context.ghost_context != nullptr) {
     /* Use GPU context from VSE render data. */
     gpu::GPU_activate_secondary_context(rd.gpu_context);
@@ -2099,10 +2098,9 @@ GPUContext *render_begin_gpu(const RenderData &rd)
     GPU_render_begin();
     GPU_context_active_set(static_cast<GPUContext *>(render_gpu_context));
   }
-  return prev_context;
 }
 
-void render_end_gpu(const RenderData &rd, GPUContext *prev_context)
+void render_end_gpu(const RenderData &rd)
 {
   if (rd.gpu_context.ghost_context != nullptr) {
     /* Use GPU context from VSE render data. */
@@ -2122,7 +2120,6 @@ void render_end_gpu(const RenderData &rd, GPUContext *prev_context)
     GPU_render_end();
     WM_system_gpu_context_release(render_ghost_context);
   }
-  GPU_context_active_set(prev_context);
 }
 
 }  // namespace blender::seq
