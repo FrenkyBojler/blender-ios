@@ -952,9 +952,10 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
   }
   else if (but->optype && but->opptr && StringRef("WM_OT_url_open") == but->optype->idname) {
     std::string link = RNA_string_get(but->opptr, "url");
-    layout.button("Copy Link", ICON_COPYDOWN, [link = std::move(link)](blender::bContext & /*C*/) {
-      WM_clipboard_text_set(link.c_str(), false);
-    });
+    layout.button(
+        IFACE_("Copy Link"), ICON_COPYDOWN, [link = std::move(link)](blender::bContext & /*C*/) {
+          WM_clipboard_text_set(link.c_str(), false);
+        });
     layout.separator();
   }
   else if (but->optype && but->opptr && RNA_struct_property_is_set(but->opptr, "filepath")) {
