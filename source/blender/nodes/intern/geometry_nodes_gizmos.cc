@@ -377,7 +377,7 @@ static void foreach_active_gizmo_exposed_to_modifier(
     bke::ComputeContextCache &compute_context_cache,
     const ForeachGizmoInModifierFn fn)
 {
-  if (!nmd.node_group) {
+  if (!nmd.node_group || ID_MISSING(nmd.node_group)) {
     return;
   }
   const bNodeTree &tree = *nmd.node_group;
@@ -425,7 +425,7 @@ void foreach_active_gizmo_in_modifier(const Object &object,
                                       bke::ComputeContextCache &compute_context_cache,
                                       const ForeachGizmoInModifierFn fn)
 {
-  if (!nmd.node_group) {
+  if (!nmd.node_group || ID_MISSING(nmd.node_group)) {
     return;
   }
 

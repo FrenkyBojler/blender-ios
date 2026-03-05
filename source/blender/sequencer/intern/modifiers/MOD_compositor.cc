@@ -10,9 +10,7 @@
 
 #include "BLT_translation.hh"
 
-#include "COM_context.hh"
 #include "COM_domain.hh"
-#include "COM_node_group_operation.hh"
 #include "COM_realize_on_domain_operation.hh"
 #include "COM_result.hh"
 
@@ -33,7 +31,6 @@
 
 #include "SEQ_modifier.hh"
 #include "SEQ_modifiertypes.hh"
-#include "SEQ_render.hh"
 #include "SEQ_select.hh"
 #include "SEQ_sequencer.hh"
 #include "SEQ_transform.hh"
@@ -44,6 +41,7 @@
 #include "RNA_prototypes.hh"
 
 #include "cache/compositor_cache.hh"
+#include "compositor.hh"
 #include "modifier.hh"
 #include "render.hh"
 
@@ -158,9 +156,8 @@ static void set_single_input_from_rna_value(PointerRNA *input_props_ptr,
   }
 }
 
-class CompositorModifierContext : public compositor::Context {
+class CompositorModifierContext : public CompositorContext {
  private:
-  const RenderData &render_data_;
   const SequencerCompositorModifierData *modifier_data_;
 
   ImBuf *image_buffer_;
@@ -180,13 +177,11 @@ class CompositorModifierContext : public compositor::Context {
                             ImBuf *image_buffer,
                             ImBuf *mask_buffer,
                             const Strip &strip)
-      : compositor::Context(cache_manager),
-        render_data_(render_data),
+      : CompositorContext(cache_manager, render_data, strip),
         modifier_data_(modifier_data),
         image_buffer_(image_buffer),
         mask_buffer_(mask_buffer),
-        xform_(float3x3::identity()),
-        strip_(&strip)
+        xform_(float3x3::identity())
   {
     if (mask_buffer) {
       /* Note: do not use passed transform matrix since compositor coordinate
@@ -200,58 +195,9 @@ class CompositorModifierContext : public compositor::Context {
     properties_ptr_ = RNA_pointer_get(&ptr, "properties");
   }
 
-  float2 get_result_translation() const
-  {
-    return result_translation_;
-  }
-
-  const Scene &get_scene() const override
-  {
-    return *render_data_.scene;
-  }
-
-  bool treat_viewer_as_group_output() const override
-  {
-    return true;
-  }
-
   compositor::Domain get_compositing_domain() const override
   {
     return compositor::Domain(int2(image_buffer_->x, image_buffer_->y));
-  }
-
-  void write_output(const compositor::Result &result)
-  {
-    /* Do not write the output if the viewer output was already written. */
-    if (viewer_was_written_) {
-      return;
-    }
-
-    if (result.is_single_value()) {
-      IMB_rectfill(image_buffer_, result.get_single_value<compositor::Color>());
-      return;
-    }
-
-    compositor::Result result_cpu = this->use_gpu() ? result.download_to_cpu() : result;
-
-    result_translation_ = result_cpu.domain().transformation.location();
-    const int output_size_x = result.domain().data_size.x;
-    const int output_size_y = result.domain().data_size.y;
-    if (output_size_x != image_buffer_->x || output_size_y != image_buffer_->y) {
-      /* Output size is different (e.g. image is blurred with expanded bounds);
-       * need to allocate appropriately sized buffer. */
-      IMB_free_all_data(image_buffer_);
-      image_buffer_->x = output_size_x;
-      image_buffer_->y = output_size_y;
-      IMB_alloc_float_pixels(image_buffer_, 4, false);
-    }
-    std::memcpy(image_buffer_->float_buffer.data,
-                result_cpu.cpu_data().data(),
-                IMB_get_pixel_count(image_buffer_) * sizeof(float) * 4);
-
-    if (this->use_gpu()) {
-      result_cpu.release();
-    }
   }
 
   void write_viewer(compositor::Result &viewer_result) override
@@ -271,63 +217,15 @@ class CompositorModifierContext : public compositor::Context {
       realization_operation->evaluate();
 
       Result &realized_viewer_result = realization_operation->get_result();
-      this->write_output(realized_viewer_result);
+      this->write_output(realized_viewer_result, *image_buffer_);
       realized_viewer_result.release();
       viewer_was_written_ = true;
       delete realization_operation;
       return;
     }
 
-    this->write_output(viewer_result);
+    this->write_output(viewer_result, *image_buffer_);
     viewer_was_written_ = true;
-  }
-
-  const Strip *get_strip() const override
-  {
-    return strip_;
-  }
-
-  bool use_gpu() const override
-  {
-    return this->render_data_.scene->r.compositor_device == SCE_COMPOSITOR_DEVICE_GPU;
-  }
-
-  compositor::ResultPrecision get_precision() const override
-  {
-    switch (this->render_data_.scene->r.compositor_precision) {
-      case SCE_COMPOSITOR_PRECISION_AUTO:
-        /* Auto uses full precision for final renders and half precision otherwise. */
-        return this->render_data_.render ? compositor::ResultPrecision::Full :
-                                           compositor::ResultPrecision::Half;
-      case SCE_COMPOSITOR_PRECISION_FULL:
-        return compositor::ResultPrecision::Full;
-    }
-    BLI_assert_unreachable();
-    return compositor::ResultPrecision::Half;
-  }
-
-  compositor::NodeGroupOutputTypes needed_outputs() const
-  {
-    compositor::NodeGroupOutputTypes needed_outputs =
-        compositor::NodeGroupOutputTypes::GroupOutputNode;
-    if (!render_data_.render) {
-      needed_outputs |= compositor::NodeGroupOutputTypes::ViewerNode;
-    }
-    return needed_outputs;
-  }
-
-  void create_result_from_input(compositor::Result &result, const ImBuf &input) const
-  {
-    BLI_assert(input.float_buffer.data);
-    const bool gpu = this->use_gpu();
-    const int2 size = int2(input.x, input.y);
-    if (!gpu) {
-      result.wrap_external(input.float_buffer.data, size);
-    }
-    else {
-      result.allocate_texture(size);
-      GPU_texture_update(result, GPU_DATA_FLOAT, input.float_buffer.data);
-    }
   }
 
   void evaluate()
@@ -341,16 +239,7 @@ class CompositorModifierContext : public compositor::Context {
                                             nullptr,
                                             node_group.active_viewer_key,
                                             bke::NODE_INSTANCE_KEY_BASE);
-
-    /* Set the reference count for the outputs, only the first color output is actually needed,
-     * while the rest are ignored. */
-    node_group.ensure_interface_cache();
-    for (const bNodeTreeInterfaceSocket *output_socket : node_group.interface_outputs()) {
-      const bool is_first_output = output_socket == node_group.interface_outputs().first();
-      Result &output_result = node_group_operation.get_result(output_socket->identifier);
-      const bool is_color = output_result.type() == ResultType::Color;
-      output_result.set_reference_count(is_first_output && is_color ? 1 : 0);
-    }
+    set_output_refcount(node_group, node_group_operation);
 
     node_group.ensure_topology_cache();
     PointerRNA inputs_ptr = RNA_pointer_get(&properties_ptr_, "inputs");
@@ -399,32 +288,7 @@ class CompositorModifierContext : public compositor::Context {
     }
 
     node_group_operation.evaluate();
-
-    /* Write the outputs of the operation. */
-    for (const bNodeTreeInterfaceSocket *output_socket : node_group.interface_outputs()) {
-      Result &output_result = node_group_operation.get_result(output_socket->identifier);
-      if (!output_result.should_compute()) {
-        continue;
-      }
-
-      /* Realize the output transforms if needed. */
-      const InputDescriptor input_descriptor = {ResultType::Color,
-                                                InputRealizationMode::OperationDomain};
-      SimpleOperation *realization_operation = RealizeOnDomainOperation::construct_if_needed(
-          *this, output_result, input_descriptor, output_result.domain());
-      if (realization_operation) {
-        realization_operation->map_input_to_result(&output_result);
-        realization_operation->evaluate();
-        Result &realized_output_result = realization_operation->get_result();
-        this->write_output(realized_output_result);
-        realized_output_result.release();
-        delete realization_operation;
-        continue;
-      }
-
-      this->write_output(output_result);
-      output_result.release();
-    }
+    this->write_outputs(node_group, node_group_operation, *this->image_buffer_);
   }
 };
 
@@ -433,12 +297,6 @@ static void compositor_modifier_init_data(StripModifierData *strip_modifier_data
   SequencerCompositorModifierData *modifier_data =
       reinterpret_cast<SequencerCompositorModifierData *>(strip_modifier_data);
   modifier_data->node_group = nullptr;
-}
-
-static bool is_linear_float_buffer(ImBuf *image_buffer)
-{
-  return image_buffer->float_buffer.data &&
-         IMB_colormanagement_space_is_scene_linear(image_buffer->float_buffer.colorspace);
 }
 
 static bool ensure_linear_float_buffer(ImBuf *ibuf)

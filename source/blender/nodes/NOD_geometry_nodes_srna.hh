@@ -6,8 +6,6 @@
 
 #include "NOD_nodes_srna.hh"
 
-#include "RNA_types.hh"
-
 namespace blender {
 
 struct StructRNA;
@@ -30,8 +28,8 @@ extern const EnumPropertyItem geometry_nodes_input_type_items_value[];
 extern const EnumPropertyItem geometry_nodes_input_type_items_value_or_attribute[];
 extern const EnumPropertyItem geometry_nodes_input_type_items_value_or_attribute_or_layer[];
 
-StructRNA *get_geometry_nodes_interface_srna_for_modifier(const bNodeTree &tree,
-                                                          GeneratedTreeSrnaData &r_generated);
+std::shared_ptr<GeneratedTreeSrnaData> create_geometry_nodes_rna_for_modifier(
+    const bNodeTree &tree);
 
 }  // namespace nodes
 }  // namespace blender

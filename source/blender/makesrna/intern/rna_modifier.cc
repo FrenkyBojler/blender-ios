@@ -880,6 +880,8 @@ static const EnumPropertyItem grease_pencil_build_time_mode_items[] = {
 
 #  include "MOD_nodes.hh"
 
+#  include "NOD_nodes_srna.hh"
+
 #  include "ED_object.hh"
 
 #  ifdef WITH_ALEMBIC
@@ -1935,14 +1937,10 @@ static void rna_NodesModifier_node_group_update(Main *bmain, Scene *scene, Point
 static StructRNA *rna_NodesModifierProperties_refine(PointerRNA *ptr)
 {
   auto *nmd = ptr->data_as<NodesModifierData>();
-  if (!nmd->node_group) {
+  if (!nmd->node_group || ID_MISSING(nmd->node_group)) {
     return RNA_NodesModifierPropertiesEmpty;
   }
-  if (!nmd->node_group->runtime->geometry_nodes_modifier_srna) {
-    BLI_assert(nmd->node_group->id.tag & ID_TAG_MISSING);
-    return RNA_NodesModifierPropertiesEmpty;
-  }
-  return nmd->node_group->runtime->geometry_nodes_modifier_srna;
+  return nmd->node_group->runtime->geometry_nodes_srna_data->properties_struct;
 }
 
 static std::optional<std::string> rna_NodesModifierProperties_path(const PointerRNA *ptr)

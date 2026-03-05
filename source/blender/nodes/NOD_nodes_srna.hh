@@ -17,7 +17,10 @@ namespace nodes {
 
 struct GeneratedTreeSrnaData {
   ResourceScope scope;
-  Vector<StructRNA *> structs;
+  StructRNA *properties_struct;
+  BlenderRNA *generated_rna;
+  GeneratedTreeSrnaData();
+  ~GeneratedTreeSrnaData();
 };
 
 }  // namespace nodes

@@ -6,8 +6,6 @@
 
 #include "NOD_nodes_srna.hh"
 
-#include "RNA_types.hh"
-
 namespace blender {
 
 struct StructRNA;
@@ -23,8 +21,8 @@ enum class CompositorNodesInputType {
 extern const EnumPropertyItem compositor_nodes_input_type_items_fallback[];
 extern const EnumPropertyItem compositor_nodes_input_type_items_value[];
 
-StructRNA *get_compositor_nodes_interface_srna_for_strip_modifier(
-    const bNodeTree &tree, GeneratedTreeSrnaData &r_generated);
+std::shared_ptr<GeneratedTreeSrnaData> create_compositor_nodes_rna_for_strip_modifier(
+    const bNodeTree &tree);
 
 }  // namespace nodes
 }  // namespace blender

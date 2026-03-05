@@ -171,6 +171,8 @@ const EnumPropertyItem rna_enum_pitch_quality_items[] = {
 
 #  include "MOV_read.hh"
 
+#  include "NOD_nodes_srna.hh"
+
 #  include "ED_sequencer.hh"
 
 #  include "SEQ_add.hh"
@@ -946,6 +948,12 @@ static void rna_Strip_text_set(PointerRNA *ptr, const char *value)
   }
   text->text_ptr = BLI_strdup(value);
   text->text_len_bytes = strlen(text->text_ptr);
+  /* We cannot know where the user's cursor is if they edit text from the properties panel,
+   * so just reset it to the end to avoid the cursor getting out of sync with text length. */
+  text->cursor_offset = text->text_len_bytes;
+  /* Also clear any selection to avoid weird behavior. */
+  text->selection_start_offset = 0;
+  text->selection_end_offset = 0;
 }
 
 static StructRNA *rna_Strip_refine(PointerRNA *ptr)
@@ -1921,13 +1929,10 @@ static void rna_CompositorModifier_node_group_update(Main *bmain, Scene *scene, 
 static StructRNA *rna_SequencerCompositorModifierProperties_refine(PointerRNA *ptr)
 {
   auto *cmd = ptr->data_as<SequencerCompositorModifierData>();
-  if (!cmd->node_group) {
-    return RNA_SequencerCompositorModifierProperties;
+  if (!cmd->node_group || ID_MISSING(cmd->node_group)) {
+    return RNA_SequencerCompositorModifierPropertiesEmpty;
   }
-  if (!cmd->node_group->runtime->compositor_nodes_modifier_srna) {
-    return RNA_SequencerCompositorModifierProperties;
-  }
-  return cmd->node_group->runtime->compositor_nodes_modifier_srna;
+  return cmd->node_group->runtime->compositor_nodes_srna_data->properties_struct;
 }
 
 static std::optional<std::string> rna_SequencerCompositorModifierProperties_path(
@@ -4384,6 +4389,11 @@ static void rna_def_compositor_modifier_nodes_properties(BlenderRNA *brna)
   srna = RNA_def_struct(brna, "SequencerCompositorModifierProperties", nullptr);
   RNA_def_struct_ui_text(srna, "Sequencer Compositor Modifier Properties", "");
   RNA_def_struct_refine_func(srna, "rna_SequencerCompositorModifierProperties_refine");
+  RNA_def_struct_system_idprops_func(srna, "rna_SequencerCompositorModifier_idprops");
+  RNA_def_struct_path_func(srna, "rna_SequencerCompositorModifierProperties_path");
+
+  srna = RNA_def_struct(brna, "SequencerCompositorModifierPropertiesEmpty", nullptr);
+  RNA_def_struct_ui_text(srna, "Sequencer Compositor Modifier Empty Properties", "");
   RNA_def_struct_system_idprops_func(srna, "rna_SequencerCompositorModifier_idprops");
   RNA_def_struct_path_func(srna, "rna_SequencerCompositorModifierProperties_path");
 }

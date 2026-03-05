@@ -347,7 +347,7 @@ static void update_bakes_from_node_group(NodesModifierData &nmd)
   }
 
   Vector<int> new_bake_ids;
-  if (nmd.node_group) {
+  if (nmd.node_group && !ID_MISSING(nmd.node_group)) {
     for (const bNestedNodeRef &ref : nmd.node_group->nested_node_refs_span()) {
       const bNode *node = nmd.node_group->find_nested_node(ref.id);
       if (node) {
@@ -404,7 +404,7 @@ static void update_panels_from_node_group(NodesModifierData &nmd)
   }
 
   Vector<const bNodeTreeInterfacePanel *> interface_panels;
-  if (nmd.node_group) {
+  if (nmd.node_group && !ID_MISSING(nmd.node_group)) {
     nmd.node_group->ensure_interface_cache();
     nmd.node_group->tree_interface.foreach_item([&](const bNodeTreeInterfaceItem &item) {
       if (item.item_type != NODE_INTERFACE_PANEL) {
@@ -445,10 +445,8 @@ static void update_system_properties(Object &object, NodesModifierData &nmd)
     nmd.modifier.system_properties =
         bke::idprop::create_group("NodesModifierProperties").release();
   }
-  if (nmd.node_group) {
-    if (nmd.node_group->id.tag == ID_TAG_MISSING) {
-      return;
-    }
+  if (!nmd.node_group || ID_MISSING(nmd.node_group)) {
+    return;
   }
   PointerRNA properties_ptr = RNA_pointer_create_discrete(
       &object.id, RNA_NodesModifierProperties, &nmd);
@@ -491,7 +489,7 @@ static void try_add_side_effect_node(const ModifierEvalContext &ctx,
                                      const NodesModifierData &nmd,
                                      nodes::GeoNodesSideEffectNodes &r_side_effect_nodes)
 {
-  if (nmd.node_group == nullptr) {
+  if (nmd.node_group == nullptr || ID_MISSING(nmd.node_group)) {
     return;
   }
 
@@ -1911,11 +1909,7 @@ static void modify_geometry_set(ModifierData *md,
 
 void NodesModifierUsageInferenceCache::ensure(const Object &object, const NodesModifierData &nmd)
 {
-  if (!nmd.node_group) {
-    this->reset();
-    return;
-  }
-  if (ID_MISSING(&nmd.node_group->id)) {
+  if (!nmd.node_group || ID_MISSING(nmd.node_group)) {
     this->reset();
     return;
   }
