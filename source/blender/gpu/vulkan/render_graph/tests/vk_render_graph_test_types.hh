@@ -570,6 +570,10 @@ template<typename VKObjectType> union VkHandle {
   {
     return vk_handle;
   }
+
+  operator ResourceHandle() const {
+    
+  }
 };
 
 static inline void submit(std::unique_ptr<VKRenderGraph> &render_graph,

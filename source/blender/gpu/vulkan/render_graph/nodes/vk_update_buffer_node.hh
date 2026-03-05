@@ -15,6 +15,7 @@ namespace blender::gpu::render_graph {
  * Information stored inside the render graph node. See `VKRenderGraphNode`.
  */
 struct VKUpdateBufferData {
+  ResourceHandle dst_handle;
   VkBuffer dst_buffer;
   VkDeviceSize dst_offset;
   VkDeviceSize data_size;
@@ -48,7 +49,7 @@ class VKUpdateBufferNode : public VKNodeInfo<VKNodeType::UPDATE_BUFFER,
                    const CreateInfo &create_info) override
   {
     ResourceWithStamp dst_resource = resources.get_buffer_and_increase_stamp(
-        create_info.dst_buffer);
+        create_info.dst_handle);
     links.buffers.append({dst_resource, VK_ACCESS_TRANSFER_WRITE_BIT});
   }
 
