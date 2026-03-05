@@ -9,8 +9,8 @@
  */
 
 #include "BLI_linear_allocator.hh"
+#include "BLI_linear_allocator_chunked_list.hh"
 #include "BLI_utility_mixins.hh"
-#include "BLI_vector.hh"
 
 namespace blender {
 
@@ -40,12 +40,18 @@ class ResourceScope : NonCopyable, NonMovable {
     void *data;
     void (*free)(void *data);
   };
+  using ResourceDataList = linear_allocator::ChunkedList<ResourceData, 4>;
 
-  LinearAllocator<> allocator_;
-  Vector<ResourceData> resources_;
+  ResourceDataList resources_;
+  LinearAllocator<> &allocator_;
 
  public:
-  ResourceScope();
+  explicit ResourceScope(int64_t initial_size = 32);
+  template<size_t Size, size_t Alignment>
+  explicit ResourceScope(AlignedBuffer<Size, Alignment> &buffer);
+  ResourceScope(void *buffer, int64_t size);
+
+  explicit ResourceScope(LinearAllocator<> &allocator);
   ~ResourceScope();
 
   /**
@@ -99,11 +105,25 @@ class ResourceScope : NonCopyable, NonMovable {
    * allocated through this allocator will be freed when the collector is destructed.
    */
   LinearAllocator<> &allocator();
+
+ private:
+  static LinearAllocator<> &create_own_allocator(ResourceDataList &r_resources,
+                                                 int64_t initial_size);
+  static LinearAllocator<> &create_own_allocator_in_buffer(ResourceDataList &r_resources,
+                                                           void *data,
+                                                           int64_t size,
+                                                           bool free_on_destruct);
 };
 
 /* -------------------------------------------------------------------- */
 /** \name #ResourceScope Inline Methods
  * \{ */
+
+template<size_t Size, size_t Alignment>
+inline ResourceScope::ResourceScope(AlignedBuffer<Size, Alignment> &buffer)
+    : ResourceScope(buffer.ptr(), Size)
+{
+}
 
 template<typename T> inline T *ResourceScope::add(std::unique_ptr<T> resource)
 {
@@ -151,7 +171,7 @@ inline void ResourceScope::add(void *userdata, void (*free)(void *))
   ResourceData data;
   data.data = userdata;
   data.free = free;
-  resources_.append(data);
+  resources_.append(allocator_, data);
 }
 
 template<typename T> inline T &ResourceScope::add_value(T &&value)

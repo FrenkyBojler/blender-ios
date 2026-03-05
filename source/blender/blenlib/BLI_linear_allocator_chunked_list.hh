@@ -66,17 +66,23 @@ template<typename T, int64_t SegmentCapacity = 4> class ChunkedList : NonCopyabl
     other.current_segment_ = nullptr;
   }
 
+  /* The destructors assume that the #ChunkedListSegment does not have to be destructed if the
+   * contained type is trivially destructible. */
+  static_assert(std::is_trivially_destructible_v<ChunkedListSegment<int, 4>>);
+
+  /** If the contained type is trivially destructible, the entire ChunkedList is too. */
   ~ChunkedList()
+    requires std::is_trivially_destructible_v<T>
+  = default;
+
+  ~ChunkedList()
+    requires(!std::is_trivially_destructible_v<T>)
   {
-    /* This code assumes that the #ChunkedListSegment does not have to be destructed if the
-     * contained type is trivially destructible. */
-    static_assert(std::is_trivially_destructible_v<ChunkedListSegment<int, 4>>);
-    if constexpr (!std::is_trivially_destructible_v<T>) {
-      for (Segment *segment = current_segment_; segment; segment = segment->next) {
-        for (const int64_t i : IndexRange(segment->size)) {
-          T &value = *segment->values[i];
-          std::destroy_at(&value);
-        }
+    /* Free all contained elements. */
+    for (Segment *segment = current_segment_; segment; segment = segment->next) {
+      for (const int64_t i : IndexRange(segment->size)) {
+        T &value = *segment->values[i];
+        std::destroy_at(&value);
       }
     }
   }
