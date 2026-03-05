@@ -279,7 +279,7 @@ void ParserBase::build_scope_tree(report_callback &report_error)
   Token error_token = Token::invalid();
   const char *error_msg = nullptr;
 
-  size_t predicted_scope_count = lex.token_types.size() / 2;
+  size_t predicted_scope_count = lex.size() / 2;
 
   ScopeStack stack(predicted_scope_count);
 
@@ -289,8 +289,8 @@ void ParserBase::build_scope_tree(report_callback &report_error)
 
   int tok_id = 0;
 
-  for (; tok_id < lex.token_types.size(); tok_id++) {
-    const TokenType type = lex.token_types[tok_id];
+  for (; tok_id < lex.size(); tok_id++) {
+    const TokenType type = lex.types_[tok_id];
 
     const ScopeType current_scope = stack.back().type;
 
@@ -299,14 +299,14 @@ void ParserBase::build_scope_tree(report_callback &report_error)
         stack.enter_scope(ScopeType::Preprocessor, tok_id);
         /* Seek until the end of the directive. */
         while (true) {
-          const TokenType type = lex.token_types[tok_id];
+          const TokenType type = lex.types_[tok_id];
           if (type == EndOfFile) {
             tok_id--;
             break;
           }
 
           IndexRange range = lex.token_offsets[tok_id];
-          std::string_view tok_str = {lex.str.substr(range.start, range.size)};
+          std::string_view tok_str = {lex.str_.substr(range.start, range.size)};
           size_t new_line_offset = -1;
           while ((new_line_offset = tok_str.find("\n", new_line_offset + 1)) != std::string::npos)
           {
@@ -333,19 +333,16 @@ void ParserBase::build_scope_tree(report_callback &report_error)
         TokenType keyword;
         int pos = 2;
         do {
-          keyword = (tok_id >= pos) ? TokenType(lex.token_types[tok_id - pos]) :
-                                      TokenType::Invalid;
+          keyword = (tok_id >= pos) ? TokenType(lex.types_[tok_id - pos]) : TokenType::Invalid;
           pos += 3;
         } while (keyword != Invalid && keyword == Colon);
 
         /* Skip host_shared attribute for structures if any. */
         if (keyword == ']') {
-          keyword = (tok_id >= pos) ? TokenType(lex.token_types[tok_id - pos]) :
-                                      TokenType::Invalid;
+          keyword = (tok_id >= pos) ? TokenType(lex.types_[tok_id - pos]) : TokenType::Invalid;
           if (keyword == '[') {
             pos += 2;
-            keyword = (tok_id >= pos) ? TokenType(lex.token_types[tok_id - pos]) :
-                                        TokenType::Invalid;
+            keyword = (tok_id >= pos) ? TokenType(lex.types_[tok_id - pos]) : TokenType::Invalid;
           }
         }
 
@@ -373,12 +370,12 @@ void ParserBase::build_scope_tree(report_callback &report_error)
         break;
       }
       case ParOpen:
-        if ((tok_id >= 1 && lex.token_types[tok_id - 1] == For) ||
-            (tok_id >= 1 && lex.token_types[tok_id - 1] == While))
+        if ((tok_id >= 1 && lex.types_[tok_id - 1] == For) ||
+            (tok_id >= 1 && lex.types_[tok_id - 1] == While))
         {
           stack.enter_scope(ScopeType::LoopArgs, tok_id);
         }
-        else if (tok_id >= 1 && lex.token_types[tok_id - 1] == Switch) {
+        else if (tok_id >= 1 && lex.types_[tok_id - 1] == Switch) {
           stack.enter_scope(ScopeType::SwitchArg, tok_id);
         }
         else if (current_scope == ScopeType::Global) {
@@ -392,7 +389,7 @@ void ParserBase::build_scope_tree(report_callback &report_error)
                   current_scope == ScopeType::FunctionParam ||
                   current_scope == ScopeType::Subscript ||
                   current_scope == ScopeType::Attribute) &&
-                 (tok_id >= 1 && lex.token_types[tok_id - 1] == Word))
+                 (tok_id >= 1 && lex.types_[tok_id - 1] == Word))
         {
           stack.enter_scope(ScopeType::FunctionCall, tok_id);
         }
@@ -401,7 +398,7 @@ void ParserBase::build_scope_tree(report_callback &report_error)
         }
         break;
       case SquareOpen:
-        if (tok_id >= 1 && lex.token_types[tok_id - 1] == SquareOpen) {
+        if (tok_id >= 1 && lex.types_[tok_id - 1] == SquareOpen) {
           stack.enter_scope(ScopeType::Attributes, tok_id);
         }
         else {
@@ -410,10 +407,10 @@ void ParserBase::build_scope_tree(report_callback &report_error)
         break;
       case AngleOpen:
         if (tok_id >= 1) {
-          char prev_char = lex.str[lex.token_offsets[tok_id - 1].last()];
+          char prev_char = lex.str_[lex.token_offsets[tok_id - 1].last()];
           /* Rely on the fact that template are formatted without spaces but comparison isn't. */
           if ((prev_char != ' ' && prev_char != '\n' && prev_char != '<') ||
-              lex.token_types[tok_id - 1] == Template)
+              lex.types_[tok_id - 1] == Template)
           {
             stack.enter_scope(ScopeType::Template, tok_id);
             in_template++;
@@ -535,7 +532,7 @@ void ParserBase::build_scope_tree(report_callback &report_error)
     }
   }
 
-  tok_id = lex.token_types.size() - 1;
+  tok_id = lex.size() - 1;
 
   if (stack.empty()) {
     error_token = (*this)[tok_id];
@@ -597,7 +594,6 @@ void LexerBase::update_string_view()
   assert(this->types_.get() != nullptr);
   assert(this->size_ > 0);
   this->token_types_str = std::string_view((const char *)types_.get(), size_);
-  this->token_types = {types_.get(), size_};
   this->token_offsets = {offsets_.get(), size_ + 1};
 }
 
@@ -655,7 +651,7 @@ bool MutableString::apply_mutations(LexerBase &lexer, const bool all_mutation_or
     str_.pop_back();
   }
   /* String have changed. Update string view. */
-  lexer.str = str_;
+  lexer.str_ = str_;
   return true;
 }
 

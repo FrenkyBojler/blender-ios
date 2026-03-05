@@ -31,12 +31,12 @@ struct Token {
 
   static Token from_position(const ParserBase *data, int64_t index)
   {
-    if (data == nullptr || index < 0 || index >= data->lex.token_offsets.size()) {
+    if (data == nullptr || index < 0 || index >= data->lex.size()) {
       return invalid();
     }
 #ifndef NDEBUG
     IndexRange index_range = data->lex.token_offsets[index];
-    return {data->lex.str.substr(index_range.start, index_range.size), data, index};
+    return {data->lex.str_.substr(index_range.start, index_range.size), data, index};
 #else
     return {data, index};
 #endif
@@ -102,7 +102,7 @@ struct Token {
   {
     size_t start = this->namespace_start().str_index_start();
     size_t end = this->str_index_last_no_whitespace();
-    return std::string(data->lex.str.substr(start, end - start + 1));
+    return std::string(data->lex.str_.substr(start, end - start + 1));
   }
 
   /* Only usable when building with whitespace. */
@@ -130,21 +130,21 @@ struct Token {
 
   size_t str_index_last_no_whitespace() const
   {
-    return data->lex.str.find_last_not_of(" \n", str_index_last());
+    return data->lex.str_.find_last_not_of(" \n", str_index_last());
   }
 
   /* Index of the first character of the line this token is. */
   size_t line_start() const
   {
-    size_t pos = data->lex.str.rfind('\n', str_index_start());
+    size_t pos = data->lex.str_.rfind('\n', str_index_start());
     return (pos == std::string::npos) ? 0 : (pos + 1);
   }
 
   /* Index of the last character of the line this token is, excluding `\n`. */
   size_t line_end() const
   {
-    size_t pos = data->lex.str.find('\n', str_index_start());
-    return (pos == std::string::npos) ? (data->lex.str.size() - 1) : (pos - 1);
+    size_t pos = data->lex.str_.find('\n', str_index_start());
+    return (pos == std::string::npos) ? (data->lex.str_.size() - 1) : (pos - 1);
   }
 
   std::string_view str_view_with_whitespace() const
@@ -152,7 +152,7 @@ struct Token {
     if (is_invalid()) {
       return "";
     }
-    return data->lex.str.substr(index_range().start, index_range().size);
+    return data->lex.str_.substr(index_range().start, index_range().size);
   }
 
   std::string str_with_whitespace() const
@@ -195,9 +195,9 @@ struct Token {
       return 0;
     }
     int index = at_end ? str_index_last() : str_index_last_no_whitespace();
-    int line_num = parser::line_number(data->lex.str, index);
+    int line_num = parser::line_number(data->lex.str_, index);
     /* Add the last char (not counted by line_number). */
-    return line_num + int(at_end && data->lex.str[index] == '\n');
+    return line_num + int(at_end && data->lex.str_[index] == '\n');
   }
 
   /* Return the offset to the start of the line. */
@@ -206,13 +206,13 @@ struct Token {
     if (is_invalid()) {
       return 0;
     }
-    return parser::char_number(data->lex.str, str_index_start());
+    return parser::char_number(data->lex.str_, str_index_start());
   }
 
   /* Return the line the token is at. */
   std::string line_str() const
   {
-    return parser::line_str(data->lex.str, str_index_start());
+    return parser::line_str(data->lex.str_, str_index_start());
   }
 
   TokenType type() const
@@ -220,7 +220,7 @@ struct Token {
     if (is_invalid()) {
       return Invalid;
     }
-    return TokenType(data->lex.token_types[index]);
+    return TokenType(data->lex.types_[index]);
   }
 
   /* Return the attribute scope before this token if it exists. */

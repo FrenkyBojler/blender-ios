@@ -25,16 +25,11 @@ struct LexerBase : lexit::TokenBuffer {
   static const std::array<CharClass, 128> bsl_char_class_table;
   static const std::array<CharClass, 128> default_char_class_table;
 
-  /** The lexer's input string. */
-  std::string_view str;
-
   /** Compact visualization of token_types.  */
   std::string_view token_types_str;
 
   /* --- Structure of Array style data for tokens. --- */
 
-  /** Token type per token. */
-  MutableSpan<TokenType> token_types;
   /** Ranges of characters per token. */
   OffsetIndices token_offsets;
 
@@ -52,10 +47,8 @@ struct LexerBase : lexit::TokenBuffer {
 struct SimpleLexer : LexerBase {
   void lexical_analysis(std::string_view input)
   {
-    str = input;
     process(input, bsl_char_class_table.data());
     token_types_str = std::string_view((const char *)types_.get(), size_);
-    token_types = {types_.get(), size_};
     token_offsets = {offsets_.get(), size_ + 1};
   }
 };
@@ -66,14 +59,12 @@ struct SimpleLexer : LexerBase {
 struct ExpressionLexer : LexerBase {
   void lexical_analysis(std::string_view input)
   {
-    str = input;
     process(input, default_char_class_table.data());
     merge_complex_literals();
     identify_keywords();
     update_string_view();
 
     token_types_str = std::string_view((const char *)types_.get(), size_);
-    token_types = {types_.get(), size_};
     token_offsets = {offsets_.get(), size_ + 1};
   }
 };
@@ -86,14 +77,12 @@ struct ExpressionLexer : LexerBase {
 struct FullLexer : LexerBase {
   void lexical_analysis(std::string_view input)
   {
-    str = input;
     process(input, bsl_char_class_table.data());
     merge_complex_literals();
     identify_keywords();
     update_string_view();
 
     token_types_str = std::string_view((const char *)types_.get(), size_);
-    token_types = {types_.get(), size_};
     token_offsets = {offsets_.get(), size_ + 1};
   }
 };
@@ -148,7 +137,7 @@ struct DummyParser : ParserBase {
   void semantic_analysis(report_callback & /*report_error*/)
   {
     scope_types = {ScopeType::Global};
-    scope_ranges = {IndexRange(0, lex.token_types.size())};
+    scope_ranges = {IndexRange(0, lex.size())};
     build_token_to_scope_map();
   }
 };

@@ -33,7 +33,7 @@ struct Scope {
     int str_start = parser.lex.token_offsets[index_range.start].start;
     int str_end = parser.lex.token_offsets[index_range.last()].last();
     return {parser.lex.token_types_str.substr(index_range.start, index_range.size),
-            std::string_view(parser.lex.str).substr(str_start, str_end - str_start + 1),
+            parser.lex.str_.substr(str_start, str_end - str_start + 1),
             &parser,
             index};
 #else
@@ -153,7 +153,7 @@ struct Scope {
     if (this->is_invalid()) {
       return "";
     }
-    return std::string(data->lex.str.substr(
+    return std::string(data->lex.str_.substr(
         front().str_index_start(), back().str_index_last() - front().str_index_start() + 1));
   }
 
@@ -162,9 +162,9 @@ struct Scope {
     if (this->is_invalid()) {
       return "";
     }
-    return std::string(data->lex.str.substr(front().str_index_start(),
-                                            back().str_index_last_no_whitespace() -
-                                                front().str_index_start() + 1));
+    return std::string(data->lex.str_.substr(front().str_index_start(),
+                                             back().str_index_last_no_whitespace() -
+                                                 front().str_index_start() + 1));
   }
 
   /* Return the content without the first and last token. */
@@ -176,8 +176,8 @@ struct Scope {
     Token start = this->front().next();
     Token end = this->back().prev();
     return std::string(
-        data->lex.str.substr(start.str_index_start(),
-                             end.str_index_last_no_whitespace() - start.str_index_start() + 1));
+        data->lex.str_.substr(start.str_index_start(),
+                              end.str_index_last_no_whitespace() - start.str_index_start() + 1));
   }
 
   /* Return first occurrence of token_type inside this scope. */
@@ -259,7 +259,7 @@ struct Scope {
 
       for (int i = 0; i < pattern.size(); i++) {
         bool is_last_token = i == pattern.size() - 1;
-        TokenType token_type = TokenType(data->lex.token_types[cursor]);
+        TokenType token_type = TokenType(data->lex.types_[cursor]);
         TokenType curr_search_token = TokenType(pattern[i]);
         TokenType next_search_token = TokenType(is_last_token ? '\0' : pattern[i + 1]);
 
