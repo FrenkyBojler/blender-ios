@@ -1161,7 +1161,7 @@ inline void PassBase<T>::material_set(Manager &manager,
 
       GPUSamplerState sampler_state = tex->sampler_state;
       /* If any anisotropic filtering is requested, reset it to the scene setting. */
-      if (sampler_state.filtering & GPU_SAMPLER_FILTERING_ANISOTROPIC_MASK) {
+      if (sampler_state.filtering & GPU_SAMPLER_FILTERING_ANISOTROPIC_ENABLE) {
         sampler_state.disable_filtering_flag(GPU_SAMPLER_FILTERING_ANISOTROPIC_MASK);
         sampler_state.enable_filtering_flag(anisotropic_filtering);
       }

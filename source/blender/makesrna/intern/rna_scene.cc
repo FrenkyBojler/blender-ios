@@ -7263,10 +7263,9 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
   prop = RNA_def_property(srna, "anisotropic_filter", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "anisotropic_filter");
   RNA_def_property_enum_items(prop, anisotropic_items);
-  RNA_def_property_ui_text(prop, "Anisotropic Filtering", "Quality of anisotropic filtering");
-  RNA_def_property_update(prop,
-                          NC_SCENE | ND_RENDER_OPTIONS,
-                          nullptr /*"rna_Scene_material_anisotropic_filtering_update"*/);
+  RNA_def_property_ui_text(
+      prop, "Anisotropic Filtering", "Quality of anisotropic filtering in materials");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_Scene_render_update");
 
   /* border */
   prop = RNA_def_property(srna, "use_border", PROP_BOOLEAN, PROP_NONE);

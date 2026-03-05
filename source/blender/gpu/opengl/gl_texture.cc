@@ -604,8 +604,8 @@ void GLTexture::samplers_init()
         glSamplerParameteri(sampler, GL_TEXTURE_MAG_FILTER, mag_filter);
 
         if (GLContext::texture_filter_anisotropic_support &&
-            bool(filtering & GPU_SAMPLER_FILTERING_MIPMAP) &&
-            bool(filtering & GPU_SAMPLER_FILTERING_ANISOTROPIC_MASK))
+            (filtering & GPU_SAMPLER_FILTERING_MIPMAP) &&
+            (filtering & GPU_SAMPLER_FILTERING_ANISOTROPIC_MASK))
         {
           glSamplerParameterf(
               sampler,

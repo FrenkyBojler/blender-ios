@@ -320,7 +320,12 @@ static const int GPU_SAMPLER_FILTERING_TYPES_COUNT = (GPU_SAMPLER_FILTERING_LINE
                                                       GPU_SAMPLER_FILTERING_MIPMAP |
                                                       GPU_SAMPLER_FILTERING_ANISOTROPIC_16) +
                                                      1;
+/** Bit mask for selecting the GPU_SAMPLER_FILTERING_ANISOTROPIC_* bits. */
 static constexpr GPUSamplerFiltering GPU_SAMPLER_FILTERING_ANISOTROPIC_MASK =
+    (GPU_SAMPLER_FILTERING_ANISOTROPIC_2 | GPU_SAMPLER_FILTERING_ANISOTROPIC_4 |
+     GPU_SAMPLER_FILTERING_ANISOTROPIC_8 | GPU_SAMPLER_FILTERING_ANISOTROPIC_16);
+/** Special flag where materials can request the desire to turn on/off anisotropic filtering. */
+static constexpr GPUSamplerFiltering GPU_SAMPLER_FILTERING_ANISOTROPIC_ENABLE =
     (GPU_SAMPLER_FILTERING_ANISOTROPIC_2 | GPU_SAMPLER_FILTERING_ANISOTROPIC_4 |
      GPU_SAMPLER_FILTERING_ANISOTROPIC_8 | GPU_SAMPLER_FILTERING_ANISOTROPIC_16);
 
@@ -553,9 +558,10 @@ struct GPUSamplerState {
       case GPU_SAMPLER_FILTERING_ANISOTROPIC_16:
         return 16;
       default:
-        return 0;
+        return 1;
     }
-    return 0;
+    BLI_assert_unreachable();
+    return 1;
   }
 
   /**

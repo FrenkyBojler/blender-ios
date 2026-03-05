@@ -76,7 +76,6 @@ def setup():
 
     for scene in bpy.data.scenes:
         scene.render.engine = 'BLENDER_EEVEE'
-        scene.render.anisotropic_filter = 'FILTER_0'
 
         skip_hair_setup = scene.get("EEVEE_skip_hair_setup", False)
         skip_shadow_setup = scene.get("EEVEE_skip_shadow_setup", False)

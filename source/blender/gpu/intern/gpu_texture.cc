@@ -690,6 +690,7 @@ void GPU_texture_anisotropic_filter(gpu::Texture *texture, bool use_aniso)
              !(tex->format_flag_get() & (GPU_FORMAT_STENCIL | GPU_FORMAT_INTEGER)));
   GPUSamplerFiltering filtering = GPU_SAMPLER_FILTERING_DEFAULT;
   GPUSamplerState::anisotropic_samples_set(filtering, samples);
+  tex->sampler_state.disable_filtering_flag(GPU_SAMPLER_FILTERING_ANISOTROPIC_MASK);
   tex->sampler_state.enable_filtering_flag(filtering);
 }
 
