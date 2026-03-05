@@ -212,54 +212,74 @@ void PaintStroke::add_roll_point(const float2 &mouse_in,
                                  float x_tilt,
                                  float y_tilt)
 {
-  /* Budget: total knots (virtual + real) capped at roll_max_points() + initial
-   * backward extension count. Virtual knots are dropped first from the oldest
-   * end; only after all virtual knots are consumed does the ring buffer wrap. */
   constexpr int buf_cap = PAINT_MAX_INPUT_SAMPLES;
-  const int budget = roll_max_points() + initial_backward_ext_count_;
-  const int total_knots = int(backward_ext_2d_.size()) + num_points_;
-  bool wrap_ring = false;
 
-  if (total_knots >= budget) {
-    if (!backward_ext_2d_.is_empty()) {
-      /* Consume the oldest virtual knot. The ring buffer keeps growing;
-       * no real stroke data is lost yet.
-       * Accumulate the arc-length of the removed span so that
-       * stroke_distance_world_ compensates and the texture stays put. */
-      if (kRollResolution - 1 < int(roll_spline_.lengths_3d.size())) {
-        stroke_distance_world_ += roll_spline_.lengths_3d[kRollResolution - 1];
+  if (need_roll_mapping_) {
+    /* Budget: total knots (virtual + real) capped at roll_max_points() + initial
+     * backward extension count. Virtual knots are dropped first from the oldest
+     * end; only after all virtual knots are consumed does the ring buffer wrap. */
+    const int budget = roll_max_points() + initial_backward_ext_count_;
+    const int total_knots = int(backward_ext_2d_.size()) + num_points_;
+    bool wrap_ring = false;
+
+    if (total_knots >= budget) {
+      if (!backward_ext_2d_.is_empty()) {
+        /* Consume the oldest virtual knot. The ring buffer keeps growing;
+         * no real stroke data is lost yet.
+         * Accumulate the arc-length of the removed span so that
+         * stroke_distance_world_ compensates and the texture stays put. */
+        if (kRollResolution - 1 < int(roll_spline_.lengths_3d.size())) {
+          stroke_distance_world_ += roll_spline_.lengths_3d[kRollResolution - 1];
+        }
+        else if (backward_ext_3d_.size() >= 2) {
+          stroke_distance_world_ += math::distance(backward_ext_3d_[0], backward_ext_3d_[1]);
+        }
+        backward_ext_2d_.remove(0);
+        backward_ext_3d_.remove(0);
       }
-      else if (backward_ext_3d_.size() >= 2) {
-        stroke_distance_world_ += math::distance(backward_ext_3d_[0], backward_ext_3d_[1]);
+      else {
+        /* All virtual knots consumed — ring buffer wraps, oldest real point
+         * is abandoned. Accumulate its distance so stroke_distance_world_
+         * stays correct. */
+        const int oldest = (cur_point_ - num_points_ + buf_cap) % buf_cap;
+        const int next = (oldest + 1) % buf_cap;
+        stroke_distance_world_ += math::distance(points_[oldest].location,
+                                                 points_[next].location);
+        wrap_ring = true;
       }
-      backward_ext_2d_.remove(0);
-      backward_ext_3d_.remove(0);
     }
-    else {
-      /* All virtual knots consumed — ring buffer wraps, oldest real point
-       * is abandoned. Accumulate its distance so stroke_distance_world_
-       * stays correct. */
-      const int oldest = (cur_point_ - num_points_ + buf_cap) % buf_cap;
-      const int next = (oldest + 1) % buf_cap;
-      stroke_distance_world_ += math::distance(points_[oldest].location,
-                                               points_[next].location);
-      wrap_ring = true;
+
+    PaintStrokePoint *point = &points_[cur_point_];
+    point->size = size;
+    point->mouse_in = mouse_in;
+    point->mouse_out = mouse_out;
+    point->x_tilt = x_tilt;
+    point->y_tilt = y_tilt;
+    point->pen_flip = pen_flip;
+    point->location = loc;
+    point->pressure = pressure;
+
+    cur_point_ = (cur_point_ + 1) % buf_cap;
+    if (!wrap_ring) {
+      num_points_++;
     }
   }
+  else {
+    /* Non-roll: simple ring buffer wrapping at PAINT_MAX_INPUT_SAMPLES. */
+    PaintStrokePoint *point = &points_[cur_point_];
+    point->size = size;
+    point->mouse_in = mouse_in;
+    point->mouse_out = mouse_out;
+    point->x_tilt = x_tilt;
+    point->y_tilt = y_tilt;
+    point->pen_flip = pen_flip;
+    point->location = loc;
+    point->pressure = pressure;
 
-  PaintStrokePoint *point = &points_[cur_point_];
-  point->size = size;
-  point->mouse_in = mouse_in;
-  point->mouse_out = mouse_out;
-  point->x_tilt = x_tilt;
-  point->y_tilt = y_tilt;
-  point->pen_flip = pen_flip;
-  point->location = loc;
-  point->pressure = pressure;
-
-  cur_point_ = (cur_point_ + 1) % buf_cap;
-  if (!wrap_ring) {
-    num_points_++;
+    cur_point_ = (cur_point_ + 1) % buf_cap;
+    if (num_points_ < buf_cap) {
+      num_points_++;
+    }
   }
 }
 
@@ -762,6 +782,27 @@ void PaintStroke::draw_debug_roll(bContext *C) const
       immVertex2f(pos_attr, roll_spline_.poly_2d[i].x + ox, roll_spline_.poly_2d[i].y + oy);
     }
     immEnd();
+  }
+
+  /* Perpendicular tick marks at each knot boundary (every kRollResolution points). */
+  {
+    GPU_line_width(1.5f);
+    const float tick_len = 10.0f;
+    for (int i = 0; i < n_pts; i += kRollResolution) {
+      const float2 tan = roll_spline_.tangent_2d_at_index(std::min(i, n_pts - 2));
+      const float2 perp(-tan.y, tan.x);
+      const float2 &pt = roll_spline_.poly_2d[i];
+      if (i < n_virtual_poly_points_) {
+        immUniformColor4ub(180, 80, 80, 140);
+      }
+      else {
+        immUniformColor4ub(200, 200, 200, 180);
+      }
+      immBegin(GPU_PRIM_LINES, 2);
+      immVertex2f(pos_attr, pt.x + perp.x * tick_len + ox, pt.y + perp.y * tick_len + oy);
+      immVertex2f(pos_attr, pt.x - perp.x * tick_len + ox, pt.y - perp.y * tick_len + oy);
+      immEnd();
+    }
   }
 
   /* Mark the boundary between virtual and real: yellow tick. */
@@ -1437,7 +1478,8 @@ void PaintStroke::add_step(bContext *C, wmOperator *op, const float2 mval, float
     point = &points_[look_back];
   }
   else {
-    point = &points_[(cur_point_ - 1 + num_points_) % num_points_];
+    constexpr int cap = PAINT_MAX_INPUT_SAMPLES;
+    point = &points_[(cur_point_ - 1 + cap) % cap];
   }
 
   /* Add to stroke */
