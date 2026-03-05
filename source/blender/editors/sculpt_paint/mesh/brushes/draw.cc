@@ -49,9 +49,7 @@ static void calc_local_positions(const Span<float3> vert_positions,
   BLI_assert(local_positions.size() == verts.size());
 
   for (const int i : verts.index_range()) {
-    const float3 position = math::transform_point(mat, vert_positions[verts[i]]);
-
-    local_positions[i] = position.xyz();
+    local_positions[i] = math::transform_point(mat, vert_positions[verts[i]]);
   }
 }
 
@@ -103,7 +101,9 @@ static void calc_faces(const Depsgraph &depsgraph,
   tls.distances.resize(verts.size());
   const MutableSpan<float> distances = tls.distances;
   calc_brush_cube_distances<float3>(brush, local_positions, distances);
-  filter_distances_with_radius(1.0f, distances, factors);
+
+  /* The radius is already applied to the local positions, so use a radius of 1.0 here. */
+  filter_distances_with_radius(1.0f, distances, factors); 
   apply_hardness_to_distances(1.0f, cache.hardness, distances);
 
   /* Apply falloff curve. */
