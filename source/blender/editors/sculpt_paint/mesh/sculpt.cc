@@ -2691,8 +2691,7 @@ static void calc_brush_local_mat(const float rotation,
   cross_v3_v3v3(mat[0], mat[1], cache->sculpt_normal);
   copy_v3_v3(mat[2], cache->sculpt_normal);
 
-  /* Set location. */
-  copy_v3_v3(mat[3], cache->location_symm);
+  zero_v3(mat[3]);
 
   /* Scale by brush radius. */
   float radius = cache->radius;
