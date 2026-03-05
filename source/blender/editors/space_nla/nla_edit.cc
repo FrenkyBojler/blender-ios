@@ -2612,18 +2612,11 @@ static wmOperatorStatus nla_fmodifier_add_exec(bContext *C, wmOperator *op)
       }
 
       /* add F-Modifier of specified type to selected, and make it the active one */
-      fcm = add_fmodifier(&strip.modifiers, type, nullptr);
+      fcm = add_fmodifier(&strip.modifiers, type, nullptr, op->reports);
 
       if (fcm) {
         set_active_fmodifier(&strip.modifiers, fcm);
         ale.update |= ANIM_UPDATE_DEPS;
-      }
-      else {
-        BKE_reportf(op->reports,
-                    RPT_ERROR,
-                    "Modifier could not be added to (%s : %s) (see console for details)",
-                    nlt->name,
-                    strip.name);
       }
     }
   }

@@ -787,9 +787,9 @@ static void rna_FCurve_active_modifier_set(PointerRNA *ptr,
   set_active_fmodifier(&fcu->modifiers, static_cast<FModifier *>(value.data));
 }
 
-static FModifier *rna_FCurve_modifiers_new(FCurve *fcu, int type)
+static FModifier *rna_FCurve_modifiers_new(FCurve *fcu, ReportList *reports, int type)
 {
-  return add_fmodifier(&fcu->modifiers, type, fcu);
+  return add_fmodifier(&fcu->modifiers, type, fcu, reports);
 }
 
 static void rna_FCurve_modifiers_remove(FCurve *fcu, ReportList *reports, PointerRNA *fcm_ptr)
@@ -2455,7 +2455,8 @@ static void rna_def_fcurve_modifiers(BlenderRNA *brna, PropertyRNA *cprop)
 
   /* Constraint collection */
   func = RNA_def_function(srna, "new", "rna_FCurve_modifiers_new");
-  RNA_def_function_ui_description(func, "Add a constraint to this object");
+  RNA_def_function_flag(func, FUNC_USE_REPORTS);
+  RNA_def_function_ui_description(func, "Add a modifier on this F-Curve");
   /* return type */
   parm = RNA_def_pointer(func, "fmodifier", "FModifier", "", "New fmodifier");
   RNA_def_function_return(func, parm);

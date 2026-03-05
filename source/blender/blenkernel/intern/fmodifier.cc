@@ -28,6 +28,7 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_fcurve.hh"
+#include "BKE_report.hh"
 
 namespace blender {
 
@@ -1178,7 +1179,7 @@ const FModifierTypeInfo *fmodifier_get_typeinfo(const FModifier *fcm)
 /** \name F-Curve Modifier Public API
  * \{ */
 
-FModifier *add_fmodifier(ListBaseT<FModifier> *modifiers, int type, FCurve *owner_fcu)
+FModifier *add_fmodifier(ListBaseT<FModifier> *modifiers, int type, FCurve *owner_fcu, ReportList *reports)
 {
   const FModifierTypeInfo *fmi = get_fmodifier_typeinfo(type);
   FModifier *fcm;
@@ -1193,8 +1194,7 @@ FModifier *add_fmodifier(ListBaseT<FModifier> *modifiers, int type, FCurve *owne
     /* Modifiers requiring original data must be first in stack, so for now, don't add if it can't
      * be. */
     /* TODO: perhaps there is some better way, but for now, */
-    CLOG_ERROR(
-        &LOG, "Cannot add '%s' modifier to F-Curve, as it can only be first in stack.", fmi->name);
+    BKE_reportf(reports, RPT_ERROR, "Cannot add '%s' modifier to F-Curve, as it can only be first in stack.", fmi->name);
     return nullptr;
   }
 

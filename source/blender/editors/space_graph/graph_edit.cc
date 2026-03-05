@@ -2908,19 +2908,12 @@ static wmOperatorStatus graph_fmodifier_add_exec(bContext *C, wmOperator *op)
   /* Add f-modifier to each curve. */
   for (bAnimListElem &ale : anim_data) {
     FCurve *fcu = static_cast<FCurve *>(ale.data);
-    FModifier *fcm;
 
     /* Add F-Modifier of specified type to active F-Curve, and make it the active one. */
-    fcm = add_fmodifier(&fcu->modifiers, type, fcu);
-    if (fcm) {
+    if (FModifier *fcm = add_fmodifier(&fcu->modifiers, type, fcu, op->reports)) {
       set_active_fmodifier(&fcu->modifiers, fcm);
+      ale.update |= ANIM_UPDATE_DEPS;
     }
-    else {
-      BKE_report(op->reports, RPT_ERROR, "Modifier could not be added (see console for details)");
-      break;
-    }
-
-    ale.update |= ANIM_UPDATE_DEPS;
   }
 
   ANIM_animdata_update(&ac, &anim_data);
