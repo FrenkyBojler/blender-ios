@@ -1,0 +1,1 @@
+Referenced by pull request #155282, Python: Force immediate exit on sys.exit(), avoid hang on Windows
