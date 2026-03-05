@@ -51,12 +51,22 @@ static void calc_local_positions(const Span<float3> vert_positions,
   for (const int i : verts.index_range()) {
     const float3 position = math::transform_point(mat, vert_positions[verts[i]]);
 
-
     local_positions[i] = position.xyz();
   }
 }
 
+static void calc_local_positions(const Span<float3> positions,
+                                 const float4x4 &mat,
+                                 const MutableSpan<float3> local_positions)
+{
+  BLI_assert(local_positions.size() == positions.size());
 
+  for (const int i : positions.index_range()) {
+    const float3 position = math::transform_point(mat, positions[i]);
+
+    local_positions[i] = position.xyz();
+  }
+}
 
 static void calc_faces(const Depsgraph &depsgraph,
                        const Sculpt &sd,
@@ -84,7 +94,7 @@ static void calc_faces(const Depsgraph &depsgraph,
     calc_front_face(cache.view_normal_symm, vert_normals, verts, factors);
   }
 
-  /* Find local xy positions. */
+  /* Calculate local positions. */
   tls.local_positions.resize(verts.size());
   MutableSpan<float3> local_positions = tls.local_positions;
   calc_local_positions(position_data.eval, verts, mat, local_positions);
@@ -96,8 +106,7 @@ static void calc_faces(const Depsgraph &depsgraph,
   filter_distances_with_radius(1.0f, distances, factors);
   apply_hardness_to_distances(1.0f, cache.hardness, distances);
 
-
-  /* Apply falloff curve. */ 
+  /* Apply falloff curve. */
   BKE_brush_calc_curve_factors(eBrushCurvePreset(brush.curve_distance_falloff_preset),
                                brush.curve_distance_falloff,
                                distances,
@@ -120,17 +129,51 @@ static void calc_grids(const Depsgraph &depsgraph,
                        const Sculpt &sd,
                        Object &object,
                        const Brush &brush,
+                       const float4x4 &mat,
                        const float3 &offset,
                        const bke::pbvh::GridsNode &node,
                        LocalData &tls)
 {
   SculptSession &ss = *object.runtime->sculpt_session;
   SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
+  const StrokeCache &cache = *ss.cache;
 
   const Span<int> grids = node.grids();
   const MutableSpan positions = gather_grids_positions(subdiv_ccg, grids, tls.positions);
 
   calc_factors_common_grids(depsgraph, brush, object, positions, node, tls.factors, tls.distances);
+
+  /* Fill initial factors from hide and mask, and apply front face culling and region clipping. */
+  tls.factors.resize(positions.size());
+  const MutableSpan<float> factors = tls.factors;
+  fill_factor_from_hide_and_mask(subdiv_ccg, grids, factors);
+  filter_region_clip_factors(ss, positions, factors);
+  if (brush.flag & BRUSH_FRONTFACE) {
+    calc_front_face(cache.view_normal_symm, subdiv_ccg, grids, factors);
+  }
+
+  /* Calculate local positions. */
+  tls.local_positions.resize(positions.size());
+  MutableSpan<float3> local_positions = tls.local_positions;
+  calc_local_positions(tls.positions, mat, local_positions);
+
+  /* Find the cube distance. */
+  tls.distances.resize(positions.size());
+  const MutableSpan<float> distances = tls.distances;
+  calc_brush_cube_distances<float3>(brush, local_positions, distances);
+  filter_distances_with_radius(1.0f, distances, factors);
+  apply_hardness_to_distances(1.0f, cache.hardness, distances);
+
+  /* Apply falloff curve. */
+  BKE_brush_calc_curve_factors(eBrushCurvePreset(brush.curve_distance_falloff_preset),
+                               brush.curve_distance_falloff,
+                               distances,
+                               1.0f,
+                               factors);
+
+  auto_mask::calc_grids_factors(depsgraph, object, cache.automasking.get(), node, grids, factors);
+
+  calc_brush_texture_factors(ss, brush, positions, factors);
 
   tls.translations.resize(positions.size());
   const MutableSpan<float3> translations = tls.translations;
@@ -150,11 +193,42 @@ static void calc_bmesh(const Depsgraph &depsgraph,
                        LocalData &tls)
 {
   SculptSession &ss = *object.runtime->sculpt_session;
+  const StrokeCache &cache = *ss.cache;
 
   const Set<BMVert *, 0> &verts = BKE_pbvh_bmesh_node_unique_verts(&node);
   const MutableSpan positions = gather_bmesh_positions(verts, tls.positions);
 
-  calc_factors_common_bmesh(depsgraph, brush, object, positions, node, tls.factors, tls.distances);
+  /* Fill initial factors from hide and mask, and apply front face culling and region clipping. */
+  tls.factors.resize(verts.size());
+  const MutableSpan<float> factors = tls.factors;
+  fill_factor_from_hide_and_mask(*ss.bm, verts, factors);
+  filter_region_clip_factors(ss, positions, factors);
+  if (brush.flag & BRUSH_FRONTFACE) {
+    calc_front_face(cache.view_normal_symm, verts, factors);
+  }
+
+  /* Calculate local positions. */
+  tls.local_positions.resize(verts.size());
+  MutableSpan<float3> local_positions = tls.local_positions;
+  calc_local_positions(tls.positions, mat, local_positions);
+
+  /* Find the cube distance. */
+  tls.distances.resize(verts.size());
+  const MutableSpan<float> distances = tls.distances;
+  calc_brush_cube_distances<float3>(brush, local_positions, distances);
+  filter_distances_with_radius(1.0f, distances, factors);
+  apply_hardness_to_distances(1.0f, cache.hardness, distances);
+
+  /* Apply falloff curve. */
+  BKE_brush_calc_curve_factors(eBrushCurvePreset(brush.curve_distance_falloff_preset),
+                               brush.curve_distance_falloff,
+                               distances,
+                               1.0f,
+                               factors);
+
+  auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
+
+  calc_brush_texture_factors(ss, brush, positions, factors);
 
   tls.translations.resize(verts.size());
   const MutableSpan<float3> translations = tls.translations;
@@ -213,7 +287,7 @@ static void offset_positions(const Depsgraph &depsgraph,
       node_mask.foreach_index(
           [&](const int i) {
             LocalData &tls = all_tls.local();
-            calc_grids(depsgraph, sd, object, brush, offset, nodes[i], tls);
+            calc_grids(depsgraph, sd, object, brush, mat, offset, nodes[i], tls);
             bke::pbvh::update_node_bounds_grids(subdiv_ccg.grid_area, positions, nodes[i]);
           },
           exec_mode::grain_size(1));
