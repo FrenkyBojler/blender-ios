@@ -536,6 +536,7 @@ struct AfterFunc {
 
   char undostr[BKE_UNDO_STR_MAX];
   std::string drawstr;
+  bool use_undo_grouped = false;
 };
 
 static void button_activate_init(bContext *C,
@@ -1002,7 +1003,7 @@ static void ui_apply_but_func(bContext *C, Button *but)
 }
 
 /* typically call ui_apply_but_undo(), ui_apply_but_autokey() */
-static void ui_apply_but_undo(Button *but)
+static void ui_apply_but_undo(Button *but, bool use_undo_grouped = false)
 {
   if (!(but->flag & BUT_UNDO)) {
     return;
@@ -1076,6 +1077,7 @@ static void ui_apply_but_undo(Button *but)
   /* Delayed, after all other functions run, popups are closed, etc. */
   AfterFunc *after = ui_afterfunc_new();
   str->copy_utf8_truncated(after->undostr, min_zz(str_len_clip + 1, sizeof(after->undostr)));
+  after->use_undo_grouped = use_undo_grouped;
 }
 
 static void ui_apply_but_autokey(bContext *C, Button *but)
@@ -1201,7 +1203,12 @@ static void ui_apply_but_funcs_after(bContext *C)
       /* Remove "Adjust Last Operation" HUD. Using it would revert this undo push which isn't
        * obvious, see #78171. */
       WM_operator_stack_clear(CTX_wm_manager(C));
-      ED_undo_push(C, after.undostr);
+      if (after.use_undo_grouped) {
+        ED_undo_grouped_push(C, after.undostr);
+      }
+      else {
+        ED_undo_push(C, after.undostr);
+      }
     }
   }
 }
@@ -3750,8 +3757,10 @@ static void ui_textedit_end(bContext *C, Button *but, HandleButtonData *data)
           /* ensure menu (popup) too is closed! */
           data->escapecancel = true;
 
-          WM_global_reportf(RPT_ERROR, "Failed to find '%s'", but->editstr);
-          WM_report_banner_show(CTX_wm_manager(C), win);
+          if (but->editstr[0]) {
+            WM_global_reportf(RPT_ERROR, "Failed to find '%s'", but->editstr);
+            WM_report_banner_show(CTX_wm_manager(C), win);
+          }
         }
       }
 
@@ -5083,8 +5092,8 @@ static int ui_do_but_TEX(
     else if (ELEM(event->type, WHEELUPMOUSE, WHEELDOWNMOUSE) && (event->modifier & KM_CTRL)) {
       if (but->type == ButtonType::SearchMenu) {
         /* Disable value cycling for search buttons. This causes issues because the search data is
-         * moved to the "afterfuncs", but search updating requires it again or somethimes this
-         * event can be triguered twice in row without the button being refreshed. See #147539 and
+         * moved to the `afterfuncs`, but search updating requires it again or sometimes this
+         * event can be triggered twice in row without the button being refreshed. See #147539 and
          * #152976. */
       }
       else {
@@ -8868,9 +8877,7 @@ static void button_activate_state(bContext *C, Button *but, HandleButtonState st
         if (but->block->auto_open == true) { /* test for toolbox */
           time = 1;
         }
-        else if ((but->block->flag & BLOCK_LOOP && but->type != ButtonType::Block) ||
-                 (but->block->auto_open == true))
-        {
+        else if (but->block->flag & BLOCK_LOOP && but->type == ButtonType::Pulldown) {
           time = 5 * U.menuthreshold2;
         }
         else if (U.uiflag & USER_MENUOPENAUTO) {
@@ -10231,7 +10238,7 @@ static int ui_handle_list_event(bContext *C,
 
         Button *but = button_first(listbox->block);
         if (but && but->type == ButtonType::ListRow) {
-          ui_apply_but_undo(but);
+          ui_apply_but_undo(but, true);
         }
 
         ui_list->flag |= UILST_SCROLL_TO_ACTIVE_ITEM;
@@ -10590,12 +10597,12 @@ static char ui_menu_scroll_test(Block *block, int my)
 {
   if (block->flag & (BLOCK_CLIPTOP | BLOCK_CLIPBOTTOM)) {
     if (block->flag & BLOCK_CLIPTOP) {
-      if (my > block->rect.ymax - UI_MENU_SCROLL_MOUSE) {
+      if (my > block->rect.ymax - UI_MENU_SCROLL_MOUSE / block->aspect) {
         return 't';
       }
     }
     if (block->flag & BLOCK_CLIPBOTTOM) {
-      if (my < block->rect.ymin + UI_MENU_SCROLL_MOUSE) {
+      if (my < block->rect.ymin + UI_MENU_SCROLL_MOUSE / block->aspect) {
         return 'b';
       }
     }
@@ -10607,7 +10614,8 @@ static void ui_menu_scroll_apply_offset_y(ARegion *region, Block *block, float d
 {
   BLI_assert(dy != 0.0f);
 
-  const int scroll_pad = block_is_menu(block) ? UI_MENU_SCROLL_PAD : UI_UNIT_Y * 0.5f;
+  const float scroll_pad = (block_is_menu(block) ? UI_MENU_SCROLL_PAD : UI_UNIT_Y * 0.5f) /
+                           block->aspect;
 
   if (dy < 0.0f) {
     /* Stop at top item, extra 0.5 UI_UNIT_Y makes it snap nicer. */
@@ -10615,7 +10623,7 @@ static void ui_menu_scroll_apply_offset_y(ARegion *region, Block *block, float d
     for (Button &bt : block->buttons()) {
       ymax = max_ff(ymax, bt.rect.ymax);
     }
-    if (ymax + dy - UI_UNIT_Y * 0.5f < block->rect.ymax - scroll_pad) {
+    if (ymax + dy - (UI_UNIT_Y * 0.5f) / block->aspect < block->rect.ymax - scroll_pad) {
       dy = block->rect.ymax - ymax - scroll_pad;
     }
   }
@@ -10625,7 +10633,7 @@ static void ui_menu_scroll_apply_offset_y(ARegion *region, Block *block, float d
     for (Button &bt : block->buttons()) {
       ymin = min_ff(ymin, bt.rect.ymin);
     }
-    if (ymin + dy + UI_UNIT_Y * 0.5f > block->rect.ymin + scroll_pad) {
+    if (ymin + dy + (UI_UNIT_Y * 0.5f) / block->aspect > block->rect.ymin + scroll_pad) {
       dy = block->rect.ymin - ymin + scroll_pad;
     }
   }
@@ -10652,13 +10660,13 @@ static bool ui_menu_scroll_to_but(ARegion *region, Block *block, Button *but_tar
 {
   float dy = 0.0;
   if (block->flag & BLOCK_CLIPTOP) {
-    if (but_target->rect.ymax > block->rect.ymax - UI_MENU_SCROLL_MOUSE) {
-      dy = block->rect.ymax - but_target->rect.ymax - UI_MENU_SCROLL_MOUSE;
+    if (but_target->rect.ymax > block->rect.ymax - UI_MENU_SCROLL_MOUSE / block->aspect) {
+      dy = block->rect.ymax - but_target->rect.ymax - UI_MENU_SCROLL_MOUSE / block->aspect;
     }
   }
   if (block->flag & BLOCK_CLIPBOTTOM) {
-    if (but_target->rect.ymin < block->rect.ymin + UI_MENU_SCROLL_MOUSE) {
-      dy = block->rect.ymin - but_target->rect.ymin + UI_MENU_SCROLL_MOUSE;
+    if (but_target->rect.ymin < block->rect.ymin + UI_MENU_SCROLL_MOUSE / block->aspect) {
+      dy = block->rect.ymin - but_target->rect.ymin + UI_MENU_SCROLL_MOUSE / block->aspect;
     }
   }
   if (dy != 0.0f) {
@@ -10674,10 +10682,10 @@ static bool ui_menu_scroll_to_y(ARegion *region, Block *block, int y)
   const char test = ui_menu_scroll_test(block, y);
   float dy = 0.0f;
   if (test == 't') {
-    dy = -UI_UNIT_Y; /* scroll to the top */
+    dy = -UI_UNIT_Y / block->aspect; /* scroll to the top */
   }
   else if (test == 'b') {
-    dy = UI_UNIT_Y; /* scroll to the bottom */
+    dy = UI_UNIT_Y / block->aspect; /* scroll to the bottom */
   }
   if (dy != 0.0f) {
     ui_menu_scroll_apply_offset_y(region, block, dy);
@@ -10693,13 +10701,13 @@ static bool ui_menu_scroll_step(ARegion *region, Block *block, const int scroll_
     if ((block->flag & BLOCK_CLIPTOP) == 0) {
       return false;
     }
-    my = block->rect.ymax + UI_UNIT_Y;
+    my = block->rect.ymax + UI_UNIT_Y / block->aspect;
   }
   else if (scroll_dir == -1) {
     if ((block->flag & BLOCK_CLIPBOTTOM) == 0) {
       return false;
     }
-    my = block->rect.ymin - UI_UNIT_Y;
+    my = block->rect.ymin - UI_UNIT_Y / block->aspect;
   }
   else {
     BLI_assert(0);
@@ -10811,23 +10819,23 @@ float block_calc_pie_segment(Block *block, const float event_xy[2])
 {
   float seg1[2];
 
-  if (block->pie_data.flags & PIE_INITIAL_DIRECTION) {
-    copy_v2_v2(seg1, block->pie_data.pie_center_init);
+  if (block->pie_data->flags & PIE_INITIAL_DIRECTION) {
+    copy_v2_v2(seg1, block->pie_data->pie_center_init);
   }
   else {
-    copy_v2_v2(seg1, block->pie_data.pie_center_spawned);
+    copy_v2_v2(seg1, block->pie_data->pie_center_spawned);
   }
 
   float seg2[2];
   sub_v2_v2v2(seg2, event_xy, seg1);
 
-  const float len = normalize_v2_v2(block->pie_data.pie_dir, seg2);
+  const float len = normalize_v2_v2(block->pie_data->pie_dir, seg2);
 
   if (len < U.pie_menu_threshold * UI_SCALE_FAC) {
-    block->pie_data.flags |= PIE_INVALID_DIR;
+    block->pie_data->flags |= PIE_INVALID_DIR;
   }
   else {
-    block->pie_data.flags &= ~PIE_INVALID_DIR;
+    block->pie_data->flags &= ~PIE_INVALID_DIR;
   }
 
   return len;
@@ -11701,7 +11709,7 @@ static int ui_pie_handler(bContext *C, const wmEvent *event, PopupBlockHandle *m
   ARegion *region = menu->region;
   Block *block = static_cast<Block *>(region->runtime->uiblocks.first);
 
-  const bool is_click_style = (block->pie_data.flags & PIE_CLICK_STYLE);
+  const bool is_click_style = (block->pie_data->flags & PIE_CLICK_STYLE);
 
   /* if there's an active modal button, don't check events or outside, except for search menu */
   Button *but_active = region_find_active_but(region);
@@ -11729,11 +11737,11 @@ static int ui_pie_handler(bContext *C, const wmEvent *event, PopupBlockHandle *m
       if (event->customdata == menu->scrolltimer) {
         /* deactivate initial direction after a while */
         if (duration > 0.01 * U.pie_initial_timeout) {
-          block->pie_data.flags &= ~PIE_INITIAL_DIRECTION;
+          block->pie_data->flags &= ~PIE_INITIAL_DIRECTION;
         }
 
         /* handle animation */
-        if (!(block->pie_data.flags & PIE_ANIMATION_FINISHED)) {
+        if (!(block->pie_data->flags & PIE_ANIMATION_FINISHED)) {
           const double final_time = (U.uiflag & USER_REDUCE_MOTION) ?
                                         0.0f :
                                         0.01 * U.pie_animation_timeout;
@@ -11742,7 +11750,7 @@ static int ui_pie_handler(bContext *C, const wmEvent *event, PopupBlockHandle *m
 
           if (fac > 1.0f) {
             fac = 1.0f;
-            block->pie_data.flags |= PIE_ANIMATION_FINISHED;
+            block->pie_data->flags |= PIE_ANIMATION_FINISHED;
           }
 
           for (Button &but : block->buttons()) {
@@ -11761,26 +11769,26 @@ static int ui_pie_handler(bContext *C, const wmEvent *event, PopupBlockHandle *m
               mul_v2_fl(vec, pie_radius);
               add_v2_v2(vec, center);
               mul_v2_fl(vec, fac);
-              add_v2_v2(vec, block->pie_data.pie_center_spawned);
+              add_v2_v2(vec, block->pie_data->pie_center_spawned);
 
               BLI_rctf_recenter(&but.rect, vec[0], vec[1]);
             }
           }
-          block->pie_data.alphafac = fac;
+          block->pie_data->alphafac = fac;
 
           ED_region_tag_redraw(region);
         }
       }
 
       /* Check pie velocity here if gesture has ended. */
-      if (block->pie_data.flags & PIE_GESTURE_END_WAIT) {
+      if (block->pie_data->flags & PIE_GESTURE_END_WAIT) {
         float len_sq = 10;
 
         /* use a time threshold to ensure we leave time to the mouse to move */
-        if (duration - block->pie_data.duration_gesture > 0.02) {
-          len_sq = len_squared_v2v2(event_xy, block->pie_data.last_pos);
-          copy_v2_v2(block->pie_data.last_pos, event_xy);
-          block->pie_data.duration_gesture = duration;
+        if (duration - block->pie_data->duration_gesture > 0.02) {
+          len_sq = len_squared_v2v2(event_xy, block->pie_data->last_pos);
+          copy_v2_v2(block->pie_data->last_pos, event_xy);
+          block->pie_data->duration_gesture = duration;
         }
 
         if (len_sq < 1.0f) {
@@ -11793,20 +11801,21 @@ static int ui_pie_handler(bContext *C, const wmEvent *event, PopupBlockHandle *m
       }
     }
 
-    if (event->type == block->pie_data.event_type && !is_click_style) {
+    if (event->type == block->pie_data->event_type && !is_click_style) {
       if (event->val != KM_RELEASE) {
         ui_handle_menu_button(C, event, menu);
 
-        if (len_squared_v2v2(event_xy, block->pie_data.pie_center_init) > PIE_CLICK_THRESHOLD_SQ) {
-          block->pie_data.flags |= PIE_DRAG_STYLE;
+        if (len_squared_v2v2(event_xy, block->pie_data->pie_center_init) > PIE_CLICK_THRESHOLD_SQ)
+        {
+          block->pie_data->flags |= PIE_DRAG_STYLE;
         }
         /* why redraw here? It's simple, we are getting many double click events here.
          * Those operate like mouse move events almost */
         ED_region_tag_redraw(region);
       }
       else {
-        if ((duration < 0.01 * U.pie_tap_timeout) && !(block->pie_data.flags & PIE_DRAG_STYLE)) {
-          block->pie_data.flags |= PIE_CLICK_STYLE;
+        if ((duration < 0.01 * U.pie_tap_timeout) && !(block->pie_data->flags & PIE_DRAG_STYLE)) {
+          block->pie_data->flags |= PIE_CLICK_STYLE;
         }
         else {
           Button *but = region_find_active_but(menu->region);
@@ -11828,11 +11837,11 @@ static int ui_pie_handler(bContext *C, const wmEvent *event, PopupBlockHandle *m
       switch (event->type) {
         case MOUSEMOVE:
           if (!is_click_style) {
-            const float len_sq = len_squared_v2v2(event_xy, block->pie_data.pie_center_init);
+            const float len_sq = len_squared_v2v2(event_xy, block->pie_data->pie_center_init);
 
             /* here we use the initial position explicitly */
             if (len_sq > PIE_CLICK_THRESHOLD_SQ) {
-              block->pie_data.flags |= PIE_DRAG_STYLE;
+              block->pie_data->flags |= PIE_DRAG_STYLE;
             }
 
             /* here instead, we use the offset location to account for the initial
@@ -11840,9 +11849,9 @@ static int ui_pie_handler(bContext *C, const wmEvent *event, PopupBlockHandle *m
             if ((U.pie_menu_confirm > 0) &&
                 (dist >= UI_SCALE_FAC * (U.pie_menu_threshold + U.pie_menu_confirm)))
             {
-              block->pie_data.flags |= PIE_GESTURE_END_WAIT;
-              copy_v2_v2(block->pie_data.last_pos, event_xy);
-              block->pie_data.duration_gesture = duration;
+              block->pie_data->flags |= PIE_GESTURE_END_WAIT;
+              copy_v2_v2(block->pie_data->last_pos, event_xy);
+              block->pie_data->duration_gesture = duration;
             }
           }
 
@@ -11854,7 +11863,7 @@ static int ui_pie_handler(bContext *C, const wmEvent *event, PopupBlockHandle *m
 
         case LEFTMOUSE:
           if (is_click_style) {
-            if (block->pie_data.flags & PIE_INVALID_DIR) {
+            if (block->pie_data->flags & PIE_INVALID_DIR) {
               menu->menuretval = RETURN_CANCEL;
             }
             else {
@@ -11977,7 +11986,7 @@ static int ui_handle_menus_recursive(bContext *C,
     /* root pie menus accept the key that spawned
      * them as double click to improve responsiveness */
     const bool do_recursion = (!(block->flag & BLOCK_PIE_MENU) ||
-                               event->type != block->pie_data.event_type);
+                               event->type != block->pie_data->event_type);
 
     if (do_recursion) {
       if (is_parent_inside == false) {
@@ -12398,7 +12407,7 @@ static int ui_popup_handler(bContext *C, const wmEvent *event, void *userdata)
 
     /* set last pie event to allow chained pie spawning */
     if (block->flag & BLOCK_PIE_MENU) {
-      win->pie_event_type_last = block->pie_data.event_type;
+      win->pie_event_type_last = block->pie_data->event_type;
       reset_pie = true;
     }
 

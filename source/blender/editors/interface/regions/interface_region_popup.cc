@@ -544,12 +544,12 @@ void popup_block_scrolltest(Block *block)
   /* mark buttons overlapping arrows, if we have them */
   for (Button &bt : block->buttons()) {
     if (block->flag & BLOCK_CLIPBOTTOM) {
-      if (bt.rect.ymax < block->rect.ymin + UI_MENU_SCROLL_MOUSE) {
+      if (bt.rect.ymax < block->rect.ymin + UI_MENU_SCROLL_MOUSE / block->aspect) {
         bt.flag |= UI_SCROLLED;
       }
     }
     if (block->flag & BLOCK_CLIPTOP) {
-      if (bt.rect.ymin > block->rect.ymax - UI_MENU_SCROLL_MOUSE) {
+      if (bt.rect.ymin > block->rect.ymax - UI_MENU_SCROLL_MOUSE / block->aspect) {
         bt.flag |= UI_SCROLLED;
       }
     }
@@ -607,9 +607,9 @@ void layout_panel_popup_scroll_apply(Panel *panel, const float dy)
     body.start_y += dy;
     body.end_y += dy;
   }
-  for (LayoutPanelHeader &headcer : panel->runtime->layout_panels.headers) {
-    headcer.start_y += dy;
-    headcer.end_y += dy;
+  for (LayoutPanelHeader &header : panel->runtime->layout_panels.headers) {
+    header.start_y += dy;
+    header.end_y += dy;
   }
 }
 
@@ -780,7 +780,7 @@ Block *popup_block_refresh(bContext *C, PopupBlockHandle *handle, ARegion *butre
 
     const int2 win_size = WM_window_native_pixel_size(window);
 
-    copy_v2_v2(block->pie_data.pie_center_init, block->pie_data.pie_center_spawned);
+    copy_v2_v2(block->pie_data->pie_center_init, block->pie_data->pie_center_spawned);
 
     /* only try translation if area is large enough */
     int x_offset = 0;
@@ -805,13 +805,13 @@ Block *popup_block_refresh(bContext *C, PopupBlockHandle *handle, ARegion *butre
     /* if we are offsetting set up initial data for timeout functionality */
 
     if ((x_offset != 0) || (y_offset != 0)) {
-      block->pie_data.pie_center_spawned[0] += x_offset;
-      block->pie_data.pie_center_spawned[1] += y_offset;
+      block->pie_data->pie_center_spawned[0] += x_offset;
+      block->pie_data->pie_center_spawned[1] += y_offset;
 
       block_translate(block, x_offset, y_offset);
 
       if (U.pie_initial_timeout > 0) {
-        block->pie_data.flags |= PIE_INITIAL_DIRECTION;
+        block->pie_data->flags |= PIE_INITIAL_DIRECTION;
       }
     }
 
@@ -820,13 +820,13 @@ Block *popup_block_refresh(bContext *C, PopupBlockHandle *handle, ARegion *butre
     region->winrct.ymin = 0;
     region->winrct.ymax = win_size[1];
 
-    block_calc_pie_segment(block, block->pie_data.pie_center_init);
+    block_calc_pie_segment(block, block->pie_data->pie_center_init);
 
     /* lastly set the buttons at the center of the pie menu, ready for animation */
     if (U.pie_animation_timeout > 0) {
       for (Button &but_iter : block->buttons()) {
         if (but_iter.pie_dir != UI_RADIAL_NONE) {
-          BLI_rctf_recenter(&but_iter.rect, UNPACK2(block->pie_data.pie_center_spawned));
+          BLI_rctf_recenter(&but_iter.rect, UNPACK2(block->pie_data->pie_center_spawned));
         }
       }
     }
@@ -872,7 +872,8 @@ Block *popup_block_refresh(bContext *C, PopupBlockHandle *handle, ARegion *butre
       ymin = min_ff(ymin, bt.rect.ymin);
       ymax = max_ff(ymax, bt.rect.ymax);
     }
-    const int scroll_pad = block_is_menu(block) ? UI_MENU_SCROLL_PAD : UI_UNIT_Y * 0.5f;
+    const float scroll_pad = (block_is_menu(block) ? UI_MENU_SCROLL_PAD : UI_UNIT_Y * 0.5f) /
+                             block->aspect;
     const float scroll_min = std::min(block->rect.ymax - ymax - scroll_pad, 0.0f);
     const float scroll_max = std::max(block->rect.ymin - ymin + scroll_pad, 0.0f);
     handle->scrolloffset = std::clamp(handle->scrolloffset, scroll_min, scroll_max);
@@ -885,7 +886,7 @@ Block *popup_block_refresh(bContext *C, PopupBlockHandle *handle, ARegion *butre
     }
     /* Layout panels are relative to `block->rect.ymax`. Rather than a
      * scroll, this is a offset applied due to the overflow at the top. */
-    layout_panel_popup_scroll_apply(block->panel, -scroll_min);
+    layout_panel_popup_scroll_apply(block->panel, -scroll_min - scroll_pad);
   }
   /* Apply popup scroll offset to layout panels. */
   layout_panel_popup_scroll_apply(block->panel, handle->scrolloffset);
