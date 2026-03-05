@@ -37,10 +37,14 @@ RealizeOnDomainOperation::RealizeOnDomainOperation(Context &context,
   this->populate_result(context.create_result(type));
 }
 
-/* Derivatives converted to nearest rectangle: */
-static inline float2 compute_wh(const float3x3 &matrix)
+/* This does not save much time here since it is only calculated once. But use the
+ * same approximation that the per-pixel sample code will use.
+ */
+static inline float hypot_fast(float x, float y)
 {
-  return float2{hypotf(matrix[0][0], matrix[1][0]), hypotf(matrix[0][1], matrix[1][1])};
+  float a = fabsf(x);
+  float b = fabsf(y);
+  return (a < b) ? b + 0.375f * a : a + 0.375f * b;
 }
 
 struct RealizeOnDomainOperation::SamplerOptions {
@@ -105,8 +109,9 @@ void RealizeOnDomainOperation::execute()
   /* Get the transformation from the output space to the input space */
   float3x3 transformation = math::invert(input_transformation) * output_transformation;
 
-  /* compute derivatives of input location */
-  float2 wh(compute_wh(transformation));
+  /* compute derivatives of input location and convert to rectangle */
+  float2 wh{hypot_fast(transformation[0][0], transformation[1][0]),
+            hypot_fast(transformation[0][1], transformation[1][1])};
 
   /* See if nearest filter will work.
      Todo: it will for interpolating filters if entire matrix is all 0,+1,-1 or translation is
