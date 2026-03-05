@@ -31,12 +31,33 @@ namespace blender::nodes::node_geo_rasterize_points {
 
 NODE_STORAGE_FUNCS(NodeGeometryRasterizePoints)
 
+enum class GridTransformMode {
+  /* Uniform voxel scale with no translation and rotation. */
+  VoxelSize,
+  /* Full grid matrix input. */
+  Matrix,
+};
+
+static EnumPropertyItem grid_transform_mode_items[] = {
+    {int(GridTransformMode::VoxelSize),
+     "VOXEL_SIZE",
+     0,
+     N_("Voxel Size"),
+     N_("Use uniform voxel scale with no translation or rotation")},
+    {int(GridTransformMode::Matrix),
+     "MATRIX",
+     0,
+     N_("Matrix"),
+     N_("Define grid transform with a matrix")},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 static EnumPropertyItem kernel_type_items[] = {
     {int(geometry::KernelType::Constant),
      "CONSTANT",
      0,
      N_("Constant"),
-     N_("Constant weight in each voxel")},
+     N_("Assign points to the closest voxel")},
     {int(geometry::KernelType::Linear),
      "LINEAR",
      0,
@@ -61,7 +82,19 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.allow_any_socket_order();
 
   b.add_input<decl::Geometry>("Points");
-  b.add_input<decl::Float>("Voxel Size").default_value(0.3f).min(0.01f).subtype(PROP_DISTANCE);
+  b.add_input<decl::Menu>("Grid Transform Mode")
+      .static_items(grid_transform_mode_items)
+      .default_value(GridTransformMode::VoxelSize)
+      .expanded()
+      .optional_label()
+      .description("Method of defining the grid transform");
+  b.add_input<decl::Float>("Voxel Size")
+      .default_value(0.3f)
+      .min(0.01f)
+      .subtype(PROP_DISTANCE)
+      .usage_by_menu("Grid Transform Mode", int(GridTransformMode::VoxelSize));
+  b.add_input<decl::Matrix>("Matrix").usage_by_menu("Grid Transform Mode",
+                                                    int(GridTransformMode::Matrix));
   b.add_input<decl::Menu>("Kernel Type")
       .static_items(kernel_type_items)
       .default_value(geometry::KernelType::Linear)
@@ -171,16 +204,26 @@ static void node_geo_exec(GeoNodeExecParams params)
 #ifdef WITH_OPENVDB
   const NodeGeometryRasterizePoints &storage = node_storage(params.node());
 
-  const float voxel_size = params.extract_input<float>("Voxel Size");
-  const double determinant = std::pow(double(voxel_size), 3.0);
+  /* Same transform is used for the intermediate point data grid and all output grids. */
+  const GridTransformMode grid_transform_mode = params.extract_input<GridTransformMode>(
+      "Grid Transform Mode");
+  float4x4 grid_transform;
+  switch (grid_transform_mode) {
+    case GridTransformMode::VoxelSize:
+      grid_transform = math::from_scale<float4x4>(
+          float3(params.extract_input<float>("Voxel Size")));
+      break;
+    case GridTransformMode::Matrix:
+      grid_transform = params.extract_input<float4x4>("Matrix");
+      break;
+  }
+  const double determinant = math::determinant(grid_transform);
   if (!BKE_volume_grid_determinant_valid(determinant)) {
     params.set_default_remaining_outputs();
     return;
   }
-  /* Same transform is used for the intermediate point data grid and all output grids. */
-  const float4x4 grid_transform = math::from_scale<float4x4>(float3(voxel_size));
-  const geometry::KernelType kernel_type = params.get_input<geometry::KernelType>("Kernel Type");
 
+  const geometry::KernelType kernel_type = params.get_input<geometry::KernelType>("Kernel Type");
   const GeometrySet geometry_set = params.extract_input<GeometrySet>("Points");
   const Field<float3> position_field = params.extract_input<Field<float3>>("Position");
 
