@@ -19,6 +19,7 @@ frame_margin = 30
 
 #### ------------------------------ OPERATORS ------------------------------ ####
 
+
 class NODE_OT_align_selected(Operator, NWBase):
     '''Align selected nodes in a grid pattern'''
     bl_idname = "node.nw_align_nodes"
@@ -34,33 +35,33 @@ class NODE_OT_align_selected(Operator, NWBase):
     @classmethod
     def poll(cls, context):
         return nw_check(cls, context) and nw_check_not_empty(cls, context) and nw_check_selected(cls, context)
-    
+
     @staticmethod
-    def parent_depth(node):        
+    def parent_depth(node):
         for i in range(100_000_000):
             if node is None:
                 return i
-            
+
             node = node.parent
-            
+
         raise Exception("This should be unreachable.")
-    
+
     def frame_children(self, frame):
         for node in self.tree.nodes:
             if node.parent == frame:
                 yield node
-    
+
     def get_width(self, node):
         if node.bl_static_type == 'FRAME':
             return self.get_right(node) - self.get_left(node)
         else:
             return node.width
-    
+
     def get_height(self, node):
         if node.bl_static_type == 'FRAME':
             return self.get_top(node) - self.get_bottom(node)
         else:
-            return node.width * node.dimensions.y/node.dimensions.x
+            return node.width * node.dimensions.y / node.dimensions.x
 
     def get_left(self, node):
         if node.bl_static_type == 'REROUTE':
@@ -119,7 +120,7 @@ class NODE_OT_align_selected(Operator, NWBase):
         max_y = max(self.get_top(node) for node in nodes)
 
         return min_x, max_x, min_y, max_y
-    
+
     def move_children(self, frame, offset, axis):
         children = self.frame_children(frame)
 
@@ -168,9 +169,9 @@ class NODE_OT_align_selected(Operator, NWBase):
                         self.move_children(node, target_x - node.location_absolute.x, axis="X")
                     else:
                         node.location_absolute.x = target_x
-                
+
                 current_pos += margin + self.get_width(node)
-                
+
                 if node.bl_idname == "NodeFrame":
                     self.move_children(node, mid_y + (self.get_height(node) / 2) - node.location_absolute.y, axis="Y")
                 elif node.hide:
@@ -190,7 +191,7 @@ class NODE_OT_align_selected(Operator, NWBase):
                         node.location_absolute.y = current_pos + (-0.5 * self.get_height(node)) + weird_offset
                     else:
                         node.location_absolute.y = current_pos
-                
+
                 current_pos -= margin + self.get_height(node)
 
                 target_x = mid_x - (self.get_width(node) / 2)
@@ -208,7 +209,7 @@ class NODE_OT_align_selected(Operator, NWBase):
                 parent_map[node.parent] = []
 
             parent_map[node.parent].append(node)
-        
+
         return parent_map
 
     def execute(self, context):
@@ -221,7 +222,7 @@ class NODE_OT_align_selected(Operator, NWBase):
         if not nodes:
             self.report({'WARNING'}, "No nodes to arrange in selection.")
             return {'CANCELLED'}
-        
+
         if active_node is not None:
             old_x, old_y = self.get_left(active_node), self.get_top(active_node)
         else:
@@ -230,10 +231,10 @@ class NODE_OT_align_selected(Operator, NWBase):
         sorted_keys = sorted(parent_map.keys(), key=self.parent_depth, reverse=True)
         for parent in sorted_keys:
             children = parent_map[parent]
-            
+
             # When a frame's children get moved, this introduces a shift in where the frame is visually positioned.
             # If said frame is going to be arranged with other frames/nodes, compensate for this shift to keep
-            # location calculations accurate. 
+            # location calculations accurate.
 
             # Otherwise, allow for this to freely happen as it feels more natural
             # in cases where the frame isn't part of the selection.
@@ -241,15 +242,15 @@ class NODE_OT_align_selected(Operator, NWBase):
 
             if should_anchor:
                 old_left, old_top = self.get_left(parent), self.get_top(parent)
-                
+
             self.arrange_nodes(children)
 
             if should_anchor:
                 self.move_children(parent, offset=old_left - self.get_left(parent), axis="X")
                 self.move_children(parent, offset=old_top - self.get_top(parent), axis="Y")
-        
+
         if active_node is not None:
-            new_x = self.get_left(active_node) 
+            new_x = self.get_left(active_node)
             new_y = self.get_top(active_node)
         else:
             old_x, old_y = self.get_bounds_center(tuple((n for n in nodes if (n.bl_idname != "NodeFrame"))))
