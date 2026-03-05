@@ -186,20 +186,13 @@ ccl_device_forceinline void film_write_denoising_features_background(
 
   ccl_global float *buffer = film_pass_pixel_render_buffer(kg, state, render_buffer);
 
-  if (kernel_data.film.pass_denoising_depth != PASS_UNUSED) {
-    film_write_pass_float(buffer + kernel_data.film.pass_denoising_depth, FLT_MAX);
-  }
-
-  if (kernel_data.film.pass_denoising_normal != PASS_UNUSED) {
-    film_write_pass_float3(buffer + kernel_data.film.pass_denoising_normal, zero_float3());
+  if (INTEGRATOR_STATE(state, path, bounce) == 0) {
+    if (kernel_data.film.pass_denoising_depth != PASS_UNUSED) {
+      film_overwrite_pass_float(buffer + kernel_data.film.pass_denoising_depth, FLT_MAX);
+    }
   }
 
   /* 'pass_denoising_albedo' is written by 'film_write_emission_or_background_pass' */
-
-  if (kernel_data.film.pass_denoising_specular_albedo != PASS_UNUSED) {
-    film_write_pass_spectrum(buffer + kernel_data.film.pass_denoising_specular_albedo,
-                             zero_float3());
-  }
 }
 #endif /* __DENOISING_FEATURES__ */
 
