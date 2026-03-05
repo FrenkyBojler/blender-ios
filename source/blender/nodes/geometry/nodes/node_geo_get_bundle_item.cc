@@ -79,26 +79,32 @@ struct GetItemsResult {
   /* Check paths are valid. */
   IndexMaskMemory memory;
   const IndexMask valid_paths = IndexMask::from_predicate(
-      paths.index_range(), GrainSize(128), memory, [&](const int64_t i) {
-        return Bundle::is_valid_path(paths[i]);
-      });
+      paths.index_range(),
+      memory,
+      [&](const int64_t i) { return Bundle::is_valid_path(paths[i]); },
+      exec_mode::grain_size(128));
   const IndexMask invalid_paths = valid_paths.complement(paths.index_range(), memory);
   if (!invalid_paths.is_empty()) {
-    invalid_paths.foreach_index(GrainSize(64), [&](const int64_t i) {
-      params.error_message_add(
-          NodeWarningType::Warning,
-          fmt::format(fmt::runtime(TIP_("Invalid bundle path: {}")), paths[i]));
-    });
+    invalid_paths.foreach_index(
+        [&](const int64_t i) {
+          params.error_message_add(
+              NodeWarningType::Warning,
+              fmt::format(fmt::runtime(TIP_("Invalid bundle path: {}")), paths[i]));
+        },
+        exec_mode::grain_size(64));
   }
 
   /* Look up items from bundle. */
   Array<bool> exists;
   Array<const BundleItemValue *, 16> items(paths.size());
   const IndexMask found_paths = IndexMask::from_predicate(
-      valid_paths, GrainSize(64), memory, [&](const int64_t i) {
+      valid_paths,
+      memory,
+      [&](const int64_t i) {
         items[i] = bundle->lookup_path(paths[i]);
         return items[i] != nullptr;
-      });
+      },
+      exec_mode::grain_size(128));
   if (params.output_is_required("Exists")) {
     exists.reinitialize(paths.size());
     found_paths.to_bools(exists);
@@ -116,9 +122,10 @@ struct GetItemsResult {
 
   /* Check that items are socket values rather than internal data which can't be outputed. */
   const IndexMask socket_value_paths = IndexMask::from_predicate(
-      found_paths, GrainSize(2048), memory, [&](const int64_t i) {
-        return std::get_if<BundleItemSocketValue>(&items[i]->value);
-      });
+      found_paths,
+      memory,
+      [&](const int64_t i) { return std::get_if<BundleItemSocketValue>(&items[i]->value); },
+      exec_mode::grain_size(2048));
   if (socket_value_paths.size() != found_paths.size()) {
     const IndexMask not_found_paths = socket_value_paths.complement(found_paths, memory);
     not_found_paths.foreach_index([&](const int64_t i) {
@@ -131,7 +138,9 @@ struct GetItemsResult {
   /* Convert socket values to the selected type. */
   Array<bke::SocketValueVariant> output_values(paths.size(), NoInitialization());
   const IndexMask converted_paths = IndexMask::from_predicate(
-      socket_value_paths, GrainSize(2048), memory, [&](const int64_t i) {
+      socket_value_paths,
+      memory,
+      [&](const int64_t i) {
         const auto &item_value = std::get<BundleItemSocketValue>(items[i]->value);
         std::optional<SocketValueVariant> converted = implicitly_convert_socket_value(
             *item_value.type, item_value.value, socket_type);
@@ -140,7 +149,8 @@ struct GetItemsResult {
         }
         new (&output_values[i]) bke::SocketValueVariant(std::move(*converted));
         return true;
-      });
+      },
+      exec_mode::grain_size(2048));
   if (converted_paths.size() != socket_value_paths.size()) {
     const IndexMask not_converted_paths = converted_paths.complement(socket_value_paths, memory);
     not_converted_paths.foreach_index([&](const int64_t i) {
