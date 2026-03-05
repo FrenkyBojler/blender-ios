@@ -393,7 +393,8 @@ gpu::Texture *GPU_texture_create_compressed_2d(const char *name,
   if (data) {
     size_t ofs = 0;
     for (int mip = 0; mip < mip_len; mip++) {
-      int extent[3], offset[3] = {0, 0, 0};
+      int extent[3] = {1, 1, 1};
+      int offset[3] = {0, 0, 0};
       tex->mip_size_get(mip, extent);
 
       size_t size = ((extent[0] + 3) / 4) * ((extent[1] + 3) / 4) * to_block_size(tex_format);
@@ -481,6 +482,15 @@ gpu::Texture *GPU_texture_create_view(const char *name,
                   layer_len,
                   cube_as_array,
                   use_stencil);
+
+  /* On integer textures, disable filtering by default, as this is not guaranteed to be
+   * consistently supported across backends. */
+  if (GPU_texture_has_integer_format(view)) {
+    view->sampler_state.set_filtering_flag_from_test(GPU_SAMPLER_FILTERING_LINEAR, false);
+    view->sampler_state.set_filtering_flag_from_test(GPU_SAMPLER_FILTERING_MIPMAP, false);
+    view->sampler_state.set_filtering_flag_from_test(GPU_SAMPLER_FILTERING_ANISOTROPIC, false);
+  }
+
   return view;
 }
 
@@ -547,7 +557,37 @@ void *GPU_texture_read(gpu::Texture *texture, eGPUDataFormat data_format, int mi
 void GPU_texture_clear(gpu::Texture *tex, eGPUDataFormat data_format, const void *data)
 {
   BLI_assert(data != nullptr); /* Do not accept nullptr as parameter. */
-  tex->clear(data_format, data);
+  BLI_assert(validate_data_format(tex->format_get(), data_format));
+
+  /* TODO(fclem): Ideally modify the GPU_texture_clear API. */
+  double4 clear_data(0xFFFFFFFFu);
+  int comp_len = to_component_len(tex->format_get());
+  switch (data_format) {
+    case GPU_DATA_FLOAT:
+      for (int i : IndexRange(comp_len)) {
+        clear_data[i] = static_cast<const float *>(data)[i];
+      }
+      break;
+    case GPU_DATA_INT:
+      for (int i : IndexRange(comp_len)) {
+        clear_data[i] = static_cast<const int *>(data)[i];
+      }
+      break;
+    case GPU_DATA_UINT:
+      for (int i : IndexRange(comp_len)) {
+        clear_data[i] = static_cast<const uint *>(data)[i];
+      }
+      break;
+    case GPU_DATA_UBYTE:
+      for (int i : IndexRange(comp_len)) {
+        clear_data[i] = static_cast<const uint *>(data)[i];
+      }
+      break;
+    default:
+      BLI_assert_msg(0, "Unhandled data format");
+      return;
+  }
+  tex->clear(clear_data);
 }
 
 void GPU_texture_update(gpu::Texture *tex, eGPUDataFormat data_format, const void *data)

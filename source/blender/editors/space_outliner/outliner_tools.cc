@@ -238,7 +238,6 @@ static void unlink_action_fn(bContext *C,
 
   /* just set action to nullptr */
   BKE_animdata_set_action(CTX_wm_reports(C), tsep->id, nullptr);
-  DEG_id_tag_update(tsep->id, ID_RECALC_ANIMATION);
 }
 
 static void unlink_material_fn(bContext * /*C*/,
@@ -1765,7 +1764,6 @@ static void unlinkact_animdata_fn(int /*event*/,
 {
   /* just set action to nullptr */
   BKE_animdata_set_action(nullptr, tselem->id, nullptr);
-  DEG_id_tag_update(tselem->id, ID_RECALC_ANIMATION);
 }
 
 static void cleardrivers_animdata_fn(int /*event*/,
@@ -3247,7 +3245,7 @@ static wmOperatorStatus outliner_action_set_exec(bContext *C, wmOperator *op)
   }
 
   /* set notifier that things have changed */
-  DEG_id_tag_update(te->store_elem->id, ID_RECALC_ANIMATION);
+  DEG_relations_tag_update(CTX_data_main(C));
   WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ACTCHANGE, nullptr);
   ED_undo_push(C, "Set action");
 
@@ -3525,21 +3523,21 @@ static wmOperatorStatus outliner_data_operation_exec(bContext *C, wmOperator *op
   switch (datalevel) {
     case TSE_POSE_CHANNEL: {
       outliner_do_data_operation(space_outliner, datalevel, event, pchan_fn, nullptr);
-      WM_event_add_notifier(C, NC_OBJECT | ND_POSE, nullptr);
+      WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, nullptr);
       ED_undo_push(C, "PoseChannel operation");
 
       break;
     }
     case TSE_BONE: {
       outliner_do_data_operation(space_outliner, datalevel, event, bone_fn, nullptr);
-      WM_event_add_notifier(C, NC_OBJECT | ND_POSE, nullptr);
+      WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, nullptr);
       ED_undo_push(C, "Bone operation");
 
       break;
     }
     case TSE_EBONE: {
       outliner_do_data_operation(space_outliner, datalevel, event, ebone_fn, nullptr);
-      WM_event_add_notifier(C, NC_OBJECT | ND_POSE, nullptr);
+      WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, nullptr);
       ED_undo_push(C, "EditBone operation");
 
       break;
