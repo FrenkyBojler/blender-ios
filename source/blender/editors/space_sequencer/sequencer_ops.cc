@@ -72,6 +72,7 @@ void sequencer_operatortypes()
 
   WM_operatortype_append(SEQUENCER_OT_caption_add);
   WM_operatortype_append(SEQUENCER_OT_caption_add_at_frame);
+  WM_operatortype_append(SEQUENCER_OT_caption_remove);
 
   /* `sequencer_retiming.cc` */
   WM_operatortype_append(SEQUENCER_OT_retiming_reset);

@@ -2888,8 +2888,7 @@ static void rna_def_captions(BlenderRNA *brna){
   RNA_def_property_boolean_sdna(prop, nullptr, "use_custom_style", 1);
   RNA_def_property_ui_icon(prop, ICON_FONT_DATA, false);
   RNA_def_property_flag(prop, PROP_EDITABLE);
-  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Caption_use_custom_style_update");
+    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Caption_use_custom_style_update");
 
 
 }

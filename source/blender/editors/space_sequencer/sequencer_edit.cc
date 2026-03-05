@@ -2504,6 +2504,7 @@ static wmOperatorStatus sequencer_delete_exec(bContext *C, wmOperator *op)
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_sequencer_scene(C);
   ListBaseT<Strip> *seqbasep = seq::active_seqbase_get(seq::editing_get(scene));
+  
   const bool delete_data = RNA_boolean_get(op->ptr, "delete_data");
 
   if (sequencer_view_has_preview_poll(C) && !sequencer_view_preview_only_poll(C)) {
@@ -4446,7 +4447,6 @@ void SEQUENCER_OT_caption_add(wmOperatorType *ot)
         }
       }
       length = get_extend_right(start_frame, channel, &ed->captions_strips, length);
-      printf("Length: %p", length);
       if(length == 0) {
         BKE_report(op->reports, RPT_ERROR, "A strip already exists at that frame");
         return OPERATOR_CANCELLED;
@@ -4526,7 +4526,39 @@ void SEQUENCER_OT_caption_add(wmOperatorType *ot)
 
   static wmOperatorStatus captions_remove_exec(bContext *C, wmOperator *op)
   {
+    Main *bmain = CTX_data_main(C);
+    Scene *scene = CTX_data_sequencer_scene(C);
+    Editing *ed = seq::editing_get(scene);
+    ListBaseT<Strip> *seqbasep = seq::active_seqbase_get(ed);
+    const int index = RNA_int_get(op->ptr, "index");
 
+    if (sequencer_view_has_preview_poll(C) && !sequencer_view_preview_only_poll(C)) {
+      return OPERATOR_CANCELLED;
+    }
+  
+    seq::prefetch_stop(scene);
+  
+    CaptionsStripRef *ref = seq::captions_get_ref_by_index(ed, index);
+    if(ref == nullptr){
+      return OPERATOR_CANCELLED;
+    }
+
+    Strip *strip = ref->strip;
+
+    seq::edit_flag_for_removal(scene, seqbasep, strip);
+    seq::edit_remove_flagged_strips(scene, seqbasep);
+    vse::sync_active_scene_and_time_with_scene_strip(*C);
+  
+    DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
+    if (scene->adt && scene->adt->action) {
+      DEG_id_tag_update(&scene->adt->action->id, ID_RECALC_ANIMATION_NO_FLUSH);
+    }
+    DEG_relations_tag_update(bmain);
+
+    // TODO: GD;; Currently the ref is deleted in the update that happens right after this, not ideal
+
+    WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER | NA_REMOVED, scene);
+    WM_event_add_notifier(C, NC_SCENE | ND_ANIMCHAN, scene);
     return OPERATOR_FINISHED;
   }
 
@@ -4549,7 +4581,7 @@ void SEQUENCER_OT_caption_remove(wmOperatorType *ot)
 {
     /* Identifiers. */
     ot->name = "Add Caption";
-    ot->idname = "SEQUENCER_OT_caption_add";
+    ot->idname = "SEQUENCER_OT_caption_remove";
     ot->description = "Remove a caption in a certain index";
 
     /* API callbacks. */

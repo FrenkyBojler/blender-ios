@@ -17,7 +17,7 @@ namespace blender {
   struct Strip;
   struct Editing;
   struct TextVars;
-  
+
 namespace seq {
     
 void captions_update_strips(struct Scene *scene);
@@ -25,6 +25,7 @@ CaptionsStripRef *captions_get_ref_by_strip(struct Editing *ed, struct Strip *st
 void captions_mark_ref_style_custom(CaptionsStripRef *ref, bool use_custom);
 TextVars *captions_style_ensure(Editing *ed);
 void captions_update_strips_style(Scene *scene);
+CaptionsStripRef *captions_get_ref_by_index(struct Editing *ed, int index);
 
 }  // namespace seq
 }  // namespace blender

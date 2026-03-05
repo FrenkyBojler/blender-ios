@@ -265,6 +265,7 @@ void SEQUENCER_OT_scene_frame_range_update(wmOperatorType *ot);
 
 void SEQUENCER_OT_caption_add(wmOperatorType *ot);
 void SEQUENCER_OT_caption_add_at_frame(wmOperatorType *ot);
+void SEQUENCER_OT_caption_remove(wmOperatorType *ot);
 
 /* `sequencer_select.cc` */
 

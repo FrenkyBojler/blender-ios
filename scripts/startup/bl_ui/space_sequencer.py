@@ -2127,7 +2127,7 @@ class SEQUENCER_PT_captions_editor(bpy.types.Panel):
     bl_category = "Captions"
     bl_order = 0
 
-    def draw_caption(self, layout, item, draw_ops=True):
+    def draw_caption(self, layout, item, index, draw_ops=True):
         strip = item.strip
         
         cell = layout.column(align=True)
@@ -2147,17 +2147,20 @@ class SEQUENCER_PT_captions_editor(bpy.types.Panel):
             
             ops_row.prop(item, "use_custom_style", icon_only=True)
             
+            op = ops_row.operator("sequencer.caption_remove", text="Remove", icon="REMOVE")
+            op.index = index
+            
             op = ops_row.operator("sequencer.caption_add_at_frame", text="Add After", icon="ADD")
             op.start_frame = strip.frame_final_end
-
+            
     def draw(self, context):
         layout = self.layout
         space = context.space_data
         captions = context.scene.sequence_editor.captions
         
-        for caption in captions:
+        for index, caption in enumerate(captions):
             if caption:
-                self.draw_caption(layout, caption)
+                self.draw_caption(layout, caption, index)
         
         layout.operator("sequencer.caption_add", text="Add", icon='ADD')
         

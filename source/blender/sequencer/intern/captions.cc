@@ -160,6 +160,22 @@ void captions_update_strips_style(Scene *scene)
     return ed->captions_style;
 }
 
+CaptionsStripRef *captions_get_ref_by_index(struct Editing *ed, int index){
+    if(ed == nullptr || index < 0) {
+        return nullptr;
+    }
+
+    int i = 0;
+    for (CaptionsStripRef &ref : ed->captions_strips) {
+        if(i == index) {
+            return &ref;
+        }
+        i++;
+    }
+    return nullptr;
+}
+
+
 CaptionsStripRef *captions_get_ref_by_strip(Editing *ed, struct Strip *strip) {
     for (CaptionsStripRef &ref : ed->captions_strips) {
         if (ref.strip == strip) {
