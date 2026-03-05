@@ -404,25 +404,25 @@ wmXrSessionState *WM_xr_session_state_handle_get(const wmXrData *xr)
   return xr->runtime ? &xr->runtime->session_state : nullptr;
 }
 
-bContext *WM_xr_session_context_ensure(const wmWindowManager *wm, wmXrRuntimeData *runtime_data)
+bContext *WM_xr_session_context_ensure(wmXrData *xr, const wmWindowManager *wm)
 {
-  if (runtime_data == nullptr) {
+  if (xr->runtime == nullptr) {
     return nullptr;
   }
 
   /* XR session root window. Also sets the context scene. */
-  wmWindow *xr_win = wm_xr_session_root_window_or_fallback_get(wm, runtime_data);
-  CTX_wm_window_set(runtime_data->b_context, xr_win);
+  wmWindow *xr_win = wm_xr_session_root_window_or_fallback_get(wm, xr->runtime);
+  CTX_wm_window_set(xr->runtime->b_context, xr_win);
 
   /* Unique offscreen XR area. */
-  CTX_wm_area_set(runtime_data->b_context, runtime_data->offscreen_area);
+  CTX_wm_area_set(xr->runtime->b_context, xr->runtime->offscreen_area);
 
   /* Region for XR operator execution and modal handling. */
-  ARegion *xr_region = BKE_area_find_region_type(runtime_data->offscreen_area, RGN_TYPE_WINDOW);
-  CTX_wm_region_set(runtime_data->b_context, xr_region);
+  ARegion *xr_region = BKE_area_find_region_type(xr->runtime->offscreen_area, RGN_TYPE_WINDOW);
+  CTX_wm_region_set(xr->runtime->b_context, xr_region);
 
   /* Return for convenience. */
-  return runtime_data->b_context;
+  return xr->runtime->b_context;
 }
 
 bContext *WM_xr_session_context_get(const wmXrData *xr)
@@ -1302,7 +1302,7 @@ void wm_xr_session_actions_update(wmWindowManager *wm)
     }
 
     /* Set XR offscreen area View3D object type flags for operators. */
-    bContext *xr_context = WM_xr_session_context_ensure(wm, xr->runtime);
+    bContext *xr_context = WM_xr_session_context_ensure(xr, wm);
     ScrArea *xr_offscreen_area = CTX_wm_area(xr_context);
 
     View3D *v3d = static_cast<View3D *>(xr_offscreen_area->spacedata.first);
@@ -1391,7 +1391,7 @@ static void wm_xr_session_surface_draw(bContext *C)
     return;
   }
 
-  WM_xr_session_context_ensure(wm, wm->xr.runtime);
+  WM_xr_session_context_ensure(&wm->xr, wm);
   wm_xr_session_draw_data_populate(&wm->xr, &draw_data);
 
   GHOST_XrSessionDrawViews(wm->xr.runtime->ghost_context, &draw_data);
@@ -1410,7 +1410,7 @@ static void wm_xr_session_do_depsgraph(bContext *C)
     return;
   }
 
-  bContext *xr_context = WM_xr_session_context_ensure(wm, wm->xr.runtime);
+  bContext *xr_context = WM_xr_session_context_ensure(&wm->xr, wm);
   CTX_data_ensure_evaluated_depsgraph(xr_context);
 }
 

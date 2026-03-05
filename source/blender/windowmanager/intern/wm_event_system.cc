@@ -4049,7 +4049,7 @@ static void wm_event_handle_xrevent(wmWindowManager *wm,
                                     wmEvent *event,
                                     bContext *main_context)
 {
-  bContext *xr_context = WM_xr_session_context_ensure(wm, wm->xr.runtime);
+  bContext *xr_context = WM_xr_session_context_ensure(&wm->xr, wm);
 
   ScrArea *xr_area = CTX_wm_area(xr_context);
   ARegion *xr_region = CTX_wm_region(xr_context);

@@ -143,7 +143,7 @@ bool wm_xr_init(bContext *C)
 
       /* Create the XR offscreen area (independent of any bScreen). */
       wm->xr.runtime->offscreen_area = ED_area_offscreen_create(CTX_wm_window(C), SPACE_VIEW3D);
-      WM_xr_session_context_ensure(wm, wm->xr.runtime);
+      WM_xr_session_context_ensure(&wm->xr, wm);
     }
   }
   BLI_assert(wm->xr.runtime && wm->xr.runtime->ghost_context && wm->xr.runtime->b_context);
