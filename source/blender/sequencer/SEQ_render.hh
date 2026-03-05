@@ -91,8 +91,8 @@ bool render_is_muted(const ListBaseT<SeqTimelineChannel> *channels, const Strip 
 float get_render_scale_factor(eSpaceSeq_Proxy_RenderSize render_size, short scene_render_scale);
 float get_render_scale_factor(const RenderData &context);
 
-void render_begin_gpu(const RenderData &rd);
-void render_end_gpu(const RenderData &rd);
+GPUContext *render_begin_gpu(const RenderData &rd);
+void render_end_gpu(const RenderData &rd, GPUContext *prev_context);
 
 }  // namespace seq
 }  // namespace blender

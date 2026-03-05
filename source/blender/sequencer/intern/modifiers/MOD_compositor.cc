@@ -208,8 +208,9 @@ static void compositor_modifier_apply(ModifierApplyContext &context,
                                             context.strip);
 
   const bool use_gpu = com_mod_context.use_gpu();
+  GPUContext *prev_gpu_context = nullptr;
   if (use_gpu) {
-    render_begin_gpu(context.render_data);
+    prev_gpu_context = render_begin_gpu(context.render_data);
   }
 
   com_cache.recreate_if_needed(
@@ -217,7 +218,7 @@ static void compositor_modifier_apply(ModifierApplyContext &context,
   com_mod_context.evaluate();
   com_mod_context.cache_manager().reset();
   if (use_gpu) {
-    render_end_gpu(context.render_data);
+    render_end_gpu(context.render_data, prev_gpu_context);
   }
 
   context.result_translation += com_mod_context.get_result_translation();
