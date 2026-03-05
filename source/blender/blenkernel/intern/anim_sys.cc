@@ -827,10 +827,16 @@ static void animsys_blend_in_fcurves(PointerRNA *ptr,
         animrig::get_rotation_mode_from_path(rna_path);
     BLI_assert(fcurve_rotation_mode.has_value());
 
-    if (fcurve_rotation_mode.value() == ptr_rotation_mode.value()) {
+    /* The check for Euler rotation mode means we will *not* do any conversion if both modes are
+     * euler. Since we *cannot* know the exact euler mode of the stored FCurves we have to assume
+     * they are the same as the ptr. */
+    if (fcurve_rotation_mode.value() == ptr_rotation_mode.value() ||
+        (fcurve_rotation_mode.value() >= ROT_MODE_EUL &&
+         ptr_rotation_mode.value() >= ROT_MODE_EUL))
+    {
       /* Easy case, animation mode of fcurves and of `resolved_ptr` are matching. Data can just be
        * applied. The reason to have this separate is because in this case euler angles > 180
-       * degrees are preserved. The other path uses a conversion to a matrix which loses that
+       * degrees are preserved. The other path uses a conversion to a quaternion which loses that
        * information. */
       blend_rotation(resolved_ptr,
                      resolved_prop,
