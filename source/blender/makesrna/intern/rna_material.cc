@@ -755,6 +755,7 @@ static void rna_def_material_greasepencil(BlenderRNA *brna)
   prop = RNA_def_property(srna, "placement_mode", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_bitflag_sdna(prop, nullptr, "placement_mode");
   RNA_def_property_enum_items(prop, placement_mode_items);
+  RNA_def_property_enum_default(prop, GP_MATERIAL_PLACEMENT_RADIUS);
   RNA_def_property_ui_text(
       prop, "Placement", "Defines how Dots or Squares are placed along strokes");
   RNA_def_property_update(prop, NC_GPENCIL | ND_SHADING, "rna_MaterialGpencil_update");
