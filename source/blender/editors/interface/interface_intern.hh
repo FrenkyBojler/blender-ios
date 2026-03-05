@@ -1594,6 +1594,7 @@ Button *button_next(Button *but) ATTR_WARN_UNUSED_RESULT;
 Button *button_first(Block *block) ATTR_WARN_UNUSED_RESULT;
 Button *button_last(Block *block) ATTR_WARN_UNUSED_RESULT;
 bool button_draw_as_link(const Button *button);
+bool button_opens_link(const Button *button);
 
 Button *block_active_but_get(const Block *block);
 bool block_is_menu(const Block *block) ATTR_WARN_UNUSED_RESULT;

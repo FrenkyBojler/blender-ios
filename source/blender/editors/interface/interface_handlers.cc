@@ -4823,7 +4823,7 @@ static int ui_do_but_BUT(bContext *C, Button *but, HandleButtonData *data, const
     }
   }
 #endif
-  if (button_draw_as_link(but)) {
+  if (button_opens_link(but)) {
     if (!data->changed_cursor) {
       WM_cursor_set(data->window, WM_CURSOR_HAND_POINT);
       data->changed_cursor = true;

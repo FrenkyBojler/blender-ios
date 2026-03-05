@@ -950,7 +950,7 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
       }
     }
   }
-  else if (but->optype && but->opptr && StringRef("WM_OT_url_open") == but->optype->idname) {
+  else if (button_opens_link(but)) {
     std::string link = RNA_string_get(but->opptr, "url");
     layout.button(
         IFACE_("Copy Link"), ICON_COPYDOWN, [link = std::move(link)](blender::bContext & /*C*/) {

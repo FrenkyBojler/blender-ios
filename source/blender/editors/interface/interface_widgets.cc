@@ -130,7 +130,7 @@ struct WidgetStateInfo {
   /** Copy of #Button.emboss. */
   EmbossType emboss;
 
-  /** Copy of #Button::sub_style. */
+  /** Copy of #ButtonPush::draw_as_link. */
   bool draw_as_link : 1;
 
   /** Show that holding the button opens a menu. */
@@ -1664,6 +1664,11 @@ float text_clip_middle_ex(const uiFontStyle *fstyle,
 bool button_draw_as_link(const Button *button)
 {
   return button->type == ButtonType::But && static_cast<const ButtonPush *>(button)->draw_as_link;
+}
+
+bool button_opens_link(const Button *button)
+{
+  return button->optype && button->opptr && button->optype->idname == StringRef("WM_OT_url_open");
 }
 
 /**
