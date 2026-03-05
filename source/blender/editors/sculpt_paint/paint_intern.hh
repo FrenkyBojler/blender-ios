@@ -8,11 +8,11 @@
 
 #pragma once
 
-#include "BLI_even_spline.hh"
 #include "BLI_index_mask_fwd.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_rand.hh"
 #include "BLI_span.hh"
+#include "BLI_vector.hh"
 
 #include "DNA_object_enums.h"
 #include "DNA_scene_enums.h"
@@ -99,6 +99,37 @@ struct PaintSample {
   float pressure = 0.0f;
 };
 
+/** Polyline resolution: subdivisions per Catmull-Rom knot span. */
+constexpr int kRollResolution = 24;
+
+/**
+ * Polyline-based arc-length parameterized spline for roll texture mapping.
+ * Replaces custom CubicBezier/EvenSpline with existing Blender infrastructure
+ * (BLI_length_parameterize.hh + catmull_rom::interpolate).
+ */
+struct RollSpline {
+  Vector<float2> poly_2d;
+  Vector<float3> poly_3d;
+  Vector<float> lengths_2d;
+  Vector<float> lengths_3d;
+  /** Smooth tangents at each polyline vertex (central-difference). */
+  Vector<float3> tangents_3d;
+
+  void clear();
+  bool is_empty() const;
+  float total_length_2d() const;
+  float total_length_3d() const;
+  void update_lengths();
+
+  float2 evaluate_2d(float s) const;
+  float3 evaluate_3d(float s) const;
+  float3 tangent_3d(float s) const;
+  float2 tangent_2d_at_index(int poly_idx) const;
+
+  /** Find closest point on the 3D polyline. */
+  void closest_point_3d(const float3 &query, float &r_s, float3 &r_tan, float &r_dis) const;
+};
+
 struct PaintStrokePoint {
   float2 mouse_in;
   float2 mouse_out;
@@ -165,8 +196,8 @@ struct PaintStroke : NonCopyable, NonMovable {
   /* Roll texture mapping */
   bool need_roll_mapping_ = false;
   bool roll_virtual_prepended_ = false;     /* true after virtual backward segments are prepended */
-  bool has_trailing_roll_segment_ = false; /* true when a trailing extension segment exists */
-  int n_virtual_segments_ = 0;             /* number of virtual backward segments prepended */
+  int n_virtual_poly_points_ = 0;          /* polyline points in virtual backward extension */
+  int initial_backward_ext_count_ = 0;     /* backward_ext knot count at creation, for budget */
   void *roll_cursor_ = nullptr;           /* always-on preview of unflushed spline portion */
   void *debug_cursor_ = nullptr;
   int stroke_sample_index_ = 0;
@@ -175,8 +206,9 @@ struct PaintStroke : NonCopyable, NonMovable {
   PaintStrokePoint points_[PAINT_MAX_INPUT_SAMPLES];
   int num_points_ = 0;
   int cur_point_ = 0;
-  std::unique_ptr<BezierSpline2f> spline_;
-  std::unique_ptr<BezierSpline3f> world_spline_;
+  RollSpline roll_spline_;
+  Vector<float2> backward_ext_2d_;       /* virtual backward extension knots (screen space) */
+  Vector<float3> backward_ext_3d_;       /* virtual backward extension knots (world space) */
 
   /* Set whether any stroke step has yet occurred
    * e.g. in sculpt mode, stroke doesn't start until cursor

@@ -16,6 +16,8 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.h"
+#include "BLI_math_vector.hh"
+#include "BLI_length_parameterize.hh"
 #include "BLI_rand.hh"
 #include "BLI_utildefines.h"
 
@@ -25,6 +27,8 @@
 #include "DNA_scene_types.h"
 
 #include "RNA_access.hh"
+
+#include "BKE_curves.hh"
 
 #include "BKE_brush.hh"
 #include "BKE_colortools.hh"
@@ -60,7 +64,131 @@
 namespace blender::ed::sculpt_paint {
 
 /* -------------------------------------------------------------------- */
-/** \name Roll Texture Mapping Spline Helpers
+/** \name RollSpline — polyline-based arc-length parameterized spline
+ * \{ */
+
+void RollSpline::clear()
+{
+  poly_2d.clear();
+  poly_3d.clear();
+  lengths_2d.clear();
+  lengths_3d.clear();
+  tangents_3d.clear();
+}
+
+bool RollSpline::is_empty() const
+{
+  return poly_3d.size() < 2;
+}
+
+float RollSpline::total_length_2d() const
+{
+  return lengths_2d.is_empty() ? 0.0f : lengths_2d.last();
+}
+
+float RollSpline::total_length_3d() const
+{
+  return lengths_3d.is_empty() ? 0.0f : lengths_3d.last();
+}
+
+void RollSpline::update_lengths()
+{
+  const int n2d = int(poly_2d.size());
+  const int n3d = int(poly_3d.size());
+  if (n2d >= 2) {
+    lengths_2d.reinitialize(length_parameterize::segments_num(n2d, false));
+    length_parameterize::accumulate_lengths(poly_2d.as_span(), false, lengths_2d);
+  }
+  else {
+    lengths_2d.clear();
+  }
+  if (n3d >= 2) {
+    lengths_3d.reinitialize(length_parameterize::segments_num(n3d, false));
+    length_parameterize::accumulate_lengths(poly_3d.as_span(), false, lengths_3d);
+
+    /* Smooth tangents via central differences — gives C0 continuous tangent
+     * field instead of the piecewise-constant direction per segment. */
+    tangents_3d.reinitialize(n3d);
+    tangents_3d[0] = math::normalize(poly_3d[1] - poly_3d[0]);
+    for (int i = 1; i < n3d - 1; i++) {
+      tangents_3d[i] = math::normalize(poly_3d[i + 1] - poly_3d[i - 1]);
+    }
+    tangents_3d[n3d - 1] = math::normalize(poly_3d[n3d - 1] - poly_3d[n3d - 2]);
+  }
+  else {
+    lengths_3d.clear();
+    tangents_3d.clear();
+  }
+}
+
+float2 RollSpline::evaluate_2d(float s) const
+{
+  int seg_idx;
+  float factor;
+  length_parameterize::sample_at_length(lengths_2d, s, seg_idx, factor);
+  return math::interpolate(poly_2d[seg_idx], poly_2d[seg_idx + 1], factor);
+}
+
+float3 RollSpline::evaluate_3d(float s) const
+{
+  int seg_idx;
+  float factor;
+  length_parameterize::sample_at_length(lengths_3d, s, seg_idx, factor);
+  return math::interpolate(poly_3d[seg_idx], poly_3d[seg_idx + 1], factor);
+}
+
+float3 RollSpline::tangent_3d(float s) const
+{
+  int seg_idx;
+  float factor;
+  length_parameterize::sample_at_length(lengths_3d, s, seg_idx, factor);
+  return math::normalize(math::interpolate(tangents_3d[seg_idx], tangents_3d[seg_idx + 1], factor));
+}
+
+float2 RollSpline::tangent_2d_at_index(int poly_idx) const
+{
+  poly_idx = std::clamp(poly_idx, 0, int(poly_2d.size()) - 2);
+  float2 dir = poly_2d[poly_idx + 1] - poly_2d[poly_idx];
+  const float len = math::length(dir);
+  return (len > 1e-7f) ? dir / len : float2(1, 0);
+}
+
+void RollSpline::closest_point_3d(const float3 &query,
+                                  float &r_s,
+                                  float3 &r_tan,
+                                  float &r_dis) const
+{
+  float best_dist_sq = FLT_MAX;
+  int best_seg = 0;
+  float best_t = 0.0f;
+
+  for (int i = 0; i < int(poly_3d.size()) - 1; i++) {
+    const float3 ab = poly_3d[i + 1] - poly_3d[i];
+    const float ab_dot = math::dot(ab, ab);
+    const float t = (ab_dot > 1e-12f) ?
+                        std::clamp(math::dot(query - poly_3d[i], ab) / ab_dot, 0.0f, 1.0f) :
+                        0.0f;
+    const float3 proj = math::interpolate(poly_3d[i], poly_3d[i + 1], t);
+    const float dist_sq = math::distance_squared(query, proj);
+    if (dist_sq < best_dist_sq) {
+      best_dist_sq = dist_sq;
+      best_seg = i;
+      best_t = t;
+    }
+  }
+
+  const float seg_start = (best_seg > 0) ? lengths_3d[best_seg - 1] : 0.0f;
+  const float seg_end = lengths_3d[best_seg];
+  r_s = seg_start + best_t * (seg_end - seg_start);
+  r_dis = sqrtf(best_dist_sq);
+  r_tan = math::normalize(
+      math::interpolate(tangents_3d[best_seg], tangents_3d[best_seg + 1], best_t));
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Roll Texture Mapping Stroke Helpers
  * \{ */
 
 int PaintStroke::roll_max_points() const
@@ -84,9 +212,42 @@ void PaintStroke::add_roll_point(const float2 &mouse_in,
                                  float x_tilt,
                                  float y_tilt)
 {
-  PaintStrokePoint *point = &points_[cur_point_];
-  int max_points = roll_max_points();
+  /* Budget: total knots (virtual + real) capped at roll_max_points() + initial
+   * backward extension count. Virtual knots are dropped first from the oldest
+   * end; only after all virtual knots are consumed does the ring buffer wrap. */
+  constexpr int buf_cap = PAINT_MAX_INPUT_SAMPLES;
+  const int budget = roll_max_points() + initial_backward_ext_count_;
+  const int total_knots = int(backward_ext_2d_.size()) + num_points_;
+  bool wrap_ring = false;
 
+  if (total_knots >= budget) {
+    if (!backward_ext_2d_.is_empty()) {
+      /* Consume the oldest virtual knot. The ring buffer keeps growing;
+       * no real stroke data is lost yet.
+       * Accumulate the arc-length of the removed span so that
+       * stroke_distance_world_ compensates and the texture stays put. */
+      if (kRollResolution - 1 < int(roll_spline_.lengths_3d.size())) {
+        stroke_distance_world_ += roll_spline_.lengths_3d[kRollResolution - 1];
+      }
+      else if (backward_ext_3d_.size() >= 2) {
+        stroke_distance_world_ += math::distance(backward_ext_3d_[0], backward_ext_3d_[1]);
+      }
+      backward_ext_2d_.remove(0);
+      backward_ext_3d_.remove(0);
+    }
+    else {
+      /* All virtual knots consumed — ring buffer wraps, oldest real point
+       * is abandoned. Accumulate its distance so stroke_distance_world_
+       * stays correct. */
+      const int oldest = (cur_point_ - num_points_ + buf_cap) % buf_cap;
+      const int next = (oldest + 1) % buf_cap;
+      stroke_distance_world_ += math::distance(points_[oldest].location,
+                                               points_[next].location);
+      wrap_ring = true;
+    }
+  }
+
+  PaintStrokePoint *point = &points_[cur_point_];
   point->size = size;
   point->mouse_in = mouse_in;
   point->mouse_out = mouse_out;
@@ -96,11 +257,8 @@ void PaintStroke::add_roll_point(const float2 &mouse_in,
   point->location = loc;
   point->pressure = pressure;
 
-  cur_point_++;
-  if (cur_point_ >= max_points) {
-    cur_point_ = 0;
-  }
-  if (num_points_ < max_points) {
+  cur_point_ = (cur_point_ + 1) % buf_cap;
+  if (!wrap_ring) {
     num_points_++;
   }
 }
@@ -111,9 +269,9 @@ void PaintStroke::prepend_virtual_roll_points()
     return;
   }
 
-  const int max_pts = roll_max_points();
-  const int oldest = (cur_point_ - num_points_ + max_pts) % max_pts;
-  const int next_oldest = (oldest + 1) % max_pts;
+  constexpr int cap = PAINT_MAX_INPUT_SAMPLES;
+  const int oldest = (cur_point_ - num_points_ + cap) % cap;
+  const int next_oldest = (oldest + 1) % cap;
 
   const float3 p_start = points_[oldest].location;
   const float2 m_start = points_[oldest].mouse_out;
@@ -138,7 +296,7 @@ void PaintStroke::prepend_virtual_roll_points()
 
   /* Extend backward from the stroke start by 3 brush radii so that early
    * dabs have generous spline coverage behind them.
-   * 12 bezier segments subdivide this extension; with curvature they form an arc. */
+   * 12 knots subdivide this extension; with curvature they form an arc. */
   constexpr int n_backward = 12;
   const float total_backward_3d = r_world * 3.0f;
   const float total_backward_2d = r_screen * 3.0f;
@@ -154,7 +312,7 @@ void PaintStroke::prepend_virtual_roll_points()
   bool has_rot_3d = false;
 
   if (num_points_ >= 3) {
-    const int third = (oldest + 2) % max_pts;
+    const int third = (oldest + 2) % cap;
 
     /* 2D curvature. */
     const float2 seg1 = points_[next_oldest].mouse_out - m_start;
@@ -219,70 +377,21 @@ void PaintStroke::prepend_virtual_roll_points()
     v3d[i] = v3d[i + 1] - cur_dir_3d * step_3d;
   }
 
-  /* Splines are empty at this point, so these become the leading segments.
-   * First: n_backward segments of linear backward extension. */
+  /* Store backward extension knots (not including p_start which comes from real knots).
+   * These are prepended to the knot array during each polyline rebuild. */
+  backward_ext_2d_.clear();
+  backward_ext_3d_.clear();
   for (int i = 0; i < n_backward; i++) {
-    const float2 a2 = v2d[i];
-    const float2 d2 = v2d[i + 1];
-    CubicBezier<float, 2> bez2d(a2,
-                                math::interpolate(a2, d2, 1.0f / 3.0f),
-                                math::interpolate(a2, d2, 2.0f / 3.0f),
-                                d2);
-    bez2d.update();
-    spline_->add(bez2d);
-
-    CubicBezier<float, 3> bez3d;
-    bez3d.ps[0] = v3d[i];
-    bez3d.ps[1] = math::interpolate(v3d[i], v3d[i + 1], 1.0f / 3.0f);
-    bez3d.ps[2] = math::interpolate(v3d[i], v3d[i + 1], 2.0f / 3.0f);
-    bez3d.ps[3] = v3d[i + 1];
-    bez3d.update();
-    world_spline_->add(bez3d);
+    backward_ext_2d_.append(v2d[i]);
+    backward_ext_3d_.append(v3d[i]);
   }
-
-  /* Bridge the gap: the first real Catmull-Rom segment will start at
-   * points_[oldest+1], but the backward extension ends at points_[oldest].
-   * Add a linear bridging segment to close this gap. */
-  if (num_points_ >= 2) {
-    const float2 bridge_a2 = points_[oldest].mouse_out;
-    const float2 bridge_d2 = points_[next_oldest].mouse_out;
-    CubicBezier<float, 2> bridge2d(bridge_a2,
-                                    math::interpolate(bridge_a2, bridge_d2, 1.0f / 3.0f),
-                                    math::interpolate(bridge_a2, bridge_d2, 2.0f / 3.0f),
-                                    bridge_d2);
-    bridge2d.update();
-    spline_->add(bridge2d);
-
-    const float3 bridge_a3 = points_[oldest].location;
-    const float3 bridge_d3 = points_[next_oldest].location;
-    CubicBezier<float, 3> bridge3d;
-    bridge3d.ps[0] = bridge_a3;
-    bridge3d.ps[1] = math::interpolate(bridge_a3, bridge_d3, 1.0f / 3.0f);
-    bridge3d.ps[2] = math::interpolate(bridge_a3, bridge_d3, 2.0f / 3.0f);
-    bridge3d.ps[3] = bridge_d3;
-    bridge3d.update();
-    world_spline_->add(bridge3d);
-  }
-
-  /* Only the backward extension is virtual; the bridge covers actual
-   * stroke territory (point[0] → point[1]), so the yellow boundary
-   * marker ends up at the real stroke starting position. */
-  n_virtual_segments_ = n_backward;
+  initial_backward_ext_count_ = n_backward;
 }
 
-void PaintStroke::make_roll_spline(bContext *C)
+void PaintStroke::make_roll_spline(bContext * /*C*/)
 {
   if (num_points_ < 4) {
     return;
-  }
-
-  /* Remove the trailing extension segment from the previous call. */
-  if (has_trailing_roll_segment_) {
-    spline_->segments.resize(spline_->segments.size() - 1);
-    spline_->update();
-    world_spline_->segments.resize(world_spline_->segments.size() - 1);
-    world_spline_->update();
-    has_trailing_roll_segment_ = false;
   }
 
   if (!roll_virtual_prepended_) {
@@ -290,149 +399,58 @@ void PaintStroke::make_roll_spline(bContext *C)
     prepend_virtual_roll_points();
   }
 
-  int cur = (cur_point_ - 1 + num_points_) % num_points_;
+  /* Collect real knots from ring buffer. */
+  constexpr int buf_cap = PAINT_MAX_INPUT_SAMPLES;
+  Vector<float2> knots_2d;
+  Vector<float3> knots_3d;
 
-  int ia = (cur - 2 + num_points_) % num_points_;
-  int id = (cur - 1 + num_points_) % num_points_;
-  int ib = (cur - 3 + num_points_) % num_points_;
-  int ic = (cur - 0 + num_points_) % num_points_;
-
-  float2 a = points_[ia].mouse_out;
-  float2 b_pt = points_[ib].mouse_out;
-  float2 c_pt = points_[ic].mouse_out;
-  float2 d = points_[id].mouse_out;
-
-  /* Catmull-Rom to cubic Bezier conversion.
-   *
-   * Given four Catmull-Rom knots P0 (b_pt), P1 (a), P2 (d), P3 (c_pt),
-   * the equivalent cubic Bezier control points are:
-   *   B0 = P1
-   *   B1 = P1 + (P2 - P0) / 6
-   *   B2 = P2 - (P3 - P1) / 6
-   *   B3 = P2
-   *
-   * Below, scale = 1/3 combined with the 0.5 interpolation yields the 1/6 factor. */
-  float scale = 1.0f / 3.0f;
-
-  float2 tmp1 = d - a;
-  float2 tmp2 = a - b_pt;
-  b_pt = math::interpolate(tmp1, tmp2, 0.5f) * scale + a;
-
-  tmp1 = a - d;
-  tmp2 = d - c_pt;
-  c_pt = math::interpolate(tmp1, tmp2, 0.5f) * scale + d;
-
-  VecBase<float, 2> a2 = {a[0], a[1]};
-  VecBase<float, 2> b2 = {b_pt[0], b_pt[1]};
-  VecBase<float, 2> c2 = {c_pt[0], c_pt[1]};
-  VecBase<float, 2> d2 = {d[0], d[1]};
-
-  CubicBezier<float, 2> bez(a2, b2, c2, d2);
-  bez.update();
-  spline_->add(bez);
-
-  CubicBezier<float, 3> bez3d;
-
-  /* Project 2D bezier control points to 3D. */
-  {
-    float2 mvals[4];
-    for (int i = 0; i < 4; i++) {
-      mvals[i][0] = bez.ps[i][0];
-      mvals[i][1] = bez.ps[i][1];
-    }
-
-    float3 last_z_pos(0);
-    bool have_last_z = false;
-
-    for (int i = 0; i < 4; i++) {
-      if (!stroke_get_location_bvh(C, bez3d.ps[i], mvals[i], true)) {
-        if (!have_last_z) {
-          if (world_spline_->segments.size() > 0) {
-            auto &segs = world_spline_->segments;
-            copy_v3_v3(last_z_pos, segs[segs.size() - 1].bezier.ps[3]);
-          }
-          else {
-            copy_v3_v3(last_z_pos, last_world_space_position_);
-          }
-          have_last_z = true;
-        }
-
-        ED_view3d_win_to_3d(
-            CTX_wm_view3d(C), CTX_wm_region(C), last_z_pos, mvals[i], bez3d.ps[i]);
-      }
-      else {
-        copy_v3_v3(last_z_pos, bez3d.ps[i]);
-        have_last_z = true;
-      }
-    }
-
-    bez3d.update();
-  }
-  world_spline_->add(bez3d);
-
-  /* Trailing segment: extend spline from points_[cur-1] to points_[cur] (newest).
-   * Catmull-Rom ends one sample behind the mouse because it needs a look-ahead
-   * point; this trailing extension closes that gap so the debug-draw spline
-   * (and texture mapping) reaches the current cursor position. */
-  {
-    float2 tr_p0 = points_[ia].mouse_out; /* Guide before (cur-2). */
-    float2 tr_p1 = points_[id].mouse_out; /* Start (cur-1). */
-    float2 tr_p2 = points_[ic].mouse_out; /* End = newest (cur). */
-    float2 tr_p3 = 2.0f * tr_p2 - tr_p1; /* Extrapolated guide after. */
-
-    /* Catmull-Rom to Bezier: ctrl1 = P1 + (P2-P0)/6, ctrl2 = P2 - (P3-P1)/6. */
-    float2 tr_ctrl1 = tr_p1 + (tr_p2 - tr_p0) * (1.0f / 6.0f);
-    float2 tr_ctrl2 = tr_p2 - (tr_p3 - tr_p1) * (1.0f / 6.0f);
-
-    CubicBezier<float, 2> trail_bez(tr_p1, tr_ctrl1, tr_ctrl2, tr_p2);
-    trail_bez.update();
-    spline_->add(trail_bez);
-
-    /* Project trailing control points to 3D. */
-    CubicBezier<float, 3> trail_bez3d;
-    {
-      float2 tr_mvals[4] = {tr_p1, tr_ctrl1, tr_ctrl2, tr_p2};
-      float3 last_z(0);
-      bool have_z = false;
-
-      for (int i = 0; i < 4; i++) {
-        if (!stroke_get_location_bvh(C, trail_bez3d.ps[i], tr_mvals[i], true)) {
-          if (!have_z) {
-            auto &segs = world_spline_->segments;
-            if (segs.size() > 0) {
-              copy_v3_v3(last_z, segs[segs.size() - 1].bezier.ps[3]);
-            }
-            else {
-              copy_v3_v3(last_z, last_world_space_position_);
-            }
-            have_z = true;
-          }
-          ED_view3d_win_to_3d(
-              CTX_wm_view3d(C), CTX_wm_region(C), last_z, tr_mvals[i], trail_bez3d.ps[i]);
-        }
-        else {
-          copy_v3_v3(last_z, trail_bez3d.ps[i]);
-          have_z = true;
-        }
-      }
-      trail_bez3d.update();
-    }
-    world_spline_->add(trail_bez3d);
-    has_trailing_roll_segment_ = true;
+  const int oldest = (cur_point_ - num_points_ + buf_cap) % buf_cap;
+  for (int i = 0; i < num_points_; i++) {
+    const int idx = (oldest + i) % buf_cap;
+    knots_2d.append(points_[idx].mouse_out);
+    knots_3d.append(points_[idx].location);
   }
 
-  /* +2 to account for the trailing extension segment. */
-  int max_pts = roll_max_points();
-  while (int64_t(spline_->segments.size()) > max_pts + 2) {
-    spline_->pop_front();
-    if (n_virtual_segments_ > 0) {
-      n_virtual_segments_--;
+  /* Combine backward extension knots + real knots.
+   * backward_ext ends just before the first real knot (oldest stroke point),
+   * so Catmull-Rom through them gives a smooth transition. */
+  Vector<float2> all_2d;
+  Vector<float3> all_3d;
+  all_2d.extend(backward_ext_2d_);
+  all_3d.extend(backward_ext_3d_);
+  all_2d.extend(knots_2d);
+  all_3d.extend(knots_3d);
+
+  const int n_total = int(all_2d.size());
+  if (n_total < 2) {
+    return;
+  }
+
+  /* Rebuild polyline via Catmull-Rom evaluation. */
+  roll_spline_.clear();
+  const int resolution = kRollResolution;
+
+  for (int i = 0; i < n_total - 1; i++) {
+    const int i0 = std::max(i - 1, 0);
+    const int i3 = std::min(i + 2, n_total - 1);
+
+    for (int s = 0; s < resolution; s++) {
+      const float t = float(s) / float(resolution);
+      roll_spline_.poly_2d.append(bke::curves::catmull_rom::interpolate(
+          all_2d[i0], all_2d[i], all_2d[i + 1], all_2d[i3], t));
+      roll_spline_.poly_3d.append(bke::curves::catmull_rom::interpolate(
+          all_3d[i0], all_3d[i], all_3d[i + 1], all_3d[i3], t));
     }
   }
-  while (int64_t(world_spline_->segments.size()) > max_pts + 2) {
-    stroke_distance_world_ += world_spline_->segments[0].bezier.length;
-    world_spline_->pop_front();
-  }
+  /* Add the last endpoint. */
+  roll_spline_.poly_2d.append(all_2d.last());
+  roll_spline_.poly_3d.append(all_3d.last());
+
+  /* Virtual boundary: backward extension has backward_ext_2d_.size() knots,
+   * each knot transition = resolution polyline points. */
+  n_virtual_poly_points_ = int(backward_ext_2d_.size()) * resolution;
+
+  roll_spline_.update_lengths();
 }
 
 void PaintStroke::finish_roll_stroke(bContext *C,
@@ -440,7 +458,7 @@ void PaintStroke::finish_roll_stroke(bContext *C,
                                      const float2 &mouse_up,
                                      float pressure)
 {
-  if (!need_roll_mapping_ || !spline_ || num_points_ < 4) {
+  if (!need_roll_mapping_ || num_points_ < 4) {
     return;
   }
 
@@ -468,7 +486,7 @@ void PaintStroke::finish_roll_stroke(bContext *C,
     }
     else if (num_points_ > 0) {
       /* Fallback: use last known location so the spline still extends. */
-      const int last = (cur_point_ - 1 + roll_max_points()) % roll_max_points();
+      const int last = (cur_point_ - 1 + PAINT_MAX_INPUT_SAMPLES) % PAINT_MAX_INPUT_SAMPLES;
       add_roll_point(mouse_up,
                      mouse_out,
                      points_[last].location,
@@ -483,11 +501,12 @@ void PaintStroke::finish_roll_stroke(bContext *C,
 
   /* 3. Append a virtual forward extension so the last dab has spline
    *    coverage for the brush half that extends beyond the stroke end.
-   *    Mirrors prepend_virtual_roll_points() but in the forward direction. */
-  if (num_points_ >= 2 && spline_->segments.size() > 0) {
-    const int max_pts = roll_max_points();
-    const int newest = (cur_point_ - 1 + max_pts) % max_pts;
-    const int prev_newest = (newest - 1 + max_pts) % max_pts;
+   *    Mirrors prepend_virtual_roll_points() but in the forward direction.
+   *    Points are appended directly to the polyline (no Catmull-Rom needed). */
+  if (num_points_ >= 2 && !roll_spline_.is_empty()) {
+    constexpr int cap = PAINT_MAX_INPUT_SAMPLES;
+    const int newest = (cur_point_ - 1 + cap) % cap;
+    const int prev_newest = (newest - 1 + cap) % cap;
 
     const float3 p_end = points_[newest].location;
     const float2 m_end = points_[newest].mouse_out;
@@ -506,22 +525,18 @@ void PaintStroke::finish_roll_stroke(bContext *C,
       const float r_screen = points_[newest].size;
 
       constexpr int n_forward = 12;
-      const float total_fwd_3d = r_world * 3.0f;
-      const float total_fwd_2d = r_screen * 3.0f;
-      const float step_3d = total_fwd_3d / float(n_forward);
-      const float step_2d = total_fwd_2d / float(n_forward);
+      const float step_3d = (r_world * 3.0f) / float(n_forward);
+      const float step_2d = (r_screen * 3.0f) / float(n_forward);
 
-      /* Measure curvature from the angle between the last two segments
-       * to continue the arc forward beyond the stroke end. */
+      /* Measure curvature from the angle between the last two segments. */
       float angle_2d = 0.0f;
       float angle_3d = 0.0f;
       float3 rot_axis = float3(0);
       bool has_rot_3d = false;
 
       if (num_points_ >= 3) {
-        const int prev2 = (prev_newest - 1 + max_pts) % max_pts;
+        const int prev2 = (prev_newest - 1 + cap) % cap;
 
-        /* 2D curvature. */
         const float2 seg1 = points_[prev_newest].mouse_out - points_[prev2].mouse_out;
         const float2 seg2 = m_end - points_[prev_newest].mouse_out;
         const float cross2 = seg1.x * seg2.y - seg1.y * seg2.x;
@@ -532,7 +547,6 @@ void PaintStroke::finish_roll_stroke(bContext *C,
           angle_2d = total_a2 * (step_2d / seg_len2);
         }
 
-        /* 3D curvature (Rodrigues rotation). */
         const float3 s1 = points_[prev_newest].location - points_[prev2].location;
         const float3 s2 = p_end - points_[prev_newest].location;
         const float3 n1 = math::normalize(s1);
@@ -551,18 +565,13 @@ void PaintStroke::finish_roll_stroke(bContext *C,
         }
       }
 
-      /* Build extension points walking forward from p_end with curvature.
-       * v[0] = p_end, v[n_forward] = farthest forward. */
-      float3 v3d[n_forward + 1];
-      float2 v2d[n_forward + 1];
-      v3d[0] = p_end;
-      v2d[0] = m_end;
-
+      /* Build forward extension points, walking from p_end. */
       float2 cur_dir_2d = dir2;
       float3 cur_dir_3d = dir3;
+      float2 prev_2d = m_end;
+      float3 prev_3d = p_end;
 
-      for (int i = 1; i <= n_forward; i++) {
-        /* Rotate direction by +angle before stepping (continue arc forward). */
+      for (int i = 0; i < n_forward; i++) {
         if (angle_2d != 0.0f) {
           const float c = cosf(angle_2d);
           const float s = sinf(angle_2d);
@@ -577,36 +586,22 @@ void PaintStroke::finish_roll_stroke(bContext *C,
           cur_dir_3d = cur_dir_3d * c + kxv * s + rot_axis * kdv * (1.0f - c);
         }
 
-        v2d[i] = v2d[i - 1] + cur_dir_2d * step_2d;
-        v3d[i] = v3d[i - 1] + cur_dir_3d * step_3d;
+        prev_2d = prev_2d + cur_dir_2d * step_2d;
+        prev_3d = prev_3d + cur_dir_3d * step_3d;
+        roll_spline_.poly_2d.append(prev_2d);
+        roll_spline_.poly_3d.append(prev_3d);
       }
 
-      for (int i = 0; i < n_forward; i++) {
-        const float2 a2 = v2d[i];
-        const float2 d2 = v2d[i + 1];
-        CubicBezier<float, 2> bez2d(a2,
-                                     math::interpolate(a2, d2, 1.0f / 3.0f),
-                                     math::interpolate(a2, d2, 2.0f / 3.0f),
-                                     d2);
-        bez2d.update();
-        spline_->add(bez2d);
-
-        CubicBezier<float, 3> bez3d;
-        bez3d.ps[0] = v3d[i];
-        bez3d.ps[1] = math::interpolate(v3d[i], v3d[i + 1], 1.0f / 3.0f);
-        bez3d.ps[2] = math::interpolate(v3d[i], v3d[i + 1], 2.0f / 3.0f);
-        bez3d.ps[3] = v3d[i + 1];
-        bez3d.update();
-        world_spline_->add(bez3d);
-      }
+      /* Re-accumulate lengths after appending forward extension. */
+      roll_spline_.update_lengths();
     }
   }
 
   /* 4. Flush deferred dabs: advance look_back from its current position
    *    to the newest recorded point, placing a dab at each step. */
-  const int max_pts = roll_max_points();
-  const int half = (max_pts >> 1) + 2;
-  const int oldest_idx = (cur_point_ - num_points_ + max_pts) % max_pts;
+  constexpr int buf_cap = PAINT_MAX_INPUT_SAMPLES;
+  const int half = (roll_max_points() >> 1) + 2;
+  const int oldest_idx = (cur_point_ - num_points_ + buf_cap) % buf_cap;
 
   /* Where the last placed dab was. Use the explicitly tracked index
    * rather than recalculating, since space_stroke() and add_roll_point()
@@ -619,15 +614,15 @@ void PaintStroke::finish_roll_stroke(bContext *C,
     flush_start = oldest_idx;
   }
   else {
-    flush_start = (cur_point_ - half + max_pts) % max_pts;
+    flush_start = (cur_point_ - half + buf_cap) % buf_cap;
   }
 
   /* Advance one step at a time toward (but not including) the newest point.
    * The newest entry is the force-recorded mouse-up position which may sit
    * arbitrarily close to the previous point — including it would create an
    * overlapping dab at the stroke end. */
-  const int newest = (cur_point_ - 1 + max_pts) % max_pts;
-  int idx = (flush_start + 1) % max_pts;
+  const int newest = (cur_point_ - 1 + buf_cap) % buf_cap;
+  int idx = (flush_start + 1) % buf_cap;
 
   while (idx != newest) {
     PaintStrokePoint *point = &points_[idx];
@@ -646,23 +641,23 @@ void PaintStroke::finish_roll_stroke(bContext *C,
     RNA_collection_clear(op->ptr, "stroke");
 
     tot_samples_++;
-    idx = (idx + 1) % max_pts;
+    idx = (idx + 1) % buf_cap;
   }
 }
 
 void PaintStroke::compute_roll_center(StrokeCache &cache) const
 {
-  if (!world_spline_ || world_spline_->segments.is_empty()) {
+  if (roll_spline_.is_empty()) {
     cache.roll_center_s = -1.0f;
     return;
   }
   float raw_s, dis;
   float3 tan;
   /* Full closest-point search, called once per dab on the main thread. */
-  float3 p = world_spline_->closest_point(cache.location, raw_s, tan, dis);
+  roll_spline_.closest_point_3d(cache.location, raw_s, tan, dis);
   cache.roll_center_s = raw_s;
-  cache.roll_center_pos = p;
-  cache.roll_tangent = tan; /* already normalized by closest_point */
+  cache.roll_center_pos = roll_spline_.evaluate_3d(raw_s);
+  cache.roll_tangent = tan;
 }
 
 void PaintStroke::spline_uv(const StrokeCache &cache,
@@ -672,33 +667,33 @@ void PaintStroke::spline_uv(const StrokeCache &cache,
 {
   float3 tan;
   float3 p;
+  const float total_len = roll_spline_.total_length_3d();
 
   if (cache.roll_center_s >= 0.0f) {
     /* Fast path: project vertex onto stroke tangent to get an initial
-     * arc-length estimate, then refine with Newton iterations.
-     * This replaces an O(N²) closest-point search with O(log N) work,
-     * giving ~350x speedup for fine spacings (many spline segments). */
+     * arc-length estimate, then refine with Newton iterations. */
     float s = cache.roll_center_s +
               math::dot(float3(co) - cache.roll_center_pos, cache.roll_tangent);
-    s = std::clamp(s, 0.0f, world_spline_->length);
+    s = std::clamp(s, 0.0f, total_len);
 
     /* Newton refinement: minimize dot(spline(s) - co, tangent(s)) = 0. */
     for (int iter = 0; iter < 3; iter++) {
-      p = world_spline_->evaluate(s);
-      tan = world_spline_->derivative(s, true); /* normalized */
+      p = roll_spline_.evaluate_3d(s);
+      tan = roll_spline_.tangent_3d(s);
       const float err = math::dot(p - float3(co), tan);
       if (std::abs(err) < 1e-5f) {
         break;
       }
-      s = std::clamp(s - err, 0.0f, world_spline_->length);
+      s = std::clamp(s - err, 0.0f, total_len);
     }
-    p = world_spline_->evaluate(s);
-    tan = world_spline_->derivative(s, true);
+    p = roll_spline_.evaluate_3d(s);
+    tan = roll_spline_.tangent_3d(s);
     r_out[1] = s;
   }
   else {
     /* Fallback: full closest-point search (used before center is precomputed). */
-    p = world_spline_->closest_point(float3(co), r_out[1], tan, r_out[0]);
+    roll_spline_.closest_point_3d(float3(co), r_out[1], tan, r_out[0]);
+    p = roll_spline_.evaluate_3d(r_out[1]);
   }
 
   copy_v3_v3(r_tan, tan);
@@ -718,12 +713,12 @@ void PaintStroke::spline_uv(const StrokeCache &cache,
 
 float PaintStroke::spline_length() const
 {
-  return world_spline_->length;
+  return roll_spline_.total_length_3d();
 }
 
 void PaintStroke::draw_debug_roll(bContext *C) const
 {
-  if (!need_roll_mapping_ || !spline_ || spline_->segments.size() == 0) {
+  if (!need_roll_mapping_ || roll_spline_.is_empty()) {
     return;
   }
 
@@ -742,76 +737,44 @@ void PaintStroke::draw_debug_roll(bContext *C) const
       immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
-  const int n_segs = int(spline_->segments.size());
+  const int n_pts = int(roll_spline_.poly_2d.size());
 
-  /* Draw each segment as a curve: red = virtual backward extension, green = real. */
+  /* Draw polyline: red = virtual backward extension, green = real. */
   GPU_line_width(3.0f);
-  for (int seg_idx = 0; seg_idx < n_segs; seg_idx++) {
-    if (seg_idx < n_virtual_segments_) {
-      immUniformColor4ub(255, 50, 50, 200); /* Virtual: red. */
-    }
-    else if (has_trailing_roll_segment_ && seg_idx == n_segs - 1) {
-      immUniformColor4ub(100, 100, 255, 200); /* Trailing: blue. */
-    }
-    else {
-      immUniformColor4ub(50, 255, 50, 200); /* Real: green. */
-    }
 
-    const auto &b = spline_->segments[seg_idx].bezier;
-    constexpr int steps = 16;
-    immBegin(GPU_PRIM_LINE_STRIP, steps + 1);
-    for (int j = 0; j <= steps; j++) {
-      const float t = float(j) / float(steps);
-      const float omt = 1.0f - t;
-      const float x = omt * omt * omt * b.ps[0][0] + 3.0f * omt * omt * t * b.ps[1][0] +
-                       3.0f * omt * t * t * b.ps[2][0] + t * t * t * b.ps[3][0];
-      const float y = omt * omt * omt * b.ps[0][1] + 3.0f * omt * omt * t * b.ps[1][1] +
-                       3.0f * omt * t * t * b.ps[2][1] + t * t * t * b.ps[3][1];
-      immVertex2f(pos_attr, x + ox, y + oy);
+  /* Virtual portion. */
+  if (n_virtual_poly_points_ > 1) {
+    immUniformColor4ub(255, 50, 50, 200);
+    const int count = std::min(n_virtual_poly_points_ + 1, n_pts);
+    immBegin(GPU_PRIM_LINE_STRIP, count);
+    for (int i = 0; i < count; i++) {
+      immVertex2f(pos_attr, roll_spline_.poly_2d[i].x + ox, roll_spline_.poly_2d[i].y + oy);
     }
     immEnd();
   }
 
-  /* Draw perpendicular ticks at each segment boundary: cyan. */
-  GPU_line_width(1.5f);
-  immUniformColor4ub(0, 200, 255, 200);
-  immBegin(GPU_PRIM_LINES, n_segs * 2);
-  for (int seg_idx = 0; seg_idx < n_segs; seg_idx++) {
-    const auto &b = spline_->segments[seg_idx].bezier;
-    /* Derivative at t=0 is 3*(p1 - p0). */
-    float2 deriv = 3.0f * (float2(b.ps[1]) - float2(b.ps[0]));
-    const float len = math::length(deriv);
-    if (len > 1e-6f) {
-      deriv /= len;
+  /* Real portion. */
+  if (n_virtual_poly_points_ < n_pts) {
+    immUniformColor4ub(50, 255, 50, 200);
+    const int count = n_pts - n_virtual_poly_points_;
+    immBegin(GPU_PRIM_LINE_STRIP, count);
+    for (int i = n_virtual_poly_points_; i < n_pts; i++) {
+      immVertex2f(pos_attr, roll_spline_.poly_2d[i].x + ox, roll_spline_.poly_2d[i].y + oy);
     }
-    const float2 perp(-deriv[1], deriv[0]);
-    const float tick = 12.0f;
-    immVertex2f(pos_attr,
-                b.ps[0][0] + perp[0] * tick + ox,
-                b.ps[0][1] + perp[1] * tick + oy);
-    immVertex2f(pos_attr,
-                b.ps[0][0] - perp[0] * tick + ox,
-                b.ps[0][1] - perp[1] * tick + oy);
+    immEnd();
   }
-  immEnd();
 
-  /* Mark the boundary between virtual and real segments: yellow tick. */
-  if (n_virtual_segments_ > 0 && n_virtual_segments_ < n_segs) {
+  /* Mark the boundary between virtual and real: yellow tick. */
+  if (n_virtual_poly_points_ > 0 && n_virtual_poly_points_ < n_pts) {
     GPU_line_width(2.5f);
     immUniformColor4ub(255, 255, 0, 255);
-    const auto &bv = spline_->segments[n_virtual_segments_].bezier;
-    float2 dv = 3.0f * (float2(bv.ps[1]) - float2(bv.ps[0]));
-    const float dvl = math::length(dv);
-    if (dvl > 1e-6f) {
-      dv /= dvl;
-    }
-    const float2 pp(-dv[1], dv[0]);
+    const float2 tan = roll_spline_.tangent_2d_at_index(n_virtual_poly_points_);
+    const float2 perp(-tan.y, tan.x);
     const float big_tick = 25.0f;
+    const float2 &pt = roll_spline_.poly_2d[n_virtual_poly_points_];
     immBegin(GPU_PRIM_LINES, 2);
-    immVertex2f(
-        pos_attr, bv.ps[0][0] + pp[0] * big_tick + ox, bv.ps[0][1] + pp[1] * big_tick + oy);
-    immVertex2f(
-        pos_attr, bv.ps[0][0] - pp[0] * big_tick + ox, bv.ps[0][1] - pp[1] * big_tick + oy);
+    immVertex2f(pos_attr, pt.x + perp.x * big_tick + ox, pt.y + perp.y * big_tick + oy);
+    immVertex2f(pos_attr, pt.x - perp.x * big_tick + ox, pt.y - perp.y * big_tick + oy);
     immEnd();
   }
 
@@ -831,7 +794,7 @@ static void paint_draw_roll_debug(bContext *C,
 
 void PaintStroke::draw_roll_preview(bContext *C) const
 {
-  if (!need_roll_mapping_ || !spline_ || spline_->segments.size() == 0) {
+  if (!need_roll_mapping_ || roll_spline_.is_empty()) {
     return;
   }
 
@@ -840,27 +803,26 @@ void PaintStroke::draw_roll_preview(bContext *C) const
     return;
   }
 
-  const int n_segs = int(spline_->segments.size());
+  const int n_pts = int(roll_spline_.poly_2d.size());
+  const int resolution = kRollResolution;
 
-  /* Determine which segment index corresponds to the last-painted dab.
-   * Segments from painted_seg onward are "unflushed" and shown as preview. */
-  const int max_pts = roll_max_points();
-  const int half = (max_pts >> 1) + 2;
+  /* Determine which polyline index corresponds to the last-painted dab.
+   * Points from painted_poly onward are "unflushed" and shown as preview. */
+  constexpr int buf_cap = PAINT_MAX_INPUT_SAMPLES;
+  const int half = (roll_max_points() >> 1) + 2;
 
-  int painted_seg;
+  int painted_poly;
   if (last_painted_roll_idx_ < 0 || num_points_ < half) {
-    /* Haven't painted any deferred dabs yet — show full real portion. */
-    painted_seg = n_virtual_segments_;
+    painted_poly = n_virtual_poly_points_;
   }
   else {
-    /* Distance from oldest to last_painted in ring buffer → segment offset. */
-    const int oldest_idx = (cur_point_ - num_points_ + max_pts) % max_pts;
-    int dist = (last_painted_roll_idx_ - oldest_idx + max_pts) % max_pts;
-    painted_seg = n_virtual_segments_ + dist;
-    painted_seg = std::min(painted_seg, n_segs - 1);
+    const int oldest_idx = (cur_point_ - num_points_ + buf_cap) % buf_cap;
+    const int dist = (last_painted_roll_idx_ - oldest_idx + buf_cap) % buf_cap;
+    painted_poly = n_virtual_poly_points_ + dist * resolution;
+    painted_poly = std::min(painted_poly, n_pts - 1);
   }
 
-  if (painted_seg >= n_segs) {
+  if (painted_poly >= n_pts) {
     return;
   }
 
@@ -878,18 +840,11 @@ void PaintStroke::draw_roll_preview(bContext *C) const
   immUniformColor4ub(255, 100, 100, 128);
 
   GPU_line_width(2.0f);
-  for (int seg_idx = painted_seg; seg_idx < n_segs; seg_idx++) {
-    const auto &b = spline_->segments[seg_idx].bezier;
-    constexpr int steps = 16;
-    immBegin(GPU_PRIM_LINE_STRIP, steps + 1);
-    for (int j = 0; j <= steps; j++) {
-      const float t = float(j) / float(steps);
-      const float omt = 1.0f - t;
-      const float x = omt * omt * omt * b.ps[0][0] + 3.0f * omt * omt * t * b.ps[1][0] +
-                       3.0f * omt * t * t * b.ps[2][0] + t * t * t * b.ps[3][0];
-      const float y = omt * omt * omt * b.ps[0][1] + 3.0f * omt * omt * t * b.ps[1][1] +
-                       3.0f * omt * t * t * b.ps[2][1] + t * t * t * b.ps[3][1];
-      immVertex2f(pos_attr, x + ox, y + oy);
+  const int count = n_pts - painted_poly;
+  if (count >= 2) {
+    immBegin(GPU_PRIM_LINE_STRIP, count);
+    for (int i = painted_poly; i < n_pts; i++) {
+      immVertex2f(pos_attr, roll_spline_.poly_2d[i].x + ox, roll_spline_.poly_2d[i].y + oy);
     }
     immEnd();
   }
@@ -1443,8 +1398,8 @@ void PaintStroke::add_step(bContext *C, wmOperator *op, const float2 mval, float
   PaintStrokePoint *point;
 
   if (need_roll_mapping_) {
-    const int max_pts = roll_max_points();
-    const int half = (max_pts >> 1) + 2;
+    constexpr int buf_cap = PAINT_MAX_INPUT_SAMPLES;
+    const int half = (roll_max_points() >> 1) + 2;
 
     /* Wait until there are enough real spline segments ahead of the dab
      * position to cover the full brush footprint (≈1 brush radius forward).
@@ -1464,13 +1419,13 @@ void PaintStroke::add_step(bContext *C, wmOperator *op, const float2 mval, float
     /* Look back half the rolling window to keep the current position centered in the
      * spline for smooth UV mapping. When there is not enough history (early in a stroke),
      * fall back to the oldest available point so painting begins immediately. */
-    const int oldest_idx = (cur_point_ - num_points_ + max_pts) % max_pts;
+    const int oldest_idx = (cur_point_ - num_points_ + buf_cap) % buf_cap;
     int look_back;
     if (num_points_ <= half) {
       look_back = oldest_idx;
     }
     else {
-      look_back = (cur_point_ - half + max_pts) % max_pts;
+      look_back = (cur_point_ - half + buf_cap) % buf_cap;
     }
 
     last_painted_roll_idx_ = look_back;
@@ -1822,8 +1777,6 @@ PaintStroke::PaintStroke(bContext *C, wmOperator *op, int event_type) : event_ty
     need_roll_mapping_ = true;
   }
   if (need_roll_mapping_) {
-    spline_ = std::make_unique<BezierSpline2f>();
-    world_spline_ = std::make_unique<BezierSpline3f>();
     /* Always-on preview of the unflushed portion of the roll spline. */
     roll_cursor_ = WM_paint_cursor_activate(
         SPACE_TYPE_ANY, RGN_TYPE_ANY, paint_brush_cursor_poll, paint_draw_roll_preview, this);
