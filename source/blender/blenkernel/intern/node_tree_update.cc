@@ -652,7 +652,7 @@ class NodeTreeMainUpdater {
       }
 
       if (ntree.type == NTREE_COMPOSIT) {
-        ntree.runtime->compositor_nodes_srna_data = nodes::create_geometry_nodes_rna_for_modifier(
+        ntree.runtime->compositor_nodes_srna_data = nodes::create_compositor_nodes_rna_for_strip_modifier(
             ntree);
 
         this->update_compositor_image_input_modifier_visibility(ntree);
