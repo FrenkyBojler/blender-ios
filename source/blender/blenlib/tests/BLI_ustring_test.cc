@@ -54,10 +54,10 @@ TEST(ustring, Equality)
   EXPECT_EQ(StringRef("test"), "test"_ustr);
   EXPECT_EQ("test"_ustr, std::string("test"));
   EXPECT_EQ(std::string("test"), "test"_ustr);
-  EXPECT_EQ("text"_ustr, StringRefNull("test"));
-  EXPECT_EQ(StringRefNull("test"), "text"_ustr);
-  EXPECT_EQ("text"_ustr, std::string_view("test"));
-  EXPECT_EQ(std::string_view("test"), "text"_ustr);
+  EXPECT_EQ("test"_ustr, StringRefNull("test"));
+  EXPECT_EQ(StringRefNull("test"), "test"_ustr);
+  EXPECT_EQ("test"_ustr, std::string_view("test"));
+  EXPECT_EQ(std::string_view("test"), "test"_ustr);
 }
 
 }  // namespace blender::tests
