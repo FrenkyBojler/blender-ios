@@ -141,8 +141,6 @@ static void calc_grids(const Depsgraph &depsgraph,
   const Span<int> grids = node.grids();
   const MutableSpan positions = gather_grids_positions(subdiv_ccg, grids, tls.positions);
 
-  calc_factors_common_grids(depsgraph, brush, object, positions, node, tls.factors, tls.distances);
-
   /* Fill initial factors from hide and mask, and apply front face culling and region clipping. */
   tls.factors.resize(positions.size());
   const MutableSpan<float> factors = tls.factors;
