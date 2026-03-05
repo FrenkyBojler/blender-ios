@@ -263,8 +263,8 @@ ListPtr optimized_list_from_socket_values(Array<bke::SocketValueVariant> &&value
   GArray<> array(type, values.size(), NoInitialization());
   threading::parallel_for(values.index_range(), 128, [&](const IndexRange range) {
     for (const int list_i : range) {
-      void *closure_result = const_cast<void *>(values[list_i].get_single_ptr_raw());
-      type.move_construct(closure_result, array[list_i]);
+      void *ptr = const_cast<void *>(values[list_i].get_single_ptr_raw());
+      type.move_construct(ptr, array[list_i]);
     }
   });
   return List::from_garray(std::move(array));
