@@ -248,7 +248,7 @@ def list_render_passes(scene, srl):
         yield ("Denoising Albedo", "RGB", 'COLOR')
         yield ("Denoising Specular Albedo", "RGB", 'COLOR')
         yield ("Denoising Normal", "XYZ", 'VECTOR')
-        yield ("Denoising Roughness", "Z", 'VALUE')
+        yield ("Denoising Roughness", "X", 'VALUE')
         yield ("Denoising Depth", "Z", 'VALUE')
 
     # Custom AOV passes.
