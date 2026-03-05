@@ -431,7 +431,7 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(space_view3d.gp_wire_edit);
   }
 
-  if (!USER_VERSION_ATLEAST(502, 6)) {
+  if (!USER_VERSION_ATLEAST(502, 7)) {
     FROM_DEFAULT_V4_UCHAR(tui.link);
   }
 
