@@ -934,7 +934,8 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
     add_gpu_render_tests(eevee "eevee_render_tests.py" "${gpu_render_tests}")
     add_gpu_render_tests(workbench "workbench_render_tests.py" "${gpu_render_tests}")
     if(WITH_GPU_RENDER_TESTS_HEADED)
-      add_gpu_render_tests(overlay "overlay_render_tests.py" "${gpu_render_tests}")
+      # Temporarilly disabled until 154533 is merged to avoid errors on the builder.
+      # add_gpu_render_tests(overlay "overlay_render_tests.py" "${gpu_render_tests}")
     endif()
     if(WITH_HYDRA)
       add_gpu_render_tests(storm_hydra "storm_render_tests.py" "${gpu_render_tests}" --export_method "HYDRA")
@@ -1343,6 +1344,7 @@ if(TEST_SRC_DIR_EXISTS)
     transform
     blend_modes_byte
     blend_modes_float
+    colorspace
   )
   set(video_output_tests "")
 
@@ -1499,6 +1501,7 @@ if(WITH_UI_TESTS)
     test_sculpt.mask_expand_and_invert
     test_sculpt.mask_gestures
     test_sculpt.trim_gestures
+    test_sculpt.primitive_tool_add
     test_tools.sculpt_mode_toolbar
     test_undo.compositor_make_group
     test_undo.text_editor_edit_mode_mix
