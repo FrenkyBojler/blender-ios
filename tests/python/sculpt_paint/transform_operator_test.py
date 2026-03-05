@@ -18,6 +18,11 @@ blender -b --factory-startup --python tests/python/sculpt_paint/transform_operat
 
 args = None
 
+"""
+TODO: Current test should be rewritten with Mesh comparison framework(see voxel_remesh_compare_test.py)
+      to reduce the amount of code, once framework supports context override.
+"""
+
 
 class TransformOperators(unittest.TestCase):
     def setUp(self):
