@@ -10,6 +10,7 @@
 
 #ifdef WITH_OPENVDB
 
+#  include "BLI_math_matrix_types.hh"
 #  include "BLI_math_vector_types.hh"
 
 #  include "BKE_volume_enums.hh"
@@ -107,6 +108,34 @@ template<> struct VolumeGridTraits<float3> {
   static float3 to_blender(const openvdb::Vec3f &value)
   {
     return float3(value.asV());
+  }
+};
+
+template<> struct VolumeGridTraits<float3x3> {
+  using BlenderType = float3x3;
+  using PrimitiveType = openvdb::Mat3s;
+  using TreeType = void;
+  static constexpr VolumeGridType EnumType = VOLUME_GRID_UNKNOWN;
+
+  static openvdb::Mat3s to_openvdb(const float3x3 &value)
+  {
+    /* float3x3 accessor returns columns, Mat3s expects values in row-major form. */
+    return openvdb::Mat3s(value[0][0],
+                          value[1][0],
+                          value[2][0],
+                          value[0][1],
+                          value[1][1],
+                          value[2][1],
+                          value[0][2],
+                          value[1][2],
+                          value[2][2]);
+  }
+  static float3x3 to_blender(const openvdb::Mat3s &value)
+  {
+    /* float3x3 constructor takes column vectors. */
+    return float3x3(float3(value(0, 0), value(1, 0), value(2, 0)),
+                    float3(value(0, 1), value(1, 1), value(2, 1)),
+                    float3(value(0, 2), value(1, 2), value(2, 2)));
   }
 };
 

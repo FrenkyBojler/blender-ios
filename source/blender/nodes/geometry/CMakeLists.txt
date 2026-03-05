@@ -215,6 +215,7 @@ set(SRC
   nodes/node_geo_repeat.cc
   nodes/node_geo_rotate_instances.cc
   nodes/node_geo_sample_grid.cc
+  nodes/node_geo_sample_grid_gradient.cc
   nodes/node_geo_sample_grid_index.cc
   nodes/node_geo_sample_index.cc
   nodes/node_geo_sample_nearest.cc

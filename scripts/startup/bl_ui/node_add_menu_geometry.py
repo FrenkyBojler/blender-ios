@@ -951,6 +951,7 @@ class NODE_MT_gn_volume_sample_base(node_add_menu.NodeMenu):
         del context
         layout = self.layout
         self.node_operator(layout, "GeometryNodeSampleGrid")
+        self.node_operator(layout, "GeometryNodeSampleGridGradient")
         self.node_operator(layout, "GeometryNodeSampleGridIndex")
         layout.separator()
         self.node_operator(layout, "GeometryNodeGridAdvect")

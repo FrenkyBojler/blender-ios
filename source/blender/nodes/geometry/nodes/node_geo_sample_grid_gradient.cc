@@ -2,9 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "DNA_userdef_types.h"
+#include "BLI_math_matrix_types.hh"
 
-#include "BKE_type_conversions.hh"
 #include "BKE_volume_grid.hh"
 #include "BKE_volume_openvdb.hh"
 
@@ -20,20 +19,16 @@
 
 #include "node_geometry_util.hh"
 
-namespace blender::nodes::node_geo_sample_grid_cc {
+namespace blender::nodes::node_geo_sample_grid_gradient_cc {
 
 enum class InterpolationMode {
-  Nearest = 0,
-  TriLinear = 1,
-  TriQuadratic = 2,
-  QuadraticBSpline = 3,
-  CubicBSpline = 5,
+  TriLinear = 0,
+  QuadraticBSpline = 1,
+  CubicBSpline = 2,
 };
 
 static const EnumPropertyItem interpolation_mode_items[] = {
-    {int(InterpolationMode::Nearest), "NEAREST", 0, N_("Nearest Neighbor"), ""},
     {int(InterpolationMode::TriLinear), "TRILINEAR", 0, N_("Trilinear"), ""},
-    {int(InterpolationMode::TriQuadratic), "TRIQUADRATIC", 0, N_("Triquadratic"), ""},
     {int(InterpolationMode::QuadraticBSpline),
      "QUADRATIC_BSPLINE",
      0,
@@ -42,6 +37,34 @@ static const EnumPropertyItem interpolation_mode_items[] = {
     {int(InterpolationMode::CubicBSpline), "CUBIC_BSPLINE", 0, N_("Cubic B-Spline"), ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
+
+/* Returns the type of gradients for a given socket type, if possible. */
+static std::optional<eNodeSocketDatatype> gradient_type_from_data_type(
+    const eNodeSocketDatatype data_type)
+{
+  switch (data_type) {
+    case SOCK_FLOAT:
+      return SOCK_VECTOR;
+    case SOCK_VECTOR:
+      return SOCK_MATRIX;
+    default:
+      return std::nullopt;
+  }
+}
+
+/* Returns the default data type used to create a gradient type. */
+static std::optional<eNodeSocketDatatype> data_type_from_gradient_type(
+    const eNodeSocketDatatype gradient_type)
+{
+  switch (gradient_type) {
+    case SOCK_VECTOR:
+      return SOCK_FLOAT;
+    case SOCK_MATRIX:
+      return SOCK_VECTOR;
+    default:
+      return std::nullopt;
+  }
+}
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -59,18 +82,20 @@ static void node_declare(NodeDeclarationBuilder &b)
       .optional_label()
       .description("How to interpolate the values between neighboring voxels");
 
-  b.add_output(data_type, "Value").dependent_field({1});
+  if (const std::optional<eNodeSocketDatatype> gradient_type = gradient_type_from_data_type(
+          data_type))
+  {
+    b.add_output(*gradient_type, "Gradient").dependent_field({1});
+  }
 }
 
 static std::optional<eNodeSocketDatatype> node_type_for_socket_type(const bNodeSocket &socket)
 {
   switch (socket.type) {
     case SOCK_FLOAT:
-      return SOCK_FLOAT;
     case SOCK_BOOLEAN:
-      return SOCK_BOOLEAN;
     case SOCK_INT:
-      return SOCK_INT;
+      return SOCK_FLOAT;
     case SOCK_VECTOR:
     case SOCK_RGBA:
       return SOCK_VECTOR;
@@ -87,25 +112,31 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
     return;
   }
   if (params.in_out() == SOCK_IN) {
-    params.add_item(IFACE_("Grid"), [node_type](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("GeometryNodeSampleGrid");
-      node.custom1 = *node_type;
-      params.update_and_connect_available_socket(node, "Grid");
-    });
+    if (gradient_type_from_data_type(*node_type)) {
+      params.add_item(IFACE_("Grid"), [node_type](LinkSearchOpParams &params) {
+        bNode &node = params.add_node("GeometryNodeSampleGridGradient");
+        node.custom1 = *node_type;
+        params.update_and_connect_available_socket(node, "Grid");
+      });
+    }
     const eNodeSocketDatatype other_type = eNodeSocketDatatype(params.other_socket().type);
     if (params.node_tree().typeinfo->validate_link(other_type, SOCK_VECTOR)) {
       params.add_item(IFACE_("Position"), [](LinkSearchOpParams &params) {
-        bNode &node = params.add_node("GeometryNodeSampleGrid");
+        bNode &node = params.add_node("GeometryNodeSampleGridGradient");
         params.update_and_connect_available_socket(node, "Position");
       });
     }
   }
   else {
-    params.add_item(IFACE_("Value"), [node_type](LinkSearchOpParams &params) {
-      bNode &node = params.add_node("GeometryNodeSampleGrid");
-      node.custom1 = *node_type;
-      params.update_and_connect_available_socket(node, "Value");
-    });
+    if (const std::optional<eNodeSocketDatatype> data_type = data_type_from_gradient_type(
+            *node_type))
+    {
+      params.add_item(IFACE_("Value"), [data_type](LinkSearchOpParams &params) {
+        bNode &node = params.add_node("GeometryNodeSampleGridGradient");
+        node.custom1 = *data_type;
+        params.update_and_connect_available_socket(node, "Gradient");
+      });
+    }
   }
 }
 
@@ -121,41 +152,47 @@ void sample_grid(const bke::OpenvdbGridType<T> &grid,
                  const InterpolationMode interpolation,
                  const Span<float3> positions,
                  const IndexMask &mask,
-                 MutableSpan<T> dst)
+                 GMutableSpan dst)
 {
   using GridType = bke::OpenvdbGridType<T>;
   using GridValueT = typename GridType::ValueType;
+  using GridGradientT = geometry::grid_sampling::OpenvdbGradientType<GridValueT>;
+  using GradientT = geometry::grid_sampling::GradientType<T>;
   using AccessorT = typename GridType::ConstUnsafeAccessor;
-  using TraitsT = typename bke::VolumeGridTraits<T>;
+  using TraitsT = typename bke::VolumeGridTraits<GradientT>;
   AccessorT accessor = grid.getConstUnsafeAccessor();
 
   auto sample_data = [&]<typename Sampler>() {
-    mask.foreach_index([&](const int64_t i) {
-      const float3 &pos = positions[i];
-      const openvdb::Vec3R world_pos(pos.x, pos.y, pos.z);
-      const openvdb::Vec3R index_pos = grid.transform().worldToIndex(world_pos);
-      GridValueT value;
-      Sampler::sample(accessor, index_pos, value);
-      dst[i] = TraitsT::to_blender(value);
-    });
+    if constexpr (std::is_same_v<GradientT, float3x3>) {
+      /* float3x3 needs to be converted to float4x4 field type. */
+      MutableSpan<float4x4> dst_typed = dst.typed<float4x4>();
+      mask.foreach_index([&](const int64_t i) {
+        const float3 &pos = positions[i];
+        const openvdb::Vec3R world_pos(pos.x, pos.y, pos.z);
+        const openvdb::Vec3R index_pos = grid.transform().worldToIndex(world_pos);
+        GridGradientT value;
+        Sampler::sample_gradient(accessor, index_pos, value);
+        dst_typed[i] = float4x4(TraitsT::to_blender(value));
+      });
+    }
+    else {
+      MutableSpan<GradientT> dst_typed = dst.typed<GradientT>();
+      mask.foreach_index([&](const int64_t i) {
+        const float3 &pos = positions[i];
+        const openvdb::Vec3R world_pos(pos.x, pos.y, pos.z);
+        const openvdb::Vec3R index_pos = grid.transform().worldToIndex(world_pos);
+        GridGradientT value;
+        Sampler::sample_gradient(accessor, index_pos, value);
+        dst_typed[i] = TraitsT::to_blender(value);
+      });
+    }
   };
 
   /* Use to the Nearest Neighbor sampler for Bool grids (no interpolation). */
   InterpolationMode real_interpolation = interpolation;
-  if constexpr (std::is_same_v<T, bool>) {
-    real_interpolation = InterpolationMode::Nearest;
-  }
   switch (real_interpolation) {
     case InterpolationMode::TriLinear: {
       sample_data.template operator()<geometry::LinearSampler>();
-      break;
-    }
-    case InterpolationMode::TriQuadratic: {
-      sample_data.template operator()<openvdb::tools::QuadraticSampler>();
-      break;
-    }
-    case InterpolationMode::Nearest: {
-      sample_data.template operator()<openvdb::tools::PointSampler>();
       break;
     }
     case InterpolationMode::QuadraticBSpline: {
@@ -186,10 +223,12 @@ class SampleGridFunction : public mf::MultiFunction {
 
     const std::optional<eNodeSocketDatatype> data_type = bke::grid_type_to_socket_type(
         grid_->grid_type());
-    const CPPType *cpp_type = bke::socket_type_to_geo_nodes_base_cpp_type(*data_type);
+    const std::optional<eNodeSocketDatatype> gradient_type = gradient_type_from_data_type(
+        *data_type);
+    const CPPType *cpp_type = bke::socket_type_to_geo_nodes_base_cpp_type(*gradient_type);
     mf::SignatureBuilder builder{"Sample Grid", signature_};
     builder.single_input<float3>("Position");
-    builder.single_output("Value", *cpp_type);
+    builder.single_output("Gradient", *cpp_type);
     this->set_signature(&signature_);
 
     grid_base_ = &grid_->grid(tree_token_);
@@ -199,15 +238,15 @@ class SampleGridFunction : public mf::MultiFunction {
   void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
   {
     const VArraySpan<float3> positions = params.readonly_single_input<float3>(0, "Position");
-    GMutableSpan dst = params.uninitialized_single_output(1, "Value");
+    GMutableSpan dst = params.uninitialized_single_output(1, "Gradient");
 
     BKE_volume_grid_type_to_blender_value_type(grid_type_, [&]<typename T>() {
-      if constexpr (is_same_any_v<T, bool, float, int, float3>) {
+      if constexpr (is_same_any_v<T, float, float3>) {
         sample_grid<T>(static_cast<const bke::OpenvdbGridType<T> &>(*grid_base_),
                        interpolation_,
                        positions,
                        mask,
-                       dst.typed<T>());
+                       dst);
       }
     });
   }
@@ -241,7 +280,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  params.set_output("Value", std::move(output_value));
+  params.set_output("Gradient", std::move(output_value));
 #else
   node_geo_exec_with_missing_openvdb(params);
 #endif
@@ -254,24 +293,31 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 
 static void node_rna(StructRNA *srna)
 {
-  RNA_def_node_enum(srna,
-                    "data_type",
-                    "Data Type",
-                    "Node socket data type",
-                    rna_enum_node_socket_data_type_items,
-                    NOD_inline_enum_accessors(custom1),
-                    SOCK_FLOAT,
-                    grid_socket_type_items_filter_fn);
+  RNA_def_node_enum(
+      srna,
+      "data_type",
+      "Data Type",
+      "Node socket data type",
+      rna_enum_node_socket_data_type_items,
+      NOD_inline_enum_accessors(custom1),
+      SOCK_FLOAT,
+      [](bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free)
+          -> const EnumPropertyItem * {
+        *r_free = true;
+        return enum_items_filter(
+            rna_enum_node_socket_data_type_items, [](const EnumPropertyItem &item) -> bool {
+              return ELEM(eNodeSocketDatatype(item.value), SOCK_FLOAT, SOCK_VECTOR);
+            });
+      });
 }
 
 static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeSampleGrid", GEO_NODE_SAMPLE_GRID);
-  ntype.ui_name = "Sample Grid";
-  ntype.ui_description = "Retrieve values from the specified volume grid";
-  ntype.enum_name_legacy = "SAMPLE_GRID";
+  geo_node_type_base(&ntype, "GeometryNodeSampleGridGradient");
+  ntype.ui_name = "Sample Grid Gradient";
+  ntype.ui_description = "Retrieve the gradient of values from the specified volume grid";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
@@ -285,4 +331,4 @@ static void node_register()
 }
 NOD_REGISTER_NODE(node_register)
 
-}  // namespace blender::nodes::node_geo_sample_grid_cc
+}  // namespace blender::nodes::node_geo_sample_grid_gradient_cc
