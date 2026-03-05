@@ -45,9 +45,9 @@ void VKSampler::create(const GPUSamplerState &sampler_state)
       sampler_info.minLod = 0;
       sampler_info.maxLod = 1000;
     }
-    if (bool(sampler_state.filtering & GPU_SAMPLER_FILTERING_MIPMAP) &&
-        bool(sampler_state.filtering & GPU_SAMPLER_FILTERING_ANISOTROPIC_MASK) &&
-        (device.physical_device_features_get().samplerAnisotropy == VK_TRUE))
+    if ((sampler_state.filtering & GPU_SAMPLER_FILTERING_MIPMAP) &&
+        (sampler_state.filtering & GPU_SAMPLER_FILTERING_ANISOTROPIC_MASK) &&
+        device.physical_device_features_get().samplerAnisotropy == VK_TRUE)
     {
       float anisotropic_samples = min_ii(
           GPUSamplerState::anisotropic_samples_get(sampler_state.filtering),
