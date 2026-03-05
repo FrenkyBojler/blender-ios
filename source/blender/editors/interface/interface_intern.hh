@@ -1597,7 +1597,6 @@ bool button_draw_as_link(const Button *button);
 bool button_opens_link(const Button *button);
 bool button_opens_link_preset(const Button *button);
 
-
 Button *block_active_but_get(const Block *block);
 bool block_is_menu(const Block *block) ATTR_WARN_UNUSED_RESULT;
 bool block_is_popover(const Block *block) ATTR_WARN_UNUSED_RESULT;
