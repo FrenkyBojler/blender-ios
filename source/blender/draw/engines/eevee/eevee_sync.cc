@@ -54,18 +54,29 @@ static inline void geometry_call(PassMain::Sub *sub_pass,
   }
 }
 
-static inline void volume_call(MaterialPass &matpass,
+static inline void volume_call(PassMain::Sub *pass,
+                               GPUMaterial *gpumat,
                                Scene *scene,
                                Object *ob,
                                gpu::Batch *geom,
-                               ResourceHandleRange res_handle)
+                               ResourceHandle res_handle)
 {
-  if (matpass.sub_pass != nullptr) {
-    PassMain::Sub *object_pass = volume_sub_pass(*matpass.sub_pass, scene, ob, matpass.gpumat);
+  if (pass != nullptr) {
+    /** WARNING:
+     * drw_volume_object_mesh_init doesn't rely on per-object data,
+     * but volume_object_grids_init does!
+     * We're fine while Volume objects dont support handle ranges. */
+    PassMain::Sub *object_pass = volume_sub_pass(*pass, scene, ob, gpumat);
     if (object_pass != nullptr) {
-      object_pass->draw(geom, res_handle);
+      object_pass->draw(geom, res_handle.resource_index());
     }
   }
+}
+
+static inline void volume_call(
+    MaterialPass &matpass, Scene *scene, Object *ob, gpu::Batch *geom, ResourceHandle res_handle)
+{
+  volume_call(matpass.sub_pass, matpass.gpumat, scene, ob, geom, res_handle);
 }
 
 /** \} */
@@ -112,9 +123,23 @@ void SyncModule::sync_mesh(Object *ob, ObjectHandle &ob_handle, const ObjectRef 
     GPUMaterial *gpu_material = material_array.gpu_materials[i];
 
     if (material.has_volume) {
-      volume_call(material.volume_occupancy, inst_.scene, ob, geom, res_handle);
-      volume_call(material.volume_material, inst_.scene, ob, geom, res_handle);
       has_volume = true;
+
+      for (int instance : IndexRange(ob_handle.ref.instances_count())) {
+        volume_call(material.sub_pass_arrays->volume_occupancy_sub_passes[i],
+                    material.volume_occupancy.gpumat,
+                    inst_.scene,
+                    ob,
+                    geom,
+                    res_handle.sub_handle(instance));
+        volume_call(material.sub_pass_arrays->volume_material_sub_passes[i],
+                    material.volume_material.gpumat,
+                    inst_.scene,
+                    ob,
+                    geom,
+                    res_handle.sub_handle(instance));
+      }
+
       /* Do not render surface if we are rendering a volume object
        * and do not have a surface closure. */
       if (!material.has_surface) {

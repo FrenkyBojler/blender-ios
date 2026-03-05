@@ -1344,7 +1344,9 @@ void VolumePipeline::render(View &view, Texture &occupancy_tx)
   }
 }
 
-VolumeObjectBounds::VolumeObjectBounds(const Camera &camera, Object *ob)
+VolumeObjectBounds::VolumeObjectBounds(const Camera &camera,
+                                       const ObjectHandle &ob_handle,
+                                       int instance_index)
 {
   /* TODO(fclem): For panoramic camera, we will have to do this check for each cube-face. */
   const float4x4 &view_matrix = camera.data_get().viewmat;
@@ -1352,7 +1354,8 @@ VolumeObjectBounds::VolumeObjectBounds(const Camera &camera, Object *ob)
    * and this is independent of FOV. */
   const float4x4 &projection_matrix = camera.data_get().winmat;
 
-  const Bounds<float3> bounds = BKE_object_boundbox_get(ob).value_or(Bounds(float3(0.0f)));
+  const Bounds<float3> bounds =
+      BKE_object_boundbox_get(ob_handle.ref.object).value_or(Bounds(float3(0.0f)));
 
   const std::array<float3, 8> corners = bounds::corners(bounds);
 
@@ -1360,7 +1363,8 @@ VolumeObjectBounds::VolumeObjectBounds(const Camera &camera, Object *ob)
   z_range = std::nullopt;
 
   for (const float3 &l_corner : corners) {
-    float3 ws_corner = math::transform_point(ob->object_to_world(), l_corner);
+    float3 ws_corner = math::transform_point(ob_handle.ref.object_to_world(instance_index),
+                                             l_corner);
     /* Split view and projection for precision. */
     float3 vs_corner = math::transform_point(view_matrix, ws_corner);
     float3 ss_corner = math::project_point(projection_matrix, vs_corner);
@@ -1378,29 +1382,48 @@ VolumeObjectBounds::VolumeObjectBounds(const Camera &camera, Object *ob)
   }
 }
 
-VolumeLayer *VolumePipeline::register_and_get_layer(const ObjectHandle &ob_handle)
+void VolumePipeline::add(const ObjectHandle &ob_handle,
+                         const blender::Material *blender_mat,
+                         GPUMaterial *occupancy_gpumat,
+                         GPUMaterial *material_gpumat,
+                         Vector<PassMain::Sub *> &occupancy_subpasses,
+                         Vector<PassMain::Sub *> &material_subpasses)
 {
-  /* TODO(fclem): This is against design. Sync shouldn't depend on view properties (camera). */
-  VolumeObjectBounds object_bounds(inst_.camera, ob_handle.ref.object);
-  if (math::reduce_max(object_bounds.screen_bounds->size()) < 1e-5) {
-    /* WORKAROUND(fclem): Fixes an issue with 0 scaled object (see #132889).
-     * Is likely to be an issue somewhere else in the pipeline but it is hard to find. */
-    return nullptr;
-  }
-
-  object_integration_range_ = bounds::merge(object_integration_range_, object_bounds.z_range);
-
-  /* Do linear search in all layers in order. This can be optimized. */
-  for (auto &layer : layers_) {
-    if (!layer->bounds_overlaps(object_bounds)) {
-      layer->add_object_bound(object_bounds);
-      return layer.get();
+  for (int i : IndexRange(ob_handle.ref.instances_count())) {
+    /* TODO(fclem): This is against design. Sync shouldn't depend on view properties (camera). */
+    VolumeObjectBounds object_bounds(inst_.camera, ob_handle, i);
+    if (math::reduce_max(object_bounds.screen_bounds->size()) < 1e-5) {
+      /* WORKAROUND(fclem): Fixes an issue with 0 scaled object (see #132889).
+       * Is likely to be an issue somewhere else in the pipeline but it is hard to find. */
+      occupancy_subpasses.append(nullptr);
+      material_subpasses.append(nullptr);
+      continue;
     }
+
+    object_integration_range_ = bounds::merge(object_integration_range_, object_bounds.z_range);
+
+    VolumeLayer *instance_layer = nullptr;
+
+    /* Do linear search in all layers in order. This can be optimized. */
+    for (auto &layer : layers_) {
+      if (!layer->bounds_overlaps(object_bounds)) {
+        layer->add_object_bound(object_bounds);
+        instance_layer = layer.get();
+        break;
+      }
+    }
+    /* No non-overlapping layer found. Create new one. */
+    if (!instance_layer) {
+      int64_t index = layers_.append_and_get_index(std::make_unique<VolumeLayer>(inst_));
+      (*layers_[index]).add_object_bound(object_bounds);
+      instance_layer = layers_[index].get();
+    }
+
+    occupancy_subpasses.append(
+        instance_layer->occupancy_add(ob_handle.ref.object, blender_mat, occupancy_gpumat));
+    material_subpasses.append(
+        instance_layer->material_add(ob_handle.ref.object, blender_mat, material_gpumat));
   }
-  /* No non-overlapping layer found. Create new one. */
-  int64_t index = layers_.append_and_get_index(std::make_unique<VolumeLayer>(inst_));
-  (*layers_[index]).add_object_bound(object_bounds);
-  return layers_[index].get();
 }
 
 std::optional<Bounds<float>> VolumePipeline::object_integration_range() const

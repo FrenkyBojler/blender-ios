@@ -315,14 +315,18 @@ Material &MaterialModule::material_sync(const ObjectHandle &ob_handle,
     });
 
     /* Volume needs to use one sub pass per object to support layering. */
-    VolumeLayer *layer = hide_on_camera ? nullptr :
-                                          inst_.pipelines.volume.register_and_get_layer(ob_handle);
-    if (layer) {
-      mat.volume_occupancy.sub_pass = layer->occupancy_add(
-          ob, blender_mat, mat.volume_occupancy.gpumat);
-      mat.volume_material.sub_pass = layer->material_add(
-          ob, blender_mat, mat.volume_material.gpumat);
-    }
+    inst_.pipelines.volume.add(ob_handle,
+                               blender_mat,
+                               mat.volume_occupancy.gpumat,
+                               mat.volume_material.gpumat,
+                               sub_pass_arrays.volume_occupancy_sub_passes,
+                               sub_pass_arrays.volume_material_sub_passes);
+
+    BLI_assert(!use_subpass_arrays);
+    BLI_assert(sub_pass_arrays.volume_occupancy_sub_passes.size() == 1);
+    mat.volume_occupancy.sub_pass = sub_pass_arrays.volume_occupancy_sub_passes.first();
+    BLI_assert(sub_pass_arrays.volume_material_sub_passes.size() == 1);
+    mat.volume_material.sub_pass = sub_pass_arrays.volume_material_sub_passes.first();
 
     return mat;
   }
@@ -417,21 +421,26 @@ Material &MaterialModule::material_sync(const ObjectHandle &ob_handle,
       mat.overlap_masking.sub_pass = sub_pass_arrays.overlap_masking_sub_passes.first();
     }
 
-    if (!use_subpass_arrays && !sub_pass_arrays.shading_blend_transparent_sub_passes.is_empty()) {
+    if (!use_subpass_arrays) {
       BLI_assert(sub_pass_arrays.shading_blend_transparent_sub_passes.size() == 1);
       mat.shading.sub_pass = sub_pass_arrays.shading_blend_transparent_sub_passes.first();
     }
   }
 
-  if (mat.has_volume) {
+  if (mat.has_volume && !hide_on_camera) {
     /* Volume needs to use one sub pass per object to support layering. */
-    VolumeLayer *layer = hide_on_camera ? nullptr :
-                                          inst_.pipelines.volume.register_and_get_layer(ob_handle);
-    if (layer) {
-      mat.volume_occupancy.sub_pass = layer->occupancy_add(
-          ob, blender_mat, mat.volume_occupancy.gpumat);
-      mat.volume_material.sub_pass = layer->material_add(
-          ob, blender_mat, mat.volume_material.gpumat);
+    inst_.pipelines.volume.add(ob_handle,
+                               blender_mat,
+                               mat.volume_occupancy.gpumat,
+                               mat.volume_material.gpumat,
+                               sub_pass_arrays.volume_occupancy_sub_passes,
+                               sub_pass_arrays.volume_material_sub_passes);
+
+    if (!use_subpass_arrays) {
+      BLI_assert(sub_pass_arrays.volume_occupancy_sub_passes.size() == 1);
+      mat.volume_occupancy.sub_pass = sub_pass_arrays.volume_occupancy_sub_passes.first();
+      BLI_assert(sub_pass_arrays.volume_material_sub_passes.size() == 1);
+      mat.volume_material.sub_pass = sub_pass_arrays.volume_material_sub_passes.first();
     }
   }
   return mat;
