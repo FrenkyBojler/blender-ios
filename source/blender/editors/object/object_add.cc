@@ -2773,6 +2773,18 @@ static void make_object_duplilist_real(bContext *C,
     return;
   }
 
+  /* Filter out generated mesh sub-components specifically for Font objects
+   * to avoid duplicates. For other object types, we keep the instances.
+   */
+  DupliList filtered_duplilist;
+  for (DupliObject &dob : duplilist) {
+    if (dob.ob->type == OB_FONT && dob.ob->data != dob.ob_data) {
+      continue;
+    }
+    filtered_duplilist.append(dob);
+  }
+  duplilist = std::move(filtered_duplilist);
+
   Map<const DupliObject *, Object *> dupli_map;
   if (use_hierarchy) {
     parent_gh = MEM_new<ParentMap>(__func__);
