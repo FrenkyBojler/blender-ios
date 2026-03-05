@@ -1,0 +1,1 @@
+Referenced by pull request #155268, Cleanup: Make "memory is zero" check constexpr, move to header
