@@ -283,6 +283,19 @@ def get_first_enabled_output(node):
 def is_visible_socket(socket):
     return not socket.hide and socket.enabled and socket.type != 'CUSTOM'
 
+def trace_recursive_connected_nodes(node):
+    links = []
+    for i in node.inputs:
+        links.extend(i.links)
+    if links == []:
+        return [node]
+    connected_nodes = [link.from_node for link in links]
+    network = []
+    for n in connected_nodes:
+        network.append(n)
+        network.extend(trace_recursive_connected_nodes(n))
+    network = list(set(network))
+    return(network)
 
 class NWBase:
     @classmethod
