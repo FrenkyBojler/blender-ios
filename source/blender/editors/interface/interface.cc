@@ -568,11 +568,34 @@ static void block_bounds_calc_centered_pie(Block *block)
   block_bounds_calc(block);
 }
 
+/** Forces buttons in popups to start at `0.0f`. */
+static void block_popup_buttons_remove_top_empty_space(Block *block)
+{
+  float max = -FLT_MAX;
+  for (const std::unique_ptr<Button> &but : block->buttons) {
+    max = std::max(max, but->rect.ymax);
+  }
+  for (const std::unique_ptr<Button> &but : block->buttons) {
+    BLI_rctf_translate(&but->rect, 0, -max);
+  }
+  if (!block->panel) {
+    return;
+  }
+  for (LayoutPanelBody &body : block->panel->runtime->layout_panels.bodies) {
+    body.start_y -= max;
+    body.end_y -= max;
+  }
+  for (LayoutPanelHeader &header : block->panel->runtime->layout_panels.headers) {
+    header.start_y -= max;
+    header.end_y -= max;
+  }
+}
+
 static void block_bounds_calc_popup(
     wmWindow *window, Block *block, BlockBoundsCalc bounds_calc, const int xy[2], int r_xy[2])
 {
   const int oldbounds = block->bounds;
-
+  block_popup_buttons_remove_top_empty_space(block);
   /* compute mouse position with user defined offset */
   block_bounds_calc(block);
 
@@ -2135,6 +2158,9 @@ void block_end_ex(const bContext *C,
     case BLOCK_BOUNDS_NONE:
       break;
     case BLOCK_BOUNDS:
+      if (block_is_popup_any(block)) {
+        block_popup_buttons_remove_top_empty_space(block);
+      }
       block_bounds_calc(block);
       break;
     case BLOCK_BOUNDS_TEXT:
