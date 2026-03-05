@@ -38,34 +38,6 @@ struct LocalData {
   Vector<float3> translations;
 };
 
-/**
- * Transforms positions from object space positions to brush-local space.
- */
-static void calc_local_positions(const Span<float3> vert_positions,
-                                 const Span<int> verts,
-                                 const float4x4 &mat,
-                                 const MutableSpan<float3> local_positions)
-{
-  BLI_assert(local_positions.size() == verts.size());
-
-  for (const int i : verts.index_range()) {
-    local_positions[i] = math::transform_point(mat, vert_positions[verts[i]]);
-  }
-}
-
-static void calc_local_positions(const Span<float3> positions,
-                                 const float4x4 &mat,
-                                 const MutableSpan<float3> local_positions)
-{
-  BLI_assert(local_positions.size() == positions.size());
-
-  for (const int i : positions.index_range()) {
-    const float3 position = math::transform_point(mat, positions[i]);
-
-    local_positions[i] = position.xyz();
-  }
-}
-
 static void calc_faces(const Depsgraph &depsgraph,
                        const Sculpt &sd,
                        const Brush &brush,
@@ -95,7 +67,7 @@ static void calc_faces(const Depsgraph &depsgraph,
   /* Calculate local positions. */
   tls.local_positions.resize(verts.size());
   MutableSpan<float3> local_positions = tls.local_positions;
-  calc_local_positions(position_data.eval, verts, mat, local_positions);
+  calc_local_positions(mat, verts, position_data.eval, local_positions);
 
   /* Find the cube distance. */
   tls.distances.resize(verts.size());
@@ -103,7 +75,7 @@ static void calc_faces(const Depsgraph &depsgraph,
   calc_brush_cube_distances<float3>(brush, local_positions, distances);
 
   /* The radius is already applied to the local positions, so use a radius of 1.0 here. */
-  filter_distances_with_radius(1.0f, distances, factors); 
+  filter_distances_with_radius(1.0f, distances, factors);
   apply_hardness_to_distances(1.0f, cache.hardness, distances);
 
   /* Apply falloff curve. */
@@ -153,7 +125,7 @@ static void calc_grids(const Depsgraph &depsgraph,
   /* Calculate local positions. */
   tls.local_positions.resize(positions.size());
   MutableSpan<float3> local_positions = tls.local_positions;
-  calc_local_positions(tls.positions, mat, local_positions);
+  calc_local_positions(mat, tls.positions, local_positions);
 
   /* Find the cube distance. */
   tls.distances.resize(positions.size());
@@ -208,7 +180,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
   /* Calculate local positions. */
   tls.local_positions.resize(verts.size());
   MutableSpan<float3> local_positions = tls.local_positions;
-  calc_local_positions(tls.positions, mat, local_positions);
+  calc_local_positions(mat, tls.positions, local_positions);
 
   /* Find the cube distance. */
   tls.distances.resize(verts.size());

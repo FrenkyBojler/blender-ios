@@ -524,6 +524,17 @@ void filter_above_plane_factors(Span<float3> positions,
                                 const float4 &plane,
                                 MutableSpan<float> factors);
 
+/* Transforms positions from object space positions to brush-local space. */
+void calc_local_positions(const float4x4 &mat,
+                          const Span<int> verts,
+                          const Span<float3> positions,
+                          const MutableSpan<float3> local_positions);
+
+/* Transforms positions from object space positions to brush-local space. */
+void calc_local_positions(const float4x4 &mat,
+                          const Span<float3> positions,
+                          const MutableSpan<float3> local_positions);
+
 }  // namespace ed::sculpt_paint
 
 }  // namespace blender

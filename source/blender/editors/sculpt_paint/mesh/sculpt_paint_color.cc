@@ -41,16 +41,6 @@
 
 namespace blender::ed::sculpt_paint::color {
 
-static void calc_local_positions(const float4x4 &mat,
-                                 const Span<int> verts,
-                                 const Span<float3> positions,
-                                 const MutableSpan<float3> local_positions)
-{
-  for (const int i : verts.index_range()) {
-    local_positions[i] = math::transform_point(mat, positions[verts[i]]);
-  }
-}
-
 template<typename Func> inline void to_static_color_type(const CPPType &type, const Func &func)
 {
   if (type.is<ColorGeometry4f>()) {

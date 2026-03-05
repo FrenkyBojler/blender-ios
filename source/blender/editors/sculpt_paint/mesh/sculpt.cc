@@ -6771,6 +6771,25 @@ template void scatter_data_bmesh<float3>(Span<float3>,
                                          const Set<BMVert *, 0> &,
                                          MutableSpan<float3>);
 
+void calc_local_positions(const float4x4 &mat,
+                          const Span<int> verts,
+                          const Span<float3> positions,
+                          const MutableSpan<float3> local_positions)
+{
+  for (const int i : verts.index_range()) {
+    local_positions[i] = math::transform_point(mat, positions[verts[i]]);
+  }
+}
+
+void calc_local_positions(const float4x4 &mat,
+                          const Span<float3> positions,
+                          const MutableSpan<float3> local_positions)
+{
+  for (const int i : positions.index_range()) {
+    local_positions[i] = math::transform_point(mat, positions[i]);
+  }
+}
+
 void calc_factors_common_mesh_indexed(const Depsgraph &depsgraph,
                                       const Brush &brush,
                                       const Object &object,
