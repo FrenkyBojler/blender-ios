@@ -62,6 +62,13 @@ void BLI_task_scheduler_exit()
 #ifdef WITH_TBB_GLOBAL_CONTROL
   MEM_delete(task_scheduler_global_control);
 #endif
+
+  /* Terminate all TBB threads. */
+  tbb::task_scheduler_handle handle{tbb::attach{}};
+  const bool success = tbb::finalize(handle, std::nothrow_t{});
+  if (!success) {
+    fprintf(stderr, "Warning: TBB workers failed to cleanly shut down.\n");
+  }
 }
 
 int BLI_task_scheduler_num_threads()
