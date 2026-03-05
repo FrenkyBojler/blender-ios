@@ -24,7 +24,7 @@ class UString : public OpenImageIO::ustring {
   using OpenImageIO::ustring::ustring;
 
   /** Construct from a StringRef.  */
-  UString(StringRef str) : OpenImageIO::ustring(std::string_view(str)) {}
+  explicit UString(const StringRef str) : OpenImageIO::ustring(std::string_view(str)) {}
 
   /** Implicit conversion to StringRef. */
   operator StringRef() const
