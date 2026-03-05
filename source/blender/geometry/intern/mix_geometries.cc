@@ -210,7 +210,7 @@ static void mix_socket_values_same_type(bke::SocketValueVariant &a,
           b_varray.slice(IndexRange(1)),
           factor);
     }
-    /* TODO: The API should not require extracting the list and storing it again. */
+    /* Ideally the API would not require extracting the list and storing it again. */
     a = bke::SocketValueVariant::From(std::move(a_list_ptr));
   }
 }
