@@ -193,6 +193,14 @@ template<> void socket_data_init_impl(bNodeSocketValueVector &data)
   data.min = -FLT_MAX;
   data.max = FLT_MAX;
 }
+template<> void socket_data_init_impl(bNodeSocketValueIntVector &data)
+{
+  data.subtype = PROP_NONE;
+  data.dimensions = 3;
+  zero_v3_int(data.value);
+  data.min = INT_MIN;
+  data.max = INT_MAX;
+}
 template<> void socket_data_init_impl(bNodeSocketValueRGBA &data)
 {
   static float default_value[] = {0.0f, 0.0f, 0.0f, 1.0f};
@@ -248,14 +256,6 @@ template<> void socket_data_init_impl(bNodeSocketValueMenu &data)
   data.value = -1;
   data.enum_items = nullptr;
   data.runtime_flag = 0;
-}
-template<> void socket_data_init_impl(bNodeSocketValueIntVector &data)
-{
-  data.subtype = PROP_NONE;
-  data.dimensions = 3;
-  zero_v3_int(data.value);
-  data.min = -INT_MAX;
-  data.max = INT_MAX;
 }
 
 static void *make_socket_data(const StringRef socket_type)

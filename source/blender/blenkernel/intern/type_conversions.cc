@@ -381,7 +381,7 @@ static float2 int3_to_float2(const int3 &a)
 }
 static int int3_to_int(const int3 &a)
 {
-  return math::midpoint(a.x, a.y);
+  return float3_to_int(float3(a));
 }
 static int2 int3_to_int2(const int3 &a)
 {

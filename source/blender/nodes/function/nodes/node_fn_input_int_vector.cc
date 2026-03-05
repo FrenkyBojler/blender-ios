@@ -12,7 +12,7 @@ namespace blender::nodes::node_fn_input_int_vector_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  int dimensions = 2;
+  int dimensions = 3;
   if (const bNode *node = b.node_or_null()) {
     const auto &storage = *static_cast<NodeInputIntVector *>(node->storage);
     dimensions = storage.dimensions;
