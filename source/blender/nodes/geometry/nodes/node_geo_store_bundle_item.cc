@@ -187,6 +187,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       }
     }
     else {
+      params.set_output("Bundle", std::move(bundle_ptr));
       params.error_message_add(NodeWarningType::Error,
                                "\"Path\" must be a list if \"Item\" is a list");
       return;
@@ -198,6 +199,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       store_if_valid(bundle, socket_type, path, GMutablePointer(&item_value), params);
     }
     else {
+      params.set_output("Bundle", std::move(bundle_ptr));
       params.error_message_add(NodeWarningType::Error, "\"Path\" must be a single value");
       return;
     }
