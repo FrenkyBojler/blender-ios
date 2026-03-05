@@ -41,7 +41,7 @@ ccl_device_forceinline void film_write_denoising_features_surface(KernelGlobals 
   Spectrum transparent_albedo = zero_spectrum();
   float specular_roughness = 0.0f;
   float sum_weight = 0.0f;
-  float sum_diffuse_weight = 0.0f;
+  float sum_nonspecular_weight = 0.0f;
 
   for (int i = 0; i < sd->num_closure; i++) {
     const ccl_private ShaderClosure *sc = &sd->closure[i];
@@ -75,15 +75,7 @@ ccl_device_forceinline void film_write_denoising_features_surface(KernelGlobals 
     specular_roughness += roughness * closure_weight;
 
     sum_weight += closure_weight;
-    sum_diffuse_weight += closure_weight * diffuse_weight;
-  }
-
-  if (kernel_data.film.pass_denoising_depth != PASS_UNUSED) {
-    const Spectrum denoising_feature_throughput = INTEGRATOR_STATE(
-        state, path, denoising_feature_throughput);
-    const float depth = sd->ray_length - INTEGRATOR_STATE(state, ray, tmin);
-    const float denoising_depth = ensure_finite(average(denoising_feature_throughput) * depth);
-    film_write_pass_float(buffer + kernel_data.film.pass_denoising_depth, denoising_depth);
+    sum_nonspecular_weight += closure_weight * diffuse_weight;
   }
 
   /* Fraction of non-transparent closures, for smooth blending at transparent surfaces. */
@@ -98,27 +90,32 @@ ccl_device_forceinline void film_write_denoising_features_surface(KernelGlobals 
     normal /= sum_weight;
     specular_roughness /= sum_weight;
 
-    feature_weight = smoothstep(0.0f, 0.5f, sum_diffuse_weight / sum_weight);
+    feature_weight = smoothstep(0.0f, 0.5f, sum_nonspecular_weight / sum_weight);
   }
 
   const Spectrum denoising_feature_throughput = INTEGRATOR_STATE(
       state, path, denoising_feature_throughput);
 
-  if (kernel_data.film.pass_denoising_roughness != PASS_UNUSED) {
-    const float denoising_roughness = ensure_finite(sqrtf(specular_roughness) *
-                                                    average(denoising_feature_throughput));
-    film_write_pass_float(buffer + kernel_data.film.pass_denoising_roughness, denoising_roughness);
-  }
+  if (INTEGRATOR_STATE(state, path, bounce) == 0) {
+    if (kernel_data.film.pass_denoising_depth != PASS_UNUSED) {
+      const float depth = sd->ray_length - INTEGRATOR_STATE(state, ray, tmin);
+      const float denoising_depth = ensure_finite(depth * average(denoising_feature_throughput));
+      film_write_pass_float(buffer + kernel_data.film.pass_denoising_depth, denoising_depth);
+    }
 
-  if (kernel_data.film.pass_denoising_specular_albedo != PASS_UNUSED) {
-    const Spectrum denoising_specular_albedo = ensure_finite(specular_albedo *
-                                                             denoising_feature_throughput);
-    film_write_pass_spectrum(buffer + kernel_data.film.pass_denoising_specular_albedo,
-                             denoising_specular_albedo);
+    if (kernel_data.film.pass_denoising_roughness != PASS_UNUSED) {
+      const float denoising_roughness = ensure_finite(sqrtf(specular_roughness) *
+                                                      average(denoising_feature_throughput));
+      film_write_pass_float(buffer + kernel_data.film.pass_denoising_roughness,
+                            denoising_roughness);
+    }
 
-    /* If there is a separate specular albedo pass, both diffuse and specular albedo is fully
-     * written, so do not defer diffuse feature. */
-    feature_weight = 1.0f;
+    if (kernel_data.film.pass_denoising_specular_albedo != PASS_UNUSED) {
+      const Spectrum denoising_specular_albedo = ensure_finite(specular_albedo *
+                                                               denoising_feature_throughput);
+      film_write_pass_spectrum(buffer + kernel_data.film.pass_denoising_specular_albedo,
+                               denoising_specular_albedo);
+    }
   }
 
   if (feature_weight > 0.0f) {
