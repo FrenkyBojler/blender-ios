@@ -7,6 +7,7 @@
 
 #include "DNA_listBase.h"
 #include "DNA_object_types.h"
+#include "DNA_customdata_types.h"
 
 #include "BLI_array_utils.hh"
 #include "BLI_listbase.h"
@@ -235,6 +236,12 @@ struct AllMeshesInfo {
   VectorSet<Material *> materials;
   bool create_id_attribute = false;
   bool create_material_index_attribute = false;
+
+  /** Propagate original indices (CD_ORIGINDEX) for modifier stack mapping. */
+  bool create_origindex_vert_attribute = false;
+  bool create_origindex_edge_attribute = false;
+  bool create_origindex_face_attribute = false;
+
   bke::mesh::NormalJoinInfo custom_normal_info;
 
   /** True if we know that there are no loose edges in any of the input meshes. */
@@ -1597,6 +1604,16 @@ static AllMeshesInfo preprocess_meshes(const bke::GeometrySet &geometry_set,
     mesh_info.material_indices = *attributes.lookup_or_default<int>(
         "material_index", bke::AttrDomain::Face, 0);
 
+    if (CustomData_has_layer(&mesh->vert_data, CD_ORIGINDEX)) {
+      info.create_origindex_vert_attribute = true;
+    }
+    if (CustomData_has_layer(&mesh->edge_data, CD_ORIGINDEX)) {
+      info.create_origindex_edge_attribute = true;
+    }
+    if (CustomData_has_layer(&mesh->face_data, CD_ORIGINDEX)) {
+      info.create_origindex_face_attribute = true;
+    }
+
     switch (info.custom_normal_info.result_type) {
       case bke::mesh::NormalJoinInfo::Output::None: {
         break;
@@ -1855,6 +1872,27 @@ static void execute_realize_mesh_tasks(const RealizeInstancesOptions &options,
   Mesh *dst_mesh = BKE_mesh_new_nomain(verts_num, edges_num, faces_num, corners_num);
   r_result.geometry.replace_mesh(dst_mesh);
   bke::MutableAttributeAccessor dst_attributes = dst_mesh->attributes_for_write();
+
+  /** Prepare original index layers for Edit Mode / CrazySpace mapping. */
+  MutableSpan<int> dst_origindex_vert;
+  if (all_meshes_info.create_origindex_vert_attribute) {
+    int *data = static_cast<int *>(
+        CustomData_add_layer(&dst_mesh->vert_data, CD_ORIGINDEX, CD_SET_DEFAULT, verts_num));
+    dst_origindex_vert = MutableSpan<int>(data, verts_num);
+  }
+  MutableSpan<int> dst_origindex_edge;
+  if (all_meshes_info.create_origindex_edge_attribute) {
+    int *data = static_cast<int *>(
+        CustomData_add_layer(&dst_mesh->edge_data, CD_ORIGINDEX, CD_SET_DEFAULT, edges_num));
+    dst_origindex_edge = MutableSpan<int>(data, edges_num);
+  }
+  MutableSpan<int> dst_origindex_face;
+  if (all_meshes_info.create_origindex_face_attribute) {
+    int *data = static_cast<int *>(
+        CustomData_add_layer(&dst_mesh->face_data, CD_ORIGINDEX, CD_SET_DEFAULT, faces_num));
+    dst_origindex_face = MutableSpan<int>(data, faces_num);
+  }
+
   MutableSpan<float3> dst_positions = dst_mesh->vert_positions_for_write();
   MutableSpan<int2> dst_edges = dst_mesh->edges_for_write();
   MutableSpan<int> dst_face_offsets = dst_mesh->face_offsets_for_write();
@@ -1947,6 +1985,45 @@ static void execute_realize_mesh_tasks(const RealizeInstancesOptions &options,
                                 vert_ids.span,
                                 material_indices.span,
                                 custom_normals);
+
+      /* Copy original index data per instance. */
+      const Mesh *src_mesh = task.mesh_info->mesh;
+
+      if (all_meshes_info.create_origindex_vert_attribute) {
+        const IndexRange dst_range(task.start_indices.vert, src_mesh->verts_num);
+        if (const int *src_data = static_cast<const int *>(
+                CustomData_get_layer(&src_mesh->vert_data, CD_ORIGINDEX)))
+        {
+          dst_origindex_vert.slice(dst_range).copy_from(Span<int>(src_data, src_mesh->verts_num));
+        }
+        else {
+          dst_origindex_vert.slice(dst_range).fill(ORIGINDEX_NONE);
+        }
+      }
+
+      if (all_meshes_info.create_origindex_edge_attribute) {
+        const IndexRange dst_range(task.start_indices.edge, src_mesh->edges_num);
+        if (const int *src_data = static_cast<const int *>(
+                CustomData_get_layer(&src_mesh->edge_data, CD_ORIGINDEX)))
+        {
+          dst_origindex_edge.slice(dst_range).copy_from(Span<int>(src_data, src_mesh->edges_num));
+        }
+        else {
+          dst_origindex_edge.slice(dst_range).fill(ORIGINDEX_NONE);
+        }
+      }
+
+      if (all_meshes_info.create_origindex_face_attribute) {
+        const IndexRange dst_range(task.start_indices.face, src_mesh->faces_num);
+        if (const int *src_data = static_cast<const int *>(
+                CustomData_get_layer(&src_mesh->face_data, CD_ORIGINDEX)))
+        {
+          dst_origindex_face.slice(dst_range).copy_from(Span<int>(src_data, src_mesh->faces_num));
+        }
+        else {
+          dst_origindex_face.slice(dst_range).fill(ORIGINDEX_NONE);
+        }
+      }
     }
   });
 
