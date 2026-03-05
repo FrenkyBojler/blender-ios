@@ -684,7 +684,7 @@ void resolve([[work_group_id]] const uint3 group_id,
   float2 center_uv = (float2(texel_fullres) + 0.5f) * uniform_buf.raytrace.full_resolution_inv;
   float center_depth = reverse_z::read(texelFetch(sh_in.depth_tx, texel_fullres, 0).r);
   float3 center_P = drw_point_screen_to_world(float3(center_uv, center_depth));
-  float3 center_N = drw_normal_world_to_view(gbuf.surface_N());
+  float3 center_N = gbuf.surface_N();
 
   SphericalHarmonicL1 accum_sh;
   if (uniform_buf.raytrace.horizon_resolution_scale == 1) {
