@@ -3283,7 +3283,7 @@ void Layout::link(const StringRef url, const StringRef name, int icon)
                                RNA_string_get(but->opptr, "url"),
                                {},
                                ui::TIP_STYLE_NORMAL,
-                               ui::TIP_LC_LINK,
+                               ui::TIP_LC_PYTHON,
                                false);
       },
       nullptr,

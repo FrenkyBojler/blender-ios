@@ -1898,7 +1898,6 @@ enum TooltipColorID {
   TIP_LC_NORMAL,   /* Color of regular text. */
   TIP_LC_PYTHON,   /* Color of python snippets. */
   TIP_LC_ALERT,    /* Warning text color, eg: why operator can't run. */
-  TIP_LC_LINK,     /* Color of urls. */
   TIP_LC_MAX,
 };
 

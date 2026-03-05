@@ -119,7 +119,7 @@ struct TooltipData {
   int toth, lineh;
 };
 
-BLI_STATIC_ASSERT(int(TIP_LC_MAX) == int(TIP_LC_LINK) + 1, "invalid lc-max");
+BLI_STATIC_ASSERT(int(TIP_LC_MAX) == int(TIP_LC_ALERT) + 1, "invalid lc-max");
 
 void tooltip_text_field_add(TooltipData &data,
                             std::string text,
@@ -180,7 +180,6 @@ static void ui_tooltip_region_draw_cb(const bContext * /*C*/, ARegion *region)
   float *normal_color = tip_colors[TIP_LC_NORMAL];
   float *python_color = tip_colors[TIP_LC_PYTHON];
   float *alert_color = tip_colors[TIP_LC_ALERT];
-  float *link_color = tip_colors[TIP_LC_LINK];
 
   float background_color[3];
 
@@ -195,8 +194,6 @@ static void ui_tooltip_region_draw_cb(const bContext * /*C*/, ARegion *region)
   /* `normal_color` is just tooltip text color. */
   rgb_uchar_to_float(main_color, theme->text);
   copy_v3_v3(normal_color, main_color);
-
-  theme::get_color_4fv(TH_LINK, link_color);
 
   /* `value_color` mixes with some background for less strength. */
   copy_v3_v3(value_color, main_color);
