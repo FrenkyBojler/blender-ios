@@ -199,6 +199,7 @@ class NODE_OT_align_selected(Operator, NWBase):
 
     def execute(self, context):
         nodes = context.selected_nodes
+        active_node = context.active_node
         parent_map = {}
         self.tree = context.space_data.edit_tree
 
@@ -215,9 +216,12 @@ class NODE_OT_align_selected(Operator, NWBase):
             self.report({'WARNING'}, "No nodes to arrange in selection.")
             return {'CANCELLED'}
         
-        min_x, max_x, min_y, max_y = self.get_bounds(tuple((n for n in nodes if (n.bl_idname != "NodeFrame"))))
-        old_mid_x = (max_x + min_x) / 2
-        old_mid_y = (max_y + min_y) / 2
+        if active_node is not None:
+            old_x, old_y = self.get_left(active_node), self.get_top(active_node)
+        else:
+            min_x, max_x, min_y, max_y = self.get_bounds(tuple((n for n in nodes if (n.bl_idname != "NodeFrame"))))
+            old_x = (max_x + min_x) / 2
+            old_y = (max_y + min_y) / 2
 
         sorted_keys = sorted(parent_map.keys(), key=self.parent_depth, reverse=True)
         for parent in sorted_keys:
@@ -239,14 +243,17 @@ class NODE_OT_align_selected(Operator, NWBase):
             if should_anchor:
                 self.move_children(parent, offset=old_left - self.get_left(parent), axis="X")
                 self.move_children(parent, offset=old_top - self.get_top(parent), axis="Y")
+        
+        if active_node is not None:
+            new_x = self.get_left(active_node) 
+            new_y = self.get_top(active_node)
+        else:
+            min_x, max_x, min_y, max_y = self.get_bounds(tuple((n for n in nodes if (n.bl_idname != "NodeFrame"))))
+            new_x = (max_x + min_x) / 2
+            new_y = (max_y + min_y) / 2
 
-        # TODO - Anchoring to active node / bounds mid_point
-        min_x, max_x, min_y, max_y = self.get_bounds(tuple((n for n in nodes if (n.bl_idname != "NodeFrame"))))
-        new_mid_x = (max_x + min_x) / 2
-        new_mid_y = (max_y + min_y) / 2
-
-        offset_x = old_mid_x - new_mid_x
-        offset_y = old_mid_y - new_mid_y
+        offset_x = old_x - new_x
+        offset_y = old_y - new_y
 
         for node in nodes:
             node.location_absolute.x += offset_x
