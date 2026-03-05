@@ -174,26 +174,6 @@ std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter> id_property_create_f
       }
       return property;
     }
-    case SOCK_INT_VECTOR: {
-      const bNodeSocketValueIntVector *value = static_cast<const bNodeSocketValueIntVector *>(
-          socket.socket_data);
-      auto property = bke::idprop::create(
-          identifier,
-          Span<int>{value->value[0], value->value[1], value->value[2]}.take_front(
-              value->dimensions));
-      IDPropertyUIDataInt *ui_data = reinterpret_cast<IDPropertyUIDataInt *>(
-          IDP_ui_data_ensure(property.get()));
-      ui_data->base.rna_subtype = value->subtype;
-      ui_data->soft_min = value->min;
-      ui_data->soft_max = value->max;
-      ui_data->default_array = MEM_new_array_uninitialized<int>(value->dimensions,
-                                                                "mod_prop_default");
-      ui_data->default_array_len = value->dimensions;
-      for (const int i : IndexRange(value->dimensions)) {
-        ui_data->default_array[i] = value->value[i];
-      }
-      return property;
-    }
     case SOCK_RGBA: {
       const bNodeSocketValueRGBA *value = static_cast<const bNodeSocketValueRGBA *>(
           socket.socket_data);
@@ -325,6 +305,7 @@ std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter> id_property_create_f
     case SOCK_SHADER:
     case SOCK_BUNDLE:
     case SOCK_CLOSURE:
+    case SOCK_INT_VECTOR:
       return nullptr;
   }
   return nullptr;
@@ -400,30 +381,6 @@ static bool old_id_property_type_matches_socket_convert_to_new_float_vec(
   return true;
 }
 
-static bool old_id_property_type_matches_socket_convert_to_new_int_vec(
-    const IDProperty &old_property, IDProperty *new_property, const int len)
-{
-  if (!(old_property.type == IDP_ARRAY && old_property.subtype == IDP_INT)) {
-    return false;
-  }
-
-  if (new_property) {
-    BLI_assert(new_property->type == IDP_ARRAY && new_property->subtype == IDP_INT);
-
-    int *const old_value = IDP_array_int_get(&old_property);
-    int *new_value = static_cast<int *>(new_property->data.pointer);
-    for (int i = 0; i < len; i++) {
-      if (i < old_property.len) {
-        new_value[i] = old_value[i];
-      }
-      else {
-        new_value[i] = 0;
-      }
-    }
-  }
-  return true;
-}
-
 static bool old_id_property_type_matches_socket_convert_to_new_string(
     const IDProperty &old_property, IDProperty *new_property)
 {
@@ -479,12 +436,6 @@ static bool old_id_property_type_matches_socket_convert_to_new(
       const bNodeSocketValueVector *value = static_cast<const bNodeSocketValueVector *>(
           socket.socket_data);
       return old_id_property_type_matches_socket_convert_to_new_float_vec(
-          old_property, new_property, value->dimensions);
-    }
-    case SOCK_INT_VECTOR: {
-      const bNodeSocketValueIntVector *value = static_cast<const bNodeSocketValueIntVector *>(
-          socket.socket_data);
-      return old_id_property_type_matches_socket_convert_to_new_int_vec(
           old_property, new_property, value->dimensions);
     }
     case SOCK_ROTATION:
@@ -549,6 +500,7 @@ static bool old_id_property_type_matches_socket_convert_to_new(
     case SOCK_SHADER:
     case SOCK_BUNDLE:
     case SOCK_CLOSURE:
+    case SOCK_INT_VECTOR:
       return false;
   }
   BLI_assert_unreachable();

@@ -5659,9 +5659,6 @@ std::optional<eNodeSocketDatatype> geo_nodes_base_cpp_type_to_socket_type(const 
   if (type.is_any<float2, float3, float4>()) {
     return SOCK_VECTOR;
   }
-  if (type.is_any<int2, int3>()) {
-    return SOCK_INT_VECTOR;
-  }
   if (type.is<ColorGeometry4f>()) {
     return SOCK_RGBA;
   }
