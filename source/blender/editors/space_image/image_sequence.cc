@@ -31,7 +31,8 @@ namespace blender {
  *
  * The output is a list of frame ranges, each containing a list of frames with matching names.
  */
-static void image_sequence_get_frame_ranges(wmOperator *op,
+static void image_sequence_get_frame_ranges(StringRefNull root_path,
+                                            wmOperator *op,
                                             ListBaseT<ImageFrameRange> *ranges,
                                             bool *r_was_relative)
 {
@@ -43,6 +44,11 @@ static void image_sequence_get_frame_ranges(wmOperator *op,
   char base_head[FILE_MAX], base_tail[FILE_MAX];
 
   RNA_string_get(op->ptr, "directory", dir);
+  PropertyRNA *relative_path = RNA_struct_find_property(op->ptr, "relative_path");
+  if (relative_path && RNA_property_boolean_get(op->ptr, relative_path)) {
+    BLI_path_rel(dir, root_path.c_str());
+  }
+
   RNA_BEGIN (op->ptr, itemptr, "files") {
     char head[FILE_MAX], tail[FILE_MAX];
     ushort digits;
@@ -159,7 +165,7 @@ ListBaseT<ImageFrameRange> ED_image_filesel_detect_sequences(StringRefNull blend
   if (RNA_struct_property_is_set(op->ptr, "directory") &&
       RNA_struct_property_is_set(op->ptr, "files"))
   {
-    image_sequence_get_frame_ranges(op, &ranges, &was_relative);
+    image_sequence_get_frame_ranges(root_path, op, &ranges, &was_relative);
   }
   /* Filepath property for drag & drop etc. */
   else {
