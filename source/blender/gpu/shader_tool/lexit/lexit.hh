@@ -52,7 +52,7 @@ struct Token {
   Token(const TokenBuffer *buf, int32_t index);
 
   /* Invalid token that can still be compared with other tokens. */
-  static Token invalid(TokenBuffer *buf);
+  static Token invalid(const TokenBuffer *buf);
 
   explicit operator int32_t() const
   {
@@ -336,7 +336,7 @@ inline Token::Token(const TokenBuffer *buf, int32_t index) : buf_(buf)
 #endif
 }
 
-inline Token Token::invalid(TokenBuffer *buf)
+inline Token Token::invalid(const TokenBuffer *buf)
 {
   return Token(buf, buf->size_);
 }
