@@ -3132,7 +3132,7 @@ std::optional<StringRefNull> node_static_socket_type(const int type,
                                                      const int subtype,
                                                      const std::optional<int> dimensions)
 {
-  BLI_assert(!(dimensions.has_value() && type != SOCK_VECTOR));
+  BLI_assert(!(dimensions.has_value() && !ELEM(type, SOCK_VECTOR, SOCK_INT_VECTOR)));
 
   switch (eNodeSocketDatatype(type)) {
     case SOCK_FLOAT:
