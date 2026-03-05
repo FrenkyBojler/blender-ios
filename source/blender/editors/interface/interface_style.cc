@@ -103,6 +103,8 @@ static uiStyle *ui_style_new(ListBaseT<uiStyle> *styles, const char *name, short
   style->tooltip.shadowalpha = 0.5f;
   style->tooltip.shadowcolor = 0.0f;
 
+  style->text_line_height = 0.75f;
+
   style->columnspace = 8;
   style->templatespace = 5;
   style->boxspace = 5;

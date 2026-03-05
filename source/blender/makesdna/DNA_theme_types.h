@@ -108,6 +108,10 @@ typedef struct uiStyle {
   short panelouter;
 
   char _pad0[2];
+
+  float text_line_height;
+  char _pad1[4];
+
 } uiStyle;
 
 typedef struct ThemeRegionsAssetShelf {

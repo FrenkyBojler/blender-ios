@@ -5598,11 +5598,13 @@ static void label_multiline_wrap_lines(ButtonLabel *button)
       fstyle.uifont_id, cache.text, width, BLFWrapMode::HardLimit);
 }
 
-static void resolve_multiline_label(ButtonLabel *button)
+static void resolve_multiline_label(const uiStyle *style, ButtonLabel *button)
 {
   label_multiline_wrap_lines(button);
   button->rect.ymin = button->rect.ymax -
-                      UI_UNIT_Y * std::max<int>(1, button->wrap_cache->wrapped_lines.size());
+                      UI_UNIT_Y * std::max<float>(1.0f,
+                                                  button->wrap_cache->wrapped_lines.size() *
+                                                      style->text_line_height);
 }
 
 int Layout::resolve_dynamic_height()
@@ -5624,7 +5626,7 @@ int Layout::resolve_dynamic_height()
       ButtonItem *sub_bitem = static_cast<ButtonItem *>(subitem);
       if (button_label_is_multiline(sub_bitem->but)) {
         int2 size = subitem->size();
-        resolve_multiline_label(static_cast<ButtonLabel *>(sub_bitem->but));
+        resolve_multiline_label(root_->style, static_cast<ButtonLabel *>(sub_bitem->but));
         int2 new_size = subitem->size();
         if (this->local_direction() == LayoutDirection::Vertical) {
           extra_y_offs += new_size.y - size.y;
