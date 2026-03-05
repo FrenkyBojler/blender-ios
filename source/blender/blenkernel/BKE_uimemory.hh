@@ -20,10 +20,7 @@ namespace blender::ui_memory {
 struct Section {
   std::string section;
 
-  Section() = default;
   Section(const StringRef sec) : section(sec.data(), sec.size()) {}
-  Section(const std::string &sec) : section(sec) {}
-  Section(const char *sec) : section(sec) {}
 
   template<typename T> T get(const StringRef item) const;
   template<typename T> void set(const StringRef item, const T &value);
@@ -45,56 +42,16 @@ struct Section {
       return Section(*section_ptr).get<T>(StringRef(key));
     }
 
-    operator std::string() const
-    {
-      return Section(*section_ptr).get<std::string>(StringRef(key));
-    }
-
     template<typename T> Proxy &operator=(const T &value)
     {
       Section(*section_ptr).set(StringRef(key), value);
       return *this;
-    }
-
-    Proxy &operator=(const std::string &s)
-    {
-      Section(*section_ptr).set(StringRef(key), s);
-      return *this;
-    }
-
-    Proxy &operator=(const char *s)
-    {
-      Section(*section_ptr).set(StringRef(key), std::string(s));
-      return *this;
-    }
-  };
-
-  struct ConstProxy {
-    std::string *section_ptr;
-    std::string key;
-
-    ConstProxy(std::string *section_p, const StringRef key_)
-        : section_ptr(section_p), key(key_.data(), key_.size())
-    {
-    }
-
-    template<typename T> operator T() const
-    {
-      return Section(*section_ptr).get<T>(StringRef(key));
-    }
-    operator std::string() const
-    {
-      return Section(*section_ptr).get<std::string>(StringRef(key));
     }
   };
 
   Proxy operator[](const StringRef item)
   {
     return Proxy(&section, item);
-  }
-  ConstProxy operator[](const StringRef item) const
-  {
-    return ConstProxy(const_cast<std::string *>(&section), item);
   }
 };
 
