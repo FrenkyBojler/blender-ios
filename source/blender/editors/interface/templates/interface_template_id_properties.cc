@@ -105,7 +105,7 @@ class IDPropertyDropTarget : public ui::TreeViewItemDropTarget {
 
   std::string drop_tooltip(const ui::DragInfo &drag_info) const override
   {
-    DragDropData *drag_data = static_cast<DragDropData *>(drag_info.drag_data.poin);
+    const DragDropData *drag_data = static_cast<DragDropData *>(drag_info.drag_data.poin);
     const StringRef drag_name = drag_data->prop_->name;
     const StringRef drop_name = drop_data_.prop_->name;
 
@@ -192,6 +192,7 @@ class IDPropertyItem : public AbstractTreeViewItem {
                    offsetof(IDProperty, name),
                    sizeof(property_->name));
     ED_undo_push(&const_cast<bContext &>(C), new_name.c_str());
+    /* Update children map after rename, otherwise ends up with dirty idprop list. */
     user_properties_->data.children_map->children.add_new(property_);
     WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, nullptr);
     return true;
@@ -205,6 +206,7 @@ class IDPropertyItem : public AbstractTreeViewItem {
 
     ui::Layout &sub = name_layout.row(false);
     sub.alignment_set(LayoutAlign::Right);
+
     /* Use different emboss for widget style to color buttons when keyframe/drivers are present. */
     const EmbossType emboss = [&]() -> EmbossType {
       if (property_->type == IDP_BOOLEAN) {
@@ -323,14 +325,14 @@ void draw_id_properties_value(ui::Layout *layout, bContext * /*C*/, ID *id, Poin
   IDProperty *active_prop = static_cast<IDProperty *>(
       BLI_findlink(&user_properties->data.group, user_properties->data.idprop_active_index));
 
-  if (active_prop->ui_data == nullptr) {
-    return;
-  }
-
   PointerRNA prop_ptr = RNA_pointer_create_discrete(id, RNA_IDProperty, active_prop);
   layout->prop(&prop_ptr, "type", UI_ITEM_NONE, "Type", ICON_NONE);
   Button *but = button_last(layout->block());
   button_func_set(but, idproperty_python_prop_add_fn, user_properties, nullptr);
+
+  if (active_prop->ui_data == nullptr) {
+    return;
+  }
 
   if (!IDP_ui_data_supported(active_prop)) {
     return;

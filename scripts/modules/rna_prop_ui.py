@@ -112,6 +112,8 @@ def rna_idprop_ui_create(
                 default=default,
                 items=items,
             )
+    else:
+        ui_data.update()
 
     prop_path = rna_idprop_quote_path(prop)
 
@@ -190,6 +192,7 @@ def draw(layout, context, context_member, property_type, *, use_edit=True):
         # id_properties_ui throws error for unsupported/python types.
         ui_data = rna_item.id_properties_ui(key)
     except Exception:
+        layout.draw_id_properties_value(rna_item.id_data, rna_item)
         return
 
     if not rna_item.id_properties_ui(key).exists():
