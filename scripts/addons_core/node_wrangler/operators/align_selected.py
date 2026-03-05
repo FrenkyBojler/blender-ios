@@ -127,6 +127,7 @@ class NODE_OT_align_selected(Operator, NWBase):
     def move_children(self, frame, offset, axis):
         children = self.frame_children(frame)
 
+        # Reduce jitter from float precision by restricting movement less than a single unit.
         if -1.0 < offset < 1.0:
             return
 
