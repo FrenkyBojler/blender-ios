@@ -24,7 +24,7 @@ CCL_NAMESPACE_BEGIN
  * need careful testing as other parts of the software uses file handles too. */
 static CacheLimiter<ImageInput> cache_limiter_image_input(128);
 
-OIIOImageLoader::OIIOImageLoader(const string &filepath) : original_filepath(filepath) {}
+OIIOImageLoader::OIIOImageLoader(const string &filepath) : original_filepath_(filepath) {}
 
 OIIOImageLoader::~OIIOImageLoader() = default;
 
@@ -39,7 +39,7 @@ bool OIIOImageLoader::load_metadata(ImageMetaData &metadata,
                                   params.colorspace,
                                   params.alpha_type,
                                   IMAGE_FORMAT_PLAIN,
-                                  texture_cache_filepath,
+                                  texture_cache_filepath_,
                                   metadata);
 
     if (found) {
@@ -50,16 +50,16 @@ bool OIIOImageLoader::load_metadata(ImageMetaData &metadata,
       progress.set_status("Generating tx cache | " + path_filename(filepath), "");
 
       if (!make_tx(filepath,
-                   texture_cache_filepath,
+                   texture_cache_filepath_,
                    params.colorspace,
                    params.alpha_type,
                    IMAGE_FORMAT_PLAIN))
       {
-        texture_cache_filepath.clear();
+        texture_cache_filepath_.clear();
       }
     }
     else {
-      texture_cache_filepath.clear();
+      texture_cache_filepath_.clear();
     }
   }
 
@@ -437,13 +437,13 @@ string OIIOImageLoader::name() const
 
 const string &OIIOImageLoader::get_filepath() const
 {
-  return (texture_cache_filepath.empty()) ? original_filepath : texture_cache_filepath;
+  return (texture_cache_filepath_.empty()) ? original_filepath_ : texture_cache_filepath_;
 }
 
 bool OIIOImageLoader::equals(const ImageLoader &other) const
 {
   const OIIOImageLoader &other_loader = (const OIIOImageLoader &)other;
-  return original_filepath == other_loader.original_filepath;
+  return original_filepath_ == other_loader.original_filepath_;
 }
 
 CCL_NAMESPACE_END

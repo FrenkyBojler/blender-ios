@@ -143,8 +143,9 @@ kernel_image_tile_map(KernelGlobals kg,
       /* Set bit in request bitmap that will be read back to host. */
       const uint bit_index = tex.tile_descriptor_offset + tile_offset;
       atomic_fetch_and_or_uint32(
-          &kernel_data_array(image_texture_tile_request_bits)[bit_index >> 5],
-          1u << (bit_index & 31));
+          &kernel_data_array(
+              image_texture_tile_request_bits)[bit_index / KERNEL_TILE_REQUEST_BITS_PER_WORD],
+          1u << (bit_index % KERNEL_TILE_REQUEST_BITS_PER_WORD));
     }
     if (tile_descriptor == KERNEL_TILE_LOAD_REQUEST) {
       if (sd) {

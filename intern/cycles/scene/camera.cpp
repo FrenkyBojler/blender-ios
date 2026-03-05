@@ -489,8 +489,8 @@ void Camera::update(Scene *scene)
   kcam->dx = make_float4(dx);
   kcam->dy = make_float4(dy);
 
-  /* Compensation for progressive rendering, so we use tiles from the full resolution
-   * rather than loading tiles that will be unused in the actual render. */
+  /* Compensation for progressive rendering, so we use the same texture cache tiles
+   * as for the full render resolution rather. */
   kcam->differential_scale = 0.5f * (width / float(full_width) + height / float(full_height));
 
   /* clipping */
@@ -874,7 +874,7 @@ bool Camera::use_motion() const
   return motion.size() > 1;
 }
 
-bool Camera::set_screen_size(const int width_, int height_, int pixel_size_)
+bool Camera::set_screen_size(const int width_, const int height_, const int pixel_size_)
 {
   if (width_ != width || height_ != height || pixel_size_ != pixel_size) {
     width = width_;

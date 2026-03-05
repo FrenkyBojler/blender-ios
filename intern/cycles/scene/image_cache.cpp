@@ -402,6 +402,7 @@ void ImageCache::free_tile(const KernelTileDescriptor tile)
     }
   }
 }
+
 /* Tile descriptor management. */
 
 void ImageCache::load_image_tiled(DeviceScene &dscene,
@@ -445,7 +446,7 @@ void ImageCache::load_image_tiled(DeviceScene &dscene,
 
     /* Resize request bitmap to match tile descriptors (1 bit per tile, stored in uint32 words). */
     const size_t num_bits = tile_descriptors.size();
-    const size_t num_words = divide_up(num_bits, 32u);
+    const size_t num_words = divide_up(num_bits, (size_t)KERNEL_TILE_REQUEST_BITS_PER_WORD);
     const size_t old_num_words = tile_request_bits.size();
     if (num_words > old_num_words) {
       tile_request_bits.resize(num_words);
@@ -540,11 +541,13 @@ void ImageCache::load_requested_tiles(Device &device,
   const KernelTileDescriptor *levels = dscene.image_texture_tile_descriptors.data() +
                                        tex.tile_descriptor_offset;
 
-  /* Scan bitmap for this image's tiles. */
+  /* Scan request bitmap for this image's tiles. The bitmap has one bit per tile
+   * descriptor, stored as uint32 words. We find the word range covering this
+   * image's tiles, then use bitscan to iterate only the set bits. */
   const size_t start_bit = base_offset;
   const size_t end_bit = base_offset + tex.tile_num;
-  const size_t start_word = start_bit >> 5;
-  const size_t end_word = (end_bit + 31) >> 5;
+  const size_t start_word = start_bit / KERNEL_TILE_REQUEST_BITS_PER_WORD;
+  const size_t end_word = divide_up(end_bit, (size_t)KERNEL_TILE_REQUEST_BITS_PER_WORD);
 
   for (size_t w = start_word; w < end_word; w++) {
     uint word = request_bits[w];
@@ -554,7 +557,7 @@ void ImageCache::load_requested_tiles(Device &device,
 
     while (word) {
       const uint bit_in_word = bitscan(word);
-      const size_t global_bit = (w << 5) + bit_in_word;
+      const size_t global_bit = w * KERNEL_TILE_REQUEST_BITS_PER_WORD + bit_in_word;
       word &= word - 1; /* Clear lowest set bit. */
 
       /* Check if bit is within this image's range. */

@@ -228,7 +228,7 @@ class Camera : public Node {
 
   uint get_kernel_features() const;
 
-  bool set_screen_size(const int width, int height, int pixel_size);
+  bool set_screen_size(int width, int height, int pixel_size);
 
   void set_osl_camera(Scene *scene,
                       OSLCameraParamQuery &params,

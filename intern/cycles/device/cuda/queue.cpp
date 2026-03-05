@@ -64,7 +64,9 @@ int CUDADeviceQueue::num_concurrent_busy_states(const size_t /*state_size*/) con
 
 void CUDADeviceQueue::init_execution()
 {
-  /* Synchronize all textures and memory copies before executing task. */
+  /* Synchronize all textures and memory copies before executing task.
+   * Use default stream (nullptr) since that's what we will synchronize
+   * here to ensure all scene data is copied. */
   CUDAContextScope scope(cuda_device_);
   cuda_device_->load_image_info(nullptr);
   cuda_device_assert(cuda_device_, cuCtxSynchronize());

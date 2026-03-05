@@ -211,7 +211,7 @@ ccl_device_inline TransparentShadowEvalResult integrate_transparent_shadow(
 
         if (cache_miss) {
           /* Store resume state: restart at this hit, redo volume. */
-          INTEGRATOR_STATE_WRITE(state, shadow_path, num_hits) = shadow_num_hits_pack(
+          INTEGRATOR_STATE_WRITE(state, shadow_path, packed_num_hits) = shadow_num_hits_pack(
               num_hits, hit, false);
           return TRANSPARENT_SHADOW_EVAL_CACHE_MISS;
         }
@@ -227,7 +227,7 @@ ccl_device_inline TransparentShadowEvalResult integrate_transparent_shadow(
       const Spectrum shadow = integrate_transparent_surface_shadow(kg, state, hit, result);
       if (result == SHADER_EVAL_CACHE_MISS) {
         /* Store resume state: restart at this hit, skip volume. */
-        INTEGRATOR_STATE_WRITE(state, shadow_path, num_hits) = shadow_num_hits_pack(
+        INTEGRATOR_STATE_WRITE(state, shadow_path, packed_num_hits) = shadow_num_hits_pack(
             num_hits, hit, true);
         return TRANSPARENT_SHADOW_EVAL_CACHE_MISS;
       }
@@ -267,7 +267,7 @@ ccl_device void integrator_shade_shadow(KernelGlobals kg,
                                         ccl_global float *ccl_restrict render_buffer)
 {
   PROFILING_INIT(kg, PROFILING_SHADE_SHADOW_SETUP);
-  const uint packed_num_hits = INTEGRATOR_STATE(state, shadow_path, num_hits);
+  const uint packed_num_hits = INTEGRATOR_STATE(state, shadow_path, packed_num_hits);
 
 #ifdef __TRANSPARENT_SHADOWS__
   /* Evaluate transparent shadows. */

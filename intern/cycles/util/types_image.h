@@ -111,6 +111,9 @@ struct KernelImageUDIM {
   int image_texture_id;
 };
 
+/* Number of bits per word in the tile request bitmap. */
+#define KERNEL_TILE_REQUEST_BITS_PER_WORD (sizeof(uint) * 8)
+
 #define KERNEL_TILE_LOAD_NONE 0xFFFFFFFFU
 #define KERNEL_TILE_LOAD_REQUEST (KERNEL_TILE_LOAD_NONE - 1)
 #define KERNEL_TILE_LOAD_FAILED (KERNEL_TILE_LOAD_NONE - 2)

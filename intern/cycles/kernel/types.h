@@ -1647,8 +1647,11 @@ struct KernelShaderEvalInput {
 static_assert_align(KernelShaderEvalInput, 16);
 
 enum ShaderEvalResult {
+  /* Shader evaluation is empty (e.g. no volume density, no emission from light, ..). */
   SHADER_EVAL_EMPTY = 0,
+  /* Shader evaluation succeeded. */
   SHADER_EVAL_OK = 1,
+  /* Cache miss means shader evaluation can not be used. */
   SHADER_EVAL_CACHE_MISS = 2,
 };
 

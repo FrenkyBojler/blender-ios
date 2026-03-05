@@ -287,10 +287,10 @@ class OSLRenderServices : public OSL::RendererServices {
  private:
   int device_type_;
 
-  /* We don't support lookup by filename without handle, which is required anyway
+  /* We don't support lookup by filename without a handle, which is required anyway
    * for GPU, and simplifies the implementation on CPU. This keeps track of the
    * ones we have seen to emit a warning only once. */
-  OSLTextureFilenameMap texture_filenames_seen;
+  OSLTextureFilenameMap texture_filenames_seen_;
 
   thread_mutex textures_mutex;
 };
