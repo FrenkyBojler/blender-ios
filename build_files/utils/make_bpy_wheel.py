@@ -47,11 +47,6 @@ from typing import (
     Sequence,
 )
 
-# `wheel.bdist_wheel` is deprecated, `setuptools >= 70.1` includes it.
-if tuple(int(x) for x in setuptools.__version__.split(".")[:2]) >= (70, 1):
-    from setuptools.command.bdist_wheel import bdist_wheel
-else:
-    from wheel.bdist_wheel import bdist_wheel
 
 # ------------------------------------------------------------------------------
 # Long Description
@@ -174,6 +169,15 @@ def argparse_create() -> argparse.ArgumentParser:
 # Main Function
 
 def main() -> None:
+
+    # Inline the import because the built-bot runs this with Python 3.6,
+    # where as the actual script runs with Python 3.9.
+
+    # `wheel.bdist_wheel` is deprecated, `setuptools >= 70.1` includes it.
+    if tuple(int(x) for x in setuptools.__version__.split(".")[:2]) >= (70, 1):
+        from setuptools.command.bdist_wheel import bdist_wheel
+    else:
+        from wheel.bdist_wheel import bdist_wheel
 
     # Parse arguments.
     args = argparse_create().parse_args()
