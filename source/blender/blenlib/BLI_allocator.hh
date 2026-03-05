@@ -49,6 +49,7 @@ class GuardedAllocator {
   void *allocate_zero(size_t size, size_t alignment, const char *name)
   {
     if (alignment > MEM_MIN_CPP_ALIGNMENT) {
+      /* There is no version of calloc with a specific alignment argument. */
       void *ptr = this->allocate(size, alignment, name);
       memset(ptr, 0, size);
       return ptr;
@@ -78,6 +79,7 @@ template<size_t Alignment = 64ul> class GuardedAlignedAllocator {
   void *allocate_zero(size_t size, size_t alignment, const char *name)
   {
     if (std::max(alignment, Alignment) > MEM_MIN_CPP_ALIGNMENT) {
+      /* There is no version of calloc with a specific alignment argument. */
       void *ptr = this->allocate(size, alignment, name);
       memset(ptr, 0, size);
       return ptr;
