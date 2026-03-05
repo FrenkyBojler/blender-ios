@@ -576,7 +576,7 @@ static void block_popup_buttons_remove_top_empty_space(Block *block)
     max = std::max(max, but->rect.ymax);
   }
   for (const std::unique_ptr<Button> &but : block->buttons) {
-    BLI_rctf_translate(&but->rect, 0, -max);
+    BLI_rctf_translate(&but->rect, 0.0f, -max);
   }
   if (!block->panel) {
     return;
