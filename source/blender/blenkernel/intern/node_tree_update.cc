@@ -277,7 +277,7 @@ struct NodeTreeRelations {
       for (ModifierData &md : object.modifiers) {
         if (md.type == eModifierType_Nodes) {
           NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(&md);
-          if (nmd->node_group != nullptr) {
+          if (nmd->node_group && !ID_MISSING(nmd->node_group)) {
             modifiers_users_->add(nmd->node_group, {&object, &md});
           }
         }
@@ -1747,12 +1747,7 @@ class NodeTreeMainUpdater {
             socket_hash = get_socket_ptr_hash(socket);
           }
           else {
-            if (internal_input->type == socket.type) {
-              socket_hash = *hash_by_socket_id[internal_input->index_in_tree()];
-            }
-            else {
-              socket_hash = get_socket_ptr_hash(socket);
-            }
+            socket_hash = *hash_by_socket_id[internal_input->index_in_tree()];
           }
         }
         else {
