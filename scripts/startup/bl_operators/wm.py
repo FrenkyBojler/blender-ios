@@ -2147,6 +2147,7 @@ class WM_OT_property_uidata_create(Operator):
         ui_data.update()
         return {'FINISHED'}
 
+
 class WM_OT_properties_add(Operator):
     """Add your own property to the data-block"""
     bl_idname = "wm.properties_add"

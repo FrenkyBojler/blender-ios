@@ -1815,7 +1815,8 @@ IDPropertyUIData *IDP_TryConvertUIData(IDProperty *src_prop,
 
           if (is_array) {
             dst->default_array_len = default_array_len;
-            dst->default_array = MEM_new_array_zeroed<int>(size_t(dst->default_array_len), __func__);
+            dst->default_array = MEM_new_array_zeroed<int>(size_t(dst->default_array_len),
+                                                           __func__);
           }
           ui_data_free(src, src_type);
           return &dst->base;
@@ -1827,7 +1828,7 @@ IDPropertyUIData *IDP_TryConvertUIData(IDProperty *src_prop,
           if (is_array) {
             dst->default_array_len = default_array_len;
             dst->default_array = MEM_new_array_zeroed<double>(size_t(dst->default_array_len),
-                                                           __func__);
+                                                              __func__);
           }
           ui_data_free(src, src_type);
           return &dst->base;
@@ -1838,7 +1839,7 @@ IDPropertyUIData *IDP_TryConvertUIData(IDProperty *src_prop,
           if (is_array) {
             dst->default_array_len = default_array_len;
             dst->default_array = MEM_new_array_zeroed<int8_t>(size_t(dst->default_array_len),
-                                                           __func__);
+                                                              __func__);
           }
           ui_data_free(src, src_type);
           return &dst->base;
@@ -1863,7 +1864,8 @@ IDPropertyUIData *IDP_TryConvertUIData(IDProperty *src_prop,
 
           if (is_array) {
             dst->default_array_len = default_array_len;
-            dst->default_array = MEM_new_array_zeroed<int>(size_t(dst->default_array_len), __func__);
+            dst->default_array = MEM_new_array_zeroed<int>(size_t(dst->default_array_len),
+                                                           __func__);
           }
           ui_data_free(src, src_type);
           return &dst->base;
@@ -1875,7 +1877,7 @@ IDPropertyUIData *IDP_TryConvertUIData(IDProperty *src_prop,
           if (is_array) {
             dst->default_array_len = default_array_len;
             dst->default_array = MEM_new_array_zeroed<double>(size_t(dst->default_array_len),
-                                                           __func__);
+                                                              __func__);
           }
           ui_data_free(src, src_type);
           return &dst->base;
@@ -1887,7 +1889,7 @@ IDPropertyUIData *IDP_TryConvertUIData(IDProperty *src_prop,
           if (is_array) {
             dst->default_array_len = default_array_len;
             dst->default_array = MEM_new_array_zeroed<int8_t>(size_t(dst->default_array_len),
-                                                           __func__);
+                                                              __func__);
           }
           ui_data_free(src, src_type);
           return &dst->base;
@@ -1909,7 +1911,7 @@ IDPropertyUIData *IDP_TryConvertUIData(IDProperty *src_prop,
           if (is_array) {
             src_int->default_array_len = default_array_len;
             src_int->default_array = MEM_new_array_zeroed<int>(size_t(src_int->default_array_len),
-                                                            __func__);
+                                                               __func__);
             for (int i = 0; i < src_int->default_array_len; i++) {
               src_int->default_array[i] = src_int->default_value;
             }
@@ -1977,7 +1979,7 @@ IDPropertyUIData *IDP_TryConvertUIData(IDProperty *src_prop,
           if (is_array) {
             src_bool->default_array_len = default_array_len;
             src_bool->default_array = MEM_new_array_zeroed<int8_t>(size_t(default_array_len),
-                                                                __func__);
+                                                                   __func__);
             for (int i = 0; i < src_bool->default_array_len; i++) {
               src_bool->default_array[i] = src_bool->default_value;
             }
