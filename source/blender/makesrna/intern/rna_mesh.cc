@@ -2336,7 +2336,7 @@ static void rna_def_mloopuv(BlenderRNA *brna)
                                     "rna_iterator_array_end",
                                     "rna_iterator_array_get",
                                     "rna_Attribute_data_length",
-                                    "rna_Attribute_data_lookup_int",
+                                    nullptr,
                                     nullptr,
                                     nullptr);
 
@@ -2462,7 +2462,7 @@ static void rna_def_mloopcol(BlenderRNA *brna)
                                     "rna_iterator_array_end",
                                     "rna_iterator_array_get",
                                     "rna_Attribute_data_length",
-                                    "rna_Attribute_data_lookup_int",
+                                    nullptr,
                                     nullptr,
                                     nullptr);
 

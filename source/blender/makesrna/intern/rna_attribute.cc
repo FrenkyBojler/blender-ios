@@ -1512,8 +1512,6 @@ static void rna_def_attribute_byte_color(BlenderRNA *brna)
   prop = RNA_def_property(srna, "data", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_struct_type(prop, "ByteColorAttributeValue");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_IGNORE);
-  /* Solution [1]: use new "rna_Attribute_data_lookup_int" (but have to be added to many more
-   * places). */
   RNA_def_property_collection_funcs(prop,
                                     "rna_Attribute_data_begin",
                                     "rna_iterator_array_next",
