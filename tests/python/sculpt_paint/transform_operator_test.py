@@ -18,13 +18,12 @@ blender -b --factory-startup --python tests/python/sculpt_paint/transform_operat
 
 args = None
 
-"""
-TODO: Current test should be rewritten with Mesh comparison framework(see voxel_remesh_compare_test.py)
-      to reduce the amount of code, once framework supports context override.
-"""
+# TODO: Current test should be rewritten with Mesh comparison
+# framework(see voxel_remesh_compare_test.py) to reduce the amount of
+# code, once framework supports context override.
 
 
-class TransformOperators(unittest.TestCase):
+class TransformTest(unittest.TestCase):
     def setUp(self):
         bpy.ops.wm.open_mainfile(filepath=str(args.testdir / "non_uniform_scaling_monkey.blend"), load_ui=False)
 
@@ -57,7 +56,6 @@ class TransformOperators(unittest.TestCase):
         self.assertEqual(result, 'Same')
 
 
-
 def main():
     global args
     import argparse
@@ -76,4 +74,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
