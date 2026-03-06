@@ -71,8 +71,10 @@ class FILEBROWSER_HT_header(Header):
             self.draw_asset_browser_buttons(context)
         else:
             FILEBROWSER_MT_editor_menus.draw_collapsible(context, layout)
-            layout.separator_spacer()
-            layout.operator("screen.region_toggle", text="", icon='X', emboss=False).region_type = 'HEADER'
+            # uses active_operator to show the close button in the window filebrowser.
+            if space_data.active_operator:
+                layout.separator_spacer()
+                layout.operator("screen.region_toggle", text="", icon='X', emboss=False).region_type = 'HEADER'
 
         if not context.screen.show_statusbar:
             layout.template_running_jobs()
@@ -262,6 +264,13 @@ class FILEBROWSER_PT_menus(FileBrowserPanel, Panel):
     bl_category = "Bookmarks"
     bl_label = "Menus"
     bl_options = {'HIDE_HEADER'}
+
+    # if active_operator exists -> show in window filebrowser
+    @classmethod
+    def poll(cls, context):
+        if not super().poll(context):
+            return False
+        return context.space_data.active_operator is not None
 
     def draw(self, _context):
         layout = self.layout
