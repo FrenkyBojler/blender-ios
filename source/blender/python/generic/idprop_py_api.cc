@@ -291,7 +291,7 @@ static int BPy_IDGroup_SetName(BPy_IDProperty *self, PyObject *value, void * /*c
 
 static PyObject *BPy_IDProperty_GetActiveIndex(BPy_IDProperty *self, void * /*closure*/)
 {
-  return PyLong_FromLong(self->prop->data.idprop_active_index);
+  return PyLong_FromLong(self->prop->idprop_active_index);
 }
 
 static int BPy_IDProperty_SetActiveIndex(BPy_IDProperty *self, PyObject *value, void * /*closure*/)
@@ -302,7 +302,7 @@ static int BPy_IDProperty_SetActiveIndex(BPy_IDProperty *self, PyObject *value, 
     PyErr_SetString(PyExc_IndexError, "active index out of range");
     return -1;
   }
-  self->prop->data.idprop_active_index = index;
+  self->prop->idprop_active_index = index;
   return 0;
 }
 

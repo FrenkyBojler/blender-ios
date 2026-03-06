@@ -53,7 +53,6 @@ struct IDPropertyUIData {
   /* eIDPUIdataflag */
   int8_t flag = 0;
   char _pad[3] = {};
-
 };
 
 /* DNA version of #EnumPropertyItem. */
@@ -144,8 +143,6 @@ struct IDPropertyData {
   bke::idprop::IDPropertyGroupChildrenSet *children_map = nullptr;
   /** NOTE: a `double` is written into two 32bit integers. */
   int val = 0, val2 = 0;
-  int idprop_active_index = 0;
-  char _pad[4] = {};
 };
 
 struct IDProperty {
@@ -161,7 +158,7 @@ struct IDProperty {
   short flag = 0;
   char name[/*MAX_IDPROP_NAME*/ 64] = "";
 
-  char _pad0[4] = {};
+  int idprop_active_index = 0;
 
   /** NOTE: alignment for 64 bits. */
   IDPropertyData data;
