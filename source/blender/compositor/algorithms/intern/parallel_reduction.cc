@@ -472,6 +472,20 @@ float2 maximum_float2(Context &context, const Result &input)
   return maximum_float2_cpu(input);
 }
 
+static float4 maximum_float4_gpu(Context &context, const Result &input)
+{
+  gpu::Shader *shader = context.get_shader("compositor_maximum_float4", ResultPrecision::Full);
+  GPU_shader_bind(shader);
+
+  float *reduced_value = parallel_reduction_dispatch(
+      input, shader, Result::gpu_texture_format(ResultType::Color, ResultPrecision::Full));
+  const float4 maximum = float4(reduced_value);
+  MEM_delete(reduced_value);
+  GPU_shader_unbind();
+
+  return maximum;
+}
+
 static float4 maximum_float4_cpu(const Result &input)
 {
   return float4(parallel_reduce(
@@ -486,8 +500,7 @@ static float4 maximum_float4_cpu(const Result &input)
 float4 maximum_color(Context &context, const Result &input)
 {
   if (context.use_gpu()) {
-    // return maximum_float4_gpu(context, input);
-    return float4(0.0f);
+    return maximum_float4_gpu(context, input);
   }
 
   return maximum_float4_cpu(input);
