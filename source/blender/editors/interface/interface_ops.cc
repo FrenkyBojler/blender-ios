@@ -2499,15 +2499,15 @@ static bool ui_list_unhide_filter_options(uiList *list)
 }
 
 static wmOperatorStatus ui_list_start_filter_invoke(bContext *C,
-                                                 wmOperator * /*op*/,
-                                                 const wmEvent *event)
+                                                    wmOperator * /*op*/,
+                                                    const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
   uiList *list = ui_list_find_mouse_over(region, event);
   /* Poll should check. */
   BLI_assert(list != nullptr);
 
-  if (list_unhide_filter_options(list)) {
+  if (ui_list_unhide_filter_options(list)) {
     region_redraw_immediately(C, region);
   }
 

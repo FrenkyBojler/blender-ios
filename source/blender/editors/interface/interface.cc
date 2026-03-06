@@ -2200,7 +2200,7 @@ void fontscale(float *points, float aspect)
 
 void button_to_pixelrect(rcti *rect, const ARegion *region, const Block *block, const Button *but)
 {
-  *rect = ui_to_pixelrect(region, block, (but) ? &but->rect : &block->rect);
+  *rect = rect_to_pixelrect(region, block, (but) ? &but->rect : &block->rect);
 }
 
 rcti ui_to_pixelrect(const ARegion *region, const Block *block, const rctf *src_rect)
