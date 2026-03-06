@@ -397,8 +397,8 @@ static void process_inputs(const USDExporterContext &usd_export_context,
               usd_export_context, usd_material, usdtokens::primvar_float, attr_node);
         }
 
-        std::string attr_name = make_safe_name(storage->name,
-                                               usd_export_context.export_params.allow_unicode);
+        std::string attr_name = make_safe_primvar_name(
+            storage->name, usd_export_context.export_params.allow_unicode);
         usd_shader.CreateInput(usdtokens::varname, pxr::SdfValueTypeNames->String).Set(attr_name);
 
         pxr::UsdShadeConnectionSourceInfo source_info(usd_shader.ConnectableAPI(),
