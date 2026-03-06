@@ -248,9 +248,8 @@ class FILEBROWSER_PT_menus(FileBrowserPanel, Panel):
 
     def draw(self, _context):
         layout = self.layout
-        box = layout.box()
-        row = box.row(align=True)
-        row.scale_y = 0.8
+        row = layout.row(align=True)
+        row.scale_y = 1.3
         
         row.menu("FILEBROWSER_MT_view")
         row.menu("FILEBROWSER_MT_select")
