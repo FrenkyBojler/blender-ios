@@ -414,7 +414,7 @@ Button *button_find_rect_over(const ARegion *region, const rcti *rect_px)
   return butover;
 }
 
-Button *list_find_mouse_over_ex(const ARegion *region, const int xy[2])
+Button *listbox_find_mouse_over_ex(const ARegion *region, const int xy[2])
 {
   if (!region_contains_point_px(region, xy)) {
     return nullptr;
@@ -432,18 +432,18 @@ Button *list_find_mouse_over_ex(const ARegion *region, const int xy[2])
   return nullptr;
 }
 
-Button *button_list_find_mouse_over(const ARegion *region, const wmEvent *event)
+Button *listbox_find_mouse_over(const ARegion *region, const wmEvent *event)
 {
   if (event == nullptr) {
     /* If there is no info about the mouse, just act as if there is nothing underneath it. */
     return nullptr;
   }
-  return list_find_mouse_over_ex(region, event->xy);
+  return listbox_find_mouse_over_ex(region, event->xy);
 }
 
 uiList *ui_list_find_mouse_over(const ARegion *region, const wmEvent *event)
 {
-  Button *list_but = button_list_find_mouse_over(region, event);
+  Button *list_but = listbox_find_mouse_over(region, event);
   if (!list_but) {
     return nullptr;
   }
@@ -451,7 +451,7 @@ uiList *ui_list_find_mouse_over(const ARegion *region, const wmEvent *event)
   return static_cast<uiList *>(list_but->custom_data);
 }
 
-static bool button_list_contains_row(const Button *listbox_but, const Button *listrow_but)
+static bool listbox_contains_listrow(const Button *listbox_but, const Button *listrow_but)
 {
   BLI_assert(listbox_but->type == ButtonType::ListBox);
   BLI_assert(listrow_but->type == ButtonType::ListRow);
@@ -464,7 +464,7 @@ static bool but_is_listrow(const Button *but, const void * /*customdata*/)
   return but->type == ButtonType::ListRow;
 }
 
-Button *button_list_row_find_mouse_over(const ARegion *region, const int xy[2])
+Button *listrow_find_mouse_over(const ARegion *region, const int xy[2])
 {
   return button_find_mouse_over_ex(region, xy, false, false, but_is_listrow, nullptr);
 }
@@ -478,11 +478,11 @@ static bool but_is_listrow_at_index(const Button *but, const void *customdata)
 {
   const ListRowFindIndexData *find_data = static_cast<const ListRowFindIndexData *>(customdata);
 
-  return but_is_listrow(but, nullptr) && button_list_contains_row(find_data->listbox, but) &&
+  return but_is_listrow(but, nullptr) && listbox_contains_listrow(find_data->listbox, but) &&
          (but->hardmax == find_data->index);
 }
 
-Button *button_list_row_find_index(const ARegion *region, const int index, Button *listbox)
+Button *listrow_find_index(const ARegion *region, const int index, Button *listbox)
 {
   BLI_assert(listbox->type == ButtonType::ListBox);
   ListRowFindIndexData data = {};

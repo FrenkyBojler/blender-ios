@@ -8472,7 +8472,7 @@ static int do_button(bContext *C, Block *block, Button *but, const wmEvent *even
     /* When clicking on a disabled button on top of a list row, activate the list row below it.
      * See #150341. */
     if (is_disabled && (event->type == LEFTMOUSE) && (event->val == KM_PRESS)) {
-      if (Button *listrow = button_list_row_find_mouse_over(data->region, event->xy)) {
+      if (Button *listrow = listrow_find_mouse_over(data->region, event->xy)) {
         button_execute(C, data->region, listrow);
         return WM_UI_HANDLER_BREAK;
       }
@@ -10284,7 +10284,7 @@ static int handle_viewlist_items_hover(const wmEvent *event, ARegion *region)
     if (Button *but = view_item_find_mouse_over(region, event->xy)) {
       return but;
     }
-    if (Button *but = button_list_row_find_mouse_over(region, event->xy)) {
+    if (Button *but = listrow_find_mouse_over(region, event->xy)) {
       return but;
     }
     return nullptr;
@@ -12036,7 +12036,7 @@ static int handle_menus_recursive(bContext *C,
       else if (event->type == LEFTMOUSE || event->val != KM_DBL_CLICK) {
         bool handled = false;
 
-        if (Button *listbox = button_list_find_mouse_over(menu->region, event)) {
+        if (Button *listbox = listbox_find_mouse_over(menu->region, event)) {
           const int retval_test = handle_list_event(C, event, menu->region, listbox);
           if (retval_test != WM_UI_HANDLER_CONTINUE) {
             retval = retval_test;
@@ -12091,7 +12091,7 @@ static int region_handler(bContext *C, const wmEvent *event, void * /*userdata*/
 
   /* either handle events for already activated button or try to activate */
   Button *but = region_find_active_but(region);
-  Button *listbox = button_list_find_mouse_over(region, event);
+  Button *listbox = listbox_find_mouse_over(region, event);
 
   retval = handler_panel_region(C, event, region, listbox ? listbox : but);
 

@@ -1551,11 +1551,11 @@ bool but_contains_point_px_icon(const Button *but,
 bool button_contains_point_px(const Button *but, const ARegion *region, const int xy[2])
     ATTR_NONNULL(1, 2, 3) ATTR_WARN_UNUSED_RESULT;
 
-Button *button_list_find_mouse_over(const ARegion *region,
+Button *listbox_find_mouse_over(const ARegion *region,
                                     const wmEvent *event) ATTR_WARN_UNUSED_RESULT;
-Button *button_list_row_find_mouse_over(const ARegion *region, const int xy[2])
+Button *listrow_find_mouse_over(const ARegion *region, const int xy[2])
     ATTR_NONNULL(1, 2) ATTR_WARN_UNUSED_RESULT;
-Button *button_list_row_find_index(const ARegion *region,
+Button *listrow_find_index(const ARegion *region,
                                    int index,
                                    Button *listbox) ATTR_WARN_UNUSED_RESULT;
 Button *view_item_find_mouse_over(const ARegion *region, const int xy[2]) ATTR_NONNULL(1, 2);
@@ -1575,7 +1575,7 @@ Button *button_find_mouse_over_ex(const ARegion *region,
     ATTR_NONNULL(1, 2) ATTR_WARN_UNUSED_RESULT;
 Button *button_find_rect_over(const ARegion *region, const rcti *rect_px) ATTR_WARN_UNUSED_RESULT;
 
-Button *list_find_mouse_over_ex(const ARegion *region, const int xy[2])
+Button *listbox_find_mouse_over_ex(const ARegion *region, const int xy[2])
     ATTR_NONNULL(1, 2) ATTR_WARN_UNUSED_RESULT;
 
 bool but_contains_password(const Button *but) ATTR_WARN_UNUSED_RESULT;
