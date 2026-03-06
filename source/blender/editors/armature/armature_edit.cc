@@ -759,10 +759,10 @@ static wmOperatorStatus armature_fill_bones_exec(bContext *C, wmOperator *op)
 
     /* Copy bone collection membership. */
     if (ebp->head_owner) {
-      BLI_duplicatelisttolist(&newbone->bone_collections, &ebp->head_owner->bone_collections);
+      ANIM_armature_bonecoll_assign_from_other_editbone(newbone, ebp->head_owner);
     }
-    if (ebp->tail_owner) {
-      BLI_duplicatelisttolist(&newbone->bone_collections, &ebp->tail_owner->bone_collections);
+    else {
+      ANIM_armature_bonecoll_assign_from_other_editbone(newbone, ebp->tail_owner);
     }
   }
   else if (count == 2) {
@@ -856,16 +856,16 @@ static wmOperatorStatus armature_fill_bones_exec(bContext *C, wmOperator *op)
 
       /* Copy bone collection membership. */
       if (ebp_a->head_owner) {
-        BLI_duplicatelisttolist(&newbone->bone_collections, &ebp_a->head_owner->bone_collections);
+        ANIM_armature_bonecoll_assign_from_other_editbone(newbone, ebp_a->head_owner);
       }
-      if (ebp_a->tail_owner) {
-        BLI_duplicatelisttolist(&newbone->bone_collections, &ebp_a->tail_owner->bone_collections);
+      else {
+        ANIM_armature_bonecoll_assign_from_other_editbone(newbone, ebp_a->tail_owner);
       }
       if (ebp_b->head_owner) {
-        BLI_duplicatelisttolist(&newbone->bone_collections, &ebp_b->head_owner->bone_collections);
+        ANIM_armature_bonecoll_assign_from_other_editbone(newbone, ebp_b->head_owner);
       }
-      if (ebp_b->tail_owner) {
-        BLI_duplicatelisttolist(&newbone->bone_collections, &ebp_b->tail_owner->bone_collections);
+      else {
+        ANIM_armature_bonecoll_assign_from_other_editbone(newbone, ebp_b->tail_owner);
       }
     }
   }

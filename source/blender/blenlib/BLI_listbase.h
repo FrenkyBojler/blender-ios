@@ -273,11 +273,6 @@ void BLI_listbase_split_after(ListBase *original_listbase, ListBase *split_listb
  * Sets dst to a duplicate of the entire contents of src. dst may be the same as src.
  */
 void BLI_duplicatelist(ListBase *dst, const ListBase *src) ATTR_NONNULL(1, 2);
-/**
- * Duplicates the entire contents of \a src onto the end of \a dst.
- */
-void BLI_duplicatelisttolist(ListBase *dst, const ListBase *src) ATTR_NONNULL(1, 2);
-
 void BLI_listbase_reverse(ListBase *lb) ATTR_NONNULL(1);
 /**
  * \param vlink: Link to make first.
