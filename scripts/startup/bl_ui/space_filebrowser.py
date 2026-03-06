@@ -240,6 +240,20 @@ class FILEBROWSER_PT_bookmarks_volumes(Panel):
                 space, "system_folders_active", item_dyntip_propname="path", rows=1, maxrows=10,
             )
 
+class FILEBROWSER_PT_menus(FileBrowserPanel, Panel):
+    bl_region_type = 'TOOLS'
+    bl_category = "Bookmarks"
+    bl_label = ""
+    bl_options = {'HIDE_HEADER'}
+
+    def draw(self, _context):
+        layout = self.layout
+        box = layout.box()
+        row = box.row(align=True)
+        row.scale_y = 0.8
+        
+        row.menu("FILEBROWSER_MT_view")
+        row.menu("FILEBROWSER_MT_select")
 
 class FILEBROWSER_PT_bookmarks_system(Panel):
     bl_space_type = 'FILE_BROWSER'
@@ -896,6 +910,7 @@ classes = (
     FILEBROWSER_PT_display,
     FILEBROWSER_PT_filter,
     FILEBROWSER_UL_dir,
+    FILEBROWSER_PT_menus,
     FILEBROWSER_MT_bookmarks_context_menu,
     FILEBROWSER_PT_bookmarks_favorites,
     FILEBROWSER_PT_bookmarks_system,
