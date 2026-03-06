@@ -16,7 +16,6 @@
 #include <type_traits>
 
 #include "BLI_cache_mutex.hh"
-#include "BLI_parameter_pack_utils.hh"
 #include "BLI_vector_set.hh"
 
 namespace blender::bke {
@@ -41,9 +40,17 @@ class bNodeTreeInterfaceRuntime {
 
   /* Runtime topology cache for linear access to items. */
   VectorSet<bNodeTreeInterfaceItem *> items_;
+
+  struct SocketIdentifierGetter {
+    StringRef operator()(const bNodeTreeInterfaceSocket *socket) const
+    {
+      return socket->identifier;
+    }
+  };
+
   /* Socket-only lists for input/output access by index. */
-  VectorSet<bNodeTreeInterfaceSocket *> inputs_;
-  VectorSet<bNodeTreeInterfaceSocket *> outputs_;
+  CustomIDVectorSet<bNodeTreeInterfaceSocket *, SocketIdentifierGetter> inputs_;
+  CustomIDVectorSet<bNodeTreeInterfaceSocket *, SocketIdentifierGetter> outputs_;
 };
 
 namespace node_interface {

@@ -2736,8 +2736,7 @@ static AbstractViewItem *find_active_view_item(bContext *C)
 
 static bool ui_view_item_rename_poll(bContext *C)
 {
-  const ARegion *region = CTX_wm_region(C);
-  if (region == nullptr) {
+  if (get_view_focused(C) == nullptr) {
     return false;
   }
   const AbstractViewItem *active_item = find_active_view_item(C);
