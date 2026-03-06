@@ -2849,7 +2849,6 @@ void item_menutype_func(bContext *C, Layout *layout, void *arg_mt)
 void item_paneltype_func(bContext *C, Layout *layout, void *arg_pt)
 {
   PanelType *pt = static_cast<PanelType *>(arg_pt);
-  block_flag_disable(layout->block(), BLOCK_LOOP);
   UI_paneltype_draw(C, pt, layout);
 }
 
@@ -5992,6 +5991,7 @@ static void ui_paneltype_draw_impl(bContext *C, PanelType *pt, Layout *layout, b
 
 void UI_paneltype_draw(bContext *C, PanelType *pt, Layout *layout)
 {
+  block_flag_disable(layout->block(), BLOCK_LOOP);
   if (layout->context()) {
     CTX_store_set(C, layout->context());
   }
