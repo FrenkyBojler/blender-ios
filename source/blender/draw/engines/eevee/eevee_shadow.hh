@@ -243,6 +243,8 @@ class ShadowModule {
   StorageVectorBuffer<uint, 128> jittered_transparent_casters_ = {"JitteredTransparentCasters"};
   /** List of Resource IDs (to get bounds) for getting minimum clip-maps bounds. */
   StorageVectorBuffer<uint, 128> curr_casters_ = {"CurrCasters"};
+  /** Empty framebuffer to rasterize bounding boxes for update tagging. */
+  Framebuffer update_tag_fb_ = {"shadow_write_framebuffer"};
 
   /** Indirect arguments for page clearing. */
   DispatchIndirectBuf clear_dispatch_buf_ = {"clear_dispatch_buf"};
