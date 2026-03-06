@@ -4,7 +4,7 @@
 
 import bpy
 
-from bpy.types import Header, Panel, Menu, UIList
+from bpy.types import Header, Operator, Panel, Menu, UIList
 
 from bpy_extras import (
     asset_utils,
@@ -241,6 +241,22 @@ class FILEBROWSER_PT_bookmarks_volumes(Panel):
                 space, "system_folders_active", item_dyntip_propname="path", rows=1, maxrows=10,
             )
 
+class FILEBROWSER_OT_cycle_display_size(Operator):
+    bl_idname = "file.cycle_display_size"
+    bl_label = "Cycle Display Size"
+    bl_description = "Change thumbnail size"
+    bl_options = {'REGISTER'}
+
+    def execute(self, context):
+        params = context.space_data.params
+        sizes = params.bl_rna.properties['display_size_discrete'].enum_items
+        current = params.display_size_discrete
+        size_ids = [s.identifier for s in sizes]
+        idx = size_ids.index(current)
+        params.display_size_discrete = size_ids[(idx + 1) % len(size_ids)]
+        return {'FINISHED'}
+
+
 class FILEBROWSER_PT_menus(FileBrowserPanel, Panel):
     bl_region_type = 'TOOLS'
     bl_category = "Bookmarks"
@@ -254,9 +270,7 @@ class FILEBROWSER_PT_menus(FileBrowserPanel, Panel):
         row.scale_x = 1.3
 
         sub = row.row(align=True)
-        op = sub.operator("wm.context_cycle_enum", text="View")
-        op.data_path = "space_data.params.display_size_discrete"
-        op.wrap = True
+        sub.operator("file.cycle_display_size", text="View")
         sub.menu("FILEBROWSER_MT_view", text="", icon='DOWNARROW_HLT')
 
         row.separator()
@@ -917,6 +931,7 @@ class ASSETBROWSER_MT_context_menu(AssetBrowserMenu, Menu):
 
 classes = (
     FILEBROWSER_HT_header,
+    FILEBROWSER_OT_cycle_display_size,
     FILEBROWSER_PT_display,
     FILEBROWSER_PT_filter,
     FILEBROWSER_UL_dir,
