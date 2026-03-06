@@ -1743,6 +1743,7 @@ static IDPropertyUIData *ui_data_alloc(const eIDPropertyUIDataType type)
     }
     case IDP_UI_DATA_TYPE_ID: {
       IDPropertyUIDataID *ui_data = MEM_new<IDPropertyUIDataID>(__func__);
+      ui_data->id_type = ID_OB;
       return &ui_data->base;
     }
     case IDP_UI_DATA_TYPE_INT: {

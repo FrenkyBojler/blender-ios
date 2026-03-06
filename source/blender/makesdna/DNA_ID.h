@@ -51,7 +51,9 @@ struct IDPropertyUIData {
   /** RNA `subtype`, used for every type except string properties (#PropertySubType). */
   int rna_subtype = 0;
   /* eIDPUIdataflag */
-  int flag = 0;
+  int8_t flag = 0;
+  char _pad[3] = {};
+
 };
 
 /* DNA version of #EnumPropertyItem. */
@@ -128,7 +130,7 @@ struct IDPropertyUIDataID {
    * However, when defined/edited from the UI (Custom Properties panel), it must/will be defined,
    * as generic 'Any ID type' selection is a TODO UI-wise.
    */
-  short id_type = ID_OB;
+  short id_type = 0;
   char _pad[6] = {};
 };
 
