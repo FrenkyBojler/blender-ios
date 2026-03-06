@@ -719,10 +719,8 @@ Panel *panel_begin(
   }
 
   if (panel->runtime && !panel->runtime->sort_order_loaded) {
-    ui_memory::Section mem = ui_memory::memory.open("panel.sortorder");
-    panel->sortorder = mem[pt->idname];
-    mem.section = "panel.open";
-    SET_FLAG_FROM_TEST(panel->flag, !mem[pt->idname], PNL_CLOSED);
+    panel->sortorder = ui_memory::memory.open("panel.sortorder")[pt->idname];
+    SET_FLAG_FROM_TEST(panel->flag, !ui_memory::memory.open("panel.open")[pt->idname], PNL_CLOSED);
     panel->runtime->sort_order_loaded = true;
   }
 
@@ -2908,11 +2906,9 @@ static void panel_activate_state(const bContext *C, Panel *panel, const HandlePa
       data->animtimer = nullptr;
     }
 
-    ui_memory::Section sortorder = ui_memory::memory.open("panel.sortorder");
-    ui_memory::Section open = ui_memory::memory.open("panel.open");
     for (Panel &panel : region->panels) {
-      sortorder[panel.panelname] = panel.sortorder;
-      open[panel.panelname] = !(panel.flag & PNL_CLOSED);
+      ui_memory::memory.open("panel.sortorder")[panel.panelname] = panel.sortorder;
+      ui_memory::memory.open("panel.open")[panel.panelname] = !(panel.flag & PNL_CLOSED);
     }
 
     MEM_delete(data);
