@@ -15,19 +15,11 @@
 
 namespace blender::io::usd {
 
-static bool is_safe_char(const pxr::TfUtf8CodePoint cp,
-                         bool is_first,
-                         bool allow_colon,
-                         bool allow_unicode)
+static bool is_safe_char(const pxr::TfUtf8CodePoint cp, bool is_first, bool allow_unicode)
 {
   constexpr pxr::TfUtf8CodePoint cp_underscore = pxr::TfUtf8CodePointFromAscii('_');
-  constexpr pxr::TfUtf8CodePoint cp_colon = pxr::TfUtf8CodePointFromAscii(':');
 
   if (cp == cp_underscore) {
-    return true;
-  }
-
-  if (allow_colon && cp == cp_colon) {
     return true;
   }
 
@@ -48,21 +40,19 @@ static bool is_safe_char(const pxr::TfUtf8CodePoint cp,
   return is_first ? is_letter : (is_letter || is_digit);
 }
 
-static std::string make_safe_name(const StringRef name, bool allow_colon, bool allow_unicode)
+static std::string make_safe_identifier(const StringRef name, bool allow_unicode)
 {
   if (name.is_empty()) {
     return "_";
   }
 
   const bool has_leading_digit = std::isdigit(name[0]);
-  const bool has_leading_colon = allow_colon && name.front() == ':';
-  const bool has_trailing_colon = allow_colon && name.back() == ':';
-  const bool need_leading_underscore = has_leading_digit || has_leading_colon;
+  const bool need_leading_underscore = has_leading_digit;
 
   /* Create temporary buffer using the original incoming string size, which can be larger than
    * required if unicode characters are converted to '_'. This size serves as the upper limit of
    * what might be produced. */
-  int64_t adjust = (need_leading_underscore ? 1 : 0) + (has_trailing_colon ? 1 : 0);
+  const int64_t adjust = (need_leading_underscore ? 1 : 0);
   Array<char, 256> storage(name.size() + adjust);
   MutableSpan<char> buf(storage);
 
@@ -76,7 +66,7 @@ static std::string make_safe_name(const StringRef name, bool allow_colon, bool a
   }
 
   for (auto cp : pxr::TfUtf8CodePointView{name}) {
-    const bool cp_allowed = is_safe_char(cp, first, allow_colon, allow_unicode);
+    const bool cp_allowed = is_safe_char(cp, first, allow_unicode);
     if (!cp_allowed) {
       offset += BLI_str_utf8_from_unicode(uint32_t('_'), buf.data() + offset, buf.size() - offset);
     }
@@ -87,23 +77,33 @@ static std::string make_safe_name(const StringRef name, bool allow_colon, bool a
     first = false;
   }
 
-  if (allow_colon && buf[offset - 1] == ':') {
-    buf[offset] = '_';
-    offset++;
-  }
-
   return {buf.data(), offset};
 }
 
 std::string make_safe_name(const StringRef name, bool allow_unicode)
 {
-  return make_safe_name(name, false, allow_unicode);
+  return make_safe_identifier(name, allow_unicode);
 }
 
 std::string make_safe_primvar_name(const StringRef name, bool allow_unicode)
 {
-  /* In order to allow nested primvar names like "primvars:ns:name", we allow the use of ':'. */
-  return make_safe_name(name, true, allow_unicode);
+  /* Allow namespaced identifiers, separated by ':'. */
+  const std::string original(name);
+  std::vector<std::string> tokens = pxr::TfStringSplit(original, ":");
+  if (tokens.empty()) {
+    return "_";
+  }
+
+  std::string safe_name;
+  for (size_t i = 0; i < tokens.size(); i++) {
+    const std::string &token = tokens[i];
+    safe_name += make_safe_identifier(token, allow_unicode);
+    if (i != tokens.size() - 1) {
+      safe_name += ":";
+    }
+  }
+
+  return safe_name;
 }
 
 pxr::SdfPath get_unique_path(pxr::UsdStageRefPtr stage, const std::string &path)

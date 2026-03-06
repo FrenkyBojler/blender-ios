@@ -359,6 +359,7 @@ TEST(utilities, make_safe_primvar_name)
   ASSERT_EQ(make_safe_primvar_name("test:", false), std::string("test:_"));
   ASSERT_EQ(make_safe_primvar_name(":test", false), std::string("_:test"));
   ASSERT_EQ(make_safe_primvar_name("test:test", false), std::string("test:test"));
+  ASSERT_EQ(make_safe_primvar_name("1test:2test", false), std::string("_1test:_2test"));
 
   ASSERT_EQ(make_safe_primvar_name("tést", false), std::string("t_st"));
   ASSERT_EQ(make_safe_primvar_name("tést:tést", false), std::string("t_st:t_st"));
@@ -374,6 +375,7 @@ TEST(utilities, make_safe_primvar_name)
   ASSERT_EQ(make_safe_primvar_name("test:", true), std::string("test:_"));
   ASSERT_EQ(make_safe_primvar_name(":test", true), std::string("_:test"));
   ASSERT_EQ(make_safe_primvar_name("test:test", true), std::string("test:test"));
+  ASSERT_EQ(make_safe_primvar_name("1test:2test", true), std::string("_1test:_2test"));
 
   ASSERT_EQ(make_safe_primvar_name("tést", true), std::string("tést"));
   ASSERT_EQ(make_safe_primvar_name("tést:tést", true), std::string("tést:tést"));
