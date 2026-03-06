@@ -652,7 +652,9 @@ static void curvemap_buttons_layout(Layout *layout,
     for (const CurveMapPoint *cmp : selected_points) {
       const bool auto_anim_vec = ((cmp->flag & CUMA_HANDLE_AUTO_ANIM) == false) &&
                                  ((cmp->flag & CUMA_HANDLE_VECTOR) == false);
-      bt->flag |= UI_SELECT_DRAW && auto_anim_vec;
+      if (auto_anim_vec) {
+        bt->flag |= UI_SELECT_DRAW;
+      }
     }
 
     bt = uiDefIconBut(block,
@@ -676,7 +678,9 @@ static void curvemap_buttons_layout(Layout *layout,
 
     for (const CurveMapPoint *cmp : selected_points) {
       const bool vec = (cmp->flag & CUMA_HANDLE_VECTOR);
-      bt->flag |= UI_SELECT_DRAW && vec;
+      if (vec) {
+        bt->flag |= UI_SELECT_DRAW;
+      }
     }
 
     bt = uiDefIconBut(block,
@@ -700,7 +704,9 @@ static void curvemap_buttons_layout(Layout *layout,
 
     for (const CurveMapPoint *cmp : selected_points) {
       const bool auto_anim = (cmp->flag & CUMA_HANDLE_AUTO_ANIM);
-      bt->flag |= UI_SELECT_DRAW && auto_anim;
+      if (auto_anim) {
+        bt->flag |= UI_SELECT_DRAW;
+      }
     }
 
     /* Curve handle position */
