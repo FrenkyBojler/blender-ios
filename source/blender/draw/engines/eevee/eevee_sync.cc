@@ -68,7 +68,7 @@ static inline void volume_call(PassMain::Sub *pass,
      * We're fine while Volume objects dont support handle ranges. */
     PassMain::Sub *object_pass = volume_sub_pass(*pass, scene, ob, gpumat);
     if (object_pass != nullptr) {
-      object_pass->draw(geom, res_handle.resource_index());
+      object_pass->draw(geom, ResourceHandleRange(res_handle));
     }
   }
 }
