@@ -406,6 +406,59 @@ struct KernelTransferBase : public openvdb::points::TransformTransfer,
     }
   }
 
+  /* For each point, compute its relative index space position in the destination tree and
+   * sum a function of per-point values.
+   *
+   * \param ijk Point voxel coordinate which contains the point.
+   * \param point_index Index of the point within its leaf node buffer.
+   * \param target_bounds Coordinate region of the destination tree to add into.
+   */
+  template<typename ValueFn>
+  void add_points_to_divergence(const openvdb::Coord &ijk,
+                                const IndexRange point_index_range,
+                                const openvdb::CoordBBox &target_bounds,
+                                ValueFn value_fn)
+  {
+    openvdb::CoordBBox intersect_box(ijk.offsetBy(-voxel_range_), ijk.offsetBy(voxel_range_));
+    intersect_box.intersect(target_bounds);
+    if (intersect_box.empty()) {
+      return;
+    }
+
+    auto *const data = this->template buffer<0>();
+    const auto &mask = *(this->template mask<0>());
+
+    for (const openvdb::Index point_index : point_index_range) {
+      /* TODO use multifunction evaluation for efficient kernel eval. */
+      const openvdb::Vec3d source_position = ijk.asVec3d() +
+                                             this->position_handle_->get(point_index);
+      const openvdb::Vec3d target_position = this->transformSourceToTarget(source_position);
+
+      const openvdb::Coord &a(intersect_box.min());
+      const openvdb::Coord &b(intersect_box.max());
+      for (openvdb::Coord c = a; c.x() <= b.x(); ++c.x()) {
+        const openvdb::Index i = ((c.x() & (DIM - 1u)) << 2 * LOG2DIM);
+        for (c.y() = a.y(); c.y() <= b.y(); ++c.y()) {
+          const openvdb::Index j = ((c.y() & (DIM - 1u)) << LOG2DIM);
+          for (c.z() = a.z(); c.z() <= b.z(); ++c.z()) {
+            BLI_assert(target_bounds.isInside(c));
+            const openvdb::Index offset = i + j + /*k*/ (c.z() & (DIM - 1u));
+            if (!mask.isOn(offset)) {
+              continue;
+            }
+
+            const float3 kernel_distance = float3(
+                openvdb::Vec3f(c.asVec3d() - target_position).asV());
+            if (kernel_functions::kernel_non_zero(kernel_type_, kernel_distance)) {
+              const float weight = kernel_functions::kernel_eval(kernel_type_, kernel_distance);
+              data[offset] += value_fn(point_index, kernel_distance, weight);
+            }
+          }
+        }
+      }
+    }
+  }
+
   bool endPointLeaf(const openvdb::points::PointDataTree::LeafNodeType & /*leaf_node*/)
   {
     return true;
@@ -420,7 +473,7 @@ struct KernelTransferBase : public openvdb::points::TransformTransfer,
   }
 };
 
-template<typename AttributeT, typename GridValueT>
+template<bool use_divergence, typename AttributeT, typename GridValueT>
 struct ValueSumTransfer : public KernelTransferBase<GridValueT> {
   using Base = KernelTransferBase<GridValueT>;
   using GridType = typename Base::GridType;
@@ -461,7 +514,6 @@ struct ValueSumTransfer : public KernelTransferBase<GridValueT> {
                        const openvdb::Index point_index_end,
                        const openvdb::CoordBBox &target_bounds)
   {
-
     this->add_points_to_voxels(ijk,
                                IndexRange::from_begin_end(point_index_begin, point_index_end),
                                target_bounds,
@@ -513,9 +565,16 @@ static bke::VolumeGrid<GridValueT> points_rasterize_with_static_type(
       point_data_grid, transform, kernel_type);
 
   BLI_assert(!value_attribute.is_empty());
-  ValueSumTransfer<AttributeT, GridValueT> transfer(
-      point_data_grid, kernel_type, *dst_grid, value_attribute);
-  openvdb::points::rasterize(point_data_grid, transfer);
+  if (attribute_info.use_divergence) {
+    ValueSumTransfer<AttributeT, GridValueT> transfer(
+        point_data_grid, kernel_type, *dst_grid, value_attribute);
+    openvdb::points::rasterize(point_data_grid, transfer);
+  }
+  else {
+    ValueSumTransfer<AttributeT, GridValueT> transfer(
+        point_data_grid, kernel_type, *dst_grid, value_attribute);
+    openvdb::points::rasterize(point_data_grid, transfer);
+  }
 
   if constexpr (std::is_same_v<GridValueT, float3>) {
     if (attribute_info.use_staggered_vector) {

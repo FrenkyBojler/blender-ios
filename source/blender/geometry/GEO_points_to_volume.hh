@@ -8,6 +8,8 @@
 #include "BLI_math_base.hh"
 #include "BLI_string_ref.hh"
 
+#include "GEO_grid_samplers.hh"
+
 #include "BKE_attribute.hh"
 #include "BKE_volume_enums.hh"
 #include "BKE_volume_grid.hh"
@@ -91,6 +93,7 @@ struct PointRasterizeAttributeInfo {
   const CPPType &type;
   bool use_staggered_vector;
   bool use_affine_vector;
+  bool use_divergence;
 };
 
 /* TODO For ultimate flexibility a multi-function based kernel transfer class could be implemented,
@@ -118,13 +121,13 @@ inline bool kernel_non_zero_component(const KernelType kernel_type, const float 
   auto in_range = [t](const float range) { return -range <= t && t < range; };
   switch (kernel_type) {
     case KernelType::Constant:
-      return in_range(0.5f);
+      return in_range(geometry::grid_sampling::ConstantKernel::range);
     case KernelType::Linear:
-      return in_range(1.0f);
+      return in_range(geometry::grid_sampling::LinearKernel::range);
     case KernelType::QuadraticBSpline:
-      return in_range(1.5f);
+      return in_range(geometry::grid_sampling::QuadraticBSplineKernel::range);
     case KernelType::CubicBSpline:
-      return in_range(2.0f);
+      return in_range(geometry::grid_sampling::CubicBSplineKernel::range);
   }
   return 0.0f;
 }
@@ -140,13 +143,13 @@ inline int kernel_voxel_range(const KernelType kernel_type)
 {
   switch (kernel_type) {
     case KernelType::Constant:
-      return 1;
+      return (geometry::grid_sampling::ConstantKernel::size + 1) >> 1;
     case KernelType::Linear:
-      return 1;
+      return (geometry::grid_sampling::LinearKernel::size + 1) >> 1;
     case KernelType::QuadraticBSpline:
-      return 2;
+      return (geometry::grid_sampling::QuadraticBSplineKernel::size + 1) >> 1;
     case KernelType::CubicBSpline:
-      return 2;
+      return (geometry::grid_sampling::CubicBSplineKernel::size + 1) >> 1;
   }
   BLI_assert_unreachable();
   return 0;
@@ -157,14 +160,31 @@ inline float kernel_eval_component(const KernelType kernel_type, const float t)
   const float a = math::abs(t);
   switch (kernel_type) {
     case KernelType::Constant:
-      return 1.0f;
+      return geometry::grid_sampling::ConstantKernel::weight({}, double) return 1.0f;
     case KernelType::Linear:
       return 1.0f - a;
     case KernelType::QuadraticBSpline:
-      return a < 0.5f ? -a * a + 3.0f / 4.0f : (0.5f * a - 3.0f / 2.0f) * a + 9.0f / 8.0f;
+      return return a < 0.5f ? -a * a + 3.0f / 4.0f : (0.5f * a - 3.0f / 2.0f) * a + 9.0f / 8.0f;
     case KernelType::CubicBSpline:
       return a < 1.0f ? (0.5f * a - 1.0f) * a * a + 2.0f / 3.0f :
                         ((-a / 6.0f + 1.0f) * a - 2.0) * a + 4.0f / 3.0f;
+  }
+  return 0.0f;
+}
+
+inline float kernel_divergence_eval_component(const KernelType kernel_type, const float t)
+{
+  const float a = math::abs(t);
+  switch (kernel_type) {
+    case KernelType::Constant:
+      return 0.0f;
+    case KernelType::Linear:
+      return -a;
+    case KernelType::QuadraticBSpline:
+      return a < 0.5f ? -2.0f * a + 3.0f / 4.0f : (0.25f * a - 3.0f / 4.0f);
+    case KernelType::CubicBSpline:
+      return a < 1.0f ? (0.25f * a - 0.5f) * a :
+                        ((-a / 6.0f + 1.0f) * a - 2.0) * (-a / 6.0f + 1.0f);
   }
   return 0.0f;
 }
@@ -173,6 +193,16 @@ inline float kernel_eval(const KernelType kernel_type, const float3 &v)
 {
   return kernel_eval_component(kernel_type, v.x) * kernel_eval_component(kernel_type, v.y) *
          kernel_eval_component(kernel_type, v.z);
+}
+
+inline float3 kernel_divergence_eval(const KernelType kernel_type, const float3 &v)
+{
+  const float vx = kernel_divergence_eval_component(kernel_type, v.x);
+  const float vy = kernel_eval_component(kernel_type, v.y);
+  const float vz = kernel_eval_component(kernel_type, v.z);
+  return {kernel_divergence_eval_component(kernel_type, v.x) * vy * vz,
+          vx * kernel_divergence_eval_component(kernel_type, v.y) * vz,
+          vx * vy * kernel_divergence_eval_component(kernel_type, v.z)};
 }
 
 }  // namespace kernel_functions

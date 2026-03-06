@@ -125,6 +125,19 @@ static void node_declare(NodeDeclarationBuilder &b)
       {
         output_socket_type = SOCK_VECTOR;
       }
+      /* Special case: divergence converts attribute input type. */
+      if (item.flag & GEO_NODE_RASTERIZE_POINTS_ITEM_DIVERGENCE) {
+        switch (socket_type) {
+          case SOCK_VECTOR:
+            output_socket_type = SOCK_FLOAT;
+            break;
+          case SOCK_MATRIX:
+            output_socket_type = SOCK_VECTOR;
+            break;
+          default:
+            break;
+        }
+      }
       b.add_output(output_socket_type, name, identifier)
           .structure_type(StructureType::Grid)
           .align_with_previous();
@@ -195,6 +208,9 @@ static void node_layout_ex(ui::Layout &layout, bContext *C, PointerRNA *ptr)
           if (socket_type == SOCK_MATRIX) {
             panel->prop(item_ptr, "use_affine_vector", UI_ITEM_NONE, std::nullopt, ICON_NONE);
           }
+          if (ELEM(socket_type, SOCK_VECTOR, SOCK_MATRIX)) {
+            panel->prop(item_ptr, "use_divergence", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+          }
         });
   }
 }
@@ -255,12 +271,13 @@ static void node_geo_exec(GeoNodeExecParams params)
     const bool use_staggered_vector = (item.flag &
                                        GEO_NODE_RASTERIZE_POINTS_ITEM_VECTOR_STAGGERED);
     const bool use_affine_vector = (item.flag & GEO_NODE_RASTERIZE_POINTS_ITEM_AFFINE_VECTOR);
+    const bool use_divergence = (item.flag & GEO_NODE_RASTERIZE_POINTS_ITEM_DIVERGENCE);
 
     value_buffers[i] = GArray<>(cpptype, points_num);
     /* Note: Item name is unique and can be used as an attribute identifier. */
     point_data_grid_attributes.append({item.name, value_buffers[i].as_span()});
     point_rasterize_attributes.append(
-        {item.name, cpptype, use_staggered_vector, use_affine_vector});
+        {item.name, cpptype, use_staggered_vector, use_affine_vector, use_divergence});
   }
 
   for (const int component_i : component_types.index_range()) {

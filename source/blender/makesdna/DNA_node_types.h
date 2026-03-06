@@ -3792,6 +3792,8 @@ typedef enum NodeGeometryRasterizePointsItemFlag {
   GEO_NODE_RASTERIZE_POINTS_ITEM_VECTOR_STAGGERED = 1 << 1,
   /* Read matrix attribute as an vector with an additional affine transform. */
   GEO_NODE_RASTERIZE_POINTS_ITEM_AFFINE_VECTOR = 1 << 2,
+  /* Rasterize the input field into a divergence grid. */
+  GEO_NODE_RASTERIZE_POINTS_ITEM_DIVERGENCE = 1 << 3,
 } NodeGeometryRasterizePointsItemFlag;
 
 typedef struct NodeGeometryRasterizePoints {

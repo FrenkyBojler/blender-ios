@@ -203,9 +203,32 @@ OpenvdbGradientType<typename TreeT::ValueType> sample_tree_gradient(const TreeT 
 }
 
 /**
+ * Nearest-neighbor kernel function with a nominal (zero) gradient output.
+ */
+struct ConstantKernel {
+  static constexpr float range = 0.5f;
+  static constexpr int size = 1;
+
+  template<class ValueT> static ValueT weight(const ValueT *value, double /*weight*/)
+  {
+    OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
+    return value[0];
+    OPENVDB_NO_TYPE_CONVERSION_WARNING_END
+  }
+
+  template<class ValueT> static ValueT derivative(const ValueT * /*value*/, double /*weight*/)
+  {
+    OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
+    return ValueT(0.0);
+    OPENVDB_NO_TYPE_CONVERSION_WARNING_END
+  }
+};
+
+/**
  * Linear kernel function that also supports gradient output.
  */
 struct LinearKernel {
+  static constexpr float range = 1.0f;
   static constexpr int size = 2;
 
   template<class ValueT> static ValueT weight(const ValueT *value, double weight)
@@ -265,6 +288,7 @@ struct LinearKernel {
  *           +    (-3/2*B   + 2*C - 1/2*D)
  */
 struct QuadraticBSplineKernel {
+  static constexpr float range = 1.5f;
   static constexpr int size = 4;
 
   template<class ValueT> static ValueT weight(const ValueT *value, double weight)
@@ -332,6 +356,7 @@ struct QuadraticBSplineKernel {
  *        +     (-1/2*A         + 1/2*C)
  */
 struct CubicBSplineKernel {
+  static constexpr float range = 2.0f;
   static constexpr int size = 4;
 
   template<class ValueT> static ValueT weight(const ValueT *value, double weight)
