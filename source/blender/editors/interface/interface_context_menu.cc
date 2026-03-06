@@ -1263,8 +1263,7 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
   const ARegion *region = CTX_wm_region_popup(C) ? CTX_wm_region_popup(C) : CTX_wm_region(C);
   const bool is_inside_listbox = listbox_find_mouse_over(region, event) != nullptr;
   const bool is_inside_listrow = is_inside_listbox ?
-                                     listrow_find_mouse_over(region, event->xy) !=
-                                         nullptr :
+                                     listrow_find_mouse_over(region, event->xy) != nullptr :
                                      false;
   if (is_inside_listrow) {
     MenuType *mt = WM_menutype_find("UI_MT_list_item_context_menu", true);

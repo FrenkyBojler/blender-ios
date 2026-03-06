@@ -1552,12 +1552,12 @@ bool button_contains_point_px(const Button *but, const ARegion *region, const in
     ATTR_NONNULL(1, 2, 3) ATTR_WARN_UNUSED_RESULT;
 
 Button *listbox_find_mouse_over(const ARegion *region,
-                                    const wmEvent *event) ATTR_WARN_UNUSED_RESULT;
+                                const wmEvent *event) ATTR_WARN_UNUSED_RESULT;
 Button *listrow_find_mouse_over(const ARegion *region, const int xy[2])
     ATTR_NONNULL(1, 2) ATTR_WARN_UNUSED_RESULT;
 Button *listrow_find_index(const ARegion *region,
-                                   int index,
-                                   Button *listbox) ATTR_WARN_UNUSED_RESULT;
+                           int index,
+                           Button *listbox) ATTR_WARN_UNUSED_RESULT;
 Button *view_item_find_mouse_over(const ARegion *region, const int xy[2]) ATTR_NONNULL(1, 2);
 Button *view_item_find_active(const ARegion *region);
 Button *view_item_find_search_highlight(const ARegion *region);
