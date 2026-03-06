@@ -800,14 +800,12 @@ static void sequencer_draw_scopes(Scene *scene,
     /* Scale correction for vectorscope when it is drawn along other scopes and hence
      * `V2D_KEEPASPECT` is off. */
     float2 scale_correction;
-    const float scale_x = ui::view2d_scale_get_x(&region.v2d);
-    const float scale_y = ui::view2d_scale_get_y(&region.v2d);
-    scale_correction.x = (scale_x > 0.0f && scale_y > 0.0f && scale_y < scale_x) ?
-                             (scale_y / scale_x) :
-                             1.0f;
-    scale_correction.y = (scale_x > 0.0f && scale_y > 0.0f && scale_x < scale_y) ?
-                             (scale_x / scale_y) :
-                             1.0f;
+    rcti region_rct;
+    ui::view2d_view_to_region_rcti(&region.v2d, &region.v2d.tot, &region_rct);
+    const float size_x = float(BLI_rcti_size_x(&region_rct)) / scopes_count;
+    const float size_y = BLI_rcti_size_y(&region_rct);
+    scale_correction.x = (size_x > size_y) ? (size_y / size_x) : 1.0f;
+    scale_correction.y = (size_y > size_x) ? (size_x / size_y) : 1.0f;
 
     gpu::StorageBuf *raster_ssbo = GPU_storagebuf_create_ex(viewport_size.x * viewport_size.y *
                                                                 sizeof(SeqScopeRasterData),
