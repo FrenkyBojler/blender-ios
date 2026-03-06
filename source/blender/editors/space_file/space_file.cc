@@ -763,16 +763,6 @@ static void file_tools_region_init(wmWindowManager *wm, ARegion *region)
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 }
 
-static void file_tools_region_exit(wmWindowManager * /*wm*/, ARegion *region)
-{
-  ui_memory::Section sortorder = ui_memory::memory.open("panel.sortorder");
-  ui_memory::Section open = ui_memory::memory.open("panel.open");
-  for (Panel &panel : region->panels) {
-    sortorder[panel.panelname] = panel.sortorder;
-    open[panel.panelname] = !(panel.flag & PNL_CLOSED);
-  }
-}
-
 static void file_tools_region_draw(const bContext *C, ARegion *region)
 {
   ED_region_panels(C, region);
@@ -1109,7 +1099,6 @@ void ED_spacetype_file()
   art->keymapflag = ED_KEYMAP_UI;
   art->listener = file_tools_region_listener;
   art->init = file_tools_region_init;
-  art->exit = file_tools_region_exit;
   art->draw = file_tools_region_draw;
   BLI_addhead(&st->regiontypes, art);
   file_tools_region_panels_register(art);

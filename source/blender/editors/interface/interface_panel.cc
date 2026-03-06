@@ -703,13 +703,6 @@ Panel *panel_begin(
       panel->runtime_flag |= PANEL_WAS_CLOSED;
     }
 
-    if (region->regiontype == RGN_TYPE_TOOLS && STRPREFIX(pt->idname, "FILEBROWSER_PT_")) {
-      ui_memory::Section mem = ui_memory::memory.open("panel.sortorder");
-      panel->sortorder = mem[pt->idname];
-      mem.section = "panel.open";
-      SET_FLAG_FROM_TEST(panel->flag, !mem[pt->idname], PNL_CLOSED);
-    }
-
     panel->ofsx = 0;
     panel->ofsy = 0;
     panel->sizex = 0;
@@ -725,6 +718,14 @@ Panel *panel_begin(
     panel->type = pt;
   }
 
+  if (panel->runtime && !panel->runtime->sort_order_loaded) {
+    ui_memory::Section mem = ui_memory::memory.open("panel.sortorder");
+    panel->sortorder = mem[pt->idname];
+    mem.section = "panel.open";
+    SET_FLAG_FROM_TEST(panel->flag, !mem[pt->idname], PNL_CLOSED);
+    panel->runtime->sort_order_loaded = true;
+  }
+
   panel->runtime->block = block;
 
   panel_drawname_set(panel, drawname);
@@ -736,18 +737,6 @@ Panel *panel_begin(
       BLI_remlink(lb, panel);
       BLI_insertlinkafter(lb, panel_last, panel);
       break;
-    }
-  }
-
-  if (newpanel &&
-      !(region->regiontype == RGN_TYPE_TOOLS && STRPREFIX(pt->idname, "FILEBROWSER_PT_")))
-  {
-    panel->sortorder = (panel_last) ? panel_last->sortorder + 1 : 0;
-
-    for (Panel &panel_next : *lb) {
-      if (&panel_next != panel && panel_next.sortorder >= panel->sortorder) {
-        panel_next.sortorder++;
-      }
     }
   }
 
@@ -2917,6 +2906,13 @@ static void panel_activate_state(const bContext *C, Panel *panel, const HandlePa
     if (data->animtimer) {
       WM_event_timer_remove(CTX_wm_manager(C), win, data->animtimer);
       data->animtimer = nullptr;
+    }
+
+    ui_memory::Section sortorder = ui_memory::memory.open("panel.sortorder");
+    ui_memory::Section open = ui_memory::memory.open("panel.open");
+    for (Panel &panel : region->panels) {
+      sortorder[panel.panelname] = panel.sortorder;
+      open[panel.panelname] = !(panel.flag & PNL_CLOSED);
     }
 
     MEM_delete(data);
