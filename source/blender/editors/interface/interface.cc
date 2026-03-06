@@ -2203,7 +2203,7 @@ void button_to_pixelrect(rcti *rect, const ARegion *region, const Block *block, 
   *rect = rect_to_pixelrect(region, block, (but) ? &but->rect : &block->rect);
 }
 
-rcti ui_to_pixelrect(const ARegion *region, const Block *block, const rctf *src_rect)
+rcti rect_to_pixelrect(const ARegion *region, const Block *block, const rctf *src_rect)
 {
   rctf rectf;
   block_to_window_rctf(region, block, &rectf, src_rect);
