@@ -336,6 +336,40 @@ def draw_filtered(display_keymaps, filter_type, filter_text, layout):
                 filter_text_split.remove(kk)
                 kmi_test_dict[kv] = {True}
 
+        # Recognize event value prefixes (e.g. "dbl-a", "press a").
+        kmi_value_alias = {
+            "dbl": "DOUBLE_CLICK",
+            "double": "DOUBLE_CLICK",
+            "doubleclick": "DOUBLE_CLICK",
+            "double_click": "DOUBLE_CLICK",
+            "press": "PRESS",
+            "release": "RELEASE",
+            "click": "CLICK",
+            "drag": "CLICK_DRAG",
+            "clickdrag": "CLICK_DRAG",
+            "click_drag": "CLICK_DRAG",
+        }
+        normalized_tokens = []
+        for token in filter_text_split:
+            lower = token.lower()
+            prefix, sep, rest = lower.partition("-")
+            search_key = prefix or lower
+
+            val = kmi_value_alias.get(search_key) 
+            if val is None and search_key:
+                for alias_key, alias_val in kmi_value_alias.items():
+                    if alias_key.startswith(search_key):
+                        val = alias_val
+                        break
+
+            if val:
+                kmi_test_dict.setdefault("value", set()).add(val)
+                lower = rest if sep else ""   
+            if lower:
+                normalized_tokens.append(lower)
+
+        filter_text_split = normalized_tokens
+
         # what's left should be the event type
         def kmi_type_set_from_string(kmi_type):
             kmi_type = kmi_type.upper()
