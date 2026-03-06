@@ -241,11 +241,11 @@ class FILEBROWSER_PT_bookmarks_volumes(Panel):
                 space, "system_folders_active", item_dyntip_propname="path", rows=1, maxrows=10,
             )
 
-class FILEBROWSER_OT_cycle_display_size(Operator):
-    bl_idname = "file.cycle_display_size"
-    bl_label = "Cycle Display Size"
+class FILEBROWSER_OT_thumbnail_size(Operator):
+    bl_idname = "file.thumbnail_size"
+    bl_label = "Thumbnail Size"
     bl_description = "Change thumbnail size"
-    bl_options = {'REGISTER'}
+    bl_options = {'INTERNAL'}
 
     def execute(self, context):
         params = context.space_data.params
@@ -260,17 +260,16 @@ class FILEBROWSER_OT_cycle_display_size(Operator):
 class FILEBROWSER_PT_menus(FileBrowserPanel, Panel):
     bl_region_type = 'TOOLS'
     bl_category = "Bookmarks"
-    bl_label = ""
+    bl_label = "Menus"
     bl_options = {'HIDE_HEADER'}
 
     def draw(self, _context):
         layout = self.layout
         row = layout.row(align=True)
         row.scale_y = 1.3
-        row.scale_x = 1.3
 
         sub = row.row(align=True)
-        sub.operator("file.cycle_display_size", text="View")
+        sub.operator("file.thumbnail_size", text="View")
         sub.menu("FILEBROWSER_MT_view", text="", icon='DOWNARROW_HLT')
 
         row.separator()
@@ -278,6 +277,7 @@ class FILEBROWSER_PT_menus(FileBrowserPanel, Panel):
         sub = row.row(align=True)
         sub.operator("file.select_all", text="Select").action = 'TOGGLE'
         sub.menu("FILEBROWSER_MT_select", text="", icon='DOWNARROW_HLT')
+
 
 class FILEBROWSER_PT_bookmarks_system(Panel):
     bl_space_type = 'FILE_BROWSER'
@@ -931,7 +931,7 @@ class ASSETBROWSER_MT_context_menu(AssetBrowserMenu, Menu):
 
 classes = (
     FILEBROWSER_HT_header,
-    FILEBROWSER_OT_cycle_display_size,
+    FILEBROWSER_OT_thumbnail_size,
     FILEBROWSER_PT_display,
     FILEBROWSER_PT_filter,
     FILEBROWSER_UL_dir,
