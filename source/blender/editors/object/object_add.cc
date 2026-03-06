@@ -2778,7 +2778,7 @@ static void make_object_duplilist_real(bContext *C,
    */
   DupliList filtered_duplilist;
   for (DupliObject &dob : duplilist) {
-    if (dob.ob->type == OB_FONT && dob.ob->data != dob.ob_data) {
+    if (ELEM(dob.ob->type, OB_FONT, OB_SURF) && dob.ob->data != dob.ob_data) {
       continue;
     }
     filtered_duplilist.append(dob);
