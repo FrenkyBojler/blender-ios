@@ -72,6 +72,7 @@ class FILEBROWSER_HT_header(Header):
         else:
             FILEBROWSER_MT_editor_menus.draw_collapsible(context, layout)
             layout.separator_spacer()
+            layout.operator("file.cancel", text="", icon='X', emboss=True)
 
         if not context.screen.show_statusbar:
             layout.template_running_jobs()
