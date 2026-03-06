@@ -234,8 +234,7 @@ bool BlenderImageLoader::equals(const ImageLoader &other) const
   const BlenderImageLoader &other_loader = (const BlenderImageLoader &)other;
   return b_image == other_loader.b_image && b_iuser.framenr == other_loader.b_iuser.framenr &&
          b_iuser.tile == other_loader.b_iuser.tile &&
-         cached_update_count == other_loader.b_image->runtime->update_count &&
-         b_image->runtime->update_count == other_loader.cached_update_count;
+         cached_update_count == other_loader.cached_update_count;
 }
 
 int BlenderImageLoader::get_tile_number() const
