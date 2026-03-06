@@ -38,17 +38,18 @@ struct VertIn {
 };
 
 struct VertOut {
-  [[flat]] int tilemap_index;
+  [[flat]] uint tilemap_index;
 };
 
 [[vertex]]
 void tag_update_vert([[resource_table]] TagUpdate &srt,
-                     [[instance_id]] const int inst_id,
+                     [[instance_id]] const int inst_per_tilemap_id,
                      [[in]] const VertIn &v_in,
                      [[out]] VertOut &v_out,
                      [[position]] float4 &out_position)
 {
-  v_out.tilemap_index = inst_id % srt.tilemap_count;
+  v_out.tilemap_index = uint(inst_per_tilemap_id) % uint(srt.tilemap_count);
+  uint inst_id = uint(inst_per_tilemap_id) / uint(srt.tilemap_count);
   uint resource_id = srt.resource_ids_buf[inst_id] & 0x7FFFFFFFu;
 
   ObjectBounds bounds = srt.bounds_buf[resource_id];
