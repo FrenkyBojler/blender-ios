@@ -500,6 +500,14 @@ class _defs_view3d_select:
 
 class _defs_view3d_add:
 
+    sculpt_tool_defaults = {
+        "CUBE": ["EDGE", "FREE", "EDGE", "FREE"],
+        "CONE": ["CENTER", "FIXED", "EDGE", "FREE"],
+        "CYLINDER": ["CENTER", "FIXED", "EDGE", "FREE"],
+        "SPHERE_UV": ["CENTER", "FIXED", "CENTER", "FIXED"],
+        "SPHERE_ICO":  ["CENTER", "FIXED", "CENTER", "FIXED"],
+    }
+
     @staticmethod
     def description_interactive_add(context, _item, _km, *, prefix):
         km = context.window_manager.keyconfigs.user.keymaps["View3D Placement Modal"]
@@ -533,15 +541,8 @@ class _defs_view3d_add:
     # Layout tweaks here would be good to avoid,
     # this shows limits in layout engine, as buttons are using a lot of space.
     @staticmethod
-    def draw_settings_interactive_add(layout, tool_settings, tool, extra, origin_base="EDGE", aspect_base="FREE", origin_depth="EDGE", aspect_depth="FREE"):
+    def draw_settings_interactive_add(layout, tool_settings, tool, extra):
         show_extra = False
-        props = tool.operator_properties("view3d.interactive_add")
-
-        props.plane_origin_base = origin_base
-        props.plane_aspect_base = aspect_base
-
-        props.plane_origin_depth = origin_depth
-        props.plane_aspect_depth = aspect_depth
 
         if not extra:
             row = layout.row()
@@ -559,6 +560,7 @@ class _defs_view3d_add:
                 extra = True
 
         if extra:
+            props = tool.operator_properties("view3d.interactive_add")
             layout.use_property_split = True
             layout.row().prop(tool_settings, "plane_axis", expand=True)
             layout.row().prop(tool_settings, "plane_axis_auto")
@@ -571,12 +573,27 @@ class _defs_view3d_add:
             layout.row().prop(props, "plane_aspect_depth", expand=True)
         return show_extra
 
+    @staticmethod
+    def draw_settings_defaults_init(mode, tool, defaults):
+        if mode != "SCULPT":
+            return
+
+        props = tool.operator_properties("view3d.interactive_add")
+
+        props.plane_origin_base = defaults[0]
+        props.plane_aspect_base = defaults[1]
+
+        props.plane_origin_depth = defaults[2]
+        props.plane_aspect_depth = defaults[3]
+
     @ToolDef.from_fn
     def cube_add():
         def draw_settings(context, layout, tool, *, extra=False):
             show_extra = _defs_view3d_add.draw_settings_interactive_add(layout, context.tool_settings, tool, extra)
             if show_extra:
                 layout.popover("TOPBAR_PT_tool_settings_extra", text="...")
+
+            _defs_view3d_add.draw_settings_defaults_init(context.mode, tool, _defs_view3d_add.sculpt_tool_defaults["CUBE"])
 
         return dict(
             idname="builtin.primitive_cube_add",
@@ -593,7 +610,7 @@ class _defs_view3d_add:
     @ToolDef.from_fn
     def cone_add():
         def draw_settings(context, layout, tool, *, extra=False):
-            show_extra = _defs_view3d_add.draw_settings_interactive_add(layout, context.tool_settings, tool, extra, "CENTER", "FIXED")
+            show_extra = _defs_view3d_add.draw_settings_interactive_add(layout, context.tool_settings, tool, extra)
             if extra:
                 return
 
@@ -603,6 +620,8 @@ class _defs_view3d_add:
 
             if show_extra:
                 layout.popover("TOPBAR_PT_tool_settings_extra", text="...")
+
+            _defs_view3d_add.draw_settings_defaults_init(context.mode, tool, _defs_view3d_add.sculpt_tool_defaults["CONE"])
 
         return dict(
             idname="builtin.primitive_cone_add",
@@ -619,7 +638,7 @@ class _defs_view3d_add:
     @ToolDef.from_fn
     def cylinder_add():
         def draw_settings(context, layout, tool, *, extra=False):
-            show_extra = _defs_view3d_add.draw_settings_interactive_add(layout, context.tool_settings, tool, extra, "CENTER", "FIXED")
+            show_extra = _defs_view3d_add.draw_settings_interactive_add(layout, context.tool_settings, tool, extra)
             if extra:
                 return
 
@@ -629,6 +648,9 @@ class _defs_view3d_add:
 
             if show_extra:
                 layout.popover("TOPBAR_PT_tool_settings_extra", text="...")
+
+            _defs_view3d_add.draw_settings_defaults_init(context.mode, tool, _defs_view3d_add.sculpt_tool_defaults["CYLINDER"])
+
         return dict(
             idname="builtin.primitive_cylinder_add",
             label="Add Cylinder",
@@ -644,7 +666,7 @@ class _defs_view3d_add:
     @ToolDef.from_fn
     def uv_sphere_add():
         def draw_settings(context, layout, tool, *, extra=False):
-            show_extra = _defs_view3d_add.draw_settings_interactive_add(layout, context.tool_settings, tool, extra, "CENTER", "FIXED", "CENTER", "FIXED")
+            show_extra = _defs_view3d_add.draw_settings_interactive_add(layout, context.tool_settings, tool, extra)
             if extra:
                 return
 
@@ -654,6 +676,9 @@ class _defs_view3d_add:
 
             if show_extra:
                 layout.popover("TOPBAR_PT_tool_settings_extra", text="...")
+
+            _defs_view3d_add.draw_settings_defaults_init(context.mode, tool, _defs_view3d_add.sculpt_tool_defaults["SPHERE_UV"])
+
         return dict(
             idname="builtin.primitive_uv_sphere_add",
             label="Add UV Sphere",
@@ -669,7 +694,7 @@ class _defs_view3d_add:
     @ToolDef.from_fn
     def ico_sphere_add():
         def draw_settings(context, layout, tool, *, extra=False):
-            show_extra = _defs_view3d_add.draw_settings_interactive_add(layout, context.tool_settings, tool, extra, "CENTER", "FIXED", "CENTER", "FIXED")
+            show_extra = _defs_view3d_add.draw_settings_interactive_add(layout, context.tool_settings, tool, extra)
             if extra:
                 return
 
@@ -678,6 +703,9 @@ class _defs_view3d_add:
 
             if show_extra:
                 layout.popover("TOPBAR_PT_tool_settings_extra", text="...")
+
+            _defs_view3d_add.draw_settings_defaults_init(context.mode, tool, _defs_view3d_add.sculpt_tool_defaults["SPHERE_ICO"])
+
         return dict(
             idname="builtin.primitive_ico_sphere_add",
             label="Add Ico Sphere",
