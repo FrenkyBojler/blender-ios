@@ -55,10 +55,8 @@ void VKStorageBuffer::update(const void *data)
 
   VKStagingBuffer staging_buffer(
       buffer_, VKStagingBuffer::Direction::HostToDevice, 0, usage_size_in_bytes_);
-  VKBuffer &buffer = staging_buffer.host_buffer_get();
-  if (buffer.is_allocated()) {
-    buffer.update_immediately(data);
-    staging_buffer.copy_to_device(context);
+  if (staging_buffer.is_allocated()) {
+    staging_buffer.copy_to_device(data);
   }
   else {
     CLOG_ERROR(
@@ -139,12 +137,10 @@ void VKStorageBuffer::async_flush_to_host()
     return;
   }
   ensure_allocated();
-  VKContext &context = *VKContext::get();
 
   async_read_buffer_ = MEM_new<VKStagingBuffer>(
       __func__, buffer_, VKStagingBuffer::Direction::DeviceToHost);
-  async_read_buffer_->copy_from_device(context);
-  async_read_buffer_->host_buffer_get().async_flush_to_host(context);
+  async_read_buffer_->copy_from_device();
 }
 
 void VKStorageBuffer::read(void *data)
@@ -153,8 +149,7 @@ void VKStorageBuffer::read(void *data)
     async_flush_to_host();
   }
 
-  VKContext &context = *VKContext::get();
-  async_read_buffer_->host_buffer_get().read_async(context, data);
+  async_read_buffer_->read(data);
   MEM_delete(async_read_buffer_);
   async_read_buffer_ = nullptr;
 }

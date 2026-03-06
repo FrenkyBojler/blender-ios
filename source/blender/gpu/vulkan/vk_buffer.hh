@@ -132,7 +132,7 @@ class VKBuffer : public NonCopyable {
  private:
   /** Check if this buffer is mapped. */
   bool map();
-  void unmap();
+  void unmap(VKDevice& device);
 };
 
 inline void *VKBuffer::mapped_memory_get() const

@@ -19,6 +19,7 @@
 #include "vk_storage_buffer.hh"
 #include "vk_texture.hh"
 #include "vk_vertex_buffer.hh"
+#include "vk_staging_buffer.hh"
 
 #include "gpu_shader_dependency_private.hh"
 
@@ -93,6 +94,8 @@ void VKDevice::deinit()
 
   deinit_submission_pool();
 
+  VKStagingBuffer::deinit(*this);
+
   dummy_buffer.free();
   samplers_.free();
   GPU_SHADER_FREE_SAFE(vk_backbuffer_blit_sh_);
@@ -122,8 +125,16 @@ void VKDevice::deinit()
   vk_instance_ = VK_NULL_HANDLE;
   vk_physical_device_ = VK_NULL_HANDLE;
   vk_device_ = VK_NULL_HANDLE;
-  vk_queue_family_ = 0;
-  vk_queue_ = VK_NULL_HANDLE;
+  vk_generic_queue_family_ = 0;
+  vk_generic_queue_ = VK_NULL_HANDLE;
+  vk_graphics_queue_index_ = 0;
+  vk_graphics_queue_family_ = 0;
+  vk_graphics_queue_ = VK_NULL_HANDLE;
+  vk_compute_queue_index_ = 0;
+  vk_compute_queue_family_ = 0;
+  vk_compute_queue_ = VK_NULL_HANDLE;
+  vk_transfer_queue_family_ = 0;
+  vk_transfer_queue_ = VK_NULL_HANDLE;
   vk_physical_device_properties_ = {};
   glsl_vert_patch_.clear();
   glsl_frag_patch_.clear();
@@ -140,10 +151,22 @@ void VKDevice::init(GHOST_IContext *ghost_context)
   vk_instance_ = handles.instance;
   vk_physical_device_ = handles.physical_device;
   vk_device_ = handles.device;
-  vk_queue_family_ = handles.graphic_queue_family;
-  vk_queue_ = handles.queue;
+  vk_generic_queue_family_ = handles.graphic_queue_family;
+  vk_generic_queue_ = handles.queue;
+  vk_graphics_queue_index_ = handles.graphics_queue_index;
+  vk_graphics_queue_family_ = handles.graphics_queue_family;
+  vk_graphics_queue_ = handles.graphics_queue;
+  vk_compute_queue_index_ = handles.compute_queue_index;
+  vk_compute_queue_family_ = handles.compute_queue_family;
+  vk_compute_queue_ = handles.compute_queue;
+  vk_transfer_queue_index_ = handles.transfer_queue_index;
+  vk_transfer_queue_family_ = handles.transfer_queue_family;
+  vk_transfer_queue_ = handles.transfer_queue;
   mem_allocator_ = handles.vma_allocator;
-  queue_mutex_ = static_cast<std::mutex *>(handles.queue_mutex);
+  generic_queue_mutex_ = static_cast<std::mutex *>(handles.generic_queue_mutex);
+  graphics_queue_mutex = static_cast<std::mutex *>(handles.graphics_queue_mutex);
+  compute_queue_mutex = static_cast<std::mutex *>(handles.compute_queue_mutex);
+  transfer_queue_mutex = static_cast<std::mutex *>(handles.transfer_queue_mutex);
 
   init_physical_device_extensions();
   init_physical_device_properties();
@@ -161,10 +184,18 @@ void VKDevice::init(GHOST_IContext *ghost_context)
   init_dummy_buffer();
 
   debug::object_label(vk_handle(), "LogicalDevice");
-  debug::object_label(vk_queue_, "GenericQueue");
+  debug::object_label(vk_generic_queue_, "GenericQueue");
+  debug::object_label(vk_graphics_queue_, "GraphicscQueue");
+  debug::object_label(vk_compute_queue_, "ComputeQueue");
+  debug::object_label(vk_transfer_queue_, "TransferQueue");
 
   resources.use_dynamic_rendering_local_read = extensions_.dynamic_rendering_local_read;
   orphaned_data.timeline_ = 0;
+
+  VKStagingBuffer::init(*this);
+
+  bool is_maintenance_8_supported = supports_extension(VK_KHR_MAINTENANCE_8_EXTENSION_NAME);
+  render_graph::VKCommandBuilder::init(is_maintenance_8_supported);
 
   init_submission_pool();
   is_initialized_ = true;
@@ -483,6 +514,18 @@ std::string VKDevice::driver_version() const
 VKThreadData::VKThreadData(VKDevice &device, pthread_t thread_id) : thread_id(thread_id)
 {
   descriptor_pools.init(device);
+  wait_render_graph_semaphore = VK_NULL_HANDLE;
+}
+
+VkSemaphore VKThreadData::wait_render_graph_semaphore_get_and_reset() {
+  VkSemaphore wait_semaphore = wait_render_graph_semaphore;
+  wait_render_graph_semaphore = VK_NULL_HANDLE;
+  return wait_semaphore;
+}
+
+void VKThreadData::wait_render_graph_semaphore_set(VkSemaphore wait_semaphore) {
+  BLI_assert(wait_render_graph_semaphore != VK_NULL_HANDLE);
+  wait_render_graph_semaphore = wait_semaphore;
 }
 
 /** \} */

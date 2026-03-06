@@ -18,7 +18,6 @@ namespace blender {
 static CLG_LogRef LOG = {"gpu.vulkan"};
 
 namespace gpu {
-
 VKBuffer::~VKBuffer()
 {
   if (is_allocated()) {
@@ -70,9 +69,6 @@ bool VKBuffer::create(size_t size_in_bytes,
   /* We use the same command queue for the compute and graphics pipeline, so it is safe to use
    * exclusive resource handling. */
   create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-  create_info.queueFamilyIndexCount = 1;
-  const uint32_t queue_family_indices[1] = {device.queue_family_get()};
-  create_info.pQueueFamilyIndices = queue_family_indices;
 
   VkExternalMemoryBufferCreateInfo external_memory_create_info = {
       VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO, nullptr, 0};
@@ -161,8 +157,10 @@ void VKBuffer::async_flush_to_host(VKContext &context)
 {
   BLI_assert(async_timeline_ == 0);
   context.rendering_end();
-  async_timeline_ = context.flush_render_graph(RenderGraphFlushFlags::SUBMIT |
-                                               RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
+  async_timeline_ = context.flush_render_graph(
+      RenderGraphFlushFlags::SUBMIT | RenderGraphFlushFlags::RENEW_RENDER_GRAPH,
+      VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+      context.thread_data().wait_render_graph_semaphore_get_and_reset());
 }
 
 void VKBuffer::read_async(VKContext &context, void *data)
@@ -184,8 +182,10 @@ void VKBuffer::read(VKContext &context, void *data) const
   BLI_assert(async_timeline_ == 0);
   context.rendering_end();
   context.flush_render_graph(RenderGraphFlushFlags::SUBMIT |
-                             RenderGraphFlushFlags::WAIT_FOR_COMPLETION |
-                             RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
+                                 RenderGraphFlushFlags::WAIT_FOR_COMPLETION |
+                                 RenderGraphFlushFlags::RENEW_RENDER_GRAPH,
+                             context.thread_data().wait_stage,
+                             context.thread_data().wait_render_graph_semaphore_get_and_reset());
   memcpy(data, mapped_memory_, size_in_bytes_);
 }
 
@@ -198,10 +198,12 @@ bool VKBuffer::map()
   return result == VK_SUCCESS;
 }
 
-void VKBuffer::unmap()
+void VKBuffer::unmap(VKDevice& device)
 {
   BLI_assert(is_mapped());
-  const VKDevice &device = VKBackend::get().device;
+  /** Use private device link to free VKStagingBuffer
+  * otherwise the crash occurrs
+  */
   VmaAllocator allocator = device.mem_allocator_get();
   vmaUnmapMemory(allocator, allocation_);
   mapped_memory_ = nullptr;
@@ -228,7 +230,8 @@ VkDeviceMemory VKBuffer::export_memory_get(size_t &memory_size)
 bool VKBuffer::free()
 {
   if (is_mapped()) {
-    unmap();
+    VKDevice &device = VKBackend::get().device;
+    unmap(device);
   }
 
   VKDiscardPool::discard_pool_get().discard_buffer(vk_buffer_, allocation_);
@@ -244,7 +247,7 @@ void VKBuffer::free_immediately(VKDevice &device)
   BLI_assert(vk_buffer_ != VK_NULL_HANDLE);
   BLI_assert(allocation_ != VK_NULL_HANDLE);
   if (is_mapped()) {
-    unmap();
+    unmap(device);
   }
   device.resources.remove_buffer(vk_buffer_);
   vmaDestroyBuffer(device.mem_allocator_get(), vk_buffer_, allocation_);

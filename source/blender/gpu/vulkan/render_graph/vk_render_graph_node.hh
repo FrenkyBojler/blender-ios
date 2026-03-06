@@ -10,6 +10,7 @@
 
 #include "nodes/vk_begin_query_node.hh"
 #include "nodes/vk_begin_rendering_node.hh"
+#include "nodes/vk_buffer_synchronization_node.hh"
 #include "nodes/vk_blit_image_node.hh"
 #include "nodes/vk_clear_attachments_node.hh"
 #include "nodes/vk_clear_color_image_node.hh"
@@ -87,6 +88,7 @@ struct VKRenderGraphNode {
   VKNodeType type;
   union {
     VKBeginQueryNode::Data begin_query;
+    VKBufferSynchronizationNode::Data buffer_synchronization;
     VKClearColorImageNode::Data clear_color_image;
     VKClearDepthStencilImageNode::Data clear_depth_stencil_image;
     VKCopyBufferNode::Data copy_buffer;
@@ -163,6 +165,8 @@ struct VKRenderGraphNode {
         return VKBeginQueryNode::pipeline_stage;
       case VKNodeType::BEGIN_RENDERING:
         return VKBeginRenderingNode::pipeline_stage;
+      case VKNodeType::BUFFER_SYNCHRONIZATION:
+        return VKBufferSynchronizationNode::pipeline_stage;
       case VKNodeType::CLEAR_ATTACHMENTS:
         return VKClearAttachmentsNode::pipeline_stage;
       case VKNodeType::CLEAR_COLOR_IMAGE:
@@ -244,6 +248,7 @@ struct VKRenderGraphNode {
 
         BUILD_COMMANDS(VKNodeType::BEGIN_QUERY, VKBeginQueryNode, begin_query)
         BUILD_COMMANDS_STORAGE(VKNodeType::BEGIN_RENDERING, VKBeginRenderingNode, begin_rendering)
+        BUILD_COMMANDS(VKNodeType::BUFFER_SYNCHRONIZATION, VKBufferSynchronizationNode, buffer_synchronization)
         BUILD_COMMANDS_STORAGE(
             VKNodeType::CLEAR_ATTACHMENTS, VKClearAttachmentsNode, clear_attachments)
         BUILD_COMMANDS(VKNodeType::CLEAR_COLOR_IMAGE, VKClearColorImageNode, clear_color_image)
@@ -309,6 +314,7 @@ struct VKRenderGraphNode {
       case VKNodeType::BLIT_IMAGE:
       case VKNodeType::RESET_QUERY_POOL:
       case VKNodeType::SYNCHRONIZATION:
+      case VKNodeType::BUFFER_SYNCHRONIZATION:
       case VKNodeType::UPDATE_MIPMAPS:
       case VKNodeType::DISPATCH:
       case VKNodeType::DISPATCH_INDIRECT:

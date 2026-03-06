@@ -152,7 +152,9 @@ void VKContext::flush()
 {
   /* Submit when flushing to avoid out-of-memory errors and TDRs when more and more commands are
    * added in background mode without ever submitting work to the GPU. */
-  flush_render_graph(RenderGraphFlushFlags::SUBMIT | RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
+  flush_render_graph(RenderGraphFlushFlags::SUBMIT | RenderGraphFlushFlags::RENEW_RENDER_GRAPH,
+                     thread_data().wait_stage,
+                     thread_data().wait_render_graph_semaphore_get_and_reset());
 }
 
 TimelineValue VKContext::flush_render_graph(RenderGraphFlushFlags flags,
@@ -191,6 +193,10 @@ TimelineValue VKContext::flush_render_graph(RenderGraphFlushFlags flags,
       std::string str_group = group;
       render_graph_.value().get().debug_group_begin(str_group.c_str(),
                                                     debug::get_debug_group_color(str_group));
+    }
+    if (has_active_framebuffer()) {
+      VKFrameBuffer &framebuffer = *active_framebuffer_get();
+      framebuffer.rendering_ensure(*this);
     }
   }
   return timeline;
@@ -429,9 +435,12 @@ void VKContext::swap_buffer_draw_handler(const GHOST_VulkanSwapChainData &swap_c
 
   /* When swapchain is invalid/minimized we only flush the render graph to free GPU resources. */
   if (!do_blit_to_swapchain) {
-    flush_render_graph(RenderGraphFlushFlags::SUBMIT | RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
+    flush_render_graph(RenderGraphFlushFlags::SUBMIT | RenderGraphFlushFlags::RENEW_RENDER_GRAPH,
+                       thread_data().wait_stage,
+                       thread_data().wait_render_graph_semaphore_get_and_reset());
     return;
   }
+  flush();
 
   VKDevice &device = VKBackend::get().device;
   render_graph::VKRenderGraph &render_graph = this->render_graph();
@@ -570,8 +579,10 @@ void VKContext::openxr_acquire_framebuffer_image_handler(GHOST_VulkanOpenXRData 
 
     case GHOST_kVulkanXRModeFD: {
       flush_render_graph(RenderGraphFlushFlags::SUBMIT |
-                         RenderGraphFlushFlags::WAIT_FOR_COMPLETION |
-                         RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
+                             RenderGraphFlushFlags::WAIT_FOR_COMPLETION |
+                             RenderGraphFlushFlags::RENEW_RENDER_GRAPH,
+                         thread_data().wait_stage,
+                         thread_data().wait_render_graph_semaphore_get_and_reset());
       if (openxr_data.gpu.vk_image_blender != color_attachment->vk_image_handle()) {
         VKMemoryExport exported_memory = color_attachment->export_memory(
             VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT);
@@ -587,8 +598,10 @@ void VKContext::openxr_acquire_framebuffer_image_handler(GHOST_VulkanOpenXRData 
 
     case GHOST_kVulkanXRModeWin32: {
       flush_render_graph(RenderGraphFlushFlags::SUBMIT |
-                         RenderGraphFlushFlags::WAIT_FOR_COMPLETION |
-                         RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
+                             RenderGraphFlushFlags::WAIT_FOR_COMPLETION |
+                             RenderGraphFlushFlags::RENEW_RENDER_GRAPH,
+                         thread_data().wait_stage,
+                         thread_data().wait_render_graph_semaphore_get_and_reset());
       if (openxr_data.gpu.vk_image_blender != color_attachment->vk_image_handle()) {
         VKMemoryExport exported_memory = color_attachment->export_memory(
             VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT);

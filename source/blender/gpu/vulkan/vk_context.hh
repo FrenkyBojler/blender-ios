@@ -86,6 +86,15 @@ class VKContext : public Context, NonCopyable {
     return render_graph_.value().get();
   }
 
+  const VKThreadData &thread_data() const
+  {
+    return thread_data_.value();
+  }
+  VKThreadData &thread_data()
+  {
+    return thread_data_.value();
+  }
+
   VKContext(GHOST_IWindow *ghost_window, GHOST_IContext *ghost_context);
   virtual ~VKContext();
 

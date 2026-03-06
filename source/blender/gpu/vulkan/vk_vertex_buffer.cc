@@ -81,11 +81,8 @@ void VKVertexBuffer::update_sub(uint start_offset, uint data_size_in_bytes, cons
     buffer_.update_sub_immediately(start_offset, data_size_in_bytes, data);
   }
   else {
-    VKContext &context = *VKContext::get();
-    VKStagingBuffer staging_buffer(
-        buffer_, VKStagingBuffer::Direction::HostToDevice, start_offset, data_size_in_bytes);
-    memcpy(staging_buffer.host_buffer_get().mapped_memory_get(), data, data_size_in_bytes);
-    staging_buffer.copy_to_device(context);
+    VKStagingBuffer staging_buffer(buffer_, VKStagingBuffer::Direction::HostToDevice, start_offset, data_size_in_bytes);
+    staging_buffer.copy_to_device(data);
   }
 }
 
@@ -99,11 +96,10 @@ void VKVertexBuffer::read(void *data) const
 
   /* Allocating huge buffers can fail, in that case we skip copying data. */
   if (buffer_.is_allocated()) {
-    VKStagingBuffer staging_buffer(buffer_, VKStagingBuffer::Direction::DeviceToHost);
-    VKBuffer &buffer = staging_buffer.host_buffer_get();
-    if (buffer.is_mapped()) {
-      staging_buffer.copy_from_device(context);
-      staging_buffer.host_buffer_get().read(context, data);
+    VKStagingBuffer staging_buffer(buffer_, VKStagingBuffer::Direction::HostToDevice);
+    if (staging_buffer.is_mapped()) {
+      staging_buffer.copy_from_device();
+      staging_buffer.read(data);
     }
     else {
       CLOG_ERROR(
@@ -151,16 +147,15 @@ void VKVertexBuffer::upload_data_direct(const VKBuffer &host_buffer)
   host_buffer.update_immediately(data_);
 }
 
-void VKVertexBuffer::upload_data_via_staging_buffer(VKContext &context)
+void VKVertexBuffer::upload_data_via_staging_buffer()
 {
   VKStagingBuffer staging_buffer(
       buffer_, VKStagingBuffer::Direction::HostToDevice, 0, this->size_used_get());
-  VKBuffer &buffer = staging_buffer.host_buffer_get();
-  if (buffer.is_allocated()) {
-    upload_data_direct(buffer);
-    staging_buffer.copy_to_device(context);
+  if (staging_buffer.is_allocated()) {
+    staging_buffer.copy_to_device(data_);
   }
   else {
+    VKContext &context = *VKContext::get();
     CLOG_ERROR(&LOG,
                "Unable to upload data to vertex buffer via a staging buffer as the staging buffer "
                "could not be allocated. Vertex buffer will be filled with on zeros to reduce "
@@ -189,8 +184,7 @@ void VKVertexBuffer::upload_data()
       upload_data_direct(buffer_);
     }
     else {
-      VKContext &context = *VKContext::get();
-      upload_data_via_staging_buffer(context);
+      upload_data_via_staging_buffer();
     }
     if (usage_ == GPU_USAGE_STATIC) {
       MEM_SAFE_DELETE(data_);

@@ -16,9 +16,11 @@ namespace blender::gpu {
 void VKFence::signal()
 {
   VKContext &context = *VKContext::get();
-  timeline_value_ = context.flush_render_graph(RenderGraphFlushFlags::SUBMIT |
-                                               RenderGraphFlushFlags::WAIT_FOR_SUBMISSION |
-                                               RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
+  timeline_value_ = context.flush_render_graph(
+      RenderGraphFlushFlags::SUBMIT | RenderGraphFlushFlags::WAIT_FOR_SUBMISSION |
+          RenderGraphFlushFlags::RENEW_RENDER_GRAPH,
+      context.thread_data().wait_stage,
+      context.thread_data().wait_render_graph_semaphore_get_and_reset());
 }
 
 void VKFence::wait()

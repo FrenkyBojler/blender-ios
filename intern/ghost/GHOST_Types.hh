@@ -976,8 +976,29 @@ struct GHOST_VulkanHandles {
   uint32_t graphic_queue_family;
   /** The queue handle. */
   VkQueue queue;
+  /** The graphics queue index */
+  uint32_t graphics_queue_index;
+  /** The graphics queue family id */
+  uint32_t graphics_queue_family;
+  /** The graphics queue handle */
+  VkQueue graphics_queue;
+  /** The compute queue index */
+  uint32_t compute_queue_index;
+  /** The compute queue family id */
+  uint32_t compute_queue_family;
+  /** The compute queue handle */
+  VkQueue compute_queue;
+  /** The transfer queue index */
+  uint32_t transfer_queue_index;
+  /** The transfer queue family id. */
+  uint32_t transfer_queue_family;
+  /** The transfer queue handle. */
+  VkQueue transfer_queue;
   /** The #std::mutex mutex. */
-  void *queue_mutex;
+  void *generic_queue_mutex;
+  void *graphics_queue_mutex;
+  void *compute_queue_mutex;
+  void *transfer_queue_mutex;
   /** Vulkan memory allocator of the device. */
   VmaAllocator vma_allocator;
 };

@@ -295,8 +295,10 @@ void VKTexture::read_sub(
 
   /* Submit and wait for the transfers to be completed. */
   context.flush_render_graph(RenderGraphFlushFlags::SUBMIT |
-                             RenderGraphFlushFlags::RENEW_RENDER_GRAPH |
-                             RenderGraphFlushFlags::WAIT_FOR_COMPLETION);
+                                 RenderGraphFlushFlags::RENEW_RENDER_GRAPH |
+                                 RenderGraphFlushFlags::WAIT_FOR_COMPLETION,
+                             context.thread_data().wait_stage,
+                             context.thread_data().wait_render_graph_semaphore_get_and_reset());
 
   /* Convert the data to r_data. */
   for (int index : transfer_regions.index_range()) {

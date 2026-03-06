@@ -72,7 +72,7 @@ static CLG_LogRef LOG = {"ghost.context"};
 void GHOST_SwapchainImage::destroy(VkDevice vk_device)
 {
   vkDestroySemaphore(vk_device, present_semaphore, nullptr);
-  present_semaphore = VK_NULL_HANDLE;
+  present_semaphore = VK_NULL_HANDLE; 
   vk_image = VK_NULL_HANDLE;
 }
 
@@ -196,8 +196,25 @@ class GHOST_DeviceVK {
 
   VkDevice vk_device = VK_NULL_HANDLE;
 
-  uint32_t generic_queue_family = 0;
+  uint32_t generic_queue_index = 0;
+  uint32_t generic_queue_count = 0;
+  uint32_t generic_queue_family = VK_QUEUE_FAMILY_IGNORED;
   VkQueue generic_queue = VK_NULL_HANDLE;
+
+  uint32_t graphics_queue_index;
+  uint32_t graphics_queue_count;
+  uint32_t graphics_queue_family = VK_QUEUE_FAMILY_IGNORED;
+  VkQueue graphics_queue = VK_NULL_HANDLE;
+
+  uint32_t compute_queue_index;
+  uint32_t compute_queue_count;
+  uint32_t compute_queue_family = VK_QUEUE_FAMILY_IGNORED;
+  VkQueue compute_queue = VK_NULL_HANDLE;
+
+  uint32_t transfer_queue_index = 0;
+  uint32_t transfer_queue_family = VK_QUEUE_FAMILY_IGNORED;
+  VkQueue transfer_queue = VK_NULL_HANDLE;
+
   VmaAllocator vma_allocator = VK_NULL_HANDLE;
 
   VkPhysicalDeviceProperties2 properties = {
@@ -215,7 +232,10 @@ class GHOST_DeviceVK {
   int users = 0;
 
   /** Mutex to externally synchronize access to queue. */
-  std::mutex queue_mutex;
+  std::mutex generic_queue_mutex;
+  std::mutex graphics_queue_mutex;
+  std::mutex compute_queue_mutex;
+  std::mutex transfer_queue_mutex;
 
   bool use_vk_ext_swapchain_maintenance_1 = false;
   bool use_vk_ext_swapchain_colorspace = false;
@@ -267,37 +287,128 @@ class GHOST_DeviceVK {
   void wait_idle()
   {
     if (vk_device) {
-      std::scoped_lock lock(queue_mutex);
+      std::scoped_lock lock(generic_queue_mutex);
       vkDeviceWaitIdle(vk_device);
     }
   }
 
-  void init_generic_queue_family()
+  void init_queue_families()
   {
-    uint32_t queue_family_count = 0;
-    vkGetPhysicalDeviceQueueFamilyProperties(vk_physical_device, &queue_family_count, nullptr);
+    uint32_t queue_families_count = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(vk_physical_device, &queue_families_count, nullptr);
 
-    vector<VkQueueFamilyProperties> queue_families(queue_family_count);
+    std::vector<VkQueueFamilyProperties> queue_families(queue_families_count);
     vkGetPhysicalDeviceQueueFamilyProperties(
-        vk_physical_device, &queue_family_count, queue_families.data());
+        vk_physical_device, &queue_families_count, queue_families.data());
 
-    generic_queue_family = 0;
-    for (const VkQueueFamilyProperties &queue_family : queue_families) {
-      /* Every VULKAN implementation by spec must have one queue family that support both graphics
-       * and compute pipelines. We select this one; compute only queue family hints at asynchronous
-       * compute implementations. */
-      if ((queue_family.queueFlags & VK_QUEUE_GRAPHICS_BIT) &&
-          (queue_family.queueFlags & VK_QUEUE_COMPUTE_BIT))
-      {
-        return;
+    std::optional<uint32_t> dedicated_graphics;
+    std::optional<uint32_t> dedicated_compute;
+    std::optional<uint32_t> dedicated_transfer;
+    std::optional<uint32_t> universal_gc;
+
+    generic_queue_family = UINT32_MAX;
+    graphics_queue_family = UINT32_MAX;
+    compute_queue_family = UINT32_MAX;
+    transfer_queue_family = UINT32_MAX;
+
+    for (uint32_t i = 0; i < queue_families_count; ++i) {
+      const VkQueueFlags &flags = queue_families[i].queueFlags;
+
+      bool graphics = flags & VK_QUEUE_GRAPHICS_BIT;
+      bool compute = flags & VK_QUEUE_COMPUTE_BIT;
+      bool transfer = flags & VK_QUEUE_TRANSFER_BIT;
+
+      if (graphics && compute && generic_queue_family == UINT32_MAX) {
+        generic_queue_family = i;
       }
-      generic_queue_family++;
+
+      if (graphics && !compute && !dedicated_graphics.has_value()) {
+        dedicated_graphics = i;
+      }
+
+      if (compute && !graphics && !dedicated_compute.has_value()) {
+        dedicated_compute = i;
+      }
+      if (transfer && !graphics && !compute && !dedicated_transfer.has_value()) {
+        dedicated_transfer = i;
+      }
+
+      /* Check if there is another generic queue to fallback */
+      if (graphics && compute && i != generic_queue_family && !universal_gc.has_value()) {
+        universal_gc = i;
+      }
     }
+
+    if (dedicated_graphics.has_value()) {
+      graphics_queue_family = dedicated_graphics.value();
+    }
+    else if (universal_gc.has_value()) {
+      graphics_queue_family = universal_gc.value();
+    }
+    else {
+      graphics_queue_family = generic_queue_family;
+    }
+
+    if (dedicated_compute.has_value()) {
+      compute_queue_family = dedicated_compute.value();
+    }
+    else if (universal_gc.has_value()) {
+      compute_queue_family = universal_gc.value();
+    }
+    else {
+      compute_queue_family = generic_queue_family;
+    }
+
+    /* By Vulkan spec a queue supports VK_QUEUE_TRANSFER_BIT if it supports VK_QUEUE_GRAPHICS_BIT
+     * or VK_QUEUE_COMPUTE_BIT and in this case VK_QUEUE_TRANSFER_BIT is optional to specify by a
+     * driver.
+     * https:docs.vulkan.org/refpages/latest/refpages/source/VkQueueFlagBits.html
+     */
+    if (dedicated_transfer.has_value()) {
+      transfer_queue_family = dedicated_transfer.value();
+    }
+    else if (dedicated_compute.has_value()) {
+      transfer_queue_family = dedicated_compute.value();
+    }
+    else if (universal_gc.has_value()) {
+      transfer_queue_family = universal_gc.value();
+    }
+    else {
+      transfer_queue_family = generic_queue_family;
+    }
+
+    std::unordered_map<uint32_t, uint32_t> family_usage;
+
+    /** We choose the last queue index from the fallback queue. It means that if there are no
+     * dedicated and universal queues then the generic queue family is used.
+     * 
+     * For example, if the generic queue family stores only queue (queueCount = 1) then graphics,
+     * compute, transfer queues and the generic queue are the same.
+     */
+    auto allocate_index = [&](uint32_t family) -> uint32_t {
+      uint32_t &used = family_usage[family];
+      uint32_t capacity = queue_families[family].queueCount;
+
+      if (used < capacity) {
+        return used++;
+      }
+      else {
+        return capacity - 1;
+      }
+    };
+
+    generic_queue_index = allocate_index(generic_queue_family);
+    graphics_queue_index = allocate_index(graphics_queue_family);
+    compute_queue_index = allocate_index(compute_queue_family);
+    transfer_queue_index = allocate_index(transfer_queue_family);
   }
 
-  void init_generic_queue()
+  void init_queues()
   {
     vkGetDeviceQueue(vk_device, generic_queue_family, 0, &generic_queue);
+    vkGetDeviceQueue(vk_device, graphics_queue_family, graphics_queue_index, &graphics_queue);
+    vkGetDeviceQueue(vk_device, compute_queue_family, compute_queue_index, &compute_queue);
+    vkGetDeviceQueue(vk_device, transfer_queue_family, transfer_queue_index, &transfer_queue);
   }
 
   void init_memory_allocator(VkInstance vk_instance)
@@ -365,16 +476,28 @@ struct GHOST_InstanceVK {
                                              "Blender",
                                              VK_MAKE_VERSION(1, 0, 0),
                                              vulkan_api_version};
+
+    const char *layers[] = {"VK_LAYER_KHRONOS_validation"};
+    VkValidationFeatureEnableEXT enables[] = {
+        VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT,
+        VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT,
+        VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT,
+        VK_VALIDATION_FEATURE_ENABLE_SYNCHRONIZATION_VALIDATION_EXT,
+        VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT
+    };
+    VkValidationFeaturesEXT validation_features{};
+    validation_features.sType = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT;
+    validation_features.pNext = nullptr;
+    validation_features.enabledValidationFeatureCount = std::size(enables);
+    validation_features.pEnabledValidationFeatures = enables;
     VkInstanceCreateInfo vk_instance_create_info = {VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
-                                                    nullptr,
+                                                    &validation_features,
                                                     0,
                                                     &vk_application_info,
-                                                    0,
-                                                    nullptr,
+                                                    1,
+                                                    layers,
                                                     uint32_t(extensions.enabled.size()),
-                                                    extensions.enabled.data()
-
-    };
+                                                    extensions.enabled.data()};
 
     VK_CHECK(vkCreateInstance(&vk_instance_create_info, nullptr, &vk_instance), false);
     return true;
@@ -494,16 +617,35 @@ struct GHOST_InstanceVK {
       device.extensions.disable(VK_EXT_VERTEX_INPUT_DYNAMIC_STATE_EXTENSION_NAME);
     }
 
-    device.init_generic_queue_family();
+    device.init_queue_families();
 
-    float queue_priorities[] = {1.0f};
-    vector<VkDeviceQueueCreateInfo> queue_create_infos;
-    VkDeviceQueueCreateInfo graphic_queue_create_info = {};
-    graphic_queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-    graphic_queue_create_info.queueFamilyIndex = device.generic_queue_family;
-    graphic_queue_create_info.queueCount = 1;
-    graphic_queue_create_info.pQueuePriorities = queue_priorities;
-    queue_create_infos.push_back(graphic_queue_create_info);
+    float queue_priorities[] = {1.0f, 1.0f, 1.0f, 1.0f};
+
+    std::vector<VkDeviceQueueCreateInfo> queue_create_infos;
+    std::unordered_map<uint32_t, uint32_t> family_counts;
+
+    /* Create unique queues. The generic queue is priority. */
+    family_counts[device.generic_queue_family] = std::max(
+        family_counts[device.generic_queue_family], device.generic_queue_index + 1);
+
+    family_counts[device.graphics_queue_family] = std::max(
+        family_counts[device.graphics_queue_family], device.graphics_queue_index + 1);
+
+    family_counts[device.compute_queue_family] = std::max(
+        family_counts[device.compute_queue_family], device.compute_queue_index + 1);
+
+    family_counts[device.transfer_queue_family] = std::max(
+        family_counts[device.transfer_queue_family], device.transfer_queue_index + 1);
+
+    VkDeviceQueueCreateInfo queue_create_info = {};
+    queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    queue_create_info.pQueuePriorities = queue_priorities;
+
+    for (const std::pair<uint32_t, uint32_t> &queue_family_and_index : family_counts) {
+      queue_create_info.queueFamilyIndex = queue_family_and_index.first;
+      queue_create_info.queueCount = queue_family_and_index.second;
+      queue_create_infos.push_back(queue_create_info);
+    }
 
     VkPhysicalDeviceFeatures device_features = {};
 #ifndef __APPLE__
@@ -594,6 +736,12 @@ struct GHOST_InstanceVK {
       feature_struct_ptr.push_back(&maintenance_4);
     }
 
+    VkPhysicalDeviceMaintenance8FeaturesKHR maintenance_8{
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_8_FEATURES_KHR, nullptr, VK_TRUE};
+    if (device.extensions.is_enabled(VK_KHR_MAINTENANCE_8_EXTENSION_NAME)) {
+      feature_struct_ptr.push_back(&maintenance_8);
+    }
+
     /* Swap-chain maintenance 1 is optional. */
     VkPhysicalDeviceSwapchainMaintenance1FeaturesEXT swapchain_maintenance_1 = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SWAPCHAIN_MAINTENANCE_1_FEATURES_EXT, nullptr, VK_TRUE};
@@ -677,7 +825,7 @@ struct GHOST_InstanceVK {
     device_create_info.pNext = feature_struct_ptr[0];
     VK_CHECK(vkCreateDevice(vk_physical_device, &device_create_info, nullptr, &device.vk_device),
              GHOST_kFailure);
-    device.init_generic_queue();
+    device.init_queues();
     device.init_memory_allocator(vk_instance);
     return true;
   }
@@ -988,7 +1136,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferRelease()
 
   VkResult present_result = VK_SUCCESS;
   {
-    std::scoped_lock lock(device_vk.queue_mutex);
+    std::scoped_lock lock(device_vk.generic_queue_mutex);
     VkSwapchainPresentFenceInfoEXT fence_info{VK_STRUCTURE_TYPE_SWAPCHAIN_PRESENT_FENCE_INFO_EXT};
     VkFence present_fence = VK_NULL_HANDLE;
     if (device_vk.use_vk_ext_swapchain_maintenance_1) {
@@ -1035,9 +1183,21 @@ GHOST_TSuccess GHOST_ContextVK::getVulkanHandles(GHOST_VulkanHandles &r_handles)
       VK_NULL_HANDLE, /* instance */
       VK_NULL_HANDLE, /* physical_device */
       VK_NULL_HANDLE, /* device */
-      0,              /* queue_family */
-      VK_NULL_HANDLE, /* queue */
-      nullptr,        /* queue_mutex */
+      0,              /* generic_queue_family */
+      VK_NULL_HANDLE, /* generic_queue */
+      0,              /* graphics_queue_index */
+      0,              /* graphics_queue_family */
+      VK_NULL_HANDLE, /* graphics_queue */
+      0,              /* compute_queue_index */
+      0,              /* compute_queue_family */
+      VK_NULL_HANDLE, /* compute_queue */
+      0,              /* transfer_queue_index */
+      0,              /* transfer_queue_family */
+      VK_NULL_HANDLE, /* transfer_queue */
+      nullptr,        /* generic_queue_mutex */
+      nullptr,        /* graphics_queue_mutex */
+      nullptr,        /* compute_queue_mutex */
+      nullptr,        /* transfer_queue_mutex */
       VK_NULL_HANDLE, /* vma_allocator */
   };
 
@@ -1050,9 +1210,64 @@ GHOST_TSuccess GHOST_ContextVK::getVulkanHandles(GHOST_VulkanHandles &r_handles)
         device_vk.vk_device,
         device_vk.generic_queue_family,
         device_vk.generic_queue,
-        &device_vk.queue_mutex,
+        device_vk.graphics_queue_index,
+        device_vk.graphics_queue_family,
+        device_vk.graphics_queue,
+        device_vk.compute_queue_index,
+        device_vk.compute_queue_family,
+        device_vk.compute_queue,
+        device_vk.transfer_queue_index,
+        device_vk.transfer_queue_family,
+        device_vk.transfer_queue,
+        &device_vk.generic_queue_mutex,
+        &device_vk.graphics_queue_mutex,
+        &device_vk.compute_queue_mutex,
+        &device_vk.transfer_queue_mutex,
         device_vk.vma_allocator,
     };
+    r_handles.generic_queue_mutex = &device_vk.generic_queue_mutex;
+
+    if (device_vk.graphics_queue_family == device_vk.generic_queue_family &&
+        device_vk.graphics_queue_index == device_vk.generic_queue_index)
+    {
+      r_handles.graphics_queue_mutex = &device_vk.generic_queue_mutex;
+    }
+    else {
+      r_handles.graphics_queue_mutex = &device_vk.graphics_queue_mutex;
+    }
+
+    if (device_vk.compute_queue_family == device_vk.generic_queue_family &&
+        device_vk.compute_queue_index == device_vk.generic_queue_index)
+    {
+      r_handles.compute_queue_mutex = &device_vk.generic_queue_mutex;
+    }
+    else if (device_vk.compute_queue_family == device_vk.graphics_queue_family &&
+             device_vk.compute_queue_index == device_vk.graphics_queue_index)
+    {
+      r_handles.compute_queue_mutex = r_handles.graphics_queue_mutex;
+    }
+    else {
+      r_handles.compute_queue_mutex = &device_vk.compute_queue_mutex;
+    }
+
+    if (device_vk.transfer_queue_family == device_vk.generic_queue_family &&
+        device_vk.transfer_queue_index == device_vk.generic_queue_index)
+    {
+      r_handles.transfer_queue_mutex = &device_vk.generic_queue_mutex;
+    }
+    else if (device_vk.transfer_queue_family == device_vk.graphics_queue_family &&
+             device_vk.transfer_queue_index == device_vk.graphics_queue_index)
+    {
+      r_handles.transfer_queue_mutex = r_handles.graphics_queue_mutex;
+    }
+    else if (device_vk.transfer_queue_family == device_vk.compute_queue_family &&
+             device_vk.transfer_queue_index == device_vk.compute_queue_index)
+    {
+      r_handles.transfer_queue_mutex = r_handles.compute_queue_mutex;
+    }
+    else {
+      r_handles.transfer_queue_mutex = &device_vk.transfer_queue_mutex;
+    }
   }
 
   return GHOST_kSuccess;
@@ -1657,6 +1872,8 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
     /* VK_EXT_host_image_copy isn't supported by Renderdoc and also isn't working as expected. */
     optional_device_extensions.append(VK_EXT_HOST_IMAGE_COPY_EXTENSION_NAME);
 #endif
+    /* Use to optimize queue family ownership transfer. */
+    optional_device_extensions.append(VK_KHR_MAINTENANCE_8_EXTENSION_NAME);
 
 #ifdef WITH_XR_OPENXR
     optional_device_extensions.extend({

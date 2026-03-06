@@ -23,6 +23,7 @@ enum class VKNodeType {
   UNUSED,
   BEGIN_QUERY,
   BEGIN_RENDERING,
+  BUFFER_SYNCHRONIZATION,
   BLIT_IMAGE,
   CLEAR_ATTACHMENTS,
   CLEAR_COLOR_IMAGE,
@@ -121,6 +122,9 @@ BLI_INLINE std::ostream &operator<<(std::ostream &os, const VKNodeType node_type
     case VKNodeType::UPDATE_MIPMAPS:
       os << "UPDATE_MIPMAPS";
       break;
+    case VKNodeType::BUFFER_SYNCHRONIZATION:
+      os << "BUFFER_SYNCHRONIZATION";
+      break;
   }
   return os;
 }
@@ -173,7 +177,7 @@ class VKNodeInfo : public NonCopyable {
    * Which pipeline stage does this command belongs to. The pipeline stage is used when generating
    * pipeline barriers.
    */
-  static constexpr VkPipelineStageFlags pipeline_stage = PipelineStage;
+  static inline VkPipelineStageFlags pipeline_stage = PipelineStage;
 
   /**
    * Which resource types are relevant. Some code can be skipped when a node can only depend on

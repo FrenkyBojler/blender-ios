@@ -127,6 +127,13 @@ struct VKWorkarounds {
  * Shared resources between contexts that run in the same thread.
  */
 class VKThreadData : public NonCopyable, NonMovable {
+ private:
+  /**
+   * The last semaphore that has been signaled in order to be waited for the next
+   * flush_render_graph submission.
+   */
+  VkSemaphore wait_render_graph_semaphore;
+
  public:
   /** Thread ID this instance belongs to. */
   pthread_t thread_id;
@@ -143,6 +150,18 @@ class VKThreadData : public NonCopyable, NonMovable {
    */
   int32_t rendering_depth = 0;
 
+  /**
+   * Get the semaphore and resets its value
+   */
+  VkSemaphore wait_render_graph_semaphore_get_and_reset();
+
+  /**
+   * Set the semaphore that flush_render_graph has to wait for
+   */
+  void wait_render_graph_semaphore_set(VkSemaphore wait_semaphore);
+
+  VkPipelineStageFlags wait_stage;
+
   VKThreadData(VKDevice &device, pthread_t thread_id);
 };
 
@@ -152,9 +171,18 @@ class VKDevice : public NonCopyable {
   VkInstance vk_instance_ = VK_NULL_HANDLE;
   VkPhysicalDevice vk_physical_device_ = VK_NULL_HANDLE;
   VkDevice vk_device_ = VK_NULL_HANDLE;
-  uint32_t vk_queue_family_ = 0;
-  VkQueue vk_queue_ = VK_NULL_HANDLE;
-  std::mutex *queue_mutex_ = nullptr;
+  uint32_t vk_generic_queue_family_ = 0;
+  VkQueue vk_generic_queue_ = VK_NULL_HANDLE;
+  uint32_t vk_graphics_queue_index_ = 0;
+  uint32_t vk_graphics_queue_family_ = 0;
+  VkQueue vk_graphics_queue_ = VK_NULL_HANDLE;
+  uint32_t vk_compute_queue_index_ = 0;
+  uint32_t vk_compute_queue_family_ = 0;
+  VkQueue vk_compute_queue_ = VK_NULL_HANDLE;
+  uint32_t vk_transfer_queue_index_ = 0;
+  uint32_t vk_transfer_queue_family_ = 0;
+  VkQueue vk_transfer_queue_ = VK_NULL_HANDLE;
+  std::mutex *generic_queue_mutex_ = nullptr;
 
   bool is_initialized_ = false;
 
@@ -238,6 +266,10 @@ class VKDevice : public NonCopyable {
 
   /** Buffer to bind to unbound resource locations. */
   VKBuffer dummy_buffer;
+
+  std::mutex *graphics_queue_mutex = nullptr;
+  std::mutex *compute_queue_mutex = nullptr;
+  std::mutex *transfer_queue_mutex = nullptr;
 
   /**
    * This struct contains the functions pointer to extension provided functions.
@@ -337,9 +369,39 @@ class VKDevice : public NonCopyable {
     return vk_device_;
   }
 
-  uint32_t queue_family_get() const
+  uint32_t generic_queue_family_get() const
   {
-    return vk_queue_family_;
+    return vk_generic_queue_family_;
+  }
+
+  uint32_t transfer_queue_family_get() const
+  {
+    return vk_transfer_queue_family_;
+  }
+
+  uint32_t graphics_queue_index_get() const
+  {
+    return vk_transfer_queue_index_;
+  }
+
+  uint32_t graphics_queue_family_get() const
+  {
+    return vk_transfer_queue_family_;
+  }
+
+  uint32_t compute_queue_index_get() const
+  {
+    return vk_transfer_queue_index_;
+  }
+
+  uint32_t compute_queue_family_get() const
+  {
+    return vk_transfer_queue_family_;
+  }
+
+  uint32_t transfer_queue_index_get() const
+  {
+    return vk_transfer_queue_index_;
   }
 
   inline VmaAllocator mem_allocator_get() const

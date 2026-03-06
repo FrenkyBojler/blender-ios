@@ -15,6 +15,10 @@
 
 namespace blender::gpu::render_graph {
 
+void VKCommandBuilder::init(bool is_maintenance_8_supported)
+{
+  is_maintenance_8_supported_ = is_maintenance_8_supported;
+}
 /* -------------------------------------------------------------------- */
 /** \name Build nodes
  * \{ */
@@ -440,8 +444,6 @@ void VKCommandBuilder::send_pipeline_barriers(VKCommandBufferInterface &command_
   /* When no resources have been used, we can start the barrier at the top of the pipeline.
    * It is not allowed to set it to None. */
   /* TODO: VK_KHR_synchronization2 allows setting src_stage_mask to NONE. */
-  /* When no resources have been used, we can start the barrier at the top of the pipeline.
-   * It is not allowed to set it to None. */
   VkPipelineStageFlags src_stage_mask = (barrier.src_stage_mask == VK_PIPELINE_STAGE_NONE) ?
                                             VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT :
                                             VkPipelineStageFlagBits(barrier.src_stage_mask);
@@ -464,9 +466,15 @@ void VKCommandBuilder::send_pipeline_barriers(VKCommandBufferInterface &command_
   Span<VkImageMemoryBarrier> image_barriers = vk_image_memory_barriers_.as_span().slice(
       barrier.image_memory_barriers);
 
+  VkDependencyFlags dependency =
+      VK_DEPENDENCY_BY_REGION_BIT |
+      (is_maintenance_8_supported_ ?
+           VK_DEPENDENCY_QUEUE_FAMILY_OWNERSHIP_TRANSFER_USE_ALL_STAGES_BIT_KHR :
+           0);
+
   command_buffer.pipeline_barrier(src_stage_mask,
                                   dst_stage_mask,
-                                  VK_DEPENDENCY_BY_REGION_BIT,
+                                  dependency,
                                   0,
                                   nullptr,
                                   buffer_barriers.size(),
@@ -503,7 +511,8 @@ void VKCommandBuilder::add_buffer_read_barriers(VKRenderGraph &render_graph,
     const bool is_first_read = resource_state.is_new_stamp();
     if (!is_first_read &&
         (resource_state.vk_access & link.vk_access_flags) == link.vk_access_flags &&
-        (resource_state.vk_pipeline_stages & node_stages) == node_stages)
+        (resource_state.vk_pipeline_stages & node_stages) == node_stages &&
+        (link.src_queue_family == link.dst_queue_family))
     {
       /* Has already been covered in a previous call no need to add this one. */
       continue;
@@ -514,7 +523,9 @@ void VKCommandBuilder::add_buffer_read_barriers(VKRenderGraph &render_graph,
     r_barrier.src_stage_mask |= resource_state.vk_pipeline_stages;
     r_barrier.dst_stage_mask |= node_stages;
 
-    if (is_first_read) {
+    if (is_first_read || link.src_queue_family != VK_QUEUE_FAMILY_IGNORED ||
+        link.dst_queue_family != VK_QUEUE_FAMILY_IGNORED)
+    {
       resource_state.vk_access = link.vk_access_flags;
       resource_state.vk_pipeline_stages = node_stages;
     }
@@ -523,8 +534,13 @@ void VKCommandBuilder::add_buffer_read_barriers(VKRenderGraph &render_graph,
       resource_state.vk_pipeline_stages |= node_stages;
     }
 
-    if (wait_access != VK_ACCESS_NONE) {
-      add_buffer_barrier(resource.buffer.vk_buffer, r_barrier, wait_access, link.vk_access_flags);
+    if (wait_access != VK_ACCESS_NONE || link.src_queue_family != link.dst_queue_family) {
+      add_buffer_barrier(resource.buffer.vk_buffer,
+                         r_barrier,
+                         wait_access,
+                         link.vk_access_flags,
+                         link.src_queue_family,
+                         link.dst_queue_family);
     }
   }
 }
@@ -550,8 +566,13 @@ void VKCommandBuilder::add_buffer_write_barriers(VKRenderGraph &render_graph,
     resource_state.vk_access = link.vk_access_flags;
     resource_state.vk_pipeline_stages = node_stages;
 
-    if (wait_access != VK_ACCESS_NONE) {
-      add_buffer_barrier(resource.buffer.vk_buffer, r_barrier, wait_access, link.vk_access_flags);
+    if (wait_access != VK_ACCESS_NONE || link.src_queue_family != link.dst_queue_family) {
+      add_buffer_barrier(resource.buffer.vk_buffer,
+                         r_barrier,
+                         wait_access,
+                         link.vk_access_flags,
+                         link.src_queue_family,
+                         link.dst_queue_family);
     }
   }
 }
@@ -559,7 +580,9 @@ void VKCommandBuilder::add_buffer_write_barriers(VKRenderGraph &render_graph,
 void VKCommandBuilder::add_buffer_barrier(VkBuffer vk_buffer,
                                           Barrier &r_barrier,
                                           VkAccessFlags src_access_mask,
-                                          VkAccessFlags dst_access_mask)
+                                          VkAccessFlags dst_access_mask,
+                                          uint32_t src_queue_family,
+                                          uint32_t dst_queue_family)
 {
   for (VkBufferMemoryBarrier &vk_buffer_memory_barrier :
        vk_buffer_memory_barriers_.as_mutable_span().drop_front(
@@ -582,12 +605,16 @@ void VKCommandBuilder::add_buffer_barrier(VkBuffer vk_buffer,
     }
   }
 
+  if (dst_queue_family == src_queue_family) {
+    src_queue_family = VK_QUEUE_FAMILY_IGNORED;
+    dst_queue_family = VK_QUEUE_FAMILY_IGNORED;
+  }
   vk_buffer_memory_barriers_.append({VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
                                      nullptr,
                                      src_access_mask,
                                      dst_access_mask,
-                                     VK_QUEUE_FAMILY_IGNORED,
-                                     VK_QUEUE_FAMILY_IGNORED,
+                                     src_queue_family,
+                                     dst_queue_family,
                                      vk_buffer,
                                      0,
                                      VK_WHOLE_SIZE});

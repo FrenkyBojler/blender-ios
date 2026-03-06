@@ -50,7 +50,17 @@ struct VKRenderGraphResource {
   }
 };
 
-struct VKRenderGraphBuffer : public VKRenderGraphResource {};
+struct VKRenderGraphBuffer : public VKRenderGraphResource {
+  /**
+   * The queue family ownership transfer from the source queue
+   */
+  uint32_t src_queue_family = VK_QUEUE_FAMILY_IGNORED;
+
+  /**
+   * The queue family ownership transfer to the destination queue
+   */
+  uint32_t dst_queue_family = VK_QUEUE_FAMILY_IGNORED;
+};
 
 struct VKRenderGraphImage : public VKRenderGraphResource {
   /**

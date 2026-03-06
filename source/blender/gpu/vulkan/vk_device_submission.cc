@@ -61,7 +61,6 @@ TimelineValue VKDevice::render_graph_submit(render_graph::VKRenderGraph *render_
         unused_render_graphs_, render_graph, BLI_THREAD_QUEUE_WORK_PRIORITY_NORMAL);
     return timeline_value_;
   }
-
   /* Syncing input flags. */
   /* When we wait for completion/submission we must submit to device. */
   submit_to_device |= wait_for_completion;
@@ -120,8 +119,8 @@ void VKDevice::wait_for_timeline(TimelineValue timeline)
 
 void VKDevice::wait_queue_idle()
 {
-  std::scoped_lock lock(*queue_mutex_);
-  vkQueueWaitIdle(vk_queue_);
+  std::scoped_lock lock(*generic_queue_mutex_);
+  vkQueueWaitIdle(vk_generic_queue_);
 }
 
 render_graph::VKRenderGraph *VKDevice::render_graph_new()
@@ -149,7 +148,7 @@ void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
       VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
       nullptr,
       VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-      device->vk_queue_family_};
+      device->vk_generic_queue_family_};
   vkCreateCommandPool(device->vk_device_, &vk_command_pool_create_info, nullptr, &vk_command_pool);
 
   render_graph::VKScheduler scheduler;
@@ -249,8 +248,8 @@ void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
       num_nodes = 0;
 
       {
-        std::scoped_lock lock_queue(*device->queue_mutex_);
-        vkQueueSubmit(device->vk_queue_, 1, &vk_submit_info, submit_task->signal_fence);
+        std::scoped_lock lock_queue(*device->generic_queue_mutex_);
+        vkQueueSubmit(device->vk_generic_queue_, 1, &vk_submit_info, submit_task->signal_fence);
       }
       if (submit_task->wait_for_submission != nullptr) {
         std::unique_lock<Mutex> lock(submit_task->wait_for_submission->is_submitted_mutex);
@@ -272,7 +271,7 @@ void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
 
   /* Clear command buffers and pool */
   {
-    std::scoped_lock lock(*device->queue_mutex_);
+    std::scoped_lock lock(*device->generic_queue_mutex_);
     vkDeviceWaitIdle(device->vk_device_);
   }
   command_buffers_in_use.remove_old(UINT64_MAX, [&](VkCommandBuffer vk_command_buffer) {

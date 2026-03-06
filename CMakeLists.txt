@@ -824,27 +824,27 @@ endif()
 option(WITH_GTESTS "Enable GTest unit testing" OFF)
 option(WITH_GPU_RENDER_TESTS "\
 Enable GPU render related unit testing (EEVEE, Workbench and Grease Pencil)"
-  OFF
+  ON
 )
 option(WITH_GPU_RENDER_TESTS_VULKAN "\
 Enable GPU render related unit testing using Vulkan"
-  OFF
+  ON
 )
 mark_as_advanced(WITH_GPU_RENDER_TESTS_VULKAN)
 option(WITH_GPU_RENDER_TESTS_HEADED "\
 Enable GPU render related unit testing that doesn't work in background mode. \
 These tests require an environment with a display server to run. \
 Requires WITH_GPU_RENDER_TESTS "
-  OFF
+  ON
 )
 mark_as_advanced(WITH_GPU_RENDER_TESTS_HEADED)
 option(WITH_GPU_BACKEND_TESTS "\
 Enable GPU backend related unit testing"
-  OFF
+  ON
 )
 option(WITH_GPU_DRAW_TESTS "\
 Enable GPU drawing related unit testing (draw manager)"
-  OFF
+  ON
 )
 option(WITH_GPU_COMPOSITOR_TESTS "Enable regression testing for GPU compositor" OFF)
 option(WITH_GPU_MESH_PAINT_TESTS "\
@@ -894,7 +894,7 @@ option(WITH_TESTS_EXPERIMENTAL "\
 Run tests marked as experimental. \
 These tests are labeled as such due to long runtime, flakey results,
 or other issues that make them unsuitable for blocking a build on."
-  OFF
+  ON
 )
 mark_as_advanced(WITH_TESTS_EXPERIMENTAL)
 

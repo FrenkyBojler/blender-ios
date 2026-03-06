@@ -14,6 +14,10 @@
 #include "vk_render_graph_node.hh"
 #include "vk_scheduler.hh"
 
+namespace blender::gpu {
+  class VKDevice;
+}
+
 namespace blender::gpu::render_graph {
 class VKRenderGraph;
 
@@ -32,6 +36,7 @@ struct LayeredImageBinding {
  */
 class VKCommandBuilder {
  private:
+  inline static bool is_maintenance_8_supported_ = false;
   /**
    * List of all extracted VkBufferMemoryBarriers. These barriers will be referenced by
    * Barrier::buffer_memory_barriers.
@@ -188,6 +193,9 @@ class VKCommandBuilder {
   Vector<Barrier> barrier_list_;
 
  public:
+  /* Initialize the command builder. Must be call once during the device lifetime. */
+  static void init(bool is_maintenance_8_supported);
+
   /**
    * Build execution groups and barriers.
    * This method should be performed when the resources are locked.
@@ -255,7 +263,9 @@ class VKCommandBuilder {
   void add_buffer_barrier(VkBuffer vk_buffer,
                           Barrier &r_barrier,
                           VkAccessFlags src_access_mask,
-                          VkAccessFlags dst_access_mask);
+                          VkAccessFlags dst_access_mask,
+                          uint32_t src_queue_family,
+                          uint32_t dst_queue_family);
   void add_buffer_read_barriers(VKRenderGraph &render_graph,
                                 NodeHandle node_handle,
                                 VkPipelineStageFlags node_stages,

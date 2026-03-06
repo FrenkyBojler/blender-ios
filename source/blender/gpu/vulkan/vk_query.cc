@@ -93,8 +93,10 @@ void VKQueryPool::get_occlusion_result(MutableSpan<uint32_t> r_values)
    * ensure the END_RENDERING node */
   context.rendering_end();
   context.flush_render_graph(RenderGraphFlushFlags::SUBMIT |
-                             RenderGraphFlushFlags::WAIT_FOR_COMPLETION |
-                             RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
+                                 RenderGraphFlushFlags::WAIT_FOR_COMPLETION |
+                                 RenderGraphFlushFlags::RENEW_RENDER_GRAPH,
+                             context.thread_data().wait_stage,
+                             context.thread_data().wait_render_graph_semaphore_get_and_reset());
 
   int queries_left = queries_issued_;
   int pool_index = 0;
