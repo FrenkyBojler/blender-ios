@@ -2293,6 +2293,12 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, uint msg, WPARAM wParam, 
             window->ThemeRefresh();
           }
           window->updateHDRInfo();
+
+          /* Update tablet settings if resolution or DPI is changed, see #154114. */
+          GHOST_Wintab *wt = window->getWintab();
+          if (wt) {
+            wt->remapCoordinates();
+          }
           break;
         }
         /* ======================
