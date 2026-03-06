@@ -2718,10 +2718,11 @@ static void UI_OT_view_scroll(wmOperatorType *ot)
 
 static bool view_item_rename_poll(bContext *C)
 {
-  const ARegion *region = CTX_wm_region(C);
-  if (region == nullptr) {
+  if (get_view_focused(C) == nullptr) {
     return false;
   }
+
+  const ARegion *region = CTX_wm_region(C);
   const AbstractViewItem *active_item = region_views_find_active_item(region);
   return active_item != nullptr && view_item_can_rename(*active_item);
 }
