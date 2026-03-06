@@ -306,6 +306,9 @@ enum GPUSamplerFiltering {
   /**
    * Enable Anisotropic filtering. This only has effect if `GPU_SAMPLER_FILTERING_MIPMAP` is set.
    * The filtered result is implementation dependent.
+   *
+   * 3 bits are reserved to store the number of anisotropic samples. When all bits are 0 it means
+   * that anisotropic filtering is off.
    */
   GPU_SAMPLER_FILTERING_ANISOTROPIC_2 = (2 << 2),
   GPU_SAMPLER_FILTERING_ANISOTROPIC_4 = (3 << 2),
@@ -620,22 +623,22 @@ struct GPUSamplerState {
       serialized_parameters += "mipmap_";
     }
 
-    if ((this->filtering & GPU_SAMPLER_FILTERING_ANISOTROPIC_2) ==
+    if ((this->filtering & GPU_SAMPLER_FILTERING_ANISOTROPIC_MASK) ==
         GPU_SAMPLER_FILTERING_ANISOTROPIC_2)
     {
       serialized_parameters += "anisotropic2x_";
     }
-    else if ((this->filtering & GPU_SAMPLER_FILTERING_ANISOTROPIC_4) ==
+    else if ((this->filtering & GPU_SAMPLER_FILTERING_ANISOTROPIC_MASK) ==
              GPU_SAMPLER_FILTERING_ANISOTROPIC_4)
     {
       serialized_parameters += "anisotropic4x_";
     }
-    else if ((this->filtering & GPU_SAMPLER_FILTERING_ANISOTROPIC_8) ==
+    else if ((this->filtering & GPU_SAMPLER_FILTERING_ANISOTROPIC_MASK) ==
              GPU_SAMPLER_FILTERING_ANISOTROPIC_8)
     {
       serialized_parameters += "anisotropic8x_";
     }
-    else if ((this->filtering & GPU_SAMPLER_FILTERING_ANISOTROPIC_16) ==
+    else if ((this->filtering & GPU_SAMPLER_FILTERING_ANISOTROPIC_MASK) ==
              GPU_SAMPLER_FILTERING_ANISOTROPIC_16)
     {
       serialized_parameters += "anisotropic16x_";
