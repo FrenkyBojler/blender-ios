@@ -103,6 +103,7 @@ void store_shared_data(uint index, float4 data)
 struct IdentityZero {};
 struct IdentityMinimumFloat {};
 struct IdentityMaximumFloat {};
+struct IdentityMaximumFloat4 {};
 struct IdentityLowerBound {};
 struct IdentityUpperBound {};
 
@@ -134,6 +135,11 @@ template<> float2 identity<float2, IdentityMinimumFloat>()
 template<> float identity<float, IdentityMaximumFloat>()
 {
   return FLT_MAX;
+}
+
+template<> float4 identity<float4, IdentityMaximumFloat4>()
+{
+  return float4(FLT_MAX);
 }
 
 template<> float identity<float, IdentityLowerBound>()
@@ -238,6 +244,11 @@ template<> float reduce<float, ReduceSum>(float lhs, float rhs)
 }
 
 template<> float reduce<float, ReduceMinimum>(float lhs, float rhs)
+{
+  return min(lhs, rhs);
+}
+
+template<> float4 reduce<float4, ReduceMinimum>(float4 lhs, float4 rhs)
 {
   return min(lhs, rhs);
 }
@@ -387,6 +398,12 @@ template void reduction<float, IdentityMaximumFloat, InitializeDefault, ReduceMi
 void reduce_minimum_float()
 {
   reduction<float, IdentityMaximumFloat, InitializeDefault, ReduceMinimum>();
+}
+
+template void reduction<float4, IdentityMaximumFloat4, InitializeDefault, ReduceMinimum>();
+void reduce_minimum_float4()
+{
+  reduction<float4, IdentityMaximumFloat4, InitializeDefault, ReduceMinimum>();
 }
 
 template void reduction<float, IdentityMaximumFloat, InitializeLuminance, ReduceMinimum>();
