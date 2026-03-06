@@ -126,13 +126,13 @@ void SyncModule::sync_mesh(Object *ob, ObjectHandle &ob_handle, const ObjectRef 
       has_volume = true;
 
       for (int instance : IndexRange(ob_handle.ref.instances_count())) {
-        volume_call(material.sub_pass_arrays->volume_occupancy_sub_passes[i],
+        volume_call(material.sub_pass_arrays->volume_occupancy_sub_passes[instance],
                     material.volume_occupancy.gpumat,
                     inst_.scene,
                     ob,
                     geom,
                     res_handle.sub_handle(instance));
-        volume_call(material.sub_pass_arrays->volume_material_sub_passes[i],
+        volume_call(material.sub_pass_arrays->volume_material_sub_passes[instance],
                     material.volume_material.gpumat,
                     inst_.scene,
                     ob,
