@@ -1,2 +1,2 @@
 Referenced by issue #141766, Why is the default Angle Threshold for Dissolve Edges not set to 180 to maintain consistency with the behavior of the old version like 4.2LTS?
-Referenced by pull request #155271, WIP: Fix 153590: Add a 'Preserve Quads' checkbox when dissolving
+Referenced by pull request #155271, Fix 153590: Add a 'Preserve Quads' checkbox when dissolving
