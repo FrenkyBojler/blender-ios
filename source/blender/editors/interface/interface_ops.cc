@@ -2755,6 +2755,7 @@ static wmOperatorStatus ui_view_item_rename_exec(bContext *C, wmOperator * /*op*
 
   view_item_begin_rename(*active_item);
   ED_region_tag_redraw(region);
+
   return OPERATOR_FINISHED;
 }
 
