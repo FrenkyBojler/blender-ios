@@ -72,7 +72,7 @@ class FILEBROWSER_HT_header(Header):
         else:
             FILEBROWSER_MT_editor_menus.draw_collapsible(context, layout)
             layout.separator_spacer()
-            layout.operator("file.cancel", text="", icon='X', emboss=True)
+            layout.operator("screen.region_toggle", text="", icon='X', emboss=False).region_type = 'HEADER'
 
         if not context.screen.show_statusbar:
             layout.template_running_jobs()
@@ -251,6 +251,7 @@ class FILEBROWSER_PT_menus(FileBrowserPanel, Panel):
         layout = self.layout
         row = layout.row(align=True)
         row.scale_y = 1.3
+        row.scale_x = 1.3
 
         sub = row.row(align=True)
         op = sub.operator("wm.context_cycle_enum", text="View")
