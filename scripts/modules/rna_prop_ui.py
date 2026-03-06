@@ -69,6 +69,10 @@ def rna_idprop_value_item_type(value):
 
 
 def rna_idprop_ui_prop_default_set(item, prop, value):
+    prop_type, _ = rna_idprop_value_item_type(value)
+    if prop_type not in {bool, int, float, str}:
+        # Other IDprop types (ID, python, etc.) doesn't have a default value
+        return
     ui_data = item.id_properties_ui(prop)
     ui_data.update(default=value)
 
