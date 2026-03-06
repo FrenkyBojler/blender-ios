@@ -537,7 +537,37 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
   const bool is_disabled = but->flag & BUT_DISABLED;
 
   if (is_disabled) {
-    /* Suppress editing commands. */
+    /* Non-editable properties (e.g. from linked data) may be overridable through DynamicOverride
+     * system. */
+    /* FIXME: deduplicate with code below for editable ones! */
+    if (but->rnapoin.data && but->rnaprop) {
+      PointerRNA *ptr = &but->rnapoin;
+      PropertyRNA *prop = but->rnaprop;
+
+      const uint override_status = RNA_property_override_status(CTX_data_main(C), ptr, prop, -1);
+      const bool is_dynamic_overridable = (override_status & RNA_DYNOVERRIDE_STATUS_OVERRIDABLE) !=
+                                          0;
+
+      if (is_dynamic_overridable) {
+        wmOperatorType *ot;
+        PointerRNA op_ptr;
+        /* Override Operators */
+        layout.separator();
+
+        if (but->flag & BUT_DYNAMIC_OVERRIDDEN) {
+          /* TODO not yet implemented. */
+        }
+        else {
+          ot = WM_operatortype_find("UI_OT_dynamic_override_add_button", false);
+          op_ptr = layout.op(ot,
+                             CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Add Dynamic Override"),
+                             ICON_NONE,
+                             wm::OpCallContext::InvokeDefault,
+                             UI_ITEM_NONE);
+          RNA_boolean_set(&op_ptr, "all", true);
+        }
+      }
+    }
   }
   else if (but->type == ButtonType::Tab) {
     ButtonTab *tab = static_cast<ButtonTab *>(but);
