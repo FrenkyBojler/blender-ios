@@ -17,6 +17,7 @@
 #include "BLI_generic_span.hh"
 #include "BLI_math_interp.hh"
 #include "BLI_math_matrix_types.hh"
+#include "BLI_math_quaternion_types.hh"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
@@ -57,6 +58,7 @@ enum class ResultType : uint8_t {
   Bool,
   Float4x4,
   Menu,
+  Rotation,
 
   /* Single value only types. See Result::is_single_value_only_type. */
   String,
@@ -168,6 +170,7 @@ class Result {
                bool,
                float4x4,
                nodes::MenuValue,
+               math::Quaternion,
                std::string,
                Object *,
                Image *,
@@ -511,6 +514,35 @@ BLI_INLINE_METHOD Domain &Result::domain()
 BLI_INLINE_METHOD const Domain &Result::domain() const
 {
   return domain_;
+}
+
+BLI_INLINE_METHOD int64_t Result::channels_count() const
+{
+  switch (type_) {
+    case ResultType::Float:
+    case ResultType::Int:
+    case ResultType::Bool:
+    case ResultType::Menu:
+      return 1;
+    case ResultType::Float2:
+    case ResultType::Int2:
+      return 2;
+    case ResultType::Float3:
+    case ResultType::Int3:
+      return 3;
+    case ResultType::Color:
+    case ResultType::Float4:
+    case ResultType::Rotation:
+      return 4;
+    case ResultType::String:
+      /* Single only types do not have channels. */
+      BLI_assert(Result::is_single_value_only_type(type_));
+      BLI_assert_unreachable();
+      break;
+  }
+
+  BLI_assert_unreachable();
+  return 4;
 }
 
 BLI_INLINE_METHOD gpu::Texture *Result::gpu_texture() const

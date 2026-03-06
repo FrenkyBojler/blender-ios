@@ -14,6 +14,7 @@
 #include "BLI_generic_pointer.hh"
 #include "BLI_generic_span.hh"
 #include "BLI_math_matrix_types.hh"
+#include "BLI_math_quaternion_types.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_utildefines.h"
 
@@ -55,6 +56,7 @@ bool Result::is_single_value_only_type(ResultType type)
     case ResultType::Bool:
     case ResultType::Float4x4:
     case ResultType::Menu:
+    case ResultType::Rotation:
       return false;
     case ResultType::String:
     case ResultType::Object:
@@ -104,6 +106,9 @@ gpu::TextureFormat Result::gpu_texture_format(ResultType type, ResultPrecision p
           /* Menu values are technically stored in 32-bit integers, but 8 is sufficient in
            * practice. */
           return gpu::TextureFormat::SINT_8;
+        case ResultType::Rotation:
+          /* Rotations are stored as unit quaternions (4 floats). */
+          return gpu::TextureFormat::SFLOAT_16_16_16_16;
         case ResultType::String:
         case ResultType::Object:
         case ResultType::Image:
@@ -148,6 +153,9 @@ gpu::TextureFormat Result::gpu_texture_format(ResultType type, ResultPrecision p
           /* Menu values are technically stored in 32-bit integers, but 8 is sufficient in
            * practice. */
           return gpu::TextureFormat::SINT_8;
+        case ResultType::Rotation:
+          /* Rotations are stored as unit quaternions (4 floats). */
+          return gpu::TextureFormat::SFLOAT_32_32_32_32;
         case ResultType::String:
         case ResultType::Object:
         case ResultType::Image:
@@ -172,6 +180,7 @@ eGPUDataFormat Result::gpu_data_format(ResultType type)
   switch (type) {
     case ResultType::Float:
     case ResultType::Color:
+    case ResultType::Rotation:
     case ResultType::Float4:
     case ResultType::Float3:
     case ResultType::Float2:
@@ -367,6 +376,8 @@ const CPPType &Result::cpp_type(const ResultType type)
       return CPPType::get<float4x4>();
     case ResultType::Menu:
       return CPPType::get<nodes::MenuValue>();
+    case ResultType::Rotation:
+      return CPPType::get<math::Quaternion>();
     case ResultType::String:
       return CPPType::get<std::string>();
     case ResultType::Object:
@@ -412,6 +423,8 @@ const char *Result::type_name(const ResultType type)
       return "float4x4";
     case ResultType::Menu:
       return "menu";
+    case ResultType::Rotation:
+      return "rotation";
     case ResultType::String:
       return "string";
     case ResultType::Object:
@@ -531,6 +544,9 @@ void Result::allocate_single_value()
       break;
     case ResultType::Menu:
       this->set_single_value(nodes::MenuValue(0));
+      break;
+    case ResultType::Rotation:
+      this->set_single_value(math::Quaternion::identity());
       break;
     case ResultType::String:
       this->set_single_value(std::string(""));
@@ -967,6 +983,7 @@ void Result::update_single_value_data()
         case ResultType::Int2:
         case ResultType::Bool:
         case ResultType::Menu:
+        case ResultType::Rotation:
           GPU_texture_update(
               this->gpu_texture(), this->get_gpu_data_format(), this->single_value().get());
           break;

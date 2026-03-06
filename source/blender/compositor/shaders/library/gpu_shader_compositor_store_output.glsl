@@ -94,3 +94,10 @@ void node_compositor_store_output_menu(const float id, float value, float &out_v
   store_menu(floatBitsToUint(id), value);
   out_value = value;
 }
+
+[[node]]
+void node_compositor_store_output_rotation(const float id, float4 value, float4 &out_value)
+{
+  store_float4(floatBitsToUint(id), value);
+  out_value = value;
+}

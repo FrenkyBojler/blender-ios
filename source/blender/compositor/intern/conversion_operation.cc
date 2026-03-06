@@ -58,6 +58,7 @@ static bool is_conversion_supported(const ResultType from_type, const ResultType
           return true;
         case ResultType::Float4x4:
         case ResultType::Menu:
+        case ResultType::Rotation:
         case ResultType::String:
         case ResultType::Object:
         case ResultType::Image:
@@ -70,6 +71,7 @@ static bool is_conversion_supported(const ResultType from_type, const ResultType
       break;
     case ResultType::Float4x4:
     case ResultType::Menu:
+    case ResultType::Rotation:
     case ResultType::String:
     case ResultType::Object:
     case ResultType::Image:

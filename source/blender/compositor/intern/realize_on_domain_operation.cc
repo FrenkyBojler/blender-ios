@@ -167,6 +167,9 @@ const char *RealizeOnDomainOperation::get_realization_shader_name()
         return "compositor_realize_on_domain_float4x4";
       case ResultType::Menu:
         return "compositor_realize_on_domain_menu";
+      case ResultType::Rotation:
+        /* Quaternion interpolation requires SLERP, fall back to nearest neighbor. */
+        return "compositor_realize_on_domain_float4";
       case ResultType::String:
       case ResultType::Object:
       case ResultType::Image:
@@ -206,6 +209,8 @@ const char *RealizeOnDomainOperation::get_realization_shader_name()
         return "compositor_realize_on_domain_float4x4";
       case ResultType::Menu:
         return "compositor_realize_on_domain_menu";
+      case ResultType::Rotation:
+        return "compositor_realize_on_domain_float4";
       case ResultType::String:
       case ResultType::Object:
       case ResultType::Image:
@@ -254,10 +259,10 @@ void RealizeOnDomainOperation::realize_on_domain_cpu(const float3x3 &transformat
                       Color,
                       int32_t,
                       int2,
-                      int3,
                       bool,
                       float4x4,
-                      nodes::MenuValue>(
+                      nodes::MenuValue,
+                      math::Quaternion>(
           [&]<typename T>() { realize_on_domain<T>(input, output, transformation); });
 }
 
