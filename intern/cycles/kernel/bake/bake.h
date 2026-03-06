@@ -215,6 +215,7 @@ ccl_device void kernel_volume_density_evaluate(KernelGlobals kg,
         kg, state, &sd, entry, path_flag);
 
     if (sd.flag & SD_CACHE_MISS) {
+      /* Note we keep rendering other samples so we find all cache misses in one go. */
       *cache_miss = true;
     }
 
