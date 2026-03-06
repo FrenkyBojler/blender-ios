@@ -307,8 +307,8 @@ enum GPUSamplerFiltering {
    * Enable Anisotropic filtering. This only has effect if `GPU_SAMPLER_FILTERING_MIPMAP` is set.
    * The filtered result is implementation dependent.
    *
-   * 3 bits are reserved to store the number of anisotropic samples. When all bits are 0 it means
-   * that anisotropic filtering is off.
+   * 3 bits are reserved to store the anisotropic option. When all bits are 0 it means that
+   * anisotropic filtering is off.
    */
   GPU_SAMPLER_FILTERING_ANISOTROPIC_2 = (2 << 2),
   GPU_SAMPLER_FILTERING_ANISOTROPIC_4 = (3 << 2),
