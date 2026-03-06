@@ -93,7 +93,7 @@ INFO = [100.0, 1000.0, 300.0, 880.0]
 OUTLINER = [100.0, 550.0, 350.0, 800.0]
 
 ["panel.sortorder"]
-_default = 0
+_default = -1
 
 ["panel.open"]
 _default = true

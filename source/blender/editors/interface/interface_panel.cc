@@ -719,8 +719,13 @@ Panel *panel_begin(
   }
 
   if (panel->runtime && !panel->runtime->sort_order_loaded) {
-    panel->sortorder = ui_memory::memory.open("panel.sortorder")[pt->idname];
-    SET_FLAG_FROM_TEST(panel->flag, !ui_memory::memory.open("panel.open")[pt->idname], PNL_CLOSED);
+    const int saved_val = ui_memory::memory.open("panel.sortorder")[pt->idname];
+    /* Keep current order unless there are saved values. */
+    if (saved_val >= 0) {
+      panel->sortorder = saved_val;
+      SET_FLAG_FROM_TEST(
+          panel->flag, !ui_memory::memory.open("panel.open")[pt->idname], PNL_CLOSED);
+    }
     panel->runtime->sort_order_loaded = true;
   }
 
