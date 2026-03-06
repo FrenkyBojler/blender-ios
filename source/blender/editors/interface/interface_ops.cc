@@ -2471,7 +2471,7 @@ static void UI_OT_drop_name(wmOperatorType *ot)
 /** \name UI List Search Operator
  * \{ */
 
-static bool list_focused_poll(bContext *C)
+static bool ui_list_focused_poll(bContext *C)
 {
   const ARegion *region = CTX_wm_region(C);
   if (!region) {
@@ -2487,7 +2487,7 @@ static bool list_focused_poll(bContext *C)
  * Ensure the filter options are set to be visible in the UI list.
  * \return if the visibility changed, requiring a redraw.
  */
-static bool list_unhide_filter_options(uiList *list)
+static bool ui_list_unhide_filter_options(uiList *list)
 {
   if (list->filter_flag & UILST_FLT_SHOW) {
     /* Nothing to be done. */
@@ -2498,7 +2498,7 @@ static bool list_unhide_filter_options(uiList *list)
   return true;
 }
 
-static wmOperatorStatus list_start_filter_invoke(bContext *C,
+static wmOperatorStatus ui_list_start_filter_invoke(bContext *C,
                                                  wmOperator * /*op*/,
                                                  const wmEvent *event)
 {
@@ -2524,8 +2524,8 @@ static void UI_OT_list_start_filter(wmOperatorType *ot)
   ot->idname = "UI_OT_list_start_filter";
   ot->description = "Start entering filter text for the list in focus";
 
-  ot->invoke = list_start_filter_invoke;
-  ot->poll = list_focused_poll;
+  ot->invoke = ui_list_start_filter_invoke;
+  ot->poll = ui_list_focused_poll;
 }
 
 /** \} */

@@ -451,7 +451,7 @@ uiList *ui_list_find_mouse_over(const ARegion *region, const wmEvent *event)
   return static_cast<uiList *>(list_but->custom_data);
 }
 
-static bool list_contains_row(const Button *listbox_but, const Button *listrow_but)
+static bool button_list_contains_row(const Button *listbox_but, const Button *listrow_but)
 {
   BLI_assert(listbox_but->type == ButtonType::ListBox);
   BLI_assert(listrow_but->type == ButtonType::ListRow);
@@ -478,7 +478,7 @@ static bool but_is_listrow_at_index(const Button *but, const void *customdata)
 {
   const ListRowFindIndexData *find_data = static_cast<const ListRowFindIndexData *>(customdata);
 
-  return but_is_listrow(but, nullptr) && list_contains_row(find_data->listbox, but) &&
+  return but_is_listrow(but, nullptr) && button_list_contains_row(find_data->listbox, but) &&
          (but->hardmax == find_data->index);
 }
 
