@@ -49,11 +49,11 @@ namespace blender {
 /** \name Scene Utilities
  * \{ */
 
-static Scene *scene_add(Main *bmain, Scene *scene_old, eSceneCopyMethod method)
+static Scene *scene_add(Main *bmain, Scene *scene_old, eSceneCopyMethod method, const char *name)
 {
   Scene *scene_new = nullptr;
   if (method == SCE_COPY_NEW) {
-    scene_new = BKE_scene_add(bmain, DATA_("Scene"));
+    scene_new = BKE_scene_add(bmain, DATA_(name));
   }
   else { /* different kinds of copying */
     /* We are going to deep-copy collections, objects and various object data, we need to have
@@ -75,7 +75,7 @@ static Scene *scene_add(Main *bmain, Scene *scene_old, eSceneCopyMethod method)
 Scene *ED_scene_sequencer_add(Main *bmain, bContext *C, eSceneCopyMethod method)
 {
   Scene *active_scene = CTX_data_scene(C);
-  Scene *scene_new = scene_add(bmain, active_scene, method);
+  Scene *scene_new = scene_add(bmain, active_scene, method, "Sequencer Scene");
 
   return scene_new;
 }
@@ -83,7 +83,7 @@ Scene *ED_scene_sequencer_add(Main *bmain, bContext *C, eSceneCopyMethod method)
 Scene *ED_scene_add(Main *bmain, bContext *C, wmWindow *win, eSceneCopyMethod method)
 {
   Scene *scene_old = WM_window_get_active_scene(win);
-  Scene *scene_new = scene_add(bmain, scene_old, method);
+  Scene *scene_new = scene_add(bmain, scene_old, method, "Scene");
 
   WM_window_set_active_scene(bmain, C, win, scene_new);
 
@@ -334,7 +334,7 @@ static wmOperatorStatus scene_new_sequencer_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  Scene *scene_new = scene_add(bmain, strip->scene, eSceneCopyMethod(type));
+  Scene *scene_new = scene_add(bmain, strip->scene, eSceneCopyMethod(type), "Scene");
   if (!scene_new) {
     return OPERATOR_CANCELLED;
   }
@@ -427,7 +427,7 @@ static wmOperatorStatus new_sequencer_scene_exec(bContext *C, wmOperator *op)
   Scene *scene_old = CTX_data_sequencer_scene(C);
   const int type = RNA_enum_get(op->ptr, "type");
 
-  Scene *new_scene = scene_add(bmain, scene_old, eSceneCopyMethod(type));
+  Scene *new_scene = scene_add(bmain, scene_old, eSceneCopyMethod(type), "Sequencer Scene");
   seq::editing_ensure(new_scene);
 
   workspace->sequencer_scene = new_scene;
