@@ -5,6 +5,9 @@
 #include "BKE_context.hh"
 
 #include "BLI_array.hh"
+#include "BLI_listbase.h"
+#include "BLI_listbase_iterator.hh"
+#include "BLI_string_utf8.h"
 
 #include "BLT_translation.hh"
 
@@ -12,22 +15,50 @@
 #include "DNA_node_types.h"
 #include "DNA_sequence_types.h"
 
+#include "ED_undo.hh"
+
+#include "NOD_composite.hh"
 #include "NOD_compositor_nodes_caller_ui.hh"
+#include "NOD_compositor_nodes_srna.hh"
 #include "NOD_socket_usage_inference.hh"
 
+#include "SEQ_iterator.hh"
 #include "SEQ_modifier.hh"
 #include "SEQ_modifiertypes.hh"
 #include "SEQ_sequencer.hh"
 
 #include "RNA_access.hh"
+#include "RNA_define.hh"
 #include "RNA_prototypes.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_c.hh"
 #include "UI_interface_layout.hh"
+#include "UI_string_search.hh"
+
+namespace blender::ui {
+struct SearchItems;
+};
 
 namespace blender::nodes {
 
 namespace {
+
+struct SearchInfo {
+  Span<std::string> all_strip_names;
+  std::optional<PointerRNA> socket_props_ptr;
+};
+
+struct SocketSearchData {
+  blender::Strip *strip;
+  char strip_modifier_name[MAX_NAME];
+  char socket_identifier[MAX_NAME];
+
+  SearchInfo get_search_info(const bContext &C) const;
+};
+/* This class must not have a destructor, since it is used by buttons and freed with
+ * #MEM_delete_void. */
+BLI_STATIC_ASSERT(std::is_trivially_destructible_v<SocketSearchData>, "");
 struct DrawGroupInputsContext {
   const bContext &C;
   bNodeTree *tree;
@@ -36,6 +67,10 @@ struct DrawGroupInputsContext {
 
   Array<nodes::socket_usage_inference::SocketUsage> input_usages;
   Array<nodes::socket_usage_inference::SocketUsage> output_usages;
+
+  std::function<SocketSearchData(const bNodeTreeInterfaceSocket &)> socket_search_data_fn;
+  std::function<void(ui::Layout &, int icon, const bNodeTreeInterfaceSocket &)>
+      draw_strip_toggle_fn;
 
   bool input_is_visible(const bNodeTreeInterfaceSocket &socket) const
   {
@@ -48,6 +83,219 @@ struct DrawGroupInputsContext {
   }
 };
 };  // namespace
+
+static void strip_search_add_items(const StringRef str,
+                                   const Span<const std::string *> strip_names,
+                                   ui::SearchItems &seach_items,
+                                   const bool is_first)
+{
+  static std::string dummy_str;
+
+  /* Any string may be valid, so add the current search string along with the hints. */
+  if (!str.is_empty()) {
+    bool contained = false;
+    for (const std::string *name : strip_names) {
+      if (name != nullptr && str == *name) {
+        contained = true;
+      }
+    }
+    if (!contained) {
+      dummy_str = str;
+      ui::search_item_add(&seach_items, str, &dummy_str, ICON_NONE, 0, 0);
+    }
+  }
+
+  if (str.is_empty() && !is_first) {
+    /* Allow clearing the text field when the string is empty, but not on the first pass,
+     * or opening a strip name field for the first time would show this search item. */
+    dummy_str = str;
+    ui::search_item_add(&seach_items, str, &dummy_str, ICON_X, 0, 0);
+  }
+
+  /* Don't filter when the menu is first opened, but still run the search
+   * so the items are in the same order they will appear in while searching. */
+  const StringRef string = is_first ? "" : str;
+
+  ui::string_search::StringSearch<const std::string> search;
+  for (const std::string *name : strip_names) {
+    search.add(*name, name);
+  }
+
+  const Vector<const std::string *> filtered_names = search.query(string);
+  for (const std::string *name : filtered_names) {
+    if (!ui::search_item_add(
+            &seach_items, *name, (void *)name, ICON_NONE, ui::BUT_HAS_SEP_CHAR, 0))
+    {
+      break;
+    }
+  }
+}
+
+/* Query strips that intersect in time with strip_reference. */
+static void query_interval_strips_with_image_output(const Scene *scene,
+                                                    Strip *strip_reference,
+                                                    ListBaseT<Strip> *seqbase,
+                                                    VectorSet<Strip *> &strips)
+{
+  for (Strip &strip_test : *seqbase) {
+    if (strip_reference == &strip_test) {
+      continue;
+    }
+    if (!strip_test.has_image_output()) {
+      continue;
+    }
+    if (strip_test.right_handle(scene) <= strip_reference->left_handle() ||
+        strip_test.left_handle() >= strip_reference->right_handle(scene))
+    {
+      continue; /* Not intersecting in time. */
+    }
+    strips.add(&strip_test);
+  }
+}
+
+SearchInfo SocketSearchData::get_search_info(const bContext &C) const
+{
+  Scene *sequencer_scene = CTX_data_sequencer_scene(&C);
+  if (sequencer_scene == nullptr) {
+    return {};
+  }
+  Editing *ed = seq::editing_get(sequencer_scene);
+
+  StripModifierData *smd = seq::modifier_find_by_name(this->strip, strip_modifier_name);
+  BLI_assert(smd->type == eSeqModifierType_Compositor);
+  SequencerCompositorModifierData *modifier_data =
+      reinterpret_cast<SequencerCompositorModifierData *>(smd);
+  if (!modifier_data->runtime->available_strip_names) {
+    Strip *meta = seq::lookup_meta_by_strip(ed, this->strip);
+    ListBaseT<Strip> *seqbase = (meta != nullptr) ? &meta->seqbase : &ed->seqbase;
+    VectorSet<Strip *> all_strips = seq::query_by_reference(
+        strip, sequencer_scene, seqbase, query_interval_strips_with_image_output);
+    Vector<std::string> strip_names;
+    for (const Strip *strip : all_strips) {
+      strip_names.append(strip->name + 2);
+    }
+    modifier_data->runtime->available_strip_names.emplace(std::move(strip_names));
+  }
+  BLI_assert(modifier_data->runtime->available_strip_names.has_value());
+
+  PointerRNA ptr = RNA_pointer_create_discrete(
+      &sequencer_scene->id, RNA_SequencerCompositorModifierData, modifier_data);
+  PointerRNA properties_ptr = RNA_pointer_get(&ptr, "properties");
+  PointerRNA inputs_ptr = RNA_pointer_get(&properties_ptr, "inputs");
+  PointerRNA socket_props_ptr = RNA_pointer_get(&inputs_ptr, this->socket_identifier);
+  return {modifier_data->runtime->available_strip_names->as_span(), socket_props_ptr};
+}
+
+static void strip_name_search_update_fn(
+    const bContext *C, void *arg, const char *str, ui::SearchItems *items, const bool is_first)
+{
+  const SocketSearchData &data = *static_cast<SocketSearchData *>(arg);
+  const SearchInfo info = data.get_search_info(*C);
+
+  Set<StringRef> names;
+  Vector<const std::string *> strip_names;
+  for (const std::string &strip_name : info.all_strip_names) {
+    if (names.add(strip_name)) {
+      strip_names.append(&strip_name);
+    }
+  }
+
+  BLI_assert(items);
+  strip_search_add_items(str, strip_names.as_span(), *items, is_first);
+}
+
+static void strip_name_search_exec_fn(bContext *C, void *data_v, void *item_v)
+{
+  const SocketSearchData &data = *static_cast<SocketSearchData *>(data_v);
+  const std::string *item = static_cast<const std::string *>(item_v);
+  if (!item) {
+    return;
+  }
+  SearchInfo info = data.get_search_info(*C);
+  if (!info.socket_props_ptr) {
+    return;
+  }
+
+  RNA_string_set(&*info.socket_props_ptr, "strip_name", item->c_str());
+  ED_undo_push(C, "Assign Strip Name");
+}
+
+static void add_strip_search_button(DrawGroupInputsContext &ctx,
+                                    ui::Layout &layout,
+                                    PointerRNA *socket_props_ptr,
+                                    const bNodeTreeInterfaceSocket &socket)
+{
+  ui::Block *block = layout.block();
+  ui::Button *but = uiDefIconTextButR(block,
+                                      ui::ButtonType::SearchMenu,
+                                      ICON_NONE,
+                                      "",
+                                      0,
+                                      0,
+                                      10 * UI_UNIT_X, /* Dummy value, replaced by layout system. */
+                                      UI_UNIT_Y,
+                                      socket_props_ptr,
+                                      "strip_name",
+                                      0,
+                                      StringRef(socket.description));
+  button_placeholder_set(but, IFACE_("Strip"));
+
+  /* Using a custom free function make the search not work currently. So make sure this data can be
+   * freed with MEM_delete. */
+  SocketSearchData *data = static_cast<SocketSearchData *>(
+      MEM_new_uninitialized(sizeof(SocketSearchData), __func__));
+  *data = ctx.socket_search_data_fn(socket);
+  button_func_search_set_results_are_suggestions(but, true);
+  button_func_search_set_sep_string(but, UI_MENU_ARROW_SEP);
+  button_func_search_set(but,
+                         nullptr,
+                         strip_name_search_update_fn,
+                         data,
+                         true,
+                         nullptr,
+                         strip_name_search_exec_fn,
+                         nullptr);
+
+  /* TODO */
+  // const bool strip_allowed = true;
+  // if (!strip_allowed) {
+  //   button_flag_enable(but, ui::BUT_REDALERT);
+  // }
+}
+
+static void add_strip_search_or_value_button(
+    DrawGroupInputsContext &ctx,
+    ui::Layout &layout,
+    const bNodeTreeInterfaceSocket &socket,
+    PointerRNA *socket_props_ptr,
+    const std::optional<StringRefNull> use_name = std::nullopt)
+{
+  const bool show_strip_input = RNA_enum_get(socket_props_ptr, "type") ==
+                                int(CompositorNodesInputType::Strip);
+
+  layout.use_property_decorate_set(false);
+
+  ui::Layout &split = layout.split(0.4f, false);
+  ui::Layout &name_row = split.row(false);
+  name_row.alignment_set(ui::LayoutAlign::Right);
+
+  ui::Layout &prop_row = layout.row(true);
+  const StringRefNull socket_name = use_name.has_value() ?
+                                        (*use_name) :
+                                        (socket.name ? IFACE_(socket.name) : "");
+  if (show_strip_input) {
+    name_row.label(IFACE_(socket_name), ICON_NONE);
+    add_strip_search_button(ctx, split.row(true), socket_props_ptr, socket);
+    layout.label("", ICON_BLANK1);
+  }
+  else {
+    const char *name = IFACE_(socket_name.c_str());
+    prop_row.prop(socket_props_ptr, "value", UI_ITEM_NONE, name, ICON_NONE);
+    layout.decorator(socket_props_ptr, "value", -1);
+  }
+
+  ctx.draw_strip_toggle_fn(prop_row, ICON_SEQ_SEQUENCER, socket);
+}
 
 /* Drawing the properties manually with #ui::Layout::prop instead of #uiDefAutoButsRNA allows using
  * the node socket identifier for the property names, since they are unique, but also having
@@ -172,6 +420,12 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
       else {
         row.prop(socket_props_ptr, "value", UI_ITEM_NONE, name, ICON_NONE);
       }
+      break;
+    }
+    case SOCK_RGBA: {
+      add_strip_search_or_value_button(ctx, row, socket, socket_props_ptr);
+      /* Adds a spacing at the end of the row. */
+      row.label("", ICON_BLANK1);
       break;
     }
     default: {
@@ -340,15 +594,49 @@ static void draw_mask_input_type_settings(const bContext &C, ui::Layout &layout,
   }
 }
 
+static Strip *strip_get_by_modifier(Editing *ed, StripModifierData *smd)
+{
+  Strip *modifier_strip = nullptr;
+  seq::foreach_strip(&ed->seqbase, [&](Strip *strip) {
+    if (BLI_findindex(&strip->modifiers, smd) != -1) {
+      modifier_strip = strip;
+      return false;
+    }
+    return true;
+  });
+  return modifier_strip;
+}
+
 void draw_compositor_nodes_modifier_ui(const bContext &C,
                                        PointerRNA *modifier_ptr,
                                        ui::Layout &layout)
 {
   Main *bmain = CTX_data_main(&C);
+  Scene *sequencer_scene = CTX_data_sequencer_scene(&C);
   PointerRNA bmain_ptr = RNA_main_pointer_create(bmain);
   SequencerCompositorModifierData &cmd = *modifier_ptr->data_as<SequencerCompositorModifierData>();
   PointerRNA properties_ptr = RNA_pointer_get(modifier_ptr, "properties");
   DrawGroupInputsContext ctx{C, cmd.node_group, &properties_ptr, &bmain_ptr};
+
+  ctx.socket_search_data_fn = [&](const bNodeTreeInterfaceSocket &io_socket) -> SocketSearchData {
+    SocketSearchData data{};
+    Strip *strip = strip_get_by_modifier(seq::editing_get(sequencer_scene),
+                                         reinterpret_cast<StripModifierData *>(&cmd));
+    data.strip = strip;
+    STRNCPY_UTF8(data.strip_modifier_name, cmd.modifier.name);
+    STRNCPY_UTF8(data.socket_identifier, io_socket.identifier);
+    return data;
+  };
+  ctx.draw_strip_toggle_fn =
+      [&](ui::Layout &layout, const int icon, const bNodeTreeInterfaceSocket &io_socket) {
+        PointerRNA props = layout.op("sequencer.compositor_strip_modifier_input_strip_toggle",
+                                     "",
+                                     icon,
+                                     wm::OpCallContext::InvokeDefault,
+                                     UI_ITEM_NONE);
+        RNA_string_set(&props, "modifier_name", cmd.modifier.name);
+        RNA_string_set(&props, "input_name", io_socket.identifier);
+      };
 
   layout.use_property_split_set(true);
 

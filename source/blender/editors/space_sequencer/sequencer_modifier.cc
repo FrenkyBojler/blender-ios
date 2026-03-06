@@ -30,8 +30,11 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#include "NOD_compositor_nodes_srna.hh"
+
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
+#include "RNA_prototypes.hh"
 
 #include "SEQ_modifier.hh"
 #include "SEQ_relations.hh"
@@ -702,6 +705,68 @@ void SEQUENCER_OT_strip_modifier_set_active(wmOperatorType *ot)
   ot->prop = RNA_def_string(
       ot->srna, "modifier", nullptr, MAX_NAME, "Modifier", "Name of the strip modifier to edit");
   RNA_def_property_flag(ot->prop, PROP_HIDDEN);
+}
+
+/** \} */
+
+/* ------------------------------------------------------------------- */
+/** \name Toggle Value or Strip Operator
+ *
+ * \note This operator basically only exists to provide a better tooltip for the toggle button,
+ * since it is stored as an IDProperty. It also stops the button from being highlighted when
+ * "use_attribute" is on, which isn't expected.
+ * \{ */
+
+static wmOperatorStatus compositor_strip_modifier_input_strip_toggle_exec(bContext *C,
+                                                                          wmOperator *op)
+{
+  Scene *sequencer_scene = CTX_data_sequencer_scene(C);
+  Strip *strip = seq::select_active_get(sequencer_scene);
+
+  char name[MAX_NAME];
+  RNA_string_get(op->ptr, "modifier_name", name);
+
+  StripModifierData *smd = seq::modifier_find_by_name(strip, name);
+  if (smd == nullptr) {
+    return OPERATOR_CANCELLED;
+  }
+
+  char input_name[MAX_NAME];
+  RNA_string_get(op->ptr, "input_name", input_name);
+
+  PointerRNA modifier_ptr = RNA_pointer_create_discrete(
+      &sequencer_scene->id, RNA_SequencerCompositorModifierData, smd);
+  PointerRNA properties_ptr = RNA_pointer_get(&modifier_ptr, "properties");
+  PointerRNA inputs_ptr = RNA_pointer_get(&properties_ptr, "inputs");
+  PointerRNA input_ptr = RNA_pointer_get(&inputs_ptr, input_name);
+
+  int type = RNA_enum_get(&input_ptr, "type");
+  if (type == int(nodes::CompositorNodesInputType::Strip)) {
+    type = int(nodes::CompositorNodesInputType::Value);
+  }
+  else {
+    type = int(nodes::CompositorNodesInputType::Strip);
+  }
+  RNA_enum_set(&input_ptr, "type", type);
+
+  seq::relations_invalidate_cache(sequencer_scene, strip);
+  WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, sequencer_scene);
+  return OPERATOR_FINISHED;
+}
+
+void SEQUENCER_OT_compositor_strip_modifier_input_strip_toggle(wmOperatorType *ot)
+{
+  ot->name = "Input Strip Toggle";
+  ot->description = "Switch between a single color and a strip input";
+  ot->idname = "SEQUENCER_OT_compositor_strip_modifier_input_strip_toggle";
+
+  ot->exec = compositor_strip_modifier_input_strip_toggle_exec;
+  ot->poll = sequencer_strip_editable_poll;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
+
+  RNA_def_string(ot->srna, "input_name", nullptr, 0, "Input Name", "");
+  RNA_def_string(ot->srna, "modifier_name", nullptr, MAX_NAME, "Modifier Name", "");
 }
 
 /** \} */

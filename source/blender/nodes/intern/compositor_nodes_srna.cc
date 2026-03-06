@@ -29,6 +29,8 @@ static constexpr EnumPropertyItem input_type_item_fallback = {
     int(CompositorNodesInputType::Fallback), "FALLBACK", 0, "Fallback", "Fallback"};
 static constexpr EnumPropertyItem input_type_item_value = {
     int(CompositorNodesInputType::Value), "VALUE", 0, "Value", "Pass a single value"};
+static constexpr EnumPropertyItem input_type_item_strip = {
+    int(CompositorNodesInputType::Strip), "STRIP", 0, "Strip", "Pass a sequencer strip"};
 
 const EnumPropertyItem compositor_nodes_input_type_items_fallback[] = {
     input_type_item_fallback,
@@ -37,6 +39,12 @@ const EnumPropertyItem compositor_nodes_input_type_items_fallback[] = {
 
 const EnumPropertyItem compositor_nodes_input_type_items_value[] = {
     input_type_item_value,
+    {0},
+};
+
+const EnumPropertyItem compositor_nodes_input_type_items_value_or_strip[] = {
+    input_type_item_value,
+    input_type_item_strip,
     {0},
 };
 

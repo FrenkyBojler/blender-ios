@@ -25,13 +25,12 @@ struct MovieClip;
 struct Scene;
 struct VFont;
 struct bSound;
-struct SequencerCompositorModifierRuntime;
-
 namespace seq {
 struct EditingRuntime;
 struct TextVarsRuntime;
 struct StripRuntime;
 struct StripModifierDataRuntime;
+struct SequencerCompositorModifierRuntime;
 }  // namespace seq
 
 /** #Strip.flag */
@@ -459,6 +458,7 @@ struct Strip {
   {
     return this->effect_num_inputs_get() != 0;
   }
+  bool has_image_output() const;
 
   /**
    * Get timeline frame where strip content starts.
@@ -959,7 +959,7 @@ struct SequencerCompositorModifierData {
   int8_t flag = 0;
   char _pad[7] = {};
 
-  SequencerCompositorModifierRuntime *runtime = nullptr;
+  blender::seq::SequencerCompositorModifierRuntime *runtime = nullptr;
 };
 
 /** \} */

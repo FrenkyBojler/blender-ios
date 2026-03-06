@@ -501,7 +501,7 @@ void modifier_unique_name(Strip *strip, StripModifierData *smd)
                  sizeof(smd->name));
 }
 
-StripModifierData *modifier_find_by_name(Strip *strip, const char *name)
+StripModifierData *modifier_find_by_name(const Strip *strip, const char *name)
 {
   return static_cast<StripModifierData *>(
       BLI_findstring(&(strip->modifiers), name, offsetof(StripModifierData, name)));
@@ -523,7 +523,7 @@ static bool skip_modifier(Scene *scene, const StripModifierData *smd, int timeli
   return strip_has_ended_skip || missing_data_skip;
 }
 
-void modifier_apply_stack(ModifierApplyContext &context, int timeline_frame)
+void modifier_apply_stack(ModifierApplyContext &context)
 {
   if (context.strip.modifiers.first == nullptr) {
     return;
@@ -546,7 +546,7 @@ void modifier_apply_stack(ModifierApplyContext &context, int timeline_frame)
       continue;
     }
 
-    if (smti->apply && !skip_modifier(context.render_data.scene, &smd, timeline_frame)) {
+    if (smti->apply && !skip_modifier(context.render_data.scene, &smd, context.timeline_frame)) {
       int frame_offset;
       if (smd.mask_time == STRIP_MASK_TIME_RELATIVE) {
         frame_offset = context.strip.start;
@@ -560,7 +560,7 @@ void modifier_apply_stack(ModifierApplyContext &context, int timeline_frame)
                                                smd.mask_input_type,
                                                smd.mask_strip,
                                                smd.mask_id,
-                                               timeline_frame,
+                                               context.timeline_frame,
                                                frame_offset);
       smti->apply(context, &smd, mask);
       if (mask) {

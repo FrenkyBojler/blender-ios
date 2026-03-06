@@ -26,6 +26,7 @@
 
 #include "IMB_colormanagement.hh"
 
+#include "NOD_composite.hh"
 #include "NOD_compositor_nodes_caller_ui.hh"
 #include "NOD_compositor_nodes_srna.hh"
 
@@ -156,14 +157,47 @@ static void set_single_input_from_rna_value(PointerRNA *input_props_ptr,
   }
 }
 
+static bool ensure_linear_float_buffer(ImBuf *ibuf)
+{
+  if (!ibuf) {
+    return false;
+  }
+
+  /* Already have scene linear float pixels, nothing to do. */
+  if (is_linear_float_buffer(ibuf)) {
+    return true;
+  }
+
+  if (ibuf->float_buffer.data == nullptr) {
+    IMB_float_from_byte(ibuf);
+  }
+  else {
+    const char *from_colorspace = IMB_colormanagement_get_float_colorspace(ibuf);
+    const char *to_colorspace = IMB_colormanagement_role_colorspace_name_get(
+        COLOR_ROLE_SCENE_LINEAR);
+    IMB_colormanagement_transform_float(ibuf->float_buffer.data,
+                                        ibuf->x,
+                                        ibuf->y,
+                                        ibuf->channels,
+                                        from_colorspace,
+                                        to_colorspace,
+                                        true);
+    IMB_colormanagement_assign_float_colorspace(ibuf, to_colorspace);
+  }
+  return false;
+}
+
 class CompositorModifierContext : public CompositorContext {
  private:
   const SequencerCompositorModifierData *modifier_data_;
+  SeqRenderState &render_state_;
 
   ImBuf *image_buffer_;
   ImBuf *mask_buffer_;
   float3x3 xform_;
   float2 result_translation_ = float2(0, 0);
+  const float timeline_frame_;
+
   PointerRNA properties_ptr_;
 
   /* Identified if the output of the viewer was written. */
@@ -173,14 +207,18 @@ class CompositorModifierContext : public CompositorContext {
   CompositorModifierContext(compositor::StaticCacheManager &cache_manager,
                             const RenderData &render_data,
                             SequencerCompositorModifierData *modifier_data,
+                            SeqRenderState &render_state,
                             ImBuf *image_buffer,
                             ImBuf *mask_buffer,
-                            const Strip &strip)
+                            const Strip &strip,
+                            float timeline_frame)
       : CompositorContext(cache_manager, render_data, strip),
         modifier_data_(modifier_data),
+        render_state_(render_state),
         image_buffer_(image_buffer),
         mask_buffer_(mask_buffer),
-        xform_(float3x3::identity())
+        xform_(float3x3::identity()),
+        timeline_frame_(timeline_frame)
   {
     if (mask_buffer) {
       /* Note: do not use passed transform matrix since compositor coordinate
@@ -251,6 +289,10 @@ class CompositorModifierContext : public CompositorContext {
     for (const bNodeTreeInterfaceSocket *input_socket : node_group.interface_inputs()) {
       const bke::bNodeSocketType *typeinfo = input_socket->socket_typeinfo();
       const eNodeSocketDatatype socket_type = typeinfo ? typeinfo->type : SOCK_CUSTOM;
+
+      PointerRNA input_props_ptr = RNA_pointer_get(&inputs_ptr, input_socket->identifier);
+      const bool is_strip = RNA_enum_get(&input_props_ptr, "type") ==
+                            int(nodes::CompositorNodesInputType::Strip);
       const std::optional<ResultType> result_type = Result::from_socket_data_type(socket_type);
       Result *input_result = new Result(
           this->create_result(result_type.value_or(ResultType::Color), ResultPrecision::Full));
@@ -269,6 +311,31 @@ class CompositorModifierContext : public CompositorContext {
           }
           else {
             input_result->allocate_invalid();
+          }
+        }
+        else if (is_strip) {
+          const std::string strip_name = RNA_string_get(&input_props_ptr, "strip_name");
+          Strip *input_strip = seq::lookup_strip_by_name(seq::editing_get(&get_scene()),
+                                                         strip_name.c_str());
+          if (!input_strip) {
+            /* Set to black. */
+            input_result->allocate_single_value();
+            input_result->set_single_value(ColorGeometry4f(0.0f, 0.0f, 0.0f, 1.0f));
+          }
+          else {
+            ImBuf *image_buffer = seq::seq_render_strip(
+                &render_data_, &render_state_, input_strip, timeline_frame_);
+            if (!image_buffer) {
+              /* Set to black. */
+              input_result->allocate_single_value();
+              input_result->set_single_value(ColorGeometry4f(0.0f, 0.0f, 0.0f, 1.0f));
+            }
+            ImBuf *linear_image_buffer = image_buffer;
+            if (!is_linear_float_buffer(image_buffer)) {
+              linear_image_buffer = IMB_dupImBuf(image_buffer);
+              ensure_linear_float_buffer(linear_image_buffer);
+            }
+            create_result_from_input(*input_result, *linear_image_buffer);
           }
         }
         else {
@@ -296,36 +363,32 @@ static void compositor_modifier_init_data(StripModifierData *strip_modifier_data
   SequencerCompositorModifierData *modifier_data =
       reinterpret_cast<SequencerCompositorModifierData *>(strip_modifier_data);
   modifier_data->node_group = nullptr;
+
+  modifier_data->runtime = MEM_new<SequencerCompositorModifierRuntime>(__func__);
 }
 
-static bool ensure_linear_float_buffer(ImBuf *ibuf)
+static void compositor_modifier_free_data(StripModifierData *strip_modifier_data)
 {
-  if (!ibuf) {
-    return false;
+  SequencerCompositorModifierData *modifier_data =
+      reinterpret_cast<SequencerCompositorModifierData *>(strip_modifier_data);
+  if (modifier_data->runtime) {
+    MEM_delete(modifier_data->runtime);
   }
+  modifier_data->runtime = nullptr;
+}
 
-  /* Already have scene linear float pixels, nothing to do. */
-  if (is_linear_float_buffer(ibuf)) {
-    return true;
-  }
+static void compositor_modifier_copy_data(StripModifierData * /*src*/, StripModifierData *dst)
+{
+  SequencerCompositorModifierData *dst_data = reinterpret_cast<SequencerCompositorModifierData *>(
+      dst);
+  dst_data->runtime = MEM_new<SequencerCompositorModifierRuntime>(__func__);
+}
 
-  if (ibuf->float_buffer.data == nullptr) {
-    IMB_float_from_byte(ibuf);
-  }
-  else {
-    const char *from_colorspace = IMB_colormanagement_get_float_colorspace(ibuf);
-    const char *to_colorspace = IMB_colormanagement_role_colorspace_name_get(
-        COLOR_ROLE_SCENE_LINEAR);
-    IMB_colormanagement_transform_float(ibuf->float_buffer.data,
-                                        ibuf->x,
-                                        ibuf->y,
-                                        ibuf->channels,
-                                        from_colorspace,
-                                        to_colorspace,
-                                        true);
-    IMB_colormanagement_assign_float_colorspace(ibuf, to_colorspace);
-  }
-  return false;
+static void compositor_modifier_read(BlendDataReader * /*reader*/, StripModifierData *smd)
+{
+  SequencerCompositorModifierData *modifier_data =
+      reinterpret_cast<SequencerCompositorModifierData *>(smd);
+  modifier_data->runtime = MEM_new<SequencerCompositorModifierRuntime>(__func__);
 }
 
 static void compositor_modifier_apply(ModifierApplyContext &context,
@@ -351,9 +414,11 @@ static void compositor_modifier_apply(ModifierApplyContext &context,
   CompositorModifierContext com_mod_context(com_cache.get_cache_manager(),
                                             context.render_data,
                                             modifier_data,
+                                            context.render_state,
                                             context.image,
                                             linear_mask,
-                                            context.strip);
+                                            context.strip,
+                                            context.timeline_frame);
 
   const bool use_gpu = com_mod_context.use_gpu();
   if (use_gpu) {
@@ -415,10 +480,12 @@ StripModifierTypeInfo seqModifierType_Compositor = {
     /*struct_name*/ "SequencerCompositorModifierData",
     /*struct_size*/ sizeof(SequencerCompositorModifierData),
     /*init_data*/ compositor_modifier_init_data,
-    /*free_data*/ nullptr,
-    /*copy_data*/ nullptr,
+    /*free_data*/ compositor_modifier_free_data,
+    /*copy_data*/ compositor_modifier_copy_data,
     /*apply*/ compositor_modifier_apply,
     /*panel_register*/ compositor_modifier_register,
+    /*blend_write*/ nullptr,
+    /*blend_read*/ compositor_modifier_read,
 };
 
 };  // namespace blender::seq

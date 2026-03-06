@@ -8,9 +8,12 @@
  * \ingroup sequencer
  */
 
+#include <optional>
+
 #include "BKE_sound_types.hh"
 
 #include "BLI_function_ref.hh"
+#include "BLI_vector.hh"
 
 #include "DNA_sequence_types.h"
 
@@ -84,6 +87,10 @@ struct StripModifierDataRuntime {
   eStripModifierFlag flag = STRIP_MODIFIER_FLAG_NONE;
 };
 
+struct SequencerCompositorModifierRuntime {
+  std::optional<Vector<std::string>> available_strip_names;
+};
+
 void modifiers_init();
 
 const StripModifierTypeInfo *modifier_type_info_get(int type);
@@ -92,7 +99,7 @@ bool modifier_remove(Strip *strip, StripModifierData *smd);
 void modifier_clear(Strip *strip);
 void modifier_free(StripModifierData *smd);
 void modifier_unique_name(Strip *strip, StripModifierData *smd);
-StripModifierData *modifier_find_by_name(Strip *strip, const char *name);
+StripModifierData *modifier_find_by_name(const Strip *strip, const char *name);
 StripModifierData *modifier_copy(Strip &strip_dst, StripModifierData *mod_src);
 void modifier_list_copy(Strip *strip_new, Strip *strip);
 int sequence_supports_modifiers(Strip *strip);

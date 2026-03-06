@@ -338,6 +338,7 @@ void SEQUENCER_OT_strip_modifier_duplicate(wmOperatorType *ot);
 void SEQUENCER_OT_strip_modifier_move_to_index(wmOperatorType *ot);
 void SEQUENCER_OT_strip_modifier_set_active(wmOperatorType *ot);
 void SEQUENCER_OT_strip_modifier_equalizer_redefine(wmOperatorType *ot);
+void SEQUENCER_OT_compositor_strip_modifier_input_strip_toggle(wmOperatorType *ot);
 
 /* `sequencer_view.cc` */
 

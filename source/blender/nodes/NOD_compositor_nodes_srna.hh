@@ -16,10 +16,12 @@ namespace nodes {
 enum class CompositorNodesInputType {
   Fallback = 0,
   Value = 1,
+  Strip = 2,
 };
 
 extern const EnumPropertyItem compositor_nodes_input_type_items_fallback[];
 extern const EnumPropertyItem compositor_nodes_input_type_items_value[];
+extern const EnumPropertyItem compositor_nodes_input_type_items_value_or_strip[];
 
 std::shared_ptr<GeneratedTreeSrnaData> create_compositor_nodes_rna_for_strip_modifier(
     const bNodeTree &tree);

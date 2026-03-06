@@ -1611,9 +1611,17 @@ static bke::bNodeSocketType *make_socket_type_rgba()
     set_common_sequencer_update_function(prop);
     make_common_type_prop(srna,
                           socket,
-                          nodes::compositor_nodes_input_type_items_value,
+                          nodes::compositor_nodes_input_type_items_value_or_strip,
                           nodes::CompositorNodesInputType::Value,
                           r_generated);
+    prop = RNA_def_string(
+        &srna,
+        "strip_name",
+        nullptr,
+        0,
+        r_generated.scope.add_value(fmt::format("{} {}", TIP_("Strip for"), socket.name)).c_str(),
+        socket.description);
+    set_common_sequencer_update_function(prop);
   };
   return socktype;
 }
