@@ -467,7 +467,7 @@ struct LayoutPanels {
 struct Panel_Runtime {
   /** Applied to Panel.ofsx, but saved separately so we can track changes between redraws. */
   int region_ofsx = 0;
-  bool sort_order_restored = false;
+  bool sort_order_loaded = false;
 
   /**
    * Pointer for storing which data the panel corresponds to.
