@@ -672,7 +672,7 @@ static void create_uvmap_shader(const USDExporterContext &usd_export_context,
     uv_name = usdtokens::st;
   }
   /* We need to make valid, same as was done when exporting UV primvar. */
-  uv_name = make_safe_name(uv_name, usd_export_context.export_params.allow_unicode);
+  uv_name = make_safe_primvar_name(uv_name, usd_export_context.export_params.allow_unicode);
 
   uv_shader.CreateInput(usdtokens::varname, pxr::SdfValueTypeNames->String).Set(uv_name);
   usd_input.ConnectToSource(uv_shader.ConnectableAPI(), usdtokens::result);
