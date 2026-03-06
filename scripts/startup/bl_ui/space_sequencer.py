@@ -2156,7 +2156,10 @@ class SEQUENCER_PT_captions_editor(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         space = context.space_data
-        captions = context.scene.sequence_editor.captions
+        ed = context.scene.sequence_editor
+        captions = ed.captions
+        
+        layout.prop(ed, "captions_active_channel_index", text="Active Channel")
         
         for index, caption in enumerate(captions):
             if caption:

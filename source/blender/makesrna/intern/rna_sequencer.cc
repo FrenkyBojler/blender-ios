@@ -1544,6 +1544,22 @@ static void rna_SequenceEditor_captions_strips_update(Main * /*bmain*/, Scene * 
   ///blender::seq::relations_invalidate_cache(scene, (Strip *)ptr->data);
 }
 
+static int rna_SequenceEditor_captions_channel_get(PointerRNA *ptr) {
+  Editing *ed = (Editing *)ptr->data;
+  return seq::channel_index_get(ed->captions_act_channel);
+}
+static void rna_SequenceEditor_captions_channel_set(PointerRNA *ptr, int value)
+{
+    Editing *ed = (Editing *)ptr->data;
+    Scene *scene = (Scene *)ptr->owner_id; // TODO: GD;; Maybe better to do that with notifier, think it out later
+
+    SeqTimelineChannel *channel = seq::channel_get_by_index(&ed->channels, value);
+    seq::captions_set_active_channel(ed, channel);
+    seq::captions_update_strips(scene);
+   // seq::captions_update_strips() -> Should pass Scene here somehow, what about simply toggle cache flag?
+    // Maybe make it update here? buggy
+}
+
 static void rna_Caption_use_custom_style_update(Main * /*bmain*/, Scene * scene, PointerRNA * ptr) {
   //TODO: Should allow updating style of single strips, as of now update the whole list
   seq::captions_update_strips_style(scene);
@@ -3060,6 +3076,22 @@ static void rna_def_editor(BlenderRNA *brna)
                                     nullptr,
                                     nullptr);
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER | NA_EDITED, "rna_SequenceEditor_captions_strips_update");
+  
+  prop = RNA_def_int(srna,
+    "captions_active_channel_index",
+    1,  // TODO: change to DEFAULT_IMG_STRIP_LENGTH
+    1,
+    seq::MAX_CHANNELS,
+    "Captions Active Channel Index",
+    "Active Channel Index for Captions Editing",
+    1,
+    seq::MAX_CHANNELS);
+    RNA_def_property_int_funcs(prop,
+      "rna_SequenceEditor_captions_channel_get",
+      "rna_SequenceEditor_captions_channel_set",
+      NULL
+  );
+  
 
   prop = RNA_def_property(srna, "captions_cache_dirty", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "captions_cache_dirty", 0);

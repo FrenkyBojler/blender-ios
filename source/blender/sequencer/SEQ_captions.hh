@@ -27,5 +27,8 @@ TextVars *captions_style_ensure(Editing *ed);
 void captions_update_strips_style(Scene *scene);
 CaptionsStripRef *captions_get_ref_by_index(struct Editing *ed, int index);
 
+/** passing nullptr, which will default to the first channel */
+void captions_set_active_channel(Editing *ed, SeqTimelineChannel *channel=nullptr);
+
 }  // namespace seq
 }  // namespace blender

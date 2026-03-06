@@ -312,7 +312,7 @@ static void handle_captions_listener(const wmSpaceTypeListenerParams *params)
 
         if (active_strip != nullptr) {
           if (ed->captions_act_channel == nullptr) {
-            captions_update_active_channel(ed);
+            seq::captions_set_active_channel(ed);
           }
           
           const bool in_active_channel =

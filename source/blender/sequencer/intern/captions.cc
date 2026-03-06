@@ -44,12 +44,6 @@
 namespace blender {
 
 namespace ed::vse {
-
-void captions_update_active_channel(Editing *ed){
-    if (ed != nullptr) {
-        ed->captions_act_channel = blender::seq::channel_get_by_index(&ed->channels, 1);
-    }
-}
 }  // namespace ed::vse
 
 namespace seq {
@@ -155,7 +149,7 @@ void captions_update_strips_style(Scene *scene)
         captions_init_default_style(ed);
     }
     if (ed->captions_act_channel == nullptr) {
-      ed::vse::captions_update_active_channel(ed);
+      captions_set_active_channel(ed, nullptr);
     }
     return ed->captions_style;
 }
@@ -189,6 +183,19 @@ void captions_mark_ref_style_custom(CaptionsStripRef *ref, bool use_custom) {
     if(ref != nullptr) {
         ref->use_custom_style = use_custom ? 1 : 0;
     }
+}
+
+void captions_set_active_channel(Editing *ed, SeqTimelineChannel *channel) {
+ // if (scene != nullptr) {
+   //   ed = seq::editing_get(scene);
+      if(ed != nullptr) {
+        if(channel == nullptr){
+          channel = seq::channel_get_by_index(&ed->channels, 1);
+        }
+        ed->captions_act_channel = channel;
+    //    captions_update_strips(scene); -> Maybe make it update here? buggy
+      }
+  //}
 }
 
 static ListBaseT<struct CaptionsStripRef> captions_build_strip_refs(Editing *ed)
@@ -246,7 +253,7 @@ void captions_update_strips(Scene *scene)
   }
   
   if (ed->captions_act_channel == nullptr) {
-    ed::vse::captions_update_active_channel(ed);
+    captions_set_active_channel(ed, nullptr);
   }
    
   if (ed->captions_act_channel != nullptr) {
