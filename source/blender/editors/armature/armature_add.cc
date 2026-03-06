@@ -1782,8 +1782,8 @@ void ARMATURE_OT_extrude(wmOperatorType *ot)
 
 /* Op makes a new bone and returns it with its tip selected. */
 
-enum BoneAlign { UP = 0, AXES = 1, CURSOR_3D = 2, VIEW_3D = 3 };
-enum BoneSpace { OBJECT = 0, WORLD = 1 };
+enum class BoneAlign { UP = 0, AXES = 1, CURSOR_3D = 2, VIEW_3D = 3 };
+enum class BoneSpace { OBJECT = 0, WORLD = 1 };
 
 static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator *op)
 {
@@ -1799,15 +1799,15 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
   if (!RNA_property_is_set(op->ptr, RNA_struct_find_property(op->ptr, "align")) &&
       (U.flag & USER_ADD_VIEWALIGNED))
   {
-    RNA_enum_set(op->ptr, "align", VIEW_3D);
+    RNA_enum_set(op->ptr, "align", int(BoneAlign::VIEW_3D));
   }
 
-  const int align = RNA_enum_get(op->ptr, "align");
-  const int space = RNA_enum_get(op->ptr, "space");
+  const BoneAlign align = BoneAlign(RNA_enum_get(op->ptr, "align"));
+  const BoneSpace space = BoneSpace(RNA_enum_get(op->ptr, "space"));
 
   switch (align) {
-    case VIEW_3D: {
-      RegionView3D *rv3d = CTX_wm_region_view3d(C);
+    case BoneAlign::VIEW_3D: {
+      const RegionView3D *rv3d = CTX_wm_region_view3d(C);
       const float3x3 view_mat = float3x3(float4x4(rv3d->viewinv));
       bone_orient_mat = imat * view_mat;
       roll_vector = bone_orient_mat.z_axis();
@@ -1815,8 +1815,8 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
       break;
     }
 
-    case CURSOR_3D: {
-      Scene *scene = CTX_data_scene(C);
+    case BoneAlign::CURSOR_3D: {
+      const Scene *scene = CTX_data_scene(C);
       const View3DCursor &cursor = scene->cursor;
       const float3x3 cursor_mat = cursor.matrix<float3x3>();
       bone_orient_mat = imat * cursor_mat;
@@ -1824,31 +1824,21 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
       break;
     }
 
-    case AXES: {
-      if (space == WORLD) {
+    case BoneAlign::AXES: {
+      if (space == BoneSpace::WORLD) {
         bone_orient_mat = imat;
         roll_vector = imat.z_axis();
       }
       else { /* Object Space.  Assumes Z is Up.*/
-        // clang-format off
-        bone_orient_mat = float3x3(
-            float3(1.0f, 0.0f, 0.0f),
-            float3(0.0f, 0.0f, -1.0f),
-            float3(0.0f, 1.0f, 0.0f));
-        // clang-format on
+        bone_orient_mat = float3x3({1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f});
       }
       break;
     }
 
-    case UP: {
-      if (space == WORLD) {
+    case BoneAlign::UP: {
+      if (space == BoneSpace::WORLD) {
         /* Construct a matrix that points Y up, Z Forward and X left-right. */
-        // clang-format off
-        bone_orient_mat = float3x3(
-            float3(1.0f, 0.0f, 0.0f),
-            float3(0.0f, 0.0f, 1.0f),
-            float3(0.0f, -1.0f, 0.0f));
-        // clang-format on
+        bone_orient_mat = float3x3({1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, -1.0f, 0.0f});
 
         bone_orient_mat = imat * bone_orient_mat;
 
@@ -1878,7 +1868,7 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
   ANIM_armature_bonecoll_assign_active(id_cast<bArmature *>(obedit->data), bone);
 
   /* Scale B-Bone display width and Bone Envelope based on length. */
-  float length = RNA_float_get(op->ptr, "length");
+  const float length = RNA_float_get(op->ptr, "length");
   BLI_assert(length > 0.0f);
 
   bone->xwidth = 0.1f * length;
@@ -1887,7 +1877,7 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
   bone->rad_tail = 0.05f * length;
   bone->dist = 0.25f * length;
 
-  bArmature *arm = id_cast<bArmature *>(obedit->data);
+  bArmature arm = id_cast<bArmature *>(obedit->data);
   if (BLI_listbase_is_empty(&bone->bone_collections) && (arm->flag & ARM_BCOLL_SOLO_ACTIVE)) {
     BKE_report(op->reports,
                RPT_WARNING,
@@ -1912,7 +1902,8 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
   tail_vector *= length;
   add_v3_v3v3(bone->tail, bone->head, tail_vector);
 
-  const bool needs_bone_roll = (ELEM(align, CURSOR_3D, VIEW_3D) || space == WORLD);
+  const bool needs_bone_roll = (ELEM(align, BoneAlign::CURSOR_3D, BoneAlign::VIEW_3D) ||
+                                space == BoneSpace::WORLD);
 
   if (needs_bone_roll) {
     tail_vector = math::normalize(bone_orient_mat[1]) * length;
@@ -1958,12 +1949,12 @@ void ARMATURE_OT_bone_primitive_add(wmOperatorType *ot)
                  "Name of the newly created bone");
 
   static const EnumPropertyItem space_items[] = {
-      {OBJECT,
+      {int(BoneSpace::OBJECT),
        "OBJECT",
        0,
        "Object",
        "The newly created bone will use Object Space co-ordinate system"},
-      {WORLD,
+      {int(BoneSpace::WORLD),
        "WORLD",
        0,
        "World",
@@ -1973,31 +1964,40 @@ void ARMATURE_OT_bone_primitive_add(wmOperatorType *ot)
   RNA_def_enum(ot->srna,
                "space",
                space_items,
-               0,
+               int(BoneSpace::OBJECT),
                "Space",
                "Co-ordinate system the new bone will be created in");
 
   static const EnumPropertyItem align_items[] = {
-      {UP,
+      {int(BoneAlign::UP),
        "UP",
        0,
        "Up",
        "Make the bone visually point upwards so the long axis is aligned with the World/Object "
        "positive Z axis (depending on the choice above)"},
-      {AXES,
+      {int(BoneAlign::AXES),
        "AXES",
        0,
        "Axes",
        "Align the new bone to match the axes of the World/Object (depending on the choice above)"},
-      {CURSOR_3D,
+      {int(BoneAlign::CURSOR_3D),
        "3D_CURSOR",
        0,
        "3D Cursor",
        "Align new bone to match the axes of the 3D cursor"},
-      {VIEW_3D, "3D_VIEW", 0, "Viewport", "Align new bone to match the axes of the 3D viewport"},
+      {int(BoneAlign::VIEW_3D),
+       "3D_VIEW",
+       0,
+       "Viewport",
+       "Align new bone to match the axes of the 3D viewport"},
       {0, nullptr, 0, nullptr, nullptr}};
 
-  RNA_def_enum(ot->srna, "align", align_items, UP, "Align", "Initial orientation of the new bone");
+  RNA_def_enum(ot->srna,
+               "align",
+               align_items,
+               int(BoneAlign::UP),
+               "Align",
+               "Initial orientation of the new bone");
 
   RNA_def_float(ot->srna,
                 "length",
