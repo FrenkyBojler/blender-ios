@@ -252,9 +252,9 @@ class FILEBROWSER_PT_menus(FileBrowserPanel, Panel):
         row.scale_y = 1.3
 
         sub = row.row(align=True)
-        sub.operator(
-            "wm.context_cycle_enum", text="View",
-        ).data_path = "space_data.params.display_size_discrete"
+        op = sub.operator("wm.context_cycle_enum", text="View")
+        op.data_path = "space_data.params.display_size_discrete"
+        op.wrap = True
         sub.menu("FILEBROWSER_MT_view", text="", icon='DOWNARROW_HLT')
 
         row.separator()
