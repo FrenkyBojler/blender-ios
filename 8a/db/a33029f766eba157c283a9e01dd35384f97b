@@ -24,3 +24,4 @@ Referenced by issue #155021, Empty attribute names crash blender entering Edit m
 Referenced by pull request #155108, Fix #155021: attributes.new() can create attributes with empty name
 Referenced by commit c0bdb9509d28597d232ed95a090b4a1e109c5e7a, Fix #155021: attributes.new() can create attributes with empty name
 Referenced by pull request #155289, Fix: Wrong UV layer name conflict detection in customdata versioning
+Referenced by commit b7a41512f8cc8be0bb2b291b8c01f2511cbd53b8, Fix: Wrong UV layer name conflict detection in customdata versioning
