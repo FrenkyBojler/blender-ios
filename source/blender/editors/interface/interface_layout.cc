@@ -2849,6 +2849,7 @@ void item_menutype_func(bContext *C, Layout *layout, void *arg_mt)
 void item_paneltype_func(bContext *C, Layout *layout, void *arg_pt)
 {
   PanelType *pt = static_cast<PanelType *>(arg_pt);
+  block_flag_disable(layout->block(), BLOCK_LOOP);
   UI_paneltype_draw(C, pt, layout);
 }
 
