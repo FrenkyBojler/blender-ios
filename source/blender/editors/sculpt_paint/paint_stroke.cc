@@ -283,6 +283,113 @@ void PaintStroke::add_roll_point(const float2 &mouse_in,
   }
 }
 
+/**
+ * Generate virtual extension points that continue the stroke's curvature
+ * beyond its start or end. Used for both backward (pre-stroke) and forward
+ * (post-stroke) extensions so the spline has coverage for the full brush
+ * footprint at the stroke boundaries.
+ *
+ * \param anchor_2d, anchor_3d: The point to extend from.
+ * \param dir_2d, dir_3d: Unit direction of the stroke at the anchor.
+ * \param seg1_2d, seg2_2d, seg1_3d, seg2_3d: Two consecutive segments at the
+ *   anchor end, used to measure curvature. May be zero-length if < 3 points.
+ * \param n_points: Number of extension points to generate.
+ * \param step_2d, step_3d: Spacing between consecutive extension points.
+ * \param sign: +1.0f for forward, -1.0f for backward.
+ * \param r_ext_2d, r_ext_3d: Output arrays (appended in walk order, i.e.
+ *   nearest-to-anchor first for forward, farthest-from-anchor first for backward).
+ */
+static void generate_virtual_extension(const float2 &anchor_2d,
+                                       const float3 &anchor_3d,
+                                       const float2 &dir_2d,
+                                       const float3 &dir_3d,
+                                       const float2 &seg1_2d,
+                                       const float2 &seg2_2d,
+                                       const float3 &seg1_3d,
+                                       const float3 &seg2_3d,
+                                       const int n_points,
+                                       const float step_2d,
+                                       const float step_3d,
+                                       const float sign,
+                                       Vector<float2> &r_ext_2d,
+                                       Vector<float3> &r_ext_3d)
+{
+  /* Measure curvature from the angle between the two segments.
+   * Each virtual step rotates the direction by a proportional amount so the
+   * extension follows the same arc the user started drawing. */
+  float angle_2d = 0.0f;
+  float angle_3d = 0.0f;
+  float3 rot_axis = float3(0);
+  bool has_rot_3d = false;
+
+  {
+    const float cross2 = seg1_2d.x * seg2_2d.y - seg1_2d.y * seg2_2d.x;
+    const float dot2 = math::dot(seg1_2d, seg2_2d);
+    const float total_a2 = atan2f(cross2, dot2);
+    const float ref_len2 = math::length(seg1_2d);
+    if (ref_len2 > 1e-7f) {
+      angle_2d = total_a2 * (step_2d / ref_len2);
+    }
+
+    const float3 n1 = math::normalize(seg1_3d);
+    const float3 n2 = math::normalize(seg2_3d);
+    const float3 c3 = math::cross(n1, n2);
+    const float c3_len = math::length(c3);
+    const float d3 = math::dot(n1, n2);
+    if (c3_len > 1e-7f) {
+      rot_axis = c3 / c3_len;
+      const float total_a3 = atan2f(c3_len, d3);
+      const float ref_len3 = math::length(seg1_3d);
+      if (ref_len3 > 1e-7f) {
+        angle_3d = total_a3 * (step_3d / ref_len3);
+        has_rot_3d = true;
+      }
+    }
+  }
+
+  /* Walk from anchor, rotating direction each step. */
+  float2 cur_2d = dir_2d;
+  float3 cur_3d = dir_3d;
+  float2 prev_2d = anchor_2d;
+  float3 prev_3d = anchor_3d;
+
+  /* For backward extensions we build into a temporary array and reverse,
+   * so the output is ordered farthest→nearest (matching the expected
+   * prepend order where index 0 is the farthest virtual knot). */
+  const bool backward = (sign < 0.0f);
+  const int old_size = int(r_ext_2d.size());
+
+  for (int i = 0; i < n_points; i++) {
+    /* Rotate direction before stepping. */
+    const float a2 = sign * angle_2d;
+    if (a2 != 0.0f) {
+      const float c = cosf(a2);
+      const float s = sinf(a2);
+      cur_2d = float2(cur_2d.x * c - cur_2d.y * s,
+                      cur_2d.x * s + cur_2d.y * c);
+    }
+    if (has_rot_3d) {
+      const float a3 = sign * angle_3d;
+      const float c = cosf(a3);
+      const float s = sinf(a3);
+      const float3 kxv = math::cross(rot_axis, cur_3d);
+      const float kdv = math::dot(rot_axis, cur_3d);
+      cur_3d = cur_3d * c + kxv * s + rot_axis * kdv * (1.0f - c);
+    }
+
+    prev_2d = prev_2d + cur_2d * (sign * step_2d);
+    prev_3d = prev_3d + cur_3d * (sign * step_3d);
+    r_ext_2d.append(prev_2d);
+    r_ext_3d.append(prev_3d);
+  }
+
+  if (backward) {
+    /* Reverse so output goes farthest-from-anchor → nearest. */
+    std::reverse(r_ext_2d.begin() + old_size, r_ext_2d.end());
+    std::reverse(r_ext_3d.begin() + old_size, r_ext_3d.end());
+  }
+}
+
 void PaintStroke::prepend_virtual_roll_points()
 {
   if (num_points_ < 2) {
@@ -296,115 +403,50 @@ void PaintStroke::prepend_virtual_roll_points()
   const float3 p_start = points_[oldest].location;
   const float2 m_start = points_[oldest].mouse_out;
 
-  /* Direction from 1st to 2nd point (local tangent at stroke start). */
   float3 dir3 = points_[next_oldest].location - p_start;
   float2 dir2 = points_[next_oldest].mouse_out - m_start;
-
   const float len3 = math::length(dir3);
   const float len2 = math::length(dir2);
-
   if (len3 < 1e-7f || len2 < 1e-7f) {
     return;
   }
-
   dir3 /= len3;
   dir2 /= len2;
 
-  /* Brush radius in world and screen space. */
   const float r_world = paint_calc_object_space_radius(vc, p_start, points_[oldest].size);
   const float r_screen = points_[oldest].size;
 
-  /* Extend backward from the stroke start by 3 brush radii so that early
-   * dabs have generous spline coverage behind them.
-   * 12 knots subdivide this extension; with curvature they form an arc. */
-  constexpr int n_backward = 12;
-  const float total_backward_3d = r_world * 3.0f;
-  const float total_backward_2d = r_screen * 3.0f;
-  const float step_3d = total_backward_3d / float(n_backward);
-  const float step_2d = total_backward_2d / float(n_backward);
+  constexpr int n_backward = 6;
+  const float step_3d = (r_world * 1.5f) / float(n_backward);
+  const float step_2d = (r_screen * 1.5f) / float(n_backward);
 
-  /* Measure curvature from the angle between 1st→2nd and 2nd→3rd segments.
-   * Each virtual step rotates the direction by a proportional amount so the
-   * extension follows the same arc the user started drawing. */
-  float angle_2d = 0.0f;
-  float angle_3d = 0.0f;
-  float3 rot_axis = float3(0);
-  bool has_rot_3d = false;
-
+  /* Curvature segments (zero-length if < 3 points). */
+  float2 seg1_2d(0), seg2_2d(0);
+  float3 seg1_3d(0), seg2_3d(0);
   if (num_points_ >= 3) {
     const int third = (oldest + 2) % cap;
-
-    /* 2D curvature. */
-    const float2 seg1 = points_[next_oldest].mouse_out - m_start;
-    const float2 seg2 = points_[third].mouse_out - points_[next_oldest].mouse_out;
-    const float cross2 = seg1.x * seg2.y - seg1.y * seg2.x;
-    const float dot2 = math::dot(seg1, seg2);
-    const float total_a2 = atan2f(cross2, dot2);
-    const float seg_len2 = math::length(seg1);
-    if (seg_len2 > 1e-7f) {
-      angle_2d = total_a2 * (step_2d / seg_len2);
-    }
-
-    /* 3D curvature (Rodrigues rotation). */
-    const float3 s1 = points_[next_oldest].location - p_start;
-    const float3 s2 = points_[third].location - points_[next_oldest].location;
-    const float3 n1 = math::normalize(s1);
-    const float3 n2 = math::normalize(s2);
-    const float3 c3 = math::cross(n1, n2);
-    const float c3_len = math::length(c3);
-    const float d3 = math::dot(n1, n2);
-    if (c3_len > 1e-7f) {
-      rot_axis = c3 / c3_len;
-      const float total_a3 = atan2f(c3_len, d3);
-      const float seg_len3 = math::length(s1);
-      if (seg_len3 > 1e-7f) {
-        angle_3d = total_a3 * (step_3d / seg_len3);
-        has_rot_3d = true;
-      }
-    }
+    seg1_2d = points_[next_oldest].mouse_out - m_start;
+    seg2_2d = points_[third].mouse_out - points_[next_oldest].mouse_out;
+    seg1_3d = points_[next_oldest].location - p_start;
+    seg2_3d = points_[third].location - points_[next_oldest].location;
   }
 
-  /* Build extension points walking backward from p_start.
-   * v[n_backward] = p_start, v[0] = farthest backward.
-   * Rotation is applied before each step so that curvature is active
-   * from the very first virtual segment. */
-  float3 v3d[n_backward + 1];
-  float2 v2d[n_backward + 1];
-  v3d[n_backward] = p_start;
-  v2d[n_backward] = m_start;
-
-  float2 cur_dir_2d = dir2;
-  float3 cur_dir_3d = dir3;
-
-  for (int i = n_backward - 1; i >= 0; i--) {
-    /* Rotate direction by -angle before stepping (continue arc backward). */
-    if (angle_2d != 0.0f) {
-      const float c = cosf(-angle_2d);
-      const float s = sinf(-angle_2d);
-      cur_dir_2d = float2(cur_dir_2d.x * c - cur_dir_2d.y * s,
-                          cur_dir_2d.x * s + cur_dir_2d.y * c);
-    }
-    if (has_rot_3d) {
-      /* Rodrigues: v' = v*cos + (k x v)*sin + k*(k.v)*(1-cos). */
-      const float c = cosf(-angle_3d);
-      const float s = sinf(-angle_3d);
-      const float3 kxv = math::cross(rot_axis, cur_dir_3d);
-      const float kdv = math::dot(rot_axis, cur_dir_3d);
-      cur_dir_3d = cur_dir_3d * c + kxv * s + rot_axis * kdv * (1.0f - c);
-    }
-
-    v2d[i] = v2d[i + 1] - cur_dir_2d * step_2d;
-    v3d[i] = v3d[i + 1] - cur_dir_3d * step_3d;
-  }
-
-  /* Store backward extension knots (not including p_start which comes from real knots).
-   * These are prepended to the knot array during each polyline rebuild. */
   backward_ext_2d_.clear();
   backward_ext_3d_.clear();
-  for (int i = 0; i < n_backward; i++) {
-    backward_ext_2d_.append(v2d[i]);
-    backward_ext_3d_.append(v3d[i]);
-  }
+  generate_virtual_extension(m_start,
+                             p_start,
+                             dir2,
+                             dir3,
+                             seg1_2d,
+                             seg2_2d,
+                             seg1_3d,
+                             seg2_3d,
+                             n_backward,
+                             step_2d,
+                             step_3d,
+                             -1.0f,
+                             backward_ext_2d_,
+                             backward_ext_3d_);
   initial_backward_ext_count_ = n_backward;
 }
 
@@ -521,8 +563,8 @@ void PaintStroke::finish_roll_stroke(bContext *C,
 
   /* 3. Append a virtual forward extension so the last dab has spline
    *    coverage for the brush half that extends beyond the stroke end.
-   *    Mirrors prepend_virtual_roll_points() but in the forward direction.
-   *    Points are appended directly to the polyline (no Catmull-Rom needed). */
+   *    Uses the same curvature-following logic as prepend_virtual_roll_points()
+   *    but in the forward direction, appending directly to the polyline. */
   if (num_points_ >= 2 && !roll_spline_.is_empty()) {
     constexpr int cap = PAINT_MAX_INPUT_SAMPLES;
     const int newest = (cur_point_ - 1 + cap) % cap;
@@ -531,7 +573,6 @@ void PaintStroke::finish_roll_stroke(bContext *C,
     const float3 p_end = points_[newest].location;
     const float2 m_end = points_[newest].mouse_out;
 
-    /* Direction from 2nd-to-last to last point (local tangent at stroke end). */
     float3 dir3 = p_end - points_[prev_newest].location;
     float2 dir2 = m_end - points_[prev_newest].mouse_out;
     const float len3 = math::length(dir3);
@@ -544,75 +585,35 @@ void PaintStroke::finish_roll_stroke(bContext *C,
       const float r_world = paint_calc_object_space_radius(vc, p_end, points_[newest].size);
       const float r_screen = points_[newest].size;
 
-      constexpr int n_forward = 12;
-      const float step_3d = (r_world * 3.0f) / float(n_forward);
-      const float step_2d = (r_screen * 3.0f) / float(n_forward);
+      constexpr int n_forward = 6;
+      const float step_3d = (r_world * 1.5f) / float(n_forward);
+      const float step_2d = (r_screen * 1.5f) / float(n_forward);
 
-      /* Measure curvature from the angle between the last two segments. */
-      float angle_2d = 0.0f;
-      float angle_3d = 0.0f;
-      float3 rot_axis = float3(0);
-      bool has_rot_3d = false;
-
+      float2 seg1_2d(0), seg2_2d(0);
+      float3 seg1_3d(0), seg2_3d(0);
       if (num_points_ >= 3) {
         const int prev2 = (prev_newest - 1 + cap) % cap;
-
-        const float2 seg1 = points_[prev_newest].mouse_out - points_[prev2].mouse_out;
-        const float2 seg2 = m_end - points_[prev_newest].mouse_out;
-        const float cross2 = seg1.x * seg2.y - seg1.y * seg2.x;
-        const float dot2 = math::dot(seg1, seg2);
-        const float total_a2 = atan2f(cross2, dot2);
-        const float seg_len2 = math::length(seg2);
-        if (seg_len2 > 1e-7f) {
-          angle_2d = total_a2 * (step_2d / seg_len2);
-        }
-
-        const float3 s1 = points_[prev_newest].location - points_[prev2].location;
-        const float3 s2 = p_end - points_[prev_newest].location;
-        const float3 n1 = math::normalize(s1);
-        const float3 n2 = math::normalize(s2);
-        const float3 c3 = math::cross(n1, n2);
-        const float c3_len = math::length(c3);
-        const float d3 = math::dot(n1, n2);
-        if (c3_len > 1e-7f) {
-          rot_axis = c3 / c3_len;
-          const float total_a3 = atan2f(c3_len, d3);
-          const float seg_len3 = math::length(s2);
-          if (seg_len3 > 1e-7f) {
-            angle_3d = total_a3 * (step_3d / seg_len3);
-            has_rot_3d = true;
-          }
-        }
+        seg1_2d = points_[prev_newest].mouse_out - points_[prev2].mouse_out;
+        seg2_2d = m_end - points_[prev_newest].mouse_out;
+        seg1_3d = points_[prev_newest].location - points_[prev2].location;
+        seg2_3d = p_end - points_[prev_newest].location;
       }
 
-      /* Build forward extension points, walking from p_end. */
-      float2 cur_dir_2d = dir2;
-      float3 cur_dir_3d = dir3;
-      float2 prev_2d = m_end;
-      float3 prev_3d = p_end;
+      generate_virtual_extension(m_end,
+                                 p_end,
+                                 dir2,
+                                 dir3,
+                                 seg1_2d,
+                                 seg2_2d,
+                                 seg1_3d,
+                                 seg2_3d,
+                                 n_forward,
+                                 step_2d,
+                                 step_3d,
+                                 +1.0f,
+                                 roll_spline_.poly_2d,
+                                 roll_spline_.poly_3d);
 
-      for (int i = 0; i < n_forward; i++) {
-        if (angle_2d != 0.0f) {
-          const float c = cosf(angle_2d);
-          const float s = sinf(angle_2d);
-          cur_dir_2d = float2(cur_dir_2d.x * c - cur_dir_2d.y * s,
-                              cur_dir_2d.x * s + cur_dir_2d.y * c);
-        }
-        if (has_rot_3d) {
-          const float c = cosf(angle_3d);
-          const float s = sinf(angle_3d);
-          const float3 kxv = math::cross(rot_axis, cur_dir_3d);
-          const float kdv = math::dot(rot_axis, cur_dir_3d);
-          cur_dir_3d = cur_dir_3d * c + kxv * s + rot_axis * kdv * (1.0f - c);
-        }
-
-        prev_2d = prev_2d + cur_dir_2d * step_2d;
-        prev_3d = prev_3d + cur_dir_3d * step_3d;
-        roll_spline_.poly_2d.append(prev_2d);
-        roll_spline_.poly_3d.append(prev_3d);
-      }
-
-      /* Re-accumulate lengths after appending forward extension. */
       roll_spline_.update_lengths();
     }
   }
