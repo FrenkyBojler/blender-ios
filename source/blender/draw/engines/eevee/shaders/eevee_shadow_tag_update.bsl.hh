@@ -11,14 +11,27 @@
  * tag the appropriate tiles.
  */
 
-#include "infos/eevee_shadow_pipeline_infos.hh"
-
-COMPUTE_SHADER_CREATE_INFO(eevee_shadow_tag_update)
+#pragma once
+#pragma create_info
 
 #include "draw_aabb_lib.glsl"
 #include "draw_intersect_lib.glsl"
+#include "eevee_defines.hh"
+#include "eevee_shadow_shared.hh"
 
 #include "eevee_shadow_tilemap_lib.glsl"
+
+namespace eevee::shadow {
+
+struct TagUpdate {
+  [[legacy_info]] ShaderCreateInfo draw_view;
+  [[legacy_info]] ShaderCreateInfo draw_view_culling;
+
+  [[storage(0, read_write)]] ShadowTileMapData (&tilemaps_buf)[];
+  [[storage(1, read_write)]] uint (&tiles_buf)[];
+  [[storage(5, read)]] const ObjectBounds (&bounds_buf)[];
+  [[storage(6, read)]] const uint (&resource_ids_buf)[];
+};
 
 float3 safe_project(float4x4 winmat, float4x4 viewmat, int &clipped, float3 v)
 {
@@ -28,9 +41,11 @@ float3 safe_project(float4x4 winmat, float4x4 viewmat, int &clipped, float3 v)
   return tmp.xyz / tmp.w;
 }
 
-void main()
+[[compute]] [[local_size(1, 1, 1)]]
+void tag_update_main([[resource_table]] TagUpdate &srt,
+                     [[global_invocation_id]] const uint3 global_id)
 {
-  ShadowTileMapData tilemap = tilemaps_buf[gl_GlobalInvocationID.z];
+  ShadowTileMapData tilemap = srt.tilemaps_buf[global_id.z];
 
   IsectPyramid frustum;
   if (tilemap.projection_type == SHADOW_PROJECTION_CUBEFACE) {
@@ -38,10 +53,10 @@ void main()
     frustum = isect_pyramid_setup(pyramid);
   }
 
-  uint resource_id = resource_ids_buf[gl_GlobalInvocationID.x];
+  uint resource_id = srt.resource_ids_buf[global_id.x];
   resource_id = (resource_id & 0x7FFFFFFFu);
 
-  ObjectBounds bounds = bounds_buf[resource_id];
+  ObjectBounds bounds = srt.bounds_buf[resource_id];
   if (!drw_bounds_are_valid(bounds)) {
     return;
   }
@@ -102,8 +117,12 @@ void main()
     for (int y = box_min.y; y <= box_max.y; y++) {
       for (int x = box_min.x; x <= box_max.x; x++) {
         int tile_index = shadow_tile_offset(uint2(uint(x), uint(y)), tilemap.tiles_index, lod);
-        atomicOr(tiles_buf[tile_index], uint(SHADOW_DO_UPDATE));
+        atomicOr(srt.tiles_buf[tile_index], uint(SHADOW_DO_UPDATE));
       }
     }
   }
 }
+
+PipelineCompute tag_update(tag_update_main);
+
+}  // namespace eevee::shadow
