@@ -771,9 +771,7 @@ void popup_block_template_confirm(Block *block,
     FunctionRef<Button *()> *but_fn = button_functions[i];
     if (Button *but = (*but_fn)()) {
       const bool is_cancel = (but_fn == &cancel_fn);
-      if ((block->flag & BLOCK_LOOP) == 0) {
-        button_func_set(but, popup_block_template_close_cb, block, nullptr);
-      }
+      button_func_set(but, popup_block_template_close_cb, block, nullptr);
       if (is_cancel == cancel_default) {
         /* An active button shouldn't exist, if it does, never set another. */
         if (!block_has_active_default_button(block)) {
