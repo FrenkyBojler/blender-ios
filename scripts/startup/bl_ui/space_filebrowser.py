@@ -250,9 +250,18 @@ class FILEBROWSER_PT_menus(FileBrowserPanel, Panel):
         layout = self.layout
         row = layout.row(align=True)
         row.scale_y = 1.3
-        
-        row.menu("FILEBROWSER_MT_view")
-        row.menu("FILEBROWSER_MT_select")
+
+        sub = row.row(align=True)
+        sub.operator(
+            "wm.context_cycle_enum", text="View",
+        ).data_path = "space_data.params.display_size_discrete"
+        sub.menu("FILEBROWSER_MT_view", text="", icon='DOWNARROW_HLT')
+
+        row.separator()
+
+        sub = row.row(align=True)
+        sub.operator("file.select_all", text="Select").action = 'TOGGLE'
+        sub.menu("FILEBROWSER_MT_select", text="", icon='DOWNARROW_HLT')
 
 class FILEBROWSER_PT_bookmarks_system(Panel):
     bl_space_type = 'FILE_BROWSER'
