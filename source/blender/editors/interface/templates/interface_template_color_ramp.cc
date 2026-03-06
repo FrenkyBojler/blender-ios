@@ -66,7 +66,10 @@ static void colorband_distribute(bContext *C, ColorBand *coba, bool evenly)
   }
 }
 
-void colorramp_disabled_tip_func(bContext & /*C*/, TooltipData &tip, Button *but, void * /*space*/)
+static void colorramp_disabled_tip_func(bContext & /*C*/,
+                                        TooltipData &tip,
+                                        Button *but,
+                                        void * /*space*/)
 {
   const bool has_tip = !but->tip.is_empty();
   if (has_tip) {
