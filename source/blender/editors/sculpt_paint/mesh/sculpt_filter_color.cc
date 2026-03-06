@@ -462,9 +462,15 @@ static void sculpt_color_filter_apply(bContext *C, wmOperator *op, Object &ob)
   flush_update_step(C, UpdateType::Color);
 }
 
-static void sculpt_color_filter_end(bContext *C, Object &ob)
+static void sculpt_color_filter_end(bContext *C, wmOperator *op, Object &ob)
 {
   SculptSession &ss = *ob.runtime->sculpt_session;
+
+  if (FilterType(RNA_enum_get(op->ptr, "type")) == FilterType::Fill &&
+      !RNA_struct_property_is_set(op->ptr, "fill_color"))
+  {
+    fill_color_store_current(C, op);
+  }
 
   undo::push_end(ob);
   MEM_delete(ss.filter_cache);
@@ -488,13 +494,7 @@ static wmOperatorStatus sculpt_color_filter_modal(bContext *C,
       sculpt_color_filter_apply(C, op, ob);
     }
 
-    if (FilterType(RNA_enum_get(op->ptr, "type")) == FilterType::Fill &&
-        !RNA_struct_property_is_set(op->ptr, "fill_color"))
-    {
-      fill_color_store_current(C, op);
-    }
-
-    sculpt_color_filter_end(C, ob);
+    sculpt_color_filter_end(C, op, ob);
     return OPERATOR_FINISHED;
   }
 
@@ -592,12 +592,7 @@ static wmOperatorStatus sculpt_color_filter_exec(bContext *C, wmOperator *op)
   }
 
   sculpt_color_filter_apply(C, op, ob);
-  if (FilterType(RNA_enum_get(op->ptr, "type")) == FilterType::Fill &&
-      !RNA_struct_property_is_set(op->ptr, "fill_color"))
-  {
-    fill_color_store_current(C, op);
-  }
-  sculpt_color_filter_end(C, ob);
+  sculpt_color_filter_end(C, op, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -617,23 +612,16 @@ static wmOperatorStatus sculpt_color_filter_invoke(bContext *C,
   /* Immediate execution path (used by keybinds like Ctrl+X). */
   if (RNA_boolean_get(op->ptr, "use_immediate")) {
     RNA_float_set(op->ptr, "strength", 1.0f);
-
-    if (sculpt_color_filter_init(C, op) == OPERATOR_CANCELLED) {
-      return OPERATOR_CANCELLED;
-    }
-
-    sculpt_color_filter_apply(C, op, ob);
-    if (FilterType(RNA_enum_get(op->ptr, "type")) == FilterType::Fill &&
-        !RNA_struct_property_is_set(op->ptr, "fill_color"))
-    {
-      fill_color_store_current(C, op);
-    }
-    sculpt_color_filter_end(C, ob);
-    return OPERATOR_FINISHED;
   }
 
   if (sculpt_color_filter_init(C, op) == OPERATOR_CANCELLED) {
     return OPERATOR_CANCELLED;
+  }
+
+  if (RNA_boolean_get(op->ptr, "use_immediate")) {
+    sculpt_color_filter_apply(C, op, ob);
+    sculpt_color_filter_end(C, op, ob);
+    return OPERATOR_FINISHED;
   }
 
   ED_paint_brush_type_update_sticky_shading_color(C, &ob);

@@ -8901,7 +8901,6 @@ class VIEW3D_PT_sculpt_context_menu(Panel):
 
         paint = context.tool_settings.sculpt
         brush = paint.brush
-
         capabilities = brush.sculpt_capabilities
 
         if capabilities.has_color:
