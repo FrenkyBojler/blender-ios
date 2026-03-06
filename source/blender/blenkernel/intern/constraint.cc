@@ -5170,6 +5170,7 @@ static void followtrack_evaluate_using_2d_position(FollowTrackContext *context, 
 
   int clip_width, clip_height;
   MovieClipUser user = {};
+  BKE_movieclip_user_set_frame(&user, clip_frame);
   BKE_movieclip_get_size(clip, &user, &clip_width, &clip_height);
 
   float marker_position[2];
