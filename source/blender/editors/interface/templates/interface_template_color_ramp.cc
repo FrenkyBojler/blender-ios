@@ -66,7 +66,7 @@ static void colorband_distribute(bContext *C, ColorBand *coba, bool evenly)
   }
 }
 
-void colorramp_tip_func(bContext & /*C*/, TooltipData &tip, Button *but, void * /*space*/)
+void colorramp_disabled_tip_func(bContext & /*C*/, TooltipData &tip, Button *but, void * /*space*/)
 {
   const bool has_tip = !but->tip.is_empty();
   if (has_tip) {
@@ -143,7 +143,7 @@ static Block *colorband_tools_fn(bContext *C, ARegion *region, void *cb_v)
 
     if (coba->tot < 2) {
       button_flag_enable(but, BUT_DISABLED);
-      button_func_tooltip_custom_set(but, colorramp_tip_func, nullptr, nullptr);
+      button_func_tooltip_custom_set(but, colorramp_disabled_tip_func, nullptr, nullptr);
     }
   }
   {
@@ -165,7 +165,7 @@ static Block *colorband_tools_fn(bContext *C, ARegion *region, void *cb_v)
 
     if (coba->tot < 2) {
       button_flag_enable(but, BUT_DISABLED);
-      button_func_tooltip_custom_set(but, colorramp_tip_func, nullptr, nullptr);
+      button_func_tooltip_custom_set(but, colorramp_disabled_tip_func, nullptr, nullptr);
     }
   }
 
@@ -280,7 +280,7 @@ static void colorband_buttons_layout(Layout &layout,
   });
   if (coba->tot < 2) {
     button_flag_enable(bt, BUT_DISABLED);
-    button_func_tooltip_custom_set(bt, colorramp_tip_func, nullptr, nullptr);
+    button_func_tooltip_custom_set(bt, colorramp_disabled_tip_func, nullptr, nullptr);
   }
 
   RNAUpdateCb *tools_cb = MEM_new<RNAUpdateCb>(__func__, cb);
