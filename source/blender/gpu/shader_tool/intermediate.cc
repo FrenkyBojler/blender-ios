@@ -69,35 +69,35 @@ Scope Token::scope() const
 {
   const ParserBase &parser = static_cast<const ParserBase &>(*buf_);
   if (this->is_invalid()) {
-    return Scope::from_position(parser, -1);
+    return Scope(parser, -1);
   }
-  return Scope::from_position(parser, parser.token_scope[index_]);
+  return Scope(parser, parser.token_scope[index_]);
 }
 
 Scope Token::attribute_before() const
 {
   const ParserBase &parser = static_cast<const ParserBase &>(*buf_);
   if (is_invalid()) {
-    return Scope::from_position(parser, -1);
+    return Scope(parser, -1);
   }
   Token prev = this->prev();
   if (prev == ']' && prev.prev().scope().type() == ScopeType::Attributes) {
     return prev.prev().scope();
   }
-  return Scope::from_position(parser, -1);
+  return Scope(parser, -1);
 }
 
 Scope Token::attribute_after() const
 {
   const ParserBase &parser = static_cast<const ParserBase &>(*buf_);
   if (is_invalid()) {
-    return Scope::from_position(parser, -1);
+    return Scope(parser, -1);
   }
   Token next = this->next();
   if (next == '[' && next.next().scope().type() == ScopeType::Attributes) {
     return next.next().scope();
   }
-  return Scope::from_position(parser, -1);
+  return Scope(parser, -1);
 }
 
 alignas(128) const std::array<CharClass, 128> LexerBase::default_char_class_table = [] {
@@ -600,7 +600,7 @@ Token ParserBase::invalid_tok() const
 
 Scope ParserBase::invalid_scope() const
 {
-  return Scope::from_position(*this, -1);
+  return Scope(*this, -1);
 }
 
 void ParserBase::update_string_view()

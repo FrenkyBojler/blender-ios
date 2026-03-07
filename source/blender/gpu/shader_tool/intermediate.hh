@@ -322,7 +322,7 @@ struct IntermediateForm : MutableString, Parser<LexerFn, ParserFn> {
     if (this->scope_types.empty()) {
       return this->invalid_scope();
     }
-    return Scope::from_position(*this, 0);
+    return Scope(*this, 0);
   }
 
   /* Return true if any mutation was applied. */

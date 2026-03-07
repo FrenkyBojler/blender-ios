@@ -17,24 +17,27 @@ using namespace metadata;
 
 void SourceProcessor::lower_loop_unroll(Parser &parser)
 {
-  auto parse_for_args =
-      [&](const Scope loop_args, Scope &r_init, Scope &r_condition, Scope &r_iter) {
-        r_init = r_condition = r_iter = parser.invalid_scope();
-        loop_args.foreach_scope(ScopeType::LoopArg, [&](const Scope arg) {
-          if (arg.front().prev() == '(' && arg.back().next() == ';') {
-            r_init = arg;
-          }
-          else if (arg.front().prev() == ';' && arg.back().next() == ';') {
-            r_condition = arg;
-          }
-          else if (arg.front().prev() == ';' && arg.back().next() == ')') {
-            r_iter = arg;
-          }
-          else {
-            report_error_(ERROR_TOK(arg.front()), "Invalid loop declaration.");
-          }
-        });
-      };
+  struct ArgParseResult {
+    Scope init, condition, iter;
+  };
+  auto parse_for_args = [&](const Scope loop_args) -> ArgParseResult {
+    ArgParseResult result{parser.invalid_scope(), parser.invalid_scope(), parser.invalid_scope()};
+    loop_args.foreach_scope(ScopeType::LoopArg, [&](const Scope arg) {
+      if (arg.front().prev() == '(' && arg.back().next() == ';') {
+        result.init = arg;
+      }
+      else if (arg.front().prev() == ';' && arg.back().next() == ';') {
+        result.condition = arg;
+      }
+      else if (arg.front().prev() == ';' && arg.back().next() == ')') {
+        result.iter = arg;
+      }
+      else {
+        report_error_(ERROR_TOK(arg.front()), "Invalid loop declaration.");
+      }
+    });
+    return result;
+  };
 
   auto process_loop = [&](const Token loop_start,
                           const int iter_count,
@@ -156,8 +159,7 @@ void SourceProcessor::lower_loop_unroll(Parser &parser)
       const Scope loop_args = tokens[1].scope();
       const Scope loop_body = tokens[10].scope();
 
-      Scope init, cond, iter;
-      parse_for_args(loop_args, init, cond, iter);
+      auto [init, cond, iter] = parse_for_args(loop_args);
 
       /* Init statement. */
       const Token var_type = init[0];
@@ -256,8 +258,7 @@ void SourceProcessor::lower_loop_unroll(Parser &parser)
       const Scope loop_args = tokens[1].scope();
       const Scope loop_body = tokens[13].scope();
 
-      Scope init, cond, iter;
-      parse_for_args(loop_args, init, cond, iter);
+      auto [init, cond, iter] = parse_for_args(loop_args);
 
       int iter_count = stol(string(tokens[9].str()));
 

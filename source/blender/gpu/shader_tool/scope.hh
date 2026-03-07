@@ -17,47 +17,37 @@
 namespace blender::gpu::shader::parser {
 
 struct Scope {
+ private:
 #ifndef NDEBUG
   /* String view for nicer debugging experience. Isn't actually used. */
   std::string_view token_view;
   std::string_view str_view;
 #endif
-
   const ParserBase *data;
   int64_t index;
 
- private:
   Scope invalid() const
   {
-    return Scope::from_position(*data, -1);
-  }
-
- public:
-  static Scope from_position(const ParserBase &parser, int64_t index)
-  {
-    if (index < 0 || index >= parser.scope_types.size()) {
-#ifndef NDEBUG
-      return {"", "", &parser, int64_t(parser.scope_types.size())};
-#else
-      return {&parser, int64_t(parser.scope_types.size())};
-#endif
-    }
-
-#ifndef NDEBUG
-    const LexerBase &lex = static_cast<const LexerBase &>(parser);
-    IndexRange index_range = parser.scope_ranges[index];
-    return {lex.token_types_str().substr(index_range.start, index_range.size),
-            lex.substr(lex[index_range.start], lex[index_range.last()]),
-            &parser,
-            index};
-#else
-    return {&parser, index};
-#endif
+    return Scope(*data, -1);
   }
 
   const LexerBase &lex() const
   {
     return static_cast<const LexerBase &>(*data);
+  }
+
+ public:
+  Scope(const ParserBase &parser, int64_t index) : data(&parser), index(index)
+  {
+    if (index < 0 || index >= parser.scope_types.size()) {
+      index = parser.scope_types.size();
+      return;
+    }
+#ifndef NDEBUG
+    IndexRange index_range = parser.scope_ranges[index];
+    token_view = lex().token_types_str().substr(index_range.start, index_range.size);
+    str_view = lex().substr((*data)[index_range.start], (*data)[index_range.last()]);
+#endif
   }
 
   bool is_valid() const
@@ -317,7 +307,7 @@ struct Scope {
     }
     size_t pos = this->index;
     while ((pos = data->scope_types_str.find(char(type), pos)) != std::string::npos) {
-      Scope scope = Scope::from_position(*data, pos);
+      Scope scope(*data, pos);
       if (scope.front().index_ > this->back().index_) {
         /* Found scope starts after this scope. End iteration. */
         break;
