@@ -242,7 +242,7 @@ MappedPointDataGrid points_to_point_data_grid(const Span<float3> positions,
     bke::attribute_math::to_static_type(cpp_type, [&]<typename ValueT>() {
       using type_traits = typename bke::VolumeGridTraits<ValueT>;
 
-      if constexpr (!std::is_same_v<typename type_traits::TreeType, void>) {
+      if constexpr (!std::is_same_v<typename type_traits::PrimitiveType, void>) {
         /* Note: some attributes could benefit from specialized codecs. The OpenVDB cookbook
          * suggests to store e.g. radius attribute with a fixed-point codec. This is not supported
          * here yet.
@@ -527,8 +527,15 @@ struct DivergenceTransfer : public KernelTransferBase<GridValueT> {
           const AttributeType source_value = value_handle_->get(point_index);
           const float3 weight_gradient = kernel_functions::kernel_gradient_eval(
               this->kernel_type(), kernel_distance);
-          return source_value[0] * weight_gradient.x + source_value[1] * weight_gradient.y +
-                 source_value[2] * weight_gradient.z;
+          if constexpr (std::is_same_v<AttributeType, openvdb::Mat4s>) {
+            return source_value.row(0).getVec3() * weight_gradient.x +
+                   source_value.row(1).getVec3() * weight_gradient.y +
+                   source_value.row(2).getVec3() * weight_gradient.z;
+          }
+          else {
+            return source_value[0] * weight_gradient.x + source_value[1] * weight_gradient.y +
+                   source_value[2] * weight_gradient.z;
+          }
         });
   }
 };
@@ -632,7 +639,10 @@ static bke::GVolumeGrid points_rasterize_with_static_type(
     }
   }
 
-  return bke::GVolumeGrid(std::move(dst_grid));
+  if (dst_grid) {
+    return bke::GVolumeGrid(std::move(dst_grid));
+  }
+  return {};
 }
 
 static bke::GVolumeGrid points_attribute_rasterize(
@@ -645,7 +655,12 @@ static bke::GVolumeGrid points_attribute_rasterize(
   bke::GVolumeGrid result;
   bke::attribute_math::to_static_type(attribute_info.type, [&]<typename T>() {
     using TreeType = typename bke::VolumeGridTraits<T>::TreeType;
-    if constexpr (std::is_same_v<TreeType, void>) {
+    if constexpr (std::is_same_v<T, float4x4>) {
+      /* Special case: Matrix attributes can be rasterized as divergence, but don't have a direct
+       * tree type equivalent. Ignore here. */
+      result = {};
+    }
+    else if constexpr (std::is_same_v<TreeType, void>) {
       BLI_assert_unreachable();
       result = {};
     }

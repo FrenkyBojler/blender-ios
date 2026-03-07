@@ -315,8 +315,15 @@ static void node_geo_exec(GeoNodeExecParams params)
   for (const int i : IndexRange(storage.items_num)) {
     const NodeGeometryRasterizePointsItem &item = storage.items[i];
     const std::string identifier = RasterizePointsItemsAccessor::socket_identifier_for_item(item);
-    BLI_assert(output_attribute_grids[i]);
-    params.set_output(identifier, std::move(output_attribute_grids[i]));
+    if (output_attribute_grids[i]) {
+      params.set_output(identifier, std::move(output_attribute_grids[i]));
+    }
+    else {
+      const std::string message = fmt::format(
+          fmt::runtime(TIP_("Could not generate grid for \"{}\"")), item.name);
+      params.error_message_add(NodeWarningType::Warning, message);
+      params.set_output(identifier, bke::GVolumeGrid{});
+    }
   }
 
 #else
