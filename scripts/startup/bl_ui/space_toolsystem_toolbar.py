@@ -13,6 +13,10 @@
 
 import bpy
 
+from collections import (
+    namedtuple
+)
+
 from bpy.types import (
     Panel,
 )
@@ -498,14 +502,17 @@ class _defs_view3d_select:
         )
 
 
+ToolDefaults = namedtuple('ToolDefaults', ['origin_base', 'aspect_base', 'origin_depth', 'aspect_depth'])
+
+
 class _defs_view3d_add:
 
     sculpt_tool_defaults = {
-        "CUBE": ["EDGE", "FREE", "EDGE", "FREE"],
-        "CONE": ["CENTER", "FIXED", "EDGE", "FREE"],
-        "CYLINDER": ["CENTER", "FIXED", "EDGE", "FREE"],
-        "SPHERE_UV": ["CENTER", "FIXED", "CENTER", "FIXED"],
-        "SPHERE_ICO": ["CENTER", "FIXED", "CENTER", "FIXED"],
+        "CUBE": ToolDefaults("EDGE", "FREE", "EDGE", "FREE"),
+        "CONE": ToolDefaults("CENTER", "FIXED", "EDGE", "FREE"),
+        "CYLINDER": ToolDefaults("CENTER", "FIXED", "EDGE", "FREE"),
+        "SPHERE_UV": ToolDefaults("CENTER", "FIXED", "CENTER", "FIXED"),
+        "SPHERE_ICO": ToolDefaults("CENTER", "FIXED", "CENTER", "FIXED")
     }
 
     @staticmethod
@@ -543,7 +550,6 @@ class _defs_view3d_add:
     @staticmethod
     def draw_settings_interactive_add(layout, tool_settings, tool, extra):
         show_extra = False
-
         if not extra:
             row = layout.row()
             row.prop(tool_settings, "plane_depth", text="Depth")
@@ -580,11 +586,11 @@ class _defs_view3d_add:
 
         props = tool.operator_properties("view3d.interactive_add")
 
-        props.plane_origin_base = defaults[0]
-        props.plane_aspect_base = defaults[1]
+        props.plane_origin_base = defaults.origin_base
+        props.plane_aspect_base = defaults.aspect_base
 
-        props.plane_origin_depth = defaults[2]
-        props.plane_aspect_depth = defaults[3]
+        props.plane_origin_depth = defaults.origin_depth
+        props.plane_aspect_depth = defaults.aspect_depth
 
     @ToolDef.from_fn
     def cube_add():
