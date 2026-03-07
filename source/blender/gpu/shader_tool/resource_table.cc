@@ -106,7 +106,7 @@ void SourceProcessor::lower_srt_member_access(Parser &parser)
   parser().foreach_scope(ScopeType::FunctionArgs, [&](const Scope fn_args) {
     /* Parse both function and prototypes. */
     Scope fn_body = fn_args.next().type() == ScopeType::Function ? fn_args.next() :
-                                                                   Scope::invalid();
+                                                                   parser.invalid_scope();
     /* Function arguments. */
     fn_args.foreach_match("[[A]]c?A&A", [&](const vector<Token> toks) {
       memher_access_mutation(toks[0].scope(), toks[7], toks[9], fn_body);
@@ -186,7 +186,7 @@ void SourceProcessor::lower_resource_access_functions(Parser &parser)
         guarded_scope_mutation(parser, scope, condition, fn_type);
       }
       else {
-        guarded_scope_mutation(parser, scope, condition);
+        guarded_scope_mutation(parser, scope, condition, parser.invalid_tok());
       }
     });
   });

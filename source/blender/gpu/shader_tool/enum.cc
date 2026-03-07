@@ -128,13 +128,13 @@ void SourceProcessor::lower_enums(Parser &parser)
     process_enum(tokens[0], tokens[1], tokens[2], tokens[4], tokens[5].scope(), false);
   });
   parser().foreach_match("MA:A{", [&](vector<Token> tokens) {
-    process_enum(tokens[0], Token::invalid(), tokens[1], tokens[3], tokens[4].scope(), false);
+    process_enum(tokens[0], parser.invalid_tok(), tokens[1], tokens[3], tokens[4].scope(), false);
   });
   parser().foreach_match("MS[[A]]A:A{", [&](vector<Token> tokens) {
     process_enum(tokens[0], tokens[1], tokens[7], tokens[9], tokens[10].scope(), true);
   });
   parser().foreach_match("M[[A]]A:A{", [&](vector<Token> tokens) {
-    process_enum(tokens[0], Token::invalid(), tokens[6], tokens[8], tokens[9].scope(), true);
+    process_enum(tokens[0], parser.invalid_tok(), tokens[6], tokens[8], tokens[9].scope(), true);
   });
 
   parser.apply_mutations();

@@ -180,8 +180,11 @@ void SourceProcessor::lower_templates(Parser &parser)
     vector<string> arg_list;
     bool all_template_args_in_function_signature = false;
     template_scope.foreach_scope(ScopeType::TemplateArg, [&](Scope arg) {
-      parse_template_definition(
-          arg, arg_list, Scope::invalid(), all_template_args_in_function_signature, report_error_);
+      parse_template_definition(arg,
+                                arg_list,
+                                parser.invalid_scope(),
+                                all_template_args_in_function_signature,
+                                report_error_);
     });
 
     /* Remove declaration. */

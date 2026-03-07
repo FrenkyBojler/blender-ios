@@ -24,15 +24,25 @@ struct Token {
   const ParserBase *data = nullptr;
   int64_t index = 0;
 
-  static Token invalid()
+ private:
+  Token invalid() const
   {
-    return {};
+#ifndef NDEBUG
+    return {"", data, -1};
+#else
+    return {data, -1};
+#endif
   }
 
+ public:
   static Token from_position(const ParserBase *data, int64_t index)
   {
     if (data == nullptr || index < 0 || index >= data->size()) {
-      return invalid();
+#ifndef NDEBUG
+      return {"", data, data->size()};
+#else
+      return {data, data->size()};
+#endif
     }
 #ifndef NDEBUG
     const LexerBase &lex = static_cast<const LexerBase &>(*data);
@@ -49,11 +59,11 @@ struct Token {
 
   bool is_valid() const
   {
-    return data != nullptr && index >= 0;
+    return index < data->size_;
   }
   bool is_invalid() const
   {
-    return !is_valid();
+    return index >= data->size_;
   }
 
   /* String index range. */

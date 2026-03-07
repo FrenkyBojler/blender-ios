@@ -68,7 +68,7 @@ std::string line_str(const std::string_view &str, size_t pos)
 Scope Token::scope() const
 {
   if (this->is_invalid()) {
-    return Scope::invalid();
+    return Scope::from_position(*data, -1);
   }
   return Scope::from_position(*data, data->token_scope[index]);
 }
@@ -76,25 +76,25 @@ Scope Token::scope() const
 Scope Token::attribute_before() const
 {
   if (is_invalid()) {
-    return Scope::invalid();
+    return Scope::from_position(*data, -1);
   }
   Token prev = this->prev();
   if (prev == ']' && prev.prev().scope().type() == ScopeType::Attributes) {
     return prev.prev().scope();
   }
-  return Scope::invalid();
+  return Scope::from_position(*data, -1);
 }
 
 Scope Token::attribute_after() const
 {
   if (is_invalid()) {
-    return Scope::invalid();
+    return Scope::from_position(*data, -1);
   }
   Token next = this->next();
   if (next == '[' && next.next().scope().type() == ScopeType::Attributes) {
     return next.next().scope();
   }
-  return Scope::invalid();
+  return Scope::from_position(*data, -1);
 }
 
 alignas(128) const std::array<CharClass, 128> LexerBase::default_char_class_table = [] {
@@ -278,7 +278,7 @@ void ParserBase::build_scope_tree(report_callback &report_error)
 {
   const LexerBase &lex = *this;
 
-  Token error_token = Token::invalid();
+  Token error_token = invalid_tok();
   const char *error_msg = nullptr;
 
   size_t predicted_scope_count = lex.size() / 2;
@@ -588,6 +588,16 @@ void ParserBase::build_token_to_scope_map()
 Token ParserBase::operator[](int i) const
 {
   return Token::from_position(this, i);
+}
+
+Token ParserBase::invalid_tok() const
+{
+  return Token::from_position(this, -1);
+}
+
+Scope ParserBase::invalid_scope() const
+{
+  return Scope::from_position(*this, -1);
 }
 
 void ParserBase::update_string_view()
