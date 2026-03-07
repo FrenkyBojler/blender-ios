@@ -10134,11 +10134,11 @@ static int handle_list_event(bContext *C, const wmEvent *event, ARegion *region,
   int scroll_dir = 1;
   bool redraw = false;
 
-  uiList *list = static_cast<uiList *>(listbox->custom_data);
-  if (!list || !list->dyn_data) {
+  uiList *ui_list = static_cast<uiList *>(listbox->custom_data);
+  if (!ui_list || !ui_list->dyn_data) {
     return retval;
   }
-  uiListDyn *dyn_data = list->dyn_data;
+  uiListDyn *dyn_data = ui_list->dyn_data;
 
   int mx = event->xy[0];
   int my = event->xy[1];
@@ -10169,7 +10169,7 @@ static int handle_list_event(bContext *C, const wmEvent *event, ARegion *region,
       int value, min, max;
 
       value = value_orig;
-      const int inc = list_get_increment(list, type);
+      const int inc = list_get_increment(ui_list, type);
 
       if (dyn_data->items_filter_neworder || dyn_data->items_filter_flags) {
         /* If we have a display order different from
@@ -10180,7 +10180,7 @@ static int handle_list_event(bContext *C, const wmEvent *event, ARegion *region,
         int current_idx = -1;
 
         for (int i = 0; i < len; i++) {
-          if (list_item_index_is_filtered_visible(list, i)) {
+          if (list_item_index_is_filtered_visible(ui_list, i)) {
             org_order[new_order ? new_order[++org_idx] : ++org_idx] = i;
             if (i == value) {
               current_idx = new_order ? new_order[org_idx] : org_idx;
@@ -10222,19 +10222,19 @@ static int handle_list_event(bContext *C, const wmEvent *event, ARegion *region,
           apply_but_undo(but, true);
         }
 
-        list->flag |= UILST_SCROLL_TO_ACTIVE_ITEM;
+        ui_list->flag |= UILST_SCROLL_TO_ACTIVE_ITEM;
         redraw = true;
       }
       retval = WM_UI_HANDLER_BREAK;
     }
     else if (ELEM(type, WHEELUPMOUSE, WHEELDOWNMOUSE) && (event->modifier & KM_SHIFT)) {
       /* We now have proper grip, but keep this anyway! */
-      if (list->list_grip < (dyn_data->visual_height_min - UI_LIST_AUTO_SIZE_THRESHOLD)) {
-        list->list_grip = dyn_data->visual_height;
+      if (ui_list->list_grip < (dyn_data->visual_height_min - UI_LIST_AUTO_SIZE_THRESHOLD)) {
+        ui_list->list_grip = dyn_data->visual_height;
       }
-      list->list_grip += (type == WHEELUPMOUSE) ? -1 : 1;
+      ui_list->list_grip += (type == WHEELUPMOUSE) ? -1 : 1;
 
-      list->flag |= UILST_SCROLL_TO_ACTIVE_ITEM;
+      ui_list->flag |= UILST_SCROLL_TO_ACTIVE_ITEM;
 
       redraw = true;
       retval = WM_UI_HANDLER_BREAK;
@@ -10242,7 +10242,7 @@ static int handle_list_event(bContext *C, const wmEvent *event, ARegion *region,
     else if (ELEM(type, WHEELUPMOUSE, WHEELDOWNMOUSE)) {
       if (dyn_data->height > dyn_data->visual_height) {
         /* list template will clamp */
-        list->list_scroll += scroll_dir * ((type == WHEELUPMOUSE) ? -1 : 1);
+        ui_list->list_scroll += scroll_dir * ((type == WHEELUPMOUSE) ? -1 : 1);
 
         redraw = true;
         retval = WM_UI_HANDLER_BREAK;
