@@ -109,21 +109,71 @@ void VertexAverageOperation::on_stroke_extended(const bContext &C,
       });
     }
 
+    const std::optional<GroupedSpan<int>> fills = params.drawing.fills();
     const IndexMask fill_selection = fill_mask_for_stroke_operation(
         params, use_selection_masking, memory);
-    if (!fill_selection.is_empty() && do_fill) {
-      const OffsetIndices<int> points_by_curve = params.drawing.strokes().points_by_curve();
+    if (!fill_selection.is_empty() && do_fill && fills) {
+      const bke::CurvesGeometry &curves = params.drawing.strokes();
+      const OffsetIndices<int> points_by_curve = curves.points_by_curve();
       const Array<float2> view_positions = view_positions_from_curve_mask(params, fill_selection);
       MutableSpan<ColorGeometry4f> fill_colors = params.drawing.fill_colors_for_write();
+      const VArray<int> fill_ids = *curves.attributes().lookup_or_default<int>(
+          "fill_id", bke::AttrDomain::Curve, 0);
+
+      int fill_index = 0;
+
+      Array<int> fill_index_by_curves(curves.curves_num(), -1);
+      Array<int> first_curves(curves.curves_num());
+      array_utils::fill_index_range<int>(first_curves);
+
+      for (const int curve_i : curves.curves_range()) {
+        const bool is_filled = fill_ids[curve_i] != 0;
+        const bool active_filled = is_filled && (fill_index_by_curves[curve_i] == -1);
+
+        if (active_filled) {
+          const Span<int> fill = (*fills)[fill_index];
+          const int first_curve = fill.first();
+          for (const int pos : fill.index_range()) {
+            const int curve_i = fill[pos];
+            fill_index_by_curves[curve_i] = fill_index;
+            first_curves[curve_i] = first_curve;
+          }
+
+          fill_index++;
+        }
+      }
 
       fill_selection.foreach_index(GrainSize(1024), [&](const int64_t curve_i) {
-        const IndexRange points = points_by_curve[curve_i];
-        const Span<float2> curve_view_positions = view_positions.as_span().slice(points);
-        const float influence = brush_fill_influence(
-            paint, brush, curve_view_positions, extension_sample, params.multi_frame_falloff);
+        /* Will be `-1` if not a fill. */
+        const int fill_index = fill_index_by_curves[curve_i];
+
+        const bool is_filled = fill_index != -1;
+        const bool active_filled = is_filled && (first_curves[curve_i] == curve_i);
+
+        if (!active_filled) {
+          return;
+        }
+
+        const Span<int> fill = (*fills)[fill_index];
+
+        float influence = 0.0f;
+        for (const int curve_j : fill) {
+          const IndexRange points = points_by_curve[curve_j];
+          const Span<float2> curve_view_positions = view_positions.as_span().slice(points);
+          influence = math::max(influence,
+                                brush_fill_influence(paint,
+                                                     brush,
+                                                     curve_view_positions,
+                                                     extension_sample,
+                                                     params.multi_frame_falloff));
+        }
 
         ColorGeometry4f &color = fill_colors[curve_i];
         color = math::interpolate(color, mix_color, influence);
+
+        if (fill.size() > 1) {
+          index_mask::masked_fill(fill_colors, color, IndexMask::from_indices(fill, memory));
+        }
       });
     }
     return true;
