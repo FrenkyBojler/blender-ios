@@ -37,7 +37,7 @@ class BVHNode {
   virtual bool is_leaf() const = 0;
   virtual int num_children() const = 0;
   virtual BVHNode *get_child(const int i) const = 0;
-  virtual int num_triangles() const
+  virtual int num_primitives() const
   {
     return 0;
   }
@@ -189,7 +189,7 @@ class LeafNode : public BVHNode {
   {
     return nullptr;
   }
-  int num_triangles() const override
+  int num_primitives() const override
   {
     return hi - lo;
   }

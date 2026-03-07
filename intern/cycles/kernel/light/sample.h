@@ -23,7 +23,7 @@ CCL_NAMESPACE_BEGIN
 /* Evaluate constant factors for a direct light sample. */
 ccl_device bool light_sample_shader_eval_nee_constant(KernelGlobals kg,
                                                       const int shader_id,
-                                                      const int prim,
+                                                      const int object_id,
                                                       const bool is_light,
                                                       ccl_private Spectrum &eval)
 {
@@ -31,7 +31,7 @@ ccl_device bool light_sample_shader_eval_nee_constant(KernelGlobals kg,
   const bool is_constant = surface_shader_constant_emission(kg, shader_id, &eval);
 
   if (is_light) {
-    const ccl_global KernelLight *klight = &kernel_data_fetch(lights, prim);
+    const ccl_global KernelLight *klight = get_light_from_object_id(kg, object_id);
     eval *= rgb_to_spectrum(
         make_float3(klight->strength[0], klight->strength[1], klight->strength[2]));
   }
@@ -43,13 +43,14 @@ ccl_device bool light_sample_shader_eval_nee_constant(KernelGlobals kg,
  * in shade_surface and shader_background. */
 ccl_device_noinline_cpu Spectrum light_sample_shader_eval_forward(KernelGlobals kg,
                                                                   IntegratorState state,
-                                                                  const int light_id,
+                                                                  const int object,
+                                                                  const int prim,
                                                                   const float3 ray_P,
                                                                   const float3 ray_D,
                                                                   const float t,
                                                                   const float time)
 {
-  const ccl_global KernelLight *klight = &kernel_data_fetch(lights, light_id);
+  const ccl_global KernelLightGeom *klight = &kernel_data_fetch(light_geom, prim);
 
   /* setup shading at emitter */
   Spectrum eval = zero_spectrum();
@@ -65,7 +66,7 @@ ccl_device_noinline_cpu Spectrum light_sample_shader_eval_forward(KernelGlobals 
     const float3 P = (t == FLT_MAX) ? -ray_D : ray_P + ray_D * t;
     float3 Ng = zero_float3();
     float2 uv = zero_float2();
-    light_normal_uv_from_position(kg, klight, P, ray_D, Ng, uv);
+    light_normal_uv_from_position(kg, object, P, ray_D, Ng, uv);
 
     shader_setup_from_sample(kg,
                              emission_sd,
@@ -73,8 +74,8 @@ ccl_device_noinline_cpu Spectrum light_sample_shader_eval_forward(KernelGlobals 
                              Ng,
                              -ray_D,
                              klight->shader_id,
-                             klight->object_id,
-                             light_id,
+                             object,
+                             prim,
                              uv.x,
                              uv.y,
                              t,
@@ -95,7 +96,7 @@ ccl_device_noinline_cpu Spectrum light_sample_shader_eval_forward(KernelGlobals 
   }
 
   {
-    const ccl_global KernelLight *klight = &kernel_data_fetch(lights, light_id);
+    const ccl_global KernelLight *klight = get_light_from_object_id(kg, object);
     eval *= rgb_to_spectrum(
         make_float3(klight->strength[0], klight->strength[1], klight->strength[2]));
   }
@@ -261,7 +262,7 @@ ccl_device_inline void shadow_ray_setup(const ccl_private ShaderData *ccl_restri
                                         ccl_private Ray *ray,
                                         const bool skip_self)
 {
-  if (ls->shader & SHADER_CAST_SHADOW) {
+  if (ls->shader_id_and_flags & SHADER_CAST_SHADOW) {
     /* setup ray */
     ray->P = P;
     ray->tmin = 0.0f;
@@ -434,7 +435,7 @@ ccl_device_forceinline void light_sample_update(KernelGlobals kg,
                                                 const float3 N,
                                                 const uint32_t path_flag)
 {
-  const ccl_global KernelLight *klight = &kernel_data_fetch(lights, ls->prim);
+  const ccl_global KernelLight *klight = get_light_from_object_id(kg, ls->object);
 
   if (ls->type == LIGHT_POINT) {
     point_light_mnee_sample_update(klight, ls, P, N, path_flag);

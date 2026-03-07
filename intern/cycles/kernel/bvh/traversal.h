@@ -224,6 +224,10 @@ ccl_device_noinline bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals kg,
                 break;
               }
 #endif /* BVH_FEATURE(BVH_POINTCLOUD) */
+              case PRIMITIVE_LAMP: {
+                lights_intersect(kg, isect, P, dir, tmin, prim_object, prim);
+                break;
+              }
             }
           }
         }

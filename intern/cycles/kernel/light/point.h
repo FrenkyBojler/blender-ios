@@ -131,24 +131,21 @@ ccl_device_forceinline void point_light_mnee_sample_update(const ccl_global Kern
   }
 }
 
-ccl_device_inline bool point_light_intersect(const ccl_global KernelLight *klight,
+ccl_device_inline bool point_light_intersect(const ccl_global KernelLightGeom *klight,
                                              const ccl_private Ray *ccl_restrict ray,
                                              ccl_private float *t)
 {
-  const float radius = klight->spot.radius;
-  if (radius == 0.0f) {
-    return false;
-  }
+  const float radius = POINT_LIGHT_RADIUS;
 
-  if (klight->spot.is_sphere) {
+  const float3 center = zero_float3();
+  if (klight->is_sphere) {
     float3 P;
-    return ray_sphere_intersect(ray->P, ray->D, ray->tmin, ray->tmax, klight->co, radius, &P, t);
+    return ray_sphere_intersect(ray->P, ray->D, ray->tmin, ray->tmax, center, radius, &P, t);
   }
 
   float3 P;
-  const float3 diskN = normalize(ray->P - klight->co);
-  return ray_disk_intersect(
-      ray->P, ray->D, ray->tmin, ray->tmax, klight->co, diskN, radius, &P, t);
+  const float3 diskN = normalize(ray->P);
+  return ray_disk_intersect(ray->P, ray->D, ray->tmin, ray->tmax, center, diskN, radius, &P, t);
 }
 
 ccl_device_inline LightEval

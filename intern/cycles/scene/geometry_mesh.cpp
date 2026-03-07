@@ -23,7 +23,7 @@
 
 CCL_NAMESPACE_BEGIN
 
-void GeometryManager::device_update_mesh(Device * /*unused*/,
+void GeometryManager::device_update_prim(Device * /*unused*/,
                                          DeviceScene *dscene,
                                          Scene *scene,
                                          Progress &progress)
@@ -37,6 +37,8 @@ void GeometryManager::device_update_mesh(Device * /*unused*/,
   size_t curve_segment_size = 0;
 
   size_t point_size = 0;
+
+  size_t light_size = 0;
 
   for (Geometry *geom : scene->geometry) {
     if (geom->is_mesh() || geom->is_volume()) {
@@ -55,6 +57,13 @@ void GeometryManager::device_update_mesh(Device * /*unused*/,
     else if (geom->is_pointcloud()) {
       PointCloud *pointcloud = static_cast<PointCloud *>(geom);
       point_size += pointcloud->num_points();
+    }
+    else {
+      assert(geom->is_light());
+      // const Light *light = static_cast<const Light *>(geom);
+      // light_size += light->need_bvh();
+      /* TODO(weizhen): do we need lightgeom outside of bvh? */
+      light_size++;
     }
   }
 
@@ -156,6 +165,27 @@ void GeometryManager::device_update_mesh(Device * /*unused*/,
 
     dscene->points.copy_to_device();
     dscene->points_shader.copy_to_device();
+  }
+
+  if (light_size != 0) {
+    progress.set_status("Updating Mesh", "Copying Lights to device");
+
+    KernelLightGeom *light_geom = dscene->light_geom.alloc(light_size);
+
+    for (const Geometry *geom : scene->geometry) {
+      if (geom->is_light()) {
+        const Light *light = static_cast<const Light *>(geom);
+        // if (light->need_bvh()) {
+        light->pack(&light_geom[light->prim_offset], scene);
+        //}
+
+        if (progress.get_cancel()) {
+          return;
+        }
+      }
+    }
+
+    dscene->light_geom.copy_to_device_if_modified();
   }
 }
 

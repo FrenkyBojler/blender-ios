@@ -15,6 +15,7 @@
 
 CCL_NAMESPACE_BEGIN
 
+class Geometry;
 class BVHOptiX;
 struct KernelParamsOptiX;
 
@@ -70,6 +71,10 @@ enum {
   PG_HITS_POINTCLOUD,
   PG_HITV_POINTCLOUD,
   PG_HITL_POINTCLOUD,
+  PG_HITD_LIGHT,
+  PG_HITS_LIGHT,
+  PG_HITV_LIGHT,
+  PG_HITL_LIGHT,
 
   /* Callable */
   PG_CALL_SVM_AO,
@@ -81,7 +86,7 @@ enum {
 static const int MISS_PROGRAM_GROUP_OFFSET = PG_MISS;
 static const int NUM_MISS_PROGRAM_GROUPS = 1;
 static const int HIT_PROGAM_GROUP_OFFSET = PG_HITD;
-static const int NUM_HIT_PROGRAM_GROUPS = 24;
+static const int NUM_HIT_PROGRAM_GROUPS = 28;
 static const int CALLABLE_PROGRAM_GROUPS_BASE = PG_CALL_SVM_AO;
 static const int NUM_CALLABLE_PROGRAM_GROUPS = 2;
 
@@ -143,6 +148,23 @@ class OptiXDevice : public CUDADevice {
                        uint16_t num_motion_steps);
 
   void build_bvh(BVH *bvh, Progress &progress, bool refit) override;
+
+  void build_BLAS_hair(Geometry *const geom,
+                       BVHOptiX *const bvh_optix,
+                       const OptixBuildOperation operation,
+                       Progress &progress);
+  void build_BLAS_mesh(Geometry *const geom,
+                       BVHOptiX *const bvh_optix,
+                       const OptixBuildOperation operation,
+                       Progress &progress);
+  void build_BLAS_pointcloud(Geometry *const geom,
+                             BVHOptiX *const bvh_optix,
+                             const OptixBuildOperation operation,
+                             Progress &progress);
+  void build_BLAS_light(Geometry *const geom,
+                        BVHOptiX *const bvh_optix,
+                        const OptixBuildOperation operation,
+                        Progress &progress);
 
   void release_bvh(BVH *bvh) override;
   void free_bvh_memory_delayed();

@@ -13,7 +13,7 @@ CCL_NAMESPACE_BEGIN
 /* Ray Intersection */
 
 ccl_device bool ray_sphere_intersect(const float3 ray_P,
-                                     const float3 ray_D,
+                                     float3 ray_D,
                                      const float ray_tmin,
                                      const float ray_tmax,
                                      const float3 sphere_P,
@@ -21,6 +21,8 @@ ccl_device bool ray_sphere_intersect(const float3 ray_P,
                                      ccl_private float3 *isect_P,
                                      ccl_private float *isect_t)
 {
+  float len_D;
+  ray_D = normalize_len(ray_D, &len_D);
   const float3 d_vec = sphere_P - ray_P;
   const float r_sq = sphere_radius * sphere_radius;
   const float d_sq = dot(d_vec, d_vec);
@@ -39,7 +41,7 @@ ccl_device bool ray_sphere_intersect(const float3 ray_P,
   }
 
   /* Law of cosines. */
-  const float t = d_cos_theta - copysignf(sqrtf(r_sq - d_sin_theta_sq), d_sq - r_sq);
+  const float t = (d_cos_theta - copysignf(sqrtf(r_sq - d_sin_theta_sq), d_sq - r_sq)) / len_D;
 
   if (t > ray_tmin && t < ray_tmax) {
     *isect_t = t;
@@ -328,10 +330,10 @@ ccl_device bool ray_quad_intersect(const float3 ray_P,
 
   /* NOTE: Return barycentric coordinates in the same notation as Embree and OptiX. */
   if (isect_u != nullptr) {
-    *isect_u = v + 0.5f;
+    *isect_u = u + 0.5f;
   }
   if (isect_v != nullptr) {
-    *isect_v = -u - v;
+    *isect_v = v + 0.5f;
   }
 
   return true;

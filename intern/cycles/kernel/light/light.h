@@ -15,7 +15,6 @@
 #include "kernel/light/point.h"
 #include "kernel/light/spot.h"
 #include "kernel/light/triangle.h"
-#include "kernel/sample/lcg.h"
 #include "kernel/types.h"
 
 CCL_NAMESPACE_BEGIN
@@ -23,10 +22,10 @@ CCL_NAMESPACE_BEGIN
 /* Light info. */
 
 ccl_device_inline bool light_select_reached_max_bounces(KernelGlobals kg,
-                                                        const int index,
+                                                        const int prim,
                                                         const int bounce)
 {
-  return (bounce > kernel_data_fetch(lights, index).max_bounces);
+  return (bounce > kernel_data_fetch(light_geom, prim).max_bounces);
 }
 
 /* Light linking. */
@@ -77,11 +76,18 @@ ccl_device_inline bool light_link_object_match(KernelGlobals kg,
 #endif
 }
 
+ccl_device_inline const ccl_global KernelLight *get_light_from_object_id(KernelGlobals kg,
+                                                                         const int object_id)
+{
+  const ccl_global KernelObject *kobject = &kernel_data_fetch(objects, object_id);
+  return &kernel_data_fetch(lights, kobject->light_id);
+}
+
 /* Sample point on an individual light. */
 
 template<bool in_volume_segment>
 ccl_device_inline bool light_sample(KernelGlobals kg,
-                                    const int lamp,
+                                    const int object,
                                     const float2 rand,
                                     const float3 P,
                                     const float3 N,
@@ -89,18 +95,18 @@ ccl_device_inline bool light_sample(KernelGlobals kg,
                                     const uint32_t path_flag,
                                     ccl_private LightSample *ls)
 {
-  const ccl_global KernelLight *klight = &kernel_data_fetch(lights, lamp);
+  const ccl_global KernelLight *klight = get_light_from_object_id(kg, object);
   if (path_flag & PATH_RAY_SHADOW_CATCHER_PASS) {
-    if (klight->shader_id & SHADER_EXCLUDE_SHADOW_CATCHER) {
+    if (klight->shader_id_and_flags & SHADER_EXCLUDE_SHADOW_CATCHER) {
       return false;
     }
   }
 
   const LightType type = (LightType)klight->type;
   ls->type = type;
-  ls->shader = klight->shader_id;
-  ls->object = klight->object_id;
-  ls->prim = lamp;
+  ls->shader_id_and_flags = klight->shader_id_and_flags;
+  ls->object = object;
+  ls->prim = klight->prim;
   ls->group = object_lightgroup(kg, ls->object);
 
   if (in_volume_segment && (type == LIGHT_DISTANT || type == LIGHT_BACKGROUND)) {
@@ -176,7 +182,7 @@ ccl_device_noinline bool light_sample(KernelGlobals kg,
   if (kernel_data.integrator.use_light_tree) {
     const ccl_global KernelLightTreeEmitter *kemitter = &kernel_data_fetch(light_tree_emitters,
                                                                            ls->emitter_id);
-    prim = kemitter->light.id;
+    prim = kemitter->light.prim;
     visibility_flag = kemitter->visibility_flag;
     object_id = (prim >= 0) ? ls->object : kemitter->object_id;
   }
@@ -207,16 +213,14 @@ ccl_device_noinline bool light_sample(KernelGlobals kg,
     if (!triangle_light_sample<in_volume_segment>(kg, prim, object_id, rand, time, ls, P)) {
       return false;
     }
-    ls->shader |= visibility_flag;
+    ls->shader_id_and_flags |= visibility_flag;
   }
   else {
-    const int light = ~prim;
-
-    if (UNLIKELY(light_select_reached_max_bounces(kg, light, bounce))) {
+    if (UNLIKELY(light_select_reached_max_bounces(kg, ~prim, bounce))) {
       return false;
     }
 
-    if (!light_sample<in_volume_segment>(kg, light, rand, P, N, shader_flags, path_flag, ls)) {
+    if (!light_sample<in_volume_segment>(kg, object_id, rand, P, N, shader_flags, path_flag, ls)) {
       return false;
     }
   }
@@ -225,203 +229,49 @@ ccl_device_noinline bool light_sample(KernelGlobals kg,
   return in_volume_segment || (ls->pdf > 0.0f);
 }
 
-/* Intersect ray with individual light. */
-
-/* Returns the total number of hits (the input num_hits plus the number of the new intersections).
- */
-template<bool is_main_path>
-ccl_device_forceinline int lights_intersect_impl(KernelGlobals kg,
-                                                 const ccl_private Ray *ccl_restrict ray,
-                                                 ccl_private Intersection *ccl_restrict isect,
-                                                 const int last_prim,
-                                                 const int last_object,
-                                                 const int last_type,
-                                                 const uint32_t path_flag,
-                                                 const uint8_t path_mnee,
-                                                 const int receiver_forward,
-                                                 ccl_private uint *lcg_state,
-                                                 int num_hits)
+ccl_device_inline bool lights_intersect(KernelGlobals kg,
+                                        ccl_private Intersection *ccl_restrict isect,
+                                        const float3 P,
+                                        const float3 dir,
+                                        const float tmin,
+                                        const int object,
+                                        const int prim)
 {
-#ifdef __SHADOW_LINKING__
-  const bool is_indirect_ray = !(path_flag & PATH_RAY_CAMERA);
-#endif
+  /* TODO(weizhen): maybe deal with light linking here instead of in `integrate_light()` */
 
-  for (int lamp = 0; lamp < kernel_data.integrator.num_lights; lamp++) {
-    const ccl_global KernelLight *klight = &kernel_data_fetch(lights, lamp);
-    const int object = klight->object_id;
+  const ccl_global KernelLightGeom *klight = &kernel_data_fetch(light_geom, prim);
 
-    if (path_flag & PATH_RAY_CAMERA) {
-      if (klight->shader_id & SHADER_EXCLUDE_CAMERA) {
-        continue;
-      }
-    }
-    else {
-      if (!(klight->shader_id & SHADER_USE_MIS)) {
-        continue;
-      }
+  const LightType type = (LightType)klight->type;
+  float t = 0.0f;
 
-#ifdef __MNEE__
-      /* This path should have been resolved with mnee, it will
-       * generate a firefly for small lights since it is improbable. */
-      if ((path_mnee & PATH_MNEE_CULL_LIGHT_CONNECTION) && klight->use_caustics) {
-        continue;
-      }
-#endif
-    }
+  Ray ray = {P, dir, tmin, isect->t};
 
-    if (path_flag & PATH_RAY_SHADOW_CATCHER_PASS) {
-      if (klight->shader_id & SHADER_EXCLUDE_SHADOW_CATCHER) {
-        continue;
-      }
+  if (type == LIGHT_SPOT) {
+    /* TODO(weizhen): why is there no uv? */
+    if (!spot_light_intersect(klight, &ray, &t)) {
+      return false;
     }
-
-#ifdef __SHADOW_LINKING__
-    /* For the main path exclude shadow-linked lights if intersecting with an indirect light ray.
-     * Those lights are handled via dedicated light intersect and shade kernels.
-     * For the shadow path used for the dedicated light shading ignore all non-shadow-linked
-     * lights. */
-    if (kernel_data.kernel_features & KERNEL_FEATURE_SHADOW_LINKING) {
-      if (is_main_path) {
-        if (is_indirect_ray &&
-            kernel_data_fetch(objects, object).shadow_set_membership != LIGHT_LINK_MASK_ALL)
-        {
-          continue;
-        }
-      }
-      else if (kernel_data_fetch(objects, object).shadow_set_membership == LIGHT_LINK_MASK_ALL) {
-        continue;
-      }
+  }
+  else if (type == LIGHT_POINT) {
+    if (!point_light_intersect(klight, &ray, &t)) {
+      return false;
     }
-#endif
-
-#ifdef __LIGHT_LINKING__
-    /* Light linking. */
-    if (!(path_flag & PATH_RAY_CAMERA) && !light_link_object_match(kg, receiver_forward, object)) {
-      continue;
+  }
+  else if (type == LIGHT_AREA) {
+    if (!area_light_intersect(klight, &ray, &t)) {
+      return false;
     }
-#endif
-
-    const LightType type = (LightType)klight->type;
-    float t = 0.0f;
-
-    if (type == LIGHT_SPOT) {
-      if (!spot_light_intersect(klight, ray, &t)) {
-        continue;
-      }
-    }
-    else if (type == LIGHT_POINT) {
-      if (!point_light_intersect(klight, ray, &t)) {
-        continue;
-      }
-    }
-    else if (type == LIGHT_AREA) {
-      if (!area_light_intersect(klight, ray, &t)) {
-        continue;
-      }
-    }
-    else if (type == LIGHT_DISTANT) {
-      if (is_main_path || ray->tmax != FLT_MAX) {
-        continue;
-      }
-      if (!distant_light_intersect(klight, ray, &t)) {
-        continue;
-      }
-    }
-    else {
-      continue;
-    }
-
-    /* Avoid self-intersections. */
-    if (last_prim == lamp && last_object == object && last_type == PRIMITIVE_LAMP) {
-      continue;
-    }
-
-    ++num_hits;
-
-#ifdef __SHADOW_LINKING__
-    if (!is_main_path) {
-      /* The non-main rays are only raced by the dedicated light kernel, after the shadow linking
-       * feature check. */
-      kernel_assert(kernel_data.kernel_features & KERNEL_FEATURE_SHADOW_LINKING);
-
-      if ((isect->prim != PRIM_NONE) && (lcg_step_float(lcg_state) > 1.0f / num_hits)) {
-        continue;
-      }
-    }
-    else
-#endif
-        if (t >= isect->t)
-    {
-      continue;
-    }
-
-    isect->t = t;
-    isect->u = 0.0f;
-    isect->v = 0.0f;
-    isect->type = PRIMITIVE_LAMP;
-    isect->prim = lamp;
-    isect->object = object;
+  }
+  else {
+    /* No distant lights in the bvh. */
+    return false;
   }
 
-  return num_hits;
-}
-
-/* Lights intersection for the main path.
- * Intersects spot, point, and area lights. */
-ccl_device bool lights_intersect(KernelGlobals kg,
-                                 IntegratorState state,
-                                 const ccl_private Ray *ccl_restrict ray,
-                                 ccl_private Intersection *ccl_restrict isect,
-                                 const int last_prim,
-                                 const int last_object,
-                                 const int last_type,
-                                 const uint32_t path_flag)
-{
-  const uint8_t path_mnee = INTEGRATOR_STATE(state, path, mnee);
-  const int receiver_forward = light_link_receiver_forward(kg, state);
-
-  lights_intersect_impl<true>(kg,
-                              ray,
-                              isect,
-                              last_prim,
-                              last_object,
-                              last_type,
-                              path_flag,
-                              path_mnee,
-                              receiver_forward,
-                              nullptr,
-                              0);
-
-  return isect->prim != PRIM_NONE;
-}
-
-/* Lights intersection for the shadow linking.
- * Intersects spot, point, area, and distant lights.
- *
- * Returns the total number of hits (the input num_hits plus the number of the new intersections).
- */
-ccl_device int lights_intersect_shadow_linked(KernelGlobals kg,
-                                              const ccl_private Ray *ccl_restrict ray,
-                                              ccl_private Intersection *ccl_restrict isect,
-                                              const int last_prim,
-                                              const int last_object,
-                                              const int last_type,
-                                              const uint32_t path_flag,
-                                              const int receiver_forward,
-                                              ccl_private uint *lcg_state,
-                                              const int num_hits)
-{
-  return lights_intersect_impl<false>(kg,
-                                      ray,
-                                      isect,
-                                      last_prim,
-                                      last_object,
-                                      last_type,
-                                      path_flag,
-                                      PATH_MNEE_NONE,
-                                      receiver_forward,
-                                      lcg_state,
-                                      num_hits);
+  isect->object = object;
+  isect->prim = prim;
+  isect->type = PRIMITIVE_LAMP;
+  isect->t = t;
+  return true;
 }
 
 /* Setup light sample from intersection. */
@@ -434,7 +284,8 @@ light_eval_from_intersection(KernelGlobals kg,
                              const float3 N,
                              const uint32_t path_flag)
 {
-  const ccl_global KernelLight *klight = &kernel_data_fetch(lights, isect->prim);
+  /* TODO(weizhen): this points to KernelLightGeom instead of KernelLight now. */
+  const ccl_global KernelLight *klight = get_light_from_object_id(kg, isect->object);
   const LightType type = (LightType)klight->type;
 
   if (type == LIGHT_SPOT) {
@@ -453,12 +304,13 @@ light_eval_from_intersection(KernelGlobals kg,
 
 /* Get light coordinates from position on light. */
 ccl_device void light_normal_uv_from_position(KernelGlobals kg,
-                                              const ccl_global KernelLight *klight,
+                                              const int object_id,
                                               const float3 P,
                                               const float3 D,
                                               ccl_private float3 &Ng,
                                               ccl_private float2 &uv)
 {
+  const ccl_global KernelLight *klight = get_light_from_object_id(kg, object_id);
   const LightType type = (LightType)klight->type;
 
   if (type == LIGHT_SPOT) {

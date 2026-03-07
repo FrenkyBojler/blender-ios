@@ -34,6 +34,8 @@ void Geometry::compute_bvh(Device *device,
     return;
   }
 
+  /* TODO(weizhen): distant lights don't need bvh. */
+
   compute_bounds();
 
   const BVHLayout bvh_layout = BVHParams::best_bvh_layout(

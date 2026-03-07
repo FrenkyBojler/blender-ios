@@ -294,6 +294,13 @@ void Scene::device_update(Device *device_, Progress &progress)
     return;
   }
 
+  /* Test enabled lights and adjust object transformation. Needs to happen after object manager
+   * device update and before geometry BVH construction. */
+  light_manager->device_update_preprocess(device, &dscene, this, progress);
+  if (progress.get_cancel() || device->have_error()) {
+    return;
+  }
+
   /* Camera and shaders must be ready here for adaptive subdivision and displacement. */
   progress.set_status("Updating Meshes");
   geometry_manager->device_update(device, &dscene, this, progress);
@@ -834,6 +841,7 @@ template<class T> T *Scene::create_light_node()
   node->set_owner(this);
   geometry.push_back(std::move(node));
   light_manager->tag_update(this, LightManager::LIGHT_ADDED);
+  geometry_manager->tag_update(this, GeometryManager::LIGHT_ADDED);
   return node_ptr;
 }
 
@@ -983,6 +991,7 @@ template<> void Scene::delete_node(Light *node)
   assert(node->get_owner() == this);
   geometry.erase_by_swap(node);
   light_manager->tag_update(this, LightManager::LIGHT_REMOVED);
+  geometry_manager->tag_update(this, GeometryManager::LIGHT_REMOVED);
 }
 
 template<> void Scene::delete_node(Mesh *node)

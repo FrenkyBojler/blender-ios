@@ -27,7 +27,7 @@ struct RaycastResult {
 };
 
 ccl_device RaycastResult svm_raycast(KernelGlobals kg,
-                                     ConstIntegratorState /*state*/,
+                                     ConstIntegratorState state,
                                      ccl_private ShaderData *sd,
                                      float3 position,
                                      float3 direction,
@@ -77,7 +77,9 @@ ccl_device RaycastResult svm_raycast(KernelGlobals kg,
   else {
     /* Ray-trace, leaving out shadow opaque to avoid early exit. */
     const uint visibility = PATH_RAY_ALL_VISIBILITY - PATH_RAY_SHADOW_OPAQUE;
-    if (!scene_intersect(kg, &ray, visibility, &isect)) {
+    const uint32_t path_flag = INTEGRATOR_STATE(state, path, flag);
+    const bool is_indirect_ray = !(path_flag & PATH_RAY_CAMERA);
+    if (!scene_intersect(kg, &ray, is_indirect_ray, visibility, &isect)) {
       return result;
     }
   }

@@ -37,24 +37,26 @@ enum {
   DEVICE_CURVE_DATA_MODIFIED = (1 << 0),
   DEVICE_MESH_DATA_MODIFIED = (1 << 1),
   DEVICE_POINT_DATA_MODIFIED = (1 << 2),
+  DEVICE_LIGHT_DATA_MODIFIED = (1 << 3),
 
-  ATTR_FLOAT_MODIFIED = (1 << 3),
-  ATTR_FLOAT2_MODIFIED = (1 << 4),
-  ATTR_FLOAT3_MODIFIED = (1 << 5),
-  ATTR_FLOAT4_MODIFIED = (1 << 6),
-  ATTR_UCHAR4_MODIFIED = (1 << 7),
-  ATTR_NORMAL_MODIFIED = (1 << 8),
+  ATTR_FLOAT_MODIFIED = (1 << 4),
+  ATTR_FLOAT2_MODIFIED = (1 << 5),
+  ATTR_FLOAT3_MODIFIED = (1 << 6),
+  ATTR_FLOAT4_MODIFIED = (1 << 7),
+  ATTR_UCHAR4_MODIFIED = (1 << 8),
+  ATTR_NORMAL_MODIFIED = (1 << 9),
 
-  CURVE_DATA_NEED_REALLOC = (1 << 9),
-  MESH_DATA_NEED_REALLOC = (1 << 10),
-  POINT_DATA_NEED_REALLOC = (1 << 11),
+  CURVE_DATA_NEED_REALLOC = (1 << 10),
+  MESH_DATA_NEED_REALLOC = (1 << 11),
+  POINT_DATA_NEED_REALLOC = (1 << 12),
+  LIGHT_DATA_NEED_REALLOC = (1 << 13),
 
-  ATTR_FLOAT_NEEDS_REALLOC = (1 << 12),
-  ATTR_FLOAT2_NEEDS_REALLOC = (1 << 13),
-  ATTR_FLOAT3_NEEDS_REALLOC = (1 << 14),
-  ATTR_FLOAT4_NEEDS_REALLOC = (1 << 15),
-  ATTR_UCHAR4_NEEDS_REALLOC = (1 << 16),
-  ATTR_NORMAL_NEEDS_REALLOC = (1 << 17),
+  ATTR_FLOAT_NEEDS_REALLOC = (1 << 14),
+  ATTR_FLOAT2_NEEDS_REALLOC = (1 << 15),
+  ATTR_FLOAT3_NEEDS_REALLOC = (1 << 16),
+  ATTR_FLOAT4_NEEDS_REALLOC = (1 << 17),
+  ATTR_UCHAR4_NEEDS_REALLOC = (1 << 18),
+  ATTR_NORMAL_NEEDS_REALLOC = (1 << 19),
 
   ATTRS_NEED_REALLOC = (ATTR_FLOAT_NEEDS_REALLOC | ATTR_FLOAT2_NEEDS_REALLOC |
                         ATTR_FLOAT3_NEEDS_REALLOC | ATTR_FLOAT4_NEEDS_REALLOC |
@@ -219,12 +221,14 @@ class GeometryManager {
     HAIR_REMOVED = (1 << 7),
     POINT_ADDED = (1 << 12),
     POINT_REMOVED = (1 << 13),
+    LIGHT_ADDED = (1 << 14),
+    LIGHT_REMOVED = (1 << 15),
 
     SHADER_ATTRIBUTE_MODIFIED = (1 << 8),
     SHADER_DISPLACEMENT_MODIFIED = (1 << 9),
 
-    GEOMETRY_ADDED = MESH_ADDED | HAIR_ADDED | POINT_ADDED,
-    GEOMETRY_REMOVED = MESH_REMOVED | HAIR_REMOVED | POINT_REMOVED,
+    GEOMETRY_ADDED = MESH_ADDED | HAIR_ADDED | POINT_ADDED | LIGHT_ADDED,
+    GEOMETRY_REMOVED = MESH_REMOVED | HAIR_REMOVED | POINT_REMOVED | LIGHT_REMOVED,
 
     TRANSFORM_MODIFIED = (1 << 10),
 
@@ -276,7 +280,7 @@ class GeometryManager {
 
   void device_update_object(Device *device, DeviceScene *dscene, Scene *scene, Progress &progress);
 
-  void device_update_mesh(Device *device, DeviceScene *dscene, Scene *scene, Progress &progress);
+  void device_update_prim(Device *device, DeviceScene *dscene, Scene *scene, Progress &progress);
 
   void device_update_attributes(Device *device,
                                 DeviceScene *dscene,

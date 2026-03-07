@@ -65,7 +65,8 @@ ccl_device_forceinline Intersection get_intersection()
     isect.type = kernel_data_fetch(objects, isect.object).primitive_type;
   }
 #ifdef __HAIR__
-  else if ((optixGetHitKind() & (~PRIMITIVE_MOTION)) != PRIMITIVE_POINT) {
+  else if ((optixGetHitKind() & (~PRIMITIVE_MOTION)) & PRIMITIVE_CURVE) {
+    /* TODO(weizhen): check */
     /* Curve. */
     isect.u = __uint_as_float(optixGetAttribute_0());
     isect.v = __uint_as_float(optixGetAttribute_1());
@@ -76,7 +77,7 @@ ccl_device_forceinline Intersection get_intersection()
   }
 #endif
   else {
-    /* Point. */
+    /* Point or light. */
     isect.u = 0.0f;
     isect.v = 0.0f;
     isect.type = kernel_data_fetch(objects, isect.object).primitive_type;
@@ -105,7 +106,7 @@ extern "C" __global__ void __anyhit__kernel_optix_local_hit()
 {
 #if defined(__HAIR__) || defined(__POINTCLOUD__)
   if (!optixIsTriangleHit()) {
-    /* Ignore curves and points. */
+    /* Ignore curves, points and lights. */
     return optixIgnoreIntersection();
   }
 #endif
@@ -206,7 +207,7 @@ extern "C" __global__ void __anyhit__kernel_optix_volume_test()
 {
 #if defined(__HAIR__) || defined(__POINTCLOUD__)
   if (!optixIsTriangleHit()) {
-    /* Ignore curves. */
+    /* Ignore non-triangles. */
     return optixIgnoreIntersection();
   }
 #endif
@@ -238,7 +239,8 @@ extern "C" __global__ void __anyhit__kernel_optix_visibility_test()
     /* Triangle. */
   }
 #ifdef __HAIR__
-  else if ((optixGetHitKind() & (~PRIMITIVE_MOTION)) != PRIMITIVE_POINT) {
+  else if ((optixGetHitKind() & (~PRIMITIVE_MOTION)) & PRIMITIVE_CURVE) {
+    /* TODO(weizhen): check. */
     /* Curve. */
     prim = kernel_data_fetch(curve_segments, prim).prim;
   }
@@ -283,7 +285,7 @@ extern "C" __global__ void __closesthit__kernel_optix_hit()
     optixSetPayload_3(prim);
     optixSetPayload_5(kernel_data_fetch(objects, object).primitive_type);
   }
-  else if ((optixGetHitKind() & (~PRIMITIVE_MOTION)) != PRIMITIVE_POINT) {
+  else if ((optixGetHitKind() & (~PRIMITIVE_MOTION)) & PRIMITIVE_CURVE) {
     const KernelCurveSegment segment = kernel_data_fetch(curve_segments, prim);
     optixSetPayload_1(optixGetAttribute_0()); /* Same as 'optixGetCurveParameter()' */
     optixSetPayload_2(optixGetAttribute_1());
@@ -382,10 +384,43 @@ extern "C" __global__ void __intersection__point()
 }
 #endif
 
+extern "C" __global__ void __intersection__light()
+{
+  const int prim = optixGetPrimitiveIndex();
+  const int object = get_object_id();
+  const int type = kernel_data_fetch(objects, object).primitive_type;
+
+#ifdef __VISIBILITY_FLAG__
+  const uint visibility = optixGetPayload_4();
+  if ((kernel_data_fetch(objects, object).visibility & visibility) == 0) {
+    return;
+  }
+#endif
+
+  const float3 ray_P = optixGetObjectRayOrigin();
+  const float3 ray_D = optixGetObjectRayDirection();
+  const float ray_tmin = optixGetRayTmin();
+
+#ifdef __OBJECT_MOTION__
+  const float time = optixGetRayTime();
+#else
+  const float time = 0.0f;
+#endif
+
+  Intersection isect;
+  isect.t = optixGetRayTmax();
+
+  if (lights_intersect(nullptr, &isect, ray_P, ray_D, ray_tmin, object, prim)) {
+    static_assert(PRIMITIVE_ALL < 128, "Values >= 128 are reserved for OptiX internal use");
+    optixReportIntersection(isect.t, type & PRIMITIVE_ALL);
+  }
+}
+
 /* Scene intersection. */
 
 ccl_device_intersect bool scene_intersect(KernelGlobals kg,
                                           const ccl_private Ray *ray,
+                                          const bool is_indirect_ray,
                                           const uint visibility,
                                           ccl_private Intersection *isect)
 {

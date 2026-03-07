@@ -10,6 +10,7 @@
 #  include <vector>
 
 #  include "scene/hair.h"
+#  include "scene/light.h"
 #  include "scene/mesh.h"
 #  include "scene/object.h"
 #  include "scene/pointcloud.h"
@@ -966,6 +967,153 @@ bool BVHMetal::build_BLAS_pointcloud(Progress &progress,
   return false;
 }
 
+bool BVHMetal::build_BLAS_light(Progress &progress,
+                                id<MTLDevice> mtl_device,
+                                id<MTLCommandQueue> queue,
+                                Geometry *const geom,
+                                bool refit)
+{
+  /* TODO(weizhen): mostly copied from point cloud, needs closer check. */
+  if (@available(macos 12.0, *)) {
+    /* Build BLAS for point cloud */
+    const Light *light = static_cast<const Light *>(geom);
+    if (!light->need_bvh()) {
+      return false;
+    }
+
+    const bool use_fast_trace_bvh = (params.bvh_type == BVH_TYPE_STATIC) || !support_refit_blas();
+
+    const size_t num_aabbs = 1;
+
+    /* Allocate a GPU buffer for the AABB data and populate it */
+    id<MTLBuffer> aabbBuf = [mtl_device
+        newBufferWithLength:num_aabbs * sizeof(MTLAxisAlignedBoundingBox)
+                    options:MTLResourceStorageModeShared];
+    MTLAxisAlignedBoundingBox *aabb_data = (MTLAxisAlignedBoundingBox *)[aabbBuf contents];
+
+    aabb_data[0].min = (MTLPackedFloat3 &)light->bounds.min;
+    aabb_data[0].max = (MTLPackedFloat3 &)light->bounds.max;
+
+    /* TODO(weizhen): remove motion. */
+    MTLAccelerationStructureGeometryDescriptor *geomDesc;
+    MTLAccelerationStructureBoundingBoxGeometryDescriptor *geomDescNoMotion =
+        [MTLAccelerationStructureBoundingBoxGeometryDescriptor descriptor];
+    geomDescNoMotion.boundingBoxBuffer = aabbBuf;
+    geomDescNoMotion.boundingBoxBufferOffset = 0;
+    geomDescNoMotion.boundingBoxCount = int(num_aabbs);
+    geomDescNoMotion.boundingBoxStride = sizeof(aabb_data[0]);
+    /* TODO(weizhen): define global const? */
+    geomDescNoMotion.intersectionFunctionTableOffset = 3;
+
+    /* Force a single any-hit call, so shadow record-all behavior works correctly */
+    /* (Match optix behavior: unsigned int build_flags =
+     * OPTIX_GEOMETRY_FLAG_REQUIRE_SINGLE_ANYHIT_CALL;) */
+    geomDescNoMotion.allowDuplicateIntersectionFunctionInvocation = false;
+    geomDescNoMotion.opaque = true;
+    geomDesc = geomDescNoMotion;
+
+    MTLPrimitiveAccelerationStructureDescriptor *accelDesc =
+        [MTLPrimitiveAccelerationStructureDescriptor descriptor];
+    accelDesc.geometryDescriptors = @[ geomDesc ];
+
+    BVH_status("Building light BLAS | %s", geom->name.c_str());
+
+    if (extended_limits) {
+      accelDesc.usage |= MTLAccelerationStructureUsageExtendedLimits;
+    }
+
+    if (!use_fast_trace_bvh) {
+      accelDesc.usage |= (MTLAccelerationStructureUsageRefit |
+                          MTLAccelerationStructureUsagePreferFastBuild);
+    }
+    else if (@available(macos 26.0, *)) {
+      accelDesc.usage |= MTLAccelerationStructureUsagePreferFastIntersection;
+    }
+
+    MTLAccelerationStructureSizes accelSizes = [mtl_device
+        accelerationStructureSizesWithDescriptor:accelDesc];
+    id<MTLAccelerationStructure> accel_uncompressed = [mtl_device
+        newAccelerationStructureWithSize:accelSizes.accelerationStructureSize];
+    id<MTLBuffer> scratchBuf = [mtl_device newBufferWithLength:accelSizes.buildScratchBufferSize
+                                                       options:MTLResourceStorageModePrivate];
+    id<MTLBuffer> sizeBuf = [mtl_device newBufferWithLength:8
+                                                    options:MTLResourceStorageModeShared];
+    id<MTLCommandBuffer> accelCommands = [queue commandBuffer];
+    id<MTLAccelerationStructureCommandEncoder> accelEnc =
+        [accelCommands accelerationStructureCommandEncoder];
+    if (refit) {
+      [accelEnc refitAccelerationStructure:accel_struct
+                                descriptor:accelDesc
+                               destination:accel_uncompressed
+                             scratchBuffer:scratchBuf
+                       scratchBufferOffset:0];
+    }
+    else {
+      [accelEnc buildAccelerationStructure:accel_uncompressed
+                                descriptor:accelDesc
+                             scratchBuffer:scratchBuf
+                       scratchBufferOffset:0];
+    }
+    if (use_fast_trace_bvh) {
+      [accelEnc writeCompactedAccelerationStructureSize:accel_uncompressed
+                                               toBuffer:sizeBuf
+                                                 offset:0
+                                           sizeDataType:MTLDataTypeULong];
+    }
+    [accelEnc endEncoding];
+
+    /* Estimated size of resources that will be wired for the GPU accelerated build.
+     * Acceleration-struct size is doubled to account for possible compaction step. */
+    size_t wired_size = aabbBuf.allocatedSize + scratchBuf.allocatedSize +
+                        accel_uncompressed.allocatedSize * 2;
+
+    [accelCommands addCompletedHandler:^(id<MTLCommandBuffer> /*command_buffer*/) {
+      /* free temp resources */
+      [scratchBuf release];
+      [aabbBuf release];
+
+      if (use_fast_trace_bvh) {
+        /* Compact the accel structure */
+        uint64_t compressed_size = *(uint64_t *)sizeBuf.contents;
+
+        dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+          id<MTLCommandBuffer> accelCommands = [queue commandBuffer];
+          id<MTLAccelerationStructureCommandEncoder> accelEnc =
+              [accelCommands accelerationStructureCommandEncoder];
+          id<MTLAccelerationStructure> accel = [mtl_device
+              newAccelerationStructureWithSize:compressed_size];
+          [accelEnc copyAndCompactAccelerationStructure:accel_uncompressed
+                                toAccelerationStructure:accel];
+          [accelEnc endEncoding];
+          [accelCommands addCompletedHandler:^(id<MTLCommandBuffer> /*command_buffer*/) {
+            set_accel_struct(accel);
+            [accel_uncompressed release];
+
+            /* Signal that we've finished doing GPU acceleration struct build. */
+            g_bvh_build_throttler.release(wired_size);
+          }];
+          [accelCommands commit];
+        });
+      }
+      else {
+        /* set our acceleration structure to the uncompressed structure */
+        set_accel_struct(accel_uncompressed);
+
+        /* Signal that we've finished doing GPU acceleration struct build. */
+        g_bvh_build_throttler.release(wired_size);
+      }
+
+      [sizeBuf release];
+    }];
+
+    /* Wait until it's safe to proceed with GPU acceleration struct build. */
+    g_bvh_build_throttler.acquire(wired_size);
+    [accelCommands commit];
+    return true;
+  }
+  return false;
+}
+
 bool BVHMetal::build_BLAS(Progress &progress,
                           id<MTLDevice> mtl_device,
                           id<MTLCommandQueue> queue,
@@ -983,6 +1131,8 @@ bool BVHMetal::build_BLAS(Progress &progress,
       return build_BLAS_hair(progress, mtl_device, queue, geom, refit);
     case Geometry::POINTCLOUD:
       return build_BLAS_pointcloud(progress, mtl_device, queue, geom, refit);
+    case Geometry::LIGHT:
+      return build_BLAS_light(progress, mtl_device, queue, geom, refit);
     default:
       return false;
   }
@@ -1196,16 +1346,10 @@ bool BVHMetal::build_TLAS(Progress &progress,
         Hair *const hair = static_cast<Hair *const>(const_cast<Geometry *>(geom));
         primitive_offset = uint32_t(hair->curve_segment_offset);
       }
-      else if (geom->is_mesh() || geom->is_volume()) {
-        /* Build BLAS for triangle primitives. */
-        Mesh *const mesh = static_cast<Mesh *const>(const_cast<Geometry *>(geom));
-        primitive_offset = uint32_t(mesh->prim_offset);
-      }
-      else if (geom->is_pointcloud()) {
-        /* Build BLAS for points primitives. */
-        PointCloud *const pointcloud = static_cast<PointCloud *const>(
-            const_cast<Geometry *>(geom));
-        primitive_offset = uint32_t(pointcloud->prim_offset);
+      else {
+        /* Build BLAS for triangle, pointcloud and light primitives. */
+        assert(geom->is_mesh() || geom->is_volume() || geom->is_pointcloud() || geom->is_light());
+        primitive_offset = uint32_t(geom->prim_offset);
       }
 
       /* Bake into the appropriate descriptor */

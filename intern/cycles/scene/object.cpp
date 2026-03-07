@@ -61,6 +61,7 @@ struct UpdateObjectTransformState {
   bool have_curves;
   bool have_points;
   bool have_volumes;
+  bool have_lights;
 
   /* ** Scheduling queue. ** */
   Scene *scene;
@@ -178,11 +179,18 @@ void Object::compute_bounds(bool motion_blur)
   }
   else {
     /* No motion blur case. */
-    if (geometry->transform_applied) {
-      bounds = mbounds;
+    if (geometry->is_light()) {
+      /* This is needed because we don't have non-uniform transform for point light. Might become
+       * unnecessary if we support ellipsoid light. */
+      bounds = static_cast<const Light *>(geometry)->compute_bounds(&tfm);
     }
     else {
-      bounds = mbounds.transformed(&tfm);
+      if (geometry->transform_applied) {
+        bounds = mbounds;
+      }
+      else {
+        bounds = mbounds.transformed(&tfm);
+      }
     }
   }
 }
@@ -276,21 +284,28 @@ int Object::motion_step(const float time) const
 
 bool Object::is_traceable() const
 {
-  /* Not supported for lights yet. */
-  if (geometry->is_light()) {
-    return false;
-  }
   /* Mesh itself can be empty,can skip all such objects. */
   if (!bounds.valid() || bounds.size() == zero_float3()) {
     return false;
   }
+
+  if (get_geometry()->is_light()) {
+    return static_cast<const Light *>(get_geometry())->area(get_tfm()) > 0.0f;
+  }
+
   /* TODO(sergey): Check for mesh vertices/curves. visibility flags. */
   return true;
 }
 
 uint Object::visibility_for_tracing() const
 {
-  return SHADOW_CATCHER_OBJECT_VISIBILITY(is_shadow_catcher, visibility & PATH_RAY_ALL_VISIBILITY);
+  uint visibility_ = visibility;
+  if (geometry->is_light()) {
+    /* Light is always transparent. */
+    visibility_ &= ~PATH_RAY_SHADOW;
+  }
+  return SHADOW_CATCHER_OBJECT_VISIBILITY(is_shadow_catcher,
+                                          visibility_ & PATH_RAY_ALL_VISIBILITY);
 }
 
 float Object::compute_volume_step_size(Progress &progress) const
@@ -469,6 +484,7 @@ void Object::set_tfm(Transform tfm)
 
 bool Object::tfm_equals(Transform tfm)
 {
+  /* TODO(weizhen): adjust for lights. */
   adjust_volume_tfm(tfm);
   return tfm == get_tfm();
 }
@@ -687,6 +703,9 @@ void ObjectManager::device_update_object_transform(UpdateObjectTransformState *s
   if (geom->is_volume()) {
     state->have_volumes = true;
   }
+  if (geom->is_light()) {
+    state->have_lights = true;
+  }
 
   /* Light group. */
   auto it = scene->lightgroups.find(ob->lightgroup);
@@ -739,6 +758,7 @@ void ObjectManager::device_update_transforms(DeviceScene *dscene, Scene *scene, 
   state.have_curves = false;
   state.have_points = false;
   state.have_volumes = false;
+  state.have_lights = false;
   state.scene = scene;
   state.queue_start_object = 0;
 
@@ -807,6 +827,7 @@ void ObjectManager::device_update_transforms(DeviceScene *dscene, Scene *scene, 
   dscene->data.bvh.have_curves = state.have_curves;
   dscene->data.bvh.have_points = state.have_points;
   dscene->data.bvh.have_volumes = state.have_volumes;
+  dscene->data.bvh.have_lights = state.have_lights;
 
   dscene->objects.clear_modified();
   dscene->object_motion_pass.clear_modified();
@@ -1080,6 +1101,8 @@ void ObjectManager::device_free(Device * /*unused*/, DeviceScene *dscene, bool f
 
 void ObjectManager::apply_static_transforms(DeviceScene *dscene, Scene *scene, Progress &progress)
 {
+  /* TODO(weizhen): test light. */
+
   /* todo: normals and displacement should be done before applying transform! */
   /* todo: create objects/geometry in right order! */
 
@@ -1116,7 +1139,7 @@ void ObjectManager::apply_static_transforms(DeviceScene *dscene, Scene *scene, P
      */
     Geometry *geom = object->geometry;
     bool apply = (geometry_users[geom] == 1) && !geom->has_surface_bssrdf &&
-                 !geom->has_true_displacement();
+                 !geom->has_true_displacement() && !geom->is_light();
 
     if (geom->is_mesh()) {
       Mesh *mesh = static_cast<Mesh *>(geom);

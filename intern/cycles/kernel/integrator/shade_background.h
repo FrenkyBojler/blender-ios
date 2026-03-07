@@ -87,13 +87,16 @@ ccl_device_inline void integrate_background(KernelGlobals kg,
 #ifdef __MNEE__
   if (INTEGRATOR_STATE(state, path, mnee) & PATH_MNEE_CULL_LIGHT_CONNECTION) {
     if (kernel_data.background.use_mis) {
+      /* TODO(weizhen): make distant lights array. */
       for (int lamp = 0; lamp < kernel_data.integrator.num_lights; lamp++) {
         /* This path should have been resolved with mnee, it will
          * generate a firefly for small lights since it is improbable. */
         const ccl_global KernelLight *klight = &kernel_data_fetch(lights, lamp);
-        if (klight->type == LIGHT_BACKGROUND && klight->use_caustics) {
-          eval_background = false;
-          break;
+        if (klight->type == LIGHT_BACKGROUND) {
+          if (kernel_data_fetch(light_geom, klight->prim).use_caustics) {
+            eval_background = false;
+            break;
+          }
         }
       }
     }
@@ -133,7 +136,7 @@ ccl_device_inline void integrate_distant_lights(KernelGlobals kg,
   for (int lamp = 0; lamp < kernel_data.integrator.num_lights; lamp++) {
     const ccl_global KernelLight *klight = &kernel_data_fetch(lights, lamp);
 
-    if (klight->type != LIGHT_DISTANT || !(klight->shader_id & SHADER_USE_MIS)) {
+    if (klight->type != LIGHT_DISTANT || !(klight->shader_id_and_flags & SHADER_USE_MIS)) {
       continue;
     }
 
@@ -145,7 +148,7 @@ ccl_device_inline void integrate_distant_lights(KernelGlobals kg,
     /* Use visibility flag to skip lights. */
 #ifdef __PASSES__
     const uint32_t path_flag = INTEGRATOR_STATE(state, path, flag);
-    if (!is_light_shader_visible_to_path(klight->shader_id, path_flag)) {
+    if (!is_light_shader_visible_to_path(klight->shader_id_and_flags, path_flag)) {
       continue;
     }
 #endif
@@ -168,7 +171,7 @@ ccl_device_inline void integrate_distant_lights(KernelGlobals kg,
     if (INTEGRATOR_STATE(state, path, mnee) & PATH_MNEE_CULL_LIGHT_CONNECTION) {
       /* This path should have been resolved with mnee, it will
        * generate a firefly for small lights since it is improbable. */
-      if (klight->use_caustics) {
+      if (kernel_data_fetch(light_geom, klight->prim).use_caustics) {
         continue;
       }
     }
@@ -176,7 +179,7 @@ ccl_device_inline void integrate_distant_lights(KernelGlobals kg,
 
     /* Evaluate light shader. */
     const Spectrum shader_eval = light_sample_shader_eval_forward(
-        kg, state, lamp, zero_float3(), ray_D, FLT_MAX, ray_time);
+        kg, state, klight->object_id, klight->prim, zero_float3(), ray_D, FLT_MAX, ray_time);
     const float3 eval = shader_eval * light_eval.eval_fac;
     if (is_zero(eval)) {
       continue;

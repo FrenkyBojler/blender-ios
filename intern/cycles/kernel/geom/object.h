@@ -125,7 +125,11 @@ ccl_device_inline Transform object_get_inverse_transform(KernelGlobals kg,
 ccl_device_inline Transform lamp_get_inverse_transform(KernelGlobals kg,
                                                        const ccl_global KernelLight *klight)
 {
-  return object_fetch_transform(kg, klight->object_id, OBJECT_INVERSE_TRANSFORM);
+  Transform itfm = object_fetch_transform(kg, klight->object_id, OBJECT_INVERSE_TRANSFORM);
+  if (klight->type == LIGHT_SPOT || klight->type == LIGHT_POINT) {
+    transform_prescale(itfm, klight->spot.inv_scale);
+  }
+  return itfm;
 }
 
 /* Transform position from object to world space */

@@ -495,10 +495,10 @@ uint64_t ShaderManager::get_attribute_id(AttributeStandard std)
   return (uint64_t)std;
 }
 
-int ShaderManager::get_shader_id(const Shader *shader, bool smooth)
+uint ShaderManager::get_shader_id(const Shader *shader, bool smooth)
 {
   /* get a shader id to pass to the kernel */
-  int id = shader->id;
+  uint id = shader->id;
 
   /* smooth flag */
   if (smooth) {

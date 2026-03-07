@@ -195,7 +195,8 @@ struct LightTreeEmitter {
   LightTreeMeasure measure;
 
   LightTreeEmitter(Object *object, const int object_id); /* Mesh emitter. */
-  LightTreeEmitter(Scene *scene,
+  LightTreeEmitter(const Scene *scene,
+                   const DeviceScene *dscene,
                    const int prim_id,
                    const int object_id,
                    bool need_transformation = false);
@@ -458,7 +459,7 @@ class LightTree {
   bool triangle_usable_as_light(Mesh *mesh, const int prim_id);
 
   /* Add all the emissive triangles of a mesh to the light tree. */
-  void add_mesh(Scene *scene, Mesh *mesh, const int object_id);
+  void add_mesh(const Scene *scene, const DeviceScene *dscene, Mesh *mesh, const int object_id);
 };
 
 CCL_NAMESPACE_END

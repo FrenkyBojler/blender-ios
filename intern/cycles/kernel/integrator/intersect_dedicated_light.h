@@ -52,7 +52,7 @@ ccl_device int shadow_linking_pick_mesh_intersection(KernelGlobals kg,
     current_isect.object = OBJECT_NONE;
     current_isect.prim = PRIM_NONE;
 
-    const bool hit = scene_intersect(kg, ray, visibility, &current_isect);
+    const bool hit = scene_intersect(kg, ray, true, visibility, &current_isect);
     if (!hit) {
       break;
     }
@@ -149,17 +149,6 @@ ccl_device bool shadow_linking_pick_light_intersection(KernelGlobals kg,
 
   num_hits = shadow_linking_pick_mesh_intersection(
       kg, state, ray, object_receiver, linked_isect, &lcg_state, num_hits);
-
-  num_hits = lights_intersect_shadow_linked(kg,
-                                            ray,
-                                            linked_isect,
-                                            ray->self.prim,
-                                            ray->self.object,
-                                            last_type,
-                                            path_flag,
-                                            object_receiver,
-                                            &lcg_state,
-                                            num_hits);
 
   if (num_hits == 0) {
     return false;

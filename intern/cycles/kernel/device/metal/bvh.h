@@ -165,6 +165,7 @@ ccl_device_forceinline float curve_ribbon_v(KernelGlobals kg,
 
 ccl_device_intersect bool scene_intersect(KernelGlobals kg,
                                           const ccl_private Ray *ray,
+                                          const bool is_indirect_ray,
                                           const uint visibility,
                                           ccl_private Intersection *isect)
 {
@@ -175,8 +176,9 @@ ccl_device_intersect bool scene_intersect(KernelGlobals kg,
       metal::raytracing::geometry_type::triangle |
       (kernel_data.bvh.have_curves ? metal::raytracing::geometry_type::curve :
                                      metal::raytracing::geometry_type::none) |
-      (kernel_data.bvh.have_points ? metal::raytracing::geometry_type::bounding_box :
-                                     metal::raytracing::geometry_type::none));
+      ((kernel_data.bvh.have_points || kernel_data.bvh.have_lights) ?
+           metal::raytracing::geometry_type::bounding_box :
+           metal::raytracing::geometry_type::none));
 
   typename metalrt_intersector_type::result_type intersection;
 
@@ -275,6 +277,11 @@ ccl_device_intersect bool scene_intersect(KernelGlobals kg,
       return true;
     }
   }
+  else if (kernel_data.bvh.have_lights && intersection.type == intersection_type::bounding_box) {
+    isect->prim = intersection.primitive_id;
+    isect->type = PRIMITIVE_LAMP;
+    return true;
+  }
 #endif /* __POINTCLOUD__ */
 
   return true;
@@ -291,8 +298,9 @@ ccl_device_intersect bool scene_intersect_shadow(KernelGlobals kg,
       metal::raytracing::geometry_type::triangle |
       (kernel_data.bvh.have_curves ? metal::raytracing::geometry_type::curve :
                                      metal::raytracing::geometry_type::none) |
-      (kernel_data.bvh.have_points ? metal::raytracing::geometry_type::bounding_box :
-                                     metal::raytracing::geometry_type::none));
+      ((kernel_data.bvh.have_points || kernel_data.bvh.have_lights) ?
+           metal::raytracing::geometry_type::bounding_box :
+           metal::raytracing::geometry_type::none));
 
   typename metalrt_intersector_type::result_type intersection;
 
@@ -486,8 +494,9 @@ ccl_device_intersect void scene_intersect_shadow_all_metalrt(
       metal::raytracing::geometry_type::triangle |
       (kernel_data.bvh.have_curves ? metal::raytracing::geometry_type::curve :
                                      metal::raytracing::geometry_type::none) |
-      (kernel_data.bvh.have_points ? metal::raytracing::geometry_type::bounding_box :
-                                     metal::raytracing::geometry_type::none));
+      ((kernel_data.bvh.have_points || kernel_data.bvh.have_lights) ?
+           metal::raytracing::geometry_type::bounding_box :
+           metal::raytracing::geometry_type::none));
 
   uint ray_mask = payload.base.ray_visibility & 0xFF;
   if (0 == ray_mask && (payload.base.ray_visibility & ~0xFF) != 0) {
@@ -527,8 +536,9 @@ ccl_device_intersect bool scene_intersect_volume(KernelGlobals kg,
       metal::raytracing::geometry_type::triangle |
       (kernel_data.bvh.have_curves ? metal::raytracing::geometry_type::curve :
                                      metal::raytracing::geometry_type::none) |
-      (kernel_data.bvh.have_points ? metal::raytracing::geometry_type::bounding_box :
-                                     metal::raytracing::geometry_type::none));
+      ((kernel_data.bvh.have_points || kernel_data.bvh.have_lights) ?
+           metal::raytracing::geometry_type::bounding_box :
+           metal::raytracing::geometry_type::none));
 
   MetalRTIntersectionShadowPayload payload;
   payload.self = ray->self;

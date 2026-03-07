@@ -759,11 +759,11 @@ ccl_device_inline bool volume_valid_direct_ray_segment(KernelGlobals kg,
                                                        const ccl_private LightSample *ls)
 {
   if (ls->type == LIGHT_SPOT) {
-    const ccl_global KernelLight *klight = &kernel_data_fetch(lights, ls->prim);
+    const ccl_global KernelLight *klight = get_light_from_object_id(kg, ls->object);
     return spot_light_valid_ray_segment(kg, klight, ray_P, ray_D, t_range);
   }
   if (ls->type == LIGHT_AREA) {
-    const ccl_global KernelLight *klight = &kernel_data_fetch(lights, ls->prim);
+    const ccl_global KernelLight *klight = get_light_from_object_id(kg, ls->object);
     return area_light_valid_ray_segment(&klight->area, ray_P - klight->co, ray_D, t_range);
   }
   if (ls->type == LIGHT_TRIANGLE) {
@@ -1874,7 +1874,7 @@ ccl_device_forceinline bool integrate_volume_sample_direct_light(
     return false;
   }
 
-  if (ls->shader & SHADER_EXCLUDE_SCATTER) {
+  if (ls->shader_id_and_flags & SHADER_EXCLUDE_SCATTER) {
     ls->emitter_id = EMITTER_NONE;
     return false;
   }
@@ -2418,19 +2418,19 @@ ccl_device_forceinline void integrate_volume_direct_light(
     }
   }
 
-  if (ls.shader & SHADER_EXCLUDE_SCATTER) {
+  if (ls.shader_id_and_flags & SHADER_EXCLUDE_SCATTER) {
     return;
   }
 
   /* Evaluate constant part of light shader, rest will optionally be done in another kernel. */
   Spectrum light_shader_eval ccl_optional_struct_init;
   const bool is_constant_light_shader = light_sample_shader_eval_nee_constant(
-      kg, ls.shader, ls.prim, ls.type != LIGHT_TRIANGLE, light_shader_eval);
+      kg, ls.shader_id_and_flags, ls.object, ls.type != LIGHT_TRIANGLE, light_shader_eval);
 
   /* Evaluate BSDF. */
   BsdfEval phase_eval ccl_optional_struct_init;
   const float phase_pdf = volume_shader_phase_eval(
-      kg, state, sd, phases, ls.D, &phase_eval, ls.shader);
+      kg, state, sd, phases, ls.D, &phase_eval, ls.shader_id_and_flags);
   const float mis_weight = light_sample_mis_weight_nee(kg, ls.pdf, phase_pdf);
   bsdf_eval_mul(&phase_eval, light_shader_eval * ls.eval_fac / ls.pdf * mis_weight);
 

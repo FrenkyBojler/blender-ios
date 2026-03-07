@@ -53,6 +53,7 @@ KERNEL_STRUCT_MEMBER(bvh, int, have_motion)
 KERNEL_STRUCT_MEMBER(bvh, int, have_curves)
 KERNEL_STRUCT_MEMBER(bvh, int, have_points)
 KERNEL_STRUCT_MEMBER(bvh, int, have_volumes)
+KERNEL_STRUCT_MEMBER(bvh, int, have_lights)
 KERNEL_STRUCT_MEMBER(bvh, int, bvh_layout)
 KERNEL_STRUCT_MEMBER(bvh, int, use_bvh_steps)
 KERNEL_STRUCT_MEMBER(bvh, int, curve_subdivisions)
@@ -155,8 +156,11 @@ KERNEL_STRUCT_BEGIN(KernelIntegrator, integrator)
 KERNEL_STRUCT_MEMBER(integrator, int, use_direct_light)
 KERNEL_STRUCT_MEMBER(integrator, int, use_light_mis)
 KERNEL_STRUCT_MEMBER(integrator, int, use_light_tree)
+/* TODO(weizhen): in kernel num_lights is only used for distant lights, maybe delete. */
 KERNEL_STRUCT_MEMBER(integrator, int, num_lights)
+/* TODO(weizhen): in kernel num_distant_lights is not used, maybe keep on CPU. */
 KERNEL_STRUCT_MEMBER(integrator, int, num_distant_lights)
+/* TODO(weizhen): num_background_lights is not used, maybe delete. */
 KERNEL_STRUCT_MEMBER(integrator, int, num_background_lights)
 /* Portal sampling. */
 KERNEL_STRUCT_MEMBER(integrator, int, num_portals)

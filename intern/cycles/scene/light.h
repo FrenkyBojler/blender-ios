@@ -49,15 +49,14 @@ class Light : public Geometry {
   void tag_update(Scene *scene);
 
   /* Check whether the light has contribution the scene. */
-  bool has_contribution(const Scene *scene, const Object *object);
+  bool has_contribution(const Scene *scene);
 
   /* Shader */
   Shader *get_shader() const;
-
-  virtual float area(const Transform &tfm) const = 0;
+  uint get_shader_id(const Scene *scene) const;
 
   /* Geometry */
-  void compute_bounds() override;
+  virtual BoundBox compute_bounds(const Transform *tfm) const = 0;
   void apply_transform(const Transform &tfm, const bool apply_to_motion) override;
   void get_uv_tiles(ustring map, unordered_set<int> &tiles) override;
   PrimitiveType primitive_type() const override;
@@ -71,6 +70,18 @@ class Light : public Geometry {
                               const Object *object) const = 0;
 
   virtual bool is_traceable() const = 0;
+
+  virtual float area(const Transform &tfm) const = 0;
+
+  virtual void adjust_tfm(Object * /*object*/,
+                          KernelObject * /*kobject*/,
+                          KernelLight * /*klight*/) const
+  {
+  }
+
+  bool need_bvh() const;
+
+  virtual void pack(KernelLightGeom *light, const Scene *scene) const = 0;
 
   bool is_spot_light() const;
   bool is_point_light() const;
@@ -91,7 +102,8 @@ class PointLight : public Light {
   PointLight();
   PointLight(const NodeType *node_type) : Light(node_type) {};
 
-  float area(const Transform &tfm) const override;
+  void compute_bounds() override;
+  BoundBox compute_bounds(const Transform *tfm) const override;
   void copy_to_kernel(KernelLight *klight,
                       const Scene *scene,
                       const Object *object) const override;
@@ -99,6 +111,10 @@ class PointLight : public Light {
   {
     return radius > 0.0f;
   };
+
+  float area(const Transform &tfm) const override;
+  void pack(KernelLightGeom *light, const Scene *scene) const override;
+  void adjust_tfm(Object *object, KernelObject *kobject, KernelLight *klight) const override;
 
   NODE_SOCKET_API(float, radius)
   NODE_SOCKET_API(bool, is_sphere)
@@ -123,7 +139,6 @@ class AreaLight : public Light {
 
   AreaLight();
 
-  float area(const Transform &tfm) const override;
   void copy_to_kernel(KernelLight *klight,
                       const Scene *scene,
                       const Object *object) const override;
@@ -131,6 +146,12 @@ class AreaLight : public Light {
   {
     return sizeu * sizev > 0.0f;
   };
+
+  void compute_bounds() override;
+  BoundBox compute_bounds(const Transform *tfm) const override;
+  float area(const Transform &tfm) const override;
+  void pack(KernelLightGeom *light, const Scene *scene) const override;
+  void adjust_tfm(Object *object, KernelObject *kobject, KernelLight *klight) const override;
 
   /* TODO(weizhen): I removed `size` become it's always set to 1 in `blender/light.cpp`, but will
    * external applications set it differently? */
@@ -152,10 +173,15 @@ class SunLight : public Light {
   void copy_to_kernel(KernelLight *klight,
                       const Scene *scene,
                       const Object *object) const override;
+  void compute_bounds() override;
+  BoundBox compute_bounds(const Transform *tfm) const override;
+
   bool is_traceable() const override
   {
     return false;
   };
+
+  void pack(KernelLightGeom * /*light*/, const Scene *scene) const override;
 
   NODE_SOCKET_API(float, angle)
 };
@@ -170,10 +196,14 @@ class BackgroundLight : public Light {
   void copy_to_kernel(KernelLight *klight,
                       const Scene *scene,
                       const Object *object) const override;
+  void compute_bounds() override;
+  BoundBox compute_bounds(const Transform *tfm) const override;
   bool is_traceable() const override
   {
     return false;
   };
+
+  void pack(KernelLightGeom *light, const Scene *scene) const override;
 
   NODE_SOCKET_API(int, map_resolution)
   NODE_SOCKET_API(float, average_radiance)
@@ -207,6 +237,10 @@ class LightManager {
   int add_ies_from_file(const string &filename);
   void remove_ies(const int slot);
 
+  void device_update_preprocess(Device *device,
+                                DeviceScene *dscene,
+                                Scene *scene,
+                                Progress &progress);
   void device_update(Device *device, DeviceScene *dscene, Scene *scene, Progress &progress);
   void device_free(Device *device, DeviceScene *dscene, const bool free_background = true);
 
@@ -217,7 +251,6 @@ class LightManager {
   /* Check whether there is a background light. */
   bool has_background_light(Scene *scene);
 
- protected:
   /* Optimization: disable light which is either unsupported or
    * which doesn't contribute to the scene or which is only used for MIS
    * and scene doesn't need MIS.
@@ -226,6 +259,7 @@ class LightManager {
   /* Count lights in the scene. */
   void count_lights(KernelIntegrator *kintegrator, const Scene *scene);
 
+ protected:
   void device_update_lights(DeviceScene *dscene, Scene *scene);
   void device_update_distribution(Device *device,
                                   DeviceScene *dscene,

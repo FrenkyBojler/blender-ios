@@ -114,6 +114,24 @@ class BVHSpatialSplit {
                              const float pos,
                              BoundBox &left_bounds,
                              BoundBox &right_bounds);
+  void split_light_primitive(const Light *light,
+                             const Transform *tfm,
+                             const int dim,
+                             const float pos,
+                             BoundBox &left_bounds,
+                             BoundBox &right_bounds);
+  void split_point_light(const PointLight *light,
+                         const Transform *tfm,
+                         const int dim,
+                         const float pos,
+                         BoundBox &left_bounds,
+                         BoundBox &right_bounds);
+  void split_quad_primitive(const AreaLight *light,
+                            const Transform *tfm,
+                            const int dim,
+                            const float pos,
+                            BoundBox &left_bounds,
+                            BoundBox &right_bounds);
 
   /* Lower-level functions which calculates boundaries of left and right nodes
    * needed for spatial split.
@@ -134,6 +152,11 @@ class BVHSpatialSplit {
                              BoundBox &right_bounds);
   void split_point_reference(const BVHReference &ref,
                              const PointCloud *pointcloud,
+                             const int dim,
+                             const float pos,
+                             BoundBox &left_bounds,
+                             BoundBox &right_bounds);
+  void split_light_reference(const Light *light,
                              const int dim,
                              const float pos,
                              BoundBox &left_bounds,

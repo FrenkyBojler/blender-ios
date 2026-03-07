@@ -29,7 +29,7 @@ int BVHNode::getSubtreeSize(BVH_STAT stat) const
       cnt = is_leaf() ? 0 : 1;
       break;
     case BVH_STAT_TRIANGLE_COUNT:
-      cnt = is_leaf() ? reinterpret_cast<const LeafNode *>(this)->num_triangles() : 0;
+      cnt = is_leaf() ? reinterpret_cast<const LeafNode *>(this)->num_primitives() : 0;
       break;
     case BVH_STAT_CHILDNODE_COUNT:
       cnt = num_children();
@@ -94,7 +94,7 @@ int BVHNode::getSubtreeSize(BVH_STAT stat) const
 
 float BVHNode::computeSubtreeSAHCost(const BVHParams &p, const float probability) const
 {
-  float SAH = probability * p.cost(num_children(), num_triangles());
+  float SAH = probability * p.cost(num_children(), num_primitives());
 
   for (int i = 0; i < num_children(); i++) {
     BVHNode *child = get_child(i);

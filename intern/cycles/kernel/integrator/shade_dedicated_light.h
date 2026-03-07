@@ -21,7 +21,7 @@ shadow_linking_light_eval_from_intersection(KernelGlobals kg,
                                             const float3 N,
                                             const uint32_t path_flag)
 {
-  const ccl_global KernelLight *klight = &kernel_data_fetch(lights, isect.prim);
+  const ccl_global KernelLight *klight = get_light_from_object_id(kg, isect.object);
   const LightType type = LightType(klight->type);
 
   return (type == LIGHT_DISTANT) ?
@@ -88,9 +88,9 @@ ccl_device bool shadow_linking_shade_light(KernelGlobals kg,
     return false;
   }
 
-  const ccl_global KernelLight *klight = &kernel_data_fetch(lights, isect.prim);
+  const ccl_global KernelLight *klight = get_light_from_object_id(kg, isect.object);
 
-  if (!is_light_shader_visible_to_path(klight->shader_id, path_flag)) {
+  if (!is_light_shader_visible_to_path(klight->shader_id_and_flags, path_flag)) {
     return false;
   }
 
@@ -100,8 +100,8 @@ ccl_device bool shadow_linking_shade_light(KernelGlobals kg,
 
   light_weight = light_eval.eval_fac * mis_weight *
                  INTEGRATOR_STATE(state, shadow_link, dedicated_light_weight);
-  light_group = object_lightgroup(kg, klight->object_id);
-  shader_id = klight->shader_id;
+  light_group = object_lightgroup(kg, isect.object);
+  shader_id = klight->shader_id_and_flags;
 
   return true;
 }
@@ -168,7 +168,7 @@ ccl_device void shadow_linking_shade(KernelGlobals kg, IntegratorState state)
   /* Evaluate constant part of light shader, rest will optionally be done in another kernel. */
   Spectrum light_eval;
   const bool is_constant_light_shader = light_sample_shader_eval_nee_constant(
-      kg, shader_id, isect.prim, isect.type == PRIMITIVE_LAMP, light_eval);
+      kg, shader_id, isect.object, isect.type == PRIMITIVE_LAMP, light_eval);
   light_eval *= light_weight;
 
   if (is_zero(light_eval)) {

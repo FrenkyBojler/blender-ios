@@ -378,6 +378,9 @@ ccl_device void integrator_intersect_closest(KernelGlobals kg,
     }
   }
 
+  const uint32_t path_flag = INTEGRATOR_STATE(state, path, flag);
+  const bool is_indirect_ray = !(path_flag & PATH_RAY_CAMERA);
+
   /* Scene Intersection. */
   Intersection isect ccl_optional_struct_init;
   isect.object = OBJECT_NONE;
@@ -386,15 +389,12 @@ ccl_device void integrator_intersect_closest(KernelGlobals kg,
   ray.self.prim = last_isect_prim;
   ray.self.light_object = OBJECT_NONE;
   ray.self.light_prim = PRIM_NONE;
-  bool hit = scene_intersect(kg, &ray, visibility, &isect);
+  const bool hit = scene_intersect(kg, &ray, is_indirect_ray, visibility, &isect);
 
   /* TODO: remove this and do it in the various intersection functions instead. */
   if (!hit) {
     isect.prim = PRIM_NONE;
   }
-
-  /* Setup mnee flag to signal last intersection with a caster */
-  const uint32_t path_flag = INTEGRATOR_STATE(state, path, flag);
 
 #ifdef __MNEE__
   /* Path culling logic for MNEE (removes fireflies at the cost of bias) */
@@ -404,7 +404,7 @@ ccl_device void integrator_intersect_closest(KernelGlobals kg,
      * receiver */
     bool from_caustic_caster = false;
     bool from_caustic_receiver = false;
-    if (!(path_flag & PATH_RAY_CAMERA) && last_isect_object != OBJECT_NONE) {
+    if (is_indirect_ray && last_isect_object != OBJECT_NONE) {
       const uint object_flags = kernel_data_fetch(object_flag, last_isect_object);
       from_caustic_receiver = (object_flags & SD_OBJECT_CAUSTICS_RECEIVER);
       from_caustic_caster = (object_flags & SD_OBJECT_CAUSTICS_CASTER);
@@ -423,14 +423,19 @@ ccl_device void integrator_intersect_closest(KernelGlobals kg,
 #endif /* __MNEE__ */
 
   /* Light intersection for MIS. */
-  if (kernel_data.integrator.use_light_mis && !integrator_intersect_skip_lights(kg, state)) {
+  if (!integrator_intersect_skip_lights(kg, state)) {
     /* NOTE: if we make lights visible to camera rays, we'll need to initialize
      * these in the path_state_init. */
-    const int last_type = INTEGRATOR_STATE(state, isect, type);
-    hit = lights_intersect(
-              kg, state, &ray, &isect, last_isect_prim, last_isect_object, last_type, path_flag) ||
-          hit;
+    /* const int last_type = INTEGRATOR_STATE(state, isect, type); */
+    /* hit = lights_intersect( */
+    /*           kg, state, &ray, &isect, last_isect_prim, last_isect_object, last_type, path_flag)
+     * || */
+    /*       hit; */
+    /* TODO(weizhen): deal with shis case. */
   }
+
+  /* TODO(weizhen): deal with light and shadow link. */
+  /* TODO(weizhen): deal with mnee. */
 
   /* Write intersection result into global integrator state memory. */
   integrator_state_write_isect(state, &isect);

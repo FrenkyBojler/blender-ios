@@ -152,9 +152,10 @@ ccl_device_forceinline bool triangle_light_sample(KernelGlobals kg,
   }
 
   /* Do not draw samples from the side without MIS. */
-  ls->shader = kernel_data_fetch(tri_shader, prim);
+  ls->shader_id_and_flags = kernel_data_fetch(tri_shader, prim);
   const float distance_to_plane = dot(N0, V[0] - P) / dot(N0, N0);
-  const int ls_shader_flag = kernel_data_fetch(shaders, ls->shader & SHADER_MASK).flags;
+  const int ls_shader_flag =
+      kernel_data_fetch(shaders, ls->shader_id_and_flags & SHADER_MASK).flags;
   if (!in_volume_segment &&
       !(ls_shader_flag & (distance_to_plane > 0 ? SD_MIS_BACK : SD_MIS_FRONT)))
   {
@@ -168,7 +169,7 @@ ccl_device_forceinline bool triangle_light_sample(KernelGlobals kg,
   ls->eval_fac = 1.0f;
   ls->object = object;
   ls->prim = prim;
-  ls->shader |= SHADER_USE_MIS;
+  ls->shader_id_and_flags |= SHADER_USE_MIS;
   ls->type = LIGHT_TRIANGLE;
   ls->group = object_lightgroup(kg, object);
 
@@ -283,7 +284,7 @@ ccl_device_inline bool triangle_light_valid_ray_segment(KernelGlobals kg,
                                                         ccl_private Interval<float> *t_range,
                                                         const ccl_private LightSample *ls)
 {
-  const int shader_flag = kernel_data_fetch(shaders, ls->shader & SHADER_MASK).flags;
+  const int shader_flag = kernel_data_fetch(shaders, ls->shader_id_and_flags & SHADER_MASK).flags;
   const int SD_MIS_BOTH = SD_MIS_BACK | SD_MIS_FRONT;
   if ((shader_flag & SD_MIS_BOTH) == SD_MIS_BOTH) {
     /* Both sides are sampled, the complete ray segment is visible. */
@@ -317,7 +318,7 @@ ccl_device_forceinline bool triangle_light_tree_parameters(
   cos_theta_u = FLT_MAX;
 
   float3 vertices[3];
-  triangle_vertices(kg, kemitter->triangle.id, vertices);
+  triangle_vertices(kg, kemitter->triangle.prim, vertices);
 
   bool shape_above_surface = false;
   for (int i = 0; i < 3; i++) {

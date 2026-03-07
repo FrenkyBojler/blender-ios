@@ -259,6 +259,11 @@ ccl_device_forceinline bool area_light_eval(const ccl_global KernelLight *klight
   float len_u = klight->area.len_u;
   float len_v = klight->area.len_v;
 
+  /* TODO(weizhen): revisit when we only put unique lights in the array. */
+  if ((len_u == 0.0f) || (len_v == 0.0f)) {
+    return false;
+  }
+
   const float3 Ng = klight->area.dir;
   const float invarea = fabsf(klight->area.invarea);
   bool sample_rectangle = (klight->area.invarea > 0.0f);
@@ -387,27 +392,21 @@ ccl_device_forceinline void area_light_mnee_sample_update(const ccl_global Kerne
   }
 }
 
-ccl_device_inline bool area_light_intersect(const ccl_global KernelLight *klight,
+ccl_device_inline bool area_light_intersect(const ccl_global KernelLightGeom *klight,
                                             const ccl_private Ray *ccl_restrict ray,
                                             ccl_private float *t)
 {
   /* Area light. */
-  const float invarea = fabsf(klight->area.invarea);
-  const bool is_ellipse = area_light_is_ellipse(&klight->area);
-  if (invarea == 0.0f) {
-    return false;
-  }
-
-  const float3 inv_extent_u = klight->area.axis_u / klight->area.len_u;
-  const float3 inv_extent_v = klight->area.axis_v / klight->area.len_v;
-  const float3 Ng = klight->area.dir;
+  const float3 inv_extent_u = AREA_LIGHT_AXIS_U;
+  const float3 inv_extent_v = AREA_LIGHT_AXIS_V;
+  const float3 Ng = AREA_LIGHT_DIR;
 
   /* One sided. */
   if (dot(ray->D, Ng) >= 0.0f) {
     return false;
   }
 
-  const float3 light_P = klight->co;
+  const float3 light_P = zero_float3();
 
   float3 P;
   float u, v;
@@ -423,7 +422,7 @@ ccl_device_inline bool area_light_intersect(const ccl_global KernelLight *klight
                             t,
                             &u,
                             &v,
-                            is_ellipse);
+                            klight->is_ellipse);
 }
 
 ccl_device_inline float2 area_light_uv(const ccl_global KernelLight *klight, const float3 P)

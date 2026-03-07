@@ -24,6 +24,7 @@
 #include "kernel/geom/object.h"
 #include "kernel/integrator/state.h"
 #include "kernel/integrator/state_util.h"
+#include "kernel/light/light.h"
 #include "kernel/sample/lcg.h"
 
 CCL_NAMESPACE_BEGIN
@@ -64,6 +65,8 @@ struct CCLFirstHitContext : public RTCRayQueryContext {
   KernelGlobals kg;
   /* For avoiding self intersections */
   const Ray *ray;
+  /* For light linking. */
+  bool is_indirect_ray;
 };
 
 struct CCLShadowContext : public RTCRayQueryContext {
@@ -239,6 +242,16 @@ ccl_device_forceinline void kernel_embree_filter_intersection_func_impl(
 
 #ifdef __SHADOW_LINKING__
   if (intersection_skip_shadow_link(kg, cray->self, kernel_embree_get_hit_object(hit))) {
+    *args->valid = 0;
+    return;
+  }
+#endif
+
+#ifdef __LIGHT_LINKING__
+  /* Light linking. */
+  if (ctx->is_indirect_ray &&
+      !light_link_object_match(kg, cray->self.object, kernel_embree_get_hit_object(hit)))
+  {
     *args->valid = 0;
     return;
   }
@@ -480,6 +493,7 @@ kernel_embree_filter_occluded_volume_all_func_static(const RTCFilterFunctionNArg
 
 ccl_device_intersect bool kernel_embree_intersect(KernelGlobals kg,
                                                   const ccl_private Ray *ray,
+                                                  const bool is_indirect_ray,
                                                   const uint visibility,
                                                   ccl_private Intersection *isect)
 {
@@ -495,6 +509,7 @@ ccl_device_intersect bool kernel_embree_intersect(KernelGlobals kg,
 #else
   ctx.kg = kg;
 #endif
+  ctx.is_indirect_ray = is_indirect_ray;
 
   RTCRayHit ray_hit;
   ctx.ray = ray;

@@ -410,15 +410,15 @@ enum FilterClosures {
 /* Shader Flag */
 
 enum ShaderFlag {
-  SHADER_SMOOTH_NORMAL = (1 << 31),
-  SHADER_CAST_SHADOW = (1 << 30),
-  SHADER_USE_MIS = (1 << 28),
-  SHADER_EXCLUDE_DIFFUSE = (1 << 27),
-  SHADER_EXCLUDE_GLOSSY = (1 << 26),
-  SHADER_EXCLUDE_TRANSMIT = (1 << 25),
-  SHADER_EXCLUDE_CAMERA = (1 << 24),
-  SHADER_EXCLUDE_SCATTER = (1 << 23),
-  SHADER_EXCLUDE_SHADOW_CATCHER = (1 << 22),
+  SHADER_SMOOTH_NORMAL = (1U << 31U),
+  SHADER_CAST_SHADOW = (1U << 30U),
+  SHADER_USE_MIS = (1U << 28U),
+  SHADER_EXCLUDE_DIFFUSE = (1U << 27U),
+  SHADER_EXCLUDE_GLOSSY = (1U << 26U),
+  SHADER_EXCLUDE_TRANSMIT = (1U << 25U),
+  SHADER_EXCLUDE_CAMERA = (1U << 24U),
+  SHADER_EXCLUDE_SCATTER = (1U << 23U),
+  SHADER_EXCLUDE_SHADOW_CATCHER = (1U << 22U),
   SHADER_EXCLUDE_ANY = (SHADER_EXCLUDE_DIFFUSE | SHADER_EXCLUDE_GLOSSY | SHADER_EXCLUDE_TRANSMIT |
                         SHADER_EXCLUDE_CAMERA | SHADER_EXCLUDE_SCATTER |
                         SHADER_EXCLUDE_SHADOW_CATCHER),
@@ -1385,6 +1385,8 @@ struct KernelObject {
   uint receiver_light_set;
   uint64_t shadow_set_membership;
   uint blocker_shadow_set;
+
+  int light_id = -1;
 };
 static_assert_align(KernelObject, 16);
 
@@ -1414,6 +1416,10 @@ struct KernelSpotLight {
   float cos_half_larger_spread;
   /* Distance from the apex of the smallest enclosing cone of the light spread to light center. */
   float ray_segment_dp;
+  /* Padding. */
+  float pad;
+  /* Scaling for the spot shape and uv. */
+  float3 inv_scale;
 };
 
 /* PointLight is SpotLight with only radius and invarea being used. */
@@ -1442,12 +1448,12 @@ struct KernelDistantLight {
 struct KernelLight {
   int type;
   packed_float3 co;
-  int shader_id;
+  /* TODO(weizhen): can we remove these flags? */
+  int shader_id_and_flags;
   int object_id;
-  float max_bounces;
   float strength[3];
-  int use_caustics;
-  int pad;
+  int pad[2];
+  int prim;
   union {
     KernelSpotLight spot;
     KernelAreaLight area;
@@ -1455,6 +1461,24 @@ struct KernelLight {
   };
 };
 static_assert_align(KernelLight, 16);
+
+struct KernelLightGeom {
+  int type;
+  union {
+    bool is_sphere;
+    bool is_ellipse;
+  };
+  int shader_id;
+  int max_bounces;
+  int use_caustics;
+  int pad[3];
+};
+static_assert_align(KernelLightGeom, 16);
+
+#define AREA_LIGHT_AXIS_U make_float3(1.0f, 0.0f, 0.0f)
+#define AREA_LIGHT_AXIS_V make_float3(0.0f, 1.0f, 0.0f)
+#define AREA_LIGHT_DIR make_float3(0.0f, 0.0f, -1.0f)
+#define POINT_LIGHT_RADIUS 1.0f
 
 struct KernelLightDistribution {
   float totarea;
@@ -1554,12 +1578,12 @@ struct KernelLightTreeEmitter {
 
   union {
     struct {
-      int id; /* The location in the triangles array. */
+      int prim; /* The location in the triangles array. */
       EmissionSampling emission_sampling;
     } triangle;
 
     struct {
-      int id; /* The location in the lights array. */
+      int prim; /* The location in the lights array. */
     } light;
 
     struct {

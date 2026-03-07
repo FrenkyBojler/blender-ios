@@ -125,29 +125,6 @@ ccl_device_inline void sort_intersections_and_normals(ccl_private Intersection *
 
 /* Utility to quickly get flags from an intersection. */
 
-ccl_device_forceinline int intersection_get_shader_flags(KernelGlobals kg,
-                                                         const int prim,
-                                                         const int type)
-{
-  int shader = 0;
-
-  if (type & PRIMITIVE_TRIANGLE) {
-    shader = kernel_data_fetch(tri_shader, prim);
-  }
-#ifdef __POINTCLOUD__
-  else if (type & PRIMITIVE_POINT) {
-    shader = kernel_data_fetch(points_shader, prim);
-  }
-#endif
-#ifdef __HAIR__
-  else if (type & PRIMITIVE_CURVE) {
-    shader = kernel_data_fetch(curves, prim).shader_id;
-  }
-#endif
-
-  return kernel_data_fetch(shaders, (shader & SHADER_MASK)).flags;
-}
-
 ccl_device_forceinline int intersection_get_shader_from_isect_prim(KernelGlobals kg,
                                                                    const int prim,
                                                                    const int isect_type)
@@ -167,8 +144,19 @@ ccl_device_forceinline int intersection_get_shader_from_isect_prim(KernelGlobals
     shader = kernel_data_fetch(curves, prim).shader_id;
   }
 #endif
+  else if (isect_type & PRIMITIVE_LAMP) {
+    shader = kernel_data_fetch(lights, prim).shader_id_and_flags;
+  }
 
   return shader & SHADER_MASK;
+}
+
+ccl_device_forceinline int intersection_get_shader_flags(KernelGlobals kg,
+                                                         const int prim,
+                                                         const int type)
+{
+  const int shader = intersection_get_shader_from_isect_prim(kg, prim, type);
+  return kernel_data_fetch(shaders, shader).flags;
 }
 
 ccl_device_forceinline int intersection_get_shader(

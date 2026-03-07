@@ -14,6 +14,7 @@
 
 #include "scene/curves.h"
 #include "scene/hair.h"
+#include "scene/light.h"
 #include "scene/mesh.h"
 #include "scene/object.h"
 #include "scene/pointcloud.h"
@@ -73,6 +74,7 @@ void BVHBuild::add_reference_triangles(BoundBox &root,
       t.bounds_grow(verts, bounds);
       if (bounds.valid() && t.valid(verts)) {
         references.push_back(BVHReference(bounds, j, object_index, primitive_type));
+        /* TODO(weizhen): this doesn't consider transform, what does it mean? */
         root.grow(bounds);
         center.grow(bounds.center2());
       }
@@ -354,6 +356,20 @@ void BVHBuild::add_reference_points(BoundBox &root,
   }
 }
 
+void BVHBuild::add_reference_light(BoundBox &root,
+                                   BoundBox &center,
+                                   const Light *light,
+                                   const int object_index)
+{
+  if (!light->need_bvh()) {
+    return;
+  }
+
+  root.grow(light->bounds);
+  center.grow(light->bounds.center2());
+  references.push_back(BVHReference(light->bounds, 0, object_index, PRIMITIVE_LAMP));
+}
+
 void BVHBuild::add_reference_geometry(BoundBox &root,
                                       BoundBox &center,
                                       Geometry *geom,
@@ -370,6 +386,10 @@ void BVHBuild::add_reference_geometry(BoundBox &root,
   else if (geom->is_pointcloud()) {
     PointCloud *pointcloud = static_cast<PointCloud *>(geom);
     add_reference_points(root, center, pointcloud, object_index);
+  }
+  else {
+    const Light *light = static_cast<const Light *>(geom);
+    add_reference_light(root, center, light, object_index);
   }
 }
 
@@ -405,6 +425,10 @@ static size_t count_primitives(Geometry *geom)
   if (geom->is_pointcloud()) {
     PointCloud *pointcloud = static_cast<PointCloud *>(geom);
     return pointcloud->num_points();
+  }
+  if (geom->is_light()) {
+    const Light *light = static_cast<const Light *>(geom);
+    return light->need_bvh();
   }
 
   return 0;
@@ -657,8 +681,10 @@ bool BVHBuild::range_within_max_leaf_size(const BVHRange &range,
                                           const vector<BVHReference> &references) const
 {
   const size_t size = range.size();
-  const size_t max_leaf_size = max(max(params.max_triangle_leaf_size, params.max_curve_leaf_size),
-                                   params.max_point_leaf_size);
+  const size_t max_leaf_size = max(
+      max(max(params.max_triangle_leaf_size, params.max_curve_leaf_size),
+          params.max_point_leaf_size),
+      params.max_light_leaf_size);
 
   if (size > max_leaf_size) {
     return false;
@@ -670,6 +696,7 @@ bool BVHBuild::range_within_max_leaf_size(const BVHRange &range,
   size_t num_motion_curves = 0;
   size_t num_points = 0;
   size_t num_motion_points = 0;
+  size_t num_lights = 0;
 
   for (int i = 0; i < size; i++) {
     const BVHReference &ref = references[range.start() + i];
@@ -698,6 +725,9 @@ bool BVHBuild::range_within_max_leaf_size(const BVHRange &range,
         num_points++;
       }
     }
+    else if (ref.prim_type() & PRIMITIVE_LAMP) {
+      num_lights++;
+    }
   }
 
   return (num_triangles <= params.max_triangle_leaf_size) &&
@@ -705,7 +735,8 @@ bool BVHBuild::range_within_max_leaf_size(const BVHRange &range,
          (num_curves <= params.max_curve_leaf_size) &&
          (num_motion_curves <= params.max_motion_curve_leaf_size) &&
          (num_points <= params.max_point_leaf_size) &&
-         (num_motion_points <= params.max_motion_point_leaf_size);
+         (num_motion_points <= params.max_motion_point_leaf_size) &&
+         (num_lights <= params.max_light_leaf_size);
 }
 
 /* multithreaded binning builder */

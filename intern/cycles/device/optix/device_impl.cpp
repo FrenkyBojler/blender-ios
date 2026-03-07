@@ -12,6 +12,7 @@
 #  include "bvh/optix.h"
 
 #  include "scene/hair.h"
+#  include "scene/light.h"
 #  include "scene/mesh.h"
 #  include "scene/object.h"
 #  include "scene/pointcloud.h"
@@ -350,9 +351,10 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
     pipeline_options.usesPrimitiveTypeFlags |= OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_LINEAR |
                                                OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_CATMULLROM;
   }
-  if (kernel_features & (KERNEL_FEATURE_HAIR_RIBBON | KERNEL_FEATURE_POINTCLOUD)) {
-    pipeline_options.usesPrimitiveTypeFlags |= OPTIX_PRIMITIVE_TYPE_FLAGS_CUSTOM;
-  }
+  /* TODO(weizhen): light always use custom. maybe add a flag? */
+  // if (kernel_features & (KERNEL_FEATURE_HAIR_RIBBON | KERNEL_FEATURE_POINTCLOUD)) {
+  pipeline_options.usesPrimitiveTypeFlags |= OPTIX_PRIMITIVE_TYPE_FLAGS_CUSTOM;
+  // }
 
   /* Keep track of whether motion blur is enabled, so to enable/disable motion in BVH builds
    * This is necessary since objects may be reported to have motion if the Vector pass is
@@ -519,6 +521,21 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
     group_descs[PG_HITL_POINTCLOUD] = ignore_desc;
   }
 
+  /* Lights intersection. */
+  {
+    group_descs[PG_HITD_LIGHT] = group_descs[PG_HITD];
+    group_descs[PG_HITD_LIGHT].kind = OPTIX_PROGRAM_GROUP_KIND_HITGROUP;
+    group_descs[PG_HITD_LIGHT].hitgroup.moduleIS = optix_module;
+    group_descs[PG_HITD_LIGHT].hitgroup.entryFunctionNameIS = "__intersection__light";
+    /* TODO(weizhen): shadow linking? maybe PG_HITS_LIGHT can use ignore_desc too. */
+    group_descs[PG_HITS_LIGHT] = group_descs[PG_HITS];
+    group_descs[PG_HITS_LIGHT].kind = OPTIX_PROGRAM_GROUP_KIND_HITGROUP;
+    group_descs[PG_HITS_LIGHT].hitgroup.moduleIS = optix_module;
+    group_descs[PG_HITS_LIGHT].hitgroup.entryFunctionNameIS = "__intersection__light";
+    group_descs[PG_HITV_LIGHT] = ignore_desc;
+    group_descs[PG_HITL_LIGHT] = ignore_desc;
+  }
+
   /* Add hit group for local intersections. */
   if (kernel_features & (KERNEL_FEATURE_SUBSURFACE | KERNEL_FEATURE_NODE_RAYTRACE)) {
     group_descs[PG_HITL].kind = OPTIX_PROGRAM_GROUP_KIND_HITGROUP;
@@ -678,6 +695,11 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
     trace_css = std::max(
         trace_css, stack_size[PG_HITS_POINTCLOUD].cssIS + stack_size[PG_HITS_POINTCLOUD].cssAH);
 
+    trace_css = std::max(trace_css,
+                         stack_size[PG_HITD_LIGHT].cssIS + stack_size[PG_HITD_LIGHT].cssAH);
+    trace_css = std::max(trace_css,
+                         stack_size[PG_HITS_LIGHT].cssIS + stack_size[PG_HITS_LIGHT].cssAH);
+
     return stack_size;
   };
 
@@ -742,6 +764,12 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
       pipeline_groups.push_back(groups[PG_HITV_POINTCLOUD]);
       pipeline_groups.push_back(groups[PG_HITL_POINTCLOUD]);
     }
+    {
+      pipeline_groups.push_back(groups[PG_HITD_LIGHT]);
+      pipeline_groups.push_back(groups[PG_HITS_LIGHT]);
+      pipeline_groups.push_back(groups[PG_HITV_LIGHT]);
+      pipeline_groups.push_back(groups[PG_HITL_LIGHT]);
+    }
 
     optix_assert(optixPipelineCreate(context,
                                      &pipeline_options,
@@ -799,6 +827,10 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
     if (kernel_features & KERNEL_FEATURE_POINTCLOUD) {
       pipeline_groups.push_back(groups[PG_HITD_POINTCLOUD]);
       pipeline_groups.push_back(groups[PG_HITS_POINTCLOUD]);
+    }
+    {
+      pipeline_groups.push_back(groups[PG_HITD_LIGHT]);
+      pipeline_groups.push_back(groups[PG_HITS_LIGHT]);
     }
 
     optix_assert(optixPipelineCreate(context,
@@ -1168,6 +1200,400 @@ OSLGlobals *OptiXDevice::get_cpu_osl_memory()
 #  endif
 }
 
+static void copy_aabb(device_vector<OptixAabb> &aabb_data,
+                      const size_t index,
+                      const BoundBox &bounds)
+{
+  aabb_data[index].minX = bounds.min.x;
+  aabb_data[index].minY = bounds.min.y;
+  aabb_data[index].minZ = bounds.min.z;
+  aabb_data[index].maxX = bounds.max.x;
+  aabb_data[index].maxY = bounds.max.y;
+  aabb_data[index].maxZ = bounds.max.z;
+}
+
+void OptiXDevice::build_BLAS_hair(Geometry *const geom,
+                                  BVHOptiX *const bvh_optix,
+                                  const OptixBuildOperation operation,
+                                  Progress &progress)
+{
+  /* Build BLAS for curve primitives. */
+  Hair *const hair = static_cast<Hair *const>(geom);
+  if (hair->num_segments() == 0) {
+    return;
+  }
+
+  const size_t num_segments = hair->num_segments();
+
+  size_t num_motion_steps = 1;
+  Attribute *motion_keys = hair->attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
+  if (pipeline_options.usesMotionBlur && hair->get_use_motion_blur() && motion_keys) {
+    num_motion_steps = hair->get_motion_steps();
+  }
+
+  device_vector<OptixAabb> aabb_data(this, "optix temp aabb data", MEM_READ_ONLY);
+  device_vector<int> index_data(this, "optix temp index data", MEM_READ_ONLY);
+  device_vector<float4> vertex_data(this, "optix temp vertex data", MEM_READ_ONLY);
+  /* Four control points for each curve segment. */
+  size_t num_vertices = num_segments * 4;
+  if (hair->curve_shape == CURVE_THICK_LINEAR) {
+    num_vertices = hair->num_keys();
+    index_data.alloc(num_segments);
+    vertex_data.alloc(num_vertices * num_motion_steps);
+  }
+  else if (hair->curve_shape == CURVE_THICK) {
+    num_vertices = hair->num_keys() + 2 * hair->num_curves();
+    index_data.alloc(num_segments);
+    vertex_data.alloc(num_vertices * num_motion_steps);
+  }
+  else {
+    aabb_data.alloc(num_segments * num_motion_steps);
+  }
+
+  /* Get AABBs for each motion step. */
+  for (size_t step = 0; step < num_motion_steps; ++step) {
+    /* The center step for motion vertices is not stored in the attribute. */
+    const float3 *keys = hair->get_curve_keys().data();
+    size_t center_step = (num_motion_steps - 1) / 2;
+    if (step != center_step) {
+      size_t attr_offset = (step > center_step) ? step - 1 : step;
+      /* Technically this is a float4 array, but sizeof(float3) == sizeof(float4). */
+      keys = motion_keys->data_float3() + attr_offset * hair->get_curve_keys().size();
+    }
+
+    if (hair->curve_shape == CURVE_THICK || hair->curve_shape == CURVE_THICK_LINEAR) {
+      for (size_t curve_index = 0, segment_index = 0, vertex_index = step * num_vertices;
+           curve_index < hair->num_curves();
+           ++curve_index)
+      {
+        const Hair::Curve curve = hair->get_curve(curve_index);
+        const array<float> &curve_radius = hair->get_curve_radius();
+
+        if (hair->curve_shape == CURVE_THICK_LINEAR) {
+          const int first_key_index = curve.first_key;
+
+          for (int k = 0; k < curve.num_segments(); ++k) {
+            if (step == 0) {
+              index_data[segment_index++] = vertex_index;
+            }
+            vertex_data[vertex_index++] = make_float4(keys[first_key_index + k].x,
+                                                      keys[first_key_index + k].y,
+                                                      keys[first_key_index + k].z,
+                                                      curve_radius[first_key_index + k]);
+          }
+
+          const int last_key_index = first_key_index + curve.num_keys - 1;
+          {
+            vertex_data[vertex_index++] = make_float4(keys[last_key_index].x,
+                                                      keys[last_key_index].y,
+                                                      keys[last_key_index].z,
+                                                      curve_radius[last_key_index]);
+          }
+        }
+        else {
+          const int first_key_index = curve.first_key;
+          {
+            vertex_data[vertex_index++] = make_float4(keys[first_key_index].x,
+                                                      keys[first_key_index].y,
+                                                      keys[first_key_index].z,
+                                                      curve_radius[first_key_index]);
+          }
+
+          for (int k = 0; k < curve.num_segments(); ++k) {
+            if (step == 0) {
+              index_data[segment_index++] = vertex_index - 1;
+            }
+            vertex_data[vertex_index++] = make_float4(keys[first_key_index + k].x,
+                                                      keys[first_key_index + k].y,
+                                                      keys[first_key_index + k].z,
+                                                      curve_radius[first_key_index + k]);
+          }
+
+          const int last_key_index = first_key_index + curve.num_keys - 1;
+          {
+            vertex_data[vertex_index++] = make_float4(keys[last_key_index].x,
+                                                      keys[last_key_index].y,
+                                                      keys[last_key_index].z,
+                                                      curve_radius[last_key_index]);
+            vertex_data[vertex_index++] = make_float4(keys[last_key_index].x,
+                                                      keys[last_key_index].y,
+                                                      keys[last_key_index].z,
+                                                      curve_radius[last_key_index]);
+          }
+        }
+      }
+    }
+    else {
+      for (size_t curve_index = 0, i = 0; curve_index < hair->num_curves(); ++curve_index) {
+        const Hair::Curve curve = hair->get_curve(curve_index);
+
+        for (int segment = 0; segment < curve.num_segments(); ++segment, ++i) {
+          BoundBox bounds = BoundBox::empty;
+          curve.bounds_grow(segment, keys, hair->get_curve_radius().data(), bounds);
+
+          const size_t index = step * num_segments + i;
+          copy_aabb(aabb_data, index, bounds);
+        }
+      }
+    }
+  }
+
+  /* Upload AABB data to GPU. */
+  aabb_data.copy_to_device();
+  index_data.copy_to_device();
+  vertex_data.copy_to_device();
+
+  vector<device_ptr> aabb_ptrs;
+  aabb_ptrs.reserve(num_motion_steps);
+  vector<device_ptr> width_ptrs;
+  vector<device_ptr> vertex_ptrs;
+  width_ptrs.reserve(num_motion_steps);
+  vertex_ptrs.reserve(num_motion_steps);
+  for (size_t step = 0; step < num_motion_steps; ++step) {
+    aabb_ptrs.push_back(aabb_data.device_pointer + step * num_segments * sizeof(OptixAabb));
+    const device_ptr base_ptr = vertex_data.device_pointer + step * num_vertices * sizeof(float4);
+    width_ptrs.push_back(base_ptr + 3 * sizeof(float)); /* Offset by vertex size. */
+    vertex_ptrs.push_back(base_ptr);
+  }
+
+  /* Force a single any-hit call, so shadow record-all behavior works correctly. */
+  unsigned int build_flags = OPTIX_GEOMETRY_FLAG_REQUIRE_SINGLE_ANYHIT_CALL;
+  OptixBuildInput build_input = {};
+  if (hair->curve_shape != CURVE_RIBBON) {
+    build_input.type = OPTIX_BUILD_INPUT_TYPE_CURVES;
+    if (hair->curve_shape == CURVE_THICK_LINEAR) {
+      build_input.curveArray.curveType = OPTIX_PRIMITIVE_TYPE_ROUND_LINEAR;
+    }
+    else {
+      build_input.curveArray.curveType = OPTIX_PRIMITIVE_TYPE_ROUND_CATMULLROM;
+    }
+    build_input.curveArray.numPrimitives = num_segments;
+    build_input.curveArray.vertexBuffers = (CUdeviceptr *)vertex_ptrs.data();
+    build_input.curveArray.numVertices = num_vertices;
+    build_input.curveArray.vertexStrideInBytes = sizeof(float4);
+    build_input.curveArray.widthBuffers = (CUdeviceptr *)width_ptrs.data();
+    build_input.curveArray.widthStrideInBytes = sizeof(float4);
+    build_input.curveArray.indexBuffer = (CUdeviceptr)index_data.device_pointer;
+    build_input.curveArray.indexStrideInBytes = sizeof(int);
+    build_input.curveArray.flag = build_flags;
+    build_input.curveArray.primitiveIndexOffset = hair->curve_segment_offset;
+  }
+  else {
+    /* Disable visibility test any-hit program, since it is already checked during
+     * intersection. Those trace calls that require any-hit can force it with a ray flag. */
+    build_flags |= OPTIX_GEOMETRY_FLAG_DISABLE_ANYHIT;
+
+    build_input.type = OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES;
+    build_input.customPrimitiveArray.aabbBuffers = (CUdeviceptr *)aabb_ptrs.data();
+    build_input.customPrimitiveArray.numPrimitives = num_segments;
+    build_input.customPrimitiveArray.strideInBytes = sizeof(OptixAabb);
+    build_input.customPrimitiveArray.flags = &build_flags;
+    build_input.customPrimitiveArray.numSbtRecords = 1;
+    build_input.customPrimitiveArray.primitiveIndexOffset = hair->curve_segment_offset;
+  }
+  if (!build_optix_bvh(bvh_optix, operation, build_input, num_motion_steps)) {
+    progress.set_error("Failed to build OptiX acceleration structure");
+  }
+}
+
+void OptiXDevice::build_BLAS_mesh(Geometry *const geom,
+                                  BVHOptiX *const bvh_optix,
+                                  const OptixBuildOperation operation,
+                                  Progress &progress)
+{
+  /* Build BLAS for triangle primitives. */
+  Mesh *const mesh = static_cast<Mesh *const>(geom);
+  if (mesh->num_triangles() == 0) {
+    return;
+  }
+
+  const size_t num_verts = mesh->get_verts().size();
+
+  size_t num_motion_steps = 1;
+  Attribute *motion_keys = mesh->attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
+  if (pipeline_options.usesMotionBlur && mesh->get_use_motion_blur() && motion_keys) {
+    num_motion_steps = mesh->get_motion_steps();
+  }
+
+  device_vector<int> index_data(this, "optix temp index data", MEM_READ_ONLY);
+  index_data.alloc(mesh->get_triangles().size());
+  memcpy(
+      index_data.data(), mesh->get_triangles().data(), mesh->get_triangles().size() * sizeof(int));
+  device_vector<float4> vertex_data(this, "optix temp vertex data", MEM_READ_ONLY);
+  vertex_data.alloc(num_verts * num_motion_steps);
+
+  for (size_t step = 0; step < num_motion_steps; ++step) {
+    const float3 *verts = mesh->get_verts().data();
+
+    size_t center_step = (num_motion_steps - 1) / 2;
+    /* The center step for motion vertices is not stored in the attribute. */
+    if (step != center_step) {
+      verts = motion_keys->data_float3() + (step > center_step ? step - 1 : step) * num_verts;
+    }
+
+    /* Direct copy from Cycles padded float3, needs to match float4 size. */
+    static_assert(sizeof(float3) == sizeof(float4));
+    std::copy_n(
+        verts, num_verts, reinterpret_cast<float3 *>(vertex_data.data() + num_verts * step));
+  }
+
+  /* Upload triangle data to GPU. */
+  index_data.copy_to_device();
+  vertex_data.copy_to_device();
+
+  vector<device_ptr> vertex_ptrs;
+  vertex_ptrs.reserve(num_motion_steps);
+  for (size_t step = 0; step < num_motion_steps; ++step) {
+    vertex_ptrs.push_back(vertex_data.device_pointer + num_verts * step * sizeof(float3));
+  }
+
+  /* Force a single any-hit call, so shadow record-all behavior works correctly. */
+  unsigned int build_flags = OPTIX_GEOMETRY_FLAG_REQUIRE_SINGLE_ANYHIT_CALL;
+  OptixBuildInput build_input = {};
+  build_input.type = OPTIX_BUILD_INPUT_TYPE_TRIANGLES;
+  build_input.triangleArray.vertexBuffers = (CUdeviceptr *)vertex_ptrs.data();
+  build_input.triangleArray.numVertices = num_verts;
+  build_input.triangleArray.vertexFormat = OPTIX_VERTEX_FORMAT_FLOAT3;
+  build_input.triangleArray.vertexStrideInBytes = sizeof(float4);
+  build_input.triangleArray.indexBuffer = index_data.device_pointer;
+  build_input.triangleArray.numIndexTriplets = mesh->num_triangles();
+  build_input.triangleArray.indexFormat = OPTIX_INDICES_FORMAT_UNSIGNED_INT3;
+  build_input.triangleArray.indexStrideInBytes = 3 * sizeof(int);
+  build_input.triangleArray.flags = &build_flags;
+  /* The SBT does not store per primitive data since Cycles already allocates separate
+   * buffers for that purpose. OptiX does not allow this to be zero though, so just pass in
+   * one and rely on that having the same meaning in this case. */
+  build_input.triangleArray.numSbtRecords = 1;
+  build_input.triangleArray.primitiveIndexOffset = mesh->prim_offset;
+
+  if (!build_optix_bvh(bvh_optix, operation, build_input, num_motion_steps)) {
+    progress.set_error("Failed to build OptiX acceleration structure");
+  }
+}
+
+void OptiXDevice::build_BLAS_pointcloud(Geometry *const geom,
+                                        BVHOptiX *const bvh_optix,
+                                        const OptixBuildOperation operation,
+                                        Progress &progress)
+{
+  /* Build BLAS for points primitives. */
+  PointCloud *const pointcloud = static_cast<PointCloud *const>(geom);
+  const size_t num_points = pointcloud->num_points();
+  if (num_points == 0) {
+    return;
+  }
+
+  size_t num_motion_steps = 1;
+  Attribute *motion_points = pointcloud->attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
+  if (pipeline_options.usesMotionBlur && pointcloud->get_use_motion_blur() && motion_points) {
+    num_motion_steps = pointcloud->get_motion_steps();
+  }
+
+  device_vector<OptixAabb> aabb_data(this, "optix temp aabb data", MEM_READ_ONLY);
+  aabb_data.alloc(num_points * num_motion_steps);
+
+  /* Get AABBs for each motion step. */
+  for (size_t step = 0; step < num_motion_steps; ++step) {
+    /* The center step for motion vertices is not stored in the attribute. */
+    size_t center_step = (num_motion_steps - 1) / 2;
+
+    if (step == center_step) {
+      const float3 *points = pointcloud->get_points().data();
+      const float *radius = pointcloud->get_radius().data();
+
+      for (size_t i = 0; i < num_points; ++i) {
+        const PointCloud::Point point = pointcloud->get_point(i);
+        BoundBox bounds = BoundBox::empty;
+        point.bounds_grow(points, radius, bounds);
+
+        const size_t index = step * num_points + i;
+        copy_aabb(aabb_data, index, bounds);
+      }
+    }
+    else {
+      size_t attr_offset = (step > center_step) ? step - 1 : step;
+      const float4 *points = motion_points->data_float4() + attr_offset * num_points;
+
+      for (size_t i = 0; i < num_points; ++i) {
+        const PointCloud::Point point = pointcloud->get_point(i);
+        BoundBox bounds = BoundBox::empty;
+        point.bounds_grow(points[i], bounds);
+
+        const size_t index = step * num_points + i;
+        copy_aabb(aabb_data, index, bounds);
+      }
+    }
+  }
+
+  /* Upload AABB data to GPU. */
+  aabb_data.copy_to_device();
+
+  vector<device_ptr> aabb_ptrs;
+  aabb_ptrs.reserve(num_motion_steps);
+  for (size_t step = 0; step < num_motion_steps; ++step) {
+    aabb_ptrs.push_back(aabb_data.device_pointer + step * num_points * sizeof(OptixAabb));
+  }
+
+  /* Disable visibility test any-hit program, since it is already checked during
+   * intersection. Those trace calls that require anyhit can force it with a ray flag.
+   * For those, force a single any-hit call, so shadow record-all behavior works correctly. */
+  unsigned int build_flags = OPTIX_GEOMETRY_FLAG_DISABLE_ANYHIT |
+                             OPTIX_GEOMETRY_FLAG_REQUIRE_SINGLE_ANYHIT_CALL;
+  OptixBuildInput build_input = {};
+  build_input.type = OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES;
+  build_input.customPrimitiveArray.aabbBuffers = (CUdeviceptr *)aabb_ptrs.data();
+  build_input.customPrimitiveArray.numPrimitives = num_points;
+  build_input.customPrimitiveArray.strideInBytes = sizeof(OptixAabb);
+  build_input.customPrimitiveArray.flags = &build_flags;
+  build_input.customPrimitiveArray.numSbtRecords = 1;
+  build_input.customPrimitiveArray.primitiveIndexOffset = pointcloud->prim_offset;
+
+  if (!build_optix_bvh(bvh_optix, operation, build_input, num_motion_steps)) {
+    progress.set_error("Failed to build OptiX acceleration structure");
+  }
+}
+
+void OptiXDevice::build_BLAS_light(Geometry *const geom,
+                                   BVHOptiX *const bvh_optix,
+                                   const OptixBuildOperation operation,
+                                   Progress &progress)
+{
+  Light *const light = static_cast<Light *const>(geom);
+  if (!light->need_bvh()) {
+    return;
+  }
+
+  /* TODO(weizhen): support motion blur. */
+  const size_t num_motion_steps = 1;
+
+  device_vector<OptixAabb> aabb_data(this, "optix temp aabb data", MEM_READ_ONLY);
+  aabb_data.alloc(num_motion_steps);
+  copy_aabb(aabb_data, 0, light->bounds);
+  aabb_data.copy_to_device();
+
+  vector<device_ptr> aabb_ptrs;
+  aabb_ptrs.reserve(num_motion_steps);
+  aabb_ptrs.push_back(aabb_data.device_pointer);
+
+  /* Disable visibility test any-hit program, since it is already checked during
+   * intersection. Those trace calls that require anyhit can force it with a ray flag.
+   * For those, force a single any-hit call, so shadow record-all behavior works correctly. */
+  unsigned int build_flags = OPTIX_GEOMETRY_FLAG_DISABLE_ANYHIT |
+                             OPTIX_GEOMETRY_FLAG_REQUIRE_SINGLE_ANYHIT_CALL;
+  OptixBuildInput build_input = {};
+  build_input.type = OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES;
+  build_input.customPrimitiveArray.aabbBuffers = (CUdeviceptr *)aabb_ptrs.data();
+  build_input.customPrimitiveArray.numPrimitives = 1;
+  build_input.customPrimitiveArray.strideInBytes = sizeof(OptixAabb);
+  build_input.customPrimitiveArray.flags = &build_flags;
+  build_input.customPrimitiveArray.numSbtRecords = 1;
+  build_input.customPrimitiveArray.primitiveIndexOffset = light->prim_offset;
+
+  if (!build_optix_bvh(bvh_optix, operation, build_input, num_motion_steps)) {
+    progress.set_error("Failed to build OptiX acceleration structure");
+  }
+}
+
 bool OptiXDevice::build_optix_bvh(BVHOptiX *bvh,
                                   OptixBuildOperation operation,
                                   const OptixBuildInput &build_input,
@@ -1323,350 +1749,20 @@ void OptiXDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
     }
 
     /* Build bottom level acceleration structures (BLAS). */
+    /* TODO(weizhen): check if this should be const Geometry*. */
     Geometry *const geom = bvh->geometry[0];
     if (geom->is_hair()) {
-      /* Build BLAS for curve primitives. */
-      Hair *const hair = static_cast<Hair *const>(geom);
-      if (hair->num_segments() == 0) {
-        return;
-      }
-
-      const size_t num_segments = hair->num_segments();
-
-      size_t num_motion_steps = 1;
-      Attribute *motion_keys = hair->attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
-      if (pipeline_options.usesMotionBlur && hair->get_use_motion_blur() && motion_keys) {
-        num_motion_steps = hair->get_motion_steps();
-      }
-
-      device_vector<OptixAabb> aabb_data(this, "optix temp aabb data", MEM_READ_ONLY);
-      device_vector<int> index_data(this, "optix temp index data", MEM_READ_ONLY);
-      device_vector<float4> vertex_data(this, "optix temp vertex data", MEM_READ_ONLY);
-      /* Four control points for each curve segment. */
-      size_t num_vertices = num_segments * 4;
-      if (hair->curve_shape == CURVE_THICK_LINEAR) {
-        num_vertices = hair->num_keys();
-        index_data.alloc(num_segments);
-        vertex_data.alloc(num_vertices * num_motion_steps);
-      }
-      else if (hair->curve_shape == CURVE_THICK) {
-        num_vertices = hair->num_keys() + 2 * hair->num_curves();
-        index_data.alloc(num_segments);
-        vertex_data.alloc(num_vertices * num_motion_steps);
-      }
-      else {
-        aabb_data.alloc(num_segments * num_motion_steps);
-      }
-
-      /* Get AABBs for each motion step. */
-      for (size_t step = 0; step < num_motion_steps; ++step) {
-        /* The center step for motion vertices is not stored in the attribute. */
-        const float3 *keys = hair->get_curve_keys().data();
-        size_t center_step = (num_motion_steps - 1) / 2;
-        if (step != center_step) {
-          size_t attr_offset = (step > center_step) ? step - 1 : step;
-          /* Technically this is a float4 array, but sizeof(float3) == sizeof(float4). */
-          keys = motion_keys->data_float3() + attr_offset * hair->get_curve_keys().size();
-        }
-
-        if (hair->curve_shape == CURVE_THICK || hair->curve_shape == CURVE_THICK_LINEAR) {
-          for (size_t curve_index = 0, segment_index = 0, vertex_index = step * num_vertices;
-               curve_index < hair->num_curves();
-               ++curve_index)
-          {
-            const Hair::Curve curve = hair->get_curve(curve_index);
-            const array<float> &curve_radius = hair->get_curve_radius();
-
-            if (hair->curve_shape == CURVE_THICK_LINEAR) {
-              const int first_key_index = curve.first_key;
-
-              for (int k = 0; k < curve.num_segments(); ++k) {
-                if (step == 0) {
-                  index_data[segment_index++] = vertex_index;
-                }
-                vertex_data[vertex_index++] = make_float4(keys[first_key_index + k].x,
-                                                          keys[first_key_index + k].y,
-                                                          keys[first_key_index + k].z,
-                                                          curve_radius[first_key_index + k]);
-              }
-
-              const int last_key_index = first_key_index + curve.num_keys - 1;
-              {
-                vertex_data[vertex_index++] = make_float4(keys[last_key_index].x,
-                                                          keys[last_key_index].y,
-                                                          keys[last_key_index].z,
-                                                          curve_radius[last_key_index]);
-              }
-            }
-            else {
-              const int first_key_index = curve.first_key;
-              {
-                vertex_data[vertex_index++] = make_float4(keys[first_key_index].x,
-                                                          keys[first_key_index].y,
-                                                          keys[first_key_index].z,
-                                                          curve_radius[first_key_index]);
-              }
-
-              for (int k = 0; k < curve.num_segments(); ++k) {
-                if (step == 0) {
-                  index_data[segment_index++] = vertex_index - 1;
-                }
-                vertex_data[vertex_index++] = make_float4(keys[first_key_index + k].x,
-                                                          keys[first_key_index + k].y,
-                                                          keys[first_key_index + k].z,
-                                                          curve_radius[first_key_index + k]);
-              }
-
-              const int last_key_index = first_key_index + curve.num_keys - 1;
-              {
-                vertex_data[vertex_index++] = make_float4(keys[last_key_index].x,
-                                                          keys[last_key_index].y,
-                                                          keys[last_key_index].z,
-                                                          curve_radius[last_key_index]);
-                vertex_data[vertex_index++] = make_float4(keys[last_key_index].x,
-                                                          keys[last_key_index].y,
-                                                          keys[last_key_index].z,
-                                                          curve_radius[last_key_index]);
-              }
-            }
-          }
-        }
-        else {
-          for (size_t curve_index = 0, i = 0; curve_index < hair->num_curves(); ++curve_index) {
-            const Hair::Curve curve = hair->get_curve(curve_index);
-
-            for (int segment = 0; segment < curve.num_segments(); ++segment, ++i) {
-              BoundBox bounds = BoundBox::empty;
-              curve.bounds_grow(segment, keys, hair->get_curve_radius().data(), bounds);
-
-              const size_t index = step * num_segments + i;
-              aabb_data[index].minX = bounds.min.x;
-              aabb_data[index].minY = bounds.min.y;
-              aabb_data[index].minZ = bounds.min.z;
-              aabb_data[index].maxX = bounds.max.x;
-              aabb_data[index].maxY = bounds.max.y;
-              aabb_data[index].maxZ = bounds.max.z;
-            }
-          }
-        }
-      }
-
-      /* Upload AABB data to GPU. */
-      aabb_data.copy_to_device();
-      index_data.copy_to_device();
-      vertex_data.copy_to_device();
-
-      vector<device_ptr> aabb_ptrs;
-      aabb_ptrs.reserve(num_motion_steps);
-      vector<device_ptr> width_ptrs;
-      vector<device_ptr> vertex_ptrs;
-      width_ptrs.reserve(num_motion_steps);
-      vertex_ptrs.reserve(num_motion_steps);
-      for (size_t step = 0; step < num_motion_steps; ++step) {
-        aabb_ptrs.push_back(aabb_data.device_pointer + step * num_segments * sizeof(OptixAabb));
-        const device_ptr base_ptr = vertex_data.device_pointer +
-                                    step * num_vertices * sizeof(float4);
-        width_ptrs.push_back(base_ptr + 3 * sizeof(float)); /* Offset by vertex size. */
-        vertex_ptrs.push_back(base_ptr);
-      }
-
-      /* Force a single any-hit call, so shadow record-all behavior works correctly. */
-      unsigned int build_flags = OPTIX_GEOMETRY_FLAG_REQUIRE_SINGLE_ANYHIT_CALL;
-      OptixBuildInput build_input = {};
-      if (hair->curve_shape != CURVE_RIBBON) {
-        build_input.type = OPTIX_BUILD_INPUT_TYPE_CURVES;
-        if (hair->curve_shape == CURVE_THICK_LINEAR) {
-          build_input.curveArray.curveType = OPTIX_PRIMITIVE_TYPE_ROUND_LINEAR;
-        }
-        else {
-          build_input.curveArray.curveType = OPTIX_PRIMITIVE_TYPE_ROUND_CATMULLROM;
-        }
-        build_input.curveArray.numPrimitives = num_segments;
-        build_input.curveArray.vertexBuffers = (CUdeviceptr *)vertex_ptrs.data();
-        build_input.curveArray.numVertices = num_vertices;
-        build_input.curveArray.vertexStrideInBytes = sizeof(float4);
-        build_input.curveArray.widthBuffers = (CUdeviceptr *)width_ptrs.data();
-        build_input.curveArray.widthStrideInBytes = sizeof(float4);
-        build_input.curveArray.indexBuffer = (CUdeviceptr)index_data.device_pointer;
-        build_input.curveArray.indexStrideInBytes = sizeof(int);
-        build_input.curveArray.flag = build_flags;
-        build_input.curveArray.primitiveIndexOffset = hair->curve_segment_offset;
-      }
-      else {
-        /* Disable visibility test any-hit program, since it is already checked during
-         * intersection. Those trace calls that require any-hit can force it with a ray flag. */
-        build_flags |= OPTIX_GEOMETRY_FLAG_DISABLE_ANYHIT;
-
-        build_input.type = OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES;
-        build_input.customPrimitiveArray.aabbBuffers = (CUdeviceptr *)aabb_ptrs.data();
-        build_input.customPrimitiveArray.numPrimitives = num_segments;
-        build_input.customPrimitiveArray.strideInBytes = sizeof(OptixAabb);
-        build_input.customPrimitiveArray.flags = &build_flags;
-        build_input.customPrimitiveArray.numSbtRecords = 1;
-        build_input.customPrimitiveArray.primitiveIndexOffset = hair->curve_segment_offset;
-      }
-
-      if (!build_optix_bvh(bvh_optix, operation, build_input, num_motion_steps)) {
-        progress.set_error("Failed to build OptiX acceleration structure");
-      }
+      build_BLAS_hair(geom, bvh_optix, operation, progress);
     }
     else if (geom->is_mesh() || geom->is_volume()) {
-      /* Build BLAS for triangle primitives. */
-      Mesh *const mesh = static_cast<Mesh *const>(geom);
-      if (mesh->num_triangles() == 0) {
-        return;
-      }
-
-      const size_t num_verts = mesh->get_verts().size();
-
-      size_t num_motion_steps = 1;
-      Attribute *motion_keys = mesh->attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
-      if (pipeline_options.usesMotionBlur && mesh->get_use_motion_blur() && motion_keys) {
-        num_motion_steps = mesh->get_motion_steps();
-      }
-
-      device_vector<int> index_data(this, "optix temp index data", MEM_READ_ONLY);
-      index_data.alloc(mesh->get_triangles().size());
-      memcpy(index_data.data(),
-             mesh->get_triangles().data(),
-             mesh->get_triangles().size() * sizeof(int));
-      device_vector<float4> vertex_data(this, "optix temp vertex data", MEM_READ_ONLY);
-      vertex_data.alloc(num_verts * num_motion_steps);
-
-      for (size_t step = 0; step < num_motion_steps; ++step) {
-        const float3 *verts = mesh->get_verts().data();
-
-        size_t center_step = (num_motion_steps - 1) / 2;
-        /* The center step for motion vertices is not stored in the attribute. */
-        if (step != center_step) {
-          verts = motion_keys->data_float3() + (step > center_step ? step - 1 : step) * num_verts;
-        }
-
-        /* Direct copy from Cycles padded float3, needs to match float4 size. */
-        static_assert(sizeof(float3) == sizeof(float4));
-        std::copy_n(
-            verts, num_verts, reinterpret_cast<float3 *>(vertex_data.data() + num_verts * step));
-      }
-
-      /* Upload triangle data to GPU. */
-      index_data.copy_to_device();
-      vertex_data.copy_to_device();
-
-      vector<device_ptr> vertex_ptrs;
-      vertex_ptrs.reserve(num_motion_steps);
-      for (size_t step = 0; step < num_motion_steps; ++step) {
-        vertex_ptrs.push_back(vertex_data.device_pointer + num_verts * step * sizeof(float3));
-      }
-
-      /* Force a single any-hit call, so shadow record-all behavior works correctly. */
-      unsigned int build_flags = OPTIX_GEOMETRY_FLAG_REQUIRE_SINGLE_ANYHIT_CALL;
-      OptixBuildInput build_input = {};
-      build_input.type = OPTIX_BUILD_INPUT_TYPE_TRIANGLES;
-      build_input.triangleArray.vertexBuffers = (CUdeviceptr *)vertex_ptrs.data();
-      build_input.triangleArray.numVertices = num_verts;
-      build_input.triangleArray.vertexFormat = OPTIX_VERTEX_FORMAT_FLOAT3;
-      build_input.triangleArray.vertexStrideInBytes = sizeof(float4);
-      build_input.triangleArray.indexBuffer = index_data.device_pointer;
-      build_input.triangleArray.numIndexTriplets = mesh->num_triangles();
-      build_input.triangleArray.indexFormat = OPTIX_INDICES_FORMAT_UNSIGNED_INT3;
-      build_input.triangleArray.indexStrideInBytes = 3 * sizeof(int);
-      build_input.triangleArray.flags = &build_flags;
-      /* The SBT does not store per primitive data since Cycles already allocates separate
-       * buffers for that purpose. OptiX does not allow this to be zero though, so just pass in
-       * one and rely on that having the same meaning in this case. */
-      build_input.triangleArray.numSbtRecords = 1;
-      build_input.triangleArray.primitiveIndexOffset = mesh->prim_offset;
-
-      if (!build_optix_bvh(bvh_optix, operation, build_input, num_motion_steps)) {
-        progress.set_error("Failed to build OptiX acceleration structure");
-      }
+      build_BLAS_mesh(geom, bvh_optix, operation, progress);
     }
     else if (geom->is_pointcloud()) {
-      /* Build BLAS for points primitives. */
-      PointCloud *const pointcloud = static_cast<PointCloud *const>(geom);
-      const size_t num_points = pointcloud->num_points();
-      if (num_points == 0) {
-        return;
-      }
-
-      size_t num_motion_steps = 1;
-      Attribute *motion_points = pointcloud->attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
-      if (pipeline_options.usesMotionBlur && pointcloud->get_use_motion_blur() && motion_points) {
-        num_motion_steps = pointcloud->get_motion_steps();
-      }
-
-      device_vector<OptixAabb> aabb_data(this, "optix temp aabb data", MEM_READ_ONLY);
-      aabb_data.alloc(num_points * num_motion_steps);
-
-      /* Get AABBs for each motion step. */
-      for (size_t step = 0; step < num_motion_steps; ++step) {
-        /* The center step for motion vertices is not stored in the attribute. */
-        size_t center_step = (num_motion_steps - 1) / 2;
-
-        if (step == center_step) {
-          const float3 *points = pointcloud->get_points().data();
-          const float *radius = pointcloud->get_radius().data();
-
-          for (size_t i = 0; i < num_points; ++i) {
-            const PointCloud::Point point = pointcloud->get_point(i);
-            BoundBox bounds = BoundBox::empty;
-            point.bounds_grow(points, radius, bounds);
-
-            const size_t index = step * num_points + i;
-            aabb_data[index].minX = bounds.min.x;
-            aabb_data[index].minY = bounds.min.y;
-            aabb_data[index].minZ = bounds.min.z;
-            aabb_data[index].maxX = bounds.max.x;
-            aabb_data[index].maxY = bounds.max.y;
-            aabb_data[index].maxZ = bounds.max.z;
-          }
-        }
-        else {
-          size_t attr_offset = (step > center_step) ? step - 1 : step;
-          const float4 *points = motion_points->data_float4() + attr_offset * num_points;
-
-          for (size_t i = 0; i < num_points; ++i) {
-            const PointCloud::Point point = pointcloud->get_point(i);
-            BoundBox bounds = BoundBox::empty;
-            point.bounds_grow(points[i], bounds);
-
-            const size_t index = step * num_points + i;
-            aabb_data[index].minX = bounds.min.x;
-            aabb_data[index].minY = bounds.min.y;
-            aabb_data[index].minZ = bounds.min.z;
-            aabb_data[index].maxX = bounds.max.x;
-            aabb_data[index].maxY = bounds.max.y;
-            aabb_data[index].maxZ = bounds.max.z;
-          }
-        }
-      }
-
-      /* Upload AABB data to GPU. */
-      aabb_data.copy_to_device();
-
-      vector<device_ptr> aabb_ptrs;
-      aabb_ptrs.reserve(num_motion_steps);
-      for (size_t step = 0; step < num_motion_steps; ++step) {
-        aabb_ptrs.push_back(aabb_data.device_pointer + step * num_points * sizeof(OptixAabb));
-      }
-
-      /* Disable visibility test any-hit program, since it is already checked during
-       * intersection. Those trace calls that require anyhit can force it with a ray flag.
-       * For those, force a single any-hit call, so shadow record-all behavior works correctly. */
-      unsigned int build_flags = OPTIX_GEOMETRY_FLAG_DISABLE_ANYHIT |
-                                 OPTIX_GEOMETRY_FLAG_REQUIRE_SINGLE_ANYHIT_CALL;
-      OptixBuildInput build_input = {};
-      build_input.type = OPTIX_BUILD_INPUT_TYPE_CUSTOM_PRIMITIVES;
-      build_input.customPrimitiveArray.aabbBuffers = (CUdeviceptr *)aabb_ptrs.data();
-      build_input.customPrimitiveArray.numPrimitives = num_points;
-      build_input.customPrimitiveArray.strideInBytes = sizeof(OptixAabb);
-      build_input.customPrimitiveArray.flags = &build_flags;
-      build_input.customPrimitiveArray.numSbtRecords = 1;
-      build_input.customPrimitiveArray.primitiveIndexOffset = pointcloud->prim_offset;
-
-      if (!build_optix_bvh(bvh_optix, operation, build_input, num_motion_steps)) {
-        progress.set_error("Failed to build OptiX acceleration structure");
-      }
+      build_BLAS_pointcloud(geom, bvh_optix, operation, progress);
+    }
+    else {
+      assert(geom->is_light());
+      build_BLAS_light(geom, bvh_optix, operation, progress);
     }
   }
   else {
@@ -1775,6 +1871,14 @@ void OptiXDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
         /* Also skip point clouds in local trace calls. */
         instance.visibilityMask |= 4;
       }
+      else if (ob->get_geometry()->is_light()) {
+        /* Use the hit group that has an intersection program for lights. */
+        instance.sbtOffset = PG_HITD_LIGHT - PG_HITD;
+
+        /* Also skip lights in local trace calls. */
+        instance.visibilityMask |= 4;
+      }
+
       {
         /* Can disable __anyhit__kernel_optix_visibility_test by default (except for thick curves,
          * since it needs to filter out end-caps there).

@@ -359,7 +359,7 @@ ccl_device
   {
     if (ls.type != LIGHT_TRIANGLE) {
       /* Is this a caustic light? */
-      const bool use_caustics = kernel_data_fetch(lights, ls.prim).use_caustics;
+      const bool use_caustics = kernel_data_fetch(light_geom, ls.prim).use_caustics;
       if (use_caustics) {
         /* Are we on a caustic caster? */
         if (is_transmission && (sd->object_flag & SD_OBJECT_CAUSTICS_CASTER)) {
@@ -389,7 +389,7 @@ ccl_device
   /* Evaluate constant part of light shader, rest will optionally be done in another kernel. */
   Spectrum light_shader_eval ccl_optional_struct_init;
   const bool is_constant_light_shader = light_sample_shader_eval_nee_constant(
-      kg, ls.shader, ls.prim, ls.type != LIGHT_TRIANGLE, light_shader_eval);
+      kg, ls.shader_id_and_flags, ls.object, ls.type != LIGHT_TRIANGLE, light_shader_eval);
 
 #ifdef __MNEE__
   if (mnee_vertex_count > 0) {
@@ -399,7 +399,8 @@ ccl_device
 #endif /* __MNEE__ */
   {
     /* Evaluate BSDF. */
-    const float bsdf_pdf = surface_shader_bsdf_eval(kg, state, sd, ls.D, &bsdf_eval, ls.shader);
+    const float bsdf_pdf = surface_shader_bsdf_eval(
+        kg, state, sd, ls.D, &bsdf_eval, ls.shader_id_and_flags);
     const float mis_weight = light_sample_mis_weight_nee(kg, ls.pdf, bsdf_pdf);
     bsdf_eval_mul(&bsdf_eval, light_shader_eval * ls.eval_fac / ls.pdf * mis_weight);
 

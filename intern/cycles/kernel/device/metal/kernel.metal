@@ -743,4 +743,108 @@ __intersection__point_shadow_all(constant KernelParamsMetal &launch_params_metal
   return result;
 }
 
-#endif /* __KERNEL_METALRT__ */
+[[intersection(bounding_box,
+               triangle_data,
+               curve_data,
+               METALRT_TAGS METALRT_LIMITS)]] BoundingBoxIntersectionResult
+__intersection__light(constant KernelParamsMetal &launch_params_metal [[buffer(1)]],
+                      ray_data MetalKernelContext::MetalRTIntersectionPayload &payload [[payload]],
+                      const uint object [[instance_id]],
+                      const uint primitive_id [[primitive_id]],
+                      const uint primitive_id_offset [[user_instance_id]],
+                      const float3 ray_origin [[origin]],
+                      const float3 ray_direction [[direction]],
+#  if defined(__METALRT_MOTION__)
+                      const float time [[time]],
+#  endif
+                      const float ray_tmin [[min_distance]],
+                      const float ray_tmax [[max_distance]])
+{
+  const uint prim = primitive_id + primitive_id_offset;
+  const int type = kernel_data_fetch(objects, object).primitive_type;
+
+  BoundingBoxIntersectionResult result;
+  result.accept = false;
+  result.continue_search = true;
+  result.distance = ray_tmax;
+
+  Intersection isect;
+  isect.t = ray_tmax;
+
+#  ifndef __METALRT_MOTION__
+  const float time = 0.0f;
+#  endif
+
+  MetalKernelContext context(launch_params_metal);
+  if (context.lights_intersect(nullptr, &isect, ray_origin, ray_direction, ray_tmin, object, prim))
+  {
+    result = metalrt_visibility_test<BoundingBoxIntersectionResult, METALRT_HIT_BOUNDING_BOX>(
+        launch_params_metal, payload, object, prim, isect.u);
+    if (result.accept) {
+      result.distance = isect.t;
+    }
+  }
+  return result;
+}
+
+[[intersection(bounding_box,
+               triangle_data,
+               curve_data,
+               METALRT_TAGS METALRT_LIMITS)]] BoundingBoxIntersectionResult
+__intersection__light_shadow(constant KernelParamsMetal &launch_params_metal [[buffer(1)]],
+                             ray_data MetalKernelContext::MetalRTIntersectionShadowPayload &payload
+                             [[payload]],
+                             const uint object [[instance_id]],
+                             const uint primitive_id [[primitive_id]],
+                             const uint primitive_id_offset [[user_instance_id]],
+                             const float3 ray_origin [[origin]],
+                             const float3 ray_direction [[direction]],
+#  if defined(__METALRT_MOTION__)
+                             const float time [[time]],
+#  endif
+                             const float ray_tmin [[min_distance]],
+                             const float ray_tmax [[max_distance]])
+{
+  /* TODO(weizhen): shadow linking? */
+  const uint prim = primitive_id;
+  const int type = PRIMITIVE_LAMP;
+
+  BoundingBoxIntersectionResult result;
+  result.accept = false;
+  result.continue_search = true;
+  result.distance = ray_tmax;
+
+  return result;
+}
+
+[[intersection(bounding_box,
+               triangle_data,
+               curve_data,
+               METALRT_TAGS METALRT_LIMITS)]] BoundingBoxIntersectionResult
+__intersection__light_shadow_all(constant KernelParamsMetal &launch_params_metal [[buffer(1)]],
+                                 ray_data MetalKernelContext::BVHShadowAllPayload &payload
+                                 [[payload]],
+                                 const uint object [[instance_id]],
+                                 const uint primitive_id [[primitive_id]],
+                                 const uint primitive_id_offset [[user_instance_id]],
+                                 const float3 ray_origin [[origin]],
+                                 const float3 ray_direction [[direction]],
+#  if defined(__METALRT_MOTION__)
+                                 const float time [[time]],
+#  endif
+                                 const float ray_tmin [[min_distance]],
+                                 const float ray_tmax [[max_distance]])
+{
+  /* TODO(weizhen): shadow linking? */
+  const uint prim = primitive_id;
+  const int type = PRIMITIVE_LAMP;
+
+  BoundingBoxIntersectionResult result;
+  result.accept = false;
+  result.continue_search = true;
+  result.distance = ray_tmax;
+
+  return result;
+}
+
+#endif /* __METALRT__ */

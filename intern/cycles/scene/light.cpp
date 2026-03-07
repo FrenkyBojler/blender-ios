@@ -133,11 +133,17 @@ PointLight::PointLight() : Light(get_node_type())
   light_type = LIGHT_POINT;
 }
 
-float PointLight::area(const Transform & /*tfm*/) const
+void PointLight::compute_bounds()
 {
-  /* Sphere area. */
-  const float area = 4.0f * M_PI_F * sqr(radius);
-  return (area == 0.0f) ? 4.0f : area;
+  bounds = BoundBox::empty;
+  bounds.grow(zero_float3(), radius);
+}
+
+BoundBox PointLight::compute_bounds(const Transform *tfm) const
+{
+  BoundBox bbox = BoundBox::empty;
+  bbox.grow(transform_get_translation(tfm), radius);
+  return bbox;
 }
 
 void PointLight::copy_to_kernel(KernelLight *klight,
@@ -162,6 +168,38 @@ void PointLight::copy_to_kernel(KernelLight *klight,
   Light::copy_to_kernel(klight, scene, object, shader_flags);
 }
 
+float PointLight::area(const Transform & /*tfm*/) const
+{
+  /* Sphere area. */
+  const float area = 4.0f * M_PI_F * sqr(radius);
+  return (area == 0.0f) ? 4.0f : area;
+}
+
+void PointLight::pack(KernelLightGeom *light, const Scene *scene) const
+{
+  light->type = light_type;
+  light->is_sphere = is_sphere;
+  light->shader_id = get_shader_id(scene);
+  light->max_bounces = max_bounces;
+  light->use_caustics = use_caustics;
+}
+
+void PointLight::adjust_tfm(Object *object, KernelObject *kobject, KernelLight *klight) const
+{
+  for (int i = 0; i < 3; i++) {
+    /* TODO(weizhen): what if some scale is zero? Should we clamp? */
+    klight->spot.inv_scale[i] = inversesqrtf(
+        len_squared(transform_get_column(&object->get_tfm(), i)));
+  }
+
+  if (radius > 0) {
+    klight->spot.inv_scale *= radius;
+  }
+  transform_postscale(kobject->tfm, klight->spot.inv_scale);
+  object->set_tfm(kobject->tfm);
+  transform_prescale(kobject->itfm, reciprocal(klight->spot.inv_scale));
+}
+
 NODE_DEFINE(SpotLight)
 {
   NodeType *type = NodeType::add("spotlight", create, NodeType::NONE, PointLight::get_node_type());
@@ -183,22 +221,19 @@ void SpotLight::copy_to_kernel(KernelLight *klight, const Scene *scene, const Ob
   const float spot_smooth = 1.0f / ((1.0f - cos_half_spot_angle) * smooth);
   const float tan_half_spot_angle = tanf(angle * 0.5f);
 
-  const float3 dir = -transform_get_column(&object->get_tfm(), 2);
-  const float len_w_sq = len_squared(dir);
-  const float len_u_sq = len_squared(transform_get_column(&object->get_tfm(), 0));
-  const float len_v_sq = len_squared(transform_get_column(&object->get_tfm(), 1));
+  const float3 inv_len_sq = sqr(klight->spot.inv_scale);
   const float tan_sq = sqr(tan_half_spot_angle);
 
-  klight->spot.dir = safe_normalize(dir);
+  klight->spot.dir = safe_normalize(-transform_get_column(&object->get_tfm(), 2));
   klight->spot.cos_half_spot_angle = cos_half_spot_angle;
   klight->spot.half_cot_half_spot_angle = 0.5f / tan_half_spot_angle;
   klight->spot.spot_smooth = spot_smooth;
   /* Choose the angle which spans a larger cone. */
-  klight->spot.cos_half_larger_spread = inversesqrtf(1.0f + tan_sq * fmaxf(len_u_sq, len_v_sq) /
-                                                                len_w_sq);
+  klight->spot.cos_half_larger_spread = inversesqrtf(1.0f + tan_sq * inv_len_sq.z /
+                                                                fminf(inv_len_sq.x, inv_len_sq.y));
   /* radius / sin(half_angle_small) */
-  klight->spot.ray_segment_dp = radius *
-                                sqrtf(1.0f + len_w_sq / (tan_sq * fminf(len_u_sq, len_v_sq)));
+  klight->spot.ray_segment_dp = radius * sqrtf(1.0f + fmaxf(inv_len_sq.x, inv_len_sq.y) /
+                                                          (tan_sq * inv_len_sq.z));
   PointLight::copy_to_kernel(klight, scene, object);
 }
 
@@ -220,20 +255,41 @@ AreaLight::AreaLight() : Light(get_node_type())
   light_type = LIGHT_AREA;
 }
 
+void AreaLight::compute_bounds()
+{
+  bounds.min = make_float3(-0.5f * sizeu, -0.5f * sizev, 0.0f);
+  bounds.max = make_float3(0.5f * sizeu, 0.5f * sizev, 0.0f);
+}
+
+BoundBox AreaLight::compute_bounds(const Transform *tfm) const
+{
+  BoundBox bbox = BoundBox::empty;
+
+  const float3 center = transform_get_translation(tfm);
+  const float3 half_extent_u = 0.5f * transform_get_column(tfm, 0);
+  const float3 half_extent_v = 0.5f * transform_get_column(tfm, 1);
+
+  bbox.grow(center + half_extent_u + half_extent_v);
+  bbox.grow(center + half_extent_u - half_extent_v);
+  bbox.grow(center - half_extent_u - half_extent_v);
+  bbox.grow(center - half_extent_u + half_extent_v);
+  return bbox;
+}
+
 float AreaLight::area(const Transform &tfm) const
 {
   const float3 axisu = transform_get_column(&tfm, 0);
   const float3 axisv = transform_get_column(&tfm, 1);
 
   /* Rectangle area. */
-  const float area = len(axisu * sizeu) * len(axisv * sizev);
+  const float area = len(axisu) * len(axisv);
   return ellipse ? area * M_PI_4_F : area;
 }
 
 void AreaLight::copy_to_kernel(KernelLight *klight, const Scene *scene, const Object *object) const
 {
-  const float3 extentu = transform_get_column(&object->get_tfm(), 0) * sizeu;
-  const float3 extentv = transform_get_column(&object->get_tfm(), 1) * sizev;
+  const float3 extentu = transform_get_column(&object->get_tfm(), 0);
+  const float3 extentv = transform_get_column(&object->get_tfm(), 1);
 
   float len_u;
   float len_v;
@@ -283,6 +339,27 @@ void AreaLight::copy_to_kernel(KernelLight *klight, const Scene *scene, const Ob
   Light::copy_to_kernel(klight, scene, object, shader_flags);
 }
 
+void AreaLight::pack(KernelLightGeom *light, const Scene *scene) const
+{
+  light->type = light_type;
+  light->is_ellipse = ellipse;
+  light->shader_id = get_shader_id(scene);
+  light->max_bounces = max_bounces;
+  light->use_caustics = use_caustics;
+}
+
+void AreaLight::adjust_tfm(Object *object, KernelObject *kobject, KernelLight * /*klight*/) const
+{
+  if (!is_traceable()) {
+    return;
+  }
+
+  const float3 size = make_float3(sizeu, sizev, 1.0f);
+  transform_postscale(kobject->tfm, size);
+  object->set_tfm(kobject->tfm);
+  transform_prescale(kobject->itfm, reciprocal(size));
+}
+
 NODE_DEFINE(SunLight)
 {
   NodeType *type = NodeType::add("sunlight", create, NodeType::NONE, Light::get_node_base_type());
@@ -296,6 +373,16 @@ SunLight::SunLight() : Light(get_node_type())
 {
   light_type = LIGHT_DISTANT;
 }
+
+void SunLight::compute_bounds()
+{
+  bounds = BoundBox::empty;
+};
+
+BoundBox SunLight::compute_bounds(const Transform * /*tfm*/) const
+{
+  return BoundBox::empty;
+};
 
 float SunLight::area(const Transform & /*tfm*/) const
 {
@@ -325,6 +412,14 @@ void SunLight::copy_to_kernel(KernelLight *klight, const Scene *scene, const Obj
   Light::copy_to_kernel(klight, scene, object, shader_flags);
 }
 
+void SunLight::pack(KernelLightGeom *light, const Scene *scene) const
+{
+  light->type = light_type;
+  light->shader_id = get_shader_id(scene);
+  light->max_bounces = max_bounces;
+  light->use_caustics = use_caustics;
+}
+
 NODE_DEFINE(BackgroundLight)
 {
   NodeType *type = NodeType::add(
@@ -340,6 +435,16 @@ BackgroundLight::BackgroundLight() : Light(get_node_type())
 {
   light_type = LIGHT_BACKGROUND;
 }
+
+void BackgroundLight::compute_bounds()
+{
+  bounds = BoundBox::empty;
+};
+
+BoundBox BackgroundLight::compute_bounds(const Transform * /*tfm*/) const
+{
+  return BoundBox::empty;
+};
 
 float BackgroundLight::area(const Transform & /*tfm*/) const
 {
@@ -386,7 +491,15 @@ void Light::tag_update(Scene *scene)
   }
 }
 
-bool Light::has_contribution(const Scene *scene, const Object *object)
+void BackgroundLight::pack(KernelLightGeom *light, const Scene *scene) const
+{
+  light->type = light_type;
+  light->shader_id = get_shader_id(scene);
+  light->max_bounces = max_bounces;
+  light->use_caustics = use_caustics;
+}
+
+bool Light::has_contribution(const Scene *scene)
 {
   if (strength == zero_float3()) {
     return false;
@@ -398,15 +511,9 @@ bool Light::has_contribution(const Scene *scene, const Object *object)
     /* Will be determined after finishing processing all the lights. */
     return true;
   }
-  if (is_area_light()) {
-    const AreaLight *light = static_cast<AreaLight *>(this);
-    if ((light->get_sizeu() * light->get_sizev() == 0.0f) ||
-        is_zero(transform_get_column(&object->get_tfm(), 0)) ||
-        is_zero(transform_get_column(&object->get_tfm(), 1)))
-    {
-      /* Area light with a size of zero does not contribute to the scene. */
-      return false;
-    }
+  if (is_area_light() && !is_traceable()) {
+    /* Area light with a size of zero does not contribute to the scene. */
+    return false;
   }
 
   const Shader *effective_shader = (get_shader()) ? get_shader() : scene->default_light;
@@ -418,14 +525,19 @@ Shader *Light::get_shader() const
   return (used_shaders.empty()) ? nullptr : static_cast<Shader *>(used_shaders[0]);
 }
 
-void Light::compute_bounds()
+uint Light::get_shader_id(const Scene *scene) const
 {
-  /* TODO: implement when this becomes actual geometry. */
+  const Shader *shader = (get_shader()) ? get_shader() : scene->default_light;
+  uint shader_id = shader->id;
+  if (cast_shadow) {
+    shader_id |= SHADER_CAST_SHADOW;
+  }
+  return shader_id;
 }
 
 void Light::apply_transform(const Transform & /*tfm*/, const bool /*apply_to_motion*/)
 {
-  /* TODO: implement when this becomes actual geometry. */
+  assert(false);
 }
 
 void Light::get_uv_tiles(ustring /*map*/, unordered_set<int> & /*tiles*/)
@@ -471,21 +583,11 @@ void Light::copy_to_kernel(KernelLight *klight,
                            const uint shader_flags) const
 {
   klight->type = light_type;
-
-  const Shader *shader = (get_shader()) ? get_shader() : scene->default_light;
-  int shader_id = scene->shader_manager->get_shader_id(shader);
-
-  if (!cast_shadow) {
-    shader_id &= ~SHADER_CAST_SHADOW;
-  }
-
-  shader_id |= light_object_visibility_flags(object);
-
-  klight->shader_id = shader_id | shader_flags;
+  klight->shader_id_and_flags = get_shader_id(scene) | light_object_visibility_flags(object) |
+                                shader_flags;
   klight->object_id = object->index;
-  klight->max_bounces = max_bounces;
+  klight->prim = prim_offset;
   copy_v3_v3(klight->strength, strength);
-  klight->use_caustics = use_caustics;
 }
 
 /* Light Manager */
@@ -528,7 +630,7 @@ void LightManager::test_enabled_lights(Scene *scene)
     }
 
     Light *light = static_cast<Light *>(object->get_geometry());
-    light->is_enabled = light->has_contribution(scene, object);
+    light->is_enabled = light->has_contribution(scene);
     has_portal |= light->is_portal();
 
     if (light->is_background_light()) {
@@ -685,8 +787,6 @@ void LightManager::device_update_distribution(Device * /*unused*/,
   const float trianglearea = totarea;
 
   /* Lights. */
-  int light_index = 0;
-
   if (num_lights > 0) {
     const float lightarea = (totarea > 0.0f) ? totarea / num_lights : 1.0f;
     for (Object *object : scene->objects) {
@@ -700,12 +800,11 @@ void LightManager::device_update_distribution(Device * /*unused*/,
       }
 
       distribution[offset].totarea = totarea;
-      distribution[offset].prim = ~light_index;
+      distribution[offset].prim = ~light->prim_offset;
       distribution[offset].object_id = object->index;
       distribution[offset].visibility_flag = 0;
       totarea += lightarea;
 
-      light_index++;
       offset++;
     }
   }
@@ -824,7 +923,7 @@ static void light_tree_leaf_emitters_copy_and_flatten(LightTreeFlatten &flatten,
       Shader *shader = static_cast<Shader *>(
           mesh->get_used_shaders()[mesh->get_shader()[emitter.prim_id]]);
 
-      kemitter.triangle.id = emitter.prim_id + mesh->prim_offset;
+      kemitter.triangle.prim = emitter.prim_id + mesh->prim_offset;
       kemitter.visibility_flag = light_object_visibility_flags(object);
       kemitter.object_id = emitter.object_id;
       kemitter.triangle.emission_sampling = shader->emission_sampling;
@@ -833,7 +932,7 @@ static void light_tree_leaf_emitters_copy_and_flatten(LightTreeFlatten &flatten,
     }
     else if (emitter.is_light()) {
       /* Light object. */
-      kemitter.light.id = emitter.prim_id;
+      kemitter.light.prim = emitter.prim_id;
       kemitter.visibility_flag = 0;
       kemitter.object_id = emitter.object_id;
       flatten.light_array[emitter.object_id] = emitter_index;
@@ -1412,17 +1511,58 @@ void LightManager::count_lights(KernelIntegrator *kintegrator, const Scene *scen
   kintegrator->portal_offset = num_lights;
 }
 
+void LightManager::device_update_preprocess(Device *device,
+                                            DeviceScene *dscene,
+                                            Scene *scene,
+                                            Progress &progress)
+{
+  if (!need_update()) {
+    return;
+  }
+
+  KernelIntegrator *kintegrator = &dscene->data.integrator;
+
+  /* Create KernelLight for every portal and enabled light in the scene. */
+  test_enabled_lights(scene);
+  count_lights(kintegrator, scene);
+  dscene->lights.free();
+  KernelLight *klights = dscene->lights.alloc(kintegrator->num_lights + kintegrator->num_portals);
+
+  KernelObject *kobjects = dscene->objects.data();
+
+  int light_index = 0;
+  for (Object *object : scene->objects) {
+    if (!object->get_geometry()->is_light()) {
+      continue;
+    }
+
+    const Light *light = static_cast<const Light *>(object->get_geometry());
+    if (!light->is_enabled) {
+      continue;
+    }
+
+    dscene->objects.tag_modified();
+
+    /* Assign light id to object. */
+    KernelObject *kobject = kobjects + object->get_device_index();
+    kobject->light_id = light_index++;
+
+    light->adjust_tfm(object, kobject, klights + kobject->light_id);
+  }
+  dscene->objects.copy_to_device_if_modified();
+  dscene->objects.clear_modified();
+}
+
 void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
 {
   KernelIntegrator *kintegrator = &dscene->data.integrator;
   kintegrator->use_light_tree = scene->integrator->get_use_light_tree();
   kintegrator->use_light_mis = scene->use_light_mis();
 
-  /* Create KernelLight for every portal and enabled light in the scene. */
-  count_lights(kintegrator, scene);
-  KernelLight *klights = dscene->lights.alloc(kintegrator->num_lights + kintegrator->num_portals);
+  KernelLight *klights = dscene->lights.data();
+  KernelShader *kshader = dscene->shaders.data();
+  KernelObject *kobjects = dscene->objects.data();
 
-  int light_index = 0;
   int portal_index = kintegrator->num_lights;
 
   for (const Object *object : scene->objects) {
@@ -1436,14 +1576,19 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
       portal_index++;
     }
     else if (light->is_enabled) {
+      const Shader *shader = (light->get_shader()) ? light->get_shader() : scene->default_light;
+      /* Light is transparent. */
+      kshader[shader->id].flags |= SD_HAS_TRANSPARENT_SHADOW;
+
+      const int light_index = kobjects[object->get_device_index()].light_id;
       light->copy_to_kernel(klights + light_index, scene, object);
-      light_index++;
     }
   }
 
   LOG_INFO << "Number of lights sent to the device: " << kintegrator->num_lights;
 
   dscene->lights.copy_to_device();
+  /* TODO(weizhen): copy shader to device? */
 }
 
 void LightManager::device_update(Device *device,
@@ -1460,9 +1605,6 @@ void LightManager::device_update(Device *device,
       scene->update_stats->light.times.add_entry({"device_update", time});
     }
   });
-
-  /* Detect which lights are enabled, also determines if we need to update the background. */
-  test_enabled_lights(scene);
 
   device_free(device, dscene, need_update_background);
 
@@ -1508,7 +1650,6 @@ void LightManager::device_free(Device * /*unused*/,
   dscene->triangle_to_tree.free();
 
   dscene->light_distribution.free();
-  dscene->lights.free();
   if (free_background) {
     dscene->light_background_marginal_cdf.free();
     dscene->light_background_conditional_cdf.free();
@@ -1640,6 +1781,11 @@ void LightManager::device_update_ies(DeviceScene *dscene)
 
     dscene->ies_lights.copy_to_device();
   }
+}
+
+bool Light::need_bvh() const
+{
+  return is_enabled && use_mis && is_traceable();
 }
 
 bool Light::is_point_light() const

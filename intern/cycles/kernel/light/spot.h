@@ -203,12 +203,12 @@ ccl_device_forceinline void spot_light_mnee_sample_update(KernelGlobals kg,
   }
 }
 
-ccl_device_inline bool spot_light_intersect(const ccl_global KernelLight *klight,
+ccl_device_inline bool spot_light_intersect(const ccl_global KernelLightGeom *klight,
                                             const ccl_private Ray *ccl_restrict ray,
                                             ccl_private float *t)
 {
   /* One sided. */
-  if (dot(ray->D, ray->P - klight->co) >= 0.0f) {
+  if (dot(ray->D, ray->P) >= 0.0f) {
     return false;
   }
 
@@ -240,8 +240,8 @@ ccl_device_inline LightEval spot_light_eval_from_intersection(KernelGlobals kg,
   }
 
   /* Attenuation. */
-  const float3 local_ray = spot_light_to_local(kg, klight, -ray_D);
   if (!klight->spot.is_sphere || d_sq > r_sq) {
+    const float3 local_ray = spot_light_to_local(kg, klight, -ray_D);
     light_eval.eval_fac *= spot_light_attenuation(&klight->spot, local_ray);
   }
 

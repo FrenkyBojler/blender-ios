@@ -257,6 +257,23 @@ ccl_device_inline Transform transform_zero()
   return zero;
 }
 
+/* Left multiply. */
+ccl_device_inline void transform_prescale(ccl_private Transform &T, const float3 s)
+{
+  T.x *= s.x;
+  T.y *= s.y;
+  T.z *= s.z;
+}
+
+/* Right multiply. */
+ccl_device_inline void transform_postscale(ccl_private Transform &T, const float3 s)
+{
+  const float4 s_ = make_homogeneous(s);
+  T.x *= s_;
+  T.y *= s_;
+  T.z *= s_;
+}
+
 #ifndef __KERNEL_GPU__
 
 ccl_device_inline void print_transform(const char *label, const Transform &t)

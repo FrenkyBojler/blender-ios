@@ -10,6 +10,7 @@
 #include "bvh/bvh2.h"
 
 #include "scene/hair.h"
+#include "scene/light.h"
 #include "scene/mesh.h"
 #include "scene/object.h"
 #include "scene/pointcloud.h"
@@ -98,18 +99,18 @@ void BVH2::pack_leaf(const BVHStackEntry &e, const LeafNode *leaf)
   assert(e.idx + BVH_NODE_LEAF_SIZE <= pack.leaf_nodes.size());
   int4 data[BVH_NODE_LEAF_SIZE];
   std::fill_n(data, BVH_NODE_LEAF_SIZE, zero_int4());
-  if (leaf->num_triangles() == 1 && pack.prim_index[leaf->lo] == -1) {
+  if (leaf->num_primitives() == 1 && pack.prim_index[leaf->lo] == -1) {
     /* object */
     data[0].x = ~(leaf->lo);
     data[0].y = 0;
   }
   else {
-    /* triangle */
+    /* primitive */
     data[0].x = leaf->lo;
     data[0].y = leaf->hi;
   }
   data[0].z = leaf->visibility;
-  if (leaf->num_triangles() != 0) {
+  if (leaf->num_primitives() != 0) {
     data[0].w = pack.prim_type[leaf->lo];
   }
 
@@ -415,7 +416,7 @@ void BVH2::refit_primitives(const int start, const int end, BoundBox &bbox, uint
           }
         }
       }
-      else {
+      else if (pack.prim_type[prim] & PRIMITIVE_TRIANGLE) {
         /* Triangles. */
         const Mesh *mesh = static_cast<const Mesh *>(ob->get_geometry());
         const int prim_offset = (params.top_level) ? mesh->prim_offset : 0;
@@ -438,6 +439,14 @@ void BVH2::refit_primitives(const int start, const int end, BoundBox &bbox, uint
             }
           }
         }
+      }
+      else {
+        /* TODO(weizhen): check when refit and if we need to recompute bounds. */
+        assert(pack.prim_type[prim] & PRIMITIVE_LAMP);
+        /* Lights. */
+        const Light *light = static_cast<const Light *>(ob->get_geometry());
+        // light->compute_bounds();
+        bbox.grow(light->bounds);
       }
     }
     visibility |= ob->visibility_for_tracing();
@@ -469,7 +478,7 @@ void BVH2::pack_primitives()
 
 void BVH2::pack_instances(size_t nodes_size, size_t leaf_nodes_size)
 {
-  /* Adjust primitive index to point to the triangle in the global array, for
+  /* Adjust primitive index to point to the primitive in the global array, for
    * geometry with transform applied and already in the top level BVH.
    */
   for (size_t i = 0; i < pack.prim_index.size(); i++) {

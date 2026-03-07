@@ -23,11 +23,13 @@
 #  include "bvh/embree.h"
 
 #  include "scene/hair.h"
+#  include "scene/light.h"
 #  include "scene/mesh.h"
 #  include "scene/object.h"
 #  include "scene/pointcloud.h"
 
 #  include "util/log.h"
+#  include "util/math_intersect.h"
 #  include "util/progress.h"
 #  include "util/stats.h"
 
@@ -239,6 +241,13 @@ void BVHEmbree::add_object(Object *ob, const int i)
     PointCloud *pointcloud = static_cast<PointCloud *>(geom);
     if (pointcloud->num_points() > 0) {
       add_points(ob, pointcloud, i);
+    }
+  }
+  else {
+    assert(geom->is_light());
+    const Light *light = static_cast<const Light *>(geom);
+    if (light->need_bvh()) {
+      add_light(ob, light, i);
     }
   }
 }
@@ -750,6 +759,289 @@ void BVHEmbree::add_curves(const Object *ob, const Hair *hair, const int i)
   rtcReleaseGeometry(geom_id);
 }
 
+void BVHEmbree::set_quad_index_buffer(const RTCGeometry geom_id)
+{
+  int4 *rtc_indices = nullptr;
+  const RTCBufferType buffer_type = RTC_BUFFER_TYPE_INDEX;
+  const RTCFormat index_format = RTC_FORMAT_UINT4;
+
+#  if RTC_VERSION >= 40400
+  rtcSetNewGeometryBufferHostDevice(
+      geom_id, buffer_type, 0, index_format, sizeof(int4), 1, (void **)(&rtc_indices), nullptr);
+#  else
+  rtc_indices = (unsigned *)rtcSetNewGeometryBuffer(
+      geom_id, buffer_type, 0, index_format, sizeof(int4), 1);
+#  endif
+
+  assert(rtc_indices);
+  if (rtc_indices) {
+    rtc_indices[0] = make_int4(0, 1, 2, 3);
+  }
+}
+
+void BVHEmbree::set_quad_vertex_buffer(const RTCGeometry geom,
+                                       const AreaLight *light,
+                                       const bool update)
+{
+  float3 *rtc_verts = nullptr;
+  const RTCBufferType buffer_type = RTC_BUFFER_TYPE_VERTEX;
+
+  if (update) {
+    rtc_verts = (float3 *)rtcGetGeometryBufferData(geom, buffer_type, 0);
+  }
+  else {
+    const RTCFormat vertex_format = RTC_FORMAT_FLOAT3;
+
+#  if RTC_VERSION >= 40400
+    rtcSetNewGeometryBufferHostDevice(
+        geom, buffer_type, 0, vertex_format, sizeof(float3), 4, (void **)(&rtc_verts), nullptr);
+#  else
+    rtc_verts = (float3 *)rtcSetNewGeometryBuffer(
+        geom_id, buffer_type, 0, vertex_format, sizeof(float3), 4);
+#  endif
+  }
+
+  assert(rtc_verts);
+  if (rtc_verts) {
+    rtc_verts[0] = -0.5f * (AREA_LIGHT_AXIS_U + AREA_LIGHT_AXIS_V);
+    rtc_verts[1] = 0.5f * (AREA_LIGHT_AXIS_U - AREA_LIGHT_AXIS_V);
+    rtc_verts[2] = 0.5f * (AREA_LIGHT_AXIS_U + AREA_LIGHT_AXIS_V);
+    rtc_verts[3] = 0.5f * (AREA_LIGHT_AXIS_V - AREA_LIGHT_AXIS_U);
+
+    if (update) {
+      rtcUpdateGeometryBuffer(geom, RTC_BUFFER_TYPE_VERTEX, 0);
+    }
+  }
+}
+
+bool filter_backface(const RTCRay *ray, const RTCHit *hit)
+{
+  const float3 D = make_float3(ray->dir_x, ray->dir_y, ray->dir_z);
+  const float3 N = make_float3(hit->Ng_x, hit->Ng_y, hit->Ng_z);
+
+  return dot(D, N) <= 0.0f;
+}
+
+RTC_SYCL_INDIRECTLY_CALLABLE void ellipse_filter_func(const RTCFilterFunctionNArguments *args)
+{
+  const RTCHit *hit = (const RTCHit *)args->hit;
+  /* Filter out hits outside of the ellipse. */
+  if (sqr(hit->u - 0.5f) + sqr(hit->v - 0.5f) > 0.25f) {
+    *args->valid = 0;
+    return;
+  }
+
+  const RTCRay *ray = (const RTCRay *)args->ray;
+
+  /* Filter out backface. */
+  if (filter_backface(ray, hit)) {
+    *args->valid = 0;
+    return;
+  }
+
+  /* TODO(weizhen): maybe we can even filter the angle, but need to set userdata for that. */
+}
+
+RTC_SYCL_INDIRECTLY_CALLABLE void rectangle_filter_func(const RTCFilterFunctionNArguments *args)
+{
+  const RTCHit *hit = (const RTCHit *)args->hit;
+  const RTCRay *ray = (const RTCRay *)args->ray;
+
+  /* Filter out backface. */
+  if (filter_backface(ray, hit)) {
+    *args->valid = 0;
+    return;
+  }
+
+  /* TODO(weizhen): maybe we can even filter the angle, but need to set userdata for that. */
+}
+
+void point_light_bounds_func(const struct RTCBoundsFunctionArguments *args)
+{
+  RTCBounds *bounds_o = args->bounds_o;
+  bounds_o->lower_x = bounds_o->lower_y = bounds_o->lower_z = -POINT_LIGHT_RADIUS;
+  bounds_o->upper_x = bounds_o->upper_y = bounds_o->upper_z = POINT_LIGHT_RADIUS;
+}
+
+RTC_SYCL_INDIRECTLY_CALLABLE void point_light_intersect_func(
+    const RTCIntersectFunctionNArguments *args)
+{
+  RTCRayHit *rayhit = (RTCRayHit *)args->rayhit;
+
+  const float3 ray_P = make_float3(rayhit->ray.org_x, rayhit->ray.org_y, rayhit->ray.org_z);
+  const float3 ray_D = make_float3(rayhit->ray.dir_x, rayhit->ray.dir_y, rayhit->ray.dir_z);
+
+  float3 P;
+  const float3 Ng = normalize(ray_P);
+  rayhit->hit.Ng_x = Ng.x;
+  rayhit->hit.Ng_y = Ng.y;
+  rayhit->hit.Ng_z = Ng.z;
+  if (ray_disk_intersect(ray_P,
+                         ray_D,
+                         rayhit->ray.tnear,
+                         rayhit->ray.tfar,
+                         zero_float3(),
+                         Ng,
+                         POINT_LIGHT_RADIUS,
+                         &P,
+                         &rayhit->ray.tfar))
+  {
+    rayhit->hit.primID = 0;
+    rayhit->hit.geomID = 0;
+    rayhit->hit.instID[0] = args->context->instID[0];
+    // *args->valid = -1;
+
+    /* TODO(weizhen): invoke filter func. */
+
+    // RTCFilterFunctionNArguments fargs;
+    // fargs.valid = (int *)&imask;
+    // fargs.geometryUserPtr = ptr;
+    // fargs.context = args->context;
+    // fargs.ray = (RTCRayN *)args->rayhit;
+    // fargs.hit = (RTCHitN *)args->hit;
+    // fargs.N = 1;
+
+    // rtcInvokeIntersectFilterFromGeometry(args, &fargs);
+  }
+  else {
+    // *args->valid = 0;
+  }
+
+  // it should update the hit distance of the ray(tfar member) and
+  //     the hit(u, v, Ng, instID, geomID, primID members)
+}
+
+RTC_SYCL_INDIRECTLY_CALLABLE void point_light_occluded_func(
+    const RTCOccludedFunctionNArguments *args)
+{
+  printf("occluded\n");
+}
+
+RTCGeometry BVHEmbree::set_point_light_geometry_data(const Object *ob,
+                                                     const PointLight *light,
+                                                     const int object_id)
+{
+  RTCGeometry geom = rtcNewGeometry(rtc_device, RTC_GEOMETRY_TYPE_USER);
+
+  rtcSetGeometryUserPrimitiveCount(geom, 1);
+  rtcSetGeometryUserData(geom, (void *)light->prim_offset);
+  rtcSetGeometryBoundsFunction(geom, point_light_bounds_func, nullptr);
+  rtcSetGeometryIntersectFunction(geom, point_light_intersect_func);
+  rtcSetGeometryOccludedFunction(geom, point_light_occluded_func);
+  return geom;
+}
+
+RTC_SYCL_INDIRECTLY_CALLABLE void sphere_light_intersect_func(
+    const RTCIntersectFunctionNArguments *args)
+{
+  RTCRayHit *rayhit = (RTCRayHit *)args->rayhit;
+
+  const float3 ray_P = make_float3(rayhit->ray.org_x, rayhit->ray.org_y, rayhit->ray.org_z);
+  const float3 ray_D = make_float3(rayhit->ray.dir_x, rayhit->ray.dir_y, rayhit->ray.dir_z);
+
+  float3 P;
+  const float3 Ng = normalize(ray_P);
+  rayhit->hit.Ng_x = Ng.x;
+  rayhit->hit.Ng_y = Ng.y;
+  rayhit->hit.Ng_z = Ng.z;
+  if (ray_sphere_intersect(ray_P,
+                           ray_D,
+                           rayhit->ray.tnear,
+                           rayhit->ray.tfar,
+                           zero_float3(),
+                           POINT_LIGHT_RADIUS,
+                           &P,
+                           &rayhit->ray.tfar))
+  {
+    rayhit->hit.primID = 0;
+    rayhit->hit.geomID = 0;
+    rayhit->hit.instID[0] = args->context->instID[0];
+    // *args->valid = -1;
+
+    /* TODO(weizhen): invoke filter func. */
+
+    // RTCFilterFunctionNArguments fargs;
+    // fargs.valid = (int *)&imask;
+    // fargs.geometryUserPtr = ptr;
+    // fargs.context = args->context;
+    // fargs.ray = (RTCRayN *)args->rayhit;
+    // fargs.hit = (RTCHitN *)args->hit;
+    // fargs.N = 1;
+
+    // rtcInvokeIntersectFilterFromGeometry(args, &fargs);
+  }
+  else {
+    // *args->valid = 0;
+  }
+
+  // it should update the hit distance of the ray(tfar member) and
+  //     the hit(u, v, Ng, instID, geomID, primID members)
+}
+
+RTCGeometry BVHEmbree::set_sphere_light_geometry_data(const Object *ob,
+                                                      const PointLight *light,
+                                                      const int object_id)
+{
+  RTCGeometry geom = rtcNewGeometry(rtc_device, RTC_GEOMETRY_TYPE_USER);
+
+  rtcSetGeometryUserPrimitiveCount(geom, 1);
+  rtcSetGeometryUserData(geom, (void *)light->prim_offset);
+  rtcSetGeometryBoundsFunction(geom, point_light_bounds_func, nullptr);
+  rtcSetGeometryIntersectFunction(geom, sphere_light_intersect_func);
+  rtcSetGeometryOccludedFunction(geom, point_light_occluded_func);
+  return geom;
+}
+
+RTCGeometry BVHEmbree::set_light_geometry_data(Object *ob, const Light *light, const int object_id)
+{
+  RTCGeometry geom;
+  if (light->is_area_light()) {
+    const AreaLight *area_light = static_cast<const AreaLight *>(light);
+    geom = rtcNewGeometry(rtc_device, RTC_GEOMETRY_TYPE_QUAD);
+    set_quad_index_buffer(geom);
+    set_quad_vertex_buffer(geom, area_light, false);
+    rtcSetGeometryIntersectFilterFunction(
+        geom, area_light->get_ellipse() ? ellipse_filter_func : rectangle_filter_func);
+    rtcSetGeometryUserData(geom, (void *)light->prim_offset);
+  }
+  else if (light->is_point_light() || light->is_spot_light()) {
+    const PointLight *point_light = static_cast<const PointLight *>(light);
+    if (point_light->get_is_sphere()) {
+      geom = set_sphere_light_geometry_data(ob, point_light, object_id);
+    }
+    else {
+      geom = set_point_light_geometry_data(ob, point_light, object_id);
+    }
+  }
+  else {
+    /* Distant lights are not supposed to be in the BVH. */
+    /* TODO(weizhen): check `distant_light_intersect`, maybe we do need to add distant light in the
+     * bvh? */
+    assert(false);
+    geom = rtcNewGeometry(rtc_device, RTC_GEOMETRY_TYPE_SPHERE_POINT);
+  }
+  return geom;
+}
+
+void BVHEmbree::add_light(Object *ob, const Light *light, const int object_id)
+
+{
+  /* TODO(weizhen): support motion blur. */
+  const size_t num_motion_steps = 1;
+
+  RTCGeometry geom = set_light_geometry_data(ob, light, object_id);
+
+  rtcSetGeometryBuildQuality(geom, build_quality);
+  rtcSetGeometryTimeStepCount(geom, num_motion_steps);
+
+  rtcSetGeometryMask(geom, ob->visibility_for_tracing());
+  rtcSetGeometryEnableFilterFunctionFromArguments(geom, true);
+
+  rtcCommitGeometry(geom);
+  rtcAttachGeometryByID(scene, geom, object_id * 2);
+  rtcReleaseGeometry(geom);
+}
+
 void BVHEmbree::refit(Progress &progress)
 {
   progress.set_substatus("Refitting BVH nodes");
@@ -785,6 +1077,9 @@ void BVHEmbree::refit(Progress &progress)
           set_point_vertex_buffer(geom, pointcloud, true);
           rtcCommitGeometry(geom);
         }
+      }
+      else if (geom->is_light()) {
+        /* TODO(weizhen): */
       }
     }
     geom_id += 2;

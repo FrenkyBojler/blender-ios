@@ -30,6 +30,10 @@ class Hair;
 class Mesh;
 class Object;
 class PointCloud;
+class Light;
+class PointLight;
+class SpotLight;
+class AreaLight;
 class Progress;
 
 /* BVH Builder */
@@ -63,6 +67,10 @@ class BVHBuild {
                                const int object_index);
   void add_reference_curves(BoundBox &root, BoundBox &center, Hair *hair, const int object_index);
   void add_reference_points(BoundBox &root, BoundBox &center, PointCloud *pointcloud, const int i);
+  void add_reference_light(BoundBox &root,
+                           BoundBox &center,
+                           const Light *light,
+                           const int object_index);
   void add_reference_geometry(BoundBox &root,
                               BoundBox &center,
                               Geometry *geom,

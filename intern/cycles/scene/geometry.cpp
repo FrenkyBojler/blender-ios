@@ -277,6 +277,8 @@ void GeometryManager::geom_calc_offset(Scene *scene, BVHLayout bvh_layout)
   size_t face_size = 0;
   size_t corner_size = 0;
 
+  size_t light_size = 0;
+
   for (Geometry *geom : scene->geometry) {
     bool prim_offset_changed = false;
 
@@ -316,6 +318,16 @@ void GeometryManager::geom_calc_offset(Scene *scene, BVHLayout bvh_layout)
 
       pointcloud->prim_offset = point_size;
       point_size += pointcloud->num_points();
+    }
+    else {
+      Light *light = static_cast<Light *>(geom);
+
+      // if (light->need_bvh()) {
+      prim_offset_changed = (light->prim_offset != light_size);
+
+      light->prim_offset = light_size;
+      light_size++;
+      //}
     }
 
     if (prim_offset_changed) {
@@ -493,6 +505,17 @@ void GeometryManager::device_update_preprocess(Device *device, Scene *scene, Pro
         device_update_flags |= DEVICE_POINT_DATA_MODIFIED;
       }
     }
+
+    if (geom->is_light()) {
+      const Light *light = static_cast<const Light *>(geom);
+
+      if (light->need_update_rebuild) {
+        device_update_flags |= LIGHT_DATA_NEED_REALLOC;
+      }
+      else if (light->is_modified()) {
+        device_update_flags |= DEVICE_LIGHT_DATA_MODIFIED;
+      }
+    }
   }
 
   if (update_flags & (MESH_ADDED | MESH_REMOVED)) {
@@ -507,11 +530,15 @@ void GeometryManager::device_update_preprocess(Device *device, Scene *scene, Pro
     device_update_flags |= DEVICE_POINT_DATA_NEEDS_REALLOC;
   }
 
+  if (update_flags & (LIGHT_ADDED | LIGHT_REMOVED)) {
+    device_update_flags |= LIGHT_DATA_NEED_REALLOC;
+  }
+
   /* tag the device arrays for reallocation or modification */
   DeviceScene *dscene = &scene->dscene;
 
   if (device_update_flags & (DEVICE_MESH_DATA_NEEDS_REALLOC | DEVICE_CURVE_DATA_NEEDS_REALLOC |
-                             DEVICE_POINT_DATA_NEEDS_REALLOC))
+                             DEVICE_POINT_DATA_NEEDS_REALLOC | LIGHT_DATA_NEED_REALLOC))
   {
     scene->bvh.reset();
 
@@ -539,6 +566,10 @@ void GeometryManager::device_update_preprocess(Device *device, Scene *scene, Pro
     if (device_update_flags & DEVICE_POINT_DATA_NEEDS_REALLOC) {
       dscene->points.tag_realloc();
       dscene->points_shader.tag_realloc();
+    }
+
+    if (device_update_flags & LIGHT_DATA_NEED_REALLOC) {
+      dscene->light_geom.tag_realloc();
     }
   }
 
@@ -610,6 +641,10 @@ void GeometryManager::device_update_preprocess(Device *device, Scene *scene, Pro
   if (device_update_flags & DEVICE_POINT_DATA_MODIFIED) {
     dscene->points.tag_modified();
     dscene->points_shader.tag_modified();
+  }
+
+  if (device_update_flags & DEVICE_LIGHT_DATA_MODIFIED) {
+    dscene->light_geom.tag_modified();
   }
 
   need_flags_update = false;
@@ -871,7 +906,7 @@ void GeometryManager::device_update(Device *device,
             {"device_update (displacement: copy meshes to device)", time});
       }
     });
-    device_update_mesh(device, dscene, scene, progress);
+    device_update_prim(device, dscene, scene, progress);
   }
 
   if (progress.get_cancel()) {
@@ -1072,7 +1107,7 @@ void GeometryManager::device_update(Device *device,
             {"device_update (copy meshes to device)", time});
       }
     });
-    device_update_mesh(device, dscene, scene, progress);
+    device_update_prim(device, dscene, scene, progress);
     if (progress.get_cancel()) {
       return;
     }
@@ -1108,6 +1143,7 @@ void GeometryManager::device_update(Device *device,
   dscene->curve_segments.clear_modified();
   dscene->points.clear_modified();
   dscene->points_shader.clear_modified();
+  dscene->light_geom.clear_modified();
   dscene->attributes_map.clear_modified();
   dscene->attributes_float.clear_modified();
   dscene->attributes_float2.clear_modified();
@@ -1135,6 +1171,7 @@ void GeometryManager::device_free(Device *device, DeviceScene *dscene, bool forc
   dscene->curve_segments.free_if_need_realloc(force_free);
   dscene->points.free_if_need_realloc(force_free);
   dscene->points_shader.free_if_need_realloc(force_free);
+  dscene->light_geom.free_if_need_realloc(force_free);
   dscene->attributes_map.free_if_need_realloc(force_free);
   dscene->attributes_float.free_if_need_realloc(force_free);
   dscene->attributes_float2.free_if_need_realloc(force_free);

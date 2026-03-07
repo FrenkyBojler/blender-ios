@@ -82,7 +82,8 @@ LightTreeEmitter::LightTreeEmitter(Object *object, const int object_id) : object
   light_set_membership = object->get_light_set_membership();
 }
 
-LightTreeEmitter::LightTreeEmitter(Scene *scene,
+LightTreeEmitter::LightTreeEmitter(const Scene *scene,
+                                   const DeviceScene *dscene,
                                    const int prim_id,
                                    const int object_id,
                                    bool need_transformation)
@@ -158,23 +159,12 @@ LightTreeEmitter::LightTreeEmitter(Scene *scene,
 
     centroid = transform_get_column(&object->get_tfm(), 3);
     measure.bcone.axis = -safe_normalize(transform_get_column(&object->get_tfm(), 2));
+    measure.bbox = object->bounds;
 
     if (lamp->is_area_light()) {
       const AreaLight *light = static_cast<const AreaLight *>(lamp);
       measure.bcone.theta_o = 0;
       measure.bcone.theta_e = light->get_spread() * 0.5f;
-
-      /* For an area light, sizeu and sizev determine the 2 dimensions of the area light,
-       * while axisu and axisv determine the orientation of the 2 dimensions.
-       * We want to add all 4 corners to our bounding box. */
-      const float3 axisu = transform_get_column(&object->get_tfm(), 0);
-      const float3 axisv = transform_get_column(&object->get_tfm(), 1);
-      const float3 half_extentu = 0.5f * light->get_sizeu() * axisu;
-      const float3 half_extentv = 0.5f * light->get_sizev() * axisv;
-      measure.bbox.grow(centroid + half_extentu + half_extentv);
-      measure.bbox.grow(centroid + half_extentu - half_extentv);
-      measure.bbox.grow(centroid - half_extentu + half_extentv);
-      measure.bbox.grow(centroid - half_extentu - half_extentv);
 
       /* Convert irradiance to radiance. */
       strength *= M_1_PI_F;
@@ -182,14 +172,17 @@ LightTreeEmitter::LightTreeEmitter(Scene *scene,
     else if (lamp->is_point_light()) {
       measure.bcone.theta_o = M_PI_F;
       measure.bcone.theta_e = M_PI_2_F;
+
+      /* eval_fac scaling in `point.h` */
+      strength *= 0.25f * M_1_PI_F;
     }
     else if (lamp->is_spot_light()) {
       measure.bcone.theta_o = 0;
 
       float theta_e = min(static_cast<const SpotLight *>(lamp)->get_angle() * 0.5f, M_PI_2_F);
-      const float len_u = len(transform_get_column(&object->get_tfm(), 0));
-      const float len_v = len(transform_get_column(&object->get_tfm(), 1));
-      const float len_w = len(transform_get_column(&object->get_tfm(), 2));
+      const KernelLight *klight = dscene->lights.data() +
+                                  dscene->objects.data()[object_id].light_id;
+      const float3 inv_len = klight->spot.inv_scale;
 
       /* As `theta_e` approaches `pi/2`, the behavior of `atan(tan(theta_e))` can become quite
        * unpredictable as `tan(x)` has an asymptote at `x = pi/2`. To avoid this, we skip the back
@@ -201,9 +194,12 @@ LightTreeEmitter::LightTreeEmitter(Scene *scene,
         theta_e = M_PI_2_F;
       }
       else {
-        theta_e = fast_atanf(fast_tanf(theta_e) * fmaxf(len_u, len_v) / len_w);
+        theta_e = fast_atanf(fast_tanf(theta_e) * inv_len.z / fminf(inv_len.x, inv_len.y));
       }
       measure.bcone.theta_e = theta_e;
+
+      /* eval_fac scaling in `point.h` */
+      strength *= 0.25f * M_1_PI_F;
     }
     else if (lamp->is_background_light()) {
       /* Set an arbitrary direction for the background light. */
@@ -218,15 +214,6 @@ LightTreeEmitter::LightTreeEmitter(Scene *scene,
     else if (lamp->is_sun_light()) {
       measure.bcone.theta_o = 0;
       measure.bcone.theta_e = 0.5f * static_cast<const SunLight *>(lamp)->get_angle();
-    }
-
-    if (const PointLight *point_light = dynamic_cast<PointLight *>(lamp)) {
-      /* Point and spot lights can emit light from any point within its radius. */
-      const float3 radius = make_float3(point_light->get_radius());
-      measure.bbox.grow(centroid - radius);
-      measure.bbox.grow(centroid + radius);
-
-      strength *= 0.25f * M_1_PI_F; /* eval_fac scaling in `spot.h` and `point.h` */
     }
 
     if (lamp->get_shader()) {
@@ -265,12 +252,15 @@ bool LightTree::triangle_usable_as_light(Mesh *mesh, const int prim_id)
   return false;
 }
 
-void LightTree::add_mesh(Scene *scene, Mesh *mesh, const int object_id)
+void LightTree::add_mesh(const Scene *scene,
+                         const DeviceScene *dscene,
+                         Mesh *mesh,
+                         const int object_id)
 {
   const size_t mesh_num_triangles = mesh->num_triangles();
   for (size_t i = 0; i < mesh_num_triangles; i++) {
     if (triangle_usable_as_light(mesh, i)) {
-      emitters_.emplace_back(scene, i, object_id);
+      emitters_.emplace_back(scene, dscene, i, object_id);
     }
   }
 }
@@ -289,7 +279,6 @@ LightTree::LightTree(Scene *scene,
   /* When we keep track of the light index, only contributing lights will be added to the device.
    * Therefore, we want to keep track of the light's index on the device.
    * However, we also need the light's index in the scene when we're constructing the tree. */
-  int device_light_index = 0;
   for (Object *object : scene->objects) {
     if (progress_.get_cancel()) {
       return;
@@ -299,14 +288,16 @@ LightTree::LightTree(Scene *scene,
       /* Regular lights. */
       Light *light = static_cast<Light *>(object->get_geometry());
       if (light->is_enabled) {
-        if (light->is_distant_light()) {
-          distant_lights_.emplace_back(scene, ~device_light_index, object->index);
+        if (light->is_background_light() || light->is_sun_light()) {
+          distant_lights_.emplace_back(scene, dscene, ~light->prim_offset, object->index);
         }
         else {
-          local_lights_.emplace_back(scene, ~device_light_index, object->index);
+          if (light->is_area_light() && !object->is_traceable()) {
+            /* Area light with a size of 0 does not contribute, skip it in the light tree. */
+            continue;
+          }
+          local_lights_.emplace_back(scene, dscene, ~light->prim_offset, object->index);
         }
-
-        device_light_index++;
       }
     }
     else {
@@ -352,7 +343,7 @@ LightTreeNode *LightTree::build(Scene *scene, DeviceScene *dscene)
     auto map_it = unique_mesh.find(mesh);
     if (map_it == unique_mesh.end()) {
       const int start = emitters_.size();
-      add_mesh(scene, mesh, emitter.object_id);
+      add_mesh(scene, dscene, mesh, emitter.object_id);
       const int end = emitters_.size();
 
       unique_mesh[mesh] = std::make_tuple(emitter.root.get(), start, end);
@@ -394,7 +385,7 @@ LightTreeNode *LightTree::build(Scene *scene, DeviceScene *dscene)
       size_t const mesh_num_triangles = mesh->num_triangles();
       for (size_t i = 0; i < mesh_num_triangles; i++) {
         if (triangle_usable_as_light(mesh, i)) {
-          emitter.measure.add(LightTreeEmitter(scene, i, emitter.object_id, true).measure);
+          emitter.measure.add(LightTreeEmitter(scene, dscene, i, emitter.object_id, true).measure);
         }
       }
     }

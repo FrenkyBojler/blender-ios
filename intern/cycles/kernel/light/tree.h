@@ -68,7 +68,7 @@ ccl_device float3 compute_v(
 
 ccl_device_inline bool is_light(const ccl_global KernelLightTreeEmitter *kemitter)
 {
-  return kemitter->light.id < 0;
+  return kemitter->light.prim < 0;
 }
 
 ccl_device_inline bool is_mesh(const ccl_global KernelLightTreeEmitter *kemitter)
@@ -246,7 +246,7 @@ ccl_device bool compute_emitter_centroid_and_dir(KernelGlobals kg,
                                                  ccl_private packed_float3 &dir)
 {
   if (is_light(kemitter)) {
-    const ccl_global KernelLight *klight = &kernel_data_fetch(lights, ~(kemitter->light.id));
+    const ccl_global KernelLight *klight = get_light_from_object_id(kg, kemitter->object_id);
     centroid = klight->co;
 
     switch (klight->type) {
@@ -276,7 +276,7 @@ ccl_device bool compute_emitter_centroid_and_dir(KernelGlobals kg,
     kernel_assert(is_triangle(kemitter));
     const int object = kemitter->object_id;
     float3 vertices[3];
-    triangle_vertices(kg, kemitter->triangle.id, vertices);
+    triangle_vertices(kg, kemitter->triangle.prim, vertices);
     centroid = (vertices[0] + vertices[1] + vertices[2]) / 3.0f;
 
     const bool is_front_only = (kemitter->triangle.emission_sampling == EMISSION_SAMPLING_FRONT);
@@ -456,7 +456,7 @@ ccl_device void light_tree_emitter_importance(KernelGlobals kg,
   }
   else {
     kernel_assert(is_light(kemitter));
-    const ccl_global KernelLight *klight = &kernel_data_fetch(lights, ~(kemitter->light.id));
+    const ccl_global KernelLight *klight = get_light_from_object_id(kg, kemitter->object_id);
     switch (klight->type) {
       /* Function templates only modifies cos_theta_u when in_volume_segment = true. */
       case LIGHT_SPOT:
@@ -495,7 +495,7 @@ ccl_device void light_tree_emitter_importance(KernelGlobals kg,
     point_to_centroid = -compute_v(centroid, P, N_or_D, bcone.axis, t);
 
     if (is_light(kemitter)) {
-      const ccl_global KernelLight *klight = &kernel_data_fetch(lights, ~(kemitter->light.id));
+      const ccl_global KernelLight *klight = get_light_from_object_id(kg, kemitter->object_id);
       if (klight->type == LIGHT_DISTANT) {
         /* For distant light `theta_min` is 0, but due to numerical issues this is not always true.
          * Therefore explicitly assign `-bcone.axis` to `point_to_centroid` in this case. */

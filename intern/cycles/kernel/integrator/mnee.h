@@ -490,7 +490,7 @@ ccl_device_inline bool mnee_newton_solver(KernelGlobals kg,
       bool projection_success = false;
       for (int isect_count = 0; isect_count < MNEE_MAX_INTERSECTION_COUNT; isect_count++) {
         const bool hit = scene_intersect(
-            kg, &projection_ray, PATH_RAY_TRANSMIT, &projection_isect);
+            kg, &projection_ray, true, PATH_RAY_TRANSMIT, &projection_isect);
         if (!hit) {
           break;
         }
@@ -802,7 +802,7 @@ ccl_device_inline bool mnee_path_contribution(KernelGlobals kg,
   float3 wo = normalize_len(vertices[0].p - sd->P, &wo_len);
 
   /* Initialize throughput and evaluate receiver bsdf * |n.wo|. */
-  surface_shader_bsdf_eval(kg, state, sd, wo, throughput, ls->shader);
+  surface_shader_bsdf_eval(kg, state, sd, wo, throughput, ls->shader_id_and_flags);
 
   /* Update light sample with new position / direction and keep pdf in vertex area measure. */
   const uint32_t path_flag = INTEGRATOR_STATE(state, path, flag);
@@ -864,7 +864,7 @@ ccl_device_inline bool mnee_path_contribution(KernelGlobals kg,
 
     /* Check visibility. */
     probe_ray.D = normalize_len(v.p - probe_ray.P, &probe_ray.tmax);
-    if (scene_intersect(kg, &probe_ray, PATH_RAY_TRANSMIT, &probe_isect)) {
+    if (scene_intersect(kg, &probe_ray, true, PATH_RAY_TRANSMIT, &probe_isect)) {
       const int hit_object = (probe_isect.object == OBJECT_NONE) ?
                                  kernel_data_fetch(prim_object, probe_isect.prim) :
                                  probe_isect.object;
@@ -969,7 +969,7 @@ ccl_device_inline int kernel_path_mnee_sample(KernelGlobals kg,
 
   int vertex_count = 0;
   for (int isect_count = 0; isect_count < MNEE_MAX_INTERSECTION_COUNT; isect_count++) {
-    const bool hit = scene_intersect(kg, &probe_ray, PATH_RAY_TRANSMIT, &probe_isect);
+    const bool hit = scene_intersect(kg, &probe_ray, true, PATH_RAY_TRANSMIT, &probe_isect);
     if (!hit) {
       break;
     }
@@ -1079,7 +1079,7 @@ ccl_device_inline int kernel_path_mnee_sample(KernelGlobals kg,
   /* Distant or environment light. */
   bool light_fixed_direction = (ls->t == FLT_MAX);
   if (ls->type == LIGHT_AREA) {
-    const ccl_global KernelLight *klight = &kernel_data_fetch(lights, ls->prim);
+    const ccl_global KernelLight *klight = get_light_from_object_id(kg, ls->object);
     if (klight->area.tan_half_spread == 0.0f) {
       /* Area light with zero spread also has fixed direction. */
       light_fixed_direction = true;

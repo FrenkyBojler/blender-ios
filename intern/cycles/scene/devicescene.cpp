@@ -42,6 +42,7 @@ DeviceScene::DeviceScene(Device *device)
       lights(device, "lights", MEM_GLOBAL),
       light_background_marginal_cdf(device, "light_background_marginal_cdf", MEM_GLOBAL),
       light_background_conditional_cdf(device, "light_background_conditional_cdf", MEM_GLOBAL),
+      light_geom(device, "light_geom", MEM_GLOBAL),
       light_tree_nodes(device, "light_tree_nodes", MEM_GLOBAL),
       light_tree_emitters(device, "light_tree_emitters", MEM_GLOBAL),
       light_to_tree(device, "light_to_tree", MEM_GLOBAL),

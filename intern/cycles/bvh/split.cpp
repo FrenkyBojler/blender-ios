@@ -11,6 +11,7 @@
 #include "bvh/sort.h"
 
 #include "scene/hair.h"
+#include "scene/light.h"
 #include "scene/mesh.h"
 #include "scene/object.h"
 #include "scene/pointcloud.h"
@@ -458,6 +459,103 @@ void BVHSpatialSplit::split_point_primitive(const PointCloud *pointcloud,
   }
 }
 
+void BVHSpatialSplit::split_point_light(const PointLight *light,
+                                        const Transform *tfm,
+                                        const int dim,
+                                        const float pos,
+                                        BoundBox &left_bounds,
+                                        BoundBox &right_bounds)
+{
+  /* TODO(weizhen): radius is always 1 now, check. */
+  float3 center = zero_float3();
+  if (tfm) {
+    transform_point(tfm, center);
+  }
+  center = get_unaligned_point(center);
+
+  const float radius = light->get_radius();
+  if (center[dim] + radius <= pos) {
+    left_bounds.grow(center, radius);
+  }
+  else if (center[dim] - radius >= pos) {
+    right_bounds.grow(center, radius);
+  }
+  else {
+    const float3 bounds_max = center + radius;
+    const float3 bounds_min = center - radius;
+    {
+      float3 left_max = bounds_max;
+      left_max[dim] = pos;
+      left_bounds.grow(bounds_min);
+      left_bounds.grow(left_max);
+    }
+    {
+      float3 right_min = bounds_min;
+      right_min[dim] = pos;
+      right_bounds.grow(bounds_max);
+      right_bounds.grow(right_min);
+    }
+  }
+}
+
+void BVHSpatialSplit::split_quad_primitive(const AreaLight *light,
+                                           const Transform *tfm,
+                                           const int dim,
+                                           const float pos,
+                                           BoundBox &left_bounds,
+                                           BoundBox &right_bounds)
+{
+  /* TODO(weizhen): size is in the trasform now, check. */
+  const float4 u = make_float4(-1.0f, 1.0f, 1.0f, -1.0f) * 0.5f * light->get_sizeu();
+  const float4 v = make_float4(-1.0f, -1.0f, 1.0f, 1.0f) * 0.5f * light->get_sizev();
+
+  float3 last_vert = make_float3(u[3], v[3], 0.0f);
+  if (tfm) {
+    transform_point(tfm, last_vert);
+  }
+  last_vert = get_unaligned_point(last_vert);
+
+  for (int i = 0; i < 4; i++) {
+    float3 vert = make_float3(u[i], v[i], 0.0f);
+    if (tfm) {
+      transform_point(tfm, vert);
+    }
+    vert = get_unaligned_point(vert);
+
+    if (vert[dim] <= pos) {
+      left_bounds.grow(vert);
+    }
+    else if (vert[dim] >= pos) {
+      right_bounds.grow(vert);
+    }
+
+    /* Insert intersection to both bbox if edge intersects the plane. */
+    if ((vert[dim] < pos && last_vert[dim] > pos) || (vert[dim] > pos && last_vert[dim] < pos)) {
+      const float3 t = mix(
+          vert, last_vert, clamp(inverse_lerp(vert[dim], last_vert[dim], pos), 0.0f, 1.0f));
+      left_bounds.grow(t);
+      right_bounds.grow(t);
+    }
+
+    last_vert = vert;
+  }
+}
+
+void BVHSpatialSplit::split_light_primitive(const Light *light,
+                                            const Transform *tfm,
+                                            const int dim,
+                                            const float pos,
+                                            BoundBox &left_bounds,
+                                            BoundBox &right_bounds)
+{
+  if (const PointLight *point_light = dynamic_cast<const PointLight *>(light)) {
+    split_point_light(point_light, tfm, dim, pos, left_bounds, right_bounds);
+  }
+  else if (const AreaLight *area_light = dynamic_cast<const AreaLight *>(light)) {
+    split_quad_primitive(area_light, tfm, dim, pos, left_bounds, right_bounds);
+  }
+}
+
 void BVHSpatialSplit::split_triangle_reference(const BVHReference &ref,
                                                const Mesh *mesh,
                                                const int dim,
@@ -496,6 +594,15 @@ void BVHSpatialSplit::split_point_reference(const BVHReference &ref,
       pointcloud, nullptr, ref.prim_index(), dim, pos, left_bounds, right_bounds);
 }
 
+void BVHSpatialSplit::split_light_reference(const Light *light,
+                                            const int dim,
+                                            const float pos,
+                                            BoundBox &left_bounds,
+                                            BoundBox &right_bounds)
+{
+  split_light_primitive(light, nullptr, dim, pos, left_bounds, right_bounds);
+}
+
 void BVHSpatialSplit::split_object_reference(const Object *object,
                                              const int dim,
                                              const float pos,
@@ -528,6 +635,10 @@ void BVHSpatialSplit::split_object_reference(const Object *object,
           pointcloud, &object->get_tfm(), point_idx, dim, pos, left_bounds, right_bounds);
     }
   }
+  else if (geom->is_light()) {
+    Light *light = static_cast<Light *>(geom);
+    split_light_primitive(light, &object->get_tfm(), dim, pos, left_bounds, right_bounds);
+  }
 }
 
 void BVHSpatialSplit::split_reference(const BVHBuild &builder,
@@ -556,7 +667,12 @@ void BVHSpatialSplit::split_reference(const BVHBuild &builder,
     PointCloud *pointcloud = static_cast<PointCloud *>(ob->get_geometry());
     split_point_reference(ref, pointcloud, dim, pos, left_bounds, right_bounds);
   }
+  else if (ref.prim_type() & PRIMITIVE_LAMP) {
+    Light *light = static_cast<Light *>(ob->get_geometry());
+    split_light_reference(light, dim, pos, left_bounds, right_bounds);
+  }
   else {
+    /* TODO(weizhen): check when this happens. */
     split_object_reference(ob, dim, pos, left_bounds, right_bounds);
   }
 

@@ -32,6 +32,31 @@ ccl_device_inline void integrate_light_forward(KernelGlobals kg,
   const uint32_t path_flag = INTEGRATOR_STATE(state, path, flag);
   const float3 N = INTEGRATOR_STATE(state, path, mis_origin_n);
 
+  /* TODO(weizhen): better to just ignore this intersection, by setting visibility flag, for
+   * example. Otherwise make the following block a utility function. */
+#ifdef __LIGHT_LINKING__
+  if (!(path_flag & PATH_RAY_CAMERA) &&
+      !light_link_object_match(kg, light_link_receiver_forward(kg, state), isect.object))
+  {
+    /* Advance ray to new start distance. */
+    INTEGRATOR_STATE_WRITE(state, ray, tmin) = intersection_t_offset(isect.t);
+
+    return;
+  }
+#endif
+
+#ifdef __SHADOW_LINKING__
+  /* Indirect emission of shadow-linked emissive surfaces is done via shadow rays to dedicated
+   * light sources. */
+  if (kernel_data.kernel_features & KERNEL_FEATURE_SHADOW_LINKING) {
+    if (!(path_flag & PATH_RAY_CAMERA) &&
+        kernel_data_fetch(objects, isect.object).shadow_set_membership != LIGHT_LINK_MASK_ALL)
+    {
+      return;
+    }
+  }
+#endif
+
   /* Advance ray to new start distance. */
   INTEGRATOR_STATE_WRITE(state, ray, tmin) = intersection_t_offset(isect.t);
 
@@ -41,19 +66,9 @@ ccl_device_inline void integrate_light_forward(KernelGlobals kg,
     return;
   }
 
-  /* Use visibility flag to skip lights. */
-#ifdef __PASSES__
-  {
-    const ccl_global KernelLight *klight = &kernel_data_fetch(lights, isect.prim);
-    if (!is_light_shader_visible_to_path(klight->shader_id, path_flag)) {
-      return;
-    }
-  }
-#endif
-
   /* Evaluate light shader. */
   const Spectrum shader_eval = light_sample_shader_eval_forward(
-      kg, state, isect.prim, ray_P, ray_D, isect.t, ray_time);
+      kg, state, isect.object, isect.prim, ray_P, ray_D, isect.t, ray_time);
   const float3 eval = shader_eval * light_eval.eval_fac;
   if (is_zero(eval)) {
     return;
@@ -65,9 +80,8 @@ ccl_device_inline void integrate_light_forward(KernelGlobals kg,
 
   /* Write to render buffer. */
   guiding_record_surface_emission(kg, state, eval, mis_weight);
-  const ccl_global KernelLight *klight = &kernel_data_fetch(lights, isect.prim);
   film_write_surface_emission(
-      kg, state, eval, mis_weight, render_buffer, object_lightgroup(kg, klight->object_id));
+      kg, state, eval, mis_weight, render_buffer, object_lightgroup(kg, isect.object));
 }
 
 /* Evaluate light shader at intersection in forward path tracing. */
@@ -129,7 +143,7 @@ ccl_device bool integrate_light_nee(KernelGlobals kg, IntegratorShadowState stat
   PROFILING_INIT_FOR_SHADER(kg, PROFILING_SHADE_LIGHT_SETUP);
   if (isect.type == PRIMITIVE_LAMP) {
     /* Lights. */
-    const ccl_global KernelLight *klight = &kernel_data_fetch(lights, isect.prim);
+    const ccl_global KernelLight *klight = get_light_from_object_id(kg, isect.object);
     const LightType light_type = LightType(klight->type);
 
     if (light_type == LIGHT_BACKGROUND) {
@@ -143,14 +157,14 @@ ccl_device bool integrate_light_nee(KernelGlobals kg, IntegratorShadowState stat
       const float3 P = (ray.tmax == FLT_MAX) ? -ray.D : ray.P + ray.tmax * ray.D;
       float3 Ng = zero_float3();
       float2 uv = zero_float2();
-      light_normal_uv_from_position(kg, klight, P, ray.D, Ng, uv);
+      light_normal_uv_from_position(kg, isect.object, P, ray.D, Ng, uv);
 
       shader_setup_from_sample(kg,
                                emission_sd,
                                P,
                                Ng,
                                -ray.D,
-                               klight->shader_id,
+                               klight->shader_id_and_flags,
                                isect.object,
                                isect.prim,
                                uv.x,

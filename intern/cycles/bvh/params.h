@@ -75,6 +75,7 @@ class BVHParams {
   int max_motion_curve_leaf_size;
   int max_point_leaf_size;
   int max_motion_point_leaf_size;
+  int max_light_leaf_size;
 
   /* object or mesh level bvh */
   bool top_level;
@@ -129,6 +130,8 @@ class BVHParams {
     max_motion_curve_leaf_size = 4;
     max_point_leaf_size = 8;
     max_motion_point_leaf_size = 8;
+    /* TODO(weizhen): adjust. */
+    max_light_leaf_size = 4;
 
     top_level = false;
     bvh_layout = BVH_LAYOUT_BVH2;

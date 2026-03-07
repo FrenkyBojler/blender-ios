@@ -223,6 +223,7 @@ ccl_device_intersect void scene_intersect_shadow_all(KernelGlobals kg,
 
 ccl_device_intersect bool scene_intersect(KernelGlobals kg,
                                           const ccl_private Ray *ray,
+                                          const bool is_indirect_ray,
                                           const uint visibility,
                                           ccl_private Intersection *isect)
 {
@@ -234,7 +235,7 @@ ccl_device_intersect bool scene_intersect(KernelGlobals kg,
   IF_USING_EMBREE
   {
     if (kernel_data.device_bvh) {
-      return kernel_embree_intersect(kg, ray, visibility, isect);
+      return kernel_embree_intersect(kg, ray, is_indirect_ray, visibility, isect);
     }
   }
 #  endif
@@ -271,7 +272,7 @@ ccl_device_intersect bool scene_intersect_shadow(KernelGlobals kg,
                                                  const uint visibility)
 {
   Intersection isect;
-  return scene_intersect(kg, ray, visibility, &isect);
+  return scene_intersect(kg, ray, true, visibility, &isect);
 }
 
 /* Single object BVH traversal, for SSS/AO/bevel. */
