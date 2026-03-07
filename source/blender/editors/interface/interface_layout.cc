@@ -3216,14 +3216,14 @@ void Layout::link(const StringRef url, const StringRef name, int icon)
   wmOperatorType *ot = WM_operatortype_find("WM_OT_url_open", false); /* print error next */
 
   if (!ot || !ot->srna) {
-    ui_item_disabled(this, "WM_OT_url_open");
+    item_disabled(this, "WM_OT_url_open");
     RNA_warning_bare("UILayout::link(): %s '%s'",
                      ot ? "operator missing srna" : "unknown operator",
                      "WM_OT_url_open");
     return;
   }
   if (name.is_empty()) {
-    ui_item_disabled(this, "WM_OT_url_open");
+    item_disabled(this, "WM_OT_url_open");
     RNA_warning_bare("UILayout::link(): missing link name");
     return;
   }
@@ -3242,7 +3242,7 @@ void Layout::link(const StringRef url, const StringRef name, int icon)
   block_new_button_group(block, ButtonGroupFlag(0));
 
   /* Match button width to label items. */
-  const int w = ui_text_icon_width_ex(layout, name, icon, ui_text_pad_none, UI_FSTYLE_WIDGET);
+  const int w = text_icon_width_ex(layout, name, icon, text_pad_none, UI_FSTYLE_WIDGET);
 
   /* Create the button. */
   Button *button;

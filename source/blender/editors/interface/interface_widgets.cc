@@ -1661,19 +1661,9 @@ float text_clip_middle_ex(const uiFontStyle *fstyle,
   return strwidth;
 }
 
-bool button_draw_as_link(const Button *button)
+static bool button_draw_as_link(const Button *button)
 {
   return button->type == ButtonType::But && static_cast<const ButtonPush *>(button)->draw_as_link;
-}
-
-bool button_opens_link(const Button *button)
-{
-  return button->optype && button->opptr && button->optype->idname == StringRef("WM_OT_url_open");
-}
-
-bool button_opens_link_preset(const Button *button)
-{
-  return button->optype && button->opptr && button->optype->idname == StringRef("WM_OT_url_open_preset");
 }
 
 /**

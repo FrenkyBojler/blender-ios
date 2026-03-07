@@ -1593,7 +1593,6 @@ Button *button_prev(Button *but) ATTR_WARN_UNUSED_RESULT;
 Button *button_next(Button *but) ATTR_WARN_UNUSED_RESULT;
 Button *button_first(Block *block) ATTR_WARN_UNUSED_RESULT;
 Button *button_last(Block *block) ATTR_WARN_UNUSED_RESULT;
-bool button_draw_as_link(const Button *button);
 bool button_opens_link(const Button *button);
 bool button_opens_link_preset(const Button *button);
 
