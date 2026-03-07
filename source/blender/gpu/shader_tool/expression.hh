@@ -248,7 +248,7 @@ class ExpressionParser : public Parser<ExpressionLexer, NullParser> {
       tok = tok.next();
       return t;
     }
-  }
+  };
 };
 
 }  // namespace blender::gpu::shader::parser
