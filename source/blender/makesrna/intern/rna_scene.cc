@@ -9127,6 +9127,11 @@ void RNA_def_scene(BlenderRNA *brna)
   RNA_def_property_struct_type(prop, "TransformOrientationSlot");
   RNA_def_property_ui_text(prop, "Transform Orientation Slots", "");
 
+  prop = RNA_def_property(srna, "custom_transform_orientations", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_collection_sdna(prop, nullptr, "transform_spaces", nullptr);
+  RNA_def_property_struct_type(prop, "TransformOrientation");
+  RNA_def_property_ui_text(prop, "Custom Transform Orientations", "");
+
   /* 3D View Cursor */
   prop = RNA_def_property(srna, "cursor", PROP_POINTER, PROP_NONE);
   RNA_def_property_flag(prop, PROP_NEVER_NULL);

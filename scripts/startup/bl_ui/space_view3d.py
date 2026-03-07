@@ -7885,7 +7885,7 @@ class VIEW3D_PT_transform_orientations(Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'HEADER'
     bl_label = "Transform Orientations"
-    bl_ui_units_x = 8
+    bl_ui_units_x = 12
 
     def draw(self, context):
         layout = self.layout
@@ -7893,17 +7893,28 @@ class VIEW3D_PT_transform_orientations(Panel):
 
         scene = context.scene
         orient_slot = scene.transform_orientation_slots[0]
-        orientation = orient_slot.custom_orientation
+
+        if not hasattr(scene, "orientations_proxy"):
+            layout.prop(orient_slot, "type", expand=True)
+            return
+
+        proxy = scene.orientations_proxy
 
         row = layout.row()
         col = row.column()
-        col.prop(orient_slot, "type", expand=True)
-        row.operator("transform.create_orientation", text="", icon='ADD', emboss=False).use = True
+        col.template_list(
+            "VIEW3D_UL_transform_orientations",
+            "",
+            proxy,
+            "items",
+            proxy,
+            "active_idx",
+            rows=8,
+        )
 
-        if orientation:
-            row = layout.row(align=False)
-            row.prop(orientation, "name", text="", icon='OBJECT_ORIGIN')
-            row.operator("transform.delete_orientation", text="", icon='X', emboss=False)
+        col2 = row.column()
+        col2.operator("transform.create_orientation_proxy", text="", icon='ADD', emboss=False)
+        col2.operator("transform.delete_orientation_proxy", text="", icon='REMOVE', emboss=False)
 
 
 class VIEW3D_PT_grease_pencil_origin(Panel):

@@ -62,6 +62,7 @@ _modules = [
     "properties_collection",
     "properties_strip",
     "properties_strip_modifier",
+    "properties_transform_orientation",
     "generic_ui_list",
 
     # Generic Space Modules
@@ -180,6 +181,23 @@ def register():
     del items
 
     bpy.app.handlers.translation_update_post.append(translation_update)
+
+    # Register transform orientation proxy collection and load_post handler
+    from .properties_transform_orientation import (
+        VIEW3D_PG_transform_orientation_list,
+        update_proxy_collection,
+    )
+    bpy.types.Scene.orientations_proxy = bpy.props.PointerProperty(
+        type=VIEW3D_PG_transform_orientation_list,
+    )
+
+    @bpy.app.handlers.persistent
+    def _init_orientation_proxy(dummy=None):
+        for scene in bpy.data.scenes:
+            if hasattr(scene, "orientations_proxy"):
+                update_proxy_collection(scene)
+
+    bpy.app.handlers.load_post.append(_init_orientation_proxy)
 
     # done...
 
