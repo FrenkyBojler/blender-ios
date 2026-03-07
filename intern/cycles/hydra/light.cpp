@@ -396,9 +396,9 @@ void HdCyclesLight::Initialize(HdRenderParam *renderParam)
     static_cast<AreaLight *>(_light)->set_ellipse(false);
   }
   else if (_lightType == HdPrimTypeTokens->sphereLight) {
-    /* We can't know in advance if this is spot light or point light, so we set to derived class
-     * SpotLight and change the type later. */
-    /* TODO(weizhen): check if this works */
+    /* We can't know in advance if this is spot light or point light, so we create a SpotLight
+     * (a superset of PointLight) and set light_type = LIGHT_POINT or LIGHT_SPOT later based on
+     * shaping parameters. The BVH dispatch uses geometry_type (SPOT_LIGHT for both) correctly. */
     _light = lock.scene->create_node<SpotLight>();
   }
 
