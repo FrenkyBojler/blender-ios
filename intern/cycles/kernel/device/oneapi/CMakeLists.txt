@@ -61,6 +61,7 @@ if(WITH_CYCLES_DEVICE_ONEAPI)
     -fsycl
     -fsycl-unnamed-lambda
     -fdelayed-template-parsing
+    -fsycl-allow-device-image-dependencies
     -fsycl-device-code-split=per_kernel
     -fsycl-max-parallel-link-jobs=${SYCL_OFFLINE_COMPILER_PARALLEL_JOBS}
     --offload-compress
