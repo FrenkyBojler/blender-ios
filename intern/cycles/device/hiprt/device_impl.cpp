@@ -791,7 +791,7 @@ hiprtGeometryBuildInput HIPRTDevice::prepare_light_blas(BVHHIPRT *bvh, Light *li
   bvh->custom_prim_info.resize(1);
   bvh->custom_primitive_bound.alloc(1);
 
-  bvh->custom_primitive_bound[0] = light->bounds;
+  bvh->custom_primitive_bound[0] = light->get_unit_bounds();
   bvh->custom_prim_info[0].x = 0;
   bvh->custom_prim_info[0].y = PRIMITIVE_LAMP;
 

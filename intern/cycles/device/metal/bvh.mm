@@ -991,8 +991,9 @@ bool BVHMetal::build_BLAS_light(Progress &progress,
                     options:MTLResourceStorageModeShared];
     MTLAxisAlignedBoundingBox *aabb_data = (MTLAxisAlignedBoundingBox *)[aabbBuf contents];
 
-    aabb_data[0].min = (MTLPackedFloat3 &)light->bounds.min;
-    aabb_data[0].max = (MTLPackedFloat3 &)light->bounds.max;
+    BoundBox unit_bounds = light->get_unit_bounds();
+    aabb_data[0].min = (MTLPackedFloat3 &)unit_bounds.min;
+    aabb_data[0].max = (MTLPackedFloat3 &)unit_bounds.max;
 
     /* TODO(weizhen): remove motion. */
     MTLAccelerationStructureGeometryDescriptor *geomDesc;

@@ -1568,7 +1568,7 @@ void OptiXDevice::build_BLAS_light(Geometry *const geom,
 
   device_vector<OptixAabb> aabb_data(this, "optix temp aabb data", MEM_READ_ONLY);
   aabb_data.alloc(num_motion_steps);
-  copy_aabb(aabb_data, 0, light->bounds);
+  copy_aabb(aabb_data, 0, light->get_unit_bounds());
   aabb_data.copy_to_device();
 
   vector<device_ptr> aabb_ptrs;

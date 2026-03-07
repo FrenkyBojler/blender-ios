@@ -146,6 +146,13 @@ BoundBox PointLight::compute_bounds(const Transform *tfm) const
   return bbox;
 }
 
+BoundBox PointLight::get_unit_bounds() const
+{
+  BoundBox bbox = BoundBox::empty;
+  bbox.grow(zero_float3(), 1.0f);
+  return bbox;
+}
+
 void PointLight::copy_to_kernel(KernelLight *klight,
                                 const Scene *scene,
                                 const Object *object) const
@@ -276,6 +283,14 @@ BoundBox AreaLight::compute_bounds(const Transform *tfm) const
   return bbox;
 }
 
+BoundBox AreaLight::get_unit_bounds() const
+{
+  BoundBox bbox;
+  bbox.min = make_float3(-0.5f, -0.5f, 0.0f);
+  bbox.max = make_float3(0.5f, 0.5f, 0.0f);
+  return bbox;
+}
+
 float AreaLight::area(const Transform &tfm) const
 {
   const float3 axisu = transform_get_column(&tfm, 0);
@@ -386,6 +401,11 @@ BoundBox SunLight::compute_bounds(const Transform * /*tfm*/) const
   return BoundBox::empty;
 };
 
+BoundBox SunLight::get_unit_bounds() const
+{
+  return BoundBox::empty;
+}
+
 float SunLight::area(const Transform & /*tfm*/) const
 {
   /* Sun disk area. */
@@ -447,6 +467,11 @@ BoundBox BackgroundLight::compute_bounds(const Transform * /*tfm*/) const
 {
   return BoundBox::empty;
 };
+
+BoundBox BackgroundLight::get_unit_bounds() const
+{
+  return BoundBox::empty;
+}
 
 float BackgroundLight::area(const Transform & /*tfm*/) const
 {

@@ -57,6 +57,7 @@ class Light : public Geometry {
 
   /* Geometry */
   virtual BoundBox compute_bounds(const Transform *tfm) const = 0;
+  virtual BoundBox get_unit_bounds() const = 0;
   void apply_transform(const Transform &tfm, const bool apply_to_motion) override;
   void get_uv_tiles(ustring map, unordered_set<int> &tiles) override;
   PrimitiveType primitive_type() const override;
@@ -104,6 +105,7 @@ class PointLight : public Light {
 
   void compute_bounds() override;
   BoundBox compute_bounds(const Transform *tfm) const override;
+  BoundBox get_unit_bounds() const override;
   void copy_to_kernel(KernelLight *klight,
                       const Scene *scene,
                       const Object *object) const override;
@@ -149,6 +151,7 @@ class AreaLight : public Light {
 
   void compute_bounds() override;
   BoundBox compute_bounds(const Transform *tfm) const override;
+  BoundBox get_unit_bounds() const override;
   float area(const Transform &tfm) const override;
   void pack(KernelLightGeom *light, const Scene *scene) const override;
   void adjust_tfm(Object *object, KernelObject *kobject, KernelLight *klight) const override;
@@ -175,6 +178,7 @@ class SunLight : public Light {
                       const Object *object) const override;
   void compute_bounds() override;
   BoundBox compute_bounds(const Transform *tfm) const override;
+  BoundBox get_unit_bounds() const override;
 
   bool is_traceable() const override
   {
@@ -198,6 +202,7 @@ class BackgroundLight : public Light {
                       const Object *object) const override;
   void compute_bounds() override;
   BoundBox compute_bounds(const Transform *tfm) const override;
+  BoundBox get_unit_bounds() const override;
   bool is_traceable() const override
   {
     return false;
