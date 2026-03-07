@@ -117,7 +117,7 @@ void MESH_OT_space_evenly(wmOperatorType *ot)
 
   RNA_def_boolean(ot->srna,
                   "use_parallel",
-                  true,
+                  false,
                   "Parallel Loops",
                   "Also use non-selected parallel loops as input");
   RNA_def_boolean_array(ot->srna, "lock", 3, nullptr, "Lock", "Lock editing of the axis");
