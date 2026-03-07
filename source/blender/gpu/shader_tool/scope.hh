@@ -29,14 +29,20 @@ struct Scope {
   static Scope from_position(const ParserBase &parser, int64_t index)
   {
 #ifndef NDEBUG
+    const LexerBase &lex = static_cast<const LexerBase &>(parser);
     IndexRange index_range = parser.scope_ranges[index];
-    return {parser.lex.token_types_str().substr(index_range.start, index_range.size),
-            parser.lex.substr(parser.lex[index_range.start], parser.lex[index_range.last()]),
+    return {lex.token_types_str().substr(index_range.start, index_range.size),
+            lex.substr(lex[index_range.start], lex[index_range.last()]),
             &parser,
             index};
 #else
     return {&parser, index};
 #endif
+  }
+
+  const LexerBase &lex() const
+  {
+    return static_cast<const LexerBase &>(*data);
   }
 
   static Scope invalid()
@@ -151,8 +157,8 @@ struct Scope {
     if (this->is_invalid()) {
       return "";
     }
-    return std::string(data->lex.str_.substr(
-        front().str_index_start(), back().str_index_last() - front().str_index_start() + 1));
+    return std::string(lex().str_.substr(front().str_index_start(),
+                                         back().str_index_last() - front().str_index_start() + 1));
   }
 
   std::string str() const
@@ -160,9 +166,9 @@ struct Scope {
     if (this->is_invalid()) {
       return "";
     }
-    return std::string(data->lex.str_.substr(front().str_index_start(),
-                                             back().str_index_last_no_whitespace() -
-                                                 front().str_index_start() + 1));
+    return std::string(
+        lex().str_.substr(front().str_index_start(),
+                          back().str_index_last_no_whitespace() - front().str_index_start() + 1));
   }
 
   /* Return the content without the first and last token. */
@@ -174,8 +180,8 @@ struct Scope {
     Token start = this->front().next();
     Token end = this->back().prev();
     return std::string(
-        data->lex.str_.substr(start.str_index_start(),
-                              end.str_index_last_no_whitespace() - start.str_index_start() + 1));
+        lex().str_.substr(start.str_index_start(),
+                          end.str_index_last_no_whitespace() - start.str_index_start() + 1));
   }
 
   /* Return first occurrence of token_type inside this scope. */
@@ -184,7 +190,7 @@ struct Scope {
     if (this->is_invalid()) {
       return Token::invalid();
     }
-    size_t pos = data->lex.token_types_str().substr(range().start, range().size).find(token_type);
+    size_t pos = lex().token_types_str().substr(range().start, range().size).find(token_type);
     return (pos != std::string::npos) ? Token::from_position(data, range().start + pos) :
                                         Token::invalid();
   }
@@ -229,8 +235,8 @@ struct Scope {
       return;
     }
 
-    const std::string_view scope_tokens = data->lex.token_types_str().substr(range().start,
-                                                                             range().size);
+    const std::string_view scope_tokens = lex().token_types_str().substr(range().start,
+                                                                         range().size);
 
     auto count_match = [](const std::string_view &s, const std::string_view &pattern) {
       size_t pos = 0, occurrences = 0;
@@ -257,7 +263,7 @@ struct Scope {
 
       for (int i = 0; i < pattern.size(); i++) {
         bool is_last_token = i == pattern.size() - 1;
-        TokenType token_type = TokenType(data->lex.types_[cursor]);
+        TokenType token_type = TokenType(lex().types_[cursor]);
         TokenType curr_search_token = TokenType(pattern[i]);
         TokenType next_search_token = TokenType(is_last_token ? '\0' : pattern[i + 1]);
 
@@ -342,7 +348,7 @@ struct Scope {
   void foreach_token(const TokenType token_type, Callback callback) const
   {
     IndexRange index_range = data->scope_ranges[index];
-    std::string_view view(data->lex.token_types_str());
+    std::string_view view(lex().token_types_str());
 
     size_t offset = index_range.start;
     for (const char c : view.substr(index_range.start, index_range.size)) {

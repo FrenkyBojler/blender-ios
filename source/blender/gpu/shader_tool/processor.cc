@@ -1399,7 +1399,7 @@ string SourceProcessor::matrix_constructor_mutation(const string &str)
     return str;
   }
 
-  IntermediateForm<ExpressionLexer, DummyParser> parser(str, report_error_);
+  IntermediateForm<FullLexer, DummyParser> parser(str, report_error_);
   parser().foreach_token(ParOpen, [&](const Token t) {
     if (t.prev() == Word) {
       Token fn_name = t.prev();
@@ -1577,7 +1577,7 @@ void SourceProcessor::lower_argument_qualifiers(Parser &parser)
 
 string SourceProcessor::argument_decorator_macro_injection(const string &str)
 {
-  IntermediateForm<ExpressionLexer, DummyParser> parser(str, report_error_);
+  IntermediateForm<FullLexer, DummyParser> parser(str, report_error_);
   /* Example: `out float foo` > `out float _out_sta foo _out_end` */
   parser().foreach_match("AAA", [&](const Tokens &t) {
     string_view qualifier = t[0].str_view();
@@ -1591,7 +1591,7 @@ string SourceProcessor::argument_decorator_macro_injection(const string &str)
 
 string SourceProcessor::array_constructor_macro_injection(const string &str)
 {
-  IntermediateForm<ExpressionLexer, DummyParser> parser(str, report_error_);
+  IntermediateForm<FullLexer, DummyParser> parser(str, report_error_);
   parser().foreach_match("=A[", [&](const Tokens toks) {
     Token array_len_start = toks.back();
     Token array_len_end = array_len_start.find_next(SquareClose);

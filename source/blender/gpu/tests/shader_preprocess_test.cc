@@ -2684,7 +2684,7 @@ static void test_preprocess_parser()
 )";
     string expect = R"(
 1;1;1;1;1;1;1;1;1;1;1+1;)";
-    EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().lex.token_types_str(), expect);
+    EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().token_types_str(), expect);
   }
   {
     string input = R"(
@@ -2693,7 +2693,7 @@ static void test_preprocess_parser()
     string expect = R"(
 [[A(1,1,A),A,A(A)]])";
     string scopes = R"(GABbcmmmbbcm)";
-    EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().lex.token_types_str(), expect);
+    EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().token_types_str(), expect);
     EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().scope_types_str, scopes);
   }
   {
@@ -2707,7 +2707,7 @@ class B {
 )";
     string expect = R"(
 sA{AA=1;};SA{AA;};)";
-    EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().lex.token_types_str(), expect);
+    EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().token_types_str(), expect);
   }
   {
     string input = R"(
@@ -2722,7 +2722,7 @@ a
 )";
     string expect = R"(
 AZZAZAZA)";
-    EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().lex.token_types_str(), expect);
+    EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().token_types_str(), expect);
   }
   {
     string input = R"(
@@ -2732,7 +2732,7 @@ namespace T::U::V {}
     string expect = R"(
 nA{}nA::A::A{})";
     string expect_scopes = R"(GNN)";
-    EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().lex.token_types_str(), expect);
+    EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().token_types_str(), expect);
     EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().scope_types_str, expect_scopes);
   }
   {
@@ -2749,7 +2749,7 @@ void f(int t = 0) {
 )";
     string expect = R"(
 AA(AA=1){AA=1,A=1,A={1};{A=A=A,AP;i(AEA){r;}}})";
-    EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().lex.token_types_str(), expect);
+    EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().token_types_str(), expect);
   }
   {
     IntermediateForm parser("float i;", no_err_report);
@@ -2766,7 +2766,7 @@ B
     IntermediateForm parser(input, no_err_report);
     string expect = R"(
 A#A1A)";
-    EXPECT_EQ(parser.data_get().lex.token_types_str(), expect);
+    EXPECT_EQ(parser.data_get().token_types_str(), expect);
 
     Token A = Token::from_position(&parser.data_get(), 1);
     Token B = Token::from_position(&parser.data_get(), 5);
@@ -2816,10 +2816,10 @@ static int test_expression(std::string str)
 {
   using namespace shader::parser;
   report_callback no_err_report = [](int, int, std::string, const char *) {};
-  ExpressionLexer lexer;
-  lexer.lexical_analysis(str);
+  ExpressionParser parser;
+  parser.lexical_analysis(str);
   try {
-    return ExpressionParser(lexer).eval();
+    return parser.eval();
   }
   catch (const std::exception &e) {
     std::cerr << "Error: " << e.what() << "\n";

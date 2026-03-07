@@ -18,18 +18,29 @@
 namespace blender::gpu::shader::parser {
 
 /**
+ * Same as FullLexer but considers angle brackets as multitokens, allowing identification of
+ * operators using them.
+ */
+struct ExpressionLexer {
+  static void lexical_analysis(LexerBase &lex, std::string_view input)
+  {
+    lex.process(input, LexerBase::default_char_class_table.data());
+    lex.merge_complex_literals();
+    lex.identify_keywords();
+  }
+};
+
+/**
  * Simple expression parsing and evaluation.
  * Will evaluate starting the given token until the end of the token stream.
  * As this is supposed to be use for preprocessor directives, unknown identifiers (words) will
  * evaluate to 0.
  */
-class ExpressionParser : ParserBase {
+class ExpressionParser : public Parser<ExpressionLexer, NullParser> {
  private:
   Token tok;
 
  public:
-  explicit ExpressionParser(const ExpressionLexer &lex) : ParserBase(lex) {}
-
   int64_t eval()
   {
     tok = (*this)[0];

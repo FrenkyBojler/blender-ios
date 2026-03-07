@@ -276,6 +276,8 @@ struct ScopeStack {
 
 void ParserBase::build_scope_tree(report_callback &report_error)
 {
+  const LexerBase &lex = *this;
+
   Token error_token = Token::invalid();
   const char *error_msg = nullptr;
 

@@ -31,45 +31,29 @@ struct LexerBase : lexit::TokenBuffer {
     return std::string_view((const char *)types_.get(), size_);
   }
 
- protected:
   /* Change words into keyword (ex: `if`, `struct`, `template`). */
   void identify_keywords();
 };
 
 /**
- * Consider numbers as words (to avoid splitting identifiers).
- * Does not merge newlines and spaces.
+ * Only support rough tokenization.
  */
-struct SimpleLexer : LexerBase {
-  void lexical_analysis(std::string_view input)
+struct SimpleLexer {
+  static void lexical_analysis(LexerBase &lex, std::string_view input)
   {
-    process(input, bsl_char_class_table.data());
+    lex.process(input, LexerBase::bsl_char_class_table.data());
   }
 };
 
 /**
- * Allow recognition of common operators and numbers. Merge white-spaces.
+ * Identify BSL keywords, and correctly identify float literals.
  */
-struct ExpressionLexer : LexerBase {
-  void lexical_analysis(std::string_view input)
+struct FullLexer {
+  static void lexical_analysis(LexerBase &lex, std::string_view input)
   {
-    process(input, default_char_class_table.data());
-    merge_complex_literals();
-    identify_keywords();
-  }
-};
-
-/**
- * Allow recognition of operators and numbers. Merge white-spaces.
- * However, doesn't merge angle bracket with other tokens in order to use them for template
- * expressions parsing.
- */
-struct FullLexer : LexerBase {
-  void lexical_analysis(std::string_view input)
-  {
-    process(input, bsl_char_class_table.data());
-    merge_complex_literals();
-    identify_keywords();
+    lex.process(input, LexerBase::bsl_char_class_table.data());
+    lex.merge_complex_literals();
+    lex.identify_keywords();
   }
 };
 
@@ -77,9 +61,7 @@ struct FullLexer : LexerBase {
  * Create semantic scopes from token stream.
  * Also creates mapping table from token to scope to have bi-directional mapping.
  */
-struct ParserBase {
-  const LexerBase &lex;
-
+struct ParserBase : LexerBase {
   /** Compact visualization of scope_types.  */
   std::string_view scope_types_str;
 
@@ -92,12 +74,9 @@ struct ParserBase {
   /** Index of bottom most scope per token. */
   std::vector<int> token_scope;
 
-  ParserBase(const LexerBase &lex) : lex(lex) {}
-
   /* Return the i'th token. */
   Token operator[](int i) const;
 
- protected:
   void build_scope_tree(report_callback &report_error);
   void build_token_to_scope_map();
 
@@ -106,35 +85,41 @@ struct ParserBase {
 };
 
 /* Don't do anything. No access to scopes is allowed. */
-struct NullParser : ParserBase {
-  NullParser(const LexerBase &lex) : ParserBase(lex) {}
-
-  void semantic_analysis(report_callback & /*report_error*/)
+struct NullParser {
+  static void semantic_analysis(ParserBase &parser, report_callback & /*report_error*/)
   {
-    scope_types = {};
-    scope_ranges = {};
+    parser.scope_types = {};
+    parser.scope_ranges = {};
   }
 };
 
 /* Do not parse. Creates a single global scope containing all tokens. */
-struct DummyParser : ParserBase {
-  DummyParser(const LexerBase &lex) : ParserBase(lex) {}
-
-  void semantic_analysis(report_callback & /*report_error*/)
+struct DummyParser {
+  static void semantic_analysis(ParserBase &parser, report_callback & /*report_error*/)
   {
-    scope_types = {ScopeType::Global};
-    scope_ranges = {IndexRange(0, lex.size())};
-    build_token_to_scope_map();
+    parser.scope_types = {ScopeType::Global};
+    parser.scope_ranges = {IndexRange(0, parser.size())};
+    parser.build_token_to_scope_map();
   }
 };
 
-struct FullParser : ParserBase {
-  FullParser(const LexerBase &lex) : ParserBase(lex) {}
+struct FullParser {
+  static void semantic_analysis(ParserBase &parser, report_callback &report_error)
+  {
+    parser.build_scope_tree(report_error);
+    parser.build_token_to_scope_map();
+  }
+};
+
+template<typename LexerFn, typename ParserFn> struct Parser : ParserBase {
+  void lexical_analysis(std::string_view input)
+  {
+    LexerFn::lexical_analysis(*this, input);
+  }
 
   void semantic_analysis(report_callback &report_error)
   {
-    build_scope_tree(report_error);
-    build_token_to_scope_map();
+    ParserFn::semantic_analysis(*this, report_error);
   }
 };
 

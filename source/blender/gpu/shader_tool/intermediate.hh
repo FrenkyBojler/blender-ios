@@ -304,16 +304,15 @@ inline std::ostream &operator<<(std::ostream &out, const std::vector<int> &v)
 
 /* Structure holding an intermediate form of the source code.
  * It is made for fast traversal and mutation of source code. */
-template<typename LexerClass, typename ParserClass> struct IntermediateForm : MutableString {
+template<typename LexerFn, typename ParserFn> struct IntermediateForm : MutableString {
  protected:
-  LexerClass lex_;
-  ParserClass parser_;
+  Parser<LexerFn, ParserFn> parser_;
 
   report_callback &report_error;
 
  public:
   IntermediateForm(const std::string_view input, report_callback &report_error)
-      : MutableString(input), parser_(lex_), report_error(report_error)
+      : MutableString(input), report_error(report_error)
   {
     parse(report_error);
   }
@@ -330,7 +329,7 @@ template<typename LexerClass, typename ParserClass> struct IntermediateForm : Mu
   /* Return true if any mutation was applied. */
   bool only_apply_mutations(const bool all_mutation_ordered = false)
   {
-    return static_cast<MutableString *>(this)->apply_mutations(lex_, all_mutation_ordered);
+    return static_cast<MutableString *>(this)->apply_mutations(parser_, all_mutation_ordered);
   }
 
   /* Apply pending mutation and parse the resulting string.
@@ -359,23 +358,23 @@ template<typename LexerClass, typename ParserClass> struct IntermediateForm : Mu
 
   void parse(report_callback &report_error)
   {
-    lex_.lexical_analysis(str_);
+    parser_.lexical_analysis(str_);
     parser_.semantic_analysis(report_error);
   }
 
   void debug_print()
   {
     std::cout << "Input: \n" << str_ << " \nEnd of Input\n" << std::endl;
-    std::cout << "Token Types: \"" << lex_.token_types_str << "\"" << std::endl;
+    std::cout << "Token Types: \"" << parser_.token_types_str << "\"" << std::endl;
     std::cout << "Token scopes: \"" << parser_.token_scope << "\"" << std::endl;
     std::cout << "Scope Types: \"" << parser_.scope_types_str << "\"" << std::endl;
   }
 
   void debug_print_tokens()
   {
-    for (auto tok : lex_) {
-      std::cout << "id:" << int(tok) << " start:" << lex_.offsets_[int(tok)]
-                << " end:" << lex_.offsets_end_[int(tok)] << " type:" << tok.type()
+    for (auto tok : parser_) {
+      std::cout << "id:" << int(tok) << " start:" << parser_.offsets_[int(tok)]
+                << " end:" << parser_.offsets_end_[int(tok)] << " type:" << tok.type()
                 << " scope:" << parser_.token_scope[int(tok)] << "("
                 << parser_.scope_types_str[parser_.token_scope[int(tok)]] << ")"
                 << " atom:" << tok.atom() << " str:\"" << tok.str() << "\""
