@@ -502,17 +502,17 @@ class _defs_view3d_select:
         )
 
 
-ToolDefaults = namedtuple('ToolDefaults', ['origin_base', 'aspect_base', 'origin_depth', 'aspect_depth'])
+ToolDefaults = namedtuple("ToolDefaults", ["origin_base", "aspect_base", "origin_depth", "aspect_depth"])
 
 
 class _defs_view3d_add:
 
     sculpt_tool_defaults = {
-        "CUBE": ToolDefaults("EDGE", "FREE", "EDGE", "FREE"),
-        "CONE": ToolDefaults("CENTER", "FIXED", "EDGE", "FREE"),
-        "CYLINDER": ToolDefaults("CENTER", "FIXED", "EDGE", "FREE"),
-        "SPHERE_UV": ToolDefaults("CENTER", "FIXED", "CENTER", "FIXED"),
-        "SPHERE_ICO": ToolDefaults("CENTER", "FIXED", "CENTER", "FIXED")
+        'CUBE': ToolDefaults('EDGE', 'FREE', 'EDGE', 'FREE'),
+        'CONE': ToolDefaults('CENTER', 'FIXED', 'EDGE', 'FREE'),
+        'CYLINDER': ToolDefaults('CENTER', 'FIXED', 'EDGE', 'FREE'),
+        'SPHERE_UV': ToolDefaults('CENTER', 'FIXED', 'CENTER', 'FIXED'),
+        'SPHERE_ICO': ToolDefaults('CENTER', 'FIXED', 'CENTER', 'FIXED')
     }
 
     @staticmethod
@@ -581,7 +581,7 @@ class _defs_view3d_add:
 
     @staticmethod
     def draw_settings_defaults_init(mode, tool, defaults):
-        if mode != "SCULPT":
+        if mode != 'SCULPT':
             return
 
         props = tool.operator_properties("view3d.interactive_add")
