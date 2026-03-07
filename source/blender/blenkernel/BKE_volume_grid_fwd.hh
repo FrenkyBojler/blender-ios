@@ -13,6 +13,7 @@
 #include "BKE_volume_enums.hh"
 
 #include "BLI_math_matrix_types.hh"
+#include "BLI_math_vector_types.hh"
 #include "BLI_memory_counter_fwd.hh"
 
 namespace blender {
@@ -69,6 +70,12 @@ VolumeGridType get_type(const VolumeGridData &grid);
  * for a vector-grid it is 3 (for x, y and z).
  */
 int get_channels_num(VolumeGridType type);
+
+/**
+ * Get the resolution (width, height, depth) of the grid in voxel units.
+ * Returns (0, 0, 0) if the grid is empty or not loaded.
+ */
+int3 get_dimensions(const VolumeGridData &grid);
 
 /**
  * Get the transform of the grid as an affine matrix.

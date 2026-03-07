@@ -507,6 +507,21 @@ int get_channels_num(const VolumeGridType type)
   return 0;
 }
 
+int3 get_dimensions(const VolumeGridData &grid)
+{
+#ifdef WITH_OPENVDB
+  const openvdb::CoordBBox &bbox = grid.active_bounds();
+  if (bbox.empty()) {
+    return int3(0, 0, 0);
+  }
+  const openvdb::Vec3i dim = bbox.dim().asVec3i();
+  return int3(dim.x(), dim.y(), dim.z());
+#else
+  UNUSED_VARS(grid);
+  return int3(0, 0, 0);
+#endif
+}
+
 float4x4 get_transform_matrix(const VolumeGridData &grid)
 {
 #ifdef WITH_OPENVDB

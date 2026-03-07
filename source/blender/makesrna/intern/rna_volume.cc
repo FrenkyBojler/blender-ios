@@ -132,6 +132,15 @@ static int rna_VolumeGrid_channels_get(PointerRNA *ptr)
   return bke::volume_grid::get_channels_num(bke::volume_grid::get_type(*grid));
 }
 
+static void rna_VolumeGrid_resolution_get(PointerRNA *ptr, int *value)
+{
+  const auto *grid = static_cast<const bke::VolumeGridData *>(ptr->data);
+  const int3 resolution = bke::volume_grid::get_dimensions(*grid);
+  value[0] = resolution.x;
+  value[1] = resolution.y;
+  value[2] = resolution.z;
+}
+
 static void rna_VolumeGrid_matrix_object_get(PointerRNA *ptr, float *value)
 {
   auto *grid = static_cast<const bke::VolumeGridData *>(ptr->data);
@@ -295,6 +304,12 @@ static void rna_def_volume_grid(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_int_funcs(prop, "rna_VolumeGrid_channels_get", nullptr, nullptr);
   RNA_def_property_ui_text(prop, "Channels", "Number of dimensions of the grid data type");
+
+  prop = RNA_def_property(srna, "resolution", PROP_INT, PROP_XYZ);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_int_funcs(prop, "rna_VolumeGrid_resolution_get", nullptr, nullptr);
+  RNA_def_property_ui_text(prop, "Resolution", "Resolution (number of voxels in each dimension) of the of the grid");
 
   prop = RNA_def_property(srna, "matrix_object", PROP_FLOAT, PROP_MATRIX);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
