@@ -505,7 +505,7 @@ class _defs_view3d_add:
         "CONE": ["CENTER", "FIXED", "EDGE", "FREE"],
         "CYLINDER": ["CENTER", "FIXED", "EDGE", "FREE"],
         "SPHERE_UV": ["CENTER", "FIXED", "CENTER", "FIXED"],
-        "SPHERE_ICO":  ["CENTER", "FIXED", "CENTER", "FIXED"],
+        "SPHERE_ICO": ["CENTER", "FIXED", "CENTER", "FIXED"],
     }
 
     @staticmethod
@@ -593,7 +593,8 @@ class _defs_view3d_add:
             if show_extra:
                 layout.popover("TOPBAR_PT_tool_settings_extra", text="...")
 
-            _defs_view3d_add.draw_settings_defaults_init(context.mode, tool, _defs_view3d_add.sculpt_tool_defaults["CUBE"])
+            _defs_view3d_add.draw_settings_defaults_init(
+                context.mode, tool, _defs_view3d_add.sculpt_tool_defaults["CUBE"])
 
         return dict(
             idname="builtin.primitive_cube_add",
@@ -621,7 +622,8 @@ class _defs_view3d_add:
             if show_extra:
                 layout.popover("TOPBAR_PT_tool_settings_extra", text="...")
 
-            _defs_view3d_add.draw_settings_defaults_init(context.mode, tool, _defs_view3d_add.sculpt_tool_defaults["CONE"])
+            _defs_view3d_add.draw_settings_defaults_init(
+                context.mode, tool, _defs_view3d_add.sculpt_tool_defaults["CONE"])
 
         return dict(
             idname="builtin.primitive_cone_add",
@@ -649,7 +651,8 @@ class _defs_view3d_add:
             if show_extra:
                 layout.popover("TOPBAR_PT_tool_settings_extra", text="...")
 
-            _defs_view3d_add.draw_settings_defaults_init(context.mode, tool, _defs_view3d_add.sculpt_tool_defaults["CYLINDER"])
+            _defs_view3d_add.draw_settings_defaults_init(
+                context.mode, tool, _defs_view3d_add.sculpt_tool_defaults["CYLINDER"])
 
         return dict(
             idname="builtin.primitive_cylinder_add",
@@ -677,7 +680,8 @@ class _defs_view3d_add:
             if show_extra:
                 layout.popover("TOPBAR_PT_tool_settings_extra", text="...")
 
-            _defs_view3d_add.draw_settings_defaults_init(context.mode, tool, _defs_view3d_add.sculpt_tool_defaults["SPHERE_UV"])
+            _defs_view3d_add.draw_settings_defaults_init(
+                context.mode, tool, _defs_view3d_add.sculpt_tool_defaults["SPHERE_UV"])
 
         return dict(
             idname="builtin.primitive_uv_sphere_add",
@@ -704,7 +708,8 @@ class _defs_view3d_add:
             if show_extra:
                 layout.popover("TOPBAR_PT_tool_settings_extra", text="...")
 
-            _defs_view3d_add.draw_settings_defaults_init(context.mode, tool, _defs_view3d_add.sculpt_tool_defaults["SPHERE_ICO"])
+            _defs_view3d_add.draw_settings_defaults_init(
+                context.mode, tool, _defs_view3d_add.sculpt_tool_defaults["SPHERE_ICO"])
 
         return dict(
             idname="builtin.primitive_ico_sphere_add",
