@@ -28,11 +28,6 @@ struct Scope {
   /* Scope index. */
   int64_t index_;
 
-  Scope invalid() const
-  {
-    return Scope(*parser_, -1);
-  }
-
  public:
   Scope() = delete;
 
@@ -49,6 +44,9 @@ struct Scope {
 #endif
   }
 
+  /* Create an invalid scope. */
+  Scope(const ParserBase &parser) : Scope(parser, -1) {}
+
   bool is_valid() const
   {
     return index_ < parser_->scope_types.size();
@@ -60,19 +58,19 @@ struct Scope {
 
   Token operator[](int i)
   {
-    return is_invalid() ? Token(*parser_, -1) : Token(*parser_, range().start + i);
+    return is_invalid() ? Token(*parser_) : Token(*parser_, range().start + i);
   }
 
   /* Return first token of that scope. */
   Token front() const
   {
-    return is_invalid() ? Token(*parser_, -1) : Token(*parser_, range().start);
+    return is_invalid() ? Token(*parser_) : Token(*parser_, range().start);
   }
 
   /* Return last token of that scope. */
   Token back() const
   {
-    return is_invalid() ? Token(*parser_, -1) : Token(*parser_, range().last());
+    return is_invalid() ? Token(*parser_) : Token(*parser_, range().last());
   }
 
   IndexRange range() const
@@ -106,7 +104,7 @@ struct Scope {
   Scope scope() const
   {
     if (is_invalid()) {
-      return invalid();
+      return Scope(*parser_);
     }
     const size_t scope_start = this->front().str_index_start();
     Scope scope = *this;
@@ -122,14 +120,14 @@ struct Scope {
    * previous scope inside the same container. */
   Scope prev() const
   {
-    return is_invalid() ? invalid() : front().prev().scope();
+    return is_invalid() ? Scope(*parser_) : front().prev().scope();
   }
 
   /* Returns the next scope after this scope. Can be either the container scope or the next scope
    * inside the same container. */
   Scope next() const
   {
-    return is_invalid() ? invalid() : back().next().scope();
+    return is_invalid() ? Scope(*parser_) : back().next().scope();
   }
 
   bool contains(const Scope sub) const
@@ -176,10 +174,10 @@ struct Scope {
   Token find_token(const char token_type) const
   {
     if (this->is_invalid()) {
-      return Token(*parser_, -1);
+      return Token(*parser_);
     }
     size_t pos = parser_->token_types_str().substr(range().start, range().size).find(token_type);
-    return (pos != std::string::npos) ? Token(*parser_, range().start + pos) : Token(*parser_, -1);
+    return (pos != std::string::npos) ? Token(*parser_, range().start + pos) : Token(*parser_);
   }
 
   bool contains_token(const char token_type) const
@@ -195,7 +193,7 @@ struct Scope {
     while (scope.type() != ScopeType::Global && scope.type() != type) {
       scope = scope.scope();
     }
-    return scope.type() == type ? scope : invalid();
+    return scope.type() == type ? scope : Scope(*parser_);
   }
 
   /**
@@ -242,7 +240,7 @@ struct Scope {
     const size_t searchable_range = scope_tokens.size() -
                                     (pattern.size() - 1 - control_token_count);
 
-    std::vector<Token> match(pattern.size(), parser_->invalid_tok());
+    std::vector<Token> match(pattern.size(), Token(*parser_));
 
     for (size_t pos = 0; pos < searchable_range; pos++) {
       size_t cursor = range().start + pos;
@@ -266,11 +264,11 @@ struct Scope {
         }
         else if (curr_search_token == '?' && next_search_token != '?') {
           /* We just matched an optional token in previous iteration. Continue scanning. */
-          match[i] = Token(*parser_, -1);
+          match[i] = Token(*parser_);
         }
         else if (!is_last_token && curr_search_token != '?' && next_search_token == '?') {
           /* This was an optional token. Continue scanning. */
-          match[i] = Token(*parser_, -1);
+          match[i] = Token(*parser_);
           i++;
           continue;
         }
@@ -326,7 +324,7 @@ struct Scope {
   {
     assert(this->type() == ScopeType::Attributes);
     this->foreach_scope(ScopeType::Attribute, [&](Scope attr) {
-      callback(attr[0], attr[1] == '(' ? attr[1].scope() : invalid());
+      callback(attr[0], attr[1] == '(' ? attr[1].scope() : Scope(*parser_));
     });
   }
 
@@ -383,10 +381,10 @@ struct Scope {
       const
   {
     foreach_match("sA{..}", [&](const std::vector<Token> matches) {
-      callback(matches[0], invalid(), matches[1], matches[2].scope());
+      callback(matches[0], Scope(*parser_), matches[1], matches[2].scope());
     });
     foreach_match("sA<..>{..}", [&](const std::vector<Token> matches) {
-      callback(matches[0], invalid(), matches[1], matches[6].scope());
+      callback(matches[0], Scope(*parser_), matches[1], matches[6].scope());
     });
     foreach_match("s[[..]]A{..}", [&](const std::vector<Token> matches) {
       callback(matches[0], matches[2].scope(), matches[7], matches[8].scope());
@@ -408,7 +406,7 @@ struct Scope {
     auto attrs = [&](const std::vector<Token> &tokens) {
       Token first = tokens[0].is_valid() ? tokens[0] : tokens[2];
       Scope attributes = first.prev().prev().scope();
-      attributes = (attributes.type() == ScopeType::Attributes) ? attributes : invalid();
+      attributes = (attributes.type() == ScopeType::Attributes) ? attributes : Scope(*parser_);
       return attributes;
     };
 
@@ -425,27 +423,29 @@ struct Scope {
       callback(attributes, const_tok, type, template_scope, name, array, decl_end);
     };
 
+    Scope invalid(*parser_);
+
     foreach_match("c?AA;", [&](const std::vector<Token> toks) {
-      cb(attrs(toks), toks[0], toks[2], invalid(), toks[3], invalid(), toks.back());
+      cb(attrs(toks), toks[0], toks[2], invalid, toks[3], invalid, toks.back());
     });
     foreach_match("c?AA[..];", [&](const std::vector<Token> toks) {
-      cb(attrs(toks), toks[0], toks[2], invalid(), toks[3], toks[4].scope(), toks.back());
+      cb(attrs(toks), toks[0], toks[2], invalid, toks[3], toks[4].scope(), toks.back());
     });
     foreach_match("c?A<..>A;", [&](const std::vector<Token> toks) {
-      cb(attrs(toks), toks[0], toks[2], toks[3].scope(), toks[7], invalid(), toks.back());
+      cb(attrs(toks), toks[0], toks[2], toks[3].scope(), toks[7], invalid, toks.back());
     });
     foreach_match("c?A<..>A[..];", [&](const std::vector<Token> toks) {
       cb(attrs(toks), toks[0], toks[2], toks[3].scope(), toks[7], toks[8].scope(), toks.back());
     });
 
     foreach_match("c?A&A;", [&](const std::vector<Token> toks) {
-      cb(attrs(toks), toks[0], toks[2], invalid(), toks[4], invalid(), toks.back());
+      cb(attrs(toks), toks[0], toks[2], invalid, toks[4], invalid, toks.back());
     });
     foreach_match("c?A(&A)[..];", [&](const std::vector<Token> toks) {
-      cb(attrs(toks), toks[0], toks[2], invalid(), toks[5], toks[7].scope(), toks.back());
+      cb(attrs(toks), toks[0], toks[2], invalid, toks[5], toks[7].scope(), toks.back());
     });
     foreach_match("c?A<..>&A;", [&](const std::vector<Token> toks) {
-      cb(attrs(toks), toks[0], toks[2], toks[3].scope(), toks[8], invalid(), toks.back());
+      cb(attrs(toks), toks[0], toks[2], toks[3].scope(), toks[8], invalid, toks.back());
     });
     foreach_match("c?A<..>(&A)[..];", [&](const std::vector<Token> toks) {
       cb(attrs(toks), toks[0], toks[2], toks[3].scope(), toks[9], toks[11].scope(), toks.back());

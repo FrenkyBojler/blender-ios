@@ -21,7 +21,7 @@ void SourceProcessor::lower_loop_unroll(Parser &parser)
     Scope init, condition, iter;
   };
   auto parse_for_args = [&](const Scope loop_args) -> ArgParseResult {
-    ArgParseResult result{parser.invalid_scope(), parser.invalid_scope(), parser.invalid_scope()};
+    ArgParseResult result{Scope(parser), Scope(parser), Scope(parser)};
     loop_args.foreach_scope(ScopeType::LoopArg, [&](const Scope arg) {
       if (arg.front().prev() == '(' && arg.back().next() == ';') {
         result.init = arg;
@@ -185,8 +185,7 @@ void SourceProcessor::lower_loop_unroll(Parser &parser)
       if (cond_type.next() == '=') {
         t++; /* Skip equal sign. */
       }
-      const Token cond_sign = (cond[t] == '+' || cond[t] == '-') ? cond[t++] :
-                                                                   parser.invalid_tok();
+      const Token cond_sign = (cond[t] == '+' || cond[t] == '-') ? cond[t++] : Token(parser);
       const Token cond_end = cond[t];
       if (cond_var.str() != var_name.str()) {
         report_error_(ERROR_TOK(cond_var), "Non matching loop counter variable.");

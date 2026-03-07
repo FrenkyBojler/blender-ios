@@ -281,7 +281,7 @@ void ParserBase::build_scope_tree(report_callback &report_error)
 {
   const LexerBase &lex = *this;
 
-  Token error_token = invalid_tok();
+  Token error_token(*this);
   const char *error_msg = nullptr;
 
   size_t predicted_scope_count = lex.size() / 2;
@@ -591,16 +591,6 @@ void ParserBase::build_token_to_scope_map()
 Token ParserBase::operator[](int i) const
 {
   return Token(*this, i);
-}
-
-Token ParserBase::invalid_tok() const
-{
-  return Token(*this, -1);
-}
-
-Scope ParserBase::invalid_scope() const
-{
-  return Scope(*this, -1);
 }
 
 void ParserBase::update_string_view()

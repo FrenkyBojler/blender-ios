@@ -78,11 +78,6 @@ struct ParserBase : LexerBase {
   /* Return the i'th token. */
   Token operator[](int i) const;
 
-  /* Create invalid token. */
-  Token invalid_tok() const;
-  /* Create invalid scope. */
-  Scope invalid_scope() const;
-
   void build_scope_tree(report_callback &report_error);
   void build_token_to_scope_map();
 

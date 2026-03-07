@@ -238,8 +238,8 @@ void SourceProcessor::lower_method_definitions(Parser &parser)
 
     struct_scope.foreach_function(
         [&](bool is_static, Token fn_type, Token fn_name, Scope fn_args, bool is_const, Scope) {
-          const Token static_tok = is_static ? fn_type.prev() : parser.invalid_tok();
-          const Token const_tok = is_const ? fn_args.back().next() : parser.invalid_tok();
+          const Token static_tok = is_static ? fn_type.prev() : Token(parser);
+          const Token const_tok = is_const ? fn_args.back().next() : Token(parser);
 
           if (fn_name.str()[0] == '_') {
             report_error_(ERROR_TOK(fn_name),

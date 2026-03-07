@@ -320,7 +320,7 @@ struct IntermediateForm : MutableString, Parser<LexerFn, ParserFn> {
   Scope operator()() const
   {
     if (this->scope_types.empty()) {
-      return this->invalid_scope();
+      return Scope(*this);
     }
     return Scope(*this, 0);
   }

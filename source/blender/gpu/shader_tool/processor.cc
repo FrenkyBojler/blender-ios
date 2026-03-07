@@ -777,7 +777,7 @@ void SourceProcessor::lower_stage_function(Parser &parser)
     }
     condition = "defined(" + condition + ")";
 
-    guarded_scope_mutation(parser, fn_body, condition, parser.invalid_tok());
+    guarded_scope_mutation(parser, fn_body, condition, Token(parser));
   });
   parser.apply_mutations();
 }
