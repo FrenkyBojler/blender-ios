@@ -37,7 +37,7 @@ struct IndexRange {
            ((other.start < start) && (start < (other.start + other.size)));
   }
 
-  int64_t last()
+  int64_t last() const
   {
     return start + size - 1;
   }
