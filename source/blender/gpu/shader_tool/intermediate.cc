@@ -24,7 +24,6 @@
 #include <array>
 #include <cstdlib>
 #include <cstring>
-#include <stack>
 
 #if defined(_MSC_VER)
 #  define always_inline __forceinline
@@ -574,8 +573,6 @@ void ParserBase::build_token_to_scope_map()
 {
   token_scope.clear();
   token_scope.resize(scope_ranges[0].size);
-
-  std::stack<uint32_t> stack;
 
   int scope_id = 0;
   for (const IndexRange &range : scope_ranges) {
