@@ -157,17 +157,15 @@ inline int kernel_voxel_range(const KernelType kernel_type)
 
 inline float kernel_eval_component(const KernelType kernel_type, const float t)
 {
-  const float a = math::abs(t);
   switch (kernel_type) {
     case KernelType::Constant:
-      return geometry::grid_sampling::ConstantKernel::weight({}, double) return 1.0f;
+      return geometry::grid_sampling::ConstantKernel::weight(t);
     case KernelType::Linear:
-      return 1.0f - a;
+      return geometry::grid_sampling::LinearKernel::weight(t);
     case KernelType::QuadraticBSpline:
-      return return a < 0.5f ? -a * a + 3.0f / 4.0f : (0.5f * a - 3.0f / 2.0f) * a + 9.0f / 8.0f;
+      return geometry::grid_sampling::QuadraticBSplineKernel::weight(t);
     case KernelType::CubicBSpline:
-      return a < 1.0f ? (0.5f * a - 1.0f) * a * a + 2.0f / 3.0f :
-                        ((-a / 6.0f + 1.0f) * a - 2.0) * a + 4.0f / 3.0f;
+      return geometry::grid_sampling::CubicBSplineKernel::weight(t);
   }
   return 0.0f;
 }
@@ -197,7 +195,7 @@ inline float kernel_eval(const KernelType kernel_type, const float3 &v)
 
 inline float3 kernel_divergence_eval(const KernelType kernel_type, const float3 &v)
 {
-  const float vx = kernel_divergence_eval_component(kernel_type, v.x);
+  const float vx = kernel_eval_component(kernel_type, v.x);
   const float vy = kernel_eval_component(kernel_type, v.y);
   const float vz = kernel_eval_component(kernel_type, v.z);
   return {kernel_divergence_eval_component(kernel_type, v.x) * vy * vz,

@@ -209,6 +209,22 @@ struct ConstantKernel {
   static constexpr float range = 0.5f;
   static constexpr int size = 1;
 
+  static float weight(float x)
+  {
+    if (x < -0.5f) {
+      return 0.0f;
+    }
+    if (x < 0.5f) {
+      return 1.0f;
+    }
+    return 0.0f;
+  }
+
+  static float derivative(float /*x*/)
+  {
+    return 0.0f;
+  }
+
   template<class ValueT> static ValueT weight(const ValueT *value, double /*weight*/)
   {
     OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
@@ -230,6 +246,34 @@ struct ConstantKernel {
 struct LinearKernel {
   static constexpr float range = 1.0f;
   static constexpr int size = 2;
+
+  static float weight(float x)
+  {
+    if (x < -1.0f) {
+      return 0.0f;
+    }
+    if (x < 0.0f) {
+      return x + 1.0f;
+    }
+    if (x < 1.0f) {
+      return -x + 1.0f;
+    }
+    return 0.0f;
+  }
+
+  static float derivative(float x)
+  {
+    if (x < -1.0f) {
+      return 0.0f;
+    }
+    if (x < 0.0f) {
+      return 1.0f;
+    }
+    if (x < 1.0f) {
+      return -1.0f;
+    }
+    return 0.0f;
+  }
 
   template<class ValueT> static ValueT weight(const ValueT *value, double weight)
   {
@@ -290,6 +334,43 @@ struct LinearKernel {
 struct QuadraticBSplineKernel {
   static constexpr float range = 1.5f;
   static constexpr int size = 4;
+
+  static float weight(float x)
+  {
+    if (x < -1.5f) {
+      return 0.0f;
+    }
+    if (x < -0.5f) {
+      return (0.5f * x + 1.5f) * x + 1.125f;
+    }
+    if (x < 0.5f) {
+      return -x * x + 0.75f;
+    }
+    if (x < 1.5f) {
+      return (0.5f * x - 1.5f) * x + 1.125f;
+    }
+    return 0.0f;
+  }
+
+  static float derivative(float x)
+  {
+    if (x < -1.5f) {
+      return 0.0f;
+    }
+    if (x < -0.5f) {
+      return -x - 1.5f;
+    }
+    if (x < 0.0f) {
+      return 2.0f * x;
+    }
+    if (x < 0.5f) {
+      return -2.0f * x;
+    }
+    if (x < 1.5f) {
+      return x - 1.5f;
+    }
+    return 0.0f;
+  }
 
   template<class ValueT> static ValueT weight(const ValueT *value, double weight)
   {
@@ -358,6 +439,46 @@ struct QuadraticBSplineKernel {
 struct CubicBSplineKernel {
   static constexpr float range = 2.0f;
   static constexpr int size = 4;
+
+  static float weight(float x)
+  {
+    if (x < -2.0f) {
+      return 0.0f;
+    }
+    if (x < -1.0f) {
+      return ((x / 6.0f + 1.0f) * x + 2.0f) * x + 4.0f / 3.0f;
+    }
+    if (x < 0.0f) {
+      return (-x - 1.0f) * x * x + 2.0f / 3.0f;
+    }
+    if (x < 1.0f) {
+      return (x - 1.0f) * x * x + 2.0f / 3.0f;
+    }
+    if (x < 2.0f) {
+      return ((-x / 6.0f + 1.0f) * x - 2.0f) * x + 4.0f / 3.0f;
+    }
+    return 0.0f;
+  }
+
+  static float derivative(float x)
+  {
+    if (x < -1.5f) {
+      return 0.0f;
+    }
+    if (x < -0.5f) {
+      return -x - 1.5f;
+    }
+    if (x < 0.0f) {
+      return 2.0f * x;
+    }
+    if (x < 0.5f) {
+      return -2.0f * x;
+    }
+    if (x < 1.5f) {
+      return x - 1.5f;
+    }
+    return 0.0f;
+  }
 
   template<class ValueT> static ValueT weight(const ValueT *value, double weight)
   {
