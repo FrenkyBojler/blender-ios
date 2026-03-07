@@ -106,7 +106,8 @@ void SourceProcessor::lower_loop_unroll(Parser &parser)
     parser.insert_after(body.back(), "\n");
     if (init.is_valid() && !iteration_is_trivial) {
       parser.insert_line_number(body.back(), init.front().line_number());
-      parser.insert_after(body.back(), indent_init + "{" + init.str_with_whitespace() + ";\n");
+      parser.insert_after(body.back(),
+                          indent_init + "{" + string(init.str_with_whitespace()) + ";\n");
     }
     else {
       parser.insert_after(body.back(), "{\n");
@@ -114,16 +115,18 @@ void SourceProcessor::lower_loop_unroll(Parser &parser)
     for (int64_t i = 0, value = iter_init; i < iter_count; i++, value += iter_incr) {
       if (cond.is_valid() && !condition_is_trivial) {
         parser.insert_line_number(body.back(), cond.front().line_number());
-        parser.insert_after(body.back(), indent_cond + "if(" + cond.str_with_whitespace() + ")\n");
+        parser.insert_after(body.back(),
+                            indent_cond + "if(" + string(cond.str_with_whitespace()) + ")\n");
       }
       parser.insert_after(body.back(), replace_index(body_prefix, value));
       parser.insert_line_number(body.back(), body.front().line_number());
       parser.insert_after(body.back(),
-                          indent_body + replace_index(body.str_with_whitespace(), value) + "\n");
+                          indent_body + replace_index(string(body.str_with_whitespace()), value) +
+                              "\n");
       parser.insert_after(body.back(), body_suffix);
       if (iter.is_valid() && !iteration_is_trivial) {
         parser.insert_line_number(body.back(), iter.front().line_number());
-        parser.insert_after(body.back(), indent_iter + iter.str_with_whitespace() + ";\n");
+        parser.insert_after(body.back(), indent_iter + string(iter.str_with_whitespace()) + ";\n");
       }
     }
     parser.insert_line_number(body.back(), body.back().line_number());

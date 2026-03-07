@@ -95,7 +95,7 @@ void SourceProcessor::lower_default_constructors(Parser &parser)
       if (array.is_valid()) {
         int array_len = static_array_size(array, 0);
         if (array_len == 0) {
-          decl += "for(int i=0;i < " + array.str_exclusive() + ";i++){";
+          decl += "for(int i=0;i < " + string(array.str_exclusive()) + ";i++){";
           decl += "r." + string(name.str()) + "[i]=" + default_value(type.str()) + ";";
           decl += "}";
         }

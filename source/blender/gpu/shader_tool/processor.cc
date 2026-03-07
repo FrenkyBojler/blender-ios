@@ -1291,7 +1291,7 @@ void SourceProcessor::lower_function_default_arguments(Parser &parser)
           Token equal = arg.find_token('=');
           const char *comma = (args_decl.empty() ? "" : ", ");
           if (equal.is_invalid()) {
-            args_decl += comma + arg.str_with_whitespace();
+            args_decl += comma + string(arg.str_with_whitespace());
             args_names += comma + string(arg.back().str());
           }
           else {

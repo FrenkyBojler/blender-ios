@@ -306,8 +306,10 @@ void SourceProcessor::lower_resource_table(Parser &parser)
   };
 
   auto parse_resource = [&](Scope attributes, Token type, Token name, Scope array) {
-    metadata::ParsedResource resource{
-        type.line_number(), string(type.str()), string(name.str()), array.str_with_whitespace()};
+    metadata::ParsedResource resource{type.line_number(),
+                                      string(type.str()),
+                                      string(name.str()),
+                                      string(array.str_with_whitespace())};
     attributes.foreach_scope(ScopeType::Attribute, [&](const Scope &attribute) {
       string_view type = attribute[0].str();
       if (type == "sampler") {

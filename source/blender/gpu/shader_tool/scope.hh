@@ -158,13 +158,12 @@ struct Scope {
     return this->str().find(str) != std::string::npos;
   }
 
-  std::string str_with_whitespace() const
+  std::string_view str_with_whitespace() const
   {
     if (this->is_invalid()) {
       return "";
     }
-    return std::string(lex().str_.substr(front().str_index_start(),
-                                         back().str_index_last() - front().str_index_start() + 1));
+    return lex().substr(front(), back(), true);
   }
 
   std::string_view str() const
@@ -172,22 +171,16 @@ struct Scope {
     if (this->is_invalid()) {
       return "";
     }
-    return lex().str_.substr(front().str_index_start(),
-                             back().str_index_last_no_whitespace() - front().str_index_start() +
-                                 1);
+    return lex().substr(front(), back(), false);
   }
 
   /* Return the content without the first and last token. */
-  std::string str_exclusive() const
+  std::string_view str_exclusive() const
   {
     if (this->is_invalid() || this->token_count() <= 2) {
       return "";
     }
-    Token start = this->front().next();
-    Token end = this->back().prev();
-    return std::string(
-        lex().str_.substr(start.str_index_start(),
-                          end.str_index_last_no_whitespace() - start.str_index_start() + 1));
+    return lex().substr(front().next(), back().prev(), false);
   }
 
   /* Return first occurrence of token_type inside this scope. */
