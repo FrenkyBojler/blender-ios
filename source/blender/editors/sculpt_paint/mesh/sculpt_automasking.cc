@@ -684,7 +684,7 @@ void calc_vert_factors(const Depsgraph &depsgraph,
 
     if (!automasking.settings.topology_use_brush_limit &&
         automasking.settings.flags & BRUSH_AUTOMASKING_TOPOLOGY &&
-        islands::vert_id_get(ss, vert) != automasking.settings.initial_island_nr)
+        !automasking.settings.initial_island_nr.contains(islands::vert_id_get(ss, vert)))
     {
       factors[i] = 0.0f;
       continue;
@@ -795,7 +795,7 @@ void calc_face_factors(const Depsgraph &depsgraph,
 
       if (!automasking.settings.topology_use_brush_limit &&
           automasking.settings.flags & BRUSH_AUTOMASKING_TOPOLOGY &&
-          islands::vert_id_get(ss, vert) != automasking.settings.initial_island_nr)
+          !automasking.settings.initial_island_nr.contains(islands::vert_id_get(ss, vert)))
       {
         factor = 0.0f;
         continue;
@@ -923,7 +923,7 @@ void calc_grids_factors(const Depsgraph &depsgraph,
 
       if (!automasking.settings.topology_use_brush_limit &&
           automasking.settings.flags & BRUSH_AUTOMASKING_TOPOLOGY &&
-          islands::vert_id_get(ss, vert) != automasking.settings.initial_island_nr)
+          !automasking.settings.initial_island_nr.contains(islands::vert_id_get(ss, vert)))
       {
         factors[node_vert] = 0.0f;
         continue;
@@ -1045,7 +1045,7 @@ void calc_vert_factors(const Depsgraph &depsgraph,
 
     if (!automasking.settings.topology_use_brush_limit &&
         automasking.settings.flags & BRUSH_AUTOMASKING_TOPOLOGY &&
-        islands::vert_id_get(ss, vert_i) != automasking.settings.initial_island_nr)
+        !automasking.settings.initial_island_nr.contains(islands::vert_id_get(ss, vert_i)))
     {
       factors[i] = 0.0f;
       continue;
@@ -1669,7 +1669,9 @@ std::unique_ptr<Cache> cache_init(const Depsgraph &depsgraph,
   vert_random_access_ensure(ob);
   if (mode & BRUSH_AUTOMASKING_TOPOLOGY && ss.active_vert_index() != -1) {
     islands::ensure_cache(ob);
-    automasking->settings.initial_island_nr = islands::vert_id_get(ss, ss.active_vert_index());
+    for (int vert : find_symm_verts(depsgraph, ob, ss.active_vert_index())) {
+      automasking->settings.initial_island_nr.append(islands::vert_id_get(ss, vert));
+    }
   }
 
   const int verts_num = SCULPT_vertex_count_get(ob);

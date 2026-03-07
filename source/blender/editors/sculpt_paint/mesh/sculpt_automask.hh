@@ -36,7 +36,7 @@ struct Settings {
   /* eAutomasking_flag. */
   int flags;
   int initial_face_set;
-  int initial_island_nr;
+  Vector<int> initial_island_nr;
 
   float cavity_factor;
   int cavity_blur_steps;
