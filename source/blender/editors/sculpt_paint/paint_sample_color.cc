@@ -371,6 +371,8 @@ struct SampleColorData {
   bool sample_palette;
   float3 accum_color;
   int num_samples;
+
+  int2 start_mouse;
 };
 
 static void sample_color_update_header(SampleColorData *data, bContext *C)
@@ -474,6 +476,8 @@ static wmOperatorStatus sample_color_invoke(bContext *C, wmOperator *op, const w
   data->accum_color = float3(0.0f);
   data->num_samples = 0;
 
+  data->start_mouse = event->mval;
+
   sample_color_update_header(data, C);
 
   WM_event_add_modal_handler(C, op);
@@ -527,14 +531,17 @@ static wmOperatorStatus sample_color_modal(bContext *C, wmOperator *op, const wm
             std::clamp(event->mval[1], 0, int(region->winy)));
 
   const bool use_merged_texture = RNA_boolean_get(op->ptr, "merged");
+  const int drag_threshold = WM_event_drag_threshold(event);
 
   switch (event->type) {
     case MOUSEMOVE: {
       RNA_int_set_array(op->ptr, "location", event->mval);
-      const float3 sampled_color = paint_sample_color(C, region, mval, use_merged_texture);
-      const float3 average_color = sample_average_color(data, sampled_color);
-      apply_sampled_color(bmain, *paint, average_color, false);
-      WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
+      if (math::distance(data->start_mouse, mval) > drag_threshold) {
+        const float3 sampled_color = paint_sample_color(C, region, mval, use_merged_texture);
+        const float3 average_color = sample_average_color(data, sampled_color);
+        apply_sampled_color(bmain, *paint, average_color, false);
+        WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
+      }
       break;
     }
 
