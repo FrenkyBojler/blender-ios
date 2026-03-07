@@ -21,7 +21,7 @@ struct Scope;
  */
 struct Token : lexit::Token {
   Token(const lexit::Token &tok) : lexit::Token(tok) {}
-  Token(const ParserBase *data, int64_t index) : lexit::Token(data, index) {}
+  Token(const ParserBase &data, int64_t index) : lexit::Token(&data, index) {}
 
   Token prev(int i = 1) const
   {

@@ -590,12 +590,12 @@ void ParserBase::build_token_to_scope_map()
 
 Token ParserBase::operator[](int i) const
 {
-  return Token(this, i);
+  return Token(*this, i);
 }
 
 Token ParserBase::invalid_tok() const
 {
-  return Token(this, -1);
+  return Token(*this, -1);
 }
 
 Scope ParserBase::invalid_scope() const

@@ -71,19 +71,19 @@ struct Scope {
 
   Token operator[](int i)
   {
-    return is_invalid() ? Token(data, -1) : Token(data, range().start + i);
+    return is_invalid() ? Token(*data, -1) : Token(*data, range().start + i);
   }
 
   /* Return first token of that scope. */
   Token front() const
   {
-    return is_invalid() ? Token(data, -1) : Token(data, range().start);
+    return is_invalid() ? Token(*data, -1) : Token(*data, range().start);
   }
 
   /* Return last token of that scope. */
   Token back() const
   {
-    return is_invalid() ? Token(data, -1) : Token(data, range().last());
+    return is_invalid() ? Token(*data, -1) : Token(*data, range().last());
   }
 
   IndexRange range() const
@@ -93,7 +93,7 @@ struct Scope {
 
   Token operator[](const int64_t index) const
   {
-    return Token(data, range().start + index);
+    return Token(*data, range().start + index);
   }
 
   size_t token_count() const
@@ -187,10 +187,10 @@ struct Scope {
   Token find_token(const char token_type) const
   {
     if (this->is_invalid()) {
-      return Token(data, -1);
+      return Token(*data, -1);
     }
     size_t pos = lex().token_types_str().substr(range().start, range().size).find(token_type);
-    return (pos != std::string::npos) ? Token(data, range().start + pos) : Token(data, -1);
+    return (pos != std::string::npos) ? Token(*data, range().start + pos) : Token(*data, -1);
   }
 
   bool contains_token(const char token_type) const
@@ -273,15 +273,15 @@ struct Scope {
 
         /* Regular token. */
         if (curr_search_token == token_type) {
-          match[i] = Token(data, cursor++);
+          match[i] = Token(*data, cursor++);
         }
         else if (curr_search_token == '?' && next_search_token != '?') {
           /* We just matched an optional token in previous iteration. Continue scanning. */
-          match[i] = Token(data, -1);
+          match[i] = Token(*data, -1);
         }
         else if (!is_last_token && curr_search_token != '?' && next_search_token == '?') {
           /* This was an optional token. Continue scanning. */
-          match[i] = Token(data, -1);
+          match[i] = Token(*data, -1);
           i++;
           continue;
         }
@@ -350,7 +350,7 @@ struct Scope {
     size_t offset = index_range.start;
     for (const char c : view.substr(index_range.start, index_range.size)) {
       if (token_type == TokenType(c)) {
-        callback(Token(data, offset));
+        callback(Token(*data, offset));
       }
       offset++;
     }
