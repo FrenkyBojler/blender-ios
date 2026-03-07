@@ -1132,7 +1132,11 @@ bool BVHMetal::build_BLAS(Progress &progress,
       return build_BLAS_hair(progress, mtl_device, queue, geom, refit);
     case Geometry::POINTCLOUD:
       return build_BLAS_pointcloud(progress, mtl_device, queue, geom, refit);
-    case Geometry::LIGHT:
+    case Geometry::POINT_LIGHT:
+    case Geometry::SPOT_LIGHT:
+    case Geometry::AREA_LIGHT:
+    case Geometry::DISTANT_LIGHT:
+    case Geometry::BACKGROUND_LIGHT:
       return build_BLAS_light(progress, mtl_device, queue, geom, refit);
     default:
       return false;
