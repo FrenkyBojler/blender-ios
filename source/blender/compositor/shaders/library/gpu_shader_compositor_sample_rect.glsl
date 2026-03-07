@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "gpu_shader_math_vector_lib.glsl"
+#include "gpu_shader_compat.hh"
 
 enum Sampler : uchar { Nearest, Bilinear, Box, Bspline, Anisotropic };
 
