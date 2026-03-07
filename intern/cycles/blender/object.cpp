@@ -92,7 +92,7 @@ bool BlenderSync::object_can_have_geometry(blender::Object &b_ob)
     case blender::OB_CURVES:
     case blender::OB_POINTCLOUD:
     case blender::OB_VOLUME:
-      /* TODO(weizhen): OB_LAMP */
+    case blender::OB_LAMP:
       return true;
     default:
       return false;

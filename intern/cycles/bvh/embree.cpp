@@ -977,9 +977,10 @@ RTCGeometry BVHEmbree::set_light_geometry_data(Object *ob, const Light *light, c
     }
   }
   else {
-    /* Distant lights are not supposed to be in the BVH. */
-    /* TODO(weizhen): check `distant_light_intersect`, maybe we do need to add distant light in the
-     * bvh? */
+    /* Non-traceable lights (DistantLight, BackgroundLight) are never added to the BVH:
+     * add_reference_geometry() checks light->need_bvh() before calling add_light(), and
+     * need_bvh() returns false for these types since is_traceable() is false for them.
+     * This branch is therefore unreachable; keep the assert as a safety net. */
     assert(false);
     geom = rtcNewGeometry(rtc_device, RTC_GEOMETRY_TYPE_SPHERE_POINT);
   }

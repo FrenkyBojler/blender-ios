@@ -980,9 +980,8 @@ bool BVHMetal::build_BLAS_light(Progress &progress,
                                 Geometry *const geom,
                                 bool refit)
 {
-  /* TODO(weizhen): mostly copied from point cloud, needs closer check. */
   if (@available(macos 12.0, *)) {
-    /* Build BLAS for point cloud */
+    /* Build BLAS for light */
     const Light *light = static_cast<const Light *>(geom);
     if (!light->need_bvh()) {
       return false;

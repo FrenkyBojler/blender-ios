@@ -526,11 +526,9 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
     group_descs[PG_HITD_LIGHT].kind = OPTIX_PROGRAM_GROUP_KIND_HITGROUP;
     group_descs[PG_HITD_LIGHT].hitgroup.moduleIS = optix_module;
     group_descs[PG_HITD_LIGHT].hitgroup.entryFunctionNameIS = "__intersection__light";
-    /* TODO(weizhen): shadow linking? maybe PG_HITS_LIGHT can use ignore_desc too. */
-    group_descs[PG_HITS_LIGHT] = group_descs[PG_HITS];
-    group_descs[PG_HITS_LIGHT].kind = OPTIX_PROGRAM_GROUP_KIND_HITGROUP;
-    group_descs[PG_HITS_LIGHT].hitgroup.moduleIS = optix_module;
-    group_descs[PG_HITS_LIGHT].hitgroup.entryFunctionNameIS = "__intersection__light";
+    /* Shadow rays are not blocked by lights. When shadow linking is implemented,
+     * this may need a dedicated intersection function instead of ignore_desc. */
+    group_descs[PG_HITS_LIGHT] = ignore_desc;
     group_descs[PG_HITV_LIGHT] = ignore_desc;
     group_descs[PG_HITL_LIGHT] = ignore_desc;
   }
