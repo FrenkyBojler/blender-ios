@@ -79,7 +79,12 @@ class Geometry : public Node {
     HAIR,
     VOLUME,
     POINTCLOUD,
-    LIGHT,
+    /* Light types - these must remain grouped at the end; is_light() relies on this ordering. */
+    POINT_LIGHT,
+    SPOT_LIGHT,
+    AREA_LIGHT,
+    DISTANT_LIGHT,
+    BACKGROUND_LIGHT,
   };
 
   Type geometry_type;
@@ -192,7 +197,12 @@ class Geometry : public Node {
 
   bool is_light() const
   {
-    return geometry_type == LIGHT;
+    return geometry_type >= POINT_LIGHT;
+  }
+
+  static bool is_light_type(Type type)
+  {
+    return type >= POINT_LIGHT;
   }
 
   /* Updates */

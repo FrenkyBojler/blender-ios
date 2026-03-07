@@ -215,7 +215,7 @@ LightTreeEmitter::LightTreeEmitter(const Scene *scene,
     }
     else if (lamp->is_sun_light()) {
       measure.bcone.theta_o = 0;
-      measure.bcone.theta_e = 0.5f * static_cast<const SunLight *>(lamp)->get_angle();
+      measure.bcone.theta_e = 0.5f * static_cast<const DistantLight *>(lamp)->get_angle();
 
       centroid = measure.bcone.axis;
     }

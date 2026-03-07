@@ -860,9 +860,9 @@ template<> AreaLight *Scene::create_node<AreaLight>()
   return create_light_node<AreaLight>();
 }
 
-template<> SunLight *Scene::create_node<SunLight>()
+template<> DistantLight *Scene::create_node<DistantLight>()
 {
-  return create_light_node<SunLight>();
+  return create_light_node<DistantLight>();
 }
 
 template<> BackgroundLight *Scene::create_node<BackgroundLight>()

@@ -109,13 +109,9 @@ NODE_ABSTRACT_DEFINE(Light)
   return type;
 }
 
-// Light::Light() : Geometry(get_node_base_type(), Geometry::LIGHT)
-// {
-/* TODO(weizhen): why is this not in destructor? */
-// dereference_all_used_nodes();
-// }
-
-Light::Light(const NodeType *node_type) : Geometry(node_type, Geometry::LIGHT) {}
+Light::Light(const NodeType *node_type, Geometry::Type geom_type) : Geometry(node_type, geom_type)
+{
+}
 
 NODE_DEFINE(PointLight)
 {
@@ -128,7 +124,7 @@ NODE_DEFINE(PointLight)
   return type;
 }
 
-PointLight::PointLight() : Light(get_node_type())
+PointLight::PointLight() : Light(get_node_type(), Geometry::POINT_LIGHT)
 {
   light_type = LIGHT_POINT;
 }
@@ -217,7 +213,7 @@ NODE_DEFINE(SpotLight)
   return type;
 }
 
-SpotLight::SpotLight() : PointLight(get_node_type())
+SpotLight::SpotLight() : PointLight(get_node_type(), Geometry::SPOT_LIGHT)
 {
   light_type = LIGHT_SPOT;
 }
@@ -257,7 +253,7 @@ NODE_DEFINE(AreaLight)
   return type;
 }
 
-AreaLight::AreaLight() : Light(get_node_type())
+AreaLight::AreaLight() : Light(get_node_type(), Geometry::AREA_LIGHT)
 {
   light_type = LIGHT_AREA;
 }
@@ -377,42 +373,45 @@ void AreaLight::adjust_tfm(Object *object, KernelObject *kobject, KernelLight * 
   transform_prescale(kobject->itfm, reciprocal(size));
 }
 
-NODE_DEFINE(SunLight)
+NODE_DEFINE(DistantLight)
 {
-  NodeType *type = NodeType::add("sunlight", create, NodeType::NONE, Light::get_node_base_type());
+  NodeType *type = NodeType::add(
+      "distantlight", create, NodeType::NONE, Light::get_node_base_type());
 
   SOCKET_FLOAT(angle, "Angle", 0.0f);
 
   return type;
 }
 
-SunLight::SunLight() : Light(get_node_type())
+DistantLight::DistantLight() : Light(get_node_type(), Geometry::DISTANT_LIGHT)
 {
   light_type = LIGHT_DISTANT;
 }
 
-void SunLight::compute_bounds()
+void DistantLight::compute_bounds()
 {
   bounds = BoundBox::empty;
 };
 
-BoundBox SunLight::compute_bounds(const Transform * /*tfm*/) const
+BoundBox DistantLight::compute_bounds(const Transform * /*tfm*/) const
 {
   return BoundBox::empty;
 };
 
-BoundBox SunLight::get_unit_bounds() const
+BoundBox DistantLight::get_unit_bounds() const
 {
   return BoundBox::empty;
 }
 
-float SunLight::area(const Transform & /*tfm*/) const
+float DistantLight::area(const Transform & /*tfm*/) const
 {
   /* Sun disk area. */
   return (angle > 0.0f) ? M_PI_F * sqr(sinf(angle * 0.5f)) : 1.0f;
 }
 
-void SunLight::copy_to_kernel(KernelLight *klight, const Scene *scene, const Object *object) const
+void DistantLight::copy_to_kernel(KernelLight *klight,
+                                  const Scene *scene,
+                                  const Object *object) const
 {
   uint shader_flags = 0;
   const float half_angle = angle / 2.0f;
@@ -434,7 +433,7 @@ void SunLight::copy_to_kernel(KernelLight *klight, const Scene *scene, const Obj
   Light::copy_to_kernel(klight, scene, object, shader_flags);
 }
 
-void SunLight::pack(KernelLightGeom *light, const Scene *scene) const
+void DistantLight::pack(KernelLightGeom *light, const Scene *scene) const
 {
   light->type = light_type;
   light->shader_id = get_shader_id(scene);
@@ -453,7 +452,7 @@ NODE_DEFINE(BackgroundLight)
   return type;
 }
 
-BackgroundLight::BackgroundLight() : Light(get_node_type())
+BackgroundLight::BackgroundLight() : Light(get_node_type(), Geometry::BACKGROUND_LIGHT)
 {
   light_type = LIGHT_BACKGROUND;
 }

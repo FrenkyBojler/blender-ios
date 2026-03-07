@@ -22,7 +22,7 @@ Geometry *BlenderSync::create_light(BObjectInfo &b_ob_info)
     case blender::LA_SPOT:
       return scene->create_light_node<SpotLight>();
     case blender::LA_SUN:
-      return scene->create_light_node<SunLight>();
+      return scene->create_light_node<DistantLight>();
     case blender::LA_AREA:
       return scene->create_light_node<AreaLight>();
     default:
@@ -55,8 +55,8 @@ void BlenderSync::sync_light(BObjectInfo &b_ob_info, Light *light)
     area_light->set_ellipse(b_light.area_shape == blender::LA_AREA_DISK ||
                             b_light.area_shape == blender::LA_AREA_ELLIPSE);
   }
-  else if (SunLight *sun_light = dynamic_cast<SunLight *>(light)) {
-    sun_light->set_angle(b_light.sun_angle);
+  else if (DistantLight *distant_light = dynamic_cast<DistantLight *>(light)) {
+    distant_light->set_angle(b_light.sun_angle);
   }
   if (SpotLight *spot_light = dynamic_cast<SpotLight *>(light)) {
     spot_light->set_angle(b_light.spotsize);
@@ -124,7 +124,7 @@ void BlenderSync::sync_background_light(blender::bScreen *b_screen, blender::Vie
     object->set_asset_name(ustring(b_world->id.name + 2));
 
     /* Create geometry. */
-    const GeometryKey geom_key{b_world, Geometry::LIGHT};
+    const GeometryKey geom_key{b_world, Geometry::BACKGROUND_LIGHT};
     Geometry *geom = geometry_map.find(geom_key);
     if (geom) {
       update |= geometry_map.update(geom, &b_world->id);

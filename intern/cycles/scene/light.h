@@ -29,8 +29,7 @@ class Light : public Geometry {
  public:
   NODE_ABSTRACT_DECLARE;
 
-  // Light();
-  Light(const NodeType *node_type);
+  Light(const NodeType *node_type, Geometry::Type geom_type);
 
   NODE_SOCKET_API(LightType, light_type)
   NODE_SOCKET_API(float3, strength)
@@ -101,7 +100,7 @@ class PointLight : public Light {
   NODE_DECLARE;
 
   PointLight();
-  PointLight(const NodeType *node_type) : Light(node_type) {};
+  PointLight(const NodeType *node_type, Geometry::Type geom_type) : Light(node_type, geom_type) {};
 
   void compute_bounds() override;
   BoundBox compute_bounds(const Transform *tfm) const override;
@@ -156,9 +155,6 @@ class AreaLight : public Light {
   void pack(KernelLightGeom *light, const Scene *scene) const override;
   void adjust_tfm(Object *object, KernelObject *kobject, KernelLight *klight) const override;
 
-  /* TODO(weizhen): I removed `size` become it's always set to 1 in `blender/light.cpp`, but will
-   * external applications set it differently? */
-
   NODE_SOCKET_API(float, sizeu)
   NODE_SOCKET_API(float, sizev)
   NODE_SOCKET_API(bool, ellipse)
@@ -166,11 +162,11 @@ class AreaLight : public Light {
   NODE_SOCKET_API(bool, is_portal)
 };
 
-class SunLight : public Light {
+class DistantLight : public Light {
  public:
   NODE_DECLARE;
 
-  SunLight();
+  DistantLight();
 
   float area(const Transform &tfm) const override;
   void copy_to_kernel(KernelLight *klight,

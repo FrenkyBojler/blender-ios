@@ -16,6 +16,7 @@
 #include "util/task.h"
 
 #include "BKE_material.hh"
+#include "DNA_light_types.h"
 #include "DNA_material_types.h"
 
 CCL_NAMESPACE_BEGIN
@@ -23,7 +24,19 @@ CCL_NAMESPACE_BEGIN
 static Geometry::Type determine_geom_type(BObjectInfo &b_ob_info, bool use_particle_hair)
 {
   if (GS(b_ob_info.object_data->name) == blender::ID_LA) {
-    return Geometry::LIGHT;
+    /* Use per-light-type geometry enum so that changing light type forces re-creation. */
+    const blender::Light &b_light = *blender::id_cast<blender::Light *>(b_ob_info.object_data);
+    switch (b_light.type) {
+      case blender::LA_SPOT:
+        return Geometry::SPOT_LIGHT;
+      case blender::LA_SUN:
+        return Geometry::DISTANT_LIGHT;
+      case blender::LA_AREA:
+        return Geometry::AREA_LIGHT;
+      case blender::LA_LOCAL:
+      default:
+        return Geometry::POINT_LIGHT;
+    }
   }
 
   if (GS(b_ob_info.object_data->name) == blender::ID_CV || use_particle_hair) {
@@ -108,8 +121,7 @@ Geometry *BlenderSync::sync_geometry(BObjectInfo &b_ob_info,
   bool sync = true;
   if (geom == nullptr) {
     /* Add new geometry if it did not exist yet. */
-    /* TODO(weizhen): tag update when light type changes */
-    if (geom_type == Geometry::LIGHT) {
+    if (Geometry::is_light_type(geom_type)) {
       geom = create_light(b_ob_info);
     }
     else if (geom_type == Geometry::HAIR) {
@@ -173,7 +185,7 @@ Geometry *BlenderSync::sync_geometry(BObjectInfo &b_ob_info,
 
     progress.set_sync_status("Synchronizing object", BKE_id_name(b_ob_info.real_object->id));
 
-    if (geom_type == Geometry::LIGHT) {
+    if (Geometry::is_light_type(geom_type)) {
       Light *light = static_cast<Light *>(geom);
       sync_light(b_ob_info, light);
     }

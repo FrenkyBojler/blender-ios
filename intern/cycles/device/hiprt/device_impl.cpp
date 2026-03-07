@@ -849,7 +849,11 @@ void HIPRTDevice::build_blas(BVHHIPRT *bvh, Geometry *geom, hiprtBuildOptions op
       break;
     }
 
-    case Geometry::LIGHT: {
+    case Geometry::POINT_LIGHT:
+    case Geometry::SPOT_LIGHT:
+    case Geometry::AREA_LIGHT:
+    case Geometry::DISTANT_LIGHT:
+    case Geometry::BACKGROUND_LIGHT: {
       Light *light = static_cast<Light *>(geom);
       if (!light->need_bvh()) {
         return;

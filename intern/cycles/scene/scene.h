@@ -30,7 +30,7 @@ class Integrator;
 class PointLight;
 class SpotLight;
 class AreaLight;
-class SunLight;
+class DistantLight;
 class BackgroundLight;
 class Light;
 class LightManager;
@@ -274,7 +274,7 @@ class Scene : public NodeOwner {
 template<> PointLight *Scene::create_node<PointLight>();
 template<> SpotLight *Scene::create_node<SpotLight>();
 template<> AreaLight *Scene::create_node<AreaLight>();
-template<> SunLight *Scene::create_node<SunLight>();
+template<> DistantLight *Scene::create_node<DistantLight>();
 template<> BackgroundLight *Scene::create_node<BackgroundLight>();
 template<> Mesh *Scene::create_node<Mesh>();
 template<> Object *Scene::create_node<Object>();

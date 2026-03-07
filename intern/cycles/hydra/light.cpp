@@ -119,7 +119,7 @@ void HdCyclesLight::Sync(HdSceneDelegate *sceneDelegate,
     if (_lightType == HdPrimTypeTokens->distantLight) {
       value = sceneDelegate->GetLightParamValue(id, HdLightTokens->angle);
       if (!value.IsEmpty()) {
-        static_cast<SunLight *>(_light)->set_angle(GfDegreesToRadians(value.Get<float>()));
+        static_cast<DistantLight *>(_light)->set_angle(GfDegreesToRadians(value.Get<float>()));
       }
     }
     else if (_lightType == HdPrimTypeTokens->diskLight) {
@@ -385,7 +385,7 @@ void HdCyclesLight::Initialize(HdRenderParam *renderParam)
     _light = lock.scene->create_node<BackgroundLight>();
   }
   else if (_lightType == HdPrimTypeTokens->distantLight) {
-    _light = lock.scene->create_node<SunLight>();
+    _light = lock.scene->create_node<DistantLight>();
   }
   else if (_lightType == HdPrimTypeTokens->diskLight) {
     _light = lock.scene->create_node<AreaLight>();
