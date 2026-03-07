@@ -110,8 +110,10 @@ struct Token : lexit::Token {
 
   std::string_view str() const
   {
-    std::string_view str = str_with_whitespace();
-    return str.substr(0, str.find_last_not_of(" \n") + 1);
+    if (is_invalid()) {
+      return "";
+    }
+    return static_cast<const lexit::Token *>(this)->str();
   }
 
   /* Return the line number this token is found at. Take into account the #line directives.
