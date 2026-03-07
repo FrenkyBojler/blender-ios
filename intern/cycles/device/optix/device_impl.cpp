@@ -1748,7 +1748,6 @@ void OptiXDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
     }
 
     /* Build bottom level acceleration structures (BLAS). */
-    /* TODO(weizhen): check if this should be const Geometry*. */
     Geometry *const geom = bvh->geometry[0];
     if (geom->is_hair()) {
       build_BLAS_hair(geom, bvh_optix, operation, progress);

@@ -486,7 +486,6 @@ void Object::set_tfm(Transform tfm)
 
 bool Object::tfm_equals(Transform tfm)
 {
-  /* TODO(weizhen): adjust for lights. */
   adjust_volume_tfm(tfm);
   return tfm == get_tfm();
 }
@@ -1103,8 +1102,6 @@ void ObjectManager::device_free(Device * /*unused*/, DeviceScene *dscene, bool f
 
 void ObjectManager::apply_static_transforms(DeviceScene *dscene, Scene *scene, Progress &progress)
 {
-  /* TODO(weizhen): test light. */
-
   /* todo: normals and displacement should be done before applying transform! */
   /* todo: create objects/geometry in right order! */
 

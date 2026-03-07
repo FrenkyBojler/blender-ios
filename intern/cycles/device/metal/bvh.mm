@@ -22,6 +22,13 @@
 
 CCL_NAMESPACE_BEGIN
 
+/* Intersection function table offsets for each geometry type.
+ * Must match the order of intersection shaders in the Metal pipeline. */
+static constexpr int IFT_OFFSET_TRIANGLES = 0;
+static constexpr int IFT_OFFSET_CURVES = 1;
+static constexpr int IFT_OFFSET_POINTCLOUD = 2;
+static constexpr int IFT_OFFSET_LIGHTS = 3;
+
 #  define BVH_status(...) \
     { \
       string str = string_printf(__VA_ARGS__); \
@@ -249,7 +256,7 @@ bool BVHMetal::build_BLAS_mesh(Progress &progress,
       geomDescMotion.indexBufferOffset = 0;
       geomDescMotion.indexType = MTLIndexTypeUInt32;
       geomDescMotion.triangleCount = num_indices / 3;
-      geomDescMotion.intersectionFunctionTableOffset = 0;
+      geomDescMotion.intersectionFunctionTableOffset = IFT_OFFSET_TRIANGLES;
       geomDescMotion.opaque = true;
 
       geomDesc = geomDescMotion;
@@ -269,7 +276,7 @@ bool BVHMetal::build_BLAS_mesh(Progress &progress,
       geomDescNoMotion.indexBufferOffset = 0;
       geomDescNoMotion.indexType = MTLIndexTypeUInt32;
       geomDescNoMotion.triangleCount = num_indices / 3;
-      geomDescNoMotion.intersectionFunctionTableOffset = 0;
+      geomDescNoMotion.intersectionFunctionTableOffset = IFT_OFFSET_TRIANGLES;
       geomDescNoMotion.opaque = true;
 
       geomDesc = geomDescNoMotion;
@@ -527,7 +534,7 @@ bool BVHMetal::build_BLAS_hair(Progress &progress,
       }
       geomDescCrv.indexType = MTLIndexTypeUInt32;
       geomDescCrv.indexBuffer = idxBuffer;
-      geomDescCrv.intersectionFunctionTableOffset = 1;
+      geomDescCrv.intersectionFunctionTableOffset = IFT_OFFSET_CURVES;
 
       /* Force a single any-hit call, so shadow record-all behavior works correctly */
       /* (Match optix behavior: unsigned int build_flags =
@@ -606,7 +613,7 @@ bool BVHMetal::build_BLAS_hair(Progress &progress,
       }
       geomDescCrv.indexType = MTLIndexTypeUInt32;
       geomDescCrv.indexBuffer = idxBuffer;
-      geomDescCrv.intersectionFunctionTableOffset = 1;
+      geomDescCrv.intersectionFunctionTableOffset = IFT_OFFSET_CURVES;
 
       /* Force a single any-hit call, so shadow record-all behavior works correctly */
       /* (Match optix behavior: unsigned int build_flags =
@@ -824,7 +831,7 @@ bool BVHMetal::build_BLAS_pointcloud(Progress &progress,
                                                               count:aabb_ptrs.size()];
       geomDescMotion.boundingBoxCount = num_points;
       geomDescMotion.boundingBoxStride = sizeof(aabb_data[0]);
-      geomDescMotion.intersectionFunctionTableOffset = 2;
+      geomDescMotion.intersectionFunctionTableOffset = IFT_OFFSET_POINTCLOUD;
 
       /* Force a single any-hit call, so shadow record-all behavior works correctly */
       /* (Match optix behavior: unsigned int build_flags =
@@ -840,7 +847,7 @@ bool BVHMetal::build_BLAS_pointcloud(Progress &progress,
       geomDescNoMotion.boundingBoxBufferOffset = 0;
       geomDescNoMotion.boundingBoxCount = int(num_aabbs);
       geomDescNoMotion.boundingBoxStride = sizeof(aabb_data[0]);
-      geomDescNoMotion.intersectionFunctionTableOffset = 2;
+      geomDescNoMotion.intersectionFunctionTableOffset = IFT_OFFSET_POINTCLOUD;
 
       /* Force a single any-hit call, so shadow record-all behavior works correctly */
       /* (Match optix behavior: unsigned int build_flags =
@@ -1003,8 +1010,7 @@ bool BVHMetal::build_BLAS_light(Progress &progress,
     geomDescNoMotion.boundingBoxBufferOffset = 0;
     geomDescNoMotion.boundingBoxCount = int(num_aabbs);
     geomDescNoMotion.boundingBoxStride = sizeof(aabb_data[0]);
-    /* TODO(weizhen): define global const? */
-    geomDescNoMotion.intersectionFunctionTableOffset = 3;
+    geomDescNoMotion.intersectionFunctionTableOffset = IFT_OFFSET_LIGHTS;
 
     /* Force a single any-hit call, so shadow record-all behavior works correctly */
     /* (Match optix behavior: unsigned int build_flags =
@@ -1197,7 +1203,7 @@ bool BVHMetal::build_TLAS(Progress &progress,
       geomDesc.indexBufferOffset = 0;
       geomDesc.indexType = MTLIndexTypeUInt32;
       geomDesc.triangleCount = 0;
-      geomDesc.intersectionFunctionTableOffset = 0;
+      geomDesc.intersectionFunctionTableOffset = IFT_OFFSET_TRIANGLES;
       geomDesc.opaque = true;
       geomDesc.allowDuplicateIntersectionFunctionInvocation = false;
 
