@@ -278,13 +278,13 @@ class FILEBROWSER_PT_menus(FileBrowserPanel, Panel):
         row.scale_y = 1.3
 
         sub = row.row(align=True)
-        sub.operator("file.thumbnail_size", text="View")
+        sub.operator("file.thumbnail_size", text="", icon='HIDE_OFF')
         sub.menu("FILEBROWSER_MT_view", text="", icon='DOWNARROW_HLT')
 
         row.separator()
 
         sub = row.row(align=True)
-        sub.operator("file.select_all", text="Select").action = 'TOGGLE'
+        sub.operator("file.select_all", text="", icon='RESTRICT_SELECT_OFF').action = 'TOGGLE'
         sub.menu("FILEBROWSER_MT_select", text="", icon='DOWNARROW_HLT')
 
 
