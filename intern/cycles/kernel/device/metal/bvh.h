@@ -241,22 +241,24 @@ ccl_device_intersect bool scene_intersect(KernelGlobals kg,
     }
   }
 #endif /* __HAIR__ */
-#ifdef __POINTCLOUD__
-  else if (kernel_data.bvh.have_points && intersection.type == intersection_type::bounding_box) {
+  else if ((kernel_data.bvh.have_points || kernel_data.bvh.have_lights) &&
+           intersection.type == intersection_type::bounding_box)
+  {
     const int object = intersection.instance_id;
     const uint prim = intersection.primitive_id + intersection.user_instance_id;
     const int prim_type = kernel_data_fetch(objects, object).primitive_type;
 
-    if (!(kernel_data_fetch(object_flag, object) & SD_OBJECT_TRANSFORM_APPLIED)) {
-      float3 idir;
-#  if defined(__METALRT_MOTION__)
-      bvh_instance_motion_push(nullptr, object, ray, &r.origin, &r.direction, &idir);
-#  else
-      bvh_instance_push(nullptr, object, ray, &r.origin, &r.direction, &idir);
-#  endif
-    }
-
+#ifdef __POINTCLOUD__
     if (prim_type & PRIMITIVE_POINT) {
+      if (!(kernel_data_fetch(object_flag, object) & SD_OBJECT_TRANSFORM_APPLIED)) {
+        float3 idir;
+#  if defined(__METALRT_MOTION__)
+        bvh_instance_motion_push(nullptr, object, ray, &r.origin, &r.direction, &idir);
+#  else
+        bvh_instance_push(nullptr, object, ray, &r.origin, &r.direction, &idir);
+#  endif
+      }
+
       if (!point_intersect(nullptr,
                            isect,
                            r.origin,
@@ -276,13 +278,13 @@ ccl_device_intersect bool scene_intersect(KernelGlobals kg,
       }
       return true;
     }
-  }
-  else if (kernel_data.bvh.have_lights && intersection.type == intersection_type::bounding_box) {
-    isect->prim = intersection.primitive_id;
-    isect->type = PRIMITIVE_LAMP;
-    return true;
-  }
 #endif /* __POINTCLOUD__ */
+    if (prim_type & PRIMITIVE_LAMP) {
+      isect->prim = prim;
+      isect->type = PRIMITIVE_LAMP;
+      return true;
+    }
+  }
 
   return true;
 }
