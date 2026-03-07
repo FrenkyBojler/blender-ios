@@ -101,7 +101,24 @@ class FILEBROWSER_PT_view(FileBrowserPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        layout.menu_contents("FILEBROWSER_MT_view")
+        st = context.space_data
+        params = st.params
+
+        layout.prop(st, "show_region_toolbar", text="Source List")
+        layout.prop(st, "show_region_ui", text="File Path")
+
+        row = layout.row()
+        row.label(text="Numpad .")
+        row.operator("file.view_selected")
+
+        layout.separator()
+
+        layout.prop_menu_enum(params, "display_size_discrete")
+        layout.prop_menu_enum(params, "recursion_level")
+
+        layout.separator()
+
+        layout.menu("INFO_MT_area")
 
 
 class FILEBROWSER_PT_select(FileBrowserPanel, Panel):
