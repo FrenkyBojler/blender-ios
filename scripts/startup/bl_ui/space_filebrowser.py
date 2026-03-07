@@ -94,6 +94,47 @@ class FileBrowserPanel:
         return space_data and space_data.type == 'FILE_BROWSER' and space_data.browse_mode == 'FILES'
 
 
+class FILEBROWSER_PT_view(FileBrowserPanel, Panel):
+    bl_region_type = 'HEADER'
+    bl_label = "View"  
+    bl_ui_units_x = 10
+
+    def draw(self, context):
+        layout = self.layout
+        st = context.space_data
+        params = st.params
+
+        layout.prop(st, "show_region_toolbar", text="Source List")
+        layout.prop(st, "show_region_ui", text="File Path")
+        layout.operator("file.view_selected")
+
+        layout.separator()
+
+        layout.prop_menu_enum(params, "display_size_discrete")
+        layout.prop_menu_enum(params, "recursion_level")
+
+        layout.separator()
+
+        layout.menu("INFO_MT_area")
+
+
+class FILEBROWSER_PT_select(FileBrowserPanel, Panel):
+    bl_region_type = 'HEADER'
+    bl_label = "Select"  
+    bl_ui_units_x = 10
+
+    def draw(self, _context):
+        layout = self.layout
+
+        layout.operator("file.select_all", text="All").action = 'SELECT'
+        layout.operator("file.select_all", text="None").action = 'DESELECT'
+        layout.operator("file.select_all", text="Invert").action = 'INVERT'
+
+        layout.separator()
+
+        layout.operator("file.select_box")
+
+
 class FILEBROWSER_PT_display(FileBrowserPanel, Panel):
     bl_region_type = 'HEADER'
     bl_label = "Display Settings"  # Shows as tooltip in popover
@@ -482,11 +523,11 @@ class FILEBROWSER_PT_directory_path(Panel):
         if space.active_operator:
             subsubrow = subrow.row(align=True)
             subsubrow.operator("file.thumbnail_size", text="", icon='HIDE_OFF')
-            subsubrow.menu("FILEBROWSER_MT_view", text="", icon='DOWNARROW_HLT')
+            subsubrow.popover("FILEBROWSER_PT_view", text="")
 
             subsubrow = subrow.row(align=True)
             subsubrow.operator("file.select_all", text="", icon='RESTRICT_SELECT_OFF').action = 'TOGGLE'
-            subsubrow.menu("FILEBROWSER_MT_select", text="", icon='DOWNARROW_HLT')
+            subsubrow.popover("FILEBROWSER_PT_select", text="")
 
         subsubrow = subrow.row(align=True)
         subsubrow.prop(params, "display_type", expand=True, icon_only=True)
@@ -922,6 +963,8 @@ class ASSETBROWSER_MT_context_menu(AssetBrowserMenu, Menu):
 classes = (
     FILEBROWSER_HT_header,
     FILEBROWSER_OT_thumbnail_size,
+    FILEBROWSER_PT_view,
+    FILEBROWSER_PT_select,
     FILEBROWSER_PT_display,
     FILEBROWSER_PT_filter,
     FILEBROWSER_UL_dir,
