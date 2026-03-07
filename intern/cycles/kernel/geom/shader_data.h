@@ -16,6 +16,8 @@
 #include "kernel/geom/point_intersect.h"
 #include "kernel/geom/triangle_intersect.h"
 
+#include "kernel/light/light.h"
+
 #include "kernel/util/differential.h"
 
 CCL_NAMESPACE_BEGIN
@@ -84,6 +86,14 @@ ccl_device_inline void shader_setup_from_ray(KernelGlobals kg,
     if (sd->type == PRIMITIVE_TRIANGLE) {
       /* static triangle */
       triangle_shader_setup(kg, sd);
+    }
+    else if (sd->type == PRIMITIVE_LAMP) {
+      /* lamp */
+      float2 uv = zero_float2();
+      light_normal_uv_from_position(kg, sd->object, sd->P, -sd->wi, sd->N, uv);
+      sd->Ng = sd->N;
+      sd->u = uv.x;
+      sd->v = uv.y;
     }
     else {
       kernel_assert(sd->type == PRIMITIVE_MOTION_TRIANGLE);

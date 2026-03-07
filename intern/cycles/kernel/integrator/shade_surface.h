@@ -74,6 +74,9 @@ ccl_device_forceinline float3 integrate_surface_ray_offset(KernelGlobals kg,
   if (sd->type == PRIMITIVE_TRIANGLE) {
     triangle_vertices(kg, sd->prim, verts);
   }
+  else if (sd->type == PRIMITIVE_LAMP) {
+    return ray_P;
+  }
   else {
     kernel_assert(sd->type == PRIMITIVE_MOTION_TRIANGLE);
     motion_triangle_vertices(kg, sd->object, sd->prim, sd->time, verts);
