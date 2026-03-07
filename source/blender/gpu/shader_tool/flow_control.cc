@@ -127,7 +127,7 @@ void SourceProcessor::lower_loop_unroll(Parser &parser)
       }
     }
     parser.insert_line_number(body.back(), body.back().line_number());
-    parser.insert_after(body.back(), indent_end + body.back().str_with_whitespace());
+    parser.insert_after(body.back(), indent_end + string(body.back().str_with_whitespace()));
   };
 
   do {
@@ -256,7 +256,7 @@ void SourceProcessor::lower_loop_unroll(Parser &parser)
       Scope init, cond, iter;
       parse_for_args(loop_args, init, cond, iter);
 
-      int iter_count = stol(tokens[9].str());
+      int iter_count = stol(string(tokens[9].str()));
 
       process_loop(tokens[0], iter_count, 0, 0, false, false, init, cond, iter, loop_body);
     });
@@ -294,7 +294,7 @@ void SourceProcessor::lower_static_branch(Parser &parser)
 
     Token before_body = body.front().prev();
 
-    string test = "SRT_CONSTANT_" + condition[5].str() + " ";
+    string test = "SRT_CONSTANT_" + string(condition[5].str()) + " ";
     if (condition[7] != condition.back().prev()) {
       test += parser.substr_range_inclusive(condition[7], condition.back().prev());
     }

@@ -83,14 +83,14 @@ void SourceProcessor::lower_enums(Parser &parser)
                           Token enum_type,
                           Scope enum_scope,
                           const bool is_host_shared) {
-    const string type_str = enum_type.str();
-    const string enum_name_str = enum_name.str();
+    const string type_str(enum_type.str());
+    const string enum_name_str(enum_name.str());
 
     string previous_value = "error_invalid_first_value";
     enum_scope.foreach_scope(ScopeType::Assignment, [&](Scope scope) {
       Token name_tok = scope.front().prev();
-      string name = name_tok.str();
-      string value = scope.str();
+      string name(name_tok.str());
+      string value(scope.str());
       if (value == placeholder_value) {
         value = "= " + previous_value + " + 1" + (enum_type.str()[0] == 'u' ? "u" : "");
       }
@@ -104,7 +104,7 @@ void SourceProcessor::lower_enums(Parser &parser)
       previous_value = name;
     });
     parser.insert_directive(enum_tok.prev(),
-                            "#define " + enum_name_str + " " + enum_type.str() + "\n");
+                            "#define " + enum_name_str + " " + string(enum_type.str()) + "\n");
     if (is_host_shared) {
       if (type_str != "uint32_t" && type_str != "int32_t") {
         report_error_(

@@ -91,15 +91,15 @@ void SourceProcessor::lower_srt_member_access(Parser &parser)
       parser.erase(var.prev());
     }
 
-    string srt_type = type.str();
-    string srt_var = var.str();
+    string srt_type(type.str());
+    string srt_var(var.str());
 
     body_scope.foreach_match("A.A", [&](const vector<Token> toks) {
       if (toks[0].str() != srt_var) {
         return;
       }
       parser.replace(
-          toks[0], toks[2], "srt_access(" + srt_type + ", " + toks[2].str() + ")", true);
+          toks[0], toks[2], "srt_access(" + srt_type + ", " + string(toks[2].str()) + ")", true);
     });
   };
 
@@ -144,7 +144,7 @@ void SourceProcessor::lower_srt_arguments(Parser &parser)
       if (tokens[2].str() != "resource_table") {
         return;
       }
-      condition += " && defined(CREATE_INFO_" + tokens[7].str() + ")";
+      condition += " && defined(CREATE_INFO_" + string(tokens[7].str()) + ")";
       parser.replace(tokens[0].scope(), "");
     });
 
@@ -165,7 +165,7 @@ void SourceProcessor::lower_resource_access_functions(Parser &parser)
   /* Legacy access macros. */
   parser().foreach_function([&](bool, Token fn_type, Token, Scope, bool, Scope fn_body) {
     fn_body.foreach_match("A(A,", [&](const vector<Token> &tokens) {
-      string func_name = tokens[0].str();
+      string_view func_name = tokens[0].str();
       if (func_name != "specialization_constant_get" && func_name != "shared_variable_get" &&
           func_name != "push_constant_get" && func_name != "interface_get" &&
           func_name != "attribute_get" && func_name != "buffer_get" &&
@@ -173,7 +173,7 @@ void SourceProcessor::lower_resource_access_functions(Parser &parser)
       {
         return;
       }
-      string info_name = tokens[2].str();
+      string info_name(tokens[2].str());
       Scope scope = tokens[0].scope();
       /* We can be in expression scope. Take parent scope until we find a local scope. */
       while (scope.type() != ScopeType::Function && scope.type() != ScopeType::Local) {
@@ -307,9 +307,9 @@ void SourceProcessor::lower_resource_table(Parser &parser)
 
   auto parse_resource = [&](Scope attributes, Token type, Token name, Scope array) {
     metadata::ParsedResource resource{
-        type.line_number(), type.str(), name.str(), array.str_with_whitespace()};
+        type.line_number(), string(type.str()), string(name.str()), array.str_with_whitespace()};
     attributes.foreach_scope(ScopeType::Attribute, [&](const Scope &attribute) {
-      string type = attribute[0].str();
+      string_view type = attribute[0].str();
       if (type == "sampler") {
         resource.res_type = type;
         resource.res_slot = attribute[2].str();
@@ -341,11 +341,11 @@ void SourceProcessor::lower_resource_table(Parser &parser)
       }
       else if (type == "condition") {
         attribute[1].scope().foreach_token(Word, [&](const Token tok) {
-          resource.res_condition += "int " + tok.str() + " = ";
-          resource.res_condition += "ShaderCreateInfo::find_constant(constants, \"" + tok.str() +
-                                    "\"); ";
+          resource.res_condition += "int " + string(tok.str()) + " = ";
+          resource.res_condition += "ShaderCreateInfo::find_constant(constants, \"" +
+                                    string(tok.str()) + "\"); ";
         });
-        resource.res_condition += "return " + attribute[1].scope().str() + ";";
+        resource.res_condition += "return " + string(attribute[1].scope().str()) + ";";
       }
       else if (type == "frequency") {
         resource.res_frequency = attribute[2].str();
@@ -368,7 +368,7 @@ void SourceProcessor::lower_resource_table(Parser &parser)
       report_error_(ERROR_TOK(array[0]), "Array are not supported as vertex attributes");
     }
 
-    metadata::ParsedVertInput vert_in{type.line_number(), type.str(), name.str()};
+    metadata::ParsedVertInput vert_in{type.line_number(), string(type.str()), string(name.str())};
 
     if (vert_in.var_type == "float3x3" || vert_in.var_type == "float2x2" ||
         vert_in.var_type == "float4x4" || vert_in.var_type == "float3x4")
@@ -377,7 +377,7 @@ void SourceProcessor::lower_resource_table(Parser &parser)
     }
 
     attributes.foreach_scope(ScopeType::Attribute, [&](const Scope &attribute) {
-      string type = attribute[0].str();
+      string_view type = attribute[0].str();
       if (type == "attribute") {
         vert_in.slot = attribute[2].str();
       }
@@ -397,9 +397,9 @@ void SourceProcessor::lower_resource_table(Parser &parser)
         Token interpolation_mode = attributes[1];
 
         metadata::ParsedAttribute attr{type.line_number(),
-                                       type.str(),
-                                       struct_name.str() + "_" + name.str(),
-                                       interpolation_mode.str()};
+                                       string(type.str()),
+                                       string(struct_name.str()) + "_" + string(name.str()),
+                                       string(interpolation_mode.str())};
 
         if (attr.var_type == "float3x3" || attr.var_type == "float2x2" ||
             attr.var_type == "float4x4" || attr.var_type == "float3x4")
@@ -417,11 +417,12 @@ void SourceProcessor::lower_resource_table(Parser &parser)
 
   auto parse_fragment_output =
       [&](Token struct_name, Scope attributes, Token tok_type, Token name, Scope) {
-        metadata::ParsedFragOuput frag_out{
-            tok_type.line_number(), tok_type.str(), struct_name.str() + "_" + name.str()};
+        metadata::ParsedFragOuput frag_out{tok_type.line_number(),
+                                           string(tok_type.str()),
+                                           string(struct_name.str()) + "_" + string(name.str())};
 
         attributes.foreach_scope(ScopeType::Attribute, [&](const Scope &attribute) {
-          string type = attribute[0].str();
+          string_view type = attribute[0].str();
           if (type == "frag_color") {
             frag_out.slot = attribute[2].str();
           }
@@ -440,22 +441,22 @@ void SourceProcessor::lower_resource_table(Parser &parser)
       };
 
   auto is_resource_table_attribute = [](Token attr) {
-    string type = attr.str();
+    string_view type = attr.str();
     return (type == "sampler" || type == "image" || type == "uniform" || type == "storage" ||
             type == "push_constant" || type == "compilation_constant" ||
             type == "specialization_constant" || type == "legacy_info" ||
             type == "resource_table");
   };
   auto is_vertex_input_attribute = [](Token attr) {
-    string type = attr.str();
+    string_view type = attr.str();
     return (type == "attribute");
   };
   auto is_vertex_output_attribute = [](Token attr) {
-    string type = attr.str();
+    string_view type = attr.str();
     return (type == "flat" || type == "smooth" || type == "no_perspective");
   };
   auto is_fragment_output_attribute = [](Token attr) {
-    string type = attr.str();
+    string_view type = attr.str();
     return (type == "frag_color" || type == "frag_depth" || type == "frag_stencil_ref");
   };
 

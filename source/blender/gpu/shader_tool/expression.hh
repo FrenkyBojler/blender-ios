@@ -78,7 +78,7 @@ class ExpressionParser : public Parser<ExpressionLexer, NullParser> {
         /* Undefined identifier (not macro substituted). Evaluate to 0. */
         return 0;
       case Number:
-        return std::stol(t.str());
+        return std::stol(std::string(t.str()));
       case Plus:
         return +expr(unary_binding_power);
       case Minus:
@@ -86,7 +86,7 @@ class ExpressionParser : public Parser<ExpressionLexer, NullParser> {
       case Not: {
         int v = expr(unary_binding_power);
         /* Note that '!' token is of MultiTok class and can contain many unary '!'. */
-        return (t.str_view().size() & 1) ? !v : !!v;
+        return (t.str().size() & 1) ? !v : !!v;
       }
       case BitwiseNot:
         return ~expr(unary_binding_power);

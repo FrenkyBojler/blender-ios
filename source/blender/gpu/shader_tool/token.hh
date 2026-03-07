@@ -100,7 +100,7 @@ struct Token : lexit::Token {
     return (pos == std::string::npos) ? (buf_->str_.size() - 1) : (pos - 1);
   }
 
-  std::string_view str_view_with_whitespace() const
+  std::string_view str_with_whitespace() const
   {
     if (is_invalid()) {
       return "";
@@ -108,36 +108,10 @@ struct Token : lexit::Token {
     return static_cast<const lexit::Token *>(this)->str_with_whitespace();
   }
 
-  std::string str_with_whitespace() const
+  std::string_view str() const
   {
-    return std::string(str_view_with_whitespace());
-  }
-
-  std::string_view str_view() const
-  {
-    std::string_view str = str_view_with_whitespace();
+    std::string_view str = str_with_whitespace();
     return str.substr(0, str.find_last_not_of(" \n") + 1);
-  }
-
-  std::string str() const
-  {
-    return std::string(str_view());
-  }
-
-  /* Return the content without the first and last characters. */
-  std::string_view str_view_exclusive() const
-  {
-    std::string_view str = str_view();
-    if (str.length() < 2) {
-      return "";
-    }
-    return str.substr(1, str.length() - 2);
-  }
-
-  /* Return the content without the first and last characters. */
-  std::string str_exclusive() const
-  {
-    return std::string(str_view_exclusive());
   }
 
   /* Return the line number this token is found at. Take into account the #line directives.

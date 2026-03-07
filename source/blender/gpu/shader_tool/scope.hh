@@ -167,14 +167,14 @@ struct Scope {
                                          back().str_index_last() - front().str_index_start() + 1));
   }
 
-  std::string str() const
+  std::string_view str() const
   {
     if (this->is_invalid()) {
       return "";
     }
-    return std::string(
-        lex().str_.substr(front().str_index_start(),
-                          back().str_index_last_no_whitespace() - front().str_index_start() + 1));
+    return lex().str_.substr(front().str_index_start(),
+                             back().str_index_last_no_whitespace() - front().str_index_start() +
+                                 1);
   }
 
   /* Return the content without the first and last token. */

@@ -2798,13 +2798,13 @@ match([a], , int, , bar, [0], ;)
                                      Scope array,
                                      Token decl_end) {
       result += "match(";
-      result += attributes.str() + ", ";
-      result += const_tok.str() + ", ";
-      result += type.str() + ", ";
-      result += template_scope.str() + ", ";
-      result += name.str() + ", ";
-      result += array.str() + ", ";
-      result += decl_end.str() + ")\n";
+      result += string(attributes.str()) + ", ";
+      result += string(const_tok.str()) + ", ";
+      result += string(type.str()) + ", ";
+      result += string(template_scope.str()) + ", ";
+      result += string(name.str()) + ", ";
+      result += string(array.str()) + ", ";
+      result += string(decl_end.str()) + ")\n";
     });
 
     EXPECT_EQ(expect, result);
