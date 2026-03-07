@@ -949,8 +949,10 @@ void TokenBuffer::merge_complex_literals()
         lex_comment(str_, in_types, in_offsets, i, *out_type);
         break;
       default:
-        break;
+        continue;
     }
+    /* Set the correct end for the complex token that have just been lexed. */
+    *out_offset_end = in_offset_end[i];
   }
 
   assert(in_types < out_type);
