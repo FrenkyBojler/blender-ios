@@ -533,7 +533,7 @@ class FILEBROWSER_PT_directory_path(Panel):
         subrow = flow.row()
 
         subsubrow = subrow.row()
-        subsubrow.scale_x = 0.01
+        subsubrow.ui_units_x = 2
         subsubrow.prop(params, "filter_search", text="", icon='VIEWZOOM')
 
         if space.active_operator:
