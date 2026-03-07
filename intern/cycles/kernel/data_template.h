@@ -156,12 +156,10 @@ KERNEL_STRUCT_BEGIN(KernelIntegrator, integrator)
 KERNEL_STRUCT_MEMBER(integrator, int, use_direct_light)
 KERNEL_STRUCT_MEMBER(integrator, int, use_light_mis)
 KERNEL_STRUCT_MEMBER(integrator, int, use_light_tree)
-/* TODO(weizhen): in kernel num_lights is only used for distant lights, maybe delete. */
+/* Number of non-BVH lights (distant and background) in the lights array. */
 KERNEL_STRUCT_MEMBER(integrator, int, num_lights)
-/* TODO(weizhen): in kernel num_distant_lights is not used, maybe keep on CPU. */
+/* Number of distant lights, used CPU-side for the light tree. */
 KERNEL_STRUCT_MEMBER(integrator, int, num_distant_lights)
-/* TODO(weizhen): num_background_lights is not used, maybe delete. */
-KERNEL_STRUCT_MEMBER(integrator, int, num_background_lights)
 /* Portal sampling. */
 KERNEL_STRUCT_MEMBER(integrator, int, num_portals)
 KERNEL_STRUCT_MEMBER(integrator, int, portal_offset)

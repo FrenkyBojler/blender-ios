@@ -1449,7 +1449,6 @@ struct KernelDistantLight {
 struct KernelLight {
   int type;
   packed_float3 co;
-  /* TODO(weizhen): can we remove these flags? */
   int shader_id_and_flags;
   int object_id;
   float strength[3];

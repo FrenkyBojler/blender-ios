@@ -66,7 +66,6 @@ ccl_device_forceinline Intersection get_intersection()
   }
 #ifdef __HAIR__
   else if ((optixGetHitKind() & (~PRIMITIVE_MOTION)) & PRIMITIVE_CURVE) {
-    /* TODO(weizhen): check */
     /* Curve. */
     isect.u = __uint_as_float(optixGetAttribute_0());
     isect.v = __uint_as_float(optixGetAttribute_1());
@@ -240,7 +239,6 @@ extern "C" __global__ void __anyhit__kernel_optix_visibility_test()
   }
 #ifdef __HAIR__
   else if ((optixGetHitKind() & (~PRIMITIVE_MOTION)) & PRIMITIVE_CURVE) {
-    /* TODO(weizhen): check. */
     /* Curve. */
     prim = kernel_data_fetch(curve_segments, prim).prim;
   }

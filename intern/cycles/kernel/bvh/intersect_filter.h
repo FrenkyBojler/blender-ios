@@ -230,8 +230,6 @@ ccl_device_forceinline bool bvh_shadow_all_anyhit_filter(
   }
 #  endif
 
-  /* TODO(weizhen): check if PRIMITIVE_LAMP is correctly handled. */
-
   /* If the filter function only handles curves, it is known for the fact that nothing is to be
    * recorded: curves accumulated baked transparency. Skip this code for a curve-only case. */
   if constexpr ((enabled_primitive_types & (PRIMITIVE_ALL & ~PRIMITIVE_CURVE)) != 0) {

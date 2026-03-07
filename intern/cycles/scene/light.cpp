@@ -1513,7 +1513,6 @@ void LightManager::count_lights(KernelIntegrator *kintegrator, const Scene *scen
 {
   size_t num_lights = 0;
   size_t num_portals = 0;
-  size_t num_background_lights = 0;
   size_t num_distant_lights = 0;
 
   for (const Object *object : scene->objects) {
@@ -1525,7 +1524,6 @@ void LightManager::count_lights(KernelIntegrator *kintegrator, const Scene *scen
     if (light->is_enabled) {
       num_lights++;
       num_distant_lights += light->is_distant_light();
-      num_background_lights += light->is_background_light();
     }
     num_portals += light->is_portal();
   }
@@ -1533,7 +1531,6 @@ void LightManager::count_lights(KernelIntegrator *kintegrator, const Scene *scen
   /* Update integrator settings. */
   kintegrator->num_lights = num_lights;
   kintegrator->num_distant_lights = num_distant_lights;
-  kintegrator->num_background_lights = num_background_lights;
   kintegrator->num_portals = num_portals;
   kintegrator->portal_offset = num_lights;
 }

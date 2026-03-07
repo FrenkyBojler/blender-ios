@@ -351,10 +351,9 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
     pipeline_options.usesPrimitiveTypeFlags |= OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_LINEAR |
                                                OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_CATMULLROM;
   }
-  /* TODO(weizhen): light always use custom. maybe add a flag? */
-  // if (kernel_features & (KERNEL_FEATURE_HAIR_RIBBON | KERNEL_FEATURE_POINTCLOUD)) {
+  /* Lights use custom AABB intersection, so always enable custom primitive type.
+   * Hair ribbons and point clouds also use custom primitives. */
   pipeline_options.usesPrimitiveTypeFlags |= OPTIX_PRIMITIVE_TYPE_FLAGS_CUSTOM;
-  // }
 
   /* Keep track of whether motion blur is enabled, so to enable/disable motion in BVH builds
    * This is necessary since objects may be reported to have motion if the Vector pass is
