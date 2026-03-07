@@ -245,7 +245,7 @@ class FILEBROWSER_PT_bookmarks_volumes(Panel):
 
 class FILEBROWSER_OT_thumbnail_size(Operator):
     bl_idname = "file.thumbnail_size"
-    bl_label = "Thumbnail Size"
+    bl_label = "View"
     bl_description = "Change thumbnail size"
     bl_options = {'INTERNAL'}
 
@@ -492,7 +492,7 @@ class FILEBROWSER_PT_directory_path(Panel):
         subrow = flow.row()
 
         subsubrow = subrow.row()
-        subsubrow.scale_x = 0.6
+        subsubrow.scale_x = 0.01
         subsubrow.prop(params, "filter_search", text="", icon='VIEWZOOM')
 
         if space.active_operator:
