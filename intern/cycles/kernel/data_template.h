@@ -156,10 +156,12 @@ KERNEL_STRUCT_BEGIN(KernelIntegrator, integrator)
 KERNEL_STRUCT_MEMBER(integrator, int, use_direct_light)
 KERNEL_STRUCT_MEMBER(integrator, int, use_light_mis)
 KERNEL_STRUCT_MEMBER(integrator, int, use_light_tree)
-/* Number of non-BVH lights (distant and background) in the lights array. */
+/* Total number of enabled lights in the lights array. */
 KERNEL_STRUCT_MEMBER(integrator, int, num_lights)
-/* Number of distant lights, used CPU-side for the light tree. */
+/* Number of distant and background lights. They are stored contiguously at the end of
+ * the lights array starting at distant_lights_offset, so iteration can skip local lights. */
 KERNEL_STRUCT_MEMBER(integrator, int, num_distant_lights)
+KERNEL_STRUCT_MEMBER(integrator, int, distant_lights_offset)
 /* Portal sampling. */
 KERNEL_STRUCT_MEMBER(integrator, int, num_portals)
 KERNEL_STRUCT_MEMBER(integrator, int, portal_offset)

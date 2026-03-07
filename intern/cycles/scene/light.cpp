@@ -1530,6 +1530,7 @@ void LightManager::count_lights(KernelIntegrator *kintegrator, const Scene *scen
   /* Update integrator settings. */
   kintegrator->num_lights = num_lights;
   kintegrator->num_distant_lights = num_distant_lights;
+  kintegrator->distant_lights_offset = num_lights - num_distant_lights;
   kintegrator->num_portals = num_portals;
   kintegrator->portal_offset = num_lights;
 }
@@ -1553,7 +1554,11 @@ void LightManager::device_update_preprocess(Device * /*device*/,
 
   KernelObject *kobjects = dscene->objects.data();
 
+  /* Assign indices with local lights first, then distant and background lights. This ensures
+   * the distant/background range [distant_lights_offset, num_lights) is contiguous so kernel
+   * loops can skip local lights entirely when iterating distant/background lights. */
   int light_index = 0;
+  int distant_index = kintegrator->distant_lights_offset;
   int portal_index = kintegrator->num_lights;
   for (Object *object : scene->objects) {
     if (!object->get_geometry()->is_light()) {
@@ -1570,9 +1575,9 @@ void LightManager::device_update_preprocess(Device * /*device*/,
     else if (light->is_enabled) {
       dscene->objects.tag_modified();
 
-      /* Assign light id to object. */
+      /* Assign light id to object: local lights first, distant/background after. */
       KernelObject *kobject = kobjects + object->get_device_index();
-      kobject->light_id = light_index++;
+      kobject->light_id = light->is_distant_light() ? distant_index++ : light_index++;
 
       light->adjust_tfm(object, kobject, klights + kobject->light_id);
     }

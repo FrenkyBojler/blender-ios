@@ -134,7 +134,10 @@ ccl_device int shadow_linking_pick_distant_light_intersection(
 
   const uint32_t path_flag = INTEGRATOR_STATE(state, path, flag);
 
-  for (int lamp = 0; lamp < kernel_data.integrator.num_lights; lamp++) {
+  for (int lamp = kernel_data.integrator.distant_lights_offset;
+       lamp < kernel_data.integrator.num_lights;
+       lamp++)
+  {
     const ccl_global KernelLight *klight = &kernel_data_fetch(lights, lamp);
 
     if (klight->type != LIGHT_DISTANT) {
