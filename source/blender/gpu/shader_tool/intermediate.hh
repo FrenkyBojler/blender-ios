@@ -195,7 +195,7 @@ struct MutableString {
     if (from.is_invalid() && to.is_invalid()) {
       return;
     }
-    assert(from.index <= to.index);
+    assert(from.index_ <= to.index_);
     erase(from.str_index_start(), to.str_index_last());
   }
   /* Replace the content from `from` to `to` (inclusive) by whitespaces without changing

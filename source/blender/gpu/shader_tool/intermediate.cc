@@ -68,33 +68,33 @@ std::string line_str(const std::string_view &str, size_t pos)
 Scope Token::scope() const
 {
   if (this->is_invalid()) {
-    return Scope::from_position(*data, -1);
+    return Scope::from_position(parser(), -1);
   }
-  return Scope::from_position(*data, data->token_scope[index]);
+  return Scope::from_position(parser(), parser().token_scope[index_]);
 }
 
 Scope Token::attribute_before() const
 {
   if (is_invalid()) {
-    return Scope::from_position(*data, -1);
+    return Scope::from_position(parser(), -1);
   }
   Token prev = this->prev();
   if (prev == ']' && prev.prev().scope().type() == ScopeType::Attributes) {
     return prev.prev().scope();
   }
-  return Scope::from_position(*data, -1);
+  return Scope::from_position(parser(), -1);
 }
 
 Scope Token::attribute_after() const
 {
   if (is_invalid()) {
-    return Scope::from_position(*data, -1);
+    return Scope::from_position(parser(), -1);
   }
   Token next = this->next();
   if (next == '[' && next.next().scope().type() == ScopeType::Attributes) {
     return next.next().scope();
   }
-  return Scope::from_position(*data, -1);
+  return Scope::from_position(parser(), -1);
 }
 
 alignas(128) const std::array<CharClass, 128> LexerBase::default_char_class_table = [] {

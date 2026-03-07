@@ -256,7 +256,7 @@ void SourceProcessor::lower_using(Parser &parser)
     /* Replace all occurrences of the non-namespace specified symbol. */
     scope.foreach_token(Word, [&](const Token &token) {
       /* Do not replace symbols before the using statement. */
-      if (token.index <= to_end.index) {
+      if (token.index_ <= to_end.index_) {
         return;
       }
       /* Reject symbols that contain the target symbol name. */

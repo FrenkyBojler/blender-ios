@@ -264,8 +264,7 @@ struct Scope {
     const size_t searchable_range = scope_tokens.size() -
                                     (pattern.size() - 1 - control_token_count);
 
-    std::vector<Token> match;
-    match.resize(pattern.size());
+    std::vector<Token> match(pattern.size(), data->invalid_tok());
 
     for (size_t pos = 0; pos < searchable_range; pos++) {
       size_t cursor = range().start + pos;
@@ -278,7 +277,7 @@ struct Scope {
 
         /* Scope skipping. */
         if (!is_last_token && curr_search_token == '.' && next_search_token == '.') {
-          cursor = match[i - 1].scope().back().index;
+          cursor = match[i - 1].scope().back().index_;
           i++;
           continue;
         }
@@ -330,7 +329,7 @@ struct Scope {
     size_t pos = this->index;
     while ((pos = data->scope_types_str.find(char(type), pos)) != std::string::npos) {
       Scope scope = Scope::from_position(*data, pos);
-      if (scope.front().index > this->back().index) {
+      if (scope.front().index_ > this->back().index_) {
         /* Found scope starts after this scope. End iteration. */
         break;
       }

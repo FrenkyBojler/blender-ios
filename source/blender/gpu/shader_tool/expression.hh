@@ -38,7 +38,7 @@ struct ExpressionLexer {
  */
 class ExpressionParser : public Parser<ExpressionLexer, NullParser> {
  private:
-  Token tok;
+  Token tok = this->invalid_tok();
 
  public:
   int64_t eval()

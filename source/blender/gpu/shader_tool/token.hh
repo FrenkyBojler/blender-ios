@@ -15,55 +15,37 @@ namespace blender::gpu::shader::parser {
 
 struct Scope;
 
-struct Token {
-#ifndef NDEBUG
-  /* String view for nicer debugging experience. Isn't actually used. */
-  std::string_view str_view_debug;
-#endif
-
-  const ParserBase *data = nullptr;
-  int64_t index = 0;
+struct Token : lexit::Token {
+  Token(const lexit::Token &tok) : lexit::Token(tok) {}
 
  private:
   Token invalid() const
   {
-#ifndef NDEBUG
-    return {"", data, -1};
-#else
-    return {data, -1};
-#endif
+    return lexit::Token::invalid(buf_);
+  }
+
+  const ParserBase &parser() const
+  {
+    return static_cast<const ParserBase &>(*buf_);
+  }
+  const LexerBase &lex() const
+  {
+    return static_cast<const LexerBase &>(*buf_);
   }
 
  public:
   static Token from_position(const ParserBase *data, int64_t index)
   {
-    if (data == nullptr || index < 0 || index >= data->size()) {
-#ifndef NDEBUG
-      return {"", data, data->size()};
-#else
-      return {data, data->size()};
-#endif
-    }
-#ifndef NDEBUG
-    const LexerBase &lex = static_cast<const LexerBase &>(*data);
-    return {lex[index].str(), data, index};
-#else
-    return {data, index};
-#endif
-  }
-
-  const LexerBase &lex() const
-  {
-    return static_cast<const LexerBase &>(*data);
+    return lexit::Token(data, index);
   }
 
   bool is_valid() const
   {
-    return index < data->size_;
+    return static_cast<const lexit::Token *>(this)->is_valid();
   }
   bool is_invalid() const
   {
-    return index >= data->size_;
+    return !static_cast<const lexit::Token *>(this)->is_valid();
   }
 
   /* String index range. */
@@ -72,17 +54,17 @@ struct Token {
     if (is_invalid()) {
       return {0, 0};
     }
-    return IndexRange{int64_t(lex().offsets_[index]),
-                      int64_t(lex().offsets_[index + 1] - lex().offsets_[index])};
+    return IndexRange{int64_t(lex().offsets_[index_]),
+                      int64_t(lex().offsets_[index_ + 1] - lex().offsets_[index_])};
   }
 
   Token prev() const
   {
-    return from_position(data, index - 1);
+    return from_position(&parser(), index_ - 1);
   }
   Token next() const
   {
-    return from_position(data, index + 1);
+    return from_position(&parser(), index_ + 1);
   }
 
   Token find_next(TokenType type) const
@@ -121,32 +103,22 @@ struct Token {
     return std::string(lex().str_.substr(start, end - start + 1));
   }
 
-  /* Only usable when building with whitespace. */
-  Token next_not_whitespace() const
-  {
-    Token next = this->next();
-    while (next == ' ' || next == '\n') {
-      next = next.next();
-    }
-    return next;
-  }
-
   /* Returns the scope that contains this token. */
   Scope scope() const;
 
   size_t str_index_start() const
   {
-    return index_range().start;
+    return buf_->offsets_[index_];
   }
 
   size_t str_index_last() const
   {
-    return index_range().last();
+    return buf_->offsets_[index_ + 1] - 1;
   }
 
   size_t str_index_last_no_whitespace() const
   {
-    return lex().str_.find_last_not_of(" \n", str_index_last());
+    return buf_->offsets_end_[index_] - 1;
   }
 
   /* Index of the first character of the line this token is. */
@@ -168,7 +140,7 @@ struct Token {
     if (is_invalid()) {
       return "";
     }
-    return lex()[index].str_with_whitespace();
+    return lex()[index_].str_with_whitespace();
   }
 
   std::string str_with_whitespace() const
@@ -236,7 +208,7 @@ struct Token {
     if (is_invalid()) {
       return Invalid;
     }
-    return TokenType(lex().types_[index]);
+    return TokenType(lex().types_[index_]);
   }
 
   /* Return the attribute scope before this token if it exists. */
@@ -259,15 +231,6 @@ struct Token {
   bool operator!=(char type) const
   {
     return *this != TokenType(type);
-  }
-
-  bool operator==(const Token &other) const
-  {
-    return this->index == other.index && this->data == other.data;
-  }
-  bool operator!=(const Token &other) const
-  {
-    return !(*this == other);
   }
 };
 
