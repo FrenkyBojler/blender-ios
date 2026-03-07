@@ -243,6 +243,7 @@ class FILEBROWSER_PT_bookmarks_volumes(Panel):
                 space, "system_folders_active", item_dyntip_propname="path", rows=1, maxrows=10,
             )
 
+
 class FILEBROWSER_OT_thumbnail_size(Operator):
     bl_idname = "file.thumbnail_size"
     bl_label = "View"
@@ -257,23 +258,6 @@ class FILEBROWSER_OT_thumbnail_size(Operator):
         idx = size_ids.index(current)
         params.display_size_discrete = size_ids[(idx + 1) % len(size_ids)]
         return {'FINISHED'}
-
-
-class FILEBROWSER_PT_menus(FileBrowserPanel, Panel):
-    bl_region_type = 'TOOLS'
-    bl_category = "Bookmarks"
-    bl_label = "Menus"
-    bl_options = {'HIDE_HEADER'}
-
-    # if active_operator exists -> show in window filebrowser
-    @classmethod
-    def poll(cls, context):
-        if not super().poll(context):
-            return False
-        return context.space_data.active_operator is not None
-
-    def draw(self, _context):
-        pass
 
 
 class FILEBROWSER_PT_bookmarks_system(Panel):
@@ -941,7 +925,6 @@ classes = (
     FILEBROWSER_PT_display,
     FILEBROWSER_PT_filter,
     FILEBROWSER_UL_dir,
-    FILEBROWSER_PT_menus,
     FILEBROWSER_MT_bookmarks_context_menu,
     FILEBROWSER_PT_bookmarks_favorites,
     FILEBROWSER_PT_bookmarks_system,
