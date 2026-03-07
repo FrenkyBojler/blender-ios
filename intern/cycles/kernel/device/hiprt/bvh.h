@@ -5,6 +5,7 @@
 #pragma once
 
 #include "kernel/bvh/intersect_filter.h"
+#include "kernel/light/light.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -311,6 +312,28 @@ ccl_device_inline bool point_custom_intersect(const hiprtRay &ray,
 #endif
 }
 
+ccl_device_inline bool light_custom_intersect(const hiprtRay &ray,
+                                              BVHPayload *payload,
+                                              hiprtHit &hit)
+{
+  KernelGlobals kg = nullptr;
+
+  const int object_id = kernel_data_fetch(user_instance_id, hit.instanceID);
+  const int prim_offset = kernel_data_fetch(object_prim_offset, object_id);
+
+  Intersection isect;
+  isect.t = ray.maxT;
+
+  if (lights_intersect(
+          kg, &isect, ray.origin, ray.direction, ray.minT, object_id, hit.primID + prim_offset))
+  {
+    hit.t = isect.t;
+    return true;
+  }
+
+  return false;
+}
+
 /* --------------------------------------------------------------------
  * Intersection filters.
  */
@@ -459,6 +482,9 @@ HIPRT_DEVICE bool intersectFunc(const uint geom_type,
     case Point_Intersect_Function:
     case Point_Intersect_Shadow:
       return point_custom_intersect(ray, (BVHPayload *)payload, hit);
+    case Lamp_Intersect_Function:
+    case Lamp_Intersect_Shadow:
+      return light_custom_intersect(ray, (BVHPayload *)payload, hit);
     default:
       break;
   }
@@ -481,6 +507,7 @@ HIPRT_DEVICE bool filterFunc(const uint geom_type,
     case Triangle_Filter_Shadow:
     case Motion_Triangle_Filter_Shadow:
     case Point_Filter_Shadow:
+    case Lamp_Filter_Shadow:
       return shadow_intersection_filter(ray, (BVHShadowAllPayload *)payload, hit);
     case Triangle_Filter_Local:
     case Motion_Triangle_Filter_Local:
@@ -501,6 +528,7 @@ HIPRT_DEVICE bool filterFunc(const uint geom_type,
 
 ccl_device_intersect bool scene_intersect(KernelGlobals kg,
                                           const ccl_private Ray *ray,
+                                          const bool is_indirect_ray,
                                           const uint visibility,
                                           ccl_private Intersection *isect)
 {
@@ -573,7 +601,7 @@ ccl_device_intersect bool scene_intersect_shadow(KernelGlobals kg,
                                                  const uint visibility)
 {
   Intersection isect;
-  return scene_intersect(kg, ray, visibility, &isect);
+  return scene_intersect(kg, ray, true, visibility, &isect);
 }
 
 #ifdef __BVH_LOCAL__

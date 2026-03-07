@@ -237,8 +237,6 @@ ccl_device_inline bool lights_intersect(KernelGlobals kg,
                                         const int object,
                                         const int prim)
 {
-  /* TODO(weizhen): maybe deal with light linking here instead of in `integrate_light()` */
-
   const ccl_global KernelLightGeom *klight = &kernel_data_fetch(light_geom, prim);
 
   const LightType type = (LightType)klight->type;
@@ -247,7 +245,6 @@ ccl_device_inline bool lights_intersect(KernelGlobals kg,
   Ray ray = {P, dir, tmin, isect->t};
 
   if (type == LIGHT_SPOT) {
-    /* TODO(weizhen): why is there no uv? */
     if (!spot_light_intersect(klight, &ray, &t)) {
       return false;
     }
@@ -284,7 +281,6 @@ light_eval_from_intersection(KernelGlobals kg,
                              const float3 N,
                              const uint32_t path_flag)
 {
-  /* TODO(weizhen): this points to KernelLightGeom instead of KernelLight now. */
   const ccl_global KernelLight *klight = get_light_from_object_id(kg, isect->object);
   const LightType type = (LightType)klight->type;
 

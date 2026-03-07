@@ -114,6 +114,76 @@ ccl_device int shadow_linking_pick_mesh_intersection(KernelGlobals kg,
   return num_hits;
 }
 
+/* Intersect distant lights for shadow linking.
+ *
+ * Distant lights are not in the BVH, so they need to be handled separately.
+ * Returns the total number of emissive lights hit. */
+ccl_device int shadow_linking_pick_distant_light_intersection(
+    KernelGlobals kg,
+    IntegratorState state,
+    ccl_private const Ray *ccl_restrict ray,
+    const int object_receiver,
+    ccl_private Intersection *ccl_restrict linked_isect,
+    ccl_private uint *lcg_state,
+    int num_hits)
+{
+  /* Distant lights are only reachable when the ray extends to infinity. */
+  if (ray->tmax != FLT_MAX) {
+    return num_hits;
+  }
+
+  const uint32_t path_flag = INTEGRATOR_STATE(state, path, flag);
+
+  for (int lamp = 0; lamp < kernel_data.integrator.num_lights; lamp++) {
+    const ccl_global KernelLight *klight = &kernel_data_fetch(lights, lamp);
+
+    if (klight->type != LIGHT_DISTANT) {
+      continue;
+    }
+
+    /* Only distant lights with MIS can contribute to the forward path. */
+    if (!(klight->shader_id_and_flags & SHADER_USE_MIS)) {
+      continue;
+    }
+
+    /* Use visibility flags to skip lights. */
+    if (!is_light_shader_visible_to_path(klight->shader_id_and_flags, path_flag)) {
+      continue;
+    }
+
+#  ifdef __LIGHT_LINKING__
+    if (!light_link_object_match(kg, object_receiver, klight->object_id)) {
+      continue;
+    }
+#  endif
+
+    /* Only shadow-linked lights are handled via the dedicated shadow ray. */
+    const uint64_t set_membership =
+        kernel_data_fetch(objects, klight->object_id).shadow_set_membership;
+    if (set_membership == LIGHT_LINK_MASK_ALL) {
+      continue;
+    }
+
+    float t;
+    if (!distant_light_intersect(klight, ray, &t)) {
+      continue;
+    }
+
+    ++num_hits;
+
+    if ((linked_isect->prim == PRIM_NONE) || (lcg_step_float(lcg_state) < 1.0f / num_hits)) {
+      linked_isect->t = t;
+      linked_isect->u = 0.0f;
+      linked_isect->v = 0.0f;
+      linked_isect->type = PRIMITIVE_LAMP;
+      linked_isect->prim = klight->prim;
+      linked_isect->object = klight->object_id;
+    }
+  }
+
+  return num_hits;
+}
+
 /* Pick a light for tracing a shadow ray for the shadow linking.
  * Picks a random light which is intersected by the given ray, and stores the intersection result.
  * If no lights were hit false is returned.
@@ -126,10 +196,6 @@ ccl_device bool shadow_linking_pick_light_intersection(KernelGlobals kg,
                                                        ccl_private Intersection *ccl_restrict
                                                            linked_isect)
 {
-  const uint32_t path_flag = INTEGRATOR_STATE(state, path, flag);
-
-  const int last_type = INTEGRATOR_STATE(state, isect, type);
-
   const int object_receiver = light_link_receiver_forward(kg, state);
 
   uint lcg_state = lcg_state_init(INTEGRATOR_STATE(state, path, rng_pixel),
@@ -148,6 +214,9 @@ ccl_device bool shadow_linking_pick_light_intersection(KernelGlobals kg,
   // tracing potentially expensive ray.
 
   num_hits = shadow_linking_pick_mesh_intersection(
+      kg, state, ray, object_receiver, linked_isect, &lcg_state, num_hits);
+
+  num_hits = shadow_linking_pick_distant_light_intersection(
       kg, state, ray, object_receiver, linked_isect, &lcg_state, num_hits);
 
   if (num_hits == 0) {

@@ -306,8 +306,10 @@ void AreaLight::copy_to_kernel(KernelLight *klight, const Scene *scene, const Ob
   klight->co = transform_get_translation(&object->get_tfm());
   klight->area.axis_u = axis_u;
   klight->area.len_u = len_u;
+  klight->area.size_u = sizeu;
   klight->area.axis_v = axis_v;
   klight->area.len_v = len_v;
+  klight->area.size_v = sizev;
   klight->area.invarea = invarea;
   klight->area.dir = safe_normalize(-transform_get_column(&object->get_tfm(), 2));
   klight->object_id = object->index;
@@ -1511,10 +1513,10 @@ void LightManager::count_lights(KernelIntegrator *kintegrator, const Scene *scen
   kintegrator->portal_offset = num_lights;
 }
 
-void LightManager::device_update_preprocess(Device *device,
+void LightManager::device_update_preprocess(Device * /*device*/,
                                             DeviceScene *dscene,
                                             Scene *scene,
-                                            Progress &progress)
+                                            Progress & /*progress*/)
 {
   if (!need_update()) {
     return;
@@ -1531,23 +1533,28 @@ void LightManager::device_update_preprocess(Device *device,
   KernelObject *kobjects = dscene->objects.data();
 
   int light_index = 0;
+  int portal_index = kintegrator->num_lights;
   for (Object *object : scene->objects) {
     if (!object->get_geometry()->is_light()) {
       continue;
     }
 
     const Light *light = static_cast<const Light *>(object->get_geometry());
-    if (!light->is_enabled) {
-      continue;
+    if (light->is_portal()) {
+      dscene->objects.tag_modified();
+      KernelObject *kobject = kobjects + object->get_device_index();
+      kobject->light_id = portal_index++;
+      light->adjust_tfm(object, kobject, klights + kobject->light_id);
     }
+    else if (light->is_enabled) {
+      dscene->objects.tag_modified();
 
-    dscene->objects.tag_modified();
+      /* Assign light id to object. */
+      KernelObject *kobject = kobjects + object->get_device_index();
+      kobject->light_id = light_index++;
 
-    /* Assign light id to object. */
-    KernelObject *kobject = kobjects + object->get_device_index();
-    kobject->light_id = light_index++;
-
-    light->adjust_tfm(object, kobject, klights + kobject->light_id);
+      light->adjust_tfm(object, kobject, klights + kobject->light_id);
+    }
   }
   dscene->objects.copy_to_device_if_modified();
   dscene->objects.clear_modified();
@@ -1563,8 +1570,6 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
   KernelShader *kshader = dscene->shaders.data();
   KernelObject *kobjects = dscene->objects.data();
 
-  int portal_index = kintegrator->num_lights;
-
   for (const Object *object : scene->objects) {
     if (!object->get_geometry()->is_light()) {
       continue;
@@ -1572,8 +1577,8 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
 
     const Light *light = static_cast<const Light *>(object->get_geometry());
     if (light->is_portal()) {
-      light->copy_to_kernel(klights + portal_index, scene, object);
-      portal_index++;
+      const int light_id = kobjects[object->get_device_index()].light_id;
+      light->copy_to_kernel(klights + light_id, scene, object);
     }
     else if (light->is_enabled) {
       const Shader *shader = (light->get_shader()) ? light->get_shader() : scene->default_light;

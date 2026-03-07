@@ -900,7 +900,7 @@ void ShaderGraph::default_inputs(bool do_osl)
           }
           if (!normal_transform) {
             normal_transform = create_node<VectorTransformNode>();
-            normal_transform->set_transform_type(NODE_VECTOR_TRANSFORM_TYPE_NORMAL);
+            normal_transform->set_transform_type(NODE_VECTOR_TRANSFORM_TYPE_VECTOR);
             normal_transform->set_convert_from(NODE_VECTOR_TRANSFORM_CONVERT_SPACE_WORLD);
             normal_transform->set_convert_to(NODE_VECTOR_TRANSFORM_CONVERT_SPACE_OBJECT);
             connect(geom->output("Incoming"), normal_transform->input("Vector"));

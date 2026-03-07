@@ -129,6 +129,9 @@ ccl_device_inline Transform lamp_get_inverse_transform(KernelGlobals kg,
   if (klight->type == LIGHT_SPOT || klight->type == LIGHT_POINT) {
     transform_prescale(itfm, klight->spot.inv_scale);
   }
+  else if (klight->type == LIGHT_AREA) {
+    transform_prescale(itfm, make_float3(klight->area.size_u, klight->area.size_v, 1.0f));
+  }
   return itfm;
 }
 

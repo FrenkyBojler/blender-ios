@@ -1430,10 +1430,11 @@ struct KernelAreaLight {
   packed_float3 axis_v;
   float len_v;
   packed_float3 dir;
+  float size_u;
+  float size_v;
   float invarea;
   float tan_half_spread;
   float normalize_spread;
-  float pad[2];
 };
 
 struct KernelDistantLight {

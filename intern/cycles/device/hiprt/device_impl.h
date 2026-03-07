@@ -17,6 +17,7 @@ CCL_NAMESPACE_BEGIN
 
 class Mesh;
 class Hair;
+class Light;
 class PointCloud;
 class Geometry;
 class Object;
@@ -53,11 +54,12 @@ class HIPRTDevice : public HIPDevice {
 
  protected:
   enum Filter_Function { Closest = 0, Shadows, Local, Volume, Max_Intersect_Filter_Function };
-  enum Primitive_Type { Triangle = 0, Curve, Motion_Triangle, Point, Max_Primitive_Type };
+  enum Primitive_Type { Triangle = 0, Curve, Motion_Triangle, Point, Lamp, Max_Primitive_Type };
 
   hiprtGeometryBuildInput prepare_triangle_blas(BVHHIPRT *bvh, Mesh *mesh);
   hiprtGeometryBuildInput prepare_curve_blas(BVHHIPRT *bvh, Hair *hair);
   hiprtGeometryBuildInput prepare_point_blas(BVHHIPRT *bvh, PointCloud *pointcloud);
+  hiprtGeometryBuildInput prepare_light_blas(BVHHIPRT *bvh, Light *light);
   void build_blas(BVHHIPRT *bvh, Geometry *geom, hiprtBuildOptions options);
   hiprtScene build_tlas(BVHHIPRT *bvh,
                         const vector<Object *> &objects,

@@ -208,12 +208,16 @@ LightTreeEmitter::LightTreeEmitter(const Scene *scene,
       measure.bcone.theta_o = M_PI_F;
       measure.bcone.theta_e = 0;
 
+      centroid = measure.bcone.axis;
+
       /* integrate over cosine-weighted hemisphere */
       strength *= static_cast<const BackgroundLight *>(lamp)->get_average_radiance() * M_PI_F;
     }
     else if (lamp->is_sun_light()) {
       measure.bcone.theta_o = 0;
       measure.bcone.theta_e = 0.5f * static_cast<const SunLight *>(lamp)->get_angle();
+
+      centroid = measure.bcone.axis;
     }
 
     if (lamp->get_shader()) {

@@ -80,6 +80,7 @@ enum Intersection_Function_Table_Index {
   Motion_Triangle_Intersect_Function,  // Custom intersection for triangles with vertex motion blur
                                        // attributes.
   Point_Intersect_Function,            // Custom intersection for point cloud.
+  Lamp_Intersect_Function,             // Custom intersection for lights.
   // Custom intersection functions for shadow rendering are the same as the function for closest
   // intersect.
   // However, the table indices are different
@@ -87,18 +88,21 @@ enum Intersection_Function_Table_Index {
   Curve_Intersect_Shadow,
   Motion_Triangle_Intersect_Shadow,
   Point_Intersect_Shadow,
+  Lamp_Intersect_Shadow,
   // Custom intersection functions for subsurface scattering.
   // Only motion triangles have valid custom intersection function
   Triangle_Intersect_Local_None,
   Curve_Intersect_Local_None,
   Motion_Triangle_Intersect_Local,
   Point_Intersect_Local_None,
+  Lamp_Intersect_Local_None,
   // Custom intersection functions for volume rendering.
   // Only motion triangles have valid custom intersection function
   Triangle_Intersect_Volume_None,
   Curve_Intersect_Volume_None,
   Motion_Triangle_Intersect_Volume,
   Point_Intersect_Volume_None,
+  Lamp_Intersect_Volume_None,
 };
 
 // Filter functions, filter hits, i.e. test whether a hit should be accepted or not, and whether
@@ -111,12 +115,14 @@ enum Filter_Function_Table_Index {
   Motion_Triangle_Filter_Opaque_None,  // No filter function is needed and everything is handled in
                                        // intersection function.
   Point_Filter_Opaque_Non,             // No filter function is needed.
+  Lamp_Filter_Opaque_None,             // No filter function is needed.
   // Filter function for all primitives for shadow intersection.
   // All primitives use the same function but each has a different index in the table.
   Triangle_Filter_Shadow,
   Curve_Filter_Shadow,
   Motion_Triangle_Filter_Shadow,
   Point_Filter_Shadow,
+  Lamp_Filter_Shadow,
   // Filter functions for subsurface scattering. Triangles and motion triangles need function
   // assignment. They indices for triangles and motion triangles point to the same function. Points
   // and curves dont need any function since subsurface scattering is not applied on either.
@@ -126,6 +132,7 @@ enum Filter_Function_Table_Index {
                             // needed.
   Motion_Triangle_Filter_Local,
   Point_Filter_Local_None,
+  Lamp_Filter_Local_None,
   // Filter functions for volume rendering.
   // Volume rendering only applies to triangles and motion triangles.
   // Triangles and motion triangles use the same filter functions for volume rendering
@@ -133,6 +140,7 @@ enum Filter_Function_Table_Index {
   Curve_Filter_Volume_None,
   Motion_Triangle_Filter_Volume,
   Point_Filter_Volume_None,
+  Lamp_Filter_Volume_None,
 };
 
 #ifdef __KERNEL_GPU__

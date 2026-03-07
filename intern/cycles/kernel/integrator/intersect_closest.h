@@ -422,20 +422,11 @@ ccl_device void integrator_intersect_closest(KernelGlobals kg,
   }
 #endif /* __MNEE__ */
 
-  /* Light intersection for MIS. */
-  if (!integrator_intersect_skip_lights(kg, state)) {
-    /* NOTE: if we make lights visible to camera rays, we'll need to initialize
-     * these in the path_state_init. */
-    /* const int last_type = INTEGRATOR_STATE(state, isect, type); */
-    /* hit = lights_intersect( */
-    /*           kg, state, &ray, &isect, last_isect_prim, last_isect_object, last_type, path_flag)
-     * || */
-    /*       hit; */
-    /* TODO(weizhen): deal with shis case. */
-  }
-
-  /* TODO(weizhen): deal with light and shadow link. */
-  /* TODO(weizhen): deal with mnee. */
+  /* Light intersection for MIS.
+   * Non-distant lights are now part of the BVH and found by scene_intersect above.
+   * Distant lights are handled separately in integrate_distant_lights (shade_background.h).
+   * Light linking, shadow linking, and visibility checks for BVH lights are handled
+   * in integrate_light_forward (shade_light.h). */
 
   /* Write intersection result into global integrator state memory. */
   integrator_state_write_isect(state, &isect);

@@ -248,8 +248,10 @@ ccl_device_forceinline void kernel_embree_filter_intersection_func_impl(
 #endif
 
 #ifdef __LIGHT_LINKING__
-  /* Light linking. */
-  if (ctx->is_indirect_ray &&
+  /* Light linking for BVH light primitives. Skip lights that don't match the
+   * receiver's light linking configuration. Only check for indirect rays where
+   * the receiver object is known. */
+  if (ctx->is_indirect_ray && cray->self.object != OBJECT_NONE &&
       !light_link_object_match(kg, cray->self.object, kernel_embree_get_hit_object(hit)))
   {
     *args->valid = 0;

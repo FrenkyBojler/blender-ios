@@ -11,6 +11,7 @@
 #include "kernel/geom/primitive.h"
 #include "kernel/geom/volume.h"
 
+#include "kernel/light/light.h"
 #include "kernel/svm/util.h"
 
 #include "kernel/util/differential.h"
@@ -199,7 +200,14 @@ ccl_device_noinline void svm_node_attr(KernelGlobals kg,
     /* No generated attribute, fall back to object coordinates. */
     float3 f = sd->P;
     if (sd->object != OBJECT_NONE) {
-      object_inverse_position_transform(kg, sd, &f);
+      if (sd->type == PRIMITIVE_LAMP) {
+        const ccl_global KernelLight *klight = get_light_from_object_id(kg, sd->object);
+        const Transform itfm = lamp_get_inverse_transform(kg, klight);
+        f = transform_point(&itfm, f);
+      }
+      else {
+        object_inverse_position_transform(kg, sd, &f);
+      }
     }
     svm_node_attr_store(type, stack, out_offset, f);
     return;

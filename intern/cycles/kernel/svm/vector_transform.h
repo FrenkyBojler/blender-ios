@@ -5,6 +5,7 @@
 #pragma once
 
 #include "kernel/geom/object.h"
+#include "kernel/light/light.h"
 #include "kernel/svm/util.h"
 
 CCL_NAMESPACE_BEGIN
@@ -49,14 +50,23 @@ ccl_device_noinline void svm_node_vector_transform(KernelGlobals kg,
       }
     }
     else if (to == NODE_VECTOR_TRANSFORM_CONVERT_SPACE_OBJECT && is_object) {
-      if (is_normal) {
-        object_inverse_normal_transform(kg, sd, &in);
-      }
-      else if (is_direction) {
-        object_inverse_dir_transform(kg, sd, &in);
+      if (sd->type == PRIMITIVE_LAMP) {
+        const ccl_global KernelLight *klight = get_light_from_object_id(kg, sd->object);
+        const Transform itfm = lamp_get_inverse_transform(kg, klight);
+        in = is_direction ? transform_direction(&itfm, in) :
+                            (is_normal ? normalize(transform_direction_transposed(&itfm, in)) :
+                                         transform_point(&itfm, in));
       }
       else {
-        object_inverse_position_transform(kg, sd, &in);
+        if (is_normal) {
+          object_inverse_normal_transform(kg, sd, &in);
+        }
+        else if (is_direction) {
+          object_inverse_dir_transform(kg, sd, &in);
+        }
+        else {
+          object_inverse_position_transform(kg, sd, &in);
+        }
       }
     }
   }
@@ -76,14 +86,23 @@ ccl_device_noinline void svm_node_vector_transform(KernelGlobals kg,
       }
     }
     if (to == NODE_VECTOR_TRANSFORM_CONVERT_SPACE_OBJECT && is_object) {
-      if (is_normal) {
-        object_inverse_normal_transform(kg, sd, &in);
-      }
-      else if (is_direction) {
-        object_inverse_dir_transform(kg, sd, &in);
+      if (sd->type == PRIMITIVE_LAMP) {
+        const ccl_global KernelLight *klight = get_light_from_object_id(kg, sd->object);
+        const Transform itfm = lamp_get_inverse_transform(kg, klight);
+        in = is_direction ? transform_direction(&itfm, in) :
+                            (is_normal ? normalize(transform_direction_transposed(&itfm, in)) :
+                                         transform_point(&itfm, in));
       }
       else {
-        object_inverse_position_transform(kg, sd, &in);
+        if (is_normal) {
+          object_inverse_normal_transform(kg, sd, &in);
+        }
+        else if (is_direction) {
+          object_inverse_dir_transform(kg, sd, &in);
+        }
+        else {
+          object_inverse_position_transform(kg, sd, &in);
+        }
       }
     }
   }
@@ -94,29 +113,39 @@ ccl_device_noinline void svm_node_vector_transform(KernelGlobals kg,
          to == NODE_VECTOR_TRANSFORM_CONVERT_SPACE_CAMERA) &&
         is_object)
     {
-      if (is_normal) {
-        object_normal_transform(kg, sd, &in);
-      }
-      else if (is_direction) {
-        object_dir_transform(kg, sd, &in);
-      }
-      else {
-        object_position_transform(kg, sd, &in);
-      }
-    }
-    if (to == NODE_VECTOR_TRANSFORM_CONVERT_SPACE_CAMERA) {
-      if (is_normal) {
-        tfm = kernel_data.cam.cameratoworld;
-        in = normalize(transform_direction_transposed(&tfm, in));
-      }
-      else {
-        tfm = kernel_data.cam.worldtocamera;
-        if (is_direction) {
+      if (sd->type == PRIMITIVE_LAMP) {
+        const ccl_global KernelLight *klight = get_light_from_object_id(kg, sd->object);
+        const Transform itfm = lamp_get_inverse_transform(kg, klight);
+        const Transform tfm = transform_inverse(itfm);
+        if (is_normal) {
+          in = normalize(transform_direction_transposed(&tfm, in));
+        }
+        else if (is_direction) {
           in = transform_direction(&tfm, in);
         }
         else {
           in = transform_point(&tfm, in);
         }
+      }
+      else {
+        if (is_normal) {
+          object_normal_transform(kg, sd, &in);
+        }
+        else if (is_direction) {
+          object_dir_transform(kg, sd, &in);
+        }
+        else {
+          object_position_transform(kg, sd, &in);
+        }
+      }
+    }
+    if (to == NODE_VECTOR_TRANSFORM_CONVERT_SPACE_CAMERA) {
+      tfm = kernel_data.cam.worldtocamera;
+      if (is_direction) {
+        in = transform_direction(&tfm, in);
+      }
+      else {
+        in = transform_point(&tfm, in);
       }
     }
   }

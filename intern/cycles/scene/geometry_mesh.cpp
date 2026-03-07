@@ -175,9 +175,7 @@ void GeometryManager::device_update_prim(Device * /*unused*/,
     for (const Geometry *geom : scene->geometry) {
       if (geom->is_light()) {
         const Light *light = static_cast<const Light *>(geom);
-        // if (light->need_bvh()) {
         light->pack(&light_geom[light->prim_offset], scene);
-        //}
 
         if (progress.get_cancel()) {
           return;

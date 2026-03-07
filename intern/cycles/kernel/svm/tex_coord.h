@@ -10,6 +10,7 @@
 #include "kernel/geom/object.h"
 #include "kernel/geom/primitive.h"
 
+#include "kernel/light/light.h"
 #include "kernel/svm/attribute.h"
 #include "kernel/svm/types.h"
 #include "kernel/svm/util.h"
@@ -58,7 +59,14 @@ ccl_device_noinline int svm_node_tex_coord(KernelGlobals kg,
       data = sd->P;
       if (type == NODE_TEXCO_OBJECT) {
         if (sd->object != OBJECT_NONE) {
-          object_inverse_position_transform(kg, sd, &data);
+          if (sd->type == PRIMITIVE_LAMP) {
+            const ccl_global KernelLight *klight = get_light_from_object_id(kg, sd->object);
+            const Transform itfm = lamp_get_inverse_transform(kg, klight);
+            data = transform_point(&itfm, data);
+          }
+          else {
+            object_inverse_position_transform(kg, sd, &data);
+          }
         }
       }
       else {
@@ -72,7 +80,16 @@ ccl_device_noinline int svm_node_tex_coord(KernelGlobals kg,
     }
     case NODE_TEXCO_NORMAL: {
       data = sd->N;
-      object_inverse_normal_transform(kg, sd, &data);
+      if (sd->object != OBJECT_NONE) {
+        if (sd->type == PRIMITIVE_LAMP) {
+          const ccl_global KernelLight *klight = get_light_from_object_id(kg, sd->object);
+          const Transform itfm = lamp_get_inverse_transform(kg, klight);
+          data = transform_direction(&itfm, data);
+        }
+        else {
+          object_inverse_normal_transform(kg, sd, &data);
+        }
+      }
       break;
     }
     case NODE_TEXCO_CAMERA: {

@@ -145,7 +145,7 @@ ccl_device_forceinline int intersection_get_shader_from_isect_prim(KernelGlobals
   }
 #endif
   else if (isect_type & PRIMITIVE_LAMP) {
-    shader = kernel_data_fetch(lights, prim).shader_id_and_flags;
+    shader = kernel_data_fetch(light_geom, prim).shader_id;
   }
 
   return shader & SHADER_MASK;

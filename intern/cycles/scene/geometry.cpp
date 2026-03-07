@@ -322,12 +322,10 @@ void GeometryManager::geom_calc_offset(Scene *scene, BVHLayout bvh_layout)
     else {
       Light *light = static_cast<Light *>(geom);
 
-      // if (light->need_bvh()) {
       prim_offset_changed = (light->prim_offset != light_size);
 
       light->prim_offset = light_size;
       light_size++;
-      //}
     }
 
     if (prim_offset_changed) {

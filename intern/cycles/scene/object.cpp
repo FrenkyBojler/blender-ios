@@ -300,8 +300,10 @@ bool Object::is_traceable() const
 uint Object::visibility_for_tracing() const
 {
   uint visibility_ = visibility;
-  if (geometry->is_light()) {
-    /* Light is always transparent. */
+  if (geometry->is_light() && static_cast<const Light *>(geometry)->is_traceable()) {
+    /* Traceable lights (point, spot, area) should not block shadow rays.
+     * Non-traceable lights like background lights may have volume shaders that
+     * need to attenuate shadow rays, so we preserve their shadow visibility. */
     visibility_ &= ~PATH_RAY_SHADOW;
   }
   return SHADOW_CATCHER_OBJECT_VISIBILITY(is_shadow_catcher,

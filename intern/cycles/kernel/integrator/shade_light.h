@@ -32,8 +32,18 @@ ccl_device_inline void integrate_light_forward(KernelGlobals kg,
   const uint32_t path_flag = INTEGRATOR_STATE(state, path, flag);
   const float3 N = INTEGRATOR_STATE(state, path, mis_origin_n);
 
-  /* TODO(weizhen): better to just ignore this intersection, by setting visibility flag, for
-   * example. Otherwise make the following block a utility function. */
+  /* Use visibility flag to skip lights. */
+#ifdef __PASSES__
+  {
+    const ccl_global KernelLight *klight = get_light_from_object_id(kg, isect.object);
+    if (!is_light_shader_visible_to_path(klight->shader_id_and_flags, path_flag)) {
+      /* Advance ray past this light intersection. */
+      INTEGRATOR_STATE_WRITE(state, ray, tmin) = intersection_t_offset(isect.t);
+      return;
+    }
+  }
+#endif
+
 #ifdef __LIGHT_LINKING__
   if (!(path_flag & PATH_RAY_CAMERA) &&
       !light_link_object_match(kg, light_link_receiver_forward(kg, state), isect.object))

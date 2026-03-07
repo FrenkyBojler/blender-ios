@@ -63,7 +63,7 @@ ccl_device_noinline_cpu Spectrum light_sample_shader_eval_forward(KernelGlobals 
     ShaderDataTinyStorage emission_sd_storage;
     ccl_private ShaderData *emission_sd = AS_SHADER_DATA(&emission_sd_storage);
 
-    const float3 P = (t == FLT_MAX) ? -ray_D : ray_P + ray_D * t;
+    const float3 P = (t == FLT_MAX) ? zero_float3() : ray_P + ray_D * t;
     float3 Ng = zero_float3();
     float2 uv = zero_float2();
     light_normal_uv_from_position(kg, object, P, ray_D, Ng, uv);

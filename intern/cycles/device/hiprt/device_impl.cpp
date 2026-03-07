@@ -30,6 +30,7 @@
 #  include "bvh/hiprt.h"
 
 #  include "scene/hair.h"
+#  include "scene/light.h"
 #  include "scene/mesh.h"
 #  include "scene/object.h"
 #  include "scene/pointcloud.h"
@@ -783,6 +784,33 @@ hiprtGeometryBuildInput HIPRTDevice::prepare_point_blas(BVHHIPRT *bvh, PointClou
   return geom_input;
 }
 
+hiprtGeometryBuildInput HIPRTDevice::prepare_light_blas(BVHHIPRT *bvh, Light *light)
+{
+  hiprtGeometryBuildInput geom_input;
+
+  bvh->custom_prim_info.resize(1);
+  bvh->custom_primitive_bound.alloc(1);
+
+  bvh->custom_primitive_bound[0] = light->bounds;
+  bvh->custom_prim_info[0].x = 0;
+  bvh->custom_prim_info[0].y = PRIMITIVE_LAMP;
+
+  bvh->custom_prim_aabb.aabbCount = 1;
+  bvh->custom_prim_aabb.aabbStride = sizeof(BoundBox);
+  bvh->custom_primitive_bound.copy_to_device();
+  bvh->custom_prim_aabb.aabbs = (void *)bvh->custom_primitive_bound.device_pointer;
+
+  geom_input.type = hiprtPrimitiveTypeAABBList;
+  geom_input.primitive.aabbList = bvh->custom_prim_aabb;
+  geom_input.geomType = Lamp;
+
+  if (bvh->custom_primitive_bound.device_pointer == 0) {
+    set_error("Failed to allocate light custom_primitive_bound for BLAS");
+  }
+
+  return geom_input;
+}
+
 void HIPRTDevice::build_blas(BVHHIPRT *bvh, Geometry *geom, hiprtBuildOptions options)
 {
   hiprtGeometryBuildInput geom_input = {};
@@ -821,8 +849,15 @@ void HIPRTDevice::build_blas(BVHHIPRT *bvh, Geometry *geom, hiprtBuildOptions op
       break;
     }
 
-    case Geometry::LIGHT:
-      return;
+    case Geometry::LIGHT: {
+      Light *light = static_cast<Light *>(geom);
+      if (!light->need_bvh()) {
+        return;
+      }
+
+      geom_input = prepare_light_blas(bvh, light);
+      break;
+    }
 
     default:
       assert(geom_input.geomType != hiprtInvalidValue);
@@ -961,6 +996,9 @@ hiprtScene HIPRTDevice::build_tlas(BVHHIPRT *bvh,
           }
           else if (geom->is_pointcloud()) {
             custom_prim_offset += ((PointCloud *)geom)->num_points();
+          }
+          else if (geom->is_light()) {
+            custom_prim_offset += 1;
           }
           else {
             custom_prim_offset += ((Mesh *)geom)->num_triangles();
