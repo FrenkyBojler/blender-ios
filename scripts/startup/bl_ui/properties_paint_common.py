@@ -800,6 +800,7 @@ def brush_settings(layout, context, brush, popover=False):
 
         if capabilities.has_tip_roundness:
             layout.prop(brush, "tip_roundness", slider=True)
+            layout.prop(brush, "tip_scale_x", slider = True)
 
         # auto_smooth_factor and use_inverse_smooth_pressure
         if capabilities.has_auto_smooth:
