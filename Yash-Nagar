@@ -1,0 +1,25 @@
+import bpy
+
+# Create the ground plane
+bpy.ops.mesh.primitive_plane_add(size=30, location=(0, 0, 0))
+ground = bpy.context.active_object
+ground.name = "UnderLayer_Ground"
+
+# Add the particle system for the grass
+bpy.ops.object.particle_system_add()
+psys = ground.particle_systems[0].settings
+psys.type = 'HAIR'
+psys.count = 15000  # Number of grass blades
+psys.hair_length = 0.4
+psys.render_type = 'PATH'
+
+# Create the Blue Grass material
+mat = bpy.data.materials.new(name="Blue_Grass_Mat")
+mat.use_nodes = True
+bsdf = mat.node_tree.nodes["Principled BSDF"]
+bsdf.inputs['Base Color'].default_value = (0.05, 0.2, 0.8, 1.0) # Deep Blue
+bsdf.inputs['Roughness'].default_value = 0.8
+
+# Assign material to the ground and the particles
+ground.data.materials.append(mat)
+ground.particle_systems[0].settings.material = 1
