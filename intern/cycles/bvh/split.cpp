@@ -466,7 +466,6 @@ void BVHSpatialSplit::split_point_light(const PointLight *light,
                                         BoundBox &left_bounds,
                                         BoundBox &right_bounds)
 {
-  /* TODO(weizhen): radius is always 1 now, check. */
   float3 center = zero_float3();
   if (tfm) {
     transform_point(tfm, center);
@@ -505,7 +504,6 @@ void BVHSpatialSplit::split_quad_primitive(const AreaLight *light,
                                            BoundBox &left_bounds,
                                            BoundBox &right_bounds)
 {
-  /* TODO(weizhen): size is in the trasform now, check. */
   const float4 u = make_float4(-1.0f, 1.0f, 1.0f, -1.0f) * 0.5f * light->get_sizeu();
   const float4 v = make_float4(-1.0f, -1.0f, 1.0f, 1.0f) * 0.5f * light->get_sizev();
 
@@ -672,7 +670,7 @@ void BVHSpatialSplit::split_reference(const BVHBuild &builder,
     split_light_reference(light, dim, pos, left_bounds, right_bounds);
   }
   else {
-    /* TODO(weizhen): check when this happens. */
+    /* prim_type == 0: object-level reference for instanced geometry (handled as object bounds). */
     split_object_reference(ob, dim, pos, left_bounds, right_bounds);
   }
 

@@ -74,7 +74,6 @@ void BVHBuild::add_reference_triangles(BoundBox &root,
       t.bounds_grow(verts, bounds);
       if (bounds.valid() && t.valid(verts)) {
         references.push_back(BVHReference(bounds, j, object_index, primitive_type));
-        /* TODO(weizhen): this doesn't consider transform, what does it mean? */
         root.grow(bounds);
         center.grow(bounds.center2());
       }

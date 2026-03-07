@@ -441,11 +441,9 @@ void BVH2::refit_primitives(const int start, const int end, BoundBox &bbox, uint
         }
       }
       else {
-        /* TODO(weizhen): check when refit and if we need to recompute bounds. */
         assert(pack.prim_type[prim] & PRIMITIVE_LAMP);
-        /* Lights. */
+        /* Lights: bounds are already up to date from compute_bounds() called before refit. */
         const Light *light = static_cast<const Light *>(ob->get_geometry());
-        // light->compute_bounds();
         bbox.grow(light->bounds);
       }
     }
