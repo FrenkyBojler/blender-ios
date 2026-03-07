@@ -27,11 +27,14 @@ static void *s_error_user_ptr = nullptr;
 #  ifdef WITH_EMBREE_GPU
 static RTCFeatureFlags oneapi_embree_features_from_kernel_features(const uint kernel_features)
 {
-  unsigned int feature_flags = RTC_FEATURE_FLAG_TRIANGLE | RTC_FEATURE_FLAG_INSTANCE |
-                               RTC_FEATURE_FLAG_FILTER_FUNCTION_IN_ARGUMENTS |
-                               RTC_FEATURE_FLAG_QUAD |
-                               RTC_FEATURE_FLAG_FILTER_FUNCTION_IN_GEOMETRY |
-                               RTC_FEATURE_FLAG_USER_GEOMETRY_CALLBACK_IN_GEOMETRY;
+  unsigned int feature_flags =
+      RTC_FEATURE_FLAG_TRIANGLE | RTC_FEATURE_FLAG_INSTANCE |
+      RTC_FEATURE_FLAG_FILTER_FUNCTION_IN_ARGUMENTS | RTC_FEATURE_FLAG_QUAD |
+      RTC_FEATURE_FLAG_FILTER_FUNCTION_IN_GEOMETRY |
+      RTC_FEATURE_FLAG_USER_GEOMETRY_CALLBACK_IN_GEOMETRY |
+      /* Needed for point/sphere lights (USER geometry) on GPU, where
+       * geometry-level callbacks require EMBREE_SYCL_GEOMETRY_CALLBACK. */
+      RTC_FEATURE_FLAG_USER_GEOMETRY_CALLBACK_IN_ARGUMENTS;
 
   if (kernel_features & KERNEL_FEATURE_HAIR_THICK) {
     feature_flags |= RTC_FEATURE_FLAG_ROUND_CATMULL_ROM_CURVE |

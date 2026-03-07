@@ -788,12 +788,14 @@ hiprtGeometryBuildInput HIPRTDevice::prepare_light_blas(BVHHIPRT *bvh, Light *li
 {
   hiprtGeometryBuildInput geom_input;
 
-  bvh->custom_prim_info.resize(1);
   bvh->custom_primitive_bound.alloc(1);
 
   bvh->custom_primitive_bound[0] = light->get_unit_bounds();
-  bvh->custom_prim_info[0].x = 0;
-  bvh->custom_prim_info[0].y = PRIMITIVE_LAMP;
+  /* Note: custom_prim_info is intentionally not set for lights. light_custom_intersect and
+   * set_intersect_point for PRIMITIVE_LAMP both use object_prim_offset directly and do not
+   * read custom_prim_info_offset. Setting custom_prim_info here would cause custom_prim_offset
+   * in the TLAS build to be incremented for lights, shifting the data_offset.y of subsequent
+   * curve objects and causing incorrect curve intersections. */
 
   bvh->custom_prim_aabb.aabbCount = 1;
   bvh->custom_prim_aabb.aabbStride = sizeof(BoundBox);

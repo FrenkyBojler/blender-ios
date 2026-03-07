@@ -260,6 +260,33 @@ ccl_device_forceinline void kernel_embree_filter_intersection_func_impl(
     return;
   }
 #endif
+
+  /* On GPU (SYCL), geometry-level filter callbacks are disabled by default
+   * (EMBREE_SYCL_GEOMETRY_CALLBACK is off). Apply area light backface culling
+   * and ellipse clipping here in the argument-level filter, which is always
+   * invoked since rtcSetGeometryEnableFilterFunctionFromArguments is set for lights. */
+  const int object = kernel_embree_get_hit_object(hit);
+  if (kernel_data_fetch(objects, object).primitive_type == PRIMITIVE_LAMP) {
+    const intptr_t prim_offset = reinterpret_cast<intptr_t>(args->geometryUserPtr);
+    const int prim = hit->primID + (int)prim_offset;
+    const ccl_global KernelLightGeom *klight = &kernel_data_fetch(light_geom, prim);
+    if (klight->type == LIGHT_AREA) {
+      /* Ellipse clipping. */
+      if (klight->is_ellipse && sqr(hit->u - 0.5f) + sqr(hit->v - 0.5f) > 0.25f) {
+        *args->valid = 0;
+        return;
+      }
+      /* Backface culling: reject hits where the ray approaches from behind
+       * (where dot(D, N) > 0 means ray and normal point in the same direction). */
+      const RTCRay *ray = (const RTCRay *)args->ray;
+      const float3 D = make_float3(ray->dir_x, ray->dir_y, ray->dir_z);
+      const float3 N = make_float3(hit->Ng_x, hit->Ng_y, hit->Ng_z);
+      if (dot(D, N) > 0.0f) {
+        *args->valid = 0;
+        return;
+      }
+    }
+  }
 }
 
 /* This gets called by Embree at every valid ray/object intersection.
@@ -438,6 +465,46 @@ ccl_device_forceinline void kernel_embree_filter_occluded_volume_all_func_impl(
 #endif
 }
 
+/* Argument-level USER geometry intersect callback for point and sphere lights.
+ * On GPU (SYCL), geometry-level intersect callbacks set via rtcSetGeometryIntersectFunction
+ * are not invoked without EMBREE_SYCL_GEOMETRY_CALLBACK. This function is used as the
+ * argument-level callback (RTCIntersectArguments.intersect) on GPU to perform the actual
+ * intersection test for USER geometry lights (point lights and sphere lights). */
+ccl_device_forceinline void kernel_embree_intersect_light_func_impl(
+    const RTCIntersectFunctionNArguments *args)
+{
+  RTCRayHit *rayhit = (RTCRayHit *)args->rayhit;
+
+  const int object = (args->context->instID[0] != RTC_INVALID_GEOMETRY_ID) ?
+                         args->context->instID[0] / 2 :
+                         args->geomID / 2;
+  const intptr_t prim_offset = reinterpret_cast<intptr_t>(args->geometryUserPtr);
+  const int prim = args->primID + (int)prim_offset;
+
+  const float3 ray_P = make_float3(rayhit->ray.org_x, rayhit->ray.org_y, rayhit->ray.org_z);
+  const float3 ray_D = make_float3(rayhit->ray.dir_x, rayhit->ray.dir_y, rayhit->ray.dir_z);
+
+#ifdef __KERNEL_ONEAPI__
+  KernelGlobalsGPU *kg = nullptr;
+#else
+  const ThreadKernelGlobalsCPU *kg = ((CCLFirstHitContext *)(args->context))->kg;
+#endif
+
+  Intersection isect;
+  isect.t = rayhit->ray.tfar;
+  if (lights_intersect(kg, &isect, ray_P, ray_D, rayhit->ray.tnear, object, prim)) {
+    rayhit->ray.tfar = isect.t;
+    rayhit->hit.primID = 0;
+    rayhit->hit.geomID = args->geomID;
+    rayhit->hit.instID[0] = args->context->instID[0];
+    /* Set Ng to the ray origin direction (billboard normal facing the ray origin). */
+    const float3 Ng = normalize(ray_P);
+    rayhit->hit.Ng_x = Ng.x;
+    rayhit->hit.Ng_y = Ng.y;
+    rayhit->hit.Ng_z = Ng.z;
+  }
+}
+
 #ifdef __KERNEL_ONEAPI__
 /* Static wrappers so we can call the callbacks from out side the ONEAPIKernelContext class */
 RTC_SYCL_INDIRECTLY_CALLABLE static void ccl_always_inline
@@ -476,6 +543,14 @@ kernel_embree_filter_occluded_volume_all_func_static(const RTCFilterFunctionNArg
   context->kernel_embree_filter_occluded_volume_all_func_impl(args);
 }
 
+RTC_SYCL_INDIRECTLY_CALLABLE static void ccl_always_inline
+kernel_embree_intersect_light_func_static(const RTCIntersectFunctionNArguments *args)
+{
+  CCLFirstHitContext *ctx = (CCLFirstHitContext *)(args->context);
+  ONEAPIKernelContext *context = static_cast<ONEAPIKernelContext *>(ctx->kg);
+  context->kernel_embree_intersect_light_func_impl(args);
+}
+
 #  define kernel_embree_filter_intersection_func \
     ONEAPIKernelContext::kernel_embree_filter_intersection_func_static
 #  define kernel_embree_filter_occluded_shadow_all_func \
@@ -484,6 +559,8 @@ kernel_embree_filter_occluded_volume_all_func_static(const RTCFilterFunctionNArg
     ONEAPIKernelContext::kernel_embree_filter_occluded_local_func_static
 #  define kernel_embree_filter_occluded_volume_all_func \
     ONEAPIKernelContext::kernel_embree_filter_occluded_volume_all_func_static
+#  define kernel_embree_intersect_light_func \
+    ONEAPIKernelContext::kernel_embree_intersect_light_func_static
 #else
 #  define kernel_embree_filter_intersection_func kernel_embree_filter_intersection_func_impl
 #  define kernel_embree_filter_occluded_shadow_all_func \
@@ -522,6 +599,12 @@ ccl_device_intersect bool kernel_embree_intersect(KernelGlobals kg,
   RTCIntersectArguments args;
   rtcInitIntersectArguments(&args);
   args.filter = reinterpret_cast<RTCFilterFunctionN>(kernel_embree_filter_intersection_func);
+#ifdef __KERNEL_ONEAPI__
+  /* On GPU (SYCL), geometry-level USER geometry intersect callbacks are disabled unless
+   * EMBREE_SYCL_GEOMETRY_CALLBACK is set. Provide an argument-level callback instead so
+   * that point/sphere lights (which use USER geometry) are intersected correctly. */
+  args.intersect = reinterpret_cast<RTCIntersectFunctionN>(kernel_embree_intersect_light_func);
+#endif
   args.feature_mask = CYCLES_EMBREE_USED_FEATURES;
   args.context = &ctx;
   rtcTraversableIntersect1(kernel_data.device_bvh, &ray_hit, &args);
