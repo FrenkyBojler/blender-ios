@@ -1282,7 +1282,7 @@ static bool region_azone_edge_poll(const ScrArea *area,
   if (is_hidden && is_fullscreen) {
     return false;
   }
-  if (!is_hidden && ELEM(region->regiontype, RGN_TYPE_HEADER, RGN_TYPE_TOOL_HEADER)) {
+  if (!is_hidden && ELEM(region->regiontype, RGN_TYPE_HEADER, RGN_TYPE_TOOL_HEADER, RGN_TYPE_PREVIEW_SCRUBBING)) {
     return false;
   }
   if (!is_hidden && region->regiontype == RGN_TYPE_NAV_BAR && area->spacetype == SPACE_PROPERTIES)

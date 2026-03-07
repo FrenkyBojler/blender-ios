@@ -110,6 +110,12 @@ static SpaceLink *sequencer_create(const ScrArea * /*area*/, const Scene *scene)
   region->regiontype = RGN_TYPE_FOOTER;
   region->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_TOP : RGN_ALIGN_BOTTOM;
 
+  /* Scurbbing */
+  region = BKE_area_region_new();
+  BLI_addtail(&sseq->regionbase, static_cast<void *>(region));
+  region->regiontype = RGN_TYPE_PREVIEW_SCRUBBING;
+  region->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_TOP : RGN_ALIGN_BOTTOM;
+
   /* Buttons/list view. */
   region = BKE_area_region_new();
 
@@ -1109,6 +1115,18 @@ static void sequencer_space_blend_write(BlendWriter *writer, SpaceLink *sl)
   writer->write_struct_cast<SpaceSeq>(sl);
 }
 
+static bool scrubbing_region_poll(const RegionPollParams *params)
+{
+  const SpaceSeq *sseq = static_cast<SpaceSeq *>(params->area->spacedata.first);
+  return sseq->flag & SEQ_SHOW_SCRUBBING_REGION;
+}
+
+static void scrubbing_region_init(wmWindowManager */* wm */, ARegion *region)
+{
+  view2d_region_reinit(&region->v2d, ui::V2D_COMMONVIEW_STANDARD, region->winx, region->winy);
+  region->v2d.cur.xmax = 100.0f;
+}
+
 void ED_spacetype_sequencer()
 {
   std::unique_ptr<SpaceType> st = std::make_unique<SpaceType>();
@@ -1232,6 +1250,18 @@ void ED_spacetype_sequencer()
 
   art->init = sequencer_header_region_init;
   art->draw = sequencer_header_region_draw;
+  art->listener = sequencer_footer_region_listener;
+  BLI_addhead(&st->regiontypes, art);
+
+  /* regions: Preview Scurbbing */
+  art = MEM_new_zeroed<ARegionType>("spacetype sequencer region");
+  art->regionid = RGN_TYPE_PREVIEW_SCRUBBING;
+  art->prefsizey = HEADERY;
+  art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FOOTER | ED_KEYMAP_FRAMES | ED_KEYMAP_ANIMATION;
+  art->init = scrubbing_region_init;
+  art->poll = scrubbing_region_poll;
+  art->draw = seq_scrubbing_draw;
+  /* TODO: Use separate function to listen redraw notifiers. */
   art->listener = sequencer_footer_region_listener;
   BLI_addhead(&st->regiontypes, art);
 

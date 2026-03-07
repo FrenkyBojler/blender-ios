@@ -1858,6 +1858,17 @@ static void draw_timeline_post_view_callbacks(const TimelineDrawContext &ctx)
   GPU_framebuffer_bind_no_srgb(ctx.framebuffer_overlay);
 }
 
+void seq_scrubbing_draw(const bContext *C, ARegion *region)
+{
+  const Scene *scene = CTX_data_scene(C);
+  ui::view2d_view_ortho(&region->v2d);
+
+  const int fps = round_db_to_int(scene->frames_per_second());
+  ED_time_scrub_draw(region, scene, false, true, fps);
+  ED_time_scrub_draw_current_frame(
+      region, scene, false, region->winy >= UI_ANIM_MINY);
+}
+
 void draw_timeline_seq(const bContext *C, const ARegion *region)
 {
   SeqQuadsBatch quads_batch;

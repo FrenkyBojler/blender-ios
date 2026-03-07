@@ -125,7 +125,7 @@ static bool change_frame_poll(bContext *C)
       /* Check the region type so tools (which are shared between preview/strip view)
        * don't conflict with actions which can have the same key bound (2D cursor for example). */
       const ARegion *region = CTX_wm_region(C);
-      if (region && region->regiontype == RGN_TYPE_WINDOW) {
+      if (region && ELEM(region->regiontype, RGN_TYPE_WINDOW, RGN_TYPE_PREVIEW_SCRUBBING)) {
         return true;
       }
     }
