@@ -144,6 +144,12 @@ ccl_device_inline bool motion_triangle_custom_intersect(const hiprtRay &ray,
   const int prim_id_local = kernel_data_fetch(custom_prim_info, hit.primID + data_offset.x).x;
   const int prim_id_global = prim_id_local + prim_offset;
 
+#ifdef __SHADOW_LINKING__
+  if (intersection_skip_shadow_link(kg, payload->ray_self, object_id)) {
+    return false; /* Ignore hit - continue traversal. */
+  }
+#endif
+
   if (intersection_skip_self_shadow(payload->ray_self, object_id, prim_id_global)) {
     return false;
   }
@@ -219,6 +225,12 @@ ccl_device_inline bool motion_triangle_custom_volume_intersect(const hiprtRay &r
 
   const int prim_id_local = kernel_data_fetch(custom_prim_info, hit.primID + data_offset.x).x;
   const int prim = prim_id_local + prim_offset;
+
+#  ifdef __SHADOW_LINKING__
+  if (intersection_skip_shadow_link(kg, payload->ray_self, object)) {
+    return false; /* Ignore hit - continue traversal. */
+  }
+#  endif
 
   if (bvh_volume_anyhit_triangle_filter(
           kg, object, prim, payload->ray_self, payload->ray_visibility))
@@ -319,6 +331,12 @@ ccl_device_inline bool light_custom_intersect(const hiprtRay &ray,
   KernelGlobals kg = nullptr;
 
   const int object_id = kernel_data_fetch(user_instance_id, hit.instanceID);
+#ifdef __SHADOW_LINKING__
+  if (intersection_skip_shadow_link(kg, payload->ray_self, object_id)) {
+    return false; /* Ignore hit - continue traversal. */
+  }
+#endif
+
   const int prim_offset = kernel_data_fetch(object_prim_offset, object_id);
 
   Intersection isect;
@@ -367,6 +385,14 @@ ccl_device_inline bool shadow_intersection_filter(const hiprtRay &ray,
 
 {
   KernelGlobals kg = nullptr;
+
+  const int object_id = kernel_data_fetch(user_instance_id, hit.instanceID);
+#ifdef __SHADOW_LINKING__
+  if (intersection_skip_shadow_link(kg, payload->ray_self, object_id)) {
+    return true; /* Ignore hit - continue traversal. */
+  }
+#endif
+
   Intersection isect;
   set_intersect_point(hit, &isect);
   return bvh_shadow_all_anyhit_filter<ISECT_TEST_ALL, PRIMITIVE_ALL & ~PRIMITIVE_CURVE>(
@@ -379,6 +405,14 @@ ccl_device_inline bool shadow_intersection_filter_curve(const hiprtRay &ray,
 
 {
   KernelGlobals kg = nullptr;
+
+  const int object_id = kernel_data_fetch(user_instance_id, hit.instanceID);
+#ifdef __SHADOW_LINKING__
+  if (intersection_skip_shadow_link(kg, payload->ray_self, object_id)) {
+    return true; /* Ignore hit - continue traversal. */
+  }
+#endif
+
   Intersection isect;
   set_intersect_point(hit, &isect);
   return bvh_shadow_all_anyhit_filter<ISECT_TEST_ALL, PRIMITIVE_CURVE>(
