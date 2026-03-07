@@ -3997,6 +3997,12 @@ static void *node_static_value_storage_for(bNode &node, const bNodeSocket &socke
     default:
       break;
   }
+  if (STREQ(node.idname, "GeometryNodeInputFont")) {
+    return &node.id;
+  }
+  if (STREQ(node.idname, "FunctionNodeInputMenu")) {
+    return &reinterpret_cast<NodeInputMenu *>(node.storage)->value;
+  }
 
   return nullptr;
 }
@@ -5569,7 +5575,7 @@ std::optional<eNodeSocketDatatype> geo_nodes_base_cpp_type_to_socket_type(const 
   if (type.is<int>()) {
     return SOCK_INT;
   }
-  if (type.is<float3>()) {
+  if (type.is_any<float2, float3, float4>()) {
     return SOCK_VECTOR;
   }
   if (type.is<ColorGeometry4f>()) {
