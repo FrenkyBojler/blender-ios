@@ -63,6 +63,10 @@ struct Token {
   {
     return type() != EndOfFile;
   }
+  bool is_invalid() const
+  {
+    return type() == EndOfFile;
+  }
 
   const TokenType &type() const;
   const TokenAtom &atom() const;

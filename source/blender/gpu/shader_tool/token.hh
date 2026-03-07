@@ -15,56 +15,21 @@ namespace blender::gpu::shader::parser {
 
 struct Scope;
 
+/**
+ * Semantic token adding access to ParserBase data.
+ * It is also safer than lexit::Token as invalid token will not result invalid behavior.
+ */
 struct Token : lexit::Token {
   Token(const lexit::Token &tok) : lexit::Token(tok) {}
+  Token(const ParserBase *data, int64_t index) : lexit::Token(data, index) {}
 
- private:
-  Token invalid() const
+  Token prev(int i = 1) const
   {
-    return lexit::Token::invalid(buf_);
+    return static_cast<const lexit::Token *>(this)->prev(i);
   }
-
-  const ParserBase &parser() const
+  Token next(int i = 1) const
   {
-    return static_cast<const ParserBase &>(*buf_);
-  }
-  const LexerBase &lex() const
-  {
-    return static_cast<const LexerBase &>(*buf_);
-  }
-
- public:
-  static Token from_position(const ParserBase *data, int64_t index)
-  {
-    return lexit::Token(data, index);
-  }
-
-  bool is_valid() const
-  {
-    return static_cast<const lexit::Token *>(this)->is_valid();
-  }
-  bool is_invalid() const
-  {
-    return !static_cast<const lexit::Token *>(this)->is_valid();
-  }
-
-  /* String index range. */
-  IndexRange index_range() const
-  {
-    if (is_invalid()) {
-      return {0, 0};
-    }
-    return IndexRange{int64_t(lex().offsets_[index_]),
-                      int64_t(lex().offsets_[index_ + 1] - lex().offsets_[index_])};
-  }
-
-  Token prev() const
-  {
-    return from_position(&parser(), index_ - 1);
-  }
-  Token next() const
-  {
-    return from_position(&parser(), index_ + 1);
+    return static_cast<const lexit::Token *>(this)->next(i);
   }
 
   Token find_next(TokenType type) const
@@ -98,9 +63,9 @@ struct Token : lexit::Token {
   /* For a word, return the name containing the prefix namespaces if present. */
   std::string full_symbol_name() const
   {
-    size_t start = this->namespace_start().str_index_start();
-    size_t end = this->str_index_last_no_whitespace();
-    return std::string(lex().str_.substr(start, end - start + 1));
+    size_t start = namespace_start().str_index_start();
+    size_t end = str_index_last_no_whitespace();
+    return std::string(buf_->str_.substr(start, end - start + 1));
   }
 
   /* Returns the scope that contains this token. */
@@ -124,15 +89,15 @@ struct Token : lexit::Token {
   /* Index of the first character of the line this token is. */
   size_t line_start() const
   {
-    size_t pos = lex().str_.rfind('\n', str_index_start());
+    size_t pos = buf_->str_.rfind('\n', str_index_start());
     return (pos == std::string::npos) ? 0 : (pos + 1);
   }
 
   /* Index of the last character of the line this token is, excluding `\n`. */
   size_t line_end() const
   {
-    size_t pos = lex().str_.find('\n', str_index_start());
-    return (pos == std::string::npos) ? (lex().str_.size() - 1) : (pos - 1);
+    size_t pos = buf_->str_.find('\n', str_index_start());
+    return (pos == std::string::npos) ? (buf_->str_.size() - 1) : (pos - 1);
   }
 
   std::string_view str_view_with_whitespace() const
@@ -140,7 +105,7 @@ struct Token : lexit::Token {
     if (is_invalid()) {
       return "";
     }
-    return lex()[index_].str_with_whitespace();
+    return static_cast<const lexit::Token *>(this)->str_with_whitespace();
   }
 
   std::string str_with_whitespace() const
@@ -150,7 +115,7 @@ struct Token : lexit::Token {
 
   std::string_view str_view() const
   {
-    std::string_view str = this->str_view_with_whitespace();
+    std::string_view str = str_view_with_whitespace();
     return str.substr(0, str.find_last_not_of(" \n") + 1);
   }
 
@@ -162,7 +127,7 @@ struct Token : lexit::Token {
   /* Return the content without the first and last characters. */
   std::string_view str_view_exclusive() const
   {
-    std::string_view str = this->str_view();
+    std::string_view str = str_view();
     if (str.length() < 2) {
       return "";
     }
@@ -183,9 +148,9 @@ struct Token : lexit::Token {
       return 0;
     }
     int index = at_end ? str_index_last() : str_index_last_no_whitespace();
-    int line_num = parser::line_number(lex().str_, index);
+    int line_num = parser::line_number(buf_->str_, index);
     /* Add the last char (not counted by line_number). */
-    return line_num + int(at_end && lex().str_[index] == '\n');
+    return line_num + int(at_end && buf_->str_[index] == '\n');
   }
 
   /* Return the offset to the start of the line. */
@@ -194,13 +159,13 @@ struct Token : lexit::Token {
     if (is_invalid()) {
       return 0;
     }
-    return parser::char_number(lex().str_, str_index_start());
+    return parser::char_number(buf_->str_, str_index_start());
   }
 
   /* Return the line the token is at. */
   std::string line_str() const
   {
-    return parser::line_str(lex().str_, str_index_start());
+    return parser::line_str(buf_->str_, str_index_start());
   }
 
   TokenType type() const
@@ -208,7 +173,7 @@ struct Token : lexit::Token {
     if (is_invalid()) {
       return Invalid;
     }
-    return TokenType(lex().types_[index_]);
+    return TokenType(buf_->types_[index_]);
   }
 
   /* Return the attribute scope before this token if it exists. */

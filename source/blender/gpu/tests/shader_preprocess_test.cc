@@ -2753,8 +2753,8 @@ AA(AA=1){AA=1,A=1,A={1};{A=A=A,AP;i(AEA){r;}}})";
   }
   {
     IntermediateForm parser("float i;", no_err_report);
-    parser.insert_after(Token::from_position(&parser, 0), "A ");
-    parser.insert_after(Token::from_position(&parser, 0), "B  ");
+    parser.insert_after(Token(&parser, 0), "A ");
+    parser.insert_after(Token(&parser, 0), "B  ");
     EXPECT_EQ(parser.result_get(), "float A B  i;");
   }
   {
@@ -2768,8 +2768,8 @@ B
 A#A1A)";
     EXPECT_EQ(parser.token_types_str(), expect);
 
-    Token A = Token::from_position(&parser, 1);
-    Token B = Token::from_position(&parser, 5);
+    Token A = Token(&parser, 1);
+    Token B = Token(&parser, 5);
 
     EXPECT_EQ(A.str(), "A");
     EXPECT_EQ(B.str(), "B");
