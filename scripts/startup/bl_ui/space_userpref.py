@@ -1359,7 +1359,7 @@ class USERPREF_PT_theme_text_style(ThemePanel, CenterAlignMixIn, Panel):
 
         layout.label(text="Tooltip")
         self._ui_font_style(layout, style.tooltip)
-        layout.prop(style,"text_line_height")
+        layout.prop(style, "text_line_height")
 
 
 class USERPREF_PT_theme_bone_color_sets(ThemePanel, CenterAlignMixIn, Panel):
