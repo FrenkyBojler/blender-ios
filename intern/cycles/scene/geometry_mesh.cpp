@@ -60,9 +60,8 @@ void GeometryManager::device_update_prim(Device * /*unused*/,
     }
     else {
       assert(geom->is_light());
-      // const Light *light = static_cast<const Light *>(geom);
-      // light_size += light->need_bvh();
-      /* TODO(weizhen): do we need lightgeom outside of bvh? */
+      /* All lights need a light_geom entry: the kernel accesses light_geom[prim] for all
+       * light types (including distant and background) to read shader_id, use_caustics, etc. */
       light_size++;
     }
   }

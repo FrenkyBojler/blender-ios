@@ -190,9 +190,9 @@ void PointLight::pack(KernelLightGeom *light, const Scene *scene) const
 void PointLight::adjust_tfm(Object *object, KernelObject *kobject, KernelLight *klight) const
 {
   for (int i = 0; i < 3; i++) {
-    /* TODO(weizhen): what if some scale is zero? Should we clamp? */
-    klight->spot.inv_scale[i] = inversesqrtf(
-        len_squared(transform_get_column(&object->get_tfm(), i)));
+    const float len_sq = len_squared(transform_get_column(&object->get_tfm(), i));
+    /* Clamp to zero for degenerate (zero-scale) transforms to avoid inf/NaN. */
+    klight->spot.inv_scale[i] = (len_sq > 0.0f) ? inversesqrtf(len_sq) : 0.0f;
   }
 
   if (radius > 0) {
@@ -1591,6 +1591,7 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
   KernelShader *kshader = dscene->shaders.data();
   KernelObject *kobjects = dscene->objects.data();
 
+  bool shaders_modified = false;
   for (const Object *object : scene->objects) {
     if (!object->get_geometry()->is_light()) {
       continue;
@@ -1605,6 +1606,7 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
       const Shader *shader = (light->get_shader()) ? light->get_shader() : scene->default_light;
       /* Light is transparent. */
       kshader[shader->id].flags |= SD_HAS_TRANSPARENT_SHADOW;
+      shaders_modified = true;
 
       const int light_index = kobjects[object->get_device_index()].light_id;
       light->copy_to_kernel(klights + light_index, scene, object);
@@ -1614,7 +1616,11 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
   LOG_INFO << "Number of lights sent to the device: " << kintegrator->num_lights;
 
   dscene->lights.copy_to_device();
-  /* TODO(weizhen): copy shader to device? */
+  /* Shader flags (SD_HAS_TRANSPARENT_SHADOW) are modified above for light shaders, so
+   * ensure the shaders buffer is re-uploaded if any flags changed. */
+  if (shaders_modified) {
+    dscene->shaders.copy_to_device();
+  }
 }
 
 void LightManager::device_update(Device *device,
