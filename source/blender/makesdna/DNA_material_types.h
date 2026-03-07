@@ -241,10 +241,9 @@ enum {
 
 /* Grease Pencil Placement Drawing Modes */
 enum eMaterialGPencilPlacementMode {
-  GP_MATERIAL_PLACEMENT_SINGLE = 0,
-  GP_MATERIAL_PLACEMENT_SUBDIV = 1,
+  GP_MATERIAL_PLACEMENT_COUNT = 0,
+  GP_MATERIAL_PLACEMENT_RADIUS = 1,
   GP_MATERIAL_PLACEMENT_DENSITY = 2,
-  GP_MATERIAL_PLACEMENT_RADIUS = 3,
 };
 
 struct TexPaintSlot {
@@ -326,12 +325,12 @@ struct MaterialGPencilStyle {
   float alignment_rotation = 0;
   /** #eMaterialGPencilPlacementMode Placement mode for Dots and Squares. */
   int placement_mode = 0;
-  /* Number of points per segment when placement mode is `GP_MATERIAL_PLACEMENT_SUBDIV` */
-  int placement_subdivisions = 0;
-  /* Point density per unit when placement mode is `GP_MATERIAL_PLACEMENT_DENSITY` */
-  float placement_density = 0;
+  /* Number of points per segment when placement mode is `GP_MATERIAL_PLACEMENT_COUNT` */
+  int placement_count = 0;
   /* Radius factor for points when placement mode is `GP_MATERIAL_PLACEMENT_RADIUS` */
   float placement_radius_spacing = 0;
+  /* Point density per unit when placement mode is `GP_MATERIAL_PLACEMENT_DENSITY` */
+  float placement_density = 0;
 };
 
 struct MaterialLineArt {

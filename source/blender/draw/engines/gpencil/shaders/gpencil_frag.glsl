@@ -200,14 +200,8 @@ float point_i_to_local_t(float i, float4 p1, float4 p2)
 
     return r1 * (E_i - 1.0f) / a;
   }
-  else if (placement_mode == GP_DOTS_PLACEMENT_MODE_DENSITY ||
-           placement_mode == GP_DOTS_PLACEMENT_MODE_SUBDIV)
-  {
-    return (i / point_density - i_start) / i_delta;
-  }
-  else { /* GP_DOTS_PLACEMENT_MODE_SINGLE */
-    return 0.0f;
-  }
+
+  return (i / point_density - i_start) / i_delta;
 }
 
 float local_t_to_point_i(float t, float4 p1, float4 p2)
@@ -242,14 +236,8 @@ float local_t_to_point_i(float t, float4 p1, float4 p2)
 
     return (2.0f * log(E_i) / log(E) + i_start) * point_density;
   }
-  else if (placement_mode == GP_DOTS_PLACEMENT_MODE_DENSITY ||
-           placement_mode == GP_DOTS_PLACEMENT_MODE_SUBDIV)
-  {
-    return (t * i_delta + i_start) * point_density;
-  }
-  else { /* GP_DOTS_PLACEMENT_MODE_SINGLE */
-    return 0.0f;
-  }
+
+  return (t * i_delta + i_start) * point_density;
 }
 
 float screen_t_to_local_t(float screen_t, float z1, float z2)
@@ -305,7 +293,7 @@ float2 uneven_capsule_intersection(float2 p0, float2 p1, float2 p2, float r1, fl
 int2 get_bounds(float2 p0, float4 p1, float4 p2)
 {
   uint placement_mode = gp_interp_flat.mat_flag & GP_DOTS_PLACEMENT_MODE;
-  if (placement_mode == GP_DOTS_PLACEMENT_MODE_SINGLE) {
+  if (placement_mode == GP_DOTS_PLACEMENT_MODE_COUNT && gp_interp_flat.point_length.z == 1.0f) {
     return int2(0, 1);
   }
 
@@ -362,7 +350,8 @@ float3 ndc_to_view(float4 ndc)
 void main()
 {
   uint placement_mode = gp_interp_flat.mat_flag & GP_DOTS_PLACEMENT_MODE;
-  bool is_multi_dot = placement_mode != GP_DOTS_PLACEMENT_MODE_SINGLE;
+  bool is_single_dot = placement_mode == GP_DOTS_PLACEMENT_MODE_COUNT &&
+                       gp_interp_flat.point_length.z == 1.0f;
 
   if (flag_test(gp_interp_flat.mat_flag, GP_FILL))  // fill
   {
@@ -371,7 +360,7 @@ void main()
   else {
     if (flag_test(gp_interp_flat.mat_flag, GP_STROKE_ALIGNMENT))  // dot and squares
     {
-      if (is_multi_dot) {
+      if (!is_single_dot) {
         float radius1 = screen_space_to_radius(gp_interp_flat.sspos_1);
         float radius2 = screen_space_to_radius(gp_interp_flat.sspos_2);
 

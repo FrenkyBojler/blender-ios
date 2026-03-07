@@ -440,7 +440,8 @@ float4 gpencil_vertex(float4 viewport_res,
                       float4 &out_sspos_2,
                       float2 &out_sspos_3,
                       /* Object-space accumulated length from the start of the stroke
-                        (x: point 1, y: point 2, z: point density). */
+                        (x: point 1, y: point 2, z: point density).
+                        Note: Z must be already given. */
                       float3 &out_point_length,
                       /* Stroke aspect ratio and rotation direction
                         (xy: aspect ration, zw: rotation direction). */
@@ -478,7 +479,8 @@ float4 gpencil_vertex(float4 viewport_res,
 
   if (gpencil_is_stroke_vertex()) {
     uint placement_mode = material_flags & GP_DOTS_PLACEMENT_MODE;
-    bool is_multi_dot = placement_mode != GP_DOTS_PLACEMENT_MODE_SINGLE;
+    bool is_single_dot = placement_mode == GP_DOTS_PLACEMENT_MODE_COUNT &&
+                         out_point_length.z == 1.0f;
     bool is_dot = flag_test(material_flags, GP_STROKE_ALIGNMENT);
     bool is_squares = !flag_test(material_flags, GP_STROKE_DOTS);
 
@@ -511,11 +513,11 @@ float4 gpencil_vertex(float4 viewport_res,
     if (!is_dot && is_single) {
       is_dot = true;
       is_squares = false;
-      is_multi_dot = false;
+      is_single_dot = true;
     }
 
     /* Endpoints, we discard the vertices. */
-    if (!(is_dot && !is_multi_dot) && ma2.x == -1) {
+    if (!(is_dot && is_single_dot) && ma2.x == -1) {
       return discard_ndc();
     }
 
@@ -523,7 +525,7 @@ float4 gpencil_vertex(float4 viewport_res,
     float x = float(gl_VertexID & 1) * 2.0f - 1.0f; /* [-1..1] */
     float y = float(gl_VertexID & 2) - 1.0f;        /* [-1..1] */
 
-    bool use_curr = (is_dot && !is_multi_dot) || (x == -1.0f);
+    bool use_curr = (is_dot && is_single_dot) || (x == -1.0f);
 
     float3 wpos0 = transform_point(drw_modelmat(), pos.xyz);
     float3 wpos1 = transform_point(drw_modelmat(), pos1.xyz);
@@ -532,7 +534,7 @@ float4 gpencil_vertex(float4 viewport_res,
     float3 wpos_adj = (use_curr) ? wpos0 : wpos3;
 
     float3 T;
-    if (is_dot && !is_multi_dot) {
+    if (is_dot && is_single_dot) {
       /* Shade as facing billboards. */
       T = drw_view().viewinv[0].xyz;
     }
@@ -600,10 +602,10 @@ float4 gpencil_vertex(float4 viewport_res,
       out_sspos_3 = out_sspos_2.xy;
     }
 
-    /* z is calculated later. */
-    out_point_length = float3(uv1.z, uv2.z, 1.0f);
+    /* Z is already given. */
+    out_point_length.xy = float2(uv1.z, uv2.z);
 
-    if (is_dot && is_multi_dot) {
+    if (is_dot && !is_single_dot) {
       out_thickness.x = clamped_thickness / out_ndc.w;
       out_thickness.y = thickness / out_ndc.w;
 
@@ -628,7 +630,7 @@ float4 gpencil_vertex(float4 viewport_res,
 
       out_uv.x = (use_curr) ? uv1.z : uv2.z;
     }
-    else if (is_dot && !is_multi_dot) {
+    else if (is_dot && is_single_dot) {
       /* Rotation: Encoded as Cos + Sin sign. */
       float uv_rot = gpencil_decode_uvrot(point_data1.packed_data);
       float2 x_axis = get_rotation(viewport_res,
