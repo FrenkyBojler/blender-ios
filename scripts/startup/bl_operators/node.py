@@ -1047,6 +1047,10 @@ class NodeInterfaceOperator():
         if space.edit_tree.is_embedded_data:
             return False
         return True
+    
+    @staticmethod
+    def selected_items(interface):
+        return tuple(item for item in interface.items_tree if item.select)
 
 
 class NODE_OT_interface_item_new(NodeInterfaceOperator, Operator):
@@ -1176,17 +1180,26 @@ class NODE_OT_interface_item_duplicate(NodeInterfaceOperator, Operator):
         snode = context.space_data
         tree = snode.edit_tree
         interface = tree.interface
-        return interface.active is not None
+        return len(cls.selected_items(interface)) > 0
 
     def execute(self, context):
         snode = context.space_data
         tree = snode.edit_tree
         interface = tree.interface
-        item = interface.active
+        active_item = interface.active
+        selected_items = self.selected_items(interface)
 
-        if item:
+        # Clear active and selection state as it causes inconsistencies when making new selections
+        for item in interface.items_tree:
+            item.select = False
+        interface.active = None
+
+        for item in selected_items:
             item_copy = interface.copy(item)
-            interface.active = item_copy
+            item_copy.select = True
+
+            if item == active_item:
+                interface.active = item_copy
 
         return {'FINISHED'}
 
