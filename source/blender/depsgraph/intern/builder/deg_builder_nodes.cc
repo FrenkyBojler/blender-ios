@@ -137,7 +137,7 @@ DepsgraphNodeBuilder::~DepsgraphNodeBuilder()
   for (IDInfo &id_info : id_info_hash_.values()) {
     if (id_info.id_cow != nullptr) {
       deg_free_eval_copy_datablock(id_info.id_cow);
-      MEM_freeN(id_info.id_cow);
+      MEM_delete(id_info.id_cow);
     }
   }
 }
@@ -386,7 +386,7 @@ void DepsgraphNodeBuilder::begin_build()
       }
       else {
         /* This ID has not been expanded yet. Don't reuse it like already expanded IDs. */
-        MEM_SAFE_FREE(id_node->id_cow);
+        MEM_SAFE_DELETE(id_node->id_cow);
       }
     }
     id_info.previously_visible_components_mask = id_node->visible_components_mask;
@@ -2353,6 +2353,13 @@ static bool strip_node_build_cb(Strip *strip, void *user_data)
     }
     ViewLayer *sequence_view_layer = BKE_view_layer_default_render(strip->scene);
     nb->build_scene_speakers(strip->scene, sequence_view_layer);
+  }
+
+  if (strip->type == STRIP_TYPE_COMPOSITOR && strip->effectdata) {
+    CompositorEffectVars *comp_data = static_cast<CompositorEffectVars *>(strip->effectdata);
+    if (comp_data->node_group) {
+      nb->build_nodetree(comp_data->node_group);
+    }
   }
   for (StripModifierData &modifier : strip->modifiers) {
     if (modifier.type != eSeqModifierType_Compositor) {

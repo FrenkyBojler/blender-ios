@@ -103,7 +103,7 @@ void file_tool_props_region_panels_register(ARegionType *art)
 {
   PanelType *pt;
 
-  pt = MEM_callocN<PanelType>("spacetype file operator properties");
+  pt = MEM_new_zeroed<PanelType>("spacetype file operator properties");
   STRNCPY_UTF8(pt->idname, "FILE_PT_operator");
   STRNCPY_UTF8(pt->label, N_("Operator"));
   STRNCPY_UTF8(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
@@ -181,8 +181,9 @@ static void file_panel_execution_buttons_draw(const bContext *C, Panel *panel)
   BLI_assert(!but_is_utf8(but));
 
   button_func_complete_set(but, autocomplete_file, nullptr);
+  /* silly workaround calling NFunc to ensure this does not get called
+   * immediate ui_apply_but_func but only after button deactivates */
   button_funcN_set(but, file_filename_enter_handle, nullptr, but);
-  button_flag_enable(but, blender::ui::BUT_TEXTEDIT_UPDATE);
 
   if (params->flag & FILE_CHECK_EXISTING) {
     but_extra_rna_ptr = button_extra_operator_icon_add(
@@ -218,7 +219,7 @@ void file_execute_region_panels_register(ARegionType *art)
 {
   PanelType *pt;
 
-  pt = MEM_callocN<PanelType>("spacetype file execution buttons");
+  pt = MEM_new_zeroed<PanelType>("spacetype file execution buttons");
   STRNCPY_UTF8(pt->idname, "FILE_PT_execution_buttons");
   STRNCPY_UTF8(pt->label, N_("Execute Buttons"));
   STRNCPY_UTF8(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
@@ -270,7 +271,7 @@ void file_tools_region_panels_register(ARegionType *art)
 {
   PanelType *pt;
 
-  pt = MEM_callocN<PanelType>("spacetype file asset catalog buttons");
+  pt = MEM_new_zeroed<PanelType>("spacetype file asset catalog buttons");
   STRNCPY_UTF8(pt->idname, "FILE_PT_asset_catalog_buttons");
   STRNCPY_UTF8(pt->label, N_("Asset Catalogs"));
   STRNCPY_UTF8(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);

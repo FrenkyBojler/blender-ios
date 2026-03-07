@@ -49,7 +49,7 @@ class AssetCatalogTreeViewAllItem;
 class AssetCatalogTreeView : public ui::AbstractTreeView {
   asset_system::AssetLibrary *asset_library_;
   /** The asset catalog tree this tree-view represents. */
-  const asset_system::AssetCatalogTree *catalog_tree_;
+  std::shared_ptr<const asset_system::AssetCatalogTree> catalog_tree_;
   FileAssetSelectParams *params_;
   SpaceFile &space_file_;
 
@@ -188,7 +188,7 @@ AssetCatalogTreeView::AssetCatalogTreeView(asset_system::AssetLibrary *library,
     : asset_library_(library), params_(params), space_file_(space_file)
 {
   if (library) {
-    catalog_tree_ = &library->catalog_service().catalog_tree();
+    catalog_tree_ = library->catalog_service().catalog_tree();
   }
   else {
     catalog_tree_ = nullptr;
@@ -565,7 +565,7 @@ std::optional<eWM_DragDataType> AssetCatalogDragController::get_drag_type() cons
 
 void *AssetCatalogDragController::create_drag_data() const
 {
-  wmDragAssetCatalog *drag_catalog = MEM_new_for_free<wmDragAssetCatalog>(__func__);
+  wmDragAssetCatalog *drag_catalog = MEM_new<wmDragAssetCatalog>(__func__);
   drag_catalog->drag_catalog_id = catalog_item_.get_catalog_id();
   return drag_catalog;
 }

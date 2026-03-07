@@ -51,10 +51,10 @@ struct BrushGpencilSettings {
 
   /** Factor for transparency. */
   float fill_threshold = 0;
-  char _pad2[2] = {};
+  char _pad[2] = {};
   /* Type of caps: eGPDstroke_Caps. */
   int8_t caps_type = 0;
-  char _pad[1] = {};
+  char _pad1[1] = {};
 
   int flag2 = 0;
 
@@ -97,8 +97,7 @@ struct BrushGpencilSettings {
   int sculpt_flag = 0;
   /** eGP_Sculpt_Mode_Flag. */
   int sculpt_mode_flag = 0;
-  /** Preset type (used to reset brushes - internal). */
-  short preset_type = 0;
+  char _pad2[2] = {};
   /** Brush preselected mode (Active/Material/Vertex-color). */
   short brush_draw_mode = 0;
 
@@ -110,7 +109,7 @@ struct BrushGpencilSettings {
   float random_value = 0;
 
   int color_jitter_flag = 0;
-  char _pad1[4] = {};
+  char _pad3[4] = {};
 
   /** Factor to extend stroke extremes using fill tool. */
   float fill_extend_fac = 0;
@@ -199,10 +198,16 @@ struct Brush {
   /** Brush diameter. */
   int size = 70; /* diameter of the brush in pixels */
   /** General purpose flags. */
-  int flag = (BRUSH_ALPHA_PRESSURE | BRUSH_SPACE | BRUSH_SPACE_ATTEN);
+  int flag = (BRUSH_ALPHA_PRESSURE | BRUSH_SPACE_ATTEN);
   int flag2 = 0;
   int sampling_flag = (BRUSH_PAINT_ANTIALIASING);
 
+  /**
+   * How the stroke behaves when used via the modal operators.
+   * \see #eBrushStrokeType
+   */
+  int8_t stroke_method = BRUSH_STROKE_SPACE;
+  char _pad[7] = {};
   /** Number of samples used to smooth the stroke. */
   int input_samples = 1;
 
@@ -308,7 +313,8 @@ struct Brush {
   char gpencil_weight_brush_type = 0;
   /** Active curves sculpt brush type (#eBrushCurvesSculptType). */
   char curves_sculpt_brush_type = 0;
-  char _pad1[10] = {};
+
+  char _pad1[2] = {};
 
   float autosmooth_factor = 0.0f;
 
@@ -401,6 +407,11 @@ struct Brush {
 
   /* slide/relax */
   int slide_deform_type = 0;
+
+  /* Scene Project brush */
+  int8_t project_ray_direction_type = BRUSH_PROJECT_RAY_DIRECTION_VIEW_NORMAL;
+  char _pad2[3] = {};
+  float minimum_distance = 0.0f;
 
   /* overlay */
   int texture_overlay_alpha = 33;

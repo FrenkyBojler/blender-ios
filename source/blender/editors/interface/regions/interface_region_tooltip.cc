@@ -69,6 +69,7 @@
 #include "WM_types.hh"
 
 #include "RNA_access.hh"
+#include "RNA_enum_types.hh"
 #include "RNA_path.hh"
 #include "RNA_prototypes.hh"
 
@@ -214,6 +215,7 @@ static void ui_tooltip_region_draw_cb(const bContext * /*C*/, ARegion *region)
   color_blend_f3_f3(alert_color, main_color, 0.3f);
 
   /* Draw text. */
+  BLF_size(data->fstyle.uifont_id, data->fstyle.points * UI_SCALE_FAC);
 
   /* Wrap most text typographically with hard width limit. */
   BLF_wordwrap(data->fstyle.uifont_id,
@@ -539,27 +541,27 @@ static std::unique_ptr<TooltipData> ui_tooltip_data_from_tool(bContext *C,
     }
     else if (BPY_run_string_as_string(C, expr_imports, expr, nullptr, &expr_result)) {
       if (STREQ(expr_result, "")) {
-        MEM_freeN(expr_result);
+        MEM_delete(expr_result);
         expr_result = nullptr;
       }
     }
     else {
       /* NOTE: this is an exceptional case, we could even remove it
        * however there have been reports of tooltips failing, so keep it for now. */
-      expr_result = BLI_strdup(IFACE_("Internal error!"));
+      expr_result = BLI_strdup(TIP_("Internal error!"));
       is_error = true;
     }
 
     if (expr_result != nullptr) {
       /* NOTE: This is a very weak hack to get a valid translation most of the time...
        * Proper way to do would be to get i18n context from the item, somehow. */
-      const char *label_str = CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, expr_result);
+      const char *label_str = CTX_TIP_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, expr_result);
       if (label_str == expr_result) {
-        label_str = IFACE_(expr_result);
+        label_str = TIP_(expr_result);
       }
 
       if (label_str != expr_result) {
-        MEM_freeN(expr_result);
+        MEM_delete(expr_result);
         expr_result = BLI_strdup(label_str);
       }
 
@@ -569,7 +571,7 @@ static std::unique_ptr<TooltipData> ui_tooltip_data_from_tool(bContext *C,
                              TIP_STYLE_NORMAL,
                              (is_error) ? TIP_LC_ALERT : TIP_LC_MAIN,
                              false);
-      MEM_freeN(expr_result);
+      MEM_delete(expr_result);
     }
   }
 
@@ -592,7 +594,7 @@ static std::unique_ptr<TooltipData> ui_tooltip_data_from_tool(bContext *C,
     }
     else if (BPY_run_string_as_string(C, expr_imports, expr, nullptr, &expr_result)) {
       if (STREQ(expr_result, "")) {
-        MEM_freeN(expr_result);
+        MEM_delete(expr_result);
         expr_result = nullptr;
       }
     }
@@ -607,7 +609,7 @@ static std::unique_ptr<TooltipData> ui_tooltip_data_from_tool(bContext *C,
       const std::string but_tip = ui_tooltip_with_period(expr_result);
       tooltip_text_field_add(
           *data, but_tip, {}, TIP_STYLE_NORMAL, (is_error) ? TIP_LC_ALERT : TIP_LC_MAIN, false);
-      MEM_freeN(expr_result);
+      MEM_delete(expr_result);
     }
   }
 
@@ -738,7 +740,7 @@ static std::unique_ptr<TooltipData> ui_tooltip_data_from_tool(bContext *C,
       }
 
       WM_operator_properties_free(&op_props);
-      MEM_freeN(expr_result);
+      MEM_delete(expr_result);
 
       if (shortcut) {
         tooltip_text_field_add(*data,
@@ -974,6 +976,32 @@ void tooltip_uibut_python_add(TooltipData &data,
   }
 }
 
+static const char *icon_id_to_name(BIFIconID icon_value)
+{
+  const char *identifier = nullptr;
+  RNA_enum_identifier(rna_enum_icon_items, icon_value, &identifier);
+  return identifier;
+}
+
+static void tooltip_uibut_icon_add(TooltipData &data, Button &but)
+{
+  if (ELEM(but.icon, ICON_NONE, ICON_BLANK1)) {
+    return;
+  }
+
+  if ((but.flag & BUT_ICON_PREVIEW) != 0) {
+    return;
+  }
+
+  const char *icon_name = icon_id_to_name(but.icon);
+  if (!icon_name) {
+    return;
+  }
+
+  tooltip_text_field_add(
+      data, fmt::format("Icon: {}", icon_name), {}, TIP_STYLE_MONO, TIP_LC_PYTHON);
+}
+
 static std::unique_ptr<TooltipData> ui_tooltip_data_from_button_or_extra_icon(
     bContext *C, Button *but, ButtonExtraOpIcon *extra_icon, const bool is_quick_tip)
 {
@@ -1186,8 +1214,8 @@ static std::unique_ptr<TooltipData> ui_tooltip_data_from_button_or_extra_icon(
         if ((RNA_property_flag(rnaprop) & PROP_PATH_SUPPORTS_BLEND_RELATIVE) == 0) {
           if (BLI_path_is_rel(but->drawstr.c_str())) {
             tooltip_text_field_add(*data,
-                                   "Warning: the blend-file relative path prefix \"//\" "
-                                   "is not supported for this property.",
+                                   TIP_("Warning: the blend-file relative path prefix \"//\" "
+                                        "is not supported for this property."),
                                    {},
                                    TIP_STYLE_NORMAL,
                                    TIP_LC_ALERT);
@@ -1254,12 +1282,16 @@ static std::unique_ptr<TooltipData> ui_tooltip_data_from_button_or_extra_icon(
                              TIP_LC_ALERT);
     }
     if (disabled_msg_free) {
-      MEM_freeN(disabled_msg_orig);
+      MEM_delete(disabled_msg_orig);
     }
   }
 
   if (U.flag & USER_TOOLTIPS_PYTHON) {
     tooltip_uibut_python_add(*data, *C, *but, extra_icon);
+  }
+
+  if (U.flag & USER_DEVELOPER_UI) {
+    tooltip_uibut_icon_add(*data, *but);
   }
 
   if (but->type == ButtonType::Color) {
@@ -1783,8 +1815,11 @@ static void ui_tooltip_from_image(Image &ima, TooltipData &data)
     MovieReader *anim = static_cast<ImageAnim *>(ima.anims.first)->anim;
     if (anim) {
       int duration = MOV_get_duration_frames(anim, IMB_TC_RECORD_RUN);
-      tooltip_text_field_add(
-          data, fmt::format("Frames: {}", duration), {}, TIP_STYLE_NORMAL, TIP_LC_NORMAL);
+      tooltip_text_field_add(data,
+                             fmt::format(fmt::runtime(TIP_("Frames: {}")), duration),
+                             {},
+                             TIP_STYLE_NORMAL,
+                             TIP_LC_NORMAL);
     }
   }
 
@@ -1840,12 +1875,12 @@ static void ui_tooltip_from_clip(MovieClip &clip, TooltipData &data)
         TIP_STYLE_NORMAL,
         TIP_LC_NORMAL);
 
-    tooltip_text_field_add(
-        data,
-        fmt::format("Frames: {}", MOV_get_duration_frames(anim, IMB_TC_RECORD_RUN)),
-        {},
-        TIP_STYLE_NORMAL,
-        TIP_LC_NORMAL);
+    tooltip_text_field_add(data,
+                           fmt::format(fmt::runtime(TIP_("Frames: {}")),
+                                       MOV_get_duration_frames(anim, IMB_TC_RECORD_RUN)),
+                           {},
+                           TIP_STYLE_NORMAL,
+                           TIP_LC_NORMAL);
 
     ImBuf *ibuf = MOV_decode_preview_frame(anim);
 

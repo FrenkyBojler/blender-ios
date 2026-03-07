@@ -17,7 +17,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Color>("Color").custom_draw([](CustomSocketDrawParams &params) {
     params.layout.alignment_set(ui::LayoutAlign::Expand);
     ui::Layout &col = params.layout.column(false);
-    template_color_picker(&col, &params.node_ptr, "value", true, false, false, true);
+    template_color_picker(&col, &params.node_ptr, "value", true, false, false, false);
     col.prop(&params.node_ptr, "value", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
   });
 }
@@ -32,7 +32,7 @@ static void node_build_multi_function(nodes::NodeMultiFunctionBuilder &builder)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeInputColor *data = MEM_new_for_free<NodeInputColor>(__func__);
+  NodeInputColor *data = MEM_new<NodeInputColor>(__func__);
   copy_v4_fl4(data->color, 0.5f, 0.5f, 0.5f, 1.0f);
   node->storage = data;
 }

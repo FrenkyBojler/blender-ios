@@ -91,7 +91,7 @@ static void render_init_buffers(const DRWContext *draw_ctx,
 
   if (pix_z) {
     /* Depth need to be remapped to [0..1] range. */
-    pix_z = static_cast<float *>(MEM_dupallocN(pix_z));
+    pix_z = MEM_dupalloc(pix_z);
     remap_depth(view, {pix_z, rpass_z_src->rectx * rpass_z_src->recty});
   }
 
@@ -130,8 +130,7 @@ static void render_init_buffers(const DRWContext *draw_ctx,
     /* To avoid unpredictable result, clear buffers that have not be initialized. */
     GPU_framebuffer_bind(inst.render_fb);
     if (do_clear_col) {
-      const float clear_col[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-      GPU_framebuffer_clear_color(inst.render_fb, clear_col);
+      GPU_framebuffer_clear_color(inst.render_fb, {0.0, 0.0, 0.0, 0.0});
     }
     if (do_clear_z) {
       GPU_framebuffer_clear_depth(inst.render_fb, 1.0f);
@@ -151,7 +150,7 @@ static void render_init_buffers(const DRWContext *draw_ctx,
     }
   }
 
-  MEM_SAFE_FREE(pix_z);
+  MEM_SAFE_DELETE(pix_z);
 }
 
 static void render_result_z(const DRWContext *draw_ctx,

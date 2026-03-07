@@ -31,6 +31,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_set.hh"
+#include "BLI_stack.hh"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
 #include "BLI_utildefines.h"
@@ -264,8 +265,8 @@ int BKE_blendfile_link_append_context_item_idtypes_from_library_add(
       BKE_blendfile_link_append_context_item_library_index_enable(
           lapp_context, item, library_index);
 
-      MEM_freeN(id_name);
-      MEM_freeN(id_names_list);
+      MEM_delete(id_name);
+      MEM_delete(id_names_list);
     }
 
     id_num += id_names_num;
@@ -547,10 +548,10 @@ static void loose_data_instantiate_obdata_preprocess(
     Object *ob = reinterpret_cast<Object *>(id);
     Object *new_ob = reinterpret_cast<Object *>(id->newid);
     if (ob->data != nullptr) {
-      (ob->data)->tag &= ~ID_TAG_DOIT;
+      ob->data->tag &= ~ID_TAG_DOIT;
     }
     if (new_ob != nullptr && new_ob->data != nullptr) {
-      (new_ob->data)->tag &= ~ID_TAG_DOIT;
+      new_ob->data->tag &= ~ID_TAG_DOIT;
     }
   }
 }
@@ -709,33 +710,73 @@ static void loose_data_instantiate_collection_process(
   }
 }
 
-static Set<Object *> loose_data_gather_instanciated_objects(
-    LooseDataInstantiateContext &instantiate_context)
+static void loose_data_gather_instanciated_objects_for_viewlayer(
+    const Scene &scene, ViewLayer &view_layer, Set<Object *> &r_instanciated_objects)
+{
+  BKE_view_layer_synced_ensure(&scene, &view_layer);
+
+  Stack<Collection *> instance_collections;
+  Set<Collection *> known_instance_collections;
+
+  FOREACH_OBJECT_BEGIN (&scene, &view_layer, ob_iter) {
+    r_instanciated_objects.add(ob_iter);
+    Collection *instance_collection = ob_iter->instance_collection;
+    if (instance_collection && !known_instance_collections.contains(instance_collection)) {
+      instance_collections.push_as(instance_collection);
+      known_instance_collections.add_new(instance_collection);
+    }
+  }
+  FOREACH_OBJECT_END;
+
+  /* Instanced collections may instance other collections. So we need to accumulate and process all
+   * these instanced collections recursively. */
+  while (!instance_collections.is_empty()) {
+    Collection *instance_collection = instance_collections.pop();
+    BLI_assert(known_instance_collections.contains(instance_collection));
+    FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (instance_collection, ob_coll_iter) {
+      r_instanciated_objects.add(ob_coll_iter);
+      if (ob_coll_iter->instance_collection &&
+          !known_instance_collections.contains(ob_coll_iter->instance_collection))
+      {
+        instance_collections.push_as(ob_coll_iter->instance_collection);
+        known_instance_collections.add_new(ob_coll_iter->instance_collection);
+      }
+    }
+    FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
+  }
+}
+
+static void loose_data_gather_instanciated_objects(
+    LooseDataInstantiateContext &instantiate_context, Set<Object *> &instanciated_objects)
 {
   BlendfileLinkAppendContext *lapp_context = instantiate_context.lapp_context;
   const Scene *scene = lapp_context->params->context.scene;
   ViewLayer *view_layer = lapp_context->params->context.view_layer;
-
-  Set<Object *> instanciated_objects;
-  BKE_view_layer_synced_ensure(scene, view_layer);
 
   /* Linked/appended objects only need to be instantiated if they are not already in the current
    * view layer, either:
    * - Directly instantiated there (i.e. in one of the view layer instantiated collections).
    * - Indirectly instanciated (i.e. being in a collection that is object-instanciated).
    */
-  FOREACH_OBJECT_BEGIN (scene, view_layer, ob_iter) {
-    instanciated_objects.add(ob_iter);
-    if (ob_iter->instance_collection) {
-      FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (ob_iter->instance_collection, ob_coll_iter) {
-        instanciated_objects.add(ob_coll_iter);
-      }
-      FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
+  loose_data_gather_instanciated_objects_for_viewlayer(*scene, *view_layer, instanciated_objects);
+
+  /* When linking or appending a whole Scene, typically its objects are already instantiated there,
+   * so no need to instantiate them in the active Scene.
+   *
+   * See also #153986. */
+  for (BlendfileLinkAppendContextItem &item : lapp_context->items) {
+    if (!item.new_id) {
+      continue;
+    }
+    if (GS(item.new_id->name) != ID_SCE) {
+      continue;
+    }
+    Scene &scene_iter = *id_cast<Scene *>(item.new_id);
+    for (ViewLayer &view_layer_iter : scene_iter.view_layers) {
+      loose_data_gather_instanciated_objects_for_viewlayer(
+          scene_iter, view_layer_iter, instanciated_objects);
     }
   }
-  FOREACH_OBJECT_END;
-
-  return instanciated_objects;
 }
 
 static void loose_data_instantiate_object_process(LooseDataInstantiateContext *instantiate_context)
@@ -755,8 +796,8 @@ static void loose_data_instantiate_object_process(LooseDataInstantiateContext *i
 
   const bool is_linking = (lapp_context->params->flag & FILE_LINK) != 0;
 
-  const Set<Object *> instanciated_objects = loose_data_gather_instanciated_objects(
-      *instantiate_context);
+  Set<Object *> instanciated_objects;
+  loose_data_gather_instanciated_objects(*instantiate_context, instanciated_objects);
 
   /* NOTE: For objects we only view_layer-instantiate duplicated objects that are not yet used
    * anywhere. */
@@ -799,6 +840,10 @@ static void loose_data_instantiate_object_process(LooseDataInstantiateContext *i
                                                      v3d,
                                                      lapp_context->params->flag,
                                                      object_set_active);
+
+    /* Instancing an object may also instance implicitely others, so we need to update the set
+     * everytime. */
+    loose_data_gather_instanciated_objects(*instantiate_context, instanciated_objects);
   }
 }
 

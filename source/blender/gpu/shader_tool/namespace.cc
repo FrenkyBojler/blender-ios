@@ -174,7 +174,7 @@ static void lower_namespace(string ns_prefix,
 
   /* Pipeline declarations.
    * Manually handle them. They are the only use-case of variable defined in global scope. */
-  scope.foreach_match("ww(w", [&](vector<Token> toks) {
+  scope.foreach_match("AA(A", [&](vector<Token> toks) {
     if (toks[0].scope().type() != ScopeType::Namespace || toks[0].str().find("Pipeline") != 0) {
       return;
     }
@@ -236,6 +236,24 @@ void SourceProcessor::lower_namespaces(Parser &parser)
       lower_namespace("", scope, parser, report_error_, symbols_set);
     });
   } while (parser.apply_mutations());
+}
+
+void SourceProcessor::lower_scope_resolution_operators(Parser &parser)
+{
+  parser().foreach_match<true>("::", [&](const vector<Token> &tokens) {
+    if (tokens[0].scope().type() == ScopeType::Attribute) {
+      return;
+    }
+    if (tokens[0].prev() != Word) {
+      /* Global namespace reference. */
+      parser.erase(tokens.front(), tokens.back());
+    }
+    else {
+      /* Specific namespace reference. */
+      parser.replace(tokens.front(), tokens.back(), namespace_separator);
+    }
+  });
+  parser.apply_mutations();
 }
 
 }  // namespace blender::gpu::shader
