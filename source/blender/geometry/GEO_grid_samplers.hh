@@ -20,7 +20,9 @@ namespace blender::geometry {
 
 namespace grid_sampling {
 
-template<typename T> struct GradientTypeTraits;
+template<typename T> struct GradientTypeTraits {
+  using type = void;
+};
 template<> struct GradientTypeTraits<float> {
   using type = float3;
 };
@@ -28,7 +30,9 @@ template<> struct GradientTypeTraits<float3> {
   using type = float3x3;
 };
 
-template<typename T> struct OpenvdbGradientTypeTraits;
+template<typename T> struct OpenvdbGradientTypeTraits {
+  using type = void;
+};
 template<> struct OpenvdbGradientTypeTraits<float> {
   using type = openvdb::Vec3s;
 };
@@ -36,8 +40,36 @@ template<> struct OpenvdbGradientTypeTraits<openvdb::Vec3s> {
   using type = openvdb::Mat3s;
 };
 
+template<typename T> struct DivergenceTypeTraits {
+  using type = void;
+};
+template<> struct DivergenceTypeTraits<float3> {
+  using type = float;
+};
+template<> struct DivergenceTypeTraits<float3x3> {
+  using type = float3;
+};
+template<> struct DivergenceTypeTraits<float4x4> {
+  using type = float3;
+};
+
+template<typename T> struct OpenvdbDivergenceTypeTraits {
+  using type = void;
+};
+template<> struct OpenvdbDivergenceTypeTraits<openvdb::Vec3s> {
+  using type = float;
+};
+template<> struct OpenvdbDivergenceTypeTraits<openvdb::Mat3s> {
+  using type = openvdb::Vec3s;
+};
+template<> struct OpenvdbDivergenceTypeTraits<openvdb::Mat4s> {
+  using type = openvdb::Vec3s;
+};
+
 template<typename T> using GradientType = typename GradientTypeTraits<T>::type;
 template<typename T> using OpenvdbGradientType = typename OpenvdbGradientTypeTraits<T>::type;
+template<typename T> using DivergenceType = typename DivergenceTypeTraits<T>::type;
+template<typename T> using OpenvdbDivergenceType = typename OpenvdbDivergenceTypeTraits<T>::type;
 
 template<int N, class TreeT>
 bool probe_values(const TreeT &tree,

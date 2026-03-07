@@ -84,7 +84,7 @@ struct RasterizePointsItemsAccessor : public socket_items::SocketItemsAccessorDe
 
   static bool supports_socket_type(const eNodeSocketDatatype socket_type, const int /*ntree_type*/)
   {
-    return ELEM(socket_type, SOCK_FLOAT, SOCK_INT, SOCK_BOOLEAN, SOCK_VECTOR);
+    return ELEM(socket_type, SOCK_FLOAT, SOCK_INT, SOCK_BOOLEAN, SOCK_VECTOR, SOCK_MATRIX);
   }
 };
 

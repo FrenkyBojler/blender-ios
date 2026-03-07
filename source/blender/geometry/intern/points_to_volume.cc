@@ -13,7 +13,9 @@
 #include "BKE_volume_grid_type_traits.hh"
 #include "BKE_volume_openvdb.hh"
 
+#include "GEO_grid_samplers.hh"
 #include "GEO_points_to_volume.hh"
+#include <type_traits>
 
 #ifdef WITH_OPENVDB
 #  include <openvdb/openvdb.h>
@@ -171,7 +173,8 @@ bool is_point_attribute_grid_supported(const CPPType &cpp_type)
               CPPType::get<int>(),
               CPPType::get<int64_t>(),
               CPPType::get<float3>(),
-              CPPType::get<int3>());
+              CPPType::get<int3>(),
+              CPPType::get<float4x4>());
 }
 
 /* Remove characters that are invalid for OpenVDB attribute names. */
@@ -341,6 +344,11 @@ struct KernelTransferBase : public openvdb::points::TransformTransfer,
   {
   }
 
+  KernelType kernel_type() const
+  {
+    return kernel_type_;
+  }
+
   /* Voxel range of the target grid to cover. */
   openvdb::Int32 range(const openvdb::Coord & /*leaf_origin*/, size_t /*leaf_idx*/) const
   {
@@ -396,63 +404,7 @@ struct KernelTransferBase : public openvdb::points::TransformTransfer,
 
             const float3 kernel_distance = float3(
                 openvdb::Vec3f(c.asVec3d() - target_position).asV());
-            if (kernel_functions::kernel_non_zero(kernel_type_, kernel_distance)) {
-              const float weight = kernel_functions::kernel_eval(kernel_type_, kernel_distance);
-              data[offset] += value_fn(point_index, kernel_distance, weight);
-            }
-          }
-        }
-      }
-    }
-  }
-
-  /* For each point, compute its relative index space position in the destination tree and
-   * sum a function of per-point values.
-   *
-   * \param ijk Point voxel coordinate which contains the point.
-   * \param point_index Index of the point within its leaf node buffer.
-   * \param target_bounds Coordinate region of the destination tree to add into.
-   */
-  template<typename ValueFn>
-  void add_points_to_divergence(const openvdb::Coord &ijk,
-                                const IndexRange point_index_range,
-                                const openvdb::CoordBBox &target_bounds,
-                                ValueFn value_fn)
-  {
-    openvdb::CoordBBox intersect_box(ijk.offsetBy(-voxel_range_), ijk.offsetBy(voxel_range_));
-    intersect_box.intersect(target_bounds);
-    if (intersect_box.empty()) {
-      return;
-    }
-
-    auto *const data = this->template buffer<0>();
-    const auto &mask = *(this->template mask<0>());
-
-    for (const openvdb::Index point_index : point_index_range) {
-      /* TODO use multifunction evaluation for efficient kernel eval. */
-      const openvdb::Vec3d source_position = ijk.asVec3d() +
-                                             this->position_handle_->get(point_index);
-      const openvdb::Vec3d target_position = this->transformSourceToTarget(source_position);
-
-      const openvdb::Coord &a(intersect_box.min());
-      const openvdb::Coord &b(intersect_box.max());
-      for (openvdb::Coord c = a; c.x() <= b.x(); ++c.x()) {
-        const openvdb::Index i = ((c.x() & (DIM - 1u)) << 2 * LOG2DIM);
-        for (c.y() = a.y(); c.y() <= b.y(); ++c.y()) {
-          const openvdb::Index j = ((c.y() & (DIM - 1u)) << LOG2DIM);
-          for (c.z() = a.z(); c.z() <= b.z(); ++c.z()) {
-            BLI_assert(target_bounds.isInside(c));
-            const openvdb::Index offset = i + j + /*k*/ (c.z() & (DIM - 1u));
-            if (!mask.isOn(offset)) {
-              continue;
-            }
-
-            const float3 kernel_distance = float3(
-                openvdb::Vec3f(c.asVec3d() - target_position).asV());
-            if (kernel_functions::kernel_non_zero(kernel_type_, kernel_distance)) {
-              const float weight = kernel_functions::kernel_eval(kernel_type_, kernel_distance);
-              data[offset] += value_fn(point_index, kernel_distance, weight);
-            }
+            data[offset] += value_fn(point_index, kernel_distance);
           }
         }
       }
@@ -473,8 +425,8 @@ struct KernelTransferBase : public openvdb::points::TransformTransfer,
   }
 };
 
-template<bool use_divergence, typename AttributeT, typename GridValueT>
-struct ValueSumTransfer : public KernelTransferBase<GridValueT> {
+template<typename AttributeT, typename GridValueT>
+struct ValueTransfer : public KernelTransferBase<GridValueT> {
   using Base = KernelTransferBase<GridValueT>;
   using GridType = typename Base::GridType;
   using TreeType = typename Base::TreeType;
@@ -486,16 +438,16 @@ struct ValueSumTransfer : public KernelTransferBase<GridValueT> {
   StringRef value_attribute_;
   std::unique_ptr<openvdb::points::AttributeHandle<AttributeType>> value_handle_;
 
-  ValueSumTransfer(const openvdb::points::PointDataGrid &source,
-                   const KernelType kernel_type,
-                   GridType &dest,
-                   StringRef value_attribute)
+  ValueTransfer(const openvdb::points::PointDataGrid &source,
+                const KernelType kernel_type,
+                GridType &dest,
+                StringRef value_attribute)
       : KernelTransferBase<GridValueT>(kernel_type, source, dest),
         value_attribute_(value_attribute)
   {
   }
 
-  ValueSumTransfer(const ValueSumTransfer &other)
+  ValueTransfer(const ValueTransfer &other)
       : KernelTransferBase<GridValueT>(other), value_attribute_(other.value_attribute_)
   {
   }
@@ -514,16 +466,70 @@ struct ValueSumTransfer : public KernelTransferBase<GridValueT> {
                        const openvdb::Index point_index_end,
                        const openvdb::CoordBBox &target_bounds)
   {
-    this->add_points_to_voxels(ijk,
-                               IndexRange::from_begin_end(point_index_begin, point_index_end),
-                               target_bounds,
-                               [&](const openvdb::Index point_index,
-                                   const float3 & /*kernel_distance*/,
-                                   const float weight) {
-                                 const AttributeType source_value = value_handle_->get(
-                                     point_index);
-                                 return weight * source_value;
-                               });
+    this->add_points_to_voxels(
+        ijk,
+        IndexRange::from_begin_end(point_index_begin, point_index_end),
+        target_bounds,
+        [&](const openvdb::Index point_index, const float3 &kernel_distance) {
+          const AttributeType source_value = value_handle_->get(point_index);
+          const float weight = kernel_functions::kernel_eval(this->kernel_type(), kernel_distance);
+          return weight * source_value;
+        });
+  }
+};
+
+template<typename AttributeT, typename GridValueT>
+struct DivergenceTransfer : public KernelTransferBase<GridValueT> {
+  using Base = KernelTransferBase<GridValueT>;
+  using GridType = typename Base::GridType;
+  using TreeType = typename Base::TreeType;
+  using GridValueType = typename Base::GridValueType;
+
+  using AttributeTraits = bke::VolumeGridTraits<AttributeT>;
+  using AttributeType = typename AttributeTraits::PrimitiveType;
+
+  StringRef value_attribute_;
+  std::unique_ptr<openvdb::points::AttributeHandle<AttributeType>> value_handle_;
+
+  DivergenceTransfer(const openvdb::points::PointDataGrid &source,
+                     const KernelType kernel_type,
+                     GridType &dest,
+                     StringRef value_attribute)
+      : KernelTransferBase<GridValueT>(kernel_type, source, dest),
+        value_attribute_(value_attribute)
+  {
+  }
+
+  DivergenceTransfer(const DivergenceTransfer &other)
+      : KernelTransferBase<GridValueT>(other), value_attribute_(other.value_attribute_)
+  {
+  }
+
+  bool startPointLeaf(const openvdb::points::PointDataTree::LeafNodeType &leaf)
+  {
+    this->update_positions(leaf);
+    BLI_assert(leaf.hasAttribute(value_attribute_));
+    value_handle_.reset(new openvdb::points::AttributeHandle<AttributeType>(
+        leaf.constAttributeArray(value_attribute_)));
+    return true;
+  }
+
+  void rasterizePoints(const openvdb::Coord &ijk,
+                       const openvdb::Index point_index_begin,
+                       const openvdb::Index point_index_end,
+                       const openvdb::CoordBBox &target_bounds)
+  {
+    this->add_points_to_voxels(
+        ijk,
+        IndexRange::from_begin_end(point_index_begin, point_index_end),
+        target_bounds,
+        [&](const openvdb::Index point_index, const float3 &kernel_distance) {
+          const AttributeType source_value = value_handle_->get(point_index);
+          const float3 weight_gradient = kernel_functions::kernel_gradient_eval(
+              this->kernel_type(), kernel_distance);
+          return source_value[0] * weight_gradient.x + source_value[1] * weight_gradient.y +
+                 source_value[2] * weight_gradient.z;
+        });
   }
 };
 
@@ -549,51 +555,84 @@ static typename GridType::Ptr prepare_destination_grid(
   return dst_grid;
 }
 
-template<typename AttributeT, typename GridValueT>
-static bke::VolumeGrid<GridValueT> points_rasterize_with_static_type(
+template<typename AttributeT>
+static bke::GVolumeGrid points_rasterize_with_static_type(
     const openvdb::points::PointDataGrid &point_data_grid,
     const StringRef value_attribute,
     const PointRasterizeAttributeInfo &attribute_info,
     const float4x4 &transform,
     const KernelType kernel_type)
 {
-  using GridTraits = bke::VolumeGridTraits<GridValueT>;
-  using TreeType = typename GridTraits::TreeType;
-  using GridType = openvdb::Grid<TreeType>;
-
-  typename std::shared_ptr<GridType> dst_grid = prepare_destination_grid<GridType>(
-      point_data_grid, transform, kernel_type);
-
-  BLI_assert(!value_attribute.is_empty());
-  if (attribute_info.use_divergence) {
-    ValueSumTransfer<AttributeT, GridValueT> transfer(
-        point_data_grid, kernel_type, *dst_grid, value_attribute);
-    openvdb::points::rasterize(point_data_grid, transfer);
+  std::shared_ptr<openvdb::GridBase> dst_grid;
+  if constexpr (std::is_void_v<typename bke::VolumeGridTraits<AttributeT>::PrimitiveType>) {
+    return {};
   }
   else {
-    ValueSumTransfer<AttributeT, GridValueT> transfer(
-        point_data_grid, kernel_type, *dst_grid, value_attribute);
-    openvdb::points::rasterize(point_data_grid, transfer);
-  }
+    auto finalize_grid = [&]<typename GridType>() {
+      if constexpr (std::is_same_v<typename GridType::ValueType, openvdb::Vec3s>) {
+        if (attribute_info.use_staggered_vector) {
+          /* Note: Due to the separable kernel function the weight at each of the face centers is
+           * the same as the weight at the voxel corner. Rasterizing a staggered velocity is no
+           * different from rasterizing a centered vector, and only require declaring the output
+           * staggered, and then moving the grid origin to make the transform voxel-centered. */
+          dst_grid->setGridClass(openvdb::GridClass::GRID_STAGGERED);
+          dst_grid->transform().preTranslate(openvdb::Vec3d(0.5, 0.5, 0.5));
+        }
+        else {
+          dst_grid->setGridClass(openvdb::GridClass::GRID_FOG_VOLUME);
+        }
+      }
+      else {
+        dst_grid->setGridClass(openvdb::GridClass::GRID_FOG_VOLUME);
+      }
+    };
 
-  if constexpr (std::is_same_v<GridValueT, float3>) {
-    if (attribute_info.use_staggered_vector) {
-      /* Note: Due to the separable kernel function the weight at each of the face centers is the
-       * same as the weight at the voxel corner. Rasterizing a staggered velocity is no different
-       * from rasterizing a centered vector, and only require declaring the output staggered, and
-       * then moving the grid origin to make the transform voxel-centered. */
-      dst_grid->setGridClass(openvdb::GridClass::GRID_STAGGERED);
-      dst_grid->transform().preTranslate(openvdb::Vec3d(0.5, 0.5, 0.5));
+    // TODO support affine vector attribute conversion (float4x4 -> float3)
+    if (attribute_info.use_divergence) {
+      if constexpr (std::is_same_v<AttributeT, float3> || std::is_same_v<AttributeT, float3x3> ||
+                    std::is_same_v<AttributeT, float4x4>)
+      {
+        using GridValueT = grid_sampling::DivergenceType<AttributeT>;
+        using GridTraits = bke::VolumeGridTraits<GridValueT>;
+        using TreeType = typename GridTraits::TreeType;
+        using GridType = openvdb::Grid<TreeType>;
+
+        typename std::shared_ptr<GridType> dst_grid_typed = prepare_destination_grid<GridType>(
+            point_data_grid, transform, kernel_type);
+        dst_grid = dst_grid_typed;
+
+        BLI_assert(!value_attribute.is_empty());
+        DivergenceTransfer<AttributeT, GridValueT> transfer(
+            point_data_grid, kernel_type, *dst_grid_typed, value_attribute);
+        openvdb::points::rasterize(point_data_grid, transfer);
+
+        finalize_grid.template operator()<GridType>();
+      }
     }
     else {
-      dst_grid->setGridClass(openvdb::GridClass::GRID_FOG_VOLUME);
+      if constexpr (std::is_same_v<AttributeT, float> || std::is_same_v<AttributeT, int> ||
+                    std::is_same_v<AttributeT, float3>)
+      {
+        using GridValueT = AttributeT;
+        using GridTraits = bke::VolumeGridTraits<GridValueT>;
+        using TreeType = typename GridTraits::TreeType;
+        using GridType = openvdb::Grid<TreeType>;
+
+        typename std::shared_ptr<GridType> dst_grid_typed = prepare_destination_grid<GridType>(
+            point_data_grid, transform, kernel_type);
+        dst_grid = dst_grid_typed;
+
+        BLI_assert(!value_attribute.is_empty());
+        ValueTransfer<AttributeT, GridValueT> transfer(
+            point_data_grid, kernel_type, *dst_grid_typed, value_attribute);
+        openvdb::points::rasterize(point_data_grid, transfer);
+
+        finalize_grid.template operator()<GridType>();
+      }
     }
   }
-  else {
-    dst_grid->setGridClass(openvdb::GridClass::GRID_FOG_VOLUME);
-  }
 
-  return bke::VolumeGrid<GridValueT>(std::move(dst_grid));
+  return bke::GVolumeGrid(std::move(dst_grid));
 }
 
 static bke::GVolumeGrid points_attribute_rasterize(
@@ -608,6 +647,7 @@ static bke::GVolumeGrid points_attribute_rasterize(
     using TreeType = typename bke::VolumeGridTraits<T>::TreeType;
     if constexpr (std::is_same_v<TreeType, void>) {
       BLI_assert_unreachable();
+      result = {};
     }
     else if constexpr (std::is_same_v<TreeType, openvdb::MaskTree> ||
                        std::is_same_v<TreeType, openvdb::BoolTree>)
@@ -615,20 +655,9 @@ static bke::GVolumeGrid points_attribute_rasterize(
       // TODO not yet supported
       result = {};
     }
-    /* XXX Limit to few types to reduce amount of code generation. */
-    else if constexpr (std::is_same_v<TreeType, openvdb::FloatTree> ||
-                       std::is_same_v<TreeType, openvdb::Int32Tree> ||
-                       std::is_same_v<TreeType, openvdb::Vec3fTree>)
-    {
-      // TODO support affine vector attribute conversion (float4x4 -> float3)
-      using AttributeT = T;
-      using GridValueT = T;
-      result = points_rasterize_with_static_type<AttributeT, GridValueT>(
-          point_data_grid, value_attribute, attribute_info, transform, kernel_type);
-    }
-    else {
-      result = {};
-    }
+    using AttributeT = T;
+    result = points_rasterize_with_static_type<AttributeT>(
+        point_data_grid, value_attribute, attribute_info, transform, kernel_type);
   });
   return result;
 }

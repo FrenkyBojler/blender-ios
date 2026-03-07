@@ -112,33 +112,6 @@ enum class KernelType {
 
 namespace kernel_functions {
 
-/* Kernel functions as defined in
- * "Analysis and reduction of quadrature errors in the material point method (MPM)"
- * (Steffen et al., 2008) */
-
-inline bool kernel_non_zero_component(const KernelType kernel_type, const float t)
-{
-  auto in_range = [t](const float range) { return -range <= t && t < range; };
-  switch (kernel_type) {
-    case KernelType::Constant:
-      return in_range(geometry::grid_sampling::ConstantKernel::range);
-    case KernelType::Linear:
-      return in_range(geometry::grid_sampling::LinearKernel::range);
-    case KernelType::QuadraticBSpline:
-      return in_range(geometry::grid_sampling::QuadraticBSplineKernel::range);
-    case KernelType::CubicBSpline:
-      return in_range(geometry::grid_sampling::CubicBSplineKernel::range);
-  }
-  return 0.0f;
-}
-
-inline bool kernel_non_zero(const KernelType kernel_type, const float3 &v)
-{
-  return kernel_non_zero_component(kernel_type, v.x) &&
-         kernel_non_zero_component(kernel_type, v.y) &&
-         kernel_non_zero_component(kernel_type, v.z);
-}
-
 inline int kernel_voxel_range(const KernelType kernel_type)
 {
   switch (kernel_type) {
@@ -170,19 +143,17 @@ inline float kernel_eval_component(const KernelType kernel_type, const float t)
   return 0.0f;
 }
 
-inline float kernel_divergence_eval_component(const KernelType kernel_type, const float t)
+inline float kernel_gradient_eval_component(const KernelType kernel_type, const float t)
 {
-  const float a = math::abs(t);
   switch (kernel_type) {
     case KernelType::Constant:
-      return 0.0f;
+      return geometry::grid_sampling::ConstantKernel::derivative(t);
     case KernelType::Linear:
-      return -a;
+      return geometry::grid_sampling::LinearKernel::derivative(t);
     case KernelType::QuadraticBSpline:
-      return a < 0.5f ? -2.0f * a + 3.0f / 4.0f : (0.25f * a - 3.0f / 4.0f);
+      return geometry::grid_sampling::QuadraticBSplineKernel::derivative(t);
     case KernelType::CubicBSpline:
-      return a < 1.0f ? (0.25f * a - 0.5f) * a :
-                        ((-a / 6.0f + 1.0f) * a - 2.0) * (-a / 6.0f + 1.0f);
+      return geometry::grid_sampling::CubicBSplineKernel::derivative(t);
   }
   return 0.0f;
 }
@@ -193,14 +164,14 @@ inline float kernel_eval(const KernelType kernel_type, const float3 &v)
          kernel_eval_component(kernel_type, v.z);
 }
 
-inline float3 kernel_divergence_eval(const KernelType kernel_type, const float3 &v)
+inline float3 kernel_gradient_eval(const KernelType kernel_type, const float3 &v)
 {
   const float vx = kernel_eval_component(kernel_type, v.x);
   const float vy = kernel_eval_component(kernel_type, v.y);
   const float vz = kernel_eval_component(kernel_type, v.z);
-  return {kernel_divergence_eval_component(kernel_type, v.x) * vy * vz,
-          vx * kernel_divergence_eval_component(kernel_type, v.y) * vz,
-          vx * vy * kernel_divergence_eval_component(kernel_type, v.z)};
+  return {kernel_gradient_eval_component(kernel_type, v.x) * vy * vz,
+          vx * kernel_gradient_eval_component(kernel_type, v.y) * vz,
+          vx * vy * kernel_gradient_eval_component(kernel_type, v.z)};
 }
 
 }  // namespace kernel_functions
