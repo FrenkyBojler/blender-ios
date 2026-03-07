@@ -101,21 +101,7 @@ class FILEBROWSER_PT_view(FileBrowserPanel, Panel):
 
     def draw(self, context):
         layout = self.layout
-        st = context.space_data
-        params = st.params
-
-        layout.prop(st, "show_region_toolbar", text="Source List")
-        layout.prop(st, "show_region_ui", text="File Path")
-        layout.operator("file.view_selected")
-
-        layout.separator()
-
-        layout.prop_menu_enum(params, "display_size_discrete")
-        layout.prop_menu_enum(params, "recursion_level")
-
-        layout.separator()
-
-        layout.menu("INFO_MT_area")
+        layout.menu_contents("FILEBROWSER_MT_view")
 
 
 class FILEBROWSER_PT_select(FileBrowserPanel, Panel):
@@ -126,13 +112,26 @@ class FILEBROWSER_PT_select(FileBrowserPanel, Panel):
     def draw(self, _context):
         layout = self.layout
 
-        layout.operator("file.select_all", text="All").action = 'SELECT'
-        layout.operator("file.select_all", text="None").action = 'DESELECT'
-        layout.operator("file.select_all", text="Invert").action = 'INVERT'
+        split = layout.split(factor=0.3)
+        shortcuts = split.column(align=True)
+        buttons = split.column(align=True)
+        shortcuts.label(text="Shortcut")
+        buttons.label(text="Select")
 
-        layout.separator()
+        shortcuts.label(text="A")
+        buttons.operator("file.select_all", text="All").action = 'SELECT'
 
-        layout.operator("file.select_box")
+        shortcuts.label(text="Alt A")
+        buttons.operator("file.select_all", text="None").action = 'DESELECT'
+
+        shortcuts.label(text="Ctrl I")
+        buttons.operator("file.select_all", text="Invert").action = 'INVERT'
+
+        shortcuts.separator()
+        buttons.separator()
+
+        shortcuts.label(text="B")
+        buttons.operator("file.select_box")
 
 
 class FILEBROWSER_PT_display(FileBrowserPanel, Panel):
