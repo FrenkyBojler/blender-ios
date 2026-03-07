@@ -28,7 +28,10 @@ static void *s_error_user_ptr = nullptr;
 static RTCFeatureFlags oneapi_embree_features_from_kernel_features(const uint kernel_features)
 {
   unsigned int feature_flags = RTC_FEATURE_FLAG_TRIANGLE | RTC_FEATURE_FLAG_INSTANCE |
-                               RTC_FEATURE_FLAG_FILTER_FUNCTION_IN_ARGUMENTS;
+                               RTC_FEATURE_FLAG_FILTER_FUNCTION_IN_ARGUMENTS |
+                               RTC_FEATURE_FLAG_QUAD |
+                               RTC_FEATURE_FLAG_FILTER_FUNCTION_IN_GEOMETRY |
+                               RTC_FEATURE_FLAG_USER_GEOMETRY_CALLBACK_IN_GEOMETRY;
 
   if (kernel_features & KERNEL_FEATURE_HAIR_THICK) {
     feature_flags |= RTC_FEATURE_FLAG_ROUND_CATMULL_ROM_CURVE |
