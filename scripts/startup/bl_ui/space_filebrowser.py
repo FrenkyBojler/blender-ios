@@ -273,19 +273,7 @@ class FILEBROWSER_PT_menus(FileBrowserPanel, Panel):
         return context.space_data.active_operator is not None
 
     def draw(self, _context):
-        layout = self.layout
-        row = layout.row(align=True)
-        row.scale_y = 1.3
-
-        sub = row.row(align=True)
-        sub.operator("file.thumbnail_size", text="", icon='HIDE_OFF')
-        sub.menu("FILEBROWSER_MT_view", text="", icon='DOWNARROW_HLT')
-
-        row.separator()
-
-        sub = row.row(align=True)
-        sub.operator("file.select_all", text="", icon='RESTRICT_SELECT_OFF').action = 'TOGGLE'
-        sub.menu("FILEBROWSER_MT_select", text="", icon='DOWNARROW_HLT')
+        pass
 
 
 class FILEBROWSER_PT_bookmarks_system(Panel):
@@ -506,6 +494,15 @@ class FILEBROWSER_PT_directory_path(Panel):
         subsubrow = subrow.row()
         subsubrow.scale_x = 0.6
         subsubrow.prop(params, "filter_search", text="", icon='VIEWZOOM')
+
+        if space.active_operator:
+            subsubrow = subrow.row(align=True)
+            subsubrow.operator("file.thumbnail_size", text="", icon='HIDE_OFF')
+            subsubrow.menu("FILEBROWSER_MT_view", text="", icon='DOWNARROW_HLT')
+
+            subsubrow = subrow.row(align=True)
+            subsubrow.operator("file.select_all", text="", icon='RESTRICT_SELECT_OFF').action = 'TOGGLE'
+            subsubrow.menu("FILEBROWSER_MT_select", text="", icon='DOWNARROW_HLT')
 
         subsubrow = subrow.row(align=True)
         subsubrow.prop(params, "display_type", expand=True, icon_only=True)
