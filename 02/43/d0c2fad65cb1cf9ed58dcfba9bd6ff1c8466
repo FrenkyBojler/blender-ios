@@ -1,2 +1,2 @@
 Referenced by issue #153255, lite build fails
-Referenced by pull request #155278, Fix: Link errors with lite builds on Linux and classic ld linker
+Referenced by pull request #155278, Fix: Link errors with ld, lld and lite builds
