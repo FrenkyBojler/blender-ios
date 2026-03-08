@@ -1175,6 +1175,11 @@ void ED_file_change_dir_ex(bContext *C, ScrArea *area)
     params->filter_search[0] = '\0';
     params->active_file = -1;
 
+    if (BLI_path_is_rel(params->dir)) {
+      const char *base_path = BKE_main_blendfile_path(CTX_data_main(C));
+      BLI_path_abs(params->dir, base_path);
+    }
+
     if (!filelist_is_dir(sfile->files, params->dir)) {
       STRNCPY(params->dir, filelist_dir(sfile->files));
       /* could return but just refresh the current dir */
