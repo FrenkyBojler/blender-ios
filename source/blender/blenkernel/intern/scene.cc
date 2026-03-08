@@ -331,7 +331,7 @@ static void scene_copy_data(Main *bmain,
     scene_dst->display.shading.prop = IDP_CopyProperty(scene_src->display.shading.prop);
   }
 
-  /* Copy sequencer, this is local data! */
+  /* sequencer data */
   if (scene_src->ed) {
     scene_dst->ed = MEM_new<Editing>(__func__);
     scene_dst->ed->cache_flag = scene_src->ed->cache_flag;
@@ -829,6 +829,10 @@ static bool strip_foreach_member_id_cb(Strip *strip, void *user_data)
   IDP_foreach_property(strip->system_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
     BKE_lib_query_idpropertiesForeachIDLink_callback(prop, data);
   });
+  if (strip->type == STRIP_TYPE_COMPOSITOR && strip->effectdata) {
+    CompositorEffectVars *comp_data = static_cast<CompositorEffectVars *>(strip->effectdata);
+    FOREACHID_PROCESS_IDSUPER(data, comp_data->node_group, IDWALK_CB_USER);
+  }
   /* TODO: This could use `seq::foreach_strip_modifier_id`, but because `FOREACHID_PROCESS_IDSUPER`
    * doesn't take IDs but "ID supers", it makes it a bit more cumbersome. */
   for (StripModifierData &smd : strip->modifiers) {
@@ -1039,9 +1043,9 @@ static void scene_foreach_cache(ID *id,
     IDCacheKey key;
     key.id_session_uid = id->session_uid;
     /* Preserve VSE thumbnail cache across global undo steps. */
-    key.identifier = offsetof(Editing, runtime.thumbnail_cache);
+    key.identifier = offsetof(Editing, runtime) + offsetof(seq::EditingRuntime, thumbnail_cache);
     function_callback(
-        id, &key, reinterpret_cast<void **>(&scene->ed->runtime.thumbnail_cache), 0, user_data);
+        id, &key, reinterpret_cast<void **>(&scene->ed->runtime->thumbnail_cache), 0, user_data);
   }
 }
 
@@ -1447,14 +1451,7 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
         BLO_read_get_new_data_address_no_us(reader, ed->act_strip, sizeof(Strip)));
     ed->current_meta_strip = static_cast<Strip *>(
         BLO_read_get_new_data_address_no_us(reader, ed->current_meta_strip, sizeof(Strip)));
-    ed->prefetch_job = nullptr;
-    ed->runtime.strip_lookup = nullptr;
-    ed->runtime.media_presence = nullptr;
-    ed->runtime.thumbnail_cache = nullptr;
-    ed->runtime.intra_frame_cache = nullptr;
-    ed->runtime.source_image_cache = nullptr;
-    ed->runtime.final_image_cache = nullptr;
-    ed->runtime.preview_cache = nullptr;
+    ed->runtime = MEM_new<seq::EditingRuntime>(__func__);
 
     /* recursive link sequences, lb will be correctly initialized */
     link_recurs_seq(reader, &ed->seqbase);

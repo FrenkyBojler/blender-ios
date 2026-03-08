@@ -427,7 +427,11 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(space_view3d.grid_major);
   }
 
-  if (!USER_VERSION_ATLEAST(502, 1)) {
+  if (!USER_VERSION_ATLEAST(501, 28)) {
+    FROM_DEFAULT_V4_UCHAR(space_view3d.gp_wire_edit);
+  }
+
+  if (!USER_VERSION_ATLEAST(502, 7)) {
     copy_v4_v4_uchar(btheme->tui.xaxis_rot, U_theme_default.tui.xaxis);
     copy_v4_v4_uchar(btheme->tui.xaxis_scale, U_theme_default.tui.xaxis);
     copy_v4_v4_uchar(btheme->tui.yaxis_rot, U_theme_default.tui.yaxis);
@@ -1762,6 +1766,10 @@ void blo_do_versions_userdef(UserDef *userdef)
     {
       userdef->xr_navigation.vignette_intensity = 70;
     }
+  }
+
+  if (!USER_VERSION_ATLEAST(502, 3)) {
+    userdef->uiflag2 |= USER_UIFLAG2_SHOW_ONLINE_ASSETS;
   }
 
   /**
