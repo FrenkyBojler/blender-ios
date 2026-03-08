@@ -1279,24 +1279,19 @@ class NODE_OT_interface_item_make_panel_toggle(NodeInterfaceOperator, Operator):
         snode = context.space_data
         tree = snode.edit_tree
         interface = tree.interface
-        active_item = interface.active
-        if not active_item:
-            return False
+        
+        bool_inputs = cls.get_interface_items(interface, in_out='INPUT', socket_type='NodeSocketBool', select=True)
 
-        if type(active_item) is not bpy.types.NodeTreeInterfaceSocketBool or active_item.in_out != 'INPUT':
-            cls.poll_message_set("Only boolean input sockets are supported")
-            return False
+        for socket in bool_inputs:
+            parent = socket.parent
 
-        parent_panel = active_item.parent
-        if parent_panel.parent is None:
-            cls.poll_message_set("Socket must be in a panel")
-            return False
-        if len(parent_panel.interface_items) > 0:
-            first_item = parent_panel.interface_items[0]
-            if first_item.is_panel_toggle:
-                cls.poll_message_set("Panel already has a toggle")
-                return False
-        return True
+            if parent.parent is None:
+                continue
+
+            if cls.get_panel_toggle(parent) is None:
+                return True
+        
+        return False
 
     def execute(self, context):
         snode = context.space_data
@@ -1304,21 +1299,36 @@ class NODE_OT_interface_item_make_panel_toggle(NodeInterfaceOperator, Operator):
         interface = tree.interface
         active_item = interface.active
 
-        parent_panel = active_item.parent
-        if not parent_panel:
-            return {'CANCELLED'}
+        bool_inputs = tuple(self.get_interface_items(interface, in_out='INPUT', socket_type='NodeSocketBool', select=True))
 
-        if type(active_item) is not bpy.types.NodeTreeInterfaceSocketBool:
-            return {'CANCELLED'}
+        # Clear active and selection state as it causes inconsistencies when making new selections
+        for item in interface.items_tree:
+            item.select = False
+        interface.active = None
 
-        active_item.is_panel_toggle = True
-        # Use the same name as the panel in the UI for clarity.
-        active_item.name = parent_panel.name
+        parents = []
+        has_active = False
 
-        # Move the socket to the first position.
-        interface.move_to_parent(active_item, parent_panel, 0)
-        # Make the panel active.
-        interface.active = parent_panel
+        for socket in bool_inputs:
+            parent = socket.parent
+
+            if parent.parent is None:
+                continue
+
+            if self.get_panel_toggle(parent) is None:
+                socket.is_panel_toggle = True
+                socket.name = parent.name
+                interface.move_to_parent(socket, parent, 0)
+                
+                parents.append(parent)
+                parent.select = True
+
+                if socket == active_item:
+                    interface.active = parent
+                    has_active = True
+
+        if not has_active:
+            interface.active = parents[0]
 
         return {'FINISHED'}
 
