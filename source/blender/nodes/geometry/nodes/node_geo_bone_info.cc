@@ -35,9 +35,11 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Float>("Rest Length").description("Original length of the bone");
   {
     auto &p = b.add_panel("Envelope").default_closed(true);
-    p.add_output<decl::Float>("Envelope").description("Envelope distance of the bone");
-    p.add_output<decl::Float>("Radius Head").description("Radius of the head of the bone");
-    p.add_output<decl::Float>("Radius Tail").description("Radius of the tail of the bone");
+    p.add_output<decl::Float>("Envelope").description("Original envelope distance of the bone");
+    p.add_output<decl::Float>("Radius Head")
+        .description("Original radius of the head of the bone");
+    p.add_output<decl::Float>("Radius Tail")
+        .description("Original radius of the tail of the bone");
   }
 
   b.add_input<decl::Object>("Armature")
