@@ -265,6 +265,16 @@ extern "C" __global__ void __anyhit__kernel_optix_visibility_test()
     if (intersection_skip_self(ray->self, object, prim)) {
       return optixIgnoreIntersection();
     }
+
+#ifdef __LIGHT_LINKING__
+    if ((visibility & PATH_RAY_CAMERA) == 0 &&
+        kernel_data_fetch(objects, object).primitive_type == PRIMITIVE_LAMP &&
+        ray->self.object != OBJECT_NONE &&
+        !light_link_object_match(nullptr, ray->self.object, object))
+    {
+      return optixIgnoreIntersection();
+    }
+#endif
   }
 }
 

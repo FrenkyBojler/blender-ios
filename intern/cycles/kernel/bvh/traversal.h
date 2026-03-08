@@ -131,6 +131,16 @@ ccl_device_noinline bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals kg,
               continue;
             }
 
+#ifdef __LIGHT_LINKING__
+            if ((type & PRIMITIVE_ALL) == PRIMITIVE_LAMP) {
+              if (!(visibility & PATH_RAY_CAMERA) && ray->self.object != OBJECT_NONE &&
+                  !light_link_object_match(kg, ray->self.object, prim_object))
+              {
+                continue;
+              }
+            }
+#endif
+
 #ifdef __SHADOW_LINKING__
             if (intersection_skip_shadow_link(kg, ray->self, prim_object)) {
               continue;

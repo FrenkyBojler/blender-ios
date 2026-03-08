@@ -337,6 +337,15 @@ ccl_device_inline bool light_custom_intersect(const hiprtRay &ray,
   }
 #endif
 
+#ifdef __LIGHT_LINKING__
+  if ((payload->ray_visibility & PATH_RAY_CAMERA) == 0 &&
+      payload->ray_self.object != OBJECT_NONE &&
+      !light_link_object_match(kg, payload->ray_self.object, object_id))
+  {
+    return false; /* Ignore hit - continue traversal. */
+  }
+#endif
+
   const int prim_offset = kernel_data_fetch(object_prim_offset, object_id);
 
   Intersection isect;

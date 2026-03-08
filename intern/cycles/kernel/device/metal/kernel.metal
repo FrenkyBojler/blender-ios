@@ -776,6 +776,19 @@ __intersection__light(constant KernelParamsMetal &launch_params_metal [[buffer(1
 #  endif
 
   MetalKernelContext context(launch_params_metal);
+
+  if ((kernel_data_fetch(objects, object).visibility & payload.visibility) == 0) {
+    return result;
+  }
+
+#  ifdef __LIGHT_LINKING__
+  if ((payload.visibility & PATH_RAY_CAMERA) == 0 &&
+      payload.self_object != OBJECT_NONE &&
+      !context.light_link_object_match(nullptr, payload.self_object, object)) {
+    return result;
+  }
+#  endif
+
   if (context.lights_intersect(nullptr, &isect, ray_origin, ray_direction, ray_tmin, object, prim))
   {
     result = metalrt_visibility_test<BoundingBoxIntersectionResult, METALRT_HIT_BOUNDING_BOX>(
