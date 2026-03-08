@@ -479,12 +479,23 @@ ccl_device_forceinline void kernel_embree_intersect_light_func_impl(
   const intptr_t prim_offset = reinterpret_cast<intptr_t>(args->geometryUserPtr);
   const int prim = args->primID + (int)prim_offset;
 
-  const float3 ray_P = make_float3(rayhit->ray.org_x, rayhit->ray.org_y, rayhit->ray.org_z);
-  const float3 ray_D = make_float3(rayhit->ray.dir_x, rayhit->ray.dir_y, rayhit->ray.dir_z);
-
 #ifdef __KERNEL_ONEAPI__
   KernelGlobalsGPU *kg = nullptr;
+  /* On GPU (oneAPI), this function is used as an argument-level callback on the top-level BVH.
+   * Embree does not transform the ray into local space for argument-level callbacks, so we
+   * must do it here. */
+  const ccl_global KernelObject *kobject = &kernel_data_fetch(objects, object);
+  const float3 ray_P = transform_point(&kobject->itfm,
+                                       make_float3(rayhit->ray.org_x,
+                                                   rayhit->ray.org_y,
+                                                   rayhit->ray.org_z));
+  const float3 ray_D = transform_direction(&kobject->itfm,
+                                           make_float3(rayhit->ray.dir_x,
+                                                       rayhit->ray.dir_y,
+                                                       rayhit->ray.dir_z));
 #else
+  const float3 ray_P = make_float3(rayhit->ray.org_x, rayhit->ray.org_y, rayhit->ray.org_z);
+  const float3 ray_D = make_float3(rayhit->ray.dir_x, rayhit->ray.dir_y, rayhit->ray.dir_z);
   const ThreadKernelGlobalsCPU *kg = ((CCLFirstHitContext *)(args->context))->kg;
 #endif
 
