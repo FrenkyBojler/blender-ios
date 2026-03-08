@@ -1280,17 +1280,30 @@ class NODE_OT_interface_item_make_panel_toggle(NodeInterfaceOperator, Operator):
         tree = snode.edit_tree
         interface = tree.interface
         
-        bool_inputs = cls.get_interface_items(interface, in_out='INPUT', socket_type='NodeSocketBool', select=True)
+        bool_inputs = tuple(cls.get_interface_items(interface, in_out='INPUT', socket_type='NodeSocketBool', select=True))
+
+        if len(bool_inputs) <= 0:
+            cls.poll_message_set("No boolean input sockets selected.")
+            return False
+
+        in_panel = False
 
         for socket in bool_inputs:
             parent = socket.parent
 
             if parent.parent is None:
                 continue
-
+            
             if cls.get_panel_toggle(parent) is None:
                 return True
+            
+            in_panel = True
         
+        if in_panel:
+            cls.poll_message_set("Panels already have existing toggles.")
+        else:
+            cls.poll_message_set("Selected boolean inputs are not inside of panel.")
+
         return False
 
     def execute(self, context):
@@ -1351,7 +1364,11 @@ class NODE_OT_interface_item_unlink_panel_toggle(NodeInterfaceOperator, Operator
         panels = cls.get_interface_items(interface, item_type='PANEL', select=True)
         toggle_panels = tuple(filter(cls.get_panel_toggle, panels))
 
-        return len(toggle_panels) > 0
+        if len(toggle_panels) <= 0:
+            cls.poll_message_set("Selected panels have no panel toggles.")
+            return False
+        
+        return True
 
     def execute(self, context):
         snode = context.space_data
