@@ -1004,17 +1004,46 @@ class NODE_PT_overlay(Panel):
 class NODE_MT_node_tree_interface_context_menu(Menu):
     bl_label = "Node Tree Interface Specials"
 
+    @staticmethod
+    def check_selection(interface):
+        has_socket = False
+        has_panel = False
+
+        for item in interface.items_tree:
+            if has_socket and has_panel:
+                break
+
+            if not item.select:
+                continue
+
+            if item.item_type == 'SOCKET':
+                has_socket = True
+                continue
+
+            if item.item_type == 'PANEL':
+                has_panel = True
+                continue
+
+        return has_socket, has_panel
+
     def draw(self, context):
         layout = self.layout
         snode = context.space_data
         tree = snode.edit_tree
-        active_item = tree.interface.active
 
         layout.operator("node.interface_item_duplicate", icon='DUPLICATE')
-        layout.separator()
-        if active_item.item_type == 'SOCKET':
+
+        if tree is None:
+            return
+        
+        has_socket, has_panel = self.check_selection(tree.interface)
+
+        if has_socket or has_panel:
+            layout.separator()
+
+        if has_socket:
             layout.operator("node.interface_item_make_panel_toggle")
-        elif active_item.item_type == 'PANEL':
+        if has_panel:
             layout.operator("node.interface_item_unlink_panel_toggle")
 
 
