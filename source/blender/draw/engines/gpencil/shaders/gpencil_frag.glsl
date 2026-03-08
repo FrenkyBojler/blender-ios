@@ -111,22 +111,31 @@ float4 get_dot_color(float2 uv, int i)
   uint matid = gp_interp_flat.mat_flag >> GPENCIl_MATID_SHIFT;
   gpMaterial gp_mat = gp_materials[matid];
 
-  if (gp_mat._randomize_1 > 0.0f) {
+  float random_size = gpencil_decode_random_size(gp_mat.random_packed);
+  float random_strength = gpencil_decode_random_strength(gp_mat.random_packed);
+  float random_rotation = gpencil_decode_random_rotation(gp_mat.random_packed);
+
+  float random_hue = gpencil_decode_random_hue(gp_mat.random_packed);
+  float random_saturation = gpencil_decode_random_saturation(gp_mat.random_packed);
+  float random_value = gpencil_decode_random_value(gp_mat.random_packed);
+
+  if (random_rotation > 0.0f) {
     float rand = hash_uint_to_float(i + 6963723);
     rand -= 0.5f;
     rand *= 2.0f;
     rand *= M_PI;
 
-    rand *= gp_mat._randomize_1;
+    rand *= random_rotation;
 
     uv -= 0.5f;
     uv = rotate_uv(uv, float2(cos(rand), sin(rand)));
     uv += 0.5f;
   }
-  if (gp_mat._randomize_2 > 0.0f) {
+
+  if (random_size > 0.0f) {
     float rand = hash_uint_to_float(i + 1855321);
 
-    rand *= gp_mat._randomize_2;
+    rand *= random_size;
     rand = 1.0f - rand;
 
     uv -= 0.5f;
@@ -135,33 +144,30 @@ float4 get_dot_color(float2 uv, int i)
   }
 
   float4 col = get_color(uv);
-  if (gp_mat._randomize_3 > 0.0f) {
-    // float rand = hash_uint_to_float(i + 896486);
-
-    // rand -= 1.0f;
-    // rand *= gp_mat._randomize_3;
-    // rand += 1.0f;
-
-    // col.rgb *= rand;
-
+  if (random_hue > 0.0f || random_saturation > 0.0f || random_value > 0.0f) {
     float4 col_hsva;
     rgb_to_hsv(col, col_hsva);
 
-    float rand = hash_uint_to_float(i + 97715151);
+    float rand_hue = hash_uint_to_float(i + 97715151);
+    float rand_sat = hash_uint_to_float(i + 16430206);
+    float rand_val = hash_uint_to_float(i + 86191990);
 
-    rand -= 0.5f;
-    rand *= gp_mat._randomize_3;
+    col_hsva.x += (rand_hue - 0.5f) * random_hue;
+    col_hsva.y *= 1.0f - random_saturation + rand_sat * 2.0f * random_saturation;
+    col_hsva.z *= 1.0f - random_value + rand_val * 2.0f * random_value;
 
-    col_hsva.x += rand;
     col_hsva.x = fract(col_hsva.x);
+    col_hsva.y = clamp(col_hsva.y, 0.0f, 1.0f);
+    col_hsva.z = clamp(col_hsva.z, 0.0f, 1.0f);
 
     hsv_to_rgb(col_hsva, col);
   }
-  if (gp_mat._randomize_4 > 0.0f) {
+
+  if (random_strength > 0.0f) {
     float rand = hash_uint_to_float(i + 689163);
 
     rand -= 1.0f;
-    rand *= gp_mat._randomize_4;
+    rand *= random_strength;
     rand += 1.0f;
 
     col *= rand;

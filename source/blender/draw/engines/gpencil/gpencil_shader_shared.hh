@@ -65,10 +65,6 @@ struct [[host_shared]] gpMaterial {
   float stroke_u_scale;
   float fill_texture_mix;
   gpMaterialFlag flag;
-  float randomize_1;
-  float randomize_2;
-  float randomize_3;
-  float randomize_4;
 #else
   /* Some drivers are completely messing the alignment or the fetches here.
    * We are forced to pack these into float4 otherwise we only get 0.0 as value. */
@@ -76,7 +72,6 @@ struct [[host_shared]] gpMaterial {
    * This might be fixed in newer APIs. */
   float4 packed1;
   float4 packed2;
-  float4 packed3;
 #  define _fill_uv_offset packed1.xy
 #  define _alignment_rot packed1.zw
 #  define _stroke_texture_mix packed2.x
@@ -84,11 +79,8 @@ struct [[host_shared]] gpMaterial {
 #  define _fill_texture_mix packed2.z
   /** NOTE(@fclem): Needs floatBitsToUint(). */
 #  define _flag packed2.w
-#  define _randomize_1 packed3.x
-#  define _randomize_2 packed3.y
-#  define _randomize_3 packed3.z
-#  define _randomize_4 packed3.w
 #endif
+  uint4 random_packed;
 };
 
 struct [[host_shared]] gpLight {
