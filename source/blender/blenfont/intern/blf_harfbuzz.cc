@@ -85,6 +85,30 @@ blender::Vector<hb_feature_t> blf_font_otf_features_default()
   return features;
 }
 
+bool ShapingData::load_from_cache(FontBLF *font, GlyphCacheBLF *gc, const char *str, size_t len)
+{
+  const CachedString *cached = gc->shaping_cache.lookup_ptr(str);
+  if (cached == nullptr) {
+    return false;
+  }
+
+  const size_t glyph_count = cached->glyphs.size();
+
+  if (glyph_count == 0 || glyph_count != len) {
+    return false;
+  }
+
+  for (int i = 0; i < glyph_count; i++) {
+    GlyphBLF *g = blf_glyph_ensure(
+        font, gc, cached->glyphs[i].charcode, cached->glyphs[i].glyph_id);
+    this->glyphs.append({font, gc, g, cached->glyphs[i].bounds, cached->glyphs[i].index_utf8});
+  }
+  this->width = cached->width;
+  this->height = cached->height;
+
+  return true;
+}
+
 ShapingData::ShapingData(FontBLF *font,
                          GlyphCacheBLF *gc,
                          const char *str,
@@ -95,12 +119,17 @@ ShapingData::ShapingData(FontBLF *font,
     return;
   }
 
+  if (load_from_cache(font, gc, str, len)) {
+    return;
+  }
+
   size_t segment_start = 0;
   size_t segment_len = 0;
   FontBLF *segment_font = font;
   hb_script_t script = HB_SCRIPT_UNKNOWN;
   hb_script_t last_script = HB_SCRIPT_UNKNOWN;
   hb_buffer_t *hb_buf = hb_buffer_create();
+  bool single_gc = true;
   if (!hb_buf) {
     return; /* Out of memory */
   }
@@ -173,6 +202,9 @@ ShapingData::ShapingData(FontBLF *font,
 
     const bool need_release = (!gc || segment_font != font);
     GlyphCacheBLF *segment_gc = need_release ? blf_glyph_cache_acquire(segment_font) : gc;
+    if (segment_gc != gc) {
+      single_gc = false;
+    }
 
     hb_segment_properties_t props;
     hb_buffer_get_segment_properties(hb_buf, &props);
@@ -255,6 +287,17 @@ ShapingData::ShapingData(FontBLF *font,
   }
   if (hb_buf) {
     hb_buffer_destroy(hb_buf);
+  }
+
+  if (gc && single_gc && len < 64 && !gc->shaping_cache.contains(str)) {
+    CachedString cache_string;
+    cache_string.width = this->width;
+    cache_string.height = this->height;
+    cache_string.glyphs.reserve(this->glyphs.size());
+    for (const ShapedGlyph &glyph : this->glyphs) {
+      cache_string.glyphs.append({glyph.g->idx, glyph.g->c, glyph.bounds, glyph.index_utf8});
+    }
+    gc->shaping_cache.add_new(str, cache_string);
   }
 }
 

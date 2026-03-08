@@ -111,6 +111,83 @@ inline ft_pix ft_pix_from_float(float v)
 /** A value in the kerning cache that indicates it is not yet set. */
 #define KERNING_ENTRY_UNSET INT_MAX
 
+struct CachedGlyph {
+  uint32_t glyph_id = 0;
+  uint32_t charcode = 0;
+  rcti bounds = {};
+  size_t index_utf8 = 0;
+};
+
+struct CachedString {
+  blender::Vector<CachedGlyph> glyphs = {};
+  ft_pix width = 0;
+  ft_pix height = 0;
+  uint32_t freq = 0; /* Use-count for LFU eviction. */
+};
+
+/* -------------------------------------------------------------------- */
+/* ShapingCache: LFU cache for shaped strings
+ */
+
+#define BLF_SHAPING_CACHE_SIZE 256
+
+struct ShapingCache {
+  ShapingCache()
+  {
+    data.reserve(BLF_SHAPING_CACHE_SIZE);
+  }
+
+  Map<std::string, CachedString> data = {};
+  size_t lookups = 0;
+  size_t hits = 0;
+  size_t inserts = 0;
+  size_t evictions = 0;
+
+  const CachedString *lookup_ptr(const std::string &key)
+  {
+    ++lookups;
+
+    CachedString *ptr = data.lookup_ptr(key);
+    if (ptr == nullptr) {
+      return nullptr;
+    }
+
+    ++hits;
+    ++ptr->freq;
+    return ptr;
+  }
+
+  bool contains(const std::string &key) const
+  {
+    return data.lookup_ptr(key) != nullptr;
+  }
+
+  void add_new(const std::string &key, CachedString &value)
+  {
+    ++inserts;
+
+    if (data.size() >= BLF_SHAPING_CACHE_SIZE) {
+      uint32_t best_freq = std::numeric_limits<uint32_t>::max();
+      const std::string *evict_key_ptr = nullptr;
+      for (auto item : data.items()) {
+        const CachedString &v = item.value;
+        const uint32_t f = v.freq;
+        if (f < best_freq) {
+          best_freq = f;
+          evict_key_ptr = &item.key;
+        }
+      }
+      if (evict_key_ptr) {
+        data.remove(*evict_key_ptr);
+        ++evictions;
+      }
+    }
+
+    value.freq = 1;
+    data.add_new(key, std::move(value));
+  }
+};
+
 struct ShapedGlyph {
   FontBLF *font = nullptr;
   GlyphCacheBLF *gc = nullptr;
@@ -129,6 +206,7 @@ struct ShapingData {
               const char *str,
               size_t len,
               blender::Vector<hb_feature_t> *features = nullptr);
+  bool load_from_cache(FontBLF *font, GlyphCacheBLF *gc, const char *str, size_t len);
 };
 
 struct BatchBLF {
@@ -179,6 +257,7 @@ struct GlyphCacheBLF {
 
   hb_segment_properties_t props;
   hb_shape_plan_t *shaping_plan = nullptr;
+  ShapingCache shaping_cache;
 
   /** The glyphs. */
   Map<GlyphCacheKey, std::unique_ptr<GlyphBLF>> glyphs;
