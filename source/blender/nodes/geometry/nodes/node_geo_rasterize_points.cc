@@ -322,9 +322,9 @@ static void node_geo_exec(GeoNodeExecParams params)
       const std::string message = fmt::format(
           fmt::runtime(TIP_("Could not generate grid for \"{}\"")), item.name);
       params.error_message_add(NodeWarningType::Warning, message);
-      params.set_output(identifier, bke::GVolumeGrid{});
     }
   }
+  params.set_default_remaining_outputs();
 
 #else
   node_geo_exec_with_missing_openvdb(params);
