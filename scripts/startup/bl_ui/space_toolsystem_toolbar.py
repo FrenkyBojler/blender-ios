@@ -600,7 +600,7 @@ class _defs_view3d_add:
                 layout.popover("TOPBAR_PT_tool_settings_extra", text="...")
 
             _defs_view3d_add.draw_settings_defaults_init(
-                context.mode, tool, _defs_view3d_add.sculpt_tool_defaults["CUBE"])
+                context.mode, tool, _defs_view3d_add.sculpt_tool_defaults['CUBE'])
 
         return dict(
             idname="builtin.primitive_cube_add",
@@ -629,7 +629,7 @@ class _defs_view3d_add:
                 layout.popover("TOPBAR_PT_tool_settings_extra", text="...")
 
             _defs_view3d_add.draw_settings_defaults_init(
-                context.mode, tool, _defs_view3d_add.sculpt_tool_defaults["CONE"])
+                context.mode, tool, _defs_view3d_add.sculpt_tool_defaults['CONE'])
 
         return dict(
             idname="builtin.primitive_cone_add",
@@ -658,7 +658,7 @@ class _defs_view3d_add:
                 layout.popover("TOPBAR_PT_tool_settings_extra", text="...")
 
             _defs_view3d_add.draw_settings_defaults_init(
-                context.mode, tool, _defs_view3d_add.sculpt_tool_defaults["CYLINDER"])
+                context.mode, tool, _defs_view3d_add.sculpt_tool_defaults['CYLINDER'])
 
         return dict(
             idname="builtin.primitive_cylinder_add",
@@ -687,7 +687,7 @@ class _defs_view3d_add:
                 layout.popover("TOPBAR_PT_tool_settings_extra", text="...")
 
             _defs_view3d_add.draw_settings_defaults_init(
-                context.mode, tool, _defs_view3d_add.sculpt_tool_defaults["SPHERE_UV"])
+                context.mode, tool, _defs_view3d_add.sculpt_tool_defaults['SPHERE_UV'])
 
         return dict(
             idname="builtin.primitive_uv_sphere_add",
@@ -715,7 +715,7 @@ class _defs_view3d_add:
                 layout.popover("TOPBAR_PT_tool_settings_extra", text="...")
 
             _defs_view3d_add.draw_settings_defaults_init(
-                context.mode, tool, _defs_view3d_add.sculpt_tool_defaults["SPHERE_ICO"])
+                context.mode, tool, _defs_view3d_add.sculpt_tool_defaults['SPHERE_ICO'])
 
         return dict(
             idname="builtin.primitive_ico_sphere_add",
