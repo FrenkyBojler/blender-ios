@@ -814,50 +814,6 @@ void BVHEmbree::set_quad_vertex_buffer(const RTCGeometry geom,
   }
 }
 
-static bool filter_backface(const RTCRay *ray, const RTCHit *hit)
-{
-  const float3 D = make_float3(ray->dir_x, ray->dir_y, ray->dir_z);
-  const float3 N = make_float3(hit->Ng_x, hit->Ng_y, hit->Ng_z);
-
-  return dot(D, N) <= 0.0f;
-}
-
-RTC_SYCL_INDIRECTLY_CALLABLE static void ellipse_filter_func(
-    const RTCFilterFunctionNArguments *args)
-{
-  const RTCHit *hit = (const RTCHit *)args->hit;
-  /* Filter out hits outside of the ellipse. */
-  if (sqr(hit->u - 0.5f) + sqr(hit->v - 0.5f) > 0.25f) {
-    *args->valid = 0;
-    return;
-  }
-
-  const RTCRay *ray = (const RTCRay *)args->ray;
-
-  /* Filter out backface. */
-  if (filter_backface(ray, hit)) {
-    *args->valid = 0;
-    return;
-  }
-
-  /* TODO(weizhen): maybe we can even filter the angle, but need to set userdata for that. */
-}
-
-RTC_SYCL_INDIRECTLY_CALLABLE static void rectangle_filter_func(
-    const RTCFilterFunctionNArguments *args)
-{
-  const RTCHit *hit = (const RTCHit *)args->hit;
-  const RTCRay *ray = (const RTCRay *)args->ray;
-
-  /* Filter out backface. */
-  if (filter_backface(ray, hit)) {
-    *args->valid = 0;
-    return;
-  }
-
-  /* TODO(weizhen): maybe we can even filter the angle, but need to set userdata for that. */
-}
-
 static void point_light_bounds_func(const struct RTCBoundsFunctionArguments *args)
 {
   RTCBounds *bounds_o = args->bounds_o;
@@ -963,8 +919,6 @@ RTCGeometry BVHEmbree::set_light_geometry_data(Object *ob, const Light *light, c
     geom = rtcNewGeometry(rtc_device, RTC_GEOMETRY_TYPE_QUAD);
     set_quad_index_buffer(geom);
     set_quad_vertex_buffer(geom, area_light, false);
-    rtcSetGeometryIntersectFilterFunction(
-        geom, area_light->get_ellipse() ? ellipse_filter_func : rectangle_filter_func);
     rtcSetGeometryUserData(geom, (void *)light->prim_offset);
   }
   else if (light->is_point_light() || light->is_spot_light()) {

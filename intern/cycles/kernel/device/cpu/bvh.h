@@ -277,11 +277,9 @@ ccl_device_forceinline void kernel_embree_filter_intersection_func_impl(
         return;
       }
       /* Backface culling: reject hits where the ray approaches from behind
-       * (where dot(D, N) > 0 means ray and normal point in the same direction). */
-      const RTCRay *ray = (const RTCRay *)args->ray;
-      const float3 D = make_float3(ray->dir_x, ray->dir_y, ray->dir_z);
-      const float3 N = make_float3(hit->Ng_x, hit->Ng_y, hit->Ng_z);
-      if (dot(D, N) > 0.0f) {
+       * (where local ray D.z <= 0 means the ray and the light are in the same direction). */
+      const float3 local_D = transform_direction(&kernel_data_fetch(objects, object).itfm, cray->D);
+      if (local_D.z <= 0.0f) {
         *args->valid = 0;
         return;
       }
