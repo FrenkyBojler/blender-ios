@@ -6,3 +6,4 @@ Referenced by commit 019a9d51fc899b4dd4bf675af166caca6500f16d, Fix #151088: Undo
 Referenced by issue #151262, "Alt+Mouse Wheel Scroll" timeline navigation performance much worse for files created in older versions compared to 4.5LTS
 Referenced by issue #151430, Blender 5.0/5.1 selecting object is noticeable slower(Delay) than blender 4.5.5 in large scale files
 Referenced by issue #152087, crashing in sculpt mode, multires, Ctrl+Z
+Referenced by issue #155387, Performance regression doing Ctrl+Z & Ctrl+Shift+Z in a heavy scene.
