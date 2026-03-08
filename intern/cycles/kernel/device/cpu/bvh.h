@@ -481,36 +481,68 @@ ccl_device_forceinline void kernel_embree_intersect_light_func_impl(
 
 #ifdef __KERNEL_ONEAPI__
   KernelGlobalsGPU *kg = nullptr;
-  /* On GPU (oneAPI), this function is used as an argument-level callback on the top-level BVH.
-   * Embree does not transform the ray into local space for argument-level callbacks, so we
-   * must do it here. */
-  const ccl_global KernelObject *kobject = &kernel_data_fetch(objects, object);
-  const float3 ray_P = transform_point(&kobject->itfm,
-                                       make_float3(rayhit->ray.org_x,
-                                                   rayhit->ray.org_y,
-                                                   rayhit->ray.org_z));
-  const float3 ray_D = transform_direction(&kobject->itfm,
-                                           make_float3(rayhit->ray.dir_x,
-                                                       rayhit->ray.dir_y,
-                                                       rayhit->ray.dir_z));
 #else
-  const float3 ray_P = make_float3(rayhit->ray.org_x, rayhit->ray.org_y, rayhit->ray.org_z);
-  const float3 ray_D = make_float3(rayhit->ray.dir_x, rayhit->ray.dir_y, rayhit->ray.dir_z);
   const ThreadKernelGlobalsCPU *kg = ((CCLFirstHitContext *)(args->context))->kg;
 #endif
 
+  /* This function is used as an argument-level callback on the top-level BVH.
+   * Embree does not transform the ray into local space for argument-level callbacks,
+   * so we must do it here. */
+  const ccl_global KernelObject *kobject = &kernel_data_fetch(objects, object);
+  const float3 local_P = transform_point(&kobject->itfm,
+                                         make_float3(rayhit->ray.org_x,
+                                                     rayhit->ray.org_y,
+                                                     rayhit->ray.org_z));
+  const float3 local_D = transform_direction(&kobject->itfm,
+                                             make_float3(rayhit->ray.dir_x,
+                                                         rayhit->ray.dir_y,
+                                                         rayhit->ray.dir_z));
+
+  /* Intersection units t are relative to the ray direction length. Since we transformed the
+   * direction but intersection functions normalize it, we must compensate for the length
+   * of the local direction to keep t in world-space units. */
+  float len_D;
+  const float3 local_D_norm = normalize_len(local_D, &len_D);
+
   Intersection isect;
-  isect.t = rayhit->ray.tfar;
-  if (lights_intersect(kg, &isect, ray_P, ray_D, rayhit->ray.tnear, object, prim)) {
-    rayhit->ray.tfar = isect.t;
+  isect.t = rayhit->ray.tfar * len_D;
+  if (lights_intersect(kg, &isect, local_P, local_D_norm, rayhit->ray.tnear * len_D, object, prim)) {
+#ifdef __LIGHT_LINKING__
+    const CCLFirstHitContext *ctx = (CCLFirstHitContext *)(args->context);
+    if (ctx->is_indirect_ray && ctx->ray->self.object != OBJECT_NONE &&
+        !light_link_object_match(kg, ctx->ray->self.object, object))
+    {
+      return;
+    }
+#endif
+
+    rayhit->ray.tfar = isect.t / len_D;
+    rayhit->hit.u = 0.0f;
+    rayhit->hit.v = 0.0f;
     rayhit->hit.primID = 0;
     rayhit->hit.geomID = args->geomID;
     rayhit->hit.instID[0] = args->context->instID[0];
-    /* Set Ng to the ray origin direction (billboard normal facing the ray origin). */
-    const float3 Ng = normalize(ray_P);
-    rayhit->hit.Ng_x = Ng.x;
-    rayhit->hit.Ng_y = Ng.y;
-    rayhit->hit.Ng_z = Ng.z;
+
+    /* Set Ng to the world-space billboard normal (facing the ray origin).
+     * Embree expects world-space normal for argument-level callbacks on the top-level BVH. */
+    const float3 world_light_center = make_float3(
+        kobject->tfm.x.w, kobject->tfm.y.w, kobject->tfm.z.w);
+    const float3 world_ray_org = make_float3(rayhit->ray.org_x, rayhit->ray.org_y, rayhit->ray.org_z);
+    const float3 world_Ng = safe_normalize(world_ray_org - world_light_center);
+    rayhit->hit.Ng_x = world_Ng.x;
+    rayhit->hit.Ng_y = world_Ng.y;
+    rayhit->hit.Ng_z = world_Ng.z;
+  }
+}
+
+ccl_device_forceinline void kernel_embree_occluded_light_func_impl(
+    const RTCOccludedFunctionNArguments *args)
+{
+  for (unsigned int i = 0; i < args->N; i++) {
+    if (args->valid[i]) {
+      /* Clear the valid bit to indicate that the ray should pass through the light. */
+      args->valid[i] = 0;
+    }
   }
 }
 
@@ -560,6 +592,18 @@ kernel_embree_intersect_light_func_static(const RTCIntersectFunctionNArguments *
   context->kernel_embree_intersect_light_func_impl(args);
 }
 
+RTC_SYCL_INDIRECTLY_CALLABLE static void ccl_always_inline
+kernel_embree_occluded_light_func_static(const RTCOccludedFunctionNArguments *args)
+{
+  CCLShadowContext *ctx = (CCLShadowContext *)(args->context);
+#  ifdef __KERNEL_ONEAPI__
+  ONEAPIKernelContext *context = ctx->oneapi_kernel_context;
+#  else
+  ONEAPIKernelContext *context = static_cast<ONEAPIKernelContext *>(ctx->kg);
+#  endif
+  context->kernel_embree_occluded_light_func_impl(args);
+}
+
 #  define kernel_embree_filter_intersection_func \
     ONEAPIKernelContext::kernel_embree_filter_intersection_func_static
 #  define kernel_embree_filter_occluded_shadow_all_func \
@@ -570,6 +614,8 @@ kernel_embree_intersect_light_func_static(const RTCIntersectFunctionNArguments *
     ONEAPIKernelContext::kernel_embree_filter_occluded_volume_all_func_static
 #  define kernel_embree_intersect_light_func \
     ONEAPIKernelContext::kernel_embree_intersect_light_func_static
+#  define kernel_embree_occluded_light_func \
+    ONEAPIKernelContext::kernel_embree_occluded_light_func_static
 #else
 #  define kernel_embree_filter_intersection_func kernel_embree_filter_intersection_func_impl
 #  define kernel_embree_filter_occluded_shadow_all_func \
@@ -577,6 +623,8 @@ kernel_embree_intersect_light_func_static(const RTCIntersectFunctionNArguments *
 #  define kernel_embree_filter_occluded_local_func kernel_embree_filter_occluded_local_func_impl
 #  define kernel_embree_filter_occluded_volume_all_func \
     kernel_embree_filter_occluded_volume_all_func_impl
+#  define kernel_embree_intersect_light_func kernel_embree_intersect_light_func_impl
+#  define kernel_embree_occluded_light_func kernel_embree_occluded_light_func_impl
 #endif
 
 /* Scene intersection. */
@@ -608,12 +656,9 @@ ccl_device_intersect bool kernel_embree_intersect(KernelGlobals kg,
   RTCIntersectArguments args;
   rtcInitIntersectArguments(&args);
   args.filter = reinterpret_cast<RTCFilterFunctionN>(kernel_embree_filter_intersection_func);
-#ifdef __KERNEL_ONEAPI__
-  /* On GPU (SYCL), geometry-level USER geometry intersect callbacks are disabled unless
-   * EMBREE_SYCL_GEOMETRY_CALLBACK is set. Provide an argument-level callback instead so
-   * that point/sphere lights (which use USER geometry) are intersected correctly. */
+  /* USER geometry intersect callback for point and sphere lights. Provide an argument-level
+   * callback so that these lights are intersected correctly on all devices. */
   args.intersect = reinterpret_cast<RTCIntersectFunctionN>(kernel_embree_intersect_light_func);
-#endif
   args.feature_mask = CYCLES_EMBREE_USED_FEATURES;
   args.context = &ctx;
   rtcTraversableIntersect1(kernel_data.device_bvh, &ray_hit, &args);
@@ -663,6 +708,7 @@ ccl_device_intersect bool kernel_embree_intersect_local(KernelGlobals kg,
   RTCOccludedArguments args;
   rtcInitOccludedArguments(&args);
   args.filter = reinterpret_cast<RTCFilterFunctionN>(kernel_embree_filter_occluded_local_func);
+  args.occluded = reinterpret_cast<RTCOccludedFunctionN>(kernel_embree_occluded_light_func);
   args.feature_mask = CYCLES_EMBREE_USED_FEATURES;
   args.context = &ctx;
 
@@ -722,6 +768,7 @@ ccl_device_intersect void kernel_embree_intersect_shadow_all(KernelGlobals kg,
   rtcInitOccludedArguments(&args);
   args.filter = reinterpret_cast<RTCFilterFunctionN>(
       kernel_embree_filter_occluded_shadow_all_func);
+  args.occluded = reinterpret_cast<RTCOccludedFunctionN>(kernel_embree_occluded_light_func);
   args.feature_mask = CYCLES_EMBREE_USED_FEATURES;
   args.context = &ctx;
 
@@ -761,6 +808,7 @@ ccl_device_intersect uint kernel_embree_intersect_volume(KernelGlobals kg,
   rtcInitOccludedArguments(&args);
   args.filter = reinterpret_cast<RTCFilterFunctionN>(
       kernel_embree_filter_occluded_volume_all_func);
+  args.occluded = reinterpret_cast<RTCOccludedFunctionN>(kernel_embree_occluded_light_func);
   args.feature_mask = CYCLES_EMBREE_USED_FEATURES;
   args.context = &ctx;
   rtcTraversableOccluded1(kernel_data.device_bvh, &rtc_ray, &args);

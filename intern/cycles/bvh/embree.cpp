@@ -821,40 +821,6 @@ static void point_light_bounds_func(const struct RTCBoundsFunctionArguments *arg
   bounds_o->upper_x = bounds_o->upper_y = bounds_o->upper_z = POINT_LIGHT_RADIUS;
 }
 
-RTC_SYCL_INDIRECTLY_CALLABLE static void point_light_intersect_func(
-    const RTCIntersectFunctionNArguments *args)
-{
-  RTCRayHit *rayhit = (RTCRayHit *)args->rayhit;
-
-  const float3 ray_P = make_float3(rayhit->ray.org_x, rayhit->ray.org_y, rayhit->ray.org_z);
-  const float3 ray_D = make_float3(rayhit->ray.dir_x, rayhit->ray.dir_y, rayhit->ray.dir_z);
-
-  float3 P;
-  const float3 Ng = normalize(ray_P);
-  rayhit->hit.Ng_x = Ng.x;
-  rayhit->hit.Ng_y = Ng.y;
-  rayhit->hit.Ng_z = Ng.z;
-  if (ray_disk_intersect(ray_P,
-                         ray_D,
-                         rayhit->ray.tnear,
-                         rayhit->ray.tfar,
-                         zero_float3(),
-                         Ng,
-                         POINT_LIGHT_RADIUS,
-                         &P,
-                         &rayhit->ray.tfar))
-  {
-    rayhit->hit.primID = 0;
-    rayhit->hit.geomID = args->geomID;
-    rayhit->hit.instID[0] = args->context->instID[0];
-  }
-}
-
-RTC_SYCL_INDIRECTLY_CALLABLE static void point_light_occluded_func(
-    const RTCOccludedFunctionNArguments * /*args*/)
-{
-}
-
 RTCGeometry BVHEmbree::set_point_light_geometry_data(const Object * /*ob*/,
                                                      const PointLight *light,
                                                      const int /*object_id*/)
@@ -864,37 +830,7 @@ RTCGeometry BVHEmbree::set_point_light_geometry_data(const Object * /*ob*/,
   rtcSetGeometryUserPrimitiveCount(geom, 1);
   rtcSetGeometryUserData(geom, (void *)light->prim_offset);
   rtcSetGeometryBoundsFunction(geom, point_light_bounds_func, nullptr);
-  rtcSetGeometryIntersectFunction(geom, point_light_intersect_func);
-  rtcSetGeometryOccludedFunction(geom, point_light_occluded_func);
   return geom;
-}
-
-RTC_SYCL_INDIRECTLY_CALLABLE static void sphere_light_intersect_func(
-    const RTCIntersectFunctionNArguments *args)
-{
-  RTCRayHit *rayhit = (RTCRayHit *)args->rayhit;
-
-  const float3 ray_P = make_float3(rayhit->ray.org_x, rayhit->ray.org_y, rayhit->ray.org_z);
-  const float3 ray_D = make_float3(rayhit->ray.dir_x, rayhit->ray.dir_y, rayhit->ray.dir_z);
-
-  float3 P;
-  const float3 Ng = normalize(ray_P);
-  rayhit->hit.Ng_x = Ng.x;
-  rayhit->hit.Ng_y = Ng.y;
-  rayhit->hit.Ng_z = Ng.z;
-  if (ray_sphere_intersect(ray_P,
-                           ray_D,
-                           rayhit->ray.tnear,
-                           rayhit->ray.tfar,
-                           zero_float3(),
-                           POINT_LIGHT_RADIUS,
-                           &P,
-                           &rayhit->ray.tfar))
-  {
-    rayhit->hit.primID = 0;
-    rayhit->hit.geomID = args->geomID;
-    rayhit->hit.instID[0] = args->context->instID[0];
-  }
 }
 
 RTCGeometry BVHEmbree::set_sphere_light_geometry_data(const Object * /*ob*/,
@@ -906,8 +842,6 @@ RTCGeometry BVHEmbree::set_sphere_light_geometry_data(const Object * /*ob*/,
   rtcSetGeometryUserPrimitiveCount(geom, 1);
   rtcSetGeometryUserData(geom, (void *)light->prim_offset);
   rtcSetGeometryBoundsFunction(geom, point_light_bounds_func, nullptr);
-  rtcSetGeometryIntersectFunction(geom, sphere_light_intersect_func);
-  rtcSetGeometryOccludedFunction(geom, point_light_occluded_func);
   return geom;
 }
 
