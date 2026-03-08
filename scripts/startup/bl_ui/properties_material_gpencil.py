@@ -146,6 +146,19 @@ class MATERIAL_PT_gpencil_strokecolor(GPMaterialButtonsPanel, Panel):
                     col.prop(gpcolor, "placement_radius_spacing")
                     col.separator()
 
+                col.prop(gpcolor, "use_random")
+                col.prop(gpcolor, "random_size_factor", slider=True)
+                col.prop(gpcolor, "random_strength_factor", slider=True)
+                col.prop(gpcolor, "random_rotation_factor", slider=True)
+
+                col.separator()
+
+                col.prop(gpcolor, "random_hue_factor", slider=True)
+                col.prop(gpcolor, "random_saturation_factor", slider=True)
+                col.prop(gpcolor, "random_value_factor", slider=True)
+
+                col.separator()
+
             col.prop(gpcolor, "color", text="Base Color")
             col.prop(gpcolor, "use_stroke_holdout")
 

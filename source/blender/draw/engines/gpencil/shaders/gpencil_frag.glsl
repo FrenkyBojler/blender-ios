@@ -8,6 +8,7 @@ FRAGMENT_SHADER_CREATE_INFO(gpencil_geometry)
 
 #include "draw_colormanagement_lib.glsl"
 #include "draw_grease_pencil_lib.glsl"
+#include "gpu_shader_common_color_utils.glsl"
 #include "gpu_shader_common_hash.glsl"
 #include "gpu_shader_math_vector_lib.glsl"
 
@@ -107,25 +108,26 @@ float2 rotate_uv(float2 uv, float2 x_axis)
 
 float4 get_dot_color(float2 uv, int i)
 {
+  uint matid = gp_interp_flat.mat_flag >> GPENCIl_MATID_SHIFT;
+  gpMaterial gp_mat = gp_materials[matid];
 
-  if (true) {
-    float rand = hash_uint_to_float(i + 6723);
-    rand *= 2.0f;
+  if (gp_mat._randomize_1 > 0.0f) {
+    float rand = hash_uint_to_float(i + 6963723);
     rand -= 0.5f;
+    rand *= 2.0f;
     rand *= M_PI;
 
-    // rand *= 0.8f;
+    rand *= gp_mat._randomize_1;
 
     uv -= 0.5f;
     uv = rotate_uv(uv, float2(cos(rand), sin(rand)));
     uv += 0.5f;
   }
-  if (true) {
-    float rand = hash_uint_to_float(i + 5321);
+  if (gp_mat._randomize_2 > 0.0f) {
+    float rand = hash_uint_to_float(i + 1855321);
 
-    // rand -=0.5f;
-    // rand *= 2.0f;
-    // rand += 1.0f;
+    rand *= gp_mat._randomize_2;
+    rand = 1.0f - rand;
 
     uv -= 0.5f;
     uv /= rand;
@@ -133,14 +135,35 @@ float4 get_dot_color(float2 uv, int i)
   }
 
   float4 col = get_color(uv);
-  if (true) {
-    float rand = hash_uint_to_float(i + 8964);
-    // col.rgb *= rand * 0.8 + 0.2;
-    col.rgb *= rand;
+  if (gp_mat._randomize_3 > 0.0f) {
+    // float rand = hash_uint_to_float(i + 896486);
+
+    // rand -= 1.0f;
+    // rand *= gp_mat._randomize_3;
+    // rand += 1.0f;
+
+    // col.rgb *= rand;
+
+    float4 col_hsva;
+    rgb_to_hsv(col, col_hsva);
+
+    float rand = hash_uint_to_float(i + 97715151);
+
+    rand -= 0.5f;
+    rand *= gp_mat._randomize_3;
+
+    col_hsva.x += rand;
+    col_hsva.x = fract(col_hsva.x);
+
+    hsv_to_rgb(col_hsva, col);
   }
-  if (true) {
-    float rand = hash_uint_to_float(i + 6893);
-    // col.w *= rand * 0.8 + 0.2;
+  if (gp_mat._randomize_4 > 0.0f) {
+    float rand = hash_uint_to_float(i + 689163);
+
+    rand -= 1.0f;
+    rand *= gp_mat._randomize_4;
+    rand += 1.0f;
+
     col *= rand;
   }
 

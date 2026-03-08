@@ -272,6 +272,19 @@ MaterialPool *gpencil_material_pool_create(Instance *inst,
       }
     }
 
+    // mat_data->randomize_1 = gp_style->randomize_1;
+    // mat_data->randomize_2 = gp_style->randomize_2;
+    // mat_data->randomize_3 = gp_style->randomize_3;
+    // mat_data->randomize_4 = gp_style->randomize_4;
+
+    mat_data->randomize_1 = gp_style->random_size_factor;
+    mat_data->randomize_2 = gp_style->random_strength_factor;
+    mat_data->randomize_3 = gp_style->random_rotation_factor;
+
+    mat_data->randomize_4 = gp_style->random_hue_factor;
+    // mat_data->random_saturation_factor = gp_style->random_saturation_factor;
+    // mat_data->random_value_factor = gp_style->random_value_factor;
+
     gp_style = gpencil_viewport_material_overrides(inst, ob, color_type, gp_style, lighting_mode);
 
     /* Stroke Style */
