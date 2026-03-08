@@ -1051,7 +1051,35 @@ class NodeInterfaceOperator():
     @staticmethod
     def selected_items(interface):
         return tuple(item for item in interface.items_tree if item.select)
+    
+    @staticmethod
+    def is_panel_toggle(item):
+        return item.in_out == 'INPUT' and item.socket_type == 'NodeSocketBool' and item.is_panel_toggle == True
+    
+    @staticmethod
+    def get_panel_toggle(panel):
+        try:
+            first_item = panel.interface_items[0]
 
+            is_panel_toggle = all((
+                first_item.in_out == 'INPUT',
+                first_item.socket_type == 'NodeSocketBool',
+                first_item.is_panel_toggle == True,
+            ))
+
+            if is_panel_toggle:
+                return first_item
+            else:
+                return None
+            
+        except (AttributeError, IndexError):
+            return None
+
+    @staticmethod
+    def get_interface_items(interface, **kwargs):
+        for item in interface.items_tree:
+            if all((getattr(item, attr, None) == value) for (attr, value) in kwargs.items()):
+                yield item
 
 class NODE_OT_interface_item_new(NodeInterfaceOperator, Operator):
     """Add a new item to the interface"""
@@ -1309,36 +1337,43 @@ class NODE_OT_interface_item_unlink_panel_toggle(NodeInterfaceOperator, Operator
         snode = context.space_data
         tree = snode.edit_tree
         interface = tree.interface
-        active_item = interface.active
-        if not active_item or active_item.item_type != 'PANEL':
-            return False
-        if len(active_item.interface_items) == 0:
-            return False
+        
+        panels = cls.get_interface_items(interface, item_type='PANEL', select=True)
+        toggle_panels = tuple(filter(cls.get_panel_toggle, panels))
 
-        first_item = active_item.interface_items[0]
-        return first_item.is_panel_toggle
+        return len(toggle_panels) > 0
 
     def execute(self, context):
         snode = context.space_data
         tree = snode.edit_tree
         interface = tree.interface
         active_item = interface.active
+        
+        panels = tuple(self.get_interface_items(interface, item_type='PANEL', select=True))
 
-        if not active_item or active_item.item_type != 'PANEL':
-            return {'CANCELLED'}
+        # Clear active and selection state as it causes inconsistencies when making new selections
+        for item in interface.items_tree:
+            item.select = False
+        interface.active = None
 
-        if len(active_item.interface_items) == 0:
-            return {'CANCELLED'}
+        created_toggles = []
+        has_active = False
 
-        first_item = active_item.interface_items[0]
-        if type(first_item) is not bpy.types.NodeTreeInterfaceSocketBool or not first_item.is_panel_toggle:
-            return {'CANCELLED'}
+        for panel in panels:
+            toggle = self.get_panel_toggle(panel)
+            if toggle:
+                toggle.is_panel_toggle = False
+                toggle.name = panel.name
+                toggle.select = True
 
-        first_item.is_panel_toggle = False
-        first_item.name = active_item.name
+                created_toggles.append(toggle)
 
-        # Make the socket active.
-        interface.active = first_item
+                if panel == active_item:
+                    interface.active = toggle
+                    has_active = True
+
+        if not has_active:
+            interface.active = created_toggles[0]
 
         return {'FINISHED'}
 
