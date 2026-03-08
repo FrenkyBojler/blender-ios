@@ -1035,7 +1035,7 @@ class NODE_MT_node_tree_interface_context_menu(Menu):
 
         if tree is None:
             return
-        
+
         has_socket, has_panel = self.check_selection(tree.interface)
 
         if has_socket or has_panel:
