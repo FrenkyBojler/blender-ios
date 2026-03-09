@@ -494,7 +494,7 @@ struct DrawSelectLoopUserData {
   uint hits;
   GPUSelectBuffer *buffer;
   const rcti *rect;
-  uint radius;
+  int radius;
   GPUSelectMode gpu_select_mode;
 };
 
@@ -605,8 +605,8 @@ int view3d_gpu_select_ex(const ViewContext *vc,
 
   /* Re-use cache (rect must be smaller than the cached)
    * other context is assumed to be unchanged */
-  const uint select_radius = select_shape == eV3DSelectShape::CIRCLE ? BLI_rcti_size_x(input) / 2 :
-                                                                       0;
+  const int select_radius = select_shape == eV3DSelectShape::CIRCLE ? BLI_rcti_size_x(input) / 2 :
+                                                                      0;
   if (GPU_select_is_cached()) {
     GPU_select_begin_next(buffer, &rect, select_radius, gpu_select_mode, 0);
     GPU_select_cache_load_id();

@@ -42,13 +42,16 @@ uint gpu_select_query_end();
 
 void gpu_select_next_begin(GPUSelectBuffer *buffer,
                            const rcti *input,
-                           uint radius,
+                           int radius,
                            GPUSelectMode mode);
 uint gpu_select_next_end();
 
+/**
+ * Returns the center relative to the corner of the rect stored in the GPUSelectNextState.
+ */
 int2 gpu_select_next_get_pick_area_center();
 GPUSelectMode gpu_select_next_get_mode();
-uint gpu_select_next_get_radius();
+int gpu_select_next_get_radius();
 void gpu_select_next_set_result(GPUSelectResult *hit_buf, uint hit_len);
 
 #define SELECT_ID_NONE ((uint)0xffffffff)

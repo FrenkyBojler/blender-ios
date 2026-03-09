@@ -71,7 +71,7 @@ static GPUSelectState g_select_state = {false};
 
 static void gpu_select_begin_ex(GPUSelectBuffer *buffer,
                                 const rcti *input,
-                                const uint radius,
+                                const int radius,
                                 GPUSelectMode mode,
                                 int oldhits,
                                 bool use_select_next)
@@ -133,7 +133,7 @@ static void gpu_select_begin_ex(GPUSelectBuffer *buffer,
 }
 
 void GPU_select_begin_next(
-    GPUSelectBuffer *buffer, const rcti *input, const uint radius, GPUSelectMode mode, int oldhits)
+    GPUSelectBuffer *buffer, const rcti *input, const int radius, GPUSelectMode mode, int oldhits)
 {
   gpu_select_begin_ex(buffer, input, radius, mode, oldhits, true);
 }
