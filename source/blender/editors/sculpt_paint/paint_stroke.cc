@@ -1542,6 +1542,7 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
       if (this->constrain_line) {
         paint_stroke_line_constrain(this->last_mouse_position, this->constrained_pos, mouse);
       }
+      this->straight_line_mode_ = false; // Clear ALT+LMB straight line mode when the mouse button is released.
       this->line_end(C, op, mouse);
       this->stroke_done(C, op, false);
       return OPERATOR_FINISHED;
@@ -1552,6 +1553,34 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
     this->stroke_done(C, op, false);
     return OPERATOR_FINISHED;
   }
+
+  else if (mode == PaintMode::GPencil && event->modifier & KM_ALT) {
+      mouse = {float(event->mval[0]), float(event->mval[1])};
+      
+      /* Constrain to horizontal or vertical lines only */
+      this->constrain_line = true;
+      float2 line = mouse - this->last_mouse_position;
+      float dx = math::abs(line[0]);
+      float dy = math::abs(line[1]);
+      
+      if (dx > dy) {
+        /* Make horizontal - keep Y same as start */
+        mouse[1] = this->constrained_pos[1] = this->last_mouse_position[1];
+        this->constrained_pos[0] = mouse[0];
+      } else {
+        /* Make vertical - keep X same as start */
+        mouse[0] = this->constrained_pos[0] = this->last_mouse_position[0];
+        this->constrained_pos[1] = mouse[1];
+      }
+      
+      if (stroke_started_ && (first_modal || ISMOUSE_MOTION(event->type))) {
+          const float2 mouse_delta = mouse - this->last_mouse_position;
+          stroke_distance_ += math::length(mouse_delta);
+          this->add_step(C, op, mouse, pressure);
+          needs_redraw = true;
+      }
+  }
+
   else if (br->stroke_method == BRUSH_STROKE_LINE) {
     if (event->modifier & KM_ALT) {
       this->constrain_line = true;

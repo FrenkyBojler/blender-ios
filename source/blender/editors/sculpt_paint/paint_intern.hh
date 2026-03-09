@@ -137,7 +137,9 @@ struct PaintStroke : NonCopyable, NonMovable {
 
   /* Paint stroke can use up to PAINT_MAX_INPUT_SAMPLES prior inputs
    * to smooth the stroke */
-  PaintSample samples_[PAINT_MAX_INPUT_SAMPLES];
+  bool straight_line_mode_ = false;
+  
+   PaintSample samples_[PAINT_MAX_INPUT_SAMPLES];
   int num_samples_ = 0;
   int cur_sample_ = 0;
   int tot_samples_ = 0;
