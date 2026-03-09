@@ -49,7 +49,7 @@ namespace blender {
  * keyframes is BEZT_BINARYSEARCH_THRESH so differences larger than that cannot occur. For the y
  * value there is no such limit, so we have to choose a smaller number. The units are frames for
  * the x-axis and value for the y-axis. */
-constexpr float2 view_threshold(BEZT_BINARYSEARCH_THRESH, 0.0001f);
+constexpr float2 zoom_threshold(BEZT_BINARYSEARCH_THRESH, 0.0001f);
 
 /**
  * Sets the given rect to reasonable defaults. Useful in case no bounds could be found by other
@@ -77,9 +77,7 @@ static void keyframe_bounds_defaults(bAnimContext &ac, rctf &r_bounds)
  * Return the bounds of keyframes elements in anim_data. The bounds will be in frame (x) and value
  * (y) units.
  *
- * \param only_selected if true, only selected keyframes are considered for the bounds.
- * \param include_handles if true, the handles are considered for the bounds, otherwise only the
- * key point itself.
+ * For a description on the arguments, see `BKE_fcurve_calc_bounds`.
  *
  * \returns true if any bounds are found. If false is returned the `r_bounds` have not been
  * modified.
@@ -145,13 +143,13 @@ void get_graph_keyframe_extents(bAnimContext *ac,
 
   /* Ensure that the extents are not too extreme that view implodes. */
   if (foundBounds) {
-    if (fabsf(fcurve_bounds.xmax - fcurve_bounds.xmin) < view_threshold.x) {
-      fcurve_bounds.xmin -= view_threshold.x / 2;
-      fcurve_bounds.xmax += view_threshold.x / 2;
+    if (fabsf(fcurve_bounds.xmax - fcurve_bounds.xmin) < zoom_threshold.x) {
+      fcurve_bounds.xmin -= zoom_threshold.x / 2;
+      fcurve_bounds.xmax += zoom_threshold.x / 2;
     }
-    if (fabsf(fcurve_bounds.ymax - fcurve_bounds.ymin) < view_threshold.y) {
-      fcurve_bounds.ymin -= view_threshold.y / 2;
-      fcurve_bounds.ymax += view_threshold.y / 2;
+    if (fabsf(fcurve_bounds.ymax - fcurve_bounds.ymin) < zoom_threshold.y) {
+      fcurve_bounds.ymin -= zoom_threshold.y / 2;
+      fcurve_bounds.ymax += zoom_threshold.y / 2;
     }
   }
   else {
@@ -249,17 +247,17 @@ static void get_graph_view_bounds(bAnimContext *ac,
        * there is no additional information we could possibly use. */
       add_contextual_padding(*ac,
                              anim_data,
-                             BLI_rctf_size_x(&r_bounds) < view_threshold.x,
-                             BLI_rctf_size_y(&r_bounds) < view_threshold.y,
+                             BLI_rctf_size_x(&r_bounds) < zoom_threshold.x,
+                             BLI_rctf_size_y(&r_bounds) < zoom_threshold.y,
                              r_bounds);
     }
-    if (fabsf(r_bounds.xmax - r_bounds.xmin) < view_threshold.x) {
-      r_bounds.xmin -= view_threshold.x / 2;
-      r_bounds.xmax += view_threshold.x / 2;
+    if (fabsf(r_bounds.xmax - r_bounds.xmin) < zoom_threshold.x) {
+      r_bounds.xmin -= zoom_threshold.x / 2;
+      r_bounds.xmax += zoom_threshold.x / 2;
     }
-    if (fabsf(r_bounds.ymax - r_bounds.ymin) < view_threshold.y) {
-      r_bounds.ymin -= view_threshold.y / 2;
-      r_bounds.ymax += view_threshold.y / 2;
+    if (fabsf(r_bounds.ymax - r_bounds.ymin) < zoom_threshold.y) {
+      r_bounds.ymin -= zoom_threshold.y / 2;
+      r_bounds.ymax += zoom_threshold.y / 2;
     }
   }
   else {
