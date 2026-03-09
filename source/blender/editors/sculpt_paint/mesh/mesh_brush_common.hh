@@ -530,10 +530,25 @@ void calc_local_positions(const float4x4 &mat,
                           const Span<float3> positions,
                           const MutableSpan<float3> local_positions);
 
-/* Transforms positions from object space positions to brush-local space. */
 void calc_local_positions(const float4x4 &mat,
                           const Span<float3> positions,
                           const MutableSpan<float3> local_positions);
+
+/**
+ * Transforms positions from object space positions to brush-local space. Splitting the XY and Z
+ * components gives slightly better performance. Used by some brushes that only need the XY
+ * components for certain calculations.
+ */
+void calc_local_positions(const float4x4 &mat,
+                          const Span<int> verts,
+                          const Span<float3> positions,
+                          const MutableSpan<float2> xy_positions,
+                          const MutableSpan<float> z_positions);
+
+void calc_local_positions(const float4x4 &mat,
+                          const Span<float3> positions,
+                          const MutableSpan<float2> xy_positions,
+                          const MutableSpan<float> z_positions);
 
 }  // namespace ed::sculpt_paint
 

@@ -6790,6 +6790,39 @@ void calc_local_positions(const float4x4 &mat,
   }
 }
 
+void calc_local_positions(const float4x4 &mat,
+                          const Span<int> verts,
+                          const Span<float3> vert_positions,
+                          const MutableSpan<float2> xy_positions,
+                          const MutableSpan<float> z_positions)
+{
+  BLI_assert(xy_positions.size() == verts.size());
+  BLI_assert(z_positions.size() == verts.size());
+
+  for (const int i : verts.index_range()) {
+    const float3 position = math::transform_point(mat, vert_positions[verts[i]]);
+
+    xy_positions[i] = position.xy();
+    z_positions[i] = position.z;
+  }
+}
+
+void calc_local_positions(const float4x4 &mat,
+                          const Span<float3> positions,
+                          const MutableSpan<float2> xy_positions,
+                          const MutableSpan<float> z_positions)
+{
+  BLI_assert(xy_positions.size() == positions.size());
+  BLI_assert(z_positions.size() == positions.size());
+
+  for (const int i : positions.index_range()) {
+    const float3 position = math::transform_point(mat, positions[i]);
+
+    xy_positions[i] = position.xy();
+    z_positions[i] = position.z;
+  }
+}
+
 void calc_factors_common_mesh_indexed(const Depsgraph &depsgraph,
                                       const Brush &brush,
                                       const Object &object,

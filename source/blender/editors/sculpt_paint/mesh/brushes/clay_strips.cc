@@ -55,43 +55,6 @@ struct LocalData {
 };
 
 /**
- * Transforms positions from object space positions to brush-local space. Splitting the XY and Z
- * components gives slightly better performance.
- */
-static void calc_local_positions(const Span<float3> vert_positions,
-                                 const Span<int> verts,
-                                 const float4x4 &mat,
-                                 const MutableSpan<float2> xy_positions,
-                                 const MutableSpan<float> z_positions)
-{
-  BLI_assert(xy_positions.size() == verts.size());
-  BLI_assert(z_positions.size() == verts.size());
-
-  for (const int i : verts.index_range()) {
-    const float3 position = math::transform_point(mat, vert_positions[verts[i]]);
-
-    xy_positions[i] = position.xy();
-    z_positions[i] = position.z;
-  }
-}
-
-static void calc_local_positions(const Span<float3> positions,
-                                 const float4x4 &mat,
-                                 const MutableSpan<float2> xy_positions,
-                                 const MutableSpan<float> z_positions)
-{
-  BLI_assert(xy_positions.size() == positions.size());
-  BLI_assert(z_positions.size() == positions.size());
-
-  for (const int i : positions.index_range()) {
-    const float3 position = math::transform_point(mat, positions[i]);
-
-    xy_positions[i] = position.xy();
-    z_positions[i] = position.z;
-  }
-}
-
-/**
  * Applies a parabolic factor of the form `z * (1 - z)` to each vertex.
  * Vertices outside of the interval (0, 1) are out of range and their factors are set to zero.
  * Note: The local coordinate system is constructed such that all relevant `z` values
@@ -161,7 +124,7 @@ static void calc_faces(const Depsgraph &depsgraph,
   MutableSpan<float2> xy_positions = tls.xy_positions;
   MutableSpan<float> z_positions = tls.z_positions;
 
-  calc_local_positions(position_data.eval, verts, mat, xy_positions, z_positions);
+  calc_local_positions(mat, verts, position_data.eval, xy_positions, z_positions);
   apply_z_axis_factors(z_positions, factors);
   apply_plane_trim_factors(brush, z_positions, factors);
 
@@ -216,7 +179,7 @@ static void calc_grids(const Depsgraph &depsgraph,
   MutableSpan<float2> xy_positions = tls.xy_positions;
   MutableSpan<float> z_positions = tls.z_positions;
 
-  calc_local_positions(positions, mat, xy_positions, z_positions);
+  calc_local_positions(mat, positions, xy_positions, z_positions);
   apply_z_axis_factors(z_positions, factors);
   apply_plane_trim_factors(brush, z_positions, factors);
 
@@ -270,7 +233,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
   MutableSpan<float2> xy_positions = tls.xy_positions;
   MutableSpan<float> z_positions = tls.z_positions;
 
-  calc_local_positions(positions, mat, xy_positions, z_positions);
+  calc_local_positions(mat, positions, xy_positions, z_positions);
   apply_z_axis_factors(z_positions, factors);
   apply_plane_trim_factors(brush, z_positions, factors);
 
