@@ -275,7 +275,7 @@ float minimum_float(Context &context, const Result &input)
   return minimum_float_cpu(input);
 }
 
-static float4 minimum_float4_cpu(const Result &input)
+static float4 minimum_color_cpu(const Result &input)
 {
   return float4(parallel_reduce(
       input.domain().data_size,
@@ -306,7 +306,7 @@ float4 minimum_color(Context &context, const Result &input)
     return minimum_float4_gpu(context, input);
   }
 
-  return minimum_float4_cpu(input);
+  return minimum_color_cpu(input);
 }
 
 static float minimum_luminance_gpu(Context &context,
@@ -486,7 +486,7 @@ static float4 maximum_float4_gpu(Context &context, const Result &input)
   return maximum;
 }
 
-static float4 maximum_float4_cpu(const Result &input)
+static float4 maximum_color_cpu(const Result &input)
 {
   return float4(parallel_reduce(
       input.domain().data_size,
@@ -503,7 +503,7 @@ float4 maximum_color(Context &context, const Result &input)
     return maximum_float4_gpu(context, input);
   }
 
-  return maximum_float4_cpu(input);
+  return maximum_color_cpu(input);
 }
 
 static float maximum_luminance_gpu(Context &context,
