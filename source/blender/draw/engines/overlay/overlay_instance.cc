@@ -368,13 +368,14 @@ void Resources::update_theme_settings(const DRWContext *ctx, const State &state)
       state.rv3d ? TH_GRID_MAJOR : TH_GRID, is_bg_darker ? 20 : -10, gb.colors.grid_emphasis);
 
   /* Grid Axis */
-  const int axis_offset = is_bg_darker ? -20 : 20;
+  const int axis_offset = is_bg_darker ? -20 : -35;
+  const float axis_mix = is_bg_darker ? 0.85f : 0.5f;
   ui::theme::get_color_blend_shade_4fv(
-      TH_GRID, TH_AXIS_X, 0.85f, axis_offset, gb.colors.grid_axis_x);
+      TH_GRID, TH_AXIS_X, axis_mix, axis_offset, gb.colors.grid_axis_x);
   ui::theme::get_color_blend_shade_4fv(
-      TH_GRID, TH_AXIS_Y, 0.85f, axis_offset, gb.colors.grid_axis_y);
+      TH_GRID, TH_AXIS_Y, axis_mix, axis_offset, gb.colors.grid_axis_y);
   ui::theme::get_color_blend_shade_4fv(
-      TH_GRID, TH_AXIS_Z, 0.85f, axis_offset, gb.colors.grid_axis_z);
+      TH_GRID, TH_AXIS_Z, axis_mix, axis_offset, gb.colors.grid_axis_z);
 
   ui::theme::get_color_shade_alpha_4fv(TH_TRANSFORM, 0, -80, gb.colors.deselect);
   ui::theme::get_color_shade_alpha_4fv(TH_WIRE, 0, -30, gb.colors.outline);
