@@ -5,6 +5,7 @@
 #include "NOD_geometry_nodes_lazy_function.hh"
 
 #include "BKE_compute_contexts.hh"
+#include "BKE_geometry_nodes_reference_set.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_socket_value.hh"
 
@@ -163,21 +164,160 @@ class LazyFunctionForRepeatZone : public LazyFunction {
       params.set_output(iterations_usage_index, true);
     }
 
-    if (!eval_storage.graph_executor) {
-      /* Create the execution graph in the first evaluation. */
-      this->initialize_execution_graph(
-          params, eval_storage, node_storage, user_data, local_user_data);
+    const bool use_eager_eval = true;
+
+    if (use_eager_eval) {
+      this->evaluate_eager(params, eval_storage, node_storage, user_data);
+    }
+    else {
+      if (!eval_storage.graph_executor) {
+        /* Create the execution graph in the first evaluation. */
+        this->initialize_execution_graph(
+            params, eval_storage, node_storage, user_data, local_user_data);
+      }
+
+      /* Execute the graph for the repeat zone. */
+      lf::RemappedParams eval_graph_params{*eval_storage.graph_executor,
+                                           params,
+                                           eval_storage.input_index_map,
+                                           eval_storage.output_index_map,
+                                           eval_storage.multi_threading_enabled};
+      lf::Context eval_graph_context{
+          eval_storage.graph_executor_storage, context.user_data, context.local_user_data};
+      eval_storage.graph_executor->execute(eval_graph_params, eval_graph_context);
+    }
+  }
+
+  void evaluate_eager(lf::Params &params,
+                      RepeatEvalStorage &eval_storage,
+                      const NodeGeometryRepeatOutput &node_storage,
+                      GeoNodesUserData &user_data) const
+  {
+    const int num_repeat_items = node_storage.items_num;
+    const int num_border_links = body_fn_.indices.inputs.border_links.size();
+    const int iterations = this->get_num_iterations(params);
+
+    for (const int i : IndexRange(num_repeat_items)) {
+      const int lf_index = zone_info_.indices.outputs.input_usages[i + 1];
+      if (!params.output_was_set(lf_index)) {
+        params.set_output(lf_index, true);
+      }
+    }
+    for (const int i : IndexRange(num_border_links)) {
+      const int lf_index = zone_info_.indices.outputs.border_link_usages[i];
+      if (!params.output_was_set(lf_index)) {
+        params.set_output(lf_index, true);
+      }
     }
 
-    /* Execute the graph for the repeat zone. */
-    lf::RemappedParams eval_graph_params{*eval_storage.graph_executor,
-                                         params,
-                                         eval_storage.input_index_map,
-                                         eval_storage.output_index_map,
-                                         eval_storage.multi_threading_enabled};
-    lf::Context eval_graph_context{
-        eval_storage.graph_executor_storage, context.user_data, context.local_user_data};
-    eval_storage.graph_executor->execute(eval_graph_params, eval_graph_context);
+    Array<void *, 16> input_value_ptrs(inputs_.size());
+    for (const int i : inputs_.index_range()) {
+      void *input_value = params.try_get_input_data_ptr_or_request(i);
+      input_value_ptrs[i] = input_value;
+    }
+    if (input_value_ptrs.as_span().contains(nullptr)) {
+      /* Wait until all inputs are ready. */
+      return;
+    }
+
+    if (iterations > 50) {
+      lazy_threading::send_hint();
+    }
+
+    Array<SocketValueVariant> repeat_values_a_buf(num_repeat_items);
+    Array<SocketValueVariant> repeat_values_b_buf(num_repeat_items);
+
+    MutableSpan<SocketValueVariant> repeat_values_prev = repeat_values_a_buf.as_mutable_span();
+    MutableSpan<SocketValueVariant> repeat_values_next = repeat_values_b_buf.as_mutable_span();
+
+    for (const int i : IndexRange(num_repeat_items)) {
+      repeat_values_prev[i] = std::move(*static_cast<SocketValueVariant *>(
+          input_value_ptrs[zone_info_.indices.inputs.main[i + 1]]));
+    }
+
+    const int body_inputs_num = body_fn_.function->inputs().size();
+    const int body_outputs_num = body_fn_.function->outputs().size();
+
+    Map<ReferenceSetIndex, bke::GeometryNodesReferenceSet> reference_sets;
+    for (const auto &item : zone_info_.indices.inputs.reference_sets.items()) {
+      reference_sets.add(
+          item.key,
+          *static_cast<const bke::GeometryNodesReferenceSet *>(input_value_ptrs[item.value]));
+    }
+
+    Vector<SocketValueVariant> border_link_values(num_border_links);
+    for (const int i : IndexRange(num_border_links)) {
+      border_link_values[i] = std::move(*static_cast<SocketValueVariant *>(
+          input_value_ptrs[zone_info_.indices.inputs.border_links[i]]));
+    }
+
+    for (const int iteration : IndexRange(iterations)) {
+      Array<GMutablePointer> body_inputs(body_inputs_num);
+      Array<GMutablePointer> body_outputs(body_outputs_num);
+      Array<std::optional<lf::ValueUsage>> body_input_usages(body_inputs_num);
+      Array<lf::ValueUsage> body_output_usages(body_outputs_num, lf::ValueUsage::Used);
+      Array<bool> body_set_outputs(body_outputs_num, false);
+
+      SocketValueVariant iteration_value{iteration};
+      bool iteration_usage_output;
+      body_inputs[body_fn_.indices.inputs.main[0]] = &iteration_value;
+      body_outputs[body_fn_.indices.outputs.input_usages[0]] = &iteration_usage_output;
+
+      Array<bool> output_usage_inputs(num_repeat_items, true);
+      Array<bool> input_usage_outputs(num_repeat_items);
+      destruct_n(repeat_values_next.data(), num_repeat_items);
+      for (const int i : IndexRange(num_repeat_items)) {
+        body_inputs[body_fn_.indices.inputs.main[i + 1]] = &repeat_values_prev[i];
+        body_inputs[body_fn_.indices.inputs.output_usages[i]] = &output_usage_inputs[i];
+
+        body_outputs[body_fn_.indices.outputs.main[i]] = &repeat_values_next[i];
+        body_outputs[body_fn_.indices.outputs.input_usages[i + 1]] = &input_usage_outputs[i];
+      }
+      Map<ReferenceSetIndex, bke::GeometryNodesReferenceSet> body_reference_sets = reference_sets;
+      for (const auto &item : body_fn_.indices.inputs.reference_sets.items()) {
+        const ReferenceSetIndex reference_set_i = item.key;
+        body_inputs[item.value] = &body_reference_sets.lookup(reference_set_i);
+      }
+      Vector<SocketValueVariant> body_border_link_values = border_link_values;
+      Array<bool> border_link_usages(num_border_links, false);
+      for (const int i : IndexRange(num_border_links)) {
+        body_inputs[body_fn_.indices.inputs.border_links[i]] = &body_border_link_values[i];
+        body_outputs[body_fn_.indices.outputs.border_link_usages[i]] = &border_link_usages[i];
+      }
+
+      lf::BasicParams body_params{*body_fn_.function,
+                                  body_inputs,
+                                  body_outputs,
+                                  body_input_usages,
+                                  body_output_usages,
+                                  body_set_outputs};
+
+      const bke::RepeatZoneComputeContext body_compute_context{
+          user_data.compute_context, repeat_output_bnode_, iteration};
+      GeoNodesUserData body_user_data = user_data;
+      body_user_data.compute_context = &body_compute_context;
+      body_user_data.log_socket_values = should_log_socket_values_for_context(
+          user_data, body_compute_context.hash());
+
+      GeoNodesLocalUserData body_local_user_data{body_user_data};
+      void *body_storage = body_fn_.function->init_storage(eval_storage.allocator);
+      lf::Context body_context{body_storage, &body_user_data, &body_local_user_data};
+      body_fn_.function->execute(body_params, body_context);
+      body_fn_.function->destruct_storage(body_storage);
+
+      std::swap(repeat_values_prev, repeat_values_next);
+    }
+
+    const MutableSpan<SocketValueVariant> final_values = repeat_values_prev;
+    for (const int i : IndexRange(num_repeat_items)) {
+      params.set_output(zone_info_.indices.outputs.main[i], std::move(final_values[i]));
+    }
+  }
+
+  int get_num_iterations(const lf::Params &params) const
+  {
+    return std::max<int>(
+        0, params.get_input<SocketValueVariant>(zone_info_.indices.inputs.main[0]).get<int>());
   }
 
   /**
@@ -198,8 +338,7 @@ class LazyFunctionForRepeatZone : public LazyFunction {
     const int num_border_links = body_fn_.indices.inputs.border_links.size();
 
     /* Number of iterations to evaluate. */
-    const int iterations = std::max<int>(
-        0, params.get_input<SocketValueVariant>(zone_info_.indices.inputs.main[0]).get<int>());
+    const int iterations = this->get_num_iterations(params);
 
     if (iterations >= 10) {
       /* Constructing and running the repeat zone has some overhead so that it's probably worth

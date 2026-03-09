@@ -27,6 +27,14 @@ BasicParams::BasicParams(const LazyFunction &fn,
       output_usages_(output_usages),
       set_outputs_(set_outputs)
 {
+#ifndef NDEBUG
+  for (const int i : inputs_.index_range()) {
+    BLI_assert(inputs_[i]);
+  }
+  for (const int i : outputs_.index_range()) {
+    BLI_assert(outputs_[i]);
+  }
+#endif
 }
 
 void *BasicParams::try_get_input_data_ptr_impl(const int index) const
