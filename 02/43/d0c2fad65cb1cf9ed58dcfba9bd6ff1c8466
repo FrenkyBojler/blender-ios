@@ -1,2 +1,3 @@
 Referenced by issue #153255, lite build fails
 Referenced by pull request #155278, Fix: Link errors with ld, lld and lite builds
+Referenced by commit 40600462e41e8a7d235526f61d68b28d5b74e582, Fix: Link errors with ld, lld and lite builds
