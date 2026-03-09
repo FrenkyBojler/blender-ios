@@ -330,6 +330,9 @@ void SourceProcessor::lower_resource_table(Parser &parser)
         resource.res_slot = attribute[2].str();
         resource.res_qualifier = attribute[4].str();
       }
+      else if (type == "shared") {
+        resource.res_type = type;
+      }
       else if (type == "push_constant") {
         resource.res_type = type;
       }
@@ -444,7 +447,7 @@ void SourceProcessor::lower_resource_table(Parser &parser)
   auto is_resource_table_attribute = [](Token attr) {
     string_view type = attr.str();
     return (type == "sampler" || type == "image" || type == "uniform" || type == "storage" ||
-            type == "push_constant" || type == "compilation_constant" ||
+            type == "shared" || type == "push_constant" || type == "compilation_constant" ||
             type == "specialization_constant" || type == "legacy_info" ||
             type == "resource_table");
   };
