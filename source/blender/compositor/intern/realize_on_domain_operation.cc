@@ -181,6 +181,11 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const SamplerOptions &optio
       fast = nearest = true;
       shader_name = "compositor_realize_on_domain_int2";
       break;
+    case ResultType::Int3:
+      /* Int3 is internally stored in a int4 texture due to GPU module limitations. */
+      fast = nearest = true;
+      shader_name = "compositor_realize_on_domain_int4";
+      break;
     case ResultType::Bool:
     case ResultType::Menu:
       fast = nearest = true;
@@ -267,43 +272,46 @@ void RealizeOnDomainOperation::realize_on_domain_cpu(const SamplerOptions &optio
 
   switch (input.type()) {
     case ResultType::Float:
-    case ResultType::Color:
+    case ResultType::Float2:
     case ResultType::Float3:
     case ResultType::Float4:
-    case ResultType::Float2:
-      break;  // use the floating-point code
+    case ResultType::Color: {
+      math::sampler2D source{input.sampler2D()};
+      source.wrap_x = options.wrap_x;
+      source.wrap_y = options.wrap_y;
+      switch (options.sampler) {
+        case math::Sampler::Nearest:
+          realize_on_domain<math::Sampler::Nearest>(source, output, transformation, wh);
+          break;
+        case math::Sampler::Bilinear:
+          realize_on_domain<math::Sampler::Bilinear>(source, output, transformation, wh);
+          break;
+        default:  // Sampler::Box
+          realize_on_domain<math::Sampler::Box>(source, output, transformation, wh);
+          break;
+        case math::Sampler::Bspline:
+          realize_on_domain<math::Sampler::Bspline>(source, output, transformation, wh);
+          break;
+      }
+      break;
+    }
     case ResultType::Int:
       realize_on_domain<int32_t>(input, output, transformation);
-      return;
+      break;
     case ResultType::Int2:
       realize_on_domain<int2>(input, output, transformation);
-      return;
+      break;
+    case ResultType::Int3:
+      realize_on_domain<int3>(input, output, transformation);
+      break;
     case ResultType::Bool:
       realize_on_domain<bool>(input, output, transformation);
-      return;
+      break;
     case ResultType::Menu:
       realize_on_domain<nodes::MenuValue>(input, output, transformation);
-      return;
+      break;
     case ResultType::String:
       BLI_assert_unreachable();
-  }
-
-  math::sampler2D source{input.sampler2D()};
-  source.wrap_x = options.wrap_x;
-  source.wrap_y = options.wrap_y;
-  switch (options.sampler) {
-    case math::Sampler::Nearest:
-      realize_on_domain<math::Sampler::Nearest>(source, output, transformation, wh);
-      break;
-    case math::Sampler::Bilinear:
-      realize_on_domain<math::Sampler::Bilinear>(source, output, transformation, wh);
-      break;
-    default:  // Sampler::Box
-      realize_on_domain<math::Sampler::Box>(source, output, transformation, wh);
-      break;
-    case math::Sampler::Bspline:
-      realize_on_domain<math::Sampler::Bspline>(source, output, transformation, wh);
-      break;
   }
 }
 

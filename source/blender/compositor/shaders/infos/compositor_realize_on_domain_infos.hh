@@ -66,9 +66,17 @@ IMAGE(0, SINT_16_16, write, Int2D, domain_img)
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 
+GPU_SHADER_CREATE_INFO(compositor_realize_on_domain_int4)
+ADDITIONAL_INFO(compositor_realize_on_domain_texture)
+SAMPLER(0, Int2D, input_tx)
+IMAGE(0, SINT_16_16_16_16, write, Int2D, domain_img)
+DO_STATIC_COMPILATION()
+GPU_SHADER_CREATE_END()
+
 GPU_SHADER_CREATE_INFO(compositor_realize_on_domain_sint8)
 ADDITIONAL_INFO(compositor_realize_on_domain_texture)
 SAMPLER(0, Int2D, input_tx)
 IMAGE(0, SINT_8, write, Int2D, domain_img)
+
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
