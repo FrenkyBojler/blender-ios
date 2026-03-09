@@ -464,10 +464,14 @@ ccl_device_forceinline void kernel_embree_filter_occluded_volume_all_func_impl(
 }
 
 /* Argument-level USER geometry intersect callback for point and sphere lights.
- * On GPU (SYCL), geometry-level intersect callbacks set via rtcSetGeometryIntersectFunction
- * are not invoked without EMBREE_SYCL_GEOMETRY_CALLBACK. This function is used as the
- * argument-level callback (RTCIntersectArguments.intersect) on GPU to perform the actual
- * intersection test for USER geometry lights (point lights and sphere lights). */
+ * This is used instead of geometry-level callbacks so that both CPU and oneAPI GPU
+ * use the same code path. On GPU (SYCL), geometry-level callbacks are not invoked
+ * without EMBREE_SYCL_GEOMETRY_CALLBACK.
+ *
+ * Light geometries are instanced in the Embree BVH, so Embree transforms the ray
+ * into local (instance) space before this callback is invoked. On CPU this happens
+ * in the instance intersector, on GPU the hardware ray tracing handles it. The ray
+ * in the callback is therefore already in local space with the light at the origin. */
 ccl_device_forceinline void kernel_embree_intersect_light_func_impl(
     const RTCIntersectFunctionNArguments *args)
 {
@@ -485,28 +489,14 @@ ccl_device_forceinline void kernel_embree_intersect_light_func_impl(
   const ThreadKernelGlobalsCPU *kg = ((CCLFirstHitContext *)(args->context))->kg;
 #endif
 
-  /* This function is used as an argument-level callback on the top-level BVH.
-   * Embree does not transform the ray into local space for argument-level callbacks,
-   * so we must do it here. */
-  const ccl_global KernelObject *kobject = &kernel_data_fetch(objects, object);
-  const float3 local_P = transform_point(&kobject->itfm,
-                                         make_float3(rayhit->ray.org_x,
-                                                     rayhit->ray.org_y,
-                                                     rayhit->ray.org_z));
-  const float3 local_D = transform_direction(&kobject->itfm,
-                                             make_float3(rayhit->ray.dir_x,
-                                                         rayhit->ray.dir_y,
-                                                         rayhit->ray.dir_z));
-
-  /* Intersection units t are relative to the ray direction length. Since we transformed the
-   * direction but intersection functions normalize it, we must compensate for the length
-   * of the local direction to keep t in world-space units. */
-  float len_D;
-  const float3 local_D_norm = normalize_len(local_D, &len_D);
+  /* The ray is already in local space (light at origin) due to the Embree instance
+   * transform. Pass it directly to the light intersection function. */
+  const float3 ray_P = make_float3(rayhit->ray.org_x, rayhit->ray.org_y, rayhit->ray.org_z);
+  const float3 ray_D = make_float3(rayhit->ray.dir_x, rayhit->ray.dir_y, rayhit->ray.dir_z);
 
   Intersection isect;
-  isect.t = rayhit->ray.tfar * len_D;
-  if (lights_intersect(kg, &isect, local_P, local_D_norm, rayhit->ray.tnear * len_D, object, prim)) {
+  isect.t = rayhit->ray.tfar;
+  if (lights_intersect(kg, &isect, ray_P, ray_D, rayhit->ray.tnear, object, prim)) {
 #ifdef __LIGHT_LINKING__
     const CCLFirstHitContext *ctx = (CCLFirstHitContext *)(args->context);
     if (ctx->is_indirect_ray && ctx->ray->self.object != OBJECT_NONE &&
@@ -516,22 +506,19 @@ ccl_device_forceinline void kernel_embree_intersect_light_func_impl(
     }
 #endif
 
-    rayhit->ray.tfar = isect.t / len_D;
+    rayhit->ray.tfar = isect.t;
     rayhit->hit.u = 0.0f;
     rayhit->hit.v = 0.0f;
     rayhit->hit.primID = 0;
     rayhit->hit.geomID = args->geomID;
     rayhit->hit.instID[0] = args->context->instID[0];
 
-    /* Set Ng to the world-space billboard normal (facing the ray origin).
-     * Embree expects world-space normal for argument-level callbacks on the top-level BVH. */
-    const float3 world_light_center = make_float3(
-        kobject->tfm.x.w, kobject->tfm.y.w, kobject->tfm.z.w);
-    const float3 world_ray_org = make_float3(rayhit->ray.org_x, rayhit->ray.org_y, rayhit->ray.org_z);
-    const float3 world_Ng = safe_normalize(world_ray_org - world_light_center);
-    rayhit->hit.Ng_x = world_Ng.x;
-    rayhit->hit.Ng_y = world_Ng.y;
-    rayhit->hit.Ng_z = world_Ng.z;
+    /* Set Ng to the local-space billboard normal facing the ray origin.
+     * The light is at the origin in local space, so Ng points from origin to ray origin. */
+    const float3 Ng = safe_normalize(ray_P);
+    rayhit->hit.Ng_x = Ng.x;
+    rayhit->hit.Ng_y = Ng.y;
+    rayhit->hit.Ng_z = Ng.z;
   }
 }
 
