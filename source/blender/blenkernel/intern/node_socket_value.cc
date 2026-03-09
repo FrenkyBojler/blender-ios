@@ -54,9 +54,6 @@ template<typename T> static std::optional<eNodeSocketDatatype> static_type_to_so
   if constexpr (is_single_or_field_or_grid_v<T, float3>) {
     return SOCK_VECTOR;
   }
-  if constexpr (is_single_or_field_or_grid_v<T, int2> || is_single_or_field_or_grid_v<T, int3>) {
-    return SOCK_INT_VECTOR;
-  }
   if constexpr (is_single_or_field_or_grid_v<T, ColorGeometry4f>) {
     return SOCK_RGBA;
   }
@@ -129,8 +126,6 @@ static bool static_type_is_base_socket_type(const eNodeSocketDatatype socket_typ
       return std::is_same_v<T, bool>;
     case SOCK_VECTOR:
       return std::is_same_v<T, float3>;
-    case SOCK_INT_VECTOR:
-      return is_same_any_v<T, int2, int3>;
     case SOCK_RGBA:
       return std::is_same_v<T, ColorGeometry4f>;
     case SOCK_ROTATION:
@@ -169,6 +164,7 @@ static bool static_type_is_base_socket_type(const eNodeSocketDatatype socket_typ
       return std::is_same_v<T, bke::GeometrySet>;
     case SOCK_CUSTOM:
     case SOCK_SHADER:
+    case SOCK_INT_VECTOR:
       return false;
   }
   BLI_assert_unreachable();
@@ -333,10 +329,6 @@ void SocketValueVariant::store_single(const eNodeSocketDatatype socket_type, con
     }
     case SOCK_VECTOR: {
       value_.emplace<float3>(*static_cast<const float3 *>(value));
-      break;
-    }
-    case SOCK_INT_VECTOR: {
-      value_.emplace<int3>(*static_cast<const int3 *>(value));
       break;
     }
     case SOCK_BOOLEAN: {
@@ -510,8 +502,6 @@ void *SocketValueVariant::allocate_single(const eNodeSocketDatatype socket_type)
       return value_.allocate<int>();
     case SOCK_VECTOR:
       return value_.allocate<float3>();
-    case SOCK_INT_VECTOR:
-      return value_.allocate<int3>();
     case SOCK_BOOLEAN:
       return value_.allocate<bool>();
     case SOCK_ROTATION:
@@ -755,8 +745,6 @@ void SocketValueVariant::count_memory(MemoryCounter &memory) const
 #endif
 
 INSTANTIATE_SINGLE_AND_FIELD_AND_GRID(int)
-INSTANTIATE_SINGLE_AND_FIELD_AND_GRID(int2)
-INSTANTIATE_SINGLE_AND_FIELD_AND_GRID(int3)
 INSTANTIATE_SINGLE_AND_FIELD_AND_GRID(bool)
 INSTANTIATE_SINGLE_AND_FIELD_AND_GRID(float)
 INSTANTIATE_SINGLE_AND_FIELD_AND_GRID(float3)

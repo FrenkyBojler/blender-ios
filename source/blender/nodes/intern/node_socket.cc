@@ -1192,57 +1192,7 @@ static bke::bNodeSocketType *make_socket_type_vector(PropertySubType subtype, co
 static bke::bNodeSocketType *make_socket_type_int_vector(PropertySubType subtype,
                                                          const int dimensions)
 {
-  bke::bNodeSocketType *socktype = make_standard_socket_type(SOCK_INT_VECTOR, subtype, dimensions);
-  switch (dimensions) {
-    case 2: {
-      socktype->base_cpp_type = &CPPType::get<int2>();
-      static SocketValueVariant default_value{int2(0)};
-      socktype->geometry_nodes_default_value = &default_value;
-      break;
-    }
-    case 3: {
-      socktype->base_cpp_type = &CPPType::get<int3>();
-      static SocketValueVariant default_value{int3(0)};
-      socktype->geometry_nodes_default_value = &default_value;
-      break;
-    }
-    default:
-      BLI_assert_unreachable();
-      break;
-  }
-  socktype->get_base_cpp_value = [](const void *socket_value, void *r_value) {
-    bNodeSocketValueIntVector *value = static_cast<bNodeSocketValueIntVector *>(
-        const_cast<void *>(socket_value));
-    switch (value->dimensions) {
-      case 2: {
-        *static_cast<int2 *>(r_value) = value->value;
-        break;
-      }
-      case 3: {
-        *static_cast<int3 *>(r_value) = value->value;
-        break;
-      }
-      default:
-        BLI_assert_unreachable();
-        break;
-    }
-  };
-  socktype->get_geometry_nodes_cpp_value = [](const void *socket_value) {
-    bNodeSocketValueIntVector *value = static_cast<bNodeSocketValueIntVector *>(
-        const_cast<void *>(socket_value));
-    switch (value->dimensions) {
-      case 2:
-        return SocketValueVariant(int2(value->value));
-      case 3:
-        return SocketValueVariant(int3(value->value));
-      default:
-        BLI_assert_unreachable();
-        break;
-    }
-
-    return SocketValueVariant();
-  };
-  return socktype;
+  return make_standard_socket_type(SOCK_INT_VECTOR, subtype, dimensions);
 }
 
 static bke::bNodeSocketType *make_socket_type_rgba()
