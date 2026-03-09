@@ -132,10 +132,12 @@ void main()
   /* Compute clipping rectangle. */
   float2 clip_min, clip_max;
   if (flag_test(grid_flag, GRID_SIMA)) {
+    /* Clipping rectangle is [-1, 1]. */
     clip_min = float2(-1.0f);
     clip_max = grid_buf.clip_rect * 2.0f - 1.0f;
   }
   else if (flag_test(grid_flag, SHOW_GRID)) {
+    /* Clipping rectangle is simply forwarded. */
     clip_min = grid_buf.offset - grid_buf.clip_rect;
     clip_max = grid_buf.offset + grid_buf.clip_rect;
   }
@@ -148,8 +150,7 @@ void main()
   }
 
   /* Clip/clamp; lines entirely outside the rectangle get discarded; others get brought
-   * inside the rectangle to avoid precision problems with large lines. Z-axis ignores this step.
-   */
+   * inside the rectangle to avoid precision problems with large lines. Z-axis ignores this. */
   if (line.axis != 2) {
     bool line_outside_rect = all(lessThan(line.P, clip_min)) || all(greaterThan(line.P, clip_max));
     if (line_outside_rect) {
