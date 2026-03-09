@@ -136,7 +136,7 @@ static BMEdge *get_next_space_edge(BMVert *v,
   BMIter eiter;
   BMEdge *e_next;
   BM_ITER_ELEM (e_next, &eiter, v, BM_EDGES_OF_VERT) {
-    if (e_next == e_prev || r_visited.contains(e_next)) {
+    if (r_visited.contains(e_next)) {
       continue;
     }
 
