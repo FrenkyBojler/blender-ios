@@ -608,6 +608,7 @@ set(GLSL_SRC
   shaders/common/gpu_shader_math_rotation_conversion_lib.glsl
   shaders/common/gpu_shader_math_rotation_lib.glsl
   shaders/common/gpu_shader_math_safe_lib.glsl
+  shaders/common/gpu_shader_math_sample_rect_lib.glsl
   shaders/common/gpu_shader_math_vector_compare_lib.glsl
   shaders/common/gpu_shader_math_vector_lib.glsl
   shaders/common/gpu_shader_math_vector_reduce_lib.glsl

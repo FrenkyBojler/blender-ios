@@ -4,7 +4,7 @@
 
 #include "infos/compositor_realize_on_domain_infos.hh"
 
-#include "gpu_shader_compositor_sample_rect.glsl"
+#include "gpu_shader_math_sample_rect_lib.glsl"
 
 template<enum Sampler sampler> void realize_on_domain()
 {
