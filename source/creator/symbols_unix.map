@@ -19,17 +19,11 @@ global:
   __tsan*;
   __ubsan*;
   __sanitizer*;
-  /* Memory allocation (new, delete, exceptions, malloc). */
+  /* Memory allocation (new, delete, malloc). */
   __Znw*;
   __Zna*;
   __Zdl*;
   __Zda*;
-  _ZSt28__throw_bad_array_new_lengthv*;
-  _ZSt17__throw_bad_allocv*;
-  _ZSt20__throw_length_errorPKc*;
-  _ZSt20__throw_out_of_rangePKc*;
-  _ZSt19__throw_logic_errorPKc*;
-  _ZSt16__throw_bad_castv*;
   aligned_alloc*;
   calloc*;
   free*;
