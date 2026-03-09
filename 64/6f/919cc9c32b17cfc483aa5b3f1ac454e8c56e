@@ -1,0 +1,1 @@
+Referenced by issue #136037, Cycles Render Preview reloads kernels on every window focus change. (Multi-monitor)
