@@ -18,6 +18,8 @@ import bpy
 # use to strip python paths
 script_paths = bpy.utils.script_paths()
 
+_OperatorProperties = bpy.types.OperatorProperties
+
 _FAKE_STRUCT_SUBCLASS = True
 
 # Map RNA type names to Python type names.
@@ -80,6 +82,12 @@ def float_as_string(f):
     if '.' not in val_str and 'e' not in val_str:
         val_str += '.0'
     return val_str
+
+
+def seq_as_tuple_str(seq):
+    """Format a sequence of strings as a Python tuple literal."""
+    seq = tuple(seq)
+    return ("({:s},)" if len(seq) == 1 else "({:s})").format(", ".join(seq))
 
 
 def get_py_class_from_rna(rna_type):
@@ -242,6 +250,9 @@ class InfoStructRNA:
                 properties_getset.append((identifier, descr))
         return properties_getset
 
+    def is_operator_properties(self):
+        return isinstance(self.bl_rna, _OperatorProperties)
+
     def __str__(self):
 
         txt = ""
@@ -370,18 +381,23 @@ class InfoPropertyRNA:
             self.default = None
             self.default_str = "None"
         elif self.type == "string":
-            self.default_str = "\"{:s}\"".format(self.default)
+            if self.subtype == "BYTE_STRING":
+                self.default_str = "b\"{:s}\"".format(self.default)
+            else:
+                self.default_str = "\"{:s}\"".format(self.default)
         elif self.type == "enum":
             if self.is_enum_flag:
-                # self.default_str = repr(self.default)  # repr or set()
-                self.default_str = "{{{:s}}}".format(repr(list(sorted(self.default)))[1:-1])
+                if self.default:
+                    self.default_str = "{{{:s}}}".format(repr(list(sorted(self.default)))[1:-1])
+                else:
+                    self.default_str = "set()"
             else:
                 self.default_str = repr(self.default)
         elif self.array_length:
             if self.array_dimensions[1] == 0:  # single dimension array, we already took care of multi-dimensions ones.
-                # special case for floats
+                # Special case for floats.
                 if self.type == "float" and len(self.default) > 0:
-                    self.default_str = "({:s})".format(", ".join(float_as_string(f) for f in self.default))
+                    self.default_str = seq_as_tuple_str(float_as_string(f) for f in self.default)
                 else:
                     self.default_str = str(self.default)
         else:
@@ -438,6 +454,7 @@ class InfoPropertyRNA:
                     type_info.append("array of {:d} items".format(self.array_length))
 
                 # Describe mathutils types; logic mirrors pyrna_math_object_from_array
+                base_type_str = type_str
                 if self.type == "float":
                     if self.subtype == "MATRIX":
                         if self.array_length in {9, 16}:
@@ -456,6 +473,15 @@ class InfoPropertyRNA:
                     }:
                         if 2 <= self.array_length <= 4:
                             type_str = mathutils_fmt.format("Vector")
+
+                # Array properties that didn't match a mathutils type above
+                # should not be typed as a bare scalar (e.g. ``float``).
+                if type_str == base_type_str:
+                    if as_arg:
+                        type_str = "Sequence[{:s}]".format(base_type_str)
+                    else:
+                        # Escape the space as: :class:`Class`[X] isn't valid RST.
+                        type_str = class_fmt.format("bpy_prop_array") + "\\ [{:s}]".format(base_type_str)
 
             if self.type in {"float", "int"}:
                 type_info.append("in [{:s}, {:s}]".format(range_str(self.min), range_str(self.max)))
@@ -550,12 +576,7 @@ class InfoPropertyRNA:
             )
 
         if qualifiers:
-            type_info.append("(")
-            for i, q in enumerate(qualifiers):
-                if i > 0:
-                    type_info.append(", ")
-                type_info.append(q)
-            type_info.append(")")
+            type_info.extend(qualifiers)
 
         return type_str, type_info
 
@@ -772,7 +793,7 @@ def BuildRNAInfo():
             elif rna_type_name in suppress_warning:
                 pass
             else:
-                print("rna_info.BuildRNAInfo(..): ignoring type", repr(rna_type_name))
+                print("_rna_info.BuildRNAInfo(..): ignoring type", repr(rna_type_name))
 
         # Now, there are some sub-classes in add-ons we also want to include.
         # Cycles for example. These are referenced from the Scene, but not part of

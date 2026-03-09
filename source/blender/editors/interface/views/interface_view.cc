@@ -202,7 +202,7 @@ AbstractView *region_view_find_at(const ARegion *region,
                                   const int pad,
                                   Block **r_block)
 {
-  /* NOTE: Similar to #ui_but_find_mouse_over_ex(). */
+  /* NOTE: Similar to #but_find_mouse_over_ex(). */
 
   if (!region_contains_point_px(region, xy)) {
     return nullptr;
