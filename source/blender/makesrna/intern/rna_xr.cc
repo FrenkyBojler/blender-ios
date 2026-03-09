@@ -1082,6 +1082,29 @@ static float rna_XrSessionState_nav_scale_get(PointerRNA *ptr)
   return value;
 }
 
+static void rna_XrSessionState_nav_scale_set(PointerRNA *ptr, float value)
+{
+#  ifdef WITH_XR_OPENXR
+  wmXrData *xr = rna_XrSession_wm_xr_data_get(ptr);
+  WM_xr_session_state_nav_scale_set(xr, value);
+#  else
+  UNUSED_VARS(ptr, value);
+#  endif
+}
+
+static float rna_XrSessionState_viewer_scale_get(PointerRNA *ptr)
+{
+  float value;
+#  ifdef WITH_XR_OPENXR
+  const wmXrData *xr = rna_XrSession_wm_xr_data_get(ptr);
+  WM_xr_session_state_viewer_scale_get(xr, &value);
+#  else
+  UNUSED_VARS(ptr);
+  value = 1.0f;
+#  endif
+  return value;
+}
+
 static void rna_XrSessionState_actionmaps_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
 #  ifdef WITH_XR_OPENXR
@@ -2417,12 +2440,20 @@ static void rna_def_xr_session_state(BlenderRNA *brna)
       "Rotation offset to apply to base pose when determining viewer rotation");
 
   prop = RNA_def_property(srna, "navigation_scale", PROP_FLOAT, PROP_NONE);
-  RNA_def_property_float_funcs(prop, "rna_XrSessionState_nav_scale_get", nullptr, nullptr);
-  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_float_funcs(
+      prop, "rna_XrSessionState_nav_scale_get", "rna_XrSessionState_nav_scale_set", nullptr);
   RNA_def_property_ui_text(
       prop,
       "Navigation Scale",
       "Additional scale multiplier to apply to base scale when determining viewer scale");
+
+  prop = RNA_def_property(srna, "viewer_scale", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_funcs(prop, "rna_XrSessionState_viewer_scale_get", nullptr, nullptr);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop,
+                           "Viewer Scale",
+                           "Viewer XR scale factor, computed from the navigation scale, "
+                           "view scale setting, and active scene unit scale");
 
   prop = RNA_def_property(srna, "actionmaps", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_struct_type(prop, "XrActionMap");

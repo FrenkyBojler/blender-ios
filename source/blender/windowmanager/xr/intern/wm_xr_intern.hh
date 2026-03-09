@@ -63,10 +63,13 @@ struct wmXrSessionState {
   /** Current navigation transforms. */
   GHOST_XrPose nav_pose;
   float nav_scale;
+  float viewer_scale;
+
   /** Navigation transforms from the last actions sync, used to calculate the viewer/controller
    * poses. */
   GHOST_XrPose nav_pose_prev;
-  float nav_scale_prev;
+  float view_scale_setting_prev;
+  float viewer_scale_prev;
   bool is_navigation_dirty;
 
   /** Last known controller data. */
