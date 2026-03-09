@@ -19,9 +19,8 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Float>("Weights").supports_field().hide_value().description(
       "Values used to sort the face's corners. Uses indices by default");
   b.add_input<decl::Int>("Sort Index")
-      .min(0)
       .supports_field()
-      .description("Which of the sorted corners to output");
+      .description("Which of the sorted corners to output. Negative indexing is supported");
   b.add_output<decl::Int>("Corner Index")
       .field_source_reference_all()
       .description("A corner of the face, chosen by the sort index");
@@ -66,44 +65,46 @@ class CornersOfFaceInput final : public bke::MeshFieldInput {
     const bool use_sorting = !all_sort_weights.is_single();
 
     Array<int> corner_of_face(mask.min_array_size());
-    mask.foreach_segment(GrainSize(1024), [&](const IndexMaskSegment segment) {
-      /* Reuse arrays to avoid allocation. */
-      Array<float> sort_weights;
-      Array<int> sort_indices;
+    mask.foreach_segment(
+        [&](const IndexMaskSegment segment) {
+          /* Reuse arrays to avoid allocation. */
+          Array<float> sort_weights;
+          Array<int> sort_indices;
 
-      for (const int selection_i : segment) {
-        const int face_i = face_indices[selection_i];
-        const int index_in_sort = indices_in_sort[selection_i];
-        if (!faces.index_range().contains(face_i)) {
-          corner_of_face[selection_i] = 0;
-          continue;
-        }
+          for (const int selection_i : segment) {
+            const int face_i = face_indices[selection_i];
+            const int index_in_sort = indices_in_sort[selection_i];
+            if (!faces.index_range().contains(face_i)) {
+              corner_of_face[selection_i] = 0;
+              continue;
+            }
 
-        const IndexRange corners = faces[face_i];
+            const IndexRange corners = faces[face_i];
 
-        const int index_in_sort_wrapped = mod_i(index_in_sort, corners.size());
-        if (use_sorting) {
-          /* Retrieve the weights for each corner. */
-          sort_weights.reinitialize(corners.size());
-          all_sort_weights.materialize_compressed(IndexMask(corners),
-                                                  sort_weights.as_mutable_span());
+            const int index_in_sort_wrapped = mod_i(index_in_sort, corners.size());
+            if (use_sorting) {
+              /* Retrieve the weights for each corner. */
+              sort_weights.reinitialize(corners.size());
+              all_sort_weights.materialize_compressed(IndexMask(corners),
+                                                      sort_weights.as_mutable_span());
 
-          /* Sort a separate array of compressed indices corresponding to the compressed weights.
-           * This allows using `materialize_compressed` to avoid virtual function call overhead
-           * when accessing values in the sort weights. However, it means a separate array of
-           * indices within the compressed array is necessary for sorting. */
-          sort_indices.reinitialize(corners.size());
-          array_utils::fill_index_range<int>(sort_indices);
-          std::stable_sort(sort_indices.begin(), sort_indices.end(), [&](int a, int b) {
-            return sort_weights[a] < sort_weights[b];
-          });
-          corner_of_face[selection_i] = corners[sort_indices[index_in_sort_wrapped]];
-        }
-        else {
-          corner_of_face[selection_i] = corners[index_in_sort_wrapped];
-        }
-      }
-    });
+              /* Sort a separate array of compressed indices corresponding to the compressed
+               * weights. This allows using `materialize_compressed` to avoid virtual function call
+               * overhead when accessing values in the sort weights. However, it means a separate
+               * array of indices within the compressed array is necessary for sorting. */
+              sort_indices.reinitialize(corners.size());
+              array_utils::fill_index_range<int>(sort_indices);
+              std::stable_sort(sort_indices.begin(), sort_indices.end(), [&](int a, int b) {
+                return sort_weights[a] < sort_weights[b];
+              });
+              corner_of_face[selection_i] = corners[sort_indices[index_in_sort_wrapped]];
+            }
+            else {
+              corner_of_face[selection_i] = corners[index_in_sort_wrapped];
+            }
+          }
+        },
+        exec_mode::grain_size(1024));
 
     return VArray<int>::from_container(std::move(corner_of_face));
   }
@@ -191,7 +192,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeCornersOfFace", GEO_NODE_MESH_TOPOLOGY_CORNERS_OF_FACE);
   ntype.ui_name = "Corners of Face";
   ntype.ui_description = "Retrieve corners that make up a face";
@@ -199,7 +200,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 
