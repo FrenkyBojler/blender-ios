@@ -209,14 +209,38 @@ ccl_device_forceinline void copy_matrix(ccl_private float *res, const Projection
 
 /* Matrix */
 
+/* Apply the lamp-specific prescale to the inverse transform. For spot/point lights this
+ * includes the inverse size, for area lights the size_u/size_v dimensions. This matches
+ * what lamp_get_inverse_transform() does, but works with any inverse transform (including
+ * motion transforms at different times). */
+ccl_device_inline void osl_shared_lamp_prescale_inverse(KernelGlobals kg,
+                                                        const int object,
+                                                        ccl_private Transform &itfm)
+{
+  const ccl_global KernelLight *klight = &kernel_data_fetch(
+      lights, kernel_data_fetch(objects, object).light_id);
+  if (klight->type == LIGHT_SPOT || klight->type == LIGHT_POINT) {
+    transform_prescale(itfm, klight->spot.inv_scale);
+  }
+  else if (klight->type == LIGHT_AREA) {
+    transform_prescale(itfm, make_float3(klight->area.size_u, klight->area.size_v, 1.0f));
+  }
+}
+
 ccl_device_inline bool osl_shared_get_object_matrix(KernelGlobals kg,
                                                     ccl_private const ShaderData *sd,
                                                     ccl_private float *res)
 {
   const int object = sd->object;
   if (object != OBJECT_NONE) {
-    const Transform tfm = object_get_transform(kg, sd);
-    copy_matrix(res, tfm);
+    if (sd->type == PRIMITIVE_LAMP) {
+      Transform itfm = object_get_inverse_transform(kg, sd);
+      osl_shared_lamp_prescale_inverse(kg, object, itfm);
+      copy_matrix(res, transform_inverse(itfm));
+    }
+    else {
+      copy_matrix(res, object_get_transform(kg, sd));
+    }
     return true;
   }
   return false;
@@ -229,18 +253,35 @@ ccl_device_inline bool osl_shared_get_object_matrix_motion(KernelGlobals kg,
 {
   const int object = sd->object;
   if (object != OBJECT_NONE) {
+    if (sd->type == PRIMITIVE_LAMP) {
 #ifdef __OBJECT_MOTION__
-    Transform tfm;
-    if (time == sd->time) {
-      tfm = object_get_transform(kg, sd);
+      Transform itfm;
+      if (time == sd->time) {
+        itfm = object_get_inverse_transform(kg, sd);
+      }
+      else {
+        object_fetch_transform_motion_test(kg, object, time, &itfm);
+      }
+#else
+      Transform itfm = object_get_inverse_transform(kg, sd);
+#endif
+      osl_shared_lamp_prescale_inverse(kg, object, itfm);
+      copy_matrix(res, transform_inverse(itfm));
     }
     else {
-      tfm = object_fetch_transform_motion_test(kg, object, time, nullptr);
-    }
+#ifdef __OBJECT_MOTION__
+      Transform tfm;
+      if (time == sd->time) {
+        tfm = object_get_transform(kg, sd);
+      }
+      else {
+        tfm = object_fetch_transform_motion_test(kg, object, time, nullptr);
+      }
 #else
-    const Transform tfm = object_get_transform(kg, sd);
+      const Transform tfm = object_get_transform(kg, sd);
 #endif
-    copy_matrix(res, tfm);
+      copy_matrix(res, tfm);
+    }
     return true;
   }
   return false;
@@ -252,8 +293,11 @@ ccl_device_inline bool osl_shared_get_object_inverse_matrix(KernelGlobals kg,
 {
   const int object = sd->object;
   if (object != OBJECT_NONE) {
-    const Transform tfm = object_get_inverse_transform(kg, sd);
-    copy_matrix(res, tfm);
+    Transform itfm = object_get_inverse_transform(kg, sd);
+    if (sd->type == PRIMITIVE_LAMP) {
+      osl_shared_lamp_prescale_inverse(kg, object, itfm);
+    }
+    copy_matrix(res, itfm);
     return true;
   }
   return false;
@@ -273,8 +317,11 @@ ccl_device_inline bool osl_shared_get_object_inverse_matrix_motion(
       object_fetch_transform_motion_test(kg, object, time, &itfm);
     }
 #else
-    const Transform itfm = object_get_inverse_transform(kg, sd);
+    Transform itfm = object_get_inverse_transform(kg, sd);
 #endif
+    if (sd->type == PRIMITIVE_LAMP) {
+      osl_shared_lamp_prescale_inverse(kg, object, itfm);
+    }
     copy_matrix(res, itfm);
     return true;
   }
