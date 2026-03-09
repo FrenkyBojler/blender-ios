@@ -275,9 +275,9 @@ float minimum_float(Context &context, const Result &input)
   return minimum_float_cpu(input);
 }
 
-static float4 minimum_color_cpu(const Result &input)
+static Color minimum_color_cpu(const Result &input)
 {
-  return float4(parallel_reduce(
+  return Color(parallel_reduce(
       input.domain().data_size,
       float4(std::numeric_limits<float>::max()),
       [&](const int2 texel, float4 &accumulated_value) {
@@ -286,21 +286,21 @@ static float4 minimum_color_cpu(const Result &input)
       [&](const float4 &a, const float4 &b) { return math::min(a, b); }));
 }
 
-static float4 minimum_color_gpu(Context &context, const Result &input)
+static Color minimum_color_gpu(Context &context, const Result &input)
 {
   gpu::Shader *shader = context.get_shader("compositor_minimum_float4", ResultPrecision::Full);
   GPU_shader_bind(shader);
 
   float *reduced_value = parallel_reduction_dispatch(
       input, shader, Result::gpu_texture_format(ResultType::Color, ResultPrecision::Full));
-  const float4 minimum = float4(reduced_value);
+  const Color minimum = reduced_value;
   MEM_delete(reduced_value);
   GPU_shader_unbind();
 
   return minimum;
 }
 
-float4 minimum_color(Context &context, const Result &input)
+Color minimum_color(Context &context, const Result &input)
 {
   if (context.use_gpu()) {
     return minimum_color_gpu(context, input);
@@ -472,23 +472,23 @@ float2 maximum_float2(Context &context, const Result &input)
   return maximum_float2_cpu(input);
 }
 
-static float4 maximum_color_gpu(Context &context, const Result &input)
+static Color maximum_color_gpu(Context &context, const Result &input)
 {
   gpu::Shader *shader = context.get_shader("compositor_maximum_float4", ResultPrecision::Full);
   GPU_shader_bind(shader);
 
   float *reduced_value = parallel_reduction_dispatch(
       input, shader, Result::gpu_texture_format(ResultType::Color, ResultPrecision::Full));
-  const float4 maximum = float4(reduced_value);
+  const Color maximum = Color(reduced_value);
   MEM_delete(reduced_value);
   GPU_shader_unbind();
 
   return maximum;
 }
 
-static float4 maximum_color_cpu(const Result &input)
+static Color maximum_color_cpu(const Result &input)
 {
-  return float4(parallel_reduce(
+  return Color(parallel_reduce(
       input.domain().data_size,
       float4(std::numeric_limits<float>::lowest()),
       [&](const int2 texel, float4 &accumulated_value) {
@@ -497,7 +497,7 @@ static float4 maximum_color_cpu(const Result &input)
       [&](const float4 &a, const float4 &b) { return math::max(a, b); }));
 }
 
-float4 maximum_color(Context &context, const Result &input)
+Color maximum_color(Context &context, const Result &input)
 {
   if (context.use_gpu()) {
     return maximum_color_gpu(context, input);

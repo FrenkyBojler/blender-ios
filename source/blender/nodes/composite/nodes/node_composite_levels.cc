@@ -72,18 +72,18 @@ class LevelsOperation : public NodeOperation {
       this->set_output(standard_deviation, standard_deviation_result);
     }
 
-    const float4 minimum = minimum_color(this->context(), this->get_input("Image"));
+    const Color minimum = minimum_color(this->context(), this->get_input("Image"));
     Result &minimum_result = this->get_result("Minimum");
     if (minimum_result.should_compute()) {
       minimum_result.allocate_single_value();
-      this->set_output(minimum, minimum_result);
+      this->set_output(float4(minimum), minimum_result);
     }
 
-    const float4 maximum = maximum_color(this->context(), this->get_input("Image"));
+    const Color maximum = maximum_color(this->context(), this->get_input("Image"));
     Result &maximum_result = this->get_result("Maximum");
     if (maximum_result.should_compute()) {
       maximum_result.allocate_single_value();
-      this->set_output(maximum, maximum_result);
+      this->set_output(float4(maximum), maximum_result);
     }
   }
 
