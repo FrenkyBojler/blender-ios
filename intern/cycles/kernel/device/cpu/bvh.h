@@ -278,7 +278,8 @@ ccl_device_forceinline void kernel_embree_filter_intersection_func_impl(
       }
       /* Backface culling: reject hits where the ray approaches from behind
        * (where local ray D.z <= 0 means the ray and the light are in the same direction). */
-      const float3 local_D = transform_direction(&kernel_data_fetch(objects, object).itfm, cray->D);
+      const float3 local_D = transform_direction(&kernel_data_fetch(objects, object).itfm,
+                                                 cray->D);
       if (local_D.z <= 0.0f) {
         *args->valid = 0;
         return;

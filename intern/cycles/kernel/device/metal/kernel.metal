@@ -782,9 +782,9 @@ __intersection__light(constant KernelParamsMetal &launch_params_metal [[buffer(1
   }
 
 #  ifdef __LIGHT_LINKING__
-  if ((payload.visibility & PATH_RAY_CAMERA) == 0 &&
-      payload.self_object != OBJECT_NONE &&
-      !context.light_link_object_match(nullptr, payload.self_object, object)) {
+  if ((payload.visibility & PATH_RAY_CAMERA) == 0 && payload.self_object != OBJECT_NONE &&
+      !context.light_link_object_match(nullptr, payload.self_object, object))
+  {
     return result;
   }
 #  endif
