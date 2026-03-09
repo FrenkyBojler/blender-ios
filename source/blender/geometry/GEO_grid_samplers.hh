@@ -344,15 +344,19 @@ struct LinearKernel {
  * Quadratic B-spline kernel function as described in
  * Steffen et al., "Analysis and reduction of quadrature errors in the material point method (MPM)"
  *
- * The kernel is a piece-wise quadratic spline with two parts:
- * f(x) = -|x|^2 + 3/4               for   0 <= |x| < 1/2
- * f(x) = 1/2*|x|^2 - 3/2*|x| + 9/8  for 1/2 <= |x| < 3/2
- * f(x) = 0                          for 3/2 <= |x|
+ * The kernel is a piece-wise quadratic spline:
+ * f(x) = 0                          for         x < -3/2
+ * f(x) = 1/2*x^2 + 3/2*x + 9/8      for 1/2 <= x < 3/2
+ * f(x) = -x^2 + 3/4                 for -1/2 <= x < 1/2
+ * f(x) = 1/2*x^2 - 3/2*x + 9/8      for 1/2 <= x < 3/2
+ * f(x) = 0                          for 3/2 <= x
  *
  * The derivative is a piece-wise linear function:
- * f(x) = -2*|x|                     for   0 <= |x| < 1/2
- * f(x) = |x| - 3/2                  for 1/2 <= |x| < 3/2
- * f(x) = 0                          for 3/2 <= |x|
+ * f(x) = 0                          for         x < -3/2
+ * f(x) = x + 3/2                    for -3/2 <= x < -1/2
+ * f(x) = -2*x                       for    0 <= x < 1/2
+ * f(x) = x - 3/2                    for  1/2 <= x < 3/2
+ * f(x) = 0                          for  3/2 <= x
  *
  * This kernel has a range of 1.5 voxels. For sampling in the index space of i <= x <= i+1
  * the contribution of points [i-1, i, i+1, i+2] must be considered.
@@ -405,10 +409,7 @@ struct QuadraticBSplineKernel {
       return 0.0f;
     }
     if (x < -0.5f) {
-      return -x - 1.5f;
-    }
-    if (x < 0.0f) {
-      return 2.0f * x;
+      return x + 1.5f;
     }
     if (x < 0.5f) {
       return -2.0f * x;
@@ -456,15 +457,21 @@ struct QuadraticBSplineKernel {
  * Cubic B-spline kernel function as described in
  * Steffen et al., "Analysis and reduction of quadrature errors in the material point method (MPM)"
  *
- * The kernel is a piece-wise cubic spline with two parts:
- * f(x) = 1/2*|x|^3 - |x|^2 + 2/3           for 0 <= |x| < 1
- * f(x) = -1/6*|x|^3 + |x|^2 - 2*|x| + 4/3  for 1 <= |x| < 2
- * f(x) = 0                                 for 2 <= |x|
+ * The kernel is a piece-wise cubic spline:
+ * f(x) = 0                                 for       x  < -2
+ * f(x) = 1/6*x^3 + x^2 + 2*x + 4/3         for  -2 <= x < -1
+ * f(x) = -1/2*x^3 - x^2 + 2/3              for  -1 <= x < 0
+ * f(x) = 1/2*x^3 - x^2 + 2/3               for   0 <= x < 1
+ * f(x) = -1/6*x^3 + x^2 - 2*x + 4/3        for   1 <= x < 2
+ * f(x) = 0                                 for   2 <= x
  *
- * The derivative is a piece-wise quadratic function:
- * f(x) = 3/2*|x|^2 - 2*|x|                 for 0 <= |x| < 1
- * f(x) = -1/2*|x|^2 + 2*|x| - 2            for 1 <= |x| < 2
- * f(x) = 0                                 for 2 <= |x|
+ * The derivative is a piece-wise quadratic spline:
+ * f(x) = 0                                 for        x < -2
+ * f(x) = 1/2*x^2 + 2*x + 2                 for  -2 <= x < -1
+ * f(x) = -3/2*x^2 - 2*x                    for  -1 <= x < 1
+ * f(x) = 3/2*x^2 - 2*x                     for   0 <= x < 1
+ * f(x) = -1/2*x^2 + 2*x - 2                for   1 <= x < 2
+ * f(x) = 0                                 for   2 <= x
  *
  * This kernel has a range of 2 voxels. For sampling in the index space of i <= x <= i+1
  * the contribution of points [i-1, i, i+1, i+2] must be considered.
@@ -513,10 +520,13 @@ struct CubicBSplineKernel {
       return 0.0f;
     }
     if (x < -1.0f) {
-      return (-0.5 * x - 2.0f) * x - 2.0f;
+      return (0.5 * x + 2.0f) * x + 2.0f;
+    }
+    if (x < 0.0f) {
+      return (-1.5f * x - 2.0f) * x;
     }
     if (x < 1.0f) {
-      return 1.5f * x * x - 2.0f;
+      return (1.5f * x - 2.0f) * x;
     }
     if (x < 2.0f) {
       return (-0.5 * x + 2.0f) * x - 2.0f;

@@ -526,9 +526,9 @@ struct DivergenceTransfer : public KernelTransferBase<GridValueT> {
           const float3 weight_gradient = kernel_functions::kernel_gradient_eval(
               this->kernel_type(), kernel_distance);
           if constexpr (std::is_same_v<AttributeType, openvdb::Mat4s>) {
-            return source_value.row(0).getVec3() * weight_gradient.x +
-                   source_value.row(1).getVec3() * weight_gradient.y +
-                   source_value.row(2).getVec3() * weight_gradient.z;
+            return source_value.col(0).getVec3() * weight_gradient.x +
+                   source_value.col(1).getVec3() * weight_gradient.y +
+                   source_value.col(2).getVec3() * weight_gradient.z;
           }
           else {
             return source_value[0] * weight_gradient.x + source_value[1] * weight_gradient.y +
