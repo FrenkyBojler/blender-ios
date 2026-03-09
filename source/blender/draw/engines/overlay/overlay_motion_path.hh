@@ -129,7 +129,7 @@ class MotionPath : Overlay {
       int start, end;
       if (avs.path_type == MOTIONPATH_TYPE_ACFRA) {
         start = current_frame - avs.path_bc;
-        end = current_frame + avs.path_ac;
+        end = current_frame + avs.path_ac + 1;
       }
       else {
         start = avs.path_sf;
