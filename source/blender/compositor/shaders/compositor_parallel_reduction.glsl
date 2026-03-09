@@ -102,9 +102,7 @@ void store_shared_data(uint index, float4 data)
  * the minimum possible float value. */
 struct IdentityZero {};
 struct IdentityMinimumFloat {};
-struct IdentityMinimumFloat4 {};
 struct IdentityMaximumFloat {};
-struct IdentityMaximumFloat4 {};
 struct IdentityLowerBound {};
 struct IdentityUpperBound {};
 
@@ -133,7 +131,7 @@ template<> float2 identity<float2, IdentityMinimumFloat>()
   return float2(-FLT_MAX);
 }
 
-template<> float4 identity<float4, IdentityMinimumFloat4>()
+template<> float4 identity<float4, IdentityMinimumFloat>()
 {
   return float4(-FLT_MAX);
 }
@@ -143,7 +141,7 @@ template<> float identity<float, IdentityMaximumFloat>()
   return FLT_MAX;
 }
 
-template<> float4 identity<float4, IdentityMaximumFloat4>()
+template<> float4 identity<float4, IdentityMaximumFloat>()
 {
   return float4(FLT_MAX);
 }
@@ -411,10 +409,10 @@ void reduce_minimum_float()
   reduction<float, IdentityMaximumFloat, InitializeDefault, ReduceMinimum>();
 }
 
-template void reduction<float4, IdentityMaximumFloat4, InitializeDefault, ReduceMinimum>();
+template void reduction<float4, IdentityMaximumFloat, InitializeDefault, ReduceMinimum>();
 void reduce_minimum_float4()
 {
-  reduction<float4, IdentityMaximumFloat4, InitializeDefault, ReduceMinimum>();
+  reduction<float4, IdentityMaximumFloat, InitializeDefault, ReduceMinimum>();
 }
 
 template void reduction<float, IdentityMaximumFloat, InitializeLuminance, ReduceMinimum>();
@@ -444,10 +442,10 @@ void reduce_maximum_float2()
   reduction<float2, IdentityMinimumFloat, InitializeDefault, ReduceMaximum>();
 }
 
-template void reduction<float4, IdentityMinimumFloat4, InitializeDefault, ReduceMaximum>();
+template void reduction<float4, IdentityMinimumFloat, InitializeDefault, ReduceMaximum>();
 void reduce_maximum_float4()
 {
-  reduction<float4, IdentityMinimumFloat4, InitializeDefault, ReduceMaximum>();
+  reduction<float4, IdentityMinimumFloat, InitializeDefault, ReduceMaximum>();
 }
 
 template void reduction<float, IdentityMinimumFloat, InitializeLuminance, ReduceMaximum>();
