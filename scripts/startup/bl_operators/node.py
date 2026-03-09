@@ -1146,20 +1146,11 @@ class NODE_OT_interface_item_new(NodeInterfaceOperator, Operator):
         return {'FINISHED'}
 
 
-class NODE_OT_interface_item_new_panel_toggle(Operator):
+class NODE_OT_interface_item_new_panel_toggle(NodeInterfaceOperator, Operator):
     '''Add a checkbox to the currently selected panel'''
     bl_idname = "node.interface_item_new_panel_toggle"
     bl_label = "New Panel Toggle"
     bl_options = {'REGISTER', 'UNDO'}
-
-    @staticmethod
-    def get_panel_toggle(panel):
-        if len(panel.interface_items) > 0:
-            first_item = panel.interface_items[0]
-            if type(first_item) is bpy.types.NodeTreeInterfaceSocketBool and first_item.is_panel_toggle:
-                return first_item
-
-        return None
 
     @classmethod
     def poll(cls, context):
