@@ -145,10 +145,11 @@ void main()
     clip_max = grid_buf.offset + grid_buf.clip_rect;
   }
   else { /* SHOW_AXES */
-    /* Apply clipping on X-axis; this value is moved to the correct axis below. */
-    uint offset_idx = drw_view_is_perspective() ? line.axis : 0;
-    clip_min = float2(grid_buf.offset[offset_idx] - grid_buf.clip_rect[line.axis], 0.0f);
-    clip_max = float2(grid_buf.offset[offset_idx] + grid_buf.clip_rect[line.axis], 0.0f);
+    /* Clipping is applied to X-axis; this is moved to the correct axis below. */
+    float offset = grid::unpack_xy_to_axis(grid_buf.offset, grid_flag, line.axis);
+    float clip_rect = grid::unpack_xy_to_axis(grid_buf.clip_rect, grid_flag, line.axis);
+    clip_min = float2(offset - clip_rect, 0.0f);
+    clip_max = float2(offset + clip_rect, 0.0f);
   }
 
   /* Clip/clamp; lines entirely outside the rectangle get discarded; others get brought
