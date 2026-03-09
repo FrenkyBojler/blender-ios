@@ -286,7 +286,7 @@ static float4 minimum_color_cpu(const Result &input)
       [&](const float4 &a, const float4 &b) { return math::min(a, b); }));
 }
 
-static float4 minimum_float4_gpu(Context &context, const Result &input)
+static float4 minimum_color_gpu(Context &context, const Result &input)
 {
   gpu::Shader *shader = context.get_shader("compositor_minimum_float4", ResultPrecision::Full);
   GPU_shader_bind(shader);
@@ -303,7 +303,7 @@ static float4 minimum_float4_gpu(Context &context, const Result &input)
 float4 minimum_color(Context &context, const Result &input)
 {
   if (context.use_gpu()) {
-    return minimum_float4_gpu(context, input);
+    return minimum_color_gpu(context, input);
   }
 
   return minimum_color_cpu(input);
@@ -472,7 +472,7 @@ float2 maximum_float2(Context &context, const Result &input)
   return maximum_float2_cpu(input);
 }
 
-static float4 maximum_float4_gpu(Context &context, const Result &input)
+static float4 maximum_color_gpu(Context &context, const Result &input)
 {
   gpu::Shader *shader = context.get_shader("compositor_maximum_float4", ResultPrecision::Full);
   GPU_shader_bind(shader);
@@ -500,7 +500,7 @@ static float4 maximum_color_cpu(const Result &input)
 float4 maximum_color(Context &context, const Result &input)
 {
   if (context.use_gpu()) {
-    return maximum_float4_gpu(context, input);
+    return maximum_color_gpu(context, input);
   }
 
   return maximum_color_cpu(input);
