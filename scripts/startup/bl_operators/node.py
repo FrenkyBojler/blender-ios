@@ -1218,7 +1218,7 @@ class NODE_OT_interface_item_duplicate(NodeInterfaceOperator, Operator):
         active_item = interface.active
         selected_items = self.selected_items(interface)
 
-        # Clear active and selection state as it causes inconsistencies when making new selections
+        # Clear active and selection state as it causes inconsistencies when making new selections.
         for item in interface.items_tree:
             item.select = False
         interface.active_index = -1
@@ -1325,7 +1325,7 @@ class NODE_OT_interface_item_make_panel_toggle(NodeInterfaceOperator, Operator):
                 socket_type='NodeSocketBool',
                 select=True))
 
-        # Clear active and selection state as it causes inconsistencies when making new selections
+        # Clear active and selection state as it causes inconsistencies when making new selections.
         for item in interface.items_tree:
             item.select = False
         interface.active_index = -1
@@ -1380,7 +1380,7 @@ class NODE_OT_interface_item_unlink_panel_toggle(NodeInterfaceOperator, Operator
 
         panels = tuple(self.get_interface_items(interface, item_type='PANEL', select=True))
 
-        # Clear active and selection state as it causes inconsistencies when making new selections
+        # Clear active and selection state as it causes inconsistencies when making new selections.
         for item in interface.items_tree:
             item.select = False
         interface.active_index = -1
