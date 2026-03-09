@@ -40,7 +40,8 @@ set(SRC
   interface_handlers.cc
   interface_icons.cc
   interface_icons_event.cc
-  interface_layout.cc
+  layout/interface_layout.cc
+  layout/layout_util.cc
   interface_ops.cc
   interface_panel.cc
   interface_query.cc
