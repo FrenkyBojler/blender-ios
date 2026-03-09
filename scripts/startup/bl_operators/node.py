@@ -1330,9 +1330,6 @@ class NODE_OT_interface_item_make_panel_toggle(NodeInterfaceOperator, Operator):
             item.select = False
         interface.active_index = -1
 
-        parents = []
-        has_active = False
-
         for socket in bool_inputs:
             parent = socket.parent
 
@@ -1343,16 +1340,10 @@ class NODE_OT_interface_item_make_panel_toggle(NodeInterfaceOperator, Operator):
                 socket.is_panel_toggle = True
                 socket.name = parent.name
                 interface.move_to_parent(socket, parent, 0)
-
-                parents.append(parent)
                 parent.select = True
 
                 if socket == active_item:
                     interface.active = parent
-                    has_active = True
-
-        if not has_active:
-            interface.active = parents[0]
 
         return {'FINISHED'}
 
@@ -1394,9 +1385,6 @@ class NODE_OT_interface_item_unlink_panel_toggle(NodeInterfaceOperator, Operator
             item.select = False
         interface.active_index = -1
 
-        created_toggles = []
-        has_active = False
-
         for panel in panels:
             toggle = self.get_panel_toggle(panel)
             if toggle:
@@ -1404,14 +1392,8 @@ class NODE_OT_interface_item_unlink_panel_toggle(NodeInterfaceOperator, Operator
                 toggle.name = panel.name
                 toggle.select = True
 
-                created_toggles.append(toggle)
-
                 if panel == active_item:
                     interface.active = toggle
-                    has_active = True
-
-        if not has_active:
-            interface.active = created_toggles[0]
 
         return {'FINISHED'}
 
