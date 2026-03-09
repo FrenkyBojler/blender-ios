@@ -627,6 +627,7 @@ class NODE_MT_gn_point_base(node_add_menu.NodeMenu):
         layout.separator()
         self.node_operator(layout, "GeometryNodePoints")
         self.node_operator(layout, "GeometryNodePointsToCurves")
+        self.node_operator(layout, "GeometryNodePointsToInstances")
         self.node_operator(layout, "GeometryNodePointsToSDFGrid")
         self.node_operator(layout, "GeometryNodePointsToVertices")
         self.node_operator(layout, "GeometryNodePointsToVolume")
