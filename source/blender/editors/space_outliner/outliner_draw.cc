@@ -2891,6 +2891,9 @@ TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
         data.drag_id = tselem->id;
         data.icon = ICON_SHADERFX;
         break;
+      case TSE_SHAPE_KEY_BLOCK:
+        data.icon = ICON_SHAPEKEY_DATA;
+        break;
       default:
         data.icon = ICON_DOT;
         break;
@@ -3172,7 +3175,7 @@ static void outliner_draw_iconrow(ui::Block *block,
                 TSE_BONE_COLLECTION,
                 TSE_DEFGROUP,
                 TSE_ACTION_SLOT,
-                TSE_NLA_TRACK))
+                TSE_NLA_TRACK) && tselem->type != TSE_SHAPE_KEY_BLOCK)
       {
         outliner_draw_iconrow_doit(block, &te, xmax, offsx, ys, alpha_fac, active, 1);
       }
