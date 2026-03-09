@@ -1038,7 +1038,7 @@ class NODE_OT_tree_path_parent(Operator):
         return {'FINISHED'}
 
 
-class NodeInterfaceOperator():
+class NodeInterfaceOperator:
     @classmethod
     def poll(cls, context):
         space = context.space_data
