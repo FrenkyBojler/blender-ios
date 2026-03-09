@@ -9,6 +9,7 @@ VERTEX_SHADER_CREATE_INFO(overlay_grid_next)
 #include "draw_view_lib.glsl"
 #include "gpu_shader_math_base_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
+#include "overlay_grid_common_lib.glsl"
 
 struct LineData {
   float2 P;
@@ -63,19 +64,13 @@ LineData decode_axis_data(uint vertex_id)
   return line;
 }
 
-/* Returns true if components of `v` fall within `epsilon` of 0. */
-bool2 is_zero(float2 v, float epsilon)
-{
-  return lessThanEqual(abs(v), float2(epsilon));
-}
-
 /* Test if the current line falls under an active axis line which occludes it. */
 bool is_occluded_by_axis(float3 vertex_pos_global)
 {
   if (flag_test(grid_flag, SHOW_GRID)) {
-    return (flag_test(grid_flag, AXIS_X) && all(is_zero(vertex_pos_global.yz, 1e-4f))) ||
-           (flag_test(grid_flag, AXIS_Y) && all(is_zero(vertex_pos_global.xz, 1e-4f))) ||
-           (flag_test(grid_flag, AXIS_Z) && all(is_zero(vertex_pos_global.xy, 1e-4f)));
+    return (flag_test(grid_flag, AXIS_X) && grid::is_zero(vertex_pos_global.yz, 1e-4f)) ||
+           (flag_test(grid_flag, AXIS_Y) && grid::is_zero(vertex_pos_global.xz, 1e-4f)) ||
+           (flag_test(grid_flag, AXIS_Z) && grid::is_zero(vertex_pos_global.xy, 1e-4f));
   }
   return false;
 }
