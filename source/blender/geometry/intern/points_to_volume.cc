@@ -316,8 +316,7 @@ struct KernelTransferBase : public openvdb::points::TransformTransfer,
   static const int32_t DIM = TreeType::LeafNodeType::DIM;
 
   KernelType kernel_type_;
-  int voxel_range_;
-  float inv_voxel_range_;
+  int kernel_size_;
 
   /* Point attribute handles for positions in the current leaf. */
   std::unique_ptr<openvdb::points::AttributeHandle<openvdb::Vec3f>> position_handle_;
@@ -328,8 +327,7 @@ struct KernelTransferBase : public openvdb::points::TransformTransfer,
       : TransformTransfer(source.transform(), dest.transform()),
         openvdb::points::VolumeTransfer<TreeType>(dest.tree()),
         kernel_type_(kernel_type),
-        voxel_range_(kernel_functions::kernel_voxel_range(kernel_type)),
-        inv_voxel_range_(1.0f / kernel_functions::kernel_voxel_range(kernel_type)),
+        kernel_size_(kernel_functions::kernel_size(kernel_type)),
         position_handle_(nullptr)
   {
   }
@@ -338,8 +336,7 @@ struct KernelTransferBase : public openvdb::points::TransformTransfer,
       : TransformTransfer(other),
         openvdb::points::VolumeTransfer<TreeType>(other),
         kernel_type_(other.kernel_type_),
-        voxel_range_(other.voxel_range_),
-        inv_voxel_range_(other.inv_voxel_range_),
+        kernel_size_(other.kernel_size_),
         position_handle_(nullptr)
   {
   }
@@ -349,10 +346,10 @@ struct KernelTransferBase : public openvdb::points::TransformTransfer,
     return kernel_type_;
   }
 
-  /* Voxel range of the target grid to cover. */
+  /* Search range for point voxels around the target voxel. */
   openvdb::Int32 range(const openvdb::Coord & /*leaf_origin*/, size_t /*leaf_idx*/) const
   {
-    return voxel_range_;
+    return (kernel_size_ + 1) >> 1;
   }
 
   void update_positions(const openvdb::points::PointDataTree::LeafNodeType &leaf)
@@ -374,7 +371,8 @@ struct KernelTransferBase : public openvdb::points::TransformTransfer,
                             const openvdb::CoordBBox &target_bounds,
                             ValueFn value_fn)
   {
-    openvdb::CoordBBox intersect_box(ijk.offsetBy(-voxel_range_), ijk.offsetBy(voxel_range_));
+    const int max_offset = ((kernel_size_ + 1) >> 1);
+    openvdb::CoordBBox intersect_box(ijk.offsetBy(-max_offset + 1), ijk.offsetBy(max_offset));
     intersect_box.intersect(target_bounds);
     if (intersect_box.empty()) {
       return;
@@ -551,9 +549,9 @@ static typename GridType::Ptr prepare_destination_grid(
   /* Activate all voxels with particles in them. */
   dst_grid->tree().topologyUnion(point_data_grid.tree());
   /* Dilate to ensure all voxels within range of a particle are active. */
-  const int voxel_range = kernel_functions::kernel_voxel_range(kernel_type);
+  const int max_offset = (kernel_functions::kernel_size(kernel_type) + 1) >> 1;
   openvdb::tools::dilateActiveValues(dst_grid->tree(),
-                                     voxel_range,
+                                     max_offset,
                                      openvdb::tools::NN_FACE_EDGE_VERTEX,
                                      openvdb::tools::TilePolicy::PRESERVE_TILES,
                                      true);

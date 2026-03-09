@@ -481,10 +481,10 @@ struct CubicBSplineKernel {
       return ((x / 6.0f + 1.0f) * x + 2.0f) * x + 4.0f / 3.0f;
     }
     if (x < 0.0f) {
-      return (-x - 1.0f) * x * x + 2.0f / 3.0f;
+      return (-x * 0.5f - 1.0f) * x * x + 2.0f / 3.0f;
     }
     if (x < 1.0f) {
-      return (x - 1.0f) * x * x + 2.0f / 3.0f;
+      return (x * 0.5f - 1.0f) * x * x + 2.0f / 3.0f;
     }
     if (x < 2.0f) {
       return ((-x / 6.0f + 1.0f) * x - 2.0f) * x + 4.0f / 3.0f;
@@ -494,20 +494,17 @@ struct CubicBSplineKernel {
 
   static float derivative(float x)
   {
-    if (x < -1.5f) {
+    if (x < -2.0f) {
       return 0.0f;
     }
-    if (x < -0.5f) {
-      return -x - 1.5f;
+    if (x < -1.0f) {
+      return (-0.5 * x - 2.0f) * x - 2.0f;
     }
-    if (x < 0.0f) {
-      return 2.0f * x;
+    if (x < 1.0f) {
+      return 1.5f * x * x - 2.0f;
     }
-    if (x < 0.5f) {
-      return -2.0f * x;
-    }
-    if (x < 1.5f) {
-      return x - 1.5f;
+    if (x < 2.0f) {
+      return (-0.5 * x + 2.0f) * x - 2.0f;
     }
     return 0.0f;
   }

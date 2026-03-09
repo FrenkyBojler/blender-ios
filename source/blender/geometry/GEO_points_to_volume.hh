@@ -112,17 +112,17 @@ enum class KernelType {
 
 namespace kernel_functions {
 
-inline int kernel_voxel_range(const KernelType kernel_type)
+inline int kernel_size(const KernelType kernel_type)
 {
   switch (kernel_type) {
     case KernelType::Constant:
-      return (geometry::grid_sampling::ConstantKernel::size + 1) >> 1;
+      return geometry::grid_sampling::ConstantKernel::size;
     case KernelType::Linear:
-      return (geometry::grid_sampling::LinearKernel::size + 1) >> 1;
+      return geometry::grid_sampling::LinearKernel::size;
     case KernelType::QuadraticBSpline:
-      return (geometry::grid_sampling::QuadraticBSplineKernel::size + 1) >> 1;
+      return geometry::grid_sampling::QuadraticBSplineKernel::size;
     case KernelType::CubicBSpline:
-      return (geometry::grid_sampling::CubicBSplineKernel::size + 1) >> 1;
+      return geometry::grid_sampling::CubicBSplineKernel::size;
   }
   BLI_assert_unreachable();
   return 0;
