@@ -1,2 +1,3 @@
 Referenced by issue #148980, macOS: Value slider gets stuck while dragging
 Referenced by pull request #155196, Fix #155119: UI: Inconsistent multi-value slider vertical drag behavior
+Referenced by commit 9d7da698a17baa69fcc0153b6bd4da4ab60b1f17, Fix #155119: UI: Inconsistent multi-value slider vertical drag behavior
