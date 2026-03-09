@@ -78,7 +78,10 @@ def print_row(config: api.TestConfig, entries: list, end='\n') -> None:
         output = entry.output
         result = ''
         if status in {'done', 'outdated'} and output:
-            result = '%.4fs' % output['time']
+            if 'time' in output:
+                result = '%7.4f s' % output['time']
+            elif 'fps' in output:
+                result = '%8.3f fps' % output['fps']
 
             if status == 'outdated':
                 result += " (outdated)"
@@ -90,6 +93,19 @@ def print_row(config: api.TestConfig, entries: list, end='\n') -> None:
         row += f"{result: <20} "
 
     print(row, end=end, flush=True)
+
+
+def print_entry(config: api.TestConfig, entry: api.TestEntry) -> None:
+    # Print a single test entry, potentially on multiple lines, with more details than in `print_row`.
+    # NOTE: Currently only used to print detailed error info.
+
+    print_row(config, [entry])
+
+    if entry.status != 'failed':
+        return
+    if not entry.exception_msg:
+        return
+    print(entry.exception_msg, flush=True)
 
 
 def match_entry(entry: api.TestEntry, args: argparse.Namespace):
@@ -123,6 +139,11 @@ def run_entry(env: api.TestEnvironment,
     testcategory = entry.category
     device_type = entry.device_type
     device_id = entry.device_id
+    gpu_backend = {
+        'VULKAN': 'vulkan',
+        'METAL': 'metal',
+        'OPENGL': 'opengl'
+    }.get(device_type, 'default')
 
     test = config.tests.find(testname, testcategory)
     if not test:
@@ -167,7 +188,7 @@ def run_entry(env: api.TestEnvironment,
         print_row(config, row, end='\r')
 
         try:
-            entry.output = test.run(env, device_id)
+            entry.output = test.run(env, device_id, gpu_backend)
             if not entry.output:
                 raise Exception("Test produced no output")
             entry.status = 'done'
@@ -176,7 +197,8 @@ def run_entry(env: api.TestEnvironment,
         except Exception as e:
             failed = True
             entry.status = 'failed'
-            entry.error_msg = str(e)
+            entry.error_msg = 'Failed to run'
+            entry.exception_msg = str(e)
 
     print_row(config, row, end='\r')
 
@@ -293,6 +315,7 @@ def cmd_run(env: api.TestEnvironment, argv: list, update_only: bool):
                             config.queue.write()
                         if test_failed:
                             exit_code = 1
+                            print_entry(config, entry)
                     except KeyboardInterrupt as e:
                         cancel = True
                         break

@@ -25,7 +25,7 @@
 #include "BKE_object.hh"
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "CLG_log.h"
 #include "testing/testing.h"
@@ -42,7 +42,7 @@ const float FRAME_STEP = 0.005;
 static void build_fcurve(FCurve &fcurve)
 {
   fcurve.totvert = 3;
-  fcurve.bezt = MEM_calloc_arrayN<BezTriple>(fcurve.totvert, "BezTriples");
+  fcurve.bezt = MEM_new_array_zeroed<BezTriple>(fcurve.totvert, "BezTriples");
   fcurve.bezt[0].vec[1][0] = 10.0f;
   fcurve.bezt[0].vec[1][1] = 1.0f;
   fcurve.bezt[1].vec[1][0] = 20.0f;
@@ -191,14 +191,14 @@ TEST(keylist, find_closest)
 class KeylistSummaryTest : public testing::Test {
  public:
   Main *bmain;
-  blender::animrig::Action *action;
+  animrig::Action *action;
   Object *cube;
   Object *armature;
   bArmature *armature_data;
   Bone *bone1;
   Bone *bone2;
 
-  SpaceAction saction = {nullptr};
+  SpaceAction saction = {};
   bAnimContext ac = {nullptr};
 
   static void SetUpTestSuite()
@@ -224,26 +224,25 @@ class KeylistSummaryTest : public testing::Test {
     cube = BKE_object_add_only_object(bmain, OB_EMPTY, "Küüübus");
 
     armature_data = BKE_armature_add(bmain, "ARArmature");
-    bone1 = reinterpret_cast<Bone *>(MEM_callocN(sizeof(Bone), "KeylistSummaryTest"));
-    bone2 = reinterpret_cast<Bone *>(MEM_callocN(sizeof(Bone), "KeylistSummaryTest"));
-    STRNCPY(bone1->name, "Bone.001");
-    STRNCPY(bone2->name, "Bone.002");
+    bone1 = MEM_new<Bone>("KeylistSummaryTest");
+    bone2 = MEM_new<Bone>("KeylistSummaryTest");
+    STRNCPY_UTF8(bone1->name, "Bone.001");
+    STRNCPY_UTF8(bone2->name, "Bone.002");
     BLI_addtail(&armature_data->bonebase, bone1);
     BLI_addtail(&armature_data->bonebase, bone2);
     BKE_armature_bone_hash_make(armature_data);
 
     armature = BKE_object_add_only_object(bmain, OB_ARMATURE, "OBArmature");
-    armature->data = armature_data;
+    armature->data = id_cast<ID *>(armature_data);
     BKE_pose_ensure(bmain, armature, armature_data, false);
 
     /*
      * Fill in the common bits for the mock bAnimContext, for an Action editor.
      *
      * Tests should fill in:
-     * - saction.action_slot_handle
      * - ac.obact
+     * - ac.active_action_user (= &ac.obact.id)
      */
-    saction.action = action;
     saction.ads.filterflag = eDopeSheet_FilterFlag(0);
     ac.bmain = bmain;
     ac.datatype = ANIMCONT_ACTION;
@@ -251,12 +250,14 @@ class KeylistSummaryTest : public testing::Test {
     ac.spacetype = SPACE_ACTION;
     ac.sl = reinterpret_cast<SpaceLink *>(&saction);
     ac.ads = &saction.ads;
+    ac.active_action = action;
   }
 
   void TearDown() override
   {
-    saction.action_slot_handle = blender::animrig::Slot::unassigned;
     ac.obact = nullptr;
+    ac.active_action = nullptr;
+    ac.active_action_user = nullptr;
 
     BKE_main_free(bmain);
     G_MAIN = nullptr;
@@ -287,8 +288,8 @@ TEST_F(KeylistSummaryTest, slot_summary_simple)
 
   /* Generate slot summary keylist. */
   AnimKeylist *keylist = ED_keylist_create();
-  saction.action_slot_handle = slot_cube.handle;
   ac.obact = cube;
+  ac.active_action_user = &cube->id;
   action_slot_summary_to_keylist(
       &ac, &cube->id, *action, slot_cube.handle, keylist, 0, {0.0, 6.0});
   ED_keylist_prepare_for_direct_access(keylist);
@@ -342,14 +343,18 @@ TEST_F(KeylistSummaryTest, slot_summary_bone_selection)
   ASSERT_EQ(SingleKeyingResult::SUCCESS, insert_vert_fcurve(&bone2_loc_x, {3.0, 3.0}, {}, {}));
 
   /* Select only Bone.001. */
-  bone1->flag |= BONE_SELECTED;
-  bone2->flag &= ~BONE_SELECTED;
+  bPoseChannel *pose_bone1 = BKE_pose_channel_find_name(armature->pose, bone1->name);
+  ASSERT_NE(pose_bone1, nullptr);
+  pose_bone1->flag |= POSE_SELECTED;
+  bPoseChannel *pose_bone2 = BKE_pose_channel_find_name(armature->pose, bone2->name);
+  pose_bone2->flag &= ~POSE_SELECTED;
 
   /* Generate slot summary keylist. */
   AnimKeylist *keylist = ED_keylist_create();
   saction.ads.filterflag = ADS_FILTER_ONLYSEL; /* Filter by selection. */
-  saction.action_slot_handle = slot_armature.handle;
   ac.obact = armature;
+  ac.active_action_user = &armature->id;
+  ac.filters.flag = eDopeSheet_FilterFlag(saction.ads.filterflag);
   action_slot_summary_to_keylist(
       &ac, &armature->id, *action, slot_armature.handle, keylist, 0, {0.0, 6.0});
   ED_keylist_prepare_for_direct_access(keylist);

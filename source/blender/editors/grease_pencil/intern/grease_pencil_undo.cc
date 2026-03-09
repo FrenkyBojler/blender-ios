@@ -31,9 +31,11 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-static CLG_LogRef LOG = {"ed.undo.greasepencil"};
+namespace blender {
 
-namespace blender::ed::greasepencil::undo {
+static CLG_LogRef LOG = {"undo.greasepencil"};
+
+namespace ed::greasepencil::undo {
 
 /* -------------------------------------------------------------------- */
 /** \name Implements ED Undo System
@@ -196,7 +198,7 @@ class StepObject {
   int layers_num_ = 0;
   bke::greasepencil::LayerGroup root_group_;
   std::string active_node_name_;
-  CustomData layers_data_ = {};
+  bke::AttributeStorage layer_attributes_;
 
   void encode_drawings(const GreasePencil &grease_pencil, StepEncodeStatus &encode_status)
   {
@@ -252,9 +254,7 @@ class StepObject {
   void encode_layers(const GreasePencil &grease_pencil, StepEncodeStatus & /*encode_status*/)
   {
     layers_num_ = int(grease_pencil.layers().size());
-
-    CustomData_init_from(
-        &grease_pencil.layers_data, &layers_data_, eCustomDataMask(CD_MASK_ALL), layers_num_);
+    layer_attributes_ = grease_pencil.attribute_storage.wrap();
 
     if (grease_pencil.active_node != nullptr) {
       active_node_name_ = grease_pencil.get_active_node()->name();
@@ -281,20 +281,15 @@ class StepObject {
       }
     }
 
-    CustomData_free(&grease_pencil.layers_data);
-    CustomData_init_from(
-        &layers_data_, &grease_pencil.layers_data, eCustomDataMask(CD_MASK_ALL), layers_num_);
+    grease_pencil.attribute_storage.wrap() = layer_attributes_;
   }
 
  public:
-  ~StepObject()
-  {
-    CustomData_free(&layers_data_);
-  }
+  ~StepObject() = default;
 
   void encode(Object *ob, StepEncodeStatus &encode_status)
   {
-    const GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob->data);
+    const GreasePencil &grease_pencil = *id_cast<GreasePencil *>(ob->data);
     this->obedit_ref.ptr = ob;
 
     this->encode_drawings(grease_pencil, encode_status);
@@ -303,7 +298,7 @@ class StepObject {
 
   void decode(StepDecodeStatus &decode_status) const
   {
-    GreasePencil &grease_pencil = *static_cast<GreasePencil *>(this->obedit_ref.ptr->data);
+    GreasePencil &grease_pencil = *id_cast<GreasePencil *>(this->obedit_ref.ptr->data);
 
     this->decode_drawings(grease_pencil, decode_status);
     this->decode_layers(grease_pencil, decode_status);
@@ -406,7 +401,7 @@ static void foreach_ID_ref(UndoStep *us_p,
 
 /** \} */
 
-}  // namespace blender::ed::greasepencil::undo
+}  // namespace ed::greasepencil::undo
 
 void ED_undosys_type_grease_pencil(UndoType *ut)
 {
@@ -424,3 +419,5 @@ void ED_undosys_type_grease_pencil(UndoType *ut)
 
   ut->step_size = sizeof(greasepencil::undo::GreasePencilUndoStep);
 }
+
+}  // namespace blender

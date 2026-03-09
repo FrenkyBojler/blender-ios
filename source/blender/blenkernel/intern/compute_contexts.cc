@@ -4,15 +4,54 @@
 
 #include <ostream>
 
+#include "DEG_depsgraph_query.hh"
+
 #include "DNA_modifier_types.h"
 #include "DNA_node_types.h"
 
 #include "BKE_compute_context_cache.hh"
 #include "BKE_compute_contexts.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 
 namespace blender::bke {
+
+DataBlockComputeContext::DataBlockComputeContext(const ComputeContext *parent, const ID &id)
+    : ComputeContext(parent), id_(&id)
+{
+  if (DEG_is_original(&id)) {
+    orig_session_uid_ = id.session_uid;
+  }
+  else if (const ID *orig_id = DEG_get_original_id(&id)) {
+    orig_session_uid_ = orig_id->session_uid;
+  }
+  else {
+    BLI_assert_unreachable();
+  }
+}
+
+DataBlockComputeContext::DataBlockComputeContext(const ComputeContext *parent,
+                                                 const uint32_t orig_session_uid,
+                                                 const ID *id)
+    : ComputeContext(parent), orig_session_uid_(orig_session_uid), id_(id)
+{
+  BLI_assert(!id || id->session_uid == orig_session_uid ||
+             DEG_get_original(id)->session_uid == orig_session_uid);
+}
+
+ComputeContextHash DataBlockComputeContext::compute_hash() const
+{
+  return ComputeContextHash::from(parent_, "DATABLOCK", orig_session_uid_);
+}
+
+void DataBlockComputeContext::print_current_in_line(std::ostream &stream) const
+{
+  stream << "DataBlock: " << orig_session_uid_;
+  if (id_) {
+    stream << " " << id_->name;
+  }
+}
 
 ModifierComputeContext::ModifierComputeContext(const ComputeContext *parent,
                                                const NodesModifierData &nmd)
@@ -147,6 +186,31 @@ EvaluateClosureComputeContext::EvaluateClosureComputeContext(
 {
 }
 
+bool EvaluateClosureComputeContext::is_recursive() const
+{
+  if (!closure_source_location_) {
+    /* Can't determine recursiveness in this case. */
+    return false;
+  }
+  for (const ComputeContext *parent = parent_; parent; parent = parent->parent()) {
+    if (const auto *evaluate_closure_compute_context =
+            dynamic_cast<const EvaluateClosureComputeContext *>(parent))
+    {
+      if (!evaluate_closure_compute_context->closure_source_location_) {
+        continue;
+      }
+      if (evaluate_closure_compute_context->closure_source_location_->tree ==
+              closure_source_location_->tree &&
+          evaluate_closure_compute_context->closure_source_location_->closure_output_node_id ==
+              closure_source_location_->closure_output_node_id)
+      {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 OperatorComputeContext::OperatorComputeContext() : OperatorComputeContext(nullptr) {}
 
 OperatorComputeContext::OperatorComputeContext(const ComputeContext *parent)
@@ -168,6 +232,46 @@ ComputeContextHash OperatorComputeContext::compute_hash() const
 void OperatorComputeContext::print_current_in_line(std::ostream &stream) const
 {
   stream << "Operator";
+}
+
+ShaderComputeContext::ShaderComputeContext(const ComputeContext *parent, const bNodeTree *tree)
+    : ComputeContext(parent), tree_(tree)
+{
+}
+
+ComputeContextHash ShaderComputeContext::compute_hash() const
+{
+  return ComputeContextHash::from(parent_, "SHADER");
+}
+
+void ShaderComputeContext::print_current_in_line(std::ostream &stream) const
+{
+  stream << "Shader ";
+  if (tree_) {
+    stream << BKE_id_name(tree_->id);
+  }
+}
+
+const DataBlockComputeContext &ComputeContextCache::for_data_block(const ComputeContext *parent,
+                                                                   const uint32_t orig_session_uid,
+                                                                   const ID *id)
+{
+  return *data_block_contexts_cache_.lookup_or_add_cb(std::pair{parent, orig_session_uid}, [&]() {
+    return &this->for_any_uncached<DataBlockComputeContext>(parent, orig_session_uid, id);
+  });
+}
+
+const DataBlockComputeContext &ComputeContextCache::for_data_block(const ComputeContext *parent,
+                                                                   const ID &id)
+{
+  uint32_t orig_session_uid = 0;
+  if (DEG_is_original(&id)) {
+    orig_session_uid = id.session_uid;
+  }
+  else {
+    orig_session_uid = DEG_get_original(&id)->session_uid;
+  }
+  return this->for_data_block(parent, orig_session_uid, &id);
 }
 
 const ModifierComputeContext &ComputeContextCache::for_modifier(const ComputeContext *parent,
@@ -197,6 +301,13 @@ const OperatorComputeContext &ComputeContextCache::for_operator(const ComputeCon
 {
   return *operator_contexts_cache_.lookup_or_add_cb(
       parent, [&]() { return &this->for_any_uncached<OperatorComputeContext>(parent, tree); });
+}
+
+const ShaderComputeContext &ComputeContextCache::for_shader(const ComputeContext *parent,
+                                                            const bNodeTree *tree)
+{
+  return *shader_contexts_cache_.lookup_or_add_cb(
+      parent, [&]() { return &this->for_any_uncached<ShaderComputeContext>(parent, tree); });
 }
 
 const GroupNodeComputeContext &ComputeContextCache::for_group_node(const ComputeContext *parent,

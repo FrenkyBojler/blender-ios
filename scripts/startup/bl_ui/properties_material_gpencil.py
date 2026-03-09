@@ -13,7 +13,7 @@ from bl_ui.properties_grease_pencil_common import (
 )
 
 
-class GPENCIL_MT_material_context_menu(Menu):
+class GREASE_PENCIL_MT_material_context_menu(Menu):
     bl_label = "Material Specials"
 
     def draw(self, _context):
@@ -118,7 +118,7 @@ class MATERIAL_PT_gpencil_strokecolor(GPMaterialButtonsPanel, Panel):
         ma = context.material
         if ma is not None and ma.grease_pencil is not None:
             gpcolor = ma.grease_pencil
-            self.layout.prop(gpcolor, "show_stroke", text="")
+            self.layout.enabled = not gpcolor.lock
 
     def draw(self, context):
         layout = self.layout
@@ -163,7 +163,7 @@ class MATERIAL_PT_gpencil_fillcolor(GPMaterialButtonsPanel, Panel):
     def draw_header(self, context):
         ma = context.material
         gpcolor = ma.grease_pencil
-        self.layout.prop(gpcolor, "show_fill", text="")
+        self.layout.enabled = not gpcolor.lock
 
     def draw(self, context):
         layout = self.layout
@@ -253,7 +253,7 @@ class MATERIAL_PT_gpencil_material_presets(PresetPanel, Panel):
 
 classes = (
     GPENCIL_UL_matslots,
-    GPENCIL_MT_material_context_menu,
+    GREASE_PENCIL_MT_material_context_menu,
     MATERIAL_PT_gpencil_slots,
     MATERIAL_PT_gpencil_preview,
     MATERIAL_PT_gpencil_material_presets,

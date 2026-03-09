@@ -9,10 +9,12 @@
 #include "BLI_endian_switch.h"
 #include "BLI_sys_types.h"
 
+namespace blender {
+
 struct FileReader;
 
 struct BHead {
-  /** Identifier for this #BHead. Can be any of BLO_CODE_* or an ID code like ID_OB.  */
+  /** Identifier for this #BHead. Can be any of BLO_CODE_* or an ID code like ID_OB. */
   int code;
   /** Identifier of the struct type that is stored in this block. */
   int SDNAnr;
@@ -128,3 +130,5 @@ inline uint32_t uint32_from_uint64_ptr(uint64_t ptr)
   ptr >>= 3;
   return uint32_t(ptr);
 }
+
+}  // namespace blender

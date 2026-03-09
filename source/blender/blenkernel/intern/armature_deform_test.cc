@@ -118,9 +118,9 @@ class ArmatureDeformTestBase {
   {
     Object *ob = BKE_object_add_only_object(bmain, OB_ARMATURE, "Test Armature Object");
     bArmature *arm = BKE_id_new<bArmature>(bmain, "Test Armature");
-    ob->data = arm;
+    ob->data = id_cast<ID *>(arm);
 
-    Bone *bone1 = MEM_callocN<Bone>("Bone1");
+    Bone *bone1 = MEM_new<Bone>("Bone1");
     STRNCPY(bone1->name, "Bone1");
     copy_v3_v3(bone1->tail, float3(0, 0, 0));
     copy_v3_v3(bone1->head, float3(0, 0, 1));
@@ -132,7 +132,7 @@ class ArmatureDeformTestBase {
     bone1->rad_head = 2.0f;
     bone1->rad_tail = 2.0f;
 
-    Bone *bone2 = MEM_callocN<Bone>("Bone2");
+    Bone *bone2 = MEM_new<Bone>("Bone2");
     STRNCPY(bone2->name, "Bone2");
     copy_v3_v3(bone2->tail, float3(0, 0, 0));
     copy_v3_v3(bone2->head, float3(0, 0, 1));
@@ -208,8 +208,8 @@ class ArmatureDeformTestBase {
     }
     mesh->tag_positions_changed();
 
-    bDeformGroup *defgroup1 = MEM_callocN<bDeformGroup>(__func__);
-    bDeformGroup *defgroup2 = MEM_callocN<bDeformGroup>(__func__);
+    bDeformGroup *defgroup1 = MEM_new<bDeformGroup>(__func__);
+    bDeformGroup *defgroup2 = MEM_new<bDeformGroup>(__func__);
     STRNCPY(defgroup1->name, "Bone1");
     STRNCPY(defgroup2->name, "Bone2");
     BLI_addtail(&mesh->vertex_group_names, defgroup1);
@@ -223,7 +223,7 @@ class ArmatureDeformTestBase {
   {
     Object *ob = BKE_object_add_only_object(bmain, OB_MESH, "Test Mesh Object");
     Mesh *mesh_in_main = BKE_mesh_add(bmain, "Test Mesh");
-    ob->data = mesh_in_main;
+    ob->data = id_cast<ID *>(mesh_in_main);
 
     Mesh *mesh = create_test_mesh();
     BKE_mesh_nomain_to_mesh(mesh, mesh_in_main, ob);
@@ -238,7 +238,7 @@ class ArmatureDeformTestBase {
   {
     Object *ob = BKE_object_add_only_object(bmain, OB_CURVES, "Test Curves Object");
     Curves *curves_id = BKE_curves_add(bmain, "Test Curves");
-    ob->data = curves_id;
+    ob->data = id_cast<ID *>(curves_id);
     bke::CurvesGeometry &curves = curves_id->geometry.wrap();
 
     curves.resize(vertex_positions().size(), 3);
@@ -268,7 +268,7 @@ class ArmatureDeformTestBase {
   {
     Object *ob = BKE_object_add_only_object(bmain, OB_GREASE_PENCIL, "Test Grease Pencil Object");
     GreasePencil *grease_pencil = BKE_grease_pencil_add(bmain, "Test Grease Pencil");
-    ob->data = grease_pencil;
+    ob->data = id_cast<ID *>(grease_pencil);
 
     bke::greasepencil::Layer &layer = grease_pencil->add_layer("Test");
     greasepencil::Drawing &drawing = grease_pencil->insert_frame(layer, 1)->wrap();
@@ -450,30 +450,28 @@ class ArmatureDeformTestBase {
   {
     Object *ob_arm = this->create_test_armature_object();
     Object *ob_target = this->create_test_mesh_object();
-    Mesh *mesh = static_cast<Mesh *>(ob_target->data);
+    Mesh *mesh = id_cast<Mesh *>(ob_target->data);
     /* Mesh deform function supports a separate Mesh data block for deform_groups and dverts. */
     Mesh *mesh_target = (dvert_source == VertexWeightSource::SeparateMesh) ? create_test_mesh() :
                                                                              nullptr;
 
     MutableSpan<float3> vert_positions = mesh->vert_positions_for_write();
-    float(*vert_positions_ptr)[3] = vert_positions.cast<float[3]>().data();
 
     Array<float3x3> deform_mats;
-    float(*deform_mats_ptr)[3][3] = nullptr;
+    std::optional<MutableSpan<float3x3>> deform_mats_opt;
     if (output == OutputValueTest::PositionAndDeformMatrix) {
       deform_mats = identity_deform_mats();
-      deform_mats_ptr = reinterpret_cast<float(*)[3][3]>(deform_mats.data());
+      deform_mats_opt = deform_mats;
     }
 
     const int deform_flag = get_deform_flag(interpolation, weighting);
     const char *defgrp_name = get_defgrp_name(masking);
-    BKE_armature_deform_coords_with_mesh(ob_arm,
-                                         ob_target,
-                                         vert_positions_ptr,
-                                         deform_mats_ptr,
-                                         vert_positions.size(),
+    BKE_armature_deform_coords_with_mesh(*ob_arm,
+                                         *ob_target,
+                                         vert_positions,
+                                         std::nullopt,
+                                         deform_mats_opt,
                                          deform_flag,
-                                         nullptr,
                                          defgrp_name,
                                          mesh_target);
 
@@ -498,33 +496,31 @@ class ArmatureDeformTestBase {
   {
     Object *ob_arm = this->create_test_armature_object();
     Object *ob_target = this->create_test_mesh_object();
-    Mesh *mesh = static_cast<Mesh *>(ob_target->data);
+    Mesh *mesh = id_cast<Mesh *>(ob_target->data);
 
     BMeshCreateParams create_params{};
     create_params.use_toolflags = true;
     BMesh *bm = BKE_mesh_to_bmesh(mesh, 0, false, &create_params);
     BMEditMesh *edit_mesh = BKE_editmesh_create(bm);
     Array<float3> bm_verts_wrapper = BM_mesh_vert_coords_alloc(edit_mesh->bm);
-    float(*vert_positions_ptr)[3] = bm_verts_wrapper.as_mutable_span().cast<float[3]>().data();
 
     Array<float3x3> deform_mats;
-    float(*deform_mats_ptr)[3][3] = nullptr;
+    std::optional<MutableSpan<float3x3>> deform_mats_opt;
     if (output == OutputValueTest::PositionAndDeformMatrix) {
       deform_mats = identity_deform_mats();
-      deform_mats_ptr = reinterpret_cast<float(*)[3][3]>(deform_mats.data());
+      deform_mats_opt = deform_mats;
     }
 
     const int deform_flag = get_deform_flag(interpolation, weighting);
     const char *defgrp_name = get_defgrp_name(masking);
-    BKE_armature_deform_coords_with_editmesh(ob_arm,
-                                             ob_target,
-                                             vert_positions_ptr,
-                                             deform_mats_ptr,
-                                             bm_verts_wrapper.size(),
+    BKE_armature_deform_coords_with_editmesh(*ob_arm,
+                                             *ob_target,
+                                             bm_verts_wrapper,
+                                             std::nullopt,
+                                             deform_mats_opt,
                                              deform_flag,
-                                             nullptr,
                                              defgrp_name,
-                                             edit_mesh);
+                                             *edit_mesh);
 
     EXPECT_EQ_SPAN(expected_positions(TargetDataType::EditMesh, weighting, masking),
                    bm_verts_wrapper.as_span());
@@ -545,7 +541,7 @@ class ArmatureDeformTestBase {
   {
     Object *ob_arm = this->create_test_armature_object();
     Object *ob_target = this->create_test_curves_object();
-    Curves *curves_id = static_cast<Curves *>(ob_target->data);
+    Curves *curves_id = id_cast<Curves *>(ob_target->data);
     bke::CurvesGeometry &curves = curves_id->geometry.wrap();
 
     Array<float3x3> deform_mats;
@@ -585,7 +581,7 @@ class ArmatureDeformTestBase {
   {
     Object *ob_arm = this->create_test_armature_object();
     Object *ob_target = this->create_test_grease_pencil_object();
-    GreasePencil *grease_pencil = static_cast<GreasePencil *>(ob_target->data);
+    GreasePencil *grease_pencil = id_cast<GreasePencil *>(ob_target->data);
 
     BLI_assert(!grease_pencil->drawings().is_empty());
     GreasePencilDrawingBase *drawing_base = grease_pencil->drawings()[0];

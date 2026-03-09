@@ -103,6 +103,11 @@ void ShadowPass::ShadowView::setup(View &view, float3 light_direction, bool forc
   std::array<float3, 8> frustum_corners = this->frustum_corners_get();
   std::array<float4, 6> frustum_planes = this->frustum_planes_get();
 
+  float3 frustum_center = float3(0.0f);
+  for (float3 corner : frustum_corners) {
+    frustum_center += corner / float(frustum_corners.size());
+  }
+
   Vector<float4> faces_result;
   Vector<float3> corners_result;
 
@@ -131,20 +136,12 @@ void ShadowPass::ShadowView::setup(View &view, float3 light_direction, bool forc
       float3 corner_b = frustum_corners[edge_corners[i][1]];
       float3 edge_direction = math::normalize(corner_b - corner_a);
       float3 normal = math::normalize(math::cross(light_direction_, edge_direction));
-
-      float4 extruded_face = float4(UNPACK3(normal), math::dot(normal, corner_a));
-
       /* Ensure the plane faces outwards */
-      bool flipped = false;
-      for (float3 corner : frustum_corners) {
-        if (math::dot(float3(extruded_face), corner) > (extruded_face.w + 0.1)) {
-          BLI_assert(!flipped);
-          UNUSED_VARS_NDEBUG(flipped);
-          flipped = true;
-          extruded_face *= -1;
-        }
+      if (dot(corner_a - frustum_center, normal) < 0.0f) {
+        normal *= -1.0f;
       }
 
+      float4 extruded_face = float4(normal, math::dot(normal, corner_a));
       faces_result.append(extruded_face);
     }
   }
@@ -195,7 +192,7 @@ bool ShadowPass::ShadowView::debug_object_culling(Object *ob)
       }
     }
     if (separating_axis) {
-      printf("Sepatating Axis >>> x: %f, y: %f, z: %f, w: %f \n", UNPACK4(plane));
+      printf("Separating Axis >>> x: %f, y: %f, z: %f, w: %f \n", UNPACK4(plane));
       return true;
     }
   }
@@ -244,9 +241,9 @@ void ShadowPass::ShadowView::compute_visibility(ObjectBoundsBuf &bounds,
 
   if (do_visibility_) {
     /* TODO(@pragma37): Use regular culling for the caps pass. */
-    GPUShader *shader = current_pass_type_ == ShadowPass::FORCED_FAIL ?
-                            ShaderCache::get().shadow_visibility_static.get() :
-                            ShaderCache::get().shadow_visibility_dynamic.get();
+    gpu::Shader *shader = current_pass_type_ == ShadowPass::FORCED_FAIL ?
+                              ShaderCache::get().shadow_visibility_static.get() :
+                              ShaderCache::get().shadow_visibility_dynamic.get();
     GPU_shader_bind(shader);
     GPU_shader_uniform_1i(shader, "resource_len", resource_len);
     GPU_shader_uniform_1i(shader, "view_len", view_len_);
@@ -314,7 +311,7 @@ void ShadowPass::init(const SceneState &scene_state, SceneResources &resources)
   pass_data_.push_update();
 
   /* Shadow direction. */
-  float4x4 view_matrix = blender::draw::View::default_get().viewmat();
+  float4x4 view_matrix = draw::View::default_get().viewmat();
   resources.world_buf.shadow_direction_vs = float4(
       math::transform_direction(view_matrix, direction_ws), 0.0f);
 
@@ -379,7 +376,7 @@ void ShadowPass::sync()
 
 void ShadowPass::object_sync(SceneState &scene_state,
                              ObjectRef &ob_ref,
-                             ResourceHandle handle,
+                             ResourceHandleRange handle,
                              const bool has_transp_mat)
 {
   if (!enabled_) {
@@ -388,7 +385,7 @@ void ShadowPass::object_sync(SceneState &scene_state,
 
   Object *ob = ob_ref.object;
   bool is_manifold;
-  blender::gpu::Batch *geom_shadow = DRW_cache_object_edge_detection_get(ob, &is_manifold);
+  gpu::Batch *geom_shadow = DRW_cache_object_edge_detection_get(ob, &is_manifold);
   if (geom_shadow == nullptr) {
     return;
   }
@@ -418,7 +415,7 @@ void ShadowPass::object_sync(SceneState &scene_state,
     ps.draw_expand(geom_shadow, prim, tri_len, 1, handle);
   }
 
-  blender::gpu::Batch *geom_faces = DRW_cache_object_surface_get(ob);
+  gpu::Batch *geom_faces = DRW_cache_object_surface_get(ob);
   /* Caps. */
   get_pass_ptr(fail_type, is_manifold, true)->draw_expand(geom_faces, prim, 2, 1, handle);
   /* Sides extrusion. */
@@ -428,7 +425,7 @@ void ShadowPass::object_sync(SceneState &scene_state,
 void ShadowPass::draw(Manager &manager,
                       View &view,
                       SceneResources &resources,
-                      GPUTexture &depth_stencil_tx,
+                      gpu::Texture &depth_stencil_tx,
                       bool force_fail_method)
 {
   if (!enabled_) {

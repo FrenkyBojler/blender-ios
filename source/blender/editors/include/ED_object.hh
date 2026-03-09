@@ -11,19 +11,23 @@
 #include <string>
 
 #include "BLI_compiler_attrs.h"
+#include "BLI_function_ref.hh"
 #include "BLI_map.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
+#include "DNA_listBase.h"
 #include "DNA_object_enums.h"
 #include "DNA_userdef_enums.h"
-#include "DNA_windowmanager_types.h"
+
+namespace blender {
 
 struct Base;
 struct Depsgraph;
 struct EnumPropertyItem;
 struct ID;
+struct KeyBlock;
 struct GpencilModifierData;
 struct Main;
 struct ModifierData;
@@ -37,12 +41,16 @@ struct ViewLayer;
 struct bConstraint;
 struct bContext;
 struct bPoseChannel;
-struct uiLayout;
 struct wmKeyConfig;
 struct wmOperator;
 struct wmOperatorType;
+enum eReportType : uint16_t;
 
-namespace blender::ed::object {
+namespace ui {
+struct Layout;
+}  // namespace ui
+
+namespace ed::object {
 
 struct XFormObjectData;
 
@@ -55,7 +63,7 @@ Object *context_object(const bContext *C);
  * \note context can be NULL when called from a enum with #PROP_ENUM_NO_CONTEXT.
  */
 Object *context_active_object(const bContext *C);
-void collection_hide_menu_draw(const bContext *C, uiLayout *layout);
+void collection_hide_menu_draw(const bContext *C, ui::Layout &layout);
 
 /**
  * Return an array of objects:
@@ -65,8 +73,9 @@ void collection_hide_menu_draw(const bContext *C, uiLayout *layout);
  *   the callers \a filter_fn needs to check of they are editable
  *   (assuming they need to be modified).
  */
-blender::Vector<Object *> objects_in_mode_or_selected(
-    bContext *C, bool (*filter_fn)(const Object *ob, void *user_data), void *filter_user_data);
+Vector<Object *> objects_in_mode_or_selected(bContext *C,
+                                             bool (*filter_fn)(const Object *ob, void *user_data),
+                                             void *filter_user_data);
 
 /**
  * Set the active material by index.
@@ -98,6 +107,16 @@ bool shape_key_report_if_active_locked(Object *ob, ReportList *reports);
  * \return true if a shape key was locked.
  */
 bool shape_key_report_if_any_locked(Object *ob, ReportList *reports);
+
+/**
+ * Return whether this shapekey is considered 'selected'.
+ *
+ * The active shapekey is always considered 'selected', even though it may not
+ * have its selection flag set.
+ */
+bool shape_key_is_selected(const Object &object, const KeyBlock &kb, int keyblock_index);
+
+void shape_key_mirror(Object *ob, KeyBlock *kb, bool use_topology, int &totmirr, int &totfail);
 
 /* `object_utils.cc` */
 
@@ -255,7 +274,7 @@ Base *add_duplicate(
     Main *bmain, Scene *scene, ViewLayer *view_layer, Base *base, eDupli_ID_Flags dupflag);
 
 void parent_set(Object *ob, Object *parent, int type, const char *substr);
-std::string drop_named_material_tooltip(bContext *C, const char *name, const int mval[2]);
+std::string drop_named_material_tooltip(bContext *C, StringRef name, const int mval[2]);
 std::string drop_geometry_nodes_tooltip(bContext *C, PointerRNA *properties, const int mval[2]);
 
 /** Bit-flags for enter/exit edit-mode. */
@@ -371,7 +390,7 @@ enum eObjectPathCalcRange {
 void motion_paths_recalc(bContext *C,
                          Scene *scene,
                          eObjectPathCalcRange range,
-                         ListBase *ld_objects);
+                         ListBaseT<LinkData> *ld_objects);
 
 void motion_paths_recalc_selected(bContext *C, Scene *scene, eObjectPathCalcRange range);
 
@@ -382,17 +401,19 @@ void motion_paths_recalc_visible(bContext *C, Scene *scene, eObjectPathCalcRange
  * If object is in pose-mode, return active bone constraints, else object constraints.
  * No constraints are returned for a bone on an inactive bone-layer.
  */
-ListBase *constraint_active_list(Object *ob);
+ListBaseT<bConstraint> *constraint_active_list(Object *ob);
 /**
  * Get the constraints for the active pose bone. Bone may be on an inactive bone-layer
  * (unlike #constraint_active_list, such constraints are not excluded here).
  */
-ListBase *pose_constraint_list(const bContext *C);
+ListBaseT<bConstraint> *pose_constraint_list(const bContext *C);
 /**
  * Find the list that a given constraint belongs to,
  * and/or also get the pose-channel this is from (if applicable).
  */
-ListBase *constraint_list_from_constraint(Object *ob, bConstraint *con, bPoseChannel **r_pchan);
+ListBaseT<bConstraint> *constraint_list_from_constraint(Object *ob,
+                                                        bConstraint *con,
+                                                        bPoseChannel **r_pchan);
 /**
  * Single constraint.
  */
@@ -408,7 +429,10 @@ void constraint_tag_update(Main *bmain, Object *ob, bConstraint *con);
 void constraint_dependency_tag_update(Main *bmain, Object *ob, bConstraint *con);
 
 bool constraint_move_to_index(Object *ob, bConstraint *con, int index);
-void constraint_link(Main *bmain, Object *ob_dst, ListBase *dst, ListBase *src);
+void constraint_link(Main *bmain,
+                     Object *ob_dst,
+                     ListBaseT<bConstraint> *dst,
+                     ListBaseT<bConstraint> *src);
 void constraint_copy_for_object(Main *bmain, Object *ob_dst, bConstraint *con);
 void constraint_copy_for_pose(Main *bmain, Object *ob_dst, bPoseChannel *pchan, bConstraint *con);
 
@@ -420,9 +444,13 @@ void constraint_copy_for_pose(Main *bmain, Object *ob_dst, bPoseChannel *pchan, 
  */
 bool mode_compat_test(const Object *ob, eObjectMode mode);
 /**
- * Sets the mode to a compatible state (use before entering the mode).
+ * Set the provided object's mode to one that is compatible with the provided mode.
  *
- * This is so each mode's exec function can call
+ * \returns true if the provided object's mode matches the provided mode, or if the function was
+ * able to set the object back into Object Mode.
+ *
+ * This is so each mode toggle operator exec function can call this function to ensure the current
+ * mode runtime data is cleaned up prior to entering a new mode.
  */
 bool mode_compat_set(bContext *C, Object *ob, eObjectMode mode, ReportList *reports);
 bool mode_set_ex(bContext *C, eObjectMode mode, bool use_undo, ReportList *reports);
@@ -592,6 +620,9 @@ void data_xform_by_mat4(XFormObjectData &xod, const float4x4 &transform);
 void data_xform_restore(XFormObjectData &xod);
 void data_xform_tag_update(XFormObjectData &xod);
 
-void ui_template_modifier_asset_menu_items(uiLayout &layout, StringRef catalog_path);
+void ui_template_modifier_asset_menu_items(ui::Layout &layout,
+                                           StringRef catalog_path,
+                                           bool skip_essentials);
 
-}  // namespace blender::ed::object
+}  // namespace ed::object
+}  // namespace blender

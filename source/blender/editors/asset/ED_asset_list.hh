@@ -10,18 +10,20 @@
 
 #include "BLI_function_ref.hh"
 
+namespace blender {
+
 struct AssetLibraryReference;
 struct bContext;
 struct ID;
 struct ImBuf;
 struct wmNotifier;
 struct wmRegionListenerParams;
-namespace blender::asset_system {
+namespace asset_system {
 class AssetLibrary;
 class AssetRepresentation;
-}  // namespace blender::asset_system
+}  // namespace asset_system
 
-namespace blender::ed::asset::list {
+namespace ed::asset::list {
 
 void asset_reading_region_listen_fn(const wmRegionListenerParams *params);
 
@@ -29,9 +31,9 @@ void asset_reading_region_listen_fn(const wmRegionListenerParams *params);
  * Get the asset library being read into an asset-list and identified using \a library_reference.
  *
  * \note The asset library may be allocated and loaded asynchronously, so it's not available right
- *       after fetching, and this function will return null. The asset list code sends `NC_ASSET |
- *       ND_ASSET_LIST_READING` notifiers until loading is done, they can be used to continuously
- *       call this function to retrieve the asset library once available.
+ *       after fetching, and this function will return null. The asset list code sends
+ *       `NC_ASSET | ND_ASSET_LIST_READING` notifiers until loading is done, they can be used
+ *       to continuously call this function to retrieve the asset library once available.
  */
 asset_system::AssetLibrary *library_get_once_available(
     const AssetLibraryReference &library_reference);
@@ -108,4 +110,5 @@ bool listen(const wmNotifier *notifier);
  */
 int size(const AssetLibraryReference *library_reference);
 
-}  // namespace blender::ed::asset::list
+}  // namespace ed::asset::list
+}  // namespace blender

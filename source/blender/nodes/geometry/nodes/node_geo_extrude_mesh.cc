@@ -17,6 +17,7 @@
 #include "BKE_mesh_mapping.hh"
 #include "BKE_mesh_runtime.hh"
 
+#include "GEO_foreach_geometry.hh"
 #include "GEO_mesh_selection.hh"
 #include "GEO_randomize.hh"
 
@@ -35,7 +36,9 @@ NODE_STORAGE_FUNCS(NodeGeometryExtrudeMesh)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Mesh").supported_type(GeometryComponent::Type::Mesh);
+  b.add_input<decl::Geometry>("Mesh")
+      .supported_type(GeometryComponent::Type::Mesh)
+      .description("Mesh to extrude elements of");
   b.add_input<decl::Bool>("Selection").default_value(true).field_on_all().hide_value();
   b.add_input<decl::Vector>("Offset")
       .subtype(PROP_TRANSLATION)
@@ -58,16 +61,16 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
-  layout->prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
+  layout.prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryExtrudeMesh *data = MEM_callocN<NodeGeometryExtrudeMesh>(__func__);
+  NodeGeometryExtrudeMesh *data = MEM_new<NodeGeometryExtrudeMesh>(__func__);
   data->mode = GEO_NODE_EXTRUDE_MESH_FACES;
   node->storage = data;
 }
@@ -93,8 +96,7 @@ static void remove_non_propagated_attributes(MutableAttributeAccessor attributes
                                              const AttributeFilter &attribute_filter)
 {
   Vector<std::string> names_to_remove;
-  const Set<StringRefNull> all_names = attributes.all_ids();
-  for (const StringRefNull name : all_names) {
+  for (const StringRefNull name : attributes.all_names()) {
     if (attribute_filter.allow_skip(name)) {
       names_to_remove.append(name);
     }
@@ -112,20 +114,9 @@ static void remove_unsupported_vert_data(Mesh &mesh)
   CustomData_free_layers(&mesh.vert_data, CD_MVERT_SKIN);
 }
 
-static void remove_unsupported_edge_data(Mesh &mesh)
-{
-  CustomData_free_layers(&mesh.edge_data, CD_FREESTYLE_EDGE);
-}
-
-static void remove_unsupported_face_data(Mesh &mesh)
-{
-  CustomData_free_layers(&mesh.face_data, CD_FREESTYLE_FACE);
-}
-
 static void remove_unsupported_corner_data(Mesh &mesh)
 {
   CustomData_free_layers(&mesh.corner_data, CD_MDISPS);
-  CustomData_free_layers(&mesh.corner_data, CD_TANGENT);
   CustomData_free_layers(&mesh.corner_data, CD_MLOOPTANGENT);
   CustomData_free_layers(&mesh.corner_data, CD_GRID_PAINT_MASK);
 }
@@ -141,20 +132,23 @@ static void expand_mesh(Mesh &mesh,
     const int old_verts_num = mesh.verts_num;
     mesh.verts_num += vert_expand;
     CustomData_realloc(&mesh.vert_data, old_verts_num, mesh.verts_num);
+    mesh.attribute_storage.wrap().resize(AttrDomain::Point, mesh.verts_num);
   }
   if (edge_expand != 0) {
     if (mesh.edges_num == 0) {
       mesh.attributes_for_write().add(
-          ".edge_verts", AttrDomain::Edge, CD_PROP_INT32_2D, bke::AttributeInitConstruct());
+          ".edge_verts", AttrDomain::Edge, bke::AttrType::Int32_2D, bke::AttributeInitConstruct());
     }
     const int old_edges_num = mesh.edges_num;
     mesh.edges_num += edge_expand;
     CustomData_realloc(&mesh.edge_data, old_edges_num, mesh.edges_num);
+    mesh.attribute_storage.wrap().resize(AttrDomain::Edge, mesh.edges_num);
   }
   if (face_expand != 0) {
     const int old_faces_num = mesh.faces_num;
     mesh.faces_num += face_expand;
     CustomData_realloc(&mesh.face_data, old_faces_num, mesh.faces_num);
+    mesh.attribute_storage.wrap().resize(AttrDomain::Face, mesh.faces_num);
     implicit_sharing::resize_trivial_array(&mesh.face_offset_indices,
                                            &mesh.runtime->face_offsets_sharing_info,
                                            old_faces_num == 0 ? 0 : (old_faces_num + 1),
@@ -166,13 +160,14 @@ static void expand_mesh(Mesh &mesh,
   if (loop_expand != 0) {
     if (mesh.corners_num == 0) {
       mesh.attributes_for_write().add(
-          ".corner_vert", AttrDomain::Corner, CD_PROP_INT32, bke::AttributeInitConstruct());
+          ".corner_vert", AttrDomain::Corner, bke::AttrType::Int32, bke::AttributeInitConstruct());
       mesh.attributes_for_write().add(
-          ".corner_edge", AttrDomain::Corner, CD_PROP_INT32, bke::AttributeInitConstruct());
+          ".corner_edge", AttrDomain::Corner, bke::AttrType::Int32, bke::AttributeInitConstruct());
     }
     const int old_loops_num = mesh.corners_num;
     mesh.corners_num += loop_expand;
     CustomData_realloc(&mesh.corner_data, old_loops_num, mesh.corners_num);
+    mesh.attribute_storage.wrap().resize(AttrDomain::Corner, mesh.corners_num);
   }
 }
 
@@ -211,17 +206,20 @@ void copy_with_mixing(const Span<T> src,
                       const IndexMask &selection,
                       MutableSpan<T> dst)
 {
-  selection.foreach_segment(
-      GrainSize(512), [&](const IndexMaskSegment segment, const int64_t segment_pos) {
-        const IndexRange dst_range(segment_pos, segment.size());
-        bke::attribute_math::DefaultPropagationMixer<T> mixer{dst.slice(dst_range)};
-        for (const int i : segment.index_range()) {
-          for (const int src_i : src_groups[segment[i]]) {
-            mixer.mix_in(i, src[src_i]);
+  if constexpr (!std::is_void_v<bke::attribute_math::DefaultMixer<T>>) {
+    selection.foreach_segment(
+        [&](const IndexMaskSegment segment, const int64_t segment_pos) {
+          const IndexRange dst_range(segment_pos, segment.size());
+          bke::attribute_math::DefaultPropagationMixer<T> mixer{dst.slice(dst_range)};
+          for (const int i : segment.index_range()) {
+            for (const int src_i : src_groups[segment[i]]) {
+              mixer.mix_in(i, src[src_i]);
+            }
           }
-        }
-        mixer.finalize();
-      });
+          mixer.finalize();
+        },
+        exec_mode::grain_size(512));
+  }
 }
 
 static void copy_with_mixing(const GSpan src,
@@ -230,8 +228,7 @@ static void copy_with_mixing(const GSpan src,
                              GMutableSpan dst)
 {
   BLI_assert(selection.size() == dst.size());
-  bke::attribute_math::convert_to_static_type(src.type(), [&](auto dummy) {
-    using T = decltype(dummy);
+  bke::attribute_math::to_static_type(src.type(), [&]<typename T>() {
     copy_with_mixing(src.typed<T>(), src_groups, selection, dst.typed<T>());
   });
 }
@@ -242,16 +239,18 @@ void copy_with_mixing(const Span<T> src,
                       const Span<int> selection,
                       MutableSpan<T> dst)
 {
-  threading::parallel_for(dst.index_range(), 512, [&](const IndexRange range) {
-    bke::attribute_math::DefaultPropagationMixer<T> mixer{dst.slice(range)};
-    for (const int i : range.index_range()) {
-      const int group_i = selection[i];
-      for (const int i_src : src_groups[group_i]) {
-        mixer.mix_in(i, src[i_src]);
+  if constexpr (!std::is_void_v<bke::attribute_math::DefaultMixer<T>>) {
+    threading::parallel_for(dst.index_range(), 512, [&](const IndexRange range) {
+      bke::attribute_math::DefaultPropagationMixer<T> mixer{dst.slice(range)};
+      for (const int i : range.index_range()) {
+        const int group_i = selection[i];
+        for (const int i_src : src_groups[group_i]) {
+          mixer.mix_in(i, src[i_src]);
+        }
       }
-    }
-    mixer.finalize();
-  });
+      mixer.finalize();
+    });
+  }
 }
 
 static void copy_with_mixing(const GSpan src,
@@ -259,20 +258,22 @@ static void copy_with_mixing(const GSpan src,
                              const Span<int> selection,
                              GMutableSpan dst)
 {
-  bke::attribute_math::convert_to_static_type(src.type(), [&](auto dummy) {
-    using T = decltype(dummy);
+  bke::attribute_math::to_static_type(src.type(), [&]<typename T>() {
     copy_with_mixing(src.typed<T>(), src_groups, selection, dst.typed<T>());
   });
 }
 
 using IDsByDomain = std::array<Vector<StringRef>, ATTR_DOMAIN_NUM>;
 
-static IDsByDomain attribute_ids_by_domain(const AttributeAccessor attributes,
-                                           const Set<StringRef> &skip)
+static IDsByDomain get_transfer_attribute_ids(const AttributeAccessor attributes,
+                                              const Set<StringRef> &skip)
 {
   IDsByDomain ids_by_domain;
   attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
-    if (iter.data_type == CD_PROP_STRING) {
+    if (iter.storage_type == bke::AttrStorageType::Single) {
+      return;
+    }
+    if (iter.data_type == bke::AttrType::String) {
       return;
     }
     if (skip.contains(iter.name)) {
@@ -289,7 +290,7 @@ static bool is_empty_domain(const AttributeAccessor attributes,
 {
   bool is_empty = true;
   attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
-    if (iter.data_type == CD_PROP_STRING) {
+    if (iter.data_type == bke::AttrType::String) {
       return;
     }
     if (iter.domain != domain) {
@@ -334,8 +335,8 @@ static void gather_vert_attributes(Mesh &mesh,
                                    const IndexRange new_range)
 {
   Set<StringRef> vertex_group_names;
-  LISTBASE_FOREACH (bDeformGroup *, group, &mesh.vertex_group_names) {
-    vertex_group_names.add(group->name);
+  for (bDeformGroup &group : mesh.vertex_group_names) {
+    vertex_group_names.add(group.name);
   }
 
   if (!vertex_group_names.is_empty() && !mesh.deform_verts().is_empty()) {
@@ -359,8 +360,8 @@ static void gather_vert_attributes(Mesh &mesh,
                                    const IndexRange new_range)
 {
   Set<StringRef> vertex_group_names;
-  LISTBASE_FOREACH (bDeformGroup *, group, &mesh.vertex_group_names) {
-    vertex_group_names.add(group->name);
+  for (bDeformGroup &group : mesh.vertex_group_names) {
+    vertex_group_names.add(group.name);
   }
 
   if (!vertex_group_names.is_empty() && !mesh.deform_verts().is_empty()) {
@@ -403,8 +404,8 @@ static void extrude_mesh_vertices(Mesh &mesh,
   MutableAttributeAccessor attributes = mesh.attributes_for_write();
   remove_non_propagated_attributes(attributes, attribute_filter);
 
-  const IDsByDomain ids_by_domain = attribute_ids_by_domain(attributes,
-                                                            {"position", ".edge_verts"});
+  const IDsByDomain ids_by_domain = get_transfer_attribute_ids(attributes,
+                                                               {"position", ".edge_verts"});
 
   Array<int> vert_to_edge_offsets;
   Array<int> vert_to_edge_indices;
@@ -415,7 +416,6 @@ static void extrude_mesh_vertices(Mesh &mesh,
   }
 
   remove_unsupported_vert_data(mesh);
-  remove_unsupported_edge_data(mesh);
   expand_mesh(mesh, selection.size(), selection.size(), 0, 0);
 
   const IndexRange new_vert_range{orig_vert_size, selection.size()};
@@ -423,9 +423,10 @@ static void extrude_mesh_vertices(Mesh &mesh,
 
   MutableSpan<int2> new_edges = mesh.edges_for_write().slice(new_edge_range);
   selection.foreach_index_optimized<int>(
-      GrainSize(4096), [&](const int index, const int i_selection) {
+      [&](const int index, const int i_selection) {
         new_edges[i_selection] = int2(index, new_vert_range[i_selection]);
-      });
+      },
+      exec_mode::grain_size(4096));
 
   /* New vertices copy the attribute values from their source vertex. */
   gather_vert_attributes(mesh, ids_by_domain[int(AttrDomain::Point)], selection, new_vert_range);
@@ -440,9 +441,9 @@ static void extrude_mesh_vertices(Mesh &mesh,
 
   MutableSpan<float3> positions = mesh.vert_positions_for_write();
   MutableSpan<float3> new_positions = positions.slice(new_vert_range);
-  selection.foreach_index_optimized<int>(GrainSize(1024), [&](const int index, const int i) {
-    new_positions[i] = positions[index] + offsets[index];
-  });
+  selection.foreach_index_optimized<int>(
+      [&](const int index, const int i) { new_positions[i] = positions[index] + offsets[index]; },
+      exec_mode::grain_size(4096));
 
   if (std::optional<MutableSpan<int>> indices = get_orig_index_layer(mesh, AttrDomain::Point)) {
     array_utils::gather(indices->as_span(), selection, indices->slice(new_vert_range));
@@ -627,8 +628,6 @@ static void extrude_mesh_edges(Mesh &mesh,
   }
 
   remove_unsupported_vert_data(mesh);
-  remove_unsupported_edge_data(mesh);
-  remove_unsupported_face_data(mesh);
   remove_unsupported_corner_data(mesh);
   expand_mesh(mesh,
               new_vert_range.size(),
@@ -636,7 +635,7 @@ static void extrude_mesh_edges(Mesh &mesh,
               new_face_range.size(),
               new_loop_range.size());
 
-  const IDsByDomain ids_by_domain = attribute_ids_by_domain(
+  const IDsByDomain ids_by_domain = get_transfer_attribute_ids(
       attributes, {"position", ".edge_verts", ".corner_vert", ".corner_edge"});
 
   MutableSpan<int2> edges = mesh.edges_for_write();
@@ -652,9 +651,9 @@ static void extrude_mesh_edges(Mesh &mesh,
   offset_indices::fill_constant_group_size(4, orig_loop_size, new_face_offsets);
   const OffsetIndices faces = mesh.faces();
 
-  new_verts.foreach_index_optimized<int>(GrainSize(4096), [&](const int src, const int dst) {
-    connect_edges[dst] = int2(src, new_vert_range[dst]);
-  });
+  new_verts.foreach_index_optimized<int>(
+      [&](const int src, const int dst) { connect_edges[dst] = int2(src, new_vert_range[dst]); },
+      exec_mode::grain_size(4096));
 
   {
     Array<int> vert_to_new_vert(orig_vert_size);
@@ -730,56 +729,58 @@ static void extrude_mesh_edges(Mesh &mesh,
    * to the original edge of their face. */
   for (const StringRef id : ids_by_domain[int(AttrDomain::Corner)]) {
     GSpanAttributeWriter attribute = attributes.lookup_for_write_span(id);
-    bke::attribute_math::convert_to_static_type(attribute.span.type(), [&](auto dummy) {
-      using T = decltype(dummy);
-      MutableSpan<T> data = attribute.span.typed<T>();
-      MutableSpan<T> new_data = data.slice(new_loop_range);
-      edge_selection.foreach_index(
-          GrainSize(256), [&](const int64_t orig_edge_index, const int64_t i_edge_selection) {
-            const Span<int> connected_faces = edge_to_face_map[orig_edge_index];
-            if (connected_faces.is_empty()) {
-              /* If there are no connected faces, there is no corner data to interpolate. */
-              new_data.slice(4 * i_edge_selection, 4).fill(T());
-              return;
-            }
+    bke::attribute_math::to_static_type(attribute.span.type(), [&]<typename T>() {
+      if constexpr (!std::is_void_v<bke::attribute_math::DefaultMixer<T>>) {
+        MutableSpan<T> data = attribute.span.typed<T>();
+        MutableSpan<T> new_data = data.slice(new_loop_range);
+        edge_selection.foreach_index(
+            [&](const int64_t orig_edge_index, const int64_t i_edge_selection) {
+              const Span<int> connected_faces = edge_to_face_map[orig_edge_index];
+              if (connected_faces.is_empty()) {
+                /* If there are no connected faces, there is no corner data to interpolate. */
+                new_data.slice(4 * i_edge_selection, 4).fill(T());
+                return;
+              }
 
-            /* Both corners on each vertical edge of the side face get the same value,
-             * so there are only two unique values to mix. */
-            Array<T> side_face_corner_data(2);
-            bke::attribute_math::DefaultPropagationMixer<T> mixer{side_face_corner_data};
+              /* Both corners on each vertical edge of the side face get the same value,
+               * so there are only two unique values to mix. */
+              Array<T> side_face_corner_data(2);
+              bke::attribute_math::DefaultPropagationMixer<T> mixer{side_face_corner_data};
 
-            const int new_vert_1 = duplicate_edges[i_edge_selection][0];
-            const int new_vert_2 = duplicate_edges[i_edge_selection][1];
-            const int orig_vert_1 = edges[orig_edge_index][0];
-            const int orig_vert_2 = edges[orig_edge_index][1];
+              const int new_vert_1 = duplicate_edges[i_edge_selection][0];
+              const int new_vert_2 = duplicate_edges[i_edge_selection][1];
+              const int orig_vert_1 = edges[orig_edge_index][0];
+              const int orig_vert_2 = edges[orig_edge_index][1];
 
-            /* Average the corner data from the corners that share a vertex from the
-             * faces that share an edge with the extruded edge. */
-            for (const int connected_face : connected_faces) {
-              for (const int i_loop : faces[connected_face]) {
-                if (corner_verts[i_loop] == orig_vert_1) {
-                  mixer.mix_in(0, data[i_loop]);
+              /* Average the corner data from the corners that share a vertex from the
+               * faces that share an edge with the extruded edge. */
+              for (const int connected_face : connected_faces) {
+                for (const int i_loop : faces[connected_face]) {
+                  if (corner_verts[i_loop] == orig_vert_1) {
+                    mixer.mix_in(0, data[i_loop]);
+                  }
+                  if (corner_verts[i_loop] == orig_vert_2) {
+                    mixer.mix_in(1, data[i_loop]);
+                  }
                 }
-                if (corner_verts[i_loop] == orig_vert_2) {
-                  mixer.mix_in(1, data[i_loop]);
+              }
+
+              mixer.finalize();
+
+              /* Instead of replicating the order in #fill_quad_consistent_direction here, it's
+               * simpler (though probably slower) to just match the corner data based on the
+               * vertex indices. */
+              for (const int i : IndexRange(4 * i_edge_selection, 4)) {
+                if (ELEM(new_corner_verts[i], new_vert_1, orig_vert_1)) {
+                  new_data[i] = side_face_corner_data.first();
+                }
+                else if (ELEM(new_corner_verts[i], new_vert_2, orig_vert_2)) {
+                  new_data[i] = side_face_corner_data.last();
                 }
               }
-            }
-
-            mixer.finalize();
-
-            /* Instead of replicating the order in #fill_quad_consistent_direction here, it's
-             * simpler (though probably slower) to just match the corner data based on the
-             * vertex indices. */
-            for (const int i : IndexRange(4 * i_edge_selection, 4)) {
-              if (ELEM(new_corner_verts[i], new_vert_1, orig_vert_1)) {
-                new_data[i] = side_face_corner_data.first();
-              }
-              else if (ELEM(new_corner_verts[i], new_vert_2, orig_vert_2)) {
-                new_data[i] = side_face_corner_data.last();
-              }
-            }
-          });
+            },
+            exec_mode::grain_size(256));
+      }
     });
 
     attribute.finish();
@@ -789,14 +790,16 @@ static void extrude_mesh_edges(Mesh &mesh,
   MutableSpan<float3> new_positions = positions.slice(new_vert_range);
   if (edge_offsets.is_single()) {
     const float3 offset = edge_offsets.get_internal_single();
-    new_verts.foreach_index_optimized<int>(GrainSize(1024), [&](const int src, const int dst) {
-      new_positions[dst] = positions[src] + offset;
-    });
+    new_verts.foreach_index_optimized<int>(
+        [&](const int src, const int dst) { new_positions[dst] = positions[src] + offset; },
+        exec_mode::grain_size(4096));
   }
   else {
-    new_verts.foreach_index_optimized<int>(GrainSize(1024), [&](const int src, const int dst) {
-      new_positions[dst] = positions[src] + vert_offsets[src];
-    });
+    new_verts.foreach_index_optimized<int>(
+        [&](const int src, const int dst) {
+          new_positions[dst] = positions[src] + vert_offsets[src];
+        },
+        exec_mode::grain_size(4096));
   }
 
   if (std::optional<MutableSpan<int>> indices = get_orig_index_layer(mesh, AttrDomain::Point)) {
@@ -969,8 +972,6 @@ static void extrude_mesh_face_regions(Mesh &mesh,
   remove_non_propagated_attributes(attributes, attribute_filter);
 
   remove_unsupported_vert_data(mesh);
-  remove_unsupported_edge_data(mesh);
-  remove_unsupported_face_data(mesh);
   remove_unsupported_corner_data(mesh);
   expand_mesh(mesh,
               new_vert_range.size(),
@@ -978,7 +979,7 @@ static void extrude_mesh_face_regions(Mesh &mesh,
               side_face_range.size(),
               side_loop_range.size());
 
-  const IDsByDomain ids_by_domain = attribute_ids_by_domain(
+  const IDsByDomain ids_by_domain = get_transfer_attribute_ids(
       attributes, {".corner_vert", ".corner_edge", ".edge_verts"});
 
   MutableSpan<int2> edges = mesh.edges_for_write();
@@ -1166,27 +1167,31 @@ static void extrude_mesh_face_regions(Mesh &mesh,
   MutableSpan<float3> positions = mesh.vert_positions_for_write();
   if (face_position_offsets.is_single()) {
     const float3 offset = face_position_offsets.get_internal_single();
-    all_selected_verts.foreach_index(GrainSize(1024), [&](const int orig_vert) {
-      const int i_new = new_vert_indices.index_of_try(orig_vert);
-      if (i_new == -1) {
-        positions[orig_vert] += offset;
-      }
-      else {
-        positions[new_vert_range[i_new]] += offset;
-      }
-    });
+    all_selected_verts.foreach_index(
+        [&](const int orig_vert) {
+          const int i_new = new_vert_indices.index_of_try(orig_vert);
+          if (i_new == -1) {
+            positions[orig_vert] += offset;
+          }
+          else {
+            positions[new_vert_range[i_new]] += offset;
+          }
+        },
+        exec_mode::grain_size(1024));
   }
   else {
-    all_selected_verts.foreach_index(GrainSize(1024), [&](const int orig_vert) {
-      const int i_new = new_vert_indices.index_of_try(orig_vert);
-      const float3 offset = vert_offsets[orig_vert];
-      if (i_new == -1) {
-        positions[orig_vert] += offset;
-      }
-      else {
-        positions[new_vert_range[i_new]] += offset;
-      }
-    });
+    all_selected_verts.foreach_index(
+        [&](const int orig_vert) {
+          const int i_new = new_vert_indices.index_of_try(orig_vert);
+          const float3 offset = vert_offsets[orig_vert];
+          if (i_new == -1) {
+            positions[orig_vert] += offset;
+          }
+          else {
+            positions[new_vert_range[i_new]] += offset;
+          }
+        },
+        exec_mode::grain_size(1024));
   }
 
   if (std::optional<MutableSpan<int>> indices = get_orig_index_layer(mesh, AttrDomain::Point)) {
@@ -1264,8 +1269,6 @@ static void extrude_individual_mesh_faces(Mesh &mesh,
   remove_non_propagated_attributes(attributes, attribute_filter);
 
   remove_unsupported_vert_data(mesh);
-  remove_unsupported_edge_data(mesh);
-  remove_unsupported_face_data(mesh);
   remove_unsupported_corner_data(mesh);
   expand_mesh(mesh,
               new_vert_range.size(),
@@ -1273,7 +1276,7 @@ static void extrude_individual_mesh_faces(Mesh &mesh,
               side_face_range.size(),
               side_loop_range.size());
 
-  const IDsByDomain ids_by_domain = attribute_ids_by_domain(
+  const IDsByDomain ids_by_domain = get_transfer_attribute_ids(
       attributes, {"position", ".edge_verts", ".corner_vert", ".corner_edge"});
 
   MutableSpan<float3> positions = mesh.vert_positions_for_write();
@@ -1298,7 +1301,7 @@ static void extrude_individual_mesh_faces(Mesh &mesh,
   Array<int> new_vert_indices(extrude_corner_size);
   Array<int> duplicate_edge_indices(extrude_corner_size);
   face_selection.foreach_index(
-      GrainSize(256), [&](const int64_t index, const int64_t i_selection) {
+      [&](const int64_t index, const int64_t i_selection) {
         const IndexRange extrude_range = group_per_face[i_selection];
 
         const IndexRange face = faces[index];
@@ -1343,7 +1346,8 @@ static void extrude_individual_mesh_faces(Mesh &mesh,
 
           connect_edges[i_extrude] = int2(orig_vert, new_vert);
         }
-      });
+      },
+      exec_mode::grain_size(256));
 
   /* New vertices copy the attributes from their original vertices. */
   gather_vert_attributes(
@@ -1359,7 +1363,7 @@ static void extrude_individual_mesh_faces(Mesh &mesh,
   if (!ids_by_domain[int(AttrDomain::Edge)].is_empty()) {
     Array<int2> neighbor_edges(connect_edge_range.size());
     face_selection.foreach_index(
-        GrainSize(1024), [&](const int64_t index, const int64_t i_selection) {
+        [&](const int64_t index, const int64_t i_selection) {
           const IndexRange face = faces[index];
           const IndexRange extrude_range = group_per_face[i_selection];
 
@@ -1370,26 +1374,28 @@ static void extrude_individual_mesh_faces(Mesh &mesh,
             neighbor_edges[i_extrude] = int2(duplicate_edge_indices[i_extrude],
                                              duplicate_edge_indices[i_extrude_prev]);
           }
-        });
+        },
+        exec_mode::grain_size(1024));
 
     for (const StringRef id : ids_by_domain[int(AttrDomain::Edge)]) {
       GSpanAttributeWriter attribute = attributes.lookup_for_write_span(id);
-      bke::attribute_math::convert_to_static_type(attribute.span.type(), [&](auto dummy) {
-        using T = decltype(dummy);
-        MutableSpan<T> data = attribute.span.typed<T>();
-        MutableSpan<T> dst = data.slice(connect_edge_range);
-        threading::parallel_for(dst.index_range(), 1024, [&](const IndexRange range) {
-          for (const int i : range) {
-            const int2 neighbors = neighbor_edges[i];
-            if constexpr (std::is_same_v<T, bool>) {
-              /* Propagate selections with "or" instead of "at least half". */
-              dst[i] = data[neighbors[0]] || data[neighbors[1]];
+      bke::attribute_math::to_static_type(attribute.span.type(), [&]<typename T>() {
+        if constexpr (!std::is_same_v<T, std::string>) {
+          MutableSpan<T> data = attribute.span.typed<T>();
+          MutableSpan<T> dst = data.slice(connect_edge_range);
+          threading::parallel_for(dst.index_range(), 1024, [&](const IndexRange range) {
+            for (const int i : range) {
+              const int2 neighbors = neighbor_edges[i];
+              if constexpr (std::is_same_v<T, bool>) {
+                /* Propagate selections with "or" instead of "at least half". */
+                dst[i] = data[neighbors[0]] || data[neighbors[1]];
+              }
+              else {
+                dst[i] = bke::attribute_math::mix2(0.5f, data[neighbors[0]], data[neighbors[1]]);
+              }
             }
-            else {
-              dst[i] = bke::attribute_math::mix2(0.5f, data[neighbors[0]], data[neighbors[1]]);
-            }
-          }
-        });
+          });
+        }
       });
       attribute.finish();
     }
@@ -1407,7 +1413,7 @@ static void extrude_individual_mesh_faces(Mesh &mesh,
   if (!ids_by_domain[int(AttrDomain::Corner)].is_empty()) {
     Array<int> orig_corners(side_loop_range.size());
     face_selection.foreach_index(
-        GrainSize(256), [&](const int64_t index, const int64_t i_selection) {
+        [&](const int64_t index, const int64_t i_selection) {
           const IndexRange face = faces[index];
           const IndexRange extrude_range = group_per_face[i_selection];
 
@@ -1423,20 +1429,22 @@ static void extrude_individual_mesh_faces(Mesh &mesh,
             orig_corners[side_face[2]] = corner;
             orig_corners[side_face[3]] = next_corner;
           }
-        });
+        },
+        exec_mode::grain_size(256));
     gather_attributes(
         attributes, ids_by_domain[int(AttrDomain::Corner)], orig_corners, side_loop_range);
   }
 
   /* Offset the new vertices. */
-  face_selection.foreach_index(GrainSize(1025),
-                               [&](const int64_t index, const int64_t i_selection) {
-                                 const IndexRange extrude_range = group_per_face[i_selection];
-                                 for (const int i : extrude_range) {
-                                   const int src_vert = new_vert_indices[i];
-                                   new_positions[i] = positions[src_vert] + face_offset[index];
-                                 }
-                               });
+  face_selection.foreach_index(
+      [&](const int64_t index, const int64_t i_selection) {
+        const IndexRange extrude_range = group_per_face[i_selection];
+        for (const int i : extrude_range) {
+          const int src_vert = new_vert_indices[i];
+          new_positions[i] = positions[src_vert] + face_offset[index];
+        }
+      },
+      exec_mode::grain_size(1025));
 
   if (std::optional<MutableSpan<int>> indices = get_orig_index_layer(mesh, AttrDomain::Point)) {
     array_utils::gather(
@@ -1481,7 +1489,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       [](const float3 &offset, const float scale) { return offset * scale; },
       mf::build::exec_presets::AllSpanOrSingle());
   const Field<float3> final_offset{
-      FieldOperation::Create(multiply_fn, {std::move(offset_field), std::move(scale_field)})};
+      FieldOperation::from(multiply_fn, {std::move(offset_field), std::move(scale_field)})};
 
   AttributeOutputs attribute_outputs;
   attribute_outputs.top_id = params.get_output_anonymous_attribute_id_if_needed("Top");
@@ -1492,7 +1500,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   const NodeAttributeFilter &attribute_filter = params.get_attribute_filter("Mesh");
 
-  geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+  geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     if (Mesh *mesh = geometry_set.get_mesh_for_write()) {
 
       switch (mode) {
@@ -1543,7 +1551,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeExtrudeMesh", GEO_NODE_EXTRUDE_MESH);
   ntype.ui_name = "Extrude Mesh";
   ntype.ui_description =
@@ -1554,10 +1562,10 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_type_storage(
+  bke::node_type_storage(
       ntype, "NodeGeometryExtrudeMesh", node_free_standard_storage, node_copy_standard_storage);
   ntype.draw_buttons = node_layout;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

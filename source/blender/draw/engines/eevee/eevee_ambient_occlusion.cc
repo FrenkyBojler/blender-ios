@@ -53,6 +53,8 @@ void AmbientOcclusion::init()
 
   ray_count_ = sce_eevee.fast_gi_ray_count;
   step_count_ = sce_eevee.fast_gi_step_count;
+
+  dummy_tx_.ensure_2d(gpu::TextureFormat::SFLOAT_16, int2(1), GPU_TEXTURE_USAGE_SHADER_READ);
 }
 
 void AmbientOcclusion::sync()
@@ -62,7 +64,7 @@ void AmbientOcclusion::sync()
   }
 
   render_pass_ps_.init();
-  GPUShader *sh = inst_.shaders.static_shader_get(AMBIENT_OCCLUSION_PASS);
+  gpu::Shader *sh = inst_.shaders.static_shader_get(AMBIENT_OCCLUSION_PASS);
   render_pass_ps_.specialize_constant(sh, "ao_slice_count", ray_count_);
   render_pass_ps_.specialize_constant(sh, "ao_step_count", step_count_);
   render_pass_ps_.shader_set(sh);
@@ -72,6 +74,7 @@ void AmbientOcclusion::sync()
   render_pass_ps_.bind_resources(inst_.sampling);
   render_pass_ps_.bind_resources(inst_.hiz_buffer.front);
 
+  render_pass_ps_.bind_texture("dummy_tx", &dummy_tx_);
   render_pass_ps_.bind_image("in_normal_img", &inst_.render_buffers.rp_color_tx);
   render_pass_ps_.push_constant("in_normal_img_layer_index", &inst_.render_buffers.data.normal_id);
   render_pass_ps_.bind_image("out_ao_img", &inst_.render_buffers.rp_value_tx);

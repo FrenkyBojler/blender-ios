@@ -556,7 +556,7 @@ unique_ptr<BVHNode> BVHBuild::run()
   if (rootnode) {
     if (progress.get_cancel()) {
       rootnode.reset();
-      VLOG_WORK << "BVH build canceled.";
+      LOG_DEBUG << "BVH build canceled.";
     }
     else {
       /*rotate(rootnode, 4, 5);*/
@@ -564,7 +564,7 @@ unique_ptr<BVHNode> BVHBuild::run()
       rootnode->update_time();
     }
     if (rootnode != nullptr) {
-      VLOG_WORK << "BVH build statistics:\n"
+      LOG_DEBUG << "BVH build statistics:"
                 << "  Build time: " << time_dt() - build_start_time << "\n"
                 << "  Total number of nodes: "
                 << string_human_readable_number(rootnode->getSubtreeSize(BVH_STAT_NODE_COUNT))
@@ -583,7 +583,7 @@ unique_ptr<BVHNode> BVHBuild::run()
                                                   1.0f)
                 << "\n"
                 << "  Maximum depth: "
-                << string_human_readable_number(rootnode->getSubtreeSize(BVH_STAT_DEPTH)) << "\n";
+                << string_human_readable_number(rootnode->getSubtreeSize(BVH_STAT_DEPTH));
     }
   }
 
@@ -998,9 +998,10 @@ unique_ptr<BVHNode> BVHBuild::create_leaf_node(const BVHRange &range,
   vector<BVHReference, LeafReferenceStackAllocator> object_references;
 
   uint visibility[PRIMITIVE_NUM] = {0};
-  /* NOTE: Keep initialization in sync with actual number of primitives. */
-  BoundBox bounds[PRIMITIVE_NUM] = {
-      BoundBox::empty, BoundBox::empty, BoundBox::empty, BoundBox::empty};
+  BoundBox bounds[PRIMITIVE_NUM] = {};
+  for (int i = 0; i < PRIMITIVE_NUM; i++) {
+    bounds[i] = BoundBox::empty;
+  }
   int ob_num = 0;
   int num_new_prims = 0;
   /* Fill in per-type type/index array. */

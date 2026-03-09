@@ -9,6 +9,7 @@
 #include <type_traits>
 
 #include "BLI_array.hh"
+#include "BLI_map.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
@@ -19,11 +20,18 @@
 
 #include "RNA_types.hh"
 
+#include "NOD_socket_usage_inference_fwd.hh"
+
+namespace blender {
+
 struct bContext;
 struct bNode;
-struct uiLayout;
 
-namespace blender::nodes {
+namespace ui {
+struct Layout;
+}  // namespace ui
+
+namespace nodes {
 
 class NodeDeclarationBuilder;
 class PanelDeclaration;
@@ -75,7 +83,7 @@ class OutputFieldDependency {
   OutputSocketFieldType field_type() const;
   Span<int> linked_input_indices() const;
 
-  BLI_STRUCT_EQUALITY_OPERATORS_2(OutputFieldDependency, type_, linked_input_indices_)
+  friend bool operator==(const OutputFieldDependency &a, const OutputFieldDependency &b) = default;
 };
 
 /**
@@ -85,7 +93,8 @@ struct FieldInferencingInterface {
   Array<InputSocketFieldType> inputs;
   Array<OutputFieldDependency> outputs;
 
-  BLI_STRUCT_EQUALITY_OPERATORS_2(FieldInferencingInterface, inputs, outputs)
+  friend bool operator==(const FieldInferencingInterface &a,
+                         const FieldInferencingInterface &b) = default;
 };
 
 struct StructureTypeInterface {
@@ -93,13 +102,14 @@ struct StructureTypeInterface {
     StructureType type;
     Array<int> linked_inputs;
 
-    BLI_STRUCT_EQUALITY_OPERATORS_2(OutputDependency, type, linked_inputs)
+    friend bool operator==(const OutputDependency &a, const OutputDependency &b) = default;
   };
 
   Array<StructureType> inputs;
   Array<OutputDependency> outputs;
 
-  BLI_STRUCT_EQUALITY_OPERATORS_2(StructureTypeInterface, inputs, outputs)
+  friend bool operator==(const StructureTypeInterface &a,
+                         const StructureTypeInterface &b) = default;
 };
 
 namespace anonymous_attribute_lifetime {
@@ -111,7 +121,7 @@ struct PropagateRelation {
   int from_geometry_input;
   int to_geometry_output;
 
-  BLI_STRUCT_EQUALITY_OPERATORS_2(PropagateRelation, from_geometry_input, to_geometry_output)
+  friend bool operator==(const PropagateRelation &a, const PropagateRelation &b) = default;
 };
 
 /**
@@ -121,7 +131,7 @@ struct ReferenceRelation {
   int from_field_input;
   int to_field_output;
 
-  BLI_STRUCT_EQUALITY_OPERATORS_2(ReferenceRelation, from_field_input, to_field_output)
+  friend bool operator==(const ReferenceRelation &a, const ReferenceRelation &b) = default;
 };
 
 /**
@@ -131,7 +141,7 @@ struct EvalRelation {
   int field_input;
   int geometry_input;
 
-  BLI_STRUCT_EQUALITY_OPERATORS_2(EvalRelation, field_input, geometry_input)
+  friend bool operator==(const EvalRelation &a, const EvalRelation &b) = default;
 };
 
 /**
@@ -141,7 +151,7 @@ struct AvailableRelation {
   int field_output;
   int geometry_output;
 
-  BLI_STRUCT_EQUALITY_OPERATORS_2(AvailableRelation, field_output, geometry_output)
+  friend bool operator==(const AvailableRelation &a, const AvailableRelation &b) = default;
 };
 
 struct RelationsInNode {
@@ -151,12 +161,7 @@ struct RelationsInNode {
   Vector<AvailableRelation> available_relations;
   Vector<int> available_on_none;
 
-  BLI_STRUCT_EQUALITY_OPERATORS_5(RelationsInNode,
-                                  propagate_relations,
-                                  reference_relations,
-                                  eval_relations,
-                                  available_relations,
-                                  available_on_none)
+  friend bool operator==(const RelationsInNode &a, const RelationsInNode &b) = default;
 };
 
 std::ostream &operator<<(std::ostream &stream, const RelationsInNode &relations);
@@ -181,15 +186,23 @@ struct SocketNameRNA {
 
 struct CustomSocketDrawParams {
   const bContext &C;
-  uiLayout &layout;
+  ui::Layout &layout;
   bNodeTree &tree;
   bNode &node;
   bNodeSocket &socket;
   PointerRNA node_ptr;
   PointerRNA socket_ptr;
+  StringRefNull label;
+  const Map<const bNode *, const bNode *> *menu_switch_source_by_index_switch = nullptr;
+
+  void draw_standard(ui::Layout &layout,
+                     std::optional<StringRefNull> label_override = std::nullopt);
 };
 
 using CustomSocketDrawFn = std::function<void(CustomSocketDrawParams &params)>;
+using CustomSocketLabelFn = std::function<StringRefNull(bNode node)>;
+using SocketUsageInferenceFn =
+    std::function<std::optional<bool>(const socket_usage_inference::SocketUsageParams &params)>;
 
 /**
  * Describes a single input or output socket. This is subclassed for different socket types.
@@ -206,7 +219,11 @@ class SocketDeclaration : public ItemDeclaration {
   eNodeSocketInOut in_out;
   /** Socket type that corresponds to this socket declaration. */
   eNodeSocketDatatype socket_type;
-  bool hide_label = false;
+  /**
+   * Indicates that the meaning of the socket values is clear even if the label is not shown. This
+   * can result in cleaner UIs in some cases. The drawing code will still draw the label sometimes.
+   */
+  bool optional_label = false;
   bool hide_value = false;
   bool compact = false;
   bool is_multi_input = false;
@@ -219,6 +236,7 @@ class SocketDeclaration : public ItemDeclaration {
   /** This socket is used as a toggle for the parent panel. */
   bool is_panel_toggle = false;
   bool is_layer_name = false;
+  bool is_volume_grid_name = false;
 
   /** Index in the list of inputs or outputs of the node. */
   int index = -1;
@@ -237,16 +255,12 @@ class SocketDeclaration : public ItemDeclaration {
    * See compositor::InputDescriptor for more information. */
   int compositor_domain_priority_ = -1;
 
-  /** This input expects a single value and can't operate on non-single values. See
-   * compositor::InputDescriptor for more information. */
-  bool compositor_expects_single_value_ = false;
-
   /** Utility method to make the socket available if there is a straightforward way to do so. */
   std::function<void(bNode &)> make_available_fn_;
 
  public:
   /** Some input sockets can have non-trivial values in the case when they are unlinked. */
-  NodeDefaultInputType default_input_type;
+  NodeDefaultInputType default_input_type = NodeDefaultInputType::NODE_DEFAULT_INPUT_VALUE;
   /**
    * Property that stores the name of the socket so that it can be modified directly from the
    * node without going to the side-bar.
@@ -256,6 +270,15 @@ class SocketDeclaration : public ItemDeclaration {
    * Draw function that overrides how the socket is drawn for a specific node.
    */
   std::unique_ptr<CustomSocketDrawFn> custom_draw_fn;
+  /**
+   * Custom label function so a socket can display a different text depending on what it does.
+   */
+  std::unique_ptr<CustomSocketLabelFn> label_fn;
+  /**
+   * Determines whether this socket is used based on other input values and based on which outputs
+   * are used.
+   */
+  std::unique_ptr<SocketUsageInferenceFn> usage_inference_fn;
 
   friend NodeDeclarationBuilder;
   friend class BaseSocketDeclarationBuilder;
@@ -282,7 +305,6 @@ class SocketDeclaration : public ItemDeclaration {
 
   const CompositorInputRealizationMode &compositor_realization_mode() const;
   int compositor_domain_priority() const;
-  bool compositor_expects_single_value() const;
 
  protected:
   void set_common_flags(bNodeSocket &socket) const;
@@ -307,7 +329,7 @@ class BaseSocketDeclarationBuilder {
  public:
   virtual ~BaseSocketDeclarationBuilder() = default;
 
-  BaseSocketDeclarationBuilder &hide_label(bool value = true);
+  BaseSocketDeclarationBuilder &optional_label(bool value = true);
 
   BaseSocketDeclarationBuilder &hide_value(bool value = true);
 
@@ -400,12 +422,6 @@ class BaseSocketDeclarationBuilder {
   BaseSocketDeclarationBuilder &compositor_domain_priority(int priority);
 
   /**
-   * This input expects a single value and can't operate on non-single values. See
-   * compositor::InputDescriptor for more information.
-   */
-  BaseSocketDeclarationBuilder &compositor_expects_single_value(bool value = true);
-
-  /**
    * Pass a function that sets properties on the node required to make the corresponding socket
    * available, if it is not available on the default state of the node. The function is allowed to
    * make other sockets unavailable, since it is meant to be called when the node is first added.
@@ -417,6 +433,37 @@ class BaseSocketDeclarationBuilder {
    * Provide a fully custom draw function for the socket that overrides any default behavior.
    */
   BaseSocketDeclarationBuilder &custom_draw(CustomSocketDrawFn fn);
+
+  /**
+   * Provide a function that determines whether this socket is used based on other input values and
+   * based on which outputs are used.
+   */
+  BaseSocketDeclarationBuilder &usage_inference(SocketUsageInferenceFn fn);
+
+  /**
+   * Provide a function that determines the UI label of this socket.
+   */
+  BaseSocketDeclarationBuilder &label_fn(CustomSocketLabelFn fn);
+
+  /**
+   * Utility method for the case when the node has a single menu input and this socket is only used
+   * when the menu input has a specific value.
+   */
+  BaseSocketDeclarationBuilder &usage_by_single_menu(const int menu_value);
+
+  /**
+   * Utility method for the case when this socket is only used when the menu input of the given
+   * identifier has a specific value.
+   */
+  BaseSocketDeclarationBuilder &usage_by_menu(const StringRef menu_input_identifier,
+                                              const int menu_value);
+
+  /**
+   * Utility method for the case when this socket is only used when the menu input of the given
+   * identifier has one of the specifies values.
+   */
+  BaseSocketDeclarationBuilder &usage_by_menu(const StringRef menu_input_identifier,
+                                              const Array<int> menu_values);
 
   /**
    * Puts this socket on the same row as the previous socket. This only works when one of them is
@@ -441,6 +488,7 @@ class BaseSocketDeclarationBuilder {
   BaseSocketDeclarationBuilder &structure_type(StructureType structure_type);
 
   BaseSocketDeclarationBuilder &is_layer_name(bool value = true);
+  BaseSocketDeclarationBuilder &is_volume_grid_name(bool value = true);
 
   /** Index in the list of inputs or outputs. */
   int index() const;
@@ -467,7 +515,7 @@ class SocketDeclarationBuilder : public BaseSocketDeclarationBuilder {
 
 using SocketDeclarationPtr = std::unique_ptr<SocketDeclaration>;
 
-using DrawNodeLayoutFn = void(uiLayout *, bContext *, PointerRNA *);
+using DrawNodeLayoutFn = void(ui::Layout &, bContext *, PointerRNA *);
 
 class SeparatorDeclaration : public ItemDeclaration {};
 
@@ -556,7 +604,7 @@ class DeclarationListBuilder {
 
   void add_separator();
   void add_default_layout();
-  void add_layout(std::function<void(uiLayout *, bContext *, PointerRNA *)> draw);
+  void add_layout(std::function<void(ui::Layout &, bContext *, PointerRNA *)> draw);
 };
 
 class PanelDeclarationBuilder : public DeclarationListBuilder {
@@ -794,4 +842,5 @@ inline bool BaseSocketDeclarationBuilder::is_output() const
 
 /** \} */
 
-}  // namespace blender::nodes
+}  // namespace nodes
+}  // namespace blender

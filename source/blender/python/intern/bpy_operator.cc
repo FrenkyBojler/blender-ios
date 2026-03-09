@@ -18,6 +18,7 @@
 #include "RNA_types.hh"
 
 #include "BLI_listbase.h"
+#include "BLI_string.h"
 
 #include "../generic/py_capi_rna.hh"
 #include "../generic/py_capi_utils.hh"
@@ -26,6 +27,7 @@
 #include "BPY_extern.hh"
 #include "bpy_capi_utils.hh"
 #include "bpy_operator.hh"
+#include "bpy_operator_function.hh"
 #include "bpy_operator_wrap.hh"
 #include "bpy_rna.hh" /* for setting argument properties & type method `get_rna_type`. */
 
@@ -39,8 +41,11 @@
 #include "MEM_guardedalloc.h"
 
 #include "BKE_context.hh"
-#include "BKE_global.hh"
 #include "BKE_report.hh"
+
+#include "CLG_log.h"
+
+namespace blender {
 
 /* so operators called can spawn threads which acquire the GIL */
 #define BPY_RELEASE_GIL
@@ -61,28 +66,27 @@ static wmOperatorType *ot_lookup_from_py_string(PyObject *value, const char *py_
   return ot;
 }
 
-static PyObject *pyop_poll(PyObject * /*self*/, PyObject *args)
+PyObject *pyop_poll(PyObject * /*self*/, PyObject *args)
 {
   wmOperatorType *ot;
   const char *opname;
   const char *context_str = nullptr;
   PyObject *ret;
 
-  wmOperatorCallContext context = WM_OP_EXEC_DEFAULT;
+  wm::OpCallContext context = wm::OpCallContext::ExecDefault;
 
   /* XXX TODO: work out a better solution for passing on context,
    * could make a tuple from self and pack the name and Context into it. */
   bContext *C = BPY_context_get();
 
   if (C == nullptr) {
-    PyErr_SetString(PyExc_RuntimeError, "Context is None, can't poll any operators");
+    PyErr_SetString(PyExc_RuntimeError, "Context is None, cannot poll any operators");
     return nullptr;
   }
 
   /* All arguments are positional. */
   static const char *_keywords[] = {"", "", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "s" /* `opname` */
       "|" /* Optional arguments. */
       "s" /* `context_str` */
@@ -105,7 +109,7 @@ static PyObject *pyop_poll(PyObject * /*self*/, PyObject *args)
   }
 
   if (context_str) {
-    int context_int = context;
+    int context_int = int(context);
 
     if (RNA_enum_value_from_id(rna_enum_operator_context_items, context_str, &context_int) == 0) {
       char *enum_str = pyrna_enum_repr(rna_enum_operator_context_items);
@@ -114,11 +118,11 @@ static PyObject *pyop_poll(PyObject * /*self*/, PyObject *args)
                    "expected a string enum in (%s)",
                    opname,
                    enum_str);
-      MEM_freeN(enum_str);
+      MEM_delete(enum_str);
       return nullptr;
     }
     /* Copy back to the properly typed enum. */
-    context = wmOperatorCallContext(context_int);
+    context = wm::OpCallContext(context_int);
   }
 
   /* main purpose of this function */
@@ -127,18 +131,17 @@ static PyObject *pyop_poll(PyObject * /*self*/, PyObject *args)
   return Py_NewRef(ret);
 }
 
-static PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
+PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
 {
   wmOperatorType *ot;
   int error_val = 0;
-  PointerRNA ptr;
   wmOperatorStatus retval = OPERATOR_CANCELLED;
 
   const char *opname;
   const char *context_str = nullptr;
   PyObject *kw = nullptr; /* optional args */
 
-  wmOperatorCallContext context = WM_OP_EXEC_DEFAULT;
+  wm::OpCallContext context = wm::OpCallContext::ExecDefault;
   int is_undo = false;
 
   /* XXX TODO: work out a better solution for passing on context,
@@ -146,14 +149,13 @@ static PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
   bContext *C = BPY_context_get();
 
   if (C == nullptr) {
-    PyErr_SetString(PyExc_RuntimeError, "Context is None, can't poll any operators");
+    PyErr_SetString(PyExc_RuntimeError, "Context is None, cannot poll any operators");
     return nullptr;
   }
 
   /* All arguments are positional. */
   static const char *_keywords[] = {"", "", "", "", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "s"  /* `opname` */
       "|"  /* Optional arguments. */
       "O!" /* `kw` */
@@ -182,13 +184,13 @@ static PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
   if (!pyrna_write_check()) {
     PyErr_Format(PyExc_RuntimeError,
                  "Calling operator \"bpy.ops.%s\" error, "
-                 "can't modify blend data in this state (drawing/rendering)",
+                 "cannot modify blend data in this state (drawing/rendering)",
                  opname);
     return nullptr;
   }
 
   if (context_str) {
-    int context_int = context;
+    int context_int = int(context);
 
     if (RNA_enum_value_from_id(rna_enum_operator_context_items, context_str, &context_int) == 0) {
       char *enum_str = pyrna_enum_repr(rna_enum_operator_context_items);
@@ -197,11 +199,11 @@ static PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
                    "expected a string enum in (%s)",
                    opname,
                    enum_str);
-      MEM_freeN(enum_str);
+      MEM_delete(enum_str);
       return nullptr;
     }
     /* Copy back to the properly typed enum. */
-    context = wmOperatorCallContext(context_int);
+    context = wm::OpCallContext(context_int);
   }
 
   if (WM_operator_poll_context(C, ot, context) == false) {
@@ -213,12 +215,12 @@ static PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
                  msg ? msg : "failed, context is incorrect");
     CTX_wm_operator_poll_msg_clear(C);
     if (msg_free) {
-      MEM_freeN(msg);
+      MEM_delete(msg);
     }
     error_val = -1;
   }
   else {
-    WM_operator_properties_create_ptr(&ptr, ot);
+    PointerRNA ptr = WM_operator_properties_create_ptr(ot);
     WM_operator_properties_sanitize(&ptr, false);
 
     if (kw && PyDict_Size(kw)) {
@@ -229,7 +231,7 @@ static PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
     if (error_val == 0) {
       ReportList *reports;
 
-      reports = MEM_mallocN<ReportList>("wmOperatorReportList");
+      reports = MEM_new<ReportList>("wmOperatorReportList");
 
       /* Own so these don't move into global reports. */
       BKE_reports_init(reports, RPT_STORE | RPT_OP_HOLD | RPT_PRINT_HANDLED_BY_OWNER);
@@ -257,7 +259,7 @@ static PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
       if (!BLI_listbase_is_empty(&reports->list)) {
         /* Restore the print level as this is owned by the operator now. */
         eReportType level = eReportType(reports->printlevel);
-        BKE_report_print_level_set(reports, G.quiet ? RPT_WARNING : RPT_DEBUG);
+        BKE_report_print_level_set(reports, CLG_quiet_get() ? RPT_WARNING : RPT_DEBUG);
         BPy_reports_write_stdout(reports, nullptr);
         BKE_report_print_level_set(reports, level);
       }
@@ -265,7 +267,7 @@ static PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
       BKE_reports_clear(reports);
       if ((reports->flag & RPT_FREE) == 0) {
         BKE_reports_free(reports);
-        MEM_freeN(reports);
+        MEM_delete(reports);
       }
       else {
         /* The WM is now responsible for running the modal operator,
@@ -285,7 +287,7 @@ static PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
         return nullptr;
       }
 
-      WM_operator_name_call(C, opname, WM_OP_EXEC_DEFAULT, nullptr, nullptr);
+      WM_operator_name_call(C, opname, wm::OpCallContext::ExecDefault, nullptr, nullptr);
     }
 #endif
   }
@@ -304,7 +306,7 @@ static PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
   return pyrna_enum_bitfield_as_set(rna_enum_operator_return_items, int(retval));
 }
 
-static PyObject *pyop_as_string(PyObject * /*self*/, PyObject *args)
+PyObject *pyop_as_string(PyObject * /*self*/, PyObject *args)
 {
   wmOperatorType *ot;
 
@@ -318,14 +320,13 @@ static PyObject *pyop_as_string(PyObject * /*self*/, PyObject *args)
 
   if (C == nullptr) {
     PyErr_SetString(PyExc_RuntimeError,
-                    "Context is None, can't get the string representation of this object.");
+                    "Context is None, cannot get the string representation of this object.");
     return nullptr;
   }
 
   /* All arguments are positional. */
   static const char *_keywords[] = {"", "", "", "", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "s"  /* `opname` */
       "|"  /* Optional arguments. */
       "O!" /* `kw` */
@@ -359,7 +360,7 @@ static PyObject *pyop_as_string(PyObject * /*self*/, PyObject *args)
     return nullptr;
   }
 
-  // WM_operator_properties_create(&ptr, opname);
+  // ptr = WM_operator_properties_create(opname);
   /* Save another lookup */
   PointerRNA ptr = RNA_pointer_create_discrete(nullptr, ot->srna, nullptr);
 
@@ -384,7 +385,7 @@ static PyObject *pyop_as_string(PyObject * /*self*/, PyObject *args)
 
 static PyObject *pyop_dir(PyObject * /*self*/)
 {
-  const blender::Span<wmOperatorType *> types = WM_operatortypes_registered_get();
+  const Span<wmOperatorType *> types = WM_operatortypes_registered_get();
   PyObject *list = PyList_New(types.size());
 
   int i = 0;
@@ -396,19 +397,19 @@ static PyObject *pyop_dir(PyObject * /*self*/)
   return list;
 }
 
-static PyObject *pyop_getrna_type(PyObject * /*self*/, PyObject *value)
+PyObject *pyop_getrna_type(PyObject * /*self*/, PyObject *value)
 {
   wmOperatorType *ot;
   if ((ot = ot_lookup_from_py_string(value, "get_rna_type")) == nullptr) {
     return nullptr;
   }
 
-  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, &RNA_Struct, ot->srna);
-  BPy_StructRNA *pyrna = (BPy_StructRNA *)pyrna_struct_CreatePyObject(&ptr);
-  return (PyObject *)pyrna;
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, RNA_Struct, ot->srna);
+  BPy_StructRNA *pyrna = reinterpret_cast<BPy_StructRNA *>(pyrna_struct_CreatePyObject(&ptr));
+  return reinterpret_cast<PyObject *>(pyrna);
 }
 
-static PyObject *pyop_get_bl_options(PyObject * /*self*/, PyObject *value)
+PyObject *pyop_get_bl_options(PyObject * /*self*/, PyObject *value)
 {
   wmOperatorType *ot;
   if ((ot = ot_lookup_from_py_string(value, "get_bl_options")) == nullptr) {
@@ -428,13 +429,10 @@ static PyObject *pyop_get_bl_options(PyObject * /*self*/, PyObject *value)
 #endif
 
 static PyMethodDef bpy_ops_methods[] = {
-    {"poll", (PyCFunction)pyop_poll, METH_VARARGS, nullptr},
-    {"call", (PyCFunction)pyop_call, METH_VARARGS, nullptr},
-    {"as_string", (PyCFunction)pyop_as_string, METH_VARARGS, nullptr},
-    {"dir", (PyCFunction)pyop_dir, METH_NOARGS, nullptr},
-    {"get_rna_type", (PyCFunction)pyop_getrna_type, METH_O, nullptr},
-    {"get_bl_options", (PyCFunction)pyop_get_bl_options, METH_O, nullptr},
-    {"macro_define", (PyCFunction)PYOP_wrap_macro_define, METH_VARARGS, nullptr},
+    {"dir", reinterpret_cast<PyCFunction>(pyop_dir), METH_NOARGS, nullptr},
+    {"get_rna_type", static_cast<PyCFunction>(pyop_getrna_type), METH_O, nullptr},
+    {"create_function", static_cast<PyCFunction>(pyop_create_function), METH_VARARGS, nullptr},
+    {"macro_define", static_cast<PyCFunction>(PYOP_wrap_macro_define), METH_VARARGS, nullptr},
     {nullptr, nullptr, 0, nullptr},
 };
 
@@ -462,7 +460,13 @@ PyObject *BPY_operator_module()
 {
   PyObject *submodule;
 
+  if (BPyOpFunction_InitTypes() < 0) {
+    return nullptr;
+  }
+
   submodule = PyModule_Create(&bpy_ops_module);
 
   return submodule;
 }
+
+}  // namespace blender

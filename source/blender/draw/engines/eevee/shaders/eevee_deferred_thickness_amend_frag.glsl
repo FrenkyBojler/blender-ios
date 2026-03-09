@@ -10,7 +10,7 @@
  * - tilemaps_tx
  */
 
-#include "infos/eevee_deferred_info.hh"
+#include "infos/eevee_deferred_infos.hh"
 
 FRAGMENT_SHADER_CREATE_INFO(eevee_deferred_thickness_amend)
 
@@ -20,15 +20,14 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_deferred_thickness_amend)
 #include "eevee_light_lib.glsl"
 #include "eevee_sampling_lib.glsl"
 #include "eevee_shadow_tracing_lib.glsl"
-#include "eevee_thickness_lib.glsl"
 
 void thickness_from_shadow_single(uint l_idx,
                                   const bool is_directional,
                                   float3 P,
                                   float3 Ng,
-                                  float gbuffer_thickness,
-                                  inout float thickness_accum,
-                                  inout float weight_accum)
+                                  Thickness gbuffer_thickness,
+                                  float &thickness_accum,
+                                  float &weight_accum)
 {
   LightData light = light_buf[l_idx];
 
@@ -64,8 +63,8 @@ void thickness_from_shadow_single(uint l_idx,
      * This avoids self shadowing issue. */
     hit_distance += (normal_offset + 1.0f) * texel_radius;
 
-    if ((hit_distance > abs(gbuffer_thickness) * 0.001f) &&
-        (hit_distance < abs(gbuffer_thickness) * 1.0f))
+    if ((hit_distance > gbuffer_thickness.value() * 0.001f) &&
+        (hit_distance < gbuffer_thickness.value() * 1.0f))
     {
       float weight = 1.0f;
       saturate(dot(lv.L, -Ng));
@@ -80,7 +79,7 @@ void thickness_from_shadow_single(uint l_idx,
  * available. If no shadow-map has a record of the other side of the surface, this function
  * returns -1.
  */
-float thickness_from_shadow(float3 P, float3 Ng, float vPz, float gbuffer_thickness)
+float thickness_from_shadow(float3 P, float3 Ng, float vPz, Thickness gbuffer_thickness)
 {
   float thickness_accum = 0.0f;
   float weight_accum = 0.0f;
@@ -111,24 +110,20 @@ void main()
 {
   int2 texel = int2(gl_FragCoord.xy);
 
-  float depth = texelFetch(hiz_tx, texel, 0).r;
-
   /* Bias the shading point position because of depth buffer precision.
    * Constant is taken from https://www.terathon.com/gdc07_lengyel.pdf. */
   constexpr float bias = 2.4e-7f;
-  depth -= bias;
+  const float depth = texelFetch(hiz_tx, texel, 0).r - bias;
 
-  float3 P = drw_point_screen_to_world(float3(screen_uv, depth));
-  float vPz = dot(drw_view_forward(), P) - dot(drw_view_forward(), drw_view_position());
+  const float3 P = drw_point_screen_to_world(float3(screen_uv, depth));
+  const float vPz = dot(drw_view_forward(), P) - dot(drw_view_forward(), drw_view_position());
 
-  float3 Ng = gbuffer_normal_unpack(imageLoad(gbuf_normal_img, int3(texel, 0)).rg);
+  const float3 Ng = gbuffer::normal_unpack(imageLoad(gbuf_normal_img, int3(texel, 0)).rg);
 
-  /* Use manual fetch because gbuffer_read_thickness expect a read only texture input. */
-  uint header = texelFetch(gbuf_header_tx, int3(texel, 0), 0).r;
-  int data_layer = gbuffer_normal_count(header);
-  float2 data_packed = imageLoad(gbuf_normal_img, int3(texel, data_layer)).rg;
-  float gbuffer_thickness = gbuffer_thickness_unpack(data_packed.x);
-  if (gbuffer_thickness == 0.0f) {
+  uchar data_layer = uniform_buf.pipeline.gbuffer_additional_data_layer_id;
+  float2 data_packed = imageLoad(gbuf_normal_img, int3(texel, int(data_layer))).rg;
+  Thickness gbuffer_thickness = gbuffer::thickness_unpack(data_packed.x);
+  if (gbuffer_thickness.value() == 0.0f) {
     return;
   }
 
@@ -137,8 +132,9 @@ void main()
     return;
   }
 
-  if ((shadow_thickness < abs(gbuffer_thickness))) {
-    data_packed.x = gbuffer_thickness_pack(sign(gbuffer_thickness) * shadow_thickness);
-    imageStore(gbuf_normal_img, int3(texel, data_layer), float4(data_packed, 0.0f, 0.0f));
+  if ((shadow_thickness < gbuffer_thickness.value())) {
+    data_packed.x = gbuffer::thickness_pack(
+        Thickness::from(shadow_thickness, gbuffer_thickness.mode()));
+    imageStore(gbuf_normal_img, int3(texel, int(data_layer)), float4(data_packed, 0.0f, 0.0f));
   }
 }

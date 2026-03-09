@@ -32,7 +32,7 @@ class EdgeNeighborCountFieldInput final : public bke::MeshFieldInput {
     Array<int> counts(mesh.edges_num, 0);
     array_utils::count_indices(mesh.corner_edges(), counts);
     return mesh.attributes().adapt_domain<int>(
-        VArray<int>::ForContainer(std::move(counts)), AttrDomain::Edge, domain);
+        VArray<int>::from_container(std::move(counts)), AttrDomain::Edge, domain);
   }
 
   uint64_t hash() const override
@@ -60,7 +60,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(
       &ntype, "GeometryNodeInputMeshEdgeNeighbors", GEO_NODE_INPUT_MESH_EDGE_NEIGHBORS);
   ntype.ui_name = "Edge Neighbors";
@@ -69,7 +69,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 
