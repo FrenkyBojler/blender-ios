@@ -3944,9 +3944,13 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
             _defs_transform.scale,
             _defs_transform.transform,
             None,
+            _defs_view3d_generic.cursor,
+            None,
             *_tools_annotate,
         ],
         'SCULPT_GREASE_PENCIL': [
+            _defs_view3d_generic.cursor,
+            None,
             _sculpt_tool,
             _defs_grease_pencil_sculpt.clone,
             None,
@@ -3970,6 +3974,8 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
                 if _defs_texture_paint.poll_select_mask(context)
                 else ()
             ),
+            _defs_view3d_generic.cursor,
+            None,
             *_tools_annotate,
         ],
         'PAINT_VERTEX': [
@@ -3983,6 +3989,8 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
                 if _defs_vertex_paint.poll_select_mask(context)
                 else ()
             ),
+            _defs_view3d_generic.cursor,
+            None,
             *_tools_annotate,
         ],
         'PAINT_WEIGHT': [
@@ -3999,8 +4007,6 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
             None,
             lambda context: (
                 (
-                    _defs_view3d_generic.cursor,
-                    None,
                     *VIEW3D_PT_tools_active._tools_transform,
                 )
                 if context is None or context.pose_object
@@ -4008,6 +4014,8 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
             ),
             None,
             _defs_weight_paint.poll_select_tools,
+            _defs_view3d_generic.cursor,
+            None,
             *_tools_annotate,
         ],
         'PAINT_GREASE_PENCIL': [
@@ -4025,6 +4033,8 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
             _defs_grease_pencil_paint.interpolate,
         ],
         'WEIGHT_GREASE_PENCIL': [
+            _defs_view3d_generic.cursor,
+            None,
             _brush_tool,
             _defs_grease_pencil_weight.blur,
             _defs_grease_pencil_weight.average,
@@ -4033,6 +4043,8 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
             *_tools_annotate,
         ],
         'VERTEX_GREASE_PENCIL': [
+            _defs_view3d_generic.cursor,
+            None,
             _brush_tool,
             _defs_grease_pencil_vertex.blur,
             _defs_grease_pencil_vertex.average,
@@ -4053,6 +4065,8 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
             _defs_curves_sculpt.density,
             _defs_curves_sculpt.add,
             _defs_curves_sculpt.delete,
+            None,
+            _defs_view3d_generic.cursor,
             None,
             *_tools_annotate,
         ],
