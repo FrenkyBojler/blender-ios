@@ -22,7 +22,7 @@ bool is_edge_sharpness_visible(float wire_data)
 }
 #endif
 
-void wire_color_get(out float3 rim_col, out float3 wire_col)
+void wire_color_get(float3 &rim_col, float3 &wire_col)
 {
   eObjectInfoFlag ob_flag = drw_object_infos().flag;
   bool is_selected = flag_test(ob_flag, OBJECT_SELECTED);
@@ -59,7 +59,7 @@ float3 hsv_to_rgb(float3 hsv)
   return ((nrgb - 1.0f) * hsv.y + 1.0f) * hsv.z;
 }
 
-void wire_object_color_get(out float3 rim_col, out float3 wire_col)
+void wire_object_color_get(float3 &rim_col, float3 &wire_col)
 {
   ObjectInfos info = drw_object_infos();
   bool is_selected = flag_test(info.flag, OBJECT_SELECTED);
@@ -95,9 +95,14 @@ void main()
    * while keeping object coloring mode working (see #134011). */
   float no_nor_facing = (color_type == V3D_SHADING_SINGLE_COLOR) ? 0.0f : 0.5f;
 
+#ifdef POINTS
+  float3 pos = pos_rad.xyz;
+#endif
+
   float3 wpos = drw_point_object_to_world(pos);
 #if defined(POINTS)
   gl_PointSize = theme.sizes.vert * 2.0f;
+  wpos += drw_world_incident_vector(wpos) * pos_rad.w;
 #elif defined(CURVES)
   float facing = no_nor_facing;
 #else

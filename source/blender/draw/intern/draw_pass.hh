@@ -162,7 +162,7 @@ class PassBase {
         sub_passes_(sub_passes),
         shader_(shader),
         debug_name(name),
-        use_custom_ids(false){};
+        use_custom_ids(false) {};
 
   /**
    * Reset the pass command pool.
@@ -205,7 +205,7 @@ class PassBase {
    * Clear each color attachment with different values. Span needs to be appropriately sized.
    * IMPORTANT: The source is dereference on pass submission.
    */
-  void clear_multi(Span<float4> colors);
+  void clear_multi(Span<double4> colors);
 
   /**
    * Reminders:
@@ -248,7 +248,8 @@ class PassBase {
    */
   void material_set(Manager &manager,
                     GPUMaterial *material,
-                    bool deferred_texture_loading = false);
+                    bool deferred_texture_loading = false,
+                    GPUSamplerFiltering anisotropic_filtering = GPU_SAMPLER_FILTERING_DEFAULT);
 
   /**
    * Record a draw call.
@@ -506,7 +507,7 @@ template<typename DrawCommandBufType> class Pass : public detail::PassBase<DrawC
 
  public:
   Pass(const char *name)
-      : detail::PassBase<DrawCommandBufType>(name, draw_commands_buf_main_, sub_passes_main_){};
+      : detail::PassBase<DrawCommandBufType>(name, draw_commands_buf_main_, sub_passes_main_) {};
 
   void init()
   {
@@ -556,7 +557,7 @@ class PassSortable : public PassMain {
   bool sorted_ = false;
 
  public:
-  PassSortable(const char *name_) : PassMain(name_){};
+  PassSortable(const char *name_) : PassMain(name_) {};
 
   void init()
   {
@@ -594,7 +595,7 @@ class PassSortable : public PassMain {
   void sort()
   {
     if (sorted_ == false) {
-      std::sort(headers_.begin(), headers_.end(), [&](Header &a, Header &b) {
+      std::ranges::sort(headers_, [&](Header &a, Header &b) {
         BLI_assert(a.type == Type::SubPass && b.type == Type::SubPass);
         float a_val = sorting_values_[a.index];
         float b_val = sorting_values_[b.index];
@@ -663,7 +664,7 @@ inline void PassBase<T>::clear(GPUFrameBufferBits planes,
   create_command(command::Type::Clear).clear = {uint8_t(planes), stencil, depth, color};
 }
 
-template<class T> inline void PassBase<T>::clear_multi(Span<float4> colors)
+template<class T> inline void PassBase<T>::clear_multi(Span<double4> colors)
 {
   create_command(command::Type::ClearMulti).clear_multi = {colors.data(),
                                                            static_cast<int>(colors.size())};
@@ -1136,13 +1137,14 @@ inline void PassBase<T>::subpass_transition(GPUAttachmentState depth_attachment,
 template<class T>
 inline void PassBase<T>::material_set(Manager &manager,
                                       GPUMaterial *material,
-                                      bool deferred_texture_loading)
+                                      bool deferred_texture_loading,
+                                      GPUSamplerFiltering anisotropic_filtering)
 {
   GPUPass *gpupass = GPU_material_get_pass(material);
   shader_set(GPU_pass_shader_get(gpupass));
 
   /* Bind all textures needed by the material. */
-  ListBase textures = GPU_material_textures(material);
+  ListBaseT<GPUMaterialTexture> textures = GPU_material_textures(material);
   for (GPUMaterialTexture *tex : ListBaseWrapper<GPUMaterialTexture>(textures)) {
     if (tex->ima) {
       /* Image */
@@ -1157,21 +1159,28 @@ inline void PassBase<T>::material_set(Manager &manager,
         gputex = BKE_image_get_gpu_material_texture(tex->ima, iuser, use_tile_mapping);
       }
 
+      GPUSamplerState sampler_state = tex->sampler_state;
+      /* If any anisotropic filtering is requested, reset it to the scene setting. */
+      if (sampler_state.filtering & GPU_SAMPLER_FILTERING_ANISOTROPIC_ENABLE) {
+        sampler_state.disable_filtering_flag(GPU_SAMPLER_FILTERING_ANISOTROPIC_MASK);
+        sampler_state.enable_filtering_flag(anisotropic_filtering);
+      }
+
       if (*gputex.texture == nullptr) {
         /* Texture not yet loaded. Register a reference inside the draw pass.
          * The texture will be acquired once it is created. */
-        bind_texture(tex->sampler_name, gputex.texture, tex->sampler_state);
+        bind_texture(tex->sampler_name, gputex.texture, sampler_state);
         if (gputex.tile_mapping) {
-          bind_texture(tex->tiled_mapping_name, gputex.tile_mapping, tex->sampler_state);
+          bind_texture(tex->tiled_mapping_name, gputex.tile_mapping, sampler_state);
         }
       }
       else {
         /* Texture is loaded. Acquire. */
         manager.acquire_texture(*gputex.texture);
-        bind_texture(tex->sampler_name, *gputex.texture, tex->sampler_state);
+        bind_texture(tex->sampler_name, *gputex.texture, sampler_state);
         if (gputex.tile_mapping) {
           manager.acquire_texture(*gputex.tile_mapping);
-          bind_texture(tex->tiled_mapping_name, *gputex.tile_mapping, tex->sampler_state);
+          bind_texture(tex->tiled_mapping_name, *gputex.tile_mapping, sampler_state);
         }
       }
     }
@@ -1638,5 +1647,4 @@ inline void PassBase<T>::specialize_constant(gpu::Shader *shader,
 /** \} */
 
 }  // namespace detail
-
 }  // namespace blender::draw

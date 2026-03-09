@@ -24,9 +24,9 @@
 
 #  include "CLG_log.h"
 
-static CLG_LogRef LOG = {"color_management"};
-
 namespace blender::ocio {
+
+static CLG_LogRef LOG = {"color_management"};
 
 static TransferFunction system_extended_srgb_transfer_function(const LibOCIOView *view,
                                                                const bool use_hdr_buffer)
@@ -94,6 +94,36 @@ static OCIO_NAMESPACE::TransformRcPtr create_extended_srgb_transform(
   to_ui->setNegativeStyle(OCIO_NAMESPACE::NEGATIVE_MIRROR);
   to_ui->setDirection(OCIO_NAMESPACE::TRANSFORM_DIR_INVERSE);
   return to_ui;
+}
+
+static void adjust_for_hdr_image_file(const LibOCIOConfig &config,
+                                      OCIO_NAMESPACE::GroupTransformRcPtr &group,
+                                      StringRefNull display_name,
+                                      StringRefNull view_name)
+{
+  /* Convert HDR PQ and HLG images from 100 nits to 203 nits convention. */
+  const LibOCIODisplay *display = static_cast<const LibOCIODisplay *>(
+      config.get_display_by_name(display_name));
+  const LibOCIOView *view = (display) ? static_cast<const LibOCIOView *>(
+                                            display->get_view_by_name(view_name)) :
+                                        nullptr;
+  const LibOCIOColorSpace *display_colorspace = static_cast<const LibOCIOColorSpace *>(
+      view->display_colorspace());
+
+  if (display_colorspace == nullptr || !display_colorspace->is_display_referred()) {
+    return;
+  }
+
+  const ColorSpace *image_display_colorspace = config.get_color_space_for_hdr_image(
+      display_colorspace->name());
+  if (ELEM(image_display_colorspace, nullptr, display_colorspace)) {
+    return;
+  }
+
+  auto to_display_linear = OCIO_NAMESPACE::ColorSpaceTransform::Create();
+  to_display_linear->setSrc(display_colorspace->name().c_str());
+  to_display_linear->setDst(image_display_colorspace->name().c_str());
+  group->appendTransform(to_display_linear);
 }
 
 static void display_as_extended_srgb(const LibOCIOConfig &config,
@@ -311,12 +341,29 @@ OCIO_NAMESPACE::TransformRcPtr create_ocio_display_transform(
     if (look_output != nullptr && look_output[0] != 0) {
       OCIO_NAMESPACE::LookTransformRcPtr lt = OCIO_NAMESPACE::LookTransform::Create();
       lt->setSrc(from_colorspace.c_str());
-      lt->setDst(look_output);
+
+      /* For raw view transform, transform to look colorspace is a no-op since it's data.
+       * But OpenColorIO only takes that into account in one direction, and still applies
+       * a conversion in the other direction. Work around that by ensuring it is skipped
+       * entirely. */
+      const char *view_colorspace_name = ocio_config->getDisplayViewColorSpaceName(display.c_str(),
+                                                                                   view.c_str());
+      OCIO_NAMESPACE::ConstColorSpaceRcPtr view_colorspace = (view_colorspace_name) ?
+                                                                 ocio_config->getColorSpace(
+                                                                     view_colorspace_name) :
+                                                                 nullptr;
+
+      if (view_colorspace && view_colorspace->isData()) {
+        lt->setDst(from_colorspace.c_str());
+      }
+      else {
+        lt->setDst(look_output);
+        /* Make further transforms aware of the color space change. */
+        from_colorspace = look_output;
+      }
+
       lt->setLooks(look.c_str());
       group->appendTransform(lt);
-
-      /* Make further transforms aware of the color space change. */
-      from_colorspace = look_output;
     }
     else {
       /* For empty looks, no output color space is returned. */
@@ -417,6 +464,11 @@ OCIO_NAMESPACE::ConstProcessorRcPtr create_ocio_display_processor(
       group->appendTransform(et);
     }
 
+    if (display_parameters.is_image_output) {
+      adjust_for_hdr_image_file(
+          config, group, display_parameters.display, display_parameters.view);
+    }
+
     /* Convert to extended sRGB to match the system graphics buffer. */
     if (display_parameters.use_display_emulation) {
       display_as_extended_srgb(config,
@@ -427,7 +479,7 @@ OCIO_NAMESPACE::ConstProcessorRcPtr create_ocio_display_processor(
     }
   }
   else {
-    /* Untonemapped case, directly to extended sRGB. */
+    /* Un-tone-mapped case, directly to extended sRGB. */
     group->appendTransform(create_untonemapped_ocio_display_transform(
         config, display_parameters.display, from_colorspace, display_parameters.use_hdr_buffer));
   }

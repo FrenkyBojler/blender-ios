@@ -22,6 +22,8 @@
 
 #include "CLG_log.h"
 
+namespace blender {
+
 static CLG_LogRef LOG_READ = {"image.read"};
 static CLG_LogRef LOG_WRITE = {"image.write"};
 
@@ -30,7 +32,7 @@ OIIO_NAMESPACE_USING
 using std::string;
 using std::unique_ptr;
 
-namespace blender::imbuf {
+namespace imbuf {
 
 /* An OIIO IOProxy used during file packing to write into an in-memory #ImBuf buffer. */
 class ImBufMemWriter : public Filesystem::IOProxy {
@@ -163,8 +165,8 @@ static void set_file_colorspace(ImFileColorSpace &r_colorspace,
   /* Get colorspace from CICP. */
   int cicp[4] = {};
   if (spec.getattribute("CICP", TypeDesc(TypeDesc::INT, 4), cicp, true)) {
-    const bool for_video = false;
-    const ColorSpace *colorspace = IMB_colormanagement_space_from_cicp(cicp, for_video);
+    const ColorSpace *colorspace = IMB_colormanagement_space_from_cicp(
+        cicp, ColorManagedFileOutput::Image);
     if (colorspace) {
       STRNCPY_UTF8(r_colorspace.metadata_colorspace,
                    IMB_colormanagement_colorspace_get_name(colorspace));
@@ -435,12 +437,12 @@ ImageSpec imb_create_write_spec(const WriteContext &ctx, int file_channels, Type
    */
 
   if (ctx.ibuf->metadata) {
-    LISTBASE_FOREACH (IDProperty *, prop, &ctx.ibuf->metadata->data.group) {
-      if (prop->type == IDP_STRING) {
+    for (IDProperty &prop : ctx.ibuf->metadata->data.group) {
+      if (prop.type == IDP_STRING) {
         /* If this property has a prefixed name (oiio:, tiff:, etc.) and it belongs to
          * oiio or a different format, then skip. */
-        if (char *colon = strchr(prop->name, ':')) {
-          std::string prefix(prop->name, colon);
+        if (char *colon = strchr(prop.name, ':')) {
+          std::string prefix(prop.name, colon);
           Strutil::to_lower(prefix);
           if (prefix == "oiio" ||
               (!STREQ(prefix.c_str(), ctx.file_format) && OIIO::is_imageio_format_name(prefix)))
@@ -450,7 +452,7 @@ ImageSpec imb_create_write_spec(const WriteContext &ctx, int file_channels, Type
           }
         }
 
-        file_spec.attribute(prop->name, IDP_string_get(prop));
+        file_spec.attribute(prop.name, IDP_string_get(&prop));
       }
     }
   }
@@ -484,10 +486,11 @@ ImageSpec imb_create_write_spec(const WriteContext &ctx, int file_channels, Type
 
     /* PNG only supports RGB matrix. For AVIF and HEIF we want to use a YUV matrix
      * as these are based on video codecs designed to use them. */
-    const bool for_video = false;
     const bool rgb_matrix = STREQ(ctx.file_format, "png");
     int cicp[4];
-    if (IMB_colormanagement_space_to_cicp(colorspace, for_video, rgb_matrix, cicp)) {
+    if (IMB_colormanagement_space_to_cicp(
+            colorspace, ColorManagedFileOutput::Image, rgb_matrix, cicp))
+    {
       file_spec.attribute("CICP", TypeDesc(TypeDesc::INT, 4), cicp);
     }
   }
@@ -495,4 +498,5 @@ ImageSpec imb_create_write_spec(const WriteContext &ctx, int file_channels, Type
   return file_spec;
 }
 
-}  // namespace blender::imbuf
+}  // namespace imbuf
+}  // namespace blender

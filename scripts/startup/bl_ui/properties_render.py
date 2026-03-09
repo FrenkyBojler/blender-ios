@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 from bpy.types import Panel
+from bpy.app.translations import contexts as i18n_contexts
 from bl_ui.properties_grease_pencil_common import GreasePencilSimplifyPanel
 from bl_ui.space_view3d import (
     VIEW3D_PT_shading_lighting,
@@ -112,9 +113,18 @@ class RENDER_PT_color_management_working_space(RenderButtonsPanel, Panel):
         row = split.row()
         row.label(text="File")
         row.alignment = 'RIGHT'
-        split.operator_menu_enum("wm.set_working_color_space", "working_space", text=blend_colorspace.working_space)
+        split.operator_menu_enum(
+            "wm.set_working_color_space",
+            "working_space",
+            text=blend_colorspace.working_space,
+            text_ctxt=i18n_contexts.default,
+        )
 
-        col.prop(scene.sequencer_colorspace_settings, "name", text="Sequencer")
+        col.prop_with_menu(
+            scene.sequencer_colorspace_settings,
+            "name",
+            text="Sequencer",
+            menu="UI_MT_color_space_select")
 
 
 class RENDER_PT_color_management_advanced(RenderButtonsPanel, Panel):
@@ -515,9 +525,22 @@ class RENDER_PT_eevee_denoise(RenderButtonsPanel, Panel):
         col.prop(props, "denoise_bilateral")
 
 
+class RENDER_PT_eevee_light_paths(RenderButtonsPanel, Panel):
+    bl_label = "Light Paths"
+    bl_options = {'DEFAULT_CLOSED'}
+    COMPAT_ENGINES = {'BLENDER_EEVEE'}
+
+    @classmethod
+    def poll(cls, context):
+        return (context.engine in cls.COMPAT_ENGINES)
+
+    def draw(self, context):
+        pass
+
+
 class RENDER_PT_eevee_clamping(RenderButtonsPanel, Panel):
     bl_label = "Clamping"
-    bl_options = {'DEFAULT_CLOSED'}
+    bl_parent_id = "RENDER_PT_eevee_light_paths"
     COMPAT_ENGINES = {'BLENDER_EEVEE'}
 
     @classmethod
@@ -568,6 +591,27 @@ class RENDER_PT_eevee_clamping_volume(RenderButtonsPanel, Panel):
         col = layout.column(align=True)
         col.prop(props, "clamp_volume_direct", text="Direct Light")
         col.prop(props, "clamp_volume_indirect", text="Indirect Light")
+
+
+class RENDER_PT_eevee_light_paths_intensity(RenderButtonsPanel, Panel):
+    bl_label = "Intensity"
+    bl_parent_id = "RENDER_PT_eevee_light_paths"
+    COMPAT_ENGINES = {'BLENDER_EEVEE'}
+
+    @classmethod
+    def poll(cls, context):
+        return (context.engine in cls.COMPAT_ENGINES)
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        scene = context.scene
+        props = scene.eevee
+
+        col = layout.column(align=True)
+        col.prop(props, "direct_light_intensity", text="Direct Light")
+        col.prop(props, "indirect_light_intensity", text="Indirect Light")
 
 
 class RENDER_PT_eevee_sampling_shadows(RenderButtonsPanel, Panel):
@@ -768,6 +812,7 @@ class RENDER_PT_eevee_performance(RenderButtonsPanel, Panel):
         layout.use_property_decorate = False  # No animation.
 
         layout.prop(rd, "use_high_quality_normals")
+        layout.prop(rd, "anisotropic_filter")
 
 
 class CompositorPerformanceButtonsPanel:
@@ -1125,9 +1170,11 @@ classes = (
     RENDER_PT_eevee_sampling_render,
     RENDER_PT_eevee_sampling_shadows,
     RENDER_PT_eevee_sampling_advanced,
+    RENDER_PT_eevee_light_paths,
     RENDER_PT_eevee_clamping,
     RENDER_PT_eevee_clamping_surface,
     RENDER_PT_eevee_clamping_volume,
+    RENDER_PT_eevee_light_paths_intensity,
     RENDER_PT_eevee_raytracing_presets,
     RENDER_PT_eevee_raytracing,
     RENDER_PT_eevee_screen_trace,
