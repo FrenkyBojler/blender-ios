@@ -763,7 +763,7 @@ static void sequencer_footer_region_listener(const wmRegionListenerParams *param
 
 static bool sequencer_footer_region_poll(const RegionPollParams *params)
 {
-  Scene *scene = CTX_data_sequencer_scene(params->context);
+  const Scene *scene = CTX_data_sequencer_scene(params->context);
   return scene != nullptr;
 }
 
