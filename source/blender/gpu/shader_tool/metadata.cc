@@ -66,7 +66,7 @@ std::string ParsedResource::serialize() const
     ss << res_condition_lambda << ")";
   }
   else if (res_type == "shared") {
-    ss << "GROUP_SHARED(" << var_type << ", " << var_name << ")";
+    ss << "GROUP_SHARED(" << var_type << ", " << var_name << var_array << ")";
   }
   else if (res_type == "push_constant") {
     if (!var_array.empty()) {
