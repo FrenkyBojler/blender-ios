@@ -545,7 +545,7 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_spherical_harmonics_lib.glsl
   engines/eevee/shaders/eevee_subsurface_convolve_comp.glsl
   engines/eevee/shaders/eevee_subsurface_lib.glsl
-  engines/eevee/shaders/eevee_subsurface_setup_comp.glsl
+  engines/eevee/shaders/eevee_subsurface.bsl.hh
   engines/eevee/shaders/eevee_surf_capture_frag.glsl
   engines/eevee/shaders/eevee_surf_deferred_frag.glsl
   engines/eevee/shaders/eevee_surf_depth_frag.glsl
