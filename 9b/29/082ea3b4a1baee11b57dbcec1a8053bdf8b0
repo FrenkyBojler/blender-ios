@@ -1,1 +1,2 @@
 Referenced by pull request #155268, Cleanup: Make "memory is zero" check constexpr, move to header
+Referenced by commit 45d44fce52070b5309ca9b5e329c6cd63f5aeca2, Cleanup: Make "memory is zero" check constexpr, move to header
