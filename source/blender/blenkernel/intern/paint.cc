@@ -2160,9 +2160,12 @@ bool supports_scene_size(const PaintMode paint_mode)
       return false;
     case PaintMode::Texture2D:
       return false;
-    default:
+    case PaintMode::Invalid:
+      BLI_assert_unreachable();
       return false;
   }
+  BLI_assert_unreachable();
+  return false;
 }
 bool supports_symmetry_tiling(const PaintMode paint_mode)
 {
@@ -2182,9 +2185,12 @@ bool supports_symmetry_tiling(const PaintMode paint_mode)
       return false;
     case PaintMode::Texture2D:
       return false;
-    default:
+    case PaintMode::Invalid:
+      BLI_assert_unreachable();
       return false;
   }
+  BLI_assert_unreachable();
+  return false;
 }
 }  // namespace bke::paint
 

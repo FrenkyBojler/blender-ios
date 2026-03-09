@@ -302,7 +302,7 @@ void BKE_paint_face_set_overlay_color_get(int face_set, int seed, uchar r_color[
 
 namespace bke::paint {
 bool supports_scene_size(PaintMode paint_mode);
-bool supports_symmetry_tiling(const PaintMode paint_mode);
+bool supports_symmetry_tiling(PaintMode paint_mode);
 }  // namespace bke::paint
 
 /* Random values are generated on each new stroke so each stroke
