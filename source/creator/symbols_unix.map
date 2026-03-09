@@ -7,8 +7,6 @@ global:
   /* Essential symbols for the program to start and exit. */
   _fini;
   _init;
-  __cxa_*;
-  __gxx_personality*;
   /* Needed for Python modules to work. */
   Py*;
   _Py*;
