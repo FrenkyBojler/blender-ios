@@ -23,6 +23,7 @@ set(LIB
 # See: `make icons_geom` and the script `./release/datafiles/blender_icons_geom_update.py`.
 set_property(GLOBAL PROPERTY ICON_GEOM_NAMES
   # BEGIN ICON_GEOM_NAMES
+  brush.draw
   brush.generic
   brush.gpencil_draw.erase
   brush.gpencil_draw.fill
@@ -49,6 +50,7 @@ set_property(GLOBAL PROPERTY ICON_GEOM_NAMES
   brush.sculpt.displacement_smear
   brush.sculpt.draw_face_sets
   brush.sculpt.mask
+  brush.sculpt
   brush.sculpt.paint
   brush.sculpt.simplify
   brush.uv_sculpt.grab
@@ -411,6 +413,9 @@ if(WITH_BLENDER)
       gizmo
       gp_caps_flat
       gp_caps_round
+      gp_draw_stroke
+      gp_draw_fill
+      gp_draw_both
       gp_multiframe_editing
       gp_only_selected
       gp_select_between_strokes
@@ -782,6 +787,7 @@ if(WITH_BLENDER)
       render_animation
       render_result
       render_still
+      render_swap_dimensions
       restrict_color_off
       restrict_color_on
       restrict_instanced_off

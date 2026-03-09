@@ -36,9 +36,12 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
+#include "RNA_prototypes.hh"
+
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"
 #include "BKE_anim_visualization.h"
+#include "BKE_animsys.h"
 #include "BKE_armature.hh"
 #include "BKE_constraint.h"
 #include "BKE_curve.hh"
@@ -498,35 +501,35 @@ static void armature_undo_preserve(BlendLibReader * /*reader*/, ID *id_new, ID *
 }
 
 IDTypeInfo IDType_ID_AR = {
-    /*id_code*/ bArmature::id_type,
-    /*id_filter*/ FILTER_ID_AR,
+    .id_code = bArmature::id_type,
+    .id_filter = FILTER_ID_AR,
     /* IDProps of armature bones can use any type of ID. */
-    /*dependencies_id_types*/ FILTER_ID_ALL,
-    /*main_listbase_index*/ INDEX_ID_AR,
-    /*struct_size*/ sizeof(bArmature),
-    /*name*/ "Armature",
-    /*name_plural*/ N_("armatures"),
-    /*translation_context*/ BLT_I18NCONTEXT_ID_ARMATURE,
-    /*flags*/ IDTYPE_FLAGS_APPEND_IS_REUSABLE,
-    /*asset_type_info*/ nullptr,
+    .dependencies_id_types = FILTER_ID_ALL,
+    .main_listbase_index = INDEX_ID_AR,
+    .struct_size = sizeof(bArmature),
+    .name = "Armature",
+    .name_plural = N_("armatures"),
+    .translation_context = BLT_I18NCONTEXT_ID_ARMATURE,
+    .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    .asset_type_info = nullptr,
 
-    /*init_data*/ armature_init_data,
-    /*copy_data*/ armature_copy_data,
-    /*free_data*/ armature_free_data,
-    /*make_local*/ nullptr,
-    /*foreach_id*/ armature_foreach_id,
-    /*foreach_cache*/ nullptr,
-    /*foreach_path*/ nullptr,
-    /*foreach_working_space_color*/ nullptr,
-    /*owner_pointer_get*/ nullptr,
+    .init_data = armature_init_data,
+    .copy_data = armature_copy_data,
+    .free_data = armature_free_data,
+    .make_local = nullptr,
+    .foreach_id = armature_foreach_id,
+    .foreach_cache = nullptr,
+    .foreach_path = nullptr,
+    .foreach_working_space_color = nullptr,
+    .owner_pointer_get = nullptr,
 
-    /*blend_write*/ armature_blend_write,
-    /*blend_read_data*/ armature_blend_read_data,
-    /*blend_read_after_liblink*/ nullptr,
+    .blend_write = armature_blend_write,
+    .blend_read_data = armature_blend_read_data,
+    .blend_read_after_liblink = nullptr,
 
-    /*blend_read_undo_preserve*/ armature_undo_preserve,
+    .blend_read_undo_preserve = armature_undo_preserve,
 
-    /*lib_override_apply_post*/ nullptr,
+    .lib_override_apply_post = nullptr,
 };
 
 /** \} */
@@ -2863,10 +2866,13 @@ void BKE_pchan_rebuild_bbone_handles(bPose *pose, bPoseChannel *pchan)
   pchan->bbone_next = pose_channel_find_bone(pose, pchan->bone->bbone_next);
 }
 
-void BKE_pose_channels_clear_with_null_bone(bPose *pose, const bool do_id_user)
+void BKE_pose_channels_clear_with_null_bone(Object *armature_ob, const bool do_id_user)
 {
+  BLI_assert(armature_ob->pose);
+  bPose *pose = armature_ob->pose;
   for (bPoseChannel &pchan : pose->chanbase.items_mutable()) {
     if (pchan.bone == nullptr) {
+      BKE_animdata_drivers_remove_for_rna_struct(armature_ob->id, *RNA_PoseBone, &pchan);
       BKE_pose_channel_free_ex(&pchan, do_id_user);
       BKE_pose_channels_hash_free(pose);
       BLI_freelinkN(&pose->chanbase, &pchan);
@@ -2899,7 +2905,7 @@ void BKE_pose_rebuild(Main *bmain, Object *ob, bArmature *arm, const bool do_id_
   }
 
   /* and a check for garbage */
-  BKE_pose_channels_clear_with_null_bone(pose, do_id_user);
+  BKE_pose_channels_clear_with_null_bone(ob, do_id_user);
 
   BKE_pose_channels_hash_ensure(pose);
 

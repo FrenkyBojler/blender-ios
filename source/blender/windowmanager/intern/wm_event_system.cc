@@ -15,6 +15,7 @@
 #include <fmt/format.h>
 
 #include "AS_asset_library.hh"
+#include "AS_asset_representation.hh"
 
 #include "DNA_listBase.h"
 #include "DNA_scene_types.h"
@@ -2906,7 +2907,7 @@ static eHandlerActionFlag wm_handler_fileselect_do(bContext *C,
           if (BLI_listbase_is_single(&file_area->spacedata)) {
             BLI_assert(root_win != &win);
 
-            wm_window_close(C, wm, &win);
+            wm_window_close_request(C, wm, &win);
 
             /* #wm_window_close() sets the context's window to null. */
             CTX_wm_window_set(C, root_win);
@@ -3534,6 +3535,16 @@ static eHandlerActionFlag wm_handlers_do_intern(bContext *C,
                   continue;
                 }
 
+                if (wmDragAsset *asset_data = WM_drag_get_asset_data(&drag, 0)) {
+                  if (asset_data->asset->is_online()) {
+                    BKE_reportf(CTX_wm_reports(C),
+                                RPT_ERROR,
+                                "Asset '%s' is still downloading",
+                                asset_data->asset->get_name().c_str());
+                    continue;
+                  }
+                }
+
                 if (drop.poll(C, &drag, event)) {
                   wm_drop_prepare(C, &drag, &drop);
 
@@ -3556,16 +3567,23 @@ static eHandlerActionFlag wm_handlers_do_intern(bContext *C,
 
                   action |= WM_HANDLER_BREAK;
 
+                  /* Some of the values will have been freed when freeing the window-manger. */
+                  const bool is_file_read = CTX_wm_window(C) == nullptr;
+
                   /* Free the drags. */
-                  WM_drag_free_list(lb);
+                  if (!is_file_read) {
+                    WM_drag_free_list(lb);
+                  }
                   WM_drag_free_list(&single_lb);
 
-                  wm_event_custom_clear(event);
+                  if (!is_file_read) {
+                    wm_event_custom_clear(event);
+                  }
 
                   wm_drop_end(C, &drag, &drop);
 
                   /* XXX file-read case. */
-                  if (CTX_wm_window(C) == nullptr) {
+                  if (is_file_read) {
                     return action;
                   }
 

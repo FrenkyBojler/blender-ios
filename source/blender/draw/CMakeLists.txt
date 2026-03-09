@@ -88,7 +88,8 @@ set(SRC
   intern/draw_view_data.cc
   intern/draw_volume.cc
   engines/compositor/compositor_engine.cc
-  engines/image/image_drawing_mode.cc
+  engines/image/image_drawing_mode_image_space.cc
+  engines/image/image_drawing_mode_screen_space.cc
   engines/image/image_engine.cc
   engines/image/image_shader.cc
   engines/eevee/eevee_ambient_occlusion.cc
@@ -224,9 +225,9 @@ set(SRC
   engines/gpencil/gpencil_shader.hh
   engines/image/image_batches.hh
   engines/image/image_buffer_cache.hh
-  engines/image/image_drawing_mode.hh
+  engines/image/image_drawing_mode_image_space.hh
+  engines/image/image_drawing_mode_screen_space.hh
   engines/image/image_engine.h
-  engines/image/image_enums.hh
   engines/image/image_instance.hh
   engines/image/image_partial_updater.hh
   engines/image/image_private.hh
@@ -320,7 +321,6 @@ set(GLSL_SRC
   intern/shaders/subdiv_infos.hh
   intern/shaders/subdiv_patch_eval_infos.hh
 
-  engines/eevee/shaders/infos/eevee_ambient_occlusion_infos.hh
   engines/eevee/shaders/infos/eevee_common_infos.hh
   engines/eevee/shaders/infos/eevee_deferred_infos.hh
   engines/eevee/shaders/infos/eevee_depth_of_field_infos.hh
@@ -392,7 +392,6 @@ set(GLSL_SRC
   engines/workbench/shaders/infos/workbench_transparent_resolve_infos.hh
 
   engines/eevee/shaders/eevee_ambient_occlusion_lib.glsl
-  engines/eevee/shaders/eevee_ambient_occlusion_pass_comp.glsl
   engines/eevee/shaders/eevee_attributes_curves_lib.glsl
   engines/eevee/shaders/eevee_attributes_mesh_lib.glsl
   engines/eevee/shaders/eevee_attributes_pointcloud_lib.glsl
@@ -459,12 +458,8 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_geom_world_vert.glsl
   engines/eevee/shaders/eevee_hiz_debug_frag.glsl
   engines/eevee/shaders/eevee_hiz_update_comp.glsl
-  engines/eevee/shaders/eevee_horizon_denoise_comp.glsl
-  engines/eevee/shaders/eevee_horizon_resolve_comp.glsl
-  engines/eevee/shaders/eevee_horizon_scan_eval_lib.glsl
-  engines/eevee/shaders/eevee_horizon_scan_comp.glsl
-  engines/eevee/shaders/eevee_horizon_scan_lib.glsl
-  engines/eevee/shaders/eevee_horizon_setup_comp.glsl
+  engines/eevee/shaders/eevee_horizon_scan.bsl.hh
+  engines/eevee/shaders/eevee_horizon_scan_lib.bsl.hh
   engines/eevee/shaders/eevee_light_culling_debug_frag.glsl
   engines/eevee/shaders/eevee_light_culling_select_comp.glsl
   engines/eevee/shaders/eevee_light_culling_sort_comp.glsl
@@ -642,6 +637,7 @@ set(GLSL_SRC
   engines/workbench/workbench_defines.hh
   engines/workbench/workbench_shader_shared.hh
 
+  intern/shaders/osd_patch_defines.glsl
   intern/shaders/osd_patch_basis.glsl
   intern/shaders/subdiv_custom_data_interp_comp.glsl
   intern/shaders/subdiv_ibo_lines_comp.glsl
@@ -650,8 +646,8 @@ set(GLSL_SRC
   intern/shaders/subdiv_normals_accumulate_comp.glsl
   intern/shaders/subdiv_patch_evaluation_comp.glsl
   intern/shaders/subdiv_vbo_edge_fac_comp.glsl
-  intern/shaders/subdiv_vbo_edituv_strech_angle_comp.glsl
-  intern/shaders/subdiv_vbo_edituv_strech_area_comp.glsl
+  intern/shaders/subdiv_vbo_edituv_stretch_angle_comp.glsl
+  intern/shaders/subdiv_vbo_edituv_stretch_area_comp.glsl
   intern/shaders/subdiv_vbo_lnor_comp.glsl
   intern/shaders/subdiv_vbo_paint_overlay_flag_comp.glsl
   intern/shaders/subdiv_vbo_sculpt_data_comp.glsl
@@ -700,6 +696,7 @@ set(GLSL_SRC
   engines/gpencil/shaders/gpencil_mask_invert_frag.glsl
   engines/gpencil/shaders/gpencil_depth_merge_frag.glsl
   engines/gpencil/shaders/gpencil_depth_merge_vert.glsl
+  engines/gpencil/shaders/gpencil_depth_pass_merge_frag.glsl
   engines/gpencil/shaders/gpencil_vfx_frag.glsl
 
   engines/gpencil/gpencil_defines.hh
@@ -838,6 +835,11 @@ set(GLSL_SRC
   engines/image/shaders/image_engine_color_vert.glsl
   engines/image/shaders/image_engine_depth_frag.glsl
   engines/image/shaders/image_engine_depth_vert.glsl
+  engines/image/shaders/image_engine_image_frag.glsl
+  engines/image/shaders/image_engine_image_tiled_frag.glsl
+  engines/image/shaders/image_engine_lib.glsl
+
+  engines/image/image_shader_shared.hh
 
   # This test doesn't depend on gpu_shader_test, so it's always included.
   intern/shaders/draw_curves_test.glsl
@@ -962,14 +964,6 @@ if(WITH_GTESTS)
         PRIVATE bf::dependencies::optional::vulkan
       )
     endif()
-  endif()
-endif()
-
-if(WITH_TBB)
-  if(WIN32)
-    # TBB includes Windows.h which will define min/max macros
-    # that will collide with the STL versions.
-    add_definitions(-DNOMINMAX)
   endif()
 endif()
 

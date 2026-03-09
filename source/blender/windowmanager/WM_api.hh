@@ -14,6 +14,7 @@
  * \todo document
  */
 
+#include <functional>
 #include <optional>
 #include <string>
 
@@ -1482,7 +1483,7 @@ void WM_uilisttype_free();
  * The "full" list-ID is an internal name used for storing and identifying a list. It is built like
  * this:
  * `{uiListType.idname}_{list_id}`, whereby `list_id` is an optional parameter passed to
- * `ui::Layout.template_list()`. If it is not set, the full list-ID is just
+ * `ui::Layout.template_uilist()`. If it is not set, the full list-ID is just
  * `{uiListType.idname}_`.
  *
  * Note that whenever the Python API refers to the list-ID, it's the short, "non-full" one it
@@ -1685,6 +1686,20 @@ wmDropBox *WM_dropbox_add(ListBaseT<wmDropBox> *lb,
                           void (*copy)(bContext *C, wmDrag *drag, wmDropBox *drop),
                           void (*cancel)(Main *bmain, wmDrag *drag, wmDropBox *drop),
                           WMDropboxTooltipFunc tooltip);
+/**
+ * Register a "prefetch" handler that gets triggered whenever dragging starts, independent of which
+ * drop handlers are available or will be used in the end.
+ *
+ * #wmDropBox::on_drag_start() is similar, but it will only be executed for drop-boxes visible in a
+ * window. For example, sequencer drop-boxes pre-fetch information about dragged media files this
+ * way, but this should only be done if a sequencer is visible somewhere.
+ *
+ * Contrary to the #wmDropBox::on_drag_start() prefetch handlers, the "global" prefetch handlers
+ * here always trigger for the given data type.
+ */
+void WM_drag_global_prefetch_handler_add(
+    const eWM_DragDataType drag_type,
+    const std::function<void(bContext &C, wmDrag &drag)> on_drag_start);
 /**
  * Ensure operator pointers & properties are valid after operators have been added/removed.
  */
