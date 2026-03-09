@@ -1050,7 +1050,6 @@ static bool group_input_insert_link(bke::NodeInsertLinkParams &params)
     item.set_selected(false);
     return true;
   });
-
   params.ntree.tree_interface.active_item_set(&io_socket->item);
 
   return true;
