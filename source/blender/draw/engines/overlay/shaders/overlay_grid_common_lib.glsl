@@ -7,7 +7,8 @@
 namespace grid {
 
 /* Given a packed float2 and grid configuration, extract axis data into the proper dimensions. */
-float3 unpack_xy_to_xyz(float2 xy, uint grid_flag) {
+float3 unpack_xy_to_xyz(float2 xy, uint grid_flag)
+{
   if (flag_test(grid_flag, PLANE_XZ)) {
     return float3(xy.x, 0.0f, xy.y);
   }
@@ -20,7 +21,8 @@ float3 unpack_xy_to_xyz(float2 xy, uint grid_flag) {
 }
 
 /* Given a packed float2 and grid configuration, extract a specific axis. */
-float unpack_xy_to_axis(float2 xy, uint grid_flag, uint axis) {
+float unpack_xy_to_axis(float2 xy, uint grid_flag, uint axis)
+{
   float3 xyz = unpack_xy_to_xyz(xy, grid_flag);
   return xyz[axis];
 }
@@ -31,4 +33,4 @@ bool is_zero(float2 v, float epsilon)
   return all(lessThanEqual(abs(v), float2(epsilon)));
 }
 
-} // namespace grid
+}  // namespace grid

@@ -10,12 +10,7 @@ FRAGMENT_SHADER_CREATE_INFO(overlay_grid_next)
 #include "gpu_shader_math_base_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
 #include "overlay_common_lib.glsl"
-
-/* Returns true if both components of `v` fall within `epsilon` of 0. */
-bool is_zero(float2 v, float epsilon)
-{
-  return all(lessThanEqual(abs(v), float2(epsilon)));
-}
+#include "overlay_grid_common_lib.glsl"
 
 void main()
 {

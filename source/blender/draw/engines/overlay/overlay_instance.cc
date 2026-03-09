@@ -376,7 +376,7 @@ void Resources::update_theme_settings(const DRWContext *ctx, const State &state)
       TH_GRID, TH_AXIS_Y, axis_mix, axis_offset, gb.colors.grid_axis_y);
   ui::theme::get_color_blend_shade_4fv(
       TH_GRID, TH_AXIS_Z, axis_mix, axis_offset, gb.colors.grid_axis_z);
-    
+
   ui::theme::get_color_shade_alpha_4fv(TH_TRANSFORM, 0, -80, gb.colors.deselect);
   ui::theme::get_color_shade_alpha_4fv(TH_WIRE, 0, -30, gb.colors.outline);
   ui::theme::get_color_shade_alpha_4fv(TH_LIGHT, 0, 255, gb.colors.light_no_alpha);
