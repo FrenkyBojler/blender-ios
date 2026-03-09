@@ -155,8 +155,23 @@ void interpolate_gradient_3d(ValueT (&data)[N][N][N],
     vgx[dx] = kernel_fn(gy, uvw.y());
     gvx[dx] = derivative_fn(vy, uvw.y());
   }
-  result = GradientT(
-      derivative_fn(vvx, uvw.x()), kernel_fn(gvx, uvw.x()), kernel_fn(vgx, uvw.x()));
+  if constexpr (std::is_same_v<GradientT, openvdb::Mat3s>) {
+    /* Gradient of vectors is constructed by outer product with the weights gradient:
+     *
+     *         V  = sum_ijk(V_ijk * W_ijk)
+     * => grad(V) = sum_ijk(V_ijk * grad(W_ijk)^T)
+     *
+     * The matrix constructor takes row vectors by default, use column vectors instead.
+     */
+    result = GradientT(derivative_fn(vvx, uvw.x()),
+                       kernel_fn(gvx, uvw.x()),
+                       kernel_fn(vgx, uvw.x()),
+                       /*rows=*/false);
+  }
+  else {
+    result = GradientT(
+        derivative_fn(vvx, uvw.x()), kernel_fn(gvx, uvw.x()), kernel_fn(vgx, uvw.x()));
+  }
 }
 
 template<typename Kernel, class TreeT>
@@ -310,16 +325,16 @@ struct LinearKernel {
   template<class ValueT> static ValueT weight(const ValueT *value, double weight)
   {
     OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
-    const ValueT lin = value[1] - value[0];
-    const ValueT con = value[0];
+    const ValueT lin = static_cast<ValueT>(value[1] - value[0]);
+    const ValueT con = static_cast<ValueT>(value[0]);
     return weight * lin + con;
     OPENVDB_NO_TYPE_CONVERSION_WARNING_END
   }
 
-  template<class ValueT> static ValueT derivative(const ValueT *value, double weight)
+  template<class ValueT> static ValueT derivative(const ValueT *value, double /*weight*/)
   {
     OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
-    const ValueT con = double(weight != 0.0) * (value[1] - value[0]);
+    const ValueT con = static_cast<ValueT>(value[1] - value[0]);
     return con;
     OPENVDB_NO_TYPE_CONVERSION_WARNING_END
   }
@@ -408,15 +423,15 @@ struct QuadraticBSplineKernel {
   {
     OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
     if (weight < 0.5) {
-      const ValueT sqr = 0.5 * (value[0] + value[2]) - value[1];
-      const ValueT lin = 0.5 * (value[2] - value[0]);
-      const ValueT con = 0.125 * (value[0] + value[2]) + 0.75 * value[1];
+      const ValueT sqr = static_cast<ValueT>(0.5 * (value[0] + value[2]) - value[1]);
+      const ValueT lin = static_cast<ValueT>(0.5 * (value[2] - value[0]));
+      const ValueT con = static_cast<ValueT>(0.125 * (value[0] + value[2]) + 0.75 * value[1]);
       return weight * (weight * sqr + lin) + con;
     }
 
-    const ValueT sqr = 0.5 * (value[1] + value[3]) - value[2];
-    const ValueT lin = -1.5 * value[1] + 2 * value[2] - 0.5 * value[3];
-    const ValueT con = 1.125 * value[1] - 0.25 * value[2] + 0.125 * value[3];
+    const ValueT sqr = static_cast<ValueT>(0.5 * (value[1] + value[3]) - value[2]);
+    const ValueT lin = static_cast<ValueT>(-1.5 * value[1] + 2 * value[2] - 0.5 * value[3]);
+    const ValueT con = static_cast<ValueT>(1.125 * value[1] - 0.25 * value[2] + 0.125 * value[3]);
     return weight * (weight * sqr + lin) + con;
     OPENVDB_NO_TYPE_CONVERSION_WARNING_END
   }
@@ -425,13 +440,13 @@ struct QuadraticBSplineKernel {
   {
     OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
     if (weight < 0.5) {
-      const ValueT lin = value[0] - 2.0 * value[1] + value[2];
-      const ValueT con = 0.5 * (value[2] - value[0]);
+      const ValueT lin = static_cast<ValueT>(value[0] - 2.0 * value[1] + value[2]);
+      const ValueT con = static_cast<ValueT>(0.5 * (value[2] - value[0]));
       return weight * lin + con;
     }
 
-    const ValueT lin = value[1] - 2.0 * value[2] + value[3];
-    const ValueT con = -1.5 * value[1] + 2.0 * value[2] - 0.5 * value[3];
+    const ValueT lin = static_cast<ValueT>(value[1] - 2.0 * value[2] + value[3]);
+    const ValueT con = static_cast<ValueT>(-1.5 * value[1] + 2.0 * value[2] - 0.5 * value[3]);
     return weight * lin + con;
     OPENVDB_NO_TYPE_CONVERSION_WARNING_END
   }
@@ -513,10 +528,11 @@ struct CubicBSplineKernel {
   {
     OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
     constexpr double inv6 = 1.0 / 6.0;
-    const ValueT cub = inv6 * (value[3] - value[0]) + 0.5 * (value[1] - value[2]);
-    const ValueT sqr = 0.5 * (value[0] + value[2]) - value[1];
-    const ValueT lin = 0.5 * (value[2] - value[0]);
-    const ValueT con = inv6 * (value[0] + 4.0 * value[1] + value[2]);
+    const ValueT cub = static_cast<ValueT>(inv6 * (value[3] - value[0]) +
+                                           0.5 * (value[1] - value[2]));
+    const ValueT sqr = static_cast<ValueT>(0.5 * (value[0] + value[2]) - value[1]);
+    const ValueT lin = static_cast<ValueT>(0.5 * (value[2] - value[0]));
+    const ValueT con = static_cast<ValueT>(inv6 * (value[0] + 4.0 * value[1] + value[2]));
     return weight * (weight * (weight * cub + sqr) + lin) + con;
     OPENVDB_NO_TYPE_CONVERSION_WARNING_END
   }
@@ -524,9 +540,10 @@ struct CubicBSplineKernel {
   template<class ValueT> static ValueT derivative(const ValueT *value, double weight)
   {
     OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
-    const ValueT sqr = 0.5 * (value[3] - value[0]) + 1.5 * (value[1] - value[2]);
-    const ValueT lin = value[0] - 2.0 * value[1] + value[2];
-    const ValueT con = 0.5 * (value[2] - value[0]);
+    const ValueT sqr = static_cast<ValueT>(0.5 * (value[3] - value[0]) +
+                                           1.5 * (value[1] - value[2]));
+    const ValueT lin = static_cast<ValueT>(value[0] - 2.0 * value[1] + value[2]);
+    const ValueT con = static_cast<ValueT>(0.5 * (value[2] - value[0]));
     return weight * (weight * sqr + lin) + con;
     OPENVDB_NO_TYPE_CONVERSION_WARNING_END
   }
