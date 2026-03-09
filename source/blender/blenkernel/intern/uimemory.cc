@@ -23,6 +23,7 @@
 #include "BLI_fileops.h"
 #include "BLI_mutex.hh"
 #include "BLI_path_utils.hh"
+#include "BLI_time.h"
 
 namespace blender::ui_memory {
 
@@ -85,7 +86,11 @@ static void uimemory_init_impl()
   uimemory_init_cv.notify_all();
 }
 
-/* Manager implementation (thin wrapper around free functions but exposes ensure_init). */
+void Memory::init()
+{
+  uimemory_init_impl();
+}
+
 void Memory::init_async()
 {
   std::call_once(uimemory_init_once,

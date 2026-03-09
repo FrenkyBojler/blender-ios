@@ -56,6 +56,7 @@ struct Section {
 };
 
 struct Memory {
+  void init();
   void init_async();
   void ensure_init();
   bool save() const;
