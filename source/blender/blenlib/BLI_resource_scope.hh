@@ -45,26 +45,27 @@ class ResourceScope : NonMovable {
   /** This stores all resources. They are later freed in the reverse order of construction. */
   ResourceDataList resources_;
   /**
-   * Used allocator. This may be provided by the caller or is owned by this #ResourceScope itself.
-   * In the latter case, the ownership of the allocator is also tracked by #resources_ above.
+   * Used allocator. This is either provided by the caller when creating the #ResourceScope, or is
+   * owned by the scope itself In the latter case, the ownership of the allocator is also tracked
+   * by #resources_ above.
    */
   LinearAllocator<> &allocator_;
 
  public:
   /**
-   * Construct a #ResourceScope with an initial free buffer of the given size.
+   * Construct a #ResourceScope with an initial buffer of the given size.
    */
   explicit ResourceScope(int64_t initial_size = 32);
 
   /**
-   * Construct a #ResourceScope in the provided buffer. It may allocate additional memory if
+   * Construct a #ResourceScope in the provided buffer. It may allocate additional memory as
    * necessary though.
    */
   template<size_t Size, size_t Alignment>
   explicit ResourceScope(AlignedBuffer<Size, Alignment> &buffer);
 
   /**
-   * Construct a #ResourceScope in the provided buffer. It may allocate additional memory if
+   * Construct a #ResourceScope in the provided buffer. It may allocate additional memory as
    * necessary though.
    */
   ResourceScope(void *buffer, int64_t size);
@@ -123,8 +124,7 @@ class ResourceScope : NonMovable {
   void *allocate_owned(const CPPType &type);
 
   /**
-   * Returns a reference to a linear allocator that is owned by the #ResourceScope. Memory
-   * allocated through this allocator will be freed when the collector is destructed.
+   * Returns a reference to a linear allocator that is used by the #ResourceScope.
    */
   LinearAllocator<> &allocator();
 
@@ -146,6 +146,8 @@ static_assert(sizeof(ResourceScope) == 16);
 /* -------------------------------------------------------------------- */
 /** \name #ResourceScope Inline Methods
  * \{ */
+
+inline ResourceScope::ResourceScope(LinearAllocator<> &allocator) : allocator_(allocator) {}
 
 template<size_t Size, size_t Alignment>
 inline ResourceScope::ResourceScope(AlignedBuffer<Size, Alignment> &buffer)

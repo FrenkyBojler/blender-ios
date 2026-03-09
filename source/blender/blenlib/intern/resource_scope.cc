@@ -24,8 +24,6 @@ ResourceScope::ResourceScope(void *buffer, const int64_t size)
 {
 }
 
-ResourceScope::ResourceScope(LinearAllocator<> &allocator) : allocator_(allocator) {}
-
 LinearAllocator<> &ResourceScope::create_own_allocator_in_buffer(ResourceDataList &r_resources,
                                                                  void *data,
                                                                  const int64_t size,
