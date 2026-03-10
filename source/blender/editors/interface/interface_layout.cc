@@ -6006,7 +6006,6 @@ static void paneltype_draw_impl(bContext *C, PanelType *pt, Layout *layout, bool
 
 void UI_paneltype_draw(bContext *C, PanelType *pt, Layout *layout)
 {
-  block_flag_disable(layout->block(), BLOCK_LOOP);
   if (layout->context()) {
     CTX_store_set(C, layout->context());
   }
