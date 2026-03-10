@@ -137,6 +137,15 @@ class Action : public bAction {
   bool layer_remove(Layer &layer_to_remove);
 
   /**
+   * Sets the given layer to be the active layer of the action.
+   */
+  void layer_set_active(Layer &layer);
+  /**
+   * Return the active layer or a nullptr if there is none.
+   */
+  Layer *layer_get_active();
+
+  /**
    * Ensure that there is at least one layer with the infinite keyframe strip.
    *
    * \note Within the limits of Project Baklava Phase 1, this means that there
