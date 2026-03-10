@@ -44,7 +44,7 @@ static void node_geo_exec(GeoNodeExecParams params)
         const bke::CurvesFieldContext field_context(*curves_id, AttrDomain::Point);
         bke::try_capture_field_on_geometry(curves.attributes_for_write(),
                                            field_context,
-                                           "nurbs_weight",
+                                           "nurbs_weight"_ustr,
                                            bke::AttrDomain::Point,
                                            selection,
                                            weight);
@@ -64,7 +64,7 @@ static void node_geo_exec(GeoNodeExecParams params)
           bke::try_capture_field_on_geometry(
               curves.attributes_for_write(),
               bke::GreasePencilLayerFieldContext(*grease_pencil, AttrDomain::Point, layer_index),
-              "nurbs_weight",
+              "nurbs_weight"_ustr,
               bke::AttrDomain::Point,
               selection,
               weight);
