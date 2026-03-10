@@ -469,6 +469,11 @@ class SEQUENCER_MT_view(Menu):
                 layout.menu("SEQUENCER_MT_preview_zoom")
             layout.prop(st, "use_zoom_to_fit", text="Auto Zoom")
             layout.separator()
+
+            if st.view_type == 'PREVIEW':
+                layout.prop(st, "show_seconds")
+                layout.separator()
+
             layout.menu("SEQUENCER_MT_proxy")
             layout.operator_context = 'INVOKE_DEFAULT'
             layout.separator()
