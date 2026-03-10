@@ -280,6 +280,23 @@ void BKE_add_template_variables_general(VariableMap &variables, const ID *path_o
   if (project.data.has_value()) {
     variables.add_string("project_name", project.data->get_name());
     variables.add_filepath("project_root", project.data->get_root_path());
+
+    for (const bke::ProjectVariable *var : project.data->variables) {
+      switch (var->type) {
+        case bke::ProjectVarType::INTEGER:
+          variables.add_integer(var->name.c_str(), var->value_int);
+          break;
+        case bke::ProjectVarType::FLOAT:
+          variables.add_float(var->name.c_str(), var->value_float);
+          break;
+        case bke::ProjectVarType::STRING:
+          variables.add_string(var->name.c_str(), var->value_string.c_str());
+          break;
+        case bke::ProjectVarType::FILEPATH:
+          variables.add_filepath(var->name.c_str(), var->value_string.c_str());
+          break;
+      }
+    }
   }
 
   /* Global blend filepath (a.k.a. path to the blend file that's currently
