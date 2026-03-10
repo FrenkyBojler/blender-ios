@@ -10,13 +10,11 @@ namespace blender {
 
 namespace detail {
 
-template<typename T>
-  requires std::is_polymorphic_v<T>
-struct AnyVirtualExtraInfo {
+template<typename T> struct AnyDerivedExtraInfo {
 
   T *(*get_impl)(const void *buffer);
 
-  template<typename StorageT> static constexpr AnyVirtualExtraInfo get()
+  template<typename StorageT> static constexpr AnyDerivedExtraInfo get()
   {
     /* These are the only allowed types in the #Any. */
     static_assert(std::is_base_of_v<T, StorageT> ||
@@ -49,23 +47,21 @@ struct AnyVirtualExtraInfo {
 }  // namespace detail
 
 /**
- * This allows storing or passing around values of a polymorphic type (i.e. one with virtual
- * methods). Typically, this always requires allocating the value on the heap and passing it around
- * e.g. as unique_ptr. #AnyVirtual has small buffer optimization. So if the type is small, it can
- * be stored directly without an additional allocation.
+ * This allows storing or passing around derived classes of a common base class. Typically, this
+ * always requires allocating the value on the heap and passing it around e.g. as unique_ptr.
+ * #AnyDerived has small buffer optimization. So if the type is small, it can be stored directly
+ * without an additional allocation.
  *
  * This is used extensively for virtual arrays. Each type of virtual array is implemented as
  * subclass of #VArrayImpl while #VArray actually stores a specific implementation.
  *
  * Note: If the value is not stored inline, it's currently stored as a shared_ptr which is shared
- * when the AnyVirtual is copied. This behavior is fine and efficient for all current uses but it
- * may need to be generalized if #AnyVirtual is supposed to be used in more places.
+ * when the AnyDerived is copied. This behavior is fine and efficient for all current uses but it
+ * may need to be generalized if #AnyDerived is supposed to be used in more places.
  */
-template<typename T, int64_t InlineBufferCapacity = 24>
-  requires std::is_polymorphic_v<T>
-struct AnyVirtual {
+template<typename T, int64_t InlineBufferCapacity = 24> struct AnyDerived {
  private:
-  using Storage = Any<detail::AnyVirtualExtraInfo<T>, InlineBufferCapacity, alignof(T)>;
+  using Storage = Any<detail::AnyDerivedExtraInfo<T>, InlineBufferCapacity, alignof(T)>;
 
   /** Pointer to the currently contained implementation. This may be null. */
   T *impl_ = nullptr;
@@ -79,33 +75,33 @@ struct AnyVirtual {
   Storage storage_;
 
  public:
-  AnyVirtual() = default;
+  AnyDerived() = default;
 
-  AnyVirtual(const AnyVirtual &other) : storage_(other.storage_)
+  AnyDerived(const AnyDerived &other) : storage_(other.storage_)
   {
     impl_ = this->impl_from_storage();
   }
 
-  AnyVirtual(AnyVirtual &&other) noexcept : storage_(std::move(other.storage_))
+  AnyDerived(AnyDerived &&other) noexcept : storage_(std::move(other.storage_))
   {
     impl_ = this->impl_from_storage();
     other.storage_.reset();
     other.impl_ = nullptr;
   }
 
-  explicit AnyVirtual(T *impl) : impl_(impl)
+  explicit AnyDerived(T *impl) : impl_(impl)
   {
     storage_ = impl_;
   }
 
-  explicit AnyVirtual(std::shared_ptr<T> impl) : impl_(impl.get())
+  explicit AnyDerived(std::shared_ptr<T> impl) : impl_(impl.get())
   {
     if (impl_) {
       storage_ = std::move(impl);
     }
   }
 
-  AnyVirtual &operator=(const AnyVirtual &other)
+  AnyDerived &operator=(const AnyDerived &other)
   {
     if (this == &other) {
       return *this;
@@ -115,7 +111,7 @@ struct AnyVirtual {
     return *this;
   }
 
-  AnyVirtual &operator=(AnyVirtual &&other) noexcept
+  AnyDerived &operator=(AnyDerived &&other) noexcept
   {
     if (this == &other) {
       return *this;

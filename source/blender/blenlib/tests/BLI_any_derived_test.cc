@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
-#include "BLI_any_virtual.hh"
+#include "BLI_any_derived.hh"
 
 #include "testing/testing.h"
 
@@ -39,13 +39,13 @@ class AnyVirtualTestTimes10 : public AnyVirtualTestBase {
 
 TEST(any_virtual, DefaultConstructor)
 {
-  AnyVirtual<AnyVirtualTestBase> a;
+  AnyDerived<AnyVirtualTestBase> a;
   EXPECT_FALSE(a);
 }
 
 TEST(any_virtual, Emplace)
 {
-  AnyVirtual<AnyVirtualTestBase> a;
+  AnyDerived<AnyVirtualTestBase> a;
   a.emplace<AnyVirtualTestBase>(10);
   EXPECT_TRUE(a);
   EXPECT_EQ(a->value, 10);
@@ -56,7 +56,7 @@ TEST(any_virtual, Emplace)
 
 TEST(any_virtual, Subclass)
 {
-  AnyVirtual<AnyVirtualTestBase> a;
+  AnyDerived<AnyVirtualTestBase> a;
   a.emplace<AnyVirtualTestTimes10>(10);
   EXPECT_EQ(a->value, 100);
   a->set_value(2);
@@ -65,7 +65,7 @@ TEST(any_virtual, Subclass)
 
 TEST(any_virtual, Const)
 {
-  AnyVirtual<const AnyVirtualTestBase> a;
+  AnyDerived<const AnyVirtualTestBase> a;
   a.emplace<AnyVirtualTestBase>(10);
   EXPECT_TRUE(a);
   EXPECT_EQ(a->value, 10);

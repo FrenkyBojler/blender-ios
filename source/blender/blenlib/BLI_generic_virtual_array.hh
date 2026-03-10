@@ -90,7 +90,7 @@ class GVMutableArray;
  */
 class GVArrayCommon {
  protected:
-  AnyVirtual<const GVArrayImpl, 40> impl_;
+  AnyDerived<const GVArrayImpl, 40> impl_;
 
   GVArrayCommon() = default;
   GVArrayCommon(const GVArrayImpl *impl);

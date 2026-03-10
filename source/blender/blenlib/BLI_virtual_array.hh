@@ -28,7 +28,7 @@
 #include <functional>
 #include <optional>
 
-#include "BLI_any_virtual.hh"
+#include "BLI_any_derived.hh"
 #include "BLI_array.hh"
 #include "BLI_devirtualize_parameters.hh"
 #include "BLI_index_mask.hh"
@@ -514,7 +514,7 @@ inline constexpr bool
  */
 template<typename T> class VArrayCommon {
  protected:
-  AnyVirtual<const VArrayImpl<T>> impl_;
+  AnyDerived<const VArrayImpl<T>> impl_;
 
   VArrayCommon() = default;
 
