@@ -1706,7 +1706,10 @@ bool BKE_brush_has_cube_tip(const Brush *brush, PaintMode paint_mode)
         return true;
       }
 
-      if (ELEM(brush->sculpt_brush_type, SCULPT_BRUSH_TYPE_CLAY_STRIPS, SCULPT_BRUSH_TYPE_PAINT) &&
+      if (ELEM(brush->sculpt_brush_type,
+               SCULPT_BRUSH_TYPE_CLAY_STRIPS,
+               SCULPT_BRUSH_TYPE_PAINT,
+               SCULPT_BRUSH_TYPE_DRAW) &&
           (brush->tip_roundness < 1.0f || brush->tip_scale_x != 1.0f))
       {
         return true;
