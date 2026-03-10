@@ -222,14 +222,22 @@ MappedPointDataGrid points_to_point_data_grid(const Span<float3> positions,
                                               const float4x4 &transform)
 {
   const PointAttributeSpan positions_wrapper(positions);
+  /* Note: The createPointIndexGrid function is expecting a cell-centered transform while the input
+   * transform is corner-centered! The internal PointPartitioner can be configured, but that
+   * argument is not exposed. */
+  const float4x4 transform_cell_centered = transform * math::from_location<float4x4>(float3(0.5f));
   const openvdb::math::Transform vdb_transform = get_vdb_transform(transform);
+  const openvdb::math::Transform vdb_transform_cell_centered = get_vdb_transform(
+      transform_cell_centered);
 
   /* Create point index grid in advance so it can be used for all attribute grids. */
   openvdb::tools::PointIndexGrid::Ptr point_index_grid =
-      openvdb::tools::createPointIndexGrid<openvdb::tools::PointIndexGrid>(positions_wrapper,
-                                                                           vdb_transform);
+      openvdb::tools::createPointIndexGrid<openvdb::tools::PointIndexGrid>(
+          positions_wrapper, vdb_transform_cell_centered);
 
-  /* Convert the main positions array. */
+  /* Convert the main positions array.
+   * Note: Use the corner-centered transform here so that position data in the points array is in
+   * the regular 0..1 sampling space. */
   openvdb::points::PointDataGrid::Ptr point_data_grid =
       openvdb::points::createPointDataGrid<openvdb::points::NullCodec,
                                            openvdb::points::PointDataGrid>(
