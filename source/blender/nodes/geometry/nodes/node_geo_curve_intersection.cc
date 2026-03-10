@@ -131,7 +131,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .optional_label();
 
   /* Pair data outputs. */
-  PanelDeclarationBuilder &pair_data = b.add_panel("Pair Data")
+  PanelDeclarationBuilder &pair_data = b.add_panel("Pair Data"_ustr)
                                            .default_closed(true)
                                            .description("Panel contains outputs for pair data");
   pair_data.add_output<decl::Vector>("Pair Position")
