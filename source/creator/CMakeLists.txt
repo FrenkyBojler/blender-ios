@@ -494,6 +494,13 @@ if(WITH_PYTHON)
     )
   endif()
 
+  if(WITH_KTX)
+    install(
+      PROGRAMS $<TARGET_FILE:extern_ktx>
+      DESTINATION ${TARGETDIR_VER}/scripts/addons_core/io_scene_gltf2
+    )
+  endif()
+
 endif()
 
 # fonts

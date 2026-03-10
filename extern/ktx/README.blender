@@ -1,0 +1,6 @@
+Project: ktx
+URL: https://github.com/KhronosGroup/KTX-Software
+License: SPDX:Apache-2.0
+Upstream version: 4.4.2
+Local modifications: Apply patches/blender.patch
+Copyright: Copyright Mark Callow, the KTX-Software author; The Khronos Group Inc.

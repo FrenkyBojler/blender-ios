@@ -1,0 +1,4 @@
+// TODO generate version.h file
+// TODO remove zstd, and use the one from Blender:
+// - change include in basisu/encoder/basisu_comp.cpp from #include  "../zstd/zstd.g" to "zstd.h"
+// - change include in basisu/encoder/basisu_transcoder.cpp from #include "../zstd/zstd.h" to "zstd.h"

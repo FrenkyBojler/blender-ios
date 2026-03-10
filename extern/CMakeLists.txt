@@ -58,6 +58,10 @@ if(WITH_DRACO)
   add_subdirectory(draco)
 endif()
 
+if(WITH_KTX)
+  add_subdirectory(ktx)
+endif()
+
 if(WITH_BINRELOC)
   add_subdirectory(binreloc)
 endif()
