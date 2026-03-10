@@ -17,6 +17,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_text_types.h"
+#include "DNA_key_types.h"
 
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
@@ -980,6 +981,16 @@ static void namebutton_fn(bContext *C, void *tsep, char *oldname)
         case TSE_ACTION_SLOT: {
           WM_event_add_notifier(C, NC_ID | NA_RENAME, nullptr);
           undo_str = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Rename Action Slot");
+          break;
+        }
+        case TSE_SHAPE_KEY_BLOCK: {
+          Key *key = id_cast<Key *>(tselem->id);
+          KeyBlock *keyblock = static_cast<KeyBlock *>(te->directdata);
+          BLI_uniquename(
+              &key->block, keyblock, "Key", '.', offsetof(KeyBlock, name), sizeof(keyblock->name));
+          WM_event_add_notifier(C, NC_ID | NA_RENAME, nullptr);
+          DEG_id_tag_update(tselem->id, ID_RECALC_SYNC_TO_EVAL);
+          undo_str = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Rename Shape Key");
           break;
         }
       }
