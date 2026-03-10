@@ -9,6 +9,8 @@
 
 #include <cstdint>
 
+#include "BKE_mesh_types.hh"
+
 #include "BLI_array.hh"
 #include "BLI_string_ref.hh"
 
@@ -40,16 +42,6 @@ struct Nurb;
 namespace draw {
 struct MeshBatchCache;
 }
-
-/* TODO: Move to `BKE_mesh_types.hh` when possible. */
-enum eMeshBatchDirtyMode : int8_t {
-  BKE_MESH_BATCH_DIRTY_ALL = 0,
-  BKE_MESH_BATCH_DIRTY_SELECT,
-  BKE_MESH_BATCH_DIRTY_SELECT_PAINT,
-  BKE_MESH_BATCH_DIRTY_SHADING,
-  BKE_MESH_BATCH_DIRTY_UVEDIT_ALL,
-  BKE_MESH_BATCH_DIRTY_UVEDIT_SELECT,
-};
 
 /* `mesh.cc` */
 
