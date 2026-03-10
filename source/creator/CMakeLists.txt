@@ -1170,8 +1170,8 @@ elseif(WIN32)
       if(PDBCOPY_EXECUTABLE)
         add_custom_command(
           TARGET blender POST_BUILD
-          COMMAND ${CMAKE_COMMAND} -E rm -f ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/blender_public.pdb
-          COMMAND ${PDBCOPY_EXECUTABLE} $<TARGET_PDB_FILE:blender> ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/blender_public.pdb -p
+          COMMAND $<$<NOT:$<CONFIG:Debug>>:${CMAKE_COMMAND} -E rm -f ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/blender_public.pdb>
+          COMMAND $<$<NOT:$<CONFIG:Debug>>:${PDBCOPY_EXECUTABLE} $<TARGET_PDB_FILE:blender> ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/blender_public.pdb -p>
           COMMENT "Stripping PDB file..."
         )
       else()
