@@ -2890,91 +2890,41 @@ static void ANIM_OT_channels_delete(wmOperatorType *ot)
 static wmOperatorStatus animmodifiers_delete_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
-  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
-  int filter;
-
-  /* get editor data */
+  
   if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
-  /* cannot delete in shapekey */
+  /* Modifiers cannot be deleted from shape keys. */
   if (ac.datatype == ANIMCONT_SHAPEKEY) {
     return OPERATOR_CANCELLED;
   }
 
-  /* filter data */
-  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_SEL |
-            ANIMFILTER_FOREDIT | ANIMFILTER_NODUPLIS);
+  const eAnimFilter_Flags filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_SEL |
+            ANIMFILTER_FOREDIT | ANIMFILTER_NODUPLIS | ANIMFILTER_FCURVESONLY);
+  
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   ANIM_animdata_filter(
       &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
 
-  /* delete modifiers of selected data channels */
   for (bAnimListElem &ale : anim_data) {
-    switch (ale.type) {
-      case ANIMTYPE_FCURVE:
-      case ANIMTYPE_NLACURVE: {
-        FCurve *fcu = (FCurve *)ale.data;
-        if (BLI_listbase_is_empty(&fcu->modifiers) == false) {
-          free_fmodifiers(&fcu->modifiers);
-          ale.update |= ANIM_UPDATE_DEPS;
-        }
-        break;
-      }
 
-      case ANIMTYPE_GPLAYER:
-      case ANIMTYPE_GREASE_PENCIL_LAYER:
-      case ANIMTYPE_MASKLAYER:
-      case ANIMTYPE_NONE:
-      case ANIMTYPE_ANIMDATA:
-      case ANIMTYPE_SPECIALDATA__UNUSED:
-      case ANIMTYPE_SUMMARY:
-      case ANIMTYPE_SCENE:
-      case ANIMTYPE_OBJECT:
-      case ANIMTYPE_GROUP:
-      case ANIMTYPE_NLACONTROLS:
-      case ANIMTYPE_FILLACT_LAYERED:
-      case ANIMTYPE_ACTION_SLOT:
-      case ANIMTYPE_FILLACTD:
-      case ANIMTYPE_FILLDRIVERS:
-      case ANIMTYPE_DSMAT:
-      case ANIMTYPE_DSLAM:
-      case ANIMTYPE_DSCAM:
-      case ANIMTYPE_DSCACHEFILE:
-      case ANIMTYPE_DSCUR:
-      case ANIMTYPE_DSSKEY:
-      case ANIMTYPE_DSWOR:
-      case ANIMTYPE_DSNTREE:
-      case ANIMTYPE_DSPART:
-      case ANIMTYPE_DSMBALL:
-      case ANIMTYPE_DSARM:
-      case ANIMTYPE_DSMESH:
-      case ANIMTYPE_DSTEX:
-      case ANIMTYPE_DSLAT:
-      case ANIMTYPE_DSLINESTYLE:
-      case ANIMTYPE_DSSPK:
-      case ANIMTYPE_DSGPENCIL:
-      case ANIMTYPE_DSMCLIP:
-      case ANIMTYPE_DSHAIR:
-      case ANIMTYPE_DSPOINTCLOUD:
-      case ANIMTYPE_DSVOLUME:
-      case ANIMTYPE_DSLIGHTPROBE:
-      case ANIMTYPE_SHAPEKEY:
-      case ANIMTYPE_GREASE_PENCIL_DATABLOCK:
-      case ANIMTYPE_GREASE_PENCIL_LAYER_GROUP:
-      case ANIMTYPE_MASKDATABLOCK:
-      case ANIMTYPE_NLATRACK:
-      case ANIMTYPE_NLAACTION:
-      case ANIMTYPE_PALETTE:
-      case ANIMTYPE_NUM_TYPES:
-        break;
+    if (!ELEM(ale.type, ANIMTYPE_FCURVE, ANIMTYPE_NLACURVE)) {
+      continue;
     }
+
+    FCurve *fcu = static_cast<FCurve *>(ale.data);
+    if (BLI_listbase_is_empty(&fcu->modifiers)) {
+      continue;
+    }
+
+    free_fmodifiers(&fcu->modifiers);
+    ale.update |= ANIM_UPDATE_DEPS;
   }
 
   ANIM_animdata_update(&ac, &anim_data);
   ANIM_animdata_freelist(&anim_data);
 
-  /* send notifier that things have changed */
   WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
   DEG_relations_tag_update(CTX_data_main(C));
 
@@ -2983,16 +2933,13 @@ static wmOperatorStatus animmodifiers_delete_exec(bContext *C, wmOperator * /*op
 
 static void ANIM_OT_modifiers_delete(wmOperatorType *ot)
 {
-  /* identifiers */
   ot->name = "Delete Modifiers";
   ot->idname = "ANIM_OT_modifiers_delete";
-  ot->description = "Delete modifiers on all selected FCurves/Channels.";
+  ot->description = "Delete modifiers on all selected FCurves/Channels";
 
-  /* API callbacks. */
   ot->exec = animmodifiers_delete_exec;
   ot->poll = animedit_poll_channels_active;
 
-  /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
