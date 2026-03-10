@@ -27,10 +27,10 @@ BlenderImageLoader::BlenderImageLoader(blender::Image *b_image,
                                        const bool is_preview_render)
     : b_image(b_image),
       b_iuser(*b_iuser),
-      cached_update_count(b_image->runtime->update_count),
       /* Don't free cache for preview render to avoid race condition from #93560, to be fixed
        * properly later as we are close to release. */
-      free_cache(!is_preview_render && !BKE_image_has_loaded_ibuf(b_image))
+      free_cache(!is_preview_render && !BKE_image_has_loaded_ibuf(b_image)),
+      cached_update_count(b_image->runtime->update_count)
 {
   this->b_iuser.framenr = frame;
   if (b_image->source != blender::IMA_SRC_TILED) {
