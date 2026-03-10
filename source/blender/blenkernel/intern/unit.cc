@@ -2110,10 +2110,41 @@ static char *skip_unary_op(char *str)
   return str;
 }
 
-static bool ch_is_op_unary_with_back_check(const char *begin, const char *c)
+static char *charset_look_back(StringRef char_set, char *c, const char *begin)
 {
-  return (c - begin == 1 && ch_is_op_unary(*c)) ||
-         ((c > begin) && ch_is_op_unary(*c) && (ch_is_op(*(c - 1)) || *(c - 1) == '('));
+  while (*c == ' ' && c > begin) {
+    c--;
+  }
+  if (c >= begin && char_set.find(*c) != StringRef::not_found) {
+    return c;
+  }
+  return nullptr;
+}
+
+static char *charset_look_next(StringRef char_set, char *c, const char *end)
+{
+  while (*c == ' ' && c < end) {
+    c++;
+  }
+  if (c < end && char_set.find(*c) != StringRef::not_found) {
+    return c;
+  }
+  return nullptr;
+}
+
+char *ch_is_op_unary_with_back_check(const char *begin, char *c)
+{
+  char *unary_location = charset_look_back("-", c, begin);
+  if (begin == unary_location) {
+    return unary_location;
+  }
+  if (!unary_location) {
+    return nullptr;
+  }
+  if (charset_look_back("-*/|&~<>^!=%(", unary_location - 1, begin) != nullptr) {
+    return unary_location;
+  }
+  return nullptr;
 }
 
 /**
@@ -2160,7 +2191,7 @@ static bool unit_distribute_negatives(char *str, const int str_maxncpy)
  * Helper for #unit_scale_str for the process of correctly applying the order of operations
  * for the unit's bias term, `-` unary operators are considered be part of values.
  */
-static int find_previous_non_value_char(const char *str, const int start_ofs)
+static int find_previous_non_value_char(char *str, const int start_ofs)
 {
   int i = start_ofs - 1;
   while (i >= 0 && str[i] == ' ') {
@@ -2168,8 +2199,8 @@ static int find_previous_non_value_char(const char *str, const int start_ofs)
   }
   for (; i > 0; i--) {
     if (str[i - 1] == '(') {
-      if (ch_is_op_unary_with_back_check(str, str + i - 2)) {
-        return i - 2;
+      if (const char *unary_op = ch_is_op_unary_with_back_check(str, str + i - 2)) {
+        return unary_op - str;
       }
     }
     if (ch_is_op(str[i - 1]) || strchr("( )", str[i - 1])) {
@@ -2242,8 +2273,9 @@ static int unit_scale_str(char *str,
     `(-(2F))*0.555555582` > `(((-2F))*0.555555582`. */
     int prev_op_ofs = find_previous_non_value_char(str, found_ofs);
     if (str[prev_op_ofs] == '-' && prev_op_ofs + 2 < str_maxncpy) {
-      std::swap(str[prev_op_ofs], str[prev_op_ofs + 1]);
-      prev_op_ofs++;
+      char *next_paren = charset_look_next("(", str + prev_op_ofs + 1, str + len);
+      std::swap(str[prev_op_ofs], *next_paren);
+      prev_op_ofs = next_paren - str;
     }
     if (len + 1 < str_maxncpy) {
       memmove(str + prev_op_ofs + 1, str + prev_op_ofs, len - prev_op_ofs + 1);
@@ -2404,6 +2436,17 @@ bool BKE_unit_replace_string(
   const bUnitCollection *usys = unit_get_system(system, type);
   if (!is_valid_unit_collection(usys)) {
     return false;
+  }
+  {
+    /* Trim and remove redundant white space. */
+    std::string str_tmp = StringRef(str).trim();
+    std::string::iterator trim_itr = std::unique(
+        str_tmp.begin(), str_tmp.end(), [](char a, char b) {
+          return StringRef(" ").find(a) != StringRef::not_found &&
+                 StringRef(" ").find(b) != StringRef::not_found;
+        });
+    str_tmp.erase(trim_itr, str_tmp.end());
+    StringRef(str_tmp).copy_utf8_truncated(str, str_maxncpy);
   }
 
   double scale_pref_base = scale_pref;
