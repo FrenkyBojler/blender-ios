@@ -490,9 +490,9 @@ static UString get_random_id_attribute_name(const AttrDomain domain)
   switch (domain) {
     case AttrDomain::Point:
     case AttrDomain::Instance:
-      return UString("id");
+      return "id"_ustr;
     default:
-      return UString("");
+      return ""_ustr;
   }
 }
 
