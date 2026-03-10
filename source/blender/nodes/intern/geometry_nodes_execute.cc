@@ -288,6 +288,7 @@ static bke::SocketValueVariant init_socket_cpp_value(PointerRNA *input_props_ptr
     case SOCK_CLOSURE:
     case SOCK_SHADER:
     case SOCK_CUSTOM:
+    case SOCK_INT_VECTOR:
       break;
   }
 
