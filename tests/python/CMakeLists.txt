@@ -122,6 +122,8 @@ if(WITH_UI_TESTS)
       # while this could be investigated, use windowed mode instead.
       # Use a window size that balances software GPU rendering with enough room to use the UI.
       --factory-startup
+      # Workaround for https://projects.blender.org/blender/blender/issues/154770.
+      --no-native-pixels
       # No need for window frame with tests.
       --no-window-frame
       -p 0 0 800 600
@@ -927,7 +929,8 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
     add_gpu_render_tests(eevee "eevee_render_tests.py" "${gpu_render_tests}")
     add_gpu_render_tests(workbench "workbench_render_tests.py" "${gpu_render_tests}")
     if(WITH_GPU_RENDER_TESTS_HEADED)
-      add_gpu_render_tests(overlay "overlay_render_tests.py" "${gpu_render_tests}")
+      # Temporarilly disabled until 154533 is merged to avoid errors on the builder.
+      # add_gpu_render_tests(overlay "overlay_render_tests.py" "${gpu_render_tests}")
     endif()
     if(WITH_HYDRA)
       add_gpu_render_tests(storm_hydra "storm_render_tests.py" "${gpu_render_tests}" --export_method "HYDRA")
