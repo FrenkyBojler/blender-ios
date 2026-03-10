@@ -2,3 +2,4 @@ Referenced by issue #135922, Blender crashes when saving a file
 Referenced by issue #136850, HDRI Preview Flickering in Viewport Shading
 Referenced by issue #137756, EEVEE: Crash when using textured volume on world and rendered viewport is active
 Referenced by issue #138920, EEVEE: Crash when switching workspace with world volume
+Referenced by pull request #155459, WIP: Fix #139014: Alt+Q fails to transfer modes in armature edit mode
