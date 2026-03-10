@@ -81,14 +81,19 @@ def save_project(project, report=None):
 
     root_path = Path(project.root_path)
 
-    if not root_path.is_absolute():
-        if report:
-            report({'ERROR'}, "Cannot write project to non-absolute path.")
-        raise ProjectSaveException
+    try:
+        if not root_path.is_absolute():
+            if report:
+                report({'ERROR'}, "Cannot write project to non-absolute path.")
+            raise ProjectSaveException
 
-    if not root_path.is_dir():
+        if not root_path.is_dir():
+            if report:
+                report({'ERROR'}, "Cannot save project: root directory does not exist.")
+            raise ProjectSaveException
+    except PermissionError:
         if report:
-            report({'ERROR'}, "Cannot save project: root directory does not exist.")
+            report({'ERROR'}, rpt_("Cannot access '{}' due to filesystem permissions.").format(PROJECT_DIR))
         raise ProjectSaveException
 
     config_dir_path = root_path.joinpath(PROJECT_DIR)
