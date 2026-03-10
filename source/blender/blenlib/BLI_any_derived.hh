@@ -10,29 +10,29 @@ namespace blender {
 
 namespace detail {
 
-template<typename T> struct AnyDerivedExtraInfo {
+template<typename Base> struct AnyDerivedExtraInfo {
 
-  T *(*get_impl)(const void *buffer);
+  Base *(*get_impl)(const void *buffer);
 
   template<typename StorageT> static constexpr AnyDerivedExtraInfo get()
   {
     /* These are the only allowed types in the #Any. */
-    static_assert(std::is_base_of_v<T, StorageT> ||
-                  is_same_any_v<StorageT, T *, std::shared_ptr<T>>);
+    static_assert(std::is_base_of_v<Base, StorageT> ||
+                  is_same_any_v<StorageT, Base *, std::shared_ptr<Base>>);
 
     /* Depending on how the implementation is stored in the #Any, a different #get_impl function
      * is required. */
-    if constexpr (std::is_base_of_v<T, StorageT>) {
+    if constexpr (std::is_base_of_v<Base, StorageT>) {
       return {[](const void *buffer) {
-        return static_cast<T *>(const_cast<StorageT *>(static_cast<const StorageT *>(buffer)));
+        return static_cast<Base *>(const_cast<StorageT *>(static_cast<const StorageT *>(buffer)));
       }};
     }
-    else if constexpr (std::is_same_v<StorageT, T *>) {
+    else if constexpr (std::is_same_v<StorageT, Base *>) {
       return {[](const void *buffer) {
         return *const_cast<StorageT *>(static_cast<const StorageT *>(buffer));
       }};
     }
-    else if constexpr (std::is_same_v<StorageT, std::shared_ptr<T>>) {
+    else if constexpr (std::is_same_v<StorageT, std::shared_ptr<Base>>) {
       return {[](const void *buffer) {
         return (const_cast<StorageT *>(static_cast<const StorageT *>(buffer)))->get();
       }};
@@ -63,12 +63,12 @@ template<typename T> struct AnyDerivedExtraInfo {
  * when the AnyDerived is copied. This behavior is fine and efficient for all current uses but it
  * may need to be generalized if #AnyDerived is supposed to be used in more places.
  */
-template<typename T, int64_t InlineBufferCapacity = 24> struct AnyDerived {
+template<typename Base, int64_t InlineBufferCapacity = 24> struct AnyDerived {
  private:
-  using Storage = Any<detail::AnyDerivedExtraInfo<T>, InlineBufferCapacity, alignof(T)>;
+  using Storage = Any<detail::AnyDerivedExtraInfo<Base>, InlineBufferCapacity, alignof(Base)>;
 
   /** Pointer to the currently contained implementation. This may be null. */
-  T *impl_ = nullptr;
+  Base *impl_ = nullptr;
 
   /**
    * Does the memory management for the implementation. It contains one of the following:
@@ -93,12 +93,12 @@ template<typename T, int64_t InlineBufferCapacity = 24> struct AnyDerived {
     other.impl_ = nullptr;
   }
 
-  explicit AnyDerived(T *impl) : impl_(impl)
+  explicit AnyDerived(Base *impl) : impl_(impl)
   {
     storage_ = impl_;
   }
 
-  explicit AnyDerived(std::shared_ptr<T> impl) : impl_(impl.get())
+  explicit AnyDerived(std::shared_ptr<Base> impl) : impl_(impl.get())
   {
     if (impl_) {
       storage_ = std::move(impl);
@@ -128,7 +128,7 @@ template<typename T, int64_t InlineBufferCapacity = 24> struct AnyDerived {
   }
 
   template<typename ImplT, typename... Args>
-    requires std::is_base_of_v<T, ImplT>
+    requires std::is_base_of_v<Base, ImplT>
   void emplace(Args &&...args)
   {
     if constexpr (std::is_copy_constructible_v<ImplT> && Storage::template is_inline_v<ImplT>) {
@@ -139,7 +139,7 @@ template<typename T, int64_t InlineBufferCapacity = 24> struct AnyDerived {
     else {
       /* If it can't be inlined, create a new #std::shared_ptr instead and store that in the
        * storage. */
-      std::shared_ptr<T> ptr = std::make_shared<ImplT>(std::forward<Args>(args)...);
+      std::shared_ptr<Base> ptr = std::make_shared<ImplT>(std::forward<Args>(args)...);
       impl_ = &*ptr;
       storage_ = std::move(ptr);
     }
@@ -150,23 +150,23 @@ template<typename T, int64_t InlineBufferCapacity = 24> struct AnyDerived {
     return impl_ != nullptr;
   }
 
-  T &operator*() const
+  Base &operator*() const
   {
     return *impl_;
   }
 
-  T *operator->() const
+  Base *operator->() const
   {
     return impl_;
   }
 
-  T *get() const
+  Base *get() const
   {
     return impl_;
   }
 
  protected:
-  T *impl_from_storage() const
+  Base *impl_from_storage() const
   {
     if (!storage_.has_value()) {
       return nullptr;
