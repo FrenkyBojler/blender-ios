@@ -8,7 +8,6 @@
 
 #include <cstdlib>
 
-#include "BKE_blender_project.hh"
 #include "BKE_context.hh"
 
 #include "RNA_define.hh"
@@ -218,13 +217,6 @@ static PointerRNA rna_Context_preferences_get(PointerRNA * /*ptr*/)
   return newptr;
 }
 
-#  ifdef WITH_BLENDER_PROJECTS
-static PointerRNA rna_Context_project_get(PointerRNA * /*ptr*/)
-{
-  return RNA_pointer_create_discrete(nullptr, RNA_BlenderProject, &BKE_blender_project());
-}
-#  endif
-
 static int rna_Context_mode_get(PointerRNA *ptr)
 {
   bContext *C = static_cast<bContext *>(ptr->data);
@@ -371,13 +363,6 @@ void RNA_def_context(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_struct_type(prop, "Preferences");
   RNA_def_property_pointer_funcs(prop, "rna_Context_preferences_get", nullptr, nullptr, nullptr);
-
-#  ifdef WITH_BLENDER_PROJECTS
-  prop = RNA_def_property(srna, "project", PROP_POINTER, PROP_NONE);
-  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-  RNA_def_property_struct_type(prop, "BlenderProject");
-  RNA_def_property_pointer_funcs(prop, "rna_Context_project_get", NULL, NULL, NULL);
-#  endif
 
   prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, rna_enum_context_mode_items);

@@ -15,13 +15,13 @@
 namespace blender::bke {
 
 /**
- * The actual data of a project.
+ * A Blender project.
  *
- * Effectively, this is the actual project, and `BlenderProject` below is a
- * container that allows this to either exist or not depending on whether a
- * project is loaded or not.
+ * There is at most one active project at a time in Blender.
  */
-class BlenderProjectData {
+class BlenderProject {
+  /* Whether the project has been modified since the last time it was saved. */
+
   /* The name and root path should never be empty. */
   std::string name_;
   std::string root_path_;
@@ -51,37 +51,26 @@ class BlenderProjectData {
   StringRefNull get_root_path() const;
 };
 
-/**
- * Container for `BlenderProjectData` that always exists.
- *
- * Also contains metadata about the state of project data, such as whether it's
- * dirty or not.
- */
-class BlenderProject {
- public:
-  /* Actual project data. When this is null, it means there is currently no
-   * project. */
-  std::optional<BlenderProjectData> data = std::nullopt;
-
-  /**
-   * Initialize a new Blender Project.
-   *
-   * If either `name` or `root_path` are empty (which is invalid), the current
-   * project (if any) will remain as-is and false is returned.  Otherwise the
-   * existing project (if any) is cleared, the project is initialized with the
-   * given values, and true is returned.
-   */
-  bool init(blender::StringRef name, blender::StringRef root_path);
-
-  /**
-   * Clear the current Blender Project.
-   */
-  void clear();
-};
-
 }  // namespace blender::bke
 
 /**
- * Fetch the current Blender Project.
+ * Fetch the current Blender Project, if any.
+ *
+ * Returns nullptr if there is no project.
  */
-blender::bke::BlenderProject &BKE_blender_project();
+blender::bke::BlenderProject *BKE_blender_project();
+
+/**
+ * Initialize a new Blender Project.
+ *
+ * If either `name` or `root_path` are empty (which is invalid), the current
+ * project (if any) will remain as-is and false is returned.  Otherwise the
+ * existing project (if any) is cleared, the project is initialized with the
+ * given values, and true is returned.
+ */
+bool BKE_blender_project_init(blender::StringRef name, blender::StringRef root_path);
+
+/**
+ * Clears and unloads the current project, if any.
+ */
+void BKE_blender_project_clear();

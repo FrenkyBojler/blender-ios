@@ -72,15 +72,14 @@ def save_project(project, report=None):
         Optionally takes an `Operator.report` for reporting errors to the user.
     """
 
-    if project.data is None:
+    if project is None:
         if report:
             report({'ERROR'}, "Cannot save project because there is no project to save.")
         raise ProjectSaveException
 
-    logger.info("Saving project '{}' at '{}'...".format(project.data.name, project.data.root_path))
+    logger.info("Saving project '{}' at '{}'...".format(project.name, project.root_path))
 
-    data = project.data
-    root_path = Path(data.root_path)
+    root_path = Path(project.root_path)
 
     if not root_path.is_absolute():
         if report:
@@ -109,13 +108,13 @@ def save_project(project, report=None):
     try:
         with config_path.open(mode='w', encoding='utf-8') as f:
             # The actual project file writing.
-            f.write("name = \"{}\"\n".format(escape_string(data.name)))
+            f.write("name = \"{}\"\n".format(escape_string(project.name)))
     except PermissionError:
         if report:
             report({'ERROR'}, rpt_("Cannot write to '{}' due to filesystem permissions.").format(PROJECT_CONFIG))
         raise ProjectSaveException
 
-    data.is_dirty = False
+    project.is_dirty = False
 
     logger.info("...done.")
 
@@ -132,16 +131,16 @@ def find_and_load_project_for_blend_path(context, blend_path, report=None):
 
     if blend_path == "":
         # Not an on-disk blend file, so there is no project to load.
-        context.project.clear()
+        bpy.data.project_clear()
         return
 
     root_path = find_project_root_from_blend_file_path(Path(blend_path))
     if root_path is None:
         # No project.
-        context.project.clear()
+        bpy.data.project_clear()
         return
 
-    if context.project.data is not None and root_path == context.project.data.root_path:
+    if bpy.data.project is not None and root_path == bpy.data.project.root_path:
         # We already have this project loaded, and we don't want to obliterate
         # local unsaved changes if auto-save isn't turned on.
         return
@@ -155,11 +154,11 @@ def find_and_load_project_for_blend_path(context, blend_path, report=None):
 
     validate_config(config, report)
 
-    context.project.clear()
+    bpy.data.project_clear()
 
-    context.project.init(config["name"], str(root_path))
+    bpy.data.project_init(config["name"], str(root_path))
 
-    context.project.data.is_dirty = False
+    bpy.data.project.is_dirty = False
 
 
 def find_project_root_from_blend_file_path(blend_path):
@@ -275,7 +274,7 @@ class PROJECT_OP_NewProject(Operator):
 
     @classmethod
     def poll(cls, context):
-        return context.project.data is None and bpy.data.filepath != ""
+        return bpy.data.project is None and bpy.data.filepath != ""
 
     def execute(self, context):
         if not bpy.context.preferences.experimental.use_blender_projects:
@@ -294,7 +293,7 @@ class PROJECT_OP_NewProject(Operator):
         #
         # Under normal circumstances this should never happen, because a project
         # would already be loaded in that case, and thus `poll()` would fail.
-        # But if someone manually calls `context.project.clear()` then this can
+        # But if someone manually calls `bpy.data.project_clear()` then this can
         # happen.
         if blend_file_is_in_valid_project(Path(bpy.data.filepath)):
             self.report(
@@ -306,11 +305,11 @@ class PROJECT_OP_NewProject(Operator):
         project_name = os.path.basename(os.path.normpath(self.directory)).title()
 
         # Create the project.
-        context.project.init(project_name, self.directory)
+        bpy.data.project_init(project_name, self.directory)
 
         # Immediately save the project.
         try:
-            save_project(context.project, self.report)
+            save_project(bpy.data.project, self.report)
         except ProjectSaveException as e:
 
             return {'CANCELLED'}
@@ -335,7 +334,7 @@ class PROJECT_OP_SaveProject(Operator):
 
     @classmethod
     def poll(cls, context):
-        return context.project.data is not None
+        return bpy.data.project is not None
 
     def execute(self, context):
         if not bpy.context.preferences.experimental.use_blender_projects:
@@ -343,7 +342,7 @@ class PROJECT_OP_SaveProject(Operator):
             return {'CANCELLED'}
 
         try:
-            save_project(context.project)
+            save_project(bpy.data.project)
         except ProjectSaveException as e:
             self.report({'ERROR'}, "Failed to save project: {}".format(e))
             return {'CANCELLED'}
@@ -408,9 +407,9 @@ def on_blend_load(blend_path):
         return
 
     # Auto-save the current project before loading a different blend file.
-    if bpy.context.preferences.use_project_auto_save and bpy.context.project.data is not None and bpy.context.project.data.is_dirty:
+    if bpy.context.preferences.use_project_auto_save and bpy.data.project is not None and bpy.data.project.is_dirty:
         try:
-            save_project(bpy.context.project)
+            save_project(bpy.data.project)
         except ProjectSaveException:
             logger.error("Error trying to auto-save project.")
 
@@ -428,9 +427,9 @@ def on_blend_save(blend_path):
         return
 
     # Auto-save project when saving the current blend file.
-    if bpy.context.preferences.use_project_auto_save and bpy.context.project.data is not None and bpy.context.project.data.is_dirty:
+    if bpy.context.preferences.use_project_auto_save and bpy.data.project is not None and bpy.data.project.is_dirty:
         try:
-            save_project(bpy.context.project)
+            save_project(bpy.data.project)
         except ProjectSaveException:
             logger.error("Error trying to auto-save project.")
 
@@ -450,8 +449,8 @@ def on_exit(is_user_exit):
     if not bpy.context.preferences.experimental.use_blender_projects:
         return
 
-    if bpy.context.preferences.use_project_auto_save and bpy.context.project.data is not None and bpy.context.project.data.is_dirty:
-        save_project(bpy.context.project)
+    if bpy.context.preferences.use_project_auto_save and bpy.data.project is not None and bpy.data.project.is_dirty:
+        save_project(bpy.data.project)
 
 
 # -----------------------------------------------------------------------------
