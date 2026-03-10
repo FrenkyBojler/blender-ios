@@ -27,6 +27,7 @@ BlenderImageLoader::BlenderImageLoader(blender::Image *b_image,
                                        const bool is_preview_render)
     : b_image(b_image),
       b_iuser(*b_iuser),
+      cached_update_count(b_image->runtime->update_count),
       /* Don't free cache for preview render to avoid race condition from #93560, to be fixed
        * properly later as we are close to release. */
       free_cache(!is_preview_render && !BKE_image_has_loaded_ibuf(b_image))
@@ -40,7 +41,6 @@ BlenderImageLoader::BlenderImageLoader(blender::Image *b_image,
     /* Set UDIM tile, each can have different resolution. */
     this->b_iuser.tile = tile_number;
   }
-  cached_update_count = b_image->runtime->update_count;
 }
 
 bool BlenderImageLoader::load_metadata(ImageMetaData &metadata)
