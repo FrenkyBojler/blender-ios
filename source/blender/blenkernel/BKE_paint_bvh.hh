@@ -483,6 +483,15 @@ ENUM_OPERATORS(PBVHTopologyUpdateMode);
 namespace bke::pbvh {
 
 /**
+ * Optional per-edge resolution callback for dyntopo: maps a 3D position
+ * (edge midpoint) to a resolution multiplier.
+ *
+ * The effective edge-length threshold is: base_threshold / resolution.
+ * So resolution of 1 = same as UI setting, anything over it means more subdivision.
+ */
+using ResolutionFn = FunctionRef<float(const float3 &position)>;
+
+/**
  * Collapse short edges, subdivide long edges.
  */
 bool bmesh_update_topology(BMesh &bm,
@@ -495,7 +504,8 @@ bool bmesh_update_topology(BMesh &bm,
                            const std::optional<float3> &view_normal,
                            float radius,
                            bool use_frontface,
-                           bool use_projected);
+                           bool use_projected,
+                           const ResolutionFn *resolution_fn = nullptr);
 
 }  // namespace bke::pbvh
 

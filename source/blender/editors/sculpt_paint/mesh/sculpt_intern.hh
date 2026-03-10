@@ -155,6 +155,37 @@ namespace ed::sculpt_paint {
 static constexpr int plane_brush_max_rolling_average_num = 20;
 
 /**
+ * Returns true if the brush stroke method (anchored/drag dot) runs dynamic topology
+ * at stroke end rather than per-step.
+ */
+bool stroke_defers_dyntopo(const Brush &brush);
+
+/**
+ * Grid of resolution multipliers derived from the brush texture's displacement slope.
+ * Built at stroke end for anchored/drag-dot strokes with dynamic topology.
+ *
+ * Each cell holds 1 + displacement_slope, where the slope is the dimensionless
+ * rate of displacement change per model-space distance (computed from the texture
+ * gradient, brush strength, and brush radius — radius cancels out).
+ *
+ * - resolution = 1.0 (flat texture): edges at the base dyntopo detail setting.
+ * - resolution > 1.0 (steep displacement): shorter edges, finer subdivision.
+ */
+struct DynTopoResolutionGrid {
+  static constexpr int SIZE = 256;
+  /** Resolution multiplier at each grid cell (SIZE*SIZE), >= 1.0. */
+  Array<float> resolution;
+  /** Transform from model-space to grid indices [0, SIZE-1]. */
+  float4x4 model_to_grid;
+
+  /**
+   * Look up the resolution multiplier for a model-space position.
+   * Returns 1.0 (base resolution) for positions outside the grid.
+   */
+  float lookup(const float3 &model_pos) const;
+};
+
+/**
  * This structure contains all the temporary data
  * needed for individual brush strokes.
  */

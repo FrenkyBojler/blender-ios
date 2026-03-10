@@ -670,6 +670,7 @@ struct EdgeQueueContext {
   int cd_vert_mask_offset;
   int cd_vert_node_offset;
   int cd_face_node_offset;
+  const ResolutionFn *resolution_fn;
 };
 
 /* Only tagged edges are in the queue. */
@@ -884,7 +885,15 @@ static void long_edge_queue_edge_add_recursive(const EdgeQueueContext *eq_ctx,
 static void short_edge_queue_edge_add(const EdgeQueueContext *eq_ctx, BMEdge *e)
 {
   if (!EDGE_QUEUE_TEST(e)) {
-    if (BM_edge_calc_length_squared(e) < eq_ctx->queue->limit_len_squared) {
+    float effective_limit_sq = eq_ctx->queue->limit_len_squared;
+    if (eq_ctx->resolution_fn) {
+      float3 mid;
+      mid_v3_v3v3(mid, e->v1->co, e->v2->co);
+      const float r = (*eq_ctx->resolution_fn)(mid);
+      /* Higher resolution -> lower collapse threshold (keep shorter edges). */
+      effective_limit_sq = eq_ctx->queue->limit_len_squared / (r * r);
+    }
+    if (BM_edge_calc_length_squared(e) < effective_limit_sq) {
       edge_queue_insert(eq_ctx, e, short_edge_queue_priority(*e));
     }
   }
@@ -904,9 +913,22 @@ static void long_edge_queue_face_add(const EdgeQueueContext *eq_ctx, BMFace *f)
     const BMLoop *l_iter = l_first;
     do {
       const float len_sq = BM_edge_calc_length_squared(l_iter->e);
-      if (len_sq > eq_ctx->queue->limit_len_squared) {
+
+      /* Scale the threshold per-edge when resolution modulation is active.
+       * Higher resolution -> lower threshold -> more subdivision. */
+      float effective_limit_sq = eq_ctx->queue->limit_len_squared;
+      float effective_limit = eq_ctx->queue->limit_len;
+      if (eq_ctx->resolution_fn) {
+        float3 mid;
+        mid_v3_v3v3(mid, l_iter->e->v1->co, l_iter->e->v2->co);
+        const float r = (*eq_ctx->resolution_fn)(mid);
+        effective_limit_sq = eq_ctx->queue->limit_len_squared / (r * r);
+        effective_limit = eq_ctx->queue->limit_len / r;
+      }
+
+      if (len_sq > effective_limit_sq) {
         long_edge_queue_edge_add_recursive(
-            eq_ctx, l_iter->radial_next, l_iter, len_sq, eq_ctx->queue->limit_len);
+            eq_ctx, l_iter->radial_next, l_iter, len_sq, effective_limit);
       }
     } while ((l_iter = l_iter->next) != l_first);
   }
@@ -2194,7 +2216,8 @@ bool bmesh_update_topology(BMesh &bm,
                            const std::optional<float3> &view_normal,
                            float radius,
                            const bool use_frontface,
-                           const bool use_projected)
+                           const bool use_projected,
+                           const ResolutionFn *resolution_fn)
 {
   const int cd_vert_node_offset = CustomData_get_offset_named(
       &bm.vdata, CD_PROP_INT32, ".sculpt_dyntopo_node_id_vertex");
@@ -2221,6 +2244,7 @@ bool bmesh_update_topology(BMesh &bm,
         cd_vert_mask_offset,
         cd_vert_node_offset,
         cd_face_node_offset,
+        resolution_fn,
     };
 
     short_edge_queue_create(
@@ -2247,6 +2271,7 @@ bool bmesh_update_topology(BMesh &bm,
         cd_vert_mask_offset,
         cd_vert_node_offset,
         cd_face_node_offset,
+        resolution_fn,
     };
 
     long_edge_queue_create(

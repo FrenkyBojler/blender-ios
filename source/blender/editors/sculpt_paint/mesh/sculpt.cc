@@ -872,13 +872,15 @@ bool stroke_is_dyntopo(const Object &object, const Brush &brush)
   const SculptSession &ss = *object.runtime->sculpt_session;
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   return ((pbvh.type() == bke::pbvh::Type::BMesh) && (!ss.cache || (!ss.cache->alt_smooth)) &&
-          /* Requires mesh restore, which doesn't work with
-           * dynamic-topology. */
-          !(ELEM(brush.stroke_method, BRUSH_STROKE_ANCHORED, BRUSH_STROKE_DRAG_DOT)) &&
           bke::brush::supports_dyntopo(brush));
 }
 
 }  // namespace dyntopo
+
+bool stroke_defers_dyntopo(const Brush &brush)
+{
+  return ELEM(brush.stroke_method, BRUSH_STROKE_ANCHORED, BRUSH_STROKE_DRAG_DOT);
+}
 
 /** \} */
 
@@ -1818,7 +1820,8 @@ void calc_area_center(const Depsgraph &depsgraph,
       break;
     }
     case bke::pbvh::Type::BMesh: {
-      const bool has_bm_orco = ss.bm && dyntopo::stroke_is_dyntopo(ob, brush);
+      const bool has_bm_orco = ss.bm && dyntopo::stroke_is_dyntopo(ob, brush) &&
+                               !stroke_defers_dyntopo(brush);
 
       const Span<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
       anctd = threading::parallel_reduce(
@@ -1918,7 +1921,8 @@ std::optional<float3> calc_area_normal(const Depsgraph &depsgraph,
       break;
     }
     case bke::pbvh::Type::BMesh: {
-      const bool has_bm_orco = ss.bm && dyntopo::stroke_is_dyntopo(ob, brush);
+      const bool has_bm_orco = ss.bm && dyntopo::stroke_is_dyntopo(ob, brush) &&
+                               !stroke_defers_dyntopo(brush);
 
       const Span<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
       anctd = threading::parallel_reduce(
@@ -2116,7 +2120,8 @@ void calc_area_normal_and_center(const Depsgraph &depsgraph,
       break;
     }
     case bke::pbvh::Type::BMesh: {
-      const bool has_bm_orco = ss.bm && dyntopo::stroke_is_dyntopo(ob, brush);
+      const bool has_bm_orco = ss.bm && dyntopo::stroke_is_dyntopo(ob, brush) &&
+                               !stroke_defers_dyntopo(brush);
 
       const Span<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
       anctd = threading::parallel_reduce(
@@ -2430,6 +2435,143 @@ void sculpt_apply_texture(const SculptSession &ss,
     }
   }
 }
+
+namespace ed::sculpt_paint {
+
+float DynTopoResolutionGrid::lookup(const float3 &model_pos) const
+{
+  const float3 grid_pos = math::transform_point(model_to_grid, model_pos);
+  const int ix = int(grid_pos.x);
+  const int iy = int(grid_pos.y);
+  if (ix < 0 || ix >= SIZE || iy < 0 || iy >= SIZE) {
+    return 1.0f;
+  }
+  return resolution[iy * SIZE + ix];
+}
+
+/**
+ * Build a resolution grid by measuring distances between neighboring texture samples.
+ *
+ * Samples the brush texture on an NxN grid, then for each cell computes how much the
+ * displacement changes between adjacent samples (central finite differences). Large
+ * distances mean rapid texture variation — those areas need finer subdivision.
+ *
+ * The distance is scaled to model-space units: each cell spans `2 * radius / N`, and
+ * displacement = `strength * radius * tex_value`. The radius cancels out, so the result
+ * is `strength * (N / 2) * tex_distance_per_cell` — a dimensionless value that directly
+ * becomes the resolution multiplier: `resolution = 1.0 + scaled_distance`.
+ *
+ * For VDM brushes, the distance is the Euclidean distance of the 3-channel (XYZ)
+ * displacement vector change between neighboring samples.
+ *
+ * Returns std::nullopt if the brush has no texture assigned.
+ */
+static std::optional<DynTopoResolutionGrid> build_resolution_grid(const SculptSession &ss,
+                                                                  const Brush &brush)
+{
+  const MTex *mtex = BKE_brush_mask_texture_get(&brush, OB_MODE_SCULPT);
+  if (!mtex->tex) {
+    return std::nullopt;
+  }
+
+  constexpr int N = DynTopoResolutionGrid::SIZE;
+
+  const StrokeCache &cache = *ss.cache;
+  const bool is_vdm = brush_uses_vector_displacement(brush);
+  /* VDM uses 3 channels (RGB = XYZ displacement), regular brushes use scalar intensity. */
+  const int num_channels = is_vdm ? 3 : 1;
+
+  DynTopoResolutionGrid grid;
+  grid.resolution.reinitialize(N * N);
+
+  /* Sample texture on a regular grid. For VDM we need all 3 RGB channels,
+   * for regular brushes only the scalar intensity. */
+  Array<float> values(N * N * num_channels);
+  for (int y = 0; y < N; y++) {
+    for (int x = 0; x < N; x++) {
+      /* Brush-local coordinates in [-1, 1]. */
+      const float u = (float(x) / float(N - 1)) * 2.0f - 1.0f;
+      const float v = (float(y) / float(N - 1)) * 2.0f - 1.0f;
+
+      /* Transform back to model-space. */
+      float3 model_pos(u, v, 0.0f);
+      mul_m4_v3(cache.brush_local_mat_inv.ptr(), model_pos);
+
+      float tex_value;
+      float4 rgba;
+      sculpt_apply_texture(ss, brush, model_pos, 0, &tex_value, rgba);
+
+      const int idx = y * N + x;
+      if (is_vdm) {
+        values[idx * 3 + 0] = rgba[0];
+        values[idx * 3 + 1] = rgba[1];
+        values[idx * 3 + 2] = rgba[2];
+      }
+      else {
+        values[idx] = tex_value;
+      }
+    }
+  }
+
+  /* Distance between neighboring samples, scaled to model-space displacement units. */
+  const float strength = std::abs(cache.bstrength);
+  const float distance_scale = strength * float(N) * 0.5f;
+
+  for (int y = 0; y < N; y++) {
+    for (int x = 0; x < N; x++) {
+      /* Sum of squared distances between neighboring samples across all channels. */
+      float dist_sq = 0.0f;
+
+      for (int ch = 0; ch < num_channels; ch++) {
+        float dx = 0.0f, dy = 0.0f;
+        if (x > 0 && x < N - 1) {
+          dx = (values[(y * N + (x + 1)) * num_channels + ch] -
+                values[(y * N + (x - 1)) * num_channels + ch]) *
+               0.5f;
+        }
+        else if (x == 0) {
+          dx = values[(y * N + 1) * num_channels + ch] -
+               values[(y * N + 0) * num_channels + ch];
+        }
+        else {
+          dx = values[(y * N + (N - 1)) * num_channels + ch] -
+               values[(y * N + (N - 2)) * num_channels + ch];
+        }
+        if (y > 0 && y < N - 1) {
+          dy = (values[((y + 1) * N + x) * num_channels + ch] -
+                values[((y - 1) * N + x) * num_channels + ch]) *
+               0.5f;
+        }
+        else if (y == 0) {
+          dy = values[(1 * N + x) * num_channels + ch] -
+               values[(0 * N + x) * num_channels + ch];
+        }
+        else {
+          dy = values[((N - 1) * N + x) * num_channels + ch] -
+               values[((N - 2) * N + x) * num_channels + ch];
+        }
+        dist_sq += dx * dx + dy * dy;
+      }
+
+      const float displacement_distance = distance_scale * sqrtf(dist_sq);
+      grid.resolution[y * N + x] = 1.0f + displacement_distance;
+    }
+  }
+
+  /* Build model-to-grid transform:
+   * brush_local_mat maps model-space -> [-1, 1] in XY.
+   * Then map [-1, 1] -> [0, N-1]. */
+  float4x4 scale_offset = float4x4::identity();
+  scale_offset[0][0] = float(N - 1) * 0.5f;
+  scale_offset[1][1] = float(N - 1) * 0.5f;
+  scale_offset[3][0] = float(N - 1) * 0.5f;
+  scale_offset[3][1] = float(N - 1) * 0.5f;
+  grid.model_to_grid = scale_offset * cache.brush_local_mat;
+
+  return grid;
+}
+
+}  // namespace ed::sculpt_paint
 
 void SCULPT_calc_vertex_displacement(const SculptSession &ss,
                                      const Brush &brush,
@@ -3060,9 +3202,12 @@ static void dynamic_topology_update(const Depsgraph &depsgraph,
   SculptSession &ss = *ob.runtime->sculpt_session;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
 
-  /* Build a list of all nodes that are potentially within the brush's area of influence. */
-  const bool use_original = brush_type_needs_original(brush.sculpt_brush_type) ? true :
-                                                                                 !ss.cache->accum;
+  /* Build a list of all nodes that are potentially within the brush's area of influence.
+   * For anchored/drag dot strokes the mesh was just restored, so current == original. */
+  const bool runs_at_stroke_end = stroke_defers_dyntopo(brush);
+  const bool use_original = runs_at_stroke_end ? false :
+                            (brush_type_needs_original(brush.sculpt_brush_type) ? true :
+                                                                                  !ss.cache->accum);
   constexpr float radius_scale = 1.25f;
 
   IndexMaskMemory memory;
@@ -3117,6 +3262,25 @@ static void dynamic_topology_update(const Depsgraph &depsgraph,
   }
   const float min_edge_len = max_edge_len * dyntopo::detail_size::EDGE_LENGTH_MIN_FACTOR;
 
+  /* For anchored/drag dot strokes, build a resolution grid from the brush texture gradient
+   * so high-gradient areas get finer subdivision. */
+  std::optional<DynTopoResolutionGrid> resolution_grid;
+  const bke::pbvh::ResolutionFn *resolution_fn_ptr = nullptr;
+
+  if (runs_at_stroke_end) {
+    resolution_grid = build_resolution_grid(ss, brush);
+  }
+
+  /* Lambda and FunctionRef must be named stack variables (not temporaries) because
+   * FunctionRef is non-owning and the lambda it references must outlive the call. */
+  auto resolution_lambda = [&resolution_grid](const float3 &pos) -> float {
+    return resolution_grid->lookup(pos);
+  };
+  bke::pbvh::ResolutionFn resolution_fn_ref(resolution_lambda);
+  if (resolution_grid) {
+    resolution_fn_ptr = &resolution_fn_ref;
+  }
+
   bke::pbvh::bmesh_update_topology(*ss.bm,
                                    pbvh,
                                    *ss.bm_log,
@@ -3127,7 +3291,8 @@ static void dynamic_topology_update(const Depsgraph &depsgraph,
                                    ss.cache->view_normal_symm,
                                    ss.cache->radius,
                                    (brush.flag & BRUSH_FRONTFACE) != 0,
-                                   (brush.falloff_shape != PAINT_FALLOFF_SHAPE_SPHERE));
+                                   (brush.falloff_shape != PAINT_FALLOFF_SHAPE_SPHERE),
+                                   resolution_fn_ptr);
 }
 
 static bool brush_type_needs_all_pbvh_nodes(const Brush &brush)
@@ -3249,8 +3414,13 @@ static void do_brush_action(const Depsgraph &depsgraph,
   IndexMaskMemory memory;
   IndexMask texnode_mask;
 
-  const bool use_original = brush_type_needs_original(brush.sculpt_brush_type) ? true :
-                                                                                 !ss.cache->accum;
+  bool use_original = brush_type_needs_original(brush.sculpt_brush_type) ? true : !ss.cache->accum;
+  /* For anchored/drag dot strokes with dynamic topology, positions are restored from undo each
+   * step so current == original. At stroke end this is also essential: dyntopo creates new
+   * vertices that don't have original position data in the BMLog. */
+  if (use_original && dyntopo::stroke_is_dyntopo(ob, brush) && stroke_defers_dyntopo(brush)) {
+    use_original = false;
+  }
   const bool use_pixels = sculpt_needs_pbvh_pixels(paint_mode_settings, brush, ob);
 
   if (sculpt_needs_pbvh_pixels(paint_mode_settings, brush, ob)) {
@@ -5838,7 +6008,7 @@ void SculptPaintStroke::update_step(wmOperator * /*op*/, PointerRNA *itemptr)
   stroke_cache_update(itemptr);
   restore_from_undo_step_if_necessary(depsgraph, sd, ob);
 
-  if (dyntopo::stroke_is_dyntopo(ob, brush)) {
+  if (dyntopo::stroke_is_dyntopo(ob, brush) && !stroke_defers_dyntopo(brush)) {
     do_symmetrical_brush_actions(
         depsgraph, scene, sd, ob, dynamic_topology_update, *this->paint_mode_settings_);
   }
@@ -5910,6 +6080,32 @@ void SculptPaintStroke::done(bool is_cancel)
     brush = BKE_paint_brush(&sd.paint);
   }
 
+  /* For anchored/drag dot strokes with dynamic topology, run the topology update and
+   * final brush action at stroke end. During the stroke only positions were modified
+   * (no topology changes), so we restore, subdivide, then apply once on refined mesh. */
+  if (!is_cancel && dyntopo::stroke_is_dyntopo(ob, *brush) && stroke_defers_dyntopo(*brush)) {
+    const Scene &scene = *this->scene;
+    Depsgraph &depsgraph = *this->depsgraph;
+
+    restore_from_undo_step_if_necessary(depsgraph, sd, ob);
+
+    do_symmetrical_brush_actions(
+        depsgraph, scene, sd, ob, dynamic_topology_update, *this->paint_mode_settings_);
+
+    /* Set accum=true so all internal use_original checks become false.
+     * After dynamic topology, newly created vertices don't have original position data
+     * in the BMLog. This is correct: the mesh was just restored, so current == original. */
+    const bool saved_accum = ss.cache->accum;
+    ss.cache->accum = true;
+
+    do_symmetrical_brush_actions(
+        depsgraph, scene, sd, ob, do_brush_action, *this->paint_mode_settings_);
+
+    ss.cache->accum = saved_accum;
+
+    sculpt_fix_noise_tear(sd, ob);
+  }
+
   MEM_delete(ss.cache);
   ss.cache = nullptr;
 
@@ -5942,10 +6138,15 @@ bool SculptPaintStroke::test_cancel()
 {
   const Brush &brush = *BKE_paint_brush_for_read(this->paint);
 
+  /* Anchored/drag dot strokes with dynamic topology can be cancelled safely since
+   * no topology changes happen during the stroke, only at stroke end. */
+  if (dyntopo::stroke_is_dyntopo(*this->object, brush) && stroke_defers_dyntopo(brush)) {
+    return true;
+  }
+
   /* XXX Canceling strokes that way does not work with dynamic topology,
    *     user will have to do real undo for now. See #46456. */
-  bool ret_val = !dyntopo::stroke_is_dyntopo(*this->object, brush);
-  return ret_val;
+  return !dyntopo::stroke_is_dyntopo(*this->object, brush);
 }
 
 static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
@@ -6057,7 +6258,9 @@ static void sculpt_brush_stroke_cancel(bContext *C, wmOperator *op)
 
   SculptPaintStroke *stroke = static_cast<SculptPaintStroke *>(op->customdata);
 
-  BLI_assert(!dyntopo::stroke_is_dyntopo(ob, brush));
+  /* Anchored/drag dot strokes with dynamic topology are safe to cancel since
+   * no topology changes were made during the stroke. */
+  BLI_assert(!dyntopo::stroke_is_dyntopo(ob, brush) || stroke_defers_dyntopo(brush));
   UNUSED_VARS_NDEBUG(brush);
 
   undo::restore_from_undo_step(depsgraph, sd, ob);
