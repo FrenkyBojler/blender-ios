@@ -53,12 +53,21 @@ float3 gpencil_lighting()
   return clamp(light_accum, 0.0f, 1e10f);
 }
 
-float4 get_color(float2 uv)
+float4 get_color(float2 uv, float dot_radius)
 {
   float4 col;
   if (flag_test(gp_interp_flat.mat_flag, GP_STROKE_TEXTURE_USE)) {
     bool premul = flag_test(gp_interp_flat.mat_flag, GP_STROKE_TEXTURE_PREMUL);
-    col = texture_read_as_linearrgb(gp_stroke_tx, premul, uv);
+    if (flag_test(gp_interp_flat.mat_flag, GP_STROKE_ALIGNMENT)) {
+      float lod = log2(dot_radius);
+      col = textureLod(gp_stroke_tx, uv, lod);
+      if (premul && !(col.a == 0.0f || col.a == 1.0f)) {
+        col.rgb = col.rgb / col.a;
+      }
+    }
+    else {
+      col = texture_read_as_linearrgb(gp_stroke_tx, premul, uv);
+    }
   }
   else if (flag_test(gp_interp_flat.mat_flag, GP_FILL_TEXTURE_USE)) {
     bool use_clip = flag_test(gp_interp_flat.mat_flag, GP_FILL_TEXTURE_CLIP);
@@ -106,7 +115,7 @@ float2 rotate_uv(float2 uv, float2 x_axis)
   return uv;
 }
 
-float4 get_dot_color(float2 uv, int i)
+float4 get_dot_color(float2 uv, int i, float radius)
 {
   uint matid = gp_interp_flat.mat_flag >> GPENCIl_MATID_SHIFT;
   gpMaterial gp_mat = gp_materials[matid];
@@ -143,7 +152,7 @@ float4 get_dot_color(float2 uv, int i)
     uv += 0.5f;
   }
 
-  float4 col = get_color(uv);
+  float4 col = get_color(uv, radius);
   if (random_hue > 0.0f || random_saturation > 0.0f || random_value > 0.0f) {
     float4 col_hsva;
     rgb_to_hsv(col, col_hsva);
@@ -384,7 +393,7 @@ void main()
 
   if (flag_test(gp_interp_flat.mat_flag, GP_FILL))  // fill
   {
-    frag_color = get_color(gp_interp.uv);
+    frag_color = get_color(gp_interp.uv, 0.0f);
   }
   else {
     if (flag_test(gp_interp_flat.mat_flag, GP_STROKE_ALIGNMENT))  // dot and squares
@@ -428,7 +437,7 @@ void main()
           float2 uv = (view_coord - pos.xy) / pos.w;
           uv = rotate_uv(uv, gp_interp_flat.aspect.zw);
 
-          frag_color = alpha_over(get_dot_color(uv * 0.5f + 0.5f, i), frag_color);
+          frag_color = alpha_over(get_dot_color(uv * 0.5f + 0.5f, i, pos.w), frag_color);
 
           /* Break early if full opacity. */
           if (frag_color.w > 0.999f) {
@@ -439,11 +448,11 @@ void main()
       else {
         int i = int(gp_interp_flat.point_length.x);
 
-        frag_color = get_dot_color(gp_interp.uv, i);
+        frag_color = get_dot_color(gp_interp.uv, i, gp_interp_flat.sspos_1.w);
       }
     }
     else {  // line
-      frag_color = get_color(gp_interp.uv);
+      frag_color = get_color(gp_interp.uv, 0.0f);
       frag_color *= gpencil_stroke_mask(gp_interp_flat.sspos_1.xy,
                                         gp_interp_flat.sspos_2.xy,
                                         gp_interp_flat.sspos_0,
