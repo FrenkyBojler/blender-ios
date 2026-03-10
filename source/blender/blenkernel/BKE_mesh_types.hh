@@ -53,12 +53,19 @@ enum eMeshWrapperType {
   ME_WRAPPER_TYPE_SUBD = 2,
 };
 
+/** #MeshRuntime.batch_dirty_mode */
 enum eMeshBatchDirtyMode : int8_t {
+  /** Mark the entire batch cache as dirty. */
   BKE_MESH_BATCH_DIRTY_ALL = 0,
+  /** Selection state changed. */
   BKE_MESH_BATCH_DIRTY_SELECT,
+  /** Selection state changed in paint mode. */
   BKE_MESH_BATCH_DIRTY_SELECT_PAINT,
+  /** Shading data changed. */
   BKE_MESH_BATCH_DIRTY_SHADING,
+  /** All UV edit data changed. */
   BKE_MESH_BATCH_DIRTY_UVEDIT_ALL,
+  /** UV selection changed in edit mode. */
   BKE_MESH_BATCH_DIRTY_UVEDIT_SELECT,
 };
 
