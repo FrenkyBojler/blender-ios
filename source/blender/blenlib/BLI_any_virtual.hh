@@ -22,7 +22,7 @@ struct AnyVirtualExtraInfo {
     static_assert(std::is_base_of_v<T, StorageT> ||
                   is_same_any_v<StorageT, T *, std::shared_ptr<T>>);
 
-    /* Depending on how the implementation is stored in the #Any, a different #get_varray function
+    /* Depending on how the implementation is stored in the #Any, a different #get_impl function
      * is required. */
     if constexpr (std::is_base_of_v<T, StorageT>) {
       return {[](const void *buffer) {
@@ -48,6 +48,19 @@ struct AnyVirtualExtraInfo {
 
 }  // namespace detail
 
+/**
+ * This allows storing or passing around values of a polymorphic type (i.e. one with virtual
+ * methods). Typically, this always requires allocating the value on the heap and passing it around
+ * e.g. as unique_ptr. #AnyVirtual has small buffer optimization. So if the type is small, it can
+ * be stored directly without an additional allocation.
+ *
+ * This is used extensively for virtual arrays. Each type of virtual array is implemented as
+ * subclass of #VArrayImpl while #VArray actually stores a specific implementation.
+ *
+ * Note: If the value is not stored inline, it's currently stored as a shared_ptr which is shared
+ * when the AnyVirtual is copied. This behavior is fine and efficient for all current uses but it
+ * may need to be generalized if #AnyVirtual is supposed to be used in more places.
+ */
 template<typename T, int64_t InlineBufferCapacity = 24>
   requires std::is_polymorphic_v<T>
 struct AnyVirtual {
@@ -92,7 +105,7 @@ struct AnyVirtual {
     }
   }
 
-  AnyVirtual &operator=(const AnyVirtual<T> &other)
+  AnyVirtual &operator=(const AnyVirtual &other)
   {
     if (this == &other) {
       return *this;
@@ -102,7 +115,7 @@ struct AnyVirtual {
     return *this;
   }
 
-  AnyVirtual &operator=(AnyVirtual<T> &&other) noexcept
+  AnyVirtual &operator=(AnyVirtual &&other) noexcept
   {
     if (this == &other) {
       return *this;
