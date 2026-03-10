@@ -179,6 +179,10 @@ void template_running_jobs(Layout *layout, bContext *C)
       icon = ICON_MOD_OCEAN;
       break;
     }
+    if (WM_jobs_test(wm, &scene, WM_JOB_TYPE_SOUND_MIXDOWN)) {
+      icon = ICON_FILE_SOUND;
+      break;
+    }
   }
   if (!owner) {
     for (wmWindow &win : wm->windows) {
