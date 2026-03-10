@@ -1,2 +1,2 @@
 Referenced by issue #51212, Use draw manager for object mode selection
-Referenced by pull request #155459, WIP: Fix #139014: Alt+Q fails to transfer modes in armature edit mode
+Referenced by pull request #155459, Refactor: simplify object/editmode armature selection code-paths
