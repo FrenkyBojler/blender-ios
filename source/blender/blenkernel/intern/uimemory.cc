@@ -58,7 +58,6 @@ static void uimemory_print_errors(std::vector<toml::error_info> errors)
 
 static void uimemory_init_impl()
 {
-  /* Parse defaults from header literal. */
   toml::result default_result = toml::try_parse_str(default_toml, version);
   if (default_result.is_ok()) {
     std::lock_guard<Mutex> lock(uimemory_mutex);
@@ -68,7 +67,7 @@ static void uimemory_init_impl()
     uimemory_print_errors(default_result.unwrap_err());
   }
 
-  /* Load from on-disk file if found. */
+  /* Load from user file if found. */
   const std::string path = uimemory_file_path();
   if (!path.empty() && BLI_exists(path.c_str())) {
     toml::result file_result = toml::try_parse(path, version);
@@ -97,11 +96,21 @@ void Memory::init_async()
                  []() { std::thread([]() { uimemory_init_impl(); }).detach(); });
 }
 
-void Memory::ensure_init()
+void Memory::ensure_init() const
 {
   if (uimemory_ready.load(std::memory_order_acquire)) {
     return;
   }
+
+  /* If async init wasn't started for some reason (like background mode), start
+   * init synchronously. If async init is already scheduled then this call_once
+   * will do nothing and we will wait below for the background thread to finish. */
+  std::call_once(uimemory_init_once, uimemory_init_impl);
+
+  if (uimemory_ready.load(std::memory_order_acquire)) {
+    return;
+  }
+
   /* Wait using BLI Mutex + condition_variable_any. */
   std::unique_lock<Mutex> lock(uimemory_init_mutex);
   uimemory_init_cv.wait(lock, [] { return uimemory_ready.load(std::memory_order_acquire); });
@@ -109,6 +118,8 @@ void Memory::ensure_init()
 
 bool Memory::save() const
 {
+  ensure_init();
+
   std::lock_guard<Mutex> lock(uimemory_mutex);
   if (uimemory_current.is_empty()) {
     return false;
@@ -158,49 +169,43 @@ static const toml::value *uimemory_find_in(const toml::value &root,
 
 template<typename T> T Section::get(const StringRef item) const
 {
-  if (!uimemory_ready.load(std::memory_order_acquire)) {
-    std::unique_lock<Mutex> lock(uimemory_init_mutex);
-    uimemory_init_cv.wait(lock, [] { return uimemory_ready.load(std::memory_order_acquire); });
-  }
+  memory.ensure_init();
 
   std::lock_guard<Mutex> lock(uimemory_mutex);
   const std::string &sec = section;
   const std::string key(item.data(), item.size());
 
-  /* 1) Try user value first; return immediately if present. */
+  /* Try user value first. */
   if (const toml::value *v = uimemory_find_in(uimemory_current, sec, key)) {
     return toml::get_or(*v, T{});
   }
 
-  /* 2) Per-key builtin default. */
+  /* Per-key default value. */
   if (const toml::value *v = uimemory_find_in(uimemory_default, sec, key)) {
     return toml::get_or(*v, T{});
   }
 
-  /* 3) User section-level "_default" (allow user override of section default). */
+  /* User's section-level "_default" (user override of section default). */
   if (!sec.empty()) {
     if (const toml::value *v = uimemory_find_in(uimemory_current, sec, "_default")) {
       return toml::get_or(*v, T{});
     }
   }
 
-  /* 4) Builtin section-level "_default". */
+  /* Builtin section-level "_default". */
   if (!sec.empty()) {
     if (const toml::value *v = uimemory_find_in(uimemory_default, sec, "_default")) {
       return toml::get_or(*v, T{});
     }
   }
 
-  /* 5) Final fallback. */
+  /* Final fallback. False, 0, 0,0f, {}, etc. */
   return T{};
 }
 
 template<typename T> void Section::set(const StringRef item, const T &value)
 {
-  if (!uimemory_ready.load(std::memory_order_acquire)) {
-    std::unique_lock<Mutex> lock(uimemory_init_mutex);
-    uimemory_init_cv.wait(lock, [] { return uimemory_ready.load(std::memory_order_acquire); });
-  }
+  memory.ensure_init();
 
   std::lock_guard<Mutex> lock(uimemory_mutex);
   const std::string &sec = section;
@@ -215,10 +220,7 @@ template<typename T> void Section::set(const StringRef item, const T &value)
 
 void Section::remove(const StringRef item)
 {
-  if (!uimemory_ready.load(std::memory_order_acquire)) {
-    std::unique_lock<Mutex> lock(uimemory_init_mutex);
-    uimemory_init_cv.wait(lock, [] { return uimemory_ready.load(std::memory_order_acquire); });
-  }
+  memory.ensure_init();
   std::lock_guard<Mutex> lock(uimemory_mutex);
   if (!uimemory_current.is_table()) {
     return;
@@ -243,10 +245,7 @@ void Section::remove(const StringRef item)
 
 void Section::remove_section()
 {
-  if (!uimemory_ready.load(std::memory_order_acquire)) {
-    std::unique_lock<Mutex> lock(uimemory_init_mutex);
-    uimemory_init_cv.wait(lock, [] { return uimemory_ready.load(std::memory_order_acquire); });
-  }
+  memory.ensure_init();
   std::lock_guard<Mutex> lock(uimemory_mutex);
   if (section.empty() || !uimemory_current.is_table()) {
     return;

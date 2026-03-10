@@ -58,7 +58,7 @@ struct Section {
 struct Memory {
   void init();
   void init_async();
-  void ensure_init();
+  void ensure_init() const;
   bool save() const;
   /* Open a section handle. */
   Section open(const StringRef section) const
