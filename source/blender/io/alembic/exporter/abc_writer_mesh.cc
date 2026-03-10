@@ -6,8 +6,8 @@
  * \ingroup balembic
  */
 
-#include "abc_hierarchy_iterator.h"
 #include "abc_writer_mesh.h"
+#include "abc_hierarchy_iterator.h"
 #include "intern/abc_axis_conversion.h"
 
 #include "BKE_attribute.h"

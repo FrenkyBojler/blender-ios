@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_ustring.hh"
+
 #include "NOD_geometry_nodes_lazy_function.hh"
 
 #include "BKE_anonymous_attribute_make.hh"

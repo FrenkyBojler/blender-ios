@@ -5,13 +5,12 @@
  * Modifications Copyright 2021 Tangent Animation and
  * NVIDIA Corporation. All rights reserved. */
 
-#include "BLI_ustring.hh"
+#include "usd_reader_mesh.hh"
 #include "usd.hh"
 #include "usd_attribute_utils.hh"
 #include "usd_hash_types.hh"
 #include "usd_mesh_utils.hh"
 #include "usd_reader_material.hh"
-#include "usd_reader_mesh.hh"
 #include "usd_skel_convert.hh"
 
 #include "BKE_attribute.h"
@@ -30,6 +29,7 @@
 #include "BLI_ordered_edge.hh"
 #include "BLI_set.hh"
 #include "BLI_span.hh"
+#include "BLI_ustring.hh"
 #include "BLI_vector_set.hh"
 
 #include "BLT_translation.hh"

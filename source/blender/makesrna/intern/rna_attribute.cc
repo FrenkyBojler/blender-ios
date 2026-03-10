@@ -406,7 +406,7 @@ void rna_Attribute_name_get(PointerRNA *ptr, char *value)
 
 int rna_Attribute_name_length(PointerRNA *ptr)
 {
-  return rna_Attribute_name_get(*ptr).string().size();
+  return rna_Attribute_name_get(*ptr).ref().size();
 }
 
 void rna_Attribute_name_set(PointerRNA *ptr, const char *value)

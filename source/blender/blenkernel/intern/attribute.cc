@@ -416,7 +416,7 @@ static int color_clamp_index(AttributeOwner &owner, int index)
 static UString color_name_from_index(AttributeOwner &owner, int index)
 {
   return BKE_attribute_from_index(owner, index, ATTR_DOMAIN_MASK_COLOR, CD_MASK_COLOR_ALL)
-      .value_or(UString(""));
+      .value_or(""_ustr);
 }
 
 static int uv_name_to_index(AttributeOwner &owner, const UString name)
@@ -433,7 +433,7 @@ static int uv_clamp_index(AttributeOwner &owner, int index)
 static UString uv_name_from_index(AttributeOwner &owner, int index)
 {
   return BKE_attribute_from_index(owner, index, ATTR_DOMAIN_MASK_CORNER, CD_MASK_PROP_FLOAT2)
-      .value_or(UString(""));
+      .value_or(""_ustr);
 }
 
 bool BKE_attribute_remove(AttributeOwner &owner, const UString name, ReportList *reports)

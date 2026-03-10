@@ -8,7 +8,6 @@
 
 #pragma once
 
-#include "BLI_string_ref.hh"
 #include "BLI_ustring.hh"
 
 namespace blender::bke {

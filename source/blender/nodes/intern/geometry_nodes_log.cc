@@ -2,7 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_ustring.hh"
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_closure.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
@@ -12,6 +11,7 @@
 #include "BLI_stack.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_string_utf8.h"
+#include "BLI_ustring.hh"
 
 #include "BKE_anonymous_attribute_id.hh"
 #include "BKE_compute_context_cache.hh"

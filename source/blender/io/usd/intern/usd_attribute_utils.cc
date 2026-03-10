@@ -2,8 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_ustring.hh"
 #include "usd_attribute_utils.hh"
+#include "BLI_ustring.hh"
 #include "usd_hash_types.hh"
 
 #include "BLI_map.hh"

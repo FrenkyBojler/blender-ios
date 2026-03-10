@@ -4,10 +4,9 @@
 
 #pragma once
 
-#include "BLI_ustring.hh"
 #include "DNA_curves_types.h"
 
-#include "BLI_string_ref.hh"
+#include "BLI_ustring.hh"
 
 namespace blender {
 

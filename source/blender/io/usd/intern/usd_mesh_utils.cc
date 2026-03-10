@@ -2,9 +2,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "usd_mesh_utils.hh"
 #include "usd_attribute_utils.hh"
 #include "usd_hash_types.hh"
-#include "usd_mesh_utils.hh"
 
 #include "BKE_attribute.hh"
 

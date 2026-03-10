@@ -341,7 +341,7 @@ static AttributesForInterpolation gather_point_attributes_to_interpolate(
     }
     /* Position is handled differently since it has non-generic interpolation for Bezier
      * curves and because the evaluated positions are cached for each evaluated point. */
-    if (iter.name == "position") {
+    if (iter.name == "position"_ustr) {
       return;
     }
 

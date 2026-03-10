@@ -7,13 +7,13 @@
  */
 
 #include "BLI_length_parameterize.hh"
+#include "BLI_ustring.hh"
 
 #include "BKE_attribute.hh"
 #include "BKE_attribute_math.hh"
 #include "BKE_curves.hh"
 #include "BKE_curves_utils.hh"
 
-#include "BLI_ustring.hh"
 #include "GEO_trim_curves.hh"
 
 namespace blender::geometry {

@@ -45,7 +45,7 @@
 
 namespace blender {
 
-static const char *ATTR_POSITION = "position";
+static UString ATTR_POSITION = "position"_ustr;
 
 static void curves_init_data(ID *id)
 {

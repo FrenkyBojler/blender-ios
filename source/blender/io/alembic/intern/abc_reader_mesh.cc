@@ -6,9 +6,9 @@
  * \ingroup balembic
  */
 
+#include "abc_reader_mesh.h"
 #include "abc_axis_conversion.h"
 #include "abc_customdata.h"
-#include "abc_reader_mesh.h"
 #include "abc_util.h"
 
 #include "DNA_material_types.h"

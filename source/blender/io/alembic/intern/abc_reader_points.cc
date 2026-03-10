@@ -6,8 +6,8 @@
  * \ingroup balembic
  */
 
-#include "abc_axis_conversion.h"
 #include "abc_reader_points.h"
+#include "abc_axis_conversion.h"
 #include "abc_util.h"
 
 #include "DNA_object_types.h"

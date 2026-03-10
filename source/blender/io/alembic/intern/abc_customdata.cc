@@ -6,10 +6,10 @@
  * \ingroup balembic
  */
 
+#include "abc_customdata.h"
 #include "BLI_color_types.hh"
 #include "BLI_ustring.hh"
 #include "abc_axis_conversion.h"
-#include "abc_customdata.h"
 #include "abc_util.h"
 
 #include <Alembic/Abc/ICompoundProperty.h>

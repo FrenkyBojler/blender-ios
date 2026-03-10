@@ -6,10 +6,10 @@
  * \ingroup ply
  */
 
+#include "ply_export_load_plydata.hh"
 #include "BLI_ustring.hh"
 #include "IO_ply.hh"
 #include "ply_data.hh"
-#include "ply_export_load_plydata.hh"
 
 #include "BKE_anonymous_attribute_id.hh"
 #include "BKE_attribute.hh"

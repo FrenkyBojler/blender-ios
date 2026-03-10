@@ -10,7 +10,6 @@
 #include "BLI_implicit_sharing_ptr.hh"
 #include "BLI_memory_counter_fwd.hh"
 #include "BLI_random_access_iterator_mixin.hh"
-#include "BLI_string_ref.hh"
 #include "BLI_ustring.hh"
 #include "BLI_vector_set.hh"
 

@@ -4,10 +4,10 @@
  * Adapted from the Blender Alembic importer implementation. Copyright 2016 Kévin Dietrich.
  * Modifications Copyright 2021 Tangent Animation. All rights reserved. */
 
+#include "usd_reader_curve.hh"
 #include "usd.hh"
 #include "usd_attribute_utils.hh"
 #include "usd_hash_types.hh"
-#include "usd_reader_curve.hh"
 
 #include "BKE_attribute.hh"
 #include "BKE_curves.hh"

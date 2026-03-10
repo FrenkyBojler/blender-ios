@@ -9,8 +9,8 @@
 
 #include "BLI_array_utils.hh"
 #include "BLI_task.hh"
-
 #include "BLI_ustring.hh"
+
 #include "GEO_subdivide_curves.hh"
 
 namespace blender::geometry {
