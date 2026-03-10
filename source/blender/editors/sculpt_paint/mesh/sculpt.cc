@@ -6776,6 +6776,7 @@ void calc_local_positions(const float4x4 &mat,
                           const Span<float3> positions,
                           const MutableSpan<float3> local_positions)
 {
+  BLI_assert(local_positions.size() == verts.size());
   for (const int i : verts.index_range()) {
     local_positions[i] = math::transform_point(mat, positions[verts[i]]);
   }
@@ -6785,6 +6786,7 @@ void calc_local_positions(const float4x4 &mat,
                           const Span<float3> positions,
                           const MutableSpan<float3> local_positions)
 {
+  BLI_assert(local_positions.size() == positions.size());
   for (const int i : positions.index_range()) {
     local_positions[i] = math::transform_point(mat, positions[i]);
   }
