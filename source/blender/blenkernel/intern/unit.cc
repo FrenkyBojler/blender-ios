@@ -2110,6 +2110,12 @@ static char *skip_unary_op(char *str)
   return str;
 }
 
+static bool ch_is_op_unary_with_back_check(const char *begin, const char *c)
+{
+  return (c - begin == 1 && ch_is_op_unary(*c)) ||
+         ((c > begin) && ch_is_op_unary(*c) && (ch_is_op(*(c - 1)) || *(c - 1) == '('));
+}
+
 /**
  * Put parentheses around blocks of values after negative signs to get rid of an implied "+"
  * between numbers without an operation between them. For example:
@@ -2157,44 +2163,20 @@ static bool unit_distribute_negatives(char *str, const int str_maxncpy)
 static int find_previous_non_value_char(const char *str, const int start_ofs)
 {
   int i = start_ofs - 1;
-
-  /* Skip optional trailing spaces before the unit. */
   while (i >= 0 && str[i] == ' ') {
     i--;
   }
-
-  /* Skip the value characters: digits, decimal, scientific e/E, and exponent signs. */
-  while (i >= 0) {
-    if (strchr("0123456789.eE", str[i])) {
-      i--;
+  for (; i > 0; i--) {
+    if (str[i - 1] == '(') {
+      if (ch_is_op_unary_with_back_check(str, str + i - 2)) {
+        return i - 2;
+      }
     }
-    else if ((str[i] == '+' || str[i] == '-') && i > 0 && ELEM(str[i - 1], 'e', 'E')) {
-      /* Sign is part of the exponent. */
-      i--;
-    }
-    else {
-      break;
+    if (ch_is_op(str[i - 1]) || strchr("( )", str[i - 1])) {
+      return i;
     }
   }
-
-  /* Check for an optional unary sign (+ or -) at the start of the value. */
-  if (i >= 0 && (str[i] == '+' || str[i] == '-')) {
-    /* To determine if it's unary, see what comes before it, ignoring spaces. */
-    int j = i - 1;
-    while (j >= 0 && str[j] == ' ') {
-      j--;
-    }
-
-    /* If there's nothing before it, or an operator or '(', it's a unary sign! */
-    if (j < 0 || ch_is_op(str[j]) || str[j] == '(') {
-      /* The unary sign is part of the value. Skip it. */
-      i--;
-    }
-  }
-
-  /* 'i' is now pointing to the last non-value character.
-   * The actual value starts at 'i + 1', which will be our insertion point for '('. */
-  return i + 1;
+  return 0;
 }
 
 /**
@@ -2203,33 +2185,27 @@ static int find_previous_non_value_char(const char *str, const int start_ofs)
  */
 static int find_end_of_value_chars(const char *str, const int str_maxncpy, const int start_ofs)
 {
-  int i = start_ofs;
-
-  /* Check for an optional unary sign at the very beginning of the value. */
-  if (i < str_maxncpy && (str[i] == '+' || str[i] == '-')) {
+  int i = start_ofs + 1;
+  i += str[i] == '-' ? 1 : 0;
+  int nest_level = 0;
+  if (str[i] == '(') {
+    nest_level++;
     i++;
   }
-
-  /* Scan through the numerical portion of the value. */
   for (; i < str_maxncpy; i++) {
-    if (str[i] == '\0') {
-      return i;
+    if (str[i] == '(') {
+      nest_level++;
     }
-
-    if (strchr("0123456789.eE", str[i])) {
-      /* Valid number or exponent character. */
-      continue;
+    else if (str[i] == ')') {
+      nest_level--;
+      if (nest_level == 0) {
+        return i;
+      }
     }
-    else if ((str[i] == '+' || str[i] == '-') && i > 0 && ELEM(str[i - 1], 'e', 'E')) {
-      /* Valid exponent sign. */
-      continue;
-    }
-    else {
-      /* Any other character signifies the end of the numerical value. */
+    else if (nest_level == 0 && !strchr("0123456789eE.", str[i])) {
       return i;
     }
   }
-
   return i;
 }
 
@@ -2256,6 +2232,8 @@ static int unit_scale_str(char *str,
 
   int len = strlen(str);
 
+  const int len_name = strlen(replace_str);
+
   /* Deal with unit bias for temperature units. Order of operations is important, so we
    * have to add parentheses, add the bias, then multiply by the scalar like usual.
    *
@@ -2268,27 +2246,29 @@ static int unit_scale_str(char *str,
       memmove(str + prev_op_ofs + 1, str + prev_op_ofs, len - prev_op_ofs + 1);
       str[prev_op_ofs] = '(';
       len++;
-      if (found_ofs >= prev_op_ofs) {
-        found_ofs++;
-        str_found++;
-      }
+      found_ofs++;
+      str_found++;
     } /* If this doesn't fit, we have failed. */
 
     /* Add the addition sign, the bias, and the close parenthesis after the value. */
     int value_end_ofs = find_end_of_value_chars(str, str_maxncpy, prev_op_ofs + 1);
+    if (str[value_end_ofs] == ')' && found_ofs + len_name == value_end_ofs) {
+      memmove(str + found_ofs + 1, str + found_ofs, len_name);
+      str[found_ofs] = ')';
+      found_ofs++;
+      value_end_ofs = found_ofs;
+      str_found = str + found_ofs;
+    }
     int len_bias_num = BLI_snprintf_rlen(str_tmp, TEMP_STR_SIZE, "+%.9g)", unit->bias);
-    if (len + len_bias_num < str_maxncpy) {
+    if (value_end_ofs + len_bias_num < str_maxncpy) {
       memmove(str + value_end_ofs + len_bias_num, str + value_end_ofs, len - value_end_ofs + 1);
       memcpy(str + value_end_ofs, str_tmp, len_bias_num);
       len += len_bias_num;
-      if (found_ofs >= value_end_ofs) {
-        found_ofs += len_bias_num;
-        str_found += len_bias_num;
-      }
+      found_ofs += len_bias_num;
+      str_found += len_bias_num;
     } /* If this doesn't fit, we have failed. */
   }
 
-  int len_name = strlen(replace_str);
   int len_move = (len - (found_ofs + len_name)) + 1; /* 1+ to copy the string terminator. */
 
   /* "#" Removed later */
