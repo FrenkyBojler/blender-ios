@@ -6,3 +6,4 @@ Referenced by commit a9781d038a0189b17fd18d60d83b991e1a216a9a, XR: Movement Vign
 Referenced by pull request #154155, Fix: XR: Ineffective vignette default versioning due to previously mismatched defaults
 Referenced by commit 147e5c7e95d3ce0e362a9a7834b40073614f607c, Fix: XR: Ineffective vignette default versioning due to previously mismatched defaults
 Referenced by pull request #155483, Fix: XR: Missing view smooth turning analog interpolation
+Referenced by commit 41df2a90142d4b0522d0468229b4de6bbfe456c6, Fix: XR: Missing view smooth turning analog interpolation
