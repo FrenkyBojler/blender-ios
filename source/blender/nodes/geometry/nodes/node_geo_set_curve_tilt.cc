@@ -30,7 +30,7 @@ static void set_curve_tilt(bke::CurvesGeometry &curves,
 {
   bke::try_capture_field_on_geometry(curves.attributes_for_write(),
                                      field_context,
-                                     "tilt",
+                                     "tilt"_ustr,
                                      bke::AttrDomain::Point,
                                      selection,
                                      tilt);

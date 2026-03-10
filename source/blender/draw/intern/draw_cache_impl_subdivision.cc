@@ -1530,7 +1530,7 @@ static void draw_subdiv_cache_ensure_mat_offsets(DRWSubdivCache &cache,
 
   const bke::AttributeAccessor attributes = mesh_eval->attributes();
   const VArraySpan<int> material_indices = *attributes.lookup_or_default<int>(
-      "material_index", bke::AttrDomain::Face, 0);
+      "material_index"_ustr, bke::AttrDomain::Face, 0);
 
   /* Count number of subdivided polygons for each material. */
   int *mat_start = MEM_new_array_zeroed<int>(mat_len, "subdiv mat_start");
@@ -1682,7 +1682,7 @@ static bool draw_subdiv_create_requested_buffers(Object &ob,
   runtime_data->stats_totloop = draw_cache.num_subdiv_loops;
 
   draw_cache.use_custom_loop_normals = (runtime_data->use_loop_normals) &&
-                                       mesh_eval->attributes().contains("custom_normal");
+                                       mesh_eval->attributes().contains("custom_normal"_ustr);
 
   if (ibo_requests.contains(IBOType::Tris)) {
     draw_subdiv_cache_ensure_mat_offsets(draw_cache, mesh_eval, batch_cache.mat_len);

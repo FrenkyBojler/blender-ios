@@ -266,18 +266,18 @@ static Mesh *modifier_modify_mesh_and_geometry_set(ModifierData *md,
 static void set_rest_position(Mesh &mesh)
 {
   MutableAttributeAccessor attributes = mesh.attributes_for_write();
-  const AttributeReader positions = attributes.lookup<float3>("position");
-  attributes.remove("rest_position");
+  const AttributeReader positions = attributes.lookup<float3>("position"_ustr);
+  attributes.remove("rest_position"_ustr);
   if (positions) {
     if (positions.sharing_info && positions.varray.is_span()) {
-      attributes.add<float3>("rest_position",
+      attributes.add<float3>("rest_position"_ustr,
                              AttrDomain::Point,
                              AttributeInitShared(positions.varray.get_internal_span().data(),
                                                  *positions.sharing_info));
     }
     else {
       attributes.add<float3>(
-          "rest_position", AttrDomain::Point, AttributeInitVArray(positions.varray));
+          "rest_position"_ustr, AttrDomain::Point, AttributeInitVArray(positions.varray));
     }
   }
 }

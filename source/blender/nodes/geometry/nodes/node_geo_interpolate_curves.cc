@@ -640,12 +640,12 @@ static void store_output_attributes(bke::CurvesGeometry &child_curves,
   if (weight_attribute_id) {
     weight_attribute =
         child_curves.attributes_for_write().lookup_or_add_for_write_only_span<float>(
-            *weight_attribute_id, AttrDomain::Curve);
+            UString(*weight_attribute_id), AttrDomain::Curve);
   }
   SpanAttributeWriter<int> index_attribute;
   if (index_attribute_id) {
     index_attribute = child_curves.attributes_for_write().lookup_or_add_for_write_only_span<int>(
-        *index_attribute_id, AttrDomain::Curve);
+        UString(*index_attribute_id), AttrDomain::Curve);
   }
   threading::parallel_for(child_curves.curves_range(), 512, [&](const IndexRange range) {
     for (const int child_curve_i : range) {
@@ -707,7 +707,7 @@ static GeometrySet generate_interpolated_curves(
     }
   });
 
-  const VArraySpan point_positions = *point_attributes.lookup<float3>("position");
+  const VArraySpan point_positions = *point_attributes.lookup<float3>("position"_ustr);
   const int num_child_curves = point_attributes.domain_size(AttrDomain::Point);
 
   /* The set of guides per child are stored in a flattened array to allow fast access, reduce

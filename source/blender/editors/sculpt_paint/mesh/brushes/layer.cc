@@ -399,9 +399,9 @@ void do_layer_brush(const Depsgraph &depsgraph,
 
       const MeshAttributeData attribute_data(mesh);
       bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
-      const VArraySpan persistent_position = *attributes.lookup<float3>(".sculpt_persistent_co",
-                                                                        bke::AttrDomain::Point);
-      const VArraySpan persistent_normal = *attributes.lookup<float3>(".sculpt_persistent_no",
+      const VArraySpan persistent_position = *attributes.lookup<float3>(
+          ".sculpt_persistent_co"_ustr, bke::AttrDomain::Point);
+      const VArraySpan persistent_normal = *attributes.lookup<float3>(".sculpt_persistent_no"_ustr,
                                                                       bke::AttrDomain::Point);
 
       bke::SpanAttributeWriter<float> persistent_disp_attr;
@@ -410,7 +410,7 @@ void do_layer_brush(const Depsgraph &depsgraph,
       if (brush.flag & BRUSH_PERSISTENT) {
         if (!persistent_position.is_empty() && !persistent_normal.is_empty()) {
           persistent_disp_attr = attributes.lookup_or_add_for_write_span<float>(
-              ".sculpt_persistent_disp", bke::AttrDomain::Point);
+              ".sculpt_persistent_disp"_ustr, bke::AttrDomain::Point);
           if (persistent_disp_attr) {
             use_persistent_base = true;
             displacement = persistent_disp_attr.span;

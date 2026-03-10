@@ -5682,7 +5682,8 @@ static bool geometry_attribute_get_tarmat(Depsgraph * /*depsgraph*/,
   }
 
   const bke::AttributeAccessor &attributes = *optional_attributes;
-  const GVArray attribute = *attributes.lookup(acon->attribute_name, domain, sample_data_type);
+  const GVArray attribute = *attributes.lookup(
+      UString(acon->attribute_name), domain, sample_data_type);
 
   if (attribute.is_empty()) {
     return false;

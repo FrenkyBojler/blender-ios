@@ -61,8 +61,10 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Field<ColorGeometry4f> color_field = params.extract_input<Field<ColorGeometry4f>>("Color");
   const Field<float> opacity_field = params.extract_input<Field<float>>("Opacity");
 
-  const StringRef color_attr_name = domain == AttrDomain::Point ? "vertex_color" : "fill_color";
-  const StringRef opacity_attr_name = domain == AttrDomain::Point ? "opacity" : "fill_opacity";
+  const UString color_attr_name = domain == AttrDomain::Point ? "vertex_color"_ustr :
+                                                                "fill_color"_ustr;
+  const UString opacity_attr_name = domain == AttrDomain::Point ? "opacity"_ustr :
+                                                                  "fill_opacity"_ustr;
 
   geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry) {
     if (GreasePencil *grease_pencil = geometry.get_grease_pencil_for_write()) {

@@ -273,22 +273,22 @@ class InstancesFieldInput : public fn::FieldInput {
 
 class AttributeFieldInput : public GeometryFieldInput {
  private:
-  std::string name_;
+  UString name_;
   std::optional<std::string> socket_inspection_name_;
 
  public:
-  AttributeFieldInput(std::string name,
+  AttributeFieldInput(UString name,
                       const CPPType &type,
                       std::optional<std::string> socket_inspection_name = std::nullopt)
-      : GeometryFieldInput(type, name),
-        name_(std::move(name)),
+      : GeometryFieldInput(type, name.string()),
+        name_(name),
         socket_inspection_name_(std::move(socket_inspection_name))
   {
-    category_ = attribute_name_is_anonymous(name_) ? Category::AnonymousAttribute :
-                                                     Category::NamedAttribute;
+    category_ = attribute_name_is_anonymous(name_.ref()) ? Category::AnonymousAttribute :
+                                                           Category::NamedAttribute;
   }
 
-  static fn::GField from(std::string name,
+  static fn::GField from(UString name,
                          const CPPType &type,
                          std::optional<std::string> socket_inspection_name = std::nullopt)
   {
@@ -297,14 +297,14 @@ class AttributeFieldInput : public GeometryFieldInput {
     return fn::GField(field_input);
   }
   template<typename T>
-  static fn::Field<T> from(std::string name,
+  static fn::Field<T> from(UString name,
                            std::optional<std::string> socket_inspection_name = std::nullopt)
   {
     return fn::Field<T>(
         from(std::move(name), CPPType::get<T>(), std::move(socket_inspection_name)));
   }
 
-  StringRefNull attribute_name() const
+  UString attribute_name() const
   {
     return name_;
   }
@@ -321,19 +321,19 @@ class AttributeFieldInput : public GeometryFieldInput {
 
 class AttributeExistsFieldInput final : public bke::GeometryFieldInput {
  private:
-  std::string name_;
+  UString name_;
 
  public:
-  AttributeExistsFieldInput(std::string name, const CPPType &type)
-      : GeometryFieldInput(type, name), name_(std::move(name))
+  AttributeExistsFieldInput(UString name, const CPPType &type)
+      : GeometryFieldInput(type, name.string()), name_(name)
   {
     category_ = Category::Generated;
   }
 
-  static fn::Field<bool> from(std::string name)
+  static fn::Field<bool> from(UString name)
   {
     const CPPType &type = CPPType::get<bool>();
-    auto field_input = std::make_shared<AttributeExistsFieldInput>(std::move(name), type);
+    auto field_input = std::make_shared<AttributeExistsFieldInput>(name, type);
     return fn::Field<bool>(field_input);
   }
 
@@ -476,14 +476,14 @@ class EvaluateOnDomainInput final : public bke::GeometryFieldInput {
 
 bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
                                     const fn::FieldContext &field_context,
-                                    Span<StringRef> names,
+                                    Span<UString> names,
                                     AttrDomain domain,
                                     const fn::Field<bool> &selection,
                                     Span<fn::GField> fields);
 
 inline bool try_capture_field_on_geometry(MutableAttributeAccessor attributes,
                                           const fn::FieldContext &field_context,
-                                          const StringRef name,
+                                          const UString name,
                                           AttrDomain domain,
                                           const fn::Field<bool> &selection,
                                           const fn::GField &field)
@@ -493,12 +493,12 @@ inline bool try_capture_field_on_geometry(MutableAttributeAccessor attributes,
 }
 
 bool try_capture_fields_on_geometry(GeometryComponent &component,
-                                    Span<StringRef> names,
+                                    Span<UString> names,
                                     AttrDomain domain,
                                     Span<fn::GField> fields);
 
 inline bool try_capture_field_on_geometry(GeometryComponent &component,
-                                          const StringRef name,
+                                          const UString name,
                                           AttrDomain domain,
                                           const fn::GField &field)
 {
@@ -506,13 +506,13 @@ inline bool try_capture_field_on_geometry(GeometryComponent &component,
 }
 
 bool try_capture_fields_on_geometry(GeometryComponent &component,
-                                    Span<StringRef> names,
+                                    Span<UString> names,
                                     AttrDomain domain,
                                     const fn::Field<bool> &selection,
                                     Span<fn::GField> fields);
 
 inline bool try_capture_field_on_geometry(GeometryComponent &component,
-                                          const StringRef name,
+                                          const UString name,
                                           AttrDomain domain,
                                           const fn::Field<bool> &selection,
                                           const fn::GField &field)

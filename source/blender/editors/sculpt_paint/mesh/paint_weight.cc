@@ -1176,10 +1176,10 @@ static void do_wpaint_brush_blur(const Depsgraph &depsgraph,
   const Span<int> corner_verts = mesh.corner_verts();
   const Span<float3> vert_normals = bke::pbvh::vert_normals_eval(depsgraph, ob);
   const bke::AttributeAccessor attributes = mesh.attributes();
-  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
+  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert"_ustr, bke::AttrDomain::Point);
   VArraySpan<bool> select_vert;
   if (use_vert_sel || use_face_sel) {
-    select_vert = *attributes.lookup<bool>(".select_vert", bke::AttrDomain::Point);
+    select_vert = *attributes.lookup<bool>(".select_vert"_ustr, bke::AttrDomain::Point);
   }
 
   struct LocalData {
@@ -1290,10 +1290,10 @@ static void do_wpaint_brush_smear(const Depsgraph &depsgraph,
   const Span<int> corner_verts = mesh.corner_verts();
   const Span<float3> vert_normals = bke::pbvh::vert_normals_eval(depsgraph, ob);
   const bke::AttributeAccessor attributes = mesh.attributes();
-  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
+  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert"_ustr, bke::AttrDomain::Point);
   VArraySpan<bool> select_vert;
   if (use_vert_sel || use_face_sel) {
-    select_vert = *attributes.lookup<bool>(".select_vert", bke::AttrDomain::Point);
+    select_vert = *attributes.lookup<bool>(".select_vert"_ustr, bke::AttrDomain::Point);
   }
 
   const float *sculpt_normal_frontface = SCULPT_brush_frontface_normal_from_falloff_shape(
@@ -1409,10 +1409,10 @@ static void do_wpaint_brush_draw(const Depsgraph &depsgraph,
   const Span<float3> vert_positions = bke::pbvh::vert_positions_eval(depsgraph, ob);
   const Span<float3> vert_normals = bke::pbvh::vert_normals_eval(depsgraph, ob);
   const bke::AttributeAccessor attributes = mesh.attributes();
-  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
+  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert"_ustr, bke::AttrDomain::Point);
   VArraySpan<bool> select_vert;
   if (use_vert_sel || use_face_sel) {
-    select_vert = *attributes.lookup<bool>(".select_vert", bke::AttrDomain::Point);
+    select_vert = *attributes.lookup<bool>(".select_vert"_ustr, bke::AttrDomain::Point);
   }
 
   struct LocalData {
@@ -1492,10 +1492,10 @@ static float calculate_average_weight(const Depsgraph &depsgraph,
   const Span<float3> vert_positions = bke::pbvh::vert_positions_eval(depsgraph, ob);
   const Span<float3> vert_normals = bke::pbvh::vert_normals_eval(depsgraph, ob);
   const bke::AttributeAccessor attributes = mesh.attributes();
-  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
+  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert"_ustr, bke::AttrDomain::Point);
   VArraySpan<bool> select_vert;
   if (use_vert_sel || use_face_sel) {
-    select_vert = *attributes.lookup<bool>(".select_vert", bke::AttrDomain::Point);
+    select_vert = *attributes.lookup<bool>(".select_vert"_ustr, bke::AttrDomain::Point);
   }
 
   struct LocalData {

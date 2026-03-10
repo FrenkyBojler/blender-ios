@@ -6,9 +6,10 @@
  * \ingroup balembic
  */
 
-#include "abc_customdata.h"
 #include "BLI_color_types.hh"
+#include "BLI_ustring.hh"
 #include "abc_axis_conversion.h"
+#include "abc_customdata.h"
 #include "abc_util.h"
 
 #include <Alembic/Abc/ICompoundProperty.h>
@@ -126,7 +127,7 @@ static void get_uvs(const CDStreamConfig &config,
 
 const char *get_uv_sample(UVSample &sample, const CDStreamConfig &config, const Mesh &mesh)
 {
-  const StringRefNull name = mesh.active_uv_map_name();
+  const UString name = mesh.active_uv_map_name();
   if (name.is_empty()) {
     return "";
   }
@@ -278,8 +279,8 @@ void write_custom_data(const OCompoundProperty &prop,
 {
   const bke::AttributeAccessor attributes = mesh.attributes();
   if (data_type == CD_PROP_FLOAT2) {
-    const StringRef active_uv_name = mesh.active_uv_map_name();
-    for (const StringRefNull name : mesh.uv_map_names()) {
+    const UString active_uv_name = mesh.active_uv_map_name();
+    for (const UString name : mesh.uv_map_names()) {
       if (name == active_uv_name) {
         /* Already exported. */
         continue;
@@ -415,7 +416,7 @@ static void read_custom_data_mcols(const std::string &iobject_full_name,
   /* Read the vertex colors */
   bke::MutableAttributeAccessor attributes = config.mesh->attributes_for_write();
   bke::SpanAttributeWriter attr = attributes.lookup_or_add_for_write_span<ColorGeometry4b>(
-      prop_header.getName(), bke::AttrDomain::Corner);
+      UString(prop_header.getName()), bke::AttrDomain::Corner);
   const OffsetIndices faces = config.mesh->faces();
   const int *corner_verts = config.corner_verts;
 
@@ -504,7 +505,7 @@ static void read_custom_data_uvs(const ICompoundProperty &prop,
 
   bke::MutableAttributeAccessor attributes = config.mesh->attributes_for_write();
   bke::SpanAttributeWriter uv_map = attributes.lookup_or_add_for_write_span<float2>(
-      prop_header.getName(), bke::AttrDomain::Corner);
+      UString(prop_header.getName()), bke::AttrDomain::Corner);
 
   read_uvs(config, uv_map.span, uv_scope, sample.getVals(), uvs_indices);
 
@@ -524,7 +525,7 @@ void read_velocity(const V3fArraySamplePtr &velocities,
 
   bke::MutableAttributeAccessor attributes = config.mesh->attributes_for_write();
   bke::SpanAttributeWriter attr = attributes.lookup_or_add_for_write_span<float3>(
-      "velocity", bke::AttrDomain::Point);
+      "velocity"_ustr, bke::AttrDomain::Point);
   MutableSpan<float3> velocity = attr.span;
   for (int i = 0; i < num_velocity_vectors; i++) {
     const Imath::V3f &vel_in = (*velocities)[i];

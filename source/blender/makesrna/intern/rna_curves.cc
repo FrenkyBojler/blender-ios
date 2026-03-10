@@ -230,7 +230,7 @@ static float rna_CurvePoint_radius_get(PointerRNA *ptr)
   const Curves *curves = rna_curves(ptr);
   const bke::AttributeAccessor attributes = curves->geometry.wrap().attributes();
   const VArray radii = *attributes.lookup_or_default<float>(
-      "radius", bke::AttrDomain::Point, 0.0f);
+      "radius"_ustr, bke::AttrDomain::Point, 0.0f);
   return radii[rna_CurvePoint_index_get_const(ptr)];
 }
 
@@ -238,7 +238,7 @@ static void rna_CurvePoint_radius_set(PointerRNA *ptr, float value)
 {
   Curves *curves = rna_curves(ptr);
   bke::MutableAttributeAccessor attributes = curves->geometry.wrap().attributes_for_write();
-  bke::AttributeWriter radii = attributes.lookup_or_add_for_write<float>("radius",
+  bke::AttributeWriter radii = attributes.lookup_or_add_for_write<float>("radius"_ustr,
                                                                          bke::AttrDomain::Point);
   if (!radii) {
     return;

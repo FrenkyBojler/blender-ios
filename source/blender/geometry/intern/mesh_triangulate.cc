@@ -679,7 +679,7 @@ std::optional<Mesh *> mesh_triangulate(const Mesh &src_mesh,
     array_utils::gather(src, unique_src_faces, dst.slice(unique_src_faces_range));
   }
 
-  attributes.add<int>(".corner_vert", bke::AttrDomain::Corner, bke::AttributeInitConstruct());
+  attributes.add<int>(".corner_vert"_ustr, bke::AttrDomain::Corner, bke::AttributeInitConstruct());
 
   MutableSpan<int> corner_verts = mesh->corner_verts_for_write();
   array_utils::gather_group_to_group(src_faces,
@@ -696,7 +696,7 @@ std::optional<Mesh *> mesh_triangulate(const Mesh &src_mesh,
            attributes,
            {bke::AttrDomain::Corner},
            bke::attribute_filter_with_skip_ref(attribute_filter,
-                                               {".corner_vert", ".corner_edge"})))
+                                               {".corner_vert"_ustr, ".corner_edge"_ustr})))
   {
     bke::attribute_math::gather_group_to_group(
         src_faces,

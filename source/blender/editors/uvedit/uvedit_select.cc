@@ -5681,8 +5681,8 @@ static wmOperatorStatus uv_select_pinned_exec(bContext *C, wmOperator *op)
     Mesh &mesh = *id_cast<Mesh *>(obedit->data);
     BMesh *bm = mesh.runtime->edit_mesh->bm;
 
-    const StringRef active_uv_name = mesh.active_uv_map_name();
-    if (!BM_uv_map_attr_pin_exists(bm, active_uv_name)) {
+    const UString active_uv_name = mesh.active_uv_map_name();
+    if (!BM_uv_map_attr_pin_exists(bm, active_uv_name.ref())) {
       continue;
     }
 

@@ -76,7 +76,7 @@ static Vector<const GeometryAttributeInfo *> get_attribute_info_from_context(
   }
   const ContextualGeoTreeLogs tree_logs = GeoNodesLog::get_contextual_tree_logs(*snode);
 
-  Set<StringRef> names;
+  Set<UString> names;
 
   /* For the attribute input node, collect attribute information from all nodes in the group. */
   if (node->type_legacy == GEO_NODE_INPUT_NAMED_ATTRIBUTE) {
@@ -88,7 +88,7 @@ static Vector<const GeometryAttributeInfo *> get_attribute_info_from_context(
         if (!names.add(attribute->name)) {
           continue;
         }
-        if (!bke::allow_procedural_attribute_access(attribute->name)) {
+        if (!bke::allow_procedural_attribute_access(attribute->name.ref())) {
           continue;
         }
         attributes.append(attribute);
@@ -117,7 +117,7 @@ static Vector<const GeometryAttributeInfo *> get_attribute_info_from_context(
     }
     if (const GeometryInfoLog *geo_log = dynamic_cast<const GeometryInfoLog *>(value_log)) {
       for (const GeometryAttributeInfo &attribute : geo_log->attributes) {
-        if (bke::allow_procedural_attribute_access(attribute.name)) {
+        if (bke::allow_procedural_attribute_access(attribute.name.ref())) {
           if (names.add(attribute.name)) {
             attributes.append(&attribute);
           }

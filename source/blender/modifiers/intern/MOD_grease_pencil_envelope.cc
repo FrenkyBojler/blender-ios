@@ -301,7 +301,7 @@ static void deform_drawing_as_envelope(const GreasePencilEnvelopeModifierData &e
   const VArray<float> vgroup_weights = modifier::greasepencil::get_influence_vertex_weights(
       curves, emd.influence);
   const VArray<bool> cyclic_flags = *attributes.lookup_or_default(
-      "cyclic", bke::AttrDomain::Curve, false);
+      "cyclic"_ustr, bke::AttrDomain::Curve, false);
 
   /* Cache to avoid affecting neighboring point results when updating positions. */
   const Array<float3> old_positions(positions.as_span());
@@ -503,9 +503,9 @@ static void create_envelope_strokes(const EnvelopeInfo &info,
   const bke::CurvesGeometry &src_curves = drawing.strokes();
   const bke::AttributeAccessor src_attributes = src_curves.attributes();
   const VArray<bool> src_cyclic = *src_attributes.lookup_or_default(
-      "cyclic", bke::AttrDomain::Curve, false);
+      "cyclic"_ustr, bke::AttrDomain::Curve, false);
   const VArray<int> src_material_indices = *src_attributes.lookup_or_default(
-      "material_index", bke::AttrDomain::Curve, 0);
+      "material_index"_ustr, bke::AttrDomain::Curve, 0);
   const int src_curves_num = src_curves.curves_num();
   const int src_points_num = src_curves.points_num();
 
@@ -533,10 +533,10 @@ static void create_envelope_strokes(const EnvelopeInfo &info,
 
   bke::CurvesGeometry dst_curves(dst_point_num, dst_curve_num);
   bke::MutableAttributeAccessor dst_attributes = dst_curves.attributes_for_write();
-  bke::SpanAttributeWriter<int> dst_material_indices =
-      dst_attributes.lookup_or_add_for_write_span<int>("material_index", bke::AttrDomain::Curve);
+  bke::SpanAttributeWriter dst_material_indices = dst_attributes.lookup_or_add_for_write_span<int>(
+      "material_index"_ustr, bke::AttrDomain::Curve);
   bke::SpanAttributeWriter<bool> dst_cyclic = dst_attributes.lookup_or_add_for_write_span<bool>(
-      "cyclic", bke::AttrDomain::Curve);
+      "cyclic"_ustr, bke::AttrDomain::Curve);
   /* Map each destination curve and point to its source. */
   Array<int> src_curve_indices(dst_curve_num);
   Array<int> src_point_indices(dst_point_num);
@@ -581,17 +581,18 @@ static void create_envelope_strokes(const EnvelopeInfo &info,
                          {},
                          src_point_indices,
                          dst_attributes);
-  bke::gather_attributes(src_attributes,
-                         bke::AttrDomain::Curve,
-                         bke::AttrDomain::Curve,
-                         bke::attribute_filter_from_skip_ref({"cyclic", "material_index"}),
-                         src_curve_indices,
-                         dst_attributes);
+  bke::gather_attributes(
+      src_attributes,
+      bke::AttrDomain::Curve,
+      bke::AttrDomain::Curve,
+      bke::attribute_filter_from_skip_ref({"cyclic"_ustr, "material_index"_ustr}),
+      src_curve_indices,
+      dst_attributes);
 
   /* Apply thickness and strength factors. */
   {
     bke::SpanAttributeWriter radius_writer = dst_attributes.lookup_or_add_for_write_span<float>(
-        "radius", bke::AttrDomain::Point, bke::AttributeInitValue(0.01f));
+        "radius"_ustr, bke::AttrDomain::Point, bke::AttributeInitValue(0.01f));
     const IndexRange all_new_points = keep_original ?
                                           IndexRange(src_curves.point_num,
                                                      dst_point_num - src_curves.point_num) :
@@ -602,7 +603,7 @@ static void create_envelope_strokes(const EnvelopeInfo &info,
     radius_writer.finish();
     if (bke::SpanAttributeWriter<float> opacity_writer =
             dst_attributes.lookup_or_add_for_write_span<float>(
-                "opacity", bke::AttrDomain::Point, bke::AttributeInitValue(1.0f)))
+                "opacity"_ustr, bke::AttrDomain::Point, bke::AttributeInitValue(1.0f)))
     {
       for (const int point_i : all_new_points) {
         opacity_writer.span[point_i] *= info.strength;

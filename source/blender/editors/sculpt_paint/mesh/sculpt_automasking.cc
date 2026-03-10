@@ -282,7 +282,7 @@ static void calc_blurred_cavity_mesh(const Depsgraph &depsgraph,
   const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
 
   const bke::AttributeAccessor attributes = mesh.attributes();
-  const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
+  const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly"_ustr, bke::AttrDomain::Face);
 
   const Span<float3> positions_eval = bke::pbvh::vert_positions_eval(depsgraph, object);
   const Span<float3> normals_eval = bke::pbvh::vert_normals_eval(depsgraph, object);
@@ -632,8 +632,9 @@ void calc_vert_factors(const Depsgraph &depsgraph,
   const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
   const BitSpan boundary_verts = ss.boundary_info_cache->verts;
   const bke::AttributeAccessor attributes = mesh.attributes();
-  const VArraySpan face_sets = *attributes.lookup<int>(".sculpt_face_set", bke::AttrDomain::Face);
-  const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
+  const VArraySpan face_sets = *attributes.lookup<int>(".sculpt_face_set"_ustr,
+                                                       bke::AttrDomain::Face);
+  const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly"_ustr, bke::AttrDomain::Face);
   Span<float3> orig_normals;
   if (automasking.settings.flags &
       (BRUSH_AUTOMASKING_BRUSH_NORMAL | BRUSH_AUTOMASKING_VIEW_NORMAL))
@@ -749,8 +750,9 @@ void calc_face_factors(const Depsgraph &depsgraph,
   const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
   const BitSpan boundary_verts = ss.boundary_info_cache->verts;
   const bke::AttributeAccessor attributes = mesh.attributes();
-  const VArraySpan face_sets = *attributes.lookup<int>(".sculpt_face_set", bke::AttrDomain::Face);
-  const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
+  const VArraySpan face_sets = *attributes.lookup<int>(".sculpt_face_set"_ustr,
+                                                       bke::AttrDomain::Face);
+  const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly"_ustr, bke::AttrDomain::Face);
   for (const int i : face_indices.index_range()) {
     const Span<int> face_verts = corner_verts.slice(faces[face_indices[i]]);
     float sum = 0.0f;
@@ -860,7 +862,8 @@ void calc_grids_factors(const Depsgraph &depsgraph,
   const GroupedSpan<int> vert_to_face_map = base_mesh.vert_to_face_map();
   const BitSpan boundary_verts = ss.boundary_info_cache->verts;
   const bke::AttributeAccessor attributes = base_mesh.attributes();
-  const VArraySpan face_sets = *attributes.lookup<int>(".sculpt_face_set", bke::AttrDomain::Face);
+  const VArraySpan face_sets = *attributes.lookup<int>(".sculpt_face_set"_ustr,
+                                                       bke::AttrDomain::Face);
   const SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
 
@@ -1255,7 +1258,7 @@ static void init_face_sets_masking(const Sculpt &sd, Object &ob, MutableSpan<flo
       const Mesh &mesh = *id_cast<const Mesh *>(ob.data);
       const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
       const bke::AttributeAccessor attributes = mesh.attributes();
-      const VArraySpan face_sets = *attributes.lookup<int>(".sculpt_face_set",
+      const VArraySpan face_sets = *attributes.lookup<int>(".sculpt_face_set"_ustr,
                                                            bke::AttrDomain::Face);
       if (face_sets.is_empty()) {
         return;
@@ -1273,7 +1276,7 @@ static void init_face_sets_masking(const Sculpt &sd, Object &ob, MutableSpan<flo
       const Mesh &base_mesh = *id_cast<const Mesh *>(ob.data);
       const OffsetIndices<int> faces = base_mesh.faces();
       const bke::AttributeAccessor attributes = base_mesh.attributes();
-      const VArraySpan face_sets = *attributes.lookup<int>(".sculpt_face_set",
+      const VArraySpan face_sets = *attributes.lookup<int>(".sculpt_face_set"_ustr,
                                                            bke::AttrDomain::Face);
       if (face_sets.is_empty()) {
         return;
@@ -1332,8 +1335,9 @@ static void init_boundary_masking_mesh(Object &object,
   const Span<int> corner_verts = mesh.corner_verts();
   const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
   const bke::AttributeAccessor attributes = mesh.attributes();
-  const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
-  const VArraySpan face_sets = *attributes.lookup<int>(".sculpt_face_set", bke::AttrDomain::Face);
+  const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly"_ustr, bke::AttrDomain::Face);
+  const VArraySpan face_sets = *attributes.lookup<int>(".sculpt_face_set"_ustr,
+                                                       bke::AttrDomain::Face);
 
   const int num_verts = bke::pbvh::vert_positions_eval(depsgraph, object).size();
   Array<int> edge_distance(num_verts, EDGE_DISTANCE_INF);
@@ -1400,7 +1404,8 @@ static void init_boundary_masking_grids(Object &object,
   const Span<int> corner_verts = mesh.corner_verts();
   const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
   const bke::AttributeAccessor attributes = mesh.attributes();
-  const VArraySpan face_sets = *attributes.lookup<int>(".sculpt_face_set", bke::AttrDomain::Face);
+  const VArraySpan face_sets = *attributes.lookup<int>(".sculpt_face_set"_ustr,
+                                                       bke::AttrDomain::Face);
 
   Array<int> edge_distance(positions.size(), EDGE_DISTANCE_INF);
   for (const int i : positions.index_range()) {

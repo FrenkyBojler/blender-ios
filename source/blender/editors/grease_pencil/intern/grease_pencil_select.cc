@@ -115,7 +115,7 @@ static int foreach_curve_segment(const CurveSegmentsData &segment_data,
 bool apply_mask_as_selection(bke::CurvesGeometry &curves,
                              const IndexMask &selection_mask,
                              const bke::AttrDomain selection_domain,
-                             const StringRef attribute_name,
+                             const UString attribute_name,
                              const eSelectOp sel_op)
 {
   if (selection_mask.is_empty()) {
@@ -138,7 +138,7 @@ bool apply_mask_as_selection(bke::CurvesGeometry &curves,
 
 bool apply_mask_as_segment_selection(bke::CurvesGeometry &curves,
                                      const IndexMask &point_selection_mask,
-                                     const StringRef attribute_name,
+                                     const UString attribute_name,
                                      const Curves2DBVHTree &tree_data,
                                      const IndexRange tree_data_range,
                                      const eSelectOp sel_op)
@@ -250,7 +250,7 @@ bool selection_update(const ViewContext *vc,
 
       const ed::greasepencil::MutableDrawingInfo &info = drawings[i_drawing];
       bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
-      const Span<StringRef> selection_attribute_names =
+      const Span<UString> selection_attribute_names =
           ed::curves::get_curves_selection_attribute_names(curves);
 
       IndexMaskMemory memory;
@@ -260,7 +260,7 @@ bool selection_update(const ViewContext *vc,
         continue;
       }
 
-      for (const StringRef attribute_name : selection_attribute_names) {
+      for (const UString attribute_name : selection_attribute_names) {
         IndexMask changed_element_mask = select_operation(info, elements, attribute_name, memory);
 
         /* Select fills. */
@@ -368,7 +368,7 @@ static wmOperatorStatus select_more_exec(bContext *C, wmOperator * /*op*/)
                                      SEL_OP_ADD,
                                      [&](const ed::greasepencil::MutableDrawingInfo &info,
                                          const IndexMask & /*universe*/,
-                                         StringRef attribute_name,
+                                         UString attribute_name,
                                          IndexMaskMemory &memory) {
                                        return ed::curves::select_adjacent_mask(
                                            info.drawing.strokes(), attribute_name, false, memory);
@@ -404,7 +404,7 @@ static wmOperatorStatus select_less_exec(bContext *C, wmOperator * /*op*/)
                                      SEL_OP_SUB,
                                      [&](const ed::greasepencil::MutableDrawingInfo &info,
                                          const IndexMask & /*universe*/,
-                                         StringRef attribute_name,
+                                         UString attribute_name,
                                          IndexMaskMemory &memory) {
                                        return ed::curves::select_adjacent_mask(
                                            info.drawing.strokes(), attribute_name, true, memory);
@@ -489,7 +489,7 @@ static wmOperatorStatus select_random_exec(bContext *C, wmOperator *op)
       SEL_OP_SET,
       [&](const ed::greasepencil::MutableDrawingInfo &info,
           const IndexMask & /*universe*/,
-          StringRef /*attribute_name*/,
+          UString /*attribute_name*/,
           IndexMaskMemory &memory) -> IndexMask {
         const IndexMask selectable_elements = retrieve_editable_elements(
             *object, info, selection_domain, memory);
@@ -584,7 +584,7 @@ template<typename T>
 void insert_selected_values(Object *object,
                             const MutableDrawingInfo &info,
                             const bke::AttrDomain domain,
-                            const StringRef name,
+                            const UString name,
                             const int handle_display,
                             Set<T> &r_value_set)
 {
@@ -635,7 +635,7 @@ static void select_similar_by_value(Scene *scene,
                                     Object *object,
                                     GreasePencil &grease_pencil,
                                     const bke::AttrDomain selection_domain,
-                                    const StringRef name,
+                                    const UString name,
                                     const int handle_display,
                                     float threshold,
                                     DistanceFn distance_fn)
@@ -660,7 +660,7 @@ static void select_similar_by_value(Scene *scene,
     const VArraySpan<T> values = *curves.attributes().lookup_or_default<T>(
         name, selection_domain, default_value);
 
-    Span<StringRef> selection_attribute_names = ed::curves::get_curves_selection_attribute_names(
+    Span<UString> selection_attribute_names = ed::curves::get_curves_selection_attribute_names(
         curves);
     for (const int i : selection_attribute_names.index_range()) {
       bke::GSpanAttributeWriter selection_writer = ed::curves::ensure_selection_attribute(
@@ -696,7 +696,8 @@ static void select_similar_by_layer(Scene *scene,
   /* Layer is selected if any point is selected. */
   for (const MutableDrawingInfo &info : drawings) {
     const VArraySpan<bool> selection =
-        *info.drawing.strokes().attributes().lookup_or_default<bool>(".selection", domain, true);
+        *info.drawing.strokes().attributes().lookup_or_default<bool>(
+            ".selection"_ustr, domain, true);
     for (const int i : selection.index_range()) {
       if (selection[i]) {
         selected_layers.add(info.layer_index);
@@ -742,7 +743,7 @@ static wmOperatorStatus select_similar_exec(bContext *C, wmOperator *op)
           object,
           grease_pencil,
           selection_domain,
-          "material_index",
+          "material_index"_ustr,
           handle_display,
           threshold,
           [](const int a, const int b) -> float { return float(math::distance(a, b)); });
@@ -753,7 +754,7 @@ static wmOperatorStatus select_similar_exec(bContext *C, wmOperator *op)
           object,
           grease_pencil,
           selection_domain,
-          "vertex_color",
+          "vertex_color"_ustr,
           handle_display,
           threshold,
           [](const ColorGeometry4f &a, const ColorGeometry4f &b) -> float {
@@ -766,7 +767,7 @@ static wmOperatorStatus select_similar_exec(bContext *C, wmOperator *op)
           object,
           grease_pencil,
           selection_domain,
-          "radius",
+          "radius"_ustr,
           handle_display,
           threshold,
           [](const float a, const float b) -> float { return math::distance(a, b); });
@@ -777,7 +778,7 @@ static wmOperatorStatus select_similar_exec(bContext *C, wmOperator *op)
           object,
           grease_pencil,
           selection_domain,
-          "opacity",
+          "opacity"_ustr,
           handle_display,
           threshold,
           [](const float a, const float b) -> float { return math::distance(a, b); });
@@ -821,7 +822,7 @@ static wmOperatorStatus select_ends_exec(bContext *C, wmOperator *op)
       SEL_OP_SET,
       [&](const ed::greasepencil::MutableDrawingInfo &info,
           const IndexMask & /*universe*/,
-          StringRef /*attribute_name*/,
+          UString /*attribute_name*/,
           IndexMaskMemory &memory) {
         const IndexMask selectable_strokes = ed::greasepencil::retrieve_editable_strokes(
             *object, info.drawing, info.layer_index, memory);
@@ -887,7 +888,7 @@ static wmOperatorStatus select_fill_exec(bContext *C, wmOperator * /*op*/)
 
     bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-    const VArray<int> fill_ids = *attributes.lookup<int>("fill_id", bke::AttrDomain::Curve);
+    const VArray<int> fill_ids = *attributes.lookup<int>("fill_id"_ustr, bke::AttrDomain::Curve);
 
     /* If the attribute does not exist then each curves is its own fill. */
     if (!fill_ids) {
@@ -918,7 +919,7 @@ static wmOperatorStatus select_fill_exec(bContext *C, wmOperator * /*op*/)
         });
 
     const OffsetIndices<int> points_by_curve = curves.points_by_curve();
-    const Span<StringRef> selection_attribute_names =
+    const Span<UString> selection_attribute_names =
         ed::curves::get_curves_selection_attribute_names(curves);
 
     for (const int i : selection_attribute_names.index_range()) {
@@ -988,7 +989,7 @@ bool ensure_selection_domain(ToolSettings *ts, Object *object)
 
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
     const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(
-        ".selection");
+        ".selection"_ustr);
 
     /* When the selection domain is 'curve', ensure all *fills* with a point selection
      * are selected. */
@@ -999,7 +1000,7 @@ bool ensure_selection_domain(ToolSettings *ts, Object *object)
         const IndexMask selected_mask = bke::greasepencil::selected_mask_to_fills(
             selected_points, curves, bke::AttrDomain::Point, memory);
 
-        for (const StringRef selection_attribute_name :
+        for (const UString selection_attribute_name :
              ed::curves::get_curves_selection_attribute_names(curves))
         {
           bke::GSpanAttributeWriter selection_writer = ed::curves::ensure_selection_attribute(
@@ -1016,7 +1017,7 @@ bool ensure_selection_domain(ToolSettings *ts, Object *object)
         const IndexMask selected_mask = bke::greasepencil::selected_mask_to_fills(
             selected_curves, curves, bke::AttrDomain::Curve, memory);
 
-        for (const StringRef selection_attribute_name :
+        for (const UString selection_attribute_name :
              ed::curves::get_curves_selection_attribute_names(curves))
         {
           bke::GSpanAttributeWriter selection_writer = ed::curves::ensure_selection_attribute(
@@ -1037,14 +1038,14 @@ bool ensure_selection_domain(ToolSettings *ts, Object *object)
     }
 
     /* Convert selection domain. */
-    const GVArray src = *attributes.lookup(".selection", domain);
+    const GVArray src = *attributes.lookup(".selection"_ustr, domain);
     if (src) {
       const CPPType &type = src.type();
       void *dst = MEM_new_array_uninitialized(attributes.domain_size(domain), type.size, __func__);
       src.materialize(dst);
 
-      attributes.remove(".selection");
-      if (!attributes.add(".selection",
+      attributes.remove(".selection"_ustr);
+      if (!attributes.add(".selection"_ustr,
                           domain,
                           bke::cpp_type_to_attribute_type(type),
                           bke::AttributeInitMoveArray(dst)))
@@ -1143,7 +1144,7 @@ static wmOperatorStatus grease_pencil_material_select_exec(bContext *C, wmOperat
     }
 
     const OffsetIndices<int> points_by_curve = curves.points_by_curve();
-    const Span<StringRef> selection_attribute_names =
+    const Span<UString> selection_attribute_names =
         ed::curves::get_curves_selection_attribute_names(curves);
 
     for (const int i : selection_attribute_names.index_range()) {
@@ -1221,7 +1222,7 @@ static wmOperatorStatus grease_pencil_select_by_stroke_type_exec(bContext *C, wm
     const bke::CurvesGeometry &curves = info.drawing.strokes();
     if (stroke_type == StrokeType::Stroke) {
       if (const VArray<bool> hide_stroke = *curves.attributes().lookup<bool>(
-              "hide_stroke", bke::AttrDomain::Curve))
+              "hide_stroke"_ustr, bke::AttrDomain::Curve))
       {
         IndexMask mask = IndexMask::from_bools_inverse(selectable_strokes, hide_stroke, memory);
         if (selection_domain == bke::AttrDomain::Point) {
@@ -1235,7 +1236,7 @@ static wmOperatorStatus grease_pencil_select_by_stroke_type_exec(bContext *C, wm
       changed.store(true, std::memory_order_relaxed);
     }
     else if (stroke_type == StrokeType::Fill) {
-      if (const VArray<int> fill_id = *curves.attributes().lookup<int>("fill_id",
+      if (const VArray<int> fill_id = *curves.attributes().lookup<int>("fill_id"_ustr,
                                                                        bke::AttrDomain::Curve))
       {
         IndexMask mask = IndexMask::from_predicate(

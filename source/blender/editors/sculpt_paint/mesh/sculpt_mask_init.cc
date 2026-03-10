@@ -53,12 +53,12 @@ void write_mask_mesh(const Depsgraph &depsgraph,
 {
   Mesh &mesh = *id_cast<Mesh *>(object.data);
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
-  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
+  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert"_ustr, bke::AttrDomain::Point);
 
   undo::push_nodes(depsgraph, object, node_mask, undo::Type::Mask);
 
   bke::SpanAttributeWriter mask = attributes.lookup_or_add_for_write_span<float>(
-      ".sculpt_mask", bke::AttrDomain::Point);
+      ".sculpt_mask"_ustr, bke::AttrDomain::Point);
   if (!mask) {
     return;
   }
@@ -153,7 +153,7 @@ static wmOperatorStatus sculpt_mask_init_exec(bContext *C, wmOperator *op)
           const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
           const bke::AttributeAccessor attributes = mesh.attributes();
           const VArraySpan face_sets = *attributes.lookup_or_default<int>(
-              ".sculpt_face_set", bke::AttrDomain::Face, 1);
+              ".sculpt_face_set"_ustr, bke::AttrDomain::Face, 1);
 
           write_mask_mesh(depsgraph, ob, node_mask, [&](MutableSpan<float> mask, Span<int> verts) {
             for (const int vert : verts) {
@@ -202,7 +202,7 @@ static wmOperatorStatus sculpt_mask_init_exec(bContext *C, wmOperator *op)
           const Mesh &mesh = *id_cast<const Mesh *>(ob.data);
           const bke::AttributeAccessor attributes = mesh.attributes();
           const VArraySpan face_sets = *attributes.lookup_or_default<int>(
-              ".sculpt_face_set", bke::AttrDomain::Face, 1);
+              ".sculpt_face_set"_ustr, bke::AttrDomain::Face, 1);
           const Span<int> grid_to_face = subdiv_ccg.grid_to_face_map;
           init_mask_grids(
               bmain,

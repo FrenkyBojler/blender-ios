@@ -92,7 +92,7 @@ static bool use_normals_simplify(const Scene &scene, const MeshRenderData &mr)
   }
   const Mesh &mesh = *mr.mesh;
   const std::optional<bke::AttributeMetaData> meta_data = mesh.attributes().lookup_meta_data(
-      "custom_normal");
+      "custom_normal"_ustr);
   if (!meta_data) {
     return false;
   }

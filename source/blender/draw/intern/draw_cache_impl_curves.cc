@@ -253,7 +253,7 @@ static void create_edit_points_data(const OffsetIndices<int> points_by_curve,
   const int points_num = points_by_curve.total_size();
   const bke::AttributeAccessor attributes = curves.attributes();
   const VArray selection = *attributes.lookup_or_default<bool>(
-      ".selection", bke::AttrDomain::Point, true);
+      ".selection"_ustr, bke::AttrDomain::Point, true);
 
   static const GPUVertFormat format = GPU_vertformat_from_attribute("data",
                                                                     gpu::VertAttrType::UINT_32);
@@ -269,9 +269,9 @@ static void create_edit_points_data(const OffsetIndices<int> points_by_curve,
     const VArray<int8_t> type_right = curves.handle_types_left();
     const VArray<int8_t> types_left = curves.handle_types_right();
     const VArray selection_left = *attributes.lookup_or_default<bool>(
-        ".selection_handle_left", bke::AttrDomain::Point, true);
+        ".selection_handle_left"_ustr, bke::AttrDomain::Point, true);
     const VArray selection_right = *attributes.lookup_or_default<bool>(
-        ".selection_handle_right", bke::AttrDomain::Point, true);
+        ".selection_handle_right"_ustr, bke::AttrDomain::Point, true);
 
     MutableSpan data_left = data.slice(handle_range_left(points_num, bezier_offsets));
     MutableSpan data_right = data.slice(handle_range_right(points_num, bezier_offsets));
@@ -390,14 +390,14 @@ static void create_edit_points_selection(const OffsetIndices<int> points_by_curv
   MutableSpan<float> data = vbo.data<float>();
 
   const VArray attribute = *attributes.lookup_or_default<float>(
-      ".selection", bke::AttrDomain::Point, 1.0f);
+      ".selection"_ustr, bke::AttrDomain::Point, 1.0f);
   attribute.materialize(data.take_front(points_num));
 
   if (!bezier_curves.is_empty()) {
     const VArray selection_left = *attributes.lookup_or_default<float>(
-        ".selection_handle_left", bke::AttrDomain::Point, 1.0f);
+        ".selection_handle_left"_ustr, bke::AttrDomain::Point, 1.0f);
     const VArray selection_right = *attributes.lookup_or_default<float>(
-        ".selection_handle_right", bke::AttrDomain::Point, 1.0f);
+        ".selection_handle_right"_ustr, bke::AttrDomain::Point, 1.0f);
 
     array_utils::gather_group_to_group(points_by_curve,
                                        bezier_offsets,
@@ -576,7 +576,7 @@ static gpu::VertBufPtr alloc_evaluated_point_attribute_vbo(const GPUVertFormat &
 }
 
 static gpu::VertBufPtr ensure_control_point_attribute(const bke::CurvesGeometry &curves,
-                                                      const StringRef name,
+                                                      const UString name,
                                                       const GPUVertFormat &format,
                                                       bool &r_is_point_domain)
 {
@@ -609,9 +609,9 @@ static gpu::VertBufPtr ensure_control_point_attribute(const bke::CurvesGeometry 
   return vbo;
 }
 
-static std::optional<StringRef> get_first_uv_name(const bke::AttributeAccessor &attributes)
+static std::optional<UString> get_first_uv_name(const bke::AttributeAccessor &attributes)
 {
-  std::optional<StringRef> name;
+  std::optional<UString> name;
   attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
     if (iter.data_type == bke::AttrType::Float2) {
       name = iter.name;
@@ -621,11 +621,11 @@ static std::optional<StringRef> get_first_uv_name(const bke::AttributeAccessor &
   return name;
 }
 
-static void request_attribute(Curves &curves, const StringRef name)
+static void request_attribute(Curves &curves, const UString name)
 {
   CurvesEvalCache &cache = get_batch_cache(curves).eval_cache;
 
-  VectorSet<std::string> attributes{};
+  VectorSet<UString> attributes{};
 
   bke::CurvesGeometry &curves_geometry = curves.geometry.wrap();
   if (!curves_geometry.attributes().contains(name)) {
@@ -646,11 +646,11 @@ void drw_curves_get_attribute_sampler_name(const StringRef layer_name, char r_sa
 
 void CurvesEvalCache::ensure_attribute(CurvesModule &module,
                                        const bke::CurvesGeometry &curves,
-                                       const StringRef name,
+                                       const UString name,
                                        const int index)
 {
   char sampler_name[32];
-  drw_curves_get_attribute_sampler_name(name, sampler_name);
+  drw_curves_get_attribute_sampler_name(name.ref(), sampler_name);
 
   GPUVertFormat format = {0};
   /* All attributes use float4, see comment below. */
@@ -675,7 +675,7 @@ void CurvesEvalCache::ensure_attribute(CurvesModule &module,
     }
 
     this->evaluated_attributes_buf[index] = alloc_evaluated_point_attribute_vbo(
-        format, name, evaluated_point_count_with_cyclic(curves));
+        format, name.ref(), evaluated_point_count_with_cyclic(curves));
 
     module.evaluate_curve_attribute(curves.has_curve_with_type(CURVE_TYPE_CATMULL_ROM),
                                     curves.has_curve_with_type(CURVE_TYPE_BEZIER),
@@ -700,12 +700,12 @@ void CurvesEvalCache::ensure_attributes(CurvesModule &module,
   const bke::AttributeAccessor attributes = curves.attributes();
 
   if (gpu_material) {
-    VectorSet<std::string> attrs_needed;
+    VectorSet<UString> attrs_needed;
     ListBaseT<GPUMaterialAttribute> gpu_attrs = GPU_material_attributes(gpu_material);
     for (GPUMaterialAttribute &gpu_attr : gpu_attrs) {
-      StringRef name = gpu_attr.name;
+      UString name = UString(gpu_attr.name);
       if (name.is_empty()) {
-        if (std::optional<StringRef> uv_name = get_first_uv_name(attributes)) {
+        if (std::optional<UString> uv_name = get_first_uv_name(attributes)) {
           drw_attributes_add_request(&attrs_needed, *uv_name);
         }
       }
@@ -1029,7 +1029,7 @@ gpu::Batch *DRW_curves_batch_cache_get_edit_curves_lines(Curves *curves)
 }
 
 gpu::VertBufPtr &DRW_curves_texture_for_evaluated_attribute(Curves *curves,
-                                                            const StringRef name,
+                                                            const UString name,
                                                             bool &r_is_point_domain,
                                                             bool &r_valid_attribute)
 {

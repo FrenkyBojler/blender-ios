@@ -2812,7 +2812,8 @@ static void do_smooth_brush(const Depsgraph &depsgraph,
       const Span<int> corner_verts = mesh.corner_verts();
       const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
       bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
-      const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
+      const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly"_ustr,
+                                                            bke::AttrDomain::Face);
 
       threading::EnumerableThreadSpecific<LocalDataMesh> all_tls;
       MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
@@ -3098,8 +3099,8 @@ static void init_boundary_mesh(const Depsgraph &depsgraph,
 
   const Mesh &mesh = *id_cast<const Mesh *>(object.data);
   const bke::AttributeAccessor attributes = mesh.attributes();
-  VArraySpan<bool> hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
-  VArraySpan<float> mask = *attributes.lookup<float>(".sculpt_mask", bke::AttrDomain::Point);
+  VArraySpan<bool> hide_vert = *attributes.lookup<bool>(".hide_vert"_ustr, bke::AttrDomain::Point);
+  VArraySpan<float> mask = *attributes.lookup<float>(".sculpt_mask"_ustr, bke::AttrDomain::Point);
 
   const Span<float3> positions_eval = bke::pbvh::vert_positions_eval(depsgraph, object);
   const Span<float3> vert_normals = bke::pbvh::vert_normals_eval(depsgraph, object);
@@ -3440,8 +3441,8 @@ std::unique_ptr<SculptBoundary> data_init_mesh(const Depsgraph &depsgraph,
   const Span<int> corner_verts = mesh.corner_verts();
   const bke::AttributeAccessor attributes = mesh.attributes();
   const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
-  const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
-  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
+  const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly"_ustr, bke::AttrDomain::Face);
+  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert"_ustr, bke::AttrDomain::Point);
 
   const Span<float3> positions_eval = bke::pbvh::vert_positions_eval(depsgraph, object);
 

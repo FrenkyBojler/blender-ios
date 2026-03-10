@@ -465,13 +465,14 @@ template<typename T>
     if (!io_attribute) {
       return false;
     }
-    const std::optional<StringRefNull> name = io_attribute->lookup_str("name");
+    const std::optional<StringRefNull> name_ref = io_attribute->lookup_str("name");
     const std::optional<StringRefNull> domain_str = io_attribute->lookup_str("domain");
     const std::optional<StringRefNull> type_str = io_attribute->lookup_str("type");
     const auto *io_data = io_attribute->lookup_dict("data");
-    if (!name || !domain_str || !type_str || !io_data) {
+    if (!name_ref || !domain_str || !type_str || !io_data) {
       return false;
     }
+    const UString name(*name_ref);
 
     const std::optional<AttrDomain> domain = get_domain_from_io_name(*domain_str);
     const std::optional<eCustomDataType> data_type = get_data_type_from_io_name(*type_str);
@@ -500,10 +501,10 @@ template<typename T>
         }
         BLI_SCOPED_DEFER([&]() { attribute_sharing_info->remove_user_and_delete_if_last(); });
 
-        if (attributes.contains(*name)) {
+        if (attributes.contains(name)) {
           /* If the attribute exists already, copy the values over to the existing array. */
           GSpanAttributeWriter attribute = attributes.lookup_or_add_for_write_only_span(
-              *name, *domain, *custom_data_type_to_attr_type(*data_type));
+              name, *domain, *custom_data_type_to_attr_type(*data_type));
           if (!attribute) {
             return false;
           }
@@ -512,7 +513,7 @@ template<typename T>
         }
         else {
           /* Add a new attribute that shares the data. */
-          if (!attributes.add(*name,
+          if (!attributes.add(name,
                               *domain,
                               *custom_data_type_to_attr_type(*data_type),
                               AttributeInitShared(attribute_data, *attribute_sharing_info)))
@@ -532,13 +533,13 @@ template<typename T>
         BLI_SCOPED_DEFER([&]() { sharing_info->remove_user_and_delete_if_last(); });
 
         const AttributeInitValue init(GPointer(*cpp_type, value));
-        if (attributes.contains(*name)) {
-          if (!attributes.assign_data(*name, init)) {
+        if (attributes.contains(name)) {
+          if (!attributes.assign_data(name, init)) {
             return false;
           }
         }
         else {
-          if (!attributes.add(*name, *domain, *custom_data_type_to_attr_type(*data_type), init)) {
+          if (!attributes.add(name, *domain, *custom_data_type_to_attr_type(*data_type), init)) {
             return false;
           }
         }
@@ -593,7 +594,7 @@ static std::optional<CurvesGeometry> try_load_curves_geometry(const DictionaryVa
   }
 
   CurvesGeometry curves;
-  curves.attribute_storage.wrap().remove("position");
+  curves.attribute_storage.wrap().remove("position"_ustr);
   curves.point_num = io_curves.lookup_int("num_points").value_or(0);
   curves.curve_num = io_curves.lookup_int("num_curves").value_or(0);
 
@@ -876,7 +877,7 @@ static std::unique_ptr<Instances> try_load_instances(const DictionaryValue &io_g
     return {};
   }
 
-  if (!attributes.contains(".reference_index")) {
+  if (!attributes.contains(".reference_index"_ustr)) {
     /* Try reading the reference index attribute from the old bake format from before it was an
      * attribute. */
     const auto *io_handles = io_instances->lookup_dict("handles");
@@ -890,7 +891,7 @@ static std::unique_ptr<Instances> try_load_instances(const DictionaryValue &io_g
     }
   }
 
-  if (!attributes.contains("instance_transform")) {
+  if (!attributes.contains("instance_transform"_ustr)) {
     /* Try reading the transform attribute from the old bake format from before it was an
      * attribute. */
     const auto *io_handles = io_instances->lookup_dict("transforms");
@@ -995,18 +996,18 @@ static std::shared_ptr<io::serialize::ArrayValue> serialize_attributes(
     const AttributeAccessor &attributes,
     BlobWriter &blob_writer,
     BlobWriteSharing &blob_sharing,
-    const Set<std::string> &attributes_to_ignore)
+    const Set<UString> &attributes_to_ignore)
 {
   auto io_attributes = std::make_shared<io::serialize::ArrayValue>();
   attributes.foreach_attribute([&](const AttributeIter &iter) {
-    BLI_assert(!bke::attribute_name_is_anonymous(iter.name));
+    BLI_assert(!bke::attribute_name_is_anonymous(iter.name.ref()));
     if (attributes_to_ignore.contains_as(iter.name)) {
       return;
     }
 
     auto io_attribute = io_attributes->append_dict();
 
-    io_attribute->append_str("name", iter.name);
+    io_attribute->append_str("name", iter.name.ref());
 
     const StringRefNull domain_name = get_domain_io_name(iter.domain);
     io_attribute->append_str("domain", domain_name);
@@ -1467,7 +1468,7 @@ static void serialize_bake_item(const BakeItem &item,
   }
   else if (const auto *attribute_state_item = dynamic_cast<const AttributeBakeItem *>(&item)) {
     r_io_item.append_str("type", "ATTRIBUTE");
-    r_io_item.append_str("name", attribute_state_item->name());
+    r_io_item.append_str("name", attribute_state_item->name().ref());
   }
 #ifdef WITH_OPENVDB
   else if (const auto *grid_state_item = dynamic_cast<const VolumeGridBakeItem *>(&item)) {
@@ -1582,7 +1583,7 @@ static std::unique_ptr<BakeItem> deserialize_bake_item(const DictionaryValue &io
     if (!name) {
       return {};
     }
-    return std::make_unique<AttributeBakeItem>(std::move(*name));
+    return std::make_unique<AttributeBakeItem>(UString(*name));
   }
 #ifdef WITH_OPENVDB
   if (*state_item_type == StringRef("GRID")) {

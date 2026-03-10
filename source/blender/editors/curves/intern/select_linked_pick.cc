@@ -45,7 +45,7 @@ static ClosestCurveDataBlock find_closest_curve(const Depsgraph &depsgraph,
               curves,
               deformation,
               eHandleDisplay(vc.v3d->overlay.handle_display),
-              [&](IndexRange range, Span<float3> positions, StringRef /*selection_name*/) {
+              [&](IndexRange range, Span<float3> positions, UString /*selection_name*/) {
                 std::optional<FindClosestData> new_closest_elem = closest_elem_find_screen_space(
                     vc,
                     curves.points_by_curve(),

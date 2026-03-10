@@ -222,7 +222,7 @@ static bool write_internal_bake_pixels(Image *image,
                                        const bool is_noncolor,
                                        const bool is_tangent_normal,
                                        Mesh const *mesh_eval,
-                                       const StringRef uv_layer,
+                                       const UString uv_layer,
                                        const float uv_offset[2])
 {
   ImBuf *ibuf;
@@ -370,7 +370,7 @@ static bool write_external_bake_pixels(const char *filepath,
                                        const bool is_noncolor,
                                        const bool is_tangent_normal,
                                        Mesh const *mesh_eval,
-                                       const StringRef uv_layer,
+                                       const UString uv_layer,
                                        const float uv_offset[2])
 {
   ImBuf *ibuf = nullptr;
@@ -498,7 +498,7 @@ static bool bake_object_check(const Scene *scene,
   }
 
   if (target == R_BAKE_TARGET_VERTEX_COLORS) {
-    if (!BKE_id_attributes_color_find(&mesh->id, mesh->active_color_attribute)) {
+    if (!BKE_id_attributes_color_find(&mesh->id, UString(mesh->active_color_attribute))) {
       BKE_reportf(reports,
                   RPT_ERROR,
                   "Mesh does not have an active color attribute \"%s\"",
@@ -858,7 +858,7 @@ static bool bake_targets_output_internal(const BakeAPIRender *bkr,
                                                targets->is_noncolor,
                                                is_tangent_normal,
                                                mesh_eval,
-                                               bkr->uv_layer,
+                                               UString(bkr->uv_layer),
                                                bk_image->uv_offset);
 
     /* might be read by UI to set active image for display */
@@ -985,7 +985,7 @@ static bool bake_targets_output_external(const BakeAPIRender *bkr,
                                                targets->is_noncolor,
                                                is_tangent_normal,
                                                mesh_eval,
-                                               bkr->uv_layer,
+                                               UString(bkr->uv_layer),
                                                bk_image->uv_offset);
 
     if (!ok) {
@@ -1017,7 +1017,7 @@ static bool bake_targets_init_vertex_colors(Main *bmain,
   }
 
   Mesh *mesh = id_cast<Mesh *>(ob->data);
-  if (!BKE_id_attributes_color_find(&mesh->id, mesh->active_color_attribute)) {
+  if (!BKE_id_attributes_color_find(&mesh->id, UString(mesh->active_color_attribute))) {
     BKE_report(reports, RPT_ERROR, "No active color attribute to bake to");
     return false;
   }
@@ -1198,10 +1198,10 @@ static void convert_float_color_to_byte_color(const ColorGeometry4f *float_color
 static bool bake_targets_output_vertex_colors(BakeTargets *targets, Object *ob)
 {
   Mesh *mesh = id_cast<Mesh *>(ob->data);
-  const StringRef attr_name = mesh->active_color_attribute;
+  const UString attr_name = UString(mesh->active_color_attribute);
   const bke::AttrDomain domain = [&]() {
     if (BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
-      return BM_data_layer_lookup(*em->bm, attr_name).domain;
+      return BM_data_layer_lookup(*em->bm, attr_name.ref()).domain;
     }
     bke::AttributeAccessor attributes = mesh->attributes();
     return attributes.lookup_meta_data(attr_name)->domain;
@@ -1235,7 +1235,7 @@ static bool bake_targets_output_vertex_colors(BakeTargets *targets, Object *ob)
     }
 
     if (BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
-      const BMDataLayerLookup attr = BM_data_layer_lookup(*em->bm, attr_name);
+      const BMDataLayerLookup attr = BM_data_layer_lookup(*em->bm, attr_name.ref());
       BMVert *v;
       BMIter viter;
       int i = 0;
@@ -1270,7 +1270,7 @@ static bool bake_targets_output_vertex_colors(BakeTargets *targets, Object *ob)
   }
   else if (domain == bke::AttrDomain::Corner) {
     if (BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
-      const BMDataLayerLookup attr = BM_data_layer_lookup(*em->bm, attr_name);
+      const BMDataLayerLookup attr = BM_data_layer_lookup(*em->bm, attr_name.ref());
       BMFace *f;
       BMIter fiter;
       int i = 0;
@@ -1369,7 +1369,8 @@ static void bake_targets_populate_pixels(const BakeAPIRender *bkr,
     bake_targets_populate_pixels_color_attributes(targets, ob, mesh_eval, pixel_array);
   }
   else {
-    RE_bake_pixels_populate(mesh_eval, pixel_array, targets->pixels_num, targets, bkr->uv_layer);
+    RE_bake_pixels_populate(
+        mesh_eval, pixel_array, targets->pixels_num, targets, UString(bkr->uv_layer));
   }
 }
 
@@ -1459,7 +1460,7 @@ static wmOperatorStatus bake(const BakeAPIRender *bkr,
   if (!bkr->uv_layer.empty()) {
     Mesh *mesh = id_cast<Mesh *>(ob_low->data);
     const bke::AttributeAccessor attributes = mesh->attributes();
-    if (!bke::mesh::is_uv_map(attributes.lookup_meta_data(bkr->uv_layer))) {
+    if (!bke::mesh::is_uv_map(attributes.lookup_meta_data(UString(bkr->uv_layer)))) {
       BKE_reportf(reports,
                   RPT_ERROR,
                   "No UV layer named \"%s\" found in the object \"%s\"",

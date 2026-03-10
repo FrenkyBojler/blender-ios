@@ -13,14 +13,14 @@ namespace blender::bke::greasepencil {
 
 static const auto &changed_tags()
 {
-  static Map<StringRef, AttrUpdateOnChange> attributes;
+  static Map<UString, AttrUpdateOnChange> attributes;
   return attributes;
 }
 
 static const auto &builtin_attributes()
 {
   static auto attributes = []() {
-    Map<StringRef, AttrBuiltinInfo> map;
+    Map<UString, AttrBuiltinInfo> map;
     return map;
   }();
   return attributes;
@@ -28,7 +28,7 @@ static const auto &builtin_attributes()
 
 static const auto &array_storage_required()
 {
-  static Set<StringRef> attributes{};
+  static Set<UString> attributes{};
   return attributes;
 }
 
@@ -45,9 +45,11 @@ static AttributeAccessorFunctions get_grease_pencil_accessor_functions()
     return domain == AttrDomain::Layer;
   };
   fn.domain_size = get_domain_size;
-  fn.builtin_domain_and_type = [](const void * /*owner*/, const StringRef /*name*/)
-      -> std::optional<AttributeDomainAndType> { return std::nullopt; };
-  fn.lookup = [](const void *owner, const StringRef name) -> GAttributeReader {
+  fn.builtin_domain_and_type =
+      [](const void * /*owner*/, const UString /*name*/) -> std::optional<AttributeDomainAndType> {
+    return std::nullopt;
+  };
+  fn.lookup = [](const void *owner, const UString name) -> GAttributeReader {
     const GreasePencil &grease_pencil = *static_cast<const GreasePencil *>(owner);
     const AttributeStorage &storage = grease_pencil.attribute_storage.wrap();
     const Attribute *attribute = storage.lookup(name);
@@ -57,11 +59,11 @@ static AttributeAccessorFunctions get_grease_pencil_accessor_functions()
     const int domain_size = get_domain_size(owner, AttrDomain::Layer);
     return attribute_to_reader(*attribute, AttrDomain::Layer, domain_size);
   };
-  fn.get_builtin_default = [](const void * /*owner*/, StringRef name) -> GPointer {
+  fn.get_builtin_default = [](const void * /*owner*/, UString name) -> GPointer {
     const AttrBuiltinInfo &info = builtin_attributes().lookup(name);
     return info.default_value;
   };
-  fn.lookup_meta_data = [](const void *owner, StringRef name) -> std::optional<AttributeMetaData> {
+  fn.lookup_meta_data = [](const void *owner, UString name) -> std::optional<AttributeMetaData> {
     const GreasePencil &grease_pencil = *static_cast<const GreasePencil *>(owner);
     const AttributeStorage &storage = grease_pencil.attribute_storage.wrap();
     const Attribute *attr = storage.lookup(name);
@@ -99,14 +101,14 @@ static AttributeAccessorFunctions get_grease_pencil_accessor_functions()
       }
     }
   };
-  fn.lookup_validator = [](const void * /*owner*/, const StringRef name) -> AttributeValidator {
+  fn.lookup_validator = [](const void * /*owner*/, const UString name) -> AttributeValidator {
     const AttrBuiltinInfo *info = builtin_attributes().lookup_ptr(name);
     if (!info) {
       return {};
     }
     return info->validator;
   };
-  fn.lookup_for_write = [](void *owner, const StringRef name) -> GAttributeWriter {
+  fn.lookup_for_write = [](void *owner, const UString name) -> GAttributeWriter {
     GreasePencil &grease_pencil = *static_cast<GreasePencil *>(owner);
     AttributeStorage &storage = grease_pencil.attribute_storage.wrap();
     Attribute *attribute = storage.lookup(name);
@@ -116,7 +118,7 @@ static AttributeAccessorFunctions get_grease_pencil_accessor_functions()
     const int domain_size = get_domain_size(owner, AttrDomain::Layer);
     return attribute_to_writer(&grease_pencil, {}, domain_size, *attribute);
   };
-  fn.remove = [](void *owner, const StringRef name) -> bool {
+  fn.remove = [](void *owner, const UString name) -> bool {
     GreasePencil &grease_pencil = *static_cast<GreasePencil *>(owner);
     AttributeStorage &storage = grease_pencil.attribute_storage.wrap();
     if (const AttrBuiltinInfo *info = builtin_attributes().lookup_ptr(name)) {
@@ -135,7 +137,7 @@ static AttributeAccessorFunctions get_grease_pencil_accessor_functions()
     return true;
   };
   fn.add = [](void *owner,
-              const StringRef name,
+              const UString name,
               const AttrDomain domain,
               const bke::AttrType type,
               const AttributeInit &initializer) {
@@ -160,7 +162,7 @@ static AttributeAccessorFunctions get_grease_pencil_accessor_functions()
     }
     return true;
   };
-  fn.assign_data = [](void *owner, StringRef name, const AttributeInit &initializer) {
+  fn.assign_data = [](void *owner, UString name, const AttributeInit &initializer) {
     GreasePencil &grease_pencil = *static_cast<GreasePencil *>(owner);
     AttributeStorage &storage = grease_pencil.attribute_storage.wrap();
     Attribute *attr = storage.lookup(name);

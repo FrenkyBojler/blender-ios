@@ -79,15 +79,15 @@ static void mix_attributes(bke::MutableAttributeAccessor attributes_a,
                            const Span<int> index_map,
                            const bke::AttrDomain mix_domain,
                            const float factor,
-                           const Set<std::string> &names_to_skip = {})
+                           const Set<UString> &names_to_skip = {})
 {
-  Set<StringRefNull> names = attributes_a.all_names();
-  names.remove("id");
-  for (const StringRef name : names_to_skip) {
+  Set<UString> names = attributes_a.all_names();
+  names.remove("id"_ustr);
+  for (const UString name : names_to_skip) {
     names.remove_as(name);
   }
 
-  for (const StringRef name : names) {
+  for (const UString name : names) {
     const bke::GAttributeReader attribute_a = attributes_a.lookup(name);
     const bke::AttrDomain domain = attribute_a.domain;
     if (domain != mix_domain) {
@@ -123,8 +123,8 @@ static Array<int> create_id_index_map(const bke::AttributeAccessor attributes_a,
                                       const bke::AttributeAccessor b_attributes,
                                       const bke::AttrDomain id_domain)
 {
-  const bke::GAttributeReader ids_a = attributes_a.lookup("id");
-  const bke::GAttributeReader ids_b = b_attributes.lookup("id");
+  const bke::GAttributeReader ids_a = attributes_a.lookup("id"_ustr);
+  const bke::GAttributeReader ids_b = b_attributes.lookup("id"_ustr);
   if (!ids_a || !ids_b) {
     return {};
   }
@@ -285,13 +285,16 @@ void mix_geometries(bke::GeometrySet &a, const bke::GeometrySet &b, const float 
       bke::MutableAttributeAccessor a = curves_a->geometry.wrap().attributes_for_write();
       const bke::AttributeAccessor b = curves_b->geometry.wrap().attributes();
       const Array<int> index_map = create_id_index_map(a, b, bke::AttrDomain::Point);
-      mix_attributes(
-          a,
-          b,
-          index_map,
-          bke::AttrDomain::Point,
-          factor,
-          {"curve_type", "nurbs_order", "knots_mode", "handle_type_left", "handle_type_right"});
+      mix_attributes(a,
+                     b,
+                     index_map,
+                     bke::AttrDomain::Point,
+                     factor,
+                     {"curve_type"_ustr,
+                      "nurbs_order"_ustr,
+                      "knots_mode"_ustr,
+                      "handle_type_left"_ustr,
+                      "handle_type_right"_ustr});
     }
   }
   if (bke::Instances *instances_a = a.get_instances_for_write()) {
@@ -303,7 +306,7 @@ void mix_geometries(bke::GeometrySet &a, const bke::GeometrySet &b, const float 
                      index_map,
                      bke::AttrDomain::Instance,
                      factor,
-                     {".reference_index"});
+                     {".reference_index"_ustr});
     }
   }
   if (a.has_bundle() && b.has_bundle()) {

@@ -86,9 +86,9 @@ void FillDataMesh::execute(Object &object,
   const OffsetIndices faces = mesh.faces();
   const Span<int> corner_verts = mesh.corner_verts();
   const bke::AttributeAccessor attributes = mesh.attributes();
-  const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
+  const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly"_ustr, bke::AttrDomain::Face);
   const VArray hide_vert = *attributes.lookup_or_default<bool>(
-      ".hide_vert", bke::AttrDomain::Point, false);
+      ".hide_vert"_ustr, bke::AttrDomain::Point, false);
 
   Vector<int> neighbors;
   while (!this->queue.empty()) {

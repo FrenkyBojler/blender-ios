@@ -5,12 +5,13 @@
  * Modifications Copyright 2021 Tangent Animation and
  * NVIDIA Corporation. All rights reserved. */
 
-#include "usd_reader_mesh.hh"
+#include "BLI_ustring.hh"
 #include "usd.hh"
 #include "usd_attribute_utils.hh"
 #include "usd_hash_types.hh"
 #include "usd_mesh_utils.hh"
 #include "usd_reader_material.hh"
+#include "usd_reader_mesh.hh"
 #include "usd_skel_convert.hh"
 
 #include "BKE_attribute.h"
@@ -372,7 +373,7 @@ void USDMeshReader::read_uv_data_primvar(Mesh *mesh,
 
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   bke::SpanAttributeWriter<float2> uv_data = attributes.lookup_or_add_for_write_only_span<float2>(
-      primvar_name, bke::AttrDomain::Corner);
+      UString(primvar_name), bke::AttrDomain::Corner);
 
   if (!uv_data) {
     BKE_reportf(reports(),
@@ -485,7 +486,7 @@ void USDMeshReader::read_vertex_creases(Mesh *mesh, const pxr::UsdTimeCode time)
 
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   bke::SpanAttributeWriter creases = attributes.lookup_or_add_for_write_only_span<float>(
-      "crease_vert", bke::AttrDomain::Point);
+      "crease_vert"_ustr, bke::AttrDomain::Point);
   creases.span.fill(0.0f);
 
   Span<int> corner_indices = Span(usd_corner_indices.cdata(), usd_corner_indices.size());
@@ -541,7 +542,7 @@ void USDMeshReader::read_edge_creases(Mesh *mesh, const pxr::UsdTimeCode time)
 
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   bke::SpanAttributeWriter creases = attributes.lookup_or_add_for_write_only_span<float>(
-      "crease_edge", bke::AttrDomain::Edge);
+      "crease_edge"_ustr, bke::AttrDomain::Edge);
   creases.span.fill(0.0f);
 
   Span<int> crease_lengths = Span(usd_crease_lengths.cdata(), usd_crease_lengths.size());
@@ -597,7 +598,8 @@ void USDMeshReader::read_velocities(Mesh *mesh, const pxr::UsdTimeCode time)
   if (!velocities.empty()) {
     bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
     bke::SpanAttributeWriter<float3> velocity =
-        attributes.lookup_or_add_for_write_only_span<float3>("velocity", bke::AttrDomain::Point);
+        attributes.lookup_or_add_for_write_only_span<float3>("velocity"_ustr,
+                                                             bke::AttrDomain::Point);
 
     Span<pxr::GfVec3f> usd_data(velocities.cdata(), velocities.size());
     velocity.span.copy_from(usd_data.cast<float3>());
@@ -925,7 +927,7 @@ void USDMeshReader::readFaceSetsSample(Main *bmain, Mesh *mesh, const pxr::UsdTi
 
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   bke::SpanAttributeWriter<int> material_indices = attributes.lookup_or_add_for_write_span<int>(
-      "material_index", bke::AttrDomain::Face);
+      "material_index"_ustr, bke::AttrDomain::Face);
   this->assign_facesets_to_material_indices(time, material_indices.span, &mat_map);
   material_indices.finish();
   /* Build material name map if it's not built yet. */
@@ -974,7 +976,8 @@ Mesh *USDMeshReader::read_mesh(Mesh *existing_mesh,
       Map<pxr::SdfPath, int> mat_map;
       bke::MutableAttributeAccessor attributes = active_mesh->attributes_for_write();
       bke::SpanAttributeWriter<int> material_indices =
-          attributes.lookup_or_add_for_write_span<int>("material_index", bke::AttrDomain::Face);
+          attributes.lookup_or_add_for_write_span<int>("material_index"_ustr,
+                                                       bke::AttrDomain::Face);
       assign_facesets_to_material_indices(
           params.motion_sample_time, material_indices.span, &mat_map);
       material_indices.finish();

@@ -18,6 +18,7 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_shared_cache.hh"
+#include "BLI_ustring.hh"
 #include "BLI_virtual_array_fwd.hh"
 
 #include "DNA_grease_pencil_types.h"
@@ -1159,7 +1160,7 @@ inline bool GreasePencil::has_active_group() const
   return (this->active_node != nullptr) && (this->active_node->wrap().is_group());
 }
 
-bool BKE_grease_pencil_drawing_attribute_required(const GreasePencilDrawing *, StringRef name);
+bool BKE_grease_pencil_drawing_attribute_required(const GreasePencilDrawing *, UString name);
 
 GreasePencil *BKE_grease_pencil_add(Main *bmain, const char *name);
 GreasePencil *BKE_grease_pencil_new_nomain();

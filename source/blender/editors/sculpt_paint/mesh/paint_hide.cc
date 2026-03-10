@@ -126,7 +126,7 @@ void mesh_show_all(const Depsgraph &depsgraph, Object &object, const IndexMask &
   MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
   Mesh &mesh = *id_cast<Mesh *>(object.data);
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
-  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
+  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert"_ustr, bke::AttrDomain::Point);
 
   if (!hide_vert.is_empty()) {
     IndexMaskMemory memory;
@@ -143,7 +143,7 @@ void mesh_show_all(const Depsgraph &depsgraph, Object &object, const IndexMask &
     pbvh.tag_visibility_changed(changed_nodes);
   }
 
-  attributes.remove(".hide_vert");
+  attributes.remove(".hide_vert"_ustr);
   bke::mesh_hide_vert_flush(mesh);
   pbvh.update_visibility(object);
 }
@@ -223,7 +223,7 @@ static void flush_face_changes_node(Mesh &mesh,
   const Span<int> corner_verts = mesh.corner_verts();
 
   bke::SpanAttributeWriter<bool> hide_poly = attributes.lookup_or_add_for_write_span<bool>(
-      ".hide_poly", bke::AttrDomain::Face);
+      ".hide_poly"_ustr, bke::AttrDomain::Face);
 
   MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
 
@@ -268,7 +268,7 @@ static void flush_face_changes(Mesh &mesh, const Span<bool> hide_vert)
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
 
   bke::SpanAttributeWriter<bool> hide_poly = attributes.lookup_or_add_for_write_span<bool>(
-      ".hide_poly", bke::AttrDomain::Face);
+      ".hide_poly"_ustr, bke::AttrDomain::Face);
 
   bke::mesh_face_hide_from_vert(mesh.faces(), mesh.corner_verts(), hide_vert, hide_poly.span);
   hide_poly.finish();
@@ -280,7 +280,7 @@ static void flush_edge_changes(Mesh &mesh, const Span<bool> hide_vert)
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
 
   bke::SpanAttributeWriter<bool> hide_edge = attributes.lookup_or_add_for_write_only_span<bool>(
-      ".hide_edge", bke::AttrDomain::Edge);
+      ".hide_edge"_ustr, bke::AttrDomain::Edge);
   bke::mesh_edge_hide_from_vert(mesh.edges(), hide_vert, hide_edge.span);
   hide_edge.finish();
 }
@@ -296,7 +296,7 @@ static void vert_hide_update(const Depsgraph &depsgraph,
   Mesh &mesh = *id_cast<Mesh *>(object.data);
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   bke::SpanAttributeWriter<bool> hide_vert = attributes.lookup_or_add_for_write_span<bool>(
-      ".hide_vert", bke::AttrDomain::Point);
+      ".hide_vert"_ustr, bke::AttrDomain::Point);
 
   bool any_changed = false;
   threading::EnumerableThreadSpecific<Vector<bool>> all_new_hide;
@@ -471,7 +471,7 @@ static void partialvis_all_update_mesh(const Depsgraph &depsgraph,
 {
   Mesh &mesh = *id_cast<Mesh *>(object.data);
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
-  if (action == VisAction::Show && !attributes.contains(".hide_vert")) {
+  if (action == VisAction::Show && !attributes.contains(".hide_vert"_ustr)) {
     /* If everything is already visible, don't do anything. */
     return;
   }
@@ -567,13 +567,14 @@ static void partialvis_masked_update_mesh(const Depsgraph &depsgraph,
 {
   Mesh &mesh = *id_cast<Mesh *>(object.data);
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
-  if (action == VisAction::Show && !attributes.contains(".hide_vert")) {
+  if (action == VisAction::Show && !attributes.contains(".hide_vert"_ustr)) {
     /* If everything is already visible, don't do anything. */
     return;
   }
 
   const bool value = action_to_hide(action);
-  const VArraySpan<float> mask = *attributes.lookup<float>(".sculpt_mask", bke::AttrDomain::Point);
+  const VArraySpan<float> mask = *attributes.lookup<float>(".sculpt_mask"_ustr,
+                                                           bke::AttrDomain::Point);
   if (action == VisAction::Show && mask.is_empty()) {
     mesh_show_all(depsgraph, object, node_mask);
   }
@@ -733,7 +734,7 @@ static void invert_visibility_mesh(const Depsgraph &depsgraph,
   Mesh &mesh = *id_cast<Mesh *>(object.data);
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   bke::SpanAttributeWriter<bool> hide_poly = attributes.lookup_or_add_for_write_span<bool>(
-      ".hide_poly", bke::AttrDomain::Face);
+      ".hide_poly"_ustr, bke::AttrDomain::Face);
 
   undo::push_nodes(depsgraph, object, node_mask, undo::Type::HideFace);
 
@@ -980,15 +981,15 @@ static void grow_shrink_visibility_mesh(const Depsgraph &depsgraph,
 {
   Mesh &mesh = *id_cast<Mesh *>(object.data);
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
-  if (!attributes.contains(".hide_vert")) {
+  if (!attributes.contains(".hide_vert"_ustr)) {
     /* If the entire mesh is visible, we can neither grow nor shrink the boundary. */
     return;
   }
 
   bke::SpanAttributeWriter<bool> hide_vert = attributes.lookup_or_add_for_write_span<bool>(
-      ".hide_vert", bke::AttrDomain::Point);
+      ".hide_vert"_ustr, bke::AttrDomain::Point);
   const VArraySpan hide_poly = *attributes.lookup_or_default<bool>(
-      ".hide_poly", bke::AttrDomain::Face, false);
+      ".hide_poly"_ustr, bke::AttrDomain::Face, false);
 
   DualBuffer buffers;
   buffers.back.reinitialize(hide_vert.span.size());
@@ -1246,7 +1247,7 @@ static void partialvis_gesture_update_mesh(gesture::GestureData &gesture_data)
 
   Mesh *mesh = id_cast<Mesh *>(object->data);
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
-  if (action == VisAction::Show && !attributes.contains(".hide_vert")) {
+  if (action == VisAction::Show && !attributes.contains(".hide_vert"_ustr)) {
     /* If everything is already visible, don't do anything. */
     return;
   }

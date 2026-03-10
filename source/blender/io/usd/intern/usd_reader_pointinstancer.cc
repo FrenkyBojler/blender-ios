@@ -75,7 +75,7 @@ void USDPointInstancerReader::read_geometry(bke::GeometrySet &geometry_set,
   bke::MutableAttributeAccessor attributes = pointcloud->attributes_for_write();
 
   bke::SpanAttributeWriter<float3> scales_attribute =
-      attributes.lookup_or_add_for_write_only_span<float3>("scale", bke::AttrDomain::Point);
+      attributes.lookup_or_add_for_write_only_span<float3>("scale"_ustr, bke::AttrDomain::Point);
 
   /* Here and below, handle the case where instancing attributes are empty or
    * not of the expected size. */
@@ -91,7 +91,7 @@ void USDPointInstancerReader::read_geometry(bke::GeometrySet &geometry_set,
   scales_attribute.finish();
 
   bke::SpanAttributeWriter<math::Quaternion> orientations_attribute =
-      attributes.lookup_or_add_for_write_only_span<math::Quaternion>("orientation",
+      attributes.lookup_or_add_for_write_only_span<math::Quaternion>("orientation"_ustr,
                                                                      bke::AttrDomain::Point);
 
   if (usd_orientations.size() < usd_positions.size()) {
@@ -110,7 +110,7 @@ void USDPointInstancerReader::read_geometry(bke::GeometrySet &geometry_set,
 
   if (!usd_ids.empty()) {
     bke::SpanAttributeWriter<int> ids_attribute =
-        attributes.lookup_or_add_for_write_only_span<int>("id", bke::AttrDomain::Point);
+        attributes.lookup_or_add_for_write_only_span<int>("id"_ustr, bke::AttrDomain::Point);
 
     const Span<int64_t> usd_data(usd_ids.cdata(), usd_ids.size());
     if (usd_data.size() < ids_attribute.span.size()) {
@@ -126,7 +126,8 @@ void USDPointInstancerReader::read_geometry(bke::GeometrySet &geometry_set,
   }
 
   bke::SpanAttributeWriter<int> proto_indices_attribute =
-      attributes.lookup_or_add_for_write_only_span<int>("proto_index", bke::AttrDomain::Point);
+      attributes.lookup_or_add_for_write_only_span<int>("proto_index"_ustr,
+                                                        bke::AttrDomain::Point);
 
   if (usd_proto_indices.size() < usd_positions.size()) {
     proto_indices_attribute.span.fill(0);
@@ -140,7 +141,7 @@ void USDPointInstancerReader::read_geometry(bke::GeometrySet &geometry_set,
   proto_indices_attribute.finish();
 
   bke::SpanAttributeWriter<bool> mask_attribute =
-      attributes.lookup_or_add_for_write_only_span<bool>("mask", bke::AttrDomain::Point);
+      attributes.lookup_or_add_for_write_only_span<bool>("mask"_ustr, bke::AttrDomain::Point);
 
   if (usd_mask.size() < usd_positions.size()) {
     mask_attribute.span.fill(true);

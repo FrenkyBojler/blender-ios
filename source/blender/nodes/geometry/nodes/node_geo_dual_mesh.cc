@@ -114,13 +114,13 @@ static void transfer_attributes(
 {
   /* Retrieve all attributes except for position which is handled manually.
    * Remove anonymous attributes that don't need to be propagated. */
-  Set<StringRefNull> names = src_attributes.all_names();
-  names.remove("position");
-  names.remove(".edge_verts");
-  names.remove(".corner_vert");
-  names.remove(".corner_edge");
-  names.remove("sharp_face");
-  names.remove_if([&](const StringRef name) { return attribute_filter.allow_skip(name); });
+  Set<UString> names = src_attributes.all_names();
+  names.remove("position"_ustr);
+  names.remove(".edge_verts"_ustr);
+  names.remove(".corner_vert"_ustr);
+  names.remove(".corner_edge"_ustr);
+  names.remove("sharp_face"_ustr);
+  names.remove_if([&](const UString name) { return attribute_filter.allow_skip(name); });
 
   Array<int> new_face_to_old_vert;
   const auto ensure_vert_map = [&]() {
@@ -150,7 +150,7 @@ static void transfer_attributes(
     }
   };
 
-  for (const StringRef name : names) {
+  for (const UString name : names) {
     GAttributeReader src = src_attributes.lookup(name);
 
     AttrDomain out_domain;

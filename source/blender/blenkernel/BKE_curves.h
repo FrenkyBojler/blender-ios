@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "BLI_ustring.hh"
 #include "DNA_curves_types.h"
 
 #include "BLI_string_ref.hh"
@@ -23,7 +24,7 @@ struct Scene;
 
 struct Curves *BKE_curves_add(struct Main *bmain, const char *name);
 
-bool BKE_curves_attribute_required(const struct Curves *curves, StringRef name);
+bool BKE_curves_attribute_required(const struct Curves *curves, UString name);
 
 /* Depsgraph */
 

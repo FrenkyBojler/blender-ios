@@ -18,6 +18,7 @@
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 
+#include "BLI_ustring.hh"
 #include "BLT_translation.hh"
 
 #include "DNA_modifier_types.h"
@@ -310,7 +311,7 @@ static void attribute_search_update_fn(
       }
     }
   }
-  Set<StringRef> names;
+  Set<UString> names;
   Vector<const geo_log::GeometryAttributeInfo *> attributes;
   for (const bNodeSocket *socket : sockets_to_check) {
     const geo_log::ValueLog *value_log = info.tree_log->find_socket_value_log(*socket);
@@ -422,8 +423,8 @@ static void add_attribute_search_or_value_buttons(
 
   ui::Layout *prop_row = nullptr;
 
-  const std::optional<StringRef> attribute_name = nodes::input_attribute_name_get(ctx.properties,
-                                                                                  socket);
+  const std::optional<UString> attribute_name = nodes::input_attribute_name_get(ctx.properties,
+                                                                                socket);
   const StringRefNull socket_name = use_name.has_value() ?
                                         (*use_name) :
                                         (socket.name ? IFACE_(socket.name) : "");
@@ -940,7 +941,7 @@ static void draw_named_attributes_panel(ui::Layout &layout, Object &object, Node
   }
 
   tree_log->ensure_used_named_attributes();
-  const Map<StringRefNull, geo_log::NamedAttributeUsage> &usage_by_attribute =
+  const Map<UString, geo_log::NamedAttributeUsage> &usage_by_attribute =
       tree_log->used_named_attributes;
 
   if (usage_by_attribute.is_empty()) {
@@ -949,7 +950,7 @@ static void draw_named_attributes_panel(ui::Layout &layout, Object &object, Node
   }
 
   struct NameWithUsage {
-    StringRefNull name;
+    UString name;
     geo_log::NamedAttributeUsage usage;
   };
 
@@ -962,7 +963,7 @@ static void draw_named_attributes_panel(ui::Layout &layout, Object &object, Node
   });
 
   for (const NameWithUsage &attribute : sorted_used_attribute) {
-    const StringRef attribute_name = attribute.name;
+    const UString attribute_name = attribute.name;
     const geo_log::NamedAttributeUsage usage = attribute.usage;
 
     /* #uiLayoutRowWithHeading doesn't seem to work in this case. */
@@ -991,7 +992,7 @@ static void draw_named_attributes_panel(ui::Layout &layout, Object &object, Node
     row.active_set(false);
     row.label(ss.str(), ICON_NONE);
 
-    split.row(false).label(attribute_name, ICON_NONE);
+    split.row(false).label(attribute_name.ref(), ICON_NONE);
   }
 }
 

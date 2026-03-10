@@ -16,6 +16,7 @@
 #include "BLI_set.hh"
 #include "BLI_task.hh"
 
+#include "BLI_ustring.hh"
 #include "ED_keyframes_edit.hh"
 #include "ED_select_utils.hh"
 
@@ -794,7 +795,7 @@ bke::CurvesGeometry create_curves_outline(const bke::greasepencil::Drawing &draw
 /* Function that generates an update mask for a selection operation. */
 using SelectionUpdateFunc = FunctionRef<IndexMask(const ed::greasepencil::MutableDrawingInfo &info,
                                                   const IndexMask &universe,
-                                                  StringRef attribute_name,
+                                                  UString attribute_name,
                                                   IndexMaskMemory &memory)>;
 
 bool selection_update(const ViewContext *vc,
@@ -901,12 +902,12 @@ CurveSegmentsData find_curve_segments(const bke::CurvesGeometry &curves,
 bool apply_mask_as_selection(bke::CurvesGeometry &curves,
                              const IndexMask &selection,
                              bke::AttrDomain selection_domain,
-                             StringRef attribute_name,
+                             UString attribute_name,
                              eSelectOp sel_op);
 
 bool apply_mask_as_segment_selection(bke::CurvesGeometry &curves,
                                      const IndexMask &point_selection,
-                                     StringRef attribute_name,
+                                     UString attribute_name,
                                      const Curves2DBVHTree &tree_data,
                                      IndexRange tree_data_range,
                                      eSelectOp sel_op);

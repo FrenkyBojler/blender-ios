@@ -53,19 +53,19 @@ static const void *false_value(const bke::AttrType data_type)
   }
 }
 
-static StringRef mesh_selection_name(const AttrDomain domain)
+static UString mesh_selection_name(const AttrDomain domain)
 {
   switch (domain) {
     case AttrDomain::Point:
-      return ".select_vert";
+      return ".select_vert"_ustr;
     case AttrDomain::Edge:
-      return ".select_edge";
+      return ".select_edge"_ustr;
     case AttrDomain::Face:
     case AttrDomain::Corner:
-      return ".select_poly";
+      return ".select_poly"_ustr;
     default:
       BLI_assert_unreachable();
-      return "";
+      return {};
   }
 }
 
@@ -88,7 +88,7 @@ class EditSelectionFieldInput final : public bke::GeometryFieldInput {
       case GeometryComponent::Type::PointCloud:
       case GeometryComponent::Type::GreasePencil:
         return *attributes.lookup_or_default(
-            ".selection", domain, data_type, true_value(data_type));
+            ".selection"_ustr, domain, data_type, true_value(data_type));
       case GeometryComponent::Type::Mesh:
         return *attributes.lookup_or_default(
             mesh_selection_name(domain), domain, data_type, false_value(data_type));
@@ -117,9 +117,9 @@ class SculptSelectionFieldInput final : public bke::GeometryFieldInput {
       case GeometryComponent::Type::PointCloud:
       case GeometryComponent::Type::GreasePencil:
         return *attributes.lookup_or_default(
-            ".selection", domain, data_type, true_value(data_type));
+            ".selection"_ustr, domain, data_type, true_value(data_type));
       case GeometryComponent::Type::Mesh: {
-        const VArraySpan<float> attribute = *attributes.lookup<float>(".sculpt_mask", domain);
+        const VArraySpan<float> attribute = *attributes.lookup<float>(".sculpt_mask"_ustr, domain);
         if (attribute.is_empty()) {
           return GVArray::from_single(*type_, mask.min_array_size(), true_value(data_type));
         }

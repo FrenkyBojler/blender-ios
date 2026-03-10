@@ -66,8 +66,8 @@ static void assign_material_to_id_geometry(ID *id,
     BKE_id_material_eval_assign(id, new_index + 1, material);
   }
 
-  SpanAttributeWriter<int> indices = attributes.lookup_or_add_for_write_span<int>("material_index",
-                                                                                  domain);
+  SpanAttributeWriter<int> indices = attributes.lookup_or_add_for_write_span<int>(
+      "material_index"_ustr, domain);
   index_mask::masked_fill(indices.span, new_index, selection);
   indices.finish();
 }

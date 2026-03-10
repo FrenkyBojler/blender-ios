@@ -29,8 +29,11 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   if (geometry_set.has_instances()) {
     InstancesComponent &instances = geometry_set.get_component_for_write<InstancesComponent>();
-    bke::try_capture_field_on_geometry(
-        instances, "instance_transform", AttrDomain::Instance, selection_field, transform_field);
+    bke::try_capture_field_on_geometry(instances,
+                                       "instance_transform"_ustr,
+                                       AttrDomain::Instance,
+                                       selection_field,
+                                       transform_field);
   }
 
   params.set_output("Instances", std::move(geometry_set));

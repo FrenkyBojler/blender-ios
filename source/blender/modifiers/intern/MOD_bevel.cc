@@ -9,6 +9,7 @@
 #include <algorithm>
 
 #include "BLI_math_vector.h"
+#include "BLI_ustring.hh"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -71,13 +72,13 @@ static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_
   }
 }
 
-static std::string ensure_weight_attribute_meta_data(Mesh &mesh,
-                                                     const StringRef name,
-                                                     const bke::AttrDomain domain,
-                                                     bool &r_attr_converted)
+static UString ensure_weight_attribute_meta_data(Mesh &mesh,
+                                                 const UString name,
+                                                 const bke::AttrDomain domain,
+                                                 bool &r_attr_converted)
 {
-  if (!bke::allow_procedural_attribute_access(name)) {
-    return "";
+  if (!bke::allow_procedural_attribute_access(name.ref())) {
+    return {};
   }
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(name);
@@ -92,8 +93,8 @@ static std::string ensure_weight_attribute_meta_data(Mesh &mesh,
 
   Array<float> weight(attributes.domain_size(domain));
   attributes.lookup<float>(name, domain).varray.materialize(weight);
-  const std::string new_name = BKE_attribute_calc_unique_name(AttributeOwner::from_id(&mesh.id),
-                                                              name);
+  const UString new_name(
+      BKE_attribute_calc_unique_name(AttributeOwner::from_id(&mesh.id), name.ref()));
   attributes.add<float>(
       new_name, domain, bke::AttributeInitVArray(VArray<float>::from_span(weight)));
   r_attr_converted = true;
@@ -145,11 +146,11 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   convert_params.cd_mask_extra.pmask = CD_MASK_ORIGINDEX;
 
   bool vert_weight_converted;
-  const std::string vert_weight_name = ensure_weight_attribute_meta_data(
-      *mesh, bmd->vertex_weight_name, bke::AttrDomain::Point, vert_weight_converted);
+  const UString vert_weight_name = ensure_weight_attribute_meta_data(
+      *mesh, UString(bmd->vertex_weight_name), bke::AttrDomain::Point, vert_weight_converted);
   bool edge_weight_converted;
-  const std::string edge_weight_name = ensure_weight_attribute_meta_data(
-      *mesh, bmd->edge_weight_name, bke::AttrDomain::Edge, edge_weight_converted);
+  const UString edge_weight_name = ensure_weight_attribute_meta_data(
+      *mesh, UString(bmd->edge_weight_name), bke::AttrDomain::Edge, edge_weight_converted);
 
   bm = BKE_mesh_to_bmesh_ex(mesh, &create_params, &convert_params);
 
@@ -158,9 +159,9 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   }
 
   const int bweight_offset_vert = CustomData_get_offset_named(
-      &bm->vdata, CD_PROP_FLOAT, vert_weight_name);
+      &bm->vdata, CD_PROP_FLOAT, vert_weight_name.ref());
   const int bweight_offset_edge = CustomData_get_offset_named(
-      &bm->edata, CD_PROP_FLOAT, edge_weight_name);
+      &bm->edata, CD_PROP_FLOAT, edge_weight_name.ref());
 
   if (bmd->affect_type == MOD_BEVEL_AFFECT_VERTICES) {
     BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {

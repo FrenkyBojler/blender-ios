@@ -784,7 +784,7 @@ class MeshUVs : Overlay {
     Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(*ob);
 
     const SpaceImage *space_image = reinterpret_cast<const SpaceImage *>(state.space_data);
-    const StringRef active_uv_map = mesh.active_or_default_uv_map_name();
+    const UString active_uv_map = mesh.active_or_default_uv_map_name();
     const bke::AttributeAccessor attributes = mesh.attributes();
     const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(
         active_uv_map);
@@ -825,7 +825,7 @@ class MeshUVs : Overlay {
         state.ctx_mode, CTX_MODE_PAINT_TEXTURE, CTX_MODE_PAINT_VERTEX, CTX_MODE_PAINT_WEIGHT);
     const bool use_face_selection = (mesh_orig.editflag & ME_EDIT_PAINT_FACE_SEL);
     const bool is_face_selectable = (is_edit_object || (is_paint_mode && use_face_selection));
-    const StringRef active_uv_map = mesh.active_or_default_uv_map_name();
+    const UString active_uv_map = mesh.active_or_default_uv_map_name();
     const bke::AttributeAccessor attributes = mesh.attributes();
     const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(
         active_uv_map);
@@ -834,7 +834,7 @@ class MeshUVs : Overlay {
     const bool has_active_edit_uvmap = is_edit_object && CustomData_has_layer_named(
                                                              &mesh.runtime->edit_mesh->bm->ldata,
                                                              CD_PROP_FLOAT2,
-                                                             active_uv_map);
+                                                             active_uv_map.ref());
 
     ResourceHandleRange res_handle = manager.unique_handle(ob_ref);
 

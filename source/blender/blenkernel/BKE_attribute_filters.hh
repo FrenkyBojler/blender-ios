@@ -11,6 +11,7 @@
 #include "BKE_attribute_filter.hh"
 
 #include "BLI_set.hh"
+#include "BLI_ustring.hh"
 
 namespace blender::bke {
 
@@ -21,12 +22,12 @@ template<typename Fn> struct AttributeFilterFromFunc : public AttributeFilter {
  private:
   Fn fn_;
 
-  static_assert(std::is_invocable_r_v<Result, Fn, StringRef>);
+  static_assert(std::is_invocable_r_v<Result, Fn, UString>);
 
  public:
   constexpr AttributeFilterFromFunc(Fn fn) : fn_(std::move(fn)) {}
 
-  Result filter(const StringRef name) const override
+  Result filter(const UString name) const override
   {
     return fn_(name);
   }
@@ -36,9 +37,9 @@ template<typename Fn> struct AttributeFilterFromFunc : public AttributeFilter {
  * Combines an existing #AttributeFilter and tags a few additional attributes that can/should be
  * skipped.
  */
-inline auto attribute_filter_with_skip_ref(AttributeFilter filter, const Span<StringRef> skip)
+inline auto attribute_filter_with_skip_ref(AttributeFilter filter, const Span<UString> skip)
 {
-  return AttributeFilterFromFunc([filter, skip](const StringRef name) {
+  return AttributeFilterFromFunc([filter, skip](const UString name) {
     if (skip.contains(name)) {
       return AttributeFilter::Result::AllowSkip;
     }
@@ -50,7 +51,7 @@ inline auto attribute_filter_with_skip_ref(AttributeFilter filter, const Span<St
 template<typename StringT>
 inline auto attribute_filter_with_skip_ref(AttributeFilter filter, const Set<StringT> &skip)
 {
-  return AttributeFilterFromFunc([filter, &skip](const StringRef name) {
+  return AttributeFilterFromFunc([filter, &skip](const UString name) {
     if (skip.contains_as(name)) {
       return AttributeFilter::Result::AllowSkip;
     }
@@ -62,9 +63,9 @@ inline auto attribute_filter_with_skip_ref(AttributeFilter filter, const Set<Str
  * Creates a simple #AttributeFilter that skips allows the given attributes to be skipped, while
  * all others should be processed.
  */
-inline auto attribute_filter_from_skip_ref(const Span<StringRef> skip)
+inline auto attribute_filter_from_skip_ref(const Span<UString> skip)
 {
-  return AttributeFilterFromFunc([skip](const StringRef name) {
+  return AttributeFilterFromFunc([skip](const UString name) {
     if (skip.contains(name)) {
       return AttributeFilter::Result::AllowSkip;
     }
@@ -75,7 +76,7 @@ inline auto attribute_filter_from_skip_ref(const Span<StringRef> skip)
 /** Same as above but with a #Set. */
 template<typename StringT> inline auto attribute_filter_from_skip_ref(const Set<StringT> &skip)
 {
-  return AttributeFilterFromFunc([&skip](const StringRef name) {
+  return AttributeFilterFromFunc([&skip](const UString name) {
     if (skip.contains_as(name)) {
       return AttributeFilter::Result::AllowSkip;
     }

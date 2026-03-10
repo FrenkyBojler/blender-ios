@@ -34,7 +34,7 @@ static void set_radius(bke::CurvesGeometry &curves,
 {
   bke::try_capture_field_on_geometry(curves.attributes_for_write(),
                                      field_context,
-                                     "radius",
+                                     "radius"_ustr,
                                      bke::AttrDomain::Point,
                                      selection,
                                      radius);

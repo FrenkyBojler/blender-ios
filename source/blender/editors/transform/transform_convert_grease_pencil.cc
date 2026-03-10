@@ -92,7 +92,7 @@ static void createTransGreasePencilVerts(bContext *C, TransInfo *t)
 
     for (ed::greasepencil::MutableDrawingInfo info : drawings) {
       bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
-      Span<StringRef> selection_attribute_names = ed::curves::get_curves_selection_attribute_names(
+      Span<UString> selection_attribute_names = ed::curves::get_curves_selection_attribute_names(
           curves);
       std::array<IndexMask, 3> selection_per_attribute;
 
@@ -111,7 +111,7 @@ static void createTransGreasePencilVerts(bContext *C, TransInfo *t)
           points_by_curve, bezier_curves[layer_offset], curves_transform_data.memory);
 
       for (const int attribute_i : selection_attribute_names.index_range()) {
-        const StringRef &selection_name = selection_attribute_names[attribute_i];
+        const UString selection_name = selection_attribute_names[attribute_i];
         selection_per_attribute[attribute_i] = ed::curves::retrieve_selected_points(
             curves, selection_name, bezier_points, curves_transform_data.memory);
 

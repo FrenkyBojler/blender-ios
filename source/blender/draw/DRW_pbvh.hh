@@ -12,6 +12,7 @@
 
 #include "BLI_index_mask_fwd.hh"
 #include "BLI_string_ref.hh"
+#include "BLI_ustring.hh"
 #include "BLI_vector.hh"
 
 #include "BKE_paint_bvh.hh"
@@ -37,7 +38,7 @@ class Tree;
 
 namespace draw::pbvh {
 
-using GenericRequest = std::string;
+using GenericRequest = UString;
 
 enum class CustomRequest : int8_t {
   Position,

@@ -596,7 +596,7 @@ static void snap_curves_to_surface_exec_object(Object &curves_ob,
   VArraySpan<float2> surface_uv_map;
   if (curves_id.surface_uv_map != nullptr) {
     const bke::AttributeAccessor surface_attributes = surface_mesh.attributes();
-    surface_uv_map = *surface_attributes.lookup<float2>(curves_id.surface_uv_map,
+    surface_uv_map = *surface_attributes.lookup<float2>(UString(curves_id.surface_uv_map),
                                                         bke::AttrDomain::Corner);
   }
 
@@ -801,8 +801,8 @@ static wmOperatorStatus curves_set_selection_domain_exec(bContext *C, wmOperator
      *
      * This would be unnecessary if the active attribute were stored as a string on the ID. */
     AttributeOwner owner = AttributeOwner::from_id(&curves_id->id);
-    const std::string active_attribute = BKE_attributes_active_name_get(owner).value_or("");
-    for (const StringRef selection_name : get_curves_selection_attribute_names(curves)) {
+    const UString active_attribute = BKE_attributes_active_name_get(owner).value_or({});
+    for (const UString selection_name : get_curves_selection_attribute_names(curves)) {
       if (const GVArray src = *attributes.lookup(selection_name, domain)) {
         const CPPType &type = src.type();
         void *dst = MEM_new_array_uninitialized(
@@ -819,7 +819,7 @@ static wmOperatorStatus curves_set_selection_domain_exec(bContext *C, wmOperator
         }
       }
     }
-    if (!active_attribute.empty()) {
+    if (!active_attribute.is_empty()) {
       BKE_attributes_active_set(owner, active_attribute);
     }
 
@@ -1195,7 +1195,7 @@ static wmOperatorStatus surface_set_exec(bContext *C, wmOperator *op)
   Object &new_surface_ob = *CTX_data_active_object(C);
 
   Mesh &new_surface_mesh = *id_cast<Mesh *>(new_surface_ob.data);
-  const StringRef new_uv_map_name = new_surface_mesh.active_uv_map_name();
+  const UString new_uv_map_name = new_surface_mesh.active_uv_map_name();
 
   CTX_DATA_BEGIN (C, Object *, selected_ob, selected_objects) {
     if (selected_ob->type != OB_CURVES) {
@@ -1206,7 +1206,7 @@ static wmOperatorStatus surface_set_exec(bContext *C, wmOperator *op)
 
     MEM_SAFE_DELETE(curves_id.surface_uv_map);
     if (!new_uv_map_name.is_empty()) {
-      curves_id.surface_uv_map = BLI_strdupn(new_uv_map_name.data(), new_uv_map_name.size());
+      curves_id.surface_uv_map = BLI_strdup(new_uv_map_name.c_str());
     }
 
     bool missing_uvs;
@@ -1342,7 +1342,7 @@ static wmOperatorStatus exec(bContext *C, wmOperator * /*op*/)
     }
 
     if (selection.size() == curves.points_num()) {
-      curves.attributes_for_write().remove("tilt");
+      curves.attributes_for_write().remove("tilt"_ustr);
     }
     else {
       index_mask::masked_fill(curves.tilt_for_write(), 0.0f, selection);
@@ -1384,12 +1384,12 @@ static wmOperatorStatus exec(bContext *C, wmOperator * /*op*/)
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
 
     bke::SpanAttributeWriter<bool> cyclic = attributes.lookup_or_add_for_write_span<bool>(
-        "cyclic", bke::AttrDomain::Curve);
+        "cyclic"_ustr, bke::AttrDomain::Curve);
     array_utils::invert_booleans(cyclic.span, selection);
     cyclic.finish();
 
     if (!cyclic.span.contains(true)) {
-      attributes.remove("cyclic");
+      attributes.remove("cyclic"_ustr);
     }
 
     curves.calculate_bezier_auto_handles();
@@ -1759,11 +1759,11 @@ static wmOperatorStatus exec(bContext *C, wmOperator *op)
     const bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
 
     const VArraySpan<bool> selection = *attributes.lookup_or_default<bool>(
-        ".selection", bke::AttrDomain::Point, true);
+        ".selection"_ustr, bke::AttrDomain::Point, true);
     const VArraySpan<bool> selection_left = *attributes.lookup_or_default<bool>(
-        ".selection_handle_left", bke::AttrDomain::Point, true);
+        ".selection_handle_left"_ustr, bke::AttrDomain::Point, true);
     const VArraySpan<bool> selection_right = *attributes.lookup_or_default<bool>(
-        ".selection_handle_right", bke::AttrDomain::Point, true);
+        ".selection_handle_right"_ustr, bke::AttrDomain::Point, true);
 
     MutableSpan<int8_t> handle_types_left = curves.handle_types_left_for_write();
     MutableSpan<int8_t> handle_types_right = curves.handle_types_right_for_write();

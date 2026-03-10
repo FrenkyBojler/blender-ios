@@ -16,8 +16,8 @@ static void tag_component_reference_index_changed(void *owner)
 
 static const auto &changed_tags()
 {
-  static Map<StringRef, AttrUpdateOnChange> attributes{
-      {".reference_index", tag_component_reference_index_changed},
+  static Map<UString, AttrUpdateOnChange> attributes{
+      {".reference_index"_ustr, tag_component_reference_index_changed},
   };
   return attributes;
 }
@@ -25,16 +25,16 @@ static const auto &changed_tags()
 static const auto &builtin_attributes()
 {
   static auto attributes = []() {
-    Map<StringRef, AttrBuiltinInfo> map;
+    Map<UString, AttrBuiltinInfo> map;
 
     AttrBuiltinInfo instance_transform(bke::AttrDomain::Instance, bke::AttrType::Float4x4);
     instance_transform.deletable = false;
-    map.add_new("instance_transform", std::move(instance_transform));
+    map.add_new("instance_transform"_ustr, std::move(instance_transform));
 
     /** Indices into `Instances::references_`. Determines what data is instanced. */
     AttrBuiltinInfo reference_index(bke::AttrDomain::Instance, bke::AttrType::Int32);
     reference_index.deletable = false;
-    map.add_new(".reference_index", std::move(reference_index));
+    map.add_new(".reference_index"_ustr, std::move(reference_index));
 
     return map;
   }();
@@ -43,7 +43,7 @@ static const auto &builtin_attributes()
 
 static const auto &array_storage_required()
 {
-  static Set<StringRef> attributes{"instance_transform", ".reference_index"};
+  static Set<UString> attributes{"instance_transform"_ustr, ".reference_index"_ustr};
   return attributes;
 }
 
@@ -59,18 +59,18 @@ static constexpr AttributeAccessorFunctions get_instances_accessor_functions()
                0;
   };
   fn.builtin_domain_and_type = [](const void * /*owner*/,
-                                  const StringRef name) -> std::optional<AttributeDomainAndType> {
+                                  const UString name) -> std::optional<AttributeDomainAndType> {
     const AttrBuiltinInfo *info = builtin_attributes().lookup_ptr(name);
     if (!info) {
       return std::nullopt;
     }
     return AttributeDomainAndType{info->domain, info->type};
   };
-  fn.get_builtin_default = [](const void * /*owner*/, StringRef name) -> GPointer {
+  fn.get_builtin_default = [](const void * /*owner*/, UString name) -> GPointer {
     const AttrBuiltinInfo &info = builtin_attributes().lookup(name);
     return info.default_value;
   };
-  fn.lookup_meta_data = [](const void *owner, StringRef name) -> std::optional<AttributeMetaData> {
+  fn.lookup_meta_data = [](const void *owner, UString name) -> std::optional<AttributeMetaData> {
     const Instances &instances = *static_cast<const Instances *>(owner);
     const AttributeStorage &storage = instances.attribute_storage();
     const Attribute *attr = storage.lookup(name);
@@ -79,7 +79,7 @@ static constexpr AttributeAccessorFunctions get_instances_accessor_functions()
     }
     return AttributeMetaData{attr->domain(), attr->data_type()};
   };
-  fn.lookup = [](const void *owner, const StringRef name) -> GAttributeReader {
+  fn.lookup = [](const void *owner, const UString name) -> GAttributeReader {
     const Instances &instances = *static_cast<const Instances *>(owner);
     const AttributeStorage &storage = instances.attribute_storage();
     const Attribute *attribute = storage.lookup(name);
@@ -116,14 +116,14 @@ static constexpr AttributeAccessorFunctions get_instances_accessor_functions()
       }
     }
   };
-  fn.lookup_validator = [](const void * /*owner*/, const StringRef name) -> AttributeValidator {
+  fn.lookup_validator = [](const void * /*owner*/, const UString name) -> AttributeValidator {
     const AttrBuiltinInfo *info = builtin_attributes().lookup_ptr(name);
     if (!info) {
       return {};
     }
     return info->validator;
   };
-  fn.lookup_for_write = [](void *owner, const StringRef name) -> GAttributeWriter {
+  fn.lookup_for_write = [](void *owner, const UString name) -> GAttributeWriter {
     Instances &instances = *static_cast<Instances *>(owner);
     AttributeStorage &storage = instances.attribute_storage();
     Attribute *attribute = storage.lookup(name);
@@ -132,7 +132,7 @@ static constexpr AttributeAccessorFunctions get_instances_accessor_functions()
     }
     return attribute_to_writer(&instances, changed_tags(), instances.instances_num(), *attribute);
   };
-  fn.remove = [](void *owner, const StringRef name) -> bool {
+  fn.remove = [](void *owner, const UString name) -> bool {
     Instances &instances = *static_cast<Instances *>(owner);
     AttributeStorage &storage = instances.attribute_storage();
     if (const AttrBuiltinInfo *info = builtin_attributes().lookup_ptr(name)) {
@@ -151,7 +151,7 @@ static constexpr AttributeAccessorFunctions get_instances_accessor_functions()
     return true;
   };
   fn.add = [](void *owner,
-              const StringRef name,
+              const UString name,
               const AttrDomain domain,
               const AttrType type,
               const AttributeInit &initializer) {
@@ -176,7 +176,7 @@ static constexpr AttributeAccessorFunctions get_instances_accessor_functions()
     }
     return true;
   };
-  fn.assign_data = [](void *owner, StringRef name, const AttributeInit &initializer) {
+  fn.assign_data = [](void *owner, UString name, const AttributeInit &initializer) {
     Instances &instances = *static_cast<Instances *>(owner);
     AttributeStorage &storage = instances.attribute_storage();
     Attribute *attr = storage.lookup(name);

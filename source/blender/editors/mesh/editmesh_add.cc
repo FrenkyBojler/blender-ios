@@ -111,14 +111,15 @@ static void make_prim_finish_sculpt_cancelled(BMesh *bm)
 static void init_facesets(const Mesh *object_mesh, Mesh *primitive_mesh)
 {
   bke::AttributeAccessor object_attributes = object_mesh->attributes();
-  bke::AttributeReader<int> object_face_sets = object_attributes.lookup<int>(".sculpt_face_set");
+  bke::AttributeReader<int> object_face_sets = object_attributes.lookup<int>(
+      ".sculpt_face_set"_ustr);
   if (!object_face_sets) {
     return;
   }
 
   bke::MutableAttributeAccessor primitive_attributes = primitive_mesh->attributes_for_write();
   bke::SpanAttributeWriter<int> primitive_face_sets =
-      primitive_attributes.lookup_or_add_for_write_span<int>(".sculpt_face_set",
+      primitive_attributes.lookup_or_add_for_write_span<int>(".sculpt_face_set"_ustr,
                                                              bke::AttrDomain::Face);
 
   primitive_face_sets.span.fill(object_mesh->face_sets_color_default);

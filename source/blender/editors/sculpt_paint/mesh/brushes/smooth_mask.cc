@@ -116,8 +116,8 @@ static void do_smooth_brush_mesh(const Depsgraph &depsgraph,
   const OffsetIndices faces = mesh.faces();
   const Span<int> corner_verts = mesh.corner_verts();
   const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
-  const bke::AttributeAccessor attributes = mesh.attributes();
-  const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
+  bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
+  const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly"_ustr, bke::AttrDomain::Face);
 
   const Span<float3> positions_eval = bke::pbvh::vert_positions_eval(depsgraph, object);
   const Span<float3> vert_normals = bke::pbvh::vert_normals_eval(depsgraph, object);
@@ -127,11 +127,8 @@ static void do_smooth_brush_mesh(const Depsgraph &depsgraph,
       nodes, node_mask, node_vert_offset_data);
   Array<float> new_masks(node_vert_offsets.total_size());
 
-  bke::MutableAttributeAccessor write_attributes = mesh.attributes_for_write();
-
-  bke::SpanAttributeWriter<float> mask = write_attributes.lookup_for_write_span<float>(
-      ".sculpt_mask");
-  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
+  bke::SpanAttributeWriter mask = attributes.lookup_for_write_span<float>(".sculpt_mask"_ustr);
+  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert"_ustr, bke::AttrDomain::Point);
 
   threading::EnumerableThreadSpecific<LocalData> all_tls;
   for (const float strength : iteration_strengths(brush_strength)) {

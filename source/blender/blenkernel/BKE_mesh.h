@@ -141,7 +141,7 @@ Mesh *BKE_mesh_new_nomain_from_curve(const Object *ob);
 Mesh *BKE_mesh_new_nomain_from_curve_displist(const Object *ob,
                                               const ListBaseT<DispList> *dispbase);
 
-bool BKE_mesh_attribute_required(StringRef name);
+bool BKE_mesh_attribute_required(UString name);
 
 Array<float3> BKE_mesh_orco_verts_get(const Object *ob);
 void BKE_mesh_orco_verts_transform(Mesh *mesh, MutableSpan<float3> orco, bool invert);

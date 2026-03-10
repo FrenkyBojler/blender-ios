@@ -775,7 +775,7 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
       CustomData_free_layers(&mesh.vert_data, CD_PAINT_MASK);
       CustomData_free_layers(&mesh.corner_data, CD_GRID_PAINT_MASK);
     }
-    mesh.attributes_for_write().remove(".sculpt_face_set");
+    mesh.attributes_for_write().remove(".sculpt_face_set"_ustr);
   }
 
   for (Camera &camera : bmain->cameras) {

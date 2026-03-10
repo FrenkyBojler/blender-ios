@@ -281,7 +281,7 @@ void mesh_calc_edges(Mesh &mesh,
   const bool no_new_edges = edge_offsets.total_size() == original_unique_edge_num;
 
   MutableAttributeAccessor dst_attributes = mesh.attributes_for_write();
-  dst_attributes.add<int>(".corner_edge", AttrDomain::Corner, AttributeInitConstruct());
+  dst_attributes.add<int>(".corner_edge"_ustr, AttrDomain::Corner, AttributeInitConstruct());
   MutableSpan<int> corner_edges = mesh.corner_edges_for_write();
 #ifndef NDEBUG
   corner_edges.fill(-1);
@@ -479,7 +479,7 @@ void mesh_calc_edges(Mesh &mesh,
   BLI_assert(src_to_dst_mask.size() + back_range_of_new_edges.size() == result_edges_num);
   BLI_assert(back_range_of_new_edges.one_after_last() == result_edges_num);
 
-  Vector<std::string> attributes_to_drop;
+  Vector<UString> attributes_to_drop;
   /* TODO: Need ::all_pass() on #attribute_filter to know if this loop can be skipped. */
   mesh.attributes().foreach_attribute([&](const AttributeIter &attribute) {
     if (attribute.data_type == AttrType::String) {
@@ -494,11 +494,11 @@ void mesh_calc_edges(Mesh &mesh,
     attributes_to_drop.append(attribute.name);
   });
 
-  for (const StringRef attribute : attributes_to_drop) {
+  for (const UString attribute : attributes_to_drop) {
     dst_attributes.remove(attribute);
   }
 
-  mesh.attribute_storage.wrap().remove(".edge_verts");
+  mesh.attribute_storage.wrap().remove(".edge_verts"_ustr);
   for (bke::Attribute &attr : mesh.attribute_storage.wrap()) {
     if (attr.domain() != bke::AttrDomain::Edge) {
       continue;
@@ -545,17 +545,18 @@ void mesh_calc_edges(Mesh &mesh,
   mesh.edges_num = result_edges_num;
 
   dst_attributes.add<int2>(
-      ".edge_verts", AttrDomain::Edge, AttributeInitMoveArray(edge_verts.data()));
+      ".edge_verts"_ustr, AttrDomain::Edge, AttributeInitMoveArray(edge_verts.data()));
 
   if (select_new_edges) {
-    dst_attributes.remove(".select_edge");
+    dst_attributes.remove(".select_edge"_ustr);
     if (ELEM(back_range_of_new_edges.size(), 0, mesh.edges_num)) {
       const bool fill_value = back_range_of_new_edges.size() == mesh.edges_num;
-      dst_attributes.add<bool>(".select_edge", AttrDomain::Edge, AttributeInitValue(fill_value));
+      dst_attributes.add<bool>(
+          ".select_edge"_ustr, AttrDomain::Edge, AttributeInitValue(fill_value));
     }
     else {
       SpanAttributeWriter<bool> select_edge = dst_attributes.lookup_or_add_for_write_span<bool>(
-          ".select_edge", AttrDomain::Edge);
+          ".select_edge"_ustr, AttrDomain::Edge);
       select_edge.span.drop_back(back_range_of_new_edges.size()).fill(false);
       select_edge.span.take_back(back_range_of_new_edges.size()).fill(true);
       select_edge.finish();

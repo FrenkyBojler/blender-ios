@@ -11,6 +11,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
 
+#include "BLI_ustring.hh"
 #include "GEO_mesh_merge_by_distance.hh"
 
 #include "BLI_color.hh"
@@ -78,7 +79,7 @@ Mesh *convert_ply_to_mesh(PlyData &data, const PLYImportParams &params)
   if (!data.vertex_colors.is_empty() && params.vertex_colors != ePLYVertexColorMode::None) {
     /* Create a data layer for vertex colors and set them. */
     bke::SpanAttributeWriter colors = attributes.lookup_or_add_for_write_span<ColorGeometry4f>(
-        "Col", bke::AttrDomain::Point);
+        "Col"_ustr, bke::AttrDomain::Point);
 
     if (params.vertex_colors == ePLYVertexColorMode::sRGB) {
       for (const int i : data.vertex_colors.index_range()) {
@@ -98,7 +99,7 @@ Mesh *convert_ply_to_mesh(PlyData &data, const PLYImportParams &params)
   /* Uvmap */
   if (!data.uv_coordinates.is_empty()) {
     bke::SpanAttributeWriter<float2> uv_map = attributes.lookup_or_add_for_write_only_span<float2>(
-        "UVMap", bke::AttrDomain::Corner);
+        "UVMap"_ustr, bke::AttrDomain::Corner);
     for (const int i : data.face_vertices.index_range()) {
       uv_map.span[i] = data.uv_coordinates[data.face_vertices[i]];
     }
@@ -119,7 +120,7 @@ Mesh *convert_ply_to_mesh(PlyData &data, const PLYImportParams &params)
     else if (params.import_attributes) {
       /* If we have no faces, add vertex normals as custom attribute. */
       attributes.add<float3>(
-          "normal",
+          "normal"_ustr,
           bke::AttrDomain::Point,
           bke::AttributeInitVArray(VArray<float3>::from_span(data.vertex_normals)));
     }
@@ -132,7 +133,7 @@ Mesh *convert_ply_to_mesh(PlyData &data, const PLYImportParams &params)
   /* Custom attributes: add them after anything above. */
   if (params.import_attributes && !data.vertex_custom_attr.is_empty()) {
     for (const PlyCustomAttribute &attr : data.vertex_custom_attr) {
-      attributes.add<float>(attr.name,
+      attributes.add<float>(UString(attr.name),
                             bke::AttrDomain::Point,
                             bke::AttributeInitVArray(VArray<float>::from_span(attr.data)));
     }

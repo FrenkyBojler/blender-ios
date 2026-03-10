@@ -197,11 +197,11 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
   const bke::AttributeAccessor orig_attributes = mesh->attributes();
 
   /* These might be null. */
-  const VArraySpan orig_vert_bweight = *orig_attributes.lookup<float>("bevel_weight_vert",
+  const VArraySpan orig_vert_bweight = *orig_attributes.lookup<float>("bevel_weight_vert"_ustr,
                                                                       bke::AttrDomain::Point);
-  const VArraySpan orig_edge_bweight = *orig_attributes.lookup<float>("bevel_weight_edge",
+  const VArraySpan orig_edge_bweight = *orig_attributes.lookup<float>("bevel_weight_edge"_ustr,
                                                                       bke::AttrDomain::Edge);
-  const VArraySpan orig_edge_crease = *orig_attributes.lookup<float>("crease_edge",
+  const VArraySpan orig_edge_crease = *orig_attributes.lookup<float>("crease_edge"_ustr,
                                                                      bke::AttrDomain::Edge);
 
   uint new_verts_num = 0;
@@ -2016,11 +2016,11 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
       CustomData_get_layer_for_write(&result->face_data, CD_ORIGINDEX, result->faces_num));
 
   bke::SpanAttributeWriter<float> result_edge_bweight;
-  if (orig_attributes.contains("bevel_weight_edge") ||
+  if (orig_attributes.contains("bevel_weight_edge"_ustr) ||
       (bevel_convex != 0.0f || !orig_vert_bweight.is_empty()))
   {
     result_edge_bweight = result_attributes.lookup_or_add_for_write_span<float>(
-        "bevel_weight_edge", bke::AttrDomain::Edge);
+        "bevel_weight_edge"_ustr, bke::AttrDomain::Edge);
   }
 
   /* Checks that result has dvert data. */
@@ -2031,16 +2031,16 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
 
   /* Get vertex crease layer and ensure edge creases are active if vertex creases are found, since
    * they will introduce edge creases in the used custom interpolation method. */
-  const VArraySpan vertex_crease = *orig_attributes.lookup<float>("crease_vert",
+  const VArraySpan vertex_crease = *orig_attributes.lookup<float>("crease_vert"_ustr,
                                                                   bke::AttrDomain::Point);
   bke::SpanAttributeWriter<float> result_edge_crease;
 
   if (!vertex_crease.is_empty() || !orig_edge_crease.is_empty()) {
     result_edge_crease = result_attributes.lookup_or_add_for_write_span<float>(
-        "crease_edge", bke::AttrDomain::Edge);
+        "crease_edge"_ustr, bke::AttrDomain::Edge);
     /* delete all vertex creases in the result if a rim is used. */
     if (do_rim) {
-      result_attributes.remove("crease_vert");
+      result_attributes.remove("crease_vert"_ustr);
     }
   }
 
@@ -2158,10 +2158,11 @@ Mesh *MOD_solidify_nonmanifold_modifyMesh(ModifierData *md,
     }
   }
 
-  const VArraySpan src_material_index = *orig_attributes.lookup<int>("material_index",
+  const VArraySpan src_material_index = *orig_attributes.lookup<int>("material_index"_ustr,
                                                                      bke::AttrDomain::Face);
   bke::SpanAttributeWriter dst_material_index =
-      result_attributes.lookup_or_add_for_write_span<int>("material_index", bke::AttrDomain::Face);
+      result_attributes.lookup_or_add_for_write_span<int>("material_index"_ustr,
+                                                          bke::AttrDomain::Face);
 
   /* Make boundary edges/faces. */
   {

@@ -180,7 +180,7 @@ static void modify_stroke_color(Object &ob,
 
   bke::AttributeAccessor attributes = curves.attributes();
   const VArray<int> stroke_materials = *attributes.lookup_or_default<int>(
-      "material_index", bke::AttrDomain::Curve, 0);
+      "material_index"_ustr, bke::AttrDomain::Curve, 0);
   const VArray<float> vgroup_weights = modifier::greasepencil::get_influence_vertex_weights(
       curves, tmd.influence);
 
@@ -277,7 +277,7 @@ static void modify_fill_color(Object &ob,
   /* Fill color per stroke. */
   MutableSpan<ColorGeometry4f> fill_colors = drawing.fill_colors_for_write();
   const VArray<int> stroke_materials = *attributes.lookup_or_default<int>(
-      "material_index", bke::AttrDomain::Curve, 0);
+      "material_index"_ustr, bke::AttrDomain::Curve, 0);
   const VArray<float> vgroup_weights = modifier::greasepencil::get_influence_vertex_weights(
       curves, tmd.influence);
 
@@ -360,7 +360,7 @@ static void modify_opacity(const GreasePencilTintModifierData &tmd,
   const OffsetIndices<int> points_by_curve = curves.points_by_curve();
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
   bke::SpanAttributeWriter<float> opacities = attributes.lookup_or_add_for_write_span<float>(
-      "opacity", bke::AttrDomain::Point);
+      "opacity"_ustr, bke::AttrDomain::Point);
   if (!opacities) {
     return;
   }

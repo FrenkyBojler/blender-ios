@@ -781,9 +781,11 @@ static wmOperatorStatus sculpt_mask_filter_exec(bContext *C, wmOperator *op)
       const Span<int> corner_verts = mesh.corner_verts();
       const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
       bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
-      const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
-      const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
-      bke::SpanAttributeWriter mask = attributes.lookup_for_write_span<float>(".sculpt_mask");
+      const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert"_ustr,
+                                                            bke::AttrDomain::Point);
+      const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly"_ustr,
+                                                            bke::AttrDomain::Face);
+      bke::SpanAttributeWriter mask = attributes.lookup_for_write_span<float>(".sculpt_mask"_ustr);
 
       Array<int> node_vert_offset_data;
       OffsetIndices node_offsets = create_node_vert_offsets(

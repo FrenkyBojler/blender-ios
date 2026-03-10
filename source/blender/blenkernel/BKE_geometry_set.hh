@@ -256,16 +256,16 @@ struct GeometrySet {
   void ensure_no_shared_components();
 
   using AttributeForeachCallback = FunctionRef<void(
-      StringRef name, const AttributeMetaData &meta_data, const GeometryComponent &component)>;
+      UString name, const AttributeMetaData &meta_data, const GeometryComponent &component)>;
 
   void attribute_foreach(Span<GeometryComponent::Type> component_types,
                          bool include_instances,
                          AttributeForeachCallback callback) const;
 
   struct GatheredAttributes {
-    VectorSet<StringRef, 16> names;
+    VectorSet<UString, 16> names;
     Vector<AttributeDomainAndType, 16> kinds;
-    void add(const StringRef name, const AttributeDomainAndType &kind);
+    void add(const UString name, const AttributeDomainAndType &kind);
   };
 
   void gather_attributes_for_propagation(Span<GeometryComponent::Type> component_types,
@@ -823,7 +823,7 @@ class GreasePencilComponent : public GeometryComponent {
   std::optional<MutableAttributeAccessor> attributes_for_write() final;
 };
 
-bool attribute_is_builtin_on_component_type(const GeometryComponent::Type type, StringRef name);
+bool attribute_is_builtin_on_component_type(const GeometryComponent::Type type, UString name);
 
 }  // namespace bke
 }  // namespace blender

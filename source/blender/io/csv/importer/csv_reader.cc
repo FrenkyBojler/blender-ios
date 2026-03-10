@@ -12,6 +12,7 @@
 #include <variant>
 
 #include "BLI_array_utils.hh"
+#include "BLI_ustring.hh"
 #include "fast_float.h"
 
 #include "BKE_anonymous_attribute_id.hh"
@@ -349,7 +350,7 @@ PointCloud *import_csv_as_pointcloud(const CSVImportParams &import_params)
     const auto *data = new ImplicitSharedValue<GArray<>>(std::move(*attribute));
     const bke::AttrType type = bke::cpp_type_to_attribute_type(attribute->type());
     const ColumnInfo &column_info = columns_info[column_i];
-    attributes.add(column_info.name,
+    attributes.add(UString(column_info.name),
                    bke::AttrDomain::Point,
                    type,
                    bke::AttributeInitShared{data->data.data(), *data});

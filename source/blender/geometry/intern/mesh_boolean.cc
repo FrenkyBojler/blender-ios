@@ -265,7 +265,7 @@ void set_material_from_map(const Span<int> out_to_in_map,
   for (const int i : meshes.index_range()) {
     bke::AttributeAccessor input_attrs = meshes[i]->attributes();
     material_varrays[i] = *input_attrs.lookup_or_default<int>(
-        "material_index", bke::AttrDomain::Face, 0);
+        "material_index"_ustr, bke::AttrDomain::Face, 0);
   }
   threading::parallel_for(out_to_in_map.index_range(), 8192, [&](const IndexRange range) {
     for (const int out_f : range) {
@@ -751,7 +751,7 @@ static Mesh *imesh_to_mesh(meshintersect::IMesh *im, MeshesToIMeshInfo &mim)
     gather_attributes_with_check(mim.joined_mesh->attributes(),
                                  bke::AttrDomain::Point,
                                  bke::AttrDomain::Point,
-                                 bke::attribute_filter_from_skip_ref({"position"}),
+                                 bke::attribute_filter_from_skip_ref({"position"_ustr}),
                                  dst_to_src_vert,
                                  dst_attributes);
   }
@@ -790,15 +790,15 @@ static Mesh *imesh_to_mesh(meshintersect::IMesh *im, MeshesToIMeshInfo &mim)
     gather_attributes_with_check(mim.joined_mesh->attributes(),
                                  bke::AttrDomain::Face,
                                  bke::AttrDomain::Face,
-                                 bke::attribute_filter_from_skip_ref({"material_index"}),
+                                 bke::attribute_filter_from_skip_ref({"material_index"_ustr}),
                                  dst_to_src_face,
                                  dst_attributes);
 
-    if (mim.joined_mesh->attributes().contains("material_index")) {
+    if (mim.joined_mesh->attributes().contains("material_index"_ustr)) {
       bke::SpanAttributeWriter dst_indices = dst_attributes.lookup_or_add_for_write_only_span<int>(
-          "material_index", bke::AttrDomain::Face);
+          "material_index"_ustr, bke::AttrDomain::Face);
       if (mim.material_remaps.is_empty()) {
-        const VArraySpan src = *mim.joined_mesh->attributes().lookup<int>("material_index");
+        const VArraySpan src = *mim.joined_mesh->attributes().lookup<int>("material_index"_ustr);
         copy_attribute_using_map(src, dst_to_src_face, dst_indices.span);
       }
       else {
@@ -829,7 +829,7 @@ static Mesh *imesh_to_mesh(meshintersect::IMesh *im, MeshesToIMeshInfo &mim)
     gather_attributes_with_check(mim.joined_mesh->attributes(),
                                  bke::AttrDomain::Edge,
                                  bke::AttrDomain::Edge,
-                                 bke::attribute_filter_from_skip_ref({".edge_verts"}),
+                                 bke::attribute_filter_from_skip_ref({".edge_verts"_ustr}),
                                  dst_to_src_edge,
                                  dst_attributes);
   }

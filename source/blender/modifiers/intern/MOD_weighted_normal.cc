@@ -492,9 +492,9 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
 
   bke::MutableAttributeAccessor attributes = result->attributes_for_write();
   bke::SpanAttributeWriter<bool> sharp_edges = attributes.lookup_or_add_for_write_span<bool>(
-      "sharp_edge", bke::AttrDomain::Edge);
+      "sharp_edge"_ustr, bke::AttrDomain::Edge);
   bke::SpanAttributeWriter clnors = attributes.lookup_or_add_for_write_span<short2>(
-      "custom_normal", bke::AttrDomain::Corner);
+      "custom_normal"_ustr, bke::AttrDomain::Corner);
   if (!clnors) {
     return result;
   }
@@ -514,9 +514,9 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
 
   wn_data.faces = faces;
   wn_data.face_normals = mesh->face_normals_true();
-  wn_data.sharp_faces = *attributes.lookup<bool>("sharp_face", bke::AttrDomain::Face);
-  wn_data.face_strength = *attributes.lookup<int>(MOD_WEIGHTEDNORMALS_FACEWEIGHT_CDLAYER_ID,
-                                                  bke::AttrDomain::Face);
+  wn_data.sharp_faces = *attributes.lookup<bool>("sharp_face"_ustr, bke::AttrDomain::Face);
+  wn_data.face_strength = *attributes.lookup<int>(
+      UString(MOD_WEIGHTEDNORMALS_FACEWEIGHT_CDLAYER_ID), bke::AttrDomain::Face);
 
   wn_data.dvert = dvert;
   wn_data.defgrp_index = defgrp_index;

@@ -225,7 +225,7 @@ static IndexMask get_filtered_layer_mask(const GreasePencil &grease_pencil,
   bke::AttributeAccessor layer_attributes = grease_pencil.attributes();
   const Span<const Layer *> layers = grease_pencil.layers();
   const VArray<int> layer_passes =
-      layer_attributes.lookup_or_default<int>("pass_index", bke::AttrDomain::Layer, 0).varray;
+      layer_attributes.lookup_or_default<int>("pass_index"_ustr, bke::AttrDomain::Layer, 0).varray;
 
   const LayerGroup *filter_layer_group = nullptr;
   if (tree_node_name_filter) {
@@ -301,7 +301,7 @@ static IndexMask get_filtered_stroke_mask(const Object *ob,
 
   bke::AttributeAccessor attributes = curves.attributes();
   VArray<int> stroke_materials =
-      attributes.lookup_or_default<int>("material_index", bke::AttrDomain::Curve, 0).varray;
+      attributes.lookup_or_default<int>("material_index"_ustr, bke::AttrDomain::Curve, 0).varray;
 
   IndexMask result = IndexMask::from_predicate(full_mask, memory, [&](const int64_t stroke_i) {
     const int material_index = stroke_materials.get(stroke_i);
@@ -349,7 +349,7 @@ VArray<float> get_influence_vertex_weights(const bke::CurvesGeometry &curves,
   }
   /* Vertex group weights, with zero weight as a fallback. */
   VArray<float> influence_weights = *curves.attributes().lookup_or_default<float>(
-      influence_data.vertex_group_name, bke::AttrDomain::Point, 0.0f);
+      UString(influence_data.vertex_group_name), bke::AttrDomain::Point, 0.0f);
 
   if (influence_data.flag & GREASE_PENCIL_INFLUENCE_INVERT_VERTEX_GROUP) {
     Array<float> influence_weights_inverted(influence_weights.size());

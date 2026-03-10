@@ -12,6 +12,7 @@
 
 #include "BLI_generic_pointer.hh"
 #include "BLI_string_ref.hh"
+#include "BLI_ustring.hh"
 
 #include "BKE_screen.hh"
 
@@ -67,7 +68,7 @@ void ui_template_node_operator_registration_errors(ui::Layout &layout, StringRef
  */
 bool convert_attribute(AttributeOwner &owner,
                        bke::MutableAttributeAccessor attributes,
-                       StringRef name,
+                       UString name,
                        bke::AttrDomain dst_domain,
                        bke::AttrType dst_type,
                        ReportList *reports);

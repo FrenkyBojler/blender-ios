@@ -52,7 +52,7 @@ static bool apply_color_operation_for_mode(const VertexColorMode mode,
   IndexMaskMemory memory;
   using namespace ed::greasepencil;
   if (ELEM(mode, VertexColorMode::Stroke, VertexColorMode::Both)) {
-    if (info.drawing.strokes().attributes().contains("vertex_color")) {
+    if (info.drawing.strokes().attributes().contains("vertex_color"_ustr)) {
       const IndexMask points = use_selection_mask ?
                                    retrieve_editable_and_selected_points(
                                        object, info.drawing, info.layer_index, memory) :
@@ -73,7 +73,7 @@ static bool apply_color_operation_for_mode(const VertexColorMode mode,
     }
   }
   if (ELEM(mode, VertexColorMode::Fill, VertexColorMode::Both)) {
-    if (info.drawing.strokes().attributes().contains("fill_color")) {
+    if (info.drawing.strokes().attributes().contains("fill_color"_ustr)) {
       const IndexMask strokes = use_selection_mask ?
                                     ed::greasepencil::retrieve_editable_and_selected_strokes(
                                         object, info.drawing, info.layer_index, memory) :
@@ -385,11 +385,11 @@ static wmOperatorStatus grease_pencil_vertex_paint_set_exec(bContext *C, wmOpera
     /* Create the color attributes if they don't exist. */
     if (ELEM(mode, VertexColorMode::Stroke, VertexColorMode::Both)) {
       curves.attributes_for_write().add<ColorGeometry4f>(
-          "vertex_color", bke::AttrDomain::Point, bke::AttributeInitDefaultValue());
+          "vertex_color"_ustr, bke::AttrDomain::Point, bke::AttributeInitDefaultValue());
     }
     if (ELEM(mode, VertexColorMode::Fill, VertexColorMode::Both)) {
       curves.attributes_for_write().add<ColorGeometry4f>(
-          "fill_color", bke::AttrDomain::Curve, bke::AttributeInitDefaultValue());
+          "fill_color"_ustr, bke::AttrDomain::Curve, bke::AttributeInitDefaultValue());
     }
     const bool changed = apply_color_operation_for_mode(
         mode,
@@ -462,10 +462,10 @@ static wmOperatorStatus grease_pencil_vertex_paint_reset_exec(bContext *C, wmOpe
 
     /* Remove the color attributes. */
     if (ELEM(mode, VertexColorMode::Stroke, VertexColorMode::Both)) {
-      changed |= curves.attributes_for_write().remove("vertex_color");
+      changed |= curves.attributes_for_write().remove("vertex_color"_ustr);
     }
     if (ELEM(mode, VertexColorMode::Fill, VertexColorMode::Both)) {
-      changed |= curves.attributes_for_write().remove("fill_color");
+      changed |= curves.attributes_for_write().remove("fill_color"_ustr);
     }
     any_changed.store(any_changed | changed, std::memory_order_relaxed);
   });

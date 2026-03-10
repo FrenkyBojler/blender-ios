@@ -749,9 +749,9 @@ void blur_geometry_data_array(const Object &object,
       const Span<int> corner_verts = mesh.corner_verts();
       const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
       const bke::AttributeAccessor attributes = mesh.attributes();
-      const VArraySpan<bool> hide_vert = *attributes.lookup<bool>(".hide_vert",
+      const VArraySpan<bool> hide_vert = *attributes.lookup<bool>(".hide_vert"_ustr,
                                                                   bke::AttrDomain::Point);
-      const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly",
+      const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly"_ustr,
                                                                   bke::AttrDomain::Face);
       for ([[maybe_unused]] const int _ : IndexRange(iterations)) {
         node_mask.foreach_index(

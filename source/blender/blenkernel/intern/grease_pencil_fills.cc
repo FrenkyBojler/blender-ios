@@ -109,7 +109,7 @@ IndexMask selected_mask_to_fills(const IndexMask &selected_mask,
 {
   const AttributeAccessor attributes = curves.attributes();
   const OffsetIndices points_by_curve = curves.points_by_curve();
-  const VArray<int> fill_ids = *attributes.lookup<int>("fill_id", AttrDomain::Curve);
+  const VArray<int> fill_ids = *attributes.lookup<int>("fill_id"_ustr, AttrDomain::Curve);
 
   /* If the attribute does not exist then each curves is its own fill. */
   if (!fill_ids) {
@@ -175,7 +175,7 @@ void separate_fill_ids(CurvesGeometry &curves, const IndexMask &strokes_to_keep)
   }
 
   MutableAttributeAccessor attributes = curves.attributes_for_write();
-  SpanAttributeWriter<int> fill_ids = attributes.lookup_for_write_span<int>("fill_id");
+  SpanAttributeWriter<int> fill_ids = attributes.lookup_for_write_span<int>("fill_id"_ustr);
 
   if (!fill_ids) {
     return;

@@ -120,7 +120,7 @@ bool BKE_shrinkwrap_init_tree(
   data->corner_edges = mesh->corner_edges();
   data->vert_normals = mesh->vert_normals();
   const AttributeAccessor attributes = mesh->attributes();
-  data->sharp_faces = *attributes.lookup<bool>("sharp_face", AttrDomain::Face);
+  data->sharp_faces = *attributes.lookup<bool>("sharp_face"_ustr, AttrDomain::Face);
 
   if (shrinkType == MOD_SHRINKWRAP_NEAREST_VERTEX) {
     data->treeData = mesh->bvh_verts();

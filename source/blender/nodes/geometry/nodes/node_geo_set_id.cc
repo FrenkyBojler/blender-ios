@@ -31,7 +31,7 @@ static void set_id_in_component(GeometryComponent &component,
 
   const bke::GeometryFieldContext field_context{component, domain};
   bke::try_capture_field_on_geometry(
-      attributes, field_context, "id", domain, selection_field, id_field);
+      attributes, field_context, "id"_ustr, domain, selection_field, id_field);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)

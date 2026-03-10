@@ -657,7 +657,9 @@ static void select_grow_invoke_per_curve(const Curves &curves_id,
   const CurvesGeometry &curves = curves_id.geometry.wrap();
   const Span<float3> positions = curves.positions();
 
-  if (const bke::GAttributeReader original_selection = curves.attributes().lookup(".selection")) {
+  if (const bke::GAttributeReader original_selection = curves.attributes().lookup(
+          ".selection"_ustr))
+  {
     curve_op_data.original_selection = GArray<>(original_selection.varray.type(),
                                                 original_selection.varray.size());
     original_selection.varray.materialize(curve_op_data.original_selection.data());
@@ -802,10 +804,10 @@ static wmOperatorStatus select_grow_modal(bContext *C, wmOperator *op, const wmE
         CurvesGeometry &curves = curves_id.geometry.wrap();
         bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
 
-        attributes.remove(".selection");
+        attributes.remove(".selection"_ustr);
         if (!curve_op_data->original_selection.is_empty()) {
           attributes.add(
-              ".selection",
+              ".selection"_ustr,
               bke::AttrDomain(curves_id.selection_domain),
               bke::cpp_type_to_attribute_type(curve_op_data->original_selection.type()),
               bke::AttributeInitVArray(GVArray::from_span(curve_op_data->original_selection)));

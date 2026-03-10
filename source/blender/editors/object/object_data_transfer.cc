@@ -177,7 +177,7 @@ static const EnumPropertyItem *dt_layers_select_src_itemf(bContext *C,
       *r_free = true;
       return item;
     }
-    VectorSet<StringRefNull> uv_map_names = mesh_eval->uv_map_names();
+    VectorSet<UString> uv_map_names = mesh_eval->uv_map_names();
     RNA_enum_item_add_separator(&item, &totitem);
 
     for (int i = 0; i < uv_map_names.size(); i++) {

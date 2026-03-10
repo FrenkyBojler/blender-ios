@@ -28,9 +28,9 @@ inline bool attribute_name_is_anonymous(const StringRef name)
 
 class ProcessAllAttributeExceptAnonymous : public AttributeFilter {
  public:
-  Result filter(const StringRef name) const override
+  Result filter(const UString name) const override
   {
-    if (attribute_name_is_anonymous(name)) {
+    if (attribute_name_is_anonymous(name.ref())) {
       return AttributeFilter::Result::AllowSkip;
     }
     return AttributeFilter::Result::Process;

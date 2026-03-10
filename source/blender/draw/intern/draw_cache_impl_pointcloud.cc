@@ -58,12 +58,12 @@ struct PointCloudEvalCache {
   gpu::VertBuf *attributes_buf[GPU_MAX_ATTR];
 
   /** Attributes currently being drawn or about to be drawn. */
-  VectorSet<std::string> attr_used;
+  VectorSet<UString> attr_used;
   /**
    * Attributes that were used at some point. This is used for garbage collection, to remove
    * attributes that are not used in shaders anymore due to user edits.
    */
-  VectorSet<std::string> attr_used_over_time;
+  VectorSet<UString> attr_used_over_time;
 
   /**
    * The last time in seconds that the `attr_used` and `attr_used_over_time` were exactly the same.
@@ -224,7 +224,7 @@ static void pointcloud_extract_position_and_radius(const PointCloud &pointcloud,
 {
   const bke::AttributeAccessor attributes = pointcloud.attributes();
   const Span<float3> positions = pointcloud.positions();
-  const VArray<float> radii = *attributes.lookup<float>("radius");
+  const VArray<float> radii = *attributes.lookup<float>("radius"_ustr);
   static const GPUVertFormat format = [&]() {
     GPUVertFormat format{};
     GPU_vertformat_attr_add(&format, "pos", gpu::VertAttrType::SFLOAT_32_32_32_32);
@@ -262,7 +262,7 @@ static void pointcloud_extract_position_and_radius(const PointCloud &pointcloud,
 
 static void pointcloud_extract_attribute(const PointCloud &pointcloud,
                                          PointCloudBatchCache &cache,
-                                         const StringRef name,
+                                         const UString name,
                                          int index)
 {
   gpu::VertBuf &attr_buf = *cache.eval_cache.attributes_buf[index];
@@ -308,12 +308,12 @@ gpu::Batch **pointcloud_surface_shaded_get(PointCloud *pointcloud,
 {
   const bke::AttributeAccessor attributes = pointcloud->attributes();
   PointCloudBatchCache *cache = pointcloud_batch_cache_get(*pointcloud);
-  VectorSet<std::string> attrs_needed;
+  VectorSet<UString> attrs_needed;
 
   for (GPUMaterial *gpu_material : Span<GPUMaterial *>(gpu_materials, mat_len)) {
     ListBaseT<GPUMaterialAttribute> gpu_attrs = GPU_material_attributes(gpu_material);
     for (GPUMaterialAttribute &gpu_attr : gpu_attrs) {
-      const StringRef name = gpu_attr.name;
+      const UString name = UString(gpu_attr.name);
       if (!attributes.contains(name)) {
         continue;
       }
@@ -366,7 +366,7 @@ gpu::VertBuf *DRW_pointcloud_position_and_radius_buffer_get(Object *ob)
   return pointcloud_position_and_radius_get(&pointcloud);
 }
 
-gpu::VertBuf **DRW_pointcloud_evaluated_attribute(PointCloud *pointcloud, const StringRef name)
+gpu::VertBuf **DRW_pointcloud_evaluated_attribute(PointCloud *pointcloud, const UString name)
 {
   const bke::AttributeAccessor attributes = pointcloud->attributes();
   PointCloudBatchCache &cache = *pointcloud_batch_cache_get(*pointcloud);
@@ -375,7 +375,7 @@ gpu::VertBuf **DRW_pointcloud_evaluated_attribute(PointCloud *pointcloud, const 
     return nullptr;
   }
   {
-    VectorSet<std::string> requests{};
+    VectorSet<UString> requests{};
     drw_attributes_add_request(&requests, name);
     drw_attributes_merge(&cache.eval_cache.attr_used, &requests);
   }
@@ -406,7 +406,7 @@ static void index_mask_to_ibo(const IndexMask &mask, gpu::IndexBuf &ibo)
 static void build_edit_selection_indices(const PointCloud &pointcloud, gpu::IndexBuf &ibo)
 {
   const VArray selection = *pointcloud.attributes().lookup_or_default<bool>(
-      ".selection", bke::AttrDomain::Point, true);
+      ".selection"_ustr, bke::AttrDomain::Point, true);
   IndexMaskMemory memory;
   const IndexMask mask = IndexMask::from_bools(selection, memory);
   if (mask.is_empty()) {

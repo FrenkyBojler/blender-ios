@@ -288,7 +288,7 @@ void CurvesModule::evaluate_curve_length_intercept(const bool has_cyclic,
 }
 
 static int attribute_index_in_material(const GPUMaterial *gpu_material,
-                                       const StringRef name,
+                                       const UString name,
                                        bool is_curve_length = false,
                                        bool is_curve_intercept = false)
 {
@@ -351,9 +351,9 @@ gpu::VertBuf *curves_pos_buffer_get(Object *object)
   return cache.evaluated_pos_rad_buf.get();
 }
 
-static std::optional<StringRef> get_first_uv_name(const bke::AttributeAccessor &attributes)
+static std::optional<UString> get_first_uv_name(const bke::AttributeAccessor &attributes)
 {
-  std::optional<StringRef> name;
+  std::optional<UString> name;
   attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
     if (iter.data_type == bke::AttrType::Float2) {
       name = iter.name;
@@ -365,7 +365,7 @@ static std::optional<StringRef> get_first_uv_name(const bke::AttributeAccessor &
 
 /* Return true if attribute exists in shader. */
 static bool set_attribute_type(const GPUMaterial *gpu_material,
-                               const StringRef name,
+                               const UString name,
                                CurvesInfosBuf &curves_infos,
                                const bool is_point_domain)
 {
@@ -388,7 +388,7 @@ void curves_bind_resources_implementation(PassT &sub_ps,
                                           const int face_per_segment,
                                           GPUMaterial *gpu_material,
                                           gpu::VertBufPtr &indirection_buf,
-                                          const std::optional<StringRef> uv_name)
+                                          const std::optional<UString> uv_name)
 {
   /* Ensure we have no unbound resources.
    * Required for Vulkan.
@@ -412,7 +412,7 @@ void curves_bind_resources_implementation(PassT &sub_ps,
 
   {
     /* TODO(fclem): Compute only if needed. */
-    const int index = attribute_index_in_material(gpu_material, "", true, false);
+    const int index = attribute_index_in_material(gpu_material, ""_ustr, true, false);
     if (index != -1) {
       sub_ps.bind_texture("l", cache.curves_length_buf);
       curves_infos.is_point_attribute[index][0] = false;
@@ -420,18 +420,18 @@ void curves_bind_resources_implementation(PassT &sub_ps,
   }
   {
     /* TODO(fclem): Compute only if needed. */
-    const int index = attribute_index_in_material(gpu_material, "", false, true);
+    const int index = attribute_index_in_material(gpu_material, ""_ustr, false, true);
     if (index != -1) {
       sub_ps.bind_texture("i", cache.evaluated_time_buf);
       curves_infos.is_point_attribute[index][0] = true;
     }
   }
 
-  const VectorSet<std::string> &attrs = cache.attr_used;
+  const VectorSet<UString> &attrs = cache.attr_used;
   for (const int i : attrs.index_range()) {
-    const StringRef name = attrs[i];
+    const UString name = attrs[i];
     char sampler_name[32];
-    drw_curves_get_attribute_sampler_name(name, sampler_name);
+    drw_curves_get_attribute_sampler_name(name.ref(), sampler_name);
 
     if (cache.attributes_point_domain[i]) {
       if (!cache.evaluated_attributes_buf[i]) {
@@ -441,7 +441,7 @@ void curves_bind_resources_implementation(PassT &sub_ps,
         sub_ps.bind_texture(sampler_name, cache.evaluated_attributes_buf[i]);
       }
       if (name == uv_name) {
-        if (set_attribute_type(gpu_material, "", curves_infos, true)) {
+        if (set_attribute_type(gpu_material, ""_ustr, curves_infos, true)) {
           sub_ps.bind_texture("a", cache.evaluated_attributes_buf[i]);
         }
       }
@@ -454,7 +454,7 @@ void curves_bind_resources_implementation(PassT &sub_ps,
         sub_ps.bind_texture(sampler_name, cache.curve_attributes_buf[i]);
       }
       if (name == uv_name) {
-        if (set_attribute_type(gpu_material, "", curves_infos, false)) {
+        if (set_attribute_type(gpu_material, ""_ustr, curves_infos, false)) {
           sub_ps.bind_texture("a", cache.curve_attributes_buf[i]);
         }
       }
@@ -478,7 +478,7 @@ void curves_bind_resources(PassMain::Sub &sub_ps,
                            const int face_per_segment,
                            GPUMaterial *gpu_material,
                            gpu::VertBufPtr &indirection_buf,
-                           const std::optional<StringRef> active_uv_name)
+                           const std::optional<UString> active_uv_name)
 {
   curves_bind_resources_implementation(
       sub_ps, module, cache, face_per_segment, gpu_material, indirection_buf, active_uv_name);
@@ -490,7 +490,7 @@ void curves_bind_resources(PassSimple::Sub &sub_ps,
                            const int face_per_segment,
                            GPUMaterial *gpu_material,
                            gpu::VertBufPtr &indirection_buf,
-                           const std::optional<StringRef> active_uv_name)
+                           const std::optional<UString> active_uv_name)
 {
   curves_bind_resources_implementation(
       sub_ps, module, cache, face_per_segment, gpu_material, indirection_buf, active_uv_name);
@@ -527,8 +527,7 @@ gpu::Batch *curves_sub_pass_setup_implementation(PassT &sub_ps,
   gpu::VertBufPtr &indirection_buf = curves_cache.indirection_buf_get(
       module, curves, face_per_segment);
 
-  const std::optional<StringRef> uv_name = get_first_uv_name(
-      curves_id.geometry.wrap().attributes());
+  const std::optional<UString> uv_name = get_first_uv_name(curves_id.geometry.wrap().attributes());
 
   curves_bind_resources(
       sub_ps, module, curves_cache, face_per_segment, gpu_material, indirection_buf, uv_name);

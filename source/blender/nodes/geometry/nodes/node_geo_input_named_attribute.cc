@@ -81,18 +81,18 @@ static void node_geo_exec(GeoNodeExecParams params)
   const NodeGeometryInputNamedAttribute &storage = node_storage(params.node());
   const eCustomDataType data_type = eCustomDataType(storage.data_type);
 
-  std::string name = params.extract_input<std::string>("Name");
+  UString name = UString(params.extract_input<std::string>("Name"));
 
-  if (name.empty()) {
+  if (name.is_empty()) {
     params.set_default_remaining_outputs();
     return;
   }
-  if (!bke::allow_procedural_attribute_access(name)) {
+  if (!bke::allow_procedural_attribute_access(name.ref())) {
     params.error_message_add(NodeWarningType::Info, TIP_(bke::no_procedural_access_message));
     params.set_default_remaining_outputs();
     return;
   }
-  if (bke::attribute_name_is_anonymous(name)) {
+  if (bke::attribute_name_is_anonymous(name.ref())) {
     params.error_message_add(NodeWarningType::Info,
                              TIP_("Anonymous attributes cannot be accessed by name"));
     params.set_default_remaining_outputs();

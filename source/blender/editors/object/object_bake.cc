@@ -152,7 +152,7 @@ static bool multiresbake_check(bContext *C, wmOperator *op)
     }
     else {
       const bke::AttributeAccessor attributes = mesh->attributes();
-      const VArraySpan material_indices = *attributes.lookup<int>("material_index",
+      const VArraySpan material_indices = *attributes.lookup<int>("material_index"_ustr,
                                                                   bke::AttrDomain::Face);
       a = mesh->faces_num;
       while (ok && a--) {

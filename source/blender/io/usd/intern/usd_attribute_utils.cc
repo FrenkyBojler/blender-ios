@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_ustring.hh"
 #include "usd_attribute_utils.hh"
 #include "usd_hash_types.hh"
 
@@ -102,7 +103,7 @@ void copy_primvar_to_blender_attribute(const pxr::UsdGeomPrimvar &primvar,
   const pxr::TfToken pv_name = pxr::UsdGeomPrimvar::StripPrimvarsName(primvar.GetPrimvarName());
 
   bke::GSpanAttributeWriter attribute = attributes.lookup_or_add_for_write_span(
-      pv_name.GetText(), domain, data_type);
+      UString(pv_name.GetText()), domain, data_type);
 
   switch (data_type) {
     case bke::AttrType::Float:

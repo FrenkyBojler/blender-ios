@@ -159,10 +159,10 @@ struct AddOperationExecutor {
     /* Find UV map. */
     VArraySpan<float2> surface_uv_map;
     if (curves_id_orig_->surface_uv_map != nullptr) {
-      surface_uv_map = *surface_orig.attributes().lookup<float2>(curves_id_orig_->surface_uv_map,
-                                                                 bke::AttrDomain::Corner);
+      surface_uv_map = *surface_orig.attributes().lookup<float2>(
+          UString(curves_id_orig_->surface_uv_map), bke::AttrDomain::Corner);
       surface_uv_map_eval_ = *surface_eval_->attributes().lookup<float2>(
-          curves_id_orig_->surface_uv_map, bke::AttrDomain::Corner);
+          UString(curves_id_orig_->surface_uv_map), bke::AttrDomain::Corner);
     }
 
     if (surface_uv_map.is_empty()) {
@@ -210,7 +210,7 @@ struct AddOperationExecutor {
                                    BRUSH_CURVES_SCULPT_FLAG_INTERPOLATE_SHAPE;
     add_inputs.interpolate_point_count = brush_settings_->flag &
                                          BRUSH_CURVES_SCULPT_FLAG_INTERPOLATE_POINT_COUNT;
-    add_inputs.interpolate_resolution = curves_orig_->attributes().contains("resolution");
+    add_inputs.interpolate_resolution = curves_orig_->attributes().contains("resolution"_ustr);
     add_inputs.fallback_curve_length = brush_settings_->curve_length;
     add_inputs.fallback_curve_radius = brush_settings_->curve_radius;
     add_inputs.fallback_point_count = std::max(2, brush_settings_->points_per_curve);
@@ -231,7 +231,8 @@ struct AddOperationExecutor {
     const geometry::AddCurvesOnMeshOutputs add_outputs = geometry::add_curves_on_mesh(
         *curves_orig_, add_inputs);
     bke::MutableAttributeAccessor attributes = curves_orig_->attributes_for_write();
-    if (bke::GSpanAttributeWriter selection = attributes.lookup_for_write_span(".selection")) {
+    if (bke::GSpanAttributeWriter selection = attributes.lookup_for_write_span(".selection"_ustr))
+    {
       curves::fill_selection_true(selection.span.slice(selection.domain == bke::AttrDomain::Point ?
                                                            add_outputs.new_points_range :
                                                            add_outputs.new_curves_range));

@@ -255,7 +255,7 @@ bool eval_refine_from_mesh(Subdiv *subdiv,
 
   /* Set face-varying data to UV maps. */
   const AttributeAccessor attributes = mesh->attributes();
-  VectorSet<StringRefNull> uv_map_names = mesh->uv_map_names();
+  VectorSet<UString> uv_map_names = mesh->uv_map_names();
   for (const int i : uv_map_names.index_range()) {
     const VArraySpan uv_map = *attributes.lookup<float2>(uv_map_names[i], bke::AttrDomain::Corner);
     set_face_varying_data_from_uv(subdiv, mesh, uv_map, i);

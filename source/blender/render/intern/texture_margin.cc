@@ -573,10 +573,10 @@ void RE_generate_texturemargin_adjacentfaces(ImBuf *ibuf,
                                              char *mask,
                                              const int margin,
                                              const Mesh *mesh,
-                                             StringRef uv_layer,
+                                             UString uv_layer,
                                              const float uv_offset[2])
 {
-  const StringRef name = uv_layer.is_empty() ? mesh->active_uv_map_name() : uv_layer;
+  const UString name = uv_layer.is_empty() ? mesh->active_uv_map_name() : uv_layer;
   const bke::AttributeAccessor attributes = mesh->attributes();
   const VArraySpan<float2> uv_map = *attributes.lookup<float2>(name, bke::AttrDomain::Corner);
 

@@ -4,6 +4,7 @@
 
 #include <iostream>
 
+#include "BLI_ustring.hh"
 #include "DNA_curves_types.h"
 #include "DNA_grease_pencil_types.h"
 #include "DNA_mesh_types.h"
@@ -42,13 +43,12 @@ void GeoNodeExecParams::error_message_add(const NodeWarningType type,
   }
 }
 
-void GeoNodeExecParams::used_named_attribute(const StringRef attribute_name,
+void GeoNodeExecParams::used_named_attribute(const UString attribute_name,
                                              const NamedAttributeUsage usage)
 {
   if (geo_eval_log::GeoTreeLogger *tree_logger = this->get_local_tree_logger()) {
-    tree_logger->used_named_attributes.append(
-        *tree_logger->allocator,
-        {node_.identifier, tree_logger->allocator->copy_string(attribute_name), usage});
+    tree_logger->used_named_attributes.append(*tree_logger->allocator,
+                                              {node_.identifier, attribute_name, usage});
   }
 }
 
@@ -232,9 +232,9 @@ void GeoNodeExecParams::check_output_access(StringRef identifier) const
   }
 }
 
-AttributeFilter::Result NodeAttributeFilter::filter(const StringRef attribute_name) const
+AttributeFilter::Result NodeAttributeFilter::filter(const UString attribute_name) const
 {
-  if (!bke::attribute_name_is_anonymous(attribute_name)) {
+  if (!bke::attribute_name_is_anonymous(attribute_name.ref())) {
     return AttributeFilter::Result::Process;
   }
   if (!set_.names) {

@@ -61,7 +61,7 @@ Array<float> duplicate_mask(const Object &object)
       const Mesh &mesh = *id_cast<const Mesh *>(object.data);
       const bke::AttributeAccessor attributes = mesh.attributes();
       const VArray mask = *attributes.lookup_or_default<float>(
-          ".sculpt_mask", bke::AttrDomain::Point, 0.0f);
+          ".sculpt_mask"_ustr, bke::AttrDomain::Point, 0.0f);
       Array<float> result(mask.size());
       mask.materialize(result);
       return result;
@@ -204,9 +204,9 @@ void update_mask_mesh(const Depsgraph &depsgraph,
 
   Mesh &mesh = *id_cast<Mesh *>(object.data);
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
-  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
+  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert"_ustr, bke::AttrDomain::Point);
   bke::SpanAttributeWriter<float> mask = attributes.lookup_or_add_for_write_span<float>(
-      ".sculpt_mask", bke::AttrDomain::Point);
+      ".sculpt_mask"_ustr, bke::AttrDomain::Point);
   if (!mask) {
     return;
   }
@@ -334,7 +334,7 @@ static bool try_remove_mask_mesh(const Depsgraph &depsgraph,
   MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
   Mesh &mesh = *id_cast<Mesh *>(object.data);
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
-  const VArraySpan mask = *attributes.lookup<float>(".sculpt_mask", bke::AttrDomain::Point);
+  const VArraySpan mask = *attributes.lookup<float>(".sculpt_mask"_ustr, bke::AttrDomain::Point);
   if (mask.is_empty()) {
     return true;
   }
@@ -342,7 +342,7 @@ static bool try_remove_mask_mesh(const Depsgraph &depsgraph,
   /* If there are any hidden vertices that shouldn't be affected with a mask value set, the
    * attribute cannot be removed. This could also be done by building an IndexMask in the full
    * vertex domain. */
-  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
+  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert"_ustr, bke::AttrDomain::Point);
   threading::EnumerableThreadSpecific<Vector<int>> all_index_data;
   const bool hidden_masked_verts = threading::parallel_reduce(
       node_mask.index_range(),
@@ -382,7 +382,7 @@ static bool try_remove_mask_mesh(const Depsgraph &depsgraph,
       exec_mode::grain_size(1));
 
   undo::push_nodes(depsgraph, object, changed_nodes, undo::Type::Mask);
-  attributes.remove(".sculpt_mask");
+  attributes.remove(".sculpt_mask"_ustr);
   changed_nodes.foreach_index([&](const int i) {
     BKE_pbvh_node_fully_masked_set(nodes[i], false);
     BKE_pbvh_node_fully_unmasked_set(nodes[i], true);
@@ -401,7 +401,7 @@ static void fill_mask_mesh(const Depsgraph &depsgraph,
 
   Mesh &mesh = *id_cast<Mesh *>(object.data);
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
-  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
+  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert"_ustr, bke::AttrDomain::Point);
   if (value == 0.0f) {
     if (try_remove_mask_mesh(depsgraph, object, node_mask)) {
       return;
@@ -409,7 +409,7 @@ static void fill_mask_mesh(const Depsgraph &depsgraph,
   }
 
   bke::SpanAttributeWriter<float> mask = attributes.lookup_or_add_for_write_span<float>(
-      ".sculpt_mask", bke::AttrDomain::Point);
+      ".sculpt_mask"_ustr, bke::AttrDomain::Point);
 
   Array<bool> node_changed(node_mask.min_array_size(), false);
 

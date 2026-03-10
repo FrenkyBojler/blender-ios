@@ -4113,28 +4113,28 @@ static bool proj_paint_state_mesh_eval_init(const bContext *C, ProjPaintState *p
   ps->material_indices = nullptr;
   ps->sharp_faces_eval = nullptr;
   const bke::AttributeAccessor attributes = ps->mesh_eval->attributes();
-  if (const bke::GAttributeReader attr = attributes.lookup(".select_poly")) {
+  if (const bke::GAttributeReader attr = attributes.lookup(".select_poly"_ustr)) {
     if (attr.domain == bke::AttrDomain::Face && attr.varray.type().is<bool>()) {
       if (attr.varray.is_span()) {
         ps->select_poly_eval = attr.varray.get_internal_span().typed<bool>().data();
       }
     }
   }
-  if (const bke::GAttributeReader attr = attributes.lookup(".hide_poly")) {
+  if (const bke::GAttributeReader attr = attributes.lookup(".hide_poly"_ustr)) {
     if (attr.domain == bke::AttrDomain::Face && attr.varray.type().is<bool>()) {
       if (attr.varray.is_span()) {
         ps->hide_poly_eval = attr.varray.get_internal_span().typed<bool>().data();
       }
     }
   }
-  if (const bke::GAttributeReader attr = attributes.lookup("material_index")) {
+  if (const bke::GAttributeReader attr = attributes.lookup("material_index"_ustr)) {
     if (attr.domain == bke::AttrDomain::Face && attr.varray.type().is<int>()) {
       if (attr.varray.is_span()) {
         ps->material_indices = attr.varray.get_internal_span().typed<int>().data();
       }
     }
   }
-  if (const bke::GAttributeReader attr = attributes.lookup("sharp_face")) {
+  if (const bke::GAttributeReader attr = attributes.lookup("sharp_face"_ustr)) {
     if (attr.domain == bke::AttrDomain::Face && attr.varray.type().is<bool>()) {
       if (attr.varray.is_span()) {
         ps->sharp_faces_eval = attr.varray.get_internal_span().typed<bool>().data();
@@ -4172,7 +4172,9 @@ static void proj_paint_layer_clone_init(ProjPaintState *ps, ProjPaintLayerClone 
     ps->poly_to_loop_uv_clone = MEM_new_array_uninitialized<const float2 *>(ps->faces_num_eval,
                                                                             "proj_paint_mtfaces");
 
-    if (const bke::GAttributeReader attr = attributes.lookup(mesh_orig.clone_uv_map_attribute)) {
+    if (const bke::GAttributeReader attr = attributes.lookup(
+            UString(mesh_orig.clone_uv_map_attribute)))
+    {
       if (attr.domain == bke::AttrDomain::Corner && attr.varray.type().is<float2>()) {
         if (attr.varray.is_span()) {
           uv_map_clone_base = attr.varray.get_internal_span().typed<float2>().data();
@@ -4203,7 +4205,7 @@ static bool project_paint_clone_face_skip(ProjPaintState *ps,
                                           const int tri_index)
 {
   const bke::AttributeAccessor attributes = ps->mesh_eval->attributes();
-  const StringRef active_uv_map_name = ps->mesh_eval->active_uv_map_name();
+  const UString active_uv_map_name = ps->mesh_eval->active_uv_map_name();
   if (ps->do_layer_clone) {
     if (ps->do_material_slots) {
       lc->slot_clone = project_paint_face_clone_slot(ps, tri_index);
@@ -4219,7 +4221,9 @@ static bool project_paint_clone_face_skip(ProjPaintState *ps,
     if (ps->do_material_slots) {
       if (lc->slot_clone != lc->slot_last_clone) {
         if (lc->slot_clone->uvname) {
-          if (const bke::GAttributeReader attr = attributes.lookup(lc->slot_clone->uvname)) {
+          if (const bke::GAttributeReader attr = attributes.lookup(
+                  UString(lc->slot_clone->uvname)))
+          {
             if (attr.domain == bke::AttrDomain::Corner && attr.varray.type().is<float2>()) {
               if (attr.varray.is_span()) {
                 lc->uv_map_clone_base = attr.varray.get_internal_span().typed<float2>().data();
@@ -4260,7 +4264,7 @@ static void proj_paint_face_lookup_init(const ProjPaintState *ps, ProjPaintFaceL
       CustomData_get_layer(&ps->mesh_eval->face_data, CD_ORIGINDEX));
   const bke::AttributeAccessor attributes = orig_mesh->attributes();
   if (ps->do_face_sel) {
-    if (const bke::GAttributeReader attr = attributes.lookup(".select_poly")) {
+    if (const bke::GAttributeReader attr = attributes.lookup(".select_poly"_ustr)) {
       if (attr.domain == bke::AttrDomain::Face && attr.varray.type().is<bool>()) {
         if (attr.varray.is_span()) {
           face_lookup->select_poly_orig = attr.varray.get_internal_span().typed<bool>().data();
@@ -4268,7 +4272,7 @@ static void proj_paint_face_lookup_init(const ProjPaintState *ps, ProjPaintFaceL
       }
     }
   }
-  if (const bke::GAttributeReader attr = attributes.lookup(".hide_poly")) {
+  if (const bke::GAttributeReader attr = attributes.lookup(".hide_poly"_ustr)) {
     if (attr.domain == bke::AttrDomain::Face && attr.varray.type().is<bool>()) {
       if (attr.varray.is_span()) {
         face_lookup->hide_poly_orig = attr.varray.get_internal_span().typed<bool>().data();
@@ -4402,7 +4406,7 @@ static void project_paint_prepare_all_faces(ProjPaintState *ps,
                                             const bool is_multi_view)
 {
   const bke::AttributeAccessor attributes = ps->mesh_eval->attributes();
-  const StringRef active_uv_name = ps->mesh_eval->active_uv_map_name();
+  const UString active_uv_name = ps->mesh_eval->active_uv_map_name();
   /* Image Vars - keep track of images we have used */
   ListBaseT<PrepareImageEntry> used_images = {nullptr};
 
@@ -4439,7 +4443,7 @@ static void project_paint_prepare_all_faces(ProjPaintState *ps,
       else {
         if (slot != slot_last) {
           if (slot->uvname) {
-            if (const bke::GAttributeReader attr = attributes.lookup(slot->uvname)) {
+            if (const bke::GAttributeReader attr = attributes.lookup(UString(slot->uvname))) {
               if (attr.domain == bke::AttrDomain::Corner && attr.varray.type().is<float2>()) {
                 if (attr.varray.is_span()) {
                   uv_map_base = attr.varray.get_internal_span().typed<float2>().data();
@@ -4638,7 +4642,9 @@ static void project_paint_begin(const bContext *C,
   proj_paint_layer_clone_init(ps, &layer_clone);
 
   if (ps->do_layer_stencil || ps->do_stencil_brush) {
-    if (const bke::GAttributeReader attr = attributes.lookup(mesh_orig.stencil_uv_map_attribute)) {
+    if (const bke::GAttributeReader attr = attributes.lookup(
+            UString(mesh_orig.stencil_uv_map_attribute)))
+    {
       if (attr.domain == bke::AttrDomain::Corner && attr.varray.type().is<float2>()) {
         if (attr.varray.is_span()) {
           ps->uv_map_stencil_eval = attr.varray.get_internal_span().typed<float2>().data();
@@ -6758,7 +6764,7 @@ static std::optional<std::string> proj_paint_color_attribute_create(wmOperator *
 
   Mesh *mesh = id_cast<Mesh *>(ob.data);
   AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
-  std::string unique_name = BKE_attribute_calc_unique_name(owner, name);
+  UString unique_name = UString(BKE_attribute_calc_unique_name(owner, name));
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   bke::GSpanAttributeWriter attr = attributes.lookup_or_add_for_write_span(
       unique_name, domain, *bke::custom_data_type_to_attr_type(type));
@@ -6766,14 +6772,14 @@ static std::optional<std::string> proj_paint_color_attribute_create(wmOperator *
     return std::nullopt;
   }
 
-  BKE_id_attributes_active_color_set(&mesh->id, unique_name);
+  BKE_id_attributes_active_color_set(&mesh->id, unique_name.ref());
   if (!mesh->default_color_attribute) {
-    BKE_id_attributes_default_color_set(&mesh->id, unique_name);
+    BKE_id_attributes_default_color_set(&mesh->id, unique_name.ref());
   }
 
   ed::sculpt_paint::object_active_color_fill(ob, color, false);
 
-  return unique_name;
+  return unique_name.string();
 }
 
 /**

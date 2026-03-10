@@ -2,9 +2,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "usd_mesh_utils.hh"
 #include "usd_attribute_utils.hh"
 #include "usd_hash_types.hh"
+#include "usd_mesh_utils.hh"
 
 #include "BKE_attribute.hh"
 
@@ -32,7 +32,7 @@ static void read_face_display_color(Mesh *mesh,
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   const bke::AttrDomain color_domain = bke::AttrDomain::Corner;
 
-  const StringRef attr_name(pv_name.GetString());
+  const UString attr_name(pv_name.GetString());
   bke::SpanAttributeWriter<ColorGeometry4f> color_data =
       attributes.lookup_or_add_for_write_only_span<ColorGeometry4f>(attr_name, color_domain);
   if (!color_data) {

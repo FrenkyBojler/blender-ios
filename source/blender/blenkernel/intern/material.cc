@@ -1629,7 +1629,8 @@ static bool fill_texpaint_slots_cb(bNodeTree * /*nodetree*/, bNode *node, void *
         }
         else {
           const bke::AttributeAccessor attributes = mesh->attributes();
-          slot->valid = bke::mesh::is_color_attribute(attributes.lookup_meta_data(storage->name));
+          slot->valid = bke::mesh::is_color_attribute(
+              attributes.lookup_meta_data(UString(storage->name)));
         }
       }
 

@@ -523,7 +523,7 @@ IDTypeInfo IDType_ID_ME = {
     .lib_override_apply_post = nullptr,
 };
 
-bool BKE_mesh_attribute_required(const StringRef name)
+bool BKE_mesh_attribute_required(const UString name)
 {
   return ELEM(name, "position", ".corner_vert", ".corner_edge", ".edge_verts");
 }
@@ -569,7 +569,7 @@ bool BKE_mesh_has_custom_loop_normals(Mesh *mesh)
         &mesh->runtime->edit_mesh->bm->ldata, CD_PROP_INT16_2D, "custom_normal");
   }
 
-  return mesh->attributes().contains("custom_normal");
+  return mesh->attributes().contains("custom_normal"_ustr);
 }
 
 namespace bke {
@@ -614,19 +614,22 @@ void mesh_ensure_required_data_layers(Mesh &mesh)
   AttributeInitConstruct attribute_init;
 
   /* Try to create attributes if they do not exist. */
-  attributes.add("position", AttrDomain::Point, bke::AttrType::Float3, attribute_init);
-  attributes.add(".edge_verts", AttrDomain::Edge, bke::AttrType::Int32_2D, attribute_init);
-  attributes.add(".corner_vert", AttrDomain::Corner, bke::AttrType::Int32, attribute_init);
-  attributes.add(".corner_edge", AttrDomain::Corner, bke::AttrType::Int32, attribute_init);
+  attributes.add("position"_ustr, AttrDomain::Point, bke::AttrType::Float3, attribute_init);
+  attributes.add(".edge_verts"_ustr, AttrDomain::Edge, bke::AttrType::Int32_2D, attribute_init);
+  attributes.add(".corner_vert"_ustr, AttrDomain::Corner, bke::AttrType::Int32, attribute_init);
+  attributes.add(".corner_edge"_ustr, AttrDomain::Corner, bke::AttrType::Int32, attribute_init);
 }
 
 void mesh_remove_invalid_attribute_strings(Mesh &mesh)
 {
   bke::AttributeAccessor attributes = mesh.attributes();
-  if (!mesh::is_color_attribute(attributes.lookup_meta_data(mesh.active_color_attribute))) {
+  if (!mesh::is_color_attribute(attributes.lookup_meta_data(UString(mesh.active_color_attribute))))
+  {
     MEM_SAFE_DELETE(mesh.active_color_attribute);
   }
-  if (!mesh::is_color_attribute(attributes.lookup_meta_data(mesh.default_color_attribute))) {
+  if (!mesh::is_color_attribute(
+          attributes.lookup_meta_data(UString(mesh.default_color_attribute))))
+  {
     MEM_SAFE_DELETE(mesh.default_color_attribute);
   }
   if (!mesh::is_uv_map(attributes.lookup_meta_data(mesh.active_uv_map_name()))) {
@@ -635,10 +638,10 @@ void mesh_remove_invalid_attribute_strings(Mesh &mesh)
   if (!mesh::is_uv_map(attributes.lookup_meta_data(mesh.default_uv_map_name()))) {
     MEM_SAFE_DELETE(mesh.default_uv_map_attribute);
   }
-  if (!mesh::is_uv_map(attributes.lookup_meta_data(mesh.stencil_uv_map_attribute))) {
+  if (!mesh::is_uv_map(attributes.lookup_meta_data(UString(mesh.stencil_uv_map_attribute)))) {
     MEM_SAFE_DELETE(mesh.stencil_uv_map_attribute);
   }
-  if (!mesh::is_uv_map(attributes.lookup_meta_data(mesh.clone_uv_map_attribute))) {
+  if (!mesh::is_uv_map(attributes.lookup_meta_data(UString(mesh.clone_uv_map_attribute)))) {
     MEM_SAFE_DELETE(mesh.clone_uv_map_attribute);
   }
 }
@@ -836,7 +839,8 @@ static Vector<NonContiguousGroup> compute_local_mesh_groups(Mesh &mesh)
   groups[0].children_offset = 0;
 
   const AttributeAccessor attributes = mesh.attributes();
-  const VArraySpan material_index = *attributes.lookup<int>("material_index", AttrDomain::Face);
+  const VArraySpan material_index = *attributes.lookup<int>("material_index"_ustr,
+                                                            AttrDomain::Face);
 
   partition_faces_recursively(
       face_centers, prim_face_indices, groups, 0, 0, bounds, material_index, 2500);
@@ -1117,26 +1121,30 @@ void BKE_mesh_face_offsets_ensure_alloc(Mesh *mesh)
 
 Span<float3> Mesh::vert_positions() const
 {
-  return bke::get_span_attribute<float3>(
-             this->attribute_storage.wrap(), bke::AttrDomain::Point, "position", this->verts_num)
+  return bke::get_span_attribute<float3>(this->attribute_storage.wrap(),
+                                         bke::AttrDomain::Point,
+                                         "position"_ustr,
+                                         this->verts_num)
       .value_or(Span<float3>());
 }
 MutableSpan<float3> Mesh::vert_positions_for_write()
 {
   return bke::get_mutable_attribute<float3>(
-      this->attribute_storage.wrap(), bke::AttrDomain::Point, "position", this->verts_num);
+      this->attribute_storage.wrap(), bke::AttrDomain::Point, "position"_ustr, this->verts_num);
 }
 
 Span<int2> Mesh::edges() const
 {
-  return bke::get_span_attribute<int2>(
-             this->attribute_storage.wrap(), bke::AttrDomain::Edge, ".edge_verts", this->edges_num)
+  return bke::get_span_attribute<int2>(this->attribute_storage.wrap(),
+                                       bke::AttrDomain::Edge,
+                                       ".edge_verts"_ustr,
+                                       this->edges_num)
       .value_or(Span<int2>());
 }
 MutableSpan<int2> Mesh::edges_for_write()
 {
   return bke::get_mutable_attribute<int2>(
-      this->attribute_storage.wrap(), bke::AttrDomain::Edge, ".edge_verts", this->edges_num);
+      this->attribute_storage.wrap(), bke::AttrDomain::Edge, ".edge_verts"_ustr, this->edges_num);
 }
 
 OffsetIndices<int> Mesh::faces() const
@@ -1164,28 +1172,32 @@ Span<int> Mesh::corner_verts() const
 {
   return bke::get_span_attribute<int>(this->attribute_storage.wrap(),
                                       bke::AttrDomain::Corner,
-                                      ".corner_vert",
+                                      ".corner_vert"_ustr,
                                       this->corners_num)
       .value_or(Span<int>());
 }
 MutableSpan<int> Mesh::corner_verts_for_write()
 {
-  return bke::get_mutable_attribute<int>(
-      this->attribute_storage.wrap(), bke::AttrDomain::Corner, ".corner_vert", this->corners_num);
+  return bke::get_mutable_attribute<int>(this->attribute_storage.wrap(),
+                                         bke::AttrDomain::Corner,
+                                         ".corner_vert"_ustr,
+                                         this->corners_num);
 }
 
 Span<int> Mesh::corner_edges() const
 {
   return bke::get_span_attribute<int>(this->attribute_storage.wrap(),
                                       bke::AttrDomain::Corner,
-                                      ".corner_edge",
+                                      ".corner_edge"_ustr,
                                       this->corners_num)
       .value_or(Span<int>());
 }
 MutableSpan<int> Mesh::corner_edges_for_write()
 {
-  return bke::get_mutable_attribute<int>(
-      this->attribute_storage.wrap(), bke::AttrDomain::Corner, ".corner_edge", this->corners_num);
+  return bke::get_mutable_attribute<int>(this->attribute_storage.wrap(),
+                                         bke::AttrDomain::Corner,
+                                         ".corner_edge"_ustr,
+                                         this->corners_num);
 }
 
 Span<MDeformVert> Mesh::deform_verts() const
@@ -1230,9 +1242,9 @@ bke::MutableAttributeAccessor Mesh::attributes_for_write()
   return bke::MutableAttributeAccessor(this, bke::mesh_attribute_accessor_functions());
 }
 
-VectorSet<StringRefNull> Mesh::uv_map_names() const
+VectorSet<UString> Mesh::uv_map_names() const
 {
-  VectorSet<StringRefNull> names;
+  VectorSet<UString> names;
   this->attributes().foreach_attribute([&](const bke::AttributeIter &iter) {
     if (bke::mesh::is_uv_map({iter.domain, iter.data_type})) {
       names.add_new(iter.name);
@@ -1241,27 +1253,27 @@ VectorSet<StringRefNull> Mesh::uv_map_names() const
   return names;
 }
 
-StringRefNull Mesh::active_uv_map_name() const
+UString Mesh::active_uv_map_name() const
 {
   if (BMEditMesh *em = this->runtime->edit_mesh.get()) {
     const char *name = CustomData_get_active_layer_name(&em->bm->ldata, CD_PROP_FLOAT2);
-    return name ? name : "";
+    return UString(name ? name : "");
   }
-  return this->active_uv_map_attribute ? this->active_uv_map_attribute : "";
+  return UString(this->active_uv_map_attribute ? this->active_uv_map_attribute : "");
 }
 
-StringRefNull Mesh::default_uv_map_name() const
+UString Mesh::default_uv_map_name() const
 {
   if (BMEditMesh *em = this->runtime->edit_mesh.get()) {
     const char *name = CustomData_get_render_layer_name(&em->bm->ldata, CD_PROP_FLOAT2);
-    return name ? name : "";
+    return UString(name ? name : "");
   }
-  return this->default_uv_map_attribute ? this->default_uv_map_attribute : "";
+  return UString(this->default_uv_map_attribute ? this->default_uv_map_attribute : "");
 }
 
-StringRefNull Mesh::active_or_default_uv_map_name() const
+UString Mesh::active_or_default_uv_map_name() const
 {
-  const StringRefNull active_name = this->active_uv_map_name();
+  const UString active_name = this->active_uv_map_name();
   if (!active_name.is_empty()) {
     return active_name;
   }
@@ -1354,10 +1366,10 @@ Mesh *mesh_new_no_attributes(const int verts_num,
   mesh->verts_num = verts_num;
   mesh->edges_num = edges_num;
   mesh->corners_num = corners_num;
-  mesh->attribute_storage.wrap().remove("position");
-  mesh->attribute_storage.wrap().remove(".edge_verts");
-  mesh->attribute_storage.wrap().remove(".corner_vert");
-  mesh->attribute_storage.wrap().remove(".corner_edge");
+  mesh->attribute_storage.wrap().remove("position"_ustr);
+  mesh->attribute_storage.wrap().remove(".edge_verts"_ustr);
+  mesh->attribute_storage.wrap().remove(".corner_vert"_ustr);
+  mesh->attribute_storage.wrap().remove(".corner_edge"_ustr);
   return mesh;
 }
 
@@ -1746,7 +1758,7 @@ void BKE_mesh_material_index_remove(Mesh *mesh, short index)
 {
   using namespace blender::bke;
   MutableAttributeAccessor attributes = mesh->attributes_for_write();
-  AttributeWriter<int> material_indices = attributes.lookup_for_write<int>("material_index");
+  AttributeWriter<int> material_indices = attributes.lookup_for_write<int>("material_index"_ustr);
   if (!material_indices) {
     return;
   }
@@ -1771,7 +1783,7 @@ bool BKE_mesh_material_index_used(Mesh *mesh, short index)
   using namespace blender::bke;
   const AttributeAccessor attributes = mesh->attributes();
   const VArray<int> material_indices = *attributes.lookup_or_default<int>(
-      "material_index", AttrDomain::Face, 0);
+      "material_index"_ustr, AttrDomain::Face, 0);
   if (material_indices.is_single()) {
     return material_indices.get_internal_single() == index;
   }
@@ -1783,7 +1795,7 @@ void BKE_mesh_material_index_clear(Mesh *mesh)
 {
   using namespace blender::bke;
   MutableAttributeAccessor attributes = mesh->attributes_for_write();
-  attributes.remove("material_index");
+  attributes.remove("material_index"_ustr);
 
   BKE_mesh_tessface_clear(mesh);
 }
@@ -1811,7 +1823,7 @@ void BKE_mesh_material_remap(Mesh *mesh, const uint *remap, uint remap_len)
   else {
     MutableAttributeAccessor attributes = mesh->attributes_for_write();
     SpanAttributeWriter<int> material_indices = attributes.lookup_or_add_for_write_span<int>(
-        "material_index", AttrDomain::Face);
+        "material_index"_ustr, AttrDomain::Face);
     if (!material_indices) {
       return;
     }
@@ -1831,11 +1843,11 @@ void mesh_smooth_set(Mesh &mesh, const bool use_smooth, const bool keep_sharp_ed
 {
   MutableAttributeAccessor attributes = mesh.attributes_for_write();
   if (!keep_sharp_edges) {
-    attributes.remove("sharp_edge");
+    attributes.remove("sharp_edge"_ustr);
   }
-  attributes.remove("sharp_face");
+  attributes.remove("sharp_face"_ustr);
   if (!use_smooth) {
-    attributes.add<bool>("sharp_face",
+    attributes.add<bool>("sharp_face"_ustr,
                          AttrDomain::Face,
                          AttributeInitVArray(VArray<bool>::from_single(true, mesh.faces_num)));
   }
@@ -1853,11 +1865,12 @@ void mesh_sharp_edges_set_from_angle(Mesh &mesh, const float angle, const bool k
     return;
   }
   if (!keep_sharp_edges) {
-    attributes.remove("sharp_edge");
+    attributes.remove("sharp_edge"_ustr);
   }
   SpanAttributeWriter<bool> sharp_edges = attributes.lookup_or_add_for_write_span<bool>(
-      "sharp_edge", AttrDomain::Edge);
-  const VArraySpan<bool> sharp_faces = *attributes.lookup<bool>("sharp_face", AttrDomain::Face);
+      "sharp_edge"_ustr, AttrDomain::Edge);
+  const VArraySpan<bool> sharp_faces = *attributes.lookup<bool>("sharp_face"_ustr,
+                                                                AttrDomain::Face);
   mesh::edges_sharp_from_angle_set(mesh.faces(),
                                    mesh.corner_verts(),
                                    mesh.corner_edges(),
@@ -1927,7 +1940,7 @@ std::optional<int> Mesh::material_index_max() const
     }
     value = bounds::max<int>(
         this->attributes()
-            .lookup_or_default<int>("material_index", bke::AttrDomain::Face, 0)
+            .lookup_or_default<int>("material_index"_ustr, bke::AttrDomain::Face, 0)
             .varray);
     if (value.has_value()) {
       value = std::clamp(*value, 0, MAXMAT);
@@ -1961,7 +1974,7 @@ const VectorSet<int> &Mesh::material_indices_used() const
     }
     else if (const VArray<int> material_indices =
                  this->attributes()
-                     .lookup_or_default<int>("material_index", bke::AttrDomain::Face, 0)
+                     .lookup_or_default<int>("material_index"_ustr, bke::AttrDomain::Face, 0)
                      .varray)
     {
       if (const std::optional<int> single_material_index = material_indices.get_if_single()) {
@@ -2072,11 +2085,11 @@ void BKE_mesh_mselect_validate(Mesh *mesh)
 
   const AttributeAccessor attributes = mesh->attributes();
   const VArray<bool> select_vert = *attributes.lookup_or_default<bool>(
-      ".select_vert", AttrDomain::Point, false);
+      ".select_vert"_ustr, AttrDomain::Point, false);
   const VArray<bool> select_edge = *attributes.lookup_or_default<bool>(
-      ".select_edge", AttrDomain::Edge, false);
+      ".select_edge"_ustr, AttrDomain::Edge, false);
   const VArray<bool> select_poly = *attributes.lookup_or_default<bool>(
-      ".select_poly", AttrDomain::Face, false);
+      ".select_poly"_ustr, AttrDomain::Face, false);
 
   for (i_src = 0, i_dst = 0; i_src < mesh->totselect; i_src++) {
     int index = mselect_src[i_src].index;

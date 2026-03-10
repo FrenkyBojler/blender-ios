@@ -51,7 +51,7 @@ static void create_test_curves(bke::CurvesGeometry &curves, Span<int> offsets)
   /* Attribute storing original indices to test point remapping. */
   SpanAttributeWriter<int> test_indices_writer =
       curves.attributes_for_write().lookup_or_add_for_write_span<int>(
-          "test_index", bke::AttrDomain::Point, bke::AttributeInitConstruct());
+          "test_index"_ustr, bke::AttrDomain::Point, bke::AttributeInitConstruct());
   array_utils::fill_index_range(test_indices_writer.span);
   test_indices_writer.finish();
 }
@@ -74,7 +74,7 @@ TEST_F(RealizeInstancesTest, InstanceAttributeToBuiltinCurvesAttribute)
   instances->transforms_for_write().fill(float4x4::identity());
   /* This attribute will be converted to the point domain, where it is invalid on curves. */
   instances->attributes_for_write().add<float>(
-      "curve_type", AttrDomain::Instance, AttributeInitDefaultValue());
+      "curve_type"_ustr, AttrDomain::Instance, AttributeInitDefaultValue());
   bke::GeometrySet instances_geometry = GeometrySet::from_instances(std::move(instances));
 
   geometry::RealizeInstancesOptions options;

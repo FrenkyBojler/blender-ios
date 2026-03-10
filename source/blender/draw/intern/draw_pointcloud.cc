@@ -98,7 +98,7 @@ gpu::Batch *pointcloud_sub_pass_setup_implementation(PassT &sub_ps,
       drw_curves_get_attribute_sampler_name(gpu_attr.name, sampler_name);
 
       gpu::VertBuf **attribute_buf = DRW_pointcloud_evaluated_attribute(&pointcloud,
-                                                                        gpu_attr.name);
+                                                                        UString(gpu_attr.name));
       sub_ps.bind_texture(sampler_name,
                           (attribute_buf && !is_empty) ? attribute_buf : &module.dummy_vbo);
     }

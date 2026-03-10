@@ -24,7 +24,7 @@ GAttributeReader attribute_to_reader(const Attribute &attribute,
                                      const int64_t domain_size);
 
 GAttributeWriter attribute_to_writer(void *owner,
-                                     const Map<StringRef, AttrUpdateOnChange> &changed_tags,
+                                     const Map<UString, AttrUpdateOnChange> &changed_tags,
                                      const int64_t domain_size,
                                      Attribute &attribute);
 
@@ -36,14 +36,14 @@ Attribute::DataVariant attribute_init_to_data(const bke::AttrType data_type,
 GVArray get_varray_attribute(const AttributeStorage &storage,
                              AttrDomain domain,
                              const CPPType &cpp_type,
-                             StringRef name,
+                             UString name,
                              int64_t domain_size,
                              const void *default_value);
 
 template<typename T>
 inline VArray<T> get_varray_attribute(const AttributeStorage &storage,
                                       const AttrDomain domain,
-                                      const StringRef name,
+                                      const UString name,
                                       const int64_t domain_size,
                                       const T &default_value)
 {
@@ -55,13 +55,13 @@ inline VArray<T> get_varray_attribute(const AttributeStorage &storage,
 std::optional<GSpan> get_span_attribute(const AttributeStorage &storage,
                                         AttrDomain domain,
                                         const CPPType &cpp_type,
-                                        StringRef name,
+                                        UString name,
                                         const int64_t domain_size);
 
 template<typename T>
 inline std::optional<Span<T>> get_span_attribute(const AttributeStorage &storage,
                                                  const AttrDomain domain,
-                                                 const StringRef name,
+                                                 const UString name,
                                                  const int64_t domain_size)
 {
   const std::optional<GSpan> span = get_span_attribute(
@@ -75,14 +75,14 @@ inline std::optional<Span<T>> get_span_attribute(const AttributeStorage &storage
 GMutableSpan get_mutable_attribute(AttributeStorage &storage,
                                    const AttrDomain domain,
                                    const CPPType &cpp_type,
-                                   const StringRef name,
+                                   const UString name,
                                    const int64_t domain_size,
                                    const void *default_value);
 
 template<typename T>
 inline MutableSpan<T> get_mutable_attribute(AttributeStorage &storage,
                                             const AttrDomain domain,
-                                            const StringRef name,
+                                            const UString name,
                                             const int64_t domain_size,
                                             const T &default_value = T())
 {

@@ -528,18 +528,18 @@ void mesh_hide_vert_flush(Mesh &mesh)
   MutableAttributeAccessor attributes = mesh.attributes_for_write();
 
   const VArray<bool> hide_vert = *attributes.lookup_or_default<bool>(
-      ".hide_vert", AttrDomain::Point, false);
+      ".hide_vert"_ustr, AttrDomain::Point, false);
   if (hide_vert.is_single() && !hide_vert.get_internal_single()) {
-    attributes.remove(".hide_edge");
-    attributes.remove(".hide_poly");
+    attributes.remove(".hide_edge"_ustr);
+    attributes.remove(".hide_poly"_ustr);
     return;
   }
   const VArraySpan<bool> hide_vert_span{hide_vert};
 
   SpanAttributeWriter<bool> hide_edge = attributes.lookup_or_add_for_write_only_span<bool>(
-      ".hide_edge", AttrDomain::Edge);
+      ".hide_edge"_ustr, AttrDomain::Edge);
   SpanAttributeWriter<bool> hide_poly = attributes.lookup_or_add_for_write_only_span<bool>(
-      ".hide_poly", AttrDomain::Face);
+      ".hide_poly"_ustr, AttrDomain::Face);
 
   mesh_edge_hide_from_vert(mesh.edges(), hide_vert_span, hide_edge.span);
   mesh_face_hide_from_vert(mesh.faces(), mesh.corner_verts(), hide_vert_span, hide_poly.span);
@@ -553,10 +553,10 @@ void mesh_hide_face_flush(Mesh &mesh)
   MutableAttributeAccessor attributes = mesh.attributes_for_write();
 
   const VArray<bool> hide_poly = *attributes.lookup_or_default<bool>(
-      ".hide_poly", AttrDomain::Face, false);
+      ".hide_poly"_ustr, AttrDomain::Face, false);
   if (hide_poly.is_single() && !hide_poly.get_internal_single()) {
-    attributes.remove(".hide_vert");
-    attributes.remove(".hide_edge");
+    attributes.remove(".hide_vert"_ustr);
+    attributes.remove(".hide_edge"_ustr);
     return;
   }
   const VArraySpan<bool> hide_poly_span{hide_poly};
@@ -564,9 +564,9 @@ void mesh_hide_face_flush(Mesh &mesh)
   const Span<int> corner_verts = mesh.corner_verts();
   const Span<int> corner_edges = mesh.corner_edges();
   SpanAttributeWriter<bool> hide_vert = attributes.lookup_or_add_for_write_only_span<bool>(
-      ".hide_vert", AttrDomain::Point);
+      ".hide_vert"_ustr, AttrDomain::Point);
   SpanAttributeWriter<bool> hide_edge = attributes.lookup_or_add_for_write_only_span<bool>(
-      ".hide_edge", AttrDomain::Edge);
+      ".hide_edge"_ustr, AttrDomain::Edge);
 
   /* Hide all edges or vertices connected to hidden polygons. */
   threading::parallel_for(faces.index_range(), 1024, [&](const IndexRange range) {
@@ -601,23 +601,25 @@ void mesh_select_face_flush(Mesh &mesh)
 {
   MutableAttributeAccessor attributes = mesh.attributes_for_write();
   const VArray<bool> select_poly = *attributes.lookup_or_default<bool>(
-      ".select_poly", AttrDomain::Face, false);
+      ".select_poly"_ustr, AttrDomain::Face, false);
   if (select_poly.is_single() && !select_poly.get_internal_single()) {
-    attributes.remove(".select_vert");
-    attributes.remove(".select_edge");
+    attributes.remove(".select_vert"_ustr);
+    attributes.remove(".select_edge"_ustr);
     return;
   }
   SpanAttributeWriter<bool> select_vert = attributes.lookup_or_add_for_write_only_span<bool>(
-      ".select_vert", AttrDomain::Point);
+      ".select_vert"_ustr, AttrDomain::Point);
   SpanAttributeWriter<bool> select_edge = attributes.lookup_or_add_for_write_only_span<bool>(
-      ".select_edge", AttrDomain::Edge);
+      ".select_edge"_ustr, AttrDomain::Edge);
 
   /* Use generic domain interpolation to read the face attribute on the other domains.
    * Assume selected faces are not hidden and none of their vertices/edges are hidden. */
-  array_utils::copy(*attributes.lookup_or_default<bool>(".select_poly", AttrDomain::Point, false),
-                    select_vert.span);
-  array_utils::copy(*attributes.lookup_or_default<bool>(".select_poly", AttrDomain::Edge, false),
-                    select_edge.span);
+  array_utils::copy(
+      *attributes.lookup_or_default<bool>(".select_poly"_ustr, AttrDomain::Point, false),
+      select_vert.span);
+  array_utils::copy(
+      *attributes.lookup_or_default<bool>(".select_poly"_ustr, AttrDomain::Edge, false),
+      select_edge.span);
 
   select_vert.finish();
   select_edge.finish();
@@ -627,31 +629,31 @@ void mesh_select_vert_flush(Mesh &mesh)
 {
   MutableAttributeAccessor attributes = mesh.attributes_for_write();
   const VArray<bool> select_vert = *attributes.lookup_or_default<bool>(
-      ".select_vert", AttrDomain::Point, false);
+      ".select_vert"_ustr, AttrDomain::Point, false);
   if (select_vert.is_single() && !select_vert.get_internal_single()) {
-    attributes.remove(".select_edge");
-    attributes.remove(".select_poly");
+    attributes.remove(".select_edge"_ustr);
+    attributes.remove(".select_poly"_ustr);
     return;
   }
   SpanAttributeWriter<bool> select_edge = attributes.lookup_or_add_for_write_only_span<bool>(
-      ".select_edge", AttrDomain::Edge);
+      ".select_edge"_ustr, AttrDomain::Edge);
   SpanAttributeWriter<bool> select_poly = attributes.lookup_or_add_for_write_only_span<bool>(
-      ".select_poly", AttrDomain::Face);
+      ".select_poly"_ustr, AttrDomain::Face);
   {
     IndexMaskMemory memory;
     const VArray<bool> hide_edge = *attributes.lookup_or_default<bool>(
-        ".hide_edge", AttrDomain::Edge, false);
+        ".hide_edge"_ustr, AttrDomain::Edge, false);
     array_utils::copy(
-        *attributes.lookup_or_default<bool>(".select_vert", AttrDomain::Edge, false),
+        *attributes.lookup_or_default<bool>(".select_vert"_ustr, AttrDomain::Edge, false),
         IndexMask::from_bools(hide_edge, memory).complement(hide_edge.index_range(), memory),
         select_edge.span);
   }
   {
     IndexMaskMemory memory;
     const VArray<bool> hide_poly = *attributes.lookup_or_default<bool>(
-        ".hide_poly", AttrDomain::Face, false);
+        ".hide_poly"_ustr, AttrDomain::Face, false);
     array_utils::copy(
-        *attributes.lookup_or_default<bool>(".select_vert", AttrDomain::Face, false),
+        *attributes.lookup_or_default<bool>(".select_vert"_ustr, AttrDomain::Face, false),
         IndexMask::from_bools(hide_poly, memory).complement(hide_poly.index_range(), memory),
         select_poly.span);
   }
@@ -663,31 +665,31 @@ void mesh_select_edge_flush(Mesh &mesh)
 {
   MutableAttributeAccessor attributes = mesh.attributes_for_write();
   const VArray<bool> select_edge = *attributes.lookup_or_default<bool>(
-      ".select_edge", AttrDomain::Point, false);
+      ".select_edge"_ustr, AttrDomain::Point, false);
   if (select_edge.is_single() && !select_edge.get_internal_single()) {
-    attributes.remove(".select_vert");
-    attributes.remove(".select_poly");
+    attributes.remove(".select_vert"_ustr);
+    attributes.remove(".select_poly"_ustr);
     return;
   }
   SpanAttributeWriter<bool> select_vert = attributes.lookup_or_add_for_write_only_span<bool>(
-      ".select_vert", AttrDomain::Point);
+      ".select_vert"_ustr, AttrDomain::Point);
   SpanAttributeWriter<bool> select_poly = attributes.lookup_or_add_for_write_only_span<bool>(
-      ".select_poly", AttrDomain::Face);
+      ".select_poly"_ustr, AttrDomain::Face);
   {
     IndexMaskMemory memory;
     const VArray<bool> hide_vert = *attributes.lookup_or_default<bool>(
-        ".hide_vert", AttrDomain::Point, false);
+        ".hide_vert"_ustr, AttrDomain::Point, false);
     array_utils::copy(
-        *attributes.lookup_or_default<bool>(".select_edge", AttrDomain::Point, false),
+        *attributes.lookup_or_default<bool>(".select_edge"_ustr, AttrDomain::Point, false),
         IndexMask::from_bools(hide_vert, memory).complement(hide_vert.index_range(), memory),
         select_vert.span);
   }
   {
     IndexMaskMemory memory;
     const VArray<bool> hide_poly = *attributes.lookup_or_default<bool>(
-        ".hide_poly", AttrDomain::Face, false);
+        ".hide_poly"_ustr, AttrDomain::Face, false);
     array_utils::copy(
-        *attributes.lookup_or_default<bool>(".select_edge", AttrDomain::Face, false),
+        *attributes.lookup_or_default<bool>(".select_edge"_ustr, AttrDomain::Face, false),
         IndexMask::from_bools(hide_poly, memory).complement(hide_poly.index_range(), memory),
         select_poly.span);
   }

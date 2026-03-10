@@ -55,11 +55,11 @@
 
 namespace blender::ed::mesh {
 
-static VectorSet<std::string> join_vertex_groups(const Span<const Object *> objects_to_join,
-                                                 const OffsetIndices<int> vert_ranges,
-                                                 Mesh &dst_mesh)
+static VectorSet<UString> join_vertex_groups(const Span<const Object *> objects_to_join,
+                                             const OffsetIndices<int> vert_ranges,
+                                             Mesh &dst_mesh)
 {
-  VectorSet<std::string> vertex_group_names;
+  VectorSet<UString> vertex_group_names;
   for (const int i : objects_to_join.index_range()) {
     const Mesh &mesh = *id_cast<const Mesh *>(objects_to_join[i]->data);
     for (const bDeformGroup &dg : mesh.vertex_group_names) {
@@ -137,12 +137,12 @@ static void join_normals(const Span<const Object *> objects_to_join,
     }
     case bke::mesh::NormalJoinInfo::Output::CornerFan: {
       bke::SpanAttributeWriter dst_attr = dst_attributes.lookup_or_add_for_write_only_span<short2>(
-          "custom_normal", bke::AttrDomain::Corner);
+          "custom_normal"_ustr, bke::AttrDomain::Corner);
       for (const int i : objects_to_join.index_range()) {
         const Object &src_object = *objects_to_join[i];
         const Mesh &src_mesh = *id_cast<const Mesh *>(src_object.data);
         const bke::AttributeAccessor attributes = src_mesh.attributes();
-        const bke::GAttributeReader src = attributes.lookup("custom_normal");
+        const bke::GAttributeReader src = attributes.lookup("custom_normal"_ustr);
         if (!src) {
           dst_attr.span.slice(corner_ranges[i]).fill(short2(0));
           continue;
@@ -159,7 +159,7 @@ static void join_normals(const Span<const Object *> objects_to_join,
     }
     case bke::mesh::NormalJoinInfo::Output::Free: {
       bke::SpanAttributeWriter dst_attr = dst_attributes.lookup_or_add_for_write_only_span<float3>(
-          "custom_normal", *normal_info.result_domain);
+          "custom_normal"_ustr, *normal_info.result_domain);
       for (const int i : objects_to_join.index_range()) {
         const Object &src_object = *objects_to_join[i];
         const Mesh &src_mesh = *id_cast<const Mesh *>(src_object.data);
@@ -271,7 +271,7 @@ static void join_shape_keys(Main *bmain,
 }
 
 static bool try_join_single_value_attribute(const Span<const Object *> objects_to_join,
-                                            const StringRef name,
+                                            const UString name,
                                             const bke::AttrDomain domain,
                                             const bke::AttrType data_type,
                                             bke::MutableAttributeAccessor dst_attributes)
@@ -317,22 +317,22 @@ static bool try_join_single_value_attribute(const Span<const Object *> objects_t
 }
 
 static void join_generic_attributes(const Span<const Object *> objects_to_join,
-                                    const VectorSet<std::string> &all_vertex_group_names,
+                                    const VectorSet<UString> &all_vertex_group_names,
                                     const OffsetIndices<int> vert_ranges,
                                     const OffsetIndices<int> edge_ranges,
                                     const OffsetIndices<int> face_ranges,
                                     const OffsetIndices<int> corner_ranges,
                                     Mesh &dst_mesh)
 {
-  Set<StringRef> skip_names{"position",
-                            ".edge_verts",
-                            ".corner_vert",
-                            ".corner_edge",
-                            "material_index",
-                            "custom_normal",
-                            ".sculpt_face_set"};
+  Set<UString> skip_names{"position"_ustr,
+                          ".edge_verts"_ustr,
+                          ".corner_vert"_ustr,
+                          ".corner_edge"_ustr,
+                          "material_index"_ustr,
+                          "custom_normal"_ustr,
+                          ".sculpt_face_set"_ustr};
 
-  Array<std::string> names;
+  Array<UString> names;
   Array<bke::AttributeDomainAndType> kinds;
   {
     bke::GeometrySet::GatheredAttributes attr_info;
@@ -355,9 +355,9 @@ static void join_generic_attributes(const Span<const Object *> objects_to_join,
 
   bke::MutableAttributeAccessor dst_attributes = dst_mesh.attributes_for_write();
 
-  const Set<StringRefNull> attribute_names = dst_attributes.all_names();
+  const Set<UString> attribute_names = dst_attributes.all_names();
   for (const int attr_i : names.index_range()) {
-    const StringRef name = names[attr_i];
+    const UString name = names[attr_i];
     const bke::AttrDomain domain = kinds[attr_i].domain;
     const bke::AttrType data_type = kinds[attr_i].data_type;
     if (const std::optional<bke::AttributeMetaData> meta_data = dst_attributes.lookup_meta_data(
@@ -372,7 +372,7 @@ static void join_generic_attributes(const Span<const Object *> objects_to_join,
   }
 
   for (const int attr_i : names.index_range()) {
-    const StringRef name = names[attr_i];
+    const UString name = names[attr_i];
     const bke::AttrDomain domain = kinds[attr_i].domain;
     const bke::AttrType data_type = kinds[attr_i].data_type;
 
@@ -433,12 +433,12 @@ static VectorSet<Material *> join_materials(const Span<const Object *> objects_t
 
   bke::MutableAttributeAccessor dst_attributes = dst_mesh.attributes_for_write();
   if (materials.size() <= 1) {
-    dst_attributes.remove("material_index");
+    dst_attributes.remove("material_index"_ustr);
     return materials;
   }
 
   bke::SpanAttributeWriter dst_attr = dst_attributes.lookup_or_add_for_write_only_span<int>(
-      "material_index", bke::AttrDomain::Face);
+      "material_index"_ustr, bke::AttrDomain::Face);
   if (!dst_attr) {
     return {};
   }
@@ -449,7 +449,7 @@ static VectorSet<Material *> join_materials(const Span<const Object *> objects_t
     const Mesh &src_mesh = *id_cast<const Mesh *>(src_object.data);
     const bke::AttributeAccessor src_attributes = src_mesh.attributes();
 
-    const VArray<int> material_indices = *src_attributes.lookup<int>("material_index",
+    const VArray<int> material_indices = *src_attributes.lookup<int>("material_index"_ustr,
                                                                      bke::AttrDomain::Face);
     if (material_indices.is_empty()) {
       Material *first_material = src_mesh.totcol == 0 ?
@@ -494,7 +494,7 @@ static void join_face_sets(const Span<const Object *> objects_to_join,
 {
   if (std::none_of(objects_to_join.begin(), objects_to_join.end(), [](const Object *object) {
         const Mesh &mesh = *id_cast<const Mesh *>(object->data);
-        return mesh.attributes().contains(".sculpt_face_set");
+        return mesh.attributes().contains(".sculpt_face_set"_ustr);
       }))
   {
     return;
@@ -502,7 +502,7 @@ static void join_face_sets(const Span<const Object *> objects_to_join,
 
   bke::MutableAttributeAccessor dst_attributes = dst_mesh.attributes_for_write();
   bke::SpanAttributeWriter dst_face_sets = dst_attributes.lookup_or_add_for_write_span<int>(
-      ".sculpt_face_set", bke::AttrDomain::Face);
+      ".sculpt_face_set"_ustr, bke::AttrDomain::Face);
   if (!dst_face_sets) {
     return;
   }
@@ -513,7 +513,7 @@ static void join_face_sets(const Span<const Object *> objects_to_join,
     const IndexRange dst_range = face_ranges[i];
     const Mesh &src_mesh = *id_cast<const Mesh *>(src_object.data);
     const bke::AttributeAccessor src_attributes = src_mesh.attributes();
-    const VArraySpan src_face_sets = *src_attributes.lookup<int>(".sculpt_face_set",
+    const VArraySpan src_face_sets = *src_attributes.lookup<int>(".sculpt_face_set"_ustr,
                                                                  bke::AttrDomain::Face);
     if (src_face_sets.is_empty()) {
       dst_face_sets.span.slice(dst_range).fill(max_face_set);
@@ -689,7 +689,7 @@ wmOperatorStatus join_objects_exec(bContext *C, wmOperator *op)
 
   VectorSet<Material *> materials = join_materials(objects_to_join, face_ranges, *dst_mesh);
 
-  VectorSet<std::string> vertex_group_names = join_vertex_groups(
+  VectorSet<UString> vertex_group_names = join_vertex_groups(
       objects_to_join, vert_ranges, *dst_mesh);
 
   join_generic_attributes(objects_to_join,

@@ -132,7 +132,7 @@ struct StringLog : public ValueLog {
 };
 
 struct GeometryAttributeInfo {
-  std::string name;
+  UString name;
   /** Can be empty when #name does not actually exist on a geometry yet. */
   std::optional<bke::AttrDomain> domain;
   std::optional<bke::AttrType> data_type;
@@ -312,7 +312,7 @@ class GeoTreeLogger {
   };
   struct AttributeUsageWithNode {
     int32_t node_id;
-    StringRefNull attribute_name;
+    UString attribute_name;
     NamedAttributeUsage usage;
   };
   struct DebugMessage {
@@ -357,7 +357,7 @@ class GeoNodeLog {
   Map<int, ValueLog *> input_values_;
   Map<int, ValueLog *> output_values_;
   /** Maps from attribute name to their usage flags. */
-  Map<StringRefNull, NamedAttributeUsage> used_named_attributes;
+  Map<UString, NamedAttributeUsage> used_named_attributes;
   /** Messages that are used for debugging purposes during development. */
   Vector<StringRefNull> debug_messages;
 
@@ -395,7 +395,7 @@ class GeoTreeLog {
   VectorSet<NodeWarning> all_warnings;
   std::chrono::nanoseconds execution_time{0};
   Vector<const GeometryAttributeInfo *> existing_attributes;
-  Map<StringRefNull, NamedAttributeUsage> used_named_attributes;
+  Map<UString, NamedAttributeUsage> used_named_attributes;
   Set<int> evaluated_gizmo_nodes;
   Vector<std::string> all_layer_names;
 

@@ -193,13 +193,13 @@ static void shape_attributes_to_curves(bke::CurvesGeometry &curves,
 
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
   bke::SpanAttributeWriter<int> materials = attributes.lookup_or_add_for_write_span<int>(
-      "material_index", bke::AttrDomain::Curve);
+      "material_index"_ustr, bke::AttrDomain::Curve);
   MutableSpan<bool> cyclic = curves.cyclic_for_write();
 
   bke::SpanAttributeWriter fill_colors = attributes.lookup_or_add_for_write_span<ColorGeometry4f>(
-      "fill_color", bke::AttrDomain::Curve);
+      "fill_color"_ustr, bke::AttrDomain::Curve);
   bke::SpanAttributeWriter<float> fill_opacities = attributes.lookup_or_add_for_write_span<float>(
-      "fill_opacity", bke::AttrDomain::Curve);
+      "fill_opacity"_ustr, bke::AttrDomain::Curve);
 
   MutableSpan<float3> positions = curves.positions_for_write();
   MutableSpan<float3> handle_positions_left = curves.handle_positions_left_for_write();
@@ -207,12 +207,12 @@ static void shape_attributes_to_curves(bke::CurvesGeometry &curves,
   MutableSpan<int8_t> handle_types_left = curves.handle_types_left_for_write();
   MutableSpan<int8_t> handle_types_right = curves.handle_types_right_for_write();
   bke::SpanAttributeWriter<float> radii = attributes.lookup_or_add_for_write_span<float>(
-      "radius", bke::AttrDomain::Point);
+      "radius"_ustr, bke::AttrDomain::Point);
   bke::SpanAttributeWriter<ColorGeometry4f> vertex_colors =
-      attributes.lookup_or_add_for_write_span<ColorGeometry4f>("vertex_color",
+      attributes.lookup_or_add_for_write_span<ColorGeometry4f>("vertex_color"_ustr,
                                                                bke::AttrDomain::Point);
   bke::SpanAttributeWriter<float> point_opacities = attributes.lookup_or_add_for_write_span<float>(
-      "opacity", bke::AttrDomain::Point);
+      "opacity"_ustr, bke::AttrDomain::Point);
 
   materials.span.slice(curves_range).fill(material_index);
   const ColorGeometry4f shape_color = convert_svg_color(shape.fill);
@@ -227,13 +227,13 @@ static void shape_attributes_to_curves(bke::CurvesGeometry &curves,
   const bool use_fill = bool(shape.fill.type);
   if (!use_stroke) {
     bke::SpanAttributeWriter<bool> hide_stroke = attributes.lookup_or_add_for_write_span<bool>(
-        "hide_stroke", bke::AttrDomain::Curve);
+        "hide_stroke"_ustr, bke::AttrDomain::Curve);
     hide_stroke.span.slice(curves_range).fill(true);
     hide_stroke.finish();
   }
   if (use_fill) {
     bke::SpanAttributeWriter<int> fill_ids = attributes.lookup_or_add_for_write_span<int>(
-        "fill_id", bke::AttrDomain::Curve);
+        "fill_id"_ustr, bke::AttrDomain::Curve);
     fill_ids.span.slice(curves_range).fill(shape_index + 1);
     fill_ids.finish();
   }

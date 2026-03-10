@@ -73,7 +73,7 @@ class AttributeViewer : Overlay {
       const auto &instances =
           *ob_ref.preview_base_geometry()->get_component<bke::InstancesComponent>();
       if (const std::optional<bke::AttributeMetaData> meta_data =
-              instances.attributes()->lookup_meta_data(".viewer"))
+              instances.attributes()->lookup_meta_data(".viewer"_ustr))
       {
         if (attribute_type_supports_viewer_overlay(meta_data->data_type)) {
           populate_for_instance(ob_ref, state, manager);
@@ -111,7 +111,7 @@ class AttributeViewer : Overlay {
     const bke::InstancesComponent &instances =
         *base_geometry.get_component<bke::InstancesComponent>();
     const bke::AttributeAccessor instance_attributes = *instances.attributes();
-    const VArray attribute = *instance_attributes.lookup<ColorGeometry4f>(".viewer");
+    const VArray attribute = *instance_attributes.lookup<ColorGeometry4f>(".viewer"_ustr);
     if (!attribute) {
       return;
     }
@@ -171,7 +171,7 @@ class AttributeViewer : Overlay {
       case OB_MESH: {
         Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(object);
         if (const std::optional<bke::AttributeMetaData> meta_data =
-                mesh.attributes().lookup_meta_data(".viewer"))
+                mesh.attributes().lookup_meta_data(".viewer"_ustr))
         {
           if (attribute_type_supports_viewer_overlay(meta_data->data_type)) {
             gpu::Batch *batch = DRW_cache_mesh_surface_viewer_attribute_get(&object);
@@ -185,10 +185,11 @@ class AttributeViewer : Overlay {
       case OB_POINTCLOUD: {
         PointCloud &pointcloud = DRW_object_get_data_for_drawing<PointCloud>(object);
         if (const std::optional<bke::AttributeMetaData> meta_data =
-                pointcloud.attributes().lookup_meta_data(".viewer"))
+                pointcloud.attributes().lookup_meta_data(".viewer"_ustr))
         {
           if (attribute_type_supports_viewer_overlay(meta_data->data_type)) {
-            gpu::VertBuf **vertbuf = DRW_pointcloud_evaluated_attribute(&pointcloud, ".viewer");
+            gpu::VertBuf **vertbuf = DRW_pointcloud_evaluated_attribute(&pointcloud,
+                                                                        ".viewer"_ustr);
             /* Avoid trying to bind an empty `vertbuf` which causes assert / undefined behavior. */
             if (pointcloud.totpoint > 0 && vertbuf != nullptr) {
               auto &sub = *pointcloud_sub_;
@@ -206,7 +207,7 @@ class AttributeViewer : Overlay {
         if (curve.curve_eval) {
           const bke::CurvesGeometry &curves = curve.curve_eval->geometry.wrap();
           if (const std::optional<bke::AttributeMetaData> meta_data =
-                  curves.attributes().lookup_meta_data(".viewer"))
+                  curves.attributes().lookup_meta_data(".viewer"_ustr))
           {
             if (attribute_type_supports_viewer_overlay(meta_data->data_type)) {
               gpu::Batch *batch = DRW_cache_curve_edge_wire_viewer_attribute_get(&object);
@@ -223,13 +224,13 @@ class AttributeViewer : Overlay {
         blender::Curves &curves_id = DRW_object_get_data_for_drawing<blender::Curves>(object);
         const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
         if (const std::optional<bke::AttributeMetaData> meta_data =
-                curves.attributes().lookup_meta_data(".viewer"))
+                curves.attributes().lookup_meta_data(".viewer"_ustr))
         {
           if (attribute_type_supports_viewer_overlay(meta_data->data_type)) {
             bool is_point_domain;
             bool is_valid;
             gpu::VertBufPtr &texture = DRW_curves_texture_for_evaluated_attribute(
-                &curves_id, ".viewer", is_point_domain, is_valid);
+                &curves_id, ".viewer"_ustr, is_point_domain, is_valid);
             if (is_valid) {
               auto &sub = *curves_sub_;
               const char *error = nullptr;

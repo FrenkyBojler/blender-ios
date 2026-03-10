@@ -19,7 +19,7 @@ namespace blender::geometry {
 using bke::AttrDomain;
 
 struct PropagationAttribute {
-  StringRef name;
+  UString name;
   bke::AttrType data_type;
   AttrDomain domain;
   GVArray data;
@@ -378,13 +378,14 @@ Array<bke::Instances *> extract_instances(const bke::Instances &instances,
         element->reference_handles_for_write().first() = element->add_new_reference(old_reference);
         element->transforms_for_write().first() = old_transform;
 
-        bke::gather_attributes(src_attributes,
-                               AttrDomain::Instance,
-                               AttrDomain::Instance,
-                               bke::attribute_filter_with_skip_ref(
-                                   attribute_filter, {".reference_index", "instance_transform"}),
-                               Span<int>{instance_i},
-                               element->attributes_for_write());
+        bke::gather_attributes(
+            src_attributes,
+            AttrDomain::Instance,
+            AttrDomain::Instance,
+            bke::attribute_filter_with_skip_ref(
+                attribute_filter, {".reference_index"_ustr, "instance_transform"_ustr}),
+            Span<int>{instance_i},
+            element->attributes_for_write());
 
         elements[element_i] = element;
       },

@@ -140,9 +140,9 @@ static wmOperatorStatus mesh_set_attribute_exec(bContext *C, wmOperator *op)
 
   Mesh *active_mesh = ED_mesh_context(C);
   AttributeOwner active_owner = AttributeOwner::from_id(&active_mesh->id);
-  const StringRef name = *BKE_attributes_active_name_get(active_owner);
+  const UString name = *BKE_attributes_active_name_get(active_owner);
   const BMDataLayerLookup active_attr = BM_data_layer_lookup(*active_mesh->runtime->edit_mesh->bm,
-                                                             name);
+                                                             name.ref());
   const bke::AttrType active_type = active_attr.type;
   const CPPType &type = bke::attribute_type_to_cpp_type(active_type);
 
@@ -158,7 +158,7 @@ static wmOperatorStatus mesh_set_attribute_exec(bContext *C, wmOperator *op)
     Mesh *mesh = id_cast<Mesh *>(object->data);
     BMEditMesh *em = BKE_editmesh_from_object(object);
     BMesh *bm = em->bm;
-    BMDataLayerLookup attr = BM_data_layer_lookup(*bm, name);
+    BMDataLayerLookup attr = BM_data_layer_lookup(*bm, name.ref());
     if (!attr) {
       continue;
     }
@@ -212,8 +212,8 @@ static wmOperatorStatus mesh_set_attribute_invoke(bContext *C,
   BMesh *bm = mesh->runtime->edit_mesh->bm;
   AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
 
-  const StringRef name = *BKE_attributes_active_name_get(owner);
-  const BMDataLayerLookup attr = BM_data_layer_lookup(*mesh->runtime->edit_mesh->bm, name);
+  const UString name = *BKE_attributes_active_name_get(owner);
+  const BMDataLayerLookup attr = BM_data_layer_lookup(*mesh->runtime->edit_mesh->bm, name.ref());
   const bke::AttrType data_type = attr.type;
   const bke::AttrDomain domain = attr.domain;
   const BMElem *active_elem = BM_mesh_active_elem_get(bm);
@@ -246,10 +246,10 @@ static void mesh_set_attribute_ui(bContext *C, wmOperator *op)
 
   Mesh *mesh = ED_mesh_context(C);
   AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
-  const StringRef name = *BKE_attributes_active_name_get(owner);
-  const BMDataLayerLookup attr = BM_data_layer_lookup(*mesh->runtime->edit_mesh->bm, name);
+  const UString name = *BKE_attributes_active_name_get(owner);
+  const BMDataLayerLookup attr = BM_data_layer_lookup(*mesh->runtime->edit_mesh->bm, name.ref());
   const StringRefNull prop_name = geometry::rna_property_name_for_type(attr.type);
-  layout.prop(op->ptr, prop_name, UI_ITEM_NONE, name, ICON_NONE);
+  layout.prop(op->ptr, prop_name, UI_ITEM_NONE, name.ref(), ICON_NONE);
 }
 
 }  // namespace set_attribute

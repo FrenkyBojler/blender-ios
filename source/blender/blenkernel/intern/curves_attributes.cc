@@ -55,22 +55,22 @@ static void tag_material_index_changed(void *owner)
 
 static const auto &changed_tags()
 {
-  static Map<StringRef, AttrUpdateOnChange> attributes{
-      {"position", tag_positions_changed},
-      {"radius", tag_radii_changed},
-      {"tilt", tag_normals_changed},
-      {"handle_left", tag_positions_changed},
-      {"handle_right", tag_positions_changed},
-      {"handle_type_left", tag_topology_changed},
-      {"handle_type_right", tag_topology_changed},
-      {"nurbs_weight", tag_positions_changed},
-      {"nurbs_order", tag_topology_changed},
-      {"normal_mode", tag_normals_changed},
-      {"custom_normal", tag_normals_changed},
-      {"curve_type", tag_curve_types_changed},
-      {"resolution", tag_topology_changed},
-      {"cyclic", tag_topology_changed},
-      {"material_index", tag_material_index_changed},
+  static Map<UString, AttrUpdateOnChange> attributes{
+      {"position"_ustr, tag_positions_changed},
+      {"radius"_ustr, tag_radii_changed},
+      {"tilt"_ustr, tag_normals_changed},
+      {"handle_left"_ustr, tag_positions_changed},
+      {"handle_right"_ustr, tag_positions_changed},
+      {"handle_type_left"_ustr, tag_topology_changed},
+      {"handle_type_right"_ustr, tag_topology_changed},
+      {"nurbs_weight"_ustr, tag_positions_changed},
+      {"nurbs_order"_ustr, tag_topology_changed},
+      {"normal_mode"_ustr, tag_normals_changed},
+      {"custom_normal"_ustr, tag_normals_changed},
+      {"curve_type"_ustr, tag_curve_types_changed},
+      {"resolution"_ustr, tag_topology_changed},
+      {"cyclic"_ustr, tag_topology_changed},
+      {"material_index"_ustr, tag_material_index_changed},
   };
   return attributes;
 }
@@ -163,7 +163,7 @@ static bool foreach_vertex_group(const void *owner, FunctionRef<void(const Attri
     const auto get_fn = [&, group_index = group_index]() {
       return reader_for_vertex_group_index(*curves, dverts, group_index);
     };
-    AttributeIter iter{group.name, AttrDomain::Point, bke::AttrType::Float, get_fn};
+    AttributeIter iter{UString(group.name), AttrDomain::Point, bke::AttrType::Float, get_fn};
     iter.is_builtin = false;
     iter.accessor = &accessor;
     fn(iter);
@@ -177,23 +177,23 @@ static bool foreach_vertex_group(const void *owner, FunctionRef<void(const Attri
 static const auto &builtin_attributes()
 {
   static auto attributes = []() {
-    Map<StringRef, AttrBuiltinInfo> map;
+    Map<UString, AttrBuiltinInfo> map;
 
     AttrBuiltinInfo position(AttrDomain::Point, AttrType::Float3);
     position.deletable = false;
-    map.add_new("position", std::move(position));
+    map.add_new("position"_ustr, std::move(position));
 
     AttrBuiltinInfo radius(AttrDomain::Point, AttrType::Float);
-    map.add_new("radius", std::move(radius));
+    map.add_new("radius"_ustr, std::move(radius));
 
     AttrBuiltinInfo tilt(AttrDomain::Point, AttrType::Float);
-    map.add_new("tilt", std::move(tilt));
+    map.add_new("tilt"_ustr, std::move(tilt));
 
     AttrBuiltinInfo handle_left(AttrDomain::Point, AttrType::Float3);
-    map.add_new("handle_left", std::move(handle_left));
+    map.add_new("handle_left"_ustr, std::move(handle_left));
 
     AttrBuiltinInfo handle_right(AttrDomain::Point, AttrType::Float3);
-    map.add_new("handle_right", std::move(handle_right));
+    map.add_new("handle_right"_ustr, std::move(handle_right));
 
     static auto handle_type_clamp = mf::build::SI1_SO<int8_t, int8_t>(
         "Handle Type Validate",
@@ -204,16 +204,16 @@ static const auto &builtin_attributes()
 
     AttrBuiltinInfo handle_type_left(AttrDomain::Point, AttrType::Int8);
     handle_type_left.validator = AttributeValidator{&handle_type_clamp};
-    map.add_new("handle_type_left", std::move(handle_type_left));
+    map.add_new("handle_type_left"_ustr, std::move(handle_type_left));
 
     AttrBuiltinInfo handle_type_right(AttrDomain::Point, AttrType::Int8);
     handle_type_right.validator = AttributeValidator{&handle_type_clamp};
-    map.add_new("handle_type_right", std::move(handle_type_right));
+    map.add_new("handle_type_right"_ustr, std::move(handle_type_right));
 
     static float default_nurbs_weight = 1.0f;
     AttrBuiltinInfo nurbs_weight(AttrDomain::Point, AttrType::Float);
     nurbs_weight.default_value = &default_nurbs_weight;
-    map.add_new("nurbs_weight", std::move(nurbs_weight));
+    map.add_new("nurbs_weight"_ustr, std::move(nurbs_weight));
 
     static const auto nurbs_order_clamp = mf::build::SI1_SO<int8_t, int8_t>(
         "NURBS Order Validate",
@@ -223,7 +223,7 @@ static const auto &builtin_attributes()
     AttrBuiltinInfo nurbs_order(AttrDomain::Curve, AttrType::Int8);
     nurbs_order.default_value = &nurbs_order_default;
     nurbs_order.validator = AttributeValidator{&nurbs_order_clamp};
-    map.add_new("nurbs_order", std::move(nurbs_order));
+    map.add_new("nurbs_order"_ustr, std::move(nurbs_order));
 
     static const auto normal_mode_clamp = mf::build::SI1_SO<int8_t, int8_t>(
         "Normal Mode Validate",
@@ -233,10 +233,10 @@ static const auto &builtin_attributes()
         mf::build::exec_presets::AllSpanOrSingle());
     AttrBuiltinInfo normal_mode(AttrDomain::Curve, AttrType::Int8);
     normal_mode.validator = AttributeValidator{&normal_mode_clamp};
-    map.add_new("normal_mode", std::move(normal_mode));
+    map.add_new("normal_mode"_ustr, std::move(normal_mode));
 
     AttrBuiltinInfo custom_normal(AttrDomain::Point, AttrType::Float3);
-    map.add_new("custom_normal", std::move(custom_normal));
+    map.add_new("custom_normal"_ustr, std::move(custom_normal));
 
     static const auto knots_mode_clamp = mf::build::SI1_SO<int8_t, int8_t>(
         "Knots Mode Validate",
@@ -247,7 +247,7 @@ static const auto &builtin_attributes()
         mf::build::exec_presets::AllSpanOrSingle());
     AttrBuiltinInfo knots_mode(AttrDomain::Curve, AttrType::Int8);
     knots_mode.validator = AttributeValidator{&knots_mode_clamp};
-    map.add_new("knots_mode", std::move(knots_mode));
+    map.add_new("knots_mode"_ustr, std::move(knots_mode));
 
     static const auto curve_type_clamp = mf::build::SI1_SO<int8_t, int8_t>(
         "Curve Type Validate",
@@ -257,7 +257,7 @@ static const auto &builtin_attributes()
         mf::build::exec_presets::AllSpanOrSingle());
     AttrBuiltinInfo curve_type(AttrDomain::Curve, AttrType::Int8);
     curve_type.validator = AttributeValidator{&curve_type_clamp};
-    map.add_new("curve_type", std::move(curve_type));
+    map.add_new("curve_type"_ustr, std::move(curve_type));
 
     static const auto resolution_clamp = mf::build::SI1_SO<int, int>(
         "Resolution Validate",
@@ -267,10 +267,10 @@ static const auto &builtin_attributes()
     AttrBuiltinInfo resolution(AttrDomain::Curve, AttrType::Int32);
     resolution.default_value = &resolution_default;
     resolution.validator = AttributeValidator{&resolution_clamp};
-    map.add_new("resolution", std::move(resolution));
+    map.add_new("resolution"_ustr, std::move(resolution));
 
     AttrBuiltinInfo cyclic(AttrDomain::Curve, AttrType::Bool);
-    map.add_new("cyclic", std::move(cyclic));
+    map.add_new("cyclic"_ustr, std::move(cyclic));
 
     static const auto material_index_clamp = mf::build::SI1_SO<int, int>(
         "Material Index Validate",
@@ -281,7 +281,7 @@ static const auto &builtin_attributes()
         mf::build::exec_presets::AllSpanOrSingle());
     AttrBuiltinInfo material_index(AttrDomain::Curve, AttrType::Int32);
     material_index.validator = AttributeValidator{&material_index_clamp};
-    map.add_new("material_index", std::move(material_index));
+    map.add_new("material_index"_ustr, std::move(material_index));
 
     return map;
   }();
@@ -290,8 +290,11 @@ static const auto &builtin_attributes()
 
 static const auto &array_storage_required()
 {
-  static Set<StringRef> attributes{
-      "position", "handle_left", "handle_right", "nurbs_weight", "surface_uv_coordinate"};
+  static Set<UString> attributes{"position"_ustr,
+                                 "handle_left"_ustr,
+                                 "handle_right"_ustr,
+                                 "nurbs_weight"_ustr,
+                                 "surface_uv_coordinate"_ustr};
   return attributes;
 }
 
@@ -305,20 +308,20 @@ static AttributeAccessorFunctions get_curves_accessor_functions()
   };
   fn.domain_size = get_domain_size;
   fn.builtin_domain_and_type = [](const void * /*owner*/,
-                                  const StringRef name) -> std::optional<AttributeDomainAndType> {
+                                  const UString name) -> std::optional<AttributeDomainAndType> {
     const AttrBuiltinInfo *info = builtin_attributes().lookup_ptr(name);
     if (!info) {
       return std::nullopt;
     }
     return AttributeDomainAndType{info->domain, info->type};
   };
-  fn.get_builtin_default = [](const void * /*owner*/, StringRef name) -> GPointer {
+  fn.get_builtin_default = [](const void * /*owner*/, UString name) -> GPointer {
     const AttrBuiltinInfo &info = builtin_attributes().lookup(name);
     return info.default_value;
   };
-  fn.lookup_meta_data = [](const void *owner, StringRef name) -> std::optional<AttributeMetaData> {
+  fn.lookup_meta_data = [](const void *owner, UString name) -> std::optional<AttributeMetaData> {
     const CurvesGeometry &curves = *static_cast<const CurvesGeometry *>(owner);
-    if (BKE_defgroup_name_index(&curves.vertex_group_names, name) != -1) {
+    if (BKE_defgroup_name_index(&curves.vertex_group_names, name.ref()) != -1) {
       return AttributeMetaData{AttrDomain::Point, AttrType::Float};
     }
     const AttributeStorage &storage = curves.attribute_storage.wrap();
@@ -328,10 +331,10 @@ static AttributeAccessorFunctions get_curves_accessor_functions()
     }
     return AttributeMetaData{attr->domain(), attr->data_type()};
   };
-  fn.lookup = [](const void *owner, const StringRef name) -> GAttributeReader {
+  fn.lookup = [](const void *owner, const UString name) -> GAttributeReader {
     const CurvesGeometry &curves = *static_cast<const CurvesGeometry *>(owner);
 
-    if (GAttributeReader vertex_group = try_get_vertex_group(owner, name)) {
+    if (GAttributeReader vertex_group = try_get_vertex_group(owner, name.ref())) {
       return vertex_group;
     }
 
@@ -377,17 +380,17 @@ static AttributeAccessorFunctions get_curves_accessor_functions()
       }
     }
   };
-  fn.lookup_validator = [](const void * /*owner*/, const StringRef name) -> AttributeValidator {
+  fn.lookup_validator = [](const void * /*owner*/, const UString name) -> AttributeValidator {
     const AttrBuiltinInfo *info = builtin_attributes().lookup_ptr(name);
     if (!info) {
       return {};
     }
     return info->validator;
   };
-  fn.lookup_for_write = [](void *owner, const StringRef name) -> GAttributeWriter {
+  fn.lookup_for_write = [](void *owner, const UString name) -> GAttributeWriter {
     CurvesGeometry &curves = *static_cast<CurvesGeometry *>(owner);
 
-    if (GAttributeWriter vertex_group = try_get_vertex_group_for_write(owner, name)) {
+    if (GAttributeWriter vertex_group = try_get_vertex_group_for_write(owner, name.ref())) {
       return vertex_group;
     }
 
@@ -399,10 +402,10 @@ static AttributeAccessorFunctions get_curves_accessor_functions()
     const int domain_size = get_domain_size(owner, attr->domain());
     return attribute_to_writer(&curves, changed_tags(), domain_size, *attr);
   };
-  fn.remove = [](void *owner, const StringRef name) -> bool {
+  fn.remove = [](void *owner, const UString name) -> bool {
     CurvesGeometry &curves = *static_cast<CurvesGeometry *>(owner);
 
-    if (try_delete_vertex_group(owner, name)) {
+    if (try_delete_vertex_group(owner, name.ref())) {
       return true;
     }
 
@@ -423,7 +426,7 @@ static AttributeAccessorFunctions get_curves_accessor_functions()
     return true;
   };
   fn.add = [](void *owner,
-              const StringRef name,
+              const UString name,
               const AttrDomain domain,
               const AttrType type,
               const AttributeInit &initializer) {
@@ -448,7 +451,7 @@ static AttributeAccessorFunctions get_curves_accessor_functions()
     }
     return true;
   };
-  fn.assign_data = [](void *owner, StringRef name, const AttributeInit &initializer) {
+  fn.assign_data = [](void *owner, UString name, const AttributeInit &initializer) {
     CurvesGeometry &curves = *static_cast<CurvesGeometry *>(owner);
     AttributeStorage &storage = curves.attribute_storage.wrap();
     Attribute *attr = storage.lookup(name);

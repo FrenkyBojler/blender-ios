@@ -14,6 +14,7 @@
 
 #include "BLI_string_ref.hh"
 #include "BLI_sys_types.h"
+#include "BLI_ustring.hh"
 
 #include "BLI_vector_set.hh"
 
@@ -26,8 +27,8 @@ enum class AttrDomain : int8_t;
 namespace draw {
 
 struct DRW_MeshCDMask {
-  VectorSet<std::string> uv;
-  VectorSet<std::string> tan;
+  VectorSet<UString> uv;
+  VectorSet<UString> tan;
   bool orco = false;
   bool tan_orco = false;
   bool sculpt_overlays = false;
@@ -46,12 +47,12 @@ struct DRW_MeshCDMask {
   }
 };
 
-void drw_attributes_merge(VectorSet<std::string> *dst, const VectorSet<std::string> *src);
+void drw_attributes_merge(VectorSet<UString> *dst, const VectorSet<UString> *src);
 
 /* Return true if all requests in b are in a. */
-bool drw_attributes_overlap(const VectorSet<std::string> *a, const VectorSet<std::string> *b);
+bool drw_attributes_overlap(const VectorSet<UString> *a, const VectorSet<UString> *b);
 
-void drw_attributes_add_request(VectorSet<std::string> *attrs, StringRef name);
+void drw_attributes_add_request(VectorSet<UString> *attrs, UString name);
 
 }  // namespace draw
 }  // namespace blender

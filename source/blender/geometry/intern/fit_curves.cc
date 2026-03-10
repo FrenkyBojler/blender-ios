@@ -259,15 +259,17 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
 
   dst_curves.update_curve_types();
 
-  bke::gather_attributes(
-      src_curves.attributes(),
-      bke::AttrDomain::Point,
-      bke::AttrDomain::Point,
-      bke::attribute_filter_with_skip_ref(
-          attribute_filter,
-          {"position", "handle_left", "handle_right", "handle_type_left", "handle_type_right"}),
-      old_by_new_map,
-      dst_curves.attributes_for_write());
+  bke::gather_attributes(src_curves.attributes(),
+                         bke::AttrDomain::Point,
+                         bke::AttrDomain::Point,
+                         bke::attribute_filter_with_skip_ref(attribute_filter,
+                                                             {"position"_ustr,
+                                                              "handle_left"_ustr,
+                                                              "handle_right"_ustr,
+                                                              "handle_type_left"_ustr,
+                                                              "handle_type_right"_ustr}),
+                         old_by_new_map,
+                         dst_curves.attributes_for_write());
 
   /* Free all the data from the C-API. */
   for (MutableSpan<float3> cubic_array : cubic_array_per_curve) {

@@ -30,7 +30,7 @@ static bke::CurvesGeometry create_test_curves(Span<int> offsets, Span<bool> cycl
   /* Attribute storing original indices to test point remapping. */
   SpanAttributeWriter<int> test_indices_writer =
       curves.attributes_for_write().lookup_or_add_for_write_span<int>(
-          "test_index", bke::AttrDomain::Point, bke::AttributeInitConstruct());
+          "test_index"_ustr, bke::AttrDomain::Point, bke::AttributeInitConstruct());
   array_utils::fill_index_range(test_indices_writer.span);
   test_indices_writer.finish();
 
@@ -66,7 +66,7 @@ TEST(merge_curves, ConnectSingleCurve)
   bke::CurvesGeometry dst_curves = geometry::curves_merge_endpoints(
       src_curves, connect_to_curve, flip_direction, {});
   const VArraySpan<bool> cyclic = dst_curves.cyclic();
-  const VArraySpan<int> dst_indices = *dst_curves.attributes().lookup<int>("test_index");
+  const VArraySpan<int> dst_indices = *dst_curves.attributes().lookup<int>("test_index"_ustr);
 
   EXPECT_EQ(dst_curves.points_num(), 12);
   EXPECT_EQ(dst_curves.curves_num(), 3);
@@ -86,7 +86,7 @@ TEST(merge_curves, ReverseCurves)
   bke::CurvesGeometry dst_curves = geometry::curves_merge_endpoints(
       src_curves, connect_to_curve, flip_direction, {});
   const VArraySpan<bool> cyclic = dst_curves.cyclic();
-  const VArraySpan<int> dst_indices = *dst_curves.attributes().lookup<int>("test_index");
+  const VArraySpan<int> dst_indices = *dst_curves.attributes().lookup<int>("test_index"_ustr);
 
   EXPECT_EQ(dst_curves.points_num(), 12);
   EXPECT_EQ(dst_curves.curves_num(), 4);
@@ -106,7 +106,7 @@ TEST(merge_curves, ConnectAndReverseCurves)
   bke::CurvesGeometry dst_curves = geometry::curves_merge_endpoints(
       src_curves, connect_to_curve, flip_direction, {});
   const VArraySpan<bool> cyclic = dst_curves.cyclic();
-  const VArraySpan<int> dst_indices = *dst_curves.attributes().lookup<int>("test_index");
+  const VArraySpan<int> dst_indices = *dst_curves.attributes().lookup<int>("test_index"_ustr);
 
   EXPECT_EQ(dst_curves.points_num(), 12);
   EXPECT_EQ(dst_curves.curves_num(), 2);
@@ -126,7 +126,7 @@ TEST(merge_curves, CyclicConnection)
   bke::CurvesGeometry dst_curves = geometry::curves_merge_endpoints(
       src_curves, connect_to_curve, flip_direction, {});
   const VArraySpan<bool> cyclic = dst_curves.cyclic();
-  const VArraySpan<int> dst_indices = *dst_curves.attributes().lookup<int>("test_index");
+  const VArraySpan<int> dst_indices = *dst_curves.attributes().lookup<int>("test_index"_ustr);
 
   EXPECT_EQ(dst_curves.points_num(), 12);
   EXPECT_EQ(dst_curves.curves_num(), 3);
@@ -146,7 +146,7 @@ TEST(merge_curves, SelfConnectCurve)
   bke::CurvesGeometry dst_curves = geometry::curves_merge_endpoints(
       src_curves, connect_to_curve, flip_direction, {});
   const VArraySpan<bool> cyclic = dst_curves.cyclic();
-  const VArraySpan<int> dst_indices = *dst_curves.attributes().lookup<int>("test_index");
+  const VArraySpan<int> dst_indices = *dst_curves.attributes().lookup<int>("test_index"_ustr);
 
   EXPECT_EQ(dst_curves.points_num(), 12);
   EXPECT_EQ(dst_curves.curves_num(), 4);
@@ -166,7 +166,7 @@ TEST(merge_curves, MergeAll)
   bke::CurvesGeometry dst_curves = geometry::curves_merge_endpoints(
       src_curves, connect_to_curve, flip_direction, {});
   const VArraySpan<bool> cyclic = dst_curves.cyclic();
-  const VArraySpan<int> dst_indices = *dst_curves.attributes().lookup<int>("test_index");
+  const VArraySpan<int> dst_indices = *dst_curves.attributes().lookup<int>("test_index"_ustr);
 
   EXPECT_EQ(dst_curves.points_num(), 12);
   EXPECT_EQ(dst_curves.curves_num(), 1);
@@ -187,7 +187,7 @@ TEST(merge_curves, Branching)
   bke::CurvesGeometry dst_curves = geometry::curves_merge_endpoints(
       src_curves, connect_to_curve, flip_direction, {});
   const VArraySpan<bool> cyclic = dst_curves.cyclic();
-  const VArraySpan<int> dst_indices = *dst_curves.attributes().lookup<int>("test_index");
+  const VArraySpan<int> dst_indices = *dst_curves.attributes().lookup<int>("test_index"_ustr);
 
   EXPECT_EQ(dst_curves.points_num(), 12);
   EXPECT_EQ(dst_curves.curves_num(), 3);

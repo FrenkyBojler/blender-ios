@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_ustring.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
 
 #include "BKE_anonymous_attribute_make.hh"
@@ -883,11 +884,11 @@ void LazyFunctionForReduceForeachGeometryElement::handle_main_items_and_geometry
     const bke::AttrType cd_type = bke::cpp_type_to_attribute_type(*base_cpp_type);
 
     /* Compute output attribute name for this item. */
-    const std::string attribute_name = bke::hash_to_anonymous_attribute_name(
-        user_data.call_data->self_object()->id.name,
-        user_data.compute_context->hash(),
-        parent_.output_bnode_.identifier,
-        item.identifier);
+    const UString attribute_name(
+        bke::hash_to_anonymous_attribute_name(user_data.call_data->self_object()->id.name,
+                                              user_data.compute_context->hash(),
+                                              parent_.output_bnode_.identifier,
+                                              item.identifier));
 
     /* Create a new output attribute for the current item on each iteration component. */
     for (const ForeachElementComponent &component_info : eval_storage_.components) {
@@ -1025,16 +1026,16 @@ void LazyFunctionForReduceForeachGeometryElement::handle_generation_items_group(
   Array<GeometrySet> geometries(bodies_num + 1);
 
   /* Create attribute names for the outputs. */
-  Array<std::string> attribute_names(generation_items_range.size());
+  Array<UString> attribute_names(generation_items_range.size());
   for (const int i : generation_items_range.index_range()) {
     const int item_i = generation_items_range[i];
     const NodeForeachGeometryElementGenerationItem &item =
         node_storage.generation_items.items[item_i];
-    attribute_names[i] = bke::hash_to_anonymous_attribute_name(
-        user_data.call_data->self_object()->id.name,
-        user_data.compute_context->hash(),
-        parent_.output_bnode_.identifier,
-        item.identifier);
+    attribute_names[i] = UString(
+        bke::hash_to_anonymous_attribute_name(user_data.call_data->self_object()->id.name,
+                                              user_data.compute_context->hash(),
+                                              parent_.output_bnode_.identifier,
+                                              item.identifier));
   }
 
   for (const ForeachElementComponent &component_info : eval_storage_.components) {
@@ -1042,7 +1043,7 @@ void LazyFunctionForReduceForeachGeometryElement::handle_generation_items_group(
 
     /* These are the attributes we need to propagate from the original input geometry. */
     struct NameWithType {
-      StringRef name;
+      UString name;
       bke::AttrType type;
     };
     Vector<NameWithType> attributes_to_propagate;
@@ -1055,7 +1056,7 @@ void LazyFunctionForReduceForeachGeometryElement::handle_generation_items_group(
       }
       attributes_to_propagate.append({iter.name, iter.data_type});
     });
-    Map<StringRef, GVArray> cached_adapted_src_attributes;
+    Map<UString, GVArray> cached_adapted_src_attributes;
 
     const IndexMask mask = component_info.field_evaluator->get_evaluated_selection_as_mask();
 
@@ -1090,7 +1091,7 @@ void LazyFunctionForReduceForeachGeometryElement::handle_generation_items_group(
 
         /* Propagate attributes from the input geometry. */
         for (const NameWithType &name_with_type : attributes_to_propagate) {
-          const StringRef name = name_with_type.name;
+          const UString name = name_with_type.name;
           const bke::AttrType data_type = name_with_type.type;
           if (src_attributes.is_builtin(name) && !dst_attributes.is_builtin(name)) {
             continue;
@@ -1184,7 +1185,7 @@ void LazyFunctionForReduceForeachGeometryElement::handle_generation_items_group(
         node_storage.generation_items.items[item_i];
     const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
     const CPPType &base_cpp_type = *bke::socket_type_to_geo_nodes_base_cpp_type(socket_type);
-    const StringRef attribute_name = attribute_names[local_item_i];
+    const UString attribute_name = attribute_names[local_item_i];
     auto attribute_field = std::make_shared<bke::AttributeFieldInput>(
         attribute_name,
         base_cpp_type,

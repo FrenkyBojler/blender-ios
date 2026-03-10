@@ -94,9 +94,9 @@ static void geometry_set_mesh_to_points(GeometrySet &geometry_set,
   if (share_position) {
     /* Create an empty point cloud so the positions can be shared. */
     pointcloud = bke::pointcloud_new_no_attributes(mesh->verts_num);
-    const bke::AttributeReader src = src_attributes.lookup<float3>("position");
+    const bke::AttributeReader src = src_attributes.lookup<float3>("position"_ustr);
     const bke::AttributeInitShared init(src.varray.get_internal_span().data(), *src.sharing_info);
-    pointcloud->attributes_for_write().add<float3>("position", AttrDomain::Point, init);
+    pointcloud->attributes_for_write().add<float3>("position"_ustr, AttrDomain::Point, init);
   }
   else {
     pointcloud = BKE_pointcloud_new_nomain(selection.size());
@@ -107,11 +107,12 @@ static void geometry_set_mesh_to_points(GeometrySet &geometry_set,
   {
     const VArray<float> radii = evaluator.get_evaluated<float>(1);
     if (const std::optional<float> radius = radii.get_if_single()) {
-      dst_attributes.add<float>("radius", AttrDomain::Point, bke::AttributeInitValue(*radius));
+      dst_attributes.add<float>(
+          "radius"_ustr, AttrDomain::Point, bke::AttributeInitValue(*radius));
     }
     else {
       SpanAttributeWriter attr = dst_attributes.lookup_or_add_for_write_only_span<float>(
-          "radius", AttrDomain::Point);
+          "radius"_ustr, AttrDomain::Point);
       array_utils::gather(radii, selection, attr.span);
       attr.finish();
     }
@@ -125,10 +126,15 @@ static void geometry_set_mesh_to_points(GeometrySet &geometry_set,
                                                  attributes);
 
   for (const int i : attributes.names.index_range()) {
-    if (ELEM(attributes.names[i], "position", "radius", ".select_edge", ".select_poly")) {
+    if (ELEM(attributes.names[i],
+             "position"_ustr,
+             "radius"_ustr,
+             ".select_edge"_ustr,
+             ".select_poly"_ustr))
+    {
       continue;
     }
-    const StringRef src_name = attributes.names[i];
+    const UString src_name = attributes.names[i];
     const bke::AttrType data_type = attributes.kinds[i].data_type;
     const bke::GAttributeReader src = src_attributes.lookup(src_name, domain, data_type);
     if (!src) {
@@ -136,7 +142,7 @@ static void geometry_set_mesh_to_points(GeometrySet &geometry_set,
       continue;
     }
 
-    const StringRef dst_name = src_name == ".select_vert" ? ".selection" : src_name;
+    const UString dst_name = src_name == ".select_vert"_ustr ? ".selection"_ustr : src_name;
     const CommonVArrayInfo info = src.varray.common_info();
     if (info.type == CommonVArrayInfo::Type::Single) {
       const CPPType &type = src.varray.type();

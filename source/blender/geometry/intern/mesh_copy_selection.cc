@@ -103,9 +103,9 @@ static void gather_vert_attributes(const Mesh &mesh_src,
                                    const IndexMask &vert_mask,
                                    Mesh &mesh_dst)
 {
-  Set<std::string> vertex_group_names;
+  Set<UString> vertex_group_names;
   for (bDeformGroup &group : mesh_src.vertex_group_names) {
-    vertex_group_names.add(group.name);
+    vertex_group_names.add(UString(group.name));
   }
 
   const Span<MDeformVert> src = mesh_src.deform_verts();
@@ -206,14 +206,17 @@ std::optional<Mesh *> mesh_copy_selection(const Mesh &src_mesh,
       vert_mask.size(), edge_mask.size(), face_mask.size(), 0);
   BKE_mesh_copy_parameters_for_eval(dst_mesh, &src_mesh);
   bke::MutableAttributeAccessor dst_attributes = dst_mesh->attributes_for_write();
-  dst_attributes.add<int2>(".edge_verts", bke::AttrDomain::Edge, bke::AttributeInitConstruct());
+  dst_attributes.add<int2>(
+      ".edge_verts"_ustr, bke::AttrDomain::Edge, bke::AttributeInitConstruct());
   MutableSpan<int2> dst_edges = dst_mesh->edges_for_write();
 
   const OffsetIndices<int> dst_faces = offset_indices::gather_selected_offsets(
       src_faces, face_mask, dst_mesh->face_offsets_for_write());
   dst_mesh->corners_num = dst_faces.total_size();
-  dst_attributes.add<int>(".corner_vert", bke::AttrDomain::Corner, bke::AttributeInitConstruct());
-  dst_attributes.add<int>(".corner_edge", bke::AttrDomain::Corner, bke::AttributeInitConstruct());
+  dst_attributes.add<int>(
+      ".corner_vert"_ustr, bke::AttrDomain::Corner, bke::AttributeInitConstruct());
+  dst_attributes.add<int>(
+      ".corner_edge"_ustr, bke::AttrDomain::Corner, bke::AttributeInitConstruct());
   MutableSpan<int> dst_corner_verts = dst_mesh->corner_verts_for_write();
   MutableSpan<int> dst_corner_edges = dst_mesh->corner_edges_for_write();
 
@@ -246,7 +249,7 @@ std::optional<Mesh *> mesh_copy_selection(const Mesh &src_mesh,
             src_attributes,
             bke::AttrDomain::Edge,
             bke::AttrDomain::Edge,
-            bke::attribute_filter_with_skip_ref(attribute_filter, {".edge_verts"}),
+            bke::attribute_filter_with_skip_ref(attribute_filter, {".edge_verts"_ustr}),
             edge_mask,
             dst_attributes);
         bke::gather_attributes(src_attributes,
@@ -260,7 +263,7 @@ std::optional<Mesh *> mesh_copy_selection(const Mesh &src_mesh,
             bke::AttrDomain::Corner,
             bke::AttrDomain::Corner,
             bke::attribute_filter_with_skip_ref(attribute_filter,
-                                                {".corner_edge", ".corner_vert"}),
+                                                {".corner_edge"_ustr, ".corner_vert"_ustr}),
             src_faces,
             dst_faces,
             face_mask,
@@ -346,7 +349,8 @@ std::optional<Mesh *> mesh_copy_selection_keep_verts(const Mesh &src_mesh,
   const OffsetIndices<int> dst_faces = offset_indices::gather_selected_offsets(
       src_faces, face_mask, dst_mesh->face_offsets_for_write());
   dst_mesh->corners_num = dst_faces.total_size();
-  dst_attributes.add<int>(".corner_edge", bke::AttrDomain::Corner, bke::AttributeInitConstruct());
+  dst_attributes.add<int>(
+      ".corner_edge"_ustr, bke::AttrDomain::Corner, bke::AttributeInitConstruct());
   MutableSpan<int> dst_corner_edges = dst_mesh->corner_edges_for_write();
 
   threading::parallel_invoke(
@@ -381,7 +385,7 @@ std::optional<Mesh *> mesh_copy_selection_keep_verts(const Mesh &src_mesh,
             src_attributes,
             bke::AttrDomain::Corner,
             bke::AttrDomain::Corner,
-            bke::attribute_filter_with_skip_ref(attribute_filter, {".corner_edge"}),
+            bke::attribute_filter_with_skip_ref(attribute_filter, {".corner_edge"_ustr}),
             src_faces,
             dst_faces,
             face_mask,
@@ -442,8 +446,10 @@ std::optional<Mesh *> mesh_copy_selection_keep_edges(const Mesh &src_mesh,
   const OffsetIndices<int> dst_faces = offset_indices::gather_selected_offsets(
       src_faces, face_mask, dst_mesh->face_offsets_for_write());
   dst_mesh->corners_num = dst_faces.total_size();
-  dst_attributes.add<int>(".corner_vert", bke::AttrDomain::Corner, bke::AttributeInitConstruct());
-  dst_attributes.add<int>(".corner_edge", bke::AttrDomain::Corner, bke::AttributeInitConstruct());
+  dst_attributes.add<int>(
+      ".corner_vert"_ustr, bke::AttrDomain::Corner, bke::AttributeInitConstruct());
+  dst_attributes.add<int>(
+      ".corner_edge"_ustr, bke::AttrDomain::Corner, bke::AttributeInitConstruct());
 
   bke::copy_attributes(src_attributes,
                        bke::AttrDomain::Point,

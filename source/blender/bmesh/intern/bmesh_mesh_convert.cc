@@ -115,12 +115,12 @@ static CLG_LogRef LOG = {"geom.bmesh.convert"};
 
 using bke::AttrDomain;
 
-bool BM_attribute_stored_in_bmesh_builtin(const StringRef name)
+bool BM_attribute_stored_in_bmesh_builtin(const UString name)
 {
   if (name.is_empty()) {
     return false;
   }
-  if (name[0] == '.') {
+  if (name.string()[0] == '.') {
     return ELEM(name,
                 ".edge_verts",
                 ".corner_vert",
@@ -226,7 +226,7 @@ static Vector<MeshToBMeshLayerInfo> mesh_to_bm_copy_info_calc(const Mesh &mesh,
     MeshToBMeshLayerInfo info{};
     info.type = type;
     info.bmesh_offset = bm_layer.offset;
-    if (const bke::Attribute *attr = storage.lookup(layer_name)) {
+    if (const bke::Attribute *attr = storage.lookup(UString(layer_name))) {
       switch (attr->storage_type()) {
         case bke::AttrStorageType::Array: {
           const auto &array_data = std::get<bke::Attribute::ArrayData>(attr->data());
@@ -295,7 +295,7 @@ static CustomData get_mesh_to_bm_custom_data(const Mesh &mesh,
     if ((CD_TYPE_AS_MASK(data_type) & cd_type_mask) == 0) {
       continue;
     }
-    CustomData_add_layer_named(&custom_data, data_type, CD_SET_DEFAULT, 0, attr.name());
+    CustomData_add_layer_named(&custom_data, data_type, CD_SET_DEFAULT, 0, attr.name().ref());
   }
   const CustomData &mesh_data = get_mesh_custom_data(mesh, domain);
   for (const CustomDataLayer &layer : Span(mesh_data.layers, mesh_data.totlayer)) {
@@ -393,12 +393,12 @@ void BM_mesh_bm_from_me(BMesh *bm, const Mesh *mesh, const BMeshFromMeshParams *
   }
 
   {
-    const StringRef name = mesh->active_uv_map_name();
+    const StringRef name = mesh->active_uv_map_name().ref();
     const int index = CustomData_get_named_layer_index(&bm->ldata, CD_PROP_FLOAT2, name);
     CustomData_set_layer_active_index(&bm->ldata, CD_PROP_FLOAT2, std::max(index, 0));
   }
   {
-    const StringRef name = mesh->default_uv_map_name();
+    const StringRef name = mesh->default_uv_map_name().ref();
     const int index = CustomData_get_named_layer_index(&bm->ldata, CD_PROP_FLOAT2, name);
     CustomData_set_layer_render_index(&bm->ldata, CD_PROP_FLOAT2, std::max(index, 0));
   }
@@ -511,22 +511,24 @@ void BM_mesh_bm_from_me(BMesh *bm, const Mesh *mesh, const BMeshFromMeshParams *
                                            -1;
 
   const bke::AttributeAccessor attributes = mesh->attributes();
-  const VArraySpan select_vert = *attributes.lookup<bool>(".select_vert", AttrDomain::Point);
-  const VArraySpan select_edge = *attributes.lookup<bool>(".select_edge", AttrDomain::Edge);
-  const VArraySpan select_poly = *attributes.lookup<bool>(".select_poly", AttrDomain::Face);
-  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", AttrDomain::Point);
-  const VArraySpan hide_edge = *attributes.lookup<bool>(".hide_edge", AttrDomain::Edge);
-  const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly", AttrDomain::Face);
-  const VArraySpan material_indices = *attributes.lookup<int>("material_index", AttrDomain::Face);
-  const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face", AttrDomain::Face);
-  const VArraySpan sharp_edges = *attributes.lookup<bool>("sharp_edge", AttrDomain::Edge);
-  const VArraySpan uv_seams = *attributes.lookup<bool>("uv_seam", AttrDomain::Edge);
+  const VArraySpan select_vert = *attributes.lookup<bool>(".select_vert"_ustr, AttrDomain::Point);
+  const VArraySpan select_edge = *attributes.lookup<bool>(".select_edge"_ustr, AttrDomain::Edge);
+  const VArraySpan select_poly = *attributes.lookup<bool>(".select_poly"_ustr, AttrDomain::Face);
+  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert"_ustr, AttrDomain::Point);
+  const VArraySpan hide_edge = *attributes.lookup<bool>(".hide_edge"_ustr, AttrDomain::Edge);
+  const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly"_ustr, AttrDomain::Face);
+  const VArraySpan material_indices = *attributes.lookup<int>("material_index"_ustr,
+                                                              AttrDomain::Face);
+  const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face"_ustr, AttrDomain::Face);
+  const VArraySpan sharp_edges = *attributes.lookup<bool>("sharp_edge"_ustr, AttrDomain::Edge);
+  const VArraySpan uv_seams = *attributes.lookup<bool>("uv_seam"_ustr, AttrDomain::Edge);
 
-  const VArraySpan uv_select_vert = *attributes.lookup<bool>(".uv_select_vert",
+  const VArraySpan uv_select_vert = *attributes.lookup<bool>(".uv_select_vert"_ustr,
                                                              AttrDomain::Corner);
-  const VArraySpan uv_select_edge = *attributes.lookup<bool>(".uv_select_edge",
+  const VArraySpan uv_select_edge = *attributes.lookup<bool>(".uv_select_edge"_ustr,
                                                              AttrDomain::Corner);
-  const VArraySpan uv_select_face = *attributes.lookup<bool>(".uv_select_face", AttrDomain::Face);
+  const VArraySpan uv_select_face = *attributes.lookup<bool>(".uv_select_face"_ustr,
+                                                             AttrDomain::Face);
 
   const bool need_uv_select = is_new && (!uv_select_vert.is_empty() &&
                                          !uv_select_edge.is_empty() && !uv_select_face.is_empty());
@@ -1222,7 +1224,8 @@ static Vector<BMeshToMeshLayerInfo> bm_to_mesh_copy_info_calc(const CustomData &
       continue;
     }
     const eCustomDataType cd_type = *bke::attr_type_to_custom_data_type(attr.data_type());
-    const int bm_layer_index = CustomData_get_named_layer_index(&bm_data, cd_type, attr.name());
+    const int bm_layer_index = CustomData_get_named_layer_index(
+        &bm_data, cd_type, attr.name().ref());
     if (bm_layer_index == -1) {
       continue;
     }
@@ -1368,7 +1371,7 @@ class AttrSingleValueChecker {
  public:
   AttrSingleValueChecker(bke::AttributeStorage &storage,
                          const bke::AttrDomain domain,
-                         const Set<StringRef> &skip_names)
+                         const Set<UString> &skip_names)
   {
     for (bke::Attribute &attr : storage) {
       if (attr.domain() != domain) {
@@ -1599,7 +1602,7 @@ static void add_bm_cd_to_mesh(const BMesh &bm,
     const eCustomDataType cd_type = eCustomDataType(layer.type);
     if (const std::optional<bke::AttrType> attr_type = bke::custom_data_type_to_attr_type(cd_type))
     {
-      attrs.add(layer.name, domain, *attr_type, bke::AttributeInitConstruct());
+      attrs.add(UString(layer.name), domain, *attr_type, bke::AttributeInitConstruct());
     }
     else {
       if ((CD_TYPE_AS_MASK(cd_type) & cd_type_mask) == 0) {
@@ -1743,49 +1746,55 @@ void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *mesh, const BMeshToMeshParam
   bke::SpanAttributeWriter<bool> uv_select_face;
   bke::SpanAttributeWriter<int> material_index;
   if (need_select_vert) {
-    select_vert = attrs.lookup_or_add_for_write_only_span<bool>(".select_vert", AttrDomain::Point);
+    select_vert = attrs.lookup_or_add_for_write_only_span<bool>(".select_vert"_ustr,
+                                                                AttrDomain::Point);
   }
   if (need_hide_vert) {
-    hide_vert = attrs.lookup_or_add_for_write_only_span<bool>(".hide_vert", AttrDomain::Point);
+    hide_vert = attrs.lookup_or_add_for_write_only_span<bool>(".hide_vert"_ustr,
+                                                              AttrDomain::Point);
   }
   if (need_select_edge) {
-    select_edge = attrs.lookup_or_add_for_write_only_span<bool>(".select_edge", AttrDomain::Edge);
+    select_edge = attrs.lookup_or_add_for_write_only_span<bool>(".select_edge"_ustr,
+                                                                AttrDomain::Edge);
   }
   if (need_sharp_edge) {
-    sharp_edge = attrs.lookup_or_add_for_write_only_span<bool>("sharp_edge", AttrDomain::Edge);
+    sharp_edge = attrs.lookup_or_add_for_write_only_span<bool>("sharp_edge"_ustr,
+                                                               AttrDomain::Edge);
   }
   if (need_uv_seams) {
-    uv_seams = attrs.lookup_or_add_for_write_only_span<bool>("uv_seam", AttrDomain::Edge);
+    uv_seams = attrs.lookup_or_add_for_write_only_span<bool>("uv_seam"_ustr, AttrDomain::Edge);
   }
   if (need_hide_edge) {
-    hide_edge = attrs.lookup_or_add_for_write_only_span<bool>(".hide_edge", AttrDomain::Edge);
+    hide_edge = attrs.lookup_or_add_for_write_only_span<bool>(".hide_edge"_ustr, AttrDomain::Edge);
   }
   if (need_select_poly) {
-    select_poly = attrs.lookup_or_add_for_write_only_span<bool>(".select_poly", AttrDomain::Face);
+    select_poly = attrs.lookup_or_add_for_write_only_span<bool>(".select_poly"_ustr,
+                                                                AttrDomain::Face);
   }
   if (need_hide_poly) {
-    hide_poly = attrs.lookup_or_add_for_write_only_span<bool>(".hide_poly", AttrDomain::Face);
+    hide_poly = attrs.lookup_or_add_for_write_only_span<bool>(".hide_poly"_ustr, AttrDomain::Face);
   }
   if (need_sharp_face) {
-    sharp_face = attrs.lookup_or_add_for_write_only_span<bool>("sharp_face", AttrDomain::Face);
+    sharp_face = attrs.lookup_or_add_for_write_only_span<bool>("sharp_face"_ustr,
+                                                               AttrDomain::Face);
   }
   if (need_uv_select) {
-    uv_select_vert = attrs.lookup_or_add_for_write_only_span<bool>(".uv_select_vert",
+    uv_select_vert = attrs.lookup_or_add_for_write_only_span<bool>(".uv_select_vert"_ustr,
                                                                    AttrDomain::Corner);
-    uv_select_edge = attrs.lookup_or_add_for_write_only_span<bool>(".uv_select_edge",
+    uv_select_edge = attrs.lookup_or_add_for_write_only_span<bool>(".uv_select_edge"_ustr,
                                                                    AttrDomain::Corner);
-    uv_select_face = attrs.lookup_or_add_for_write_only_span<bool>(".uv_select_face",
+    uv_select_face = attrs.lookup_or_add_for_write_only_span<bool>(".uv_select_face"_ustr,
                                                                    AttrDomain::Face);
   }
   if (need_material_index) {
-    material_index = attrs.lookup_or_add_for_write_only_span<int>("material_index",
+    material_index = attrs.lookup_or_add_for_write_only_span<int>("material_index"_ustr,
                                                                   AttrDomain::Face);
   }
 
-  attrs.add<float3>("position", bke::AttrDomain::Point, bke::AttributeInitConstruct());
-  attrs.add<int2>(".edge_verts", bke::AttrDomain::Edge, bke::AttributeInitConstruct());
-  attrs.add<int>(".corner_vert", bke::AttrDomain::Corner, bke::AttributeInitConstruct());
-  attrs.add<int>(".corner_edge", bke::AttrDomain::Corner, bke::AttributeInitConstruct());
+  attrs.add<float3>("position"_ustr, bke::AttrDomain::Point, bke::AttributeInitConstruct());
+  attrs.add<int2>(".edge_verts"_ustr, bke::AttrDomain::Edge, bke::AttributeInitConstruct());
+  attrs.add<int>(".corner_vert"_ustr, bke::AttrDomain::Corner, bke::AttributeInitConstruct());
+  attrs.add<int>(".corner_edge"_ustr, bke::AttrDomain::Corner, bke::AttributeInitConstruct());
 
   const Vector<BMeshToMeshLayerInfo> vert_copy_info = bm_to_mesh_copy_info_calc(
       bm->vdata, bke::AttrDomain::Point, *mesh);
@@ -1796,13 +1805,14 @@ void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *mesh, const BMeshToMeshParam
   const Vector<BMeshToMeshLayerInfo> corner_copy_info = bm_to_mesh_copy_info_calc(
       bm->ldata, bke::AttrDomain::Corner, *mesh);
   AttrSingleValueChecker vert_single_checker(
-      mesh->attribute_storage.wrap(), bke::AttrDomain::Point, {"position"});
+      mesh->attribute_storage.wrap(), bke::AttrDomain::Point, {"position"_ustr});
   AttrSingleValueChecker edge_single_checker(
-      mesh->attribute_storage.wrap(), bke::AttrDomain::Edge, {".edge_verts"});
+      mesh->attribute_storage.wrap(), bke::AttrDomain::Edge, {".edge_verts"_ustr});
   AttrSingleValueChecker face_single_checker(
       mesh->attribute_storage.wrap(), bke::AttrDomain::Face, {});
-  AttrSingleValueChecker corner_single_checker(
-      mesh->attribute_storage.wrap(), bke::AttrDomain::Corner, {".corner_vert", ".corner_edge"});
+  AttrSingleValueChecker corner_single_checker(mesh->attribute_storage.wrap(),
+                                               bke::AttrDomain::Corner,
+                                               {".corner_vert"_ustr, ".corner_edge"_ustr});
 
   /* Loop over all elements in parallel, copying attributes and building the Mesh topology. */
   threading::parallel_invoke(
@@ -2037,53 +2047,58 @@ void BM_mesh_bm_to_me_compact(BMesh &bm,
   bke::MutableAttributeAccessor attrs = mesh.attributes_for_write();
   if (add_mesh_attributes) {
     if (need_select_vert) {
-      select_vert = attrs.lookup_or_add_for_write_only_span<bool>(".select_vert",
+      select_vert = attrs.lookup_or_add_for_write_only_span<bool>(".select_vert"_ustr,
                                                                   AttrDomain::Point);
     }
     if (need_hide_vert) {
-      hide_vert = attrs.lookup_or_add_for_write_only_span<bool>(".hide_vert", AttrDomain::Point);
+      hide_vert = attrs.lookup_or_add_for_write_only_span<bool>(".hide_vert"_ustr,
+                                                                AttrDomain::Point);
     }
     if (need_select_edge) {
-      select_edge = attrs.lookup_or_add_for_write_only_span<bool>(".select_edge",
+      select_edge = attrs.lookup_or_add_for_write_only_span<bool>(".select_edge"_ustr,
                                                                   AttrDomain::Edge);
     }
     if (need_sharp_edge) {
-      sharp_edge = attrs.lookup_or_add_for_write_only_span<bool>("sharp_edge", AttrDomain::Edge);
+      sharp_edge = attrs.lookup_or_add_for_write_only_span<bool>("sharp_edge"_ustr,
+                                                                 AttrDomain::Edge);
     }
     if (need_uv_seams) {
-      uv_seams = attrs.lookup_or_add_for_write_only_span<bool>("uv_seam", AttrDomain::Edge);
+      uv_seams = attrs.lookup_or_add_for_write_only_span<bool>("uv_seam"_ustr, AttrDomain::Edge);
     }
     if (need_hide_edge) {
-      hide_edge = attrs.lookup_or_add_for_write_only_span<bool>(".hide_edge", AttrDomain::Edge);
+      hide_edge = attrs.lookup_or_add_for_write_only_span<bool>(".hide_edge"_ustr,
+                                                                AttrDomain::Edge);
     }
     if (need_select_poly) {
-      select_poly = attrs.lookup_or_add_for_write_only_span<bool>(".select_poly",
+      select_poly = attrs.lookup_or_add_for_write_only_span<bool>(".select_poly"_ustr,
                                                                   AttrDomain::Face);
     }
     if (need_hide_poly) {
-      hide_poly = attrs.lookup_or_add_for_write_only_span<bool>(".hide_poly", AttrDomain::Face);
+      hide_poly = attrs.lookup_or_add_for_write_only_span<bool>(".hide_poly"_ustr,
+                                                                AttrDomain::Face);
     }
     if (need_sharp_face) {
-      sharp_face = attrs.lookup_or_add_for_write_only_span<bool>("sharp_face", AttrDomain::Face);
+      sharp_face = attrs.lookup_or_add_for_write_only_span<bool>("sharp_face"_ustr,
+                                                                 AttrDomain::Face);
     }
     if (need_uv_select) {
-      uv_select_vert = attrs.lookup_or_add_for_write_only_span<bool>(".uv_select_vert",
+      uv_select_vert = attrs.lookup_or_add_for_write_only_span<bool>(".uv_select_vert"_ustr,
                                                                      AttrDomain::Corner);
-      uv_select_edge = attrs.lookup_or_add_for_write_only_span<bool>(".uv_select_edge",
+      uv_select_edge = attrs.lookup_or_add_for_write_only_span<bool>(".uv_select_edge"_ustr,
                                                                      AttrDomain::Corner);
-      uv_select_face = attrs.lookup_or_add_for_write_only_span<bool>(".uv_select_face",
+      uv_select_face = attrs.lookup_or_add_for_write_only_span<bool>(".uv_select_face"_ustr,
                                                                      AttrDomain::Face);
     }
     if (need_material_index) {
-      material_index = attrs.lookup_or_add_for_write_only_span<int>("material_index",
+      material_index = attrs.lookup_or_add_for_write_only_span<int>("material_index"_ustr,
                                                                     AttrDomain::Face);
     }
   }
 
-  attrs.add<float3>("position", bke::AttrDomain::Point, bke::AttributeInitConstruct());
-  attrs.add<int2>(".edge_verts", bke::AttrDomain::Edge, bke::AttributeInitConstruct());
-  attrs.add<int>(".corner_vert", bke::AttrDomain::Corner, bke::AttributeInitConstruct());
-  attrs.add<int>(".corner_edge", bke::AttrDomain::Corner, bke::AttributeInitConstruct());
+  attrs.add<float3>("position"_ustr, bke::AttrDomain::Point, bke::AttributeInitConstruct());
+  attrs.add<int2>(".edge_verts"_ustr, bke::AttrDomain::Edge, bke::AttributeInitConstruct());
+  attrs.add<int>(".corner_vert"_ustr, bke::AttrDomain::Corner, bke::AttributeInitConstruct());
+  attrs.add<int>(".corner_edge"_ustr, bke::AttrDomain::Corner, bke::AttributeInitConstruct());
 
   const Vector<BMeshToMeshLayerInfo> vert_copy_info = bm_to_mesh_copy_info_calc(
       bm.vdata, bke::AttrDomain::Point, mesh);
@@ -2094,13 +2109,14 @@ void BM_mesh_bm_to_me_compact(BMesh &bm,
   const Vector<BMeshToMeshLayerInfo> corner_copy_info = bm_to_mesh_copy_info_calc(
       bm.ldata, bke::AttrDomain::Corner, mesh);
   AttrSingleValueChecker vert_single_checker(
-      mesh.attribute_storage.wrap(), bke::AttrDomain::Point, {"position"});
+      mesh.attribute_storage.wrap(), bke::AttrDomain::Point, {"position"_ustr});
   AttrSingleValueChecker edge_single_checker(
-      mesh.attribute_storage.wrap(), bke::AttrDomain::Edge, {".edge_verts"});
+      mesh.attribute_storage.wrap(), bke::AttrDomain::Edge, {".edge_verts"_ustr});
   AttrSingleValueChecker face_single_checker(
       mesh.attribute_storage.wrap(), bke::AttrDomain::Face, {});
-  AttrSingleValueChecker corner_single_checker(
-      mesh.attribute_storage.wrap(), bke::AttrDomain::Corner, {".corner_vert", ".corner_edge"});
+  AttrSingleValueChecker corner_single_checker(mesh.attribute_storage.wrap(),
+                                               bke::AttrDomain::Corner,
+                                               {".corner_vert"_ustr, ".corner_edge"_ustr});
 
   /* Loop over all elements in parallel, copying attributes and building the Mesh topology. */
   threading::parallel_invoke(

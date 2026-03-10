@@ -528,9 +528,9 @@ static void grow_pose_factor(const Depsgraph &depsgraph,
         const Span<int> corner_verts = mesh.corner_verts();
         const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
         const bke::AttributeAccessor attributes = mesh.attributes();
-        const VArraySpan<bool> hide_vert = *attributes.lookup<bool>(".hide_vert",
+        const VArraySpan<bool> hide_vert = *attributes.lookup<bool>(".hide_vert"_ustr,
                                                                     bke::AttrDomain::Point);
-        const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly",
+        const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly"_ustr,
                                                                     bke::AttrDomain::Face);
         gftd = threading::parallel_reduce(
             node_mask.index_range(),
@@ -929,7 +929,8 @@ static std::unique_ptr<IKChain> ik_chain_init_topology(const Depsgraph &depsgrap
       const Mesh &mesh = *id_cast<const Mesh *>(object.data);
       const Span<float3> vert_positions = bke::pbvh::vert_positions_eval(depsgraph, object);
       const bke::AttributeAccessor attributes = mesh.attributes();
-      VArraySpan<bool> hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
+      VArraySpan<bool> hide_vert = *attributes.lookup<bool>(".hide_vert"_ustr,
+                                                            bke::AttrDomain::Point);
       std::optional<int> nearest = nearest_vert_calc_mesh(pbvh,
                                                           vert_positions,
                                                           hide_vert,
@@ -1043,11 +1044,12 @@ static std::unique_ptr<IKChain> ik_chain_init_face_sets_mesh(const Depsgraph &de
   const Span<int> corner_verts = mesh.corner_verts();
   const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
   const bke::AttributeAccessor attributes = mesh.attributes();
-  const VArraySpan<bool> hide_vert = *attributes.lookup<bool>(".hide_vert",
+  const VArraySpan<bool> hide_vert = *attributes.lookup<bool>(".hide_vert"_ustr,
                                                               bke::AttrDomain::Point);
-  const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
+  const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly"_ustr,
+                                                              bke::AttrDomain::Face);
   const VArraySpan face_sets = *attributes.lookup_or_default<int>(
-      ".sculpt_face_set", bke::AttrDomain::Face, 0);
+      ".sculpt_face_set"_ustr, bke::AttrDomain::Face, 0);
 
   std::unique_ptr<IKChain> ik_chain = ik_chain_new(brush_num_effective_segments(brush),
                                                    vert_positions.size());
@@ -1214,7 +1216,7 @@ static std::unique_ptr<IKChain> ik_chain_init_face_sets_grids(Object &object,
   const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
   const bke::AttributeAccessor attributes = mesh.attributes();
   const VArraySpan face_sets = *attributes.lookup_or_default<int>(
-      ".sculpt_face_set", bke::AttrDomain::Face, 0);
+      ".sculpt_face_set"_ustr, bke::AttrDomain::Face, 0);
 
   const SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
   const Span<float3> positions = subdiv_ccg.positions;
@@ -1570,7 +1572,7 @@ static std::optional<float3> calc_average_face_set_center(const Depsgraph &depsg
       const Span<float3> vert_positions = bke::pbvh::vert_positions_eval(depsgraph, object);
       const bke::AttributeAccessor attributes = mesh.attributes();
       const VArraySpan face_sets = *attributes.lookup_or_default<int>(
-          ".sculpt_face_set", bke::AttrDomain::Face, 0);
+          ".sculpt_face_set"_ustr, bke::AttrDomain::Face, 0);
 
       for (const int vert : vert_positions.index_range()) {
         if (floodfill_step[vert] != 0 &&
@@ -1590,7 +1592,7 @@ static std::optional<float3> calc_average_face_set_center(const Depsgraph &depsg
       const Mesh &mesh = *id_cast<Mesh *>(object.data);
       const bke::AttributeAccessor attributes = mesh.attributes();
       const VArraySpan face_sets = *attributes.lookup_or_default<int>(
-          ".sculpt_face_set", bke::AttrDomain::Face, 0);
+          ".sculpt_face_set"_ustr, bke::AttrDomain::Face, 0);
 
       const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
       for (const int grid : IndexRange(subdiv_ccg.grids_num)) {
@@ -1643,7 +1645,7 @@ static std::unique_ptr<IKChain> ik_chain_init_face_sets_fk_mesh(const Depsgraph 
   const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
   const bke::AttributeAccessor attributes = mesh.attributes();
   const VArraySpan face_sets = *attributes.lookup_or_default<int>(
-      ".sculpt_face_set", bke::AttrDomain::Face, 0);
+      ".sculpt_face_set"_ustr, bke::AttrDomain::Face, 0);
 
   std::unique_ptr<IKChain> ik_chain = ik_chain_new(1, mesh.verts_num);
 
@@ -1723,7 +1725,7 @@ static std::unique_ptr<IKChain> ik_chain_init_face_sets_fk_grids(const Depsgraph
   const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
   const bke::AttributeAccessor attributes = mesh.attributes();
   const VArraySpan face_sets = *attributes.lookup_or_default<int>(
-      ".sculpt_face_set", bke::AttrDomain::Face, 0);
+      ".sculpt_face_set"_ustr, bke::AttrDomain::Face, 0);
 
   const SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);

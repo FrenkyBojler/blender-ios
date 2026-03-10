@@ -167,7 +167,7 @@ static bool update_auto_handle_types(bke::CurvesGeometry &curves,
                                      const IndexMask &auto_handles_opposite,
                                      const IndexMask &selected_handles,
                                      const IndexMask &selected_handles_opposite,
-                                     const StringRef handle_type_name,
+                                     const UString handle_type_name,
                                      IndexMaskMemory &memory)
 {
   index_mask::ExprBuilder builder;
@@ -193,7 +193,7 @@ static bool update_auto_handle_types(bke::CurvesGeometry &curves,
 
 static bool update_vector_handle_types(bke::CurvesGeometry &curves,
                                        const IndexMask &selected_handles,
-                                       const StringRef handle_type_name)
+                                       const UString handle_type_name)
 {
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
 
@@ -247,13 +247,23 @@ bool update_handle_types_for_transform(const eTfmMode mode,
     }
   }
   else {
-    changed |= update_auto_handle_types(
-        curves, auto_left, auto_right, selected_left, selected_right, "handle_type_left", memory);
-    changed |= update_auto_handle_types(
-        curves, auto_right, auto_left, selected_right, selected_left, "handle_type_right", memory);
+    changed |= update_auto_handle_types(curves,
+                                        auto_left,
+                                        auto_right,
+                                        selected_left,
+                                        selected_right,
+                                        "handle_type_left"_ustr,
+                                        memory);
+    changed |= update_auto_handle_types(curves,
+                                        auto_right,
+                                        auto_left,
+                                        selected_right,
+                                        selected_left,
+                                        "handle_type_right"_ustr,
+                                        memory);
 
-    changed |= update_vector_handle_types(curves, selected_left, "handle_type_left");
-    changed |= update_vector_handle_types(curves, selected_right, "handle_type_right");
+    changed |= update_vector_handle_types(curves, selected_left, "handle_type_left"_ustr);
+    changed |= update_vector_handle_types(curves, selected_right, "handle_type_right"_ustr);
   }
 
   if (changed) {
@@ -297,7 +307,7 @@ static void createTransCurvesVerts(bContext *C, TransInfo *t)
     bke::CurvesGeometry &curves = curves_id->geometry.wrap();
     CurvesTransformData *curves_transform_data = create_curves_transform_custom_data(
         tc.custom.type);
-    Span<StringRef> selection_attribute_names = ed::curves::get_curves_selection_attribute_names(
+    Span<UString> selection_attribute_names = ed::curves::get_curves_selection_attribute_names(
         curves);
     std::array<IndexMask, 3> selection_per_attribute;
 
@@ -311,7 +321,7 @@ static void createTransCurvesVerts(bContext *C, TransInfo *t)
         curves.points_by_curve(), bezier_curves[i], curves_transform_data->memory);
 
     for (const int attribute_i : selection_attribute_names.index_range()) {
-      const StringRef &selection_name = selection_attribute_names[attribute_i];
+      const UString selection_name = selection_attribute_names[attribute_i];
       selection_per_attribute[attribute_i] = ed::curves::retrieve_selected_points(
           curves, selection_name, bezier_points, curves_transform_data->memory);
     }
@@ -377,14 +387,14 @@ static void createTransCurvesVerts(bContext *C, TransInfo *t)
     if (t->mode == TFM_CURVE_SHRINKFATTEN) {
       bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
       attribute_writer = attributes.lookup_or_add_for_write_span<float>(
-          "radius",
+          "radius"_ustr,
           bke::AttrDomain::Point,
           bke::AttributeInitVArray(VArray<float>::from_single(0.01f, curves.points_num())));
       value_attribute = attribute_writer.span;
     }
     else if (t->mode == TFM_TILT) {
       bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-      attribute_writer = attributes.lookup_or_add_for_write_span<float>("tilt",
+      attribute_writer = attributes.lookup_or_add_for_write_span<float>("tilt"_ustr,
                                                                         bke::AttrDomain::Point);
       value_attribute = attribute_writer.span;
     }
@@ -555,7 +565,7 @@ void curve_populate_trans_data_structs(const TransInfo &t,
   const Span<float3> point_positions = curves.positions();
   const VArray<bool> cyclic = curves.cyclic();
   const VArray<bool> point_selection = *curves.attributes().lookup_or_default<bool>(
-      ".selection", bke::AttrDomain::Point, true);
+      ".selection"_ustr, bke::AttrDomain::Point, true);
   const VArray<int8_t> curve_types = curves.curve_types();
 
   std::array<MutableSpan<float3>, 3> positions_per_selection_attr;
@@ -571,9 +581,9 @@ void curve_populate_trans_data_structs(const TransInfo &t,
       tc.custom.type, points_to_transform_per_attr.size());
 
   Vector<VArray<bool>> selection_attrs;
-  Span<StringRef> selection_attribute_names = ed::curves::get_curves_selection_attribute_names(
+  Span<UString> selection_attribute_names = ed::curves::get_curves_selection_attribute_names(
       curves);
-  for (const StringRef selection_name : selection_attribute_names) {
+  for (const UString selection_name : selection_attribute_names) {
     const VArray<bool> selection_attr = *curves.attributes().lookup_or_default<bool>(
         selection_name, bke::AttrDomain::Point, true);
     selection_attrs.append(selection_attr);

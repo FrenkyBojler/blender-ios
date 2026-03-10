@@ -56,7 +56,7 @@ static bool active_attribute_poll(bContext *C)
 }
 
 static void validate_value(const bke::AttributeAccessor attributes,
-                           const StringRef name,
+                           const UString name,
                            const CPPType &type,
                            void *buffer)
 {
@@ -83,7 +83,7 @@ static wmOperatorStatus set_attribute_exec(bContext *C, wmOperator *op)
   PointCloud &active_pointcloud = *id_cast<PointCloud *>(active_object->data);
 
   AttributeOwner active_owner = AttributeOwner::from_id(&active_pointcloud.id);
-  const StringRef name = *BKE_attributes_active_name_get(active_owner);
+  const UString name = *BKE_attributes_active_name_get(active_owner);
   const bke::AttributeMetaData meta_data = *active_pointcloud.attributes().lookup_meta_data(name);
   const bke::AttrType active_type = meta_data.data_type;
   const CPPType &type = bke::attribute_type_to_cpp_type(active_type);
@@ -144,7 +144,7 @@ static wmOperatorStatus set_attribute_invoke(bContext *C, wmOperator *op, const 
 
   AttributeOwner owner = AttributeOwner::from_id(&active_pointcloud.id);
   const bke::AttributeAccessor attributes = active_pointcloud.attributes();
-  const StringRef name = *BKE_attributes_active_name_get(owner);
+  const UString name = *BKE_attributes_active_name_get(owner);
   const bke::GAttributeReader attribute = attributes.lookup(name);
 
   IndexMaskMemory memory;
@@ -185,10 +185,10 @@ static void set_attribute_ui(bContext *C, wmOperator *op)
   PointCloud &pointcloud = *id_cast<PointCloud *>(object->data);
 
   AttributeOwner owner = AttributeOwner::from_id(&pointcloud.id);
-  const StringRef name = *BKE_attributes_active_name_get(owner);
+  const UString name = *BKE_attributes_active_name_get(owner);
   const bke::AttributeMetaData meta_data = *pointcloud.attributes().lookup_meta_data(name);
   const StringRefNull prop_name = geometry::rna_property_name_for_type(meta_data.data_type);
-  layout.prop(op->ptr, prop_name, UI_ITEM_NONE, name, ICON_NONE);
+  layout.prop(op->ptr, prop_name, UI_ITEM_NONE, name.ref(), ICON_NONE);
 }
 
 void POINTCLOUD_OT_attribute_set(wmOperatorType *ot)

@@ -12,6 +12,7 @@
 #include <string>
 
 #include "BLI_set.hh"
+#include "BLI_ustring.hh"
 
 namespace blender::bke {
 
@@ -25,7 +26,7 @@ class GeometryNodesReferenceSet {
    * nodes evaluation, and this makes it very small if there is no name. Also it makes copying very
    * cheap.
    */
-  std::shared_ptr<Set<std::string>> names;
+  std::shared_ptr<Set<UString>> names;
 };
 
 }  // namespace blender::bke

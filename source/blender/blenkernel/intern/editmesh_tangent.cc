@@ -179,7 +179,7 @@ static void calc_face_as_quad_map(
 Array<Array<float4>> BKE_editmesh_uv_tangents_calc(BMEditMesh *em,
                                                    const Span<float3> face_normals,
                                                    const Span<float3> corner_normals,
-                                                   const Span<StringRef> uv_names)
+                                                   const Span<UString> uv_names)
 {
   if (em->looptris.is_empty()) {
     return {};
@@ -213,7 +213,7 @@ Array<Array<float4>> BKE_editmesh_uv_tangents_calc(BMEditMesh *em,
        * (in case it is object-enabled), have to check this is valid. */
       mesh2tangent.corner_normals = corner_normals;
       mesh2tangent.cd_loop_uv_offset = CustomData_get_offset_named(
-          &bm->ldata, CD_PROP_FLOAT2, uv_names[n]);
+          &bm->ldata, CD_PROP_FLOAT2, uv_names[n].ref());
       BLI_assert(mesh2tangent.cd_loop_uv_offset != -1);
 
       mesh2tangent.looptris = em->looptris;

@@ -82,7 +82,7 @@ int find_next_available_id(Object &object)
     case bke::pbvh::Type::Grids: {
       Mesh &mesh = *id_cast<Mesh *>(object.data);
       const bke::AttributeAccessor attributes = mesh.attributes();
-      const VArraySpan<int> face_sets = *attributes.lookup<int>(".sculpt_face_set",
+      const VArraySpan<int> face_sets = *attributes.lookup<int>(".sculpt_face_set"_ustr,
                                                                 bke::AttrDomain::Face);
       const int max = threading::parallel_reduce(
           face_sets.index_range(),
@@ -124,7 +124,7 @@ void initialize_none_to_id(Mesh *mesh, const int new_id)
 {
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   bke::SpanAttributeWriter<int> face_sets = attributes.lookup_for_write_span<int>(
-      ".sculpt_face_set");
+      ".sculpt_face_set"_ustr);
   if (!face_sets) {
     return;
   }
@@ -155,10 +155,10 @@ bool create_face_sets_mesh(Object &object)
 {
   Mesh &mesh = *id_cast<Mesh *>(object.data);
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
-  if (attributes.contains(".sculpt_face_set")) {
+  if (attributes.contains(".sculpt_face_set"_ustr)) {
     return false;
   }
-  attributes.add<int>(".sculpt_face_set", bke::AttrDomain::Face, bke::AttributeInitValue(1));
+  attributes.add<int>(".sculpt_face_set"_ustr, bke::AttrDomain::Face, bke::AttributeInitValue(1));
   mesh.face_sets_color_default = 1;
   return true;
 }
@@ -166,11 +166,13 @@ bool create_face_sets_mesh(Object &object)
 bke::SpanAttributeWriter<int> ensure_face_sets_mesh(Mesh &mesh)
 {
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
-  if (!attributes.contains(".sculpt_face_set")) {
-    attributes.add<int>(".sculpt_face_set", bke::AttrDomain::Face, bke::AttributeInitValue(1));
+  if (!attributes.contains(".sculpt_face_set"_ustr)) {
+    attributes.add<int>(
+        ".sculpt_face_set"_ustr, bke::AttrDomain::Face, bke::AttributeInitValue(1));
     mesh.face_sets_color_default = 1;
   }
-  return attributes.lookup_or_add_for_write_span<int>(".sculpt_face_set", bke::AttrDomain::Face);
+  return attributes.lookup_or_add_for_write_span<int>(".sculpt_face_set"_ustr,
+                                                      bke::AttrDomain::Face);
 }
 
 int ensure_face_sets_bmesh(Object &object)
@@ -199,7 +201,7 @@ Array<int> duplicate_face_sets(const Mesh &mesh)
 {
   const bke::AttributeAccessor attributes = mesh.attributes();
   const VArray<int> attribute = *attributes.lookup_or_default(
-      ".sculpt_face_set", bke::AttrDomain::Face, 0);
+      ".sculpt_face_set"_ustr, bke::AttrDomain::Face, 0);
   Array<int> face_sets(attribute.size());
   array_utils::copy(attribute, face_sets.as_mutable_span());
   return face_sets;
@@ -357,7 +359,7 @@ static void clear_face_sets(const Depsgraph &depsgraph, Object &object, const In
 {
   Mesh &mesh = *id_cast<Mesh *>(object.data);
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
-  if (!attributes.contains(".sculpt_face_set")) {
+  if (!attributes.contains(".sculpt_face_set"_ustr)) {
     return;
   }
   SculptSession &ss = *object.runtime->sculpt_session;
@@ -366,7 +368,8 @@ static void clear_face_sets(const Depsgraph &depsgraph, Object &object, const In
   Array<bool> node_changed(pbvh.nodes_num(), false);
 
   const int default_face_set = mesh.face_sets_color_default;
-  const VArraySpan face_sets = *attributes.lookup<int>(".sculpt_face_set", bke::AttrDomain::Face);
+  const VArraySpan face_sets = *attributes.lookup<int>(".sculpt_face_set"_ustr,
+                                                       bke::AttrDomain::Face);
   if (pbvh.type() == bke::pbvh::Type::Mesh) {
     MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
     node_mask.foreach_index(
@@ -402,7 +405,7 @@ static void clear_face_sets(const Depsgraph &depsgraph, Object &object, const In
   }
   IndexMaskMemory memory;
   pbvh.tag_face_sets_changed(IndexMask::from_bools(node_changed, memory));
-  attributes.remove(".sculpt_face_set");
+  attributes.remove(".sculpt_face_set"_ustr);
 }
 
 static wmOperatorStatus create_op_exec(bContext *C, wmOperator *op)
@@ -443,9 +446,9 @@ static wmOperatorStatus create_op_exec(bContext *C, wmOperator *op)
       if (pbvh.type() == bke::pbvh::Type::Mesh) {
         const OffsetIndices faces = mesh.faces();
         const Span<int> corner_verts = mesh.corner_verts();
-        const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly",
+        const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly"_ustr,
                                                                     bke::AttrDomain::Face);
-        const VArraySpan<float> mask = *attributes.lookup<float>(".sculpt_mask",
+        const VArraySpan<float> mask = *attributes.lookup<float>(".sculpt_mask"_ustr,
                                                                  bke::AttrDomain::Point);
         if (!mask.is_empty()) {
           face_sets_update(depsgraph,
@@ -473,7 +476,7 @@ static wmOperatorStatus create_op_exec(bContext *C, wmOperator *op)
         const SculptSession &ss = *object.runtime->sculpt_session;
         const SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
         const int grid_area = subdiv_ccg.grid_area;
-        const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly",
+        const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly"_ustr,
                                                                     bke::AttrDomain::Face);
         const Span<float> masks = subdiv_ccg.masks;
         if (!masks.is_empty()) {
@@ -502,7 +505,8 @@ static wmOperatorStatus create_op_exec(bContext *C, wmOperator *op)
       break;
     }
     case CreateMode::Visible: {
-      const VArray<bool> hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
+      const VArray<bool> hide_poly = *attributes.lookup<bool>(".hide_poly"_ustr,
+                                                              bke::AttrDomain::Face);
       switch (array_utils::booleans_mix_calc(hide_poly)) {
         case array_utils::BooleanMix::None:
         case array_utils::BooleanMix::AllTrue:
@@ -539,8 +543,8 @@ static wmOperatorStatus create_op_exec(bContext *C, wmOperator *op)
     }
     case CreateMode::Selection: {
       const VArraySpan<bool> select_poly = *attributes.lookup_or_default<bool>(
-          ".select_poly", bke::AttrDomain::Face, false);
-      const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly",
+          ".select_poly"_ustr, bke::AttrDomain::Face, false);
+      const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly"_ustr,
                                                                   bke::AttrDomain::Face);
 
       face_sets_update(
@@ -635,7 +639,8 @@ static void init_flood_fill(Object &ob, const FaceSetsFloodFillFn &test_fn)
   }
 
   const bke::AttributeAccessor attributes = mesh->attributes();
-  const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
+  const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly"_ustr,
+                                                              bke::AttrDomain::Face);
   const Set<int> hidden_face_sets = gather_hidden_face_sets(hide_poly, face_sets.span);
 
   int next_face_set = 1;
@@ -745,7 +750,7 @@ static wmOperatorStatus init_op_exec(bContext *C, wmOperator *op)
   switch (mode) {
     case InitMode::LooseParts: {
       const VArray<bool> hide_poly = *attributes.lookup_or_default<bool>(
-          ".hide_poly", bke::AttrDomain::Face, false);
+          ".hide_poly"_ustr, bke::AttrDomain::Face, false);
       init_flood_fill(ob, [&](const int from_face, const int /*edge*/, const int to_face) {
         return hide_poly[from_face] == hide_poly[to_face];
       });
@@ -754,8 +759,8 @@ static wmOperatorStatus init_op_exec(bContext *C, wmOperator *op)
     case InitMode::Materials: {
       bke::SpanAttributeWriter<int> face_sets = ensure_face_sets_mesh(*mesh);
       const VArraySpan<int> material_indices = *attributes.lookup_or_default<int>(
-          "material_index", bke::AttrDomain::Face, 0);
-      const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly",
+          "material_index"_ustr, bke::AttrDomain::Face, 0);
+      const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly"_ustr,
                                                                   bke::AttrDomain::Face);
       for (const int i : IndexRange(mesh->faces_num)) {
         if (!hide_poly.is_empty() && hide_poly[i]) {
@@ -779,7 +784,7 @@ static wmOperatorStatus init_op_exec(bContext *C, wmOperator *op)
     }
     case InitMode::UVSeams: {
       const VArraySpan<bool> uv_seams = *mesh->attributes().lookup_or_default<bool>(
-          "uv_seam", bke::AttrDomain::Edge, false);
+          "uv_seam"_ustr, bke::AttrDomain::Edge, false);
       init_flood_fill(ob,
                       [&](const int /*from_face*/, const int edge, const int /*to_face*/) -> bool {
                         return !uv_seams[edge];
@@ -788,7 +793,7 @@ static wmOperatorStatus init_op_exec(bContext *C, wmOperator *op)
     }
     case InitMode::Creases: {
       const VArraySpan<float> creases = *attributes.lookup_or_default<float>(
-          "crease_edge", bke::AttrDomain::Edge, 0.0f);
+          "crease_edge"_ustr, bke::AttrDomain::Edge, 0.0f);
       init_flood_fill(ob,
                       [&](const int /*from_face*/, const int edge, const int /*to_face*/) -> bool {
                         return creases[edge] < threshold;
@@ -797,7 +802,7 @@ static wmOperatorStatus init_op_exec(bContext *C, wmOperator *op)
     }
     case InitMode::SharpEdges: {
       const VArraySpan<bool> sharp_edges = *mesh->attributes().lookup_or_default<bool>(
-          "sharp_edge", bke::AttrDomain::Edge, false);
+          "sharp_edge"_ustr, bke::AttrDomain::Edge, false);
       init_flood_fill(ob,
                       [&](const int /*from_face*/, const int edge, const int /*to_face*/) -> bool {
                         return !sharp_edges[edge];
@@ -806,7 +811,7 @@ static wmOperatorStatus init_op_exec(bContext *C, wmOperator *op)
     }
     case InitMode::BevelWeight: {
       const VArraySpan<float> bevel_weights = *attributes.lookup_or_default<float>(
-          "bevel_weight_edge", bke::AttrDomain::Edge, 0.0f);
+          "bevel_weight_edge"_ustr, bke::AttrDomain::Edge, 0.0f);
       init_flood_fill(ob,
                       [&](const int /*from_face*/, const int edge, const int /*to_face*/) -> bool {
                         return bevel_weights[edge] < threshold;
@@ -914,7 +919,7 @@ static void face_hide_update(const Depsgraph &depsgraph,
   Mesh &mesh = *id_cast<Mesh *>(object.data);
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   bke::SpanAttributeWriter<bool> hide_poly = attributes.lookup_or_add_for_write_span<bool>(
-      ".hide_poly", bke::AttrDomain::Face);
+      ".hide_poly"_ustr, bke::AttrDomain::Face);
 
   struct TLS {
     Vector<int> face_indices;
@@ -1020,8 +1025,9 @@ static wmOperatorStatus change_visibility_exec(bContext *C, wmOperator *op)
   const IndexMask node_mask = bke::pbvh::all_leaf_nodes(pbvh, memory);
 
   const bke::AttributeAccessor attributes = mesh->attributes();
-  const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
-  const VArraySpan<int> face_sets = *attributes.lookup<int>(".sculpt_face_set",
+  const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly"_ustr,
+                                                              bke::AttrDomain::Face);
+  const VArraySpan<int> face_sets = *attributes.lookup<int>(".sculpt_face_set"_ustr,
                                                             bke::AttrDomain::Face);
 
   switch (mode) {
@@ -1182,11 +1188,12 @@ static wmOperatorStatus randomize_colors_exec(bContext *C, wmOperator * /*op*/)
   Mesh *mesh = id_cast<Mesh *>(ob.data);
   const bke::AttributeAccessor attributes = mesh->attributes();
 
-  if (!attributes.contains(".sculpt_face_set")) {
+  if (!attributes.contains(".sculpt_face_set"_ustr)) {
     return OPERATOR_CANCELLED;
   }
 
-  const VArray<int> face_sets = *attributes.lookup<int>(".sculpt_face_set", bke::AttrDomain::Face);
+  const VArray<int> face_sets = *attributes.lookup<int>(".sculpt_face_set"_ustr,
+                                                        bke::AttrDomain::Face);
   const int random_index = clamp_i(mesh->faces_num * BLI_hash_int_01(mesh->face_sets_color_seed),
                                    0,
                                    max_ii(0, mesh->faces_num - 1));
@@ -1238,9 +1245,10 @@ static void edit_grow_shrink(const Depsgraph &depsgraph,
   const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
   const bke::AttributeAccessor attributes = mesh.attributes();
 
-  BLI_assert(attributes.contains(".sculpt_face_set"));
+  BLI_assert(attributes.contains(".sculpt_face_set"_ustr));
 
-  const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
+  const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly"_ustr,
+                                                              bke::AttrDomain::Face);
   Array<int> prev_face_sets = duplicate_face_sets(mesh);
 
   undo::push_begin(scene, object, op);
@@ -1290,8 +1298,9 @@ static bool check_single_face_set(const Object &object, const bool check_visible
 {
   const Mesh &mesh = *id_cast<const Mesh *>(object.data);
   const bke::AttributeAccessor attributes = mesh.attributes();
-  const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
-  const VArraySpan<int> face_sets = *attributes.lookup<int>(".sculpt_face_set",
+  const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly"_ustr,
+                                                              bke::AttrDomain::Face);
+  const VArraySpan<int> face_sets = *attributes.lookup<int>(".sculpt_face_set"_ustr,
                                                             bke::AttrDomain::Face);
 
   if (face_sets.is_empty()) {
@@ -1330,8 +1339,9 @@ static void delete_geometry(Object &ob, const int active_face_set_id, const bool
 {
   Mesh &mesh = *id_cast<Mesh *>(ob.data);
   const bke::AttributeAccessor attributes = mesh.attributes();
-  const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
-  const VArraySpan<int> face_sets = *attributes.lookup<int>(".sculpt_face_set",
+  const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly"_ustr,
+                                                              bke::AttrDomain::Face);
+  const VArraySpan<int> face_sets = *attributes.lookup<int>(".sculpt_face_set"_ustr,
                                                             bke::AttrDomain::Face);
 
   const BMAllocTemplate allocsize = BMALLOC_TEMPLATE_FROM_ME(&mesh);
@@ -1383,8 +1393,9 @@ static void edit_fairing(const Depsgraph &depsgraph,
   const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
   const BitSpan boundary_verts = ss.boundary_info_cache->verts;
   const bke::AttributeAccessor attributes = mesh.attributes();
-  const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
-  const VArraySpan face_sets = *attributes.lookup<int>(".sculpt_face_set", bke::AttrDomain::Face);
+  const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly"_ustr, bke::AttrDomain::Face);
+  const VArraySpan face_sets = *attributes.lookup<int>(".sculpt_face_set"_ustr,
+                                                       bke::AttrDomain::Face);
 
   Array<bool> fair_verts(positions.size(), false);
   for (const int vert : positions.index_range()) {
@@ -1466,7 +1477,7 @@ static bool edit_is_operation_valid(const Object &object,
     if (pbvh.type() == bke::pbvh::Type::Mesh) {
       const Mesh &mesh = *id_cast<Mesh *>(object.data);
       const bke::AttributeAccessor attributes = mesh.attributes();
-      if (!attributes.contains(".sculpt_face_set")) {
+      if (!attributes.contains(".sculpt_face_set"_ustr)) {
         /* If a mesh does not have the face set attribute, growing or shrinking the face set will
          * have no effect, exit early in this case. */
         return false;
@@ -1710,7 +1721,7 @@ void fill_factor_from_hide_and_mask(const Mesh &mesh,
 
   /* TODO: Avoid overhead of accessing attributes for every bke::pbvh::Tree node. */
   const bke::AttributeAccessor attributes = mesh.attributes();
-  if (const VArray mask = *attributes.lookup<float>(".sculpt_mask", bke::AttrDomain::Point)) {
+  if (const VArray mask = *attributes.lookup<float>(".sculpt_mask"_ustr, bke::AttrDomain::Point)) {
     const VArraySpan span(mask);
     for (const int i : face_indices.index_range()) {
       const Span<int> face_verts = corner_verts.slice(faces[face_indices[i]]);
@@ -1726,7 +1737,8 @@ void fill_factor_from_hide_and_mask(const Mesh &mesh,
     r_factors.fill(1.0f);
   }
 
-  if (const VArray hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face)) {
+  if (const VArray hide_poly = *attributes.lookup<bool>(".hide_poly"_ustr, bke::AttrDomain::Face))
+  {
     const VArraySpan span(hide_poly);
     for (const int i : face_indices.index_range()) {
       if (span[face_indices[i]]) {

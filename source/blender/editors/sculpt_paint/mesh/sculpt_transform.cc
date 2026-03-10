@@ -839,8 +839,9 @@ static float3 average_mask_border_position(const Depsgraph &depsgraph,
       const Span<float3> vert_positions = bke::pbvh::vert_positions_eval(depsgraph, object);
       const bke::AttributeAccessor attributes = mesh.attributes();
       const VArraySpan mask_attr = *attributes.lookup_or_default<float>(
-          ".sculpt_mask", bke::AttrDomain::Point, 0.0f);
-      const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
+          ".sculpt_mask"_ustr, bke::AttrDomain::Point, 0.0f);
+      const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert"_ustr,
+                                                            bke::AttrDomain::Point);
       const AveragePositionAccumulation total = threading::parallel_reduce(
           node_mask.index_range(),
           1,

@@ -85,10 +85,10 @@ static void save_selection_as_attribute(MutableAttributeAccessor attributes,
                                         const AttrDomain domain,
                                         const IndexMask &selection)
 {
-  BLI_assert(!attributes.contains(name));
+  BLI_assert(!attributes.contains(UString(name)));
 
-  SpanAttributeWriter<bool> attribute = attributes.lookup_or_add_for_write_span<bool>(name,
-                                                                                      domain);
+  SpanAttributeWriter<bool> attribute = attributes.lookup_or_add_for_write_span<bool>(
+      UString(name), domain);
   selection.to_bools(attribute.span);
   attribute.finish();
 }
@@ -96,13 +96,13 @@ static void save_selection_as_attribute(MutableAttributeAccessor attributes,
 static void remove_non_propagated_attributes(MutableAttributeAccessor attributes,
                                              const AttributeFilter &attribute_filter)
 {
-  Vector<std::string> names_to_remove;
-  for (const StringRefNull name : attributes.all_names()) {
+  Vector<UString> names_to_remove;
+  for (const UString name : attributes.all_names()) {
     if (attribute_filter.allow_skip(name)) {
       names_to_remove.append(name);
     }
   }
-  for (const StringRef name : names_to_remove) {
+  for (const UString name : names_to_remove) {
     attributes.remove(name);
   }
 }
@@ -137,8 +137,10 @@ static void expand_mesh(Mesh &mesh,
   }
   if (edge_expand != 0) {
     if (mesh.edges_num == 0) {
-      mesh.attributes_for_write().add(
-          ".edge_verts", AttrDomain::Edge, bke::AttrType::Int32_2D, bke::AttributeInitConstruct());
+      mesh.attributes_for_write().add(".edge_verts"_ustr,
+                                      AttrDomain::Edge,
+                                      bke::AttrType::Int32_2D,
+                                      bke::AttributeInitConstruct());
     }
     const int old_edges_num = mesh.edges_num;
     mesh.edges_num += edge_expand;
@@ -160,10 +162,14 @@ static void expand_mesh(Mesh &mesh,
   }
   if (loop_expand != 0) {
     if (mesh.corners_num == 0) {
-      mesh.attributes_for_write().add(
-          ".corner_vert", AttrDomain::Corner, bke::AttrType::Int32, bke::AttributeInitConstruct());
-      mesh.attributes_for_write().add(
-          ".corner_edge", AttrDomain::Corner, bke::AttrType::Int32, bke::AttributeInitConstruct());
+      mesh.attributes_for_write().add(".corner_vert"_ustr,
+                                      AttrDomain::Corner,
+                                      bke::AttrType::Int32,
+                                      bke::AttributeInitConstruct());
+      mesh.attributes_for_write().add(".corner_edge"_ustr,
+                                      AttrDomain::Corner,
+                                      bke::AttrType::Int32,
+                                      bke::AttributeInitConstruct());
     }
     const int old_loops_num = mesh.corners_num;
     mesh.corners_num += loop_expand;
@@ -264,10 +270,10 @@ static void copy_with_mixing(const GSpan src,
   });
 }
 
-using IDsByDomain = std::array<Vector<StringRef>, ATTR_DOMAIN_NUM>;
+using IDsByDomain = std::array<Vector<UString>, ATTR_DOMAIN_NUM>;
 
 static IDsByDomain get_transfer_attribute_names(const AttributeAccessor attributes,
-                                                const Set<StringRef> &skip)
+                                                const Set<UString> &skip)
 {
   IDsByDomain names_by_domain;
   attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
@@ -286,7 +292,7 @@ static IDsByDomain get_transfer_attribute_names(const AttributeAccessor attribut
 }
 
 static bool is_empty_domain(const AttributeAccessor attributes,
-                            const Set<StringRef> &skip,
+                            const Set<UString> &skip,
                             const AttrDomain domain)
 {
   bool is_empty = true;
@@ -307,11 +313,11 @@ static bool is_empty_domain(const AttributeAccessor attributes,
 }
 
 static void gather_attributes(MutableAttributeAccessor attributes,
-                              const Span<StringRef> names,
+                              const Span<UString> names,
                               const Span<int> indices,
                               const IndexRange new_range)
 {
-  for (const StringRef name : names) {
+  for (const UString name : names) {
     GSpanAttributeWriter attribute = attributes.lookup_for_write_span(name);
     bke::attribute_math::gather(attribute.span, indices, attribute.span.slice(new_range));
     attribute.finish();
@@ -319,11 +325,11 @@ static void gather_attributes(MutableAttributeAccessor attributes,
 }
 
 static void gather_attributes(MutableAttributeAccessor attributes,
-                              const Span<StringRef> names,
+                              const Span<UString> names,
                               const IndexMask &indices,
                               const IndexRange new_range)
 {
-  for (const StringRef name : names) {
+  for (const UString name : names) {
     GSpanAttributeWriter attribute = attributes.lookup_for_write_span(name);
     array_utils::gather(attribute.span, indices, attribute.span.slice(new_range));
     attribute.finish();
@@ -331,13 +337,13 @@ static void gather_attributes(MutableAttributeAccessor attributes,
 }
 
 static void gather_vert_attributes(Mesh &mesh,
-                                   const Span<StringRef> names,
+                                   const Span<UString> names,
                                    const Span<int> indices,
                                    const IndexRange new_range)
 {
-  Set<StringRef> vertex_group_names;
+  Set<UString> vertex_group_names;
   for (bDeformGroup &group : mesh.vertex_group_names) {
-    vertex_group_names.add(group.name);
+    vertex_group_names.add(UString(group.name));
   }
 
   if (!vertex_group_names.is_empty() && !mesh.deform_verts().is_empty()) {
@@ -346,7 +352,7 @@ static void gather_vert_attributes(Mesh &mesh,
   }
 
   MutableAttributeAccessor attributes = mesh.attributes_for_write();
-  for (const StringRef name : names) {
+  for (const UString name : names) {
     if (!vertex_group_names.contains(name)) {
       GSpanAttributeWriter attribute = attributes.lookup_for_write_span(name);
       bke::attribute_math::gather(attribute.span, indices, attribute.span.slice(new_range));
@@ -356,13 +362,13 @@ static void gather_vert_attributes(Mesh &mesh,
 }
 
 static void gather_vert_attributes(Mesh &mesh,
-                                   const Span<StringRef> names,
+                                   const Span<UString> names,
                                    const IndexMask &indices,
                                    const IndexRange new_range)
 {
-  Set<StringRef> vertex_group_names;
+  Set<UString> vertex_group_names;
   for (bDeformGroup &group : mesh.vertex_group_names) {
-    vertex_group_names.add(group.name);
+    vertex_group_names.add(UString(group.name));
   }
 
   if (!vertex_group_names.is_empty() && !mesh.deform_verts().is_empty()) {
@@ -371,7 +377,7 @@ static void gather_vert_attributes(Mesh &mesh,
   }
 
   MutableAttributeAccessor attributes = mesh.attributes_for_write();
-  for (const StringRef name : names) {
+  for (const UString name : names) {
     if (!vertex_group_names.contains(name)) {
       GSpanAttributeWriter attribute = attributes.lookup_for_write_span(name);
       array_utils::gather(attribute.span, indices, attribute.span.slice(new_range));
@@ -405,8 +411,8 @@ static void extrude_mesh_vertices(Mesh &mesh,
   MutableAttributeAccessor attributes = mesh.attributes_for_write();
   remove_non_propagated_attributes(attributes, attribute_filter);
 
-  const IDsByDomain names_by_domain = get_transfer_attribute_names(attributes,
-                                                                   {"position", ".edge_verts"});
+  const IDsByDomain names_by_domain = get_transfer_attribute_names(
+      attributes, {"position"_ustr, ".edge_verts"_ustr});
 
   Array<int> vert_to_edge_offsets;
   Array<int> vert_to_edge_indices;
@@ -433,7 +439,7 @@ static void extrude_mesh_vertices(Mesh &mesh,
   gather_vert_attributes(mesh, names_by_domain[int(AttrDomain::Point)], selection, new_vert_range);
 
   /* New edge values are mixed from of all the edges connected to the source vertex. */
-  for (const StringRef name : names_by_domain[int(AttrDomain::Edge)]) {
+  for (const UString name : names_by_domain[int(AttrDomain::Edge)]) {
     GSpanAttributeWriter attribute = attributes.lookup_for_write_span(name);
     copy_with_mixing(
         attribute.span, vert_to_edge_map, selection, attribute.span.slice(new_edge_range));
@@ -623,7 +629,7 @@ static void extrude_mesh_edges(Mesh &mesh,
   Array<int> vert_to_edge_offsets;
   Array<int> vert_to_edge_indices;
   GroupedSpan<int> vert_to_selected_edge_map;
-  if (!is_empty_domain(attributes, {".edge_verts"}, AttrDomain::Edge)) {
+  if (!is_empty_domain(attributes, {".edge_verts"_ustr}, AttrDomain::Edge)) {
     vert_to_selected_edge_map = build_vert_to_edge_map(
         orig_edges, edge_selection, orig_vert_size, vert_to_edge_offsets, vert_to_edge_indices);
   }
@@ -637,7 +643,7 @@ static void extrude_mesh_edges(Mesh &mesh,
               new_loop_range.size());
 
   const IDsByDomain names_by_domain = get_transfer_attribute_names(
-      attributes, {"position", ".edge_verts", ".corner_vert", ".corner_edge"});
+      attributes, {"position"_ustr, ".edge_verts"_ustr, ".corner_vert"_ustr, ".corner_edge"_ustr});
 
   MutableSpan<int2> edges = mesh.edges_for_write();
   MutableSpan<int2> connect_edges = edges.slice(connect_edge_range);
@@ -709,7 +715,7 @@ static void extrude_mesh_edges(Mesh &mesh,
       attributes, names_by_domain[int(AttrDomain::Edge)], edge_selection, duplicate_edge_range);
 
   /* Edges connected to original vertices mix values of selected connected edges. */
-  for (const StringRef name : names_by_domain[int(AttrDomain::Edge)]) {
+  for (const UString name : names_by_domain[int(AttrDomain::Edge)]) {
     GSpanAttributeWriter attribute = attributes.lookup_for_write_span(name);
     copy_with_mixing(attribute.span,
                      vert_to_selected_edge_map,
@@ -719,7 +725,7 @@ static void extrude_mesh_edges(Mesh &mesh,
   }
 
   /* Attribute values for new faces are a mix of values connected to its original edge. */
-  for (const StringRef name : names_by_domain[int(AttrDomain::Face)]) {
+  for (const UString name : names_by_domain[int(AttrDomain::Face)]) {
     GSpanAttributeWriter attribute = attributes.lookup_for_write_span(name);
     copy_with_mixing(
         attribute.span, edge_to_face_map, edge_selection, attribute.span.slice(new_face_range));
@@ -728,7 +734,7 @@ static void extrude_mesh_edges(Mesh &mesh,
 
   /* New corners get the average value of all adjacent corners on original faces connected
    * to the original edge of their face. */
-  for (const StringRef name : names_by_domain[int(AttrDomain::Corner)]) {
+  for (const UString name : names_by_domain[int(AttrDomain::Corner)]) {
     GSpanAttributeWriter attribute = attributes.lookup_for_write_span(name);
     bke::attribute_math::to_static_type(attribute.span.type(), [&]<typename T>() {
       if constexpr (!std::is_void_v<bke::attribute_math::DefaultMixer<T>>) {
@@ -981,7 +987,7 @@ static void extrude_mesh_face_regions(Mesh &mesh,
               side_loop_range.size());
 
   const IDsByDomain names_by_domain = get_transfer_attribute_names(
-      attributes, {".corner_vert", ".corner_edge", ".edge_verts"});
+      attributes, {".corner_vert"_ustr, ".corner_edge"_ustr, ".edge_verts"_ustr});
 
   MutableSpan<int2> edges = mesh.edges_for_write();
   MutableSpan<int2> connect_edges = edges.slice(connect_edge_range);
@@ -1098,7 +1104,7 @@ static void extrude_mesh_face_regions(Mesh &mesh,
     const GroupedSpan<int> vert_to_boundary_edge_map = build_vert_to_edge_map(
         edges, boundary_edge_mask, mesh.verts_num, vert_to_edge_offsets, vert_to_edge_indices);
 
-    for (const StringRef name : names_by_domain[int(AttrDomain::Edge)]) {
+    for (const UString name : names_by_domain[int(AttrDomain::Edge)]) {
       GSpanAttributeWriter attribute = attributes.lookup_for_write_span(name);
 
       /* Edges parallel to original edges copy the edge attributes from the original edges. */
@@ -1278,7 +1284,7 @@ static void extrude_individual_mesh_faces(Mesh &mesh,
               side_loop_range.size());
 
   const IDsByDomain names_by_domain = get_transfer_attribute_names(
-      attributes, {"position", ".edge_verts", ".corner_vert", ".corner_edge"});
+      attributes, {"position"_ustr, ".edge_verts"_ustr, ".corner_vert"_ustr, ".corner_edge"_ustr});
 
   MutableSpan<float3> positions = mesh.vert_positions_for_write();
   MutableSpan<float3> new_positions = positions.slice(new_vert_range);
@@ -1378,7 +1384,7 @@ static void extrude_individual_mesh_faces(Mesh &mesh,
         },
         exec_mode::grain_size(1024));
 
-    for (const StringRef name : names_by_domain[int(AttrDomain::Edge)]) {
+    for (const UString name : names_by_domain[int(AttrDomain::Edge)]) {
       GSpanAttributeWriter attribute = attributes.lookup_for_write_span(name);
       bke::attribute_math::to_static_type(attribute.span.type(), [&]<typename T>() {
         if constexpr (!std::is_same_v<T, std::string>) {
@@ -1403,7 +1409,7 @@ static void extrude_individual_mesh_faces(Mesh &mesh,
   }
 
   /* Each side face gets the values from the corresponding new face. */
-  for (const StringRef name : names_by_domain[int(AttrDomain::Face)]) {
+  for (const UString name : names_by_domain[int(AttrDomain::Face)]) {
     GSpanAttributeWriter attribute = attributes.lookup_for_write_span(name);
     bke::attribute_math::gather_to_groups(
         group_per_face, face_selection, attribute.span, attribute.span.slice(side_face_range));

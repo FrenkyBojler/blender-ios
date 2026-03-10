@@ -113,7 +113,7 @@ static GreasePencil *curve_instances_to_grease_pencil_layers(
 
     /* Remap material indices. */
     bke::SpanAttributeWriter<int> material_indices =
-        strokes.attributes_for_write().lookup_or_add_for_write_span<int>("material_index",
+        strokes.attributes_for_write().lookup_or_add_for_write_span<int>("material_index"_ustr,
                                                                          bke::AttrDomain::Curve);
     for (int &material_index : material_indices.span) {
       if (material_index >= 0 && material_index < new_material_indices.size()) {
@@ -170,7 +170,7 @@ static GreasePencil *curve_instances_to_grease_pencil_layers(
     /* Manually propagate "opacity" data, because it's not a layer attribute on grease pencil
      * yet. Default to a full opacity of 1. */
     const VArray<float> opacities = *instances_attributes.lookup_or_default<float>(
-        "opacity", AttrDomain::Instance, 1.0f);
+        "opacity"_ustr, AttrDomain::Instance, 1.0f);
     instance_selection.foreach_index([&](const int instance_i, const int layer_i) {
       grease_pencil->layer(layer_i).opacity = opacities[instance_i];
     });

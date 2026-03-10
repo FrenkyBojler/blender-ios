@@ -7,6 +7,7 @@
 #include "BLI_compute_context.hh"
 #include "BLI_generic_pointer.hh"
 #include "BLI_resource_scope.hh"
+#include "BLI_ustring.hh"
 #include "BLI_vector_set.hh"
 
 #include "DNA_node_types.h"
@@ -42,8 +43,8 @@ struct IDPropNameGetter {
   }
 };
 
-std::optional<StringRef> input_attribute_name_get(const IDProperty *properties,
-                                                  const bNodeTreeInterfaceSocket &io_input);
+std::optional<UString> input_attribute_name_get(const IDProperty *properties,
+                                                const bNodeTreeInterfaceSocket &io_input);
 
 /**
  * \return Whether using an attribute to input values of this type is supported.

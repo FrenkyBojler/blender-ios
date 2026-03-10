@@ -435,13 +435,13 @@ static void find_nearest_edges(const Span<float3> src_positions,
   });
 }
 
-static void gather_attributes(const Span<StringRef> names,
+static void gather_attributes(const Span<UString> names,
                               const AttributeAccessor src_attributes,
                               const AttrDomain domain,
                               const Span<int> index_map,
                               MutableAttributeAccessor dst_attributes)
 {
-  for (const StringRef name : names) {
+  for (const UString name : names) {
     const GVArraySpan src = *src_attributes.lookup(name, domain);
     const AttrType type = cpp_type_to_attribute_type(src.type());
     GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(
@@ -451,7 +451,7 @@ static void gather_attributes(const Span<StringRef> names,
   }
 }
 
-static void sample_vertex_attributes(const Span<StringRef> names,
+static void sample_vertex_attributes(const Span<UString> names,
                                      Span<int> corner_verts,
                                      Span<int3> corner_tris,
                                      Span<int> tri_indices,
@@ -459,7 +459,7 @@ static void sample_vertex_attributes(const Span<StringRef> names,
                                      const AttributeAccessor src_attributes,
                                      MutableAttributeAccessor dst_attributes)
 {
-  for (const StringRef name : names) {
+  for (const UString name : names) {
     const GVArray src = *src_attributes.lookup(name, AttrDomain::Point);
     const AttrType type = cpp_type_to_attribute_type(src.type());
     GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(
@@ -475,14 +475,14 @@ static void sample_vertex_attributes(const Span<StringRef> names,
   }
 }
 
-static void sample_corner_attributes(const Span<StringRef> names,
+static void sample_corner_attributes(const Span<UString> names,
                                      Span<int3> corner_tris,
                                      Span<int> tri_indices,
                                      Span<float3> bary_coords,
                                      const AttributeAccessor src_attributes,
                                      MutableAttributeAccessor dst_attributes)
 {
-  for (const StringRef name : names) {
+  for (const UString name : names) {
     const GVArray src = *src_attributes.lookup(name, AttrDomain::Corner);
     const AttrType type = cpp_type_to_attribute_type(src.type());
 
@@ -503,12 +503,17 @@ void mesh_remesh_reproject_attributes(const Mesh &src, Mesh &dst)
   /* Gather attributes to transfer for each domain. This makes it possible to skip
    * building index maps and even the main BVH tree if there are no attributes. */
   const AttributeAccessor src_attributes = src.attributes();
-  Vector<StringRef> point_ids;
-  Vector<StringRef> edge_ids;
-  Vector<StringRef> face_ids;
-  Vector<StringRef> corner_ids;
+  Vector<UString> point_ids;
+  Vector<UString> edge_ids;
+  Vector<UString> face_ids;
+  Vector<UString> corner_ids;
   src_attributes.foreach_attribute([&](const AttributeIter &iter) {
-    if (ELEM(iter.name, "position", ".edge_verts", ".corner_vert", ".corner_edge")) {
+    if (ELEM(iter.name,
+             "position"_ustr,
+             ".edge_verts"_ustr,
+             ".corner_vert"_ustr,
+             ".corner_edge"_ustr))
+    {
       return;
     }
     if (iter.storage_type == bke::AttrStorageType::Single) {
@@ -635,10 +640,10 @@ void mesh_remesh_reproject_attributes(const Mesh &src, Mesh &dst)
     BKE_id_attributes_default_color_set(&dst.id, src.default_color_attribute);
   }
   if (!src.active_uv_map_name().is_empty()) {
-    dst.uv_maps_active_set(src.active_uv_map_name());
+    dst.uv_maps_active_set(src.active_uv_map_name().ref());
   }
   if (!src.default_uv_map_name().is_empty()) {
-    dst.uv_maps_default_set(src.default_uv_map_name());
+    dst.uv_maps_default_set(src.default_uv_map_name().ref());
   }
 }
 

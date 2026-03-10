@@ -131,10 +131,10 @@ static wmOperatorStatus grease_pencil_stroke_smooth_exec(bContext *C, wmOperator
     const OffsetIndices points_by_curve = curves.points_by_curve();
     const VArray<bool> cyclic = curves.cyclic();
     const VArray<bool> point_selection = *curves.attributes().lookup_or_default<bool>(
-        ".selection", bke::AttrDomain::Point, true);
+        ".selection"_ustr, bke::AttrDomain::Point, true);
 
     if (smooth_position) {
-      bke::GSpanAttributeWriter positions = attributes.lookup_for_write_span("position");
+      bke::GSpanAttributeWriter positions = attributes.lookup_for_write_span("position"_ustr);
       geometry::smooth_curve_attribute(strokes,
                                        points_by_curve,
                                        point_selection,
@@ -148,7 +148,7 @@ static wmOperatorStatus grease_pencil_stroke_smooth_exec(bContext *C, wmOperator
       changed = true;
     }
     if (smooth_opacity && info.drawing.opacities().is_span()) {
-      bke::GSpanAttributeWriter opacities = attributes.lookup_for_write_span("opacity");
+      bke::GSpanAttributeWriter opacities = attributes.lookup_for_write_span("opacity"_ustr);
       geometry::smooth_curve_attribute(strokes,
                                        points_by_curve,
                                        point_selection,
@@ -162,7 +162,7 @@ static wmOperatorStatus grease_pencil_stroke_smooth_exec(bContext *C, wmOperator
       changed = true;
     }
     if (smooth_radius && info.drawing.radii().is_span()) {
-      bke::GSpanAttributeWriter radii = attributes.lookup_for_write_span("radius");
+      bke::GSpanAttributeWriter radii = attributes.lookup_for_write_span("radius"_ustr);
       geometry::smooth_curve_attribute(strokes,
                                        points_by_curve,
                                        point_selection,
@@ -463,9 +463,9 @@ static bool remove_curves_based_on_mode(Object &object,
   bke::CurvesGeometry &curves = drawing.strokes_for_write();
   const bke::AttributeAccessor attributes = curves.attributes();
   const VArray<int> fill_ids = *attributes.lookup_or_default<int>(
-      "fill_id", bke::AttrDomain::Curve, 0);
+      "fill_id"_ustr, bke::AttrDomain::Curve, 0);
   const VArray<bool> hidden_strokes = *attributes.lookup_or_default<bool>(
-      "hide_stroke", bke::AttrDomain::Curve, false);
+      "hide_stroke"_ustr, bke::AttrDomain::Curve, false);
   const IndexMask strokes_to_delete = [&]() -> IndexMask {
     if (mode == DeleteMode::OnlyStrokes) {
       /* Only curves that are unfilled and have the stroke set. */
@@ -498,14 +498,14 @@ static bool remove_stroke_or_fill_based_on_mode(Object &object,
 {
   bke::CurvesGeometry &curves = drawing.strokes_for_write();
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-  if (!attributes.contains("fill_id")) {
+  if (!attributes.contains("fill_id"_ustr)) {
     return false;
   }
   const IndexMask editable_strokes = retrieve_editable_and_selected_strokes(
       object, drawing, layer_index, memory);
-  const VArray<int> fill_ids = *attributes.lookup<int>("fill_id", bke::AttrDomain::Curve);
+  const VArray<int> fill_ids = *attributes.lookup<int>("fill_id"_ustr, bke::AttrDomain::Curve);
   const VArray<bool> hidden_strokes = *attributes.lookup_or_default<bool>(
-      "hide_stroke", bke::AttrDomain::Curve, false);
+      "hide_stroke"_ustr, bke::AttrDomain::Curve, false);
   const IndexMask fills_with_stroke = IndexMask::from_predicate(
       editable_strokes, memory, [&](const int index) {
         return fill_ids[index] != 0 && !hidden_strokes[index];
@@ -515,12 +515,12 @@ static bool remove_stroke_or_fill_based_on_mode(Object &object,
   }
   if (mode == DeleteMode::OnlyStrokes) {
     bke::SpanAttributeWriter<bool> hide_strokes = attributes.lookup_or_add_for_write_span<bool>(
-        "hide_stroke", bke::AttrDomain::Curve, bke::AttributeInitValue(false));
+        "hide_stroke"_ustr, bke::AttrDomain::Curve, bke::AttributeInitValue(false));
     index_mask::masked_fill(hide_strokes.span, true, fills_with_stroke);
     hide_strokes.finish();
   }
   else if (mode == DeleteMode::OnlyFills) {
-    bke::SpanAttributeWriter<int> fill_ids = attributes.lookup_for_write_span<int>("fill_id");
+    bke::SpanAttributeWriter<int> fill_ids = attributes.lookup_for_write_span<int>("fill_id"_ustr);
     index_mask::masked_fill(fill_ids.span, 0, fills_with_stroke);
     fill_ids.finish();
     drawing.tag_fills_changed();
@@ -885,7 +885,7 @@ static wmOperatorStatus grease_pencil_stroke_material_set_exec(bContext *C, wmOp
     bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
     bke::SpanAttributeWriter<int> materials = attributes.lookup_or_add_for_write_span<int>(
-        "material_index", bke::AttrDomain::Curve);
+        "material_index"_ustr, bke::AttrDomain::Curve);
 
     const IndexMask fill_strokes = bke::greasepencil::selected_mask_to_fills(
         strokes, curves, bke::AttrDomain::Curve, memory);
@@ -983,7 +983,7 @@ static wmOperatorStatus grease_pencil_cyclical_set_exec(bContext *C, wmOperator 
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
     bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
-    if (mode == CyclicalMode::OPEN && !curves.attributes().contains("cyclic")) {
+    if (mode == CyclicalMode::OPEN && !curves.attributes().contains("cyclic"_ustr)) {
       /* Avoid creating unneeded attribute. */
       return;
     }
@@ -1011,7 +1011,7 @@ static wmOperatorStatus grease_pencil_cyclical_set_exec(bContext *C, wmOperator 
     /* Remove the attribute if it is empty. */
     if (mode != CyclicalMode::CLOSE) {
       if (array_utils::booleans_mix_calc(curves.cyclic()) == array_utils::BooleanMix::AllFalse) {
-        curves.attributes_for_write().remove("cyclic");
+        curves.attributes_for_write().remove("cyclic"_ustr);
       }
     }
 
@@ -1083,7 +1083,7 @@ static wmOperatorStatus grease_pencil_set_active_material_exec(bContext *C, wmOp
     bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
 
     const VArray<int> materials = *curves.attributes().lookup_or_default<int>(
-        "material_index", bke::AttrDomain::Curve, 0);
+        "material_index"_ustr, bke::AttrDomain::Curve, 0);
     object->actcol = materials[strokes.first()] + 1;
     break;
   };
@@ -1192,7 +1192,7 @@ static wmOperatorStatus grease_pencil_set_uniform_opacity_exec(bContext *C, wmOp
     bke::curves::fill_points<float>(points_by_curve, strokes, opacity_stroke, opacities);
 
     if (SpanAttributeWriter<float> fill_opacities = attributes.lookup_or_add_for_write_span<float>(
-            "fill_opacity",
+            "fill_opacity"_ustr,
             AttrDomain::Curve,
             bke::AttributeInitVArray(VArray<float>::from_single(1.0f, curves.curves_num()))))
     {
@@ -1450,13 +1450,15 @@ static wmOperatorStatus grease_pencil_caps_set_exec(bContext *C, wmOperator *op)
       const int8_t flag_set = (mode == CapsMode::ROUND) ? int8_t(GP_STROKE_CAP_TYPE_ROUND) :
                                                           int8_t(GP_STROKE_CAP_TYPE_FLAT);
       if (bke::SpanAttributeWriter<int8_t> start_caps =
-              attributes.lookup_or_add_for_write_span<int8_t>("start_cap", bke::AttrDomain::Curve))
+              attributes.lookup_or_add_for_write_span<int8_t>("start_cap"_ustr,
+                                                              bke::AttrDomain::Curve))
       {
         index_mask::masked_fill(start_caps.span, flag_set, strokes);
         start_caps.finish();
       }
       if (bke::SpanAttributeWriter<int8_t> end_caps =
-              attributes.lookup_or_add_for_write_span<int8_t>("end_cap", bke::AttrDomain::Curve))
+              attributes.lookup_or_add_for_write_span<int8_t>("end_cap"_ustr,
+                                                              bke::AttrDomain::Curve))
       {
         index_mask::masked_fill(end_caps.span, flag_set, strokes);
         end_caps.finish();
@@ -1466,7 +1468,7 @@ static wmOperatorStatus grease_pencil_caps_set_exec(bContext *C, wmOperator *op)
       switch (mode) {
         case CapsMode::START: {
           if (bke::SpanAttributeWriter<int8_t> caps =
-                  attributes.lookup_or_add_for_write_span<int8_t>("start_cap",
+                  attributes.lookup_or_add_for_write_span<int8_t>("start_cap"_ustr,
                                                                   bke::AttrDomain::Curve))
           {
             toggle_caps(caps.span, strokes);
@@ -1476,7 +1478,7 @@ static wmOperatorStatus grease_pencil_caps_set_exec(bContext *C, wmOperator *op)
         }
         case CapsMode::END: {
           if (bke::SpanAttributeWriter<int8_t> caps =
-                  attributes.lookup_or_add_for_write_span<int8_t>("end_cap",
+                  attributes.lookup_or_add_for_write_span<int8_t>("end_cap"_ustr,
                                                                   bke::AttrDomain::Curve))
           {
             toggle_caps(caps.span, strokes);
@@ -1762,11 +1764,11 @@ static wmOperatorStatus gpencil_stroke_subdivide_exec(bContext *C, wmOperator *o
        * Make the cut array the same length as point count for specifying
        * cut/uncut for each segment. */
       const VArray<bool> selection = *curves.attributes().lookup_or_default<bool>(
-          ".selection", bke::AttrDomain::Point, true);
+          ".selection"_ustr, bke::AttrDomain::Point, true);
       const VArray<bool> selection_left = *curves.attributes().lookup_or_default<bool>(
-          ".selection_handle_left", bke::AttrDomain::Point, true);
+          ".selection_handle_left"_ustr, bke::AttrDomain::Point, true);
       const VArray<bool> selection_right = *curves.attributes().lookup_or_default<bool>(
-          ".selection_handle_right", bke::AttrDomain::Point, true);
+          ".selection_handle_right"_ustr, bke::AttrDomain::Point, true);
       const VArray<int8_t> curve_types = curves.curve_types();
 
       auto is_selected = [&](const int point_i, const int curve_i) {
@@ -2752,7 +2754,7 @@ static wmOperatorStatus grease_pencil_copy_strokes_exec(bContext *C, wmOperator 
     for (const Clipboard::ClipboardLayer &layer : clipboard.layers) {
       const bke::AttributeAccessor attributes = layer.curves.attributes();
       const VArraySpan<int> material_indices = *attributes.lookup_or_default<int>(
-          "material_index", bke::AttrDomain::Curve, 0);
+          "material_index"_ustr, bke::AttrDomain::Curve, 0);
       if (material_indices.contains(material_index)) {
         return true;
       }
@@ -2832,7 +2834,7 @@ static IndexRange clipboard_paste_strokes_ex(Main &bmain,
     /* Remap the material indices of the pasted curves to the target object material indices. */
     bke::MutableAttributeAccessor attributes = drawing.strokes_for_write().attributes_for_write();
     bke::SpanAttributeWriter<int> material_indices = attributes.lookup_or_add_for_write_span<int>(
-        "material_index", bke::AttrDomain::Curve);
+        "material_index"_ustr, bke::AttrDomain::Curve);
     if (material_indices) {
       for (const int i : pasted_curves_range) {
         material_indices.span[i] = clipboard_material_remap[material_indices.span[i]];
@@ -3233,7 +3235,7 @@ static bke::CurvesGeometry extrude_grease_pencil_curves(const bke::CurvesGeometr
    * This will lead to the extruded control point always having both handles selected, if it's a
    * bezier type stroke. This is to circumvent the issue of source curves handles not being
    * deselected when the user extrudes a bezier control point with both handles selected. */
-  for (const StringRef selection_attribute_name :
+  for (const UString selection_attribute_name :
        ed::curves::get_curves_selection_attribute_names(src))
   {
     bke::GSpanAttributeWriter selection = ed::curves::ensure_selection_attribute(
@@ -3252,13 +3254,14 @@ static bke::CurvesGeometry extrude_grease_pencil_curves(const bke::CurvesGeometr
   /* Cyclic attribute : newly created curves cannot be cyclic. */
   dst.cyclic_for_write().drop_front(old_curves_num).fill(false);
 
-  bke::gather_attributes(src_attributes,
-                         bke::AttrDomain::Point,
-                         bke::AttrDomain::Point,
-                         bke::attribute_filter_from_skip_ref(
-                             {".selection", ".selection_handle_left", ".selection_handle_right"}),
-                         dst_to_src_points,
-                         dst_attributes);
+  bke::gather_attributes(
+      src_attributes,
+      bke::AttrDomain::Point,
+      bke::AttrDomain::Point,
+      bke::attribute_filter_from_skip_ref(
+          {".selection"_ustr, ".selection_handle_left"_ustr, ".selection_handle_right"_ustr}),
+      dst_to_src_points,
+      dst_attributes);
 
   dst.update_curve_types();
   if (src.nurbs_has_custom_knots()) {
@@ -3426,8 +3429,7 @@ static wmOperatorStatus grease_pencil_reproject_exec(bContext *C, wmOperator *op
       const IndexMask bezier_points = bke::curves::curve_type_point_selection(
           curves, CURVE_TYPE_BEZIER, memory);
 
-      for (const StringRef selection_name :
-           ed::curves::get_curves_selection_attribute_names(curves))
+      for (const UString selection_name : ed::curves::get_curves_selection_attribute_names(curves))
       {
         const IndexMask selected_points = ed::curves::retrieve_selected_points(
             curves, selection_name, bezier_points, memory);
@@ -3672,8 +3674,7 @@ static wmOperatorStatus grease_pencil_snap_to_grid_exec(bContext *C, wmOperator 
     const IndexMask bezier_points = bke::curves::curve_type_point_selection(
         curves, CURVE_TYPE_BEZIER, memory);
 
-    for (const StringRef selection_name : ed::curves::get_curves_selection_attribute_names(curves))
-    {
+    for (const UString selection_name : ed::curves::get_curves_selection_attribute_names(curves)) {
       const IndexMask selected_points = ed::curves::retrieve_selected_points(
           curves, selection_name, bezier_points, memory);
 
@@ -3969,7 +3970,7 @@ static wmOperatorStatus grease_pencil_texture_gradient_exec(bContext *C, wmOpera
     const Span<float3> positions = curves.positions();
     const Span<float3> normals = info.drawing.curve_plane_normals();
     const VArray<int> materials = *curves.attributes().lookup_or_default<int>(
-        "material_index", bke::AttrDomain::Curve, 0);
+        "material_index"_ustr, bke::AttrDomain::Curve, 0);
 
     Array<float4x2> texture_matrices(strokes.size());
 
@@ -4220,11 +4221,11 @@ static wmOperatorStatus grease_pencil_set_handle_type_exec(bContext *C, wmOperat
 
     const bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
     const VArraySpan<bool> selection = *attributes.lookup_or_default<bool>(
-        ".selection", bke::AttrDomain::Point, true);
+        ".selection"_ustr, bke::AttrDomain::Point, true);
     const VArraySpan<bool> selection_left = *attributes.lookup_or_default<bool>(
-        ".selection_handle_left", bke::AttrDomain::Point, true);
+        ".selection_handle_left"_ustr, bke::AttrDomain::Point, true);
     const VArraySpan<bool> selection_right = *attributes.lookup_or_default<bool>(
-        ".selection_handle_right", bke::AttrDomain::Point, true);
+        ".selection_handle_right"_ustr, bke::AttrDomain::Point, true);
 
     const OffsetIndices<int> points_by_curve = curves.points_by_curve();
     MutableSpan<int8_t> handle_types_left = curves.handle_types_left_for_write();
@@ -4367,49 +4368,49 @@ static wmOperatorStatus grease_pencil_reset_uvs_exec(bContext *C, wmOperator * /
       return;
     }
 
-    if (attributes.contains("uv_rotation")) {
+    if (attributes.contains("uv_rotation"_ustr)) {
       if (editable_strokes.size() == curves.curves_num()) {
-        attributes.remove("uv_rotation");
+        attributes.remove("uv_rotation"_ustr);
       }
       else {
         bke::SpanAttributeWriter<float> uv_rotations = attributes.lookup_for_write_span<float>(
-            "uv_rotation");
+            "uv_rotation"_ustr);
         index_mask::masked_fill(uv_rotations.span, 0.0f, editable_strokes);
         uv_rotations.finish();
       }
     }
 
-    if (attributes.contains("uv_translation")) {
+    if (attributes.contains("uv_translation"_ustr)) {
       if (editable_strokes.size() == curves.curves_num()) {
-        attributes.remove("uv_translation");
+        attributes.remove("uv_translation"_ustr);
       }
       else {
-        bke::SpanAttributeWriter<float2> uv_translations =
-            attributes.lookup_for_write_span<float2>("uv_translation");
+        bke::SpanAttributeWriter uv_translations = attributes.lookup_for_write_span<float2>(
+            "uv_translation"_ustr);
         index_mask::masked_fill(uv_translations.span, float2(0.0f, 0.0f), editable_strokes);
         uv_translations.finish();
       }
     }
 
-    if (attributes.contains("uv_scale")) {
+    if (attributes.contains("uv_scale"_ustr)) {
       if (editable_strokes.size() == curves.curves_num()) {
-        attributes.remove("uv_scale");
+        attributes.remove("uv_scale"_ustr);
       }
       else {
         bke::SpanAttributeWriter<float2> uv_scales = attributes.lookup_for_write_span<float2>(
-            "uv_scale");
+            "uv_scale"_ustr);
         index_mask::masked_fill(uv_scales.span, float2(1.0f, 1.0f), editable_strokes);
         uv_scales.finish();
       }
     }
 
-    if (attributes.contains("uv_shear")) {
+    if (attributes.contains("uv_shear"_ustr)) {
       if (editable_strokes.size() == curves.curves_num()) {
-        attributes.remove("uv_shear");
+        attributes.remove("uv_shear"_ustr);
       }
       else {
         bke::SpanAttributeWriter<float> uv_shears = attributes.lookup_for_write_span<float>(
-            "uv_shear");
+            "uv_shear"_ustr);
         index_mask::masked_fill(uv_shears.span, 0.0f, editable_strokes);
         uv_shears.finish();
       }
@@ -4977,20 +4978,20 @@ static wmOperatorStatus grease_pencil_set_corner_type_exec(bContext *C, wmOperat
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
 
     /* Only create the attribute if we are not storing the default. */
-    if (miter_angle == GP_STROKE_MITER_ANGLE_ROUND && !attributes.contains("miter_angle")) {
+    if (miter_angle == GP_STROKE_MITER_ANGLE_ROUND && !attributes.contains("miter_angle"_ustr)) {
       return;
     }
 
     /* Remove the attribute if we are storing all default. */
     if (miter_angle == GP_STROKE_MITER_ANGLE_ROUND && selection == curves.points_range()) {
-      attributes.remove("miter_angle");
+      attributes.remove("miter_angle"_ustr);
       changed.store(true, std::memory_order_relaxed);
       return;
     }
 
     if (bke::SpanAttributeWriter<float> miter_angles =
             attributes.lookup_or_add_for_write_span<float>(
-                "miter_angle",
+                "miter_angle"_ustr,
                 bke::AttrDomain::Point,
                 bke::AttributeInitVArray(
                     VArray<float>::from_single(GP_STROKE_MITER_ANGLE_ROUND, curves.points_num()))))
@@ -5088,9 +5089,9 @@ static wmOperatorStatus grease_pencil_set_stroke_type_exec(bContext *C, wmOperat
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
 
     bke::SpanAttributeWriter<bool> hide_stroke = attributes.lookup_or_add_for_write_span<bool>(
-        "hide_stroke", bke::AttrDomain::Curve);
+        "hide_stroke"_ustr, bke::AttrDomain::Curve);
     bke::SpanAttributeWriter<int> fill_ids = attributes.lookup_or_add_for_write_span<int>(
-        "fill_id", bke::AttrDomain::Curve);
+        "fill_id"_ustr, bke::AttrDomain::Curve);
 
     switch (type) {
       case StrokeType::Stroke: {
@@ -5134,7 +5135,7 @@ static wmOperatorStatus grease_pencil_set_stroke_type_exec(bContext *C, wmOperat
           }))
       {
         /* Remove #fill_id attribute if there are no fills left. */
-        attributes.remove("fill_id");
+        attributes.remove("fill_id"_ustr);
       }
     }
 
@@ -5143,12 +5144,13 @@ static wmOperatorStatus grease_pencil_set_stroke_type_exec(bContext *C, wmOperat
           hide_stroke.span.varray());
       if (hide_strokes_mix == array_utils::BooleanMix::AllFalse) {
         /* Remove #hide_stroke attribute if all strokes are visible. */
-        attributes.remove("hide_stroke");
+        attributes.remove("hide_stroke"_ustr);
       }
       else {
         /* If some strokes got unhidden, make sure that we create the radius attribute if it
          * doesn't exist already. */
-        attributes.add<float>("radius", bke::AttrDomain::Point, bke::AttributeInitValue(0.005f));
+        attributes.add<float>(
+            "radius"_ustr, bke::AttrDomain::Point, bke::AttributeInitValue(0.005f));
       }
     }
 
@@ -5354,7 +5356,7 @@ static wmOperatorStatus grease_pencil_join_fills_exec(bContext *C, wmOperator *o
   bke::CurvesGeometry &curves = drawing_dst->strokes_for_write();
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
   bke::SpanAttributeWriter<int> fill_ids = attributes.lookup_or_add_for_write_span<int>(
-      "fill_id", bke::AttrDomain::Curve);
+      "fill_id"_ustr, bke::AttrDomain::Curve);
 
   const IndexMask selected_strokes = bke::greasepencil::selected_mask_to_fills(
       base_selected_strokes, curves, bke::AttrDomain::Curve, memory);
@@ -5370,12 +5372,12 @@ static wmOperatorStatus grease_pencil_join_fills_exec(bContext *C, wmOperator *o
   index_mask::masked_fill(fill_ids.span, fill_id_to_set, selected_strokes);
   fill_ids.finish();
 
-  Set<StringRef> attributes_to_set{{"material_index",
-                                    "fill_color",
-                                    "fill_opacity",
-                                    "uv_rotation",
-                                    "uv_translation",
-                                    "uv_scale"}};
+  Set<UString> attributes_to_set{{"material_index"_ustr,
+                                  "fill_color"_ustr,
+                                  "fill_opacity"_ustr,
+                                  "uv_rotation"_ustr,
+                                  "uv_translation"_ustr,
+                                  "uv_scale"_ustr}};
   /* Copy curve attributes from the active to all other selected curves. */
   attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
     if (iter.domain != bke::AttrDomain::Curve) {
@@ -5438,7 +5440,7 @@ static wmOperatorStatus grease_pencil_separate_fills_exec(bContext *C, wmOperato
     }
     bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-    bke::SpanAttributeWriter<int> fill_ids = attributes.lookup_for_write_span<int>("fill_id");
+    bke::SpanAttributeWriter<int> fill_ids = attributes.lookup_for_write_span<int>("fill_id"_ustr);
     if (!fill_ids) {
       return;
     }
@@ -5630,7 +5632,7 @@ static void remap_material_indices(bke::greasepencil::Drawing &drawing,
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
   /* Validate material indices and add missing materials. */
   bke::SpanAttributeWriter<int> material_writer = attributes.lookup_or_add_for_write_span<int>(
-      "material_index", bke::AttrDomain::Curve);
+      "material_index"_ustr, bke::AttrDomain::Curve);
   threading::parallel_for(curves.curves_range(), 1024, [&](const IndexRange range) {
     for (const int curve_i : range) {
       material_writer.span[curve_i] = material_index_map[material_writer.span[curve_i]];
@@ -5667,7 +5669,7 @@ static bke::AttributeStorage merge_attributes(const bke::AttributeAccessor &a,
                                               const bke::AttributeAccessor &b,
                                               const int dst_size)
 {
-  Map<std::string, bke::AttrType> new_types;
+  Map<UString, bke::AttrType> new_types;
   const auto add_or_upgrade_types = [&](const bke::AttributeAccessor &attributes) {
     attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
       new_types.add_or_modify(

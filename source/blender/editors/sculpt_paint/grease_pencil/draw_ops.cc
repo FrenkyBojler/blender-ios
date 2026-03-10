@@ -1345,7 +1345,7 @@ static void smooth_fill_strokes(bke::CurvesGeometry &curves, const IndexMask &st
   const VArray<bool> cyclic = curves.cyclic();
   const VArray<bool> point_selection = VArray<bool>::from_single(true, curves.points_num());
 
-  bke::GSpanAttributeWriter positions = attributes.lookup_for_write_span("position");
+  bke::GSpanAttributeWriter positions = attributes.lookup_for_write_span("position"_ustr);
   geometry::smooth_curve_attribute(stroke_mask,
                                    points_by_curve,
                                    point_selection,
@@ -1452,7 +1452,7 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
     /* Combine the strokes into a single fill with the same fill ID. */
     bke::SpanAttributeWriter<int> fill_ids =
         fill_curves.attributes_for_write().lookup_or_add_for_write_span<int>(
-            "fill_id", bke::AttrDomain::Curve, bke::AttributeInitValue(1));
+            "fill_id"_ustr, bke::AttrDomain::Curve, bke::AttributeInitValue(1));
     fill_ids.finish();
 
     smooth_fill_strokes(fill_curves, fill_curves.curves_range());
@@ -1469,12 +1469,12 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
 
     /* If the `fill_strokes` function creates the "fill_opacity" attribute, make sure that we
      * initialize this to full opacity on the target geometry. */
-    if (fill_curves.attributes().contains("fill_opacity") &&
-        !dst_curves.attributes().contains("fill_opacity"))
+    if (fill_curves.attributes().contains("fill_opacity"_ustr) &&
+        !dst_curves.attributes().contains("fill_opacity"_ustr))
     {
       bke::SpanAttributeWriter<float> fill_opacities =
           dst_curves.attributes_for_write().lookup_or_add_for_write_span<float>(
-              "fill_opacity", bke::AttrDomain::Curve, bke::AttributeInitValue(1.0f));
+              "fill_opacity"_ustr, bke::AttrDomain::Curve, bke::AttributeInitValue(1.0f));
       fill_opacities.finish();
     }
 

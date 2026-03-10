@@ -655,7 +655,7 @@ static void create_Bezier(bke::CurvesGeometry &curves,
   const IndexRange new_points = curves.points_by_curve()[curve_index];
 
   bke::SpanAttributeWriter<float> radii = attributes.lookup_or_add_for_write_only_span<float>(
-      "radius", bke::AttrDomain::Point);
+      "radius"_ustr, bke::AttrDomain::Point);
 
   const float *co = cubic_spline;
 
@@ -717,7 +717,7 @@ static void create_NURBS(bke::CurvesGeometry &curves,
   const IndexRange new_points = curves.points_by_curve()[curve_index];
 
   bke::SpanAttributeWriter<float> radii = attributes.lookup_or_add_for_write_only_span<float>(
-      "radius", bke::AttrDomain::Point);
+      "radius"_ustr, bke::AttrDomain::Point);
   /* If cyclic shows to first left handle else first control point. */
   const float *pt = cubic_spline + (is_cyclic ? 0 : dims);
 
@@ -778,7 +778,7 @@ static wmOperatorStatus curves_draw_exec(bContext *C, wmOperator *op)
                                     (cps->radius_taper_end != 0.0f));
 
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-  Span<StringRef> selection_attribute_names = get_curves_selection_attribute_names(curves);
+  Span<UString> selection_attribute_names = get_curves_selection_attribute_names(curves);
   remove_selection_attributes(attributes, selection_attribute_names);
 
   if (cdd->curve_type == CU_BEZIER) {
@@ -924,7 +924,7 @@ static wmOperatorStatus curves_draw_exec(bContext *C, wmOperator *op)
 
       /* If Bezier curve is being added, loop through all three names, otherwise through ones in
        * `selection_attribute_names`. */
-      for (const StringRef selection_name :
+      for (const UString selection_name :
            (bezier_as_nurbs ? selection_attribute_names :
                               get_curves_all_selection_attribute_names()))
       {
@@ -936,34 +936,34 @@ static wmOperatorStatus curves_draw_exec(bContext *C, wmOperator *op)
         selection.finish();
       }
 
-      if (attributes.contains("resolution")) {
+      if (attributes.contains("resolution"_ustr)) {
         curves.resolution_for_write()[curve_index] = 12;
       }
       bke::fill_attribute_range_default(
           attributes,
           bke::AttrDomain::Point,
-          bke::attribute_filter_from_skip_ref({"position",
-                                               "radius",
-                                               "handle_left",
-                                               "handle_right",
-                                               "handle_type_left",
-                                               "handle_type_right",
-                                               "nurbs_weight",
-                                               ".selection",
-                                               ".selection_handle_left",
-                                               ".selection_handle_right"}),
+          bke::attribute_filter_from_skip_ref({"position"_ustr,
+                                               "radius"_ustr,
+                                               "handle_left"_ustr,
+                                               "handle_right"_ustr,
+                                               "handle_type_left"_ustr,
+                                               "handle_type_right"_ustr,
+                                               "nurbs_weight"_ustr,
+                                               ".selection"_ustr,
+                                               ".selection_handle_left"_ustr,
+                                               ".selection_handle_right"_ustr}),
           curves.points_by_curve()[curve_index]);
       bke::fill_attribute_range_default(
           attributes,
           bke::AttrDomain::Curve,
-          bke::attribute_filter_from_skip_ref({"curve_type",
-                                               "resolution",
-                                               "cyclic",
-                                               "nurbs_order",
-                                               "knots_mode",
-                                               ".selection",
-                                               ".selection_handle_left",
-                                               ".selection_handle_right"}),
+          bke::attribute_filter_from_skip_ref({"curve_type"_ustr,
+                                               "resolution"_ustr,
+                                               "cyclic"_ustr,
+                                               "nurbs_order"_ustr,
+                                               "knots_mode"_ustr,
+                                               ".selection"_ustr,
+                                               ".selection_handle_left"_ustr,
+                                               ".selection_handle_right"_ustr}),
           IndexRange(curve_index, 1));
     }
 
@@ -981,7 +981,7 @@ static wmOperatorStatus curves_draw_exec(bContext *C, wmOperator *op)
 
     MutableSpan<float3> positions = curves.positions_for_write();
     bke::SpanAttributeWriter<float> radii = attributes.lookup_or_add_for_write_only_span<float>(
-        "radius", bke::AttrDomain::Point);
+        "radius"_ustr, bke::AttrDomain::Point);
 
     const IndexRange new_points = curves.points_by_curve()[curve_index];
 
@@ -1005,13 +1005,13 @@ static wmOperatorStatus curves_draw_exec(bContext *C, wmOperator *op)
     radii.finish();
 
     bke::AttributeWriter<bool> selection = attributes.lookup_or_add_for_write<bool>(
-        ".selection", bke::AttrDomain::Curve);
+        ".selection"_ustr, bke::AttrDomain::Curve);
     selection.varray.set(curve_index, true);
     selection.finish();
 
     /* Creates ".selection_handle_left" and ".selection_handle_right" attributes, otherwise all
      * existing Bezier handles would be treated as selected. */
-    for (const StringRef selection_name : get_curves_bezier_selection_attribute_names(curves)) {
+    for (const UString selection_name : get_curves_bezier_selection_attribute_names(curves)) {
       bke::AttributeWriter<bool> selection = attributes.lookup_or_add_for_write<bool>(
           selection_name, bke::AttrDomain::Curve);
       selection.finish();
@@ -1020,17 +1020,19 @@ static wmOperatorStatus curves_draw_exec(bContext *C, wmOperator *op)
     bke::fill_attribute_range_default(
         attributes,
         bke::AttrDomain::Point,
-        bke::attribute_filter_from_skip_ref({"position",
-                                             "radius",
-                                             ".selection",
-                                             ".selection_handle_left",
-                                             ".selection_handle_right"}),
+        bke::attribute_filter_from_skip_ref({"position"_ustr,
+                                             "radius"_ustr,
+                                             ".selection"_ustr,
+                                             ".selection_handle_left"_ustr,
+                                             ".selection_handle_right"_ustr}),
         new_points);
     bke::fill_attribute_range_default(
         attributes,
         bke::AttrDomain::Curve,
-        bke::attribute_filter_from_skip_ref(
-            {"curve_type", ".selection", ".selection_handle_left", ".selection_handle_right"}),
+        bke::attribute_filter_from_skip_ref({"curve_type"_ustr,
+                                             ".selection"_ustr,
+                                             ".selection_handle_left"_ustr,
+                                             ".selection_handle_right"_ustr}),
         IndexRange(curve_index, 1));
   }
 

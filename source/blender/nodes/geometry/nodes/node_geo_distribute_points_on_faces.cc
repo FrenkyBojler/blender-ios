@@ -299,7 +299,7 @@ BLI_NOINLINE static void propagate_existing_attributes(
   MutableAttributeAccessor point_attributes = points.attributes_for_write();
 
   for (const int i : attributes.names.index_range()) {
-    const StringRef name = attributes.names[i];
+    const UString name = attributes.names[i];
     const bke::AttrType output_data_type = attributes.kinds[i].data_type;
     if (name == "position") {
       continue;
@@ -414,18 +414,18 @@ BLI_NOINLINE static void compute_attribute_outputs(const Mesh &mesh,
   MutableAttributeAccessor point_attributes = points.attributes_for_write();
 
   SpanAttributeWriter<int> ids = point_attributes.lookup_or_add_for_write_only_span<int>(
-      "id", AttrDomain::Point);
+      "id"_ustr, AttrDomain::Point);
 
   SpanAttributeWriter<float3> normals;
   SpanAttributeWriter<math::Quaternion> rotations;
 
   if (attribute_outputs.normal_id) {
     normals = point_attributes.lookup_or_add_for_write_only_span<float3>(
-        *attribute_outputs.normal_id, AttrDomain::Point);
+        UString(*attribute_outputs.normal_id), AttrDomain::Point);
   }
   if (attribute_outputs.rotation_id) {
     rotations = point_attributes.lookup_or_add_for_write_only_span<math::Quaternion>(
-        *attribute_outputs.rotation_id, AttrDomain::Point);
+        UString(*attribute_outputs.rotation_id), AttrDomain::Point);
   }
 
   threading::parallel_for(bary_coords.index_range(), 1024, [&](const IndexRange range) {
@@ -555,7 +555,7 @@ static void point_distribution_calculate(GeometrySet &geometry_set,
   PointCloud *pointcloud = BKE_pointcloud_new_nomain(positions.size());
   bke::MutableAttributeAccessor point_attributes = pointcloud->attributes_for_write();
   bke::SpanAttributeWriter<float> point_radii =
-      point_attributes.lookup_or_add_for_write_only_span<float>("radius", AttrDomain::Point);
+      point_attributes.lookup_or_add_for_write_only_span<float>("radius"_ustr, AttrDomain::Point);
   pointcloud->positions_for_write().copy_from(positions);
   point_radii.span.fill(0.05f);
   point_radii.finish();

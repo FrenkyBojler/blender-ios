@@ -8,6 +8,7 @@
 
 #include <algorithm>
 
+#include "BLI_ustring.hh"
 #include "DNA_customdata_types.h"
 #include "DNA_material_types.h"
 #include "DNA_meshdata_types.h"
@@ -220,12 +221,12 @@ void MeshFromGeometry::create_faces(Mesh *mesh, bool use_vertex_groups)
   MutableSpan<int> face_offsets = mesh->face_offsets_for_write();
   MutableSpan<int> corner_verts = mesh->corner_verts_for_write();
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
-  bke::SpanAttributeWriter<int> material_indices =
-      attributes.lookup_or_add_for_write_only_span<int>("material_index", bke::AttrDomain::Face);
+  bke::SpanAttributeWriter material_indices = attributes.lookup_or_add_for_write_only_span<int>(
+      "material_index"_ustr, bke::AttrDomain::Face);
 
   const bool set_face_sharpness = !has_normals();
   bke::SpanAttributeWriter<bool> sharp_faces = attributes.lookup_or_add_for_write_span<bool>(
-      "sharp_face", bke::AttrDomain::Face);
+      "sharp_face"_ustr, bke::AttrDomain::Face);
 
   int corner_index = 0;
 
@@ -325,7 +326,7 @@ void MeshFromGeometry::create_uv_verts(Mesh *mesh)
 
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   bke::SpanAttributeWriter<float2> uv_map = attributes.lookup_or_add_for_write_only_span<float2>(
-      "UVMap", bke::AttrDomain::Corner);
+      "UVMap"_ustr, bke::AttrDomain::Corner);
 
   int corner_index = 0;
   bool added_uv = false;
@@ -356,7 +357,7 @@ void MeshFromGeometry::create_uv_verts(Mesh *mesh)
    * the exception rather than the rule, just delete it afterwards.
    */
   if (!added_uv) {
-    attributes.remove("UVMap");
+    attributes.remove("UVMap"_ustr);
   }
   else {
     mesh->uv_maps_active_set("UVMap");
@@ -468,7 +469,7 @@ void MeshFromGeometry::create_colors(Mesh *mesh)
   const std::string name = BKE_attribute_calc_unique_name(owner, "Color");
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   bke::SpanAttributeWriter attr = attributes.lookup_or_add_for_write_span<ColorGeometry4f>(
-      name, bke::AttrDomain::Point);
+      UString(name), bke::AttrDomain::Point);
   BKE_id_attributes_active_color_set(&mesh->id, name);
   BKE_id_attributes_default_color_set(&mesh->id, name);
   MutableSpan<float4> colors = attr.span.cast<float4>();

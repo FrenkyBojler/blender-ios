@@ -351,7 +351,7 @@ static void grease_pencil_weight_batch_ensure(Object &object,
 
     /* Get vertex weights of the active vertex group in this drawing. */
     const VArray<float> weights = *curves.attributes().lookup_or_default<float>(
-        active_defgroup_name, bke::AttrDomain::Point, no_active_weight);
+        UString(active_defgroup_name), bke::AttrDomain::Point, no_active_weight);
     MutableSpan<float> weights_slice = points_weight.slice(points);
     weights.materialize(weights_slice);
 
@@ -931,7 +931,7 @@ static void grease_pencil_edit_batch_ensure(Object &object,
                                                           selected_editable_fill_strokes);
 
     const VArray<float> selected_point = *curves.attributes().lookup_or_default<float>(
-        ".selection", bke::AttrDomain::Point, true);
+        ".selection"_ustr, bke::AttrDomain::Point, true);
 
     grease_pencil_cache_add_nurbs(object,
                                   info.drawing,
@@ -970,9 +970,9 @@ static void grease_pencil_edit_batch_ensure(Object &object,
     math::transform_points(layer_space_to_object_space, positions_slice_right);
 
     const VArray<float> selected_left = *curves.attributes().lookup_or_default<float>(
-        ".selection_handle_left", bke::AttrDomain::Point, true);
+        ".selection_handle_left"_ustr, bke::AttrDomain::Point, true);
     const VArray<float> selected_right = *curves.attributes().lookup_or_default<float>(
-        ".selection_handle_right", bke::AttrDomain::Point, true);
+        ".selection_handle_right"_ustr, bke::AttrDomain::Point, true);
 
     MutableSpan<float> selection_slice_left = edit_points_selection.slice(left_slice);
     MutableSpan<float> selection_slice_right = edit_points_selection.slice(right_slice);
@@ -1107,7 +1107,7 @@ static VArray<T> attribute_interpolate(const VArray<T> &input, const bke::Curves
 static VArray<float> interpolate_corners(const bke::CurvesGeometry &curves)
 {
   const VArray<float> miter_angles = *curves.attributes().lookup_or_default<float>(
-      "miter_angle", bke::AttrDomain::Point, GP_STROKE_MITER_ANGLE_ROUND);
+      "miter_angle"_ustr, bke::AttrDomain::Point, GP_STROKE_MITER_ANGLE_ROUND);
 
   if (curves.is_single_type(CURVE_TYPE_POLY)) {
     return miter_angles;
@@ -1263,35 +1263,36 @@ static void grease_pencil_geom_batch_ensure(Object &object,
     const VArray<float> radii = attribute_interpolate<float>(info.drawing.radii(), curves);
     const VArray<float> opacities = attribute_interpolate<float>(info.drawing.opacities(), curves);
     const VArray<float> rotations = attribute_interpolate<float>(
-        *attributes.lookup_or_default<float>("rotation", bke::AttrDomain::Point, 0.0f), curves);
+        *attributes.lookup_or_default<float>("rotation"_ustr, bke::AttrDomain::Point, 0.0f),
+        curves);
     const VArray<ColorGeometry4f> vertex_colors = attribute_interpolate<ColorGeometry4f>(
         *attributes.lookup_or_default<ColorGeometry4f>(
-            "vertex_color", bke::AttrDomain::Point, ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f)),
+            "vertex_color"_ustr, bke::AttrDomain::Point, ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f)),
         curves);
     const VArray<float> miter_angles = interpolate_corners(curves);
 
     /* Assumes that if the ".selection" attribute does not exist, all points are selected. */
     const VArray<float> selection_float = *attributes.lookup_or_default<float>(
-        ".selection", bke::AttrDomain::Point, true);
+        ".selection"_ustr, bke::AttrDomain::Point, true);
     const VArray<int8_t> start_caps = *attributes.lookup_or_default<int8_t>(
-        "start_cap", bke::AttrDomain::Curve, GP_STROKE_CAP_TYPE_ROUND);
+        "start_cap"_ustr, bke::AttrDomain::Curve, GP_STROKE_CAP_TYPE_ROUND);
     const VArray<int8_t> end_caps = *attributes.lookup_or_default<int8_t>(
-        "end_cap", bke::AttrDomain::Curve, 0);
+        "end_cap"_ustr, bke::AttrDomain::Curve, 0);
     const VArray<float> stroke_softness = *attributes.lookup_or_default<float>(
-        "softness", bke::AttrDomain::Curve, 0.0f);
+        "softness"_ustr, bke::AttrDomain::Curve, 0.0f);
     const VArray<float> stroke_point_aspect_ratios = *attributes.lookup_or_default<float>(
-        "aspect_ratio", bke::AttrDomain::Curve, 1.0f);
+        "aspect_ratio"_ustr, bke::AttrDomain::Curve, 1.0f);
     const VArray<ColorGeometry4f> stroke_fill_colors = info.drawing.fill_colors();
     const VArray<int> materials = *attributes.lookup_or_default<int>(
-        "material_index", bke::AttrDomain::Curve, 0);
+        "material_index"_ustr, bke::AttrDomain::Curve, 0);
     const VArray<float> u_translations = *attributes.lookup_or_default<float>(
-        "u_translation", bke::AttrDomain::Curve, 0.0f);
+        "u_translation"_ustr, bke::AttrDomain::Curve, 0.0f);
     const VArray<float> u_scales = *attributes.lookup_or_default<float>(
-        "u_scale", bke::AttrDomain::Curve, 1.0f);
+        "u_scale"_ustr, bke::AttrDomain::Curve, 1.0f);
     const VArray<float> fill_opacities = *attributes.lookup_or_default<float>(
-        "fill_opacity", bke::AttrDomain::Curve, 1.0f);
+        "fill_opacity"_ustr, bke::AttrDomain::Curve, 1.0f);
     const VArray<int> fill_ids = *attributes.lookup_or_default<int>(
-        "fill_id", bke::AttrDomain::Curve, 0);
+        "fill_id"_ustr, bke::AttrDomain::Curve, 0);
 
     const std::optional<GroupedSpan<int3>> triangles = info.drawing.triangles();
     const std::optional<GroupedSpan<int>> fills = info.drawing.fills();

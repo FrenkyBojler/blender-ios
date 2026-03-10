@@ -319,10 +319,10 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   MutableSpan<int> corner_edges = result->corner_edges_for_write();
   bke::MutableAttributeAccessor attributes = result->attributes_for_write();
   bke::SpanAttributeWriter mloopcols_index =
-      attributes.lookup_or_add_for_write_span<ColorGeometry4b>(pimd->index_layer_name,
+      attributes.lookup_or_add_for_write_span<ColorGeometry4b>(UString(pimd->index_layer_name),
                                                                bke::AttrDomain::Corner);
   bke::SpanAttributeWriter mloopcols_value =
-      attributes.lookup_or_add_for_write_span<ColorGeometry4b>(pimd->value_layer_name,
+      attributes.lookup_or_add_for_write_span<ColorGeometry4b>(UString(pimd->value_layer_name),
                                                                bke::AttrDomain::Corner);
 
   bke::LegacyMeshInterpolator vert_interp(*mesh, *result, bke::AttrDomain::Point);

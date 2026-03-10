@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 #include "usd_writer_mesh.hh"
 
+#include "BLI_ustring.hh"
 #include "usd_armature_utils.hh"
 #include "usd_attribute_utils.hh"
 #include "usd_blend_shape_utils.hh"
@@ -152,27 +153,27 @@ void USDGenericMeshWriter::write_custom_data(const Object *obj,
 {
   const bke::AttributeAccessor attributes = mesh->attributes();
 
-  const StringRef active_uvmap_name = mesh->default_uv_map_name();
+  const UString active_uvmap_name = mesh->default_uv_map_name();
 
   attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
     /* Skip "internal" Blender properties and attributes processed elsewhere.
      * Skip edge domain because USD doesn't have a good conversion for them. */
-    if (iter.name[0] == '.' || bke::attribute_name_is_anonymous(iter.name) ||
+    if (iter.name.ref()[0] == '.' || bke::attribute_name_is_anonymous(iter.name.ref()) ||
         iter.domain == bke::AttrDomain::Edge ||
         ELEM(iter.name,
-             "position",
-             "material_index",
-             "velocity",
-             "crease_vert",
-             "custom_normal",
-             "sharp_face"))
+             "position"_ustr,
+             "material_index"_ustr,
+             "velocity"_ustr,
+             "crease_vert"_ustr,
+             "custom_normal"_ustr,
+             "sharp_face"_ustr))
     {
       return;
     }
 
     if ((usd_export_context_.export_params.export_armatures ||
          usd_export_context_.export_params.export_shapekeys) &&
-        iter.name.rfind("skel:") == 0)
+        iter.name.ref().rfind("skel:") == 0)
     {
       /* If we're exporting armatures or shape keys to UsdSkel, we skip any
        * attributes that have names with the "skel:" namespace, to avoid possible
@@ -182,7 +183,7 @@ void USDGenericMeshWriter::write_custom_data(const Object *obj,
     }
 
     if (usd_export_context_.export_params.export_armatures &&
-        is_armature_modifier_bone_name(*obj, iter.name, usd_export_context_.depsgraph))
+        is_armature_modifier_bone_name(*obj, iter.name.ref(), usd_export_context_.depsgraph))
     {
       /* This attribute is likely a vertex group for the armature modifier,
        * and it may conflict with skinning data that will be written to
@@ -194,7 +195,7 @@ void USDGenericMeshWriter::write_custom_data(const Object *obj,
     /* UV Data. */
     if (iter.domain == bke::AttrDomain::Corner && iter.data_type == bke::AttrType::Float2) {
       if (usd_export_context_.export_params.export_uvmaps) {
-        this->write_uv_data(mesh, usd_mesh, iter, active_uvmap_name);
+        this->write_uv_data(mesh, usd_mesh, iter, active_uvmap_name.ref());
       }
     }
 
@@ -226,7 +227,7 @@ void USDGenericMeshWriter::write_generic_data(const Mesh *mesh,
                                               const bke::AttributeIter &attr)
 {
   const pxr::TfToken pv_name(
-      make_safe_primvar_name(attr.name, usd_export_context_.export_params.allow_unicode));
+      make_safe_primvar_name(attr.name.ref(), usd_export_context_.export_params.allow_unicode));
   const bool use_color3f_type = pv_name == usdtokens::displayColor;
   const std::optional<pxr::TfToken> pv_interp = convert_blender_domain_to_usd(attr.domain);
   const std::optional<pxr::SdfValueTypeName> pv_type = convert_blender_type_to_usd(
@@ -269,9 +270,9 @@ void USDGenericMeshWriter::write_uv_data(const Mesh *mesh,
   /* Optionally rename active UV map to "st", to follow USD conventions
    * and better work with MaterialX shader nodes. */
   const StringRef name = usd_export_context_.export_params.rename_uvmaps &&
-                                 active_uvmap_name == attr.name ?
+                                 active_uvmap_name == attr.name.ref() ?
                              "st" :
-                             attr.name;
+                             attr.name.ref();
 
   /* Construct the UvVertMap containing the connectivity data for the UVs. */
   const OffsetIndices<int> faces = mesh->faces();
@@ -557,7 +558,7 @@ static void get_loops_polys(const Mesh *mesh, USDMeshData &usd_mesh_data)
    * assignments. */
   const bke::AttributeAccessor attributes = mesh->attributes();
   const VArray<int> material_indices = *attributes.lookup_or_default<int>(
-      "material_index", bke::AttrDomain::Face, 0);
+      "material_index"_ustr, bke::AttrDomain::Face, 0);
   if (!material_indices.is_single() && mesh->totcol > 1) {
     const VArraySpan<int> indices_span(material_indices);
     for (const int i : indices_span.index_range()) {
@@ -579,7 +580,7 @@ static void get_loops_polys(const Mesh *mesh, USDMeshData &usd_mesh_data)
 static void get_edge_creases(const Mesh *mesh, USDMeshData &usd_mesh_data)
 {
   const bke::AttributeAccessor attributes = mesh->attributes();
-  const bke::AttributeReader attribute = attributes.lookup<float>("crease_edge",
+  const bke::AttributeReader attribute = attributes.lookup<float>("crease_edge"_ustr,
                                                                   bke::AttrDomain::Edge);
   if (!attribute) {
     return;
@@ -601,7 +602,7 @@ static void get_edge_creases(const Mesh *mesh, USDMeshData &usd_mesh_data)
 static void get_vert_creases(const Mesh *mesh, USDMeshData &usd_mesh_data)
 {
   const bke::AttributeAccessor attributes = mesh->attributes();
-  const bke::AttributeReader attribute = attributes.lookup<float>("crease_vert",
+  const bke::AttributeReader attribute = attributes.lookup<float>("crease_vert"_ustr,
                                                                   bke::AttrDomain::Point);
   if (!attribute) {
     return;
@@ -739,7 +740,7 @@ void USDGenericMeshWriter::write_surface_velocity(const Mesh *mesh,
 {
   /* Export velocity attribute output by fluid sim, sequence cache modifier
    * and geometry nodes. */
-  const VArraySpan velocity = *mesh->attributes().lookup<float3>("velocity",
+  const VArraySpan velocity = *mesh->attributes().lookup<float3>("velocity"_ustr,
                                                                  bke::AttrDomain::Point);
   if (velocity.is_empty()) {
     return;

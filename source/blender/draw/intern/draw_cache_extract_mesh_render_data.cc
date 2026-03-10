@@ -607,21 +607,21 @@ MeshRenderData mesh_render_data_create(Object &object,
 
     const bke::AttributeAccessor attributes = mr.mesh->attributes();
 
-    mr.material_indices = *attributes.lookup<int>("material_index", bke::AttrDomain::Face);
+    mr.material_indices = *attributes.lookup<int>("material_index"_ustr, bke::AttrDomain::Face);
 
     if (is_editmode || is_paint_mode) {
       if (use_hide) {
-        mr.hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
-        mr.hide_edge = *attributes.lookup<bool>(".hide_edge", bke::AttrDomain::Edge);
-        mr.hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
+        mr.hide_vert = *attributes.lookup<bool>(".hide_vert"_ustr, bke::AttrDomain::Point);
+        mr.hide_edge = *attributes.lookup<bool>(".hide_edge"_ustr, bke::AttrDomain::Edge);
+        mr.hide_poly = *attributes.lookup<bool>(".hide_poly"_ustr, bke::AttrDomain::Face);
       }
 
-      mr.select_vert = *attributes.lookup<bool>(".select_vert", bke::AttrDomain::Point);
-      mr.select_edge = *attributes.lookup<bool>(".select_edge", bke::AttrDomain::Edge);
-      mr.select_poly = *attributes.lookup<bool>(".select_poly", bke::AttrDomain::Face);
+      mr.select_vert = *attributes.lookup<bool>(".select_vert"_ustr, bke::AttrDomain::Point);
+      mr.select_edge = *attributes.lookup<bool>(".select_edge"_ustr, bke::AttrDomain::Edge);
+      mr.select_poly = *attributes.lookup<bool>(".select_poly"_ustr, bke::AttrDomain::Face);
     }
 
-    mr.sharp_faces = *attributes.lookup<bool>("sharp_face", bke::AttrDomain::Face);
+    mr.sharp_faces = *attributes.lookup<bool>("sharp_face"_ustr, bke::AttrDomain::Face);
   }
   else {
     BMesh *bm = mr.bm;

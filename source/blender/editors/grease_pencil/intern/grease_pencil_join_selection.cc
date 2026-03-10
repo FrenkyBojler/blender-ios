@@ -162,27 +162,29 @@ void reverse_points_of(bke::CurvesGeometry &dst_curves, const IndexRange points_
   });
 
   /* Also needs to swap left/right bezier handles if handle attributes exist. */
-  if (attributes.contains("handle_left") && attributes.contains("handle_right")) {
+  if (attributes.contains("handle_left"_ustr) && attributes.contains("handle_right"_ustr)) {
     MutableSpan<float3> handles_left = dst_curves.handle_positions_left_for_write().slice(
         points_to_reverse);
     MutableSpan<float3> handles_right = dst_curves.handle_positions_right_for_write().slice(
         points_to_reverse);
     swap_handle_attributes<float3>(handles_left, handles_right);
   }
-  if (attributes.contains(".selection_handle_left") &&
-      attributes.contains(".selection_handle_right"))
+  if (attributes.contains(".selection_handle_left"_ustr) &&
+      attributes.contains(".selection_handle_right"_ustr))
   {
     bke::SpanAttributeWriter<bool> writer_left = attributes.lookup_for_write_span<bool>(
-        ".selection_handle_left");
+        ".selection_handle_left"_ustr);
     bke::SpanAttributeWriter<bool> writer_right = attributes.lookup_for_write_span<bool>(
-        ".selection_handle_right");
+        ".selection_handle_right"_ustr);
     const MutableSpan<bool> selection_left = writer_left.span.slice(points_to_reverse);
     const MutableSpan<bool> selection_right = writer_right.span.slice(points_to_reverse);
     swap_handle_attributes<bool>(selection_left, selection_right);
     writer_left.finish();
     writer_right.finish();
   }
-  if (attributes.contains("handle_type_left") && attributes.contains("handle_type_right")) {
+  if (attributes.contains("handle_type_left"_ustr) &&
+      attributes.contains("handle_type_right"_ustr))
+  {
     MutableSpan<int8_t> types_left = dst_curves.handle_types_left_for_write().slice(
         points_to_reverse);
     MutableSpan<int8_t> types_right = dst_curves.handle_types_right_for_write().slice(
@@ -391,7 +393,7 @@ void copy_curve_attributes(Span<PointsRange> ranges_selected,
   gather_attributes_to_groups(src_curves.attributes(),
                               bke::AttrDomain::Curve,
                               bke::AttrDomain::Curve,
-                              bke::attribute_filter_from_skip_ref({"cyclic"}),
+                              bke::attribute_filter_from_skip_ref({"cyclic"_ustr}),
                               dst_curve_offsets,
                               IndexMask({first_selected_curve, 1}),
                               dst_curves.attributes_for_write());
@@ -409,17 +411,19 @@ void clear_selection_attribute(Span<PointsRange> ranges_selected,
     bke::CurvesGeometry &curves = range.from_drawing->strokes_for_write();
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
     if (bke::SpanAttributeWriter<bool> selection = attributes.lookup_or_add_for_write_span<bool>(
-            ".selection", selection_domain))
+            ".selection"_ustr, selection_domain))
     {
       selection.span.fill(false);
       selection.finish();
     }
-    if (bke::GSpanAttributeWriter selection = attributes.lookup_for_write_span(".selection_left"))
+    if (bke::GSpanAttributeWriter selection = attributes.lookup_for_write_span(
+            ".selection_left"_ustr))
     {
       ed::curves::fill_selection_false(selection.span);
       selection.finish();
     }
-    if (bke::GSpanAttributeWriter selection = attributes.lookup_for_write_span(".selection_right"))
+    if (bke::GSpanAttributeWriter selection = attributes.lookup_for_write_span(
+            ".selection_right"_ustr))
     {
       ed::curves::fill_selection_false(selection.span);
       selection.finish();

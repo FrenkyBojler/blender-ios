@@ -48,13 +48,13 @@ static wmOperatorStatus duplicate_exec(bContext *C, wmOperator * /*op*/)
       continue;
     }
 
-    pointcloud->attributes_for_write().remove(".selection");
+    pointcloud->attributes_for_write().remove(".selection"_ustr);
 
     duplicate_points(*pointcloud, selection);
 
     bke::SpanAttributeWriter selection_attr =
         pointcloud->attributes_for_write().lookup_or_add_for_write_span<bool>(
-            ".selection", bke::AttrDomain::Point);
+            ".selection"_ustr, bke::AttrDomain::Point);
     selection_attr.span.take_back(selection.size()).fill(true);
     selection_attr.finish();
 

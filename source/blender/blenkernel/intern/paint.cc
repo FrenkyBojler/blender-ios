@@ -2726,14 +2726,16 @@ void BKE_sculpt_color_layer_create_if_needed(Object *object)
   using namespace blender::bke;
   Mesh *orig_me = BKE_object_get_original_mesh(object);
 
-  if (BKE_id_attributes_color_find(&orig_me->id, orig_me->active_color_attribute)) {
+  if (BKE_id_attributes_color_find(&orig_me->id, UString(orig_me->active_color_attribute))) {
     return;
   }
 
   AttributeOwner owner = AttributeOwner::from_id(&orig_me->id);
   const std::string unique_name = BKE_attribute_calc_unique_name(owner, "Color");
-  if (!orig_me->attributes_for_write().add(
-          unique_name, AttrDomain::Point, AttrType::ColorFloat, AttributeInitDefaultValue()))
+  if (!orig_me->attributes_for_write().add(UString(unique_name),
+                                           AttrDomain::Point,
+                                           AttrType::ColorFloat,
+                                           AttributeInitDefaultValue()))
   {
     return;
   }
@@ -2782,7 +2784,9 @@ void BKE_sculpt_mask_layers_ensure(Depsgraph *depsgraph,
     }
 
     /* If vertices already have mask, copy into multires data. */
-    if (const VArray<float> mask = *attributes.lookup<float>(".sculpt_mask", AttrDomain::Point)) {
+    if (const VArray<float> mask = *attributes.lookup<float>(".sculpt_mask"_ustr,
+                                                             AttrDomain::Point))
+    {
       const VArraySpan<float> mask_span(mask);
       for (const int i : faces.index_range()) {
         const IndexRange face = faces[i];
@@ -2815,7 +2819,7 @@ void BKE_sculpt_mask_layers_ensure(Depsgraph *depsgraph,
     }
   }
   else {
-    attributes.add<float>(".sculpt_mask", AttrDomain::Point, AttributeInitDefaultValue());
+    attributes.add<float>(".sculpt_mask"_ustr, AttrDomain::Point, AttributeInitDefaultValue());
   }
 }
 
@@ -2906,7 +2910,7 @@ void BKE_sculpt_sync_face_visibility_to_grids(const Mesh &mesh, SubdivCCG &subdi
 
   const AttributeAccessor attributes = mesh.attributes();
   const VArray<bool> hide_poly = *attributes.lookup_or_default<bool>(
-      ".hide_poly", AttrDomain::Face, false);
+      ".hide_poly"_ustr, AttrDomain::Face, false);
   if (hide_poly.is_single() && !hide_poly.get_internal_single()) {
     BKE_subdiv_ccg_grid_hidden_free(subdiv_ccg);
     return;

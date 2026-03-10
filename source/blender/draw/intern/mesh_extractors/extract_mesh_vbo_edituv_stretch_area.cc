@@ -40,8 +40,9 @@ static AreaInfo compute_area_ratio(const MeshRenderData &mr, MutableSpan<float> 
 {
   if (mr.extract_type == MeshExtractType::BMesh) {
     const BMesh &bm = *mr.bm;
-    const StringRef active_name = mr.mesh->active_uv_map_name();
-    const int uv_offset = CustomData_get_offset_named(&bm.ldata, CD_PROP_FLOAT2, active_name);
+    const UString active_name = mr.mesh->active_uv_map_name();
+    const int uv_offset = CustomData_get_offset_named(
+        &bm.ldata, CD_PROP_FLOAT2, active_name.ref());
     return threading::parallel_reduce(
         IndexRange(bm.totface),
         1024,
@@ -67,7 +68,7 @@ static AreaInfo compute_area_ratio(const MeshRenderData &mr, MutableSpan<float> 
   const Span<int> corner_verts = mr.corner_verts;
   const Mesh &mesh = *mr.mesh;
   const bke::AttributeAccessor attributes = mesh.attributes();
-  const StringRef name = mesh.active_uv_map_name();
+  const UString name = mesh.active_uv_map_name();
   const VArraySpan uv_map = *attributes.lookup<float2>(name, bke::AttrDomain::Corner);
 
   return threading::parallel_reduce(

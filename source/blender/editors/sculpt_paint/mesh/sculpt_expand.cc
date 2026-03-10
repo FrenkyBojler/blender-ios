@@ -364,9 +364,10 @@ static BitVector<> enabled_state_to_bitmap(const Depsgraph &depsgraph,
       const Span<float3> positions = bke::pbvh::vert_positions_eval(depsgraph, object);
       const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
       const bke::AttributeAccessor attributes = mesh.attributes();
-      const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
+      const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert"_ustr,
+                                                            bke::AttrDomain::Point);
       const VArraySpan face_sets = *attributes.lookup_or_default<int>(
-          ".sculpt_face_set", bke::AttrDomain::Face, 0);
+          ".sculpt_face_set"_ustr, bke::AttrDomain::Face, 0);
       threading::parallel_for_aligned(
           IndexRange(totvert), 1024, bits::BitsPerInt, [&](const IndexRange range) {
             for (const int vert : range) {
@@ -392,7 +393,7 @@ static BitVector<> enabled_state_to_bitmap(const Depsgraph &depsgraph,
       const Mesh &base_mesh = *id_cast<const Mesh *>(object.data);
       const bke::AttributeAccessor attributes = base_mesh.attributes();
       const VArraySpan face_sets = *attributes.lookup_or_default<int>(
-          ".sculpt_face_set", bke::AttrDomain::Face, 0);
+          ".sculpt_face_set"_ustr, bke::AttrDomain::Face, 0);
 
       SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
       const Span<int> grid_to_face_map = subdiv_ccg.grid_to_face_map;
@@ -465,7 +466,8 @@ static IndexMask boundary_from_enabled(Object &object,
       const Span<int> corner_verts = mesh.corner_verts();
       const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
       const bke::AttributeAccessor attributes = mesh.attributes();
-      const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
+      const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly"_ustr,
+                                                            bke::AttrDomain::Face);
       return IndexMask::from_predicate(enabled_mask, memory, [&](const int vert) {
         Vector<int> neighbors;
         for (const int neighbor : vert_neighbors_get_mesh(
@@ -576,7 +578,7 @@ Vector<int> find_symm_verts_mesh(const Depsgraph &depsgraph,
   const Mesh &mesh = *id_cast<const Mesh *>(object.data);
   const Span<float3> positions = bke::pbvh::vert_positions_eval(depsgraph, object);
   const bke::AttributeAccessor attributes = mesh.attributes();
-  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
+  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert"_ustr, bke::AttrDomain::Point);
 
   const float3 location = positions[original_vert];
   for (int symm_it = 1; symm_it <= symm; symm_it++) {
@@ -698,7 +700,8 @@ static Array<float> geodesic_falloff_create(const Depsgraph &depsgraph,
   const Span<int> corner_verts = mesh.corner_verts();
   const Span<int> corner_edges = mesh.corner_edges();
   const bke::AttributeAccessor attributes = mesh.attributes();
-  const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
+  const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly"_ustr,
+                                                              bke::AttrDomain::Face);
 
   SculptSession &ss = *ob.runtime->sculpt_session;
   if (ss.edge_to_face_map.is_empty()) {
@@ -1293,7 +1296,7 @@ static void init_from_face_set_boundary(const Depsgraph &depsgraph,
       const Mesh &mesh = *id_cast<const Mesh *>(ob.data);
       const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
       const bke::AttributeAccessor attributes = mesh.attributes();
-      const VArraySpan face_sets = *attributes.lookup<int>(".sculpt_face_set",
+      const VArraySpan face_sets = *attributes.lookup<int>(".sculpt_face_set"_ustr,
                                                            bke::AttrDomain::Face);
       threading::parallel_for(IndexRange(totvert), 1024, [&](const IndexRange range) {
         for (const int vert : range) {
@@ -1311,7 +1314,7 @@ static void init_from_face_set_boundary(const Depsgraph &depsgraph,
       const Span<int> corner_verts = base_mesh.corner_verts();
       const GroupedSpan<int> vert_to_face_map = base_mesh.vert_to_face_map();
       const bke::AttributeAccessor attributes = base_mesh.attributes();
-      const VArraySpan face_sets = *attributes.lookup<int>(".sculpt_face_set",
+      const VArraySpan face_sets = *attributes.lookup<int>(".sculpt_face_set"_ustr,
                                                            bke::AttrDomain::Face);
       const SubdivCCG &subdiv_ccg = *ob.runtime->sculpt_session->subdiv_ccg;
       const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
@@ -1555,8 +1558,8 @@ static void write_mask_data(Object &object, const Span<float> mask)
     case bke::pbvh::Type::Mesh: {
       Mesh &mesh = *id_cast<Mesh *>(object.data);
       bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
-      attributes.remove(".sculpt_mask");
-      attributes.add<float>(".sculpt_mask",
+      attributes.remove(".sculpt_mask"_ustr);
+      attributes.add<float>(".sculpt_mask"_ustr,
                             bke::AttrDomain::Point,
                             bke::AttributeInitVArray(VArray<float>::from_span(mask)));
       bke::pbvh::update_mask_mesh(mesh, node_mask, pbvh);
@@ -1769,7 +1772,8 @@ static void face_sets_update(Object &object, Cache &expand_cache)
   const OffsetIndices<int> faces = mesh.faces();
   const Span<int> corner_verts = mesh.corner_verts();
   const bke::AttributeAccessor attributes = mesh.attributes();
-  const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
+  const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly"_ustr,
+                                                              bke::AttrDomain::Face);
   for (const int f : face_sets.span.index_range()) {
     const bool enabled = face_state_get(
         object, faces, corner_verts, hide_poly, face_sets.span, expand_cache, f);
@@ -1999,8 +2003,10 @@ static void update_for_vert(bContext *C, Object &ob, const std::optional<int> ve
       const Span<int> corner_verts = mesh.corner_verts();
       const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
       const bke::AttributeAccessor attributes = mesh.attributes();
-      const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
-      const VArraySpan mask = *attributes.lookup<float>(".sculpt_mask", bke::AttrDomain::Point);
+      const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert"_ustr,
+                                                            bke::AttrDomain::Point);
+      const VArraySpan mask = *attributes.lookup<float>(".sculpt_mask"_ustr,
+                                                        bke::AttrDomain::Point);
       bke::GSpanAttributeWriter color_attribute = color::active_color_attribute_for_write(mesh);
 
       Array<bool> node_changed(node_mask.min_array_size(), false);
@@ -2695,7 +2701,7 @@ static bool any_nonzero_mask(const Object &object)
     case bke::pbvh::Type::Mesh: {
       const Mesh &mesh = *id_cast<const Mesh *>(object.data);
       const bke::AttributeAccessor attributes = mesh.attributes();
-      const VArraySpan mask = *attributes.lookup<float>(".sculpt_mask");
+      const VArraySpan mask = *attributes.lookup<float>(".sculpt_mask"_ustr);
       if (mask.is_empty()) {
         return false;
       }
@@ -2835,7 +2841,8 @@ static wmOperatorStatus sculpt_expand_invoke(bContext *C, wmOperator *op, const 
       const Mesh &mesh = *id_cast<const Mesh *>(ob.data);
       const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
       const bke::AttributeAccessor attributes = mesh.attributes();
-      const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
+      const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly"_ustr,
+                                                            bke::AttrDomain::Face);
       if (boundary::vert_is_boundary(
               vert_to_face_map, hide_poly, ss.boundary_info_cache->verts, initial_vert))
       {
@@ -2849,7 +2856,7 @@ static wmOperatorStatus sculpt_expand_invoke(bContext *C, wmOperator *op, const 
       const Span<int> corner_verts = base_mesh.corner_verts();
       const bke::AttributeAccessor attributes = base_mesh.attributes();
       const VArraySpan face_sets = *attributes.lookup_or_default<int>(
-          ".sculpt_face_set", bke::AttrDomain::Face, 0);
+          ".sculpt_face_set"_ustr, bke::AttrDomain::Face, 0);
       const SubdivCCG &subdiv_ccg = *ob.runtime->sculpt_session->subdiv_ccg;
       const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
       if (boundary::vert_is_boundary(faces,

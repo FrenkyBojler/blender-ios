@@ -43,7 +43,7 @@ using bke::SpanAttributeWriter;
  * Once the attributes are ordered, they can just be referred to by index.
  */
 struct OrderedAttributes {
-  VectorSet<StringRef> names;
+  VectorSet<UString> names;
   Vector<AttributeDomainAndType> kinds;
 
   int size() const
@@ -563,7 +563,7 @@ static bool try_join_single_value_attribute(
   if (!all_equal) {
     return false;
   }
-  const StringRef name = ordered_attributes.names[attr_index];
+  const UString name = ordered_attributes.names[attr_index];
   const bke::AttrDomain domain = ordered_attributes.kinds[attr_index].domain;
   return dst_attributes.add(name, domain, data_type, bke::AttributeInitValue(first_value));
 }
@@ -678,7 +678,7 @@ static void gather_realize_tasks_for_instances(GatherTasksInfo &gather_info,
 
   VArray<int> stored_instance_ids;
   if (gather_info.create_id_attribute_on_any_component) {
-    bke::GAttributeReader ids = instances.attributes().lookup("id");
+    bke::GAttributeReader ids = instances.attributes().lookup("id"_ustr);
     if (ids && ids.domain == bke::AttrDomain::Instance && ids.varray.type().is<int>()) {
       stored_instance_ids = ids.varray.typed<int>();
     }
@@ -1034,7 +1034,7 @@ static bke::GeometrySet::GatheredAttributes gather_attributes_to_propagate(
         }
       }
       if (component->type() == bke::GeometryComponent::Type::Instance) {
-        if (ELEM(iter.name, "instance_transform", ".reference_index")) {
+        if (ELEM(iter.name, "instance_transform"_ustr, ".reference_index"_ustr)) {
           /* These attributes reference potentially temporary instance components in the set above.
            * If we added these names, the string references in the result map would outlive the
            * attributes they reference. */
@@ -1165,7 +1165,7 @@ static void execute_instances_tasks(
   }
 
   for (const int attribute_index : all_instances_attributes.index_range()) {
-    const StringRef name = all_instances_attributes.names[attribute_index];
+    const UString name = all_instances_attributes.names[attribute_index];
     const bke::AttrType type = all_instances_attributes.kinds[attribute_index].data_type;
     if (ELEM(name, "instance_transform", ".reference_index")) {
       continue;
@@ -1280,7 +1280,7 @@ static AllPointCloudsInfo preprocess_pointclouds(const bke::GeometrySet &geometr
     bke::AttributeAccessor attributes = pointcloud->attributes();
     pointcloud_info.attributes.reinitialize(info.attributes.size());
     for (const int attribute_index : info.attributes.index_range()) {
-      const StringRef name = info.attributes.names[attribute_index];
+      const UString name = info.attributes.names[attribute_index];
       const bke::AttrType data_type = info.attributes.kinds[attribute_index].data_type;
       const bke::AttrDomain domain = info.attributes.kinds[attribute_index].domain;
       if (attributes.contains(name)) {
@@ -1289,7 +1289,7 @@ static AllPointCloudsInfo preprocess_pointclouds(const bke::GeometrySet &geometr
       }
     }
     if (info.create_id_attribute) {
-      bke::GAttributeReader ids_attribute = attributes.lookup("id");
+      bke::GAttributeReader ids_attribute = attributes.lookup("id"_ustr);
       if (ids_attribute && ids_attribute.domain == bke::AttrDomain::Point &&
           ids_attribute.varray.type().is<int>())
       {
@@ -1298,10 +1298,10 @@ static AllPointCloudsInfo preprocess_pointclouds(const bke::GeometrySet &geometr
     }
     if (info.create_radius_attribute) {
       pointcloud_info.radii = *attributes.lookup_or_default(
-          "radius", bke::AttrDomain::Point, 0.01f);
+          "radius"_ustr, bke::AttrDomain::Point, 0.01f);
     }
     const VArray<float3> position_attribute = *attributes.lookup_or_default<float3>(
-        "position", bke::AttrDomain::Point, float3(0));
+        "position"_ustr, bke::AttrDomain::Point, float3(0));
     pointcloud_info.positions = position_attribute.get_internal_span();
   }
   return info;
@@ -1405,24 +1405,24 @@ static void execute_realize_pointcloud_tasks(const RealizeInstancesOptions &opti
   dst_pointcloud->totcol = first_pointcloud.totcol;
 
   SpanAttributeWriter<float3> positions = dst_attributes.lookup_or_add_for_write_only_span<float3>(
-      "position", bke::AttrDomain::Point);
+      "position"_ustr, bke::AttrDomain::Point);
 
   /* Prepare id attribute. */
   SpanAttributeWriter<int> point_ids;
   if (all_pointclouds_info.create_id_attribute) {
-    point_ids = dst_attributes.lookup_or_add_for_write_only_span<int>("id",
+    point_ids = dst_attributes.lookup_or_add_for_write_only_span<int>("id"_ustr,
                                                                       bke::AttrDomain::Point);
   }
   SpanAttributeWriter<float> point_radii;
   if (all_pointclouds_info.create_radius_attribute) {
-    point_radii = dst_attributes.lookup_or_add_for_write_only_span<float>("radius",
+    point_radii = dst_attributes.lookup_or_add_for_write_only_span<float>("radius"_ustr,
                                                                           bke::AttrDomain::Point);
   }
 
   /* Prepare generic output attributes. */
   Vector<GSpanAttributeWriter> dst_attribute_writers;
   for (const int attribute_index : ordered_attributes.index_range()) {
-    const StringRef name = ordered_attributes.names[attribute_index];
+    const UString name = ordered_attributes.names[attribute_index];
     const bke::AttrType data_type = ordered_attributes.kinds[attribute_index].data_type;
     if (try_join_single_value_attribute(
             tasks.size(),
@@ -1482,19 +1482,19 @@ static OrderedAttributes gather_generic_mesh_attributes_to_propagate(
   OrderedAttributes ordered_attributes;
   for (const int i : attributes_to_propagate.names.index_range()) {
     if (ELEM(attributes_to_propagate.names[i],
-             "position",
-             ".edge_verts",
-             ".corner_vert",
-             ".corner_edge",
-             "custom_normal"))
+             "position"_ustr,
+             ".edge_verts"_ustr,
+             ".corner_vert"_ustr,
+             ".corner_edge"_ustr,
+             "custom_normal"_ustr))
     {
       continue;
     }
-    if (attributes_to_propagate.names[i] == "id") {
+    if (attributes_to_propagate.names[i] == "id"_ustr) {
       r_create_id = true;
       continue;
     }
-    if (attributes_to_propagate.names[i] == "material_index") {
+    if (attributes_to_propagate.names[i] == "material_index"_ustr) {
       r_create_material_index = true;
       continue;
     }
@@ -1578,7 +1578,7 @@ static AllMeshesInfo preprocess_meshes(const bke::GeometrySet &geometry_set,
     bke::AttributeAccessor attributes = mesh->attributes();
     mesh_info.attributes.reinitialize(info.attributes.size());
     for (const int attribute_index : info.attributes.index_range()) {
-      const StringRef name = info.attributes.names[attribute_index];
+      const UString name = info.attributes.names[attribute_index];
       const bke::AttrType data_type = info.attributes.kinds[attribute_index].data_type;
       const bke::AttrDomain domain = info.attributes.kinds[attribute_index].domain;
       if (attributes.contains(name)) {
@@ -1587,7 +1587,7 @@ static AllMeshesInfo preprocess_meshes(const bke::GeometrySet &geometry_set,
       }
     }
     if (info.create_id_attribute) {
-      bke::GAttributeReader ids_attribute = attributes.lookup("id");
+      bke::GAttributeReader ids_attribute = attributes.lookup("id"_ustr);
       if (ids_attribute && ids_attribute.domain == bke::AttrDomain::Point &&
           ids_attribute.varray.type().is<int>())
       {
@@ -1595,14 +1595,14 @@ static AllMeshesInfo preprocess_meshes(const bke::GeometrySet &geometry_set,
       }
     }
     mesh_info.material_indices = *attributes.lookup_or_default<int>(
-        "material_index", bke::AttrDomain::Face, 0);
+        "material_index"_ustr, bke::AttrDomain::Face, 0);
 
     switch (info.custom_normal_info.result_type) {
       case bke::mesh::NormalJoinInfo::Output::None: {
         break;
       }
       case bke::mesh::NormalJoinInfo::Output::CornerFan: {
-        if (const bke::GAttributeReader custom_normal = attributes.lookup("custom_normal")) {
+        if (const bke::GAttributeReader custom_normal = attributes.lookup("custom_normal"_ustr)) {
           const bke::AttributeMetaData meta_data{
               custom_normal.domain, bke::cpp_type_to_attribute_type(custom_normal.varray.type())};
           if (bke::mesh::is_corner_fan_normals(meta_data)) {
@@ -1781,7 +1781,7 @@ static void copy_vertex_group_name(ListBaseT<bDeformGroup> *dst_deform_group,
                                    const OrderedAttributes &ordered_attributes,
                                    const bDeformGroup &src_deform_group)
 {
-  const StringRef src_name = src_deform_group.name;
+  const UString src_name(src_deform_group.name);
   const int attribute_index = ordered_attributes.names.index_of_try(src_name);
   if (attribute_index == -1) {
     /* The attribute is not propagated to the result (possibly because the mesh isn't included
@@ -1794,7 +1794,7 @@ static void copy_vertex_group_name(ListBaseT<bDeformGroup> *dst_deform_group,
     return;
   }
   bDeformGroup *dst = MEM_new<bDeformGroup>(__func__);
-  src_name.copy_utf8_truncated(dst->name);
+  src_name.ref().copy_utf8_truncated(dst->name);
   BLI_addtail(dst_deform_group, dst);
 }
 
@@ -1881,13 +1881,14 @@ static void execute_realize_mesh_tasks(const RealizeInstancesOptions &options,
   /* Prepare id attribute. */
   SpanAttributeWriter<int> vert_ids;
   if (all_meshes_info.create_id_attribute) {
-    vert_ids = dst_attributes.lookup_or_add_for_write_only_span<int>("id", bke::AttrDomain::Point);
+    vert_ids = dst_attributes.lookup_or_add_for_write_only_span<int>("id"_ustr,
+                                                                     bke::AttrDomain::Point);
   }
   /* Prepare material indices. */
   SpanAttributeWriter<int> material_indices;
   if (all_meshes_info.create_material_index_attribute) {
     material_indices = dst_attributes.lookup_or_add_for_write_only_span<int>(
-        "material_index", bke::AttrDomain::Face);
+        "material_index"_ustr, bke::AttrDomain::Face);
   }
 
   GSpanAttributeWriter custom_normals;
@@ -1897,13 +1898,13 @@ static void execute_realize_mesh_tasks(const RealizeInstancesOptions &options,
     }
     case bke::mesh::NormalJoinInfo::Output::CornerFan: {
       custom_normals = dst_attributes.lookup_or_add_for_write_only_span(
-          "custom_normal", bke::AttrDomain::Corner, bke::AttrType::Int16_2D);
+          "custom_normal"_ustr, bke::AttrDomain::Corner, bke::AttrType::Int16_2D);
       break;
     }
     case bke::mesh::NormalJoinInfo::Output::Free: {
       const bke::AttrDomain domain = *all_meshes_info.custom_normal_info.result_domain;
       custom_normals = dst_attributes.lookup_or_add_for_write_only_span(
-          "custom_normal", domain, bke::AttrType::Float3);
+          "custom_normal"_ustr, domain, bke::AttrType::Float3);
       break;
     }
   }
@@ -1911,7 +1912,7 @@ static void execute_realize_mesh_tasks(const RealizeInstancesOptions &options,
   /* Prepare generic output attributes. */
   Vector<GSpanAttributeWriter> dst_attribute_writers;
   for (const int attribute_index : ordered_attributes.index_range()) {
-    const StringRef name = ordered_attributes.names[attribute_index];
+    const UString name = ordered_attributes.names[attribute_index];
     const bke::AttrDomain domain = ordered_attributes.kinds[attribute_index].domain;
     const bke::AttrType data_type = ordered_attributes.kinds[attribute_index].data_type;
     if (try_join_single_value_attribute(
@@ -2048,7 +2049,7 @@ static AllCurvesInfo preprocess_curves(const bke::GeometrySet &geometry_set,
     curve_info.attributes.reinitialize(info.attributes.size());
     for (const int attribute_index : info.attributes.index_range()) {
       const bke::AttrDomain domain = info.attributes.kinds[attribute_index].domain;
-      const StringRef name = info.attributes.names[attribute_index];
+      const UString name = info.attributes.names[attribute_index];
       const bke::AttrType data_type = info.attributes.kinds[attribute_index].data_type;
       if (attributes.contains(name)) {
         GVArray attribute = *attributes.lookup_or_default(name, domain, data_type);
@@ -2056,7 +2057,7 @@ static AllCurvesInfo preprocess_curves(const bke::GeometrySet &geometry_set,
       }
     }
     if (info.create_id_attribute) {
-      bke::GAttributeReader id_attribute = attributes.lookup("id");
+      bke::GAttributeReader id_attribute = attributes.lookup("id"_ustr);
       if (id_attribute && id_attribute.domain == bke::AttrDomain::Point &&
           id_attribute.varray.type().is<int>())
       {
@@ -2064,7 +2065,7 @@ static AllCurvesInfo preprocess_curves(const bke::GeometrySet &geometry_set,
       }
     }
     if (info.create_fill_id_attribute) {
-      bke::GAttributeReader fill_id_attribute = attributes.lookup("fill_id");
+      bke::GAttributeReader fill_id_attribute = attributes.lookup("fill_id"_ustr);
       if (fill_id_attribute && fill_id_attribute.domain == bke::AttrDomain::Curve &&
           fill_id_attribute.varray.type().is<int>())
       {
@@ -2073,19 +2074,22 @@ static AllCurvesInfo preprocess_curves(const bke::GeometrySet &geometry_set,
       }
     }
 
-    if (attributes.contains("radius")) {
-      curve_info.radius = *attributes.lookup<float>("radius", bke::AttrDomain::Point);
+    if (attributes.contains("radius"_ustr)) {
+      curve_info.radius = *attributes.lookup<float>("radius"_ustr, bke::AttrDomain::Point);
       info.create_radius_attribute = true;
     }
-    if (attributes.contains("handle_right")) {
-      curve_info.handle_left = attributes.lookup<float3>("handle_left", bke::AttrDomain::Point)
+    if (attributes.contains("handle_right"_ustr)) {
+      curve_info.handle_left = attributes
+                                   .lookup<float3>("handle_left"_ustr, bke::AttrDomain::Point)
                                    .varray.get_internal_span();
-      curve_info.handle_right = attributes.lookup<float3>("handle_right", bke::AttrDomain::Point)
+      curve_info.handle_right = attributes
+                                    .lookup<float3>("handle_right"_ustr, bke::AttrDomain::Point)
                                     .varray.get_internal_span();
       info.create_handle_postion_attributes = true;
     }
-    if (attributes.contains("custom_normal")) {
-      curve_info.custom_normal = attributes.lookup<float3>("custom_normal", bke::AttrDomain::Point)
+    if (attributes.contains("custom_normal"_ustr)) {
+      curve_info.custom_normal = attributes
+                                     .lookup<float3>("custom_normal"_ustr, bke::AttrDomain::Point)
                                      .varray.get_internal_span();
       info.create_custom_normal_attribute = true;
     }
@@ -2102,7 +2106,7 @@ static void initialize_curves_builtin_attribute_defaults(const AllCurvesInfo &al
   const Curves *first = all_curves_info.order[0];
   const bke::CurvesGeometry &first_curves = first->geometry.wrap();
   for (const int attribute_i : attribute_fallbacks.curves.array.index_range()) {
-    const StringRef name = all_curves_info.attributes.names[attribute_i];
+    const UString name = all_curves_info.attributes.names[attribute_i];
     if (first_curves.attributes().is_builtin(name)) {
       attribute_fallbacks.curves.array[attribute_i] =
           first_curves.attributes().get_builtin_default(name).get();
@@ -2308,21 +2312,21 @@ static void execute_realize_curve_tasks(const RealizeInstancesOptions &options,
   /* Prepare id attribute. */
   SpanAttributeWriter<int> point_ids;
   if (all_curves_info.create_id_attribute) {
-    point_ids = dst_attributes.lookup_or_add_for_write_only_span<int>("id",
+    point_ids = dst_attributes.lookup_or_add_for_write_only_span<int>("id"_ustr,
                                                                       bke::AttrDomain::Point);
   }
 
   /* Prepare fill id attribute. */
   SpanAttributeWriter<int> fill_ids;
   if (all_curves_info.create_fill_id_attribute) {
-    fill_ids = dst_attributes.lookup_or_add_for_write_only_span<int>("fill_id",
+    fill_ids = dst_attributes.lookup_or_add_for_write_only_span<int>("fill_id"_ustr,
                                                                      bke::AttrDomain::Curve);
   }
 
   /* Prepare generic output attributes. */
   Vector<GSpanAttributeWriter> dst_attribute_writers;
   for (const int attribute_index : ordered_attributes.index_range()) {
-    const StringRef name = ordered_attributes.names[attribute_index];
+    const UString name = ordered_attributes.names[attribute_index];
     const bke::AttrDomain domain = ordered_attributes.kinds[attribute_index].domain;
     const bke::AttrType data_type = ordered_attributes.kinds[attribute_index].data_type;
     if (try_join_single_value_attribute(
@@ -2346,21 +2350,21 @@ static void execute_realize_curve_tasks(const RealizeInstancesOptions &options,
   SpanAttributeWriter<float3> handle_left;
   SpanAttributeWriter<float3> handle_right;
   if (all_curves_info.create_handle_postion_attributes) {
-    handle_left = dst_attributes.lookup_or_add_for_write_only_span<float3>("handle_left",
+    handle_left = dst_attributes.lookup_or_add_for_write_only_span<float3>("handle_left"_ustr,
                                                                            bke::AttrDomain::Point);
     handle_right = dst_attributes.lookup_or_add_for_write_only_span<float3>(
-        "handle_right", bke::AttrDomain::Point);
+        "handle_right"_ustr, bke::AttrDomain::Point);
   }
 
   SpanAttributeWriter<float> radius;
   if (all_curves_info.create_radius_attribute) {
-    radius = dst_attributes.lookup_or_add_for_write_only_span<float>("radius",
+    radius = dst_attributes.lookup_or_add_for_write_only_span<float>("radius"_ustr,
                                                                      bke::AttrDomain::Point);
   }
   SpanAttributeWriter<float3> custom_normal;
   if (all_curves_info.create_custom_normal_attribute) {
     custom_normal = dst_attributes.lookup_or_add_for_write_only_span<float3>(
-        "custom_normal", bke::AttrDomain::Point);
+        "custom_normal"_ustr, bke::AttrDomain::Point);
   }
 
   /* Actually execute all tasks. */
@@ -2458,7 +2462,7 @@ static AllGreasePencilsInfo preprocess_grease_pencils(
     bke::AttributeAccessor attributes = grease_pencil->attributes();
     grease_pencil_info.attributes.reinitialize(info.attributes.size());
     for (const int attribute_index : info.attributes.index_range()) {
-      const StringRef name = info.attributes.names[attribute_index];
+      const UString name = info.attributes.names[attribute_index];
       const bke::AttrType data_type = info.attributes.kinds[attribute_index].data_type;
       const bke::AttrDomain domain = info.attributes.kinds[attribute_index].domain;
       if (attributes.contains(name)) {
@@ -2510,7 +2514,8 @@ static void execute_realize_grease_pencil_task(
     /* Remap materials. */
     bke::MutableAttributeAccessor dst_attributes = dst_curves.attributes_for_write();
     bke::SpanAttributeWriter<int> material_indices =
-        dst_attributes.lookup_or_add_for_write_span<int>("material_index", bke::AttrDomain::Curve);
+        dst_attributes.lookup_or_add_for_write_span<int>("material_index"_ustr,
+                                                         bke::AttrDomain::Curve);
     for (int &material_index : material_indices.span) {
       if (material_index >= 0 && material_index < src_grease_pencil.material_array_num) {
         material_index = grease_pencil_info.material_index_map[material_index];
@@ -2592,7 +2597,7 @@ static void execute_realize_grease_pencil_tasks(
   bke::MutableAttributeAccessor dst_attributes = dst_grease_pencil->attributes_for_write();
   Vector<GSpanAttributeWriter> dst_attribute_writers;
   for (const int attribute_index : ordered_attributes.index_range()) {
-    const StringRef name = ordered_attributes.names[attribute_index];
+    const UString name = ordered_attributes.names[attribute_index];
     const bke::AttrType data_type = ordered_attributes.kinds[attribute_index].data_type;
     if (try_join_single_value_attribute(
             tasks.size(),
@@ -2668,7 +2673,7 @@ static void remove_id_attribute_from_instances(bke::GeometrySet &geometry_set)
   if (!instances) {
     return;
   }
-  instances->attributes_for_write().remove("id");
+  instances->attributes_for_write().remove("id"_ustr);
   instances->ensure_geometry_instances();
   for (bke::InstanceReference &reference : instances->references_for_write()) {
     if (reference.type() == bke::InstanceReference::Type::GeometrySet) {

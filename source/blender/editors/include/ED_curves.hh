@@ -156,7 +156,7 @@ float (*point_normals_array_create(const Curves *curves_id))[3];
  * [".selection", ".selection_handle_left", ".selection_handle_right"] if Bezier curves are
  * present, [".selection"] otherwise.
  */
-Span<StringRef> get_curves_selection_attribute_names(const bke::CurvesGeometry &curves);
+Span<UString> get_curves_selection_attribute_names(const bke::CurvesGeometry &curves);
 
 /**
  * Get writable positions per selection attribute for given curve.
@@ -169,13 +169,13 @@ Vector<MutableSpan<float3>> get_curves_positions_for_write(bke::CurvesGeometry &
 Vector<Span<float3>> get_curves_positions(const bke::CurvesGeometry &curves);
 
 /* Get all possible curve selection attribute names. */
-Span<StringRef> get_curves_all_selection_attribute_names();
+Span<UString> get_curves_all_selection_attribute_names();
 
 /**
  * Returns [".selection_handle_left", ".selection_handle_right"] if argument contains Bezier
  * curves, empty span otherwise.
  */
-Span<StringRef> get_curves_bezier_selection_attribute_names(const bke::CurvesGeometry &curves);
+Span<UString> get_curves_bezier_selection_attribute_names(const bke::CurvesGeometry &curves);
 
 /**
  * Used to select everything or to delete selection attribute so that it will not have to be
@@ -183,7 +183,7 @@ Span<StringRef> get_curves_bezier_selection_attribute_names(const bke::CurvesGeo
  */
 void remove_selection_attributes(
     bke::MutableAttributeAccessor &attributes,
-    Span<StringRef> selection_attribute_names = get_curves_all_selection_attribute_names());
+    Span<UString> selection_attribute_names = get_curves_all_selection_attribute_names());
 
 /**
  * Get the position span associated with the given selection attribute name.
@@ -191,10 +191,10 @@ void remove_selection_attributes(
 std::optional<Span<float3>> get_selection_attribute_positions(
     const bke::CurvesGeometry &curves,
     const bke::crazyspace::GeometryDeformation &deformation,
-    StringRef attribute_name);
+    UString attribute_name);
 
-using SelectionRangeFn = FunctionRef<void(
-    IndexRange range, Span<float3> positions, StringRef selection_attribute_name)>;
+using SelectionRangeFn =
+    FunctionRef<void(IndexRange range, Span<float3> positions, UString selection_attribute_name)>;
 /**
  * Traverses all ranges of control points possible select. Callback function is provided with a
  * range being visited, positions (deformed if possible) referenced by the range and selection
@@ -342,7 +342,7 @@ IndexMask retrieve_selected_points(const Curves &curves_id, LinearAllocator<> &m
  * points will be deselected even if the raw attribute is selected.
  */
 IndexMask retrieve_selected_points(const bke::CurvesGeometry &curves,
-                                   StringRef attribute_name,
+                                   UString attribute_name,
                                    const IndexMask &bezier_points,
                                    LinearAllocator<> &memory);
 
@@ -360,7 +360,7 @@ IndexMask retrieve_all_selected_points(const bke::CurvesGeometry &curves,
 bke::GSpanAttributeWriter ensure_selection_attribute(bke::CurvesGeometry &curves,
                                                      bke::AttrDomain selection_domain,
                                                      bke::AttrType create_type,
-                                                     StringRef attribute_name = ".selection");
+                                                     UString attribute_name = ".selection"_ustr);
 
 void foreach_selection_attribute_writer(
     bke::CurvesGeometry &curves,
@@ -477,12 +477,12 @@ bool select_circle(const ViewContext &vc,
  * Mask of points adjacent to a selected point, or unselected point if deselect is true.
  */
 IndexMask select_adjacent_mask(const bke::CurvesGeometry &curves,
-                               StringRef attribute_name,
+                               UString attribute_name,
                                bool deselect,
                                IndexMaskMemory &memory);
 IndexMask select_adjacent_mask(const bke::CurvesGeometry &curves,
                                const IndexMask &curves_mask,
-                               StringRef attribute_name,
+                               UString attribute_name,
                                bool deselect,
                                IndexMaskMemory &memory);
 
@@ -496,7 +496,7 @@ IndexMask select_box_mask(const ViewContext &vc,
                           const IndexMask &selection_mask,
                           const IndexMask &bezier_mask,
                           bke::AttrDomain selection_domain,
-                          StringRef attribute_name,
+                          UString attribute_name,
                           const rcti &rect,
                           IndexMaskMemory &memory);
 
@@ -510,7 +510,7 @@ IndexMask select_lasso_mask(const ViewContext &vc,
                             const IndexMask &selection_mask,
                             const IndexMask &bezier_mask,
                             bke::AttrDomain selection_domain,
-                            StringRef attribute_name,
+                            UString attribute_name,
                             Span<int2> lasso_coords,
                             IndexMaskMemory &memory);
 
@@ -524,7 +524,7 @@ IndexMask select_circle_mask(const ViewContext &vc,
                              const IndexMask &selection_mask,
                              const IndexMask &bezier_mask,
                              bke::AttrDomain selection_domain,
-                             StringRef attribute_name,
+                             UString attribute_name,
                              int2 coord,
                              float radius,
                              IndexMaskMemory &memory);

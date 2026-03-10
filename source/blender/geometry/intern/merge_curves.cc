@@ -267,7 +267,7 @@ static bke::CurvesGeometry join_curves_ranges(const bke::CurvesGeometry &src_cur
   bke::gather_attributes(src_curves.attributes(),
                          bke::AttrDomain::Curve,
                          bke::AttrDomain::Curve,
-                         bke::attribute_filter_from_skip_ref({"cyclic"}),
+                         bke::attribute_filter_from_skip_ref({"cyclic"_ustr}),
                          old_by_new_map,
                          dst_curves.attributes_for_write());
 

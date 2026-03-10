@@ -33,7 +33,7 @@ bool remove_selection(PointCloud &pointcloud)
 {
   const bke::AttributeAccessor attributes = pointcloud.attributes();
   const VArray<bool> selection = *attributes.lookup_or_default<bool>(
-      ".selection", bke::AttrDomain::Point, true);
+      ".selection"_ustr, bke::AttrDomain::Point, true);
   IndexMaskMemory memory;
   const IndexMask mask = IndexMask::from_bools_inverse(selection, memory);
   if (mask.size() == pointcloud.totpoint) {

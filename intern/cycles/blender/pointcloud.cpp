@@ -65,7 +65,7 @@ static void copy_attributes(PointCloud *pointcloud,
   AttributeSet &attributes = pointcloud->attributes;
   static const ustring u_velocity("velocity");
   b_attributes.foreach_attribute([&](const blender::bke::AttributeIter &iter) {
-    const ustring name{std::string_view(iter.name)};
+    const ustring name = iter.name;
 
     if (need_motion && name == u_velocity) {
       const blender::VArraySpan b_attr = *iter.get<blender::float3>();
@@ -110,7 +110,7 @@ static void export_pointcloud(Scene *scene,
 {
   const blender::Span<blender::float3> b_positions = b_pointcloud.positions();
   const blender::VArraySpan b_radius = *b_pointcloud.attributes().lookup<float>(
-      "radius", blender::bke::AttrDomain::Point);
+      ustring("radius"), blender::bke::AttrDomain::Point);
 
   pointcloud->resize(b_positions.size());
 
@@ -165,7 +165,7 @@ static void export_pointcloud_motion(PointCloud *pointcloud,
 
   const blender::Span<blender::float3> b_positions = b_pointcloud.positions();
   const blender::VArraySpan b_radius = *b_pointcloud.attributes().lookup<float>(
-      "radius", blender::bke::AttrDomain::Point);
+      ustring("radius"), blender::bke::AttrDomain::Point);
 
   for (int i = 0; i < std::min<int>(num_points, b_positions.size()); i++) {
     const float3 P = make_float3(b_positions[i][0], b_positions[i][1], b_positions[i][2]);

@@ -315,7 +315,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   if (dst_group_id_attribute_id) {
     SpanAttributeWriter<int> dst_group_id =
         dst_instances->attributes_for_write().lookup_or_add_for_write_span<int>(
-            *dst_group_id_attribute_id, AttrDomain::Instance);
+            UString(*dst_group_id_attribute_id), AttrDomain::Instance);
     std::copy(geometry_by_group_id.keys().begin(),
               geometry_by_group_id.keys().end(),
               dst_group_id.span.begin());

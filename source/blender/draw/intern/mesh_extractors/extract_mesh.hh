@@ -387,10 +387,10 @@ gpu::VertBufPtr extract_sculpt_data_subdiv(const MeshRenderData &mr,
 
 gpu::VertBufPtr extract_orco(const MeshRenderData &mr);
 
-gpu::VertBufPtr extract_attribute(const MeshRenderData &mr, StringRef name);
+gpu::VertBufPtr extract_attribute(const MeshRenderData &mr, UString name);
 gpu::VertBufPtr extract_attribute_subdiv(const MeshRenderData &mr,
                                          const DRWSubdivCache &subdiv_cache,
-                                         StringRef name);
+                                         UString name);
 gpu::VertBufPtr extract_attr_viewer(const MeshRenderData &mr);
 
 gpu::VertBufPtr extract_paint_overlay_flags(const MeshRenderData &mr);

@@ -345,7 +345,7 @@ Mesh *BKE_mesh_mirror_apply_mirror_on_axis_for_modifier(MirrorModifierData *mmd,
     /* If set, flip around center of each tile. */
     const bool do_mirr_udim = (mmd->flag & MOD_MIR_MIRROR_UDIM) != 0;
 
-    for (const StringRef name : result->uv_map_names()) {
+    for (const UString name : result->uv_map_names()) {
       bke::SpanAttributeWriter uv_map_attr = attributes.lookup_for_write_span<float2>(name);
       float (*uv_map)[2] = reinterpret_cast<float (*)[2]>(uv_map_attr.span.data());
       int j = src_loops_num;
@@ -377,7 +377,7 @@ Mesh *BKE_mesh_mirror_apply_mirror_on_axis_for_modifier(MirrorModifierData *mmd,
   }
 
   /* handle custom normals */
-  bke::GAttributeWriter custom_normals = attributes.lookup_for_write("custom_normal");
+  bke::GAttributeWriter custom_normals = attributes.lookup_for_write("custom_normal"_ustr);
   if (ob->type == OB_MESH && custom_normals && custom_normals.domain == bke::AttrDomain::Corner &&
       custom_normals.varray.type().is<short2>() && result->faces_num > 0)
   {
@@ -392,8 +392,8 @@ Mesh *BKE_mesh_mirror_apply_mirror_on_axis_for_modifier(MirrorModifierData *mmd,
     transpose_m4(mtx_nor);
 
     /* calculate custom normals into corner_normals, then mirror first half into second half */
-    const VArraySpan sharp_edges = *attributes.lookup<bool>("sharp_edge", AttrDomain::Edge);
-    const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face", AttrDomain::Face);
+    const VArraySpan sharp_edges = *attributes.lookup<bool>("sharp_edge"_ustr, AttrDomain::Edge);
+    const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face"_ustr, AttrDomain::Face);
     bke::mesh::normals_calc_corners(result->vert_positions(),
                                     result_faces,
                                     result_corner_verts,

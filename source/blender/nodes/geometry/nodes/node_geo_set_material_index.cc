@@ -39,7 +39,7 @@ static void set_material_index_in_grease_pencil(GreasePencil &grease_pencil,
     bke::try_capture_field_on_geometry(
         drawing->strokes_for_write().attributes_for_write(),
         bke::GreasePencilLayerFieldContext(grease_pencil, AttrDomain::Curve, layer_index),
-        "material_index",
+        "material_index"_ustr,
         AttrDomain::Curve,
         selection,
         material_index);
@@ -56,7 +56,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     if (Mesh *mesh = geometry_set.get_mesh_for_write()) {
       bke::try_capture_field_on_geometry(mesh->attributes_for_write(),
                                          bke::MeshFieldContext(*mesh, AttrDomain::Face),
-                                         "material_index",
+                                         "material_index"_ustr,
                                          AttrDomain::Face,
                                          selection,
                                          material_index);

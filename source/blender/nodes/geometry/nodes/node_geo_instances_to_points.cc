@@ -56,11 +56,11 @@ static void convert_instances_to_points(GeometrySet &geometry_set,
   bke::MutableAttributeAccessor dst_attributes = pointcloud->attributes_for_write();
   if (const std::optional<float> radius_single = radii.get_if_single()) {
     dst_attributes.add<float>(
-        "radius", bke::AttrDomain::Point, bke::AttributeInitValue{*radius_single});
+        "radius"_ustr, bke::AttrDomain::Point, bke::AttributeInitValue{*radius_single});
   }
   else {
     bke::SpanAttributeWriter point_radii = dst_attributes.lookup_or_add_for_write_only_span<float>(
-        "radius", AttrDomain::Point);
+        "radius"_ustr, AttrDomain::Point);
     array_utils::gather(radii, selection, point_radii.span);
     point_radii.finish();
   }
@@ -79,7 +79,7 @@ static void convert_instances_to_points(GeometrySet &geometry_set,
     if (ELEM(attributes_to_propagate.names[i], "position", "radius")) {
       continue;
     }
-    const StringRef name = attributes_to_propagate.names[i];
+    const UString name = attributes_to_propagate.names[i];
     const bke::AttrType type = attributes_to_propagate.kinds[i].data_type;
 
     const GAttributeReader src = src_attributes.lookup(name);

@@ -1720,16 +1720,16 @@ static wmOperatorStatus uv_pin_exec(bContext *C, wmOperator *op)
 
     bool changed = false;
 
-    const StringRef active_uv_name = mesh.active_uv_map_name();
+    const UString active_uv_name = mesh.active_uv_map_name();
     if (em->bm->totvertsel == 0) {
       continue;
     }
 
-    if (clear && !BM_uv_map_attr_pin_exists(em->bm, active_uv_name)) {
+    if (clear && !BM_uv_map_attr_pin_exists(em->bm, active_uv_name.ref())) {
       continue;
     }
 
-    BM_uv_map_attr_pin_ensure_named(em->bm, active_uv_name);
+    BM_uv_map_attr_pin_ensure_named(em->bm, active_uv_name.ref());
     const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
 
     BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {

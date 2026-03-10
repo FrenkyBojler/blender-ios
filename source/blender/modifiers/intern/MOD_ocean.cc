@@ -268,7 +268,7 @@ static Mesh *generate_ocean_geometry(OceanModifierData *omd, Mesh *mesh_orig, co
     std::string name = BKE_attribute_calc_unique_name(AttributeOwner::from_id(&result->id),
                                                       "UVMap");
     bke::SpanAttributeWriter<float2> uv_map = attributes.lookup_or_add_for_write_span<float2>(
-        name, bke::AttrDomain::Corner);
+        UString(name), bke::AttrDomain::Corner);
 
     if (uv_map) { /* unlikely to fail */
       gogd.uv_map = uv_map.span;
@@ -355,12 +355,14 @@ static Mesh *doOcean(ModifierData *md, const ModifierEvalContext *ctx, Mesh *mes
     bke::MutableAttributeAccessor attributes = result->attributes_for_write();
     const Span<int> corner_verts = result->corner_verts();
     bke::SpanAttributeWriter mloopcols = attributes.lookup_or_add_for_write_span<ColorGeometry4b>(
-        BKE_attribute_calc_unique_name(owner, omd->foamlayername), bke::AttrDomain::Corner);
+        UString(BKE_attribute_calc_unique_name(owner, omd->foamlayername)),
+        bke::AttrDomain::Corner);
 
     bke::SpanAttributeWriter<ColorGeometry4b> mloopcols_spray;
     if (omd->flag & MOD_OCEAN_GENERATE_SPRAY) {
       mloopcols_spray = attributes.lookup_or_add_for_write_span<ColorGeometry4b>(
-          BKE_attribute_calc_unique_name(owner, omd->spraylayername), bke::AttrDomain::Corner);
+          UString(BKE_attribute_calc_unique_name(owner, omd->spraylayername)),
+          bke::AttrDomain::Corner);
     }
 
     if (mloopcols) { /* unlikely to fail */

@@ -16,7 +16,7 @@ namespace blender::bke::bake {
 static void capture_field_on_geometry_components(GeometrySet &geometry,
                                                  const fn::GField &field,
                                                  const AttrDomain domain,
-                                                 const StringRef attribute_name)
+                                                 const UString attribute_name)
 {
   if (geometry.has_pointcloud()) {
     PointCloudComponent &component = geometry.get_component_for_write<PointCloudComponent>();
@@ -203,7 +203,7 @@ Array<std::unique_ptr<BakeItem>> move_socket_values_to_bake_items(
         if (socket_value.is_context_dependent_field()) {
           const fn::GField &field = socket_value.get<fn::GField>();
           const AttrDomain domain = config.domains[i];
-          const std::string attribute_name = ".bake_" + std::to_string(i);
+          const UString attribute_name(".bake_" + std::to_string(i));
           const Span<int> geometry_indices = config.geometries_by_attribute[i];
           for (const int geometry_i : geometry_indices) {
             BLI_assert(config.types[geometry_i] == SOCK_GEOMETRY);
@@ -249,12 +249,12 @@ Array<std::unique_ptr<BakeItem>> move_socket_values_to_bake_items(
     const FunctionRef<std::shared_ptr<AttributeFieldInput>(const CPPType &type)>
         make_attribute_field,
     BakeDataBlockMap *data_block_map,
-    Map<std::string, std::string> &r_attribute_map);
+    Map<UString, UString> &r_attribute_map);
 
 static bool copy_bundle_bake_item_to_socket_value(const BundleBakeItem &bundle_bake_item,
                                                   nodes::Bundle &bundle,
                                                   BakeDataBlockMap *data_block_map,
-                                                  Map<std::string, std::string> &r_attribute_map)
+                                                  Map<UString, UString> &r_attribute_map)
 {
   for (const BundleBakeItem::Item &item : bundle_bake_item.items) {
     if (const auto *socket_value = std::get_if<BundleBakeItem::SocketValue>(&item.value)) {
@@ -296,7 +296,7 @@ static bool copy_bundle_bake_item_to_socket_value(const BundleBakeItem &bundle_b
     const FunctionRef<std::shared_ptr<AttributeFieldInput>(const CPPType &type)>
         make_attribute_field,
     BakeDataBlockMap *data_block_map,
-    Map<std::string, std::string> &r_attribute_map)
+    Map<UString, UString> &r_attribute_map)
 {
   switch (socket_type) {
     case SOCK_GEOMETRY: {
@@ -408,7 +408,7 @@ static bool copy_bundle_bake_item_to_socket_value(const BundleBakeItem &bundle_b
 }
 
 static void rename_attributes(const Span<GeometrySet *> geometries,
-                              const Map<std::string, std::string> &attribute_map)
+                              const Map<UString, UString> &attribute_map)
 {
   for (GeometrySet *geometry : geometries) {
     for (const GeometryComponent::Type type : {GeometryComponent::Type::Mesh,
@@ -424,14 +424,14 @@ static void rename_attributes(const Span<GeometrySet *> geometries,
       const AttributeAccessor attributes_read_only = *geometry->get_component(type)->attributes();
       if (std::none_of(attribute_map.keys().begin(),
                        attribute_map.keys().end(),
-                       [&](const StringRef name) { return attributes_read_only.contains(name); }))
+                       [&](const UString name) { return attributes_read_only.contains(name); }))
       {
         continue;
       }
 
       GeometryComponent &component = geometry->get_component_for_write(type);
       MutableAttributeAccessor attributes = *component.attributes_for_write();
-      for (const MapItem<std::string, std::string> &attribute_item : attribute_map.items()) {
+      for (const MapItem<UString, UString> &attribute_item : attribute_map.items()) {
         attributes.rename(attribute_item.key, attribute_item.value);
       }
     }
@@ -450,7 +450,7 @@ Vector<SocketValueVariant> move_bake_items_to_socket_values(
     BakeDataBlockMap *data_block_map,
     FunctionRef<std::shared_ptr<AttributeFieldInput>(int, const CPPType &)> make_attribute_field)
 {
-  Map<std::string, std::string> attribute_map;
+  Map<UString, UString> attribute_map;
   Vector<SocketValueVariant> socket_values;
   socket_values.reserve(bake_items.size());
 
@@ -496,7 +496,7 @@ Vector<SocketValueVariant> copy_bake_items_to_socket_values(
     BakeDataBlockMap *data_block_map,
     FunctionRef<std::shared_ptr<AttributeFieldInput>(int, const CPPType &)> make_attribute_field)
 {
-  Map<std::string, std::string> attribute_map;
+  Map<UString, UString> attribute_map;
   Vector<SocketValueVariant> socket_values;
   socket_values.reserve(bake_items.size());
 

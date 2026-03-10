@@ -205,7 +205,7 @@ static void rna_Material_active_paint_texture_index_update(bContext *C, PointerR
         }
         else {
           const bke::AttributeAccessor attributes = mesh->attributes();
-          if (bke::mesh::is_color_attribute(attributes.lookup_meta_data(name))) {
+          if (bke::mesh::is_color_attribute(attributes.lookup_meta_data(UString(name)))) {
             BKE_id_attributes_active_color_set(&mesh->id, name);
           }
         }

@@ -30,7 +30,7 @@ static void gather_point_data_from_component(Field<float> radius_field,
   if (component.is_empty()) {
     return;
   }
-  const VArray<float3> positions = *component.attributes()->lookup<float3>("position");
+  const VArray<float3> positions = *component.attributes()->lookup<float3>("position"_ustr);
 
   const bke::GeometryFieldContext field_context{component, AttrDomain::Point};
   const int domain_num = component.attribute_domain_size(AttrDomain::Point);

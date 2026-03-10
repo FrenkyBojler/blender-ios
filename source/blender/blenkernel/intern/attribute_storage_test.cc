@@ -25,13 +25,13 @@ TEST(attribute_storage, Single)
   data.sharing_info = ImplicitSharingPtr<>(sharing_info);
   data.data = sharing_info->data.data();
   data.size = 4;
-  storage.add("foo", AttrDomain::Corner, AttrType::Float, std::move(data));
+  storage.add("foo"_ustr, AttrDomain::Corner, AttrType::Float, std::move(data));
 
-  EXPECT_TRUE(storage.lookup("foo"));
-  EXPECT_EQ(storage.lookup("foo")->domain(), AttrDomain::Corner);
-  EXPECT_EQ(storage.lookup("foo")->data_type(), AttrType::Float);
+  EXPECT_TRUE(storage.lookup("foo"_ustr));
+  EXPECT_EQ(storage.lookup("foo"_ustr)->domain(), AttrDomain::Corner);
+  EXPECT_EQ(storage.lookup("foo"_ustr)->data_type(), AttrType::Float);
   {
-    const auto &data = std::get<Attribute::ArrayData>(storage.lookup("foo")->data());
+    const auto &data = std::get<Attribute::ArrayData>(storage.lookup("foo"_ustr)->data());
     EXPECT_EQ(data.data, sharing_info->data.data());
   }
 
@@ -43,24 +43,24 @@ TEST(attribute_storage, Iterator)
 {
   AttributeStorage storage;
 
-  storage.add("foo",
+  storage.add("foo"_ustr,
               AttrDomain::Point,
               AttrType::Float,
               Attribute::SingleData::from_default_value(CPPType::get<float>()));
-  storage.add("bar",
+  storage.add("bar"_ustr,
               AttrDomain::Point,
               AttrType::Float,
               Attribute::SingleData::from_default_value(CPPType::get<float>()));
-  Vector<StringRef> expected_names{"foo", "bar"};
+  Vector<UString> expected_names{"foo"_ustr, "bar"_ustr};
   {
-    Vector<StringRef> names;
+    Vector<UString> names;
     for (Attribute &attr : storage) {
       names.append(attr.name());
     }
     EXPECT_EQ(names, expected_names);
   }
   {
-    Vector<StringRef> names;
+    Vector<UString> names;
     for (const Attribute &attr : const_cast<const AttributeStorage &>(storage)) {
       names.append(attr.name());
     }
@@ -77,14 +77,16 @@ TEST(attribute_storage, GetForWrite)
   data.sharing_info = ImplicitSharingPtr<>(sharing_info);
   data.data = sharing_info->data.data();
   data.size = 4;
-  storage.add("foo", AttrDomain::Corner, AttrType::Float, std::move(data));
+  storage.add("foo"_ustr, AttrDomain::Corner, AttrType::Float, std::move(data));
   {
-    const auto &data = std::get<Attribute::ArrayData>(storage.lookup("foo")->data_for_write());
+    const auto &data = std::get<Attribute::ArrayData>(
+        storage.lookup("foo"_ustr)->data_for_write());
     EXPECT_EQ(data.data, sharing_info->data.data());
   }
   {
     sharing_info->add_user();
-    const auto &data = std::get<Attribute::ArrayData>(storage.lookup("foo")->data_for_write());
+    const auto &data = std::get<Attribute::ArrayData>(
+        storage.lookup("foo"_ustr)->data_for_write());
     EXPECT_NE(data.data, sharing_info->data.data());
     const float *data_ptr = static_cast<const float *>(data.data);
     EXPECT_EQ(data_ptr[0], 1.5f);
@@ -94,7 +96,8 @@ TEST(attribute_storage, GetForWrite)
     sharing_info->remove_user_and_delete_if_last();
   }
   {
-    const auto &data = std::get<Attribute::ArrayData>(storage.lookup("foo")->data_for_write());
+    const auto &data = std::get<Attribute::ArrayData>(
+        storage.lookup("foo"_ustr)->data_for_write());
     const float *data_ptr = static_cast<const float *>(data.data);
     EXPECT_EQ(data_ptr[0], 1.5f);
     EXPECT_EQ(data_ptr[1], 1.2f);
@@ -112,18 +115,19 @@ TEST(attribute_storage, MultipleShared)
   data.sharing_info = ImplicitSharingPtr<>(sharing_info);
   data.data = sharing_info->data.data();
   data.size = 4;
-  storage.add("we", AttrDomain::Corner, AttrType::Float, data);
-  storage.add("need", AttrDomain::Point, AttrType::Float, data);
-  storage.add("more", AttrDomain::Face, AttrType::Float, data);
-  storage.add("data", AttrDomain::Edge, AttrType::Float, data);
+  storage.add("we"_ustr, AttrDomain::Corner, AttrType::Float, data);
+  storage.add("need"_ustr, AttrDomain::Point, AttrType::Float, data);
+  storage.add("more"_ustr, AttrDomain::Face, AttrType::Float, data);
+  storage.add("data"_ustr, AttrDomain::Edge, AttrType::Float, data);
 
   /* The same data is shared among 4 attributes (as well as the original `data`). */
   EXPECT_EQ(sharing_info->strong_users(), 5);
-  storage.add("final!", AttrDomain::Edge, AttrType::Float, std::move(data));
+  storage.add("final!"_ustr, AttrDomain::Edge, AttrType::Float, std::move(data));
   EXPECT_EQ(sharing_info->strong_users(), 5);
 
   {
-    const auto &data = std::get<Attribute::ArrayData>(storage.lookup("more")->data_for_write());
+    const auto &data = std::get<Attribute::ArrayData>(
+        storage.lookup("more"_ustr)->data_for_write());
     const float *data_ptr = static_cast<const float *>(data.data);
     EXPECT_EQ(data_ptr[0], 1.5f);
     EXPECT_EQ(data_ptr[1], 1.2f);
@@ -144,15 +148,15 @@ TEST(attribute_storage, CopyConstruct)
   data.sharing_info = ImplicitSharingPtr<>(sharing_info);
   data.data = sharing_info->data.data();
   data.size = 4;
-  storage.add("foo", AttrDomain::Corner, AttrType::Float, std::move(data));
+  storage.add("foo"_ustr, AttrDomain::Corner, AttrType::Float, std::move(data));
 
   AttributeStorage copy{storage};
 
-  EXPECT_TRUE(copy.lookup("foo"));
-  EXPECT_EQ(copy.lookup("foo")->domain(), AttrDomain::Corner);
-  EXPECT_EQ(copy.lookup("foo")->data_type(), AttrType::Float);
+  EXPECT_TRUE(copy.lookup("foo"_ustr));
+  EXPECT_EQ(copy.lookup("foo"_ustr)->domain(), AttrDomain::Corner);
+  EXPECT_EQ(copy.lookup("foo"_ustr)->data_type(), AttrType::Float);
   {
-    const auto &data = std::get<Attribute::ArrayData>(copy.lookup("foo")->data());
+    const auto &data = std::get<Attribute::ArrayData>(copy.lookup("foo"_ustr)->data());
     /* The data is shared, so it should be the same as the original. */
     EXPECT_EQ(data.data, sharing_info->data.data());
   }
@@ -167,15 +171,15 @@ TEST(attribute_storage, MoveConstruct)
   data.sharing_info = ImplicitSharingPtr<>(sharing_info);
   data.data = sharing_info->data.data();
   data.size = 4;
-  storage.add("foo", AttrDomain::Corner, AttrType::Float, std::move(data));
+  storage.add("foo"_ustr, AttrDomain::Corner, AttrType::Float, std::move(data));
 
   AttributeStorage copy{std::move(storage)};
 
-  EXPECT_TRUE(copy.lookup("foo"));
-  EXPECT_EQ(copy.lookup("foo")->domain(), AttrDomain::Corner);
-  EXPECT_EQ(copy.lookup("foo")->data_type(), AttrType::Float);
+  EXPECT_TRUE(copy.lookup("foo"_ustr));
+  EXPECT_EQ(copy.lookup("foo"_ustr)->domain(), AttrDomain::Corner);
+  EXPECT_EQ(copy.lookup("foo"_ustr)->data_type(), AttrType::Float);
   {
-    const auto &data = std::get<Attribute::ArrayData>(copy.lookup("foo")->data());
+    const auto &data = std::get<Attribute::ArrayData>(copy.lookup("foo"_ustr)->data());
     /* The data is shared, so it should be the same as the original. */
     EXPECT_EQ(data.data, sharing_info->data.data());
   }
@@ -195,15 +199,21 @@ TEST(attribute_storage, UniqueNames)
     return data;
   };
 
-  storage.add("foo", AttrDomain::Corner, AttrType::Float, create_array_data());
-  storage.add("foo_2", AttrDomain::Face, AttrType::Float, create_array_data());
-  storage.add("foo_3", AttrDomain::Point, AttrType::Float, create_array_data());
-  storage.add(
-      storage.unique_name_calc("foo"), AttrDomain::Edge, AttrType::Float, create_array_data());
-  storage.add(
-      storage.unique_name_calc("foo"), AttrDomain::Corner, AttrType::Float, create_array_data());
-  storage.add(
-      storage.unique_name_calc("foo_2"), AttrDomain::Point, AttrType::Float, create_array_data());
+  storage.add("foo"_ustr, AttrDomain::Corner, AttrType::Float, create_array_data());
+  storage.add("foo_2"_ustr, AttrDomain::Face, AttrType::Float, create_array_data());
+  storage.add("foo_3"_ustr, AttrDomain::Point, AttrType::Float, create_array_data());
+  storage.add(UString(storage.unique_name_calc("foo"_ustr)),
+              AttrDomain::Edge,
+              AttrType::Float,
+              create_array_data());
+  storage.add(UString(storage.unique_name_calc("foo"_ustr)),
+              AttrDomain::Corner,
+              AttrType::Float,
+              create_array_data());
+  storage.add(UString(storage.unique_name_calc("foo_2"_ustr)),
+              AttrDomain::Point,
+              AttrType::Float,
+              create_array_data());
 
   const int count = std::distance(storage.begin(), storage.end());
   EXPECT_EQ(count, 6);

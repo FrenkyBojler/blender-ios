@@ -108,7 +108,9 @@ static void node_geo_exec(GeoNodeExecParams params)
       bke::CurvesGeometry &curves = curves_id->geometry.wrap();
       has_curves = true;
       const AttributeAccessor attributes = curves.attributes();
-      if (!attributes.contains("handle_type_left") || !attributes.contains("handle_type_right")) {
+      if (!attributes.contains("handle_type_left"_ustr) ||
+          !attributes.contains("handle_type_right"_ustr))
+      {
         return;
       }
       has_bezier = true;

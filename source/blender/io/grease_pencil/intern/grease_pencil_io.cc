@@ -375,16 +375,16 @@ void GreasePencilExporter::foreach_shape_in_layer(const Object &object,
   const OffsetIndices points_by_curve = curves.points_by_curve();
   const VArray<bool> cyclic = curves.cyclic();
   const VArraySpan<int> material_indices = *attributes.lookup_or_default<int>(
-      "material_index", bke::AttrDomain::Curve, 0);
+      "material_index"_ustr, bke::AttrDomain::Curve, 0);
   const VArraySpan<ColorGeometry4f> fill_colors = drawing.fill_colors();
   const VArray<int8_t> start_caps = *attributes.lookup_or_default<int8_t>(
-      "start_cap", bke::AttrDomain::Curve, GP_STROKE_CAP_TYPE_ROUND);
+      "start_cap"_ustr, bke::AttrDomain::Curve, GP_STROKE_CAP_TYPE_ROUND);
   const VArray<int8_t> end_caps = *attributes.lookup_or_default<int8_t>(
-      "end_cap", bke::AttrDomain::Curve, 0);
+      "end_cap"_ustr, bke::AttrDomain::Curve, 0);
   const VArray<bool> hide_stroke = *attributes.lookup_or_default<bool>(
-      "hide_stroke", bke::AttrDomain::Curve, false);
+      "hide_stroke"_ustr, bke::AttrDomain::Curve, false);
   const VArray<int> fill_ids = *attributes.lookup_or_default<int>(
-      "fill_id", bke::AttrDomain::Curve, 0);
+      "fill_id"_ustr, bke::AttrDomain::Curve, 0);
   /* Point attributes. */
   const Span<float3> positions = curves.positions();
   const Span<float3> positions_left = *curves.handle_positions_left();

@@ -49,7 +49,7 @@ class HandlePositionFieldInput final : public bke::GeometryFieldInput {
     const Span<float3> positions = curves.positions();
 
     const AttributeAccessor attributes = curves.attributes();
-    StringRef side = left_ ? "handle_left" : "handle_right";
+    const UString side = left_ ? "handle_left"_ustr : "handle_right"_ustr;
     VArray<float3> handles = *attributes.lookup_or_default<float3>(
         side, AttrDomain::Point, {0, 0, 0});
 

@@ -36,7 +36,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     if (PointCloud *pointcloud = geometry_set.get_pointcloud_for_write()) {
       bke::try_capture_field_on_geometry(pointcloud->attributes_for_write(),
                                          bke::PointCloudFieldContext(*pointcloud),
-                                         "radius",
+                                         "radius"_ustr,
                                          bke::AttrDomain::Point,
                                          selection,
                                          radius);

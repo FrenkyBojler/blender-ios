@@ -4,10 +4,10 @@
  * Adapted from the Blender Alembic importer implementation. Copyright 2016 Kévin Dietrich.
  * Modifications Copyright 2021 Tangent Animation. All rights reserved. */
 
-#include "usd_reader_curve.hh"
 #include "usd.hh"
 #include "usd_attribute_utils.hh"
 #include "usd_hash_types.hh"
+#include "usd_reader_curve.hh"
 
 #include "BKE_attribute.hh"
 #include "BKE_curves.hh"
@@ -160,7 +160,8 @@ void USDCurvesReader::read_velocities(bke::CurvesGeometry &curves,
   if (!velocities.empty()) {
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
     bke::SpanAttributeWriter<float3> velocity =
-        attributes.lookup_or_add_for_write_only_span<float3>("velocity", bke::AttrDomain::Point);
+        attributes.lookup_or_add_for_write_only_span<float3>("velocity"_ustr,
+                                                             bke::AttrDomain::Point);
 
     Span<pxr::GfVec3f> usd_data(velocities.cdata(), velocities.size());
     velocity.span.copy_from(usd_data.cast<float3>());
@@ -273,13 +274,13 @@ void USDBasisCurvesReader::read_curve_sample(Curves *curves_id, const pxr::UsdTi
 
   if (is_cyclic) {
     curves.attributes_for_write().add<bool>(
-        "cyclic", bke::AttrDomain::Curve, bke::AttributeInitValue(true));
+        "cyclic"_ustr, bke::AttrDomain::Curve, bke::AttributeInitValue(true));
   }
 
   if (curve_type == CURVE_TYPE_NURBS) {
     const int8_t curve_order = type == pxr::UsdGeomTokens->cubic ? 4 : 2;
     curves.attributes_for_write().add<int8_t>(
-        "nurbs_order", bke::AttrDomain::Curve, bke::AttributeInitValue(curve_order));
+        "nurbs_order"_ustr, bke::AttrDomain::Curve, bke::AttributeInitValue(curve_order));
   }
 
   MutableSpan<float3> positions = curves.positions_for_write();

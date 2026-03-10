@@ -236,7 +236,7 @@ struct MeshArrays {
   {
     bke::AttributeAccessor attributes = mesh.attributes();
 
-    const StringRef active_uv_map = mesh.active_uv_map_name();
+    const UString active_uv_map = mesh.active_uv_map_name();
     vert_positions = mesh.vert_positions();
     vert_normals = mesh.vert_normals();
 
@@ -248,12 +248,13 @@ struct MeshArrays {
 
     faces = mesh.faces();
     face_normals = mesh.face_normals();
-    sharp_faces = *attributes.lookup_or_default<bool>("sharp_face", bke::AttrDomain::Face, false);
+    sharp_faces = *attributes.lookup_or_default<bool>(
+        "sharp_face"_ustr, bke::AttrDomain::Face, false);
 
     uv_map = *attributes.lookup<float2>(active_uv_map, bke::AttrDomain::Corner);
 
     material_indices = *attributes.lookup_or_default<int>(
-        "material_index", bke::AttrDomain::Face, 0);
+        "material_index"_ustr, bke::AttrDomain::Face, 0);
   }
 };
 

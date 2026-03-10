@@ -42,7 +42,7 @@ static void set_grease_pencil_order(GreasePencil &grease_pencil,
       bke::try_capture_field_on_geometry(
           curves.attributes_for_write(),
           bke::GreasePencilLayerFieldContext(grease_pencil, AttrDomain::Curve, layer_index),
-          "nurbs_order",
+          "nurbs_order"_ustr,
           bke::AttrDomain::Curve,
           selection,
           order);
@@ -72,7 +72,7 @@ static void node_geo_exec(GeoNodeExecParams params)
         const bke::CurvesFieldContext field_context{*curves_id, AttrDomain::Curve};
         bke::try_capture_field_on_geometry(curves.attributes_for_write(),
                                            field_context,
-                                           "nurbs_order",
+                                           "nurbs_order"_ustr,
                                            bke::AttrDomain::Curve,
                                            selection,
                                            order_int8);

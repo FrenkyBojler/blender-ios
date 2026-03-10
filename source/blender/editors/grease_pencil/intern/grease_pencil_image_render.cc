@@ -602,11 +602,11 @@ void draw_grease_pencil_strokes(const RegionView3D &rv3d,
       attribute_interpolate(VArraySpan(colors), curves).typed<ColorGeometry4f>();
 
   const VArray<int8_t> stroke_start_caps = *attributes.lookup_or_default<int8_t>(
-      "start_cap", bke::AttrDomain::Curve, GP_STROKE_CAP_ROUND);
+      "start_cap"_ustr, bke::AttrDomain::Curve, GP_STROKE_CAP_ROUND);
   const VArray<int8_t> stroke_end_caps = *attributes.lookup_or_default<int8_t>(
-      "end_cap", bke::AttrDomain::Curve, GP_STROKE_CAP_ROUND);
+      "end_cap"_ustr, bke::AttrDomain::Curve, GP_STROKE_CAP_ROUND);
   const VArray<int> materials = *attributes.lookup_or_default<int>(
-      "material_index", bke::AttrDomain::Curve, 0);
+      "material_index"_ustr, bke::AttrDomain::Curve, 0);
 
   /* Note: Serial loop since immediate mode drawing can't happen in worker
    * threads, has to be from the main thread. */

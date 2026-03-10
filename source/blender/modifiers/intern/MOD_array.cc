@@ -10,6 +10,7 @@
 
 #include <algorithm>
 
+#include "BLI_ustring.hh"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_utildefines.h"
@@ -337,11 +338,11 @@ static void mesh_merge_transform(Mesh *result,
   }
 
   const bke::AttributeAccessor cap_attributes = cap_mesh->attributes();
-  if (const VArray cap_material_indices = *cap_attributes.lookup<int>("material_index",
+  if (const VArray cap_material_indices = *cap_attributes.lookup<int>("material_index"_ustr,
                                                                       bke::AttrDomain::Face))
   {
     bke::SpanAttributeWriter<int> result_material_indices =
-        result_attributes.lookup_or_add_for_write_span<int>("material_index",
+        result_attributes.lookup_or_add_for_write_span<int>("material_index"_ustr,
                                                             bke::AttrDomain::Face);
     cap_material_indices.materialize(
         result_material_indices.span.slice(cap_faces_index, cap_nfaces));
@@ -689,7 +690,7 @@ static Mesh *arrayModifier_doArray(ArrayModifierData *amd,
 
   /* handle UVs */
   if (chunk_nloops > 0 && is_zero_v2(amd->uv_offset) == false) {
-    const VectorSet<StringRefNull> uv_map_names = result->uv_map_names();
+    const VectorSet<UString> uv_map_names = result->uv_map_names();
     for (i = 0; i < uv_map_names.size(); i++) {
       bke::SpanAttributeWriter uv_map_attr = result_attributes.lookup_for_write_span<float2>(
           uv_map_names[i]);

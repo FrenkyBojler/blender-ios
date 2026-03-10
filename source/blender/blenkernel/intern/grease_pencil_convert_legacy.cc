@@ -862,31 +862,31 @@ static Drawing legacy_gpencil_frame_to_grease_pencil_drawing(
   /* Note: Since we *know* the drawing are created from scratch, we assume that the following
    * `lookup_or_add_for_write_span` calls always return valid writers. */
   SpanAttributeWriter<float> delta_times = attributes.lookup_or_add_for_write_span<float>(
-      "delta_time", AttrDomain::Point);
+      "delta_time"_ustr, AttrDomain::Point);
   SpanAttributeWriter<float> rotations = attributes.lookup_or_add_for_write_span<float>(
-      "rotation", AttrDomain::Point);
+      "rotation"_ustr, AttrDomain::Point);
   MutableSpan<ColorGeometry4f> vertex_colors = drawing.vertex_colors_for_write();
   SpanAttributeWriter<bool> selection = attributes.lookup_or_add_for_write_span<bool>(
-      ".selection", AttrDomain::Point);
+      ".selection"_ustr, AttrDomain::Point);
   MutableSpan<MDeformVert> dverts = use_dverts ? curves.wrap().deform_verts_for_write() :
                                                  MutableSpan<MDeformVert>();
 
   /* Curve Attributes. */
   SpanAttributeWriter<bool> stroke_cyclic = attributes.lookup_or_add_for_write_span<bool>(
-      "cyclic", AttrDomain::Curve);
+      "cyclic"_ustr, AttrDomain::Curve);
   SpanAttributeWriter<float> stroke_init_times = attributes.lookup_or_add_for_write_span<float>(
-      "init_time", AttrDomain::Curve);
+      "init_time"_ustr, AttrDomain::Curve);
   SpanAttributeWriter<int8_t> stroke_start_caps = attributes.lookup_or_add_for_write_span<int8_t>(
-      "start_cap", AttrDomain::Curve);
+      "start_cap"_ustr, AttrDomain::Curve);
   SpanAttributeWriter<int8_t> stroke_end_caps = attributes.lookup_or_add_for_write_span<int8_t>(
-      "end_cap", AttrDomain::Curve);
+      "end_cap"_ustr, AttrDomain::Curve);
   SpanAttributeWriter<float> stroke_softness = attributes.lookup_or_add_for_write_span<float>(
-      "softness", AttrDomain::Curve);
+      "softness"_ustr, AttrDomain::Curve);
   SpanAttributeWriter<float> stroke_point_aspect_ratios =
-      attributes.lookup_or_add_for_write_span<float>("aspect_ratio", AttrDomain::Curve);
+      attributes.lookup_or_add_for_write_span<float>("aspect_ratio"_ustr, AttrDomain::Curve);
   MutableSpan<ColorGeometry4f> stroke_fill_colors = drawing.fill_colors_for_write();
   SpanAttributeWriter<int> stroke_materials = attributes.lookup_or_add_for_write_span<int>(
-      "material_index", AttrDomain::Curve);
+      "material_index"_ustr, AttrDomain::Curve);
 
   Array<float4x2> legacy_texture_matrices(num_strokes);
 
@@ -1102,7 +1102,7 @@ static void legacy_gpencil_to_grease_pencil(ConversionData &conversion_data,
    * These are converted to modifiers at the bottom of the stack to keep visual compatibility with
    * GPv2. */
   SpanAttributeWriter<int> layer_passes = layer_attributes.lookup_or_add_for_write_span<int>(
-      "pass_index", bke::AttrDomain::Layer);
+      "pass_index"_ustr, bke::AttrDomain::Layer);
 
   for (const auto [layer_idx, gpl] : gpd.layers.enumerate()) {
     layer_passes.span[layer_idx] = int(gpl.pass_index);
@@ -3172,7 +3172,7 @@ static void convert_grease_pencil_drawing_material_stroke_fill_toggle_to_attribu
   Array<bool> material_hides_stroke(curves.curves_num(), false);
   Array<bool> material_uses_fill(curves.curves_num(), false);
   const VArray<int> materials = *curves.attributes().lookup_or_default<int>(
-      "material_index", AttrDomain::Curve, 0);
+      "material_index"_ustr, AttrDomain::Curve, 0);
   threading::parallel_for(curves.curves_range(), 1024, [&](const IndexRange range) {
     for (const int curve_i : range) {
       const Material *material = BKE_object_material_get(object, materials[curve_i] + 1);
@@ -3192,16 +3192,16 @@ static void convert_grease_pencil_drawing_material_stroke_fill_toggle_to_attribu
   if (array_utils::booleans_mix_calc(VArray<bool>::from_span(material_hides_stroke)) !=
       array_utils::BooleanMix::AllFalse)
   {
-    constexpr StringRefNull hide_stroke_name = "hide_stroke";
+    static UString hide_stroke_name = "hide_stroke"_ustr;
     /* Ensure that the name is not already taken. If so, rename the existing attribute and report a
      * warning. */
     if (attributes.contains(hide_stroke_name)) {
-      Set<StringRefNull> names = attributes.all_names();
+      Set<UString> names = attributes.all_names();
       std::string unique_name = BLI_uniquename_cb(
-          [&](StringRef name) { return names.contains(StringRefNull(name)); },
+          [&](StringRef name) { return names.contains(UString(name)); },
           '.',
-          hide_stroke_name);
-      attributes.rename(hide_stroke_name, unique_name);
+          hide_stroke_name.ref());
+      attributes.rename(hide_stroke_name, UString(unique_name));
       BLO_reportf_wrap(
           &reports,
           RPT_WARNING,
@@ -3222,13 +3222,13 @@ static void convert_grease_pencil_drawing_material_stroke_fill_toggle_to_attribu
   if (array_utils::booleans_mix_calc(VArray<bool>::from_span(material_uses_fill)) !=
       array_utils::BooleanMix::AllFalse)
   {
-    constexpr StringRefNull fill_id_name = "fill_id";
+    static UString fill_id_name = "fill_id"_ustr;
     /* Ensure that the name is not already taken. If so, rename the existing attribute. */
     if (attributes.contains(fill_id_name)) {
-      Set<StringRefNull> names = attributes.all_names();
+      Set<UString> names = attributes.all_names();
       std::string unique_name = BLI_uniquename_cb(
-          [&](StringRef name) { return names.contains(StringRefNull(name)); }, '.', fill_id_name);
-      attributes.rename(fill_id_name, unique_name);
+          [&](StringRef name) { return names.contains(UString(name)); }, '.', fill_id_name.ref());
+      attributes.rename(fill_id_name, UString(unique_name));
       BLO_reportf_wrap(
           &reports,
           RPT_WARNING,
@@ -3240,7 +3240,7 @@ static void convert_grease_pencil_drawing_material_stroke_fill_toggle_to_attribu
           frame_number);
     }
     SpanAttributeWriter fill_ids = attributes.lookup_or_add_for_write_only_span<int>(
-        "fill_id", AttrDomain::Curve);
+        "fill_id"_ustr, AttrDomain::Curve);
     int current_fill_id = 1;
     for (const int curve_i : curves.curves_range()) {
       if (material_uses_fill[curve_i]) {

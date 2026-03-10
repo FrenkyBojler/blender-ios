@@ -66,13 +66,18 @@ static fn::Field<int> get_count_input_from_length(const fn::Field<float> &length
  * Return true if the attribute should be copied/interpolated to the result curves.
  * Don't output attributes that correspond to curve types that have no curves in the result.
  */
-static bool interpolate_attribute_to_curves(const StringRef name,
+static bool interpolate_attribute_to_curves(const UString name,
                                             const std::array<int, CURVE_TYPES_NUM> &type_counts)
 {
-  if (bke::attribute_name_is_anonymous(name)) {
+  if (bke::attribute_name_is_anonymous(name.ref())) {
     return true;
   }
-  if (ELEM(name, "handle_type_left", "handle_type_right", "handle_left", "handle_right")) {
+  if (ELEM(name,
+           "handle_type_left"_ustr,
+           "handle_type_right"_ustr,
+           "handle_left"_ustr,
+           "handle_right"_ustr))
+  {
     return type_counts[CURVE_TYPE_BEZIER] != 0;
   }
   if (ELEM(name, "nurbs_weight")) {
@@ -84,14 +89,14 @@ static bool interpolate_attribute_to_curves(const StringRef name,
 /**
  * Return true if the attribute should be copied to poly curves.
  */
-static bool interpolate_attribute_to_poly_curve(const StringRef name)
+static bool interpolate_attribute_to_poly_curve(const UString name)
 {
-  static const Set<StringRef> no_interpolation{{
-      "handle_type_left",
-      "handle_type_right",
-      "handle_right",
-      "handle_left",
-      "nurbs_weight",
+  static const Set<UString> no_interpolation{{
+      "handle_type_left"_ustr,
+      "handle_type_right"_ustr,
+      "handle_right"_ustr,
+      "handle_left"_ustr,
+      "nurbs_weight"_ustr,
   }};
   return !no_interpolation.contains(name);
 }
@@ -99,7 +104,7 @@ static bool interpolate_attribute_to_poly_curve(const StringRef name)
 /**
  * Retrieve spans from source and result attributes.
  */
-static void retrieve_attribute_spans(const Span<StringRef> names,
+static void retrieve_attribute_spans(const Span<UString> names,
                                      const CurvesGeometry &src_curves,
                                      CurvesGeometry &dst_curves,
                                      Vector<GVArraySpan> &src_arrays,
@@ -152,8 +157,8 @@ static void gather_point_attributes_to_interpolate(
     AttributesForResample &result,
     const ResampleCurvesOutputAttributeIDs &output_ids)
 {
-  VectorSet<StringRef> names;
-  VectorSet<StringRef> names_no_interpolation;
+  VectorSet<UString> names;
+  VectorSet<UString> names_no_interpolation;
   src_curves.attributes().foreach_attribute([&](const bke::AttributeIter &iter) {
     if (iter.domain != bke::AttrDomain::Point) {
       return;
@@ -174,7 +179,7 @@ static void gather_point_attributes_to_interpolate(
 
   /* Position is handled differently since it has non-generic interpolation for Bezier
    * curves and because the evaluated positions are cached for each evaluated point. */
-  names.remove_contained("position");
+  names.remove_contained("position"_ustr);
 
   retrieve_attribute_spans(
       names, src_curves, dst_curves, result.src, result.dst, result.dst_attributes);
@@ -192,14 +197,14 @@ static void gather_point_attributes_to_interpolate(
   if (output_ids.tangent_id) {
     result.src_evaluated_tangents = src_curves.evaluated_tangents();
     bke::GSpanAttributeWriter dst_attribute = dst_attributes.lookup_or_add_for_write_only_span(
-        *output_ids.tangent_id, bke::AttrDomain::Point, bke::AttrType::Float3);
+        UString(*output_ids.tangent_id), bke::AttrDomain::Point, bke::AttrType::Float3);
     result.dst_tangents = dst_attribute.span.typed<float3>();
     result.dst_attributes.append(std::move(dst_attribute));
   }
   if (output_ids.normal_id) {
     result.src_evaluated_normals = src_curves.evaluated_normals();
     bke::GSpanAttributeWriter dst_attribute = dst_attributes.lookup_or_add_for_write_only_span(
-        *output_ids.normal_id, bke::AttrDomain::Point, bke::AttrType::Float3);
+        UString(*output_ids.normal_id), bke::AttrDomain::Point, bke::AttrType::Float3);
     result.dst_normals = dst_attribute.span.typed<float3>();
     result.dst_attributes.append(std::move(dst_attribute));
   }

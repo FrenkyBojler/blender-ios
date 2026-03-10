@@ -105,8 +105,8 @@ static void step_decode(
     PointCloud &pointcloud = *id_cast<PointCloud *>(object.obedit_ref.ptr->data);
 
     const bool positions_changed = [&]() {
-      const bke::Attribute *attr_a = pointcloud.attribute_storage.wrap().lookup("position");
-      const bke::Attribute *attr_b = object.attribute_storage.wrap().lookup("position");
+      const bke::Attribute *attr_a = pointcloud.attribute_storage.wrap().lookup("position"_ustr);
+      const bke::Attribute *attr_b = object.attribute_storage.wrap().lookup("position"_ustr);
       if (!attr_b && !attr_a) {
         return false;
       }

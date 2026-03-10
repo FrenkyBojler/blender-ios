@@ -3990,8 +3990,8 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
     }
     for (Curves &curves_id : bmain->hair_curves) {
       AttributeOwner owner = AttributeOwner::from_id(&curves_id.id);
-      BKE_attribute_rename(owner, ".selection_point_float", ".selection", nullptr);
-      BKE_attribute_rename(owner, ".selection_curve_float", ".selection", nullptr);
+      BKE_attribute_rename(owner, ".selection_point_float"_ustr, ".selection"_ustr, nullptr);
+      BKE_attribute_rename(owner, ".selection_curve_float"_ustr, ".selection"_ustr, nullptr);
     }
 
     /* Toggle the Invert Vertex Group flag on Armature modifiers in some cases. */

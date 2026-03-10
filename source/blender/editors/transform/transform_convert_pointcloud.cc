@@ -63,7 +63,7 @@ static void createTransPointCloudVerts(bContext * /*C*/, TransInfo *t)
     bke::MutableAttributeAccessor attributes = pointcloud.attributes_for_write();
     PointCloudTransformData &transform_data = *create_transform_custom_data(tc.custom.type);
     const VArray selection_attr = *attributes.lookup_or_default<bool>(
-        ".selection", bke::AttrDomain::Point, true);
+        ".selection"_ustr, bke::AttrDomain::Point, true);
     if (use_proportional_edit) {
       transform_data.selection = IndexMask(pointcloud.totpoint);
       tc.data_len = transform_data.selection.size();

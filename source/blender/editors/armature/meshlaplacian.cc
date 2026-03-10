@@ -658,7 +658,7 @@ void heat_bone_weighting(Object *ob,
     /*  (added selectedVerts content for vertex mask, they used to just equal 1) */
     if (use_vert_sel) {
       const VArray select_vert = *attributes.lookup_or_default<bool>(
-          ".select_vert", bke::AttrDomain::Point, false);
+          ".select_vert"_ustr, bke::AttrDomain::Point, false);
       if (select_vert) {
         for (const int i : faces.index_range()) {
           for (const int vert : corner_verts.slice(faces[i])) {
@@ -669,7 +669,7 @@ void heat_bone_weighting(Object *ob,
     }
     else if (use_face_sel) {
       const VArray select_poly = *attributes.lookup_or_default<bool>(
-          ".select_poly", bke::AttrDomain::Face, false);
+          ".select_poly"_ustr, bke::AttrDomain::Face, false);
       if (select_poly) {
         for (const int i : faces.index_range()) {
           if (select_poly[i]) {

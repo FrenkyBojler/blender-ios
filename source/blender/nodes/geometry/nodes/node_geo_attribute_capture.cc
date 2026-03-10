@@ -105,7 +105,7 @@ static void node_operators()
 }
 
 static void clean_unused_attributes(const AttributeFilter &attribute_filter,
-                                    const Set<StringRef> &keep,
+                                    const Set<UString> &keep,
                                     GeometryComponent &component)
 {
   std::optional<MutableAttributeAccessor> attributes = component.attributes_for_write();
@@ -113,9 +113,9 @@ static void clean_unused_attributes(const AttributeFilter &attribute_filter,
     return;
   }
 
-  Vector<std::string> unused_ids;
+  Vector<UString> unused_ids;
   attributes->foreach_attribute([&](const bke::AttributeIter &iter) {
-    if (!bke::attribute_name_is_anonymous(iter.name)) {
+    if (!bke::attribute_name_is_anonymous(iter.name.ref())) {
       return;
     }
     if (keep.contains(iter.name)) {
@@ -127,7 +127,7 @@ static void clean_unused_attributes(const AttributeFilter &attribute_filter,
     unused_ids.append(iter.name);
   });
 
-  for (const std::string &unused_id : unused_ids) {
+  for (const UString unused_id : unused_ids) {
     attributes->remove(unused_id);
   }
 }
@@ -149,8 +149,8 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   Vector<const NodeGeometryAttributeCaptureItem *> used_items;
   Vector<GField> fields;
-  Vector<std::string> attribute_id_ptrs;
-  Set<StringRef> used_attribute_ids_set;
+  Vector<UString> attribute_ids;
+  Set<UString> used_attribute_ids_set;
   for (const NodeGeometryAttributeCaptureItem &item :
        Span{storage.capture_items, storage.capture_items_num})
   {
@@ -163,9 +163,9 @@ static void node_geo_exec(GeoNodeExecParams params)
     if (!attribute_id) {
       continue;
     }
-    used_attribute_ids_set.add(*attribute_id);
+    used_attribute_ids_set.add(UString(*attribute_id));
     fields.append(params.extract_input<GField>(input_identifier));
-    attribute_id_ptrs.append(std::move(*attribute_id));
+    attribute_ids.append(UString(*attribute_id));
     used_items.append(&item);
   }
 
@@ -173,11 +173,6 @@ static void node_geo_exec(GeoNodeExecParams params)
     params.set_output("Geometry", geometry_set);
     params.set_default_remaining_outputs();
     return;
-  }
-
-  Array<StringRef> attribute_ids(attribute_id_ptrs.size());
-  for (const int i : attribute_id_ptrs.index_range()) {
-    attribute_ids[i] = attribute_id_ptrs[i];
   }
 
   const auto capture_on = [&](GeometryComponent &component) {

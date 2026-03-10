@@ -142,7 +142,7 @@ static void mesh_cd_calc_active_uv_layer(const Object &object,
                                          DRW_MeshCDMask &cd_used)
 {
   const Mesh &me_final = editmesh_final_or_this(object, mesh);
-  const StringRef active_uv_map = me_final.active_or_default_uv_map_name();
+  const UString active_uv_map = me_final.active_or_default_uv_map_name();
   if (!active_uv_map.is_empty()) {
     cd_used.uv.add_as(active_uv_map);
   }
@@ -153,7 +153,7 @@ static void mesh_cd_calc_active_mask_uv_layer(const Object &object,
                                               DRW_MeshCDMask &cd_used)
 {
   const Mesh &me_final = editmesh_final_or_this(object, mesh);
-  StringRef name = me_final.stencil_uv_map_attribute;
+  UString name(me_final.stencil_uv_map_attribute);
   if (name.is_empty()) {
     name = mesh.active_uv_map_name();
   }
@@ -162,19 +162,18 @@ static void mesh_cd_calc_active_mask_uv_layer(const Object &object,
   }
 }
 
-static bool attribute_exists(const Mesh &mesh, const StringRef name)
+static bool attribute_exists(const Mesh &mesh, const UString name)
 {
   if (BMEditMesh *em = mesh.runtime->edit_mesh.get()) {
-    return bool(BM_data_layer_lookup(*em->bm, name));
+    return bool(BM_data_layer_lookup(*em->bm, name.ref()));
   }
   return mesh.attributes().contains(name);
 };
 
-static std::optional<bke::AttributeMetaData> lookup_meta_data(const Mesh &mesh,
-                                                              const StringRef name)
+static std::optional<bke::AttributeMetaData> lookup_meta_data(const Mesh &mesh, const UString name)
 {
   if (BMEditMesh *em = mesh.runtime->edit_mesh.get()) {
-    if (const BMDataLayerLookup attr = BM_data_layer_lookup(*em->bm, name)) {
+    if (const BMDataLayerLookup attr = BM_data_layer_lookup(*em->bm, name.ref())) {
       return bke::AttributeMetaData{attr.domain, attr.type};
     }
     return std::nullopt;
@@ -185,7 +184,7 @@ static std::optional<bke::AttributeMetaData> lookup_meta_data(const Mesh &mesh,
 static void mesh_cd_calc_used_gpu_layers(const Object &object,
                                          const Mesh &mesh,
                                          const Span<const GPUMaterial *> materials,
-                                         VectorSet<std::string> *r_attributes,
+                                         VectorSet<UString> *r_attributes,
                                          DRW_MeshCDMask *r_cd_used)
 {
   constexpr bke::AttributeMetaData UV_METADATA{bke::AttrDomain::Corner, bke::AttrType::Float2};
@@ -199,7 +198,7 @@ static void mesh_cd_calc_used_gpu_layers(const Object &object,
     for (GPUMaterialAttribute &gpu_attr : gpu_attrs) {
 
       if (gpu_attr.is_default_color) {
-        const StringRef default_color_name = me_final.default_color_attribute;
+        const UString default_color_name(me_final.default_color_attribute);
         if (attribute_exists(me_final, default_color_name)) {
           drw_attributes_add_request(r_attributes, default_color_name);
         }
@@ -211,11 +210,11 @@ static void mesh_cd_calc_used_gpu_layers(const Object &object,
         continue;
       }
 
-      StringRef name = gpu_attr.name;
+      UString name(gpu_attr.name);
 
       if (gpu_attr.type == CD_TANGENT) {
         if (name.is_empty()) {
-          const StringRef default_name = me_final.default_uv_map_name();
+          const UString default_name = me_final.default_uv_map_name();
           if (!default_name.is_empty()) {
             name = default_name;
           }
@@ -232,7 +231,7 @@ static void mesh_cd_calc_used_gpu_layers(const Object &object,
       }
 
       if (name.is_empty()) {
-        const StringRef default_name = me_final.default_uv_map_name();
+        const UString default_name = me_final.default_uv_map_name();
         if (!default_name.is_empty()) {
           if (lookup_meta_data(mesh, default_name) == UV_METADATA) {
             r_cd_used->uv.add(default_name);
@@ -635,11 +634,11 @@ static void texpaint_request_active_uv(MeshBatchCache &cache, Object &object, Me
 
 static void request_active_and_default_color_attributes(const Object &object,
                                                         const Mesh &mesh,
-                                                        VectorSet<std::string> &attributes)
+                                                        VectorSet<UString> &attributes)
 {
   const Mesh &me_final = editmesh_final_or_this(object, mesh);
 
-  auto request_color_attribute = [&](const StringRef name) {
+  auto request_color_attribute = [&](const UString name) {
     if (!name.is_empty()) {
       if (attribute_exists(me_final, name)) {
         drw_attributes_add_request(&attributes, name);
@@ -647,8 +646,8 @@ static void request_active_and_default_color_attributes(const Object &object,
     }
   };
 
-  request_color_attribute(me_final.active_color_attribute);
-  request_color_attribute(me_final.default_color_attribute);
+  request_color_attribute(UString(me_final.active_color_attribute));
+  request_color_attribute(UString(me_final.default_color_attribute));
 }
 
 gpu::Batch *DRW_mesh_batch_cache_get_all_verts(Mesh &mesh)
@@ -733,7 +732,7 @@ gpu::Batch *DRW_mesh_batch_cache_get_edit_mesh_analysis(Mesh &mesh)
 void DRW_mesh_get_attributes(const Object &object,
                              const Mesh &mesh,
                              const Span<const GPUMaterial *> materials,
-                             VectorSet<std::string> *r_attrs,
+                             VectorSet<UString> *r_attrs,
                              DRW_MeshCDMask *r_cd_needed)
 {
   mesh_cd_calc_used_gpu_layers(object, mesh, materials, r_attrs, r_cd_needed);
@@ -771,7 +770,7 @@ gpu::Batch *DRW_mesh_batch_cache_get_surface_vertpaint(Object &object, Mesh &mes
 {
   MeshBatchCache &cache = *mesh_batch_cache_get(mesh);
 
-  VectorSet<std::string> attrs_needed{};
+  VectorSet<UString> attrs_needed{};
   request_active_and_default_color_attributes(object, mesh, attrs_needed);
 
   drw_attributes_merge(&cache.attr_needed, &attrs_needed);
@@ -784,7 +783,7 @@ gpu::Batch *DRW_mesh_batch_cache_get_surface_sculpt(Object &object, Mesh &mesh)
 {
   MeshBatchCache &cache = *mesh_batch_cache_get(mesh);
 
-  VectorSet<std::string> attrs_needed{};
+  VectorSet<UString> attrs_needed{};
   request_active_and_default_color_attributes(object, mesh, attrs_needed);
 
   drw_attributes_merge(&cache.attr_needed, &attrs_needed);

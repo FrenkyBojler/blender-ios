@@ -209,7 +209,7 @@ bool vgroup_parray_alloc(ID *id,
           if (use_vert_sel) {
             const bke::AttributeAccessor attributes = mesh->attributes();
             const VArray<bool> select_vert = *attributes.lookup_or_default<bool>(
-                ".select_vert", bke::AttrDomain::Point, false);
+                ".select_vert"_ustr, bke::AttrDomain::Point, false);
 
             for (int i = 0; i < mesh->verts_num; i++) {
               (*dvert_arr)[i] = select_vert[i] ? &dverts[i] : nullptr;
@@ -706,7 +706,7 @@ static void vgroup_copy_active_to_sel(Object *ob, eVGroupSelect subset_type)
   else {
     const bke::AttributeAccessor attributes = mesh->attributes();
     const VArray<bool> select_vert = *attributes.lookup_or_default<bool>(
-        ".select_vert", bke::AttrDomain::Point, false);
+        ".select_vert"_ustr, bke::AttrDomain::Point, false);
 
     int v_act;
 
@@ -1158,9 +1158,9 @@ static void vgroup_select_verts(const ToolSettings &tool_settings,
       if (!dverts.is_empty()) {
         bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
         const VArray<bool> hide_vert = *attributes.lookup_or_default<bool>(
-            ".hide_vert", bke::AttrDomain::Point, false);
+            ".hide_vert"_ustr, bke::AttrDomain::Point, false);
         bke::SpanAttributeWriter<bool> select_vert =
-            attributes.lookup_or_add_for_write_only_span<bool>(".select_vert",
+            attributes.lookup_or_add_for_write_only_span<bool>(".select_vert"_ustr,
                                                                bke::AttrDomain::Point);
 
         for (const int i : select_vert.span.index_range()) {
@@ -1741,7 +1741,7 @@ static void vgroup_smooth_subset(Object *ob,
   VArray<bool> hide_vert;
   if (mesh && use_hide) {
     hide_vert = *mesh->attributes().lookup_or_default<bool>(
-        ".hide_vert", bke::AttrDomain::Point, false);
+        ".hide_vert"_ustr, bke::AttrDomain::Point, false);
   }
   else {
     hide_vert = VArray<bool>::from_single(false, dvert_tot);
@@ -1750,7 +1750,7 @@ static void vgroup_smooth_subset(Object *ob,
   VArray<bool> select_vert;
   if (mesh && use_select) {
     select_vert = *mesh->attributes().lookup_or_default<bool>(
-        ".select_vert", bke::AttrDomain::Point, false);
+        ".select_vert"_ustr, bke::AttrDomain::Point, false);
   }
   else {
     select_vert = VArray<bool>::from_single(true, dvert_tot);
@@ -2250,7 +2250,7 @@ void vgroup_mirror(Object *ob,
       MutableSpan<MDeformVert> dverts = mesh->deform_verts_for_write();
       const bke::AttributeAccessor attributes = mesh->attributes();
       const VArray<bool> select_vert = *attributes.lookup_or_default<bool>(
-          ".select_vert", bke::AttrDomain::Point, false);
+          ".select_vert"_ustr, bke::AttrDomain::Point, false);
 
       for (int vidx = 0; vidx < mesh->verts_num; vidx++) {
         if (!BLI_BITMAP_TEST(vert_tag, vidx)) {
@@ -2409,7 +2409,7 @@ static void vgroup_assign_verts(Object *ob, Scene &scene, const float weight)
     else {
       const bke::AttributeAccessor attributes = mesh->attributes();
       const VArray<bool> select_vert = *attributes.lookup_or_default<bool>(
-          ".select_vert", bke::AttrDomain::Point, false);
+          ".select_vert"_ustr, bke::AttrDomain::Point, false);
 
       MutableSpan<MDeformVert> dverts = mesh->deform_verts_for_write();
 
@@ -4192,7 +4192,7 @@ static void vgroup_copy_active_to_sel_single(Object *ob, const int def_nr)
     MutableSpan<MDeformVert> dverts = mesh->deform_verts_for_write();
     const bke::AttributeAccessor attributes = mesh->attributes();
     const VArray<bool> select_vert = *attributes.lookup_or_default<bool>(
-        ".select_vert", bke::AttrDomain::Point, false);
+        ".select_vert"_ustr, bke::AttrDomain::Point, false);
 
     for (i = 0; i < mesh->verts_num; i++) {
       if (select_vert[i] && (&dverts[i] != dvert_act)) {

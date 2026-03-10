@@ -70,7 +70,7 @@ class NodeAttributeFilter : public AttributeFilter {
  public:
   NodeAttributeFilter(const GeometryNodesReferenceSet &set) : set_(set) {}
 
-  Result filter(StringRef attribute_name) const override;
+  Result filter(UString attribute_name) const override;
 };
 
 class GeoNodeExecParams {
@@ -293,7 +293,7 @@ class GeoNodeExecParams {
 
   void set_default_remaining_outputs();
 
-  void used_named_attribute(StringRef attribute_name, NamedAttributeUsage usage);
+  void used_named_attribute(UString attribute_name, NamedAttributeUsage usage);
 
   /**
    * Return true when the anonymous attribute referenced by the given output should be created.

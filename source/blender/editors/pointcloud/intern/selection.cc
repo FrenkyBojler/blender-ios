@@ -24,7 +24,7 @@ namespace blender::ed::pointcloud {
 
 bool has_anything_selected(const PointCloud &pointcloud)
 {
-  const VArray<bool> selection = *pointcloud.attributes().lookup<bool>(".selection");
+  const VArray<bool> selection = *pointcloud.attributes().lookup<bool>(".selection"_ustr);
   return !selection || array_utils::contains(selection, selection.index_range(), true);
 }
 
@@ -32,7 +32,7 @@ bke::GSpanAttributeWriter ensure_selection_attribute(PointCloud &pointcloud,
                                                      bke::AttrType create_type)
 {
   const bke::AttrDomain selection_domain = bke::AttrDomain::Point;
-  const StringRef attribute_name = ".selection";
+  const UString attribute_name(".selection");
 
   bke::MutableAttributeAccessor attributes = pointcloud.attributes_for_write();
   if (attributes.contains(attribute_name)) {
@@ -101,7 +101,7 @@ static void select_all(PointCloud &pointcloud, const IndexMask &mask, int action
     if (range.has_value() && (*range == IndexRange(pointcloud.totpoint))) {
       bke::MutableAttributeAccessor attributes = pointcloud.attributes_for_write();
       /* As an optimization, just remove the selection attributes when everything is selected. */
-      attributes.remove(".selection");
+      attributes.remove(".selection"_ustr);
       return;
     }
   }
@@ -274,7 +274,7 @@ std::optional<FindClosestData> find_closest_point_to_screen_co(
 IndexMask retrieve_selected_points(const PointCloud &pointcloud, IndexMaskMemory &memory)
 {
   const VArray selection = *pointcloud.attributes().lookup_or_default<bool>(
-      ".selection", bke::AttrDomain::Point, true);
+      ".selection"_ustr, bke::AttrDomain::Point, true);
   return IndexMask::from_bools(selection, memory);
 }
 

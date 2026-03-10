@@ -290,7 +290,7 @@ Tree Tree::from_spatially_organized_mesh(const Mesh &mesh)
   store_bounds_orig(pbvh);
 
   const AttributeAccessor attributes = mesh.attributes();
-  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", AttrDomain::Point);
+  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert"_ustr, AttrDomain::Point);
 
   if (!hide_vert.is_empty()) {
     threading::parallel_for(nodes.index_range(), 8, [&](const IndexRange range) {
@@ -342,8 +342,9 @@ Tree Tree::from_mesh(const Mesh &mesh)
       merge_bounds);
 
   const AttributeAccessor attributes = mesh.attributes();
-  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", AttrDomain::Point);
-  const VArraySpan material_index = *attributes.lookup<int>("material_index", AttrDomain::Face);
+  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert"_ustr, AttrDomain::Point);
+  const VArraySpan material_index = *attributes.lookup<int>("material_index"_ustr,
+                                                            AttrDomain::Face);
 
   pbvh.prim_indices_.reinitialize(faces.size());
   array_utils::fill_index_range<int>(pbvh.prim_indices_);
@@ -510,7 +511,8 @@ Tree Tree::from_grids(const Mesh &base_mesh, const SubdivCCG &subdiv_ccg)
       merge_bounds);
 
   const AttributeAccessor attributes = base_mesh.attributes();
-  const VArraySpan material_index = *attributes.lookup<int>("material_index", AttrDomain::Face);
+  const VArraySpan material_index = *attributes.lookup<int>("material_index"_ustr,
+                                                            AttrDomain::Face);
 
   Array<int> face_indices(faces.size());
   array_utils::fill_index_range<int>(face_indices);
@@ -1440,7 +1442,7 @@ void update_mask_mesh(const Mesh &mesh, const IndexMask &node_mask, Tree &pbvh)
 {
   const MutableSpan<MeshNode> nodes = pbvh.nodes<MeshNode>();
   const AttributeAccessor attributes = mesh.attributes();
-  const VArraySpan<float> mask = *attributes.lookup<float>(".sculpt_mask", AttrDomain::Point);
+  const VArraySpan<float> mask = *attributes.lookup<float>(".sculpt_mask"_ustr, AttrDomain::Point);
   if (mask.is_empty()) {
     node_mask.foreach_index([&](const int i) {
       nodes[i].flag_ &= ~Node::FullyMasked;
@@ -1531,7 +1533,8 @@ static void update_visibility_faces(const Mesh &mesh,
                                     const IndexMask &node_mask)
 {
   const AttributeAccessor attributes = mesh.attributes();
-  const VArraySpan<bool> hide_vert = *attributes.lookup<bool>(".hide_vert", AttrDomain::Point);
+  const VArraySpan<bool> hide_vert = *attributes.lookup<bool>(".hide_vert"_ustr,
+                                                              AttrDomain::Point);
   if (hide_vert.is_empty()) {
     node_mask.foreach_index([&](const int i) { nodes[i].flag_ &= ~Node::FullyHidden; });
     return;
@@ -2597,11 +2600,11 @@ void BKE_pbvh_sync_visibility_from_verts(Object &object)
 
       MutableAttributeAccessor attributes = mesh.attributes_for_write();
       if (hidden_faces.is_empty()) {
-        attributes.remove(".hide_poly");
+        attributes.remove(".hide_poly"_ustr);
       }
       else {
         SpanAttributeWriter<bool> hide_poly = attributes.lookup_or_add_for_write_span<bool>(
-            ".hide_poly", AttrDomain::Face, AttributeInitConstruct());
+            ".hide_poly"_ustr, AttrDomain::Face, AttributeInitConstruct());
         hide_poly.span.fill(false);
         index_mask::masked_fill(hide_poly.span, true, hidden_faces);
         hide_poly.finish();

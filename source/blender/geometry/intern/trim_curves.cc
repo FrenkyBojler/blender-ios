@@ -13,6 +13,7 @@
 #include "BKE_curves.hh"
 #include "BKE_curves_utils.hh"
 
+#include "BLI_ustring.hh"
 #include "GEO_trim_curves.hh"
 
 namespace blender::geometry {
@@ -997,12 +998,12 @@ bke::CurvesGeometry trim_curves(const bke::CurvesGeometry &src_curves,
       dst_attributes,
       {bke::AttrDomain::Point},
       bke::attribute_filter_with_skip_ref(attribute_filter,
-                                          {"position",
-                                           "handle_left",
-                                           "handle_right",
-                                           "handle_type_left",
-                                           "handle_type_right",
-                                           "nurbs_weight"}));
+                                          {"position"_ustr,
+                                           "handle_left"_ustr,
+                                           "handle_right"_ustr,
+                                           "handle_type_left"_ustr,
+                                           "handle_type_right"_ustr,
+                                           "nurbs_weight"_ustr}));
 
   auto trim_catmull = [&](const IndexMask &selection) {
     trim_catmull_rom_curves(src_curves,
@@ -1061,20 +1062,22 @@ bke::CurvesGeometry trim_curves(const bke::CurvesGeometry &src_curves,
   /* Copy unselected */
   if (unselected.is_empty()) {
     /* Since all curves were trimmed, none of them are cyclic and the attribute can be removed. */
-    dst_curves.attributes_for_write().remove("cyclic");
+    dst_curves.attributes_for_write().remove("cyclic"_ustr);
   }
   else {
     /* Only trimmed curves are no longer cyclic. */
-    if (bke::SpanAttributeWriter cyclic = dst_attributes.lookup_for_write_span<bool>("cyclic")) {
+    if (bke::SpanAttributeWriter cyclic = dst_attributes.lookup_for_write_span<bool>(
+            "cyclic"_ustr))
+    {
       index_mask::masked_fill(cyclic.span, false, selection);
       cyclic.finish();
     }
 
-    Set<std::string> copy_point_skip;
+    Set<UString> copy_point_skip;
     if (!dst_curves.has_curve_with_type(CURVE_TYPE_NURBS) &&
         src_curves.has_curve_with_type(CURVE_TYPE_NURBS))
     {
-      copy_point_skip.add("nurbs_weight");
+      copy_point_skip.add("nurbs_weight"_ustr);
     }
 
     bke::copy_attributes_group_to_group(

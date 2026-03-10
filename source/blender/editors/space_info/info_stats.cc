@@ -351,7 +351,8 @@ static void stats_object_edit(Object *obedit, SceneStats *stats)
   else if (obedit->type == OB_CURVES) {
     const Curves &curves_id = *id_cast<Curves *>(obedit->data);
     const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
-    if (const bke::AttributeReader selection = curves.attributes().lookup<bool>(".selection")) {
+    if (const bke::AttributeReader selection = curves.attributes().lookup<bool>(".selection"_ustr))
+    {
       const OffsetIndices points_by_curve = curves.points_by_curve();
       struct SelectionCounts {
         int point;
@@ -394,7 +395,7 @@ static void stats_object_edit(Object *obedit, SceneStats *stats)
   else if (obedit->type == OB_POINTCLOUD) {
     PointCloud &pointcloud = *id_cast<PointCloud *>(obedit->data);
     const VArray<bool> selection = *pointcloud.attributes().lookup_or_default<bool>(
-        ".selection", bke::AttrDomain::Point, true);
+        ".selection"_ustr, bke::AttrDomain::Point, true);
     stats->totvertsel = array_utils::count_booleans(selection);
     stats->totpoints = pointcloud.totpoint;
   }

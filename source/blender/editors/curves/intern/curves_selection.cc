@@ -34,16 +34,16 @@ IndexMask retrieve_selected_curves(const bke::CurvesGeometry &curves, LinearAllo
   /* Interpolate from points to curves manually as a performance improvement, since we are only
    * interested in whether any point in each curve is selected. Retrieve meta data since
    * #lookup_or_default from the attribute API doesn't give the domain of the attribute. */
-  std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(".selection");
+  std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(".selection"_ustr);
   if (meta_data && meta_data->domain == bke::AttrDomain::Point) {
     /* Avoid the interpolation from interpolating the attribute to the
      * curve domain by retrieving the point domain values directly. */
     const VArray<bool> selection = *attributes.lookup_or_default<bool>(
-        ".selection", bke::AttrDomain::Point, true);
+        ".selection"_ustr, bke::AttrDomain::Point, true);
     const VArray<bool> selection_left = *attributes.lookup_or_default<bool>(
-        ".selection_handle_left", bke::AttrDomain::Point, true);
+        ".selection_handle_left"_ustr, bke::AttrDomain::Point, true);
     const VArray<bool> selection_right = *attributes.lookup_or_default<bool>(
-        ".selection_handle_right", bke::AttrDomain::Point, true);
+        ".selection_handle_right"_ustr, bke::AttrDomain::Point, true);
 
     if (selection.is_single() && curves.is_single_type(CURVE_TYPE_POLY)) {
       return selection.get_internal_single() ? IndexMask(curves_range) : IndexMask();
@@ -66,7 +66,7 @@ IndexMask retrieve_selected_curves(const bke::CurvesGeometry &curves, LinearAllo
     });
   }
   const VArray<bool> selection = *attributes.lookup_or_default<bool>(
-      ".selection", bke::AttrDomain::Curve, true);
+      ".selection"_ustr, bke::AttrDomain::Curve, true);
   return IndexMask::from_bools(curves_range, selection, memory);
 }
 
@@ -78,9 +78,9 @@ IndexMask retrieve_selected_curves(const Curves &curves_id, LinearAllocator<> &m
 
 IndexMask retrieve_selected_points(const bke::CurvesGeometry &curves, LinearAllocator<> &memory)
 {
-  return IndexMask::from_bools(
-      *curves.attributes().lookup_or_default<bool>(".selection", bke::AttrDomain::Point, true),
-      memory);
+  return IndexMask::from_bools(*curves.attributes().lookup_or_default<bool>(
+                                   ".selection"_ustr, bke::AttrDomain::Point, true),
+                               memory);
 }
 
 IndexMask retrieve_all_selected_points(const bke::CurvesGeometry &curves,
@@ -91,7 +91,7 @@ IndexMask retrieve_all_selected_points(const bke::CurvesGeometry &curves,
       curves, CURVE_TYPE_BEZIER, memory);
 
   Vector<IndexMask> selection_by_attribute;
-  for (const StringRef selection_name : ed::curves::get_curves_selection_attribute_names(curves)) {
+  for (const UString selection_name : ed::curves::get_curves_selection_attribute_names(curves)) {
     if (selection_name != ".selection" && handle_display == CURVE_HANDLE_NONE) {
       continue;
     }
@@ -103,7 +103,7 @@ IndexMask retrieve_all_selected_points(const bke::CurvesGeometry &curves,
 }
 
 IndexMask retrieve_selected_points(const bke::CurvesGeometry &curves,
-                                   StringRef attribute_name,
+                                   UString attribute_name,
                                    const IndexMask &bezier_points,
                                    LinearAllocator<> &memory)
 {
@@ -123,35 +123,36 @@ IndexMask retrieve_selected_points(const Curves &curves_id, LinearAllocator<> &m
   return retrieve_selected_points(curves, memory);
 }
 
-Span<StringRef> get_curves_selection_attribute_names(const bke::CurvesGeometry &curves)
+Span<UString> get_curves_selection_attribute_names(const bke::CurvesGeometry &curves)
 {
-  static const std::array<StringRef, 1> selection_attribute_names{".selection"};
+  static const std::array<UString, 1> selection_attribute_names{".selection"_ustr};
   return curves.has_curve_with_type(CURVE_TYPE_BEZIER) ?
              get_curves_all_selection_attribute_names() :
              selection_attribute_names;
 }
 
-Span<StringRef> get_curves_all_selection_attribute_names()
+Span<UString> get_curves_all_selection_attribute_names()
 {
-  static const std::array<StringRef, 3> selection_attribute_names{
-      ".selection", ".selection_handle_left", ".selection_handle_right"};
+  static const std::array<UString, 3> selection_attribute_names{
+      ".selection"_ustr, ".selection_handle_left"_ustr, ".selection_handle_right"_ustr};
   return selection_attribute_names;
 }
 
-Span<StringRef> get_curves_bezier_selection_attribute_names(const bke::CurvesGeometry &curves)
+Span<UString> get_curves_bezier_selection_attribute_names(const bke::CurvesGeometry &curves)
 {
-  static const std::array<StringRef, 2> selection_attribute_names{".selection_handle_left",
-                                                                  ".selection_handle_right"};
+  static const std::array<UString, 2> selection_attribute_names{".selection_handle_left"_ustr,
+                                                                ".selection_handle_right"_ustr};
   const bke::AttributeAccessor attributes = curves.attributes();
-  return (attributes.contains("handle_type_left") && attributes.contains("handle_type_right")) ?
+  return (attributes.contains("handle_type_left"_ustr) &&
+          attributes.contains("handle_type_right"_ustr)) ?
              selection_attribute_names :
-             Span<StringRef>();
+             Span<UString>();
 }
 
 void remove_selection_attributes(bke::MutableAttributeAccessor &attributes,
-                                 Span<StringRef> selection_attribute_names)
+                                 Span<UString> selection_attribute_names)
 {
-  for (const StringRef selection_name : selection_attribute_names) {
+  for (const UString selection_name : selection_attribute_names) {
     attributes.remove(selection_name);
   }
 }
@@ -159,7 +160,7 @@ void remove_selection_attributes(bke::MutableAttributeAccessor &attributes,
 std::optional<Span<float3>> get_selection_attribute_positions(
     const bke::CurvesGeometry &curves,
     const bke::crazyspace::GeometryDeformation &deformation,
-    const StringRef attribute_name)
+    const UString attribute_name)
 {
   if (attribute_name == ".selection") {
     return deformation.positions;
@@ -178,7 +179,7 @@ static Vector<bke::GSpanAttributeWriter> init_selection_writers(bke::CurvesGeome
                                                                 bke::AttrDomain selection_domain)
 {
   const bke::AttrType create_type = bke::AttrType::Bool;
-  Span<StringRef> selection_attribute_names = get_curves_selection_attribute_names(curves);
+  Span<UString> selection_attribute_names = get_curves_selection_attribute_names(curves);
   Vector<bke::GSpanAttributeWriter> writers;
   for (const int i : selection_attribute_names.index_range()) {
     writers.append(ensure_selection_attribute(
@@ -195,14 +196,14 @@ static void finish_attribute_writers(MutableSpan<bke::GSpanAttributeWriter> attr
 }
 
 static bke::GSpanAttributeWriter &selection_attribute_writer_by_name(
-    MutableSpan<bke::GSpanAttributeWriter> selections, StringRef attribute_name)
+    MutableSpan<bke::GSpanAttributeWriter> selections, UString attribute_name)
 {
-  Span<StringRef> selection_attribute_names = get_curves_all_selection_attribute_names();
+  Span<UString> selection_attribute_names = get_curves_all_selection_attribute_names();
 
   BLI_assert(selection_attribute_names.contains(attribute_name));
 
   for (const int index : selections.index_range()) {
-    if (attribute_name.size() == selection_attribute_names[index].size()) {
+    if (attribute_name == selection_attribute_names[index]) {
       return selections[index];
     }
   }
@@ -226,7 +227,7 @@ static void init_selectable_foreach(
     const bke::CurvesGeometry &curves,
     const bke::crazyspace::GeometryDeformation &deformation,
     eHandleDisplay handle_display,
-    Span<StringRef> &r_bezier_attribute_names,
+    Span<UString> &r_bezier_attribute_names,
     Span<float3> &r_positions,
     std::optional<std::array<Span<float3>, 2>> &r_bezier_handle_positions,
     IndexMaskMemory &r_memory,
@@ -249,7 +250,7 @@ void foreach_selectable_point_range(const bke::CurvesGeometry &curves,
                                     eHandleDisplay handle_display,
                                     SelectionRangeFn range_consumer)
 {
-  Span<StringRef> bezier_attribute_names;
+  Span<UString> bezier_attribute_names;
   Span<float3> positions;
   std::optional<std::array<Span<float3>, 2>> bezier_handle_positions;
   IndexMaskMemory memory;
@@ -263,7 +264,7 @@ void foreach_selectable_point_range(const bke::CurvesGeometry &curves,
                           memory,
                           bezier_curves);
 
-  range_consumer(curves.points_range(), positions, ".selection");
+  range_consumer(curves.points_range(), positions, ".selection"_ustr);
 
   if (handle_display == eHandleDisplay::CURVE_HANDLE_NONE) {
     return;
@@ -286,7 +287,7 @@ void foreach_selectable_curve_range(const bke::CurvesGeometry &curves,
                                     eHandleDisplay handle_display,
                                     SelectionRangeFn range_consumer)
 {
-  Span<StringRef> bezier_attribute_names;
+  Span<UString> bezier_attribute_names;
   Span<float3> positions;
   std::optional<std::array<Span<float3>, 2>> bezier_handle_positions;
   IndexMaskMemory memory;
@@ -300,7 +301,7 @@ void foreach_selectable_curve_range(const bke::CurvesGeometry &curves,
                           memory,
                           bezier_curves);
 
-  range_consumer(curves.curves_range(), positions, ".selection");
+  range_consumer(curves.curves_range(), positions, ".selection"_ustr);
   if (handle_display == eHandleDisplay::CURVE_HANDLE_NONE) {
     return;
   }
@@ -317,7 +318,7 @@ void foreach_selectable_curve_range(const bke::CurvesGeometry &curves,
 bke::GSpanAttributeWriter ensure_selection_attribute(bke::CurvesGeometry &curves,
                                                      bke::AttrDomain selection_domain,
                                                      bke::AttrType create_type,
-                                                     StringRef attribute_name)
+                                                     UString attribute_name)
 {
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
   if (attributes.contains(attribute_name)) {
@@ -406,7 +407,7 @@ bool has_anything_selected(const VArray<bool> &varray, const IndexMask &indices_
 
 bool has_anything_selected(const bke::CurvesGeometry &curves)
 {
-  const VArray<bool> selection = *curves.attributes().lookup<bool>(".selection");
+  const VArray<bool> selection = *curves.attributes().lookup<bool>(".selection"_ustr);
   return !selection || array_utils::contains(selection, selection.index_range(), true);
 }
 
@@ -420,7 +421,7 @@ bool has_anything_selected(const bke::CurvesGeometry &curves,
                            bke::AttrDomain selection_domain,
                            const IndexMask &mask)
 {
-  for (const StringRef selection_name : get_curves_selection_attribute_names(curves)) {
+  for (const UString selection_name : get_curves_selection_attribute_names(curves)) {
     const VArray<bool> selection = *curves.attributes().lookup<bool>(selection_name,
                                                                      selection_domain);
     if (!selection || array_utils::contains(selection, mask, true)) {
@@ -912,7 +913,7 @@ bool select_box(const ViewContext &vc,
         curves,
         deformation,
         eHandleDisplay(vc.v3d->overlay.handle_display),
-        [&](IndexRange range, Span<float3> positions, StringRef selection_attribute_name) {
+        [&](IndexRange range, Span<float3> positions, UString selection_attribute_name) {
           const IndexMask &mask = (selection_attribute_name == ".selection") ? selection_mask :
                                                                                bezier_mask;
           mask.slice_content(range).foreach_index(
@@ -941,7 +942,7 @@ bool select_box(const ViewContext &vc,
         eHandleDisplay(vc.v3d->overlay.handle_display),
         [&](const IndexRange range,
             const Span<float3> positions,
-            StringRef /* selection_attribute_name */) {
+            UString /* selection_attribute_name */) {
           const IndexMask &mask = selection_mask;
           mask.slice_content(range).foreach_index(
               [&](const int curve) {
@@ -1019,7 +1020,7 @@ bool select_lasso(const ViewContext &vc,
         curves,
         deformation,
         eHandleDisplay(vc.v3d->overlay.handle_display),
-        [&](IndexRange range, Span<float3> positions, StringRef selection_attribute_name) {
+        [&](IndexRange range, Span<float3> positions, UString selection_attribute_name) {
           const IndexMask &mask = (selection_attribute_name == ".selection") ? selection_mask :
                                                                                bezier_mask;
           mask.slice_content(range).foreach_index(
@@ -1052,7 +1053,7 @@ bool select_lasso(const ViewContext &vc,
         eHandleDisplay(vc.v3d->overlay.handle_display),
         [&](const IndexRange range,
             const Span<float3> positions,
-            StringRef /* selection_attribute_name */) {
+            UString /* selection_attribute_name */) {
           const IndexMask &mask = selection_mask;
           mask.slice_content(range).foreach_index(
               [&](const int curve) {
@@ -1142,7 +1143,7 @@ bool select_circle(const ViewContext &vc,
         curves,
         deformation,
         eHandleDisplay(vc.v3d->overlay.handle_display),
-        [&](IndexRange range, Span<float3> positions, StringRef selection_attribute_name) {
+        [&](IndexRange range, Span<float3> positions, UString selection_attribute_name) {
           const IndexMask &mask = (selection_attribute_name == ".selection") ? selection_mask :
                                                                                bezier_mask;
           mask.slice_content(range).foreach_index(
@@ -1171,7 +1172,7 @@ bool select_circle(const ViewContext &vc,
         eHandleDisplay(vc.v3d->overlay.handle_display),
         [&](const IndexRange range,
             const Span<float3> positions,
-            StringRef /* selection_attribute_name */) {
+            UString /* selection_attribute_name */) {
           const IndexMask &mask = selection_mask;
           mask.slice_content(range).foreach_index(
               [&](const int curve) {
@@ -1269,7 +1270,7 @@ IndexMask select_mask_from_predicates(const bke::CurvesGeometry &curves,
 
 IndexMask select_adjacent_mask(const bke::CurvesGeometry &curves,
                                const IndexMask &curves_mask,
-                               const StringRef attribute_name,
+                               const UString attribute_name,
                                const bool deselect,
                                IndexMaskMemory &memory)
 {
@@ -1320,7 +1321,7 @@ IndexMask select_adjacent_mask(const bke::CurvesGeometry &curves,
 }
 
 IndexMask select_adjacent_mask(const bke::CurvesGeometry &curves,
-                               const StringRef attribute_name,
+                               const UString attribute_name,
                                const bool deselect,
                                IndexMaskMemory &memory)
 {
@@ -1334,7 +1335,7 @@ IndexMask select_box_mask(const ViewContext &vc,
                           const IndexMask &selection_mask,
                           const IndexMask &bezier_mask,
                           const bke::AttrDomain selection_domain,
-                          const StringRef attribute_name,
+                          const UString attribute_name,
                           const rcti &rect,
                           IndexMaskMemory &memory)
 {
@@ -1372,7 +1373,7 @@ IndexMask select_lasso_mask(const ViewContext &vc,
                             const IndexMask &selection_mask,
                             const IndexMask &bezier_mask,
                             const bke::AttrDomain selection_domain,
-                            const StringRef attribute_name,
+                            const UString attribute_name,
                             const Span<int2> lasso_coords,
                             IndexMaskMemory &memory)
 {
@@ -1419,7 +1420,7 @@ IndexMask select_circle_mask(const ViewContext &vc,
                              const IndexMask &selection_mask,
                              const IndexMask &bezier_mask,
                              const bke::AttrDomain selection_domain,
-                             const StringRef attribute_name,
+                             const UString attribute_name,
                              const int2 coord,
                              const float radius,
                              IndexMaskMemory &memory)

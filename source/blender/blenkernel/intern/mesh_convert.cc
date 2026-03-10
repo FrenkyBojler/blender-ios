@@ -115,14 +115,14 @@ static Mesh *mesh_nurbs_displist_to_mesh(const Curve *cu, const ListBaseT<DispLi
 
   MutableAttributeAccessor attributes = mesh->attributes_for_write();
   SpanAttributeWriter<int> material_indices = attributes.lookup_or_add_for_write_only_span<int>(
-      "material_index", AttrDomain::Face);
+      "material_index"_ustr, AttrDomain::Face);
   SpanAttributeWriter<bool> sharp_faces = attributes.lookup_or_add_for_write_span<bool>(
-      "sharp_face", AttrDomain::Face);
-  const StringRef uv_name = DATA_("UVMap");
+      "sharp_face"_ustr, AttrDomain::Face);
+  const UString uv_name(DATA_("UVMap"));
   SpanAttributeWriter<float2> uv_attribute = attributes.lookup_or_add_for_write_span<float2>(
       uv_name, AttrDomain::Corner);
-  mesh->uv_maps_active_set(uv_name);
-  mesh->uv_maps_default_set(uv_name);
+  mesh->uv_maps_active_set(uv_name.ref());
+  mesh->uv_maps_default_set(uv_name.ref());
   MutableSpan<float2> uv_map = uv_attribute.span;
 
   int dst_vert = 0;
@@ -557,18 +557,20 @@ void BKE_mesh_to_pointcloud(Main *bmain, Depsgraph *depsgraph, Scene * /*scene*/
   copy_attributes(src_attributes,
                   AttrDomain::Point,
                   AttrDomain::Point,
-                  attribute_filter_from_skip_ref({".select_vert", ".select_edge", ".select_poly"}),
+                  attribute_filter_from_skip_ref(
+                      {".select_vert"_ustr, ".select_edge"_ustr, ".select_poly"_ustr}),
                   dst_attributes);
 
-  if (const GAttributeReader src = src_attributes.lookup(".select_vert")) {
+  if (const GAttributeReader src = src_attributes.lookup(".select_vert"_ustr)) {
     const AttrType type = cpp_type_to_attribute_type(src.varray.type());
     if (src.sharing_info && src.varray.is_span()) {
       const bke::AttributeInitShared init(src.varray.get_internal_span().data(),
                                           *src.sharing_info);
-      dst_attributes.add(".selection", AttrDomain::Point, type, init);
+      dst_attributes.add(".selection"_ustr, AttrDomain::Point, type, init);
     }
     else {
-      dst_attributes.add(".selection", AttrDomain::Point, type, AttributeInitVArray(src.varray));
+      dst_attributes.add(
+          ".selection"_ustr, AttrDomain::Point, type, AttributeInitVArray(src.varray));
     }
   }
 
@@ -597,19 +599,19 @@ void BKE_pointcloud_to_mesh(Main *bmain, Depsgraph *depsgraph, Scene * /*scene*/
     copy_attributes(src_attributes,
                     AttrDomain::Point,
                     AttrDomain::Point,
-                    attribute_filter_from_skip_ref({".selection"}),
+                    attribute_filter_from_skip_ref({".selection"_ustr}),
                     dst_attributes);
 
-    if (const GAttributeReader src = src_attributes.lookup(".selection")) {
+    if (const GAttributeReader src = src_attributes.lookup(".selection"_ustr)) {
       const AttrType type = cpp_type_to_attribute_type(src.varray.type());
       if (src.sharing_info && src.varray.is_span()) {
         const bke::AttributeInitShared init(src.varray.get_internal_span().data(),
                                             *src.sharing_info);
-        dst_attributes.add(".select_vert", AttrDomain::Point, type, init);
+        dst_attributes.add(".select_vert"_ustr, AttrDomain::Point, type, init);
       }
       else {
         const AttributeInitVArray init(src.varray);
-        dst_attributes.add(".select_vert", AttrDomain::Point, type, init);
+        dst_attributes.add(".select_vert"_ustr, AttrDomain::Point, type, init);
       }
     }
   }
@@ -1097,7 +1099,7 @@ static void move_shapekey_layers_to_keyblocks(const Mesh &mesh,
     kb->data = MEM_new_array_uninitialized<float3>(size_t(kb->totelem), __func__);
     MutableSpan<float3> kb_coords(static_cast<float3 *>(kb->data), kb->totelem);
     if (kb->uid == actshape_uid) {
-      mesh.attributes().lookup<float3>("position").varray.materialize(kb_coords);
+      mesh.attributes().lookup<float3>("position"_ustr).varray.materialize(kb_coords);
     }
     else {
       kb_coords.copy_from({static_cast<const float3 *>(layer.data), mesh.verts_num});

@@ -75,7 +75,7 @@ static void remember_deformed_curve_positions_if_necessary(
   if (points_num != edit_hints.curves_id_orig.geometry.point_num) {
     return;
   }
-  edit_hints.positions_data = save_shared_attribute(curves.attributes().lookup("position"));
+  edit_hints.positions_data = save_shared_attribute(curves.attributes().lookup("position"_ustr));
 }
 
 static void remember_deformed_grease_pencil_if_necessary(const GreasePencil *grease_pencil,
@@ -119,7 +119,8 @@ static void remember_deformed_grease_pencil_if_necessary(const GreasePencil *gre
     if (curves.is_empty()) {
       continue;
     }
-    drawing_hints.positions_data = save_shared_attribute(curves.attributes().lookup("position"));
+    drawing_hints.positions_data = save_shared_attribute(
+        curves.attributes().lookup("position"_ustr));
   }
 }
 

@@ -309,7 +309,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 static void log_viewer_attribute(const bNode &node, geo_eval_log::ViewerNodeLog &r_log)
 {
   const auto &storage = *static_cast<NodeGeometryViewer *>(node.storage);
-  const StringRef viewer_attribute_name = ".viewer";
+  const UString viewer_attribute_name(".viewer");
   std::optional<int> last_geometry_identifier;
   for (const int i : IndexRange(storage.items_num)) {
     const bNodeSocket &bsocket = node.input_socket(i);

@@ -30,7 +30,7 @@ static void set_curve_resolution(bke::CurvesGeometry &curves,
 {
   bke::try_capture_field_on_geometry(curves.attributes_for_write(),
                                      field_context,
-                                     "resolution",
+                                     "resolution"_ustr,
                                      AttrDomain::Curve,
                                      selection,
                                      resolution);

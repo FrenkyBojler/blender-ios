@@ -527,9 +527,9 @@ struct EraseOperationExecutor {
     Array<Vector<ed::greasepencil::PointTransferData>> src_to_dst_points(src_points_num);
 
     const VArray<int> &stroke_material = *src.attributes().lookup_or_default<int>(
-        "material_index", bke::AttrDomain::Curve, 0);
+        "material_index"_ustr, bke::AttrDomain::Curve, 0);
     const VArray<float> &point_opacity = *src.attributes().lookup_or_default<float>(
-        "opacity", bke::AttrDomain::Point, 1.0f);
+        "opacity"_ustr, bke::AttrDomain::Point, 1.0f);
 
     const OffsetIndices<int> src_points_by_curve = src.points_by_curve();
     for (const int src_curve : src.curves_range()) {
@@ -704,7 +704,7 @@ struct EraseOperationExecutor {
                    const bool keep_caps)
   {
     using namespace blender::bke;
-    const std::string opacity_attr = "opacity";
+    const UString opacity_attr("opacity");
 
     /* The soft eraser changes the opacity of the strokes underneath it using a curve falloff. We
      * sample this curve to get a set of rings in the brush. */
@@ -725,7 +725,7 @@ struct EraseOperationExecutor {
     const VArray<float> &src_opacity = *src.attributes().lookup_or_default<float>(
         opacity_attr, bke::AttrDomain::Point, 1.0f);
     const VArray<int> &stroke_material = *src.attributes().lookup_or_default<int>(
-        "material_index", bke::AttrDomain::Curve, 0);
+        "material_index"_ustr, bke::AttrDomain::Curve, 0);
 
     const auto compute_opacity = [&](const int src_point) {
       const float distance = math::distance(screen_space_positions[src_point],
@@ -826,7 +826,7 @@ struct EraseOperationExecutor {
     }
 
     SpanAttributeWriter<bool> dst_inserted = dst_attributes.lookup_or_add_for_write_span<bool>(
-        "_eraser_inserted", bke::AttrDomain::Point);
+        "_eraser_inserted"_ustr, bke::AttrDomain::Point);
     BLI_assert(dst_inserted);
     const OffsetIndices<int> &dst_points_by_curve = dst.points_by_curve();
     threading::parallel_for(dst.curves_range(), 4096, [&](const IndexRange dst_curves_range) {
@@ -861,7 +861,7 @@ struct EraseOperationExecutor {
 
     IndexMaskMemory memory;
     const VArray<int> &stroke_materials = *src.attributes().lookup_or_default<int>(
-        "material_index", bke::AttrDomain::Curve, 0);
+        "material_index"_ustr, bke::AttrDomain::Curve, 0);
     const IndexMask strokes_to_keep = IndexMask::from_predicate(
         src.curves_range(), memory, [&](const int src_curve) {
           const MaterialGPencilStyle *mat = BKE_gpencil_material_settings(
@@ -1082,7 +1082,7 @@ static void simplify_opacities(bke::CurvesGeometry &curves,
 {
   /* Simplify in between the ranges of inserted points. */
   const VArray<bool> point_was_inserted = *curves.attributes().lookup<bool>(
-      "_eraser_inserted", bke::AttrDomain::Point);
+      "_eraser_inserted"_ustr, bke::AttrDomain::Point);
   BLI_assert(point_was_inserted);
   IndexMaskMemory memory;
   const IndexMask inserted_points = IndexMask::from_bools(point_was_inserted, memory);
@@ -1142,12 +1142,12 @@ void EraseOperation::on_stroke_done(const bContext &C)
   for (GreasePencilDrawing *drawing_ : affected_drawings_) {
     bke::greasepencil::Drawing &drawing = drawing_->wrap();
 
-    if (drawing.strokes().attributes().contains("_eraser_inserted")) {
+    if (drawing.strokes().attributes().contains("_eraser_inserted"_ustr)) {
       simplify_opacities(drawing.strokes_for_write(), drawing.opacities(), 0.01f);
     }
     remove_points_with_low_opacity(drawing.strokes_for_write(), drawing.opacities(), 0.0001f);
 
-    drawing.strokes_for_write().attributes_for_write().remove("_eraser_inserted");
+    drawing.strokes_for_write().attributes_for_write().remove("_eraser_inserted"_ustr);
     drawing.tag_topology_changed();
   }
 

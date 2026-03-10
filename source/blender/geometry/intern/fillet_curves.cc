@@ -500,11 +500,11 @@ static bke::CurvesGeometry fillet_curves(const bke::CurvesGeometry &src_curves,
            dst_attributes,
            {bke::AttrDomain::Point},
            bke::attribute_filter_with_skip_ref(attribute_filter,
-                                               {"position",
-                                                "handle_type_left",
-                                                "handle_type_right",
-                                                "handle_right",
-                                                "handle_left"})))
+                                               {"position"_ustr,
+                                                "handle_type_left"_ustr,
+                                                "handle_type_right"_ustr,
+                                                "handle_right"_ustr,
+                                                "handle_left"_ustr})))
   {
     duplicate_fillet_point_data(src_points_by_curve,
                                 dst_points_by_curve,

@@ -354,7 +354,7 @@ bke::CurvesGeometry curves_merge_endpoints_by_distance(
   Array<float2> screen_start_points(src_curves.curves_num());
   Array<float2> screen_end_points(src_curves.curves_num());
   const VArray<bool> cyclic = *src_curves.attributes().lookup_or_default<bool>(
-      "cyclic", bke::AttrDomain::Curve, false);
+      "cyclic"_ustr, bke::AttrDomain::Curve, false);
   /* For comparing screen space positions use a 2D KDTree. Each curve adds 2 points. */
   KDTree_2d *tree = kdtree_2d_new(2 * src_curves.curves_num());
 
@@ -764,17 +764,17 @@ bke::CurvesGeometry create_curves_outline(const bke::greasepencil::Drawing &draw
   bke::AttributeAccessor src_attributes = src_curves.attributes();
   const VArray<float> src_radii = drawing.radii();
   const VArray<bool> src_cyclic = *src_attributes.lookup_or_default(
-      "cyclic", bke::AttrDomain::Curve, false);
+      "cyclic"_ustr, bke::AttrDomain::Curve, false);
   const VArray<int8_t> src_start_caps = *src_attributes.lookup_or_default<int8_t>(
-      "start_cap", bke::AttrDomain::Curve, GP_STROKE_CAP_ROUND);
+      "start_cap"_ustr, bke::AttrDomain::Curve, GP_STROKE_CAP_ROUND);
   const VArray<int8_t> src_end_caps = *src_attributes.lookup_or_default<int8_t>(
-      "end_cap", bke::AttrDomain::Curve, GP_STROKE_CAP_ROUND);
+      "end_cap"_ustr, bke::AttrDomain::Curve, GP_STROKE_CAP_ROUND);
   const VArray<int> src_material_index = *src_attributes.lookup_or_default(
-      "material_index", bke::AttrDomain::Curve, 0);
+      "material_index"_ustr, bke::AttrDomain::Curve, 0);
   const VArray<float> miter_angles = *src_attributes.lookup_or_default<float>(
-      "miter_angle", bke::AttrDomain::Point, GP_STROKE_MITER_ANGLE_ROUND);
+      "miter_angle"_ustr, bke::AttrDomain::Point, GP_STROKE_MITER_ANGLE_ROUND);
   const VArray<int> src_fill_ids = *src_attributes.lookup_or_default(
-      "fill_id", bke::AttrDomain::Curve, 0);
+      "fill_id"_ustr, bke::AttrDomain::Curve, 0);
 
   /* Transform positions and radii. */
   Array<float3> transformed_positions(src_positions.size());
@@ -839,13 +839,13 @@ bke::CurvesGeometry create_curves_outline(const bke::greasepencil::Drawing &draw
 
   bke::MutableAttributeAccessor dst_attributes = dst_curves.attributes_for_write();
   bke::SpanAttributeWriter<bool> dst_cyclic = dst_attributes.lookup_or_add_for_write_span<bool>(
-      "cyclic", bke::AttrDomain::Curve);
+      "cyclic"_ustr, bke::AttrDomain::Curve);
   bke::SpanAttributeWriter<int> dst_material = dst_attributes.lookup_or_add_for_write_span<int>(
-      "material_index", bke::AttrDomain::Curve);
+      "material_index"_ustr, bke::AttrDomain::Curve);
   bke::SpanAttributeWriter<float> dst_radius = dst_attributes.lookup_or_add_for_write_span<float>(
-      "radius", bke::AttrDomain::Point);
+      "radius"_ustr, bke::AttrDomain::Point);
   bke::SpanAttributeWriter<int> dst_fill_ids = dst_attributes.lookup_or_add_for_write_span<int>(
-      "fill_id", bke::AttrDomain::Curve);
+      "fill_id"_ustr, bke::AttrDomain::Curve);
   const MutableSpan<int> dst_offsets = dst_curves.offsets_for_write();
   const MutableSpan<float3> dst_positions = dst_curves.positions_for_write();
   /* Source indices for attribute mapping. */
@@ -907,14 +907,14 @@ bke::CurvesGeometry create_curves_outline(const bke::greasepencil::Drawing &draw
   bke::gather_attributes(src_attributes,
                          bke::AttrDomain::Point,
                          bke::AttrDomain::Point,
-                         bke::attribute_filter_from_skip_ref({"position", "radius"}),
+                         bke::attribute_filter_from_skip_ref({"position"_ustr, "radius"_ustr}),
                          dst_point_map,
                          dst_attributes);
   bke::gather_attributes(
       src_attributes,
       bke::AttrDomain::Curve,
       bke::AttrDomain::Curve,
-      bke::attribute_filter_from_skip_ref({"cyclic", "material_index", "fill_id"}),
+      bke::attribute_filter_from_skip_ref({"cyclic"_ustr, "material_index"_ustr, "fill_id"_ustr}),
       dst_curve_map,
       dst_attributes);
 

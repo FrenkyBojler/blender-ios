@@ -125,7 +125,7 @@ static PointCloud *curves_to_points(
   PointCloud *pointcloud = bke::pointcloud_new_no_attributes(curves.points_num());
   MutableAttributeAccessor point_attributes = pointcloud->attributes_for_write();
 
-  const bke::AttributeFilterFromFunc filter = [&](const StringRef name) {
+  const bke::AttributeFilterFromFunc filter = [&](const UString name) {
     if (ELEM(name, resample_attributes.tangent_id, resample_attributes.normal_id, rotation_id)) {
       return bke::AttributeFilter::Result::Process;
     }
@@ -147,12 +147,12 @@ static PointCloud *curves_to_points(
   copy_curve_domain_attributes(curve_attributes, filter, point_attributes);
 
   if (rotation_id) {
-    const VArraySpan tangents = *curve_attributes.lookup<float3>(*resample_attributes.tangent_id,
-                                                                 AttrDomain::Point);
-    const VArraySpan normals = *curve_attributes.lookup<float3>(*resample_attributes.normal_id,
-                                                                AttrDomain::Point);
+    const VArraySpan tangents = *curve_attributes.lookup<float3>(
+        UString(*resample_attributes.tangent_id), AttrDomain::Point);
+    const VArraySpan normals = *curve_attributes.lookup<float3>(
+        UString(*resample_attributes.normal_id), AttrDomain::Point);
     SpanAttributeWriter rotations =
-        point_attributes.lookup_or_add_for_write_only_span<math::Quaternion>(*rotation_id,
+        point_attributes.lookup_or_add_for_write_only_span<math::Quaternion>(UString(*rotation_id),
                                                                              AttrDomain::Point);
     fill_rotation_attribute(tangents, normals, rotations.span);
     rotations.finish();

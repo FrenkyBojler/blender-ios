@@ -345,14 +345,14 @@ class GreasePencil : Overlay {
       const bke::AttributeAccessor attributes = curves.attributes();
       const std::optional<GroupedSpan<int3>> triangles = info.drawing.triangles();
       const VArray<int> stroke_materials = *attributes.lookup_or_default<int>(
-          "material_index", bke::AttrDomain::Curve, 0);
+          "material_index"_ustr, bke::AttrDomain::Curve, 0);
       const VArray<bool> cyclic = *attributes.lookup_or_default<bool>(
-          "cyclic", bke::AttrDomain::Curve, false);
+          "cyclic"_ustr, bke::AttrDomain::Curve, false);
 
       const VArray<bool> hide_stroke = *attributes.lookup_or_default<bool>(
-          "hide_stroke", bke::AttrDomain::Curve, false);
+          "hide_stroke"_ustr, bke::AttrDomain::Curve, false);
       const VArray<int> fill_ids = *attributes.lookup_or_default<int>(
-          "fill_id", bke::AttrDomain::Curve, 0);
+          "fill_id"_ustr, bke::AttrDomain::Curve, 0);
 
       IndexMaskMemory memory;
       const IndexMask visible_strokes = ed::greasepencil::retrieve_visible_strokes(
@@ -547,9 +547,9 @@ class GreasePencil : Overlay {
       const bke::AttrDomain domain = show_points_ ? bke::AttrDomain::Point :
                                                     bke::AttrDomain::Curve;
       const VArray<bool> selections = *strokes.attributes().lookup_or_default<bool>(
-          ".selection", domain, true);
+          ".selection"_ustr, domain, true);
       const VArray<int> materials = *strokes.attributes().lookup_or_default<int>(
-          "material_index", bke::AttrDomain::Curve, 0);
+          "material_index"_ustr, bke::AttrDomain::Curve, 0);
       const Span<float3> positions = strokes.positions();
 
       auto show_stroke_name = [&](const int stroke_i) {

@@ -497,7 +497,7 @@ static void curve_create_attribute(CurveRenderData *rdata, gpu::VertBuf &vbo_att
 
   const bke::CurvesGeometry &curves = rdata->curve_eval->geometry.wrap();
   curves.ensure_can_interpolate_to_evaluated();
-  const VArraySpan colors = *curves.attributes().lookup<ColorGeometry4f>(".viewer",
+  const VArraySpan colors = *curves.attributes().lookup<ColorGeometry4f>(".viewer"_ustr,
                                                                          bke::AttrDomain::Point);
   curves.interpolate_to_evaluated(colors, vbo_attr.data<ColorGeometry4f>());
 }

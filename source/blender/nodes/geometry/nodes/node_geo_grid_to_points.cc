@@ -411,48 +411,48 @@ static void node_geo_exec(GeoNodeExecParams params)
   MutableAttributeAccessor attributes = pointcloud->attributes_for_write();
 
   auto *position_attr = new ImplicitSharedValue<Array<float3>>(std::move(position_array));
-  attributes.add<float3>("position",
+  attributes.add<float3>("position"_ustr,
                          AttrDomain::Point,
                          bke::AttributeInitShared(position_attr->data.data(), *position_attr));
   position_attr->remove_user_and_delete_if_last();
   if (coord_x_id.has_value()) {
     auto *coord_x_attr = new ImplicitSharedValue<Array<int>>(std::move(*coord_x_array));
-    attributes.add<int>(*coord_x_id,
+    attributes.add<int>(UString(*coord_x_id),
                         AttrDomain::Point,
                         bke::AttributeInitShared(coord_x_attr->data.data(), *coord_x_attr));
     coord_x_attr->remove_user_and_delete_if_last();
   }
   if (coord_y_id.has_value()) {
     auto *coord_y_attr = new ImplicitSharedValue<Array<int>>(std::move(*coord_y_array));
-    attributes.add<int>(*coord_y_id,
+    attributes.add<int>(UString(*coord_y_id),
                         AttrDomain::Point,
                         bke::AttributeInitShared(coord_y_attr->data.data(), *coord_y_attr));
     coord_y_attr->remove_user_and_delete_if_last();
   }
   if (coord_z_id.has_value()) {
     auto *coord_z_attr = new ImplicitSharedValue<Array<int>>(std::move(*coord_z_array));
-    attributes.add<int>(*coord_z_id,
+    attributes.add<int>(UString(*coord_z_id),
                         AttrDomain::Point,
                         bke::AttributeInitShared(coord_z_attr->data.data(), *coord_z_attr));
     coord_z_attr->remove_user_and_delete_if_last();
   }
   if (is_tile_id.has_value()) {
     auto *is_tile_attr = new ImplicitSharedValue<Array<bool>>(std::move(*is_tile_array));
-    attributes.add<bool>(*is_tile_id,
+    attributes.add<bool>(UString(*is_tile_id),
                          AttrDomain::Point,
                          bke::AttributeInitShared(is_tile_attr->data.data(), *is_tile_attr));
     is_tile_attr->remove_user_and_delete_if_last();
   }
   if (extent_id.has_value()) {
     auto *extent_attr = new ImplicitSharedValue<Array<int>>(std::move(*extent_array));
-    attributes.add<int>(*extent_id,
+    attributes.add<int>(UString(*extent_id),
                         AttrDomain::Point,
                         bke::AttributeInitShared(extent_attr->data.data(), *extent_attr));
     extent_attr->remove_user_and_delete_if_last();
   }
   if (value_id.has_value()) {
     auto *value_attr = new ImplicitSharedValue<GArray<>>(std::move(*value_array));
-    attributes.add(*value_id,
+    attributes.add(UString(*value_id),
                    AttrDomain::Point,
                    bke::cpp_type_to_attribute_type(*cpp_type),
                    bke::AttributeInitShared(value_attr->data.data(), *value_attr));

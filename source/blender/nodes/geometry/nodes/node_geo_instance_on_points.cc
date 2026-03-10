@@ -79,7 +79,7 @@ static std::unique_ptr<bke::Instances> add_instances_from_component(
   MutableSpan<int> dst_handles = dst_component->reference_handles_for_write();
   MutableSpan<float4x4> dst_transforms = dst_component->transforms_for_write();
 
-  const VArraySpan positions = *src_attributes.lookup<float3>("position");
+  const VArraySpan positions = *src_attributes.lookup<float3>("position"_ustr);
 
   const bke::Instances *src_instances = instance.get_instances();
 

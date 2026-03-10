@@ -711,12 +711,12 @@ static wmOperatorStatus vertex_group_smooth_exec(bContext *C, wmOperator *op)
       bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
 
       /* Skip the drawing when it doesn't use the active vertex group. */
-      if (!attributes.contains(object_defgroup->name)) {
+      if (!attributes.contains(UString(object_defgroup->name))) {
         continue;
       }
 
       bke::SpanAttributeWriter<float> weights = attributes.lookup_for_write_span<float>(
-          object_defgroup->name);
+          UString(object_defgroup->name));
       geometry::smooth_curve_attribute(curves.curves_range(),
                                        curves.points_by_curve(),
                                        VArray<bool>::from_single(true, curves.points_num()),
@@ -792,13 +792,13 @@ static wmOperatorStatus vertex_group_normalize_exec(bContext *C, wmOperator *op)
             const bke::AttributeAccessor attributes = curves.attributes();
 
             /* Skip the drawing when it doesn't use the active vertex group. */
-            if (!attributes.contains(object_defgroup->name)) {
+            if (!attributes.contains(UString(object_defgroup->name))) {
               continue;
             }
 
             /* Get the maximum weight in this drawing. */
             const VArray<float> weights = *curves.attributes().lookup_or_default<float>(
-                object_defgroup->name, bke::AttrDomain::Point, 0.0f);
+                UString(object_defgroup->name), bke::AttrDomain::Point, 0.0f);
             const float max_weight_in_points = threading::parallel_reduce(
                 weights.index_range(),
                 1024,
@@ -830,12 +830,12 @@ static wmOperatorStatus vertex_group_normalize_exec(bContext *C, wmOperator *op)
         bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
 
         /* Skip the drawing when it doesn't use the active vertex group. */
-        if (!attributes.contains(object_defgroup->name)) {
+        if (!attributes.contains(UString(object_defgroup->name))) {
           continue;
         }
 
         bke::SpanAttributeWriter<float> weights = attributes.lookup_for_write_span<float>(
-            object_defgroup->name);
+            UString(object_defgroup->name));
         threading::parallel_for(
             weights.span.index_range(), 1024, [&](const IndexRange point_range) {
               for (const int point_i : point_range) {

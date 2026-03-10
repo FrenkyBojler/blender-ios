@@ -253,7 +253,7 @@ static void calc_radius_with_interpolation(CurvesGeometry &curves,
   const int added_curves_num = new_lengths_cu.size();
   const OffsetIndices points_by_curve = curves.points_by_curve();
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-  bke::SpanAttributeWriter radius_attr = attributes.lookup_for_write_span<float>("radius");
+  bke::SpanAttributeWriter radius_attr = attributes.lookup_for_write_span<float>("radius"_ustr);
   if (!radius_attr) {
     return;
   }
@@ -487,7 +487,7 @@ AddCurvesOnMeshOutputs add_curves_on_mesh(CurvesGeometry &curves,
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
 
   if (bke::SpanAttributeWriter<int> resolution = attributes.lookup_for_write_span<int>(
-          "resolution"))
+          "resolution"_ustr))
   {
     if (inputs.interpolate_resolution) {
       bke::attribute_math::mix_groups(resolution.span,
@@ -503,14 +503,16 @@ AddCurvesOnMeshOutputs add_curves_on_mesh(CurvesGeometry &curves,
   }
 
   /* Explicitly set all other attributes besides those processed above to default values. */
-  bke::fill_attribute_range_default(attributes,
-                                    bke::AttrDomain::Point,
-                                    bke::attribute_filter_from_skip_ref({"position", "radius"}),
-                                    outputs.new_points_range);
+  bke::fill_attribute_range_default(
+      attributes,
+      bke::AttrDomain::Point,
+      bke::attribute_filter_from_skip_ref({"position"_ustr, "radius"_ustr}),
+      outputs.new_points_range);
   bke::fill_attribute_range_default(
       attributes,
       bke::AttrDomain::Curve,
-      bke::attribute_filter_from_skip_ref({"curve_type", "surface_uv_coordinate", "resolution"}),
+      bke::attribute_filter_from_skip_ref(
+          {"curve_type"_ustr, "surface_uv_coordinate"_ustr, "resolution"_ustr}),
       outputs.new_curves_range);
 
   return outputs;

@@ -668,8 +668,7 @@ void GeometrySet::attribute_foreach(const Span<GeometryComponent::Type> componen
   }
 }
 
-bool attribute_is_builtin_on_component_type(const GeometryComponent::Type type,
-                                            const StringRef name)
+bool attribute_is_builtin_on_component_type(const GeometryComponent::Type type, const UString name)
 {
   switch (type) {
     case GeometryComponent::Type::Mesh: {
@@ -704,7 +703,7 @@ bool attribute_is_builtin_on_component_type(const GeometryComponent::Type type,
   return false;
 }
 
-void GeometrySet::GatheredAttributes::add(const StringRef name, const AttributeDomainAndType &kind)
+void GeometrySet::GatheredAttributes::add(const UString name, const AttributeDomainAndType &kind)
 {
   const int index = this->names.index_of_or_add(name);
   if (index >= this->kinds.size()) {
@@ -728,7 +727,7 @@ void GeometrySet::gather_attributes_for_propagation(
   this->attribute_foreach(
       component_types,
       include_instances,
-      [&](const StringRef name,
+      [&](const UString name,
           const AttributeMetaData &meta_data,
           const GeometryComponent &component) {
         if (component.attributes()->is_builtin(name)) {

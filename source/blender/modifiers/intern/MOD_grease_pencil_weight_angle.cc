@@ -126,7 +126,7 @@ static void write_weights_for_drawing(const ModifierData &md,
 
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
   bke::SpanAttributeWriter<float> dst_weights = attributes.lookup_for_write_span<float>(
-      mmd.target_vgname);
+      UString(mmd.target_vgname));
 
   BLI_assert(!dst_weights.span.is_empty());
 

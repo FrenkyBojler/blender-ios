@@ -248,12 +248,12 @@ const Attribute &AttributeStorage::at_index(int index) const
   return *this->runtime->attributes[index];
 }
 
-int AttributeStorage::index_of(StringRef name) const
+int AttributeStorage::index_of(UString name) const
 {
   return this->runtime->attributes.index_of_try_as(name);
 }
 
-const Attribute *AttributeStorage::lookup(const StringRef name) const
+const Attribute *AttributeStorage::lookup(const UString name) const
 {
   const std::unique_ptr<bke::Attribute> *attribute = this->runtime->attributes.lookup_key_ptr_as(
       name);
@@ -263,7 +263,7 @@ const Attribute *AttributeStorage::lookup(const StringRef name) const
   return attribute->get();
 }
 
-Attribute *AttributeStorage::lookup(const StringRef name)
+Attribute *AttributeStorage::lookup(const UString name)
 {
   const std::unique_ptr<bke::Attribute> *attribute = this->runtime->attributes.lookup_key_ptr_as(
       name);
@@ -273,12 +273,12 @@ Attribute *AttributeStorage::lookup(const StringRef name)
   return attribute->get();
 }
 
-Attribute &AttributeStorage::add(std::string name,
+Attribute &AttributeStorage::add(UString name,
                                  const AttrDomain domain,
                                  const AttrType data_type,
                                  Attribute::DataVariant data)
 {
-  BLI_assert(!name.empty());
+  BLI_assert(!name.is_empty());
   BLI_assert(!this->lookup(name));
   std::unique_ptr<Attribute> ptr = std::make_unique<Attribute>();
   Attribute &attribute = *ptr;
@@ -290,7 +290,7 @@ Attribute &AttributeStorage::add(std::string name,
   return attribute;
 }
 
-bool AttributeStorage::remove(const StringRef name)
+bool AttributeStorage::remove(const UString name)
 {
   const int index = this->runtime->attributes.index_of_try_as(name);
   if (index == -1) {
@@ -305,18 +305,18 @@ bool AttributeStorage::remove(const StringRef name)
   return true;
 }
 
-std::string AttributeStorage::unique_name_calc(const StringRef name) const
+std::string AttributeStorage::unique_name_calc(const UString name) const
 {
-  const StringRef name_final = name.is_empty() ? DATA_("Attribute") : name;
+  const UString name_final = name.is_empty() ? UString(DATA_("Attribute")) : name;
   return BLI_uniquename_cb(
-      [&](const StringRef check_name) { return this->lookup(check_name) != nullptr; },
+      [&](const StringRef check_name) { return this->lookup(UString(check_name)) != nullptr; },
       '.',
-      name_final);
+      name_final.ref());
 }
 
-void AttributeStorage::rename(const StringRef old_name, std::string new_name)
+void AttributeStorage::rename(const UString old_name, UString new_name)
 {
-  BLI_assert(!new_name.empty());
+  BLI_assert(!new_name.is_empty());
   /* The VectorSet must be rebuilt from scratch because the data used to create the hash is
    * changed. */
   const int index = this->runtime->attributes.index_of_try_as(old_name);
@@ -522,7 +522,7 @@ void AttributeStorage::blend_read(BlendDataReader &reader)
     }
 
     std::unique_ptr<Attribute> attribute = std::make_unique<Attribute>();
-    attribute->name_ = dna_attr.name;
+    attribute->name_ = UString(dna_attr.name);
     attribute->domain_ = *domain;
     attribute->type_ = AttrType(dna_attr.data_type);
     attribute->data_ = std::move(*data);

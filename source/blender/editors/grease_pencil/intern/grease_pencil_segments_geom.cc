@@ -328,7 +328,7 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
   bke::gather_attributes(src_attributes,
                          bke::AttrDomain::Curve,
                          bke::AttrDomain::Curve,
-                         bke::attribute_filter_from_skip_ref({"cyclic"}),
+                         bke::attribute_filter_from_skip_ref({"cyclic"_ustr}),
                          old_by_new_map,
                          dst_attributes);
 
@@ -728,9 +728,9 @@ static void cut_caps(bke::CurvesGeometry &dst,
   bke::MutableAttributeAccessor dst_attributes = dst.attributes_for_write();
 
   bke::SpanAttributeWriter dst_start_caps = dst_attributes.lookup_or_add_for_write_span<int8_t>(
-      "start_cap", bke::AttrDomain::Curve);
+      "start_cap"_ustr, bke::AttrDomain::Curve);
   bke::SpanAttributeWriter dst_end_caps = dst_attributes.lookup_or_add_for_write_span<int8_t>(
-      "end_cap", bke::AttrDomain::Curve);
+      "end_cap"_ustr, bke::AttrDomain::Curve);
 
   threading::parallel_for(segment_offsets.index_range(), 4096, [&](const IndexRange curves) {
     for (const int curve_i : curves) {

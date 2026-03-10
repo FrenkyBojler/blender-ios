@@ -866,8 +866,8 @@ static BMesh *get_bmesh_from_mesh(Mesh *mesh)
 }
 
 /* Data-layer names to store the original indices of the elements before modifying the mesh. */
-static const char lname[] = "l_remap_index";
-static const char vname[] = "v_remap_index";
+static UString lname = "l_remap_index"_ustr;
+static UString vname = "v_remap_index"_ustr;
 
 static void multires_unsubdivide_free_original_datalayers(Mesh *mesh)
 {
@@ -1003,7 +1003,7 @@ static void multires_unsubdivide_extract_grids(MultiresUnsubdivideContext *conte
 
   /* Get the data-layer that contains the loops indices. */
   const int base_l_offset = CustomData_get_offset_named(
-      &bm_base_mesh->ldata, CD_PROP_INT32, lname);
+      &bm_base_mesh->ldata, CD_PROP_INT32, lname.ref());
 
   const OffsetIndices faces = base_mesh->faces();
   const Span<int> corner_verts = base_mesh->corner_verts();

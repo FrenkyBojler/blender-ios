@@ -164,8 +164,8 @@ static std::array<DomainInfo, ATTR_DOMAIN_NUM> get_domains(BMesh *bm)
 }
 
 static bool bke_attribute_rename_if_exists(AttributeOwner &owner,
-                                           const StringRef old_name,
-                                           const StringRef new_name,
+                                           const UString old_name,
+                                           const UString new_name,
                                            ReportList *reports)
 {
   const bke::AttributeStorage &storage = *owner.get_storage();
@@ -177,11 +177,11 @@ static bool bke_attribute_rename_if_exists(AttributeOwner &owner,
 
 static bool bke_attribute_rename_if_exists(AttributeOwner &owner,
                                            BMesh &bm,
-                                           const StringRef old_name,
-                                           const StringRef new_name,
+                                           const UString old_name,
+                                           const UString new_name,
                                            ReportList *reports)
 {
-  BMDataLayerLookup attr = BM_data_layer_lookup(bm, old_name);
+  BMDataLayerLookup attr = BM_data_layer_lookup(bm, old_name.ref());
   if (!attr) {
     return false;
   }
@@ -189,22 +189,18 @@ static bool bke_attribute_rename_if_exists(AttributeOwner &owner,
 }
 
 static bool name_valid_for_builtin_domain_and_type(const bke::AttributeAccessor attributes,
-                                                   const StringRef name,
+                                                   const UString name,
                                                    const AttrDomain domain,
                                                    const bke::AttrType data_type,
                                                    ReportList *reports)
 {
   if (const std::optional metadata = attributes.get_builtin_domain_and_type(name)) {
     if (domain != metadata->domain) {
-      BKE_reportf(reports,
-                  RPT_ERROR,
-                  "Domain unsupported for \"%s\" attribute",
-                  std::string(name).c_str());
+      BKE_reportf(reports, RPT_ERROR, "Domain unsupported for \"%s\" attribute", name.c_str());
       return false;
     }
     if (data_type != metadata->data_type) {
-      BKE_reportf(
-          reports, RPT_ERROR, "Type unsupported for \"%s\" attribute", std::string(name).c_str());
+      BKE_reportf(reports, RPT_ERROR, "Type unsupported for \"%s\" attribute", name.c_str());
       return false;
     }
   }
@@ -212,7 +208,7 @@ static bool name_valid_for_builtin_domain_and_type(const bke::AttributeAccessor 
 }
 
 static bool mesh_attribute_valid(const Mesh &mesh,
-                                 const StringRef name,
+                                 const UString name,
                                  const AttrDomain domain,
                                  const bke::AttrType data_type,
                                  ReportList *reports)
@@ -231,8 +227,8 @@ static bool mesh_attribute_valid(const Mesh &mesh,
 }
 
 bool BKE_attribute_rename(AttributeOwner &owner,
-                          const StringRef old_name,
-                          const StringRef new_name,
+                          const UString old_name,
+                          const UString new_name,
                           ReportList *reports)
 {
   if (BKE_attribute_required(owner, old_name)) {
@@ -251,16 +247,16 @@ bool BKE_attribute_rename(AttributeOwner &owner,
        * is clamped to its maximum length, otherwise assigning an over-long name multiple times
        * will add `.001` suffix unnecessarily. */
       {
-        const int new_name_maxncpy = CustomData_name_maxncpy_calc(new_name);
+        const int new_name_maxncpy = CustomData_name_maxncpy_calc(new_name.ref());
         /* NOTE: A function that performs a clamped comparison without copying would be handy. */
         char new_name_clamped[MAX_CUSTOMDATA_LAYER_NAME];
-        new_name.copy_utf8_truncated(new_name_clamped, new_name_maxncpy);
+        new_name.ref().copy_utf8_truncated(new_name_clamped, new_name_maxncpy);
         if (old_name == new_name_clamped) {
           return false;
         }
       }
 
-      BMDataLayerLookup attr = BM_data_layer_lookup(*em->bm, old_name);
+      BMDataLayerLookup attr = BM_data_layer_lookup(*em->bm, old_name.ref());
       if (!attr) {
         BKE_report(reports, RPT_ERROR, "Attribute is not part of this geometry");
         return false;
@@ -270,17 +266,18 @@ bool BKE_attribute_rename(AttributeOwner &owner,
         return false;
       }
 
-      std::string result_name = BKE_attribute_calc_unique_name(owner, new_name);
+      std::string result_name = BKE_attribute_calc_unique_name(owner, new_name.ref());
 
       if (attr.type == bke::AttrType::Float2) {
         /* Rename UV sub-attributes. */
         char buffer_src[MAX_CUSTOMDATA_LAYER_NAME];
         char buffer_dst[MAX_CUSTOMDATA_LAYER_NAME];
-        bke_attribute_rename_if_exists(owner,
-                                       *em->bm,
-                                       BKE_uv_map_pin_name_get(old_name, buffer_src),
-                                       BKE_uv_map_pin_name_get(result_name, buffer_dst),
-                                       reports);
+        bke_attribute_rename_if_exists(
+            owner,
+            *em->bm,
+            UString(BKE_uv_map_pin_name_get(old_name.ref(), buffer_src)),
+            UString(BKE_uv_map_pin_name_get(result_name, buffer_dst)),
+            reports);
       }
 
       if (old_name == BKE_id_attributes_active_color_name(&mesh->id)) {
@@ -323,23 +320,24 @@ bool BKE_attribute_rename(AttributeOwner &owner,
       /* Rename UV sub-attributes. */
       char buffer_src[MAX_CUSTOMDATA_LAYER_NAME];
       char buffer_dst[MAX_CUSTOMDATA_LAYER_NAME];
-      bke_attribute_rename_if_exists(owner,
-                                     BKE_uv_map_pin_name_get(attr->name(), buffer_src),
-                                     BKE_uv_map_pin_name_get(new_name, buffer_dst),
-                                     reports);
+      bke_attribute_rename_if_exists(
+          owner,
+          UString(BKE_uv_map_pin_name_get(attr->name().ref(), buffer_src)),
+          UString(BKE_uv_map_pin_name_get(new_name.ref(), buffer_dst)),
+          reports);
     }
 
     if (old_name == BKE_id_attributes_active_color_name(&mesh->id)) {
-      BKE_id_attributes_active_color_set(&mesh->id, new_name);
+      BKE_id_attributes_active_color_set(&mesh->id, new_name.ref());
     }
     if (old_name == BKE_id_attributes_default_color_name(&mesh->id)) {
-      BKE_id_attributes_default_color_set(&mesh->id, new_name);
+      BKE_id_attributes_default_color_set(&mesh->id, new_name.ref());
     }
     if (old_name == mesh->active_uv_map_name()) {
-      mesh->uv_maps_active_set(new_name);
+      mesh->uv_maps_active_set(new_name.ref());
     }
     if (old_name == mesh->default_uv_map_name()) {
-      mesh->uv_maps_default_set(new_name);
+      mesh->uv_maps_default_set(new_name.ref());
     }
   }
 
@@ -372,7 +370,7 @@ std::string BKE_attribute_calc_unique_name(const AttributeOwner &owner, const St
   }
 
   bke::AttributeStorage &storage = *owner.get_storage();
-  return storage.unique_name_calc(name_final);
+  return storage.unique_name_calc(UString(name_final));
 }
 
 CustomDataLayer *BKE_attribute_new(Mesh &mesh,
@@ -394,7 +392,9 @@ CustomDataLayer *BKE_attribute_new(Mesh &mesh,
 
   std::string uniquename = BKE_attribute_calc_unique_name(AttributeOwner::from_id(&mesh.id), name);
 
-  if (!mesh_attribute_valid(mesh, name, domain, *custom_data_type_to_attr_type(type), reports)) {
+  if (!mesh_attribute_valid(
+          mesh, UString(name), domain, *custom_data_type_to_attr_type(type), reports))
+  {
     return nullptr;
   }
   BM_data_layer_add_named(&bm, customdata, type, uniquename.c_str());
@@ -402,7 +402,7 @@ CustomDataLayer *BKE_attribute_new(Mesh &mesh,
   return (index == -1) ? nullptr : &(customdata->layers[index]);
 }
 
-static int color_name_to_index(AttributeOwner &owner, const StringRef name)
+static int color_name_to_index(AttributeOwner &owner, const UString name)
 {
   return BKE_attribute_to_index(owner, name, ATTR_DOMAIN_MASK_COLOR, CD_MASK_COLOR_ALL);
 }
@@ -413,13 +413,13 @@ static int color_clamp_index(AttributeOwner &owner, int index)
   return min_ii(index, length - 1);
 }
 
-static StringRef color_name_from_index(AttributeOwner &owner, int index)
+static UString color_name_from_index(AttributeOwner &owner, int index)
 {
   return BKE_attribute_from_index(owner, index, ATTR_DOMAIN_MASK_COLOR, CD_MASK_COLOR_ALL)
-      .value_or("");
+      .value_or(UString(""));
 }
 
-static int uv_name_to_index(AttributeOwner &owner, const StringRef name)
+static int uv_name_to_index(AttributeOwner &owner, const UString name)
 {
   return BKE_attribute_to_index(owner, name, ATTR_DOMAIN_MASK_CORNER, CD_MASK_PROP_FLOAT2);
 }
@@ -430,13 +430,13 @@ static int uv_clamp_index(AttributeOwner &owner, int index)
   return min_ii(index, length - 1);
 }
 
-static StringRef uv_name_from_index(AttributeOwner &owner, int index)
+static UString uv_name_from_index(AttributeOwner &owner, int index)
 {
   return BKE_attribute_from_index(owner, index, ATTR_DOMAIN_MASK_CORNER, CD_MASK_PROP_FLOAT2)
-      .value_or("");
+      .value_or(UString(""));
 }
 
-bool BKE_attribute_remove(AttributeOwner &owner, const StringRef name, ReportList *reports)
+bool BKE_attribute_remove(AttributeOwner &owner, const UString name, ReportList *reports)
 {
   using namespace blender::bke;
   if (name.is_empty()) {
@@ -454,51 +454,51 @@ bool BKE_attribute_remove(AttributeOwner &owner, const StringRef name, ReportLis
       const std::array<DomainInfo, ATTR_DOMAIN_NUM> info = get_domains(em->bm);
       for (const int domain : IndexRange(ATTR_DOMAIN_NUM)) {
         if (CustomData *data = info[domain].customdata) {
-          const std::string name_copy = name;
-          const int layer_index = CustomData_get_named_layer_index_notype(data, name_copy);
+          const int layer_index = CustomData_get_named_layer_index_notype(data, name.ref());
           if (layer_index == -1) {
             continue;
           }
 
           const eCustomDataType type = eCustomDataType(data->layers[layer_index].type);
-          const bool is_active_uv_attribute = name_copy == mesh->active_uv_map_name();
-          const bool is_default_uv_attribute = name_copy == mesh->default_uv_map_name();
-          const bool is_active_color_attribute = name_copy.c_str() ==
+          const bool is_active_uv_attribute = name == mesh->active_uv_map_name();
+          const bool is_default_uv_attribute = name == mesh->default_uv_map_name();
+          const bool is_active_color_attribute = name.c_str() ==
                                                  StringRef(mesh->active_color_attribute);
-          const bool is_default_color_attribute = name_copy.c_str() ==
+          const bool is_default_color_attribute = name.c_str() ==
                                                   StringRef(mesh->default_color_attribute);
-          const int active_color_index = color_name_to_index(owner, mesh->active_color_attribute);
-          const int default_color_index = color_name_to_index(owner,
-                                                              mesh->default_color_attribute);
+          const int active_color_index = color_name_to_index(
+              owner, UString(mesh->active_color_attribute));
+          const int default_color_index = color_name_to_index(
+              owner, UString(mesh->default_color_attribute));
           const int active_uv_index = uv_name_to_index(owner, mesh->active_uv_map_name());
           const int default_uv_index = uv_name_to_index(owner, mesh->default_uv_map_name());
 
-          if (!BM_data_layer_free_named(em->bm, data, name_copy.c_str())) {
+          if (!BM_data_layer_free_named(em->bm, data, name.c_str())) {
             BLI_assert_unreachable();
           }
 
           if (is_active_color_attribute) {
             BKE_id_attributes_active_color_set(
                 &mesh->id,
-                color_name_from_index(owner, color_clamp_index(owner, active_color_index)));
+                color_name_from_index(owner, color_clamp_index(owner, active_color_index)).ref());
           }
           if (is_default_color_attribute) {
             BKE_id_attributes_default_color_set(
                 &mesh->id,
-                color_name_from_index(owner, color_clamp_index(owner, default_color_index)));
+                color_name_from_index(owner, color_clamp_index(owner, default_color_index)).ref());
           }
           if (is_active_uv_attribute) {
             mesh->uv_maps_active_set(
-                uv_name_from_index(owner, uv_clamp_index(owner, active_uv_index)));
+                uv_name_from_index(owner, uv_clamp_index(owner, active_uv_index)).ref());
           }
           if (is_default_uv_attribute) {
             mesh->uv_maps_default_set(
-                uv_name_from_index(owner, uv_clamp_index(owner, default_uv_index)));
+                uv_name_from_index(owner, uv_clamp_index(owner, default_uv_index)).ref());
           }
 
           if (type == CD_PROP_FLOAT2 && domain == int(AttrDomain::Corner)) {
             char buffer[MAX_CUSTOMDATA_LAYER_NAME];
-            BM_data_layer_free_named(em->bm, data, BKE_uv_map_pin_name_get(name_copy, buffer));
+            BM_data_layer_free_named(em->bm, data, BKE_uv_map_pin_name_get(name.ref(), buffer));
           }
           return true;
         }
@@ -513,45 +513,49 @@ bool BKE_attribute_remove(AttributeOwner &owner, const StringRef name, ReportLis
   }
 
   if (owner.type() == AttributeOwnerType::Mesh) {
-    const std::string name_copy = name;
-    std::optional<bke::AttributeMetaData> metadata = attributes->lookup_meta_data(name_copy);
+    std::optional<bke::AttributeMetaData> metadata = attributes->lookup_meta_data(name);
     if (!metadata) {
       return false;
     }
     /* Update active and default color attributes. */
     Mesh *mesh = owner.get_mesh();
-    const bool is_active_color_attribute = name_copy == StringRef(mesh->active_color_attribute);
-    const bool is_default_color_attribute = name_copy == StringRef(mesh->default_color_attribute);
-    const bool is_active_uv_attribute = name_copy == mesh->active_uv_map_name();
-    const bool is_default_uv_attribute = name_copy == mesh->default_uv_map_name();
-    const int active_color_index = color_name_to_index(owner, mesh->active_color_attribute);
-    const int default_color_index = color_name_to_index(owner, mesh->default_color_attribute);
+    const bool is_active_color_attribute = name == StringRef(mesh->active_color_attribute);
+    const bool is_default_color_attribute = name == StringRef(mesh->default_color_attribute);
+    const bool is_active_uv_attribute = name == mesh->active_uv_map_name();
+    const bool is_default_uv_attribute = name == mesh->default_uv_map_name();
+    const int active_color_index = color_name_to_index(owner,
+                                                       UString(mesh->active_color_attribute));
+    const int default_color_index = color_name_to_index(owner,
+                                                        UString(mesh->default_color_attribute));
     const int active_uv_index = uv_name_to_index(owner, mesh->active_uv_map_name());
     const int default_uv_index = uv_name_to_index(owner, mesh->default_uv_map_name());
 
-    if (!attributes->remove(name_copy)) {
+    if (!attributes->remove(name)) {
       BLI_assert_unreachable();
     }
 
     if (is_active_color_attribute) {
       BKE_id_attributes_active_color_set(
-          &mesh->id, color_name_from_index(owner, color_clamp_index(owner, active_color_index)));
+          &mesh->id,
+          color_name_from_index(owner, color_clamp_index(owner, active_color_index)).ref());
     }
     if (is_default_color_attribute) {
       BKE_id_attributes_default_color_set(
-          &mesh->id, color_name_from_index(owner, color_clamp_index(owner, default_color_index)));
+          &mesh->id,
+          color_name_from_index(owner, color_clamp_index(owner, default_color_index)).ref());
     }
     if (is_active_uv_attribute) {
-      mesh->uv_maps_active_set(uv_name_from_index(owner, uv_clamp_index(owner, active_uv_index)));
+      mesh->uv_maps_active_set(
+          uv_name_from_index(owner, uv_clamp_index(owner, active_uv_index)).ref());
     }
     if (is_default_uv_attribute) {
       mesh->uv_maps_default_set(
-          uv_name_from_index(owner, uv_clamp_index(owner, default_uv_index)));
+          uv_name_from_index(owner, uv_clamp_index(owner, default_uv_index)).ref());
     }
 
     if (bke::mesh::is_uv_map(metadata)) {
       char buffer[MAX_CUSTOMDATA_LAYER_NAME];
-      attributes->remove(BKE_uv_map_pin_name_get(name_copy, buffer));
+      attributes->remove(UString(BKE_uv_map_pin_name_get(name.ref(), buffer)));
     }
     return true;
   }
@@ -601,7 +605,7 @@ int BKE_attributes_length(const AttributeOwner &owner,
     if (!(CD_TYPE_AS_MASK(*bke::attr_type_to_custom_data_type(attr.data_type())) & mask)) {
       return false;
     }
-    if (!include_anonymous && bke::attribute_name_is_anonymous(attr.name())) {
+    if (!include_anonymous && bke::attribute_name_is_anonymous(attr.name().ref())) {
       return false;
     }
     return true;
@@ -642,7 +646,7 @@ int BKE_attribute_domain_size(const AttributeOwner &owner, const int domain)
   return attributes.domain_size(bke::AttrDomain(domain));
 }
 
-bool BKE_attribute_required(const AttributeOwner &owner, const StringRef name)
+bool BKE_attribute_required(const AttributeOwner &owner, const UString name)
 {
   switch (owner.type()) {
     case AttributeOwnerType::PointCloud:
@@ -659,7 +663,7 @@ bool BKE_attribute_required(const AttributeOwner &owner, const StringRef name)
   return false;
 }
 
-std::optional<StringRefNull> BKE_attributes_active_name_get(AttributeOwner &owner)
+std::optional<UString> BKE_attributes_active_name_get(AttributeOwner &owner)
 {
   using namespace blender::bke;
   int active_index = *BKE_attributes_active_index_p(owner);
@@ -684,7 +688,7 @@ std::optional<StringRefNull> BKE_attributes_active_name_get(AttributeOwner &owne
           if (CD_MASK_PROP_ALL & CD_TYPE_AS_MASK(eCustomDataType(layer->type))) {
             if (index == active_index) {
               if (bke::allow_procedural_attribute_access(layer->name)) {
-                return layer->name;
+                return UString(layer->name);
               }
               return std::nullopt;
             }
@@ -703,7 +707,7 @@ std::optional<StringRefNull> BKE_attributes_active_name_get(AttributeOwner &owne
   return storage.at_index(active_index).name();
 }
 
-void BKE_attributes_active_set(AttributeOwner &owner, const StringRef name)
+void BKE_attributes_active_set(AttributeOwner &owner, const UString name)
 {
   if (owner.type() == AttributeOwnerType::Mesh) {
     const Mesh *mesh = owner.get_mesh();
@@ -746,11 +750,11 @@ int *BKE_attributes_active_index_p(AttributeOwner &owner)
   return nullptr;
 }
 
-std::optional<StringRef> BKE_attribute_from_index(AttributeOwner &owner,
-                                                  const int lookup_index,
-                                                  const AttrDomainMask domain_mask,
-                                                  const eCustomDataMask layer_mask,
-                                                  const bool include_anonymous)
+std::optional<UString> BKE_attribute_from_index(AttributeOwner &owner,
+                                                const int lookup_index,
+                                                const AttrDomainMask domain_mask,
+                                                const eCustomDataMask layer_mask,
+                                                const bool include_anonymous)
 {
   if (owner.type() == AttributeOwnerType::Mesh) {
     const Mesh &mesh = *owner.get_mesh();
@@ -772,7 +776,7 @@ std::optional<StringRef> BKE_attribute_from_index(AttributeOwner &owner,
             continue;
           }
           if (index == lookup_index) {
-            return layer.name;
+            return UString(layer.name);
           }
           index++;
         }
@@ -793,7 +797,7 @@ std::optional<StringRef> BKE_attribute_from_index(AttributeOwner &owner,
     if (!(CD_TYPE_AS_MASK(*bke::attr_type_to_custom_data_type(attr.data_type())) & layer_mask)) {
       continue;
     }
-    if (!include_anonymous && bke::attribute_name_is_anonymous(attr.name())) {
+    if (!include_anonymous && bke::attribute_name_is_anonymous(attr.name().ref())) {
       continue;
     }
     if (index == lookup_index) {
@@ -805,7 +809,7 @@ std::optional<StringRef> BKE_attribute_from_index(AttributeOwner &owner,
 }
 
 int BKE_attribute_to_index(const AttributeOwner &owner,
-                           const StringRef name,
+                           const UString name,
                            AttrDomainMask domain_mask,
                            eCustomDataMask layer_mask,
                            const bool include_anonymous)
@@ -849,7 +853,7 @@ int BKE_attribute_to_index(const AttributeOwner &owner,
     if (!(CD_TYPE_AS_MASK(*bke::attr_type_to_custom_data_type(attr.data_type())) & layer_mask)) {
       continue;
     }
-    if (!include_anonymous && bke::attribute_name_is_anonymous(attr.name())) {
+    if (!include_anonymous && bke::attribute_name_is_anonymous(attr.name().ref())) {
       continue;
     }
     if (attr.name() == name) {
@@ -860,18 +864,18 @@ int BKE_attribute_to_index(const AttributeOwner &owner,
   return -1;
 }
 
-std::optional<StringRef> BKE_id_attributes_active_color_name(const ID *id)
+std::optional<UString> BKE_id_attributes_active_color_name(const ID *id)
 {
   if (GS(id->name) == ID_ME) {
-    return reinterpret_cast<const Mesh *>(id)->active_color_attribute;
+    return UString(reinterpret_cast<const Mesh *>(id)->active_color_attribute);
   }
   return std::nullopt;
 }
 
-std::optional<StringRef> BKE_id_attributes_default_color_name(const ID *id)
+std::optional<UString> BKE_id_attributes_default_color_name(const ID *id)
 {
   if (GS(id->name) == ID_ME) {
-    return reinterpret_cast<const Mesh *>(id)->default_color_attribute;
+    return UString(reinterpret_cast<const Mesh *>(id)->default_color_attribute);
   }
   return std::nullopt;
 }
@@ -921,7 +925,7 @@ void BKE_id_attributes_default_color_set(ID *id, const std::optional<StringRef> 
   }
 }
 
-bool BKE_id_attributes_color_find(const ID *id, const StringRef name)
+bool BKE_id_attributes_color_find(const ID *id, const UString name)
 {
   AttributeOwner owner = AttributeOwner::from_id(const_cast<ID *>(id));
   return BKE_attribute_to_index(owner, name, ATTR_DOMAIN_MASK_COLOR, CD_MASK_COLOR_ALL) != -1;

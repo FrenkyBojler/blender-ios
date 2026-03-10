@@ -3181,7 +3181,7 @@ static wmOperatorStatus edbm_rotate_colors_exec(bContext *C, wmOperator *op)
     AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
 
     int color_index = BKE_attribute_to_index(
-        owner, mesh->active_color_attribute, ATTR_DOMAIN_MASK_CORNER, CD_MASK_COLOR_ALL);
+        owner, UString(mesh->active_color_attribute), ATTR_DOMAIN_MASK_CORNER, CD_MASK_COLOR_ALL);
     if (color_index == -1) {
       continue;
     }
@@ -3230,7 +3230,7 @@ static wmOperatorStatus edbm_reverse_colors_exec(bContext *C, wmOperator *op)
     BMOperator bmop;
 
     int color_index = BKE_attribute_to_index(
-        owner, mesh->active_color_attribute, ATTR_DOMAIN_MASK_CORNER, CD_MASK_COLOR_ALL);
+        owner, UString(mesh->active_color_attribute), ATTR_DOMAIN_MASK_CORNER, CD_MASK_COLOR_ALL);
     if (color_index == -1) {
       continue;
     }

@@ -286,7 +286,7 @@ void OBJWriter::write_vertex_coords(FormatHandler &fh,
   const int tot_count = obj_mesh_data.tot_vertices();
 
   const Mesh *mesh = obj_mesh_data.get_mesh();
-  const StringRef name = mesh->active_color_attribute;
+  const UString name(mesh->active_color_attribute);
 
   const float4x4 transform = obj_mesh_data.get_world_axes_transform();
   const Span<float3> positions = obj_mesh_data.get_mesh()->vert_positions();
@@ -376,7 +376,7 @@ void OBJWriter::write_face_elements(FormatHandler &fh,
   threading::EnumerableThreadSpecific<Vector<float>> group_weights;
   const bke::AttributeAccessor attributes = obj_mesh_data.get_mesh()->attributes();
   const VArray<int> material_indices = *attributes.lookup_or_default<int>(
-      "material_index", bke::AttrDomain::Face, 0);
+      "material_index"_ustr, bke::AttrDomain::Face, 0);
 
   obj_parallel_chunked_output(fh, tot_faces, [&](FormatHandler &buf, int idx) {
     /* Polygon order for writing into the file is not necessarily the same

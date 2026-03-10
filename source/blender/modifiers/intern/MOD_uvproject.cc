@@ -91,18 +91,18 @@ static bke::SpanAttributeWriter<float2> get_uv_attribute(Mesh &mesh, const Strin
 {
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   if (md_name.is_empty()) {
-    const StringRef name = mesh.active_uv_map_name();
-    return attributes.lookup_or_add_for_write_span<float2>(name.is_empty() ? "Float2" : name,
-                                                           bke::AttrDomain::Corner);
+    const UString name = mesh.active_uv_map_name();
+    return attributes.lookup_or_add_for_write_span<float2>(
+        name.is_empty() ? UString("Float2") : name, bke::AttrDomain::Corner);
   }
   if (bke::SpanAttributeWriter<float2> attribute = attributes.lookup_or_add_for_write_span<float2>(
-          md_name, bke::AttrDomain::Corner))
+          UString(md_name), bke::AttrDomain::Corner))
   {
     return attribute;
   }
   AttributeOwner owner = AttributeOwner::from_id(&mesh.id);
   const std::string name = BKE_attribute_calc_unique_name(owner, md_name);
-  return attributes.lookup_or_add_for_write_span<float2>(name, bke::AttrDomain::Corner);
+  return attributes.lookup_or_add_for_write_span<float2>(UString(name), bke::AttrDomain::Corner);
 }
 
 static Mesh *uvprojectModifier_do(UVProjectModifierData *umd,

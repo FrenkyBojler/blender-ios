@@ -303,10 +303,13 @@ static bke::CurvesGeometry convert_curves_to_bezier(const bke::CurvesGeometry &s
   MutableSpan<int8_t> dst_types_r = dst_curves.handle_types_right_for_write();
   Vector<bke::AttributeTransferData> generic_attributes = bke::retrieve_attributes_for_transfer(
       src_attributes, dst_attributes, {bke::AttrDomain::Point}, attribute_filter);
-  Set<StringRef> attributes_to_skip = {
-      "position", "handle_type_left", "handle_type_right", "handle_right", "handle_left"};
+  Set<UString> attributes_to_skip = {"position"_ustr,
+                                     "handle_type_left"_ustr,
+                                     "handle_type_right"_ustr,
+                                     "handle_right"_ustr,
+                                     "handle_left"_ustr};
   if (!dst_curves.has_curve_with_type(CURVE_TYPE_NURBS)) {
-    attributes_to_skip.add_new("nurbs_weight");
+    attributes_to_skip.add_new("nurbs_weight"_ustr);
   }
 
   auto catmull_rom_to_bezier = [&](const IndexMask &selection) {
@@ -491,15 +494,15 @@ static bke::CurvesGeometry convert_curves_to_nurbs(const bke::CurvesGeometry &sr
   bke::MutableAttributeAccessor dst_attributes = dst_curves.attributes_for_write();
   Vector<bke::AttributeTransferData> generic_attributes = bke::retrieve_attributes_for_transfer(
       src_attributes, dst_attributes, {bke::AttrDomain::Point}, attribute_filter);
-  const Set<StringRef> attributes_to_skip = {"position",
-                                             "handle_type_left",
-                                             "handle_type_right",
-                                             "handle_right",
-                                             "handle_left",
-                                             "nurbs_weight"};
+  const Set<UString> attributes_to_skip = {"position"_ustr,
+                                           "handle_type_left"_ustr,
+                                           "handle_type_right"_ustr,
+                                           "handle_right"_ustr,
+                                           "handle_left"_ustr,
+                                           "nurbs_weight"_ustr};
 
   auto fill_weights_if_necessary = [&](const IndexMask &selection) {
-    if (src_attributes.contains("nurbs_weight")) {
+    if (src_attributes.contains("nurbs_weight"_ustr)) {
       bke::curves::fill_points(
           dst_points_by_curve, selection, 1.0f, dst_curves.nurbs_weights_for_write());
     }
@@ -704,12 +707,12 @@ static bke::CurvesGeometry convert_curves_to_catmull_rom_or_poly(
   bke::MutableAttributeAccessor dst_attributes = dst_curves.attributes_for_write();
   Vector<bke::AttributeTransferData> generic_attributes = bke::retrieve_attributes_for_transfer(
       src_attributes, dst_attributes, {bke::AttrDomain::Point}, attribute_filter);
-  const Set<StringRef> attributes_to_skip = {"position",
-                                             "handle_type_left",
-                                             "handle_type_right",
-                                             "handle_right",
-                                             "handle_left",
-                                             "nurbs_weight"};
+  const Set<UString> attributes_to_skip = {"position"_ustr,
+                                           "handle_type_left"_ustr,
+                                           "handle_type_right"_ustr,
+                                           "handle_right"_ustr,
+                                           "handle_left"_ustr,
+                                           "nurbs_weight"_ustr};
 
   auto convert_from_catmull_rom_or_poly_or_nurbs = [&](const IndexMask &selection) {
     array_utils::copy_group_to_group(

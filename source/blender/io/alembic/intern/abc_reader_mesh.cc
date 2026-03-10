@@ -6,9 +6,9 @@
  * \ingroup balembic
  */
 
-#include "abc_reader_mesh.h"
 #include "abc_axis_conversion.h"
 #include "abc_customdata.h"
+#include "abc_reader_mesh.h"
 #include "abc_util.h"
 
 #include "DNA_material_types.h"
@@ -396,7 +396,8 @@ BLI_INLINE void read_uvs_params(CDStreamConfig &config,
   }
 
   bke::MutableAttributeAccessor attributes = config.mesh->attributes_for_write();
-  config.uv_map = attributes.lookup_or_add_for_write_span<float2>(name, bke::AttrDomain::Corner);
+  config.uv_map = attributes.lookup_or_add_for_write_span<float2>(UString(name),
+                                                                  bke::AttrDomain::Corner);
   config.mesh->uv_maps_active_set(name);
   config.mesh->uv_maps_default_set(name);
 }
@@ -815,7 +816,8 @@ Mesh *AbcMeshReader::read_mesh(Mesh *existing_mesh,
       std::map<std::string, int> mat_map;
       bke::MutableAttributeAccessor attributes = new_mesh->attributes_for_write();
       bke::SpanAttributeWriter<int> material_indices =
-          attributes.lookup_or_add_for_write_span<int>("material_index", bke::AttrDomain::Face);
+          attributes.lookup_or_add_for_write_span<int>("material_index"_ustr,
+                                                       bke::AttrDomain::Face);
       assign_facesets_to_material_indices(sample_sel, material_indices.span, mat_map);
       material_indices.finish();
     }
@@ -876,7 +878,7 @@ void AbcMeshReader::readFaceSetsSample(Main *bmain, Mesh *mesh, const ISampleSel
   std::map<std::string, int> mat_map;
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   bke::SpanAttributeWriter<int> material_indices = attributes.lookup_or_add_for_write_span<int>(
-      "material_index", bke::AttrDomain::Face);
+      "material_index"_ustr, bke::AttrDomain::Face);
   assign_facesets_to_material_indices(sample_sel, material_indices.span, mat_map);
   material_indices.finish();
   utils::assign_materials(bmain, m_object, mat_map);
@@ -952,7 +954,7 @@ static void read_vertex_creases(Mesh *mesh,
 
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   bke::SpanAttributeWriter creases = attributes.lookup_or_add_for_write_only_span<float>(
-      "crease_vert", bke::AttrDomain::Point);
+      "crease_vert"_ustr, bke::AttrDomain::Point);
   creases.span.fill(0.0f);
 
   const int totvert = mesh->verts_num;
@@ -991,7 +993,7 @@ static void read_edge_creases(Mesh *mesh,
 
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   bke::SpanAttributeWriter<float> creases = attributes.lookup_or_add_for_write_span<float>(
-      "crease_edge", bke::AttrDomain::Edge);
+      "crease_edge"_ustr, bke::AttrDomain::Edge);
 
   for (int i = 0, s = 0, e = indices->size(); i < e; i += 2, s++) {
     int v1 = (*indices)[i];

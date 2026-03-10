@@ -32,7 +32,7 @@ static void gather_positions_from_component(const GeometryComponent &component,
   if (component.is_empty()) {
     return;
   }
-  const VArray<float3> positions = *component.attributes()->lookup<float3>("position");
+  const VArray<float3> positions = *component.attributes()->lookup<float3>("position"_ustr);
   r_positions.resize(r_positions.size() + positions.size());
   positions.materialize(r_positions.as_mutable_span().take_back(positions.size()));
 }

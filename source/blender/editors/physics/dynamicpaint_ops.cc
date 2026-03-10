@@ -240,7 +240,7 @@ static wmOperatorStatus output_toggle_exec(bContext *C, wmOperator *op)
       }
       else {
         AttributeOwner owner = AttributeOwner::from_id(ob->data);
-        BKE_attribute_remove(owner, name, nullptr);
+        BKE_attribute_remove(owner, UString(name), nullptr);
       }
     }
     /* Vertex Weight Layer */

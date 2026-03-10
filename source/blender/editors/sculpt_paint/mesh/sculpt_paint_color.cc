@@ -220,7 +220,7 @@ void gather_colors_vert(const OffsetIndices<int> faces,
 bke::GAttributeReader active_color_attribute(const Mesh &mesh)
 {
   const bke::AttributeAccessor attributes = mesh.attributes();
-  const StringRef name = mesh.active_color_attribute;
+  const UString name(mesh.active_color_attribute);
   const bke::GAttributeReader colors = attributes.lookup(name);
   if (!colors) {
     return {};
@@ -235,7 +235,7 @@ bke::GAttributeReader active_color_attribute(const Mesh &mesh)
 bke::GSpanAttributeWriter active_color_attribute_for_write(Mesh &mesh)
 {
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
-  const StringRef name = mesh.active_color_attribute;
+  const UString name(mesh.active_color_attribute);
   bke::GSpanAttributeWriter colors = attributes.lookup_for_write_span(name);
   if (!colors) {
     return {};

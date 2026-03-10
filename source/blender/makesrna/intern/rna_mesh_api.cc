@@ -53,8 +53,8 @@ static const char *rna_Mesh_unit_test_compare(Mesh *mesh, Mesh *mesh2, float thr
 
 static void rna_Mesh_sharp_from_angle_set(Mesh *mesh, const float angle)
 {
-  mesh->attributes_for_write().remove("sharp_edge");
-  mesh->attributes_for_write().remove("sharp_face");
+  mesh->attributes_for_write().remove("sharp_edge"_ustr);
+  mesh->attributes_for_write().remove("sharp_face"_ustr);
   bke::mesh_sharp_edges_set_from_angle(*mesh, angle);
   DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
 }
@@ -78,7 +78,7 @@ static void rna_Mesh_calc_tangents(Mesh *mesh, ReportList *reports, const char *
   }
 
   const bke::AttributeAccessor attributes = mesh->attributes();
-  const VArraySpan uv_map = *attributes.lookup<float2>(uvmap, bke::AttrDomain::Corner);
+  const VArraySpan uv_map = *attributes.lookup<float2>(UString(uvmap), bke::AttrDomain::Corner);
   if (uv_map.is_empty()) {
     BKE_reportf(reports,
                 RPT_ERROR,
@@ -115,8 +115,10 @@ static void rna_Mesh_calc_smooth_groups(Mesh *mesh,
 {
   *r_poly_group_num = mesh->faces_num;
   const bke::AttributeAccessor attributes = mesh->attributes();
-  const VArraySpan sharp_edges = *attributes.lookup<bool>("sharp_edge", bke::AttrDomain::Edge);
-  const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face", bke::AttrDomain::Face);
+  const VArraySpan sharp_edges = *attributes.lookup<bool>("sharp_edge"_ustr,
+                                                          bke::AttrDomain::Edge);
+  const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face"_ustr,
+                                                          bke::AttrDomain::Face);
   if (use_bitflags) {
     *r_poly_group = BKE_mesh_calc_smoothgroups_bitflags(mesh->edges_num,
                                                         mesh->verts_num,

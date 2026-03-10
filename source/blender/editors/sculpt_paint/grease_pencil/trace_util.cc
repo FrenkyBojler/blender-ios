@@ -187,7 +187,7 @@ bke::CurvesGeometry trace_to_curves(const Trace &trace,
   curves.fill_curve_types(CURVE_TYPE_BEZIER);
   /* All trace curves are cyclic. */
   curves.attributes_for_write().add<bool>(
-      "cyclic", bke::AttrDomain::Curve, bke::AttributeInitValue(true));
+      "cyclic"_ustr, bke::AttrDomain::Curve, bke::AttributeInitValue(true));
 
   MutableSpan<int8_t> handle_types_left = curves.handle_types_left_for_write();
   MutableSpan<int8_t> handle_types_right = curves.handle_types_right_for_write();

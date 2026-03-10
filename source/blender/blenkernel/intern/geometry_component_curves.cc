@@ -155,7 +155,7 @@ static Array<float3> curve_normal_point_domain(const CurvesGeometry &curves)
   const VArray<bool> curves_cyclic = curves.cyclic();
   const AttributeAccessor attributes = curves.attributes();
   const VArray<float3> custom_normals = *attributes.lookup_or_default<float3>(
-      "custom_normal", AttrDomain::Point, float3(0, 0, 1));
+      "custom_normal"_ustr, AttrDomain::Point, float3(0, 0, 1));
 
   const Span<float3> positions = curves.positions();
   const VArray<int8_t> normal_modes = curves.normal_mode();

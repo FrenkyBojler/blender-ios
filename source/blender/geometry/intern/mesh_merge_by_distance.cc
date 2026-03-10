@@ -1452,7 +1452,7 @@ static void copy_first_from_src(const Span<T> src,
 static void mix_attributes(const bke::AttributeAccessor src_attributes,
                            const GroupedSpan<int> dst_to_src,
                            const bke::AttrDomain domain,
-                           const Set<StringRef> &skip_names,
+                           const Set<UString> &skip_names,
                            bke::MutableAttributeAccessor dst_attributes)
 {
   src_attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
@@ -1494,11 +1494,11 @@ static void mix_vertex_groups(const Mesh &mesh_src,
   });
 }
 
-static Set<StringRef> get_vertex_group_names(const Mesh &mesh)
+static Set<UString> get_vertex_group_names(const Mesh &mesh)
 {
-  Set<StringRef> names;
+  Set<UString> names;
   for (bDeformGroup &group : mesh.vertex_group_names) {
-    names.add(group.name);
+    names.add(UString(group.name));
   }
   return names;
 }
@@ -1603,8 +1603,11 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
   const GroupedSpan<int> dst_to_src_edges(OffsetIndices<int>(edge_src_index_offset_data),
                                           edge_src_index_data);
 
-  mix_attributes(
-      src_attributes, dst_to_src_edges, bke::AttrDomain::Edge, {".edge_verts"}, dst_attributes);
+  mix_attributes(src_attributes,
+                 dst_to_src_edges,
+                 bke::AttrDomain::Edge,
+                 {".edge_verts"_ustr},
+                 dst_attributes);
   if (CustomData_has_layer(&mesh.edge_data, CD_ORIGINDEX)) {
     const Span src(static_cast<const int *>(CustomData_get_layer(&mesh.edge_data, CD_ORIGINDEX)),
                    mesh.edges_num);
@@ -1770,7 +1773,7 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
   mix_attributes(src_attributes,
                  dst_to_src_corners,
                  bke::AttrDomain::Corner,
-                 {".corner_vert", ".corner_edge"},
+                 {".corner_vert"_ustr, ".corner_edge"_ustr},
                  dst_attributes);
 
   debug_randomize_mesh_order(result);

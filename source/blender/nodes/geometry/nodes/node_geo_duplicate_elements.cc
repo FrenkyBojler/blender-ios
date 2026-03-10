@@ -123,7 +123,7 @@ static void create_duplicate_index_attribute(bke::MutableAttributeAccessor attri
                                              const OffsetIndices<int> offsets)
 {
   SpanAttributeWriter<int> duplicate_indices = attributes.lookup_or_add_for_write_only_span<int>(
-      *attribute_outputs.duplicate_index, output_domain);
+      UString(*attribute_outputs.duplicate_index), output_domain);
   for (const int i : IndexRange(selection.size())) {
     MutableSpan<int> indices = duplicate_indices.span.slice(offsets[i]);
     for (const int i : indices.index_range()) {
@@ -141,7 +141,7 @@ static void copy_stable_id_point(const OffsetIndices<int> offsets,
                                  const bke::AttributeAccessor src_attributes,
                                  bke::MutableAttributeAccessor dst_attributes)
 {
-  GAttributeReader src_attribute = src_attributes.lookup("id");
+  GAttributeReader src_attribute = src_attributes.lookup("id"_ustr);
   if (!src_attribute) {
     return;
   }
@@ -152,7 +152,7 @@ static void copy_stable_id_point(const OffsetIndices<int> offsets,
     return;
   }
   SpanAttributeWriter dst_attribute = dst_attributes.lookup_or_add_for_write_only_span<int>(
-      "id", AttrDomain::Point);
+      "id"_ustr, AttrDomain::Point);
   if (!dst_attribute) {
     return;
   }
@@ -186,7 +186,7 @@ static void copy_curve_attributes_without_id(const bke::CurvesGeometry &src_curv
            src_curves.attributes(),
            dst_curves.attributes_for_write(),
            {bke::AttrDomain::Point, bke::AttrDomain::Curve},
-           bke::attribute_filter_with_skip_ref(attribute_filter, {"id"})))
+           bke::attribute_filter_with_skip_ref(attribute_filter, {"id"_ustr})))
   {
     switch (attribute.meta_data.domain) {
       case AttrDomain::Curve:
@@ -226,7 +226,7 @@ static void copy_stable_id_curves(const bke::CurvesGeometry &src_curves,
                                   const OffsetIndices<int> offsets,
                                   bke::CurvesGeometry &dst_curves)
 {
-  GAttributeReader src_attribute = src_curves.attributes().lookup("id");
+  GAttributeReader src_attribute = src_curves.attributes().lookup("id"_ustr);
   if (!src_attribute) {
     return;
   }
@@ -238,7 +238,7 @@ static void copy_stable_id_curves(const bke::CurvesGeometry &src_curves,
   }
 
   SpanAttributeWriter dst_attribute =
-      dst_curves.attributes_for_write().lookup_or_add_for_write_only_span<int>("id",
+      dst_curves.attributes_for_write().lookup_or_add_for_write_only_span<int>("id"_ustr,
                                                                                AttrDomain::Point);
   if (!dst_attribute) {
     return;
@@ -410,7 +410,8 @@ static void copy_face_attributes_without_id(const Span<int> edge_mapping,
             bke::AttrDomain::Face,
             bke::AttrDomain::Corner},
            bke::attribute_filter_with_skip_ref(
-               attribute_filter, {"id", ".corner_vert", ".corner_edge", ".edge_verts"})))
+               attribute_filter,
+               {"id"_ustr, ".corner_vert"_ustr, ".corner_edge"_ustr, ".edge_verts"_ustr})))
   {
     switch (attribute.meta_data.domain) {
       case AttrDomain::Point:
@@ -448,7 +449,7 @@ static void copy_stable_id_faces(const Mesh &mesh,
                                  const bke::AttributeAccessor src_attributes,
                                  bke::MutableAttributeAccessor dst_attributes)
 {
-  GAttributeReader src_attribute = src_attributes.lookup("id");
+  GAttributeReader src_attribute = src_attributes.lookup("id"_ustr);
   if (!src_attribute) {
     return;
   }
@@ -459,7 +460,7 @@ static void copy_stable_id_faces(const Mesh &mesh,
     return;
   }
   SpanAttributeWriter dst_attribute = dst_attributes.lookup_or_add_for_write_only_span<int>(
-      "id", AttrDomain::Point);
+      "id"_ustr, AttrDomain::Point);
   if (!dst_attribute) {
     return;
   }
@@ -617,7 +618,7 @@ static void copy_edge_attributes_without_id(const Span<int> point_mapping,
            src_attributes,
            dst_attributes,
            {bke::AttrDomain::Point, bke::AttrDomain::Edge},
-           bke::attribute_filter_with_skip_ref(attribute_filter, {"id", ".edge_verts"})))
+           bke::attribute_filter_with_skip_ref(attribute_filter, {"id"_ustr, ".edge_verts"_ustr})))
   {
     switch (attribute.meta_data.domain) {
       case AttrDomain::Edge:
@@ -645,7 +646,7 @@ static void copy_stable_id_edges(const Mesh &mesh,
                                  const bke::AttributeAccessor src_attributes,
                                  bke::MutableAttributeAccessor dst_attributes)
 {
-  GAttributeReader src_attribute = src_attributes.lookup("id");
+  GAttributeReader src_attribute = src_attributes.lookup("id"_ustr);
   if (!src_attribute) {
     return;
   }
@@ -656,7 +657,7 @@ static void copy_stable_id_edges(const Mesh &mesh,
     return;
   }
   SpanAttributeWriter dst_attribute = dst_attributes.lookup_or_add_for_write_only_span<int>(
-      "id", AttrDomain::Point);
+      "id"_ustr, AttrDomain::Point);
   if (!dst_attribute) {
     return;
   }
@@ -810,7 +811,7 @@ static bke::CurvesGeometry duplicate_points_CurvesGeometry(
            src_curves.attributes(),
            new_curves.attributes_for_write(),
            {bke::AttrDomain::Curve},
-           bke::attribute_filter_with_skip_ref(attribute_filter, {"id"})))
+           bke::attribute_filter_with_skip_ref(attribute_filter, {"id"_ustr})))
   {
     bke::attribute_math::to_static_type(attribute.src.type(), [&]<typename T>() {
       const Span<T> src = attribute.src.typed<T>();
@@ -924,13 +925,14 @@ static void duplicate_points_mesh(GeometrySet &geometry_set,
 
   Mesh *new_mesh = BKE_mesh_new_nomain(duplicates.total_size(), 0, 0, 0);
 
-  bke::gather_attributes_to_groups(mesh.attributes(),
-                                   AttrDomain::Point,
-                                   AttrDomain::Point,
-                                   bke::attribute_filter_with_skip_ref(attribute_filter, {"id"}),
-                                   duplicates,
-                                   selection,
-                                   new_mesh->attributes_for_write());
+  bke::gather_attributes_to_groups(
+      mesh.attributes(),
+      AttrDomain::Point,
+      AttrDomain::Point,
+      bke::attribute_filter_with_skip_ref(attribute_filter, {"id"_ustr}),
+      duplicates,
+      selection,
+      new_mesh->attributes_for_write());
 
   copy_stable_id_point(duplicates, mesh.attributes(), new_mesh->attributes_for_write());
 
@@ -975,13 +977,14 @@ static void duplicate_points_pointcloud(GeometrySet &geometry_set,
 
   PointCloud *pointcloud = BKE_pointcloud_new_nomain(duplicates.total_size());
 
-  bke::gather_attributes_to_groups(src_points.attributes(),
-                                   AttrDomain::Point,
-                                   AttrDomain::Point,
-                                   bke::attribute_filter_with_skip_ref(attribute_filter, {"id"}),
-                                   duplicates,
-                                   selection,
-                                   pointcloud->attributes_for_write());
+  bke::gather_attributes_to_groups(
+      src_points.attributes(),
+      AttrDomain::Point,
+      AttrDomain::Point,
+      bke::attribute_filter_with_skip_ref(attribute_filter, {"id"_ustr}),
+      duplicates,
+      selection,
+      pointcloud->attributes_for_write());
 
   copy_stable_id_point(duplicates, src_points.attributes(), pointcloud->attributes_for_write());
 
@@ -1180,7 +1183,7 @@ static void duplicate_instances(GeometrySet &geometry_set,
       src_instances.attributes(),
       AttrDomain::Instance,
       AttrDomain::Instance,
-      bke::attribute_filter_with_skip_ref(attribute_filter, {"id", ".reference_index"}),
+      bke::attribute_filter_with_skip_ref(attribute_filter, {"id"_ustr, ".reference_index"_ustr}),
       duplicates,
       selection,
       dst_instances->attributes_for_write());

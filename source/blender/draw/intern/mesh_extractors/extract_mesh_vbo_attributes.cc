@@ -235,16 +235,16 @@ static void extract_attribute_data(const MeshRenderData &mr,
   });
 }
 
-gpu::VertBufPtr extract_attribute(const MeshRenderData &mr, const StringRef name)
+gpu::VertBufPtr extract_attribute(const MeshRenderData &mr, const UString name)
 {
   gpu::VertBuf *vbo = GPU_vertbuf_calloc();
   if (mr.extract_type == MeshExtractType::BMesh) {
-    const BMDataLayerLookup attr = BM_data_layer_lookup(*mr.bm, name);
+    const BMDataLayerLookup attr = BM_data_layer_lookup(*mr.bm, name.ref());
     if (!attr) {
       return {};
     }
     const bke::AttrType type = attr.type;
-    init_vbo_for_attribute(mr, *vbo, name, type, false, uint32_t(mr.corners_num));
+    init_vbo_for_attribute(mr, *vbo, name.ref(), type, false, uint32_t(mr.corners_num));
     extract_attribute_data(mr, attr, *vbo);
   }
   else {
@@ -254,7 +254,7 @@ gpu::VertBufPtr extract_attribute(const MeshRenderData &mr, const StringRef name
       return {};
     }
     const bke::AttrType type = bke::cpp_type_to_attribute_type(attr.varray.type());
-    init_vbo_for_attribute(mr, *vbo, name, type, false, uint32_t(mr.corners_num));
+    init_vbo_for_attribute(mr, *vbo, name.ref(), type, false, uint32_t(mr.corners_num));
     extract_attribute_data(mr, attr, *vbo);
   }
   return gpu::VertBufPtr(vbo);
@@ -271,7 +271,7 @@ static gpu::VertBufPtr init_coarse_data(const bke::AttrType type, const int coar
 
 gpu::VertBufPtr extract_attribute_subdiv(const MeshRenderData &mr,
                                          const DRWSubdivCache &subdiv_cache,
-                                         const StringRef name)
+                                         const UString name)
 {
 
   const Mesh *coarse_mesh = subdiv_cache.mesh;
@@ -280,7 +280,7 @@ gpu::VertBufPtr extract_attribute_subdiv(const MeshRenderData &mr,
   gpu::VertBufPtr coarse_vbo;
   bke::AttrType type;
   if (mr.extract_type == MeshExtractType::BMesh) {
-    const BMDataLayerLookup attr = BM_data_layer_lookup(*mr.bm, name);
+    const BMDataLayerLookup attr = BM_data_layer_lookup(*mr.bm, name.ref());
     if (!attr) {
       return {};
     }
@@ -300,7 +300,7 @@ gpu::VertBufPtr extract_attribute_subdiv(const MeshRenderData &mr,
   }
 
   gpu::VertBuf *vbo = GPU_vertbuf_calloc();
-  init_vbo_for_attribute(mr, *vbo, name, type, true, subdiv_cache.num_subdiv_loops);
+  init_vbo_for_attribute(mr, *vbo, name.ref(), type, true, subdiv_cache.num_subdiv_loops);
 
   /* Ensure data is uploaded properly. */
   GPU_vertbuf_tag_dirty(coarse_vbo.get());
@@ -328,7 +328,7 @@ gpu::VertBufPtr extract_attr_viewer(const MeshRenderData &mr)
   GPU_vertbuf_data_alloc(*vbo, mr.corners_num);
   MutableSpan vbo_data = vbo->data<ColorGeometry4f>();
 
-  const StringRefNull attr_name = ".viewer";
+  const UString attr_name = ".viewer"_ustr;
   const bke::AttributeAccessor attributes = mr.mesh->attributes();
   const bke::AttributeReader attribute = attributes.lookup_or_default<ColorGeometry4f>(
       attr_name, bke::AttrDomain::Corner, {1.0f, 0.0f, 1.0f, 1.0f});

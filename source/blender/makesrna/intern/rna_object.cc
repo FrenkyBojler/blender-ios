@@ -1029,7 +1029,7 @@ void rna_object_uvlayer_name_set(PointerRNA *ptr,
   if (ob->type == OB_MESH && ob->data) {
     mesh = id_cast<Mesh *>(ob->data);
 
-    if (mesh->uv_map_names().contains(value)) {
+    if (mesh->uv_map_names().contains(UString(value))) {
       BLI_strncpy(result, value, result_maxncpy);
       return;
     }

@@ -301,7 +301,8 @@ bke::MeshNormalDomain Mesh::normals_domain(const bool support_sharp_face) const
   }
 
   const bke::AttributeAccessor attributes = this->attributes();
-  if (const std::optional<AttributeMetaData> custom = attributes.lookup_meta_data("custom_normal"))
+  if (const std::optional<AttributeMetaData> custom = attributes.lookup_meta_data(
+          "custom_normal"_ustr))
   {
     switch (custom->domain) {
       case AttrDomain::Point:
@@ -318,7 +319,7 @@ bke::MeshNormalDomain Mesh::normals_domain(const bool support_sharp_face) const
   }
 
   const VArray<bool> sharp_faces = *attributes.lookup_or_default<bool>(
-      "sharp_face", AttrDomain::Face, false);
+      "sharp_face"_ustr, AttrDomain::Face, false);
 
   const array_utils::BooleanMix face_mix = array_utils::booleans_mix_calc(sharp_faces);
   if (face_mix == array_utils::BooleanMix::AllTrue) {
@@ -326,7 +327,7 @@ bke::MeshNormalDomain Mesh::normals_domain(const bool support_sharp_face) const
   }
 
   const VArray<bool> sharp_edges = *attributes.lookup_or_default<bool>(
-      "sharp_edge", AttrDomain::Edge, false);
+      "sharp_edge"_ustr, AttrDomain::Edge, false);
   const array_utils::BooleanMix edge_mix = array_utils::booleans_mix_calc(sharp_edges);
   if (edge_mix == array_utils::BooleanMix::AllTrue) {
     return MeshNormalDomain::Face;
@@ -345,7 +346,7 @@ Span<float3> Mesh::vert_normals() const
 {
   using namespace blender::bke;
   this->runtime->vert_normals_cache.ensure([&](NormalsCache &r_data) {
-    if (const GAttributeReader custom = this->attributes().lookup("custom_normal")) {
+    if (const GAttributeReader custom = this->attributes().lookup("custom_normal"_ustr)) {
       if (custom.varray.type().is<float3>()) {
         if (custom.domain == AttrDomain::Point) {
           r_data.store_varray(custom.varray.typed<float3>());
@@ -414,7 +415,7 @@ Span<float3> Mesh::face_normals() const
     return {};
   }
   this->runtime->face_normals_cache.ensure([&](NormalsCache &r_data) {
-    if (const GAttributeReader custom = this->attributes().lookup("custom_normal")) {
+    if (const GAttributeReader custom = this->attributes().lookup("custom_normal"_ustr)) {
       if (custom.varray.type().is<float3>()) {
         if (custom.domain == AttrDomain::Face) {
           r_data.store_varray(custom.varray.typed<float3>());
@@ -482,7 +483,7 @@ Span<float3> Mesh::corner_normals() const
       }
       case MeshNormalDomain::Corner: {
         const AttributeAccessor attributes = this->attributes();
-        const GAttributeReader custom = attributes.lookup("custom_normal");
+        const GAttributeReader custom = attributes.lookup("custom_normal"_ustr);
         if (custom && custom.varray.type().is<float3>()) {
           if (custom.domain == bke::AttrDomain::Corner) {
             r_data.store_varray(custom.varray.typed<float3>());
@@ -490,8 +491,10 @@ Span<float3> Mesh::corner_normals() const
           return;
         }
         MutableSpan<float3> data = r_data.ensure_vector_size(this->corners_num);
-        const VArraySpan sharp_edges = *attributes.lookup<bool>("sharp_edge", AttrDomain::Edge);
-        const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face", AttrDomain::Face);
+        const VArraySpan sharp_edges = *attributes.lookup<bool>("sharp_edge"_ustr,
+                                                                AttrDomain::Edge);
+        const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face"_ustr,
+                                                                AttrDomain::Face);
         mesh::normals_calc_corners(this->vert_positions(),
                                    this->faces(),
                                    this->corner_verts(),
@@ -1649,13 +1652,13 @@ static void mesh_set_custom_normals(Mesh &mesh,
 {
   MutableAttributeAccessor attributes = mesh.attributes_for_write();
   SpanAttributeWriter custom_normals = attributes.lookup_or_add_for_write_span<short2>(
-      "custom_normal", AttrDomain::Corner);
+      "custom_normal"_ustr, AttrDomain::Corner);
   if (!custom_normals) {
     return;
   }
   SpanAttributeWriter<bool> sharp_edges = attributes.lookup_or_add_for_write_span<bool>(
-      "sharp_edge", AttrDomain::Edge);
-  const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face", AttrDomain::Face);
+      "sharp_edge"_ustr, AttrDomain::Edge);
+  const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face"_ustr, AttrDomain::Face);
 
   mesh_normals_corner_custom_set(mesh.vert_positions(),
                                  mesh.faces(),
@@ -1766,7 +1769,7 @@ void NormalJoinInfo::add_mesh(const Mesh &mesh)
 {
   const bke::AttributeAccessor attributes = mesh.attributes();
   const std::optional<bke::AttributeMetaData> custom_normal = attributes.lookup_meta_data(
-      "custom_normal");
+      "custom_normal"_ustr);
   if (!custom_normal) {
     this->add_no_custom_normals(mesh.normals_domain());
     return;

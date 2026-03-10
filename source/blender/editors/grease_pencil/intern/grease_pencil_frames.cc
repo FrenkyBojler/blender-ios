@@ -470,13 +470,13 @@ static bool curves_geometry_is_equal(const bke::CurvesGeometry &curves_a,
   const AttributeAccessor attributes_a = curves_a.attributes();
   const AttributeAccessor attributes_b = curves_b.attributes();
 
-  const Set<StringRefNull> names_a = attributes_a.all_names();
-  const Set<StringRefNull> names_b = attributes_b.all_names();
+  const Set<UString> names_a = attributes_a.all_names();
+  const Set<UString> names_b = attributes_b.all_names();
   if (names_a != names_b) {
     return false;
   }
 
-  for (const StringRef name : names_a) {
+  for (const UString name : names_a) {
     GAttributeReader attrs_a = attributes_a.lookup(name);
     GAttributeReader attrs_b = attributes_b.lookup(name);
 

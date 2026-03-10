@@ -126,7 +126,7 @@ static void subdiv_mesh_ctx_cache_uv_layers(SubdivMeshContext *ctx)
   const Mesh &coarse_mesh = *ctx->coarse_mesh;
   Mesh *subdiv_mesh = ctx->subdiv_mesh;
   bke::MutableAttributeAccessor attributes = subdiv_mesh->attributes_for_write();
-  for (const StringRef name : coarse_mesh.uv_map_names()) {
+  for (const UString name : coarse_mesh.uv_map_names()) {
     SpanAttributeWriter uv_map = attributes.lookup_or_add_for_write_only_span<float2>(
         name, AttrDomain::Corner);
     if (!uv_map) {
@@ -832,7 +832,7 @@ static void subdiv_accumulate_vert_displacement(SubdivMeshContext *ctx,
 
 static void create_attrs_and_retrieve_interp_spans(const AttributeAccessor src_attrs,
                                                    const bke::AttrDomain domain,
-                                                   const Set<StringRef> &skip_names,
+                                                   const Set<UString> &skip_names,
                                                    MutableAttributeAccessor dst_attrs,
                                                    Vector<GVArraySpan> &coarse_varray_spans,
                                                    Vector<GSpan> &coarse_spans,
@@ -897,7 +897,7 @@ static bool subdiv_mesh_topology_info(const ForeachContext *foreach_context,
 
   create_attrs_and_retrieve_interp_spans(coarse_attrs,
                                          AttrDomain::Point,
-                                         {"position"},
+                                         {"position"_ustr},
                                          attributes,
                                          subdiv_context->coarse_vert_attrs,
                                          subdiv_context->coarse_vert_attr_spans,
@@ -906,7 +906,7 @@ static bool subdiv_mesh_topology_info(const ForeachContext *foreach_context,
 
   create_attrs_and_retrieve_interp_spans(coarse_attrs,
                                          AttrDomain::Edge,
-                                         {".edge_verts"},
+                                         {".edge_verts"_ustr},
                                          attributes,
                                          subdiv_context->coarse_edge_attrs,
                                          subdiv_context->coarse_edge_attr_spans,
@@ -925,9 +925,9 @@ static bool subdiv_mesh_topology_info(const ForeachContext *foreach_context,
   /* Rely on #CD_NORMAL to propagate normals to subdivision surfaces.
    * These are converted into "custom_normals" afterwards, otherwise these normals
    * would interpolated without being normalized, see: #152277. */
-  Set<StringRef> corner_skip_names{".corner_vert", ".corner_edge", "custom_normal"};
+  Set<UString> corner_skip_names{".corner_vert"_ustr, ".corner_edge"_ustr, "custom_normal"_ustr};
   /* UV map names are interpolated separately. */
-  for (const StringRef name : coarse_mesh.uv_map_names()) {
+  for (const UString name : coarse_mesh.uv_map_names()) {
     corner_skip_names.add_new(name);
   }
   create_attrs_and_retrieve_interp_spans(coarse_attrs,

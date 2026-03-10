@@ -477,7 +477,7 @@ static void grease_pencil_primitive_update_curves(PrimitiveToolOperation &ptd)
   primitive_calulate_curve_positions_2d(ptd, positions_2d);
   ptd.placement.project(positions_2d, positions_3d);
 
-  Set<std::string> point_attributes_to_skip;
+  Set<UString> point_attributes_to_skip;
 
   MutableSpan<float> new_radii = ptd.drawing->radii_for_write().slice(curve_points);
   MutableSpan<float> new_opacities = ptd.drawing->opacities_for_write().slice(curve_points);
@@ -487,7 +487,7 @@ static void grease_pencil_primitive_update_curves(PrimitiveToolOperation &ptd)
   MutableSpan<float> new_rotations;
   if (use_random && ptd.settings->uv_random > 0.0f) {
     rotations = curves.attributes_for_write().lookup_or_add_for_write_span<float>(
-        "rotation", bke::AttrDomain::Point);
+        "rotation"_ustr, bke::AttrDomain::Point);
     new_rotations = rotations.span.slice(curve_points);
   }
 
@@ -546,12 +546,12 @@ static void grease_pencil_primitive_update_curves(PrimitiveToolOperation &ptd)
     }
   }
 
-  point_attributes_to_skip.add_multiple({"position", "radius", "opacity"});
+  point_attributes_to_skip.add_multiple({"position"_ustr, "radius"_ustr, "opacity"_ustr});
   if (ptd.vertex_color) {
-    point_attributes_to_skip.add("vertex_color");
+    point_attributes_to_skip.add("vertex_color"_ustr);
   }
   if (rotations) {
-    point_attributes_to_skip.add("rotation");
+    point_attributes_to_skip.add("rotation"_ustr);
     rotations.finish();
   }
 
@@ -581,96 +581,99 @@ static void grease_pencil_primitive_init_curves(PrimitiveToolOperation &ptd)
 
   const int target_curve_index = on_back ? 0 : (curves.curves_num() - 1);
 
-  Set<std::string> curve_attributes_to_skip;
+  Set<UString> curve_attributes_to_skip;
 
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
   bke::SpanAttributeWriter<int> materials = attributes.lookup_or_add_for_write_span<int>(
-      "material_index", bke::AttrDomain::Curve);
+      "material_index"_ustr, bke::AttrDomain::Curve);
   materials.span[target_curve_index] = ptd.material_index;
   materials.finish();
-  curve_attributes_to_skip.add("material_index");
+  curve_attributes_to_skip.add("material_index"_ustr);
 
   bke::SpanAttributeWriter<bool> cyclic = attributes.lookup_or_add_for_write_span<bool>(
-      "cyclic", bke::AttrDomain::Curve);
+      "cyclic"_ustr, bke::AttrDomain::Curve);
   const bool is_cyclic = ELEM(ptd.type, PrimitiveType::Box, PrimitiveType::Circle);
   cyclic.span[target_curve_index] = is_cyclic;
   cyclic.finish();
-  curve_attributes_to_skip.add("cyclic");
+  curve_attributes_to_skip.add("cyclic"_ustr);
 
   if ((ptd.settings->flag2 & GP_BRUSH_USE_STROKE) == 0) {
     bke::SpanAttributeWriter<bool> hide_stroke = attributes.lookup_or_add_for_write_span<bool>(
-        "hide_stroke", bke::AttrDomain::Curve);
+        "hide_stroke"_ustr, bke::AttrDomain::Curve);
     hide_stroke.span[target_curve_index] = true;
-    curve_attributes_to_skip.add("hide_stroke");
+    curve_attributes_to_skip.add("hide_stroke"_ustr);
     hide_stroke.finish();
   }
   if (ptd.use_fill) {
     bke::SpanAttributeWriter<int> fill_id = attributes.lookup_or_add_for_write_span<int>(
-        "fill_id", bke::AttrDomain::Curve);
+        "fill_id"_ustr, bke::AttrDomain::Curve);
     /* TODO: Use the first available ID. */
     fill_id.span[target_curve_index] = target_curve_index + 1;
-    curve_attributes_to_skip.add("fill_id");
+    curve_attributes_to_skip.add("fill_id"_ustr);
     fill_id.finish();
   }
 
   if (bke::SpanAttributeWriter<float> softness = attributes.lookup_or_add_for_write_span<float>(
-          "softness", bke::AttrDomain::Curve))
+          "softness"_ustr, bke::AttrDomain::Curve))
   {
     softness.span[target_curve_index] = ptd.softness;
     softness.finish();
-    curve_attributes_to_skip.add("softness");
+    curve_attributes_to_skip.add("softness"_ustr);
   }
 
   /* Only set the attribute if the type is not the default or if it already exists. */
-  if (ptd.settings->caps_type != GP_STROKE_CAP_TYPE_ROUND || attributes.contains("start_cap")) {
+  if (ptd.settings->caps_type != GP_STROKE_CAP_TYPE_ROUND || attributes.contains("start_cap"_ustr))
+  {
     if (bke::SpanAttributeWriter<int8_t> start_caps =
-            attributes.lookup_or_add_for_write_span<int8_t>("start_cap", bke::AttrDomain::Curve))
+            attributes.lookup_or_add_for_write_span<int8_t>("start_cap"_ustr,
+                                                            bke::AttrDomain::Curve))
     {
       start_caps.span[target_curve_index] = ptd.settings->caps_type;
       start_caps.finish();
-      curve_attributes_to_skip.add("start_cap");
+      curve_attributes_to_skip.add("start_cap"_ustr);
     }
   }
 
-  if (ptd.settings->caps_type != GP_STROKE_CAP_TYPE_ROUND || attributes.contains("end_cap")) {
+  if (ptd.settings->caps_type != GP_STROKE_CAP_TYPE_ROUND || attributes.contains("end_cap"_ustr)) {
     if (bke::SpanAttributeWriter<int8_t> end_caps =
-            attributes.lookup_or_add_for_write_span<int8_t>("end_cap", bke::AttrDomain::Curve))
+            attributes.lookup_or_add_for_write_span<int8_t>("end_cap"_ustr,
+                                                            bke::AttrDomain::Curve))
     {
       end_caps.span[target_curve_index] = ptd.settings->caps_type;
       end_caps.finish();
-      curve_attributes_to_skip.add("end_cap");
+      curve_attributes_to_skip.add("end_cap"_ustr);
     }
   }
 
-  if (ptd.use_fill && (ptd.fill_opacity < 1.0f || attributes.contains("fill_opacity"))) {
+  if (ptd.use_fill && (ptd.fill_opacity < 1.0f || attributes.contains("fill_opacity"_ustr))) {
     if (bke::SpanAttributeWriter<float> fill_opacities =
             attributes.lookup_or_add_for_write_span<float>(
-                "fill_opacity",
+                "fill_opacity"_ustr,
                 bke::AttrDomain::Curve,
                 bke::AttributeInitVArray(VArray<float>::from_single(1.0f, curves.curves_num()))))
     {
       fill_opacities.span[target_curve_index] = ptd.fill_opacity;
       fill_opacities.finish();
-      curve_attributes_to_skip.add("fill_opacity");
+      curve_attributes_to_skip.add("fill_opacity"_ustr);
     }
   }
 
   if (ptd.fill_color) {
     ptd.drawing->fill_colors_for_write()[target_curve_index] = *ptd.fill_color;
-    curve_attributes_to_skip.add("fill_color");
+    curve_attributes_to_skip.add("fill_color"_ustr);
   }
 
   if (bke::SpanAttributeWriter<float> u_scale = attributes.lookup_or_add_for_write_span<float>(
-          "u_scale", bke::AttrDomain::Curve))
+          "u_scale"_ustr, bke::AttrDomain::Curve))
   {
     u_scale.span[target_curve_index] = 1.0f;
     u_scale.finish();
-    curve_attributes_to_skip.add("u_scale");
+    curve_attributes_to_skip.add("u_scale"_ustr);
   }
 
   curves.curve_types_for_write()[target_curve_index] = CURVE_TYPE_POLY;
   curves.update_curve_types();
-  curve_attributes_to_skip.add("curve_type");
+  curve_attributes_to_skip.add("curve_type"_ustr);
 
   /* Initialize the rest of the attributes with default values. */
   bke::fill_attribute_range_default(attributes,

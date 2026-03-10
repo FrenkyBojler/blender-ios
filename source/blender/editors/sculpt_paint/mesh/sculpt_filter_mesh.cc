@@ -527,8 +527,10 @@ static void calc_inflate_filter(const Depsgraph &depsgraph,
     case bke::pbvh::Type::Mesh: {
       Mesh &mesh = *id_cast<Mesh *>(object.data);
       bke::AttributeAccessor attributes = mesh.attributes();
-      const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
-      const VArraySpan mask = *attributes.lookup<float>(".sculpt_mask", bke::AttrDomain::Point);
+      const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert"_ustr,
+                                                            bke::AttrDomain::Point);
+      const VArraySpan mask = *attributes.lookup<float>(".sculpt_mask"_ustr,
+                                                        bke::AttrDomain::Point);
       const PositionDeformData position_data(depsgraph, object);
       threading::EnumerableThreadSpecific<LocalData> all_tls;
       MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
@@ -1051,7 +1053,7 @@ static void calc_relax_filter(const Depsgraph &depsgraph,
       const Span<int> corner_verts = base_mesh.corner_verts();
       const GroupedSpan<int> vert_to_face_map = base_mesh.vert_to_face_map();
       const bke::AttributeAccessor attributes = base_mesh.attributes();
-      const VArraySpan face_sets = *attributes.lookup<int>(".sculpt_face_set",
+      const VArraySpan face_sets = *attributes.lookup<int>(".sculpt_face_set"_ustr,
                                                            bke::AttrDomain::Face);
       SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
       threading::EnumerableThreadSpecific<LocalData> all_tls;
@@ -1215,7 +1217,7 @@ static void calc_relax_face_sets_filter(const Depsgraph &depsgraph,
       const Span<int> corner_verts = base_mesh.corner_verts();
       const GroupedSpan<int> vert_to_face_map = base_mesh.vert_to_face_map();
       const bke::AttributeAccessor attributes = base_mesh.attributes();
-      const VArraySpan face_sets = *attributes.lookup<int>(".sculpt_face_set",
+      const VArraySpan face_sets = *attributes.lookup<int>(".sculpt_face_set"_ustr,
                                                            bke::AttrDomain::Face);
 
       SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;

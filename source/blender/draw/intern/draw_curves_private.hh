@@ -178,12 +178,12 @@ struct CurvesEvalCache {
   /* --- Generic Attributes. --- */
 
   /** Attributes currently being drawn or about to be drawn. */
-  VectorSet<std::string> attr_used;
+  VectorSet<UString> attr_used;
   /**
    * Attributes that were used at some point. This is used for garbage collection, to remove
    * attributes that are not used in shaders anymore due to user edits.
    */
-  VectorSet<std::string> attr_used_over_time;
+  VectorSet<UString> attr_used_over_time;
   /**
    * The last time in seconds that the `attr_used` and `attr_used_over_time` were exactly the same.
    * If the delta between this time and the current scene time is greater than the timeout set in
@@ -202,7 +202,7 @@ struct CurvesEvalCache {
 
   void ensure_attribute(struct CurvesModule &module,
                         const bke::CurvesGeometry &curves,
-                        StringRef name,
+                        UString name,
                         int index);
   void ensure_attributes(struct CurvesModule &module,
                          const bke::CurvesGeometry &curves,
@@ -235,7 +235,7 @@ struct CurvesEvalCache {
   void ensure_attribute(CurvesModule &module,
                         ParticleDrawSource &src,
                         const Mesh &mesh,
-                        const StringRef name,
+                        const UString name,
                         const int index);
   void ensure_attributes(CurvesModule &module,
                          ParticleDrawSource &src,
@@ -265,7 +265,7 @@ void curves_bind_resources(draw::PassMain::Sub &sub_ps,
                            const int face_per_segment,
                            GPUMaterial *gpu_material,
                            gpu::VertBufPtr &indirection_buf,
-                           std::optional<StringRef> active_uv_name);
+                           std::optional<UString> active_uv_name);
 
 void curves_bind_resources(draw::PassSimple::Sub &sub_ps,
                            CurvesModule &module,
@@ -273,7 +273,7 @@ void curves_bind_resources(draw::PassSimple::Sub &sub_ps,
                            const int face_per_segment,
                            GPUMaterial *gpu_material,
                            gpu::VertBufPtr &indirection_buf,
-                           std::optional<StringRef> active_uv_name);
+                           std::optional<UString> active_uv_name);
 
 }  // namespace draw
 }  // namespace blender

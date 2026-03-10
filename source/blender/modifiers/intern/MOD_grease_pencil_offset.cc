@@ -128,7 +128,7 @@ static void modify_stroke_random(const Object &ob,
   const OffsetIndices<int> points_by_curve = curves.points_by_curve();
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
   bke::SpanAttributeWriter<float> radii = attributes.lookup_or_add_for_write_span<float>(
-      "radius", bke::AttrDomain::Point);
+      "radius"_ustr, bke::AttrDomain::Point);
   const MutableSpan<float3> positions = curves.positions_for_write();
   const VArray<float> vgroup_weights = modifier::greasepencil::get_influence_vertex_weights(
       curves, omd.influence);
@@ -206,7 +206,7 @@ static void modify_stroke_by_index(const GreasePencilOffsetModifierData &omd,
   const OffsetIndices<int> points_by_curve = curves.points_by_curve();
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
   bke::SpanAttributeWriter<float> radii = attributes.lookup_or_add_for_write_span<float>(
-      "radius", bke::AttrDomain::Point);
+      "radius"_ustr, bke::AttrDomain::Point);
   const MutableSpan<float3> positions = curves.positions_for_write();
   const VArray<float> vgroup_weights = modifier::greasepencil::get_influence_vertex_weights(
       curves, omd.influence);
@@ -241,12 +241,12 @@ static void modify_stroke_by_material(const Object &ob,
   const OffsetIndices<int> points_by_curve = curves.points_by_curve();
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
   bke::SpanAttributeWriter<float> radii = attributes.lookup_or_add_for_write_span<float>(
-      "radius", bke::AttrDomain::Point);
+      "radius"_ustr, bke::AttrDomain::Point);
   const MutableSpan<float3> positions = curves.positions_for_write();
   const VArray<float> vgroup_weights = modifier::greasepencil::get_influence_vertex_weights(
       curves, omd.influence);
   const VArray<int> stroke_materials = *attributes.lookup_or_default<int>(
-      "material_index", bke::AttrDomain::Curve, 0);
+      "material_index"_ustr, bke::AttrDomain::Curve, 0);
 
   curves_mask.foreach_index(
       [&](const int64_t curve_i) {
@@ -276,7 +276,7 @@ static void modify_stroke_by_layer(const GreasePencilOffsetModifierData &omd,
   const OffsetIndices<int> points_by_curve = curves.points_by_curve();
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
   bke::SpanAttributeWriter<float> radii = attributes.lookup_or_add_for_write_span<float>(
-      "radius", bke::AttrDomain::Point);
+      "radius"_ustr, bke::AttrDomain::Point);
   const MutableSpan<float3> positions = curves.positions_for_write();
   const VArray<float> vgroup_weights = modifier::greasepencil::get_influence_vertex_weights(
       curves, omd.influence);

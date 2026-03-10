@@ -84,11 +84,11 @@ static void write_stroke_transforms(bke::greasepencil::Drawing &drawing,
 
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
   bke::SpanAttributeWriter<float> u_translations = attributes.lookup_or_add_for_write_span<float>(
-      "u_translation", bke::AttrDomain::Curve);
+      "u_translation"_ustr, bke::AttrDomain::Curve);
   bke::SpanAttributeWriter<float> rotations = attributes.lookup_or_add_for_write_span<float>(
-      "rotation", bke::AttrDomain::Point);
+      "rotation"_ustr, bke::AttrDomain::Point);
   bke::SpanAttributeWriter<float> u_scales = attributes.lookup_or_add_for_write_span<float>(
-      "u_scale", bke::AttrDomain::Curve, bke::AttributeInitValue(1.0f));
+      "u_scale"_ustr, bke::AttrDomain::Curve, bke::AttributeInitValue(1.0f));
   if (!u_translations || !rotations || !u_scales) {
     return;
   }

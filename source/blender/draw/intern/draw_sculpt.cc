@@ -153,7 +153,7 @@ Vector<SculptBatch> sculpt_batches_get(const Object *ob, SculptBatchFeature feat
   }
 
   if (features & SCULPT_BATCH_UV) {
-    const StringRef uv_name = mesh->active_uv_map_name();
+    const UString uv_name = mesh->active_uv_map_name();
     if (!uv_name.is_empty()) {
       attrs.append(pbvh::GenericRequest(uv_name));
     }
@@ -168,7 +168,7 @@ Vector<SculptBatch> sculpt_batches_per_material_get(const Object *ob,
   BLI_assert(ob->type == OB_MESH);
   const Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(*ob);
 
-  VectorSet<std::string> draw_attrs;
+  VectorSet<UString> draw_attrs;
   DRW_MeshCDMask cd_needed;
   DRW_mesh_get_attributes(*ob, mesh, materials, &draw_attrs, &cd_needed);
 
@@ -177,11 +177,11 @@ Vector<SculptBatch> sculpt_batches_per_material_get(const Object *ob,
   attrs.append(pbvh::CustomRequest::Position);
   attrs.append(pbvh::CustomRequest::Normal);
 
-  for (const StringRef name : draw_attrs) {
+  for (const UString name : draw_attrs) {
     attrs.append(pbvh::GenericRequest(name));
   }
 
-  for (const StringRef name : cd_needed.uv) {
+  for (const UString name : cd_needed.uv) {
     attrs.append(pbvh::GenericRequest(name));
   }
 

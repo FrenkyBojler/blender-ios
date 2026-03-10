@@ -2085,7 +2085,7 @@ static void emit_from_mesh(
     const int numverts = mesh->verts_num;
     const MDeformVert *dvert = mesh->deform_verts().data();
     const bke::AttributeAccessor attributes = mesh->attributes();
-    const VArraySpan uv_map = *attributes.lookup<float2>(ffs->uvlayer_name,
+    const VArraySpan uv_map = *attributes.lookup<float2>(UString(ffs->uvlayer_name),
                                                          bke::AttrDomain::Corner);
 
     if (ffs->flags & FLUID_FLOW_INITVELOCITY) {
@@ -3194,7 +3194,7 @@ static Mesh *create_liquid_geometry(FluidDomainSettings *fds,
   float cell_size_scaled[3];
 
   const AttributeAccessor orig_attributes = orgmesh->attributes();
-  const VArraySpan orig_material_indices = *orig_attributes.lookup<int>("material_index",
+  const VArraySpan orig_material_indices = *orig_attributes.lookup<int>("material_index"_ustr,
                                                                         AttrDomain::Face);
   const short mp_mat_nr = orig_material_indices.is_empty() ? 0 : orig_material_indices[0];
 
@@ -3227,7 +3227,7 @@ static Mesh *create_liquid_geometry(FluidDomainSettings *fds,
 
   if (orgmesh->attributes().domain_size(AttrDomain::Face) > 0) {
     const bool is_sharp = orgmesh->attributes()
-                              .lookup_or_default<bool>("sharp_face", AttrDomain::Face, false)
+                              .lookup_or_default<bool>("sharp_face"_ustr, AttrDomain::Face, false)
                               .varray[0];
     mesh_smooth_set(*mesh, !is_sharp);
   }
@@ -3260,7 +3260,7 @@ static Mesh *create_liquid_geometry(FluidDomainSettings *fds,
   float time_mult = fds->dx / (DT_DEFAULT * (25.0f / scene->frames_per_second()));
 
   if (use_speedvectors) {
-    velocities = attributes.lookup_or_add_for_write_only_span<float3>("velocity",
+    velocities = attributes.lookup_or_add_for_write_only_span<float3>("velocity"_ustr,
                                                                       AttrDomain::Point);
   }
 
@@ -3314,7 +3314,7 @@ static Mesh *create_liquid_geometry(FluidDomainSettings *fds,
   }
 
   bke::SpanAttributeWriter material_indices = attributes.lookup_or_add_for_write_span<int>(
-      "material_index", AttrDomain::Face);
+      "material_index"_ustr, AttrDomain::Face);
 
   /* Loop for triangles. */
   for (const int i : face_offsets.index_range().drop_back(1)) {

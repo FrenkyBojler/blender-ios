@@ -37,7 +37,7 @@ static VArray<bool> select_by_material(const Span<Material *> materials,
   }
 
   const VArray<int> material_indices = *attributes.lookup_or_default<int>(
-      "material_index", domain, 0);
+      "material_index"_ustr, domain, 0);
   if (const std::optional<int> single = material_indices.get_if_single()) {
     return VArray<bool>::from_single(slots.contains(*single), domain_size);
   }
@@ -92,7 +92,7 @@ class MaterialSelectionFieldInput final : public bke::GeometryFieldInput {
                                           IndexMask(curves->curves_num());
         const AttributeAccessor attributes = curves->attributes();
         const VArray<int> material_indices = *attributes.lookup_or_default<int>(
-            "material_index", AttrDomain::Curve, 0);
+            "material_index"_ustr, AttrDomain::Curve, 0);
         const GreasePencil &grease_pencil = *context.grease_pencil();
         VArray<bool> selection = select_by_material(
             {grease_pencil.material_array, grease_pencil.material_array_num},
@@ -117,7 +117,7 @@ class MaterialSelectionFieldInput final : public bke::GeometryFieldInput {
                                           IndexMask(curves->curves_num());
         const AttributeAccessor attributes = curves->attributes();
         const VArray<int> material_indices = *attributes.lookup_or_default<int>(
-            "material_index", AttrDomain::Curve, 0);
+            "material_index"_ustr, AttrDomain::Curve, 0);
         VArray<bool> selection = select_by_material({curves_id->mat, curves_id->totcol},
                                                     material_,
                                                     attributes,

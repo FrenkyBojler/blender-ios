@@ -145,7 +145,7 @@ void RE_bake_margin(ImBuf *ibuf,
                     const int margin,
                     const char margin_type,
                     const Mesh *mesh,
-                    const StringRef uv_layer,
+                    const UString uv_layer,
                     const float uv_offset[2])
 {
   /* margin */
@@ -458,8 +458,8 @@ static TriTessFace *mesh_calc_tri_tessface(Mesh *mesh, bool tangent, Mesh *mesh_
   const OffsetIndices faces = mesh->faces();
   const Span<int> corner_verts = mesh->corner_verts();
   const bke::AttributeAccessor attributes = mesh->attributes();
-  const VArray<bool> sharp_faces =
-      attributes.lookup_or_default<bool>("sharp_face", bke::AttrDomain::Face, false).varray;
+  const VArray<bool> sharp_faces = *attributes.lookup_or_default<bool>(
+      "sharp_face"_ustr, bke::AttrDomain::Face, false);
 
   int3 *corner_tris = MEM_new_array_uninitialized<int3>(tottri, __func__);
   triangles = MEM_new_array_zeroed<TriTessFace>(tottri, __func__);
@@ -481,7 +481,7 @@ static TriTessFace *mesh_calc_tri_tessface(Mesh *mesh, bool tangent, Mesh *mesh_
   Array<float4> tspace;
   Span<float3> corner_normals;
   if (tangent) {
-    const StringRef active_uv_map = mesh_eval->active_uv_map_name();
+    const UString active_uv_map = mesh_eval->active_uv_map_name();
     const VArraySpan uv_map = *attributes.lookup<float2>(active_uv_map, bke::AttrDomain::Corner);
     Array<Array<float4>> result = bke::mesh::calc_uv_tangents(positions,
                                                               faces,
@@ -710,12 +710,12 @@ void RE_bake_pixels_populate(Mesh *mesh,
                              BakePixel pixel_array[],
                              const size_t pixels_num,
                              const BakeTargets *targets,
-                             const StringRef uv_layer)
+                             const UString uv_layer)
 {
   const bke::AttributeAccessor attributes = mesh->attributes();
   VArraySpan<float2> uv_map;
   if (uv_layer.is_empty()) {
-    const StringRef active_layer_name = mesh->active_uv_map_name();
+    const UString active_layer_name = mesh->active_uv_map_name();
     uv_map = *attributes.lookup<float2>(active_layer_name, bke::AttrDomain::Corner);
   }
   else {
@@ -747,7 +747,7 @@ void RE_bake_pixels_populate(Mesh *mesh,
       mesh->vert_positions(), mesh->faces(), mesh->corner_verts(), {corner_tris, tottri});
 
   const Span<int> tri_faces = mesh->corner_tri_faces();
-  const VArraySpan material_indices = *attributes.lookup<int>("material_index",
+  const VArraySpan material_indices = *attributes.lookup<int>("material_index"_ustr,
                                                               bke::AttrDomain::Face);
 
   const int materials_num = targets->materials_num;

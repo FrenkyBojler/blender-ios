@@ -754,7 +754,7 @@ static int gizmo_3d_foreach_selected(const bContext *C,
         const IndexMask bezier_points = bke::curves::curve_type_point_selection(
             curves, CURVE_TYPE_BEZIER, memory);
 
-        auto run_points = [&](const Span<float3> positions, const StringRef selection_name) {
+        auto run_points = [&](const Span<float3> positions, const UString selection_name) {
           const IndexMask selected_points = ed::curves::retrieve_selected_points(
               curves, selection_name, bezier_points, memory);
 
@@ -764,11 +764,11 @@ static int gizmo_3d_foreach_selected(const bContext *C,
           });
         };
 
-        run_points(deformation.positions, ".selection");
+        run_points(deformation.positions, ".selection"_ustr);
 
         if (curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
-          run_points(*curves.handle_positions_left(), ".selection_handle_left");
-          run_points(*curves.handle_positions_right(), ".selection_handle_right");
+          run_points(*curves.handle_positions_left(), ".selection_handle_left"_ustr);
+          run_points(*curves.handle_positions_right(), ".selection_handle_right"_ustr);
         }
       }
       FOREACH_EDIT_OBJECT_END();
@@ -784,7 +784,7 @@ static int gizmo_3d_foreach_selected(const bContext *C,
 
         const bke::AttributeAccessor attributes = pointcloud.attributes();
         const VArray selection = *attributes.lookup_or_default<bool>(
-            ".selection", bke::AttrDomain::Point, true);
+            ".selection"_ustr, bke::AttrDomain::Point, true);
 
         IndexMaskMemory memory;
         const IndexMask mask = IndexMask::from_bools(selection, memory);
@@ -824,7 +824,7 @@ static int gizmo_3d_foreach_selected(const bContext *C,
               const IndexMask bezier_points = bke::curves::curve_type_point_selection(
                   curves, CURVE_TYPE_BEZIER, memory);
 
-              auto run_points = [&](const Span<float3> positions, const StringRef selection_name) {
+              auto run_points = [&](const Span<float3> positions, const UString selection_name) {
                 const IndexMask selected_points = ed::curves::retrieve_selected_points(
                     curves, selection_name, bezier_points, memory);
                 const IndexMask selected_editable_points = IndexMask::from_intersection(
@@ -836,11 +836,11 @@ static int gizmo_3d_foreach_selected(const bContext *C,
                 });
               };
 
-              run_points(deformation.positions, ".selection");
+              run_points(deformation.positions, ".selection"_ustr);
 
               if (curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
-                run_points(*curves.handle_positions_left(), ".selection_handle_left");
-                run_points(*curves.handle_positions_right(), ".selection_handle_right");
+                run_points(*curves.handle_positions_left(), ".selection_handle_left"_ustr);
+                run_points(*curves.handle_positions_right(), ".selection_handle_right"_ustr);
               }
             });
       }

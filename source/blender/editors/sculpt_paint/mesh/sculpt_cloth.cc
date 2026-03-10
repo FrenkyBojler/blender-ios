@@ -518,15 +518,15 @@ void ensure_nodes_constraints(const Sculpt &sd,
       const Span<int> corner_verts = mesh.corner_verts();
       const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
       const bke::AttributeAccessor attributes = mesh.attributes();
-      const VArraySpan<bool> hide_vert = *attributes.lookup<bool>(".hide_vert",
+      const VArraySpan<bool> hide_vert = *attributes.lookup<bool>(".hide_vert"_ustr,
                                                                   bke::AttrDomain::Point);
-      const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly",
+      const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly"_ustr,
                                                                   bke::AttrDomain::Face);
 
       Span<float3> init_positions;
       VArraySpan<float3> persistent_position;
       if (brush != nullptr && brush->flag & BRUSH_PERSISTENT) {
-        persistent_position = *attributes.lookup<float3>(".sculpt_persistent_co",
+        persistent_position = *attributes.lookup<float3>(".sculpt_persistent_co"_ustr,
                                                          bke::AttrDomain::Point);
       }
       if (persistent_position.is_empty()) {
@@ -2375,7 +2375,7 @@ static wmOperatorStatus sculpt_cloth_filter_modal(bContext *C,
     case bke::pbvh::Type::Grids: {
       const Mesh &base_mesh = *id_cast<const Mesh *>(object.data);
       const bke::AttributeAccessor attributes = base_mesh.attributes();
-      const VArraySpan face_sets = *attributes.lookup<int>(".sculpt_face_set",
+      const VArraySpan face_sets = *attributes.lookup<int>(".sculpt_face_set"_ustr,
                                                            bke::AttrDomain::Face);
       SubdivCCG &subdiv_ccg = *object.runtime->sculpt_session->subdiv_ccg;
       MutableSpan<float3> positions = subdiv_ccg.positions;

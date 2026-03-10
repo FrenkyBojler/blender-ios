@@ -6351,12 +6351,12 @@ static bool edbm_select_by_attribute_poll(bContext *C)
   Object *obedit = CTX_data_edit_object(C);
   const Mesh *mesh = id_cast<const Mesh *>(obedit->data);
   AttributeOwner owner = AttributeOwner::from_id(&const_cast<ID &>(mesh->id));
-  const std::optional<StringRef> name = BKE_attributes_active_name_get(owner);
+  const std::optional<UString> name = BKE_attributes_active_name_get(owner);
   if (!name) {
     CTX_wm_operator_poll_msg_set(C, "There must be an active attribute");
     return false;
   }
-  const BMDataLayerLookup attr = BM_data_layer_lookup(*mesh->runtime->edit_mesh->bm, *name);
+  const BMDataLayerLookup attr = BM_data_layer_lookup(*mesh->runtime->edit_mesh->bm, name->ref());
   if (attr.type != bke::AttrType::Bool) {
     CTX_wm_operator_poll_msg_set(C, "The active attribute must have a boolean type");
     return false;
@@ -6394,11 +6394,11 @@ static wmOperatorStatus edbm_select_by_attribute_exec(bContext *C, wmOperator * 
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     BMesh *bm = em->bm;
     AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
-    const std::optional<StringRef> name = BKE_attributes_active_name_get(owner);
+    const std::optional<UString> name = BKE_attributes_active_name_get(owner);
     if (!name) {
       continue;
     }
-    const BMDataLayerLookup attr = BM_data_layer_lookup(*bm, *name);
+    const BMDataLayerLookup attr = BM_data_layer_lookup(*bm, name->ref());
     if (!attr) {
       continue;
     }

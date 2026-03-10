@@ -102,7 +102,7 @@ static void modify_stroke_color(Object &ob,
 
   bke::AttributeAccessor attributes = curves.attributes();
   const VArray<int> stroke_materials = *attributes.lookup_or_default<int>(
-      "material_index", bke::AttrDomain::Curve, 0);
+      "material_index"_ustr, bke::AttrDomain::Curve, 0);
 
   curves_mask.foreach_index(
       [&](const int64_t curve_i) {
@@ -140,7 +140,7 @@ static void modify_fill_color(Object &ob,
   /* Fill color per stroke. */
   MutableSpan<ColorGeometry4f> fill_colors = drawing.fill_colors_for_write();
   const VArray<int> stroke_materials = *attributes.lookup_or_default<int>(
-      "material_index", bke::AttrDomain::Curve, 0);
+      "material_index"_ustr, bke::AttrDomain::Curve, 0);
 
   curves_mask.foreach_index(
       [&](int64_t curve_i) {

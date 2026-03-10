@@ -50,7 +50,7 @@ static void set_curve_normal(bke::CurvesGeometry &curves,
   if (mode == NORMAL_MODE_FREE) {
     bke::try_capture_field_on_geometry(curves.attributes_for_write(),
                                        point_context,
-                                       "custom_normal",
+                                       "custom_normal"_ustr,
                                        AttrDomain::Point,
                                        Field<bool>(std::make_shared<bke::EvaluateOnDomainInput>(
                                            selection_field, AttrDomain::Curve)),

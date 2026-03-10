@@ -51,7 +51,7 @@ static bool attribute_search_item_add(SearchItems *items, const GeometryAttribut
   std::string search_item_text = fmt::format(
       "{} " UI_MENU_ARROW_SEP "{}" UI_SEP_CHAR_S "{}",
       attribute_domain_string(*item.domain),
-      item.name,
+      item.name.ref(),
       attribute_data_type_string(*bke::attr_type_to_custom_data_type(*item.data_type)));
   return search_item_add(items, search_item_text, (void *)&item, ICON_NONE, BUT_HAS_SEP_CHAR, 0);
 }
@@ -74,7 +74,7 @@ void attribute_search_add_items(StringRef str,
       }
     }
     if (!contained) {
-      dummy_info.name = str;
+      dummy_info.name = UString(str);
       search_item_add(
           seach_items, str, &dummy_info, can_create_attribute ? ICON_ADD : ICON_NONE, 0, 0);
     }
@@ -83,7 +83,7 @@ void attribute_search_add_items(StringRef str,
   if (str.is_empty() && !is_first) {
     /* Allow clearing the text field when the string is empty, but not on the first pass,
      * or opening an attribute field for the first time would show this search item. */
-    dummy_info.name = str;
+    dummy_info.name = UString(str);
     search_item_add(seach_items, str, &dummy_info, ICON_X, 0, 0);
   }
 
@@ -93,10 +93,10 @@ void attribute_search_add_items(StringRef str,
 
   string_search::StringSearch<const GeometryAttributeInfo> search;
   for (const GeometryAttributeInfo *item : infos) {
-    if (!bke::allow_procedural_attribute_access(item->name)) {
+    if (!bke::allow_procedural_attribute_access(item->name.ref())) {
       continue;
     }
-    search.add(item->name, item);
+    search.add(item->name.ref(), item);
   }
 
   const Vector<const GeometryAttributeInfo *> filtered_items = search.query(string);

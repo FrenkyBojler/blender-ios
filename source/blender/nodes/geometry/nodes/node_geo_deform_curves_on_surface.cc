@@ -231,8 +231,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
   /* Take surface information from self-object. */
   Object *surface_ob_eval = self_curves_eval->surface;
-  const StringRefNull uv_map_name = self_curves_eval->surface_uv_map;
-  const StringRefNull rest_position_name = "rest_position";
+  const UString uv_map_name(self_curves_eval->surface_uv_map);
+  const UString rest_position_name("rest_position");
 
   if (!curves_geometry.has_curves()) {
     pass_through_input();
@@ -271,14 +271,14 @@ static void node_geo_exec(GeoNodeExecParams params)
   if (!mesh_attributes_eval.contains(uv_map_name)) {
     pass_through_input();
     const std::string message = fmt::format(
-        fmt::runtime(TIP_("Evaluated surface missing UV map: \"{}\"")), uv_map_name);
+        fmt::runtime(TIP_("Evaluated surface missing UV map: \"{}\"")), uv_map_name.ref());
     params.error_message_add(NodeWarningType::Error, message);
     return;
   }
   if (!mesh_attributes_orig.contains(uv_map_name)) {
     pass_through_input();
     const std::string message = fmt::format(
-        fmt::runtime(TIP_("Original surface missing UV map: \"{}\"")), uv_map_name);
+        fmt::runtime(TIP_("Original surface missing UV map: \"{}\"")), uv_map_name.ref());
     params.error_message_add(NodeWarningType::Error, message);
     return;
   }
@@ -301,7 +301,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const VArraySpan rest_positions = *mesh_attributes_eval.lookup<float3>(rest_position_name,
                                                                          AttrDomain::Point);
   const VArraySpan surface_uv_coords = *curves.attributes().lookup_or_default<float2>(
-      "surface_uv_coordinate", AttrDomain::Curve, float2(0));
+      "surface_uv_coordinate"_ustr, AttrDomain::Curve, float2(0));
 
   const Span<int3> corner_tris_orig = surface_mesh_orig->corner_tris();
   const Span<int3> corner_tris_eval = surface_mesh_eval->corner_tris();
@@ -366,7 +366,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     /* Then also deform edit curve information for use in sculpt mode. */
     const CurvesGeometry &curves_orig = edit_hints->curves_id_orig.geometry.wrap();
     const VArraySpan<float2> surface_uv_coords_orig = *curves_orig.attributes().lookup_or_default(
-        "surface_uv_coordinate", AttrDomain::Curve, float2(0));
+        "surface_uv_coordinate"_ustr, AttrDomain::Curve, float2(0));
     if (!surface_uv_coords_orig.is_empty()) {
       deform_curves(curves_orig,
                     *surface_mesh_orig,

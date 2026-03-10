@@ -65,7 +65,7 @@ class AttributeTexts : Overlay {
 
     if (ob_ref.preview_instance_index() >= 0) {
       const bke::Instances *instances = ob_ref.preview_base_geometry()->get_instances();
-      if (instances->attributes().contains(".viewer")) {
+      if (instances->attributes().contains(".viewer"_ustr)) {
         add_instance_attributes_to_text_cache(
             dt, instances->attributes(), object_to_world, ob_ref.preview_instance_index());
 
@@ -106,12 +106,12 @@ class AttributeTexts : Overlay {
                                     bke::AttributeAccessor attribute_accessor,
                                     const float4x4 &object_to_world)
   {
-    if (!attribute_accessor.contains(".viewer")) {
+    if (!attribute_accessor.contains(".viewer"_ustr)) {
       return;
     }
 
-    const bke::GAttributeReader attribute = attribute_accessor.lookup(".viewer");
-    const VArraySpan<float3> positions = *attribute_accessor.lookup<float3>("position",
+    const bke::GAttributeReader attribute = attribute_accessor.lookup(".viewer"_ustr);
+    const VArraySpan<float3> positions = *attribute_accessor.lookup<float3>("position"_ustr,
                                                                             attribute.domain);
 
     add_values_to_text_cache(dt, attribute.varray, positions, object_to_world);
@@ -122,13 +122,13 @@ class AttributeTexts : Overlay {
                                          const float4x4 &object_to_world)
   {
     const bke::AttributeAccessor attributes = mesh.attributes();
-    if (!attributes.contains(".viewer")) {
+    if (!attributes.contains(".viewer"_ustr)) {
       return;
     }
 
-    const bke::GAttributeReader attribute = attributes.lookup(".viewer");
+    const bke::GAttributeReader attribute = attributes.lookup(".viewer"_ustr);
     const bke::AttrDomain domain = attribute.domain;
-    const VArraySpan<float3> positions = *attributes.lookup<float3>("position", domain);
+    const VArraySpan<float3> positions = *attributes.lookup<float3>("position"_ustr, domain);
 
     if (domain == bke::AttrDomain::Corner) {
       const CPPType &type = attribute.varray.type();
@@ -181,8 +181,8 @@ class AttributeTexts : Overlay {
   {
     /* Data from instances are read as a single value from a given index. The data is converted
      * back to an array so one function can handle both instance and object data. */
-    const GVArray attribute = attribute_accessor.lookup(".viewer").varray.slice(
-        IndexRange(instance_index, 1));
+    const GVArray attribute =
+        attribute_accessor.lookup(".viewer"_ustr).varray.slice(IndexRange(instance_index, 1));
 
     add_values_to_text_cache(dt, attribute, {float3(0, 0, 0)}, object_to_world);
   }

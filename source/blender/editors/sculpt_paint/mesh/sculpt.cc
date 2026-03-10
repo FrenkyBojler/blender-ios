@@ -206,7 +206,8 @@ int active_face_set_get(const Object &object)
     case bke::pbvh::Type::Mesh: {
       const Mesh &mesh = *id_cast<const Mesh *>(object.data);
       const bke::AttributeAccessor attributes = mesh.attributes();
-      const VArray face_sets = *attributes.lookup<int>(".sculpt_face_set", bke::AttrDomain::Face);
+      const VArray face_sets = *attributes.lookup<int>(".sculpt_face_set"_ustr,
+                                                       bke::AttrDomain::Face);
       if (!face_sets || !ss.active_face_index) {
         return face_set_none_id;
       }
@@ -215,7 +216,8 @@ int active_face_set_get(const Object &object)
     case bke::pbvh::Type::Grids: {
       const Mesh &mesh = *id_cast<const Mesh *>(object.data);
       const bke::AttributeAccessor attributes = mesh.attributes();
-      const VArray face_sets = *attributes.lookup<int>(".sculpt_face_set", bke::AttrDomain::Face);
+      const VArray face_sets = *attributes.lookup<int>(".sculpt_face_set"_ustr,
+                                                       bke::AttrDomain::Face);
       if (!face_sets || !ss.active_grid_index) {
         return face_set_none_id;
       }
@@ -913,7 +915,7 @@ static void restore_mask_from_undo_step(Object &object)
       Mesh &mesh = *id_cast<Mesh *>(object.data);
       bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
       bke::SpanAttributeWriter<float> mask = attributes.lookup_or_add_for_write_span<float>(
-          ".sculpt_mask", bke::AttrDomain::Point);
+          ".sculpt_mask"_ustr, bke::AttrDomain::Point);
       node_mask.foreach_index(
           [&](const int i) {
             if (const std::optional<Span<float>> orig_data = orig_mask_data_lookup_mesh(object,
@@ -1802,7 +1804,8 @@ void calc_area_center(const Depsgraph &depsgraph,
       const Span<float3> vert_positions = bke::pbvh::vert_positions_eval(depsgraph, ob);
       const Span<float3> vert_normals = bke::pbvh::vert_normals_eval(depsgraph, ob);
       const bke::AttributeAccessor attributes = mesh.attributes();
-      const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
+      const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert"_ustr,
+                                                            bke::AttrDomain::Point);
 
       const Span<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
       anctd = threading::parallel_reduce(
@@ -1902,7 +1905,8 @@ std::optional<float3> calc_area_normal(const Depsgraph &depsgraph,
       const Span<float3> vert_positions = bke::pbvh::vert_positions_eval(depsgraph, ob);
       const Span<float3> vert_normals = bke::pbvh::vert_normals_eval(depsgraph, ob);
       const bke::AttributeAccessor attributes = mesh.attributes();
-      const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
+      const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert"_ustr,
+                                                            bke::AttrDomain::Point);
 
       const Span<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
       anctd = threading::parallel_reduce(
@@ -2100,7 +2104,8 @@ void calc_area_normal_and_center(const Depsgraph &depsgraph,
       const Span<float3> vert_positions = bke::pbvh::vert_positions_eval(depsgraph, ob);
       const Span<float3> vert_normals = bke::pbvh::vert_normals_eval(depsgraph, ob);
       const bke::AttributeAccessor attributes = mesh.attributes();
-      const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
+      const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert"_ustr,
+                                                            bke::AttrDomain::Point);
 
       const Span<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
       anctd = threading::parallel_reduce(
@@ -4634,7 +4639,7 @@ std::optional<ActiveElementInfo> active_element_info_get(ViewContext &vc, const 
     srd.corner_verts = mesh.corner_verts();
     srd.corner_tris = mesh.corner_tris();
     const bke::AttributeAccessor attributes = mesh.attributes();
-    srd.hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
+    srd.hide_poly = *attributes.lookup<bool>(".hide_poly"_ustr, bke::AttrDomain::Face);
   }
   else if (pbvh->type() == bke::pbvh::Type::Grids) {
     srd.subdiv_ccg = ss.subdiv_ccg;
@@ -4724,7 +4729,7 @@ bool cursor_geometry_info_update(Depsgraph &depsgraph,
     srd.corner_verts = mesh.corner_verts();
     srd.corner_tris = mesh.corner_tris();
     const bke::AttributeAccessor attributes = mesh.attributes();
-    srd.hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
+    srd.hide_poly = *attributes.lookup<bool>(".hide_poly"_ustr, bke::AttrDomain::Face);
   }
   else if (pbvh->type() == bke::pbvh::Type::Grids) {
     srd.subdiv_ccg = ss.subdiv_ccg;
@@ -4866,7 +4871,7 @@ static bool stroke_get_location_bvh_ex(Depsgraph &depsgraph,
       rd.corner_verts = mesh.corner_verts();
       rd.corner_tris = mesh.corner_tris();
       const bke::AttributeAccessor attributes = mesh.attributes();
-      rd.hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
+      rd.hide_poly = *attributes.lookup<bool>(".hide_poly"_ustr, bke::AttrDomain::Face);
     }
     else if (pbvh.type() == bke::pbvh::Type::Grids) {
       rd.subdiv_ccg = ss.subdiv_ccg;
@@ -4904,7 +4909,7 @@ static bool stroke_get_location_bvh_ex(Depsgraph &depsgraph,
     fntrd.corner_verts = mesh.corner_verts();
     fntrd.corner_tris = mesh.corner_tris();
     const bke::AttributeAccessor attributes = mesh.attributes();
-    fntrd.hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
+    fntrd.hide_poly = *attributes.lookup<bool>(".hide_poly"_ustr, bke::AttrDomain::Face);
   }
   else if (pbvh.type() == bke::pbvh::Type::Grids) {
     fntrd.subdiv_ccg = ss.subdiv_ccg;
@@ -5301,7 +5306,7 @@ void flush_update_done(ViewContext &vc,
 
 /* Replace an entire attribute using implicit sharing to avoid copies when possible. */
 static void replace_attribute(const bke::AttributeAccessor src_attributes,
-                              const StringRef name,
+                              const UString name,
                               const bke::AttrDomain domain,
                               const bke::AttrType data_type,
                               bke::MutableAttributeAccessor dst_attributes)
@@ -5323,7 +5328,7 @@ static void replace_attribute(const bke::AttributeAccessor src_attributes,
 
 static bool attribute_matches(const bke::AttributeAccessor a,
                               const bke::AttributeAccessor b,
-                              const StringRef name)
+                              const UString name)
 {
   const bke::GAttributeReader a_attr = a.lookup(name);
   const bke::GAttributeReader b_attr = b.lookup(name);
@@ -5345,9 +5350,9 @@ static bool topology_matches(const Mesh &a, const Mesh &b)
   }
   const bke::AttributeAccessor a_attributes = a.attributes();
   const bke::AttributeAccessor b_attributes = b.attributes();
-  if (!attribute_matches(a_attributes, b_attributes, ".edge_verts") ||
-      !attribute_matches(a_attributes, b_attributes, ".corner_vert") ||
-      !attribute_matches(a_attributes, b_attributes, ".corner_edge"))
+  if (!attribute_matches(a_attributes, b_attributes, ".edge_verts"_ustr) ||
+      !attribute_matches(a_attributes, b_attributes, ".corner_vert"_ustr) ||
+      !attribute_matches(a_attributes, b_attributes, ".corner_edge"_ustr))
   {
     return false;
   }
@@ -5393,12 +5398,12 @@ void store_mesh_from_eval(const wmOperator &op,
   }
   else {
     /* Detect attributes present in the new mesh which no longer match the original. */
-    VectorSet<StringRef> vertex_group_names;
+    VectorSet<UString> vertex_group_names;
     for (const bDeformGroup &vertex_group : mesh.vertex_group_names) {
-      vertex_group_names.add(vertex_group.name);
+      vertex_group_names.add(UString(vertex_group.name));
     }
 
-    VectorSet<StringRef> changed_attributes;
+    VectorSet<UString> changed_attributes;
     new_mesh->attributes().foreach_attribute([&](const bke::AttributeIter &iter) {
       if (ELEM(iter.name, ".edge_verts", ".corner_vert", ".corner_edge")) {
         return;
@@ -5433,12 +5438,12 @@ void store_mesh_from_eval(const wmOperator &op,
     bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
     IndexMaskMemory memory;
     const IndexMask leaf_nodes = bke::pbvh::all_leaf_nodes(pbvh, memory);
-    if (changed_attributes.as_span() == Span<StringRef>{"position"}) {
+    if (changed_attributes.as_span() == Span<UString>{"position"_ustr}) {
       undo::push_begin(scene, object, &op);
       undo::push_nodes(depsgraph, object, leaf_nodes, undo::Type::Position);
       undo::push_end(object);
-      mesh.attribute_storage.wrap().remove("position");
-      const bke::AttributeReader position = new_mesh->attributes().lookup<float3>("position");
+      mesh.attribute_storage.wrap().remove("position"_ustr);
+      const bke::AttributeReader position = new_mesh->attributes().lookup<float3>("position"_ustr);
       if (position.sharing_info) {
         /* Use lower level API to add the position attribute to avoid copying the array and to
          * allow using #tag_positions_changed_no_normals instead of #tag_positions_changed (which
@@ -5448,7 +5453,7 @@ void store_mesh_from_eval(const wmOperator &op,
         data.size = position.varray.size();
         data.sharing_info = ImplicitSharingPtr<>(position.sharing_info);
         mesh.attribute_storage.wrap().add(
-            "position", bke::AttrDomain::Point, bke::AttrType::Float3, std::move(data));
+            "position"_ustr, bke::AttrDomain::Point, bke::AttrType::Float3, std::move(data));
       }
       else {
         mesh.vert_positions_for_write().copy_from(VArraySpan(*position));
@@ -5460,12 +5465,12 @@ void store_mesh_from_eval(const wmOperator &op,
       BKE_mesh_copy_parameters(&mesh, new_mesh);
       BKE_id_free(nullptr, new_mesh);
     }
-    else if (changed_attributes.as_span() == Span<StringRef>{".sculpt_mask"}) {
+    else if (changed_attributes.as_span() == Span<UString>{".sculpt_mask"_ustr}) {
       undo::push_begin(scene, object, &op);
       undo::push_nodes(depsgraph, object, leaf_nodes, undo::Type::Mask);
       undo::push_end(object);
       replace_attribute(new_mesh->attributes(),
-                        ".sculpt_mask",
+                        ".sculpt_mask"_ustr,
                         bke::AttrDomain::Point,
                         bke::AttrType::Float,
                         mesh.attributes_for_write());
@@ -5473,12 +5478,12 @@ void store_mesh_from_eval(const wmOperator &op,
       BKE_mesh_copy_parameters(&mesh, new_mesh);
       BKE_id_free(nullptr, new_mesh);
     }
-    else if (changed_attributes.as_span() == Span<StringRef>{".sculpt_face_set"}) {
+    else if (changed_attributes.as_span() == Span<UString>{".sculpt_face_set"_ustr}) {
       undo::push_begin(scene, object, &op);
       undo::push_nodes(depsgraph, object, leaf_nodes, undo::Type::FaceSet);
       undo::push_end(object);
       replace_attribute(new_mesh->attributes(),
-                        ".sculpt_face_set",
+                        ".sculpt_face_set"_ustr,
                         bke::AttrDomain::Face,
                         bke::AttrType::Int32,
                         mesh.attributes_for_write());
@@ -6307,7 +6312,7 @@ static void fake_neighbor_search(const Depsgraph &depsgraph,
       const Mesh &mesh = *id_cast<const Mesh *>(ob.data);
       const Span<float3> vert_positions = bke::pbvh::vert_positions_eval(depsgraph, ob);
       const bke::AttributeAccessor attributes = mesh.attributes();
-      const VArraySpan<bool> hide_vert = *attributes.lookup<bool>(".hide_vert",
+      const VArraySpan<bool> hide_vert = *attributes.lookup<bool>(".hide_vert"_ustr,
                                                                   bke::AttrDomain::Point);
       for (const int vert : vert_positions.index_range()) {
         if (fake_neighbors[vert] != FAKE_NEIGHBOR_NONE) {
@@ -6572,7 +6577,8 @@ static SculptTopologyIslandCache calc_topology_islands_mesh(const Mesh &mesh)
   const OffsetIndices<int> faces = mesh.faces();
   const Span<int> corner_verts = mesh.corner_verts();
   const bke::AttributeAccessor attributes = mesh.attributes();
-  const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
+  const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly"_ustr,
+                                                              bke::AttrDomain::Face);
   IndexMaskMemory memory;
   const IndexMask visible_faces = hide_poly.is_empty() ?
                                       IndexMask(faces.size()) :
@@ -6707,10 +6713,10 @@ namespace ed::sculpt_paint {
 MeshAttributeData::MeshAttributeData(const Mesh &mesh)
 {
   const bke::AttributeAccessor attributes = mesh.attributes();
-  this->mask = *attributes.lookup<float>(".sculpt_mask", bke::AttrDomain::Point);
-  this->hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
-  this->hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
-  this->face_sets = *attributes.lookup<int>(".sculpt_face_set", bke::AttrDomain::Face);
+  this->mask = *attributes.lookup<float>(".sculpt_mask"_ustr, bke::AttrDomain::Point);
+  this->hide_vert = *attributes.lookup<bool>(".hide_vert"_ustr, bke::AttrDomain::Point);
+  this->hide_poly = *attributes.lookup<bool>(".hide_poly"_ustr, bke::AttrDomain::Face);
+  this->face_sets = *attributes.lookup<int>(".sculpt_face_set"_ustr, bke::AttrDomain::Face);
 }
 
 void gather_bmesh_positions(const Set<BMVert *, 0> &verts, const MutableSpan<float3> positions)

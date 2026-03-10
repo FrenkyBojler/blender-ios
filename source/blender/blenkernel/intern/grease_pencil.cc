@@ -378,10 +378,10 @@ IDTypeInfo IDType_ID_GP = {
 };
 
 namespace bke::greasepencil {
-constexpr StringRef ATTR_RADIUS = "radius";
-constexpr StringRef ATTR_OPACITY = "opacity";
-constexpr StringRef ATTR_VERTEX_COLOR = "vertex_color";
-constexpr StringRef ATTR_FILL_COLOR = "fill_color";
+static UString ATTR_RADIUS = "radius"_ustr;
+static UString ATTR_OPACITY = "opacity"_ustr;
+static UString ATTR_VERTEX_COLOR = "vertex_color"_ustr;
+static UString ATTR_FILL_COLOR = "fill_color"_ustr;
 
 Drawing::Drawing()
 {
@@ -454,7 +454,7 @@ static void ensure_fill_cache(const Drawing &drawing)
     const CurvesGeometry &curves = drawing.strokes();
     const bke::AttributeAccessor attributes = curves.attributes();
 
-    const VArray<int> fill_ids = *attributes.lookup<int>("fill_id", bke::AttrDomain::Curve);
+    const VArray<int> fill_ids = *attributes.lookup<int>("fill_id"_ustr, bke::AttrDomain::Curve);
     r_fill_cache = fill_cache_from_fill_ids(fill_ids);
   });
 }
@@ -819,11 +819,11 @@ Span<float4x2> Drawing::texture_matrices() const
     const AttributeAccessor attributes = curves.attributes();
 
     const VArray<float> uv_rotations = *attributes.lookup_or_default<float>(
-        "uv_rotation", AttrDomain::Curve, 0.0f);
+        "uv_rotation"_ustr, AttrDomain::Curve, 0.0f);
     const VArray<float2> uv_translations = *attributes.lookup_or_default<float2>(
-        "uv_translation", AttrDomain::Curve, float2(0.0f, 0.0f));
+        "uv_translation"_ustr, AttrDomain::Curve, float2(0.0f, 0.0f));
     const VArray<float2> uv_scales = *attributes.lookup_or_default<float2>(
-        "uv_scale", AttrDomain::Curve, float2(1.0f, 1.0f));
+        "uv_scale"_ustr, AttrDomain::Curve, float2(1.0f, 1.0f));
 
     const OffsetIndices<int> points_by_curve = curves.points_by_curve();
     const Span<float3> positions = curves.positions();
@@ -852,11 +852,11 @@ void Drawing::set_texture_matrices(Span<float4x2> matrices, const IndexMask &sel
   CurvesGeometry &curves = this->strokes_for_write();
   MutableAttributeAccessor attributes = curves.attributes_for_write();
   SpanAttributeWriter<float> uv_rotations = attributes.lookup_or_add_for_write_span<float>(
-      "uv_rotation", AttrDomain::Curve);
+      "uv_rotation"_ustr, AttrDomain::Curve);
   SpanAttributeWriter<float2> uv_translations = attributes.lookup_or_add_for_write_span<float2>(
-      "uv_translation", AttrDomain::Curve);
+      "uv_translation"_ustr, AttrDomain::Curve);
   SpanAttributeWriter<float2> uv_scales = attributes.lookup_or_add_for_write_span<float2>(
-      "uv_scale", AttrDomain::Curve, AttributeInitValue(float2(1.0f, 1.0f)));
+      "uv_scale"_ustr, AttrDomain::Curve, AttributeInitValue(float2(1.0f, 1.0f)));
 
   if (!uv_rotations || !uv_translations || !uv_scales) {
     /* FIXME: It might be better to ensure the attributes exist and are on the right domain. */
@@ -2275,7 +2275,7 @@ std::optional<MutableSpan<float3>> GreasePencilDrawingEditHints::positions_for_w
  * \{ */
 
 bool BKE_grease_pencil_drawing_attribute_required(const GreasePencilDrawing * /*drawing*/,
-                                                  const StringRef name)
+                                                  const UString name)
 {
   return name == ATTR_POSITION;
 }
@@ -2493,9 +2493,9 @@ static void grease_pencil_do_layer_adjustments(GreasePencil &grease_pencil)
     }
   }
 
-  if (layer_attributes.contains("radius_offset")) {
+  if (layer_attributes.contains("radius_offset"_ustr)) {
     const VArray<float> radius_offsets = *layer_attributes.lookup_or_default<float>(
-        "radius_offset", bke::AttrDomain::Layer, 0.0f);
+        "radius_offset"_ustr, bke::AttrDomain::Layer, 0.0f);
     threading::parallel_for_each(drawing_infos, [&](LayerDrawingInfo &info) {
       if (radius_offsets[info.layer_index] == 0.0f) {
         return;
@@ -2509,13 +2509,13 @@ static void grease_pencil_do_layer_adjustments(GreasePencil &grease_pencil)
     });
   }
 
-  if (layer_attributes.contains("tint_color")) {
+  if (layer_attributes.contains("tint_color"_ustr)) {
     auto mix_tint = [](const float4 base, const float4 tint) -> float4 {
       return base * (1.0 - tint.w) + tint * tint.w;
     };
     const VArray<ColorGeometry4f> tint_colors =
         *layer_attributes.lookup_or_default<ColorGeometry4f>(
-            "tint_color", bke::AttrDomain::Layer, ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f));
+            "tint_color"_ustr, bke::AttrDomain::Layer, ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f));
     threading::parallel_for_each(drawing_infos, [&](LayerDrawingInfo &info) {
       if (tint_colors[info.layer_index].a == 0.0f) {
         return;
@@ -2583,7 +2583,9 @@ void BKE_object_eval_grease_pencil(Depsgraph *depsgraph, Scene *scene, Object *o
    * This ensures that the evaluated geometry contains the modifications. In the future, it would
    * be better to move these into modifiers. For now, these are hardcoded. */
   const bke::AttributeAccessor layer_attributes = grease_pencil->attributes();
-  if (layer_attributes.contains("tint_color") || layer_attributes.contains("radius_offset")) {
+  if (layer_attributes.contains("tint_color"_ustr) ||
+      layer_attributes.contains("radius_offset"_ustr))
+  {
     grease_pencil_do_layer_adjustments(*geometry_set.get_grease_pencil_for_write());
   }
   /* Only add the edit hint component in modes where users can potentially interact with deformed
@@ -2967,7 +2969,7 @@ void BKE_grease_pencil_material_remap(GreasePencil *grease_pencil, const uint *r
     greasepencil::Drawing &drawing = reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
     MutableAttributeAccessor attributes = drawing.strokes_for_write().attributes_for_write();
     SpanAttributeWriter<int> material_indices = attributes.lookup_for_write_span<int>(
-        "material_index");
+        "material_index"_ustr);
     if (!material_indices) {
       continue;
     }
@@ -2992,7 +2994,7 @@ void BKE_grease_pencil_material_index_remove(GreasePencil *grease_pencil, const 
     greasepencil::Drawing &drawing = reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
     MutableAttributeAccessor attributes = drawing.strokes_for_write().attributes_for_write();
     SpanAttributeWriter<int> material_indices = attributes.lookup_for_write_span<int>(
-        "material_index");
+        "material_index"_ustr);
     if (!material_indices) {
       continue;
     }
@@ -3017,7 +3019,7 @@ bool BKE_grease_pencil_material_index_used(GreasePencil *grease_pencil, int inde
     greasepencil::Drawing &drawing = reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
     AttributeAccessor attributes = drawing.strokes().attributes();
     const VArraySpan<int> material_indices = *attributes.lookup_or_default<int>(
-        "material_index", AttrDomain::Curve, 0);
+        "material_index"_ustr, AttrDomain::Curve, 0);
 
     if (material_indices.contains(index)) {
       return true;
@@ -3963,7 +3965,7 @@ bke::greasepencil::Layer &GreasePencil::add_layer(const StringRef name,
   bke::MutableAttributeAccessor attributes = this->attributes_for_write();
   bke::fill_attribute_range_default(attributes,
                                     bke::AttrDomain::Layer,
-                                    bke::attribute_filter_from_skip_ref({"name"}),
+                                    bke::attribute_filter_from_skip_ref({"name"_ustr}),
                                     IndexRange::from_single(numLayers));
 
   return layer;

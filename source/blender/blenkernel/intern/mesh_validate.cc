@@ -625,13 +625,14 @@ static bool validate_material_indices(const Mesh &mesh,
   const IndexRange materials_range(only_check_negative ? std::numeric_limits<int>::max() :
                                                          std::max(int(mesh.totcol), 1));
   const bke::AttributeAccessor attributes = mesh.attributes();
-  const VArray material_indices = *attributes.lookup<int>("material_index", bke::AttrDomain::Face);
+  const VArray material_indices = *attributes.lookup<int>("material_index"_ustr,
+                                                          bke::AttrDomain::Face);
   if (!material_indices) {
     return true;
   }
   if (const std::optional<int> index = material_indices.get_if_single()) {
     if (!materials_range.contains(*index)) {
-      mesh_mut->attributes_for_write().remove("material_index");
+      mesh_mut->attributes_for_write().remove("material_index"_ustr);
       return false;
     }
     return true;
@@ -653,7 +654,7 @@ static bool validate_material_indices(const Mesh &mesh,
   if (mesh_mut) {
     bke::MutableAttributeAccessor attributes = mesh_mut->attributes_for_write();
     bke::SpanAttributeWriter material_indices = attributes.lookup_for_write_span<int>(
-        "material_index");
+        "material_index"_ustr);
     index_mask::masked_fill(material_indices.span, 0, invalid_indices);
     material_indices.finish();
     DEG_id_tag_update(&mesh_mut->id, ID_RECALC_GEOMETRY_ALL_MODES);
@@ -740,7 +741,7 @@ static void validate_float_attribute(const bke::AttributeIter &iter,
     return;
   }
   if (verbose) {
-    print_error_with_indices(invalid, "Attribute {} has invalid values", iter.name);
+    print_error_with_indices(invalid, "Attribute {} has invalid values", iter.name.ref());
   }
   all_attributes_valid = false;
   if (mesh_mut) {
@@ -766,7 +767,7 @@ static void validate_bool_attribute(const bke::AttributeIter &iter,
     return;
   }
   if (verbose) {
-    print_error_with_indices(invalid, "Attribute {} has invalid values", iter.name);
+    print_error_with_indices(invalid, "Attribute {} has invalid values", iter.name.ref());
   }
   all_attributes_valid = false;
   if (mesh_mut) {

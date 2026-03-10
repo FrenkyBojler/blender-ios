@@ -143,7 +143,7 @@ static void deform_drawing(const ModifierData &md,
   }
 
   if (smooth_position) {
-    bke::GSpanAttributeWriter positions = attributes.lookup_for_write_span("position");
+    bke::GSpanAttributeWriter positions = attributes.lookup_for_write_span("position"_ustr);
     geometry::smooth_curve_attribute(strokes,
                                      points_by_curve,
                                      point_selection,
@@ -157,7 +157,7 @@ static void deform_drawing(const ModifierData &md,
     drawing.tag_positions_changed();
   }
   if (smooth_opacity && drawing.opacities().is_span()) {
-    bke::GSpanAttributeWriter opacities = attributes.lookup_for_write_span("opacity");
+    bke::GSpanAttributeWriter opacities = attributes.lookup_for_write_span("opacity"_ustr);
     geometry::smooth_curve_attribute(strokes,
                                      points_by_curve,
                                      point_selection,
@@ -170,7 +170,7 @@ static void deform_drawing(const ModifierData &md,
     opacities.finish();
   }
   if (smooth_radius && drawing.radii().is_span()) {
-    bke::GSpanAttributeWriter radii = attributes.lookup_for_write_span("radius");
+    bke::GSpanAttributeWriter radii = attributes.lookup_for_write_span("radius"_ustr);
     geometry::smooth_curve_attribute(strokes,
                                      points_by_curve,
                                      point_selection,
@@ -183,7 +183,8 @@ static void deform_drawing(const ModifierData &md,
     radii.finish();
   }
   if (smooth_uv) {
-    bke::SpanAttributeWriter<float> rotation = attributes.lookup_for_write_span<float>("rotation");
+    bke::SpanAttributeWriter<float> rotation = attributes.lookup_for_write_span<float>(
+        "rotation"_ustr);
     if (rotation) {
       geometry::smooth_curve_attribute(strokes,
                                        points_by_curve,

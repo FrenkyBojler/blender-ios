@@ -9,6 +9,7 @@
 #include "BLI_array.hh"
 #include "BLI_sort.hh"
 
+#include "BLI_ustring.hh"
 #include "BLT_translation.hh"
 
 #include "BLO_read_write.hh"
@@ -175,7 +176,7 @@ static bke::CurvesGeometry build_concurrent(bke::greasepencil::Drawing &drawing,
                                             const float factor_start,
                                             const float factor_opacity,
                                             const float factor_radii,
-                                            StringRefNull target_vgname)
+                                            UString target_vgname)
 {
   int dst_curves_num, dst_points_num;
   const bool has_fade = factor_start != factor;
@@ -330,7 +331,7 @@ static bke::CurvesGeometry build_sequential(bke::greasepencil::Drawing &drawing,
                                             const float factor_start,
                                             const float factor_opacity,
                                             const float factor_radii,
-                                            StringRefNull target_vgname)
+                                            UString target_vgname)
 {
   const bool has_fade = factor_start != factor;
   int dst_curves_num, dst_points_num;
@@ -488,9 +489,9 @@ static float get_factor_from_draw_speed(const bke::CurvesGeometry &curves,
   const OffsetIndices<int> points_by_curve = curves.points_by_curve();
   const bke::AttributeAccessor attributes = curves.attributes();
   const VArray<float> init_times = *attributes.lookup_or_default<float>(
-      "init_time", bke::AttrDomain::Curve, 0.0f);
+      "init_time"_ustr, bke::AttrDomain::Curve, 0.0f);
   const VArray<float> src_delta_times = *attributes.lookup_or_default<float>(
-      "delta_time", bke::AttrDomain::Point, 0.0f);
+      "delta_time"_ustr, bke::AttrDomain::Point, 0.0f);
 
   Array<float> delta_times(curves.points_num());
 
@@ -671,7 +672,7 @@ static void build_drawing(const GreasePencilBuildModifierData &mmd,
                                 factor_start,
                                 mmd.fade_opacity_strength,
                                 mmd.fade_thickness_strength,
-                                mmd.target_vgname);
+                                UString(mmd.target_vgname));
       break;
     case MOD_GREASE_PENCIL_BUILD_MODE_CONCURRENT:
       curves = build_concurrent(drawing,
@@ -683,7 +684,7 @@ static void build_drawing(const GreasePencilBuildModifierData &mmd,
                                 factor_start,
                                 mmd.fade_opacity_strength,
                                 mmd.fade_thickness_strength,
-                                mmd.target_vgname);
+                                UString(mmd.target_vgname));
       break;
     case MOD_GREASE_PENCIL_BUILD_MODE_ADDITIVE:
       curves = build_sequential(drawing,
@@ -694,7 +695,7 @@ static void build_drawing(const GreasePencilBuildModifierData &mmd,
                                 factor_start,
                                 mmd.fade_opacity_strength,
                                 mmd.fade_thickness_strength,
-                                mmd.target_vgname);
+                                UString(mmd.target_vgname));
       break;
   }
 

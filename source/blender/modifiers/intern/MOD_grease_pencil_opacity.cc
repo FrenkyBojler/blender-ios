@@ -76,7 +76,7 @@ static void modify_stroke_color(const GreasePencilOpacityModifierData &omd,
 
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
   bke::SpanAttributeWriter<float> opacities = attributes.lookup_or_add_for_write_span<float>(
-      "opacity", bke::AttrDomain::Point);
+      "opacity"_ustr, bke::AttrDomain::Point);
   if (!opacities) {
     return;
   }
@@ -130,7 +130,7 @@ static void modify_fill_color(const GreasePencilOpacityModifierData &omd,
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
   /* Fill color opacity per stroke. */
   bke::SpanAttributeWriter<float> fill_opacities = attributes.lookup_or_add_for_write_span<float>(
-      "fill_opacity",
+      "fill_opacity"_ustr,
       bke::AttrDomain::Curve,
       bke::AttributeInitVArray(VArray<float>::from_single(1.0f, curves.curves_num())));
   const VArray<float> vgroup_weights = modifier::greasepencil::get_influence_vertex_weights(
@@ -166,7 +166,7 @@ static void modify_softness(const GreasePencilOpacityModifierData &omd,
 {
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
   bke::SpanAttributeWriter<float> softness = attributes.lookup_or_add_for_write_span<float>(
-      "softness", bke::AttrDomain::Curve);
+      "softness"_ustr, bke::AttrDomain::Curve);
 
   curves_mask.foreach_index_optimized<int64_t>(
       [&](int64_t curve_i) {

@@ -396,14 +396,14 @@ Mesh *MOD_solidify_extrude_modifyMesh(ModifierData *md, const ModifierEvalContex
     face_offsets.take_front(faces_num).copy_from(mesh->face_offsets().drop_back(1));
   }
 
-  const VArraySpan orig_vert_bweight = *orig_attributes.lookup<float>("bevel_weight_vert",
+  const VArraySpan orig_vert_bweight = *orig_attributes.lookup<float>("bevel_weight_vert"_ustr,
                                                                       bke::AttrDomain::Point);
   bke::SpanAttributeWriter<float> result_edge_bweight;
-  if (orig_attributes.contains("bevel_weight_edge") ||
+  if (orig_attributes.contains("bevel_weight_edge"_ustr) ||
       (do_bevel_convex || !orig_vert_bweight.is_empty()))
   {
     result_edge_bweight = result_attributes.lookup_or_add_for_write_span<float>(
-        "bevel_weight_edge", bke::AttrDomain::Edge);
+        "bevel_weight_edge"_ustr, bke::AttrDomain::Edge);
   }
 
   /* Initializes: (`i_end`, `do_shell_align`, `vert_index`). */
@@ -427,7 +427,8 @@ Mesh *MOD_solidify_extrude_modifyMesh(ModifierData *md, const ModifierEvalContex
   (void)0
 
   bke::SpanAttributeWriter dst_material_index =
-      result_attributes.lookup_or_add_for_write_span<int>("material_index", bke::AttrDomain::Face);
+      result_attributes.lookup_or_add_for_write_span<int>("material_index"_ustr,
+                                                          bke::AttrDomain::Face);
 
   /* flip normals */
 
@@ -1013,7 +1014,7 @@ Mesh *MOD_solidify_extrude_modifyMesh(ModifierData *md, const ModifierEvalContex
     bke::SpanAttributeWriter<float> result_edge_crease;
     if (crease_rim || crease_outer || crease_inner) {
       result_edge_crease = result_attributes.lookup_or_add_for_write_span<float>(
-          "crease_edge", bke::AttrDomain::Edge);
+          "crease_edge"_ustr, bke::AttrDomain::Edge);
     }
 
     /* add faces & edges */

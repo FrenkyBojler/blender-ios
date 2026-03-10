@@ -162,10 +162,10 @@ static wmOperatorStatus geometry_extract_apply(bContext *C,
 
   /* Remove the face sets as they need to be recreated when entering Sculpt Mode in the new object.
    * TODO(pablodobarro): In the future we can try to preserve them from the original mesh. */
-  new_mesh->attributes_for_write().remove(".sculpt_face_set");
+  new_mesh->attributes_for_write().remove(".sculpt_face_set"_ustr);
 
   /* Remove the mask from the new object so it can be sculpted directly after extracting. */
-  new_mesh->attributes_for_write().remove(".sculpt_mask");
+  new_mesh->attributes_for_write().remove(".sculpt_mask"_ustr);
 
   BKE_editmesh_free_data(em);
   MEM_delete(em);
@@ -255,7 +255,7 @@ static wmOperatorStatus paint_mask_extract_exec(bContext *C, wmOperator *op)
 {
   Object *ob = CTX_data_active_object(C);
   Mesh *mesh = id_cast<Mesh *>(ob->data);
-  if (!mesh->attributes().contains(".sculpt_mask")) {
+  if (!mesh->attributes().contains(".sculpt_mask"_ustr)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -443,7 +443,7 @@ static wmOperatorStatus paint_mask_slice_exec(bContext *C, wmOperator *op)
   View3D *v3d = CTX_wm_view3d(C);
   Mesh *mesh = id_cast<Mesh *>(ob.data);
 
-  if (!mesh->attributes().contains(".sculpt_mask")) {
+  if (!mesh->attributes().contains(".sculpt_mask"_ustr)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -494,7 +494,7 @@ static wmOperatorStatus paint_mask_slice_exec(bContext *C, wmOperator *op)
     BM_mesh_free(bm);
 
     /* Remove the mask from the new object so it can be sculpted directly after slicing. */
-    new_ob_mesh->attributes_for_write().remove(".sculpt_mask");
+    new_ob_mesh->attributes_for_write().remove(".sculpt_mask"_ustr);
 
     Mesh *new_mesh = id_cast<Mesh *>(new_ob->data);
     BKE_mesh_nomain_to_mesh(new_ob_mesh, new_mesh, new_ob);
@@ -509,7 +509,7 @@ static wmOperatorStatus paint_mask_slice_exec(bContext *C, wmOperator *op)
   BKE_mesh_nomain_to_mesh(new_mesh, mesh, &ob);
 
   if (ob.mode == OB_MODE_SCULPT) {
-    if (mesh->attributes().contains(".sculpt_face_set")) {
+    if (mesh->attributes().contains(".sculpt_face_set"_ustr)) {
       /* Assign a new face set ID to the new faces created by the slice operation. */
       const int next_face_set_id = sculpt_paint::face_set::find_next_available_id(ob);
       sculpt_paint::face_set::initialize_none_to_id(mesh, next_face_set_id);

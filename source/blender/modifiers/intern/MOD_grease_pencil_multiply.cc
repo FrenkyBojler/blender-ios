@@ -155,9 +155,9 @@ static void generate_curves(GreasePencilMultiModifierData &mmd,
 
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
   bke::SpanAttributeWriter<float> opacities = attributes.lookup_or_add_for_write_span<float>(
-      "opacity", bke::AttrDomain::Point);
+      "opacity"_ustr, bke::AttrDomain::Point);
   bke::SpanAttributeWriter<float> radii = attributes.lookup_or_add_for_write_span<float>(
-      "radius", bke::AttrDomain::Point);
+      "radius"_ustr, bke::AttrDomain::Point);
 
   const OffsetIndices<int> points_by_curve = curves.points_by_curve();
 

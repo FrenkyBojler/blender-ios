@@ -455,7 +455,7 @@ std::string AttributeFieldInput::socket_inspection_name() const
   if (socket_inspection_name_) {
     return *socket_inspection_name_;
   }
-  return fmt::format(fmt::runtime(TIP_("\"{}\" attribute from geometry")), name_);
+  return fmt::format(fmt::runtime(TIP_("\"{}\" attribute from geometry")), name_.ref());
 }
 
 uint64_t AttributeFieldInput::hash() const
@@ -485,14 +485,14 @@ std::optional<AttrDomain> AttributeFieldInput::preferred_domain(
   return meta_data->domain;
 }
 
-static StringRef get_random_id_attribute_name(const AttrDomain domain)
+static UString get_random_id_attribute_name(const AttrDomain domain)
 {
   switch (domain) {
     case AttrDomain::Point:
     case AttrDomain::Instance:
-      return "id";
+      return UString("id");
     default:
-      return "";
+      return UString("");
   }
 }
 
@@ -500,7 +500,7 @@ GVArray IDAttributeFieldInput::get_varray_for_context(const GeometryFieldContext
                                                       const IndexMask &mask) const
 {
 
-  const StringRef name = get_random_id_attribute_name(context.domain());
+  const UString name = get_random_id_attribute_name(context.domain());
   if (auto attributes = context.attributes()) {
     if (GVArray attribute = *attributes->lookup<int>(name, context.domain())) {
       return attribute;
@@ -801,7 +801,7 @@ bool NormalFieldInput::is_equal_to(const fn::FieldNode &other) const
   return false;
 }
 
-static std::optional<StringRefNull> try_get_field_direct_attribute_id(const fn::GField &any_field)
+static std::optional<UString> try_get_field_direct_attribute_id(const fn::GField &any_field)
 {
   if (const auto *field = dynamic_cast<const AttributeFieldInput *>(&any_field.node())) {
     return field->attribute_name();
@@ -821,11 +821,11 @@ static bool attribute_kind_matches(const AttributeMetaData meta_data,
  * and domain, use implicit sharing to avoid duplication when creating the captured attribute.
  */
 static bool try_add_shared_field_attribute(MutableAttributeAccessor attributes,
-                                           const StringRef id_to_create,
+                                           const UString id_to_create,
                                            const AttrDomain domain,
                                            const fn::GField &field)
 {
-  const std::optional<StringRef> field_id = try_get_field_direct_attribute_id(field);
+  const std::optional<UString> field_id = try_get_field_direct_attribute_id(field);
   if (!field_id) {
     return false;
   }
@@ -861,7 +861,7 @@ static bool attribute_data_matches_varray(const GAttributeReader &attribute,
 }
 
 static bool try_assign_single_value(MutableAttributeAccessor &attributes,
-                                    const StringRef name,
+                                    const UString name,
                                     const GPointer value)
 {
   return attributes.assign_data(name, AttributeInitValue(value));
@@ -870,7 +870,7 @@ static bool try_assign_single_value(MutableAttributeAccessor &attributes,
 static void initialize_new_data(MutableAttributeAccessor &attributes,
                                 const AttrDomain domain,
                                 const int domain_size,
-                                const StringRef name,
+                                const UString name,
                                 const CPPType &type,
                                 const bke::AttrType data_type,
                                 void *buffer)
@@ -894,7 +894,7 @@ static void initialize_new_data(MutableAttributeAccessor &attributes,
 
 bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
                                     const fn::FieldContext &field_context,
-                                    const Span<StringRef> names,
+                                    const Span<UString> names,
                                     const AttrDomain domain,
                                     const fn::Field<bool> &selection,
                                     const Span<fn::GField> fields)
@@ -939,7 +939,7 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
   bool success = true;
 
   for (const int input_index : names.index_range()) {
-    const StringRef name = names[input_index];
+    const UString name = names[input_index];
     const CPPType &type = fields[input_index].cpp_type();
     const bke::AttrType data_type = bke::cpp_type_to_attribute_type(type);
 
@@ -995,7 +995,7 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
   const IndexMask &mask = evaluator.get_evaluated_selection_as_mask();
 
   for (const StoreResult &result : results_to_store) {
-    const StringRef name = names[result.input_index];
+    const UString name = names[result.input_index];
     const GVArray &result_data = evaluator.get_evaluated(result.evaluator_index);
     const CommonVArrayInfo info = result_data.common_info();
     if (selection_is_full) {
@@ -1014,7 +1014,7 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
   }
 
   for (AddResult &result : results_to_add) {
-    const StringRef name = names[result.input_index];
+    const UString name = names[result.input_index];
     attributes.remove(name);
     const CPPType &type = fields[result.input_index].cpp_type();
     const bke::AttrType data_type = bke::cpp_type_to_attribute_type(type);
@@ -1040,7 +1040,7 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
 }
 
 bool try_capture_fields_on_geometry(GeometryComponent &component,
-                                    const Span<StringRef> names,
+                                    const Span<UString> names,
                                     const AttrDomain domain,
                                     const fn::Field<bool> &selection,
                                     const Span<fn::GField> fields)
@@ -1089,7 +1089,7 @@ bool try_capture_fields_on_geometry(GeometryComponent &component,
 }
 
 bool try_capture_fields_on_geometry(GeometryComponent &component,
-                                    const Span<StringRef> names,
+                                    const Span<UString> names,
                                     const AttrDomain domain,
                                     const Span<fn::GField> fields)
 {

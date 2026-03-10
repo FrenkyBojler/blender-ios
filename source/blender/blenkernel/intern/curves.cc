@@ -180,7 +180,7 @@ Curves *BKE_curves_add(Main *bmain, const char *name)
   return curves;
 }
 
-bool BKE_curves_attribute_required(const Curves * /*curves*/, const StringRef name)
+bool BKE_curves_attribute_required(const Curves * /*curves*/, const UString name)
 {
   return name == ATTR_POSITION;
 }

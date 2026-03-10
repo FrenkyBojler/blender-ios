@@ -24,7 +24,7 @@ bool remove_selection(bke::CurvesGeometry &curves, const bke::AttrDomain selecti
 {
   const bke::AttributeAccessor attributes = curves.attributes();
   const VArray<bool> selection = *attributes.lookup_or_default<bool>(
-      ".selection", selection_domain, true);
+      ".selection"_ustr, selection_domain, true);
   const int domain_size_orig = attributes.domain_size(selection_domain);
   IndexMaskMemory memory;
   const IndexMask mask = IndexMask::from_bools(selection, memory);
@@ -236,7 +236,7 @@ void duplicate_points(bke::CurvesGeometry &curves, const IndexMask &mask)
     append_point_knots(src_ranges, dst_offsets.as_span(), dst_to_src_curve, curves, curves);
   }
 
-  for (const StringRef selection_name : get_curves_selection_attribute_names(curves)) {
+  for (const UString selection_name : get_curves_selection_attribute_names(curves)) {
     bke::SpanAttributeWriter<bool> selection = attributes.lookup_or_add_for_write_span<bool>(
         selection_name, bke::AttrDomain::Point);
     selection.span.take_back(num_points_to_add).fill(true);
@@ -306,7 +306,7 @@ void duplicate_curves(bke::CurvesGeometry &curves, const IndexMask &mask)
     append_curve_knots(mask, curves);
   }
 
-  for (const StringRef selection_name : get_curves_selection_attribute_names(curves)) {
+  for (const UString selection_name : get_curves_selection_attribute_names(curves)) {
     bke::SpanAttributeWriter<bool> selection = attributes.lookup_or_add_for_write_span<bool>(
         selection_name, bke::AttrDomain::Curve);
     selection.span.take_back(mask.size()).fill(true);
@@ -397,7 +397,7 @@ static bke::CurvesGeometry copy_data_to_geometry(const bke::CurvesGeometry &src_
   bke::gather_attributes(src_attributes,
                          bke::AttrDomain::Curve,
                          bke::AttrDomain::Curve,
-                         bke::attribute_filter_from_skip_ref({"cyclic"}),
+                         bke::attribute_filter_from_skip_ref({"cyclic"_ustr}),
                          dst_to_src_curve,
                          dst_attributes);
 

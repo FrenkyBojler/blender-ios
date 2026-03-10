@@ -436,9 +436,9 @@ static bool move_handles_in_curve(const PenToolOperation &ptd,
   MutableSpan<float3> handles_right = curves.handle_positions_right_for_write();
 
   const VArray<bool> left_selected = *attributes.lookup_or_default<bool>(
-      ".selection_handle_left", bke::AttrDomain::Point, true);
+      ".selection_handle_left"_ustr, bke::AttrDomain::Point, true);
   const VArray<bool> right_selected = *attributes.lookup_or_default<bool>(
-      ".selection_handle_right", bke::AttrDomain::Point, true);
+      ".selection_handle_right"_ustr, bke::AttrDomain::Point, true);
 
   selection.foreach_index(
       [&](const int64_t point_i) {
@@ -553,11 +553,11 @@ static std::optional<bke::CurvesGeometry> extrude_curves(const PenToolOperation 
   const int old_points_num = src.points_num();
 
   const VArray<bool> point_selection = *src_attributes.lookup_or_default<bool>(
-      ".selection", bke::AttrDomain::Point, true);
+      ".selection"_ustr, bke::AttrDomain::Point, true);
   const VArray<bool> left_selected = *src_attributes.lookup_or_default<bool>(
-      ".selection_handle_left", bke::AttrDomain::Point, true);
+      ".selection_handle_left"_ustr, bke::AttrDomain::Point, true);
   const VArray<bool> right_selected = *src_attributes.lookup_or_default<bool>(
-      ".selection_handle_right", bke::AttrDomain::Point, true);
+      ".selection_handle_right"_ustr, bke::AttrDomain::Point, true);
 
   Vector<int> dst_to_src_points(old_points_num);
   array_utils::fill_index_range(dst_to_src_points.as_mutable_span());
@@ -633,9 +633,9 @@ static std::optional<bke::CurvesGeometry> extrude_curves(const PenToolOperation 
   bke::GSpanAttributeWriter selection = ed::curves::ensure_selection_attribute(
       dst, bke::AttrDomain::Point, bke::AttrType::Bool);
   bke::GSpanAttributeWriter selection_left = ed::curves::ensure_selection_attribute(
-      dst, bke::AttrDomain::Point, bke::AttrType::Bool, ".selection_handle_left");
+      dst, bke::AttrDomain::Point, bke::AttrType::Bool, ".selection_handle_left"_ustr);
   bke::GSpanAttributeWriter selection_right = ed::curves::ensure_selection_attribute(
-      dst, bke::AttrDomain::Point, bke::AttrType::Bool, ".selection_handle_right");
+      dst, bke::AttrDomain::Point, bke::AttrType::Bool, ".selection_handle_right"_ustr);
   selection_left.span.copy_from(dst_selected_start.as_span());
   selection.span.copy_from(dst_selected_center.as_span());
   selection_right.span.copy_from(dst_selected_end.as_span());
@@ -646,13 +646,14 @@ static std::optional<bke::CurvesGeometry> extrude_curves(const PenToolOperation 
   bke::copy_attributes(
       src_attributes, bke::AttrDomain::Curve, bke::AttrDomain::Curve, {}, dst_attributes);
 
-  bke::gather_attributes(src_attributes,
-                         bke::AttrDomain::Point,
-                         bke::AttrDomain::Point,
-                         bke::attribute_filter_from_skip_ref(
-                             {".selection", ".selection_handle_left", ".selection_handle_right"}),
-                         dst_to_src_points,
-                         dst_attributes);
+  bke::gather_attributes(
+      src_attributes,
+      bke::AttrDomain::Point,
+      bke::AttrDomain::Point,
+      bke::attribute_filter_from_skip_ref(
+          {".selection"_ustr, ".selection_handle_left"_ustr, ".selection_handle_right"_ustr}),
+      dst_to_src_points,
+      dst_attributes);
 
   Span<float3> src_positions = src.positions();
   MutableSpan<float3> dst_positions = dst.positions_for_write();
@@ -733,7 +734,7 @@ static void insert_point_to_curve(const PenToolOperation &ptd, bke::CurvesGeomet
   bke::MutableAttributeAccessor dst_attributes = dst.attributes_for_write();
 
   /* Selection attribute. */
-  for (const StringRef selection_attribute_name :
+  for (const UString selection_attribute_name :
        ed::curves::get_curves_selection_attribute_names(src))
   {
     bke::GSpanAttributeWriter selection_writer = ed::curves::ensure_selection_attribute(
@@ -746,13 +747,14 @@ static void insert_point_to_curve(const PenToolOperation &ptd, bke::CurvesGeomet
 
   bke::copy_attributes(
       src_attributes, bke::AttrDomain::Curve, bke::AttrDomain::Curve, {}, dst_attributes);
-  bke::gather_attributes(src_attributes,
-                         bke::AttrDomain::Point,
-                         bke::AttrDomain::Point,
-                         bke::attribute_filter_from_skip_ref(
-                             {".selection", ".selection_handle_left", ".selection_handle_right"}),
-                         dst_to_src_points,
-                         dst_attributes);
+  bke::gather_attributes(
+      src_attributes,
+      bke::AttrDomain::Point,
+      bke::AttrDomain::Point,
+      bke::attribute_filter_from_skip_ref(
+          {".selection"_ustr, ".selection_handle_left"_ustr, ".selection_handle_right"_ustr}),
+      dst_to_src_points,
+      dst_attributes);
 
   Span<float3> src_positions = src.positions();
   MutableSpan<float3> dst_positions = dst.positions_for_write();
@@ -817,24 +819,24 @@ static void add_single_point_and_curve(const PenToolOperation &ptd,
 
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
 
-  Set<std::string> curve_attributes_to_skip;
+  Set<UString> curve_attributes_to_skip;
 
   curves.positions_for_write().last() = depth_point;
   curves.curve_types_for_write().last() = CURVE_TYPE_BEZIER;
-  curve_attributes_to_skip.add("curve_type");
+  curve_attributes_to_skip.add("curve_type"_ustr);
   curves.handle_types_left_for_write().last() = ptd.extrude_handle;
   curves.handle_types_right_for_write().last() = ptd.extrude_handle;
   curves.update_curve_types();
   curves.resolution_for_write().last() = 12;
-  curve_attributes_to_skip.add("resolution");
+  curve_attributes_to_skip.add("resolution"_ustr);
 
   const int material_index = ptd.vc.obact->actcol - 1;
   if (material_index != -1) {
     bke::SpanAttributeWriter<int> material_indexes = attributes.lookup_or_add_for_write_span<int>(
-        "material_index", bke::AttrDomain::Curve, bke::AttributeInitValue(0));
+        "material_index"_ustr, bke::AttrDomain::Curve, bke::AttributeInitValue(0));
     material_indexes.span.last() = material_index;
     material_indexes.finish();
-    curve_attributes_to_skip.add("material_index");
+    curve_attributes_to_skip.add("material_index"_ustr);
   }
 
   MutableSpan<float3> handles_left = curves.handle_positions_left_for_write();
@@ -845,7 +847,7 @@ static void add_single_point_and_curve(const PenToolOperation &ptd,
       layer_to_world, ptd.mouse_co + float2(default_handle_px_distance / 2.0f, 0.0f), depth_point);
   curves.radius_for_write().last() = ptd.radius;
 
-  for (const StringRef selection_attribute_name :
+  for (const UString selection_attribute_name :
        ed::curves::get_curves_selection_attribute_names(curves))
   {
     bke::GSpanAttributeWriter selection = ed::curves::ensure_selection_attribute(
@@ -860,15 +862,15 @@ static void add_single_point_and_curve(const PenToolOperation &ptd,
   bke::fill_attribute_range_default(
       attributes,
       bke::AttrDomain::Point,
-      bke::attribute_filter_from_skip_ref({"position",
-                                           "radius",
-                                           "handle_left",
-                                           "handle_right",
-                                           "handle_type_left",
-                                           "handle_type_right",
-                                           ".selection",
-                                           ".selection_handle_left",
-                                           ".selection_handle_right"}),
+      bke::attribute_filter_from_skip_ref({"position"_ustr,
+                                           "radius"_ustr,
+                                           "handle_left"_ustr,
+                                           "handle_right"_ustr,
+                                           "handle_type_left"_ustr,
+                                           "handle_type_right"_ustr,
+                                           ".selection"_ustr,
+                                           ".selection_handle_left"_ustr,
+                                           ".selection_handle_right"_ustr}),
       curves.points_range().take_back(1));
   bke::fill_attribute_range_default(attributes,
                                     bke::AttrDomain::Curve,
@@ -883,7 +885,7 @@ static bool close_curve_and_select(const PenToolOperation &ptd,
 {
   bool changed = false;
 
-  for (const StringRef selection_attribute_name :
+  for (const UString selection_attribute_name :
        ed::curves::get_curves_selection_attribute_names(curves))
   {
     bke::GSpanAttributeWriter selection_writer = ed::curves::ensure_selection_attribute(
@@ -1009,7 +1011,7 @@ static void invoke_curves(PenToolOperation &ptd, bContext *C, wmOperator *op, co
             curves = std::move(*result);
           }
           else {
-            for (const StringRef selection_attribute_name :
+            for (const UString selection_attribute_name :
                  ed::curves::get_curves_selection_attribute_names(curves))
             {
               bke::GSpanAttributeWriter selection_writer = ed::curves::ensure_selection_attribute(
@@ -1033,7 +1035,7 @@ static void invoke_curves(PenToolOperation &ptd, bContext *C, wmOperator *op, co
 
       if (curves_index != ptd.closest_element.drawing_index) {
         if (event->val != KM_DBL_CLICK && !ptd.delete_point) {
-          for (const StringRef selection_attribute_name :
+          for (const UString selection_attribute_name :
                ed::curves::get_curves_selection_attribute_names(curves))
           {
             bke::GSpanAttributeWriter selection_writer = ed::curves::ensure_selection_attribute(
@@ -1124,11 +1126,11 @@ static IndexMask retrieve_visible_bezier_handle_points(const bke::CurvesGeometry
   const VArray<int8_t> types = curves.curve_types();
 
   const VArray<bool> selected_point = *curves.attributes().lookup_or_default<bool>(
-      ".selection", bke::AttrDomain::Point, true);
+      ".selection"_ustr, bke::AttrDomain::Point, true);
   const VArray<bool> selected_left = *curves.attributes().lookup_or_default<bool>(
-      ".selection_handle_left", bke::AttrDomain::Point, true);
+      ".selection_handle_left"_ustr, bke::AttrDomain::Point, true);
   const VArray<bool> selected_right = *curves.attributes().lookup_or_default<bool>(
-      ".selection_handle_right", bke::AttrDomain::Point, true);
+      ".selection_handle_right"_ustr, bke::AttrDomain::Point, true);
 
   const IndexMask selected_points = IndexMask::from_predicate(
       curves.points_range(), memory, [&](const int64_t point_i) {

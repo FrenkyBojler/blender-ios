@@ -11,7 +11,7 @@
 #include "BLI_array.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_span.hh"
-#include "BLI_string_ref.hh"
+#include "BLI_ustring.hh"
 
 namespace blender {
 
@@ -23,7 +23,7 @@ struct BMEditMesh;
 Array<Array<float4>> BKE_editmesh_uv_tangents_calc(BMEditMesh *em,
                                                    Span<float3> face_normals,
                                                    Span<float3> corner_normals,
-                                                   Span<StringRef> uv_names);
+                                                   Span<UString> uv_names);
 
 Array<float4> BKE_editmesh_orco_tangents_calc(BMEditMesh *em,
                                               Span<float3> face_normals,

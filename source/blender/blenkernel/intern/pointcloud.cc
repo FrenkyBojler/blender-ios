@@ -190,25 +190,33 @@ IDTypeInfo IDType_ID_PT = {
 
 Span<float3> PointCloud::positions() const
 {
-  return bke::get_span_attribute<float3>(
-             this->attribute_storage.wrap(), bke::AttrDomain::Point, "position", this->totpoint)
+  return bke::get_span_attribute<float3>(this->attribute_storage.wrap(),
+                                         bke::AttrDomain::Point,
+                                         "position"_ustr,
+                                         this->totpoint)
       .value_or(Span<float3>());
 }
 MutableSpan<float3> PointCloud::positions_for_write()
 {
   return bke::get_mutable_attribute<float3>(
-      this->attribute_storage.wrap(), bke::AttrDomain::Point, "position", this->totpoint);
+      this->attribute_storage.wrap(), bke::AttrDomain::Point, "position"_ustr, this->totpoint);
 }
 
 VArray<float> PointCloud::radius() const
 {
-  return bke::get_varray_attribute<float>(
-      this->attribute_storage.wrap(), bke::AttrDomain::Point, "radius", this->totpoint, 0.01f);
+  return bke::get_varray_attribute<float>(this->attribute_storage.wrap(),
+                                          bke::AttrDomain::Point,
+                                          "radius"_ustr,
+                                          this->totpoint,
+                                          0.01f);
 }
 MutableSpan<float> PointCloud::radius_for_write()
 {
-  return bke::get_mutable_attribute<float>(
-      this->attribute_storage.wrap(), bke::AttrDomain::Point, "radius", this->totpoint, 0.01f);
+  return bke::get_mutable_attribute<float>(this->attribute_storage.wrap(),
+                                           bke::AttrDomain::Point,
+                                           "radius"_ustr,
+                                           this->totpoint,
+                                           0.01f);
 }
 
 PointCloud *BKE_pointcloud_add(Main *bmain, const char *name)
@@ -228,7 +236,7 @@ PointCloud *BKE_pointcloud_new_nomain(const int totpoint)
   pointcloud->totpoint = totpoint;
 
   pointcloud->attributes_for_write().add<float3>(
-      "position", bke::AttrDomain::Point, bke::AttributeInitConstruct());
+      "position"_ustr, bke::AttrDomain::Point, bke::AttributeInitConstruct());
 
   return pointcloud;
 }
@@ -279,7 +287,7 @@ std::optional<int> PointCloud::material_index_max() const
   }
   std::optional<int> max_material_index = bounds::max<int>(
       this->attributes()
-          .lookup_or_default<int>("material_index", bke::AttrDomain::Point, 0)
+          .lookup_or_default<int>("material_index"_ustr, bke::AttrDomain::Point, 0)
           .varray);
   if (max_material_index.has_value()) {
     max_material_index = std::clamp(*max_material_index, 0, MAXMAT);
@@ -302,7 +310,7 @@ bke::MutableAttributeAccessor PointCloud::attributes_for_write()
   return bke::MutableAttributeAccessor(this, bke::pointcloud_attribute_accessor_functions());
 }
 
-bool BKE_pointcloud_attribute_required(const PointCloud * /*pointcloud*/, const StringRef name)
+bool BKE_pointcloud_attribute_required(const PointCloud * /*pointcloud*/, const UString name)
 {
   return name == ATTR_POSITION;
 }
@@ -331,7 +339,7 @@ void pointcloud_resize(PointCloud &pointcloud, const int size)
   bke::MutableAttributeAccessor attributes = pointcloud.attributes_for_write();
   if (old_totpoint == 0) {
     /* If there were no points before, ensure the position attribute exists. */
-    attributes.add<float3>("position", bke::AttrDomain::Point, bke::AttributeInitConstruct());
+    attributes.add<float3>("position"_ustr, bke::AttrDomain::Point, bke::AttributeInitConstruct());
   }
 
   pointcloud.attribute_storage.wrap().resize(bke::AttrDomain::Point, pointcloud.totpoint);

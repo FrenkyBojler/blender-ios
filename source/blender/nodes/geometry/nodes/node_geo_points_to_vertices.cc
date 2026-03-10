@@ -56,7 +56,7 @@ static void geometry_set_points_to_vertices(GeometrySet &geometry_set,
   if (selection.size() == points->totpoint) {
     /* Create a mesh without positions so the attribute can be shared. */
     mesh = BKE_mesh_new_nomain(0, 0, 0, 0);
-    mesh->attribute_storage.wrap().remove("position");
+    mesh->attribute_storage.wrap().remove("position"_ustr);
     mesh->verts_num = selection.size();
   }
   else {
@@ -67,8 +67,8 @@ static void geometry_set_points_to_vertices(GeometrySet &geometry_set,
   MutableAttributeAccessor dst_attributes = mesh->attributes_for_write();
 
   for (const int i : attributes.names.index_range()) {
-    const StringRef src_name = attributes.names[i];
-    const StringRef dst_name = src_name == ".selection" ? ".select_vert" : src_name;
+    const UString src_name = attributes.names[i];
+    const UString dst_name = src_name == ".selection"_ustr ? ".select_vert"_ustr : src_name;
     const bke::AttrType data_type = attributes.kinds[i].data_type;
     const GAttributeReader src = src_attributes.lookup(src_name);
     const CommonVArrayInfo info = src.varray.common_info();

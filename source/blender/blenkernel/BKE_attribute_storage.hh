@@ -11,6 +11,7 @@
 #include "BLI_memory_counter_fwd.hh"
 #include "BLI_random_access_iterator_mixin.hh"
 #include "BLI_string_ref.hh"
+#include "BLI_ustring.hh"
 #include "BLI_vector_set.hh"
 
 #include "DNA_attribute_types.h"
@@ -68,7 +69,7 @@ class Attribute {
    * Because it's used as the custom ID for the attributes vector set, the name cannot be changed
    * without removing and adding the attribute.
    */
-  std::string name_;
+  UString name_;
   AttrDomain domain_;
   AttrType type_;
 
@@ -81,7 +82,7 @@ class Attribute {
    * this is enforced by asserts when adding attributes. See #unique_name_calc() (which is also
    * called during the conversion process).
    */
-  StringRefNull name() const;
+  UString name() const;
 
   /** Which part of a geometry the attribute corresponds to. */
   AttrDomain domain() const;
@@ -117,7 +118,7 @@ class Attribute {
 class AttributeStorageRuntime {
   friend AttributeStorage;
   struct AttributeNameGetter {
-    StringRef operator()(const std::unique_ptr<Attribute> &value) const
+    UString operator()(const std::unique_ptr<Attribute> &value) const
     {
       return value->name();
     }
@@ -147,35 +148,35 @@ class AttributeStorage : public blender::AttributeStorage {
   const Attribute &at_index(int index) const;
 
   /** Return the index of the attribute with the given name, or -1 if not found. */
-  int index_of(StringRef name) const;
+  int index_of(UString name) const;
 
   /**
    * Try to find the attribute with a given name. The non-const overload does not make the
    * attribute data itself mutable.
    */
-  Attribute *lookup(StringRef name);
-  const Attribute *lookup(StringRef name) const;
+  Attribute *lookup(UString name);
+  const Attribute *lookup(UString name) const;
 
   /**
    * Attempt to remove the attribute with the given name, returning `true` if successful. Should
    * not be called while iterating over attributes.
    */
-  bool remove(StringRef name);
+  bool remove(UString name);
 
   /**
    * Add an attribute with the given name, which must not already be used by an existing attribute
    * or this will invoke undefined behavior.
    */
-  Attribute &add(std::string name,
+  Attribute &add(UString name,
                  bke::AttrDomain domain,
                  bke::AttrType data_type,
                  Attribute::DataVariant data);
 
   /** Return a possibly changed version of the input name that is unique within existing names. */
-  std::string unique_name_calc(StringRef name) const;
+  std::string unique_name_calc(UString name) const;
 
   /** Change the name of a single existing attribute. */
-  void rename(StringRef old_name, std::string new_name);
+  void rename(UString old_name, UString new_name);
 
   /**
    * Resize the data for a given domain. New values will be default initialized (meaning no zero
@@ -266,7 +267,7 @@ class AttributeStorage : public blender::AttributeStorage {
 /** The C++ wrapper needs to be the same size as the DNA struct. */
 static_assert(sizeof(AttributeStorage) == sizeof(AttributeStorage));
 
-inline StringRefNull Attribute::name() const
+inline UString Attribute::name() const
 {
   return name_;
 }

@@ -14,6 +14,7 @@
 #include <pxr/usd/usdShade/material.h>
 #include <pxr/usd/usdShade/materialBindingAPI.h>
 
+#include "BLI_ustring.hh"
 #include "usd_attribute_utils.hh"
 #include "usd_hierarchy_iterator.hh"
 #include "usd_utils.hh"
@@ -420,25 +421,25 @@ static std::optional<pxr::TfToken> convert_blender_domain_to_usd(
 
 /* Excluded attributes are those which are handled through native USD concepts
  * and should not be exported as generic attributes. */
-static bool is_excluded_attr(StringRefNull name)
+static bool is_excluded_attr(UString name)
 {
-  static const Set<StringRefNull> excluded_attrs = []() {
-    Set<StringRefNull> set;
-    set.add_new("position");
-    set.add_new("radius");
-    set.add_new("resolution");
-    set.add_new("id");
-    set.add_new("cyclic");
-    set.add_new("curve_type");
-    set.add_new("normal_mode");
-    set.add_new("handle_left");
-    set.add_new("handle_right");
-    set.add_new("handle_type_left");
-    set.add_new("handle_type_right");
-    set.add_new("knots_mode");
-    set.add_new("nurbs_order");
-    set.add_new("nurbs_weight");
-    set.add_new("velocity");
+  static const Set<UString> excluded_attrs = []() {
+    Set<UString> set;
+    set.add_new("position"_ustr);
+    set.add_new("radius"_ustr);
+    set.add_new("resolution"_ustr);
+    set.add_new("id"_ustr);
+    set.add_new("cyclic"_ustr);
+    set.add_new("curve_type"_ustr);
+    set.add_new("normal_mode"_ustr);
+    set.add_new("handle_left"_ustr);
+    set.add_new("handle_right"_ustr);
+    set.add_new("handle_type_left"_ustr);
+    set.add_new("handle_type_right"_ustr);
+    set.add_new("knots_mode"_ustr);
+    set.add_new("nurbs_order"_ustr);
+    set.add_new("nurbs_weight"_ustr);
+    set.add_new("velocity"_ustr);
     return set;
   }();
 
@@ -473,7 +474,7 @@ void USDCurvesWriter::write_generic_data(const bke::CurvesGeometry &curves,
 
   const pxr::UsdTimeCode time = get_export_time_code();
   const pxr::TfToken pv_name(
-      make_safe_primvar_name(attr.name, usd_export_context_.export_params.allow_unicode));
+      make_safe_primvar_name(attr.name.ref(), usd_export_context_.export_params.allow_unicode));
   const pxr::UsdGeomPrimvarsAPI pv_api = pxr::UsdGeomPrimvarsAPI(usd_curves);
 
   pxr::UsdGeomPrimvar pv_attr = pv_api.CreatePrimvar(pv_name, *pv_type, *pv_interp);
@@ -491,7 +492,7 @@ void USDCurvesWriter::write_uv_data(const bke::AttributeIter &attr,
 
   const pxr::UsdTimeCode time = get_export_time_code();
   const pxr::TfToken pv_name(
-      make_safe_primvar_name(attr.name, usd_export_context_.export_params.allow_unicode));
+      make_safe_primvar_name(attr.name.ref(), usd_export_context_.export_params.allow_unicode));
   const pxr::UsdGeomPrimvarsAPI pv_api = pxr::UsdGeomPrimvarsAPI(usd_curves);
 
   pxr::UsdGeomPrimvar pv_uv = pv_api.CreatePrimvar(
@@ -503,7 +504,7 @@ void USDCurvesWriter::write_uv_data(const bke::AttributeIter &attr,
 void USDCurvesWriter::write_velocities(const bke::CurvesGeometry &curves,
                                        const pxr::UsdGeomCurves &usd_curves)
 {
-  const VArraySpan velocity = *curves.attributes().lookup<float3>("velocity",
+  const VArraySpan velocity = *curves.attributes().lookup<float3>("velocity"_ustr,
                                                                   bke::AttrDomain::Point);
   if (velocity.is_empty()) {
     return;
@@ -526,7 +527,7 @@ void USDCurvesWriter::write_custom_data(const bke::CurvesGeometry &curves,
 
   attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
     /* Skip "internal" Blender properties and attributes dealt with elsewhere. */
-    if (iter.name[0] == '.' || bke::attribute_name_is_anonymous(iter.name) ||
+    if (iter.name.ref()[0] == '.' || bke::attribute_name_is_anonymous(iter.name.ref()) ||
         is_excluded_attr(iter.name))
     {
       return;

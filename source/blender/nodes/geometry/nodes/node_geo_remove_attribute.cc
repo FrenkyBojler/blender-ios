@@ -49,8 +49,8 @@ struct RemoveAttributeParams {
   std::string wildcard_prefix;
   std::string wildcard_suffix;
 
-  Set<std::string> removed_attributes;
-  Set<std::string> failed_attributes;
+  Set<UString> removed_attributes;
+  Set<UString> failed_attributes;
 };
 
 static void remove_attributes_recursive(GeometrySet &geometry_set, RemoveAttributeParams &params)
@@ -67,22 +67,22 @@ static void remove_attributes_recursive(GeometrySet &geometry_set, RemoveAttribu
     /* First check if the attribute exists before getting write access,
      * to avoid potentially expensive unnecessary copies. */
     const GeometryComponent &read_only_component = *geometry_set.get_component(type);
-    Vector<std::string> attributes_to_remove;
+    Vector<UString> attributes_to_remove;
     switch (params.pattern_mode) {
       case PatternMode::Exact: {
-        if (read_only_component.attributes()->contains(params.pattern)) {
-          attributes_to_remove.append(params.pattern);
+        if (read_only_component.attributes()->contains(UString(params.pattern))) {
+          attributes_to_remove.append(UString(params.pattern));
         }
         break;
       }
       case PatternMode::Wildcard: {
         read_only_component.attributes()->foreach_attribute([&](const bke::AttributeIter &iter) {
-          const StringRef attribute_name = iter.name;
-          if (bke::attribute_name_is_anonymous(attribute_name)) {
+          const UString attribute_name = iter.name;
+          if (bke::attribute_name_is_anonymous(attribute_name.ref())) {
             return;
           }
-          if (attribute_name.startswith(params.wildcard_prefix) &&
-              attribute_name.endswith(params.wildcard_suffix))
+          if (attribute_name.ref().startswith(params.wildcard_prefix) &&
+              attribute_name.ref().endswith(params.wildcard_suffix))
           {
             attributes_to_remove.append(attribute_name);
           }
@@ -96,8 +96,8 @@ static void remove_attributes_recursive(GeometrySet &geometry_set, RemoveAttribu
     }
 
     GeometryComponent &component = geometry_set.get_component_for_write(type);
-    for (const StringRef attribute_name : attributes_to_remove) {
-      if (!bke::allow_procedural_attribute_access(attribute_name)) {
+    for (const UString attribute_name : attributes_to_remove) {
+      if (!bke::allow_procedural_attribute_access(attribute_name.ref())) {
         continue;
       }
       if (component.attributes_for_write()->remove(attribute_name)) {
@@ -153,14 +153,14 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   remove_attributes_recursive(geometry_set, removal_params);
 
-  for (const StringRef attribute_name : removal_params.removed_attributes) {
+  for (const UString attribute_name : removal_params.removed_attributes) {
     params.used_named_attribute(attribute_name, NamedAttributeUsage::Remove);
   }
 
   if (!removal_params.failed_attributes.is_empty()) {
     Vector<std::string> quoted_attribute_names;
-    for (const StringRef attribute_name : removal_params.failed_attributes) {
-      quoted_attribute_names.append(fmt::format("\"{}\"", attribute_name));
+    for (const UString attribute_name : removal_params.failed_attributes) {
+      quoted_attribute_names.append(fmt::format("\"{}\"", attribute_name.ref()));
     }
     const std::string message = fmt::format(
         fmt::runtime(TIP_("Cannot remove built-in attributes: {}")),

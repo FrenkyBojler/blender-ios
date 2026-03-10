@@ -87,18 +87,18 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
-  const std::string name = params.extract_input<std::string>("Name");
+  const UString name = UString(params.extract_input<std::string>("Name"));
 
-  if (name.empty()) {
+  if (name.is_empty()) {
     params.set_output("Geometry", std::move(geometry_set));
     return;
   }
-  if (!bke::allow_procedural_attribute_access(name)) {
+  if (!bke::allow_procedural_attribute_access(name.ref())) {
     params.error_message_add(NodeWarningType::Info, TIP_(bke::no_procedural_access_message));
     params.set_output("Geometry", std::move(geometry_set));
     return;
   }
-  if (bke::attribute_name_is_anonymous(name)) {
+  if (bke::attribute_name_is_anonymous(name.ref())) {
     params.error_message_add(NodeWarningType::Info,
                              TIP_("Anonymous attributes cannot be created here"));
     params.set_output("Geometry", std::move(geometry_set));
@@ -163,8 +163,8 @@ static void node_geo_exec(GeoNodeExecParams params)
           if (bke::try_capture_field_on_geometry(component, name, domain, selection, field)) {
             if (component.type() == GeometryComponent::Type::Mesh) {
               Mesh &mesh = *geometry_set.get_mesh_for_write();
-              bke::mesh_ensure_default_color_attribute_on_add(mesh, name, domain, data_type);
-              bke::mesh_ensure_default_uv_attribute_on_add(mesh, name, domain, data_type);
+              bke::mesh_ensure_default_color_attribute_on_add(mesh, name.ref(), domain, data_type);
+              bke::mesh_ensure_default_uv_attribute_on_add(mesh, name.ref(), domain, data_type);
             }
           }
           else if (component.attribute_domain_size(domain) != 0) {
@@ -183,7 +183,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     const std::string message = fmt::format(
         fmt::runtime(
             TIP_("Failed to write to attribute \"{}\" with domain \"{}\" and type \"{}\"")),
-        name,
+        name.ref(),
         TIP_(domain_name),
         TIP_(type_name));
     params.error_message_add(NodeWarningType::Warning, message);

@@ -12,6 +12,7 @@
 #include "BLI_math_euler.hh"
 #include "BLI_string.h"
 
+#include "BLI_ustring.hh"
 #include "NOD_geometry.hh"
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_execute.hh"
@@ -662,8 +663,8 @@ static bke::SocketValueVariant init_socket_cpp_value_from_property(
   }
 }
 
-std::optional<StringRef> input_attribute_name_get(const IDProperty *properties,
-                                                  const bNodeTreeInterfaceSocket &io_input)
+std::optional<UString> input_attribute_name_get(const IDProperty *properties,
+                                                const bNodeTreeInterfaceSocket &io_input)
 {
   IDProperty *use_attribute = IDP_GetPropertyFromGroup_null(
       properties, io_input.identifier + input_use_attribute_suffix);
@@ -684,7 +685,7 @@ std::optional<StringRef> input_attribute_name_get(const IDProperty *properties,
   const IDProperty *property_attribute_name = IDP_GetPropertyFromGroup_null(
       properties, io_input.identifier + input_attribute_name_suffix);
 
-  return IDP_string_get(property_attribute_name);
+  return UString(IDP_string_get(property_attribute_name));
 }
 
 static bke::SocketValueVariant initialize_group_input(const bNodeTree &tree,
@@ -706,8 +707,8 @@ static bke::SocketValueVariant initialize_group_input(const bNodeTree &tree,
     return init_socket_cpp_value_from_property(*property, socket_data_type);
   }
 
-  const std::optional<StringRef> attribute_name = input_attribute_name_get(properties, io_input);
-  if (attribute_name && bke::allow_procedural_attribute_access(*attribute_name)) {
+  const std::optional<UString> attribute_name = input_attribute_name_get(properties, io_input);
+  if (attribute_name && bke::allow_procedural_attribute_access(attribute_name->ref())) {
     fn::GField attribute_field = bke::AttributeFieldInput::from(*attribute_name,
                                                                 *typeinfo->base_cpp_type);
     return bke::SocketValueVariant::From(std::move(attribute_field));
@@ -725,13 +726,13 @@ static bke::SocketValueVariant initialize_group_input(const bNodeTree &tree,
 
 struct OutputAttributeInfo {
   fn::GField field;
-  StringRefNull name;
+  UString name;
 };
 
 struct OutputAttributeToStore {
   bke::GeometryComponent::Type component_type;
   bke::AttrDomain domain;
-  StringRefNull name;
+  UString name;
   GMutableSpan data;
 };
 
@@ -754,11 +755,11 @@ static MultiValueMap<bke::AttrDomain, OutputAttributeInfo> find_output_attribute
     if (prop == nullptr) {
       continue;
     }
-    const StringRefNull attribute_name = IDP_string_get(prop);
+    const UString attribute_name(IDP_string_get(prop));
     if (attribute_name.is_empty()) {
       continue;
     }
-    if (!bke::allow_procedural_attribute_access(attribute_name)) {
+    if (!bke::allow_procedural_attribute_access(attribute_name.ref())) {
       continue;
     }
 

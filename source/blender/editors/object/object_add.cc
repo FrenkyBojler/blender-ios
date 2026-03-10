@@ -2340,9 +2340,9 @@ static wmOperatorStatus object_curves_empty_hair_add_exec(bContext *C, wmOperato
 
   /* Decide which UV map to use for attachment. */
   Mesh *surface_mesh = id_cast<Mesh *>(surface_ob->data);
-  const StringRef uv_name = surface_mesh->active_uv_map_name();
+  const UString uv_name = surface_mesh->active_uv_map_name();
   if (!uv_name.is_empty()) {
-    curves_id->surface_uv_map = BLI_strdupn(uv_name.data(), uv_name.size());
+    curves_id->surface_uv_map = BLI_strdupn(uv_name.ref().data(), uv_name.ref().size());
   }
 
   /* Add deformation modifier. */
@@ -2400,9 +2400,9 @@ static wmOperatorStatus object_pointcloud_add_exec(bContext *C, wmOperator *op)
 
   bke::MutableAttributeAccessor attributes = pointcloud.attributes_for_write();
   bke::SpanAttributeWriter<float3> position = attributes.lookup_or_add_for_write_only_span<float3>(
-      "position", bke::AttrDomain::Point);
+      "position"_ustr, bke::AttrDomain::Point);
   bke::SpanAttributeWriter<float> radii = attributes.lookup_or_add_for_write_only_span<float>(
-      "radius", bke::AttrDomain::Point);
+      "radius"_ustr, bke::AttrDomain::Point);
 
   RandomNumberGenerator rng(0);
   for (const int i : position.span.index_range()) {
@@ -3484,12 +3484,12 @@ static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
     curves.fill_curve_types(CURVE_TYPE_POLY);
     array_utils::gather(mesh_positions, corner_verts, positions);
     array_utils::copy(faces_span, offsets);
-    attributes.add<bool>("cyclic", bke::AttrDomain::Curve, bke::AttributeInitValue(true));
+    attributes.add<bool>("cyclic"_ustr, bke::AttrDomain::Curve, bke::AttributeInitValue(true));
 
     VArray<int> mesh_materials = *mesh_eval.attributes().lookup_or_default(
-        "material_index", bke::AttrDomain::Face, 0);
+        "material_index"_ustr, bke::AttrDomain::Face, 0);
     bke::SpanAttributeWriter<int> material_indices =
-        attributes.lookup_or_add_for_write_only_span<int>("material_index",
+        attributes.lookup_or_add_for_write_only_span<int>("material_index"_ustr,
                                                           bke::AttrDomain::Curve);
     threading::parallel_for(curves.curves_range(), 2048, [&](const IndexRange range) {
       for (const int i : range) {
@@ -3500,7 +3500,7 @@ static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
     material_indices.finish();
 
     bke::SpanAttributeWriter<int> fill_ids = attributes.lookup_or_add_for_write_only_span<int>(
-        "fill_id", bke::AttrDomain::Curve);
+        "fill_id"_ustr, bke::AttrDomain::Curve);
     threading::parallel_for(curves.curves_range(), 2048, [&](const IndexRange range) {
       for (const int i : range) {
         const int fill_id = i + 1;
@@ -3510,15 +3510,15 @@ static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
     fill_ids.finish();
 
     bke::SpanAttributeWriter<bool> hide_stroke = attributes.lookup_or_add_for_write_span<bool>(
-        "hide_stroke", bke::AttrDomain::Curve, bke::AttributeInitValue(true));
+        "hide_stroke"_ustr, bke::AttrDomain::Curve, bke::AttributeInitValue(true));
     hide_stroke.finish();
   }
 
   Mesh *mesh_copied = BKE_mesh_copy_for_eval(mesh_eval);
   const Span<float3> normals = mesh_copied->vert_normals();
 
-  std::string normals_attribute_name = BKE_attribute_calc_unique_name(
-      AttributeOwner::from_id(&mesh_copied->id), "vertex_normal_for_conversion");
+  UString normals_attribute_name = UString(BKE_attribute_calc_unique_name(
+      AttributeOwner::from_id(&mesh_copied->id), "vertex_normal_for_conversion"));
 
   mesh_copied->attributes_for_write().add(
       normals_attribute_name,
@@ -3528,7 +3528,7 @@ static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
 
   const int edges_num = mesh_copied->edges_num;
   bke::CurvesGeometry curves_edges = geometry::mesh_edges_to_curves_convert(
-      *mesh_copied, IndexRange(edges_num), bke::attribute_filter_from_skip_ref({"radius"}));
+      *mesh_copied, IndexRange(edges_num), bke::attribute_filter_from_skip_ref({"radius"_ustr}));
 
   MutableSpan<float3> curve_positions = curves_edges.positions_for_write();
   const VArraySpan<float3> point_normals = *curves_edges.attributes().lookup<float3>(
@@ -3546,7 +3546,8 @@ static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
   grease_pencil.flag |= GREASE_PENCIL_STROKE_ORDER_3D;
 
   bke::MutableAttributeAccessor attributes = curves_edges.attributes_for_write();
-  attributes.add<float>("radius", bke::AttrDomain::Point, bke::AttributeInitValue(stroke_radius));
+  attributes.add<float>(
+      "radius"_ustr, bke::AttrDomain::Point, bke::AttributeInitValue(stroke_radius));
 
   drawing_line->strokes_for_write() = std::move(curves_edges);
   drawing_line->tag_topology_changed();
@@ -3734,8 +3735,8 @@ static Object *convert_curves_to_grease_pencil(Base &base,
     drawing->strokes_for_write() = curves_eval->geometry.wrap();
     /* Default radius (1.0 unit) is too thick for converted strokes. */
     bke::MutableAttributeAccessor attributes = drawing->strokes_for_write().attributes_for_write();
-    attributes.remove("radius");
-    attributes.add<float>("radius", bke::AttrDomain::Point, bke::AttributeInitValue(0.01f));
+    attributes.remove("radius"_ustr);
+    attributes.add<float>("radius"_ustr, bke::AttrDomain::Point, bke::AttributeInitValue(0.01f));
 
     BKE_grease_pencil_nomain_to_grease_pencil(grease_pencil, new_grease_pencil);
     BKE_object_material_from_eval_data(info.bmain, newob, &curves_eval->id);
@@ -4006,11 +4007,11 @@ static void create_grease_pencil_fills(bke::greasepencil::Drawing &drawing)
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
 
   VArray<int> materials = *attributes.lookup_or_default(
-      "material_index", bke::AttrDomain::Curve, 0);
+      "material_index"_ustr, bke::AttrDomain::Curve, 0);
   bke::SpanAttributeWriter<int> fill_ids = attributes.lookup_or_add_for_write_only_span<int>(
-      "fill_id", bke::AttrDomain::Curve);
+      "fill_id"_ustr, bke::AttrDomain::Curve);
   /* Hide all the strokes, only show fills. */
-  attributes.add<bool>("hide_stroke", bke::AttrDomain::Curve, bke::AttributeInitValue(true));
+  attributes.add<bool>("hide_stroke"_ustr, bke::AttrDomain::Curve, bke::AttributeInitValue(true));
 
   /* Mark all the strokes in the same material as the same fill. */
   for (const int curve_i : curves.curves_range()) {
@@ -4046,8 +4047,8 @@ static Object *convert_font_to_grease_pencil(Base &base,
   drawing->strokes_for_write() = std::move(curves);
   /* Default radius (1.0 unit) is too thick for converted strokes. */
   bke::MutableAttributeAccessor attributes = drawing->strokes_for_write().attributes_for_write();
-  attributes.remove("radius");
-  attributes.add<float>("radius", bke::AttrDomain::Point, bke::AttributeInitValue(0.01f));
+  attributes.remove("radius"_ustr);
+  attributes.add<float>("radius"_ustr, bke::AttrDomain::Point, bke::AttributeInitValue(0.01f));
 
   const bool use_fill = (legacy_curve_id->flag & (CU_FRONT | CU_BACK)) != 0;
   if (use_fill) {
@@ -4161,8 +4162,8 @@ static Object *convert_curves_legacy_to_grease_pencil(Base &base,
   drawing->strokes_for_write() = std::move(curves);
   /* Default radius (1.0 unit) is too thick for converted strokes. */
   bke::MutableAttributeAccessor attributes = drawing->strokes_for_write().attributes_for_write();
-  attributes.remove("radius");
-  attributes.add<float>("radius", bke::AttrDomain::Point, bke::AttributeInitValue(0.01f));
+  attributes.remove("radius"_ustr);
+  attributes.add<float>("radius"_ustr, bke::AttrDomain::Point, bke::AttributeInitValue(0.01f));
   drawing->tag_positions_changed();
 
   const bool use_fill = (legacy_curve_id->flag & (CU_FRONT | CU_BACK)) != 0;

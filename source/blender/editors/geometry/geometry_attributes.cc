@@ -226,7 +226,7 @@ void rna_property_for_attribute_type_set_value(PointerRNA &ptr,
 bool attribute_set_poll(bContext &C, const ID &object_data)
 {
   AttributeOwner owner = AttributeOwner::from_id(&const_cast<ID &>(object_data));
-  const std::optional<StringRef> name = BKE_attributes_active_name_get(owner);
+  const std::optional<UString> name = BKE_attributes_active_name_get(owner);
   if (!name) {
     CTX_wm_operator_poll_msg_set(&C, "No active attribute");
     return false;
@@ -235,7 +235,7 @@ bool attribute_set_poll(bContext &C, const ID &object_data)
   if (owner.type() == AttributeOwnerType::Mesh) {
     const Mesh *mesh = owner.get_mesh();
     if (mesh->runtime->edit_mesh) {
-      BMDataLayerLookup attr = BM_data_layer_lookup(*mesh->runtime->edit_mesh->bm, *name);
+      BMDataLayerLookup attr = BM_data_layer_lookup(*mesh->runtime->edit_mesh->bm, name->ref());
       if (ELEM(attr.type,
                bke::AttrType::String,
                bke::AttrType::Float4x4,
@@ -319,23 +319,23 @@ static const EnumPropertyItem *geometry_attribute_domain_itemf(bContext *C,
 static void set_active_default_status_on_add(Mesh &mesh,
                                              const bke::AttrDomain domain,
                                              const bke::AttrType type,
-                                             const StringRefNull name)
+                                             const UString name)
 {
   if (bke::mesh::is_color_attribute({domain, type})) {
-    if (!BKE_id_attributes_color_find(&mesh.id, mesh.active_color_attribute)) {
-      BKE_id_attributes_active_color_set(&mesh.id, name);
+    if (!BKE_id_attributes_color_find(&mesh.id, UString(mesh.active_color_attribute))) {
+      BKE_id_attributes_active_color_set(&mesh.id, name.ref());
     }
-    if (!BKE_id_attributes_color_find(&mesh.id, mesh.default_color_attribute)) {
-      BKE_id_attributes_default_color_set(&mesh.id, name);
+    if (!BKE_id_attributes_color_find(&mesh.id, UString(mesh.default_color_attribute))) {
+      BKE_id_attributes_default_color_set(&mesh.id, name.ref());
     }
   }
   else if (bke::mesh::is_uv_map({domain, type})) {
-    const VectorSet<StringRefNull> uv_maps = mesh.uv_map_names();
+    const VectorSet<UString> uv_maps = mesh.uv_map_names();
     if (!uv_maps.contains(mesh.active_uv_map_name())) {
-      mesh.uv_maps_active_set(name);
+      mesh.uv_maps_active_set(name.ref());
     }
     if (!uv_maps.contains(mesh.default_uv_map_name())) {
-      mesh.uv_maps_default_set(name);
+      mesh.uv_maps_default_set(name.ref());
     }
   }
 }
@@ -360,7 +360,7 @@ static wmOperatorStatus geometry_attribute_add_exec(bContext *C, wmOperator *op)
       if (layer == nullptr) {
         return OPERATOR_CANCELLED;
       }
-      const StringRefNull new_name = layer->name;
+      const UString new_name = UString(layer->name);
       BKE_attributes_active_set(owner, new_name);
 
       set_active_default_status_on_add(mesh, domain, type, new_name);
@@ -382,7 +382,7 @@ static wmOperatorStatus geometry_attribute_add_exec(bContext *C, wmOperator *op)
 
   const CPPType &cpp_type = bke::attribute_type_to_cpp_type(type);
   bke::Attribute &attr = attributes.add(
-      attributes.unique_name_calc(name),
+      UString(attributes.unique_name_calc(UString(name))),
       bke::AttrDomain(domain),
       type,
       bke::Attribute::ArrayData::from_default_value(cpp_type, domain_size));
@@ -474,7 +474,7 @@ static wmOperatorStatus geometry_attribute_remove_exec(bContext *C, wmOperator *
   Object *ob = object::context_object(C);
   ID *id = ob->data;
   AttributeOwner owner = AttributeOwner::from_id(id);
-  const StringRef name = *BKE_attributes_active_name_get(owner);
+  const UString name = *BKE_attributes_active_name_get(owner);
 
   if (!BKE_attribute_remove(owner, name, op->reports)) {
     return OPERATOR_CANCELLED;
@@ -520,7 +520,7 @@ static wmOperatorStatus geometry_color_attribute_add_exec(bContext *C, wmOperato
   RNA_float_get_array(op->ptr, "color", color);
 
   AttributeOwner owner = AttributeOwner::from_id(id);
-  const std::string unique_name = BKE_attribute_calc_unique_name(owner, name);
+  const UString unique_name = UString(BKE_attribute_calc_unique_name(owner, name));
 
   if (owner.type() == AttributeOwnerType::Mesh) {
     Mesh *mesh = owner.get_mesh();
@@ -529,10 +529,10 @@ static wmOperatorStatus geometry_color_attribute_add_exec(bContext *C, wmOperato
       if (layer == nullptr) {
         return OPERATOR_CANCELLED;
       }
-      BKE_id_attributes_active_color_set(id, unique_name);
-      if (!BKE_id_attributes_color_find(id, BKE_id_attributes_default_color_name(id).value_or("")))
+      BKE_id_attributes_active_color_set(id, unique_name.ref());
+      if (!BKE_id_attributes_color_find(id, BKE_id_attributes_default_color_name(id).value_or({})))
       {
-        BKE_id_attributes_default_color_set(id, unique_name);
+        BKE_id_attributes_default_color_set(id, unique_name.ref());
       }
       sculpt_paint::object_active_color_fill(*ob, color, false);
       DEG_id_tag_update(id, ID_RECALC_GEOMETRY);
@@ -547,9 +547,9 @@ static wmOperatorStatus geometry_color_attribute_add_exec(bContext *C, wmOperato
                  *bke::custom_data_type_to_attr_type(type),
                  bke::AttributeInitDefaultValue());
 
-  BKE_id_attributes_active_color_set(id, unique_name);
-  if (!BKE_id_attributes_color_find(id, BKE_id_attributes_default_color_name(id).value_or(""))) {
-    BKE_id_attributes_default_color_set(id, unique_name);
+  BKE_id_attributes_active_color_set(id, unique_name.ref());
+  if (!BKE_id_attributes_color_find(id, BKE_id_attributes_default_color_name(id).value_or({}))) {
+    BKE_id_attributes_default_color_set(id, unique_name.ref());
   }
   sculpt_paint::object_active_color_fill(*ob, color, false);
   DEG_id_tag_update(id, ID_RECALC_GEOMETRY);
@@ -602,7 +602,7 @@ static bool geometry_attribute_convert_poll(bContext *C)
 
 bool convert_attribute(AttributeOwner &owner,
                        bke::MutableAttributeAccessor attributes,
-                       const StringRef name,
+                       const UString name,
                        const bke::AttrDomain dst_domain,
                        const bke::AttrType dst_type,
                        ReportList *reports)
@@ -617,22 +617,21 @@ bool convert_attribute(AttributeOwner &owner,
 
   const bool was_active = BKE_attributes_active_name_get(owner) == name;
 
-  const std::string name_copy = name;
-  const GVArray varray = *attributes.lookup_or_default(name_copy, dst_domain, dst_type);
+  const GVArray varray = *attributes.lookup_or_default(name, dst_domain, dst_type);
 
   const CPPType &cpp_type = varray.type();
   void *new_data = MEM_new_uninitialized_aligned(
       varray.size() * cpp_type.size, cpp_type.alignment, __func__);
   varray.materialize_to_uninitialized(new_data);
-  attributes.remove(name_copy);
-  if (!attributes.add(name_copy, dst_domain, dst_type, bke::AttributeInitMoveArray(new_data))) {
+  attributes.remove(name);
+  if (!attributes.add(name, dst_domain, dst_type, bke::AttributeInitMoveArray(new_data))) {
     MEM_delete_void(new_data);
   }
 
   if (was_active) {
     /* The attribute active status is stored as an index. Changing the attribute's domain will
      * change its index, so reassign the active attribute if necessary. */
-    BKE_attributes_active_set(owner, name_copy);
+    BKE_attributes_active_set(owner, name);
   }
 
   return true;
@@ -647,7 +646,7 @@ static wmOperatorStatus geometry_attribute_convert_exec(bContext *C, wmOperator 
   const eCustomDataType cd_type = eCustomDataType(RNA_enum_get(op->ptr, "data_type"));
   const bke::AttrType type = *bke::custom_data_type_to_attr_type(cd_type);
   const bke::AttrDomain domain = bke::AttrDomain(RNA_enum_get(op->ptr, "domain"));
-  const std::string name = *BKE_attributes_active_name_get(owner);
+  const UString name = *BKE_attributes_active_name_get(owner);
 
   if (ob->type == OB_MESH) {
     Mesh *mesh = reinterpret_cast<Mesh *>(ob_data);
@@ -667,7 +666,7 @@ static wmOperatorStatus geometry_attribute_convert_exec(bContext *C, wmOperator 
         src_varray.materialize(src_weights);
         attributes.remove(name);
 
-        bDeformGroup *defgroup = BKE_object_defgroup_new(ob, name);
+        bDeformGroup *defgroup = BKE_object_defgroup_new(ob, name.ref());
         const int defgroup_index = BLI_findindex(BKE_id_defgroup_list_get(&mesh->id), defgroup);
         MDeformVert *dverts = BKE_object_defgroup_data_create(&mesh->id);
         for (const int i : IndexRange(mesh->verts_num)) {
@@ -782,7 +781,7 @@ static wmOperatorStatus geometry_color_attribute_set_render_exec(bContext *C, wm
   }
   else {
     const bke::AttributeAccessor attributes = mesh->attributes();
-    if (!bke::mesh::is_color_attribute(attributes.lookup_meta_data(name))) {
+    if (!bke::mesh::is_color_attribute(attributes.lookup_meta_data(UString(name)))) {
       return OPERATOR_CANCELLED;
     }
     BKE_id_attributes_default_color_set(id, name);
@@ -818,8 +817,8 @@ static wmOperatorStatus geometry_color_attribute_remove_exec(bContext *C, wmOper
 {
   Object *ob = object::context_object(C);
   ID *id = ob->data;
-  const std::string active_name = BKE_id_attributes_active_color_name(id).value_or("");
-  if (active_name.empty()) {
+  const UString active_name = BKE_id_attributes_active_color_name(id).value_or({});
+  if (active_name.is_empty()) {
     return OPERATOR_CANCELLED;
   }
   AttributeOwner owner = AttributeOwner::from_id(id);
@@ -842,7 +841,7 @@ static bool geometry_color_attributes_remove_poll(bContext *C)
   const Object *ob = object::context_object(C);
   const ID *data = ob->data;
 
-  if (BKE_id_attributes_color_find(data, BKE_id_attributes_active_color_name(data).value_or(""))) {
+  if (BKE_id_attributes_color_find(data, BKE_id_attributes_active_color_name(data).value_or({}))) {
     return true;
   }
 
@@ -868,7 +867,7 @@ static wmOperatorStatus geometry_color_attribute_duplicate_exec(bContext *C, wmO
 {
   Object *ob = object::context_object(C);
   ID *id = ob->data;
-  const std::optional<StringRef> active_name = BKE_id_attributes_active_color_name(id);
+  const std::optional<UString> active_name = BKE_id_attributes_active_color_name(id);
   if (!active_name) {
     return OPERATOR_CANCELLED;
   }
@@ -879,9 +878,10 @@ static wmOperatorStatus geometry_color_attribute_duplicate_exec(bContext *C, wmO
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   bke::GAttributeReader src = attributes.lookup(*active_name);
   AttributeOwner owner = AttributeOwner::from_id(id);
-  std::string uniquename = BKE_attribute_calc_unique_name(owner, *active_name);
+  std::string uniquename = BKE_attribute_calc_unique_name(owner, active_name->ref());
   const bke::AttrType type = bke::cpp_type_to_attribute_type(src.varray.type());
-  if (!attributes.add(uniquename, src.domain, type, bke::AttributeInitVArray(src.varray))) {
+  if (!attributes.add(UString(uniquename), src.domain, type, bke::AttributeInitVArray(src.varray)))
+  {
     return OPERATOR_CANCELLED;
   }
 
@@ -906,7 +906,7 @@ static bool geometry_color_attributes_duplicate_poll(bContext *C)
   const Object *ob = object::context_object(C);
   const ID *data = ob->data;
 
-  if (BKE_id_attributes_color_find(data, BKE_id_attributes_active_color_name(data).value_or(""))) {
+  if (BKE_id_attributes_color_find(data, BKE_id_attributes_active_color_name(data).value_or({}))) {
     return true;
   }
 
@@ -1029,7 +1029,7 @@ static bool geometry_color_attribute_convert_poll(bContext *C)
     return false;
   }
   const Mesh *mesh = id_cast<const Mesh *>(ob->data);
-  const char *name = mesh->active_color_attribute;
+  const UString name = UString(mesh->active_color_attribute);
   const bke::AttributeAccessor attributes = mesh->attributes();
   if (!bke::mesh::is_color_attribute(attributes.lookup_meta_data(name))) {
     return false;
@@ -1046,7 +1046,7 @@ static wmOperatorStatus geometry_color_attribute_convert_exec(bContext *C, wmOpe
   convert_attribute(
       owner,
       mesh->attributes_for_write(),
-      mesh->active_color_attribute,
+      UString(mesh->active_color_attribute),
       bke::AttrDomain(RNA_enum_get(op->ptr, "domain")),
       *bke::custom_data_type_to_attr_type(eCustomDataType(RNA_enum_get(op->ptr, "data_type"))),
       op->reports);
@@ -1061,7 +1061,7 @@ static wmOperatorStatus geometry_color_attribute_convert_invoke(bContext *C,
 {
   Object *ob = object::context_object(C);
   Mesh *mesh = id_cast<Mesh *>(ob->data);
-  const char *name = mesh->active_color_attribute;
+  const UString name = UString(mesh->active_color_attribute);
   const bke::AttributeMetaData meta_data = *mesh->attributes().lookup_meta_data(name);
 
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "domain");

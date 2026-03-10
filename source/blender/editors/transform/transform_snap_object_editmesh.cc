@@ -102,11 +102,11 @@ static Mesh *create_mesh(SnapObjectContext *sctx,
 
   bke::MutableAttributeAccessor attrs = mesh->attributes_for_write();
   bke::SpanAttributeWriter<bool> hide_vert = attrs.lookup_or_add_for_write_only_span<bool>(
-      ".hide_vert", bke::AttrDomain::Point);
+      ".hide_vert"_ustr, bke::AttrDomain::Point);
   bke::SpanAttributeWriter<bool> hide_edge = attrs.lookup_or_add_for_write_only_span<bool>(
-      ".hide_edge", bke::AttrDomain::Edge);
+      ".hide_edge"_ustr, bke::AttrDomain::Edge);
   bke::SpanAttributeWriter<bool> hide_poly = attrs.lookup_or_add_for_write_only_span<bool>(
-      ".hide_poly", bke::AttrDomain::Face);
+      ".hide_poly"_ustr, bke::AttrDomain::Face);
 
   /* Loop over all elements in parallel to choose which elements will participate in the snap.
    * Hidden elements are ignored for snapping. */

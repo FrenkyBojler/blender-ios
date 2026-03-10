@@ -248,7 +248,7 @@ TEST(grease_pencil_merge, merge_layer_attributes)
   Array<float> test_float_values({4.2f, 1.0f, -12.0f});
   SpanAttributeWriter<float> test_attribute =
       grease_pencil.attributes_for_write().lookup_or_add_for_write_only_span<float>(
-          "test", AttrDomain::Layer);
+          "test"_ustr, AttrDomain::Layer);
   EXPECT_TRUE(test_attribute);
   test_attribute.span.copy_from(test_float_values);
   test_attribute.finish();
@@ -262,7 +262,7 @@ TEST(grease_pencil_merge, merge_layer_attributes)
 
   EXPECT_EQ(merged_grease_pencil->layers().size(), 2);
 
-  VArray<float> merged_values = *merged_grease_pencil->attributes().lookup<float>("test");
+  VArray<float> merged_values = *merged_grease_pencil->attributes().lookup<float>("test"_ustr);
   Array<float> expected_float_values({2.6, -12.0f});
   for (const int i : merged_grease_pencil->layers().index_range()) {
     EXPECT_FLOAT_EQ(merged_values[i], expected_float_values[i]);

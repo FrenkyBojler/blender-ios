@@ -287,7 +287,7 @@ static wmOperatorStatus grease_pencil_material_lock_unselected_exec(bContext *C,
 
     AttributeAccessor attributes = info.drawing.strokes().attributes();
     const VArray<int> material_indices = *attributes.lookup_or_default<int>(
-        "material_index", AttrDomain::Curve, 0);
+        "material_index"_ustr, AttrDomain::Curve, 0);
 
     if (const std::optional<int> single = material_indices.get_if_single()) {
       materials_used.add(*single);

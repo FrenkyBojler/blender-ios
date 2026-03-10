@@ -42,21 +42,21 @@
 
 namespace blender::bke {
 
-constexpr StringRef ATTR_POSITION = "position";
-constexpr StringRef ATTR_RADIUS = "radius";
-constexpr StringRef ATTR_TILT = "tilt";
-constexpr StringRef ATTR_CURVE_TYPE = "curve_type";
-constexpr StringRef ATTR_CYCLIC = "cyclic";
-constexpr StringRef ATTR_RESOLUTION = "resolution";
-constexpr StringRef ATTR_NORMAL_MODE = "normal_mode";
-constexpr StringRef ATTR_HANDLE_TYPE_LEFT = "handle_type_left";
-constexpr StringRef ATTR_HANDLE_TYPE_RIGHT = "handle_type_right";
-constexpr StringRef ATTR_HANDLE_POSITION_LEFT = "handle_left";
-constexpr StringRef ATTR_HANDLE_POSITION_RIGHT = "handle_right";
-constexpr StringRef ATTR_NURBS_ORDER = "nurbs_order";
-constexpr StringRef ATTR_NURBS_WEIGHT = "nurbs_weight";
-constexpr StringRef ATTR_NURBS_KNOTS_MODE = "knots_mode";
-constexpr StringRef ATTR_SURFACE_UV_COORDINATE = "surface_uv_coordinate";
+static UString ATTR_POSITION = "position"_ustr;
+static UString ATTR_RADIUS = "radius"_ustr;
+static UString ATTR_TILT = "tilt"_ustr;
+static UString ATTR_CURVE_TYPE = "curve_type"_ustr;
+static UString ATTR_CYCLIC = "cyclic"_ustr;
+static UString ATTR_RESOLUTION = "resolution"_ustr;
+static UString ATTR_NORMAL_MODE = "normal_mode"_ustr;
+static UString ATTR_HANDLE_TYPE_LEFT = "handle_type_left"_ustr;
+static UString ATTR_HANDLE_TYPE_RIGHT = "handle_type_right"_ustr;
+static UString ATTR_HANDLE_POSITION_LEFT = "handle_left"_ustr;
+static UString ATTR_HANDLE_POSITION_RIGHT = "handle_right"_ustr;
+static UString ATTR_NURBS_ORDER = "nurbs_order"_ustr;
+static UString ATTR_NURBS_WEIGHT = "nurbs_weight"_ustr;
+static UString ATTR_NURBS_KNOTS_MODE = "knots_mode"_ustr;
+static UString ATTR_SURFACE_UV_COORDINATE = "surface_uv_coordinate"_ustr;
 
 /* -------------------------------------------------------------------- */
 /** \name Constructors/Destructor
@@ -76,7 +76,7 @@ CurvesGeometry::CurvesGeometry(const int point_num, const int curve_num)
   BLI_listbase_clear(&this->vertex_group_names);
 
   this->attributes_for_write().add<float3>(
-      "position", AttrDomain::Point, AttributeInitConstruct());
+      "position"_ustr, AttrDomain::Point, AttributeInitConstruct());
 
   this->custom_knots = nullptr;
   this->custom_knot_num = 0;
@@ -246,17 +246,17 @@ void CurvesGeometry::fill_curve_types(const CurveType type)
   if (type == CURVE_TYPE_CATMULL_ROM) {
     /* Avoid creating the attribute for Catmull Rom which is the default when the attribute doesn't
      * exist anyway. */
-    this->attributes_for_write().remove("curve_type");
+    this->attributes_for_write().remove("curve_type"_ustr);
   }
   else {
     const GPointer value(CPPType::get<int8_t>(), &type);
     Attribute::SingleData data = Attribute::SingleData::from_value(value);
-    if (Attribute *attr = this->attribute_storage.wrap().lookup("curve_type")) {
+    if (Attribute *attr = this->attribute_storage.wrap().lookup("curve_type"_ustr)) {
       attr->assign_data(std::move(data));
     }
     else {
       this->attribute_storage.wrap().add(
-          "curve_type", AttrDomain::Curve, AttrType::Int8, std::move(data));
+          "curve_type"_ustr, AttrDomain::Curve, AttrType::Int8, std::move(data));
     }
   }
   this->runtime->type_counts.fill(0);
@@ -1062,7 +1062,7 @@ Span<float3> CurvesGeometry::evaluated_normals() const
       tilt_span = tilt;
     }
     VArraySpan<float3> custom_normal_span;
-    if (const VArray<float3> custom_normal = *attributes.lookup<float3>("custom_normal",
+    if (const VArray<float3> custom_normal = *attributes.lookup<float3>("custom_normal"_ustr,
                                                                         AttrDomain::Point))
     {
       custom_normal_span = custom_normal;
@@ -1415,7 +1415,7 @@ std::optional<int> CurvesGeometry::material_index_max() const
   this->runtime->max_material_index_cache.ensure([&](std::optional<int> &r_max_material_index) {
     r_max_material_index = bounds::max<int>(
         this->attributes()
-            .lookup_or_default<int>("material_index", bke::AttrDomain::Curve, 0)
+            .lookup_or_default<int>("material_index"_ustr, bke::AttrDomain::Curve, 0)
             .varray);
     if (r_max_material_index.has_value()) {
       r_max_material_index = std::clamp(*r_max_material_index, 0, MAXMAT);
@@ -1688,10 +1688,10 @@ static void reverse_swap_curve_point_data(const CurvesGeometry &curves,
 
 void CurvesGeometry::reverse_curves(const IndexMask &curves_to_reverse)
 {
-  Set<StringRef> bezier_handle_names{{ATTR_HANDLE_POSITION_LEFT,
-                                      ATTR_HANDLE_POSITION_RIGHT,
-                                      ATTR_HANDLE_TYPE_LEFT,
-                                      ATTR_HANDLE_TYPE_RIGHT}};
+  Set<UString> bezier_handle_names{{ATTR_HANDLE_POSITION_LEFT,
+                                    ATTR_HANDLE_POSITION_RIGHT,
+                                    ATTR_HANDLE_TYPE_LEFT,
+                                    ATTR_HANDLE_TYPE_RIGHT}};
 
   MutableAttributeAccessor attributes = this->attributes_for_write();
 
@@ -1776,7 +1776,7 @@ CurvesGeometry curves_new_no_attributes(int point_num, int curve_num)
 {
   CurvesGeometry curves(0, curve_num);
   curves.point_num = point_num;
-  curves.attribute_storage.wrap().remove("position");
+  curves.attribute_storage.wrap().remove("position"_ustr);
   return curves;
 }
 

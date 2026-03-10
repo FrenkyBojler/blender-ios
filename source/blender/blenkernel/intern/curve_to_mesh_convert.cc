@@ -355,7 +355,7 @@ static ResultOffsets calculate_result_offsets(const CurvesInfo &info, const bool
 }
 
 static AttrDomain get_attribute_domain_for_mesh(const AttributeAccessor &mesh_attributes,
-                                                const StringRef name)
+                                                const UString name)
 {
   /* Only use a different domain if it is builtin and must only exist on one domain. */
   if (!mesh_attributes.is_builtin(name)) {
@@ -372,7 +372,7 @@ static AttrDomain get_attribute_domain_for_mesh(const AttributeAccessor &mesh_at
 
 static bool should_add_attribute_to_mesh(const AttributeAccessor &curve_attributes,
                                          const AttributeAccessor &mesh_attributes,
-                                         const StringRef name,
+                                         const UString name,
                                          const AttributeMetaData &meta_data,
                                          const AttributeFilter &attribute_filter)
 {
@@ -496,7 +496,7 @@ static void build_mesh_positions(const CurvesInfo &curves_info,
                                  Vector<std::byte> &eval_buffer,
                                  Mesh &mesh)
 {
-  BLI_assert(!mesh.attributes().contains("position"));
+  BLI_assert(!mesh.attributes().contains("position"_ustr));
   const Span<float3> profile_positions = curves_info.profile.evaluated_positions();
   const bool ignore_profile_position = profile_positions.size() == 1 &&
                                        math::is_equal(profile_positions.first(), float3(0.0f));
@@ -505,17 +505,18 @@ static void build_mesh_positions(const CurvesInfo &curves_info,
         /* NURBS can have equal evaluated and positions sizes, but different coords. */
         !curves_info.main.has_curve_with_type(CURVE_TYPE_NURBS))
     {
-      const GAttributeReader src = curves_info.main.attributes().lookup("position");
+      const GAttributeReader src = curves_info.main.attributes().lookup("position"_ustr);
       if (src.sharing_info && src.varray.is_span()) {
         const AttributeInitShared init(src.varray.get_internal_span().data(), *src.sharing_info);
-        if (mesh.attributes_for_write().add<float3>("position", AttrDomain::Point, init)) {
+        if (mesh.attributes_for_write().add<float3>("position"_ustr, AttrDomain::Point, init)) {
           return;
         }
       }
     }
   }
   const Span<float3> main_positions = curves_info.main.evaluated_positions();
-  mesh.attributes_for_write().add<float3>("position", AttrDomain::Point, AttributeInitConstruct());
+  mesh.attributes_for_write().add<float3>(
+      "position"_ustr, AttrDomain::Point, AttributeInitConstruct());
   MutableSpan<float3> positions = mesh.vert_positions_for_write();
   if (ignore_profile_position) {
     array_utils::copy(main_positions, positions);
@@ -577,7 +578,7 @@ static void copy_main_point_data_to_mesh_faces(const Span<T> src,
 }
 
 static bool try_sharing_point_data(const CurvesGeometry &main,
-                                   const StringRef name,
+                                   const UString name,
                                    const GAttributeReader &src,
                                    MutableAttributeAccessor mesh_attributes)
 {
@@ -609,7 +610,7 @@ static bool try_direct_evaluate_point_data(const CurvesGeometry &main,
 }
 
 static void copy_main_point_domain_attribute_to_mesh(const CurvesInfo &curves_info,
-                                                     const StringRef name,
+                                                     const UString name,
                                                      const ResultOffsets &offsets,
                                                      const AttrDomain dst_domain,
                                                      const GAttributeReader &src_attribute,
@@ -813,7 +814,8 @@ static void write_sharp_bezier_edges(const CurvesInfo &curves_info,
     return;
   }
 
-  sharp_edges = mesh_attributes.lookup_or_add_for_write_span<bool>("sharp_edge", AttrDomain::Edge);
+  sharp_edges = mesh_attributes.lookup_or_add_for_write_span<bool>("sharp_edge"_ustr,
+                                                                   AttrDomain::Edge);
 
   const OffsetIndices profile_points_by_curve = profile.points_by_curve();
   const VArray<int8_t> types = profile.curve_types();
@@ -846,7 +848,7 @@ Mesh *curve_to_mesh_sweep(const CurvesGeometry &main,
   /* Add the position attribute later so it can be shared in some cases. */
   Mesh *mesh = BKE_mesh_new_nomain(
       0, offsets.edge.last(), offsets.face.last(), offsets.loop.last());
-  mesh->attribute_storage.wrap().remove("position");
+  mesh->attribute_storage.wrap().remove("position"_ustr);
   mesh->verts_num = offsets.vert.last();
 
   MutableSpan<int2> edges = mesh->edges_for_write();
@@ -875,7 +877,7 @@ Mesh *curve_to_mesh_sweep(const CurvesGeometry &main,
     /* TODO: This is used to keep the tests passing after refactoring mesh shade smooth flags. It
      * can be removed if the tests are updated and the final shading results will be the same. */
     SpanAttributeWriter<bool> sharp_faces = mesh_attributes.lookup_or_add_for_write_span<bool>(
-        "sharp_face", AttrDomain::Face);
+        "sharp_face"_ustr, AttrDomain::Face);
     foreach_curve_combination(curves_info, offsets, [&](const CombinationInfo &info) {
       if (has_caps(info.main_cyclic, info.profile_cyclic, info.profile_segment_num)) {
         const int face_num = info.main_segment_num * info.profile_segment_num;
@@ -908,7 +910,7 @@ Mesh *curve_to_mesh_sweep(const CurvesGeometry &main,
   write_sharp_bezier_edges(curves_info, offsets, mesh_attributes, sharp_edges);
   if (fill_caps) {
     if (!sharp_edges) {
-      sharp_edges = mesh_attributes.lookup_or_add_for_write_span<bool>("sharp_edge",
+      sharp_edges = mesh_attributes.lookup_or_add_for_write_span<bool>("sharp_edge"_ustr,
                                                                        AttrDomain::Edge);
     }
     foreach_curve_combination(curves_info, offsets, [&](const CombinationInfo &info) {

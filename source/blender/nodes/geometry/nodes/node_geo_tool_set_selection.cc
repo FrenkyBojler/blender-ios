@@ -86,7 +86,7 @@ static GField invert_selection(const GField &selection)
  * remove the attributes in this case.
  */
 static void remove_with_wrong_domain(bke::MutableAttributeAccessor attributes,
-                                     const StringRef name,
+                                     const UString name,
                                      const bke::AttrDomain domain)
 {
   if (const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(name)) {
@@ -116,30 +116,30 @@ static void node_geo_exec(GeoNodeExecParams params)
   geometry::foreach_real_geometry(geometry, [&](GeometrySet &geometry) {
     if (Mesh *mesh = geometry.get_mesh_for_write()) {
       bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
-      remove_with_wrong_domain(attributes, ".select_vert", AttrDomain::Point);
-      remove_with_wrong_domain(attributes, ".select_edge", AttrDomain::Edge);
-      remove_with_wrong_domain(attributes, ".select_poly", AttrDomain::Face);
+      remove_with_wrong_domain(attributes, ".select_vert"_ustr, AttrDomain::Point);
+      remove_with_wrong_domain(attributes, ".select_edge"_ustr, AttrDomain::Edge);
+      remove_with_wrong_domain(attributes, ".select_poly"_ustr, AttrDomain::Face);
       switch (mode) {
         case OB_MODE_EDIT: {
           const Field<bool> field = conversions.try_convert(selection, CPPType::get<bool>());
           switch (domain) {
             case AttrDomain::Point:
               bke::try_capture_field_on_geometry(geometry.get_component_for_write<MeshComponent>(),
-                                                 ".select_vert",
+                                                 ".select_vert"_ustr,
                                                  AttrDomain::Point,
                                                  field);
               bke::mesh_select_vert_flush(*mesh);
               break;
             case AttrDomain::Edge:
               bke::try_capture_field_on_geometry(geometry.get_component_for_write<MeshComponent>(),
-                                                 ".select_edge",
+                                                 ".select_edge"_ustr,
                                                  AttrDomain::Edge,
                                                  field);
               bke::mesh_select_edge_flush(*mesh);
               break;
             case AttrDomain::Face:
               bke::try_capture_field_on_geometry(geometry.get_component_for_write<MeshComponent>(),
-                                                 ".select_poly",
+                                                 ".select_poly"_ustr,
                                                  AttrDomain::Face,
                                                  field);
               bke::mesh_select_face_flush(*mesh);
@@ -157,7 +157,7 @@ static void node_geo_exec(GeoNodeExecParams params)
           const Field<float> field = conversions.try_convert(std::move(clamped_and_inverted),
                                                              CPPType::get<float>());
           bke::try_capture_field_on_geometry(geometry.get_component_for_write<MeshComponent>(),
-                                             ".sculpt_mask",
+                                             ".sculpt_mask"_ustr,
                                              AttrDomain::Point,
                                              field);
           break;
@@ -171,14 +171,16 @@ static void node_geo_exec(GeoNodeExecParams params)
       const GField field = clamp_selection(selection);
       if (ELEM(domain, AttrDomain::Point, AttrDomain::Curve)) {
         bke::try_capture_field_on_geometry(
-            geometry.get_component_for_write<CurveComponent>(), ".selection", domain, field);
+            geometry.get_component_for_write<CurveComponent>(), ".selection"_ustr, domain, field);
       }
     }
     if (geometry.has_pointcloud()) {
       const GField field = clamp_selection(selection);
       if (domain == AttrDomain::Point) {
-        bke::try_capture_field_on_geometry(
-            geometry.get_component_for_write<PointCloudComponent>(), ".selection", domain, field);
+        bke::try_capture_field_on_geometry(geometry.get_component_for_write<PointCloudComponent>(),
+                                           ".selection"_ustr,
+                                           domain,
+                                           field);
       }
     }
     if (geometry.has_grease_pencil()) {
@@ -187,7 +189,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       if (ELEM(domain, AttrDomain::Point, AttrDomain::Curve)) {
         bke::try_capture_field_on_geometry(
             geometry.get_component_for_write<GreasePencilComponent>(),
-            ".selection",
+            ".selection"_ustr,
             domain,
             field);
       }

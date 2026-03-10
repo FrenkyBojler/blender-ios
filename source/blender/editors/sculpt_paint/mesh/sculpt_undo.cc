@@ -169,7 +169,7 @@ struct Node {
 struct SculptAttrRef {
   bke::AttrDomain domain;
   eCustomDataType type;
-  char name[MAX_CUSTOMDATA_LAYER_NAME];
+  UString name;
   bool was_set;
 };
 
@@ -678,7 +678,7 @@ static void restore_vert_visibility_mesh(Object &object,
   Mesh &mesh = *id_cast<Mesh *>(object.data);
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   bke::SpanAttributeWriter<bool> hide_vert = attributes.lookup_or_add_for_write_span<bool>(
-      ".hide_vert", bke::AttrDomain::Point);
+      ".hide_vert"_ustr, bke::AttrDomain::Point);
   for (const int i : unode.vert_indices.index_range().take_front(unode.unique_verts_num)) {
     const int vert = unode.vert_indices[i];
     if (unode.vert_hidden[i].test() != hide_vert.span[vert]) {
@@ -723,7 +723,7 @@ static void restore_hidden_face(Object &object,
   Mesh &mesh = *id_cast<Mesh *>(object.data);
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   bke::SpanAttributeWriter hide_poly = attributes.lookup_or_add_for_write_span<bool>(
-      ".hide_poly", bke::AttrDomain::Face);
+      ".hide_poly"_ustr, bke::AttrDomain::Face);
 
   const Span<int> face_indices = unode.face_indices;
 
@@ -768,7 +768,7 @@ static void restore_mask_mesh(Object &object, Node &unode, const MutableSpan<boo
 
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   bke::SpanAttributeWriter<float> mask = attributes.lookup_or_add_for_write_span<float>(
-      ".sculpt_mask", bke::AttrDomain::Point);
+      ".sculpt_mask"_ustr, bke::AttrDomain::Point);
 
   const Span<int> index = unode.vert_indices.as_span().take_front(unode.unique_verts_num);
 
@@ -1467,7 +1467,7 @@ static void store_positions_grids(const SubdivCCG &subdiv_ccg, Node &unode)
 static void store_vert_visibility_mesh(const Mesh &mesh, const bke::pbvh::Node &node, Node &unode)
 {
   const bke::AttributeAccessor attributes = mesh.attributes();
-  const VArraySpan<bool> hide_vert = *attributes.lookup<bool>(".hide_vert",
+  const VArraySpan<bool> hide_vert = *attributes.lookup<bool>(".hide_vert"_ustr,
                                                               bke::AttrDomain::Point);
   if (hide_vert.is_empty()) {
     return;
@@ -1482,7 +1482,8 @@ static void store_vert_visibility_mesh(const Mesh &mesh, const bke::pbvh::Node &
 static void store_face_visibility(const Mesh &mesh, Node &unode)
 {
   const bke::AttributeAccessor attributes = mesh.attributes();
-  const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
+  const VArraySpan<bool> hide_poly = *attributes.lookup<bool>(".hide_poly"_ustr,
+                                                              bke::AttrDomain::Face);
   if (hide_poly.is_empty()) {
     unode.face_hidden.fill(false);
     return;
@@ -1496,7 +1497,7 @@ static void store_face_visibility(const Mesh &mesh, Node &unode)
 static void store_mask_mesh(const Mesh &mesh, Node &unode)
 {
   const bke::AttributeAccessor attributes = mesh.attributes();
-  const VArraySpan mask = *attributes.lookup<float>(".sculpt_mask", bke::AttrDomain::Point);
+  const VArraySpan mask = *attributes.lookup<float>(".sculpt_mask"_ustr, bke::AttrDomain::Point);
   if (mask.is_empty()) {
     unode.mask.fill(0.0f);
   }
@@ -1566,7 +1567,8 @@ static void geometry_push(const Object &object)
 static void store_face_sets(const Mesh &mesh, Node &unode)
 {
   const bke::AttributeAccessor attributes = mesh.attributes();
-  const VArraySpan face_sets = *attributes.lookup<int>(".sculpt_face_set", bke::AttrDomain::Face);
+  const VArraySpan face_sets = *attributes.lookup<int>(".sculpt_face_set"_ustr,
+                                                       bke::AttrDomain::Face);
   if (face_sets.is_empty()) {
     unode.face_sets.fill(1);
   }
@@ -1920,18 +1922,18 @@ static void save_active_attribute(Object &object, SculptAttrRef *attr)
   Mesh *mesh = BKE_object_get_original_mesh(&object);
   attr->was_set = true;
   attr->domain = NO_ACTIVE_LAYER;
-  attr->name[0] = 0;
+  attr->name = {};
   if (!mesh) {
     return;
   }
-  const char *name = mesh->active_color_attribute;
+  const UString name(mesh->active_color_attribute);
   const bke::AttributeAccessor attributes = mesh->attributes();
   const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(name);
   if (!bke::mesh::is_color_attribute(meta_data)) {
     return;
   }
   attr->domain = meta_data->domain;
-  STRNCPY_UTF8(attr->name, name);
+  attr->name = name;
   attr->type = *bke::attr_type_to_custom_data_type(meta_data->data_type);
 }
 
@@ -2157,7 +2159,7 @@ static void set_active_layer(bContext *C, const SculptAttrRef *attr_ref)
   }
 
   if (attributes.contains(attr_ref->name)) {
-    BKE_id_attributes_active_color_set(&mesh->id, attr_ref->name);
+    BKE_id_attributes_active_color_set(&mesh->id, attr_ref->name.ref());
   }
 }
 

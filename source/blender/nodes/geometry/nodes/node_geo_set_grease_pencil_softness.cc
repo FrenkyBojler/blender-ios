@@ -45,7 +45,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
         bke::try_capture_fields_on_geometry(curves.attributes_for_write(),
                                             layer_field_context,
-                                            {"softness"},
+                                            {"softness"_ustr},
                                             AttrDomain::Curve,
                                             selection,
                                             {softness});

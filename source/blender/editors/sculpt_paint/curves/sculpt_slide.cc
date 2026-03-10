@@ -142,7 +142,7 @@ struct SlideOperationExecutor {
                  "Curves do not have surface attachment information");
       return;
     }
-    const StringRefNull uv_map_name = curves_id_orig_->surface_uv_map;
+    const UString uv_map_name(curves_id_orig_->surface_uv_map);
 
     curves_sculpt_ = ctx_.scene->toolsettings->curves_sculpt;
     brush_ = BKE_paint_brush_for_read(&curves_sculpt_->paint);
@@ -151,7 +151,7 @@ struct SlideOperationExecutor {
     brush_strength_ = BKE_brush_alpha_get(&curves_sculpt_->paint, brush_);
 
     curve_factors_ = *curves_orig_->attributes().lookup_or_default(
-        ".selection", bke::AttrDomain::Curve, 1.0f);
+        ".selection"_ustr, bke::AttrDomain::Curve, 1.0f);
     curve_selection_ = curves::retrieve_selected_curves(*curves_id_orig_, selected_curve_memory_);
 
     brush_pos_re_ = stroke_extension.mouse_position;

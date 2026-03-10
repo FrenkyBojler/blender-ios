@@ -425,9 +425,9 @@ class MeshState {
   }
 };
 
-static std::string shape_key_attribute_name(const KeyBlock &kb)
+static UString shape_key_attribute_name(const KeyBlock &kb)
 {
-  return fmt::format(".kb:{}", kb.name);
+  return UString(fmt::format(".kb:{}", kb.name));
 }
 
 /** Support shape keys by propagating them through geometry nodes as attributes. */

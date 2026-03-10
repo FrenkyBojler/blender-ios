@@ -51,7 +51,7 @@ static void set_points_position(bke::MutableAttributeAccessor attributes,
 {
   bke::try_capture_field_on_geometry(attributes,
                                      field_context,
-                                     "position",
+                                     "position"_ustr,
                                      bke::AttrDomain::Point,
                                      selection_field,
                                      position_field);
@@ -64,15 +64,15 @@ static void set_curves_position(bke::CurvesGeometry &curves,
 {
   MutableAttributeAccessor attributes = curves.attributes_for_write();
 
-  Vector<StringRef> attribute_names;
+  Vector<UString> attribute_names;
   Vector<GField> fields;
-  attribute_names.append("position");
+  attribute_names.append("position"_ustr);
   fields.append(position_field);
 
-  if (attributes.contains("handle_right") && attributes.contains("handle_left")) {
+  if (attributes.contains("handle_right"_ustr) && attributes.contains("handle_left"_ustr)) {
     fn::Field<float3> delta(fn::FieldOperation::from(
-        get_sub_fn(), {position_field, bke::AttributeFieldInput::from<float3>("position")}));
-    for (const StringRef name : {"handle_left", "handle_right"}) {
+        get_sub_fn(), {position_field, bke::AttributeFieldInput::from<float3>("position"_ustr)}));
+    for (const UString name : {"handle_left"_ustr, "handle_right"_ustr}) {
       attribute_names.append(name);
       fields.append(Field<float3>(fn::FieldOperation::from(
           get_add_fn(), {bke::AttributeFieldInput::from<float3>(name), delta})));

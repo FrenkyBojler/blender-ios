@@ -87,7 +87,7 @@ static float2 imapaint_pick_uv(const Mesh *mesh_eval,
 
   const bke::AttributeAccessor attributes = mesh_eval->attributes();
   const VArray<int> material_indices = *attributes.lookup_or_default<int>(
-      "material_index", bke::AttrDomain::Face, 0);
+      "material_index"_ustr, bke::AttrDomain::Face, 0);
 
   /* face means poly here, not triangle, indeed */
   const int face_i = tri_faces[tri_index];
@@ -98,7 +98,7 @@ static float2 imapaint_pick_uv(const Mesh *mesh_eval,
     const Material *ma = BKE_object_material_get(ob_eval, material_indices[face_i] + 1);
     const TexPaintSlot *slot = &ma->texpaintslot[ma->paint_active_slot];
     if (slot && slot->uvname) {
-      uv_map = *attributes.lookup<float2>(slot->uvname, bke::AttrDomain::Corner);
+      uv_map = *attributes.lookup<float2>(UString(slot->uvname), bke::AttrDomain::Corner);
     }
   }
 
@@ -167,7 +167,7 @@ static std::optional<float3> sample_texture_paint_color(
   const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
   const bke::AttributeAccessor attributes = mesh_eval->attributes();
   const VArray<int> material_indices = *attributes.lookup_or_default<int>(
-      "material_index", bke::AttrDomain::Face, 0);
+      "material_index"_ustr, bke::AttrDomain::Face, 0);
 
   if (mesh_eval->uv_map_names().is_empty()) {
     return std::nullopt;
@@ -177,7 +177,7 @@ static std::optional<float3> sample_texture_paint_color(
   float3 bary_coord;
   int face_index;
   const VArray<bool> hide_poly = *mesh_eval->attributes().lookup_or_default<bool>(
-      ".hide_poly", bke::AttrDomain::Face, false);
+      ".hide_poly"_ustr, bke::AttrDomain::Face, false);
   const bool is_hit = imapaint_pick_face(
                           &vc, mval, &tri_index, &face_index, &bary_coord, *mesh_eval) &&
                       !hide_poly[face_index];

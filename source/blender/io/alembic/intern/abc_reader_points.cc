@@ -6,8 +6,8 @@
  * \ingroup balembic
  */
 
-#include "abc_reader_points.h"
 #include "abc_axis_conversion.h"
+#include "abc_reader_points.h"
 #include "abc_util.h"
 
 #include "DNA_object_types.h"
@@ -139,7 +139,8 @@ static void read_typed_property_sample(const ICompoundProperty &parent,
 
     const SamplePtr sample_ptr = array_prop.getValue(selector);
     bke::SpanAttributeWriter<TWriteValue> writer =
-        attribute_accessor.lookup_or_add_for_write_span<TWriteValue>(name, bke::AttrDomain::Point);
+        attribute_accessor.lookup_or_add_for_write_span<TWriteValue>(UString(name),
+                                                                     bke::AttrDomain::Point);
     MutableSpan<TWriteValue> span = writer.span;
     for (const int64_t i : IndexRange(std::min(span.size(), int64_t(sample_ptr->size())))) {
       ValueType value = (*sample_ptr)[i];
@@ -258,7 +259,7 @@ void AbcPointsReader::read_geometry(bke::GeometrySet &geometry_set,
     V3fArraySamplePtr velocities = get_velocity_prop(m_schema, sample_sel, velocity_name);
     if (velocities && pointcloud->totpoint == int(velocities->size())) {
       bke::SpanAttributeWriter<float3> velocity_writer =
-          attribute_accessor.lookup_or_add_for_write_span<float3>("velocity",
+          attribute_accessor.lookup_or_add_for_write_span<float3>("velocity"_ustr,
                                                                   bke::AttrDomain::Point);
       MutableSpan<float3> point_velocity = velocity_writer.span;
       for (const int64_t i :

@@ -10,6 +10,7 @@
 #include "BLI_array_utils.hh"
 #include "BLI_task.hh"
 
+#include "BLI_ustring.hh"
 #include "GEO_subdivide_curves.hh"
 
 namespace blender::geometry {
@@ -395,8 +396,11 @@ bke::CurvesGeometry subdivide_curves(const bke::CurvesGeometry &src_curves,
         exec_mode::grain_size(512));
 
     /* Filter out positions and handles that are already interpolated. */
-    const Set<StringRef> attributes_to_skip = {
-        "position", "handle_type_left", "handle_type_right", "handle_right", "handle_left"};
+    const Set<UString> attributes_to_skip = {"position"_ustr,
+                                             "handle_type_left"_ustr,
+                                             "handle_type_right"_ustr,
+                                             "handle_right"_ustr,
+                                             "handle_left"_ustr};
     for (auto &attribute : attributes_to_transfer) {
       if (attributes_to_skip.contains(attribute.name)) {
         continue;

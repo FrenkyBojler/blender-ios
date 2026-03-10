@@ -223,8 +223,9 @@ void do_mask_brush(const Depsgraph &depsgraph,
       bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
 
       bke::SpanAttributeWriter<float> mask = attributes.lookup_or_add_for_write_span<float>(
-          ".sculpt_mask", bke::AttrDomain::Point);
-      const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
+          ".sculpt_mask"_ustr, bke::AttrDomain::Point);
+      const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert"_ustr,
+                                                            bke::AttrDomain::Point);
 
       node_mask.foreach_index(
           [&](const int i) {

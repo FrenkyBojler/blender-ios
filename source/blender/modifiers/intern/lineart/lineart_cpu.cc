@@ -1980,7 +1980,8 @@ static void lineart_geometry_object_load(LineartObjectInfo *ob_info,
   /* Triangulate. */
   const Span<int3> corner_tris = mesh->corner_tris();
   const AttributeAccessor attributes = mesh->attributes();
-  const VArraySpan material_indices = *attributes.lookup<int>("material_index", AttrDomain::Face);
+  const VArraySpan material_indices = *attributes.lookup<int>("material_index"_ustr,
+                                                              AttrDomain::Face);
 
   /* If we allow duplicated edges, one edge should get added multiple times if is has been
    * classified as more than one edge type. This is so we can create multiple different line type
@@ -2097,9 +2098,9 @@ static void lineart_geometry_object_load(LineartObjectInfo *ob_info,
   edge_feat_settings.func_reduce = feat_data_sum_reduce;
 
   const VArray<bool> sharp_edges = *attributes.lookup_or_default<bool>(
-      "sharp_edge", AttrDomain::Edge, false);
+      "sharp_edge"_ustr, AttrDomain::Edge, false);
   const VArray<bool> sharp_faces = *attributes.lookup_or_default<bool>(
-      "sharp_face", AttrDomain::Face, false);
+      "sharp_face"_ustr, AttrDomain::Face, false);
 
   EdgeFeatData edge_feat_data = {nullptr};
   edge_feat_data.ld = la_data;
@@ -2118,8 +2119,10 @@ static void lineart_geometry_object_load(LineartObjectInfo *ob_info,
   edge_feat_data.v_array = la_v_arr;
   edge_feat_data.crease_threshold = crease_angle;
   edge_feat_data.use_auto_smooth = use_auto_smooth;
-  edge_feat_data.freestyle_face = *attributes.lookup<bool>("freestyle_face", AttrDomain::Face);
-  edge_feat_data.freestyle_edge = *attributes.lookup<bool>("freestyle_edge", AttrDomain::Edge);
+  edge_feat_data.freestyle_face = *attributes.lookup<bool>("freestyle_face"_ustr,
+                                                           AttrDomain::Face);
+  edge_feat_data.freestyle_edge = *attributes.lookup<bool>("freestyle_edge"_ustr,
+                                                           AttrDomain::Edge);
   edge_feat_data.use_freestyle_face = bool(edge_feat_data.freestyle_face);
   edge_feat_data.use_freestyle_edge = bool(edge_feat_data.freestyle_edge);
 
@@ -5406,13 +5409,13 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
   MutableSpan<float3> point_positions = new_curves.positions_for_write();
 
   SpanAttributeWriter<float> point_radii = attributes.lookup_or_add_for_write_only_span<float>(
-      "radius", AttrDomain::Point);
+      "radius"_ustr, AttrDomain::Point);
 
   SpanAttributeWriter<float> point_opacities = attributes.lookup_or_add_for_write_span<float>(
-      "opacity", AttrDomain::Point);
+      "opacity"_ustr, AttrDomain::Point);
 
   SpanAttributeWriter<int> stroke_materials = attributes.lookup_or_add_for_write_span<int>(
-      "material_index", AttrDomain::Curve);
+      "material_index"_ustr, AttrDomain::Curve);
 
   MutableSpan<int> offsets = new_curves.offsets_for_write();
 
@@ -5533,7 +5536,7 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
   offsets[writer.index_range().last() + 1] = up_to_point;
 
   SpanAttributeWriter<bool> stroke_cyclic = attributes.lookup_or_add_for_write_span<bool>(
-      "cyclic", AttrDomain::Curve);
+      "cyclic"_ustr, AttrDomain::Curve);
   stroke_cyclic.span.fill(false);
   stroke_cyclic.finish();
 

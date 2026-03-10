@@ -624,7 +624,7 @@ void BlenderSync::sync_particle_hair(Hair *hair,
 
   /* create vertex color attributes */
   if (!motion) {
-    blender::Vector<blender::StringRef> vcol_names;
+    blender::Vector<ustring> vcol_names;
     b_mesh.attributes().foreach_attribute([&](const blender::bke::AttributeIter &iter) {
       if (iter.data_type != blender::bke::AttrType::ColorByte) {
         return;
@@ -636,7 +636,7 @@ void BlenderSync::sync_particle_hair(Hair *hair,
     });
 
     for (const int vcol_num : vcol_names.index_range()) {
-      const ustring name = ustring(std::string_view(vcol_names[vcol_num]));
+      const ustring name = vcol_names[vcol_num];
       if (!hair->need_attribute(scene, name)) {
         continue;
       }
@@ -660,10 +660,10 @@ void BlenderSync::sync_particle_hair(Hair *hair,
 
   /* create UV attributes */
   if (!motion) {
-    const blender::VectorSet<blender::StringRefNull> uv_names = b_mesh.uv_map_names();
-    const ustring default_name = ustring(std::string_view(b_mesh.default_uv_map_name()));
+    const blender::VectorSet<blender::UString> uv_names = b_mesh.uv_map_names();
+    const ustring default_name = b_mesh.default_uv_map_name();
     for (const int uv_num : uv_names.index_range()) {
-      const ustring name = ustring(std::string_view(uv_names[uv_num]));
+      const ustring name = uv_names[uv_num];
       const bool active_render = name == default_name;
       const AttributeStandard std = (active_render) ? ATTR_STD_UV : ATTR_STD_NONE;
 
@@ -754,7 +754,7 @@ static void attr_create_generic(Scene *scene,
   bool have_uv = false;
 
   b_attributes.foreach_attribute([&](const blender::bke::AttributeIter &iter) {
-    const ustring name{std::string_view(iter.name)};
+    const ustring name = iter.name;
 
     const blender::bke::AttrDomain b_domain = iter.domain;
     const blender::bke::AttrType b_data_type = iter.data_type;
@@ -887,7 +887,7 @@ static void export_hair_curves(Scene *scene,
   }
 
   const blender::VArraySpan b_radius = *b_curves.attributes().lookup<float>(
-      "radius", blender::bke::AttrDomain::Point);
+      ustring("radius"), blender::bke::AttrDomain::Point);
 
   std::copy(points_by_curve.data().data(),
             points_by_curve.data().data() + points_by_curve.size(),
@@ -965,7 +965,7 @@ static void export_hair_curves_motion(Hair *hair,
   const blender::Span<blender::float3> b_positions = b_curves.positions();
   const blender::OffsetIndices points_by_curve = b_curves.points_by_curve();
   const blender::VArraySpan b_radius = *b_curves.attributes().lookup<float>(
-      "radius", blender::bke::AttrDomain::Point);
+      ustring("radius"), blender::bke::AttrDomain::Point);
 
   for (const int i : points_by_curve.index_range()) {
     const blender::IndexRange points = points_by_curve[i];

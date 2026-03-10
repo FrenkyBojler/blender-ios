@@ -537,10 +537,10 @@ static bool sort_faces_based_on_corners(const IndexMapping &corners,
  * test files to compare these layers. For now it has been decided to
  * skip them.
  */
-static bool ignored_attribute(const StringRef name)
+static bool ignored_attribute(const UString name)
 {
-  return attribute_name_is_anonymous(name) || name.startswith(".pn.") ||
-         ELEM(name, ".uv_select_vert", ".uv_select_edge", ".uv_select_face");
+  return attribute_name_is_anonymous(name.ref()) || name.ref().startswith(".pn.") ||
+         ELEM(name, ".uv_select_vert"_ustr, ".uv_select_edge"_ustr, ".uv_select_face"_ustr);
 }
 
 /**
@@ -552,8 +552,8 @@ static bool ignored_attribute(const StringRef name)
 static std::optional<GeoMismatch> verify_attributes_compatible(
     const AttributeAccessor &attributes1, const AttributeAccessor &attributes2)
 {
-  Set<StringRefNull> names_1 = attributes1.all_names();
-  Set<StringRefNull> names_2 = attributes2.all_names();
+  Set<UString> names_1 = attributes1.all_names();
+  Set<UString> names_2 = attributes2.all_names();
   names_1.remove_if(ignored_attribute);
   names_2.remove_if(ignored_attribute);
 
@@ -561,7 +561,7 @@ static std::optional<GeoMismatch> verify_attributes_compatible(
     /* Disabled for now due to tests not being up to date. */
     // return GeoMismatch::Attributes;
   }
-  for (const StringRef name : names_1) {
+  for (const UString name : names_1) {
     GAttributeReader reader1 = attributes1.lookup(name);
     GAttributeReader reader2 = attributes2.lookup(name);
     if (!reader1 || !reader2) {
@@ -590,13 +590,13 @@ static std::optional<GeoMismatch> sort_domain_using_attributes(
 {
 
   /* We only need the ids from one geometry, since we know they have the same attributes. */
-  Set<StringRefNull> names = attributes1.all_names();
+  Set<UString> names = attributes1.all_names();
   for (const StringRef name : excluded_attributes) {
     names.remove_as(name);
   }
   names.remove_if(ignored_attribute);
 
-  for (const StringRef name : names) {
+  for (const UString name : names) {
     if (!attributes2.contains(name)) {
       /* Only needed right now since some test meshes don't have the same attributes. */
       return GeoMismatch::Attributes;

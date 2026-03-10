@@ -8,8 +8,6 @@
  * \ingroup bmesh
  */
 
-#include "BLI_string_ref.hh"
-
 #include "bmesh.hh"
 
 namespace blender {
@@ -18,7 +16,7 @@ namespace blender {
  * \return Whether attributes with the given name are stored in special flags or fields in BMesh
  * rather than in the regular custom data blocks.
  */
-bool BM_attribute_stored_in_bmesh_builtin(StringRef name);
+bool BM_attribute_stored_in_bmesh_builtin(UString name);
 
 struct CustomData_MeshMasks;
 struct Main;

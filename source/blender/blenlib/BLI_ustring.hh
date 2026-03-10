@@ -31,6 +31,7 @@ class UString {
  public:
   UString() = default;
   explicit UString(const StringRef str) : ustr_(std::string_view(str)) {}
+  UString(const OpenImageIO::ustring str) : ustr_(str) {}
 
   /**
    * Access the underlying string as a #StringRefNull.
@@ -39,7 +40,12 @@ class UString {
    */
   StringRefNull ref() const
   {
-    return StringRefNull(ustr_.c_str(), ustr_.length());
+    return this->is_empty() ? "" : StringRefNull(ustr_.c_str(), ustr_.length());
+  }
+
+  operator OpenImageIO::ustring() const
+  {
+    return ustr_;
   }
 
   const std::string &string() const
@@ -50,6 +56,11 @@ class UString {
   const char *c_str() const
   {
     return ustr_.c_str();
+  }
+
+  bool is_empty() const
+  {
+    return ustr_.empty();
   }
 
   friend bool operator==(const UString &a, const UString &b)

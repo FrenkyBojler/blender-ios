@@ -681,7 +681,7 @@ bool convert_psys_to_mesh(ReportList * /*reports*/,
 
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   bke::SpanAttributeWriter<bool> select_vert = attributes.lookup_or_add_for_write_span<bool>(
-      ".select_vert", bke::AttrDomain::Point);
+      ".select_vert"_ustr, bke::AttrDomain::Point);
 
   int edge_index = 0;
 

@@ -117,7 +117,7 @@ static void copy_and_reorder_mesh_verts(const Mesh &src_mesh,
   bke::copy_attributes(src_attributes,
                        bke::AttrDomain::Edge,
                        bke::AttrDomain::Edge,
-                       bke::attribute_filter_with_skip_ref(attribute_filter, {".edge_verts"}),
+                       bke::attribute_filter_with_skip_ref(attribute_filter, {".edge_verts"_ustr}),
                        dst_attributes);
 
   bke::copy_attributes(src_attributes,
@@ -133,20 +133,23 @@ static void copy_and_reorder_mesh_verts(const Mesh &src_mesh,
                                         &dst_mesh.face_offset_indices,
                                         &dst_mesh.runtime->face_offsets_sharing_info);
 
-  bke::copy_attributes(src_attributes,
-                       bke::AttrDomain::Corner,
-                       bke::AttrDomain::Corner,
-                       bke::attribute_filter_with_skip_ref(attribute_filter, {".corner_vert"}),
-                       dst_attributes);
+  bke::copy_attributes(
+      src_attributes,
+      bke::AttrDomain::Corner,
+      bke::AttrDomain::Corner,
+      bke::attribute_filter_with_skip_ref(attribute_filter, {".corner_vert"_ustr}),
+      dst_attributes);
 
   const Array<int> new_by_old_map = invert_permutation(old_by_new_map);
 
-  dst_attributes.add<int2>(".edge_verts", bke::AttrDomain::Edge, bke::AttributeInitConstruct());
+  dst_attributes.add<int2>(
+      ".edge_verts"_ustr, bke::AttrDomain::Edge, bke::AttributeInitConstruct());
   array_utils::gather(new_by_old_map.as_span(),
                       src_mesh.edges().cast<int>(),
                       dst_mesh.edges_for_write().cast<int>());
 
-  dst_attributes.add<int>(".corner_vert", bke::AttrDomain::Corner, bke::AttributeInitConstruct());
+  dst_attributes.add<int>(
+      ".corner_vert"_ustr, bke::AttrDomain::Corner, bke::AttributeInitConstruct());
   array_utils::gather(
       new_by_old_map.as_span(), src_mesh.corner_verts(), dst_mesh.corner_verts_for_write());
 }
@@ -185,15 +188,17 @@ static void copy_and_reorder_mesh_edges(const Mesh &src_mesh,
                                         &dst_mesh.face_offset_indices,
                                         &dst_mesh.runtime->face_offsets_sharing_info);
 
-  bke::copy_attributes(src_attributes,
-                       bke::AttrDomain::Corner,
-                       bke::AttrDomain::Corner,
-                       bke::attribute_filter_with_skip_ref(attribute_filter, {".corner_edge"}),
-                       dst_attributes);
+  bke::copy_attributes(
+      src_attributes,
+      bke::AttrDomain::Corner,
+      bke::AttrDomain::Corner,
+      bke::attribute_filter_with_skip_ref(attribute_filter, {".corner_edge"_ustr}),
+      dst_attributes);
 
   const Array<int> new_by_old_map = invert_permutation(old_by_new_map);
 
-  dst_attributes.add<int>(".corner_edge", bke::AttrDomain::Corner, bke::AttributeInitConstruct());
+  dst_attributes.add<int>(
+      ".corner_edge"_ustr, bke::AttrDomain::Corner, bke::AttributeInitConstruct());
   array_utils::gather(
       new_by_old_map.as_span(), src_mesh.corner_edges(), dst_mesh.corner_edges_for_write());
 }

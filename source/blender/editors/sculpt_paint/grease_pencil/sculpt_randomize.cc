@@ -168,7 +168,7 @@ void RandomizeOperation::on_stroke_extended(const bContext &C, const InputSample
         }
         if (sculpt_mode_flag & GP_SCULPT_FLAGMODE_APPLY_UV) {
           if (bke::SpanAttributeWriter<float> rotations =
-                  attributes.lookup_or_add_for_write_span<float>("rotation",
+                  attributes.lookup_or_add_for_write_span<float>("rotation"_ustr,
                                                                  bke::AttrDomain::Point))
           {
             point_mask.foreach_index(

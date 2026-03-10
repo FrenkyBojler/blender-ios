@@ -1596,7 +1596,7 @@ static const EnumPropertyItem *rna_DataTransferModifier_layers_select_src_itemf(
         return item;
       }
 
-      const VectorSet<StringRefNull> uv_map_names = mesh_eval->uv_map_names();
+      const VectorSet<UString> uv_map_names = mesh_eval->uv_map_names();
       const int num_data = uv_map_names.size();
 
       RNA_enum_item_add_separator(&item, &totitem);
@@ -1714,7 +1714,7 @@ static const EnumPropertyItem *rna_DataTransferModifier_layers_select_dst_itemf(
 
       if (ob_dst && ob_dst->data) {
         Mesh *me_dst = id_cast<Mesh *>(ob_dst->data);
-        const VectorSet<StringRefNull> uv_map_names = me_dst->uv_map_names();
+        const VectorSet<UString> uv_map_names = me_dst->uv_map_names();
         const int num_data = uv_map_names.size();
 
         RNA_enum_item_add_separator(&item, &totitem);

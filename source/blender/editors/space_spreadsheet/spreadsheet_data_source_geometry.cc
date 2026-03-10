@@ -202,14 +202,13 @@ static std::unique_ptr<ColumnValues> build_mesh_debug_columns(const Mesh &mesh,
   }
 }
 
-bool GeometryDataSource::display_attribute(const StringRef name,
-                                           const bke::AttrDomain domain) const
+bool GeometryDataSource::display_attribute(const UString name, const bke::AttrDomain domain) const
 {
-  if (bke::attribute_name_is_anonymous(name)) {
+  if (bke::attribute_name_is_anonymous(name.ref())) {
     return false;
   }
   if (!show_internal_attributes_) {
-    if (!bke::allow_procedural_attribute_access(name)) {
+    if (!bke::allow_procedural_attribute_access(name.ref())) {
       return false;
     }
     if (domain == bke::AttrDomain::Instance && name == "instance_transform") {
@@ -248,7 +247,7 @@ void GeometryDataSource::foreach_default_column_ids(
       return;
     }
     SpreadsheetColumnID column_id;
-    column_id.name = const_cast<char *>(iter.name.data());
+    column_id.name = const_cast<char *>(iter.name.c_str());
     const bool is_front = iter.name == ".viewer";
     fn(column_id, is_front);
   });
@@ -277,7 +276,7 @@ std::unique_ptr<ColumnValues> GeometryDataSource::get_column_values(
   if (domain_num == 0) {
     return {};
   }
-  if (!display_attribute(column_id.name, domain_)) {
+  if (!display_attribute(UString(column_id.name), domain_)) {
     return {};
   }
 
@@ -347,7 +346,7 @@ std::unique_ptr<ColumnValues> GeometryDataSource::get_column_values(
     }
   }
 
-  bke::GAttributeReader attribute = attributes->lookup(column_id.name);
+  bke::GAttributeReader attribute = attributes->lookup(UString(column_id.name));
   if (!attribute) {
     return {};
   }
@@ -561,7 +560,7 @@ IndexMask GeometryDataSource::apply_selection_filter(LinearAllocator<> &memory) 
       BLI_assert(object_orig_->type == OB_POINTCLOUD);
       const bke::AttributeAccessor attributes = *component_->attributes();
       const VArray<bool> selection = *attributes.lookup_or_default(
-          ".selection", bke::AttrDomain::Point, true);
+          ".selection"_ustr, bke::AttrDomain::Point, true);
       return IndexMask::from_bools(selection, memory);
     }
     default:

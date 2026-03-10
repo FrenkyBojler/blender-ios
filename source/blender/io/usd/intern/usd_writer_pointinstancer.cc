@@ -2,9 +2,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "usd_writer_pointinstancer.hh"
 #include "usd_attribute_utils.hh"
 #include "usd_utils.hh"
+#include "usd_writer_pointinstancer.hh"
 
 #include "BKE_anonymous_attribute_id.hh"
 #include "BKE_collection.hh"
@@ -121,8 +121,14 @@ void USDPointInstancerWriter::do_write(HierarchyContext &context)
   /* other attr */
   bke::AttributeAccessor attributes_eval = *component->attributes();
   attributes_eval.foreach_attribute([&](const bke::AttributeIter &iter) {
-    if (iter.name[0] == '.' || bke::attribute_name_is_anonymous(iter.name) ||
-        ELEM(iter.name, "instance_transform", "scale", "orientation", "mask", "proto_index", "id"))
+    if (iter.name.ref()[0] == '.' || bke::attribute_name_is_anonymous(iter.name.ref()) ||
+        ELEM(iter.name,
+             "instance_transform"_ustr,
+             "scale"_ustr,
+             "orientation"_ustr,
+             "mask"_ustr,
+             "proto_index"_ustr,
+             "id"_ustr))
     {
       return;
     }
@@ -594,7 +600,7 @@ void USDPointInstancerWriter::write_attribute_data(const bke::AttributeIter &att
   }
 
   const pxr::TfToken pv_name(
-      make_safe_primvar_name(attr.name, usd_export_context_.export_params.allow_unicode));
+      make_safe_primvar_name(attr.name.ref(), usd_export_context_.export_params.allow_unicode));
   const pxr::UsdGeomPrimvarsAPI pv_api = pxr::UsdGeomPrimvarsAPI(usd_instancer);
 
   pxr::UsdGeomPrimvar pv_attr = pv_api.CreatePrimvar(pv_name, *pv_type);

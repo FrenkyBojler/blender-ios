@@ -78,8 +78,9 @@ gpu::VertBufPtr extract_sculpt_data(const MeshRenderData &mr)
     const OffsetIndices faces = mr.faces;
     const Span<int> corner_verts = mr.corner_verts;
     const bke::AttributeAccessor attributes = mr.mesh->attributes();
-    const VArraySpan mask = *attributes.lookup<float>(".sculpt_mask", bke::AttrDomain::Point);
-    const VArraySpan face_set = *attributes.lookup<int>(".sculpt_face_set", bke::AttrDomain::Face);
+    const VArraySpan mask = *attributes.lookup<float>(".sculpt_mask"_ustr, bke::AttrDomain::Point);
+    const VArraySpan face_set = *attributes.lookup<int>(".sculpt_face_set"_ustr,
+                                                        bke::AttrDomain::Face);
     threading::parallel_for(faces.index_range(), 1024, [&](const IndexRange range) {
       for (const int face_index : range) {
         const IndexRange face = faces[face_index];
@@ -115,7 +116,7 @@ gpu::VertBufPtr extract_sculpt_data_subdiv(const MeshRenderData &mr,
 
   const bke::AttributeAccessor attributes = coarse_mesh.attributes();
 
-  if (const VArray mask = *attributes.lookup<float>(".sculpt_mask", bke::AttrDomain::Point)) {
+  if (const VArray mask = *attributes.lookup<float>(".sculpt_mask"_ustr, bke::AttrDomain::Point)) {
     GPUVertFormat mask_format = {0};
     GPU_vertformat_attr_add(&mask_format, "msk", gpu::VertAttrType::SFLOAT_32);
     const Span<int> corner_verts = coarse_mesh.corner_verts();
@@ -145,7 +146,8 @@ gpu::VertBufPtr extract_sculpt_data_subdiv(const MeshRenderData &mr,
   };
 
   MutableSpan face_set_vbo_data = face_set_vbo->data<gpuFaceSet>();
-  const VArraySpan face_sets = *attributes.lookup<int>(".sculpt_face_set", bke::AttrDomain::Face);
+  const VArraySpan face_sets = *attributes.lookup<int>(".sculpt_face_set"_ustr,
+                                                       bke::AttrDomain::Face);
   if (face_sets.is_empty()) {
     face_set_vbo_data.fill({uchar4{UCHAR_MAX}});
   }

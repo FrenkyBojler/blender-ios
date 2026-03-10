@@ -85,12 +85,12 @@ class GeometryBakeItem : public BakeItem {
  */
 class AttributeBakeItem : public BakeItem {
  private:
-  std::string name_;
+  UString name_;
 
  public:
-  AttributeBakeItem(std::string name) : name_(std::move(name)) {}
+  AttributeBakeItem(UString name) : name_(std::move(name)) {}
 
-  StringRefNull name() const
+  UString name() const
   {
     return name_;
   }

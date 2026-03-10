@@ -192,16 +192,16 @@ static bke::CurvesGeometry grease_pencil_trace_image(TraceJob &trace_job, const 
   BLI_assert_msg(trace_job.material_index >= 0,
                  "ensure_material must be called on the main thread");
   bke::SpanAttributeWriter<int> material_indices = attributes.lookup_or_add_for_write_span<int>(
-      "material_index", bke::AttrDomain::Curve);
+      "material_index"_ustr, bke::AttrDomain::Curve);
   material_indices.span.fill(trace_job.material_index);
   material_indices.finish();
 
   /* Combine strokes into a single fill with the same fill ID. */
-  attributes.add<int>("fill_id", bke::AttrDomain::Curve, bke::AttributeInitValue(1));
+  attributes.add<int>("fill_id"_ustr, bke::AttrDomain::Curve, bke::AttributeInitValue(1));
 
   /* Only create fills since that is what the trace algorithm is also doing. Users can change the
    * appearance however they please afterwards. */
-  attributes.add<bool>("hide_stroke", bke::AttrDomain::Curve, bke::AttributeInitValue(true));
+  attributes.add<bool>("hide_stroke"_ustr, bke::AttrDomain::Curve, bke::AttributeInitValue(true));
 
   return trace_curves;
 }

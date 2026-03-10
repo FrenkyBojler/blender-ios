@@ -130,7 +130,7 @@ class Sculpts : Overlay {
       bool is_point_domain;
       bool is_valid;
       gpu::VertBufPtr &select_attr_buf = DRW_curves_texture_for_evaluated_attribute(
-          &curves, ".selection", is_point_domain, is_valid);
+          &curves, ".selection"_ustr, is_point_domain, is_valid);
       if (is_valid) {
         /* Evaluate curves and their attributes if necessary. */
         const char *error = nullptr;
@@ -187,8 +187,8 @@ class Sculpts : Overlay {
     switch (pbvh->type()) {
       case bke::pbvh::Type::Mesh: {
         const Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(*object_orig);
-        if (!mesh.attributes().contains(".sculpt_face_set") &&
-            !mesh.attributes().contains(".sculpt_mask"))
+        if (!mesh.attributes().contains(".sculpt_face_set"_ustr) &&
+            !mesh.attributes().contains(".sculpt_mask"_ustr))
         {
           return;
         }
@@ -197,7 +197,9 @@ class Sculpts : Overlay {
       case bke::pbvh::Type::Grids: {
         const SubdivCCG &subdiv_ccg = *sculpt_session->subdiv_ccg;
         const Mesh &base_mesh = DRW_object_get_data_for_drawing<Mesh>(*object_orig);
-        if (subdiv_ccg.masks.is_empty() && !base_mesh.attributes().contains(".sculpt_face_set")) {
+        if (subdiv_ccg.masks.is_empty() &&
+            !base_mesh.attributes().contains(".sculpt_face_set"_ustr))
+        {
           return;
         }
         break;
@@ -258,7 +260,7 @@ class Sculpts : Overlay {
   {
     const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
     const VArray<bool> selection = *curves.attributes().lookup_or_default<bool>(
-        ".selection", bke::AttrDomain::Point, true);
+        ".selection"_ustr, bke::AttrDomain::Point, true);
     return selection.is_single() && selection.get_internal_single();
   }
 };

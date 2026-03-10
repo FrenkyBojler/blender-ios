@@ -2398,7 +2398,7 @@ static std::string node_get_execution_time_label(TreeDrawContext &tree_draw_ctx,
 }
 
 struct NamedAttributeTooltipArg {
-  Map<StringRefNull, geo_log::NamedAttributeUsage> usage_by_attribute;
+  Map<UString, geo_log::NamedAttributeUsage> usage_by_attribute;
 };
 
 static std::string named_attribute_tooltip(bContext * /*C*/, void *argN, const StringRef /*tip*/)
@@ -2410,7 +2410,7 @@ static std::string named_attribute_tooltip(bContext * /*C*/, void *argN, const S
   fmt::format_to(fmt::appender(buf), "\n");
 
   struct NameWithUsage {
-    StringRefNull name;
+    UString name;
     geo_log::NamedAttributeUsage usage;
   };
 
@@ -2423,9 +2423,9 @@ static std::string named_attribute_tooltip(bContext * /*C*/, void *argN, const S
   });
 
   for (const NameWithUsage &attribute : sorted_used_attribute) {
-    const StringRefNull name = attribute.name;
+    const UString name = attribute.name;
     const geo_log::NamedAttributeUsage usage = attribute.usage;
-    fmt::format_to(fmt::appender(buf), fmt::runtime(TIP_("  \u2022 \"{}\": ")), name);
+    fmt::format_to(fmt::appender(buf), fmt::runtime(TIP_("  \u2022 \"{}\": ")), name.ref());
     Vector<std::string> usages;
     if (flag_is_set(usage, geo_log::NamedAttributeUsage::Read)) {
       usages.append(TIP_("read"));
@@ -2453,7 +2453,7 @@ static std::string named_attribute_tooltip(bContext * /*C*/, void *argN, const S
 }
 
 static NodeExtraInfoRow row_from_used_named_attribute(
-    const Map<StringRefNull, geo_log::NamedAttributeUsage> &usage_by_attribute_name)
+    const Map<UString, geo_log::NamedAttributeUsage> &usage_by_attribute_name)
 {
   const int attributes_num = usage_by_attribute_name.size();
 

@@ -23,6 +23,7 @@
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_task.hh"
+#include "BLI_ustring.hh"
 #include "BLI_vector_set.hh"
 
 #include "BLT_translation.hh"
@@ -37,7 +38,7 @@
 
 namespace blender::io::fbx {
 
-static constexpr const char *temp_custom_normals_name = "fbx_temp_custom_normals";
+static UString temp_custom_normals_name = "fbx_temp_custom_normals"_ustr;
 
 static bool is_skin_deformer_usable(const ufbx_mesh *mesh, const ufbx_skin_deformer *skin)
 {
@@ -94,7 +95,7 @@ static void import_face_material_indices(const ufbx_mesh *fmesh,
 {
   if (fmesh->face_material.count == fmesh->num_faces) {
     bke::SpanAttributeWriter<int> materials = attributes.lookup_or_add_for_write_only_span<int>(
-        "material_index", bke::AttrDomain::Face);
+        "material_index"_ustr, bke::AttrDomain::Face);
     for (int i = 0; i < fmesh->face_material.count; i++) {
       materials.span[i] = fmesh->face_material[i];
     }
@@ -107,7 +108,7 @@ static void import_face_smoothing(const ufbx_mesh *fmesh,
 {
   if (fmesh->face_smoothing.count > 0 && fmesh->face_smoothing.count == fmesh->num_faces) {
     bke::SpanAttributeWriter<bool> smooth = attributes.lookup_or_add_for_write_only_span<bool>(
-        "sharp_face", bke::AttrDomain::Face);
+        "sharp_face"_ustr, bke::AttrDomain::Face);
     for (int i = 0; i < fmesh->face_smoothing.count; i++) {
       smooth.span[i] = !fmesh->face_smoothing[i];
     }
@@ -149,7 +150,7 @@ static void import_edges(const ufbx_mesh *fmesh,
 
     if (has_edge_creases) {
       bke::SpanAttributeWriter<float> creases =
-          attributes.lookup_or_add_for_write_only_span<float>("crease_edge",
+          attributes.lookup_or_add_for_write_only_span<float>("crease_edge"_ustr,
                                                               bke::AttrDomain::Edge);
       creases.span.fill(0.0f);
       for (int i = 0; i < fmesh->num_edges; i++) {
@@ -167,7 +168,7 @@ static void import_edges(const ufbx_mesh *fmesh,
 
     if (has_edge_smooth) {
       bke::SpanAttributeWriter<bool> sharp = attributes.lookup_or_add_for_write_only_span<bool>(
-          "sharp_edge", bke::AttrDomain::Edge);
+          "sharp_edge"_ustr, bke::AttrDomain::Edge);
       sharp.span.fill(false);
       for (int i = 0; i < fmesh->num_edges; i++) {
         const ufbx_edge &fedge = fmesh->edges[i];
@@ -197,7 +198,7 @@ static void import_uvs(const ufbx_mesh *fmesh,
       set_active_uv = false;
     }
     bke::SpanAttributeWriter<float2> uvs = attributes.lookup_or_add_for_write_only_span<float2>(
-        attr_name, bke::AttrDomain::Corner);
+        UString(attr_name), bke::AttrDomain::Corner);
     BLI_assert(fuv_set.vertex_uv.indices.count == uvs.span.size());
     for (int i = 0; i < fuv_set.vertex_uv.indices.count; i++) {
       int val_idx = fuv_set.vertex_uv.indices[i];
@@ -223,7 +224,7 @@ static void import_colors(const ufbx_mesh *fmesh,
     if (color_mode == eFBXVertexColorMode::sRGB) {
       /* sRGB colors, use 4 bytes per color. */
       bke::SpanAttributeWriter<ColorGeometry4b> cols =
-          attributes.lookup_or_add_for_write_only_span<ColorGeometry4b>(attr_name,
+          attributes.lookup_or_add_for_write_only_span<ColorGeometry4b>(UString(attr_name),
                                                                         bke::AttrDomain::Corner);
       BLI_assert(fcol_set.vertex_color.indices.count == cols.span.size());
       for (int i = 0; i < fcol_set.vertex_color.indices.count; i++) {
@@ -240,7 +241,7 @@ static void import_colors(const ufbx_mesh *fmesh,
     else if (color_mode == eFBXVertexColorMode::Linear) {
       /* Linear colors, use 4 floats per color. */
       bke::SpanAttributeWriter<ColorGeometry4f> cols =
-          attributes.lookup_or_add_for_write_only_span<ColorGeometry4f>(attr_name,
+          attributes.lookup_or_add_for_write_only_span<ColorGeometry4f>(UString(attr_name),
                                                                         bke::AttrDomain::Corner);
       BLI_assert(fcol_set.vertex_color.indices.count == cols.span.size());
       for (int i = 0; i < fcol_set.vertex_color.indices.count; i++) {

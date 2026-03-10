@@ -30,11 +30,11 @@ static Array<Array<float4>> extract_tan_init_common(const MeshRenderData &mr,
 {
   GPU_vertformat_deinterleave(format);
 
-  VectorSet<std::string> tan_layers = cache.cd_used.tan;
+  VectorSet<UString> tan_layers = cache.cd_used.tan;
   bool use_orco_tan = cache.cd_used.tan_orco;
 
-  const StringRef active_name = mr.mesh->active_uv_map_name();
-  const StringRef default_name = mr.mesh->default_uv_map_name();
+  const UString active_name = mr.mesh->active_uv_map_name();
+  const UString default_name = mr.mesh->default_uv_map_name();
 
   /* FIXME(#91838): This is to avoid a crash when orco tangent was requested but there are valid
    * uv layers. It would be better to fix the root cause. */
@@ -86,11 +86,11 @@ static Array<Array<float4>> extract_tan_init_common(const MeshRenderData &mr,
     return {std::move(tangents)};
   }
 
-  Vector<StringRef> uv_names;
-  for (const StringRef name : tan_layers.as_span().take_front(MAX_MTFACE)) {
+  Vector<UString> uv_names;
+  for (const UString name : tan_layers.as_span().take_front(MAX_MTFACE)) {
     if (tan_layers.contains(name)) {
       char attr_name[32], attr_safe_name[GPU_MAX_SAFE_ATTR_NAME];
-      GPU_vertformat_safe_attr_name(name, attr_safe_name, GPU_MAX_SAFE_ATTR_NAME);
+      GPU_vertformat_safe_attr_name(name.ref(), attr_safe_name, GPU_MAX_SAFE_ATTR_NAME);
       /* Tangent layer name. */
       SNPRINTF(attr_name, "t%s", attr_safe_name);
       GPU_vertformat_attr_add(format, attr_name, gpu_attr_type);

@@ -445,9 +445,9 @@ void BlenderFileLoader::insertShapeNode(blender::Object *ob, blender::Mesh *mesh
 
   // Get other mesh data
   const VArray<bool> fed = *attributes.lookup_or_default<bool>(
-      "freestyle_edge", bke::AttrDomain::Edge, false);
+      "freestyle_edge"_ustr, bke::AttrDomain::Edge, false);
   const VArray<bool> ffa = *attributes.lookup_or_default<bool>(
-      "freestyle_face", bke::AttrDomain::Face, false);
+      "freestyle_face"_ustr, bke::AttrDomain::Face, false);
 
   // Compute view matrix
   Object *ob_camera_eval = DEG_get_evaluated(_depsgraph, RE_GetCamera(_re));
@@ -534,9 +534,9 @@ void BlenderFileLoader::insertShapeNode(blender::Object *ob, blender::Mesh *mesh
   FrsMaterial tmpMat;
 
   const VArray<int> material_indices = *attributes.lookup_or_default<int>(
-      "material_index", bke::AttrDomain::Face, 0);
+      "material_index"_ustr, bke::AttrDomain::Face, 0);
   const VArray<bool> sharp_faces = *attributes.lookup_or_default<bool>(
-      "sharp_face", bke::AttrDomain::Face, false);
+      "sharp_face"_ustr, bke::AttrDomain::Face, false);
 
   // We parse the vlak nodes again and import meshes while applying the clipping
   // by the near and far view planes.

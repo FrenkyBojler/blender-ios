@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_ustring.hh"
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_closure.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
@@ -107,19 +108,18 @@ GeometryInfoLog::GeometryInfoLog(const bke::GeometrySet &geometry_set)
   /* Keep track handled attribute names to make sure that we do not return the same name twice.
    * Currently #GeometrySet::attribute_foreach does not do that. Note that this will merge
    * attributes with the same name but different domains or data types on separate components. */
-  Set<StringRef> names;
+  Set<UString> names;
 
-  geometry_set.attribute_foreach(all_component_types,
-                                 true,
-                                 [&](const StringRef name,
-                                     const bke::AttributeMetaData &meta_data,
-                                     const bke::GeometryComponent & /*component*/) {
-                                   if (!bke::attribute_name_is_anonymous(name) && names.add(name))
-                                   {
-                                     this->attributes.append(
-                                         {name, meta_data.domain, meta_data.data_type});
-                                   }
-                                 });
+  geometry_set.attribute_foreach(
+      all_component_types,
+      true,
+      [&](const UString name,
+          const bke::AttributeMetaData &meta_data,
+          const bke::GeometryComponent & /*component*/) {
+        if (!bke::attribute_name_is_anonymous(name.ref()) && names.add(name)) {
+          this->attributes.append({name, meta_data.domain, meta_data.data_type});
+        }
+      });
 
   for (const bke::GeometryComponent *component : geometry_set.get_components()) {
     this->component_types.append(component->type());
@@ -604,17 +604,16 @@ void GeoTreeLog::ensure_used_named_attributes()
     return;
   }
 
-  auto add_attribute = [&](const int32_t node_id,
-                           const StringRefNull attribute_name,
-                           const NamedAttributeUsage &usage) {
-    this->nodes.lookup_or_add_default(node_id).used_named_attributes.lookup_or_add(attribute_name,
-                                                                                   usage) |= usage;
-    this->used_named_attributes.lookup_or_add_as(attribute_name, usage) |= usage;
-  };
+  auto add_attribute =
+      [&](const int32_t node_id, const UString attribute_name, const NamedAttributeUsage &usage) {
+        this->nodes.lookup_or_add_default(node_id).used_named_attributes.lookup_or_add(
+            attribute_name, usage) |= usage;
+        this->used_named_attributes.lookup_or_add_as(attribute_name, usage) |= usage;
+      };
 
   for (GeoTreeLogger *tree_logger : tree_loggers_) {
     for (const GeoTreeLogger::AttributeUsageWithNode &item : tree_logger->used_named_attributes) {
-      add_attribute(item.node_id, item.attribute_name, item.usage);
+      add_attribute(item.node_id, UString(item.attribute_name), item.usage);
     }
   }
   for (const ComputeContextHash &child_hash : children_hashes_) {

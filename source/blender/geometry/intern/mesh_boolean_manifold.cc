@@ -176,7 +176,7 @@ static void dump_mesh(const Mesh *mesh, const std::string &name)
     }
     const int di = int8_t(iter.domain);
     const char *domain = (di >= 0 && di < ATTR_DOMAIN_NUM) ? domain_names[di] : "?";
-    std::string label = std::string(domain) + ": " + iter.name;
+    std::string label = std::string(domain) + ": " + iter.name.ref();
     switch (iter.data_type) {
       case bke::AttrType::Float: {
         VArraySpan<float> floatspan(*attrs.lookup<float>(iter.name));
@@ -1575,7 +1575,8 @@ static Mesh *meshgl_to_mesh(MeshGL &mgl,
 #  ifdef DEBUG_TIME
     timeit::ScopedTimer timer_c("calculate faces");
 #  endif
-    output_attrs.add<int>(".corner_vert", bke::AttrDomain::Corner, bke::AttributeInitConstruct());
+    output_attrs.add<int>(
+        ".corner_vert"_ustr, bke::AttrDomain::Corner, bke::AttributeInitConstruct());
     MutableSpan<int> corner_verts = mesh->corner_verts_for_write();
     threading::parallel_for(IndexRange(faces_num), 10'000, [&](const IndexRange range) {
       for (const int face : range) {
@@ -1589,12 +1590,12 @@ static Mesh *meshgl_to_mesh(MeshGL &mgl,
 #  ifdef DEBUG_TIME
     timeit::ScopedTimer timer_c("set positions");
 #  endif
-    BLI_assert(!output_attrs.contains("position"));
+    BLI_assert(!output_attrs.contains("position"_ustr));
     BLI_assert(mgl.numProp == 3);
     auto *sharing_info = new ImplicitSharedValue<std::vector<float>>(
         std::move(mgl.vertProperties));
     const bke::AttributeInitShared init(sharing_info->data.data(), *sharing_info);
-    output_attrs.add<float3>("position", bke::AttrDomain::Point, init);
+    output_attrs.add<float3>("position"_ustr, bke::AttrDomain::Point, init);
     sharing_info->remove_user_and_delete_if_last();
   }
 
@@ -1630,11 +1631,11 @@ static Mesh *meshgl_to_mesh(MeshGL &mgl,
         return;
       }
       if (ELEM(iter.name,
-               "position",
-               ".edge_verts",
-               ".corner_vert",
-               ".corner_edge",
-               "material_index"))
+               "position"_ustr,
+               ".edge_verts"_ustr,
+               ".corner_vert"_ustr,
+               ".corner_edge"_ustr,
+               "material_index"_ustr))
       {
         return;
       }
@@ -1669,15 +1670,15 @@ static Mesh *meshgl_to_mesh(MeshGL &mgl,
       dst.finish();
     });
 
-    if (join_attrs.contains("material_index")) {
+    if (join_attrs.contains("material_index"_ustr)) {
       /* If #material_remaps is non-empty, we need to use that map to set the
        * face "material_index" property instead of taking it from the joined mesh.
        * This should only happen if the user wants something other than the default
        * "transfer the materials" mode, which has already happened in the joined mesh. */
       bke::SpanAttributeWriter dst = output_attrs.lookup_or_add_for_write_only_span<int>(
-          "material_index", bke::AttrDomain::Face);
+          "material_index"_ustr, bke::AttrDomain::Face);
       if (material_remaps.is_empty()) {
-        const VArraySpan src = *join_attrs.lookup<int>("material_index");
+        const VArraySpan src = *join_attrs.lookup<int>("material_index"_ustr);
         copy_attribute_using_map(src, out_to_in.ensure_face_map(), dst.span);
       }
       else {

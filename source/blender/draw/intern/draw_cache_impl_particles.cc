@@ -785,12 +785,12 @@ static void particle_batch_cache_ensure_pos_and_seg(PTCacheEdit *edit,
   float (**parent_uvs)[2] = nullptr;
   MCol **parent_mcol = nullptr;
 
-  VectorSet<StringRefNull> uv_map_names;
+  VectorSet<UString> uv_map_names;
   if (psmd != nullptr) {
     psmd->mesh_final->uv_map_names();
     psmd->mesh_final->attributes().foreach_attribute([&](const bke::AttributeIter &iter) {
       if (iter.domain == bke::AttrDomain::Corner && iter.data_type == bke::AttrType::ColorByte) {
-        color_attribute_names.append(iter.name);
+        color_attribute_names.append(iter.name.ref());
       }
     });
     num_col_layers = color_attribute_names.size();
@@ -802,7 +802,7 @@ static void particle_batch_cache_ensure_pos_and_seg(PTCacheEdit *edit,
   attr_id.ind = GPU_vertformat_attr_add(&format, "ind", gpu::VertAttrType::SINT_32);
 
   if (psmd) {
-    const StringRef active_uv = psmd->mesh_final->default_uv_map_name();
+    const StringRef active_uv = psmd->mesh_final->default_uv_map_name().ref();
     const char *active_col = psmd->mesh_final->active_color_attribute;
     uv_id = MEM_new_array_uninitialized<uint>(num_uv_layers, "UV attr format");
     col_id = MEM_new_array_uninitialized<uint>(color_attribute_names.size(), "Col attr format");
@@ -810,7 +810,7 @@ static void particle_batch_cache_ensure_pos_and_seg(PTCacheEdit *edit,
     for (int i = 0; i < num_uv_layers; i++) {
 
       char uuid[32], attr_safe_name[GPU_MAX_SAFE_ATTR_NAME];
-      const StringRef name = uv_map_names[i];
+      const StringRef name = uv_map_names[i].ref();
       GPU_vertformat_safe_attr_name(name, attr_safe_name, GPU_MAX_SAFE_ATTR_NAME);
 
       SNPRINTF_UTF8(uuid, "a%s", attr_safe_name);
@@ -1339,9 +1339,9 @@ static float2 interpolate(const ParticleDataT &particle, Span<MFace> mfaces, Spa
   return uv;
 }
 
-static std::optional<StringRef> get_first_uv_name(const bke::AttributeAccessor &attributes)
+static std::optional<UString> get_first_uv_name(const bke::AttributeAccessor &attributes)
 {
-  std::optional<StringRef> name;
+  std::optional<UString> name;
   attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
     if (iter.data_type == bke::AttrType::Float2) {
       name = iter.name;
@@ -1430,7 +1430,7 @@ static gpu::VertBufPtr interpolate_face_corner_attribute_to_curve(ParticleDrawSo
 
 static gpu::VertBufPtr ensure_curve_attribute(ParticleDrawSource &src,
                                               const Mesh &mesh,
-                                              const StringRef name,
+                                              const UString name,
                                               bool &r_is_point_domain)
 {
   using namespace bke;
@@ -1442,10 +1442,11 @@ static gpu::VertBufPtr ensure_curve_attribute(ParticleDrawSource &src,
   auto meta_data = attributes.lookup_meta_data(name);
   if (meta_data && meta_data->domain == bke::AttrDomain::Corner) {
     if (meta_data->data_type == AttrType::ColorByte) {
-      return interpolate_face_corner_attribute_to_curve<MCol, float4, CD_MCOL>(src, name);
+      return interpolate_face_corner_attribute_to_curve<MCol, float4, CD_MCOL>(src, name.ref());
     }
     if (meta_data->data_type == AttrType::Float2) {
-      return interpolate_face_corner_attribute_to_curve<MTFace, float2, CD_MTFACE>(src, name);
+      return interpolate_face_corner_attribute_to_curve<MTFace, float2, CD_MTFACE>(src,
+                                                                                   name.ref());
     }
   }
   /* Attribute doesn't exist or is of an incompatible type.
@@ -1456,11 +1457,11 @@ static gpu::VertBufPtr ensure_curve_attribute(ParticleDrawSource &src,
 void CurvesEvalCache::ensure_attribute(CurvesModule & /*module*/,
                                        ParticleDrawSource &src,
                                        const Mesh &mesh,
-                                       const StringRef name,
+                                       const UString name,
                                        const int index)
 {
   char sampler_name[32];
-  drw_curves_get_attribute_sampler_name(name, sampler_name);
+  drw_curves_get_attribute_sampler_name(name.ref(), sampler_name);
 
   gpu::VertBufPtr attr_buf = ensure_curve_attribute(
       src, mesh, name, attributes_point_domain[index]);
@@ -1490,12 +1491,12 @@ void CurvesEvalCache::ensure_attributes(CurvesModule &module,
   const bke::AttributeAccessor attributes = mesh.attributes();
 
   if (gpu_material) {
-    VectorSet<std::string> attrs_needed;
+    VectorSet<UString> attrs_needed;
     ListBaseT<GPUMaterialAttribute> gpu_attrs = GPU_material_attributes(gpu_material);
     for (GPUMaterialAttribute &gpu_attr : gpu_attrs) {
-      StringRef name = gpu_attr.name;
+      UString name = UString(gpu_attr.name);
       if (name.is_empty()) {
-        if (std::optional<StringRef> uv_name = get_first_uv_name(attributes)) {
+        if (std::optional<UString> uv_name = get_first_uv_name(attributes)) {
           drw_attributes_add_request(&attrs_needed, *uv_name);
         }
       }

@@ -75,7 +75,7 @@ static bool vertex_paint_from_weight(Object &ob)
     return false;
   }
 
-  if (!mesh->attributes().contains(mesh->active_color_attribute)) {
+  if (!mesh->attributes().contains(UString(mesh->active_color_attribute))) {
     BLI_assert_unreachable();
     return false;
   }
@@ -91,7 +91,7 @@ static bool vertex_paint_from_weight(Object &ob)
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
 
   bke::GAttributeWriter color_attribute = attributes.lookup_for_write(
-      mesh->active_color_attribute);
+      UString(mesh->active_color_attribute));
   if (!color_attribute) {
     BLI_assert_unreachable();
     return false;
@@ -100,7 +100,7 @@ static bool vertex_paint_from_weight(Object &ob)
   /* Retrieve the vertex group with the domain and type of the existing color
    * attribute, in order to let the attribute API handle both conversions. */
   const GVArray vertex_group = *attributes.lookup(
-      deform_group->name,
+      UString(deform_group->name),
       bke::AttrDomain::Point,
       bke::cpp_type_to_attribute_type(color_attribute.varray.type()));
   if (!vertex_group) {
@@ -159,12 +159,12 @@ static IndexMask get_selected_indices(const Mesh &mesh,
 
   if (mesh.editflag & ME_EDIT_PAINT_FACE_SEL) {
     const VArray<bool> selection = *attributes.lookup_or_default<bool>(
-        ".select_poly", domain, false);
+        ".select_poly"_ustr, domain, false);
     return IndexMask::from_bools(selection, memory);
   }
   if (mesh.editflag & ME_EDIT_PAINT_VERT_SEL) {
     const VArray<bool> selection = *attributes.lookup_or_default<bool>(
-        ".select_vert", domain, false);
+        ".select_vert"_ustr, domain, false);
     return IndexMask::from_bools(selection, memory);
   }
   return IndexMask(attributes.domain_size(domain));
@@ -172,7 +172,7 @@ static IndexMask get_selected_indices(const Mesh &mesh,
 
 static void face_corner_color_equalize_verts(Mesh &mesh, const IndexMask selection)
 {
-  const StringRef name = mesh.active_color_attribute;
+  const UString name(mesh.active_color_attribute);
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   bke::GSpanAttributeWriter attribute = attributes.lookup_for_write_span(name);
   if (!attribute) {
@@ -243,7 +243,7 @@ void PAINT_OT_vertex_color_smooth(wmOperatorType *ot)
 static void transform_active_color_data(
     Mesh &mesh, const FunctionRef<void(ColorGeometry4f &color)> transform_fn)
 {
-  const StringRef name = mesh.active_color_attribute;
+  const UString name(mesh.active_color_attribute);
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   if (!attributes.contains(name)) {
     BLI_assert_unreachable();

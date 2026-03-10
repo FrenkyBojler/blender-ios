@@ -74,15 +74,15 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 static void write_vert_creases(Mesh &mesh, const VArray<float> &creases)
 {
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
-  attributes.remove("crease_vert");
-  attributes.add<float>("crease_vert", AttrDomain::Point, bke::AttributeInitVArray(creases));
+  attributes.remove("crease_vert"_ustr);
+  attributes.add<float>("crease_vert"_ustr, AttrDomain::Point, bke::AttributeInitVArray(creases));
 }
 
 static void write_edge_creases(Mesh &mesh, const VArray<float> &creases)
 {
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
-  attributes.remove("crease_edge");
-  attributes.add<float>("crease_edge", AttrDomain::Edge, bke::AttributeInitVArray(creases));
+  attributes.remove("crease_edge"_ustr);
+  attributes.add<float>("crease_edge"_ustr, AttrDomain::Edge, bke::AttributeInitVArray(creases));
 }
 
 static bool varray_is_single_zero(const VArray<float> &varray)
@@ -166,8 +166,8 @@ static Mesh *mesh_subsurf_calc(const Mesh *mesh,
     /* Remove the layer in case it was created by the node from the field input. The fact
      * that this node uses attributes to input creases to the subdivision code is meant to be
      * an implementation detail ideally. */
-    result->attributes_for_write().remove("crease_vert");
-    result->attributes_for_write().remove("crease_edge");
+    result->attributes_for_write().remove("crease_vert"_ustr);
+    result->attributes_for_write().remove("crease_edge"_ustr);
   }
 
   if (mesh_copy) {

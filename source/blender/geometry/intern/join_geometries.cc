@@ -16,7 +16,7 @@ using bke::GeometryComponent;
 using bke::GeometrySet;
 
 static GeometrySet::GatheredAttributes get_final_attribute_info(
-    const Span<const GeometryComponent *> components, const Span<StringRef> ignored_attributes)
+    const Span<const GeometryComponent *> components, const Span<UString> ignored_attributes)
 {
   GeometrySet::GatheredAttributes info;
 
@@ -36,7 +36,7 @@ static GeometrySet::GatheredAttributes get_final_attribute_info(
 }
 
 static void fill_new_attribute(const Span<const GeometryComponent *> src_components,
-                               const StringRef name,
+                               const UString name,
                                const bke::AttrType data_type,
                                const bke::AttrDomain domain,
                                GMutableSpan dst_span)
@@ -62,7 +62,7 @@ static void fill_new_attribute(const Span<const GeometryComponent *> src_compone
 }
 
 static bool try_join_single_value_attribute(const Span<const GeometryComponent *> src_components,
-                                            const StringRef name,
+                                            const UString name,
                                             const bke::AttrDomain domain,
                                             const bke::AttrType data_type,
                                             bke::MutableAttributeAccessor dst_attributes)
@@ -108,14 +108,14 @@ static bool try_join_single_value_attribute(const Span<const GeometryComponent *
 
 static void join_attributes(const Span<const GeometryComponent *> src_components,
                             GeometryComponent &result,
-                            const Span<StringRef> ignored_attributes)
+                            const Span<UString> ignored_attributes)
 {
   const GeometrySet::GatheredAttributes info = get_final_attribute_info(src_components,
                                                                         ignored_attributes);
   bke::MutableAttributeAccessor dst_attributes = *result.attributes_for_write();
 
   for (const int i : info.names.index_range()) {
-    const StringRef name = info.names[i];
+    const UString name = info.names[i];
     const AttributeDomainAndType &meta_data = info.kinds[i];
 
     if (try_join_single_value_attribute(
@@ -177,7 +177,7 @@ static void join_instances(const Span<const GeometryComponent *> src_components,
 
   result.replace_instances(dst_instances.release());
   auto &dst_component = result.get_component_for_write<bke::InstancesComponent>();
-  join_attributes(src_components, dst_component, {".reference_index"});
+  join_attributes(src_components, dst_component, {".reference_index"_ustr});
 }
 
 static void join_volumes(const Span<const GeometryComponent *> /*src_components*/,

@@ -17,6 +17,7 @@
 
 #include "BLI_math_vector_types.hh"
 #include "BLI_memory_counter_fwd.hh"
+#include "BLI_ustring.hh"
 #include "BLI_vector_set.hh"
 
 namespace blender {
@@ -396,14 +397,14 @@ struct Mesh {
    *
    * \warning Adding or removing attributes will invalidate the referenced memory.
    */
-  VectorSet<StringRefNull> uv_map_names() const;
+  VectorSet<UString> uv_map_names() const;
 
   /** The name of the active UV map attribute, if any. */
-  StringRefNull active_uv_map_name() const;
+  UString active_uv_map_name() const;
   /** The name of the default UV map (e.g. for rendering) attribute, if any. */
-  StringRefNull default_uv_map_name() const;
+  UString default_uv_map_name() const;
   /** The active UV map name, falling back to the default if no active map is set. */
-  StringRefNull active_or_default_uv_map_name() const;
+  UString active_or_default_uv_map_name() const;
 
   void uv_maps_active_set(StringRef name);
   void uv_maps_default_set(StringRef name);

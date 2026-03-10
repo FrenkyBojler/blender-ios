@@ -391,7 +391,7 @@ static GAttributeReader adapt_domain_and_type_if_necessary(GAttributeReader attr
   return attribute;
 }
 
-GAttributeReader AttributeAccessor::lookup(const StringRef name,
+GAttributeReader AttributeAccessor::lookup(const UString name,
                                            const std::optional<AttrDomain> domain,
                                            const std::optional<AttrType> data_type) const
 {
@@ -405,7 +405,7 @@ GAttributeReader AttributeIter::get(std::optional<AttrDomain> domain,
   return adapt_domain_and_type_if_necessary(this->get(), domain, data_type, *accessor);
 }
 
-GAttributeReader AttributeAccessor::lookup_or_default(const StringRef name,
+GAttributeReader AttributeAccessor::lookup_or_default(const UString name,
                                                       const AttrDomain domain,
                                                       const AttrType data_type,
                                                       const void *default_value) const
@@ -422,18 +422,18 @@ GAttributeReader AttributeAccessor::lookup_or_default(const StringRef name,
   return {GVArray::from_single(type, domain_size, default_value), domain, nullptr};
 }
 
-Set<StringRefNull> AttributeAccessor::all_names() const
+Set<UString> AttributeAccessor::all_names() const
 {
-  Set<StringRefNull> names;
+  Set<UString> names;
   this->foreach_attribute([&](const AttributeIter &iter) { names.add(iter.name); });
   return names;
 }
 
 void MutableAttributeAccessor::remove_anonymous()
 {
-  Vector<std::string> anonymous_ids;
-  for (const StringRef name : this->all_names()) {
-    if (attribute_name_is_anonymous(name)) {
+  Vector<UString> anonymous_ids;
+  for (const UString name : this->all_names()) {
+    if (attribute_name_is_anonymous(name.ref())) {
       anonymous_ids.append(name);
     }
   }
@@ -448,21 +448,21 @@ void MutableAttributeAccessor::remove_anonymous()
  */
 #ifndef NDEBUG
 struct FinishCallChecker {
-  std::string name;
+  UString name;
   bool finish_called = false;
   std::function<void()> real_finish_fn;
 
   ~FinishCallChecker()
   {
     if (!this->finish_called) {
-      std::cerr << "Forgot to call `finish()` for '" << this->name << "'.\n";
+      std::cerr << "Forgot to call `finish()` for '" << this->name.ref() << "'.\n";
       BLI_assert_unreachable();
     }
   }
 };
 #endif
 
-GAttributeWriter MutableAttributeAccessor::lookup_for_write(const StringRef name)
+GAttributeWriter MutableAttributeAccessor::lookup_for_write(const UString name)
 {
   GAttributeWriter attribute = fn_->lookup_for_write(owner_, name);
   /* Check that the #finish method is called in debug builds. */
@@ -482,7 +482,7 @@ GAttributeWriter MutableAttributeAccessor::lookup_for_write(const StringRef name
   return attribute;
 }
 
-GSpanAttributeWriter MutableAttributeAccessor::lookup_for_write_span(const StringRef name)
+GSpanAttributeWriter MutableAttributeAccessor::lookup_for_write_span(const UString name)
 {
   GAttributeWriter attribute = this->lookup_for_write(name);
   if (attribute) {
@@ -492,7 +492,7 @@ GSpanAttributeWriter MutableAttributeAccessor::lookup_for_write_span(const Strin
 }
 
 GAttributeWriter MutableAttributeAccessor::lookup_or_add_for_write(
-    const StringRef name,
+    const UString name,
     const AttrDomain domain,
     const AttrType data_type,
     const AttributeInit &initializer)
@@ -511,7 +511,7 @@ GAttributeWriter MutableAttributeAccessor::lookup_or_add_for_write(
 }
 
 GSpanAttributeWriter MutableAttributeAccessor::lookup_or_add_for_write_span(
-    const StringRef name,
+    const UString name,
     const AttrDomain domain,
     const AttrType data_type,
     const AttributeInit &initializer)
@@ -524,7 +524,7 @@ GSpanAttributeWriter MutableAttributeAccessor::lookup_or_add_for_write_span(
 }
 
 GSpanAttributeWriter MutableAttributeAccessor::lookup_or_add_for_write_only_span(
-    const StringRef name, const AttrDomain domain, const AttrType data_type)
+    const UString name, const AttrDomain domain, const AttrType data_type)
 {
   GAttributeWriter attribute = this->lookup_or_add_for_write(
       name, domain, data_type, AttributeInitConstruct());
@@ -534,7 +534,7 @@ GSpanAttributeWriter MutableAttributeAccessor::lookup_or_add_for_write_only_span
   return {};
 }
 
-bool MutableAttributeAccessor::rename(const StringRef old_name, const StringRef new_name)
+bool MutableAttributeAccessor::rename(const UString old_name, const UString new_name)
 {
   if (new_name.is_empty()) {
     return false;
@@ -619,7 +619,7 @@ Vector<AttributeTransferData> retrieve_attributes_for_transfer(
 /** \} */
 
 static bool try_add_single_value_attribute(const GVArray &src,
-                                           const StringRef name,
+                                           const UString name,
                                            const AttrDomain dst_domain,
                                            const AttrType data_type,
                                            MutableAttributeAccessor &dst_attributes)
@@ -805,7 +805,7 @@ void copy_attributes(const AttributeAccessor src_attributes,
 
 static GPointer get_default_for_fill(AttributeAccessor attributes,
                                      const CPPType &type,
-                                     const StringRef name)
+                                     const UString name)
 {
   if (attributes.is_builtin(name)) {
     if (const GPointer value = attributes.get_builtin_default(name)) {
@@ -904,7 +904,7 @@ void fill_attribute_range_default(MutableAttributeAccessor attributes,
 void transform_custom_normal_attribute(const float4x4 &transform,
                                        MutableAttributeAccessor &attributes)
 {
-  const GAttributeReader normals = attributes.lookup("custom_normal");
+  const GAttributeReader normals = attributes.lookup("custom_normal"_ustr);
   if (!normals) {
     return;
   }
@@ -913,7 +913,7 @@ void transform_custom_normal_attribute(const float4x4 &transform,
   }
   if (normals.sharing_info->is_mutable()) {
     SpanAttributeWriter<float3> normals = attributes.lookup_for_write_span<float3>(
-        "custom_normal");
+        "custom_normal"_ustr);
     math::transform_normals(float3x3(transform), normals.span);
     normals.finish();
   }
@@ -925,8 +925,8 @@ void transform_custom_normal_attribute(const float4x4 &transform,
                             float3x3(transform),
                             {new_data, normals.varray.size()});
     const AttrDomain domain = normals.domain;
-    attributes.remove("custom_normal");
-    attributes.add<float3>("custom_normal", domain, AttributeInitMoveArray(new_data));
+    attributes.remove("custom_normal"_ustr);
+    attributes.add<float3>("custom_normal"_ustr, domain, AttributeInitMoveArray(new_data));
   }
 }
 

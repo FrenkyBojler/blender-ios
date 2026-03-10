@@ -223,7 +223,7 @@ static void envelope_bone_weighting(Object *ob,
   }
 
   const bke::AttributeAccessor attributes = mesh->attributes();
-  const VArray select_vert = *attributes.lookup<bool>(".select_vert", bke::AttrDomain::Point);
+  const VArray select_vert = *attributes.lookup<bool>(".select_vert"_ustr, bke::AttrDomain::Point);
 
   /* for each vertex in the mesh */
   for (int i = 0; i < mesh->verts_num; i++) {

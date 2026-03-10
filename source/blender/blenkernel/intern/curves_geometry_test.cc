@@ -104,7 +104,7 @@ TEST(curves_geometry, CyclicOffsets)
     EXPECT_FALSE(curves.has_cyclic_curve());
   }
   {
-    curves.attributes_for_write().remove("cyclic");
+    curves.attributes_for_write().remove("cyclic"_ustr);
     EXPECT_FALSE(curves.has_cyclic_curve());
   }
   {

@@ -572,7 +572,7 @@ bool vertex_paint_mode_poll(bContext *C)
     return false;
   }
 
-  if (!BKE_id_attributes_color_find(&mesh->id, mesh->active_color_attribute)) {
+  if (!BKE_id_attributes_color_find(&mesh->id, UString(mesh->active_color_attribute))) {
     return false;
   }
 
@@ -946,7 +946,8 @@ static std::unique_ptr<VPaintData> vpaint_init_vpaint(wmOperator *op,
   vpd->is_texbrush = !(brush.vertex_brush_type == VPAINT_BRUSH_TYPE_BLUR) && brush.mtex.tex;
 
   if (brush.vertex_brush_type == VPAINT_BRUSH_TYPE_SMEAR) {
-    const GVArray attribute = *mesh.attributes().lookup(mesh.active_color_attribute, domain);
+    const GVArray attribute = *mesh.attributes().lookup(UString(mesh.active_color_attribute),
+                                                        domain);
     vpd->smear.color_prev = GArray(attribute.type(), attribute.size());
     attribute.materialize(vpd->smear.color_prev.data());
 
@@ -955,13 +956,13 @@ static std::unique_ptr<VPaintData> vpaint_init_vpaint(wmOperator *op,
 
   if (!vwpaint::brush_use_accumulate(vp)) {
     if (vpd->prev_colors.is_empty()) {
-      const GVArray attribute = *mesh.attributes().lookup(mesh.active_color_attribute);
+      const GVArray attribute = *mesh.attributes().lookup(UString(mesh.active_color_attribute));
       vpd->prev_colors = GArray(attribute.type(), attribute.size());
       attribute.type().value_initialize_n(vpd->prev_colors.data(), vpd->prev_colors.size());
     }
 
     if (vpd->stroke_buffer.is_empty()) {
-      const GVArray attribute = *mesh.attributes().lookup(mesh.active_color_attribute);
+      const GVArray attribute = *mesh.attributes().lookup(UString(mesh.active_color_attribute));
       vpd->stroke_buffer = GArray(attribute.type(), attribute.size());
       attribute.type().value_initialize_n(vpd->stroke_buffer.data(), vpd->stroke_buffer.size());
     }
@@ -1026,8 +1027,8 @@ bool VertexPaintStroke::test_start(wmOperator *op, const float mouse[2])
   ED_mesh_color_ensure(mesh, nullptr);
 
   const std::optional<bke::AttributeMetaData> meta_data = mesh->attributes().lookup_meta_data(
-      mesh->active_color_attribute);
-  if (!BKE_id_attributes_color_find(&mesh->id, mesh->active_color_attribute)) {
+      UString(mesh->active_color_attribute));
+  if (!BKE_id_attributes_color_find(&mesh->id, UString(mesh->active_color_attribute))) {
     return false;
   }
 
@@ -1100,14 +1101,14 @@ static void do_vpaint_brush_blur_loops(const Depsgraph &depsgraph,
   const GroupedSpan<int> vert_to_face = mesh.vert_to_face_map();
   const Span<float3> vert_normals = bke::pbvh::vert_normals_eval(depsgraph, ob);
   const bke::AttributeAccessor attributes = mesh.attributes();
-  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
+  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert"_ustr, bke::AttrDomain::Point);
   VArraySpan<bool> select_vert;
   if (use_vert_sel) {
-    select_vert = *attributes.lookup<bool>(".select_vert", bke::AttrDomain::Point);
+    select_vert = *attributes.lookup<bool>(".select_vert"_ustr, bke::AttrDomain::Point);
   }
   VArraySpan<bool> select_poly;
   if (use_face_sel) {
-    select_poly = *attributes.lookup<bool>(".select_poly", bke::AttrDomain::Face);
+    select_poly = *attributes.lookup<bool>(".select_poly"_ustr, bke::AttrDomain::Face);
   }
 
   struct LocalData {
@@ -1261,14 +1262,14 @@ static void do_vpaint_brush_blur_verts(const Depsgraph &depsgraph,
   const GroupedSpan<int> vert_to_face = mesh.vert_to_face_map();
   const Span<float3> vert_normals = bke::pbvh::vert_normals_eval(depsgraph, ob);
   const bke::AttributeAccessor attributes = mesh.attributes();
-  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
+  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert"_ustr, bke::AttrDomain::Point);
   VArraySpan<bool> select_vert;
   if (use_vert_sel) {
-    select_vert = *attributes.lookup<bool>(".select_vert", bke::AttrDomain::Point);
+    select_vert = *attributes.lookup<bool>(".select_vert"_ustr, bke::AttrDomain::Point);
   }
   VArraySpan<bool> select_poly;
   if (use_face_sel) {
-    select_poly = *attributes.lookup<bool>(".select_poly", bke::AttrDomain::Face);
+    select_poly = *attributes.lookup<bool>(".select_poly"_ustr, bke::AttrDomain::Face);
   }
 
   struct LocalData {
@@ -1421,14 +1422,14 @@ static void do_vpaint_brush_smear(const Depsgraph &depsgraph,
   const GroupedSpan<int> vert_to_face = mesh.vert_to_face_map();
   const Span<float3> vert_normals = bke::pbvh::vert_normals_eval(depsgraph, ob);
   const bke::AttributeAccessor attributes = mesh.attributes();
-  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
+  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert"_ustr, bke::AttrDomain::Point);
   VArraySpan<bool> select_vert;
   if (use_vert_sel) {
-    select_vert = *attributes.lookup<bool>(".select_vert", bke::AttrDomain::Point);
+    select_vert = *attributes.lookup<bool>(".select_vert"_ustr, bke::AttrDomain::Point);
   }
   VArraySpan<bool> select_poly;
   if (use_face_sel) {
-    select_poly = *attributes.lookup<bool>(".select_poly", bke::AttrDomain::Face);
+    select_poly = *attributes.lookup<bool>(".select_poly"_ustr, bke::AttrDomain::Face);
   }
 
   struct LocalData {
@@ -1600,10 +1601,10 @@ static void calculate_average_color(VPaintData &vpd,
   const Span<int> corner_verts = mesh.corner_verts();
   const GroupedSpan<int> vert_to_face = mesh.vert_to_face_map();
   const bke::AttributeAccessor attributes = mesh.attributes();
-  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
+  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert"_ustr, bke::AttrDomain::Point);
   VArraySpan<bool> select_vert;
   if (use_vert_sel) {
-    select_vert = *attributes.lookup<bool>(".select_vert", bke::AttrDomain::Point);
+    select_vert = *attributes.lookup<bool>(".select_vert"_ustr, bke::AttrDomain::Point);
   }
 
   struct LocalData {
@@ -1758,14 +1759,14 @@ static void vpaint_do_draw(const Depsgraph &depsgraph,
   const Span<float3> vert_normals = bke::pbvh::vert_normals_eval(depsgraph, ob);
   const GroupedSpan<int> vert_to_face = mesh.vert_to_face_map();
   const bke::AttributeAccessor attributes = mesh.attributes();
-  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
+  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert"_ustr, bke::AttrDomain::Point);
   VArraySpan<bool> select_vert;
   if (use_vert_sel) {
-    select_vert = *attributes.lookup<bool>(".select_vert", bke::AttrDomain::Point);
+    select_vert = *attributes.lookup<bool>(".select_vert"_ustr, bke::AttrDomain::Point);
   }
   VArraySpan<bool> select_poly;
   if (use_face_sel) {
-    select_poly = *attributes.lookup<bool>(".select_poly", bke::AttrDomain::Face);
+    select_poly = *attributes.lookup<bool>(".select_poly"_ustr, bke::AttrDomain::Face);
   }
 
   const float3 brush_color = get_brush_color(&vp.paint, &brush, cache, vpd.paintcol);
@@ -1946,7 +1947,7 @@ static void vpaint_do_paint(const Depsgraph &depsgraph,
   const IndexMask node_mask = vwpaint::pbvh_gather_generic(depsgraph, ob, vp, brush, memory);
 
   bke::GSpanAttributeWriter attribute = mesh.attributes_for_write().lookup_for_write_span(
-      mesh.active_color_attribute);
+      UString(mesh.active_color_attribute));
   BLI_assert(attribute.domain == vpd.domain);
 
   /* Paint those leaves. */
@@ -2201,11 +2202,11 @@ static void fill_mesh_face_or_corner_attribute(Mesh &mesh,
   const bke::AttributeAccessor attributes = mesh.attributes();
   VArraySpan<bool> select_vert;
   if (use_vert_sel) {
-    select_vert = *attributes.lookup<bool>(".select_vert", bke::AttrDomain::Point);
+    select_vert = *attributes.lookup<bool>(".select_vert"_ustr, bke::AttrDomain::Point);
   }
   VArraySpan<bool> select_poly;
   if (use_face_sel) {
-    select_poly = *attributes.lookup<bool>(".select_poly", bke::AttrDomain::Face);
+    select_poly = *attributes.lookup<bool>(".select_poly"_ustr, bke::AttrDomain::Face);
   }
 
   const OffsetIndices faces = mesh.faces();
@@ -2235,14 +2236,14 @@ static void fill_mesh_face_or_corner_attribute(Mesh &mesh,
 
 static void fill_mesh_color(Mesh &mesh,
                             const ColorPaint4f &color,
-                            const StringRef name,
+                            const UString name,
                             const bool use_vert_sel,
                             const bool use_face_sel,
                             const bool affect_alpha)
 {
   if (BMEditMesh *em = mesh.runtime->edit_mesh.get()) {
     BMesh *bm = em->bm;
-    const BMDataLayerLookup attr = BM_data_layer_lookup(*mesh.runtime->edit_mesh->bm, name);
+    const BMDataLayerLookup attr = BM_data_layer_lookup(*mesh.runtime->edit_mesh->bm, name.ref());
     if (attr.type == bke::AttrType::ColorFloat) {
       fill_bm_face_or_corner_attribute<ColorPaint4f>(
           *bm, color, attr.domain, attr.offset, use_vert_sel);
@@ -2290,8 +2291,12 @@ static bool fill_active_color(Object &ob,
 
   const bool use_face_sel = only_selected ? (mesh->editflag & ME_EDIT_PAINT_FACE_SEL) != 0 : false;
   const bool use_vert_sel = only_selected ? (mesh->editflag & ME_EDIT_PAINT_VERT_SEL) != 0 : false;
-  fill_mesh_color(
-      *mesh, fill_color, mesh->active_color_attribute, use_vert_sel, use_face_sel, affect_alpha);
+  fill_mesh_color(*mesh,
+                  fill_color,
+                  UString(mesh->active_color_attribute),
+                  use_vert_sel,
+                  use_face_sel,
+                  affect_alpha);
 
   DEG_id_tag_update(&mesh->id, ID_RECALC_SYNC_TO_EVAL);
 

@@ -397,7 +397,7 @@ static CurvesPointSelectionStatus init_curves_point_selection_status(
   const IndexMask bezier_points = bke::curves::curve_type_point_selection(
       curves, CURVE_TYPE_BEZIER, memory);
 
-  auto add_handles = [&](StringRef selection_attribute, std::optional<Span<float3>> positions) {
+  auto add_handles = [&](UString selection_attribute, std::optional<Span<float3>> positions) {
     if (!positions) {
       return;
     }
@@ -413,8 +413,8 @@ static CurvesPointSelectionStatus init_curves_point_selection_status(
         [&](const int point) { add_v3_v3(status.median.location, (*positions)[point]); });
   };
 
-  add_handles(".selection_handle_left", curves.handle_positions_left());
-  add_handles(".selection_handle_right", curves.handle_positions_right());
+  add_handles(".selection_handle_left"_ustr, curves.handle_positions_left());
+  add_handles(".selection_handle_right"_ustr, curves.handle_positions_right());
   return status;
 }
 
@@ -482,7 +482,7 @@ static bool apply_to_curves_point_selection(const int tot,
   const IndexMask bezier_points = bke::curves::curve_type_point_selection(
       curves, CURVE_TYPE_BEZIER, memory);
 
-  auto apply_to_handles = [&](StringRef selection_attribute, StringRef handles_attribute) {
+  auto apply_to_handles = [&](UString selection_attribute, UString handles_attribute) {
     const IndexMask selection = retrieve_selected_points(
         curves, selection_attribute, bezier_points, memory);
     if (selection.is_empty()) {
@@ -501,8 +501,8 @@ static bool apply_to_curves_point_selection(const int tot,
     changed = true;
   };
 
-  apply_to_handles(".selection_handle_left", "handle_left");
-  apply_to_handles(".selection_handle_right", "handle_right");
+  apply_to_handles(".selection_handle_left"_ustr, "handle_left"_ustr);
+  apply_to_handles(".selection_handle_right"_ustr, "handle_right"_ustr);
 
   if (changed) {
     curves.calculate_bezier_auto_handles();
@@ -669,21 +669,21 @@ static CurvesSelectionStatus init_grease_pencil_selection_status(
   CurvesSelectionStatus status;
 
   status.fill_opacity = init_status_from_attribute(
-      *attributes.lookup<float>("fill_opacity", bke::AttrDomain::Curve), selection, 1.0f);
+      *attributes.lookup<float>("fill_opacity"_ustr, bke::AttrDomain::Curve), selection, 1.0f);
   status.start_cap = init_status_from_attribute(
-      *attributes.lookup<int>("start_cap", bke::AttrDomain::Curve),
+      *attributes.lookup<int>("start_cap"_ustr, bke::AttrDomain::Curve),
       selection,
       int(GP_STROKE_CAP_TYPE_ROUND));
   status.end_cap = init_status_from_attribute(
-      *attributes.lookup<int>("end_cap", bke::AttrDomain::Curve),
+      *attributes.lookup<int>("end_cap"_ustr, bke::AttrDomain::Curve),
       selection,
       int(GP_STROKE_CAP_TYPE_ROUND));
   status.softness = init_status_from_attribute(
-      *attributes.lookup<float>("softness", bke::AttrDomain::Curve), selection, 0.0f);
+      *attributes.lookup<float>("softness"_ustr, bke::AttrDomain::Curve), selection, 0.0f);
   status.u_scale = init_status_from_attribute(
-      *attributes.lookup<float>("u_scale", bke::AttrDomain::Curve), selection, 1.0f);
+      *attributes.lookup<float>("u_scale"_ustr, bke::AttrDomain::Curve), selection, 1.0f);
   status.aspect_ratio = init_status_from_attribute(
-      *attributes.lookup<float>("aspect_ratio", bke::AttrDomain::Curve), selection, 1.0f);
+      *attributes.lookup<float>("aspect_ratio"_ustr, bke::AttrDomain::Curve), selection, 1.0f);
 
   return status;
 }
@@ -2470,7 +2470,7 @@ static void handle_curves_aspect_ratio(bContext *C, void *, void *)
         bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
         bke::SpanAttributeWriter<float> aspect_ratio =
             attributes.lookup_or_add_for_write_span<float>(
-                "aspect_ratio",
+                "aspect_ratio"_ustr,
                 bke::AttrDomain::Curve,
                 bke::AttributeInitVArray(VArray<float>::from_single(1.0f, curves.curves_num())));
         index_mask::masked_fill(aspect_ratio.span, modified_state.aspect_ratio, selection);
@@ -2489,7 +2489,7 @@ static void handle_curves_softness(bContext *C, void *, void *)
          bke::CurvesGeometry &curves) {
         bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
         bke::SpanAttributeWriter<float> softness = attributes.lookup_or_add_for_write_span<float>(
-            "softness", bke::AttrDomain::Curve);
+            "softness"_ustr, bke::AttrDomain::Curve);
         index_mask::masked_fill(softness.span, modified_state.softness, selection);
         softness.finish();
       });
@@ -2506,7 +2506,7 @@ static void handle_curves_u_scale(bContext *C, void *, void *)
          bke::CurvesGeometry &curves) {
         bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
         bke::SpanAttributeWriter<float> u_scale = attributes.lookup_or_add_for_write_span<float>(
-            "u_scale",
+            "u_scale"_ustr,
             bke::AttrDomain::Curve,
             bke::AttributeInitVArray(VArray<float>::from_single(1.0f, curves.curves_num())));
         index_mask::masked_fill(u_scale.span, modified_state.u_scale, selection);
@@ -2526,7 +2526,7 @@ static void handle_curves_fill_opacity(bContext *C, void *, void *)
         bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
         bke::SpanAttributeWriter<float> fill_opacity =
             attributes.lookup_or_add_for_write_span<float>(
-                "fill_opacity",
+                "fill_opacity"_ustr,
                 bke::AttrDomain::Curve,
                 bke::AttributeInitVArray(VArray<float>::from_single(1.0f, curves.curves_num())));
         index_mask::masked_fill(fill_opacity.span, modified_state.fill_opacity, selection);
@@ -2545,7 +2545,7 @@ static void handle_curves_end_cap(bContext *C, void *, void *)
          bke::CurvesGeometry &curves) {
         bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
         bke::SpanAttributeWriter<int> end_cap = attributes.lookup_or_add_for_write_span<int>(
-            "end_cap",
+            "end_cap"_ustr,
             bke::AttrDomain::Curve,
             bke::AttributeInitVArray(
                 VArray<int>::from_single(GP_STROKE_CAP_TYPE_ROUND, curves.curves_num())));
@@ -2565,7 +2565,7 @@ static void handle_curves_start_cap(bContext *C, void *, void *)
          bke::CurvesGeometry &curves) {
         bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
         bke::SpanAttributeWriter<int> start_cap = attributes.lookup_or_add_for_write_span<int>(
-            "start_cap",
+            "start_cap"_ustr,
             bke::AttrDomain::Curve,
             bke::AttributeInitVArray(
                 VArray<int>::from_single(GP_STROKE_CAP_TYPE_ROUND, curves.curves_num())));

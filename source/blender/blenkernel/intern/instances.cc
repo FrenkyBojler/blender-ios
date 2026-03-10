@@ -219,27 +219,27 @@ void Instances::resize(int size)
 Span<int> Instances::reference_handles() const
 {
   return get_span_attribute<int>(
-             attributes_, AttrDomain::Instance, ".reference_index", instances_num_)
+             attributes_, AttrDomain::Instance, ".reference_index"_ustr, instances_num_)
       .value_or(Span<int>());
 }
 
 MutableSpan<int> Instances::reference_handles_for_write()
 {
   return get_mutable_attribute<int>(
-      attributes_, AttrDomain::Instance, ".reference_index", instances_num_);
+      attributes_, AttrDomain::Instance, ".reference_index"_ustr, instances_num_);
 }
 
 Span<float4x4> Instances::transforms() const
 {
   return get_span_attribute<float4x4>(
-             attributes_, AttrDomain::Instance, "instance_transform", instances_num_)
+             attributes_, AttrDomain::Instance, "instance_transform"_ustr, instances_num_)
       .value_or(Span<float4x4>());
 }
 
 MutableSpan<float4x4> Instances::transforms_for_write()
 {
   return get_mutable_attribute<float4x4>(
-      attributes_, AttrDomain::Instance, "instance_transform", instances_num_);
+      attributes_, AttrDomain::Instance, "instance_transform"_ustr, instances_num_);
 }
 
 GeometrySet &Instances::geometry_set_from_reference(const int reference_index)
@@ -509,7 +509,7 @@ Span<int> Instances::reference_user_counts() const
 Span<int> Instances::unique_ids() const
 {
   unique_ids_cache_.ensure([&](Array<int> &r_data) {
-    const VArraySpan<int> instance_ids = *this->attributes().lookup<int>("id");
+    const VArraySpan<int> instance_ids = *this->attributes().lookup<int>("id"_ustr);
     if (instance_ids.is_empty()) {
       r_data.reinitialize(instances_num_);
       array_utils::fill_index_range(r_data.as_mutable_span());

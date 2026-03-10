@@ -971,7 +971,7 @@ IndexMask retrieve_editable_strokes(Object &object,
 
   const bke::AttributeAccessor attributes = curves.attributes();
   const VArray<int> materials = *attributes.lookup_or_default<int>(
-      "material_index", bke::AttrDomain::Curve, 0);
+      "material_index"_ustr, bke::AttrDomain::Curve, 0);
   if (!materials) {
     /* If the attribute does not exist then the default is the first material. */
     if (locked_material_indices.contains(0)) {
@@ -1001,7 +1001,7 @@ IndexMask retrieve_editable_fill_strokes(Object &object,
 
   const bke::AttributeAccessor attributes = curves.attributes();
   const VArray<int> fill_ids = *attributes.lookup_or_default<int>(
-      "fill_id", bke::AttrDomain::Curve, 0);
+      "fill_id"_ustr, bke::AttrDomain::Curve, 0);
   if (!fill_ids) {
     return {};
   }
@@ -1024,7 +1024,7 @@ IndexMask retrieve_editable_strokes_by_material(Object &object,
   const bke::AttributeAccessor attributes = curves.attributes();
 
   const VArray<int> materials = *attributes.lookup_or_default<int>(
-      "material_index", bke::AttrDomain::Curve, 0);
+      "material_index"_ustr, bke::AttrDomain::Curve, 0);
   if (!materials) {
     /* If the attribute does not exist then the default is the first material. */
     if (locked_material_indices.contains(0)) {
@@ -1071,7 +1071,7 @@ IndexMask retrieve_editable_points(Object &object,
   /* Propagate the material index to the points. */
   const bke::AttributeAccessor attributes = curves.attributes();
   const VArray<int> materials = *attributes.lookup_or_default<int>(
-      "material_index", bke::AttrDomain::Point, 0);
+      "material_index"_ustr, bke::AttrDomain::Point, 0);
   if (!materials) {
     /* If the attribute does not exist then the default is the first material. */
     if (locked_material_indices.contains(0)) {
@@ -1118,7 +1118,7 @@ IndexMask retrieve_visible_strokes(Object &object,
 
   /* Get all the strokes that have their material visible. */
   const VArray<int> materials = *attributes.lookup_or_default<int>(
-      "material_index", bke::AttrDomain::Curve, 0);
+      "material_index"_ustr, bke::AttrDomain::Curve, 0);
   return IndexMask::from_predicate(curves_range, memory, [&](const int64_t curve_i) {
     const int material_index = materials[curve_i];
     return !hidden_material_indices.contains(material_index);
@@ -1142,7 +1142,7 @@ IndexMask retrieve_visible_points(Object &object,
 
   /* Propagate the material index to the points. */
   const VArray<int> materials = *attributes.lookup_or_default<int>(
-      "material_index", bke::AttrDomain::Point, 0);
+      "material_index"_ustr, bke::AttrDomain::Point, 0);
   if (const std::optional<int> single_material = materials.get_if_single()) {
     if (!hidden_material_indices.contains(*single_material)) {
       return points_range;
@@ -1243,7 +1243,7 @@ IndexMask retrieve_visible_fills(Object &object,
 
   /* Get all the fills that have their first curve's material visible. */
   const VArray<int> materials = *attributes.lookup_or_default<int>(
-      "material_index", bke::AttrDomain::Curve, 0);
+      "material_index"_ustr, bke::AttrDomain::Curve, 0);
   return IndexMask::from_predicate(fills->index_range(), memory, [&](const int64_t fill_index) {
     const Span<int> fill = (*fills)[fill_index];
     const int curve_i = fill.first();
@@ -1276,11 +1276,11 @@ IndexMask retrieve_visible_bezier_handle_points(Object &object,
   const VArray<int8_t> types = curves.curve_types();
 
   const VArray<bool> selected_point = *curves.attributes().lookup_or_default<bool>(
-      ".selection", bke::AttrDomain::Point, true);
+      ".selection"_ustr, bke::AttrDomain::Point, true);
   const VArray<bool> selected_left = *curves.attributes().lookup_or_default<bool>(
-      ".selection_handle_left", bke::AttrDomain::Point, true);
+      ".selection_handle_left"_ustr, bke::AttrDomain::Point, true);
   const VArray<bool> selected_right = *curves.attributes().lookup_or_default<bool>(
-      ".selection_handle_right", bke::AttrDomain::Point, true);
+      ".selection_handle_right"_ustr, bke::AttrDomain::Point, true);
 
   const IndexMask editable_points = ed::greasepencil::retrieve_editable_points(
       object, drawing, layer_index, memory);
@@ -1531,7 +1531,7 @@ Array<PointTransferData> compute_topology_change(
   bke::gather_attributes(src_attributes,
                          bke::AttrDomain::Curve,
                          bke::AttrDomain::Curve,
-                         bke::attribute_filter_from_skip_ref({"cyclic"}),
+                         bke::attribute_filter_from_skip_ref({"cyclic"_ustr}),
                          dst_to_src_curve,
                          dst_attributes);
   if (src_cyclic.get_if_single().value_or(true)) {
@@ -1544,9 +1544,11 @@ Array<PointTransferData> compute_topology_change(
   /* Display intersections with flat caps. */
   if (!keep_caps) {
     bke::SpanAttributeWriter<int8_t> dst_start_caps =
-        dst_attributes.lookup_or_add_for_write_span<int8_t>("start_cap", bke::AttrDomain::Curve);
+        dst_attributes.lookup_or_add_for_write_span<int8_t>("start_cap"_ustr,
+                                                            bke::AttrDomain::Curve);
     bke::SpanAttributeWriter<int8_t> dst_end_caps =
-        dst_attributes.lookup_or_add_for_write_span<int8_t>("end_cap", bke::AttrDomain::Curve);
+        dst_attributes.lookup_or_add_for_write_span<int8_t>("end_cap"_ustr,
+                                                            bke::AttrDomain::Curve);
 
     threading::parallel_for(dst.curves_range(), 4096, [&](const IndexRange dst_curves) {
       for (const int dst_curve : dst_curves) {
@@ -2121,11 +2123,11 @@ void apply_eval_grease_pencil_data(const GreasePencil &eval_grease_pencil,
         continue;
       }
       MutableAttributeAccessor attributes = drawing.strokes_for_write().attributes_for_write();
-      if (!attributes.contains("material_index")) {
+      if (!attributes.contains("material_index"_ustr)) {
         continue;
       }
       SpanAttributeWriter<int> material_indices = attributes.lookup_or_add_for_write_span<int>(
-          "material_index", AttrDomain::Curve);
+          "material_index"_ustr, AttrDomain::Curve);
       for (int &material_index : material_indices.span) {
         if (material_indices_map.index_range().contains(material_index)) {
           material_index = material_indices_map[material_index];
@@ -2183,19 +2185,19 @@ void apply_eval_grease_pencil_data(const GreasePencil &eval_grease_pencil,
 
 bool remove_fill_guides(bke::CurvesGeometry &curves)
 {
-  if (!curves.attributes().contains(".is_fill_guide")) {
+  if (!curves.attributes().contains(".is_fill_guide"_ustr)) {
     return false;
   }
 
   const bke::AttributeAccessor attributes = curves.attributes();
-  const VArray<bool> is_fill_guide = *attributes.lookup<bool>(".is_fill_guide",
+  const VArray<bool> is_fill_guide = *attributes.lookup<bool>(".is_fill_guide"_ustr,
                                                               bke::AttrDomain::Curve);
 
   IndexMaskMemory memory;
   const IndexMask fill_guides = IndexMask::from_bools(is_fill_guide, memory);
   curves.remove_curves(fill_guides, {});
 
-  curves.attributes_for_write().remove(".is_fill_guide");
+  curves.attributes_for_write().remove(".is_fill_guide"_ustr);
 
   return true;
 }

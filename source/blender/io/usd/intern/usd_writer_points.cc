@@ -2,9 +2,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "usd_writer_points.hh"
 #include "usd_attribute_utils.hh"
 #include "usd_utils.hh"
+#include "usd_writer_points.hh"
 
 #include "BKE_anonymous_attribute_id.hh"
 #include "BKE_attribute.hh"
@@ -96,7 +96,7 @@ void USDPointsWriter::write_generic_data(const bke::AttributeIter &attr,
   }
 
   const pxr::TfToken pv_name(
-      make_safe_primvar_name(attr.name, usd_export_context_.export_params.allow_unicode));
+      make_safe_primvar_name(attr.name.ref(), usd_export_context_.export_params.allow_unicode));
   const pxr::UsdGeomPrimvarsAPI pv_api = pxr::UsdGeomPrimvarsAPI(usd_points);
 
   pxr::UsdGeomPrimvar pv_attr = pv_api.CreatePrimvar(pv_name, *pv_type, *pv_interp);
@@ -112,8 +112,8 @@ void USDPointsWriter::write_custom_data(const PointCloud *points,
 
   attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
     /* Skip "internal" Blender properties and attributes dealt with elsewhere. */
-    if (iter.name[0] == '.' || bke::attribute_name_is_anonymous(iter.name) ||
-        ELEM(iter.name, "position", "radius", "id", "velocity"))
+    if (iter.name.ref()[0] == '.' || bke::attribute_name_is_anonymous(iter.name.ref()) ||
+        ELEM(iter.name, "position"_ustr, "radius"_ustr, "id"_ustr, "velocity"_ustr))
     {
       return;
     }
@@ -126,7 +126,7 @@ void USDPointsWriter::write_ids(const PointCloud *points,
                                 const pxr::UsdGeomPoints &usd_points,
                                 const pxr::UsdTimeCode time)
 {
-  const VArraySpan ids = *points->attributes().lookup<int>("id", bke::AttrDomain::Point);
+  const VArraySpan ids = *points->attributes().lookup<int>("id"_ustr, bke::AttrDomain::Point);
   if (ids.is_empty()) {
     return;
   }
@@ -140,7 +140,7 @@ void USDPointsWriter::write_velocities(const PointCloud *points,
                                        const pxr::UsdGeomPoints &usd_points,
                                        const pxr::UsdTimeCode time)
 {
-  const VArraySpan velocity = *points->attributes().lookup<float3>("velocity",
+  const VArraySpan velocity = *points->attributes().lookup<float3>("velocity"_ustr,
                                                                    bke::AttrDomain::Point);
   if (velocity.is_empty()) {
     return;

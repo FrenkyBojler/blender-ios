@@ -103,16 +103,16 @@ PointCloud *point_merge_by_distance(const PointCloud &src_points,
     point_merge_counts[dst_index]++;
   }
 
-  Set<StringRefNull> attribute_names = src_attributes.all_names();
+  Set<UString> attribute_names = src_attributes.all_names();
 
   /* Transfer the ID attribute if it exists, using the ID of the first merged point. */
-  bke::GAttributeReader src_id_attribute = src_attributes.lookup("id");
+  bke::GAttributeReader src_id_attribute = src_attributes.lookup("id"_ustr);
   if (src_id_attribute && src_id_attribute.domain == bke::AttrDomain::Point &&
       src_id_attribute.varray.type().is<int>())
   {
     VArraySpan<int> src = src_id_attribute.varray.typed<int>();
     bke::SpanAttributeWriter<int> dst = dst_attributes.lookup_or_add_for_write_only_span<int>(
-        "id", bke::AttrDomain::Point);
+        "id"_ustr, bke::AttrDomain::Point);
 
     threading::parallel_for(IndexRange(dst_size), 1024, [&](IndexRange range) {
       for (const int i_dst : range) {
@@ -121,11 +121,11 @@ PointCloud *point_merge_by_distance(const PointCloud &src_points,
     });
 
     dst.finish();
-    attribute_names.remove_contained("id");
+    attribute_names.remove_contained("id"_ustr);
   }
 
   /* Transfer all other attributes. */
-  for (const StringRef name : attribute_names) {
+  for (const UString name : attribute_names) {
     if (attribute_filter.allow_skip(name)) {
       continue;
     }

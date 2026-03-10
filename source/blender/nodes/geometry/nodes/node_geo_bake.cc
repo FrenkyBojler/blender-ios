@@ -438,7 +438,7 @@ class LazyFunctionForBakeNode final : public LazyFunction {
     std::string socket_inspection_name = make_anonymous_attribute_socket_inspection_string(
         node_.label_or_name(), item.name);
     return std::make_shared<AttributeFieldInput>(
-        std::move(attribute_name), type, std::move(socket_inspection_name));
+        UString(attribute_name), type, std::move(socket_inspection_name));
   }
 };
 

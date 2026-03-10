@@ -226,7 +226,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   uint *vert_loop_map = nullptr; /* orig vert to orig loop */
 
   /* UV Coords */
-  const VectorSet<StringRefNull> uv_map_names = mesh->uv_map_names();
+  const VectorSet<UString> uv_map_names = mesh->uv_map_names();
   Array<bke::SpanAttributeWriter<float2>> uv_map_layers(uv_map_names.size());
   float uv_u_scale;
   float uv_v_minmax[2] = {FLT_MAX, -FLT_MAX};
@@ -407,7 +407,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   MutableSpan<int> corner_edges_new = result->corner_edges_for_write();
   bke::MutableAttributeAccessor attributes = result->attributes_for_write();
   bke::SpanAttributeWriter<bool> sharp_faces = attributes.lookup_or_add_for_write_span<bool>(
-      "sharp_face", bke::AttrDomain::Face);
+      "sharp_face"_ustr, bke::AttrDomain::Face);
 
   if (!CustomData_has_layer(&result->face_data, CD_ORIGINDEX)) {
     CustomData_add_layer(&result->face_data, CD_ORIGINDEX, CD_SET_DEFAULT, int(maxPolys));
@@ -827,12 +827,12 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   edge_offset = totedge + (totvert * (step_tot - (close ? 0 : 1)));
 
   const bke::AttributeAccessor src_attributes = mesh->attributes();
-  const VArraySpan src_material_index = *src_attributes.lookup<int>("material_index",
+  const VArraySpan src_material_index = *src_attributes.lookup<int>("material_index"_ustr,
                                                                     bke::AttrDomain::Face);
 
   bke::MutableAttributeAccessor dst_attributes = result->attributes_for_write();
   bke::SpanAttributeWriter dst_material_index = dst_attributes.lookup_or_add_for_write_span<int>(
-      "material_index", bke::AttrDomain::Face);
+      "material_index"_ustr, bke::AttrDomain::Face);
 
   for (uint i = 0; i < totedge; i++, med_new_firstloop++) {
     const uint step_last = step_tot - (close ? 1 : 2);

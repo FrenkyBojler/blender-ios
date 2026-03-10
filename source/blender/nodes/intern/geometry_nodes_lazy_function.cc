@@ -284,7 +284,7 @@ class LazyFunctionForGeometryNode : public LazyFunction {
                                                                            socket.index());
     std::string socket_inspection_name = make_anonymous_attribute_socket_inspection_string(socket);
     auto attribute_field = std::make_shared<AttributeFieldInput>(
-        std::move(attribute_name),
+        UString(attribute_name),
         *socket.typeinfo->base_cpp_type,
         std::move(socket_inspection_name));
 
@@ -1388,10 +1388,10 @@ class LazyFunctionForExtractingReferenceSet : public lf::LazyFunction {
   {
     field.node().for_each_field_input_recursive([&](const FieldInput &field_input) {
       if (const auto *attr_field_input = dynamic_cast<const AttributeFieldInput *>(&field_input)) {
-        const StringRef name = attr_field_input->attribute_name();
-        if (bke::attribute_name_is_anonymous(name)) {
+        const UString name = attr_field_input->attribute_name();
+        if (bke::attribute_name_is_anonymous(name.ref())) {
           if (!r_references.names) {
-            r_references.names = std::make_shared<Set<std::string>>();
+            r_references.names = std::make_shared<Set<UString>>();
           }
           r_references.names->add_as(name);
         }
@@ -1469,10 +1469,10 @@ class LazyFunctionForJoinReferenceSets : public lf::LazyFunction {
       joined_set.names = std::move(sets[0]->names);
     }
     else {
-      joined_set.names = std::make_shared<Set<std::string>>();
+      joined_set.names = std::make_shared<Set<UString>>();
       for (const GeometryNodesReferenceSet *set : sets) {
         if (set->names) {
-          for (const std::string &name : *set->names) {
+          for (const UString &name : *set->names) {
             joined_set.names->add(name);
           }
         }

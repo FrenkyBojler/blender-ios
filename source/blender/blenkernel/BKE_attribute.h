@@ -16,6 +16,7 @@
 #include "BLI_string_ref.hh"
 #include "BLI_sys_types.h"
 
+#include "BLI_ustring.hh"
 #include "DNA_customdata_types.h"
 
 namespace blender {
@@ -96,16 +97,16 @@ struct CustomDataLayer *BKE_attribute_new(Mesh &mesh,
                                           eCustomDataType type,
                                           bke::AttrDomain domain,
                                           struct ReportList *reports);
-bool BKE_attribute_remove(AttributeOwner &owner, StringRef name, struct ReportList *reports);
+bool BKE_attribute_remove(AttributeOwner &owner, UString name, struct ReportList *reports);
 
 bke::AttrDomain BKE_attribute_domain(const Mesh &mesh,
                                      const BMesh &bm,
                                      const struct CustomDataLayer *layer);
 int BKE_attribute_domain_size(const AttributeOwner &owner, int domain);
-bool BKE_attribute_required(const AttributeOwner &owner, StringRef name);
+bool BKE_attribute_required(const AttributeOwner &owner, UString name);
 bool BKE_attribute_rename(AttributeOwner &owner,
-                          StringRef old_name,
-                          StringRef new_name,
+                          UString old_name,
+                          UString new_name,
                           struct ReportList *reports);
 
 int BKE_attributes_length(const AttributeOwner &owner,
@@ -113,31 +114,31 @@ int BKE_attributes_length(const AttributeOwner &owner,
                           eCustomDataMask mask,
                           bool include_anonymous = true);
 
-std::optional<StringRefNull> BKE_attributes_active_name_get(AttributeOwner &owner);
-void BKE_attributes_active_set(AttributeOwner &owner, StringRef name);
+std::optional<UString> BKE_attributes_active_name_get(AttributeOwner &owner);
+void BKE_attributes_active_set(AttributeOwner &owner, UString name);
 void BKE_attributes_active_clear(AttributeOwner &owner);
 int *BKE_attributes_active_index_p(AttributeOwner &owner);
 
-std::optional<StringRef> BKE_attribute_from_index(AttributeOwner &owner,
-                                                  int lookup_index,
-                                                  AttrDomainMask domain_mask,
-                                                  eCustomDataMask layer_mask,
-                                                  bool include_anonymous = true);
+std::optional<UString> BKE_attribute_from_index(AttributeOwner &owner,
+                                                int lookup_index,
+                                                AttrDomainMask domain_mask,
+                                                eCustomDataMask layer_mask,
+                                                bool include_anonymous = true);
 
 /** Layer is allowed to be nullptr; if so -1 (layer not found) will be returned. */
 int BKE_attribute_to_index(const AttributeOwner &owner,
-                           const StringRef name,
+                           const UString name,
                            AttrDomainMask domain_mask,
                            eCustomDataMask layer_mask,
                            bool include_anonymous = true);
 
-std::optional<StringRef> BKE_id_attributes_active_color_name(const struct ID *id);
-std::optional<StringRef> BKE_id_attributes_default_color_name(const struct ID *id);
+std::optional<UString> BKE_id_attributes_active_color_name(const struct ID *id);
+std::optional<UString> BKE_id_attributes_default_color_name(const struct ID *id);
 void BKE_id_attributes_active_color_set(struct ID *id, std::optional<StringRef> name);
 void BKE_id_attributes_active_color_clear(struct ID *id);
 void BKE_id_attributes_default_color_set(struct ID *id, std::optional<StringRef> name);
 
-bool BKE_id_attributes_color_find(const struct ID *id, StringRef name);
+bool BKE_id_attributes_color_find(const struct ID *id, UString name);
 
 std::string BKE_attribute_calc_unique_name(const AttributeOwner &owner, StringRef name);
 

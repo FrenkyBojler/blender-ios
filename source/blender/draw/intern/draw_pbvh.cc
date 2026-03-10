@@ -64,10 +64,10 @@ uint64_t ViewportRequest::hash() const
  * than the evaluated copy.
  */
 struct OrigMeshData {
-  StringRef active_color;
-  StringRef default_color;
-  StringRef active_uv_map;
-  StringRef default_uv_map;
+  UString active_color;
+  UString default_color;
+  UString active_uv_map;
+  UString default_uv_map;
   int face_set_default;
   int face_set_seed;
   bke::AttributeAccessor attributes;
@@ -604,7 +604,8 @@ static void update_normals_mesh(const Object &object,
   const Span<float3> vert_normals = bke::pbvh::vert_normals_eval_from_eval(object);
   const Span<float3> face_normals = bke::pbvh::face_normals_eval_from_eval(object);
   const bke::AttributeAccessor attributes = mesh.attributes();
-  const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face", bke::AttrDomain::Face);
+  const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face"_ustr,
+                                                          bke::AttrDomain::Face);
   ensure_vbos_allocated_mesh(object, normal_format(), node_mask, vbos);
   node_mask.foreach_index(
       [&](const int i) {
@@ -637,7 +638,7 @@ BLI_NOINLINE static void update_masks_mesh(const Object &object,
   const Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(object);
   const OffsetIndices<int> faces = mesh.faces();
   const Span<int> corner_verts = mesh.corner_verts();
-  const VArraySpan mask = *orig_mesh_data.attributes.lookup<float>(".sculpt_mask",
+  const VArraySpan mask = *orig_mesh_data.attributes.lookup<float>(".sculpt_mask"_ustr,
                                                                    bke::AttrDomain::Point);
   ensure_vbos_allocated_mesh(object, mask_format(), node_mask, vbos);
   if (!mask.is_empty()) {
@@ -670,7 +671,7 @@ BLI_NOINLINE static void update_face_sets_mesh(const Object &object,
   const OffsetIndices<int> faces = mesh.faces();
   const int color_default = orig_mesh_data.face_set_default;
   const int color_seed = orig_mesh_data.face_set_seed;
-  const VArraySpan face_sets = *orig_mesh_data.attributes.lookup<int>(".sculpt_face_set",
+  const VArraySpan face_sets = *orig_mesh_data.attributes.lookup<int>(".sculpt_face_set"_ustr,
                                                                       bke::AttrDomain::Face);
   ensure_vbos_allocated_mesh(object, face_set_format(), node_mask, vbos);
   if (!face_sets.is_empty()) {
@@ -705,7 +706,7 @@ BLI_NOINLINE static void update_face_sets_mesh(const Object &object,
 BLI_NOINLINE static void update_generic_attribute_mesh(const Object &object,
                                                        const OrigMeshData &orig_mesh_data,
                                                        const IndexMask &node_mask,
-                                                       const StringRef name,
+                                                       const UString name,
                                                        MutableSpan<gpu::VertBufPtr> vbos)
 {
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
@@ -720,7 +721,7 @@ BLI_NOINLINE static void update_generic_attribute_mesh(const Object &object,
   }
   const bke::AttrType data_type = bke::cpp_type_to_attribute_type(attr.varray.type());
   ensure_vbos_allocated_mesh(
-      object, attribute_format(orig_mesh_data, name, data_type), node_mask, vbos);
+      object, attribute_format(orig_mesh_data, name.ref(), data_type), node_mask, vbos);
   node_mask.foreach_index(
       [&](const int i) {
         bke::attribute_math::to_static_type(attr.varray.type(), [&]<typename T>() {
@@ -802,7 +803,8 @@ BLI_NOINLINE static void fill_normals_grids(const Object &object,
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
   const Span<int> grid_to_face_map = subdiv_ccg.grid_to_face_map;
   const bke::AttributeAccessor attributes = orig_mesh_data.attributes;
-  const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face", bke::AttrDomain::Face);
+  const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face"_ustr,
+                                                          bke::AttrDomain::Face);
   ensure_vbos_allocated_grids(object, normal_format(), use_flat_layout, node_mask, vbos);
   node_mask.foreach_index(
       [&](const int i) {
@@ -917,7 +919,7 @@ BLI_NOINLINE static void fill_face_sets_grids(const Object &object,
   const Span<int> grid_to_face_map = subdiv_ccg.grid_to_face_map;
   const bke::AttributeAccessor attributes = orig_mesh_data.attributes;
   ensure_vbos_allocated_grids(object, face_set_format(), use_flat_layout, node_mask, vbos);
-  if (const VArray<int> face_sets = *attributes.lookup<int>(".sculpt_face_set",
+  if (const VArray<int> face_sets = *attributes.lookup<int>(".sculpt_face_set"_ustr,
                                                             bke::AttrDomain::Face))
   {
     const VArraySpan<int> face_sets_span(face_sets);
@@ -1086,27 +1088,30 @@ BLI_NOINLINE static void update_face_sets_bmesh(const Object &object,
 BLI_NOINLINE static void update_generic_attribute_bmesh(const Object &object,
                                                         const OrigMeshData &orig_mesh_data,
                                                         const IndexMask &node_mask,
-                                                        const StringRef name,
+                                                        const UString name,
                                                         const MutableSpan<gpu::VertBufPtr> vbos)
 {
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Span<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
   const BMesh &bm = *object.runtime->sculpt_session->bm;
-  const BMDataLayerLookup attr = BM_data_layer_lookup(bm, name);
+  const BMDataLayerLookup attr = BM_data_layer_lookup(bm, name.ref());
   if (attr.domain == bke::AttrDomain::Edge) {
     return;
   }
 
   if (!attr) {
     ensure_vbos_allocated_bmesh(
-        object, attribute_format(orig_mesh_data, name, bke::AttrType::Float3), node_mask, vbos);
+        object,
+        attribute_format(orig_mesh_data, name.ref(), bke::AttrType::Float3),
+        node_mask,
+        vbos);
     node_mask.foreach_index([&](const int i) { vbos[i]->data<float3>().fill(float3(0.0f)); },
                             exec_mode::grain_size(1));
     return;
   }
 
   ensure_vbos_allocated_bmesh(
-      object, attribute_format(orig_mesh_data, name, attr.type), node_mask, vbos);
+      object, attribute_format(orig_mesh_data, name.ref(), attr.type), node_mask, vbos);
   node_mask.foreach_index(
       [&](const int i) {
         bke::attribute_math::to_static_type(attr.type, [&]<typename T>() {
@@ -1411,7 +1416,7 @@ static Array<int> calc_material_indices(const Object &object, const OrigMeshData
       const Span<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
       const Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(object);
       const bke::AttributeAccessor attributes = mesh.attributes();
-      const VArray material_indices = *attributes.lookup<int>("material_index",
+      const VArray material_indices = *attributes.lookup<int>("material_index"_ustr,
                                                               bke::AttrDomain::Face);
       if (!material_indices) {
         return {};
@@ -1432,7 +1437,7 @@ static Array<int> calc_material_indices(const Object &object, const OrigMeshData
       const Span<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
       /* Use original mesh data because evaluated mesh is empty. */
       const bke::AttributeAccessor attributes = orig_mesh_data.attributes;
-      const VArray material_indices = *attributes.lookup<int>("material_index",
+      const VArray material_indices = *attributes.lookup<int>("material_index"_ustr,
                                                               bke::AttrDomain::Face);
       if (!material_indices) {
         return {};
@@ -1469,7 +1474,8 @@ static BitVector<> calc_use_flat_layout(const Object &object, const OrigMeshData
     case bke::pbvh::Type::Grids: {
       const Span<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
       const bke::AttributeAccessor attributes = orig_mesh_data.attributes;
-      const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face", bke::AttrDomain::Face);
+      const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face"_ustr,
+                                                              bke::AttrDomain::Face);
       if (sharp_faces.is_empty()) {
         return BitVector<>(nodes.size(), false);
       }
@@ -1648,7 +1654,8 @@ Span<gpu::IndexBufPtr> DrawCacheImpl::ensure_lines_indices(const Object &object,
       const Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(object);
       const OffsetIndices<int> faces = mesh.faces();
       const bke::AttributeAccessor attributes = orig_mesh_data.attributes;
-      const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
+      const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly"_ustr,
+                                                            bke::AttrDomain::Face);
       nodes_to_calculate.foreach_index(
           [&](const int i) {
             ibos[i] = create_lines_index_faces(faces, hide_poly, nodes[i].faces());
@@ -1835,7 +1842,8 @@ Span<gpu::IndexBufPtr> DrawCacheImpl::ensure_tri_indices(const Object &object,
       const OffsetIndices<int> faces = mesh.faces();
       const Span<int3> corner_tris = mesh.corner_tris();
       const bke::AttributeAccessor attributes = orig_mesh_data.attributes;
-      const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
+      const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly"_ustr,
+                                                            bke::AttrDomain::Face);
       nodes_to_calculate.foreach_index(
           [&](const int i) {
             ibos[i] = create_tri_index_mesh(faces, corner_tris, hide_poly, nodes[i]);

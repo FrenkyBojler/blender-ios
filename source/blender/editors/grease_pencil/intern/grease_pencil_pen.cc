@@ -108,19 +108,21 @@ class GreasePencilPenToolOperation : public curves::pen_tool::PenToolOperation {
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
 
     if (bke::SpanAttributeWriter aspect_ratios = attributes.lookup_for_write_span<float>(
-            "aspect_ratio"))
+            "aspect_ratio"_ustr))
     {
       aspect_ratios.span.last() = 1.0f;
       aspect_ratios.finish();
     }
 
-    if (bke::SpanAttributeWriter u_scales = attributes.lookup_for_write_span<float>("u_scale")) {
+    if (bke::SpanAttributeWriter u_scales = attributes.lookup_for_write_span<float>(
+            "u_scale"_ustr))
+    {
       u_scales.span.last() = 1.0f;
       u_scales.finish();
     }
 
     if (bke::SpanAttributeWriter fill_opacities = attributes.lookup_for_write_span<float>(
-            "fill_opacity"))
+            "fill_opacity"_ustr))
     {
       fill_opacities.span.last() = 1.0f;
       fill_opacities.finish();

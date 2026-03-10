@@ -94,39 +94,39 @@ static void node_geo_exec(GeoNodeExecParams params)
           const IndexMask face_values = face_evaluator.get_evaluated_as_mask(0);
           bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
           if (edge_values.is_empty()) {
-            attributes.remove("sharp_edge");
+            attributes.remove("sharp_edge"_ustr);
           }
           else if (edge_values.size() == mesh->edges_num) {
-            attributes.remove("sharp_edge");
+            attributes.remove("sharp_edge"_ustr);
             attributes.add<bool>(
-                "sharp_edge", bke::AttrDomain::Edge, bke::AttributeInitValue(true));
+                "sharp_edge"_ustr, bke::AttrDomain::Edge, bke::AttributeInitValue(true));
           }
           else {
             bke::SpanAttributeWriter attr = attributes.lookup_or_add_for_write_only_span<bool>(
-                "sharp_edge", bke::AttrDomain::Edge);
+                "sharp_edge"_ustr, bke::AttrDomain::Edge);
             edge_values.to_bools(attr.span);
             attr.finish();
           }
           if (face_values.is_empty()) {
-            attributes.remove("sharp_face");
+            attributes.remove("sharp_face"_ustr);
           }
           else if (face_values.size() == mesh->faces_num) {
-            attributes.remove("sharp_face");
+            attributes.remove("sharp_face"_ustr);
             attributes.add<bool>(
-                "sharp_face", bke::AttrDomain::Face, bke::AttributeInitValue(true));
+                "sharp_face"_ustr, bke::AttrDomain::Face, bke::AttributeInitValue(true));
           }
           else {
             bke::SpanAttributeWriter attr = attributes.lookup_or_add_for_write_only_span<bool>(
-                "sharp_face", bke::AttrDomain::Face);
+                "sharp_face"_ustr, bke::AttrDomain::Face);
             face_values.to_bools(attr.span);
             attr.finish();
           }
           if (remove_custom) {
-            attributes.remove("custom_normal");
+            attributes.remove("custom_normal"_ustr);
           }
           else {
             if (const std::optional<bke::AttributeMetaData> meta_data =
-                    attributes.lookup_meta_data("custom_normal"))
+                    attributes.lookup_meta_data("custom_normal"_ustr))
             {
               if (meta_data->domain == bke::AttrDomain::Corner &&
                   meta_data->data_type == bke::AttrType::Int16_2D)
@@ -146,7 +146,7 @@ static void node_geo_exec(GeoNodeExecParams params)
           const bke::AttrDomain domain = bke::AttrDomain(node.custom2);
           bke::try_capture_field_on_geometry(mesh->attributes_for_write(),
                                              bke::MeshFieldContext(*mesh, domain),
-                                             "custom_normal",
+                                             "custom_normal"_ustr,
                                              domain,
                                              fn::make_constant_field(true),
                                              custom_normal);
@@ -163,7 +163,7 @@ static void node_geo_exec(GeoNodeExecParams params)
           Array<float3> corner_normals(mesh->corners_num);
           evaluator.add_with_destination<float3>(custom_normal, corner_normals);
           evaluator.evaluate();
-          mesh->attributes_for_write().remove("custom_normal");
+          mesh->attributes_for_write().remove("custom_normal"_ustr);
           bke::mesh_set_custom_normals(*mesh, corner_normals);
         }
       });

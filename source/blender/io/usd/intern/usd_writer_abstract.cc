@@ -1,10 +1,10 @@
 /* SPDX-FileCopyrightText: 2019 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
-#include "usd_writer_abstract.hh"
 #include "usd_attribute_utils.hh"
 #include "usd_hierarchy_iterator.hh"
 #include "usd_utils.hh"
+#include "usd_writer_abstract.hh"
 #include "usd_writer_material.hh"
 
 #include <pxr/base/tf/stringUtils.h>
@@ -108,7 +108,7 @@ static std::string get_mesh_active_uvlayer_name(const Object *ob)
   }
 
   const Mesh *mesh = id_cast<Mesh *>(ob->data);
-  return mesh->active_uv_map_name();
+  return mesh->active_uv_map_name().string();
 }
 
 template<typename USDT>

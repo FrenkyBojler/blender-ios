@@ -112,7 +112,7 @@ struct SnakeHookOperatorExecutor {
     transforms_ = CurvesSurfaceTransforms(*object_, curves_id_->surface);
 
     curve_factors_ = *curves_->attributes().lookup_or_default(
-        ".selection", bke::AttrDomain::Curve, 1.0f);
+        ".selection"_ustr, bke::AttrDomain::Curve, 1.0f);
     curve_selection_ = curves::retrieve_selected_curves(*curves_id_, selected_curve_memory_);
 
     brush_pos_prev_re_ = self.last_mouse_position_re_;

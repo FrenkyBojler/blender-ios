@@ -20,10 +20,10 @@ namespace blender::geometry {
 /* Don't copy attributes that are built-in on meshes but not on curves. */
 static auto filter_builtin_attributes(const bke::AttributeAccessor &mesh_attributes,
                                       const bke::AttributeAccessor &curves_attributes,
-                                      Set<StringRef> &storage,
+                                      Set<UString> &storage,
                                       const bke::AttributeFilter &attribute_filter)
 {
-  for (const StringRef name : mesh_attributes.all_names()) {
+  for (const UString name : mesh_attributes.all_names()) {
     if (mesh_attributes.is_builtin(name) && !curves_attributes.is_builtin(name)) {
       storage.add(name);
     }
@@ -49,7 +49,7 @@ BLI_NOINLINE bke::CurvesGeometry create_curve_from_vert_indices(
     curves.cyclic_for_write().slice(cyclic_curves).fill(true);
   }
 
-  Set<StringRef> skip_storage;
+  Set<UString> skip_storage;
   const auto attribute_filter_with_skip = filter_builtin_attributes(
       mesh_attributes, curves_attributes, skip_storage, attribute_filter);
 
@@ -264,7 +264,7 @@ static bke::CurvesGeometry create_curves_for_faces(const Mesh &mesh,
 
   BKE_defgroup_copy_list(&curves.vertex_group_names, &mesh.vertex_group_names);
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-  attributes.add<bool>("cyclic", bke::AttrDomain::Curve, bke::AttributeInitValue(true));
+  attributes.add<bool>("cyclic"_ustr, bke::AttrDomain::Curve, bke::AttributeInitValue(true));
   curves.fill_curve_types(CURVE_TYPE_POLY);
   return curves;
 }
@@ -299,7 +299,7 @@ bke::CurvesGeometry mesh_faces_to_curves_convert(const Mesh &mesh,
   const Span<int> point_to_vert_map = create_point_to_vert_map(
       mesh, faces, points_by_curve, selection, point_to_vert_data);
 
-  Set<StringRef> skip_storage;
+  Set<UString> skip_storage;
   const auto attribute_filter_with_skip = filter_builtin_attributes(
       src_attributes, dst_attributes, skip_storage, attribute_filter);
 

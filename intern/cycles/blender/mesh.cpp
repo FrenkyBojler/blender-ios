@@ -106,11 +106,10 @@ static void attr_create_generic(Scene *scene,
   const blender::bke::AttributeAccessor b_attributes = b_mesh.attributes();
   AttributeSet &attributes = (subdivision) ? mesh->subd_attributes : mesh->attributes;
   static const ustring u_velocity("velocity");
-  const ustring default_color_name{
-      std::string_view(BKE_id_attributes_default_color_name(&b_mesh.id).value_or(""))};
+  const ustring default_color_name{BKE_id_attributes_default_color_name(&b_mesh.id).value_or({})};
 
   b_attributes.foreach_attribute([&](const blender::bke::AttributeIter &iter) {
-    const ustring name{std::string_view(iter.name)};
+    const ustring name = iter.name;
     const bool is_render_color = name == default_color_name;
 
     if (need_motion && name == u_velocity) {
@@ -249,8 +248,8 @@ static set<ustring> get_blender_uv_names(const blender::Mesh &b_mesh)
     if (iter.domain == blender::bke::AttrDomain::Corner &&
         iter.data_type == blender::bke::AttrType::Float2)
     {
-      if (!blender::bke::attribute_name_is_anonymous(iter.name)) {
-        uv_names.emplace(std::string_view(iter.name));
+      if (!blender::bke::attribute_name_is_anonymous(iter.name.ref())) {
+        uv_names.emplace(iter.name);
       }
     }
   });
@@ -265,7 +264,7 @@ static void attr_create_uv_map(Scene *scene,
 {
   const blender::Span<blender::int3> corner_tris = b_mesh.corner_tris();
   const blender::bke::AttributeAccessor b_attributes = b_mesh.attributes();
-  const ustring render_name(std::string_view(b_mesh.default_uv_map_name()));
+  const ustring render_name(b_mesh.default_uv_map_name());
   if (blender_uv_names.empty()) {
     return;
   }
@@ -289,7 +288,7 @@ static void attr_create_uv_map(Scene *scene,
       }
 
       const blender::VArraySpan b_uv_map = *b_attributes.lookup<blender::float2>(
-          uv_name.c_str(), blender::bke::AttrDomain::Corner);
+          uv_name, blender::bke::AttrDomain::Corner);
       float2 *fdata = uv_attr->data_float2();
       for (const int i : corner_tris.index_range()) {
         const blender::int3 &tri = corner_tris[i];
@@ -316,7 +315,7 @@ static void attr_create_subd_uv_map(Scene *scene,
   }
 
   const blender::bke::AttributeAccessor b_attributes = b_mesh.attributes();
-  const ustring render_name(std::string_view(b_mesh.default_uv_map_name()));
+  const ustring render_name(b_mesh.default_uv_map_name());
   for (const ustring &uv_name : blender_uv_names) {
     const bool active_render = uv_name == render_name;
     const AttributeStandard uv_std = (active_render) ? ATTR_STD_UV : ATTR_STD_NONE;
@@ -339,7 +338,7 @@ static void attr_create_subd_uv_map(Scene *scene,
       uv_attr->flags |= ATTR_SUBDIVIDE_SMOOTH_FVAR;
 
       const blender::VArraySpan b_uv_map = *b_attributes.lookup<blender::float2>(
-          uv_name.c_str(), blender::bke::AttrDomain::Corner);
+          uv_name, blender::bke::AttrDomain::Corner);
       float2 *fdata = uv_attr->data_float2();
 
       for (const int i : faces.index_range()) {
@@ -604,9 +603,9 @@ static void create_mesh(Scene *scene,
   }
 
   const blender::VArraySpan material_indices = *b_attributes.lookup<int>(
-      "material_index", blender::bke::AttrDomain::Face);
+      ustring("material_index"), blender::bke::AttrDomain::Face);
   const blender::VArraySpan sharp_faces = *b_attributes.lookup<bool>(
-      "sharp_face", blender::bke::AttrDomain::Face);
+      ustring("sharp_face"), blender::bke::AttrDomain::Face);
 
   int numtris = 0;
   if (!subdivision) {
@@ -835,7 +834,7 @@ static void create_subd_mesh(Scene *scene,
 
   if (use_creases) {
     const blender::VArraySpan creases = *b_mesh.attributes().lookup<float>(
-        "crease_edge", blender::bke::AttrDomain::Edge);
+        ustring("crease_edge"), blender::bke::AttrDomain::Edge);
     if (!creases.is_empty()) {
       size_t num_creases = 0;
       for (const int i : creases.index_range()) {
@@ -857,7 +856,7 @@ static void create_subd_mesh(Scene *scene,
     }
 
     const blender::VArraySpan vert_creases = *b_mesh.attributes().lookup<float>(
-        "crease_vert", blender::bke::AttrDomain::Point);
+        ustring("crease_vert"), blender::bke::AttrDomain::Point);
     if (!vert_creases.is_empty()) {
       for (const int i : vert_creases.index_range()) {
         if (vert_creases[i] != 0.0f) {

@@ -14,6 +14,7 @@
 #include "BLI_span.hh"
 #include "BLI_string_ref.hh"
 
+#include "BLI_ustring.hh"
 #include "GPU_vertex_buffer.hh"
 
 namespace blender {
@@ -144,7 +145,7 @@ gpu::Batch *DRW_lattice_batch_cache_get_edit_verts(Lattice *lt);
  * stored, which will be filled by #DRW_shgroup_curves_create_sub.
  */
 gpu::VertBufPtr &DRW_curves_texture_for_evaluated_attribute(Curves *curves,
-                                                            StringRef name,
+                                                            UString name,
                                                             bool &r_is_point_domain,
                                                             bool &r_valid_attribute);
 
@@ -163,7 +164,7 @@ void DRW_curves_batch_cache_create_requested(Object *ob);
 
 gpu::VertBuf *DRW_pointcloud_position_and_radius_buffer_get(Object *ob);
 
-gpu::VertBuf **DRW_pointcloud_evaluated_attribute(PointCloud *pointcloud, StringRef name);
+gpu::VertBuf **DRW_pointcloud_evaluated_attribute(PointCloud *pointcloud, UString name);
 gpu::Batch *DRW_pointcloud_batch_cache_get_dots(Object *ob);
 gpu::Batch *DRW_pointcloud_batch_cache_get_edit_dots(PointCloud *pointcloud);
 

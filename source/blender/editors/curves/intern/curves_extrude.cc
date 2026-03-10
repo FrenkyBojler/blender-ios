@@ -254,9 +254,9 @@ static bke::CurvesGeometry extrude_curves(const bke::CurvesGeometry &curves,
   std::array<GVArraySpan, 3> src_selection;
   std::array<bke::GSpanAttributeWriter, 3> dst_selections;
 
-  const Span<StringRef> selection_attr_names = get_curves_selection_attribute_names(curves);
+  const Span<UString> selection_attr_names = get_curves_selection_attribute_names(curves);
   for (const int selection_i : selection_attr_names.index_range()) {
-    const StringRef selection_name = selection_attr_names[selection_i];
+    const UString selection_name = selection_attr_names[selection_i];
 
     GVArray src_selection_array = *src_attributes.lookup(selection_name, bke::AttrDomain::Point);
     if (!src_selection_array) {

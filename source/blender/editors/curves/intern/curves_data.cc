@@ -41,7 +41,7 @@ static std::array<IndexMask, 3> transverts_curves_selection(const bke::CurvesGeo
                                                             IndexMaskMemory &memory)
 {
   std::array<IndexMask, 3> selection;
-  const Span<StringRef> selection_names = ed::curves::get_curves_selection_attribute_names(curves);
+  const Span<UString> selection_names = ed::curves::get_curves_selection_attribute_names(curves);
   if (selection_names.size() == 1) {
     selection[0] = ed::curves::retrieve_selected_points(curves, memory);
   }

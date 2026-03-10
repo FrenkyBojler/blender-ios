@@ -362,9 +362,9 @@ static bool edbm_backbuf_check_and_select_verts_obmode(Mesh *mesh,
 
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   bke::SpanAttributeWriter<bool> select_vert = attributes.lookup_or_add_for_write_span<bool>(
-      ".select_vert", bke::AttrDomain::Point);
+      ".select_vert"_ustr, bke::AttrDomain::Point);
   const VArray<bool> hide_vert = *attributes.lookup_or_default<bool>(
-      ".hide_vert", bke::AttrDomain::Point, false);
+      ".hide_vert"_ustr, bke::AttrDomain::Point, false);
 
   for (int index = 0; index < mesh->verts_num; index++) {
     if (!hide_vert[index]) {
@@ -392,9 +392,9 @@ static bool edbm_backbuf_check_and_select_faces_obmode(Mesh *mesh,
 
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   bke::SpanAttributeWriter<bool> select_poly = attributes.lookup_or_add_for_write_span<bool>(
-      ".select_poly", bke::AttrDomain::Face);
+      ".select_poly"_ustr, bke::AttrDomain::Face);
   const VArray<bool> hide_poly = *attributes.lookup_or_default<bool>(
-      ".hide_poly", bke::AttrDomain::Face, false);
+      ".hide_poly"_ustr, bke::AttrDomain::Face, false);
 
   for (int index = 0; index < mesh->faces_num; index++) {
     if (!hide_poly[index]) {
@@ -1202,7 +1202,7 @@ static bool do_lasso_select_grease_pencil(const ViewContext *vc,
       sel_op,
       [&](const ed::greasepencil::MutableDrawingInfo &info,
           const IndexMask &mask,
-          const StringRef attribute_name,
+          const UString attribute_name,
           IndexMaskMemory &memory) {
         bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
         const bke::greasepencil::Layer &layer = grease_pencil.layer(info.layer_index);
@@ -1320,7 +1320,7 @@ static bool do_lasso_select_paintvert(const ViewContext *vc,
   else {
     bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
     bke::SpanAttributeWriter<bool> select_vert = attributes.lookup_or_add_for_write_span<bool>(
-        ".select_vert", bke::AttrDomain::Point);
+        ".select_vert"_ustr, bke::AttrDomain::Point);
 
     LassoSelectUserData_ForMeshObjectVert data;
     data.select_vert = select_vert.span;
@@ -3064,7 +3064,7 @@ static bool ed_wpaint_vertex_select_pick(bContext *C,
 
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   bke::AttributeWriter<bool> select_vert = attributes.lookup_or_add_for_write<bool>(
-      ".select_vert", bke::AttrDomain::Point);
+      ".select_vert"_ustr, bke::AttrDomain::Point);
 
   if (params.sel_op == SEL_OP_SET) {
     if ((found && params.select_passthrough) && select_vert.varray[index]) {
@@ -3223,7 +3223,7 @@ static bool pointcloud_select_pick(bContext &C, const int2 mval, const SelectPic
 }
 
 struct ClosestCurveDataBlock {
-  StringRef selection_attribute_name;
+  UString selection_attribute_name;
   Curves *curves_id = nullptr;
   ed::curves::FindClosestData elem;
 };
@@ -3260,7 +3260,7 @@ static bool ed_curves_select_pick(bContext &C, const int mval[2], const SelectPi
           const float4x4 projection = ED_view3d_ob_project_mat_get(vc.rv3d, &curves_ob);
           const IndexMask elements(curves.attributes().domain_size(selection_domain));
           const auto range_consumer =
-              [&](IndexRange range, Span<float3> positions, StringRef selection_attribute_name) {
+              [&](IndexRange range, Span<float3> positions, UString selection_attribute_name) {
                 IndexMask mask = elements.slice_content(range);
 
                 std::optional<ed::curves::FindClosestData> new_closest_elem =
@@ -3364,7 +3364,7 @@ static bool ed_curves_select_pick(bContext &C, const int mval[2], const SelectPi
 }
 
 struct ClosestGreasePencilDrawing {
-  StringRef selection_attribute_name;
+  UString selection_attribute_name;
   int info_index = -1;
   bke::greasepencil::Drawing *drawing = nullptr;
   ed::curves::FindClosestData elem;
@@ -3428,7 +3428,7 @@ static bool ed_grease_pencil_select_pick(bContext *C,
                                                                               layer_to_world);
           const auto range_consumer = [&](const IndexRange range,
                                           const Span<float3> positions,
-                                          const StringRef selection_attribute_name) {
+                                          const UString selection_attribute_name) {
             const IndexMask mask = ((selection_attribute_name == ".selection") ?
                                         elements :
                                         visible_handle_elements)
@@ -3515,7 +3515,7 @@ static bool ed_grease_pencil_select_pick(bContext *C,
                                      params.sel_op,
                                      [&](const ed::greasepencil::MutableDrawingInfo &info,
                                          const IndexMask & /*universe*/,
-                                         StringRef attribute_name,
+                                         UString attribute_name,
                                          IndexMaskMemory & /*memory*/) -> IndexMask {
                                        /* Selection update mask is already known, but only applies
                                         * to a specific drawing. */
@@ -3816,7 +3816,7 @@ static bool do_paintvert_box_select(const ViewContext *vc,
   else {
     bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
     bke::SpanAttributeWriter<bool> select_vert = attributes.lookup_or_add_for_write_span<bool>(
-        ".select_vert", bke::AttrDomain::Point);
+        ".select_vert"_ustr, bke::AttrDomain::Point);
 
     BoxSelectUserData_ForMeshObjectVert data;
     data.select_vert = select_vert.span;
@@ -4499,7 +4499,7 @@ static bool do_grease_pencil_box_select(const ViewContext *vc,
       sel_op,
       [&](const ed::greasepencil::MutableDrawingInfo &info,
           const IndexMask &mask,
-          const StringRef attribute_name,
+          const UString attribute_name,
           IndexMaskMemory &memory) {
         bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
         const bke::greasepencil::Layer &layer = grease_pencil.layer(info.layer_index);
@@ -5019,7 +5019,7 @@ static bool paint_vertsel_circle_select(const ViewContext *vc,
   else {
     bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
     bke::SpanAttributeWriter<bool> select_vert = attributes.lookup_or_add_for_write_span<bool>(
-        ".select_vert", bke::AttrDomain::Point);
+        ".select_vert"_ustr, bke::AttrDomain::Point);
 
     CircleSelectUserData_ForMeshObjectVert data;
     data.select_vert = select_vert.span;
@@ -5359,7 +5359,7 @@ static bool grease_pencil_circle_select(const ViewContext *vc,
       sel_op,
       [&](const ed::greasepencil::MutableDrawingInfo &info,
           const IndexMask &mask,
-          const StringRef attribute_name,
+          const UString attribute_name,
           IndexMaskMemory &memory) {
         bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
         const bke::greasepencil::Layer &layer = grease_pencil.layer(info.layer_index);

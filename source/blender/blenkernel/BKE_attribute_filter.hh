@@ -9,6 +9,7 @@
 #pragma once
 
 #include "BLI_string_ref.hh"
+#include "BLI_ustring.hh"
 
 namespace blender::bke {
 
@@ -38,7 +39,7 @@ struct AttributeFilter {
    * This function has different implementations in each derived class. By default, all attributes
    * should be processed.
    */
-  virtual Result filter(const StringRef /*name*/) const
+  virtual Result filter(const UString /*name*/) const
   {
     return Result::Process;
   }
@@ -46,7 +47,7 @@ struct AttributeFilter {
   /**
    * Utility to simplify the check for whether some attribute can be skipped.
    */
-  bool allow_skip(const StringRef name) const
+  bool allow_skip(const UString name) const
   {
     return this->filter(name) == Result::AllowSkip;
   }

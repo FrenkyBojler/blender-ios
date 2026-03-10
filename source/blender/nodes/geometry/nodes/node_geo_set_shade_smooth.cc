@@ -46,7 +46,7 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
  * as an optimization to avoid storing it and propagating it in the future.
  */
 static bool try_removing_sharp_attribute(Mesh &mesh,
-                                         const StringRef name,
+                                         const UString name,
                                          const Field<bool> &selection,
                                          const Field<bool> &sharpness)
 {
@@ -65,7 +65,7 @@ static bool try_removing_sharp_attribute(Mesh &mesh,
 
 static void set_sharp(Mesh &mesh,
                       const AttrDomain domain,
-                      const StringRef name,
+                      const UString name,
                       const Field<bool> &selection,
                       const Field<bool> &sharpness)
 {
@@ -95,7 +95,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     if (Mesh *mesh = geometry_set.get_mesh_for_write()) {
       set_sharp(*mesh,
                 domain,
-                domain == AttrDomain::Face ? "sharp_face" : "sharp_edge",
+                domain == AttrDomain::Face ? "sharp_face"_ustr : "sharp_edge"_ustr,
                 selection,
                 fn::invert_boolean_field(smooth_field));
     }

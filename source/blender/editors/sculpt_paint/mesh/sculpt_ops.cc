@@ -103,26 +103,26 @@ static wmOperatorStatus set_persistent_base_exec(bContext *C, wmOperator * /*op*
     case bke::pbvh::Type::Mesh: {
       Mesh &mesh = *id_cast<Mesh *>(ob.data);
       bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
-      attributes.remove(".sculpt_persistent_co");
-      attributes.remove(".sculpt_persistent_no");
-      attributes.remove(".sculpt_persistent_disp");
+      attributes.remove(".sculpt_persistent_co"_ustr);
+      attributes.remove(".sculpt_persistent_no"_ustr);
+      attributes.remove(".sculpt_persistent_disp"_ustr);
 
-      const bke::AttributeReader positions = attributes.lookup<float3>("position");
+      const bke::AttributeReader positions = attributes.lookup<float3>("position"_ustr);
       if (positions.sharing_info && positions.varray.is_span()) {
         attributes.add<float3>(
-            ".sculpt_persistent_co",
+            ".sculpt_persistent_co"_ustr,
             bke::AttrDomain::Point,
             bke::AttributeInitShared(positions.varray.get_internal_span().data(),
                                      *positions.sharing_info));
       }
       else {
-        attributes.add<float3>(".sculpt_persistent_co",
+        attributes.add<float3>(".sculpt_persistent_co"_ustr,
                                bke::AttrDomain::Point,
                                bke::AttributeInitVArray(positions.varray));
       }
 
       const Span<float3> vert_normals = bke::pbvh::vert_normals_eval(*depsgraph, ob);
-      attributes.add<float3>(".sculpt_persistent_no",
+      attributes.add<float3>(".sculpt_persistent_no"_ustr,
                              bke::AttrDomain::Point,
                              bke::AttributeInitVArray(VArray<float3>::from_span(vert_normals)));
       break;
@@ -342,7 +342,7 @@ static void init_sculpt_mode_session(Main &bmain, Depsgraph &depsgraph, Scene &s
   BKE_sculpt_update_object_for_edit(&depsgraph, &ob, false);
 
   Mesh &mesh = *id_cast<Mesh *>(ob.data);
-  if (mesh.attributes().contains(".sculpt_face_set")) {
+  if (mesh.attributes().contains(".sculpt_face_set"_ustr)) {
     /* Here we can detect geometry that was just added to Sculpt Mode as it has the
      * face_set_none assigned, so we can create a new face set for it. */
     /* In sculpt mode all geometry that is assigned to face_set_none is considered as not
@@ -672,7 +672,7 @@ static void mask_by_color_contiguous_mesh(const Depsgraph &depsgraph,
   const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
   const bke::AttributeAccessor attributes = mesh.attributes();
   const VArraySpan colors = *attributes.lookup_or_default<ColorGeometry4f>(
-      mesh.active_color_attribute, bke::AttrDomain::Point, {});
+      UString(mesh.active_color_attribute), bke::AttrDomain::Point, {});
   const float4 active_color = float4(colors[vert]);
 
   Array<float> new_mask(mesh.verts_num, invert ? 1.0f : 0.0f);
@@ -714,7 +714,7 @@ static void mask_by_color_full_mesh(const Depsgraph &depsgraph,
   const Mesh &mesh = *id_cast<const Mesh *>(object.data);
   const bke::AttributeAccessor attributes = mesh.attributes();
   const VArraySpan colors = *attributes.lookup_or_default<ColorGeometry4f>(
-      mesh.active_color_attribute, bke::AttrDomain::Point, {});
+      UString(mesh.active_color_attribute), bke::AttrDomain::Point, {});
   const float4 active_color = float4(colors[vert]);
 
   IndexMaskMemory memory;
@@ -1051,8 +1051,9 @@ static void apply_mask_from_settings(const Depsgraph &depsgraph,
       Mesh &mesh = *id_cast<Mesh *>(object.data);
       bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
       bke::SpanAttributeWriter mask = attributes.lookup_or_add_for_write_span<float>(
-          ".sculpt_mask", bke::AttrDomain::Point);
-      const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
+          ".sculpt_mask"_ustr, bke::AttrDomain::Point);
+      const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert"_ustr,
+                                                            bke::AttrDomain::Point);
       MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
       node_mask.foreach_index(
           [&](const int i) {

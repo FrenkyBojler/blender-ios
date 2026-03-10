@@ -1341,7 +1341,7 @@ static void make_duplis_faces(const DupliContext *ctx)
 
   if (em != nullptr) {
     const int cd_loop_uv_offset = CustomData_get_offset_named(
-        &em->bm->ldata, CD_PROP_FLOAT2, mesh_eval->active_uv_map_name());
+        &em->bm->ldata, CD_PROP_FLOAT2, mesh_eval->active_uv_map_name().ref());
     FaceDupliData_EditMesh fdd{};
     fdd.params = fdd_params;
     fdd.em = em;
@@ -1902,7 +1902,7 @@ bke::Instances object_duplilist_legacy_instances(Depsgraph &depsgraph, Object &o
   MutableSpan<int> instances_reference_handles = top_level_instances.reference_handles_for_write();
   bke::SpanAttributeWriter<int> instances_ids =
       top_level_instances.attributes_for_write().lookup_or_add_for_write_only_span<int>(
-          "id", bke::AttrDomain::Instance);
+          "id"_ustr, bke::AttrDomain::Instance);
   for (const int i : IndexRange(instances_num)) {
     DupliObject &dob = *top_level_duplis[i];
     Object &instanced_object = *dob.ob;
@@ -1938,7 +1938,7 @@ bke::Instances object_duplilist_legacy_instances(Depsgraph &depsgraph, Object &o
 
 /** Lookup instance attributes assigned via geometry nodes. */
 static bool find_geonode_attribute_rgba(const DupliObject *dupli,
-                                        const char *name,
+                                        const UString name,
                                         float r_value[4])
 {
   using namespace blender::bke;
@@ -2064,7 +2064,7 @@ bool BKE_object_dupli_find_rgba_attribute(const Object *ob,
   }
 
   /* Check geometry node dupli instance attributes. */
-  if (dupli && find_geonode_attribute_rgba(dupli, name, r_value)) {
+  if (dupli && find_geonode_attribute_rgba(dupli, UString(name), r_value)) {
     return true;
   }
 

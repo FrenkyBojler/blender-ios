@@ -74,13 +74,13 @@ bool BKE_paint_canvas_image_get(PaintModeSettings *settings,
   return *r_image != nullptr;
 }
 
-static bool has_uv_map_attribute(const Mesh &mesh, const StringRef name)
+static bool has_uv_map_attribute(const Mesh &mesh, const UString name)
 {
   return bke::mesh::is_uv_map(mesh.attributes().lookup_meta_data(name));
 }
 
-std::optional<StringRef> BKE_paint_canvas_uvmap_name_get(const PaintModeSettings *settings,
-                                                         Object *ob)
+std::optional<UString> BKE_paint_canvas_uvmap_name_get(const PaintModeSettings *settings,
+                                                       Object *ob)
 {
   switch (settings->canvas_source) {
     case PAINT_CANVAS_SOURCE_COLOR_ATTRIBUTE:
@@ -113,10 +113,10 @@ std::optional<StringRef> BKE_paint_canvas_uvmap_name_get(const PaintModeSettings
       }
 
       const Mesh *mesh = id_cast<Mesh *>(ob->data);
-      if (!has_uv_map_attribute(*mesh, slot->uvname)) {
+      if (!has_uv_map_attribute(*mesh, UString(slot->uvname))) {
         return std::nullopt;
       }
-      return slot->uvname;
+      return UString(slot->uvname);
     }
   }
   return std::nullopt;
@@ -125,7 +125,7 @@ std::optional<StringRef> BKE_paint_canvas_uvmap_name_get(const PaintModeSettings
 std::string BKE_paint_canvas_key_get(PaintModeSettings *settings, Object *ob)
 {
   std::stringstream ss;
-  ss << "UV_MAP:" << BKE_paint_canvas_uvmap_name_get(settings, ob).value_or("");
+  ss << "UV_MAP:" << BKE_paint_canvas_uvmap_name_get(settings, ob).value_or({}).ref();
 
   Image *image;
   ImageUser *image_user;

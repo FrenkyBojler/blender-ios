@@ -591,25 +591,30 @@ static bke::CurvesGeometry boundary_to_curves(const Scene &scene,
   MutableSpan<float3> positions = curves.positions_for_write();
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
   /* Attributes that are defined explicitly and should not be set to default values. */
-  Set<std::string> skip_curve_attributes = {
-      "curve_type", "material_index", "cyclic", "hardness", "fill_opacity"};
-  Set<std::string> skip_point_attributes = {"position", "radius", "opacity"};
+  Set<UString> skip_curve_attributes = {"curve_type"_ustr,
+                                        "material_index"_ustr,
+                                        "cyclic"_ustr,
+                                        "hardness"_ustr,
+                                        "fill_opacity"_ustr};
+  Set<UString> skip_point_attributes = {"position"_ustr, "radius"_ustr, "opacity"_ustr};
 
   curves.fill_curve_types(CURVE_TYPE_POLY);
 
   /* Note: We can assume that the writers here will be valid since we created new curves. */
   attributes.add<int>(
-      "material_index", bke::AttrDomain::Curve, bke::AttributeInitValue(material_index));
-  attributes.add<bool>("cyclic", bke::AttrDomain::Curve, bke::AttributeInitValue(true));
-  attributes.add<float>("hardness", bke::AttrDomain::Curve, bke::AttributeInitValue(hardness));
+      "material_index"_ustr, bke::AttrDomain::Curve, bke::AttributeInitValue(material_index));
+  attributes.add<bool>("cyclic"_ustr, bke::AttrDomain::Curve, bke::AttributeInitValue(true));
+  attributes.add<float>(
+      "hardness"_ustr, bke::AttrDomain::Curve, bke::AttributeInitValue(hardness));
   /* TODO: `fill_opacities` are currently always 1.0f for the new strokes. Maybe this should be a
    * parameter. */
-  attributes.add<float>("fill_opacity", bke::AttrDomain::Curve, bke::AttributeInitValue(1.0f));
+  attributes.add<float>(
+      "fill_opacity"_ustr, bke::AttrDomain::Curve, bke::AttributeInitValue(1.0f));
 
   bke::SpanAttributeWriter<float> radii = attributes.lookup_or_add_for_write_span<float>(
-      "radius", bke::AttrDomain::Point, bke::AttributeInitValue(0.01f));
+      "radius"_ustr, bke::AttrDomain::Point, bke::AttributeInitValue(0.01f));
   bke::SpanAttributeWriter<float> opacities = attributes.lookup_or_add_for_write_span<float>(
-      "opacity", bke::AttrDomain::Point, bke::AttributeInitValue(1.0f));
+      "opacity"_ustr, bke::AttrDomain::Point, bke::AttributeInitValue(1.0f));
 
   for (const int point_i : curves.points_range()) {
     const int pixel_index = boundary.pixels[point_i];
@@ -640,17 +645,17 @@ static bke::CurvesGeometry boundary_to_curves(const Scene &scene,
     copy_v3_v3(vertex_color, brush.color);
     vertex_color.a = brush.gpencil_settings->vertex_factor;
 
-    skip_curve_attributes.add("fill_color");
+    skip_curve_attributes.add("fill_color"_ustr);
     bke::SpanAttributeWriter<ColorGeometry4f> fill_colors =
-        attributes.lookup_or_add_for_write_span<ColorGeometry4f>("fill_color",
+        attributes.lookup_or_add_for_write_span<ColorGeometry4f>("fill_color"_ustr,
                                                                  bke::AttrDomain::Curve);
     fill_colors.span.fill(vertex_color);
     fill_colors.finish();
 
     if (brush.gpencil_settings->flag2 & GP_BRUSH_USE_STROKE) {
-      skip_point_attributes.add("vertex_color");
+      skip_point_attributes.add("vertex_color"_ustr);
       bke::SpanAttributeWriter<ColorGeometry4f> vertex_colors =
-          attributes.lookup_or_add_for_write_span<ColorGeometry4f>("vertex_color",
+          attributes.lookup_or_add_for_write_span<ColorGeometry4f>("vertex_color"_ustr,
                                                                    bke::AttrDomain::Point);
       vertex_colors.span.fill(vertex_color);
       vertex_colors.finish();
@@ -742,8 +747,8 @@ static bke::CurvesGeometry process_image(Image &ima,
 
 /** \} */
 
-constexpr const char *attr_material_index = "material_index";
-constexpr const char *attr_is_fill_guide = ".is_fill_guide";
+static UString attr_material_index = "material_index"_ustr;
+static UString attr_is_fill_guide = ".is_fill_guide"_ustr;
 
 static IndexMask get_visible_boundary_strokes(const Object &object,
                                               const DrawingInfo &info,

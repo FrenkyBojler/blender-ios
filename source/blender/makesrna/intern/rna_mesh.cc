@@ -422,7 +422,7 @@ static bool rna_MeshVertex_hide_get(PointerRNA *ptr)
   const Mesh *mesh = rna_mesh(ptr);
   const bke::AttributeAccessor attributes = mesh->attributes();
   const VArray hide_vert = *attributes.lookup_or_default<bool>(
-      ".hide_vert", bke::AttrDomain::Point, false);
+      ".hide_vert"_ustr, bke::AttrDomain::Point, false);
   const int index = rna_MeshVertex_index_get(ptr);
   return hide_vert[index];
 }
@@ -432,7 +432,7 @@ static void rna_MeshVertex_hide_set(PointerRNA *ptr, bool value)
   Mesh *mesh = rna_mesh(ptr);
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   bke::AttributeWriter hide_vert = attributes.lookup_or_add_for_write<bool>(
-      ".hide_vert", bke::AttrDomain::Point, bke::AttributeInitDefaultValue());
+      ".hide_vert"_ustr, bke::AttrDomain::Point, bke::AttributeInitDefaultValue());
   const int index = rna_MeshVertex_index_get(ptr);
   hide_vert.varray.set(index, value);
   hide_vert.finish();
@@ -444,7 +444,7 @@ static bool rna_MeshVertex_select_get(PointerRNA *ptr)
   const int index = rna_MeshVertex_index_get(ptr);
   const bke::AttributeAccessor attributes = mesh->attributes();
   const VArray select_vert = *attributes.lookup_or_default<bool>(
-      ".select_vert", bke::AttrDomain::Point, false);
+      ".select_vert"_ustr, bke::AttrDomain::Point, false);
   return select_vert[index];
 }
 
@@ -454,7 +454,7 @@ static void rna_MeshVertex_select_set(PointerRNA *ptr, bool value)
   const int index = rna_MeshVertex_index_get(ptr);
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   bke::AttributeWriter select_vert = attributes.lookup_or_add_for_write<bool>(
-      ".select_vert", bke::AttrDomain::Point, bke::AttributeInitDefaultValue());
+      ".select_vert"_ustr, bke::AttrDomain::Point, bke::AttributeInitDefaultValue());
   select_vert.varray.set(index, value);
   select_vert.finish();
 }
@@ -547,7 +547,7 @@ static bool rna_MeshPolygon_hide_get(PointerRNA *ptr)
   const int index = rna_MeshPolygon_index_get(ptr);
   const bke::AttributeAccessor attributes = mesh->attributes();
   const VArray hide_poly = *attributes.lookup_or_default<bool>(
-      ".hide_poly", bke::AttrDomain::Face, false);
+      ".hide_poly"_ustr, bke::AttrDomain::Face, false);
   return hide_poly[index];
 }
 
@@ -557,7 +557,7 @@ static void rna_MeshPolygon_hide_set(PointerRNA *ptr, bool value)
   const int index = rna_MeshPolygon_index_get(ptr);
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   bke::AttributeWriter hide_poly = attributes.lookup_or_add_for_write<bool>(
-      ".hide_poly", bke::AttrDomain::Face, bke::AttributeInitDefaultValue());
+      ".hide_poly"_ustr, bke::AttrDomain::Face, bke::AttributeInitDefaultValue());
   hide_poly.varray.set(index, value);
   hide_poly.finish();
 }
@@ -568,7 +568,7 @@ static bool rna_MeshPolygon_use_smooth_get(PointerRNA *ptr)
   const int index = rna_MeshPolygon_index_get(ptr);
   const bke::AttributeAccessor attributes = mesh->attributes();
   const VArray sharp_face = *attributes.lookup_or_default<bool>(
-      "sharp_face", bke::AttrDomain::Face, false);
+      "sharp_face"_ustr, bke::AttrDomain::Face, false);
   return !sharp_face[index];
 }
 
@@ -578,7 +578,7 @@ static void rna_MeshPolygon_use_smooth_set(PointerRNA *ptr, bool value)
   const int index = rna_MeshPolygon_index_get(ptr);
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   bke::AttributeWriter sharp_face = attributes.lookup_or_add_for_write<bool>(
-      "sharp_face", bke::AttrDomain::Face, bke::AttributeInitDefaultValue());
+      "sharp_face"_ustr, bke::AttrDomain::Face, bke::AttributeInitDefaultValue());
   sharp_face.varray.set(index, !value);
   sharp_face.finish();
 }
@@ -589,7 +589,7 @@ static bool rna_MeshPolygon_select_get(PointerRNA *ptr)
   const int index = rna_MeshPolygon_index_get(ptr);
   const bke::AttributeAccessor attributes = mesh->attributes();
   const VArray select_poly = *attributes.lookup_or_default<bool>(
-      ".select_poly", bke::AttrDomain::Face, false);
+      ".select_poly"_ustr, bke::AttrDomain::Face, false);
   return select_poly[index];
 }
 
@@ -599,7 +599,7 @@ static void rna_MeshPolygon_select_set(PointerRNA *ptr, bool value)
   const int index = rna_MeshPolygon_index_get(ptr);
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   bke::AttributeWriter select_poly = attributes.lookup_or_add_for_write<bool>(
-      ".select_poly", bke::AttrDomain::Face, bke::AttributeInitDefaultValue());
+      ".select_poly"_ustr, bke::AttrDomain::Face, bke::AttributeInitDefaultValue());
   select_poly.varray.set(index, value);
   select_poly.finish();
 }
@@ -609,7 +609,7 @@ static int rna_MeshPolygon_material_index_get(PointerRNA *ptr)
   const Mesh *mesh = rna_mesh(ptr);
   const bke::AttributeAccessor attributes = mesh->attributes();
   const VArray material_index = *attributes.lookup_or_default<int>(
-      "material_index", bke::AttrDomain::Face, 0);
+      "material_index"_ustr, bke::AttrDomain::Face, 0);
   return material_index[rna_MeshPolygon_index_get(ptr)];
 }
 
@@ -618,7 +618,7 @@ static void rna_MeshPolygon_material_index_set(PointerRNA *ptr, int value)
   Mesh *mesh = rna_mesh(ptr);
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   bke::AttributeWriter material_index = attributes.lookup_or_add_for_write<int>(
-      "material_index", bke::AttrDomain::Face);
+      "material_index"_ustr, bke::AttrDomain::Face);
   material_index.varray.set(rna_MeshPolygon_index_get(ptr), max_ii(0, value));
   material_index.finish();
 }
@@ -817,7 +817,7 @@ static PointerRNA rna_Mesh_uv_layer_active_get(PointerRNA *ptr)
 static void rna_Mesh_uv_layer_active_set(PointerRNA *ptr, PointerRNA value, ReportList *)
 {
   Mesh *mesh = rna_mesh(ptr);
-  mesh->uv_maps_active_set(rna_Attribute_name_get(value));
+  mesh->uv_maps_active_set(rna_Attribute_name_get(value).ref());
   BKE_mesh_tessface_clear(mesh);
 }
 
@@ -834,20 +834,23 @@ static int rna_Mesh_uv_layer_active_index_get(PointerRNA *ptr)
 static void rna_Mesh_uv_layer_active_index_set(PointerRNA *ptr, int value)
 {
   AttributeOwner owner = AttributeOwner::from_id(ptr->owner_id);
-  const std::optional<StringRef> name = BKE_attribute_from_index(
+  const std::optional<UString> name = BKE_attribute_from_index(
       owner, value, ATTR_DOMAIN_MASK_CORNER, CD_MASK_PROP_FLOAT2, false);
   if (!name) {
     return;
   }
   Mesh *mesh = rna_mesh(ptr);
-  mesh->uv_maps_active_set(*name);
+  mesh->uv_maps_active_set(name->ref());
   BKE_mesh_tessface_clear(mesh);
 }
 
 static PointerRNA rna_Mesh_uv_layer_clone_get(PointerRNA *ptr)
 {
   PointerRNA attr_ptr = rna_AttributeGroup_lookup_string(
-      *ptr, rna_mesh(ptr)->clone_uv_map_attribute, ATTR_DOMAIN_MASK_CORNER, CD_MASK_PROP_FLOAT2);
+      *ptr,
+      UString(rna_mesh(ptr)->clone_uv_map_attribute),
+      ATTR_DOMAIN_MASK_CORNER,
+      CD_MASK_PROP_FLOAT2);
   attr_ptr.type = RNA_MeshUVLoopLayer;
   return attr_ptr;
 }
@@ -855,19 +858,19 @@ static PointerRNA rna_Mesh_uv_layer_clone_get(PointerRNA *ptr)
 static void rna_Mesh_uv_layer_clone_set(PointerRNA *ptr, PointerRNA value, ReportList *)
 {
   Mesh *mesh = rna_mesh(ptr);
-  const StringRefNull name = rna_Attribute_name_get(value);
+  const UString name = rna_Attribute_name_get(value);
   MEM_SAFE_DELETE(mesh->clone_uv_map_attribute);
   if (name.is_empty()) {
     return;
   }
-  mesh->clone_uv_map_attribute = BLI_strdupn(name.c_str(), name.size());
+  mesh->clone_uv_map_attribute = BLI_strdup(name.c_str());
   BKE_mesh_tessface_clear(mesh);
 }
 
 static int rna_Mesh_uv_layer_clone_index_get(PointerRNA *ptr)
 {
   Mesh *mesh = rna_mesh(ptr);
-  const VectorSet<StringRefNull> names = mesh->uv_map_names();
+  const VectorSet<UString> names = mesh->uv_map_names();
   if (!names.contains_as(mesh->clone_uv_map_attribute)) {
     return 0;
   }
@@ -878,18 +881,21 @@ static void rna_Mesh_uv_layer_clone_index_set(PointerRNA *ptr, int value)
 {
   Mesh *mesh = rna_mesh(ptr);
   MEM_SAFE_DELETE(mesh->clone_uv_map_attribute);
-  const VectorSet<StringRefNull> names = mesh->uv_map_names();
+  const VectorSet<UString> names = mesh->uv_map_names();
   if (!names.index_range().contains(value)) {
     return;
   }
-  mesh->clone_uv_map_attribute = BLI_strdupn(names[value].c_str(), names[value].size());
+  mesh->clone_uv_map_attribute = BLI_strdup(names[value].c_str());
   BKE_mesh_tessface_clear(mesh);
 }
 
 static PointerRNA rna_Mesh_uv_layer_stencil_get(PointerRNA *ptr)
 {
   PointerRNA attr_ptr = rna_AttributeGroup_lookup_string(
-      *ptr, rna_mesh(ptr)->stencil_uv_map_attribute, ATTR_DOMAIN_MASK_CORNER, CD_MASK_PROP_FLOAT2);
+      *ptr,
+      UString(rna_mesh(ptr)->stencil_uv_map_attribute),
+      ATTR_DOMAIN_MASK_CORNER,
+      CD_MASK_PROP_FLOAT2);
   attr_ptr.type = RNA_MeshUVLoopLayer;
   return attr_ptr;
 }
@@ -897,19 +903,19 @@ static PointerRNA rna_Mesh_uv_layer_stencil_get(PointerRNA *ptr)
 static void rna_Mesh_uv_layer_stencil_set(PointerRNA *ptr, PointerRNA value, ReportList *)
 {
   Mesh *mesh = rna_mesh(ptr);
-  const StringRefNull name = rna_Attribute_name_get(value);
+  const UString name = rna_Attribute_name_get(value);
   MEM_SAFE_DELETE(mesh->stencil_uv_map_attribute);
   if (name.is_empty()) {
     return;
   }
-  mesh->stencil_uv_map_attribute = BLI_strdupn(name.c_str(), name.size());
+  mesh->stencil_uv_map_attribute = BLI_strdup(name.c_str());
   BKE_mesh_tessface_clear(mesh);
 }
 
 static int rna_Mesh_uv_layer_stencil_index_get(PointerRNA *ptr)
 {
   Mesh *mesh = rna_mesh(ptr);
-  const VectorSet<StringRefNull> names = mesh->uv_map_names();
+  const VectorSet<UString> names = mesh->uv_map_names();
   if (!names.contains_as(mesh->stencil_uv_map_attribute)) {
     return 0;
   }
@@ -920,11 +926,11 @@ static void rna_Mesh_uv_layer_stencil_index_set(PointerRNA *ptr, int value)
 {
   Mesh *mesh = rna_mesh(ptr);
   MEM_SAFE_DELETE(mesh->stencil_uv_map_attribute);
-  const VectorSet<StringRefNull> names = mesh->uv_map_names();
+  const VectorSet<UString> names = mesh->uv_map_names();
   if (!names.index_range().contains(value)) {
     return;
   }
-  mesh->stencil_uv_map_attribute = BLI_strdupn(names[value].c_str(), names[value].size());
+  mesh->stencil_uv_map_attribute = BLI_strdup(names[value].c_str());
   BKE_mesh_tessface_clear(mesh);
 }
 
@@ -932,7 +938,7 @@ static void rna_Mesh_uv_layer_stencil_index_set(PointerRNA *ptr, int value)
 
 static std::optional<std::string> rna_MeshUVLoopLayer_path(const PointerRNA *ptr)
 {
-  const StringRefNull name = rna_Attribute_name_get(*ptr);
+  const UString name = rna_Attribute_name_get(*ptr);
   return fmt::format("uv_layers[\"{}\"]", BLI_str_escape(name.c_str()));
 }
 
@@ -946,11 +952,12 @@ static void bool_layer_begin(CollectionPropertyIterator *iter,
     return;
   }
   char buffer[MAX_CUSTOMDATA_LAYER_NAME];
-  const StringRef name = rna_Attribute_name_get(*ptr);
-  PointerRNA bool_ptr = rna_AttributeGroup_lookup_string(RNA_id_pointer_create(&mesh->id),
-                                                         layername_func(name, buffer),
-                                                         ATTR_DOMAIN_MASK_CORNER,
-                                                         CD_MASK_PROP_BOOL);
+  const UString name = rna_Attribute_name_get(*ptr);
+  PointerRNA bool_ptr = rna_AttributeGroup_lookup_string(
+      RNA_id_pointer_create(&mesh->id),
+      UString(layername_func(name.ref(), buffer)),
+      ATTR_DOMAIN_MASK_CORNER,
+      CD_MASK_PROP_BOOL);
   if (RNA_pointer_is_null(&bool_ptr)) {
     rna_iterator_array_begin(iter, ptr, nullptr, 0, 0, 0, nullptr);
     return;
@@ -963,11 +970,12 @@ static int bool_layer_length(PointerRNA *ptr,
 {
   char buffer[MAX_CUSTOMDATA_LAYER_NAME];
   Mesh *mesh = rna_mesh(ptr);
-  const StringRef name = rna_Attribute_name_get(*ptr);
-  PointerRNA bool_ptr = rna_AttributeGroup_lookup_string(RNA_id_pointer_create(&mesh->id),
-                                                         layername_func(name, buffer),
-                                                         ATTR_DOMAIN_MASK_CORNER,
-                                                         CD_MASK_PROP_BOOL);
+  const UString name = rna_Attribute_name_get(*ptr);
+  PointerRNA bool_ptr = rna_AttributeGroup_lookup_string(
+      RNA_id_pointer_create(&mesh->id),
+      UString(layername_func(name.ref(), buffer)),
+      ATTR_DOMAIN_MASK_CORNER,
+      CD_MASK_PROP_BOOL);
   return rna_Attribute_data_length(&bool_ptr);
 }
 
@@ -982,7 +990,7 @@ static PointerRNA bool_layer_ensure(PointerRNA *ptr,
   }
   PointerRNA mesh_ptr = RNA_id_pointer_create(&mesh->id);
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
-  const StringRef name = layername_func(rna_Attribute_name_get(*ptr), buffer);
+  const UString name = UString(layername_func(rna_Attribute_name_get(*ptr).ref(), buffer));
   if (attributes.contains(name)) {
     return rna_AttributeGroup_lookup_string(
         mesh_ptr, name, ATTR_DOMAIN_MASK_CORNER, CD_MASK_PROP_BOOL);
@@ -1026,7 +1034,7 @@ static bool rna_MeshUVLoopLayer_active_get(PointerRNA *ptr)
 static bool rna_MeshUVLoopLayer_clone_get(PointerRNA *ptr)
 {
   Mesh *mesh = rna_mesh(ptr);
-  const StringRefNull name = rna_Attribute_name_get(*ptr);
+  const UString name = rna_Attribute_name_get(*ptr);
   return StringRef(mesh->clone_uv_map_attribute) == name;
 }
 
@@ -1034,7 +1042,7 @@ static void rna_MeshUVLoopLayer_active_render_set(PointerRNA *ptr, bool value)
 {
   if (value) {
     Mesh *mesh = rna_mesh(ptr);
-    mesh->uv_maps_default_set(rna_Attribute_name_get(*ptr));
+    mesh->uv_maps_default_set(rna_Attribute_name_get(*ptr).ref());
   }
 }
 
@@ -1042,7 +1050,7 @@ static void rna_MeshUVLoopLayer_active_set(PointerRNA *ptr, bool value)
 {
   if (value) {
     Mesh *mesh = rna_mesh(ptr);
-    mesh->uv_maps_active_set(rna_Attribute_name_get(*ptr));
+    mesh->uv_maps_active_set(rna_Attribute_name_get(*ptr).ref());
   }
 }
 
@@ -1052,12 +1060,12 @@ static void rna_MeshUVLoopLayer_clone_set(PointerRNA *ptr, bool value)
     return;
   }
   Mesh *mesh = rna_mesh(ptr);
-  const StringRefNull name = rna_Attribute_name_get(*ptr);
+  const UString name = rna_Attribute_name_get(*ptr);
   MEM_SAFE_DELETE(mesh->clone_uv_map_attribute);
   if (name.is_empty()) {
     return;
   }
-  mesh->clone_uv_map_attribute = BLI_strdupn(name.c_str(), name.size());
+  mesh->clone_uv_map_attribute = BLI_strdup(name.c_str());
   BKE_mesh_tessface_clear(mesh);
 }
 
@@ -1090,10 +1098,11 @@ static void rna_Mesh_vertex_color_index_range(PointerRNA *ptr, int *min, int *ma
 
 static PointerRNA rna_Mesh_vertex_color_active_get(PointerRNA *ptr)
 {
-  PointerRNA attr_ptr = rna_AttributeGroup_lookup_string(*ptr,
-                                                         rna_mesh(ptr)->active_color_attribute,
-                                                         ATTR_DOMAIN_MASK_CORNER,
-                                                         CD_MASK_PROP_BYTE_COLOR);
+  PointerRNA attr_ptr = rna_AttributeGroup_lookup_string(
+      *ptr,
+      UString(rna_mesh(ptr)->active_color_attribute),
+      ATTR_DOMAIN_MASK_CORNER,
+      CD_MASK_PROP_BYTE_COLOR);
   attr_ptr.type = RNA_MeshLoopColorLayer;
   return attr_ptr;
 }
@@ -1106,7 +1115,7 @@ static void rna_Mesh_vertex_color_active_set(PointerRNA *ptr,
     return;
   }
   Mesh *mesh = static_cast<Mesh *>(ptr->data);
-  BKE_id_attributes_active_color_set(&mesh->id, rna_Attribute_name_get(value));
+  BKE_id_attributes_active_color_set(&mesh->id, rna_Attribute_name_get(value).ref());
 }
 
 static int rna_Mesh_vertex_color_active_index_get(PointerRNA *ptr)
@@ -1114,7 +1123,7 @@ static int rna_Mesh_vertex_color_active_index_get(PointerRNA *ptr)
   Mesh *mesh = static_cast<Mesh *>(ptr->data);
   AttributeOwner owner = AttributeOwner::from_id(ptr->owner_id);
   return BKE_attribute_to_index(owner,
-                                mesh->active_color_attribute,
+                                UString(mesh->active_color_attribute),
                                 ATTR_DOMAIN_MASK_CORNER,
                                 CD_MASK_PROP_BYTE_COLOR,
                                 false);
@@ -1124,13 +1133,14 @@ static void rna_Mesh_vertex_color_active_index_set(PointerRNA *ptr, int value)
 {
   Mesh *mesh = static_cast<Mesh *>(ptr->data);
   AttributeOwner owner = AttributeOwner::from_id(ptr->owner_id);
-  const std::optional<StringRef> name = BKE_attribute_from_index(
+  const std::optional<UString> name = BKE_attribute_from_index(
       owner, value, ATTR_DOMAIN_MASK_CORNER, CD_MASK_PROP_BYTE_COLOR, false);
   if (!name) {
     fprintf(stderr, "Invalid loop byte attribute index %d\n", value);
     return;
   }
-  BKE_id_attributes_active_color_set(&mesh->id, name);
+  BKE_id_attributes_active_color_set(
+      &mesh->id, name.has_value() ? name->ref() : std::make_optional<StringRef>());
 }
 
 static bool rna_mesh_color_active_render_get(PointerRNA *ptr)
@@ -1149,7 +1159,7 @@ static void rna_mesh_color_active_render_set(PointerRNA *ptr, bool value)
 {
   if (value) {
     Mesh *mesh = rna_mesh(ptr);
-    BKE_id_attributes_default_color_set(&mesh->id, rna_Attribute_name_get(*ptr));
+    BKE_id_attributes_default_color_set(&mesh->id, rna_Attribute_name_get(*ptr).ref());
   }
 }
 
@@ -1157,7 +1167,7 @@ static void rna_mesh_color_active_set(PointerRNA *ptr, bool value)
 {
   if (value) {
     Mesh *mesh = rna_mesh(ptr);
-    BKE_id_attributes_active_color_set(&mesh->id, rna_Attribute_name_get(*ptr));
+    BKE_id_attributes_active_color_set(&mesh->id, rna_Attribute_name_get(*ptr).ref());
   }
 }
 
@@ -1290,7 +1300,7 @@ static bool rna_MeshEdge_hide_get(PointerRNA *ptr)
   const int index = rna_MeshEdge_index_get(ptr);
   const bke::AttributeAccessor attributes = mesh->attributes();
   const VArray hide_edge = *attributes.lookup_or_default<bool>(
-      ".hide_edge", bke::AttrDomain::Edge, false);
+      ".hide_edge"_ustr, bke::AttrDomain::Edge, false);
   return hide_edge[index];
 }
 
@@ -1300,7 +1310,7 @@ static void rna_MeshEdge_hide_set(PointerRNA *ptr, bool value)
   const int index = rna_MeshEdge_index_get(ptr);
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   bke::AttributeWriter hide_edge = attributes.lookup_or_add_for_write<bool>(
-      ".hide_edge", bke::AttrDomain::Edge, bke::AttributeInitDefaultValue());
+      ".hide_edge"_ustr, bke::AttrDomain::Edge, bke::AttributeInitDefaultValue());
   hide_edge.varray.set(index, value);
   hide_edge.finish();
 }
@@ -1311,7 +1321,7 @@ static bool rna_MeshEdge_select_get(PointerRNA *ptr)
   const int index = rna_MeshEdge_index_get(ptr);
   const bke::AttributeAccessor attributes = mesh->attributes();
   const VArray select_edge = *attributes.lookup_or_default<bool>(
-      ".select_edge", bke::AttrDomain::Edge, false);
+      ".select_edge"_ustr, bke::AttrDomain::Edge, false);
   return select_edge[index];
 }
 
@@ -1321,7 +1331,7 @@ static void rna_MeshEdge_select_set(PointerRNA *ptr, bool value)
   const int index = rna_MeshEdge_index_get(ptr);
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   bke::AttributeWriter select_edge = attributes.lookup_or_add_for_write<bool>(
-      ".select_edge", bke::AttrDomain::Edge, bke::AttributeInitDefaultValue());
+      ".select_edge"_ustr, bke::AttrDomain::Edge, bke::AttributeInitDefaultValue());
   select_edge.varray.set(index, value);
   select_edge.finish();
 }
@@ -1332,7 +1342,7 @@ static bool rna_MeshEdge_use_edge_sharp_get(PointerRNA *ptr)
   const int index = rna_MeshEdge_index_get(ptr);
   const bke::AttributeAccessor attributes = mesh->attributes();
   const VArray sharp_edge = *attributes.lookup_or_default<bool>(
-      "sharp_edge", bke::AttrDomain::Edge, false);
+      "sharp_edge"_ustr, bke::AttrDomain::Edge, false);
   return sharp_edge[index];
 }
 
@@ -1342,7 +1352,7 @@ static void rna_MeshEdge_use_edge_sharp_set(PointerRNA *ptr, bool value)
   const int index = rna_MeshEdge_index_get(ptr);
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   bke::AttributeWriter sharp_edge = attributes.lookup_or_add_for_write<bool>(
-      "sharp_edge", bke::AttrDomain::Edge, bke::AttributeInitDefaultValue());
+      "sharp_edge"_ustr, bke::AttrDomain::Edge, bke::AttributeInitDefaultValue());
   sharp_edge.varray.set(index, value);
   sharp_edge.finish();
 }
@@ -1353,7 +1363,7 @@ static bool rna_MeshEdge_use_seam_get(PointerRNA *ptr)
   const int index = rna_MeshEdge_index_get(ptr);
   const bke::AttributeAccessor attributes = mesh->attributes();
   const VArray uv_seam = *attributes.lookup_or_default<bool>(
-      "uv_seam", bke::AttrDomain::Edge, false);
+      "uv_seam"_ustr, bke::AttrDomain::Edge, false);
   return uv_seam[index];
 }
 
@@ -1363,7 +1373,7 @@ static void rna_MeshEdge_use_seam_set(PointerRNA *ptr, bool value)
   const int index = rna_MeshEdge_index_get(ptr);
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   bke::AttributeWriter uv_seam = attributes.lookup_or_add_for_write<bool>(
-      "uv_seam", bke::AttrDomain::Edge, bke::AttributeInitDefaultValue());
+      "uv_seam"_ustr, bke::AttrDomain::Edge, bke::AttributeInitDefaultValue());
   uv_seam.varray.set(index, value);
   uv_seam.finish();
 }
@@ -1381,7 +1391,7 @@ static int rna_MeshLoopTriangle_material_index_get(PointerRNA *ptr)
   const Mesh *mesh = rna_mesh(ptr);
   const bke::AttributeAccessor attributes = mesh->attributes();
   const VArray material_indices = *attributes.lookup_or_default<int>(
-      "material_index", bke::AttrDomain::Face, 0);
+      "material_index"_ustr, bke::AttrDomain::Face, 0);
   return material_indices[rna_MeshLoopTriangle_polygon_index_get(ptr)];
 }
 
@@ -1390,7 +1400,7 @@ static bool rna_MeshLoopTriangle_use_smooth_get(PointerRNA *ptr)
   const Mesh *mesh = rna_mesh(ptr);
   const bke::AttributeAccessor attributes = mesh->attributes();
   const VArray sharp_face = *attributes.lookup_or_default<bool>(
-      "sharp_face", bke::AttrDomain::Face, false);
+      "sharp_face"_ustr, bke::AttrDomain::Face, false);
   return !sharp_face[rna_MeshLoopTriangle_polygon_index_get(ptr)];
 }
 
@@ -1465,7 +1475,7 @@ static std::optional<std::string> rna_VertCustomData_data_path(const PointerRNA 
 }
 
 struct AttrReverseLookup {
-  StringRefNull name;
+  UString name;
   int index_in_group;
   int elem_index;
 };
@@ -1823,7 +1833,7 @@ static PointerRNA rna_Mesh_vertex_color_new(Mesh *mesh,
   }
 
   PointerRNA attr_ptr = rna_AttributeGroup_lookup_string(RNA_id_pointer_create(&mesh->id),
-                                                         mesh->active_color_attribute,
+                                                         UString(mesh->active_color_attribute),
                                                          ATTR_DOMAIN_MASK_CORNER,
                                                          CD_MASK_PROP_BYTE_COLOR);
   attr_ptr.type = RNA_MeshLoopColorLayer;
@@ -1845,14 +1855,14 @@ static PointerRNA rna_Mesh_uv_layers_new(Mesh *mesh,
   if (index == -1) {
     return {};
   }
-  const StringRef used_name = mesh->uv_map_names()[index];
+  const UString used_name = mesh->uv_map_names()[index];
   PointerRNA attr_ptr = rna_AttributeGroup_lookup_string(
       RNA_id_pointer_create(&mesh->id), used_name, ATTR_DOMAIN_MASK_CORNER, CD_MASK_PROP_FLOAT2);
   if (mesh->active_uv_map_name().is_empty()) {
-    mesh->uv_maps_active_set(used_name);
+    mesh->uv_maps_active_set(used_name.ref());
   }
   if (mesh->default_uv_map_name().is_empty()) {
-    mesh->uv_maps_default_set(used_name);
+    mesh->uv_maps_default_set(used_name.ref());
   }
   attr_ptr.type = RNA_MeshUVLoopLayer;
   return attr_ptr;
@@ -1861,10 +1871,10 @@ static PointerRNA rna_Mesh_uv_layers_new(Mesh *mesh,
 static void rna_Mesh_uv_layers_remove(Mesh *mesh, ReportList *reports, PointerRNA *uv_ptr)
 {
   AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
-  const StringRefNull name = rna_Attribute_name_get(*uv_ptr);
+  const UString name = rna_Attribute_name_get(*uv_ptr);
   if (mesh->runtime->edit_mesh) {
     BMesh &bm = *mesh->runtime->edit_mesh->bm;
-    if (!CustomData_has_layer_named(&bm.ldata, CD_PROP_FLOAT2, name)) {
+    if (!CustomData_has_layer_named(&bm.ldata, CD_PROP_FLOAT2, name.ref())) {
       BKE_reportf(reports, RPT_ERROR, "UV map '%s' not found", name.c_str());
       return;
     }

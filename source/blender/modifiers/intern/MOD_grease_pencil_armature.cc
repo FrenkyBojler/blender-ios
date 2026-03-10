@@ -164,7 +164,7 @@ static void modify_curves(ModifierData &md,
   /* Cached position data for supporting the multi-modifier feature. This data is only valid as
    * long as topology does not change, don't use this after converting Bezier curves! */
   const ImplicitSharingPtrAndData old_positions_data = save_shared_attribute(
-      drawing.strokes().attributes().lookup("position", bke::AttrType::Float3));
+      drawing.strokes().attributes().lookup("position"_ustr, bke::AttrType::Float3));
   const Span<float3> old_positions = {static_cast<const float3 *>(old_positions_data.data),
                                       drawing.strokes().points_num()};
 

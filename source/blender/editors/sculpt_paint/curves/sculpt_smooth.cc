@@ -80,7 +80,7 @@ struct SmoothOperationExecutor {
     brush_pos_re_ = stroke_extension.mouse_position;
 
     point_factors_ = *curves_->attributes().lookup_or_default<float>(
-        ".selection", bke::AttrDomain::Point, 1.0f);
+        ".selection"_ustr, bke::AttrDomain::Point, 1.0f);
     curve_selection_ = curves::retrieve_selected_curves(*curves_id_, selected_curve_memory_);
     transforms_ = CurvesSurfaceTransforms(*object_, curves_id_->surface);
 

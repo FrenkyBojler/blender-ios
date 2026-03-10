@@ -165,7 +165,7 @@ class TangentFieldInput final : public bke::MeshFieldInput {
         break;
       }
       case Method::Exact: {
-        const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face",
+        const VArraySpan sharp_faces = *attributes.lookup<bool>("sharp_face"_ustr,
                                                                 bke::AttrDomain::Face);
         Array<float2> uvs_float2(uvs.size());
         threading::parallel_for(corner_tangents.index_range(), 4096, [&](const IndexRange range) {

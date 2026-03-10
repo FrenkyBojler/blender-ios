@@ -6,8 +6,8 @@
  * \ingroup balembic
  */
 
-#include "abc_writer_mesh.h"
 #include "abc_hierarchy_iterator.h"
+#include "abc_writer_mesh.h"
 #include "intern/abc_axis_conversion.h"
 
 #include "BKE_attribute.h"
@@ -362,7 +362,7 @@ bool ABCGenericMeshWriter::get_velocities(Mesh *mesh, std::vector<Imath::V3f> &v
   /* Export velocity attribute output by fluid sim, sequence cache modifier
    * and geometry nodes. */
   const bke::AttributeAccessor attributes = mesh->attributes();
-  const VArraySpan attr = *attributes.lookup<float3>("velocity", bke::AttrDomain::Point);
+  const VArraySpan attr = *attributes.lookup<float3>("velocity"_ustr, bke::AttrDomain::Point);
   if (attr.is_empty()) {
     return false;
   }
@@ -385,7 +385,7 @@ void ABCGenericMeshWriter::get_geo_groups(Object *object,
 {
   const bke::AttributeAccessor attributes = mesh->attributes();
   const VArraySpan<int> material_indices = *attributes.lookup_or_default<int>(
-      "material_index", bke::AttrDomain::Face, 0);
+      "material_index"_ustr, bke::AttrDomain::Face, 0);
 
   for (const int i : material_indices.index_range()) {
     short mnr = material_indices[i];
@@ -468,7 +468,7 @@ static void get_edge_creases(Mesh *mesh,
   sharpnesses.clear();
 
   const bke::AttributeAccessor attributes = mesh->attributes();
-  const bke::AttributeReader attribute = attributes.lookup<float>("crease_edge",
+  const bke::AttributeReader attribute = attributes.lookup<float>("crease_edge"_ustr,
                                                                   bke::AttrDomain::Edge);
   if (!attribute) {
     return;
@@ -496,7 +496,7 @@ static void get_vert_creases(Mesh *mesh,
   sharpnesses.clear();
 
   const bke::AttributeAccessor attributes = mesh->attributes();
-  const bke::AttributeReader attribute = attributes.lookup<float>("crease_vert",
+  const bke::AttributeReader attribute = attributes.lookup<float>("crease_vert"_ustr,
                                                                   bke::AttrDomain::Point);
   if (!attribute) {
     return;

@@ -496,12 +496,12 @@ void BM_mesh_copy_init_customdata_from_mesh_array(BMesh *bm_dst,
   }
 
   for (const int i : attribute_info.names.index_range()) {
-    const StringRef name = attribute_info.names[i];
+    const UString name = attribute_info.names[i];
     const bke::AttrDomain domain = attribute_info.kinds[i].domain;
     const eCustomDataType data_type = *bke::attr_type_to_custom_data_type(
         attribute_info.kinds[i].data_type);
     CustomData &custom_data = get_bmesh_custom_data(*bm_dst, domain);
-    CustomData_add_layer_named(&custom_data, data_type, CD_SET_DEFAULT, 0, name);
+    CustomData_add_layer_named(&custom_data, data_type, CD_SET_DEFAULT, 0, name.ref());
   }
 
   for (int i = 0; i < me_src_array_len; i++) {

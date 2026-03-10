@@ -42,11 +42,11 @@ static void node_geo_exec(GeoNodeExecParams params)
   geometry::foreach_real_geometry(geometry, [&](GeometrySet &geometry) {
     if (Mesh *mesh = geometry.get_mesh_for_write()) {
       if (is_zero) {
-        mesh->attributes_for_write().remove(".sculpt_face_set");
+        mesh->attributes_for_write().remove(".sculpt_face_set"_ustr);
       }
       else {
         bke::try_capture_field_on_geometry(geometry.get_component_for_write<MeshComponent>(),
-                                           ".sculpt_face_set",
+                                           ".sculpt_face_set"_ustr,
                                            AttrDomain::Face,
                                            selection,
                                            face_set);

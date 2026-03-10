@@ -304,7 +304,7 @@ void meshobject_foreachScreenVert(const ViewContext *vc,
   data.func = func;
   data.user_data = user_data;
   data.clip_flag = clip_flag;
-  data.hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
+  data.hide_vert = *attributes.lookup<bool>(".hide_vert"_ustr, bke::AttrDomain::Point);
 
   if (clip_flag & V3D_PROJ_TEST_CLIP_BB) {
     ED_view3d_clipping_local(vc->rv3d, vc->obact->object_to_world().ptr());

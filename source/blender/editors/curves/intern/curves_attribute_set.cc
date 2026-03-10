@@ -68,7 +68,7 @@ static IndexMask retrieve_selected_elements(const Curves &curves_id,
 }
 
 static void validate_value(const bke::AttributeAccessor attributes,
-                           const StringRef name,
+                           const UString name,
                            const CPPType &type,
                            void *buffer)
 {
@@ -95,7 +95,7 @@ static wmOperatorStatus set_attribute_exec(bContext *C, wmOperator *op)
   Curves &active_curves_id = *id_cast<Curves *>(active_object->data);
 
   AttributeOwner active_owner = AttributeOwner::from_id(&active_curves_id.id);
-  const StringRef name = *BKE_attributes_active_name_get(active_owner);
+  const UString name = *BKE_attributes_active_name_get(active_owner);
   const bke::AttributeMetaData active_meta_data =
       *active_curves_id.geometry.wrap().attributes().lookup_meta_data(name);
   const bke::AttrType active_type = active_meta_data.data_type;
@@ -157,7 +157,7 @@ static wmOperatorStatus set_attribute_invoke(bContext *C, wmOperator *op, const 
   Curves &active_curves_id = *id_cast<Curves *>(active_object->data);
 
   AttributeOwner owner = AttributeOwner::from_id(&active_curves_id.id);
-  const StringRef name = *BKE_attributes_active_name_get(owner);
+  const UString name = *BKE_attributes_active_name_get(owner);
   const bke::CurvesGeometry &curves = active_curves_id.geometry.wrap();
   const bke::AttributeAccessor attributes = curves.attributes();
   const bke::GAttributeReader attribute = attributes.lookup(name);
@@ -201,11 +201,11 @@ static void set_attribute_ui(bContext *C, wmOperator *op)
   Curves &curves_id = *id_cast<Curves *>(object->data);
 
   AttributeOwner owner = AttributeOwner::from_id(&curves_id.id);
-  const StringRef name = *BKE_attributes_active_name_get(owner);
+  const UString name = *BKE_attributes_active_name_get(owner);
   const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
   const bke::AttributeMetaData meta_data = *curves.attributes().lookup_meta_data(name);
   const StringRefNull prop_name = geometry::rna_property_name_for_type(meta_data.data_type);
-  layout.prop(op->ptr, prop_name, UI_ITEM_NONE, name, ICON_NONE);
+  layout.prop(op->ptr, prop_name, UI_ITEM_NONE, name.ref(), ICON_NONE);
 }
 
 void CURVES_OT_attribute_set(wmOperatorType *ot)

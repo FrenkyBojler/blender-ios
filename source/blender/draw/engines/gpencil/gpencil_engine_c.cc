@@ -415,7 +415,7 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandleRange res_handle)
     const OffsetIndices<int> points_by_curve = curves.evaluated_points_by_curve();
     const bke::AttributeAccessor attributes = curves.attributes();
     const VArray<bool> cyclic = *attributes.lookup_or_default<bool>(
-        "cyclic", bke::AttrDomain::Curve, false);
+        "cyclic"_ustr, bke::AttrDomain::Curve, false);
 
     IndexMaskMemory memory;
     const IndexMask visible_strokes = ed::greasepencil::retrieve_visible_strokes(
@@ -487,14 +487,14 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandleRange res_handle)
     pass.push_constant("viewport_size", float2(draw_ctx->viewport_size_get()));
 
     const VArray<int> stroke_materials = *attributes.lookup_or_default<int>(
-        "material_index", bke::AttrDomain::Curve, 0);
+        "material_index"_ustr, bke::AttrDomain::Curve, 0);
     const VArray<bool> is_fill_guide = *attributes.lookup_or_default<bool>(
-        ".is_fill_guide", bke::AttrDomain::Curve, false);
+        ".is_fill_guide"_ustr, bke::AttrDomain::Curve, false);
 
     const VArray<bool> hide_stroke = *attributes.lookup_or_default<bool>(
-        "hide_stroke", bke::AttrDomain::Curve, false);
+        "hide_stroke"_ustr, bke::AttrDomain::Curve, false);
     const VArray<int> fill_ids = *attributes.lookup_or_default<int>(
-        "fill_id", bke::AttrDomain::Curve, 0);
+        "fill_id"_ustr, bke::AttrDomain::Curve, 0);
 
     const bool only_lines = !ELEM(ob->mode,
                                   OB_MODE_PAINT_GREASE_PENCIL,

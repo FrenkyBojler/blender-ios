@@ -13,7 +13,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  Field<float> radius_field = AttributeFieldInput::from<float>("radius");
+  Field<float> radius_field = AttributeFieldInput::from<float>("radius"_ustr);
   params.set_output("Radius", std::move(radius_field));
 }
 
