@@ -180,7 +180,9 @@ class NODE_MT_gn_grease_pencil_write_base(node_add_menu.NodeMenu):
         layout = self.layout
         self.node_operator(layout, "GeometryNodeSetGreasePencilColor")
         self.node_operator(layout, "GeometryNodeSetGreasePencilDepth")
+        self.node_operator(layout, "GeometryNodeSetGreasePencilFillID")
         self.node_operator(layout, "GeometryNodeSetGreasePencilSoftness")
+        self.node_operator(layout, "GeometryNodeSetGreasePencilStrokeVisibility")
 
         self.draw_assets_for_catalog(layout, self.menu_path)
 
