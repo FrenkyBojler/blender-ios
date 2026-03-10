@@ -4,26 +4,26 @@
 
 #include "node_geometry_util.hh"
 
-namespace blender::nodes::node_geo_input_instance_handle_cc {
+namespace blender::nodes::node_geo_input_instance_reference_index_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Int>("Handle ID").field_source();
+  b.add_output<decl::Int>("Reference Index").field_source();
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
   Field<int> reference_index{AttributeFieldInput::from<int>(".reference_index")};
-  params.set_output("Handle ID", std::move(reference_index));
+  params.set_output("Reference Index", std::move(reference_index));
 }
 
 static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeInputInstanceHandle");
-  ntype.ui_name = "Instance Handle";
-  ntype.ui_description = "Output the handle ID of the instance's geometry set";
+  geo_node_type_base(&ntype, "GeometryNodeInputInstanceReferenceIndex");
+  ntype.ui_name = "Instance Reference Index";
+  ntype.ui_description = "Output the reference index of the instance";
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
@@ -31,4 +31,4 @@ static void node_register()
 }
 NOD_REGISTER_NODE(node_register)
 
-}  // namespace blender::nodes::node_geo_input_instance_handle_cc
+}  // namespace blender::nodes::node_geo_input_instance_reference_index_cc
