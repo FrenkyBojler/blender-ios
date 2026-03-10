@@ -1126,7 +1126,7 @@ TEST_F(KeyframeDeleteTest, delete_keyframe_multi_layer)
       object->adt->slot_handle);
   EXPECT_EQ(first_layer_channelbag->fcurves().size(), 3);
 
-  test_action->layer_set_active(second_layer);
+  test_action->layer_active_set(second_layer);
   delete_keyframe(bmain, &reports, &object->id, {TEST_RNA_PATH}, 1.0);
 
   /* Should only remove from active layer, which is the second layer and that has no keyframes on
@@ -1138,7 +1138,7 @@ TEST_F(KeyframeDeleteTest, delete_keyframe_multi_layer)
   EXPECT_EQ(first_layer_channelbag->fcurves().size(), 3);
   EXPECT_EQ(second_layer_channelbag.fcurves().size(), 0);
 
-  test_action->layer_set_active(first_layer);
+  test_action->layer_active_set(first_layer);
   delete_keyframe(bmain, &reports, &object->id, {TEST_RNA_PATH}, 1.0);
   EXPECT_EQ(first_layer_channelbag->fcurves().size(), 0);
   EXPECT_EQ(second_layer_channelbag.fcurves().size(), 0);
