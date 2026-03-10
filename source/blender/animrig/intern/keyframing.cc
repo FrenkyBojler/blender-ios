@@ -624,7 +624,7 @@ int delete_keyframe(Main *bmain, ReportList *reports, ID *id, const RNAPath &rna
    * probably isn't necessary, but it doesn't hurt. */
   BLI_assert(adt->action == act && action.slot_for_handle(adt->slot_handle) != nullptr);
 
-  Layer *active_layer = action.layer_get_active();
+  Layer *active_layer = action.layer_active_get();
   if (!active_layer) {
     BKE_reportf(
         reports, RPT_ERROR, "No active layer to delete keyframes from for ID = %s", id->name);
