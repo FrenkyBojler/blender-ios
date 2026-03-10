@@ -711,7 +711,7 @@ size_t blf_font_width_to_rstrlen(
   for (const ShapedGlyph &glyph : text.glyphs) {
     if (glyph.bounds.xmin > (text.width - ft_pix_from_int(width))) {
       len = glyph.index_utf8;
-      w = ft_pix_to_int(text.width - glyph.bounds.xmax);
+      w = ft_pix_to_int(text.width - glyph.bounds.xmin);
       break;
     }
   }
@@ -957,12 +957,14 @@ int blf_str_offset_to_cursor(FontBLF *font,
   }
 
   if ((prev.xmax == prev.xmin) && next.xmax) {
-    /* Nothing (or a space) to the left, so align to right character. */
+    /* Nothing (or a space) to the left, so align to right character.
+     * Just a touch left of it so obscures less. */
     cursor = next.xmin - half_width;
   }
   else if ((prev.xmax != prev.xmin) && !next.xmax) {
-    /* End of string, so align to last character. */
-    cursor = prev.xmax + half_width;
+    /* End of string, so align to last character. At glyph edge
+     * so half of cursor width can be in the advance space. */
+    cursor = prev.xmax;
   }
   else if (prev.xmax && next.xmax) {
     /* Between two characters, so use the center. */

@@ -261,7 +261,7 @@ class USERPREF_PT_interface_text(InterfacePanel, CenterAlignMixIn, Panel):
         flow.prop(view, "font_path_ui")
         flow.prop(view, "font_path_ui_mono")
         flow.prop(view, "use_text_discretionary_ligatures", text="Ligatures - ffifjxt")
-        flow.prop(view, "use_text_contextual_alternates_ui", text="Contexual Alternates - =>")
+        flow.prop(view, "use_text_contextual_alternates_ui", text="Contextual Alternates - =>")
         flow.prop(view, "use_text_slashed_zero_ui", text="Slashed Zero - 0")
         flow.prop(view, "use_text_disambiguation", text="Disambiguation - Ilßβ")
         flow.prop(view, "use_text_open_digits", text="Open Digits - 3469")
