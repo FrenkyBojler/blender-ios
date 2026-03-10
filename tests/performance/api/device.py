@@ -61,7 +61,7 @@ def get_gpu_device_backend(args: dict) -> list:
     try:
         gpu.init()
     except AttributeError:
-        # Fallback when not able to initialize the GPU module.
+        # `gpu.init` has been introduced in March 2026, previous versions are not able to access gpu module and require a fallback.
         original_gpu_backend = prefs.system.gpu_backend
         try:
             prefs.system.gpu_backend = gpu_backend
