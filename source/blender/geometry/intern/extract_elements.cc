@@ -88,7 +88,7 @@ Array<Mesh *> extract_mesh_edges(const Mesh &mesh,
     if (iter.data_type == bke::AttrType::String) {
       return;
     }
-    if (iter.name == ".edge_verts") {
+    if (iter.name == ".edge_verts"_ustr) {
       return;
     }
     if (attribute_filter.allow_skip(iter.name)) {

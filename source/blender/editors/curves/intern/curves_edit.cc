@@ -197,7 +197,7 @@ void duplicate_points(bke::CurvesGeometry &curves, const IndexMask &mask)
 
     switch (iter.domain) {
       case bke::AttrDomain::Curve: {
-        if (iter.name == "cyclic") {
+        if (iter.name == "cyclic"_ustr) {
           attribute.finish();
           return;
         }

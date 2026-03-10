@@ -83,7 +83,7 @@ static void propagate_edge_attributes(Mesh &mesh, const Span<int> new_to_old_edg
     if (iter.data_type == bke::AttrType::String) {
       return;
     }
-    if (iter.name == ".edge_verts") {
+    if (iter.name == ".edge_verts"_ustr) {
       /* Edge vertices are updated and combined with new edges separately. */
       return;
     }

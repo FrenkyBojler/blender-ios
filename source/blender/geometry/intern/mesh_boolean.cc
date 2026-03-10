@@ -139,7 +139,7 @@ void interpolate_corner_attributes(bke::MutableAttributeAccessor output_attrs,
     readers.append(input_attrs.lookup_or_default(iter.name, iter.domain, iter.data_type));
     srcs.append(*readers.last());
     dsts.append(writers.last().span);
-    is_normal_attribute.append(iter.name == "custom_normal");
+    is_normal_attribute.append(iter.name == "custom_normal"_ustr);
   });
 
   if (writers.is_empty()) {

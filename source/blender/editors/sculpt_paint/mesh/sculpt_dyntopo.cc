@@ -219,7 +219,7 @@ static wmOperatorStatus sculpt_dynamic_topology_toggle_exec(bContext *C, wmOpera
 
 static bool dyntopo_supports_layer(const bke::AttributeIter &iter)
 {
-  if (iter.data_type == bke::AttrType::Float && iter.name == ".sculpt_mask") {
+  if (iter.data_type == bke::AttrType::Float && iter.name == ".sculpt_mask"_ustr) {
     return true;
   }
   return BM_attribute_stored_in_bmesh_builtin(iter.name);

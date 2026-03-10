@@ -248,7 +248,7 @@ void GeometryDataSource::foreach_default_column_ids(
     }
     SpreadsheetColumnID column_id;
     column_id.name = const_cast<char *>(iter.name.c_str());
-    const bool is_front = iter.name == ".viewer";
+    const bool is_front = iter.name == ".viewer"_ustr;
     fn(column_id, is_front);
   });
 
