@@ -12,48 +12,35 @@ namespace blender::nodes::node_geo_input_instance_handle_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_output<decl::Int>("Handle ID").field_source();
-  // b.add_output<decl::String>("Name").field_source();
 }
 
-class InstanceBoundsField final : public bke::InstancesFieldInput {
- private:
-  bool return_max_;
-
+class InstanceHandleFieldInput final : public bke::InstancesFieldInput {
  public:
-  InstanceBoundsField(bool return_max)
-      : bke::InstancesFieldInput(CPPType::get<int>(), return_max ? "Max" : "Min"),
-        return_max_(return_max)
+  InstanceHandleFieldInput()
+      : bke::InstancesFieldInput(CPPType::get<int>(), "Handle")
   {
   }
-
   GVArray get_varray_for_context(const bke::Instances &instances,
-                                 const IndexMask &mask) const final
+                                 const IndexMask & /*mask*/) const final
   {
     const Span<int> handles = instances.reference_handles();
-    // const Span<bke::InstanceReference> references = instances.references();
-    // const Span<StringRef> instance_name = bke::Instances::instances.name();
-
     return VArray<int>::from_container(std::move(handles));
   }
 
   uint64_t hash() const override
   {
-    return get_default_hash(return_max_);
+    return 32374372;
   }
 
   bool is_equal_to(const fn::FieldNode &other) const override
   {
-    if (const auto *other_field = dynamic_cast<const InstanceBoundsField *>(&other)) {
-      return return_max_ == other_field->return_max_;
-    }
-    return false;
+    return dynamic_cast<const InstanceHandleFieldInput *>(&other) != nullptr;
   }
 };
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  params.set_output("Handle ID", Field<int>(std::make_shared<InstanceBoundsField>(false)));
-  // params.set_output("Name", Field<StringRef>(std::make_shared<InstanceBoundsField>(true)));
+  params.set_output("Handle ID", Field<int>(std::make_shared<InstanceHandleFieldInput>()));
 }
 
 static void node_register()
