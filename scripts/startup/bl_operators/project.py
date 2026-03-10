@@ -337,6 +337,22 @@ class PROJECT_OP_OpenBlendInProject(Operator):
         return {'RUNNING_MODAL'}
 
 
+class PROJECT_OP_AddVariable(Operator):
+    """Create a new project"""
+    bl_idname = "project.add_variable"
+    bl_label = "Add Variable"
+
+    @classmethod
+    def poll(cls, context):
+        return context.project.data is not None
+
+    def execute(self, context):
+        var = context.project.data.variables.new()
+        var.name = "My Variable"
+
+        return {'FINISHED'}
+
+
 # -------------------------------------------------------------
 # Auto-loading / clearing of projects when loading/saving blend files or
 # exiting.
@@ -388,6 +404,7 @@ classes = (
     PROJECT_OP_NewProject,
     PROJECT_OP_SaveProject,
     PROJECT_OP_OpenBlendInProject,
+    PROJECT_OP_AddVariable,
 )
 
 

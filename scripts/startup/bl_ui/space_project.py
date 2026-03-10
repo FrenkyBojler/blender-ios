@@ -293,6 +293,9 @@ class PROJECT_PT_variables(Panel, CenterAlignMixIn):
             active_propname="active_variable",
         )
 
+        col = row.column()
+        col.operator("project.add_variable", text="", icon='ADD')
+
 
 # -------------------------------------------------------------
 # Register
