@@ -139,11 +139,11 @@ class Action : public bAction {
   /**
    * Sets the given layer to be the active layer of the action.
    */
-  void layer_set_active(Layer &layer);
+  void layer_active_set(Layer &layer);
   /**
    * Return the active layer or a nullptr if there is none.
    */
-  Layer *layer_get_active();
+  Layer *layer_active_get();
 
   /**
    * Ensure that there is at least one layer with the infinite keyframe strip.
