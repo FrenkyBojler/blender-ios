@@ -10,6 +10,7 @@
 #include "DNA_collection_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_gpencil_legacy_types.h"
+#include "DNA_key_types.h"
 #include "DNA_layer_types.h"
 #include "DNA_light_types.h"
 #include "DNA_lightprobe_types.h"
@@ -17,7 +18,6 @@
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_text_types.h"
-#include "DNA_key_types.h"
 
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
