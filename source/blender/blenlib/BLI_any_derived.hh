@@ -52,6 +52,10 @@ template<typename T> struct AnyDerivedExtraInfo {
  * #AnyDerived has small buffer optimization. So if the type is small, it can be stored directly
  * without an additional allocation.
  *
+ * If all derived types are known where the type is used, it can be more efficient to use
+ * std::variant<Derived1, Derived2, ...> instead. #AnyDerived uses type erasure through the use of
+ * #Any and therefore works even when not all used derived types are known.
+ *
  * This is used extensively for virtual arrays. Each type of virtual array is implemented as
  * subclass of #VArrayImpl while #VArray actually stores a specific implementation.
  *
