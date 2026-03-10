@@ -547,15 +547,19 @@ void Film::update_passes(Scene *scene)
     if (integrator->get_use_denoise_pass_albedo()) {
       add_auto_pass(scene, PASS_DENOISING_ALBEDO);
     }
+    if (integrator->get_use_denoise_pass_specular_albedo()) {
+      add_auto_pass(scene, PASS_DENOISING_SPECULAR_ALBEDO);
+    }
     if (integrator->get_use_denoise_pass_normal()) {
       add_auto_pass(scene, PASS_DENOISING_NORMAL);
     }
     if (integrator->get_use_denoise_pass_roughness()) {
-      add_auto_pass(scene, PASS_DENOISING_SPECULAR_ALBEDO);
       add_auto_pass(scene, PASS_DENOISING_ROUGHNESS);
     }
-    if (integrator->get_use_denoise_pass_depth_and_motion()) {
+    if (integrator->get_use_denoise_pass_depth()) {
       add_auto_pass(scene, PASS_DENOISING_DEPTH);
+    }
+    if (integrator->get_use_denoise_pass_motion()) {
       add_auto_pass(scene, PASS_MOTION);
     }
   }
