@@ -6735,7 +6735,8 @@ static void rna_def_space_sequencer(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "show_scrubbing_region", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", SEQ_SHOW_SCRUBBING_REGION);
-  RNA_def_property_ui_text(prop, "Show Scrubbing Region", "Show the scrubbing region in Sequnecer");
+  RNA_def_property_ui_text(
+      prop, "Show Scrubbing Region", "Show the scrubbing region in Sequnecer");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
   /* Annotations */
   prop = RNA_def_property(srna, "annotation", PROP_POINTER, PROP_NONE);

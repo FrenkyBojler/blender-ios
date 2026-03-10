@@ -1134,7 +1134,7 @@ static bool scrubbing_region_poll(const RegionPollParams *params)
   return sseq->flag & SEQ_SHOW_SCRUBBING_REGION;
 }
 
-static void scrubbing_region_init(wmWindowManager */* wm */, ARegion *region)
+static void scrubbing_region_init(wmWindowManager * /* wm */, ARegion *region)
 {
   view2d_region_reinit(&region->v2d, ui::V2D_COMMONVIEW_CUSTOM, region->winx, region->winy);
 }
@@ -1269,7 +1269,8 @@ void ED_spacetype_sequencer()
   art = MEM_new_zeroed<ARegionType>("spacetype sequencer region");
   art->regionid = RGN_TYPE_PREVIEW_SCRUBBING;
   art->prefsizey = HEADERY;
-  art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FOOTER | ED_KEYMAP_FRAMES | ED_KEYMAP_ANIMATION;
+  art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FOOTER | ED_KEYMAP_FRAMES |
+                    ED_KEYMAP_ANIMATION;
   art->init = scrubbing_region_init;
   art->poll = scrubbing_region_poll;
   art->draw = seq_scrubbing_draw;
