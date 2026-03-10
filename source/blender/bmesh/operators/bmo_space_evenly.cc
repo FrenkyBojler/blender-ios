@@ -90,7 +90,7 @@ static BMEdge *get_opposite_edge_in_face(BMEdge *edge, BMFace *face)
 }
 
 /** Flood fill across opposite edges of even-sided faces to collect parallel edges. */
-static void collect_parallel_edges(BMesh *bm, Set<BMEdge *> &r_candidates)
+static void collect_parallel_edges(BMesh *bm)
 {
   Vector<BMEdge *> edges_to_visit;
 
@@ -98,7 +98,6 @@ static void collect_parallel_edges(BMesh *bm, Set<BMEdge *> &r_candidates)
   BMEdge *edge;
   BM_ITER_MESH (edge, &iter, bm, BM_EDGES_OF_MESH) {
     if (BM_elem_flag_test(edge, BM_ELEM_TAG) && !BM_elem_flag_test(edge, BM_ELEM_HIDDEN)) {
-      r_candidates.add(edge);
       edges_to_visit.append(edge);
     }
   }
@@ -110,8 +109,8 @@ static void collect_parallel_edges(BMesh *bm, Set<BMEdge *> &r_candidates)
     BM_ITER_ELEM (f, &fiter, current, BM_FACES_OF_EDGE) {
       if (!BM_elem_flag_test(f, BM_ELEM_HIDDEN)) {
         BMEdge *opposite = get_opposite_edge_in_face(current, f);
-        if (opposite && !r_candidates.contains(opposite)) {
-          r_candidates.add(opposite);
+        if (opposite && !BM_elem_flag_test(opposite, BM_ELEM_TAG)) {
+          BM_elem_flag_enable(opposite, BM_ELEM_TAG);
           edges_to_visit.append(opposite);
         }
       }
@@ -123,10 +122,7 @@ static void collect_parallel_edges(BMesh *bm, Set<BMEdge *> &r_candidates)
  * Return the next unvisited candidate edge connected to v,
  * preferring the edge that continues e_prev most directly.
  */
-static BMEdge *get_next_space_edge(BMVert *v,
-                                   BMEdge *e_prev,
-                                   const Set<BMEdge *> &candidates,
-                                   Set<BMEdge *> &r_visited)
+static BMEdge *get_next_space_edge(BMVert *v, BMEdge *e_prev, Set<BMEdge *> &r_visited)
 {
   BMEdge *best_edge = nullptr;
   float best_straightness = -1.0f;
@@ -140,7 +136,7 @@ static BMEdge *get_next_space_edge(BMVert *v,
       continue;
     }
 
-    if (candidates.contains(e_next)) {
+    if (BM_elem_flag_test(e_next, BM_ELEM_TAG)) {
       BMVert *vert_ahead = BM_edge_other_vert(e_next, v);
       float3 outgoing_dir = math::normalize(float3(vert_ahead->co) - float3(v->co));
       float straightness = math::dot(incoming_dir, outgoing_dir);
@@ -157,9 +153,7 @@ static BMEdge *get_next_space_edge(BMVert *v,
 /**
  * Walk from start_edge in both directions and return the resulting vertex chain.
  */
-static SpaceChainData walk_edges(BMEdge *start_edge,
-                                 const Set<BMEdge *> &candidates,
-                                 Set<BMEdge *> &r_visited)
+static SpaceChainData walk_edges(BMEdge *start_edge, Set<BMEdge *> &r_visited)
 {
   SpaceChainData chain_data;
   chain_data.verts.append(start_edge->v1);
@@ -168,7 +162,7 @@ static SpaceChainData walk_edges(BMEdge *start_edge,
 
   auto walk_fn = [&](BMVert *curr_v, BMEdge *curr_e, Vector<BMVert *> &list) {
     while (true) {
-      BMEdge *next_e = get_next_space_edge(curr_v, curr_e, candidates, r_visited);
+      BMEdge *next_e = get_next_space_edge(curr_v, curr_e, r_visited);
       if (!next_e) {
         break;
       }
@@ -210,28 +204,16 @@ static SpaceChainData walk_edges(BMEdge *start_edge,
 static void get_space_input_chains(BMesh *bm, bool use_parallel, Vector<SpaceChainData> &r_chains)
 {
   Set<BMEdge *> visited;
-  Set<BMEdge *> candidates;
-
   if (use_parallel) {
-    collect_parallel_edges(bm, candidates);
+    collect_parallel_edges(bm);
   }
-  else {
-    BMIter iter;
-    BMEdge *edge;
-    BM_ITER_MESH (edge, &iter, bm, BM_EDGES_OF_MESH) {
-      if (BM_elem_flag_test(edge, BM_ELEM_TAG) && !BM_elem_flag_test(edge, BM_ELEM_HIDDEN)) {
-        candidates.add(edge);
-      }
-    }
-  }
-
   BMIter iter;
   BMEdge *edge;
   BM_ITER_MESH (edge, &iter, bm, BM_EDGES_OF_MESH) {
-    if (!candidates.contains(edge) || visited.contains(edge)) {
+    if (!BM_elem_flag_test(edge, BM_ELEM_TAG) || visited.contains(edge)) {
       continue;
     }
-    SpaceChainData chain = walk_edges(edge, candidates, visited);
+    SpaceChainData chain = walk_edges(edge, visited);
     if (chain.verts.size() < 3) {
       continue;
     }
