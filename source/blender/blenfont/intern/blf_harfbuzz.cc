@@ -88,21 +88,13 @@ blender::Vector<hb_feature_t> blf_font_otf_features_default()
 bool ShapingData::load_from_cache(FontBLF *font, GlyphCacheBLF *gc, const char *str, size_t len)
 {
   const CachedString *cached = gc->shaping_cache.lookup_ptr(str);
-  if (cached == nullptr) {
+  if (cached == nullptr || cached->str_len != len) {
     return false;
   }
 
-  const size_t glyph_count = cached->glyphs.size();
-
-  if (glyph_count == 0 || glyph_count != len) {
-    return false;
-  }
-
-  this->glyphs = blender::Array<ShapedGlyph>(glyph_count);
-  for (int i = 0; i < glyph_count; i++) {
-    GlyphBLF *g = blf_glyph_ensure(
-        font, gc, cached->glyphs[i].charcode, cached->glyphs[i].glyph_id);
-    this->glyphs[i] = {font, gc, g, cached->glyphs[i].bounds, cached->glyphs[i].index_utf8};
+  for (const CachedGlyph &glyph : cached->glyphs) {
+    GlyphBLF *g = blf_glyph_ensure(font, gc, glyph.charcode, glyph.glyph_id);
+    this->glyphs.append({font, gc, g, glyph.bounds, glyph.index_utf8});
   }
   this->width = cached->width;
   this->height = cached->height;
@@ -120,7 +112,7 @@ ShapingData::ShapingData(FontBLF *font,
     return;
   }
 
-  if (load_from_cache(font, gc, str, len)) {
+  if (!features && load_from_cache(font, gc, str, len)) {
     return;
   }
 
@@ -244,7 +236,6 @@ ShapingData::ShapingData(FontBLF *font,
     uint glyph_count;
     hb_glyph_info_t *hb_glyph_info = hb_buffer_get_glyph_infos(hb_buf, &glyph_count);
     hb_glyph_position_t *glyph_pos = hb_buffer_get_glyph_positions(hb_buf, nullptr);
-    this->glyphs = blender::Array<ShapedGlyph>(glyph_count);
 
     size_t str8_offset = 0;
     for (i = 0; i < glyph_count; i++) {
@@ -270,7 +261,7 @@ ShapingData::ShapingData(FontBLF *font,
                      glyph_pos[i].y_offset,
                      g->box_ymax + glyph_pos[i].y_offset};
 
-      this->glyphs[i] = {segment_font, segment_gc, g, bounds, str8_offset};
+      this->glyphs.append({segment_font, segment_gc, g, bounds, str8_offset});
       str8_offset += BLI_str_utf8_from_unicode_len(codepoint);
       pen_x += advance;
       max_height = std::max(g->box_ymax - g->box_ymin, max_height);
@@ -291,14 +282,18 @@ ShapingData::ShapingData(FontBLF *font,
     hb_buffer_destroy(hb_buf);
   }
 
-  if (gc && single_gc && char_count < 64 && !gc->shaping_cache.contains(str)) {
+  const size_t glyph_count = this->glyphs.size();
+  if (gc && single_gc && glyph_count > 0 && glyph_count < 64 && !gc->shaping_cache.contains(str)) {
     CachedString cache_string;
+    cache_string.str_len = len;
     cache_string.width = this->width;
     cache_string.height = this->height;
-    cache_string.glyphs = Array<CachedGlyph>(this->glyphs.size(), NoInitialization());
-    for (int i = 0; i < this->glyphs.size(); i++) {
-      const ShapedGlyph &glyph = this->glyphs[i];
-      cache_string.glyphs[i] = {glyph.g->idx, glyph.g->c, glyph.bounds, glyph.index_utf8};
+    cache_string.glyphs = Array<CachedGlyph>(glyph_count, NoInitialization());
+    for (int i = 0; i < glyph_count; i++) {
+      cache_string.glyphs[i] = {this->glyphs[i].g->idx,
+                                this->glyphs[i].g->c,
+                                this->glyphs[i].bounds,
+                                this->glyphs[i].index_utf8};
     }
     gc->shaping_cache.add_new(str, cache_string);
   }

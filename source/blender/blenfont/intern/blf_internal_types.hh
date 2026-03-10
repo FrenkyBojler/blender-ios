@@ -120,6 +120,7 @@ struct CachedGlyph {
 
 struct CachedString {
   blender::Array<CachedGlyph> glyphs;
+  uint32_t str_len = 0;
   ft_pix width = 0;
   ft_pix height = 0;
   uint32_t freq = 0; /* Use-count for LFU eviction. */
@@ -198,7 +199,7 @@ struct ShapedGlyph {
 };
 
 struct ShapingData {
-  blender::Array<ShapedGlyph> glyphs;
+  blender::Vector<ShapedGlyph> glyphs = {};
   ft_pix width = 0;
   ft_pix height = 0;
   ShapingData(FontBLF *font,
