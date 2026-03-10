@@ -343,7 +343,6 @@ enum PassType {
   PASS_DENOISING_NORMAL,
   PASS_DENOISING_ROUGHNESS,
   PASS_DENOISING_DEPTH,
-  PASS_DENOISING_PREVIOUS,
   PASS_RENDER_TIME,
 
   /* PASS_SHADOW_CATCHER accumulates contribution of shadow catcher object which is not affected by
@@ -372,12 +371,14 @@ enum PassType {
    * When reading this pass, it is converted to majorant transmittance */
   PASS_VOLUME_MAJORANT,
   PASS_VOLUME_MAJORANT_SAMPLE_COUNT,
-  PASS_CATEGORY_DATA_END = 65,
+  PASS_CATEGORY_DATA_END = 63,
 
   PASS_BAKE_PRIMITIVE,
   PASS_BAKE_SEED,
   PASS_BAKE_DIFFERENTIAL,
   PASS_CATEGORY_BAKE_END = 95,
+
+  PASS_DENOISING_PREVIOUS,
 
   PASS_NUM,
 };

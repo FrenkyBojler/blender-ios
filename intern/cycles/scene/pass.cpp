@@ -378,13 +378,6 @@ PassInfo Pass::get_info(const PassType type,
       pass_info.use_filter = false;
       break;
 
-    case PASS_CATEGORY_LIGHT_END:
-    case PASS_CATEGORY_DATA_END:
-    case PASS_CATEGORY_BAKE_END:
-    case PASS_NUM:
-      LOG_DFATAL << "Unexpected pass type is used " << type;
-      pass_info.num_components = 0;
-      break;
     case PASS_GUIDING_COLOR:
       pass_info.num_components = 3;
       break;
@@ -393,6 +386,11 @@ PassInfo Pass::get_info(const PassType type,
       break;
     case PASS_GUIDING_AVG_ROUGHNESS:
       pass_info.num_components = 1;
+      break;
+
+    default:
+      LOG_DFATAL << "Unexpected pass type is used " << type;
+      pass_info.num_components = 0;
       break;
   }
 
