@@ -83,6 +83,7 @@ set(SRC
   nodes/node_composite_mask_to_sdf.cc
   nodes/node_composite_movie_clip.cc
   nodes/node_composite_movie_distortion.cc
+  nodes/node_composite_new_image.cc
   nodes/node_composite_normal.cc
   nodes/node_composite_normalize.cc
   nodes/node_composite_pixelate.cc

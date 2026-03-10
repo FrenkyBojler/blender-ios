@@ -10224,6 +10224,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("CompositorNode", "CompositorNodeMask", def_cmp_mask);
   define("CompositorNode", "CompositorNodeMovieClip", def_cmp_movieclip);
   define("CompositorNode", "CompositorNodeMovieDistortion", def_cmp_moviedistortion);
+  define("CompositorNode", "CompositorNodeNewImage");
   define("CompositorNode", "CompositorNodeNormal");
   define("CompositorNode", "CompositorNodeNormalize");
   define("CompositorNode", "CompositorNodeOutputFile", def_cmp_file_output);
