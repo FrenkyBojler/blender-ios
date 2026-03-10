@@ -1877,7 +1877,7 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
   bone->rad_tail = 0.05f * length;
   bone->dist = 0.25f * length;
 
-  bArmature arm = id_cast<bArmature *>(obedit->data);
+  bArmature *arm = id_cast<bArmature *>(obedit->data);
   if (BLI_listbase_is_empty(&bone->bone_collections) && (arm->flag & ARM_BCOLL_SOLO_ACTIVE)) {
     BKE_report(op->reports,
                RPT_WARNING,
@@ -1898,23 +1898,22 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
   /* Bone head to cursor position. */
   copy_v3_v3(bone->head, curs);
 
-  float3 tail_vector = bone_orient_mat * float3(0.0f, 0.0f, 1.0f);
-  tail_vector *= length;
+  const float3 tail_vector = bone_orient_mat * float3(0.0f, 0.0f, 1.0f) * length;
   add_v3_v3v3(bone->tail, bone->head, tail_vector);
 
   const bool needs_bone_roll = (ELEM(align, BoneAlign::CURSOR_3D, BoneAlign::VIEW_3D) ||
                                 space == BoneSpace::WORLD);
 
   if (needs_bone_roll) {
-    tail_vector = math::normalize(bone_orient_mat[1]) * length;
-    add_v3_v3v3(bone->tail, bone->head, tail_vector);
+    const float3 tail_vector_normalized = math::normalize(bone_orient_mat[1]) * length;
+    add_v3_v3v3(bone->tail, bone->head, tail_vector_normalized);
 
     /* Compute bone roll so its local Z aligns with desired Z axis. */
     bone->roll = ED_armature_ebone_roll_to_vector(bone, roll_vector, false);
   }
 
   /* Disable Deform if applicable. */
-  bool deform = RNA_boolean_get(op->ptr, "deform");
+  const bool deform = RNA_boolean_get(op->ptr, "deform");
   if (!deform) {
     bone->flag |= BONE_NO_DEFORM;
   }
