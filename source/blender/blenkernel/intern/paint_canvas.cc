@@ -125,7 +125,7 @@ std::optional<UString> BKE_paint_canvas_uvmap_name_get(const PaintModeSettings *
 std::string BKE_paint_canvas_key_get(PaintModeSettings *settings, Object *ob)
 {
   std::stringstream ss;
-  ss << "UV_MAP:" << BKE_paint_canvas_uvmap_name_get(settings, ob).value_or({}).ref();
+  ss << "UV_MAP:" << BKE_paint_canvas_uvmap_name_get(settings, ob).value_or(""_ustr).ref();
 
   Image *image;
   ImageUser *image_user;

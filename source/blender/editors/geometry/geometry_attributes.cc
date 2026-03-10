@@ -530,7 +530,8 @@ static wmOperatorStatus geometry_color_attribute_add_exec(bContext *C, wmOperato
         return OPERATOR_CANCELLED;
       }
       BKE_id_attributes_active_color_set(id, unique_name.ref());
-      if (!BKE_id_attributes_color_find(id, BKE_id_attributes_default_color_name(id).value_or({})))
+      if (!BKE_id_attributes_color_find(
+              id, BKE_id_attributes_default_color_name(id).value_or(""_ustr)))
       {
         BKE_id_attributes_default_color_set(id, unique_name.ref());
       }
@@ -548,7 +549,9 @@ static wmOperatorStatus geometry_color_attribute_add_exec(bContext *C, wmOperato
                  bke::AttributeInitDefaultValue());
 
   BKE_id_attributes_active_color_set(id, unique_name.ref());
-  if (!BKE_id_attributes_color_find(id, BKE_id_attributes_default_color_name(id).value_or({}))) {
+  if (!BKE_id_attributes_color_find(id,
+                                    BKE_id_attributes_default_color_name(id).value_or(""_ustr)))
+  {
     BKE_id_attributes_default_color_set(id, unique_name.ref());
   }
   sculpt_paint::object_active_color_fill(*ob, color, false);
@@ -817,7 +820,7 @@ static wmOperatorStatus geometry_color_attribute_remove_exec(bContext *C, wmOper
 {
   Object *ob = object::context_object(C);
   ID *id = ob->data;
-  const UString active_name = BKE_id_attributes_active_color_name(id).value_or({});
+  const UString active_name = BKE_id_attributes_active_color_name(id).value_or(""_ustr);
   if (active_name.is_empty()) {
     return OPERATOR_CANCELLED;
   }
@@ -841,7 +844,9 @@ static bool geometry_color_attributes_remove_poll(bContext *C)
   const Object *ob = object::context_object(C);
   const ID *data = ob->data;
 
-  if (BKE_id_attributes_color_find(data, BKE_id_attributes_active_color_name(data).value_or({}))) {
+  if (BKE_id_attributes_color_find(data,
+                                   BKE_id_attributes_active_color_name(data).value_or(""_ustr)))
+  {
     return true;
   }
 
@@ -906,7 +911,9 @@ static bool geometry_color_attributes_duplicate_poll(bContext *C)
   const Object *ob = object::context_object(C);
   const ID *data = ob->data;
 
-  if (BKE_id_attributes_color_find(data, BKE_id_attributes_active_color_name(data).value_or({}))) {
+  if (BKE_id_attributes_color_find(data,
+                                   BKE_id_attributes_active_color_name(data).value_or(""_ustr)))
+  {
     return true;
   }
 

@@ -801,7 +801,7 @@ static wmOperatorStatus curves_set_selection_domain_exec(bContext *C, wmOperator
      *
      * This would be unnecessary if the active attribute were stored as a string on the ID. */
     AttributeOwner owner = AttributeOwner::from_id(&curves_id->id);
-    const UString active_attribute = BKE_attributes_active_name_get(owner).value_or({});
+    const UString active_attribute = BKE_attributes_active_name_get(owner).value_or(""_ustr);
     for (const UString selection_name : get_curves_selection_attribute_names(curves)) {
       if (const GVArray src = *attributes.lookup(selection_name, domain)) {
         const CPPType &type = src.type();
