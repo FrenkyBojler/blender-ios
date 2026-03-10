@@ -286,8 +286,9 @@ mf::Variable *MultiFunctionProcedureOperation::get_constant_input_variable(
       break;
     }
     case SOCK_ROTATION: {
-      const bNodeSocketValueRotation *vec = input.default_value_typed<bNodeSocketValueRotation>();
-      const math::EulerXYZ euler(float3(vec->value_euler));
+      const bNodeSocketValueRotation *rotation =
+          input.default_value_typed<bNodeSocketValueRotation>();
+      const math::EulerXYZ euler(float3(rotation->value_euler));
       const math::Quaternion value = math::to_quaternion(euler);
       constant_function = &procedure_.construct_function<mf::CustomMF_Constant<math::Quaternion>>(
           value);

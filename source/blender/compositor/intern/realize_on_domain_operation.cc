@@ -168,8 +168,8 @@ const char *RealizeOnDomainOperation::get_realization_shader_name()
       case ResultType::Menu:
         return "compositor_realize_on_domain_menu";
       case ResultType::Rotation:
-        /* Quaternion interpolation requires SLERP, fall back to nearest neighbor. */
-        return "compositor_realize_on_domain_float4";
+        /* Rotations are stored as unit quaternions (float4). */
+        return "compositor_realize_on_domain_bicubic_float4";
       case ResultType::String:
       case ResultType::Object:
       case ResultType::Image:
@@ -210,6 +210,7 @@ const char *RealizeOnDomainOperation::get_realization_shader_name()
       case ResultType::Menu:
         return "compositor_realize_on_domain_menu";
       case ResultType::Rotation:
+        /* Rotations are stored as unit quaternions (float4). */
         return "compositor_realize_on_domain_float4";
       case ResultType::String:
       case ResultType::Object:
