@@ -373,8 +373,8 @@ static void do_paint_brush_task(const Depsgraph &depsgraph,
   tls.distances.resize(verts.size());
   const MutableSpan<float> distances = tls.distances;
   if (brush.tip_roundness < 1.0f) {
-    tls.xy_positions.resize(tls.positions.size());
-    tls.z_positions.resize(tls.positions.size());
+    tls.xy_positions.resize(verts.size());
+    tls.z_positions.resize(verts.size());
     MutableSpan<float2> xy_positions = tls.xy_positions;
     MutableSpan<float> z_positions = tls.z_positions;
     calc_local_positions(mat, verts, vert_positions, tls.xy_positions, tls.z_positions);
