@@ -74,7 +74,7 @@ class MaxDownloadSizeTest(unittest.TestCase):
         downloader.max_size_bytes = 100
 
         mock_response = MagicMock()
-        mock_response.headers = {"Content-Length": "200", "Content-Encoding": "text/plain"}
+        mock_response.headers = {"Content-Length": "200", "Content-Type": "text/plain"}
         mock_response.status_code = 200
         # When used as context manager, return itself.
         mock_response.__enter__.return_value = mock_response
