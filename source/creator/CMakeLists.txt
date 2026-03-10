@@ -1168,10 +1168,29 @@ elseif(WIN32)
           ${SDK_SEARCH_DIR}
       )
       if(PDBCOPY_EXECUTABLE)
+        # This is a bit gnarly since add_custom_command does not allow you to specify a configuration
+        # so we make the debug configuration do an echo . while everyone else executes the actual strip.
+        # Semicolons are used to seperate arguments otherwise the space in PDBCOPY_EXECUTABLE will make
+        # things "unhappy" 
+        string(
+          APPEND _pdb_cmd_1
+          "$<IF:$<CONFIG:Debug>,"
+            "${CMAKE_COMMAND};-E;echo;.,"
+            "${CMAKE_COMMAND};-E;rm;-f;${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/blender_public.pdb"
+          ">"
+        )        
+        string(
+          APPEND _pdb_cmd_2
+          "$<IF:$<CONFIG:Debug>,"
+            "${CMAKE_COMMAND};-E;echo;.,"
+            "${PDBCOPY_EXECUTABLE};$<TARGET_PDB_FILE:blender>;${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/blender_public.pdb;-p"
+          ">"
+        )
         add_custom_command(
           TARGET blender POST_BUILD
-          COMMAND $<$<NOT:$<CONFIG:Debug>>:${CMAKE_COMMAND} -E rm -f ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/blender_public.pdb>
-          COMMAND $<$<NOT:$<CONFIG:Debug>>:${PDBCOPY_EXECUTABLE} $<TARGET_PDB_FILE:blender> ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/blender_public.pdb -p>
+          COMMAND "${_pdb_cmd_1}"
+          COMMAND "${_pdb_cmd_2}"
+          COMMAND_EXPAND_LISTS
           COMMENT "Stripping PDB file..."
         )
       else()
