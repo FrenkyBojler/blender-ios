@@ -613,9 +613,8 @@ GVArray EvaluateAtIndexInput::get_varray_for_context(const bke::GeometryFieldCon
 
   GArray<> dst_array(values.type(), mask.min_array_size());
   IndexMaskMemory memory;
-  const int size = values.size();
-  const IndexMask valid_mask = IndexMask::from_predicate(
-      mask, memory, [&](const int64_t i) { return indices[i] >= 0 && indices[i] < size; });
+  const IndexMask valid_mask = array_utils::indices_in_range(
+      mask, indices, values.index_range(), memory);
   bke::attribute_math::gather(values, indices, valid_mask, dst_array);
   dst_array.type().value_initialize_indices(dst_array.data(), valid_mask.complement(mask, memory));
   return GVArray::from_garray(std::move(dst_array));
@@ -695,9 +694,8 @@ void SampleIndexFunction::call(const IndexMask &mask,
   }
 
   IndexMaskMemory memory;
-  const int size = src_data_->size();
-  const IndexMask valid_mask = IndexMask::from_predicate(
-      mask, memory, [&](const int64_t i) { return indices[i] >= 0 && indices[i] < size; });
+  const IndexMask valid_mask = array_utils::indices_in_range(
+      mask, indices, src_data_->index_range(), memory);
   bke::attribute_math::gather(*src_data_, indices, valid_mask, dst);
   dst.type().value_initialize_indices(dst.data(), valid_mask.complement(mask, memory));
 }
@@ -941,13 +939,13 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
   bool success = true;
 
   for (const int input_index : names.index_range()) {
-    const StringRef id = names[input_index];
+    const StringRef name = names[input_index];
     const CPPType &type = fields[input_index].cpp_type();
     const bke::AttrType data_type = bke::cpp_type_to_attribute_type(type);
 
     /* Avoid adding or writing to builtin attributes with an incorrect type or domain. */
     if (const std::optional<AttributeDomainAndType> meta_data =
-            attributes.get_builtin_domain_and_type(id))
+            attributes.get_builtin_domain_and_type(name))
     {
       if (*meta_data != AttributeDomainAndType{domain, data_type}) {
         success = false;
@@ -955,11 +953,11 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
       }
     }
 
-    const AttributeValidator validator = attributes.lookup_validator(id);
+    const AttributeValidator validator = attributes.lookup_validator(name);
     const fn::GField field = validator.validate_field_if_necessary(fields[input_index]);
 
     /* We are writing to an attribute that exists already with the correct domain and type. */
-    if (const GAttributeReader dst = attributes.lookup(id)) {
+    if (const GAttributeReader dst = attributes.lookup(name)) {
       if (dst.domain == domain && dst.varray.type() == field.cpp_type()) {
         const int evaluator_index = evaluator.add(field);
         results_to_store.append({input_index, evaluator_index});
@@ -968,7 +966,7 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
     }
 
     if (!validator && selection_is_full) {
-      if (try_add_shared_field_attribute(attributes, id, domain, field)) {
+      if (try_add_shared_field_attribute(attributes, name, domain, field)) {
         continue;
       }
     }
@@ -979,7 +977,7 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
       void *buffer = MEM_new_uninitialized_aligned(
           type.size * domain_size, type.alignment, __func__);
       if (!selection_is_full) {
-        initialize_new_data(attributes, domain, domain_size, id, type, data_type, buffer);
+        initialize_new_data(attributes, domain, domain_size, name, type, data_type, buffer);
       }
 
       GMutableSpan dst(type, buffer, domain_size);
@@ -997,31 +995,31 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
   const IndexMask &mask = evaluator.get_evaluated_selection_as_mask();
 
   for (const StoreResult &result : results_to_store) {
-    const StringRef id = names[result.input_index];
+    const StringRef name = names[result.input_index];
     const GVArray &result_data = evaluator.get_evaluated(result.evaluator_index);
     const CommonVArrayInfo info = result_data.common_info();
     if (selection_is_full) {
       if (info.type == CommonVArrayInfo::Type::Single) {
-        if (try_assign_single_value(attributes, id, GPointer(result_data.type(), info.data))) {
+        if (try_assign_single_value(attributes, name, GPointer(result_data.type(), info.data))) {
           continue;
         }
       }
     }
-    const GAttributeReader dst = attributes.lookup(id);
+    const GAttributeReader dst = attributes.lookup(name);
     if (!attribute_data_matches_varray(dst, info)) {
-      GSpanAttributeWriter dst_mut = attributes.lookup_for_write_span(id);
+      GSpanAttributeWriter dst_mut = attributes.lookup_for_write_span(name);
       array_utils::copy(result_data, mask, dst_mut.span);
       dst_mut.finish();
     }
   }
 
   for (AddResult &result : results_to_add) {
-    const StringRef id = names[result.input_index];
-    attributes.remove(id);
+    const StringRef name = names[result.input_index];
+    attributes.remove(name);
     const CPPType &type = fields[result.input_index].cpp_type();
     const bke::AttrType data_type = bke::cpp_type_to_attribute_type(type);
     if (auto *array = std::get_if<AddResult::Array>(&result.new_data)) {
-      if (!attributes.add(id, domain, data_type, AttributeInitMoveArray(array->data))) {
+      if (!attributes.add(name, domain, data_type, AttributeInitMoveArray(array->data))) {
         /* If the name corresponds to a builtin attribute, removing the attribute might fail if
          * it's required, adding the attribute might fail if the domain or type is incorrect. */
         type.destruct_n(array->data, domain_size);
@@ -1032,7 +1030,7 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
     else {
       const auto value = std::get<AddResult::Single>(result.new_data);
       const AttributeInitValue init(GPointer(type, value.value));
-      if (!attributes.add(id, domain, data_type, init)) {
+      if (!attributes.add(name, domain, data_type, init)) {
         success = false;
       }
     }

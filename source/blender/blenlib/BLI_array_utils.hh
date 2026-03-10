@@ -237,7 +237,7 @@ inline void gather(const VArray<T> &src,
                    MutableSpan<T> dst,
                    const Mode mode = {})
 {
-  BLI_assert(indices.size() == dst.size());
+  BLI_assert(indices.size() >= dst_mask.min_array_size());
   const CommonVArrayInfo info = src.common_info();
   switch (info.type) {
     case CommonVArrayInfo::Type::Any: {
@@ -251,7 +251,7 @@ inline void gather(const VArray<T> &src,
       break;
     }
     case CommonVArrayInfo::Type::Single: {
-      std::fill_n(dst.data(), dst.size(), *static_cast<const T *>(info.data));
+      index_mask::masked_fill(dst, *static_cast<const T *>(info.data), dst_mask);
       break;
     }
   }
@@ -358,6 +358,16 @@ inline BooleanMix booleans_mix_calc(const VArray<bool> &varray)
 
 /** Check if the value exists in the array. */
 bool contains(const VArray<bool> &varray, const IndexMask &indices_to_check, bool value);
+
+/** Return indices in the mask that are non-negative. */
+IndexMask indices_non_negative(const IndexMask &universe,
+                               Span<int> values,
+                               LinearAllocator<> &memory);
+/** Return indices in the mask that are not negative and less than the given size. */
+IndexMask indices_in_range(const IndexMask &universe,
+                           Span<int> values,
+                           IndexRange range,
+                           LinearAllocator<> &memory);
 
 /**
  * Finds all the index ranges for which consecutive values in \a span equal \a value.
