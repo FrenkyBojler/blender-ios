@@ -116,19 +116,6 @@ static SpaceLink *sequencer_create(const ScrArea * /*area*/, const Scene *scene)
   region->regiontype = RGN_TYPE_PREVIEW_SCRUBBING;
   region->alignment = RGN_ALIGN_BOTTOM;
 
-  region->v2d.tot.xmin = 0.0f;
-  region->v2d.tot.ymin = 0.0f;
-  region->v2d.tot.xmax = scene->r.efra;
-  region->v2d.tot.ymax = 8.5f;
-
-  region->v2d.cur = region->v2d.tot;
-
-  region->v2d.min[0] = 10.0f;
-  region->v2d.min[1] = 1.0f;
-
-  region->v2d.max[0] = MAXFRAMEF;
-  region->v2d.max[1] = 1.0f;
-
   /* Buttons/list view. */
   region = BKE_area_region_new();
 
@@ -1136,7 +1123,9 @@ static bool scrubbing_region_poll(const RegionPollParams *params)
 
 static void scrubbing_region_init(wmWindowManager * /* wm */, ARegion *region)
 {
-  view2d_region_reinit(&region->v2d, ui::V2D_COMMONVIEW_CUSTOM, region->winx, region->winy);
+  view2d_region_reinit(&region->v2d, ui::V2D_COMMONVIEW_STANDARD, region->winx, region->winy);
+  region->v2d.keepzoom = (V2D_LOCKZOOM_X | V2D_LOCKZOOM_Y);
+  region->v2d.keepofs = (V2D_LOCKOFS_X | V2D_LOCKOFS_Y);
 }
 
 static void sequencer_scrubbing_region_listener(const wmRegionListenerParams *params)
