@@ -4,6 +4,9 @@
 
 import platform
 import subprocess
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def get_cpu_name() -> str:
@@ -22,13 +25,13 @@ def get_cpu_name() -> str:
     return "Unknown CPU"
 
 
-def get_gpu_device_cycles(args: None) -> list:
+def get_gpu_device_cycles(args: None) -> dict:
     # Get the list of available Cycles GPU devices.
     import bpy
 
     prefs = bpy.context.preferences
     if 'cycles' not in prefs.addons.keys():
-        return []
+        return {'devices': []}
     cprefs = prefs.addons['cycles'].preferences
 
     result = []
@@ -45,10 +48,10 @@ def get_gpu_device_cycles(args: None) -> list:
                 if device.type in {"OPTIX"}:
                     result.append({'type': f"{device.type}-OSL", 'name': device.name, 'index': index})
                 index += 1
-    return result
+    return {'devices': result}
 
 
-def get_gpu_device_backend(args: dict) -> list:
+def get_gpu_device_backend(args: dict) -> dict:
 
     import bpy
     import gpu
@@ -75,21 +78,33 @@ def get_gpu_device_backend(args: dict) -> list:
         if gpu.platform.backend_type_get() == args['gpu_backend'].upper():
             result.append({'type': gpu.platform.backend_type_get(), 'name': gpu.platform.renderer_get()})
 
-    return result
+    return {'devices': result}
 
 
 def get_gpu_devices(env) -> list:
     """
     Return a list of devices available in default blender executable.
     """
+    from api.environment import TestFailure
+
     result = []
 
-    cycles_devices, _ = env.run_in_blender(get_gpu_device_cycles, {})
-    result += cycles_devices
+    try:
+        cycles_devices, _ = env.run_in_blender(get_gpu_device_cycles, {})
+    except TestFailure as failure:
+        logger.error("Unable to receive cycles device list", exc_info=failure)
+    else:
+        result += cycles_devices.get('devices', [])
 
     for backend in ['vulkan', 'opengl', 'metal']:
-        backend_devices, _ = env.run_in_blender(get_gpu_device_backend, {'gpu_backend': backend}, gpu_backend=backend)
-        result += backend_devices
+        try:
+            backend_devices, _ = env.run_in_blender(
+                get_gpu_device_backend, {
+                    'gpu_backend': backend}, gpu_backend=backend)
+        except TestFailure as failure:
+            logger.error("Unable to receive device list for '{backend}'", exc_info=failure)
+        else:
+            result += backend_devices.get('devices', [])
 
     return result
 
