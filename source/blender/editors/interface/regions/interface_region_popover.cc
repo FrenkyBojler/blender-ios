@@ -307,6 +307,12 @@ PopupBlockHandle *popover_panel_create(bContext *C,
 /** \name Standard Popover Panels
  * \{ */
 
+static void popover_paneltye_func(bContext *C, ui::Layout *layout, void *arg_pt)
+{
+  block_flag_disable(layout->block(), BLOCK_LOOP);
+  item_paneltype_func(C, layout, arg_pt);
+}
+
 wmOperatorStatus popover_panel_invoke(bContext *C,
                                       const char *idname,
                                       bool keep_open,
@@ -326,7 +332,8 @@ wmOperatorStatus popover_panel_invoke(bContext *C,
 
   Block *block = nullptr;
   if (keep_open) {
-    PopupBlockHandle *handle = popover_panel_create(C, nullptr, nullptr, item_paneltype_func, pt);
+    PopupBlockHandle *handle = popover_panel_create(
+        C, nullptr, nullptr, popover_paneltye_func, pt);
     Popover *pup = static_cast<Popover *>(handle->popup_create_vars.arg);
     block = pup->block;
   }
