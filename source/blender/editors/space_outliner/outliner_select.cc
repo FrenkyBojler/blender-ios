@@ -853,6 +853,11 @@ void tree_element_activate(bContext *C,
   }
 }
 
+static void tree_elemment_shapekey_active_set(Object &ob, TreeElement &te)
+{
+  ob.shapenr = te.index + 1;
+}
+
 void tree_element_type_active_set(bContext *C,
                                   const TreeViewContext &tvc,
                                   TreeElement *te,
@@ -912,6 +917,9 @@ void tree_element_type_active_set(bContext *C,
       break;
     case TSE_LAYER_COLLECTION:
       tree_element_layer_collection_activate(C, te);
+      break;
+    case TSE_SHAPE_KEY_BLOCK:
+      tree_elemment_shapekey_active_set(*tvc.obact, *te);
       break;
   }
 }
@@ -1181,6 +1189,14 @@ eOLDrawState tree_element_active_state_get(const TreeViewContext &tvc,
   return OL_DRAWSEL_NONE;
 }
 
+eOLDrawState tree_element_shapekey_state_get(const Object &ob, const TreeElement *te)
+{
+  if (ob.shapenr == te->index + 1) {
+    return OL_DRAWSEL_NORMAL;
+  }
+  return OL_DRAWSEL_NONE;
+}
+
 eOLDrawState tree_element_type_active_state_get(const TreeViewContext &tvc,
                                                 const TreeElement *te,
                                                 const TreeStoreElem *tselem)
@@ -1223,6 +1239,8 @@ eOLDrawState tree_element_type_active_state_get(const TreeViewContext &tvc,
       return tree_element_layer_collection_state_get(tvc.layer_collection, te);
     case TSE_BONE_COLLECTION:
       return tree_element_bone_collection_state_get(te, tselem);
+    case TSE_SHAPE_KEY_BLOCK:
+      return tree_element_shapekey_state_get(*tvc.obact, te);
   }
   return OL_DRAWSEL_NONE;
 }
