@@ -1139,6 +1139,27 @@ static void scrubbing_region_init(wmWindowManager * /* wm */, ARegion *region)
   view2d_region_reinit(&region->v2d, ui::V2D_COMMONVIEW_CUSTOM, region->winx, region->winy);
 }
 
+static void sequencer_scrubbing_region_listener(const wmRegionListenerParams *params)
+{
+  ARegion *region = params->region;
+  const wmNotifier *wmn = params->notifier;
+
+  switch (wmn->category) {
+    case NC_SCENE:
+      switch (wmn->data) {
+        case ND_FRAME:
+        case ND_SEQUENCER:
+          ED_region_tag_redraw(region);
+          break;
+      }
+    case NC_SPACE:
+      if (wmn->data == ND_SPACE_SEQUENCER) {
+        ED_region_tag_redraw(region);
+      }
+      break;
+  }
+}
+
 void ED_spacetype_sequencer()
 {
   std::unique_ptr<SpaceType> st = std::make_unique<SpaceType>();
@@ -1274,8 +1295,7 @@ void ED_spacetype_sequencer()
   art->init = scrubbing_region_init;
   art->poll = scrubbing_region_poll;
   art->draw = seq_scrubbing_draw;
-  /* TODO: Use separate function to listen redraw notifiers. */
-  art->listener = sequencer_footer_region_listener;
+  art->listener = sequencer_scrubbing_region_listener;
   BLI_addhead(&st->regiontypes, art);
 
   /* HUD. */

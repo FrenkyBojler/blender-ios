@@ -6023,6 +6023,9 @@ static bool match_region_with_redraws(const ScrArea *area,
         break;
     }
   }
+  else if (regiontype == RGN_TYPE_PREVIEW_SCRUBBING) {
+    return true;
+  }
 
   return false;
 }
