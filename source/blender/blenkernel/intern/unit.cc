@@ -2110,6 +2110,12 @@ static char *skip_unary_op(char *str)
   return str;
 }
 
+static bool ch_is_op_unary_with_back_check(const char *begin, const char *c)
+{
+  return (c - begin == 1 && ch_is_op_unary(*c)) ||
+         ((c > begin) && ch_is_op_unary(*c) && (ch_is_op(*(c - 1)) || *(c - 1) == '('));
+}
+
 /**
  * Put parentheses around blocks of values after negative signs to get rid of an implied "+"
  * between numbers without an operation between them. For example:
@@ -2152,11 +2158,20 @@ static bool unit_distribute_negatives(char *str, const int str_maxncpy)
 
 /**
  * Helper for #unit_scale_str for the process of correctly applying the order of operations
- * for the unit's bias term.
+ * for the unit's bias term, `-` unary operators are considered be part of values.
  */
 static int find_previous_non_value_char(const char *str, const int start_ofs)
 {
-  for (int i = start_ofs; i > 0; i--) {
+  int i = start_ofs - 1;
+  while (i >= 0 && str[i] == ' ') {
+    i--;
+  }
+  for (; i > 0; i--) {
+    if (str[i - 1] == '(') {
+      if (ch_is_op_unary_with_back_check(str, str + i - 2)) {
+        return i - 2;
+      }
+    }
     if (ch_is_op(str[i - 1]) || strchr("( )", str[i - 1])) {
       return i;
     }
@@ -2166,13 +2181,27 @@ static int find_previous_non_value_char(const char *str, const int start_ofs)
 
 /**
  * Helper for #unit_scale_str for the process of correctly applying the order of operations
- * for the unit's bias term.
+ * for the unit's bias term. This returns the end of the current enclosing group.
  */
 static int find_end_of_value_chars(const char *str, const int str_maxncpy, const int start_ofs)
 {
-  int i;
-  for (i = start_ofs; i < str_maxncpy; i++) {
-    if (!strchr("0123456789eE.", str[i])) {
+  int i = start_ofs;
+  int nest_level = 0;
+  if (str[i] == '(') {
+    nest_level++;
+    i++;
+  }
+  for (; i < str_maxncpy; i++) {
+    if (str[i] == '(') {
+      nest_level++;
+    }
+    else if (str[i] == ')') {
+      nest_level--;
+      if (nest_level == 0) {
+        return i;
+      }
+    }
+    else if (nest_level == 0 && !strchr("0123456789eE.", str[i])) {
       return i;
     }
   }
@@ -2201,6 +2230,7 @@ static int unit_scale_str(char *str,
   int found_ofs = int(str_found - str);
 
   int len = strlen(str);
+  const int len_name = strlen(replace_str);
 
   /* Deal with unit bias for temperature units. Order of operations is important, so we
    * have to add parentheses, add the bias, then multiply by the scalar like usual.
@@ -2208,8 +2238,13 @@ static int unit_scale_str(char *str,
    * NOTE: If these changes don't fit in the buffer properly unit evaluation has failed,
    * just try not to destroy anything while failing. */
   if (unit->bias != 0.0) {
-    /* Add the open parenthesis. */
+    /* Add the open parenthesis, also move inside the enclosing group `-` unary operators as:
+    `(-(2F))*0.555555582` > `(((-2F))*0.555555582`. */
     int prev_op_ofs = find_previous_non_value_char(str, found_ofs);
+    if (str[prev_op_ofs] == '-' && prev_op_ofs + 2 < str_maxncpy) {
+      std::swap(str[prev_op_ofs], str[prev_op_ofs + 1]);
+      prev_op_ofs++;
+    }
     if (len + 1 < str_maxncpy) {
       memmove(str + prev_op_ofs + 1, str + prev_op_ofs, len - prev_op_ofs + 1);
       str[prev_op_ofs] = '(';
@@ -2219,7 +2254,9 @@ static int unit_scale_str(char *str,
     } /* If this doesn't fit, we have failed. */
 
     /* Add the addition sign, the bias, and the close parenthesis after the value. */
-    int value_end_ofs = find_end_of_value_chars(str, str_maxncpy, prev_op_ofs + 2);
+    int value_end_ofs = find_end_of_value_chars(str, str_maxncpy, prev_op_ofs + 1);
+    /* Prevent adding bias value before unit name in cases like `-(F)`. */
+    value_end_ofs = std::min(value_end_ofs, found_ofs);
     int len_bias_num = BLI_snprintf_rlen(str_tmp, TEMP_STR_SIZE, "+%.9g)", unit->bias);
     if (value_end_ofs + len_bias_num < str_maxncpy) {
       memmove(str + value_end_ofs + len_bias_num, str + value_end_ofs, len - value_end_ofs + 1);
@@ -2230,7 +2267,6 @@ static int unit_scale_str(char *str,
     } /* If this doesn't fit, we have failed. */
   }
 
-  int len_name = strlen(replace_str);
   int len_move = (len - (found_ofs + len_name)) + 1; /* 1+ to copy the string terminator. */
 
   /* "#" Removed later */
