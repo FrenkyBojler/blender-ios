@@ -24,7 +24,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Geometry>("Target").align_with_previous().propagate_all();
   b.add_output<decl::Bool>("Success");
   {
-    auto &p = b.add_panel("Target IDs").default_closed(true);
+    auto &p = b.add_panel("Target IDs"_ustr).default_closed(true);
     Vector<BaseSocketDeclarationBuilder *> sockets;
     sockets.append(&p.add_input<decl::Int>("Target Point ID"));
     sockets.append(&p.add_input<decl::Int>("Target Edge ID"));
@@ -40,7 +40,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
   b.add_input<decl::Geometry>("Source");
   {
-    auto &p = b.add_panel("Source IDs").default_closed(true);
+    auto &p = b.add_panel("Source IDs"_ustr).default_closed(true);
     Vector<BaseSocketDeclarationBuilder *> sockets;
     sockets.append(&p.add_input<decl::Int>("Source Point ID"));
     sockets.append(&p.add_input<decl::Int>("Source Edge ID"));

@@ -95,7 +95,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Matrix>("Simulation to World");
 
   {
-    auto &solver_panel = b.add_panel("Solver").default_closed(true);
+    auto &solver_panel = b.add_panel("Solver"_ustr).default_closed(true);
     solver_panel.add_input<decl::Int>("Substeps").default_value(10).min(1);
     solver_panel.add_input<decl::Int>("Constraint Iterations").default_value(1).min(1);
   }
