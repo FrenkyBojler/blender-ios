@@ -290,7 +290,13 @@ void RNA_api_scene(StructRNA *srna)
   parm = RNA_def_int(
       func, "index", 0, 0, 0, "", "The face index, -1 when original data isn't available", 0, 0);
   RNA_def_function_output(func, parm);
-  parm = RNA_def_pointer(func, "object", "Object", "", "Ray cast object");
+  parm = RNA_def_pointer(
+      func,
+      "object",
+      "Object",
+      "",
+      "The original (unevaluated) object that was hit. "
+      "Note that ``location``, ``normal``, and ``index`` reflect the evaluated mesh");
   RNA_def_function_output(func, parm);
   parm = RNA_def_float_matrix(func, "matrix", 4, 4, nullptr, 0.0f, 0.0f, "", "Matrix", 0.0f, 0.0f);
   RNA_def_function_output(func, parm);
