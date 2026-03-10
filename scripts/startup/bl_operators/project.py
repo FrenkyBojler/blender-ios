@@ -5,10 +5,12 @@
 import os
 from pathlib import Path
 import tomllib
+import logging
 
 import bpy
 from bpy.types import Operator
 
+logger = logging.getLogger(__name__)
 
 # Directory and file name where the project is read/written to disk.
 PROJECT_DIR = ".blender_project"
@@ -70,7 +72,7 @@ def save_project(project):
     if project.data is None:
         raise ProjectSaveException("Cannot save project because there is no project to save.")
 
-    print("Saving project '{}' at '{}'...".format(project.data.name, project.data.root_path))
+    logger.info("Saving project '{}' at '{}'...".format(project.data.name, project.data.root_path))
 
     data = project.data
     root_path = Path(data.root_path)
@@ -101,7 +103,7 @@ def save_project(project):
 
     project.is_dirty = False
 
-    print("...done.")
+    logger.info("...done.")
 
 
 def find_and_load_project_for_blend_path(context, blend_path):
