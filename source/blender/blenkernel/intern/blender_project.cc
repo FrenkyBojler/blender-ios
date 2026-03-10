@@ -21,6 +21,9 @@ bool BlenderProjectData::set_name(StringRef name)
   }
 
   this->name_ = name;
+
+  this->is_dirty = true;
+
   return true;
 }
 
@@ -31,6 +34,9 @@ bool BlenderProjectData::set_root_path(StringRef root_path)
   }
 
   this->root_path_ = root_path;
+
+  this->is_dirty = true;
+
   return true;
 }
 
@@ -58,7 +64,7 @@ bool BlenderProject::init(blender::StringRef name, blender::StringRef root_path)
 
   /* Initializing the in-memory project does not save to disk, so it's dirty by
    * default. */
-  this->is_dirty = true;
+  this->data->is_dirty = true;
 
   return true;
 }
@@ -66,7 +72,6 @@ bool BlenderProject::init(blender::StringRef name, blender::StringRef root_path)
 void BlenderProject::clear()
 {
   this->data = std::nullopt;
-  this->is_dirty = false;
 }
 
 }  // namespace blender::bke

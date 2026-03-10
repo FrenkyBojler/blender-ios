@@ -115,7 +115,7 @@ def save_project(project, report=None):
             report({'ERROR'}, rpt_("Cannot write to '{}' due to filesystem permissions.").format(PROJECT_CONFIG))
         raise ProjectSaveException
 
-    project.is_dirty = False
+    data.is_dirty = False
 
     logger.info("...done.")
 
@@ -159,7 +159,7 @@ def find_and_load_project_for_blend_path(context, blend_path, report=None):
 
     context.project.init(config["name"], str(root_path))
 
-    context.project.is_dirty = False
+    context.project.data.is_dirty = False
 
 
 def find_project_root_from_blend_file_path(blend_path):
@@ -408,7 +408,7 @@ def on_blend_load(blend_path):
         return
 
     # Auto-save the current project before loading a different blend file.
-    if bpy.context.preferences.use_project_auto_save and bpy.context.project.is_dirty and bpy.context.project.data is not None:
+    if bpy.context.preferences.use_project_auto_save and bpy.context.project.data is not None and bpy.context.project.data.is_dirty:
         try:
             save_project(bpy.context.project)
         except ProjectSaveException:
@@ -428,7 +428,7 @@ def on_blend_save(blend_path):
         return
 
     # Auto-save project when saving the current blend file.
-    if bpy.context.preferences.use_project_auto_save and bpy.context.project.is_dirty and bpy.context.project.data is not None:
+    if bpy.context.preferences.use_project_auto_save and bpy.context.project.data is not None and bpy.context.project.data.is_dirty:
         try:
             save_project(bpy.context.project)
         except ProjectSaveException:
@@ -450,7 +450,7 @@ def on_exit(is_user_exit):
     if not bpy.context.preferences.experimental.use_blender_projects:
         return
 
-    if bpy.context.preferences.use_project_auto_save and bpy.context.project.is_dirty and bpy.context.project.data is not None:
+    if bpy.context.preferences.use_project_auto_save and bpy.context.project.data is not None and bpy.context.project.data.is_dirty:
         save_project(bpy.context.project)
 
 

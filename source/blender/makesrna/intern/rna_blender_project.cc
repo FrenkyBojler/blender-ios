@@ -25,7 +25,11 @@ namespace blender {
 
 static void project_mark_dirty()
 {
-  BKE_blender_project().is_dirty = true;
+  if (!BKE_blender_project().data) {
+    return;
+  }
+
+  BKE_blender_project().data->is_dirty = true;
 }
 
 /* For properties that AREN'T saved to disk as part of the project data. */
@@ -79,16 +83,16 @@ static int rna_BlenderProjectData_root_path_length(PointerRNA *ptr)
   return project_data->get_root_path().size();
 }
 
-static bool rna_BlenderProject_is_dirty_get(PointerRNA *ptr)
+static bool rna_BlenderProjectData_is_dirty_get(PointerRNA *ptr)
 {
-  bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr->data);
-  return project->is_dirty;
+  bke::BlenderProjectData *project_data = static_cast<bke::BlenderProjectData *>(ptr->data);
+  return project_data->is_dirty;
 }
 
-static void rna_BlenderProject_is_dirty_set(PointerRNA *ptr, bool value)
+static void rna_BlenderProjectData_is_dirty_set(PointerRNA *ptr, bool value)
 {
-  bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr->data);
-  project->is_dirty = value;
+  bke::BlenderProjectData *project_data = static_cast<bke::BlenderProjectData *>(ptr->data);
+  project_data->is_dirty = value;
 }
 
 static PointerRNA rna_BlenderProject_data_get(PointerRNA *ptr)
@@ -142,6 +146,12 @@ void rna_def_blender_project_data(BlenderRNA *brna)
 
   PropertyRNA *prop;
 
+  prop = RNA_def_property(srna, "is_dirty", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_funcs(
+      prop, "rna_BlenderProjectData_is_dirty_get", "rna_BlenderProjectData_is_dirty_set");
+  RNA_def_property_ui_text(prop, "Dirty", "Whether the project has unsaved changes");
+  RNA_def_property_update(prop, 0, "rna_BlenderProject_ui_update");
+
   prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
   RNA_def_property_string_funcs(prop,
                                 "rna_BlenderProjectData_name_get",
@@ -175,12 +185,6 @@ void rna_def_blender_project(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_struct_type(prop, "BlenderProjectData");
   RNA_def_property_pointer_funcs(prop, "rna_BlenderProject_data_get", NULL, NULL, NULL);
-
-  prop = RNA_def_property(srna, "is_dirty", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_funcs(
-      prop, "rna_BlenderProject_is_dirty_get", "rna_BlenderProject_is_dirty_set");
-  RNA_def_property_ui_text(prop, "Dirty", "Whether the project has unsaved changes");
-  RNA_def_property_update(prop, 0, "rna_BlenderProject_ui_update");
 
   func = RNA_def_function(srna, "init", "rna_BlenderProject_init");
   RNA_def_function_flag(func, FUNC_SELF_AS_RNA | FUNC_USE_REPORTS);

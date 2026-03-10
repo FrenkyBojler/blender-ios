@@ -103,9 +103,10 @@ class PROJECT_PT_save_project(Panel):
             # Show '*' to let users know the project has been modified.
             # It is shown to the left so that it is visible when the sidebar is narrow,
             # and for consistency with unsaved files in the title bar.
+            project_is_dirty = context.project.data is not None and context.project.data.is_dirty
             layout.operator(
                 "project.save_project",
-                text=("* " if context.project.is_dirty else "") + pgettext_iface("Save Project"),
+                text=("* " if project_is_dirty else "") + pgettext_iface("Save Project"),
                 icon='FILE_TICK',
                 translate=False,
             )

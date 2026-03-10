@@ -27,6 +27,9 @@ class BlenderProjectData {
   std::string root_path_;
 
  public:
+  /* Whether the project has unsaved changes. */
+  bool is_dirty = false;
+
   /**
    * Set the project's name.
    *
@@ -59,9 +62,6 @@ class BlenderProject {
   /* Actual project data. When this is null, it means there is currently no
    * project. */
   std::optional<BlenderProjectData> data = std::nullopt;
-
-  /* Whether the project has unsaved changes. */
-  bool is_dirty = false;
 
   /**
    * Initialize a new Blender Project.
