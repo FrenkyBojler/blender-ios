@@ -1,0 +1,1 @@
+Referenced by issue #154731, `bpy.context.sequencer_scene` not immediately accessible after opening homefile
