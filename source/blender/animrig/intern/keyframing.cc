@@ -643,10 +643,8 @@ int delete_keyframe(Main *bmain, ReportList *reports, ID *id, const RNAPath &rna
            * won't matter in practice. */
           return true;
         }
-        if (layer.is_locked()) {
-          /* This is the active layer and it is locked. We can end the iteration here. */
-          return false;
-        }
+        /* Checked before. */
+        BLI_assert(!layer.is_locked());
         if (!strip.contains_frame(cfra)) {
           return true;
         }
