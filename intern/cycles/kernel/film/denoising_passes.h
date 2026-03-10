@@ -22,11 +22,6 @@ ccl_device_forceinline void film_write_denoising_features_surface(KernelGlobals 
     return;
   }
 
-  /* Skip implicitly transparent surfaces. */
-  if (sd->flag & SD_HAS_ONLY_VOLUME) {
-    return;
-  }
-
   /* Don't write denoising passes for paths that were split off for shadow catchers
    * to avoid double-counting. */
   if (path_flag & PATH_RAY_SHADOW_CATCHER_PASS) {
@@ -149,6 +144,24 @@ ccl_device_forceinline void film_write_denoising_features_surface(KernelGlobals 
   }
 }
 
+ccl_device_forceinline void film_write_denoising_features_surface_volume(
+    KernelGlobals kg,
+    IntegratorState state,
+    const ccl_private ShaderData *sd,
+    ccl_global float *ccl_restrict render_buffer)
+{
+  ccl_global float *buffer = film_pass_pixel_render_buffer(kg, state, render_buffer);
+
+  if (kernel_data.film.pass_denoising_depth != PASS_UNUSED) {
+    const Spectrum denoising_feature_throughput = INTEGRATOR_STATE(
+        state, path, denoising_feature_throughput);
+
+    const float depth = sd->ray_length - INTEGRATOR_STATE(state, ray, tmin);
+    const float denoising_depth = ensure_finite(depth * average(denoising_feature_throughput));
+    film_write_pass_float(buffer + kernel_data.film.pass_denoising_depth, denoising_depth);
+  }
+}
+
 ccl_device_forceinline void film_write_denoising_features_volume(KernelGlobals kg,
                                                                  IntegratorState state,
                                                                  const Spectrum albedo,
@@ -184,12 +197,15 @@ ccl_device_forceinline void film_write_denoising_features_background(
     return;
   }
 
+  /* Do not write default background denoising data for secondary paths. */
+  if (INTEGRATOR_STATE(state, path, bounce) != 0) {
+    return;
+  }
+
   ccl_global float *buffer = film_pass_pixel_render_buffer(kg, state, render_buffer);
 
-  if (INTEGRATOR_STATE(state, path, bounce) == 0) {
-    if (kernel_data.film.pass_denoising_depth != PASS_UNUSED) {
-      film_overwrite_pass_float(buffer + kernel_data.film.pass_denoising_depth, FLT_MAX);
-    }
+  if (kernel_data.film.pass_denoising_depth != PASS_UNUSED) {
+    film_overwrite_pass_float(buffer + kernel_data.film.pass_denoising_depth, FLT_MAX);
   }
 
   /* 'pass_denoising_albedo' is written by 'film_write_emission_or_background_pass' */
