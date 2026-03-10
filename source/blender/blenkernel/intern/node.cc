@@ -2225,6 +2225,7 @@ IDProperty *node_create_asset_meta_data_properties(const bNodeTree &node_tree)
       case SOCK_TEXT_ID:
       case SOCK_MASK:
       case SOCK_SOUND:
+      case SOCK_INT_VECTOR:
         break;
     }
     IDP_AddToGroup(inputs.get(), input.release());
