@@ -1,1 +1,2 @@
 Referenced by issue #155088, 4.5.0 and newer crash without error message if a PropertyGroup tries to write itself from update method
+Referenced by issue #155490, Mesh Vertices not Shown (Correctly) in Object Mode
