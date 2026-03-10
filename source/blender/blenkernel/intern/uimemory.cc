@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "BKE_appdir.hh"
+#include "BKE_global.hh"
 #include "BKE_uimemory.hh"
 
 #include "BLI_fileops.h"
@@ -67,16 +68,20 @@ static void uimemory_init_impl()
     uimemory_print_errors(default_result.unwrap_err());
   }
 
-  /* Load from user file if found. */
-  const std::string path = uimemory_file_path();
-  if (!path.empty() && BLI_exists(path.c_str())) {
-    toml::result file_result = toml::try_parse(path, version);
-    if (file_result.is_ok()) {
-      std::lock_guard<Mutex> lock(uimemory_mutex);
-      uimemory_current = file_result.unwrap();
-    }
-    else {
-      uimemory_print_errors(file_result.unwrap_err());
+  /* Load from on-disk file if found. */
+  /* In background mode avoid any file I/O or console error output. The
+   * in-memory defaults are still parsed above so API calls will work. */
+  if (!G.background) {
+    const std::string path = uimemory_file_path();
+    if (!path.empty() && BLI_exists(path.c_str())) {
+      toml::result file_result = toml::try_parse(path, version);
+      if (file_result.is_ok()) {
+        std::lock_guard<Mutex> lock(uimemory_mutex);
+        uimemory_current = file_result.unwrap();
+      }
+      else {
+        uimemory_print_errors(file_result.unwrap_err());
+      }
     }
   }
 
@@ -119,6 +124,11 @@ void Memory::ensure_init() const
 bool Memory::save() const
 {
   ensure_init();
+
+  /* Don't write files when running in background/headless mode. */
+  if (G.background) {
+    return false;
+  }
 
   std::lock_guard<Mutex> lock(uimemory_mutex);
   if (uimemory_current.is_empty()) {
