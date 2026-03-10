@@ -12,8 +12,6 @@
 
 #include "BLI_string_ref.hh"
 
-static blender::bke::BlenderProject global_blender_project_;
-
 namespace blender::bke {
 
 bool BlenderProjectData::set_name(StringRef name)
@@ -75,5 +73,8 @@ void BlenderProject::clear()
 
 blender::bke::BlenderProject &BKE_blender_project()
 {
-  return global_blender_project_;
+  /* Construct on First Use idiom. */
+  static blender::bke::BlenderProject blender_project;
+
+  return blender_project;
 }
