@@ -51,7 +51,7 @@ struct AnyVirtualExtraInfo {
 template<typename T, int64_t InlineBufferCapacity = 24>
   requires std::is_polymorphic_v<T>
 struct AnyVirtual {
- protected:
+ private:
   using Storage = Any<detail::AnyVirtualExtraInfo<T>, InlineBufferCapacity, alignof(T)>;
 
   /** Pointer to the currently contained implementation. This may be null. */
@@ -92,6 +92,28 @@ struct AnyVirtual {
     }
   }
 
+  AnyVirtual &operator=(const AnyVirtual<T> &other)
+  {
+    if (this == &other) {
+      return *this;
+    }
+    storage_ = other.storage_;
+    impl_ = this->impl_from_storage();
+    return *this;
+  }
+
+  AnyVirtual &operator=(AnyVirtual<T> &&other) noexcept
+  {
+    if (this == &other) {
+      return *this;
+    }
+    storage_ = std::move(other.storage_);
+    impl_ = this->impl_from_storage();
+    other.storage_.reset();
+    other.impl_ = nullptr;
+    return *this;
+  }
+
   template<typename ImplT, typename... Args>
     requires std::is_base_of_v<T, ImplT>
   void emplace(Args &&...args)
@@ -110,26 +132,6 @@ struct AnyVirtual {
     }
   }
 
-  AnyVirtual &operator=(const AnyVirtual<T> &other)
-  {
-    if (this == &other) {
-      return *this;
-    }
-    storage_ = other.storage_;
-    impl_ = this->impl_from_storage();
-  }
-
-  AnyVirtual &operator=(AnyVirtual<T> &&other) noexcept
-  {
-    if (this == &other) {
-      return *this;
-    }
-    storage_ = std::move(other.storage_);
-    impl_ = this->impl_from_storage();
-    other.storage_.reset();
-    other.impl_ = nullptr;
-  }
-
   operator bool() const
   {
     return impl_ != nullptr;
@@ -141,6 +143,11 @@ struct AnyVirtual {
   }
 
   T *operator->() const
+  {
+    return impl_;
+  }
+
+  T *get() const
   {
     return impl_;
   }
