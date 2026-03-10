@@ -8,8 +8,8 @@
 
 #include "BLI_listbase.h"
 
-#include "DNA_outliner_types.h"
 #include "DNA_key_types.h"
+#include "DNA_outliner_types.h"
 
 #include "BLT_translation.hh"
 

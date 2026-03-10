@@ -41,9 +41,9 @@
 #include "tree_element_rna.hh"
 #include "tree_element_scene_objects.hh"
 #include "tree_element_seq.hh"
+#include "tree_element_shapekey.hh"
 #include "tree_element_view_collection.hh"
 #include "tree_element_view_layer.hh"
-#include "tree_element_shapekey.hh"
 
 #include "../outliner_intern.hh"
 #include "tree_element.hh"
@@ -206,8 +206,8 @@ std::unique_ptr<AbstractTreeElement> AbstractTreeElement::create_from_type(const
       return std::make_unique<TreeElementActionSlot>(
           legacy_te, *reinterpret_cast<animrig::Slot *>(create_data));
     case TSE_SHAPE_KEY_BLOCK:
-      return std::make_unique<TreeElementShapeKey>(
-          legacy_te, *static_cast<KeyBlock *>(create_data));
+      return std::make_unique<TreeElementShapeKey>(legacy_te,
+                                                   *static_cast<KeyBlock *>(create_data));
 
     default:
       break;

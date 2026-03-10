@@ -353,7 +353,7 @@ TreeElement *AbstractTreeDisplay::add_element(ListBaseT<TreeElement> *lb,
   else if (type == TSE_LINKED_OB) {
     /* pass */
   }
-  else  if (type == TSE_SHAPE_KEY_BLOCK) {
+  else if (type == TSE_SHAPE_KEY_BLOCK) {
     /* pass */
   }
   else if (type == TSE_SOME_ID) {

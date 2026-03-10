@@ -7,8 +7,8 @@
  */
 
 #include "DNA_ID.h"
-#include "DNA_space_types.h"
 #include "DNA_key_types.h"
+#include "DNA_space_types.h"
 
 #include "BKE_anim_data.hh"
 
