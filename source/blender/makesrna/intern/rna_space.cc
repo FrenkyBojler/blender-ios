@@ -1983,10 +1983,8 @@ static void rna_SpaceImageEditor_image_set(PointerRNA *ptr,
   SpaceImage *sima = static_cast<SpaceImage *>(ptr->data);
   Image *ima = static_cast<Image *>(value.data);
   if (ima) {
-    const float x = ima->runtime->view_offset[0];
-    const float y = ima->runtime->view_offset[1];
-    sima->xof = x;
-    sima->yof = y;
+    sima->xof = ima->runtime->view_offset[0];
+    sima->yof = ima->runtime->view_offset[1];
     sima->zoom = ima->runtime->view_zoom;
   }
   ED_space_image_set(G_MAIN, sima, ima, false);
@@ -2479,8 +2477,8 @@ static void rna_ConsoleLine_body_set(PointerRNA *ptr, const char *value)
   ConsoleLine *ci = static_cast<ConsoleLine *>(ptr->data);
   size_t len = strlen(value);
 
-  if ((len >= size_t(ci->len_alloc)) ||
-      (len * 2 < size_t(ci->len_alloc))) { /* allocate a new string */
+  if ((len >= size_t(ci->len_alloc)) || (len * 2 < size_t(ci->len_alloc)))
+  { /* allocate a new string */
     MEM_delete(ci->line);
     ci->line = MEM_new_array_uninitialized<char>(len + 1, "rna_consoleline");
     ci->len_alloc = int(len + 1);
