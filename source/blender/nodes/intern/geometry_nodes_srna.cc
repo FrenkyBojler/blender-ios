@@ -118,7 +118,9 @@ static StructRNA *create_inputs_srna(const bNodeTree &tree, GeneratedTreeSrnaDat
       continue;
     }
     const StringRefNull identifier = r_generated.scope.allocator().copy_string(socket->identifier);
-    RNA_def_pointer_runtime(srna, identifier.c_str(), socket_srna, socket->name, "");
+    PropertyRNA *prop = RNA_def_pointer_runtime(
+        srna, identifier.c_str(), socket_srna, socket->name, "");
+    RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   }
 
   return srna;
@@ -153,15 +155,16 @@ static StructRNA *create_outputs_srna(const bNodeTree &tree, GeneratedTreeSrnaDa
 
     StructRNA *output_srna = RNA_def_struct_ptr(
         r_generated.generated_rna, identifier.c_str(), RNA_PropertyGroup);
+    RNA_def_struct_path_func_runtime(output_srna, rna_NodesModifierPropertyOutput_path);
     PropertyRNA *prop = RNA_def_string(output_srna,
                                        "attribute_name",
                                        default_value.is_empty() ? nullptr : default_value.c_str(),
                                        0,
                                        name.c_str(),
                                        description.c_str());
-    RNA_def_struct_path_func_runtime(output_srna, rna_NodesModifierPropertyOutput_path);
-    RNA_def_pointer_runtime(srna, identifier.c_str(), output_srna, name.c_str(), "");
     RNA_def_property_flag(prop, PROP_FORCE_GEOMETRY_EVAL);
+    RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+    prop = RNA_def_pointer_runtime(srna, identifier.c_str(), output_srna, name.c_str(), "");
     RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   }
 
