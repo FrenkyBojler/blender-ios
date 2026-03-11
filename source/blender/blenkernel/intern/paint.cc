@@ -2141,6 +2141,59 @@ bool paint_is_bmesh_face_hidden(const BMFace *f)
   return false;
 }
 
+namespace bke::paint {
+bool supports_scene_size(const PaintMode paint_mode)
+{
+  switch (paint_mode) {
+    case PaintMode::Sculpt:
+      return true;
+    case PaintMode::Vertex:
+    case PaintMode::Weight:
+    case PaintMode::Texture3D:
+      return false;
+    case PaintMode::GPencil:
+    case PaintMode::VertexGPencil:
+    case PaintMode::SculptGPencil:
+    case PaintMode::WeightGPencil:
+      return true;
+    case PaintMode::SculptCurves:
+      return false;
+    case PaintMode::Texture2D:
+      return false;
+    case PaintMode::Invalid:
+      BLI_assert_unreachable();
+      return false;
+  }
+  BLI_assert_unreachable();
+  return false;
+}
+bool supports_symmetry_tiling(const PaintMode paint_mode)
+{
+  switch (paint_mode) {
+    case PaintMode::Sculpt:
+      return true;
+    case PaintMode::Vertex:
+    case PaintMode::Weight:
+    case PaintMode::Texture3D:
+      return false;
+    case PaintMode::GPencil:
+    case PaintMode::VertexGPencil:
+    case PaintMode::SculptGPencil:
+    case PaintMode::WeightGPencil:
+      return false;
+    case PaintMode::SculptCurves:
+      return false;
+    case PaintMode::Texture2D:
+      return false;
+    case PaintMode::Invalid:
+      BLI_assert_unreachable();
+      return false;
+  }
+  BLI_assert_unreachable();
+  return false;
+}
+}  // namespace bke::paint
+
 float paint_grid_paint_mask(const GridPaintMask *gpm, uint level, uint x, uint y)
 {
   int factor = CCG_grid_factor(level, gpm->level);
@@ -2573,7 +2626,8 @@ static void sculpt_update_object(Depsgraph *depsgraph,
 
   ss.deform_modifiers_active = sculpt_modifiers_active(scene, sd, ob);
 
-  ss.shapekey_active = (mmd == nullptr) ? BKE_keyblock_from_object(ob) : nullptr;
+  ss.shapekey_active = (mmd == nullptr && ss.bm == nullptr) ? BKE_keyblock_from_object(ob) :
+                                                              nullptr;
 
   ss.multires_modifier = mmd;
 
