@@ -2447,11 +2447,13 @@ bool BKE_unit_replace_string(
   {
     /* Trim and remove consecutive white space. */
     std::string str_tmp = StringRef(str).trim();
+    for (char &c : str_tmp) {
+      if (isspace(c)) {
+        c = ' ';
+      }
+    }
     std::string::iterator trim_itr = std::unique(
-        str_tmp.begin(), str_tmp.end(), [](char a, char b) {
-          return StringRef(" \t\r\n").find(a) != StringRef::not_found &&
-                 StringRef(" \t\r\n").find(b) != StringRef::not_found;
-        });
+        str_tmp.begin(), str_tmp.end(), [](char a, char b) { return a == ' ' && b == ' '; });
     str_tmp.erase(trim_itr, str_tmp.end());
     StringRef(str_tmp).copy_utf8_truncated(str, str_maxncpy);
   }
