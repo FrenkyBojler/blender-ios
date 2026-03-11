@@ -2233,7 +2233,7 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
     CXX_WARN_NO_UNDEF_PREFIX -Wno-undef-prefix
     CXX_WARN_NO_INCONSISTENT_MISSING_OVERRIDE -Wno-inconsistent-missing-override
   )
-  unset(__Wall_flag)
+  unset(_Wall_flag)
 
 elseif(CMAKE_C_COMPILER_ID STREQUAL "Intel")
 
