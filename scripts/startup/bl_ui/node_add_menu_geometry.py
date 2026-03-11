@@ -103,6 +103,7 @@ class NODE_MT_gn_curve_write_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeSetCurveHandlePositions")
         self.node_operator(layout, "GeometryNodeCurveSetHandles")
         self.node_operator(layout, "GeometryNodeSetNURBSOrder")
+        self.node_operator(layout, "GeometryNodeSetNURBSWeight")
         self.node_operator(layout, "GeometryNodeSetSplineCyclic")
         self.node_operator(layout, "GeometryNodeSetSplineResolution")
         self.node_operator(layout, "GeometryNodeCurveSplineType")
@@ -653,14 +654,15 @@ class NODE_MT_gn_utilities_text_base(node_add_menu.NodeMenu):
     bl_label = "Text"
     menu_path = "Utilities/Text"
 
-    def draw(self, _context):
+    def draw(self, context):
         layout = self.layout
         self.node_operator(layout, "FunctionNodeFormatString")
         self.node_operator(layout, "GeometryNodeStringJoin")
         self.node_operator(layout, "FunctionNodeMatchString")
         self.node_operator(layout, "FunctionNodeReplaceString")
         self.node_operator(layout, "FunctionNodeSliceString")
-        self.node_operator(layout, "FunctionNodeSplitString")
+        if context.preferences.experimental.use_geometry_nodes_lists:
+            self.node_operator(layout, "FunctionNodeSplitString")
         self.node_operator(layout, "FunctionNodeTrimString")
         layout.separator()
         self.node_operator(layout, "FunctionNodeFindInString")
