@@ -283,7 +283,8 @@ ShapingData::ShapingData(FontBLF *font,
   }
 
   const size_t glyph_count = this->glyphs.size();
-  if (gc && single_gc && glyph_count > 0 && glyph_count < 64 && !gc->shaping_cache.contains(str)) {
+  if (gc && single_gc && glyph_count > 0 && glyph_count < 128 && !gc->shaping_cache.contains(str))
+  {
     CachedString cache_string;
     cache_string.str_len = len;
     cache_string.width = this->width;
