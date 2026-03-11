@@ -45,7 +45,8 @@ static void version_geometry_nodes_properties(Main &bmain, Object &object, Nodes
   if (!old_props) {
     return;
   }
-  if (nmd.modifier.system_properties) {
+  if (!nmd.settings.properties) {
+    /* Versioning has already been done, this check makes the function idempotent. */
     return;
   }
   if (!nmd.node_group) {
