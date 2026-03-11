@@ -3520,7 +3520,7 @@ struct NodeGeometryRepeatInput {
 enum NodeRepeatZoneEvalMode {
   NODE_REPEAT_ZONE_EVAL_MODE_AUTO = 0,
   NODE_REPEAT_ZONE_EVAL_MODE_GENERIC = 1,
-  NODE_REPEAT_ZONE_EVAL_MODE_EAGER = 2,
+  NODE_REPEAT_ZONE_EVAL_MODE_SERIAL = 2,
 };
 
 struct NodeGeometryRepeatOutput {

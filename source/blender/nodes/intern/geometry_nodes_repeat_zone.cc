@@ -187,8 +187,8 @@ class LazyFunctionForRepeatZone : public LazyFunction {
 
     const NodeRepeatZoneEvalMode eval_mode = NodeRepeatZoneEvalMode(node_storage.eval_mode);
     switch (eval_mode) {
-      case NODE_REPEAT_ZONE_EVAL_MODE_EAGER: {
-        this->evaluate_eager(params, node_eval_storage, node_storage, user_data, iterations);
+      case NODE_REPEAT_ZONE_EVAL_MODE_SERIAL: {
+        this->evaluate_serial(params, node_eval_storage, node_storage, user_data, iterations);
         break;
       }
       case NODE_REPEAT_ZONE_EVAL_MODE_AUTO:
@@ -200,11 +200,11 @@ class LazyFunctionForRepeatZone : public LazyFunction {
     }
   }
 
-  void evaluate_eager(lf::Params &params,
-                      RepeatEvalStorage &node_eval_storage,
-                      const NodeGeometryRepeatOutput &node_storage,
-                      GeoNodesUserData &user_data,
-                      const int iterations) const
+  void evaluate_serial(lf::Params &params,
+                       RepeatEvalStorage &node_eval_storage,
+                       const NodeGeometryRepeatOutput &node_storage,
+                       GeoNodesUserData &user_data,
+                       const int iterations) const
   {
     const int num_repeat_items = node_storage.items_num;
     const int num_border_links = body_fn_.indices.inputs.border_links.size();

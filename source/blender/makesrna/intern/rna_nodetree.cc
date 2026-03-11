@@ -7545,10 +7545,10 @@ static void def_geo_repeat_output(BlenderRNA *brna, StructRNA *srna)
        "Generic",
        "Most general evaluation mode which supports full parallelization and lazy evaluation "
        "across iterations"},
-      {NODE_REPEAT_ZONE_EVAL_MODE_EAGER,
-       "EAGER",
+      {NODE_REPEAT_ZONE_EVAL_MODE_SERIAL,
+       "SERIAL",
        0,
-       "Eager",
+       "Serial",
        "Has lower constant overhead but does not support parallelization and lazy evaluation "
        "across iterations"},
       {0},
