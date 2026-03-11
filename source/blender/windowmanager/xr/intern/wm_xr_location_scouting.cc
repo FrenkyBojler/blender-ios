@@ -1048,8 +1048,8 @@ struct ReviewCaptureData {
 };
 
 static wmOperatorStatus wm_xr_location_scouting_review_captures_invoke(bContext *C,
-                                                      wmOperator *op,
-                                                      const wmEvent * /*event*/)
+                                                                       wmOperator *op,
+                                                                       const wmEvent * /*event*/)
 {
   View3D *v3d;
   ARegion *region;
@@ -1105,7 +1105,8 @@ static void wm_xr_location_scouting_review_captures_exit(bContext *C, wmOperator
   MEM_delete(review_data);
 }
 
-static void wm_xr_location_scouting_review_captures_cancel(bContext *C, wmOperator *op) {
+static void wm_xr_location_scouting_review_captures_cancel(bContext *C, wmOperator *op)
+{
   wm_xr_location_scouting_review_captures_exit(C, op);
 }
 

@@ -546,6 +546,7 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_cycle_action(Operator):
 
         return {'FINISHED'}
 
+
 def capture_camera_name(capture):
     return data_("Camera") + "_" + capture.name
 
