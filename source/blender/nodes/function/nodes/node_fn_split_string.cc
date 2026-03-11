@@ -16,7 +16,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::String>("List")
       .structure_type(StructureType::List)
       .description(
-          "The parts of the input string. This contains at least one element but it may be empty");
+          "The parts of the input string. This contains at least one element which may be empty");
 }
 
 static Vector<std::string> split_string(const StringRef original_str, const StringRef separator)
