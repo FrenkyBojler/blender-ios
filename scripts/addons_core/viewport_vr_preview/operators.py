@@ -300,7 +300,7 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_capture(Operator):
     bl_idname = "view3d.vr_location_scouting_viewfinder_capture"
     bl_label = "Viewfinder Capture"
     bl_description = "Create a VR Capture from the Location Scouting Viewfinder pose and mark it as selected"
-    bl_options = {'UNDO'}
+    bl_options = {'UNDO', 'INTERNAL'}
 
     @classmethod
     def poll(cls, context):
@@ -362,6 +362,7 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_apply_action(Operator):
     bl_idname = "view3d.vr_location_scouting_viewfinder_apply_action"
     bl_label = "Viewfinder Apply Action"
     bl_description = "Apply the currently selected Viewfinder action (Zoom Control/Playback selection for now)"
+    bl_options = {'INTERNAL'}
 
     # Differentiate between an up and down action(two possible buttons)
     action_up: bpy.props.BoolProperty(
@@ -492,6 +493,7 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_cycle_mode(Operator):
     bl_idname = "view3d.vr_location_scouting_viewfinder_cycle_mode"
     bl_label = "Viewfinder Cycle Mode"
     bl_description = "Cycle the currently active Viewfinder mode"
+    bl_options = {'INTERNAL'}
 
     def execute(self, context):
         xr_viewfinder = context.window_manager.xr_session_state.viewfinder
@@ -509,6 +511,7 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_cycle_action(Operator):
     bl_idname = "view3d.vr_location_scouting_viewfinder_cycle_action"
     bl_label = "Viewfinder Cycle Action"
     bl_description = "Cycle the currently active Viewfinder action left or right"
+    bl_options = {'INTERNAL'}
 
     cycle_left: bpy.props.BoolProperty(
         name="Cycle Left",
