@@ -2110,35 +2110,31 @@ static char *skip_unary_op(char *str)
   return str;
 }
 
-/* Looks back in the trailing \a c string for first non white-space character and returns its
- * location if it matches any char in the \a charset */
-static char *look_back_char(StringRef charset, char *c, const char *begin)
+/* Looks back in the trailing \a c string for first non white-space character.*/
+static char *look_back_non_whitespace(char *c, const char *begin)
 {
   while (*c == ' ' && c >= begin) {
     c--;
   }
-  if (c >= begin && charset.find(*c) != StringRef::not_found) {
-    return c;
-  }
+  return c >= begin ? c : nullptr;
   return nullptr;
 }
 
-/* Looks forward in the \a c string for first non white-space character and returns its location if
- * it matches any char in the \a charset */
-static char *look_next_char(StringRef charset, char *c, const char *end)
+/* Looks forward in the \a c string for first non white-space character. */
+static char *look_next_non_whitespace(char *c, const char *end)
 {
   while (*c == ' ' && c < end) {
     c++;
   }
-  if (c < end && charset.find(*c) != StringRef::not_found) {
-    return c;
-  }
-  return nullptr;
+  return (c < end) ? c : nullptr;
 }
 
 static char *ch_is_unary_negative_with_back_check(const char *begin, char *c)
 {
-  char *unary_negative = look_back_char("-", c, begin);
+  char *unary_negative = look_back_non_whitespace(c, begin);
+  if (!unary_negative || *unary_negative != '-') {
+    return nullptr;
+  }
   if (begin == unary_negative) {
     return unary_negative;
   }
@@ -2146,7 +2142,9 @@ static char *ch_is_unary_negative_with_back_check(const char *begin, char *c)
     return nullptr;
   }
   /* Look for any other operator or paren to ensure the `-` is a unary expression. */
-  if (look_back_char("+-*/|&~<>^!=%(", unary_negative - 1, begin) != nullptr) {
+  if (const char *prev_char = look_back_non_whitespace(unary_negative - 1, begin);
+      prev_char && (ch_is_op(*prev_char) || (*prev_char == '(')))
+  {
     return unary_negative;
   }
   return nullptr;
@@ -2278,11 +2276,11 @@ static int unit_scale_str(char *str,
     `(-(2F))*0.555555582` > `(((-2F))*0.555555582`. */
     int prev_op_ofs = find_previous_non_value_char(str, found_ofs);
     if (str[prev_op_ofs] == '-' && prev_op_ofs + 2 < str_maxncpy) {
-      char *next_paren = look_next_char("(", str + prev_op_ofs + 1, str + len);
-      /* #unit_distribute_negatives should make enclosing groups for each `-` operator. */
-      BLI_assert(next_paren);
-      std::swap(str[prev_op_ofs], *next_paren);
-      prev_op_ofs = next_paren - str;
+      char *next_paren = look_next_non_whitespace(str + prev_op_ofs + 1, str + len);
+      if (next_paren && *next_paren == '(') {
+        std::swap(str[prev_op_ofs], *next_paren);
+        prev_op_ofs = next_paren - str;
+      }
     }
     if (len + 1 < str_maxncpy) {
       memmove(str + prev_op_ofs + 1, str + prev_op_ofs, len - prev_op_ofs + 1);
