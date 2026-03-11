@@ -416,14 +416,14 @@ void wm_xr_session_state_update(const XrSessionSettings *settings,
 
   /* Apply base pose and navigation. */
   wm_xr_pose_scale_to_mat(&draw_data->base_pose, draw_data->base_scale, base_mat);
-  wm_xr_pose_scale_to_mat(&state->nav_pose_prev, state->viewer_scale, nav_mat);
+  wm_xr_pose_scale_to_mat(&state->nav_pose_last_actions_sync, state->viewer_scale, nav_mat);
   mul_m4_m4m4(state->viewer_mat_base, base_mat, viewer_mat);
   mul_m4_m4m4(viewer_mat, nav_mat, state->viewer_mat_base);
 
   /* Save final viewer pose and viewmat. */
   mat4_to_loc_quat(state->viewer_pose.position, state->viewer_pose.orientation_quat, viewer_mat);
   wm_xr_pose_scale_to_imat(&state->viewer_pose,
-                           draw_data->base_scale * state->viewer_scale_prev,
+                           draw_data->base_scale * state->viewer_scale_last_actions_sync,
                            state->viewer_viewmat);
 
   /* No idea why, but multiplying by two seems to make it match the VR view more. */
@@ -1304,8 +1304,8 @@ void wm_xr_session_actions_update(wmWindowManager *wm)
   wmXrSessionState *state = &xr->runtime->session_state;
 
   if (state->is_navigation_dirty) {
-    memcpy(&state->nav_pose_prev, &state->nav_pose, sizeof(state->nav_pose_prev));
-    state->viewer_scale_prev = state->viewer_scale;
+    memcpy(&state->nav_pose_last_actions_sync, &state->nav_pose, sizeof(state->nav_pose));
+    state->viewer_scale_last_actions_sync = state->viewer_scale;
     state->is_navigation_dirty = false;
 
     /* Update viewer pose with any navigation changes since the last actions sync so that data
