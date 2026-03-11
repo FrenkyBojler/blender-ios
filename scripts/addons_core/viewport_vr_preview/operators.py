@@ -337,7 +337,7 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_capture(Operator):
             while idx in existing_indexes:
                 idx += 1
 
-            return f"{base}.{idx:03d}"
+            return f"{base}_{idx:03d}"
 
         capture = captures.add()
         captures[-1].name = unique_name(captures, "Capture")
@@ -546,30 +546,67 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_cycle_action(Operator):
 
         return {'FINISHED'}
 
+def capture_camera_name(capture):
+    return data_("Camera") + "_" + capture.name
+
+
+def add_camera_from_capture(scene, capture):
+    cam = bpy.data.cameras.new(capture_camera_name(capture))
+    new_cam = bpy.data.objects.new(capture_camera_name(capture), cam)
+    scene.collection.objects.link(new_cam)
+
+    new_cam.location = capture.location
+    new_cam.rotation_mode = 'QUATERNION'
+    new_cam.rotation_quaternion = capture.orientation
+    new_cam.rotation_mode = 'XYZ'
+
+    new_cam.data.lens = capture.lens_focal
+    new_cam.data.dof.use_dof = capture.dof_enabled
+    new_cam.data.dof.focus_distance = capture.dof_distance
+    new_cam.data.dof.aperture_fstop = capture.dof_fstop
+
+    return new_cam
+
 
 class VIEW3D_OT_vr_location_scouting_add_camera_from_capture(Operator):
     bl_idname = "view3d.vr_location_scouting_add_camera_from_capture"
     bl_label = "Add Camera from VR Capture"
-    bl_description = "Create a new Camera from the selected VR Capture"
+    bl_description = "Create a new Camera Object from the selected VR Capture"
     bl_options = {'UNDO', 'REGISTER'}
 
     def execute(self, context):
         scene = context.scene
         capture = properties.VRCapture.get_selected_capture(context)
 
-        cam = bpy.data.cameras.new(data_("Camera") + "_" + capture.name)  # TODO: Naming needs improvements
-        new_cam = bpy.data.objects.new(data_("Camera") + "_" + capture.name, cam)
-        scene.collection.objects.link(new_cam)
+        add_camera_from_capture(scene, capture)
 
-        new_cam.location = capture.location
-        new_cam.rotation_mode = 'QUATERNION'
-        new_cam.rotation_quaternion = capture.orientation
-        new_cam.rotation_mode = 'XYZ'
+        return {'FINISHED'}
 
-        new_cam.data.lens = capture.lens_focal
-        new_cam.data.dof.use_dof = capture.dof_enabled
-        new_cam.data.dof.focus_distance = capture.dof_distance
-        new_cam.data.dof.aperture_fstop = capture.dof_fstop
+
+class VIEW3D_OT_vr_location_scouting_add_marker_from_capture(Operator):
+    bl_idname = "view3d.vr_location_scouting_add_marker_from_capture"
+    bl_label = "Create Camera Marker from VR Capture"
+    bl_description = "Create a new Camera bound to a Marker from the selected VR Capture at the current frame"
+    bl_options = {'UNDO', 'REGISTER'}
+
+    def execute(self, context):
+        scene = context.scene
+        sel_capture = properties.VRCapture.get_selected_capture(context)
+
+        # Check if the selected capture camera already exist, if not create it.
+        capture_cam = scene.objects.get(capture_camera_name(sel_capture))
+
+        def cam_matches_capture(camera, capture):
+            if camera is None:
+                return False
+
+            return camera.location == capture.location and camera.rotation_quaternion == capture.orientation
+
+        if not cam_matches_capture(capture_cam, sel_capture):
+            capture_cam = add_camera_from_capture(scene, sel_capture)
+
+        marker = scene.timeline_markers.new(capture_cam.name, frame=scene.frame_current)
+        marker.camera = capture_cam
 
         return {'FINISHED'}
 
@@ -977,6 +1014,7 @@ classes = (
     VIEW3D_OT_vr_location_scouting_viewfinder_capture,
     VIEW3D_OT_vr_location_scouting_viewfinder_apply_action,
     VIEW3D_OT_vr_location_scouting_add_camera_from_capture,
+    VIEW3D_OT_vr_location_scouting_add_marker_from_capture,
     VIEW3D_OT_vr_location_scouting_active_camera_to_capture,
     VIEW3D_OT_vr_location_scouting_remove_capture,
     VIEW3D_OT_vr_location_scouting_browse_captures,
