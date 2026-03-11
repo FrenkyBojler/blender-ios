@@ -1,1 +1,1 @@
-Referenced by pull request #155494, Fix: VSE: Incorrect unicode cursor offset setting Strip text
+Referenced by pull request #155494, Fix: VSE: Crash editing strip text after pasting unicode text
