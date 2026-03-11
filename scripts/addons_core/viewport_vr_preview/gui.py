@@ -151,7 +151,8 @@ class VIEW3D_PT_vr_location_scouting_captures(VRButtonsPanel, Panel):
         col.operator("view3d.vr_location_scouting_remove_capture", icon='REMOVE', text="")
 
         row = layout.row(align=True)
-        row.operator("view3d.vr_location_scouting_add_camera_from_capture", icon='OUTLINER_OB_CAMERA', text="Add Camera")
+        row.operator("view3d.vr_location_scouting_add_camera_from_capture",
+                     icon='OUTLINER_OB_CAMERA', text="Add Camera")
         row.operator("view3d.vr_location_scouting_active_camera_to_capture", icon='HIDE_OFF', text="Set Active")
 
 

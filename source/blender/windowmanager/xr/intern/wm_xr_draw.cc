@@ -279,7 +279,6 @@ static gpu::Batch *wm_xr_controller_model_batch_create(GHOST_IXrContext *xr_cont
   return GPU_batch_create_ex(GPU_PRIM_TRIS, vbo, ibo, GPU_BATCH_OWNS_VBO | GPU_BATCH_OWNS_INDEX);
 }
 
-
 static void wm_xr_controller_model_draw(const XrSessionSettings *settings,
                                         GHOST_IXrContext *xr_context,
                                         wmXrSessionState *state,

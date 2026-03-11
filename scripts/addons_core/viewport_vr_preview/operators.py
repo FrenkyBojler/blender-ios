@@ -323,6 +323,8 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_capture(Operator):
 
         # Quick and dirty unique name function
         # Returns the first available name in the style (Base 001, Base 002, Base 003, etc...)
+        # TODO: could be improved to use dots instead, for the add Camera/Marker
+        # operator to not create names with spaces.
         def unique_name(col, base: str) -> str:
             existing_indexes = set()
 
@@ -437,8 +439,8 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_apply_action(Operator):
                 # Focus distance control (ray-cast autofocus)
                 case 'FOCUS':
                     raycast_hit = self.focus_distance_raycast(context,
-                                                               xr_viewfinder.location,
-                                                               xr_viewfinder.orientation)
+                                                              xr_viewfinder.location,
+                                                              xr_viewfinder.orientation)
 
                     if raycast_hit is not None:
                         xr_viewfinder.capture_dof_distance = raycast_hit

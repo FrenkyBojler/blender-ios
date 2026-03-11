@@ -158,7 +158,7 @@ static wmXrController *wm_xr_viewfinder_get_controller(const XrSessionSettings *
       subaction_path = "/user/hand/right";
       break;
     default:
-    BLI_assert_unreachable();
+      BLI_assert_unreachable();
       return nullptr;
   }
 
@@ -282,7 +282,7 @@ void wm_xr_viewfinder_render_view(const GHOST_XrDrawViewInfo *draw_view, void *c
                                                   true,
                                                   gpu::TextureFormat::UNORM_8_8_8_8,
                                                   GPU_TEXTURE_USAGE_SHADER_READ |
-                                                  GPU_TEXTURE_USAGE_MEMORY_EXPORT,
+                                                      GPU_TEXTURE_USAGE_MEMORY_EXPORT,
                                                   false,
                                                   err_out);
   }
@@ -337,7 +337,7 @@ void wm_xr_viewfinder_render_view(const GHOST_XrDrawViewInfo *draw_view, void *c
       break;
     }
     default:
-    BLI_assert_unreachable();
+      BLI_assert_unreachable();
       break;
   }
 
@@ -350,8 +350,7 @@ void wm_xr_viewfinder_render_view(const GHOST_XrDrawViewInfo *draw_view, void *c
                                       render_settings->xasp,
                                       render_settings->yasp);
   /* In Live mode, scale viewplane by passepartout overscan. */
-  if (state->viewfinder.active_mode == XR_VIEWFINDER_MODE_LIVE)
-  {
+  if (state->viewfinder.active_mode == XR_VIEWFINDER_MODE_LIVE) {
     BLI_rctf_mul(&cam_render_params.viewplane, wm_xr_viewfinder_get_pp_overscan(settings));
   }
 
@@ -401,7 +400,6 @@ void wm_xr_viewfinder_render_view(const GHOST_XrDrawViewInfo *draw_view, void *c
                                   gpu_viewport);
 }
 
-
 /* -------------------------------------------------------------------- */
 /** \name Location Scouting Viewfinder UI Widgets
  *
@@ -412,7 +410,8 @@ void wm_xr_viewfinder_render_view(const GHOST_XrDrawViewInfo *draw_view, void *c
  * \{ */
 
 static ui::Layout &wm_xr_viewfinder_ui_prepare_block(ui::Block **block,
-                                                     const bContext *C, ui::EmbossType emboss)
+                                                     const bContext *C,
+                                                     ui::EmbossType emboss)
 {
   const uiStyle *style = ui::style_get_dpi();
   const int viewfinder_width = style->widget.points * 50 * UI_SCALE_FAC;
@@ -539,7 +538,7 @@ static ui::Block *wm_xr_viewfinder_ui_settings_right_label_block(const bContext 
       }
       break;
     default:
-    BLI_assert_unreachable();
+      BLI_assert_unreachable();
       return nullptr;
   }
 
@@ -557,11 +556,11 @@ static ui::Block *wm_xr_viewfinder_ui_action_label_block(const bContext *C,
   ui::Layout &layout = wm_xr_viewfinder_ui_prepare_block(&block, C, ui::EmbossType::None);
 
   const char *active_action_prop = state->viewfinder.active_mode == XR_VIEWFINDER_MODE_LIVE ?
-                                   "active_action_live" :
-                                   "active_action_playback";
+                                       "active_action_live" :
+                                       "active_action_playback";
   const int active_action_idx = state->viewfinder.active_mode == XR_VIEWFINDER_MODE_LIVE ?
-                                int(state->viewfinder.active_action_live) :
-                                int(state->viewfinder.active_action_playback);
+                                    int(state->viewfinder.active_action_live) :
+                                    int(state->viewfinder.active_action_playback);
 
   PointerRNA ptr = RNA_pointer_create_discrete(
       &CTX_wm_manager(C)->id, RNA_XrViewfinderState, (void *)&state->viewfinder);
@@ -660,8 +659,8 @@ static void wm_xr_viewfinder_ui_draw_widgets(const bContext *C,
 
   const float settings_left_label_x = viewfinder_rect.xmin + 0.05f;
   const float settings_right_label_x = state->viewfinder.active_mode == XR_VIEWFINDER_MODE_LIVE ?
-                                       viewfinder_rect.xmax - 3.7f :
-                                       viewfinder_rect.xmax - 0.8f;
+                                           viewfinder_rect.xmax - 3.7f :
+                                           viewfinder_rect.xmax - 0.8f;
   const float settings_label_y = viewfinder_rect.ymax + 0.47f;
 
   draw_block(
@@ -673,8 +672,8 @@ static void wm_xr_viewfinder_ui_draw_widgets(const bContext *C,
   const float action_label_y = viewfinder_rect.ymin - 0.15f;
 
   const float action_enum_x = state->viewfinder.active_mode == XR_VIEWFINDER_MODE_LIVE ?
-                              viewfinder_rect.xmax - 1.6f :
-                              viewfinder_rect.xmax - 1.2f;
+                                  viewfinder_rect.xmax - 1.6f :
+                                  viewfinder_rect.xmax - 1.2f;
   const float action_enum_y = viewfinder_rect.ymin - 0.15f;
 
   draw_block(wm_xr_viewfinder_ui_action_label_block, action_label_x, action_label_y);
@@ -824,7 +823,7 @@ static void wm_xr_viewfinder_ui_draw_background(const rctf &viewfinder_rect)
 static void wm_xr_viewfinder_ui_draw_texture(gpu::Texture *texture,
                                              const rctf &rect,
                                              const rctf &uv,
-                                                     const float color[4])
+                                             const float color[4])
 {
   GPUVertFormat *format = immVertexFormat();
   uint pos = GPU_vertformat_attr_add(format, "pos", gpu::VertAttrType::SFLOAT_32_32);
@@ -862,7 +861,6 @@ static void wm_xr_viewfinder_ui_draw_view_texture(const bContext *C,
   const float tex_color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
 
   wm_xr_viewfinder_ui_draw_texture(view_tex, viewfinder_rect, tex_uv, tex_color);
-
 }
 
 static void wm_xr_viewfinder_ui_draw_backside_logo_texture(const wmXrSessionState *state,
@@ -984,7 +982,7 @@ static void wm_xr_viewfinder_ui_draw_capture_flash(wmXrSessionState *state,
 }
 
 void wm_xr_viewfinder_draw(const XrSessionSettings *settings,
-                                           wmXrSessionState *state,
+                           wmXrSessionState *state,
                            const bContext *C)
 {
   if (!settings->viewfinder_enabled) {
