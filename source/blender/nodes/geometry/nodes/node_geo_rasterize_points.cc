@@ -5,6 +5,7 @@
 #include "BKE_volume.hh"
 #include "BKE_volume_grid.hh"
 
+#include "BLI_array_utils.hh"
 #include "BLI_generic_array.hh"
 #include "BLI_math_matrix.hh"
 
@@ -242,6 +243,13 @@ static void node_geo_exec(GeoNodeExecParams params)
   const geometry::KernelType kernel_type = params.get_input<geometry::KernelType>("Kernel Type");
   const GeometrySet geometry_set = params.extract_input<GeometrySet>("Points");
   const Field<float3> position_field = params.extract_input<Field<float3>>("Position");
+  Vector<GField> fields_by_item;
+  for (const int i : IndexRange(storage.items_num)) {
+    const NodeGeometryRasterizePointsItem &item = storage.items[i];
+    const std::string identifier = RasterizePointsItemsAccessor::socket_identifier_for_item(item);
+
+    fields_by_item.append(params.extract_input<GField>(identifier));
+  }
 
   const Array<GeometryComponent::Type> component_types = {GeometryComponent::Type::Mesh,
                                                           GeometryComponent::Type::PointCloud,
@@ -292,12 +300,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     fn::FieldEvaluator evaluator{field_context, points.size()};
     evaluator.add_with_destination(position_field, positions.as_mutable_span().slice(points));
     for (const int i : IndexRange(storage.items_num)) {
-      const NodeGeometryRasterizePointsItem &item = storage.items[i];
-      const std::string identifier = RasterizePointsItemsAccessor::socket_identifier_for_item(
-          item);
-
-      evaluator.add_with_destination(params.extract_input<GField>(identifier),
-                                     value_buffers[i].as_mutable_span().slice(points));
+      const GField &field = fields_by_item[i];
+      evaluator.add_with_destination(field, value_buffers[i].as_mutable_span().slice(points));
     }
     evaluator.evaluate();
   }
