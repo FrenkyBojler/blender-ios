@@ -1,1 +1,2 @@
 Referenced by pull request #155470, Fix: Animation: Use-after-free in parallelized keyframe existence check
+Referenced by commit d68d7aa74401dfa3e4f943e8307471798d52637b, Fix: Animation: Use-after-free in parallelized keyframe existence check
