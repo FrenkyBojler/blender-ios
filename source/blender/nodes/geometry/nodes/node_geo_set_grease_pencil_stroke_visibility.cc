@@ -21,7 +21,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("Grease Pencil to set the stroke visibility of");
   b.add_output<decl::Geometry>("Grease Pencil").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
-  b.add_input<decl::Bool>("Hide Stroke").field_on_all();
+  b.add_input<decl::Bool>("Hide Stroke").default_value(true).field_on_all();
 }
 
 static void node_geo_exec(GeoNodeExecParams params)

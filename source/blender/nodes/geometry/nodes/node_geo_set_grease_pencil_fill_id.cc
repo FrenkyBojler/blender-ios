@@ -21,7 +21,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("Grease Pencil to set the fill ID of");
   b.add_output<decl::Geometry>("Grease Pencil").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
-  b.add_input<decl::Int>("Fill ID").field_on_all();
+  b.add_input<decl::Int>("Fill ID").default_value(1).field_on_all();
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
