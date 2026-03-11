@@ -92,8 +92,7 @@ class RepeatZoneSideEffectProvider : public lf::GraphExecutorSideEffectProvider 
   }
 };
 
-struct RepeatEvalStorage {
-  LinearAllocator<> allocator;
+struct GenericEvalStorage {
   VectorSet<lf::FunctionNode *> lf_body_nodes;
   lf::Graph graph;
   std::optional<LazyFunctionForLogicalOr> or_function;
@@ -105,6 +104,11 @@ struct RepeatEvalStorage {
   bool multi_threading_enabled = false;
   Vector<int> input_index_map;
   Vector<int> output_index_map;
+};
+
+struct RepeatEvalStorage {
+  ResourceScope scope;
+  GenericEvalStorage *generic = nullptr;
 };
 
 class LazyFunctionForRepeatZone : public LazyFunction {
@@ -141,8 +145,8 @@ class LazyFunctionForRepeatZone : public LazyFunction {
   void destruct_storage(void *storage) const override
   {
     RepeatEvalStorage *s = static_cast<RepeatEvalStorage *>(storage);
-    if (s->graph_executor_storage) {
-      s->graph_executor->destruct_storage(s->graph_executor_storage);
+    if (s->generic && s->generic->graph_executor_storage) {
+      s->generic->graph_executor->destruct_storage(s->generic->graph_executor_storage);
     }
     std::destroy_at(s);
   }
@@ -156,7 +160,7 @@ class LazyFunctionForRepeatZone : public LazyFunction {
 
     const NodeGeometryRepeatOutput &node_storage = *static_cast<const NodeGeometryRepeatOutput *>(
         repeat_output_bnode_.storage);
-    RepeatEvalStorage &eval_storage = *static_cast<RepeatEvalStorage *>(context.storage);
+    RepeatEvalStorage &node_eval_storage = *static_cast<RepeatEvalStorage *>(context.storage);
 
     const int iterations_usage_index = zone_info_.indices.outputs.input_usages[0];
     if (!params.output_was_set(iterations_usage_index)) {
@@ -167,21 +171,21 @@ class LazyFunctionForRepeatZone : public LazyFunction {
     const NodeRepeatZoneEvalMode eval_mode = NodeRepeatZoneEvalMode(node_storage.eval_mode);
     switch (eval_mode) {
       case NODE_REPEAT_ZONE_EVAL_MODE_EAGER: {
-        this->evaluate_eager(params, eval_storage, node_storage, user_data);
+        this->evaluate_eager(params, node_eval_storage, node_storage, user_data);
         break;
       }
       case NODE_REPEAT_ZONE_EVAL_MODE_AUTO:
       case NODE_REPEAT_ZONE_EVAL_MODE_GENERIC:
       default: {
         this->evaluate_generic(
-            params, context, eval_storage, node_storage, user_data, local_user_data);
+            params, context, node_eval_storage, node_storage, user_data, local_user_data);
         break;
       }
     }
   }
 
   void evaluate_eager(lf::Params &params,
-                      RepeatEvalStorage &eval_storage,
+                      RepeatEvalStorage &node_eval_storage,
                       const NodeGeometryRepeatOutput &node_storage,
                       GeoNodesUserData &user_data) const
   {
@@ -292,7 +296,7 @@ class LazyFunctionForRepeatZone : public LazyFunction {
           user_data, body_compute_context.hash());
 
       GeoNodesLocalUserData body_local_user_data{body_user_data};
-      void *body_storage = body_fn_.function->init_storage(eval_storage.allocator);
+      void *body_storage = body_fn_.function->init_storage(node_eval_storage.scope.allocator());
       lf::Context body_context{body_storage, &body_user_data, &body_local_user_data};
       body_fn_.function->execute(body_params, body_context);
       body_fn_.function->destruct_storage(body_storage);
@@ -314,15 +318,20 @@ class LazyFunctionForRepeatZone : public LazyFunction {
 
   void evaluate_generic(lf::Params &params,
                         const lf::Context &context,
-                        RepeatEvalStorage &eval_storage,
+                        RepeatEvalStorage &node_eval_storage,
                         const NodeGeometryRepeatOutput &node_storage,
                         GeoNodesUserData &user_data,
                         GeoNodesLocalUserData &local_user_data) const
   {
+    if (!node_eval_storage.generic) {
+      node_eval_storage.generic = &node_eval_storage.scope.construct<GenericEvalStorage>();
+    }
+    GenericEvalStorage &eval_storage = *node_eval_storage.generic;
+
     if (!eval_storage.graph_executor) {
       /* Create the execution graph in the first evaluation. */
       this->initialize_execution_graph(
-          params, eval_storage, node_storage, user_data, local_user_data);
+          params, node_eval_storage, node_storage, user_data, local_user_data);
     }
 
     /* Execute the graph for the repeat zone. */
@@ -345,11 +354,12 @@ class LazyFunctionForRepeatZone : public LazyFunction {
    * case repeat loop evaluations could be implemented separately).
    */
   void initialize_execution_graph(lf::Params &params,
-                                  RepeatEvalStorage &eval_storage,
+                                  RepeatEvalStorage &node_eval_storage,
                                   const NodeGeometryRepeatOutput &node_storage,
                                   GeoNodesUserData &user_data,
                                   GeoNodesLocalUserData &local_user_data) const
   {
+    GenericEvalStorage &eval_storage = *node_eval_storage.generic;
     const int num_repeat_items = node_storage.items_num;
     const int num_border_links = body_fn_.indices.inputs.border_links.size();
 
@@ -548,7 +558,7 @@ class LazyFunctionForRepeatZone : public LazyFunction {
                                         &*eval_storage.side_effect_provider,
                                         &*eval_storage.body_execute_wrapper);
     eval_storage.graph_executor_storage = eval_storage.graph_executor->init_storage(
-        eval_storage.allocator);
+        node_eval_storage.scope.allocator());
 
     /* Log graph for debugging purposes. */
     const bNodeTree &btree_orig = *DEG_get_original(&btree_);
