@@ -141,7 +141,7 @@ struct Convolve {
   [[image(0, write, DEFERRED_RADIANCE_FORMAT)]] uimage2D out_direct_light_img;
   [[image(1, write, RAYTRACE_RADIANCE_FORMAT)]] image2D out_indirect_light_img;
 
-  [[storage(0, write)]] uint (&tiles_coord_buf)[];
+  [[storage(0, read)]] const uint (&tiles_coord_buf)[];
 
   [[shared]] float3 cached_radiance[SUBSURFACE_GROUP_SIZE][SUBSURFACE_GROUP_SIZE];
   [[shared]] uint cached_sss_id[SUBSURFACE_GROUP_SIZE][SUBSURFACE_GROUP_SIZE];
