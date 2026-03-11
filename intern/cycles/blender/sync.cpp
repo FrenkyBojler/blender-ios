@@ -550,9 +550,11 @@ void BlenderSync::sync_integrator(blender::ViewLayer &b_view_layer,
     integrator->set_denoise_use_gpu(denoise_params.use_gpu);
     integrator->set_denoise_start_sample(denoise_params.start_sample);
     integrator->set_use_denoise_pass_albedo(denoise_params.use_pass_albedo);
+    integrator->set_use_denoise_pass_specular_albedo(denoise_params.use_pass_specular_albedo);
     integrator->set_use_denoise_pass_normal(denoise_params.use_pass_normal);
     integrator->set_use_denoise_pass_roughness(denoise_params.use_pass_roughness);
-    integrator->set_use_denoise_pass_depth_and_motion(denoise_params.temporally_stable);
+    integrator->set_use_denoise_pass_depth(denoise_params.use_pass_depth);
+    integrator->set_use_denoise_pass_motion(denoise_params.temporally_stable);
     integrator->set_denoiser_prefilter(denoise_params.prefilter);
     integrator->set_denoiser_quality(denoise_params.quality);
     integrator->set_denoiser_upscale_factor(denoise_params.upscale_factor);
@@ -742,7 +744,6 @@ static bool get_known_pass_type(blender::RenderPass &b_pass, PassType &type, Pas
   MAP_PASS("Denoising Normal", PASS_DENOISING_NORMAL, true);
   MAP_PASS("Denoising Roughness", PASS_DENOISING_ROUGHNESS, true);
   MAP_PASS("Denoising Depth", PASS_DENOISING_DEPTH, true);
-  MAP_PASS("Denoising Specular Albedo", PASS_DENOISING_SPECULAR_ALBEDO, true);
 
   MAP_PASS("Shadow Catcher", PASS_SHADOW_CATCHER, false);
   MAP_PASS("Noisy Shadow Catcher", PASS_SHADOW_CATCHER, true);

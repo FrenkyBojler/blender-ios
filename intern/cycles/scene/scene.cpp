@@ -413,7 +413,7 @@ Scene::MotionType Scene::need_motion() const
     return MOTION_BLUR;
   }
   if (Pass::contains(passes, PASS_MOTION) ||
-      (integrator->get_use_denoise() && integrator->get_use_denoise_pass_depth_and_motion()))
+      (integrator->get_use_denoise() && integrator->get_use_denoise_pass_motion()))
   {
     return MOTION_PASS;
   }
