@@ -620,7 +620,6 @@ class NODE_MT_gn_point_base(node_add_menu.NodeMenu):
     bl_label = "Point"
 
     def draw(self, context):
-        del context
         layout = self.layout
         self.node_operator(layout, "GeometryNodeDistributePointsInGrid")
         self.node_operator(layout, "GeometryNodeDistributePointsInVolume")
@@ -630,6 +629,17 @@ class NODE_MT_gn_point_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodePointsToCurves")
         self.node_operator(layout, "GeometryNodePointsToSDFGrid")
         self.node_operator(layout, "GeometryNodePointsToVertices")
+
+        # Search-only alias: "Points to Mesh" creates "Points to Vertices".
+        if getattr(context, "is_menu_search", False):
+            self.node_operator(
+                layout,
+                "GeometryNodePointsToVertices",
+                label="Points to Mesh",
+                # Do not translate this alias, so typing "Points to Mesh" works in every locale.
+                translate=False,
+            )
+
         self.node_operator(layout, "GeometryNodePointsToVolume")
         layout.separator()
         self.node_operator(layout, "GeometryNodeSetPointRadius")
