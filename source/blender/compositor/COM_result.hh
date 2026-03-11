@@ -468,7 +468,8 @@ class Result {
    * otherwise, a new texture will be allocated. Pooling should not be used for persistent results
    * that might span more than one evaluation, like cached resources. While pooling should be used
    * for most other cases where the result will be allocated then later released in the same
-   * evaluation. */
+   * evaluation. Some types do not support pooling, since they require array textures which are not
+   * supported by the texture pool. */
   void allocate_data(const int2 size,
                      const bool from_pool = true,
                      const std::optional<ResultStorageType> storage_type = std::nullopt);

@@ -287,14 +287,14 @@ void ShaderOperation::link_node_input_constant(const bNodeSocket &input)
     return;
   }
 
-  const ResultType type = get_node_socket_result_type(&input);
-
   /* Create a constant or a uniform link that carry the value of the input. Use a constant for
    * socket types that rarely change like booleans and menus, while use a uniform for socket type
    * that might change a lot to avoid excessive shader recompilation. */
   initialize_input_stack_value(input, stack);
   const bool use_as_constant = ELEM(input.type, SOCK_BOOLEAN, SOCK_MENU);
   GPUNodeLink *link = use_as_constant ? GPU_constant(stack.vec) : GPU_uniform(stack.vec);
+
+  const ResultType type = get_node_socket_result_type(&input);
   const char *function_name = get_set_function_name(type);
   GPU_link(material_, function_name, link, &stack.link);
 }
