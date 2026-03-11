@@ -18,6 +18,7 @@
 #include "eevee_shadow_shared.hh"
 
 #include "eevee_shadow_tilemap_lib.glsl"
+#include "gpu_shader_math_matrix_transform_lib.glsl"
 
 namespace eevee::shadow {
 
@@ -60,13 +61,28 @@ void tag_update_vert([[resource_table]] TagUpdate &srt,
 
   ShadowTileMapData tilemap = srt.tilemaps_buf[v_out.tilemap_index];
 
+  float3 ls_N = v_in.pos;
   /* Convert from -1..1 box shape to 0..1 box. */
-  float3 lP = max(float3(0), v_in.pos);
+  float3 ls_P = max(float3(0), v_in.pos);
 
-  float3 P = lP.x * bounds.bounding_corners[1].xyz + lP.y * bounds.bounding_corners[2].xyz +
-             lP.z * bounds.bounding_corners[3].xyz + bounds.bounding_corners[0].xyz;
+  float3 P = ls_P.x * bounds.bounding_corners[1].xyz + ls_P.y * bounds.bounding_corners[2].xyz +
+             ls_P.z * bounds.bounding_corners[3].xyz + bounds.bounding_corners[0].xyz;
 
-  out_position = tilemap.winmat * (tilemap.viewmat * float4(P, 1.0f));
+  float4 hs_P = tilemap.winmat * (tilemap.viewmat * float4(P, 1.0f));
+  /* Clip space normals are the same direction as the viewspace one since the projection has aspect
+   * ratio of 1:1. */
+  float3 hs_N = transform_direction(tilemap.viewmat, ls_N);
+
+  out_position = hs_P;
+
+  /* To emulate conservative rasterization, we inflate the bounding box by 1 pixel. */
+  float2 ndc_pixel_size = 2.0f / float2(SHADOW_TILEMAP_RES);
+  out_position.xy += sign(hs_N.xy) * ndc_pixel_size * out_position.w;
+
+  /* Flatten the box to avoid loosing pixel when the box extend beyond the far clip plane. */
+  if (out_position.z > out_position.w && out_position.w > 0.0) {
+    out_position.z = out_position.w - 1e-16;
+  }
 }
 
 [[fragment]]
