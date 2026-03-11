@@ -3,7 +3,12 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "FN_lazy_function_graph_executor.hh"
-#include "FN_lazy_function_graph_executor_generic_impl.hh"
+
+/* The entire executor is included here. Otherwise an additional indirection using forward
+ * declarations of #GenericGraphExecutor would be needed. However, there isn't really a point in
+ * having that because it's tightly coupled to #GraphExecutor anyway. It's only defined in a
+ * separate file for code organization purposes. */
+#include "lazy_function_graph_executor_generic.hh"
 
 namespace blender::fn::lazy_function {
 
