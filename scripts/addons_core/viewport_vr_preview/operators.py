@@ -323,8 +323,6 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_capture(Operator):
 
         # Quick and dirty unique name function
         # Returns the first available name in the style (Base 001, Base 002, Base 003, etc...)
-        # TODO: could be improved to use dots instead, for the add Camera/Marker
-        # operator to not create names with spaces.
         def unique_name(col, base: str) -> str:
             existing_indexes = set()
 
@@ -339,7 +337,7 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_capture(Operator):
             while idx in existing_indexes:
                 idx += 1
 
-            return f"{base} {idx:03d}"
+            return f"{base}.{idx:03d}"
 
         capture = captures.add()
         captures[-1].name = unique_name(captures, "Capture")
