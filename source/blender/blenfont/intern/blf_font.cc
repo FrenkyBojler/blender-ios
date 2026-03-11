@@ -1000,7 +1000,24 @@ Vector<Bounds<int>> blf_str_selection_boxes(
 /** \name Text Evaluation: Word-Wrap with Callback
  * \{ */
 
-/* Store wrapped start/ends in both bytes _and_ glyph indices. */
+/* Store wrap ranges for each line.
+ * Each entry represents half-open intervals (exclusive end):
+ *
+ *   - byte range:  [start_byte, end_byte)
+ *       end_byte is the first byte of the next line (or `str_len` for the final line).
+ *
+ *   - glyph range: [start_glyph, end_glyph)
+ *       end_glyph is one past the last glyph included on the line.
+ *
+ * Half-open semantics simplify slicing and length computation:
+ *   start = (i == 0) ? 0 : wrap_lines[i - 1].end_byte;
+ *   len   = wrap_lines[i].end_byte - start;
+ *
+ * Notes:
+ *  - end_byte is an offset into the original UTF-8 buffer; the caller must keep that buffer alive.
+ *  - Glyph indices are valid only for the shaping result used to compute these ranges
+ *    (invalidate when text content, font size, face or glyph cache changes).
+ */
 struct LineWrapInfo {
   size_t start_byte;
   size_t end_byte;
@@ -1013,11 +1030,8 @@ static Vector<LineWrapInfo> blf_font_wrap_compute(const ShapingData &text,
                                                   const int max_pixel_width,
                                                   BLFWrapMode mode)
 {
-  /* Cache glyphs reference for readability and performance. */
-  const auto &glyphs = text.glyphs;
-  const size_t glyph_count = glyphs.size();
-
   Vector<LineWrapInfo> wrap_lines;
+  const size_t glyph_count = text.glyphs.size();
 
   size_t line_start = 0;
   ft_pix pen_x = 0;
@@ -1026,9 +1040,9 @@ static Vector<LineWrapInfo> blf_font_wrap_compute(const ShapingData &text,
   ft_pix wrap_width = (max_pixel_width != -1) ? ft_pix_from_int(max_pixel_width) : INT_MAX;
 
   auto append_line = [&](size_t start_glyph, size_t last_included_glyph, size_t clip) {
-    size_t utf8_start = (start_glyph < glyph_count) ? glyphs[start_glyph].index_utf8 : 0;
+    size_t utf8_start = (start_glyph < glyph_count) ? text.glyphs[start_glyph].index_utf8 : 0;
     size_t utf8_end = (last_included_glyph + 1 < glyph_count) ?
-                          glyphs[last_included_glyph + 1].index_utf8 :
+                          text.glyphs[last_included_glyph + 1].index_utf8 :
                           str_len;
 
     if (utf8_end > utf8_start + clip) {
@@ -1038,12 +1052,12 @@ static Vector<LineWrapInfo> blf_font_wrap_compute(const ShapingData &text,
   };
 
   for (size_t i = 0; i < glyph_count; i++) {
-    const ShapedGlyph &glyph = glyphs[i];
+    const ShapedGlyph &glyph = text.glyphs[i];
     bool do_wrap = false;
     ft_pix advance_x = glyph.g ? glyph.g->advance_x : 0;
     ft_pix pen_x_next = pen_x + advance_x;
     uint32_t codepoint = glyph.g ? glyph.g->c : 0;
-    uint32_t codepoint_prev = (i > 0 && glyphs[i - 1].g) ? glyphs[i - 1].g->c : 0;
+    uint32_t codepoint_prev = (i > 0 && text.glyphs[i - 1].g) ? text.glyphs[i - 1].g->c : 0;
 
     bool overflows = (pen_x_next >= wrap_width && pen_x != 0);
 
@@ -1170,6 +1184,34 @@ static void blf_font_wrap_apply(FontBLF *font,
       r_info->width = 0;
     }
   }
+}
+
+/* This returns a vector of wrapping offsets. Note that these are the exclusive
+ * end values of half-open intervals. So they are best thought of as the starting
+ * byte of the next line. Empty lines result in repeated offsets and therefore
+ * a zero-length slice. */
+Vector<size_t> blf_font_wrap_get_byte_offsets(FontBLF *font,
+                                              StringRef str,
+                                              const int max_pixel_width,
+                                              BLFWrapMode mode)
+{
+  if (str.is_empty()) {
+    return {};
+  }
+
+  GlyphCacheBLF *gc = blf_glyph_cache_acquire(font);
+  ShapingData text(font, gc, str.data(), size_t(str.size()));
+  Vector<LineWrapInfo> wrap_lines = blf_font_wrap_compute(
+      text, size_t(str.size()), max_pixel_width, mode);
+  blf_glyph_cache_release(font);
+
+  Vector<size_t> offsets;
+  offsets.reserve(wrap_lines.size());
+  for (const LineWrapInfo &line : wrap_lines) {
+    offsets.append(line.end_byte);
+  }
+
+  return offsets;
 }
 
 /** Utility for #blf_font_draw__wrap. */
