@@ -1,0 +1,1 @@
+Referenced by issue #129570, geo node properties of types image, texture, collection, and material are greyed out when used in an addon panel.
