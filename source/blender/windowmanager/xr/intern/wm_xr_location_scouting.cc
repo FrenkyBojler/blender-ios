@@ -981,8 +981,7 @@ static void wm_xr_viewfinder_ui_draw_capture_flash(wmXrSessionState *state,
   }
 }
 
-void wm_xr_viewfinder_draw(const XrSessionSettings *settings,
-                           wmXrSessionState *state)
+void wm_xr_viewfinder_draw(const XrSessionSettings *settings, wmXrSessionState *state)
 {
   if (!settings->viewfinder_enabled) {
     return;
