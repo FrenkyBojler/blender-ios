@@ -19,9 +19,13 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Bool>("Whitespace")
       .default_value(true)
       .description("Trim whitespace characters in addition to the provided characters");
-  b.add_input<decl::Bool>("Start").default_value(true).description(
-      "Trim the beginning of the string");
-  b.add_input<decl::Bool>("End").default_value(true).description("Trim at the end of the string");
+  {
+    auto &p = b.add_panel("Limit"_ustr).default_closed(true);
+    p.add_input<decl::Bool>("Start").default_value(true).description(
+        "Trim the beginning of the string");
+    p.add_input<decl::Bool>("End").default_value(true).description(
+        "Trim at the end of the string");
+  }
 }
 
 static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
