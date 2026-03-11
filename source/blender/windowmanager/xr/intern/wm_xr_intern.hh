@@ -312,7 +312,6 @@ void wm_xr_disable_passthrough(void *customdata);
 
 void wm_xr_viewfinder_render_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata);
 void wm_xr_viewfinder_draw(const XrSessionSettings *settings,
-                           wmXrSessionState *state,
-                           const bContext *C);
+                           wmXrSessionState *state);
 
 }  // namespace blender

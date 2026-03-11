@@ -982,14 +982,13 @@ static void wm_xr_viewfinder_ui_draw_capture_flash(wmXrSessionState *state,
 }
 
 void wm_xr_viewfinder_draw(const XrSessionSettings *settings,
-                           wmXrSessionState *state,
-                           const bContext *C)
+                           wmXrSessionState *state)
 {
   if (!settings->viewfinder_enabled) {
     return;
   }
 
-  const RenderData *scene_render_settings = &CTX_data_scene(C)->r;
+  const RenderData *scene_render_settings = &CTX_data_scene(evil_main_C)->r;
   const rctf viewfinder_rect = wm_xr_viewfinder_get_rect(settings, scene_render_settings);
 
   /* Initial transform setup. */
@@ -1010,12 +1009,12 @@ void wm_xr_viewfinder_draw(const XrSessionSettings *settings,
   GPU_depth_mask(false);
 
   /* Viewfinder view, capture flash and overlays. */
-  wm_xr_viewfinder_ui_draw_view_texture(C, state, viewfinder_rect);
+  wm_xr_viewfinder_ui_draw_view_texture(evil_main_C, state, viewfinder_rect);
   wm_xr_viewfinder_ui_draw_capture_overlays(settings, state, viewfinder_rect);
   wm_xr_viewfinder_ui_draw_capture_flash(state, viewfinder_rect);
 
   /* UI Widgets. */
-  wm_xr_viewfinder_ui_draw_widgets(C, state, viewfinder_rect);
+  wm_xr_viewfinder_ui_draw_widgets(evil_main_C, state, viewfinder_rect);
 
   /* Logo on the back side of the viewfinder. */
   wm_xr_viewfinder_ui_draw_backside_logo_texture(state, viewfinder_rect);
@@ -1025,7 +1024,7 @@ void wm_xr_viewfinder_draw(const XrSessionSettings *settings,
   GPU_matrix_pop();
 
   /* Selected playback capture camera (drawn in world space). */
-  wm_xr_viewfinder_gizmo_draw_capture_camera(C, state);
+  wm_xr_viewfinder_gizmo_draw_capture_camera(evil_main_C, state);
 }
 
 /** \} */
