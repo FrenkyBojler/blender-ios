@@ -1,2 +1,3 @@
 Referenced by issue #155458, Displacement + boolean shading artifacts
 Referenced by pull request #155522, Fix #155458: Cycles displacement with flat and smooth normals artifacts
+Referenced by commit db4b36d1b2971e18b293cd18cde8d6e465163ba1, Fix #155458: Cycles displacement with flat and smooth normals artifacts
