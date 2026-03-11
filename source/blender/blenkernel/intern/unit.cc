@@ -2278,7 +2278,9 @@ static int unit_scale_str(char *str,
     `(-(2F))*0.555555582` > `(((-2F))*0.555555582`. */
     int prev_op_ofs = find_previous_non_value_char(str, found_ofs);
     if (str[prev_op_ofs] == '-' && prev_op_ofs + 2 < str_maxncpy) {
-      char *next_paren = charset_look_next("(", str + prev_op_ofs + 1, str + len);
+      char *next_paren = look_next_char("(", str + prev_op_ofs + 1, str + len);
+      /* #unit_distribute_negatives should make enclosing groups for each `-` operator. */
+      BLI_assert(next_paren);
       std::swap(str[prev_op_ofs], *next_paren);
       prev_op_ofs = next_paren - str;
     }
