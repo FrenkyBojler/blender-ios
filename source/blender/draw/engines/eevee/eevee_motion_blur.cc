@@ -199,7 +199,8 @@ void MotionBlurModule::render(View &view, gpu::Texture **input_tx, gpu::Texture 
   int2 tiles_extent = math::divide_ceil(extent, int2(MOTION_BLUR_TILE_SIZE));
 
   if (inst_.is_viewport()) {
-    float frame_delta = fabsf(inst_.velocity.step_time_delta_get(STEP_PREVIOUS, STEP_CURRENT));
+    float frame_delta = 2.0f *
+                        fabsf(inst_.velocity.step_time_delta_get(STEP_PREVIOUS, STEP_CURRENT));
     /* Avoid highly disturbing blurs, during navigation with high shutter time. */
     if (frame_delta > 0.0f && !inst_.is_navigating) {
       /* Rescale motion blur intensity to be shutter time relative and avoid long streak when we
