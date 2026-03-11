@@ -59,7 +59,18 @@ BMEditMesh *BKE_editmesh_copy(BMEditMesh *em)
 BMEditMesh *BKE_editmesh_from_object(Object *ob)
 {
   BLI_assert(ob->type == OB_MESH);
-  return (id_cast<Mesh *>(ob->data))->runtime->edit_mesh.get();
+  BMEditMesh *em = id_cast<Mesh *>(ob->data)->runtime->edit_mesh.get();
+  if (em == nullptr) {
+    /* The evaluated edit-mesh may be null when a geometry-nodes modifier
+     * replaces the mesh with new geometry (e.g. via "Realize Instances"),
+     * in that case fall back to the original object's edit-mesh, see: #154739. */
+    if (DEG_is_evaluated(ob)) {
+      Object *ob_orig = DEG_get_original(ob);
+      BLI_assert(ob_orig->type == OB_MESH);
+      em = id_cast<Mesh *>(ob_orig->data)->runtime->edit_mesh.get();
+    }
+  }
+  return em;
 }
 
 bool BKE_editmesh_eval_orig_map_available(const Mesh &mesh_eval, const Mesh *mesh_orig)
