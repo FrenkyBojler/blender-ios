@@ -164,27 +164,19 @@ class LazyFunctionForRepeatZone : public LazyFunction {
       params.set_output(iterations_usage_index, true);
     }
 
-    const bool use_eager_eval = true;
-
-    if (use_eager_eval) {
-      this->evaluate_eager(params, eval_storage, node_storage, user_data);
-    }
-    else {
-      if (!eval_storage.graph_executor) {
-        /* Create the execution graph in the first evaluation. */
-        this->initialize_execution_graph(
-            params, eval_storage, node_storage, user_data, local_user_data);
+    const NodeRepeatZoneEvalMode eval_mode = NodeRepeatZoneEvalMode(node_storage.eval_mode);
+    switch (eval_mode) {
+      case NODE_REPEAT_ZONE_EVAL_MODE_EAGER: {
+        this->evaluate_eager(params, eval_storage, node_storage, user_data);
+        break;
       }
-
-      /* Execute the graph for the repeat zone. */
-      lf::RemappedParams eval_graph_params{*eval_storage.graph_executor,
-                                           params,
-                                           eval_storage.input_index_map,
-                                           eval_storage.output_index_map,
-                                           eval_storage.multi_threading_enabled};
-      lf::Context eval_graph_context{
-          eval_storage.graph_executor_storage, context.user_data, context.local_user_data};
-      eval_storage.graph_executor->execute(eval_graph_params, eval_graph_context);
+      case NODE_REPEAT_ZONE_EVAL_MODE_AUTO:
+      case NODE_REPEAT_ZONE_EVAL_MODE_GENERIC:
+      default: {
+        this->evaluate_generic(
+            params, context, eval_storage, node_storage, user_data, local_user_data);
+        break;
+      }
     }
   }
 
@@ -318,6 +310,30 @@ class LazyFunctionForRepeatZone : public LazyFunction {
   {
     return std::max<int>(
         0, params.get_input<SocketValueVariant>(zone_info_.indices.inputs.main[0]).get<int>());
+  }
+
+  void evaluate_generic(lf::Params &params,
+                        const lf::Context &context,
+                        RepeatEvalStorage &eval_storage,
+                        const NodeGeometryRepeatOutput &node_storage,
+                        GeoNodesUserData &user_data,
+                        GeoNodesLocalUserData &local_user_data) const
+  {
+    if (!eval_storage.graph_executor) {
+      /* Create the execution graph in the first evaluation. */
+      this->initialize_execution_graph(
+          params, eval_storage, node_storage, user_data, local_user_data);
+    }
+
+    /* Execute the graph for the repeat zone. */
+    lf::RemappedParams eval_graph_params{*eval_storage.graph_executor,
+                                         params,
+                                         eval_storage.input_index_map,
+                                         eval_storage.output_index_map,
+                                         eval_storage.multi_threading_enabled};
+    lf::Context eval_graph_context{
+        eval_storage.graph_executor_storage, context.user_data, context.local_user_data};
+    eval_storage.graph_executor->execute(eval_graph_params, eval_graph_context);
   }
 
   /**

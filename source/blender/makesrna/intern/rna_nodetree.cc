@@ -7532,6 +7532,32 @@ static void def_geo_repeat_output(BlenderRNA *brna, StructRNA *srna)
                            "Iteration index that is used by inspection features like the viewer "
                            "node or socket inspection");
   RNA_def_property_update(prop, NC_NODE, "rna_Node_update");
+
+  static const EnumPropertyItem eval_mode_items[] = {
+      {NODE_REPEAT_ZONE_EVAL_MODE_AUTO,
+       "AUTO",
+       0,
+       "Auto",
+       "Choose the evaluation mode automatically"},
+      {NODE_REPEAT_ZONE_EVAL_MODE_GENERIC,
+       "GENERIC",
+       0,
+       "Generic",
+       "Most general evaluation mode which supports full parallelization and lazy evaluation "
+       "across iterations"},
+      {NODE_REPEAT_ZONE_EVAL_MODE_EAGER,
+       "EAGER",
+       0,
+       "Eager",
+       "Has lower constant overhead but does not support parallelization and lazy evaluation "
+       "across iterations"},
+      {0},
+  };
+
+  prop = RNA_def_property(srna, "eval_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, eval_mode_items);
+  RNA_def_property_ui_text(prop, "Evaluation Mode", "");
+  RNA_def_property_update(prop, NC_NODE, "rna_Node_update");
 }
 
 static void rna_def_geo_viewer_item(BlenderRNA *brna)

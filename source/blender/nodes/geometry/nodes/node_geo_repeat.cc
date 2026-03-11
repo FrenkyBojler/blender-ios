@@ -47,6 +47,10 @@ static void node_layout_ex(ui::Layout &layout, bContext *C, PointerRNA *current_
   if (!zone->output_node_id) {
     return;
   }
+
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
+
   bNode &output_node = const_cast<bNode &>(*zone->output_node());
   PointerRNA output_node_ptr = RNA_pointer_create_discrete(
       current_node_ptr->owner_id, RNA_Node, &output_node);
@@ -56,13 +60,14 @@ static void node_layout_ex(ui::Layout &layout, bContext *C, PointerRNA *current_
         C, panel, ntree, output_node);
     socket_items::ui::draw_active_item_props<RepeatItemsAccessor>(
         ntree, output_node, [&](PointerRNA *item_ptr) {
-          panel->use_property_split_set(true);
-          panel->use_property_decorate_set(false);
           panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
         });
   }
 
   layout.prop(&output_node_ptr, "inspection_index", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  if (ntree.type == NTREE_GEOMETRY) {
+    layout.prop(&output_node_ptr, "eval_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
 }
 
 namespace repeat_input_node {

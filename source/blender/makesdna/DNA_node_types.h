@@ -3517,6 +3517,12 @@ struct NodeGeometryRepeatInput {
   int32_t output_node_id = 0;
 };
 
+enum NodeRepeatZoneEvalMode {
+  NODE_REPEAT_ZONE_EVAL_MODE_AUTO = 0,
+  NODE_REPEAT_ZONE_EVAL_MODE_GENERIC = 1,
+  NODE_REPEAT_ZONE_EVAL_MODE_EAGER = 2,
+};
+
 struct NodeGeometryRepeatOutput {
   DNA_DEFINE_CXX_METHODS(NodeGeometryRepeatOutput)
 
@@ -3526,6 +3532,10 @@ struct NodeGeometryRepeatOutput {
   /** Identifier to give to the next repeat item. */
   int next_identifier = 0;
   int inspection_index = 0;
+
+  /** #NodeRepeatZoneEvalMode. */
+  int8_t eval_mode = 0;
+  char _pad[7] = {};
 
 #ifdef __cplusplus
   Span<NodeRepeatItem> items_span() const;
