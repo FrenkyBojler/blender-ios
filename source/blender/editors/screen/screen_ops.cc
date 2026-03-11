@@ -3178,7 +3178,8 @@ static wmOperatorStatus region_scale_modal(bContext *C, wmOperator *op, const wm
   /* execute the events */
   switch (event->type) {
     case MOUSEMOVE: {
-      const float aspect = (rmd->region->v2d.flag & V2D_IS_INIT) ?
+      const float aspect = ((rmd->region->v2d.flag & V2D_IS_INIT) &&
+                            (rmd->region->regiontype != RGN_TYPE_PREVIEW_SCRUBBING)) ?
                                (BLI_rctf_size_x(&rmd->region->v2d.cur) /
                                 (BLI_rcti_size_x(&rmd->region->v2d.mask) + 1)) :
                                1.0f;

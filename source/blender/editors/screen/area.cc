@@ -1282,9 +1282,7 @@ static bool region_azone_edge_poll(const ScrArea *area,
   if (is_hidden && is_fullscreen) {
     return false;
   }
-  if (!is_hidden &&
-      ELEM(region->regiontype, RGN_TYPE_HEADER, RGN_TYPE_TOOL_HEADER, RGN_TYPE_PREVIEW_SCRUBBING))
-  {
+  if (!is_hidden && ELEM(region->regiontype, RGN_TYPE_HEADER, RGN_TYPE_TOOL_HEADER)) {
     return false;
   }
   if (!is_hidden && region->regiontype == RGN_TYPE_NAV_BAR && area->spacetype == SPACE_PROPERTIES)
@@ -1636,7 +1634,7 @@ static void region_rect_recursive(
   else if (region->regiontype == RGN_TYPE_TOOL_HEADER) {
     prefsizey = ED_area_headersize();
   }
-  else if (region->regiontype == RGN_TYPE_FOOTER) {
+  else if (ELEM(region->regiontype, RGN_TYPE_FOOTER, RGN_TYPE_PREVIEW_SCRUBBING)) {
     prefsizey = ED_area_footersize();
   }
   else if (region->regiontype == RGN_TYPE_ASSET_SHELF) {
