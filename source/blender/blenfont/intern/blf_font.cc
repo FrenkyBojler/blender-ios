@@ -1000,41 +1000,24 @@ Vector<Bounds<int>> blf_str_selection_boxes(
 /** \name Text Evaluation: Word-Wrap with Callback
  * \{ */
 
-/**
- * Generic function to add word-wrap support for other existing functions.
- *
- * Wraps on spaces and respects newlines.
- * Intentionally ignores non-unix newlines, tabs and more advanced text formatting.
- *
- * \note If we want rich text - we better have a higher level API to handle that
- * (color, bold, switching fonts... etc).
- */
-static void blf_font_wrap_apply(FontBLF *font,
-                                const char *str,
-                                const size_t str_len,
-                                const int max_pixel_width,
-                                BLFWrapMode mode,
-                                ResultBLF *r_info,
-                                void (*callback)(FontBLF *font,
-                                                 GlyphCacheBLF *gc,
-                                                 const char *str,
-                                                 const size_t str_len,
-                                                 ft_pix pen_y,
-                                                 void *userdata),
-                                void *userdata)
-{
-  /* Store wrapped start/ends in both bytes _and_ glyph indices. */
-  struct LineWrapInfo {
-    size_t start_byte;
-    size_t end_byte;
-    size_t start_glyph;
-    size_t end_glyph;
-  };
-  Vector<LineWrapInfo> wrap_lines;
+/* Store wrapped start/ends in both bytes _and_ glyph indices. */
+struct LineWrapInfo {
+  size_t start_byte;
+  size_t end_byte;
+  size_t start_glyph;
+  size_t end_glyph;
+};
 
-  ft_pix line_height = blf_font_height_max_ft_pix(font);
-  GlyphCacheBLF *gc = blf_glyph_cache_acquire(font);
-  ShapingData text(font, gc, str, str_len);
+static Vector<LineWrapInfo> blf_font_wrap_compute(const ShapingData &text,
+                                                  const size_t str_len,
+                                                  const int max_pixel_width,
+                                                  BLFWrapMode mode)
+{
+  /* Cache glyphs reference for readability and performance. */
+  const auto &glyphs = text.glyphs;
+  const size_t glyph_count = glyphs.size();
+
+  Vector<LineWrapInfo> wrap_lines;
 
   size_t line_start = 0;
   ft_pix pen_x = 0;
@@ -1042,13 +1025,25 @@ static void blf_font_wrap_apply(FontBLF *font,
   size_t clip_bytes = 0;
   ft_pix wrap_width = (max_pixel_width != -1) ? ft_pix_from_int(max_pixel_width) : INT_MAX;
 
-  for (size_t i = 0; i < size_t(text.glyphs.size()); i++) {
-    const ShapedGlyph &glyph = text.glyphs[i];
+  auto append_line = [&](size_t start_glyph, size_t last_included_glyph, size_t clip) {
+    size_t utf8_start = (start_glyph < glyph_count) ? glyphs[start_glyph].index_utf8 : 0;
+    size_t utf8_end = (last_included_glyph + 1 < glyph_count) ?
+                          glyphs[last_included_glyph + 1].index_utf8 :
+                          str_len;
+
+    if (utf8_end > utf8_start + clip) {
+      utf8_end -= clip;
+    }
+    wrap_lines.append({utf8_start, utf8_end, start_glyph, last_included_glyph + 1});
+  };
+
+  for (size_t i = 0; i < glyph_count; i++) {
+    const ShapedGlyph &glyph = glyphs[i];
     bool do_wrap = false;
     ft_pix advance_x = glyph.g ? glyph.g->advance_x : 0;
     ft_pix pen_x_next = pen_x + advance_x;
     uint32_t codepoint = glyph.g ? glyph.g->c : 0;
-    uint32_t codepoint_prev = (i > 0 && text.glyphs[i - 1].g) ? text.glyphs[i - 1].g->c : 0;
+    uint32_t codepoint_prev = (i > 0 && glyphs[i - 1].g) ? glyphs[i - 1].g->c : 0;
 
     bool overflows = (pen_x_next >= wrap_width && pen_x != 0);
 
@@ -1060,7 +1055,7 @@ static void blf_font_wrap_apply(FontBLF *font,
       do_wrap = true;
       clip_bytes = 0;
     }
-    else if (i + 1 == size_t(text.glyphs.size())) {
+    else if (i + 1 == glyph_count) {
       /* End of string. */
       last_wrap_index = i + 1;
       do_wrap = true;
@@ -1079,14 +1074,13 @@ static void blf_font_wrap_apply(FontBLF *font,
     }
     else if (int(mode) & int(BLFWrapMode::Path)) {
       if (ELEM(codepoint, SEP, ' ', '?', '&', '=')) {
-        /* Break and leave at the end of line(character included). */
+        /* Break and leave at the end of line (character included). */
         last_wrap_index = i + 1;
         clip_bytes = 0;
       }
       else if (ELEM(codepoint, '-', '_', '.', '%')) {
         /* Break and move to the next line (character starts next line). */
         last_wrap_index = i;
-        clip_bytes = 0;
         clip_bytes = 0;
       }
     }
@@ -1114,14 +1108,7 @@ static void blf_font_wrap_apply(FontBLF *font,
     }
 
     if (do_wrap) {
-      size_t utf8_start = (line_start < size_t(text.glyphs.size())) ?
-                              text.glyphs[line_start].index_utf8 :
-                              0;
-      size_t utf8_end = (i < size_t(text.glyphs.size())) ? text.glyphs[i].index_utf8 : str_len;
-      if (utf8_end > utf8_start + clip_bytes) {
-        utf8_end -= clip_bytes;
-      }
-      wrap_lines.append({utf8_start, utf8_end, line_start, i});
+      append_line(line_start, i, clip_bytes);
       line_start = i + 1;
       pen_x = 0;
       continue;
@@ -1130,21 +1117,58 @@ static void blf_font_wrap_apply(FontBLF *font,
     pen_x = pen_x_next;
   }
 
-  /* Callback for each wrapped line */
-  for (int line_idx = 0; line_idx < wrap_lines.size(); ++line_idx) {
+  return wrap_lines;
+}
+
+static void blf_font_wrap_apply(FontBLF *font,
+                                const char *str,
+                                const size_t str_len,
+                                const int max_pixel_width,
+                                BLFWrapMode mode,
+                                ResultBLF *r_info,
+                                void (*callback)(FontBLF *font,
+                                                 GlyphCacheBLF *gc,
+                                                 const char *str,
+                                                 const size_t str_len,
+                                                 ft_pix pen_y,
+                                                 void *userdata),
+                                void *userdata)
+{
+  GlyphCacheBLF *gc = blf_glyph_cache_acquire(font);
+  ShapingData text(font, gc, str, str_len);
+  Vector<LineWrapInfo> wrap_lines = blf_font_wrap_compute(text, str_len, max_pixel_width, mode);
+  ft_pix line_height = blf_font_height_max_ft_pix(font);
+  size_t prev_end_byte = 0;
+
+  /* Callback for each wrapped line. Start is previous end (or 0). */
+  for (size_t line_idx = 0; line_idx < size_t(wrap_lines.size()); ++line_idx) {
     const LineWrapInfo &line = wrap_lines[line_idx];
-    ft_pix pen_y = -line_height * line_idx;
-    callback(
-        font, gc, str + line.start_byte, line.end_byte - line.start_byte + 1, pen_y, userdata);
+    ft_pix pen_y = -line_height * (ft_pix)line_idx;
+    size_t start_byte = prev_end_byte;
+    size_t len = (line.end_byte > start_byte) ? (line.end_byte - start_byte) : 0;
+    callback(font, gc, str + start_byte, len, pen_y, userdata);
+    prev_end_byte = line.end_byte;
   }
 
   blf_glyph_cache_release(font);
+  auto &glyphs = text.glyphs;
 
   if (r_info) {
     r_info->lines = int(wrap_lines.size());
-    const auto &last_line = wrap_lines.last();
-    r_info->width = ft_pix_to_int(text.glyphs[last_line.end_glyph].bounds.xmax -
-                                  text.glyphs[last_line.start_glyph].bounds.xmin);
+    if (!wrap_lines.is_empty()) {
+      const auto &last_line = wrap_lines.last();
+      if (last_line.end_glyph > last_line.start_glyph) {
+        const size_t last_included = last_line.end_glyph - 1;
+        r_info->width = ft_pix_to_int(glyphs[last_included].bounds.xmax -
+                                      glyphs[last_line.start_glyph].bounds.xmin);
+      }
+      else {
+        r_info->width = 0;
+      }
+    }
+    else {
+      r_info->width = 0;
+    }
   }
 }
 
@@ -1887,5 +1911,4 @@ bool blf_font_size(FontBLF *font, float size)
 }
 
 /** \} */
-
 }  // namespace blender
