@@ -2234,62 +2234,62 @@ void BlendWriter::write_raw(size_t size_in_bytes, const void *data)
   writedata(this->wd, BLO_CODE_DATA, size_in_bytes, data);
 }
 
-void BLO_write_char_array(BlendWriter *writer, const int64_t num, const char *data_ptr)
+void BlendWriter::write_char_array(int64_t num, const char *data)
 {
-  writer->write_raw(sizeof(char) * size_t(num), data_ptr);
+  this->write_raw(sizeof(char) * size_t(num), data);
 }
 
-void BLO_write_int8_array(BlendWriter *writer, const int64_t num, const int8_t *data_ptr)
+void BlendWriter::write_int8_array(int64_t num, const int8_t *data)
 {
-  writer->write_raw(sizeof(int8_t) * size_t(num), data_ptr);
+  this->write_raw(sizeof(int8_t) * size_t(num), data);
 }
 
-void BLO_write_int16_array(BlendWriter *writer, const int64_t num, const int16_t *data_ptr)
+void BlendWriter::write_int16_array(int64_t num, const int16_t *data)
 {
-  writer->write_raw(sizeof(int16_t) * size_t(num), data_ptr);
+  this->write_raw(sizeof(int16_t) * size_t(num), data);
 }
 
-void BLO_write_uint8_array(BlendWriter *writer, const int64_t num, const uint8_t *data_ptr)
+void BlendWriter::write_uint8_array(int64_t num, const uint8_t *data)
 {
-  writer->write_raw(sizeof(uint8_t) * size_t(num), data_ptr);
+  this->write_raw(sizeof(uint8_t) * size_t(num), data);
 }
 
-void BLO_write_int32_array(BlendWriter *writer, const int64_t num, const int32_t *data_ptr)
+void BlendWriter::write_int32_array(int64_t num, const int32_t *data)
 {
-  writer->write_raw(sizeof(int32_t) * size_t(num), data_ptr);
+  this->write_raw(sizeof(int32_t) * size_t(num), data);
 }
 
-void BLO_write_uint32_array(BlendWriter *writer, const int64_t num, const uint32_t *data_ptr)
+void BlendWriter::write_uint32_array(int64_t num, const uint32_t *data)
 {
-  writer->write_raw(sizeof(uint32_t) * size_t(num), data_ptr);
+  this->write_raw(sizeof(uint32_t) * size_t(num), data);
 }
 
-void BLO_write_float_array(BlendWriter *writer, const int64_t num, const float *data_ptr)
+void BlendWriter::write_float_array(int64_t num, const float *data)
 {
-  writer->write_raw(sizeof(float) * size_t(num), data_ptr);
+  this->write_raw(sizeof(float) * size_t(num), data);
 }
 
-void BLO_write_double_array(BlendWriter *writer, const int64_t num, const double *data_ptr)
+void BlendWriter::write_double_array(int64_t num, const double *data)
 {
-  writer->write_raw(sizeof(double) * size_t(num), data_ptr);
+  this->write_raw(sizeof(double) * size_t(num), data);
 }
 
-void BLO_write_pointer_array(BlendWriter *writer, const int64_t num, const void *data_ptr)
+void BlendWriter::write_float3_array(int64_t num, const float *data)
+{
+  this->write_raw(sizeof(float[3]) * size_t(num), data);
+}
+
+void BlendWriter::write_pointer_array(int64_t num, const void *data_ptr)
 {
   /* Create a temporary copy of the pointer array, because all pointers need to be remapped to
    * their stable address ids. */
   Array<const void *, 32> data = Span<const void *>(
       reinterpret_cast<const void *const *>(data_ptr), num);
   for (const int64_t i : data.index_range()) {
-    data[i] = get_address_id(*writer->wd, data[i]);
+    data[i] = get_address_id(*this->wd, data[i]);
   }
 
-  writedata(writer->wd, BLO_CODE_DATA, data.data(), data.as_span().size_in_bytes(), data_ptr);
-}
-
-void BLO_write_float3_array(BlendWriter *writer, const int64_t num, const float *data_ptr)
-{
-  writer->write_raw(sizeof(float[3]) * size_t(num), data_ptr);
+  writedata(this->wd, BLO_CODE_DATA, data.data(), data.as_span().size_in_bytes(), data_ptr);
 }
 
 void BLO_write_string(BlendWriter *writer, const char *data_ptr)

@@ -80,11 +80,21 @@ struct BlendWriter {
    * \warning Data written with this call have no type information attached to them
    * in the blend-file. The main consequence is that there will be no handling of endianness
    * conversion for them in readfile code.
-   * Basic types array functions (like #BLO_write_int8_array etc.) also use this
+   * Basic typed array methods (like #write_int8_array etc.) also use this
    * internally, but if their matching read function is used to load the data (like
    * #BLO_read_int8_array), the read function will take care of endianness conversion.
    */
   void write_raw(size_t size_in_bytes, const void *data);
+  void write_char_array(int64_t num, const char *data);
+  void write_int8_array(int64_t num, const int8_t *data);
+  void write_int16_array(int64_t num, const int16_t *data);
+  void write_uint8_array(int64_t num, const uint8_t *data);
+  void write_int32_array(int64_t num, const int32_t *data);
+  void write_uint32_array(int64_t num, const uint32_t *data);
+  void write_float_array(int64_t num, const float *data);
+  void write_double_array(int64_t num, const double *data);
+  void write_float3_array(int64_t num, const float *data);
+  void write_pointer_array(int64_t num, const void *data);
 
   int struct_id_by_name(const char *struct_name) const;
 
@@ -212,19 +222,6 @@ struct BLO_Write_IDBuffer {
 };
 
 /**
- * Slightly 'safer' code to write arrays of basic types data.
- */
-void BLO_write_char_array(BlendWriter *writer, int64_t num, const char *data_ptr);
-void BLO_write_int8_array(BlendWriter *writer, int64_t num, const int8_t *data_ptr);
-void BLO_write_int16_array(BlendWriter *writer, int64_t num, const int16_t *data_ptr);
-void BLO_write_uint8_array(BlendWriter *writer, int64_t num, const uint8_t *data_ptr);
-void BLO_write_int32_array(BlendWriter *writer, int64_t num, const int32_t *data_ptr);
-void BLO_write_uint32_array(BlendWriter *writer, int64_t num, const uint32_t *data_ptr);
-void BLO_write_float_array(BlendWriter *writer, int64_t num, const float *data_ptr);
-void BLO_write_double_array(BlendWriter *writer, int64_t num, const double *data_ptr);
-void BLO_write_float3_array(BlendWriter *writer, int64_t num, const float *data_ptr);
-void BLO_write_pointer_array(BlendWriter *writer, int64_t num, const void *data_ptr);
-/**
  * Write a null terminated string.
  */
 void BLO_write_string(BlendWriter *writer, const char *data_ptr);
@@ -283,7 +280,7 @@ bool BLO_write_is_undo(BlendWriter *writer);
  * writer->write_struct_list(&action->markers);
  * BLO_read_struct_list(reader, TimeMarker, &action->markers);
  *
- * BLO_write_int32_array(writer, hmd->totindex, hmd->indexar);
+ * writer->write_int32_array(hmd->totindex, hmd->indexar);
  * BLO_read_int32_array(reader, hmd->totindex, &hmd->indexar);
  * \endcode
  *

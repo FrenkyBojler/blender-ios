@@ -251,7 +251,7 @@ void spreadsheet_table_blend_write(BlendWriter *writer, const SpreadsheetTable *
 {
   writer->write_struct(table);
   spreadsheet_table_id_blend_write(writer, table->id);
-  BLO_write_pointer_array(writer, table->num_columns, table->columns);
+  writer->write_pointer_array(table->num_columns, table->columns);
   for (const int i : IndexRange(table->num_columns)) {
     spreadsheet_column_blend_write(writer, table->columns[i]);
   }

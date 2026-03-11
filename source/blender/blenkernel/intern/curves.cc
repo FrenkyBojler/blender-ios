@@ -126,7 +126,7 @@ static void curves_blend_write(BlendWriter *writer, ID *id, const void *id_addre
 
   BLO_write_string(writer, curves->surface_uv_map);
 
-  BLO_write_pointer_array(writer, curves->totcol, curves->mat);
+  writer->write_pointer_array(curves->totcol, curves->mat);
 }
 
 static void curves_blend_read_data(BlendDataReader *reader, ID *id)

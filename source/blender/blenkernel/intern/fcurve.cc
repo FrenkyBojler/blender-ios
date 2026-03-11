@@ -2513,7 +2513,7 @@ void BKE_fmodifiers_blend_write(BlendWriter *writer, ListBaseT<FModifier> *fmodi
 
           /* write coefficients array */
           if (data->coefficients) {
-            BLO_write_float_array(writer, data->arraysize, data->coefficients);
+            writer->write_float_array(data->arraysize, data->coefficients);
           }
 
           break;
