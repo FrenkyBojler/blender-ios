@@ -2292,10 +2292,10 @@ void BlendWriter::write_pointer_array(int64_t num, const void *data_ptr)
   writedata(this->wd, BLO_CODE_DATA, data.data(), data.as_span().size_in_bytes(), data_ptr);
 }
 
-void BLO_write_string(BlendWriter *writer, const char *data_ptr)
+void BlendWriter::write_string(const char *data)
 {
-  if (data_ptr != nullptr) {
-    writer->write_raw(strlen(data_ptr) + 1, data_ptr);
+  if (data != nullptr) {
+    this->write_raw(strlen(data) + 1, data);
   }
 }
 

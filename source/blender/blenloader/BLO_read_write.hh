@@ -96,6 +96,11 @@ struct BlendWriter {
   void write_float3_array(int64_t num, const float *data);
   void write_pointer_array(int64_t num, const void *data);
 
+  /**
+   * Write a null terminated string.
+   */
+  void write_string(const char *data);
+
   int struct_id_by_name(const char *struct_name) const;
 
   template<typename T> void write_struct(const T *data)
@@ -220,11 +225,6 @@ struct BLO_Write_IDBuffer {
     return static_cast<ID *>(buffer_.buffer());
   };
 };
-
-/**
- * Write a null terminated string.
- */
-void BLO_write_string(BlendWriter *writer, const char *data_ptr);
 
 /* Misc. */
 

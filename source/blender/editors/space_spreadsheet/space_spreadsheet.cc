@@ -741,7 +741,7 @@ static void spreadsheet_blend_write(BlendWriter *writer, SpaceLink *sl)
 
   for (SpreadsheetRowFilter &row_filter : sspreadsheet->row_filters) {
     writer->write_struct(&row_filter);
-    BLO_write_string(writer, row_filter.value_string);
+    writer->write_string(row_filter.value_string);
   }
 
   writer->write_pointer_array(sspreadsheet->num_tables, sspreadsheet->tables);

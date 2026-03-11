@@ -2585,7 +2585,7 @@ void BKE_fcurve_blend_write_data(BlendWriter *writer, FCurve *fcu)
   }
 
   if (fcu->rna_path) {
-    BLO_write_string(writer, fcu->rna_path);
+    writer->write_string(fcu->rna_path);
   }
 
   /* driver data */
@@ -2599,7 +2599,7 @@ void BKE_fcurve_blend_write_data(BlendWriter *writer, FCurve *fcu)
     for (DriverVar &dvar : driver->variables) {
       DRIVER_TARGETS_USED_LOOPER_BEGIN (&dvar) {
         if (dtar->rna_path) {
-          BLO_write_string(writer, dtar->rna_path);
+          writer->write_string(dtar->rna_path);
         }
       }
       DRIVER_TARGETS_LOOPER_END;

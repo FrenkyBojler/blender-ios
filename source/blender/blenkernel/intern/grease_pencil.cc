@@ -4717,23 +4717,23 @@ static void read_layer_tree(GreasePencil &grease_pencil, BlendDataReader *reader
 static void write_layer(BlendWriter *writer, GreasePencilLayer *node)
 {
   writer->write_struct(node);
-  BLO_write_string(writer, node->base.name);
-  BLO_write_string(writer, node->parsubstr);
-  BLO_write_string(writer, node->viewlayername);
+  writer->write_string(node->base.name);
+  writer->write_string(node->parsubstr);
+  writer->write_string(node->viewlayername);
 
   writer->write_int32_array(node->frames_storage.num, node->frames_storage.keys);
   writer->write_struct_array(node->frames_storage.num, node->frames_storage.values);
 
   writer->write_struct_list(&node->masks);
   for (GreasePencilLayerMask &mask : node->masks) {
-    BLO_write_string(writer, mask.layer_name);
+    writer->write_string(mask.layer_name);
   }
 }
 
 static void write_layer_tree_group(BlendWriter *writer, GreasePencilLayerTreeGroup *node)
 {
   writer->write_struct(node);
-  BLO_write_string(writer, node->base.name);
+  writer->write_string(node->base.name);
   for (GreasePencilLayerTreeNode &child : node->children) {
     switch (child.type) {
       case GP_LAYER_TREE_LEAF: {

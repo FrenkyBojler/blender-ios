@@ -6849,7 +6849,7 @@ void BKE_constraint_blend_write(BlendWriter *writer, ListBaseT<bConstraint> *con
         case CONSTRAINT_TYPE_GEOMETRY_ATTRIBUTE: {
           bGeometryAttributeConstraint *data = static_cast<bGeometryAttributeConstraint *>(
               con.data);
-          BLO_write_string(writer, data->attribute_name);
+          writer->write_string(data->attribute_name);
           break;
         }
       }

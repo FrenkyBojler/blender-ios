@@ -124,7 +124,7 @@ static void curves_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   /* Direct data */
   curves->geometry.wrap().blend_write(*writer, curves->id, write_data);
 
-  BLO_write_string(writer, curves->surface_uv_map);
+  writer->write_string(curves->surface_uv_map);
 
   writer->write_pointer_array(curves->totcol, curves->mat);
 }

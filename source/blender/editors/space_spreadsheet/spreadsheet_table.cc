@@ -116,7 +116,7 @@ static void write_bundle_path(BlendWriter *writer,
 {
   writer->write_struct_array(bundle_path.bundle_path_num, bundle_path.bundle_path);
   for (const int i : IndexRange(bundle_path.bundle_path_num)) {
-    BLO_write_string(writer, bundle_path.bundle_path[i].identifier);
+    writer->write_string(bundle_path.bundle_path[i].identifier);
   }
 }
 

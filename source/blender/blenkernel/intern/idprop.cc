@@ -1325,12 +1325,12 @@ static void write_ui_data(const IDProperty *prop, BlendWriter *writer)
 {
   IDPropertyUIData *ui_data = prop->ui_data;
 
-  BLO_write_string(writer, ui_data->description);
+  writer->write_string(ui_data->description);
 
   switch (IDP_ui_data_type(prop)) {
     case IDP_UI_DATA_TYPE_STRING: {
       IDPropertyUIDataString *ui_data_string = reinterpret_cast<IDPropertyUIDataString *>(ui_data);
-      BLO_write_string(writer, ui_data_string->default_value);
+      writer->write_string(ui_data_string->default_value);
       writer->write_struct_cast<IDPropertyUIDataString>(ui_data);
       break;
     }
@@ -1347,9 +1347,9 @@ static void write_ui_data(const IDProperty *prop, BlendWriter *writer)
       writer->write_struct_array(ui_data_int->enum_items_num, ui_data_int->enum_items);
       for (const int64_t i : IndexRange(ui_data_int->enum_items_num)) {
         IDPropertyUIDataEnumItem &item = ui_data_int->enum_items[i];
-        BLO_write_string(writer, item.identifier);
-        BLO_write_string(writer, item.name);
-        BLO_write_string(writer, item.description);
+        writer->write_string(item.identifier);
+        writer->write_string(item.name);
+        writer->write_string(item.description);
       }
       writer->write_struct_cast<IDPropertyUIDataInt>(ui_data);
       break;
@@ -1434,7 +1434,7 @@ static void IDP_WriteIDPArray(const IDProperty *prop, BlendWriter *writer)
 static void IDP_WriteString(const IDProperty *prop, BlendWriter *writer)
 {
   /* Remember to set #IDProperty.totallen to len in the linking code! */
-  /* Do not use #BLO_write_string here, since 'bytes' sub-type of IDProperties may not be
+  /* Do not use #BlendWriter::write_string here, since 'bytes' sub-type of IDProperties may not be
    * null-terminated. */
   writer->write_char_array(uint(prop->len), static_cast<char *>(prop->data.pointer));
 }

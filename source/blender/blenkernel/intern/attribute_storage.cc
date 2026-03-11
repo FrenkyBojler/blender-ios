@@ -671,7 +671,7 @@ void AttributeStorage::blend_write(BlendWriter &writer,
   writer.write_struct_array_by_name(
       "Attribute", write_data.attributes.size(), write_data.attributes.data());
   for (const blender::Attribute &attr_dna : write_data.attributes) {
-    BLO_write_string(&writer, attr_dna.name);
+    writer.write_string(attr_dna.name);
     switch (AttrStorageType(attr_dna.storage_type)) {
       case AttrStorageType::Single: {
         blender::AttributeSingle *single_dna = static_cast<blender::AttributeSingle *>(

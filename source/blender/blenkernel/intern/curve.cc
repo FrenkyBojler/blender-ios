@@ -167,7 +167,7 @@ static void curve_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   writer->write_pointer_array(cu->totcol, cu->mat);
 
   if (cu->ob_type == OB_FONT) {
-    BLO_write_string(writer, cu->str);
+    writer->write_string(cu->str);
     writer->write_struct_array(cu->len_char32 + 1, cu->strinfo);
     writer->write_struct_array(cu->totbox, cu->tb);
   }

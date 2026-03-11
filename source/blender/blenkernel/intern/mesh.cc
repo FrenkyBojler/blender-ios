@@ -396,12 +396,12 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
   BKE_id_blend_write(writer, &mesh->id);
 
   BKE_defbase_blend_write(writer, &mesh->vertex_group_names);
-  BLO_write_string(writer, mesh->active_color_attribute);
-  BLO_write_string(writer, mesh->default_color_attribute);
-  BLO_write_string(writer, mesh->active_uv_map_attribute);
-  BLO_write_string(writer, mesh->default_uv_map_attribute);
-  BLO_write_string(writer, mesh->stencil_uv_map_attribute);
-  BLO_write_string(writer, mesh->clone_uv_map_attribute);
+  writer->write_string(mesh->active_color_attribute);
+  writer->write_string(mesh->default_color_attribute);
+  writer->write_string(mesh->active_uv_map_attribute);
+  writer->write_string(mesh->default_uv_map_attribute);
+  writer->write_string(mesh->stencil_uv_map_attribute);
+  writer->write_string(mesh->clone_uv_map_attribute);
 
   writer->write_pointer_array(mesh->totcol, mesh->mat);
   writer->write_struct_array(mesh->totselect, mesh->mselect);
