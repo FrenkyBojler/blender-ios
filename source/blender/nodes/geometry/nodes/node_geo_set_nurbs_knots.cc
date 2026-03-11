@@ -25,7 +25,6 @@ static void node_declare(NodeDeclarationBuilder &b)
 static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Curves");
-  params.extract_input<Field<float>>("Knot");
   ListPtr input_knot = params.extract_input<ListPtr>("Knot");
 
   std::atomic<bool> has_curves = false;
@@ -107,7 +106,7 @@ static void node_register()
   static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeSetNURBSKnots");
-  ntype.ui_name = "Set NURBS Knot";
+  ntype.ui_name = "Set NURBS Knots";
   ntype.ui_description =
       "Controls the spreading of NURBS curve points by assigning it a \"knot vector\"";
   ntype.nclass = NODE_CLASS_GEOMETRY;
