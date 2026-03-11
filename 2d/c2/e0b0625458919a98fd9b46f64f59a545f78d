@@ -1,1 +1,2 @@
 Referenced by issue #155458, Displacement + boolean shading artifacts
+Referenced by pull request #155522, Fix #155458: Cycles displacement with flat and smooth normals artifacts
