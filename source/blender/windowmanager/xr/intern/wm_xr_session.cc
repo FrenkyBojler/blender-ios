@@ -370,17 +370,17 @@ static void wm_xr_session_state_viewer_scale_update(wmXrSessionState *state,
    * - The context scene unit scale
    */
 
-  if (state->view_scale_setting_prev == 0.0f) {
+  if (state->prev_view_scale_setting == 0.0f) {
     /* First initialization. */
-    state->view_scale_setting_prev = settings->view_scale;
+    state->prev_view_scale_setting = settings->view_scale;
   }
 
   /* Unlike Scene and Navigation Scale changes, View Scale setting changes result in viewer
    * location adjustements to keep the viewer at the same relative world position after scaling. */
-  if (settings->view_scale != state->view_scale_setting_prev) {
+  if (settings->view_scale != state->prev_view_scale_setting) {
     wm_xr_session_scale_maintain_viewer_pos(
-        state, settings->view_scale, state->view_scale_setting_prev);
-    state->view_scale_setting_prev = settings->view_scale;
+        state, settings->view_scale, state->prev_view_scale_setting);
+    state->prev_view_scale_setting = settings->view_scale;
   }
 
   /* Compute XR viewer scale. */
