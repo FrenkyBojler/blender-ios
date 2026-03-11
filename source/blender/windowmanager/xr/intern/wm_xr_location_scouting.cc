@@ -1038,7 +1038,6 @@ struct ReviewCaptureData {
   RegionView3D *rview3d;
 
   Object *prev_view3d_cam_ob;
-  char prev_rview3d_persp;
 
   Object *cam_ob;
   Camera *cam_data;
@@ -1062,7 +1061,7 @@ static wmOperatorStatus wm_xr_location_scouting_review_captures_invoke(bContext 
   review_data->rview3d = rview3d;
 
   review_data->prev_view3d_cam_ob = view3d->camera;
-  review_data->prev_rview3d_persp = rview3d->persp;
+  ED_view3d_lastview_store(rview3d);
 
   /* Build a fake Camera object to set on the View3D. */
   review_data->cam_ob = BKE_id_new_nomain<Object>("ReviewCaptureCamera");
@@ -1081,9 +1080,14 @@ static void wm_xr_location_scouting_review_captures_cancel(bContext *C, wmOperat
 {
   ReviewCaptureData *review_data = static_cast<ReviewCaptureData *>(op->customdata);
 
-  /* Restore viewport. */
+  /* Restore viewport, last view stored by #ED_view3d_lastview_store */
+  copy_qt_qt(review_data->rview3d->viewquat, review_data->rview3d->lviewquat);
+  review_data->rview3d->view = review_data->rview3d->lview;
+  review_data->rview3d->view_axis_roll = review_data->rview3d->lview_axis_roll;
+  review_data->rview3d->persp = review_data->rview3d->lpersp;
+
   review_data->view3d->camera = review_data->prev_view3d_cam_ob;
-  review_data->rview3d->persp = review_data->prev_rview3d_persp;
+
   ED_region_tag_redraw(CTX_wm_region(C));
 
   BKE_id_free(nullptr, id_cast<ID *>(review_data->cam_ob));
