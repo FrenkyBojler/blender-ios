@@ -522,9 +522,9 @@ int fsmenu_get_active_indices(FSMenu *fsmenu, enum FSMenuCategory category, cons
   int i;
 
   for (i = 0; fsm_iter; fsm_iter = fsm_iter->next, i++) {
+    char absolute_dir[FILE_MAX];
     char *path = fsm_iter->path;
     if (BLI_path_is_rel(path)) {
-      char absolute_dir[FILE_MAX];
       STRNCPY(absolute_dir, path);
       BLI_path_abs(absolute_dir, BKE_main_blendfile_path_from_global());
       path = absolute_dir;
