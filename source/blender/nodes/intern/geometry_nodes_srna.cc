@@ -216,9 +216,15 @@ std::shared_ptr<GeneratedTreeSrnaData> create_geometry_nodes_rna_for_modifier(
   StructRNA *outputs_srna = create_outputs_srna(tree, *generated);
   StructRNA *panels_srna = create_panels_srna(tree, *generated);
 
-  RNA_def_pointer_runtime(srna, "inputs", inputs_srna, "Inputs", "Settings for input sockets");
-  RNA_def_pointer_runtime(srna, "outputs", outputs_srna, "Outputs", "Settings for output sockets");
-  RNA_def_pointer_runtime(srna, "panels", panels_srna, "Panels", "Settings for panels");
+  PropertyRNA *prop;
+  prop = RNA_def_pointer_runtime(
+      srna, "inputs", inputs_srna, "Inputs", "Settings for input sockets");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  prop = RNA_def_pointer_runtime(
+      srna, "outputs", outputs_srna, "Outputs", "Settings for output sockets");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  prop = RNA_def_pointer_runtime(srna, "panels", panels_srna, "Panels", "Settings for panels");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
 
   return generated;
 }
