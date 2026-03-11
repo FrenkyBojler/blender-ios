@@ -591,6 +591,10 @@ static void createTransPose(bContext * /*C*/, TransInfo *t)
     /* Now count, and check if we have autoIK or have to switch from translate to rotate. */
     for (bPoseChannel &pchan : ob->pose->chanbase) {
       Bone *bone = pchan.bone;
+
+      /* Clear the MIRROR flag from previous runs. */
+      bone->flag &= ~BONE_TRANSFORM_MIRROR;
+
       if (!(pchan.runtime.flag & POSE_RUNTIME_TRANSFORM)) {
         continue;
       }
@@ -638,9 +642,6 @@ static void createTransPose(bContext * /*C*/, TransInfo *t)
     if (mirror) {
       int total_mirrored = 0;
       for (bPoseChannel &pchan : ob->pose->chanbase) {
-        /* Clear the MIRROR flag from previous runs. */
-        pchan.bone->flag &= ~BONE_TRANSFORM_MIRROR;
-
         if ((pchan.runtime.flag & POSE_RUNTIME_TRANSFORM) &&
             BKE_pose_channel_get_mirrored(ob->pose, pchan.name))
         {
