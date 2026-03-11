@@ -336,7 +336,7 @@ class Grid : Overlay {
         break;
       }
     }
-    
+
     /* Extract 2D grid offset for moving grid "with the camera" on the floor plane. */
     if (ELEM(rv3d->view, RV3D_VIEW_RIGHT, RV3D_VIEW_LEFT)) {
       grid_ubo_.offset = drw_view_position.yz();

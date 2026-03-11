@@ -97,7 +97,8 @@ float2 screen_position(float4 p)
   return ((p.xy / p.w) * 0.5f + 0.5f) * uniform_buf.size_viewport;
 }
 
-bool use_level_offset(uint grid_flag) {
+bool use_level_offset(uint grid_flag)
+{
   return !flag_test(grid_flag, GRID_SIMA | GRID_ALIGNED);
 }
 
