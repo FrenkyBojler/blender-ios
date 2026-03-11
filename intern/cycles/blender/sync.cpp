@@ -1102,6 +1102,8 @@ DenoiseParams BlenderSync::get_denoise_params(blender::Scene &b_scene,
     DENOISER_INPUT_RGB_ALBEDO_NORMAL = 3,
 
     DENOISER_INPUT_NUM,
+
+    DENOISER_INPUT_RGB_ALBEDO_NORMAL_ROUGHNESS_DEPTH_MOTION,
   };
 
   enum DenoiserDLSSQuality {
@@ -1171,10 +1173,9 @@ DenoiseParams BlenderSync::get_denoise_params(blender::Scene &b_scene,
         denoising.use = false;
       }
 
+      input_passes = DENOISER_INPUT_RGB_ALBEDO_NORMAL_ROUGHNESS_DEPTH_MOTION;
+
       denoising.start_sample = 0;
-      input_passes = DENOISER_INPUT_RGB_ALBEDO_NORMAL;
-      denoising.use_pass_roughness = true;
-      denoising.temporally_stable = true;
 
       switch ((DenoiserDLSSQuality)get_enum(cscene,
                                             "preview_denoising_dlss_quality",
@@ -1220,6 +1221,15 @@ DenoiseParams BlenderSync::get_denoise_params(blender::Scene &b_scene,
     case DENOISER_INPUT_RGB_ALBEDO_NORMAL:
       denoising.use_pass_albedo = true;
       denoising.use_pass_normal = true;
+      break;
+
+    case DENOISER_INPUT_RGB_ALBEDO_NORMAL_ROUGHNESS_DEPTH_MOTION:
+      denoising.use_pass_albedo = true;
+      denoising.use_pass_specular_albedo = true;
+      denoising.use_pass_normal = true;
+      denoising.use_pass_roughness = true;
+      denoising.use_pass_depth = true;
+      denoising.temporally_stable = true;
       break;
 
     default:
