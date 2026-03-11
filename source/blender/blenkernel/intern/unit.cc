@@ -2438,12 +2438,12 @@ bool BKE_unit_replace_string(
     return false;
   }
   {
-    /* Trim and remove redundant white space. */
+    /* Trim and remove consecutive white space. */
     std::string str_tmp = StringRef(str).trim();
     std::string::iterator trim_itr = std::unique(
         str_tmp.begin(), str_tmp.end(), [](char a, char b) {
-          return StringRef(" ").find(a) != StringRef::not_found &&
-                 StringRef(" ").find(b) != StringRef::not_found;
+          return StringRef(" \t\r\n").find(a) != StringRef::not_found &&
+                 StringRef(" \t\r\n").find(b) != StringRef::not_found;
         });
     str_tmp.erase(trim_itr, str_tmp.end());
     StringRef(str_tmp).copy_utf8_truncated(str, str_maxncpy);
