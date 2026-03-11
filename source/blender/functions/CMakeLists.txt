@@ -29,6 +29,8 @@ set(SRC
   FN_lazy_function_execute.hh
   FN_lazy_function_graph.hh
   FN_lazy_function_graph_executor.hh
+  FN_lazy_function_graph_executor_generic.hh
+  FN_lazy_function_graph_executor_generic_impl.hh
   FN_multi_function.hh
   FN_multi_function_builder.hh
   FN_multi_function_context.hh
