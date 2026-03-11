@@ -4294,11 +4294,11 @@ void SEQUENCER_OT_scene_frame_range_update(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-    static int get_extend_right(int start_frame, int channel, ListBaseT<struct CaptionsStripRef> *refs, int max_extend) {
+    static int get_extend_right(int start_frame, int channel, ListBaseT<struct Caption> *captions, int max_extend) {
         
         int next_strip_start = start_frame + max_extend;
-        for (CaptionsStripRef &ref : *refs) {
-            Strip *strip = ref.strip;
+        for (Caption &caption : *captions) {
+            Strip *strip = caption.strip;
 
             /* Only check strips on the same channel */
             if (strip->channel != channel) {
@@ -4327,6 +4327,7 @@ static wmOperatorStatus captions_add_exec(bContext *C, wmOperator *op)
     memset(&load_data, 0, sizeof(load_data));
     Scene *scene = CTX_data_sequencer_scene(C);
     Editing *ed = seq::editing_ensure(scene);
+    CaptionsChannelData *captions_data = seq::captions_active_get(ed);
 
     int start_frame = scene->r.cfra;
     int channel = ed->captions_act_channel->index;
@@ -4342,7 +4343,7 @@ static wmOperatorStatus captions_add_exec(bContext *C, wmOperator *op)
         length = RNA_int_get(op->ptr, "length");
     }
     }
-    length = get_extend_right(start_frame, channel, &ed->captions_strips, length);
+    length = get_extend_right(start_frame, channel, &captions_data->captions, length);
     if(length == 0) {
       BKE_report(op->reports, RPT_ERROR, "A strip already exists at that frame");
       return OPERATOR_CANCELLED;
@@ -4354,7 +4355,7 @@ static wmOperatorStatus captions_add_exec(bContext *C, wmOperator *op)
 
     DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
 
-    ed->captions_cache_dirty = true;
+    //seq:captions_mark_cache_dirty() = true; NOT NEEDED
 //    tag_redraw(CTX_wm_region(C), scene);
 
     WM_main_add_notifier(NC_SCENE | ND_SEQUENCER | NA_ADDED, CTX_data_sequencer_scene(C));
@@ -4369,14 +4370,19 @@ static bool captions_add_poll(bContext *C)
       return false;
     }
     const int cfra = scene->r.cfra;
-    Editing *ed = seq::editing_ensure(scene);
 
-    if(ed -> captions_cache_dirty) {
-        seq::captions_update_strips(scene);
+    Editing *ed = seq::editing_get(scene);
+    if(ed == nullptr){
+      return false;
+    }
+    CaptionsChannelData *captions_data = seq::captions_active_get(ed);
+
+    if(captions_data -> cache_dirty) {
+        seq::captions_update_active(scene);
     }
 
-    for (CaptionsStripRef &ref : ed->captions_strips) {
-        Strip *strip = ref.strip;
+    for (Caption &caption : captions_data->captions) {
+        Strip *strip = caption.strip;
         if (strip->intersects_frame(scene, cfra)) {
             return false;
         }
@@ -4424,6 +4430,7 @@ void SEQUENCER_OT_caption_add(wmOperatorType *ot)
       memset(&load_data, 0, sizeof(load_data));
       Scene *scene = CTX_data_sequencer_scene(C);
       Editing *ed = seq::editing_ensure(scene);
+      CaptionsChannelData *captions_data = seq::captions_active_get(ed);
   
       int channel = ed->captions_act_channel->index;
   
@@ -4446,7 +4453,7 @@ void SEQUENCER_OT_caption_add(wmOperatorType *ot)
             length = RNA_int_get(op->ptr, "length");
         }
       }
-      length = get_extend_right(start_frame, channel, &ed->captions_strips, length);
+      length = get_extend_right(start_frame, channel, &captions_data->captions, length);
       if(length == 0) {
         BKE_report(op->reports, RPT_ERROR, "A strip already exists at that frame");
         return OPERATOR_CANCELLED;
@@ -4458,7 +4465,7 @@ void SEQUENCER_OT_caption_add(wmOperatorType *ot)
   
       DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   
-      ed->captions_cache_dirty = true;
+      // ed->captions_cache_dirty = true; UNeeded
   //    tag_redraw(CTX_wm_region(C), scene);
   
       WM_main_add_notifier(NC_SCENE | ND_SEQUENCER | NA_ADDED, CTX_data_sequencer_scene(C));
@@ -4472,12 +4479,10 @@ void SEQUENCER_OT_caption_add(wmOperatorType *ot)
       if(scene == nullptr) {
         return false;
       }
-      Editing *ed = seq::editing_ensure(scene);
-  
-      if(ed -> captions_cache_dirty) {
-        seq::captions_update_strips(scene);
+      if(seq::editing_get(scene) == nullptr){
+        return false;
       }
-  
+
       return true;
   }
   
@@ -4538,12 +4543,12 @@ void SEQUENCER_OT_caption_add(wmOperatorType *ot)
   
     seq::prefetch_stop(scene);
   
-    CaptionsStripRef *ref = seq::captions_get_ref_by_index(ed, index);
-    if(ref == nullptr){
+    Caption *caption = seq::captions_get_single_by_index(seq::captions_active_get(ed), index);
+    if(caption == nullptr){
       return OPERATOR_CANCELLED;
     }
 
-    Strip *strip = ref->strip;
+    Strip *strip = caption->strip;
 
     seq::edit_flag_for_removal(scene, seqbasep, strip);
     seq::edit_remove_flagged_strips(scene, seqbasep);
@@ -4567,11 +4572,6 @@ void SEQUENCER_OT_caption_add(wmOperatorType *ot)
       Scene *scene = CTX_data_sequencer_scene(C);
       if(scene == nullptr) {
         return false;
-      }
-      Editing *ed = seq::editing_ensure(scene);
-
-      if(ed -> captions_cache_dirty) {
-          seq::captions_update_strips(scene);
       }
 
       return true;

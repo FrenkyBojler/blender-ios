@@ -351,9 +351,9 @@ static void scene_copy_data(Main *bmain,
     BLI_duplicatelist(&scene_dst->ed->channels, &scene_src->ed->channels);
 
     /* Handle Captions */
-    // TODO: Add here also caption refs copy
-    scene_dst->ed->captions_style = scene_src->ed->captions_style;
-    seq::captions_style_ensure(scene_dst->ed);
+    // TODO: GD;; Add here also captiosnchanneldata's copy? Maybe the line above handle this already
+    //scene_dst->ed->captions_style = scene_src->ed->captions_style;
+    //seq::captions_style_ensure(scene_dst->ed);
   }
 
   if ((flag & LIB_ID_COPY_NO_PREVIEW) == 0) {

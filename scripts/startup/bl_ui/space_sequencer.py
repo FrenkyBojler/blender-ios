@@ -2076,9 +2076,10 @@ class SEQUENCER_PT_captions_style(bpy.types.Panel):
         space = context.space_data
         scene = context.scene
         editor = scene.sequence_editor
-        captions = editor.captions
+        channel = editor.channels[editor.captions_active_channel_index]
+        captions = channel.captions
         
-        style = editor.captions_style
+        style = channel.captions_style
         if(style is None):
             return
         
@@ -2157,8 +2158,7 @@ class SEQUENCER_PT_captions_editor(bpy.types.Panel):
         layout = self.layout
         space = context.space_data
         ed = context.scene.sequence_editor
-        captions = ed.captions
-        
+        captions = ed.channels[ed.captions_active_channel_index].captions
         layout.prop(ed, "captions_active_channel_index", text="Active Channel")
         
         for index, caption in enumerate(captions):

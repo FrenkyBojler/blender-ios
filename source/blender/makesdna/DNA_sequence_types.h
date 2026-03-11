@@ -541,26 +541,35 @@ struct MetaStack {
   int disp_range[2] = {};
 };
 
-struct SeqTimelineChannel {
-  struct SeqTimelineChannel *next = nullptr, *prev = nullptr;
-  char name[64] = "";
-  int index = 0;
-  int flag = 0; /* eSeqChannelFlag */
-};
-
-struct StripConnection {
-  struct StripConnection *next = nullptr, *prev = nullptr;
-  Strip *strip_ref = nullptr;
-};
-
-struct CaptionsStripRef {
-  struct CaptionsStripRef *next, *prev;
+struct Caption {
+  struct Caption *next, *prev;
   Strip *strip = nullptr;
 
   char use_custom_style = 0;
   char _pad[7];
 };
 
+struct CaptionsChannelData {
+  ListBaseT<Caption> captions = {nullptr, nullptr};
+  struct TextVars *style = nullptr;
+
+  char cache_dirty = 0;
+  char _pad[7];
+};
+
+struct SeqTimelineChannel {
+  struct SeqTimelineChannel *next = nullptr, *prev = nullptr;
+  char name[64] = "";
+  int index = 0;
+  int flag = 0; /* eSeqChannelFlag */
+
+  CaptionsChannelData *captions_data;
+};
+
+struct StripConnection {
+  struct StripConnection *next = nullptr, *prev = nullptr;
+  Strip *strip_ref = nullptr;
+};
 
 /** #Editing::overlay_frame_flag */
 enum eEditingOverlayFrameFlag {
@@ -626,12 +635,7 @@ struct Editing {
   int show_missing_media_flag = 0; /* eEditingShowMissingMediaFlag */
   int cache_flag = 0;              /* eEditingCacheFlag */
 
-  /* Captions Data*/
-  ListBaseT<struct CaptionsStripRef> captions_strips = {nullptr, nullptr};
   SeqTimelineChannel *captions_act_channel = nullptr;
-  struct TextVars *captions_style = nullptr;
-  char captions_cache_dirty = 0;
-  char _pad[7];
   
   seq::EditingRuntime *runtime = nullptr;
 

@@ -123,7 +123,6 @@ SECTIONS = (
             ("space_spreadsheet", "Spreadsheet data editor."),
             ("space_statusbar", "Window status bar."),
             ("space_text", "Text editor."),
-            ("space_captions", "Captions editor."),
             ("space_topbar", "Window file menu."),
             ("space_userpref", "User preferences."),
             ("space_view3d", "3D viewport."),

@@ -41,6 +41,8 @@
 #include "ED_screen.hh"
 #include "BLO_read_write.hh"
 
+
+// TODO: GD;; Arrange and separate between wrappers and core methods.
 namespace blender {
 
 namespace ed::vse {
@@ -48,13 +50,29 @@ namespace ed::vse {
 
 namespace seq {
 
-static void captions_init_default_style(Editing *ed)
+/* Core Methods - most aren't exposed in header */
+
+CaptionsChannelData *captions_active_get(Editing *ed) {
+  if(ed == nullptr){
+    return nullptr;
+  }
+
+  SeqTimelineChannel *channel = ed->captions_act_channel;
+  if(channel == nullptr) {
+    return nullptr;
+  }
+
+  return channel->captions_data;
+}
+
+static void captions_init_default_style(CaptionsChannelData *captions_data)
 {
+  // TODO: GD;; Rename data
     TextVars *data = MEM_new<TextVars>("textvars");
-    ed->captions_style = data;
+    captions_data->style = data;
 
     data->flag |= SEQ_TEXT_OUTLINE;
-      data->flag |= SEQ_TEXT_SHADOW;
+    data->flag |= SEQ_TEXT_SHADOW;
 
     data->text_font = nullptr;
     data->text_blf_id = -1;
@@ -82,135 +100,122 @@ static void captions_init_default_style(Editing *ed)
     data->wrap_width = 1.0f;
 }
 
-void captions_update_strips_style(Scene *scene)
-{
-    if(scene == nullptr){
-        return;
-        
-    }
+void captions_apply_style_single(CaptionsChannelData *captions_data, Scene *scene, Caption *caption) {
+  TextVars *leader_vars = captions_data->style;
+  if(leader_vars == nullptr) {
+      return;
+  }
+  
+  if(caption->use_custom_style == false) {
+    return;
+  }
 
-    Editing *ed = seq::editing_get(scene);
-    if(ed == nullptr){
-        return;
-    }
+  Strip *strip = caption->strip;
+  TextVars *vars = (TextVars *)strip->effectdata;
+  if(vars == nullptr) {
+    return;
+  }
+        /* Font and size */
+        vars->text_font = leader_vars->text_font;
+        vars->text_size = leader_vars->text_size;
 
-    TextVars *leader_vers = ed->captions_style;
-    if(leader_vers == nullptr) {
-        return;
-    }
-    
-    for (CaptionsStripRef &ref : ed->captions_strips) {
-      if(ref.use_custom_style) {
-        continue;
-      }
+        /* Colors */
+        copy_v4_v4(vars->color, leader_vars->color);
+        copy_v4_v4(vars->shadow_color, leader_vars->shadow_color);
+        copy_v4_v4(vars->outline_color, leader_vars->outline_color);
+        copy_v4_v4(vars->box_color, leader_vars->box_color);
 
-      Strip *strip = ref.strip;
-      TextVars *vers = (TextVars *)strip->effectdata;
-      if(vers == nullptr) {
-        continue;
-      }
-            /* Font and size */
-            vers->text_font = leader_vers->text_font;
-            vers->text_size = leader_vers->text_size;
+        /* Shadow */
+        vars->shadow_angle = leader_vars->shadow_angle;
+        vars->shadow_offset = leader_vars->shadow_offset;
+        vars->shadow_blur = leader_vars->shadow_blur;
 
-            /* Colors */
-            copy_v4_v4(vers->color, leader_vers->color);
-            copy_v4_v4(vers->shadow_color, leader_vers->shadow_color);
-            copy_v4_v4(vers->outline_color, leader_vers->outline_color);
-            copy_v4_v4(vers->box_color, leader_vers->box_color);
+        /* Outline */
+        vars->outline_width = leader_vars->outline_width;
 
-            /* Shadow */
-            vers->shadow_angle = leader_vers->shadow_angle;
-            vers->shadow_offset = leader_vers->shadow_offset;
-            vers->shadow_blur = leader_vers->shadow_blur;
+        copy_v3_v3(vars->loc, leader_vars->loc);
+        vars->wrap_width = leader_vars->wrap_width;
+        vars->box_margin = leader_vars->box_margin;
+        vars->box_roundness = leader_vars->box_roundness;
 
-            /* Outline */
-            vers->outline_width = leader_vers->outline_width;
+        vars->align = leader_vars->align;
+        vars->anchor_x = leader_vars->anchor_x;
+        vars->anchor_y = leader_vars->anchor_y;
 
-            copy_v3_v3(vers->loc, leader_vers->loc);
-            vers->wrap_width = leader_vers->wrap_width;
-            vers->box_margin = leader_vers->box_margin;
-            vers->box_roundness = leader_vers->box_roundness;
+        /* All style flags */
+        vars->flag = leader_vars->flag;
 
-            vers->align = leader_vers->align;
-            vers->anchor_x = leader_vers->anchor_x;
-            vers->anchor_y = leader_vers->anchor_y;
-
-            /* All style flags */
-            vers->flag = leader_vers->flag;
-
-            seq::relations_invalidate_cache_raw(scene, strip);
+        if(scene != nullptr){
+          seq::relations_invalidate_cache_raw(scene, strip);
         }
-    }
-
-
-    TextVars *captions_style_ensure(Editing *ed) {
-    if(ed->captions_style == nullptr) {
-        captions_init_default_style(ed);
-    }
-    if (ed->captions_act_channel == nullptr) {
-      captions_set_active_channel(ed, nullptr);
-    }
-    return ed->captions_style;
 }
 
-CaptionsStripRef *captions_get_ref_by_index(struct Editing *ed, int index){
-    if(ed == nullptr || index < 0) {
-        return nullptr;
+static void captions_apply_style(CaptionsChannelData *captions_data, Scene *scene)
+{   
+    for (Caption &caption : captions_data->captions) {
+      captions_apply_style_single(captions_data, scene, &caption);
     }
+}
 
-    int i = 0;
-    for (CaptionsStripRef &ref : ed->captions_strips) {
-        if(i == index) {
-            return &ref;
-        }
-        i++;
-    }
+static CaptionsChannelData *captions_data_ensure(SeqTimelineChannel *channel) {
+  if(channel == nullptr){
     return nullptr;
-}
+  }
 
+  CaptionsChannelData *captions_data = channel->captions_data;
+  if(captions_data == nullptr){
+    /* Maybe should call in a cleaner method? */
+    captions_data = MEM_new<CaptionsChannelData>("captionsdata");
+  }
 
-CaptionsStripRef *captions_get_ref_by_strip(Editing *ed, struct Strip *strip) {
-    for (CaptionsStripRef &ref : ed->captions_strips) {
-        if (ref.strip == strip) {
-            return &ref;
-        }
-        }
-    return nullptr;
-}
+  /* Still need that check in case there actually was a captions_data, and then the style could be already existing */
+  if(captions_data->style == nullptr) {
+      captions_init_default_style(captions_data);
+  }
 
-void captions_mark_ref_style_custom(CaptionsStripRef *ref, bool use_custom) {
-    if(ref != nullptr) {
-        ref->use_custom_style = use_custom ? 1 : 0;
-    }
+  channel->captions_data = captions_data;
+
+  return captions_data;
 }
 
 void captions_set_active_channel(Editing *ed, SeqTimelineChannel *channel) {
- // if (scene != nullptr) {
-   //   ed = seq::editing_get(scene);
-      if(ed != nullptr) {
-        if(channel == nullptr){
-          channel = seq::channel_get_by_index(&ed->channels, 1);
-        }
-        ed->captions_act_channel = channel;
-    //    captions_update_strips(scene); -> Maybe make it update here? buggy
-      }
-  //}
+  if(ed != nullptr) {
+    if(channel == nullptr){
+      channel = seq::channel_get_by_index(&ed->channels, 1);
+    }
+    ed->captions_act_channel = channel;
+//    captions_update_active(scene); -> Maybe make it update here? buggy
+  }
 }
 
-static ListBaseT<struct CaptionsStripRef> captions_build_strip_refs(Editing *ed)
+static int compare_strips_start(const void *a, const void *b)
 {
-  ListBaseT<CaptionsStripRef> result = {nullptr, nullptr};
-  if(ed == nullptr){
+    const Caption *caption_a = (Caption *) a;
+    const Caption *caption_b = (Caption *) b;
+
+    if (!caption_a->strip || !caption_b->strip) {
+        return (!caption_a->strip) - (!caption_b->strip);
+    }
+    
+    return (caption_a->strip->start > caption_b->strip->start) - 
+           (caption_a->strip->start < caption_b->strip->start);
+}
+
+static ListBaseT<struct Caption> captions_build(Editing *ed, CaptionsChannelData *captions_data, int channel_index)
+{
+  // TODO: GD;; Make them update the existing ones, and not rebuild them
+
+  ListBaseT<Caption> result = {nullptr, nullptr};
+  if(ed == nullptr || captions_data == nullptr){
     return result;
   }
 
   for (Strip &strip : ed->seqbase) {
-    if (strip.channel == ed->captions_act_channel->index) {
+    if (strip.channel == channel_index) {
       if (strip.type == STRIP_TYPE_TEXT) {
-        CaptionsStripRef *ref = (CaptionsStripRef *)MEM_new_zeroed(sizeof(CaptionsStripRef), "strip ref");
-        ref->strip = &strip;
-        BLI_addtail(&result, ref);
+        Caption *caption = (Caption *)MEM_new_zeroed(sizeof(Caption), "strip ref");
+        caption->strip = &strip;
+        BLI_addtail(&result, caption);
       }
     }
   }
@@ -218,34 +223,96 @@ static ListBaseT<struct CaptionsStripRef> captions_build_strip_refs(Editing *ed)
   return result;
 }
 
-static void captions_free_strip_refs(Editing *ed)
+static void captions_free(CaptionsChannelData *captions_data)
 {
+  if(captions_data == nullptr){
+    return;
+  }
+
+  for (Caption &caption : captions_data->captions.items_mutable()) {
+    MEM_delete(&caption);
+  }
+  BLI_listbase_clear(&captions_data->captions);
+}
+
+void captions_update(CaptionsChannelData *captions_data, Scene *scene, int channel_index) 
+{
+  if (captions_data != nullptr) {
+    
+    /* Free old references */
+    captions_free(captions_data);
+
+    captions_data->captions = captions_build(seq::editing_get(scene), captions_data, channel_index);
+    
+    captions_data->cache_dirty = false;
+
+    BLI_listbase_sort(&captions_data->captions, compare_strips_start);
+
+    if(scene != nullptr){
+      captions_apply_style(captions_data, scene);
+    }
+  }
+}
+
+// Wrapper Methods
+void captions_apply_style_active(Scene *scene){
+  Editing *ed = seq::editing_get(scene);
   if(ed == nullptr){
     return;
   }
 
-  ListBase *refs = &ed->captions_strips;
-  for (CaptionsStripRef &ref : ed->captions_strips.items_mutable()) {
-    MEM_delete(&ref);
+  CaptionsChannelData *captions_data = captions_active_get(ed);
+  captions_apply_style(captions_data, scene);
+}
+
+// TODO: GD;;  Make it call on RNA active change, adn find the right way to do that for the first one (maybe on versioning?)
+CaptionsChannelData *captions_active_ensure(Editing *ed){
+  if(ed == nullptr){
+    return nullptr;
   }
-  BLI_listbase_clear(refs);
+
+  if (ed->captions_act_channel == nullptr) {
+    captions_set_active_channel(ed, nullptr);
+  }
+
+  return captions_data_ensure(ed->captions_act_channel);
 }
 
-static int compare_strips_start(const void *a, const void *b)
-{
-    const CaptionsStripRef *ref_a = (CaptionsStripRef *) a;
-    const CaptionsStripRef *ref_b = (CaptionsStripRef *) b;
-    
-    if (!ref_a->strip || !ref_b->strip) {
-        return (!ref_a->strip) - (!ref_b->strip);
+Caption *captions_get_single_by_index(CaptionsChannelData *captions_data, int index){
+    if(captions_data == nullptr || index < 0) {
+        return nullptr;
     }
-    
-    return (ref_a->strip->start > ref_b->strip->start) - 
-           (ref_a->strip->start < ref_b->strip->start);
+
+    int i = 0;
+    for (Caption &caption : captions_data->captions) {
+        if(i == index) {
+            return &caption;
+        }
+        i++;
+    }
+    return nullptr;
 }
 
-void captions_update_strips(Scene *scene) 
-{
+Caption *captions_get_single_by_strip(CaptionsChannelData *captions_data, struct Strip *strip) {
+  if(captions_data == nullptr || strip == nullptr) {
+    return nullptr;
+  }
+  
+  for (Caption &caption : captions_data->captions) {
+        if (caption.strip == strip) {
+            return &caption;
+        }
+        }
+    return nullptr;
+}
+
+void captions_mark_caption_style_custom(Caption *caption, bool use_custom) {
+    if(caption != nullptr) {
+      caption->use_custom_style = use_custom ? 1 : 0;
+    }
+}
+
+void captions_update_active(Scene *scene) {
   Editing *ed = blender::seq::editing_get(scene);
   
   if (ed == nullptr) {
@@ -255,19 +322,10 @@ void captions_update_strips(Scene *scene)
   if (ed->captions_act_channel == nullptr) {
     captions_set_active_channel(ed, nullptr);
   }
-   
+
   if (ed->captions_act_channel != nullptr) {
-    
-    /* Free old references */
-    captions_free_strip_refs(ed);
-
-    ed->captions_strips = captions_build_strip_refs(ed);
-    
-    ed->captions_cache_dirty =  false;
-
-    BLI_listbase_sort(&ed->captions_strips, compare_strips_start);
-
-    captions_update_strips_style(scene);
+      CaptionsChannelData *captions_data = captions_active_ensure(ed);
+      captions_update(captions_data, scene, ed->captions_act_channel->index);
   }
 }
 
@@ -275,7 +333,7 @@ void captions_update_strips(Scene *scene)
 void captions_tag_redraw(ARegion *region, Scene *scene)
 {
   if(scene != nullptr) {
-    captions_update_strips(scene);
+    captions_update_active(scene);
   }
 
   ED_region_tag_redraw(region);

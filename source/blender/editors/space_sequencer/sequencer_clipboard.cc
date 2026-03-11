@@ -174,9 +174,9 @@ static bool sequencer_write_copy_paste_file(Main *bmain_src,
   BLI_duplicatelist(&scene_dst->ed->channels, &scene_src->ed->channels);
 
   /* Handle Captions */
-  // TODO: Add here also caption refs copy
-  scene_dst->ed->captions_style = scene_src->ed->captions_style;
-  seq::captions_style_ensure(scene_dst->ed);
+  // TODO: GD;; Add here also caption data copy? Maybe the line above handle this already
+  //scene_dst->ed->captions_style = scene_src->ed->captions_style;
+  //seq::captions_style_ensure(scene_dst->ed);
 
   /* Save current frame and active strip. */
   scene_dst->r.cfra = scene_src->r.cfra;

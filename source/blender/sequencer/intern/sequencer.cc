@@ -309,8 +309,8 @@ Editing *editing_ensure(Scene *scene)
     ed->show_missing_media_flag = SEQ_EDIT_SHOW_MISSING_MEDIA;
     channels_ensure(&ed->channels);
 
-    /* Making sure that Captions Style is exists */
-    captions_style_ensure(ed);
+    /* Making sure that Captions data is exists */
+    captions_active_ensure(ed);
   }
 
   return scene->ed;

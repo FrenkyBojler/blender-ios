@@ -17,17 +17,20 @@ namespace blender {
   struct Strip;
   struct Editing;
   struct TextVars;
+  struct CaptionsChannelData;
 
 namespace seq {
     
-void captions_update_strips(struct Scene *scene);
-CaptionsStripRef *captions_get_ref_by_strip(struct Editing *ed, struct Strip *strip);
-void captions_mark_ref_style_custom(CaptionsStripRef *ref, bool use_custom);
-TextVars *captions_style_ensure(Editing *ed);
-void captions_update_strips_style(Scene *scene);
-CaptionsStripRef *captions_get_ref_by_index(struct Editing *ed, int index);
+CaptionsChannelData *captions_active_ensure(Editing *ed);
+CaptionsChannelData *captions_active_get(Editing *ed);
+void captions_update_active(struct Scene *scene);
+void captions_apply_style_single(CaptionsChannelData *captions_data, Scene *scene, Caption *caption);
+void captions_apply_style_active(Scene *scene);
+void captions_mark_caption_style_custom(Caption *caption, bool use_custom);
+Caption *captions_get_single_by_strip(CaptionsChannelData *captions_data, struct Strip *strip);
+Caption *captions_get_single_by_index(CaptionsChannelData *captions_data, int index);
 
-/** passing nullptr, which will default to the first channel */
+/** Pass nullptr as default, which will default to the first channel */
 void captions_set_active_channel(Editing *ed, SeqTimelineChannel *channel=nullptr);
 
 }  // namespace seq

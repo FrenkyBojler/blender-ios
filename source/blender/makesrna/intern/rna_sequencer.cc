@@ -254,6 +254,7 @@ static void rna_Strip_text_update(bContext *C, PointerRNA *ptr)
   Scene *scene = CTX_data_sequencer_scene(C);
 
   Strip *strip = nullptr;
+
   /* Have to do that check because updates from the captions editor also get here */
   if (RNA_struct_is_a(ptr->type, RNA_Strip)) {
     strip = static_cast<Strip *>(ptr->data);
@@ -268,12 +269,14 @@ static void rna_Strip_text_update(bContext *C, PointerRNA *ptr)
   /* Check whether should update caption strips. TODO: Currently it make it rebuild the entire collection, should be changed */
   /* If there's no strip, it means it's from the captions editor */
   ///* Currently that's the only way to edit text properties in the sequencer space, so this check works. */
+  
+  CaptionsChannelData *captions_data = seq::captions_active_get(ed);
+  Caption *caption = seq::captions_get_single_by_strip(captions_data ,strip);
   if(!strip){
-    seq::captions_update_strips_style(scene);
-      //WM_event_add_notifier(C, NC_SPACE | ND_SEQUENCER | NA_EDITED, scene);
+    /* Technically it's possible to modify this method to work without caption data and save the iteration to find it with caption_get_by_strip, but we'll have to check for custom style anyways... */
+    seq::captions_apply_style_active(scene);
   } else {
-    CaptionsStripRef *ref = seq::captions_get_ref_by_strip(ed ,strip);
-    seq::captions_mark_ref_style_custom(ref, true);
+    seq::captions_mark_caption_style_custom(caption, true);
   }
 }
 
@@ -1516,26 +1519,28 @@ static void rna_SequenceEditor_display_stack(ID *id,
 }
 
 
-static void rna_SequenceEditor_captions_strips_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+static void rna_SequenceEditor_captions_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
-  Editing *ed = (Editing *)ptr->data;
+  SeqTimelineChannel *channel = (SeqTimelineChannel *)ptr->data;
   
+//  if(channel->captions_data == nullptr){
+  //  return;
+  //  } 
    // TODO: For some reason, handling cache update here makes the fancy UI Animations disapper, also it's currently not working and should be here, BTW is it the right place for that at all?
-  if (ed->captions_cache_dirty) {
+  //if (ed->captions_cache_dirty) {
    // blender::update_current_strips(ed->seq_scene); //TODO: FIND THE RIGHT WAY TO GET SCENE
-  }
+   rna_iterator_listbase_begin(iter, ptr, &channel->captions_data->captions, nullptr);
   
-  rna_iterator_listbase_begin(iter, ptr, &ed->captions_strips, nullptr);
 }
 
-static PointerRNA rna_SequenceEditor_captions_strips_get(CollectionPropertyIterator *iter)
+static PointerRNA rna_SequenceEditor_captions_get(CollectionPropertyIterator *iter)
 {
-    CaptionsStripRef *ref = (CaptionsStripRef *)rna_iterator_listbase_get(iter);
-    if (ref == nullptr || ref->strip == nullptr) {
+    Caption *caption = (Caption *)rna_iterator_listbase_get(iter);
+    if (caption == nullptr || caption->strip == nullptr) {
         return PointerRNA_NULL;
     }
 
-    return RNA_pointer_create_discrete(iter->parent.owner_id, RNA_Caption, ref);
+    return RNA_pointer_create_discrete(iter->parent.owner_id, RNA_Caption, caption);
 }
 
 static void rna_SequenceEditor_captions_strips_update(Main * /*bmain*/, Scene * scene, PointerRNA * ptr)
@@ -1555,14 +1560,16 @@ static void rna_SequenceEditor_captions_channel_set(PointerRNA *ptr, int value)
 
     SeqTimelineChannel *channel = seq::channel_get_by_index(&ed->channels, value);
     seq::captions_set_active_channel(ed, channel);
-    seq::captions_update_strips(scene);
-   // seq::captions_update_strips() -> Should pass Scene here somehow, what about simply toggle cache flag?
+    seq::captions_update_active(scene);
+   // seq::captions_update_active() -> Should pass Scene here somehow, what about simply toggle cache flag?
     // Maybe make it update here? buggy
 }
 
 static void rna_Caption_use_custom_style_update(Main * /*bmain*/, Scene * scene, PointerRNA * ptr) {
   //TODO: Should allow updating style of single strips, as of now update the whole list
-  seq::captions_update_strips_style(scene);
+  Caption *caption = (Caption *) ptr;
+  CaptionsChannelData *captions_data = seq::channel_get_by_index(&seq::editing_get(scene)->channels, caption->strip->channel)->captions_data;
+  seq::captions_apply_style_single(captions_data, scene, caption);
 }
 
 
@@ -2867,6 +2874,33 @@ static void rna_def_channel(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_update(
       prop, NC_SCENE | ND_SEQUENCER, "rna_SequenceTimelineChannel_mute_update");
+
+  /* Captions props */
+  prop = RNA_def_property(srna, "captions", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_collection_sdna(prop, nullptr, "captions_data.captions", nullptr);
+  RNA_def_property_struct_type(prop, "Caption");
+  RNA_def_property_ui_text(
+      prop, "Captions", "Current captions in the channel");
+  RNA_def_property_collection_funcs(prop,
+                                    "rna_SequenceEditor_captions_begin",
+                                    nullptr,
+                                    nullptr,
+                                    "rna_SequenceEditor_captions_get",
+                                    nullptr,
+                                    nullptr,
+                                    nullptr,
+                                    nullptr);
+  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER | NA_EDITED, "rna_SequenceEditor_captions_strips_update");
+  
+  prop = RNA_def_property(srna, "captions_style", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(prop, "CaptionsStyle");
+  RNA_def_property_pointer_sdna(prop, nullptr, "captions_data->style");
+  RNA_def_property_ui_text(prop, "Captions Style", "Default text styling properties for captions");
+  
+  prop = RNA_def_property(srna, "captions_cache_dirty", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "captions_data->cache_dirty", 0);
+  RNA_def_property_ui_text(prop, "Is Captions Cache Dirty", "Indicates whether the captions cache is dirty");
+
 }
 
 static void rna_def_strips_top_level(BlenderRNA *brna)
@@ -2889,7 +2923,7 @@ static void rna_def_captions(BlenderRNA *brna){
 
   srna = RNA_def_struct(brna, "Caption", nullptr);
   RNA_def_struct_ui_text(srna, "Caption", "A single caption");
-  RNA_def_struct_sdna(srna, "CaptionsStripRef");
+  RNA_def_struct_sdna(srna, "Caption");
 
   PropertyRNA *prop = RNA_def_property(srna, "strip", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "strip");
@@ -3060,26 +3094,9 @@ static void rna_def_editor(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Final Cache Size", "Size of final rendered images cache in megabytes");
 
-  /* Captions props */
-  prop = RNA_def_property(srna, "captions", PROP_COLLECTION, PROP_NONE);
-  RNA_def_property_collection_sdna(prop, nullptr, "captions_strips", nullptr);
-  RNA_def_property_struct_type(prop, "Caption");
-  RNA_def_property_ui_text(
-      prop, "Captions", "Current captions in the sequencer");
-  RNA_def_property_collection_funcs(prop,
-                                    "rna_SequenceEditor_captions_strips_begin",
-                                    nullptr,
-                                    nullptr,
-                                    "rna_SequenceEditor_captions_strips_get",
-                                    nullptr,
-                                    nullptr,
-                                    nullptr,
-                                    nullptr);
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER | NA_EDITED, "rna_SequenceEditor_captions_strips_update");
-  
   prop = RNA_def_int(srna,
     "captions_active_channel_index",
-    1,  // TODO: change to DEFAULT_IMG_STRIP_LENGTH
+    1,
     1,
     seq::MAX_CHANNELS,
     "Captions Active Channel Index",
@@ -3091,18 +3108,6 @@ static void rna_def_editor(BlenderRNA *brna)
       "rna_SequenceEditor_captions_channel_set",
       NULL
   );
-  
-
-  prop = RNA_def_property(srna, "captions_cache_dirty", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "captions_cache_dirty", 0);
-  RNA_def_property_ui_text(prop, "Is Captions Cache Dirty", "Indicates whether the captions cache is dirty");
-  
-  prop = RNA_def_property(srna, "captions_style", PROP_POINTER, PROP_NONE);
-  RNA_def_property_struct_type(prop, "CaptionsStyle");
-  RNA_def_property_pointer_sdna(prop, nullptr, "captions_style");
-  RNA_def_property_ui_text(prop, "Captions Style", "Default text styling properties for captions");
-  
-
 
   /* functions */
 
