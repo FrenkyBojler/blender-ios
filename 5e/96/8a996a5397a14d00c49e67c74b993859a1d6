@@ -1,2 +1,3 @@
 Referenced by commit a560a46f32f, Fix T72625: Outliner visibility keying doesn't carry over from 2.79b
 Referenced by issue #72625, Outliner visibility keying doesn't carry over from 2.79b
+Referenced by pull request #155531, Fix #155528: Versioning code not working with legacy actions
