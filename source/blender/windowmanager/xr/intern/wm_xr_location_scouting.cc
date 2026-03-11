@@ -1040,6 +1040,7 @@ struct ReviewCaptureData {
 
   /* Previous camera to restore on exit. */
   Object *prev_view3d_cam_ob;
+  char prev_view3d_persp;
 
   /* Fake camera object to set the View3D. */
   Object *cam_ob;
@@ -1065,6 +1066,9 @@ static wmOperatorStatus wm_xr_location_scouting_review_captures_invoke(bContext 
 
   review_data->prev_view3d_cam_ob = v3d->camera;
   ED_view3d_lastview_store(rv3d);
+  /* Store previous persp separately from #ED_view3d_lastview_store as setting rv3d->lpersp to
+   * CAMOB is unexpected by navigation logic. */
+  review_data->prev_view3d_persp = rv3d->persp;
 
   /* Build a fake Camera object to set on the View3D. */
   review_data->cam_ob = BKE_id_new_nomain<Object>("ReviewCaptureCamera");
@@ -1088,7 +1092,7 @@ static void wm_xr_location_scouting_review_captures_exit(bContext *C, wmOperator
   copy_qt_qt(rv3d->viewquat, rv3d->lviewquat);
   rv3d->view = rv3d->lview;
   rv3d->view_axis_roll = rv3d->lview_axis_roll;
-  rv3d->persp = rv3d->lpersp;
+  rv3d->persp = review_data->prev_view3d_persp;
 
   review_data->v3d->camera = review_data->prev_view3d_cam_ob;
 
