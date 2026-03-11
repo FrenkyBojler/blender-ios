@@ -135,7 +135,7 @@ class Array {
       : Array(NoExceptConstructor(), allocator)
   {
     BLI_assert(size >= 0);
-    if (std::is_trivially_copyable_v<T> && BLI_memory_is_zero(&value, sizeof(T))) {
+    if (std::is_trivially_copyable_v<T> && memory_is_zero(&value, sizeof(T))) {
       data_ = this->get_buffer_for_size(size, true);
     }
     else {
@@ -459,7 +459,7 @@ class Array {
     if (size <= InlineBufferCapacity) {
       if (zero) {
         if constexpr (InlineBufferCapacity > 0) {
-          memset(inline_buffer_, 0, size * sizeof(T));
+          memset(static_cast<void *>(inline_buffer_), 0, size * sizeof(T));
         }
       }
       return inline_buffer_;
