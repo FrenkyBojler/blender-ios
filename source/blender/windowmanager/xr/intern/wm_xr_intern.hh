@@ -35,7 +35,23 @@ namespace gpu {
 class Texture;
 }
 
-// TODO: eventually move to its own header file with its enums
+enum eXrViewfinderHand { XR_VIEWFINDER_HAND_LEFT = 0, XR_VIEWFINDER_HAND_RIGHT = 1 };
+
+enum eXrViewfinderMode { XR_VIEWFINDER_MODE_LIVE = 0, XR_VIEWFINDER_MODE_PLAYBACK = 1 };
+
+enum eXrViewfinderLiveAction {
+  XR_VIEWFINDER_ACTION_LIVE_LENS = 0,
+  XR_VIEWFINDER_ACTION_LIVE_DOF = 1,
+  XR_VIEWFINDER_ACTION_LIVE_FOCUS = 2,
+  XR_VIEWFINDER_ACTION_LIVE_APERTURE = 3
+};
+
+enum eXrViewfinderPlaybackAction {
+  XR_VIEWFINDER_ACTION_PB_BROWSE = 0,
+  XR_VIEWFINDER_ACTION_PB_PREVIEW = 1,
+  XR_VIEWFINDER_ACTION_PB_DELETE = 2
+};
+
 struct wmXrViewfinderState {
   float capture_position[3];
   float capture_orientation_quat[4];
@@ -308,5 +324,11 @@ bool wm_xr_passthrough_enabled(void *customdata);
  * It's assigned to Ghost-XR as a callback (see GHOST_XrDisablePassthroughFunc()).
  */
 void wm_xr_disable_passthrough(void *customdata);
+
+/* `wm_xr_location_scouting` */
+void wm_xr_viewfinder_render_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata);
+void wm_xr_viewfinder_draw(const XrSessionSettings *settings,
+                                wmXrSessionState *state,
+                           const bContext *C);
 
 }  // namespace blender
