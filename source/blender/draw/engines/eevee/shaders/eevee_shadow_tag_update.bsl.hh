@@ -50,8 +50,8 @@ void tag_update_vert([[resource_table]] TagUpdate &srt,
                      [[position]] float4 &out_position)
 {
   v_out.tilemap_index = uint(inst_per_tilemap_id) % uint(srt.tilemap_count);
-  uint inst_id = uint(inst_per_tilemap_id) / uint(srt.tilemap_count);
-  uint resource_id = srt.resource_ids_buf[inst_id] & 0x7FFFFFFFu;
+  const uint inst_id = uint(inst_per_tilemap_id) / uint(srt.tilemap_count);
+  const uint resource_id = srt.resource_ids_buf[inst_id] & 0x7FFFFFFFu;
 
   ObjectBounds bounds = srt.bounds_buf[resource_id];
   if (!drw_bounds_are_valid(bounds)) {
@@ -61,26 +61,28 @@ void tag_update_vert([[resource_table]] TagUpdate &srt,
 
   ShadowTileMapData tilemap = srt.tilemaps_buf[v_out.tilemap_index];
 
-  float3 ls_N = v_in.pos;
-  /* Convert from -1..1 box shape to 0..1 box. */
-  float3 ls_P = max(float3(0), v_in.pos);
+  const float3 ls_N = v_in.pos;
+  const /* Convert from -1..1 box shape to 0..1 box. */
+      float3 ls_P = max(float3(0), v_in.pos);
 
-  float3 P = ls_P.x * bounds.bounding_corners[1].xyz + ls_P.y * bounds.bounding_corners[2].xyz +
-             ls_P.z * bounds.bounding_corners[3].xyz + bounds.bounding_corners[0].xyz;
+  const float3 P = ls_P.x * bounds.bounding_corners[1].xyz +
+                   ls_P.y * bounds.bounding_corners[2].xyz +
+                   ls_P.z * bounds.bounding_corners[3].xyz + bounds.bounding_corners[0].xyz;
 
-  float4 hs_P = tilemap.winmat * (tilemap.viewmat * float4(P, 1.0f));
+  const float4 hs_P = tilemap.winmat * (tilemap.viewmat * float4(P, 1.0f));
   /* Clip space normals are the same direction as the viewspace one since the projection has aspect
    * ratio of 1:1. */
-  float3 hs_N = transform_direction(tilemap.viewmat, ls_N);
+  const float3 hs_N = transform_direction(tilemap.viewmat, ls_N);
 
   out_position = hs_P;
 
   /* To emulate conservative rasterization, we inflate the bounding box by 1 pixel. */
-  float2 ndc_pixel_size = 2.0f / float2(SHADOW_TILEMAP_RES);
+  const float2 ndc_pixel_size = 2.0f / float2(SHADOW_TILEMAP_RES);
   out_position.xy += sign(hs_N.xy) * ndc_pixel_size * out_position.w;
 
+  const bool is_persp = tilemap.winmat[3][3] == 0.0f;
   /* Flatten the box to avoid loosing pixel when the box extend beyond the far clip plane. */
-  if (out_position.z > out_position.w && out_position.w > 0.0) {
+  if (!is_persp || (out_position.z > out_position.w && out_position.w > 0.0)) {
     out_position.z = out_position.w - 1e-16;
   }
 }
