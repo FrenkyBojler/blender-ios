@@ -169,6 +169,7 @@ class Params {
   template<typename T> T *try_get_input_data_ptr(int index) const;
   template<typename T> T *try_get_input_data_ptr_or_request(int index);
   template<typename T> void set_output(int index, T &&value);
+  template<typename T> void set_output_if_not_set(int index, T &&value);
 
   /**
    * Returns true when the lazy-function is now allowed to use multi-threading when interacting
@@ -440,6 +441,14 @@ template<typename T> inline void Params::set_output(const int index, T &&value)
   void *data = this->get_output_data_ptr(index);
   new (data) DecayT(std::forward<T>(value));
   this->output_set(index);
+}
+
+template<typename T> inline void Params::set_output_if_not_set(const int index, T &&value)
+{
+  if (this->output_was_set(index)) {
+    return;
+  }
+  this->set_output(index, std::forward<T>(value));
 }
 
 inline bool Params::try_enable_multi_threading()

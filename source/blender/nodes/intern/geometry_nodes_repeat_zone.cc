@@ -108,6 +108,7 @@ struct GenericEvalStorage {
 
 struct RepeatEvalStorage {
   ResourceScope scope;
+  bool checked_inspection_index = false;
   GenericEvalStorage *generic = nullptr;
 };
 
@@ -162,23 +163,38 @@ class LazyFunctionForRepeatZone : public LazyFunction {
         repeat_output_bnode_.storage);
     RepeatEvalStorage &node_eval_storage = *static_cast<RepeatEvalStorage *>(context.storage);
 
-    const int iterations_usage_index = zone_info_.indices.outputs.input_usages[0];
-    if (!params.output_was_set(iterations_usage_index)) {
-      /* The iterations input is always used. */
-      params.set_output(iterations_usage_index, true);
+    const int iterations = this->get_num_iterations(params);
+    if (!node_eval_storage.checked_inspection_index) {
+      /* Show a warning when the inspection index is out of range. */
+      if (node_storage.inspection_index > 0) {
+        if (node_storage.inspection_index >= iterations) {
+          if (geo_eval_log::GeoTreeLogger *tree_logger = local_user_data.try_get_tree_logger(
+                  user_data))
+          {
+            tree_logger->node_warnings.append(
+                *tree_logger->allocator,
+                {repeat_output_bnode_.identifier,
+                 {NodeWarningType::Info, N_("Inspection index is out of range")}});
+          }
+        }
+      }
+      node_eval_storage.checked_inspection_index = true;
     }
+
+    /* The iterations input is always used. */
+    const int iterations_usage_index = zone_info_.indices.outputs.input_usages[0];
+    params.set_output_if_not_set(iterations_usage_index, true);
 
     const NodeRepeatZoneEvalMode eval_mode = NodeRepeatZoneEvalMode(node_storage.eval_mode);
     switch (eval_mode) {
       case NODE_REPEAT_ZONE_EVAL_MODE_EAGER: {
-        this->evaluate_eager(params, node_eval_storage, node_storage, user_data);
+        this->evaluate_eager(params, node_eval_storage, node_storage, user_data, iterations);
         break;
       }
       case NODE_REPEAT_ZONE_EVAL_MODE_AUTO:
       case NODE_REPEAT_ZONE_EVAL_MODE_GENERIC:
       default: {
-        this->evaluate_generic(
-            params, context, node_eval_storage, node_storage, user_data, local_user_data);
+        this->evaluate_generic(params, context, node_eval_storage, node_storage, iterations);
         break;
       }
     }
@@ -187,23 +203,19 @@ class LazyFunctionForRepeatZone : public LazyFunction {
   void evaluate_eager(lf::Params &params,
                       RepeatEvalStorage &node_eval_storage,
                       const NodeGeometryRepeatOutput &node_storage,
-                      GeoNodesUserData &user_data) const
+                      GeoNodesUserData &user_data,
+                      const int iterations) const
   {
     const int num_repeat_items = node_storage.items_num;
     const int num_border_links = body_fn_.indices.inputs.border_links.size();
-    const int iterations = this->get_num_iterations(params);
 
     for (const int i : IndexRange(num_repeat_items)) {
       const int lf_index = zone_info_.indices.outputs.input_usages[i + 1];
-      if (!params.output_was_set(lf_index)) {
-        params.set_output(lf_index, true);
-      }
+      params.set_output_if_not_set(lf_index, true);
     }
     for (const int i : IndexRange(num_border_links)) {
       const int lf_index = zone_info_.indices.outputs.border_link_usages[i];
-      if (!params.output_was_set(lf_index)) {
-        params.set_output(lf_index, true);
-      }
+      params.set_output_if_not_set(lf_index, true);
     }
 
     Array<void *, 16> input_value_ptrs(inputs_.size());
@@ -320,8 +332,7 @@ class LazyFunctionForRepeatZone : public LazyFunction {
                         const lf::Context &context,
                         RepeatEvalStorage &node_eval_storage,
                         const NodeGeometryRepeatOutput &node_storage,
-                        GeoNodesUserData &user_data,
-                        GeoNodesLocalUserData &local_user_data) const
+                        const int iterations) const
   {
     if (!node_eval_storage.generic) {
       node_eval_storage.generic = &node_eval_storage.scope.construct<GenericEvalStorage>();
@@ -330,8 +341,7 @@ class LazyFunctionForRepeatZone : public LazyFunction {
 
     if (!eval_storage.graph_executor) {
       /* Create the execution graph in the first evaluation. */
-      this->initialize_execution_graph(
-          params, node_eval_storage, node_storage, user_data, local_user_data);
+      this->initialize_execution_graph(node_eval_storage, node_storage, iterations);
     }
 
     /* Execute the graph for the repeat zone. */
@@ -353,37 +363,18 @@ class LazyFunctionForRepeatZone : public LazyFunction {
    * graph than to execute it (for intended use cases of this generic implementation, more special
    * case repeat loop evaluations could be implemented separately).
    */
-  void initialize_execution_graph(lf::Params &params,
-                                  RepeatEvalStorage &node_eval_storage,
+  void initialize_execution_graph(RepeatEvalStorage &node_eval_storage,
                                   const NodeGeometryRepeatOutput &node_storage,
-                                  GeoNodesUserData &user_data,
-                                  GeoNodesLocalUserData &local_user_data) const
+                                  const int iterations) const
   {
     GenericEvalStorage &eval_storage = *node_eval_storage.generic;
     const int num_repeat_items = node_storage.items_num;
     const int num_border_links = body_fn_.indices.inputs.border_links.size();
 
-    /* Number of iterations to evaluate. */
-    const int iterations = this->get_num_iterations(params);
-
     if (iterations >= 10) {
       /* Constructing and running the repeat zone has some overhead so that it's probably worth
        * trying to do something else in the meantime already. */
       lazy_threading::send_hint();
-    }
-
-    /* Show a warning when the inspection index is out of range. */
-    if (node_storage.inspection_index > 0) {
-      if (node_storage.inspection_index >= iterations) {
-        if (geo_eval_log::GeoTreeLogger *tree_logger = local_user_data.try_get_tree_logger(
-                user_data))
-        {
-          tree_logger->node_warnings.append(
-              *tree_logger->allocator,
-              {repeat_output_bnode_.identifier,
-               {NodeWarningType::Info, N_("Inspection index is out of range")}});
-        }
-      }
     }
 
     /* Take iterations input into account. */
