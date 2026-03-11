@@ -545,6 +545,35 @@ static BMOpDefine bmo_circularize_def = {
 };
 
 /*
+ * Relax.
+ *
+ * Relax the loop, so it is smoother.
+ */
+static BMOpDefine bmo_relax_def = {
+    /*opname*/ "relax",
+    /*slot_types_in*/
+    {
+        /* Input geometry. */
+        {"geom", BMO_OP_SLOT_ELEMENT_BUF, {BM_VERT | BM_EDGE | BM_FACE}},
+        /* Method used for interpolation. */
+        {"interpolation", BMO_OP_SLOT_INT},
+        /* Number of relaxation passes. */
+        {"iterations", BMO_OP_SLOT_INT},
+        /* Distribute vertices at constant distances along the loop. */
+        {"regular", BMO_OP_SLOT_BOOL},
+        /* Also use non selected parallel loops as input. */
+        {"use_parallel", BMO_OP_SLOT_BOOL},
+        {{'\0'}},
+    },
+    /*slot_types_out*/
+    {{{'\0'}}},
+    /*init*/ nullptr,
+    /*exec*/ bmo_relax_exec,
+    /*type_flag*/
+    (BMO_OPTYPE_FLAG_NORMALS_CALC),
+};
+
+/*
  * Collapse Connected.
  *
  * Collapses connected vertices
@@ -2884,6 +2913,7 @@ const BMOpDefine *bmo_opdefines[] = {
     &bmo_pointmerge_facedata_def,
     &bmo_poke_def,
     &bmo_recalc_face_normals_def,
+    &bmo_relax_def,
     &bmo_planar_faces_def,
     &bmo_region_extend_def,
     &bmo_remove_doubles_def,

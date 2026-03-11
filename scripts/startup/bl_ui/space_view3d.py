@@ -1269,7 +1269,9 @@ class VIEW3D_MT_transform_base:
         layout.separator()
 
         layout.operator("transform.tosphere", text="To Sphere")
-        layout.operator("mesh.circularize", text="To Circle")
+        if context.mode == "EDIT_MESH":
+            layout.operator("mesh.circularize", text="To Circle")
+            layout.operator("mesh.relax", text="Relax")
         layout.operator("transform.shear", text="Shear")
         layout.operator("transform.bend", text="Bend")
         layout.operator("transform.push_pull", text="Push/Pull")
