@@ -575,6 +575,10 @@ class VIEW3D_OT_vr_location_scouting_add_camera_from_capture(Operator):
     bl_description = "Create a new Camera Object from the selected VR Capture"
     bl_options = {'UNDO', 'REGISTER'}
 
+    @classmethod
+    def poll(cls, context):
+        return len(context.scene.vr_captures) > 0
+
     def execute(self, context):
         scene = context.scene
         capture = properties.VRCapture.get_selected_capture(context)
@@ -589,6 +593,10 @@ class VIEW3D_OT_vr_location_scouting_add_marker_from_capture(Operator):
     bl_label = "Create Camera Marker from VR Capture"
     bl_description = "Create a new Camera bound to a Marker from the selected VR Capture at the current frame"
     bl_options = {'UNDO', 'REGISTER'}
+
+    @classmethod
+    def poll(cls, context):
+        return len(context.scene.vr_captures) > 0
 
     def execute(self, context):
         scene = context.scene
@@ -617,6 +625,10 @@ class VIEW3D_OT_vr_location_scouting_active_camera_to_capture(Operator):
     bl_label = "Set Camera from VR Capture"
     bl_description = "Set the active Scene Camera settings from the selected VR Capture"
     bl_options = {'UNDO', 'REGISTER'}
+
+    @classmethod
+    def poll(cls, context):
+        return len(context.scene.vr_captures) > 0
 
     def execute(self, context):
         capture = properties.VRCapture.get_selected_capture(context)
@@ -647,6 +659,10 @@ class VIEW3D_OT_vr_location_scouting_remove_capture(Operator):
     bl_description = "Remove the selected Location Scouting Capture"
     bl_options = {'UNDO', 'REGISTER'}
 
+    @classmethod
+    def poll(cls, context):
+        return len(context.scene.vr_captures) > 0
+
     def execute(self, context):
         scene = context.scene
         captures = scene.vr_captures
@@ -672,6 +688,10 @@ class VIEW3D_OT_vr_location_scouting_browse_captures(Operator):
         default=False,
         options={'HIDDEN', 'SKIP_SAVE'},
     )
+
+    @classmethod
+    def poll(cls, context):
+        return len(context.scene.vr_captures) > 0
 
     def execute(self, context):
         scene = context.scene

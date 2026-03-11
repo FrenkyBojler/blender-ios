@@ -1047,6 +1047,12 @@ struct ReviewCaptureData {
   Camera *cam_data;
 };
 
+bool wm_xr_location_scouting_review_captures_poll(bContext *C)
+{
+  return !wm_xr_location_scouting_is_captures_empty(CTX_data_scene(C)) &&
+         ED_operator_region_view3d_active(C);
+}
+
 static wmOperatorStatus wm_xr_location_scouting_review_captures_invoke(bContext *C,
                                                                        wmOperator *op,
                                                                        const wmEvent * /*event*/)
@@ -1166,7 +1172,7 @@ void WM_OT_xr_location_scouting_review_captures(wmOperatorType *ot)
   ot->invoke = wm_xr_location_scouting_review_captures_invoke;
   ot->cancel = wm_xr_location_scouting_review_captures_cancel;
   ot->modal = wm_xr_location_scouting_review_captures_modal;
-  ot->poll = ED_operator_region_view3d_active;
+  ot->poll = wm_xr_location_scouting_review_captures_poll;
 }
 
 /** \} */
