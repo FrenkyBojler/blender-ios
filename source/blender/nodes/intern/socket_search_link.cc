@@ -28,7 +28,15 @@ void GatherLinkSearchOpParams::add_item(std::string socket_name,
                                  IFACE_(node_type_.ui_name),
                                  node_type_.deprecation_notice ? IFACE_(" (Deprecated)") : "",
                                  socket_name);
-  this->add_item_full_name(std::move(name), std::move(fn), weight);
+  this->add_item_full_name(name, fn, weight);
+
+  if (node_type_.idname == "GeometryNodePointsToVertices") {
+    /* Search alias for better discoverability in link-drag search. */
+    std::string alias_name = fmt::format("{} " UI_MENU_ARROW_SEP " {}",
+                                         "Points to Mesh",
+                                         IFACE_("Mesh"));
+    this->add_item_full_name(std::move(alias_name), std::move(fn), weight);
+  }
 }
 
 void GatherLinkSearchOpParams::add_item_full_name(std::string name,
