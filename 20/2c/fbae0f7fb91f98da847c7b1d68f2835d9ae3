@@ -1,2 +1,3 @@
 Referenced by issue #155490, Regression: Loose mesh vertices not shown (correctly) in Object Mode
 Referenced by issue #155520, Lone verts are no longer visible in object mode
+Referenced by pull request #155530, Fix: Draw: Missing mesh vertices in object mode
