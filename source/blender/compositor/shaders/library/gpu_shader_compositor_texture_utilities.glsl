@@ -27,7 +27,7 @@ int2 texture_size(sampler2D sampler_2d)
 /* A shorthand for 2D Array textureSize with a zero LOD. */
 int2 texture_size(sampler2DArray sampler_2d_array)
 {
-  return textureSize(sampler_2d, 0).xy;
+  return textureSize(sampler_2d_array, 0).xy;
 }
 
 /* A shorthand for 2D texelFetch with zero LOD and bounded access clamped to border. */

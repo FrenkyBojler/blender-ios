@@ -57,7 +57,7 @@ GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(compositor_realize_on_domain_float4x4)
 ADDITIONAL_INFO(compositor_realize_on_domain_shared)
-SAMPLER(0, sampler2D, input_tx)
+SAMPLER(0, sampler2DArray, input_tx)
 COMPUTE_FUNCTION("realize_on_domain_float4x4")
 IMAGE(0, SFLOAT_16_16_16_16, write, image2DArray, domain_img)
 DO_STATIC_COMPILATION()

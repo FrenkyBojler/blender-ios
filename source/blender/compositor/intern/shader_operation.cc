@@ -175,11 +175,6 @@ void ShaderOperation::link_node_input_unavailable(const bNodeSocket &input)
   GPU_link(material_, "set_float", link, &stack.link);
 }
 
-static bool input_socket_has_default_value(const bNodeSocket &input)
-{
-  return input.type != SOCK_MATRIX;
-}
-
 /* Initializes the vector value of the given GPU node stack from the default value of the given
  * input socket. */
 static void initialize_input_stack_value(const bNodeSocket &input, GPUNodeStack &stack)
@@ -286,14 +281,13 @@ void ShaderOperation::link_node_input_constant(const bNodeSocket &input)
   ShaderNode &node = *shader_nodes_.lookup(&input.owner_node());
   GPUNodeStack &stack = node.get_input(input.identifier);
 
-  const ResultType type = get_node_socket_result_type(&input);
-  const char *function_name = get_set_function_name(type);
-
-  /* Input socket has no default value and is default initialized. */
-  if (input_socket_has_default_value(input)) {
-    GPU_link(material_, function_name, &stack.link);
+  /* Matrix sockets have no socket default values, so we default initialize them. */
+  if (input.type == SOCK_MATRIX) {
+    GPU_link(material_, "set_float4x4_default", &stack.link);
     return;
   }
+
+  const ResultType type = get_node_socket_result_type(&input);
 
   /* Create a constant or a uniform link that carry the value of the input. Use a constant for
    * socket types that rarely change like booleans and menus, while use a uniform for socket type
@@ -301,6 +295,7 @@ void ShaderOperation::link_node_input_constant(const bNodeSocket &input)
   initialize_input_stack_value(input, stack);
   const bool use_as_constant = ELEM(input.type, SOCK_BOOLEAN, SOCK_MENU);
   GPUNodeLink *link = use_as_constant ? GPU_constant(stack.vec) : GPU_uniform(stack.vec);
+  const char *function_name = get_set_function_name(type);
   GPU_link(material_, function_name, link, &stack.link);
 }
 
@@ -793,10 +788,10 @@ std::string ShaderOperation::generate_code_for_outputs(ShaderCreateInfo &shader_
       case ResultType::Float4x4:
         /* Each column of the matrix is stored in one layer of the texture. */
         store_float4x4_function << case_line;
-        store_float4x4_function << "    if (int i = 0; i < 4; i++) {\n";
-        store_float4x4_function << "      imageStore(" << output_identifier
+        store_float4x4_function << "      for (int i = 0; i < 4; i++) {\n";
+        store_float4x4_function << "        imageStore(" << output_identifier
                                 << ", ivec3(gl_GlobalInvocationID.xy, i), value[i]);\n";
-        store_float4x4_function << "    }\n";
+        store_float4x4_function << "      }\n";
         store_float4x4_function << break_line;
         break;
       case ResultType::Menu:
