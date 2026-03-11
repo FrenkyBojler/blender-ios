@@ -551,6 +551,7 @@ class ShaderModule {
   StaticShader wireframe_mesh = shader_selectable("overlay_wireframe");
   /* Draw objects without edges for the wireframe overlay. */
   StaticShader wireframe_points = shader_selectable("overlay_wireframe_points");
+  StaticShader wireframe_pointcloud = shader_selectable("overlay_wireframe_pointcloud");
   StaticShader wireframe_curve = shader_selectable("overlay_wireframe_curve");
 
   StaticShader fluid_grid_lines_flags = shader_selectable_no_clip(
@@ -757,6 +758,7 @@ struct Resources : public select::SelectMap {
     shaders->wireframe_curve.ensure_compile_async();
     shaders->wireframe_mesh.ensure_compile_async();
     shaders->wireframe_points.ensure_compile_async();
+    shaders->wireframe_pointcloud.ensure_compile_async();
   }
 
   void begin_sync(int clipping_plane_count)

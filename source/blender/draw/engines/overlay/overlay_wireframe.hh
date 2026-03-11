@@ -35,6 +35,7 @@ class Wireframe : Overlay {
   struct ColoringPass {
     PassMain::Sub *curves_ps_ = nullptr;
     PassMain::Sub *mesh_ps_ = nullptr;
+    PassMain::Sub *mesh_points_ps_ = nullptr;
     PassMain::Sub *pointcloud_ps_ = nullptr;
     /* Variant for meshes that force drawing all edges. */
     PassMain::Sub *mesh_all_edges_ps_ = nullptr;
@@ -102,7 +103,8 @@ class Wireframe : Overlay {
         overlay::ShaderModule &sh = *res.shaders;
         ps.mesh_ps_ = shader_pass(sh.wireframe_mesh.get(), "Mesh", use_color, wire_threshold);
         ps.mesh_all_edges_ps_ = shader_pass(sh.wireframe_mesh.get(), "Wire", use_color, 1.0f);
-        ps.pointcloud_ps_ = shader_pass(sh.wireframe_points.get(), "PtCloud", use_color, 1.0f);
+        ps.mesh_points_ps_ = shader_pass(sh.wireframe_points.get(), "MeshPts", use_color, 1.0f);
+        ps.pointcloud_ps_ = shader_pass(sh.wireframe_pointcloud.get(), "PtCloud", use_color, 1.0f);
         ps.curves_ps_ = shader_pass(sh.wireframe_curve.get(), "Curve", use_color, 1.0f);
       };
 
@@ -199,7 +201,7 @@ class Wireframe : Overlay {
           gpu::Batch *geom;
           if ((mesh.edges_num == 0) && (mesh.verts_num > 0)) {
             geom = DRW_cache_mesh_all_verts_get(ob_ref.object);
-            coloring.pointcloud_ps_->draw(
+            coloring.mesh_points_ps_->draw(
                 geom, manager.unique_handle(ob_ref), res.select_id(ob_ref).get());
           }
           else if ((geom = DRW_cache_mesh_loose_edges_get(ob_ref.object))) {
@@ -226,7 +228,7 @@ class Wireframe : Overlay {
           if (DRW_object_get_data_for_drawing<Volume>(*ob_ref.object).display.wireframe_type ==
               VOLUME_WIREFRAME_POINTS)
           {
-            coloring.pointcloud_ps_->draw(
+            coloring.mesh_points_ps_->draw(
                 geom, manager.unique_handle(ob_ref), res.select_id(ob_ref).get());
           }
           else {
