@@ -85,6 +85,8 @@ struct BlendWriter {
    * #BLO_read_int8_array), the read function will take care of endianness conversion.
    */
   void write_raw(size_t size_in_bytes, const void *data);
+
+  /** Write typed arrays. */
   void write_char_array(int64_t num, const char *data);
   void write_int8_array(int64_t num, const int8_t *data);
   void write_int16_array(int64_t num, const int16_t *data);
@@ -96,9 +98,7 @@ struct BlendWriter {
   void write_float3_array(int64_t num, const float *data);
   void write_pointer_array(int64_t num, const void *data);
 
-  /**
-   * Write a null terminated string.
-   */
+  /** Write a null terminated string. */
   void write_string(const char *data);
 
   int struct_id_by_name(const char *struct_name) const;
