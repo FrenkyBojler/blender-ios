@@ -388,8 +388,7 @@ static void wm_xr_session_state_viewer_scale_update(wmXrSessionState *state,
   const float new_viewer_scale = state->nav_scale * settings->view_scale * scene_scale;
 
   /* Set viewer scale and tag XR navigation to be recalculated. */
-  if (state->viewer_scale != new_viewer_scale) {
-    state->viewer_scale = new_viewer_scale;
+  if (assign_if_different(state->viewer_scale, new_viewer_scale)) {
     state->is_navigation_dirty = true;
   }
 }
