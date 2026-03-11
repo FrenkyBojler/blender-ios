@@ -1296,9 +1296,6 @@ static bool nlastrips_apply_all_curves_cb(ID *id,
                                           ListBaseT<NlaStrip> *strips,
                                           const IDFCurveCallback func)
 {
-  /* This function is used (via `BKE_fcurves_id_cb()`) by the versioning system.
-   * As such, legacy Actions should always be expected here. */
-
   for (NlaStrip &strip : *strips) {
     if (strip.act) {
       const Vector<FCurve *> fcurves = animrig::fcurves_for_action_slot(strip.act->wrap(),
@@ -1325,9 +1322,6 @@ static bool nlastrips_apply_all_curves_cb(ID *id,
  */
 static bool adt_apply_all_fcurves_cb(ID *id, AnimData *adt, const IDFCurveCallback func)
 {
-  /* This function is used (via `BKE_fcurves_id_cb()`) by the versioning system.
-   * As such, legacy Actions should always be expected here. */
-
   if (adt->action) {
     if (!fcurves_apply_cb(
             id, animrig::fcurves_for_action_slot(adt->action->wrap(), adt->slot_handle), func))
