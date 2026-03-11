@@ -1,1 +1,2 @@
 Referenced by issue #153454, Nodes inside Node Group after make group are positioned higher than in previous versions
+Referenced by issue #155524, Nodes: Grouping operator does not preserve multi-input order on re-connection
