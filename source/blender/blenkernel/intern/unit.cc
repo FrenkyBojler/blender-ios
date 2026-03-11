@@ -2136,7 +2136,7 @@ static char *look_next_char(StringRef charset, char *c, const char *end)
   return nullptr;
 }
 
-char *ch_is_unary_negative_with_back_check(const char *begin, char *c)
+static char *ch_is_unary_negative_with_back_check(const char *begin, char *c)
 {
   char *unary_negative = look_back_char("-", c, begin);
   if (begin == unary_negative) {
