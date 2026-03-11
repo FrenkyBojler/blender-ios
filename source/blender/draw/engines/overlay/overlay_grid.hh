@@ -325,18 +325,6 @@ class Grid : Overlay {
       dist = rv3d->dist;
     }
 
-    /* Find the lowest relevant grid level for the above distance. */
-    for (int i : IndexRange(SI_GRID_STEPS_LEN)) {
-      float curr = std::min(grid_ubo_.steps[i].x, grid_ubo_.steps[i].y);
-      float next = (i < SI_GRID_STEPS_LEN - 1) ?
-                       std::min(grid_ubo_.steps[i + 1].x, grid_ubo_.steps[i + 1].y) :
-                       curr * 10.0f;
-      if (next >= dist || i == OVERLAY_GRID_STEPS_LEN - 1) {
-        grid_ubo_.level = static_cast<float>(i) + safe_divide(dist - curr, next - curr);
-        break;
-      }
-    }
-
     /* Extract 2D grid offset for moving grid "with the camera" on the floor plane. */
     if (ELEM(rv3d->view, RV3D_VIEW_RIGHT, RV3D_VIEW_LEFT)) {
       grid_ubo_.offset = drw_view_position.yz();
@@ -355,6 +343,18 @@ class Grid : Overlay {
       float3 camera_offs = drw_view_position -
                            drw_view_forward * dot(drw_view_position, drw_view_forward);
       grid_ubo_.offset = camera_offs.xy();
+    }
+
+    /* Find the lowest relevant grid level for the above distance. */
+    for (int i : IndexRange(SI_GRID_STEPS_LEN)) {
+      float curr = std::min(grid_ubo_.steps[i].x, grid_ubo_.steps[i].y);
+      float next = (i < SI_GRID_STEPS_LEN - 1) ?
+                       std::min(grid_ubo_.steps[i + 1].x, grid_ubo_.steps[i + 1].y) :
+                       curr * 10.0f;
+      if (next >= dist || i == OVERLAY_GRID_STEPS_LEN - 1) {
+        grid_ubo_.level = static_cast<float>(i) + safe_divide(dist - curr, next - curr);
+        break;
+      }
     }
 
     /* Set clipping rectangle for lines, dependent on camera/viewport. */
