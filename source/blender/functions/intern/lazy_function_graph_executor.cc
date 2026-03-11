@@ -45,6 +45,19 @@ GraphExecutor::GraphExecutor(const Graph &graph,
   /* The graph executor can handle partial execution when there are still missing inputs. */
   allow_missing_requested_inputs_ = true;
 
+  for (const int i : graph_inputs_.index_range()) {
+    const OutputSocket &socket = *graph_inputs_[i];
+    BLI_assert(socket.node().is_interface());
+    inputs_.append({"In", socket.type(), ValueUsage::Maybe});
+    graph_input_index_by_socket_index_[socket.index()] = i;
+  }
+  for (const int i : graph_outputs_.index_range()) {
+    const InputSocket &socket = *graph_outputs_[i];
+    BLI_assert(socket.node().is_interface());
+    outputs_.append({"Out", socket.type()});
+    graph_output_index_by_socket_index_[socket.index()] = i;
+  }
+
   GenericExecutor::preprocess_graph(*this);
 }
 
