@@ -35,6 +35,15 @@ if(CMAKE_C_COMPILER_ID MATCHES "Clang")
       "try running from the visual studio developer prompt."
     )
   endif()
+  # if set, leave CUDA_HOST_COMPILER alone, if not set default it with
+  # the path to cl.exe since otherwise it will try to use clang-cl and
+  # the cuda build will fail due to a non-supported compiler.
+  if(NOT DEFINED CUDA_HOST_COMPILER)
+    find_program(CL_EXE cl.exe)
+    if(EXISTS ${CL_EXE})
+      set(CUDA_HOST_COMPILER ${CL_EXE})
+    endif()
+  endif()
 else()
   if(WITH_BLENDER)
     if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19.44.35216) # MSVC 2022 17.14.14
