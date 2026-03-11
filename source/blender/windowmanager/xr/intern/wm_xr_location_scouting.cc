@@ -1077,12 +1077,14 @@ static wmOperatorStatus wm_xr_location_scouting_review_captures_invoke(bContext 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static void wm_xr_location_scouting_review_captures_cancel(bContext * /*C*/, wmOperator *op)
+static void wm_xr_location_scouting_review_captures_cancel(bContext *C, wmOperator *op)
 {
   ReviewCaptureData *review_data = static_cast<ReviewCaptureData *>(op->customdata);
 
+  /* Restore viewport. */
   review_data->view3d->camera = review_data->prev_view3d_cam_ob;
   review_data->rview3d->persp = review_data->prev_rview3d_persp;
+  ED_region_tag_redraw(CTX_wm_region(C));
 
   BKE_id_free(nullptr, id_cast<ID *>(review_data->cam_ob));
   BKE_id_free(nullptr, id_cast<ID *>(review_data->cam_data));
@@ -1099,10 +1101,13 @@ static wmOperatorStatus wm_xr_location_scouting_review_captures_modal(bContext *
   auto capture = wm_xr_location_scouting_get_active_capture(scene);
 
   if (event->type == EVT_ESCKEY) {
+    wm_xr_location_scouting_review_captures_cancel(C, op);
     return OPERATOR_CANCELLED;
   }
 
   if (!capture.has_value()) {
+    BKE_report(op->reports, RPT_INFO, "No VR captures to display, exiting capture review...");
+    wm_xr_location_scouting_review_captures_cancel(C, op);
     return OPERATOR_CANCELLED;
   }
 
