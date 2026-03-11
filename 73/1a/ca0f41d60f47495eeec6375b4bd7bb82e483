@@ -1,1 +1,2 @@
 Referenced by issue #155482, Assert fails in `array_utils::gather` when sampling by index
+Referenced by pull request #155505, Fix #155482: Asserts in array_utils::gather are too strict
