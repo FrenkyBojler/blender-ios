@@ -1117,6 +1117,11 @@ static void sequencer_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 
 static bool scrubbing_region_poll(const RegionPollParams *params)
 {
+  const Scene *scene = CTX_data_sequencer_scene(params->context);
+  if (scene == nullptr) {
+    return false;
+  }
+
   const SpaceSeq *sseq = static_cast<SpaceSeq *>(params->area->spacedata.first);
   return sseq->flag & SEQ_SHOW_SCRUBBING_REGION;
 }
@@ -1202,7 +1207,7 @@ void ED_spacetype_sequencer()
   art->on_view2d_changed = sequencer_preview_region_view2d_changed;
   art->draw = sequencer_preview_region_draw;
   art->listener = sequencer_preview_region_listener;
-  art->keymapflag = ED_KEYMAP_TOOL | ED_KEYMAP_GIZMO | ED_KEYMAP_GPENCIL;
+  art->keymapflag = ED_KEYMAP_TOOL | ED_KEYMAP_GIZMO | ED_KEYMAP_GPENCIL | ED_KEYMAP_ANIMATION;
   BLI_addhead(&st->regiontypes, art);
 
   /* List-view/buttons. */
