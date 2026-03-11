@@ -2110,39 +2110,44 @@ static char *skip_unary_op(char *str)
   return str;
 }
 
-static char *charset_look_back(StringRef char_set, char *c, const char *begin)
+/* Looks back in the trailing \a c string for first non white-space character and returns its
+ * location if it matches any char in the \a charset */
+static char *look_back_char(StringRef charset, char *c, const char *begin)
 {
-  while (*c == ' ' && c > begin) {
+  while (*c == ' ' && c >= begin) {
     c--;
   }
-  if (c >= begin && char_set.find(*c) != StringRef::not_found) {
+  if (c >= begin && charset.find(*c) != StringRef::not_found) {
     return c;
   }
   return nullptr;
 }
 
-static char *charset_look_next(StringRef char_set, char *c, const char *end)
+/* Looks forward in the \a c string for first non white-space character and returns its location if
+ * it matches any char in the \a charset */
+static char *look_next_char(StringRef charset, char *c, const char *end)
 {
   while (*c == ' ' && c < end) {
     c++;
   }
-  if (c < end && char_set.find(*c) != StringRef::not_found) {
+  if (c < end && charset.find(*c) != StringRef::not_found) {
     return c;
   }
   return nullptr;
 }
 
-char *ch_is_op_unary_with_back_check(const char *begin, char *c)
+char *ch_is_unary_negative_with_back_check(const char *begin, char *c)
 {
-  char *unary_location = charset_look_back("-", c, begin);
-  if (begin == unary_location) {
-    return unary_location;
+  char *unary_negative = look_back_char("-", c, begin);
+  if (begin == unary_negative) {
+    return unary_negative;
   }
-  if (!unary_location) {
+  if (!unary_negative) {
     return nullptr;
   }
-  if (charset_look_back("-*/|&~<>^!=%(", unary_location - 1, begin) != nullptr) {
-    return unary_location;
+  /* Look for any other operator or paren to ensure the `-` is a unary expression. */
+  if (look_back_char("+-*/|&~<>^!=%(", unary_negative - 1, begin) != nullptr) {
+    return unary_negative;
   }
   return nullptr;
 }
@@ -2199,8 +2204,8 @@ static int find_previous_non_value_char(char *str, const int start_ofs)
   }
   for (; i > 0; i--) {
     if (str[i - 1] == '(') {
-      if (const char *unary_op = ch_is_op_unary_with_back_check(str, str + i - 2)) {
-        return unary_op - str;
+      if (const char *unary_negative = ch_is_unary_negative_with_back_check(str, str + i - 2)) {
+        return unary_negative - str;
       }
     }
     if (ch_is_op(str[i - 1]) || strchr("( )", str[i - 1])) {
