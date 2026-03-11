@@ -155,6 +155,8 @@ class VIEW3D_PT_vr_location_scouting_captures(VRButtonsPanel, Panel):
                      icon='OUTLINER_OB_CAMERA', text="Add Camera")
         row.operator("view3d.vr_location_scouting_active_camera_to_capture", icon='HIDE_OFF', text="Set Active")
 
+        layout.operator("wm.xr_location_scouting_review_captures", icon='OUTLINER_OB_CAMERA')
+
 
 class VIEW3D_PT_vr_location_scouting_viewfinder(VRButtonsPanel, Panel):
     bl_label = "VR Viewfinder"

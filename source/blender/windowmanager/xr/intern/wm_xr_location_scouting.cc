@@ -12,6 +12,9 @@
 
 #include "BKE_camera.h"
 #include "BKE_context.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_object.hh"
+#include "BKE_object_types.hh"
 
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
@@ -23,6 +26,8 @@
 #include "DNA_camera_types.h"
 #include "DNA_scene_types.h"
 
+#include "ED_screen.hh"
+#include "ED_view3d.hh"
 #include "ED_view3d_offscreen.hh"
 
 #include "GHOST_Types.hh"
@@ -38,6 +43,8 @@
 
 #include "UI_interface.hh"
 #include "UI_interface_layout.hh"
+
+#include "WM_api.hh"
 
 #include "wm_xr_intern.hh"
 
@@ -1024,6 +1031,119 @@ void wm_xr_viewfinder_draw(const XrSessionSettings *settings, wmXrSessionState *
 
   /* Selected playback capture camera (drawn in world space). */
   wm_xr_viewfinder_gizmo_draw_capture_camera(evil_main_C, state);
+}
+
+struct ReviewCaptureData {
+  View3D *view3d;
+  RegionView3D *rview3d;
+
+  Object *prev_view3d_cam_ob;
+  char prev_rview3d_persp;
+
+  Object *cam_ob;
+  Camera *cam_data;
+};
+
+static wmOperatorStatus wm_xr_location_scouting_review_captures_invoke(bContext *C,
+                                                      wmOperator *op,
+                                                      const wmEvent * /*event*/)
+{
+  View3D *view3d;
+  ARegion *region;
+  ED_view3d_context_user_region(C, &view3d, &region);
+  RegionView3D *rview3d = static_cast<RegionView3D *>(region->regiondata);
+
+  if (RV3D_LOCK_FLAGS(rview3d) & RV3D_LOCK_ANY_TRANSFORM) {
+    return OPERATOR_CANCELLED;
+  }
+
+  ReviewCaptureData *review_data = MEM_new_zeroed<ReviewCaptureData>("View3DReviewCaptureData");
+  review_data->view3d = view3d;
+  review_data->rview3d = rview3d;
+
+  review_data->prev_view3d_cam_ob = view3d->camera;
+  review_data->prev_rview3d_persp = rview3d->persp;
+
+  /* Build a fake Camera object to set on the View3D. */
+  review_data->cam_ob = BKE_id_new_nomain<Object>("ReviewCaptureCamera");
+  review_data->cam_ob->type = OB_CAMERA;
+
+  review_data->cam_data = BKE_id_new_nomain<Camera>("ReviewCaptureCameraData");
+  review_data->cam_ob->data = id_cast<ID *>(review_data->cam_data);
+
+  op->customdata = review_data;
+
+  WM_event_add_modal_handler(C, op);
+  return OPERATOR_RUNNING_MODAL;
+}
+
+static void wm_xr_location_scouting_review_captures_cancel(bContext * /*C*/, wmOperator *op)
+{
+  ReviewCaptureData *review_data = static_cast<ReviewCaptureData *>(op->customdata);
+
+  review_data->view3d->camera = review_data->prev_view3d_cam_ob;
+  review_data->rview3d->persp = review_data->prev_rview3d_persp;
+
+  BKE_id_free(nullptr, id_cast<ID *>(review_data->cam_ob));
+  BKE_id_free(nullptr, id_cast<ID *>(review_data->cam_data));
+
+  MEM_delete(review_data);
+}
+
+static wmOperatorStatus wm_xr_location_scouting_review_captures_modal(bContext *C,
+                                                                      wmOperator *op,
+                                                                      const wmEvent *event)
+{
+  /* Get the current capture. */
+  Scene *scene = CTX_data_scene(C);
+  auto capture = wm_xr_location_scouting_get_active_capture(scene);
+
+  if (event->type == EVT_ESCKEY) {
+    return OPERATOR_CANCELLED;
+  }
+
+  if (!capture.has_value()) {
+    return OPERATOR_CANCELLED;
+  }
+
+  ReviewCaptureData *review_data = static_cast<ReviewCaptureData *>(op->customdata);
+
+  /* Force perspective to camera. */
+  review_data->rview3d->persp = RV3D_CAMOB;
+
+  /* Set Camera data from capture. */
+  review_data->cam_data->lens = capture->lens_focal;
+  SET_FLAG_FROM_TEST(review_data->cam_data->dof.flag, capture->dof_enabled, CAM_DOF_ENABLED);
+  review_data->cam_data->dof.aperture_fstop = capture->dof_fstop;
+  review_data->cam_data->dof.focus_distance = capture->dof_distance;
+
+  float capture_cam_mat[4][4];
+  wm_xr_pose_to_mat(&capture->pose, capture_cam_mat);
+  BKE_object_apply_mat4(review_data->cam_ob, capture_cam_mat, false, false);
+  /* Minimum eval without going through the depsgraph. */
+  BKE_object_to_mat4(review_data->cam_ob, review_data->cam_ob->runtime->object_to_world.ptr());
+
+  /* Set fake Camera object as the View3D camera. */
+  review_data->view3d->camera = review_data->cam_ob;
+
+  /* Redraw viewport. */
+  ED_region_tag_redraw(CTX_wm_region(C));
+
+  return OPERATOR_PASS_THROUGH;
+}
+
+void WM_OT_xr_location_scouting_review_captures(wmOperatorType *ot)
+{
+  /* Identifiers. */
+  ot->name = "Review VR Captures";
+  ot->description = "Interactively review Location Scouting VR Captures";
+  ot->idname = "WM_OT_xr_location_scouting_review_captures";
+
+  /* Callbacks. */
+  ot->invoke = wm_xr_location_scouting_review_captures_invoke;
+  ot->cancel = wm_xr_location_scouting_review_captures_cancel;
+  ot->modal = wm_xr_location_scouting_review_captures_modal;
+  ot->poll = ED_operator_region_view3d_active;
 }
 
 /** \} */

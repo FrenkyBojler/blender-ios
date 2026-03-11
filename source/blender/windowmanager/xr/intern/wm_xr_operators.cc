@@ -1901,6 +1901,7 @@ void wm_xr_operatortypes_register()
   WM_operatortype_append(WM_OT_xr_navigation_teleport);
   WM_operatortype_append(WM_OT_xr_navigation_reset);
   WM_operatortype_append(WM_OT_xr_navigation_swap_hands);
+  WM_operatortype_append(WM_OT_xr_location_scouting_review_captures);
 }
 
 /** \} */
