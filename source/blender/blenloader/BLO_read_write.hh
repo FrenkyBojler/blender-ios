@@ -70,6 +70,22 @@ struct BlendWriter {
   void write_struct_list_by_name(const char *struct_name, ListBase *list);
   void write_struct_list_by_id(int struct_id, const ListBase *list);
 
+  /**
+   * Write raw data.
+   *
+   * \warning Avoid using this method if possible. There are only a very few cases in current
+   * code where it is actually needed (e.g. the ShapeKey's data, since its items size varies
+   * depending on the type of geometry owning it, see #shapekey_blend_write).
+   *
+   * \warning Data written with this call have no type information attached to them
+   * in the blend-file. The main consequence is that there will be no handling of endianness
+   * conversion for them in readfile code.
+   * Basic types array functions (like #BLO_write_int8_array etc.) also use this
+   * internally, but if their matching read function is used to load the data (like
+   * #BLO_read_int8_array), the read function will take care of endianness conversion.
+   */
+  void write_raw(size_t size_in_bytes, const void *data);
+
   int struct_id_by_name(const char *struct_name) const;
 
   template<typename T> void write_struct(const T *data)
@@ -166,8 +182,8 @@ struct BlendLibReader {
  * Raw Data Writing
  * ----------------
  *
- * At the core there is #BLO_write_raw, which can write arbitrary memory buffers to the file.
- * The code that reads this data might have to correct its byte-order. For the common cases
+ * At the core there is #BlendWriter::write_raw, which can write arbitrary memory buffers to the
+ * file. The code that reads this data might have to correct its byte-order. For the common cases
  * there are convenience functions that write and read arrays of simple types such as `int32`.
  * Those will correct endianness automatically.
  * \{ */
@@ -195,21 +211,6 @@ struct BLO_Write_IDBuffer {
   };
 };
 
-/**
- * Write raw data.
- *
- * \warning Avoid using this function if possible. There are only a very few cases in current code
- * where it is actually needed (e.g. the ShapeKey's data, since its items size varies depending on
- * the type of geometry owning it, see #shapekey_blend_write).
- *
- * \warning Data written with this call have no type information attached to them
- * in the blend-file. The main consequence is that there will be no handling of endianness
- * conversion for them in readfile code.
- * Basic types array functions (like #BLO_write_int8_array etc.) also use #BLO_write_raw
- * internally, but if their matching read function is used to load the data (like
- * #BLO_read_int8_array), the read function will take care of endianness conversion.
- */
-void BLO_write_raw(BlendWriter *writer, size_t size_in_bytes, const void *data_ptr);
 /**
  * Slightly 'safer' code to write arrays of basic types data.
  */
@@ -289,7 +290,8 @@ bool BLO_write_is_undo(BlendWriter *writer);
  * Avoid using the generic #BLO_read_data_address
  * (and low-level API like #BLO_read_get_new_data_address)
  * when possible, use the typed functions instead.
- * Only data written with #BLO_write_raw should typically be read with #BLO_read_data_address.
+ * Only data written with #BlendWriter::write_raw should typically be read with
+ * #BLO_read_data_address.
  * \{ */
 
 void *BLO_read_get_new_data_address(BlendDataReader *reader, const void *old_address);
