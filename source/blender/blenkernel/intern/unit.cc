@@ -2293,7 +2293,7 @@ static int unit_scale_str(char *str,
     } /* If this doesn't fit, we have failed. */
 
     /* Add the addition sign, the bias, and the close parenthesis after the value. */
-    int value_end_ofs = find_end_of_value_chars(str, str_maxncpy, prev_op_ofs + 1);
+    int value_end_ofs = find_end_of_value_chars(str, str_maxncpy, prev_op_ofs);
     /* Prevent adding bias value after unit name in cases like `-(F)`. */
     value_end_ofs = std::min(value_end_ofs, found_ofs);
     int len_bias_num = BLI_snprintf_rlen(str_tmp, TEMP_STR_SIZE, "+%.9g)", unit->bias);
