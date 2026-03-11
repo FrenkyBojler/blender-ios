@@ -435,6 +435,9 @@ class FileOutputOperation : public NodeOperation {
 
   void execute() override
   {
+    if (!this->is_animation_render()) {
+      return;
+    }
     if (this->is_multi_layer()) {
       this->execute_multi_layer();
     }
