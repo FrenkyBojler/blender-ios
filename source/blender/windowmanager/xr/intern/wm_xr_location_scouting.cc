@@ -1034,8 +1034,8 @@ void wm_xr_viewfinder_draw(const XrSessionSettings *settings, wmXrSessionState *
 }
 
 struct ReviewCaptureData {
-  View3D *view3d;
-  RegionView3D *rview3d;
+  View3D *v3d;
+  RegionView3D *rv3d;
 
   Object *prev_view3d_cam_ob;
 
@@ -1047,21 +1047,21 @@ static wmOperatorStatus wm_xr_location_scouting_review_captures_invoke(bContext 
                                                       wmOperator *op,
                                                       const wmEvent * /*event*/)
 {
-  View3D *view3d;
+  View3D *v3d;
   ARegion *region;
-  ED_view3d_context_user_region(C, &view3d, &region);
-  RegionView3D *rview3d = static_cast<RegionView3D *>(region->regiondata);
+  ED_view3d_context_user_region(C, &v3d, &region);
+  RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
 
-  if (RV3D_LOCK_FLAGS(rview3d) & RV3D_LOCK_ANY_TRANSFORM) {
+  if (RV3D_LOCK_FLAGS(rv3d) & RV3D_LOCK_ANY_TRANSFORM) {
     return OPERATOR_CANCELLED;
   }
 
   ReviewCaptureData *review_data = MEM_new_zeroed<ReviewCaptureData>("View3DReviewCaptureData");
-  review_data->view3d = view3d;
-  review_data->rview3d = rview3d;
+  review_data->v3d = v3d;
+  review_data->rv3d = rv3d;
 
-  review_data->prev_view3d_cam_ob = view3d->camera;
-  ED_view3d_lastview_store(rview3d);
+  review_data->prev_view3d_cam_ob = v3d->camera;
+  ED_view3d_lastview_store(rv3d);
 
   /* Build a fake Camera object to set on the View3D. */
   review_data->cam_ob = BKE_id_new_nomain<Object>("ReviewCaptureCamera");
@@ -1079,14 +1079,15 @@ static wmOperatorStatus wm_xr_location_scouting_review_captures_invoke(bContext 
 static void wm_xr_location_scouting_review_captures_cancel(bContext *C, wmOperator *op)
 {
   ReviewCaptureData *review_data = static_cast<ReviewCaptureData *>(op->customdata);
+  RegionView3D *rv3d = review_data->rv3d;
 
   /* Restore viewport, last view stored by #ED_view3d_lastview_store */
-  copy_qt_qt(review_data->rview3d->viewquat, review_data->rview3d->lviewquat);
-  review_data->rview3d->view = review_data->rview3d->lview;
-  review_data->rview3d->view_axis_roll = review_data->rview3d->lview_axis_roll;
-  review_data->rview3d->persp = review_data->rview3d->lpersp;
+  copy_qt_qt(rv3d->viewquat, rv3d->lviewquat);
+  rv3d->view = rv3d->lview;
+  rv3d->view_axis_roll = rv3d->lview_axis_roll;
+  rv3d->persp = rv3d->lpersp;
 
-  review_data->view3d->camera = review_data->prev_view3d_cam_ob;
+  review_data->v3d->camera = review_data->prev_view3d_cam_ob;
 
   ED_region_tag_redraw(CTX_wm_region(C));
 
@@ -1118,7 +1119,7 @@ static wmOperatorStatus wm_xr_location_scouting_review_captures_modal(bContext *
   ReviewCaptureData *review_data = static_cast<ReviewCaptureData *>(op->customdata);
 
   /* Force perspective to camera. */
-  review_data->rview3d->persp = RV3D_CAMOB;
+  review_data->rv3d->persp = RV3D_CAMOB;
 
   /* Set Camera data from capture. */
   review_data->cam_data->lens = capture->lens_focal;
@@ -1133,7 +1134,7 @@ static wmOperatorStatus wm_xr_location_scouting_review_captures_modal(bContext *
   BKE_object_to_mat4(review_data->cam_ob, review_data->cam_ob->runtime->object_to_world.ptr());
 
   /* Set fake Camera object as the View3D camera. */
-  review_data->view3d->camera = review_data->cam_ob;
+  review_data->v3d->camera = review_data->cam_ob;
 
   /* Redraw viewport. */
   ED_region_tag_redraw(CTX_wm_region(C));
