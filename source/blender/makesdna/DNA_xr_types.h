@@ -80,6 +80,23 @@ enum eXrPoseFlag {
   XR_POSE_AIM = (1 << 1),
 };
 
+/* Location Scouting Viewfinder. */
+enum eXrViewfinderHand { XR_VIEWFINDER_HAND_LEFT = 0, XR_VIEWFINDER_HAND_RIGHT = 1 };
+enum eXrViewfinderMode { XR_VIEWFINDER_MODE_LIVE = 0, XR_VIEWFINDER_MODE_PLAYBACK = 1 };
+
+enum eXrViewfinderLiveAction {
+  XR_VIEWFINDER_ACTION_LIVE_LENS = 0,
+  XR_VIEWFINDER_ACTION_LIVE_DOF = 1,
+  XR_VIEWFINDER_ACTION_LIVE_FOCUS = 2,
+  XR_VIEWFINDER_ACTION_LIVE_APERTURE = 3
+};
+
+enum eXrViewfinderPlaybackAction {
+  XR_VIEWFINDER_ACTION_PB_BROWSE = 0,
+  XR_VIEWFINDER_ACTION_PB_PREVIEW = 1,
+  XR_VIEWFINDER_ACTION_PB_DELETE = 2
+};
+
 /**
  * The following user and component path lengths are dependent on OpenXR's XR_MAX_PATH_LENGTH
  * (256). A user path will be combined with a component path to identify an action binding, and
