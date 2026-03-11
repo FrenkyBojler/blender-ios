@@ -1034,11 +1034,14 @@ void wm_xr_viewfinder_draw(const XrSessionSettings *settings, wmXrSessionState *
 }
 
 struct ReviewCaptureData {
+  /* Context. */
   View3D *v3d;
   RegionView3D *rv3d;
 
+  /* Previous camera to restore on exit. */
   Object *prev_view3d_cam_ob;
 
+  /* Fake camera object to set the View3D. */
   Object *cam_ob;
   Camera *cam_data;
 };
@@ -1076,7 +1079,7 @@ static wmOperatorStatus wm_xr_location_scouting_review_captures_invoke(bContext 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static void wm_xr_location_scouting_review_captures_cancel(bContext *C, wmOperator *op)
+static void wm_xr_location_scouting_review_captures_exit(bContext *C, wmOperator *op)
 {
   ReviewCaptureData *review_data = static_cast<ReviewCaptureData *>(op->customdata);
   RegionView3D *rv3d = review_data->rv3d;
@@ -1091,10 +1094,15 @@ static void wm_xr_location_scouting_review_captures_cancel(bContext *C, wmOperat
 
   ED_region_tag_redraw(CTX_wm_region(C));
 
+  /* Free data. */
   BKE_id_free(nullptr, id_cast<ID *>(review_data->cam_ob));
   BKE_id_free(nullptr, id_cast<ID *>(review_data->cam_data));
 
   MEM_delete(review_data);
+}
+
+static void wm_xr_location_scouting_review_captures_cancel(bContext *C, wmOperator *op) {
+  wm_xr_location_scouting_review_captures_exit(C, op);
 }
 
 static wmOperatorStatus wm_xr_location_scouting_review_captures_modal(bContext *C,
@@ -1106,14 +1114,14 @@ static wmOperatorStatus wm_xr_location_scouting_review_captures_modal(bContext *
   auto capture = wm_xr_location_scouting_get_active_capture(scene);
 
   if (event->type == EVT_ESCKEY) {
-    wm_xr_location_scouting_review_captures_cancel(C, op);
-    return OPERATOR_CANCELLED;
+    wm_xr_location_scouting_review_captures_exit(C, op);
+    return OPERATOR_FINISHED;
   }
 
   if (!capture.has_value()) {
     BKE_report(op->reports, RPT_INFO, "No VR captures to display, exiting capture review...");
-    wm_xr_location_scouting_review_captures_cancel(C, op);
-    return OPERATOR_CANCELLED;
+    wm_xr_location_scouting_review_captures_exit(C, op);
+    return OPERATOR_FINISHED;
   }
 
   ReviewCaptureData *review_data = static_cast<ReviewCaptureData *>(op->customdata);
