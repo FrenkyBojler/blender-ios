@@ -508,6 +508,11 @@ enum class ARegionQuadviewIndex : uint8_t {
   TopRight = 4,
 };
 
+struct ActivateRNAPropButton {
+  const void *data;
+  std::string prop_name;
+};
+
 struct ARegionRuntime {
   /** Callbacks for this region type. */
   struct ARegionType *type;
@@ -547,7 +552,12 @@ struct ARegionRuntime {
 
   /** Blend in/out. */
   wmTimer *regiontimer = nullptr;
-  wmTimer *auto_open_rna_button_timer = nullptr;
+
+  /**
+   * Activates a RNA button after region redraw, used when the RNA button was not available from
+   * the previous region state.
+   */
+  std::optional<ActivateRNAPropButton> activate_rna_prop;
 
   wmDrawBuffer *draw_buffer = nullptr;
 

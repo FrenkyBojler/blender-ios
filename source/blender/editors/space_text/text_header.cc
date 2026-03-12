@@ -88,7 +88,7 @@ static wmOperatorStatus text_text_search_exec(bContext *C, wmOperator * /*op*/)
       ED_region_tag_redraw(region);
     }
 
-    ui::textbutton_try_activate_over_redraws(C, region, st, "find_text");
+    ED_region_activate_rna_prop(C, region, st, "find_text");
   }
   return OPERATOR_FINISHED;
 }

@@ -987,8 +987,6 @@ enum wmTimerFlags {
 };
 ENUM_OPERATORS(wmTimerFlags)
 
-using TimerCustomdataFreeFn = void (*)(const void *);
-
 struct wmTimer {
   wmTimer *next, *prev;
 
@@ -1003,7 +1001,6 @@ struct wmTimer {
   wmTimerFlags flags;
   /** Set by timer user, to allow custom values. */
   void *customdata;
-  TimerCustomdataFreeFn customdata_free;
 
   /** Total running time in seconds. */
   double time_duration;

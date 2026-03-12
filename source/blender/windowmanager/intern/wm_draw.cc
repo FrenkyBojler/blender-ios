@@ -68,6 +68,7 @@
 #include "wm_window.hh"
 #include "wm_window_private.hh"
 
+#include "UI_interface_c.hh"
 #include "UI_resources.hh"
 
 #include "IMB_colormanagement.hh"
@@ -1050,6 +1051,15 @@ static void wm_draw_area_offscreen(bContext *C, wmWindow *win, ScrArea *area, bo
     GPU_debug_group_end();
 
     region.runtime->do_draw = 0;
+    if (region.runtime->activate_rna_prop) {
+      ui::textbutton_activate_rna(C,
+                                  &region,
+                                  region.runtime->activate_rna_prop->data,
+                                  region.runtime->activate_rna_prop->prop_name.c_str());
+      region.runtime->activate_rna_prop = std::nullopt;
+      /* The region is already drawn, tag for redrawing the button as active. */
+      ED_region_tag_redraw(&region);
+    }
     CTX_wm_region_set(C, nullptr);
   }
 

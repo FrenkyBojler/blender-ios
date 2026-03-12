@@ -2511,7 +2511,7 @@ static wmOperatorStatus uilist_start_filter_invoke(bContext *C,
     ED_region_tag_redraw(region);
   }
 
-  ui::textbutton_try_activate_over_redraws(C, region, list, "filter_name");
+  ED_region_activate_rna_prop(C, region, list, "filter_name");
 
   return OPERATOR_FINISHED;
 }

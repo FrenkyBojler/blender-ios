@@ -3030,15 +3030,5 @@ AbstractViewItem *region_views_find_active_item(const ARegion *region);
 Button *region_views_find_active_item_but(const ARegion *region);
 void region_views_clear_search_highlight(const ARegion *region);
 
-/**
- * Attempt to activate a button referencing an RNA string property, if region is hidden or if the
- * button is not found this will add a timer that will retry to open the button other 4 times. If
- * any other button in the screen is active, it will be deactivated.
- */
-bool textbutton_try_activate_over_redraws(bContext *C,
-                                          ARegion *region,
-                                          const void *data,
-                                          StringRefNull propname,
-                                          const wmEvent *event = nullptr);
 }  // namespace ui
 }  // namespace blender

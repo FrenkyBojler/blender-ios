@@ -630,6 +630,23 @@ void ED_region_tag_redraw(ARegion *region)
   }
 }
 
+void ED_region_activate_rna_prop(bContext *C,
+                                 ARegion *region,
+                                 const void *data,
+                                 StringRefNull prop_name)
+{
+  /* Try first to open the button, otherwise try after region redraw. */
+  if (ui::textbutton_activate_rna(C, region, data, prop_name.data())) {
+    return;
+  }
+
+  if (region->flag & RGN_FLAG_HIDDEN) {
+    ED_region_toggle_hidden(const_cast<bContext *>(C), region);
+  }
+  ED_region_tag_redraw(region);
+  region->runtime->activate_rna_prop = {data, prop_name};
+}
+
 void ED_region_tag_redraw_cursor(ARegion *region)
 {
   if (region) {
@@ -2357,11 +2374,6 @@ static void area_offscreen_exit(wmWindowManager *wm, wmWindow *win, ScrArea *are
       WM_event_timer_remove(wm, win, region.runtime->regiontimer);
       region.runtime->regiontimer = nullptr;
     }
-    if (region.runtime->auto_open_rna_button_timer) {
-      WM_event_timer_remove(wm, win, region.runtime->auto_open_rna_button_timer);
-      region.runtime->auto_open_rna_button_timer = nullptr;
-    }
-
     if (wm->runtime->message_bus) {
       WM_msgbus_clear_by_owner(wm->runtime->message_bus, &region);
     }
