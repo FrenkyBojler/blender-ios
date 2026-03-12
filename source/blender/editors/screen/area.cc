@@ -2374,6 +2374,7 @@ static void area_offscreen_exit(wmWindowManager *wm, wmWindow *win, ScrArea *are
       WM_event_timer_remove(wm, win, region.runtime->regiontimer);
       region.runtime->regiontimer = nullptr;
     }
+
     if (wm->runtime->message_bus) {
       WM_msgbus_clear_by_owner(wm->runtime->message_bus, &region);
     }
