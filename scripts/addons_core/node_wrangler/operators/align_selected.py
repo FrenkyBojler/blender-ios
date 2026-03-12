@@ -13,8 +13,7 @@ from ..utils.nodes import (
     nw_check_selected,
 )
 
-
-weird_offset = 10
+hidden_offset = 10
 frame_margin = 30
 
 #### ------------------------------ OPERATORS ------------------------------ ####
@@ -91,7 +90,7 @@ class NODE_OT_align_selected(Operator, NWBase):
         elif node.bl_static_type == 'FRAME':
             return max(self.get_top(node) for node in self.frame_children(node)) + frame_margin
         elif node.hide:
-            return node.location_absolute.y + (0.5 * self.get_height(node)) - weird_offset
+            return node.location_absolute.y + (0.5 * self.get_height(node)) - hidden_offset
         else:
             return node.location_absolute.y
 
@@ -99,7 +98,7 @@ class NODE_OT_align_selected(Operator, NWBase):
         if node.bl_static_type == 'REROUTE':
             return node.location_absolute.y
         elif node.hide:
-            return node.location_absolute.y - weird_offset
+            return node.location_absolute.y - hidden_offset
         else:
             return node.location_absolute.y - (0.5 * self.get_height(node))
 
@@ -109,7 +108,7 @@ class NODE_OT_align_selected(Operator, NWBase):
         elif node.bl_static_type == 'FRAME':
             return min(self.get_bottom(node) for node in self.frame_children(node)) - frame_margin
         elif node.hide:
-            return node.location_absolute.y - (0.5 * self.get_height(node)) - weird_offset
+            return node.location_absolute.y - (0.5 * self.get_height(node)) - hidden_offset
         else:
             return node.location_absolute.y - self.get_height(node)
 
@@ -175,7 +174,7 @@ class NODE_OT_align_selected(Operator, NWBase):
                 if node.bl_idname == "NodeFrame":
                     self.move_children(node, mid_y + (self.get_height(node) / 2) - node.location_absolute.y, axis="Y")
                 elif node.hide:
-                    node.location_absolute.y = mid_y + weird_offset
+                    node.location_absolute.y = mid_y + hidden_offset
                 else:
                     node.location_absolute.y = mid_y + (self.get_height(node) / 2)
         else:
@@ -188,7 +187,7 @@ class NODE_OT_align_selected(Operator, NWBase):
                     if node.bl_idname == "NodeFrame":
                         self.move_children(node, current_pos - node.location_absolute.y, axis="Y")
                     elif node.hide:
-                        node.location_absolute.y = current_pos + (-0.5 * self.get_height(node)) + weird_offset
+                        node.location_absolute.y = current_pos + (-0.5 * self.get_height(node)) + hidden_offset
                     else:
                         node.location_absolute.y = current_pos
 
