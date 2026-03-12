@@ -895,7 +895,6 @@ static bool subdiv_mesh_topology_info(const ForeachContext *foreach_context,
   for (const bDeformGroup &group : coarse_mesh.vertex_group_names) {
     vert_skip_names.add(group.name);
   }
-
   create_attrs_and_retrieve_interp_spans(coarse_attrs,
                                          AttrDomain::Point,
                                          vert_skip_names,
