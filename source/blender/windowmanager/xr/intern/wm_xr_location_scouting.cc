@@ -1057,10 +1057,40 @@ bool wm_xr_location_scouting_review_captures_poll(bContext *C)
          ED_operator_region_view3d_active(C);
 }
 
+/* The capture review property is stored on the WM, registered by the VR Python add-on. */
+static bool wm_xr_location_scouting_review_captures_get_running_state(bContext *C) {
+  PointerRNA wm_ptr = RNA_id_pointer_create(&CTX_wm_manager(C)->id);
+  PropertyRNA *state_prop = RNA_struct_find_property(&wm_ptr, "vr_capture_review_running");
+
+  /* Property wasn't found, VR add-on is probably not loaded. Shouldn't be possible. */
+  BLI_assert(state_prop != nullptr);
+
+  return RNA_property_boolean_get(&wm_ptr, state_prop);
+}
+
+static void wm_xr_location_scouting_review_captures_set_running_state(bContext *C,
+                                                                      const bool state)
+{
+  PointerRNA wm_ptr = RNA_id_pointer_create(&CTX_wm_manager(C)->id);
+  PropertyRNA *state_prop = RNA_struct_find_property(&wm_ptr, "vr_capture_review_running");
+
+  /* Property wasn't found, VR add-on is probably not loaded. Shouldn't be possible. */
+  BLI_assert(state_prop != nullptr);
+
+  RNA_property_boolean_set(&wm_ptr, state_prop, state);
+}
+
 static wmOperatorStatus wm_xr_location_scouting_review_captures_invoke(bContext *C,
                                                                        wmOperator *op,
                                                                        const wmEvent * /*event*/)
 {
+  /* Operator invoked while already running, toggle off. */
+  if (wm_xr_location_scouting_review_captures_get_running_state(C)) {
+    /* Set the running state (stored on the WM) to false, catched by the running operator modal. */
+    wm_xr_location_scouting_review_captures_set_running_state(C, false);
+    return OPERATOR_CANCELLED;
+  }
+
   View3D *v3d;
   ARegion *region;
   ED_view3d_context_user_region(C, &v3d, &region);
@@ -1089,6 +1119,9 @@ static wmOperatorStatus wm_xr_location_scouting_review_captures_invoke(bContext 
 
   op->customdata = review_data;
 
+  /* Set running state. */
+  wm_xr_location_scouting_review_captures_set_running_state(C, true);
+
   WM_event_add_modal_handler(C, op);
   return OPERATOR_RUNNING_MODAL;
 }
@@ -1106,6 +1139,7 @@ static void wm_xr_location_scouting_review_captures_exit(bContext *C, wmOperator
 
   review_data->v3d->camera = review_data->prev_view3d_cam_ob;
 
+  wm_xr_location_scouting_review_captures_set_running_state(C, false);
   ED_region_tag_redraw(CTX_wm_region(C));
 
   /* Free data. */
@@ -1135,6 +1169,12 @@ static wmOperatorStatus wm_xr_location_scouting_review_captures_modal(bContext *
 
   if (!capture.has_value()) {
     BKE_report(op->reports, RPT_INFO, "No VR captures to display, exiting capture review...");
+    wm_xr_location_scouting_review_captures_exit(C, op);
+    return OPERATOR_FINISHED;
+  }
+
+  /* Exit requested from the UI button, state set by the operator invoke. */
+  if (!wm_xr_location_scouting_review_captures_get_running_state(C)) {
     wm_xr_location_scouting_review_captures_exit(C, op);
     return OPERATOR_FINISHED;
   }

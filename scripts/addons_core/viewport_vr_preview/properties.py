@@ -263,6 +263,11 @@ def register():
         name="Selected Capture"
     )
 
+    bpy.types.WindowManager.vr_capture_review_running = bpy.props.BoolProperty(
+        name="Capture Review Modal Operator Running",
+        default=False
+    )
+
     bpy.app.handlers.load_post.append(vr_ensure_default_landmark)
 
 
@@ -276,5 +281,7 @@ def unregister():
 
     del bpy.types.Scene.vr_captures
     del bpy.types.Scene.vr_captures_selected
+
+    del bpy.types.WindowManager.vr_captures_is_reviewing
 
     bpy.app.handlers.load_post.remove(vr_ensure_default_landmark)
