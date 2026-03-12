@@ -1175,6 +1175,7 @@ static bool gpencil_any_exists(Depsgraph *depsgraph)
 /** \name Callbacks
  * \{ */
 
+#ifdef WITH_XR_OPENXR
 static void drw_callbacks_xr(DRWContext &draw_ctx, const int cb_type)
 {
   /* XR-specific callbacks (controllers and custom draw functions). */
@@ -1196,6 +1197,7 @@ static void drw_callbacks_xr(DRWContext &draw_ctx, const int cb_type)
     }
   }
 }
+#endif
 
 static void drw_callbacks_pre_scene(DRWContext &draw_ctx)
 {
@@ -1211,19 +1213,23 @@ static void drw_callbacks_pre_scene(DRWContext &draw_ctx)
   draw::command::StateSet::set();
   DRW_submission_start();
 
-  if (draw_ctx.mode == DRWContext::VIEWPORT_XR) {
-    /* XR surface pre-view callbacks. */
-    drw_callbacks_xr(draw_ctx, REGION_DRAW_PRE_VIEW);
-  }
-  else {
+  if (draw_ctx.mode != DRWContext::VIEWPORT_XR) {
     /* Regular View3D region pre-view callbacks. */
     ED_region_draw_cb_draw(draw_ctx.evil_C, draw_ctx.region, REGION_DRAW_PRE_VIEW);
 
     /* View3D XR session mirror pre-view callbacks. */
+#ifdef WITH_XR_OPENXR
     if ((draw_ctx.v3d->flag & V3D_XR_SESSION_MIRROR) != 0) {
       drw_callbacks_xr(draw_ctx, REGION_DRAW_PRE_VIEW);
     }
+#endif
   }
+#ifdef WITH_XR_OPENXR
+  else {
+    /* XR surface pre-view callbacks. */
+    drw_callbacks_xr(draw_ctx, REGION_DRAW_PRE_VIEW);
+  }
+#endif
 
   DRW_submission_end();
 
@@ -1299,6 +1305,7 @@ static void drw_callbacks_post_scene_view3d(DRWContext &draw_ctx)
   GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
 }
 
+#ifdef WITH_XR_OPENXR
 static void drw_callbacks_post_scene_xr_surface(DRWContext &draw_ctx)
 {
   Depsgraph *depsgraph = draw_ctx.depsgraph;
@@ -1335,6 +1342,7 @@ static void drw_callbacks_post_scene_xr_surface(DRWContext &draw_ctx)
 
   GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
 }
+#endif
 
 static void drw_callbacks_post_scene(DRWContext &draw_ctx)
 {
@@ -1345,14 +1353,16 @@ static void drw_callbacks_post_scene(DRWContext &draw_ctx)
   /* State has been reset at the end `draw_ctx.engines_draw_scene()`. */
   DRW_submission_start();
 
-  if (draw_ctx.mode == DRWContext::VIEWPORT_XR) {
-    /* XR surface post-view callbacks. */
-    drw_callbacks_post_scene_xr_surface(draw_ctx);
-  }
-  else {
+  if (draw_ctx.mode != DRWContext::VIEWPORT_XR) {
     /* Regular View3D post-view callbacks. */
     drw_callbacks_post_scene_view3d(draw_ctx);
   }
+#ifdef WITH_XR_OPENXR
+  else {
+    /* XR surface post-view callbacks. */
+    drw_callbacks_post_scene_xr_surface(draw_ctx);
+  }
+#endif
 
   DRW_submission_end();
 
