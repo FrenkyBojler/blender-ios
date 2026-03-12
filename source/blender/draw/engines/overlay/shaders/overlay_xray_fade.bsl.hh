@@ -23,9 +23,9 @@ struct Texel {
 struct Resources {
   [[legacy_info]] ShaderCreateInfo draw_globals;
 
-  [[sampler(0)]] const sampler2DDepth xray_depth_tx;
-  [[sampler(1)]] const sampler2DDepth depth_tx;
-  [[sampler(2)]] const sampler2DDepth depth_in_front_tx;
+  [[sampler(0)]] const sampler2DDepth depth_tx;
+  [[sampler(1)]] const sampler2DDepth depth_in_front_tx;
+  [[sampler(2)]] const sampler2DDepth xray_depth_tx;
   [[sampler(3)]] const sampler2DDepth xray_depth_in_front_tx;
 
   [[push_constant]] float opacity;
@@ -63,7 +63,7 @@ struct VertexOutput {
 
 /*
  * Fragment stage.
- * Outputs soft darkening fade on xray'd objects dependent on depth/xray-depth.
+ * Outputs soft darkening opacity on xray'd objects dependent on comparative depth/xray-depth.
  */
 struct FragmentOutput {
   [[frag_color(0)]] float4 color;
@@ -85,7 +85,7 @@ struct FragmentOutput {
     return;
   }
 
-  Texel texel = srt.sample_in_front(vert.uv);
+  Texel texel = srt.sample(vert.uv);
 
   /* Merge infront depth. */
   if (texel_in_front.depth != 1.0f) {
