@@ -79,11 +79,18 @@ class VKContext : public Context, NonCopyable {
 
   const render_graph::VKRenderGraph &render_graph() const
   {
-    return render_graph_.value().get();
+    BLI_assert(render_graph_.has_value());
+    return render_graph_.value().get();  // NOLINT(bugprone-unchecked-optional-access)
   }
   render_graph::VKRenderGraph &render_graph()
   {
-    return render_graph_.value().get();
+    BLI_assert(render_graph_.has_value());
+    return render_graph_.value().get();  // NOLINT(bugprone-unchecked-optional-access)
+  }
+  VKThreadData &thread_data()
+  {
+    BLI_assert(thread_data_.has_value());
+    return thread_data_.value();
   }
 
   VKContext(GHOST_IWindow *ghost_window, GHOST_IContext *ghost_context);

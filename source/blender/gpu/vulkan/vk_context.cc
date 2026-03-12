@@ -169,8 +169,9 @@ TimelineValue VKContext::flush_render_graph(RenderGraphFlushFlags flags,
   }
   VKDevice &device = VKBackend::get().device;
   descriptor_set_get().upload_descriptor_sets();
+  BLI_assert(render_graph_.has_value());
   TimelineValue timeline = device.render_graph_submit(
-      &render_graph_.value().get(),
+      &render_graph(),
       discard_pool,
       bool(flags & RenderGraphFlushFlags::SUBMIT),
       bool(flags & RenderGraphFlushFlags::WAIT_FOR_SUBMISSION),
@@ -210,12 +211,12 @@ void VKContext::memory_statistics_get(int *r_total_mem_kb, int *r_free_mem_kb)
 
 VKDescriptorPools &VKContext::descriptor_pools_get()
 {
-  return thread_data_.value().get().descriptor_pools;
+  return thread_data().descriptor_pools;
 }
 
 VKDescriptorSetTracker &VKContext::descriptor_set_get()
 {
-  return thread_data_.value().get().descriptor_set;
+  return thread_data().descriptor_set;  // NOLINT(bugprone-unchecked-optional-access)
 }
 
 VKStateManager &VKContext::state_manager_get() const

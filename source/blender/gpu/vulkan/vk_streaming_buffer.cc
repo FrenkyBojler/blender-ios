@@ -43,7 +43,8 @@ VkDeviceSize VKStreamingBuffer::update(VKContext &context, const void *data, siz
         host_buffer.vk_handle(), vk_buffer_dst(), {0, 0, 0}};
     copy_buffer_handle_ = render_graph.add_node(copy_buffer);
   }
-  VKBuffer &host_buffer = *host_buffer_.value();
+  /* Code above ensures that there is always a host buffer present.*/
+  VKBuffer &host_buffer = *host_buffer_.value();  // NOLINT(bugprone-unchecked-optional-access)
 
   VkDeviceSize start_offset = offset_;
   /* Advance the offset to the next possible offset considering the minimum allowed offset
