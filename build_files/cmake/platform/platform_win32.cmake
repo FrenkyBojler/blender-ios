@@ -39,10 +39,7 @@ if(CMAKE_C_COMPILER_ID MATCHES "Clang")
   # the path to cl.exe since otherwise it will try to use clang-cl and
   # the cuda build will fail due to a non-supported compiler.
   if(NOT DEFINED CUDA_HOST_COMPILER)
-    find_program(CL_EXE cl.exe)
-    if(EXISTS ${CL_EXE})
-      set(CUDA_HOST_COMPILER ${CL_EXE})
-    endif()
+    find_program(CUDA_HOST_COMPILER cl.exe)
   endif()
 else()
   if(WITH_BLENDER)
