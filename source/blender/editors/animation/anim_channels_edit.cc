@@ -4252,22 +4252,22 @@ static int click_select_channel_fcurve(bAnimContext *ac,
                             eAnim_ChannelType(ale->type));
     if (selectmode == SELECT_SIMILAR) {
       using namespace blender::animrig;
-      auto get_suffix = [&](const char *str) -> StringRef {
+      auto get_suffix = [&](const char *str) -> std::string {
         std::string full_name = str;
         size_t last_index = full_name.find_last_of('.');
         if (last_index == std::string::npos) {
           return full_name;
         }
-        return full_name.substr(last_index + 1);
+        return full_name.substr(last_index);
       };
 
-      StringRef suffix = get_suffix(fcu->rna_path);
+      std::string suffix = get_suffix(fcu->rna_path);
       for (FCurve *fcurve : fcu->grp->channelbag->wrap().fcurves()) {
         if (fcu->array_index != fcurve->array_index) {
           continue;
         }
-        StringRef path = get_suffix(fcurve->rna_path);
-        if (STREQ(suffix.data(), path.data())) {
+        std::string path = get_suffix(fcurve->rna_path);
+        if (STREQ(suffix.c_str(), path.c_str())) {
           fcurve->flag |= FCURVE_SELECTED;
         }
       }
