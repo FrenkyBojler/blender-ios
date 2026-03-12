@@ -19,12 +19,11 @@
 
 #pragma once
 
-#include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
 
 #include "gpu_shader_create_info.hh"
 
-#include "vk_common.hh"
+#include "vk_buffer.hh"
 #include "vk_descriptor_set.hh"
 
 namespace blender::gpu {
@@ -158,9 +157,6 @@ class VKPushConstants {
   const Layout *layout_ = nullptr;
   void *data_ = nullptr;
 
-  /** Uniform buffer used to store the push constants when they don't fit. */
-  std::unique_ptr<VKUniformBuffer> uniform_buffer_;
-
  public:
   VKPushConstants();
   VKPushConstants(const Layout *layout);
@@ -262,14 +258,7 @@ class VKPushConstants {
    *
    * It must be called just before adding a draw/compute command to the command queue.
    */
-  void update_uniform_buffer();
-
-  /**
-   * Get a reference to the uniform buffer.
-   *
-   * Only valid when storage type = StorageType::UNIFORM_BUFFER.
-   */
-  std::unique_ptr<VKUniformBuffer> &uniform_buffer_get();
+  VKBufferWithOffset update_uniform_buffer(VKContext &context);
 };
 
 }  // namespace blender::gpu
