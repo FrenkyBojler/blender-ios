@@ -508,11 +508,11 @@ ToolDefaults = namedtuple("ToolDefaults", ["origin_base", "aspect_base", "origin
 class _defs_view3d_add:
 
     sculpt_tool_defaults = {
-        'CUBE': ToolDefaults('EDGE', 'FREE', 'EDGE', 'FREE'),
-        'CONE': ToolDefaults('CENTER', 'FIXED', 'EDGE', 'FREE'),
-        'CYLINDER': ToolDefaults('CENTER', 'FIXED', 'EDGE', 'FREE'),
-        'SPHERE_UV': ToolDefaults('CENTER', 'FIXED', 'CENTER', 'FIXED'),
-        'SPHERE_ICO': ToolDefaults('CENTER', 'FIXED', 'CENTER', 'FIXED')
+        'CUBE': {"settings": ToolDefaults('EDGE', 'FREE', 'EDGE', 'FREE'), "initialized": False},
+        'CONE': {"settings": ToolDefaults('CENTER', 'FIXED', 'EDGE', 'FREE'), "initialized": False},
+        'CYLINDER': {"settings": ToolDefaults('CENTER', 'FIXED', 'EDGE', 'FREE'), "initialized": False},
+        'SPHERE_UV': {"settings": ToolDefaults('CENTER', 'FIXED', 'CENTER', 'FIXED'), "initialized": False},
+        'SPHERE_ICO': {"settings": ToolDefaults('CENTER', 'FIXED', 'CENTER', 'FIXED'), "initialized": False},
     }
 
     @staticmethod
@@ -580,9 +580,15 @@ class _defs_view3d_add:
         return show_extra
 
     @staticmethod
-    def draw_settings_defaults_init(mode, tool, defaults):
+    def draw_settings_defaults_init(mode, tool, primitive_type):
         if mode != 'SCULPT':
             return
+
+        primitive_data = _defs_view3d_add.sculpt_tool_defaults[primitive_type]
+        if primitive_data["initialized"]:
+            return
+
+        defaults = primitive_data["settings"]
 
         props = tool.operator_properties("view3d.interactive_add")
 
@@ -592,6 +598,8 @@ class _defs_view3d_add:
         props.plane_origin_depth = defaults.origin_depth
         props.plane_aspect_depth = defaults.aspect_depth
 
+        primitive_data["initialized"] = True
+
     @ToolDef.from_fn
     def cube_add():
         def draw_settings(context, layout, tool, *, extra=False):
@@ -599,8 +607,7 @@ class _defs_view3d_add:
             if show_extra:
                 layout.popover("TOPBAR_PT_tool_settings_extra", text="...")
 
-            _defs_view3d_add.draw_settings_defaults_init(
-                context.mode, tool, _defs_view3d_add.sculpt_tool_defaults['CUBE'])
+            _defs_view3d_add.draw_settings_defaults_init(context.mode, tool, 'CUBE')
 
         return dict(
             idname="builtin.primitive_cube_add",
@@ -629,7 +636,7 @@ class _defs_view3d_add:
                 layout.popover("TOPBAR_PT_tool_settings_extra", text="...")
 
             _defs_view3d_add.draw_settings_defaults_init(
-                context.mode, tool, _defs_view3d_add.sculpt_tool_defaults['CONE'])
+                context.mode, tool, 'CONE')
 
         return dict(
             idname="builtin.primitive_cone_add",
@@ -658,7 +665,7 @@ class _defs_view3d_add:
                 layout.popover("TOPBAR_PT_tool_settings_extra", text="...")
 
             _defs_view3d_add.draw_settings_defaults_init(
-                context.mode, tool, _defs_view3d_add.sculpt_tool_defaults['CYLINDER'])
+                context.mode, tool, 'CYLINDER')
 
         return dict(
             idname="builtin.primitive_cylinder_add",
@@ -687,7 +694,7 @@ class _defs_view3d_add:
                 layout.popover("TOPBAR_PT_tool_settings_extra", text="...")
 
             _defs_view3d_add.draw_settings_defaults_init(
-                context.mode, tool, _defs_view3d_add.sculpt_tool_defaults['SPHERE_UV'])
+                context.mode, tool, 'SPHERE_UV')
 
         return dict(
             idname="builtin.primitive_uv_sphere_add",
@@ -715,7 +722,7 @@ class _defs_view3d_add:
                 layout.popover("TOPBAR_PT_tool_settings_extra", text="...")
 
             _defs_view3d_add.draw_settings_defaults_init(
-                context.mode, tool, _defs_view3d_add.sculpt_tool_defaults['SPHERE_ICO'])
+                context.mode, tool, 'SPHERE_ICO')
 
         return dict(
             idname="builtin.primitive_ico_sphere_add",
