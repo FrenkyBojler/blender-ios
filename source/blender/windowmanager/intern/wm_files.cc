@@ -1360,6 +1360,12 @@ void wm_homefile_read_ex(bContext *C,
     }
   }
 
+  /* Make the 'Save Modified Images' preference set itself to 'Ask Every Time' when blender
+   * starts up if the user has the auto-save preference off.*/
+  if (!(U.flag & USER_AUTOSAVE) && U.save_modified_images != USER_SAVE_MODIFIED_IMAGES_ASK) {
+    U.save_modified_images = USER_SAVE_MODIFIED_IMAGES_ASK;
+  }
+
   if ((app_template != nullptr) && (app_template[0] != '\0')) {
     if (!BKE_appdir_app_template_id_search(
             app_template, app_template_system, sizeof(app_template_system)))
@@ -3891,13 +3897,14 @@ static wmOperatorStatus wm_save_as_mainfile_invoke(bContext *C,
                                                    wmOperator *op,
                                                    const wmEvent * /*event*/)
 {
+  const bool has_modified_images = ED_image_save_all_modified_info(CTX_data_main(C), nullptr) > 0;
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "show_save_modified_images_dialog");
-  const bool show_save_image_dialog = prop ? (!G.background &&
-                                              RNA_property_boolean_get(op->ptr, prop)) :
-                                             false;
+  const bool show_save_image_dialog =
+      prop ? (!G.background && U.save_modified_images == USER_SAVE_MODIFIED_IMAGES_ASK &&
+              has_modified_images && RNA_property_boolean_get(op->ptr, prop)) :
+             false;
 
-  const int modified_images_count = ED_image_save_all_modified_info(CTX_data_main(C), nullptr);
-  if (show_save_image_dialog && modified_images_count > 0) {
+  if (show_save_image_dialog) {
     RNA_property_boolean_set(op->ptr, prop, false);
     wm_operator_save_modified_images_dialog(C, op, [](bContext *C, void *user_data) {
       WM_operator_name_call_with_properties(C,
@@ -3933,13 +3940,22 @@ static wmOperatorStatus wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "incremental");
   const bool is_incremental = prop ? RNA_property_boolean_get(op->ptr, prop) : false;
 
-  prop = RNA_struct_find_property(op->ptr, "show_save_modified_images_dialog");
-  const bool show_save_image_dialog = prop ? (!G.background &&
-                                              RNA_property_boolean_get(op->ptr, prop)) :
-                                             false;
+  const bool has_modified_images = ED_image_save_all_modified_info(CTX_data_main(C), nullptr) > 0;
+  if (has_modified_images && U.save_modified_images == USER_SAVE_MODIFIED_IMAGES_ALWAYS) {
+    ReportList *reports = CTX_wm_reports(C);
+    bool is_successful = ED_image_save_all_modified(C, reports);
+    if (!is_successful) {
+      WM_report_banner_show(static_cast<wmWindowManager *>(bmain->wm.first), CTX_wm_window(C));
+    }
+  }
 
-  const int modified_images_count = ED_image_save_all_modified_info(CTX_data_main(C), nullptr);
-  if (show_save_image_dialog && modified_images_count > 0) {
+  prop = RNA_struct_find_property(op->ptr, "show_save_modified_images_dialog");
+  const bool show_save_image_dialog =
+      prop ? (!G.background && U.save_modified_images == USER_SAVE_MODIFIED_IMAGES_ASK &&
+              has_modified_images && RNA_property_boolean_get(op->ptr, prop)) :
+             false;
+
+  if (show_save_image_dialog) {
     RNA_property_boolean_set(op->ptr, prop, false);
     wm_operator_save_modified_images_dialog(C, op, [](bContext *C, void *user_data) {
       WM_operator_name_call_with_properties(C,
@@ -4153,13 +4169,14 @@ static wmOperatorStatus wm_save_mainfile_invoke(bContext *C,
     return OPERATOR_CANCELLED;
   }
 
+  const bool has_modified_images = ED_image_save_all_modified_info(CTX_data_main(C), nullptr) > 0;
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "show_save_modified_images_dialog");
-  const bool show_save_image_dialog = prop ? (!G.background &&
-                                              RNA_property_boolean_get(op->ptr, prop)) :
-                                             false;
+  const bool show_save_image_dialog =
+      prop ? (!G.background && U.save_modified_images == USER_SAVE_MODIFIED_IMAGES_ASK &&
+              has_modified_images && RNA_property_boolean_get(op->ptr, prop)) :
+             false;
 
-  const int modified_images_count = ED_image_save_all_modified_info(CTX_data_main(C), nullptr);
-  if (show_save_image_dialog && modified_images_count > 0) {
+  if (show_save_image_dialog) {
     RNA_property_boolean_set(op->ptr, prop, false);
     wm_operator_save_modified_images_dialog(C, op, [](bContext *C, void *user_data) {
       WM_operator_name_call_with_properties(C,
