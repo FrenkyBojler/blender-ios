@@ -1181,7 +1181,7 @@ void BKE_animdata_fix_paths_rename(ID *owner_id,
                         oldN,
                         newN,
                         verify_paths);
-    }
+  }
   /* Drivers - Drivers are really F-Curves */
   is_self_changed |= drivers_path_rename_fix(
       owner_id, ref_id, prefix, oldName, newName, oldN, newN, &adt->drivers, verify_paths);
