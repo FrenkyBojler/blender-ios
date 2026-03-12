@@ -177,9 +177,10 @@ static wmXrController *wm_xr_viewfinder_get_controller(const XrSessionSettings *
   return nullptr;
 }
 
-static rctf wm_xr_viewfinder_get_rect(const XrSessionSettings *settings,
-                                      const RenderData *scene_render_settings)
+static rctf wm_xr_viewfinder_get_rect(const bContext *C, const XrSessionSettings *settings)
 {
+  const RenderData *scene_render_settings = &CTX_data_scene(C)->r;
+
   /* Use scene render aspect ratio. */
   const float render_x = scene_render_settings->xsch * scene_render_settings->xasp;
   const float render_y = scene_render_settings->ysch * scene_render_settings->yasp;
@@ -305,9 +306,7 @@ void wm_xr_viewfinder_render_view(const GHOST_XrDrawViewInfo *draw_view, void *c
 
   switch (state->viewfinder.active_mode) {
     case XR_VIEWFINDER_MODE_LIVE: {
-      // TODO: Simplify viewfinder_height computation once context is passed everywhere
-      const RenderData *scene_render_settings = &scene->r;
-      const rctf viewfinder_rect = wm_xr_viewfinder_get_rect(settings, scene_render_settings);
+      const rctf viewfinder_rect = wm_xr_viewfinder_get_rect(xr_context, settings);
       const float viewfinder_height = BLI_rctf_size_y(&viewfinder_rect);
 
       float raw_capture_mat[4][4];
@@ -992,14 +991,15 @@ static void wm_xr_viewfinder_ui_draw_capture_flash(wmXrSessionState *state,
   }
 }
 
-void wm_xr_viewfinder_draw(const bContext *C, const XrSessionSettings *settings, wmXrSessionState *state)
+void wm_xr_viewfinder_draw(const bContext *C,
+                           const XrSessionSettings *settings,
+                           wmXrSessionState *state)
 {
   if (!settings->viewfinder_enabled) {
     return;
   }
 
-  const RenderData *scene_render_settings = &CTX_data_scene(C)->r;
-  const rctf viewfinder_rect = wm_xr_viewfinder_get_rect(settings, scene_render_settings);
+  const rctf viewfinder_rect = wm_xr_viewfinder_get_rect(C, settings);
 
   /* Initial transform setup. */
   float viewfinder_mat[4][4];
