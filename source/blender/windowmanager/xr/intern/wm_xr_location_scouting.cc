@@ -1139,8 +1139,9 @@ static void wm_xr_location_scouting_review_captures_exit(bContext *C, wmOperator
 
   review_data->v3d->camera = review_data->prev_view3d_cam_ob;
 
+  /* Set the running state to false, redraw entire area (both the viewport and N-panel regions). */
   wm_xr_location_scouting_review_captures_set_running_state(C, false);
-  ED_region_tag_redraw(CTX_wm_region(C));
+  ED_area_tag_redraw(CTX_wm_area(C));
 
   /* Free data. */
   BKE_id_free(nullptr, id_cast<ID *>(review_data->cam_ob));
