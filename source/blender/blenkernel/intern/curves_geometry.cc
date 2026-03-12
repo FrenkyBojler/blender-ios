@@ -1955,11 +1955,11 @@ void CurvesGeometry::blend_read(BlendDataReader &reader)
   this->update_curve_types();
 }
 
-CurvesGeometry::BlendWriteData::BlendWriteData(ResourceScope &scope)
+CurvesGeometry::BlendWriteData::BlendWriteData(BlendWriter *writer, ResourceScope &scope)
     : scope(scope),
       point_layers(scope.construct<Vector<CustomDataLayer, 16>>()),
       curve_layers(scope.construct<Vector<CustomDataLayer, 16>>()),
-      attribute_data(scope)
+      attribute_data(writer, scope)
 {
 }
 
@@ -1985,6 +1985,9 @@ void CurvesGeometry::blend_write_prepare(CurvesGeometry::BlendWriteData &write_d
     this->attribute_storage.dna_attributes = write_data.attribute_data.attributes.data();
     this->attribute_storage.dna_attributes_num = write_data.attribute_data.attributes.size();
   }
+
+  BLO_write_stable_for_undo_tag(write_data.attribute_data.writer,
+                                this->attribute_storage.dna_attributes);
 }
 
 void CurvesGeometry::blend_write(BlendWriter &writer,
