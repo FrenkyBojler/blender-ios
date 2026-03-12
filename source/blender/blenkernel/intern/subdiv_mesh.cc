@@ -12,6 +12,7 @@
 
 #include "BLI_array.hh"
 #include "BLI_array_utils.hh"
+#include "BLI_listbase_iterator.hh"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
@@ -29,6 +30,7 @@
 #include "BKE_subdiv_foreach.hh"
 #include "BKE_subdiv_mesh.hh"
 
+#include "DNA_object_types.h"
 #include "MEM_guardedalloc.h"
 
 namespace blender::bke::subdiv {
@@ -889,9 +891,14 @@ static bool subdiv_mesh_topology_info(const ForeachContext *foreach_context,
   const AttributeAccessor coarse_attrs = coarse_mesh.attributes();
   MutableAttributeAccessor attributes = subdiv_mesh.attributes_for_write();
 
+  Set<StringRef> vert_skip_names{{"position"}};
+  for (const bDeformGroup &group : coarse_mesh.vertex_group_names) {
+    vert_skip_names.add(group.name);
+  }
+
   create_attrs_and_retrieve_interp_spans(coarse_attrs,
                                          AttrDomain::Point,
-                                         {"position"},
+                                         vert_skip_names,
                                          attributes,
                                          subdiv_context->coarse_vert_attrs,
                                          subdiv_context->coarse_vert_attr_spans,
