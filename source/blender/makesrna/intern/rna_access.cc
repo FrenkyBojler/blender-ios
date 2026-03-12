@@ -6286,6 +6286,11 @@ void RNA_sync_system_properties(PointerRNA &ptr, IDProperty &idprops)
     if (RNA_property_builtin(&rna_prop)) {
       continue;
     }
+    if (STREQ(rna_prop.identifier, "rna_type")) {
+      /* Avoid infinite loop trying to create property group for this property that's defined
+       * automatically for every type, including the base type "RNA_Struct". */
+      continue;
+    }
 
     const StringRefNull identifier = RNA_property_identifier(&rna_prop);
     IDProperty *idprop = IDP_GetPropertyFromGroup(&idprops, identifier.c_str());
