@@ -4252,6 +4252,26 @@ static int click_select_channel_fcurve(bAnimContext *ac,
                             eAnim_ChannelType(ale->type));
   }
 
+  using namespace blender::animrig;
+  auto get_suffix = [&](const char *str) -> StringRef {
+    std::string full_name = str;
+    size_t last_index = full_name.find_last_of('.');
+    if (last_index == std::string::npos) {
+      return full_name;
+    }
+    return full_name.substr(last_index + 1);
+  };
+
+  StringRef suffix = get_suffix(fcu->rna_path);
+  for (FCurve *fcurve : fcu->grp->channelbag->wrap().fcurves()) {
+    if (fcu->array_index != fcurve->array_index) {
+      continue;
+    }
+    StringRef path = get_suffix(fcurve->rna_path);
+    if (STREQ(suffix.data(), path.data())) {
+      fcurve->flag |= FCURVE_SELECTED;
+    }
+  }
   return (ND_ANIMCHAN | NA_SELECTED);
 }
 static int click_select_channel_action_slot(bAnimContext *ac,
