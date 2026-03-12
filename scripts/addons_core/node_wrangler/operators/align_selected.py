@@ -58,7 +58,11 @@ class NODE_OT_align_selected(Operator, NWBase):
 
     def get_height(self, node):
         if node.bl_static_type == 'FRAME':
-            return self.get_top(node) - self.get_bottom(node)
+            children = tuple(self.frame_children(node))
+            if len(children) > 0:
+                return self.get_top(node) - self.get_bottom(node)
+            else:
+                return node.height
         else:
             return node.width * node.dimensions.y / node.dimensions.x
 
@@ -66,7 +70,11 @@ class NODE_OT_align_selected(Operator, NWBase):
         if node.bl_static_type == 'REROUTE':
             return node.location_absolute.x
         elif node.bl_static_type == 'FRAME':
-            return min(self.get_left(node) for node in self.frame_children(node)) - frame_margin
+            children = tuple(self.frame_children(node))
+            if children:
+                return min(self.get_left(node) for node in self.frame_children(node)) - frame_margin
+            else:
+                return node.location_absolute.x
         else:
             return node.location_absolute.x
 
@@ -80,7 +88,11 @@ class NODE_OT_align_selected(Operator, NWBase):
         if node.bl_static_type == 'REROUTE':
             return node.location_absolute.x
         elif node.bl_static_type == 'FRAME':
-            return max(self.get_right(node) for node in self.frame_children(node)) + frame_margin
+            children = tuple(self.frame_children(node))
+            if children:
+                return max(self.get_right(node) for node in self.frame_children(node)) + frame_margin
+            else:
+                return node.location_absolute.x + node.width
         else:
             return node.location_absolute.x + node.width
 
@@ -88,7 +100,11 @@ class NODE_OT_align_selected(Operator, NWBase):
         if node.bl_static_type == 'REROUTE':
             return node.location_absolute.y
         elif node.bl_static_type == 'FRAME':
-            return max(self.get_top(node) for node in self.frame_children(node)) + frame_margin
+            children = tuple(self.frame_children(node))
+            if children:
+                return max(self.get_top(node) for node in self.frame_children(node)) + frame_margin
+            else:
+                return node.location_absolute.y
         elif node.hide:
             return node.location_absolute.y + (0.5 * self.get_height(node)) - hidden_offset
         else:
@@ -106,7 +122,11 @@ class NODE_OT_align_selected(Operator, NWBase):
         if node.bl_static_type == 'REROUTE':
             return node.location_absolute.y
         elif node.bl_static_type == 'FRAME':
-            return min(self.get_bottom(node) for node in self.frame_children(node)) - frame_margin
+            children = tuple(self.frame_children(node))
+            if children:
+                return min(self.get_bottom(node) for node in self.frame_children(node)) - frame_margin
+            else:
+                return node.location_absolute.y - node.height
         elif node.hide:
             return node.location_absolute.y - (0.5 * self.get_height(node)) - hidden_offset
         else:
@@ -130,11 +150,11 @@ class NODE_OT_align_selected(Operator, NWBase):
         for node in children:
             if node.bl_static_type == 'FRAME':
                 self.move_children(node, offset, axis)
+
+            if axis == 'X':
+                node.location_absolute.x += offset
             else:
-                if axis == 'X':
-                    node.location_absolute.x += offset
-                else:
-                    node.location_absolute.y += offset
+                node.location_absolute.y += offset
 
     def get_bounds_center(self, nodes):
         min_x, max_x, min_y, max_y = self.get_bounds(nodes)
@@ -166,14 +186,14 @@ class NODE_OT_align_selected(Operator, NWBase):
                     target_x = current_pos
                     if node.bl_idname == "NodeFrame":
                         self.move_children(node, target_x - node.location_absolute.x, axis="X")
-                    else:
-                        node.location_absolute.x = target_x
+                    node.location_absolute.x = target_x
 
                 current_pos += margin + self.get_width(node)
 
                 if node.bl_idname == "NodeFrame":
                     self.move_children(node, mid_y + (self.get_height(node) / 2) - node.location_absolute.y, axis="Y")
-                elif node.hide:
+                
+                if node.hide:
                     node.location_absolute.y = mid_y + hidden_offset
                 else:
                     node.location_absolute.y = mid_y + (self.get_height(node) / 2)
@@ -186,7 +206,8 @@ class NODE_OT_align_selected(Operator, NWBase):
                 if i > 0:
                     if node.bl_idname == "NodeFrame":
                         self.move_children(node, current_pos - node.location_absolute.y, axis="Y")
-                    elif node.hide:
+                    
+                    if node.hide:
                         node.location_absolute.y = current_pos + (-0.5 * self.get_height(node)) + hidden_offset
                     else:
                         node.location_absolute.y = current_pos
@@ -196,8 +217,7 @@ class NODE_OT_align_selected(Operator, NWBase):
                 target_x = mid_x - (self.get_width(node) / 2)
                 if node.bl_idname == "NodeFrame":
                     self.move_children(node, target_x - node.location_absolute.x, axis="X")
-                else:
-                    node.location_absolute.x = target_x
+                node.location_absolute.x = target_x
 
     @staticmethod
     def create_parent_map(nodes):
@@ -225,7 +245,12 @@ class NODE_OT_align_selected(Operator, NWBase):
         if active_node is not None:
             old_x, old_y = self.get_left(active_node), self.get_top(active_node)
         else:
-            old_x, old_y = self.get_bounds_center(tuple((n for n in nodes if (n.bl_idname != "NodeFrame"))))
+            non_frames = tuple((n for n in nodes if (n.bl_idname != "NodeFrame")))
+
+            if len(non_frames) > 0:
+                old_x, old_y = self.get_bounds_center(non_frames)
+            else:
+                old_x, old_y = 0.0, 0.0
 
         sorted_keys = sorted(parent_map.keys(), key=self.parent_depth, reverse=True)
         for parent in sorted_keys:
@@ -252,8 +277,13 @@ class NODE_OT_align_selected(Operator, NWBase):
             new_x = self.get_left(active_node)
             new_y = self.get_top(active_node)
         else:
-            new_x, new_y = self.get_bounds_center(tuple((n for n in nodes if (n.bl_idname != "NodeFrame"))))
+            non_frames = tuple((n for n in nodes if (n.bl_idname != "NodeFrame")))
 
+            if len(non_frames) > 0:
+                new_x, new_y = self.get_bounds_center(non_frames)
+            else:
+                new_x, new_y = 0.0, 0.0
+            
         offset_x = old_x - new_x
         offset_y = old_y - new_y
 
