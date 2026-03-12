@@ -197,7 +197,10 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
    * #do_depsgraph callback. Thus, obtain the depsgraph directly without evaluating it. */
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(xr_context);
 
-  wm_xr_viewfinder_render_view(draw_view, customdata);
+  /* Only render viewfinder on first eye draw. */
+  if (draw_view->view_idx == 0) {
+    wm_xr_viewfinder_render_view(draw_view, customdata);
+  }
 
   /* Draws the view into the surface_data->viewport's frame-buffers. */
   ED_view3d_draw_offscreen_simple(depsgraph,
