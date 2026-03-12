@@ -354,9 +354,6 @@ static bool adt_apply_all_fcurves_cb(ID *id, AnimData *adt, const IDFCurveCallba
 
   /* NLA Data - Animation Data for Strips */
   for (NlaTrack &nlt : adt->nla_tracks) {
-    if (!BKE_nlatrack_is_enabled(*adt, nlt)) {
-      continue;
-    }
     if (!nlastrips_apply_all_curves_cb(id, &nlt.strips, func)) {
       return false;
     }
@@ -388,6 +385,18 @@ void fcurves_main_cb(Main *bmain, const FunctionRef<void(ID *, FCurve *)> func)
   /* Use the AnimData-based function so that we don't have to reimplement all that stuff */
   BKE_animdata_main_cb(bmain,
                        [&](ID *id, AnimData *adt) { adt_apply_all_fcurves_cb(id, adt, wrapper); });
+}
+
+Vector<FCurve *> fcurves_for_legacy_action(bAction *action)
+{
+  if (!action) {
+    return {};
+  }
+  Vector<FCurve *> fcurves;
+  for (FCurve &fcu : action->curves) {
+    fcurves.append(&fcu);
+  }
+  return fcurves;
 }
 
 }  // namespace blender::animrig::versioning

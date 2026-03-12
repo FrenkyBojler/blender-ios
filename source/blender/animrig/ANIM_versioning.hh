@@ -10,6 +10,7 @@
  */
 
 #include "BLI_function_ref.hh"
+#include "BLI_vector.hh"
 
 namespace blender {
 
@@ -96,6 +97,12 @@ void fcurves_id_cb(ID *id, const FunctionRef<void(ID *, FCurve *)> func);
  * before 4.4.0. Anything after that should use `BKE_fcurves_main_cb`.
  */
 void fcurves_main_cb(Main *bmain, const FunctionRef<void(ID *, FCurve *)> func);
+
+/**
+ * Return all FCurves of the given legacy action. This will return an empty Vector for layered
+ * actions.
+ */
+Vector<FCurve *> fcurves_for_legacy_action(bAction *action);
 
 }  // namespace animrig::versioning
 }  // namespace blender
