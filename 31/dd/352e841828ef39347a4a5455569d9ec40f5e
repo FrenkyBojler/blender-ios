@@ -8,3 +8,4 @@ Referenced by commit 29a1e7a20c41d85774341d6fdb1a7f0aafe3a736, Fix: Dangling poi
 Referenced by issue #152277, Shading errors with harden normals in bevel operator
 Referenced by commit 19801f7c880c876e43afdd340f133338677657fd, Fix #152277: Shading errors with harden normals in bevel operator
 Referenced by issue #155555, 5.1 Animation performance regression
+Referenced by pull request #155585, Fix #155555: Subdiv: Avoid redundant processing of vertex groups
