@@ -632,8 +632,8 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   BKE_id_blend_write(writer, &ob->id);
 
   /* direct data */
-  BLO_write_pointer_array(writer, ob->totcol, ob->mat);
-  BLO_write_char_array(writer, ob->totcol, ob->matbits);
+  writer->write_pointer_array(ob->totcol, ob->mat);
+  writer->write_char_array(ob->totcol, ob->matbits);
 
   if (ob->pose) {
     BLI_assert(ob->type == OB_ARMATURE);
@@ -2794,6 +2794,37 @@ void BKE_object_mat3_to_rot(Object *ob, float mat[3][3], bool use_compat)
       }
       break;
     }
+  }
+}
+
+float4 BKE_object_rot_to_quat(const Object &ob)
+{
+  float4 quat;
+  if (ob.rotmode > 0) {
+    eulO_to_quat(quat, ob.rot, ob.rotmode);
+  }
+  else if (ob.rotmode == ROT_MODE_AXISANGLE) {
+    axis_angle_to_quat(quat, ob.rotAxis, ob.rotAngle);
+  }
+  else {
+    /* Normalized quaternion to stay consistent with `BKE_pchan_rot_to_mat3`.  */
+    normalize_qt_qt(quat, ob.quat);
+  }
+  return quat;
+}
+
+void BKE_object_quat_to_rot(Object &ob, const float4 &quat)
+{
+  switch (ob.rotmode) {
+    case ROT_MODE_QUAT:
+      normalize_qt_qt(ob.quat, quat);
+      break;
+    case ROT_MODE_AXISANGLE:
+      quat_to_axis_angle(ob.rotAxis, &ob.rotAngle, quat);
+      break;
+    default: /* euler */
+      quat_to_eulO(ob.rot, ob.rotmode, quat);
+      break;
   }
 }
 

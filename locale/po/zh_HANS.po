@@ -1,10 +1,10 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Beta (b'fd269015ba63')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'5a04f1d246f1')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-02 13:27+0000\n"
-"PO-Revision-Date: 2026-02-28 10:01+0000\n"
+"POT-Creation-Date: 2026-03-11 11:01+0000\n"
+"PO-Revision-Date: 2026-03-10 07:12+0000\n"
 "Last-Translator: Ye Gui <ziweidao@foxmail.com>\n"
 "Language-Team: Chinese (Simplified Han script) <https://translate.blender.org/projects/blender-ui/ui/zh_Hans/>\n"
 "Language: zh_HANS\n"
@@ -17685,6 +17685,14 @@ msgid "Use tooltips when hovering over this gizmo"
 msgstr "悬停在该操控器上时使用工具提示"
 
 
+msgid "Use Undo"
+msgstr "使用撤销"
+
+
+msgid "Push an undo step after each use of the gizmo"
+msgstr "每次使用操控器后推送一次撤销步骤"
+
+
 msgctxt "Operator"
 msgid "GizmoGroup"
 msgstr "操控器组"
@@ -22167,7 +22175,7 @@ msgstr "填充规则"
 
 
 msgid "Fill rule for Delaunay fill solver"
-msgstr "Delaunay 解算器的填充规则"
+msgstr "德洛内解算器的填充规则"
 
 
 msgid "Even-Odd"
@@ -26184,7 +26192,7 @@ msgstr "显示前/后侧"
 
 msgctxt "Image"
 msgid "Both"
-msgstr "两者"
+msgstr "双面"
 
 
 msgctxt "Image"
@@ -35196,12 +35204,12 @@ msgid "Metaball"
 msgstr "融球"
 
 
-msgid "Read"
-msgstr "读取"
-
-
 msgid "Show/Hide"
 msgstr "显示 / 隐藏"
+
+
+msgid "Read"
+msgstr "读取"
 
 
 msgid "Write"
@@ -35212,12 +35220,12 @@ msgid "Sample"
 msgstr "采样"
 
 
-msgid "Primitives"
-msgstr "基本体"
-
-
 msgid "Names"
 msgstr "名称"
+
+
+msgid "Primitives"
+msgstr "基本体"
 
 
 msgid "Bone Roll"
@@ -35308,12 +35316,12 @@ msgid "Select Linked"
 msgstr "选择相连元素"
 
 
-msgid "Render Preview"
-msgstr "渲染预览"
-
-
 msgid "Select Loops"
 msgstr "选择循环"
+
+
+msgid "Render Preview"
+msgstr "渲染预览"
 
 
 msgid "Adjust"
@@ -35444,12 +35452,12 @@ msgid "Mesh Select Mode"
 msgstr "网格选择模式"
 
 
-msgid "Gizmo"
-msgstr "操控器"
-
-
 msgid "Face Data"
 msgstr "面数据"
+
+
+msgid "Gizmo"
+msgstr "操控器"
 
 
 msgid "Instances"
@@ -35480,12 +35488,12 @@ msgid "Special Characters"
 msgstr "特殊字符"
 
 
-msgid "List"
-msgstr "列表"
-
-
 msgid "Kerning"
 msgstr "字距"
+
+
+msgid "List"
+msgstr "列表"
 
 
 msgid "Keyframe Insert Pie"
@@ -50800,6 +50808,26 @@ msgstr "从 RGB 法线贴图图像生成扰动法线。通常用于伪造高细�
 
 msgid "Base"
 msgstr "基础(基数)"
+
+
+msgid "Base surface that the normal map is applied relative to, when displacement is used"
+msgstr "当使用置换时，法线贴图所应用的基准表面"
+
+
+msgid "Original Base"
+msgstr "原始基准"
+
+
+msgid "Apply normal map relative to the smooth undisplaced surface, for normal maps that match the displacement map"
+msgstr "将法线贴图应用于平滑且未置换的表面，使法线贴图与置换贴图相匹配"
+
+
+msgid "Displaced Base"
+msgstr "置换基准"
+
+
+msgid "Apply normal map relative to the displaced surface, for normal maps that are to be applied in addition to the displacement map"
+msgstr "将法线贴图应用于置换后的表面，适用于需叠加在置换贴图之上的法线贴图"
 
 
 msgid "OpenGL or DirectX"
@@ -84814,6 +84842,11 @@ msgid "Set cursor position in text"
 msgstr "设置光标在文本中的位置"
 
 
+msgctxt "Operator"
+msgid "Delete Text"
+msgstr "删除文本"
+
+
 msgid "Delete text at cursor position"
 msgstr "删除光标处的文本"
 
@@ -97896,6 +97929,10 @@ msgid "English (UK)"
 msgstr "英语 (英国) - English (UK)"
 
 
+msgid "Locale code: en_GB. Translation progress: 99%"
+msgstr "区域代码: en_GB. 翻译进度: 99%"
+
+
 msgid "English (US)"
 msgstr "英语 (美国) - English (US)"
 
@@ -97922,10 +97959,6 @@ msgstr "区域代码: fi_FI. 翻译进度: 11%"
 
 msgid "French - Français"
 msgstr "法语 - Français"
-
-
-msgid "Locale code: fr_FR. Translation progress: 99%"
-msgstr "区域代码: fr_FR. 翻译进度: 99%"
 
 
 msgid "Georgian - ქართული"
@@ -97996,12 +98029,12 @@ msgid "Japanese - 日本語"
 msgstr "日语 - 日本語"
 
 
-msgid "Locale code: ja_JP. Translation progress: 99%"
-msgstr "区域代码: ja_JP. 翻译进度: 99%"
-
-
 msgid "Korean - 한국어"
 msgstr "韩语 - 한국어"
+
+
+msgid "Locale code: ko_KR. Translation progress: 98%"
+msgstr "区域代码: ko_KR. 翻译进度: 98%"
 
 
 msgid "Kyrgyz - Кыргыз тили"
@@ -98062,6 +98095,10 @@ msgstr "区域代码: pt_BR. 翻译进度: 43%"
 
 msgid "Portuguese (Portugal) - Português europeu"
 msgstr "葡萄牙语 (葡萄牙) - Português europeu"
+
+
+msgid "Locale code: pt_PT. Translation progress: 78%"
+msgstr "区域代码: pt_PT. 翻译进度: 78%"
 
 
 msgid "Romanian - Român"
@@ -98132,16 +98169,12 @@ msgid "Swedish - Svenska"
 msgstr "瑞典语 - Svenska"
 
 
-msgid "Locale code: sv_SE. Translation progress: 21%"
-msgstr "区域代码: sv_SE. 翻译进度: 21%"
-
-
 msgid "Tamil - தமிழ்"
 msgstr "泰米尔语 - தமிழ்"
 
 
-msgid "Locale code: ta. Translation progress: 93%"
-msgstr "区域代码: ta. 翻译进度: 93%"
+msgid "Locale code: ta. Translation progress: 100%"
+msgstr "区域代码: ta. 翻译进度: 100%"
 
 
 msgid "Thai - ภาษาไทย"
@@ -112923,10 +112956,6 @@ msgid "Auto-Keying Mode"
 msgstr "自动插帧模式"
 
 
-msgid "Mode of automatic keyframe insertion for objects, bones and masks"
-msgstr "物体、骨骼和遮罩的自动插入关键帧模式"
-
-
 msgid "Add & Replace"
 msgstr "添加&替换"
 
@@ -113393,8 +113422,8 @@ msgid "Auto Keying"
 msgstr "自动插帧"
 
 
-msgid "Automatic keyframe insertion for objects, bones and masks"
-msgstr "为物体、骨骼和遮罩自动插入关键帧"
+msgid "Automatically insert keyframes on modified properties"
+msgstr "对修改过的属性自动插入关键帧"
 
 
 msgid "Auto Keyframe Insert Keying Set"
@@ -123669,6 +123698,10 @@ msgid "Calculation Range"
 msgstr "解算范围"
 
 
+msgid "Frame Range Start"
+msgstr "帧范围 起始"
+
+
 msgid "Bake to Active Camera"
 msgstr "烘焙到活动摄像机"
 
@@ -123718,10 +123751,6 @@ msgstr "扩展至非群组关键帧"
 
 msgid "Before"
 msgstr "之前"
-
-
-msgid "Frame Range Start"
-msgstr "帧范围 起始"
 
 
 msgid "Collection Mask"
