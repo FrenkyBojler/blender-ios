@@ -52,9 +52,6 @@ namespace blender {
 
 static GPUOffScreen *g_viewfinder_offscreen;
 
-/* Factor used to size UI widgets in XR world space. Going from scene to UI units. */
-static constexpr float xr_ui_unit_fac = 0.05f;
-
 /* -------------------------------------------------------------------- */
 /** \name Location Scouting Captures
  * \{ */
@@ -148,6 +145,9 @@ static std::optional<XrLocationScoutingCapture> wm_xr_location_scouting_get_acti
 /* -------------------------------------------------------------------- */
 /** \name Location Scouting Viewfinder Logic
  * \{ */
+
+/* Factor used to size UI widgets in XR world space. Going from scene to UI units. */
+static constexpr float xr_ui_unit_fac = 0.05f;
 
 static wmXrController *wm_xr_viewfinder_get_controller(const XrSessionSettings *settings,
                                                        const wmXrSessionState *state)
