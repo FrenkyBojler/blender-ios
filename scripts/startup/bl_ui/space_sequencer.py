@@ -1296,6 +1296,10 @@ class SEQUENCER_MT_retiming(Menu):
 class SEQUENCER_MT_context_menu(Menu):
     bl_label = "Sequencer"
 
+    @classmethod
+    def poll(cls, context):
+        return context.sequencer_scene and context.sequencer_scene.sequence_editor
+
     def draw_generic(self, context):
         layout = self.layout
 
@@ -1406,7 +1410,6 @@ class SEQUENCER_MT_context_menu(Menu):
     def draw(self, context):
         ed = context.sequencer_scene.sequence_editor
         if ed.selected_retiming_keys:
-
             self.draw_retime(context)
         else:
             self.draw_generic(context)
