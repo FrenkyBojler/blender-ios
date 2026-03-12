@@ -8,8 +8,6 @@
 
 #include "BLI_math_base.h"
 
-#include "CLG_log.h"
-
 #include "vk_buffer.hh"
 #include "vk_buffer_pool.hh"
 #include "vk_context.hh"
@@ -18,8 +16,6 @@
 #include <memory>
 
 namespace blender::gpu {
-
-CLG_LogRef LOG = {"gpu.vulkan"};
 
 VKBufferPool::~VKBufferPool()
 {
@@ -67,7 +63,6 @@ void VKBufferPool::ensure_uploaded()
 {
   if (!buffers_.is_empty() && buffer_offset_ != 0) {
     finalize_active_buffer();
-    CLOG_TRACE(&LOG, "VKBufferPool uploaded %ld buffers", long(buffers_.size()));
   }
 }
 
