@@ -1,6 +1,8 @@
 on:
   pull_request_target:
-    branches: [main]
+    branches:
+      - main
+      - blender-v*-release
     types: [opened, ready_for_review, reopened, review_requested, synchronize]
 
 env:
