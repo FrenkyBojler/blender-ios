@@ -252,7 +252,7 @@ class NODE_OT_align_selected(Operator, NWBase):
             new_x = self.get_left(active_node)
             new_y = self.get_top(active_node)
         else:
-            old_x, old_y = self.get_bounds_center(tuple((n for n in nodes if (n.bl_idname != "NodeFrame"))))
+            new_x, new_y = self.get_bounds_center(tuple((n for n in nodes if (n.bl_idname != "NodeFrame"))))
 
         offset_x = old_x - new_x
         offset_y = old_y - new_y
