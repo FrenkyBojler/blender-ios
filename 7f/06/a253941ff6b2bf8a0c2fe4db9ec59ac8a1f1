@@ -1,2 +1,3 @@
 Referenced by pull request #154951, Cleanup: UI: Remove extra space when using panels as layout panels in popups
 Referenced by commit 3716442bdb32c9e598f45cdb670e95fb367a078f, Cleanup: UI: Remove extra space when using panels as layout panels in popups
+Referenced by issue #155588, Out of GPU Memory error on file that renders in 5.0.1
