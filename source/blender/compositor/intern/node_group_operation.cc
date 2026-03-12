@@ -184,10 +184,22 @@ static PixelOperation *create_pixel_operation(Context &context, CompileState &co
   /* Use multi-function procedure to execute the pixel compile unit for CPU contexts or if the
    * compile unit is single value and would thus be more efficient to execute on the CPU. */
   const bool is_single_value = compile_state.is_pixel_compile_unit_single_value();
+
+  // DEBUG
+
+  printf("####################################\n");
+  printf("use_gpu=%d  is_single_value=%d\n", context.use_gpu(), is_single_value);
+  printf("Nodes in compile unit:\n");
+  for (const bNode *node : compile_unit) {
+    printf("\t->gpu_fn=%s)\n",
+           node->typeinfo->gpu_fn ? "Ya" : "No");
+  }
   if (!context.use_gpu() || is_single_value) {
+    printf("\t----> CPU path\n");
     return new MultiFunctionProcedureOperation(context, compile_unit, schedule, is_single_value);
   }
 
+  printf("\t----> GPU path\n");
   return new ShaderOperation(context, compile_unit, schedule);
 }
 
