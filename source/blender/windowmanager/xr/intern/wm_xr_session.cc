@@ -413,8 +413,10 @@ void wm_xr_session_state_update(const XrSessionSettings *settings,
   /* Assume this was already done through wm_xr_session_draw_data_update(). */
   state->force_reset_to_base_pose = false;
 
+  const bContext *xr_context = WM_xr_session_context_get(draw_data->xr_data);
+
   WM_xr_session_state_vignette_update(state);
-  wm_xr_session_state_viewer_scale_update(state, settings, draw_data->scene);
+  wm_xr_session_state_viewer_scale_update(state, settings, CTX_data_scene(xr_context));
 }
 
 wmXrSessionState *WM_xr_session_state_handle_get(const wmXrData *xr)
