@@ -992,7 +992,6 @@ static bool nlastrips_path_rename_fix(ID *owner_id,
   for (NlaStrip &strip : *strips) {
     /* fix strip's action */
     if (strip.act != nullptr) {
-      animrig::Action &action = strip.act->wrap();
       const bool is_changed_action = rename_paths_action(strip.act,
                                                          strip.action_slot_handle,
                                                          owner_id,
