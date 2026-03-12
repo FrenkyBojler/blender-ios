@@ -693,16 +693,16 @@ static void rna_NlaStrip_remove(
 
 static std::optional<std::string> rna_NlaTrack_path(const PointerRNA *ptr)
 {
-  NlaTrack *nlt = static_cast<NlaTrack *>(ptr->data);
-  AnimData *adt = BKE_animdata_from_id(ptr->owner_id);
+  const NlaTrack *nlt = static_cast<const NlaTrack *>(ptr->data);
+  const AnimData *adt = BKE_animdata_from_id(ptr->owner_id);
 
-  if (adt) {
-    char name_esc[sizeof(nlt->name) * 2];
-    BLI_str_escape(name_esc, nlt->name, sizeof(name_esc));
-    return fmt::format("animation_data.nla_tracks[\"{}\"]", name_esc);
+  if (!adt) {
+    return "";
   }
 
-  return "";
+  char name_esc[sizeof(nlt->name) * 2];
+  BLI_str_escape(name_esc, nlt->name, sizeof(name_esc));
+  return fmt::format("animation_data.nla_tracks[\"{}\"]", name_esc);
 }
 
 /* Set the 'solo' setting for the given NLA-track, making sure that it is the only one
