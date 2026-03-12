@@ -65,7 +65,7 @@ void DRW_draw_view(const bContext *C);
 void DRW_draw_region_engine_info(int xoffset, int *yoffset, int line_height);
 
 /**
- * \param context: can be nullptr, optionally passed to the DRWContext for callback execution.
+ * \param context: can be nullptr, optionally passed to the DRWContext for draw handlers/callbacks.
  * \param viewport: can be nullptr, in this case we create one.
  */
 void DRW_draw_render_loop_offscreen(Depsgraph *depsgraph,
