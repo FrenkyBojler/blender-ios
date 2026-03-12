@@ -40,12 +40,13 @@ struct wmXrViewfinderState {
   float capture_position[3];
   float capture_orientation_quat[4];
 
+  GPUOffScreen *framebuffer;
+  gpu::Texture *backside_logo_texture;
+
   /* Runtime values. */
-  Camera *runtime_cam_data_id;
-  GPUOffScreen *runtime_viewfinder_offscreen;
-  gpu::Texture *runtime_blender_logo_tex;
+  Camera *render_cam_data_id;
+  double smoothing_delta_t;
   float runtime_capture_flash;
-  double runtime_smoothing_delta_t;
 
   /* Capture settings. */
   bool capture_dof_enabled;

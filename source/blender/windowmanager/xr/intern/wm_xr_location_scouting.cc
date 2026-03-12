@@ -235,12 +235,12 @@ static void wm_xr_viewfinder_transform_update_smoothed(wmXrSessionState *state,
   float raw_capture_orientation_quat[4];
   mat4_to_loc_quat(raw_capture_position, raw_capture_orientation_quat, raw_capture_mat);
 
-  if (state->viewfinder.runtime_smoothing_delta_t > 0) {
+  if (state->viewfinder.smoothing_delta_t > 0) {
     /* Apply exponential movement smoothing. */
     constexpr float movement_smoothing_speed = 25.0f;
 
     const double current_time = BLI_time_now_seconds();
-    const float delta_t = float(current_time - state->viewfinder.runtime_smoothing_delta_t);
+    const float delta_t = float(current_time - state->viewfinder.smoothing_delta_t);
     const float clamped_delta = min_ff(delta_t, 0.1f);
     const float factor = 1.0f - exp(-clamped_delta * movement_smoothing_speed);
 
@@ -252,13 +252,13 @@ static void wm_xr_viewfinder_transform_update_smoothed(wmXrSessionState *state,
                    state->viewfinder.capture_orientation_quat,
                    raw_capture_orientation_quat,
                    factor);
-    state->viewfinder.runtime_smoothing_delta_t = current_time;
+    state->viewfinder.smoothing_delta_t = current_time;
   }
   else {
     /* Initialization. */
     copy_v3_v3(state->viewfinder.capture_position, raw_capture_position);
     copy_qt_qt(state->viewfinder.capture_orientation_quat, raw_capture_orientation_quat);
-    state->viewfinder.runtime_smoothing_delta_t = BLI_time_now_seconds();
+    state->viewfinder.smoothing_delta_t = BLI_time_now_seconds();
   }
 
   quat_to_mat4(r_smoothed_mat, state->viewfinder.capture_orientation_quat);
@@ -280,22 +280,22 @@ void wm_xr_viewfinder_render_view(wmXrData *xr_data)
    * helps with performance but also increases the displayed overlay line width. Eventually make
    * dynamic. */
   constexpr float viewfinder_resolution = 800;
-  if (state->viewfinder.runtime_viewfinder_offscreen == nullptr) {
+  if (state->viewfinder.framebuffer == nullptr) {
     char err_out[256] = "unknown";
-    state->viewfinder.runtime_viewfinder_offscreen = GPU_offscreen_create(
-        viewfinder_resolution,
-        viewfinder_resolution,
-        true,
-        gpu::TextureFormat::UNORM_8_8_8_8,
-        GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_MEMORY_EXPORT,
-        false,
-        err_out);
+    state->viewfinder.framebuffer = GPU_offscreen_create(viewfinder_resolution,
+                                                         viewfinder_resolution,
+                                                         true,
+                                                         gpu::TextureFormat::UNORM_8_8_8_8,
+                                                         GPU_TEXTURE_USAGE_SHADER_READ |
+                                                             GPU_TEXTURE_USAGE_MEMORY_EXPORT,
+                                                         false,
+                                                         err_out);
   }
   static GPUViewport *gpu_viewport = GPU_viewport_create();
 
   float viewfinder_render_viewmat[4][4] = {};
 
-  Camera *cam_render_data = state->viewfinder.runtime_cam_data_id; /* Allocated ID. */
+  Camera *cam_render_data = state->viewfinder.render_cam_data_id; /* Allocated ID. */
   CameraParams cam_render_params;
   BKE_camera_params_init(&cam_render_params);
 
@@ -404,7 +404,7 @@ void wm_xr_viewfinder_render_view(wmXrData *xr_data)
                                   nullptr,
                                   true,
                                   &viewfinder_cam_ob,
-                                  state->viewfinder.runtime_viewfinder_offscreen,
+                                  state->viewfinder.framebuffer,
                                   gpu_viewport);
 }
 
@@ -863,8 +863,7 @@ static void wm_xr_viewfinder_ui_draw_view_texture(const bContext *C,
   }
 
   /* Obtain the Viewfinder view texture we computed in #wm_xr_draw_view. */
-  gpu::Texture *view_tex = GPU_offscreen_color_texture(
-      state->viewfinder.runtime_viewfinder_offscreen);
+  gpu::Texture *view_tex = GPU_offscreen_color_texture(state->viewfinder.framebuffer);
 
   const rctf tex_uv = {0.0f, 1.0f, 0.0f, 1.0f};
   const float tex_color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
@@ -875,7 +874,7 @@ static void wm_xr_viewfinder_ui_draw_view_texture(const bContext *C,
 static void wm_xr_viewfinder_ui_draw_backside_logo_texture(const wmXrSessionState *state,
                                                            const rctf &viewfinder_rect)
 {
-  gpu::Texture *logo_tex = state->viewfinder.runtime_blender_logo_tex;
+  gpu::Texture *logo_tex = state->viewfinder.backside_logo_texture;
 
   /* Fit logo within viewfinder while maintaining aspect ratio. */
   const float logo_aspect = GPU_texture_width(logo_tex) / GPU_texture_height(logo_tex);
