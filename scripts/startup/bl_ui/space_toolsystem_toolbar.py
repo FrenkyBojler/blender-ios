@@ -635,8 +635,7 @@ class _defs_view3d_add:
             if show_extra:
                 layout.popover("TOPBAR_PT_tool_settings_extra", text="...")
 
-            _defs_view3d_add.draw_settings_defaults_init(
-                context.mode, tool, 'CONE')
+            _defs_view3d_add.draw_settings_defaults_init(context.mode, tool, 'CONE')
 
         return dict(
             idname="builtin.primitive_cone_add",
@@ -664,8 +663,7 @@ class _defs_view3d_add:
             if show_extra:
                 layout.popover("TOPBAR_PT_tool_settings_extra", text="...")
 
-            _defs_view3d_add.draw_settings_defaults_init(
-                context.mode, tool, 'CYLINDER')
+            _defs_view3d_add.draw_settings_defaults_init(context.mode, tool, 'CYLINDER')
 
         return dict(
             idname="builtin.primitive_cylinder_add",
@@ -693,8 +691,7 @@ class _defs_view3d_add:
             if show_extra:
                 layout.popover("TOPBAR_PT_tool_settings_extra", text="...")
 
-            _defs_view3d_add.draw_settings_defaults_init(
-                context.mode, tool, 'SPHERE_UV')
+            _defs_view3d_add.draw_settings_defaults_init(context.mode, tool, 'SPHERE_UV')
 
         return dict(
             idname="builtin.primitive_uv_sphere_add",
@@ -721,8 +718,7 @@ class _defs_view3d_add:
             if show_extra:
                 layout.popover("TOPBAR_PT_tool_settings_extra", text="...")
 
-            _defs_view3d_add.draw_settings_defaults_init(
-                context.mode, tool, 'SPHERE_ICO')
+            _defs_view3d_add.draw_settings_defaults_init(context.mode, tool, 'SPHERE_ICO')
 
         return dict(
             idname="builtin.primitive_ico_sphere_add",
