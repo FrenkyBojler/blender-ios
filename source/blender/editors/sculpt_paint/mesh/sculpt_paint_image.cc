@@ -40,20 +40,43 @@ namespace ed::sculpt_paint::paint::image {
 using namespace blender::bke::pbvh::pixels;
 using namespace blender::bke::image;
 
-struct ImageData {
-  Image *image = nullptr;
-  ImageUser *image_user = nullptr;
-
-  ~ImageData() = default;
-
-  static bool init_active_image(Object &ob,
-                                ImageData *r_image_data,
-                                PaintModeSettings &paint_mode_settings)
-  {
-    return BKE_paint_canvas_image_get(
-        &paint_mode_settings, &ob, &r_image_data->image, &r_image_data->image_user);
+ImageData::~ImageData()
+{
+  if (!image || !image_user) {
+    return;
   }
-};
+
+  BLI_assert(buffers.size() == BLI_listbase_count(&image->tiles));
+  for (ImBuf* buffer : buffers.values()) {
+    BKE_image_release_ibuf(image, buffer, nullptr);
+  }
+  buffers.clear();
+}
+std::unique_ptr<ImageData> ImageData::init_active_image(Object &ob,
+                                                      PaintModeSettings &paint_mode_settings)
+{
+  std::unique_ptr<ImageData> image_data = std::make_unique<ImageData>();
+  if (!BKE_paint_canvas_image_get(
+          &paint_mode_settings, &ob, &image_data->image, &image_data->image_user))
+  {
+    return nullptr;
+  }
+
+  BLI_assert(image_data->image);
+  BLI_assert(image_data->image_user);
+
+  int idx = 0;
+  for (ImageTile &tile : image_data->image->tiles) {
+    ImageTileWrapper image_tile(&tile);
+
+    ImageUser tile_user = *image_data->image_user;
+    tile_user.tile = image_tile.get_tile_number();
+
+    image_data->buffers.add_new(idx, BKE_image_acquire_ibuf(image_data->image, &tile_user, nullptr));
+  }
+
+  return image_data;
+}
 
 /** Reading and writing to image buffer with 4 float channels. */
 class ImageBufferFloat4 {
@@ -254,7 +277,7 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
                             Object &object,
                             const Paint &paint,
                             const Brush &brush,
-                            ImageData image_data,
+                            ImageData& image_data,
                             bke::pbvh::Node &node)
 {
   SculptSession &ss = *object.runtime->sculpt_session;
@@ -405,22 +428,19 @@ static void push_undo(const NodeData &node_data,
   }
 }
 
-static void do_push_undo_tile(Image &image, ImageUser &image_user, bke::pbvh::Node &node)
+static void do_push_undo_tile(ImageData &image_data, bke::pbvh::Node &node)
 {
   NodeData &node_data = bke::pbvh::pixels::node_data_get(node);
 
   ImBuf *tmpibuf = nullptr;
-  ImageUser local_image_user = image_user;
-  for (ImageTile &tile : image.tiles) {
+  for (ImageTile &tile : image_data.image->tiles) {
     image::ImageTileWrapper image_tile(&tile);
-    local_image_user.tile = image_tile.get_tile_number();
-    ImBuf *image_buffer = BKE_image_acquire_ibuf(&image, &local_image_user, nullptr);
-    if (image_buffer == nullptr) {
+    ImBuf* buffer = image_data.buffers.lookup_default(image_tile.get_tile_number(), nullptr);
+    if (buffer == nullptr) {
       continue;
     }
 
-    push_undo(node_data, image, image_user, image_tile, *image_buffer, &tmpibuf);
-    BKE_image_release_ibuf(&image, image_buffer, nullptr);
+    push_undo(node_data, *image_data.image, *image_data.image_user, image_tile, *buffer, &tmpibuf);
   }
   if (tmpibuf) {
     IMB_freeImBuf(tmpibuf);
@@ -451,13 +471,12 @@ static void fix_non_manifold_seam_bleeding(bke::pbvh::Tree &pbvh,
 }
 
 static void fix_non_manifold_seam_bleeding(Object &ob,
-                                           Image &image,
-                                           ImageUser &image_user,
+                                           ImageData &image_data,
                                            MutableSpan<bke::pbvh::MeshNode> nodes,
                                            const IndexMask &node_mask)
 {
   Vector<image::TileNumber> dirty_tiles = collect_dirty_tiles(nodes, node_mask);
-  fix_non_manifold_seam_bleeding(*bke::object::pbvh_get(ob), image, image_user, dirty_tiles);
+  fix_non_manifold_seam_bleeding(*bke::object::pbvh_get(ob), image_data, image_user, dirty_tiles);
 }
 
 /** \} */
@@ -465,24 +484,6 @@ static void fix_non_manifold_seam_bleeding(Object &ob,
 }  // namespace ed::sculpt_paint::paint::image
 
 using namespace blender::ed::sculpt_paint::paint::image;
-
-bool SCULPT_paint_image_canvas_get(PaintModeSettings &paint_mode_settings,
-                                   Object &ob,
-                                   Image **r_image,
-                                   ImageUser **r_image_user)
-{
-  *r_image = nullptr;
-  *r_image_user = nullptr;
-
-  ImageData image_data;
-  if (!ImageData::init_active_image(ob, &image_data, paint_mode_settings)) {
-    return false;
-  }
-
-  *r_image = image_data.image;
-  *r_image_user = image_data.image_user;
-  return true;
-}
 
 bool SCULPT_use_image_paint_brush(PaintModeSettings &settings, Object &ob)
 {
@@ -504,26 +505,28 @@ void SCULPT_do_paint_brush_image(const Depsgraph &depsgraph,
                                  const IndexMask &node_mask)
 {
   const Brush *brush = BKE_paint_brush_for_read(&sd.paint);
+  ed::sculpt_paint::StrokeCache &cache = *ob.runtime->sculpt_session->cache;
 
-  ImageData image_data;
-  if (!ImageData::init_active_image(ob, &image_data, paint_mode_settings)) {
+  if (!cache.image_data) {
     return;
   }
+
+  ImageData &image_data = *cache.image_data;
 
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
   MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
 
   node_mask.foreach_index(
-      [&](const int i) { do_push_undo_tile(*image_data.image, *image_data.image_user, nodes[i]); },
+      [&](const int i) { do_push_undo_tile(image_data, nodes[i]); },
       exec_mode::grain_size(1));
   node_mask.foreach_index(
       [&](const int i) { do_paint_pixels(depsgraph, ob, sd.paint, *brush, image_data, nodes[i]); },
       exec_mode::grain_size(1));
 
-  fix_non_manifold_seam_bleeding(ob, *image_data.image, *image_data.image_user, nodes, node_mask);
+  fix_non_manifold_seam_bleeding(ob, image_data, nodes, node_mask);
 
   node_mask.foreach_index([&](const int i) {
-    bke::pbvh::pixels::mark_image_dirty(nodes[i], *image_data.image, *image_data.image_user);
+    bke::pbvh::pixels::mark_image_dirty(nodes[i], *image_data.image_user);
   });
 }
 

@@ -451,12 +451,12 @@ PBVHData &data_get(Tree &pbvh)
   return *data;
 }
 
-void mark_image_dirty(Node &node, Image &image, ImageUser &image_user)
+void mark_image_dirty(Node &node, ImageData &image_data)
 {
   BLI_assert(node.pixels_ != nullptr);
   NodeData *node_data = static_cast<NodeData *>(node.pixels_);
   if (node_data->flags.dirty) {
-    ImageUser local_image_user = image_user;
+    ImageUser local_image_user = image_data;
     for (ImageTile &tile : image.tiles) {
       image::ImageTileWrapper image_tile(&tile);
       local_image_user.tile = image_tile.get_tile_number();
