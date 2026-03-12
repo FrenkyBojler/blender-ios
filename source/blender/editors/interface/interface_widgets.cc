@@ -1661,7 +1661,7 @@ float text_clip_middle_ex(const uiFontStyle *fstyle,
   return strwidth;
 }
 
-static bool button_draw_as_link(const Button *button)
+bool button_draw_as_link(const Button *button)
 {
   return button->type == ButtonType::But && static_cast<const ButtonPush *>(button)->draw_as_link;
 }
