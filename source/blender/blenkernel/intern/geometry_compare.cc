@@ -562,7 +562,6 @@ static std::optional<GeoMismatch> verify_attributes_compatible(
   names_2.remove_if(ignored_attribute);
 
   if (names_1 != names_2) {
-    /* Disabled for now due to tests not being up to date. */
     std::string mismatched_names;
     for (const StringRefNull name : names_1) {
       if (!names_2.contains(name)) {
