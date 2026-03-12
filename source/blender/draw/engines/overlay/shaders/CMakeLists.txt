@@ -144,7 +144,7 @@ set(SRC_GLSL_FRAG
   overlay_varying_color.glsl
   overlay_viewer_attribute_frag.glsl
   overlay_wireframe_frag.glsl
-  overlay_xray_fade_frag.glsl
+  overlay_xray_fade.bsl.hh
 )
 
 

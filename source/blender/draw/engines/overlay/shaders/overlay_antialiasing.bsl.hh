@@ -12,7 +12,7 @@
 
 SHADER_LIBRARY_CREATE_INFO(draw_globals)
 
-namespace overlay {
+namespace overlay::antialiasing {
 
 /* Per-pixel line data, unpacked as a direction and covered distance. */
 struct Line {
@@ -42,7 +42,7 @@ struct Pixel {
   Line line;
 };
 
-/* Resource table. */
+/* Shader resource table. */
 struct Resources {
   [[legacy_info]] ShaderCreateInfo draw_globals;
 
@@ -122,7 +122,7 @@ void neighbor_blend(Pixel neighbor, Pixel &target, float line_coverage)
  * Vertex stage.
  * Outputs to a fullscreen quad.
  */
-[[vertex]] void vertex_stage([[vertex_id]] const int &vert_id, [[position]] float4 &vert)
+[[vertex]] void vert_main([[vertex_id]] const int &vert_id, [[position]] float4 &vert)
 {
   fullscreen_vertex(vert_id, vert);
 }
@@ -134,9 +134,9 @@ void neighbor_blend(Pixel neighbor, Pixel &target, float line_coverage)
 struct FragmentOutput {
   [[frag_color(0)]] float4 color;
 };
-[[fragment]] void fragment_stage([[frag_coord]] const float4 &frag_coord,
-                                 [[resource_table]] Resources &srt,
-                                 [[out]] FragmentOutput &frag)
+[[fragment]] void frag_main([[frag_coord]] const float4 &frag_coord,
+                            [[resource_table]] Resources &srt,
+                            [[out]] FragmentOutput &frag)
 {
   int2 tx = int2(frag_coord.xy);
 
@@ -199,6 +199,6 @@ struct FragmentOutput {
   frag.color = center.color;
 }
 
-PipelineGraphic antialiasing(vertex_stage, fragment_stage, Resources{});
+PipelineGraphic pipeline(vert_main, frag_main, Resources{});
 
-}  // namespace overlay
+}  // namespace overlay::antialiasing
