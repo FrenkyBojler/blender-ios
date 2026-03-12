@@ -7,7 +7,7 @@
 
 #include "node_composite_util.hh"
 
-namespace blender::nodes::node_composite_blank_image_cc {
+namespace blender::nodes::node_composite_constant_image_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -16,19 +16,19 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value(int2(1024))
       .subtype(PROP_UNSIGNED)
       .min(1)
-      .description("The size of the blank image");
+      .description("The size of the image");
   b.add_input<decl::Color>("Color")
       .default_value({0.0f, 0.0f, 0.0f, 1.0f})
-      .description("The color of all pixels in the blank image");
+      .description("The color of all pixels in the image");
 
   b.add_output<decl::Color>("Image")
       .structure_type(StructureType::Dynamic)
-      .description("A blank image of the given size and color");
+      .description("An image of the given size and constant color");
 }
 
 using namespace blender::compositor;
 
-class BlankImageOperation : public NodeOperation {
+class ConstantImageOperation : public NodeOperation {
  public:
   using NodeOperation::NodeOperation;
 
@@ -51,16 +51,16 @@ class BlankImageOperation : public NodeOperation {
 
 static NodeOperation *get_compositor_operation(Context &context, const bNode &node)
 {
-  return new BlankImageOperation(context, node);
+  return new ConstantImageOperation(context, node);
 }
 
 static void node_register()
 {
   static bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, "CompositorNodeBlankImage");
-  ntype.ui_name = "Blank Image";
-  ntype.ui_description = "Returns a blank image with the given size and color";
+  cmp_node_type_base(&ntype, "CompositorNodeConstantImage");
+  ntype.ui_name = "Constant Image";
+  ntype.ui_description = "Returns an image with the given size and constant color";
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;
   ntype.get_compositor_operation = get_compositor_operation;
@@ -69,4 +69,4 @@ static void node_register()
 }
 NOD_REGISTER_NODE(node_register)
 
-}  // namespace blender::nodes::node_composite_blank_image_cc
+}  // namespace blender::nodes::node_composite_constant_image_cc
