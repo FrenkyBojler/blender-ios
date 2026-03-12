@@ -209,7 +209,10 @@ void do_versions_after_linking_520(FileData * /*fd*/, Main *bmain)
    * \note Keep this message at the bottom of the function.
    */
 
-  /* Keep this block at the end of this function until file format changes in 6.0. */
+  /* Keep this block at the end of this function until file format changes in 6.0.
+   * Geometry Nodes modifier properties are written in the old format by
+   * #create_legacy_geometry_nodes_properties. Versioning to change properties in the new runtime
+   * format has to happen after this versioning step. */
   for (Object &object : bmain->objects) {
     for (ModifierData &md : object.modifiers) {
       if (md.type == eModifierType_Nodes) {
