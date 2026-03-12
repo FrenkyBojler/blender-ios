@@ -4250,26 +4250,27 @@ static int click_select_channel_fcurve(bAnimContext *ac,
                             eAnimFilter_Flags(filter),
                             fcu,
                             eAnim_ChannelType(ale->type));
-  }
+    if (selectmode == SELECT_SIMILAR) {
+      using namespace blender::animrig;
+      auto get_suffix = [&](const char *str) -> StringRef {
+        std::string full_name = str;
+        size_t last_index = full_name.find_last_of('.');
+        if (last_index == std::string::npos) {
+          return full_name;
+        }
+        return full_name.substr(last_index + 1);
+      };
 
-  using namespace blender::animrig;
-  auto get_suffix = [&](const char *str) -> StringRef {
-    std::string full_name = str;
-    size_t last_index = full_name.find_last_of('.');
-    if (last_index == std::string::npos) {
-      return full_name;
-    }
-    return full_name.substr(last_index + 1);
-  };
-
-  StringRef suffix = get_suffix(fcu->rna_path);
-  for (FCurve *fcurve : fcu->grp->channelbag->wrap().fcurves()) {
-    if (fcu->array_index != fcurve->array_index) {
-      continue;
-    }
-    StringRef path = get_suffix(fcurve->rna_path);
-    if (STREQ(suffix.data(), path.data())) {
-      fcurve->flag |= FCURVE_SELECTED;
+      StringRef suffix = get_suffix(fcu->rna_path);
+      for (FCurve *fcurve : fcu->grp->channelbag->wrap().fcurves()) {
+        if (fcu->array_index != fcurve->array_index) {
+          continue;
+        }
+        StringRef path = get_suffix(fcurve->rna_path);
+        if (STREQ(suffix.data(), path.data())) {
+          fcurve->flag |= FCURVE_SELECTED;
+        }
+      }
     }
   }
   return (ND_ANIMCHAN | NA_SELECTED);
@@ -4663,6 +4664,9 @@ static wmOperatorStatus animchannels_mouseclick_invoke(bContext *C,
      * should it be removed or extended to all instead? */
     selectmode = -1;
   }
+  else if (RNA_boolean_get(op->ptr, "select_similar")) {
+    selectmode = SELECT_SIMILAR;
+  }
   else {
     selectmode = SELECT_REPLACE;
   }
@@ -4720,6 +4724,13 @@ static void ANIM_OT_channels_click(wmOperatorType *ot)
 
   /* Key-map: Enable with `Ctrl-Shift`. */
   prop = RNA_def_boolean(ot->srna, "children_only", false, "Select Children Only", "");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+
+  prop = RNA_def_boolean(ot->srna,
+                         "select_similar",
+                         false,
+                         "Select Similar",
+                         "Select Fcurves with same rna path and index");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 

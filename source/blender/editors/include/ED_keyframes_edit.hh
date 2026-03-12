@@ -68,6 +68,8 @@ enum eEditKeyframes_Select {
   /* flip ok status of keyframes based on key status */
   SELECT_INVERT = (1 << 3),
   SELECT_EXTEND_RANGE = (1 << 4),
+  /* Select fcurves with same path and index. */
+  SELECT_SIMILAR = (1 << 5),
 };
 
 /* "selection map" building modes. */
