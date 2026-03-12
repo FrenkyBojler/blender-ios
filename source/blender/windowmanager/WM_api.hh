@@ -2251,7 +2251,9 @@ bool WM_xr_session_is_ready(const wmXrData *xr);
 
 wmXrSessionState *WM_xr_session_state_handle_get(const wmXrData *xr);
 wmXrViewfinderState *WM_xr_session_state_viewfinder_handle_get(const wmXrData *xr);
-ScrArea *WM_xr_session_area_get(const wmXrData *xr);
+
+bContext *WM_xr_session_context_get(const wmXrData *xr);
+bContext *WM_xr_session_context_ensure(wmXrData *xr, const wmWindowManager *wm);
 
 void WM_xr_session_base_pose_reset(wmXrData *xr);
 void WM_xr_session_state_navigation_reset(wmXrSessionState *state);
