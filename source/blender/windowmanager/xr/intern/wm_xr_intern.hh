@@ -24,6 +24,7 @@ namespace blender {
 struct bContext;
 struct ARegion;
 struct Camera;
+struct GPUOffScreen;
 struct Object;
 struct wmWindow;
 struct wmWindowManager;
@@ -41,6 +42,7 @@ struct wmXrViewfinderState {
 
   /* Runtime values. */
   Camera *runtime_cam_data_id;
+  GPUOffScreen *runtime_viewfinder_offscreen;
   gpu::Texture *runtime_blender_logo_tex;
   float runtime_capture_flash;
   double runtime_smoothing_delta_t;
