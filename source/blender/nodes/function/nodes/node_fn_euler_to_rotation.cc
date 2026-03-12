@@ -8,6 +8,7 @@
 #include "NOD_value_elem_eval.hh"
 
 #include "node_function_util.hh"
+#include "node_shader_util.hh"
 
 namespace blender::nodes::node_fn_euler_to_rotation_cc {
 
@@ -17,6 +18,15 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Vector>("Euler"_ustr).subtype(PROP_EULER);
   b.add_output<decl::Rotation>("Rotation"_ustr);
 };
+
+static int gpu_shader_euler_to_rotation(GPUMaterial *mat,
+                    bNode *node,
+                    bNodeExecData * /*execdata*/,
+                    GPUNodeStack *in,
+                    GPUNodeStack *out)
+{
+  return GPU_stack_link(mat, node, "euler_to_rotation", in, out);
+}
 
 static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 {
@@ -61,6 +71,7 @@ static void node_register()
   ntype.enum_name_legacy = "EULER_TO_ROTATION";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
+  ntype.gpu_fn = gpu_shader_euler_to_rotation;
   ntype.build_multi_function = node_build_multi_function;
   ntype.eval_elem = node_eval_elem;
   ntype.eval_inverse_elem = node_eval_inverse_elem;

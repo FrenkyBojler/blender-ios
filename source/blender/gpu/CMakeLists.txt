@@ -643,6 +643,7 @@ set(GLSL_SRC
   shaders/material/gpu_shader_material_displacement.glsl
   shaders/material/gpu_shader_material_eevee_specular.glsl
   shaders/material/gpu_shader_material_emission.glsl
+  shaders/material/gpu_shader_material_euler_to_rotation.glsl
   shaders/material/gpu_shader_material_fractal_noise.glsl
   shaders/material/gpu_shader_material_fractal_voronoi.glsl
   shaders/material/gpu_shader_material_fresnel.glsl
@@ -682,6 +683,7 @@ set(GLSL_SRC
   shaders/material/gpu_shader_material_radial_tiling.glsl
   shaders/material/gpu_shader_material_radial_tiling_shared.glsl
   shaders/material/gpu_shader_material_rotate_vector.glsl
+  shaders/material/gpu_shader_material_rotation_to_euler.glsl
   shaders/material/gpu_shader_material_separate_color.glsl
   shaders/material/gpu_shader_material_separate_xyz.glsl
   shaders/material/gpu_shader_material_set.glsl
