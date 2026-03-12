@@ -8,6 +8,7 @@
  */
 
 #include "intermediate.hh"
+#include "grammar.hh"
 #include "scope.hh"
 #include "time_it.hh"
 #include "token.hh"
@@ -226,6 +227,46 @@ void LexerBase::identify_keywords()
   }
 }
 
+void LexerBase::identify_template_tokens()
+{
+  for (int i = 1; i < size(); ++i) {
+    TokenMut tok = (*this)[i];
+    TokenType type = tok.type();
+    if (type == '<' || type == '>') {
+      Token prev = (*this)[i - 1];
+      const bool preceded_by_space = prev.followed_by_whitespace();
+      /* Rely on the fact that template are formatted without spaces but comparison isn't. */
+      if (type == '<') {
+        if ((!preceded_by_space && prev != AngleOpen) || prev == Template) {
+          tok.type() = TemplateOpen;
+        }
+      }
+      else {
+        if (!preceded_by_space && (prev != AngleClose) && (prev != Minus)) {
+          tok.type() = TemplateClose;
+        }
+      }
+    }
+  }
+}
+
+void LexerBase::reset_template_tokens()
+{
+  for (int i = 1; i < size(); ++i) {
+    TokenMut tok = (*this)[i];
+    switch (tok.type()) {
+      case TemplateOpen:
+        tok.type() = lexit::AngleOpen;
+        break;
+      case TemplateClose:
+        tok.type() = lexit::AngleClose;
+        break;
+      default:
+        break;
+    }
+  }
+}
+
 struct ScopeStack {
   struct Item {
     ScopeType type;
@@ -276,8 +317,339 @@ struct ScopeStack {
   }
 };
 
+struct ErrorLog {
+  std::vector<std::pair<Token, std::string>> errors;
+
+  void error(Token tok)
+  {
+    errors.emplace_back(tok, "Unexpected token");
+  }
+};
+
+struct Tree {
+  using Node = Scope;
+  ParserBase &parser;
+  Tree(ParserBase &parser) : parser(parser) {}
+
+  ErrorLog log;
+
+  Node curr = Node(parser);
+
+  void open_scope(Token tok, ScopeType type)
+  {
+    open_node(tok, type);
+  }
+
+  /* Open or continue a statement. */
+  void statement(Token tok)
+  {
+    if (curr.is_invalid() || curr.type() != ScopeType::Statement) {
+      open_node(tok, ScopeType::Statement);
+    }
+  }
+
+  /* End a statement. */
+  void end_statement(Token tok)
+  {
+    if (curr.type() == ScopeType::Statement) {
+      close_node(tok.prev());
+    }
+  }
+
+  void open_node(Token tok, ScopeType type)
+  {
+    int index = parser.scope_types.size();
+    parser.scope_types.emplace_back(type);
+    parser.scope_ranges.emplace_back(tok.index_, 1);
+
+    ScopeLinks &links = parser.scope_links.emplace_back();
+    links.parent_ = curr.index_;
+    if (links.parent_ != -1) {
+      ScopeLinks &parent_links = parser.scope_links[links.parent_];
+      if (parent_links.child_first_ == -1) {
+        parent_links.child_first_ = index;
+      }
+      links.prev_ = parent_links.child_last_;
+      parent_links.child_last_ = index;
+    }
+    if (links.prev_ != -1) {
+      parser.scope_links[links.prev_].next_ = index;
+    }
+
+    curr = Node(parser, index);
+  }
+
+  void close_scope(Token tok, ScopeType type)
+  {
+    end_statement(tok);
+
+    if (curr.type() == type) {
+      close_node(tok);
+    }
+    else {
+      log.error(tok);
+    }
+  }
+
+  void close_node(Token tok)
+  {
+    IndexRange &range = parser.scope_ranges[curr.index_];
+    range.size = tok.index_ - range.start + 1;
+    curr = curr.parent();
+  }
+};
+
+static int seek_end_of_directive(const LexerBase &lex, int tok_id)
+{
+  while (true) {
+    const TokenType type = lex.types_[tok_id];
+    if (type == EndOfFile) {
+      tok_id--;
+      break;
+    }
+    std::string_view tok_str = lex[tok_id].str_with_whitespace();
+    size_t new_line = -1;
+    while ((new_line = tok_str.find("\n", new_line + 1)) != std::string::npos) {
+      if (new_line == 0 || tok_str[new_line - 1] != '\\') {
+        break;
+      }
+    }
+    if (new_line != std::string::npos) {
+      break;
+    }
+    tok_id++;
+  }
+  return tok_id;
+}
+
+static Token lookup_decl_keyword(Scope scope)
+{
+  scope = scope.prev_neighbor();
+  // Token tok = scope.front();
+  return scope.front();
+}
+
+void ParserBase::build_ast(report_callback &report_error)
+{
+  LexerBase &lex = *this;
+
+  lex.identify_template_tokens();
+
+  GrammarParser p(lex[0]);
+  p.translation_unit();
+
+  scope_types.clear();
+  scope_ranges.clear();
+  scope_links.clear();
+
+  size_t predicted_scope_count = lex.size() / 2;
+  scope_types.reserve(predicted_scope_count);
+  scope_ranges.reserve(predicted_scope_count);
+  scope_links.reserve(predicted_scope_count);
+
+  Tree tree(*this);
+
+  tree.open_scope(front(), ScopeType::Global);
+
+  for (int tok_id = 0; tok_id < lex.size(); tok_id++) {
+    Token tok = lex[tok_id];
+    switch (tok.type()) {
+      case Assign:
+        tree.open_node(tok, ScopeType::Assignment);
+        tree.close_node(tok);
+        break;
+      case SemiColon:
+      case Comma:
+        tree.open_node(tok, ScopeType::Separator);
+        tree.close_node(tok);
+        break;
+      case ParOpen:
+        tree.open_scope(tok, ScopeType::Parenthesis);
+        break;
+      case ParClose:
+        tree.close_scope(tok, ScopeType::Parenthesis);
+        break;
+      case BracketOpen:
+        tree.open_scope(tok, ScopeType::Bracket);
+        break;
+      case BracketClose:
+        tree.close_scope(tok, ScopeType::Bracket);
+        break;
+      case SquareOpen:
+        tree.open_scope(tok, ScopeType::Square);
+        break;
+      case SquareClose:
+        tree.close_scope(tok, ScopeType::Square);
+        break;
+      case TemplateOpen:
+        tree.open_scope(tok, ScopeType::Angle);
+        break;
+      case TemplateClose:
+        tree.close_scope(tok, ScopeType::Angle);
+        break;
+      case Hash:
+        tree.open_scope(tok, ScopeType::Preprocessor);
+        tok_id = seek_end_of_directive(lex, tok_id);
+        tree.close_scope(lex[tok_id], ScopeType::Preprocessor);
+        break;
+      case Space:
+      case NewLine:
+        /* Noop. */
+        break;
+      default:
+        break;
+    }
+  }
+
+  tree.close_scope(back(), ScopeType::Global);
+
+  lex.reset_template_tokens();
+
+  if (!tree.log.errors.empty()) {
+    for (auto err : tree.log.errors) {
+      report_error(err.first.line_number(),
+                   err.first.char_number(),
+                   err.first.line_str(),
+                   err.second.c_str());
+    }
+    /* Avoid out of bound access for the rest of the processing. Empty everything. */
+    scope_types = {ScopeType::Global};
+    scope_ranges = {IndexRange(0, 0)};
+    return;
+  }
+
+#if 1
+  for (int i = 1; i < scope_types.size(); i++) {
+    Scope scope = Scope(*this, i);
+    const ScopeType parent_type = scope.parent().type();
+    const ScopeType curr_type = scope.type();
+    ScopeType type = ScopeType::Invalid;
+    switch (curr_type) {
+      case ScopeType::Preprocessor:
+        type = ScopeType::Preprocessor;
+        break;
+      case ScopeType::Assignment:
+        /* TODO(fclem): Amend scope size. */
+        type = ScopeType::Assignment;
+        break;
+      case ScopeType::Angle:
+        type = ScopeType::Template;
+        break;
+      case ScopeType::Bracket:
+        switch (lookup_decl_keyword(scope).type()) {
+          case Class:
+          case Struct:
+            type = ScopeType::Struct;
+            break;
+          case Enum:
+            type = ScopeType::Local;
+            break;
+          case Namespace:
+            type = ScopeType::Namespace;
+            break;
+          case Const:
+          default:
+            switch (parent_type) {
+              case ScopeType::Global:
+              case ScopeType::Struct:
+              case ScopeType::Namespace:
+                type = ScopeType::Function;
+                break;
+              default:
+                type = ScopeType::Local;
+                break;
+            }
+            break;
+        }
+        break;
+      case ScopeType::Parenthesis: {
+        switch (parent_type) {
+          case ScopeType::Global:
+          case ScopeType::Struct:
+          case ScopeType::Namespace:
+            type = ScopeType::FunctionArgs;
+            break;
+          case ScopeType::Function:
+          case ScopeType::Local:
+            switch (lookup_decl_keyword(scope).type()) {
+              case For:
+              case While:
+                type = ScopeType::LoopArgs;
+                break;
+              default:
+                type = (scope.front().prev() == Word) ? ScopeType::FunctionCall : ScopeType::Local;
+                break;
+            }
+            break;
+          case ScopeType::Assignment:
+          case ScopeType::FunctionParam:
+          case ScopeType::Subscript:
+          case ScopeType::Attributes:
+          case ScopeType::Attribute:
+          case ScopeType::FunctionCall:
+            type = (scope.front().prev() == Word) ? ScopeType::FunctionCall : ScopeType::Local;
+            break;
+          default:
+            type = ScopeType::Local;
+            break;
+        }
+        break;
+      }
+      case ScopeType::Square: {
+        type = (scope.front().prev() == SquareOpen) ? ScopeType::Attributes : ScopeType::Subscript;
+        break;
+      }
+      default:
+        break;
+    }
+    assert(type != ScopeType::Invalid);
+    scope_types[i] = type;
+
+    ScopeType statement_type = ScopeType::Invalid;
+    switch (parent_type) {
+      case ScopeType::FunctionArgs:
+        statement_type = ScopeType::FunctionArg;
+        break;
+      case ScopeType::Attributes:
+        statement_type = ScopeType::Attribute;
+        break;
+      case ScopeType::FunctionCall:
+        statement_type = ScopeType::FunctionParam;
+        break;
+      case ScopeType::Template:
+        statement_type = ScopeType::TemplateArg;
+        break;
+      case ScopeType::LoopArgs:
+        statement_type = ScopeType::LoopArg;
+        break;
+      default:
+        statement_type = ScopeType::Statement;
+        break;
+    }
+    if (statement_type != ScopeType::Invalid) {
+      parse_statements(scope, statement_type);
+    }
+  }
+#endif
+  /* Classify Decl (struct, fn, enum, namespace). */
+  /* Change semantic of assign scope (empty scope). */
+  /* FunctionArgs > (FunctionCall). */
+  /* Refactor enum to have undetermined version of scopes. */
+}
+
 void ParserBase::build_scope_tree(report_callback &report_error)
 {
+  build_ast(report_error);
+
+  update_string_view();
+  std::string ast(this->scope_types_str);
+  std::string ast_;
+  for (auto c : ast) {
+    if (c != 's') {
+      ast_ += c;
+    }
+  }
+
   const LexerBase &lex = *this;
 
   Token error_token(*this);
@@ -559,6 +931,12 @@ void ParserBase::build_scope_tree(report_callback &report_error)
   scope_types = std::move(stack.types);
   scope_ranges = std::move(stack.ranges);
   update_string_view();
+
+  if (ast_ != this->scope_types_str) {
+    std::cout << "old " << this->scope_types_str << std::endl;
+    std::cout << "new " << ast_ << std::endl;
+    // assert(0);
+  }
   return;
 
 error:
