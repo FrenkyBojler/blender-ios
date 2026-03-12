@@ -785,6 +785,11 @@ static void blend_rotation(PointerRNA &ptr,
   }
 }
 
+static bool rotation_mode_is_euler(const eRotationModes rotation_mode)
+{
+  return rotation_mode >= ROT_MODE_EUL;
+}
+
 /* LERP between current value (blend_factor=0.0) and the value from the FCurve (blend_factor=1.0)
  */
 static void animsys_blend_in_fcurves(PointerRNA *ptr,
@@ -817,38 +822,40 @@ static void animsys_blend_in_fcurves(PointerRNA *ptr,
       continue;
     }
 
-    std::optional<eRotationModes> ptr_rotation_mode = animrig::get_rotation_mode_from_rna_pointer(
-        resolved_ptr);
+    std::optional<eRotationModes> ptr_rotation_mode_opt =
+        animrig::get_rotation_mode_from_rna_pointer(resolved_ptr);
     BLI_assert_msg(
-        ptr_rotation_mode.has_value(),
+        ptr_rotation_mode_opt.has_value(),
         "We have an FCurve on a rotation property, the RNA data should have a rotation order.");
+    const eRotationModes ptr_rotation_mode = ptr_rotation_mode_opt.value();
 
-    const std::optional<eRotationModes> fcurve_rotation_mode =
+    const std::optional<eRotationModes> fcurve_rotation_mode_opt =
         animrig::get_rotation_mode_from_path(rna_path);
-    BLI_assert(fcurve_rotation_mode.has_value());
+    BLI_assert(fcurve_rotation_mode_opt.has_value());
+    const eRotationModes fcurve_rotation_mode = fcurve_rotation_mode_opt.value();
 
     /* The check for Euler rotation mode means we will *not* do any conversion if both modes are
      * euler. Since we *cannot* know the exact euler mode of the stored FCurves we have to assume
      * they are the same as the ptr. */
-    if (fcurve_rotation_mode.value() == ptr_rotation_mode.value() ||
-        (fcurve_rotation_mode.value() >= ROT_MODE_EUL &&
-         ptr_rotation_mode.value() >= ROT_MODE_EUL))
+    if (fcurve_rotation_mode == ptr_rotation_mode ||
+        (rotation_mode_is_euler(fcurve_rotation_mode) &&
+         rotation_mode_is_euler(ptr_rotation_mode)))
     {
-      /* Easy case, animation mode of fcurves and of `resolved_ptr` are matching. Data can just be
-       * applied. The reason to have this separate is because in this case euler angles > 180
+      /* Easy case, animation mode of fcurves and of `resolved_ptr` are matching. Data can just
+       * be applied. The reason to have this separate is because in this case euler angles > 180
        * degrees are preserved. The other path uses a conversion to a quaternion which loses that
        * information. */
       blend_rotation(resolved_ptr,
                      resolved_prop,
                      rotation_fcurves,
-                     fcurve_rotation_mode.value(),
+                     fcurve_rotation_mode,
                      anim_eval_context,
                      blend_factor);
     }
     else {
       blend_rotation_with_conversion(resolved_ptr,
                                      rotation_fcurves,
-                                     fcurve_rotation_mode.value(),
+                                     fcurve_rotation_mode,
                                      anim_eval_context->eval_time,
                                      blend_factor);
     }
