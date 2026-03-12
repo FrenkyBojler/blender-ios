@@ -508,11 +508,11 @@ ToolDefaults = namedtuple("ToolDefaults", ["origin_base", "aspect_base", "origin
 class _defs_view3d_add:
 
     sculpt_tool_defaults = {
-        'CUBE': {"settings": ToolDefaults('EDGE', 'FREE', 'EDGE', 'FREE'), "initialized": False},
-        'CONE': {"settings": ToolDefaults('CENTER', 'FIXED', 'EDGE', 'FREE'), "initialized": False},
-        'CYLINDER': {"settings": ToolDefaults('CENTER', 'FIXED', 'EDGE', 'FREE'), "initialized": False},
-        'SPHERE_UV': {"settings": ToolDefaults('CENTER', 'FIXED', 'CENTER', 'FIXED'), "initialized": False},
-        'SPHERE_ICO': {"settings": ToolDefaults('CENTER', 'FIXED', 'CENTER', 'FIXED'), "initialized": False},
+        'CUBE': ToolDefaults('EDGE', 'FREE', 'EDGE', 'FREE'),
+        'CONE': ToolDefaults('CENTER', 'FIXED', 'EDGE', 'FREE'),
+        'CYLINDER': ToolDefaults('CENTER', 'FIXED', 'EDGE', 'FREE'),
+        'SPHERE_UV': ToolDefaults('CENTER', 'FIXED', 'CENTER', 'FIXED'),
+        'SPHERE_ICO': ToolDefaults('CENTER', 'FIXED', 'CENTER', 'FIXED'),
     }
 
     @staticmethod
@@ -584,21 +584,21 @@ class _defs_view3d_add:
         if mode != 'SCULPT':
             return
 
-        primitive_data = _defs_view3d_add.sculpt_tool_defaults[primitive_type]
-        if primitive_data["initialized"]:
-            return
-
-        defaults = primitive_data["settings"]
+        defaults = _defs_view3d_add.sculpt_tool_defaults[primitive_type]
 
         props = tool.operator_properties("view3d.interactive_add")
 
-        props.plane_origin_base = defaults.origin_base
-        props.plane_aspect_base = defaults.aspect_base
+        if not props.is_property_set("plane_origin_base"):
+            props.plane_origin_base = defaults.origin_base
 
-        props.plane_origin_depth = defaults.origin_depth
-        props.plane_aspect_depth = defaults.aspect_depth
+        if not props.is_property_set("plane_aspect_base"):
+            props.plane_aspect_base = defaults.aspect_base
 
-        primitive_data["initialized"] = True
+        if not props.is_property_set("plane_origin_depth"):
+            props.plane_origin_depth = defaults.origin_depth
+
+        if not props.is_property_set("plane_aspect_depth"):
+            props.plane_aspect_depth = defaults.aspect_depth
 
     @ToolDef.from_fn
     def cube_add():
