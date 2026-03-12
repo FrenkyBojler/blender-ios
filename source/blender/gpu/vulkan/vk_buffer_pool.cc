@@ -8,14 +8,19 @@
 
 #pragma once
 
-#include "vk_buffer_pool.hh"
 #include "BLI_math_base.h"
+
+#include "CLG_log.h"
+
 #include "vk_buffer.hh"
+#include "vk_buffer_pool.hh"
 #include "vk_debug.hh"
 
 #include <memory>
 
 namespace blender::gpu {
+
+CLG_LogRef LOG = {"gpu.vulkan"};
 
 VKBufferPool::~VKBufferPool()
 {
@@ -54,7 +59,7 @@ VKBufferWithOffset VKBufferPool::append(Span<uint8_t> data)
       .copy_from(data);
 
   buffer_offset_ += data.size();
-  buffer_offset_ = ceil_to_multiple_ul(buffer_offset_, allignment_);
+  buffer_offset_ = ceil_to_multiple_ul(buffer_offset_, alignment_);
 
   return result;
 }
@@ -63,6 +68,7 @@ void VKBufferPool::ensure_uploaded()
 {
   if (!buffers_.is_empty() && buffer_offset_ != 0) {
     finalize_active_buffer();
+    CLOG_TRACE(&LOG, "VKBufferPool uploaded %d buffers", buffers_.size());
   }
 }
 

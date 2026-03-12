@@ -9,10 +9,9 @@
 #pragma once
 
 #include "BLI_string_ref.hh"
+
 #include "vk_buffer.hh"
 #include "vk_common.hh"
-#include <memory>
-#include <vulkan/vulkan_core.h>
 
 namespace blender::gpu {
 /**
@@ -24,9 +23,9 @@ class VKBufferPool {
    */
   Vector<std::unique_ptr<VKBuffer>> buffers_;
   StringRefNull name_;
-  VkDeviceSize buffer_offset_ = 0;
-  VkDeviceSize default_buffer_size_ = 16 * 1024;
-  VkDeviceSize allignment_ = 4;
+  VkDeviceSize buffer_offset_;
+  VkDeviceSize default_buffer_size_;
+  VkDeviceSize alignment_;
   Vector<uint8_t> data_;
   VkBufferUsageFlags vk_buffer_usage_;
   VmaMemoryUsage vma_memory_usage_;
@@ -37,14 +36,14 @@ class VKBufferPool {
   VKBufferPool(VKBufferPool &&other) = default;
   VKBufferPool(StringRefNull name,
                VkDeviceSize default_buffer_size,
-               VkDeviceSize allignment,
+               VkDeviceSize alignment,
                VkBufferUsageFlags vk_buffer_usage,
                VmaMemoryUsage vma_memory_usage,
                VmaAllocationCreateFlags vma_allocation_create_flags,
                float priority = 1.0f)
       : name_(name),
         default_buffer_size_(default_buffer_size),
-        allignment_(allignment),
+        alignment_(alignment),
         vk_buffer_usage_(vk_buffer_usage),
         vma_memory_usage_(vma_memory_usage),
         vma_allocation_create_flags_(vma_allocation_create_flags),

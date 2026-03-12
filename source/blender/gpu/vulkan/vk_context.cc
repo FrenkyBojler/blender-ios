@@ -27,7 +27,7 @@ namespace blender::gpu {
 
 VKContext::VKContext(GHOST_IWindow *ghost_window, GHOST_IContext *ghost_context)
     : push_constants_pool(VKBufferPool("PushConstants",
-                                       16 * 1024,
+                                       64  * 1024,
                                        VKBackend::get()
                                            .device.physical_device_properties_get()
                                            .limits.minUniformBufferOffsetAlignment,
