@@ -457,12 +457,10 @@ void VKDescriptorSetUpdator::bind_uniform_buffer_resource(
 void VKDescriptorSetUpdator::bind_push_constants(VKPushConstants &push_constants,
                                                  const VKBufferWithOffset &push_constants_buffer)
 {
-  if (push_constants.layout_get().storage_type_get() !=
-      VKPushConstants::StorageType::UNIFORM_BUFFER)
-  {
+  const VKPushConstants::Layout &push_constants_layout = push_constants.layout_get();
+  if (push_constants_layout.storage_type_get() != VKPushConstants::StorageType::UNIFORM_BUFFER) {
     return;
   }
-  const VKPushConstants::Layout &push_constants_layout = push_constants.layout_get();
   bind_buffer(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
               push_constants_buffer.buffer,
               push_constants_buffer.offset,
