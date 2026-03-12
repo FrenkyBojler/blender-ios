@@ -301,10 +301,13 @@ void wm_xr_viewfinder_render_view(const GHOST_XrDrawViewInfo *draw_view, void *c
   CameraParams cam_render_params;
   BKE_camera_params_init(&cam_render_params);
 
+  bContext *xr_context = WM_xr_session_context_get(xr_data);
+  Scene *scene = CTX_data_scene(xr_context);
+
   switch (state->viewfinder.active_mode) {
     case XR_VIEWFINDER_MODE_LIVE: {
       // TODO: Simplify viewfinder_height computation once context is passed everywhere
-      const RenderData *scene_render_settings = &draw_data->scene->r;
+      const RenderData *scene_render_settings = &scene->r;
       const rctf viewfinder_rect = wm_xr_viewfinder_get_rect(settings, scene_render_settings);
       const float viewfinder_height = BLI_rctf_size_y(&viewfinder_rect);
 
@@ -328,7 +331,7 @@ void wm_xr_viewfinder_render_view(const GHOST_XrDrawViewInfo *draw_view, void *c
       break;
     }
     case XR_VIEWFINDER_MODE_PLAYBACK: {
-      auto capture = wm_xr_location_scouting_get_active_capture(draw_data->scene);
+      auto capture = wm_xr_location_scouting_get_active_capture(scene);
       if (!capture.has_value()) {
         /* Nothing to draw, early return. */
         return;
@@ -350,7 +353,7 @@ void wm_xr_viewfinder_render_view(const GHOST_XrDrawViewInfo *draw_view, void *c
 
   /* Compute obtained camera parameter from Live / Playback for render, using scene render
    * aspect ratio. */
-  const RenderData *render_settings = &draw_data->scene->r;
+  const RenderData *render_settings = &scene->r;
   BKE_camera_params_compute_viewplane(&cam_render_params,
                                       render_settings->xsch,
                                       render_settings->ysch,
@@ -383,9 +386,11 @@ void wm_xr_viewfinder_render_view(const GHOST_XrDrawViewInfo *draw_view, void *c
   viewfinder_cam_ob.type = OB_CAMERA;
   viewfinder_cam_ob.data = id_cast<ID *>(cam_render_data);
 
-  ED_view3d_draw_offscreen_simple(draw_data->depsgraph,
-                                  draw_data->scene,
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(xr_context);
+  ED_view3d_draw_offscreen_simple(depsgraph,
+                                  scene,
                                   &viewfinder_shading_settings,
+                                  xr_context,
                                   (eDrawType)settings->shading.type,
                                   settings->object_type_exclude_viewport,
                                   settings->object_type_exclude_select,
