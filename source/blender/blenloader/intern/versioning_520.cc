@@ -47,6 +47,11 @@ static void version_geometry_nodes_properties(Main &bmain, Object &object, Nodes
     return;
   }
   if (!nmd.node_group) {
+    IDP_FreeProperty(nmd.settings.properties);
+    nmd.settings.properties = nullptr;
+    return;
+  }
+  if (ID_MISSING(&nmd.node_group->id)) {
     return;
   }
   const bNodeTree &ntree = *nmd.node_group;
@@ -157,6 +162,9 @@ static void version_geometry_nodes_properties(Main &bmain, Object &object, Nodes
     IDP_AddToGroup(group, new_value_prop);
   }
 
+  if (nmd.modifier.system_properties) {
+    IDP_FreeProperty(nmd.modifier.system_properties);
+  }
   nmd.modifier.system_properties = system_props;
   IDP_FreeProperty(nmd.settings.properties);
   nmd.settings.properties = nullptr;
