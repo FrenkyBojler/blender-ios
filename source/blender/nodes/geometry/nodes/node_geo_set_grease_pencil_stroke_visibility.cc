@@ -61,12 +61,12 @@ static void node_register()
   static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeSetGreasePencilStrokeVisibility");
-  ntype.ui_name = "Set Grease Pencil Stroke Visibility";
+  ntype.ui_name = "Set Stroke Visibility";
   ntype.ui_description = "Set whether stroke material is visible or not on Grease Pencil geometry";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  bke::node_type_size(ntype, 220, 120, NODE_DEFAULT_MAX_WIDTH);
+  bke::node_type_size_preset(ntype, bke::eNodeSizePreset::Middle);
   bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
