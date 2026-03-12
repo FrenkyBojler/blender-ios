@@ -282,10 +282,14 @@ void wm_xr_viewfinder_render_view(const GHOST_XrDrawViewInfo *draw_view, void *c
 
   /* WIP Hack: Draw the viewfinder view here and pass it to wm_xr_controller_model_draw via a
    *           static local global as context prevents us from doing this in model_draw */
+  /* Use a simple 800x800 square texture for now. Using a resolution that isn't too high not only
+   * helps with performance but also increases the displayed overlay line width. Eventually make
+   * dynamic. */
+  constexpr float viewfinder_resolution = 800;
   if (g_viewfinder_offscreen == nullptr) {
     char err_out[256] = "unknown";
-    g_viewfinder_offscreen = GPU_offscreen_create(draw_view->width,
-                                                  draw_view->height,
+    g_viewfinder_offscreen = GPU_offscreen_create(viewfinder_resolution,
+                                                  viewfinder_resolution,
                                                   true,
                                                   gpu::TextureFormat::UNORM_8_8_8_8,
                                                   GPU_TEXTURE_USAGE_SHADER_READ |
@@ -392,8 +396,8 @@ void wm_xr_viewfinder_render_view(const GHOST_XrDrawViewInfo *draw_view, void *c
                                   (eDrawType)settings->shading.type,
                                   settings->object_type_exclude_viewport,
                                   settings->object_type_exclude_select,
-                                  draw_view->width,
-                                  draw_view->height,
+                                  viewfinder_resolution,
+                                  viewfinder_resolution,
                                   viewfinder_draw_flags,
                                   viewfinder_render_viewmat,
                                   viewfinder_winmat,
