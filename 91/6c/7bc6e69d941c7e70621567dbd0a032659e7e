@@ -1,2 +1,3 @@
 Referenced by pull request #152961, Cleanup: unused statement after recent commit
 Referenced by commit 825098268eb1b7cbfa3ae12e488bfae3885857c4, Cleanup: unused statement after recent commit
+Referenced by issue #155561, Adding a Texture Paint Slot does not create a working material nodetree
