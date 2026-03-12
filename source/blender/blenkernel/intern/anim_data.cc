@@ -1335,6 +1335,8 @@ static bool nlastrips_apply_all_curves_cb(ID *id,
 {
   for (NlaStrip &strip : *strips) {
     if (strip.act) {
+      BLI_assert_msg(BLI_listbase_is_empty(&strip.act->curves),
+                     "Legacy Actions are not supported here");
       const Vector<FCurve *> fcurves = animrig::fcurves_for_action_slot(strip.act->wrap(),
                                                                         strip.action_slot_handle);
       if (!fcurves_apply_cb(id, fcurves, func)) {
@@ -1360,6 +1362,8 @@ static bool nlastrips_apply_all_curves_cb(ID *id,
 static bool adt_apply_all_fcurves_cb(ID *id, AnimData *adt, const IDFCurveCallback func)
 {
   if (adt->action) {
+    BLI_assert_msg(BLI_listbase_is_empty(&adt->action->curves),
+                   "Legacy Actions are not supported here");
     if (!fcurves_apply_cb(
             id, animrig::fcurves_for_action_slot(adt->action->wrap(), adt->slot_handle), func))
     {
@@ -1368,6 +1372,8 @@ static bool adt_apply_all_fcurves_cb(ID *id, AnimData *adt, const IDFCurveCallba
   }
 
   if (adt->tmpact) {
+    BLI_assert_msg(BLI_listbase_is_empty(&adt->tmpact->curves),
+                   "Legacy Actions are not supported here");
     if (!fcurves_apply_cb(
             id, animrig::fcurves_for_action_slot(adt->tmpact->wrap(), adt->tmp_slot_handle), func))
     {

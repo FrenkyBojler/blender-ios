@@ -303,6 +303,11 @@ void action_groups_reconstruct(bAction *act)
 
 using IDFCurveCallback = FunctionRef<bool(ID *, FCurve *)>;
 
+/**
+ * Iterates over FCurves until the callback returns false or all FCurves were visited.
+ *
+ * \returns true if all FCurves were visited.
+ */
 static bool fcurves_listbase_apply_cb(ID *id,
                                       ListBaseT<FCurve> *fcurves,
                                       const IDFCurveCallback func)
