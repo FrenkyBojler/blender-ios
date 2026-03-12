@@ -34,7 +34,7 @@ void VKDescriptorSetTracker::update_descriptor_set(VKContext &context,
   VKBufferWithOffset push_constants_buffer = {};
   /* Bind uniform push constants to descriptor set. */
   if (shader.push_constants.layout_get().storage_type_get() ==
-      VKPushConstants::StorageType::UNIFORM_BUFFER)
+      VKPushConstants::StorageType::BUFFER)
   {
     push_constants_buffer = shader.push_constants.update_uniform_buffer(context);
   }
@@ -45,7 +45,7 @@ void VKDescriptorSetTracker::update_descriptor_set(VKContext &context,
   const VkDescriptorSetLayout shader_descriptor_set_layout = shader.vk_descriptor_set_layout_get();
   if (!state_manager.is_dirty && vk_descriptor_set_layout_ == shader_descriptor_set_layout &&
       shader.push_constants.layout_get().storage_type_get() !=
-          VKPushConstants::StorageType::UNIFORM_BUFFER)
+          VKPushConstants::StorageType::BUFFER)
   {
     return;
   }
@@ -280,7 +280,7 @@ void VKDescriptorSetTracker::update_resource_access_info(
 
   /* Bind uniform push constants to descriptor set. */
   if (shader.push_constants.layout_get().storage_type_get() ==
-          VKPushConstants::StorageType::UNIFORM_BUFFER &&
+          VKPushConstants::StorageType::BUFFER &&
       push_constants_buffer.buffer != VK_NULL_HANDLE)
   {
     access_info.buffers.append({push_constants_buffer.buffer, VK_ACCESS_UNIFORM_READ_BIT});
@@ -458,7 +458,7 @@ void VKDescriptorSetUpdator::bind_push_constants(VKPushConstants &push_constants
                                                  const VKBufferWithOffset &push_constants_buffer)
 {
   const VKPushConstants::Layout &push_constants_layout = push_constants.layout_get();
-  if (push_constants_layout.storage_type_get() != VKPushConstants::StorageType::UNIFORM_BUFFER) {
+  if (push_constants_layout.storage_type_get() != VKPushConstants::StorageType::BUFFER) {
     return;
   }
   bind_buffer(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,

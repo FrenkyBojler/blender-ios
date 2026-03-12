@@ -66,6 +66,7 @@ void VKShaderInterface::compute_resource_counts(InitContext &ctx)
 
   /* Reserve 1 uniform buffer for push constants fallback. */
   size_t names_size = info.interface_names_size_;
+<<<<<<< HEAD
   ctx.push_constants_storage_type = VKPushConstants::Layout::determine_storage_type(info, device);
 
   static char PUSH_CONSTANTS_FALLBACK_NAME[] = "push_constants_fallback";
@@ -74,6 +75,11 @@ void VKShaderInterface::compute_resource_counts(InitContext &ctx)
   static size_t SUBPASS_FALLBACK_NAME_LEN = strlen(SUBPASS_FALLBACK_NAME);
 
   if (ctx.push_constants_storage_type == VKPushConstants::StorageType::UNIFORM_BUFFER) {
+=======
+  const VKPushConstants::StorageType push_constants_storage_type =
+      VKPushConstants::Layout::determine_storage_type(info, device);
+  if (push_constants_storage_type == VKPushConstants::StorageType::BUFFER) {
+>>>>>>> 693a5f747d9 (Renamed UNIFORM_BUFFER -> BUFFER)
     ubo_len_++;
     names_size += PUSH_CONSTANTS_FALLBACK_NAME_LEN + 1;
   }
@@ -119,7 +125,7 @@ void VKShaderInterface::populate_shader_inputs(InitContext &ctx)
 
   /* Add push constant when using uniform buffer as a fallback. */
   static char PUSH_CONSTANTS_FALLBACK_NAME[] = "push_constants_fallback";
-  if (ctx.push_constants_storage_type == VKPushConstants::StorageType::UNIFORM_BUFFER) {
+  if (ctx.push_constants_storage_type == VKPushConstants::StorageType::BUFFER) {
     copy_input_name(
         ctx.input_ptr, PUSH_CONSTANTS_FALLBACK_NAME, name_buffer_, ctx.name_buffer_offset);
     ctx.input_ptr->location = ctx.input_ptr->binding = -1;
@@ -281,7 +287,11 @@ void VKShaderInterface::populate_resource_bindings(InitContext &ctx)
   }
 
   int32_t push_constant_descriptor_set_location = -1;
+<<<<<<< HEAD
   if (ctx.push_constants_storage_type == VKPushConstants::StorageType::UNIFORM_BUFFER) {
+=======
+  if (push_constants_storage_type == VKPushConstants::StorageType::BUFFER) {
+>>>>>>> 693a5f747d9 (Renamed UNIFORM_BUFFER -> BUFFER)
     push_constant_descriptor_set_location = descriptor_set_location++;
     const ShaderInput *push_constant_input = ubo_get("push_constants_fallback");
     const int32_t push_constants_fallback_location = -1;
@@ -467,7 +477,7 @@ void VKShaderInterface::init_descriptor_set_layout_info(
   for (const shader::ShaderCreateInfo::Resource &res : all_resources) {
     descriptor_set_layout_info_.bindings.append(to_vk_descriptor_type(res));
   }
-  if (push_constants_storage == VKPushConstants::StorageType::UNIFORM_BUFFER) {
+  if (push_constants_storage == VKPushConstants::StorageType::BUFFER) {
     descriptor_set_layout_info_.bindings.append(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
   }
 }

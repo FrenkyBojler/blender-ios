@@ -27,14 +27,12 @@ namespace blender::gpu {
 
 VKContext::VKContext(GHOST_IWindow *ghost_window, GHOST_IContext *ghost_context)
     : push_constants_pool(VKBufferPool("PushConstants",
-                                       64  * 1024,
+                                       64 * 1024,
                                        VKBackend::get()
                                            .device.physical_device_properties_get()
                                            .limits.minUniformBufferOffsetAlignment,
-                                       VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT |
-                                           VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-                                           VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                       VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+                                       VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                       VMA_MEMORY_USAGE_AUTO_PREFER_HOST,
                                        VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
                                        0.8f))
 {

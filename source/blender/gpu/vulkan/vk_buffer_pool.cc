@@ -12,6 +12,7 @@
 
 #include "vk_buffer.hh"
 #include "vk_buffer_pool.hh"
+#include "vk_context.hh"
 #include "vk_debug.hh"
 
 #include <memory>
@@ -66,7 +67,7 @@ void VKBufferPool::ensure_uploaded()
 {
   if (!buffers_.is_empty() && buffer_offset_ != 0) {
     finalize_active_buffer();
-    CLOG_TRACE(&LOG, "VKBufferPool uploaded %d buffers", buffers_.size());
+    CLOG_TRACE(&LOG, "VKBufferPool uploaded %ld buffers", long(buffers_.size()));
   }
 }
 
@@ -78,7 +79,16 @@ void VKBufferPool::discard()
 
 void VKBufferPool::finalize_active_buffer()
 {
-  buffers_.last()->update_sub_immediately(0, buffer_offset_, data_.data());
+  std::unique_ptr<VKBuffer> &active_buffer = buffers_.last();
+  if (active_buffer->is_mapped()) {
+    active_buffer->update_sub_immediately(0, buffer_offset_, data_.data());
+  }
+  else {
+    VKContext &context = *VKContext::get();
+    void *data_copy = MEM_new_uninitialized(active_buffer->allocated_size_in_bytes(), __func__);
+    memcpy(data_copy, data_.data(), std::min(data_.size(), int64_t(buffer_offset_)));
+    active_buffer->update_render_graph(context, data_copy);
+  }
 }
 
 }  // namespace blender::gpu
