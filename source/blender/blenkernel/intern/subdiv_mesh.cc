@@ -9,6 +9,7 @@
 #include "DNA_key_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_object_types.h"
 
 #include "BLI_array.hh"
 #include "BLI_array_utils.hh"
@@ -30,7 +31,6 @@
 #include "BKE_subdiv_foreach.hh"
 #include "BKE_subdiv_mesh.hh"
 
-#include "DNA_object_types.h"
 #include "MEM_guardedalloc.h"
 
 namespace blender::bke::subdiv {
