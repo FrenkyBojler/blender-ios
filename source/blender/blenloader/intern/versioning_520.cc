@@ -43,9 +43,6 @@ static void version_geometry_nodes_properties(Main &bmain, Object &object, Nodes
 {
   const IDProperty *old_props = nmd.settings.properties;
   if (!old_props) {
-    return;
-  }
-  if (!nmd.settings.properties) {
     /* Versioning has already been done, this check makes the function idempotent. */
     return;
   }
