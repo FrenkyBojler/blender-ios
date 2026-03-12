@@ -8,6 +8,7 @@
 #include "BKE_crazyspace.hh"
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
+#include "BKE_grease_pencil_fills.hh"
 #include "BKE_paint.hh"
 
 #include "BLI_array_utils.hh"
@@ -329,9 +330,17 @@ IndexMask fill_mask_for_stroke_operation(const GreasePencilStrokeParams &params,
                                          const bool use_selection_masking,
                                          IndexMaskMemory &memory)
 {
-  return use_selection_masking ? ed::greasepencil::retrieve_editable_and_selected_fill_strokes(
-                                     params.ob_orig, params.drawing, params.layer_index, memory) :
-                                 params.drawing.strokes().curves_range();
+  if (!params.drawing.fills().has_value()) {
+    return {};
+  }
+  const GroupedSpan<int> fills = *params.drawing.fills();
+  if (!use_selection_masking) {
+    return fills.index_range();
+  }
+  const IndexMask editable_strokes = ed::greasepencil::retrieve_editable_and_selected_strokes(
+      params.ob_orig, params.drawing, params.layer_index, memory);
+  return bke::greasepencil::selected_mask_to_fills(
+      editable_strokes, params.drawing.strokes(), bke::AttrDomain::Curve, memory);
 }
 
 bke::crazyspace::GeometryDeformation get_drawing_deformation(
