@@ -9,6 +9,7 @@
 #pragma once
 
 #include "BLI_array.hh"
+#include "BLI_map.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_rect.h"
 #include "BLI_vector.hh"
@@ -357,13 +358,14 @@ struct PBVHData {
 };
 
 NodeData &node_data_get(bke::pbvh::Node &node);
-void mark_image_dirty(bke::pbvh::Node &node, ImageData &image_data);
+void mark_image_dirty(bke::pbvh::Node &node,
+                      Image &image,
+                      Map<image::TileNumber, ImBuf *> &buffers);
 PBVHData &data_get(bke::pbvh::Tree &pbvh);
 void collect_dirty_tiles(bke::pbvh::Node &node, Vector<image::TileNumber> &r_dirty_tiles);
 
 void copy_pixels(bke::pbvh::Tree &pbvh,
-                 Image &image,
-                 ImageUser &image_user,
+                 Map<image::TileNumber, ImBuf *> &buffers,
                  image::TileNumber tile_number);
 
 }  // namespace blender::bke::pbvh::pixels

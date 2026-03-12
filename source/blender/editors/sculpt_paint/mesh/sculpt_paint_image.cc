@@ -16,6 +16,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_color_blend.h"
 #include "BLI_math_geom.h"
+#include "BLI_timeit.hh"
 #ifdef DEBUG_PIXEL_NODES
 #  include "BLI_hash.h"
 #endif
@@ -65,14 +66,14 @@ std::unique_ptr<ImageData> ImageData::init_active_image(Object &ob,
   BLI_assert(image_data->image);
   BLI_assert(image_data->image_user);
 
-  int idx = 0;
   for (ImageTile &tile : image_data->image->tiles) {
     ImageTileWrapper image_tile(&tile);
+    const TileNumber tile_number = image_tile.get_tile_number();
 
     ImageUser tile_user = *image_data->image_user;
-    tile_user.tile = image_tile.get_tile_number();
+    tile_user.tile = tile_number;
 
-    image_data->buffers.add_new(idx, BKE_image_acquire_ibuf(image_data->image, &tile_user, nullptr));
+    image_data->buffers.add_new(tile_number, BKE_image_acquire_ibuf(image_data->image, &tile_user, nullptr));
   }
 
   return image_data;
@@ -313,16 +314,15 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
   Vector<float> factors;
   Vector<float> distances;
 
-  ImageUser image_user = *image_data.image_user;
   bool pixels_updated = false;
   for (UDIMTilePixels &tile_data : node_data.tiles) {
     for (ImageTile &tile : image_data.image->tiles) {
       ImageTileWrapper image_tile(&tile);
+      TileNumber tile_number = image_tile.get_tile_number();
       if (image_tile.get_tile_number() == tile_data.tile_number) {
-        image_user.tile = image_tile.get_tile_number();
-
-        ImBuf *image_buffer = BKE_image_acquire_ibuf(image_data.image, &image_user, nullptr);
+        ImBuf *image_buffer = image_data.buffers.lookup_default(tile_number, nullptr);
         if (image_buffer == nullptr) {
+          printf("SKIP %d\n", tile_number);
           continue;
         }
 
@@ -367,7 +367,6 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
           }
         }
 
-        BKE_image_release_ibuf(image_data.image, image_buffer, nullptr);
         pixels_updated |= tile_data.flags.dirty;
         break;
       }
@@ -461,12 +460,11 @@ static Vector<image::TileNumber> collect_dirty_tiles(MutableSpan<bke::pbvh::Mesh
   return dirty_tiles;
 }
 static void fix_non_manifold_seam_bleeding(bke::pbvh::Tree &pbvh,
-                                           Image &image,
-                                           ImageUser &image_user,
+                                           Map<paint::image::TileNumber, ImBuf *> &buffers,
                                            Span<TileNumber> tile_numbers_to_fix)
 {
   for (image::TileNumber tile_number : tile_numbers_to_fix) {
-    bke::pbvh::pixels::copy_pixels(pbvh, image, image_user, tile_number);
+    bke::pbvh::pixels::copy_pixels(pbvh, buffers, tile_number);
   }
 }
 
@@ -476,7 +474,7 @@ static void fix_non_manifold_seam_bleeding(Object &ob,
                                            const IndexMask &node_mask)
 {
   Vector<image::TileNumber> dirty_tiles = collect_dirty_tiles(nodes, node_mask);
-  fix_non_manifold_seam_bleeding(*bke::object::pbvh_get(ob), image_data, image_user, dirty_tiles);
+  fix_non_manifold_seam_bleeding(*bke::object::pbvh_get(ob), image_data.buffers, dirty_tiles);
 }
 
 /** \} */
@@ -499,7 +497,6 @@ bool SCULPT_use_image_paint_brush(PaintModeSettings &settings, Object &ob)
 }
 
 void SCULPT_do_paint_brush_image(const Depsgraph &depsgraph,
-                                 PaintModeSettings &paint_mode_settings,
                                  const Sculpt &sd,
                                  Object &ob,
                                  const IndexMask &node_mask)
@@ -510,6 +507,8 @@ void SCULPT_do_paint_brush_image(const Depsgraph &depsgraph,
   if (!cache.image_data) {
     return;
   }
+
+  SCOPED_TIMER_AVERAGED(__func__);
 
   ImageData &image_data = *cache.image_data;
 
@@ -526,7 +525,7 @@ void SCULPT_do_paint_brush_image(const Depsgraph &depsgraph,
   fix_non_manifold_seam_bleeding(ob, image_data, nodes, node_mask);
 
   node_mask.foreach_index([&](const int i) {
-    bke::pbvh::pixels::mark_image_dirty(nodes[i], *image_data.image_user);
+    bke::pbvh::pixels::mark_image_dirty(nodes[i], *image_data.image, image_data.buffers);
   });
 }
 

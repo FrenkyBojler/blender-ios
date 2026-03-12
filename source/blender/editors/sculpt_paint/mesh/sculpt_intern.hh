@@ -12,6 +12,7 @@
 
 #include "BKE_brush.hh"
 #include "BKE_bvhutils.hh"
+#include "BKE_image_wrappers.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_subdiv_ccg.hh"
@@ -949,7 +950,6 @@ float object_space_radius_get(const ViewContext &vc,
  * \{ */
 
 void SCULPT_do_paint_brush_image(const Depsgraph &depsgraph,
-                                 PaintModeSettings &paint_mode_settings,
                                  const Sculpt &sd,
                                  Object &ob,
                                  const IndexMask &node_mask);

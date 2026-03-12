@@ -2803,7 +2803,7 @@ static bool sculpt_needs_pbvh_pixels(const Brush &brush, const Object &ob)
   if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_PAINT &&
       USER_EXPERIMENTAL_TEST(&U, use_sculpt_texture_paint))
   {
-    return ob.runtime->sculpt_session->cache->image_data.has_value();
+    return ob.runtime->sculpt_session->cache->image_data.get();
   }
 
   return false;
@@ -5577,12 +5577,6 @@ bool color_supported_check(const Scene &scene, Object &object, ReportList *repor
   return true;
 }
 
-static std::optional<paint::image::ImageData> init_image_data()
-{
-  paint::image::ImageData image_data;
-  if (paint::image::ImageData::init_active_image()
-}
-
 void SculptPaintStroke::stroke_cache_init(const BrushStrokeMode stroke_mode,
                                           const BrushSwitchMode brush_switch_mode,
                                           const bool pen_flip,
@@ -5725,7 +5719,8 @@ void SculptPaintStroke::stroke_cache_init(const BrushStrokeMode stroke_mode,
   {
     cache->accum = true;
 
-    cache->image_data = init_image_data()
+    cache->image_data = paint::image::ImageData::init_active_image(
+        ob, this->scene->toolsettings->paint_mode);
   }
 
   if (BKE_brush_color_jitter_get_settings(this->paint, brush)) {

@@ -451,22 +451,21 @@ PBVHData &data_get(Tree &pbvh)
   return *data;
 }
 
-void mark_image_dirty(Node &node, ImageData &image_data)
+void mark_image_dirty(bke::pbvh::Node &node,
+                      Image &image,
+                      Map<image::TileNumber, ImBuf *> &buffers)
 {
   BLI_assert(node.pixels_ != nullptr);
   NodeData *node_data = static_cast<NodeData *>(node.pixels_);
   if (node_data->flags.dirty) {
-    ImageUser local_image_user = image_data;
     for (ImageTile &tile : image.tiles) {
       image::ImageTileWrapper image_tile(&tile);
-      local_image_user.tile = image_tile.get_tile_number();
-      ImBuf *image_buffer = BKE_image_acquire_ibuf(&image, &local_image_user, nullptr);
+      ImBuf *image_buffer = buffers.lookup_default(image_tile.get_tile_number(), nullptr);
       if (image_buffer == nullptr) {
         continue;
       }
 
       node_data->mark_region(image, image_tile, *image_buffer);
-      BKE_image_release_ibuf(&image, image_buffer, nullptr);
     }
     node_data->flags.dirty = false;
   }
