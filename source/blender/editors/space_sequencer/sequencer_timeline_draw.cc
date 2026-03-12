@@ -1860,7 +1860,7 @@ static void draw_timeline_post_view_callbacks(const TimelineDrawContext &ctx)
 
 void seq_scrubbing_draw(const bContext *C, ARegion *region)
 {
-  const Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   SpaceSeq *sseq = CTX_wm_space_seq(C);
 
   region->v2d.tot.xmin = scene->r.sfra;
@@ -1868,6 +1868,9 @@ void seq_scrubbing_draw(const bContext *C, ARegion *region)
 
   region->v2d.cur.xmin = scene->r.sfra;
   region->v2d.cur.xmax = scene->r.efra;
+
+  /* TODO: This maybe sort of hacky solution to clamp current frame in draw function. */
+  scene->r.cfra = math::clamp(scene->r.cfra, scene->r.sfra, scene->r.efra);
 
   const int fps = round_db_to_int(scene->frames_per_second());
   ED_time_scrub_draw(region, scene, !(sseq->flag & SEQ_DRAWFRAMES), true, fps);
