@@ -401,8 +401,6 @@ class MeshTest(ABC):
         """
         self.evaluated_object.location = self.expected_object.location
         expected_object_name = self.expected_object.name
-        evaluated_selection = {
-            v.index for v in self.evaluated_object.data.vertices if v.select}
 
         bpy.data.objects.remove(self.expected_object, do_unlink=True)
         self.evaluated_object.name = expected_object_name
