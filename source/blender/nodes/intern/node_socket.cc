@@ -1486,6 +1486,7 @@ static bke::bNodeSocketType *make_socket_type_menu()
                                                 nodes::GeneratedTreeSrnaData &r_generated) {
     const auto *data = static_cast<const bNodeSocketValueMenu *>(socket.socket_data);
     const EnumPropertyItem *items;
+    bool default_value_found = false;
     if (data->has_conflict() || !data->enum_items) {
       items = rna_enum_dummy_NULL_items;
     }
@@ -1497,6 +1498,9 @@ static bke::bNodeSocketType *make_socket_type_menu()
         const bke::RuntimeNodeEnumItem &item_data = data->enum_items->items[i];
         EnumPropertyItem item{};
         item.value = item_data.identifier;
+        if (item.value == data->value) {
+          default_value_found = true;
+        }
         item.identifier = item_data.name.c_str();
         item.name = item_data.name.c_str();
         item.description = item_data.description.c_str();
@@ -1505,8 +1509,12 @@ static bke::bNodeSocketType *make_socket_type_menu()
       new_items.last() = {};
       items = new_items.data();
     }
-    PropertyRNA *prop = RNA_def_enum(
-        &srna, "value", items, data->value, socket.name, socket.description);
+    PropertyRNA *prop = RNA_def_enum(&srna,
+                                     "value",
+                                     items,
+                                     default_value_found ? data->value : 0,
+                                     socket.name,
+                                     socket.description);
     RNA_def_property_flag(prop, PROP_FORCE_GEOMETRY_EVAL);
     RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
     make_common_value_props(srna, socket, r_generated);
