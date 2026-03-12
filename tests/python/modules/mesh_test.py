@@ -406,7 +406,6 @@ class MeshTest(ABC):
 
         bpy.data.objects.remove(self.expected_object, do_unlink=True)
         self.evaluated_object.name = expected_object_name
-        self.do_selection(self.evaluated_object.data, "VERT", evaluated_selection, False)
 
         self.activate_test_object()
 
