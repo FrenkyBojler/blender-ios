@@ -273,10 +273,8 @@ static void wm_xr_viewfinder_transform_update_smoothed(wmXrSessionState *state,
 /** \name Location Scouting Viewfinder Live/Playback View Rendering
  * \{ */
 
-void wm_xr_viewfinder_render_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
+void wm_xr_viewfinder_render_view(wmXrData *xr_data)
 {
-  wmXrDrawData *draw_data = static_cast<wmXrDrawData *>(customdata);
-  wmXrData *xr_data = draw_data->xr_data;
   wmXrSessionState *state = &xr_data->runtime->session_state;
   XrSessionSettings *settings = &xr_data->session_settings;
 

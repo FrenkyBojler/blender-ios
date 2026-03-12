@@ -199,7 +199,7 @@ void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata)
 
   /* Only render viewfinder on first eye draw. */
   if (draw_view->view_idx == 0) {
-    wm_xr_viewfinder_render_view(draw_view, customdata);
+    wm_xr_viewfinder_render_view(xr_data);
   }
 
   /* Draws the view into the surface_data->viewport's frame-buffers. */
