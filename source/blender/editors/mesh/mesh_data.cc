@@ -500,29 +500,6 @@ static wmOperatorStatus mesh_customdata_mask_clear_exec(bContext *C, wmOperator 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus mesh_customdata_face_sets_clear_exec(bContext *C, wmOperator * /*op*/)
-{
-  Object *object = ed::object::context_object(C);
-  Mesh *mesh = id_cast<Mesh *>(object->data);
-
-  bool removed = false;
-  if (BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
-    removed = CustomData_free_layer_named(&em->bm->pdata, ".sculpt_face_set");
-  }
-  else {
-    removed = mesh->attributes_for_write().remove(".sculpt_face_set");
-  }
-
-  if (!removed) {
-    return OPERATOR_CANCELLED;
-  }
-
-  DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_GEOM | ND_DATA, mesh);
-
-  return OPERATOR_FINISHED;
-}
-
 static bool mesh_customdata_face_sets_clear_poll(bContext *C)
 {
   Object *object = ed::object::context_object(C);
@@ -540,6 +517,29 @@ static bool mesh_customdata_face_sets_clear_poll(bContext *C)
   }
 
   return mesh->attributes().contains(".sculpt_face_set");
+}
+
+static wmOperatorStatus mesh_customdata_face_sets_clear_exec(bContext *C, wmOperator * /*op*/)
+{
+  Object *object = ed::object::context_object(C);
+  Mesh *mesh = id_cast<Mesh *>(object->data);
+
+  bool changed = false;
+  if (BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
+    changed = CustomData_free_layer_named(&em->bm->pdata, ".sculpt_face_set");
+  }
+  else {
+    changed = mesh->attributes_for_write().remove(".sculpt_face_set");
+  }
+
+  if (!changed) {
+    return OPERATOR_CANCELLED;
+  }
+
+  DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, mesh);
+
+  return OPERATOR_FINISHED;
 }
 
 void MESH_OT_customdata_face_sets_clear(wmOperatorType *ot)
