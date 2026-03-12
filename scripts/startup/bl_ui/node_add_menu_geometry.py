@@ -993,6 +993,7 @@ class NODE_MT_gn_volume_operations_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeGridMedian")
         self.node_operator(layout, "GeometryNodeGridPrune")
         self.node_operator(layout, "GeometryNodeGridVoxelize")
+        self.node_operator(layout, "GeometryNodeSeparateGrid")
 
         self.draw_assets_for_catalog(layout, self.menu_path)
 
