@@ -708,7 +708,7 @@ set(GLSL_SRC
   engines/select/select_defines.hh
   engines/select/select_shader_shared.hh
 
-  engines/overlay/shaders/overlay_antialiasing_frag.glsl
+  engines/overlay/shaders/overlay_antialiasing.bsl.hh
   engines/overlay/shaders/overlay_armature_dof_solid_frag.glsl
   engines/overlay/shaders/overlay_armature_dof_vert.glsl
   engines/overlay/shaders/overlay_armature_envelope_outline_vert.glsl

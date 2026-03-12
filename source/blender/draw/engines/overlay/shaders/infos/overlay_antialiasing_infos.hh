@@ -12,19 +12,6 @@
 
 #include "overlay_common_infos.hh"
 
-GPU_SHADER_CREATE_INFO(overlay_antialiasing)
-DO_STATIC_COMPILATION()
-SAMPLER(0, sampler2DDepth, depth_tx)
-SAMPLER(1, sampler2D, color_tx)
-SAMPLER(2, sampler2D, line_tx)
-PUSH_CONSTANT(bool, do_smooth_lines)
-FRAGMENT_OUT(0, float4, frag_color)
-TYPEDEF_SOURCE("overlay_shader_shared.hh")
-FRAGMENT_SOURCE("overlay_antialiasing_frag.glsl")
-ADDITIONAL_INFO(overlay_fullscreen)
-ADDITIONAL_INFO(draw_globals)
-GPU_SHADER_CREATE_END()
-
 GPU_SHADER_CREATE_INFO(overlay_xray_fade)
 DO_STATIC_COMPILATION()
 SAMPLER(0, sampler2DDepth, depth_tx)
