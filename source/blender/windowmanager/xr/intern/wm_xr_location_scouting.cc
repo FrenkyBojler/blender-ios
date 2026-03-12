@@ -1062,7 +1062,8 @@ bool wm_xr_location_scouting_review_captures_poll(bContext *C)
 }
 
 /* The capture review property is stored on the WM, registered by the VR Python add-on. */
-static bool wm_xr_location_scouting_review_captures_get_running_state(bContext *C) {
+static bool wm_xr_location_scouting_review_captures_get_running_state(bContext *C)
+{
   PointerRNA wm_ptr = RNA_id_pointer_create(&CTX_wm_manager(C)->id);
   PropertyRNA *state_prop = RNA_struct_find_property(&wm_ptr, "vr_capture_review_running");
 
