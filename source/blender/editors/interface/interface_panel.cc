@@ -105,6 +105,7 @@ struct HandlePanelData {
   /* Animation. */
   wmTimer *animtimer;
   double starttime;
+  float anim_factor;
 
   /* Dragging. */
   int startx, starty;
@@ -1144,8 +1145,29 @@ static void panel_draw_aligned_widgets(const uiStyle *style,
     if (header_width < (scaled_unit * 4)) {
       alpha *= std::max(float(header_width - scaled_unit) / float(scaled_unit * 3), 0.0f);
     }
-    icon_draw_ex(widget_rect.xmin + size_y * 0.2f,
-                 widget_rect.ymin + size_y * (panel_is_closed(panel) ? 0.17f : 0.14f),
+
+    float x = widget_rect.xmin + size_y * 0.2f;
+    float y = widget_rect.ymin + size_y * (panel_is_closed(panel) ? 0.17f : 0.14f);
+    const int font_id = BLF_default();
+
+    HandlePanelData *data = static_cast<HandlePanelData *>(panel->activedata);
+    if (data && data->anim_factor < 1.0f && data->anim_factor > 0.0f) {
+      const float fac = 1.0f - data->anim_factor;
+      const bool is_open = !panel_is_closed(panel);
+      BLF_rotation(font_id, fac * M_PI_2 * (is_open ? 1.0f : -1.0f));
+      BLF_enable(font_id, BLF_ROTATION);
+      if (is_open) {
+        x += size_y * 0.65f * fac;
+        y += size_y * -0.14f * fac;
+      }
+      else {
+        x += size_y * -0.14f * fac;
+        y += size_y * 0.6f * fac;
+      }
+    }
+
+    icon_draw_ex(x,
+                 y,
                  panel_is_closed(panel) ? ICON_RIGHTARROW : ICON_DOWNARROW_HLT,
                  aspect * UI_INV_SCALE_FAC,
                  alpha,
@@ -1153,6 +1175,12 @@ static void panel_draw_aligned_widgets(const uiStyle *style,
                  title_color,
                  false,
                  UI_NO_ICON_OVERLAY_TEXT);
+
+    if (data && data->anim_factor < 1.0f && data->anim_factor > 0.0f) {
+      BLF_rotation(font_id, 0);
+      BLF_disable(font_id, BLF_ROTATION);
+    }
+
     GPU_blend(GPU_BLEND_NONE);
   }
 
@@ -1938,6 +1966,7 @@ static void do_animate(bContext *C, Panel *panel)
   if (!(U.uiflag & USER_REDUCE_MOTION)) {
     fac = (BLI_time_now_seconds() - data->starttime) / ANIMATION_TIME;
     fac = min_ff(sqrtf(fac), 1.0f);
+    data->anim_factor = fac;
   }
 
   if (uiAlignPanelStep(region, fac, false)) {

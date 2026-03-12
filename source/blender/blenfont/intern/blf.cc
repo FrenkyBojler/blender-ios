@@ -636,8 +636,12 @@ void BLF_draw_svg_icon(uint icon_id,
 #ifndef WITH_HEADLESS
   FontBLF *font = global_font[0];
   if (font) {
+    font->pos[0] = int(x);
+    font->pos[1] = int(y);
+    font->pos[2] = 0;
+
     blf_draw_gpu__start(font);
-    blf_draw_svg_icon(font, icon_id, x, y, size, color, outline_alpha, multicolor, edit_source_cb);
+    blf_draw_svg_icon(font, icon_id, size, color, outline_alpha, multicolor, edit_source_cb);
     blf_draw_gpu__end(font);
   }
 #else
