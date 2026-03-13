@@ -10879,14 +10879,14 @@ static int handle_menu_mmb_event(bContext *C,
   const bool inside = BLI_rctf_isect_pt(&block->rect, mx, my);
 
   int retval = WM_UI_HANDLER_CONTINUE;
-  /* Remove the #menu::keep_open_timer once the mouse is withing the popup.  */
+  /* Remove the #menu::keep_open_timer once the mouse is withing the popup. */
   if (!menu->mmb_panning && inside) {
     if (menu->keep_open_timer) {
       WM_event_timer_remove(CTX_wm_manager(C), win, menu->keep_open_timer);
       menu->keep_open_timer = nullptr;
     }
   }
-  /* Once #menu::keep_open_timer ticks the menu can be closed automatically.  */
+  /* Once #menu::keep_open_timer ticks the menu can be closed automatically. */
   if (event->type == TIMER && event->customdata == menu->keep_open_timer) {
     WM_event_timer_remove(CTX_wm_manager(C), win, menu->keep_open_timer);
     menu->keep_open_timer = nullptr;
