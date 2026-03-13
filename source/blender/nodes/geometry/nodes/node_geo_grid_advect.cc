@@ -265,25 +265,25 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   const VolumeGridType grid_type = grid->grid_type();
 
-  BKE_volume_grid_type_to_static_type(grid_type, [&](auto grid_type_tag) {
-    using GridType = typename decltype(grid_type_tag)::type;
-    if constexpr (std::is_same_v<GridType, openvdb::FloatGrid> ||
-                  std::is_same_v<GridType, openvdb::Int32Grid> ||
-                  std::is_same_v<GridType, openvdb::Vec3fGrid>)
-    {
-      typename GridType::Ptr result = advect_grid(
-          static_cast<const GridType &>(grid->grid(tree_token)),
-          velocity_vdb_grid,
-          time_step,
-          scheme,
-          limiter);
-      params.set_output("Grid", bke::GVolumeGrid(std::move(result)));
-    }
-    else {
-      params.error_message_add(NodeWarningType::Error, "Unsupported grid type for advection");
-      params.set_default_remaining_outputs();
-    }
-  });
+  BKE_volume_grid_type_to_static_type(
+      grid_type, [&]<std::derived_from<openvdb::GridBase> GridType>() {
+        if constexpr (std::is_same_v<GridType, openvdb::FloatGrid> ||
+                      std::is_same_v<GridType, openvdb::Int32Grid> ||
+                      std::is_same_v<GridType, openvdb::Vec3fGrid>)
+        {
+          typename GridType::Ptr result = advect_grid(
+              static_cast<const GridType &>(grid->grid(tree_token)),
+              velocity_vdb_grid,
+              time_step,
+              scheme,
+              limiter);
+          params.set_output("Grid", bke::GVolumeGrid(std::move(result)));
+        }
+        else {
+          params.error_message_add(NodeWarningType::Error, "Unsupported grid type for advection");
+          params.set_default_remaining_outputs();
+        }
+      });
 #else
   node_geo_exec_with_missing_openvdb(params);
 #endif
@@ -329,7 +329,7 @@ static const bNodeSocket *node_internally_linked_input(const bNodeTree & /*tree*
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeGridAdvect");
   ntype.ui_name = "Advect Grid";
   ntype.ui_description =
@@ -342,7 +342,7 @@ static void node_register()
   ntype.gather_link_search_ops = node_gather_link_search_ops;
   ntype.internally_linked_input = node_internally_linked_input;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
   node_rna(ntype.rna_ext.srna);
 }
 NOD_REGISTER_NODE(node_register)

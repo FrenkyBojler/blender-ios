@@ -16,6 +16,8 @@
 #include "DNA_listBase.h"
 #include "DNA_object_enums.h"
 
+namespace blender {
+
 struct Base;
 struct BlendDataReader;
 struct BlendLibReader;
@@ -124,6 +126,11 @@ bool BKE_layer_collection_activate(ViewLayer *view_layer, LayerCollection *lc);
  * Activate first parent collection.
  */
 LayerCollection *BKE_layer_collection_activate_parent(ViewLayer *view_layer, LayerCollection *lc);
+
+/**
+ * Get the active collection if it is editable, or activate and return its first editable parent.
+ */
+LayerCollection *BKE_layer_collection_get_active_editable(ViewLayer *view_layer);
 
 /**
  * Get the total number of collections (including all the nested collections)
@@ -523,7 +530,7 @@ struct ObjectsInViewLayerParams {
   void *filter_userdata;
 };
 
-blender::Vector<Object *> BKE_view_layer_array_selected_objects_params(
+Vector<Object *> BKE_view_layer_array_selected_objects_params(
     ViewLayer *view_layer, const View3D *v3d, const ObjectsInViewLayerParams *params);
 
 /**
@@ -545,13 +552,12 @@ struct ObjectsInModeParams {
   void *filter_userdata;
 };
 
-blender::Vector<Base *> BKE_view_layer_array_from_bases_in_mode_params(
-    const Scene *scene,
-    ViewLayer *view_layer,
-    const View3D *v3d,
-    const ObjectsInModeParams *params);
+Vector<Base *> BKE_view_layer_array_from_bases_in_mode_params(const Scene *scene,
+                                                              ViewLayer *view_layer,
+                                                              const View3D *v3d,
+                                                              const ObjectsInModeParams *params);
 
-blender::Vector<Object *> BKE_view_layer_array_from_objects_in_mode_params(
+Vector<Object *> BKE_view_layer_array_from_objects_in_mode_params(
     const Scene *scene,
     ViewLayer *view_layer,
     const View3D *v3d,
@@ -562,31 +568,35 @@ bool BKE_view_layer_filter_edit_mesh_has_edges(const Object *ob, void *user_data
 
 /* Utility functions that wrap common arguments (add more as needed). */
 
-blender::Vector<Object *> BKE_view_layer_array_from_objects_in_edit_mode(const Scene *scene,
-                                                                         ViewLayer *view_layer,
-                                                                         const View3D *v3d);
-blender::Vector<Base *> BKE_view_layer_array_from_bases_in_edit_mode(const Scene *scene,
-                                                                     ViewLayer *view_layer,
-                                                                     const View3D *v3d);
-blender::Vector<Object *> BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-    const Scene *scene, ViewLayer *view_layer, const View3D *v3d);
+Vector<Object *> BKE_view_layer_array_from_objects_in_edit_mode(const Scene *scene,
+                                                                ViewLayer *view_layer,
+                                                                const View3D *v3d);
+Vector<Base *> BKE_view_layer_array_from_bases_in_edit_mode(const Scene *scene,
+                                                            ViewLayer *view_layer,
+                                                            const View3D *v3d);
+Vector<Object *> BKE_view_layer_array_from_objects_in_edit_mode_unique_data(const Scene *scene,
+                                                                            ViewLayer *view_layer,
+                                                                            const View3D *v3d);
 
-blender::Vector<Base *> BKE_view_layer_array_from_bases_in_edit_mode_unique_data(
+Vector<Base *> BKE_view_layer_array_from_bases_in_edit_mode_unique_data(const Scene *scene,
+                                                                        ViewLayer *view_layer,
+                                                                        const View3D *v3d);
+Vector<Object *> BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
     const Scene *scene, ViewLayer *view_layer, const View3D *v3d);
-blender::Vector<Object *> BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-    const Scene *scene, ViewLayer *view_layer, const View3D *v3d);
-blender::Vector<Object *> BKE_view_layer_array_from_objects_in_mode_unique_data(
-    const Scene *scene, ViewLayer *view_layer, const View3D *v3d, eObjectMode mode);
+Vector<Object *> BKE_view_layer_array_from_objects_in_mode_unique_data(const Scene *scene,
+                                                                       ViewLayer *view_layer,
+                                                                       const View3D *v3d,
+                                                                       eObjectMode mode);
 Object *BKE_view_layer_active_object_get(const ViewLayer *view_layer);
 Object *BKE_view_layer_edit_object_get(const ViewLayer *view_layer);
 
-ListBase *BKE_view_layer_object_bases_get(ViewLayer *view_layer);
+ListBaseT<Base> *BKE_view_layer_object_bases_get(ViewLayer *view_layer);
 /**
  * Same as the above, but does not assert that the viewlayer is synced.
  *
  * \warning Use with _extreme_ care, as it means the data returned by this call may not be valid.
  */
-ListBase *BKE_view_layer_object_bases_unsynced_get(ViewLayer *view_layer);
+ListBaseT<Base> *BKE_view_layer_object_bases_unsynced_get(ViewLayer *view_layer);
 
 Base *BKE_view_layer_active_base_get(ViewLayer *view_layer);
 
@@ -649,3 +659,5 @@ void BKE_view_layer_rename_lightgroup(Scene *scene,
 int BKE_lightgroup_membership_get(const LightgroupMembership *lgm, char *name);
 int BKE_lightgroup_membership_length(const LightgroupMembership *lgm);
 void BKE_lightgroup_membership_set(LightgroupMembership **lgm, const char *name);
+
+}  // namespace blender

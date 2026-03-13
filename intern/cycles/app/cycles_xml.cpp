@@ -460,11 +460,11 @@ static void xml_read_mesh(const XMLReadState &state, const xml_node node)
     /* Vertex normals */
     if (xml_read_float3_array(VN, node, Attribute::standard_name(ATTR_STD_VERTEX_NORMAL))) {
       Attribute *attr = mesh->attributes.add(ATTR_STD_VERTEX_NORMAL);
-      float3 *fdata = attr->data_float3();
+      packed_normal *fdata = attr->data_normal();
 
       /* Loop over the normals */
       for (auto n : VN) {
-        fdata[0] = n;
+        fdata[0] = packed_normal(n);
         fdata++;
       }
     }
@@ -607,7 +607,28 @@ static void xml_read_light(XMLReadState &state, const xml_node node)
   Scene *scene = state.scene;
 
   /* Create light. */
-  Light *light = scene->create_node<Light>();
+  string light_type;
+  if (!xml_read_string(&light_type, node, "light_type")) {
+    return;
+  }
+
+  Light *light;
+  if (light_type == "point") {
+    light = scene->create_node<PointLight>();
+  }
+  else if (light_type == "sun") {
+    light = scene->create_node<SunLight>();
+  }
+  else if (light_type == "background") {
+    light = scene->create_node<BackgroundLight>();
+  }
+  else if (light_type == "area") {
+    light = scene->create_node<AreaLight>();
+  }
+  else {
+    assert(light_type == "spot");
+    light = scene->create_node<SpotLight>();
+  }
 
   array<Node *> used_shaders;
   used_shaders.push_back_slow(state.shader);

@@ -5,8 +5,10 @@
 #pragma once
 
 #include "BKE_node.hh"
-
 #include "BKE_node_socket_value.hh"
+
+#include "BLI_memory_counter_fwd.hh"
+
 #include "NOD_geometry_nodes_bundle_fwd.hh"
 #include "NOD_geometry_nodes_values.hh"
 
@@ -39,6 +41,8 @@ struct BundleItemValue {
   /**
    * Attempts to cast the stored value to the given type. This may do implicit conversions.
    */
+  std::optional<bke::SocketValueVariant> as_socket_value(
+      const bke::bNodeSocketType &dst_socket_type) const;
   template<typename T>
   std::optional<T> as_socket_value(const bke::bNodeSocketType &socket_type) const;
   template<typename T> std::optional<T> as() const;
@@ -85,23 +89,43 @@ class Bundle : public ImplicitSharingMixin {
   bool contains_path(Span<StringRef> path) const;
 
   const BundleItemValue *lookup(StringRef key) const;
+  BundleItemValue *lookup(StringRef key);
   const BundleItemValue *lookup_path(Span<StringRef> path) const;
   const BundleItemValue *lookup_path(StringRef path) const;
+  BundleItemValue *lookup_path_for_write(Span<StringRef> path);
+  BundleItemValue *lookup_path_for_write(StringRef path);
   template<typename T> std::optional<T> lookup(StringRef key) const;
+  template<typename T> std::optional<T> lookup_path(Span<StringRef> path) const;
   template<typename T> std::optional<T> lookup_path(StringRef path) const;
+  template<typename T> T *lookup_ptr(StringRef key);
+  template<typename T> const T *lookup_ptr(StringRef key) const;
+  template<typename T> const T *lookup_path_ptr(StringRef path) const;
+  template<typename T> const T *lookup_path_ptr(Span<StringRef> path) const;
+  template<typename T> T *lookup_path_for_write_ptr(StringRef path);
+  template<typename T> T *lookup_path_for_write_ptr(Span<StringRef> path);
+
+  Bundle &ensure_nested_bundle(StringRef path);
+
+  void merge(const Bundle &other);
+  void merge_override(const Bundle &other);
 
   bool is_empty() const;
   int64_t size() const;
+
+  void clear();
 
   /** Also see #GeometrySet.ensure_owns_direct_data. */
   void ensure_owns_direct_data();
   bool owns_direct_data() const;
 
   BundleItemMap::ItemIterator items() const;
+  BundleItemMap::MutableItemIterator items();
 
   BundlePtr copy() const;
 
   void delete_self() override;
+
+  void count_memory(MemoryCounter &memory) const;
 
   /** Create the combined path by inserting '/' between each element. */
   static std::string combine_path(const Span<StringRef> path);
@@ -119,17 +143,9 @@ template<typename T>
 inline std::optional<T> BundleItemValue::as_socket_value(
     const bke::bNodeSocketType &dst_socket_type) const
 {
-  const BundleItemSocketValue *socket_value = std::get_if<BundleItemSocketValue>(&this->value);
-  if (!socket_value) {
-    return std::nullopt;
-  }
-  if (socket_value->type->type == dst_socket_type.type) {
-    return socket_value->value.get<T>();
-  }
-  if (std::optional<bke::SocketValueVariant> converted_value = implicitly_convert_socket_value(
-          *socket_value->type, socket_value->value, dst_socket_type))
+  if (const std::optional<bke::SocketValueVariant> value = this->as_socket_value(dst_socket_type))
   {
-    return converted_value->get<T>();
+    return value->get<T>();
   }
   return std::nullopt;
 }
@@ -200,6 +216,14 @@ template<typename T> inline std::optional<T> BundleItemValue::as() const
     sharing_info->add_user();
     return ImplicitSharingPtr<SharingInfoT>{converted_value};
   }
+  else if constexpr (std::is_same_v<T, bke::SocketValueVariant>) {
+    if (const BundleItemSocketValue *socket_value = std::get_if<BundleItemSocketValue>(
+            &this->value))
+    {
+      return socket_value->value;
+    }
+    return std::nullopt;
+  }
   else if constexpr (std::is_same_v<T, ListPtr>) {
     const BundleItemSocketValue *socket_value = std::get_if<BundleItemSocketValue>(&this->value);
     if (!socket_value) {
@@ -221,6 +245,51 @@ template<typename T> inline std::optional<T> BundleItemValue::as() const
 template<typename T> inline std::optional<T> Bundle::lookup(const StringRef key) const
 {
   const BundleItemValue *item = this->lookup(key);
+  if (!item) {
+    return std::nullopt;
+  }
+  return item->as<T>();
+}
+
+template<typename T> inline T *Bundle::lookup_ptr(const StringRef key)
+{
+  BundleItemValue *item = this->lookup(key);
+  return item ? item->as_pointer<T>() : nullptr;
+}
+
+template<typename T> inline const T *Bundle::lookup_path_ptr(const StringRef path) const
+{
+  const BundleItemValue *item = this->lookup_path(path);
+  return item ? item->as_pointer<T>() : nullptr;
+}
+
+template<typename T> inline const T *Bundle::lookup_path_ptr(const Span<StringRef> path) const
+{
+  const BundleItemValue *item = this->lookup_path(path);
+  return item ? item->as_pointer<T>() : nullptr;
+}
+
+template<typename T> inline const T *Bundle::lookup_ptr(const StringRef key) const
+{
+  const BundleItemValue *item = this->lookup(key);
+  return item ? item->as_pointer<T>() : nullptr;
+}
+
+template<typename T> inline T *Bundle::lookup_path_for_write_ptr(const Span<StringRef> path)
+{
+  BundleItemValue *item = this->lookup_path_for_write(path);
+  return item ? item->as_pointer<T>() : nullptr;
+}
+
+template<typename T> inline T *Bundle::lookup_path_for_write_ptr(const StringRef path)
+{
+  BundleItemValue *item = this->lookup_path_for_write(path);
+  return item ? item->as_pointer<T>() : nullptr;
+}
+
+template<typename T> inline std::optional<T> Bundle::lookup_path(const Span<StringRef> path) const
+{
+  const BundleItemValue *item = this->lookup_path(path);
   if (!item) {
     return std::nullopt;
   }
@@ -290,6 +359,11 @@ template<typename T> inline void Bundle::add_path_override(const StringRef path,
 }
 
 inline Bundle::BundleItemMap::ItemIterator Bundle::items() const
+{
+  return items_.items();
+}
+
+inline Bundle::BundleItemMap::MutableItemIterator Bundle::items()
 {
   return items_.items();
 }

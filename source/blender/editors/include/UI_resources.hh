@@ -10,6 +10,8 @@
 
 #include "BLI_assert.h"
 
+namespace blender {
+
 struct bTheme;
 
 /* Define icon enum. */
@@ -83,6 +85,7 @@ enum ThemeColorID {
   TH_HILITE,
 
   TH_GRID,
+  TH_GRID_MAJOR,
   TH_WIRE,
   TH_WIRE_INNER,
   TH_WIRE_EDIT,
@@ -371,7 +374,7 @@ enum ThemeColorID {
   TH_FREESTYLE,
 };
 
-namespace blender::ui::theme {
+namespace ui::theme {
 
 /* Specific defines per space should have higher define values. */
 
@@ -526,4 +529,5 @@ const unsigned char *get_color_ptr(bTheme *btheme, int spacetype, int colorid);
 
 void make_axis_color(const unsigned char col[3], char axis, unsigned char r_col[3]);
 
-}  // namespace blender::ui::theme
+}  // namespace ui::theme
+}  // namespace blender
