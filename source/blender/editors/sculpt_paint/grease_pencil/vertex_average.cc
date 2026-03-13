@@ -135,10 +135,11 @@ void VertexAverageOperation::on_stroke_extended(const bContext &C,
           fill_selection.foreach_index(
               [&](const int64_t fill_i) {
                 const Span<int> fill_curves = (*fills)[fill_i];
+                const IndexMask fill_curve_mask = IndexMask::from_indices(fill_curves, memory);
 
                 float influence = 0.0f;
-                for (const int curve_j : fill_curves) {
-                  const IndexRange points = points_by_curve[curve_j];
+                fill_curve_mask.foreach_index([&](const int64_t curve) {
+                  const IndexRange points = points_by_curve[curve];
                   const Span<float2> curve_view_positions = view_positions.as_span().slice(points);
                   influence = math::max(influence,
                                         brush_fill_influence(paint,
@@ -146,14 +147,13 @@ void VertexAverageOperation::on_stroke_extended(const bContext &C,
                                                              curve_view_positions,
                                                              extension_sample,
                                                              params.multi_frame_falloff));
-                }
+                });
 
                 ColorGeometry4f &color = fill_colors[fill_curves.first()];
                 color = math::interpolate(color, mix_color, influence);
 
                 if (fill_curves.size() > 1) {
-                  index_mask::masked_fill(
-                      fill_colors, color, IndexMask::from_indices(fill_curves, memory));
+                  index_mask::masked_fill(fill_colors, color, fill_curve_mask);
                 }
               },
               exec_mode::grain_size(1024));
