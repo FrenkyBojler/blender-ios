@@ -5,6 +5,7 @@
 #include "BLI_math_quaternion_types.hh"
 
 #include "node_function_util.hh"
+#include "node_shader_util.hh"
 
 namespace blender::nodes::node_fn_rotation_to_quaternion_cc {
 
@@ -56,6 +57,15 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
   builder.set_matching_fn(fn);
 }
 
+static int gpu_shader_rotation_to_quaternion(GPUMaterial *mat,
+                                             bNode *node,
+                                             bNodeExecData * /*execdata*/,
+                                             GPUNodeStack *in,
+                                             GPUNodeStack *out)
+{
+  return GPU_stack_link(mat, node, "rotation_to_quaternion", in, out);
+}
+
 static void node_register()
 {
   static bke::bNodeType ntype;
@@ -66,6 +76,7 @@ static void node_register()
   ntype.enum_name_legacy = "ROTATION_TO_QUATERNION";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
+  ntype.gpu_fn = gpu_shader_rotation_to_quaternion;
   ntype.build_multi_function = node_build_multi_function;
   bke::node_register_type(ntype);
 }
