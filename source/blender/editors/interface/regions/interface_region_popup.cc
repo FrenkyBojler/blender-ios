@@ -593,15 +593,12 @@ static void popup_block_remove(bContext *C, PopupBlockHandle *handle)
   if (handle->scrolltimer) {
     WM_event_timer_remove(wm, win, handle->scrolltimer);
   }
-  if (handle->keep_alive_timer) {
-    WM_event_timer_remove(wm, win, handle->keep_alive_timer);
+  if (handle->keep_open_timer) {
+    WM_event_timer_remove(wm, win, handle->keep_open_timer);
   }
   if (handle->mmb_panning) {
     WM_cursor_set(win, WM_CURSOR_DEFAULT);
     WM_cursor_grab_disable(win, nullptr);
-  }
-  if (handle->mmb_panning_auto_scroll) {
-    WM_event_timer_remove(CTX_wm_manager(C), CTX_wm_window(C), handle->mmb_panning_auto_scroll);
   }
 }
 
