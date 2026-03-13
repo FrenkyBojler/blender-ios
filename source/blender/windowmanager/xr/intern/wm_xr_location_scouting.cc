@@ -1041,7 +1041,7 @@ void wm_xr_viewfinder_draw(const bContext *C,
 /** \name Location Scouting Capture Review Operator
  * \{ */
 
-struct ReviewCaptureData {
+struct CaptureReviewData {
   /* Context. */
   View3D *v3d;
   RegionView3D *rv3d;
@@ -1105,7 +1105,7 @@ static wmOperatorStatus wm_xr_location_scouting_review_captures_invoke(bContext 
     return OPERATOR_CANCELLED;
   }
 
-  ReviewCaptureData *review_data = MEM_new_zeroed<ReviewCaptureData>("View3DReviewCaptureData");
+  CaptureReviewData *review_data = MEM_new_zeroed<CaptureReviewData>("View3DReviewCaptureData");
   review_data->v3d = v3d;
   review_data->rv3d = rv3d;
 
@@ -1133,7 +1133,7 @@ static wmOperatorStatus wm_xr_location_scouting_review_captures_invoke(bContext 
 
 static void wm_xr_location_scouting_review_captures_exit(bContext *C, wmOperator *op)
 {
-  ReviewCaptureData *review_data = static_cast<ReviewCaptureData *>(op->customdata);
+  CaptureReviewData *review_data = static_cast<CaptureReviewData *>(op->customdata);
   RegionView3D *rv3d = review_data->rv3d;
 
   /* Restore viewport, last view stored by #ED_view3d_lastview_store */
@@ -1185,7 +1185,7 @@ static wmOperatorStatus wm_xr_location_scouting_review_captures_modal(bContext *
     return OPERATOR_FINISHED;
   }
 
-  ReviewCaptureData *review_data = static_cast<ReviewCaptureData *>(op->customdata);
+  CaptureReviewData *review_data = static_cast<CaptureReviewData *>(op->customdata);
 
   /* Force perspective to camera. */
   review_data->rv3d->persp = RV3D_CAMOB;
