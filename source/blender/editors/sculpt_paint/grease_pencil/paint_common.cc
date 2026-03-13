@@ -339,8 +339,19 @@ IndexMask fill_mask_for_stroke_operation(const GreasePencilStrokeParams &params,
   }
   const IndexMask editable_strokes = ed::greasepencil::retrieve_editable_and_selected_strokes(
       params.ob_orig, params.drawing, params.layer_index, memory);
-  return bke::greasepencil::selected_mask_to_fills(
-      editable_strokes, params.drawing.strokes(), bke::AttrDomain::Curve, memory);
+  /* TODO: write dedicated function for this that doesn't use `contains`. */
+  return IndexMask::from_predicate(
+      fills.index_range(),
+      memory,
+      [&](const int64_t i) {
+        for (const int curve_i : fills[i]) {
+          if (!editable_strokes.contains(curve_i)) {
+            return false;
+          }
+        }
+        return true;
+      },
+      exec_mode::grain_size(1024));
 }
 
 bke::crazyspace::GeometryDeformation get_drawing_deformation(
