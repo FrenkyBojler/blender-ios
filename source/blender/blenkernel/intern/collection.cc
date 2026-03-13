@@ -1543,7 +1543,7 @@ static void collection_exporter_copy(Collection *collection, CollectionExport *d
   if (filepath) {
     IDP_AssignString(filepath, "");
   }
-  for (LayoutPanelState& state : data->layout_panel_states) {
+  for (LayoutPanelState &state : data->layout_panel_states) {
     LayoutPanelState *new_state = MEM_new<LayoutPanelState>(__func__, state);
     new_state->idname = BLI_strdup(state.idname);
     BLI_addtail(&new_data->layout_panel_states, new_state);
