@@ -231,8 +231,11 @@ enum class ARegionTypeFlag {
    */
   UsePanelCategoryTabs = (1 << 1),
 
-  /** When using panel categories, this shows categories tabs even if there is only one active. */
-  ShowPanelCategoriesEvenSingle = (1 << 2),
+  /**
+   * When using panel categories, this hides the sidebar tab where there is only one category
+   * active.
+   */
+  HideSinglePanelCategories = (1 << 2),
 };
 ENUM_OPERATORS(ARegionTypeFlag)
 

@@ -1073,6 +1073,7 @@ void ED_spacetype_file()
   /* regions: ui */
   art = MEM_new_zeroed<ARegionType>("spacetype file region");
   art->regionid = RGN_TYPE_UI;
+  art->flag = ARegionTypeFlag::HideSinglePanelCategories;
   art->keymapflag = ED_KEYMAP_UI;
   art->poll = file_region_poll;
   art->listener = file_region_listener;

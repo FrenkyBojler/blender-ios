@@ -2372,9 +2372,8 @@ bool panel_category_is_visible(const ARegion *region)
 {
   /* Check for more than one category. */
   return region->runtime->panels_category.first &&
-         (region->runtime->panels_category.first != region->runtime->panels_category.last ||
-          (region->runtime->panels_category.first &&
-           bool(region->runtime->type->flag & ARegionTypeFlag::ShowPanelCategoriesEvenSingle)));
+         (!bool(region->runtime->type->flag & ARegionTypeFlag::HideSinglePanelCategories) ||
+          region->runtime->panels_category.first != region->runtime->panels_category.last);
 }
 
 bool panel_category_tabs_is_visible(const ARegion *region)
