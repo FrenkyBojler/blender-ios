@@ -156,8 +156,14 @@ def _fake_module(mod_name, mod_path, speedy=True):
 
                 if len(line) == 0:
                     break
-            while line.rstrip():
+            # Track brace depth so that empty lines inside the `bl_info`
+            # dictionary do not prematurely terminate the read loop.
+            brace_depth = 0
+            while line.rstrip() or brace_depth > 0:
+                brace_depth += line.count("{") - line.count("}")
                 lines.append(line)
+                if brace_depth <= 0:
+                    break
                 try:
                     line = line_iter.readline()
                 except UnicodeDecodeError as ex:
