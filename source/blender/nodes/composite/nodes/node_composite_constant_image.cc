@@ -13,7 +13,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::IntVector>("Size")
       .dimensions(2)
-      .default_value(int2(1024))
+      .default_value(int2(1920, 1080))
       .subtype(PROP_UNSIGNED)
       .min(1)
       .description("The size of the image");
@@ -44,7 +44,8 @@ class ConstantImageOperation : public NodeOperation {
       GPU_texture_clear(output, GPU_DATA_FLOAT, color);
     }
     else {
-      parallel_for(image_size, [&](const int2 texel) { output.store_pixel(texel, color); });
+      parallel_for(output.domain().data_size,
+                   [&](const int2 texel) { output.store_pixel(texel, color); });
     }
   }
 };
