@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Beta (b'6f9eadf7a433')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'5a04f1d246f1')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-27 09:50+0000\n"
+"POT-Creation-Date: 2026-03-11 11:01+0000\n"
 "PO-Revision-Date: 2025-07-23 15:19+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Greek <https://translate.blender.org/projects/blender-ui/ui/el/>\n"
@@ -187,14 +187,6 @@ msgid "View"
 msgstr "View"
 
 
-msgid "Mix"
-msgstr "Μείξη"
-
-
-msgid "Screen"
-msgstr "Οθόνη"
-
-
 msgid "Near"
 msgstr "Κοντά"
 
@@ -335,6 +327,18 @@ msgid "Collision"
 msgstr "Σύγκρουση"
 
 
+msgid "Font"
+msgstr "Γραμματοσειρά"
+
+
+msgid "Text"
+msgstr "Κείμενο"
+
+
+msgid "Sound"
+msgstr "Ήχος"
+
+
 msgid "Border"
 msgstr "Πλαίσιο"
 
@@ -377,10 +381,6 @@ msgstr "Προεξοχή"
 
 msgid "Path"
 msgstr "Μονοπάτι"
-
-
-msgid "Font"
-msgstr "Γραμματοσειρά"
 
 
 msgid "Shear"
@@ -471,10 +471,6 @@ msgid "Lattice"
 msgstr "Πλέγμα"
 
 
-msgid "Sound"
-msgstr "Ήχος"
-
-
 msgid "Blend"
 msgstr "Ανάμιξη"
 
@@ -515,8 +511,12 @@ msgid "Keyboard"
 msgstr "Πληκτρολόγιο"
 
 
-msgid "Text"
-msgstr "Κείμενο"
+msgid "Mix"
+msgstr "Μείξη"
+
+
+msgid "Screen"
+msgstr "Οθόνη"
 
 
 msgid "Metaball"
@@ -758,10 +758,6 @@ msgstr "Replace Image"
 msgctxt "Operator"
 msgid "Fill"
 msgstr "Συμπλήρωμα"
-
-
-msgid "Ring"
-msgstr "Ring"
 
 
 msgid "Merge selected vertices"

@@ -16,6 +16,7 @@
 #include "vk_context.hh"
 #include "vk_push_constants.hh"
 #include "vk_shader_module.hh"
+#include "vk_vertex_attribute_object.hh"
 
 #include "shaderc/shaderc.hpp"
 
@@ -42,6 +43,15 @@ class VKShader : public Shader {
   bool is_compute_shader_ = false;
   bool is_static_shader_ = false;
 
+  /**
+   * \brief Were there pipelines states precompiled during shader creation.
+   *
+   * Used to detect pipeline states that are missing and could be added. As the mechanism
+   * isn't fool-proof we only show the warning in debug builds and raise an assert when run
+   * using `context.debug_pipeline_creation == true`.
+   */
+  bool has_precompiled_pipelines_ = false;
+
  public:
   VKShaderModule vertex_module;
   VKShaderModule geometry_module;
@@ -54,7 +64,7 @@ class VKShader : public Shader {
   VKShader(const char *name);
   virtual ~VKShader();
 
-  void init(const shader::ShaderCreateInfo &info, bool is_batch_compilation) override;
+  void init(const shader::ShaderCreateInfo &info, bool is_codegen_only) override;
 
   const shader::ShaderCreateInfo &patch_create_info(
       const shader::ShaderCreateInfo &original_info) override
@@ -71,7 +81,7 @@ class VKShader : public Shader {
   void compute_shader_from_glsl(const shader::ShaderCreateInfo &info,
                                 MutableSpan<StringRefNull> sources) override;
   bool finalize(const shader::ShaderCreateInfo *info = nullptr) override;
-  bool finalize_post();
+  bool finalize_post(Span<shader::PipelineState> pipeline_states);
 
   void warm_cache(int limit) override;
 
@@ -90,11 +100,13 @@ class VKShader : public Shader {
 
   VkPipeline ensure_and_get_compute_pipeline(
       const shader::SpecializationConstants &constants_state);
-  VkPipeline ensure_and_get_graphics_pipeline(GPUPrimType primitive,
-                                              VKVertexAttributeObject &vao,
-                                              VKStateManager &state_manager,
-                                              VKFrameBuffer &framebuffer,
-                                              shader::SpecializationConstants &constants_state);
+  bool ensure_graphics_pipelines(Span<shader::PipelineState> pipeline_states);
+  VkPipeline ensure_and_get_graphics_pipeline(
+      GPUPrimType primitive,
+      VKVertexInputDescriptionPool::Key vertex_input_description_key,
+      VKStateManager &state_manager,
+      const VKFrameBuffer &framebuffer,
+      shader::SpecializationConstants &constants_state);
 
   const VKShaderInterface &interface_get() const;
 

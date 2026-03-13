@@ -39,18 +39,20 @@ class TIME_PT_playhead_snapping(Panel):
 
 def playback_controls(layout, context):
     st = context.space_data
-    is_sequencer = st.type == 'SEQUENCE_EDITOR' and st.view_type == 'SEQUENCER'
+    is_sequencer = st.type == 'SEQUENCE_EDITOR'
     is_timeline = st.type == 'DOPESHEET_EDITOR' and st.mode == 'TIMELINE'
 
     scene = context.scene if not is_sequencer else context.sequencer_scene
     tool_settings = scene.tool_settings if scene else None
     screen = context.screen
 
-    if scene:
-        layout.popover(
-            panel="TIME_PT_playback",
-            text="Playback",
-        )
+    if not scene:
+        return
+
+    layout.popover(
+        panel="TIME_PT_playback",
+        text="Playback",
+    )
 
     if tool_settings and not is_timeline:
         # The Keyframe settings are not exposed in the Timeline view.
@@ -111,9 +113,9 @@ def playback_controls(layout, context):
         sub = row.row(align=True)
         sub.popover(panel="TIME_PT_playhead_snapping", text="")
 
-    if scene:
-        layout.separator_spacer()
+    layout.separator_spacer()
 
+    if scene:
         row = layout.row()
         if scene.show_subframe:
             row.scale_x = 1.15
@@ -237,6 +239,7 @@ class TIME_PT_playback(TimelinePanelButtons, Panel):
         col = layout.column(heading="Playback")
         col.prop(scene, "lock_frame_selection_to_range", text="Limit to Frame Range")
         col.prop(screen, "use_follow", text="Follow Current Frame")
+        col.prop(scene, "playback_loop_mode", text="Loop")
 
         col = layout.column(heading="Play In")
         col.prop(screen, "use_play_top_left_3d_editor", text="Active Editor")
@@ -337,7 +340,9 @@ class TIME_PT_jump(TimelinePanelButtons, Panel):
         layout.use_property_split = True
         layout.use_property_decorate = False
 
-        scene = context.scene
+        st = context.space_data
+        is_sequencer = st.type == 'SEQUENCE_EDITOR' and st.view_type == 'SEQUENCER'
+        scene = context.scene if not is_sequencer else context.sequencer_scene
 
         layout.prop(scene, "time_jump_unit", expand=True, text="Jump Unit")
         layout.prop(scene, "time_jump_delta", text="Delta")
