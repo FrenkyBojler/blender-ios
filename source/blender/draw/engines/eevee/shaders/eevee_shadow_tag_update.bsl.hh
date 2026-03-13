@@ -62,29 +62,35 @@ void tag_update_vert([[resource_table]] TagUpdate &srt,
   ShadowTileMapData tilemap = srt.tilemaps_buf[v_out.tilemap_index];
 
   const float3 ls_N = v_in.pos;
-  const /* Convert from -1..1 box shape to 0..1 box. */
-      float3 ls_P = max(float3(0), v_in.pos);
+  /* Convert from -1..1 box shape to 0..1 box. */
+  const float3 ls_P = max(float3(0), v_in.pos);
 
   const float3 P = ls_P.x * bounds.bounding_corners[1].xyz +
                    ls_P.y * bounds.bounding_corners[2].xyz +
                    ls_P.z * bounds.bounding_corners[3].xyz + bounds.bounding_corners[0].xyz;
 
-  const float4 hs_P = tilemap.winmat * (tilemap.viewmat * float4(P, 1.0f));
-  /* Clip space normals are the same direction as the viewspace one since the projection has aspect
-   * ratio of 1:1. */
-  const float3 hs_N = transform_direction(tilemap.viewmat, ls_N);
+  /* These normalize should in theory never fail since the bounding boxes are inflated
+   * to never be flat. */
+  const float3 N = ls_N.x * normalize(float3(bounds.bounding_corners[1].xyz)) +
+                   ls_N.y * normalize(float3(bounds.bounding_corners[2].xyz)) +
+                   ls_N.z * normalize(float3(bounds.bounding_corners[3].xyz));
 
-  out_position = hs_P;
+  const float3 vs_P = transform_point(tilemap.viewmat, P);
+  const float3 vs_N = transform_direction(tilemap.viewmat, N);
+
+  /* Since the aspect ratio is always 1:1 we can use the view normal as the clip space expand
+   * direction. */
+  const float2 expand_dir = vs_N.xy;
+
+  out_position = tilemap.winmat * float4(vs_P, 1.0f);
 
   /* To emulate conservative rasterization, we inflate the bounding box by 1 pixel. */
-  const float2 ndc_pixel_size = 2.0f / float2(SHADOW_TILEMAP_RES);
-  out_position.xy += sign(hs_N.xy) * ndc_pixel_size * out_position.w;
+  const float ndc_pixel_size = 2.0f / float(SHADOW_TILEMAP_RES);
+  out_position.xy += sign(expand_dir) * (ndc_pixel_size * out_position.w);
 
-  const bool is_persp = tilemap.winmat[3][3] == 0.0f;
-  /* Flatten the box to avoid loosing pixel when the box extend beyond the far clip plane. */
-  if (!is_persp || (out_position.z > out_position.w && out_position.w > 0.0)) {
-    out_position.z = out_position.w - 1e-16;
-  }
+  /* Make sure to bring most of the geometry.
+   * Mimics an infinite projection matrix. */
+  out_position.z *= 1e-5f;
 }
 
 [[fragment]]
