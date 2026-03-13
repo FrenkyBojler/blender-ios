@@ -7,6 +7,7 @@
  */
 
 #include "BLI_string.h"
+#include "BLI_utildefines.h"
 
 #include "gl_backend.hh"
 #include "gl_texture_pool.hh"
@@ -30,6 +31,20 @@ static TextureFormat get_compatible_texture_format(TextureFormat format)
   }
   if (bool(format_flag & GPU_FORMAT_COMPRESSED)) {
     return format;
+  }
+
+  /* Fallback; forego texture aliasing on formats causing issues on some Intel cards. */
+  if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_ANY, GPU_DRIVER_ANY) ||
+      GPU_type_matches(GPU_DEVICE_INTEL_UHD, GPU_OS_ANY, GPU_DRIVER_ANY))
+  {
+    /* TextureFormat::SFLOAT_32_32 to TextureFormat::SFLOAT_16_16_16_16 causes issues. */
+    if (format == TextureFormat::SFLOAT_16_16_16_16) {
+      return format;
+    }
+    /* TextureFormat::SFLOAT_32 to TextureFormat::SFLOAT_16_16 causes issues. */
+    if (format == TextureFormat::SFLOAT_16_16) {
+      return format;
+    }
   }
 
   /* Given expected byte size, we use a default format available as write/target format. */
