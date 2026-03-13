@@ -759,6 +759,96 @@ colorspaces:
         - !<MatrixTransform> {matrix: [0.638788667185978, 0.272351433711262, 0.0888598991027595, 0, -0.00391590602528224, 1.0880732308974, -0.0841573248721177, 0, -0.0299072021239151, -0.0264325799101947, 1.05633978203411, 0, 0, 0, 0, 1]}
 
   - !<ColorSpace>
+    name: S-Log3 - Venice S-Gamut3
+    aliases: [slog3_venice_sgamut3, ocio:slog3_sgamut3venice_scene]
+    interop_id: ocio:slog3_sgamut3venice_scene
+    family: Input/Sony
+    equalitygroup:
+    bitdepth: 32f
+    description: |
+      Sony camera input space using S-Log3 transfer function and Venice S-Gamut3 primaries.
+    isdata: false
+    encoding: log
+    allocation: uniform
+    to_scene_reference: !<GroupTransform>
+      children:
+        - !<LogCameraTransform> {base: 10, log_side_slope: 0.255620723362659, log_side_offset: 0.410557184750733, lin_side_slope: 5.26315789473684, lin_side_offset: 0.0526315789473684, lin_side_break: 0.01125, linear_slope: 6.62194371177582, direction: inverse}
+        - !<MatrixTransform> {matrix: [0.793329741146434, 0.089078625620677, 0.117591633232888, 0, 0.0155810585252582, 1.03271230692988, -0.0482933654551394, 0, -0.0188647477991488, 0.0127694120973433, 1.00609533570181, 0, 0, 0, 0, 1]}
+
+  - !<ColorSpace>
+    name: S-Log3 - Venice S-Gamut3.Cine
+    aliases: [slog3_venice_sgamut3cine, ocio:slog3_sgamut3cinevenice_scene]
+    interop_id: ocio:slog3_sgamut3cinevenice_scene
+    family: Input/Sony
+    equalitygroup:
+    bitdepth: 32f
+    description: |
+      Sony camera input space using S-Log3 transfer function and Venice S-Gamut3.Cine primaries.
+    isdata: false
+    encoding: log
+    allocation: uniform
+    to_scene_reference: !<GroupTransform>
+      children:
+        - !<LogCameraTransform> {base: 10, log_side_slope: 0.255620723362659, log_side_offset: 0.410557184750733, lin_side_slope: 5.26315789473684, lin_side_offset: 0.0526315789473684, lin_side_break: 0.01125, linear_slope: 6.62194371177582, direction: inverse}
+        - !<MatrixTransform> {matrix: [0.674257092126512, 0.220571735923397, 0.10517117195009, 0, -0.00931360607857167, 1.10595886142466, -0.0966452553460855, 0, -0.0382090673002312, -0.017938376600236, 1.05614744390047, 0, 0, 0, 0, 1]}
+
+  - !<ColorSpace>
+    name: Linear - S-Gamut3
+    aliases: [lin_sgamut3, ocio:lin_sgamut3_scene]
+    interop_id: ocio:lin_sgamut3_scene
+    family: Input/Sony
+    equalitygroup:
+    bitdepth: 32f
+    description: |
+      Sony camera input space using linear S-Gamut3 primaries.
+    isdata: false
+    encoding: scene-linear
+    allocation: uniform
+    to_scene_reference: !<MatrixTransform> {matrix: [0.75298259539984, 0.143370216235557, 0.103647188364603, 0, 0.0217076974414429, 1.01531883550528, -0.0370265329467195, 0, -0.00941605274963355, 0.00337041785882367, 1.00604563489081, 0, 0, 0, 0, 1]}
+
+  - !<ColorSpace>
+    name: Linear - S-Gamut3.Cine
+    aliases: [lin_sgamut3cine, ocio:lin_sgamut3cine_scene]
+    interop_id: ocio:lin_sgamut3cine_scene
+    family: Input/Sony
+    equalitygroup:
+    bitdepth: 32f
+    description: |
+      Sony camera input space using linear S-Gamut3.Cine primaries.
+    isdata: false
+    encoding: scene-linear
+    allocation: uniform
+    to_scene_reference: !<MatrixTransform> {matrix: [0.638788667185978, 0.272351433711262, 0.0888598991027595, 0, -0.00391590602528224, 1.0880732308974, -0.0841573248721177, 0, -0.0299072021239151, -0.0264325799101947, 1.05633978203411, 0, 0, 0, 0, 1]}
+
+  - !<ColorSpace>
+    name: Linear - Venice S-Gamut3
+    aliases: [lin_venice_sgamut3, ocio:lin_sgamut3venice_scene]
+    interop_id: ocio:lin_sgamut3venice_scene
+    family: Input/Sony
+    equalitygroup:
+    bitdepth: 32f
+    description: |
+      Sony camera input space using linear Venice S-Gamut3 primaries.
+    isdata: false
+    encoding: scene-linear
+    allocation: uniform
+    to_scene_reference: !<MatrixTransform> {matrix: [0.793329741146434, 0.089078625620677, 0.117591633232888, 0, 0.0155810585252582, 1.03271230692988, -0.0482933654551394, 0, -0.0188647477991488, 0.0127694120973433, 1.00609533570181, 0, 0, 0, 0, 1]}
+
+  - !<ColorSpace>
+    name: Linear - Venice S-Gamut3.Cine
+    aliases: [lin_venice_sgamut3cine, ocio:lin_sgamut3cinevenice_scene]
+    interop_id: ocio:lin_sgamut3cinevenice_scene
+    family: Input/Sony
+    equalitygroup:
+    bitdepth: 32f
+    description: |
+      Sony camera input space using linear Venice S-Gamut3.Cine primaries.
+    isdata: false
+    encoding: scene-linear
+    allocation: uniform
+    to_scene_reference: !<MatrixTransform> {matrix: [0.674257092126512, 0.220571735923397, 0.10517117195009, 0, -0.00931360607857167, 1.10595886142466, -0.0966452553460855, 0, -0.0382090673002312, -0.017938376600236, 1.05614744390047, 0, 0, 0, 0, 1]}
+  - !<ColorSpace>
+  
     name: ADX10
     aliases: [ocio:adx10_apd_scene]
     interop_id: ocio:adx10_apd_scene
