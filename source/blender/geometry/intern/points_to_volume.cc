@@ -562,7 +562,7 @@ static typename GridType::Ptr prepare_destination_grid(
                                      max_offset,
                                      openvdb::tools::NN_FACE_EDGE_VERTEX,
                                      openvdb::tools::TilePolicy::PRESERVE_TILES,
-                                     true);
+                                     false);
   /* Voxelize all tiles since each voxel gets a different value. */
   dst_grid->tree().voxelizeActiveTiles(true);
   return dst_grid;
