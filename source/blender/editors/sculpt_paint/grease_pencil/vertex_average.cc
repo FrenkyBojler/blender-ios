@@ -126,34 +126,35 @@ void VertexAverageOperation::on_stroke_extended(const bContext &C,
             params, use_selection_masking, memory);
         if (!fill_selection.is_empty() && do_fill) {
           const bke::CurvesGeometry &curves = params.drawing.strokes();
-      const OffsetIndices<int> points_by_curve = curves.points_by_curve();
-      MutableSpan<ColorGeometry4f> fill_colors = params.drawing.fill_colors_for_write();
-      /* TODO. Only calculate needed positions. */
-      const Array<float2> view_positions = view_positions_from_curve_mask(params,
-                                                                          curves.curves_range());
+          const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+          MutableSpan<ColorGeometry4f> fill_colors = params.drawing.fill_colors_for_write();
+          /* TODO. Only calculate needed positions. */
+          const Array<float2> view_positions = view_positions_from_curve_mask(
+              params, curves.curves_range());
 
-      fill_selection.foreach_index([&](const int64_t fill_i) {
-        const Span<int> fill_curves = (*fills)[fill_i];
+          fill_selection.foreach_index(
+              [&](const int64_t fill_i) {
+                const Span<int> fill_curves = (*fills)[fill_i];
 
-        float influence = 0.0f;
-        for (const int curve_j : fill_curves) {
-          const IndexRange points = points_by_curve[curve_j];
-          const Span<float2> curve_view_positions = view_positions.as_span().slice(points);
-          influence = math::max(influence,
-                                brush_fill_influence(paint,
-                                                     brush,
-                                                     curve_view_positions,
-                                                     extension_sample,
-                                                     params.multi_frame_falloff));
-        }
+                float influence = 0.0f;
+                for (const int curve_j : fill_curves) {
+                  const IndexRange points = points_by_curve[curve_j];
+                  const Span<float2> curve_view_positions = view_positions.as_span().slice(points);
+                  influence = math::max(influence,
+                                        brush_fill_influence(paint,
+                                                             brush,
+                                                             curve_view_positions,
+                                                             extension_sample,
+                                                             params.multi_frame_falloff));
+                }
 
-        ColorGeometry4f &color = fill_colors[fill_curves.first()];
-        color = math::interpolate(color, mix_color, influence);
+                ColorGeometry4f &color = fill_colors[fill_curves.first()];
+                color = math::interpolate(color, mix_color, influence);
 
                 if (fill_curves.size() > 1) {
-          index_mask::masked_fill(
-              fill_colors, color, IndexMask::from_indices(fill_curves, memory));
-        }
+                  index_mask::masked_fill(
+                      fill_colors, color, IndexMask::from_indices(fill_curves, memory));
+                }
               },
               exec_mode::grain_size(1024));
         }
