@@ -172,17 +172,20 @@ void VKDevice::init(GHOST_IContext *ghost_context)
 
 void VKDevice::init_functions()
 {
-#define LOAD_FUNCTION(name) (PFN_##name) vkGetInstanceProcAddr(vk_instance_, STRINGIFY(name))
+#define LOAD_INSTANCE_FUNCTION(name) \
+  (PFN_##name) vkGetInstanceProcAddr(vk_instance_, STRINGIFY(name))
+#define LOAD_FUNCTION(name) (PFN_##name) vkGetDeviceProcAddr(vk_device_, STRINGIFY(name))
+
   /* VK_KHR_dynamic_rendering */
   functions.vkCmdBeginRendering = LOAD_FUNCTION(vkCmdBeginRenderingKHR);
   functions.vkCmdEndRendering = LOAD_FUNCTION(vkCmdEndRenderingKHR);
 
   /* VK_EXT_debug_utils */
-  functions.vkCmdBeginDebugUtilsLabel = LOAD_FUNCTION(vkCmdBeginDebugUtilsLabelEXT);
-  functions.vkCmdEndDebugUtilsLabel = LOAD_FUNCTION(vkCmdEndDebugUtilsLabelEXT);
-  functions.vkSetDebugUtilsObjectName = LOAD_FUNCTION(vkSetDebugUtilsObjectNameEXT);
-  functions.vkCreateDebugUtilsMessenger = LOAD_FUNCTION(vkCreateDebugUtilsMessengerEXT);
-  functions.vkDestroyDebugUtilsMessenger = LOAD_FUNCTION(vkDestroyDebugUtilsMessengerEXT);
+  functions.vkCmdBeginDebugUtilsLabel = LOAD_INSTANCE_FUNCTION(vkCmdBeginDebugUtilsLabelEXT);
+  functions.vkCmdEndDebugUtilsLabel = LOAD_INSTANCE_FUNCTION(vkCmdEndDebugUtilsLabelEXT);
+  functions.vkSetDebugUtilsObjectName = LOAD_INSTANCE_FUNCTION(vkSetDebugUtilsObjectNameEXT);
+  functions.vkCreateDebugUtilsMessenger = LOAD_INSTANCE_FUNCTION(vkCreateDebugUtilsMessengerEXT);
+  functions.vkDestroyDebugUtilsMessenger = LOAD_INSTANCE_FUNCTION(vkDestroyDebugUtilsMessengerEXT);
 
   /* VK_EXT_extended_dynamic_state */
   if (extensions_.extended_dynamic_state) {
@@ -196,8 +199,17 @@ void VKDevice::init_functions()
 
   /* VK_EXT_host_image_copy */
   if (extensions_.host_image_copy) {
+    /* NVIDIA driver doesn't return a memory address of the functions of this extensions, however
+     * it does return the address of the Vulkan 1.3 functions. */
     functions.vkCopyMemoryToImage = LOAD_FUNCTION(vkCopyMemoryToImageEXT);
+    if (functions.vkCopyMemoryToImage == nullptr) {
+      functions.vkCopyMemoryToImage = LOAD_FUNCTION(vkCopyMemoryToImage);
+    }
+
     functions.vkTransitionImageLayout = LOAD_FUNCTION(vkTransitionImageLayoutEXT);
+    if (functions.vkTransitionImageLayout == nullptr) {
+      functions.vkTransitionImageLayout = LOAD_FUNCTION(vkTransitionImageLayout);
+    }
   }
 
   /* VK_KHR_mainentance4 */
@@ -218,6 +230,7 @@ void VKDevice::init_functions()
 #endif
   }
 
+#undef LOAD_INSTANCE_FUNCTION
 #undef LOAD_FUNCTION
 }
 
