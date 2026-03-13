@@ -27,7 +27,6 @@ struct TexelData {
   float xray_depth;
 };
 
-/* Shader resource table. */
 struct Resources {
   [[legacy_info]] ShaderCreateInfo draw_globals;
 
