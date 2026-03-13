@@ -718,17 +718,6 @@ Panel *panel_begin(
     panel->type = pt;
   }
 
-  if (panel->runtime && !panel->runtime->sort_order_loaded) {
-    const int saved_val = ui_memory::memory.open("panel.sortorder")[pt->idname];
-    /* Keep current order unless there are saved values. */
-    if (saved_val >= 0) {
-      panel->sortorder = saved_val;
-      SET_FLAG_FROM_TEST(
-          panel->flag, !ui_memory::memory.open("panel.open")[pt->idname], PNL_CLOSED);
-    }
-    panel->runtime->sort_order_loaded = true;
-  }
-
   panel->runtime->block = block;
 
   panel_drawname_set(panel, drawname);
@@ -740,6 +729,27 @@ Panel *panel_begin(
       BLI_remlink(lb, panel);
       BLI_insertlinkafter(lb, panel_last, panel);
       break;
+    }
+  }
+
+  if (newpanel) {
+    panel->sortorder = (panel_last) ? panel_last->sortorder + 1 : 0;
+
+    for (Panel &panel_next : *lb) {
+      if (&panel_next != panel && panel_next.sortorder >= panel->sortorder) {
+        panel_next.sortorder++;
+      }
+    }
+  }
+
+  if (newpanel && region->regiontype == RGN_TYPE_TOOLS &&
+      STRPREFIX(panel->panelname, "FILEBROWSER_PT_"))
+  {
+    const int order = ui_memory::memory.open("panel.sortorder")[panel->panelname];
+    if (order >= 0) {
+      panel->sortorder = order;
+      SET_FLAG_FROM_TEST(
+          panel->flag, !ui_memory::memory.open("panel.open")[panel->panelname], PNL_CLOSED);
     }
   }
 
@@ -2911,9 +2921,14 @@ static void panel_activate_state(const bContext *C, Panel *panel, const HandlePa
       data->animtimer = nullptr;
     }
 
-    for (Panel &panel : region->panels) {
-      ui_memory::memory.open("panel.sortorder")[panel.panelname] = panel.sortorder;
-      ui_memory::memory.open("panel.open")[panel.panelname] = !(panel.flag & PNL_CLOSED);
+    /* Save File Browser panel order and open/close state. */
+    if (CTX_wm_area(C)->spacetype == SPACE_FILE && region->regiontype == RGN_TYPE_TOOLS) {
+      for (Panel &panel : region->panels) {
+        if (STRPREFIX(panel.panelname, "FILEBROWSER_PT_")) {
+          ui_memory::memory.open("panel.sortorder")[panel.panelname] = panel.sortorder;
+          ui_memory::memory.open("panel.open")[panel.panelname] = !(panel.flag & PNL_CLOSED);
+        }
+      }
     }
 
     MEM_delete(data);
