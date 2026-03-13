@@ -114,6 +114,12 @@ struct KernelImageUDIM {
 /* Number of bits per word in the tile request bitmap. */
 #define KERNEL_TILE_REQUEST_BITS_PER_WORD (sizeof(uint) * 8)
 
+/* Tile descriptor load status. Values lower than these mean the tile has been
+ * successfully loaded, and the value encodes where the tile is stored.
+ * - LOAD_NONE: Tile has never been accessed and is not in memory.
+ * - LOAD_REQUEST: Kernel requests this tile to be loaded.
+ * - LOAD_FAILED: Tile loading failed, will not try again.
+ */
 #define KERNEL_TILE_LOAD_NONE 0xFFFFFFFFU
 #define KERNEL_TILE_LOAD_REQUEST (KERNEL_TILE_LOAD_NONE - 1)
 #define KERNEL_TILE_LOAD_FAILED (KERNEL_TILE_LOAD_NONE - 2)

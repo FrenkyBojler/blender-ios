@@ -874,12 +874,11 @@ bool Camera::use_motion() const
   return motion.size() > 1;
 }
 
-bool Camera::set_screen_size(const int width_, const int height_, const int pixel_size_)
+bool Camera::set_screen_size(const int width_, const int height_)
 {
-  if (width_ != width || height_ != height || pixel_size_ != pixel_size) {
+  if (width_ != width || height_ != height) {
     width = width_;
     height = height_;
-    pixel_size = pixel_size_;
     tag_modified();
     return true;
   }

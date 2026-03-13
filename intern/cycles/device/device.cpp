@@ -554,6 +554,7 @@ void Device::host_free(const MemoryType /*type*/, void *host_pointer, const size
 device_ptr Device::mem_device_ptr(const device_memory &mem, Device *sub_device)
 {
   assert(sub_device == this);
+  (void)sub_device;
   return mem.device_pointer;
 }
 

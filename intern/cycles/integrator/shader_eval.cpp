@@ -194,8 +194,9 @@ bool ShaderEval::eval_gpu(Device *device,
       }
 
       /* Keep trying until there is no more cache miss. We could try to only re-execute
-       * items with cache misses, however all use the same shader so it's unlikely for
-       * there to be much divergence. */
+       * items with cache misses, however all work items use the same shader and so
+       * likely the same tiled images textures. So it's unlikely for there to be much
+       * divergence as probably all or none have a cache miss. */
     } while (cache_miss[0]);
   }
 

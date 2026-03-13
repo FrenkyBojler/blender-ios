@@ -2405,8 +2405,7 @@ ccl_device_forceinline void integrate_volume_direct_light(
     return;
   }
 
-  /* Sample position on the same light again, now from the shading point where we
-   * scattered. */
+  /* Sample position on the same light again, now from the shading point where we scattered. */
   {
     const uint32_t path_flag = INTEGRATOR_STATE(state, path, flag);
     const uint bounce = INTEGRATOR_STATE(state, path, bounce);
