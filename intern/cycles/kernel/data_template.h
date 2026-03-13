@@ -38,8 +38,6 @@ KERNEL_STRUCT_MEMBER(background, int, map_res_y)
 KERNEL_STRUCT_MEMBER(background, int, use_mis)
 /* Light-group. */
 KERNEL_STRUCT_MEMBER(background, int, lightgroup)
-/* Light Index. */
-KERNEL_STRUCT_MEMBER(background, int, light_index)
 /* Object Index. */
 KERNEL_STRUCT_MEMBER(background, int, object_index)
 /* Padding. */
@@ -116,6 +114,7 @@ KERNEL_STRUCT_MEMBER(film, float, pass_alpha_threshold)
 KERNEL_STRUCT_MEMBER(film, int, pass_shadow_catcher)
 KERNEL_STRUCT_MEMBER(film, int, pass_shadow_catcher_sample_count)
 KERNEL_STRUCT_MEMBER(film, int, pass_shadow_catcher_matte)
+KERNEL_STRUCT_MEMBER(film, int, pass_render_time)
 /* Cryptomatte. */
 KERNEL_STRUCT_MEMBER(film, int, cryptomatte_passes)
 KERNEL_STRUCT_MEMBER(film, int, cryptomatte_depth)
@@ -129,8 +128,8 @@ KERNEL_STRUCT_MEMBER(film, float, mist_start)
 KERNEL_STRUCT_MEMBER(film, float, mist_inv_depth)
 KERNEL_STRUCT_MEMBER(film, float, mist_falloff)
 /* Denoising. */
-KERNEL_STRUCT_MEMBER(film, int, pass_denoising_normal)
 KERNEL_STRUCT_MEMBER(film, int, pass_denoising_albedo)
+KERNEL_STRUCT_MEMBER(film, int, pass_denoising_normal)
 KERNEL_STRUCT_MEMBER(film, int, pass_denoising_depth)
 /* AOVs. */
 KERNEL_STRUCT_MEMBER(film, int, pass_aov_color)
@@ -207,7 +206,8 @@ KERNEL_STRUCT_MEMBER_DONT_SPECIALIZE
 KERNEL_STRUCT_MEMBER(integrator, int, blue_noise_sequence_length)
 /* Volume render. */
 KERNEL_STRUCT_MEMBER(integrator, int, use_volumes)
-KERNEL_STRUCT_MEMBER(integrator, int, volume_unbiased)
+KERNEL_STRUCT_MEMBER(integrator, int, volume_ray_marching)
+KERNEL_STRUCT_MEMBER(integrator, int, volume_max_steps)
 /* Shadow catcher. */
 KERNEL_STRUCT_MEMBER(integrator, int, has_shadow_catcher)
 /* Closure filter. */
@@ -230,7 +230,6 @@ KERNEL_STRUCT_MEMBER(integrator, int, use_guiding_mis_weights)
 /* Padding. */
 KERNEL_STRUCT_MEMBER(integrator, int, pad1)
 KERNEL_STRUCT_MEMBER(integrator, int, pad2)
-KERNEL_STRUCT_MEMBER(integrator, int, pad3)
 KERNEL_STRUCT_END(KernelIntegrator)
 
 /* SVM. For shader specialization. */

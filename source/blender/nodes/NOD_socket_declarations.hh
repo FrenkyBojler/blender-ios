@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <cfloat>
+
 #include "NOD_menu_value.hh"
 #include "NOD_node_declaration.hh"
 
@@ -11,7 +13,7 @@
 
 #include "BKE_node_enum.hh"
 
-#include "BLI_color.hh"
+#include "BLI_color_types.hh"
 #include "BLI_implicit_sharing_ptr.hh"
 #include "BLI_math_euler_types.hh"
 #include "BLI_math_vector_types.hh"
@@ -108,6 +110,39 @@ class VectorBuilder : public SocketDeclarationBuilder<Vector> {
   VectorBuilder &min(float min);
   VectorBuilder &max(float max);
   VectorBuilder &compact();
+};
+
+class IntVectorBuilder;
+
+class IntVector : public SocketDeclaration {
+ public:
+  static constexpr eNodeSocketDatatype static_socket_type = SOCK_INT_VECTOR;
+
+  int3 default_value = {0, 0, 0};
+  int soft_min_value = INT_MIN;
+  int soft_max_value = INT_MAX;
+  int dimensions = 3;
+  PropertySubType subtype = PROP_NONE;
+
+  friend IntVectorBuilder;
+
+  using Builder = IntVectorBuilder;
+
+  bNodeSocket &build(bNodeTree &ntree, bNode &node) const override;
+  bool matches(const bNodeSocket &socket) const override;
+  bNodeSocket &update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket &socket) const override;
+  bool can_connect(const bNodeSocket &socket) const override;
+};
+
+class IntVectorBuilder : public SocketDeclarationBuilder<IntVector> {
+ public:
+  IntVectorBuilder &default_value(const int2 value);
+  IntVectorBuilder &default_value(const int3 value);
+  IntVectorBuilder &subtype(PropertySubType subtype);
+  IntVectorBuilder &dimensions(int dimensions);
+  IntVectorBuilder &min(int min);
+  IntVectorBuilder &max(int max);
+  IntVectorBuilder &compact();
 };
 
 class BoolBuilder;
@@ -371,6 +406,51 @@ class Image : public IDSocketDeclaration {
   Image();
 };
 
+class Font : public IDSocketDeclaration {
+ public:
+  static constexpr eNodeSocketDatatype static_socket_type = SOCK_FONT;
+
+  using Builder = IDSocketDeclarationBuilder<Font>;
+
+  Font();
+};
+
+class Scene : public IDSocketDeclaration {
+ public:
+  static constexpr eNodeSocketDatatype static_socket_type = SOCK_SCENE;
+
+  using Builder = IDSocketDeclarationBuilder<Scene>;
+
+  Scene();
+};
+
+class Text : public IDSocketDeclaration {
+ public:
+  static constexpr eNodeSocketDatatype static_socket_type = SOCK_TEXT_ID;
+
+  using Builder = IDSocketDeclarationBuilder<Text>;
+
+  Text();
+};
+
+class Mask : public IDSocketDeclaration {
+ public:
+  static constexpr eNodeSocketDatatype static_socket_type = SOCK_MASK;
+
+  using Builder = IDSocketDeclarationBuilder<Mask>;
+
+  Mask();
+};
+
+class Sound : public IDSocketDeclaration {
+ public:
+  static constexpr eNodeSocketDatatype static_socket_type = SOCK_SOUND;
+
+  using Builder = IDSocketDeclarationBuilder<Sound>;
+
+  Sound();
+};
+
 class ShaderBuilder;
 
 class Shader : public SocketDeclaration {
@@ -554,6 +634,55 @@ inline VectorBuilder &VectorBuilder::compact()
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name #IntVectorBuilder Inline Methods
+ * \{ */
+
+inline IntVectorBuilder &IntVectorBuilder::default_value(const int2 value)
+{
+  decl_->default_value = int3(value, 0);
+  return *this;
+}
+
+inline IntVectorBuilder &IntVectorBuilder::default_value(const int3 value)
+{
+  decl_->default_value = value;
+  return *this;
+}
+
+inline IntVectorBuilder &IntVectorBuilder::subtype(PropertySubType subtype)
+{
+  decl_->subtype = subtype;
+  return *this;
+}
+
+inline IntVectorBuilder &IntVectorBuilder::dimensions(int dimensions)
+{
+  BLI_assert(dimensions >= 2 && dimensions <= 3);
+  decl_->dimensions = dimensions;
+  return *this;
+}
+
+inline IntVectorBuilder &IntVectorBuilder::min(const int min)
+{
+  decl_->soft_min_value = min;
+  return *this;
+}
+
+inline IntVectorBuilder &IntVectorBuilder::max(const int max)
+{
+  decl_->soft_max_value = max;
+  return *this;
+}
+
+inline IntVectorBuilder &IntVectorBuilder::compact()
+{
+  decl_->compact = true;
+  return *this;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name #BoolBuilder Inline Methods
  * \{ */
 
@@ -640,6 +769,16 @@ inline Collection::Collection() : IDSocketDeclaration("NodeSocketCollection") {}
 inline Texture::Texture() : IDSocketDeclaration("NodeSocketTexture") {}
 
 inline Image::Image() : IDSocketDeclaration("NodeSocketImage") {}
+
+inline Font::Font() : IDSocketDeclaration("NodeSocketFont") {}
+
+inline Scene::Scene() : IDSocketDeclaration("NodeSocketScene") {}
+
+inline Text::Text() : IDSocketDeclaration("NodeSocketText") {}
+
+inline Mask::Mask() : IDSocketDeclaration("NodeSocketMask") {}
+
+inline Sound::Sound() : IDSocketDeclaration("NodeSocketSound") {}
 
 /** \} */
 

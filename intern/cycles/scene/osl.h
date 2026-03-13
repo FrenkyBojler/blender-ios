@@ -79,6 +79,8 @@ class OSLManager {
   const char *shader_load_filepath(string filepath);
   OSLShaderInfo *shader_loaded_info(const string &hash);
 
+  void shading_system_init(const string &colorspace_interop_id);
+
   OSL::ShadingSystem *get_shading_system(Device *sub_device);
   OSL::TextureSystem *get_texture_system();
   static void foreach_osl_device(Device *device,
@@ -93,7 +95,6 @@ class OSLManager {
   void texture_system_init();
   void texture_system_free();
 
-  void shading_system_init();
   void shading_system_free();
 
   void foreach_shading_system(const std::function<void(OSL::ShadingSystem *)> &callback);
@@ -139,8 +140,10 @@ class OSLShaderManager : public ShaderManager {
                            const std::string &bytecode_hash = "",
                            const std::string &bytecode = "");
 
-  /* Get image slots used by OSL services on device. */
-  static void osl_image_slots(Device *device, ImageManager *image_manager, set<int> &image_slots);
+  /* Get image handles used by OSL services on device. */
+  static void osl_image_handles(Device *device,
+                                ImageManager *image_manager,
+                                set<const ImageSingle *> &image_handles);
 };
 
 #endif
@@ -150,7 +153,7 @@ class OSLShaderManager : public ShaderManager {
 class OSLCompiler {
  public:
 #ifdef WITH_OSL
-  OSLCompiler(OSL::ShadingSystem *ss, Scene *scene);
+  OSLCompiler(OSL::ShadingSystem *ss, Scene *scene, Progress &progress, Device *device);
 #endif
   void compile(Shader *shader);
 
@@ -175,7 +178,7 @@ class OSLCompiler {
 
   void parameter_texture(const char *name, ustring filename, ustring colorspace);
   void parameter_texture(const char *name, const ImageHandle &handle);
-  void parameter_texture_ies(const char *name, const int svm_slot);
+  void parameter_texture_ies(const char *name, const int svm_image_texture_id);
 
   ShaderType output_type()
   {
@@ -184,6 +187,7 @@ class OSLCompiler {
 
   bool background;
   Scene *scene;
+  Progress &progress;
 
  private:
 #ifdef WITH_OSL
@@ -201,6 +205,7 @@ class OSLCompiler {
   OSL::ShaderGroupRef current_group;
 #endif
 
+  Device *device;
   ShaderType current_type;
   Shader *current_shader;
 

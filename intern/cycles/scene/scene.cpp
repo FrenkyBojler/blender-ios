@@ -8,7 +8,6 @@
 
 #include "device/device.h"
 
-#include "scene/alembic.h"
 #include "scene/background.h"
 #include "scene/bake.h"
 #include "scene/camera.h"
@@ -144,10 +143,10 @@ void Scene::free_memory(bool final)
     volume_manager->device_free(&dscene);
 
     if (final) {
-      image_manager->device_free(device);
+      image_manager->device_free(this);
     }
     else {
-      image_manager->device_free_builtin(device);
+      image_manager->device_free_builtin(this);
     }
 
     lookup_tables->device_free(device, &dscene);
@@ -435,9 +434,6 @@ bool Scene::need_global_attribute(AttributeStandard std)
   if (std == ATTR_STD_MOTION_VERTEX_POSITION) {
     return need_motion() != MOTION_NONE;
   }
-  if (std == ATTR_STD_MOTION_VERTEX_NORMAL) {
-    return need_motion() == MOTION_BLUR;
-  }
   if (std == ATTR_STD_VOLUME_VELOCITY || std == ATTR_STD_VOLUME_VELOCITY_X ||
       std == ATTR_STD_VOLUME_VELOCITY_Y || std == ATTR_STD_VOLUME_VELOCITY_Z)
   {
@@ -504,7 +500,7 @@ void Scene::device_free()
 void Scene::collect_statistics(RenderStats *stats)
 {
   geometry_manager->collect_statistics(this, stats);
-  image_manager->collect_statistics(stats);
+  image_manager->collect_statistics(stats, this);
 }
 
 void Scene::enable_update_stats()
@@ -895,20 +891,6 @@ template<> Shader *Scene::create_node<Shader>()
   return node_ptr;
 }
 
-template<> AlembicProcedural *Scene::create_node<AlembicProcedural>()
-{
-#ifdef WITH_ALEMBIC
-  unique_ptr<AlembicProcedural> node = make_unique<AlembicProcedural>();
-  AlembicProcedural *node_ptr = node.get();
-  node->set_owner(this);
-  procedurals.push_back(std::move(node));
-  procedural_manager->tag_update();
-  return node_ptr;
-#else
-  return nullptr;
-#endif
-}
-
 template<> Pass *Scene::create_node<Pass>()
 {
   unique_ptr<Pass> node = make_unique<Pass>();
@@ -1041,15 +1023,6 @@ template<> void Scene::delete_node(Procedural *node)
   assert(node->get_owner() == this);
   procedurals.erase_by_swap(node);
   procedural_manager->tag_update();
-}
-
-template<> void Scene::delete_node(AlembicProcedural *node)
-{
-#ifdef WITH_ALEMBIC
-  delete_node(static_cast<Procedural *>(node));
-#else
-  (void)node;
-#endif
 }
 
 template<> void Scene::delete_node(Pass *node)

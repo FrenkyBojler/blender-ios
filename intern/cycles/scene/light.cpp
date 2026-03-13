@@ -308,31 +308,31 @@ void LightManager::test_enabled_lights(Scene *scene)
   }
 }
 
-static uint light_object_shader_flags(Object *object)
+static uint light_object_visibility_flags(const Object *object)
 {
   const uint visibility = object->get_visibility();
-  uint shader_flag = 0;
+  uint visibility_flag = 0;
 
   if (!(visibility & PATH_RAY_CAMERA)) {
-    shader_flag |= SHADER_EXCLUDE_CAMERA;
+    visibility_flag |= SHADER_EXCLUDE_CAMERA;
   }
   if (!(visibility & PATH_RAY_DIFFUSE)) {
-    shader_flag |= SHADER_EXCLUDE_DIFFUSE;
+    visibility_flag |= SHADER_EXCLUDE_DIFFUSE;
   }
   if (!(visibility & PATH_RAY_GLOSSY)) {
-    shader_flag |= SHADER_EXCLUDE_GLOSSY;
+    visibility_flag |= SHADER_EXCLUDE_GLOSSY;
   }
   if (!(visibility & PATH_RAY_TRANSMIT)) {
-    shader_flag |= SHADER_EXCLUDE_TRANSMIT;
+    visibility_flag |= SHADER_EXCLUDE_TRANSMIT;
   }
   if (!(visibility & PATH_RAY_VOLUME_SCATTER)) {
-    shader_flag |= SHADER_EXCLUDE_SCATTER;
+    visibility_flag |= SHADER_EXCLUDE_SCATTER;
   }
   if (!(object->get_is_shadow_catcher())) {
-    shader_flag |= SHADER_EXCLUDE_SHADOW_CATCHER;
+    visibility_flag |= SHADER_EXCLUDE_SHADOW_CATCHER;
   }
 
-  return shader_flag;
+  return visibility_flag;
 }
 
 void LightManager::device_update_distribution(Device * /*unused*/,
@@ -411,7 +411,7 @@ void LightManager::device_update_distribution(Device * /*unused*/,
     Mesh *mesh = static_cast<Mesh *>(object->get_geometry());
     const bool transform_applied = mesh->transform_applied;
     const Transform tfm = object->get_tfm();
-    const int shader_flag = light_object_shader_flags(object);
+    const int visibility_flag = light_object_visibility_flags(object);
 
     const size_t mesh_num_triangles = mesh->num_triangles();
     for (size_t i = 0; i < mesh_num_triangles; i++) {
@@ -423,7 +423,7 @@ void LightManager::device_update_distribution(Device * /*unused*/,
       if (shader->emission_sampling != EMISSION_SAMPLING_NONE) {
         distribution[offset].totarea = totarea;
         distribution[offset].prim = i + mesh->prim_offset;
-        distribution[offset].shader_flag = shader_flag;
+        distribution[offset].visibility_flag = visibility_flag;
         distribution[offset].object_id = object->index;
         offset++;
 
@@ -466,7 +466,7 @@ void LightManager::device_update_distribution(Device * /*unused*/,
       distribution[offset].totarea = totarea;
       distribution[offset].prim = ~light_index;
       distribution[offset].object_id = object->index;
-      distribution[offset].shader_flag = 0;
+      distribution[offset].visibility_flag = 0;
       totarea += lightarea;
 
       light_index++;
@@ -478,7 +478,7 @@ void LightManager::device_update_distribution(Device * /*unused*/,
   distribution[num_distribution].totarea = totarea;
   distribution[num_distribution].prim = 0;
   distribution[num_distribution].object_id = OBJECT_NONE;
-  distribution[num_distribution].shader_flag = 0;
+  distribution[num_distribution].visibility_flag = 0;
 
   if (totarea > 0.0f) {
     for (size_t i = 0; i < num_distribution; i++) {
@@ -523,7 +523,6 @@ struct LightTreeFlatten {
   const LightTreeEmitter *emitters;
   const uint *object_lookup_offset;
   uint *light_array;
-  uint *mesh_array;
   uint *triangle_array;
 
   /* Map from instance node to its node index. */
@@ -590,7 +589,7 @@ static void light_tree_leaf_emitters_copy_and_flatten(LightTreeFlatten &flatten,
           mesh->get_used_shaders()[mesh->get_shader()[emitter.prim_id]]);
 
       kemitter.triangle.id = emitter.prim_id + mesh->prim_offset;
-      kemitter.shader_flag = light_object_shader_flags(object);
+      kemitter.visibility_flag = light_object_visibility_flags(object);
       kemitter.object_id = emitter.object_id;
       kemitter.triangle.emission_sampling = shader->emission_sampling;
       flatten.triangle_array[emitter.prim_id + flatten.object_lookup_offset[emitter.object_id]] =
@@ -598,18 +597,18 @@ static void light_tree_leaf_emitters_copy_and_flatten(LightTreeFlatten &flatten,
     }
     else if (emitter.is_light()) {
       /* Light object. */
-      kemitter.light.id = emitter.light_id;
-      kemitter.shader_flag = 0;
+      kemitter.light.id = emitter.prim_id;
+      kemitter.visibility_flag = 0;
       kemitter.object_id = emitter.object_id;
-      flatten.light_array[~emitter.light_id] = emitter_index;
+      flatten.light_array[emitter.object_id] = emitter_index;
     }
     else {
       /* Mesh instance. */
       assert(emitter.is_mesh());
       kemitter.mesh.object_id = emitter.object_id;
-      kemitter.shader_flag = 0;
+      kemitter.visibility_flag = 0;
       kemitter.object_id = OBJECT_NONE;
-      flatten.mesh_array[emitter.object_id] = emitter_index;
+      flatten.light_array[emitter.object_id] = emitter_index;
 
       /* Create instance node. One instance node will be the same as the
        * reference node, and for that it will recursively build the subtree. */
@@ -849,8 +848,7 @@ void LightManager::device_update_tree(Device * /*unused*/,
   flatten.object_lookup_offset = dscene->object_lookup_offset.data();
   /* We want to create separate arrays corresponding to triangles and lights,
    * which will be used to index back into the light tree for PDF calculations. */
-  flatten.light_array = dscene->light_to_tree.alloc(kintegrator->num_lights);
-  flatten.mesh_array = dscene->object_to_tree.alloc(scene->objects.size());
+  flatten.light_array = dscene->light_to_tree.alloc(scene->objects.size());
   flatten.triangle_array = dscene->triangle_to_tree.alloc(light_tree.num_triangles);
 
   /* Allocate emitters */
@@ -919,7 +917,6 @@ void LightManager::device_update_tree(Device * /*unused*/,
   dscene->light_tree_nodes.copy_to_device();
   dscene->light_tree_emitters.copy_to_device();
   dscene->light_to_tree.copy_to_device();
-  dscene->object_to_tree.copy_to_device();
   dscene->object_lookup_offset.copy_to_device();
   dscene->triangle_to_tree.copy_to_device();
 }
@@ -1014,16 +1011,16 @@ void LightManager::device_update_background(Device *device,
     if (node->type == EnvironmentTextureNode::get_node_type()) {
       EnvironmentTextureNode *env = (EnvironmentTextureNode *)node;
       if (!env->handle.empty()) {
-        const ImageMetaData metadata = env->handle.metadata();
+        const ImageMetaData metadata = env->handle.metadata(progress);
         environment_res.x = max(environment_res.x, (int)metadata.width);
         environment_res.y = max(environment_res.y, (int)metadata.height);
       }
     }
     if (node->type == SkyTextureNode::get_node_type()) {
       SkyTextureNode *sky = (SkyTextureNode *)node;
-      if (sky->get_sky_type() == NODE_SKY_NISHITA && sky->get_sun_disc()) {
+      if (sky->get_sun_disc()) {
         /* Ensure that the input coordinates aren't transformed before they reach the node.
-         * If that is the case, the logic used for sampling the sun's location does not work
+         * If that is the case, the logic used for sampling the Sun's location does not work
          * and we have to fall back to map-based sampling. */
         const ShaderInput *vec_in = sky->input("Vector");
         if (vec_in && vec_in->link && vec_in->link->parent) {
@@ -1037,7 +1034,7 @@ void LightManager::device_update_background(Device *device,
           }
         }
 
-        /* Determine sun direction from lat/long and texture mapping. */
+        /* Determine Sun direction from lat/long and texture mapping. */
         const float latitude = sky->get_sun_elevation();
         const float longitude = sky->get_sun_rotation() + M_PI_2_F;
         float3 sun_direction = make_float3(
@@ -1045,11 +1042,11 @@ void LightManager::device_update_background(Device *device,
         const Transform sky_transform = transform_inverse(sky->tex_mapping.compute_transform());
         sun_direction = transform_direction(&sky_transform, sun_direction);
 
-        /* Pack sun direction and size. */
+        /* Pack Sun direction and size. */
         const float half_angle = sky->get_sun_size() * 0.5f;
         kbackground->sun = make_float4(sun_direction, half_angle);
 
-        /* empirical value */
+        /* Empirical value */
         kbackground->sun_weight = 4.0f;
         sun_average_radiance = sky->get_sun_average_radiance();
         environment_res.x = max(environment_res.x, 512);
@@ -1059,7 +1056,7 @@ void LightManager::device_update_background(Device *device,
     }
   }
 
-  /* If there's more than one sun, fall back to map sampling instead. */
+  /* If there's more than one Sun, fall back to map sampling instead. */
   kbackground->use_sun_guiding = (num_suns == 1);
   if (!kbackground->use_sun_guiding) {
     kbackground->sun_weight = 0.0f;
@@ -1124,7 +1121,7 @@ void LightManager::device_update_background(Device *device,
   const float map_average_radiance = cdf_total * M_PI_2_F;
   if (sun_average_radiance > 0.0f) {
     /* The weighting here is just a heuristic that was empirically determined.
-     * The sun's average radiance is much higher than the map's average radiance,
+     * The Sun's average radiance is much higher than the map's average radiance,
      * but we don't want to weight the background light too much because
      * visibility is not accounted for anyway. */
     background_light->set_average_radiance(0.8f * map_average_radiance +
@@ -1257,7 +1254,7 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
       shader_id &= ~SHADER_CAST_SHADOW;
     }
 
-    shader_id |= light_object_shader_flags(object);
+    shader_id |= light_object_visibility_flags(object);
 
     klights[light_index].type = light->light_type;
     klights[light_index].strength[0] = light->strength.x;
@@ -1265,8 +1262,6 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
     klights[light_index].strength[2] = light->strength.z;
 
     if (light->light_type == LIGHT_POINT || light->light_type == LIGHT_SPOT) {
-      shader_id &= ~SHADER_AREA_LIGHT;
-
       const float radius = light->size;
       const float invarea = (light->normalize) ? 1.0f / light->area(object->get_tfm()) : 1.0f;
 
@@ -1283,8 +1278,6 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
       klights[light_index].spot.is_sphere = light->get_is_sphere() && radius != 0.0f;
     }
     else if (light->light_type == LIGHT_DISTANT) {
-      shader_id &= ~SHADER_AREA_LIGHT;
-
       const float angle = light->angle / 2.0f;
 
       if (light->use_mis && angle > 0.0f) {
@@ -1308,9 +1301,6 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
     else if (light->light_type == LIGHT_BACKGROUND) {
       const uint visibility = scene->background->get_visibility();
 
-      dscene->data.background.light_index = light_index;
-
-      shader_id &= ~SHADER_AREA_LIGHT;
       shader_id |= SHADER_USE_MIS;
 
       if (!(visibility & PATH_RAY_DIFFUSE)) {
@@ -1462,7 +1452,6 @@ void LightManager::device_free(Device * /*unused*/,
   dscene->light_tree_nodes.free();
   dscene->light_tree_emitters.free();
   dscene->light_to_tree.free();
-  dscene->object_to_tree.free();
   dscene->object_lookup_offset.free();
   dscene->triangle_to_tree.free();
 
