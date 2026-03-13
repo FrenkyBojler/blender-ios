@@ -32,7 +32,7 @@ static TextureFormat get_compatible_texture_format(TextureFormat format)
       return format;
     }
   }
-  
+
   /* glTextureView doesn't support aliasing on depth, stencil, or most compressed formats. */
   GPUTextureFormatFlag format_flag = to_format_flag(format);
   if (bool(format_flag & GPU_FORMAT_DEPTH_STENCIL)) {

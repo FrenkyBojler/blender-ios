@@ -497,7 +497,6 @@ static void detect_workarounds()
       (strstr(renderer, "130V") || strstr(renderer, "140V")))
   {
     GLContext::texturepool_float16_workaround = true;
-    fmt::print("AAAH WORKAROUND\n");
   }
   /* Needed to avoid driver hangs on legacy AMD drivers (see #139939). */
   if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_OFFICIAL) &&
