@@ -55,12 +55,12 @@ struct Resources {
   }
 };
 
-struct VertexOutput {
+struct VertOut {
   [[smooth]] float2 uv;
 };
 
 [[vertex]] void vert_main([[vertex_id]] const int &vert_id,
-                          [[out]] VertexOutput &v_out,
+                          [[out]] VertOut &v_out,
                           [[position]] float4 &position)
 {
   fullscreen_vertex(vert_id, position, v_out.uv);
@@ -72,7 +72,7 @@ struct FragOut {
 
 [[fragment]] void frag_main([[frag_coord]] const float4 &frag_coord,
                             [[resource_table]] Resources &srt,
-                            [[in]] const VertexOutput &v_in,
+                            [[in]] const VertOut &v_in,
                             [[out]] FragOut &frag_out)
 {
   TexelData data_in_front = srt.sample_texel_in_front(v_in.uv);
