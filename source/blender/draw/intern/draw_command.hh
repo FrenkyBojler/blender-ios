@@ -383,8 +383,8 @@ struct Draw {
        ResourceIndex res_index)
   {
     BLI_assert(batch != nullptr);
-    BLI_assert(expand_prim_type < 15);
-    BLI_assert(expand_prim_len < 15);
+    BLI_assert(expanded_prim_type <= 15);
+    BLI_assert(expanded_prim_len <= 15);
     this->batch = batch;
     this->res_index = res_index;
     this->instance_len = min_uu(instance_len, (1 << 24) - 1);
