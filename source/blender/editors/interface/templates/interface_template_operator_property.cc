@@ -481,10 +481,12 @@ void template_collection_exporters(Layout *layout, bContext *C)
   /* Draw panel header and contents. */
   std::string label(fh->label);
   draw_export_controls(C, *panel.header, label, index, true);
+  layout->block()->panel->runtime->popup_layout_panel_states = &data->layout_panel_states;
   if (panel.body) {
     draw_export_properties(
         C, *panel.body, exporter_ptr, op, fh->get_default_filename(collection->id.name + 2));
   }
+  layout->block()->panel->runtime->popup_layout_panel_states = nullptr;
 }
 
 }  // namespace blender::ui
