@@ -1035,6 +1035,12 @@ void wm_xr_viewfinder_draw(const bContext *C,
   wm_xr_viewfinder_gizmo_draw_capture_camera(C, state);
 }
 
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Location Scouting Capture Review Operator
+ * \{ */
+
 struct ReviewCaptureData {
   /* Context. */
   View3D *v3d;
