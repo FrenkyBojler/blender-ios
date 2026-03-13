@@ -121,10 +121,11 @@ void VertexAverageOperation::on_stroke_extended(const bContext &C,
               exec_mode::grain_size(4096));
         }
 
-        const std::optional<GroupedSpan<int>> fills = params.drawing.fills();
         const IndexMask fill_selection = fill_mask_for_stroke_operation(
             params, use_selection_masking, memory);
         if (!fill_selection.is_empty() && do_fill) {
+          BLI_assert(params.drawing.fills().has_value());
+          const GroupedSpan<int> fills = *params.drawing.fills();
           const bke::CurvesGeometry &curves = params.drawing.strokes();
           const OffsetIndices<int> points_by_curve = curves.points_by_curve();
           MutableSpan<ColorGeometry4f> fill_colors = params.drawing.fill_colors_for_write();
@@ -134,7 +135,7 @@ void VertexAverageOperation::on_stroke_extended(const bContext &C,
 
           fill_selection.foreach_index(
               [&](const int64_t fill_i) {
-                const Span<int> fill_curves = (*fills)[fill_i];
+                const Span<int> fill_curves = fills[fill_i];
                 const IndexMask fill_curve_mask = IndexMask::from_indices(fill_curves, memory);
 
                 float influence = 0.0f;
