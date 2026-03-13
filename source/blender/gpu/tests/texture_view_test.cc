@@ -68,7 +68,7 @@ static gpu::Texture *create_view_texture(TextureFormat format, gpu::Texture *bas
   return view;
 }
 
-/* Read back a texture of type float or half as a contiguous vector of float. */
+/* Read back a texture into a contiguous vector of T. */
 template<typename T>
 static Vector<T> read_texture(gpu::Texture *texture, eGPUDataFormat data_format)
 {
@@ -197,10 +197,10 @@ static void test_texture_view_SFLOAT_32()
   texture_view_create_test<TextureFormat::SFLOAT_32, TextureFormat::SNORM_8_8_8_8>();
   texture_view_create_test<TextureFormat::SFLOAT_32, TextureFormat::UNORM_16_16>();
   texture_view_create_test<TextureFormat::SFLOAT_32, TextureFormat::UNORM_8_8_8_8>();
-
   /* Note the special formats. */
   texture_view_create_test<TextureFormat::SFLOAT_32, TextureFormat::UFLOAT_11_11_10>();
   texture_view_create_test<TextureFormat::SFLOAT_32, TextureFormat::SRGBA_8_8_8_8>();
+  /* Skipped: readback is not handled as we store these in reverse order. */
   // texture_view_create_test<TextureFormat::SFLOAT_32, TextureFormat::UINT_10_10_10_2>();
   // texture_view_create_test<TextureFormat::SFLOAT_32, TextureFormat::UNORM_10_10_10_2>();
 }
@@ -228,48 +228,5 @@ static void test_texture_view_UINT_8()
   texture_view_create_test<TextureFormat::UINT_8, TextureFormat::UNORM_8>();
 }
 GPU_TEST(texture_view_UINT_8);
-
-// static void test_texture_view_passthrough()
-// {
-//   texture_view_create_test<TextureFormat::SFLOAT_32_32_32_32,
-//   TextureFormat::SFLOAT_32_32_32_32>();
-// }
-// GPU_TEST(texture_view_passthrough);
-
-// static void test_texture_view_UINT_32_32_to_SFLOAT_32_32()
-// {
-//   texture_view_create_test<TextureFormat::UINT_32_32, TextureFormat::SFLOAT_32_32>();
-// }
-// GPU_TEST(texture_view_UINT_32_32_to_SFLOAT_32_32);
-
-// static void test_texture_view_UINT_16_16_16_16_to_SFLOAT_32_32()
-// {
-//   texture_view_create_test<TextureFormat::UINT_16_16_16_16, TextureFormat::SFLOAT_32_32>();
-// }
-// GPU_TEST(texture_view_UINT_16_16_16_16_to_SFLOAT_32_32);
-
-// static void test_texture_view_UINT_32_to_SFLOAT_16_16()
-// {
-//   texture_view_create_test<TextureFormat::UINT_32, TextureFormat::SFLOAT_16_16>();
-// }
-// GPU_TEST(texture_view_UINT_32_to_SFLOAT_16_16);
-
-// static void test_texture_view_UINT_32_32_to_SFLOAT_16_16_16_16()
-// {
-//   texture_view_create_test<TextureFormat::UINT_32_32, TextureFormat::SFLOAT_16_16_16_16>();
-// }
-// GPU_TEST(texture_view_UINT_32_32_to_SFLOAT_16_16_16_16);
-
-// static void test_texture_view_SFLOAT_32_32_to_SFLOAT_16_16_16_16()
-// {
-//   texture_view_create_test<TextureFormat::SFLOAT_32_32, TextureFormat::SFLOAT_16_16_16_16>();
-// }
-// GPU_TEST(texture_view_SFLOAT_32_32_to_SFLOAT_16_16_16_16);
-
-// static void test_texture_view_SFLOAT_32_32_to_UINT_32_32()
-// {
-//   texture_view_create_test<TextureFormat::SFLOAT_32_32, TextureFormat::UINT_32_32>();
-// }
-// GPU_TEST(texture_view_SFLOAT_32_32_to_UINT_32_32);
 
 }  // namespace blender::gpu::tests
