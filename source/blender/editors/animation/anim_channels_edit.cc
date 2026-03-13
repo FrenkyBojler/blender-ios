@@ -4227,7 +4227,7 @@ static int click_select_channel_fcurve(bAnimContext *ac,
   FCurve *fcu = static_cast<FCurve *>(ale->data);
 
   /* select/deselect */
-  if (selectmode == SELECT_INVERT) {
+  if (selectmode & SELECT_INVERT) {
     /* inverse selection status of this F-Curve only */
     fcu->flag ^= FCURVE_SELECTED;
   }
@@ -4251,7 +4251,7 @@ static int click_select_channel_fcurve(bAnimContext *ac,
                             fcu,
                             eAnim_ChannelType(ale->type));
 
-    if (selectmode == SELECT_SIMILAR) {
+    if (selectmode & SELECT_SIMILAR) {
       using namespace blender::animrig;
       auto get_suffix = [&](const char *str) -> std::string {
         std::string full_name = str;
@@ -4666,13 +4666,13 @@ static wmOperatorStatus animchannels_mouseclick_invoke(bContext *C,
      * should it be removed or extended to all instead? */
     selectmode = -1;
   }
-  else if (RNA_boolean_get(op->ptr, "select_similar")) {
-    selectmode = SELECT_SIMILAR;
-  }
   else {
     selectmode = SELECT_REPLACE;
   }
 
+  if (RNA_boolean_get(op->ptr, "select_similar")) {
+    selectmode |= SELECT_SIMILAR;
+  }
   /* figure out which channel user clicked in */
   ui::view2d_region_to_view(v2d, event->mval[0], event->mval[1], &x, &y);
   ui::view2d_listview_view_to_cell(ANIM_UI_get_channel_name_width(),
