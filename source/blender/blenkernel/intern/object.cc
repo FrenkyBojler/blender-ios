@@ -632,8 +632,8 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   BKE_id_blend_write(writer, &ob->id);
 
   /* direct data */
-  BLO_write_pointer_array(writer, ob->totcol, ob->mat);
-  BLO_write_char_array(writer, ob->totcol, ob->matbits);
+  writer->write_pointer_array(ob->totcol, ob->mat);
+  writer->write_char_array(ob->totcol, ob->matbits);
 
   if (ob->pose) {
     BLI_assert(ob->type == OB_ARMATURE);
@@ -1074,35 +1074,35 @@ static AssetTypeInfo AssetType_OB = {
 };
 
 IDTypeInfo IDType_ID_OB = {
-    /*id_code*/ Object::id_type,
-    /*id_filter*/ FILTER_ID_OB,
-    /* Could be more specific, but simpler to just always say 'yes' here. */
-    /*dependencies_id_types*/ FILTER_ID_ALL,
-    /*main_listbase_index*/ INDEX_ID_OB,
-    /*struct_size*/ sizeof(Object),
-    /*name*/ "Object",
-    /*name_plural*/ N_("objects"),
-    /*translation_context*/ BLT_I18NCONTEXT_ID_OBJECT,
-    /*flags*/ 0,
-    /*asset_type_info*/ &AssetType_OB,
+    .id_code = Object::id_type,
+    .id_filter = FILTER_ID_OB,
+    /* Could be more specific, but simpler to just always say 'yes' here.*/
+    .dependencies_id_types = FILTER_ID_ALL,
+    .main_listbase_index = INDEX_ID_OB,
+    .struct_size = sizeof(Object),
+    .name = "Object",
+    .name_plural = N_("objects"),
+    .translation_context = BLT_I18NCONTEXT_ID_OBJECT,
+    .flags = 0,
+    .asset_type_info = &AssetType_OB,
 
-    /*init_data*/ object_init_data,
-    /*copy_data*/ object_copy_data,
-    /*free_data*/ object_free_data,
-    /*make_local*/ nullptr,
-    /*foreach_id*/ object_foreach_id,
-    /*foreach_cache*/ object_foreach_cache,
-    /*foreach_path*/ object_foreach_path,
-    /*foreach_working_space_color*/ object_foreach_working_space_color,
-    /*owner_pointer_get*/ nullptr,
+    .init_data = object_init_data,
+    .copy_data = object_copy_data,
+    .free_data = object_free_data,
+    .make_local = nullptr,
+    .foreach_id = object_foreach_id,
+    .foreach_cache = object_foreach_cache,
+    .foreach_path = object_foreach_path,
+    .foreach_working_space_color = object_foreach_working_space_color,
+    .owner_pointer_get = nullptr,
 
-    /*blend_write*/ object_blend_write,
-    /*blend_read_data*/ object_blend_read_data,
-    /*blend_read_after_liblink*/ object_blend_read_after_liblink,
+    .blend_write = object_blend_write,
+    .blend_read_data = object_blend_read_data,
+    .blend_read_after_liblink = object_blend_read_after_liblink,
 
-    /*blend_read_undo_preserve*/ nullptr,
+    .blend_read_undo_preserve = nullptr,
 
-    /*lib_override_apply_post*/ object_lib_override_apply_post,
+    .lib_override_apply_post = object_lib_override_apply_post,
 };
 
 void BKE_object_workob_clear(Object *workob)
@@ -2794,6 +2794,37 @@ void BKE_object_mat3_to_rot(Object *ob, float mat[3][3], bool use_compat)
       }
       break;
     }
+  }
+}
+
+float4 BKE_object_rot_to_quat(const Object &ob)
+{
+  float4 quat;
+  if (ob.rotmode > 0) {
+    eulO_to_quat(quat, ob.rot, ob.rotmode);
+  }
+  else if (ob.rotmode == ROT_MODE_AXISANGLE) {
+    axis_angle_to_quat(quat, ob.rotAxis, ob.rotAngle);
+  }
+  else {
+    /* Normalized quaternion to stay consistent with `BKE_pchan_rot_to_mat3`.  */
+    normalize_qt_qt(quat, ob.quat);
+  }
+  return quat;
+}
+
+void BKE_object_quat_to_rot(Object &ob, const float4 &quat)
+{
+  switch (ob.rotmode) {
+    case ROT_MODE_QUAT:
+      normalize_qt_qt(ob.quat, quat);
+      break;
+    case ROT_MODE_AXISANGLE:
+      quat_to_axis_angle(ob.rotAxis, &ob.rotAngle, quat);
+      break;
+    default: /* euler */
+      quat_to_eulO(ob.rot, ob.rotmode, quat);
+      break;
   }
 }
 
@@ -4782,6 +4813,34 @@ int BKE_object_is_deform_modified(Scene *scene, Object *ob)
   }
 
   return flag;
+}
+
+void BKE_object_get_mirror_axes(const Object *ob, bool r_axis[3])
+{
+  r_axis[0] = r_axis[1] = r_axis[2] = false;
+
+  for (ModifierData &md : ob->modifiers) {
+    if (md.type == eModifierType_Mirror && (md.mode & eModifierMode_Realtime)) {
+      const MirrorModifierData *mmd = reinterpret_cast<MirrorModifierData *>(&md);
+      if (mmd->mirror_ob) {
+        /* Mirror objects may have an arbitrary transform, so the mirrored
+         * geometry isn't guaranteed to be continuous with the original. */
+        continue;
+      }
+      if (mmd->flag & MOD_MIR_NO_MERGE) {
+        continue;
+      }
+      if (mmd->flag & MOD_MIR_AXIS_X) {
+        r_axis[0] = true;
+      }
+      if (mmd->flag & MOD_MIR_AXIS_Y) {
+        r_axis[1] = true;
+      }
+      if (mmd->flag & MOD_MIR_AXIS_Z) {
+        r_axis[2] = true;
+      }
+    }
+  }
 }
 
 int BKE_object_scenes_users_get(Main *bmain, Object *ob)

@@ -663,6 +663,7 @@ if(WITH_SYSTEM_FREETYPE)
 endif()
 
 find_package_wrapper(Eigen3 REQUIRED)
+mark_as_advanced(Eigen3_DIR)
 
 if(WITH_LIBMV)
   find_package_wrapper(Ceres REQUIRED)
@@ -1011,9 +1012,7 @@ unset(_IS_LINKER_DEFAULT)
 # Avoid conflicts with Mesa llvmpipe, Luxrender, and other plug-ins that may
 # use the same libraries as Blender with a different version or build options.
 set(PLATFORM_SYMBOLS_MAP ${CMAKE_SOURCE_DIR}/source/creator/symbols_unix.map)
-set(PLATFORM_LINKFLAGS
-  "${PLATFORM_LINKFLAGS} -Wl,--version-script='${PLATFORM_SYMBOLS_MAP}'"
-)
+set(PLATFORM_LINKFLAGS_SYMBOL_HIDING "-Wl,--version-script='${PLATFORM_SYMBOLS_MAP}'")
 
 # We do not ensure transitive dependencies of dynamic libraries are available at
 # link time. This allows that for classic ld, which is more strict than gold, lld

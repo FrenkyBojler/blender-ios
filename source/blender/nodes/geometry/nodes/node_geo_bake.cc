@@ -39,6 +39,8 @@
 
 #include "BLO_read_write.hh"
 
+#include "GEO_mix_geometries.hh"
+
 #include "node_geometry_util.hh"
 
 namespace blender {
@@ -72,7 +74,7 @@ static void node_declare(NodeDeclarationBuilder &b)
                            .socket_name_ptr(
                                &ntree->id, *BakeItemsAccessor::item_srna, &item, "name");
     auto &output_decl = b.add_output(socket_type, name, identifier).align_with_previous();
-    if (socket_type_supports_fields(socket_type)) {
+    if (socket_type_supports_attributes(socket_type)) {
       input_decl.supports_field();
       if (item.flag & GEO_NODE_BAKE_ITEM_IS_ATTRIBUTE) {
         output_decl.field_source();
@@ -132,10 +134,11 @@ static void draw_bake_items(const bContext *C, ui::Layout &layout, PointerRNA no
     socket_items::ui::draw_active_item_props<BakeItemsAccessor>(
         tree, node, [&](PointerRNA *item_ptr) {
           const NodeGeometryBakeItem &active_item = storage.items[storage.active_index];
+          const auto socket_type = eNodeSocketDatatype(active_item.socket_type);
           panel->use_property_split_set(true);
           panel->use_property_decorate_set(false);
           panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-          if (socket_type_supports_fields(eNodeSocketDatatype(active_item.socket_type))) {
+          if (socket_type_supports_attributes(socket_type)) {
             panel->prop(item_ptr, "attribute_domain", UI_ITEM_NONE, std::nullopt, ICON_NONE);
             panel->prop(item_ptr, "is_attribute", UI_ITEM_NONE, std::nullopt, ICON_NONE);
           }
@@ -353,10 +356,7 @@ class LazyFunctionForBakeNode final : public LazyFunction {
     Vector<SocketValueVariant> next_values = this->copy_bake_state_to_values(
         next_state, data_block_map, self_object, compute_context);
     for (const int i : bake_items_.index_range()) {
-      mix_baked_data_item(eNodeSocketDatatype(bake_items_[i].socket_type),
-                          output_values[i],
-                          next_values[i],
-                          mix_factor);
+      geometry::mix_socket_values(output_values[i], next_values[i], mix_factor);
     }
     for (const int i : bake_items_.index_range()) {
       params.set_output(i, std::move(output_values[i]));
@@ -842,19 +842,19 @@ void draw_data_blocks(const bContext *C, ui::Layout &layout, PointerRNA &bake_rn
   if (ui::Layout *panel = layout.panel(
           C, "data_block_references", true, IFACE_("Data-Block References")))
   {
-    ui::template_list(panel,
-                      C,
-                      data_block_list->idname,
-                      "",
-                      &bake_rna,
-                      "data_blocks",
-                      &data_blocks_ptr,
-                      "active_index",
-                      nullptr,
-                      3,
-                      5,
-                      UILST_LAYOUT_DEFAULT,
-                      ui::TEMPLATE_LIST_FLAG_NONE);
+    ui::template_uilist(panel,
+                        C,
+                        data_block_list->idname,
+                        "",
+                        &bake_rna,
+                        "data_blocks",
+                        &data_blocks_ptr,
+                        "active_index",
+                        nullptr,
+                        3,
+                        5,
+                        UILST_LAYOUT_DEFAULT,
+                        ui::TEMPLATE_LIST_FLAG_NONE);
   }
 }
 
@@ -870,7 +870,7 @@ StructRNA **BakeItemsAccessor::item_srna = &RNA_NodeGeometryBakeItem;
 
 void BakeItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
-  BLO_write_string(writer, item.name);
+  writer->write_string(item.name);
 }
 
 void BakeItemsAccessor::blend_read_data_item(BlendDataReader *reader, ItemT &item)

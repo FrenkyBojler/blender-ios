@@ -2,7 +2,11 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_color.hh"
+#include "BLI_color_mix.hh"
 #include "BLI_math_color.hh"
+
+#include "DNA_brush_types.h"
 
 #include "BKE_brush.hh"
 #include "BKE_context.hh"
@@ -36,6 +40,8 @@ void VertexPaintOperation::on_stroke_extended(const bContext &C,
   Paint &paint = *BKE_paint_get_active_from_context(&C);
   const Brush &brush = *BKE_paint_brush(&paint);
   const bool invert = this->is_inverted(brush);
+
+  const IMB_BlendMode blend_mode = IMB_BlendMode(brush.blend);
 
   const bool use_selection_masking = ED_grease_pencil_any_vertex_mask_selection(
       scene.toolsettings);
@@ -113,7 +119,7 @@ void VertexPaintOperation::on_stroke_extended(const bContext &C,
             index_mask::masked_fill(
                 fill_colors, color, IndexMask::from_indices(fill_curves, memory));
           }
-        });
+        },exec_mode::grain_size(1024));
       }
       else {
         fill_selection.foreach_index([&](const int64_t fill_i) {
@@ -132,13 +138,20 @@ void VertexPaintOperation::on_stroke_extended(const bContext &C,
           }
 
           ColorGeometry4f &color = fill_colors[fill_curves.first()];
-          color = math::interpolate(color, mix_color, influence);
+
+          using Color = ColorPaint4f;
+              using Traits = color::Traits<Color>;
+
+              const Color linearrgb_color = color::unpremultiply_alpha(color);
+
+              color = color::premultiply_alpha(color::BLI_mix_colors<Color, Traits>(
+                  blend_mode, linearrgb_color, mix_color, Traits::range * influence));
 
           if (fill_curves.size() > 1) {
             index_mask::masked_fill(
                 fill_colors, color, IndexMask::from_indices(fill_curves, memory));
           }
-        });
+        },exec_mode::grain_size(1024));
       }
     }
 

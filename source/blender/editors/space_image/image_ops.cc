@@ -243,8 +243,9 @@ static bool image_from_context_has_data_poll(bContext *C)
   }
 
   void *lock;
-  ImBuf *ibuf = BKE_image_acquire_ibuf(ima, iuser, &lock);
-  const bool has_buffer = (ibuf && (ibuf->byte_buffer.data || ibuf->float_buffer.data));
+  ImBuf *ibuf = BKE_image_acquire_ibuf_gpu(ima, iuser, &lock);
+  const bool has_buffer = (ibuf && (ibuf->byte_buffer.data || ibuf->float_buffer.data ||
+                                    ibuf->gpu.texture));
   BKE_image_release_ibuf(ima, ibuf, lock);
   return has_buffer;
 }
@@ -2112,7 +2113,12 @@ static void image_save_as_draw(bContext *C, wmOperator *op)
     PointerRNA linear_settings_ptr = RNA_pointer_get(&imf_ptr, "linear_colorspace_settings");
     ui::Layout &col = layout.column(true);
     col.separator();
-    col.prop(&linear_settings_ptr, "name", UI_ITEM_NONE, IFACE_("Color Space"), ICON_NONE);
+    col.prop_with_menu(&linear_settings_ptr,
+                       "name",
+                       UI_ITEM_NONE,
+                       IFACE_("Color Space"),
+                       ICON_NONE,
+                       "UI_MT_color_space_select");
   }
 
   /* Multiview settings. */
@@ -3616,7 +3622,7 @@ bool ED_space_image_get_position(SpaceImage *sima,
                                  float r_fpos[2])
 {
   void *lock;
-  ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock, 0);
+  ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock, 0, false);
 
   if (ibuf == nullptr) {
     ED_space_image_release_buffer(sima, ibuf, lock);
@@ -3643,7 +3649,7 @@ bool ED_space_image_color_sample(
   int tile = BKE_image_get_tile_from_pos(sima->image, uv, uv, nullptr);
 
   void *lock;
-  ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock, tile);
+  ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock, tile, true);
   bool ret = false;
 
   if (ibuf == nullptr) {
@@ -3729,7 +3735,7 @@ static wmOperatorStatus image_sample_line_exec(bContext *C, wmOperator *op)
   sub_v2_v2(uv2, ofs);
 
   void *lock;
-  ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock, tile);
+  ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock, tile, true);
   Histogram *hist = &sima->sample_line_hist;
 
   if (ibuf == nullptr) {
