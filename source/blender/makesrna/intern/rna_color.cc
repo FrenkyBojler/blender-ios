@@ -798,7 +798,6 @@ static void rna_ColorManagedColorspaceSettings_reload_update(Main *bmain,
     if (scene->ed) {
       ColorManagedColorspaceSettings *colorspace_settings =
           static_cast<ColorManagedColorspaceSettings *>(ptr->data);
-      Seq_colorspace_cb_data cb_data = {colorspace_settings, nullptr};
 
       if (&scene->sequencer_colorspace_settings == colorspace_settings) {
         /* Scene colorspace was changed. */
@@ -806,8 +805,7 @@ static void rna_ColorManagedColorspaceSettings_reload_update(Main *bmain,
       }
       else {
         /* Strip colorspace was likely changed. */
-        seq::foreach_strip(&scene->ed->seqbase, rna_strip_find_colorspace_settings_cb, &cb_data);
-        Strip *strip = cb_data.r_seq;
+        Strip *strip = rna_strip_find_by_colorspace_settings(scene->ed, colorspace_settings);
 
         if (strip) {
           seq::strip_free_movie_readers(strip);

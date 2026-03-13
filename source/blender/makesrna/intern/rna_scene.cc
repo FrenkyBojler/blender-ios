@@ -1326,14 +1326,28 @@ static std::optional<std::string> rna_BakeSettings_path(const PointerRNA * /*ptr
  * If property pointer matches one of strip, set `r_seq`,
  * so not all cached images have to be invalidated.
  */
-bool rna_strip_find_colorspace_settings_cb(Strip *strip, void *user_data)
+struct Seq_colorspace_cb_data {
+  const ColorManagedColorspaceSettings *colorspace_settings;
+  Strip *r_strip;
+};
+
+static bool rna_strip_find_colorspace_settings_cb(Strip *strip, void *user_data)
 {
   Seq_colorspace_cb_data *cd = static_cast<Seq_colorspace_cb_data *>(user_data);
   if (strip->data && &strip->data->colorspace_settings == cd->colorspace_settings) {
-    cd->r_seq = strip;
+    cd->r_strip = strip;
     return false;
   }
   return true;
+}
+
+Strip *rna_strip_find_by_colorspace_settings(
+    Editing *ed, const ColorManagedColorspaceSettings *colorspace_settings)
+{
+  Seq_colorspace_cb_data cb_data = {colorspace_settings, nullptr};
+  seq::foreach_strip(&ed->seqbase, rna_strip_find_colorspace_settings_cb, &cb_data);
+
+  return cb_data.r_strip;
 }
 
 static std::optional<std::string> rna_ImageFormatSettings_path(
@@ -1439,13 +1453,12 @@ std::optional<std::string> rna_ColorManagedInputColorspaceSettings_path(const Po
     return "colorspace_settings";
   }
 
-  /* Search VSE for ImageStrips/MovieStrip. */
+  /* Search VSE for ImageStrips/MovieStrips. */
   if (GS(ptr->owner_id->name) == ID_SCE) {
     Scene *scene = id_cast<Scene *>(ptr->owner_id);
     if (scene->ed) {
-      Seq_colorspace_cb_data cb_data = {data, nullptr};
-      seq::foreach_strip(&scene->ed->seqbase, rna_strip_find_colorspace_settings_cb, &cb_data);
-      Strip *strip = cb_data.r_seq;
+      Strip *strip = rna_strip_find_by_colorspace_settings(scene->ed, data);
+
       if (strip) {
         char name_esc[(sizeof(strip->name) - 2) * 2];
         BLI_str_escape(name_esc, strip->name + 2, sizeof(name_esc));
