@@ -77,6 +77,27 @@ static EnumPropertyItem kernel_type_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+static geometry::PointRasterizeType get_rasterize_item_type(
+    const NodeGeometryRasterizePointsItemType type)
+{
+  switch (type) {
+    case GEO_NODE_RASTERIZE_POINTS_ITEM_TYPE_SCALAR:
+      return geometry::PointRasterizeType::Scalar;
+    case GEO_NODE_RASTERIZE_POINTS_ITEM_TYPE_SCALAR_GRADIENT:
+      return geometry::PointRasterizeType::ScalarGradient;
+    case GEO_NODE_RASTERIZE_POINTS_ITEM_TYPE_VECTOR:
+      return geometry::PointRasterizeType::Vector;
+    case GEO_NODE_RASTERIZE_POINTS_ITEM_TYPE_VECTOR_DIVERGENCE:
+      return geometry::PointRasterizeType::VectorDivergence;
+    case GEO_NODE_RASTERIZE_POINTS_ITEM_TYPE_TENSOR_DIVERGENCE:
+      return geometry::PointRasterizeType::TensorDivergence;
+    case GEO_NODE_RASTERIZE_POINTS_ITEM_TYPE_AFFINE_MOMENTUM:
+      return geometry::PointRasterizeType::AffineMomentum;
+  }
+  BLI_assert_unreachable();
+  return geometry::PointRasterizeType::Scalar;
+}
+
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
@@ -113,33 +134,21 @@ static void node_declare(NodeDeclarationBuilder &b)
       const StringRef name = item.name ? item.name : "";
       const std::string identifier = RasterizePointsItemsAccessor::socket_identifier_for_item(
           item);
-      const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
+      const geometry::PointRasterizeType rasterize_type = get_rasterize_item_type(
+          NodeGeometryRasterizePointsItemType(item.type));
+      const CPPType &attribute_type = geometry::points_rasterize_attribute_type(rasterize_type);
+      const CPPType &grid_type = geometry::points_rasterize_grid_type(rasterize_type);
+      const eNodeSocketDatatype input_type = *bke::geo_nodes_base_cpp_type_to_socket_type(
+          attribute_type);
+      const eNodeSocketDatatype output_type = *bke::geo_nodes_base_cpp_type_to_socket_type(
+          grid_type);
 
-      auto &input_decl = b.add_input(socket_type, name, identifier);
+      auto &input_decl = b.add_input(input_type, name, identifier);
       input_decl.socket_name_ptr(
           &tree->id, *RasterizePointsItemsAccessor::item_srna, &item, "name");
       input_decl.field_on_all();
 
-      eNodeSocketDatatype output_socket_type = socket_type;
-      /* Special case: affine transform attribute is converted to vector grid. */
-      if (socket_type == SOCK_MATRIX && (item.flag & GEO_NODE_RASTERIZE_POINTS_ITEM_AFFINE_VECTOR))
-      {
-        output_socket_type = SOCK_VECTOR;
-      }
-      /* Special case: divergence converts attribute input type. */
-      if (item.flag & GEO_NODE_RASTERIZE_POINTS_ITEM_DIVERGENCE) {
-        switch (socket_type) {
-          case SOCK_VECTOR:
-            output_socket_type = SOCK_FLOAT;
-            break;
-          case SOCK_MATRIX:
-            output_socket_type = SOCK_VECTOR;
-            break;
-          default:
-            break;
-        }
-      }
-      b.add_output(output_socket_type, name, identifier)
+      b.add_output(output_type, name, identifier)
           .structure_type(StructureType::Grid)
           .align_with_previous();
     }
@@ -198,19 +207,17 @@ static void node_layout_ex(ui::Layout &layout, bContext *C, PointerRNA *ptr)
         ntree, node, [&](PointerRNA *item_ptr) {
           const NodeGeometryRasterizePointsItem &item =
               *item_ptr->data_as<NodeGeometryRasterizePointsItem>();
-          const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
+          const geometry::PointRasterizeType rasterize_type = get_rasterize_item_type(
+              NodeGeometryRasterizePointsItemType(item.type));
+          const CPPType &grid_type = geometry::points_rasterize_grid_type(rasterize_type);
+          const eNodeSocketDatatype output_type = *bke::geo_nodes_base_cpp_type_to_socket_type(
+              grid_type);
 
           panel->use_property_split_set(true);
           panel->use_property_decorate_set(false);
-          panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-          if (socket_type == SOCK_VECTOR) {
+          panel->prop(item_ptr, "type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+          if (output_type == SOCK_VECTOR) {
             panel->prop(item_ptr, "use_staggered_vector", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-          }
-          if (socket_type == SOCK_MATRIX) {
-            panel->prop(item_ptr, "use_affine_vector", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-          }
-          if (ELEM(socket_type, SOCK_VECTOR, SOCK_MATRIX)) {
-            panel->prop(item_ptr, "use_divergence", UI_ITEM_NONE, std::nullopt, ICON_NONE);
           }
         });
   }
@@ -274,18 +281,16 @@ static void node_geo_exec(GeoNodeExecParams params)
   Vector<geometry::PointRasterizeAttributeInfo> point_rasterize_attributes;
   for (const int i : IndexRange(storage.items_num)) {
     const NodeGeometryRasterizePointsItem &item = storage.items[i];
-    const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
-    const CPPType &cpptype = *bke::socket_type_to_geo_nodes_base_cpp_type(socket_type);
+    const geometry::PointRasterizeType rasterize_type = get_rasterize_item_type(
+        NodeGeometryRasterizePointsItemType(item.type));
+    const CPPType &attribute_type = geometry::points_rasterize_attribute_type(rasterize_type);
     const bool use_staggered_vector = (item.flag &
                                        GEO_NODE_RASTERIZE_POINTS_ITEM_VECTOR_STAGGERED);
-    const bool use_affine_vector = (item.flag & GEO_NODE_RASTERIZE_POINTS_ITEM_AFFINE_VECTOR);
-    const bool use_divergence = (item.flag & GEO_NODE_RASTERIZE_POINTS_ITEM_DIVERGENCE);
 
-    value_buffers[i] = GArray<>(cpptype, points_num);
+    value_buffers[i] = GArray<>(attribute_type, points_num);
     /* Note: Item name is unique and can be used as an attribute identifier. */
     point_data_grid_attributes.append({item.name, value_buffers[i].as_span()});
-    point_rasterize_attributes.append(
-        {item.name, cpptype, use_staggered_vector, use_affine_vector, use_divergence});
+    point_rasterize_attributes.append({item.name, rasterize_type, use_staggered_vector});
   }
 
   for (const int component_i : component_types.index_range()) {

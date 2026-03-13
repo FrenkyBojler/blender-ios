@@ -3792,8 +3792,8 @@ struct NodeGeometryDistributePointsInVolume {
 
 typedef struct NodeGeometryRasterizePointsItem {
   char *name;
-  /** #eNodeSocketDatatype */
-  short socket_type;
+  /* #NodeGeometryRasterizePointsItemType */
+  short type;
   char _pad1[2];
   /**
    * Generated unique identifier for sockets which stays the same even when the item order or
@@ -3805,13 +3805,18 @@ typedef struct NodeGeometryRasterizePointsItem {
   char _pad2[4];
 } NodeGeometryRasterizePointsItem;
 
+typedef enum NodeGeometryRasterizePointsItemType {
+  GEO_NODE_RASTERIZE_POINTS_ITEM_TYPE_SCALAR,
+  GEO_NODE_RASTERIZE_POINTS_ITEM_TYPE_SCALAR_GRADIENT,
+  GEO_NODE_RASTERIZE_POINTS_ITEM_TYPE_VECTOR,
+  GEO_NODE_RASTERIZE_POINTS_ITEM_TYPE_VECTOR_DIVERGENCE,
+  GEO_NODE_RASTERIZE_POINTS_ITEM_TYPE_TENSOR_DIVERGENCE,
+  GEO_NODE_RASTERIZE_POINTS_ITEM_TYPE_AFFINE_MOMENTUM,
+} NodeGeometryRasterizePointsItemType;
+
 typedef enum NodeGeometryRasterizePointsItemFlag {
   /* Classify the output as a staggered vector grid. */
   GEO_NODE_RASTERIZE_POINTS_ITEM_VECTOR_STAGGERED = 1 << 1,
-  /* Read matrix attribute as an vector with an additional affine transform. */
-  GEO_NODE_RASTERIZE_POINTS_ITEM_AFFINE_VECTOR = 1 << 2,
-  /* Rasterize the input field into a divergence grid. */
-  GEO_NODE_RASTERIZE_POINTS_ITEM_DIVERGENCE = 1 << 3,
 } NodeGeometryRasterizePointsItemFlag;
 
 typedef struct NodeGeometryRasterizePoints {

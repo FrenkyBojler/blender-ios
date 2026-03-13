@@ -3859,6 +3859,22 @@ static IndexSwitchItem *rna_NodeIndexSwitchItems_new(ID *id, bNode *node, Main *
   return new_item;
 }
 
+static NodeGeometryRasterizePointsItem *rna_NodeGeometryRasterizePointsItems_new(ID *id,
+                                                                                 bNode *node,
+                                                                                 Main *bmain,
+                                                                                 const char *name)
+{
+  NodeGeometryRasterizePointsItem *new_item =
+      nodes::socket_items::add_item_with_name<RasterizePointsItemsAccessor>(*node, name);
+
+  bNodeTree *ntree = reinterpret_cast<bNodeTree *>(id);
+  BKE_ntree_update_tag_node_property(ntree, node);
+  BKE_main_ensure_invariants(*bmain, ntree->id);
+  WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
+
+  return new_item;
+}
+
 /* The same as #grid_socket_type_items_filter_fn. */
 static const EnumPropertyItem *rna_NodeFieldToGridItem_data_type_itemf(bContext * /*C*/,
                                                                        PointerRNA * /*ptr*/,
@@ -8171,11 +8187,50 @@ static void rna_def_rasterize_points_item(BlenderRNA *brna)
   StructRNA *srna;
   PropertyRNA *prop;
 
+  static const EnumPropertyItem type_items[] = {
+      {GEO_NODE_RASTERIZE_POINTS_ITEM_TYPE_SCALAR,
+       "SCALAR",
+       0,
+       "Scalar",
+       "Rasterize a scalar attribute"},
+      {GEO_NODE_RASTERIZE_POINTS_ITEM_TYPE_SCALAR_GRADIENT,
+       "SCALAR_GRADIENT",
+       0,
+       "Scalar Gradient",
+       "Rasterize the gradient vector of a scalar attribute"},
+      {GEO_NODE_RASTERIZE_POINTS_ITEM_TYPE_VECTOR,
+       "VECTOR",
+       0,
+       "Vector",
+       "Rasterize a vector attribute"},
+      {GEO_NODE_RASTERIZE_POINTS_ITEM_TYPE_VECTOR_DIVERGENCE,
+       "VECTOR_DIVERGENCE",
+       0,
+       "Vector Divergence",
+       "Rasterize the scalar divergence of a vector attribute"},
+      {GEO_NODE_RASTERIZE_POINTS_ITEM_TYPE_TENSOR_DIVERGENCE,
+       "TENSOR_DIVERGENCE",
+       0,
+       "Tensor Divergence",
+       "Rasterize the vector divergence of a tensor (matrix) attribute"},
+      {GEO_NODE_RASTERIZE_POINTS_ITEM_TYPE_AFFINE_MOMENTUM,
+       "AFFINE_MOMENTUM",
+       0,
+       "Affine Momentum",
+       "Rasterize an affine momentum attribute onto a vector grid"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
   srna = RNA_def_struct(brna, "NodeGeometryRasterizePointsItem", nullptr);
   RNA_def_struct_ui_text(srna, "Rasterize Points Item", "");
   RNA_def_struct_sdna(srna, "NodeGeometryRasterizePointsItem");
 
-  rna_def_node_item_array_socket_item_common(srna, "RasterizePointsItemsAccessor", true);
+  prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, type_items);
+  RNA_def_property_ui_text(prop, "Type", "");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(
+      prop, NC_NODE | NA_EDITED, "rna_Node_ItemArray_item_update<RasterizePointsItemsAccessor>");
 
   prop = RNA_def_property(srna, "use_staggered_vector", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(
@@ -8184,35 +8239,27 @@ static void rna_def_rasterize_points_item(BlenderRNA *brna)
       prop, "Use Staggered Vector", "Classify the output as a staggered vector grid");
   RNA_def_property_update(
       prop, NC_NODE | NA_EDITED, "rna_Node_ItemArray_item_update<RasterizePointsItemsAccessor>");
-
-  prop = RNA_def_property(srna, "use_affine_vector", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(
-      prop, nullptr, "flag", GEO_NODE_RASTERIZE_POINTS_ITEM_AFFINE_VECTOR);
-  RNA_def_property_ui_text(
-      prop,
-      "Use Affine Vector",
-      "Read matrix attribute as an vector with an additional affine transform");
-  RNA_def_property_update(
-      prop, NC_NODE | NA_EDITED, "rna_Node_ItemArray_item_update<RasterizePointsItemsAccessor>");
-
-  prop = RNA_def_property(srna, "use_divergence", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", GEO_NODE_RASTERIZE_POINTS_ITEM_DIVERGENCE);
-  RNA_def_property_ui_text(
-      prop, "Use Divergence", "Rasterize the input field into a divergence grid");
-  RNA_def_property_update(
-      prop, NC_NODE | NA_EDITED, "rna_Node_ItemArray_item_update<RasterizePointsItemsAccessor>");
 }
 
 static void rna_def_geo_rasterize_points_items(BlenderRNA *brna)
 {
   StructRNA *srna;
+  FunctionRNA *func;
+  PropertyRNA *parm;
 
   srna = RNA_def_struct(brna, "NodeGeometryRasterizePointsItems", nullptr);
   RNA_def_struct_sdna(srna, "bNode");
   RNA_def_struct_ui_text(srna, "Items", "Collection of grid items");
 
-  rna_def_node_item_array_new_with_socket_and_name(
-      srna, "NodeGeometryRasterizePointsItem", "RasterizePointsItemsAccessor");
+  func = RNA_def_function(srna, "new", "rna_NodeGeometryRasterizePointsItems_new");
+  RNA_def_function_ui_description(func, "Add an a new point attribute item");
+  RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_MAIN);
+  parm = RNA_def_string(func, "name", nullptr, MAX_NAME, "Name", "");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  /* return value */
+  parm = RNA_def_pointer(func, "item", "NodeGeometryRasterizePointsItem", "Item", "New item");
+  RNA_def_function_return(func, parm);
+
   rna_def_node_item_array_common_functions(
       srna, "NodeGeometryRasterizePointsItem", "RasterizePointsItemsAccessor");
 }

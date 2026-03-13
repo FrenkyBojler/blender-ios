@@ -88,12 +88,22 @@ MappedPointDataGrid points_to_point_data_grid(const VArray<float3> positions,
                                               const bke::AttributeFilter &attribute_filter,
                                               const float4x4 &transform);
 
+enum class PointRasterizeType {
+  Scalar,
+  ScalarGradient,
+  Vector,
+  VectorDivergence,
+  TensorDivergence,
+  AffineMomentum,
+};
+
+const CPPType &points_rasterize_attribute_type(const PointRasterizeType rasterize_type);
+const CPPType &points_rasterize_grid_type(const PointRasterizeType rasterize_type);
+
 struct PointRasterizeAttributeInfo {
   StringRef name;
-  const CPPType &type;
+  PointRasterizeType type;
   bool use_staggered_vector;
-  bool use_affine_vector;
-  bool use_divergence;
 };
 
 /* TODO For ultimate flexibility a multi-function based kernel transfer class could be implemented,

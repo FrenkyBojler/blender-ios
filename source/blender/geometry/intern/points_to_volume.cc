@@ -310,6 +310,46 @@ MappedPointDataGrid points_to_point_data_grid(const VArray<float3> positions,
   return result;
 }
 
+const CPPType &points_rasterize_attribute_type(const PointRasterizeType rasterize_type)
+{
+  switch (rasterize_type) {
+    case PointRasterizeType::Scalar:
+      return CPPType::get<float>();
+    case PointRasterizeType::ScalarGradient:
+      return CPPType::get<float>();
+    case PointRasterizeType::Vector:
+      return CPPType::get<float3>();
+    case PointRasterizeType::VectorDivergence:
+      return CPPType::get<float3>();
+    case PointRasterizeType::TensorDivergence:
+      return CPPType::get<float4x4>();
+    case PointRasterizeType::AffineMomentum:
+      return CPPType::get<float4x4>();
+  }
+  BLI_assert_unreachable();
+  return CPPType::get<float>();
+}
+
+const CPPType &points_rasterize_grid_type(const PointRasterizeType rasterize_type)
+{
+  switch (rasterize_type) {
+    case PointRasterizeType::Scalar:
+      return CPPType::get<float>();
+    case PointRasterizeType::ScalarGradient:
+      return CPPType::get<float3>();
+    case PointRasterizeType::Vector:
+      return CPPType::get<float3>();
+    case PointRasterizeType::VectorDivergence:
+      return CPPType::get<float>();
+    case PointRasterizeType::TensorDivergence:
+      return CPPType::get<float3>();
+    case PointRasterizeType::AffineMomentum:
+      return CPPType::get<float3>();
+  }
+  BLI_assert_unreachable();
+  return CPPType::get<float>();
+}
+
 template<typename GridValueT>
 struct KernelTransferBase : public openvdb::points::TransformTransfer,
                             public openvdb::points::VolumeTransfer<
@@ -568,7 +608,7 @@ static typename GridType::Ptr prepare_destination_grid(
   return dst_grid;
 }
 
-template<typename AttributeT>
+template<typename AttributeT, typename GridValueT, typename TransferT>
 static bke::GVolumeGrid points_rasterize_with_static_type(
     const openvdb::points::PointDataGrid &point_data_grid,
     const StringRef value_attribute,
@@ -576,75 +616,37 @@ static bke::GVolumeGrid points_rasterize_with_static_type(
     const float4x4 &transform,
     const KernelType kernel_type)
 {
-  std::shared_ptr<openvdb::GridBase> dst_grid;
-  if constexpr (std::is_void_v<typename bke::VolumeGridTraits<AttributeT>::PrimitiveType>) {
-    return {};
-  }
-  else {
-    auto finalize_grid = [&]<typename GridType>() {
-      if constexpr (std::is_same_v<typename GridType::ValueType, openvdb::Vec3s>) {
-        if (attribute_info.use_staggered_vector) {
-          /* Note: Due to the separable kernel function the weight at each of the face centers is
-           * the same as the weight at the voxel corner. Rasterizing a staggered velocity is no
-           * different from rasterizing a centered vector, and only require declaring the output
-           * staggered, and then moving the grid origin to make the transform voxel-centered. */
-          dst_grid->setGridClass(openvdb::GridClass::GRID_STAGGERED);
-          dst_grid->transform().preTranslate(openvdb::Vec3d(0.5, 0.5, 0.5));
-        }
-        else {
-          dst_grid->setGridClass(openvdb::GridClass::GRID_FOG_VOLUME);
-        }
+  using GridTraits = bke::VolumeGridTraits<GridValueT>;
+  using TreeType = typename GridTraits::TreeType;
+  using GridType = openvdb::Grid<TreeType>;
+
+  typename std::shared_ptr<GridType> dst_grid;
+  auto finalize_grid = [&]<typename GridType>() {
+    if constexpr (std::is_same_v<GridValueT, float3>) {
+      if (attribute_info.use_staggered_vector) {
+        /* Note: Due to the separable kernel function the weight at each of the face centers is
+         * the same as the weight at the voxel corner. Rasterizing a staggered velocity is no
+         * different from rasterizing a centered vector, and only require declaring the output
+         * staggered, and then moving the grid origin to make the transform voxel-centered. */
+        dst_grid->setGridClass(openvdb::GridClass::GRID_STAGGERED);
+        dst_grid->transform().preTranslate(openvdb::Vec3d(0.5, 0.5, 0.5));
       }
       else {
         dst_grid->setGridClass(openvdb::GridClass::GRID_FOG_VOLUME);
       }
-    };
-
-    // TODO support affine vector attribute conversion (float4x4 -> float3)
-    if (attribute_info.use_divergence) {
-      if constexpr (std::is_same_v<AttributeT, float3> || std::is_same_v<AttributeT, float3x3> ||
-                    std::is_same_v<AttributeT, float4x4>)
-      {
-        using GridValueT = grid_sampling::DivergenceType<AttributeT>;
-        using GridTraits = bke::VolumeGridTraits<GridValueT>;
-        using TreeType = typename GridTraits::TreeType;
-        using GridType = openvdb::Grid<TreeType>;
-
-        typename std::shared_ptr<GridType> dst_grid_typed = prepare_destination_grid<GridType>(
-            point_data_grid, transform, kernel_type);
-        dst_grid = dst_grid_typed;
-
-        BLI_assert(!value_attribute.is_empty());
-        DivergenceTransfer<AttributeT, GridValueT> transfer(
-            point_data_grid, kernel_type, *dst_grid_typed, value_attribute);
-        openvdb::points::rasterize(point_data_grid, transfer);
-
-        finalize_grid.template operator()<GridType>();
-      }
     }
     else {
-      if constexpr (std::is_same_v<AttributeT, float> || std::is_same_v<AttributeT, int> ||
-                    std::is_same_v<AttributeT, float3>)
-      {
-        using GridValueT = AttributeT;
-        using GridTraits = bke::VolumeGridTraits<GridValueT>;
-        using TreeType = typename GridTraits::TreeType;
-        using GridType = openvdb::Grid<TreeType>;
-
-        typename std::shared_ptr<GridType> dst_grid_typed = prepare_destination_grid<GridType>(
-            point_data_grid, transform, kernel_type);
-        dst_grid = dst_grid_typed;
-
-        BLI_assert(!value_attribute.is_empty());
-        ValueTransfer<AttributeT, GridValueT> transfer(
-            point_data_grid, kernel_type, *dst_grid_typed, value_attribute);
-        openvdb::points::rasterize(point_data_grid, transfer);
-
-        finalize_grid.template operator()<GridType>();
-      }
+      dst_grid->setGridClass(openvdb::GridClass::GRID_FOG_VOLUME);
     }
-  }
+  };
 
+  dst_grid = prepare_destination_grid<GridType>(point_data_grid, transform, kernel_type);
+
+  BLI_assert(!value_attribute.is_empty());
+  TransferT transfer(point_data_grid, kernel_type, *dst_grid, value_attribute);
+  openvdb::points::rasterize(point_data_grid, transfer);
+
+  finalize_grid.template operator()<GridType>();
   if (dst_grid) {
     return bke::GVolumeGrid(std::move(dst_grid));
   }
@@ -659,27 +661,31 @@ static bke::GVolumeGrid points_attribute_rasterize(
     const float4x4 &transform)
 {
   bke::GVolumeGrid result;
-  bke::attribute_math::to_static_type(attribute_info.type, [&]<typename T>() {
-    using TreeType = typename bke::VolumeGridTraits<T>::TreeType;
-    if constexpr (std::is_same_v<T, float4x4>) {
-      /* Special case: Matrix attributes can be rasterized as divergence, but don't have a direct
-       * tree type equivalent. Ignore here. */
-      result = {};
-    }
-    else if constexpr (std::is_same_v<TreeType, void>) {
-      BLI_assert_unreachable();
-      result = {};
-    }
-    else if constexpr (std::is_same_v<TreeType, openvdb::MaskTree> ||
-                       std::is_same_v<TreeType, openvdb::BoolTree>)
-    {
-      // TODO not yet supported
-      result = {};
-    }
-    using AttributeT = T;
-    result = points_rasterize_with_static_type<AttributeT>(
-        point_data_grid, value_attribute, attribute_info, transform, kernel_type);
-  });
+  switch (attribute_info.type) {
+    case PointRasterizeType::Scalar:
+      result = points_rasterize_with_static_type<float, float, ValueTransfer<float, float>>(
+          point_data_grid, value_attribute, attribute_info, transform, kernel_type);
+      break;
+    case PointRasterizeType::ScalarGradient:
+      break;
+    case PointRasterizeType::Vector:
+      result = points_rasterize_with_static_type<float3, float3, ValueTransfer<float3, float3>>(
+          point_data_grid, value_attribute, attribute_info, transform, kernel_type);
+      break;
+    case PointRasterizeType::VectorDivergence:
+      result = points_rasterize_with_static_type<float3, float, DivergenceTransfer<float3, float>>(
+          point_data_grid, value_attribute, attribute_info, transform, kernel_type);
+      break;
+    case PointRasterizeType::TensorDivergence:
+      result = points_rasterize_with_static_type<float4x4,
+                                                 float3,
+                                                 DivergenceTransfer<float4x4, float3>>(
+          point_data_grid, value_attribute, attribute_info, transform, kernel_type);
+      break;
+    case PointRasterizeType::AffineMomentum:
+      break;
+  }
+
   return result;
 }
 

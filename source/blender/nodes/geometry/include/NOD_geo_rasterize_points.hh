@@ -19,7 +19,7 @@ struct RasterizePointsItemsAccessor : public socket_items::SocketItemsAccessorDe
   static StructRNA **item_srna;
   static int node_type;
   static constexpr StringRefNull node_idname = "GeometryNodeRasterizePoints";
-  static constexpr bool has_type = true;
+  static constexpr bool has_type = false;
   static constexpr bool has_name = true;
   struct operator_idnames {
     static constexpr StringRefNull add_item = "NODE_OT_rasterize_points_item_add";
@@ -61,13 +61,10 @@ struct RasterizePointsItemsAccessor : public socket_items::SocketItemsAccessorDe
     return &item.name;
   }
 
-  static void init_with_socket_type_and_name(bNode &node,
-                                             NodeGeometryRasterizePointsItem &item,
-                                             const eNodeSocketDatatype socket_type,
-                                             const char *name)
+  static void init_with_name(bNode &node, NodeGeometryRasterizePointsItem &item, const char *name)
   {
     auto *storage = static_cast<NodeGeometryRasterizePoints *>(node.storage);
-    item.socket_type = int(socket_type);
+    item.type = GEO_NODE_RASTERIZE_POINTS_ITEM_TYPE_SCALAR;
     item.identifier = storage->next_identifier++;
     socket_items::set_item_name_and_make_unique<RasterizePointsItemsAccessor>(node, item, name);
   }
@@ -75,16 +72,6 @@ struct RasterizePointsItemsAccessor : public socket_items::SocketItemsAccessorDe
   static std::string socket_identifier_for_item(const NodeGeometryRasterizePointsItem &item)
   {
     return "Item_" + std::to_string(item.identifier);
-  }
-
-  static eNodeSocketDatatype get_socket_type(const ItemT &item)
-  {
-    return eNodeSocketDatatype(item.socket_type);
-  }
-
-  static bool supports_socket_type(const eNodeSocketDatatype socket_type, const int /*ntree_type*/)
-  {
-    return ELEM(socket_type, SOCK_FLOAT, SOCK_INT, SOCK_BOOLEAN, SOCK_VECTOR, SOCK_MATRIX);
   }
 };
 
