@@ -231,6 +231,9 @@ class ObjectRef {
   ResourceHandleRange handle_ = {};
   ResourceHandleRange sculpt_handle_ = {};
 
+  /* For ParticleSystems of the main object. */
+  uint sub_key_ = 0;
+
  public:
   Object *const object;
 
@@ -238,6 +241,10 @@ class ObjectRef {
                      Object *dupli_parent = nullptr,
                      DupliObject *dupli_object = nullptr);
   explicit ObjectRef(Object &ob, Object *dupli_parent, const VectorList<DupliObject *> &duplis);
+  explicit ObjectRef(const ObjectRef &ob_ref, uint sub_key) : ObjectRef(ob_ref)
+  {
+    sub_key_ = sub_key;
+  };
 
   /* Is the object coming from a Dupli system. */
   bool is_dupli() const
@@ -452,7 +459,7 @@ class ObjectKey {
  public:
   ObjectKey() = default;
 
-  ObjectKey(const ObjectRef &ob_ref, int instance_index, int sub_key)
+  ObjectKey(const ObjectRef &ob_ref, int instance_index)
   {
     ob_ = DEG_get_original(ob_ref.object);
     hash_value_ = get_default_hash(ob_);
@@ -471,13 +478,13 @@ class ObjectKey {
       }
     }
 
-    if (sub_key != 0) {
-      sub_key_ = sub_key;
+    if (ob_ref.sub_key_ != 0) {
+      sub_key_ = ob_ref.sub_key_;
       hash_value_ = get_default_hash(hash_value_, get_default_hash(sub_key_));
     }
   }
 
-  ObjectKey(const ObjectRef &ob_ref) : ObjectKey(ob_ref, 0, 0)
+  ObjectKey(const ObjectRef &ob_ref) : ObjectKey(ob_ref, 0)
   {
     BLI_assert(!ob_ref.is_range());
   }
