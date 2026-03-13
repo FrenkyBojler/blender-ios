@@ -1321,33 +1321,20 @@ static std::optional<std::string> rna_BakeSettings_path(const PointerRNA * /*ptr
   return "render.bake";
 }
 
-/**
- * Color-space could be changed for scene, but also sequencer-strip.
- * If property pointer matches one of strip, set `r_seq`,
- * so not all cached images have to be invalidated.
- */
-struct Seq_colorspace_cb_data {
-  const ColorManagedColorspaceSettings *colorspace_settings;
-  Strip *r_strip;
-};
-
-static bool rna_strip_find_colorspace_settings_cb(Strip *strip, void *user_data)
-{
-  Seq_colorspace_cb_data *cd = static_cast<Seq_colorspace_cb_data *>(user_data);
-  if (strip->data && &strip->data->colorspace_settings == cd->colorspace_settings) {
-    cd->r_strip = strip;
-    return false;
-  }
-  return true;
-}
-
 Strip *rna_strip_find_by_colorspace_settings(
     Editing *ed, const ColorManagedColorspaceSettings *colorspace_settings)
 {
-  Seq_colorspace_cb_data cb_data = {colorspace_settings, nullptr};
-  seq::foreach_strip(&ed->seqbase, rna_strip_find_colorspace_settings_cb, &cb_data);
+  Strip *found_strip = nullptr;
 
-  return cb_data.r_strip;
+  seq::foreach_strip(&ed->seqbase, [&](Strip *strip) -> bool {
+    if (strip->data && &strip->data->colorspace_settings == colorspace_settings) {
+      found_strip = strip;
+      return false;
+    }
+    return true;
+  });
+
+  return found_strip;
 }
 
 static std::optional<std::string> rna_ImageFormatSettings_path(
