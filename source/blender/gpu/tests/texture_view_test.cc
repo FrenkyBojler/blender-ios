@@ -126,8 +126,10 @@ template<TextureFormat FormatA, TextureFormat FormatB> static void texture_view_
   GPU_framebuffer_ensure_config(&fbo, {GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(view)});
   GPU_framebuffer_bind(fbo);
 
-  /* Clear FBO to specific color with a different value on each channel, all below 2^8. */
-  float4 colr = {128.0f, 64.0f, 32.0f, 16.0f};
+  /* Clear FBO to specific color with a different value on each channel. */
+  float4 colr = (to_texture_data_format(FormatB) == GPU_DATA_FLOAT) ?
+                    float4(0.75f, 0.5f, 0.25f, 0.0f) :
+                    float4(128.0f, 64.0f, 32.0f, 16.0f);
   GPU_framebuffer_clear(fbo, GPUFrameBufferBits::GPU_COLOR_BIT, double4(colr), 0.0f, 0u);
   GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
 
@@ -176,6 +178,8 @@ static void test_texture_view_SFLOAT_32_32()
   texture_view_create_test<TextureFormat::SFLOAT_32_32, TextureFormat::UINT_16_16_16_16>();
   texture_view_create_test<TextureFormat::SFLOAT_32_32, TextureFormat::SINT_32_32>();
   texture_view_create_test<TextureFormat::SFLOAT_32_32, TextureFormat::SINT_16_16_16_16>();
+  texture_view_create_test<TextureFormat::SFLOAT_32_32, TextureFormat::SNORM_16_16_16_16>();
+  texture_view_create_test<TextureFormat::SFLOAT_32_32, TextureFormat::UNORM_16_16_16_16>();
 }
 GPU_TEST(texture_view_SFLOAT_32_32);
 
@@ -189,6 +193,10 @@ static void test_texture_view_SFLOAT_32()
   texture_view_create_test<TextureFormat::SFLOAT_32, TextureFormat::SINT_32>();
   texture_view_create_test<TextureFormat::SFLOAT_32, TextureFormat::SINT_16_16>();
   texture_view_create_test<TextureFormat::SFLOAT_32, TextureFormat::SINT_8_8_8_8>();
+  texture_view_create_test<TextureFormat::SFLOAT_32, TextureFormat::SNORM_16_16>();
+  texture_view_create_test<TextureFormat::SFLOAT_32, TextureFormat::SNORM_8_8_8_8>();
+  texture_view_create_test<TextureFormat::SFLOAT_32, TextureFormat::UNORM_16_16>();
+  texture_view_create_test<TextureFormat::SFLOAT_32, TextureFormat::UNORM_8_8_8_8>();
 }
 GPU_TEST(texture_view_SFLOAT_32);
 
@@ -199,8 +207,21 @@ static void test_texture_view_SFLOAT_16()
   texture_view_create_test<TextureFormat::SFLOAT_16, TextureFormat::UINT_8_8>();
   texture_view_create_test<TextureFormat::SFLOAT_16, TextureFormat::SINT_16>();
   texture_view_create_test<TextureFormat::SFLOAT_16, TextureFormat::SINT_8_8>();
+  texture_view_create_test<TextureFormat::SFLOAT_16, TextureFormat::SNORM_16>();
+  texture_view_create_test<TextureFormat::SFLOAT_16, TextureFormat::UNORM_8_8>();
+  texture_view_create_test<TextureFormat::SFLOAT_16, TextureFormat::UNORM_16>();
+  texture_view_create_test<TextureFormat::SFLOAT_16, TextureFormat::UNORM_8_8>();
 }
 GPU_TEST(texture_view_SFLOAT_16);
+
+static void test_texture_view_UINT_8()
+{
+  texture_view_create_test<TextureFormat::UINT_8, TextureFormat::UINT_8>();
+  texture_view_create_test<TextureFormat::UINT_8, TextureFormat::SINT_8>();
+  texture_view_create_test<TextureFormat::UINT_8, TextureFormat::SNORM_8>();
+  texture_view_create_test<TextureFormat::UINT_8, TextureFormat::UNORM_8>();
+}
+GPU_TEST(texture_view_UINT_8);
 
 // static void test_texture_view_passthrough()
 // {
