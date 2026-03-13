@@ -1948,7 +1948,6 @@ static bool area_move_init(bContext *C, wmOperator *op)
   }
 
   screen_geom_select_connected_edge(win, actedge);
-
   /* now all vertices with 'flag == 1' are the ones that can be moved. Move this to editflag */
   ED_screen_verts_iter(win, screen, v1)
   {
