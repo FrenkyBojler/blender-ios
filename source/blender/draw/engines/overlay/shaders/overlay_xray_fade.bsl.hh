@@ -2,6 +2,14 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/**
+ * Overlay X-Ray fade.
+ *
+ * Adds a low-opacity fade behind scene geometry. This allows for a nice
+ * transition between opaque, X-ray and wireframe modes, and is only
+ * available if X-ray mode is enabled or we are in wireframe mode.
+ */
+
 #pragma once
 #pragma create_info
 
@@ -14,7 +22,7 @@ SHADER_LIBRARY_CREATE_INFO(draw_globals)
 
 namespace overlay::xray_fade {
 
-struct Texel {
+struct TexelData {
   float depth;
   float xray_depth;
 };
@@ -30,7 +38,7 @@ struct Resources {
 
   [[push_constant]] float opacity;
 
-  Texel sample(float2 uv)
+  TexelData sample_texel(float2 uv)
   {
     return {
         .depth = textureLod(depth_tx, uv, 0.0f).r,
@@ -38,7 +46,7 @@ struct Resources {
     };
   }
 
-  Texel sample_in_front(float2 uv)
+  TexelData sample_texel_in_front(float2 uv)
   {
     return {
         .depth = textureLod(depth_in_front_tx, uv, 0.0f).r,
@@ -47,37 +55,31 @@ struct Resources {
   }
 };
 
-/**
- * Vertex stage.
- * Outputs [0,1] UV to a fullscreen quad.
- */
 struct VertexOutput {
   [[smooth]] float2 uv;
 };
+
 [[vertex]] void vert_main([[vertex_id]] const int &vert_id,
-                          [[out]] VertexOutput &vert,
+                          [[out]] VertexOutput &v_out,
                           [[position]] float4 &position)
 {
-  fullscreen_vertex(vert_id, position, vert.uv);
+  fullscreen_vertex(vert_id, position, v_out.uv);
 }
 
-/*
- * Fragment stage.
- * Outputs soft darkening opacity on xray'd objects dependent on comparative depth/xray-depth.
- */
-struct FragmentOutput {
+struct FragOut {
   [[frag_color(0)]] float4 color;
 };
+
 [[fragment]] void frag_main([[frag_coord]] const float4 &frag_coord,
                             [[resource_table]] Resources &srt,
-                            [[in]] const VertexOutput &vert,
-                            [[out]] FragmentOutput &frag)
+                            [[in]] const VertexOutput &v_in,
+                            [[out]] FragOut &frag_out)
 {
-  Texel texel_in_front = srt.sample_in_front(vert.uv);
+  TexelData data_in_front = srt.sample_texel_in_front(v_in.uv);
 
-  if (texel_in_front.xray_depth != 1.0f) {
-    if (texel_in_front.depth < texel_in_front.xray_depth) {
-      frag.color = float4(srt.opacity);
+  if (data_in_front.xray_depth != 1.0f) {
+    if (data_in_front.depth < data_in_front.xray_depth) {
+      frag_out.color = float4(srt.opacity);
       return;
     }
 
@@ -85,15 +87,15 @@ struct FragmentOutput {
     return;
   }
 
-  Texel texel = srt.sample(vert.uv);
+  TexelData data = srt.sample_texel(v_in.uv);
 
   /* Merge infront depth. */
-  if (texel_in_front.depth != 1.0f) {
-    texel.depth = 0.0f;
+  if (data_in_front.depth != 1.0f) {
+    data.depth = 0.0f;
   }
 
-  if (texel.depth < texel.xray_depth) {
-    frag.color = float4(srt.opacity);
+  if (data.depth < data.xray_depth) {
+    frag_out.color = float4(srt.opacity);
     return;
   }
 

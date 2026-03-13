@@ -2,6 +2,14 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/**
+ * Overlay anti-aliasing:
+ *
+ * Single sample per pixel screen-space AA pass for wires and wireframe
+ * overlays, refer to `overlay_antialiasing.hh` for a breakdown. This
+ * can be toggled in `Settings > Viewport > Smooth Wires > Overlay`.
+ */
+
 #pragma once
 #pragma create_info
 
@@ -35,14 +43,12 @@ struct Line {
   }
 };
 
-/* Per-pixel fetched data. */
-struct Pixel {
+struct TexelData {
   float4 color;
   float depth;
   Line line;
 };
 
-/* Shader resource table. */
 struct Resources {
   [[legacy_info]] ShaderCreateInfo draw_globals;
 
@@ -52,13 +58,13 @@ struct Resources {
 
   [[push_constant]] bool do_smooth_lines;
 
-  Pixel fetch(int2 tx, int2 offset)
+  TexelData fetch_texel(int2 texel, int2 offset)
   {
-    int2 tx_actual = tx + offset;
+    int2 texel_actual = texel + offset;
     return {
-        .color = texelFetch(color_tx, tx_actual, 0),
-        .depth = texelFetch(depth_tx, tx_actual, 0).r,
-        .line = Line::decode(texelFetch(line_tx, tx_actual, 0).rgb),
+        .color = texelFetch(color_tx, texel_actual, 0),
+        .depth = texelFetch(depth_tx, texel_actual, 0).r,
+        .line = Line::decode(texelFetch(line_tx, texel_actual, 0).rgb),
     };
   }
 };
@@ -77,7 +83,6 @@ T line_coverage(T distance_to_line, float line_kernel_size, bool do_smooth_lines
   return step(-0.5f, line_kernel_size - abs(distance_to_line));
 }
 
-/* Explicit template instantiations */
 template float line_coverage<float>(float, float, bool);
 template float4 line_coverage<float4>(float4, float, bool);
 
@@ -86,7 +91,7 @@ template float4 line_coverage<float4>(float4, float, bool);
  * on whether that pixel has influence or not; in which case distance is set to
  * a maximal value.
  */
-float neighbor_dist(const Pixel &neighbor, int2 offset)
+float neighbor_dist(const TexelData &neighbor, int2 offset)
 {
   bool is_dir_horizontal = abs(neighbor.line.dir.x) > abs(neighbor.line.dir.y);
   bool is_ofs_horizontal = offset.x != 0;
@@ -104,7 +109,7 @@ float neighbor_dist(const Pixel &neighbor, int2 offset)
  * relative depths doing alpha-over or alpha-under. The resulting pixel's
  * depth is then adjusted to the closest depth.
  */
-void neighbor_blend(Pixel neighbor, Pixel &target, float line_coverage)
+void neighbor_blend(TexelData neighbor, TexelData &target, float line_coverage)
 {
   neighbor.color *= line_coverage;
   if (line_coverage > 0.0f && neighbor.depth < target.depth) {
@@ -118,30 +123,23 @@ void neighbor_blend(Pixel neighbor, Pixel &target, float line_coverage)
   }
 }
 
-/**
- * Vertex stage.
- * Outputs to a fullscreen quad.
- */
 [[vertex]] void vert_main([[vertex_id]] const int &vert_id, [[position]] float4 &vert)
 {
   fullscreen_vertex(vert_id, vert);
 }
 
-/*
- * Fragment stage.
- * Performs fullscreen line anti-aliasing.
- */
-struct FragmentOutput {
+struct FragOut {
   [[frag_color(0)]] float4 color;
 };
+
 [[fragment]] void frag_main([[frag_coord]] const float4 &frag_coord,
                             [[resource_table]] Resources &srt,
-                            [[out]] FragmentOutput &frag)
+                            [[out]] FragOut &frag)
 {
-  int2 tx = int2(frag_coord.xy);
+  int2 texel = int2(frag_coord.xy);
 
   /* Fetch data at the center pixel. */
-  Pixel center = srt.fetch(tx, int2(0));
+  TexelData center = srt.fetch_texel(texel, int2(0));
 
   /* Store until end of function; does the center pixel have alpha? */
   bool original_center_has_alpha = center.color.a < 1.0f;
@@ -153,10 +151,10 @@ struct FragmentOutput {
   }
 
   /* Fetch data for a cross of neighboring pixels. */
-  Pixel neighbors[] = {srt.fetch(tx, int2(1, 0)),
-                       srt.fetch(tx, int2(-1, 0)),
-                       srt.fetch(tx, int2(0, 1)),
-                       srt.fetch(tx, int2(0, -1))};
+  TexelData neighbors[] = {srt.fetch_texel(texel, int2(1, 0)),
+                           srt.fetch_texel(texel, int2(-1, 0)),
+                           srt.fetch_texel(texel, int2(0, 1)),
+                           srt.fetch_texel(texel, int2(0, -1))};
 
   float4 neighbor_dists = float4(neighbor_dist(neighbors[0], int2(1, 0)),
                                  neighbor_dist(neighbors[1], int2(-1, 0)),
