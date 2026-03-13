@@ -47,13 +47,13 @@ ImageData::~ImageData()
   }
 
   BLI_assert(buffers.size() == BLI_listbase_count(&image->tiles));
-  for (ImBuf* buffer : buffers.values()) {
+  for (ImBuf *buffer : buffers.values()) {
     BKE_image_release_ibuf(image, buffer, nullptr);
   }
   buffers.clear();
 }
 std::unique_ptr<ImageData> ImageData::init_active_image(Object &ob,
-                                                      PaintModeSettings &paint_mode_settings)
+                                                        PaintModeSettings &paint_mode_settings)
 {
   std::unique_ptr<ImageData> image_data = std::make_unique<ImageData>();
   if (!BKE_paint_canvas_image_get(
@@ -72,7 +72,8 @@ std::unique_ptr<ImageData> ImageData::init_active_image(Object &ob,
     ImageUser tile_user = *image_data->image_user;
     tile_user.tile = tile_number;
 
-    image_data->buffers.add_new(tile_number, BKE_image_acquire_ibuf(image_data->image, &tile_user, nullptr));
+    image_data->buffers.add_new(tile_number,
+                                BKE_image_acquire_ibuf(image_data->image, &tile_user, nullptr));
   }
 
   return image_data;
@@ -277,7 +278,7 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
                             Object &object,
                             const Paint &paint,
                             const Brush &brush,
-                            ImageData& image_data,
+                            ImageData &image_data,
                             bke::pbvh::Node &node)
 {
   SculptSession &ss = *object.runtime->sculpt_session;
@@ -433,7 +434,7 @@ static void do_push_undo_tile(ImageData &image_data, bke::pbvh::Node &node)
   ImBuf *tmpibuf = nullptr;
   for (ImageTile &tile : image_data.image->tiles) {
     image::ImageTileWrapper image_tile(&tile);
-    ImBuf* buffer = image_data.buffers.lookup_default(image_tile.get_tile_number(), nullptr);
+    ImBuf *buffer = image_data.buffers.lookup_default(image_tile.get_tile_number(), nullptr);
     if (buffer == nullptr) {
       continue;
     }
@@ -512,9 +513,8 @@ void SCULPT_do_paint_brush_image(const Depsgraph &depsgraph,
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
   MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
 
-  node_mask.foreach_index(
-      [&](const int i) { do_push_undo_tile(image_data, nodes[i]); },
-      exec_mode::grain_size(1));
+  node_mask.foreach_index([&](const int i) { do_push_undo_tile(image_data, nodes[i]); },
+                          exec_mode::grain_size(1));
   node_mask.foreach_index(
       [&](const int i) { do_paint_pixels(depsgraph, ob, sd.paint, *brush, image_data, nodes[i]); },
       exec_mode::grain_size(1));

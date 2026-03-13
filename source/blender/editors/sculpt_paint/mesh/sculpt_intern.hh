@@ -174,7 +174,7 @@ struct ImageData : NonCopyable {
                                                       PaintModeSettings &paint_mode_settings);
 };
 
-}
+}  // namespace paint::image
 
 /**
  * This structure contains all the temporary data
