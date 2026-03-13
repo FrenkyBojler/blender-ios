@@ -100,7 +100,7 @@ template<TextureFormat FormatA, TextureFormat FormatB> static void texture_view_
 
   /* First check; the view texture should be all zeroes. */
   float4 zero(0.0f, 0.0f, 0.0f, 0.0f);
-  if (to_texture_data_format(FormatB) == GPU_DATA_UINT) {
+  if (ELEM(to_texture_data_format(FormatB), GPU_DATA_UINT, GPU_DATA_2_10_10_10_REV)) {
     uint4 uzero(zero);
     auto zero_expected = repeat_data(uzero, texture_size, to_component_len(FormatB));
     auto zero_readback = read_texture<uint>(view, GPU_DATA_UINT);
@@ -112,7 +112,7 @@ template<TextureFormat FormatA, TextureFormat FormatB> static void texture_view_
     auto zero_readback = read_texture<int>(view, GPU_DATA_INT);
     EXPECT_TRUE(std::equal(zero_expected.begin(), zero_expected.end(), zero_readback.begin()));
   }
-  else if (to_texture_data_format(FormatB) == GPU_DATA_FLOAT) {
+  else if (ELEM(to_texture_data_format(FormatB), GPU_DATA_FLOAT, GPU_DATA_10_11_11_REV)) {
     auto zero_expected = repeat_data(zero, texture_size, to_component_len(FormatB));
     auto zero_readback = read_texture<float>(view, GPU_DATA_FLOAT);
     EXPECT_TRUE(std::equal(zero_expected.begin(), zero_expected.end(), zero_readback.begin()));
@@ -127,14 +127,14 @@ template<TextureFormat FormatA, TextureFormat FormatB> static void texture_view_
   GPU_framebuffer_bind(fbo);
 
   /* Clear FBO to specific color with a different value on each channel. */
-  float4 colr = (to_texture_data_format(FormatB) == GPU_DATA_FLOAT) ?
+  float4 colr = (ELEM(to_texture_data_format(FormatB), GPU_DATA_FLOAT, GPU_DATA_10_11_11_REV)) ?
                     float4(0.75f, 0.5f, 0.25f, 0.0f) :
                     float4(128.0f, 64.0f, 32.0f, 16.0f);
   GPU_framebuffer_clear(fbo, GPUFrameBufferBits::GPU_COLOR_BIT, double4(colr), 0.0f, 0u);
   GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
 
   /* Second check; the view texture should read back this color. */
-  if (to_texture_data_format(FormatB) == GPU_DATA_UINT) {
+  if (ELEM(to_texture_data_format(FormatB), GPU_DATA_UINT, GPU_DATA_2_10_10_10_REV)) {
     uint4 ucolr(colr);
     auto colr_expected = repeat_data(ucolr, texture_size, to_component_len(FormatB));
     auto colr_readback = read_texture<uint>(view, GPU_DATA_UINT);
@@ -146,7 +146,7 @@ template<TextureFormat FormatA, TextureFormat FormatB> static void texture_view_
     auto colr_readback = read_texture<int>(view, GPU_DATA_INT);
     EXPECT_TRUE(std::equal(colr_expected.begin(), colr_expected.end(), colr_expected.begin()));
   }
-  else if (to_texture_data_format(FormatB) == GPU_DATA_FLOAT) {
+  else if (ELEM(to_texture_data_format(FormatB), GPU_DATA_FLOAT, GPU_DATA_10_11_11_REV)) {
     auto colr_expected = repeat_data(colr, texture_size, to_component_len(FormatB));
     auto colr_readback = read_texture<float>(view, GPU_DATA_FLOAT);
     EXPECT_TRUE(std::equal(colr_expected.begin(), colr_expected.end(), colr_expected.begin()));
@@ -197,6 +197,12 @@ static void test_texture_view_SFLOAT_32()
   texture_view_create_test<TextureFormat::SFLOAT_32, TextureFormat::SNORM_8_8_8_8>();
   texture_view_create_test<TextureFormat::SFLOAT_32, TextureFormat::UNORM_16_16>();
   texture_view_create_test<TextureFormat::SFLOAT_32, TextureFormat::UNORM_8_8_8_8>();
+
+  /* Note the special formats. */
+  texture_view_create_test<TextureFormat::SFLOAT_32, TextureFormat::UFLOAT_11_11_10>();
+  texture_view_create_test<TextureFormat::SFLOAT_32, TextureFormat::SRGBA_8_8_8_8>();
+  // texture_view_create_test<TextureFormat::SFLOAT_32, TextureFormat::UINT_10_10_10_2>();
+  // texture_view_create_test<TextureFormat::SFLOAT_32, TextureFormat::UNORM_10_10_10_2>();
 }
 GPU_TEST(texture_view_SFLOAT_32);
 
