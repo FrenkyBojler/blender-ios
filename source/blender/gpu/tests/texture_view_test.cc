@@ -21,12 +21,15 @@
 
 namespace blender::gpu::tests {
 
+/* Test operates on a 4x4 texture patch. */
 constexpr uint texture_size_x = 4;
-constexpr uint texture_size_total = texture_size_x * texture_size_x;
+constexpr uint texture_size_y = 4;
+constexpr uint texture_size = texture_size_x * texture_size_y;
 
-static Vector<float> repeat_components_from(float4 data, size_t components, size_t repeats)
+/* Repeat the first `components` components of a float4 `n` times, into a vector.*/
+static Vector<float> repeat_data(float4 data, size_t n, size_t components)
 {
-  Vector<float> out(components * repeats);
+  Vector<float> out(n * components);
   for (uint i = 0; i < out.size(); ++i) {
     out[i] = data[i % components];
   }
@@ -40,7 +43,7 @@ static gpu::Texture *create_base_texture(TextureFormat format)
                                      GPU_TEXTURE_USAGE_FORMAT_VIEW;
 
   gpu::Texture *base = GPU_texture_create_2d(
-      "base", texture_size_x, texture_size_x, 1, format, usage, nullptr);
+      "base", texture_size_x, texture_size_y, 1, format, usage, nullptr);
   GPU_texture_mipmap_mode(base, false, false);
   GPU_memory_barrier(GPU_BARRIER_FRAMEBUFFER);
 
@@ -56,7 +59,7 @@ static gpu::Texture *create_base_texture(TextureFormat format)
   return base;
 }
 
-/* Create a view texture over base, of compatible aliasing format. */
+/* Create a view texture  of compatible aliasing format. */
 static gpu::Texture *create_view_texture(TextureFormat format, gpu::Texture *base)
 {
   gpu::Texture *view = GPU_texture_create_view("view", base, format, 0, 1, 0, 1, false, false);
@@ -65,13 +68,13 @@ static gpu::Texture *create_view_texture(TextureFormat format, gpu::Texture *bas
   return view;
 }
 
-/* Read back a n*n, n-channel texture of type float or half, return cast to float4. */
+/* Read back a texture of type float or half as a contiguous vector of float. */
 static Vector<float> read_texture(gpu::Texture *texture)
 {
   TextureFormat format = GPU_texture_format(texture);
 
   void *src = GPU_texture_read(texture, GPU_DATA_FLOAT, 0);
-  Vector<float> dst(texture_size_total * to_component_len(format));
+  Vector<float> dst(texture_size * to_component_len(format));
   std::memcpy(static_cast<void *>(dst.data()), src, sizeof(float) * dst.size());
 
   MEM_delete_void(src);
@@ -83,45 +86,35 @@ static Vector<float> read_texture(gpu::Texture *texture)
  * attempt to perform a framebuffer color clear over the view texture. */
 template<TextureFormat FormatA, TextureFormat FormatB> static void texture_view_create_test()
 {
-  GPU_render_begin();
-
   if (GPU_backend_get_type() != GPU_BACKEND_OPENGL) {
     GTEST_SKIP();
   }
 
+  GPU_render_begin();
+
   gpu::Texture *base = create_base_texture(FormatA);
   gpu::Texture *view = create_view_texture(FormatB, base);
 
-  GPU_memory_barrier(GPU_BARRIER_FRAMEBUFFER);
-
   /* First check; the view texture should be all zeroes. */
-  float4 zero_color(0.0f, 0.0f, 0.0f, 0.0f);
-
-  auto zero_color_compare = repeat_components_from(
-      zero_color, to_component_len(FormatB), texture_size_total);
-  auto zero_color_readback = read_texture(view);
-  EXPECT_TRUE(std::equal(
-      zero_color_compare.begin(), zero_color_compare.end(), zero_color_readback.begin()));
+  float4 zero(0.0f, 0.0f, 0.0f, 0.0f);
+  auto zero_expected = repeat_data(zero, texture_size, to_component_len(FormatB));
+  auto zero_readback = read_texture(view);
+  EXPECT_TRUE(std::equal(zero_expected.begin(), zero_expected.end(), zero_readback.begin()));
 
   /* Create FBO with view as color attachment 0. */
   gpu::FrameBuffer *fbo = nullptr;
   GPU_framebuffer_ensure_config(&fbo, {GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(view)});
   GPU_framebuffer_bind(fbo);
 
-  /* Clear FBO to specific color. */
-  float4 test_color = {2.0, 0.25, 1.25, 0.25};
-  for (uint i = to_component_len(FormatB); i < 4; ++i) {
-    test_color[i] = 0.0;
-  }
-  GPU_framebuffer_clear(fbo, GPUFrameBufferBits::GPU_COLOR_BIT, double4(test_color), 0.0f, 0u);
+  /* Clear FBO to specific color with a different value on each channel */
+  float4 colr = {2.0, 0.25, 1.25, 0.25};
+  GPU_framebuffer_clear(fbo, GPUFrameBufferBits::GPU_COLOR_BIT, double4(colr), 0.0f, 0u);
   GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
 
   /* Second check; the view texture should read back this color. */
-  auto test_color_compare = repeat_components_from(
-      test_color, to_component_len(FormatB), texture_size_total);
-  auto test_color_readback = read_texture(view);
-  EXPECT_TRUE(std::equal(
-      test_color_compare.begin(), test_color_compare.end(), test_color_compare.begin()));
+  auto colr_expected = repeat_data(colr, texture_size, to_component_len(FormatB));
+  auto colr_readback = read_texture(view);
+  EXPECT_TRUE(std::equal(colr_expected.begin(), colr_expected.end(), colr_expected.begin()));
 
   GPU_framebuffer_free(fbo);
   GPU_texture_free(view);
