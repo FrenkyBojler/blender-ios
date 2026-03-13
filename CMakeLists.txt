@@ -2109,12 +2109,12 @@ if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
   endif()
 
 elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
-  # Matches both "Clang" , "AppleClang" on macOS and "clang-cl" on windows 
+  # Matches both "Clang", "AppleClang" on macOS and "clang-cl" on Windows.
 
   if(MSVC_CLANG)
     # it's a bit odd to remove this flag and then add it right back in
     # but order matters here, the C/CXX warn flags come before the standard
-    # W3 flag, which will reset all flags to their default state. 
+    # W3 flag, which will reset all flags to their default state.
     remove_cc_flag("/W3")
     # From the clang-cl docs 
     # /W0                     Disable all warnings
@@ -2125,8 +2125,8 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
     # /Wall                   Enable -Weverything
     #
     # -Wall will turn into /Wall for clang-cl which in turn will enable -Weverything
-    # which is just too much, pass /W3 so we end up on more or less the
-    # same flag configuration as linux/mac here. 
+    # which is just too much, pass /W3 so we end up on the same flag configuration
+    # as the other platforms.
     set(_Wall_flag /W3)
   else()
     set(_Wall_flag -Wall)
