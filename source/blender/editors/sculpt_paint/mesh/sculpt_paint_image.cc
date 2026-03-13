@@ -16,7 +16,6 @@
 #include "BLI_listbase.h"
 #include "BLI_math_color_blend.h"
 #include "BLI_math_geom.h"
-#include "BLI_timeit.hh"
 #ifdef DEBUG_PIXEL_NODES
 #  include "BLI_hash.h"
 #endif
@@ -507,8 +506,6 @@ void SCULPT_do_paint_brush_image(const Depsgraph &depsgraph,
   if (!cache.image_data) {
     return;
   }
-
-  SCOPED_TIMER_AVERAGED(__func__);
 
   ImageData &image_data = *cache.image_data;
 
