@@ -198,7 +198,6 @@ static int handle_region_semi_modal_buttons(bContext *C, const wmEvent *event, A
 
 #define BUTTON_FLASH_DELAY 0.020
 #define MENU_SCROLL_INTERVAL 0.1
-static constexpr double MENU_KEEP_ALIVE_THRESH = 1.25;
 #define PIE_MENU_INTERVAL 0.01
 #define BUTTON_AUTO_OPEN_THRESH 0.2
 #define BUTTON_MOUSE_TOWARDS_THRESH 1.0
@@ -209,6 +208,8 @@ static constexpr double MENU_KEEP_ALIVE_THRESH = 1.25;
 #define MENU_TOWARDS_MARGIN 20
 /** Tolerance for closing menus (in pixels). */
 #define MENU_TOWARDS_WIGGLE_ROOM 64
+
+static constexpr double menu_keep_open_thresh = 1.25;
 
 enum ButtonActivateType {
   BUTTON_ACTIVATE_OVER,
@@ -10897,10 +10898,10 @@ static int handle_menu_mmb_event(bContext *C,
     WM_cursor_grab_disable(win, nullptr);
     menu->mmb_panning = false;
     if (!inside) {
-      /* Set the threshold to prevent from closing the menu when middle mouse button panning
-       * finished outside the menu bounds. */
+      /* Set the threshold to prevent from closing the menu when middle mouse button panning ends
+       * outside the menu bounds. */
       menu->keep_open_timer = WM_event_timer_add(
-          CTX_wm_manager(C), CTX_wm_window(C), TIMER, MENU_KEEP_ALIVE_THRESH);
+          CTX_wm_manager(C), CTX_wm_window(C), TIMER, menu_keep_open_thresh);
     }
     retval = WM_UI_HANDLER_BREAK;
   }
@@ -11038,7 +11039,7 @@ static int handle_menu_event(bContext *C,
       mouse_motion_towards_reinit(menu, event->xy);
     }
   }
-  /* Don't auto-scroll while panning with the middle mouse button. */
+  /* Don't auto-scroll while panning. */
   else if (event->type == TIMER && !menu->mmb_panning && !menu->keep_open_timer) {
     if (event->customdata == menu->scrolltimer) {
       menu_scroll_to_y(region, block, my);
@@ -12318,8 +12319,7 @@ static bool can_activate_other_menu(Button *but, Button *but_other, const wmEven
     return false;
   }
 
-  /* Prevent menus from being closed while middle mouse button panning is performed or have just
-   * finished and is withing the a threshold. */
+  /* Prevent menus from being closed while using middle mouse button panning. */
   if (data->menu && data->menu->region) {
     PopupBlockHandle *submenu = data->menu;
     while (submenu) {
