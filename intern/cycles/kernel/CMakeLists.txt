@@ -117,6 +117,7 @@ if(WITH_CYCLES_OSL)
     osl/closures_setup.h
     osl/closures_template.h
     osl/services_gpu.h
+    osl/strings.h
     osl/types.h
   )
 endif()
@@ -213,12 +214,12 @@ set(SRC_KERNEL_LIGHT_HEADERS
   light/area.h
   light/background.h
   light/common.h
-  light/distant.h
   light/distribution.h
   light/light.h
   light/point.h
   light/sample.h
   light/spot.h
+  light/sun.h
   light/tree.h
   light/triangle.h
 )
@@ -237,6 +238,7 @@ set(SRC_KERNEL_UTIL_HEADERS
   util/colorspace.h
   util/differential.h
   util/ies.h
+  util/image_2d.h
   util/image_3d.h
   util/lookup_table.h
   util/nanovdb.h

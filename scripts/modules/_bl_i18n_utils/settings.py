@@ -83,7 +83,7 @@ LANGUAGES = (
     (49, "Tamil - தமிழ்", "ta"),
     # 50 is free, used to be "Khmer - ខ្មែរ" ("km").
     (51, "Swahili - Kiswahili", "sw"),
-    (52, "Belarusian - беларуску", "be"),
+    (52, "Belarusian - Беларуская", "be"),
     (53, "Danish - Dansk", "da"),
     (54, "Slovenian - Slovenščina", "sl"),
     # Using the utf8 flipped form of Urdu (اُردُو).
@@ -216,6 +216,7 @@ _str_base = (
             ".(?!(?P={_}2))"
         ")*.)"  # Don't forget the last char!
     "(?P={_}2)"  # And closing quote.
+    "(?:_ustr)?" # Optional trailing _ustr.
 )
 str_clean_re = _str_base.format(_="g", capt="P<clean>")
 _inbetween_str_re = (

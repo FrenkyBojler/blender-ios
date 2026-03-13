@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Beta (b'c1168d06bba2')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'5a04f1d246f1')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-09 09:47+0000\n"
+"POT-Creation-Date: 2026-03-11 11:01+0000\n"
 "PO-Revision-Date: 2025-09-04 22:59+0000\n"
 "Last-Translator: Dominic Iastrebschi <domjotebit@gmail.com>\n"
 "Language-Team: Romanian <https://translate.blender.org/projects/blender-ui/ui/ro/>\n"
@@ -1784,10 +1784,6 @@ msgid "Saturation"
 msgstr "Saturație"
 
 
-msgid "Both"
-msgstr "Ambele"
-
-
 msgid "Object Path"
 msgstr "Calea Obiectului"
 
@@ -2136,16 +2132,12 @@ msgid "Sampling"
 msgstr "Eșantionare"
 
 
-msgid "Apply"
-msgstr "Aplicare"
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Layout"
 msgstr "Aspect"
-
-
-msgid "Convert"
-msgstr "Convertire"
 
 
 msgid "Tracking"
@@ -2160,8 +2152,12 @@ msgid "Add Image"
 msgstr "Adăugare Imagine"
 
 
-msgid "UV"
-msgstr "UV"
+msgid "Apply"
+msgstr "Aplicare"
+
+
+msgid "Convert"
+msgstr "Convertire"
 
 
 msgid "Marker"
@@ -2370,6 +2366,10 @@ msgstr "Proprietăți Personalizate"
 
 msgid "Open"
 msgstr "Deschidere"
+
+
+msgid "Both"
+msgstr "Ambele"
 
 
 msgctxt "Operator"
@@ -3191,10 +3191,6 @@ msgid "%d items"
 msgstr "%d obiecte"
 
 
-msgid "Value:"
-msgstr "Valoare:"
-
-
 msgid "Hex"
 msgstr "Hex"
 
@@ -3567,6 +3563,10 @@ msgstr "Nume fișier"
 
 msgid "Driver Value:"
 msgstr "Valoare Driver:"
+
+
+msgid "Value:"
+msgstr "Valoare:"
 
 
 msgid "Delete target variable"

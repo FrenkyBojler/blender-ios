@@ -1281,6 +1281,43 @@ static void layerInterp_propcol(const void **sources, const float *weights, int 
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Callbacks for (#float4, #CD_PROP_FLOAT4)
+ * \{ */
+
+static void layerInterp_propfloat4(const void **sources,
+                                   const float *weights,
+                                   int count,
+                                   void *dest)
+{
+  vec4f result = {0.0f, 0.0f, 0.0f, 0.0f};
+  for (int i = 0; i < count; i++) {
+    const float interp_weight = weights[i];
+    const vec4f *src = static_cast<const vec4f *>(sources[i]);
+    madd_v4_v4fl(&result.x, &src->x, interp_weight);
+  }
+  copy_v4_v4(static_cast<float *>(dest), &result.x);
+}
+
+static void layerMultiply_propfloat4(void *data, const float fac)
+{
+  vec4f *vec = static_cast<vec4f *>(data);
+  vec->x *= fac;
+  vec->y *= fac;
+  vec->z *= fac;
+  vec->w *= fac;
+}
+
+static void layerAdd_propfloat4(void *data1, const void *data2)
+{
+  vec4f *vec1 = static_cast<vec4f *>(data1);
+  const vec4f *vec2 = static_cast<const vec4f *>(data2);
+  vec1->x += vec2->x;
+  vec1->y += vec2->y;
+  vec1->z += vec2->z;
+  vec1->w += vec2->w;
+}
+
+/* -------------------------------------------------------------------- */
 /** \name Callbacks for (#vec3f, #CD_PROP_FLOAT3)
  * \{ */
 
@@ -1704,13 +1741,16 @@ static const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
         .structname = "",
         .structnum = 0,
     },
-    /* 24: CD_RECAST */
+    /* 24: CD_PROP_FLOAT4 */
     {
-        .size = sizeof(MRecast),
-        .alignment = alignof(MRecast),
-        .structname = "MRecast",
+        .size = sizeof(float4),
+        .alignment = alignof(float4),
+        .structname = "vec4f",
         .structnum = 1,
-        .defaultname = N_("Recast"),
+        .defaultname = N_("Float4"),
+        .interp = layerInterp_propfloat4,
+        .multiply = layerMultiply_propfloat4,
+        .add = layerAdd_propfloat4,
     },
     /* 25: CD_MPOLY */ /* DEPRECATED */
     {
@@ -4772,14 +4812,13 @@ static void write_mdisps(BlendWriter *writer,
       const MDisps *md = &mdlist[i];
       if (md->disps) {
         if (!external) {
-          BLO_write_float3_array(writer, md->totdisp, &md->disps[0][0]);
+          writer->write_float3_array(md->totdisp, &md->disps[0][0]);
         }
       }
 
       if (md->hidden) {
-        BLO_write_int8_array(writer,
-                             BLI_BITMAP_SIZE(md->totdisp) * sizeof(BLI_bitmap),
-                             reinterpret_cast<const int8_t *>(md->hidden));
+        writer->write_int8_array(BLI_BITMAP_SIZE(md->totdisp) * sizeof(BLI_bitmap),
+                                 reinterpret_cast<const int8_t *>(md->hidden));
       }
     }
   }
@@ -4795,7 +4834,7 @@ static void write_grid_paint_mask(BlendWriter *writer,
       const GridPaintMask *gpm = &grid_paint_mask[i];
       if (gpm->data) {
         const uint32_t gridsize = uint32_t(CCG_grid_size(gpm->level));
-        BLO_write_float_array(writer, gridsize * gridsize, gpm->data);
+        writer->write_float_array(gridsize * gridsize, gpm->data);
       }
     }
   }
@@ -4814,7 +4853,7 @@ static void blend_write_layer_data(BlendWriter *writer,
           writer, count, static_cast<const MDisps *>(layer.data), layer.flag & CD_FLAG_EXTERNAL);
       break;
     case CD_PAINT_MASK:
-      BLO_write_float_array(writer, count, static_cast<const float *>(layer.data));
+      writer->write_float_array(count, static_cast<const float *>(layer.data));
       break;
     case CD_GRID_PAINT_MASK:
       write_grid_paint_mask(writer, count, static_cast<const GridPaintMask *>(layer.data));
@@ -4822,7 +4861,7 @@ static void blend_write_layer_data(BlendWriter *writer,
     case CD_PROP_BOOL:
       BLI_STATIC_ASSERT(sizeof(bool) == sizeof(uint8_t),
                         "bool type is expected to have the same size as uint8_t")
-      BLO_write_uint8_array(writer, count, static_cast<const uint8_t *>(layer.data));
+      writer->write_uint8_array(count, static_cast<const uint8_t *>(layer.data));
       break;
     default: {
       const char *structname;

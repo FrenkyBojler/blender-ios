@@ -134,6 +134,35 @@ static PyObject *pyrna_unregister_class(PyObject *self, PyObject *py_class);
 
 static StructRNA *srna_from_ptr(PointerRNA *ptr);
 
+/* -------------------------------------------------------------------- */
+/** \name Generic Python Utilities
+ *
+ * Could be moved to the `PyC_*` API, currently they're only needed locally.
+ * \{ */
+
+/**
+ * Wrapper for #PyWeakref_GetRef that reports and clears errors.
+ *
+ * \return The referent (new strong reference) or nullptr if dead.
+ *
+ * \note This should only be used where the chance of an error is very low.
+ * Otherwise it is better to call #PyWeakref_GetRef directly and handle the error
+ * in a less generic way (possibly forwarding it to the caller).
+ */
+static PyObject *pyweakref_get_ref(PyObject *ref)
+{
+  PyObject *result = nullptr;
+  if (UNLIKELY(PyWeakref_GetRef(ref, &result) == -1)) {
+    /* This hints at a bug, it's not expected so being noisy is OK. */
+    CLOG_WARN(BPY_LOG_RNA, "unexpected error accessing weak-reference");
+    /* Prints and clears the error. */
+    PyErr_Print();
+  }
+  return result;
+}
+
+/** \} */
+
 /**
  * The `bpy_types-custom_properties` references is created as part of API doc generation.
  * When expanded line reads: "Limited to: Types with Custom Property Support".
@@ -328,14 +357,13 @@ static void id_release_weakref_list(struct ID *id, GHash *weakinfo_hash)
 
   while (!BLI_ghashIterator_done(&weakinfo_hash_iter)) {
     PyObject *weakref = (PyObject *)BLI_ghashIterator_getKey(&weakinfo_hash_iter);
-    PyObject *item = PyWeakref_GET_OBJECT(weakref);
-    if (item != Py_None) {
-
+    PyObject *item = pyweakref_get_ref(weakref);
+    if (item) {
 #  ifdef DEBUG_RNA_WEAKREF
       PyC_ObSpit("id_release_weakref item ", item);
 #  endif
-
       pyrna_invalidate((BPy_DummyPointerRNA *)item);
+      Py_DECREF(item);
     }
 
     Py_DECREF(weakref);
@@ -4326,21 +4354,28 @@ static PyObject *pyrna_struct_bl_rna_find_subclass_recursive(PyObject *cls, cons
     PyObject *value = nullptr;
     while (PyDict_Next(subclasses, &pos, &key, &value)) {
       BLI_assert(PyWeakref_CheckRef(value));
-      PyObject *subcls = PyWeakref_GET_OBJECT(value);
-      if (subcls != Py_None) {
-        BPy_StructRNA *py_srna = reinterpret_cast<BPy_StructRNA *>(PyDict_GetItem(
-            (reinterpret_cast<PyTypeObject *>(subcls))->tp_dict, bpy_intern_str_bl_rna));
-        if (py_srna) {
-          StructRNA *srna = static_cast<StructRNA *>(py_srna->ptr->data);
-          if (STREQ(id, RNA_struct_identifier(srna))) {
-            ret_test = subcls;
-            break;
-          }
+      PyObject *value_ref = pyweakref_get_ref(value);
+      if (!value_ref) {
+        continue;
+      }
+
+      BPy_StructRNA *py_srna = reinterpret_cast<BPy_StructRNA *>(PyDict_GetItem(
+          (reinterpret_cast<PyTypeObject *>(value_ref))->tp_dict, bpy_intern_str_bl_rna));
+      if (py_srna) {
+        StructRNA *srna = static_cast<StructRNA *>(py_srna->ptr->data);
+        if (STREQ(id, RNA_struct_identifier(srna))) {
+          ret_test = value_ref;
         }
-        ret_test = pyrna_struct_bl_rna_find_subclass_recursive(subcls, id);
-        if (ret_test) {
-          break;
-        }
+      }
+      if (!ret_test) {
+        ret_test = pyrna_struct_bl_rna_find_subclass_recursive(value_ref, id);
+      }
+      /* NOTE: `ret_test` is now a borrowed reference,
+       * Acceptable since the type is kept alive by its instances and defining module. */
+      Py_DECREF(value_ref);
+
+      if (ret_test) {
+        break;
       }
     }
   }
@@ -4354,6 +4389,8 @@ PyDoc_STRVAR(
     "\n"
     "   :param id: The RNA type identifier.\n"
     "   :type id: str\n"
+    "   :param default: The value to return when not found.\n"
+    "   :type default: type | None\n"
     "   :return: The class or default when not found.\n"
     "   :rtype: type\n");
 static PyObject *pyrna_struct_bl_rna_get_subclass_py(PyObject *cls, PyObject *args)
@@ -4378,8 +4415,10 @@ PyDoc_STRVAR(
     "\n"
     "   :param id: The RNA type identifier.\n"
     "   :type id: str\n"
+    "   :param default: The value to return when not found.\n"
+    "   :type default: :class:`bpy.types.Struct` | None\n"
     "   :return: The RNA type or default when not found.\n"
-    "   :rtype: :class:`bpy.types.Struct` subclass\n");
+    "   :rtype: :class:`bpy.types.Struct`\n");
 static PyObject *pyrna_struct_bl_rna_get_subclass(PyObject *cls, PyObject *args)
 {
   const char *id;
@@ -4604,9 +4643,9 @@ PyDoc_STRVAR(
     pyrna_struct_id_properties_ui_doc,
     ".. method:: id_properties_ui(key, /)\n"
     "\n"
-    "   :return: Return an object used to manage an IDProperty's UI data.\n"
     "   :param key: String name of the property.\n"
-    "   :type key: str.\n"
+    "   :type key: str\n"
+    "   :return: An object used to manage an IDProperty's UI data.\n"
     "   :rtype: :class:`bpy.types.IDPropertyUIManager`\n");
 static PyObject *pyrna_struct_id_properties_ui(BPy_StructRNA *self, PyObject *args)
 {
@@ -4652,7 +4691,7 @@ PyDoc_STRVAR(
     pyrna_struct_id_properties_clear_doc,
     ".. method:: id_properties_clear()\n"
     "\n"
-    "   :return: Remove the parent group for an RNA struct's custom IDProperties.\n");
+    "   Remove the parent group for an RNA struct's custom IDProperties.\n");
 static PyObject *pyrna_struct_id_properties_clear(BPy_StructRNA *self)
 {
   PYRNA_STRUCT_CHECK_OBJ(self);
@@ -5295,9 +5334,9 @@ PyDoc_STRVAR(
     /* Wrap. */
     pyrna_struct_get_id_data_doc,
     "The :class:`bpy.types.ID` object this data-block is from or None, "
-    "(not available for all data types)\n"
+    "(not available for all data types) (readonly)\n"
     "\n"
-    ":type: :class:`bpy.types.ID`, (readonly)\n");
+    ":type: :class:`bpy.types.ID`\n");
 static PyObject *pyrna_struct_get_id_data(BPy_DummyPointerRNA *self, void * /*closure*/)
 {
   /* Used for struct and pointer since both have a ptr. */
@@ -5583,7 +5622,9 @@ PyDoc_STRVAR(
     "   :type key: str\n"
     "   :param default: Optional argument for the value to return if\n"
     "      *key* is not found.\n"
-    "   :type default: Any\n");
+    "   :type default: Any\n"
+    "   :return: The collection member or default.\n"
+    "   :rtype: :class:`bpy_struct`\n");
 static PyObject *pyrna_prop_collection_get(BPy_PropertyRNA *self, PyObject *args)
 {
   PointerRNA newptr;
@@ -6086,7 +6127,16 @@ PyDoc_STRVAR(
     pyrna_prop_collection_foreach_get_doc,
     ".. method:: foreach_get(attr, seq)\n"
     "\n"
-    "   This is a function to give fast access to attributes within a collection.\n");
+    "   Fast access to a basic-type attribute within a collection.\n"
+    "\n"
+    "   :param attr: Name of the item attribute to read (for example ``co``, ``normal`` or\n"
+    "      ``select``). The attribute must be a basic type (bool, int or float).\n"
+    "\n"
+    "      For geometry attribute types, see :attr:`Attribute.data_type`.\n"
+    "   :type attr: str\n"
+    "   :param seq: Writable sequence or buffer receiving flattened values.\n"
+    "      For array attributes, the length must be ``len(collection) * array_length``.\n"
+    "   :type seq: MutableSequence[bool | int | float] | buffer\n");
 static PyObject *pyrna_prop_collection_foreach_get(BPy_PropertyRNA *self, PyObject *args)
 {
   PYRNA_PROP_CHECK_OBJ(self);
@@ -6099,7 +6149,16 @@ PyDoc_STRVAR(
     pyrna_prop_collection_foreach_set_doc,
     ".. method:: foreach_set(attr, seq)\n"
     "\n"
-    "   This is a function to give fast access to attributes within a collection.\n");
+    "   Fast access to a basic-type attribute within a collection.\n"
+    "\n"
+    "   :param attr: Name of the item attribute to write (for example ``co`` or\n"
+    "      ``select``). The attribute must be a basic type (bool, int or float).\n"
+    "\n"
+    "      For geometry attribute types, see :attr:`Attribute.data_type`.\n"
+    "   :type attr: str\n"
+    "   :param seq: Sequence or buffer containing flattened values.\n"
+    "      For array attributes, the length must be ``len(collection) * array_length``.\n"
+    "   :type seq: Sequence[bool | int | float] | buffer\n");
 static PyObject *pyrna_prop_collection_foreach_set(BPy_PropertyRNA *self, PyObject *args)
 {
   PYRNA_PROP_CHECK_OBJ(self);
@@ -10087,6 +10146,7 @@ static PyTypeObject *bpy_class_check_any_bases_registered(PyTypeObject *cls)
  */
 static PyTypeObject *bpy_class_check_any_subclasses_registered(PyTypeObject *cls)
 {
+  PyTypeObject *result = nullptr;
   PyObject *subclasses = static_cast<PyObject *>(cls->tp_subclasses);
   if (subclasses) {
     BLI_assert(PyDict_CheckExact(subclasses));
@@ -10095,8 +10155,8 @@ static PyTypeObject *bpy_class_check_any_subclasses_registered(PyTypeObject *cls
     PyObject *value = nullptr;
     while (PyDict_Next(subclasses, &pos, &key, &value)) {
       BLI_assert(PyWeakref_CheckRef(value));
-      PyObject *value_ref = PyWeakref_GET_OBJECT(value);
-      if (value_ref == Py_None) {
+      PyObject *value_ref = pyweakref_get_ref(value);
+      if (!value_ref) {
         continue;
       }
 
@@ -10107,18 +10167,25 @@ static PyTypeObject *bpy_class_check_any_subclasses_registered(PyTypeObject *cls
         {
           if (const StructRNA *srna = static_cast<const StructRNA *>(py_srna->ptr->data)) {
             if (srna->flag & STRUCT_RUNTIME) {
-              return sub_cls;
+              result = sub_cls;
             }
           }
         }
       }
 
-      if (PyTypeObject *sub_cls_test = bpy_class_check_any_subclasses_registered(sub_cls)) {
-        return sub_cls_test;
+      if (!result) {
+        result = bpy_class_check_any_subclasses_registered(sub_cls);
+      }
+      /* NOTE: `result` is now a borrowed reference,
+       * Acceptable since the type is kept alive by its instances and defining module. */
+      Py_DECREF(value_ref);
+
+      if (result) {
+        break;
       }
     }
   }
-  return nullptr;
+  return result;
 }
 
 void pyrna_alloc_types()
@@ -10184,7 +10251,9 @@ void BPY_free_srna_pytype(StructRNA *srna)
   ":class:`bpy.types.AddonPreferences` | " \
   ":class:`bpy.types.NodeTree` | " \
   ":class:`bpy.types.Node` | " \
-  ":class:`bpy.types.NodeSocket`" \
+  ":class:`bpy.types.NodeSocket` | " \
+  ":class:`bpy.types.Gizmo` | " \
+  ":class:`bpy.types.GizmoGroup`" \
   "]"
 
 /**
@@ -10459,7 +10528,7 @@ PyDoc_STRVAR(
     "   Unload the Python class from blender.\n"
     "\n"
     "   :param cls: Blender type class, \n"
-    "      see :mod:`bpy.utils.register_class` for classes which can \n"
+    "      see :func:`bpy.utils.register_class` for classes which can \n"
     "      be registered.\n"
     "   :type cls: " BPY_TYPEDEF_REGISTERABLE_DOC
     "\n"

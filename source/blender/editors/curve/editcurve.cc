@@ -1121,7 +1121,7 @@ int ED_curve_updateAnimPaths(Main *bmain, Curve *cu)
   if (adt->action != nullptr) {
     animrig::Action &action = adt->action->wrap();
 
-    Vector<FCurve *> fcurves_to_process = animrig::fcurves_for_assigned_action(adt);
+    Span<FCurve *> fcurves_to_process = animrig::fcurves_for_assigned_action(adt);
 
     Vector<FCurve *> fcurves_to_remove = curve_rename_fcurves(cu, fcurves_to_process);
     for (FCurve *fcurve : fcurves_to_remove) {
@@ -6001,7 +6001,7 @@ void CURVE_OT_cyclic_toggle(wmOperatorType *ot)
 
   /* identifiers */
   ot->name = "Toggle Cyclic";
-  ot->description = "Make active spline closed/opened loop";
+  ot->description = "Make active spline closed/open loop";
   ot->idname = "CURVE_OT_cyclic_toggle";
 
   /* API callbacks. */
