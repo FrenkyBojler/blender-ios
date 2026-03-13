@@ -19,7 +19,6 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
-#include "BKE_image.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -27,7 +26,6 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "ED_image.hh"
 #include "ED_screen.hh"
 
 #include "UI_interface.hh"
