@@ -59,8 +59,9 @@ static inline void volume_call(PassMain::Sub *pass,
                                Scene *scene,
                                Object *ob,
                                gpu::Batch *geom,
-                               ResourceHandle res_handle)
+                               ResourceHandleRange res_handle)
 {
+  BLI_assert(res_handle.index_range().size() == 1);
   if (pass != nullptr) {
     /** WARNING:
      * drw_volume_object_mesh_init doesn't rely on per-object data,
@@ -68,13 +69,16 @@ static inline void volume_call(PassMain::Sub *pass,
      * We're fine while Volume objects dont support handle ranges. */
     PassMain::Sub *object_pass = volume_sub_pass(*pass, scene, ob, gpumat);
     if (object_pass != nullptr) {
-      object_pass->draw(geom, ResourceHandleRange(res_handle));
+      object_pass->draw(geom, res_handle);
     }
   }
 }
 
-static inline void volume_call(
-    MaterialPass &matpass, Scene *scene, Object *ob, gpu::Batch *geom, ResourceHandle res_handle)
+static inline void volume_call(MaterialPass &matpass,
+                               Scene *scene,
+                               Object *ob,
+                               gpu::Batch *geom,
+                               ResourceHandleRange res_handle)
 {
   volume_call(matpass.sub_pass, matpass.gpumat, scene, ob, geom, res_handle);
 }
