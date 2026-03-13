@@ -429,6 +429,112 @@ static Token lookup_decl_keyword(Scope scope)
   return scope.front();
 }
 
+static ScopeType final_scope_type_get(Scope scope)
+{
+  const ScopeType parent_type = scope.parent().type();
+  const ScopeType curr_type = scope.type();
+  ScopeType type = ScopeType::Invalid;
+  switch (curr_type) {
+    case ScopeType::Preprocessor:
+      type = ScopeType::Preprocessor;
+      break;
+    case ScopeType::Assignment:
+      /* TODO(fclem): Amend scope size. */
+      type = ScopeType::Assignment;
+      break;
+    case ScopeType::Angle:
+      type = ScopeType::Template;
+      break;
+    case ScopeType::Bracket:
+      switch (lookup_decl_keyword(scope).type()) {
+        case Class:
+        case Struct:
+          type = ScopeType::Struct;
+          break;
+        case Enum:
+          type = ScopeType::Local;
+          break;
+        case Namespace:
+          type = ScopeType::Namespace;
+          break;
+        case Const:
+        default:
+          switch (parent_type) {
+            case ScopeType::Global:
+            case ScopeType::Struct:
+            case ScopeType::Namespace:
+              type = ScopeType::Function;
+              break;
+            default:
+              type = ScopeType::Local;
+              break;
+          }
+          break;
+      }
+      break;
+    case ScopeType::Parenthesis: {
+      switch (parent_type) {
+        case ScopeType::Global:
+        case ScopeType::Struct:
+        case ScopeType::Namespace:
+          type = ScopeType::FunctionArgs;
+          break;
+        case ScopeType::Function:
+        case ScopeType::Local:
+          switch (lookup_decl_keyword(scope).type()) {
+            case For:
+            case While:
+              type = ScopeType::LoopArgs;
+              break;
+            default:
+              type = (scope.front().prev() == Word) ? ScopeType::FunctionCall : ScopeType::Local;
+              break;
+          }
+          break;
+        case ScopeType::Assignment:
+        case ScopeType::FunctionParam:
+        case ScopeType::Subscript:
+        case ScopeType::Attributes:
+        case ScopeType::Attribute:
+        case ScopeType::FunctionCall:
+          type = (scope.front().prev() == Word) ? ScopeType::FunctionCall : ScopeType::Local;
+          break;
+        default:
+          type = ScopeType::Local;
+          break;
+      }
+      break;
+    }
+    case ScopeType::Square: {
+      type = (scope.front().prev() == SquareOpen) ? ScopeType::Attributes : ScopeType::Subscript;
+      break;
+    }
+    default:
+      break;
+  }
+  return type;
+}
+
+/* Return the associated statement type for an enclosing scope type.
+ * Return Invalid if the scope cannot hold parsed statements. */
+static ScopeType statement_type_get(ScopeType type)
+{
+  switch (type) {
+    case ScopeType::FunctionArgs:
+      return ScopeType::FunctionArg;
+    case ScopeType::Attributes:
+      return ScopeType::Attribute;
+    case ScopeType::FunctionCall:
+      return ScopeType::FunctionParam;
+    case ScopeType::Template:
+      return ScopeType::TemplateArg;
+    case ScopeType::LoopArgs:
+      return ScopeType::LoopArg;
+    default:
+      return ScopeType::Invalid;
+  }
+}
+
 void ParserBase::build_ast(report_callback &report_error)
 {
   LexerBase &lex = *this;
@@ -451,6 +557,7 @@ void ParserBase::build_ast(report_callback &report_error)
 
   tree.open_scope(front(), ScopeType::Global);
 
+  /* Coarse tagging. */
   for (int tok_id = 0; tok_id < lex.size(); tok_id++) {
     Token tok = lex[tok_id];
     switch (tok.type()) {
@@ -521,111 +628,12 @@ void ParserBase::build_ast(report_callback &report_error)
 #if 1
   for (int i = 1; i < scope_types.size(); i++) {
     Scope scope = Scope(*this, i);
-    const ScopeType parent_type = scope.parent().type();
-    const ScopeType curr_type = scope.type();
-    ScopeType type = ScopeType::Invalid;
-    switch (curr_type) {
-      case ScopeType::Preprocessor:
-        type = ScopeType::Preprocessor;
-        break;
-      case ScopeType::Assignment:
-        /* TODO(fclem): Amend scope size. */
-        type = ScopeType::Assignment;
-        break;
-      case ScopeType::Angle:
-        type = ScopeType::Template;
-        break;
-      case ScopeType::Bracket:
-        switch (lookup_decl_keyword(scope).type()) {
-          case Class:
-          case Struct:
-            type = ScopeType::Struct;
-            break;
-          case Enum:
-            type = ScopeType::Local;
-            break;
-          case Namespace:
-            type = ScopeType::Namespace;
-            break;
-          case Const:
-          default:
-            switch (parent_type) {
-              case ScopeType::Global:
-              case ScopeType::Struct:
-              case ScopeType::Namespace:
-                type = ScopeType::Function;
-                break;
-              default:
-                type = ScopeType::Local;
-                break;
-            }
-            break;
-        }
-        break;
-      case ScopeType::Parenthesis: {
-        switch (parent_type) {
-          case ScopeType::Global:
-          case ScopeType::Struct:
-          case ScopeType::Namespace:
-            type = ScopeType::FunctionArgs;
-            break;
-          case ScopeType::Function:
-          case ScopeType::Local:
-            switch (lookup_decl_keyword(scope).type()) {
-              case For:
-              case While:
-                type = ScopeType::LoopArgs;
-                break;
-              default:
-                type = (scope.front().prev() == Word) ? ScopeType::FunctionCall : ScopeType::Local;
-                break;
-            }
-            break;
-          case ScopeType::Assignment:
-          case ScopeType::FunctionParam:
-          case ScopeType::Subscript:
-          case ScopeType::Attributes:
-          case ScopeType::Attribute:
-          case ScopeType::FunctionCall:
-            type = (scope.front().prev() == Word) ? ScopeType::FunctionCall : ScopeType::Local;
-            break;
-          default:
-            type = ScopeType::Local;
-            break;
-        }
-        break;
-      }
-      case ScopeType::Square: {
-        type = (scope.front().prev() == SquareOpen) ? ScopeType::Attributes : ScopeType::Subscript;
-        break;
-      }
-      default:
-        break;
-    }
+    ScopeType type = final_scope_type_get(scope);
+
     assert(type != ScopeType::Invalid);
     scope_types[i] = type;
 
-    ScopeType statement_type = ScopeType::Invalid;
-    switch (parent_type) {
-      case ScopeType::FunctionArgs:
-        statement_type = ScopeType::FunctionArg;
-        break;
-      case ScopeType::Attributes:
-        statement_type = ScopeType::Attribute;
-        break;
-      case ScopeType::FunctionCall:
-        statement_type = ScopeType::FunctionParam;
-        break;
-      case ScopeType::Template:
-        statement_type = ScopeType::TemplateArg;
-        break;
-      case ScopeType::LoopArgs:
-        statement_type = ScopeType::LoopArg;
-        break;
-      default:
-        statement_type = ScopeType::Statement;
-        break;
-    }
+    ScopeType statement_type = statement_type_get(type);
     if (statement_type != ScopeType::Invalid) {
       parse_statements(scope, statement_type);
     }
@@ -636,6 +644,8 @@ void ParserBase::build_ast(report_callback &report_error)
   /* FunctionArgs > (FunctionCall). */
   /* Refactor enum to have undetermined version of scopes. */
 }
+
+void ParserBase::parse_statements(Token) {}
 
 void ParserBase::build_scope_tree(report_callback &report_error)
 {
