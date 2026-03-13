@@ -16,9 +16,6 @@
 #include "gpu_shader_compat.hh"
 #include "gpu_shader_fullscreen_lib.glsl"
 #include "infos/overlay_common_infos.hh"
-#include "overlay_shader_shared.hh"
-
-SHADER_LIBRARY_CREATE_INFO(draw_globals)
 
 namespace overlay::xray_fade {
 
@@ -28,8 +25,6 @@ struct TexelData {
 };
 
 struct Resources {
-  [[legacy_info]] ShaderCreateInfo draw_globals;
-
   [[sampler(0)]] const sampler2DDepth depth_tx;
   [[sampler(1)]] const sampler2DDepth depth_in_front_tx;
   [[sampler(2)]] const sampler2DDepth xray_depth_tx;
