@@ -1,1 +1,2 @@
 Referenced by issue #155588, Out of GPU Memory error on file that renders in 5.0.1
+Referenced by pull request #155626, Revert "Cycles: Improve Metal state allocation logic for RAM-constrained systems"
