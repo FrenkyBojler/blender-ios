@@ -149,12 +149,9 @@ void VertexAverageOperation::on_stroke_extended(const bContext &C,
                                                              params.multi_frame_falloff));
                 });
 
-                ColorGeometry4f &color = fill_colors[fill_curves.first()];
-                color = math::interpolate(color, mix_color, influence);
-
-                if (fill_curves.size() > 1) {
-                  index_mask::masked_fill(fill_colors, color, fill_curve_mask);
-                }
+                const ColorGeometry4f color = math::interpolate(
+                    fill_colors[fill_curves.first()], mix_color, influence);
+                index_mask::masked_fill(fill_colors, color, fill_curve_mask);
               },
               exec_mode::grain_size(1024));
         }

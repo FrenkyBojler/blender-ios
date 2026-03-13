@@ -96,7 +96,7 @@ void VertexReplaceOperation::on_stroke_extended(const bContext &C,
                                                              params.multi_frame_falloff));
                 });
 
-                ColorGeometry4f &color = fill_colors[fill_curves.first()];
+                ColorGeometry4f color = fill_colors[fill_curves.first()];
                 color.a -= influence;
                 color.a = math::max(color.a, 0.0f);
 
@@ -104,9 +104,7 @@ void VertexReplaceOperation::on_stroke_extended(const bContext &C,
                   color = replace_color;
                 }
 
-                if (fill_curves.size() > 1) {
-                  index_mask::masked_fill(fill_colors, color, fill_curve_mask);
-                }
+                index_mask::masked_fill(fill_colors, color, fill_curve_mask);
               },
 
               exec_mode::grain_size(1024));
