@@ -1361,7 +1361,7 @@ void wm_homefile_read_ex(bContext *C,
   }
 
   /* Make the 'Save Modified Images' preference set itself to 'Ask Every Time' when blender
-   * starts up if the user has the auto-save preference off.*/
+   * starts up if the user has the auto-save preference off. */
   if (!(U.flag & USER_AUTOSAVE) && U.save_modified_images != USER_SAVE_MODIFIED_IMAGES_ASK) {
     U.save_modified_images = USER_SAVE_MODIFIED_IMAGES_ASK;
   }
@@ -3654,7 +3654,7 @@ static void wm_block_save_modified_images_save(bContext *C, void *arg_block, voi
   if (wm->runtime->save_modified_images_when_file_is_saved && ED_image_should_save_modified(bmain))
   {
     ReportList *reports = CTX_wm_reports(C);
-    bool is_successful = ED_image_save_all_modified(C, reports);
+    const bool is_successful = ED_image_save_all_modified(C, reports);
     if (!is_successful) {
       WM_report_banner_show(wm, win);
     }
@@ -3943,7 +3943,7 @@ static wmOperatorStatus wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
   const bool has_modified_images = ED_image_save_all_modified_info(CTX_data_main(C), nullptr) > 0;
   if (has_modified_images && U.save_modified_images == USER_SAVE_MODIFIED_IMAGES_ALWAYS) {
     ReportList *reports = CTX_wm_reports(C);
-    bool is_successful = ED_image_save_all_modified(C, reports);
+    const bool is_successful = ED_image_save_all_modified(C, reports);
     if (!is_successful) {
       WM_report_banner_show(static_cast<wmWindowManager *>(bmain->wm.first), CTX_wm_window(C));
     }

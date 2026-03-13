@@ -78,7 +78,7 @@ enum eUserpref_Save_Modified_Images {
   USER_SAVE_MODIFIED_IMAGES_ASK = 0,
   USER_SAVE_MODIFIED_IMAGES_ALWAYS,
   USER_SAVE_MODIFIED_IMAGES_NEVER,
-} eUserpref_Save_Modified_Images;
+};
 
 enum eUserPref_PrefFlag {
   USER_PREF_FLAG_SAVE = (1 << 0),
