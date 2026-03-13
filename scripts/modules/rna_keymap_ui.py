@@ -272,14 +272,26 @@ _MODIFIER_ALIASES = {}
 _VALUE_ALIASES = {}
 
 _search_tables_initialized = False
-
+_search_tables_language = ""
 
 def _init_search_tables():
     # Build all search lookup tables once from bl_rna enums + translations
     global _search_tables_initialized
-    if _search_tables_initialized:
+    global _search_tables_language
+
+    current_language = bpy.context.preferences.view.language
+    if _search_tables_initialized and _search_tables_language == current_language:
         return
+
     _search_tables_initialized = True
+    _search_tables_language = current_language
+
+    _EVENT_TYPES.clear()
+    _EVENT_TYPE_MAP.clear()
+    _EVENT_TYPE_MAP_EXTRA.clear()
+    _EVENT_TYPE_MAP_I18N.clear()
+    _MODIFIER_ALIASES.clear()
+    _VALUE_ALIASES.clear()
 
     from sys import platform
 
