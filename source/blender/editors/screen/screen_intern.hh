@@ -154,12 +154,8 @@ void screen_change_update(bContext *C, wmWindow *win, bScreen *screen);
  */
 void screen_change_prepare(
     bScreen *screen_old, bScreen *screen_new, Main *bmain, bContext *C, wmWindow *win);
-ScrArea *area_split(const wmWindow *win,
-                    bScreen *screen,
-                    ScrArea *area,
-                    eScreenAxis dir_axis,
-                    float fac,
-                    bool merge);
+ScrArea *area_split(
+    const wmWindow *win, bScreen *screen, ScrArea *area, eScreenAxis dir_axis, float fac);
 /**
  * Join any two neighboring areas. Might involve complex changes.
  */

@@ -1787,8 +1787,6 @@ struct sAreaMoveData {
   int bigger, smaller, origval, step;
   eScreenAxis dir_axis;
   AreaMoveSnapType snap_type;
-  bool can_extend;
-  bool extending;
   bScreen *screen;
   ScrArea *area1, *area2;
   double start_time;
@@ -1907,64 +1905,9 @@ static void area_move_out_draw_cb(const wmWindow *win, void *userdata)
   screen_draw_move_highlight(win, md->screen, md->dir_axis, factor);
 }
 
-static bool area_move_reinit(bContext *C, wmOperator *op, bool extend, const int xy[2])
-{
-  sAreaMoveData *md = static_cast<sAreaMoveData *>(op->customdata);
-  bScreen *screen = CTX_wm_screen(C);
-  wmWindow *win = CTX_wm_window(C);
-
-  ED_screen_verts_iter(win, screen, v1)
-  {
-    v1->editflag = 0;
-  }
-
-  /* setup */
-  ScrEdge *actedge = screen_geom_find_active_scredge(win, screen, xy[0], xy[1]);
-
-  if (actedge == nullptr) {
-    md->can_extend = false;
-    md->extending = false;
-    return false;
-  }
-
-  if (extend) {
-    if (md->dir_axis == SCREEN_AXIS_H) {
-      md->origval = actedge->v1->vec.y;
-    }
-    else {
-      md->origval = actedge->v1->vec.x;
-    }
-  }
-
-  md->can_extend = screen_geom_edge_can_extend(win, actedge);
-  if (md->can_extend && extend) {
-    screen_geom_select_extended_edge(win, actedge);
-    md->extending = true;
-  }
-  else {
-    screen_geom_select_connected_edge(win, actedge);
-    md->extending = false;
-  }
-
-  /* now all vertices with 'flag == 1' are the ones that can be moved. Move this to editflag */
-  ED_screen_verts_iter(win, screen, v1)
-  {
-    v1->editflag = v1->flag;
-  }
-
-  bool use_bigger_smaller_snap = false;
-  area_move_set_limits(
-      win, screen, md->dir_axis, &md->bigger, &md->smaller, &use_bigger_smaller_snap);
-
-  md->start_time = BLI_time_now_seconds();
-  md->end_time = md->start_time + AREA_MOVE_LINE_FADEIN;
-
-  return true;
-}
-
 /* validate selection inside screen, set variables OK */
 /* return false: init failed */
-static bool area_move_init(bContext *C, wmOperator *op, bool extend)
+static bool area_move_init(bContext *C, wmOperator *op)
 {
   bScreen *screen = CTX_wm_screen(C);
   wmWindow *win = CTX_wm_window(C);
@@ -2004,15 +1947,7 @@ static bool area_move_init(bContext *C, wmOperator *op, bool extend)
     md->origval = actedge->v1->vec.x;
   }
 
-  md->can_extend = screen_geom_edge_can_extend(win, actedge);
-  if (md->can_extend && extend) {
-    screen_geom_select_extended_edge(win, actedge);
-    md->extending = true;
-  }
-  else {
-    screen_geom_select_connected_edge(win, actedge);
-    md->extending = false;
-  }
+  screen_geom_select_connected_edge(win, actedge);
 
   /* now all vertices with 'flag == 1' are the ones that can be moved. Move this to editflag */
   ED_screen_verts_iter(win, screen, v1)
@@ -2245,6 +2180,11 @@ static int area_snap_calc_location(sAreaMoveData *md, const int delta)
 /* Moves selected screen edge amount of delta. */
 static void area_move_apply_do(bContext *C, int delta, sAreaMoveData *md)
 {
+  WorkspaceStatus status(C);
+  status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
+  status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
+  status.item_bool(IFACE_("Snap"), md->snap_type == SNAP_FRACTION_AND_ADJACENT, ICON_EVENT_CTRL);
+
   short final_loc = -1;
   bool doredraw = false;
 
@@ -2309,14 +2249,6 @@ static void area_move_apply_do(bContext *C, int delta, sAreaMoveData *md)
     /* Update preview thumbnail */
     BKE_icon_changed(md->screen->id.icon_id);
   }
-
-  WorkspaceStatus status(C);
-  status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
-  status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
-  status.item_bool(IFACE_("Snap"), md->snap_type == SNAP_FRACTION_AND_ADJACENT, ICON_EVENT_CTRL);
-  if (md->can_extend) {
-    status.item_bool(IFACE_("Extend"), md->extending, ICON_EVENT_SHIFT);
-  }
 }
 
 static void area_move_apply(bContext *C, wmOperator *op)
@@ -2349,7 +2281,7 @@ static void area_move_exit(bContext *C, wmOperator *op)
 
 static wmOperatorStatus area_move_exec(bContext *C, wmOperator *op)
 {
-  if (!area_move_init(C, op, false)) {
+  if (!area_move_init(C, op)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2365,7 +2297,7 @@ static wmOperatorStatus area_move_invoke(bContext *C, wmOperator *op, const wmEv
   RNA_int_set(op->ptr, "x", event->xy[0]);
   RNA_int_set(op->ptr, "y", event->xy[1]);
 
-  if (!area_move_init(C, op, event->modifier & KM_SHIFT)) {
+  if (!area_move_init(C, op)) {
     return OPERATOR_PASS_THROUGH;
   }
 
@@ -2375,9 +2307,6 @@ static wmOperatorStatus area_move_invoke(bContext *C, wmOperator *op, const wmEv
   status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
   status.item_bool(IFACE_("Snap"), md->snap_type == SNAP_FRACTION_AND_ADJACENT, ICON_EVENT_CTRL);
-  if (md->can_extend) {
-    status.item_bool(IFACE_("Extend"), md->extending, ICON_EVENT_SHIFT);
-  }
 
   /* add temp handler */
   screen_modal_action_begin();
@@ -2401,17 +2330,6 @@ static wmOperatorStatus area_move_modal(bContext *C, wmOperator *op, const wmEve
 
   /* execute the events */
   switch (event->type) {
-    case EVT_RIGHTSHIFTKEY:
-    case EVT_LEFTSHIFTKEY: {
-      if (md->can_extend) {
-        area_move_reinit(C, op, event->val == KM_PRESS, event->xy);
-      }
-      else {
-        md->extending = false;
-      }
-      WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
-      break;
-    }
     case MOUSEMOVE: {
       int x = RNA_int_get(op->ptr, "x");
       int y = RNA_int_get(op->ptr, "y");
@@ -2420,14 +2338,6 @@ static wmOperatorStatus area_move_modal(bContext *C, wmOperator *op, const wmEve
       RNA_int_set(op->ptr, "delta", delta);
 
       area_move_apply(C, op);
-
-      wmWindow *win = CTX_wm_window(C);
-      bScreen *screen = CTX_wm_screen(C);
-      if (!md->extending) {
-        ScrEdge *actedge = screen_geom_find_active_scredge(
-            win, screen, event->xy[0], event->xy[1]);
-        md->can_extend = actedge && screen_geom_edge_can_extend(md->win, actedge);
-      }
       break;
     }
     case RIGHTMOUSE: {
@@ -2456,6 +2366,11 @@ static wmOperatorStatus area_move_modal(bContext *C, wmOperator *op, const wmEve
           }
           break;
       }
+      WorkspaceStatus status(C);
+      status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
+      status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
+      status.item_bool(
+          IFACE_("Snap"), md->snap_type == SNAP_FRACTION_AND_ADJACENT, ICON_EVENT_CTRL);
       break;
     }
     default: {
@@ -2463,13 +2378,6 @@ static wmOperatorStatus area_move_modal(bContext *C, wmOperator *op, const wmEve
     }
   }
 
-  WorkspaceStatus status(C);
-  status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
-  status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
-  status.item_bool(IFACE_("Snap"), md->snap_type == SNAP_FRACTION_AND_ADJACENT, ICON_EVENT_CTRL);
-  if (md->can_extend) {
-    status.item_bool(IFACE_("Extend"), md->extending, ICON_EVENT_SHIFT);
-  }
   return OPERATOR_RUNNING_MODAL;
 }
 
@@ -2715,7 +2623,7 @@ static bool area_split_apply(bContext *C, wmOperator *op)
     return false;
   }
 
-  sd->narea = area_split(win, screen, sd->sarea, dir_axis, fac, false); /* false = no merge */
+  sd->narea = area_split(win, screen, sd->sarea, dir_axis, fac);
 
   if (sd->narea == nullptr) {
     return false;
@@ -4563,8 +4471,7 @@ void static area_docking_apply(bContext *C, wmOperator *op)
       fac = 1.0f - fac;
     }
 
-    ScrArea *newa = area_split(
-        jd->win2, WM_window_get_active_screen(jd->win2), jd->sa2, dir, fac, true);
+    ScrArea *newa = area_split(jd->win2, WM_window_get_active_screen(jd->win2), jd->sa2, dir, fac);
 
     if (jd->factor <= 0.5f) {
       jd->sa2 = newa;
@@ -5123,8 +5030,7 @@ static wmOperatorStatus area_join_modal(bContext *C, wmOperator *op, const wmEve
                                  WM_window_get_active_screen(jd->win1),
                                  jd->sa1,
                                  jd->split_dir,
-                                 jd->split_fac,
-                                 true);
+                                 jd->split_fac);
 
             const bool large_v = jd->split_dir == SCREEN_AXIS_V &&
                                  ((jd->start_x < event->xy[0] && jd->split_fac > 0.5f) ||

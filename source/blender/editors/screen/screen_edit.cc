@@ -103,8 +103,7 @@ ScrArea *area_split(const wmWindow *win,
                     bScreen *screen,
                     ScrArea *area,
                     const eScreenAxis dir_axis,
-                    const float fac,
-                    const bool /*merge*/)
+                    const float fac)
 {
   ScrArea *newa = nullptr;
 
@@ -473,7 +472,7 @@ static ScrArea *screen_area_trim(
                                            ((*area)->v3->vec.y - (*area)->v1->vec.y));
   fac = (reverse == vertical) ? 1.0f - fac : fac;
   ScrArea *newsa = area_split(
-      CTX_wm_window(C), screen, *area, vertical ? SCREEN_AXIS_V : SCREEN_AXIS_H, fac, true);
+      CTX_wm_window(C), screen, *area, vertical ? SCREEN_AXIS_V : SCREEN_AXIS_H, fac);
 
   /* area_split always returns smallest of the two areas, so might have to swap. */
   if (((fac > 0.5f) == vertical) != reverse) {
