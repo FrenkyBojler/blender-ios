@@ -50,7 +50,7 @@ void Cryptomatte::begin_sync()
   }
 }
 
-void Cryptomatte::sync_object(Object *ob, ResourceHandleRange res_handle)
+void Cryptomatte::sync_object(const ObjectHandle &ob_handle)
 {
   const eViewLayerEEVEEPassType enabled_passes = inst_.film.enabled_passes_get();
   if (!(enabled_passes &
@@ -59,15 +59,16 @@ void Cryptomatte::sync_object(Object *ob, ResourceHandleRange res_handle)
     return;
   }
 
-  uint32_t resource_id = res_handle.resource_index();
+  uint32_t resource_id = ob_handle.res_handle.resource_index();
   float2 object_hashes(0.0f, 0.0f);
 
   if (enabled_passes & EEVEE_RENDER_PASS_CRYPTOMATTE_OBJECT) {
-    object_hashes[0] = register_id(EEVEE_RENDER_PASS_CRYPTOMATTE_OBJECT, ob->id);
+    object_hashes[0] = register_id(EEVEE_RENDER_PASS_CRYPTOMATTE_OBJECT,
+                                   ob_handle.object->id);  // TODO?
   }
 
   if (enabled_passes & EEVEE_RENDER_PASS_CRYPTOMATTE_ASSET) {
-    Object *asset = ob;
+    Object *asset = ob_handle.object;  // TODO?
     while (asset->parent) {
       asset = asset->parent;
     }

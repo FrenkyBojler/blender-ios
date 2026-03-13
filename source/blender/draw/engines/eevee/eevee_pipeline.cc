@@ -472,7 +472,7 @@ void ForwardPipeline::transparent_add(const ObjectHandle &ob_handle,
   has_colored_transparency_ |= GPU_material_flag_get(gpumat,
                                                      GPU_MATFLAG_TRANSPARENT_MAYBE_COLORED);
   has_holdout_ |= GPU_material_flag_get(gpumat, GPU_MATFLAG_HOLDOUT) ||
-                  ob_handle.ref.object->visibility_flag & OB_HOLDOUT;
+                  ob_handle.object->visibility_flag & OB_HOLDOUT;
   /* Must be checked here too,
    * since this function is not called from PipelineModule::material_add. */
   inst_.pipelines.has_raycast |= GPU_material_flag_get(gpumat, GPU_MATFLAG_RAYCAST);
@@ -483,8 +483,8 @@ void ForwardPipeline::transparent_add(const ObjectHandle &ob_handle,
   /* Transparent needs to use one sub pass per object to support reordering.
    * NOTE: Pre-pass needs to be created first in order to be sorted first. */
 
-  for (int i : IndexRange(ob_handle.ref.instances_count())) {
-    float sorting_value = math::dot(float3(ob_handle.ref.object_to_world(i).location()),
+  for (int i : IndexRange(ob_handle.instances_count())) {
+    float sorting_value = math::dot(float3(ob_handle.object_to_world(i).location()),
                                     camera_forward_);
 
     /* Prepass */
@@ -1355,7 +1355,7 @@ VolumeObjectBounds::VolumeObjectBounds(const Camera &camera,
   const float4x4 &projection_matrix = camera.data_get().winmat;
 
   const Bounds<float3> bounds =
-      BKE_object_boundbox_get(ob_handle.ref.object).value_or(Bounds(float3(0.0f)));
+      BKE_object_boundbox_get(ob_handle.object).value_or(Bounds(float3(0.0f)));
 
   const std::array<float3, 8> corners = bounds::corners(bounds);
 
@@ -1363,8 +1363,7 @@ VolumeObjectBounds::VolumeObjectBounds(const Camera &camera,
   z_range = std::nullopt;
 
   for (const float3 &l_corner : corners) {
-    float3 ws_corner = math::transform_point(ob_handle.ref.object_to_world(instance_index),
-                                             l_corner);
+    float3 ws_corner = math::transform_point(ob_handle.object_to_world(instance_index), l_corner);
     /* Split view and projection for precision. */
     float3 vs_corner = math::transform_point(view_matrix, ws_corner);
     float3 ss_corner = math::project_point(projection_matrix, vs_corner);
@@ -1389,7 +1388,7 @@ void VolumePipeline::add(const ObjectHandle &ob_handle,
                          Vector<PassMain::Sub *> &occupancy_subpasses,
                          Vector<PassMain::Sub *> &material_subpasses)
 {
-  for (int i : IndexRange(ob_handle.ref.instances_count())) {
+  for (int i : IndexRange(ob_handle.instances_count())) {
     /* TODO(fclem): This is against design. Sync shouldn't depend on view properties (camera). */
     VolumeObjectBounds object_bounds(inst_.camera, ob_handle, i);
     if (math::reduce_max(object_bounds.screen_bounds->size()) < 1e-5) {
@@ -1420,9 +1419,9 @@ void VolumePipeline::add(const ObjectHandle &ob_handle,
     }
 
     occupancy_subpasses.append(
-        instance_layer->occupancy_add(ob_handle.ref.object, blender_mat, occupancy_gpumat));
+        instance_layer->occupancy_add(ob_handle.object, blender_mat, occupancy_gpumat));
     material_subpasses.append(
-        instance_layer->material_add(ob_handle.ref.object, blender_mat, material_gpumat));
+        instance_layer->material_add(ob_handle.object, blender_mat, material_gpumat));
   }
 }
 

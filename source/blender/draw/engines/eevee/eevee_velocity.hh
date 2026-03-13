@@ -146,9 +146,7 @@ class VelocityModule {
 
   /* Gather motion data. Returns true if the object **can** have motion. */
   bool step_object_sync(const ObjectHandle &ob_handle,
-                        ResourceHandleRange resource_handle,
-                        ModifierData *modifier_data = nullptr,
-                        ParticleSystem *particle_sys = nullptr);
+                        HairParticleInfo const *hair_particle = nullptr);
 
   /**
    * In Render, moves the next frame data to previous frame data. Nullify next frame data.

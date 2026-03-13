@@ -29,14 +29,11 @@ namespace blender::eevee {
  *
  * \{ */
 
-ObjectHandle SyncModule::sync_object(const ObjectRef &ob_ref)
+ObjectHandle SyncModule::sync_object(const ObjectRef &ob_ref,
+                                     const ResourceHandleRange &res_handle,
+                                     uint sub_key)
 {
-  return ObjectHandle{inst_.get_recalc_flags(ob_ref), ob_ref};
-}
-
-WorldHandle SyncModule::sync_world(const blender::World &world)
-{
-  return WorldHandle{inst_.get_recalc_flags(world)};
+  return ObjectHandle(ob_ref, res_handle, inst_.get_recalc_flags(ob_ref), sub_key);
 }
 
 /** \} */
@@ -89,26 +86,28 @@ static inline void volume_call(MaterialPass &matpass,
 /** \name Mesh
  * \{ */
 
-void SyncModule::sync_mesh(Object *ob, ObjectHandle &ob_handle, const ObjectRef &ob_ref)
+void SyncModule::sync_mesh(const ObjectRef &ob_ref)
 {
   if (!inst_.use_surfaces) {
     return;
   }
 
-  if ((ob->dt < OB_SOLID) && (inst_.is_viewport() && inst_.v3d->shading.type != OB_RENDER)) {
+  if ((ob_ref.object->dt < OB_SOLID) &&
+      (inst_.is_viewport() && inst_.v3d->shading.type != OB_RENDER))
+  {
     /** Do not render objects with display type lower than solid when in material preview mode. */
     return;
   }
 
-  ResourceHandleRange res_handle = inst_.manager->unique_handle(ob_ref);
+  ObjectHandle ob_handle = sync_object(ob_ref, inst_.manager->unique_handle(ob_ref));
 
-  bool has_motion = inst_.velocity.step_object_sync(ob_handle, res_handle);
+  bool has_motion = inst_.velocity.step_object_sync(ob_handle);
 
   MaterialSyncArray &material_array = inst_.materials.material_array_get(
       ob_handle, has_motion, true);
 
   Span<gpu::Batch *> mat_geom = DRW_cache_object_surface_material_get(
-      ob, material_array.gpu_materials);
+      ob_handle.object, material_array.gpu_materials);
   if (mat_geom.is_empty()) {
     return;
   }
@@ -129,19 +128,19 @@ void SyncModule::sync_mesh(Object *ob, ObjectHandle &ob_handle, const ObjectRef 
     if (material.has_volume) {
       has_volume = true;
 
-      for (int instance : IndexRange(ob_handle.ref.instances_count())) {
+      for (int instance : IndexRange(ob_handle.instances_count())) {
         volume_call(material.sub_pass_arrays->volume_occupancy_sub_passes[instance],
                     material.volume_occupancy.gpumat,
                     inst_.scene,
-                    ob,
+                    ob_handle.object,
                     geom,
-                    res_handle.sub_handle(instance));
+                    ob_handle.res_handle.sub_handle(instance));
         volume_call(material.sub_pass_arrays->volume_material_sub_passes[instance],
                     material.volume_material.gpumat,
                     inst_.scene,
-                    ob,
+                    ob_handle.object,
                     geom,
-                    res_handle.sub_handle(instance));
+                    ob_handle.res_handle.sub_handle(instance));
       }
 
       /* Do not render surface if we are rendering a volume object
@@ -151,25 +150,26 @@ void SyncModule::sync_mesh(Object *ob, ObjectHandle &ob_handle, const ObjectRef 
       }
     }
 
-    geometry_call(material.capture.sub_pass, geom, res_handle);
-    geometry_call(material.prepass.sub_pass, geom, res_handle);
-    geometry_call(material.shading.sub_pass, geom, res_handle);
-    geometry_call(material.shadow.sub_pass, geom, res_handle);
+    geometry_call(material.capture.sub_pass, geom, ob_handle.res_handle);
+    geometry_call(material.prepass.sub_pass, geom, ob_handle.res_handle);
+    geometry_call(material.shading.sub_pass, geom, ob_handle.res_handle);
+    geometry_call(material.shadow.sub_pass, geom, ob_handle.res_handle);
 
     for (int i : material.sub_pass_arrays->overlap_masking_sub_passes.index_range()) {
-      geometry_call(
-          material.sub_pass_arrays->overlap_masking_sub_passes[i], geom, res_handle.sub_handle(i));
+      geometry_call(material.sub_pass_arrays->overlap_masking_sub_passes[i],
+                    geom,
+                    ob_handle.res_handle.sub_handle(i));
     }
     for (int i : material.sub_pass_arrays->shading_blend_transparent_sub_passes.index_range()) {
       geometry_call(material.sub_pass_arrays->shading_blend_transparent_sub_passes[i],
                     geom,
-                    res_handle.sub_handle(i));
+                    ob_handle.res_handle.sub_handle(i));
     }
 
-    geometry_call(material.planar_probe_prepass.sub_pass, geom, res_handle);
-    geometry_call(material.planar_probe_shading.sub_pass, geom, res_handle);
-    geometry_call(material.lightprobe_sphere_prepass.sub_pass, geom, res_handle);
-    geometry_call(material.lightprobe_sphere_shading.sub_pass, geom, res_handle);
+    geometry_call(material.planar_probe_prepass.sub_pass, geom, ob_handle.res_handle);
+    geometry_call(material.planar_probe_shading.sub_pass, geom, ob_handle.res_handle);
+    geometry_call(material.lightprobe_sphere_prepass.sub_pass, geom, ob_handle.res_handle);
+    geometry_call(material.lightprobe_sphere_shading.sub_pass, geom, ob_handle.res_handle);
 
     is_alpha_blend = is_alpha_blend || material.is_alpha_blend_transparent;
     has_transparent_shadows = has_transparent_shadows || material.has_transparent_shadows;
@@ -187,27 +187,29 @@ void SyncModule::sync_mesh(Object *ob, ObjectHandle &ob_handle, const ObjectRef 
   }
 
   if (inflate_bounds != 0.0f) {
-    inst_.manager->update_handle_bounds(res_handle, ob_ref, inflate_bounds);
+    inst_.manager->update_handle_bounds(ob_handle.res_handle, ob_ref, inflate_bounds);
   }
 
-  inst_.manager->extract_object_attributes(res_handle, ob_ref, material_array.gpu_materials);
+  inst_.manager->extract_object_attributes(
+      ob_handle.res_handle, ob_ref, material_array.gpu_materials);
 
-  inst_.shadows.sync_object(ob, ob_handle, res_handle, is_alpha_blend, has_transparent_shadows);
-  inst_.cryptomatte.sync_object(ob, res_handle);
+  inst_.shadows.sync_object(ob_handle, is_alpha_blend, has_transparent_shadows);
+  inst_.cryptomatte.sync_object(ob_handle);
 }
 
-bool SyncModule::sync_sculpt(Object *ob, ObjectHandle &ob_handle, const ObjectRef &ob_ref)
+bool SyncModule::sync_sculpt(const ObjectRef &ob_ref)
 {
   if (!inst_.use_surfaces) {
     return false;
   }
 
-  bool pbvh_draw = BKE_sculptsession_use_pbvh_draw(ob, inst_.rv3d) && !inst_.is_image_render;
+  bool pbvh_draw = BKE_sculptsession_use_pbvh_draw(ob_ref.object, inst_.rv3d) &&
+                   !inst_.is_image_render;
   if (!pbvh_draw) {
     return false;
   }
 
-  ResourceHandleRange res_handle = inst_.manager->unique_handle_for_sculpt(ob_ref);
+  ObjectHandle ob_handle = sync_object(ob_ref, inst_.manager->unique_handle_for_sculpt(ob_ref));
 
   bool has_motion = false;
   MaterialSyncArray &material_array = inst_.materials.material_array_get(ob_handle, has_motion);
@@ -227,8 +229,10 @@ bool SyncModule::sync_sculpt(Object *ob, ObjectHandle &ob_handle, const ObjectRe
     Material &material = material_array.materials[batch.material_slot];
 
     if (material.has_volume) {
-      volume_call(material.volume_occupancy, inst_.scene, ob, geom, res_handle);
-      volume_call(material.volume_material, inst_.scene, ob, geom, res_handle);
+      volume_call(
+          material.volume_occupancy, inst_.scene, ob_handle.object, geom, ob_handle.res_handle);
+      volume_call(
+          material.volume_material, inst_.scene, ob_handle.object, geom, ob_handle.res_handle);
       has_volume = true;
       /* Do not render surface if we are rendering a volume object
        * and do not have a surface closure. */
@@ -237,16 +241,16 @@ bool SyncModule::sync_sculpt(Object *ob, ObjectHandle &ob_handle, const ObjectRe
       }
     }
 
-    geometry_call(material.capture.sub_pass, geom, res_handle);
-    geometry_call(material.overlap_masking.sub_pass, geom, res_handle);
-    geometry_call(material.prepass.sub_pass, geom, res_handle);
-    geometry_call(material.shading.sub_pass, geom, res_handle);
-    geometry_call(material.shadow.sub_pass, geom, res_handle);
+    geometry_call(material.capture.sub_pass, geom, ob_handle.res_handle);
+    geometry_call(material.overlap_masking.sub_pass, geom, ob_handle.res_handle);
+    geometry_call(material.prepass.sub_pass, geom, ob_handle.res_handle);
+    geometry_call(material.shading.sub_pass, geom, ob_handle.res_handle);
+    geometry_call(material.shadow.sub_pass, geom, ob_handle.res_handle);
 
-    geometry_call(material.planar_probe_prepass.sub_pass, geom, res_handle);
-    geometry_call(material.planar_probe_shading.sub_pass, geom, res_handle);
-    geometry_call(material.lightprobe_sphere_prepass.sub_pass, geom, res_handle);
-    geometry_call(material.lightprobe_sphere_shading.sub_pass, geom, res_handle);
+    geometry_call(material.planar_probe_prepass.sub_pass, geom, ob_handle.res_handle);
+    geometry_call(material.planar_probe_shading.sub_pass, geom, ob_handle.res_handle);
+    geometry_call(material.lightprobe_sphere_prepass.sub_pass, geom, ob_handle.res_handle);
+    geometry_call(material.lightprobe_sphere_shading.sub_pass, geom, ob_handle.res_handle);
 
     is_alpha_blend = is_alpha_blend || material.is_alpha_blend_transparent;
     has_transparent_shadows = has_transparent_shadows || material.has_transparent_shadows;
@@ -264,10 +268,11 @@ bool SyncModule::sync_sculpt(Object *ob, ObjectHandle &ob_handle, const ObjectRe
     inst_.volume.object_sync(ob_handle);
   }
 
-  inst_.manager->extract_object_attributes(res_handle, ob_ref, material_array.gpu_materials);
+  inst_.manager->extract_object_attributes(
+      ob_handle.res_handle, ob_handle, material_array.gpu_materials);
 
-  inst_.shadows.sync_object(ob, ob_handle, res_handle, is_alpha_blend, has_transparent_shadows);
-  inst_.cryptomatte.sync_object(ob, res_handle);
+  inst_.shadows.sync_object(ob_handle, is_alpha_blend, has_transparent_shadows);
+  inst_.cryptomatte.sync_object(ob_handle);
 
   return true;
 }
@@ -278,13 +283,13 @@ bool SyncModule::sync_sculpt(Object *ob, ObjectHandle &ob_handle, const ObjectRe
 /** \name Point Cloud
  * \{ */
 
-void SyncModule::sync_pointcloud(Object *ob, ObjectHandle &ob_handle, const ObjectRef &ob_ref)
+void SyncModule::sync_pointcloud(const ObjectRef &ob_ref)
 {
   const int material_slot = POINTCLOUD_MATERIAL_NR;
 
-  ResourceHandleRange res_handle = inst_.manager->unique_handle(ob_ref);
+  ObjectHandle ob_handle = sync_object(ob_ref, inst_.manager->unique_handle(ob_ref));
 
-  bool has_motion = inst_.velocity.step_object_sync(ob_handle, res_handle);
+  bool has_motion = inst_.velocity.step_object_sync(ob_handle);
 
   MaterialSync material = inst_.materials.material_get(
       ob_handle, has_motion, material_slot - 1, MAT_GEOM_POINTCLOUD);
@@ -294,18 +299,19 @@ void SyncModule::sync_pointcloud(Object *ob, ObjectHandle &ob_handle, const Obje
       return;
     }
     PassMain::Sub &object_pass = matpass.sub_pass->sub("Point Cloud Sub Pass");
-    gpu::Batch *geometry = pointcloud_sub_pass_setup(object_pass, ob, matpass.gpumat);
+    gpu::Batch *geometry = pointcloud_sub_pass_setup(
+        object_pass, ob_handle.object, matpass.gpumat);
     if (dual_sided) {
       /* WORKAROUND: Hack to generate backfaces. Should also be baked into the Index Buf too at
        * some point in the future. */
       object_pass.push_constant("ptcloud_backface", false);
-      object_pass.draw(geometry, res_handle);
+      object_pass.draw(geometry, ob_handle.res_handle);
       object_pass.push_constant("ptcloud_backface", true);
-      object_pass.draw(geometry, res_handle);
+      object_pass.draw(geometry, ob_handle.res_handle);
     }
     else {
       object_pass.push_constant("ptcloud_backface", false);
-      object_pass.draw(geometry, res_handle);
+      object_pass.draw(geometry, ob_handle.res_handle);
     }
   };
 
@@ -333,22 +339,19 @@ void SyncModule::sync_pointcloud(Object *ob, ObjectHandle &ob_handle, const Obje
   drawcall_add(material.lightprobe_sphere_prepass);
   drawcall_add(material.lightprobe_sphere_shading);
 
-  inst_.cryptomatte.sync_object(ob, res_handle);
+  inst_.cryptomatte.sync_object(ob_handle);
   GPUMaterial *gpu_material = material.shading.gpumat;
   blender::Material *mat = GPU_material_get_material(gpu_material);
   inst_.cryptomatte.sync_material(mat);
 
   if (GPU_material_has_displacement_output(gpu_material) && mat->inflate_bounds != 0.0f) {
-    inst_.manager->update_handle_bounds(res_handle, ob_ref, mat->inflate_bounds);
+    inst_.manager->update_handle_bounds(ob_handle.res_handle, ob_ref, mat->inflate_bounds);
   }
 
-  inst_.manager->extract_object_attributes(res_handle, ob_ref, material.shading.gpumat);
+  inst_.manager->extract_object_attributes(ob_handle.res_handle, ob_ref, material.shading.gpumat);
 
-  inst_.shadows.sync_object(ob,
-                            ob_handle,
-                            res_handle,
-                            material.is_alpha_blend_transparent,
-                            material.has_transparent_shadows);
+  inst_.shadows.sync_object(
+      ob_handle, material.is_alpha_blend_transparent, material.has_transparent_shadows);
 }
 
 /** \} */
@@ -357,13 +360,13 @@ void SyncModule::sync_pointcloud(Object *ob, ObjectHandle &ob_handle, const Obje
 /** \name Volume Objects
  * \{ */
 
-void SyncModule::sync_volume(Object *ob, ObjectHandle &ob_handle, const ObjectRef &ob_ref)
+void SyncModule::sync_volume(const ObjectRef &ob_ref)
 {
   if (!inst_.use_volumes) {
     return;
   }
 
-  ResourceHandleRange res_handle = inst_.manager->unique_handle(ob_ref);
+  ObjectHandle ob_handle = sync_object(ob_ref, inst_.manager->unique_handle(ob_ref));
 
   const int material_slot = VOLUME_MATERIAL_NR;
 
@@ -391,7 +394,7 @@ void SyncModule::sync_volume(Object *ob, ObjectHandle &ob_handle, const ObjectRe
           return false;
         }
         PassMain::Sub *object_pass = volume_sub_pass(
-            *matpass.sub_pass, inst_.scene, ob, matpass.gpumat);
+            *matpass.sub_pass, inst_.scene, ob_handle.object, matpass.gpumat);
         if (object_pass != nullptr) {
           object_pass->draw(geom, res_handle);
           return true;
@@ -403,14 +406,15 @@ void SyncModule::sync_volume(Object *ob, ObjectHandle &ob_handle, const ObjectRe
   gpu::Batch *geom = inst_.volume.unit_cube_batch_get();
 
   bool is_rendered = false;
-  is_rendered |= drawcall_add(material.volume_occupancy, geom, res_handle);
-  is_rendered |= drawcall_add(material.volume_material, geom, res_handle);
+  is_rendered |= drawcall_add(material.volume_occupancy, geom, ob_handle.res_handle);
+  is_rendered |= drawcall_add(material.volume_material, geom, ob_handle.res_handle);
 
   if (!is_rendered) {
     return;
   }
 
-  inst_.manager->extract_object_attributes(res_handle, ob_ref, material.volume_material.gpumat);
+  inst_.manager->extract_object_attributes(
+      ob_handle.res_handle, ob_handle, material.volume_material.gpumat);
 
   inst_.volume.object_sync(ob_handle);
 }
@@ -421,29 +425,26 @@ void SyncModule::sync_volume(Object *ob, ObjectHandle &ob_handle, const ObjectRe
 /** \name Hair
  * \{ */
 
-void SyncModule::sync_curves(Object *ob,
-                             ObjectHandle &ob_handle,
-                             const ObjectRef &ob_ref,
-                             ResourceHandleRange res_handle,
-                             ModifierData *modifier_data,
-                             ParticleSystem *particle_sys)
+void SyncModule::sync_curves(const ObjectRef &ob_ref, HairParticleInfo const *hair_particle)
 {
   if (!inst_.use_curves) {
     return;
   }
 
   int mat_nr = CURVES_MATERIAL_NR;
-  if (particle_sys != nullptr) {
-    mat_nr = particle_sys->part->omat;
+  if (hair_particle != nullptr) {
+    mat_nr = hair_particle->psys.part->omat;
   }
 
-  if (!res_handle.is_valid()) {
-    /* For curve objects. */
-    res_handle = inst_.manager->unique_handle(ob_ref);
-  }
+  ObjectHandle ob_handle = hair_particle ?
+                               sync_object(ob_ref, inst_.manager->unique_handle(ob_ref)) :
+                               ObjectHandle(ob_ref,
+                                            inst_.manager->unique_handle_for_psys(
+                                                ob_ref, ob_ref.object_to_world()),
+                                            hair_particle->recalc_flags,
+                                            hair_particle->sub_key);
 
-  bool has_motion = inst_.velocity.step_object_sync(
-      ob_handle, res_handle, modifier_data, particle_sys);
+  bool has_motion = inst_.velocity.step_object_sync(ob_handle, hair_particle);
   MaterialSync material = inst_.materials.material_get(
       ob_handle, has_motion, mat_nr - 1, MAT_GEOM_CURVES);
 
@@ -451,21 +452,21 @@ void SyncModule::sync_curves(Object *ob,
     if (matpass.sub_pass == nullptr) {
       return;
     }
-    if (particle_sys != nullptr) {
+    if (hair_particle != nullptr) {
       PassMain::Sub &sub_pass = matpass.sub_pass->sub("Hair SubPass");
       gpu::Batch *geometry = hair_sub_pass_setup(
-          sub_pass, inst_.scene, ob_ref, particle_sys, modifier_data, matpass.gpumat);
-      sub_pass.draw(geometry, res_handle);
+          sub_pass, inst_.scene, ob_ref, &hair_particle->psys, &hair_particle->md, matpass.gpumat);
+      sub_pass.draw(geometry, ob_handle.res_handle);
     }
     else {
       PassMain::Sub &sub_pass = matpass.sub_pass->sub("Curves SubPass");
       const char *error = nullptr;
       gpu::Batch *geometry = curves_sub_pass_setup(
-          sub_pass, inst_.scene, ob, error, matpass.gpumat);
+          sub_pass, inst_.scene, ob_ref.object, error, matpass.gpumat);
       if (error) {
         inst_.info_append(error);
       }
-      sub_pass.draw(geometry, res_handle);
+      sub_pass.draw(geometry, ob_handle.res_handle);
     }
   };
 
@@ -492,30 +493,27 @@ void SyncModule::sync_curves(Object *ob,
   drawcall_add(material.lightprobe_sphere_prepass);
   drawcall_add(material.lightprobe_sphere_shading);
 
-  inst_.cryptomatte.sync_object(ob, res_handle);
+  inst_.cryptomatte.sync_object(ob_handle);
   GPUMaterial *gpu_material = material.shading.gpumat;
   blender::Material *mat = GPU_material_get_material(gpu_material);
   inst_.cryptomatte.sync_material(mat);
 
   if (GPU_material_has_displacement_output(gpu_material) && mat->inflate_bounds != 0.0f) {
-    inst_.manager->update_handle_bounds(res_handle, ob_ref, mat->inflate_bounds);
+    inst_.manager->update_handle_bounds(ob_handle.res_handle, ob_ref, mat->inflate_bounds);
   }
 
-  inst_.manager->extract_object_attributes(res_handle, ob_ref, material.shading.gpumat);
+  inst_.manager->extract_object_attributes(ob_handle.res_handle, ob_ref, material.shading.gpumat);
 
-  inst_.shadows.sync_object(ob,
-                            ob_handle,
-                            res_handle,
-                            material.is_alpha_blend_transparent,
-                            material.has_transparent_shadows);
+  inst_.shadows.sync_object(
+      ob_handle, material.is_alpha_blend_transparent, material.has_transparent_shadows);
 }
 
 /** \} */
 
-void foreach_hair_particle_handle(Instance &inst,
-                                  ObjectRef &ob_ref,
-                                  int instance_index,
-                                  HairHandleCallback callback)
+void foreach_hair_particle(Instance &inst,
+                           ObjectRef &ob_ref,
+                           int instance_index,
+                           HairHandleCallback callback)
 {
   uint sub_key = 1;
 
@@ -532,10 +530,7 @@ void foreach_hair_particle_handle(Instance &inst,
       {
         continue;
       }
-
-      ObjectHandle particle_sys_handle = {uint(particle_sys->recalc), ob_ref, sub_key++};
-
-      callback(particle_sys_handle, md, *particle_sys);
+      callback({md, *particle_sys, uint(particle_sys->recalc), sub_key++});
     }
   }
 }

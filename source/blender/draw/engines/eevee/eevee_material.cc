@@ -300,7 +300,7 @@ Material &MaterialModule::material_sync(const ObjectHandle &ob_handle,
                                         bool has_motion,
                                         bool use_subpass_arrays)
 {
-  Object *ob = ob_handle.ref.object;
+  Object *ob = ob_handle.object;
   bool hide_on_camera = ob->visibility_flag & OB_HIDE_CAMERA;
 
   if (geometry_type == MAT_GEOM_VOLUME) {
@@ -463,7 +463,7 @@ MaterialSyncArray &MaterialModule::material_array_get(const ObjectHandle &ob_han
                                                       bool has_motion,
                                                       bool use_subpass_arrays)
 {
-  Object *ob = ob_handle.ref.object;
+  Object *ob = ob_handle.object;
 
   material_array_.materials.clear();
   material_array_.gpu_materials.clear();
@@ -504,7 +504,7 @@ MaterialSync MaterialModule::material_get(const ObjectHandle &ob_handle,
 {
   blender::Material *blender_mat = (material_override) ?
                                        material_override :
-                                       material_from_slot(ob_handle.ref.object, mat_nr);
+                                       material_from_slot(ob_handle.object, mat_nr);
 
   for (SubPassArrays &sub_pass_array : sub_pass_arrays_) {
     sub_pass_array.clear();

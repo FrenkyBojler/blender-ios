@@ -31,12 +31,17 @@ class Instance;
  * \{ */
 
 struct BaseHandle {
-  unsigned int recalc;
+  const uint recalc = 0;
 };
 
-struct ObjectHandle : BaseHandle {
-  const ObjectRef &ref;
-  uint sub_key = 0;
+struct ObjectHandle : ObjectRef, BaseHandle {
+  const ResourceHandleRange &res_handle;
+
+  ObjectHandle(const ObjectRef &ob_ref,
+               const ResourceHandleRange &res_handle,
+               uint recalc,
+               uint sub_key = 0)
+      : ObjectRef(ob_ref, sub_key), BaseHandle{recalc}, res_handle(res_handle) {};
 };
 
 struct WorldHandle : public BaseHandle {};
@@ -51,26 +56,30 @@ class SyncModule {
   SyncModule(Instance &inst) : inst_(inst) {};
   ~SyncModule() {};
 
-  ObjectHandle sync_object(const ObjectRef &ob_ref);
-  WorldHandle sync_world(const blender::World &world);
+  ObjectHandle sync_object(const ObjectRef &ob_ref,
+                           const ResourceHandleRange &res_handle,
+                           uint sub_key = 0);
 
-  void sync_mesh(Object *ob, ObjectHandle &ob_handle, const ObjectRef &ob_ref);
-  bool sync_sculpt(Object *ob, ObjectHandle &ob_handle, const ObjectRef &ob_ref);
-  void sync_pointcloud(Object *ob, ObjectHandle &ob_handle, const ObjectRef &ob_ref);
-  void sync_volume(Object *ob, ObjectHandle &ob_handle, const ObjectRef &ob_ref);
-  void sync_curves(Object *ob,
-                   ObjectHandle &ob_handle,
-                   const ObjectRef &ob_ref,
-                   ResourceHandleRange res_handle = {},
-                   ModifierData *modifier_data = nullptr,
-                   ParticleSystem *particle_sys = nullptr);
+  void sync_mesh(const ObjectRef &ob_ref);
+  bool sync_sculpt(const ObjectRef &ob_ref);
+  void sync_pointcloud(const ObjectRef &ob_ref);
+  void sync_volume(const ObjectRef &ob_ref);
+  void sync_curves(const ObjectRef &ob_ref,
+                   struct HairParticleInfo const *hair_particle = nullptr);
 };
 
-using HairHandleCallback = FunctionRef<void(ObjectHandle, ModifierData &, ParticleSystem &)>;
-void foreach_hair_particle_handle(Instance &inst,
-                                  ObjectRef &ob_ref,
-                                  int instance_index,
-                                  HairHandleCallback callback);
+struct HairParticleInfo {
+  ModifierData &md;
+  ParticleSystem &psys;
+  uint recalc_flags;
+  uint sub_key;
+};
+
+using HairHandleCallback = FunctionRef<void(const HairParticleInfo &)>;
+void foreach_hair_particle(Instance &inst,
+                           ObjectRef &ob_ref,
+                           int instance_index,
+                           HairHandleCallback callback);
 
 /** \} */
 

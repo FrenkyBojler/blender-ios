@@ -372,8 +372,6 @@ class Instance : public DrawEngine {
   void render_sample();
   void render_read_result(RenderLayer *render_layer, const char *view_name);
 
-  void mesh_sync(Object *ob, ObjectHandle &ob_handle);
-
   void update_eval_members();
 
   void set_time(float time);

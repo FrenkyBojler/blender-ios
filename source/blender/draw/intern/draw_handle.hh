@@ -183,7 +183,7 @@ class ResourceHandleRange {
     return index_;
   }
 
-  ResourceHandle sub_handle(int index)
+  ResourceHandle sub_handle(int index) const
   {
     BLI_assert(index < index_.count);
     return ResourceHandle(index_.first.resource_index() + index,
@@ -280,6 +280,12 @@ class ObjectRef {
       BLI_assert(instance_index == 0);
       return object->object_to_world();
     }
+  }
+
+  float4x4 object_to_world() const
+  {
+    BLI_assert(!is_range());
+    return object_to_world(0);
   }
 
   float random(int instance_index) const

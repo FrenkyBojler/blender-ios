@@ -77,18 +77,18 @@ static void step_object_sync_render(Instance &inst, ObjectRef &ob_ref)
 
   /* NOTE: Dummy resource handle since this won't be used for drawing. */
   ResourceHandleRange resource_handle = {};
-  ObjectHandle ob_handle = inst.sync.sync_object(ob_ref);
 
   if (partsys_is_visible) {
-    auto sync_hair =
-        [&](ObjectHandle hair_handle, ModifierData &md, ParticleSystem &particle_sys) {
-          inst.velocity.step_object_sync(hair_handle, resource_handle, &md, &particle_sys);
-        };
-    foreach_hair_particle_handle(inst, ob_ref, 0, sync_hair);
+    auto sync_hair = [&](const HairParticleInfo &info) {
+      ObjectHandle ob_handle(ob_ref, resource_handle, info.recalc_flags, info.sub_key);
+      inst.velocity.step_object_sync(ob_handle, &info);
+    };
+    foreach_hair_particle(inst, ob_ref, 0, sync_hair);
   };
 
   if (object_is_visible) {
-    inst.velocity.step_object_sync(ob_handle, resource_handle);
+    ObjectHandle ob_handle = inst.sync.sync_object(ob_ref, resource_handle);
+    inst.velocity.step_object_sync(ob_handle);
   }
 }
 
@@ -121,15 +121,13 @@ void VelocityModule::step_camera_sync()
 }
 
 bool VelocityModule::step_object_sync(const ObjectHandle &ob_handle,
-                                      ResourceHandleRange resource_handle,
-                                      ModifierData *modifier_data /*=nullptr*/,
-                                      ParticleSystem *particle_sys /*=nullptr*/)
+                                      HairParticleInfo const *hair_particle /*=nullptr*/)
 {
-  Object *ob = ob_handle.ref.object;
-  bool has_motion = object_has_velocity(ob) || (ob_handle.recalc & ID_RECALC_TRANSFORM);
+  bool has_motion = object_has_velocity(ob_handle.object) ||
+                    (ob_handle.recalc & ID_RECALC_TRANSFORM);
   /* NOTE: Fragile. This will only work with 1 frame of lag since we can't record every geometry
    * just in case there might be an update the next frame. */
-  bool has_deform = object_is_deform(ob) || (ob_handle.recalc & ID_RECALC_GEOMETRY);
+  bool has_deform = object_is_deform(ob_handle.object) || (ob_handle.recalc & ID_RECALC_GEOMETRY);
 
   if (!has_motion && !has_deform) {
     return false;
@@ -137,25 +135,27 @@ bool VelocityModule::step_object_sync(const ObjectHandle &ob_handle,
 
   /* While VelocityObjectData is unique for each object/instance, multiple VelocityObjectDatas
    * can point to the same offset in VelocityGeometryData, since geometry is stored local space. */
-  uint64_t velocity_id = particle_sys ? uint64_t(particle_sys) : uint64_t(ob->data);
+  uint64_t velocity_id = hair_particle ? uint64_t(&hair_particle->psys) :
+                                         uint64_t(ob_handle.object->data);
 
   /* Geometry motion. */
   if (has_deform) {
     auto add_cb = [&]() {
       VelocityGeometryData data;
-      if (particle_sys) {
-        data.pos_buf = draw::hair_pos_buffer_get(inst_.scene, ob, particle_sys, modifier_data);
+      if (hair_particle) {
+        data.pos_buf = draw::hair_pos_buffer_get(
+            inst_.scene, ob_handle.object, &hair_particle->psys, &hair_particle->md);
         return data;
       }
-      switch (ob->type) {
+      switch (ob_handle.object->type) {
         case OB_CURVES:
-          data.pos_buf = draw::curves_pos_buffer_get(ob);
+          data.pos_buf = draw::curves_pos_buffer_get(ob_handle.object);
           break;
         case OB_POINTCLOUD:
-          data.pos_buf = DRW_pointcloud_position_and_radius_buffer_get(ob);
+          data.pos_buf = DRW_pointcloud_position_and_radius_buffer_get(ob_handle.object);
           break;
         case OB_MESH:
-          data.pos_buf = DRW_cache_mesh_surface_get(ob);
+          data.pos_buf = DRW_cache_mesh_surface_get(ob_handle.object);
           break;
       }
       return data;
@@ -166,27 +166,24 @@ bool VelocityModule::step_object_sync(const ObjectHandle &ob_handle,
   }
 
   bool any_have_motion = false;
-
-  int instance_index = 0;
-  for (ResourceIndex resource_index : resource_handle.index_range()) {
+  for (int i : IndexRange(ob_handle.instances_count())) {
     /* Object motion. */
     /* FIXME(fclem) As we are using original objects pointers, there is a chance the previous
      * object key matches a totally different object if the scene was changed by user or python
      * callback. In this case, we cannot correctly match objects between updates.
      * What this means is that there will be incorrect motion vectors for these objects.
      * We live with that until we have a correct way of identifying new objects. */
-    VelocityObjectData &vel = velocity_map.lookup_or_add_default(
-        ObjectKey(ob_handle.ref, instance_index++, ob_handle.sub_key));
+    VelocityObjectData &vel = velocity_map.lookup_or_add_default(ObjectKey(ob_handle, i));
     vel.obj.ofs[step_] = object_steps_usage[step_]++;
-    vel.obj.resource_id = resource_index.resource_index();
+    vel.obj.resource_id = ob_handle.res_handle.sub_handle(i).resource_index();
     vel.id = velocity_id;
-    object_steps[step_]->get_or_resize(vel.obj.ofs[step_]) = ob->object_to_world();
+    object_steps[step_]->get_or_resize(vel.obj.ofs[step_]) = ob_handle.object_to_world(i);
     if (step_ == STEP_CURRENT) {
       /* Replace invalid steps. Can happen if object was hidden in one of those steps. */
       if (vel.obj.ofs[STEP_PREVIOUS] == -1) {
         vel.obj.ofs[STEP_PREVIOUS] = object_steps_usage[STEP_PREVIOUS]++;
         object_steps[STEP_PREVIOUS]->get_or_resize(
-            vel.obj.ofs[STEP_PREVIOUS]) = ob->object_to_world();
+            vel.obj.ofs[STEP_PREVIOUS]) = ob_handle.object_to_world(i);
       }
       if (vel.obj.ofs[STEP_NEXT] == -1) {
         if (inst_.is_viewport()) {
@@ -195,7 +192,8 @@ bool VelocityModule::step_object_sync(const ObjectHandle &ob_handle,
         }
         else {
           vel.obj.ofs[STEP_NEXT] = object_steps_usage[STEP_NEXT]++;
-          object_steps[STEP_NEXT]->get_or_resize(vel.obj.ofs[STEP_NEXT]) = ob->object_to_world();
+          object_steps[STEP_NEXT]->get_or_resize(
+              vel.obj.ofs[STEP_NEXT]) = ob_handle.object_to_world(i);
         }
       }
     }
