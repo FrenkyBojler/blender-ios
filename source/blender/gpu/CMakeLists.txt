@@ -657,6 +657,7 @@ set(GLSL_SRC
   shaders/material/gpu_shader_material_hue_sat_val.glsl
   shaders/material/gpu_shader_material_implicit_defaults.glsl
   shaders/material/gpu_shader_material_invert.glsl
+  shaders/material/gpu_shader_material_invert_rotation.glsl
   shaders/material/gpu_shader_material_layer_weight.glsl
   shaders/material/gpu_shader_material_light_falloff.glsl
   shaders/material/gpu_shader_material_light_path.glsl
@@ -682,6 +683,7 @@ set(GLSL_SRC
   shaders/material/gpu_shader_material_rgb_to_bw.glsl
   shaders/material/gpu_shader_material_radial_tiling.glsl
   shaders/material/gpu_shader_material_radial_tiling_shared.glsl
+  shaders/material/gpu_shader_material_rotate_rotation.glsl
   shaders/material/gpu_shader_material_rotate_vector.glsl
   shaders/material/gpu_shader_material_rotation_to_euler.glsl
   shaders/material/gpu_shader_material_separate_color.glsl

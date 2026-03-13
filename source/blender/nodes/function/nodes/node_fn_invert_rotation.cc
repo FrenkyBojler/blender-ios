@@ -5,6 +5,7 @@
 #include "BLI_math_quaternion.hh"
 
 #include "node_function_util.hh"
+#include "node_shader_util.hh"
 
 namespace blender::nodes::node_fn_invert_rotation_cc {
 
@@ -16,6 +17,15 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Rotation>("Rotation"_ustr);
   b.add_output<decl::Rotation>("Rotation"_ustr).align_with_previous();
 };
+
+static int gpu_shader_invert_rotation(GPUMaterial *mat,
+                    bNode *node,
+                    bNodeExecData * /*execdata*/,
+                    GPUNodeStack *in,
+                    GPUNodeStack *out)
+{
+  return GPU_stack_link(mat, node, "invert_rotation", in, out);
+}
 
 static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 {
@@ -33,6 +43,7 @@ static void node_register()
   ntype.enum_name_legacy = "INVERT_ROTATION";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
+  ntype.gpu_fn = gpu_shader_invert_rotation;
   ntype.build_multi_function = node_build_multi_function;
   bke::node_register_type(ntype);
 }
