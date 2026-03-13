@@ -9,6 +9,7 @@ __all__ = (
 )
 
 import copy
+import io
 import os
 import tempfile
 import unittest
@@ -221,6 +222,8 @@ class TestImBufFree(unittest.TestCase):
         with self.assertRaises(ReferenceError):
             ibuf.copy()
         with self.assertRaises(ReferenceError):
+            imbuf.write_to_buffer(ibuf, io.BytesIO())
+        with self.assertRaises(ReferenceError):
             ibuf.filepath = "/tmp/test.png"
 
     def test_double_free(self):
@@ -334,6 +337,23 @@ class TestImBufIO(unittest.TestCase):
         filepath = os.path.join(bpy.app.binary_path, "test.png")
         with self.assertRaises(IOError):
             imbuf.write(ibuf, filepath=filepath)
+        ibuf.free()
+
+    def test_write_to_buffer(self):
+        size = (16, 24)
+        ibuf = imbuf.new(size)
+        buf = io.BytesIO()
+        imbuf.write_to_buffer(ibuf, buf)
+        ibuf.free()
+        # Round-trip: the written data should be loadable.
+        ibuf_loaded = imbuf.load_from_buffer(buf.getvalue())
+        self.assertEqual(ibuf_loaded.size, size)
+        ibuf_loaded.free()
+
+    def test_write_to_buffer_not_writable(self):
+        ibuf = imbuf.new(DEFAULT_SIZE)
+        with self.assertRaises(AttributeError):
+            imbuf.write_to_buffer(ibuf, object())
         ibuf.free()
 
     def test_load_sets_filepath(self):
