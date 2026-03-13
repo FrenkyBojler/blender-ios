@@ -760,26 +760,6 @@ static const EnumPropertyItem *rna_ColorManagedColorspaceSettings_colorspace_ite
   return items;
 }
 
-struct Seq_colorspace_cb_data {
-  ColorManagedColorspaceSettings *colorspace_settings;
-  Strip *r_seq;
-};
-
-/**
- * Color-space could be changed for scene, but also sequencer-strip.
- * If property pointer matches one of strip, set `r_seq`,
- * so not all cached images have to be invalidated.
- */
-static bool strip_find_colorspace_settings_cb(Strip *strip, void *user_data)
-{
-  Seq_colorspace_cb_data *cd = static_cast<Seq_colorspace_cb_data *>(user_data);
-  if (strip->data && &strip->data->colorspace_settings == cd->colorspace_settings) {
-    cd->r_seq = strip;
-    return false;
-  }
-  return true;
-}
-
 static void rna_ColorManagedColorspaceSettings_reload_update(Main *bmain,
                                                              Scene * /*scene*/,
                                                              PointerRNA *ptr)
@@ -826,7 +806,7 @@ static void rna_ColorManagedColorspaceSettings_reload_update(Main *bmain,
       }
       else {
         /* Strip colorspace was likely changed. */
-        seq::foreach_strip(&scene->ed->seqbase, strip_find_colorspace_settings_cb, &cb_data);
+        seq::foreach_strip(&scene->ed->seqbase, rna_strip_find_colorspace_settings_cb, &cb_data);
         Strip *strip = cb_data.r_seq;
 
         if (strip) {

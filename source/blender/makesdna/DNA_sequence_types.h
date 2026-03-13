@@ -984,6 +984,11 @@ struct EchoModifierData {
   char _pad[4] = {};
 };
 
+struct Seq_colorspace_cb_data {
+  ColorManagedColorspaceSettings *colorspace_settings;
+  Strip *r_seq;
+};
+
 /** \} */
 
 }  // namespace blender

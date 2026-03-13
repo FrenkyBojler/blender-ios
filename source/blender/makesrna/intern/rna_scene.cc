@@ -792,6 +792,7 @@ static const EnumPropertyItem eevee_resolution_scale_items[] = {
 #  include "DEG_depsgraph_build.hh"
 #  include "DEG_depsgraph_query.hh"
 
+#  include "SEQ_iterator.hh"
 #  include "SEQ_relations.hh"
 #  include "SEQ_sequencer.hh"
 #  include "SEQ_sound.hh"
@@ -1320,6 +1321,21 @@ static std::optional<std::string> rna_BakeSettings_path(const PointerRNA * /*ptr
   return "render.bake";
 }
 
+/**
+ * Color-space could be changed for scene, but also sequencer-strip.
+ * If property pointer matches one of strip, set `r_seq`,
+ * so not all cached images have to be invalidated.
+ */
+bool rna_strip_find_colorspace_settings_cb(Strip *strip, void *user_data)
+{
+  Seq_colorspace_cb_data *cd = static_cast<Seq_colorspace_cb_data *>(user_data);
+  if (strip->data && &strip->data->colorspace_settings == cd->colorspace_settings) {
+    cd->r_seq = strip;
+    return false;
+  }
+  return true;
+}
+
 static std::optional<std::string> rna_ImageFormatSettings_path(
     const PointerRNA *ptr, FunctionRef<bool(ImageFormatData *)> match)
 {
@@ -1417,6 +1433,27 @@ std::optional<std::string> rna_ColorManagedInputColorspaceSettings_path(const Po
   if (path) {
     return *path + ".linear_colorspace_settings";
   }
+
+  /* Images and Movieclips have this directly. */
+  if (ELEM(GS(ptr->owner_id->name), ID_IM, ID_MC)) {
+    return "colorspace_settings";
+  }
+
+  /* Search VSE for ImageStrips/MovieStrip. */
+  if (GS(ptr->owner_id->name) == ID_SCE) {
+    Scene *scene = id_cast<Scene *>(ptr->owner_id);
+    if (scene->ed) {
+      Seq_colorspace_cb_data cb_data = {data, nullptr};
+      seq::foreach_strip(&scene->ed->seqbase, rna_strip_find_colorspace_settings_cb, &cb_data);
+      Strip *strip = cb_data.r_seq;
+      if (strip) {
+        char name_esc[(sizeof(strip->name) - 2) * 2];
+        BLI_str_escape(name_esc, strip->name + 2, sizeof(name_esc));
+        return fmt::format("sequence_editor.strips_all[\"{}\"].colorspace_settings", name_esc);
+      }
+    }
+  }
+
   return std::nullopt;
 }
 

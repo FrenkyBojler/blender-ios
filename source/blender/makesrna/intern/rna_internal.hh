@@ -38,6 +38,7 @@ struct Object;
 struct PropertyDefRNA;
 struct ReportList;
 struct SDNA;
+struct Strip;
 struct ViewLayer;
 
 /* Data structures used during define */
@@ -429,6 +430,7 @@ std::optional<std::string> rna_Node_ImageUser_path(const PointerRNA *ptr);
 std::optional<std::string> rna_CameraBackgroundImage_image_or_movieclip_user_path(
     const PointerRNA *ptr);
 
+bool rna_strip_find_colorspace_settings_cb(Strip *strip, void *user_data);
 std::optional<std::string> rna_ColorManagedDisplaySettings_path(const PointerRNA *ptr);
 std::optional<std::string> rna_ColorManagedViewSettings_path(const PointerRNA *ptr);
 std::optional<std::string> rna_ColorManagedInputColorspaceSettings_path(const PointerRNA *ptr);
