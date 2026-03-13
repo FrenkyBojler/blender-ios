@@ -9,3 +9,4 @@ Referenced by issue #152277, Shading errors with harden normals in bevel operato
 Referenced by commit 19801f7c880c876e43afdd340f133338677657fd, Fix #152277: Shading errors with harden normals in bevel operator
 Referenced by issue #155555, 5.1 Animation performance regression
 Referenced by pull request #155585, Fix #155555: Subdiv: Avoid redundant processing of vertex groups
+Referenced by commit 48bb6eca3a8c3a04275d4f1620ca38120975c9c8, Fix #155555: Subdiv: Avoid redundant processing of vertex groups
