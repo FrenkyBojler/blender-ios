@@ -237,6 +237,7 @@ class ShadowModule {
 
   PassSimple caster_update_ps_ = {"CasterUpdate"};
   PassSimple jittered_transparent_caster_update_ps_ = {"TransparentCasterUpdate"};
+  PassSimple update_propagate_ps_ = {"CasterUpdatePropagate"};
   /** List of Resource IDs (to get bounds) for tagging passes. */
   StorageVectorBuffer<uint, 128> past_casters_updated_ = {"PastCastersUpdated"};
   StorageVectorBuffer<uint, 128> curr_casters_updated_ = {"CurrCastersUpdated"};

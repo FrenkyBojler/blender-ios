@@ -970,6 +970,21 @@ void ShadowModule::end_sync()
       }
     }
 
+    {
+      /* Propagate the update tag to the lower LODs. */
+      PassSimple &pass = update_propagate_ps_;
+      pass.init();
+      if (past_casters_updated_.size() > 0 || curr_casters_updated_.size() > 0 ||
+          jittered_transparent_casters_.size() > 0)
+      {
+        pass.shader_set(inst_.shaders.static_shader_get(SHADOW_TILEMAP_TAG_UPDATE_PROPAGATE));
+        pass.bind_ssbo("tilemaps_buf", tilemap_pool.tilemaps_data);
+        pass.bind_ssbo("tiles_buf", tilemap_pool.tiles_data);
+        pass.dispatch(int3(1, 1, tilemap_pool.tilemaps_data.size()));
+        pass.barrier(GPU_BARRIER_SHADER_STORAGE);
+      }
+    }
+
     /* Non volume usage tagging happens between these two steps.
      * (Setup at begin_sync) */
 
@@ -1344,6 +1359,7 @@ void ShadowModule::set_view(View &view, int2 extent)
         inst_.manager->submit(jittered_transparent_caster_update_ps_, view);
       }
       GPU_framebuffer_bind(prev_fb);
+      inst_.manager->submit(update_propagate_ps_, view);
       inst_.manager->submit(tilemap_usage_ps_, view);
       inst_.manager->submit(tilemap_update_ps_, view);
 

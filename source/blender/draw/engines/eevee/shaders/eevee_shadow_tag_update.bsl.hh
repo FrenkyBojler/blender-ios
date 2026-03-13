@@ -17,6 +17,7 @@
 #include "eevee_defines.hh"
 #include "eevee_shadow_shared.hh"
 
+#include "eevee_shadow_page_ops.bsl.hh"
 #include "eevee_shadow_tilemap_lib.glsl"
 #include "gpu_shader_math_matrix_transform_lib.glsl"
 
@@ -28,7 +29,6 @@ struct TagUpdate {
 
   [[push_constant]] int tilemap_count;
 
-  [[storage(0, read_write)]] ShadowTileMapData (&tilemaps_buf)[];
   [[storage(1, read_write)]] uint (&tiles_buf)[];
   [[storage(5, read)]] const ObjectBounds (&bounds_buf)[];
   [[storage(6, read)]] const uint (&resource_ids_buf)[];
@@ -44,6 +44,7 @@ struct VertOut {
 
 [[vertex]]
 void tag_update_vert([[resource_table]] TagUpdate &srt,
+                     [[resource_table]] TileMaps &tilemaps,
                      [[instance_id]] const int inst_per_tilemap_id,
                      [[in]] const VertIn &v_in,
                      [[out]] VertOut &v_out,
@@ -59,7 +60,7 @@ void tag_update_vert([[resource_table]] TagUpdate &srt,
     return;
   }
 
-  ShadowTileMapData tilemap = srt.tilemaps_buf[v_out.tilemap_index];
+  ShadowTileMapData tilemap = tilemaps.tilemaps_buf[v_out.tilemap_index];
 
   const float3 ls_N = v_in.pos;
   /* Convert from -1..1 box shape to 0..1 box. */
@@ -95,20 +96,40 @@ void tag_update_vert([[resource_table]] TagUpdate &srt,
 
 [[fragment]]
 void tag_update_frag([[resource_table]] TagUpdate &srt,
+                     [[resource_table]] TileMaps &tilemaps,
                      [[frag_coord]] const float4 frag_coord,
                      [[in]] const VertOut &v_out)
 {
-  ShadowTileMapData tilemap = srt.tilemaps_buf[v_out.tilemap_index];
+  ShadowTileMapData tilemap = tilemaps.tilemaps_buf[v_out.tilemap_index];
 
   uint2 texel = uint2(frag_coord.xy);
-  for (int lod = 0; lod <= SHADOW_TILEMAP_LOD; lod++) {
-    /* NOTE: Can't reject any thread in LODs because we need to be conservative.
-     * This can create some atomic contention but for now we live with that. */
-    int tile_index = shadow_tile_offset(texel >> lod, tilemap.tiles_index, lod);
-    atomicOr(srt.tiles_buf[tile_index], uint(SHADOW_DO_UPDATE));
+  /* Tag only LOD0. The lower LOD will be written by the tag_propagate pass. */
+  int tile_index = shadow_tile_offset(texel, tilemap.tiles_index, 0);
+  atomicOr(srt.tiles_buf[tile_index], uint(SHADOW_DO_UPDATE));
+}
+
+/* Propagate the LOD0 update tag to the lower LOD tiles. */
+[[compute, local_size(SHADOW_TILEMAP_RES, SHADOW_TILEMAP_RES)]]
+void tag_propagate([[resource_table]] TagUpdate &srt,
+                   [[resource_table]] TileMaps &tilemaps,
+                   [[global_invocation_id]] const uint3 global_id)
+{
+  ShadowTileMapData tilemap = tilemaps.tilemaps_buf[global_id.z];
+
+  uint2 texel = uint2(global_id.xy);
+  const int tile_index_lod0 = shadow_tile_offset(texel, tilemap.tiles_index, 0);
+  bool do_update = (srt.tiles_buf[tile_index_lod0] & uint(SHADOW_DO_UPDATE)) != 0;
+
+  if (do_update) {
+    /* TODO(fclem): Recursive downsampling. */
+    for (int lod = 1; lod <= SHADOW_TILEMAP_LOD; lod++) {
+      int tile_index = shadow_tile_offset(texel >> lod, tilemap.tiles_index, lod);
+      atomicOr(srt.tiles_buf[tile_index], uint(SHADOW_DO_UPDATE));
+    }
   }
 }
 
 PipelineGraphic tag_update(tag_update_vert, tag_update_frag);
+PipelineCompute tag_update_propagate(tag_propagate);
 
 }  // namespace eevee::shadow
