@@ -78,7 +78,7 @@ void VertexPaintOperation::on_stroke_extended(const bContext &C,
             exec_mode::grain_size(4096));
       }
       else {
-        /* Mix brush color into vertex colors by influence using alpha over. */
+        /* Mix brush color into vertex colors by influence. */
         point_selection.foreach_index(
             [&](const int64_t point_i) {
               const float influence = brush_point_influence(paint,
@@ -88,7 +88,14 @@ void VertexPaintOperation::on_stroke_extended(const bContext &C,
                                                             params.multi_frame_falloff);
 
               ColorGeometry4f &color = vertex_colors[point_i];
-              color = math::interpolate(color, mix_color, influence);
+
+              using Color = ColorPaint4f;
+              using Traits = color::Traits<Color>;
+
+              const Color linearrgb_color = color::unpremultiply_alpha(color);
+
+              color = color::premultiply_alpha(color::BLI_mix_colors<Color, Traits>(
+                  blend_mode, linearrgb_color, mix_color, Traits::range * influence));
             },
             exec_mode::grain_size(4096));
       }
