@@ -51,9 +51,9 @@ void VertexPaintOperation::on_stroke_extended(const bContext &C,
 
   float color_linear[3];
   copy_v3_v3(color_linear, BKE_brush_color_get(&paint, &brush));
-  const ColorGeometry4f mix_color(color_linear[0], color_linear[1], color_linear[2], 1.0f);
+  const ColorPaint4f mix_color(color_linear[0], color_linear[1], color_linear[2], 1.0f);
 
-  this->foreach_editable_drawing(C, GrainSize(1), [&](const GreasePencilStrokeParams &params) {
+  this->foreach_editable_drawing(C, [&](const GreasePencilStrokeParams &params) {
     IndexMaskMemory memory;
     const IndexMask point_selection = point_mask_for_stroke_operation(
         params, use_selection_masking, memory);
@@ -63,24 +63,34 @@ void VertexPaintOperation::on_stroke_extended(const bContext &C,
 
       if (invert) {
         /* Erase vertex colors. */
-        point_selection.foreach_index(GrainSize(4096), [&](const int64_t point_i) {
-          const float influence = brush_point_influence(
-              paint, brush, view_positions[point_i], extension_sample, params.multi_frame_falloff);
+        point_selection.foreach_index(
+            [&](const int64_t point_i) {
+              const float influence = brush_point_influence(paint,
+                                                            brush,
+                                                            view_positions[point_i],
+                                                            extension_sample,
+                                                            params.multi_frame_falloff);
 
-          ColorGeometry4f &color = vertex_colors[point_i];
-          color.a -= influence;
-          color.a = math::max(color.a, 0.0f);
-        });
+              ColorGeometry4f &color = vertex_colors[point_i];
+              color.a -= influence;
+              color.a = math::max(color.a, 0.0f);
+            },
+            exec_mode::grain_size(4096));
       }
       else {
         /* Mix brush color into vertex colors by influence using alpha over. */
-        point_selection.foreach_index(GrainSize(4096), [&](const int64_t point_i) {
-          const float influence = brush_point_influence(
-              paint, brush, view_positions[point_i], extension_sample, params.multi_frame_falloff);
+        point_selection.foreach_index(
+            [&](const int64_t point_i) {
+              const float influence = brush_point_influence(paint,
+                                                            brush,
+                                                            view_positions[point_i],
+                                                            extension_sample,
+                                                            params.multi_frame_falloff);
 
-          ColorGeometry4f &color = vertex_colors[point_i];
-          color = math::interpolate(color, mix_color, influence);
-        });
+              ColorGeometry4f &color = vertex_colors[point_i];
+              color = math::interpolate(color, mix_color, influence);
+            },
+            exec_mode::grain_size(4096));
       }
     }
 
