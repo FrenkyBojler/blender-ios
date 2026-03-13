@@ -53,8 +53,9 @@ struct BrightContrastApplyOp {
 
 static void brightcontrast_apply(ModifierApplyContext &context,
                                  StripModifierData *smd,
-                                 ImBuf *mask)
+                                 int timeline_frame)
 {
+  ImBuf *mask = modifier_render_mask_input(context, *smd, timeline_frame);
   const BrightContrastModifierData *bcmd = reinterpret_cast<BrightContrastModifierData *>(smd);
 
   BrightContrastApplyOp op;
@@ -78,6 +79,9 @@ static void brightcontrast_apply(ModifierApplyContext &context,
   }
 
   apply_modifier_op(op, context.image, mask, context.transform);
+  if (mask != nullptr) {
+    IMB_freeImBuf(mask);
+  }
 }
 
 static void brightcontrast_panel_draw(const bContext *C, Panel *panel)

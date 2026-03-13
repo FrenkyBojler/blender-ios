@@ -104,8 +104,11 @@ struct HueCorrectApplyOp {
   }
 };
 
-static void hue_correct_apply(ModifierApplyContext &context, StripModifierData *smd, ImBuf *mask)
+static void hue_correct_apply(ModifierApplyContext &context,
+                              StripModifierData *smd,
+                              int timeline_frame)
 {
+  ImBuf *mask = modifier_render_mask_input(context, *smd, timeline_frame);
   HueCorrectModifierData *hcmd = reinterpret_cast<HueCorrectModifierData *>(smd);
 
   BKE_curvemapping_init(&hcmd->curve_mapping);
@@ -113,6 +116,9 @@ static void hue_correct_apply(ModifierApplyContext &context, StripModifierData *
   HueCorrectApplyOp op;
   op.curve_mapping = &hcmd->curve_mapping;
   apply_modifier_op(op, context.image, mask, context.transform);
+  if (mask != nullptr) {
+    IMB_freeImBuf(mask);
+  }
 }
 
 static void hue_correct_panel_draw(const bContext *C, Panel *panel)

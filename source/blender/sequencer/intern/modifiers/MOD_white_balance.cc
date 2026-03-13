@@ -62,8 +62,11 @@ struct WhiteBalanceApplyOp {
   }
 };
 
-static void whiteBalance_apply(ModifierApplyContext &context, StripModifierData *smd, ImBuf *mask)
+static void whiteBalance_apply(ModifierApplyContext &context,
+                               StripModifierData *smd,
+                               int timeline_frame)
 {
+  ImBuf *mask = modifier_render_mask_input(context, *smd, timeline_frame);
   const WhiteBalanceModifierData *data = reinterpret_cast<const WhiteBalanceModifierData *>(smd);
 
   WhiteBalanceApplyOp op;
@@ -71,6 +74,9 @@ static void whiteBalance_apply(ModifierApplyContext &context, StripModifierData 
   op.multiplier[1] = (data->white_value[1] != 0.0f) ? 1.0f / data->white_value[1] : FLT_MAX;
   op.multiplier[2] = (data->white_value[2] != 0.0f) ? 1.0f / data->white_value[2] : FLT_MAX;
   apply_modifier_op(op, context.image, mask, context.transform);
+  if (mask != nullptr) {
+    IMB_freeImBuf(mask);
+  }
 }
 
 static void whiteBalance_panel_draw(const bContext *C, Panel *panel)

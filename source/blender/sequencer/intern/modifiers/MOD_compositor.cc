@@ -15,7 +15,11 @@
 #include "DNA_node_types.h"
 #include "DNA_sequence_types.h"
 
+#include "BKE_anim_data.hh"
+#include "BKE_animsys.h"
 #include "BKE_context.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_mask.hh"
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 
@@ -24,15 +28,12 @@
 #include "IMB_colormanagement.hh"
 
 #include "SEQ_modifier.hh"
-#include "SEQ_modifiertypes.hh"
 #include "SEQ_select.hh"
 #include "SEQ_sequencer.hh"
 #include "SEQ_transform.hh"
 
 #include "UI_interface.hh"
 #include "UI_interface_layout.hh"
-
-#include "RNA_access.hh"
 
 #include "cache/compositor_cache.hh"
 #include "compositor.hh"
@@ -46,26 +47,33 @@ class CompositorModifierContext : public CompositorContext {
   const SequencerCompositorModifierData *modifier_data_;
 
   ImBuf *image_buffer_;
-  ImBuf *mask_buffer_;
-  float3x3 xform_;
+  compositor::Result mask_;
+  float3x3 mask_transform_;
+  ImBuf *mask_buffer_ = nullptr;
 
  public:
-  CompositorModifierContext(compositor::StaticCacheManager &cache_manager,
-                            const RenderData &render_data,
-                            const SequencerCompositorModifierData *modifier_data,
-                            ImBuf *image_buffer,
-                            ImBuf *mask_buffer,
-                            const Strip &strip)
-      : CompositorContext(cache_manager, render_data, strip),
+  CompositorModifierContext(const ModifierApplyContext &mod_context,
+                            int timeline_frame,
+                            compositor::StaticCacheManager &cache_manager,
+                            const SequencerCompositorModifierData *modifier_data)
+      : CompositorContext(cache_manager, mod_context.render_data, mod_context.strip),
         modifier_data_(modifier_data),
-        image_buffer_(image_buffer),
-        mask_buffer_(mask_buffer),
-        xform_(float3x3::identity())
+        image_buffer_(mod_context.image),
+        mask_(*this, compositor::ResultType::Color, compositor::ResultPrecision::Full)
   {
-    if (mask_buffer) {
-      /* Note: do not use passed transform matrix since compositor coordinate
-       * space is not from the image corner, but rather centered on the image. */
-      xform_ = math::invert(image_transform_matrix_get(render_data.scene, &strip));
+    render_mask_input(mod_context, timeline_frame);
+
+    /* Masks are in screen space, whereas modifier executes in strip space. */
+    mask_transform_ = math::invert(
+        image_transform_matrix_get(mod_context.render_data.scene, &mod_context.strip));
+  }
+  ~CompositorModifierContext()
+  {
+    if (this->mask_buffer_ != nullptr) {
+      IMB_freeImBuf(this->mask_buffer_);
+    }
+    if (mask_.is_allocated()) {
+      mask_.release();
     }
   }
 
@@ -124,10 +132,12 @@ class CompositorModifierContext : public CompositorContext {
         /* First socket is the image input. */
         create_result_from_input(*input_result, *image_buffer_);
       }
-      else if (mask_buffer_ && input_socket == node_group.interface_inputs()[1]) {
+      else if (mask_.is_allocated() && input_socket == node_group.interface_inputs()[1]) {
         /* Second socket is the mask input. */
-        create_result_from_input(*input_result, *mask_buffer_);
-        input_result->set_transformation(xform_);
+        input_result->set_type(this->mask_.type());
+        input_result->set_precision(this->mask_.precision());
+        input_result->wrap_external(this->mask_);
+        input_result->set_transformation(this->mask_transform_);
       }
       else {
         /* The rest of the sockets are not supported. */
@@ -140,6 +150,95 @@ class CompositorModifierContext : public CompositorContext {
 
     node_group_operation.evaluate();
     this->write_outputs(node_group, node_group_operation, *this->image_buffer_);
+  }
+
+  /* Render mask - similar to #modifier_render_mask_input except for the Mask ID
+   * path we do a more efficient approach than rendering into a full ImBuf. */
+  void render_mask_input(const ModifierApplyContext &context, int timeline_frame)
+  {
+    const StripModifierData &smd = this->modifier_data_->modifier;
+    if (smd.mask_input_type == STRIP_MASK_INPUT_STRIP && smd.mask_strip) {
+      this->mask_buffer_ = seq_render_strip(
+          &context.render_data, &context.render_state, smd.mask_strip, timeline_frame);
+      if (this->mask_buffer_ != nullptr) {
+        ImBuf *linear_mask = make_linear_float_buffer(this->mask_buffer_);
+        if (this->mask_buffer_ != linear_mask) {
+          IMB_freeImBuf(this->mask_buffer_);
+          this->mask_buffer_ = linear_mask;
+        }
+        this->create_result_from_input(this->mask_, *this->mask_buffer_);
+      }
+    }
+    else if (smd.mask_input_type == STRIP_MASK_INPUT_ID && smd.mask_id) {
+      int frame_offset = 0;
+      if (smd.mask_time == STRIP_MASK_TIME_RELATIVE) {
+        frame_offset = context.strip.start;
+      }
+      else if (smd.mask_time == STRIP_MASK_TIME_ABSOLUTE) {
+        frame_offset = smd.mask_id->sfra;
+      }
+      int frame_index = timeline_frame - frame_offset;
+
+      /* Copy mask and evaluate it at the needed frame. */
+      Mask *mask_temp = id_cast<Mask *>(BKE_id_copy_ex(
+          nullptr, &smd.mask_id->id, nullptr, LIB_ID_COPY_LOCALIZE | LIB_ID_COPY_NO_ANIMDATA));
+      BKE_mask_evaluate(mask_temp, smd.mask_id->sfra + frame_index, true);
+      AnimData *adt = BKE_animdata_from_id(&smd.mask_id->id);
+      const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(
+          context.render_data.depsgraph, smd.mask_id->sfra + frame_index);
+      BKE_animsys_evaluate_animdata(
+          &mask_temp->id, adt, &anim_eval_context, ADT_RECALC_ANIM, false);
+
+      /* Rasterize the mask. */
+      const int width = context.render_data.rectx;
+      const int height = context.render_data.recty;
+      MaskRasterHandle *mr_handle = BKE_maskrasterize_handle_new();
+      BKE_maskrasterize_handle_init(mr_handle, mask_temp, width, height, true, true, true);
+      BKE_id_free(nullptr, &mask_temp->id);
+
+      this->mask_ = this->create_result(compositor::ResultType::Float);
+      this->mask_.allocate_texture(
+          compositor::Domain(int2(width, height)), false, compositor::ResultStorageType::CPU);
+
+      const bool seq_space_is_srgb = IMB_colormanagement_space_name_is_srgb(
+          context.render_data.scene->sequencer_colorspace_settings.name);
+
+      const float x_inv = 1.0f / float(width);
+      const float y_inv = 1.0f / float(height);
+      const float x_px_ofs = x_inv * 0.5f;
+      const float y_px_ofs = y_inv * 0.5f;
+      float *dst_float = this->mask_.cpu_data().typed<float>().data();
+      threading::parallel_for(IndexRange(height), 16, [&](const IndexRange y_range) {
+        const int64_t pixel_offset = y_range.first() * width;
+        float *ptr_float = dst_float + pixel_offset;
+        for (int64_t y : y_range) {
+          float2 coord;
+          coord.y = y * y_inv + y_px_ofs;
+          for (int x = 0; x < width; x++) {
+            coord.x = x * x_inv + x_px_ofs;
+            float value = BKE_maskrasterize_handle_sample(mr_handle, coord);
+
+            /* Mask is a grayscale value, similar to alpha, so conceptually it is already a
+             * "linear" quantity. However, masks used to be turned into grayscale images and
+             * interpreted as being in "sequencer working space" (default: sRGB), so keep at least
+             * that behavior working as before -- if sequencer space is sRGB, convert value to
+             * linear for the compositor. */
+            if (seq_space_is_srgb) {
+              value = srgb_to_linearrgb(value);
+            }
+            *ptr_float = value;
+            ptr_float++;
+          }
+        }
+      });
+
+      BKE_maskrasterize_handle_free(mr_handle);
+      if (this->use_gpu()) {
+        const compositor::Result gpu_mask = this->mask_.upload_to_gpu(false);
+        this->mask_.release();
+        this->mask_ = gpu_mask;
+      }
+    }
   }
 };
 
@@ -182,7 +281,7 @@ static bool ensure_linear_float_buffer(ImBuf *ibuf)
 
 static void compositor_modifier_apply(ModifierApplyContext &context,
                                       StripModifierData *strip_modifier_data,
-                                      ImBuf *mask)
+                                      int timeline_frame)
 {
   const SequencerCompositorModifierData *modifier_data =
       reinterpret_cast<SequencerCompositorModifierData *>(strip_modifier_data);
@@ -190,22 +289,12 @@ static void compositor_modifier_apply(ModifierApplyContext &context,
     return;
   }
 
-  ImBuf *linear_mask = mask;
-  if (mask && !is_linear_float_buffer(mask)) {
-    linear_mask = IMB_dupImBuf(mask);
-    ensure_linear_float_buffer(linear_mask);
-  }
-
   const bool was_float_linear = ensure_linear_float_buffer(context.image);
   const bool was_byte = context.image->float_buffer.data == nullptr;
 
   CompositorCache &com_cache = context.render_data.scene->ed->runtime->ensure_compositor_cache();
-  CompositorModifierContext com_mod_context(com_cache.get_cache_manager(),
-                                            context.render_data,
-                                            modifier_data,
-                                            context.image,
-                                            linear_mask,
-                                            context.strip);
+  CompositorModifierContext com_mod_context(
+      context, timeline_frame, com_cache.get_cache_manager(), modifier_data);
 
   const bool use_gpu = com_mod_context.use_gpu();
   if (use_gpu) {
@@ -221,10 +310,6 @@ static void compositor_modifier_apply(ModifierApplyContext &context,
   }
 
   context.result_translation += com_mod_context.get_result_translation();
-
-  if (mask != linear_mask) {
-    IMB_freeImBuf(linear_mask);
-  }
 
   if (was_float_linear) {
     return;

@@ -75,5 +75,6 @@ class CompositorContext : public compositor::Context {
 };
 
 bool is_linear_float_buffer(const ImBuf *image_buffer);
+ImBuf *make_linear_float_buffer(ImBuf *src);
 
 }  // namespace blender::seq

@@ -69,8 +69,9 @@ struct CurvesApplyOp {
   }
 };
 
-static void curves_apply(ModifierApplyContext &context, StripModifierData *smd, ImBuf *mask)
+static void curves_apply(ModifierApplyContext &context, StripModifierData *smd, int timeline_frame)
 {
+  ImBuf *mask = modifier_render_mask_input(context, *smd, timeline_frame);
   CurvesModifierData *cmd = reinterpret_cast<CurvesModifierData *>(smd);
 
   const float black[3] = {0.0f, 0.0f, 0.0f};
@@ -86,6 +87,9 @@ static void curves_apply(ModifierApplyContext &context, StripModifierData *smd, 
   apply_modifier_op(op, context.image, mask, context.transform);
 
   BKE_curvemapping_premultiply(&cmd->curve_mapping, true);
+  if (mask != nullptr) {
+    IMB_freeImBuf(mask);
+  }
 }
 
 static void curves_panel_draw(const bContext *C, Panel *panel)

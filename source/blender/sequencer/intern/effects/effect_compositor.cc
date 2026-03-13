@@ -118,49 +118,6 @@ class CompositorEffectContext : public CompositorContext {
   }
 };
 
-static ImBuf *make_linear_float_buffer(ImBuf *src)
-{
-  if (!src) {
-    return nullptr;
-  }
-
-  /* Already have scene linear float pixels, return same buffer. */
-  if (is_linear_float_buffer(src)) {
-    return src;
-  }
-
-  ImBuf *dst = IMB_allocImBuf(
-      src->x, src->y, src->planes, IB_float_data | IB_uninitialized_pixels);
-  const char *to_colorspace = IMB_colormanagement_role_colorspace_name_get(
-      COLOR_ROLE_SCENE_LINEAR);
-  if (src->float_buffer.data == nullptr) {
-    const char *from_colorspace = IMB_colormanagement_get_byte_colorspace(src);
-    IMB_colormanagement_transform_byte_to_float(dst->float_buffer.data,
-                                                src->byte_buffer.data,
-                                                src->x,
-                                                src->y,
-                                                src->channels,
-                                                from_colorspace,
-                                                to_colorspace);
-  }
-  else {
-    const char *from_colorspace = IMB_colormanagement_get_float_colorspace(src);
-    //@TODO: src->dst transform would be faster instead of copy + transform in-place
-    memcpy(dst->float_buffer.data,
-           src->float_buffer.data,
-           IMB_get_pixel_count(src) * src->channels * sizeof(float));
-    IMB_colormanagement_transform_float(dst->float_buffer.data,
-                                        dst->x,
-                                        dst->y,
-                                        dst->channels,
-                                        from_colorspace,
-                                        to_colorspace,
-                                        true);
-  }
-  IMB_colormanagement_assign_float_colorspace(dst, to_colorspace);
-  return dst;
-}
-
 static ImBuf *do_compositor_effect(const RenderData *context,
                                    SeqRenderState * /*state*/,
                                    Strip *strip,
