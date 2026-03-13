@@ -7,6 +7,7 @@
 COMPUTE_SHADER_CREATE_INFO(compositor_plane_deform_anisotropic_masked)
 
 #include "gpu_shader_compositor_texture_utilities.glsl"
+#include "gpu_shader_math_base_lib.glsl"
 
 void main()
 {
@@ -26,10 +27,10 @@ void main()
   /* Derivative of transformed_coordinates.xy / transformed_coordinates.z vs texel */
   float2 x_gradient = (homography_matrix[0].xy * transformed_coordinates.z -
                        transformed_coordinates.xy * homography_matrix[0].z) /
-                      (transformed_coordinates.z * transformed_coordinates.z * output_size.x);
+                      (square(transformed_coordinates.z) * output_size.x);
   float2 y_gradient = (homography_matrix[1].xy * transformed_coordinates.z -
                        transformed_coordinates.xy * homography_matrix[1].z) /
-                      (transformed_coordinates.z * transformed_coordinates.z * output_size.y);
+                      (square(transformed_coordinates.z) * output_size.y);
 
   float4 sampled_color = textureGrad(input_tx, projected_coordinates, x_gradient, y_gradient);
 
