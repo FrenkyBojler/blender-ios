@@ -10875,7 +10875,7 @@ static int handle_menu_mmb_event(bContext *C,
   int my = event->xy[1];
   window_to_block(region, block, &mx, &my);
 
-  /* Check if mouse is inside block. */
+  /* Check if mouse is inside the menu. */
   const bool inside = BLI_rctf_isect_pt(&block->rect, mx, my);
 
   int retval = WM_UI_HANDLER_CONTINUE;
