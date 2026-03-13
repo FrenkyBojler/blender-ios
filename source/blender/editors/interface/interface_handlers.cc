@@ -11959,7 +11959,6 @@ static bool menu_dim_recursive(bContext *C,
   PopupBlockHandle *sub_menu = (data) ? data->menu : nullptr;
   Block *block = static_cast<Block *>(menu->region->runtime->uiblocks.first);
   auto start_dim_timer = [C, menu, block]() {
-    SET_FLAG_FROM_TEST(block->flag, menu->dim, BLOCK_MENU_DIM);
     SET_FLAG_FROM_TEST(block->flag, menu->reduce_shadow_offset, BLOCK_MENU_REDUCED_SHADOW_OFFSET);
     if (menu->dimtimer) {
       return;
@@ -11972,7 +11971,6 @@ static bool menu_dim_recursive(bContext *C,
   };
 
   if (!sub_menu) {
-    block->flag &= ~BLOCK_MENU_DIM;
     int mx = event->xy[0];
     int my = event->xy[1];
     window_to_block(menu->region, block, &mx, &my);
