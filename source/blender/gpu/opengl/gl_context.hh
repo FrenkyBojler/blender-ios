@@ -73,6 +73,7 @@ class GLContext : public Context {
   static bool debug_layer_workaround;
   static bool unused_fb_slot_workaround;
   static bool generate_mipmap_workaround;
+  static bool texturepool_float16_workaround;
 
   /** VBO for missing vertex attribute binding. Avoid undefined behavior on some implementation. */
   GLuint default_attr_vbo_;

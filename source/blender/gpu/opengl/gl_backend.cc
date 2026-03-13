@@ -492,6 +492,13 @@ static void detect_workarounds()
   {
     GCaps.use_main_context_workaround = true;
   }
+  /* Disables format aliasing for float16 textures in GLTexturePool on Lunar Lake GPUs. */
+  if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_WIN, GPU_DRIVER_ANY) &&
+      (strstr(renderer, "130V") || strstr(renderer, "140V")))
+  {
+    GLContext::texturepool_float16_workaround = true;
+    fmt::print("AAAH WORKAROUND\n");
+  }
   /* Needed to avoid driver hangs on legacy AMD drivers (see #139939). */
   if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_OFFICIAL) &&
       is_bad_AMD_driver(version))
@@ -576,6 +583,7 @@ bool GLContext::texture_filter_anisotropic_support = false;
 bool GLContext::debug_layer_workaround = false;
 bool GLContext::unused_fb_slot_workaround = false;
 bool GLContext::generate_mipmap_workaround = false;
+bool GLContext::texturepool_float16_workaround = false;
 
 void GLBackend::capabilities_init()
 {
@@ -770,6 +778,7 @@ void GLBackend::log_workarounds()
              " - [%c] Debug layer workaround\n"
              " - [%c] Generate mipmap workaround\n"
              " - [%c] Unused framebuffer slot workaround\n"
+             " - [%c] GLTexturePool Float16 workaround\n"
              " - [%c] Depth blitting workaround\n"
              " - [%c] Stencil classify buffer workaround\n"
              " - [%c] High-quality normals\n"
@@ -777,6 +786,7 @@ void GLBackend::log_workarounds()
              GLContext::debug_layer_workaround ? 'X' : ' ',
              GLContext::generate_mipmap_workaround ? 'X' : ' ',
              GLContext::unused_fb_slot_workaround ? 'X' : ' ',
+             GLContext::texturepool_float16_workaround ? 'X' : ' ',
              GCaps.depth_blitting_workaround ? 'X' : ' ',
              GCaps.stencil_clasify_buffer_workaround ? 'X' : ' ',
              GCaps.use_hq_normals_workaround ? 'X' : ' ',

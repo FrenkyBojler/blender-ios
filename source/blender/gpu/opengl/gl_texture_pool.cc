@@ -24,6 +24,15 @@ static CLG_LogRef LOG = {"gpu.opengl"};
  * format does not support aliasing to another format, simply return the input. */
 static TextureFormat get_compatible_texture_format(TextureFormat format)
 {
+  /* Workaround for failing render tests on some Lunar Lake iGPUs (140V). */
+  if (GLContext::texturepool_float16_workaround) {
+    /* TextureFormat::SFLOAT_32_32 to TextureFormat::SFLOAT_16_16_16_16 and
+     * TextureFormat::SFLOAT_32 to TextureFormat::SFLOAT_16_16 cause issues. */
+    if (ELEM(format, TextureFormat::SFLOAT_16_16_16_16, TextureFormat::SFLOAT_16_16)) {
+      return format;
+    }
+  }
+  
   /* glTextureView doesn't support aliasing on depth, stencil, or most compressed formats. */
   GPUTextureFormatFlag format_flag = to_format_flag(format);
   if (bool(format_flag & GPU_FORMAT_DEPTH_STENCIL)) {
@@ -31,20 +40,6 @@ static TextureFormat get_compatible_texture_format(TextureFormat format)
   }
   if (bool(format_flag & GPU_FORMAT_COMPRESSED)) {
     return format;
-  }
-
-  /* Fallback; forego texture aliasing on formats causing issues on some Intel cards. */
-  if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_ANY, GPU_DRIVER_ANY) ||
-      GPU_type_matches(GPU_DEVICE_INTEL_UHD, GPU_OS_ANY, GPU_DRIVER_ANY))
-  {
-    /* TextureFormat::SFLOAT_32_32 to TextureFormat::SFLOAT_16_16_16_16 causes issues. */
-    if (format == TextureFormat::SFLOAT_16_16_16_16) {
-      return format;
-    }
-    /* TextureFormat::SFLOAT_32 to TextureFormat::SFLOAT_16_16 causes issues. */
-    if (format == TextureFormat::SFLOAT_16_16) {
-      return format;
-    }
   }
 
   /* Given expected byte size, we use a default format available as write/target format. */
