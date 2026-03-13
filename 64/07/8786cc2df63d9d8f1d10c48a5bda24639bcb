@@ -1,2 +1,3 @@
 Referenced by issue #155159, Regression: Vertex Paint: Invoking "Dirty Vertex Colors" freezes
 Referenced by pull request #155578, RNA: Remove DNA dependency in rna_def_property_lookup_int_func
+Referenced by commit 6f7ae3372ac2699770d92c1b628dcfd0cdca82c4, RNA: Remove DNA dependency in rna_def_property_lookup_int_func
