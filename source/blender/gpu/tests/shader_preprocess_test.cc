@@ -701,6 +701,20 @@ void funcTfloatT1(float a) {
   }
   {
     string input = R"(
+template<int i, uint j, int k> E func() { return E(i + j + k); }
+template E func<0x1, 2, -1>();
+)";
+    string expect = R"(
+E funcT0x1T2T_1() { return E(0x1 + 2 + -1); }
+#line 4
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(
 template<enum E e, char i> E func() { return E(e + i); }
 template E func<v, 2>();
 )";
@@ -1644,6 +1658,69 @@ NS_S _other_method(_ref(NS_S ,this_), int s);
     return NS_S(0);
   }
 #line 13
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    /* Template specialization inside namespace. */
+    string input = R"(
+namespace NS {
+template<> Type a<Type>() {}
+}
+)";
+
+    string expect = R"(
+
+           Type NS_aTType() {}
+
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    /* Half namespace specified identifiers and methods. */
+    string input = R"(
+namespace NS {
+struct B {
+  int i;
+  static int D() { return B::C().R(); }
+  static int E() { return C().R(); }
+  static B C() { return B(0); }
+  int R() { return R(); }
+};
+B fn() { return B::C(); }
+}
+)";
+
+    string expect = R"(
+
+struct NS_B {
+  int i;
+#line 9
+};
+
+#ifndef GPU_METAL
+NS_B NS_B_ctor_();
+int NS_B_D();
+int NS_B_E();
+NS_B NS_B_C();
+int _R(_ref(NS_B ,this_));
+#endif
+#line 3
+                    NS_B NS_B_ctor_() {NS_B r;r.i=0;return r;}
+#line 5
+         int NS_B_D() { return _R(NS_B_C()); }
+         int NS_B_E() { return _R(NS_B_C()); }
+         NS_B NS_B_C() { return NS_B(0); }
+  int _R(_ref(NS_B ,this_)) { return _R(this_); }
+#line 10
+NS_B NS_fn() { return NS_B_C(); }
+
 )";
     string error;
     string output = process_test_string(input, error);
@@ -2666,7 +2743,7 @@ static void test_preprocess_parser()
 )";
     string expect = R"(
 1;1;1;1;1;1;1;1;1;1;1+1;)";
-    EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().lex.token_types_str, expect);
+    EXPECT_EQ(IntermediateForm(input, no_err_report).token_types_str(), expect);
   }
   {
     string input = R"(
@@ -2675,8 +2752,8 @@ static void test_preprocess_parser()
     string expect = R"(
 [[A(1,1,A),A,A(A)]])";
     string scopes = R"(GABbcmmmbbcm)";
-    EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().lex.token_types_str, expect);
-    EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().scope_types_str, scopes);
+    EXPECT_EQ(IntermediateForm(input, no_err_report).token_types_str(), expect);
+    EXPECT_EQ(IntermediateForm(input, no_err_report).scope_types_str, scopes);
   }
   {
     string input = R"(
@@ -2689,7 +2766,22 @@ class B {
 )";
     string expect = R"(
 sA{AA=1;};SA{AA;};)";
-    EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().lex.token_types_str, expect);
+    EXPECT_EQ(IntermediateForm(input, no_err_report).token_types_str(), expect);
+  }
+  {
+    string input = R"(
+a /* Comment */
+//
+a
+/* //
+*/
+a
+// a
+a
+)";
+    string expect = R"(
+AZZAZAZA)";
+    EXPECT_EQ(IntermediateForm(input, no_err_report).token_types_str(), expect);
   }
   {
     string input = R"(
@@ -2699,8 +2791,8 @@ namespace T::U::V {}
     string expect = R"(
 nA{}nA::A::A{})";
     string expect_scopes = R"(GNN)";
-    EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().lex.token_types_str, expect);
-    EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().scope_types_str, expect_scopes);
+    EXPECT_EQ(IntermediateForm(input, no_err_report).token_types_str(), expect);
+    EXPECT_EQ(IntermediateForm(input, no_err_report).scope_types_str, expect_scopes);
   }
   {
     string input = R"(
@@ -2716,12 +2808,12 @@ void f(int t = 0) {
 )";
     string expect = R"(
 AA(AA=1){AA=1,A=1,A={1};{A=A=A,AP;i(AEA){r;}}})";
-    EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().lex.token_types_str, expect);
+    EXPECT_EQ(IntermediateForm(input, no_err_report).token_types_str(), expect);
   }
   {
     IntermediateForm parser("float i;", no_err_report);
-    parser.insert_after(Token::from_position(&parser.data_get(), 0), "A ");
-    parser.insert_after(Token::from_position(&parser.data_get(), 0), "B  ");
+    parser.insert_after(Token(parser, 0), "A ");
+    parser.insert_after(Token(parser, 0), "B  ");
     EXPECT_EQ(parser.result_get(), "float A B  i;");
   }
   {
@@ -2732,12 +2824,11 @@ B
 )";
     IntermediateForm parser(input, no_err_report);
     string expect = R"(
-A#A1
-A)";
-    EXPECT_EQ(parser.data_get().lex.token_types_str, expect);
+A#A1A)";
+    EXPECT_EQ(parser.token_types_str(), expect);
 
-    Token A = Token::from_position(&parser.data_get(), 1);
-    Token B = Token::from_position(&parser.data_get(), 6);
+    Token A = Token(parser, 1);
+    Token B = Token(parser, 5);
 
     EXPECT_EQ(A.str(), "A");
     EXPECT_EQ(B.str(), "B");
@@ -2766,13 +2857,13 @@ match([a], , int, , bar, [0], ;)
                                      Scope array,
                                      Token decl_end) {
       result += "match(";
-      result += attributes.str() + ", ";
-      result += const_tok.str() + ", ";
-      result += type.str() + ", ";
-      result += template_scope.str() + ", ";
-      result += name.str() + ", ";
-      result += array.str() + ", ";
-      result += decl_end.str() + ")\n";
+      result += string(attributes.str()) + ", ";
+      result += string(const_tok.str()) + ", ";
+      result += string(type.str()) + ", ";
+      result += string(template_scope.str()) + ", ";
+      result += string(name.str()) + ", ";
+      result += string(array.str()) + ", ";
+      result += string(decl_end.str()) + ")\n";
     });
 
     EXPECT_EQ(expect, result);
@@ -2784,10 +2875,10 @@ static int test_expression(std::string str)
 {
   using namespace shader::parser;
   report_callback no_err_report = [](int, int, std::string, const char *) {};
-  ExpressionLexer lexer;
-  lexer.lexical_analysis(str);
+  ExpressionParser parser;
+  parser.lexical_analysis(str);
   try {
-    return ExpressionParser(lexer).eval();
+    return parser.eval();
   }
   catch (const std::exception &e) {
     std::cerr << "Error: " << e.what() << "\n";

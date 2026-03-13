@@ -88,10 +88,9 @@ struct NodeAndSocket {
 
   friend bool operator==(const NodeAndSocket &a, const NodeAndSocket &b)
   {
-    return (&a.node == &b.node) && (a.in_out == b.in_out) &&
-           (a.socket_identifier == b.socket_identifier);
+    return &a.node == &b.node && a.in_out == b.in_out &&
+           a.socket_identifier == b.socket_identifier;
   }
-  BLI_STRUCT_DERIVED_UNEQUAL_OPERATOR(NodeAndSocket)
 };
 
 /**
@@ -149,7 +148,6 @@ struct MutableNodeAndSocket {
     return (&a.node == &b.node) && (a.in_out == b.in_out) &&
            (a.socket_identifier == b.socket_identifier);
   }
-  BLI_STRUCT_DERIVED_UNEQUAL_OPERATOR(MutableNodeAndSocket)
 };
 
 template<> struct DefaultHash<NodeAndSocket> {
@@ -593,6 +591,8 @@ void invoke_node_link_drag_add_menu(bContext &C,
                                     bNodeSocket &socket,
                                     const float2 &cursor);
 
+void NODE_OT_link_drag_operation_test(wmOperatorType *ot);
+
 /* `add_menu_assets.cc` */
 
 MenuType catalog_assets_menu_type();
@@ -687,6 +687,7 @@ NodeTreeInterfaceMapping build_node_declaration_interface(const NodeSetInterface
  * node. No new sockets are added to the interface.
  */
 NodeTreeInterfaceMapping map_group_node_interface(const NodeSetInterfaceParams &params,
+                                                  const bNodeTree &tree,
                                                   const bNode &group_node);
 
 /**
@@ -731,11 +732,21 @@ GroupInputOutputNodes connect_copied_nodes_to_interface(
     const NodeTreeInterfaceMapping &io_mapping);
 
 /**
+ * Proxy nodes to replace the original group tree interface after ungrouping.
+ * Keys are the tree interface socket identifiers.
+ * May contain null pointers!
+ */
+using InterfaceProxyNodes = Map<std::string, bNode *>;
+
+/**
  * Connect copied node sockets to external nodes in the interface mapping.
  */
-void connect_copied_nodes_to_external_sockets(const bNodeTree &src_tree,
-                                              const NodeSetCopy &copied_nodes,
-                                              const NodeTreeInterfaceMapping &io_mapping);
+InterfaceProxyNodes connect_copied_nodes_to_external_sockets(
+    bContext &C,
+    const bNodeTree &src_tree,
+    const NodeSetCopy &copied_nodes,
+    const NodeTreeInterfaceMapping &io_mapping,
+    const bNode *group_node = nullptr);
 
 /**
  * Connect the group node to external sockets in the interface mapping.

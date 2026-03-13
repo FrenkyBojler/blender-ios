@@ -77,10 +77,10 @@ struct Popover {
  * \param region: Optional, the region the block will be placed in. Must be set if the popover is
  *                supposed to support refreshing.
  */
-static void ui_popover_create_block(bContext *C,
-                                    ARegion *region,
-                                    Popover *pup,
-                                    wm::OpCallContext opcontext)
+static void popover_create_block(bContext *C,
+                                 ARegion *region,
+                                 Popover *pup,
+                                 wm::OpCallContext opcontext)
 {
   BLI_assert(pup->ui_size_x != 0);
 
@@ -113,7 +113,7 @@ static Block *block_func_POPOVER(bContext *C, PopupBlockHandle *handle, void *ar
 
   /* Create UI block and layout now if it wasn't done between begin/end. */
   if (!pup->layout) {
-    ui_popover_create_block(C, handle->region, pup, wm::OpCallContext::InvokeRegionWin);
+    popover_create_block(C, handle->region, pup, wm::OpCallContext::InvokeRegionWin);
 
     if (pup->popover_func) {
       pup->block->handle = handle;
@@ -134,7 +134,11 @@ static Block *block_func_POPOVER(bContext *C, PopupBlockHandle *handle, void *ar
   }
 
   block_layout_resolve(block);
-  block_direction_set(block, UI_DIR_DOWN | UI_DIR_CENTER_X);
+  const int direction = (pup->panel_type && (pup->panel_type->popup_draw_direction ==
+                                             PopupAttachDirection::Horizontal)) ?
+                            UI_DIR_LEFT :
+                            UI_DIR_DOWN | UI_DIR_CENTER_X;
+  block_direction_set(block, direction);
 
   const int block_margin = U.widget_unit / 2;
 
@@ -166,7 +170,7 @@ static Block *block_func_POPOVER(bContext *C, PopupBlockHandle *handle, void *ar
     if (!slideout) {
       ARegion *region = CTX_wm_region(C);
 
-      if (region && region->panels.first) {
+      if (region && region->panels.first && (direction & UI_DIR_DOWN)) {
         /* For regions with panels, prefer to open to top so we can
          * see the values of the buttons below changing. */
         block_direction_set(block, UI_DIR_UP | UI_DIR_CENTER_X);
@@ -208,14 +212,14 @@ static Block *block_func_POPOVER(bContext *C, PopupBlockHandle *handle, void *ar
     block->minbounds = UI_MENU_WIDTH_MIN;
 
     if (!handle->refresh) {
-      Button *but = nullptr;
-      Button *but_first = nullptr;
-      for (const std::unique_ptr<Button> &but_iter : block->buttons) {
-        if ((but_first == nullptr) && button_is_editable(but_iter.get())) {
-          but_first = but_iter.get();
+      const Button *but = nullptr;
+      const Button *but_first = nullptr;
+      for (const Button &but_iter : block->buttons()) {
+        if ((but_first == nullptr) && button_is_editable(&but_iter)) {
+          but_first = &but_iter;
         }
-        if (but_iter->flag & (UI_SELECT | UI_SELECT_DRAW)) {
-          but = but_iter.get();
+        if (but_iter.flag & (UI_SELECT | UI_SELECT_DRAW)) {
+          but = &but_iter;
           break;
         }
       }
@@ -370,7 +374,7 @@ Popover *popover_begin(bContext *C, int ui_menu_width, bool from_active_button)
   pup->butregion = butregion;
 
   /* Operator context default same as menus, change if needed. */
-  ui_popover_create_block(C, nullptr, pup, wm::OpCallContext::ExecRegionWin);
+  popover_create_block(C, nullptr, pup, wm::OpCallContext::ExecRegionWin);
 
   /* Create in advance so we can let buttons point to #PopupBlockHandle::retvalue
    * (and other return values) already. */

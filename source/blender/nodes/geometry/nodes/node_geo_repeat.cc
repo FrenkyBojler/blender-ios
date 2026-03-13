@@ -93,7 +93,7 @@ static void node_declare(NodeDeclarationBuilder &b)
                                .socket_name_ptr(
                                    &tree->id, *RepeatItemsAccessor::item_srna, &item, "name");
         auto &output_decl = b.add_output(socket_type, name, identifier).align_with_previous();
-        if (socket_type_supports_fields(socket_type)) {
+        if (socket_type_supports_attributes(socket_type)) {
           input_decl.supports_field();
           output_decl.dependent_field({input_decl.index()});
         }
@@ -188,7 +188,7 @@ static void node_declare(NodeDeclarationBuilder &b)
                              .socket_name_ptr(
                                  &tree->id, *RepeatItemsAccessor::item_srna, &item, "name");
       auto &output_decl = b.add_output(socket_type, name, identifier).align_with_previous();
-      if (socket_type_supports_fields(socket_type)) {
+      if (socket_type_supports_attributes(socket_type)) {
         input_decl.supports_field();
         output_decl.dependent_field({input_decl.index()});
       }
@@ -337,7 +337,7 @@ StructRNA **RepeatItemsAccessor::item_srna = &RNA_RepeatItem;
 
 void RepeatItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
-  BLO_write_string(writer, item.name);
+  writer->write_string(item.name);
 }
 
 void RepeatItemsAccessor::blend_read_data_item(BlendDataReader *reader, ItemT &item)

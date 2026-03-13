@@ -701,10 +701,12 @@ def km_window(params):
             ("wm.open_mainfile", {"type": 'F1', "value": 'PRESS'}, None),
             ("wm.link", {"type": 'O', "value": 'PRESS', "ctrl": True, "alt": True}, None),
             ("wm.append", {"type": 'F1', "value": 'PRESS', "shift": True}, None),
-            ("wm.save_mainfile", {"type": 'W', "value": 'PRESS', "ctrl": True}, None),
-            ("wm.save_as_mainfile", {"type": 'F2', "value": 'PRESS'}, None),
+            ("wm.save_mainfile", {"type": 'W', "value": 'PRESS', "ctrl": True},
+             {"properties": [("show_save_modified_images_dialog", True)]}),
+            ("wm.save_as_mainfile", {"type": 'F2', "value": 'PRESS'},
+             {"properties": [("show_save_modified_images_dialog", True)]}),
             ("wm.save_as_mainfile", {"type": 'S', "value": 'PRESS', "ctrl": True, "alt": True},
-             {"properties": [("copy", True)]}),
+             {"properties": [("copy", True), ("show_save_modified_images_dialog", True)]}),
             ("wm.window_new", {"type": 'W', "value": 'PRESS', "ctrl": True, "alt": True}, None),
             ("wm.window_fullscreen_toggle", {"type": 'F11', "value": 'PRESS', "alt": True}, None),
             ("wm.doc_view_manual_ui_context", {"type": 'F1', "value": 'PRESS', "alt": True}, None),
@@ -718,11 +720,13 @@ def km_window(params):
         op_menu("TOPBAR_MT_file_new", {"type": 'N', "value": 'PRESS', "ctrl": True}),
         op_menu("TOPBAR_MT_file_open_recent", {"type": 'O', "value": 'PRESS', "shift": True, "ctrl": True}),
         ("wm.open_mainfile", {"type": 'O', "value": 'PRESS', "ctrl": True}, None),
-        ("wm.save_mainfile", {"type": 'S', "value": 'PRESS', "ctrl": True}, None),
-        ("wm.save_as_mainfile", {"type": 'S', "value": 'PRESS', "shift": True, "ctrl": True}, None),
+        ("wm.save_mainfile", {"type": 'S', "value": 'PRESS', "ctrl": True},
+         {"properties": [("show_save_modified_images_dialog", True)]}),
+        ("wm.save_as_mainfile", {"type": 'S', "value": 'PRESS', "shift": True, "ctrl": True},
+         {"properties": [("show_save_modified_images_dialog", True)]}),
         ("wm.save_mainfile",
          {"type": 'S', "value": 'PRESS', "ctrl": True, "alt": True},
-         {"properties": [("incremental", True)]}),
+         {"properties": [("incremental", True), ("show_save_modified_images_dialog", True)]}),
         ("wm.quit_blender", {"type": 'Q', "value": 'PRESS', "ctrl": True}, None),
 
         # Quick menu and toolbar
@@ -1263,6 +1267,8 @@ def km_property_editor(_params):
         ("constraint.delete", {"type": 'DEL', "value": 'PRESS'}, {"properties": [("report", True)]}),
         ("constraint.copy", {"type": 'D', "value": 'PRESS', "shift": True}, None),
         ("constraint.apply", {"type": 'A', "value": 'PRESS', "ctrl": True}, {"properties": [("report", True)]}),
+        # Strip modifiers
+        ("sequencer.strip_modifier_duplicate", {"type": 'D', "value": 'PRESS', "shift": True}, None),
     ])
 
     return keymap
@@ -2195,9 +2201,9 @@ def km_image(params):
         items.extend([
             # Old pivot.
             ("wm.context_set_enum", {"type": 'COMMA', "value": 'PRESS'},
-             {"properties": [("data_path", "space_data.pivot_point"), ("value", 'CENTER')]}),
+             {"properties": [("data_path", "space_data.pivot_point"), ("value", 'BOUNDING_BOX_CENTER')]}),
             ("wm.context_set_enum", {"type": 'COMMA', "value": 'PRESS', "ctrl": True},
-             {"properties": [("data_path", "space_data.pivot_point"), ("value", 'MEDIAN')]}),
+             {"properties": [("data_path", "space_data.pivot_point"), ("value", 'MEDIAN_POINT')]}),
             ("wm.context_set_enum", {"type": 'PERIOD', "value": 'PRESS'},
              {"properties": [("data_path", "space_data.pivot_point"), ("value", 'CURSOR')]}),
 
@@ -2328,7 +2334,7 @@ def km_node_editor(params):
         op_menu_pie("NODE_MT_view_pie", {"type": 'ACCENT_GRAVE', "value": 'PRESS'}),
         ("node.delete", {"type": 'X', "value": 'PRESS'}, None),
         ("node.delete", {"type": 'DEL', "value": 'PRESS'}, None),
-        ("node.delete_copy_reconnect", {"type": 'X', "value": 'PRESS', "ctrl": True}, None),
+        ("node.delete_reconnect", {"type": 'X', "value": 'PRESS', "ctrl": True}, None),
         ("node.delete_reconnect", {"type": 'DEL', "value": 'PRESS', "ctrl": True}, None),
         *_template_items_select_actions(params, "node.select_all"),
         ("node.select_linked_to", {"type": 'L', "value": 'PRESS', "shift": True}, None),
@@ -2353,8 +2359,6 @@ def km_node_editor(params):
         ("node.render_changed", {"type": 'Z', "value": 'PRESS'}, None),
         ("node.clipboard_copy", {"type": 'C', "value": 'PRESS', "ctrl": True}, None),
         ("node.clipboard_paste", {"type": 'V', "value": 'PRESS', "ctrl": True}, None),
-        ("node.viewer_border", {"type": 'B', "value": 'PRESS', "ctrl": True}, None),
-        ("node.clear_viewer_border", {"type": 'B', "value": 'PRESS', "ctrl": True, "alt": True}, None),
         ("node.translate_attach",
          {"type": 'G', "value": 'PRESS'},
          {"properties": [("TRANSFORM_OT_translate", [("view2d_edge_pan", True)])]}),
@@ -3168,7 +3172,7 @@ def km_sequencer(params):
         ("sequencer.gap_remove", {"type": 'BACK_SPACE', "value": 'PRESS', "shift": True},
          {"properties": [("all", True)]}),
         ("sequencer.gap_insert", {"type": 'EQUAL', "value": 'PRESS', "shift": True}, None),
-        ("sequencer.snap", {"type": 'S', "value": 'PRESS', "shift": True}, None),
+        ("sequencer.snap", {"type": 'S', "value": 'PRESS', "shift": True}, {"properties": [("keep_offset", True)]}),
         ("sequencer.swap_inputs", {"type": 'S', "value": 'PRESS', "alt": True}, None),
         *(
             (("sequencer.split_multicam",
@@ -3943,9 +3947,10 @@ def km_grease_pencil_selection(params):
     items.extend([
         # Select All
         *_template_items_select_actions(params, "grease_pencil.select_all"),
+        # Select fill
+        ("grease_pencil.select_fill", {"type": 'L', "value": 'PRESS', "ctrl": True}, None),
         # Select linked
         ("grease_pencil.select_linked", {"type": 'L', "value": 'PRESS'}, None),
-        ("grease_pencil.select_linked", {"type": 'L', "value": 'PRESS', "ctrl": True}, None),
         # Select more/less
         ("grease_pencil.select_more", {"type": 'NUMPAD_PLUS', "value": 'PRESS', "ctrl": True, "repeat": True}, None),
         ("grease_pencil.select_less", {"type": 'NUMPAD_MINUS', "value": 'PRESS', "ctrl": True, "repeat": True}, None),
@@ -4163,6 +4168,11 @@ def km_grease_pencil_edit_mode(params):
 
         # Set Handle Type
         ("grease_pencil.set_handle_type", {"type": 'V', "value": 'PRESS'}, None),
+
+        # Join Fills
+        ("grease_pencil.join_fills", {"type": 'J', "value": 'PRESS', "shift": True}, None),
+        # Separate Fills
+        ("grease_pencil.separate_fills", {"type": 'P', "value": 'PRESS', "alt": True}, None),
 
         op_tool_optional(
             ("grease_pencil.interpolate", {"type": 'E', "value": 'PRESS',
@@ -4441,9 +4451,9 @@ def km_grease_pencil_fill_tool_modal_map(_params):
         ("CONFIRM", {"type": 'LEFTMOUSE', "value": 'PRESS', "any": True}, None),
         ("EXTENSION_MODE_TOGGLE", {"type": 'S', "value": 'PRESS'}, None),
         ("EXTENSION_LENGTHEN", {"type": 'PAGE_UP', "value": 'PRESS', "repeat": True}, None),
-        ("EXTENSION_LENGTHEN", {"type": 'WHEELUPMOUSE', "value": 'PRESS'}, None),
+        ("EXTENSION_LENGTHEN", {"type": 'WHEELDOWNMOUSE', "value": 'PRESS'}, None),
         ("EXTENSION_SHORTEN", {"type": 'PAGE_DOWN', "value": 'PRESS', "repeat": True}, None),
-        ("EXTENSION_SHORTEN", {"type": 'WHEELDOWNMOUSE', "value": 'PRESS'}, None),
+        ("EXTENSION_SHORTEN", {"type": 'WHEELUPMOUSE', "value": 'PRESS'}, None),
         ("EXTENSION_DRAG", {"type": 'MIDDLEMOUSE', "value": 'PRESS'}, None),
         ("EXTENSION_COLLIDE", {"type": 'D', "value": 'PRESS'}, None),
         ("INVERT", {"type": 'LEFT_CTRL', "value": 'ANY', "any": True}, None),
@@ -6449,6 +6459,29 @@ def km_bevel_modal_map(_params):
         ("PRECISION_OFF", {"type": 'LEFT_SHIFT', "value": 'RELEASE', "any": True}, None),
         ("PRECISION_ON", {"type": 'RIGHT_SHIFT', "value": 'PRESS', "any": True}, None),
         ("PRECISION_OFF", {"type": 'RIGHT_SHIFT', "value": 'RELEASE', "any": True}, None),
+    ])
+
+    return keymap
+
+
+def km_transform_axis_target_modal(_params):
+    items = []
+    keymap = (
+        "Transform Axis Target Modal Map",
+        {"space_type": 'EMPTY', "region_type": 'WINDOW', "modal": True},
+        {"items": items},
+    )
+
+    items.extend([
+        ("CANCEL", {"type": 'RIGHTMOUSE', "value": 'ANY', "any": True}, None),
+        ("CANCEL", {"type": 'ESC', "value": 'PRESS', "any": True}, None),
+        ("CONFIRM", {"type": 'LEFTMOUSE', "value": 'ANY', "any": True}, None),
+        ("CONFIRM", {"type": 'RET', "value": 'PRESS', "any": True}, None),
+        ("CONFIRM", {"type": 'NUMPAD_ENTER', "value": 'PRESS', "any": True}, None),
+        ("TRANSLATE_ENABLE", {"type": 'LEFT_CTRL', "value": 'PRESS', "any": True}, None),
+        ("TRANSLATE_DISABLE", {"type": 'LEFT_CTRL', "value": 'RELEASE', "any": True}, None),
+        ("TRANSLATE_ENABLE", {"type": 'RIGHT_CTRL', "value": 'PRESS', "any": True}, None),
+        ("TRANSLATE_DISABLE", {"type": 'RIGHT_CTRL', "value": 'RELEASE', "any": True}, None),
     ])
 
     return keymap
@@ -8980,6 +9013,7 @@ def generate_keymaps(params=None):
         km_knife_tool_modal_map(params),
         km_custom_normals_modal_map(params),
         km_bevel_modal_map(params),
+        km_transform_axis_target_modal(params),
         km_view3d_fly_modal(params),
         km_view3d_walk_modal(params),
         km_view3d_rotate_modal(params),

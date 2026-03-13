@@ -98,10 +98,8 @@ struct ErrorsForType {
   int duplicate_count = 0;
   bool is_builtin_operator = false;
   Vector<std::string> idname_validation_errors;
-  BLI_STRUCT_EQUALITY_OPERATORS_3(ErrorsForType,
-                                  duplicate_count,
-                                  is_builtin_operator,
-                                  idname_validation_errors);
+
+  friend bool operator==(const ErrorsForType &a, const ErrorsForType &b) = default;
 };
 using OperatorRegisterErrors = Map<std::string, ErrorsForType>;
 
@@ -728,6 +726,7 @@ static std::optional<ID_Type> socket_type_to_id_type(const eNodeSocketDatatype s
     case SOCK_CUSTOM:
     case SOCK_FLOAT:
     case SOCK_VECTOR:
+    case SOCK_INT_VECTOR:
     case SOCK_RGBA:
     case SOCK_SHADER:
     case SOCK_BOOLEAN:

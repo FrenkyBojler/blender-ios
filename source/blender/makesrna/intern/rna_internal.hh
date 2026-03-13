@@ -237,6 +237,7 @@ void rna_def_attributes_common(StructRNA *srna, AttributeOwnerType type);
 
 void rna_Attribute_data_begin(CollectionPropertyIterator *iter, PointerRNA *ptr);
 int rna_Attribute_data_length(PointerRNA *ptr);
+bool rna_Attribute_data_lookup_int(PointerRNA *ptr, int index, PointerRNA *r_ptr);
 
 StringRefNull rna_Attribute_name_get(const PointerRNA &ptr);
 void rna_Attribute_name_get(PointerRNA *ptr, char *value);
@@ -459,6 +460,7 @@ const EnumPropertyItem *rna_WorkSpaceTool_brush_type_itemf(bContext *C,
 void RNA_api_action(StructRNA *srna);
 void RNA_api_animdata(StructRNA *srna);
 void RNA_api_armature_edit_bone(StructRNA *srna);
+void RNA_api_asset_library_loading_status(StructRNA *srna);
 void RNA_api_bone(StructRNA *srna);
 void RNA_api_bonecollection(StructRNA *srna);
 void RNA_api_camera(StructRNA *srna);
@@ -479,6 +481,7 @@ void RNA_api_grease_pencil_frames(StructRNA *srna);
 void RNA_api_grease_pencil_layer(StructRNA *srna);
 void RNA_api_grease_pencil_layers(StructRNA *srna);
 void RNA_api_grease_pencil_layer_groups(StructRNA *srna);
+void RNA_api_grease_pencil_layer_masks(StructRNA *srna);
 void RNA_api_keyconfig(StructRNA *srna);
 void RNA_api_keyconfigs(StructRNA *srna);
 void RNA_api_keyingset(StructRNA *srna);
@@ -499,6 +502,7 @@ void RNA_api_strip(StructRNA *srna);
 void RNA_api_text(StructRNA *srna);
 void RNA_api_ui_layout(StructRNA *srna);
 void RNA_api_window(StructRNA *srna);
+void RNA_api_windows(StructRNA *srna);
 void RNA_api_wm(StructRNA *srna);
 void RNA_api_space_node(StructRNA *srna);
 void RNA_api_space_text(StructRNA *srna);

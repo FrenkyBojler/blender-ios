@@ -55,6 +55,9 @@ eSpreadsheetColumnValueType cpp_type_to_column_type(const CPPType &type)
   if (type.is<float3>()) {
     return SPREADSHEET_VALUE_TYPE_FLOAT3;
   }
+  if (type.is<float4>()) {
+    return SPREADSHEET_VALUE_TYPE_FLOAT4;
+  }
   if (type.is<ColorGeometry4f>()) {
     return SPREADSHEET_VALUE_TYPE_COLOR;
   }
@@ -104,7 +107,7 @@ void spreadsheet_column_id_free(SpreadsheetColumnID *column_id)
 void spreadsheet_column_id_blend_write(BlendWriter *writer, const SpreadsheetColumnID *column_id)
 {
   writer->write_struct(column_id);
-  BLO_write_string(writer, column_id->name);
+  writer->write_string(column_id->name);
 }
 
 void spreadsheet_column_id_blend_read(BlendDataReader *reader, SpreadsheetColumnID *column_id)
@@ -152,7 +155,7 @@ void spreadsheet_column_blend_write(BlendWriter *writer, const SpreadsheetColumn
 {
   writer->write_struct(column);
   spreadsheet_column_id_blend_write(writer, column->id);
-  BLO_write_string(writer, column->display_name);
+  writer->write_string(column->display_name);
 }
 
 void spreadsheet_column_blend_read(BlendDataReader *reader, SpreadsheetColumn *column)

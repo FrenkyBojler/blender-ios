@@ -32,6 +32,19 @@ const EnumPropertyItem rna_enum_icon_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+static const EnumPropertyItem popup_draw_direction_items[] = {
+    {int(ui::PopupAttachDirection::Vertical),
+     "VERTICAL",
+     0,
+     "Vertical",
+     "Draw popup panel above or below the button"},
+    {int(ui::PopupAttachDirection::Horizontal),
+     "HORIZONTAL",
+     0,
+     "Horizontal",
+     "Draw popup panel to the side of the button"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
 }  // namespace blender
 
 #ifdef RNA_RUNTIME
@@ -554,7 +567,8 @@ static void rna_uiItemPopoverPanel(Layout *layout,
                                    const char *text_ctxt,
                                    bool translate,
                                    int icon,
-                                   int icon_value)
+                                   int icon_value,
+                                   int direction = int(ui::PopupAttachDirection::Vertical))
 {
   /* Get translated name (label). */
   std::optional<StringRefNull> text = rna_translate_ui_text(
@@ -564,7 +578,7 @@ static void rna_uiItemPopoverPanel(Layout *layout,
     icon = icon_value;
   }
 
-  layout->popover(C, panel_type, text, icon);
+  layout->popover(C, panel_type, text, icon, ui::PopupAttachDirection(direction));
 }
 
 static void rna_uiItemPopoverPanelFromGroup(Layout *layout,
@@ -768,19 +782,19 @@ void rna_template_list(Layout *layout,
     flags |= ui::TEMPLATE_LIST_SORT_LOCK;
   }
 
-  ui::template_list(layout,
-                    C,
-                    listtype_name,
-                    list_id,
-                    dataptr,
-                    propname,
-                    active_dataptr,
-                    active_propname,
-                    item_dyntip_propname,
-                    rows,
-                    maxrows,
-                    layout_type,
-                    flags);
+  ui::template_uilist(layout,
+                      C,
+                      listtype_name,
+                      list_id,
+                      dataptr,
+                      propname,
+                      active_dataptr,
+                      active_propname,
+                      item_dyntip_propname,
+                      rows,
+                      maxrows,
+                      layout_type,
+                      flags);
 }
 
 static void rna_template_cache_file(Layout *layout,
@@ -822,17 +836,17 @@ static void rna_template_cache_file_time_settings(Layout *layout,
   ui::template_cache_file_time_settings(layout, &fileptr);
 }
 
-static void rna_template_list_flags(Layout *layout,
-                                    bContext *C,
-                                    PointerRNA *ptr,
-                                    const char *propname)
+static void rna_template_uilist_flags(Layout *layout,
+                                      bContext *C,
+                                      PointerRNA *ptr,
+                                      const char *propname)
 {
   PointerRNA fileptr;
   if (!ui::template_cache_file_pointer(ptr, propname, &fileptr)) {
     return;
   }
 
-  ui::template_list_flags(layout, C, &fileptr);
+  ui::template_uilist_flags(layout, C, &fileptr);
 }
 
 static void rna_uiTemplatePathBuilder(Layout *layout,
@@ -1668,6 +1682,13 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_property(func, "icon_value", PROP_INT, PROP_UNSIGNED);
   RNA_def_property_ui_text(parm, "Icon Value", "Override automatic icon of the item");
+  parm = RNA_def_enum(
+      func,
+      "direction",
+      popup_draw_direction_items,
+      0,
+      "Popup Direction",
+      "The direction in which the popup panel is drawn relative to button position");
 
   func = RNA_def_function(srna, "popover_group", "rna_uiItemPopoverPanelFromGroup");
   RNA_def_function_flag(func, FUNC_USE_CONTEXT);
@@ -2346,7 +2367,7 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_function_ui_description(func, "Show cache files time settings");
   api_ui_item_rna_common(func);
 
-  func = RNA_def_function(srna, "template_cache_file_layers", "rna_template_list_flags");
+  func = RNA_def_function(srna, "template_cache_file_layers", "rna_template_uilist_flags");
   RNA_def_function_ui_description(func, "Show cache files override layers properties");
   RNA_def_function_flag(func, FUNC_USE_CONTEXT);
   api_ui_item_rna_common(func);

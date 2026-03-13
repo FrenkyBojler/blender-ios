@@ -211,7 +211,7 @@ static void restrictbutton_bone_select_fn(bContext *C, void *poin, void *poin2)
   }
 
   DEG_id_tag_update(&arm->id, ID_RECALC_SYNC_TO_EVAL);
-  WM_event_add_notifier(C, NC_OBJECT | ND_POSE, nullptr);
+  WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, nullptr);
 }
 
 static void restrictbutton_ebone_select_fn(bContext *C, void *poin, void *poin2)
@@ -228,7 +228,7 @@ static void restrictbutton_ebone_select_fn(bContext *C, void *poin, void *poin2)
         arm, ebone, BONE_UNSELECTABLE, (ebone->flag & BONE_UNSELECTABLE) != 0);
   }
 
-  WM_event_add_notifier(C, NC_OBJECT | ND_POSE, nullptr);
+  WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, nullptr);
 }
 
 static void restrictbutton_ebone_visibility_fn(bContext *C, void *poin, void *poin2)
@@ -243,7 +243,7 @@ static void restrictbutton_ebone_visibility_fn(bContext *C, void *poin, void *po
     restrictbutton_recursive_ebone(arm, ebone, BONE_HIDDEN_A, (ebone->flag & BONE_HIDDEN_A) != 0);
   }
 
-  WM_event_add_notifier(C, NC_OBJECT | ND_POSE, nullptr);
+  WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, nullptr);
 }
 
 static void restrictbutton_gp_layer_flag_fn(bContext *C, void *poin, void * /*poin2*/)
@@ -847,7 +847,8 @@ static void namebutton_fn(bContext *C, void *tsep, char *oldname)
             STRNCPY_UTF8(ebone->name, oldname);
             ED_armature_bone_rename(bmain, arm, oldname, newname);
             WM_msg_publish_rna_prop(mbus, &arm->id, ebone, EditBone, name);
-            WM_event_add_notifier(C, NC_OBJECT | ND_POSE, nullptr);
+            WM_event_add_notifier(C, NC_OBJECT | ND_ARMATURE_STRUCTURE, arm);
+            WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN, arm);
             DEG_id_tag_update(tselem->id, ID_RECALC_SYNC_TO_EVAL);
             undo_str = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Rename Edit Bone");
           }
@@ -870,7 +871,8 @@ static void namebutton_fn(bContext *C, void *tsep, char *oldname)
           STRNCPY_UTF8(bone->name, oldname);
           ED_armature_bone_rename(bmain, arm, oldname, newname);
           WM_msg_publish_rna_prop(mbus, &arm->id, bone, Bone, name);
-          WM_event_add_notifier(C, NC_OBJECT | ND_POSE, nullptr);
+          WM_event_add_notifier(C, NC_OBJECT | ND_ARMATURE_STRUCTURE, arm);
+          WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN, arm);
           DEG_id_tag_update(tselem->id, ID_RECALC_SYNC_TO_EVAL);
           undo_str = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Rename Bone");
           break;
@@ -894,7 +896,8 @@ static void namebutton_fn(bContext *C, void *tsep, char *oldname)
           STRNCPY_UTF8(pchan->name, oldname);
           ED_armature_bone_rename(bmain, id_cast<bArmature *>(ob->data), oldname, newname);
           WM_msg_publish_rna_prop(mbus, &arm->id, pchan->bone, Bone, name);
-          WM_event_add_notifier(C, NC_OBJECT | ND_POSE, nullptr);
+          WM_event_add_notifier(C, NC_OBJECT | ND_ARMATURE_STRUCTURE, arm);
+          WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN, arm);
           DEG_id_tag_update(tselem->id, ID_RECALC_SYNC_TO_EVAL);
           DEG_id_tag_update(&arm->id, ID_RECALC_SYNC_TO_EVAL);
           undo_str = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Rename Pose Bone");
@@ -1887,7 +1890,6 @@ static void outliner_draw_userbuts(ui::Block *block,
                             0,
                             0,
                             tip);
-      button_retval_set(bt, 1);
 
       if (is_linked) {
         button_flag_enable(bt, ui::BUT_DISABLED);
@@ -2210,7 +2212,7 @@ static void outliner_buttons(const bContext *C,
                 "");
   button_retval_set(bt, OL_NAMEBUTTON);
   /* Handle undo through the #template_id_cb set below. Default undo handling from the button
-   * code (see #ui_apply_but_undo) would not work here, as the new name is not yet applied to the
+   * code (see #apply_but_undo) would not work here, as the new name is not yet applied to the
    * ID. */
   button_flag_disable(bt, ui::BUT_UNDO);
   button_func_rename_set(bt, namebutton_fn, tselem);
@@ -2813,6 +2815,7 @@ TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
           case STRIP_TYPE_CROSS:
           case STRIP_TYPE_GAMCROSS:
           case STRIP_TYPE_WIPE:
+          case STRIP_TYPE_COMPOSITOR:
             data.icon = ICON_ARROW_LEFTRIGHT;
             break;
           case STRIP_TYPE_META:
@@ -3586,11 +3589,11 @@ static void outliner_draw_hierarchy_lines_recursive(uint pos,
 
   /* Draw vertical lines between collections */
   bool draw_hierarchy_line;
-  bool is_object_line;
+  bool use_dashed_line;
   for (TreeElement &te : *lb) {
     TreeStoreElem *tselem = TREESTORE(&te);
     draw_hierarchy_line = false;
-    is_object_line = false;
+    use_dashed_line = false;
     *starty -= UI_UNIT_Y;
     short color_tag = COLLECTION_COLOR_NONE;
 
@@ -3607,7 +3610,7 @@ static void outliner_draw_hierarchy_lines_recursive(uint pos,
       else if ((tselem->type == TSE_SOME_ID) && (te.idcode == ID_OB)) {
         if (subtree_contains_object(&te.subtree)) {
           draw_hierarchy_line = true;
-          is_object_line = true;
+          use_dashed_line = true;
           y = *starty;
         }
       }
@@ -3618,6 +3621,11 @@ static void outliner_draw_hierarchy_lines_recursive(uint pos,
           draw_hierarchy_line = true;
           y = *starty;
         }
+      }
+      else if (ELEM(tselem->type, TSE_BONE, TSE_EBONE, TSE_POSE_CHANNEL)) {
+        draw_hierarchy_line = true;
+        use_dashed_line = true;
+        y = *starty;
       }
 
       outliner_draw_hierarchy_lines_recursive(
@@ -3636,7 +3644,7 @@ static void outliner_draw_hierarchy_lines_recursive(uint pos,
 
       line_color[3] = alpha_fac;
       immUniformColor4ubv(line_color);
-      outliner_draw_hierarchy_line(pos, startx, y, *starty, is_object_line);
+      outliner_draw_hierarchy_line(pos, startx, y, *starty, use_dashed_line);
     }
   }
 }

@@ -1,4 +1,5 @@
 /* SPDX-FileCopyrightText: 2011-2026 Blender Authors
+ *
  * SPDX-License-Identifier: Apache-2.0 */
 
 #pragma once
@@ -56,6 +57,10 @@ class ImageMetaData {
   bool is_half() const;
   bool is_rgba() const;
   TypeDesc typedesc() const;
+
+  /* Memory stats. */
+  size_t memory_size() const;
+  size_t pixel_memory_size() const;
 
   /* OpenImageIO metadata and pixel loading. */
   bool oiio_load_metadata(OIIO::string_view filepath, OIIO::ImageSpec *r_spec = nullptr);

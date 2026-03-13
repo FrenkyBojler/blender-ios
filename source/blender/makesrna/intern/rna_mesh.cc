@@ -35,6 +35,13 @@ const EnumPropertyItem rna_enum_mesh_delimit_mode_items[] = {
 };
 
 const EnumPropertyItem rna_enum_mesh_walk_delimit_edge_loop_items[] = {
+    {BMW_DELIMIT_EDGE_MARK_SEAM, "SEAM", 0, "Seam", "Delimit edge loop selection at seams"},
+    {BMW_DELIMIT_EDGE_MARK_SHARP,
+     "SHARP",
+     0,
+     "Sharp",
+     "Delimit edge loop selection at sharp edges"},
+    {BMW_DELIMIT_EDGE_LOOP_NGONS, "NGONS", 0, "N-gons", "Stop boundary selection at n-gons"},
     {BMW_DELIMIT_EDGE_LOOP_INNER_CORNERS,
      "INNER_CORNERS",
      0,
@@ -46,7 +53,6 @@ const EnumPropertyItem rna_enum_mesh_walk_delimit_edge_loop_items[] = {
      "Outer Corners",
      "Stop boundary selection at vertices with two edges when they share a face that is not an "
      "n-gon"},
-    {BMW_DELIMIT_EDGE_LOOP_NGONS, "NGONS", 0, "N-gons", "Stop boundary selection at n-gons"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -1000,11 +1006,6 @@ static int rna_MeshUVLoopLayer_pin_length(PointerRNA *ptr)
 static PointerRNA rna_MeshUVLoopLayer_pin_ensure(PointerRNA ptr)
 {
   return bool_layer_ensure(&ptr, BKE_uv_map_pin_name_get);
-}
-
-static void rna_MeshUVLoopLayer_uv_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
-{
-  rna_Attribute_data_begin(iter, ptr);
 }
 
 static bool rna_MeshUVLoopLayer_active_render_get(PointerRNA *ptr)
@@ -2368,7 +2369,7 @@ static void rna_def_mloopuv(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "UV", "UV coordinates on face corners");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_IGNORE);
   RNA_def_property_collection_funcs(prop,
-                                    "rna_MeshUVLoopLayer_uv_begin",
+                                    "rna_Attribute_data_begin",
                                     "rna_iterator_array_next",
                                     "rna_iterator_array_end",
                                     "rna_iterator_array_get",

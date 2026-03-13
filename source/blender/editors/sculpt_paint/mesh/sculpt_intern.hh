@@ -11,6 +11,7 @@
 #include <optional>
 
 #include "BKE_brush.hh"
+#include "BKE_bvhutils.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_subdiv_ccg.hh"
@@ -126,6 +127,8 @@ enum class UpdateType {
   FaceSet,
 };
 
+static constexpr int face_set_none_id = 0;
+
 }  // namespace ed::sculpt_paint
 
 /* Factor of brush to have rake point following behind
@@ -151,6 +154,11 @@ enum class TransformDisplacementMode {
 namespace ed::sculpt_paint {
 
 static constexpr int plane_brush_max_rolling_average_num = 20;
+
+struct ProjectBrushTarget {
+  bke::BVHTreeFromMesh tree_data;
+  float4x4 active_to_target_matrix;
+};
 
 /**
  * This structure contains all the temporary data
@@ -259,7 +267,7 @@ struct StrokeCache {
   SculptRakeData rake_data;
 
   /* The face set being painted. */
-  int paint_face_set = SCULPT_FACE_SET_NONE;
+  int paint_face_set = face_set_none_id;
 
   /**
    * Symmetry index between 0 and 7 bit combo.
@@ -271,6 +279,8 @@ struct StrokeCache {
   ePaintSymmetryFlags mirror_symmetry_pass = ePaintSymmetryFlags(0);
   float3 view_normal = float3(0);
   float3 view_normal_symm = float3(0);
+  float3 view_origin = float3(0);
+  float3 view_origin_symm = float3(0);
 
   /**
    * The primary direction of influence for a brush stroke.
@@ -364,6 +374,9 @@ struct StrokeCache {
      */
     bool first_time = false;
   } plane_brush;
+
+  /* Scene Project brush */
+  Vector<ProjectBrushTarget> project_targets;
 
   /* Cloth brush */
   std::unique_ptr<cloth::SimulationData> cloth_sim;
@@ -538,7 +551,8 @@ bool cursor_geometry_info_update(bContext *C,
                                  const float2 &mval,
                                  bool use_sampled_normal);
 bool cursor_geometry_info_update(Depsgraph &depsgraph,
-                                 const Sculpt &sd,
+                                 const Paint &paint,
+                                 const Sculpt *sd,
                                  ViewContext &vc,
                                  const Base *base,
                                  CursorGeometryInfo *out,
@@ -772,7 +786,7 @@ void sculpt_apply_texture(const SculptSession &ss,
                           const float brush_point[3],
                           int thread_id,
                           float *r_value,
-                          float r_rgba[4]);
+                          float4 &r_rgba);
 
 /**
  * Calculates the vertex offset for a single vertex depending on the brush setting rgb as vector
@@ -981,6 +995,9 @@ void SCULPT_OT_face_set_polyline_gesture(wmOperatorType *ot);
 }  // namespace ed::sculpt_paint::face_set
 
 namespace ed::sculpt_paint {
+
+void mask_overlay_check(bContext &C, wmOperator &op);
+void face_set_overlay_check(bContext &C, wmOperator &op);
 
 void SCULPT_OT_set_pivot_position(wmOperatorType *ot);
 void SCULPT_OT_paint_mask_extract(wmOperatorType *ot);
