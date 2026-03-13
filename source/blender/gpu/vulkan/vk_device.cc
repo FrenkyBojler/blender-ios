@@ -199,17 +199,8 @@ void VKDevice::init_functions()
 
   /* VK_EXT_host_image_copy */
   if (extensions_.host_image_copy) {
-    /* NVIDIA driver doesn't return a memory address of the functions of this extensions, however
-     * it does return the address of the Vulkan 1.3 functions. */
     functions.vkCopyMemoryToImage = LOAD_FUNCTION(vkCopyMemoryToImageEXT);
-    if (functions.vkCopyMemoryToImage == nullptr) {
-      functions.vkCopyMemoryToImage = LOAD_FUNCTION(vkCopyMemoryToImage);
-    }
-
     functions.vkTransitionImageLayout = LOAD_FUNCTION(vkTransitionImageLayoutEXT);
-    if (functions.vkTransitionImageLayout == nullptr) {
-      functions.vkTransitionImageLayout = LOAD_FUNCTION(vkTransitionImageLayout);
-    }
   }
 
   /* VK_KHR_mainentance4 */
