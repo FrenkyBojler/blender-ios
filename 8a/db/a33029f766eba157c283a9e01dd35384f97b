@@ -27,3 +27,4 @@ Referenced by pull request #155289, Fix: Wrong UV layer name conflict detection 
 Referenced by commit b7a41512f8cc8be0bb2b291b8c01f2511cbd53b8, Fix: Wrong UV layer name conflict detection in customdata versioning
 Referenced by issue #155555, 5.1 Animation performance regression
 Referenced by issue #155611, Crash Node Tool In Sculpt mode
+Referenced by pull request #155641, Fix #155611: Crash when using position node tool in Sculpt Mode
