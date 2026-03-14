@@ -350,10 +350,13 @@ const CPPType &points_rasterize_grid_type(const PointRasterizeType rasterize_typ
   return CPPType::get<float>();
 }
 
-template<typename GridValueT>
+template<typename AttributeT, typename GridValueT>
 struct KernelTransferBase : public openvdb::points::TransformTransfer,
                             public openvdb::points::VolumeTransfer<
                                 typename bke::VolumeGridTraits<GridValueT>::TreeType> {
+  using AttributeTraits = bke::VolumeGridTraits<AttributeT>;
+  using AttributeType = typename AttributeTraits::PrimitiveType;
+
   using GridTraits = bke::VolumeGridTraits<GridValueT>;
   using TreeType = typename GridTraits::TreeType;
   using GridType = openvdb::Grid<TreeType>;
@@ -366,17 +369,24 @@ struct KernelTransferBase : public openvdb::points::TransformTransfer,
   KernelType kernel_type_;
   int kernel_size_;
 
-  /* Point attribute handles for positions in the current leaf. */
+  /* Point attribute name for input values. */
+  StringRef value_attribute_;
+  /* Point attribute handle for positions in the current leaf. */
   std::unique_ptr<openvdb::points::AttributeHandle<openvdb::Vec3f>> position_handle_;
+  /* Point attribute handle for input values in the current leaf. */
+  std::unique_ptr<openvdb::points::AttributeHandle<AttributeType>> value_handle_;
 
   KernelTransferBase(const KernelType kernel_type,
                      const openvdb::points::PointDataGrid &source,
+                     const StringRef value_attribute,
                      GridType &dest)
       : TransformTransfer(source.transform(), dest.transform()),
         openvdb::points::VolumeTransfer<TreeType>(dest.tree()),
         kernel_type_(kernel_type),
         kernel_size_(kernel_functions::kernel_size(kernel_type)),
-        position_handle_(nullptr)
+        value_attribute_(value_attribute),
+        position_handle_(nullptr),
+        value_handle_(nullptr)
   {
   }
 
@@ -385,7 +395,9 @@ struct KernelTransferBase : public openvdb::points::TransformTransfer,
         openvdb::points::VolumeTransfer<TreeType>(other),
         kernel_type_(other.kernel_type_),
         kernel_size_(other.kernel_size_),
-        position_handle_(nullptr)
+        value_attribute_(other.value_attribute_),
+        position_handle_(nullptr),
+        value_handle_(nullptr)
   {
   }
 
@@ -400,10 +412,20 @@ struct KernelTransferBase : public openvdb::points::TransformTransfer,
     return (kernel_size_ + 1) >> 1;
   }
 
-  void update_positions(const openvdb::points::PointDataTree::LeafNodeType &leaf)
+  AttributeType get_value(const openvdb::Index point_index)
+  {
+    return value_handle_->get(point_index);
+  }
+
+  bool startPointLeaf(const openvdb::points::PointDataTree::LeafNodeType &leaf)
   {
     position_handle_.reset(
         new openvdb::points::AttributeHandle<openvdb::Vec3f>(leaf.constAttributeArray("P")));
+
+    BLI_assert(leaf.hasAttribute(value_attribute_));
+    value_handle_.reset(new openvdb::points::AttributeHandle<AttributeType>(
+        leaf.constAttributeArray(value_attribute_)));
+    return true;
   }
 
   /* For each point, compute its relative index space position in the destination tree and
@@ -472,40 +494,11 @@ struct KernelTransferBase : public openvdb::points::TransformTransfer,
 };
 
 template<typename AttributeT, typename GridValueT>
-struct ValueTransfer : public KernelTransferBase<GridValueT> {
-  using Base = KernelTransferBase<GridValueT>;
-  using GridType = typename Base::GridType;
-  using TreeType = typename Base::TreeType;
-  using GridValueType = typename Base::GridValueType;
+struct ValueTransfer : public KernelTransferBase<AttributeT, GridValueT> {
+  using Base = KernelTransferBase<AttributeT, GridValueT>;
+  using AttributeType = typename Base::AttributeType;
 
-  using AttributeTraits = bke::VolumeGridTraits<AttributeT>;
-  using AttributeType = typename AttributeTraits::PrimitiveType;
-
-  StringRef value_attribute_;
-  std::unique_ptr<openvdb::points::AttributeHandle<AttributeType>> value_handle_;
-
-  ValueTransfer(const openvdb::points::PointDataGrid &source,
-                const KernelType kernel_type,
-                GridType &dest,
-                StringRef value_attribute)
-      : KernelTransferBase<GridValueT>(kernel_type, source, dest),
-        value_attribute_(value_attribute)
-  {
-  }
-
-  ValueTransfer(const ValueTransfer &other)
-      : KernelTransferBase<GridValueT>(other), value_attribute_(other.value_attribute_)
-  {
-  }
-
-  bool startPointLeaf(const openvdb::points::PointDataTree::LeafNodeType &leaf)
-  {
-    this->update_positions(leaf);
-    BLI_assert(leaf.hasAttribute(value_attribute_));
-    value_handle_.reset(new openvdb::points::AttributeHandle<AttributeType>(
-        leaf.constAttributeArray(value_attribute_)));
-    return true;
-  }
+  using Base::KernelTransferBase;
 
   void rasterizePoints(const openvdb::Coord &ijk,
                        const openvdb::Index point_index_begin,
@@ -517,7 +510,7 @@ struct ValueTransfer : public KernelTransferBase<GridValueT> {
         IndexRange::from_begin_end(point_index_begin, point_index_end),
         target_bounds,
         [&](const openvdb::Index point_index, const float3 &kernel_distance) {
-          const AttributeType source_value = value_handle_->get(point_index);
+          const AttributeType source_value = this->get_value(point_index);
           const float weight = kernel_functions::kernel_eval(this->kernel_type(), kernel_distance);
           return weight * source_value;
         });
@@ -525,40 +518,11 @@ struct ValueTransfer : public KernelTransferBase<GridValueT> {
 };
 
 template<typename AttributeT, typename GridValueT>
-struct DivergenceTransfer : public KernelTransferBase<GridValueT> {
-  using Base = KernelTransferBase<GridValueT>;
-  using GridType = typename Base::GridType;
-  using TreeType = typename Base::TreeType;
-  using GridValueType = typename Base::GridValueType;
+struct DivergenceTransfer : public KernelTransferBase<AttributeT, GridValueT> {
+  using Base = KernelTransferBase<AttributeT, GridValueT>;
+  using AttributeType = typename Base::AttributeType;
 
-  using AttributeTraits = bke::VolumeGridTraits<AttributeT>;
-  using AttributeType = typename AttributeTraits::PrimitiveType;
-
-  StringRef value_attribute_;
-  std::unique_ptr<openvdb::points::AttributeHandle<AttributeType>> value_handle_;
-
-  DivergenceTransfer(const openvdb::points::PointDataGrid &source,
-                     const KernelType kernel_type,
-                     GridType &dest,
-                     StringRef value_attribute)
-      : KernelTransferBase<GridValueT>(kernel_type, source, dest),
-        value_attribute_(value_attribute)
-  {
-  }
-
-  DivergenceTransfer(const DivergenceTransfer &other)
-      : KernelTransferBase<GridValueT>(other), value_attribute_(other.value_attribute_)
-  {
-  }
-
-  bool startPointLeaf(const openvdb::points::PointDataTree::LeafNodeType &leaf)
-  {
-    this->update_positions(leaf);
-    BLI_assert(leaf.hasAttribute(value_attribute_));
-    value_handle_.reset(new openvdb::points::AttributeHandle<AttributeType>(
-        leaf.constAttributeArray(value_attribute_)));
-    return true;
-  }
+  using Base::KernelTransferBase;
 
   void rasterizePoints(const openvdb::Coord &ijk,
                        const openvdb::Index point_index_begin,
@@ -570,7 +534,7 @@ struct DivergenceTransfer : public KernelTransferBase<GridValueT> {
         IndexRange::from_begin_end(point_index_begin, point_index_end),
         target_bounds,
         [&](const openvdb::Index point_index, const float3 &kernel_distance) {
-          const AttributeType source_value = value_handle_->get(point_index);
+          const AttributeType source_value = this->get_value(point_index);
           const float3 weight_gradient = kernel_functions::kernel_gradient_eval(
               this->kernel_type(), kernel_distance);
           if constexpr (std::is_same_v<AttributeType, openvdb::Mat4s>) {
@@ -582,6 +546,34 @@ struct DivergenceTransfer : public KernelTransferBase<GridValueT> {
             return source_value[0] * weight_gradient.x + source_value[1] * weight_gradient.y +
                    source_value[2] * weight_gradient.z;
           }
+        });
+  }
+};
+
+template<typename AttributeT, typename GridValueT>
+struct GradientTransfer : public KernelTransferBase<AttributeT, GridValueT> {
+  using Base = KernelTransferBase<AttributeT, GridValueT>;
+  using AttributeType = typename Base::AttributeType;
+  using GridValueType = typename Base::GridValueType;
+
+  using Base::KernelTransferBase;
+
+  void rasterizePoints(const openvdb::Coord &ijk,
+                       const openvdb::Index point_index_begin,
+                       const openvdb::Index point_index_end,
+                       const openvdb::CoordBBox &target_bounds)
+  {
+    this->add_points_to_voxels(
+        ijk,
+        IndexRange::from_begin_end(point_index_begin, point_index_end),
+        target_bounds,
+        [&](const openvdb::Index point_index, const float3 &kernel_distance) {
+          const AttributeType source_value = this->get_value(point_index);
+          const float3 weight_gradient = kernel_functions::kernel_gradient_eval(
+              this->kernel_type(), kernel_distance);
+          return GridValueType{source_value * weight_gradient.x,
+                               source_value * weight_gradient.y,
+                               source_value * weight_gradient.z};
         });
   }
 };
@@ -643,7 +635,7 @@ static bke::GVolumeGrid points_rasterize_with_static_type(
   dst_grid = prepare_destination_grid<GridType>(point_data_grid, transform, kernel_type);
 
   BLI_assert(!value_attribute.is_empty());
-  TransferT transfer(point_data_grid, kernel_type, *dst_grid, value_attribute);
+  TransferT transfer(kernel_type, point_data_grid, value_attribute, *dst_grid);
   openvdb::points::rasterize(point_data_grid, transfer);
 
   finalize_grid.template operator()<GridType>();
@@ -667,6 +659,8 @@ static bke::GVolumeGrid points_attribute_rasterize(
           point_data_grid, value_attribute, attribute_info, transform, kernel_type);
       break;
     case PointRasterizeType::ScalarGradient:
+      result = points_rasterize_with_static_type<float, float3, GradientTransfer<float, float3>>(
+          point_data_grid, value_attribute, attribute_info, transform, kernel_type);
       break;
     case PointRasterizeType::Vector:
       result = points_rasterize_with_static_type<float3, float3, ValueTransfer<float3, float3>>(
