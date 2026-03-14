@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'7084f8328cd3')\n"
+"Project-Id-Version: Blender 5.1.0 Beta (b'5a04f1d246f1')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-08 10:32+0000\n"
+"POT-Creation-Date: 2026-03-11 11:01+0000\n"
 "PO-Revision-Date: 2025-12-04 22:18+0000\n"
 "Last-Translator: Jackson Zheng <business.jackson.zheng@gmail.com>\n"
 "Language-Team: Hindi <https://translate.blender.org/projects/blender-ui/ui/hi/>\n"
@@ -838,18 +838,6 @@ msgid "View"
 msgstr "दृश्य"
 
 
-msgid "Blend Type"
-msgstr "मिश्रण प्रकार"
-
-
-msgid "Mix"
-msgstr "मिश्रण"
-
-
-msgid "Screen"
-msgstr "चित्रपट"
-
-
 msgid "RGB"
 msgstr "ला.ह.नी."
 
@@ -1324,8 +1312,16 @@ msgid "Sine"
 msgstr "ज्या"
 
 
+msgid "Blend Type"
+msgstr "मिश्रण प्रकार"
+
+
 msgid "Phase"
 msgstr "चरण"
+
+
+msgid "Sigma"
+msgstr "सिग्मा"
 
 
 msgid "Frame"
@@ -1524,6 +1520,22 @@ msgid "Add fire"
 msgstr "अग्नि में जोड़ें"
 
 
+msgid "Font"
+msgstr "मुद्र"
+
+
+msgid "Text"
+msgstr "पाठ"
+
+
+msgid "Mask"
+msgstr "आवरण"
+
+
+msgid "Sound"
+msgstr "ध्वनि"
+
+
 msgid "Border"
 msgstr "सीमांत"
 
@@ -1618,14 +1630,6 @@ msgstr "परतें"
 
 msgid "Rest Position"
 msgstr "शेष स्थिति"
-
-
-msgid "Erase Alpha"
-msgstr "पारदर्शिता को मिटाएँ"
-
-
-msgid "Add Alpha"
-msgstr "पारदर्शिता जोड़ें"
 
 
 msgid "Box"
@@ -1806,10 +1810,6 @@ msgstr "स्वरूप संपादन"
 
 msgid "Text on Curve"
 msgstr "वक्र पर पाठ"
-
-
-msgid "Font"
-msgstr "मुद्र"
 
 
 msgid "Font Bold"
@@ -2052,10 +2052,6 @@ msgid "Nodes"
 msgstr "ग्रन्थि्"
 
 
-msgid "Use boundaries for viewer nodes and composite backdrop"
-msgstr "दर्शक नोड्स और मिश्रित पृष्ठभूमि के लिए सीमाओं का उपयोग करें"
-
-
 msgid "Edit"
 msgstr "संपादन"
 
@@ -2287,10 +2283,6 @@ msgstr "मौन"
 
 msgid "Mute the speaker"
 msgstr "स्पीकर म्यूट करें"
-
-
-msgid "Sound"
-msgstr "ध्वनि"
 
 
 msgid "Current Line"
@@ -2537,12 +2529,20 @@ msgid "Point selected"
 msgstr "बिंदु चयनित"
 
 
+msgid "Mix"
+msgstr "मिश्रण"
+
+
 msgid "Min Angle"
 msgstr "न्यूनतम् कोण"
 
 
 msgid "Change alpha transparency based on a material attribute"
 msgstr "पदार्थ"
+
+
+msgid "Screen"
+msgstr "चित्रपट"
 
 
 msgid "Circles"
@@ -2573,8 +2573,36 @@ msgid "Dots"
 msgstr "बिन्दु्"
 
 
-msgid "Mask"
-msgstr "आवरण"
+msgid "UV"
+msgstr "यूवी"
+
+
+msgid "Show/Hide"
+msgstr "छुपाएँ / दिखाएँ"
+
+
+msgid "Names"
+msgstr "नाम"
+
+
+msgid "Bone Roll"
+msgstr "हड्डी पंजी"
+
+
+msgid "Snap"
+msgstr "स्नैप"
+
+
+msgid "Mirror"
+msgstr "दर्पण"
+
+
+msgid "Keying"
+msgstr "कुंजीयन"
+
+
+msgid "Math"
+msgstr "गणित"
 
 
 msgid "Light"
@@ -2597,28 +2625,12 @@ msgid "Quick Effects"
 msgstr "त्वरित प्रभाव"
 
 
-msgid "Show/Hide"
-msgstr "छुपाएँ / दिखाएँ"
-
-
 msgid "Make Single User"
 msgstr "एकल प्रयोक्ता बनाएँ"
 
 
 msgid "Hooks"
 msgstr "खूँटी"
-
-
-msgid "Keying"
-msgstr "कुंजीयन"
-
-
-msgid "Math"
-msgstr "गणित"
-
-
-msgid "Names"
-msgstr "नाम"
 
 
 msgid "Toggle Bone Options"
@@ -2629,32 +2641,12 @@ msgid "Enable Bone Options"
 msgstr "हड्डी विकल्प को सक्षम करें"
 
 
-msgid "Merge"
-msgstr "विलय करें"
-
-
-msgid "Text"
-msgstr "पाठ"
-
-
-msgid "Bone Roll"
-msgstr "हड्डी पंजी"
-
-
-msgid "Snap"
-msgstr "स्नैप"
-
-
 msgid "Import"
 msgstr "आयात करें"
 
 
-msgid "UV"
-msgstr "यूवी"
-
-
-msgid "Mirror"
-msgstr "दर्पण"
+msgid "Merge"
+msgstr "विलय करें"
 
 
 msgid "Basic"
@@ -3088,6 +3080,10 @@ msgstr "प्रतिबिंबक सामग्री"
 
 msgid "Layer Weight"
 msgstr "परत भार"
+
+
+msgid "Base"
+msgstr "आधार"
 
 
 msgid "Cycles"
@@ -3610,10 +3606,6 @@ msgid "Both"
 msgstr "दोनों"
 
 
-msgid "Sigma"
-msgstr "सिग्मा"
-
-
 msgid "Next Keyframe"
 msgstr "अगले अनुबोधक चिन्ह"
 
@@ -3693,14 +3685,6 @@ msgid "Delete Unused"
 msgstr "मिटाएँ अप्रयुक्त"
 
 
-msgid "Select Ring"
-msgstr "वलय का चयन करें"
-
-
-msgid "Select ring"
-msgstr "वलय का चयन करें"
-
-
 msgctxt "Operator"
 msgid "Select Sharp Edges"
 msgstr "तेज किनारों का चयन करें"
@@ -3751,10 +3735,6 @@ msgstr "केवल चयनित"
 
 msgid "X-Ray"
 msgstr "एक्स-रे"
-
-
-msgid "Ring"
-msgstr "वलय"
 
 
 msgctxt "Operator"
@@ -3851,14 +3831,6 @@ msgstr "एक reroute नोड जोड़ें"
 
 msgid "Exit"
 msgstr "निर्गम"
-
-
-msgid "Current"
-msgstr "वर्तमान"
-
-
-msgid "Set the boundaries for viewer operations"
-msgstr "दर्शक संचालन के लिए सीमाएँ सेट करें"
 
 
 msgctxt "Operator"
@@ -4604,10 +4576,6 @@ msgid "Language"
 msgstr "भाषा"
 
 
-msgid "Base"
-msgstr "आधार"
-
-
 msgid "Case"
 msgstr "प्रकरण"
 
@@ -4820,6 +4788,10 @@ msgstr "कुंजी-बंधन"
 
 msgid "Filter based on key bindings"
 msgstr "प्रमुख बाइंडिंग पर आधारित फ़िल्टर करें"
+
+
+msgid "Current"
+msgstr "वर्तमान"
 
 
 msgid "Find Text"
@@ -5899,10 +5871,6 @@ msgid "%d items"
 msgstr "%d वस्तु"
 
 
-msgid "Value:"
-msgstr "मान:"
-
-
 msgid "Hex"
 msgstr "हेक्स"
 
@@ -6031,10 +5999,6 @@ msgid "New"
 msgstr "नई"
 
 
-msgid "Modified"
-msgstr "संशोधित"
-
-
 msgid "Stop animation playback"
 msgstr "अनुप्राणन चलाएँ रोकें"
 
@@ -6084,6 +6048,10 @@ msgstr "बाहरी"
 
 msgid "Seams"
 msgstr "तेजी"
+
+
+msgid "Select Ring"
+msgstr "वलय का चयन करें"
 
 
 msgid "No additional selected meshes with equal vertex count to join"
@@ -6296,6 +6264,10 @@ msgstr "संचिका पथ"
 
 msgid "File name"
 msgstr "संचिका का नाम"
+
+
+msgid "Value:"
+msgstr "मान:"
 
 
 msgid "Unsupported audio format"
@@ -6546,6 +6518,10 @@ msgstr "रिम"
 
 msgid "Blender File View"
 msgstr "ब्लेंडर संचिका दृश्य"
+
+
+msgid "Modified"
+msgstr "संशोधित"
 
 
 msgid "ON"

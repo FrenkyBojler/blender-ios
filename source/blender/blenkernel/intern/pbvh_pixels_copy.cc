@@ -162,15 +162,15 @@ class NonManifoldUVEdges : public Vector<Edge<CoordSpace::UV>> {
 
 class PixelNodesTileData : public Vector<std::reference_wrapper<UDIMTilePixels>> {
  public:
-  PixelNodesTileData(blender::bke::pbvh::Tree &pbvh, const image::ImageTileWrapper &image_tile)
+  PixelNodesTileData(bke::pbvh::Tree &pbvh, const image::ImageTileWrapper &image_tile)
   {
     reserve(count_nodes(pbvh, image_tile));
 
     std::visit(
         [&](auto &nodes) {
-          for (blender::bke::pbvh::Node &node : nodes) {
+          for (bke::pbvh::Node &node : nodes) {
             if (should_add_node(node, image_tile)) {
-              NodeData &node_data = *static_cast<NodeData *>(node.pixels_);
+              NodeData &node_data = *node.pixels_;
               UDIMTilePixels &tile_pixels = *node_data.find_tile_data(image_tile);
               append(tile_pixels);
             }
@@ -180,8 +180,7 @@ class PixelNodesTileData : public Vector<std::reference_wrapper<UDIMTilePixels>>
   }
 
  private:
-  static bool should_add_node(blender::bke::pbvh::Node &node,
-                              const image::ImageTileWrapper &image_tile)
+  static bool should_add_node(bke::pbvh::Node &node, const image::ImageTileWrapper &image_tile)
   {
     if ((node.flag_ & Node::Leaf) == 0) {
       return false;
@@ -189,20 +188,19 @@ class PixelNodesTileData : public Vector<std::reference_wrapper<UDIMTilePixels>>
     if (node.pixels_ == nullptr) {
       return false;
     }
-    NodeData &node_data = *static_cast<NodeData *>(node.pixels_);
+    NodeData &node_data = *node.pixels_;
     if (node_data.find_tile_data(image_tile) == nullptr) {
       return false;
     }
     return true;
   }
 
-  static int64_t count_nodes(blender::bke::pbvh::Tree &pbvh,
-                             const image::ImageTileWrapper &image_tile)
+  static int64_t count_nodes(bke::pbvh::Tree &pbvh, const image::ImageTileWrapper &image_tile)
   {
     int64_t result = 0;
     std::visit(
         [&](auto &nodes) {
-          for (blender::bke::pbvh::Node &node : nodes) {
+          for (bke::pbvh::Node &node : nodes) {
             if (should_add_node(node, image_tile)) {
               result++;
             }
@@ -502,7 +500,7 @@ struct Rows {
   }
 };
 
-void copy_update(blender::bke::pbvh::Tree &pbvh,
+void copy_update(bke::pbvh::Tree &pbvh,
                  Image &image,
                  ImageUser &image_user,
                  const uv_islands::MeshData &mesh_data)
@@ -516,8 +514,8 @@ void copy_update(blender::bke::pbvh::Tree &pbvh,
   }
 
   ImageUser tile_user = image_user;
-  LISTBASE_FOREACH (ImageTile *, tile, &image.tiles) {
-    const image::ImageTileWrapper image_tile = image::ImageTileWrapper(tile);
+  for (ImageTile &tile : image.tiles) {
+    const image::ImageTileWrapper image_tile = image::ImageTileWrapper(&tile);
     tile_user.tile = image_tile.get_tile_number();
 
     ImBuf *tile_buffer = BKE_image_acquire_ibuf(&image, &tile_user, nullptr);
@@ -547,7 +545,7 @@ void copy_update(blender::bke::pbvh::Tree &pbvh,
   }
 }
 
-void copy_pixels(blender::bke::pbvh::Tree &pbvh,
+void copy_pixels(bke::pbvh::Tree &pbvh,
                  Image &image,
                  ImageUser &image_user,
                  image::TileNumber tile_number)

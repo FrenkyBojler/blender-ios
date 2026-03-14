@@ -8,7 +8,9 @@
  */
 
 #ifdef WIN32
-
+#  ifdef WIN32_LEAN_AND_MEAN
+#    undef WIN32_LEAN_AND_MEAN
+#  endif
 #  include <conio.h>
 #  include <shlwapi.h>
 #  include <stdio.h>
@@ -27,6 +29,8 @@
 
 #  include "utf_winfunc.hh"
 #  include "utfconv.hh"
+
+namespace blender {
 
 /* FILE_MAXDIR + FILE_MAXFILE */
 
@@ -589,6 +593,8 @@ void BLI_windows_process_set_qos(QoSMode qos_mode, QoSPrecedence qos_precedence)
   }
   qos_precedence_last = qos_precedence;
 }
+
+}  // namespace blender
 
 #else
 

@@ -62,7 +62,8 @@ class FaceSetFromBoundariesInput final : public bke::MeshFieldInput {
 
     AtomicDisjointSet islands(faces.size());
     non_boundary_edges.foreach_index(
-        GrainSize(2048), [&](const int edge) { join_indices(islands, edge_to_face_map[edge]); });
+        [&](const int edge) { join_indices(islands, edge_to_face_map[edge]); },
+        exec_mode::grain_size(2048));
 
     Array<int> output(faces.size());
     islands.calc_reduced_ids(output);
@@ -101,7 +102,7 @@ static void geo_node_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeEdgesToFaceGroups", GEO_NODE_EDGES_TO_FACE_GROUPS);
   ntype.ui_name = "Edges to Face Groups";
@@ -111,7 +112,7 @@ static void node_register()
   ntype.geometry_node_execute = geo_node_exec;
   ntype.declare = node_declare;
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

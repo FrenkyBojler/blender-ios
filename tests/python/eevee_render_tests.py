@@ -40,6 +40,10 @@ BLOCKLIST = [
     "light_path_is_shadow_ray.blend",
     # Blocked as the test seems to alternate between two different states
     "light_path_is_diffuse_ray.blend",
+    # Blocked due to stochastic diffuse/transmission layering resulting in non-deterministic surfel lighting.
+    "principled_bsdf_transmission.blend",
+    # Blocked due to platform-dependent noise differences (likely floating-point/fast-math differences).
+    "raycast_bump.blend",
 ]
 
 BLOCKLIST_METAL = [
@@ -56,18 +60,16 @@ BLOCKLIST_METAL = [
 ]
 
 BLOCKLIST_VULKAN = [
-    # Blocked due to difference in screen space tracing (to be fixed).
-    "sss_reflection_clamp.blend",
     # Blocked due to difference in screen space tracing (to be investigated).
-    "image.blend"
+    "image.blend",
 ]
 
 BLOCKLIST_INTEL = [
-    # Blocked due to large differences in dithered surfaces and shadows.
-    "transparency_blended.blend",
-    "transparency_dithered.blend",
-    # Blocked due to differences in shadow edges (to be investigated).
-    "shadow_resolution_scale.blend"
+]
+
+BLOCKLIST_INTEL_WINDOWS_GL = [
+    # Fails sporadically and causes all subsequent volume tests to fail (See #153612).
+    "volume_instance.blend"
 ]
 
 
@@ -125,6 +127,10 @@ def setup():
 
         # Light-probes
         eevee.gi_cubemap_resolution = '256'
+
+        # Light-path intensity
+        eevee.direct_light_intensity = 1.0
+        eevee.indirect_light_intensity = 1.0
 
         # Only include the plane in probes
         for ob in scene.objects:
@@ -230,9 +236,12 @@ def main():
     elif args.gpu_backend == "vulkan":
         blocklist += BLOCKLIST_VULKAN
 
-    gpu_vendor = render_report.get_gpu_device_vendor(args.blender)
-    if gpu_vendor == "INTEL":
-        blocklist += BLOCKLIST_INTEL
+    if os.getenv("BLENDER_TEST_IGNORE_VENDOR_BLOCKLIST") is None:
+        gpu_vendor = render_report.get_gpu_device_vendor(args.blender)
+        if gpu_vendor == "INTEL":
+            blocklist += BLOCKLIST_INTEL
+        if gpu_vendor == "INTEL" and sys.platform == "win32" and args.gpu_backend == "opengl":
+            blocklist += BLOCKLIST_INTEL_WINDOWS_GL
 
     report = EEVEEReport("EEVEE", args.outdir, args.oiiotool, variation=args.gpu_backend, blocklist=blocklist)
     if args.gpu_backend == "vulkan":
@@ -258,6 +267,12 @@ def main():
     elif test_dir_name.startswith('principled_bsdf'):
         # principled bsdf transmission test
         report.set_fail_threshold(0.02)
+    elif test_dir_name.startswith('camera'):
+        # Line/rasterization difference (Old AMD/Linux/OpenGL only, see #154515)
+        report.set_fail_threshold(0.0375)
+    elif test_dir_name.startswith('raycast'):
+        # Line/rasterization difference (Old AMD/Linux/OpenGL only, see #154516)
+        report.set_fail_threshold(0.02)
 
     # Noise pattern changes depending on platform. Mostly caused by transparency.
     # TODO(fclem): See if we can just increase number of samples per file.
@@ -279,6 +294,9 @@ def main():
     elif test_dir_name.startswith('light'):
         # Noise difference in background
         report.set_fail_threshold(0.03)
+    elif test_dir_name.startswith('texture'):
+        # Noise difference in "white noise 256pp" (Old AMD/Linux/OpenGL only, see #154515)
+        report.set_fail_threshold(0.02)
 
     ok = report.run(args.testdir, args.blender, get_arguments, batch=args.batch)
     sys.exit(not ok)

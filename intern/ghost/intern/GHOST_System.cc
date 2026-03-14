@@ -200,11 +200,11 @@ GHOST_TSuccess GHOST_System::removeEventConsumer(GHOST_IEventConsumer *consumer)
   return success;
 }
 
-GHOST_TSuccess GHOST_System::pushEvent(const GHOST_IEvent *event)
+GHOST_TSuccess GHOST_System::pushEvent(std::unique_ptr<const GHOST_IEvent> event)
 {
   GHOST_TSuccess success;
   if (event_manager_) {
-    success = event_manager_->pushEvent(event);
+    success = event_manager_->pushEvent(std::move(event));
   }
   else {
     success = GHOST_kFailure;
@@ -242,6 +242,8 @@ uint32_t GHOST_System::getCursorPreferredLogicalSize() const
 
 GHOST_TSuccess GHOST_System::getModifierKeyState(GHOST_TModifierKey mask, bool &is_down) const
 {
+  is_down = false;
+
   GHOST_ModifierKeys keys;
   /* Get the state of all modifier keys. */
   GHOST_TSuccess success = getModifierKeys(keys);
@@ -254,6 +256,8 @@ GHOST_TSuccess GHOST_System::getModifierKeyState(GHOST_TModifierKey mask, bool &
 
 GHOST_TSuccess GHOST_System::getButtonState(GHOST_TButton mask, bool &is_down) const
 {
+  is_down = false;
+
   GHOST_Buttons buttons;
   /* Get the state of all mouse buttons. */
   GHOST_TSuccess success = getButtons(buttons);
