@@ -1146,10 +1146,7 @@ static void panel_draw_aligned_widgets(const uiStyle *style,
       alpha *= std::max(float(header_width - scaled_unit) / float(scaled_unit * 3), 0.0f);
     }
 
-    float x = widget_rect.xmin + size_y * 0.2f;
-    float y = widget_rect.ymin + size_y * (panel_is_closed(panel) ? 0.17f : 0.14f);
     const int font_id = BLF_default();
-
     HandlePanelData *data = static_cast<HandlePanelData *>(panel->activedata);
     if (data && data->anim_factor < 1.0f && data->anim_factor > 0.0f) {
       const float fac = 1.0f - data->anim_factor;
@@ -1158,8 +1155,8 @@ static void panel_draw_aligned_widgets(const uiStyle *style,
       BLF_enable(font_id, BLF_ROTATION);
     }
 
-    icon_draw_ex(x,
-                 y,
+    icon_draw_ex(widget_rect.xmin + size_y * 0.2f,
+                 widget_rect.ymin + size_y * (panel_is_closed(panel) ? 0.17f : 0.14f),
                  panel_is_closed(panel) ? ICON_RIGHTARROW : ICON_DOWNARROW_HLT,
                  aspect * UI_INV_SCALE_FAC,
                  alpha,
