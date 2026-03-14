@@ -627,6 +627,8 @@ set(GLSL_SRC
   shaders/common/gpu_shader_utildefines_lib.glsl
 
   shaders/material/gpu_shader_material_add_shader.glsl
+  shaders/material/gpu_shader_material_align_rotation_to_vector.glsl
+  shaders/material/gpu_shader_material_axes_to_rotation.glsl
   shaders/material/gpu_shader_material_ambient_occlusion.glsl
   shaders/material/gpu_shader_material_attribute.glsl
   shaders/material/gpu_shader_material_axis_angle_to_rotation.glsl

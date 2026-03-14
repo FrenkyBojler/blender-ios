@@ -13,6 +13,7 @@
 #include "NOD_rna_define.hh"
 
 #include "node_function_util.hh"
+#include "node_shader_util.hh"
 
 namespace blender::nodes::node_fn_align_rotation_to_vector_cc {
 
@@ -183,6 +184,39 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
       math::Axis::from_int(node.custom1), NodeAlignEulerToVectorPivotAxis(node.custom2));
 }
 
+static int gpu_shader_align_rotation_to_vector(GPUMaterial *mat,
+                                               bNode *node,
+                                               bNodeExecData * /*execdata*/,
+                                               GPUNodeStack *in,
+                                               GPUNodeStack *out)
+{
+  const math::Axis main_axis_mode = math::Axis::from_int(node->custom1);
+  const NodeAlignEulerToVectorPivotAxis pivot_axis_mode = NodeAlignEulerToVectorPivotAxis(
+      node->custom2);
+
+  float3 local_main_axis = {0.0f, 0.0f, 0.0f};
+  local_main_axis[main_axis_mode.as_int()] = 1.0f;
+
+  if (pivot_axis_mode == FN_NODE_ALIGN_EULER_TO_VECTOR_PIVOT_AXIS_AUTO) {
+    return GPU_stack_link(mat,
+                          node,
+                          "node_align_rotation_to_vector_auto_pivot",
+                          in,
+                          out,
+                          GPU_constant(local_main_axis));
+  }
+
+  float3 local_pivot_axis = {0.0f, 0.0f, 0.0f};
+  local_pivot_axis[pivot_axis_mode - 1] = 1.0f;
+  return GPU_stack_link(mat,
+                        node,
+                        "node_align_rotation_to_vector_fixed_pivot",
+                        in,
+                        out,
+                        GPU_constant(local_main_axis),
+                        GPU_constant(local_pivot_axis));
+}
+
 static void node_rna(StructRNA *srna)
 {
   static const EnumPropertyItem axis_items[] = {
@@ -245,6 +279,7 @@ static void node_register()
   ntype.initfunc = node_init;
   ntype.draw_buttons = node_layout;
   ntype.build_multi_function = node_build_multi_function;
+  ntype.gpu_fn = gpu_shader_align_rotation_to_vector;
   bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);

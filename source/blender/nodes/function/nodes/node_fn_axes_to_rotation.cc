@@ -11,6 +11,7 @@
 #include "NOD_rna_define.hh"
 
 #include "node_function_util.hh"
+#include "node_shader_util.hh"
 
 namespace blender::nodes::node_fn_axes_to_rotation_cc {
 
@@ -151,6 +152,35 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
   }
 }
 
+static int gpu_shader_axes_to_rotation(GPUMaterial *mat,
+                                       bNode *node,
+                                       bNodeExecData * /*execdata*/,
+                                       GPUNodeStack *in,
+                                       GPUNodeStack *out)
+{
+  if (node->custom1 == node->custom2) {
+    return GPU_stack_link(mat, node, "node_axes_to_rotation_identity", in, out);
+  }
+
+  const float primary_arr[1] = {(float)node->custom1};
+  const float secondary_arr[1] = {(float)node->custom2};
+  const int tertiary_axis = (0 + 1 + 2) - node->custom1 - node->custom2;
+  const float tertiary_arr[1] = {(float)tertiary_axis};
+
+  const bool invert_tertiary = (node->custom2 + 1) % 3 == node->custom1;
+  const float factor_arr[1] = {invert_tertiary ? -1.0f : 1.0f};
+
+  return GPU_stack_link(mat,
+                        node,
+                        "node_axes_to_rotation",
+                        in,
+                        out,
+                        GPU_constant(primary_arr),
+                        GPU_constant(secondary_arr),
+                        GPU_constant(tertiary_arr),
+                        GPU_constant(factor_arr));
+}
+
 static void node_extra_info(NodeExtraInfoParams &params)
 {
   if (params.node.custom1 == params.node.custom2) {
@@ -200,6 +230,7 @@ static void node_register()
   ntype.build_multi_function = node_build_multi_function;
   ntype.draw_buttons = node_layout;
   ntype.get_extra_info = node_extra_info;
+  ntype.gpu_fn = gpu_shader_axes_to_rotation;
   node_rna(ntype.rna_ext.srna);
   bke::node_register_type(ntype);
 }
