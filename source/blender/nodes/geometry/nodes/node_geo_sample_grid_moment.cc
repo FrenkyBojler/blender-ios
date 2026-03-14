@@ -193,11 +193,7 @@ void sample_grid(const bke::OpenvdbGridType<T> &grid,
                  GMutableSpan dst)
 {
   using GridType = bke::OpenvdbGridType<T>;
-  using GridValueT = typename GridType::ValueType;
-  using GridGradientT = geometry::grid_sampling::OpenvdbGradientType<GridValueT>;
-  using GradientT = geometry::grid_sampling::GradientType<T>;
   using AccessorT = typename GridType::ConstUnsafeAccessor;
-  using TraitsT = typename bke::VolumeGridTraits<GradientT>;
   AccessorT accessor = grid.getConstUnsafeAccessor();
 
   auto sample_data = [&]<typename Sampler>() {
@@ -208,7 +204,9 @@ void sample_grid(const bke::OpenvdbGridType<T> &grid,
           const float3 &pos = positions[i];
           const openvdb::Vec3R world_pos(pos.x, pos.y, pos.z);
           const openvdb::Vec3R index_pos = grid.transform().worldToIndex(world_pos);
-          Sampler::template sample_moment<1, openvdb::Vec3R>(accessor, index_pos, dst_typed[i]);
+          openvdb::Vec3s value;
+          Sampler::template sample_moment<1, openvdb::Vec3s>(accessor, index_pos, value);
+          dst_typed[i] = float3(value.asV());
         });
         break;
       }
@@ -218,36 +216,24 @@ void sample_grid(const bke::OpenvdbGridType<T> &grid,
           const float3 &pos = positions[i];
           const openvdb::Vec3R world_pos(pos.x, pos.y, pos.z);
           const openvdb::Vec3R index_pos = grid.transform().worldToIndex(world_pos);
-          Sampler::template sample_moment<1, openvdb::Vec3R>(accessor, index_pos, dst_typed[i]);
+          openvdb::Mat3s value;
+          Sampler::template sample_moment<2, openvdb::Mat3s>(accessor, index_pos, value);
+          dst_typed[i] = float4x4(bke::VolumeGridTraits<float3x3>::to_blender(value));
         });
         break;
       }
       case MomentType::VectorFirst: {
+        MutableSpan<float4x4> dst_typed = dst.typed<float4x4>();
+        mask.foreach_index([&](const int64_t i) {
+          const float3 &pos = positions[i];
+          const openvdb::Vec3R world_pos(pos.x, pos.y, pos.z);
+          const openvdb::Vec3R index_pos = grid.transform().worldToIndex(world_pos);
+          openvdb::Mat3s value;
+          Sampler::template sample_moment<1, openvdb::Mat3s>(accessor, index_pos, value);
+          dst_typed[i] = float4x4(bke::VolumeGridTraits<float3x3>::to_blender(value));
+        });
         break;
       }
-    }
-    if constexpr (std::is_same_v<GradientT, float3x3>) {
-      /* float3x3 needs to be converted to float4x4 field type. */
-      MutableSpan<float4x4> dst_typed = dst.typed<float4x4>();
-      mask.foreach_index([&](const int64_t i) {
-        const float3 &pos = positions[i];
-        const openvdb::Vec3R world_pos(pos.x, pos.y, pos.z);
-        const openvdb::Vec3R index_pos = grid.transform().worldToIndex(world_pos);
-        GridGradientT value;
-        Sampler::sample_gradient(accessor, index_pos, value);
-        dst_typed[i] = float4x4(TraitsT::to_blender(value));
-      });
-    }
-    else {
-      MutableSpan<GradientT> dst_typed = dst.typed<GradientT>();
-      mask.foreach_index([&](const int64_t i) {
-        const float3 &pos = positions[i];
-        const openvdb::Vec3R world_pos(pos.x, pos.y, pos.z);
-        const openvdb::Vec3R index_pos = grid.transform().worldToIndex(world_pos);
-        GridGradientT value;
-        Sampler::sample_gradient(accessor, index_pos, value);
-        dst_typed[i] = TraitsT::to_blender(value);
-      });
     }
   };
 

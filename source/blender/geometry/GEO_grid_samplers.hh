@@ -250,13 +250,11 @@ OpenvdbGradientType<typename TreeT::ValueType> sample_tree_gradient(const TreeT 
   return result;
 }
 
-template<typename Kernel, int Moment, typename ResultT, int N, class TreeT>
-void compute_moments(typename TreeT::ValueType const (&data)[N][N][N],
+template<typename Kernel, int Moment, typename ValueT, typename ResultT, int N>
+void compute_moments(ValueT const (&data)[N][N][N],
                      ResultT (&moments)[N][N][N],
-                     openvdb::Vec3R &uvw)
+                     const openvdb::Vec3R &uvw)
 {
-  using ValueT = typename TreeT::ValueType;
-
   const openvdb::Vec3R kernel_offset = openvdb::Vec3R((Kernel::size - 1) >> 1);
 
   /* Compute moment contributions by multiplying with distance. */
@@ -271,8 +269,8 @@ void compute_moments(typename TreeT::ValueType const (&data)[N][N][N],
           }
           if constexpr (Moment == 2) {
             /* Outer product of the position vector. */
-            openvdb::Vec3R vec = delta * data[i][j][k];
-            moments[i][j][k] = openvdb::Mat3R(vec * delta.x(),
+            openvdb::Vec3s vec = delta * data[i][j][k];
+            moments[i][j][k] = openvdb::Mat3s(vec * delta.x(),
                                               vec * delta.y(),
                                               vec * delta.z(),
                                               /*rows=*/false);
@@ -281,8 +279,8 @@ void compute_moments(typename TreeT::ValueType const (&data)[N][N][N],
         if constexpr (std::is_same_v<ValueT, openvdb::Vec3s>) {
           if constexpr (Moment == 1) {
             /* Outer product of the position and data vectors. */
-            openvdb::Vec3R vec = data[i][j][k];
-            moments[i][j][k] = openvdb::Mat3R(vec * delta.x(),
+            openvdb::Vec3s vec = data[i][j][k];
+            moments[i][j][k] = openvdb::Mat3s(vec * delta.x(),
                                               vec * delta.y(),
                                               vec * delta.z(),
                                               /*rows=*/false);
@@ -307,14 +305,13 @@ bool sample_tree_moment(const TreeT &tree, const openvdb::Vec3R &coord, ResultT 
   bool active = probe_values(tree, index, data);
   ResultT moments[N][N][N];
   compute_moments<Kernel, Moment>(data, moments, uvw);
-  interpolate_value_3d(moments, uvw, Kernel::template weight<ValueT>, result);
+  interpolate_value_3d(moments, uvw, Kernel::template weight<ResultT>, result);
 
   return active;
 }
 
 template<typename Kernel, int Moment, typename ResultT, class TreeT>
-OpenvdbGradientType<typename TreeT::ValueType> sample_tree_moment(const TreeT &tree,
-                                                                  const openvdb::Vec3R &coord)
+ResultT sample_tree_moment(const TreeT &tree, const openvdb::Vec3R &coord)
 {
   using ValueT = typename TreeT::ValueType;
 
@@ -329,7 +326,7 @@ OpenvdbGradientType<typename TreeT::ValueType> sample_tree_moment(const TreeT &t
   compute_moments<Kernel, Moment>(data, moments, uvw);
 
   ResultT result;
-  interpolate_value_3d(moments, uvw, Kernel::template weight<ValueT>, result);
+  interpolate_value_3d(moments, uvw, Kernel::template weight<ResultT>, result);
   return result;
 }
 
@@ -411,7 +408,7 @@ struct LinearKernel {
     OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
     const ValueT lin = static_cast<ValueT>(value[1] - value[0]);
     const ValueT con = static_cast<ValueT>(value[0]);
-    return weight * lin + con;
+    return static_cast<ValueT>(weight * lin) + con;
     OPENVDB_NO_TYPE_CONVERSION_WARNING_END
   }
 
