@@ -97,7 +97,6 @@ struct ParserBase : LexerBase {
   Token operator[](int i) const;
 
   void build_scope_tree(report_callback &report_error);
-  void build_ast(report_callback &report_error);
   void build_token_to_scope_map();
 
  private:
