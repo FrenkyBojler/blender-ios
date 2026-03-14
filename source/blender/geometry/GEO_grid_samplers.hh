@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "BLI_index_range.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
 
@@ -246,6 +247,89 @@ OpenvdbGradientType<typename TreeT::ValueType> sample_tree_gradient(const TreeT 
   ValueT result;
   interpolate_gradient_3d(
       data, uvw, Kernel::template weight<ValueT>, Kernel::template derivative<ValueT>, result);
+  return result;
+}
+
+template<typename Kernel, int Moment, typename ResultT, int N, class TreeT>
+void compute_moments(typename TreeT::ValueType const (&data)[N][N][N],
+                     ResultT (&moments)[N][N][N],
+                     openvdb::Vec3R &uvw)
+{
+  using ValueT = typename TreeT::ValueType;
+
+  const openvdb::Vec3R kernel_offset = openvdb::Vec3R((Kernel::size - 1) >> 1);
+
+  /* Compute moment contributions by multiplying with distance. */
+  for (const int i : IndexRange(N)) {
+    for (const int j : IndexRange(N)) {
+      for (const int k : IndexRange(N)) {
+        openvdb::Vec3R delta = openvdb::Vec3R(i, j, k) - kernel_offset - uvw;
+        if constexpr (std::is_same_v<ValueT, float>) {
+          if constexpr (Moment == 1) {
+            /* Scalar product of the position vector. */
+            moments[i][j][k] = delta * data[i][j][k];
+          }
+          if constexpr (Moment == 2) {
+            /* Outer product of the position vector. */
+            openvdb::Vec3R vec = delta * data[i][j][k];
+            moments[i][j][k] = openvdb::Mat3R(vec * delta.x(),
+                                              vec * delta.y(),
+                                              vec * delta.z(),
+                                              /*rows=*/false);
+          }
+        }
+        if constexpr (std::is_same_v<ValueT, openvdb::Vec3s>) {
+          if constexpr (Moment == 1) {
+            /* Outer product of the position and data vectors. */
+            openvdb::Vec3R vec = data[i][j][k];
+            moments[i][j][k] = openvdb::Mat3R(vec * delta.x(),
+                                              vec * delta.y(),
+                                              vec * delta.z(),
+                                              /*rows=*/false);
+          }
+        }
+      }
+    }
+  }
+}
+
+template<typename Kernel, int Moment, typename ResultT, class TreeT>
+bool sample_tree_moment(const TreeT &tree, const openvdb::Vec3R &coord, ResultT &result)
+{
+  using ValueT = typename TreeT::ValueType;
+
+  const openvdb::Vec3i index = openvdb::tools::local_util::floorVec3(coord);
+  const openvdb::Vec3R uvw = coord - index;
+
+  /* Retrieve the values of the voxels surrounding the fractional source coordinates. */
+  constexpr int N = Kernel::size;
+  ValueT data[N][N][N];
+  bool active = probe_values(tree, index, data);
+  ResultT moments[N][N][N];
+  compute_moments<Kernel, Moment>(data, moments, uvw);
+  interpolate_value_3d(moments, uvw, Kernel::template weight<ValueT>, result);
+
+  return active;
+}
+
+template<typename Kernel, int Moment, typename ResultT, class TreeT>
+OpenvdbGradientType<typename TreeT::ValueType> sample_tree_moment(const TreeT &tree,
+                                                                  const openvdb::Vec3R &coord)
+{
+  using ValueT = typename TreeT::ValueType;
+
+  const openvdb::Vec3i index = openvdb::tools::local_util::floorVec3(coord);
+  const openvdb::Vec3R uvw = coord - index;
+
+  /* Retrieve the values of the voxels surrounding the fractional source coordinates. */
+  constexpr int N = Kernel::size;
+  ValueT data[N][N][N];
+  get_values(tree, index, data);
+  ResultT moments[N][N][N];
+  compute_moments<Kernel, Moment>(data, moments, uvw);
+
+  ResultT result;
+  interpolate_value_3d(moments, uvw, Kernel::template weight<ValueT>, result);
   return result;
 }
 
@@ -559,114 +643,70 @@ struct CubicBSplineKernel {
   }
 };
 
+/**
+ * Grid value sampler using a kernel type.
+ */
+template<typename KernelT> struct SamplerWithKernel {
+  template<class TreeT>
+  static bool sample(const TreeT &tree,
+                     const openvdb::Vec3R &coord,
+                     typename TreeT::ValueType &result)
+  {
+    return grid_sampling::sample_tree<KernelT>(tree, coord, result);
+  }
+
+  template<class TreeT>
+  static typename TreeT::ValueType sample(const TreeT &tree, const openvdb::Vec3R &coord)
+  {
+    return grid_sampling::sample_tree<KernelT>(tree, coord);
+  }
+
+  template<class TreeT>
+  static bool sample_gradient(
+      const TreeT &tree,
+      const openvdb::Vec3R &coord,
+      grid_sampling::OpenvdbGradientType<typename TreeT::ValueType> &result)
+  {
+    return grid_sampling::sample_tree_gradient<KernelT>(tree, coord, result);
+  }
+
+  template<class TreeT>
+  static grid_sampling::OpenvdbGradientType<typename TreeT::ValueType> sample_gradient(
+      const TreeT &tree, const openvdb::Vec3R &coord)
+  {
+    return grid_sampling::sample_tree_gradient<KernelT>(tree, coord);
+  }
+
+  template<int Moment, typename ResultT, class TreeT>
+  static bool sample_moment(const TreeT &tree, const openvdb::Vec3R &coord, ResultT &result)
+  {
+    return grid_sampling::sample_tree_moment<KernelT, Moment, ResultT>(tree, coord, result);
+  }
+
+  template<int Moment, typename ResultT, class TreeT>
+  static ResultT sample_moment(const TreeT &tree, const openvdb::Vec3R &coord)
+  {
+    return grid_sampling::sample_tree_moment<KernelT, Moment, ResultT>(tree, coord);
+  }
+};
+
 }  // namespace grid_sampling
 
 /**
  * Grid value sampler using linear kernels.
  */
-struct LinearSampler {
-  template<class TreeT>
-  static bool sample(const TreeT &tree,
-                     const openvdb::Vec3R &coord,
-                     typename TreeT::ValueType &result)
-  {
-    return grid_sampling::sample_tree<grid_sampling::LinearKernel>(tree, coord, result);
-  }
-
-  template<class TreeT>
-  static typename TreeT::ValueType sample(const TreeT &tree, const openvdb::Vec3R &coord)
-  {
-    return grid_sampling::sample_tree<grid_sampling::LinearKernel>(tree, coord);
-  }
-
-  template<class TreeT>
-  static bool sample_gradient(
-      const TreeT &tree,
-      const openvdb::Vec3R &coord,
-      grid_sampling::OpenvdbGradientType<typename TreeT::ValueType> &result)
-  {
-    return grid_sampling::sample_tree_gradient<grid_sampling::LinearKernel>(tree, coord, result);
-  }
-
-  template<class TreeT>
-  static grid_sampling::OpenvdbGradientType<typename TreeT::ValueType> sample_gradient(
-      const TreeT &tree, const openvdb::Vec3R &coord)
-  {
-    return grid_sampling::sample_tree_gradient<grid_sampling::LinearKernel>(tree, coord);
-  }
-};
+using LinearSampler = grid_sampling::SamplerWithKernel<grid_sampling::LinearKernel>;
 
 /**
  * Grid value sampler using quadratic B-spline kernels.
  */
-struct QuadraticBSplineSampler {
-  template<class TreeT>
-  static bool sample(const TreeT &tree,
-                     const openvdb::Vec3R &coord,
-                     typename TreeT::ValueType &result)
-  {
-    return grid_sampling::sample_tree<grid_sampling::QuadraticBSplineKernel>(tree, coord, result);
-  }
-
-  template<class TreeT>
-  static typename TreeT::ValueType sample(const TreeT &tree, const openvdb::Vec3R &coord)
-  {
-    return grid_sampling::sample_tree<grid_sampling::QuadraticBSplineKernel>(tree, coord);
-  }
-
-  template<class TreeT>
-  static bool sample_gradient(
-      const TreeT &tree,
-      const openvdb::Vec3R &coord,
-      grid_sampling::OpenvdbGradientType<typename TreeT::ValueType> &result)
-  {
-    return grid_sampling::sample_tree_gradient<grid_sampling::QuadraticBSplineKernel>(
-        tree, coord, result);
-  }
-
-  template<class TreeT>
-  static grid_sampling::OpenvdbGradientType<typename TreeT::ValueType> sample_gradient(
-      const TreeT &tree, const openvdb::Vec3R &coord)
-  {
-    return grid_sampling::sample_tree_gradient<grid_sampling::QuadraticBSplineKernel>(tree, coord);
-  }
-};
+using QuadraticBSplineSampler =
+    grid_sampling::SamplerWithKernel<grid_sampling::QuadraticBSplineKernel>;
 
 /**
  * Grid value sampler using cubic B-spline kernels.
  */
-struct CubicBSplineSampler {
-  template<class TreeT>
-  static bool sample(const TreeT &tree,
-                     const openvdb::Vec3R &coord,
-                     typename TreeT::ValueType &result)
-  {
-    return grid_sampling::sample_tree<grid_sampling::CubicBSplineKernel>(tree, coord, result);
-  }
-
-  template<class TreeT>
-  static typename TreeT::ValueType sample(const TreeT &tree, const openvdb::Vec3R &coord)
-  {
-    return grid_sampling::sample_tree<grid_sampling::CubicBSplineKernel>(tree, coord);
-  }
-
-  template<class TreeT>
-  static bool sample_gradient(
-      const TreeT &tree,
-      const openvdb::Vec3R &coord,
-      grid_sampling::OpenvdbGradientType<typename TreeT::ValueType> &result)
-  {
-    return grid_sampling::sample_tree_gradient<grid_sampling::CubicBSplineKernel>(
-        tree, coord, result);
-  }
-
-  template<class TreeT>
-  static grid_sampling::OpenvdbGradientType<typename TreeT::ValueType> sample_gradient(
-      const TreeT &tree, const openvdb::Vec3R &coord)
-  {
-    return grid_sampling::sample_tree_gradient<grid_sampling::CubicBSplineKernel>(tree, coord);
-  }
-};
+using CubicBSplineSampler = grid_sampling::SamplerWithKernel<grid_sampling::CubicBSplineKernel>;
 
 #endif
 

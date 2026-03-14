@@ -19,12 +19,40 @@
 
 #include "node_geometry_util.hh"
 
-namespace blender::nodes::node_geo_sample_grid_gradient_cc {
+namespace blender::nodes::node_geo_sample_grid_moment_cc {
+
+enum class MomentType {
+  /* Scalar to vector. */
+  ScalarFirst = 0,
+  /* Scalar to matrix. */
+  ScalarSecond = 1,
+  /* Vector to matrix. */
+  VectorFirst = 2,
+};
 
 enum class InterpolationMode {
   TriLinear = 0,
   QuadraticBSpline = 1,
   CubicBSpline = 2,
+};
+
+static const EnumPropertyItem moment_type_items[] = {
+    {int(MomentType::ScalarFirst),
+     "SCALAR_FIRST",
+     0,
+     N_("First moment of scalar, outputs a vector"),
+     ""},
+    {int(MomentType::ScalarSecond),
+     "SCALAR_SECOND",
+     0,
+     N_("Second moment of scalar, outputs a matrix"),
+     ""},
+    {int(MomentType::VectorFirst),
+     "VECTOR_FIRST",
+     0,
+     N_("First moment of vector, outputs a matrix"),
+     ""},
+    {0, nullptr, 0, nullptr, nullptr},
 };
 
 static const EnumPropertyItem interpolation_mode_items[] = {
@@ -38,32 +66,32 @@ static const EnumPropertyItem interpolation_mode_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-/* Returns the type of gradients for a given socket type, if possible. */
-static std::optional<eNodeSocketDatatype> gradient_type_from_data_type(
-    const eNodeSocketDatatype data_type)
+static eNodeSocketDatatype get_input_type(const MomentType moment_type)
 {
-  switch (data_type) {
-    case SOCK_FLOAT:
+  switch (moment_type) {
+    case MomentType::ScalarFirst:
+      return SOCK_FLOAT;
+    case MomentType::ScalarSecond:
+      return SOCK_FLOAT;
+    case MomentType::VectorFirst:
       return SOCK_VECTOR;
-    case SOCK_VECTOR:
-      return SOCK_MATRIX;
-    default:
-      return std::nullopt;
   }
+  BLI_assert_unreachable();
+  return SOCK_FLOAT;
 }
 
-/* Returns the default data type used to create a gradient type. */
-static std::optional<eNodeSocketDatatype> data_type_from_gradient_type(
-    const eNodeSocketDatatype gradient_type)
+static eNodeSocketDatatype get_output_type(const MomentType moment_type)
 {
-  switch (gradient_type) {
-    case SOCK_VECTOR:
-      return SOCK_FLOAT;
-    case SOCK_MATRIX:
+  switch (moment_type) {
+    case MomentType::ScalarFirst:
       return SOCK_VECTOR;
-    default:
-      return std::nullopt;
+    case MomentType::ScalarSecond:
+      return SOCK_MATRIX;
+    case MomentType::VectorFirst:
+      return SOCK_MATRIX;
   }
+  BLI_assert_unreachable();
+  return SOCK_FLOAT;
 }
 
 static void node_declare(NodeDeclarationBuilder &b)
@@ -72,9 +100,11 @@ static void node_declare(NodeDeclarationBuilder &b)
   if (!node) {
     return;
   }
-  const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
+  const MomentType moment_type = MomentType(node->custom1);
+  const eNodeSocketDatatype input_type = get_input_type(moment_type);
+  const eNodeSocketDatatype output_type = get_input_type(moment_type);
 
-  b.add_input(data_type, "Grid").hide_value().structure_type(StructureType::Grid);
+  b.add_input(input_type, "Grid").hide_value().structure_type(StructureType::Grid);
   b.add_input<decl::Vector>("Position").implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD);
   b.add_input<decl::Menu>("Interpolation")
       .static_items(interpolation_mode_items)
@@ -82,23 +112,33 @@ static void node_declare(NodeDeclarationBuilder &b)
       .optional_label()
       .description("How to interpolate the values between neighboring voxels");
 
-  if (const std::optional<eNodeSocketDatatype> gradient_type = gradient_type_from_data_type(
-          data_type))
-  {
-    b.add_output(*gradient_type, "Gradient").dependent_field({1});
-  }
+  b.add_output(output_type, "Moment").dependent_field({1});
 }
 
-static std::optional<eNodeSocketDatatype> node_type_for_socket_type(const bNodeSocket &socket)
+static std::optional<MomentType> moment_type_for_input_type(const bNodeSocket &socket)
 {
   switch (socket.type) {
     case SOCK_FLOAT:
     case SOCK_BOOLEAN:
     case SOCK_INT:
-      return SOCK_FLOAT;
+      return MomentType::ScalarFirst;
     case SOCK_VECTOR:
     case SOCK_RGBA:
-      return SOCK_VECTOR;
+      return MomentType::VectorFirst;
+    default:
+      return std::nullopt;
+  }
+}
+
+static std::optional<MomentType> moment_type_for_output_type(const bNodeSocket &socket)
+{
+  switch (socket.type) {
+    case SOCK_VECTOR:
+    case SOCK_RGBA:
+      return MomentType::ScalarFirst;
+    case SOCK_MATRIX:
+      /* Ambiguous, could also be VectorFirst. */
+      return MomentType::ScalarSecond;
     default:
       return std::nullopt;
   }
@@ -106,35 +146,32 @@ static std::optional<eNodeSocketDatatype> node_type_for_socket_type(const bNodeS
 
 static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
 {
-  const std::optional<eNodeSocketDatatype> node_type = node_type_for_socket_type(
-      params.other_socket());
-  if (!node_type) {
-    return;
-  }
   if (params.in_out() == SOCK_IN) {
-    if (gradient_type_from_data_type(*node_type)) {
-      params.add_item(IFACE_("Grid"), [node_type](LinkSearchOpParams &params) {
-        bNode &node = params.add_node("GeometryNodeSampleGridGradient");
-        node.custom1 = *node_type;
+    const std::optional<MomentType> moment_type = moment_type_for_input_type(
+        params.other_socket());
+    if (moment_type) {
+      params.add_item(IFACE_("Grid"), [moment_type](LinkSearchOpParams &params) {
+        bNode &node = params.add_node("GeometryNodeSampleGridMoment");
+        node.custom1 = int(*moment_type);
         params.update_and_connect_available_socket(node, "Grid");
       });
     }
     const eNodeSocketDatatype other_type = eNodeSocketDatatype(params.other_socket().type);
     if (params.node_tree().typeinfo->validate_link(other_type, SOCK_VECTOR)) {
       params.add_item(IFACE_("Position"), [](LinkSearchOpParams &params) {
-        bNode &node = params.add_node("GeometryNodeSampleGridGradient");
+        bNode &node = params.add_node("GeometryNodeSampleGridMoment");
         params.update_and_connect_available_socket(node, "Position");
       });
     }
   }
   else {
-    if (const std::optional<eNodeSocketDatatype> data_type = data_type_from_gradient_type(
-            *node_type))
+    if (const std::optional<MomentType> moment_type = moment_type_for_output_type(
+            params.other_socket()))
     {
-      params.add_item(IFACE_("Gradient"), [data_type](LinkSearchOpParams &params) {
-        bNode &node = params.add_node("GeometryNodeSampleGridGradient");
-        node.custom1 = *data_type;
-        params.update_and_connect_available_socket(node, "Gradient");
+      params.add_item(IFACE_("Moment"), [moment_type](LinkSearchOpParams &params) {
+        bNode &node = params.add_node("GeometryNodeSampleGridMoment");
+        node.custom1 = int(*moment_type);
+        params.update_and_connect_available_socket(node, "Moment");
       });
     }
   }
@@ -142,13 +179,14 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout.prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "moment_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 #ifdef WITH_OPENVDB
 
 template<typename T>
 void sample_grid(const bke::OpenvdbGridType<T> &grid,
+                 MomentType moment_type,
                  const InterpolationMode interpolation,
                  const Span<float3> positions,
                  const IndexMask &mask,
@@ -163,6 +201,31 @@ void sample_grid(const bke::OpenvdbGridType<T> &grid,
   AccessorT accessor = grid.getConstUnsafeAccessor();
 
   auto sample_data = [&]<typename Sampler>() {
+    switch (moment_type) {
+      case MomentType::ScalarFirst: {
+        MutableSpan<float3> dst_typed = dst.typed<float3>();
+        mask.foreach_index([&](const int64_t i) {
+          const float3 &pos = positions[i];
+          const openvdb::Vec3R world_pos(pos.x, pos.y, pos.z);
+          const openvdb::Vec3R index_pos = grid.transform().worldToIndex(world_pos);
+          Sampler::template sample_moment<1, openvdb::Vec3R>(accessor, index_pos, dst_typed[i]);
+        });
+        break;
+      }
+      case MomentType::ScalarSecond: {
+        MutableSpan<float4x4> dst_typed = dst.typed<float4x4>();
+        mask.foreach_index([&](const int64_t i) {
+          const float3 &pos = positions[i];
+          const openvdb::Vec3R world_pos(pos.x, pos.y, pos.z);
+          const openvdb::Vec3R index_pos = grid.transform().worldToIndex(world_pos);
+          Sampler::template sample_moment<1, openvdb::Vec3R>(accessor, index_pos, dst_typed[i]);
+        });
+        break;
+      }
+      case MomentType::VectorFirst: {
+        break;
+      }
+    }
     if constexpr (std::is_same_v<GradientT, float3x3>) {
       /* float3x3 needs to be converted to float4x4 field type. */
       MutableSpan<float4x4> dst_typed = dst.typed<float4x4>();
@@ -208,6 +271,7 @@ void sample_grid(const bke::OpenvdbGridType<T> &grid,
 
 class SampleGridFunction : public mf::MultiFunction {
   bke::GVolumeGrid grid_;
+  MomentType moment_type_;
   InterpolationMode interpolation_;
   mf::Signature signature_;
   VolumeGridType grid_type_;
@@ -216,19 +280,18 @@ class SampleGridFunction : public mf::MultiFunction {
   const openvdb::GridBase *grid_base_ = nullptr;
 
  public:
-  SampleGridFunction(bke::GVolumeGrid grid, InterpolationMode interpolation)
-      : grid_(std::move(grid)), interpolation_(interpolation)
+  SampleGridFunction(bke::GVolumeGrid grid,
+                     MomentType moment_type,
+                     InterpolationMode interpolation)
+      : grid_(std::move(grid)), moment_type_(moment_type), interpolation_(interpolation)
   {
     BLI_assert(grid_);
 
-    const std::optional<eNodeSocketDatatype> data_type = bke::grid_type_to_socket_type(
-        grid_->grid_type());
-    const std::optional<eNodeSocketDatatype> gradient_type = gradient_type_from_data_type(
-        *data_type);
-    const CPPType *cpp_type = bke::socket_type_to_geo_nodes_base_cpp_type(*gradient_type);
+    const eNodeSocketDatatype output_type = get_output_type(moment_type);
+    const CPPType *cpp_type = bke::socket_type_to_geo_nodes_base_cpp_type(output_type);
     mf::SignatureBuilder builder{"Sample Grid", signature_};
     builder.single_input<float3>("Position");
-    builder.single_output("Gradient", *cpp_type);
+    builder.single_output("Moment", *cpp_type);
     this->set_signature(&signature_);
 
     grid_base_ = &grid_->grid(tree_token_);
@@ -238,11 +301,12 @@ class SampleGridFunction : public mf::MultiFunction {
   void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
   {
     const VArraySpan<float3> positions = params.readonly_single_input<float3>(0, "Position");
-    GMutableSpan dst = params.uninitialized_single_output(1, "Gradient");
+    GMutableSpan dst = params.uninitialized_single_output(1, "Moment");
 
     BKE_volume_grid_type_to_blender_value_type(grid_type_, [&]<typename T>() {
       if constexpr (is_same_any_v<T, float, float3>) {
         sample_grid<T>(static_cast<const bke::OpenvdbGridType<T> &>(*grid_base_),
+                       moment_type_,
                        interpolation_,
                        positions,
                        mask,
@@ -263,13 +327,14 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
+  const MomentType moment_type = MomentType(params.node().custom1);
   const auto interpolation = params.get_input<InterpolationMode>("Interpolation");
   bke::SocketValueVariant position = params.extract_input<bke::SocketValueVariant>("Position");
 
   std::string error_message;
   bke::SocketValueVariant output_value;
   if (!execute_multi_function_on_value_variant(
-          std::make_shared<SampleGridFunction>(std::move(grid), interpolation),
+          std::make_shared<SampleGridFunction>(std::move(grid), moment_type, interpolation),
           {&position},
           {&output_value},
           params.user_data(),
@@ -280,7 +345,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  params.set_output("Gradient", std::move(output_value));
+  params.set_output("Moment", std::move(output_value));
 #else
   node_geo_exec_with_missing_openvdb(params);
 #endif
@@ -288,36 +353,28 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  node->custom1 = SOCK_FLOAT;
+  node->custom1 = int(MomentType::ScalarFirst);
 }
 
 static void node_rna(StructRNA *srna)
 {
-  RNA_def_node_enum(
-      srna,
-      "data_type",
-      "Data Type",
-      "Node socket data type",
-      rna_enum_node_socket_data_type_items,
-      NOD_inline_enum_accessors(custom1),
-      SOCK_FLOAT,
-      [](bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free)
-          -> const EnumPropertyItem * {
-        *r_free = true;
-        return enum_items_filter(
-            rna_enum_node_socket_data_type_items, [](const EnumPropertyItem &item) -> bool {
-              return ELEM(eNodeSocketDatatype(item.value), SOCK_FLOAT, SOCK_VECTOR);
-            });
-      });
+  RNA_def_node_enum(srna,
+                    "moment_type",
+                    "Moment Type",
+                    "Type of moment to compute",
+                    moment_type_items,
+                    NOD_inline_enum_accessors(custom1),
+                    int(MomentType::ScalarFirst));
 }
 
 static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeSampleGridGradient");
-  ntype.ui_name = "Sample Grid Gradient";
-  ntype.ui_description = "Retrieve the gradient of values from the specified volume grid";
+  geo_node_type_base(&ntype, "GeometryNodeSampleGridMoment");
+  ntype.ui_name = "Sample Grid Moment";
+  ntype.ui_description =
+      "Retrieve the first or second moment of values from the specified volume grid";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
@@ -331,4 +388,4 @@ static void node_register()
 }
 NOD_REGISTER_NODE(node_register)
 
-}  // namespace blender::nodes::node_geo_sample_grid_gradient_cc
+}  // namespace blender::nodes::node_geo_sample_grid_moment_cc
