@@ -295,7 +295,7 @@ void notification(bScreen *screen,
                   int icon = ICON_INFO,
                   eReportType report_type = RPT_INFO);
 
-int notification_handler(bContext *C, ARegion *region, wmEvent *event);
+int notification_event_handler(bContext *C, ARegion *region, wmEvent *event);
 
 }  // namespace ui
 }  // namespace blender

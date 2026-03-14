@@ -4357,7 +4357,7 @@ void wm_event_do_handlers(bContext *C)
             if ((region.flag & RGN_FLAG_NOTIFICATION) &&
                 BLI_rcti_isect_pt_v(&region.winrct, event->xy))
             {
-              ui::notification_handler(C, &region, event);
+              ui::notification_event_handler(C, &region, event);
             }
           }
         }

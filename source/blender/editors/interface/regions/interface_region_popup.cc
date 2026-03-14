@@ -1371,7 +1371,7 @@ static void notification_region_layout_fn(const bContext *C, ARegion *region)
   ED_region_update_rect(region);
 }
 
-int notification_handler(bContext *C, ARegion *region, wmEvent *event)
+int notification_event_handler(bContext *C, ARegion *region, wmEvent *event)
 {
   NotificationData *data = static_cast<NotificationData *>(region->regiondata);
 
