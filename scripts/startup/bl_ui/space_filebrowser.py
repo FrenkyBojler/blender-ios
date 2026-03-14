@@ -4,7 +4,7 @@
 
 import bpy
 
-from bpy.types import Header, Panel, Menu, UIList
+from bpy.types import Header, Operator, Panel, Menu, UIList
 
 from bpy_extras import (
     asset_utils,
@@ -89,6 +89,63 @@ class FileBrowserPanel:
             return False
 
         return space_data and space_data.type == 'FILE_BROWSER' and space_data.browse_mode == 'FILES'
+
+
+class FILEBROWSER_PT_view(FileBrowserPanel, Panel):
+	bl_region_type = 'HEADER'
+	bl_label = "View"  
+	bl_ui_units_x = 10
+	
+	def draw(self, context):
+	    layout = self.layout
+	    st = context.space_data
+	    params = st.params
+	
+	    layout.prop(st, "show_region_toolbar", text="Source List")
+	    layout.prop(st, "show_region_ui", text="File Path")
+	
+	    row = layout.row()
+	    row.label(text="Numpad .")
+	    row.operator("file.view_selected")
+	
+	    layout.separator()
+	
+	    layout.prop_menu_enum(params, "display_size_discrete")
+	    layout.prop_menu_enum(params, "recursion_level")
+	
+	    layout.separator()
+	
+	    layout.menu("INFO_MT_area")
+	
+	
+class FILEBROWSER_PT_select(FileBrowserPanel, Panel):
+	    bl_region_type = 'HEADER'
+	    bl_label = "Select"  
+	    bl_ui_units_x = 10
+	
+	    def draw(self, _context):
+	        layout = self.layout
+	
+	        split = layout.split(factor=0.3)
+	        shortcuts = split.column(align=True)
+	        buttons = split.column(align=True)
+	        shortcuts.label(text="Shortcut")
+	        buttons.label(text="Select")
+	
+	        shortcuts.label(text="A")
+	        buttons.operator("file.select_all", text="All").action = 'SELECT'
+	
+	        shortcuts.label(text="Alt A")
+	        buttons.operator("file.select_all", text="None").action = 'DESELECT'
+	
+	        shortcuts.label(text="Ctrl I")
+	        buttons.operator("file.select_all", text="Invert").action = 'INVERT'
+	
+	        shortcuts.separator()
+	        buttons.separator()
+	
+	        shortcuts.label(text="B")
+	        buttons.operator("file.select_box")
 
 
 class FILEBROWSER_PT_display(FileBrowserPanel, Panel):
