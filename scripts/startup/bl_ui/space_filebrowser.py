@@ -298,6 +298,22 @@ class FILEBROWSER_PT_bookmarks_volumes(Panel):
             )
 
 
+class FILEBROWSER_OT_thumbnail_size(Operator):
+	    bl_idname = "file.thumbnail_size"
+	    bl_label = "View"
+	    bl_description = "Change thumbnail size"
+	    bl_options = {'INTERNAL'}
+	
+	    def execute(self, context):
+	        params = context.space_data.params
+	        sizes = params.bl_rna.properties['display_size_discrete'].enum_items
+	        current = params.display_size_discrete
+	        size_ids = [s.identifier for s in sizes]
+	        idx = size_ids.index(current)
+	        params.display_size_discrete = size_ids[(idx + 1) % len(size_ids)]
+	        return {'FINISHED'}
+
+
 class FILEBROWSER_PT_bookmarks_system(Panel):
     bl_space_type = 'FILE_BROWSER'
     bl_region_type = 'TOOLS'
@@ -516,6 +532,16 @@ class FILEBROWSER_PT_directory_path(Panel):
         subsubrow = subrow.row()
         subsubrow.scale_x = 0.6
         subsubrow.prop(params, "filter_search", text="", icon='VIEWZOOM')
+
+        if space.active_operator:
+            subsubrow = subrow.row(align=True)
+            subsubrow.operator("file.thumbnail_size", text="", icon='HIDE_OFF')
+            subsubrow.popover("FILEBROWSER_PT_view", text="")
+
+            subsubrow = subrow.row(align=True)
+            subsubrow.operator("file.select_all", text="", icon='RESTRICT_SELECT_OFF').action = 'TOGGLE'
+            subsubrow.popover("FILEBROWSER_PT_select", text="")
+
 
         subsubrow = subrow.row(align=True)
         subsubrow.prop(params, "display_type", expand=True, icon_only=True)
@@ -950,6 +976,9 @@ class ASSETBROWSER_MT_context_menu(AssetBrowserMenu, Menu):
 
 classes = (
     FILEBROWSER_HT_header,
+    FILEBROWSER_OT_thumbnail_size,
+    FILEBROWSER_PT_view,
+    FILEBROWSER_PT_select,
     FILEBROWSER_PT_display,
     FILEBROWSER_PT_filter,
     FILEBROWSER_UL_dir,
