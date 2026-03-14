@@ -296,8 +296,8 @@ void BKE_collection_blend_write_nolib(BlendWriter *writer, Collection *collectio
     if (data.export_properties) {
       IDP_BlendWrite(writer, data.export_properties);
     }
+    writer->write_struct_list(&data.layout_panel_states);
     for (const LayoutPanelState &state : data.layout_panel_states) {
-      writer->write_struct(&state);
       writer->write_string(state.idname);
     }
   }
