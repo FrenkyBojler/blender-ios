@@ -27,6 +27,7 @@ set(SRC
   paint_ops.cc
   paint_sample_color.cc
   paint_stroke.cc
+  paint_stroke_roll.cc
   paint_utils.cc
   sculpt_uv.cc
 

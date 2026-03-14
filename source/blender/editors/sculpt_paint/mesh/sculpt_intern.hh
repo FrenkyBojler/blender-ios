@@ -199,6 +199,42 @@ struct StrokeCache {
   float roll_center_s = -1.0f;   /* raw arc-length on world_spline at brush center */
   float3 roll_center_pos = {};    /* spline position at roll_center_s */
   float3 roll_tangent = {};       /* normalized tangent at roll_center_s */
+  int roll_seg_lo = 0;            /* polyline segment search range (precomputed) */
+  int roll_seg_hi = 0;
+  int roll_center_seg = 0;        /* segment index at roll_center_s */
+
+  /* Surface interpolation: border curves for quad-patch UV mapping.
+   * Computed per-dab in compute_roll_center() when the preference is enabled.
+   * Each vector has the same size as the polyline in [seg_lo, seg_hi+1]. */
+  bool roll_surface_ready = false;
+  Vector<float3> roll_binormals;    /* binormal at each polyline vertex in search range */
+  Vector<float3> roll_border_left;  /* center + binormal * radius */
+  Vector<float3> roll_border_right; /* center - binormal * radius */
+
+  /** Subdivided poly-strip for smooth UV mapping.
+   * A quad strip (right_border → center → left_border) subdivided with
+   * linear column interpolation, stored as a regular grid [rows * cols],
+   * row-major. */
+  int roll_subdiv_rows = 0;
+  int roll_subdiv_cols = 0;
+  Vector<float3> roll_subdiv_pos;    /* 3D object-space grid (for tangent, debug draw) */
+  Vector<float2> roll_subdiv_pos_2d; /* 2D view-plane projection (for UV search) */
+  Vector<float2> roll_subdiv_uv;
+  float3 roll_proj_normal = {};      /* projection normal (sculpt_normal or view_normal fallback) */
+  float3 roll_view_x = {};           /* projection-plane X axis for 2D projection */
+  float3 roll_view_y = {};           /* projection-plane Y axis for 2D projection */
+  int roll_eval_row_lo = 0;         /* grid row range near dab for per-vertex search */
+  int roll_eval_row_hi = 0;
+
+  /* Pre-rasterized UV lookup table for fast per-vertex evaluation.
+   * Built once per dab from the subdivided grid; per-vertex cost = O(1). */
+  static constexpr int ROLL_LUT_RES = 128;
+  Vector<float2> roll_lut_uv;           /* UV at each LUT pixel */
+  Vector<float> roll_lut_dist_sq;       /* best distance² (for rasterization) */
+  Vector<float3> roll_lut_tan;          /* tangent at each LUT pixel */
+  float2 roll_lut_min = {};             /* 2D bounding box min */
+  float2 roll_lut_inv_extent = {};      /* 1.0 / (max - min) * LUT_RES */
+  bool roll_lut_ready = false;
 
   /**
    * Used for alternating between deformations in brushes that need to apply different ones to

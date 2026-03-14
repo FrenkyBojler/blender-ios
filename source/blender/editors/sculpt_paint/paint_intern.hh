@@ -100,7 +100,7 @@ struct PaintSample {
 };
 
 /** Polyline resolution: subdivisions per Catmull-Rom knot span. */
-constexpr int kRollResolution = 24;
+constexpr int kRollResolution = 32;
 
 /**
  * Polyline-based arc-length parameterized spline for roll texture mapping.
@@ -115,6 +115,14 @@ struct RollSpline {
   /** Smooth tangents at each polyline vertex (central-difference). */
   Vector<float3> tangents_3d;
 
+  /** Catmull-Rom control knots (stored for smooth re-evaluation after
+   * closest-point search on the polyline). */
+  Vector<float3> knots_3d;
+
+  /** Actual subdivisions per knot span (may be < kRollResolution when knots
+   *  are closely spaced, to cap total polyline segments for performance). */
+  int resolution = kRollResolution;
+
   void clear();
   bool is_empty() const;
   float total_length_2d() const;
@@ -125,6 +133,37 @@ struct RollSpline {
   float3 evaluate_3d(float s) const;
   float3 tangent_3d(float s) const;
   float2 tangent_2d_at_index(int poly_idx) const;
+
+  /**
+   * Evaluate the smooth Catmull-Rom curve at a polyline segment + parameter.
+   * Unlike evaluate_3d() which linearly interpolates the polyline,
+   * this returns a point on the actual smooth curve, eliminating the
+   * piecewise-linear zigzag that causes resolution-dependent artifacts.
+   * \param seg: polyline segment index
+   * \param t: parameter within segment [0,1]
+   * \param r_pos: output position on smooth curve
+   * \param r_tan: output tangent (derivative) on smooth curve
+   */
+  void smooth_evaluate_3d(int seg, float t, float3 &r_pos, float3 &r_tan) const;
+
+  /**
+   * Newton-refine the closest point from the polyline search onto the actual
+   * smooth Catmull-Rom curve. This eliminates C1 discontinuities at polyline
+   * segment boundaries that cause visible "stepping" lines in the texture.
+   *
+   * \param query: world-space vertex position
+   * \param poly_seg: initial polyline segment from closest-point search
+   * \param poly_t: parameter [0..1] within that segment
+   * \param r_pos: refined foot point on the smooth curve
+   * \param r_tan: normalized tangent at the refined foot point
+   * \param r_arc_len: arc length at the refined foot point
+   */
+  void refine_closest_smooth(const float3 &query,
+                             int poly_seg,
+                             float poly_t,
+                             float3 &r_pos,
+                             float3 &r_tan,
+                             float &r_arc_len) const;
 
   /** Find closest point on the 3D polyline. */
   void closest_point_3d(const float3 &query, float &r_s, float3 &r_tan, float &r_dis) const;
@@ -197,6 +236,7 @@ struct PaintStroke : NonCopyable, NonMovable {
   bool need_roll_mapping_ = false;
   bool roll_virtual_prepended_ = false;     /* true after virtual backward segments are prepended */
   int n_virtual_poly_points_ = 0;          /* polyline points in virtual backward extension */
+  float roll_virtual_length_ = 0.0f;       /* arc length of virtual extension (subtracted from V) */
   int initial_backward_ext_count_ = 0;     /* backward_ext knot count at creation, for budget */
   void *roll_cursor_ = nullptr;           /* always-on preview of unflushed spline portion */
   void *debug_cursor_ = nullptr;
@@ -207,6 +247,8 @@ struct PaintStroke : NonCopyable, NonMovable {
   int num_points_ = 0;
   int cur_point_ = 0;
   RollSpline roll_spline_;
+  int roll_prev_n_total_ = 0;            /* knot count from previous make_roll_spline call */
+  int roll_prev_n_back_ext_ = 0;         /* backward_ext size from previous call */
   Vector<float2> backward_ext_2d_;       /* virtual backward extension knots (screen space) */
   Vector<float3> backward_ext_3d_;       /* virtual backward extension knots (world space) */
 
@@ -383,6 +425,7 @@ struct PaintStroke : NonCopyable, NonMovable {
   void prepend_virtual_roll_points();
   void make_roll_spline(bContext *C);
   void finish_roll_stroke(bContext *C, wmOperator *op, const float2 &mouse_up, float pressure);
+  void init_roll_cursors();
 
   void add_step(bContext *C, wmOperator *op, float2 mval, float pressure);
 
