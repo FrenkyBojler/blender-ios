@@ -978,9 +978,6 @@ def brush_settings(layout, context, brush, popover=False):
             row.prop(brush, "invert_density_pressure", text="")
             row.prop(brush, "use_density_pressure", text="")
 
-            row = layout.row()
-            row.prop(brush, "tip_scale_x")
-
         elif sculpt_brush_type == 'SMEAR':
             col = layout.column()
             col.prop(brush, "smear_deform_type")
