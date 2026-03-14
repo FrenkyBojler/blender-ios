@@ -1156,14 +1156,6 @@ static void panel_draw_aligned_widgets(const uiStyle *style,
       const bool is_open = !panel_is_closed(panel);
       BLF_rotation(font_id, fac * M_PI_2 * (is_open ? 1.0f : -1.0f));
       BLF_enable(font_id, BLF_ROTATION);
-      if (is_open) {
-        x += size_y * 0.65f * fac;
-        y += size_y * -0.14f * fac;
-      }
-      else {
-        x += size_y * -0.14f * fac;
-        y += size_y * 0.6f * fac;
-      }
     }
 
     icon_draw_ex(x,
