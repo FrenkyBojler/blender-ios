@@ -71,7 +71,9 @@ class FILEBROWSER_HT_header(Header):
             self.draw_asset_browser_buttons(context)
         else:
             FILEBROWSER_MT_editor_menus.draw_collapsible(context, layout)
-            layout.separator_spacer()
+            if space_data.active_operator:
+                layout.separator_spacer()
+                layout.operator("screen.region_toggle", text="", icon='X', emboss=False).region_type = 'HEADER'
 
         if not context.screen.show_statusbar:
             layout.template_running_jobs()
