@@ -17,7 +17,6 @@
 
 #include "BKE_image_wrappers.hh"
 #include "BKE_paint.hh"
-#include "BLI_timeit.hh"
 
 #include "pbvh_intern.hh"
 #include "pbvh_pixels_copy.hh"
@@ -453,7 +452,8 @@ PBVHData &data_get(Tree &pbvh)
 }
 
 /* TODO: This is a awkward to have to re-iterate over the image tiles to find the matching tile.
- * Investigate storing the pointer on the `UDIMTilePixels` struct instead */
+ * Investigate storing the pointer on the `UDIMTilePixels` struct instead, or storing this as a
+ * second map in `ImageData` */
 static std::optional<image::ImageTileWrapper> find_image_tile(Image &image,
                                                               const image::TileNumber tile_number)
 {
@@ -473,7 +473,6 @@ void mark_image_dirty(bke::pbvh::Node &node,
                       Image &image,
                       Map<image::TileNumber, ImBuf *> &buffers)
 {
-  SCOPED_TIMER_AVERAGED(__func__);
   BLI_assert(node.pixels_ != nullptr);
   NodeData *node_data = static_cast<NodeData *>(node.pixels_);
   if (node_data->flags.dirty) {

@@ -28,7 +28,6 @@
 #include "BKE_object_types.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_paint_bvh_pixels.hh"
-#include "BLI_timeit.hh"
 
 #include "mesh_brush_common.hh"
 #include "sculpt_automask.hh"
@@ -71,7 +70,6 @@ std::unique_ptr<ImageData> ImageData::init_active_image(Object &ob,
 
 static void fetch_image_buffers(ImageData &image_data, bke::pbvh::Node &node)
 {
-  SCOPED_TIMER_AVERAGED(__func__);
   NodeData &node_data = bke::pbvh::pixels::node_data_get(node);
   for (const UDIMTilePixels &tile : node_data.tiles) {
     if (!image_data.buffers.contains(tile.tile_number)) {
@@ -286,7 +284,6 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
                             ImageData &image_data,
                             bke::pbvh::Node &node)
 {
-  SCOPED_TIMER_AVERAGED(__func__);
   SculptSession &ss = *object.runtime->sculpt_session;
   const StrokeCache &cache = *ss.cache;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
@@ -321,7 +318,6 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
   Vector<float> distances;
 
   bool pixels_updated = false;
-  printf("Tiles: %lld\n", node_data.tiles.size());
   for (UDIMTilePixels &tile_data : node_data.tiles) {
     ImBuf *image_buffer = image_data.buffers.lookup_default(tile_data.tile_number, nullptr);
     if (image_buffer == nullptr) {
@@ -428,7 +424,6 @@ static void push_undo(const NodeData &node_data,
 
 static void do_push_undo_tile(ImageData &image_data, bke::pbvh::Node &node)
 {
-  SCOPED_TIMER_AVERAGED(__func__);
   NodeData &node_data = bke::pbvh::pixels::node_data_get(node);
 
   ImBuf *tmpibuf = nullptr;
@@ -473,7 +468,6 @@ static void fix_non_manifold_seam_bleeding(Object &ob,
                                            MutableSpan<bke::pbvh::MeshNode> nodes,
                                            const IndexMask &node_mask)
 {
-  SCOPED_TIMER_AVERAGED(__func__);
   Vector<image::TileNumber> dirty_tiles = collect_dirty_tiles(nodes, node_mask);
   fix_non_manifold_seam_bleeding(*bke::object::pbvh_get(ob), image_data.buffers, dirty_tiles);
 }
@@ -509,7 +503,6 @@ void SCULPT_do_paint_brush_image(const Depsgraph &depsgraph,
     return;
   }
 
-  SCOPED_TIMER_AVERAGED(__func__);
 
   ImageData &image_data = *cache.image_data;
 
