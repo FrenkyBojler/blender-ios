@@ -49,6 +49,7 @@ set(SRC
   regions/interface_region_hud.cc
   regions/interface_region_menu_pie.cc
   regions/interface_region_menu_popup.cc
+  regions/interface_region_notification.cc
   regions/interface_region_popover.cc
   regions/interface_region_popup.cc
   regions/interface_region_search.cc
