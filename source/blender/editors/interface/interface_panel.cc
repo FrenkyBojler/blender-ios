@@ -1148,7 +1148,7 @@ static void panel_draw_aligned_widgets(const uiStyle *style,
 
     const int font_id = BLF_default();
     HandlePanelData *data = static_cast<HandlePanelData *>(panel->activedata);
-    if (data && data->anim_factor < 1.0f) {
+    if (data && data->anim_factor < 1.0f && !panel_is_dragging(panel)) {
       const float fac = 1.0f - data->anim_factor;
       const bool is_open = !panel_is_closed(panel);
       BLF_rotation(font_id, fac * M_PI_2 * (is_open ? 1.0f : -1.0f));
