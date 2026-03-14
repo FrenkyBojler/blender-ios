@@ -503,7 +503,6 @@ void SCULPT_do_paint_brush_image(const Depsgraph &depsgraph,
     return;
   }
 
-
   ImageData &image_data = *cache.image_data;
 
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
