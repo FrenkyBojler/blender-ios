@@ -65,7 +65,7 @@ struct PackedPixelRow {
  */
 struct UDIMTilePixels {
   /** UDIM Tile number. */
-  short tile_number;
+  image::TileNumber tile_number;
 
   struct {
     bool dirty : 1;
@@ -152,19 +152,21 @@ struct NodeData {
     }
   }
 
-  void mark_region(Image &image, const image::ImageTileWrapper &image_tile, ImBuf &image_buffer)
+  void mark_region(UDIMTilePixels &tile,
+                   Image &image,
+                   const image::ImageTileWrapper &image_tile,
+                   ImBuf &image_buffer)
   {
-    UDIMTilePixels *tile = find_tile_data(image_tile);
-    if (tile && tile->flags.dirty) {
+    if (tile.flags.dirty) {
       if (image_buffer.planes == 8) {
         image_buffer.planes = 32;
         BKE_image_partial_update_mark_full_update(&image);
       }
       else {
         BKE_image_partial_update_mark_region(
-            &image, image_tile.image_tile, &image_buffer, &tile->dirty_region);
+            &image, image_tile.image_tile, &image_buffer, &tile.dirty_region);
       }
-      tile->clear_dirty();
+      tile.clear_dirty();
     }
   }
 

@@ -28,6 +28,7 @@
 #include "BKE_object_types.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_paint_bvh_pixels.hh"
+#include "BLI_timeit.hh"
 
 #include "mesh_brush_common.hh"
 #include "sculpt_automask.hh"
@@ -46,7 +47,7 @@ ImageData::~ImageData()
     return;
   }
 
-  BLI_assert(buffers.size() == BLI_listbase_count(&image->tiles));
+  BLI_assert(buffers.size() <= BLI_listbase_count(&image->tiles));
   for (ImBuf *buffer : buffers.values()) {
     BKE_image_release_ibuf(image, buffer, nullptr);
   }
@@ -65,18 +66,22 @@ std::unique_ptr<ImageData> ImageData::init_active_image(Object &ob,
   BLI_assert(image_data->image);
   BLI_assert(image_data->image_user);
 
-  for (ImageTile &tile : image_data->image->tiles) {
-    ImageTileWrapper image_tile(&tile);
-    const TileNumber tile_number = image_tile.get_tile_number();
-
-    ImageUser tile_user = *image_data->image_user;
-    tile_user.tile = tile_number;
-
-    image_data->buffers.add_new(tile_number,
-                                BKE_image_acquire_ibuf(image_data->image, &tile_user, nullptr));
-  }
-
   return image_data;
+}
+
+static void fetch_image_buffers(ImageData &image_data, bke::pbvh::Node &node)
+{
+  SCOPED_TIMER_AVERAGED(__func__);
+  NodeData &node_data = bke::pbvh::pixels::node_data_get(node);
+  for (const UDIMTilePixels &tile : node_data.tiles) {
+    if (!image_data.buffers.contains(tile.tile_number)) {
+      ImageUser tile_user = *image_data.image_user;
+      tile_user.tile = tile.tile_number;
+
+      image_data.buffers.add_new(tile.tile_number,
+                                 BKE_image_acquire_ibuf(image_data.image, &tile_user, nullptr));
+    }
+  }
 }
 
 /** Reading and writing to image buffer with 4 float channels. */
@@ -281,6 +286,7 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
                             ImageData &image_data,
                             bke::pbvh::Node &node)
 {
+  SCOPED_TIMER_AVERAGED(__func__);
   SculptSession &ss = *object.runtime->sculpt_session;
   const StrokeCache &cache = *ss.cache;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
@@ -315,62 +321,55 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
   Vector<float> distances;
 
   bool pixels_updated = false;
+  printf("Tiles: %lld\n", node_data.tiles.size());
   for (UDIMTilePixels &tile_data : node_data.tiles) {
-    for (ImageTile &tile : image_data.image->tiles) {
-      ImageTileWrapper image_tile(&tile);
-      TileNumber tile_number = image_tile.get_tile_number();
-      if (image_tile.get_tile_number() == tile_data.tile_number) {
-        ImBuf *image_buffer = image_data.buffers.lookup_default(tile_number, nullptr);
-        if (image_buffer == nullptr) {
-          printf("SKIP %d\n", tile_number);
-          continue;
-        }
+    ImBuf *image_buffer = image_data.buffers.lookup_default(tile_data.tile_number, nullptr);
+    if (image_buffer == nullptr) {
+      continue;
+    }
 
-        if (image_buffer->float_buffer.data != nullptr) {
-          kernel_float4.init_brush_color(image_buffer, brush_color);
-        }
-        else {
-          kernel_byte4.init_brush_color(image_buffer, brush_color);
-        }
+    if (image_buffer->float_buffer.data != nullptr) {
+      kernel_float4.init_brush_color(image_buffer, brush_color);
+    }
+    else {
+      kernel_byte4.init_brush_color(image_buffer, brush_color);
+    }
 
-        for (const PackedPixelRow &pixel_row : tile_data.pixel_rows) {
-          if (!brush_test[pixel_row.uv_primitive_index]) {
-            continue;
-          }
+    for (const PackedPixelRow &pixel_row : tile_data.pixel_rows) {
+      if (!brush_test[pixel_row.uv_primitive_index]) {
+        continue;
+      }
 
-          pixel_positions.resize(pixel_row.num_pixels);
-          calc_pixel_row_positions(
-              positions, pbvh_data.vert_tris, node_data.uv_primitives, pixel_row, pixel_positions);
+      pixel_positions.resize(pixel_row.num_pixels);
+      calc_pixel_row_positions(
+          positions, pbvh_data.vert_tris, node_data.uv_primitives, pixel_row, pixel_positions);
 
-          factors.resize(pixel_positions.size());
-          factors.fill(1.0f);
+      factors.resize(pixel_positions.size());
+      factors.fill(1.0f);
 
-          distances.resize(pixel_positions.size());
-          calc_brush_distances(
-              ss, pixel_positions, eBrushFalloffShape(brush.falloff_shape), distances);
-          filter_distances_with_radius(cache.radius, distances, factors);
-          apply_hardness_to_distances(cache, distances);
-          calc_brush_strength_factors(cache, brush, distances, factors);
-          calc_brush_texture_factors(ss, brush, pixel_positions, factors);
-          scale_factors(factors, cache.bstrength);
+      distances.resize(pixel_positions.size());
+      calc_brush_distances(
+          ss, pixel_positions, eBrushFalloffShape(brush.falloff_shape), distances);
+      filter_distances_with_radius(cache.radius, distances, factors);
+      apply_hardness_to_distances(cache, distances);
+      calc_brush_strength_factors(cache, brush, distances, factors);
+      calc_brush_texture_factors(ss, brush, pixel_positions, factors);
+      scale_factors(factors, cache.bstrength);
 
-          bool pixels_painted = false;
-          if (image_buffer->float_buffer.data != nullptr) {
-            pixels_painted = kernel_float4.paint(brush, pixel_row, factors, image_buffer);
-          }
-          else {
-            pixels_painted = kernel_byte4.paint(brush, pixel_row, factors, image_buffer);
-          }
+      bool pixels_painted = false;
+      if (image_buffer->float_buffer.data != nullptr) {
+        pixels_painted = kernel_float4.paint(brush, pixel_row, factors, image_buffer);
+      }
+      else {
+        pixels_painted = kernel_byte4.paint(brush, pixel_row, factors, image_buffer);
+      }
 
-          if (pixels_painted) {
-            tile_data.mark_dirty(pixel_row);
-          }
-        }
-
-        pixels_updated |= tile_data.flags.dirty;
-        break;
+      if (pixels_painted) {
+        tile_data.mark_dirty(pixel_row);
       }
     }
+
+    pixels_updated |= tile_data.flags.dirty;
   }
 
   node_data.flags.dirty |= pixels_updated;
@@ -390,12 +389,12 @@ static void undo_region_tiles(
 static void push_undo(const NodeData &node_data,
                       Image &image,
                       ImageUser &image_user,
-                      const image::ImageTileWrapper &image_tile,
+                      const TileNumber tile_number,
                       ImBuf &image_buffer,
                       ImBuf **tmpibuf)
 {
   for (const UDIMTileUndo &tile_undo : node_data.undo_regions) {
-    if (tile_undo.tile_number != image_tile.get_tile_number()) {
+    if (tile_undo.tile_number != tile_number) {
       continue;
     }
     int tilex, tiley, tilew, tileh;
@@ -429,17 +428,18 @@ static void push_undo(const NodeData &node_data,
 
 static void do_push_undo_tile(ImageData &image_data, bke::pbvh::Node &node)
 {
+  SCOPED_TIMER_AVERAGED(__func__);
   NodeData &node_data = bke::pbvh::pixels::node_data_get(node);
 
   ImBuf *tmpibuf = nullptr;
-  for (ImageTile &tile : image_data.image->tiles) {
-    image::ImageTileWrapper image_tile(&tile);
-    ImBuf *buffer = image_data.buffers.lookup_default(image_tile.get_tile_number(), nullptr);
+  for (const UDIMTilePixels &tile : node_data.tiles) {
+    ImBuf *buffer = image_data.buffers.lookup_default(tile.tile_number, nullptr);
     if (buffer == nullptr) {
       continue;
     }
 
-    push_undo(node_data, *image_data.image, *image_data.image_user, image_tile, *buffer, &tmpibuf);
+    push_undo(
+        node_data, *image_data.image, *image_data.image_user, tile.tile_number, *buffer, &tmpibuf);
   }
   if (tmpibuf) {
     IMB_freeImBuf(tmpibuf);
@@ -473,6 +473,7 @@ static void fix_non_manifold_seam_bleeding(Object &ob,
                                            MutableSpan<bke::pbvh::MeshNode> nodes,
                                            const IndexMask &node_mask)
 {
+  SCOPED_TIMER_AVERAGED(__func__);
   Vector<image::TileNumber> dirty_tiles = collect_dirty_tiles(nodes, node_mask);
   fix_non_manifold_seam_bleeding(*bke::object::pbvh_get(ob), image_data.buffers, dirty_tiles);
 }
@@ -508,11 +509,15 @@ void SCULPT_do_paint_brush_image(const Depsgraph &depsgraph,
     return;
   }
 
+  SCOPED_TIMER_AVERAGED(__func__);
+
   ImageData &image_data = *cache.image_data;
 
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
   MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
 
+  node_mask.foreach_index([&](const int i) { fetch_image_buffers(image_data, nodes[i]); },
+                          exec_mode::grain_size(1));
   node_mask.foreach_index([&](const int i) { do_push_undo_tile(image_data, nodes[i]); },
                           exec_mode::grain_size(1));
   node_mask.foreach_index(
