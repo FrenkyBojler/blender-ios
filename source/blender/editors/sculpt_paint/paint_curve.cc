@@ -201,7 +201,7 @@ static void paintcurve_point_add(bContext *C, wmOperator *op, const int loc[2])
     br->paint_curve = pc = paintcurve_for_brush_add(bmain, DATA_("PaintCurve"), br);
   }
 
-  ED_paintcurve_undo_push_begin(op->type->name);
+  ED_paintcurve_undo_push_begin(C, op->type->name);
 
   PaintCurvePoint *pcp = MEM_new_array<PaintCurvePoint>((pc->tot_points + 1), "PaintCurvePoint");
   int add_index = pc->add_index;
@@ -316,7 +316,7 @@ static wmOperatorStatus paintcurve_delete_point_exec(bContext *C, wmOperator *op
     return OPERATOR_CANCELLED;
   }
 
-  ED_paintcurve_undo_push_begin(op->type->name);
+  ED_paintcurve_undo_push_begin(C, op->type->name);
 
 #define DELETE_TAG 2
 
@@ -397,7 +397,7 @@ static bool paintcurve_point_select(
     return false;
   }
 
-  ED_paintcurve_undo_push_begin(op->type->name);
+  ED_paintcurve_undo_push_begin(C, op->type->name);
 
   if (toggle) {
     PaintCurvePoint *pcp;
@@ -622,7 +622,7 @@ static wmOperatorStatus paintcurve_slide_modal(bContext *C, wmOperator *op, cons
 
   if (event->type == psd->event && event->val == KM_RELEASE) {
     MEM_delete(psd);
-    ED_paintcurve_undo_push_begin(op->type->name);
+    ED_paintcurve_undo_push_begin(C, op->type->name);
     ED_paintcurve_undo_push_end(C);
     return OPERATOR_FINISHED;
   }

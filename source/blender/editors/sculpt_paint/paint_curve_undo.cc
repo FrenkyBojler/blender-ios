@@ -13,6 +13,7 @@
 #include "DNA_brush_types.h"
 #include "DNA_userdef_types.h"
 
+#include "BKE_context.hh"
 #include "BKE_paint.hh"
 #include "BKE_undo_system.hh"
 
@@ -164,18 +165,28 @@ void ED_paintcurve_undosys_type(UndoType *ut)
 /** \name Utilities
  * \{ */
 
-void ED_paintcurve_undo_push_begin(const char *name)
+void ED_paintcurve_undo_push_begin(bContext *C, const char *name)
 {
   UndoStack *ustack = ED_undo_stack_get();
-  bContext *C = nullptr; /* special case, we never read from this. */
+
+  if (ustack->step_active && ustack->step_active->type != BKE_UNDOSYS_TYPE_PAINTCURVE) {
+    BKE_undosys_step_push_init_with_type(ustack, C, "Curve Base", BKE_UNDOSYS_TYPE_PAINTCURVE);
+    BKE_undosys_step_push(ustack, C, nullptr);
+  }
+
   BKE_undosys_step_push_init_with_type(ustack, C, name, BKE_UNDOSYS_TYPE_PAINTCURVE);
 }
 
 void ED_paintcurve_undo_push_end(bContext *C)
 {
-  UndoStack *ustack = ED_undo_stack_get();
-  BKE_undosys_step_push(ustack, C, nullptr);
-  BKE_undosys_stack_limit_steps_and_memory_defaults(ustack);
+  wmWindowManager *wm = CTX_wm_manager(C);
+
+  if (wm->op_undo_depth == 0) {
+    UndoStack *ustack = ED_undo_stack_get();
+    BKE_undosys_step_push(ustack, C, nullptr);
+    BKE_undosys_stack_limit_steps_and_memory_defaults(ustack);
+  }
+
   WM_file_tag_modified();
 }
 
