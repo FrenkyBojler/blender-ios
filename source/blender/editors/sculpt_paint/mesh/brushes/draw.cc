@@ -13,6 +13,7 @@
 #include "BKE_object_types.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
+#include "BKE_paint_types.hh"
 #include "BKE_subdiv_ccg.hh"
 
 #include "BLI_enumerable_thread_specific.hh"
@@ -54,41 +55,17 @@ static void calc_faces(const Depsgraph &depsgraph,
 
   const Span<int> verts = node.verts();
 
-  if (brush.tip_roundness < 1.0f) {
-    const StrokeCache &cache = *ss.cache;
-    /* Fill initial factors from hide and mask, and apply front face culling and region clipping.
-     */
-    tls.factors.resize(verts.size());
-    const MutableSpan<float> factors = tls.factors;
-    fill_factor_from_hide_and_mask(attribute_data.hide_vert, attribute_data.mask, verts, factors);
-    filter_region_clip_factors(ss, position_data.eval, verts, factors);
-    if (brush.flag & BRUSH_FRONTFACE) {
-      calc_front_face(cache.view_normal_symm, vert_normals, verts, factors);
-    }
-
-    /* Calculate local positions. */
-    tls.local_positions.resize(verts.size());
-    MutableSpan<float3> local_positions = tls.local_positions;
-    calc_local_positions(mat, verts, position_data.eval, local_positions);
-
-    /* Find the cube distance. */
-    tls.distances.resize(verts.size());
-    const MutableSpan<float> distances = tls.distances;
-    calc_brush_cube_distances<float3>(brush, local_positions, distances);
-
-    /* The radius is already applied to the local positions, so use a radius of 1.0 here. */
-    filter_distances_with_radius(1.0f, distances, factors);
-    apply_hardness_to_distances(1.0f, cache.hardness, distances);
-
-    /* Apply falloff curve. */
-    BKE_brush_calc_curve_factors(eBrushCurvePreset(brush.curve_distance_falloff_preset),
-                                 brush.curve_distance_falloff,
-                                 distances,
-                                 1.0f,
-                                 factors);
-    auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
-
-    calc_brush_texture_factors(ss, brush, position_data.eval, verts, factors);
+  if (BKE_brush_has_cube_tip(&brush, PaintMode::Sculpt)) {
+    calc_cube_tip_factors_common_mesh_indexed(depsgraph,
+                                              brush,
+                                              object,
+                                              mat,
+                                              attribute_data,
+                                              position_data.eval,
+                                              vert_normals,
+                                              node,
+                                              tls.factors,
+                                              tls.distances);
   }
   else {
     calc_factors_common_mesh_indexed(depsgraph,
@@ -125,41 +102,9 @@ static void calc_grids(const Depsgraph &depsgraph,
   const Span<int> grids = node.grids();
   const MutableSpan positions = gather_grids_positions(subdiv_ccg, grids, tls.positions);
 
-  if (brush.tip_roundness < 1.0f) {
-    const StrokeCache &cache = *ss.cache;
-    /* Fill initial factors from hide and mask, and apply front face culling and region clipping.
-     */
-    tls.factors.resize(positions.size());
-    const MutableSpan<float> factors = tls.factors;
-    fill_factor_from_hide_and_mask(subdiv_ccg, grids, factors);
-    filter_region_clip_factors(ss, positions, factors);
-    if (brush.flag & BRUSH_FRONTFACE) {
-      calc_front_face(cache.view_normal_symm, subdiv_ccg, grids, factors);
-    }
-
-    /* Calculate local positions. */
-    tls.local_positions.resize(positions.size());
-    MutableSpan<float3> local_positions = tls.local_positions;
-    calc_local_positions(mat, tls.positions, local_positions);
-
-    /* Find the cube distance. */
-    tls.distances.resize(positions.size());
-    const MutableSpan<float> distances = tls.distances;
-    calc_brush_cube_distances<float3>(brush, local_positions, distances);
-    filter_distances_with_radius(1.0f, distances, factors);
-    apply_hardness_to_distances(1.0f, cache.hardness, distances);
-
-    /* Apply falloff curve. */
-    BKE_brush_calc_curve_factors(eBrushCurvePreset(brush.curve_distance_falloff_preset),
-                                 brush.curve_distance_falloff,
-                                 distances,
-                                 1.0f,
-                                 factors);
-
-    auto_mask::calc_grids_factors(
-        depsgraph, object, cache.automasking.get(), node, grids, factors);
-
-    calc_brush_texture_factors(ss, brush, positions, factors);
+  if (BKE_brush_has_cube_tip(&brush, PaintMode::Sculpt)) {
+    calc_cube_tip_factors_common_grids(
+        depsgraph, brush, object, mat, positions, node, tls.factors, tls.distances);
   }
   else {
     calc_factors_common_grids(
@@ -188,40 +133,9 @@ static void calc_bmesh(const Depsgraph &depsgraph,
   const Set<BMVert *, 0> &verts = BKE_pbvh_bmesh_node_unique_verts(&node);
   const MutableSpan positions = gather_bmesh_positions(verts, tls.positions);
 
-  if (brush.tip_roundness < 1.0f) {
-    const StrokeCache &cache = *ss.cache;
-    /* Fill initial factors from hide and mask, and apply front face culling and region clipping.
-     */
-    tls.factors.resize(verts.size());
-    const MutableSpan<float> factors = tls.factors;
-    fill_factor_from_hide_and_mask(*ss.bm, verts, factors);
-    filter_region_clip_factors(ss, positions, factors);
-    if (brush.flag & BRUSH_FRONTFACE) {
-      calc_front_face(cache.view_normal_symm, verts, factors);
-    }
-
-    /* Calculate local positions. */
-    tls.local_positions.resize(verts.size());
-    MutableSpan<float3> local_positions = tls.local_positions;
-    calc_local_positions(mat, tls.positions, local_positions);
-
-    /* Find the cube distance. */
-    tls.distances.resize(verts.size());
-    const MutableSpan<float> distances = tls.distances;
-    calc_brush_cube_distances<float3>(brush, local_positions, distances);
-    filter_distances_with_radius(1.0f, distances, factors);
-    apply_hardness_to_distances(1.0f, cache.hardness, distances);
-
-    /* Apply falloff curve. */
-    BKE_brush_calc_curve_factors(eBrushCurvePreset(brush.curve_distance_falloff_preset),
-                                 brush.curve_distance_falloff,
-                                 distances,
-                                 1.0f,
-                                 factors);
-
-    auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
-
-    calc_brush_texture_factors(ss, brush, positions, factors);
+  if (BKE_brush_has_cube_tip(&brush, PaintMode::Sculpt)) {
+    calc_cube_tip_factors_common_bmesh(
+        depsgraph, brush, object, mat, positions, node, tls.factors, tls.distances);
   }
   else {
     calc_factors_common_bmesh(
