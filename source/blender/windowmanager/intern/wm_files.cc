@@ -539,6 +539,11 @@ static void wm_init_userdef(Main *bmain)
     SET_FLAG_FROM_TEST(G.f, U.flag & USER_INTERNET_ALLOW, G_FLAG_INTERNET_ALLOW);
   }
 
+  /* Reset image saving behavior to "Ask Every Time" if "Auto-Save" was disabled. */
+  if (!(U.flag & USER_AUTOSAVE)) {
+    U.save_modified_images = USER_SAVE_MODIFIED_IMAGES_ASK;
+  }
+
   const int64_t cache_limit = int64_t(U.memcachelimit) * 1024 * 1024;
   MEM_CacheLimiter_set_maximum(cache_limit);
   memory_cache::set_approximate_size_limit(cache_limit);
@@ -1358,12 +1363,6 @@ void wm_homefile_read_ex(bContext *C,
         skip_flags |= BLO_READ_SKIP_USERDEF;
       }
     }
-  }
-
-  /* Make the 'Save Modified Images' preference set itself to 'Ask Every Time' when blender
-   * starts up if the user has the auto-save preference off. */
-  if (!(U.flag & USER_AUTOSAVE) && U.save_modified_images != USER_SAVE_MODIFIED_IMAGES_ASK) {
-    U.save_modified_images = USER_SAVE_MODIFIED_IMAGES_ASK;
   }
 
   if ((app_template != nullptr) && (app_template[0] != '\0')) {
