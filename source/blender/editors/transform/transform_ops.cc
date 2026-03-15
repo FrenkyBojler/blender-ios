@@ -1368,6 +1368,18 @@ static void TRANSFORM_OT_edge_bevelweight(wmOperatorType *ot)
   properties_register(ot, P_SNAP);
 }
 
+static wmOperatorStatus seq_slide_exec(bContext *C, wmOperator *op)
+{
+  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER | NA_EDITED, CTX_data_sequencer_scene(C));
+  return transform_exec(C, op);
+}
+
+static wmOperatorStatus seq_slide_modal(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER | NA_EDITED, CTX_data_sequencer_scene(C));
+  return transform_modal(C, op, event);
+}
+
 static void TRANSFORM_OT_seq_slide(wmOperatorType *ot)
 {
   /* Identifiers. */
@@ -1378,8 +1390,8 @@ static void TRANSFORM_OT_seq_slide(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->invoke = transform_invoke;
-  ot->exec = transform_exec;
-  ot->modal = transform_modal;
+  ot->exec = seq_slide_exec;
+  ot->modal = seq_slide_modal;
   ot->cancel = transform_cancel;
   ot->poll = ED_operator_sequencer_active;
 
