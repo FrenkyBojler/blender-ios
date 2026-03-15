@@ -2471,14 +2471,14 @@ static void UI_OT_drop_name(wmOperatorType *ot)
 /** \name UI List Search Operator
  * \{ */
 
-static bool ui_list_focused_poll(bContext *C)
+static bool uilist_focused_poll(bContext *C)
 {
   const ARegion *region = CTX_wm_region(C);
   if (!region) {
     return false;
   }
   const wmWindow *win = CTX_wm_window(C);
-  const uiList *list = ui_list_find_mouse_over(region, win->runtime->eventstate);
+  const uiList *list = uilist_find_mouse_over(region, win->runtime->eventstate);
 
   return list != nullptr;
 }
@@ -2487,7 +2487,7 @@ static bool ui_list_focused_poll(bContext *C)
  * Ensure the filter options are set to be visible in the UI list.
  * \return if the visibility changed, requiring a redraw.
  */
-static bool ui_list_unhide_filter_options(uiList *list)
+static bool uilist_unhide_filter_options(uiList *list)
 {
   if (list->filter_flag & UILST_FLT_SHOW) {
     /* Nothing to be done. */
@@ -2498,16 +2498,16 @@ static bool ui_list_unhide_filter_options(uiList *list)
   return true;
 }
 
-static wmOperatorStatus ui_list_start_filter_invoke(bContext *C,
-                                                    wmOperator * /*op*/,
-                                                    const wmEvent *event)
+static wmOperatorStatus uilist_start_filter_invoke(bContext *C,
+                                                   wmOperator * /*op*/,
+                                                   const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
-  uiList *list = ui_list_find_mouse_over(region, event);
+  uiList *list = uilist_find_mouse_over(region, event);
   /* Poll should check. */
   BLI_assert(list != nullptr);
 
-  if (ui_list_unhide_filter_options(list)) {
+  if (uilist_unhide_filter_options(list)) {
     region_redraw_immediately(C, region);
   }
 
@@ -2524,8 +2524,8 @@ static void UI_OT_list_start_filter(wmOperatorType *ot)
   ot->idname = "UI_OT_list_start_filter";
   ot->description = "Start entering filter text for the list in focus";
 
-  ot->invoke = ui_list_start_filter_invoke;
-  ot->poll = ui_list_focused_poll;
+  ot->invoke = uilist_start_filter_invoke;
+  ot->poll = uilist_focused_poll;
 }
 
 /** \} */
@@ -2896,8 +2896,7 @@ static void UI_OT_view_item_select(wmOperatorType *ot)
 /* -------------------------------------------------------------------- */
 /** \name UI View Item Delete Operator
  *
- * Operator for deleting selected view items, binded to the `X` hotkey.
- *
+ * Operator for deleting selected view items, bound to the `X` hotkey.
  * \{ */
 
 static wmOperatorStatus view_item_delete_invoke(bContext *C,
@@ -3047,6 +3046,7 @@ void operatortypes_ui()
   WM_operatortype_append(UI_OT_eyedropper_driver);
   WM_operatortype_append(UI_OT_eyedropper_bone);
   WM_operatortype_append(UI_OT_eyedropper_grease_pencil_color);
+  WM_menutype_add(UI_MT_color_space_select());
 }
 
 void keymap_ui(wmKeyConfig *keyconf)

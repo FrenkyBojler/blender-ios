@@ -30,7 +30,7 @@ namespace blender {
 
 // static CLG_LogRef LOG = {"blend.doversion"};
 
-/* Saving file extension is now a property of the the File Output node. So inherit this
+/* Saving file extension is now a property of the File Output node. So inherit this
  * setting from the active scene to restore the old behavior.
  * Note: One limitation is that node groups containing file outputs that are not part of any
  * scene are not affected by versioning. */
@@ -102,6 +102,12 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     for (Scene &scene : bmain->scenes) {
       SequencerToolSettings *sequencer_tool_settings = seq::tool_settings_ensure(&scene);
       sequencer_tool_settings->snap_flag |= SEQ_SNAP_TO_ALL_CHANNEL_STRIPS;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 7)) {
+    for (Scene &scene : bmain->scenes) {
+      scene.r.anisotropic_filter = 2;
     }
   }
 

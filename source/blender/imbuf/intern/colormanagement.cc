@@ -649,7 +649,7 @@ void colormanagement_init()
       /* OpenColorIO has issues with "$" in paths, as it uses that for variable expansion
        * and there appears to be no way to escape the symbol.
        *
-       * Work aroud it by setting the environment variable, which may also be useful for
+       * Work around it by setting the environment variable, which may also be useful for
        * plug-ins to inherit the Blender OCIO config. */
       std::optional<std::string> old_ocio_env;
       if (ocio_env) {
@@ -3252,6 +3252,16 @@ const char *IMB_colormanagement_colorspace_get_name(const ColorSpace *colorspace
   return colorspace->name().c_str();
 }
 
+const char *IMB_colormanagement_colorspace_get_family(const ColorSpace *colorspace)
+{
+  return colorspace->family().c_str();
+}
+
+const char *IMB_colormanagement_colorspace_get_description(const ColorSpace *colorspace)
+{
+  return colorspace->description().c_str();
+}
+
 void IMB_colormanagement_colorspace_from_ibuf_ftype(
     ColorManagedColorspaceSettings *colorspace_settings, ImBuf *ibuf)
 {
@@ -3830,9 +3840,6 @@ void IMB_colormanagement_colorspace_items_add(EnumPropertyItem **items, int *tot
   /* Regular color spaces. */
   for (const int colorspace_index : IndexRange(g_config()->get_num_color_spaces())) {
     const ColorSpace *colorspace = g_config()->get_sorted_color_space_by_index(colorspace_index);
-    if (!colorspace->is_invertible()) {
-      continue;
-    }
 
     EnumPropertyItem item;
 

@@ -358,6 +358,9 @@ struct HandleButtonMulti {
    * here so we can tell if this is a vertical motion or not. */
   float drag_dir[2] = {0.0f, 0.0f};
 
+  /* Previous mouse position for accumulating drag_dir. */
+  int drag_dir_prev[2] = {0, 0};
+
   /* values copied direct from event->xy
    * used to detect buttons between the current and initial mouse position */
   int drag_start[2] = {0, 0};
@@ -5836,6 +5839,8 @@ static int do_but_NUM(
 
 #ifdef USE_DRAG_MULTINUM
       copy_v2_v2_int(data->multi_data.drag_start, event->xy);
+      data->multi_data.drag_dir_prev[0] = mx;
+      data->multi_data.drag_dir_prev[1] = my;
 #endif
     }
   }
@@ -5870,8 +5875,10 @@ static int do_but_NUM(
       float fac;
 
 #ifdef USE_DRAG_MULTINUM
-      data->multi_data.drag_dir[0] += abs(data->draglastx - mx);
-      data->multi_data.drag_dir[1] += abs(data->draglasty - my);
+      data->multi_data.drag_dir[0] += abs(data->multi_data.drag_dir_prev[0] - mx);
+      data->multi_data.drag_dir[1] += abs(data->multi_data.drag_dir_prev[1] - my);
+      data->multi_data.drag_dir_prev[0] = mx;
+      data->multi_data.drag_dir_prev[1] = my;
 #endif
 
       fac = 1.0f;
@@ -6202,6 +6209,8 @@ static int do_but_SLI(
     }
 #ifdef USE_DRAG_MULTINUM
     copy_v2_v2_int(data->multi_data.drag_start, event->xy);
+    data->multi_data.drag_dir_prev[0] = mx;
+    data->multi_data.drag_dir_prev[1] = my;
 #endif
   }
   else if (data->state == BUTTON_STATE_NUM_EDITING) {
@@ -6236,8 +6245,10 @@ static int do_but_SLI(
     else if ((event->type == MOUSEMOVE) || event_is_snap(event)) {
       const bool is_motion = (event->type == MOUSEMOVE);
 #ifdef USE_DRAG_MULTINUM
-      data->multi_data.drag_dir[0] += abs(data->draglastx - mx);
-      data->multi_data.drag_dir[1] += abs(data->draglasty - my);
+      data->multi_data.drag_dir[0] += abs(data->multi_data.drag_dir_prev[0] - mx);
+      data->multi_data.drag_dir[1] += abs(data->multi_data.drag_dir_prev[1] - my);
+      data->multi_data.drag_dir_prev[0] = mx;
+      data->multi_data.drag_dir_prev[1] = my;
 #endif
       if (numedit_but_SLI(but,
                           data,
@@ -8863,7 +8874,9 @@ static void button_activate_state(bContext *C, Button *but, HandleButtonState st
           time = 1;
         }
         else if (but->block->flag & BLOCK_LOOP && but->type == ButtonType::Pulldown) {
-          time = 5 * U.menuthreshold2;
+          /* When auto open is disabled, open subpanel on hover but don't rely on sub level
+           * threshold value, see: #153110 */
+          time = (U.uiflag & USER_MENUOPENAUTO) ? 5 * U.menuthreshold2 : 10;
         }
         else if (U.uiflag & USER_MENUOPENAUTO) {
           time = 5 * U.menuthreshold1;
@@ -10115,7 +10128,7 @@ static int handle_button_event(bContext *C, const wmEvent *event, Button *but)
   return retval;
 }
 
-static int list_get_increment(const uiList *list, const int type)
+static int uilist_get_increment(const uiList *list, const int type)
 {
   /* Left or right in grid layouts or any direction in single column layouts increments by 1. */
   int increment = ELEM(type, EVT_UPARROWKEY, EVT_LEFTARROWKEY, WHEELUPMOUSE) ? -1 : 1;
@@ -10127,7 +10140,7 @@ static int list_get_increment(const uiList *list, const int type)
   return increment;
 }
 
-static int handle_list_event(bContext *C, const wmEvent *event, ARegion *region, Button *listbox)
+static int handle_uilist_event(bContext *C, const wmEvent *event, ARegion *region, Button *listbox)
 {
   int retval = WM_UI_HANDLER_CONTINUE;
   int type = event->type, val = event->val;
@@ -10169,7 +10182,7 @@ static int handle_list_event(bContext *C, const wmEvent *event, ARegion *region,
       int value, min, max;
 
       value = value_orig;
-      const int inc = list_get_increment(ui_list, type);
+      const int inc = uilist_get_increment(ui_list, type);
 
       if (dyn_data->items_filter_neworder || dyn_data->items_filter_flags) {
         /* If we have a display order different from
@@ -10180,7 +10193,7 @@ static int handle_list_event(bContext *C, const wmEvent *event, ARegion *region,
         int current_idx = -1;
 
         for (int i = 0; i < len; i++) {
-          if (list_item_index_is_filtered_visible(ui_list, i)) {
+          if (uilist_item_index_is_filtered_visible(ui_list, i)) {
             org_order[new_order ? new_order[++org_idx] : ++org_idx] = i;
             if (i == value) {
               current_idx = new_order ? new_order[org_idx] : org_idx;
@@ -12037,7 +12050,7 @@ static int handle_menus_recursive(bContext *C,
         bool handled = false;
 
         if (Button *listbox = listbox_find_mouse_over(menu->region, event)) {
-          const int retval_test = handle_list_event(C, event, menu->region, listbox);
+          const int retval_test = handle_uilist_event(C, event, menu->region, listbox);
           if (retval_test != WM_UI_HANDLER_CONTINUE) {
             retval = retval_test;
             handled = true;
@@ -12096,7 +12109,7 @@ static int region_handler(bContext *C, const wmEvent *event, void * /*userdata*/
   retval = handler_panel_region(C, event, region, listbox ? listbox : but);
 
   if (retval == WM_UI_HANDLER_CONTINUE && listbox) {
-    retval = handle_list_event(C, event, region, listbox);
+    retval = handle_uilist_event(C, event, region, listbox);
 
     /* interactions with the listbox should disable tips */
     if (retval == WM_UI_HANDLER_BREAK) {
