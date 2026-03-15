@@ -1461,7 +1461,7 @@ static void blf_font_fill(FontBLF *font)
   font->char_width = 1.0f;
   font->char_spacing = 0.0f;
 
-  font->hb_font = NULL;
+  font->hb_font = nullptr;
   font->tex_size_max = -1;
 
   font->buf_info.fbuf = nullptr;
