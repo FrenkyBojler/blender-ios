@@ -353,14 +353,14 @@ struct ConstantKernel {
     return 0.0f;
   }
 
-  template<class ValueT> static ValueT weight(const ValueT *value, double /*weight*/)
+  template<class ValueT> static ValueT weight(const ValueT *value, float /*weight*/)
   {
     OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
     return value[0];
     OPENVDB_NO_TYPE_CONVERSION_WARNING_END
   }
 
-  template<class ValueT> static ValueT derivative(const ValueT * /*value*/, double /*weight*/)
+  template<class ValueT> static ValueT derivative(const ValueT * /*value*/, float /*weight*/)
   {
     OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
     return ValueT(0.0);
@@ -403,7 +403,7 @@ struct LinearKernel {
     return 0.0f;
   }
 
-  template<class ValueT> static ValueT weight(const ValueT *value, double weight)
+  template<class ValueT> static ValueT weight(const ValueT *value, float weight)
   {
     OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
     const ValueT lin = static_cast<ValueT>(value[1] - value[0]);
@@ -412,7 +412,7 @@ struct LinearKernel {
     OPENVDB_NO_TYPE_CONVERSION_WARNING_END
   }
 
-  template<class ValueT> static ValueT derivative(const ValueT *value, double /*weight*/)
+  template<class ValueT> static ValueT derivative(const ValueT *value, float /*weight*/)
   {
     OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
     const ValueT con = static_cast<ValueT>(value[1] - value[0]);
@@ -501,7 +501,7 @@ struct QuadraticBSplineKernel {
     return 0.0f;
   }
 
-  template<class ValueT> static ValueT weight(const ValueT *value, double weight)
+  template<class ValueT> static ValueT weight(const ValueT *value, float weight)
   {
     OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
     if (weight < 0.5) {
@@ -518,7 +518,7 @@ struct QuadraticBSplineKernel {
     OPENVDB_NO_TYPE_CONVERSION_WARNING_END
   }
 
-  template<class ValueT> static ValueT derivative(const ValueT *value, double weight)
+  template<class ValueT> static ValueT derivative(const ValueT *value, float weight)
   {
     OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
     if (weight < 0.5) {
@@ -615,7 +615,7 @@ struct CubicBSplineKernel {
     return 0.0f;
   }
 
-  template<class ValueT> static ValueT weight(const ValueT *value, double weight)
+  template<class ValueT> static ValueT weight(const ValueT *value, float weight)
   {
     OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
     constexpr double inv6 = 1.0 / 6.0;
@@ -628,7 +628,7 @@ struct CubicBSplineKernel {
     OPENVDB_NO_TYPE_CONVERSION_WARNING_END
   }
 
-  template<class ValueT> static ValueT derivative(const ValueT *value, double weight)
+  template<class ValueT> static ValueT derivative(const ValueT *value, float weight)
   {
     OPENVDB_NO_TYPE_CONVERSION_WARNING_BEGIN
     const ValueT sqr = static_cast<ValueT>(0.5 * (value[3] - value[0]) +

@@ -40,18 +40,18 @@ static const EnumPropertyItem moment_type_items[] = {
     {int(MomentType::ScalarFirst),
      "SCALAR_FIRST",
      0,
-     N_("First moment of scalar, outputs a vector"),
-     ""},
+     N_("Scalar First"),
+     "First moment of scalar, outputs a vector"},
     {int(MomentType::ScalarSecond),
      "SCALAR_SECOND",
      0,
-     N_("Second moment of scalar, outputs a matrix"),
-     ""},
+     N_("Scalar Second"),
+     "Second moment of scalar, outputs a matrix"},
     {int(MomentType::VectorFirst),
      "VECTOR_FIRST",
      0,
-     N_("First moment of vector, outputs a matrix"),
-     ""},
+     N_("Vector First"),
+     "First moment of vector, outputs a matrix"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -102,7 +102,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
   const MomentType moment_type = MomentType(node->custom1);
   const eNodeSocketDatatype input_type = get_input_type(moment_type);
-  const eNodeSocketDatatype output_type = get_input_type(moment_type);
+  const eNodeSocketDatatype output_type = get_output_type(moment_type);
 
   b.add_input(input_type, "Grid").hide_value().structure_type(StructureType::Grid);
   b.add_input<decl::Vector>("Position").implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD);
@@ -184,57 +184,39 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 
 #ifdef WITH_OPENVDB
 
-template<typename T>
-void sample_grid(const bke::OpenvdbGridType<T> &grid,
-                 MomentType moment_type,
+template<int Moment, typename GridValueT, typename AttributeT>
+void sample_grid(const bke::OpenvdbGridType<GridValueT> &grid,
                  const InterpolationMode interpolation,
                  const Span<float3> positions,
                  const IndexMask &mask,
                  GMutableSpan dst)
 {
-  using GridType = bke::OpenvdbGridType<T>;
+  using GridType = bke::OpenvdbGridType<GridValueT>;
   using AccessorT = typename GridType::ConstUnsafeAccessor;
+
   AccessorT accessor = grid.getConstUnsafeAccessor();
 
   auto sample_data = [&]<typename Sampler>() {
-    switch (moment_type) {
-      case MomentType::ScalarFirst: {
-        MutableSpan<float3> dst_typed = dst.typed<float3>();
-        mask.foreach_index([&](const int64_t i) {
-          const float3 &pos = positions[i];
-          const openvdb::Vec3R world_pos(pos.x, pos.y, pos.z);
-          const openvdb::Vec3R index_pos = grid.transform().worldToIndex(world_pos);
-          openvdb::Vec3s value;
-          Sampler::template sample_moment<1, openvdb::Vec3s>(accessor, index_pos, value);
-          dst_typed[i] = float3(value.asV());
-        });
-        break;
+    MutableSpan<AttributeT> dst_typed = dst.typed<AttributeT>();
+    mask.foreach_index([&](const int64_t i) {
+      const float3 &pos = positions[i];
+      const openvdb::Vec3R world_pos(pos.x, pos.y, pos.z);
+      const openvdb::Vec3R index_pos = grid.transform().worldToIndex(world_pos);
+      /* Special case: 2nd moments are always float3x3, but stored in float4x4. */
+      if constexpr (std::is_same_v<AttributeT, float4x4>) {
+        using AttributeTraits = bke::VolumeGridTraits<float3x3>;
+        openvdb::Mat3s value;
+        Sampler::template sample_moment<Moment>(accessor, index_pos, value);
+        dst_typed[i] = float4x4(AttributeTraits::to_blender(value));
       }
-      case MomentType::ScalarSecond: {
-        MutableSpan<float4x4> dst_typed = dst.typed<float4x4>();
-        mask.foreach_index([&](const int64_t i) {
-          const float3 &pos = positions[i];
-          const openvdb::Vec3R world_pos(pos.x, pos.y, pos.z);
-          const openvdb::Vec3R index_pos = grid.transform().worldToIndex(world_pos);
-          openvdb::Mat3s value;
-          Sampler::template sample_moment<2, openvdb::Mat3s>(accessor, index_pos, value);
-          dst_typed[i] = float4x4(bke::VolumeGridTraits<float3x3>::to_blender(value));
-        });
-        break;
+      else {
+        using AttributeTraits = bke::VolumeGridTraits<AttributeT>;
+        using PrimitiveT = typename AttributeTraits::PrimitiveType;
+        PrimitiveT value;
+        Sampler::template sample_moment<Moment>(accessor, index_pos, value);
+        dst_typed[i] = AttributeTraits::to_blender(value);
       }
-      case MomentType::VectorFirst: {
-        MutableSpan<float4x4> dst_typed = dst.typed<float4x4>();
-        mask.foreach_index([&](const int64_t i) {
-          const float3 &pos = positions[i];
-          const openvdb::Vec3R world_pos(pos.x, pos.y, pos.z);
-          const openvdb::Vec3R index_pos = grid.transform().worldToIndex(world_pos);
-          openvdb::Mat3s value;
-          Sampler::template sample_moment<1, openvdb::Mat3s>(accessor, index_pos, value);
-          dst_typed[i] = float4x4(bke::VolumeGridTraits<float3x3>::to_blender(value));
-        });
-        break;
-      }
-    }
+    });
   };
 
   /* Use to the Nearest Neighbor sampler for Bool grids (no interpolation). */
@@ -289,16 +271,26 @@ class SampleGridFunction : public mf::MultiFunction {
     const VArraySpan<float3> positions = params.readonly_single_input<float3>(0, "Position");
     GMutableSpan dst = params.uninitialized_single_output(1, "Moment");
 
-    BKE_volume_grid_type_to_blender_value_type(grid_type_, [&]<typename T>() {
-      if constexpr (is_same_any_v<T, float, float3>) {
-        sample_grid<T>(static_cast<const bke::OpenvdbGridType<T> &>(*grid_base_),
-                       moment_type_,
-                       interpolation_,
-                       positions,
-                       mask,
-                       dst);
+    switch (moment_type_) {
+      case MomentType::ScalarFirst: {
+        using GridType = bke::OpenvdbGridType<float>;
+        sample_grid<1, float, float3>(
+            static_cast<const GridType &>(*grid_base_), interpolation_, positions, mask, dst);
+        break;
       }
-    });
+      case MomentType::ScalarSecond: {
+        using GridType = bke::OpenvdbGridType<float>;
+        sample_grid<2, float, float4x4>(
+            static_cast<const GridType &>(*grid_base_), interpolation_, positions, mask, dst);
+        break;
+      }
+      case MomentType::VectorFirst: {
+        using GridType = bke::OpenvdbGridType<float3>;
+        sample_grid<1, float3, float4x4>(
+            static_cast<const GridType &>(*grid_base_), interpolation_, positions, mask, dst);
+        break;
+      }
+    }
   }
 };
 

@@ -1,0 +1,17 @@
+
+# backtrace
+../build_release/bin/blender() [0x2fe3ae2]
+../build_release/bin/blender() [0x24126de]
+/lib/x86_64-linux-gnu/libc.so.6(+0x45330) [0x70610d245330]
+../build_release/bin/blender() [0x3b2a4c4]
+../build_release/bin/blender() [0x286b776]
+../build_release/bin/blender() [0x48a2551]
+../build_release/bin/blender() [0x4945c99]
+../build_release/bin/blender() [0x540848d]
+../build_release/bin/blender() [0x3ac54f6]
+../build_release/bin/blender() [0x240cc69]
+/lib/x86_64-linux-gnu/libc.so.6(+0x2a1ca) [0x70610d22a1ca]
+/lib/x86_64-linux-gnu/libc.so.6(__libc_start_main+0x8b) [0x70610d22a28b]
+../build_release/bin/blender() [0x240c825]
+
+# Python backtrace
