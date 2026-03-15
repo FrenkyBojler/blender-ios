@@ -7182,17 +7182,17 @@ static void rna_def_userdef_filepaths(BlenderRNA *brna)
        "ASK",
        0,
        "Ask Every Time",
-       "Show dialog to save modified images when saving blend file"},
+       "Show dialog to save modified images when saving the .blend file"},
       {USER_SAVE_MODIFIED_IMAGES_ALWAYS,
        "ALWAYS_SAVE",
        0,
        "Always Save",
-       "Always save modified images when saving blend file"},
+       "Always save modified images when saving the .blend file"},
       {USER_SAVE_MODIFIED_IMAGES_NEVER,
        "NEVER_SAVE",
        0,
        "Never Save",
-       "Never save modified images when saving blend file"},
+       "Never save modified images when saving the .blend file"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -7376,7 +7376,7 @@ static void rna_def_userdef_filepaths(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, save_modified_images_items);
   RNA_def_property_ui_text(prop,
                            "Save Modified Images",
-                           "How modified images should be handled when saving the blend file");
+                           "How modified images should be handled when saving the .blend file");
 
   prop = RNA_def_property(srna, "auto_save_time", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, nullptr, "savetime");
