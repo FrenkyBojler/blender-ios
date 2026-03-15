@@ -208,15 +208,9 @@ static void sh_node_combxyz_eval_inverse_elem(value_elem::InverseElemEvalParams 
 static void sh_node_combxyz_eval_inverse(inverse_eval::InverseEvalParams &params)
 {
   const float3 output = params.get_output<float3>("Vector");
-  if (params.get_input<float>("X") != output.x) {
-    params.set_input("X", output.x);
-  }
-  if (params.get_input<float>("Y") != output.y) {
-    params.set_input("Y", output.y);
-  }
-  if (params.get_input<float>("Z") != output.z) {
-    params.set_input("Z", output.z);
-  }
+  params.set_input("X", output.x);
+  params.set_input("Y", output.y);
+  params.set_input("Z", output.z);
 }
 
 NODE_SHADER_MATERIALX_BEGIN

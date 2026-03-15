@@ -58,7 +58,12 @@ class InverseEvalParams {
     const bNodeSocket &socket = *node.input_by_identifier(identifier);
     if (const bke::SocketValueVariant *old = socket_values_.lookup_ptr(&socket)) {
       const T value_old = old->get<T>();
-      updated_socket_elems_.add(&socket, value_elem::compare(value_old, value));
+      value_elem::ElemVariant elem = value_elem::compare(value_old, value);
+      if (!elem) {
+        /* No change, don't update. */
+        return;
+      }
+      updated_socket_elems_.add(&socket, elem);
     }
     updated_socket_values_.add(&socket, bke::SocketValueVariant(value));
   }
