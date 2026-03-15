@@ -193,6 +193,14 @@ template<> void socket_data_init_impl(bNodeSocketValueVector &data)
   data.min = -FLT_MAX;
   data.max = FLT_MAX;
 }
+template<> void socket_data_init_impl(bNodeSocketValueIntVector &data)
+{
+  data.subtype = PROP_NONE;
+  data.dimensions = 3;
+  zero_v3_int(data.value);
+  data.min = INT_MIN;
+  data.max = INT_MAX;
+}
 template<> void socket_data_init_impl(bNodeSocketValueRGBA &data)
 {
   static float default_value[] = {0.0f, 0.0f, 0.0f, 1.0f};
@@ -425,6 +433,10 @@ inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueMenu &da
 {
   writer->write_struct(&data);
 }
+inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueIntVector &data)
+{
+  writer->write_struct(&data);
+}
 
 static void socket_data_write(BlendWriter *writer, bNodeTreeInterfaceSocket &socket)
 {
@@ -546,6 +558,10 @@ template<> StringRefNull socket_type_from_data_impl(const bNodeSocketValueSound 
 template<> StringRefNull socket_type_from_data_impl(const bNodeSocketValueMenu & /*data*/)
 {
   return *bke::node_static_socket_type(SOCK_MENU, PROP_NONE);
+}
+template<> StringRefNull socket_type_from_data_impl(const bNodeSocketValueIntVector &data)
+{
+  return *bke::node_static_socket_type(SOCK_INT_VECTOR, data.subtype, data.dimensions);
 }
 
 static StringRefNull socket_type_from_data(const bNodeTreeInterfaceSocket &socket)
@@ -739,11 +755,11 @@ static void item_write_data(BlendWriter *writer, bNodeTreeInterfaceItem &item)
   switch (eNodeTreeInterfaceItemType(item.item_type)) {
     case NODE_INTERFACE_SOCKET: {
       bNodeTreeInterfaceSocket &socket = reinterpret_cast<bNodeTreeInterfaceSocket &>(item);
-      BLO_write_string(writer, socket.name);
-      BLO_write_string(writer, socket.identifier);
-      BLO_write_string(writer, socket.description);
-      BLO_write_string(writer, socket.socket_type);
-      BLO_write_string(writer, socket.default_attribute_name);
+      writer->write_string(socket.name);
+      writer->write_string(socket.identifier);
+      writer->write_string(socket.description);
+      writer->write_string(socket.socket_type);
+      writer->write_string(socket.default_attribute_name);
       if (socket.properties) {
         IDP_BlendWrite(writer, socket.properties);
       }
@@ -753,9 +769,9 @@ static void item_write_data(BlendWriter *writer, bNodeTreeInterfaceItem &item)
     }
     case NODE_INTERFACE_PANEL: {
       bNodeTreeInterfacePanel &panel = reinterpret_cast<bNodeTreeInterfacePanel &>(item);
-      BLO_write_string(writer, panel.name);
-      BLO_write_string(writer, panel.description);
-      BLO_write_pointer_array(writer, panel.items_num, panel.items_array);
+      writer->write_string(panel.name);
+      writer->write_string(panel.description);
+      writer->write_pointer_array(panel.items_num, panel.items_array);
       for (bNodeTreeInterfaceItem *child_item : panel.items()) {
         item_write_struct(writer, *child_item);
       }
@@ -1367,18 +1383,22 @@ bNodeTreeInterfaceSocket *add_interface_socket_from_node(
   const bool is_input = in_out ? bool(*in_out & SOCK_IN) : from_sock.is_input();
 
   bNodeTreeInterfaceSocket *iosock = nullptr;
-  if (from_node.is_group()) {
+
+  /* Try to find an existing node group interface item for the template socket and copy it.
+   * Note: This does not work if the template socket has a different input/output type than the
+   * generated socket. */
+  if (from_node.is_group() && from_sock.is_input() == is_input) {
     if (const bNodeTree *group = reinterpret_cast<const bNodeTree *>(from_node.id)) {
-      /* Copy interface socket directly from source group to avoid loosing data in the process.
-       */
+      /* Copy interface socket directly from source group to avoid loosing data. */
       group->ensure_interface_cache();
       const bNodeTreeInterfaceSocket &src_io_socket =
-          is_input ? *group->interface_inputs()[from_sock.index()] :
-                     *group->interface_outputs()[from_sock.index()];
+          from_sock.is_input() ? *group->interface_inputs()[from_sock.index()] :
+                                 *group->interface_outputs()[from_sock.index()];
       iosock = reinterpret_cast<bNodeTreeInterfaceSocket *>(
           ntree.tree_interface.add_item_copy(src_io_socket.item, nullptr));
     }
   }
+
   if (!iosock) {
     NodeTreeInterfaceSocketFlag flag = NodeTreeInterfaceSocketFlag(0);
     SET_FLAG_FROM_TEST(flag, is_input, NODE_INTERFACE_SOCKET_INPUT);
@@ -1478,6 +1498,16 @@ bNode *create_proxy_const_input_node(const eNodeSocketDatatype socket_type,
       const auto &socket_value = *static_cast<const bNodeSocketValueVector *>(value);
       node_storage.dimensions = socket_value.dimensions;
       copy_v4_v4(node_storage.vector, socket_value.value);
+      anim_basepaths.append(
+          {src_property_path, get_node_property_path(dst_tree, *node, "vector")});
+      return node;
+    }
+    case SOCK_INT_VECTOR: {
+      bNode *node = bke::node_add_node(&C, dst_tree, "FunctionNodeInputIntVector");
+      auto &node_storage = *static_cast<NodeInputIntVector *>(node->storage);
+      const auto &socket_value = *static_cast<const bNodeSocketValueIntVector *>(value);
+      node_storage.dimensions = socket_value.dimensions;
+      copy_v3_v3_int(node_storage.vector, socket_value.value);
       anim_basepaths.append(
           {src_property_path, get_node_property_path(dst_tree, *node, "vector")});
       return node;
@@ -1611,6 +1641,7 @@ bNode *create_proxy_implicit_input_node(const eNodeSocketDatatype socket_type,
     case SOCK_CUSTOM:
     case SOCK_FLOAT:
     case SOCK_RGBA:
+    case SOCK_INT_VECTOR:
     case SOCK_BOOLEAN:
     case SOCK_STRING:
     case SOCK_SHADER:
