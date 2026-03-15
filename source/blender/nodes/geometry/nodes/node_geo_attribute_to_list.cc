@@ -17,6 +17,8 @@
 
 #include "BLO_read_write.hh"
 
+#include "BKE_curves.hh"
+#include "BKE_grease_pencil.hh"
 #include "BKE_screen.hh"
 
 #include "node_geometry_util.hh"
@@ -104,37 +106,134 @@ static void node_geo_exec(GeoNodeExecParams params)
   const NodeGeometryAttributeToList &storage = node_storage(params.node());
   const AttrDomain domain = AttrDomain(storage.domain);
 
-  const Mesh *mesh = geometry_set.get_mesh();
-  if (!mesh) {
+  if (storage.items_num == 0) {
     params.set_default_remaining_outputs();
     return;
   }
-  const int domain_size = mesh->attributes().domain_size(domain);
 
-  const bke::GeometryFieldContext field_context{*mesh, domain};
-  fn::FieldEvaluator field_evaluator{field_context, domain_size};
-  field_evaluator.set_selection(selection_field);
-
-  for (const int item_i : IndexRange(storage.items_num)) {
-    const NodeGeometryAttributeToListItem &item = storage.items[item_i];
-    const std::string identifier = AttributeToListItemsAccessor::socket_identifier_for_item(item);
-    const GField field = params.extract_input<GField>(identifier);
-    field_evaluator.add(field);
+  ResourceScope scope;
+  Vector<fn::FieldEvaluator *> field_evaluators;
+  if (geometry_set.has_mesh()) {
+    const bke::MeshComponent &component = *geometry_set.get_component<bke::MeshComponent>();
+    const int domain_size = component.attribute_domain_size(domain);
+    if (domain_size > 0) {
+      const bke::GeometryFieldContext &field_context = scope.construct<bke::GeometryFieldContext>(
+          component, domain);
+      field_evaluators.append(&scope.construct<fn::FieldEvaluator>(field_context, domain_size));
+    }
+  }
+  if (geometry_set.has_pointcloud()) {
+    const bke::PointCloudComponent &component =
+        *geometry_set.get_component<bke::PointCloudComponent>();
+    const int domain_size = component.attribute_domain_size(domain);
+    if (domain_size > 0) {
+      const bke::GeometryFieldContext &field_context = scope.construct<bke::GeometryFieldContext>(
+          component, domain);
+      field_evaluators.append(&scope.construct<fn::FieldEvaluator>(field_context, domain_size));
+    }
+  }
+  if (geometry_set.has_curves()) {
+    const bke::CurveComponent &component = *geometry_set.get_component<bke::CurveComponent>();
+    const int domain_size = component.attribute_domain_size(domain);
+    if (domain_size > 0) {
+      const bke::GeometryFieldContext &field_context = scope.construct<bke::GeometryFieldContext>(
+          component, domain);
+      field_evaluators.append(&scope.construct<fn::FieldEvaluator>(field_context, domain_size));
+    }
+  }
+  if (geometry_set.has_grease_pencil()) {
+    using namespace bke::greasepencil;
+    const bke::GreasePencilComponent &component =
+        *geometry_set.get_component<bke::GreasePencilComponent>();
+    if (domain == AttrDomain::Layer) {
+      const int domain_size = component.attribute_domain_size(domain);
+      if (domain_size > 0) {
+        const bke::GeometryFieldContext &field_context =
+            scope.construct<bke::GeometryFieldContext>(component, domain);
+        field_evaluators.append(&scope.construct<fn::FieldEvaluator>(field_context, domain_size));
+      }
+    }
+    else {
+      const GreasePencil &grease_pencil = *component.get();
+      for (const int layer_i : grease_pencil.layers().index_range()) {
+        const Layer &layer = grease_pencil.layer(layer_i);
+        const Drawing *drawing = grease_pencil.get_eval_drawing(layer);
+        if (!drawing) {
+          continue;
+        }
+        const int domain_size = drawing->strokes().attributes().domain_size(domain);
+        if (domain_size > 0) {
+          const bke::GeometryFieldContext &field_context =
+              scope.construct<bke::GeometryFieldContext>(grease_pencil, domain, layer_i);
+          field_evaluators.append(
+              &scope.construct<fn::FieldEvaluator>(field_context, domain_size));
+        }
+      }
+    }
+  }
+  if (geometry_set.has_instances()) {
+    const bke::InstancesComponent &component =
+        *geometry_set.get_component<bke::InstancesComponent>();
+    const int domain_size = component.attribute_domain_size(domain);
+    if (domain_size > 0) {
+      const bke::GeometryFieldContext &field_context = scope.construct<bke::GeometryFieldContext>(
+          component, domain);
+      field_evaluators.append(&scope.construct<fn::FieldEvaluator>(field_context, domain_size));
+    }
   }
 
-  field_evaluator.evaluate();
+  if (field_evaluators.is_empty()) {
+    params.set_default_remaining_outputs();
+    return;
+  }
 
-  const IndexMask &mask = field_evaluator.get_evaluated_selection_as_mask();
-  const int mask_size = mask.size();
+  Vector<GField> input_fields(storage.items_num);
+  for (const int item_i : IndexRange(storage.items_num)) {
+    const NodeGeometryAttributeToListItem &item = storage.items[item_i];
+    const std::string identifier = AttributeToListItemsAccessor::socket_identifier_for_item(item);
+    input_fields[item_i] = params.extract_input<GField>(identifier);
+  }
+
+  for (fn::FieldEvaluator *field_evaluator : field_evaluators) {
+    field_evaluator->set_selection(selection_field);
+    for (const int item_i : IndexRange(storage.items_num)) {
+      field_evaluator->add(input_fields[item_i]);
+    }
+  }
+
+  for (fn::FieldEvaluator *field_evaluator : field_evaluators) {
+    field_evaluator->evaluate();
+  }
+
+  Vector<int> output_offsets;
+  output_offsets.append(0);
+  for (fn::FieldEvaluator *field_evaluator : field_evaluators) {
+    const IndexMask &mask = field_evaluator->get_evaluated_selection_as_mask();
+    output_offsets.append(output_offsets.last() + mask.size());
+  }
+  const int output_size = output_offsets.last();
+  if (output_size == 0) {
+    params.set_default_remaining_outputs();
+    return;
+  }
 
   for (const int item_i : IndexRange(storage.items_num)) {
     const NodeGeometryAttributeToListItem &item = storage.items[item_i];
-    const GVArray values = field_evaluator.get_evaluated(item_i);
-    const CPPType &type = values.type();
-    GArray values_array(type, mask_size, NoInitialization{});
-    values.materialize_compressed_to_uninitialized(mask, values_array.data());
+    const CPPType &cpp_type = *bke::socket_type_to_geo_nodes_base_cpp_type(
+        eNodeSocketDatatype(item.socket_type));
+    GArray<> values(cpp_type, output_size, NoInitialization{});
+    for (const int evaluator_i : field_evaluators.index_range()) {
+      const fn::FieldEvaluator &field_evaluator = *field_evaluators[evaluator_i];
+      const IndexMask &mask = field_evaluator.get_evaluated_selection_as_mask();
+      if (!mask.is_empty()) {
+        const GVArray &values_varray = field_evaluator.get_evaluated(item_i);
+        BLI_assert(values_varray.type() == cpp_type);
+        values_varray.materialize_compressed_to_uninitialized(
+            mask, POINTER_OFFSET(values.data(), cpp_type.size * output_offsets[evaluator_i]));
+      }
+    }
     const std::string identifier = AttributeToListItemsAccessor::socket_identifier_for_item(item);
-    params.set_output(identifier, List::from_garray(std::move(values_array)));
+    params.set_output(identifier, List::from_garray(std::move(values)));
   }
 }
 
