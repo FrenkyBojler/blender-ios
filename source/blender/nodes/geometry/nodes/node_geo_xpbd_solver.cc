@@ -767,6 +767,8 @@ class XpbdSolverStep {
         continue;
       }
       const Bundle &bundle = **bundle_ptr;
+      const Bundle *previous_bundle = this->get_previous_bundle(bundle);
+
       /* Retrieve collision plane in world space. */
       const std::optional<float3> position_wo = bundle.lookup<float3>("position");
       const std::optional<float3> normal_wo = bundle.lookup<float3>("normal");
@@ -775,8 +777,11 @@ class XpbdSolverStep {
         continue;
       }
       const float3 prev_position_wo =
-          bundle.lookup<float3>("prev_position").value_or(*position_wo);
-      float3 prev_normal_wo = bundle.lookup<float3>("prev_normal").value_or(*normal_wo);
+          previous_bundle ? previous_bundle->lookup<float3>("position").value_or(*position_wo) :
+                            *position_wo;
+      float3 prev_normal_wo = previous_bundle ?
+                                  previous_bundle->lookup<float3>("normal").value_or(*normal_wo) :
+                                  *normal_wo;
       if (math::is_zero(prev_normal_wo)) {
         prev_normal_wo = *normal_wo;
       }
@@ -864,11 +869,15 @@ class XpbdSolverStep {
         continue;
       }
       const Bundle &bundle = **bundle_ptr;
+      const Bundle *previous_bundle = this->get_previous_bundle(bundle);
       const bke::GeometrySet *geometry = bundle.lookup_ptr<bke::GeometrySet>("geometry");
       const float friction = bundle.lookup<float>("friction").value_or(0.0f);
       const float compliance = bundle.lookup<float>("compliance").value_or(0.0f);
       const bool deforming = bundle.lookup<bool>("deforming").value_or(false);
-      const bke::GeometrySet *prev_geometry = bundle.lookup_ptr<bke::GeometrySet>("prev_geometry");
+      const bke::GeometrySet *prev_geometry = previous_bundle ?
+                                                  previous_bundle->lookup_ptr<bke::GeometrySet>(
+                                                      "geometry") :
+                                                  nullptr;
       if (!geometry) {
         continue;
       }
@@ -2598,6 +2607,15 @@ class XpbdSolverStep {
     }
     GeometryData &geo_data = geometries_.data[geo_data_i];
     return geo_data.attributes.lookup_or_add_for_write_span<T>(name, domain);
+  }
+
+  const Bundle *get_previous_bundle(const Bundle &bundle) const
+  {
+    const BundlePtr *previous_bundle_ptr = bundle.lookup_ptr<BundlePtr>("previous");
+    if (!previous_bundle_ptr || !*previous_bundle_ptr) {
+      return nullptr;
+    }
+    return &**previous_bundle_ptr;
   }
 
   bool behavior_applies_to_geometry(const StringRef behavior_path,
