@@ -1,3 +1,25 @@
+// Copyright (c) 2026 libmv authors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to
+// deal in the Software without restriction, including without limitation the
+// rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+// sell copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+// IN THE SOFTWARE.
+
+#include "libmv/global_pipeline/pipeline.h"
+
 #include "libmv/simple_pipeline/bundle.h"
 #include "libmv/simple_pipeline/initialize_reconstruction.h"
 #include "libmv/simple_pipeline/pipeline.h"
@@ -10,35 +32,6 @@
 
 namespace libmv {
 namespace {
-template <typename T>
-Eigen::Matrix3<T> AngleAxisToRotation(const Eigen::Vector3<T>& aa_vec) {
-  constexpr double EPS = 1e-12;
-
-  T aa_norm = aa_vec.norm();
-  if (aa_norm > EPS) {
-    return Eigen::AngleAxis<T>(aa_norm, aa_vec.normalized()).toRotationMatrix();
-  } else {
-    Eigen::Matrix3<T> R;
-    R(0, 0) = T(1);
-    R(1, 0) = aa_vec[2];
-    R(2, 0) = -aa_vec[1];
-    R(0, 1) = -aa_vec[2];
-    R(1, 1) = T(1);
-    R(2, 1) = aa_vec[0];
-    R(0, 2) = aa_vec[1];
-    R(1, 2) = -aa_vec[0];
-    R(2, 2) = T(1);
-    return R;
-  }
-}
-
-template <typename T>
-Eigen::Vector3<T> RotationToAngleAxis(const Eigen::Matrix3<T>& rot) {
-  Eigen::AngleAxis<T> aa(rot);
-  Eigen::Vector3<T> aa_vec = aa.angle() * aa.axis();
-  return aa_vec;
-}
-
 class GlobalIterationCallback : public ceres::IterationCallback {
  public:
   GlobalIterationCallback(int max_iterations,
@@ -71,15 +64,22 @@ struct RelativeRotationCost {
   bool operator()(const T* const angle_axis_1,
                   const T* const angle_axis_2,
                   T* residuals) const {
-    Eigen::Matrix3<T> global_rotation_1 = AngleAxisToRotation(
-        Eigen::Vector3<T>(angle_axis_1[0], angle_axis_1[1], angle_axis_1[2]));
-    Eigen::Matrix3<T> global_rotation_2 = AngleAxisToRotation(
-        Eigen::Vector3<T>(angle_axis_2[0], angle_axis_2[1], angle_axis_2[2]));
+    typedef Eigen::Matrix<T, 3, 3> Mat3;
+    Mat3 global_rotation_1;
+    ceres::AngleAxisToRotationMatrix(
+      angle_axis_1,
+      global_rotation_1.data());
+    Mat3 global_rotation_2;
+    ceres::AngleAxisToRotationMatrix(
+      angle_axis_2,
+      global_rotation_2.data());
 
-    Eigen::Matrix3<T> error = global_rotation_2.transpose() *
+    Mat3 error = global_rotation_2.transpose() *
                               relative_rotation_.cast<T>() * global_rotation_1;
-    Eigen::Map<Eigen::Vector3<T>> residual_map(residuals);
-    residual_map = -RotationToAngleAxis(error);
+    ceres::RotationMatrixToAngleAxis(error.data(), residuals);
+    residuals[0] = -residuals[0];
+    residuals[1] = -residuals[1];
+    residuals[2] = -residuals[2];
 
     return true;
   }
@@ -97,17 +97,39 @@ bool GlobalEstimateRotations(EuclideanReconstruction* reconstruction,
                              ProgressUpdateCallback* update_callback) {
   ceres::Problem problem;
 
-  // setup parameters
+  // Setup parameters.
   std::unordered_map<int, Vec3> parameters;
   parameters.reserve(reconstruction->AllCameras().size());
-  for (const auto& camera : reconstruction->AllCameras()) {
+  for (const EuclideanCamera& camera : reconstruction->AllCameras()) {
     parameters[camera.image] = RotationToAngleAxis(camera.R);
     problem.AddParameterBlock(parameters[camera.image].data(), 3);
   }
 
-  // setup relative rotation constraints
+  std::unordered_map<int, int> camera_edge_counts;
+  int most_connected_camera_id = -1;
+  int most_connected_camera_edges = 0;
+
   ceres::LossFunction* loss_fn = new ceres::HuberLoss(2 * (EIGEN_PI / 180));
   for (const auto& [pair_id, image_pair] : reconstruction->AllImagePairs()) {
+    if (parameters.count(image_pair.camera_id_1) == 0 ||
+        parameters.count(image_pair.camera_id_2) == 0) {
+      continue;
+    }
+
+    // Find the most connected camera.
+    int camera_id_1_edges = ++camera_edge_counts[image_pair.camera_id_1];
+    if (camera_id_1_edges > most_connected_camera_edges) {
+      most_connected_camera_id = image_pair.camera_id_1;
+      most_connected_camera_edges = camera_id_1_edges;
+    }
+
+    int camera_id_2_edges = ++camera_edge_counts[image_pair.camera_id_2];
+    if (camera_id_2_edges > most_connected_camera_edges) {
+      most_connected_camera_id = image_pair.camera_id_2;
+      most_connected_camera_edges = camera_id_2_edges;
+    }
+
+    // Setup relative rotation constraints.
     ceres::CostFunction* cost_fn = RelativeRotationCost::Create(image_pair.R);
     problem.AddResidualBlock(cost_fn,
                              loss_fn,
@@ -115,9 +137,10 @@ bool GlobalEstimateRotations(EuclideanReconstruction* reconstruction,
                              parameters[image_pair.camera_id_2].data());
   }
 
-  problem.SetParameterBlockConstant(parameters[1].data());
+  // Make the most connected camera constant.
+  problem.SetParameterBlockConstant(parameters[most_connected_camera_id].data());
 
-  // solve
+  // Solve.
   ceres::Solver::Options options;
   options.max_num_iterations = 100;
   options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
@@ -130,16 +153,15 @@ bool GlobalEstimateRotations(EuclideanReconstruction* reconstruction,
   ceres::Solver::Summary summary;
   ceres::Solve(options, &problem, &summary);
 
-  std::cout << "\n=== Ceres Solver Summary ===" << std::endl;
-  std::cout << summary.BriefReport() << std::endl;
-  std::cout << "Total iterations: " << summary.iterations.size() << std::endl;
-  std::cout << "Final cost: " << summary.final_cost << std::endl;
-
   for (auto& camera : reconstruction->AllCameras()) {
     EuclideanCamera* image = reconstruction->CameraForImage(camera.image);
-    image->R = AngleAxisToRotation(parameters[camera.image]);
+    if (parameters[camera.image].norm() < 1e-12) {
+      image->R = Mat3::Identity();
+    } else {
+      image->R = RotationRodrigues(parameters[camera.image]);
+    }
 
-    // Restore the prior position (t = -Rc = R * R_ori * t_ori = R * t_ori)
+    // Restore the prior position (t = -Rc = R * R_ori * t_ori = R * t_ori).
     image->t = (image->R * image->t);
   }
 
@@ -163,11 +185,15 @@ struct BATAPairwiseDirectionError {
                   const T* position2,
                   const T* scale,
                   T* residuals) const {
-    Eigen::Map<Eigen::Matrix<T, 3, 1>> residuals_vec(residuals);
-    residuals_vec =
-        translation_obs_.cast<T>() -
-        scale[0] * (Eigen::Map<const Eigen::Matrix<T, 3, 1>>(position2) -
-                    Eigen::Map<const Eigen::Matrix<T, 3, 1>>(position1));
+    for (int i = 0; i < 3; ++i) {
+      residuals[i] = T(translation_obs_[i]) -
+                     scale[0] * (position2[i] - position1[i]);
+    }
+    // Eigen::Map<Eigen::Matrix<T, 3, 1>> residuals_vec(residuals);
+    // residuals_vec =
+    //     translation_obs_.cast<T>() -
+    //     scale[0] * (Eigen::Map<const Eigen::Matrix<T, 3, 1>>(position2) -
+    //                 Eigen::Map<const Eigen::Matrix<T, 3, 1>>(position1));
     return true;
   }
 
@@ -190,59 +216,32 @@ bool GlobalPositioning(const Tracks& tracks,
   ceres::LossFunction* loss_fn = new ceres::HuberLoss(1e-1);
 
   std::vector<double> scales;
-  // for camera <-> camera constraints:
-  // scales.reserve(reconstruction->AllImagePairs().size() +
-  // tracks.NumMarkers());
   scales.reserve(tracks.NumMarkers());
 
-  // random camera start positions
+  // Randomize camera start positions.
   for (EuclideanCamera& camera : reconstruction->AllCameras()) {
     reconstruction->CameraForImage(camera.image)->t = 100.0 * Vec3::Random();
   }
 
-  // camera <-> camera constraints
-  // TODO: add an option to enable/disable these constraints
-  // for (auto &[pair_id, pair] : reconstruction->AllImagePairs()) {
-  //   const Vec3 translation = -(
-  //     reconstruction->CameraForImage(pair.camera_id_2)->R.inverse()
-  //       * pair.t
-  //   );
-  //   ceres::CostFunction* cost_fn =
-  //   BATAPairwiseDirectionError::Create(translation);
-
-  //   scales.push_back(1);
-  //   double *scale = &scales.back();
-
-  //   problem.AddResidualBlock(
-  //     cost_fn,
-  //     loss_fn,
-  //     reconstruction->CameraForImage(pair.camera_id_1)->t.data(),
-  //     reconstruction->CameraForImage(pair.camera_id_2)->t.data(),
-  //     scale
-  //   );
-
-  //   problem.SetParameterLowerBound(scale, 0, 1e-5);
-  // }
-
-  // random track start positions
+  // Randomize track start positions.
   for (int i = 0; i < tracks.MaxTrack(); i++) {
     if (reconstruction->PointForTrack(i) == NULL) {
       reconstruction->InsertPoint(i, 100.0 * Vec3::Random());
     }
   }
-  // point <-> camera constraints
+  // Add point <-> camera constraints.
   for (int i = 0; i < tracks.MaxTrack(); i++) {
     EuclideanPoint* point = reconstruction->PointForTrack(i);
     for (Marker marker : tracks.MarkersForTrack(i)) {
       EuclideanCamera* camera = reconstruction->CameraForImage(marker.image);
       double xn, yn;
-      // FIXME: inverting distortion is causing all points to go to the bottom
-      // left of the camera frame. camera_intrinsics->InvertIntrinsics(marker.x,
-      // marker.y, &xn, &yn);
+      // FIXME: Inverting distortion is causing all points to go to the bottom
+      // left of the camera frame.
+      // camera_intrinsics->InvertIntrinsics(marker.x, marker.y, &xn, &yn);
       xn = marker.x;
       yn = marker.y;
       const Vec3 translation =
-          camera->R.inverse() * Vec3(xn, yn, 1.0).normalized();
+          camera->R.transpose() * Vec3(xn, yn, 1.0).normalized();
 
       ceres::CostFunction* cost_fn =
           BATAPairwiseDirectionError::Create(translation);
@@ -274,7 +273,7 @@ bool GlobalPositioning(const Tracks& tracks,
         reconstruction->CameraForImage(camera.image)->t.data(), 2);
   }
 
-  // solve
+  // Solve.
   ceres::Solver::Options options;
 
   options.max_num_iterations = 100;
@@ -294,8 +293,6 @@ bool GlobalPositioning(const Tracks& tracks,
 
   ceres::Solve(options, &problem, &summary);
 
-  std::cout << summary.FullReport() << std::endl;
-
   for (EuclideanCamera image : reconstruction->AllCameras()) {
     EuclideanCamera* camera = reconstruction->CameraForImage(image.image);
     camera->t = -(camera->R * camera->t);
@@ -311,12 +308,12 @@ void InternalCompleteReconstruction(
     ProgressUpdateCallback* update_callback = NULL) {
   int max_image = tracks.MaxImage();
 
-  // estimate relative poses
+  // Estimate relative poses.
   for (int i = 1; i <= max_image; i++) {
     for (int j = i + 1; j <= max_image; j++) {
       auto markers = tracks.MarkersForTracksInBothImages(i, j);
 
-      // clear any previous estimation
+      // Clear any previous estimation.
       reconstruction->RemoveCamera(i);
       reconstruction->RemoveCamera(j);
 
@@ -324,6 +321,7 @@ void InternalCompleteReconstruction(
         continue;
       }
       auto camera_id_2 = reconstruction->CameraForImage(j);
+
       ImagePair relative_pose;
       relative_pose.R = camera_id_2->R;
       relative_pose.t = camera_id_2->t;
@@ -336,25 +334,25 @@ void InternalCompleteReconstruction(
                             "Estimating Relative Poses");
   }
 
-  // reset all camera transforms
+  // Reset all camera transforms.
   for (int i = 1; i <= max_image; i++) {
     reconstruction->InsertCamera(i, Mat3::Identity(), Vec3::Zero());
   }
 
-  // rotation averaging
+  // Rotation averaging step.
   update_callback->invoke(0.5f, "Rotation Averaging");
   if (!GlobalEstimateRotations(reconstruction, update_callback)) {
     return;
   }
 
-  // global positioning
+  // Global positioning step.
   update_callback->invoke(0.75f, "Global Positioning");
   if (!GlobalPositioning(
           tracks, camera_intrinsics, reconstruction, update_callback)) {
     return;
   }
 
-  // bundle adjustment
+  // Bundle adjustment step.
   update_callback->invoke(0.9f, "Bundle adjustment");
   EuclideanBundle(tracks, reconstruction);
 

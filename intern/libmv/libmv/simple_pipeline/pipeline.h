@@ -27,8 +27,6 @@
 #include "libmv/simple_pipeline/tracks.h"
 
 namespace libmv {
-
-namespace {
 struct EuclideanPipelineRoutines {
   typedef EuclideanReconstruction Reconstruction;
   typedef EuclideanCamera Camera;
@@ -48,7 +46,6 @@ struct EuclideanPipelineRoutines {
                               const EuclideanCamera& camera,
                               const CameraIntrinsics& intrinsics);
 };
-}  // namespace
 
 /*!
     Estimate camera poses and scene 3D coordinates for all frames and tracks.

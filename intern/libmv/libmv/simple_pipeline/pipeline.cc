@@ -35,7 +35,6 @@
 #endif
 
 namespace libmv {
-namespace {
 
 // These are "strategy" classes which make it possible to use the same code for
 // both projective and euclidean reconstruction.
@@ -72,6 +71,8 @@ Marker EuclideanPipelineRoutines::ProjectMarker(
   reprojected_marker.track = point.track;
   return reprojected_marker;
 }
+
+namespace {
 
 struct ProjectivePipelineRoutines {
   typedef ProjectiveReconstruction Reconstruction;

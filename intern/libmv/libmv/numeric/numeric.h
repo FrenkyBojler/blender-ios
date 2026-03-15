@@ -493,6 +493,13 @@ inline Mat3 RotationFromEulerVector(Vec3 euler_vector) {
   return Mat3::Identity() + w_hat * sin(theta) +
          w_hat * w_hat * (1 - cos(theta));
 }
+
+/// Returns the angle axis vector from a rotation matrix.
+inline Vec3 RotationToAngleAxis(const Mat3& rot) {
+  Eigen::AngleAxis<double> aa(rot);
+  return aa.angle() * aa.axis();
+}
+
 }  // namespace libmv
 
 #endif  // LIBMV_NUMERIC_NUMERIC_H

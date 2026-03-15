@@ -200,8 +200,8 @@ if(WITH_LIBMV)
     third_party/msinttypes/inttypes.h
     third_party/msinttypes/stdint.h
 
-    libmv/global_pipeline/global_pipeline.cc
-    libmv/global_pipeline/global_pipeline.h
+    libmv/global_pipeline/pipeline.cc
+    libmv/global_pipeline/pipeline.h
   )
 
 

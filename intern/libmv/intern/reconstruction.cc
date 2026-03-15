@@ -16,7 +16,7 @@
 #include "libmv/simple_pipeline/reconstruction_scale.h"
 #include "libmv/simple_pipeline/tracks.h"
 
-#include "libmv/global_pipeline/global_pipeline.h"
+#include "libmv/global_pipeline/pipeline.h"
 
 using libmv::CameraIntrinsics;
 using libmv::EuclideanCamera;
@@ -338,7 +338,7 @@ libmv_Reconstruction* libmv_solveGlobal(
   camera_intrinsics = libmv_reconstruction->intrinsics =
       libmv_cameraIntrinsicsCreateFromOptions(libmv_camera_intrinsics_options);
 
-  /* Invert the camera intrinsics/ */
+  /* Invert the camera intrinsics. */
   Tracks normalized_tracks;
   libmv_getNormalizedTracks(tracks, *camera_intrinsics, &normalized_tracks);
 
