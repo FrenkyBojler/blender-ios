@@ -1,1 +1,1 @@
-Referenced by issue #155639, Map range node fills the vram (16GB) in compositor
+Referenced by issue #155639, Using multiple render layer nodes in GPU compositor fills up VRAM
