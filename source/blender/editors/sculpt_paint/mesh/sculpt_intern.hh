@@ -734,20 +734,20 @@ Vector<int> find_symm_verts_mesh(const Depsgraph &depsgraph,
                                  const Object &object,
                                  int original_vert,
                                  float max_distance = std::numeric_limits<float>::max(),
-                                 const bool sorted = true);
+                                 bool sorted = true);
 Vector<int> find_symm_verts_grids(const Object &object,
                                   int original_vert,
                                   float max_distance = std::numeric_limits<float>::max(),
-                                  const bool sorted = true);
+                                  bool sorted = true);
 Vector<int> find_symm_verts_bmesh(const Object &object,
                                   int original_vert,
                                   float max_distance = std::numeric_limits<float>::max(),
-                                  const bool sorted = true);
+                                  bool sorted = true);
 Vector<int> find_symm_verts(const Depsgraph &depsgraph,
                             const Object &object,
                             int original_vert,
                             float max_distance = std::numeric_limits<float>::max(),
-                            const bool sorted = true);
+                            bool sorted = true);
 
 bool node_fully_masked_or_hidden(const bke::pbvh::Node &node);
 bool node_in_sphere(const bke::pbvh::Node &node,
