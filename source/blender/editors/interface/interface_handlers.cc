@@ -8107,7 +8107,7 @@ static int ui_do_but_CURVEPROFILE(
       const short active_type = profile_select_to_active(selection_type);
       pts = profile->path;
       if (i_selected != -1) {
-        /* Deselect all if this one is deselectedpts = profile->path, except if we hold shift. */
+        /* Deselect all if this one is deselected, except if we hold shift. */
         if (event->modifier & KM_SHIFT) {
           if (pts[i_selected].flag & selection_type) { /* If the current point is selected. */
             if (pts[i_selected].flag & active_type) {

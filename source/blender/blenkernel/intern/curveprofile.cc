@@ -1109,6 +1109,8 @@ float *BKE_curveprofile_active_location_get(CurveProfilePoint *pt)
     return &pt->h2_loc[0];
   }
 
+  /* Either the input point itself or its handle should be labeled as active. */
+  BLI_assert_unreachable();
   return nullptr;
 }
 

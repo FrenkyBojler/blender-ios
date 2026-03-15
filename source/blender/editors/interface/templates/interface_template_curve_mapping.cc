@@ -714,11 +714,16 @@ static void curvemap_buttons_layout(Layout *layout,
     curve_runtime->last_pos.x = curve_runtime->last_pt->x;
     curve_runtime->last_pos.y = curve_runtime->last_pt->y;
 
+    /* While the slider controls the active element, all selected points move together.
+     * Contract the slider range so the outermost selected points stay within the clip region. */
     rctf slider_bounds = bounds;
     if (selected_points.size() > 1) {
       rctf selection_bounds;
       BLI_rctf_init_minmax(&selection_bounds);
 
+      /* The slider only shows the active point's position, but moves all selected points by the
+       * same delta. Clamp the range so points at the edges of the selection can't be moved outside
+       * the clip region. */
       for (const CurveMapPoint *cmp : selected_points) {
         const float loc[2] = {cmp->x, cmp->y};
         BLI_rctf_do_minmax_v(&selection_bounds, loc);

@@ -430,11 +430,16 @@ static void CurveProfile_buttons_layout(Layout &layout, PointerRNA *ptr, const R
     curve_runtime->last_pos.x = *last_x_ptr;
     curve_runtime->last_pos.y = *last_y_ptr;
 
+    /* While the slider controls the active element, all selected points move together.
+     * Contract the slider range so the outermost selected points stay within the clip region. */
     rctf slider_bounds = bounds;
     if (selected_points.size() > 1) {
       rctf selection_bounds;
       BLI_rctf_init_minmax(&selection_bounds);
 
+      /* The slider only shows the active point's position, but moves all selected points by the
+       * same delta. Clamp the range so points at the edges of the selection can't be moved outside
+       * the clip region. */
       for (const CurveProfilePoint *pt : selected_points) {
         if (pt->flag & PROF_SELECT) {
           const float loc[2] = {pt->x, pt->y};
@@ -455,7 +460,7 @@ static void CurveProfile_buttons_layout(Layout &layout, PointerRNA *ptr, const R
     }
 
     /* Requires BKE_curveprofile_translate_selection to handle the handle manipulation, no
-     * simpified logic. */
+     * simplified logic. */
     bt = uiDefButF(block,
                    ButtonType::Num,
                    "X:",
