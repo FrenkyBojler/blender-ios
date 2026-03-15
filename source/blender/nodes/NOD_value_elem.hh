@@ -280,9 +280,9 @@ template<typename T> static ElemVariant compare(const T &value_old, const T &val
   }
   else if constexpr (std::is_same_v<T, float3>) {
     VectorElem elem;
-    elem.x.affected = compare(value_old.x, value_new.x);
-    elem.y.affected = compare(value_old.y, value_new.y);
-    elem.z.affected = compare(value_old.z, value_new.z);
+    elem.x = std::get<FloatElem>(compare(value_old.x, value_new.x).elem);
+    elem.y = std::get<FloatElem>(compare(value_old.y, value_new.y).elem);
+    elem.z = std::get<FloatElem>(compare(value_old.z, value_new.z).elem);
     return {elem};
   }
   else if constexpr (std::is_same_v<T, math::Quaternion>) {
