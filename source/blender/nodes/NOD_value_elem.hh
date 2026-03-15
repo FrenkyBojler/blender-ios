@@ -17,9 +17,15 @@
  */
 
 #include <optional>
+#include <type_traits>
 #include <variant>
 
 #include "BLI_hash.hh"
+#include "BLI_math_euler.hh"
+#include "BLI_math_matrix.h"
+#include "BLI_math_matrix_types.hh"
+#include "BLI_math_quaternion_types.hh"
+#include "BLI_math_vector_types.hh"
 
 #include "DNA_node_types.h"
 
@@ -258,6 +264,67 @@ struct ElemVariant {
 
   friend bool operator==(const ElemVariant &a, const ElemVariant &b) = default;
 };
+
+template<typename T> inline constexpr bool always_false_v = false;
+
+template<typename T> static ElemVariant compare(const T &value_old, const T &value_new)
+{
+  if constexpr (std::is_same_v<T, bool>) {
+    return {BoolElem{value_old != value_new}};
+  }
+  else if constexpr (std::is_same_v<T, float>) {
+    return {FloatElem{fabsf(value_old - value_new) > 1e-6f}};
+  }
+  else if constexpr (std::is_integral_v<T>) {
+    return {IntElem{value_old != value_new}};
+  }
+  else if constexpr (std::is_same_v<T, float3>) {
+    VectorElem elem;
+    elem.x.affected = value_old.x != value_new.x;
+    elem.y.affected = value_old.y != value_new.y;
+    elem.z.affected = value_old.z != value_new.z;
+    return {elem};
+  }
+  else if constexpr (std::is_same_v<T, math::Quaternion>) {
+    const float3 euler_old = float3(math::to_euler(value_old).xyz());
+    const math::Quaternion value_new_wrapped = value_new.wrapped_around(value_old);
+    const float3 euler_new = float3(math::to_euler(value_new_wrapped).xyz());
+
+    RotationElem elem;
+    elem.euler = std::get<VectorElem>(compare(euler_old, euler_new).elem);
+    if (elem.euler) {
+      elem.axis = VectorElem::all();
+      elem.angle = FloatElem::all();
+    }
+    return {elem};
+  }
+  else if constexpr (std::is_same_v<T, float4x4>) {
+    float loc_old[3], quat_old[4], scale_old[3];
+    float loc_new[3], quat_new[4], scale_new[3];
+    mat4_decompose(loc_old, quat_old, scale_old, value_old.ptr());
+    mat4_decompose(loc_new, quat_new, scale_new, value_new.ptr());
+
+    MatrixElem elem;
+    elem.translation = std::get<VectorElem>(
+        compare(float3(loc_old), float3(loc_new)).elem);
+    elem.rotation = std::get<RotationElem>(
+        compare(math::Quaternion(quat_old[0], quat_old[1], quat_old[2], quat_old[3]),
+                math::Quaternion(quat_new[0], quat_new[1], quat_new[2], quat_new[3]))
+            .elem);
+    elem.scale = std::get<VectorElem>(
+        compare(float3(scale_old), float3(scale_new)).elem);
+
+    bool non_transform_affected = false;
+    for (const int i : {0, 1, 2, 3}) {
+      non_transform_affected |= value_old[i][3] != value_new[i][3];
+    }
+    elem.any_non_transform = FloatElem{non_transform_affected};
+    return {elem};
+  }
+  else {
+    static_assert(always_false_v<T>, "Unsupported value type for value_elem::compare");
+  }
+}
 
 /** Utility struct to pair a socket with a value element. */
 struct SocketElem {

@@ -9,6 +9,7 @@
 #include "BLI_compute_context.hh"
 
 #include "NOD_geometry_nodes_log.hh"
+#include "NOD_value_elem.hh"
 
 namespace blender {
 
@@ -52,7 +53,8 @@ std::optional<SocketValueVariant> get_logged_socket_value(geo_eval_log::GeoTreeL
 std::optional<bke::SocketValueVariant> convert_single_socket_value(
     const bNodeSocket &old_socket,
     const bNodeSocket &new_socket,
-    const bke::SocketValueVariant &old_value);
+    const bke::SocketValueVariant &old_value,
+    const value_elem::ElemVariant &old_elem);
 
 }  // namespace nodes::inverse_eval
 

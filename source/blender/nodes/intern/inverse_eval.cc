@@ -43,7 +43,8 @@ using namespace value_elem;
 
 std::optional<SocketValueVariant> convert_single_socket_value(const bNodeSocket &old_socket,
                                                               const bNodeSocket &new_socket,
-                                                              const SocketValueVariant &old_value)
+                                                              const SocketValueVariant &old_value,
+                                                              const ElemVariant &old_elem)
 {
   const eNodeSocketDatatype old_type = eNodeSocketDatatype(old_socket.type);
   const eNodeSocketDatatype new_type = eNodeSocketDatatype(new_socket.type);
@@ -65,16 +66,28 @@ std::optional<SocketValueVariant> convert_single_socket_value(const bNodeSocket 
 
     if (old_type == SOCK_VECTOR && new_type == SOCK_FLOAT) {
       /* Need to correct the backward conversion. In backward propagation, we assume a.x == a.y ==
-       * a.z. The different element will be considered as the modified one. */
+       * a.z. The modified element will be considered as the value to be propagated. */
       const float3 vector_value = old_value.get<float3>();
-      if (vector_value.x == vector_value.y) {
-        *(float *)new_value_ptr = vector_value.z;
+      const VectorElem float_elem = std::get<VectorElem>(old_elem.elem);
+      float averaged_value = 0.0;
+      int count = 0;
+
+      if (float_elem.x) {
+        averaged_value += vector_value.x;
+        count++;
       }
-      else if (vector_value.y == vector_value.z) {
-        *(float *)new_value_ptr = vector_value.x;
+      if (float_elem.y) {
+        averaged_value += vector_value.y;
+        count++;
       }
-      else if (vector_value.x == vector_value.z) {
-        *(float *)new_value_ptr = vector_value.y;
+      if (float_elem.z) {
+        averaged_value += vector_value.z;
+        count++;
+      }
+
+      if (count > 0) {
+        averaged_value /= count;
+        *(float *)new_value_ptr = averaged_value;
       }
     }
     return new_value;
@@ -645,6 +658,7 @@ static void backpropagate_socket_values_through_node(
     const NodeInContext &ctx_node,
     geo_eval_log::GeoNodesLog &eval_log,
     Map<SocketInContext, SocketValueVariant> &value_by_socket,
+    Map<SocketInContext, ElemVariant> &elem_by_socket,
     Vector<const bNodeSocket *> &r_modified_inputs)
 {
   const bNode &node = *ctx_node.node;
@@ -690,11 +704,18 @@ static void backpropagate_socket_values_through_node(
   }
 
   Map<const bNodeSocket *, SocketValueVariant> updated_socket_values;
-  InverseEvalParams params{node, old_socket_values, updated_socket_values};
+  Map<const bNodeSocket *, ElemVariant> updated_socket_elems;
+  InverseEvalParams params{node, old_socket_values, updated_socket_values, updated_socket_elems};
   ntype.eval_inverse(params);
   /* Write back new socket values. */
   for (auto &&item : updated_socket_values.items()) {
     const bNodeSocket &socket = *item.key;
+    const std::optional<ElemVariant> ele = updated_socket_elems.lookup_try(&socket);
+    if (ele.has_value()) {
+      if (*ele) {
+        elem_by_socket.add({context, &socket}, *ele); 
+      }
+    }
     value_by_socket.add({context, &socket}, std::move(item.value));
     r_modified_inputs.append(&socket);
   }
@@ -710,6 +731,7 @@ bool backpropagate_socket_values(bContext &C,
 
   bke::ComputeContextCache compute_context_cache;
   Map<SocketInContext, SocketValueVariant> value_by_socket;
+  Map<SocketInContext, ElemVariant> ele_by_socket;
 
   Vector<SocketInContext> initial_sockets;
 
@@ -720,7 +742,8 @@ bool backpropagate_socket_values(bContext &C,
       const std::optional<SocketValueVariant> converted_value = convert_single_socket_value(
           *socket_to_update.socket,
           *socket_to_update.multi_input_link->fromsock,
-          socket_to_update.new_value);
+          socket_to_update.new_value,
+          {});
       if (!converted_value) {
         continue;
       }
@@ -748,7 +771,7 @@ bool backpropagate_socket_values(bContext &C,
       /* Evaluate node. */
       [&](const NodeInContext &ctx_node, Vector<const bNodeSocket *> &r_modified_inputs) {
         backpropagate_socket_values_through_node(
-            ctx_node, eval_log, value_by_socket, r_modified_inputs);
+            ctx_node, eval_log, value_by_socket, ele_by_socket, r_modified_inputs);
       },
       /* Propagate value. */
       [&](const SocketInContext &ctx_from, const SocketInContext &ctx_to) {
@@ -756,8 +779,12 @@ bool backpropagate_socket_values(bContext &C,
         if (!from_value) {
           return false;
         }
+        const ElemVariant *ele = ele_by_socket.lookup_ptr(ctx_from);
+        if (!ele) {
+          return true;
+        }
         const std::optional<SocketValueVariant> converted_value = convert_single_socket_value(
-            *ctx_from.socket, *ctx_to.socket, *from_value);
+            *ctx_from.socket, *ctx_to.socket, *from_value, *ele);
         if (!converted_value) {
           return false;
         }
@@ -810,8 +837,12 @@ bool backpropagate_socket_values(bContext &C,
 InverseEvalParams::InverseEvalParams(
     const bNode &node,
     const Map<const bNodeSocket *, bke::SocketValueVariant> &socket_values,
-    Map<const bNodeSocket *, bke::SocketValueVariant> &updated_socket_values)
-    : socket_values_(socket_values), updated_socket_values_(updated_socket_values), node(node)
+    Map<const bNodeSocket *, bke::SocketValueVariant> &updated_socket_values,
+    Map<const bNodeSocket *, value_elem::ElemVariant> &updated_socket_elems)
+    : socket_values_(socket_values),
+      updated_socket_values_(updated_socket_values),
+      updated_socket_elems_(updated_socket_elems),
+      node(node)
 {
 }
 

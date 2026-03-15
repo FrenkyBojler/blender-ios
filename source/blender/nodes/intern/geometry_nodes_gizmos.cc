@@ -547,7 +547,7 @@ void apply_gizmo_change(
       continue;
     }
     const std::optional<bke::SocketValueVariant> old_value_converted =
-        ie::convert_single_socket_value(*link->fromsock, *link->tosock, *old_value);
+        ie::convert_single_socket_value(*link->fromsock, *link->tosock, *old_value, {});
     if (!old_value_converted) {
       continue;
     }

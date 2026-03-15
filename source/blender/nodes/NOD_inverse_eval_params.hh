@@ -8,6 +8,7 @@
 
 #include "BKE_node_runtime.hh"
 #include "BKE_node_socket_value.hh"
+#include "NOD_value_elem.hh"
 
 namespace blender::nodes::inverse_eval {
 
@@ -24,13 +25,15 @@ class InverseEvalParams {
  private:
   const Map<const bNodeSocket *, bke::SocketValueVariant> &socket_values_;
   Map<const bNodeSocket *, bke::SocketValueVariant> &updated_socket_values_;
+  Map<const bNodeSocket *, value_elem::ElemVariant> &updated_socket_elems_;
 
  public:
   const bNode &node;
 
   InverseEvalParams(const bNode &node,
                     const Map<const bNodeSocket *, bke::SocketValueVariant> &socket_values,
-                    Map<const bNodeSocket *, bke::SocketValueVariant> &updated_socket_values);
+                    Map<const bNodeSocket *, bke::SocketValueVariant> &updated_socket_values,
+                    Map<const bNodeSocket *, value_elem::ElemVariant> &updated_socket_elems);
 
   template<typename T> T get_output(const StringRef identifier) const
   {
@@ -53,6 +56,10 @@ class InverseEvalParams {
   template<typename T> void set_input(const StringRef identifier, T value)
   {
     const bNodeSocket &socket = *node.input_by_identifier(identifier);
+    if (const bke::SocketValueVariant *old = socket_values_.lookup_ptr(&socket)) {
+      const T value_old = old->get<T>();
+      updated_socket_elems_.add(&socket, value_elem::compare(value_old, value));
+    }
     updated_socket_values_.add(&socket, bke::SocketValueVariant(value));
   }
 };
