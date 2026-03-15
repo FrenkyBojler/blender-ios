@@ -41,7 +41,7 @@ struct MovieReconstructContext {
   libmv_Reconstruction *reconstruction;
 
   char object_name[MAX_NAME];
-  TrackingMotionFlag solver;
+  TrackingSolver solver;
 
   libmv_CameraIntrinsicsOptions camera_intrinsics_options;
 
@@ -298,7 +298,7 @@ bool BKE_tracking_reconstruction_check(MovieTracking *tracking,
                                        char *error_msg,
                                        int error_size)
 {
-  if (tracking->settings.solver != TRACKING_MOTION_INCREMENTAL) {
+  if (tracking->settings.solver != TRACKING_SOLVER_INCREMENTAL) {
     /* TODO: check for number of tracks? */
     return true;
   }
@@ -340,7 +340,7 @@ MovieReconstructContext *BKE_tracking_reconstruction_context_new(
 
   STRNCPY_UTF8(context->object_name, tracking_object->name);
 
-  context->solver = TrackingMotionFlag(tracking->settings.solver);
+  context->solver = TrackingSolver(tracking->settings.solver);
 
   context->select_keyframes = (tracking->settings.reconstruction_flag &
                                TRACKING_USE_KEYFRAME_SELECTION) != 0;
@@ -467,7 +467,7 @@ void BKE_tracking_reconstruction_solve(MovieReconstructContext *context,
   reconstructionOptionsFromContext(&reconstruction_options, context);
 
   switch (context->solver) {
-    case TRACKING_MOTION_MODAL: {
+    case TRACKING_SOLVER_MODAL: {
       context->reconstruction = libmv_solveModal(context->tracks,
                                                  &context->camera_intrinsics_options,
                                                  &reconstruction_options,
@@ -475,7 +475,7 @@ void BKE_tracking_reconstruction_solve(MovieReconstructContext *context,
                                                  &progressdata);
       break;
     }
-    case TRACKING_MOTION_INCREMENTAL: {
+    case TRACKING_SOLVER_INCREMENTAL: {
       context->reconstruction = libmv_solveReconstruction(context->tracks,
                                                           &context->camera_intrinsics_options,
                                                           &reconstruction_options,
@@ -489,7 +489,7 @@ void BKE_tracking_reconstruction_solve(MovieReconstructContext *context,
       }
       break;
     }
-    case TRACKING_MOTION_GLOBAL: {
+    case TRACKING_SOLVER_GLOBAL: {
       context->reconstruction = libmv_solveGlobal(context->tracks,
                                                   &context->camera_intrinsics_options,
                                                   &reconstruction_options,

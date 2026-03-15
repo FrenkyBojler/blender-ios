@@ -66,16 +66,12 @@ struct RelativeRotationCost {
                   T* residuals) const {
     typedef Eigen::Matrix<T, 3, 3> Mat3;
     Mat3 global_rotation_1;
-    ceres::AngleAxisToRotationMatrix(
-      angle_axis_1,
-      global_rotation_1.data());
+    ceres::AngleAxisToRotationMatrix(angle_axis_1, global_rotation_1.data());
     Mat3 global_rotation_2;
-    ceres::AngleAxisToRotationMatrix(
-      angle_axis_2,
-      global_rotation_2.data());
+    ceres::AngleAxisToRotationMatrix(angle_axis_2, global_rotation_2.data());
 
-    Mat3 error = global_rotation_2.transpose() *
-                              relative_rotation_.cast<T>() * global_rotation_1;
+    Mat3 error = global_rotation_2.transpose() * relative_rotation_.cast<T>() *
+                 global_rotation_1;
     ceres::RotationMatrixToAngleAxis(error.data(), residuals);
     residuals[0] = -residuals[0];
     residuals[1] = -residuals[1];
@@ -138,7 +134,8 @@ bool GlobalEstimateRotations(EuclideanReconstruction* reconstruction,
   }
 
   // Make the most connected camera constant.
-  problem.SetParameterBlockConstant(parameters[most_connected_camera_id].data());
+  problem.SetParameterBlockConstant(
+      parameters[most_connected_camera_id].data());
 
   // Solve.
   ceres::Solver::Options options;
@@ -153,7 +150,7 @@ bool GlobalEstimateRotations(EuclideanReconstruction* reconstruction,
   ceres::Solver::Summary summary;
   ceres::Solve(options, &problem, &summary);
 
-  for (auto& camera : reconstruction->AllCameras()) {
+  for (const EuclideanCamera& camera : reconstruction->AllCameras()) {
     EuclideanCamera* image = reconstruction->CameraForImage(camera.image);
     if (parameters[camera.image].norm() < 1e-12) {
       image->R = Mat3::Identity();
@@ -186,8 +183,8 @@ struct BATAPairwiseDirectionError {
                   const T* scale,
                   T* residuals) const {
     for (int i = 0; i < 3; ++i) {
-      residuals[i] = T(translation_obs_[i]) -
-                     scale[0] * (position2[i] - position1[i]);
+      residuals[i] =
+          T(translation_obs_[i]) - scale[0] * (position2[i] - position1[i]);
     }
     // Eigen::Map<Eigen::Matrix<T, 3, 1>> residuals_vec(residuals);
     // residuals_vec =
@@ -311,7 +308,7 @@ void InternalCompleteReconstruction(
   // Estimate relative poses.
   for (int i = 1; i <= max_image; i++) {
     for (int j = i + 1; j <= max_image; j++) {
-      auto markers = tracks.MarkersForTracksInBothImages(i, j);
+      vector<Marker> markers = tracks.MarkersForTracksInBothImages(i, j);
 
       // Clear any previous estimation.
       reconstruction->RemoveCamera(i);
@@ -320,7 +317,7 @@ void InternalCompleteReconstruction(
       if (!EuclideanReconstructTwoFrames(markers, reconstruction)) {
         continue;
       }
-      auto camera_id_2 = reconstruction->CameraForImage(j);
+      EuclideanCamera *camera_id_2 = reconstruction->CameraForImage(j);
 
       ImagePair relative_pose;
       relative_pose.R = camera_id_2->R;

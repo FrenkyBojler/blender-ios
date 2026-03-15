@@ -940,13 +940,13 @@ static void rna_def_trackingSettings(BlenderRNA *brna)
   };
 
   static const EnumPropertyItem solver_items[] = {
-      {TRACKING_MOTION_INCREMENTAL,
+      {TRACKING_SOLVER_INCREMENTAL,
        "INCREMENTAL",
        0,
        "Incremental",
        "Solve motion frame-by-frame"},
-      {TRACKING_MOTION_MODAL, "MODAL", 0, "Tripod", "Solve tripod motion"},
-      {TRACKING_MOTION_GLOBAL, "GLOBAL", 0, "Global", "Solve motion altogether"},
+      {TRACKING_SOLVER_MODAL, "MODAL", 0, "Tripod", "Solve tripod motion"},
+      {TRACKING_SOLVER_GLOBAL, "GLOBAL", 0, "Global", "Solve motion altogether"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 

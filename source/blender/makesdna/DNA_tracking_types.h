@@ -81,10 +81,10 @@ enum eTrackFrameMatch {
   TRACK_MATCH_PREVIOUS_FRAME = 1,
 };
 
-enum TrackingMotionFlag {
-  TRACKING_MOTION_INCREMENTAL = 0,
-  TRACKING_MOTION_MODAL = 1,
-  TRACKING_MOTION_GLOBAL = 2,
+enum TrackingSolver {
+  TRACKING_SOLVER_INCREMENTAL = 0,
+  TRACKING_SOLVER_MODAL = 1,
+  TRACKING_SOLVER_GLOBAL = 2,
 };
 
 enum TrackingSpeed {
