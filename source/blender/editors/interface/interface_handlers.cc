@@ -8109,12 +8109,26 @@ static int ui_do_but_CURVEPROFILE(
       if (i_selected != -1) {
         /* Deselect all if this one is deselected, except if we hold shift. */
         if (event->modifier & KM_SHIFT) {
-          if (pts[i_selected].flag & selection_type) { /* If the current point is selected. */
-            if (pts[i_selected].flag & active_type) {
-              BKE_curveprofile_activate_nearest_point(profile, i_selected);
-            }
-            pts[i_selected].flag &= ~(PROF_ACTIVE | PROF_H1_ACTIVE | PROF_H2_ACTIVE);
+          if (pts[i_selected].flag & selection_type) { /* If the current point or handle is selected. */
             pts[i_selected].flag ^= selection_type;
+
+            if (pts[i_selected].flag & active_type) { /* If the current point or handle is active. */
+              pts[i_selected].flag &= ~(PROF_ACTIVE | PROF_H1_ACTIVE | PROF_H2_ACTIVE);
+              if (pts[i_selected].flag & PROF_SELECT) {
+                pts[i_selected].flag |= PROF_ACTIVE;
+              }
+              else if (pts[i_selected].flag & PROF_H1_SELECT) {
+                pts[i_selected].flag |= PROF_H1_ACTIVE;
+              }
+              else if (pts[i_selected].flag & PROF_H2_SELECT) {
+                pts[i_selected].flag |= PROF_H2_ACTIVE;
+              }
+              else {
+                /* If the current point including its handles are d, activate the nearest
+                 * point. */
+                BKE_curveprofile_activate_nearest_point(profile, i_selected);
+              }
+            }
           }
           else {
             for (int a = 0; a < profile->path_len; a++) {

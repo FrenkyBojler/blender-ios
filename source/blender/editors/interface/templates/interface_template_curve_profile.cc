@@ -453,10 +453,10 @@ static void CurveProfile_buttons_layout(Layout &layout, PointerRNA *ptr, const R
         }
       }
 
-      slider_bounds.xmin += curve_runtime->last_pt->x - selection_bounds.xmin;
-      slider_bounds.xmax += curve_runtime->last_pt->x - selection_bounds.xmax;
-      slider_bounds.ymin += curve_runtime->last_pt->y - selection_bounds.ymin;
-      slider_bounds.ymax += curve_runtime->last_pt->y - selection_bounds.ymax;
+      slider_bounds.xmin += curve_runtime->last_pos.x - selection_bounds.xmin;
+      slider_bounds.xmax += curve_runtime->last_pos.x - selection_bounds.xmax;
+      slider_bounds.ymin += curve_runtime->last_pos.y - selection_bounds.ymin;
+      slider_bounds.ymax += curve_runtime->last_pos.y - selection_bounds.ymax;
     }
 
     /* Requires BKE_curveprofile_translate_selection to handle the handle manipulation, no
