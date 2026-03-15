@@ -160,6 +160,10 @@ void BKE_curveprofile_evaluate_length_portion(const struct CurveProfile *profile
                                               float *x_out,
                                               float *y_out);
 CurveProfilePoint *BKE_curveprofile_active_get(CurveProfile *profile);
+
+/**
+ * Return a pointer to the location of the active point or handle associated with a selected point.
+ */
 float *BKE_curveprofile_active_location_get(struct CurveProfilePoint *point);
 
 void BKE_curveprofile_blend_write(struct BlendWriter *writer, const struct CurveProfile *profile);
