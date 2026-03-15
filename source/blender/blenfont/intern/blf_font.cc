@@ -1948,4 +1948,5 @@ bool blf_font_size(FontBLF *font, float size)
 }
 
 /** \} */
+
 }  // namespace blender
