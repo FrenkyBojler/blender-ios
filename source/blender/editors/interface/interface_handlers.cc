@@ -8109,10 +8109,12 @@ static int ui_do_but_CURVEPROFILE(
       if (i_selected != -1) {
         /* Deselect all if this one is deselected, except if we hold shift. */
         if (event->modifier & KM_SHIFT) {
-          if (pts[i_selected].flag & selection_type) { /* If the current point or handle is selected. */
+          if (pts[i_selected].flag & selection_type) {
+            /* If the current point or handle is selected. */
             pts[i_selected].flag ^= selection_type;
 
-            if (pts[i_selected].flag & active_type) { /* If the current point or handle is active. */
+            if (pts[i_selected].flag & active_type) {
+              /* If the current point or handle is active. */
               pts[i_selected].flag &= ~(PROF_ACTIVE | PROF_H1_ACTIVE | PROF_H2_ACTIVE);
               if (pts[i_selected].flag & PROF_SELECT) {
                 pts[i_selected].flag |= PROF_ACTIVE;
