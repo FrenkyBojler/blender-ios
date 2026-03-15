@@ -3,3 +3,4 @@ Referenced by issue #153807, Grease Pencil 5.1 - Drawing primitives can produce 
 Referenced by pull request #153771, Grease Pencil: Export fills with holes
 Referenced by commit bdcae29683f0ef6699e6e85c19636b70ca3c2e5e, Grease Pencil: Export fills with holes
 Referenced by issue #155452, Mesh to curve node does not convert faces anymore
+Referenced by issue #122347, SVG failed import (filled holes in letters)
