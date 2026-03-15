@@ -78,24 +78,28 @@ kernel_image_tile_map(KernelGlobals kg,
                       const ccl_global KernelImageTexture &tex,
                       const uint image_texture_id,
                       const dual2 uv,
-                      ccl_private float2 &xy,
-                      ccl_private bool *r_miss = nullptr)
+                      ccl_private float2 &xy)
 {
-  /* Find mipmap level. */
-
-  const float dudxy = len(make_float2(uv.dx.x, uv.dy.x)) * float(tex.width);
-  const float dvdxy = len(make_float2(uv.dx.y, uv.dy.y)) * float(tex.height);
+  /* Find mipmap level. Use squared lengths to avoid two sqrt operations,
+   * compensating with 0.5 factor on the log2. */
+  const float dudxy_sq = len_squared(make_float2(uv.dx.x, uv.dy.x)) * float(tex.width * tex.width);
+  const float dvdxy_sq = len_squared(make_float2(uv.dx.y, uv.dy.y)) *
+                         float(tex.height * tex.height);
 
   /* Limit max anisotropy ratio, to avoid loading too high mip resolutions
    * for stretched UV coordinates, which don't really benefit from it anyway. */
-  const float maxdxy = max(dudxy, dvdxy);
-  const float mindxy = min(dudxy, dvdxy);
-  const float max_aniso_ratio = 16.0f;
-  const float sampledxy = max(mindxy, maxdxy * (1.0f / max_aniso_ratio));
+  const float maxdxy_sq = max(dudxy_sq, dvdxy_sq);
+  const float mindxy_sq = min(dudxy_sq, dvdxy_sq);
+  const float inv_aniso_ratio_sq = 1.0f / (16.0f * 16.0f);
+  /* Native log2 is faster on GPU. */
+#ifdef __KERNEL_GPU__
+  float flevel = 0.5f * log2(max(mindxy_sq, maxdxy_sq * inv_aniso_ratio_sq));
+#else
+  float flevel = 0.5f * fast_log2f(max(mindxy_sq, maxdxy_sq * inv_aniso_ratio_sq));
+#endif
 
   /* Select mipmap level. */
-  float flevel = fast_log2f(sampledxy);
-  if (sd && sd->lcg_state != 0) {
+  if (sd->lcg_state != 0) {
     /* For rounding instead of flooring. */
     flevel += 0.5f;
     /* Randomize mip level, except for some cases like displacement or importance map. */
@@ -142,30 +146,32 @@ kernel_image_tile_map(KernelGlobals kg,
                         tile_descriptor);
       /* Set bit in request bitmap that will be read back to host. */
       const uint bit_index = tex.tile_descriptor_offset + tile_offset;
+#  ifdef __KERNEL_CUDA__
+      /* TODO: Atomics cause 2x performance regression? But this is not correct. */
+      kernel_data_array(
+          image_texture_tile_request_bits)[bit_index / KERNEL_TILE_REQUEST_BITS_PER_WORD] |=
+          1u << (bit_index % KERNEL_TILE_REQUEST_BITS_PER_WORD);
+#  else
+      /* Set bit in request bitmap that will be read back to host. */
       atomic_fetch_and_or_uint32(
           &kernel_data_array(
               image_texture_tile_request_bits)[bit_index / KERNEL_TILE_REQUEST_BITS_PER_WORD],
           1u << (bit_index % KERNEL_TILE_REQUEST_BITS_PER_WORD));
+#  endif
     }
     if (tile_descriptor == KERNEL_TILE_LOAD_REQUEST) {
-      if (sd) {
-        sd->flag |= SD_CACHE_MISS;
-      }
-      if (r_miss) {
-        *r_miss = true;
-      }
+      sd->flag |= SD_CACHE_MISS;
     }
     return tile_descriptor;
 #else
     /* For CPU, load tile immediately. */
     if (tile_descriptor != KERNEL_TILE_LOAD_FAILED) {
-      (void)r_miss;
       KernelTileDescriptor &p_tile_descriptor =
           kg->image_texture_tile_descriptors.data[tex.tile_descriptor_offset + tile_offset];
       kg->image_load_requested_cpu(image_texture_id,
                                    level,
-                                   tile_x * (1 << tile_size_shift),
-                                   tile_y * (1 << tile_size_shift),
+                                   tile_x << tile_size_shift,
+                                   tile_y << tile_size_shift,
                                    p_tile_descriptor);
       tile_descriptor = p_tile_descriptor;
     }

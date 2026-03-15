@@ -87,8 +87,7 @@ ccl_device_noinline T kernel_image_interp_bicubic(const ccl_global KernelImageIn
 ccl_device float4 kernel_image_interp(KernelGlobals kg,
                                       ccl_private ShaderData *sd,
                                       const int image_texture_id,
-                                      dual2 uv,
-                                      ccl_private bool *r_miss = nullptr)
+                                      dual2 uv)
 {
   if (image_texture_id == KERNEL_IMAGE_NONE) {
     return IMAGE_MISSING_RGBA;
@@ -96,7 +95,9 @@ ccl_device float4 kernel_image_interp(KernelGlobals kg,
   const ccl_global KernelImageTexture &tex = kernel_data_fetch(image_textures, image_texture_id);
   const ccl_global KernelImageInfo *info;
 
-  if (tex.tile_descriptor_offset != UINT_MAX) {
+  float2 sample_uv;
+
+  if (tex.tile_descriptor_offset != KERNEL_TILE_LOAD_NONE) {
     /* Wrapping. */
     if (!kernel_image_tile_wrap(ExtensionType(tex.extension), uv.val)) {
       return zero_float4();
@@ -105,7 +106,7 @@ ccl_device float4 kernel_image_interp(KernelGlobals kg,
     /* Tile mapping */
     float2 xy = zero_float2();
     const KernelTileDescriptor tile_descriptor = kernel_image_tile_map(
-        kg, sd, tex, image_texture_id, uv, xy, r_miss);
+        kg, sd, tex, image_texture_id, uv, xy);
 
     if (!kernel_tile_descriptor_loaded(tile_descriptor)) {
       return (tile_descriptor == KERNEL_TILE_LOAD_FAILED) ? IMAGE_MISSING_RGBA : tex.average_color;
@@ -114,7 +115,7 @@ ccl_device float4 kernel_image_interp(KernelGlobals kg,
     info = &kernel_data_fetch(image_info, kernel_tile_descriptor_image_info_id(tile_descriptor));
 
     /* Convert to normalized space again. */
-    uv.val = make_float2(xy.x * info->inv_width, xy.y * info->inv_height);
+    sample_uv = make_float2(xy.x * info->inv_width, xy.y * info->inv_height);
   }
   else {
     /* Full image sampling. */
@@ -123,6 +124,7 @@ ccl_device float4 kernel_image_interp(KernelGlobals kg,
     }
 
     info = &kernel_data_fetch(image_info, tex.image_info_id);
+    sample_uv = uv.val;
   }
 
   /* float4, byte4, ushort4 and half4 */
@@ -131,11 +133,11 @@ ccl_device float4 kernel_image_interp(KernelGlobals kg,
       texture_type == IMAGE_DATA_TYPE_HALF4 || texture_type == IMAGE_DATA_TYPE_USHORT4)
   {
     if (info->interpolation == INTERPOLATION_CUBIC || info->interpolation == INTERPOLATION_SMART) {
-      return kernel_image_interp_bicubic<float4>(*info, uv.val);
+      return kernel_image_interp_bicubic<float4>(*info, sample_uv);
     }
     else {
       ccl_gpu_image_object_2D tex = (ccl_gpu_image_object_2D)info->data;
-      return ccl_gpu_image_object_read_2D<float4>(tex, uv.val.x, uv.val.y);
+      return ccl_gpu_image_object_read_2D<float4>(tex, sample_uv.x, sample_uv.y);
     }
   }
   /* float, byte and half */
@@ -143,11 +145,11 @@ ccl_device float4 kernel_image_interp(KernelGlobals kg,
     float f;
 
     if (info->interpolation == INTERPOLATION_CUBIC || info->interpolation == INTERPOLATION_SMART) {
-      f = kernel_image_interp_bicubic<float>(*info, uv.val);
+      f = kernel_image_interp_bicubic<float>(*info, sample_uv);
     }
     else {
       ccl_gpu_image_object_2D tex = (ccl_gpu_image_object_2D)info->data;
-      f = ccl_gpu_image_object_read_2D<float>(tex, uv.val.x, uv.val.y);
+      f = ccl_gpu_image_object_read_2D<float>(tex, sample_uv.x, sample_uv.y);
     }
 
     return make_float4(f, f, f, 1.0f);
@@ -157,15 +159,14 @@ ccl_device float4 kernel_image_interp(KernelGlobals kg,
 ccl_device_forceinline float4 kernel_image_interp_with_udim(KernelGlobals kg,
                                                             ccl_private ShaderData *sd,
                                                             const int udim_id,
-                                                            dual2 uv,
-                                                            ccl_private bool *r_miss = nullptr)
+                                                            dual2 uv)
 {
   const int image_texture_id = kernel_image_udim_map(kg, udim_id, uv.val);
   if (image_texture_id == KERNEL_IMAGE_NONE) {
     return IMAGE_MISSING_RGBA;
   }
 
-  return kernel_image_interp(kg, sd, image_texture_id, uv, r_miss);
+  return kernel_image_interp(kg, sd, image_texture_id, uv);
 }
 
 CCL_NAMESPACE_END
