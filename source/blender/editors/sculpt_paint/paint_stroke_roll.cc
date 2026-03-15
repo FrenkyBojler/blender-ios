@@ -31,7 +31,6 @@
 
 #include "BKE_brush.hh"
 #include "BKE_context.hh"
-#include "BKE_curves.hh"
 #include "BKE_object_types.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_types.hh"
@@ -61,134 +60,6 @@ void RollSpline::clear()
   lengths_2d.clear();
   lengths_3d.clear();
   tangents_3d.clear();
-  knots_3d.clear();
-  resolution = kRollResolution;
-}
-
-void RollSpline::smooth_evaluate_3d(int seg, float t, float3 &r_pos, float3 &r_tan) const
-{
-  /* Map polyline segment + t back to Catmull-Rom knot span + parameter.
-   * Each knot span has `resolution` polyline segments, so:
-   *   span = seg / resolution
-   *   u    = (seg % resolution + t) / resolution
-   */
-  const int n_knots = int(knots_3d.size());
-  if (n_knots < 2) {
-    r_pos = poly_3d.is_empty() ? float3(0) : poly_3d[std::min(seg, int(poly_3d.size()) - 1)];
-    r_tan = tangents_3d.is_empty() ? float3(1, 0, 0) : tangents_3d[std::min(seg, int(tangents_3d.size()) - 1)];
-    return;
-  }
-
-  const int resolution = this->resolution;
-  const int span = std::min(seg / resolution, n_knots - 2);
-  const float u = std::clamp(
-      (float(seg % resolution) + t) / float(resolution), 0.0f, 1.0f);
-
-  /* Catmull-Rom control points (clamped at boundaries). */
-  const int i0 = std::max(span - 1, 0);
-  const int i1 = span;
-  const int i2 = std::min(span + 1, n_knots - 1);
-  const int i3 = std::min(span + 2, n_knots - 1);
-
-  r_pos = bke::curves::catmull_rom::interpolate(
-      knots_3d[i0], knots_3d[i1], knots_3d[i2], knots_3d[i3], u);
-
-  /* Tangent = derivative of Catmull-Rom at u.
-   * d/du CR(p0,p1,p2,p3, u) can be computed via the derivative of the
-   * basis functions, or by finite difference at a small epsilon. */
-  constexpr float eps = 1e-3f;
-  const float u_lo = std::max(0.0f, u - eps);
-  const float u_hi = std::min(1.0f, u + eps);
-  const float3 pos_lo = bke::curves::catmull_rom::interpolate(
-      knots_3d[i0], knots_3d[i1], knots_3d[i2], knots_3d[i3], u_lo);
-  const float3 pos_hi = bke::curves::catmull_rom::interpolate(
-      knots_3d[i0], knots_3d[i1], knots_3d[i2], knots_3d[i3], u_hi);
-  r_tan = math::normalize(pos_hi - pos_lo);
-}
-
-void RollSpline::refine_closest_smooth(const float3 &query,
-                                       int poly_seg,
-                                       float poly_t,
-                                       float3 &r_pos,
-                                       float3 &r_tan,
-                                       float &r_arc_len) const
-{
-  const int n_knots = int(knots_3d.size());
-  if (n_knots < 2) {
-    /* Fall back to polyline interpolation when no smooth curve is available. */
-    r_pos = math::interpolate(poly_3d[poly_seg], poly_3d[poly_seg + 1], poly_t);
-    r_tan = math::normalize(
-        math::interpolate(tangents_3d[poly_seg], tangents_3d[poly_seg + 1], poly_t));
-    const float s0 = (poly_seg > 0) ? lengths_3d[poly_seg - 1] : 0.0f;
-    const float s1 = lengths_3d[poly_seg];
-    r_arc_len = s0 + poly_t * (s1 - s0);
-    return;
-  }
-
-  const int res = this->resolution;
-
-  /* Map polyline segment to Catmull-Rom span + parameter u in [0,1]. */
-  int span = std::min(poly_seg / res, n_knots - 2);
-  float u = std::clamp(
-      (float(poly_seg % res) + poly_t) / float(res), 0.0f, 1.0f);
-
-  /* Catmull-Rom control points (clamped at boundaries). */
-  const int i0 = std::max(span - 1, 0);
-  const int i1 = span;
-  const int i2 = std::min(span + 1, n_knots - 1);
-  const int i3 = std::min(span + 2, n_knots - 1);
-  const float3 &k0 = knots_3d[i0];
-  const float3 &k1 = knots_3d[i1];
-  const float3 &k2 = knots_3d[i2];
-  const float3 &k3 = knots_3d[i3];
-
-  /* Catmull-Rom derivative coefficients:
-   *   C(u) = 0.5 * ((2*k1) + (-k0+k2)*u + (2*k0-5*k1+4*k2-k3)*u^2
-   *                 + (-k0+3*k1-3*k2+k3)*u^3)
-   *   C'(u) = 0.5 * (a + 2*b*u + 3*c*u^2)
-   *   C''(u) = 0.5 * (2*b + 6*c*u) = b + 3*c*u
-   */
-  const float3 a = -k0 + k2;
-  const float3 b = 2.0f * k0 - 5.0f * k1 + 4.0f * k2 - k3;
-  const float3 c = -k0 + 3.0f * k1 - 3.0f * k2 + k3;
-
-  /* Newton iterations: find u* where dot(Q - C(u*), C'(u*)) = 0
-   * i.e. the foot point is perpendicular to the curve tangent. */
-  for (int iter = 0; iter < 4; iter++) {
-    const float3 pos = bke::curves::catmull_rom::interpolate(k0, k1, k2, k3, u);
-    const float3 deriv = 0.5f * (a + (2.0f * b + 3.0f * c * u) * u);
-    const float3 diff = query - pos;
-
-    const float f = math::dot(diff, deriv);
-    /* f'(u) = -|C'|^2 + dot(Q - C, C'') */
-    const float3 deriv2 = b + 3.0f * c * u;
-    const float fp = -math::dot(deriv, deriv) + math::dot(diff, deriv2);
-
-    if (std::abs(fp) < 1e-12f) {
-      break;
-    }
-    const float du = f / fp;
-    u = std::clamp(u + du, 0.0f, 1.0f);
-
-    if (std::abs(du) < 1e-6f) {
-      break; /* Converged. */
-    }
-  }
-
-  /* Evaluate position and tangent at the refined parameter. */
-  r_pos = bke::curves::catmull_rom::interpolate(k0, k1, k2, k3, u);
-  const float3 deriv = 0.5f * (a + (2.0f * b + 3.0f * c * u) * u);
-  r_tan = math::normalize(deriv);
-
-  /* Map the refined u back to polyline arc length. The polyline has
-   * `res` segments per knot span, so the continuous polyline
-   * "index" is span * res + u * res. */
-  const float seg_f = float(span * res) + u * float(res);
-  const int seg_i = std::clamp(int(seg_f), 0, int(poly_3d.size()) - 2);
-  const float seg_t = seg_f - float(seg_i);
-  const float s0 = (seg_i > 0) ? lengths_3d[seg_i - 1] : 0.0f;
-  const float s1 = lengths_3d[seg_i];
-  r_arc_len = s0 + seg_t * (s1 - s0);
 }
 
 bool RollSpline::is_empty() const
@@ -236,12 +107,16 @@ void RollSpline::update_lengths()
   }
 }
 
-float2 RollSpline::evaluate_2d(float s) const
+float2 RollSpline::tangent_2d_at_index(int idx) const
 {
-  int seg_idx;
-  float factor;
-  length_parameterize::sample_at_length(lengths_2d, s, seg_idx, factor);
-  return math::interpolate(poly_2d[seg_idx], poly_2d[seg_idx + 1], factor);
+  const int n = int(poly_2d.size());
+  if (n < 2) {
+    return float2(1, 0);
+  }
+  idx = std::clamp(idx, 0, n - 2);
+  const float2 d = poly_2d[idx + 1] - poly_2d[idx];
+  const float len = math::length(d);
+  return (len > 1e-7f) ? d / len : float2(1, 0);
 }
 
 float3 RollSpline::evaluate_3d(float s) const
@@ -250,22 +125,6 @@ float3 RollSpline::evaluate_3d(float s) const
   float factor;
   length_parameterize::sample_at_length(lengths_3d, s, seg_idx, factor);
   return math::interpolate(poly_3d[seg_idx], poly_3d[seg_idx + 1], factor);
-}
-
-float3 RollSpline::tangent_3d(float s) const
-{
-  int seg_idx;
-  float factor;
-  length_parameterize::sample_at_length(lengths_3d, s, seg_idx, factor);
-  return math::normalize(math::interpolate(tangents_3d[seg_idx], tangents_3d[seg_idx + 1], factor));
-}
-
-float2 RollSpline::tangent_2d_at_index(int poly_idx) const
-{
-  poly_idx = std::clamp(poly_idx, 0, int(poly_2d.size()) - 2);
-  float2 dir = poly_2d[poly_idx + 1] - poly_2d[poly_idx];
-  const float len = math::length(dir);
-  return (len > 1e-7f) ? dir / len : float2(1, 0);
 }
 
 void RollSpline::closest_point_3d(const float3 &query,
@@ -296,17 +155,8 @@ void RollSpline::closest_point_3d(const float3 &query,
   const float seg_end = lengths_3d[best_seg];
   r_s = seg_start + best_t * (seg_end - seg_start);
   r_dis = sqrtf(best_dist_sq);
-
-  /* Use smooth Catmull-Rom evaluation for the tangent if knots are available,
-   * otherwise fall back to linear interpolation of polyline tangents. */
-  if (!knots_3d.is_empty()) {
-    float3 smooth_pos;
-    smooth_evaluate_3d(best_seg, best_t, smooth_pos, r_tan);
-  }
-  else {
-    r_tan = math::normalize(
-        math::interpolate(tangents_3d[best_seg], tangents_3d[best_seg + 1], best_t));
-  }
+  r_tan = math::normalize(
+      math::interpolate(tangents_3d[best_seg], tangents_3d[best_seg + 1], best_t));
 }
 
 /** \} */
@@ -356,9 +206,8 @@ void PaintStroke::add_roll_point(const float2 &mouse_in,
          * no real stroke data is lost yet.
          * Accumulate the arc-length of the removed span so that
          * stroke_distance_world_ compensates and the texture stays put. */
-        const int res = roll_spline_.resolution;
-        if (res - 1 < int(roll_spline_.lengths_3d.size())) {
-          stroke_distance_world_ += roll_spline_.lengths_3d[res - 1];
+        if (!roll_spline_.lengths_3d.is_empty()) {
+          stroke_distance_world_ += roll_spline_.lengths_3d[0];
         }
         else if (backward_ext_3d_.size() >= 2) {
           stroke_distance_world_ += math::distance(backward_ext_3d_[0], backward_ext_3d_[1]);
@@ -602,126 +451,26 @@ void PaintStroke::make_roll_spline(bContext * /*C*/)
 
   /* Collect real knots from ring buffer. */
   constexpr int buf_cap = PAINT_MAX_INPUT_SAMPLES;
-  Vector<float2> knots_2d;
-  Vector<float3> knots_3d;
 
   const int oldest = (cur_point_ - num_points_ + buf_cap) % buf_cap;
+
+  /* Combine backward extension + real knots directly as polyline.
+   * No curve evaluation — the grid/CC/LUT surface algorithm handles
+   * smoothing at a higher level. */
+  roll_spline_.clear();
+  roll_spline_.poly_2d.extend(backward_ext_2d_);
+  roll_spline_.poly_3d.extend(backward_ext_3d_);
   for (int i = 0; i < num_points_; i++) {
     const int idx = (oldest + i) % buf_cap;
-    knots_2d.append(points_[idx].mouse_out);
-    knots_3d.append(points_[idx].location);
+    roll_spline_.poly_2d.append(points_[idx].mouse_out);
+    roll_spline_.poly_3d.append(points_[idx].location);
   }
 
-  /* Combine backward extension knots + real knots.
-   * backward_ext ends just before the first real knot (oldest stroke point),
-   * so Catmull-Rom through them gives a smooth transition. */
-  Vector<float2> all_2d;
-  Vector<float3> all_3d;
-  all_2d.extend(backward_ext_2d_);
-  all_3d.extend(backward_ext_3d_);
-  all_2d.extend(knots_2d);
-  all_3d.extend(knots_3d);
-
-  const int n_total = int(all_2d.size());
-  if (n_total < 2) {
+  if (int(roll_spline_.poly_3d.size()) < 2) {
     return;
   }
 
-  /* Adaptive resolution: cap total polyline segments to keep per-vertex
-   * search in spline_uv() fast. With low spacing the knots are very close
-   * together and each span needs only a few subdivisions.
-   * Resolution is computed once (on first call) from the expected maximum
-   * knot count and kept fixed for the entire stroke — changing resolution
-   * mid-stroke would invalidate polyline indices and accumulated arc lengths. */
-  constexpr int kMaxPolySegments = 512;
-  const int n_spans = n_total - 1;
-  if (roll_prev_n_total_ == 0) {
-    /* First call: base resolution on expected peak knot count. */
-    const int max_knots = roll_max_points() + initial_backward_ext_count_ + 2;
-    const int max_spans = std::max(1, max_knots - 1);
-    roll_spline_.resolution = std::max(2, std::min(int(kRollResolution),
-                                                   kMaxPolySegments / max_spans));
-  }
-  const int resolution = roll_spline_.resolution;
-  const int n_back_ext = int(backward_ext_2d_.size());
-
-  /* Check whether we can do an incremental update: only the last 2 spans
-   * need recomputation when a single knot was appended and the front
-   * (backward extension) didn't change. */
-  const bool can_incremental =
-      roll_prev_n_total_ > 0 &&
-      n_back_ext == roll_prev_n_back_ext_ &&
-      n_total == roll_prev_n_total_ + 1;
-
-  const int n_poly = n_spans * resolution + 1;
-
-  if (can_incremental) {
-    /* Incremental: keep the stable polyline prefix, only recompute dirty tail.
-     * Adding knot N affects span N-2 (its clamped i3 now sees the real knot)
-     * and creates the new span N-1.  Everything before span N-2 is unchanged. */
-    const int old_n_spans = roll_prev_n_total_ - 1;
-    const int first_dirty_span = std::max(0, old_n_spans - 1);
-
-    /* Grow vectors to the new size (preserves existing elements). */
-    roll_spline_.poly_2d.resize(n_poly);
-    roll_spline_.poly_3d.resize(n_poly);
-    roll_spline_.knots_3d.resize(n_total);
-    roll_spline_.knots_3d[n_total - 1] = all_3d[n_total - 1];
-
-    /* Overwrite dirty spans + new span. */
-    for (int i = first_dirty_span; i < n_spans; i++) {
-      const int i0 = std::max(i - 1, 0);
-      const int i3 = std::min(i + 2, n_total - 1);
-
-      for (int s = 0; s < resolution; s++) {
-        const int poly_idx = i * resolution + s;
-        const float t = float(s) / float(resolution);
-        roll_spline_.poly_2d[poly_idx] = bke::curves::catmull_rom::interpolate(
-            all_2d[i0], all_2d[i], all_2d[i + 1], all_2d[i3], t);
-        roll_spline_.poly_3d[poly_idx] = bke::curves::catmull_rom::interpolate(
-            all_3d[i0], all_3d[i], all_3d[i + 1], all_3d[i3], t);
-      }
-    }
-    roll_spline_.poly_2d[n_poly - 1] = all_2d.last();
-    roll_spline_.poly_3d[n_poly - 1] = all_3d.last();
-  }
-  else {
-    /* Full rebuild. */
-    roll_spline_.clear();
-    roll_spline_.resolution = resolution;
-
-    roll_spline_.knots_3d.reinitialize(n_total);
-    for (int i = 0; i < n_total; i++) {
-      roll_spline_.knots_3d[i] = all_3d[i];
-    }
-
-    roll_spline_.poly_2d.reinitialize(n_poly);
-    roll_spline_.poly_3d.reinitialize(n_poly);
-
-    int idx = 0;
-    for (int i = 0; i < n_spans; i++) {
-      const int i0 = std::max(i - 1, 0);
-      const int i3 = std::min(i + 2, n_total - 1);
-
-      for (int s = 0; s < resolution; s++) {
-        const float t = float(s) / float(resolution);
-        roll_spline_.poly_2d[idx] = bke::curves::catmull_rom::interpolate(
-            all_2d[i0], all_2d[i], all_2d[i + 1], all_2d[i3], t);
-        roll_spline_.poly_3d[idx] = bke::curves::catmull_rom::interpolate(
-            all_3d[i0], all_3d[i], all_3d[i + 1], all_3d[i3], t);
-        idx++;
-      }
-    }
-    roll_spline_.poly_2d[idx] = all_2d.last();
-    roll_spline_.poly_3d[idx] = all_3d.last();
-  }
-
-  roll_prev_n_total_ = n_total;
-  roll_prev_n_back_ext_ = n_back_ext;
-
-  /* Virtual boundary: backward extension has backward_ext_2d_.size() knots,
-   * each knot transition = resolution polyline points. */
-  n_virtual_poly_points_ = n_back_ext * resolution;
+  n_virtual_poly_points_ = int(backward_ext_2d_.size());
 
   roll_spline_.update_lengths();
 
@@ -887,200 +636,130 @@ void PaintStroke::finish_roll_stroke(bContext *C,
   }
 }
 
-/* ---------------------------------------------------------------------------
- * Closest point on a 3D triangle (Ericson, Real-Time Collision Detection §5.1.5).
- *
- * Returns the squared distance from `query` to the closest point on the
- * triangle (A, B, C).  The barycentric coordinates of the closest point are
- * stored in `r_bary` such that  closest = r_bary.x*A + r_bary.y*B + r_bary.z*C.
- * Degenerate (zero-area) triangles return FLT_MAX so they are skipped. */
-static float closest_point_on_triangle(const float3 &query,
-                                        const float3 &A,
-                                        const float3 &B,
-                                        const float3 &C,
-                                        float3 &r_bary)
+/**
+ * Standard Catmull-Clark subdivision on a rows × cols quad grid.
+ * Produces (2*rows-1) × (2*cols-1) output.
+ * Border columns (c=0, c=cols-1) are pinned to preserve self-intersection
+ * collapse geometry.  All other vertices use standard CC rules:
+ *   - Interior: full CC vertex rule (Q + 2R + V) / 4
+ *   - Boundary rows: 1/8 cubic B-spline rule along the row
+ */
+static void catmull_clark_subdivide_grid(Vector<float3> &grid_pos,
+                                         Vector<float2> &grid_uv,
+                                         int &rows,
+                                         int &cols)
 {
-  const float3 ab = B - A, ac = C - A;
-  if (math::length_squared(math::cross(ab, ac)) < 1e-12f) {
-    r_bary = float3(1, 0, 0);
-    return FLT_MAX;
-  }
+  const int oR = rows, oC = cols;
+  const int nR = 2 * oR - 1;
+  const int nC = 2 * oC - 1;
+  const int fR = oR - 1;
+  const int fC = oC - 1;
 
-  const float3 ap = query - A;
-  const float d1 = math::dot(ab, ap);
-  const float d2 = math::dot(ac, ap);
-  if (d1 <= 0.0f && d2 <= 0.0f) {
-    r_bary = float3(1, 0, 0);
-    return math::distance_squared(query, A);
-  }
+  auto oi = [oC](int r, int c) { return r * oC + c; };
+  auto ni = [nC](int r, int c) { return r * nC + c; };
 
-  const float3 bp = query - B;
-  const float d3 = math::dot(ab, bp);
-  const float d4 = math::dot(ac, bp);
-  if (d3 >= 0.0f && d4 <= d3) {
-    r_bary = float3(0, 1, 0);
-    return math::distance_squared(query, B);
-  }
-
-  const float vc = d1 * d4 - d3 * d2;
-  if (vc <= 0.0f && d1 >= 0.0f && d3 <= 0.0f) {
-    const float v = d1 / (d1 - d3);
-    r_bary = float3(1.0f - v, v, 0.0f);
-    return math::distance_squared(query, A + v * ab);
-  }
-
-  const float3 cp = query - C;
-  const float d5 = math::dot(ab, cp);
-  const float d6 = math::dot(ac, cp);
-  if (d6 >= 0.0f && d5 <= d6) {
-    r_bary = float3(0, 0, 1);
-    return math::distance_squared(query, C);
-  }
-
-  const float vb = d5 * d2 - d1 * d6;
-  if (vb <= 0.0f && d2 >= 0.0f && d6 <= 0.0f) {
-    const float w = d2 / (d2 - d6);
-    r_bary = float3(1.0f - w, 0.0f, w);
-    return math::distance_squared(query, A + w * ac);
-  }
-
-  const float va = d3 * d6 - d5 * d4;
-  if (va <= 0.0f && (d4 - d3) >= 0.0f && (d5 - d6) >= 0.0f) {
-    const float w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
-    r_bary = float3(0.0f, 1.0f - w, w);
-    return math::distance_squared(query, B + w * (C - B));
-  }
-
-  const float denom = 1.0f / (va + vb + vc);
-  const float bv = vb * denom;
-  const float bw = vc * denom;
-  r_bary = float3(1.0f - bv - bw, bv, bw);
-  return math::distance_squared(query, A + bv * ab + bw * ac);
-}
-
-/* ---------------------------------------------------------------------------
- * Catmull-Clark subdivision for a regular grid.
- *
- * Input:  rows × cols grid of (float3 pos, float2 uv), flat row-major.
- * Output: (2*rows-1) × (2*cols-1) grid, same layout.
- * Boundary rule: cubic B-spline (V' = (Vleft + 6V + Vright)/8).
- * Interior rule: standard CC  (V' = (F + 2R + V) / 4). */
-static void catmull_clark_grid(const float3 *in_pos,
-                                const float2 *in_uv,
-                                int rows,
-                                int cols,
-                                float3 *out_pos,
-                                float2 *out_uv,
-                                int &out_rows,
-                                int &out_cols)
-{
-  out_rows = 2 * rows - 1;
-  out_cols = 2 * cols - 1;
-
-  auto I = [cols](int r, int c) { return r * cols + c; };
-  auto O = [&out_cols](int r, int c) { return r * out_cols + c; };
-
-  /* 1. Face points (odd row, odd col). */
-  for (int r = 0; r < rows - 1; r++) {
-    for (int c = 0; c < cols - 1; c++) {
-      const int o = O(2 * r + 1, 2 * c + 1);
-      out_pos[o] = 0.25f * (in_pos[I(r, c)] + in_pos[I(r, c + 1)] +
-                             in_pos[I(r + 1, c)] + in_pos[I(r + 1, c + 1)]);
-      out_uv[o] = 0.25f * (in_uv[I(r, c)] + in_uv[I(r, c + 1)] +
-                            in_uv[I(r + 1, c)] + in_uv[I(r + 1, c + 1)]);
+  /* Face points (avg of 4 quad corners). */
+  Vector<float3> fp(fR * fC);
+  Vector<float2> fu(fR * fC);
+  for (int r = 0; r < fR; r++) {
+    for (int c = 0; c < fC; c++) {
+      fp[r * fC + c] = 0.25f * (grid_pos[oi(r, c)] + grid_pos[oi(r, c + 1)] +
+                                 grid_pos[oi(r + 1, c)] + grid_pos[oi(r + 1, c + 1)]);
+      fu[r * fC + c] = 0.25f * (grid_uv[oi(r, c)] + grid_uv[oi(r, c + 1)] +
+                                 grid_uv[oi(r + 1, c)] + grid_uv[oi(r + 1, c + 1)]);
     }
   }
 
-  /* 2. Edge points. */
-  /* Horizontal edges (even row, odd col). */
-  for (int r = 0; r < rows; r++) {
-    for (int c = 0; c < cols - 1; c++) {
-      const int o = O(2 * r, 2 * c + 1);
-      const bool bnd = (r == 0 || r == rows - 1);
-      if (bnd) {
-        out_pos[o] = 0.5f * (in_pos[I(r, c)] + in_pos[I(r, c + 1)]);
-        out_uv[o] = 0.5f * (in_uv[I(r, c)] + in_uv[I(r, c + 1)]);
+  Vector<float3> np(nR * nC);
+  Vector<float2> nu(nR * nC);
+
+  /* Place face points at odd,odd positions. */
+  for (int r = 0; r < fR; r++) {
+    for (int c = 0; c < fC; c++) {
+      np[ni(2 * r + 1, 2 * c + 1)] = fp[r * fC + c];
+      nu[ni(2 * r + 1, 2 * c + 1)] = fu[r * fC + c];
+    }
+  }
+
+  /* Horizontal edge points (even row, odd col).
+   * Boundary rows: midpoint.  Interior: avg of endpoints + face points. */
+  for (int r = 0; r < oR; r++) {
+    for (int c = 0; c < fC; c++) {
+      if (r == 0 || r == oR - 1) {
+        np[ni(2 * r, 2 * c + 1)] = 0.5f * (grid_pos[oi(r, c)] + grid_pos[oi(r, c + 1)]);
+        nu[ni(2 * r, 2 * c + 1)] = 0.5f * (grid_uv[oi(r, c)] + grid_uv[oi(r, c + 1)]);
       }
       else {
-        const float3 &fp_a = out_pos[O(2 * r - 1, 2 * c + 1)];
-        const float3 &fp_b = out_pos[O(2 * r + 1, 2 * c + 1)];
-        out_pos[o] = 0.25f * (in_pos[I(r, c)] + in_pos[I(r, c + 1)] + fp_a + fp_b);
-        const float2 &fu_a = out_uv[O(2 * r - 1, 2 * c + 1)];
-        const float2 &fu_b = out_uv[O(2 * r + 1, 2 * c + 1)];
-        out_uv[o] = 0.25f * (in_uv[I(r, c)] + in_uv[I(r, c + 1)] + fu_a + fu_b);
+        np[ni(2 * r, 2 * c + 1)] = 0.25f * (grid_pos[oi(r, c)] + grid_pos[oi(r, c + 1)] +
+                                              fp[(r - 1) * fC + c] + fp[r * fC + c]);
+        nu[ni(2 * r, 2 * c + 1)] = 0.25f * (grid_uv[oi(r, c)] + grid_uv[oi(r, c + 1)] +
+                                              fu[(r - 1) * fC + c] + fu[r * fC + c]);
       }
     }
   }
-  /* Vertical edges (odd row, even col). */
-  for (int r = 0; r < rows - 1; r++) {
-    for (int c = 0; c < cols; c++) {
-      const int o = O(2 * r + 1, 2 * c);
-      const bool bnd = (c == 0 || c == cols - 1);
-      if (bnd) {
-        out_pos[o] = 0.5f * (in_pos[I(r, c)] + in_pos[I(r + 1, c)]);
-        out_uv[o] = 0.5f * (in_uv[I(r, c)] + in_uv[I(r + 1, c)]);
+
+  /* Vertical edge points (odd row, even col).
+   * Border columns: midpoint (preserves border polyline).
+   * Interior: avg of endpoints + face points. */
+  for (int r = 0; r < fR; r++) {
+    for (int c = 0; c < oC; c++) {
+      if (c == 0 || c == oC - 1) {
+        np[ni(2 * r + 1, 2 * c)] = 0.5f * (grid_pos[oi(r, c)] + grid_pos[oi(r + 1, c)]);
+        nu[ni(2 * r + 1, 2 * c)] = 0.5f * (grid_uv[oi(r, c)] + grid_uv[oi(r + 1, c)]);
       }
       else {
-        const float3 &fp_l = out_pos[O(2 * r + 1, 2 * c - 1)];
-        const float3 &fp_r = out_pos[O(2 * r + 1, 2 * c + 1)];
-        out_pos[o] = 0.25f * (in_pos[I(r, c)] + in_pos[I(r + 1, c)] + fp_l + fp_r);
-        const float2 &fu_l = out_uv[O(2 * r + 1, 2 * c - 1)];
-        const float2 &fu_r = out_uv[O(2 * r + 1, 2 * c + 1)];
-        out_uv[o] = 0.25f * (in_uv[I(r, c)] + in_uv[I(r + 1, c)] + fu_l + fu_r);
+        np[ni(2 * r + 1, 2 * c)] = 0.25f * (grid_pos[oi(r, c)] + grid_pos[oi(r + 1, c)] +
+                                              fp[r * fC + c - 1] + fp[r * fC + c]);
+        nu[ni(2 * r + 1, 2 * c)] = 0.25f * (grid_uv[oi(r, c)] + grid_uv[oi(r + 1, c)] +
+                                              fu[r * fC + c - 1] + fu[r * fC + c]);
       }
     }
   }
 
-  /* 3. Vertex points (even row, even col). */
-  for (int r = 0; r < rows; r++) {
-    for (int c = 0; c < cols; c++) {
-      const int o = O(2 * r, 2 * c);
-      const bool rb = (r == 0 || r == rows - 1);
-      const bool cb = (c == 0 || c == cols - 1);
-
-      if (rb && cb) {
-        /* Corner: unchanged. */
-        out_pos[o] = in_pos[I(r, c)];
-        out_uv[o] = in_uv[I(r, c)];
+  /* Vertex points (even row, even col).
+   * Border cols: pinned.  Boundary rows: 1/8 rule.  Interior: full CC. */
+  for (int r = 0; r < oR; r++) {
+    for (int c = 0; c < oC; c++) {
+      if (c == 0 || c == oC - 1) {
+        /* Border column: pinned (preserves self-intersection collapse). */
+        np[ni(2 * r, 2 * c)] = grid_pos[oi(r, c)];
+        nu[ni(2 * r, 2 * c)] = grid_uv[oi(r, c)];
       }
-      else if (rb) {
-        /* Top/bottom boundary. */
-        out_pos[o] = (in_pos[I(r, c - 1)] + 6.0f * in_pos[I(r, c)] +
-                      in_pos[I(r, c + 1)]) /
-                     8.0f;
-        out_uv[o] = (in_uv[I(r, c - 1)] + 6.0f * in_uv[I(r, c)] +
-                     in_uv[I(r, c + 1)]) /
-                    8.0f;
-      }
-      else if (cb) {
-        /* Left/right boundary. */
-        out_pos[o] = (in_pos[I(r - 1, c)] + 6.0f * in_pos[I(r, c)] +
-                      in_pos[I(r + 1, c)]) /
-                     8.0f;
-        out_uv[o] = (in_uv[I(r - 1, c)] + 6.0f * in_uv[I(r, c)] +
-                     in_uv[I(r + 1, c)]) /
-                    8.0f;
+      else if (r == 0 || r == oR - 1) {
+        /* Boundary row, interior col: 1/8 rule along row. */
+        np[ni(2 * r, 2 * c)] = (1.0f / 8.0f) *
+                                (grid_pos[oi(r, c - 1)] + 6.0f * grid_pos[oi(r, c)] +
+                                 grid_pos[oi(r, c + 1)]);
+        nu[ni(2 * r, 2 * c)] = (1.0f / 8.0f) *
+                                (grid_uv[oi(r, c - 1)] + 6.0f * grid_uv[oi(r, c)] +
+                                 grid_uv[oi(r, c + 1)]);
       }
       else {
-        /* Interior: V' = (avg_F + 2V + avg_N) / 4. */
-        const float3 avg_F = 0.25f * (out_pos[O(2 * r - 1, 2 * c - 1)] +
-                                       out_pos[O(2 * r - 1, 2 * c + 1)] +
-                                       out_pos[O(2 * r + 1, 2 * c - 1)] +
-                                       out_pos[O(2 * r + 1, 2 * c + 1)]);
-        const float3 avg_N = 0.25f * (in_pos[I(r - 1, c)] + in_pos[I(r + 1, c)] +
-                                       in_pos[I(r, c - 1)] + in_pos[I(r, c + 1)]);
-        out_pos[o] = (avg_F + 2.0f * in_pos[I(r, c)] + avg_N) / 4.0f;
-
-        const float2 avg_Fu = 0.25f * (out_uv[O(2 * r - 1, 2 * c - 1)] +
-                                        out_uv[O(2 * r - 1, 2 * c + 1)] +
-                                        out_uv[O(2 * r + 1, 2 * c - 1)] +
-                                        out_uv[O(2 * r + 1, 2 * c + 1)]);
-        const float2 avg_Nu = 0.25f * (in_uv[I(r - 1, c)] + in_uv[I(r + 1, c)] +
-                                        in_uv[I(r, c - 1)] + in_uv[I(r, c + 1)]);
-        out_uv[o] = (avg_Fu + 2.0f * in_uv[I(r, c)] + avg_Nu) / 4.0f;
+        /* Interior: full CC vertex rule.  n=4: V_new = (Q + 2R + V) / 4. */
+        const float3 Q = 0.25f * (fp[(r - 1) * fC + (c - 1)] + fp[(r - 1) * fC + c] +
+                                   fp[r * fC + (c - 1)] + fp[r * fC + c]);
+        const float2 Qu = 0.25f * (fu[(r - 1) * fC + (c - 1)] + fu[(r - 1) * fC + c] +
+                                    fu[r * fC + (c - 1)] + fu[r * fC + c]);
+        const float3 R = 0.25f *
+                         (0.5f * (grid_pos[oi(r, c - 1)] + grid_pos[oi(r, c)]) +
+                          0.5f * (grid_pos[oi(r, c + 1)] + grid_pos[oi(r, c)]) +
+                          0.5f * (grid_pos[oi(r - 1, c)] + grid_pos[oi(r, c)]) +
+                          0.5f * (grid_pos[oi(r + 1, c)] + grid_pos[oi(r, c)]));
+        const float2 Ru = 0.25f *
+                          (0.5f * (grid_uv[oi(r, c - 1)] + grid_uv[oi(r, c)]) +
+                           0.5f * (grid_uv[oi(r, c + 1)] + grid_uv[oi(r, c)]) +
+                           0.5f * (grid_uv[oi(r - 1, c)] + grid_uv[oi(r, c)]) +
+                           0.5f * (grid_uv[oi(r + 1, c)] + grid_uv[oi(r, c)]));
+        np[ni(2 * r, 2 * c)] = (Q + 2.0f * R + grid_pos[oi(r, c)]) / 4.0f;
+        nu[ni(2 * r, 2 * c)] = (Qu + 2.0f * Ru + grid_uv[oi(r, c)]) / 4.0f;
       }
     }
   }
+
+  grid_pos = std::move(np);
+  grid_uv = std::move(nu);
+  rows = nR;
+  cols = nC;
 }
 
 void PaintStroke::compute_roll_center(StrokeCache &cache) const
@@ -1120,7 +799,7 @@ void PaintStroke::compute_roll_center(StrokeCache &cache) const
    * Each polyline vertex gets a binormal (perpendicular to tangent in the
    * view plane) and left/right border points at ±brush_radius. */
   cache.roll_surface_ready = false;
-  if (U.experimental.use_roll_surface_interp) {
+  {
     const Span<float3> poly = roll_spline_.poly_3d.as_span();
     const Span<float3> tangents = roll_spline_.tangents_3d.as_span();
     /* Build the grid over the FULL stored polyline so that self-intersections
@@ -1284,17 +963,15 @@ void PaintStroke::compute_roll_center(StrokeCache &cache) const
     fix_border_self_intersections(cache.roll_border_left);
     fix_border_self_intersections(cache.roll_border_right);
 
-    /* Build subdivided poly-strip for the dab neighborhood.
+    /* Build subdivided poly-strip over the full stroke polyline.
      *
-     * Borders were collapsed over the full stroke range (above) to detect
-     * all self-intersections.  The grid itself only needs to cover the
-     * area near the current dab — this keeps CC subdivision and Laplacian
-     * smoothing fast by operating on ~60 rows instead of ~350. */
+     * The grid covers the entire recorded polyline so that CC subdivision
+     * and Laplacian smoothing produce consistent results regardless of
+     * which dab is being evaluated.  Only the LUT rasterization is
+     * restricted to the dab neighborhood (via eval_row_lo/hi). */
     {
-      /* Crop range: seg_lo/seg_hi (±3R from dab) + margin for smoothing. */
-      const int grid_lo = std::max(0, cache.roll_seg_lo - 8);
-      const int grid_hi = std::min(count - 1, cache.roll_seg_hi + 8);
-      const int init_rows = grid_hi - grid_lo + 1;
+      const int grid_lo = 0;
+      const int init_rows = count;
       const int init_cols = 3;
       Vector<float3> grid_pos(init_rows * init_cols);
       Vector<float2> grid_uv(init_rows * init_cols);
@@ -1424,6 +1101,11 @@ void PaintStroke::compute_roll_center(StrokeCache &cache) const
         cur_rows = nR;
         cur_cols = nC;
       }
+
+      /* Second CC pass: standard rules for additional smoothing.
+       * Border columns remain pinned; interior vertices get the full
+       * CC vertex rule, producing smoother cross-stroke curvature. */
+      catmull_clark_subdivide_grid(grid_pos, grid_uv, cur_rows, cur_cols);
 
       /* 2D Laplacian smoothing: pin border columns, smooth everything
        * between them (including center).  This curves the cross-stroke
@@ -1701,85 +1383,8 @@ void PaintStroke::spline_uv(const StrokeCache &cache,
     }
   }
 
-  if (!used_lut && cache.roll_center_s >= 0.0f) {
-    /* --- Original closest-point projection with wedge-based V ---
-     *
-     * 1. Coarse search: find the nearest polyline segment (line projection).
-     * 2. V via perpendicular-plane wedge: at each polyline vertex the tangent
-     *    defines a perpendicular plane.  A vertex Q between two consecutive
-     *    planes has signed distances d_lo, d_hi to them.  Interpolating by
-     *    the ratio  t = d_lo / (d_lo - d_hi)  gives iso-V contours that are
-     *    smooth planes fanning between the two perpendiculars — circular arcs
-     *    in 2-D, exactly what curved texture mapping needs.
-     * 3. U = raw closest-point distance (stable, no parameterization needed). */
-    const Span<float3> poly = roll_spline_.poly_3d.as_span();
-    const Span<float> lengths = roll_spline_.lengths_3d.as_span();
-    const Span<float3> tangents = roll_spline_.tangents_3d.as_span();
-
-    /* Use precomputed segment range from compute_roll_center. */
-    const int seg_lo = cache.roll_seg_lo;
-    const int seg_hi = cache.roll_seg_hi;
-
-    const float3 query = float3(co);
-    float best_dist_sq = FLT_MAX;
-    int best_seg = cache.roll_center_seg;
-    float best_t = 0.0f;
-
-    for (int i = seg_lo; i <= seg_hi; i++) {
-      const float3 a = poly[i];
-      const float3 ab = poly[i + 1] - a;
-      const float ab_dot = math::dot(ab, ab);
-      const float t = (ab_dot > 1e-12f) ?
-                          std::clamp(math::dot(query - a, ab) / ab_dot, 0.0f, 1.0f) :
-                          0.0f;
-      const float3 proj = math::interpolate(a, poly[i + 1], t);
-      const float dist_sq = math::distance_squared(query, proj);
-      if (dist_sq < best_dist_sq) {
-        best_dist_sq = dist_sq;
-        best_seg = i;
-        best_t = t;
-      }
-    }
-
-    /* --- V via perpendicular-plane wedge ---
-     *
-     * Signed distance from Q to the perpendicular plane at each endpoint:
-     *   d = dot(Q - P_i, T_i)
-     * where T_i is the (central-difference) tangent at vertex i.
-     * d > 0 means Q is "ahead" of the plane, d < 0 means "behind". */
-    const float d_lo = math::dot(query - poly[best_seg], tangents[best_seg]);
-    const float d_hi = math::dot(query - poly[best_seg + 1], tangents[best_seg + 1]);
-
-    const float seg_start = (best_seg > 0) ? lengths[best_seg - 1] : 0.0f;
-    const float seg_end = lengths[best_seg];
-
-    /* Wedge interpolation: when d_lo > 0 and d_hi < 0 the vertex is inside
-     * the wedge. The ratio gives a smooth arc-length parameter. Falls back
-     * to the closest-point t when the denominator is degenerate. */
-    const float denom = d_lo - d_hi;
-    const float wedge_t = (std::abs(denom) > 1e-12f) ?
-                              std::clamp(d_lo / denom, 0.0f, 1.0f) :
-                              best_t;
-    r_out[1] = seg_start + wedge_t * (seg_end - seg_start);
-
-    /* U = raw closest-point distance (robust, no parameterization artifacts). */
-    r_out[0] = sqrtf(best_dist_sq);
-
-    /* Tangent for signing: interpolate tangents at the wedge parameter. */
-    tan = math::normalize(
-        math::interpolate(tangents[best_seg], tangents[best_seg + 1], wedge_t));
-    p = math::interpolate(poly[best_seg], poly[best_seg + 1], wedge_t);
-
-    /* Sign the perpendicular distance (left/right of stroke). */
-    const float3 diff2 = p - query;
-    float3 cross_vec;
-    cross_v3_v3v3(cross_vec, diff2, tan);
-    if (math::dot(cross_vec, cache.view_normal) < 0.0f) {
-      r_out[0] = -r_out[0];
-    }
-  }
-  else if (!used_lut) {
-    /* Fallback: full closest-point search (used before center is precomputed). */
+  if (!used_lut) {
+    /* Fallback: full closest-point search (used before surface grid is ready). */
     roll_spline_.closest_point_3d(float3(co), r_out[1], tan, r_out[0]);
     p = roll_spline_.evaluate_3d(r_out[1]);
 
@@ -1849,11 +1454,10 @@ void PaintStroke::draw_debug_roll(bContext *C) const
       immEnd();
     }
 
-    /* Tick marks at knot boundaries. */
-    const int roll_res = roll_spline_.resolution;
+    /* Tick marks at each knot point. */
     GPU_line_width(1.5f);
     const float tick_len = 10.0f;
-    for (int i = 0; i < n_pts; i += roll_res) {
+    for (int i = 0; i < n_pts; i++) {
       const float2 tan = roll_spline_.tangent_2d_at_index(std::min(i, n_pts - 2));
       const float2 perp(-tan.y, tan.x);
       const float2 &pt = roll_spline_.poly_2d[i];
@@ -2025,7 +1629,6 @@ void PaintStroke::draw_roll_preview(bContext *C) const
   }
 
   const int n_pts = int(roll_spline_.poly_2d.size());
-  const int res = roll_spline_.resolution;
 
   /* Determine which polyline index corresponds to the last-painted dab.
    * Points from painted_poly onward are "unflushed" and shown as preview. */
@@ -2039,7 +1642,7 @@ void PaintStroke::draw_roll_preview(bContext *C) const
   else {
     const int oldest_idx = (cur_point_ - num_points_ + buf_cap) % buf_cap;
     const int dist = (last_painted_roll_idx_ - oldest_idx + buf_cap) % buf_cap;
-    painted_poly = n_virtual_poly_points_ + dist * res;
+    painted_poly = n_virtual_poly_points_ + dist;
     painted_poly = std::min(painted_poly, n_pts - 1);
   }
 

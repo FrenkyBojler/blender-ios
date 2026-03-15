@@ -808,7 +808,7 @@ struct UserDef_Experimental {
   char write_legacy_blend_file_format = 0;
   char no_data_block_packing = 0;
   char use_paint_debug = 0;
-  char use_roll_surface_interp = 0;
+  char _pad_roll = 0;
   char SANITIZE_AFTER_HERE = {};
   /* The following options are automatically sanitized (set to 0)
    * when the release cycle is not alpha. */

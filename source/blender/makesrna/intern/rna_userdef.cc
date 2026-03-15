@@ -7586,13 +7586,6 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
       prop, "Paint Debug", "Enable paint & sculpt debugging options for developers");
   RNA_def_property_update(prop, 0, "rna_userdef_update");
 
-  prop = RNA_def_property(srna, "use_roll_surface_interp", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "use_roll_surface_interp", 1);
-  RNA_def_property_ui_text(prop,
-                           "Roll Surface Interpolation",
-                           "Use quad-patch surface interpolation for roll texture mapping "
-                           "(experimental alternative to closest-point projection)");
-  RNA_def_property_update(prop, 0, "rna_userdef_update");
 }
 
 static void rna_def_userdef_addon_collection(BlenderRNA *brna, PropertyRNA *cprop)
