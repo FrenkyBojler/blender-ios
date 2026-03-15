@@ -84,27 +84,28 @@ struct UDIMTileUndo {
 /**
  * Contains triangle/pixel data used during texture painting.
  */
-struct NodeData {
+struct PixelNode {
   struct {
     bool dirty : 1;
+    bool rebuild : 1;
   } flags;
 
-  Vector<UDIMTilePixels> tiles;
-  Vector<UDIMTileUndo> undo_regions;
+  Vector<UDIMTilePixels, 0> tiles;
+  Vector<UDIMTileUndo, 0> undo_regions;
 
   struct {
     /** Corresponding index into triangles */
-    Vector<int> tri_indices;
+    Vector<int, 0> tri_indices;
 
     /**
      * Delta barycentric coordinates between 2 neighboring UVs in the U direction.
      *
      * Only the first two coordinates are stored. The third should be recalculated
      */
-    Vector<float2> delta_barycentric_coords;
+    Vector<float2, 0> delta_barycentric_coords;
   } uv_primitives;
 
-  NodeData()
+  PixelNode()
   {
     flags.dirty = false;
   }
@@ -174,7 +175,7 @@ struct NodeData {
 
   static void free_func(void *instance)
   {
-    NodeData *node_data = static_cast<NodeData *>(instance);
+    PixelNode *node_data = static_cast<PixelNode *>(instance);
     MEM_delete(node_data);
   }
 };
@@ -333,22 +334,25 @@ struct CopyPixelTiles {
 /**
  * Storage for texture painting on bke::pbvh::Tree level.
  */
-struct PBVHData {
+struct PixelData {
   /* Per UVPRimitive contains the paint data. */
   Array<int3> vert_tris;
 
   /** Per ImageTile the pixels to copy to fix non-manifold bleeding. */
   CopyPixelTiles tiles_copy_pixels;
 
+  Vector<PixelNode> nodes;
+
+  /* Note, this specifically does *not* clear the above per-node data */
   void clear_data()
   {
     this->vert_tris = {};
   }
 };
 
-NodeData &node_data_get(bke::pbvh::Node &node);
+PixelNode &node_data_get(bke::pbvh::Node &node);
 void mark_image_dirty(bke::pbvh::Node &node, Image &image, ImageUser &image_user);
-PBVHData &data_get(bke::pbvh::Tree &pbvh);
+PixelData &data_get(bke::pbvh::Tree &pbvh);
 void collect_dirty_tiles(bke::pbvh::Node &node, Vector<image::TileNumber> &r_dirty_tiles);
 
 void copy_pixels(bke::pbvh::Tree &pbvh,

@@ -48,8 +48,8 @@ namespace bke::pbvh {
 class Node;
 class Tree;
 namespace pixels {
-struct PBVHData;
-struct NodeData;
+struct PixelData;
+struct PixelNode;
 }  // namespace pixels
 }  // namespace bke::pbvh
 
@@ -110,7 +110,7 @@ class Node : NonCopyable {
   int debug_draw_gen_ = 0;
 
   /** \todo Move storage of image painting data to #Tree or elsewhere. */
-  pixels::NodeData *pixels_ = nullptr;
+  pixels::PixelNode *pixels_ = nullptr;
 
   std::optional<int> parent() const;
   const Bounds<float3> &bounds() const;
@@ -261,7 +261,7 @@ class Tree {
  public:
   std::variant<Vector<MeshNode>, Vector<GridsNode>, Vector<BMeshNode>> nodes_;
 
-  pixels::PBVHData *pixels_ = nullptr;
+  pixels::PixelData *pixels_ = nullptr;
 
   std::unique_ptr<DrawCache> draw_data;
 

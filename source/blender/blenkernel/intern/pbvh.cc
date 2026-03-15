@@ -1690,6 +1690,8 @@ void BKE_pbvh_node_mark_update(bke::pbvh::Node &node)
   node.flag_ |= bke::pbvh::Node::RebuildPixels;
 }
 
+/* TODO: Remove this. The situation it is called in should be handled by clelaring everything,
+ * we do not need to mark each individual node as needing changes */
 void BKE_pbvh_mark_rebuild_pixels(bke::pbvh::Tree &pbvh)
 {
   std::visit(

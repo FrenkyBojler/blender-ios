@@ -170,7 +170,7 @@ class PixelNodesTileData : public Vector<std::reference_wrapper<UDIMTilePixels>>
         [&](auto &nodes) {
           for (bke::pbvh::Node &node : nodes) {
             if (should_add_node(node, image_tile)) {
-              NodeData &node_data = *node.pixels_;
+              PixelNode &node_data = *node.pixels_;
               UDIMTilePixels &tile_pixels = *node_data.find_tile_data(image_tile);
               append(tile_pixels);
             }
@@ -188,7 +188,7 @@ class PixelNodesTileData : public Vector<std::reference_wrapper<UDIMTilePixels>>
     if (node.pixels_ == nullptr) {
       return false;
     }
-    NodeData &node_data = *node.pixels_;
+    PixelNode &node_data = *node.pixels_;
     if (node_data.find_tile_data(image_tile) == nullptr) {
       return false;
     }
@@ -505,7 +505,7 @@ void copy_update(bke::pbvh::Tree &pbvh,
                  ImageUser &image_user,
                  const uv_islands::MeshData &mesh_data)
 {
-  PBVHData &pbvh_data = data_get(pbvh);
+  PixelData &pbvh_data = data_get(pbvh);
   pbvh_data.tiles_copy_pixels.clear();
   const NonManifoldUVEdges non_manifold_edges(mesh_data);
   if (non_manifold_edges.is_empty()) {
@@ -550,7 +550,7 @@ void copy_pixels(bke::pbvh::Tree &pbvh,
                  ImageUser &image_user,
                  image::TileNumber tile_number)
 {
-  PBVHData &pbvh_data = data_get(pbvh);
+  PixelData &pbvh_data = data_get(pbvh);
   std::optional<std::reference_wrapper<CopyPixelTile>> pixel_tile =
       pbvh_data.tiles_copy_pixels.find_tile(tile_number);
   if (!pixel_tile.has_value()) {

@@ -2745,6 +2745,7 @@ void BKE_sculpt_update_object_before_eval(Object *ob_eval)
     IndexMaskMemory memory;
     const IndexMask node_mask = bke::pbvh::all_leaf_nodes(*pbvh, memory);
     pbvh->tag_positions_changed(node_mask);
+    /* TODO: This entire switch statement can be removed, the `BKE_pbvh_node_mark_update` only handles tagging texture painting updates. */
     switch (pbvh->type()) {
       case bke::pbvh::Type::Mesh: {
         MutableSpan<bke::pbvh::MeshNode> nodes = pbvh->nodes<bke::pbvh::MeshNode>();

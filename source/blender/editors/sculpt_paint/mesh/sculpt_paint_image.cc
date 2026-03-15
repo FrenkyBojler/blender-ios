@@ -259,8 +259,8 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
   SculptSession &ss = *object.runtime->sculpt_session;
   const StrokeCache &cache = *ss.cache;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
-  PBVHData &pbvh_data = bke::pbvh::pixels::data_get(pbvh);
-  NodeData &node_data = bke::pbvh::pixels::node_data_get(node);
+  PixelData &pbvh_data = bke::pbvh::pixels::data_get(pbvh);
+  PixelNode &node_data = bke::pbvh::pixels::node_data_get(node);
   const Span<float3> positions = bke::pbvh::vert_positions_eval(depsgraph, object);
 
   BitVector<> brush_test = init_uv_primitives_brush_test(
@@ -368,7 +368,7 @@ static void undo_region_tiles(
   *ty = (y >> ED_IMAGE_UNDO_TILE_BITS);
 }
 
-static void push_undo(const NodeData &node_data,
+static void push_undo(const PixelNode &node_data,
                       Image &image,
                       ImageUser &image_user,
                       const image::ImageTileWrapper &image_tile,
@@ -410,7 +410,7 @@ static void push_undo(const NodeData &node_data,
 
 static void do_push_undo_tile(Image &image, ImageUser &image_user, bke::pbvh::Node &node)
 {
-  NodeData &node_data = bke::pbvh::pixels::node_data_get(node);
+  PixelNode &node_data = bke::pbvh::pixels::node_data_get(node);
 
   ImBuf *tmpibuf = nullptr;
   ImageUser local_image_user = image_user;
