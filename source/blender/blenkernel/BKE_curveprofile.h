@@ -8,6 +8,7 @@
  * \ingroup bke
  */
 
+#include "BLI_math_vector_types.hh"
 #include "DNA_curveprofile_types.h"
 
 namespace blender {
@@ -63,8 +64,7 @@ bool BKE_curveprofile_move_point(struct CurveProfile *profile,
                                  const float delta[2]);
 
 void BKE_curveprofile_translate_selection(struct CurveProfile *profile,
-                                          const float delta_x,
-                                          const float delta_y);
+                                          const blender::float2 &offset);
 
 /**
  * Removes a specific point from the path of control points.

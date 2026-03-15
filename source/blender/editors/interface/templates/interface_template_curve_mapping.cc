@@ -30,7 +30,6 @@
 
 namespace blender::ui {
 
-using blender::float2;
 using blender::Vector;
 
 struct CurveRuntimeProperties {
@@ -755,8 +754,7 @@ static void curvemap_buttons_layout(Layout *layout,
       button_func_set(bt, [cumap, cb, curve_runtime](bContext &C) {
         CurveMap *cuma = cumap->cm + cumap->cur;
         const float dx = curve_runtime->last_pt->x - curve_runtime->last_pos.x;
-        const float2 delta = float2(dx, 0.0f);
-        BKE_curvemap_translate_selection(cuma, delta);
+        BKE_curvemap_translate_selection(cuma, {dx, 0.0f});
         curve_runtime->last_pt->x -= dx;
         BKE_curvemapping_changed(cumap, true);
         rna_update_cb(C, cb);
@@ -791,8 +789,7 @@ static void curvemap_buttons_layout(Layout *layout,
       button_func_set(bt, [cumap, cb, curve_runtime](bContext &C) {
         CurveMap *cuma = cumap->cm + cumap->cur;
         const float dy = curve_runtime->last_pt->y - curve_runtime->last_pos.y;
-        const float2 delta = float2(0.0f, dy);
-        BKE_curvemap_translate_selection(cuma, delta);
+        BKE_curvemap_translate_selection(cuma, {0.0f, dy});
         curve_runtime->last_pt->y -= dy;
         BKE_curvemapping_changed(cumap, true);
         rna_update_cb(C, cb);

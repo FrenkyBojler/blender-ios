@@ -196,13 +196,11 @@ bool BKE_curveprofile_move_point(CurveProfile *profile,
   return false;
 }
 
-void BKE_curveprofile_translate_selection(CurveProfile *profile,
-                                          const float delta_x,
-                                          const float delta_y)
+void BKE_curveprofile_translate_selection(CurveProfile *profile, const blender::float2 &offset)
 {
   for (int i = 0; i < profile->path_len; i++) {
     CurveProfilePoint *pt = &profile->path[i];
-    float delta[2] = {delta_x, delta_y};
+    float delta[2] = {offset.x, offset.y};
 
     /* The main point is selected or all handles are aligned and selected. */
     if ((pt->flag & PROF_SELECT) || ((pt->flag & PROF_H1_SELECT && pt->h1 & HD_ALIGN) &&

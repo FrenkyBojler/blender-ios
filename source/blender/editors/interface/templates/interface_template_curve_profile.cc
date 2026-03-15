@@ -29,8 +29,6 @@
 
 namespace blender::ui {
 
-using blender::float2;
-using blender::StringRefNull;
 using blender::Vector;
 
 struct CurveRuntimeProperties {
@@ -475,7 +473,7 @@ static void CurveProfile_buttons_layout(Layout &layout, PointerRNA *ptr, const R
       float *last_x_ptr = BKE_curveprofile_active_location_get(curve_runtime->last_pt);
       const float dx = *last_x_ptr - curve_runtime->last_pos.x;
       *last_x_ptr -= dx;
-      BKE_curveprofile_translate_selection(profile, dx, 0.0f);
+      BKE_curveprofile_translate_selection(profile, {dx, 0.0f});
       BKE_curveprofile_update(profile, PROF_UPDATE_REMOVE_DOUBLES | PROF_UPDATE_CLIP);
       rna_update_cb(C, cb);
 
@@ -504,7 +502,7 @@ static void CurveProfile_buttons_layout(Layout &layout, PointerRNA *ptr, const R
       float *last_y_ptr = BKE_curveprofile_active_location_get(curve_runtime->last_pt) + 1;
       const float dy = *last_y_ptr - curve_runtime->last_pos.y;
       *last_y_ptr -= dy;
-      BKE_curveprofile_translate_selection(profile, 0.0f, dy);
+      BKE_curveprofile_translate_selection(profile, {0.0f, dy});
       BKE_curveprofile_update(profile, PROF_UPDATE_REMOVE_DOUBLES | PROF_UPDATE_CLIP);
       rna_update_cb(C, cb);
 

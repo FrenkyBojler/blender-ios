@@ -7980,6 +7980,16 @@ static bool point_draw_handles(CurveProfilePoint *point)
          point->flag & PROF_H1_SELECT || point->flag & PROF_H2_SELECT;
 }
 
+static short profile_select_to_active(short selection_type)
+{
+  /* Active flags are the select flags multiplied by #PROF_ACTIVE.
+   * Static asserts ensure this relationship holds if flag values change. */
+  static_assert(PROF_ACTIVE == PROF_SELECT * 8);
+  static_assert(PROF_H1_ACTIVE == PROF_H1_SELECT * 8);
+  static_assert(PROF_H2_ACTIVE == PROF_H2_SELECT * 8);
+  return selection_type * PROF_ACTIVE;
+}
+
 /**
  * Interaction for curve profile widget.
  * \note Uses hardcoded keys rather than the keymap.
@@ -8094,7 +8104,7 @@ static int ui_do_but_CURVEPROFILE(
 
       /* Change the flag for the point(s) if one was selected or added. */
       /* Offset the selection type to get the active type. */
-      const short active_type = selection_type * PROF_ACTIVE;
+      const short active_type = profile_select_to_active(selection_type);
       pts = profile->path;
       if (i_selected != -1) {
         /* Deselect all if this one is deselectedpts = profile->path, except if we hold shift. */
