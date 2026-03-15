@@ -713,7 +713,7 @@ static void backpropagate_socket_values_through_node(
     const std::optional<ElemVariant> ele = updated_socket_elems.lookup_try(&socket);
     if (ele.has_value()) {
       if (*ele) {
-        elem_by_socket.add({context, &socket}, *ele); 
+        elem_by_socket.add({context, &socket}, *ele);
       }
     }
     value_by_socket.add({context, &socket}, std::move(item.value));

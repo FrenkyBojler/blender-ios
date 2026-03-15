@@ -305,14 +305,12 @@ template<typename T> static ElemVariant compare(const T &value_old, const T &val
     mat4_decompose(loc_new, quat_new, scale_new, value_new.ptr());
 
     MatrixElem elem;
-    elem.translation = std::get<VectorElem>(
-        compare(float3(loc_old), float3(loc_new)).elem);
+    elem.translation = std::get<VectorElem>(compare(float3(loc_old), float3(loc_new)).elem);
     elem.rotation = std::get<RotationElem>(
         compare(math::Quaternion(quat_old[0], quat_old[1], quat_old[2], quat_old[3]),
                 math::Quaternion(quat_new[0], quat_new[1], quat_new[2], quat_new[3]))
             .elem);
-    elem.scale = std::get<VectorElem>(
-        compare(float3(scale_old), float3(scale_new)).elem);
+    elem.scale = std::get<VectorElem>(compare(float3(scale_old), float3(scale_new)).elem);
 
     bool non_transform_affected = false;
     for (const int i : {0, 1, 2, 3}) {
