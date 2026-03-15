@@ -106,7 +106,7 @@ void captions_apply_style_single(CaptionsChannelData *captions_data, Scene *scen
       return;
   }
   
-  if(caption->use_custom_style == false) {
+  if(caption->use_custom_style == true) {
     return;
   }
 
@@ -266,7 +266,7 @@ void captions_apply_style_active(Scene *scene){
 }
 
 // TODO: GD;;  Make it call on RNA active change, adn find the right way to do that for the first one (maybe on versioning?)
-CaptionsChannelData *captions_active_ensure(Editing *ed){
+CaptionsChannelData *captions_active_ensure(Editing *ed) {
   if(ed == nullptr){
     return nullptr;
   }

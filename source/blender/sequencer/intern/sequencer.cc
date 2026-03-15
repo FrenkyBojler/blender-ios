@@ -758,6 +758,19 @@ static Strip *strip_duplicate(StripDuplicateContext &ctx,
     }
 
     strip_new->data->stripdata = nullptr;
+
+    /* Handle Captions update */
+    if(strip->type == STRIP_TYPE_TEXT) {      
+      Editing *ed = seq::editing_get(ctx.scene_dst);
+      CaptionsChannelData *captions_data = seq::captions_active_get(ed);
+  
+      if(ed->captions_act_channel != nullptr){
+        if(strip->channel == ed->captions_act_channel->index){
+          // TODO: GD;; Make specific-type later on
+          captions_data->cache_dirty = true;
+        }
+      }
+    }
   }
   else {
     /* sequence type not handled in duplicate! Expect a crash now... */

@@ -562,6 +562,7 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
 
   BKE_reportf(op->reports, RPT_INFO, "%d strips pasted", num_strips_to_paste);
 
+  //captions_data->cache_dirty = true;
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER | NA_ADDED, CTX_data_sequencer_scene(C));
 
   return OPERATOR_FINISHED;

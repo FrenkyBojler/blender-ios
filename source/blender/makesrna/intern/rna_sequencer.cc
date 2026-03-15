@@ -1567,7 +1567,7 @@ static void rna_SequenceEditor_captions_channel_set(PointerRNA *ptr, int value)
 
 static void rna_Caption_use_custom_style_update(Main * /*bmain*/, Scene * scene, PointerRNA * ptr) {
   //TODO: Should allow updating style of single strips, as of now update the whole list
-  Caption *caption = (Caption *) ptr;
+  Caption *caption = (Caption *) ptr->data;
   CaptionsChannelData *captions_data = seq::channel_get_by_index(&seq::editing_get(scene)->channels, caption->strip->channel)->captions_data;
   seq::captions_apply_style_single(captions_data, scene, caption);
 }

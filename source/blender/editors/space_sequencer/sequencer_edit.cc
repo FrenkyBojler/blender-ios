@@ -2519,6 +2519,10 @@ static wmOperatorStatus sequencer_delete_exec(bContext *C, wmOperator *op)
       sequencer_delete_strip_data(C, strip);
     }
   }
+
+  // TODO: GD;; Can be properly removed as single from captions here
+
+
   seq::edit_remove_flagged_strips(scene, seqbasep);
 
   vse::sync_active_scene_and_time_with_scene_strip(*C);
@@ -2528,6 +2532,7 @@ static wmOperatorStatus sequencer_delete_exec(bContext *C, wmOperator *op)
     DEG_id_tag_update(&scene->adt->action->id, ID_RECALC_ANIMATION_NO_FLUSH);
   }
   DEG_relations_tag_update(bmain);
+
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER | NA_REMOVED, scene);
   WM_event_add_notifier(C, NC_SCENE | ND_ANIMCHAN, scene);
   return OPERATOR_FINISHED;
@@ -4355,8 +4360,7 @@ static wmOperatorStatus captions_add_exec(bContext *C, wmOperator *op)
 
     DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
 
-    //seq:captions_mark_cache_dirty() = true; NOT NEEDED
-//    tag_redraw(CTX_wm_region(C), scene);
+    //    tag_redraw(CTX_wm_region(C), scene);
 
     WM_main_add_notifier(NC_SCENE | ND_SEQUENCER | NA_ADDED, CTX_data_sequencer_scene(C));
 
@@ -4375,12 +4379,8 @@ static bool captions_add_poll(bContext *C)
     if(ed == nullptr){
       return false;
     }
+    
     CaptionsChannelData *captions_data = seq::captions_active_get(ed);
-
-    if(captions_data -> cache_dirty) {
-        seq::captions_update_active(scene);
-    }
-
     for (Caption &caption : captions_data->captions) {
         Strip *strip = caption.strip;
         if (strip->intersects_frame(scene, cfra)) {
@@ -4464,10 +4464,6 @@ void SEQUENCER_OT_caption_add(wmOperatorType *ot)
       Strip *strip = seq::add_effect_strip(scene, &ed->seqbase, &load_data);
   
       DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
-  
-      // ed->captions_cache_dirty = true; UNeeded
-  //    tag_redraw(CTX_wm_region(C), scene);
-  
       WM_main_add_notifier(NC_SCENE | ND_SEQUENCER | NA_ADDED, CTX_data_sequencer_scene(C));
   
       return OPERATOR_FINISHED;

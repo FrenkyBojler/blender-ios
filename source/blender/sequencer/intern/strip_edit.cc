@@ -181,11 +181,18 @@ void edit_flag_for_removal(Scene *scene, ListBaseT<Strip> *seqbase, Strip *strip
 
 void edit_remove_flagged_strips(Scene *scene, ListBaseT<Strip> *seqbase)
 {
+  Editing *ed = seq::editing_get(scene);
   for (Strip &strip : seqbase->items_mutable()) {
     if (flag_is_set(strip.runtime->flag, StripRuntimeFlag::MarkForDelete)) {
       if (strip.type == STRIP_TYPE_META) {
         edit_remove_flagged_strips(scene, &strip.seqbase);
+        
+        /* Handle captions removal*/
+        // TODO: GD;; Convert to specific-type later one
+      } else if(strip.type == STRIP_TYPE_TEXT && strip.channel == ed->captions_act_channel->index) {
+        ed->captions_act_channel->captions_data->cache_dirty = true;
       }
+
       free_animdata(scene, &strip);
       BLI_remlink(seqbase, &strip);
       strip_free(scene, &strip);

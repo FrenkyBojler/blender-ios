@@ -108,7 +108,7 @@ bool transform_seqbase_shuffle_ex(ListBaseT<Strip> *seqbasep,
   const int orig_channel = test->channel;
   BLI_assert(ELEM(channel_delta, -1, 1));
 
-  strip_channel_set(test, test->channel + channel_delta);
+  strip_channel_set(test, test->channel + channel_delta, nullptr);
 
   const ListBaseT<SeqTimelineChannel> *channels = channels_displayed_get(editing_get(evil_scene));
   SeqTimelineChannel *channel = channel_get_by_index(channels, test->channel);
@@ -125,7 +125,7 @@ bool transform_seqbase_shuffle_ex(ListBaseT<Strip> *seqbasep,
       break;
     }
 
-    strip_channel_set(test, test->channel + channel_delta);
+    strip_channel_set(test, test->channel + channel_delta, nullptr);
     channel = channel_get_by_index(channels, test->channel);
   }
 
@@ -139,7 +139,7 @@ bool transform_seqbase_shuffle_ex(ListBaseT<Strip> *seqbasep,
       }
     }
 
-    strip_channel_set(test, orig_channel);
+    strip_channel_set(test, orig_channel, nullptr);
 
     new_frame = new_frame + (test->start - test->left_handle()); /* adjust by the startdisp */
     transform_translate_strip(evil_scene, test, new_frame - test->start);
@@ -563,8 +563,20 @@ void transform_offset_after_frame(Scene *scene,
   }
 }
 
-void strip_channel_set(Strip *strip, int channel)
+void strip_channel_set(Strip *strip, int channel, Editing *ed)
 {
+  if(strip-> channel == channel){
+    return;
+  }
+
+  // TODO: GD;; Maybe not best place? Make more accurate, maybe add scene and default with nullptr
+  /* Handle Captions */
+  if(ed != nullptr){
+  if (strip->type == STRIP_TYPE_TEXT && (strip->channel == ed->captions_act_channel->index || channel == ed->captions_act_channel->index)) {
+    ed->captions_act_channel->captions_data->cache_dirty = true;
+  }
+  } 
+
   strip->channel = math::clamp(channel, 1, MAX_CHANNELS);
 }
 
