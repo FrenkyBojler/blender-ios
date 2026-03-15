@@ -188,7 +188,7 @@ void ED_operatormacros_sequencer()
                                     "Duplicate selected strips and move them",
                                     OPTYPE_UNDO | OPTYPE_REGISTER);
   WM_operatortype_macro_define(ot, "SEQUENCER_OT_duplicate");
-  WM_operatortype_macro_define(ot, "TRANSFORM_OT_seq_slide");
+  WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
 
   ot = WM_operatortype_append_macro("SEQUENCER_OT_preview_duplicate_move_linked",
                                     "Duplicate Strips",
@@ -196,8 +196,7 @@ void ED_operatormacros_sequencer()
                                     OPTYPE_UNDO | OPTYPE_REGISTER);
   otmacro = WM_operatortype_macro_define(ot, "SEQUENCER_OT_duplicate");
   RNA_boolean_set(otmacro->ptr, "linked", true);
-  WM_operatortype_macro_define(ot, "TRANSFORM_OT_seq_slide");
-
+  WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
 
   ot = WM_operatortype_append_macro("SEQUENCER_OT_retiming_add_freeze_frame_slide",
                                     "Add Freeze Frame And Slide",
