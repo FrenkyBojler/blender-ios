@@ -70,9 +70,7 @@ void node_axes_to_rotation(float3 primary_in,
 }
 
 [[node]]
-void node_axes_to_rotation_identity(float3 primary_in,
-                                    float3 secondary_in,
-                                    out float4 out_rot)
+void node_axes_to_rotation_identity(float3 primary, float3 secondary, out float4 out_rot)
 {
   out_rot = float4(1.0, 0.0, 0.0, 0.0);
 }

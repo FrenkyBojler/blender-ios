@@ -2,7 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/* Adapted from `to_axis_angle(Quaternion quat)` in `gpu_shader_math_rotation_conversion_lib.glsl`. */
 [[node]]
 void rotation_to_axis_angle(float4 rotation, out float3 axis, out float angle)
 {

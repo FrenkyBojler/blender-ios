@@ -6,8 +6,6 @@
 void rotate_vector(float3 vector, float4 rotation, float3 &result)
 {
   /*
-   * .x = scalar (w)
-   * .yzw = imaginary (x, y, z)
    * Optimized formula used:
    *   v' = v + w * t + cross(qv, t)
    *   where t = 2 * cross(qv, v)

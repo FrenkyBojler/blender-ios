@@ -2,7 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/* Adapted from `to_axis_angle(AxisAngle axis_angle)` in `gpu_shader_math_rotation_conversion_lib.glsl`. */
 [[node]]
 void axis_angle_to_rotation(float3 axis, float angle, out float4 rotation)
 {

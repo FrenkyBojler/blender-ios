@@ -19,10 +19,10 @@ static void node_declare(NodeDeclarationBuilder &b)
 };
 
 static int gpu_shader_invert_rotation(GPUMaterial *mat,
-                    bNode *node,
-                    bNodeExecData * /*execdata*/,
-                    GPUNodeStack *in,
-                    GPUNodeStack *out)
+                                      bNode *node,
+                                      bNodeExecData * /*execdata*/,
+                                      GPUNodeStack *in,
+                                      GPUNodeStack *out)
 {
   return GPU_stack_link(mat, node, "invert_rotation", in, out);
 }

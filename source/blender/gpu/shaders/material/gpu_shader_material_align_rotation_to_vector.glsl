@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "gpu_shader_math_constants_lib.glsl"
 #include "gpu_shader_math_rotation_conversion_lib.glsl"
 
 float3 transform_point_by_quaternion(float3 v, float4 q)
@@ -55,9 +56,11 @@ void node_align_rotation_to_vector_auto_pivot(
   float3 new_axis = vector_;
 
   float3 rotation_axis = cross(old_axis, new_axis);
-  if (length(rotation_axis) == 0.0) {
+  if (is_zero_vector(rotation_axis)) {
+    /* The vectors are linearly dependent, so we fall back to another axis. */
     rotation_axis = cross(old_axis, float3(1.0, 0.0, 0.0));
-    if (length(rotation_axis) == 0.0) {
+    if (is_zero_vector(rotation_axis)) {
+      /* This is now guaranteed to not be zero. */
       rotation_axis = cross(old_axis, float3(0.0, 1.0, 0.0));
     }
   }
@@ -73,15 +76,15 @@ void node_align_rotation_to_vector_auto_pivot(
 }
 
 [[node]]
-void node_align_rotation_to_vector_fixed_pivot(
-    float4 old_rotation,
-    float factor,
-    float3 vector_,
-    float3 local_main_axis,
-    float3 local_pivot_axis,
-    out float4 out_rot)
+void node_align_rotation_to_vector_fixed_pivot(float4 old_rotation,
+                                               float factor,
+                                               float3 vector_,
+                                               float3 local_main_axis,
+                                               float3 local_pivot_axis,
+                                               out float4 out_rot)
 {
   if (all(equal(local_main_axis, local_pivot_axis))) {
+    /* Can't compute any meaningful rotation angle in this case. */
     out_rot = old_rotation;
     return;
   }
@@ -95,6 +98,7 @@ void node_align_rotation_to_vector_fixed_pivot(
 
   float full_angle = angle_signed_on_axis_v3v3_v3(vector_, old_axis, pivot_axis);
   if (full_angle > M_PI) {
+    /* Make sure the point is rotated as little as possible. */
     full_angle -= 2.0 * M_PI;
   }
 

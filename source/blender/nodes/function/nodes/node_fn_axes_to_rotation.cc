@@ -52,23 +52,17 @@ class AxesToRotationFunction : public mf::MultiFunction {
   math::Axis primary_axis_;
   math::Axis secondary_axis_;
   math::Axis tertiary_axis_;
-  bool use_identity_;
 
  public:
-  AxesToRotationFunction(const math::Axis primary_axis,
-                         const math::Axis secondary_axis,
-                         const bool use_identity = false)
-      : primary_axis_(primary_axis), secondary_axis_(secondary_axis), use_identity_(use_identity)
+  AxesToRotationFunction(const math::Axis primary_axis, const math::Axis secondary_axis)
+      : primary_axis_(primary_axis), secondary_axis_(secondary_axis)
   {
-    BLI_assert(use_identity_ || primary_axis_ != secondary_axis_);
-
-    /* Through cancellation this will set the last axis to be the one that's neither the primary
-     * nor secondary axis. */
-    if (!use_identity_) {
+    if (primary_axis_ != secondary_axis_) {
+      /* Through cancellation this will set the last axis to be the one that's neither the primary
+       * nor secondary axis. The equal axes case is handled in call(). */
       tertiary_axis_ = math::Axis::from_int((0 + 1 + 2) - primary_axis.as_int() -
                                             secondary_axis.as_int());
     }
-
     static const mf::Signature signature = []() {
       mf::Signature signature;
       mf::SignatureBuilder builder{"Axes to Rotation", signature};
@@ -84,7 +78,7 @@ class AxesToRotationFunction : public mf::MultiFunction {
   {
     MutableSpan r_rotations = params.uninitialized_single_output<math::Quaternion>(2, "Rotation");
 
-    if (use_identity_) {
+    if (primary_axis_ == secondary_axis_) {
       mask.foreach_index([&](const int64_t i) { r_rotations[i] = math::Quaternion::identity(); });
       return;
     }
@@ -142,14 +136,8 @@ class AxesToRotationFunction : public mf::MultiFunction {
 static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 {
   const bNode &node = builder.node();
-  if (node.custom1 == node.custom2) {
-    builder.construct_and_set_matching_fn<AxesToRotationFunction>(
-        math::Axis::from_int(node.custom1), math::Axis::from_int(node.custom2), true);
-  }
-  else {
-    builder.construct_and_set_matching_fn<AxesToRotationFunction>(
-        math::Axis::from_int(node.custom1), math::Axis::from_int(node.custom2));
-  }
+  builder.construct_and_set_matching_fn<AxesToRotationFunction>(
+      math::Axis::from_int(node.custom1), math::Axis::from_int(node.custom2));
 }
 
 static int gpu_shader_axes_to_rotation(GPUMaterial *mat,

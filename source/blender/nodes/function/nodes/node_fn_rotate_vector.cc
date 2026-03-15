@@ -20,10 +20,10 @@ static void node_declare(NodeDeclarationBuilder &b)
 };
 
 static int gpu_shader_rotate_vector(GPUMaterial *mat,
-                    bNode *node,
-                    bNodeExecData * /*execdata*/,
-                    GPUNodeStack *in,
-                    GPUNodeStack *out)
+                                    bNode *node,
+                                    bNodeExecData * /*execdata*/,
+                                    GPUNodeStack *in,
+                                    GPUNodeStack *out)
 {
   return GPU_stack_link(mat, node, "rotate_vector", in, out);
 }
