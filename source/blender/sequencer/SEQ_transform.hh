@@ -24,11 +24,6 @@ struct TimeMarker;
 
 namespace seq {
 
-struct SeqSlideParams {
-  bool use_restore_handle_selection;
-  bool is_new;
-};
-
 bool transform_strip_can_be_translated(const Strip *strip);
 /**
  * Checks whether the strip functions as a single static display,
@@ -39,12 +34,6 @@ bool transform_single_image_check(const Strip *strip);
 bool transform_test_overlap(const Scene *scene, ListBaseT<Strip> *seqbasep, Strip *test);
 bool transform_test_overlap(const Scene *scene, Strip *strip1, Strip *strip2);
 void transform_translate_strip(Scene *evil_scene, Strip *strip, int delta);
-
-int shuffle_strip_time_offset_get(const Scene *scene,
-                                  Span<Strip *> strips_to_shuffle,
-                                  ListBase *seqbasep,
-                                  char dir);
-
 /**
  * \return 0 if there weren't enough space.
  */

@@ -114,7 +114,6 @@ static void applySeqSlide(TransInfo *t)
 
 struct SeqSlideParams {
   bool use_restore_handle_selection;
-  bool is_new;
 };
 
 static void initSeqSlide(TransInfo *t, wmOperator *op)
@@ -125,11 +124,6 @@ static void initSeqSlide(TransInfo *t, wmOperator *op)
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "use_restore_handle_selection");
   if (op != nullptr && prop != nullptr) {
     ssp->use_restore_handle_selection = RNA_property_boolean_get(op->ptr, prop);
-  }
-
-  prop = RNA_struct_find_property(op->ptr, "is_new");
-  if (op != nullptr && prop != nullptr) {
-    ssp->is_new = RNA_property_boolean_get(op->ptr, prop);
   }
 
   Scene *scene = CTX_data_sequencer_scene(t->context);

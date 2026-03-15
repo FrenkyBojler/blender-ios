@@ -42,12 +42,11 @@
 
 #include "transform.hh"
 #include "transform_convert.hh"
-#include "SEQ_transform.hh"
 
 namespace blender {
 
 namespace ed::transform {
-  
+
 struct TransformModeItem {
   const char *idname;
   int mode;
@@ -1369,79 +1368,6 @@ static void TRANSFORM_OT_edge_bevelweight(wmOperatorType *ot)
   properties_register(ot, P_SNAP);
 }
 
-static bool seq_slide_get_is_new(wmOperator *op)
-{
-  TransInfo *t = static_cast<TransInfo *>(op->customdata);
-  if(t == nullptr) {
-    return false;
-  }
-
-  // The modal itself should initialize this
-  blender::seq::SeqSlideParams *ssp = static_cast<blender::seq::SeqSlideParams *>(t->custom.mode.data);
-  if (ssp == nullptr) {
-    return false;
-  }
-
-  bool is_new = ssp->is_new;
-  return is_new;
-}
-
-static wmOperatorStatus TRANSFORM_OT_seq_slide_modal(bContext *C, wmOperator *op, const wmEvent *event) {
-  bool is_new = seq_slide_get_is_new(op);
-  wmOperatorStatus exit_code = transform_modal(C, op, event);
-  
-  if ((exit_code & (OPERATOR_RUNNING_MODAL | OPERATOR_CANCELLED)) != 0) {
-    return exit_code;
-  }
-  
-  if(is_new) {
-    WM_main_add_notifier(NC_SCENE | ND_SEQUENCER | NA_ADDED, CTX_data_sequencer_scene(C));
-  }
-  
-  return exit_code;
-}
-
-static wmOperatorStatus TRANSFORM_OT_seq_slide_exec(bContext *C, wmOperator *op) {
-  bool is_new = seq_slide_get_is_new(op);
-  wmOperatorStatus exit_code =  transform_exec(C, op);
-  
-  if ((exit_code & (OPERATOR_RUNNING_MODAL | OPERATOR_CANCELLED)) != 0) {
-    return exit_code;
-  }
-  
-  if(is_new) {
-    WM_main_add_notifier(NC_SCENE | ND_SEQUENCER | NA_ADDED, CTX_data_sequencer_scene(C));
-  }
-  
-  return exit_code;}
-
-static wmOperatorStatus TRANSFORM_OT_seq_slide_invoke(bContext *C, wmOperator *op, const wmEvent *event)
-{
-  if (!transformops_data(C, op, event)) {
-    G.moving = 0;
-    return OPERATOR_CANCELLED;
-  }
-
-  /* When modal, allow 'value' to set initial offset. */
-  if ((event == nullptr) && RNA_struct_property_is_set(op->ptr, "value")) {
-    return TRANSFORM_OT_seq_slide_exec(C, op);
-  }
-
-  /* Add temp handler. */
-  WM_event_add_modal_handler(C, op);
-
-  /* Use when modal input has some transformation to begin with. */
-  TransInfo *t = static_cast<TransInfo *>(op->customdata);
-  if ((t->flag & T_NO_CURSOR_WRAP) == 0) {
-    op->flag |= OP_IS_MODAL_GRAB_CURSOR; /* XXX maybe we want this with the gizmo only? */
-  }
-  if (UNLIKELY(!is_zero_v4(t->values_modal_offset))) {
-    transformApply(C, t);
-  }
-
-  return OPERATOR_RUNNING_MODAL;
-}
-
 static void TRANSFORM_OT_seq_slide(wmOperatorType *ot)
 {
   /* Identifiers. */
@@ -1451,9 +1377,9 @@ static void TRANSFORM_OT_seq_slide(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_BLOCKING;
 
   /* API callbacks. */
-  ot->invoke = TRANSFORM_OT_seq_slide_invoke;
-  ot->exec = TRANSFORM_OT_seq_slide_exec;
-  ot->modal = TRANSFORM_OT_seq_slide_modal;
+  ot->invoke = transform_invoke;
+  ot->exec = transform_exec;
+  ot->modal = transform_modal;
   ot->cancel = transform_cancel;
   ot->poll = ED_operator_sequencer_active;
 
@@ -1469,13 +1395,6 @@ static void TRANSFORM_OT_seq_slide(wmOperatorType *ot)
                          false,
                          "Restore Handle Selection",
                          "Restore handle selection after tweaking");
-  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
-
-  prop = RNA_def_boolean(ot->srna,
-                         "is_new",
-                         false,
-                         "New Strip",
-                         "Whether this operation move a new strip or an existing one");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
   WM_operatortype_props_advanced_begin(ot);
