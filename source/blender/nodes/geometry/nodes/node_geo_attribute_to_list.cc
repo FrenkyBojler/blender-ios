@@ -98,6 +98,18 @@ static void node_operators()
   socket_items::ops::make_common_operators<AttributeToListItemsAccessor>();
 }
 
+static void output_empty_lists(GeoNodeExecParams &params)
+{
+  const NodeGeometryAttributeToList &storage = node_storage(params.node());
+  for (const int item_i : IndexRange(storage.items_num)) {
+    const NodeGeometryAttributeToListItem &item = storage.items[item_i];
+    const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
+    const CPPType &cpp_type = *bke::socket_type_to_geo_nodes_base_cpp_type(socket_type);
+    const std::string identifier = AttributeToListItemsAccessor::socket_identifier_for_item(item);
+    params.set_output(identifier, List::from_garray(GArray(cpp_type)));
+  }
+}
+
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
@@ -107,7 +119,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const AttrDomain domain = AttrDomain(storage.domain);
 
   if (storage.items_num == 0) {
-    params.set_default_remaining_outputs();
+    output_empty_lists(params);
     return;
   }
 
@@ -183,7 +195,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   if (field_evaluators.is_empty()) {
-    params.set_default_remaining_outputs();
+    output_empty_lists(params);
     return;
   }
 
@@ -213,7 +225,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
   const int output_size = output_offsets.last();
   if (output_size == 0) {
-    params.set_default_remaining_outputs();
+    output_empty_lists(params);
     return;
   }
 
