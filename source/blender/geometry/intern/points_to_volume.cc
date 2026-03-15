@@ -498,7 +498,7 @@ struct ValueTransfer : public KernelTransferBase<AttributeT, GridValueT> {
   using Base = KernelTransferBase<AttributeT, GridValueT>;
   using AttributeType = typename Base::AttributeType;
 
-  using Base::KernelTransferBase;
+  using KernelTransferBase<AttributeT, GridValueT>::KernelTransferBase;
 
   void rasterizePoints(const openvdb::Coord &ijk,
                        const openvdb::Index point_index_begin,
@@ -545,6 +545,36 @@ struct DivergenceTransfer : public KernelTransferBase<AttributeT, GridValueT> {
           else {
             return source_value[0] * weight_gradient.x + source_value[1] * weight_gradient.y +
                    source_value[2] * weight_gradient.z;
+          }
+        });
+  }
+};
+
+template<typename AttributeT, typename GridValueT>
+struct AffineMomentTransfer : public KernelTransferBase<AttributeT, GridValueT> {
+  using Base = KernelTransferBase<AttributeT, GridValueT>;
+  using AttributeType = typename Base::AttributeType;
+
+  using Base::KernelTransferBase;
+
+  void rasterizePoints(const openvdb::Coord &ijk,
+                       const openvdb::Index point_index_begin,
+                       const openvdb::Index point_index_end,
+                       const openvdb::CoordBBox &target_bounds)
+  {
+    this->add_points_to_voxels(
+        ijk,
+        IndexRange::from_begin_end(point_index_begin, point_index_end),
+        target_bounds,
+        [&](const openvdb::Index point_index, const float3 &kernel_distance) {
+          const AttributeType source_value = this->get_value(point_index);
+          const float weight = kernel_functions::kernel_eval(this->kernel_type(), kernel_distance);
+          if constexpr (std::is_same_v<AttributeType, openvdb::Mat4s>) {
+            return weight * source_value.pretransform(openvdb::Vec3s(
+                                kernel_distance.x, kernel_distance.y, kernel_distance.z));
+          }
+          else {
+            BLI_assert_unreachable();
           }
         });
   }
@@ -677,6 +707,10 @@ static bke::GVolumeGrid points_attribute_rasterize(
           point_data_grid, value_attribute, attribute_info, transform, kernel_type);
       break;
     case PointRasterizeType::AffineMomentum:
+      result = points_rasterize_with_static_type<float4x4,
+                                                 float3,
+                                                 AffineMomentTransfer<float4x4, float3>>(
+          point_data_grid, value_attribute, attribute_info, transform, kernel_type);
       break;
   }
 
