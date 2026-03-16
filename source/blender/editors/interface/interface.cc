@@ -1824,11 +1824,7 @@ PointerRNA *button_extra_operator_icon_opptr_get(const ButtonExtraOpIcon *extra_
 static bool but_icon_extra_is_visible_text_clear(Button *but)
 {
   BLI_assert(but->type == ButtonType::Text);
-  return ((but->flag & BUT_VALUE_CLEAR) &&
-          (but->drawstr[0] ||
-           /* Always show the clear button for side regions filters to hide search button. */
-           (but->rnapoin.type == RNA_Region &&
-            but->rnaprop == RNA_struct_find_property(&but->rnapoin, "search_filter"))));
+  return ((but->flag & BUT_VALUE_CLEAR) && but->drawstr[0]);
 }
 
 static bool but_icon_extra_is_visible_search_unlink(const Button *but)
@@ -1937,14 +1933,7 @@ static void but_predefined_extra_operator_icons_add(Button *but)
     }
     case PREDEFINED_EXTRA_OP_ICON_CLEAR: {
       static wmOperatorType *clear_ot = nullptr;
-      if (but->rnapoin.type == RNA_Region &&
-          but->rnaprop == RNA_struct_find_property(&but->rnapoin, "search_filter"))
-      {
-        optype = WM_operatortype_find("UI_OT_region_clear_filter", false);
-        icon = ICON_PANEL_CLOSE;
-        break;
-      }
-      else if (!clear_ot) {
+      if (!clear_ot) {
         clear_ot = WM_operatortype_find("UI_OT_button_string_clear", false);
       }
       BLI_assert(clear_ot);

@@ -3689,20 +3689,34 @@ static void side_panel_draw_search_block(const bContext *C, ARegion *region)
   const int em = (region->runtime->type->prefsizex) ? 10 : 20;
   const int w = round_fl_to_int(BLI_rctf_size_x(&region->v2d.cur) - categories_width -
                                 2.0f * float(style->panelspace));
-  ui::Layout &layout = ui::block_layout(block,
-                                        ui::LayoutDirection::Vertical,
-                                        ui::LayoutType::Panel,
-                                        style->panelspace,
-                                        0,
-                                        w,
-                                        em,
-                                        0,
-                                        style);
+  ui::block_layout(block,
+                   ui::LayoutDirection::Vertical,
+                   ui::LayoutType::Panel,
+                   style->panelspace,
+                   0,
+                   w,
+                   em,
+                   0,
+                   style);
 
   PointerRNA ptr = RNA_pointer_create_discrete(
       id_cast<ID *>(CTX_wm_screen(C)), RNA_Region, region);
-
-  layout.prop(&ptr, "search_filter", UI_ITEM_NONE, "", ICON_VIEWZOOM);
+  ui::Button *button = ui::uiDefIconButR_prop(block,
+                                              ui::ButtonType::Text,
+                                              ICON_VIEWZOOM,
+                                              0,
+                                              0,
+                                              w,
+                                              UI_UNIT_Y,
+                                              &ptr,
+                                              RNA_struct_find_property(&ptr, "search_filter"),
+                                              -1,
+                                              0,
+                                              0,
+                                              "");
+  ui::button_flag_enable(button, ui::BUT_TEXTEDIT_UPDATE);
+  ui::button_extra_operator_icon_add(
+      button, "UI_OT_region_clear_filter", wm::OpCallContext::InvokeDefault, ICON_PANEL_CLOSE);
 
   ui::block_layout_resolve(block);
 
