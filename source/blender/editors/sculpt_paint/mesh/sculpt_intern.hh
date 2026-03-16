@@ -25,6 +25,8 @@
 #include "BLI_span.hh"
 #include "BLI_vector.hh"
 
+#include "IMB_colormanagement.hh"
+
 #include "DNA_brush_enums.h"
 #include "DNA_brush_types.h"
 
@@ -162,11 +164,21 @@ struct ProjectBrushTarget {
 };
 
 namespace paint::image {
+
+struct TileProcessorWrapper : NonCopyable {
+  ColormanageProcessor *buffer_to_linear_processor = nullptr;
+  ColormanageProcessor *linear_to_buffer_processor = nullptr;
+  bool is_noop = false;
+
+  ~TileProcessorWrapper();
+};
+
 struct ImageData : NonCopyable {
   Image *image = nullptr;
   ImageUser *image_user = nullptr;
 
   Map<bke::image::TileNumber, ImBuf *> buffers = {};
+  Map<bke::image::TileNumber, std::unique_ptr<TileProcessorWrapper>> processors = {};
 
   ~ImageData();
 

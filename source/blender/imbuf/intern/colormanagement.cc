@@ -1357,6 +1357,11 @@ bool IMB_colormanagement_space_name_is_data(const char *name)
   const ColorSpace *colorspace = g_config()->get_color_space(name);
   return (colorspace && colorspace->is_data());
 }
+bool IMB_colormanagement_space_name_is_data(StringRefNull name)
+{
+  const ColorSpace *colorspace = g_config()->get_color_space(name);
+  return (colorspace && colorspace->is_data());
+}
 
 bool IMB_colormanagement_space_name_is_scene_linear(const char *name)
 {
@@ -4260,6 +4265,19 @@ ColormanageProcessor *IMB_colormanagement_display_processor_new(
 
 ColormanageProcessor *IMB_colormanagement_colorspace_processor_new(const char *from_colorspace,
                                                                    const char *to_colorspace)
+{
+  ColormanageProcessor *cm_processor;
+
+  cm_processor = MEM_new<ColormanageProcessor>("colormanagement processor");
+  cm_processor->is_data_result = IMB_colormanagement_space_name_is_data(to_colorspace);
+
+  cm_processor->cpu_processor = g_config()->get_cpu_processor(from_colorspace, to_colorspace);
+
+  return cm_processor;
+}
+
+ColormanageProcessor *IMB_colormanagement_colorspace_processor_new(StringRefNull from_colorspace,
+                                                                   StringRefNull to_colorspace)
 {
   ColormanageProcessor *cm_processor;
 

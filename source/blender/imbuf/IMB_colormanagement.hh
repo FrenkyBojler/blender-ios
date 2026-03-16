@@ -77,6 +77,7 @@ const ColorSpace *IMB_colormanagement_space_get_named(const char *name);
 bool IMB_colormanagement_space_is_data(const ColorSpace *colorspace);
 bool IMB_colormanagement_space_is_scene_linear(const ColorSpace *colorspace);
 bool IMB_colormanagement_space_is_srgb(const ColorSpace *colorspace);
+bool IMB_colormanagement_space_name_is_data(StringRefNull name);
 bool IMB_colormanagement_space_name_is_data(const char *name);
 bool IMB_colormanagement_space_name_is_scene_linear(const char *name);
 bool IMB_colormanagement_space_name_is_srgb(const char *name);
@@ -525,6 +526,9 @@ bool IMB_colormanagement_display_processor_needed(
 
 ColormanageProcessor *IMB_colormanagement_colorspace_processor_new(const char *from_colorspace,
                                                                    const char *to_colorspace);
+/* TODO: Extract this into a separate PR */
+ColormanageProcessor *IMB_colormanagement_colorspace_processor_new(StringRefNull from_colorspace,
+                                                                   StringRefNull to_colorspace);
 bool IMB_colormanagement_processor_is_noop(ColormanageProcessor *cm_processor);
 void IMB_colormanagement_processor_apply_v4(ColormanageProcessor *cm_processor, float pixel[4]);
 void IMB_colormanagement_processor_apply_v4_predivide(ColormanageProcessor *cm_processor,

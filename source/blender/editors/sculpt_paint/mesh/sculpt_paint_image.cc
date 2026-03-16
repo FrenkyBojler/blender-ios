@@ -40,6 +40,19 @@ namespace ed::sculpt_paint::paint::image {
 using namespace blender::bke::pbvh::pixels;
 using namespace blender::bke::image;
 
+TileProcessorWrapper::~TileProcessorWrapper()
+{
+  if (buffer_to_linear_processor) {
+    IMB_colormanagement_processor_free(buffer_to_linear_processor);
+    buffer_to_linear_processor = nullptr;
+  }
+
+  if (linear_to_buffer_processor) {
+    IMB_colormanagement_processor_free(linear_to_buffer_processor);
+    linear_to_buffer_processor = nullptr;
+  }
+}
+
 ImageData::~ImageData()
 {
   if (!image || !image_user) {
@@ -72,12 +85,38 @@ static void fetch_image_buffers(ImageData &image_data, bke::pbvh::Node &node)
 {
   NodeData &node_data = bke::pbvh::pixels::node_data_get(node);
   for (const UDIMTilePixels &tile : node_data.tiles) {
-    image_data.buffers.lookup_or_add_cb(tile.tile_number, [&]() {
+    const ImBuf *buffer = image_data.buffers.lookup_or_add_cb(tile.tile_number, [&]() {
       ImageUser tile_user = *image_data.image_user;
       tile_user.tile = tile.tile_number;
 
       return BKE_image_acquire_ibuf(image_data.image, &tile_user, nullptr);
     });
+
+    if (buffer) {
+      image_data.processors.lookup_or_add_cb(tile.tile_number, [&]() {
+        StringRefNull buffer_colorspace = buffer->float_buffer.data ?
+                                              IMB_colormanagement_get_float_colorspace(buffer) :
+                                              IMB_colormanagement_get_rect_colorspace(buffer);
+        StringRefNull linear_colorspace = IMB_colormanagement_role_colorspace_name_get(
+            COLOR_ROLE_SCENE_LINEAR);
+
+        std::unique_ptr<TileProcessorWrapper> processor = std::make_unique<TileProcessorWrapper>();
+
+        ColormanageProcessor *buffer_to_linear = IMB_colormanagement_colorspace_processor_new(
+            buffer_colorspace, linear_colorspace);
+        if (IMB_colormanagement_processor_is_noop(buffer_to_linear)) {
+          IMB_colormanagement_processor_free(buffer_to_linear);
+          processor->is_noop = true;
+          return processor;
+        }
+
+        processor->buffer_to_linear_processor = buffer_to_linear;
+        processor->linear_to_buffer_processor = IMB_colormanagement_colorspace_processor_new(
+            linear_colorspace, buffer_colorspace);
+
+        return processor;
+      });
+    }
   }
 }
 
@@ -144,30 +183,8 @@ static BitVector<> init_uv_primitives_brush_test(SculptSession &ss,
   return brush_test;
 }
 
-static float4 init_brush_color(const float3 &brush_color, const ImageData &image_data)
-{
-  ImageUser image_user = *image_data.image_user;
-  ImBuf *image_buffer = BKE_image_acquire_ibuf(image_data.image, &image_user, nullptr);
-
-  const char *to_colorspace = image_buffer->float_buffer.data ?
-                                  IMB_colormanagement_get_float_colorspace(image_buffer) :
-                                  IMB_colormanagement_get_rect_colorspace(image_buffer);
-
-  BKE_image_release_ibuf(image_data.image, image_buffer, nullptr);
-
-  float4 converted_color(brush_color, 1.0f);
-
-  const char *from_colorspace = IMB_colormanagement_role_colorspace_name_get(
-      COLOR_ROLE_SCENE_LINEAR);
-  ColormanageProcessor *cm_processor = IMB_colormanagement_colorspace_processor_new(
-      from_colorspace, to_colorspace);
-  IMB_colormanagement_processor_apply_v4(cm_processor, converted_color);
-  IMB_colormanagement_processor_free(cm_processor);
-
-  return converted_color;
-}
-
 static bool paint_row_float(const Brush &brush,
+                            const TileProcessorWrapper &processors,
                             const float4 &brush_color,
                             const PackedPixelRow &pixel_row,
                             const Span<float> factors,
@@ -178,6 +195,10 @@ static bool paint_row_float(const Brush &brush,
   bool pixels_painted = false;
   for (int x = 0; x < pixel_row.num_pixels; x++) {
     float4 color = &image_buffer->float_buffer.data[offset * 4];
+    if (!processors.is_noop) {
+      IMB_colormanagement_processor_apply_v4(processors.buffer_to_linear_processor, color);
+    }
+
     float4 paint_color = brush_color * factors[x];
     float4 buffer_color;
 
@@ -192,6 +213,11 @@ static bool paint_row_float(const Brush &brush,
     blend_color_mix_float(buffer_color, color, paint_color);
     buffer_color *= brush.alpha;
     IMB_blend_color_float(color, color, buffer_color, static_cast<IMB_BlendMode>(brush.blend));
+
+    if (!processors.is_noop) {
+      IMB_colormanagement_processor_apply_v4(processors.linear_to_buffer_processor, color);
+    }
+
     copy_v4_v4(&image_buffer->float_buffer.data[offset * 4], color);
     pixels_painted = true;
 
@@ -201,6 +227,7 @@ static bool paint_row_float(const Brush &brush,
 }
 
 static bool paint_row_byte(const Brush &brush,
+                           const TileProcessorWrapper &processors,
                            const float4 &brush_color,
                            const PackedPixelRow &pixel_row,
                            const Span<float> factors,
@@ -211,9 +238,12 @@ static bool paint_row_byte(const Brush &brush,
   bool pixels_painted = false;
   for (int x = 0; x < pixel_row.num_pixels; x++) {
     float4 color;
-    rgba_uchar_to_float(color,
-                        static_cast<const uchar *>(static_cast<const void *>(
-                            &(image_buffer->byte_buffer.data[4 * offset]))));
+    rgba_uchar_to_float(
+        color, reinterpret_cast<const uchar *>(&(image_buffer->byte_buffer.data[4 * offset])));
+    if (!processors.is_noop) {
+      IMB_colormanagement_processor_apply_v4(processors.buffer_to_linear_processor, color);
+    }
+
     float4 paint_color = brush_color * factors[x];
     float4 buffer_color;
 
@@ -228,9 +258,11 @@ static bool paint_row_byte(const Brush &brush,
     blend_color_mix_float(buffer_color, color, paint_color);
     buffer_color *= brush.alpha;
     IMB_blend_color_float(color, color, buffer_color, static_cast<IMB_BlendMode>(brush.blend));
-    rgba_float_to_uchar(
-        static_cast<uchar *>(static_cast<void *>(&image_buffer->byte_buffer.data[4 * offset])),
-        color);
+    if (!processors.is_noop) {
+      IMB_colormanagement_processor_apply_v4(processors.linear_to_buffer_processor, color);
+    }
+    rgba_float_to_uchar(reinterpret_cast<uchar *>(&image_buffer->byte_buffer.data[4 * offset]),
+                        color);
     pixels_painted = true;
 
     offset++;
@@ -255,19 +287,18 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
   BitVector<> brush_test = init_uv_primitives_brush_test(
       ss, pbvh_data.vert_tris, node_data.uv_primitives.tri_indices, positions);
 
-  float4 brush_color = init_brush_color(ss.cache->invert ?
-                                            BKE_brush_secondary_color_get(&paint, &brush) :
-                                            BKE_brush_color_get(&paint, &brush),
-                                        image_data);
+  float4 brush_color = float4(ss.cache->invert ? BKE_brush_secondary_color_get(&paint, &brush) :
+                                                 BKE_brush_color_get(&paint, &brush),
+                              1.0f);
 
 #ifdef DEBUG_PIXEL_NODES
-  float3 debug_color;
+  float4 debug_color;
   uint hash = BLI_hash_int(POINTER_AS_UINT(&node));
 
   debug_color[0] = float(hash & 255) / 255.0f;
   debug_color[1] = float((hash >> 8) & 255) / 255.0f;
   debug_color[2] = float((hash >> 16) & 255) / 255.0f;
-  brush_color = init_brush_color(debug_color, image_data);
+  debug_color[3] = 1.0f;
 #endif
 
   Vector<float3> pixel_positions;
@@ -280,6 +311,9 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
     if (image_buffer == nullptr) {
       continue;
     }
+
+    const std::unique_ptr<TileProcessorWrapper> *processors = image_data.processors.lookup_ptr(
+        tile_data.tile_number);
 
     for (const PackedPixelRow &pixel_row : tile_data.pixel_rows) {
       if (!brush_test[pixel_row.uv_primitive_index]) {
@@ -308,10 +342,12 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
 
       bool pixels_painted = false;
       if (image_buffer->float_buffer.data != nullptr) {
-        pixels_painted = paint_row_float(brush, brush_color, pixel_row, factors, image_buffer);
+        pixels_painted = paint_row_float(
+            brush, **processors, brush_color, pixel_row, factors, image_buffer);
       }
       else {
-        pixels_painted = paint_row_byte(brush, brush_color, pixel_row, factors, image_buffer);
+        pixels_painted = paint_row_byte(
+            brush, **processors, brush_color, pixel_row, factors, image_buffer);
       }
 
       if (pixels_painted) {
