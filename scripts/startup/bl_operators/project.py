@@ -406,6 +406,14 @@ class PROJECT_OP_OpenBlendInProject(Operator):
 # Auto-loading / clearing of projects when loading/saving blend files or
 # exiting.
 
+def log_project_save_error():
+    logger.error(f"Error trying to save project '{bpy.data.project.name}' at '{bpy.data.project.root_path}'.")
+
+
+def log_project_load_error(blend_path):
+    logger.error(f"Error trying to load project for blend file '{blend_path}'.")
+
+
 @bpy.app.handlers.persistent
 def on_blend_load(blend_path):
     if not bpy.context.preferences.experimental.use_blender_projects:
@@ -416,14 +424,14 @@ def on_blend_load(blend_path):
         try:
             save_project(bpy.data.project)
         except ProjectSaveException:
-            logger.error("Error trying to auto-save project.")
+            log_project_save_error()
 
     # Load the project (or clear if none) for the blend file we're about to
     # load.
     try:
         find_and_load_project_for_blend_path(bpy.context, blend_path)
     except ProjectLoadException:
-        logger.error(f"Error trying to load project for blend file '{blend_path}'.")
+        log_project_load_error(blend_path)
 
 
 @bpy.app.handlers.persistent
@@ -436,14 +444,14 @@ def on_blend_save(blend_path):
         try:
             save_project(bpy.data.project)
         except ProjectSaveException:
-            logger.error("Error trying to auto-save project.")
+            log_project_save_error()
 
     # In case we're saving the blend to disk for the first time or to a new
     # location, load the project there (if any).
     try:
         find_and_load_project_for_blend_path(bpy.context, blend_path)
     except ProjectLoadException:
-        logger.error(f"Error trying to load project for blend file '{blend_path}'.")
+        log_project_load_error(blend_path)
 
 
 @bpy.app.handlers.persistent
@@ -458,7 +466,7 @@ def on_exit(is_user_exit):
         try:
             save_project(bpy.data.project)
         except ProjectSaveException:
-            logger.error("Error trying to auto-save project.")
+            log_project_save_error()
 
 
 # -----------------------------------------------------------------------------
