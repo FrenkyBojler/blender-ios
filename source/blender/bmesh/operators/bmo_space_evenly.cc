@@ -261,9 +261,8 @@ static SpaceChainData walk_edges(BMEdge *start_edge, Set<BMEdge *> &r_visited)
 }
 
 /**
- * Construct vertex chains from candidate edges.
- * If use_parallel is true, candidates are collected by flood-filling
- * across opposite edges of even-sided faces. Otherwise, only tagged edges are used.
+ * Build vertex chains from selected edges.
+ * When use_parallel is true, propagates across quads to find all parallel loops.
  */
 static void get_space_input_chains(BMesh *bm, bool use_parallel, Vector<SpaceChainData> &r_chains)
 {
