@@ -24,7 +24,14 @@ namespace detail {
  * Keep in sync with `VKTexturePool::acquire_texture()`. */
 constexpr auto tie(const VkImageCreateInfo &info)
 {
-  return std::tie(info.format, info.flags, info.usage, info.extent.width, info.extent.height);
+  return std::tie(info.format,
+                  info.imageType,
+                  info.flags,
+                  info.usage,
+                  info.extent.width,
+                  info.extent.height,
+                  info.extent.depth,
+                  info.arrayLayers);
 }
 }  // namespace detail
 
@@ -33,8 +40,8 @@ constexpr auto tie(const VkImageCreateInfo &info)
 template<> struct DefaultHash<VkImageCreateInfo> {
   constexpr uint64_t operator()(const VkImageCreateInfo &value) const
   {
-    const auto &[_1, _2, _3, _4, _5] = detail::tie(value);
-    return get_default_hash(_1, _2, _3, _4, _5);
+    const auto &[_1, _2, _3, _4, _5, _6, _7, _8] = detail::tie(value);
+    return get_default_hash(_1, _2, _3, _4, get_default_hash(_5, _6, _7, _8));
   }
 };
 
@@ -335,10 +342,10 @@ Texture *VKTexturePool::acquire_texture_impl(int3 extent,
   VKTexture *texture = new VKTexture(name);
   texture->w_ = extent.x;
   texture->h_ = extent.y;
-  texture->d_ = 0;
+  texture->d_ = extent.z;
   texture->format_ = format;
   texture->format_flag_ = to_format_flag(format);
-  texture->type_ = GPU_TEXTURE_2D;
+  texture->type_ = type;
   texture->gpu_image_usage_flags_ = usage;
   /* R16G16F16 formats are typically not supported (<1%). */
   texture->device_format_ = format;
@@ -357,13 +364,12 @@ Texture *VKTexturePool::acquire_texture_impl(int3 extent,
   VkImageCreateInfo create_info = {
       .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
       .pNext = nullptr,
-      .flags = to_vk_image_create(GPU_TEXTURE_2D, to_format_flag(format), usage) |
-               VK_IMAGE_CREATE_ALIAS_BIT,
-      .imageType = VK_IMAGE_TYPE_2D,
+      .flags = to_vk_image_create(type, to_format_flag(format), usage) | VK_IMAGE_CREATE_ALIAS_BIT,
+      .imageType = to_vk_image_type(type),
       .format = to_vk_format(format),
-      .extent = {.width = uint32_t(extent.x), .height = uint32_t(extent.y), .depth = 1},
+      .extent = texture->vk_extent_3d(0),
       .mipLevels = 1,
-      .arrayLayers = 1,
+      .arrayLayers = texture->vk_layer_count(1),
       .samples = VK_SAMPLE_COUNT_1_BIT,
       .tiling = VK_IMAGE_TILING_OPTIMAL,
       .usage = to_vk_image_usage(usage, to_format_flag(format), false),
