@@ -361,6 +361,9 @@ static wmOperatorStatus backimage_zoom_exec(bContext *C, wmOperator *op)
 
 static wmOperatorStatus backimage_zoom_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
+  ARegion *region = CTX_wm_region(C);
+  SpaceNode *snode = CTX_wm_space_node(C);
+
   const bool use_mouse_pos = RNA_boolean_get(op->ptr, "use_mouse_position");
   if (!(use_mouse_pos && (U.uiflag & USER_ZOOM_TO_MOUSEPOS))) {
     /* Execute the operator without setting any customdata.*/
@@ -368,8 +371,6 @@ static wmOperatorStatus backimage_zoom_invoke(bContext *C, wmOperator *op, const
   }
 
   /* Calculate the offset for zooming to the mouse position. */
-  ARegion *region = CTX_wm_region(C);
-  SpaceNode *snode = CTX_wm_space_node(C);
   float fac = RNA_float_get(op->ptr, "factor");
 
   float img_co[2] = {snode->xof + region->winx / 2.0f, snode->yof + region->winy / 2.0f};
