@@ -301,7 +301,7 @@ static void ntree_shader_unlink_script_nodes(bNodeTree *ntree)
   }
 }
 
-static void ntree_shader_unlink_undefined_nodes(bNodeTree *ntree)
+static void ntree_shader_unlink_custom_nodes(bNodeTree *ntree)
 {
   for (bNodeLink &link : ntree->links.items_mutable()) {
     if ((link.tonode->type_legacy == NODE_CUSTOM) || (link.fromnode->type_legacy == NODE_CUSTOM)) {
@@ -985,7 +985,7 @@ void ntreeGPUMaterialNodes(bNodeTree *localtree, GPUMaterial *mat)
   bNodeTreeExec *exec;
 
   ntree_shader_unlink_script_nodes(localtree);
-  ntree_shader_unlink_undefined_nodes(localtree);
+  ntree_shader_unlink_custom_nodes(localtree);
   bNode *output = ntreeShaderOutputNode(localtree, SHD_OUTPUT_EEVEE);
 
   /* Tree is valid if it contains no undefined implicit socket type cast. */
