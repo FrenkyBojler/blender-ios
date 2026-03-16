@@ -18,7 +18,7 @@
 
 #include <type_traits>
 
-#define DEBUG_TIME
+// #define DEBUG_TIME
 
 #ifdef DEBUG_TIME
 #  include "BLI_timeit.hh"
@@ -626,17 +626,32 @@ static typename GridType::Ptr prepare_destination_grid(
 {
   typename std::shared_ptr<GridType> dst_grid = GridType::create();
   dst_grid->transform() = get_vdb_transform(transform);
-  /* Activate all voxels with particles in them. */
-  dst_grid->tree().topologyUnion(point_data_grid.tree());
-  /* Dilate to ensure all voxels within range of a particle are active. */
-  const int max_offset = (kernel_functions::kernel_size(kernel_type) + 1) >> 1;
-  openvdb::tools::dilateActiveValues(dst_grid->tree(),
-                                     max_offset,
-                                     openvdb::tools::NN_FACE_EDGE_VERTEX,
-                                     openvdb::tools::TilePolicy::PRESERVE_TILES,
-                                     false);
-  /* Voxelize all tiles since each voxel gets a different value. */
-  dst_grid->tree().voxelizeActiveTiles(true);
+  {
+    /* Activate all voxels with particles in them. */
+#  ifdef DEBUG_TIME
+    SCOPED_TIMER("      topologyUnion");
+#  endif
+    dst_grid->tree().topologyUnion(point_data_grid.tree());
+  }
+  {
+#  ifdef DEBUG_TIME
+    SCOPED_TIMER("      dilateActiveValues");
+#  endif
+    /* Dilate to ensure all voxels within range of a particle are active. */
+    const int max_offset = (kernel_functions::kernel_size(kernel_type) + 1) >> 1;
+    openvdb::tools::dilateActiveValues(dst_grid->tree(),
+                                       max_offset,
+                                       openvdb::tools::NN_FACE_EDGE_VERTEX,
+                                       openvdb::tools::TilePolicy::PRESERVE_TILES,
+                                       false);
+  }
+  {
+#  ifdef DEBUG_TIME
+    SCOPED_TIMER("      voxelizeActiveTiles");
+#  endif
+    /* Voxelize all tiles since each voxel gets a different value. */
+    dst_grid->tree().voxelizeActiveTiles(true);
+  }
   return dst_grid;
 }
 
@@ -672,13 +687,29 @@ static bke::GVolumeGrid points_rasterize_with_static_type(
     }
   };
 
-  dst_grid = prepare_destination_grid<GridType>(point_data_grid, transform, kernel_type);
+  {
+#  ifdef DEBUG_TIME
+    SCOPED_TIMER("    prepare_destination_grid");
+#  endif
+    dst_grid = prepare_destination_grid<GridType>(point_data_grid, transform, kernel_type);
+  }
 
-  BLI_assert(!value_attribute.is_empty());
-  TransferT transfer(kernel_type, point_data_grid, value_attribute, *dst_grid);
-  openvdb::points::rasterize(point_data_grid, transfer);
+  {
+#  ifdef DEBUG_TIME
+    SCOPED_TIMER("    rasterize");
+#  endif
+    BLI_assert(!value_attribute.is_empty());
+    TransferT transfer(kernel_type, point_data_grid, value_attribute, *dst_grid);
+    openvdb::points::rasterize(point_data_grid, transfer);
+  }
 
-  finalize_grid.template operator()<GridType>();
+  {
+#  ifdef DEBUG_TIME
+    SCOPED_TIMER("    finalize_grid");
+#  endif
+    finalize_grid.template operator()<GridType>();
+  }
+
   if (dst_grid) {
     return bke::GVolumeGrid(std::move(dst_grid));
   }
