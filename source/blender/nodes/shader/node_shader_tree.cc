@@ -301,6 +301,15 @@ static void ntree_shader_unlink_script_nodes(bNodeTree *ntree)
   }
 }
 
+static void ntree_shader_unlink_undefined_nodes(bNodeTree *ntree)
+{
+  for (bNodeLink &link : ntree->links.items_mutable()) {
+    if ((link.tonode->type_legacy == NODE_CUSTOM) || (link.fromnode->type_legacy == NODE_CUSTOM)) {
+      bke::node_remove_link(ntree, link);
+    }
+  }
+}
+
 struct branchIterData {
   bool (*node_filter)(const bNode *node);
   int node_count;
@@ -706,7 +715,6 @@ static void ntree_shader_weight_tree_invert(bNodeTree *ntree, bNode *output_node
           /* Manually add the link to the socket to avoid calling:
            * `BKE_ntree_update(G.main, oop)`. */
           fromsock->link = &bke::node_add_link(*ntree, *fromnode, *fromsock, *tonode, *tosock);
-          BLI_assert(fromsock->link);
         }
       }
     }
@@ -977,6 +985,7 @@ void ntreeGPUMaterialNodes(bNodeTree *localtree, GPUMaterial *mat)
   bNodeTreeExec *exec;
 
   ntree_shader_unlink_script_nodes(localtree);
+  ntree_shader_unlink_undefined_nodes(localtree);
   bNode *output = ntreeShaderOutputNode(localtree, SHD_OUTPUT_EEVEE);
 
   /* Tree is valid if it contains no undefined implicit socket type cast. */
