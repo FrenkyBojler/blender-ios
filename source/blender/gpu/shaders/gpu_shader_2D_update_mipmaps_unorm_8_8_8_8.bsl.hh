@@ -11,7 +11,6 @@
 namespace builtin::mipmaps {
 
 struct UpdateMipmapsUNORM_8_8_8_8 {
-  /** Number of output mipmaps levels to update. */
   [[push_constant]] const int num_levels;
   [[image(0, read, UNORM_8_8_8_8)]] image2D mip0;
   [[image(1, write, UNORM_8_8_8_8)]] image2D mip1;
@@ -23,25 +22,23 @@ struct UpdateMipmapsUNORM_8_8_8_8 {
   [[image(7, write, UNORM_8_8_8_8)]] image2D mip7;
 };
 
-[[local_size(16)]] [[compute]]
-void update_mipmaps_comp([[global_invocation_id]] const uint3 global_id,
-                         [[resource_table]] UpdateMipmapsUNORM_8_8_8_8 &srt)
+template<typename SRT> void update_mipmaps_local(const uint3 global_id, SRT &srt)
 {
-  /*
-  update_mipmaps(global_id,
-  srt.mip0,
-  srt.mip1,
-  srt.mip2,
-  srt.mip3,
-  srt.mip4,
-  srt.mip5,
-  srt.mip6,
-  srt.mip7,
-  srt.num_levels);
-  */
+  uint y = global_id.y;
+}
+
+template void update_mipmaps_local<UpdateMipmapsUNORM_8_8_8_8>(const uint3 global_id,
+                                                               UpdateMipmapsUNORM_8_8_8_8 &srt);
+
+[[local_size(16)]] [[compute]]
+void update_mipmaps_UNORM_8_8_8_8([[global_invocation_id]] const uint3 global_id,
+                                  [[resource_table]] UpdateMipmapsUNORM_8_8_8_8 &srt)
+{
+  update_mipmaps_local<UpdateMipmapsUNORM_8_8_8_8>(global_id, srt);
 }
 
 }  // namespace builtin::mipmaps
 
 PipelineCompute gpu_shader_2D_update_mipmaps_unorm_8_8_8_8(
-    builtin::mipmaps::update_mipmaps_comp, builtin::mipmaps::UpdateMipmapsUNORM_8_8_8_8{});
+    builtin::mipmaps::update_mipmaps_UNORM_8_8_8_8,
+    builtin::mipmaps::UpdateMipmapsUNORM_8_8_8_8{});
