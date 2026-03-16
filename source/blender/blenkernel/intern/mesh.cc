@@ -396,14 +396,14 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
   BKE_id_blend_write(writer, &mesh->id);
 
   BKE_defbase_blend_write(writer, &mesh->vertex_group_names);
-  BLO_write_string(writer, mesh->active_color_attribute);
-  BLO_write_string(writer, mesh->default_color_attribute);
-  BLO_write_string(writer, mesh->active_uv_map_attribute);
-  BLO_write_string(writer, mesh->default_uv_map_attribute);
-  BLO_write_string(writer, mesh->stencil_uv_map_attribute);
-  BLO_write_string(writer, mesh->clone_uv_map_attribute);
+  writer->write_string(mesh->active_color_attribute);
+  writer->write_string(mesh->default_color_attribute);
+  writer->write_string(mesh->active_uv_map_attribute);
+  writer->write_string(mesh->default_uv_map_attribute);
+  writer->write_string(mesh->stencil_uv_map_attribute);
+  writer->write_string(mesh->clone_uv_map_attribute);
 
-  BLO_write_pointer_array(writer, mesh->totcol, mesh->mat);
+  writer->write_pointer_array(mesh->totcol, mesh->mat);
   writer->write_struct_array(mesh->totselect, mesh->mselect);
 
   CustomData_blend_write(
@@ -426,7 +426,7 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
         mesh->face_offset_indices,
         sizeof(int) * mesh->faces_num,
         mesh_runtime->face_offsets_sharing_info,
-        [&]() { BLO_write_int32_array(writer, mesh->faces_num + 1, mesh->face_offset_indices); });
+        [&]() { writer->write_int32_array(mesh->faces_num + 1, mesh->face_offset_indices); });
   }
 }
 
@@ -575,11 +575,11 @@ bool BKE_mesh_has_custom_loop_normals(Mesh *mesh)
 namespace bke {
 
 void mesh_ensure_default_color_attribute_on_add(Mesh &mesh,
-                                                const StringRef id,
+                                                const StringRef name,
                                                 AttrDomain domain,
                                                 bke::AttrType data_type)
 {
-  if (bke::attribute_name_is_anonymous(id)) {
+  if (bke::attribute_name_is_anonymous(name)) {
     return;
   }
   if (!mesh::is_color_attribute({domain, data_type})) {
@@ -588,15 +588,15 @@ void mesh_ensure_default_color_attribute_on_add(Mesh &mesh,
   if (mesh.default_color_attribute) {
     return;
   }
-  mesh.default_color_attribute = BLI_strdupn(id.data(), id.size());
+  mesh.default_color_attribute = BLI_strdupn(name.data(), name.size());
 }
 
 void mesh_ensure_default_uv_attribute_on_add(Mesh &mesh,
-                                             const StringRef id,
+                                             const StringRef name,
                                              AttrDomain domain,
                                              bke::AttrType data_type)
 {
-  if (bke::attribute_name_is_anonymous(id)) {
+  if (bke::attribute_name_is_anonymous(name)) {
     return;
   }
   if (!mesh::is_uv_map({domain, data_type})) {
@@ -605,7 +605,7 @@ void mesh_ensure_default_uv_attribute_on_add(Mesh &mesh,
   if (!mesh.default_uv_map_name().is_empty()) {
     return;
   }
-  mesh.uv_maps_default_set(id);
+  mesh.uv_maps_default_set(name);
 }
 
 void mesh_ensure_required_data_layers(Mesh &mesh)

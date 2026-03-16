@@ -26,8 +26,8 @@ VkImageLayout VKImageAccess::to_vk_image_layout(bool supports_local_read) const
   {
     return VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR;
   }
-  else if (vk_access_flags &
-           (VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT))
+  if (vk_access_flags &
+      (VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT))
   {
     return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
   }
@@ -70,8 +70,7 @@ void VKResourceAccessInfo::build_links(VKResourceStateTracker &resources,
                                                resources.get_image_and_increase_stamp(
                                                    image_access.vk_image) :
                                                resources.get_image(image_access.vk_image);
-    links.images.append({versioned_resource,
-                         image_access.vk_access_flags,
+    links.images.append({{versioned_resource, image_access.vk_access_flags},
                          image_layout,
                          image_access.vk_image_aspect,
                          image_access.subimage});
