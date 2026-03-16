@@ -108,8 +108,6 @@ using dual4 = dual<float4>;
 
 /* Dual type traits. */
 
-/* Use enum on GPU to avoid Metal problems with static constexpr,
- * and static constexpr bool on CPU to avoid enum-to-bool warnings. */
 template<typename T> struct is_dual {
   ccl_static_constexpr bool value = false;
 };

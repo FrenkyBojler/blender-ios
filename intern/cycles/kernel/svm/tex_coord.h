@@ -81,12 +81,7 @@ ccl_device_inline Float3Type svm_texco_camera(KernelGlobals kg,
   Float3Type data(P);
   const Transform tfm = kernel_data.cam.worldtocamera;
   if (sd->object == OBJECT_NONE) {
-    if constexpr (is_dual_v<Float3Type>) {
-      data.val += camera_position(kg);
-    }
-    else {
-      data += camera_position(kg);
-    }
+    data = data + camera_position(kg);
   }
   data = transform_point(&tfm, data);
   return data;
