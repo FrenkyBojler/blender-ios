@@ -455,7 +455,10 @@ def on_exit(is_user_exit):
         return
 
     if bpy.context.preferences.use_project_auto_save and bpy.data.project is not None and bpy.data.project.is_dirty:
-        save_project(bpy.data.project)
+        try:
+            save_project(bpy.data.project)
+        except ProjectSaveException:
+            logger.error("Error trying to auto-save project.")
 
 
 # -----------------------------------------------------------------------------
