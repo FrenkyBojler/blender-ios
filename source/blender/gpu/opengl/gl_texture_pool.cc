@@ -75,13 +75,10 @@ Texture *GLTexturePool::acquire_texture_impl(int3 extent,
   int64_t match_index = -1;
   for (uint64_t i : pool_.index_range()) {
     const AllocationHandle &handle = pool_[i];
-    if (handle.texture->format_get() != compatible_format) {
+    if (handle.texture->format_ != compatible_format /* || handle.texture->type_ != type */) {
       continue;
     }
-    if (handle.texture->type_get() != type) {
-      continue;
-    }
-    if (int3(handle.texture->w_, handle.texture->h_, handle.texture->w_) != extent) {
+    if (int3(handle.texture->w_, handle.texture->h_, handle.texture->d_) != extent) {
       continue;
     }
     match_index = i;
@@ -109,18 +106,18 @@ Texture *GLTexturePool::acquire_texture_impl(int3 extent,
     switch (type) {
       case GPU_TEXTURE_1D:
       case GPU_TEXTURE_1D_ARRAY:
-        texture_result = texture->init_1D(extent.x, extent.y, 1, format);
+        texture_result = texture->init_1D(extent.x, extent.y, 1, compatible_format);
         break;
       case GPU_TEXTURE_2D:
       case GPU_TEXTURE_2D_ARRAY:
-        texture_result = texture->init_2D(extent.x, extent.y, extent.z, 1, format);
+        texture_result = texture->init_2D(extent.x, extent.y, extent.z, 1, compatible_format);
         break;
       case GPU_TEXTURE_3D:
-        texture_result = texture->init_3D(extent.x, extent.y, extent.z, 1, format);
+        texture_result = texture->init_3D(extent.x, extent.y, extent.z, 1, compatible_format);
         break;
       case GPU_TEXTURE_CUBE:
       case GPU_TEXTURE_CUBE_ARRAY:
-        texture_result = texture->init_cubemap(extent.x, extent.y, 1, format);
+        texture_result = texture->init_cubemap(extent.x, extent.y, 1, compatible_format);
         break;
       default:
         BLI_assert_unreachable();
@@ -153,7 +150,6 @@ Texture *GLTexturePool::acquire_texture_impl(int3 extent,
   /* Assemble texture view and add to handle. Note, glTextureView with identical formats is
    * allowed, even if the formats are not listed for aliasing in the Internal Formats table. */
   Texture *view = GPUBackend::get()->texture_alloc(view_name_str.c_str());
-  view->usage_set(usage | GPU_TEXTURE_USAGE_FORMAT_VIEW);
   bool view_result = false;
   switch (type) {
     case GPU_TEXTURE_1D:
@@ -164,11 +160,11 @@ Texture *GLTexturePool::acquire_texture_impl(int3 extent,
           texture_handle.texture, format, type, 0, 1, 0, 1, false, false);
       break;
     case GPU_TEXTURE_1D_ARRAY:
-    case GPU_TEXTURE_CUBE_ARRAY:
       view_result = view->init_view(
           texture_handle.texture, format, type, 0, 1, 0, extent.y, false, false);
       break;
     case GPU_TEXTURE_2D_ARRAY:
+    case GPU_TEXTURE_CUBE_ARRAY:
       view_result = view->init_view(
           texture_handle.texture, format, type, 0, 1, 0, extent.z, false, false);
       break;
@@ -177,6 +173,16 @@ Texture *GLTexturePool::acquire_texture_impl(int3 extent,
       break;
   }
   BLI_assert(view_result);
+
+  /* On integer textures, disable filtering by default, as this is not guaranteed to be
+   * consistently supported across backends. */
+  if (GPU_texture_has_integer_format(view)) {
+    view->sampler_state.set_filtering_flag_from_test(GPU_SAMPLER_FILTERING_LINEAR, false);
+    view->sampler_state.set_filtering_flag_from_test(GPU_SAMPLER_FILTERING_MIPMAP, false);
+    view->sampler_state.set_filtering_flag_from_test(GPU_SAMPLER_FILTERING_ANISOTROPIC_MASK,
+                                                     false);
+  }
+
   texture_handle.view = unwrap(view);
 
   if (G.debug & G_DEBUG_GPU) {
