@@ -54,7 +54,6 @@
 #ifdef WITH_INPUT_IME
 #  include "WM_types.hh"
 #endif
-#include "WM_api.hh"
 
 namespace blender::ui {
 
