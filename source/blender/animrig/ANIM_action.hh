@@ -671,15 +671,9 @@ class Layer : public ActionLayer {
   enum class MixMode : int8_t {
     /** Channels in this layer override the same channels from underlying layers. */
     Replace = 0,
-    /** Channels in this layer are added to underlying layers as sequential operations. */
-    Offset = 1,
     /** Channels in this layer are additively combined with channels from underlying layers. This
        corrects for scale and quaternion values. */
-    Combine = 2,
-    /** Channels in this layer are subtracted to underlying layers on a per-channel basis. */
-    Subtract = 3,
-    /** Channels in this layer are multiplied with underlying layers on a per-channel basis. */
-    Multiply = 4,
+    Combine = 1,
   };
 
   MixMode mix_mode() const

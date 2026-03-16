@@ -301,15 +301,9 @@ void blend_layer_results(EvaluationResult &final_result,
         }
         break;
       }
-      case Layer::MixMode::Offset:
-        last_prop->value = math::interpolate(
-            current_layer.influence, last_prop->value, anim_prop.value);
-        break;
-      case Layer::MixMode::Subtract:
-        last_prop->value -= anim_prop.value * current_layer.influence;
-        break;
-      case Layer::MixMode::Multiply:
-        last_prop->value *= anim_prop.value * current_layer.influence;
+      default:
+        /* Needs to be implemented. */
+        BLI_assert_unreachable();
         break;
     };
   }

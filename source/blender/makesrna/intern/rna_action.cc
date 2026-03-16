@@ -37,33 +37,11 @@ const EnumPropertyItem rna_enum_layer_mix_mode_items[] = {
      0,
      "Replace",
      "Channels in this layer override the same channels from underlying layers"},
-/* Not all blend modes are enabled for now as decided in the Layered Animation
- * workshop from 2024.  */
-#if 0
-    {int(animrig::Layer::MixMode::Offset),
-     "OFFSET",
-     0,
-     "Offset",
-     "Channels in this layer are added to underlying layers as sequential operations"},
-#endif
     {int(animrig::Layer::MixMode::Combine),
      "COMBINE",
      0,
      "Combine",
      "Channels in this layer are added to underlying layers"},
-#if 0
-    {int(animrig::Layer::MixMode::Subtract),
-     "SUBTRACT",
-     0,
-     "Subtract",
-     "Channels in this layer are subtracted to underlying layers on a per-channel basis"},
-    {int(animrig::Layer::MixMode::Multiply),
-     "MULTIPLY",
-     0,
-     "Multiply",
-     "Channels in this layer are multiplied with underlying layers on a per-channel basis"},
-    {0, nullptr, 0, nullptr, nullptr},
-#endif
 };
 
 const EnumPropertyItem rna_enum_strip_type_items[] = {
