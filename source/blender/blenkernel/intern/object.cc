@@ -534,6 +534,24 @@ static void object_foreach_path_particles(Object *ob, BPathForeachPathData *bpat
                                      BKE_main_blendfile_path(bpath_data->bmain);
 
   for (ParticleSystem &psys : ob->particlesystem) {
+    bool all_caches_external = true;
+
+    for (PointCache &cache : psys.ptcaches) {
+      /* When the 'External' checkbox is checked, the regular pointcache path is used. */
+      if (cache.flag & PTCACHE_EXTERNAL) {
+        BKE_bpath_foreach_path_fixed_process(bpath_data, cache.path, sizeof(cache.path));
+      }
+      else {
+        all_caches_external = false;
+      }
+    }
+
+    if (all_caches_external) {
+      /* If all caches use the 'External' flag, the calls above have covered this particle system,
+       * and the code below can be skipped. */
+      continue;
+    }
+
     PTCacheID pid;
     BKE_ptcache_id_from_particles(&pid, ob, &psys);
 
