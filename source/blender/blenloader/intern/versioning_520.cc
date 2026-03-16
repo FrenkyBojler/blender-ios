@@ -32,7 +32,7 @@ namespace blender {
 
 // static CLG_LogRef LOG = {"blend.doversion"};
 
-/* Saving file extension is now a property of the the File Output node. So inherit this
+/* Saving file extension is now a property of the File Output node. So inherit this
  * setting from the active scene to restore the old behavior.
  * Note: One limitation is that node groups containing file outputs that are not part of any
  * scene are not affected by versioning. */
@@ -108,6 +108,12 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 7)) {
+    for (Scene &scene : bmain->scenes) {
+      scene.r.anisotropic_filter = 2;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 8)) {
     for (bScreen &screen : bmain->screens) {
       for (ScrArea &area : screen.areabase) {
         for (SpaceLink &sl : area.spacedata) {
@@ -135,6 +141,7 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
     }
   }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
