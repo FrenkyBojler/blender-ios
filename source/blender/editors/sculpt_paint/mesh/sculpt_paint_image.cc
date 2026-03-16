@@ -72,13 +72,12 @@ static void fetch_image_buffers(ImageData &image_data, bke::pbvh::Node &node)
 {
   NodeData &node_data = bke::pbvh::pixels::node_data_get(node);
   for (const UDIMTilePixels &tile : node_data.tiles) {
-    if (!image_data.buffers.contains(tile.tile_number)) {
+    image_data.buffers.lookup_or_add_cb(tile.tile_number, [&]() {
       ImageUser tile_user = *image_data.image_user;
       tile_user.tile = tile.tile_number;
 
-      image_data.buffers.add_new(tile.tile_number,
-                                 BKE_image_acquire_ibuf(image_data.image, &tile_user, nullptr));
-    }
+      return BKE_image_acquire_ibuf(image_data.image, &tile_user, nullptr);
+    });
   }
 }
 
@@ -508,8 +507,9 @@ void SCULPT_do_paint_brush_image(const Depsgraph &depsgraph,
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
   MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
 
+  /* Explicitly marked as serial due to image buffer fetching being non-threadsafe */
   node_mask.foreach_index([&](const int i) { fetch_image_buffers(image_data, nodes[i]); },
-                          exec_mode::grain_size(1));
+                          exec_mode::serial);
   node_mask.foreach_index([&](const int i) { do_push_undo_tile(image_data, nodes[i]); },
                           exec_mode::grain_size(1));
   node_mask.foreach_index(
@@ -518,9 +518,11 @@ void SCULPT_do_paint_brush_image(const Depsgraph &depsgraph,
 
   fix_non_manifold_seam_bleeding(ob, image_data, nodes, node_mask);
 
-  node_mask.foreach_index([&](const int i) {
-    bke::pbvh::pixels::mark_image_dirty(nodes[i], *image_data.image, image_data.buffers);
-  });
+  node_mask.foreach_index(
+      [&](const int i) {
+        bke::pbvh::pixels::mark_image_dirty(nodes[i], *image_data.image, image_data.buffers);
+      },
+      exec_mode::grain_size(1));
 }
 
 }  // namespace blender
