@@ -104,6 +104,8 @@ class BaseSkinNode(BaseMergeNode, MechanismUtilityMixin, BoneUtilityMixin):
     @property
     def reparent_bone(self):
         """The generated reparent bone for this node's parent mechanism."""
+        if not getattr(self, "node_parent", None):
+            return None
         return self.merged_master.get_reparent_bone(self.node_parent)
 
 
