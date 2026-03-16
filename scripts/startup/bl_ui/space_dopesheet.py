@@ -725,7 +725,7 @@ class DopesheetActionPanelBase:
         col.prop(action, "use_cyclic")
 
         if context.preferences.experimental.use_action_layers:
-            layout.prop_search(action.layers, "active", action, "layers")
+            layout.template_action_layer_list(action)
             if action.layers.active:
                 layout.prop(action.layers.active, "is_locked")
                 layout.prop(action.layers.active, "mix_mode")

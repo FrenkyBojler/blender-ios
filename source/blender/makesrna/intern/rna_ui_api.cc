@@ -2416,6 +2416,16 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_function_ui_description(func, "View of the active Grease Pencil layer tree");
   RNA_def_function_flag(func, FUNC_USE_CONTEXT);
 
+  /* While this is a tree internally, we present it as a list to the API. Currently there are no
+   * plans to support layer children. */
+  func = RNA_def_function(srna, "template_action_layer_list", "template_action_layer_tree");
+  RNA_def_function_ui_description(func, "Show layers of the active action");
+  RNA_def_function_flag(func, FUNC_USE_CONTEXT);
+  parm = RNA_def_property(func, "action", PROP_POINTER, PROP_NONE);
+  RNA_def_property_struct_type(parm, "Action");
+  RNA_def_property_ui_text(parm, "Action", "The action for which to show the layer list");
+  RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
+
   func = RNA_def_function(srna, "template_node_tree_interface", "template_tree_interface");
   RNA_def_function_ui_description(func, "Show a node tree interface");
   RNA_def_function_flag(func, FUNC_USE_CONTEXT);
