@@ -150,6 +150,8 @@ def find_and_load_project_for_blend_path(context, blend_path, report=None):
         # local unsaved changes if auto-save isn't turned on.
         return
 
+    bpy.data.project_clear()
+
     # Load project.
     config = read_project_toml_config(root_path, report)
     if config is None:
@@ -158,8 +160,6 @@ def find_and_load_project_for_blend_path(context, blend_path, report=None):
         raise ProjectLoadException
 
     validate_config(config, report)
-
-    bpy.data.project_clear()
 
     bpy.data.project_init(config["name"], str(root_path))
 
