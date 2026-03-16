@@ -35,7 +35,7 @@ struct BaseHandle {
 };
 
 struct ObjectHandle : ObjectRef, BaseHandle {
-  const ResourceHandleRange &res_handle;
+  const ResourceHandleRange res_handle;
 
   ObjectHandle(const ObjectRef &ob_ref,
                const ResourceHandleRange &res_handle,
