@@ -141,6 +141,21 @@ static bool composite_validate_link(eNodeSocketDatatype from_type, eNodeSocketDa
     return true;
   }
 
+  if (ELEM(from_type, SOCK_FLOAT, SOCK_VECTOR, SOCK_INT_VECTOR) && to_type == SOCK_ROTATION) {
+    return true;
+  }
+
+  if (from_type == SOCK_MATRIX && to_type == SOCK_ROTATION) {
+    return true;
+  }
+  if (from_type == SOCK_ROTATION && to_type == SOCK_MATRIX) {
+    return true;
+  }
+
+  if (from_type == SOCK_ROTATION && ELEM(to_type, SOCK_VECTOR, SOCK_INT_VECTOR)) {
+    return true;
+  }
+
   return from_type == to_type;
 }
 

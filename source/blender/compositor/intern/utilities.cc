@@ -77,7 +77,7 @@ ResultType socket_data_type_to_result_type(const eNodeSocketDatatype data_type,
     case SOCK_STRING:
       return ResultType::String;
     case SOCK_ROTATION:
-      return ResultType::Rotation;
+      return ResultType::Quaternion;
     case SOCK_OBJECT:
       return ResultType::Object;
     case SOCK_IMAGE:

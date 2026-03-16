@@ -641,7 +641,7 @@ class FileOutputOperation : public NodeOperation {
       case ResultType::Bool:
       case ResultType::Float4x4:
       case ResultType::Menu:
-      case ResultType::Rotation:
+      case ResultType::Quaternion:
       case ResultType::String:
       case ResultType::Object:
       case ResultType::Image:
@@ -682,7 +682,7 @@ class FileOutputOperation : public NodeOperation {
       case ResultType::Bool:
       case ResultType::Float4x4:
       case ResultType::Menu:
-      case ResultType::Rotation:
+      case ResultType::Quaternion:
       case ResultType::String:
       case ResultType::Object:
       case ResultType::Image:
@@ -744,7 +744,7 @@ class FileOutputOperation : public NodeOperation {
       case ResultType::Bool:
       case ResultType::Float4x4:
       case ResultType::Menu:
-      case ResultType::Rotation:
+      case ResultType::Quaternion:
       case ResultType::String:
       case ResultType::Object:
       case ResultType::Image:

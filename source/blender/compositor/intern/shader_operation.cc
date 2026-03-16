@@ -289,7 +289,7 @@ static const char *get_set_function_name(const ResultType type)
     case ResultType::Menu:
       /* GPUMaterial doesn't support int, so it is passed as a float. */
       return "set_float";
-    case ResultType::Rotation:
+    case ResultType::Quaternion:
       return "set_float4";
     case ResultType::String:
     case ResultType::Object:
@@ -524,7 +524,7 @@ static const char *get_store_function_name(ResultType type)
       return "node_compositor_store_output_float4x4";
     case ResultType::Menu:
       return "node_compositor_store_output_menu";
-    case ResultType::Rotation:
+    case ResultType::Quaternion:
       return "node_compositor_store_output_rotation";
     case ResultType::String:
     case ResultType::Object:
@@ -711,7 +711,7 @@ static const char *glsl_store_expression_from_result_type(ResultType type)
       /* GPUMaterial doesn't support int, so it is passed as a float, and we need to convert it
        * back to int before writing it. */
       return "ivec4(int(value))";
-    case ResultType::Rotation:
+    case ResultType::Quaternion:
       return "value";
     case ResultType::String:
     case ResultType::Object:
@@ -738,7 +738,7 @@ static ImageType gpu_image_type_from_result_type(const ResultType type)
     case ResultType::Float3:
     case ResultType::Color:
     case ResultType::Float4:
-    case ResultType::Rotation:
+    case ResultType::Quaternion:
       return ImageType::Float2D;
     case ResultType::Int:
     case ResultType::Int2:
@@ -885,7 +885,7 @@ std::string ShaderOperation::generate_code_for_outputs(ShaderCreateInfo &shader_
       case ResultType::Menu:
         store_menu_function << common_case_code.str();
         break;
-      case ResultType::Rotation:
+      case ResultType::Quaternion:
         store_rotation_function << common_case_code.str();
         break;
       case ResultType::String:
@@ -953,7 +953,7 @@ static const char *glsl_type_from_result_type(ResultType type)
     case ResultType::Menu:
       /* GPUMaterial doesn't support int, so it is passed as a float. */
       return "float";
-    case ResultType::Rotation:
+    case ResultType::Quaternion:
       return "vec4";
     case ResultType::String:
     case ResultType::Object:
@@ -999,7 +999,7 @@ static const char *glsl_swizzle_from_result_type(ResultType type)
       return "xyzw";
     case ResultType::Menu:
       return "x";
-    case ResultType::Rotation:
+    case ResultType::Quaternion:
       return "xyzw";
     case ResultType::String:
     case ResultType::Object:
