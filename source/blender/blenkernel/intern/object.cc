@@ -522,6 +522,29 @@ static void object_foreach_path_pointcache(ListBaseT<PointCache> *ptcache_list,
   }
 }
 
+static void object_foreach_path_particles(Object *ob, BPathForeachPathData *bpath_data)
+{
+  /* Particle systems are stored on disk in a different way than the generic pointcache files.
+   * Or at least not in the path stored in cache->path. So that's why there's no call to
+   * object_foreach_path_pointcache() here. */
+
+  for (ParticleSystem &psys : ob->particlesystem) {
+    PTCacheID pid;
+    BKE_ptcache_id_from_particles(&pid, ob, &psys);
+
+    /* Just report the directory that contains the pointcache files. */
+    char ptcache_path[FILE_MAX];
+    const int ptcache_path_len = BKE_ptcache_path(&pid, ptcache_path);
+
+    /* The path can be modified by BKE_bpath_foreach_path_fixed_process(), for example when using
+     * "Save As..." to write the blend file to another directory. In that case blendfile-relative
+     * paths are updated, so that they still point to the same physical location on disk. This
+     * rewriting is not supported here, as the particle system cache is always in the same
+     * directory as the blend file itself.  */
+    BKE_bpath_foreach_path_fixed_process(bpath_data, ptcache_path, ptcache_path_len);
+  }
+}
+
 static void object_foreach_path(ID *id, BPathForeachPathData *bpath_data)
 {
   Object *ob = reinterpret_cast<Object *>(id);
@@ -569,9 +592,7 @@ static void object_foreach_path(ID *id, BPathForeachPathData *bpath_data)
     object_foreach_path_pointcache(&ob->soft->shared->ptcaches, bpath_data);
   }
 
-  for (ParticleSystem &psys : ob->particlesystem) {
-    object_foreach_path_pointcache(&psys.ptcaches, bpath_data);
-  }
+  object_foreach_path_particles(ob, bpath_data);
 }
 
 static void object_foreach_cache(ID *id,
