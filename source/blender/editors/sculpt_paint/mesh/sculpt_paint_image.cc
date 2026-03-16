@@ -334,13 +334,13 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
         continue;
       }
 
-          pixel_positions.resize(pixel_row.num_pixels);
-          calc_pixel_row_positions(positions,
-                                   pbvh_data.vert_tris,
-                                   node_data.uv_primitives.tri_indices,
-                                   node_data.uv_primitives.delta_barycentric_coords,
-                                   pixel_row,
-                                   pixel_positions);
+      pixel_positions.resize(pixel_row.num_pixels);
+      calc_pixel_row_positions(positions,
+                               pbvh_data.vert_tris,
+                               node_data.uv_primitives.tri_indices,
+                               node_data.uv_primitives.delta_barycentric_coords,
+                               pixel_row,
+                               pixel_positions);
 
       factors.resize(pixel_positions.size());
       factors.fill(1.0f);
