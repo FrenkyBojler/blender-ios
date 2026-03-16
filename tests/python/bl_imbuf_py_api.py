@@ -532,15 +532,20 @@ class TestImBufPixelsRegion(unittest.TestCase):
             self.assertEqual(buf.ndim, 1)
 
     def test_zero_area_region(self):
+        # Fully outside image bounds.
         with self.ibuf.with_buffer('BYTE', region=((100, 100), (200, 200))) as buf:
             self.assertEqual(buf.ndim, 2)
             self.assertEqual(buf.shape[0] * buf.shape[1], 0)
 
-        with self.ibuf.with_buffer('BYTE', region=((5, 5), (2, 2))) as buf:
-            self.assertEqual(buf.shape[0] * buf.shape[1], 0)
-
+        # Start == end (zero-size).
         with self.ibuf.with_buffer('BYTE', region=((3, 3), (3, 3))) as buf:
             self.assertEqual(buf.shape[0] * buf.shape[1], 0)
+
+    def test_inverted_region_sanitized(self):
+        # Inverted region is sanitized (min/max swapped), not treated as empty.
+        with self.ibuf.with_buffer('BYTE', region=((5, 5), (2, 2))) as buf:
+            self.assertEqual(buf.ndim, 2)
+            self.assertEqual(buf.shape, (3, 12))
 
     def test_region_write_does_not_corrupt_neighbors(self):
         with self.ibuf.with_buffer('BYTE', write=True, region=((1, 1), (3, 3))) as buf:
