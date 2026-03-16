@@ -90,9 +90,17 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   Vector<bke::GeometrySet> geometries;
   Vector<float4x4> f4x4s;
+  Vector<int> parent_ids;
+  Vector<int> parent_counts;
 
-  ABC_geo_and_trans(
-      params.bmain(), path->c_str(), object_path.c_str(), &read_params, geometries, f4x4s);
+  ABC_geo_and_trans(params.bmain(),
+                    path->c_str(),
+                    object_path.c_str(),
+                    &read_params,
+                    geometries,
+                    f4x4s,
+                    parent_ids,
+                    parent_counts);
 
   if (geometries.size() == 0) {
     params.error_message_add(NodeWarningType::Error, "No geometry");
@@ -108,6 +116,15 @@ static void node_geo_exec(GeoNodeExecParams params)
     handles[i] = instances->add_reference(bke::InstanceReference{std::move(geometries[i])});
     transforms[i] = f4x4s[i];
   }
+
+  MutableAttributeAccessor attributes = instances->attributes_for_write();
+  attributes.add<int>("parent_index",
+                      bke::AttrDomain::Instance,
+                      bke::AttributeInitVArray(VArray<int>::from_span(parent_ids)));
+
+  attributes.add<int>("parent_count",
+                      bke::AttrDomain::Instance,
+                      bke::AttributeInitVArray(VArray<int>::from_span(parent_counts)));
 
   params.set_output("Instances", bke::GeometrySet::from_instances(std::move(instances)));
 

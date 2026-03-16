@@ -270,7 +270,8 @@ static std::pair<bool, AbcObjectReader *> visit_object(
     const IObject &object,
     AbcObjectReader::ptr_vector &readers,
     ImportSettings &settings,
-    AbcObjectReader::ptr_vector &r_assign_as_parent)
+    AbcObjectReader::ptr_vector &r_assign_as_parent,
+    int parent_count)
 {
   const std::string &full_name = object.getFullName();
 
@@ -293,7 +294,7 @@ static std::pair<bool, AbcObjectReader *> visit_object(
 
     /* TODO: When we only support C++11, use std::tie() instead. */
     std::pair<bool, AbcObjectReader *> child_result;
-    child_result = visit_object(ichild, readers, settings, assign_as_parent);
+    child_result = visit_object(ichild, readers, settings, assign_as_parent, parent_count + 1);
 
     bool child_claims_this_object = child_result.first;
     AbcObjectReader *child_reader = child_result.second;
@@ -393,6 +394,7 @@ static std::pair<bool, AbcObjectReader *> visit_object(
      * not claimed as part of any child Alembic object. */
     BLI_assert(claiming_child_readers.empty());
 
+    reader->store_parent_count(parent_count);
     readers.push_back(reader);
     reader->incref();
 
@@ -531,7 +533,8 @@ static void import_file(ImportJobData *data, const char *filepath, float progres
   /* Parse Alembic Archive. */
   AbcObjectReader::ptr_vector assign_as_parent;
   std::vector<AbcObjectReader *> readers{};
-  visit_object(archive->getTop(), readers, data->settings, assign_as_parent);
+  int parent_count = -1;
+  visit_object(archive->getTop(), readers, data->settings, assign_as_parent, parent_count);
 
   /* There shouldn't be any orphans. */
   BLI_assert(assign_as_parent.empty());
@@ -967,7 +970,9 @@ void ABC_geo_and_trans(Main *bmain,
                        const char *object_path,
                        const ABCReadParams *params,
                        Vector<bke::GeometrySet> &geometries,
-                       Vector<float4x4> &transforms)
+                       Vector<float4x4> &transforms,
+                       Vector<int> &parent_ids,
+                       Vector<int> &parent_counts)
 {
   ArchiveReader *archive = ArchiveReader::get(bmain, {filepath});
   if (!archive || !archive->valid()) {
@@ -980,6 +985,7 @@ void ABC_geo_and_trans(Main *bmain,
   Vector<ArchiveReader *> archives;
   AbcObjectReader::ptr_vector assign_as_parent;
   std::vector<AbcObjectReader *> readers{};
+  int parent_count = -1;
 
   CacheFile cache_file = {};
   STRNCPY(cache_file.filepath, filepath);
@@ -991,7 +997,7 @@ void ABC_geo_and_trans(Main *bmain,
   IObject iobject;
   find_iobject(archive->getTop(), iobject, object_path);
 
-  visit_object(iobject, readers, settings, assign_as_parent);
+  visit_object(iobject, readers, settings, assign_as_parent, parent_count);
   sort_readers(readers);
 
   ISampleSelector sample_sel = sample_selector_for_time(params->time);
@@ -1028,6 +1034,19 @@ void ABC_geo_and_trans(Main *bmain,
 
       geometries.append(geometry_set);
       transforms.append(float4x4(mat));
+
+      AbcObjectReader *parent_reader = reader->parent_reader;
+      if (parent_reader == nullptr || !reader->inherits_xform()) {
+        parent_ids.append(-1);
+        parent_counts.append(-1);
+      }
+      else {
+        auto it = std::find(readers.begin(), readers.end(), parent_reader);
+        int index = std::distance(readers.begin(), it);
+
+        parent_ids.append(index);
+        parent_counts.append(reader->parent_count());
+      }
     }
   }
 

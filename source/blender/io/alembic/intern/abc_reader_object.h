@@ -74,6 +74,7 @@ class AbcObjectReader {
   std::string m_data_name;
   Object *m_object;
   Alembic::Abc::IObject m_iobject;
+  int m_parent_count = -1;
 
   /* XXX - This used to reference stack memory for MeshSequenceCache scenarios. That has been
    * addressed but ownership of these settings should be made more apparent to prevent similar
@@ -127,6 +128,16 @@ class AbcObjectReader {
   bool inherits_xform() const
   {
     return m_inherits_xform;
+  }
+
+  int parent_count() const
+  {
+    return m_parent_count;
+  }
+
+  void store_parent_count(int parent_count)
+  {
+    m_parent_count = parent_count;
   }
 
   virtual bool valid() const = 0;

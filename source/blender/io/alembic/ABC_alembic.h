@@ -162,6 +162,8 @@ void ABC_geo_and_trans(Main *bmain,
                        const char *object_path,
                        const ABCReadParams *params,
                        Vector<bke::GeometrySet> &geometries,
-                       Vector<float4x4> &transforms);
+                       Vector<float4x4> &transforms,
+                       Vector<int> &parent_ids,
+                       Vector<int> &parent_counts);
 
 }  // namespace blender
