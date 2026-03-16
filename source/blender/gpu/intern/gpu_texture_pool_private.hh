@@ -13,8 +13,10 @@
 
 namespace blender::gpu {
 
-/* Base class to connect `acquire_texture_*` variants to a virtual
- * `acquire_texture_impl` which backend implementations can overload. */
+/**
+ * TexturePool base class, which connects `acquire_texture_*` variants to
+ * virtual `acquire_texture_impl` which backend implementations implement.
+ */
 class TexturePoolBase : public TexturePool {
  protected:
   virtual Texture *acquire_texture_impl(int3 extent,

@@ -71,6 +71,7 @@ Texture *TexturePoolImpl::acquire_texture_impl(int3 extent,
 
   /* Otherwise, allocate a new texture of the specified type. */
   TextureHandle handle = {GPUBackend::get()->texture_alloc(name_str.c_str())};
+  handle.texture->usage_set(usage | GPU_TEXTURE_USAGE_FORMAT_VIEW);
   bool init_result = false;
   switch (type) {
     case GPU_TEXTURE_1D:

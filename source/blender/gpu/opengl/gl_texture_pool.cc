@@ -78,7 +78,10 @@ Texture *GLTexturePool::acquire_texture_impl(int3 extent,
     if (handle.texture->format_get() != compatible_format) {
       continue;
     }
-    if (int2(handle.texture->w_, handle.texture->h_) != extent.xy()) {
+    if (handle.texture->type_get() != type) {
+      continue;
+    }
+    if (int3(handle.texture->w_, handle.texture->h_, handle.texture->w_) != extent) {
       continue;
     }
     match_index = i;
@@ -100,9 +103,32 @@ Texture *GLTexturePool::acquire_texture_impl(int3 extent,
       texture_name_str = fmt::format("TexFromPool_{}", pool_.size());
     }
 
-    eGPUTextureUsage usage_flag = usage | GPU_TEXTURE_USAGE_FORMAT_VIEW;
-    texture_handle.texture = unwrap(GPU_texture_create_2d(
-        texture_name_str.c_str(), extent.x, extent.y, 1, compatible_format, usage_flag, nullptr));
+    Texture *texture = GPUBackend::get()->texture_alloc(texture_name_str.c_str());
+    texture->usage_set(usage | GPU_TEXTURE_USAGE_FORMAT_VIEW);
+    bool texture_result = false;
+    switch (type) {
+      case GPU_TEXTURE_1D:
+      case GPU_TEXTURE_1D_ARRAY:
+        texture_result = texture->init_1D(extent.x, extent.y, 1, format);
+        break;
+      case GPU_TEXTURE_2D:
+      case GPU_TEXTURE_2D_ARRAY:
+        texture_result = texture->init_2D(extent.x, extent.y, extent.z, 1, format);
+        break;
+      case GPU_TEXTURE_3D:
+        texture_result = texture->init_3D(extent.x, extent.y, extent.z, 1, format);
+        break;
+      case GPU_TEXTURE_CUBE:
+      case GPU_TEXTURE_CUBE_ARRAY:
+        texture_result = texture->init_cubemap(extent.x, extent.y, 1, format);
+        break;
+      default:
+        BLI_assert_unreachable();
+        break;
+    }
+    BLI_assert(texture_result);
+
+    texture_handle.texture = unwrap(texture);
   }
 
   /* On acquire, issue barriers; backing texture or view may still be in flight somewhere. */
@@ -126,8 +152,32 @@ Texture *GLTexturePool::acquire_texture_impl(int3 extent,
 
   /* Assemble texture view and add to handle. Note, glTextureView with identical formats is
    * allowed, even if the formats are not listed for aliasing in the Internal Formats table. */
-  texture_handle.view = unwrap(GPU_texture_create_view(
-      view_name_str.c_str(), texture_handle.texture, format, 0, 1, 0, 1, false, false));
+  Texture *view = GPUBackend::get()->texture_alloc(view_name_str.c_str());
+  view->usage_set(usage | GPU_TEXTURE_USAGE_FORMAT_VIEW);
+  bool view_result = false;
+  switch (type) {
+    case GPU_TEXTURE_1D:
+    case GPU_TEXTURE_2D:
+    case GPU_TEXTURE_3D:
+    case GPU_TEXTURE_CUBE:
+      view_result = view->init_view(
+          texture_handle.texture, format, type, 0, 1, 0, 1, false, false);
+      break;
+    case GPU_TEXTURE_1D_ARRAY:
+    case GPU_TEXTURE_CUBE_ARRAY:
+      view_result = view->init_view(
+          texture_handle.texture, format, type, 0, 1, 0, extent.y, false, false);
+      break;
+    case GPU_TEXTURE_2D_ARRAY:
+      view_result = view->init_view(
+          texture_handle.texture, format, type, 0, 1, 0, extent.z, false, false);
+      break;
+    default:
+      BLI_assert_unreachable();
+      break;
+  }
+  BLI_assert(view_result);
+  texture_handle.view = unwrap(view);
 
   if (G.debug & G_DEBUG_GPU) {
     current_usage_data_.usage_count++;
