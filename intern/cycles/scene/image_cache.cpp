@@ -143,7 +143,7 @@ device_image *ImageCache::load_full(Device &device,
 
   /* Allocate memory as needed, may be smaller to resize down. */
   device_image *mem;
-  if (scale_factor < 1.0f) {
+  if (scale_factor > 0.0f && scale_factor < 1.0f) {
     pixels_storage.resize(int64_t(width) * height * 4);
     pixels = &pixels_storage[0];
     mem = nullptr;
