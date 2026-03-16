@@ -12,6 +12,7 @@
 
 #include "BKE_blender_project.hh"
 #include "BKE_context.hh"
+#include "BKE_global.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_path_templates.hh"
@@ -276,10 +277,9 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(const bContext 
 void BKE_add_template_variables_general(VariableMap &variables, const ID *path_owner_id)
 {
   /* Project variables. */
-  const blender::bke::BlenderProject *project = BKE_blender_project();
-  if (project) {
-    variables.add_string("project_name", project->get_name());
-    variables.add_filepath("project_root", project->get_root_path());
+  if (G_MAIN->project) {
+    variables.add_string("project_name", G_MAIN->project->get_name());
+    variables.add_filepath("project_root", G_MAIN->project->get_root_path());
   }
 
   /* Global blend filepath (a.k.a. path to the blend file that's currently

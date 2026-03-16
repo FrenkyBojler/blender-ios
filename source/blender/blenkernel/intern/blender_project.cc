@@ -9,10 +9,14 @@
 #include "DNA_userdef_types.h"
 
 #include "BKE_blender_project.hh"
+#include "BKE_global.hh"
+#include "BKE_main.hh"
 
 #include "BLI_string_ref.hh"
 
-namespace blender::bke {
+namespace blender {
+
+namespace bke {
 
 bool BlenderProject::set_name(StringRef name)
 {
@@ -50,35 +54,7 @@ StringRefNull BlenderProject::get_root_path() const
   return StringRefNull(this->root_path_);
 }
 
-}  // namespace blender::bke
-
-/**
- * Uses the Construct on First Use idiom for the global BlenderProject.
- */
-static std::optional<blender::bke::BlenderProject> &get_global_blender_project()
-{
-  static std::optional<blender::bke::BlenderProject> blender_project;
-
-  return blender_project;
-}
-
-/* Access the global project outside of this source file.
- *
- * We have this function rather than exposing `get_global_blender_project()`
- * directly to ensure that initialization and clearing of the project have to go
- * through `BKE_blender_project_init()` and `BKE_blender_project_clear()` below.
- *
- * That in turn allows us to enforce invariants about the project state, such as
- * project asset libraries being unloaded when the project is cleared. */
-blender::bke::BlenderProject *BKE_blender_project()
-{
-  std::optional<blender::bke::BlenderProject> &blender_project = get_global_blender_project();
-  if (!blender_project.has_value()) {
-    return nullptr;
-  }
-
-  return &blender_project.value();
-}
+}  // namespace bke
 
 bool BKE_blender_project_init(blender::StringRef name, blender::StringRef root_path)
 {
@@ -88,26 +64,30 @@ bool BKE_blender_project_init(blender::StringRef name, blender::StringRef root_p
 
   BKE_blender_project_clear();
 
-  std::optional<blender::bke::BlenderProject> &blender_project = get_global_blender_project();
+  G_MAIN->project = blender::bke::BlenderProject();
 
-  blender_project = blender::bke::BlenderProject();
-
-  blender_project->set_name(name);
-  blender_project->set_root_path(root_path);
+  G_MAIN->project->set_name(name);
+  G_MAIN->project->set_root_path(root_path);
 
   /* Initializing the in-memory project does not save to disk, so it's dirty by
    * default. */
-  blender_project->is_dirty = true;
+  G_MAIN->project->is_dirty = true;
 
   return true;
 }
 
+/* At the moment this is quite anemic, and doesn't really justify being a
+ * separate function. However, as future milestones like project-specific addons
+ * and asset libraries are added, this will collect in one place the code for
+ * ensuring those things are properly unloaded when the active project is
+ * cleared. */
 void BKE_blender_project_clear()
 {
-  std::optional<blender::bke::BlenderProject> &blender_project = get_global_blender_project();
-  if (!blender_project.has_value()) {
+  if (!G_MAIN->project.has_value()) {
     return;
   }
 
-  blender_project = std::nullopt;
+  G_MAIN->project = std::nullopt;
 }
+
+}  // namespace blender

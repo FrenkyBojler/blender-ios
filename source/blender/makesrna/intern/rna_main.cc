@@ -142,9 +142,10 @@ static bool rna_MainColorspace_is_missing_opencolorio_config_get(PointerRNA *ptr
 }
 
 #  ifdef WITH_BLENDER_PROJECTS
-static PointerRNA rna_Main_blender_project_get(PointerRNA * /* ptr */)
+static PointerRNA rna_Main_blender_project_get(PointerRNA *ptr)
 {
-  bke::BlenderProject *project = BKE_blender_project();
+  Main *bmain = reinterpret_cast<Main *>(ptr->data);
+  bke::BlenderProject *project = bmain->project ? &*bmain->project : nullptr;
   return RNA_pointer_create_discrete(nullptr, RNA_BlenderProject, project);
 }
 #  endif

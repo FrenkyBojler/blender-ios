@@ -12,7 +12,9 @@
 
 #include "BLI_string_ref.hh"
 
-namespace blender::bke {
+namespace blender {
+
+namespace bke {
 
 /**
  * A Blender project.
@@ -51,26 +53,27 @@ class BlenderProject {
   StringRefNull get_root_path() const;
 };
 
-}  // namespace blender::bke
+}  // namespace bke
 
 /**
- * Fetch the current Blender Project, if any.
- *
- * Returns nullptr if there is no project.
- */
-blender::bke::BlenderProject *BKE_blender_project();
-
-/**
- * Initialize a new Blender Project.
+ * Initialize a new active Blender Project.
  *
  * If either `name` or `root_path` are empty (which is invalid), the current
  * project (if any) will remain as-is and false is returned.  Otherwise the
  * existing project (if any) is cleared, the project is initialized with the
  * given values, and true is returned.
+ *
+ * NOTE: the active Blender Project (which this operates on) lives in the global
+ * Main (a.k.a. `G_MAIN`).
  */
 bool BKE_blender_project_init(blender::StringRef name, blender::StringRef root_path);
 
 /**
- * Clears and unloads the current project, if any.
+ * Clears and unloads the current active project, if any.
+ *
+ * NOTE: the active Blender Project (which this operates on) lives in the global
+ * Main (a.k.a. `G_MAIN`).
  */
 void BKE_blender_project_clear();
+
+}  // namespace blender

@@ -13,6 +13,7 @@
 #include "rna_internal.hh"
 
 #include "BKE_blender_project.hh"
+#include "BKE_global.hh"
 #include "BLI_string_ref.hh"
 
 #include "BLT_translation.hh"
@@ -25,11 +26,11 @@ namespace blender {
 
 static void project_mark_dirty()
 {
-  if (!BKE_blender_project()) {
+  if (!G_MAIN->project) {
     return;
   }
 
-  BKE_blender_project()->is_dirty = true;
+  G_MAIN->project->is_dirty = true;
 }
 
 /* For properties that AREN'T saved to disk as part of the project data. */

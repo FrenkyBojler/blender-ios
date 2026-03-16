@@ -32,7 +32,9 @@
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector_set.hh"
 
+#include "BKE_blender_project.hh"
 #include "BKE_lib_query.hh" /* For LibraryForeachIDCallbackFlag. */
+
 struct MainLock;
 namespace blender {
 
@@ -361,6 +363,24 @@ struct Main : NonCopyable, NonMovable {
    * Color-space information for this file.
    */
   MainColorspace colorspace;
+
+  /**
+   * The currently active project (if any).
+   *
+   * NOTE: despite being in Main, this is not actually part of blend file data,
+   * and is neither read from nor written to any blend file. Projects are
+   * defined outside of individual blend files. Blend files (optionally) belong
+   * to a project, not the other way around.
+   *
+   * Nevertheless, Main is a convenient place to store the active project at
+   * runtime, and doing so avoids creating a separate global variable, hence why
+   * it's here.
+   *
+   * Importantly, there should only be a single active project globally, and
+   * therefore this should only be set on the global Main (a.k.a. `G_MAIN`,
+   * where `is_global_main == true`).
+   */
+  std::optional<bke::BlenderProject> project = std::nullopt;
 
   /* List bases for all ID types, containing all IDs for the current #Main. */
 
