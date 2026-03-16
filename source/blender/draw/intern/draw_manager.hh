@@ -130,9 +130,6 @@ class Manager {
 
   ResourceHandleRange unique_handle_for_sculpt(const ObjectRef &ref);
 
-  /* TODO: We should be able to get rid of the model_matrix parameter? */
-  ResourceHandleRange unique_handle_for_psys(const ObjectRef &ref, const float4x4 &model_matrix);
-
   /**
    * Create a new resource handle for the given object.
    */
@@ -324,17 +321,6 @@ inline ResourceHandleRange Manager::unique_handle(const ObjectRef &ref)
     const_cast<ObjectRef &>(ref).handle_ = resource_handle(ref);
   }
   return ref.handle_;
-}
-
-inline ResourceHandleRange Manager::unique_handle_for_psys(const ObjectRef &ref,
-                                                           const float4x4 &model_matrix)
-{
-  BLI_assert(ref.sub_key_ != 0);
-  if (!ref.psys_handle_.is_valid()) {
-    /* WORKAROUND: Instead of breaking const correctness everywhere, we only break it for this. */
-    const_cast<ObjectRef &>(ref).psys_handle_ = resource_handle_for_psys(ref, model_matrix);
-  }
-  return ref.psys_handle_;
 }
 
 inline ResourceHandleRange Manager::resource_handle(const ObjectRef &ref, float inflate_bounds)

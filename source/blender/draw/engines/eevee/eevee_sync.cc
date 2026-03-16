@@ -437,12 +437,12 @@ void SyncModule::sync_curves(const ObjectRef &ob_ref, HairParticleInfo const *ha
   }
 
   ObjectHandle ob_handle = hair_particle ?
-                               sync_object(ob_ref, inst_.manager->unique_handle(ob_ref)) :
                                ObjectHandle(ob_ref,
-                                            inst_.manager->unique_handle_for_psys(
+                                            inst_.manager->resource_handle_for_psys(
                                                 ob_ref, ob_ref.object_to_world()),
                                             hair_particle->recalc_flags,
-                                            hair_particle->sub_key);
+                                            hair_particle->sub_key) :
+                               sync_object(ob_ref, inst_.manager->unique_handle(ob_ref));
 
   bool has_motion = inst_.velocity.step_object_sync(ob_handle, hair_particle);
   MaterialSync material = inst_.materials.material_get(

@@ -230,7 +230,6 @@ class ObjectRef {
   /** Unique handle per object ref. */
   ResourceHandleRange handle_ = {};
   ResourceHandleRange sculpt_handle_ = {};
-  ResourceHandleRange psys_handle_ = {};
 
   /* For ParticleSystems of the main object. */
   uint sub_key_ = 0;
