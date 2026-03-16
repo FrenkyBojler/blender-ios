@@ -11,19 +11,20 @@
 #  include "gpu_shader_compat.hh"
 
 #  include "GPU_shader_shared.hh"
+
+#  include "gpu_shader_fullscreen_infos.hh"
 #endif
 
-#include "gpu_interface_infos.hh"
 #include "gpu_shader_create_info.hh"
 
 GPU_SHADER_CREATE_INFO(gpu_shader_test)
+LOCAL_GROUP_SIZE(1)
 TYPEDEF_SOURCE("GPU_shader_shared.hh")
-FRAGMENT_OUT(0, uint4, out_test)
-ADDITIONAL_INFO(gpu_fullscreen)
+STORAGE_BUF(0, write, TestOutput, out_test[])
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(gpu_math_test)
-FRAGMENT_SOURCE("gpu_math_test.glsl")
+COMPUTE_SOURCE("gpu_math_test.glsl")
 ADDITIONAL_INFO(gpu_shader_test)
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
@@ -51,7 +52,7 @@ GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(gpu_compute_vbo_test)
 LOCAL_GROUP_SIZE(1)
-STORAGE_BUF(0, write, vec4, out_positions[])
+STORAGE_BUF(0, write, float4, out_positions[])
 COMPUTE_SOURCE("gpu_compute_vbo_test.glsl")
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
@@ -186,7 +187,7 @@ GPU_SHADER_CREATE_END()
 /* EEVEE test. */
 
 GPU_SHADER_CREATE_INFO(eevee_shadow_test)
-FRAGMENT_SOURCE("eevee_shadow_test.glsl")
+COMPUTE_SOURCE("eevee_shadow_test.glsl")
 TYPEDEF_SOURCE("eevee_defines.hh")
 TYPEDEF_SOURCE("eevee_shadow_shared.hh")
 ADDITIONAL_INFO(gpu_shader_test)
@@ -194,22 +195,32 @@ DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(eevee_occupancy_test)
-FRAGMENT_SOURCE("eevee_occupancy_test.glsl")
+COMPUTE_SOURCE("eevee_occupancy_test.glsl")
 TYPEDEF_SOURCE("eevee_defines.hh")
 ADDITIONAL_INFO(gpu_shader_test)
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(eevee_gbuffer_normal_test)
-FRAGMENT_SOURCE("eevee_gbuffer_normal_test.glsl")
+COMPUTE_SOURCE("eevee_gbuffer_normal_test.glsl")
 TYPEDEF_SOURCE("eevee_defines.hh")
 ADDITIONAL_INFO(gpu_shader_test)
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(eevee_gbuffer_closure_test)
-FRAGMENT_SOURCE("eevee_gbuffer_closure_test.glsl")
+COMPUTE_SOURCE("eevee_gbuffer_closure_test.glsl")
 TYPEDEF_SOURCE("eevee_defines.hh")
 ADDITIONAL_INFO(gpu_shader_test)
 DO_STATIC_COMPILATION()
+GPU_SHADER_CREATE_END()
+
+/* Runtime create info. */
+GPU_SHADER_CREATE_INFO(gpu_framebuffer_subpass_input_test)
+FRAGMENT_OUT(0, int, out_value)
+GPU_SHADER_CREATE_END()
+
+/* Runtime create info. */
+GPU_SHADER_CREATE_INFO(gpu_framebuffer_layer_viewport_test)
+FRAGMENT_OUT(0, int2, out_value)
 GPU_SHADER_CREATE_END()

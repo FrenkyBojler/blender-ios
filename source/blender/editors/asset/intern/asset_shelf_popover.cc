@@ -118,7 +118,7 @@ class AssetCatalogTreeView : public ui::AbstractTreeView {
         library,
         shelf_.settings.asset_library_reference,
         [this](const asset_system::AssetRepresentation &asset) {
-          return (!shelf_.type->asset_poll || shelf_.type->asset_poll(shelf_.type, &asset));
+          return type_asset_poll(*shelf_.type, asset);
         });
 
     /* Keep the popup open when clicking to activate a catalog. */
@@ -128,9 +128,10 @@ class AssetCatalogTreeView : public ui::AbstractTreeView {
   void build_tree() override
   {
     if (catalog_tree_.is_empty()) {
-      auto &item = this->add_tree_item<ui::BasicTreeViewItem>(RPT_("No applicable assets found"),
+      auto &item = this->add_tree_item<ui::BasicTreeViewItem>(RPT_("No asset catalogs"),
                                                               ICON_INFO);
       item.disable_interaction();
+      this->is_flat_ = true;
       return;
     }
 
@@ -189,8 +190,8 @@ static void catalog_tree_draw(const bContext &C, ui::Layout &layout, AssetShelf 
     return;
   }
 
-  uiBlock *block = layout.block();
-  ui::AbstractTreeView *tree_view = UI_block_add_view(
+  ui::Block *block = layout.block();
+  ui::AbstractTreeView *tree_view = block_add_view(
       *block,
       "asset shelf catalog tree view",
       std::make_unique<AssetCatalogTreeView>(*library, shelf));
@@ -238,7 +239,7 @@ static void popover_panel_draw(const bContext *C, Panel *panel)
 
   bScreen *screen = CTX_wm_screen(C);
   PointerRNA library_ref_ptr = RNA_pointer_create_discrete(
-      &screen->id, &RNA_AssetLibraryReference, &shelf->settings.asset_library_reference);
+      &screen->id, RNA_AssetLibraryReference, &shelf->settings.asset_library_reference);
   layout.context_ptr_set("asset_library_reference", &library_ref_ptr);
 
   ui::Layout &row = layout.row(false);
@@ -251,11 +252,11 @@ static void popover_panel_draw(const bContext *C, Panel *panel)
   ui::Layout &right_col = row.column(false);
   ui::Layout &sub = right_col.row(false);
   /* Same as file/asset browser header. */
-  PointerRNA shelf_ptr = RNA_pointer_create_discrete(&screen->id, &RNA_AssetShelf, shelf);
+  PointerRNA shelf_ptr = RNA_pointer_create_discrete(&screen->id, RNA_AssetShelf, shelf);
   sub.prop(&shelf_ptr,
            "search_filter",
            /* Force the button to be active in a semi-modal state. */
-           UI_ITEM_R_TEXT_BUT_FORCE_SEMI_MODAL_ACTIVE,
+           ui::ITEM_R_TEXT_BUT_FORCE_SEMI_MODAL_ACTIVE,
            "",
            ICON_VIEWZOOM);
 
@@ -285,7 +286,7 @@ void popover_panel_register(ARegionType *region_type)
     return;
   }
 
-  PanelType *pt = MEM_callocN<PanelType>(__func__);
+  PanelType *pt = MEM_new_zeroed<PanelType>(__func__);
   STRNCPY_UTF8(pt->idname, "ASSETSHELF_PT_popover_panel");
   STRNCPY_UTF8(pt->label, N_("Asset Shelf Panel"));
   STRNCPY_UTF8(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);

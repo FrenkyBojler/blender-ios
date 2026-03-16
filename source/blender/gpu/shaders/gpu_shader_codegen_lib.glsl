@@ -56,7 +56,6 @@ float2 calc_barycentric_co(int vertid)
 #  define FrontFacing true
 #endif
 
-/* Can't use enum here because not a header file. But would be great to do. */
 enum ClosureType : uchar {
   CLOSURE_NONE_ID = 0u,
   /* Diffuse */
@@ -253,7 +252,7 @@ float3 dF_impl(float3 v)
   return float3(0.0f);
 }
 
-void dF_branch(float fn, out float2 result)
+void dF_branch(float fn, float2 &result)
 {
   /* NOTE: this function is currently unused, once it is used we need to check if
    * `g_derivative_filter_width` needs to be applied. */

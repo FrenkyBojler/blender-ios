@@ -40,9 +40,6 @@
 #include "mtl_texture.hh"
 #include "mtl_vertex_buffer.hh"
 
-#include "GHOST_C-api.h"
-
-using namespace blender;
 using namespace blender::gpu;
 using namespace blender::gpu::shader;
 
@@ -251,26 +248,22 @@ id<MTLLibrary> MTLShader::create_shader_library(const shader::ShaderCreateInfo &
 
   sources[SOURCES_INDEX_VERSION] = shader_compat;
 
-  std::string concat_source = fmt::to_string(fmt::join(sources, "")) + wrapper.second;
+  const std::string original_source = fmt::to_string(fmt::join(sources, "")) + wrapper.second;
 
-  if (this->name_get() == G.gpu_debug_shader_source_name) {
-    NSFileManager *sharedFM = [NSFileManager defaultManager];
-    NSURL *app_bundle_url = [[NSBundle mainBundle] bundleURL];
-    NSURL *shader_dir = [[app_bundle_url URLByDeletingLastPathComponent]
-        URLByAppendingPathComponent:@"Shaders/"
-                        isDirectory:YES];
+  dump_source_to_disk(
+      this->name_get(), this->entry_point_name_get(stage), ".msl", original_source);
 
-    [sharedFM createDirectoryAtURL:shader_dir
-        withIntermediateDirectories:YES
-                         attributes:nil
-                              error:nil];
+  std::string processed_source;
+  if (!this->skip_preprocessor) {
+    processed_source = run_preprocessor(original_source, G.debug & G_DEBUG_GPU_SHADER_NO_DCE);
 
-    const char *path_cstr = [shader_dir fileSystemRepresentation];
-
-    std::ofstream output_source_file(std::string(path_cstr) + "/" +
-                                     this->entry_point_name_get(stage) + ".msl");
-    output_source_file << concat_source;
-    output_source_file.close();
+    dump_source_to_disk(this->name_get(),
+                        this->entry_point_name_get(stage) + ".expanded",
+                        ".msl",
+                        processed_source);
+  }
+  else {
+    processed_source = original_source;
   }
 
   {
@@ -279,7 +272,7 @@ id<MTLLibrary> MTLShader::create_shader_library(const shader::ShaderCreateInfo &
 
     NSError *error = nullptr;
     id<MTLLibrary> library = [context_->device
-        newLibraryWithSource:[NSString stringWithUTF8String:concat_source.c_str()]
+        newLibraryWithSource:[NSString stringWithUTF8String:processed_source.c_str()]
                      options:options
                        error:&error];
     library.label = [NSString stringWithUTF8String:this->name];
@@ -301,7 +294,7 @@ id<MTLLibrary> MTLShader::create_shader_library(const shader::ShaderCreateInfo &
     [library release];
 
     MTLLogParser parser;
-    print_log({concat_source}, [error_localized UTF8String], to_string(stage), true, &parser);
+    print_log({original_source}, [error_localized UTF8String], to_string(stage), true, &parser);
   }
   return nil;
 }
@@ -338,16 +331,16 @@ bool MTLShader::finalize(const shader::ShaderCreateInfo *info)
     return false;
   }
 
-  if (this->shader_library_frag_ == nil && this->shader_library_frag_ == nil &&
+  if (this->shader_library_vert_ == nil && this->shader_library_frag_ == nil &&
       this->shader_library_comp_ == nil)
   {
     /* All compilations failed. */
     return false;
   }
 
-  const bool is_compute = (this->shader_library_frag_ == nil && this->shader_library_frag_ == nil);
+  const bool is_compute = (this->shader_library_vert_ == nil && this->shader_library_frag_ == nil);
 
-  if (!is_compute && (this->shader_library_frag_ == nil || this->shader_library_frag_ == nil)) {
+  if (!is_compute && (this->shader_library_vert_ == nil || this->shader_library_frag_ == nil)) {
     /* One stage failed to compile. */
     return false;
   }
@@ -479,8 +472,8 @@ void MTLShader::warm_cache(int limit)
     MTLShader *parent_mtl = static_cast<MTLShader *>(parent_shader_);
 
     /* Extract PSO descriptors from parent shader. */
-    blender::Vector<MTLRenderPipelineStateDescriptor> descriptors;
-    blender::Vector<MTLPrimitiveTopologyClass> prim_classes;
+    Vector<MTLRenderPipelineStateDescriptor> descriptors;
+    Vector<MTLPrimitiveTopologyClass> prim_classes;
 
     parent_mtl->pso_cache_lock_.lock();
     for (const auto &pso_entry : parent_mtl->pso_cache_.items()) {
