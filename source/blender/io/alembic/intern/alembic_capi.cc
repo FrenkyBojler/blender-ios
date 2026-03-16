@@ -964,6 +964,7 @@ CacheReader *CacheReader_open_alembic_object(CacheArchiveHandle *handle,
 
 void ABC_geo_and_trans(Main *bmain,
                        const char *filepath,
+                       const char *object_path,
                        const ABCReadParams *params,
                        Vector<bke::GeometrySet> &geometries,
                        Vector<float4x4> &transforms)
@@ -987,7 +988,10 @@ void ABC_geo_and_trans(Main *bmain,
   settings.cache_file = &cache_file;
   settings.blender_archive_version_prior_44 = archive->is_blender_archive_version_prior_44();
 
-  visit_object(archive->getTop(), readers, settings, assign_as_parent);
+  IObject iobject;
+  find_iobject(archive->getTop(), iobject, object_path);
+
+  visit_object(iobject, readers, settings, assign_as_parent);
   sort_readers(readers);
 
   ISampleSelector sample_sel = sample_selector_for_time(params->time);
@@ -1000,8 +1004,6 @@ void ABC_geo_and_trans(Main *bmain,
     bke::GeometrySet geometry_set;
     Mesh *mesh = BKE_mesh_new_nomain(0, 0, 0, 0);
     geometry_set.replace_mesh(mesh);
-
-    // Object *ob = reader->object();
 
     reader->read_geometry(geometry_set,
                           sample_sel,

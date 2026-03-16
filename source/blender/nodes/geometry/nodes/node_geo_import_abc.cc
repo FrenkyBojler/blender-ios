@@ -42,14 +42,12 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::String>("Object Path").optional_label().description("Object Path");
 
   {
-    auto &p = b.add_panel("Time").default_closed(false);
+    auto &p = b.add_panel("Time"_ustr).default_closed(false);
     p.add_input<decl::Bool>("Sequence");
-    p.add_input<decl::Bool>("Override Frame");
-    p.add_input<decl::Float>("Override Frame F");
-    p.add_input<decl::Float>("Frame Offset");
+    p.add_input<decl::Float>("Time");
   }
   {
-    auto &p = b.add_panel("Velocity").default_closed(true);
+    auto &p = b.add_panel("Velocity"_ustr).default_closed(true);
     p.add_input<decl::String>("Velocity Attribute").default_value(".velocity").optional_label();
     p.add_input<decl::Int>("Velocity Unit");
     p.add_input<decl::Float>("Velocity Scale").default_value(1.0f);
@@ -70,13 +68,9 @@ class LoadAbcCache : public memory_cache::CachedValue {
 static void node_geo_exec(GeoNodeExecParams params)
 {
   bool is_sequence = params.extract_input<bool>("Sequence");
-  bool override_frame = params.extract_input<bool>("Override Frame");
-  float frame = params.extract_input<float>("Override Frame F");
-  float frame_offset = params.extract_input<float>("Frame Offset");
+  double time = params.extract_input<float>("Time");
   std::string velocity_name = params.extract_input<std::string>("Velocity Attribute");
   float velocity_scale = params.extract_input<float>("Velocity Scale");
-
-  double time = (frame + frame_offset) / 24;
 
 #ifdef WITH_ALEMBIC
   const std::optional<std::string> path = params.ensure_absolute_path(
@@ -97,7 +91,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   Vector<bke::GeometrySet> geometries;
   Vector<float4x4> f4x4s;
 
-  ABC_geo_and_trans(params.bmain(), path->c_str(), &read_params, geometries, f4x4s);
+  ABC_geo_and_trans(
+      params.bmain(), path->c_str(), object_path.c_str(), &read_params, geometries, f4x4s);
 
   if (geometries.size() == 0) {
     params.error_message_add(NodeWarningType::Error, "No geometry");

@@ -159,6 +159,7 @@ struct CacheReader *CacheReader_open_alembic_object(struct CacheArchiveHandle *h
 
 void ABC_geo_and_trans(Main *bmain,
                        const char *filepath,
+                       const char *object_path,
                        const ABCReadParams *params,
                        Vector<bke::GeometrySet> &geometries,
                        Vector<float4x4> &transforms);
