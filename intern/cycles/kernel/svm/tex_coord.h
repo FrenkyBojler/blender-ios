@@ -81,7 +81,7 @@ ccl_device_inline Float3Type svm_texco_camera(KernelGlobals kg,
   Float3Type data(P);
   const Transform tfm = kernel_data.cam.worldtocamera;
   if (sd->object == OBJECT_NONE) {
-    if constexpr (is_dual_v(Float3Type)) {
+    if constexpr (is_dual_v<Float3Type>) {
       data.val += camera_position(kg);
     }
     else {
@@ -118,7 +118,7 @@ ccl_device_noinline Float3Type svm_node_tex_coord_eval(KernelGlobals kg,
       break;
     }
     case NODE_TEXCO_NORMAL: {
-      if constexpr (is_dual_v(Float3Type)) {
+      if constexpr (is_dual_v<Float3Type>) {
         data = svm_texco_smooth_normal(kg, sd);
       }
       else {
@@ -140,12 +140,12 @@ ccl_device_noinline Float3Type svm_node_tex_coord_eval(KernelGlobals kg,
       }
       else {
         data = Float3Type(camera_world_to_ndc(kg, sd, sd->P));
-        if constexpr (is_dual_v(Float3Type)) {
+        if constexpr (is_dual_v<Float3Type>) {
           data.dx.x = 1.0f / kernel_data.cam.width;
           data.dy.y = 1.0f / kernel_data.cam.height;
         }
       }
-      if constexpr (is_dual_v(Float3Type)) {
+      if constexpr (is_dual_v<Float3Type>) {
         data.val.z = 0.0f;
       }
       else {
@@ -381,7 +381,7 @@ ccl_device_noinline void svm_node_tangent(KernelGlobals kg,
       return;
     }
     if (desc.type == NODE_ATTR_FLOAT2) {
-      if constexpr (is_dual_v(Float3Type)) {
+      if constexpr (is_dual_v<Float3Type>) {
         tangent = make_float3(primitive_surface_attribute<dual2>(kg, sd, desc));
       }
       else {
@@ -399,7 +399,7 @@ ccl_device_noinline void svm_node_tangent(KernelGlobals kg,
       generated = shading_position<Float3Type>(sd);
     }
     else if (desc.type == NODE_ATTR_FLOAT2) {
-      if constexpr (is_dual_v(Float3Type)) {
+      if constexpr (is_dual_v<Float3Type>) {
         generated = make_float3(primitive_surface_attribute<dual2>(kg, sd, desc));
       }
       else {
@@ -410,7 +410,7 @@ ccl_device_noinline void svm_node_tangent(KernelGlobals kg,
       generated = primitive_surface_attribute<Float3Type>(kg, sd, desc);
     }
 
-    if constexpr (is_dual_v(Float3Type)) {
+    if constexpr (is_dual_v<Float3Type>) {
       using FloatType = dual_scalar_t<Float3Type>;
       if (axis == NODE_TANGENT_AXIS_X) {
         tangent = make_float3(FloatType(), -(generated.z() - 0.5f), (generated.y() - 0.5f));
@@ -435,7 +435,7 @@ ccl_device_noinline void svm_node_tangent(KernelGlobals kg,
     }
   }
 
-  if constexpr (is_dual_v(Float3Type)) {
+  if constexpr (is_dual_v<Float3Type>) {
     object_normal_transform(kg, sd, &tangent);
     tangent = cross(sd->N, normalize(cross(tangent, sd->N)));
   }

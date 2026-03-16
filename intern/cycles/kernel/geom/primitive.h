@@ -163,7 +163,7 @@ ccl_device Float3Type primitive_tangent(KernelGlobals kg, ccl_private ShaderData
   const AttributeDescriptor desc = find_attribute(kg, sd, ATTR_STD_GENERATED);
 
   if (desc.offset != ATTR_STD_NOT_FOUND) {
-    if constexpr (is_dual_v(Float3Type)) {
+    if constexpr (is_dual_v<Float3Type>) {
       dual3 data = primitive_surface_attribute<dual3>(kg, sd, desc);
       data = make_float3(-(data.y() - 0.5f), (data.x() - 0.5f), dual1());
       object_normal_transform(kg, sd, &data);

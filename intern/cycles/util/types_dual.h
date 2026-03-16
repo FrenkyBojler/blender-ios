@@ -111,20 +111,13 @@ using dual4 = dual<float4>;
 /* Use enum on GPU to avoid Metal problems with static constexpr,
  * and static constexpr bool on CPU to avoid enum-to-bool warnings. */
 template<typename T> struct is_dual {
-#ifdef __KERNEL_GPU__
-  enum { value = 0 };
-#else
-  static constexpr bool value = false;
-#endif
+  ccl_static_constexpr bool value = false;
 };
 template<typename U> struct is_dual<dual<U>> {
-#ifdef __KERNEL_GPU__
-  enum { value = 1 };
-#else
-  static constexpr bool value = true;
-#endif
+  ccl_static_constexpr bool value = true;
 };
-#define is_dual_v(T) (is_dual<T>::value)
+
+template<typename T> ccl_static_constexpr bool is_dual_v = is_dual<T>::value;
 
 /* Base (non-dual) type. E.g. dual_base_t<dual3> = float3, dual_base_t<float3> = float3. */
 

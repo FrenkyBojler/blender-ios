@@ -62,7 +62,7 @@ ccl_device T curve_attribute(KernelGlobals kg,
     const BaseT f0 = attribute_data_fetch<BaseT>(kg, desc.element, desc.offset + k0);
     const BaseT f1 = attribute_data_fetch<BaseT>(kg, desc.element, desc.offset + k1);
 
-    if constexpr (is_dual_v(T)) {
+    if constexpr (is_dual_v<T>) {
       T result;
       result.val = mix(f0, f1, sd->u);
 #  ifdef __RAY_DIFFERENTIALS__

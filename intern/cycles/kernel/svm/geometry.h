@@ -43,7 +43,7 @@ ccl_device_inline Float3Type svm_node_geometry_eval(KernelGlobals kg,
       break;
     case NODE_GEOM_uv:
       data = Float3Type(make_float3(1.0f - sd->u - sd->v, sd->u, 0.0f));
-      if constexpr (is_dual_v(Float3Type)) {
+      if constexpr (is_dual_v<Float3Type>) {
         data.dx = make_float3(-sd->du.dx - sd->dv.dx, sd->du.dx, 0.0f);
         data.dy = make_float3(-sd->du.dy - sd->dv.dy, sd->du.dy, 0.0f);
       }

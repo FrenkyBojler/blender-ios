@@ -308,7 +308,7 @@ ccl_device T triangle_attribute(KernelGlobals kg,
     BaseT f[3];
     attribute_data_fetch_3<BaseT>(kg, desc.element, desc.offset, i0, i1, i2, f);
 
-    if constexpr (is_dual_v(T)) {
+    if constexpr (is_dual_v<T>) {
       T result;
       result.val = triangle_interpolate(sd->u, sd->v, f[0], f[1], f[2]);
 #ifdef __RAY_DIFFERENTIALS__

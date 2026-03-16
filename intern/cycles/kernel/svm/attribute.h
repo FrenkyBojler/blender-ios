@@ -79,7 +79,7 @@ ccl_device_inline Float3Type svm_node_attr_surface_eval(KernelGlobals kg,
 
   if (sd->type == PRIMITIVE_LAMP && node.y == ATTR_STD_UV) {
     Float3Type uv(make_float3(1.0f - sd->u - sd->v, sd->u, 0.0f));
-    if constexpr (is_dual_v(Float3Type)) {
+    if constexpr (is_dual_v<Float3Type>) {
       uv.dx = make_float3(-sd->du.dx - sd->dv.dx, sd->du.dx, 0.0f);
       uv.dy = make_float3(-sd->du.dy - sd->dv.dy, sd->du.dy, 0.0f);
     }
@@ -102,7 +102,7 @@ ccl_device_inline Float3Type svm_node_attr_surface_eval(KernelGlobals kg,
   }
 
   if (desc.type == NODE_ATTR_FLOAT2) {
-    if constexpr (is_dual_v(Float3Type)) {
+    if constexpr (is_dual_v<Float3Type>) {
       dual2 f = primitive_surface_attribute<dual2>(kg, sd, desc);
       if (type == NODE_ATTR_OUTPUT_FLOAT) {
         return make_float3(f.x());
@@ -125,7 +125,7 @@ ccl_device_inline Float3Type svm_node_attr_surface_eval(KernelGlobals kg,
   }
 
   if (desc.type == NODE_ATTR_FLOAT4 || desc.type == NODE_ATTR_RGBA) {
-    if constexpr (is_dual_v(Float3Type)) {
+    if constexpr (is_dual_v<Float3Type>) {
       dual4 f = primitive_surface_attribute<dual4>(kg, sd, desc);
       if (type == NODE_ATTR_OUTPUT_FLOAT) {
         return make_float3(average(make_float3(f)));

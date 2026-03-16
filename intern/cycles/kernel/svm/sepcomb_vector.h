@@ -20,7 +20,7 @@ ccl_device void svm_node_combine_vector(ccl_private float *stack,
   const FloatType value = stack_load<FloatType>(stack, in_offset);
 
   if (stack_valid(out_offset)) {
-    if constexpr (is_dual_v(Float3Type)) {
+    if constexpr (is_dual_v<Float3Type>) {
       stack_store_float(stack, out_offset + vector_index, value.val);
       stack_store_float(stack, out_offset + vector_index + 3, value.dx);
       stack_store_float(stack, out_offset + vector_index + 6, value.dy);
@@ -40,7 +40,7 @@ ccl_device void svm_node_separate_vector(ccl_private float *stack,
   const Float3Type vector = stack_load<Float3Type>(stack, ivector_offset);
 
   if (stack_valid(out_offset)) {
-    if constexpr (is_dual_v(Float3Type)) {
+    if constexpr (is_dual_v<Float3Type>) {
       if (vector_index == 0) {
         stack_store(stack, out_offset, vector.x());
       }

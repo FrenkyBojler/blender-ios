@@ -217,7 +217,7 @@ ccl_device_forceinline float3 dPdy(const ccl_private ShaderData *sd)
 template<typename Float3Type>
 ccl_device_inline Float3Type shading_position(const ccl_private ShaderData *sd)
 {
-  if constexpr (is_dual_v(Float3Type)) {
+  if constexpr (is_dual_v<Float3Type>) {
     dual3 P(sd->P);
     P.dx = dPdx(sd);
     P.dy = dPdy(sd);
@@ -233,7 +233,7 @@ ccl_device_inline Float3Type shading_position(const ccl_private ShaderData *sd)
 template<typename Float3Type>
 ccl_device_inline Float3Type shading_incoming(const ccl_private ShaderData *sd)
 {
-  if constexpr (is_dual_v(Float3Type)) {
+  if constexpr (is_dual_v<Float3Type>) {
     dual3 I(sd->wi);
     float3 dIdx, dIdy;
     make_orthonormals(sd->wi, &dIdx, &dIdy);
