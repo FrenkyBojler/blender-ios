@@ -435,14 +435,8 @@ ccl_device_noinline void svm_node_tangent(KernelGlobals kg,
     }
   }
 
-  if constexpr (is_dual_v<Float3Type>) {
-    object_normal_transform(kg, sd, &tangent);
-    tangent = cross(sd->N, normalize(cross(tangent, sd->N)));
-  }
-  else {
-    object_normal_transform(kg, sd, &tangent);
-    tangent = cross(sd->N, normalize(cross(tangent, sd->N)));
-  }
+  object_normal_transform(kg, sd, &tangent);
+  tangent = cross(sd->N, normalize(cross(tangent, sd->N)));
   stack_store(stack, tangent_offset, tangent);
 }
 
