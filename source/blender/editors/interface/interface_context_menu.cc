@@ -951,7 +951,7 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
     }
   }
   else if (button_opens_link(but)) {
-    std::string link = RNA_string_get(but->opptr, "url");
+    std::string link = button_get_link(but, C);
     layout.button(
         IFACE_("Copy Link"), ICON_COPYDOWN, [link = std::move(link)](blender::bContext & /*C*/) {
           WM_clipboard_text_set(link.c_str(), false);

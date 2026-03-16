@@ -4827,7 +4827,7 @@ static int do_but_BUT(bContext *C, Button *but, HandleButtonData *data, const wm
   }
   if (button_opens_link(but) && !data->changed_wokspace_status) {
     WorkspaceStatus status(C);
-    status.item(RNA_string_get(but->opptr, "url"), ICON_NONE);
+    status.item(button_get_link(but, C), ICON_NONE);
     data->changed_wokspace_status = true;
   }
   if (data->state == BUTTON_STATE_HIGHLIGHT) {
