@@ -536,6 +536,13 @@ static void object_foreach_path_particles(Object *ob, BPathForeachPathData *bpat
   for (ParticleSystem &psys : ob->particlesystem) {
     bool all_caches_external = true;
 
+    if (psys.part->type == PART_HAIR && (psys.part->flag & PSYS_HAIR_DYNAMICS) == 0) {
+      /* Hair system without dynamics, this means it doesn't use its particle cache.
+       * NOTE: the PSYS_HAIR_DYNAMICS flag can be animated, so technically this is only correct for
+       * the current frame. */
+      continue;
+    }
+
     for (PointCache &cache : psys.ptcaches) {
       /* When the 'External' checkbox is checked, the regular pointcache path is used. */
       if (cache.flag & PTCACHE_EXTERNAL) {
