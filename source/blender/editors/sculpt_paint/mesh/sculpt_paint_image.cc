@@ -68,10 +68,9 @@ std::unique_ptr<ImageData> ImageData::init_active_image(Object &ob,
   return image_data;
 }
 
-static void fetch_image_buffers(ImageData &image_data, bke::pbvh::Node &node)
+static void fetch_image_buffers(ImageData &image_data, bke::pbvh::Node & /*node*/, PixelNode &pixel_node)
 {
-  NodeData &node_data = bke::pbvh::pixels::node_data_get(node);
-  for (const UDIMTilePixels &tile : node_data.tiles) {
+  for (const UDIMTilePixels &tile : pixel_node.tiles) {
     image_data.buffers.lookup_or_add_cb(tile.tile_number, [&]() {
       ImageUser tile_user = *image_data.image_user;
       tile_user.tile = tile.tile_number;
@@ -512,7 +511,7 @@ void SCULPT_do_paint_brush_image(const Depsgraph &depsgraph,
   MutableSpan<PixelNode> pixel_nodes = pixel_data.nodes;
 
   /* Explicitly marked as serial due to image buffer fetching being non-threadsafe */
-  node_mask.foreach_index([&](const int i) { fetch_image_buffers(image_data, nodes[i]); },
+  node_mask.foreach_index([&](const int i) { fetch_image_buffers(image_data, nodes[i], pixel_nodes[i]); },
                           exec_mode::serial);
   node_mask.foreach_index([&](const int i) { do_push_undo_tile(image_data, nodes[i], pixel_nodes[i]); },
                           exec_mode::grain_size(1));
