@@ -99,6 +99,14 @@ class AnimationEvaluationTest : public testing::Test {
     return loc0_result->value;
   }
 
+  void key_quaternion(Main *bmain, Slot &slot, StripKeyframeData &strip_data, const float4 &values)
+  {
+    for (int i = 0; i < 4; i++) {
+      strip_data.keyframe_insert(
+          bmain, slot, {"rotation_quaternion", i}, {1, values[i]}, settings);
+    }
+  }
+
   /** Evaluate the layer, and test that the given property evaluates to the expected value. */
   testing::AssertionResult test_evaluate_layer(const StringRefNull rna_path,
                                                const int array_index,
@@ -184,6 +192,259 @@ TEST_F(AnimationEvaluationTest, evaluate_layer__keyframes)
   EXPECT_EQ(3.0f, cube->rot[0]) << "Evaluation should not modify the animated ID";
   EXPECT_EQ(2.0f, cube->rot[1]) << "Evaluation should not modify the animated ID";
   EXPECT_EQ(7.0f, cube->rot[2]) << "Evaluation should not modify the animated ID";
+}
+
+TEST_F(AnimationEvaluationTest, evaluate_replace_layer)
+{
+  Strip &strip = layer->strip_add(*action, Strip::Type::Keyframe);
+  StripKeyframeData &layer_1_strip_data = strip.data<StripKeyframeData>(*action);
+
+  Layer &layer_2 = action->layer_add("layer_2");
+  layer_2.layer_mix_mode = int8_t(Layer::MixMode::Replace);
+  Strip &strip_2 = layer_2.strip_add(*action, Strip::Type::Keyframe);
+  StripKeyframeData &layer_2_strip_data = strip_2.data<StripKeyframeData>(*action);
+
+  layer_1_strip_data.keyframe_insert(bmain, *slot, {"location", 0}, {1, 10}, settings);
+  layer_2_strip_data.keyframe_insert(bmain, *slot, {"location", 0}, {1, 20}, settings);
+
+  layer_1_strip_data.keyframe_insert(bmain, *slot, {"rotation_euler", 0}, {1, 0.5f}, settings);
+  layer_2_strip_data.keyframe_insert(bmain, *slot, {"rotation_euler", 0}, {1, 1.0f}, settings);
+
+  layer_1_strip_data.keyframe_insert(bmain, *slot, {"scale", 0}, {1, 1.0f}, settings);
+  layer_2_strip_data.keyframe_insert(bmain, *slot, {"scale", 0}, {1, 0.5f}, settings);
+
+  EvaluationResult result = evaluate_action(
+      cube_rna_ptr, *action, slot->handle, anim_eval_context);
+
+  ASSERT_FALSE(result.is_empty());
+
+  AnimatedProperty *loc_result = result.lookup_ptr(PropIdentifier("location", 0));
+  AnimatedProperty *rot_result = result.lookup_ptr(PropIdentifier("rotation_euler", 0));
+  AnimatedProperty *scale_result = result.lookup_ptr(PropIdentifier("scale", 0));
+
+  EXPECT_FLOAT_EQ(loc_result->value, 20.0f);
+  EXPECT_FLOAT_EQ(rot_result->value, 1.0f);
+  EXPECT_FLOAT_EQ(scale_result->value, 0.5f);
+
+  /* 50% influence. */
+  layer_2.influence = 0.5f;
+  result = evaluate_action(cube_rna_ptr, *action, slot->handle, anim_eval_context);
+
+  loc_result = result.lookup_ptr(PropIdentifier("location", 0));
+  rot_result = result.lookup_ptr(PropIdentifier("rotation_euler", 0));
+  scale_result = result.lookup_ptr(PropIdentifier("scale", 0));
+
+  EXPECT_FLOAT_EQ(loc_result->value, 15.0f);
+  EXPECT_FLOAT_EQ(rot_result->value, 0.75f);
+  EXPECT_FLOAT_EQ(scale_result->value, 0.75f);
+}
+
+TEST_F(AnimationEvaluationTest, evaluate_combine_layer)
+{
+  Strip &strip = layer->strip_add(*action, Strip::Type::Keyframe);
+  StripKeyframeData &layer_1_strip_data = strip.data<StripKeyframeData>(*action);
+
+  Layer &layer_2 = action->layer_add("layer_2");
+  layer_2.layer_mix_mode = int8_t(Layer::MixMode::Combine);
+  Strip &strip_2 = layer_2.strip_add(*action, Strip::Type::Keyframe);
+  StripKeyframeData &layer_2_strip_data = strip_2.data<StripKeyframeData>(*action);
+
+  layer_1_strip_data.keyframe_insert(bmain, *slot, {"location", 0}, {1, 10}, settings);
+  layer_2_strip_data.keyframe_insert(bmain, *slot, {"location", 0}, {1, 20}, settings);
+
+  layer_1_strip_data.keyframe_insert(bmain, *slot, {"rotation_euler", 0}, {1, 0.5f}, settings);
+  layer_2_strip_data.keyframe_insert(bmain, *slot, {"rotation_euler", 0}, {1, 1.0f}, settings);
+
+  layer_1_strip_data.keyframe_insert(bmain, *slot, {"scale", 0}, {1, 1.0f}, settings);
+  layer_2_strip_data.keyframe_insert(bmain, *slot, {"scale", 0}, {1, 0.5f}, settings);
+
+  EvaluationResult result = evaluate_action(
+      cube_rna_ptr, *action, slot->handle, anim_eval_context);
+
+  ASSERT_FALSE(result.is_empty());
+
+  AnimatedProperty *loc_result = result.lookup_ptr(PropIdentifier("location", 0));
+  AnimatedProperty *rot_result = result.lookup_ptr(PropIdentifier("rotation_euler", 0));
+  AnimatedProperty *scale_result = result.lookup_ptr(PropIdentifier("scale", 0));
+
+  EXPECT_FLOAT_EQ(loc_result->value, 30.0f);
+  EXPECT_FLOAT_EQ(rot_result->value, 1.5f);
+  /* Scales are not combined additively. For scale, 1 is considered the default so combining 1 and
+   * 1 should still result in 1. */
+  EXPECT_FLOAT_EQ(scale_result->value, 0.5f);
+
+  /* 50% influence. */
+  layer_2.influence = 0.5f;
+  result = evaluate_action(cube_rna_ptr, *action, slot->handle, anim_eval_context);
+
+  loc_result = result.lookup_ptr(PropIdentifier("location", 0));
+  rot_result = result.lookup_ptr(PropIdentifier("rotation_euler", 0));
+  scale_result = result.lookup_ptr(PropIdentifier("scale", 0));
+
+  EXPECT_FLOAT_EQ(loc_result->value, 20.0f);
+  EXPECT_FLOAT_EQ(rot_result->value, 1.0f);
+  EXPECT_FLOAT_EQ(scale_result->value, 0.75f);
+}
+
+TEST_F(AnimationEvaluationTest, evaluate_single_layer_50_percent)
+{
+  /* For the first layer, the influence is ignored. See `evaluate_action` in
+   * `animrig/intern/evaluation.cc`. This could be changed in the future by implementing an
+   * explicit rest pose. */
+  Strip &strip = layer->strip_add(*action, Strip::Type::Keyframe);
+  StripKeyframeData &layer_1_strip_data = strip.data<StripKeyframeData>(*action);
+
+  layer_1_strip_data.keyframe_insert(bmain, *slot, {"location", 0}, {1, 10}, settings);
+  layer_1_strip_data.keyframe_insert(bmain, *slot, {"rotation_euler", 0}, {1, 0.5f}, settings);
+  layer_1_strip_data.keyframe_insert(bmain, *slot, {"scale", 0}, {1, 2.0f}, settings);
+
+  layer->influence = 0.5f;
+  EvaluationResult result = evaluate_action(
+      cube_rna_ptr, *action, slot->handle, anim_eval_context);
+
+  AnimatedProperty *loc_result = result.lookup_ptr(PropIdentifier("location", 0));
+  AnimatedProperty *rot_result = result.lookup_ptr(PropIdentifier("rotation_euler", 0));
+  AnimatedProperty *scale_result = result.lookup_ptr(PropIdentifier("scale", 0));
+
+  /* Reducing the influence slider has no effect. */
+  EXPECT_FLOAT_EQ(loc_result->value, 10.0f);
+  EXPECT_FLOAT_EQ(rot_result->value, 0.5f);
+  EXPECT_FLOAT_EQ(scale_result->value, 2.0f);
+}
+
+TEST_F(AnimationEvaluationTest, evaluate_quaternion_replace_layer)
+{
+  /* Quaternions are a special case because they not blended per channel but always as a complete
+   * float[4]. */
+  cube->rotmode = ROT_MODE_QUAT;
+
+  Strip &strip = layer->strip_add(*action, Strip::Type::Keyframe);
+  StripKeyframeData &layer_1_strip_data = strip.data<StripKeyframeData>(*action);
+
+  Layer &layer_2 = action->layer_add("layer_2");
+  layer_2.layer_mix_mode = int8_t(Layer::MixMode::Replace);
+  Strip &strip_2 = layer_2.strip_add(*action, Strip::Type::Keyframe);
+  StripKeyframeData &layer_2_strip_data = strip_2.data<StripKeyframeData>(*action);
+
+  /* Equal to 90 deg clockwise rotation. */
+  key_quaternion(bmain, *slot, layer_1_strip_data, {0.707f, 0.0f, 0.707f, 0.0f});
+  /* Equal to 90 deg counter clockwise rotation. */
+  key_quaternion(bmain, *slot, layer_2_strip_data, {0.707f, 0.0f, -0.707f, 0.0f});
+
+  EvaluationResult result = evaluate_action(
+      cube_rna_ptr, *action, slot->handle, anim_eval_context);
+  ASSERT_FALSE(result.is_empty());
+
+  float4 expected_result = {0.707f, 0.0f, -0.707f, 0.0f};
+  for (int i = 0; i < 4; i++) {
+    AnimatedProperty *eval_result = result.lookup_ptr(PropIdentifier("rotation_quaternion", i));
+    if (!eval_result) {
+      continue;
+    }
+    EXPECT_NEAR(eval_result->value, expected_result[i], 0.001f) << "Failed at index: " << i;
+  }
+
+  /* 50% influence. */
+  layer_2.influence = 0.5;
+
+  result = evaluate_action(cube_rna_ptr, *action, slot->handle, anim_eval_context);
+  ASSERT_FALSE(result.is_empty());
+
+  /* Should result in no rotation. */
+  expected_result = {1.0f, 0.0f, 0.0f, 0.0f};
+  for (int i = 0; i < 4; i++) {
+    AnimatedProperty *eval_result = result.lookup_ptr(PropIdentifier("rotation_quaternion", i));
+    if (!eval_result) {
+      continue;
+    }
+    EXPECT_NEAR(eval_result->value, expected_result[i], 0.001f) << "Failed at index: " << i;
+  }
+}
+
+TEST_F(AnimationEvaluationTest, evaluate_quaternion_combine_layer)
+{
+  cube->rotmode = ROT_MODE_QUAT;
+
+  Strip &strip = layer->strip_add(*action, Strip::Type::Keyframe);
+  StripKeyframeData &layer_1_strip_data = strip.data<StripKeyframeData>(*action);
+
+  Layer &layer_2 = action->layer_add("layer_2");
+  layer_2.layer_mix_mode = int8_t(Layer::MixMode::Combine);
+  Strip &strip_2 = layer_2.strip_add(*action, Strip::Type::Keyframe);
+  StripKeyframeData &layer_2_strip_data = strip_2.data<StripKeyframeData>(*action);
+
+  /* Equal to 90 deg clockwise rotation. */
+  key_quaternion(bmain, *slot, layer_1_strip_data, {0.707f, 0.0f, 0.707f, 0.0f});
+  /* Equal to 90 deg counter clockwise rotation. */
+  key_quaternion(bmain, *slot, layer_2_strip_data, {0.707f, 0.0f, -0.707f, 0.0f});
+
+  EvaluationResult result = evaluate_action(
+      cube_rna_ptr, *action, slot->handle, anim_eval_context);
+  ASSERT_FALSE(result.is_empty());
+
+  /* Should result in no rotation. */
+  float4 expected_result = {1.0f, 0.0f, 0.0f, 0.0f};
+  for (int i = 0; i < 4; i++) {
+    AnimatedProperty *eval_result = result.lookup_ptr(PropIdentifier("rotation_quaternion", i));
+    if (!eval_result) {
+      continue;
+    }
+    EXPECT_NEAR(eval_result->value, expected_result[i], 0.001f) << "Failed at index: " << i;
+  }
+
+  /* 50% influence. */
+  layer_2.influence = 0.5;
+
+  result = evaluate_action(cube_rna_ptr, *action, slot->handle, anim_eval_context);
+  ASSERT_FALSE(result.is_empty());
+
+  /* This is a 45 degree rotation. */
+  expected_result = {0.924f, 0.0f, 0.383f, 0.0f};
+  for (int i = 0; i < 4; i++) {
+    AnimatedProperty *eval_result = result.lookup_ptr(PropIdentifier("rotation_quaternion", i));
+    if (!eval_result) {
+      continue;
+    }
+    EXPECT_NEAR(eval_result->value, expected_result[i], 0.001f) << "Failed at index: " << i;
+  }
+}
+
+TEST_F(AnimationEvaluationTest, evaluate_sparse_quaternion_blending)
+{
+  /* When blending quaternions we always build a complete float[4]. This has to work even if not
+   * all quaternion channels are keyed. */
+  cube->rotmode = ROT_MODE_QUAT;
+
+  Strip &strip = layer->strip_add(*action, Strip::Type::Keyframe);
+  StripKeyframeData &layer_1_strip_data = strip.data<StripKeyframeData>(*action);
+
+  Layer &layer_2 = action->layer_add("layer_2");
+  layer_2.layer_mix_mode = int8_t(Layer::MixMode::Combine);
+  Strip &strip_2 = layer_2.strip_add(*action, Strip::Type::Keyframe);
+  StripKeyframeData &layer_2_strip_data = strip_2.data<StripKeyframeData>(*action);
+
+  /* Equal to 90 deg clockwise rotation. Also note that the quaternion does not have to be
+   * normalized.*/
+  layer_1_strip_data.keyframe_insert(
+      bmain, *slot, {"rotation_quaternion", 2}, {1, 1.0f}, settings);
+
+  /* Equal to 90 deg counter clockwise rotation. */
+  layer_2_strip_data.keyframe_insert(
+      bmain, *slot, {"rotation_quaternion", 2}, {1, -1.0f}, settings);
+
+  EvaluationResult result = evaluate_action(
+      cube_rna_ptr, *action, slot->handle, anim_eval_context);
+  ASSERT_FALSE(result.is_empty());
+
+  /* Should result in no rotation. */
+  float4 expected_result = {1.0f, 0.0f, 0.0f, 0.0f};
+  for (int i = 0; i < 4; i++) {
+    AnimatedProperty *eval_result = result.lookup_ptr(PropIdentifier("rotation_quaternion", i));
+    if (!eval_result) {
+      continue;
+    }
+    EXPECT_NEAR(eval_result->value, expected_result[i], 0.001f) << "Failed at index: " << i;
+  }
 }
 
 TEST_F(AnimationEvaluationTest, strip_boundaries__single_strip)

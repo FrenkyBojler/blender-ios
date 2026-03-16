@@ -247,7 +247,7 @@ struct QuaternionEvalBuffer {
   /* The values of the evaluated layer. */
   float layer_result[4] = {1, 0, 0, 0};
   /* Pointers to the `value` of the `AnimatedProperty` that we should write the values to. */
-  float *output[4];
+  float *output[4] = {nullptr, nullptr, nullptr, nullptr};
 };
 
 void blend_layer_results(EvaluationResult &final_result,
@@ -294,7 +294,7 @@ void blend_layer_results(EvaluationResult &final_result,
         break;
       case Layer::MixMode::Combine: {
         if (animrig::is_scale_path(prop_ident.rna_path)) {
-          last_prop->value *= powf(anim_prop.value, current_layer.influence);
+          last_prop->value += (anim_prop.value - 1) * current_layer.influence;
         }
         else {
           last_prop->value += anim_prop.value * current_layer.influence;
