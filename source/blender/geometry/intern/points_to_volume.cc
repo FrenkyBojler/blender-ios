@@ -15,7 +15,14 @@
 
 #include "GEO_grid_samplers.hh"
 #include "GEO_points_to_volume.hh"
+
 #include <type_traits>
+
+#define DEBUG_TIME
+
+#ifdef DEBUG_TIME
+#  include "BLI_timeit.hh"
+#endif
 
 #ifdef WITH_OPENVDB
 #  include <openvdb/openvdb.h>
@@ -221,6 +228,9 @@ MappedPointDataGrid points_to_point_data_grid(const Span<float3> positions,
                                               const Span<PointDataGridAttributeInfo> attributes,
                                               const float4x4 &transform)
 {
+#  ifdef DEBUG_TIME
+  SCOPED_TIMER(__func__);
+#  endif
   const PointAttributeSpan positions_wrapper(positions);
   /* Note: The createPointIndexGrid function is expecting a cell-centered transform while the input
    * transform is corner-centered! The internal PointPartitioner can be configured, but that
@@ -723,6 +733,10 @@ void points_rasterize(const MappedPointDataGrid &point_data_grid,
                       const float4x4 &transform,
                       MutableSpan<bke::GVolumeGrid> r_attribute_grids)
 {
+#  ifdef DEBUG_TIME
+  SCOPED_TIMER(__func__);
+#  endif
+
   BLI_assert(r_attribute_grids.size() == point_attributes.size());
 
   if (!point_data_grid.grid || point_data_grid.grid->grid_type() != VOLUME_GRID_POINTS) {
@@ -736,6 +750,9 @@ void points_rasterize(const MappedPointDataGrid &point_data_grid,
 
   for (const int i : point_attributes.index_range()) {
     const PointRasterizeAttributeInfo &attribute = point_attributes[i];
+#  ifdef DEBUG_TIME
+    SCOPED_TIMER("  attribute: " + attribute.name);
+#  endif
 
     const std::optional<std::string> vdb_attribute_name = find_vdb_attribute_name(
         point_data_grid.attribute_map, attribute.name);
