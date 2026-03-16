@@ -18,6 +18,8 @@
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
 
+#include "SEQ_sequencer.hh"
+
 #include "readfile.hh"
 
 #include "versioning_common.hh"
@@ -28,7 +30,7 @@ namespace blender {
 
 // static CLG_LogRef LOG = {"blend.doversion"};
 
-/* Saving file extension is now a property of the the File Output node. So inherit this
+/* Saving file extension is now a property of the File Output node. So inherit this
  * setting from the active scene to restore the old behavior.
  * Note: One limitation is that node groups containing file outputs that are not part of any
  * scene are not affected by versioning. */
@@ -83,6 +85,32 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
     }
   }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 5)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id_owner) {
+      for (bNode &node : node_tree->nodes) {
+        if (node.type_legacy == FN_NODE_INPUT_VECTOR) {
+          auto &data = *static_cast<NodeInputVector *>(node.storage);
+          data.vector[3] = 0.0f;
+          data.dimensions = 3;
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 6)) {
+    for (Scene &scene : bmain->scenes) {
+      SequencerToolSettings *sequencer_tool_settings = seq::tool_settings_ensure(&scene);
+      sequencer_tool_settings->snap_flag |= SEQ_SNAP_TO_ALL_CHANNEL_STRIPS;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 7)) {
+    for (Scene &scene : bmain->scenes) {
+      scene.r.anisotropic_filter = 2;
+    }
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.

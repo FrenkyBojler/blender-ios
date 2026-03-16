@@ -390,7 +390,7 @@ class RemoteAssetListingDownloader:
         self._num_asset_pages_pending = len(pages)
         for page_index, page_url_w_hash in enumerate(pages):
             # These URLs may be absolute or they may be relative. In any case,
-            # do not assume that they can be used direclty as local filesystem path.
+            # do not assume that they can be used directly as local filesystem path.
             local_path = listing_common.api_versioned(f"assets-{page_index:05}.json")
             download_to = self._queue_download(
                 page_url_w_hash,
@@ -455,7 +455,7 @@ class RemoteAssetListingDownloader:
 
         self.report({'INFO'}, "Asset library index downloaded")
 
-        # Update the mtime of the top metadata file, so that that can be used as
+        # Update the mtime of the top metadata file, so that it can be used as
         # an indicator of how new the files are. This is only done after the
         # last page has been downloaded.
         #
@@ -503,8 +503,11 @@ class RemoteAssetListingDownloader:
             if file_path == sanitized_path:
                 continue
 
-            print(("Warning: file in {json_path!s} tries to escape the asset library ({file_path!s}). {report!s}").format(
-                json_path=json_path, file_path=file_path, report=report))
+            print((
+                "Warning: file in {json_path!s} tries to escape the asset library ({file_path!s}). {report!s}"
+            ).format(
+                json_path=json_path, file_path=file_path, report=report,
+            ))
 
             bad_path = file.path
             file.path = sanitized_path.as_posix()
@@ -756,7 +759,7 @@ class RemoteAssetListingDownloader:
 def _sanitize_path_from_url(urlpath: PurePath | str) -> PurePosixPath:
     """Safely convert some path (assumed from a URL) to a relative path.
 
-    URL-unquoting and unicode normalisation is only done when `urlpath` is a `str`.
+    URL-unquoting and unicode normalization is only done when ``urlpath`` is a ``str``.
 
     Directory up-references ('/../') are removed.
     """

@@ -445,7 +445,7 @@ void sync_active_scene_and_time_with_scene_strip(bContext &C)
   /* Compute the scene time based on the scene strip. */
   const float frame_index = seq::give_frame_index(
                                 sequencer_scene, scene_strip, sequencer_scene->r.cfra) +
-                            active_scene->r.sfra;
+                            active_scene->r.sfra + scene_strip->anim_startofs;
   if (active_scene->r.flag & SCER_SHOW_SUBFRAME) {
     active_scene->r.cfra = int(frame_index);
     active_scene->r.subframe = frame_index - int(frame_index);
@@ -2049,7 +2049,7 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
   Editing *ed = seq::editing_get(scene);
   ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
 
-  scene->ed->runtime.flag &= ~SEQ_SHOW_TRANSFORM_PREVIEW;
+  scene->ed->runtime->show_transform_preview = false;
 
   View2D *v2d = ui::view2d_fromcontext(C);
   rctf box_rect;
@@ -2224,13 +2224,13 @@ static wmOperatorStatus sequencer_box_blade_modal(bContext *C,
 
   View2D *v2d = ui::view2d_fromcontext(C);
   int mouse_frame = ui::view2d_region_to_view_x(v2d, event->mval[0]);
-  scene->ed->runtime.flag |= SEQ_SHOW_TRANSFORM_PREVIEW;
-  scene->ed->runtime.transform_preview_frame = mouse_frame;
+  scene->ed->runtime->show_transform_preview = true;
+  scene->ed->runtime->transform_preview_frame = mouse_frame;
 
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
   wmOperatorStatus gesture_return = WM_gesture_box_modal(C, op, event);
   if (OPERATOR_CANCELLED == gesture_return) {
-    scene->ed->runtime.flag &= ~SEQ_SHOW_TRANSFORM_PREVIEW;
+    scene->ed->runtime->show_transform_preview = false;
   }
 
   wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
@@ -2240,9 +2240,9 @@ static wmOperatorStatus sequencer_box_blade_modal(bContext *C,
     rctf box_rect;
     WM_operator_properties_border_to_rctf(op, &box_rect);
     ui::view2d_region_to_view_rctf(v2d, &box_rect, &box_rect);
-    scene->ed->runtime.transform_preview_frame = (mouse_frame == int(box_rect.xmin)) ?
-                                                     int(box_rect.xmax) :
-                                                     int(box_rect.xmin);
+    scene->ed->runtime->transform_preview_frame = (mouse_frame == int(box_rect.xmin)) ?
+                                                      int(box_rect.xmax) :
+                                                      int(box_rect.xmin);
   }
 
   return gesture_return;
