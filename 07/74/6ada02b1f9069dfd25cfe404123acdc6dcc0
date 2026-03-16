@@ -1,2 +1,3 @@
 Referenced by pull request #154980, Fix: Incomplete shader node add menu for lights
 Referenced by commit 15ad0265b57b561f797a2876cce0e2fb439de863, Fix: Incomplete shader node add menu for lights
+Referenced by issue #67829, Cycles shaders show up in EEVEE list (Properties > Material tab > Surface panel)
