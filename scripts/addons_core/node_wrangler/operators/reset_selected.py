@@ -90,13 +90,14 @@ class NODE_OT_reset_selected(Operator):
         for i in node_selected:
             i.select = False
 
+        props_to_copy = ("name", "location", "height", "width")
+
         # Run through all valid nodes
         for node in valid_nodes:
             parent = node.parent if node.parent else None
             node_loc = [node.location.x, node.location.y]
 
             node_tree = node.id_data
-            props_to_copy = 'bl_idname name location height width'.split(' ')
 
             reconnections = []
             mappings = chain.from_iterable([node.inputs, node.outputs])
@@ -106,8 +107,7 @@ class NODE_OT_reset_selected(Operator):
 
             props = {j: getattr(node, j) for j in props_to_copy}
 
-            new_node = node_tree.nodes.new(props['bl_idname'])
-            props_to_copy.pop(0)
+            new_node = node_tree.nodes.new(node.bl_idname)
 
             for prop in props_to_copy:
                 setattr(new_node, prop, props[prop])
