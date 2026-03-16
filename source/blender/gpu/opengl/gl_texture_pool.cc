@@ -59,10 +59,11 @@ GLTexturePool::~GLTexturePool()
   }
 }
 
-Texture *GLTexturePool::acquire_texture(int2 extent,
-                                        TextureFormat format,
-                                        eGPUTextureUsage usage,
-                                        const char *name)
+Texture *GLTexturePool::acquire_texture_impl(int3 extent,
+                                             GPUTextureType type,
+                                             TextureFormat format,
+                                             eGPUTextureUsage usage,
+                                             const char *name)
 {
   /* Determine format of compatible underlying texture. If there is no
    * compatible format to alias upon, we simply require an exact match
@@ -77,7 +78,7 @@ Texture *GLTexturePool::acquire_texture(int2 extent,
     if (handle.texture->format_get() != compatible_format) {
       continue;
     }
-    if (int2(handle.texture->w_, handle.texture->h_) != extent) {
+    if (int2(handle.texture->w_, handle.texture->h_) != extent.xy()) {
       continue;
     }
     match_index = i;

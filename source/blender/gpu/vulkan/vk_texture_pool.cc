@@ -325,10 +325,11 @@ VKTexturePool::~VKTexturePool()
   }
 }
 
-Texture *VKTexturePool::acquire_texture(int2 extent,
-                                        TextureFormat format,
-                                        eGPUTextureUsage usage,
-                                        const char *name)
+Texture *VKTexturePool::acquire_texture_impl(int3 extent,
+                                             GPUTextureType type,
+                                             TextureFormat format,
+                                             eGPUTextureUsage usage,
+                                             const char *name)
 {
   /* Initialize VKTexture return object. */
   VKTexture *texture = new VKTexture(name);
