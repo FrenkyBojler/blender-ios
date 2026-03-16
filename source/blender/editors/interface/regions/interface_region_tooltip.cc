@@ -1157,20 +1157,15 @@ static std::unique_ptr<TooltipData> tooltip_data_from_button_or_extra_icon(
     }
   }
 
-  /* Show evaluated path for filepaths with path templates, etc. */
+  /* Show template-evaluated path for filepaths with path templates. */
   if (but->type == ButtonType::Text && rnaprop &&
-      ((RNA_property_flag(rnaprop) & PROP_PATH_SUPPORTS_TEMPLATES) != 0 ||
-       (RNA_property_flag(rnaprop) & PROP_PATH_SUPPORTS_BLEND_RELATIVE) != 0))
+      (RNA_property_flag(rnaprop) & PROP_PATH_SUPPORTS_TEMPLATES) != 0)
   {
     char filepath[FILE_MAX];
 
-    bool is_ok = true;
-
     RNA_property_string_get(&but->rnapoin, rnaprop, filepath);
 
-    if ((RNA_property_flag(rnaprop) & PROP_PATH_SUPPORTS_TEMPLATES) != 0 &&
-        BKE_path_contains_template_syntax(filepath))
-    {
+    if (BKE_path_contains_template_syntax(filepath)) {
       const std::optional<blender::bke::path_templates::VariableMap> variables =
           BKE_build_template_variables_for_prop(C, &but->rnapoin, rnaprop);
       BLI_assert(variables.has_value());
@@ -1178,20 +1173,10 @@ static std::unique_ptr<TooltipData> tooltip_data_from_button_or_extra_icon(
       const blender::Vector<blender::bke::path_templates::Error> errors = BKE_path_apply_template(
           filepath, sizeof(filepath), *variables);
 
-      is_ok &= errors.is_empty();
-    }
-
-    if ((RNA_property_flag(rnaprop) & PROP_PATH_SUPPORTS_BLEND_RELATIVE) != 0) {
-      BLI_path_abs(filepath, BKE_main_blendfile_path_from_global());
-    }
-
-    if (is_ok) {
-      tooltip_text_field_add(*data,
-                             fmt::format(fmt::runtime(TIP_("Evaluated: {}")), filepath),
-                             {},
-                             TIP_STYLE_NORMAL,
-                             TIP_LC_PYTHON,
-                             true);
+      if (errors.is_empty()) {
+        tooltip_text_field_add(
+            *data, std::string(filepath), {}, TIP_STYLE_NORMAL, TIP_LC_PYTHON, true);
+      }
     }
   }
 
