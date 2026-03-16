@@ -254,17 +254,17 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
                             const Paint &paint,
                             const Brush &brush,
                             ImageData image_data,
-                            bke::pbvh::Node &node)
+                            bke::pbvh::Node &/*node*/,
+                            PixelNode &pixel_node)
 {
   SculptSession &ss = *object.runtime->sculpt_session;
   const StrokeCache &cache = *ss.cache;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   PixelData &pbvh_data = bke::pbvh::pixels::data_get(pbvh);
-  PixelNode &node_data = bke::pbvh::pixels::node_data_get(node);
   const Span<float3> positions = bke::pbvh::vert_positions_eval(depsgraph, object);
 
   BitVector<> brush_test = init_uv_primitives_brush_test(
-      ss, pbvh_data.vert_tris, node_data.uv_primitives.tri_indices, positions);
+      ss, pbvh_data.vert_tris, pixel_node.uv_primitives.tri_indices, positions);
 
   PaintingKernel<ImageBufferFloat4> kernel_float4;
   PaintingKernel<ImageBufferByte4> kernel_byte4;
@@ -291,7 +291,7 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
 
   ImageUser image_user = *image_data.image_user;
   bool pixels_updated = false;
-  for (UDIMTilePixels &tile_data : node_data.tiles) {
+  for (UDIMTilePixels &tile_data : pixel_node.tiles) {
     for (ImageTile &tile : image_data.image->tiles) {
       ImageTileWrapper image_tile(&tile);
       if (image_tile.get_tile_number() == tile_data.tile_number) {
@@ -317,8 +317,8 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
           pixel_positions.resize(pixel_row.num_pixels);
           calc_pixel_row_positions(positions,
                                    pbvh_data.vert_tris,
-                                   node_data.uv_primitives.tri_indices,
-                                   node_data.uv_primitives.delta_barycentric_coords,
+                                   pixel_node.uv_primitives.tri_indices,
+                                   pixel_node.uv_primitives.delta_barycentric_coords,
                                    pixel_row,
                                    pixel_positions);
 
@@ -354,7 +354,7 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
     }
   }
 
-  node_data.flags.dirty |= pixels_updated;
+  pixel_node.flags.dirty |= pixels_updated;
 }
 
 static void undo_region_tiles(
@@ -408,10 +408,11 @@ static void push_undo(const PixelNode &node_data,
   }
 }
 
-static void do_push_undo_tile(Image &image, ImageUser &image_user, bke::pbvh::Node &node)
+static void do_push_undo_tile(Image &image,
+                              ImageUser &image_user,
+                              bke::pbvh::Node &/*node*/,
+                              PixelNode &pixel_node)
 {
-  PixelNode &node_data = bke::pbvh::pixels::node_data_get(node);
-
   ImBuf *tmpibuf = nullptr;
   ImageUser local_image_user = image_user;
   for (ImageTile &tile : image.tiles) {
@@ -422,7 +423,7 @@ static void do_push_undo_tile(Image &image, ImageUser &image_user, bke::pbvh::No
       continue;
     }
 
-    push_undo(node_data, image, image_user, image_tile, *image_buffer, &tmpibuf);
+    push_undo(pixel_node, image, image_user, image_tile, *image_buffer, &tmpibuf);
     BKE_image_release_ibuf(&image, image_buffer, nullptr);
   }
   if (tmpibuf) {
@@ -435,7 +436,7 @@ static void do_push_undo_tile(Image &image, ImageUser &image_user, bke::pbvh::No
 /** \name Fix non-manifold edge bleeding.
  * \{ */
 
-static Vector<image::TileNumber> collect_dirty_tiles(MutableSpan<bke::pbvh::MeshNode> nodes,
+static Vector<image::TileNumber> collect_dirty_tiles(MutableSpan<PixelNode> nodes,
                                                      const IndexMask &node_mask)
 {
   Vector<image::TileNumber> dirty_tiles;
@@ -456,10 +457,11 @@ static void fix_non_manifold_seam_bleeding(bke::pbvh::Tree &pbvh,
 static void fix_non_manifold_seam_bleeding(Object &ob,
                                            Image &image,
                                            ImageUser &image_user,
-                                           MutableSpan<bke::pbvh::MeshNode> nodes,
+                                           MutableSpan<bke::pbvh::MeshNode> /*nodes*/,
+                                           MutableSpan<PixelNode> pixel_nodes,
                                            const IndexMask &node_mask)
 {
-  Vector<image::TileNumber> dirty_tiles = collect_dirty_tiles(nodes, node_mask);
+  Vector<image::TileNumber> dirty_tiles = collect_dirty_tiles(pixel_nodes, node_mask);
   fix_non_manifold_seam_bleeding(*bke::object::pbvh_get(ob), image, image_user, dirty_tiles);
 }
 
@@ -515,18 +517,21 @@ void SCULPT_do_paint_brush_image(const Depsgraph &depsgraph,
 
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
   MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
+  PixelData& pixel_data = *pbvh.pixels_;
+  MutableSpan<PixelNode> pixel_nodes = pixel_data.nodes;
 
   node_mask.foreach_index(
-      [&](const int i) { do_push_undo_tile(*image_data.image, *image_data.image_user, nodes[i]); },
+      [&](const int i) { do_push_undo_tile(*image_data.image, *image_data.image_user, nodes[i], pixel_nodes[i]); },
       exec_mode::grain_size(1));
   node_mask.foreach_index(
-      [&](const int i) { do_paint_pixels(depsgraph, ob, sd.paint, *brush, image_data, nodes[i]); },
+      [&](const int i) { do_paint_pixels(depsgraph, ob, sd.paint, *brush, image_data, nodes[i], pixel_nodes[i]); },
       exec_mode::grain_size(1));
 
-  fix_non_manifold_seam_bleeding(ob, *image_data.image, *image_data.image_user, nodes, node_mask);
+  fix_non_manifold_seam_bleeding(ob, *image_data.image, *image_data.image_user, nodes, pixel_nodes, node_mask);
 
   node_mask.foreach_index([&](const int i) {
-    bke::pbvh::pixels::mark_image_dirty(nodes[i], *image_data.image, *image_data.image_user);
+    bke::pbvh::pixels::mark_image_dirty(
+        nodes[i], pixel_nodes[i], *image_data.image, *image_data.image_user);
   });
 }
 

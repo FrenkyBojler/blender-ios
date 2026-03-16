@@ -86,7 +86,10 @@ struct UDIMTileUndo {
  */
 struct PixelNode {
   struct {
+    /* Indicates whether the node data was painted to */
     bool dirty : 1;
+
+    /* Indicates whether the node data should be rebuilt */
     bool rebuild : 1;
   } flags;
 
@@ -108,6 +111,7 @@ struct PixelNode {
   PixelNode()
   {
     flags.dirty = false;
+    flags.rebuild = true;
   }
 
   UDIMTilePixels *find_tile_data(const image::ImageTileWrapper &image_tile)
@@ -171,12 +175,9 @@ struct PixelNode {
     tiles.clear();
     uv_primitives.tri_indices.clear();
     uv_primitives.delta_barycentric_coords.clear();
-  }
 
-  static void free_func(void *instance)
-  {
-    PixelNode *node_data = static_cast<PixelNode *>(instance);
-    MEM_delete(node_data);
+    /* TODO: Clear undo regions too? */
+    /* undo_regions.clear(); */
   }
 };
 
@@ -335,6 +336,10 @@ struct CopyPixelTiles {
  * Storage for texture painting on bke::pbvh::Tree level.
  */
 struct PixelData {
+  struct {
+    bool dirty : 1;
+  } flags;
+
   /* Per UVPRimitive contains the paint data. */
   Array<int3> vert_tris;
 
@@ -342,18 +347,14 @@ struct PixelData {
   CopyPixelTiles tiles_copy_pixels;
 
   Vector<PixelNode> nodes;
-
-  /* Note, this specifically does *not* clear the above per-node data */
-  void clear_data()
-  {
-    this->vert_tris = {};
-  }
 };
 
-PixelNode &node_data_get(bke::pbvh::Node &node);
-void mark_image_dirty(bke::pbvh::Node &node, Image &image, ImageUser &image_user);
+void mark_image_dirty(bke::pbvh::Node &node,
+                      PixelNode &pixel_node,
+                      Image &image,
+                      ImageUser &image_user);
 PixelData &data_get(bke::pbvh::Tree &pbvh);
-void collect_dirty_tiles(bke::pbvh::Node &node, Vector<image::TileNumber> &r_dirty_tiles);
+void collect_dirty_tiles(PixelNode &pixel_node, Vector<image::TileNumber> &r_dirty_tiles);
 
 void copy_pixels(bke::pbvh::Tree &pbvh,
                  Image &image,

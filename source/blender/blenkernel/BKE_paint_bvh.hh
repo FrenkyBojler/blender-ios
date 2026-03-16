@@ -74,8 +74,6 @@ class Node : NonCopyable {
     FullyUnmasked = 1 << 12,
 
     UpdateTopology = 1 << 13,
-    RebuildPixels = 1 << 15,
-    TexLeaf = 1 << 16,
     /** Used internally by `pbvh_bmesh.cc`. */
     TopologyUpdated = 1 << 17,
   };
@@ -108,9 +106,6 @@ class Node : NonCopyable {
    * \todo Remove and store elsewhere.
    */
   int debug_draw_gen_ = 0;
-
-  /** \todo Move storage of image painting data to #Tree or elsewhere. */
-  pixels::PixelNode *pixels_ = nullptr;
 
   std::optional<int> parent() const;
   const Bounds<float3> &bounds() const;
@@ -501,7 +496,6 @@ bool bmesh_update_topology(BMesh &bm,
 
 /* Node Access */
 
-void BKE_pbvh_node_mark_update(bke::pbvh::Node &node);
 void BKE_pbvh_node_mark_topology_update(bke::pbvh::Node &node);
 void BKE_pbvh_node_fully_hidden_set(bke::pbvh::Node &node, int fully_hidden);
 bool BKE_pbvh_node_fully_hidden_get(const bke::pbvh::Node &node);

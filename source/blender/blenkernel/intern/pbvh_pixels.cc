@@ -143,13 +143,16 @@ static void do_encode_pixels(const uv_islands::MeshData &mesh_data,
                              const UVPrimitiveLookup &uv_prim_lookup,
                              Image &image,
                              ImageUser &image_user,
-                             MeshNode &node)
+                             MeshNode &node,
+                             PixelNode &pixel_node)
 {
-  PixelNode *node_data = node.pixels_;
-
+  BLI_assert(pixel_node.flags.rebuild ||
+             (pixel_node.uv_primitives.tri_indices.is_empty() &&
+              pixel_node.uv_primitives.delta_barycentric_coords.is_empty() &&
+              pixel_node.tiles.is_empty()));
   /* Assuming a quad mesh, we'll have at least 2 * faces entries */
-  node_data->uv_primitives.tri_indices.reserve(node.faces().size() * 2);
-  node_data->uv_primitives.delta_barycentric_coords.reserve(node.faces().size() * 2);
+  pixel_node.uv_primitives.tri_indices.reserve(node.faces().size() * 2);
+  pixel_node.uv_primitives.delta_barycentric_coords.reserve(node.faces().size() * 2);
 
   for (ImageTile &tile : image.tiles) {
     image::ImageTileWrapper image_tile(&tile);
@@ -181,9 +184,9 @@ static void do_encode_pixels(const uv_islands::MeshData &mesh_data,
           const float maxu = clamp_f(max_fff(uvs[0].x, uvs[1].x, uvs[2].x), 0.0f, 1.0f);
           const int maxx = min_ii(ceil(maxu * image_buffer->x), image_buffer->x);
 
-          const int uv_prim_index = node_data->uv_primitives.tri_indices.size();
-          node_data->uv_primitives.tri_indices.append(tri);
-          node_data->uv_primitives.delta_barycentric_coords.append(
+          const int uv_prim_index = pixel_node.uv_primitives.tri_indices.size();
+          pixel_node.uv_primitives.tri_indices.append(tri);
+          pixel_node.uv_primitives.delta_barycentric_coords.append(
               calc_barycentric_delta_x(image_buffer, uvs, minx, miny));
 
           /* Extract the pixels. */
@@ -207,40 +210,11 @@ static void do_encode_pixels(const uv_islands::MeshData &mesh_data,
       continue;
     }
 
-    BLI_assert(node_data->uv_primitives.delta_barycentric_coords.size() ==
-               node_data->uv_primitives.tri_indices.size());
+    BLI_assert(pixel_node.uv_primitives.delta_barycentric_coords.size() ==
+               pixel_node.uv_primitives.tri_indices.size());
 
-    node_data->tiles.append(tile_data);
+    pixel_node.tiles.append(tile_data);
   }
-}
-
-static bool should_pixels_be_updated(const Node &node)
-{
-  if ((node.flag_ & (Node::Leaf | Node::TexLeaf)) == 0) {
-    return false;
-  }
-  if (node.children_offset_ != 0) {
-    return false;
-  }
-  if ((node.flag_ & Node::RebuildPixels) != 0) {
-    return true;
-  }
-  PixelNode *node_data = node.pixels_;
-  if (node_data != nullptr) {
-    return false;
-  }
-  return true;
-}
-
-static int count_nodes_to_update(Tree &pbvh)
-{
-  int result = 0;
-  for (Node &node : pbvh.nodes<MeshNode>()) {
-    if (should_pixels_be_updated(node)) {
-      result++;
-    }
-  }
-  return result;
 }
 
 /**
@@ -254,36 +228,30 @@ static int count_nodes_to_update(Tree &pbvh)
  */
 static IndexMask find_nodes_to_update(Tree &pbvh, IndexMaskMemory& memory)
 {
-  int nodes_to_update_len = count_nodes_to_update(pbvh);
-  if (nodes_to_update_len == 0) {
-    return IndexMask();
-  }
-
   MutableSpan<MeshNode> nodes = pbvh.nodes<MeshNode>();
-  /* Init or reset Tree pixel data when changes detected. */
   if (pbvh.pixels_ == nullptr) {
     pbvh.pixels_ = MEM_new<PixelData>(__func__);
-    pbvh.pixels_->nodes.reinitialize(nodes.size())
-  }
-  else {
-    pbvh.pixels_->clear_data();
+    pbvh.pixels_->nodes.reinitialize(nodes.size());
   }
 
   PixelData &pixel_data = *pbvh.pixels_;
   MutableSpan<PixelNode> pixel_nodes = pixel_data.nodes;
-  BitVector nodes_to_update(nodes.size(), false);
-  for (const int i : nodes.index_range()) {
-    if (!should_pixels_be_updated(nodes[i])) {
-      continue;
-    }
+  IndexMask leaf_nodes = all_leaf_nodes(pbvh, memory);
+  IndexMask nodes_to_update = pbvh.pixels_->flags.dirty ?
+                                  leaf_nodes :
+                                  IndexMask::from_predicate(leaf_nodes, memory, [&](const int i) {
+                                    return pixel_nodes[i].flags.rebuild;
+                                  });
 
-    nodes_to_update[i].set();
-    BKE_pbvh_node_mark_update(nodes[i]);
-
-    pixel_nodes[i].clear_data();
+  if (nodes_to_update.is_empty()) {
+    return nodes_to_update;
   }
 
-  return IndexMask::from_bits(nodes_to_update, memory);
+  nodes_to_update.foreach_index([&](const int i) {
+    pixel_nodes[i].clear_data();
+  });
+
+  return nodes_to_update;
 }
 
 static void apply_watertight_check(Tree &pbvh, Image &image, ImageUser &image_user)
@@ -296,14 +264,14 @@ static void apply_watertight_check(Tree &pbvh, Image &image, ImageUser &image_us
     if (image_buffer == nullptr) {
       continue;
     }
-    for (Node &node : pbvh.nodes<MeshNode>()) {
-      if ((node.flag_ & Node::Leaf) == 0) {
-        continue;
-      }
-      PixelNode *node_data = node.pixels_;
-      UDIMTilePixels *tile_node_data = node_data->find_tile_data(image_tile);
+    IndexMaskMemory memory;
+    IndexMask leaf_nodes = all_leaf_nodes(pbvh, memory);
+    PixelData &pixel_data = *pbvh.pixels_;
+    leaf_nodes.foreach_index([&](const int i) {
+      PixelNode &pixel_node =  pixel_data.nodes[i];
+      UDIMTilePixels *tile_node_data = pixel_node.find_tile_data(image_tile);
       if (tile_node_data == nullptr) {
-        continue;
+        return;
       }
 
       for (PackedPixelRow &pixel_row : tile_node_data->pixel_rows) {
@@ -320,7 +288,7 @@ static void apply_watertight_check(Tree &pbvh, Image &image, ImageUser &image_us
           pixel_offset += 1;
         }
       }
-    }
+    });
     BKE_image_release_ibuf(&image, image_buffer, nullptr);
   }
   BKE_image_partial_update_mark_full_update(&image);
@@ -377,8 +345,10 @@ static bool update_pixels(const Depsgraph &depsgraph,
   UVPrimitiveLookup uv_primitive_lookup(mesh_data.corner_tris.size(), islands);
 
   MutableSpan<MeshNode> nodes = pbvh.nodes<MeshNode>();
+  MutableSpan<PixelNode> pixel_nodes = pbvh.pixels_->nodes;
+
   nodes_to_update.foreach_index([&](const int i) {
-    do_encode_pixels(mesh_data, uv_masks, uv_primitive_lookup, image, image_user, nodes[i]);
+    do_encode_pixels(mesh_data, uv_masks, uv_primitive_lookup, image, image_user, nodes[i], pixel_nodes[i]);
   });
   if (USE_WATERTIGHT_CHECK) {
     apply_watertight_check(pbvh, image, image_user);
@@ -388,22 +358,16 @@ static bool update_pixels(const Depsgraph &depsgraph,
   copy_update(pbvh, image, image_user, mesh_data);
 
   /* Rebuild the undo regions. */
-  for (Node *node : nodes_to_update) {
-    PixelNode *node_data = node->pixels_;
-    node_data->rebuild_undo_regions();
-  }
+  nodes_to_update.foreach_index([&](const int i) {
+    pixel_nodes[i].rebuild_undo_regions();
+  });
 
   /* Clear the UpdatePixels flag. */
-  for (Node *node : nodes_to_update) {
-    node->flag_ &= ~Node::RebuildPixels;
-  }
+  nodes_to_update.foreach_index([&](const int i) {
+    pixel_nodes[i].flags.rebuild = false;
+  });
 
-  /* Add Node::TexLeaf flag */
-  for (Node &node : pbvh.nodes<MeshNode>()) {
-    if (node.flag_ & Node::Leaf) {
-      node.flag_ |= Node::TexLeaf;
-    }
-  }
+  pbvh.pixels_->flags.dirty = false;
 
 // #define DO_PRINT_STATISTICS
 #ifdef DO_PRINT_STATISTICS
@@ -434,13 +398,6 @@ static bool update_pixels(const Depsgraph &depsgraph,
   return true;
 }
 
-PixelNode &node_data_get(Node &node)
-{
-  BLI_assert(node.pixels_ != nullptr);
-  PixelNode *node_data = node.pixels_;
-  return *node_data;
-}
-
 PixelData &data_get(Tree &pbvh)
 {
   BLI_assert(pbvh.pixels_ != nullptr);
@@ -448,11 +405,9 @@ PixelData &data_get(Tree &pbvh)
   return *data;
 }
 
-void mark_image_dirty(Node &node, Image &image, ImageUser &image_user)
+void mark_image_dirty(Node &/*node*/, PixelNode &pixel_node, Image &image, ImageUser &image_user)
 {
-  BLI_assert(node.pixels_ != nullptr);
-  PixelNode *node_data = node.pixels_;
-  if (node_data->flags.dirty) {
+  if (pixel_node.flags.dirty) {
     ImageUser local_image_user = image_user;
     for (ImageTile &tile : image.tiles) {
       image::ImageTileWrapper image_tile(&tile);
@@ -462,17 +417,16 @@ void mark_image_dirty(Node &node, Image &image, ImageUser &image_user)
         continue;
       }
 
-      node_data->mark_region(image, image_tile, *image_buffer);
+      pixel_node.mark_region(image, image_tile, *image_buffer);
       BKE_image_release_ibuf(&image, image_buffer, nullptr);
     }
-    node_data->flags.dirty = false;
+    pixel_node.flags.dirty = false;
   }
 }
 
-void collect_dirty_tiles(Node &node, Vector<image::TileNumber> &r_dirty_tiles)
+void collect_dirty_tiles(PixelNode &node, Vector<image::TileNumber> &r_dirty_tiles)
 {
-  PixelNode *node_data = node.pixels_;
-  node_data->collect_dirty_tiles(r_dirty_tiles);
+  node.collect_dirty_tiles(r_dirty_tiles);
 }
 
 }  // namespace bke::pbvh::pixels
@@ -483,18 +437,6 @@ void build_pixels(const Depsgraph &depsgraph, Object &object, Image &image, Imag
 {
   Tree &pbvh = *object::pbvh_get(object);
   pixels::update_pixels(depsgraph, object, pbvh, image, image_user);
-}
-
-void node_pixels_free(Node *node)
-{
-  pixels::PixelNode *node_data = node->pixels_;
-
-  if (!node_data) {
-    return;
-  }
-
-  MEM_delete(node_data);
-  node->pixels_ = nullptr;
 }
 
 void pixels_free(Tree *pbvh)

@@ -17,6 +17,8 @@
 #include "BKE_paint_bvh_pixels.hh"
 
 #include "pbvh_pixels_copy.hh"
+
+#include "BLI_index_mask.hh"
 #include "pbvh_uv_islands.hh"
 
 namespace blender::bke::pbvh::pixels {
@@ -164,50 +166,36 @@ class PixelNodesTileData : public Vector<std::reference_wrapper<UDIMTilePixels>>
  public:
   PixelNodesTileData(bke::pbvh::Tree &pbvh, const image::ImageTileWrapper &image_tile)
   {
-    reserve(count_nodes(pbvh, image_tile));
+    IndexMaskMemory memory;
+    const IndexMask nodes = affected_nodes(pbvh, image_tile, memory);
+    reserve(nodes.size());
 
-    std::visit(
-        [&](auto &nodes) {
-          for (bke::pbvh::Node &node : nodes) {
-            if (should_add_node(node, image_tile)) {
-              PixelNode &node_data = *node.pixels_;
-              UDIMTilePixels &tile_pixels = *node_data.find_tile_data(image_tile);
-              append(tile_pixels);
-            }
-          }
-        },
-        pbvh.nodes_);
+    PixelData &pixel_data = *pbvh.pixels_;
+    MutableSpan<PixelNode> pixel_nodes = pixel_data.nodes;
+
+    nodes.foreach_index([&](const int i) {
+      append(*pixel_nodes[i].find_tile_data(image_tile));
+    });
   }
 
  private:
-  static bool should_add_node(bke::pbvh::Node &node, const image::ImageTileWrapper &image_tile)
+  static bool should_add_node(PixelNode &node, const image::ImageTileWrapper &image_tile)
   {
-    if ((node.flag_ & Node::Leaf) == 0) {
-      return false;
-    }
-    if (node.pixels_ == nullptr) {
-      return false;
-    }
-    PixelNode &node_data = *node.pixels_;
-    if (node_data.find_tile_data(image_tile) == nullptr) {
+    if (node.find_tile_data(image_tile) == nullptr) {
       return false;
     }
     return true;
   }
 
-  static int64_t count_nodes(bke::pbvh::Tree &pbvh, const image::ImageTileWrapper &image_tile)
+  static IndexMask affected_nodes(bke::pbvh::Tree &pbvh, const image::ImageTileWrapper &image_tile, IndexMaskMemory &memory)
   {
-    int64_t result = 0;
-    std::visit(
-        [&](auto &nodes) {
-          for (bke::pbvh::Node &node : nodes) {
-            if (should_add_node(node, image_tile)) {
-              result++;
-            }
-          }
-        },
-        pbvh.nodes_);
-    return result;
+    IndexMask leaf_nodes = all_leaf_nodes(pbvh, memory);
+    PixelData &pixel_data = *pbvh.pixels_;
+    MutableSpan<PixelNode> pixel_nodes = pixel_data.nodes;
+
+    return IndexMask::from_predicate(leaf_nodes, memory, [&](const int i) {
+      return should_add_node(pixel_nodes[i], image_tile);
+    });
   }
 };
 
