@@ -287,8 +287,6 @@ void VKTexturePool::AllocationHandle::alloc(VkMemoryRequirements requirements)
 
   VkResult result = vmaAllocateMemory(
       device.mem_allocator_get(), &requirements, &create_info, &allocation, &allocation_info);
-
-  /* WATCH(not_mark): will remove asserts when pool is a bit more mature. */
   UNUSED_VARS_NDEBUG(result);
   BLI_assert(result == VK_SUCCESS);
 
@@ -305,9 +303,22 @@ void VKTexturePool::AllocationHandle::free()
   segments = {};
 }
 
+VKTexturePool::VKTexturePool()
+{
+  /* For unknown reasons, VKImageCache causes sporadic crashes on some AMD cards on Mesa,
+   * which is not always reproducible (#154768, #155202). As Mesa has fast VkImage handle
+   * creation, it is simply not instantiated there. */
+  if (!GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_UNIX, GPU_DRIVER_OPENSOURCE)) {
+    image_cache_ = VKImageCache();
+  }
+}
+
 VKTexturePool::~VKTexturePool()
 {
-  image_cache_.reset(true);
+  if (image_cache_) {
+    image_cache_->reset(true);
+    image_cache_ = {};
+  }
   for (TextureHandle handle : acquired_) {
     delete handle.texture;
   }
@@ -400,8 +411,9 @@ Texture *VKTexturePool::acquire_texture(int2 extent,
     }
   }
 
-  /* Get or create a VkImage handle through VKImageCache and assign it to the texture. */
-  texture->vk_image_ = image_cache_.get_or_create(image_info);
+  /* Get or create a VkImage handle and assign it to the texture. */
+  texture->vk_image_ = image_cache_ ? image_cache_->get_or_create(image_info) :
+                                      create_and_bind_vk_image(image_info);
   debug::object_label(texture->vk_image_, texture->name_);
 
   if (G.debug & G_DEBUG_GPU) {
@@ -434,6 +446,13 @@ void VKTexturePool::release_texture(Texture *tex)
   allocation_handle.release(image_info.segment);
   allocations_.add_overwrite(allocation_handle);
 
+  /* Forward VkImage to discard pool; if VKImageCache is used, this is
+   * handled by the cache over time. */
+  if (!image_cache_) {
+    VKDiscardPool &discard_pool = VKDiscardPool::discard_pool_get();
+    discard_pool.discard_image(texture_handle.texture->vk_image_handle(), VK_NULL_HANDLE);
+  }
+
   /* Delete texture and remove it from the acquired set.
    * VKTexture destructor is skipped as VKTexture::allocation_ is VK_NULL_HANDLE. */
   acquired_.remove(texture_handle);
@@ -453,8 +472,10 @@ void VKTexturePool::reset(bool force_free)
 {
   /* Iterate acquired textures. */
   for (const TextureHandle &tex : acquired_) {
-    /* Reset the texture's backing image's unused cycles counter in the VKImageCache.  */
-    image_cache_.reset_unused_cycles_count(tex.image_info);
+    /* Reset the texture's backing image's unused cycles counter in VKImageCache. */
+    if (image_cache_) {
+      image_cache_->reset_unused_cycles_count(tex.image_info);
+    }
 
     /* Ensure the internal user counter equals 0; otherwise this indicates
      * a missing `::retain()` or `::release()`. */
@@ -477,19 +498,23 @@ void VKTexturePool::reset(bool force_free)
 
   /* Remove unused allocations. */
   for (AllocationHandle handle : unused_allocations) {
-    image_cache_.discard_all_of(handle.allocation);
+    if (image_cache_) {
+      image_cache_->discard_all_of(handle.allocation);
+    }
     handle.free();
     allocations_.remove(handle);
   }
 
   /* Remove unused images from cache. */
-  image_cache_.reset();
+  if (image_cache_) {
+    image_cache_->reset();
+  }
 
   /* Log debug usage data if it differs from the last `::reset()`. */
   if (G.debug & G_DEBUG_GPU) {
     /* Log debug usage data if it differs from the last `::reset()`. */
     current_usage_data_.allocation_count = allocations_.size();
-    current_usage_data_.image_cache_size = image_cache_.size();
+    current_usage_data_.image_cache_size = image_cache_ ? image_cache_->size() : 0;
 
     if (!(previous_usage_data_ == current_usage_data_)) {
       log_usage_data();
