@@ -385,7 +385,8 @@ void main()
                                         gp_interp_flat.sspos_3,
                                         gp_interp.uv,
                                         gp_interp_flat.mat_flag,
-                                        gp_interp_noperspective.thickness.x,
+                                        gp_interp_flat.sspos_1.w,
+                                        gp_interp_flat.sspos_2.w,
                                         gp_interp_noperspective.hardness,
                                         gp_interp_noperspective.thickness.zw);
     }

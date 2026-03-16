@@ -24,7 +24,8 @@ void main()
                                   gp_interp_flat.sspos_2.xy,
                                   gp_interp_flat.sspos_0,
                                   gp_interp_flat.sspos_3,
-                                  gp_interp_noperspective.thickness.x,
+                                  gp_interp_flat.sspos_1.w,
+                                  gp_interp_flat.sspos_2.w,
                                   gp_interp_noperspective.hardness,
                                   gp_interp_noperspective.thickness.zw) < 0.001f)
   {

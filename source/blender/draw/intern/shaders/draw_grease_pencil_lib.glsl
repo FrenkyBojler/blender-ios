@@ -62,8 +62,14 @@ float gpencil_stroke_hardess_mask(float dist, float hardfac)
  * Each point can have a different corner type, stored as p1: miter_limit.x, p2: miter_limit.y
  *
  */
-float gpencil_stroke_segment_mask(
-    float2 p1, float2 p2, float2 p0, float2 p3, float thickness, float hardfac, float2 miter_limit)
+float gpencil_stroke_segment_mask(float2 p1,
+                                  float2 p2,
+                                  float2 p0,
+                                  float2 p3,
+                                  float r1,
+                                  float r2,
+                                  float hardfac,
+                                  float2 miter_limit)
 {
   bool both_round = miter_limit.x == MITER_LIMIT_TYPE_ROUND &&
                     miter_limit.y == MITER_LIMIT_TYPE_ROUND;
@@ -72,7 +78,6 @@ float gpencil_stroke_segment_mask(
   bool is_end = distance_squared(p2, p3) < 1e-6;
   bool both_ends = is_start && is_end;
 
-  float radius = thickness * 0.5f;
   float2 pos1 = gl_FragCoord.xy - p1;
   float2 line1 = p2 - p1;
   float2 tan1 = orthogonal(line1);
@@ -80,14 +85,68 @@ float gpencil_stroke_segment_mask(
 
   /* Calculate the factor along the main segment. */
   float t1 = dot(pos1, line1) / len_sq1;
+  float clamped_t1 = saturate(t1);
+  // float radius = r1 * (1.0f - clamped_t1) + r2 * clamped_t1;
+
+  float radius = 0.0f;
+  float l = sqrt(len_sq1);
+  float a = r2 - r1;
+  float cos_theta = a / l;
+
+  float joint = 1.0f;
+
+  /* Skip the joint */
+  if (length(pos1) < r1 && !is_start) {
+    return 0.0f;
+  }
+
+  float x = t1 * l;
+
+  /* Check if one circle is inside the other. */
+  if (abs(cos_theta) > 1.0f) {
+    radius = max(r1, r2);
+  }
+  else if (abs(cos_theta) < 0.001f * l) {
+    radius = r1;
+  }
+  else {
+
+    float tan_half_theta = sqrt((l - a) / (l + a));
+
+    float T = ((x + r1) * (r2 / tan_half_theta - r1 * tan_half_theta) / (l + r1 + r2) +
+               r1 * tan_half_theta - r1) /
+              a;
+
+    // radius = r1 + a * saturate(T);
+    radius = r1 + a * T;
+  }
+
+  if (x < -cos_theta * r1) {
+    // if (x < 0.0f) {
+    //   radius = r1;
+    // }
+    // else {
+    radius = sqrt(r1 * r1 - x * x);
+    // }
+  }
+
+  if (x > l - cos_theta * r2) {
+    // if (x > l) {
+    //   radius = r2;
+    // }
+    // else {
+    radius = sqrt(r2 * r2 - (x - l) * (x - l));
+    // }
+  }
 
   /* The distance factor squared to the main segment. This is clamped and will lead to round
    * corners. */
-  float dist = length_squared(pos1 - saturate(t1) * line1);
+  // float dist = length_squared(pos1 - clamped_t1 * line1);
+  float dist = length_squared(pos1 - t1 * line1);
 
   if (both_round || both_ends) {
     dist = sqrt(dist) / radius;
-    return gpencil_stroke_hardess_mask(dist, hardfac);
+    return gpencil_stroke_hardess_mask(dist, hardfac) * joint;
   }
 
   float2 line0 = p1 - p0;
@@ -105,7 +164,7 @@ float gpencil_stroke_segment_mask(
 
   /* Normalize all segment directions. */
   float2 tan_norm0 = tan0 / sqrt(len_sq0);
-  float2 tan_norm1 = tan1 / sqrt(len_sq1);
+  float2 tan_norm1 = tan1 / l;
   float2 tan_norm2 = tan2 / sqrt(len_sq2);
 
   /* Get the squared distance to the main segment. */
@@ -142,7 +201,7 @@ float gpencil_stroke_segment_mask(
   }
 
   dist = sqrt(dist) / radius;
-  return gpencil_stroke_hardess_mask(dist, hardfac);
+  return gpencil_stroke_hardess_mask(dist, hardfac) * joint;
 }
 
 float gpencil_stroke_mask(float2 p1,
@@ -151,7 +210,8 @@ float gpencil_stroke_mask(float2 p1,
                           float2 p3,
                           float2 uv,
                           uint mat_flag,
-                          float thickness,
+                          float r1,
+                          float r2,
                           float hardfac,
                           float2 miter_limit)
 {
@@ -168,7 +228,7 @@ float gpencil_stroke_mask(float2 p1,
   }
   else {
     /* Line mask */
-    return gpencil_stroke_segment_mask(p1, p2, p0, p3, thickness, hardfac, miter_limit);
+    return gpencil_stroke_segment_mask(p1, p2, p0, p3, r1, r2, hardfac, miter_limit);
   }
 }
 
@@ -718,7 +778,8 @@ float4 gpencil_vertex(float4 viewport_res,
         screen_ofs += line * x;
       }
 
-      out_ndc.xy += screen_ofs * viewport_res.zw * clamped_thickness;
+      // out_ndc.xy += screen_ofs * viewport_res.zw * clamped_thickness;
+      out_ndc = dot_segment(float2(x, y), ss1, ss2, is_squares, viewport_res);
 
       out_uv.x = (use_curr) ? uv1.z : uv2.z;
     }
