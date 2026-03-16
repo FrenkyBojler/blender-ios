@@ -343,11 +343,42 @@ static wmOperatorStatus backimage_zoom_exec(bContext *C, wmOperator *op)
   float fac = RNA_float_get(op->ptr, "factor");
 
   snode->zoom *= fac;
+
+  /* If zoom to mouse position is enabled, the offset is caclculated in the invoke callback
+   * and stored in the customdata. */
+  if (op->customdata != nullptr) {
+    float *offset = static_cast<float *>(op->customdata);
+    snode->xof = offset[0];
+    snode->yof = offset[1];
+  }
+
   ED_region_tag_redraw(region);
   WM_main_add_notifier(NC_NODE | ND_DISPLAY, nullptr);
   WM_main_add_notifier(NC_SPACE | ND_SPACE_NODE_VIEW, nullptr);
 
   return OPERATOR_FINISHED;
+}
+
+static wmOperatorStatus backimage_zoom_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  const bool use_mouse_pos = RNA_boolean_get(op->ptr, "use_mouse_position");
+  if (!(use_mouse_pos && (U.uiflag & USER_ZOOM_TO_MOUSEPOS))) {
+    /* Execute the operator without setting any customdata.*/
+    return backimage_zoom_exec(C, op);
+  }
+
+  /* Calculate the offset for zooming to the mouse position. */
+  ARegion *region = CTX_wm_region(C);
+  SpaceNode *snode = CTX_wm_space_node(C);
+  float fac = RNA_float_get(op->ptr, "factor");
+
+  float img_co[2] = {snode->xof + region->winx / 2.0f, snode->yof + region->winy / 2.0f};
+
+  float offset[2] = {snode->xof + (event->mval[0] - img_co[0]) * (1 - fac),
+                     snode->yof + (event->mval[1] - img_co[1]) * (1 - fac)};
+
+  op->customdata = offset;
+  return backimage_zoom_exec(C, op);
 }
 
 void NODE_OT_backimage_zoom(wmOperatorType *ot)
@@ -359,6 +390,7 @@ void NODE_OT_backimage_zoom(wmOperatorType *ot)
   ot->description = "Zoom in/out the background image";
 
   /* API callbacks. */
+  ot->invoke = backimage_zoom_invoke;
   ot->exec = backimage_zoom_exec;
   ot->poll = space_node_composite_active_view_poll;
 
@@ -367,6 +399,8 @@ void NODE_OT_backimage_zoom(wmOperatorType *ot)
 
   /* internal */
   RNA_def_float(ot->srna, "factor", 1.2f, 0.0f, 10.0f, "Factor", "", 0.0f, 10.0f);
+  RNA_def_boolean(
+      ot->srna, "use_mouse_position", true, "Use Mouse Position", "Zoom to mouse position");
 }
 
 /** \} */
