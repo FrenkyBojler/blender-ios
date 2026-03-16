@@ -236,6 +236,13 @@ float gpencil_stroke_thickness_modulate(float thickness, float4 ndc_pos, float4 
   /* Modify stroke thickness by object scale. */
   thickness = length(to_float3x3(drw_modelmat()) * float3(thickness * M_SQRT1_3));
 
+  /* XR navigation/base scale is baked into the view matrix. Cancel that uniform view scale so
+   * Grease Pencil stroke widths stay visually stable when the XR session scale changes */
+  float view_scale = length(drw_view().viewinv[0].xyz);
+  if (view_scale > 0.0f) {
+    thickness /= view_scale;
+  }
+
   /* World space point size. */
   thickness *= drw_view().winmat[1][1] * viewport_res.y;
 
