@@ -86,11 +86,7 @@ class NODE_OT_reset_selected(Operator):
             message = rpt_("Ignored {}").format(", ".join(not_valid_names))
             self.report({'INFO'}, message)
 
-        # Deselect all nodes
-        for i in node_selected:
-            i.select = False
-
-        props_to_copy = ("name", "location", "height", "width")
+        props_to_copy = ("name", "location", "height", "width", "select")
 
         # Run through all valid nodes
         for node in valid_nodes:
@@ -123,13 +119,7 @@ class NODE_OT_reset_selected(Operator):
             for str_from, str_to in reconnections:
                 connect_sockets(eval(str_from), eval(str_to))
 
-            new_node.select = False
             success_names.append(new_node.name)
-
-        # Reselect all nodes
-        if selected_node_names and node_active_is_frame is False:
-            for i in selected_node_names:
-                node_tree.nodes[i].select = True
 
         if active_node_name is not None:
             node_tree.nodes[active_node_name].select = True
