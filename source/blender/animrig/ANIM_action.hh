@@ -673,7 +673,8 @@ class Layer : public ActionLayer {
     Replace = 0,
     /** Channels in this layer are added to underlying layers as sequential operations. */
     Offset = 1,
-    /** Channels in this layer are added to underlying layers on a per-channel basis. */
+    /** Channels in this layer are additively combined with channels from underlying layers. This
+       corrects for scale and quaternion values. */
     Combine = 2,
     /** Channels in this layer are subtracted to underlying layers on a per-channel basis. */
     Subtract = 3,

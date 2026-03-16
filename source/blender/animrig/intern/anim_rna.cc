@@ -134,6 +134,12 @@ bool is_rotation_path(const StringRefNull rna_path)
   return get_rotation_mode_from_path(rna_path).has_value();
 }
 
+bool is_scale_path(const StringRefNull rna_path)
+{
+  const int start_of_propname = rna_path.rfind(".") + 1;
+  return rna_path.substr(start_of_propname, rna_path.size()) == "scale";
+}
+
 static bool is_idproperty_keyable(const IDProperty *id_prop, PointerRNA *ptr, PropertyRNA *prop)
 {
   /* While you can cast the IDProperty* to a PropertyRNA* and pass it to the RNA_* functions, this

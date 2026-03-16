@@ -1909,21 +1909,21 @@ static void rna_def_action_layer(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
   RNA_def_struct_name_property(srna, prop);
+  RNA_def_property_ui_text(prop, "Name", "Name of the layer");
 
   /* Disabled in RNA until layered animation is actually implemented.
    *
    * The animation evaluation already takes these into account, but there is no guarantee that the
    * mixing that is currently implemented is going to be mathematically identical to the eventual
    * implementation. */
-#  if 0
   prop = RNA_def_property(srna, "influence", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_range(prop, 0.0f, 1.0f);
   RNA_def_property_ui_text(
       prop, "Influence", "How much of this layer is used when blending into the lower layers");
   RNA_def_property_ui_range(prop, 0.0, 1.0, 3, 2);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
-  RNA_def_property_update(prop, NC_ANIMATION | ND_ANIMCHAN, "rna_Action_tag_animupdate");
-#  endif
+  RNA_def_property_update(
+      prop, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, "rna_Action_tag_animupdate");
 
   prop = RNA_def_property(srna, "mix_mode", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "layer_mix_mode");
@@ -1931,7 +1931,8 @@ static void rna_def_action_layer(BlenderRNA *brna)
       prop, "Mix Mode", "How animation of this layer is blended into the lower layers");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_enum_items(prop, rna_enum_layer_mix_mode_items);
-  RNA_def_property_update(prop, NC_ANIMATION | ND_ANIMCHAN, "rna_Action_tag_animupdate");
+  RNA_def_property_update(
+      prop, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, "rna_Action_tag_animupdate");
 
   prop = RNA_def_property(srna, "is_locked", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_ui_text(
@@ -1940,7 +1941,7 @@ static void rna_def_action_layer(BlenderRNA *brna)
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
-  RNA_def_property_update_notifier(prop, NC_ANIMATION | ND_ANIMCHAN);
+  RNA_def_property_update_notifier(prop, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED);
 
   /* Collection properties. */
   prop = RNA_def_property(srna, "strips", PROP_COLLECTION, PROP_NONE);

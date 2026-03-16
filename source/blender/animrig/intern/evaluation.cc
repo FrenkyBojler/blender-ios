@@ -3,12 +3,14 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "ANIM_evaluation.hh"
+#include "ANIM_rna.hh"
 
 #include "BKE_animsys.h"
 #include "BKE_fcurve.hh"
 
 #include "BLI_map.hh"
 #include "BLI_math_base.hh"
+#include "BLI_math_rotation.h"
 #include "BLI_task.hh"
 
 #include "CLG_log.h"
@@ -239,6 +241,15 @@ static EvaluationResult evaluate_strip(PointerRNA &animated_id_ptr,
   return {};
 }
 
+struct QuaternionEvalBuffer {
+  /* The incoming values to blend with. */
+  float current[4] = {1, 0, 0, 0};
+  /* The values of the evaluated layer. */
+  float layer_result[4] = {1, 0, 0, 0};
+  /* Pointers to the `value` of the `AnimatedProperty` that we should write the values to. */
+  float *output[4];
+};
+
 void blend_layer_results(EvaluationResult &final_result,
                          const EvaluationResult &intermediate_result,
                          const Layer &current_layer)
@@ -246,6 +257,9 @@ void blend_layer_results(EvaluationResult &final_result,
   /* TODO?: store the layer results sequentially, so that we can step through
    * them in parallel, instead of iterating over one and doing map lookups on
    * the other. */
+
+  /* Store all quaternion channnels for a second loop because they need to be blended together. */
+  Map<StringRefNull, QuaternionEvalBuffer> quaternion_buffer;
 
   for (const auto &channel_result : intermediate_result.items()) {
     const PropIdentifier &prop_ident = channel_result.key;
@@ -261,17 +275,35 @@ void blend_layer_results(EvaluationResult &final_result,
       continue;
     }
 
-    /* TODO: move this to a separate function. And write more smartness for rotations. */
+    /* Special case for quaternions that have to be blended together and not per channel. */
+    const std::optional<eRotationModes> rotation_mode = animrig::get_rotation_mode_from_path(
+        prop_ident.rna_path);
+    if (rotation_mode.has_value() && rotation_mode.value() == ROT_MODE_QUAT) {
+      QuaternionEvalBuffer &quat_buffer = quaternion_buffer.lookup_or_add_default(
+          prop_ident.rna_path);
+      quat_buffer.layer_result[prop_ident.array_index] = anim_prop.value;
+      quat_buffer.current[prop_ident.array_index] = last_prop->value;
+      quat_buffer.output[prop_ident.array_index] = &last_prop->value;
+      continue;
+    }
+
     switch (current_layer.mix_mode()) {
       case Layer::MixMode::Replace:
-        last_prop->value = anim_prop.value * current_layer.influence;
+        last_prop->value = math::interpolate(
+            last_prop->value, anim_prop.value, current_layer.influence);
         break;
+      case Layer::MixMode::Combine: {
+        if (animrig::is_scale_path(prop_ident.rna_path)) {
+          last_prop->value *= powf(anim_prop.value, current_layer.influence);
+        }
+        else {
+          last_prop->value += anim_prop.value * current_layer.influence;
+        }
+        break;
+      }
       case Layer::MixMode::Offset:
         last_prop->value = math::interpolate(
             current_layer.influence, last_prop->value, anim_prop.value);
-        break;
-      case Layer::MixMode::Combine:
-        last_prop->value += anim_prop.value * current_layer.influence;
         break;
       case Layer::MixMode::Subtract:
         last_prop->value -= anim_prop.value * current_layer.influence;
@@ -280,6 +312,31 @@ void blend_layer_results(EvaluationResult &final_result,
         last_prop->value *= anim_prop.value * current_layer.influence;
         break;
     };
+  }
+
+  for (QuaternionEvalBuffer &quat_buffer : quaternion_buffer.values()) {
+    float output_qt[4];
+    normalize_qt(quat_buffer.layer_result);
+    normalize_qt(quat_buffer.current);
+    switch (current_layer.mix_mode()) {
+      case Layer::MixMode::Replace:
+        interp_qt_qtqt(
+            output_qt, quat_buffer.current, quat_buffer.layer_result, current_layer.influence);
+        break;
+      case Layer::MixMode::Combine:
+        pow_qt_fl_normalized(quat_buffer.layer_result, current_layer.influence);
+        mul_qt_qtqt(output_qt, quat_buffer.current, quat_buffer.layer_result);
+        break;
+      default:
+        /* Needs to be implemented. */
+        BLI_assert_unreachable();
+        break;
+    }
+    for (int i = 0; i < 4; i++) {
+      if (quat_buffer.output[i]) {
+        *quat_buffer.output[i] = output_qt[i];
+      }
+    }
   }
 }
 

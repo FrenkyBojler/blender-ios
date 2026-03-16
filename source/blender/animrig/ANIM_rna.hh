@@ -57,6 +57,11 @@ std::optional<eRotationModes> get_rotation_mode_from_rna_pointer(const PointerRN
 bool is_rotation_path(StringRefNull rna_path);
 
 /**
+ * Given an RNA path, return true if it is a scale property.
+ */
+bool is_scale_path(StringRefNull rna_path);
+
+/**
  * Returns a Vector of ID properties on the given pointer that can be animated. Not all pointer
  * types are supported. Unsupported pointer types will return an empty vector.
  */
