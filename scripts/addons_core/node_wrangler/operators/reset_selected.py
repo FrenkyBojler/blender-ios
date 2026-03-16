@@ -86,15 +86,11 @@ class NODE_OT_reset_selected(Operator):
             message = rpt_("Ignored {}").format(", ".join(not_valid_names))
             self.report({'INFO'}, message)
 
-        props_to_copy = ("name", "location", "height", "width", "select")
+        props_to_copy = ("location", "height", "width", "select", "location_absolute", "parent")
 
         # Run through all valid nodes
         for node in valid_nodes:
-            parent = node.parent if node.parent else None
-            node_loc = [node.location.x, node.location.y]
-
             node_tree = node.id_data
-
             reconnections = []
             mappings = chain.from_iterable([node.inputs, node.outputs])
             for i in (i for i in mappings if i.is_linked):
@@ -108,13 +104,10 @@ class NODE_OT_reset_selected(Operator):
             for prop in props_to_copy:
                 setattr(new_node, prop, props[prop])
 
+            node_name = node.name
             nodes = node_tree.nodes
             nodes.remove(node)
-            new_node.name = props['name']
-
-            if parent:
-                new_node.parent = parent
-                new_node.location = node_loc
+            new_node.name = node_name
 
             for str_from, str_to in reconnections:
                 connect_sockets(eval(str_from), eval(str_to))
