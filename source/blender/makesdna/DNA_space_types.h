@@ -352,8 +352,7 @@ struct SpaceSeq {
   short scope = 0; /* eSpaceSeq_ScopeType. */
   /* Order of selection of scopes. Size is the total number of scopes. */
   short scope_order[4];
-  char scope_order_len = 0;
-  char _pad[1] = {};
+  short scope_order_len = 0;
 
   /** 2D cursor for transform. */
   float cursor[2] = {};

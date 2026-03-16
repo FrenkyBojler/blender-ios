@@ -736,6 +736,7 @@ static void sequencer_draw_scopes(Scene *scene,
   const rctf preview = preview_get_full_position(region);
 
   int scopes_count = space_sequencer.scope_order_len;
+  BLI_assert(scopes_count > 0);
 
   /* Draw black rectangle over scopes area. */
   if (space_sequencer.view == SEQ_VIEW_SCOPES) {
