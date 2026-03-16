@@ -399,7 +399,7 @@ void ImageTextureNode::update_images(const SVMCompiler &compiler)
   }
 
   const ImageMetaData metadata = handle.metadata(compiler.progress);
-  if (metadata.tile_size && compiler.scene->image_manager->get_use_texture_cache()) {
+  if (metadata.has_tiles_and_mipmaps && compiler.scene->image_manager->get_use_texture_cache()) {
     set_need_derivatives();
   }
 }
@@ -587,7 +587,7 @@ void EnvironmentTextureNode::update_images(const SVMCompiler &compiler)
   }
 
   const ImageMetaData metadata = handle.metadata(compiler.progress);
-  if (metadata.tile_size && compiler.scene->image_manager->get_use_texture_cache()) {
+  if (metadata.has_tiles_and_mipmaps && compiler.scene->image_manager->get_use_texture_cache()) {
     set_need_derivatives();
   }
 }
