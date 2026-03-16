@@ -80,20 +80,25 @@ kernel_image_tile_map(KernelGlobals kg,
                       const dual2 uv,
                       ccl_private float2 &xy)
 {
-  /* Find mipmap level. */
-
-  const float dudxy = len(make_float2(uv.dx.x, uv.dy.x)) * float(tex.width);
-  const float dvdxy = len(make_float2(uv.dx.y, uv.dy.y)) * float(tex.height);
+  /* Find mipmap level. Use squared lengths to avoid two sqrt operations,
+   * compensating with 0.5 factor on the log2. */
+  const float dudxy_sq = len_squared(make_float2(uv.dx.x, uv.dy.x)) * float(tex.width * tex.width);
+  const float dvdxy_sq = len_squared(make_float2(uv.dx.y, uv.dy.y)) *
+                         float(tex.height * tex.height);
 
   /* Limit max anisotropy ratio, to avoid loading too high mip resolutions
    * for stretched UV coordinates, which don't really benefit from it anyway. */
-  const float maxdxy = max(dudxy, dvdxy);
-  const float mindxy = min(dudxy, dvdxy);
-  const float max_aniso_ratio = 16.0f;
-  const float sampledxy = max(mindxy, maxdxy * (1.0f / max_aniso_ratio));
+  const float maxdxy_sq = max(dudxy_sq, dvdxy_sq);
+  const float mindxy_sq = min(dudxy_sq, dvdxy_sq);
+  const float inv_aniso_ratio_sq = 1.0f / (16.0f * 16.0f);
+  /* Native log2 is faster on GPU. */
+#ifdef __KERNEL_GPU__
+  float flevel = 0.5f * log2(max(mindxy_sq, maxdxy_sq * inv_aniso_ratio_sq));
+#else
+  float flevel = 0.5f * fast_log2f(max(mindxy_sq, maxdxy_sq * inv_aniso_ratio_sq));
+#endif
 
   /* Select mipmap level. */
-  float flevel = fast_log2f(sampledxy);
   if (sd->lcg_state != 0) {
     /* For rounding instead of flooring. */
     flevel += 0.5f;
@@ -155,8 +160,8 @@ kernel_image_tile_map(KernelGlobals kg,
           kg->image_texture_tile_descriptors.data[tex.tile_descriptor_offset + tile_offset];
       kg->image_load_requested_cpu(image_texture_id,
                                    level,
-                                   tile_x * (1 << tile_size_shift),
-                                   tile_y * (1 << tile_size_shift),
+                                   tile_x << tile_size_shift,
+                                   tile_y << tile_size_shift,
                                    p_tile_descriptor);
       tile_descriptor = p_tile_descriptor;
     }
