@@ -59,7 +59,7 @@ ccl_device_inline Transform object_fetch_transform_motion(KernelGlobals kg,
 {
   const uint motion_offset = kernel_data_fetch(objects, object).motion_offset;
   const ccl_global DecomposedTransform *motion = &kernel_data_fetch(object_motion, motion_offset);
-  const uint num_steps = kernel_data_fetch(objects, object).num_tfm_steps;
+  const int num_steps = kernel_data_fetch(objects, object).num_tfm_steps;
 
   Transform tfm;
   transform_motion_array_interpolate(&tfm, motion, num_steps, time);
@@ -74,7 +74,7 @@ ccl_device_inline Transform object_fetch_transform_motion_test(KernelGlobals kg,
                                                                ccl_private Transform *itfm)
 {
 #ifdef __OBJECT_MOTION__
-  const int object_flag = kernel_data_fetch(object_flag, object);
+  const uint object_flag = kernel_data_fetch(object_flag, object);
   if (object_flag & SD_OBJECT_MOTION) {
     /* if we do motion blur */
     Transform tfm = object_fetch_transform_motion(kg, object, time);
@@ -130,9 +130,10 @@ ccl_device_inline Transform lamp_get_inverse_transform(KernelGlobals kg,
 
 /* Transform position from object to world space */
 
+template<class T>
 ccl_device_inline void object_position_transform(KernelGlobals kg,
                                                  const ccl_private ShaderData *sd,
-                                                 ccl_private float3 *P)
+                                                 ccl_private T *P)
 {
 #ifdef __OBJECT_MOTION__
   if (sd->object_flag & SD_OBJECT_MOTION) {
@@ -202,7 +203,7 @@ ccl_device_inline void object_normal_transform(KernelGlobals kg,
   }
 }
 
-ccl_device_inline bool object_negative_scale_applied(const int object_flag)
+ccl_device_inline bool object_negative_scale_applied(const uint object_flag)
 {
   return ((object_flag & SD_OBJECT_NEGATIVE_SCALE) && (object_flag & SD_OBJECT_TRANSFORM_APPLIED));
 }
@@ -351,7 +352,7 @@ ccl_device_inline float3 object_dupli_uv(KernelGlobals kg, const int object)
   return make_float3(kobject->dupli_uv[0], kobject->dupli_uv[1], 0.0f);
 }
 
-/* Volume step size */
+/* Volume density */
 
 ccl_device_inline float object_volume_density(KernelGlobals kg, const int object)
 {
@@ -360,15 +361,6 @@ ccl_device_inline float object_volume_density(KernelGlobals kg, const int object
   }
 
   return kernel_data_fetch(objects, object).volume_density;
-}
-
-ccl_device_inline float object_volume_step_size(KernelGlobals kg, const int object)
-{
-  if (object == OBJECT_NONE) {
-    return kernel_data.background.volume_step_size;
-  }
-
-  return kernel_data_fetch(object_volume_step, object);
 }
 
 /* Pass ID for shader */

@@ -23,6 +23,8 @@
 #include "view3d_intern.hh"
 #include "view3d_navigate.hh" /* own include */
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name Border Zoom Operator
  * \{ */
@@ -55,7 +57,7 @@ static wmOperatorStatus view3d_zoom_border_exec(bContext *C, wmOperator *op)
   /* check if zooming in/out view */
   const bool zoom_in = !RNA_boolean_get(op->ptr, "zoom_out");
 
-  const blender::Bounds<float> dist_range = ED_view3d_dist_soft_range_get(v3d, rv3d->is_persp);
+  const Bounds<float> dist_range = ED_view3d_dist_soft_range_get(v3d, rv3d->is_persp);
 
   ED_view3d_depth_override(CTX_data_ensure_evaluated_depsgraph(C),
                            region,
@@ -74,7 +76,7 @@ static wmOperatorStatus view3d_zoom_border_exec(bContext *C, wmOperator *op)
     /* find the closest Z pixel */
     depth_close = view3d_depth_near(&depth_temp);
 
-    MEM_SAFE_FREE(depth_temp.depths);
+    MEM_SAFE_DELETE(depth_temp.depths);
   }
 
   /* Resize border to the same ratio as the window. */
@@ -130,7 +132,7 @@ static wmOperatorStatus view3d_zoom_border_exec(bContext *C, wmOperator *op)
       float xy_delta[2];
       float zfac;
 
-      /* We can't use the depth, fallback to the old way that doesn't set the center depth */
+      /* We can't use the depth, fall back to the old way that doesn't set the center depth */
       copy_v3_v3(ofs_new, rv3d->ofs);
 
       {
@@ -208,3 +210,5 @@ void VIEW3D_OT_zoom_border(wmOperatorType *ot)
 }
 
 /** \} */
+
+}  // namespace blender

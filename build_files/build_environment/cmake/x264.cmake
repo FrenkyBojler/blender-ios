@@ -6,7 +6,7 @@ if(WIN32)
   set(X264_EXTRA_ARGS --enable-win32thread)
 endif()
 
-if((APPLE AND NOT BLENDER_PLATFORM_ARM) OR (UNIX AND NOT APPLE))
+if(UNIX AND NOT BLENDER_PLATFORM_ARM)
   set(X264_CONFIGURE_ENV ${CONFIGURE_ENV} &&
     export AS=${LIBDIR}/nasm/bin/nasm
   )
@@ -56,7 +56,7 @@ if(WIN32)
   if(BLENDER_PLATFORM_ARM)
     add_dependencies(
       external_x264
-      ll
+      external_llvm
     )
   endif()
 else()

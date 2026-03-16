@@ -310,7 +310,7 @@ void foreach_element_on_inverse_eval_path(
    * this case, parts of the evaluation path has to be discarded again. This is done using a second
    * pass. Now we start the evaluation at the discovered upstream targets and propagate the changed
    * socket elements downstream. We only care about the sockets that have already been used by
-   * upstream evaluation, therefor the downstream evaluation is filtered.  */
+   * upstream evaluation, therefor the downstream evaluation is filtered. */
 
   /* Gather all upstream evaluation targets to start downstream evaluation there. */
   Vector<SocketInContext> initial_downstream_evaluation_sockets;
@@ -383,8 +383,7 @@ static bool set_rna_property(bContext &C,
   const int array_len = RNA_property_array_length(&value_ptr, prop);
 
   Scene *scene = CTX_data_scene(&C);
-  const bool only_when_keyed = blender::animrig::is_keying_flag(scene,
-                                                                AUTOKEY_FLAG_INSERTAVAILABLE);
+  const bool only_when_keyed = animrig::is_keying_flag(scene, AUTOKEY_FLAG_INSERTAVAILABLE);
 
   switch (dst_type) {
     case PROP_FLOAT: {
@@ -573,8 +572,9 @@ static bool set_modifier_value(bContext &C,
       const float3 euler = float3(math::to_euler(rotation));
       return set_rna_property_float3(C, object.id, main_prop_rna_path, euler);
     }
+    default:
+      return false;
   }
-  return false;
 }
 
 std::optional<SocketValueVariant> get_logged_socket_value(geo_eval_log::GeoTreeLog &tree_log,
@@ -776,7 +776,8 @@ bool backpropagate_socket_values(bContext &C,
     }
   }
   /* Set new values for modifier inputs. */
-  const bke::ModifierComputeContext modifier_context{nullptr, nmd};
+  const bke::DataBlockComputeContext data_block_context{nullptr, object.id};
+  const bke::ModifierComputeContext modifier_context{&data_block_context, nmd};
   for (const bNode *group_input_node : nmd.node_group->group_input_nodes()) {
     for (const bNodeSocket *socket : group_input_node->output_sockets().drop_back(1)) {
       if (const SocketValueVariant *value = value_by_socket.lookup_ptr(

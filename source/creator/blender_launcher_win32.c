@@ -2,6 +2,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#ifdef WIN32_LEAN_AND_MEAN
+#  undef WIN32_LEAN_AND_MEAN
+#endif
 #include <Windows.h>
 #include <strsafe.h>
 
@@ -12,8 +15,9 @@ BOOL LaunchedFromSteam()
 {
   HANDLE hSnapShot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
   BOOL isSteam = FALSE;
-  if (!hSnapShot)
+  if (!hSnapShot) {
     return (FALSE);
+  }
 
   PROCESSENTRY32 process_entry;
   process_entry.dwSize = sizeof(PROCESSENTRY32);

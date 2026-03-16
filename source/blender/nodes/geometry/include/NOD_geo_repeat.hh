@@ -14,17 +14,13 @@ namespace blender::nodes {
  * Makes it possible to use various functions (e.g. the ones in `NOD_socket_items.hh`) with
  * repeat items.
  */
-struct RepeatItemsAccessor {
+struct RepeatItemsAccessor : public socket_items::SocketItemsAccessorDefaults {
   using ItemT = NodeRepeatItem;
-  static StructRNA *item_srna;
+  static StructRNA **item_srna;
   static int node_type;
   static constexpr StringRefNull node_idname = "GeometryNodeRepeatOutput";
   static constexpr bool has_type = true;
   static constexpr bool has_name = true;
-  static constexpr bool has_single_identifier_str = true;
-  static constexpr bool has_name_validation = false;
-  static constexpr bool has_custom_initial_name = false;
-  static constexpr char unique_name_separator = '.';
   struct operator_idnames {
     static constexpr StringRefNull add_item = "NODE_OT_repeat_zone_item_add";
     static constexpr StringRefNull remove_item = "NODE_OT_repeat_zone_item_remove";
@@ -52,7 +48,7 @@ struct RepeatItemsAccessor {
 
   static void destruct_item(NodeRepeatItem *item)
   {
-    MEM_SAFE_FREE(item->name);
+    MEM_SAFE_DELETE(item->name);
   }
 
   static void blend_write_item(BlendWriter *writer, const ItemT &item);
@@ -68,24 +64,9 @@ struct RepeatItemsAccessor {
     return &item.name;
   }
 
-  static bool supports_socket_type(const eNodeSocketDatatype socket_type)
+  static bool supports_socket_type(const eNodeSocketDatatype socket_type, const int ntree_type)
   {
-    return ELEM(socket_type,
-                SOCK_FLOAT,
-                SOCK_VECTOR,
-                SOCK_RGBA,
-                SOCK_BOOLEAN,
-                SOCK_ROTATION,
-                SOCK_MATRIX,
-                SOCK_INT,
-                SOCK_STRING,
-                SOCK_GEOMETRY,
-                SOCK_OBJECT,
-                SOCK_MATERIAL,
-                SOCK_IMAGE,
-                SOCK_COLLECTION,
-                SOCK_BUNDLE,
-                SOCK_CLOSURE);
+    return bke::node_tree_type_supports_socket_type_static(ntree_type, socket_type);
   }
 
   static void init_with_socket_type_and_name(bNode &node,

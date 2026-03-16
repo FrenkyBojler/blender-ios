@@ -36,7 +36,6 @@
 
 #include "BLI_cache_mutex.hh"
 #include "BLI_string_ref.hh"
-#include "BLI_struct_equality_utils.hh"
 
 namespace blender {
 
@@ -55,7 +54,7 @@ struct ComputeContextHash {
     return v1;
   }
 
-  BLI_STRUCT_EQUALITY_OPERATORS_2(ComputeContextHash, v1, v2)
+  friend bool operator==(const ComputeContextHash &a, const ComputeContextHash &b) = default;
 
   /**
    * Standard way to create a compute context hash.
@@ -72,7 +71,6 @@ struct ComputeContextHash {
 
   friend std::ostream &operator<<(std::ostream &stream, const ComputeContextHash &hash);
 
- private:
   /**
    * Compute a context hash by packing all the arguments into a contiguous buffer and hashing
    * that.
@@ -152,7 +150,7 @@ template<typename... Args>
 inline ComputeContextHash ComputeContextHash::from_shallow_bytes(Args &&...args)
 {
   /* Copy all values into a contiguous buffer. Intentionally don't use std::tuple to avoid any
-   * potential padding.  */
+   * potential padding. */
   constexpr int64_t size_sum = (sizeof(args) + ...);
   char buffer[size_sum];
   int64_t offset = 0;

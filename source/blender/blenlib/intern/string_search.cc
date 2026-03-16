@@ -125,7 +125,7 @@ int get_fuzzy_match_errors(StringRef query, StringRef full)
   const char *window_begin = full_begin;
   const char *window_end = window_begin;
   const int window_size = std::min(query_size + max_errors, full_size);
-  const int extra_chars = window_size - query_size;
+  const int extra_chars = std::max(window_size - query_size, 0);
   const int max_acceptable_distance = max_errors + extra_chars;
 
   for (int i = 0; i < window_size; i++) {
@@ -562,7 +562,7 @@ Vector<void *> StringSearchBase::query_impl(const StringRef query) const
   for (const float score : result_indices_by_score.keys()) {
     found_scores.append(score);
   }
-  std::sort(found_scores.begin(), found_scores.end(), std::greater<>());
+  std::ranges::sort(found_scores, std::greater<>());
 
   /* Add results to output vector in correct order. First come the results with the best match
    * score. Results with the same score are in the order they have been added to the search. */
@@ -574,7 +574,7 @@ Vector<void *> StringSearchBase::query_impl(const StringRef query) const
         /* Sort items with best score by length. Shorter items are more likely the ones you are
          * looking for. This also ensures that exact matches will be at the top, even if the query
          * is a sub-string of another item. */
-        std::sort(indices.begin(), indices.end(), [&](int a, int b) {
+        std::ranges::sort(indices, [&](int a, int b) {
           const SearchItem &item_a = items_[a];
           const SearchItem &item_b = items_[b];
           /* The length of the main group has priority over the total length. */

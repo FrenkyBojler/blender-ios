@@ -14,6 +14,7 @@
 #include "BLI_sort.hh"
 #include "BLI_task.hh"
 
+#include "GEO_foreach_geometry.hh"
 #include "GEO_randomize.hh"
 
 #include "BKE_geometry_set.hh"
@@ -63,14 +64,10 @@ static void find_points_by_group_index(const Span<int> indices_of_curves,
                                        MutableSpan<int> r_offsets,
                                        MutableSpan<int> r_indices)
 {
-  offset_indices::build_reverse_offsets(indices_of_curves, r_offsets);
-  Array<int> counts(r_offsets.size(), 0);
-
-  for (const int64_t index : indices_of_curves.index_range()) {
-    const int curve_index = indices_of_curves[index];
-    r_indices[r_offsets[curve_index] + counts[curve_index]] = int(index);
-    counts[curve_index]++;
-  }
+  const OffsetIndices offsets = offset_indices::build_reverse_offsets(indices_of_curves,
+                                                                      r_offsets);
+  /* Sorting is implemented by the caller. */
+  offset_indices::reverse_indices_in_groups(indices_of_curves, offsets, r_indices, false);
 }
 
 static int identifiers_to_indices(MutableSpan<int> r_identifiers_to_indices)
@@ -174,14 +171,14 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Field<float> weight_field = params.extract_input<Field<float>>("Weight");
 
   const NodeAttributeFilter attribute_filter = params.get_attribute_filter("Curves");
-  geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+  geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     geometry_set.replace_curves(nullptr);
     if (const PointCloud *points = geometry_set.get_pointcloud()) {
       Curves *curves_id = curves_from_points(
           *points, group_id_field, weight_field, attribute_filter);
       geometry_set.replace_curves(curves_id);
     }
-    geometry_set.keep_only_during_modify({GeometryComponent::Type::Curve});
+    geometry_set.keep_only({GeometryComponent::Type::Curve, GeometryComponent::Type::Edit});
   });
 
   params.set_output("Curves", std::move(geometry_set));
@@ -189,7 +186,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodePointsToCurves", GEO_NODE_POINTS_TO_CURVES);
   ntype.ui_name = "Points to Curves";
@@ -198,7 +195,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

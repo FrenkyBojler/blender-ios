@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "infos/compositor_summed_area_table_infos.hh"
+
+COMPUTE_SHADER_CREATE_INFO(compositor_summed_area_table_compute_complete_x_prologues)
+
 #include "gpu_shader_compositor_texture_utilities.glsl"
 
 /* A shared memory to sum the prologues using parallel reduction. See the parallel reduction shader
@@ -47,7 +51,7 @@ void main()
 
     barrier();
     if (gl_LocalInvocationIndex == 0) {
-      /*  Note that we store using a transposed texel, but that is only to undo the transposition
+      /* Note that we store using a transposed texel, but that is only to undo the transposition
        * mentioned above. Also note that we start from the second row because the first row is
        * set to zero as mentioned above. */
       float4 sum = complete_prologue[0];

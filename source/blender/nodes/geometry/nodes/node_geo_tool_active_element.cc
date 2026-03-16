@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #include "RNA_enum_types.hh"
 
@@ -27,11 +28,11 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
   node->custom1 = int16_t(AttrDomain::Point);
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
-  layout->prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
+  layout.prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_exec(GeoNodeExecParams params)
@@ -96,7 +97,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeToolActiveElement", GEO_NODE_TOOL_ACTIVE_ELEMENT);
   ntype.ui_name = "Active Element";
   ntype.ui_description = "Active element indices of the edited geometry, for tool execution";
@@ -107,7 +108,7 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.gather_link_search_ops = search_link_ops_for_tool_node;
   ntype.draw_buttons = node_layout;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

@@ -6,9 +6,6 @@ set(INC
   ../include
   ../../blenfont
   ../../makesrna
-
-  ../../../../extern/fmtlib/include
-
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
@@ -147,7 +144,6 @@ set(LIB
   PRIVATE bf::nodes
   PRIVATE bf::sequencer
   PRIVATE bf::windowmanager
-  extern_fmtlib
 )
 
 

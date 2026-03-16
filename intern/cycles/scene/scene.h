@@ -19,7 +19,6 @@
 
 CCL_NAMESPACE_BEGIN
 
-class AlembicProcedural;
 class AttributeRequestSet;
 class Background;
 class BVH;
@@ -28,6 +27,11 @@ class Device;
 class DeviceInfo;
 class Film;
 class Integrator;
+class PointLight;
+class SpotLight;
+class AreaLight;
+class SunLight;
+class BackgroundLight;
 class Light;
 class LightManager;
 class LookupTables;
@@ -50,6 +54,7 @@ class BakeData;
 class RenderStats;
 class SceneUpdateStats;
 class Volume;
+class VolumeManager;
 
 /* Scene Parameters */
 
@@ -151,6 +156,7 @@ class Scene : public NodeOwner {
   unique_ptr<ParticleSystemManager> particle_system_manager;
   unique_ptr<BakeManager> bake_manager;
   unique_ptr<ProceduralManager> procedural_manager;
+  unique_ptr<VolumeManager> volume_manager;
 
   /* default shaders */
   Shader *default_surface;
@@ -168,6 +174,7 @@ class Scene : public NodeOwner {
 
   /* mutex must be locked manually by callers */
   thread_mutex mutex;
+  bool scene_updated_while_loading_kernels = false;
 
   /* scene update statistics */
   unique_ptr<SceneUpdateStats> update_stats;
@@ -199,6 +206,11 @@ class Scene : public NodeOwner {
 
   bool has_shadow_catcher();
   void tag_shadow_catcher_modified();
+  bool has_volume();
+  bool has_volume_modified() const;
+  void tag_has_volume_modified();
+  /* Check if we use multiple importance sampling for any light in the scene. */
+  bool use_light_mis() const;
 
   /* This function is used to create a node of a specified type instead of
    * calling 'new', and sets the scene as the owner of the node.
@@ -228,6 +240,8 @@ class Scene : public NodeOwner {
    */
   template<typename T> void delete_nodes(const set<T *> &nodes, const NodeOwner *owner);
 
+  template<class T> T *create_light_node();
+
  protected:
   /* Check if some heavy data worth logging was updated.
    * Mainly used to suppress extra annoying logging.
@@ -243,6 +257,7 @@ class Scene : public NodeOwner {
 
   bool has_shadow_catcher_ = false;
   bool shadow_catcher_modified_ = true;
+  bool has_volume_modified_ = true;
 
   /* Maximum number of closure during session lifetime. */
   int max_closure_global;
@@ -256,7 +271,11 @@ class Scene : public NodeOwner {
   bool load_kernels(Progress &progress);
 };
 
-template<> Light *Scene::create_node<Light>();
+template<> PointLight *Scene::create_node<PointLight>();
+template<> SpotLight *Scene::create_node<SpotLight>();
+template<> AreaLight *Scene::create_node<AreaLight>();
+template<> SunLight *Scene::create_node<SunLight>();
+template<> BackgroundLight *Scene::create_node<BackgroundLight>();
 template<> Mesh *Scene::create_node<Mesh>();
 template<> Object *Scene::create_node<Object>();
 template<> Hair *Scene::create_node<Hair>();
@@ -264,7 +283,6 @@ template<> Volume *Scene::create_node<Volume>();
 template<> PointCloud *Scene::create_node<PointCloud>();
 template<> ParticleSystem *Scene::create_node<ParticleSystem>();
 template<> Shader *Scene::create_node<Shader>();
-template<> AlembicProcedural *Scene::create_node<AlembicProcedural>();
 template<> Pass *Scene::create_node<Pass>();
 template<> Camera *Scene::create_node<Camera>();
 template<> Background *Scene::create_node<Background>();
@@ -281,7 +299,6 @@ template<> void Scene::delete_node(Object *node);
 template<> void Scene::delete_node(ParticleSystem *node);
 template<> void Scene::delete_node(Shader *node);
 template<> void Scene::delete_node(Procedural *node);
-template<> void Scene::delete_node(AlembicProcedural *node);
 template<> void Scene::delete_node(Pass *node);
 
 template<> void Scene::delete_nodes(const set<Geometry *> &nodes, const NodeOwner *owner);

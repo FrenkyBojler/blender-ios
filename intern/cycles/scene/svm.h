@@ -56,9 +56,6 @@ class SVMCompiler {
     /* Peak stack usage during shader evaluation. */
     int peak_stack_usage;
 
-    /* Time spent on surface graph finalization. */
-    double time_finalize;
-
     /* Time spent on generating SVM nodes for surface shader. */
     double time_generate_surface;
 
@@ -78,7 +75,7 @@ class SVMCompiler {
     string full_report() const;
   };
 
-  SVMCompiler(Scene *scene);
+  SVMCompiler(Scene *scene, Progress &progress);
   void compile(Shader *shader,
                array<int4> &svm_nodes,
                const int index,
@@ -89,6 +86,8 @@ class SVMCompiler {
   bool is_linked(ShaderInput *input);
   int stack_assign_if_linked(ShaderInput *input);
   int stack_assign_if_linked(ShaderOutput *output);
+  int stack_assign_if_not_equal(ShaderInput *input, const float value);
+  int stack_assign_if_not_equal(ShaderInput *input, const float3 value);
   int stack_find_offset(const int size);
   int stack_find_offset(SocketType::Type type);
   void stack_clear_offset(SocketType::Type type, const int offset);
@@ -117,6 +116,7 @@ class SVMCompiler {
   }
 
   Scene *scene;
+  Progress &progress;
   ShaderGraph *current_graph;
   bool background;
 

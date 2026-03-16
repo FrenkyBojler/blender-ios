@@ -12,17 +12,14 @@
 
 namespace blender::nodes {
 
-struct CaptureAttributeItemsAccessor {
+struct CaptureAttributeItemsAccessor : public socket_items::SocketItemsAccessorDefaults {
   using ItemT = NodeGeometryAttributeCaptureItem;
-  static StructRNA *item_srna;
+  static StructRNA **item_srna;
   static int node_type;
   static constexpr StringRefNull node_idname = "GeometryNodeCaptureAttribute";
   static constexpr bool has_type = true;
   static constexpr bool has_name = true;
   static constexpr bool has_single_identifier_str = false;
-  static constexpr bool has_name_validation = false;
-  static constexpr bool has_custom_initial_name = false;
-  static constexpr char unique_name_separator = '.';
   struct operator_idnames {
     static constexpr StringRefNull add_item = "NODE_OT_capture_attribute_item_add";
     static constexpr StringRefNull remove_item = "NODE_OT_capture_attribute_item_remove";
@@ -52,7 +49,7 @@ struct CaptureAttributeItemsAccessor {
 
   static void destruct_item(NodeGeometryAttributeCaptureItem *item)
   {
-    MEM_SAFE_FREE(item->name);
+    MEM_SAFE_DELETE(item->name);
   }
 
   static void blend_write_item(BlendWriter *writer, const ItemT &item);
@@ -68,7 +65,7 @@ struct CaptureAttributeItemsAccessor {
     return &item.name;
   }
 
-  static bool supports_socket_type(const eNodeSocketDatatype socket_type)
+  static bool supports_socket_type(const eNodeSocketDatatype socket_type, const int /*ntree_type*/)
   {
     return bke::socket_type_to_custom_data_type(socket_type).has_value() &&
            socket_type != SOCK_STRING;

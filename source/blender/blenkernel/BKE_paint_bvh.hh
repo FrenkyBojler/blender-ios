@@ -15,17 +15,20 @@
 #include "BLI_bit_group_vector.hh"
 #include "BLI_bit_vector.hh"
 #include "BLI_bounds_types.hh"
+#include "BLI_enum_flags.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_index_mask_fwd.hh"
+#include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_string_ref.hh"
-#include "BLI_utildefines.h"
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
 #include "BLI_vector_set.hh"
+
+namespace blender {
 
 struct BMFace;
 struct BMLog;
@@ -41,16 +44,16 @@ struct Image;
 struct ImageUser;
 struct Object;
 
-namespace blender::bke::pbvh {
+namespace bke::pbvh {
 class Node;
 class Tree;
 namespace pixels {
 struct PBVHData;
 struct NodeData;
 }  // namespace pixels
-}  // namespace blender::bke::pbvh
+}  // namespace bke::pbvh
 
-namespace blender::bke::pbvh {
+namespace bke::pbvh {
 
 class Tree;
 
@@ -85,7 +88,7 @@ class Node : NonCopyable {
   /** Bounds from the start of current brush stroke. */
   Bounds<float3> bounds_orig_ = {};
 
-  /* For internal nodes, the offset of the children in the blender::bke::pbvh::Tree
+  /* For internal nodes, the offset of the children in the bke::pbvh::Tree
    * 'nodes' array. */
   int children_offset_ = 0;
 
@@ -114,7 +117,7 @@ class Node : NonCopyable {
   const Bounds<float3> &bounds_orig() const;
 };
 
-ENUM_OPERATORS(Node::Flags, Node::Flags::TopologyUpdated);
+ENUM_OPERATORS(Node::Flags);
 
 struct MeshNode : public Node {
   /**
@@ -288,7 +291,7 @@ class Tree {
    */
   void tag_positions_changed(const IndexMask &node_mask);
 
-  /** Tag nodes where face or vertex visibility has changed.  */
+  /** Tag nodes where face or vertex visibility has changed. */
   void tag_visibility_changed(const IndexMask &node_mask);
 
   /**
@@ -329,6 +332,8 @@ class Tree {
 
  private:
   explicit Tree(Type type);
+  /** Build a BVH tree from pre-computed MeshGroup data. */
+  static Tree from_spatially_organized_mesh(const Mesh &mesh);
 };
 
 void build_pixels(const Depsgraph &depsgraph, Object &object, Image &image, ImageUser &image_user);
@@ -343,6 +348,25 @@ void raycast(Tree &pbvh,
              const float3 &ray_start,
              const float3 &ray_normal,
              bool original);
+
+inline Bounds<float3> calc_face_bounds(const Span<float3> vert_positions,
+                                       const Span<int> face_verts)
+{
+  Bounds<float3> bounds{vert_positions[face_verts.first()]};
+  for (const int vert : face_verts.slice(1, face_verts.size() - 1)) {
+    math::min_max(vert_positions[vert], bounds.min, bounds.max);
+  }
+  return bounds;
+}
+
+int partition_along_axis(const Span<float3> face_centers,
+                         MutableSpan<int> faces,
+                         const int axis,
+                         const float middle);
+
+int partition_material_indices(const Span<int> material_indices, MutableSpan<int> faces);
+
+bool leaf_needs_material_split(const Span<int> faces, const Span<int> material_indices);
 
 bool node_raycast_mesh(const MeshNode &node,
                        Span<float3> node_positions,
@@ -434,11 +458,11 @@ bool node_frustum_contain_aabb(const Node &node, Span<float4> frustum_planes);
  */
 bool node_frustum_exclude_aabb(const Node &node, Span<float4> frustum_planes);
 
-}  // namespace blender::bke::pbvh
+}  // namespace bke::pbvh
 
 void BKE_pbvh_sync_visibility_from_verts(Object &object);
 
-namespace blender::bke::pbvh {
+namespace bke::pbvh {
 
 /**
  * Returns the number of visible quads in the nodes' grids.
@@ -448,18 +472,15 @@ int count_grid_quads(const BitGroupVector<> &grid_hidden,
                      int gridsize,
                      int display_gridsize);
 
-}  // namespace blender::bke::pbvh
-
-int BKE_pbvh_get_grid_num_verts(const Object &object);
-int BKE_pbvh_get_grid_num_faces(const Object &object);
+}  // namespace bke::pbvh
 
 enum PBVHTopologyUpdateMode {
   PBVH_Subdivide = 1,
   PBVH_Collapse = 2,
 };
-ENUM_OPERATORS(PBVHTopologyUpdateMode, PBVH_Collapse);
+ENUM_OPERATORS(PBVHTopologyUpdateMode);
 
-namespace blender::bke::pbvh {
+namespace bke::pbvh {
 
 /**
  * Collapse short edges, subdivide long edges.
@@ -476,22 +497,22 @@ bool bmesh_update_topology(BMesh &bm,
                            bool use_frontface,
                            bool use_projected);
 
-}  // namespace blender::bke::pbvh
+}  // namespace bke::pbvh
 
 /* Node Access */
 
-void BKE_pbvh_node_mark_update(blender::bke::pbvh::Node &node);
-void BKE_pbvh_node_mark_topology_update(blender::bke::pbvh::Node &node);
-void BKE_pbvh_node_fully_hidden_set(blender::bke::pbvh::Node &node, int fully_hidden);
-bool BKE_pbvh_node_fully_hidden_get(const blender::bke::pbvh::Node &node);
-void BKE_pbvh_node_fully_masked_set(blender::bke::pbvh::Node &node, int fully_masked);
-bool BKE_pbvh_node_fully_masked_get(const blender::bke::pbvh::Node &node);
-void BKE_pbvh_node_fully_unmasked_set(blender::bke::pbvh::Node &node, int fully_masked);
-bool BKE_pbvh_node_fully_unmasked_get(const blender::bke::pbvh::Node &node);
+void BKE_pbvh_node_mark_update(bke::pbvh::Node &node);
+void BKE_pbvh_node_mark_topology_update(bke::pbvh::Node &node);
+void BKE_pbvh_node_fully_hidden_set(bke::pbvh::Node &node, int fully_hidden);
+bool BKE_pbvh_node_fully_hidden_get(const bke::pbvh::Node &node);
+void BKE_pbvh_node_fully_masked_set(bke::pbvh::Node &node, int fully_masked);
+bool BKE_pbvh_node_fully_masked_get(const bke::pbvh::Node &node);
+void BKE_pbvh_node_fully_unmasked_set(bke::pbvh::Node &node, int fully_masked);
+bool BKE_pbvh_node_fully_unmasked_get(const bke::pbvh::Node &node);
 
-void BKE_pbvh_mark_rebuild_pixels(blender::bke::pbvh::Tree &pbvh);
+void BKE_pbvh_mark_rebuild_pixels(bke::pbvh::Tree &pbvh);
 
-namespace blender::bke::pbvh {
+namespace bke::pbvh {
 
 /**
  * Gather the indices of all base mesh faces in the node.
@@ -501,15 +522,13 @@ Span<int> node_face_indices_calc_grids(const SubdivCCG &subdiv_ccg,
                                        const GridsNode &node,
                                        Vector<int> &faces);
 
-}  // namespace blender::bke::pbvh
+}  // namespace bke::pbvh
 
-float BKE_pbvh_node_get_tmin(const blender::bke::pbvh::Node *node);
+float BKE_pbvh_node_get_tmin(const bke::pbvh::Node *node);
 
-const blender::Set<BMVert *, 0> &BKE_pbvh_bmesh_node_unique_verts(
-    blender::bke::pbvh::BMeshNode *node);
-const blender::Set<BMVert *, 0> &BKE_pbvh_bmesh_node_other_verts(
-    blender::bke::pbvh::BMeshNode *node);
-const blender::Set<BMFace *, 0> &BKE_pbvh_bmesh_node_faces(blender::bke::pbvh::BMeshNode *node);
+const Set<BMVert *, 0> &BKE_pbvh_bmesh_node_unique_verts(bke::pbvh::BMeshNode *node);
+const Set<BMVert *, 0> &BKE_pbvh_bmesh_node_other_verts(bke::pbvh::BMeshNode *node);
+const Set<BMFace *, 0> &BKE_pbvh_bmesh_node_faces(bke::pbvh::BMeshNode *node);
 
 /**
  * In order to perform operations on the original node coordinates
@@ -519,11 +538,11 @@ const blender::Set<BMFace *, 0> &BKE_pbvh_bmesh_node_faces(blender::bke::pbvh::B
  */
 void BKE_pbvh_bmesh_node_save_orig(BMesh *bm,
                                    BMLog *log,
-                                   blender::bke::pbvh::BMeshNode *node,
+                                   bke::pbvh::BMeshNode *node,
                                    bool use_original);
-void BKE_pbvh_bmesh_after_stroke(BMesh &bm, blender::bke::pbvh::Tree &pbvh);
+void BKE_pbvh_bmesh_after_stroke(BMesh &bm, bke::pbvh::Tree &pbvh);
 
-namespace blender::bke::pbvh {
+namespace bke::pbvh {
 
 /**
  * Copy all current node bounds to the original bounds. "Original" bounds are typically from before
@@ -542,23 +561,22 @@ void update_normals(const Depsgraph &depsgraph, Object &object_orig, Tree &pbvh)
 /** Update geometry normals (potentially on the original object geometry). */
 void update_normals_from_eval(Object &object_eval, Tree &pbvh);
 
-}  // namespace blender::bke::pbvh
+}  // namespace bke::pbvh
 
-namespace blender::bke::pbvh {
+namespace bke::pbvh {
 IndexMask nodes_to_face_selection_grids(const SubdivCCG &subdiv_ccg,
                                         Span<GridsNode> nodes,
                                         const IndexMask &nodes_mask,
                                         IndexMaskMemory &memory);
 }
 
-void BKE_pbvh_vert_coords_apply(blender::bke::pbvh::Tree &pbvh,
-                                blender::Span<blender::float3> vert_positions);
+void BKE_pbvh_vert_coords_apply(bke::pbvh::Tree &pbvh, Span<float3> vert_positions);
 
-void BKE_pbvh_node_get_bm_orco_data(const blender::bke::pbvh::BMeshNode &node,
-                                    blender::Span<blender::float3> &r_orig_positions,
-                                    blender::Span<blender::int3> &r_orig_tris);
+void BKE_pbvh_node_get_bm_orco_data(const bke::pbvh::BMeshNode &node,
+                                    Span<float3> &r_orig_positions,
+                                    Span<int3> &r_orig_tris);
 
-namespace blender::bke::pbvh {
+namespace bke::pbvh {
 
 /**
  * Retrieve the positions array from the evaluated mesh after deforming modifiers and before
@@ -585,11 +603,11 @@ Span<float3> vert_normals_eval_from_eval(const Object &object_eval);
 
 Span<float3> face_normals_eval_from_eval(const Object &object_eval);
 
-}  // namespace blender::bke::pbvh
+}  // namespace bke::pbvh
 
-int BKE_pbvh_debug_draw_gen_get(blender::bke::pbvh::Node &node);
+int BKE_pbvh_debug_draw_gen_get(bke::pbvh::Node &node);
 
-namespace blender::bke::pbvh {
+namespace bke::pbvh {
 
 /** Return pointers to all the leaf nodes in the BVH tree. */
 IndexMask all_leaf_nodes(const Tree &pbvh, IndexMaskMemory &memory);
@@ -657,4 +675,5 @@ inline Type Tree::type() const
   return type_;
 }
 
-}  // namespace blender::bke::pbvh
+}  // namespace bke::pbvh
+}  // namespace blender
