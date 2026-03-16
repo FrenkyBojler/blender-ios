@@ -636,7 +636,9 @@ void ED_region_activate_rna_prop(bContext *C,
                                  StringRefNull prop_name)
 {
   /* Try first to open the button, otherwise try after region redraw. */
-  if (ui::textbutton_activate_rna(C, region, data, prop_name.data())) {
+  if (!(region->runtime->do_draw & (RGN_DRAW | RGN_DRAWING)) &&
+      ui::textbutton_activate_rna(C, region, data, prop_name.data()))
+  {
     return;
   }
 
