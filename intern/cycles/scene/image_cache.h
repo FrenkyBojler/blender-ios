@@ -84,7 +84,7 @@ class ImageCache {
                             const KernelImageTexture &tex,
                             ImageLoader &loader,
                             const ImageMetaData &metadata,
-                            const uint *request_bits);
+                            const uint8_t *request_mask);
 
   void load_requested_tile(Device &device,
                            DeviceScene &dscene,

@@ -538,15 +538,15 @@ void ImageManager::device_cpu_load_requested(Device *device,
 
 void ImageManager::device_gpu_load_requested(Device *device, DeviceQueue &queue, Scene *scene)
 {
-  /* TODO: Check if this works correctly if bits or tile descriptors get moved to host memory,
+  /* TODO: Check if this works correctly if mask or tile descriptors get moved to host memory,
    * or prevent it from happening. */
   DeviceScene &dscene = scene->dscene;
 
-  /* Copy request bits from the device, usig either the storage or just a pointer to
-   * to existing allocation for unified memory. */
+  /* Copy request mask from the device, using either the storage or just a pointer to
+   * existing allocation for unified memory. */
   vector<uint8_t> local_storage;
-  const uint *request_bits = (const uint *)queue.copy_from_device_synchronized(
-      dscene.image_texture_tile_request_bits, local_storage);
+  const uint8_t *request_mask = reinterpret_cast<const uint8_t *>(
+      queue.copy_from_device_synchronized(dscene.image_texture_tile_request_mask, local_storage));
 
   /* Load tiles requested by this device in parallel. */
   parallel_for(blocked_range<size_t>(0, images.size(), 1), [&](const blocked_range<size_t> &r) {
@@ -554,7 +554,7 @@ void ImageManager::device_gpu_load_requested(Device *device, DeviceQueue &queue,
       if (images[i] && dscene.image_textures[i].tile_descriptor_offset != KERNEL_TILE_LOAD_NONE) {
         ImageSingle *img = images[i];
         image_cache.load_requested_tiles(
-            *device, dscene, dscene.image_textures[i], *img->loader, img->metadata, request_bits);
+            *device, dscene, dscene.image_textures[i], *img->loader, img->metadata, request_mask);
       }
     }
   });

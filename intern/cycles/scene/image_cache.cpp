@@ -47,7 +47,7 @@ void ImageCache::device_free(DeviceScene &dscene)
   images.clear();
   images_first_free.clear();
   dscene.image_texture_tile_descriptors.free();
-  dscene.image_texture_tile_request_bits.free();
+  dscene.image_texture_tile_request_mask.free();
 }
 
 /* Full image management. */
@@ -439,18 +439,16 @@ void ImageCache::load_image_tiled(DeviceScene &dscene,
     const thread_scoped_lock device_lock(device_mutex);
 
     device_vector<KernelTileDescriptor> &tile_descriptors = dscene.image_texture_tile_descriptors;
-    device_vector<uint> &tile_request_bits = dscene.image_texture_tile_request_bits;
+    device_vector<uint8_t> &tile_request_mask = dscene.image_texture_tile_request_mask;
 
     const int tile_descriptor_offset = tile_descriptors.size();
     tile_descriptors.resize(tile_descriptor_offset + levels.size() + num_tiles);
 
-    /* Resize request bitmap to match tile descriptors (1 bit per tile, stored in uint32 words). */
-    const size_t num_bits = tile_descriptors.size();
-    const size_t num_words = divide_up(num_bits, (size_t)KERNEL_TILE_REQUEST_BITS_PER_WORD);
-    const size_t old_num_words = tile_request_bits.size();
-    if (num_words > old_num_words) {
-      tile_request_bits.resize(num_words);
-      std::fill_n(tile_request_bits.data() + old_num_words, num_words - old_num_words, 0u);
+    /* Resize request mask to match tile descriptors. */
+    const size_t old_size = tile_request_mask.size();
+    if (tile_descriptors.size() > old_size) {
+      tile_request_mask.resize(tile_descriptors.size());
+      memset(tile_request_mask.data() + old_size, 0, tile_descriptors.size() - old_size);
     }
 
     KernelTileDescriptor *descr_data = tile_descriptors.data() + tile_descriptor_offset;
@@ -530,7 +528,7 @@ void ImageCache::load_requested_tiles(Device &device,
                                       const KernelImageTexture &tex,
                                       ImageLoader &loader,
                                       const ImageMetaData &metadata,
-                                      const uint *request_bits)
+                                      const uint8_t *request_mask)
 {
   const int tile_size = metadata.tile_size;
   const InterpolationType interpolation = InterpolationType(tex.interpolation);
@@ -541,72 +539,51 @@ void ImageCache::load_requested_tiles(Device &device,
   const KernelTileDescriptor *levels = dscene.image_texture_tile_descriptors.data() +
                                        tex.tile_descriptor_offset;
 
-  /* Scan request bitmap for this image's tiles. The bitmap has one bit per tile
-   * descriptor, stored as uint32 words. We find the word range covering this
-   * image's tiles, then use bitscan to iterate only the set bits. */
-  const size_t start_bit = base_offset;
-  const size_t end_bit = base_offset + tex.tile_num;
-  const size_t start_word = start_bit / KERNEL_TILE_REQUEST_BITS_PER_WORD;
-  const size_t end_word = divide_up(end_bit, (size_t)KERNEL_TILE_REQUEST_BITS_PER_WORD);
-
-  for (size_t w = start_word; w < end_word; w++) {
-    uint word = request_bits[w];
-    if (word == 0) {
+  /* Scan request mask for this image's tiles. */
+  for (size_t tile_idx = 0; tile_idx < tex.tile_num; tile_idx++) {
+    if (request_mask[base_offset + tile_idx] == 0) {
       continue;
     }
 
-    while (word) {
-      const uint bit_in_word = bitscan(word);
-      const size_t global_bit = w * KERNEL_TILE_REQUEST_BITS_PER_WORD + bit_in_word;
-      word &= word - 1; /* Clear lowest set bit. */
-
-      /* Check if bit is within this image's range. */
-      if (global_bit < start_bit || global_bit >= end_bit) {
-        continue;
-      }
-
-      const size_t tile_idx = global_bit - base_offset;
-
-      /* Skip if tile is already loaded or failed. */
-      const KernelTileDescriptor existing = descriptors[tile_idx];
-      if (kernel_tile_descriptor_loaded(existing) || existing == KERNEL_TILE_LOAD_FAILED) {
-        continue;
-      }
-
-      /* Atomically claim this tile slot. If another thread or GPU callback wins the race,
-       * skip and let the winner load it. We don't require KERNEL_TILE_LOAD_REQUEST because
-       * the request bit might be set without it even if that race condition is unlikely. */
-      const KernelTileDescriptor old = atomic_cas_uint32(
-          &descriptors[tile_idx], KERNEL_TILE_LOAD_NONE, KERNEL_TILE_LOAD_REQUEST);
-      if (old != KERNEL_TILE_LOAD_NONE && old != KERNEL_TILE_LOAD_REQUEST) {
-        continue;
-      }
-
-      /* Find miplevel for this tile index. The stored level values are offsets from
-       * tile_descriptor_offset, so subtract tile_levels to get the tile index. */
-      int miplevel = 0;
-      size_t level_start = 0;
-      for (int m = 0; m < tex.tile_levels; m++) {
-        const size_t level_offset = levels[m] - tex.tile_levels;
-        if (tile_idx < level_offset) {
-          break;
-        }
-        level_start = level_offset;
-        miplevel = m;
-      }
-
-      /* Compute tile pixel coordinates within miplevel. */
-      const size_t idx_in_level = tile_idx - level_start;
-      const int mip_width = metadata.width >> miplevel;
-      const size_t tiles_x = divide_up(mip_width, tile_size);
-      const size_t tile_y = idx_in_level / tiles_x;
-      const size_t tile_x = idx_in_level % tiles_x;
-      const size_t x = tile_x * tile_size;
-      const size_t y = tile_y * tile_size;
-
-      descriptors[tile_idx] = load_tile(
-          device, dscene, loader, metadata, interpolation, extension, miplevel, x, y, false);
+    /* Skip if tile is already loaded or failed. */
+    const KernelTileDescriptor existing = descriptors[tile_idx];
+    if (kernel_tile_descriptor_loaded(existing) || existing == KERNEL_TILE_LOAD_FAILED) {
+      continue;
     }
+
+    /* Atomically claim this tile slot. If another thread or GPU callback wins the race,
+     * skip and let the winner load it. We don't require KERNEL_TILE_LOAD_REQUEST because
+     * the request mask might be set without it even if that race condition is unlikely. */
+    const KernelTileDescriptor old = atomic_cas_uint32(
+        &descriptors[tile_idx], KERNEL_TILE_LOAD_NONE, KERNEL_TILE_LOAD_REQUEST);
+    if (old != KERNEL_TILE_LOAD_NONE && old != KERNEL_TILE_LOAD_REQUEST) {
+      continue;
+    }
+
+    /* Find miplevel for this tile index. The stored level values are offsets from
+     * tile_descriptor_offset, so subtract tile_levels to get the tile index. */
+    int miplevel = 0;
+    size_t level_start = 0;
+    for (int m = 0; m < tex.tile_levels; m++) {
+      const size_t level_offset = levels[m] - tex.tile_levels;
+      if (tile_idx < level_offset) {
+        break;
+      }
+      level_start = level_offset;
+      miplevel = m;
+    }
+
+    /* Compute tile pixel coordinates within miplevel. */
+    const size_t idx_in_level = tile_idx - level_start;
+    const int mip_width = metadata.width >> miplevel;
+    const size_t tiles_x = divide_up(mip_width, tile_size);
+    const size_t tile_y = idx_in_level / tiles_x;
+    const size_t tile_x = idx_in_level % tiles_x;
+    const size_t x = tile_x * tile_size;
+    const size_t y = tile_y * tile_size;
+
+    descriptors[tile_idx] = load_tile(
+        device, dscene, loader, metadata, interpolation, extension, miplevel, x, y, false);
   }
 }
 
@@ -694,7 +671,7 @@ void ImageCache::collect_statistics(DeviceScene &dscene,
 
 size_t ImageCache::memory_size(DeviceScene &dscene) const
 {
-  return dscene.image_texture_tile_request_bits.memory_size() +
+  return dscene.image_texture_tile_request_mask.memory_size() +
          dscene.image_texture_tile_descriptors.memory_size();
 }
 
@@ -708,10 +685,10 @@ void ImageCache::copy_to_device(DeviceScene &dscene)
 
   thread_scoped_lock device_lock(device_mutex);
   dscene.image_texture_tile_descriptors.copy_to_device_if_modified();
-  dscene.image_texture_tile_request_bits.copy_to_device_if_modified();
+  dscene.image_texture_tile_request_mask.copy_to_device_if_modified();
 
   dscene.image_texture_tile_descriptors.clear_modified();
-  dscene.image_texture_tile_request_bits.clear_modified();
+  dscene.image_texture_tile_request_mask.clear_modified();
 }
 
 void ImageCache::copy_to_device(DeviceScene &dscene, DeviceQueue &queue)
@@ -726,7 +703,7 @@ void ImageCache::copy_to_device(DeviceScene &dscene, DeviceQueue &queue)
 
   /* Copy updated tile descriptors and zero request bits for this GPU device only. */
   queue.copy_to_device(dscene.image_texture_tile_descriptors);
-  queue.zero_to_device(dscene.image_texture_tile_request_bits);
+  queue.zero_to_device(dscene.image_texture_tile_request_mask);
 
   /* Update image info only for this GPU device. */
   queue.load_image_info();

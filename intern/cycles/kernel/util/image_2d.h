@@ -139,12 +139,10 @@ kernel_image_tile_map(KernelGlobals kg,
       kernel_data_write(image_texture_tile_descriptors,
                         tex.tile_descriptor_offset + tile_offset,
                         tile_descriptor);
-      /* Set bit in request bitmap that will be read back to host. */
-      const uint bit_index = tex.tile_descriptor_offset + tile_offset;
-      atomic_fetch_and_or_uint32(
-          &kernel_data_array(image_texture_tile_request_bits)[bit_index /
-                                                              KERNEL_TILE_REQUEST_BITS_PER_WORD],
-          1u << (bit_index % KERNEL_TILE_REQUEST_BITS_PER_WORD));
+      /* Set byte in request mask that will be read back to host. Using a byte
+       * mask instead of a bitmask avoids the need for atomics. */
+      const uint mask_index = tex.tile_descriptor_offset + tile_offset;
+      kernel_data_array(image_texture_tile_request_mask)[mask_index] = 1;
     }
     if (tile_descriptor == KERNEL_TILE_LOAD_REQUEST) {
       sd->flag |= SD_CACHE_MISS;
