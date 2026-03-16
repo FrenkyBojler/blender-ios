@@ -56,6 +56,23 @@ bool VKImageInfo::operator==(const VKImageInfo &o) const
          std::tuple_cat(detail::tie(o.create_info), std::tie(o.allocation, o.segment));
 }
 
+static VkImage create_and_bind_vk_image(const VKImageInfo &info)
+{
+  VKDevice &device = VKBackend::get().device;
+
+  VkImage image;
+  VkResult create_result = vkCreateImage(device.vk_handle(), &info.create_info, nullptr, &image);
+  UNUSED_VARS_NDEBUG(create_result);
+  BLI_assert(create_result == VK_SUCCESS);
+
+  VkResult bind_result = vmaBindImageMemory2(
+      device.mem_allocator_get(), info.allocation, info.segment.offset, image, nullptr);
+  UNUSED_VARS_NDEBUG(bind_result);
+  BLI_assert(bind_result == VK_SUCCESS);
+
+  return image;
+}
+
 /* Query memory requirements from VkImageCreateInfo. If VK_KHR_MAINTENANCE4 is supported,
  * we avoid instantiating a VkImage handle. Otherwise, the image handle is destroyed as a
  * matching handle is provided by VKImageCache. */
@@ -100,21 +117,8 @@ VkImage VKImageCache::get_or_create(const VKImageInfo &info)
     return image_handle->image;
   }
 
-  VKDevice &device = VKBackend::get().device;
-
-  /* Otherwise, assemble VkImageCreateInfo and create a new image. */
-  VkImage image;
-  VkResult create_result = vkCreateImage(device.vk_handle(), &info.create_info, nullptr, &image);
-  UNUSED_VARS_NDEBUG(create_result);
-  BLI_assert(create_result == VK_SUCCESS);
-
-  /* Then, bind to the provided allocation */
-  VkResult bind_result = vmaBindImageMemory2(
-      device.mem_allocator_get(), info.allocation, info.segment.offset, image, nullptr);
-  UNUSED_VARS_NDEBUG(bind_result);
-  BLI_assert(bind_result == VK_SUCCESS);
-
-  /* Insert handle into cache. */
+  /* Otherwise, create VkImage handle and insert into cache. */
+  VkImage image = create_and_bind_vk_image(info);
   cache_.add_new(info, {.image = image});
 
   /* Generate debug label name, if one is needed in the rendergraph. */
@@ -124,6 +128,7 @@ VkImage VKImageCache::get_or_create(const VKImageInfo &info)
   }
 
   /* Register VkImage as resource for synchronization. */
+  VKDevice &device = VKBackend::get().device;
   device.resources.add_aliased_image(image, false, name_str.c_str());
 
   return image;
