@@ -54,6 +54,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector_types.hh"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_threads.h"
@@ -528,6 +529,10 @@ static void object_foreach_path_particles(Object *ob, BPathForeachPathData *bpat
    * Or at least not in the path stored in cache->path. So that's why there's no call to
    * object_foreach_path_pointcache() here. */
 
+  const Library *lib = ob->id.lib;
+  const char *blendfile_path = lib ? BKE_main_blendfile_path_from_library(*lib) :
+                                     BKE_main_blendfile_path(bpath_data->bmain);
+
   for (ParticleSystem &psys : ob->particlesystem) {
     PTCacheID pid;
     BKE_ptcache_id_from_particles(&pid, ob, &psys);
@@ -540,7 +545,11 @@ static void object_foreach_path_particles(Object *ob, BPathForeachPathData *bpat
      * "Save As..." to write the blend file to another directory. In that case blendfile-relative
      * paths are updated, so that they still point to the same physical location on disk. This
      * rewriting is not supported here, as the particle system cache is always in the same
-     * directory as the blend file itself.  */
+     * directory as the blend file itself.
+     *
+     * And because it's always in the same directory, it makes sense to convert the path to a
+     * blendfile-relative path. */
+    BLI_path_rel(ptcache_path, blendfile_path);
     BKE_bpath_foreach_path_fixed_process(bpath_data, ptcache_path, ptcache_path_len);
   }
 }
