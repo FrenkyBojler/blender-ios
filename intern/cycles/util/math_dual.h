@@ -329,7 +329,8 @@ ccl_device_inline dual1 acos(const ccl_private dual1 &u)
 
 ccl_device_inline dual1 safe_acos(const ccl_private dual1 &u)
 {
-  return chain_rule(u, safe_acosf(u.val), -inversesqrtf(1.0f - sqr(u.val)));
+  const float dfdu = (fabsf(u.val) >= 1.0f) ? 0.0f : -inversesqrtf(1.0f - sqr(u.val));
+  return chain_rule(u, safe_acosf(u.val), dfdu);
 }
 
 template<class T> ccl_device_inline dual3 reflect(const dual3 incident, const T unit_normal)
