@@ -1202,6 +1202,10 @@ static wmOperatorStatus wm_xr_location_scouting_review_captures_modal(bContext *
   review_data->cam_data->dof.aperture_fstop = capture->dof_fstop;
   review_data->cam_data->dof.focus_distance = capture->dof_distance;
 
+  /* Camera viewport display settings, set passepartout to emphasize that the modal is enabled. */
+  review_data->cam_data->flag |= CAM_SHOWPASSEPARTOUT;
+  review_data->cam_data->passepartalpha = 0.995f; /* *Almost* completely opaque. */
+
   float capture_cam_mat[4][4];
   wm_xr_pose_to_mat(&capture->pose, capture_cam_mat);
   BKE_object_apply_mat4(review_data->cam_ob, capture_cam_mat, false, false);
