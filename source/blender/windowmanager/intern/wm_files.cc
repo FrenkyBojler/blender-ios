@@ -3634,7 +3634,7 @@ static void wm_generic_callback_free_user_data_idproperties(void *user_data)
 /** \name Save Modified Images Dialog
  * \{ */
 
-static bool wm_show_save_modified_images_dialog(Main *bmain, wmOperator *op)
+static bool wm_show_save_modified_images_dialog(const Main *bmain, wmOperator *op)
 {
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "show_save_modified_images_dialog");
   const bool show_save_image_dialog = prop ? RNA_property_boolean_get(op->ptr, prop) : false;
@@ -4161,7 +4161,7 @@ static wmOperatorStatus wm_save_mainfile_invoke(bContext *C,
                                                 wmOperator *op,
                                                 const wmEvent * /*event*/)
 {
-  Main *bmain = CTX_data_main(C);
+  const Main *bmain = CTX_data_main(C);
   wmOperatorStatus ret;
 
   /* Cancel if no active window. */
