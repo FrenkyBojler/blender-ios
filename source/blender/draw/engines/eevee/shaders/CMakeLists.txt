@@ -79,7 +79,6 @@ set(SRC_GLSL_FRAG
 )
 
 set(SRC_GLSL_COMP
-  eevee_ambient_occlusion_pass_comp.glsl
   eevee_depth_of_field_bokeh_lut_comp.glsl
   eevee_depth_of_field_downsample_comp.glsl
   eevee_depth_of_field_filter_comp.glsl
@@ -95,10 +94,7 @@ set(SRC_GLSL_COMP
   eevee_film_cryptomatte_post_comp.glsl
   eevee_film_pass_convert_comp.glsl
   eevee_hiz_update_comp.glsl
-  eevee_horizon_denoise_comp.glsl
-  eevee_horizon_resolve_comp.glsl
-  eevee_horizon_scan_comp.glsl
-  eevee_horizon_setup_comp.glsl
+  eevee_horizon_scan.bsl.hh
   eevee_light_culling_select_comp.glsl
   eevee_light_culling_sort_comp.glsl
   eevee_light_culling_tile_comp.glsl
@@ -144,8 +140,7 @@ set(SRC_GLSL_COMP
   eevee_shadow_tilemap_init_comp.glsl
   eevee_shadow_tilemap_rendermap_comp.glsl
   eevee_shadow_visibility_comp.glsl
-  eevee_subsurface_convolve_comp.glsl
-  eevee_subsurface_setup_comp.glsl
+  eevee_subsurface.bsl.hh
   eevee_surfel_cluster_build_comp.glsl
   eevee_surfel_light_comp.glsl
   eevee_surfel_list_build_comp.glsl
@@ -179,8 +174,7 @@ set(SRC_GLSL_LIB
   eevee_filter_lib.glsl
   # eevee_forward_lib.glsl
   eevee_gbuffer_lib.glsl
-  eevee_horizon_scan_eval_lib.glsl
-  eevee_horizon_scan_lib.glsl
+  eevee_horizon_scan_lib.bsl.hh
   eevee_light_eval_lib.glsl
   eevee_light_iter_lib.glsl
   eevee_light_lib.glsl
@@ -218,7 +212,6 @@ set(SRC_GLSL_LIB
 
 # Compile shaders with shader code.
 if(WITH_GPU_SHADER_CPP_COMPILATION)
-  with_shader_cpp_compilation_config()
   # TODO Remove
   add_definitions(-DUSE_GPU_SHADER_CREATE_INFO)
 
