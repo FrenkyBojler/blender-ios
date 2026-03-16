@@ -74,6 +74,7 @@ class NODE_OT_reset_selected(Operator):
     def execute(self, context):
         node_active = context.active_node
         node_selected = context.selected_nodes
+        node_tree = context.space_data.edit_tree
         active_node_name = node_active.name if node_active.select else None
         valid_nodes = [n for n in node_selected if not self.ignore_node(n)]
 
@@ -84,7 +85,6 @@ class NODE_OT_reset_selected(Operator):
         # Reset all valid children in a frame
         node_active_is_frame = False
         if len(node_selected) == 1 and self.is_frame_node(node_active):
-            node_tree = node_active.id_data
             children = [n for n in node_tree.nodes if n.parent == node_active]
             if children:
                 valid_nodes = [n for n in children if not self.ignore_node(n)]
@@ -112,15 +112,11 @@ class NODE_OT_reset_selected(Operator):
 
         # Run through all valid nodes
         for node in valid_nodes:
-            node_tree = node.id_data
-
-            props = {j: getattr(node, j) for j in props_to_copy}
-
             new_node = node_tree.nodes.new(node.bl_idname)
-            self.transfer_links(node_tree, node, new_node)
 
+            self.transfer_links(node_tree, node, new_node)
             for prop in props_to_copy:
-                setattr(new_node, prop, props[prop])
+                setattr(new_node, prop, getattr(node, prop))
 
             node_name = node.name
             node_tree.nodes.remove(node)
