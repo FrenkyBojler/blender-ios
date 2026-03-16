@@ -173,9 +173,7 @@ class PixelNodesTileData : public Vector<std::reference_wrapper<UDIMTilePixels>>
     PixelData &pixel_data = *pbvh.pixels_;
     MutableSpan<PixelNode> pixel_nodes = pixel_data.nodes;
 
-    nodes.foreach_index([&](const int i) {
-      append(*pixel_nodes[i].find_tile_data(image_tile));
-    });
+    nodes.foreach_index([&](const int i) { append(*pixel_nodes[i].find_tile_data(image_tile)); });
   }
 
  private:
@@ -187,7 +185,9 @@ class PixelNodesTileData : public Vector<std::reference_wrapper<UDIMTilePixels>>
     return true;
   }
 
-  static IndexMask affected_nodes(bke::pbvh::Tree &pbvh, const image::ImageTileWrapper &image_tile, IndexMaskMemory &memory)
+  static IndexMask affected_nodes(bke::pbvh::Tree &pbvh,
+                                  const image::ImageTileWrapper &image_tile,
+                                  IndexMaskMemory &memory)
   {
     IndexMask leaf_nodes = all_leaf_nodes(pbvh, memory);
     PixelData &pixel_data = *pbvh.pixels_;

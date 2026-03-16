@@ -226,7 +226,7 @@ static void do_encode_pixels(const uv_islands::MeshData &mesh_data,
  *
  * returns if there were any nodes found (true).
  */
-static IndexMask find_nodes_to_update(Tree &pbvh, IndexMaskMemory& memory)
+static IndexMask find_nodes_to_update(Tree &pbvh, IndexMaskMemory &memory)
 {
   MutableSpan<MeshNode> nodes = pbvh.nodes<MeshNode>();
   if (pbvh.pixels_ == nullptr) {
@@ -247,9 +247,7 @@ static IndexMask find_nodes_to_update(Tree &pbvh, IndexMaskMemory& memory)
     return nodes_to_update;
   }
 
-  nodes_to_update.foreach_index([&](const int i) {
-    pixel_nodes[i].clear_data();
-  });
+  nodes_to_update.foreach_index([&](const int i) { pixel_nodes[i].clear_data(); });
 
   return nodes_to_update;
 }
@@ -268,7 +266,7 @@ static void apply_watertight_check(Tree &pbvh, Image &image, ImageUser &image_us
     IndexMask leaf_nodes = all_leaf_nodes(pbvh, memory);
     PixelData &pixel_data = *pbvh.pixels_;
     leaf_nodes.foreach_index([&](const int i) {
-      PixelNode &pixel_node =  pixel_data.nodes[i];
+      PixelNode &pixel_node = pixel_data.nodes[i];
       UDIMTilePixels *tile_node_data = pixel_node.find_tile_data(image_tile);
       if (tile_node_data == nullptr) {
         return;
@@ -348,7 +346,8 @@ static bool update_pixels(const Depsgraph &depsgraph,
   MutableSpan<PixelNode> pixel_nodes = pbvh.pixels_->nodes;
 
   nodes_to_update.foreach_index([&](const int i) {
-    do_encode_pixels(mesh_data, uv_masks, uv_primitive_lookup, image, image_user, nodes[i], pixel_nodes[i]);
+    do_encode_pixels(
+        mesh_data, uv_masks, uv_primitive_lookup, image, image_user, nodes[i], pixel_nodes[i]);
   });
   if (USE_WATERTIGHT_CHECK) {
     apply_watertight_check(pbvh, image, image_user);
@@ -358,14 +357,10 @@ static bool update_pixels(const Depsgraph &depsgraph,
   copy_update(pbvh, image, image_user, mesh_data);
 
   /* Rebuild the undo regions. */
-  nodes_to_update.foreach_index([&](const int i) {
-    pixel_nodes[i].rebuild_undo_regions();
-  });
+  nodes_to_update.foreach_index([&](const int i) { pixel_nodes[i].rebuild_undo_regions(); });
 
   /* Clear the UpdatePixels flag. */
-  nodes_to_update.foreach_index([&](const int i) {
-    pixel_nodes[i].flags.rebuild = false;
-  });
+  nodes_to_update.foreach_index([&](const int i) { pixel_nodes[i].flags.rebuild = false; });
 
   pbvh.pixels_->flags.dirty = false;
 
@@ -405,7 +400,7 @@ PixelData &data_get(Tree &pbvh)
   return *data;
 }
 
-void mark_image_dirty(Node &/*node*/, PixelNode &pixel_node, Image &image, ImageUser &image_user)
+void mark_image_dirty(Node & /*node*/, PixelNode &pixel_node, Image &image, ImageUser &image_user)
 {
   if (pixel_node.flags.dirty) {
     ImageUser local_image_user = image_user;
