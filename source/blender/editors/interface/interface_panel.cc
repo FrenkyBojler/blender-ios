@@ -1429,17 +1429,18 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
   fontstyle_set(fstyle);
   const int fontid = fstyle->uifont_id;
   float fstyle_points = fstyle->points;
-  const float aspect = BLI_listbase_is_empty(&region->runtime->uiblocks) ?
+  const float raw_aspect = BLI_listbase_is_empty(&region->runtime->uiblocks) ?
                            1.0f :
                            (static_cast<Block *>(region->runtime->uiblocks.first))->aspect;
+  const float aspect = (std::abs(raw_aspect - 1.0f) < 0.001f) ? 1.0f : raw_aspect;
   const float zoom = 1.0f / aspect;
   const int px = U.pixelsize;
   const int category_tabs_width = round_fl_to_int(UI_PANEL_CATEGORY_MARGIN_WIDTH * zoom);
   const float dpi_fac = UI_SCALE_FAC;
   /* Padding of tabs around text. */
-  const int tab_v_pad_text = round_fl_to_int(TABS_PADDING_TEXT_FACTOR * dpi_fac * zoom) + 2 * px;
+  const int tab_v_pad_text = int(std::floor(TABS_PADDING_TEXT_FACTOR * dpi_fac * zoom)) + 2 * px;
   /* Padding between tabs. */
-  const int tab_v_pad = round_fl_to_int(TABS_PADDING_BETWEEN_FACTOR * dpi_fac * zoom);
+  const int tab_v_pad = int(std::floor(TABS_PADDING_BETWEEN_FACTOR * dpi_fac * zoom));
   bTheme *btheme = theme::theme_get();
   const float tab_curve_radius = btheme->tui.wcol_tab.roundness * U.widget_unit * zoom;
   /* Round all corners when region overlap is on. */
