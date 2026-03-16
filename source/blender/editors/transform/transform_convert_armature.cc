@@ -588,7 +588,9 @@ static void createTransPose(bContext * /*C*/, TransInfo *t)
     /* Set flags. */
     transform_convert_pose_transflags_update(ob, t->mode, t->around);
 
-    /* Now count, and check if we have autoIK or have to switch from translate to rotate. */
+    /* Check if we're doing auto-IK or switching from translate to rotate.
+     * Also collect needed information (such as bone count)
+     * and clear flags from previous runs that can interfere. */
     for (bPoseChannel &pchan : ob->pose->chanbase) {
       Bone *bone = pchan.bone;
 
