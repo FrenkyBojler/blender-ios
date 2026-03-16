@@ -46,7 +46,7 @@ class EraseOperation : public GreasePencilStrokeOperation {
   bool temp_eraser_ = false;
 
   bool keep_caps_ = false;
-  float radius_ = 50.0f;
+  float radius_ = 0.0f;
   float strength_ = 0.1f;
   eGP_BrushEraserMode eraser_mode_ = GP_BRUSH_ERASER_HARD;
   bool active_layer_only_ = false;
@@ -1035,10 +1035,35 @@ struct EraseOperationExecutor {
   }
 };
 
-void EraseOperation::on_stroke_begin(const bContext &C, const InputSample & /*start_sample*/)
+/* TODO: Unify this with `ed::sculpt_paint::project_brush_radius_grease_pencil` in
+ * `paint_cursor.cc`. */
+static int project_brush_radius(RegionView3D *rv3d,
+                                ARegion *region,
+                                const float radius,
+                                const float3 world_location,
+                                const float4x4 &to_world)
+{
+  const float2 xy_delta = float2(1.0f, 0.0f);
+
+  bool z_flip;
+  const float zfac = ED_view3d_calc_zfac_ex(rv3d, world_location, &z_flip);
+  if (z_flip) {
+    /* Location is behind camera. Return 0 to make the cursor disappear. */
+    return 0;
+  }
+  float3 delta;
+  ED_view3d_win_to_delta(region, xy_delta, zfac, delta);
+
+  const float scale = math::length(
+      math::transform_direction(to_world, float3(std::numbers::inv_sqrt3)));
+  return math::safe_divide(scale * radius, math::length(delta));
+}
+
+void EraseOperation::on_stroke_begin(const bContext &C, const InputSample &start_sample)
 {
   Paint *paint = BKE_paint_get_active_from_context(&C);
   Brush *brush = BKE_paint_brush(paint);
+  radius_ = BKE_brush_size_get(paint, brush) / 2.0f;
 
   /* If we're using the draw tool to erase (e.g. while holding ctrl), then we should use the
    * eraser brush instead. */
@@ -1046,14 +1071,31 @@ void EraseOperation::on_stroke_begin(const bContext &C, const InputSample & /*st
     Object *object = CTX_data_active_object(&C);
     GreasePencil *grease_pencil = id_cast<GreasePencil *>(object->data);
 
-    radius_ = paint->eraser_brush->size / 2.0f;
-    grease_pencil->runtime->temp_eraser_size = radius_;
+    /* Compute the size of the eraser in screen space based on the current draw tool size. */
+    if (!BKE_brush_use_locked_size(paint, brush)) {
+      Scene *scene = CTX_data_scene(&C);
+      const bke::greasepencil::Layer *layer = grease_pencil->get_active_layer();
+
+      ARegion *region = CTX_wm_region(&C);
+      View3D *v3d = CTX_wm_view3d(&C);
+      RegionView3D *rv3d = CTX_wm_region_view3d(&C);
+
+      const ed::greasepencil::DrawingPlacement placement(*scene, *region, *v3d, *object, layer);
+      bool clipped = false;
+      const float3 pos = placement.project(start_sample.mouse_position, clipped);
+      if (!clipped) {
+        const float3 world_location = math::transform_point(placement.to_world_space(), pos);
+        radius_ = project_brush_radius(rv3d,
+                                       region,
+                                       brush->unprojected_size / 2.0f,
+                                       world_location,
+                                       placement.to_world_space());
+      }
+    }
+    grease_pencil->runtime->temp_eraser_radius = radius_;
     grease_pencil->runtime->temp_use_eraser = true;
 
     brush = BKE_paint_eraser_brush(paint);
-  }
-  else {
-    radius_ = brush->size / 2.0f;
   }
 
   if (brush->gpencil_settings == nullptr) {
@@ -1136,7 +1178,7 @@ void EraseOperation::on_stroke_done(const bContext &C)
     /* If we're using the draw tool to temporarily erase, then we need to reset the
      * `temp_use_eraser` flag here. */
     grease_pencil.runtime->temp_use_eraser = false;
-    grease_pencil.runtime->temp_eraser_size = 0.0f;
+    grease_pencil.runtime->temp_eraser_radius = 0.0f;
   }
 
   for (GreasePencilDrawing *drawing_ : affected_drawings_) {
