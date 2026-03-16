@@ -89,8 +89,8 @@ class Context : public compositor::Context {
   compositor::Result viewer_output_result_;
 
   /* Cached GPU and CPU passes that the compositor took ownership of. Those had their reference
-   * count incremented when accessed and need to be freed/have their reference count decremented
-   * when destroying the context. */
+   * count incremented when accessed during evaluation and need to be freed/have their reference
+   * count decremented after evaluation. */
   Vector<GPUTexture *> cached_gpu_passes_;
   Vector<ImBuf *> cached_cpu_passes_;
 
@@ -107,12 +107,6 @@ class Context : public compositor::Context {
   {
     output_result_.release();
     viewer_output_result_.release();
-    for (GPUTexture *pass : cached_gpu_passes_) {
-      GPU_texture_free(pass);
-    }
-    for (ImBuf *pass : cached_cpu_passes_) {
-      IMB_freeImBuf(pass);
-    }
   }
 
   void update_input_data(const ContextInputData &input_data)
@@ -293,6 +287,18 @@ class Context : public compositor::Context {
 
     RE_ReleaseResult(render);
     return pass;
+  }
+
+  void release_cached_passes()
+  {
+    for (GPUTexture *pass : cached_gpu_passes_) {
+      GPU_texture_free(pass);
+    }
+    cached_gpu_passes_.clear();
+    for (ImBuf *pass : cached_cpu_passes_) {
+      IMB_freeImBuf(pass);
+    }
+    cached_cpu_passes_.clear();
   }
 
   compositor::ResultType result_type_from_pass(const RenderPass *pass)
@@ -641,6 +647,7 @@ class Compositor {
 
     context_->output_to_render_result();
     context_->viewer_output_to_viewer_image();
+    context_->release_cached_passes();
 
     if (context_->use_gpu()) {
       blender::gpu::TexturePool::get().reset();
