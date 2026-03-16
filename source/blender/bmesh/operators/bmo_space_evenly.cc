@@ -65,56 +65,120 @@ enum InterpolationMethod {
 };
 
 /**
- * Returns the edge opposite to the given edge in an even-sided face.
- * For triangles or odd-sided faces, returns nullptr.
+ * Extracts the parallel vertex chain across a quad strip.
+ * Given an edge loop selection and a starting face, this
+ * returns the immediate adjacent parallel loop.
  */
-static BMEdge *get_opposite_edge_in_face(BMEdge *edge, BMFace *face)
+static bool extract_parallel_chain(const SpaceChainData &base,
+                                   BMFace *start_face,
+                                   SpaceChainData &r_parallel)
 {
-  if (face->len < 4 || face->len % 2 != 0) {
-    return nullptr;
+  if (base.verts.size() < 2 || start_face->len != 4) {
+    return false;
   }
 
-  BMLoop *l_start = BM_face_edge_share_loop(face, edge);
-  if (!l_start) {
-    return nullptr;
-  }
+  BMFace *current_face = start_face;
+  r_parallel.is_closed = base.is_closed;
+  /* A closed chain of vertices will have the last vertex connecting back to the
+   * first one so the number of segments between vertices is the same as the total
+   * number of vertices. */
+  int num_segments = base.is_closed ? base.verts.size() : base.verts.size() - 1;
 
-  /* Step halfway around the face to reach the opposite edge. */
-  int steps = face->len / 2;
-  BMLoop *l_opp = l_start;
-  for (int i = 0; i < steps; i++) {
-    l_opp = l_opp->next;
-  }
+  for (const int i : IndexRange(num_segments)) {
+    BMVert *v_curr = base.verts[i];
+    BMVert *v_next = base.verts[mod_i(i + 1, base.verts.size())];
 
-  return l_opp->e;
-}
+    BMEdge *base_edge = BM_edge_exists(v_curr, v_next);
+    BMLoop *selection_loop = BM_face_edge_share_loop(current_face, base_edge);
 
-/** Flood fill across opposite edges of even-sided faces to collect parallel edges. */
-static void collect_parallel_edges(BMesh *bm)
-{
-  Vector<BMEdge *> edges_to_visit;
+    BMVert *opp_curr, *opp_next;
+    BMEdge *side_edge;
 
-  BMIter iter;
-  BMEdge *edge;
-  BM_ITER_MESH (edge, &iter, bm, BM_EDGES_OF_MESH) {
-    if (BM_elem_flag_test(edge, BM_ELEM_TAG) && !BM_elem_flag_test(edge, BM_ELEM_HIDDEN)) {
-      edges_to_visit.append(edge);
+    if (selection_loop->v == v_curr) {
+      opp_curr = selection_loop->prev->v;
+      opp_next = selection_loop->next->next->v;
+      side_edge = selection_loop->next->e;
     }
-  }
+    else {
+      opp_curr = selection_loop->next->next->v;
+      opp_next = selection_loop->prev->v;
+      side_edge = selection_loop->prev->e;
+    }
 
-  while (!edges_to_visit.is_empty()) {
-    BMEdge *current = edges_to_visit.pop_last();
-    BMIter fiter;
-    BMFace *f;
-    BM_ITER_ELEM (f, &fiter, current, BM_FACES_OF_EDGE) {
-      if (!BM_elem_flag_test(f, BM_ELEM_HIDDEN)) {
-        BMEdge *opposite = get_opposite_edge_in_face(current, f);
-        if (opposite && !BM_elem_flag_test(opposite, BM_ELEM_TAG)) {
-          BM_elem_flag_enable(opposite, BM_ELEM_TAG);
-          edges_to_visit.append(opposite);
+    if (i == 0) {
+      r_parallel.verts.append(opp_curr);
+    }
+    r_parallel.verts.append(opp_next);
+
+    if (i < num_segments - 1) {
+      BMVert *v_after = base.verts[mod_i(i + 2, base.verts.size())];
+      BMEdge *next_base_edge = BM_edge_exists(v_next, v_after);
+      BMFace *next_face = nullptr;
+      BMIter fiter;
+      BMFace *f;
+      BM_ITER_ELEM (f, &fiter, next_base_edge, BM_FACES_OF_EDGE) {
+        if (f->len == 4 && f != current_face && BM_face_edge_share_loop(f, side_edge)) {
+          next_face = f;
+          break;
         }
       }
+      if (!next_face) {
+        return false;
+      }
+      current_face = next_face;
     }
+  }
+
+  return true;
+}
+
+/**
+ * Follows quad strips starting from the initial selection to gather all parallel loops.
+ * The process continues until the strip is interrupted by a mesh boundary, irregular
+ * topology(triangles or ngons in this case), or when the search cycles back
+ * to a processed vertex.
+ */
+static void expand_parallel_chains(const SpaceChainData &base_chain,
+                                   BMFace *start_face,
+                                   Set<BMVert *> &visited_verts,
+                                   Vector<SpaceChainData> &r_all_chains)
+{
+  SpaceChainData current_chain = base_chain;
+  BMFace *current_face = start_face;
+
+  while (true) {
+    SpaceChainData parallel_chain;
+    if (!extract_parallel_chain(current_chain, current_face, parallel_chain)) {
+      break;
+    }
+
+    if (visited_verts.contains(parallel_chain.verts[0])) {
+      break;
+    }
+
+    for (BMVert *v : parallel_chain.verts) {
+      visited_verts.add(v);
+    }
+    r_all_chains.append(parallel_chain);
+    BMEdge *first_parallel_edge = BM_edge_exists(parallel_chain.verts[0], parallel_chain.verts[1]);
+    if (!first_parallel_edge) {
+      break;
+    }
+
+    BMFace *next_face = nullptr;
+    BMIter fiter;
+    BMFace *f;
+    BM_ITER_ELEM (f, &fiter, first_parallel_edge, BM_FACES_OF_EDGE) {
+      if (f != current_face) {
+        next_face = f;
+        break;
+      }
+    }
+    if (!next_face) {
+      break;
+    }
+    current_chain = std::move(parallel_chain);
+    current_face = next_face;
   }
 }
 
@@ -204,9 +268,7 @@ static SpaceChainData walk_edges(BMEdge *start_edge, Set<BMEdge *> &r_visited)
 static void get_space_input_chains(BMesh *bm, bool use_parallel, Vector<SpaceChainData> &r_chains)
 {
   Set<BMEdge *> visited;
-  if (use_parallel) {
-    collect_parallel_edges(bm);
-  }
+  Vector<SpaceChainData> base_chains;
   BMIter iter;
   BMEdge *edge;
   BM_ITER_MESH (edge, &iter, bm, BM_EDGES_OF_MESH) {
@@ -214,19 +276,47 @@ static void get_space_input_chains(BMesh *bm, bool use_parallel, Vector<SpaceCha
       continue;
     }
     SpaceChainData chain = walk_edges(edge, visited);
-    if (chain.verts.size() < 3) {
+
+    /* Skip chains where all vertices are at the same location. */
+    if (chain.verts.size() >= 3) {
+      bool all_stacked = true;
+      for (const int i : IndexRange(chain.verts.size()).drop_front(1)) {
+        if (math::distance(float3(chain.verts[0]->co), float3(chain.verts[i]->co)) > 1e-6f) {
+          all_stacked = false;
+          break;
+        }
+      }
+      if (!all_stacked) {
+        base_chains.append(std::move(chain));
+      }
+    }
+  }
+
+  for (const SpaceChainData &chain : base_chains) {
+    r_chains.append(chain);
+  }
+
+  if (!use_parallel) {
+    return;
+  }
+
+  Set<BMVert *> global_visited_parallel;
+  for (const SpaceChainData &base_chain : base_chains) {
+    for (BMVert *v : base_chain.verts) {
+      global_visited_parallel.add(v);
+    }
+  }
+
+  for (const SpaceChainData &base_chain : base_chains) {
+    BMEdge *first_edge = BM_edge_exists(base_chain.verts[0], base_chain.verts[1]);
+    if (!first_edge) {
       continue;
     }
 
-    bool all_stacked = true;
-    for (int i = 1; i < chain.verts.size(); i++) {
-      if (math::distance(float3(chain.verts[0]->co), float3(chain.verts[i]->co)) > 1e-6f) {
-        all_stacked = false;
-        break;
-      }
-    }
-    if (!all_stacked) {
-      r_chains.append(std::move(chain));
+    BMIter fiter;
+    BMFace *f;
+    BM_ITER_ELEM (f, &fiter, first_edge, BM_FACES_OF_EDGE) {
+      expand_parallel_chains(base_chain, f, global_visited_parallel, r_chains);
     }
   }
 }
@@ -257,18 +347,15 @@ static SpaceMeasurements measure_chain(const SpaceChainData &loop)
   }
   measure.total_length = current_dist;
 
-  /* Calculate Target Steps */
-  int num_segments = num_verts - 1;
   /* Generally, for any given number of n points, there's always n-1 piecewise cubic spline
    * equations but for a closed chain, the last vertex will connect back to the first so there's n
    * cubic spline equations in that case. */
-  if (loop.is_closed) {
-    num_segments = num_verts;
-  }
+  const int num_segments = loop.is_closed ? num_verts : num_verts - 1;
 
   float step = measure.total_length / (float)num_segments;
   measure.spaced_distances.reserve(num_verts);
-  for (int i = 0; i < num_verts; i++) {
+
+  for (const int i : IndexRange(num_verts)) {
     measure.spaced_distances.append(i * step);
   }
 
@@ -282,8 +369,9 @@ static SpaceMeasurements measure_chain(const SpaceChainData &loop)
 static void solve_thomas_algorithm(Span<float> t, Span<float> y, Vector<SplineCoeffs> &r_coeffs)
 {
   int n = t.size();
-  if (n < 2)
+  if (n < 2) {
     return;
+  }
   /* Parameter interval between consecutive knots. */
   Vector<float> h(n - 1);
   /* Forward elimination variables. */
@@ -300,8 +388,9 @@ static void solve_thomas_algorithm(Span<float> t, Span<float> y, Vector<SplineCo
     h[i] = t[i + 1] - t[i];
     /* In the case where there are two overlapping verticies, we give an arbitrary length
      * to prevent a zero division. */
-    if (h[i] == 0.0f)
+    if (h[i] == 0.0f) {
       h[i] = 1e-8f;
+    }
   }
 
   /* Boundary conditions. */
@@ -313,8 +402,9 @@ static void solve_thomas_algorithm(Span<float> t, Span<float> y, Vector<SplineCo
   for (int i = 1; i < n - 1; i++) {
     float q = (3.0f / h[i]) * (y[i + 1] - y[i]) - (3.0f / h[i - 1]) * (y[i] - y[i - 1]);
     l[i] = 2.0f * (t[i + 1] - t[i - 1]) - h[i - 1] * u[i - 1];
-    if (l[i] == 0.0f)
+    if (l[i] == 0.0f) {
       l[i] = 1e-8f;
+    }
     u[i] = h[i] / l[i];
     z[i] = (q - h[i - 1] * z[i - 1]) / l[i];
   }
@@ -331,7 +421,7 @@ static void solve_thomas_algorithm(Span<float> t, Span<float> y, Vector<SplineCo
   }
 
   /* Build spline coefficients for each segment. */
-  for (int i = 0; i < n - 1; i++) {
+  for (const int i : IndexRange(n - 1)) {
     r_coeffs.append({y[i], b[i], c[i], d[i], t[i]});
   }
 }
@@ -352,7 +442,6 @@ static int find_spline_segment(Span<float> knot_distances, float target_distance
       return k;
     }
   }
-
   BLI_assert_unreachable();
   return knot_distances.size() - 2;
 }
