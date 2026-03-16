@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_implicit_sharing.hh"
 #include "BLI_memory_counter.hh"
 
 #include "NOD_geometry_nodes_list.hh"

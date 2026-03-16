@@ -154,7 +154,7 @@ static void mikk_compute_tangents(Attribute *attr_uv,
   else {
     attr = attributes.add(name, TypeVector, ATTR_ELEMENT_CORNER);
   }
-  float3 *tangent = attr->data_float3();
+  float3 *tangent = attr->data_float3_for_write();
   /* Create bitangent sign attribute. */
   float *tangent_sign = nullptr;
   if (need_sign) {
@@ -167,7 +167,7 @@ static void mikk_compute_tangents(Attribute *attr_uv,
     else {
       attr_sign = attributes.add(name_sign, TypeFloat, ATTR_ELEMENT_CORNER);
     }
-    tangent_sign = attr_sign->data_float();
+    tangent_sign = attr_sign->data_float_for_write();
   }
 
   MikkMeshWrapper userdata(mesh, vertex_normal, corner_normal, uv, tangent, tangent_sign);
@@ -364,17 +364,6 @@ void Mesh::resize_mesh(const int numverts, const int numtris)
   attributes.resize();
 }
 
-void Mesh::reserve_mesh(const int numverts, const int numtris)
-{
-  /* reserve space to add verts and triangles later */
-  verts.reserve(numverts);
-  triangles.reserve(numtris * 3);
-  shader.reserve(numtris);
-  smooth.reserve(numtris);
-
-  attributes.resize(true);
-}
-
 void Mesh::resize_subd_faces(const int numfaces, const int numcorners)
 {
   subd_start_corner.resize(numfaces);
@@ -386,19 +375,6 @@ void Mesh::resize_subd_faces(const int numfaces, const int numcorners)
   num_subd_faces = numfaces;
 
   subd_attributes.resize();
-}
-
-void Mesh::reserve_subd_faces(const int numfaces, const int numcorners)
-{
-  subd_start_corner.reserve(numfaces);
-  subd_num_corners.reserve(numfaces);
-  subd_shader.reserve(numfaces);
-  subd_smooth.reserve(numfaces);
-  subd_ptex_offset.reserve(numfaces);
-  subd_face_corners.reserve(numcorners);
-  num_subd_faces = numfaces;
-
-  subd_attributes.resize(true);
 }
 
 void Mesh::reserve_subd_creases(const size_t num_creases)
@@ -547,18 +523,18 @@ void Mesh::copy_center_to_motion_step(const int motion_step)
     const float3 *P = verts.data();
     const size_t numverts = verts.size();
 
-    std::copy_n(P, numverts, attr_mP->data_float3() + motion_step * numverts);
+    std::copy_n(P, numverts, attr_mP->data_float3_for_write() + motion_step * numverts);
     if (attr_mN && attr_N) {
       const packed_normal *N = attr_N->data_normal();
-      std::copy_n(N, numverts, attr_mN->data_normal() + motion_step * numverts);
+      std::copy_n(N, numverts, attr_mN->data_normal_for_write() + motion_step * numverts);
     }
 
     Attribute *attr_mcN = attributes.find(ATTR_STD_MOTION_CORNER_NORMAL);
     Attribute *attr_cN = attributes.find(ATTR_STD_CORNER_NORMAL);
     if (attr_mcN && attr_cN) {
       const size_t numcorners = triangles.size();
-      packed_normal *N = attr_cN->data_normal();
-      std::copy_n(N, numcorners, attr_mcN->data_normal() + motion_step * numcorners);
+      const packed_normal *N = attr_cN->data_normal();
+      std::copy_n(N, numcorners, attr_mcN->data_normal_for_write() + motion_step * numcorners);
     }
   }
 }
@@ -598,7 +574,7 @@ void Mesh::compute_bounds()
     Attribute *attr = attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
     if (use_motion_blur && attr) {
       const size_t steps_size = verts.size() * (motion_steps - 1);
-      float3 *vert_steps = attr->data_float3();
+      const float3 *vert_steps = attr->data_float3();
 
       for (size_t i = 0; i < steps_size; i++) {
         bnds.grow(vert_steps[i]);
@@ -615,7 +591,7 @@ void Mesh::compute_bounds()
 
       if (use_motion_blur && attr) {
         const size_t steps_size = verts.size() * (motion_steps - 1);
-        float3 *vert_steps = attr->data_float3();
+        const float3 *vert_steps = attr->data_float3();
 
         for (size_t i = 0; i < steps_size; i++) {
           bnds.grow_safe(vert_steps[i]);
@@ -648,7 +624,7 @@ void Mesh::apply_transform(const Transform &tfm, const bool apply_to_motion)
   if (attr_vN) {
     const Transform ntfm = transform_normal;
     const size_t num_verts = verts.size();
-    packed_normal *vN = attr_vN->data_normal();
+    packed_normal *vN = attr_vN->data_normal_for_write();
 
     for (size_t i = 0; i < num_verts; i++) {
       vN[i] = packed_normal(normalize(transform_direction(&ntfm, vN[i].decode())));
@@ -659,7 +635,7 @@ void Mesh::apply_transform(const Transform &tfm, const bool apply_to_motion)
   if (attr_cN) {
     const Transform ntfm = transform_normal;
     const size_t num_corners = triangles.size();
-    packed_normal *cN = attr_cN->data_normal();
+    packed_normal *cN = attr_cN->data_normal_for_write();
 
     for (size_t i = 0; i < num_corners; i++) {
       cN[i] = packed_normal(normalize(transform_direction(&ntfm, cN[i].decode())));
@@ -671,7 +647,7 @@ void Mesh::apply_transform(const Transform &tfm, const bool apply_to_motion)
 
     if (attr) {
       const size_t steps_size = verts.size() * (motion_steps - 1);
-      float3 *vert_steps = attr->data_float3();
+      float3 *vert_steps = attr->data_float3_for_write();
 
       for (size_t i = 0; i < steps_size; i++) {
         vert_steps[i] = transform_point(&tfm, vert_steps[i]);
@@ -683,7 +659,7 @@ void Mesh::apply_transform(const Transform &tfm, const bool apply_to_motion)
     if (attr_N) {
       const Transform ntfm = transform_normal;
       const size_t steps_size = verts.size() * (motion_steps - 1);
-      packed_normal *normal_steps = attr_N->data_normal();
+      packed_normal *normal_steps = attr_N->data_normal_for_write();
 
       for (size_t i = 0; i < steps_size; i++) {
         normal_steps[i] = packed_normal(
@@ -696,7 +672,7 @@ void Mesh::apply_transform(const Transform &tfm, const bool apply_to_motion)
     if (attr_mcN) {
       const Transform ntfm = transform_normal;
       const size_t steps_size = triangles.size() * (motion_steps - 1);
-      packed_normal *normal_steps = attr_mcN->data_normal();
+      packed_normal *normal_steps = attr_mcN->data_normal_for_write();
 
       for (size_t i = 0; i < steps_size; i++) {
         normal_steps[i] = packed_normal(
@@ -730,7 +706,7 @@ void Mesh::add_vertex_normals()
     Attribute *attr_vN = attributes.add(ATTR_STD_VERTEX_NORMAL);
 
     float3 *verts_ptr = verts.data();
-    packed_normal *vN = attr_vN->data_normal();
+    packed_normal *vN = attr_vN->data_normal_for_write();
 
     /* compute vertex normals */
     vector<float3> vN_float(verts_size, zero_float3());
@@ -763,8 +739,8 @@ void Mesh::add_vertex_normals()
     attr_mN = attributes.add(ATTR_STD_MOTION_VERTEX_NORMAL);
 
     for (int step = 0; step < motion_steps - 1; step++) {
-      float3 *mP = attr_mP->data_float3() + step * verts.size();
-      packed_normal *mN = attr_mN->data_normal() + step * verts.size();
+      float3 *mP = attr_mP->data_float3_for_write() + step * verts.size();
+      packed_normal *mN = attr_mN->data_normal_for_write() + step * verts.size();
 
       /* compute */
       vector<float3> mN_float(verts_size, zero_float3());
@@ -794,7 +770,7 @@ void Mesh::add_vertex_normals()
   if (!subd_attributes.find(ATTR_STD_VERTEX_NORMAL) && get_num_subd_faces()) {
     /* get attributes */
     Attribute *attr_vN = subd_attributes.add(ATTR_STD_VERTEX_NORMAL);
-    packed_normal *vN = attr_vN->data_normal();
+    packed_normal *vN = attr_vN->data_normal_for_write();
 
     /* compute vertex normals */
     vector<float3> vN_float(verts_size, zero_float3());
@@ -831,7 +807,7 @@ void Mesh::add_undisplaced(Scene *scene)
     Attribute *attr = attributes.add(ATTR_STD_POSITION_UNDISPLACED);
 
     size_t size = attr->buffer_size(this, ATTR_PRIM_GEOMETRY) / sizeof(float3);
-    std::copy_n(verts.data(), size, attr->data_float3());
+    std::copy_n(verts.data(), size, attr->data_float3_for_write());
   }
 
   if (need_attribute(scene, ATTR_STD_NORMAL_UNDISPLACED) &&
@@ -843,7 +819,7 @@ void Mesh::add_undisplaced(Scene *scene)
       Attribute *attr = attributes.add(ATTR_STD_NORMAL_UNDISPLACED);
 
       size_t size = attr->buffer_size(this, ATTR_PRIM_GEOMETRY) / sizeof(packed_normal);
-      std::copy_n(attr_N->data_normal(), size, attr->data_normal());
+      std::copy_n(attr_N->data_normal(), size, attr->data_normal_for_write());
     }
   }
 }
@@ -860,7 +836,7 @@ void Mesh::update_generated(Scene *scene)
   if (need_attribute(scene, ATTR_STD_GENERATED) && !attrs.find(ATTR_STD_GENERATED)) {
     const size_t verts_size = verts.size();
     Attribute *attr_generated = attrs.add(ATTR_STD_GENERATED);
-    float3 *generated = attr_generated->data_float3();
+    float3 *generated = attr_generated->data_float3_for_write();
     for (size_t i = 0; i < verts_size; ++i) {
       generated[i] = verts[i];
     }

@@ -8,6 +8,7 @@ set(INC
   ../space_graph
   ../../asset_system
   ../../makesrna
+  ../../../../intern/implicit_sharing
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )

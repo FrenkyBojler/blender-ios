@@ -679,7 +679,7 @@ void GeometryManager::create_volume_mesh(const Scene *scene, Volume *volume, Pro
   const bool ray_marching = scene->integrator->get_volume_ray_marching();
   builder.create_mesh(vertices, indices, ray_marching);
 
-  volume->reserve_mesh(vertices.size(), indices.size() / 3);
+  volume->resize_mesh(vertices.size(), indices.size() / 3);
   volume->used_shaders.clear();
   volume->used_shaders.push_back_slow(volume_shader);
 

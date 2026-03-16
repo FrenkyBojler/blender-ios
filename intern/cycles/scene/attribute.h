@@ -8,6 +8,7 @@
 
 #include "kernel/types.h"
 
+#include "implicit_sharing_ptr.hh"
 #include "util/list.h"
 #include "util/param.h"
 #include "util/set.h"
@@ -55,7 +56,9 @@ class Attribute {
   AttributeStandard std;
 
   TypeDesc type;
-  vector<char> buffer;
+  ImplicitSharingPtr<> sharing_info;
+  const void *buffer;
+  int size;
   AttributeElement element;
   uint flags; /* enum AttributeFlag */
 
@@ -66,54 +69,60 @@ class Attribute {
             AttributeElement element,
             Geometry *geom,
             AttributePrimitive prim);
+  Attribute(ustring name,
+            const TypeDesc type,
+            AttributeElement element,
+            const void *data,
+            const ImplicitSharingInfo &sharing_info);
   Attribute(Attribute &&other) = default;
   Attribute(const Attribute &other) = delete;
   Attribute &operator=(const Attribute &other) = delete;
   ~Attribute();
 
   void set(ustring name, const TypeDesc type, AttributeElement element);
-  void resize(Geometry *geom, AttributePrimitive prim, bool reserve_only);
+  void resize(Geometry *geom, AttributePrimitive prim);
   void resize(const size_t num_elements);
 
   size_t data_sizeof() const;
-  size_t element_size(Geometry *geom, AttributePrimitive prim) const;
+  static size_t element_size(Geometry *geom, AttributeElement element, AttributePrimitive prim);
   size_t buffer_size(Geometry *geom, AttributePrimitive prim) const;
 
-  char *data()
+  char *data_for_write()
   {
-    return (!buffer.empty()) ? buffer.data() : nullptr;
+    assert(sharing_info->is_mutable());
+    return static_cast<char *>(const_cast<void *>(buffer));
   }
-  float2 *data_float2()
+  float2 *data_float2_for_write()
   {
     assert(data_sizeof() == sizeof(float2));
     return (float2 *)data();
   }
-  float3 *data_float3()
+  float3 *data_float3_for_write()
   {
     assert(data_sizeof() == sizeof(float3));
     return (float3 *)data();
   }
-  float4 *data_float4()
+  float4 *data_float4_for_write()
   {
-    assert(data_sizeof() == sizeof(float4));
+    assert(data_sizeof_for_write() == sizeof(float4));
     return (float4 *)data();
   }
-  float *data_float()
+  float *data_float_for_write()
   {
     assert(data_sizeof() == sizeof(float));
     return (float *)data();
   }
-  uchar4 *data_uchar4()
+  uchar4 *data_uchar4_for_write()
   {
     assert(data_sizeof() == sizeof(uchar4));
     return (uchar4 *)data();
   }
-  packed_normal *data_normal()
+  packed_normal *data_normal_for_write()
   {
     assert(data_sizeof() == sizeof(packed_normal));
     return (packed_normal *)data();
   }
-  Transform *data_transform()
+  Transform *data_transform_for_write()
   {
     assert(data_sizeof() == sizeof(Transform));
     return (Transform *)data();
@@ -128,7 +137,7 @@ class Attribute {
 
   const char *data() const
   {
-    return (!buffer.empty()) ? buffer.data() : nullptr;
+    return static_cast<const char *>(buffer);
   }
   const float2 *data_float2() const
   {
@@ -150,6 +159,11 @@ class Attribute {
     assert(data_sizeof() == sizeof(float));
     return (const float *)data();
   }
+  const packed_normal *data_normal() const
+  {
+    assert(data_sizeof() == sizeof(packed_normal));
+    return (const packed_normal *)data();
+  }
   const Transform *data_transform() const
   {
     assert(data_sizeof() == sizeof(Transform));
@@ -162,14 +176,6 @@ class Attribute {
   }
 
   void zero_data(void *dst);
-
-  void add(const float &f);
-  void add(const float2 &f);
-  void add(const float3 &f);
-  void add(const uchar4 &f);
-  void add(const packed_normal &f);
-  void add(const Transform &f);
-  void add(const char *data);
 
   void set_data_from(Attribute &&other);
 
@@ -199,10 +205,19 @@ class AttributeSet {
   ~AttributeSet();
 
   Attribute *add(ustring name, const TypeDesc type, AttributeElement element);
+  Attribute *add_shared(ustring name,
+                        const TypeDesc type,
+                        AttributeElement element,
+                        const void *data,
+                        const ImplicitSharingInfo &sharing_info);
   Attribute *find(ustring name) const;
   void remove(ustring name);
 
   Attribute *add(AttributeStandard std, ustring name = ustring());
+  Attribute *add_shared(AttributeStandard std,
+                        ustring name,
+                        const void *data,
+                        const ImplicitSharingInfo &sharing_info);
   Attribute *find(AttributeStandard std) const;
   void remove(AttributeStandard std);
 
@@ -215,7 +230,7 @@ class AttributeSet {
 
   void remove(list<Attribute>::iterator it);
 
-  void resize(bool reserve_only = false);
+  void resize();
   void clear(bool preserve_voxel_data = false);
 
   /* Update the attributes in this AttributeSet with the ones from the new set,

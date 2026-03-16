@@ -206,7 +206,7 @@ void HdCyclesCurves::PopulateTopology(HdSceneDelegate *sceneDelegate)
 
   const HdBasisCurvesTopology topology = GetBasisCurvesTopology(sceneDelegate);
 
-  _geom->reserve_curves(topology.GetNumCurves(), topology.CalculateNeededNumberOfControlPoints());
+  _geom->resize_curves(topology.GetNumCurves(), topology.CalculateNeededNumberOfControlPoints());
 
   const VtIntArray vertCounts = topology.GetCurveVertexCounts();
 

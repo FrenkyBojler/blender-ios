@@ -15,6 +15,23 @@ CCL_NAMESPACE_BEGIN
 
 /* Attribute */
 
+class SharingInfoForFree : public ImplicitSharingInfo {
+ public:
+  char *data;
+
+  SharingInfoForFree(char *data) : data(data)
+  {
+    assert(data != nullptr);
+  }
+
+ private:
+  void delete_self_with_data() override
+  {
+    delete[] data;
+    delete this;
+  }
+};
+
 Attribute::Attribute(ustring name,
                      const TypeDesc type,
                      AttributeElement element,
@@ -28,135 +45,53 @@ Attribute::Attribute(ustring name,
          type == TypeRGBA);
 
   if (element & ATTR_ELEMENT_VOXEL) {
-    buffer.resize(sizeof(ImageHandle));
-    new (buffer.data()) ImageHandle();
+    auto *shared_value = new ImplicitSharedValue<ImageHandle>();
+    this->buffer = &shared_value->data;
+    this->size = Attribute::element_size(geom, element, prim);
+    this->sharing_info = ImplicitSharingPtr<>(shared_value);
   }
   else {
-    resize(geom, prim, false);
+    const size_t size = Attribute::element_size(geom, element, prim);
+    char *data = new char[size * this->data_sizeof()];
+    this->buffer = data;
+    this->size = size;
+    this->sharing_info = ImplicitSharingPtr<>(new SharingInfoForFree(data));
   }
 }
 
-Attribute::~Attribute()
+Attribute::Attribute(ustring name,
+                     const TypeDesc type,
+                     AttributeElement element,
+                     const void *data,
+                     const ImplicitSharingInfo &sharing_info)
+    : name(name), std(ATTR_STD_NONE), type(type), element(element), flags(0), modified(true)
 {
-  /* For voxel data, we need to free the image handle. */
-  if (element & ATTR_ELEMENT_VOXEL && !buffer.empty()) {
-    ImageHandle &handle = data_voxel();
-    handle.~ImageHandle();
-  }
+  assert((element & ATTR_ELEMENT_VOXEL) == 0);
+  this->buffer = data;
+  sharing_info.add_user();
+  this->sharing_info = ImplicitSharingPtr<>(&sharing_info);
 }
 
-void Attribute::resize(Geometry *geom, AttributePrimitive prim, bool reserve_only)
+Attribute::~Attribute() = default;
+
+void Attribute::resize(Geometry *geom, AttributePrimitive prim)
 {
-  if (!(element & ATTR_ELEMENT_VOXEL)) {
-    if (reserve_only) {
-      buffer.reserve(buffer_size(geom, prim));
-    }
-    else {
-      buffer.resize(buffer_size(geom, prim), 0);
-    }
-  }
+  this->resize(Attribute::element_size(geom, element, prim));
 }
 
 void Attribute::resize(const size_t num_elements)
 {
   if (!(element & ATTR_ELEMENT_VOXEL)) {
-    buffer.resize(num_elements * data_sizeof(), 0);
+    const size_t new_size = num_elements;
+    if (new_size == this->size) {
+      return;
+    }
+    char *new_data = new char[new_size * this->data_sizeof()];
+    memcpy(new_data, this->buffer, size_t(this->size) * this->data_sizeof());
+    this->sharing_info = ImplicitSharingPtr<>(new SharingInfoForFree(new_data));
+    this->buffer = new_data;
+    this->size = new_size;
   }
-}
-
-void Attribute::add(const float &f)
-{
-  assert(data_sizeof() == sizeof(float));
-
-  char *data = (char *)&f;
-  const size_t size = sizeof(f);
-
-  for (size_t i = 0; i < size; i++) {
-    buffer.push_back(data[i]);
-  }
-
-  modified = true;
-}
-
-void Attribute::add(const uchar4 &f)
-{
-  assert(data_sizeof() == sizeof(uchar4));
-
-  char *data = (char *)&f;
-  const size_t size = sizeof(f);
-
-  for (size_t i = 0; i < size; i++) {
-    buffer.push_back(data[i]);
-  }
-
-  modified = true;
-}
-
-void Attribute::add(const float2 &f)
-{
-  assert(data_sizeof() == sizeof(float2));
-
-  char *data = (char *)&f;
-  const size_t size = sizeof(f);
-
-  for (size_t i = 0; i < size; i++) {
-    buffer.push_back(data[i]);
-  }
-
-  modified = true;
-}
-
-void Attribute::add(const float3 &f)
-{
-  assert(data_sizeof() == sizeof(float3));
-
-  char *data = (char *)&f;
-  const size_t size = sizeof(f);
-
-  for (size_t i = 0; i < size; i++) {
-    buffer.push_back(data[i]);
-  }
-
-  modified = true;
-}
-
-void Attribute::add(const packed_normal &f)
-{
-  assert(data_sizeof() == sizeof(packed_normal));
-
-  char *data = (char *)&f;
-  const size_t size = sizeof(f);
-
-  for (size_t i = 0; i < size; i++) {
-    buffer.push_back(data[i]);
-  }
-
-  modified = true;
-}
-
-void Attribute::add(const Transform &f)
-{
-  assert(data_sizeof() == sizeof(Transform));
-
-  char *data = (char *)&f;
-  const size_t size = sizeof(f);
-
-  for (size_t i = 0; i < size; i++) {
-    buffer.push_back(data[i]);
-  }
-
-  modified = true;
-}
-
-void Attribute::add(const char *data)
-{
-  const size_t size = data_sizeof();
-
-  for (size_t i = 0; i < size; i++) {
-    buffer.push_back(data[i]);
-  }
-
-  modified = true;
 }
 
 void Attribute::set_data_from(Attribute &&other)
@@ -167,12 +102,9 @@ void Attribute::set_data_from(Attribute &&other)
 
   this->flags = other.flags;
 
-  if (this->buffer.size() != other.buffer.size()) {
-    this->buffer = std::move(other.buffer);
-    modified = true;
-  }
-  else if (memcmp(this->data(), other.data(), other.buffer.size()) != 0) {
-    this->buffer = std::move(other.buffer);
+  if (this->sharing_info != other.sharing_info) {
+    this->buffer = other.buffer;
+    this->sharing_info = other.sharing_info;
     modified = true;
   }
 }
@@ -208,7 +140,9 @@ size_t Attribute::data_sizeof() const
   return sizeof(float3);
 }
 
-size_t Attribute::element_size(Geometry *geom, AttributePrimitive prim) const
+size_t Attribute::element_size(Geometry *geom,
+                               const AttributeElement element,
+                               AttributePrimitive prim)
 {
   size_t size = 0;
 
@@ -309,7 +243,7 @@ size_t Attribute::element_size(Geometry *geom, AttributePrimitive prim) const
 
 size_t Attribute::buffer_size(Geometry *geom, AttributePrimitive prim) const
 {
-  return element_size(geom, prim) * data_sizeof();
+  return Attribute::element_size(geom, element, prim) * data_sizeof();
 }
 
 bool Attribute::same_storage(const TypeDesc a, const TypeDesc b)
@@ -457,7 +391,7 @@ void Attribute::get_uv_tiles(Geometry *geom,
     return;
   }
 
-  const int num = element_size(geom, prim);
+  const int num = Attribute::element_size(geom, element, prim);
   const float2 *uv = data_float2();
   for (int i = 0; i < num; i++, uv++) {
     const float u = uv->x;
@@ -506,6 +440,30 @@ Attribute *AttributeSet::add(ustring name, const TypeDesc type, AttributeElement
   }
 
   Attribute new_attr(name, type, element, geometry, prim);
+  attributes.emplace_back(std::move(new_attr));
+  tag_modified(attributes.back());
+  return &attributes.back();
+}
+
+Attribute *AttributeSet::add_shared(ustring name,
+                                    const TypeDesc type,
+                                    AttributeElement element,
+                                    const void *data,
+                                    const ImplicitSharingInfo &sharing_info)
+{
+  Attribute *attr = find(name);
+
+  if (attr) {
+    /* return if same already exists */
+    if (attr->type == type && attr->element == element) {
+      return attr;
+    }
+
+    /* overwrite attribute with same name but different type/element */
+    remove(name);
+  }
+
+  Attribute new_attr(name, type, element, data, sharing_info);
   attributes.emplace_back(std::move(new_attr));
   tag_modified(attributes.back());
   return &attributes.back();
@@ -704,6 +662,176 @@ Attribute *AttributeSet::add(AttributeStandard std, ustring name)
   return attr;
 }
 
+Attribute *AttributeSet::add_shared(AttributeStandard std,
+                                    ustring name,
+                                    const void *data,
+                                    const ImplicitSharingInfo &sharing_info)
+{
+  Attribute *attr = nullptr;
+
+  if (name.empty()) {
+    name = Attribute::standard_name(std);
+  }
+
+  if (geometry->is_mesh()) {
+    switch (std) {
+      case ATTR_STD_VERTEX_NORMAL:
+        attr = add_shared(name, TypeNormal, ATTR_ELEMENT_VERTEX_NORMAL, data, sharing_info);
+        break;
+      case ATTR_STD_NORMAL_UNDISPLACED:
+        attr = add_shared(name, TypeNormal, ATTR_ELEMENT_VERTEX_NORMAL, data, sharing_info);
+        break;
+      case ATTR_STD_UV:
+        attr = add_shared(name, TypeFloat2, ATTR_ELEMENT_CORNER, data, sharing_info);
+        break;
+      case ATTR_STD_UV_TANGENT:
+      case ATTR_STD_UV_TANGENT_UNDISPLACED:
+        attr = add_shared(name, TypeVector, ATTR_ELEMENT_CORNER, data, sharing_info);
+        break;
+      case ATTR_STD_UV_TANGENT_SIGN:
+      case ATTR_STD_UV_TANGENT_SIGN_UNDISPLACED:
+        attr = add_shared(name, TypeFloat, ATTR_ELEMENT_CORNER, data, sharing_info);
+        break;
+      case ATTR_STD_VERTEX_COLOR:
+        attr = add_shared(name, TypeRGBA, ATTR_ELEMENT_CORNER_BYTE, data, sharing_info);
+        break;
+      case ATTR_STD_GENERATED:
+      case ATTR_STD_POSITION_UNDEFORMED:
+      case ATTR_STD_POSITION_UNDISPLACED:
+        attr = add_shared(name, TypePoint, ATTR_ELEMENT_VERTEX, data, sharing_info);
+        break;
+      case ATTR_STD_MOTION_VERTEX_POSITION:
+        attr = add_shared(name, TypePoint, ATTR_ELEMENT_VERTEX_MOTION, data, sharing_info);
+        break;
+      case ATTR_STD_MOTION_VERTEX_NORMAL:
+        attr = add_shared(name, TypeNormal, ATTR_ELEMENT_VERTEX_NORMAL_MOTION, data, sharing_info);
+        break;
+      case ATTR_STD_CORNER_NORMAL:
+        attr = add_shared(name, TypeNormal, ATTR_ELEMENT_CORNER_NORMAL, data, sharing_info);
+        break;
+      case ATTR_STD_MOTION_CORNER_NORMAL:
+        attr = add_shared(name, TypeNormal, ATTR_ELEMENT_CORNER_NORMAL_MOTION, data, sharing_info);
+        break;
+      case ATTR_STD_PTEX_FACE_ID:
+        attr = add_shared(name, TypeFloat, ATTR_ELEMENT_FACE, data, sharing_info);
+        break;
+      case ATTR_STD_PTEX_UV:
+        attr = add_shared(name, TypeFloat2, ATTR_ELEMENT_CORNER, data, sharing_info);
+        break;
+      case ATTR_STD_GENERATED_TRANSFORM:
+        attr = add_shared(name, TypeMatrix, ATTR_ELEMENT_MESH, data, sharing_info);
+        break;
+      case ATTR_STD_POINTINESS:
+        attr = add_shared(name, TypeFloat, ATTR_ELEMENT_VERTEX, data, sharing_info);
+        break;
+      case ATTR_STD_RANDOM_PER_ISLAND:
+        attr = add_shared(name, TypeFloat, ATTR_ELEMENT_FACE, data, sharing_info);
+        break;
+      default:
+        assert(0);
+        break;
+    }
+  }
+  else if (geometry->is_pointcloud()) {
+    switch (std) {
+      case ATTR_STD_UV:
+        attr = add_shared(name, TypeFloat2, ATTR_ELEMENT_VERTEX, data, sharing_info);
+        break;
+      case ATTR_STD_GENERATED:
+        attr = add_shared(name, TypePoint, ATTR_ELEMENT_VERTEX, data, sharing_info);
+        break;
+      case ATTR_STD_MOTION_VERTEX_POSITION:
+        attr = add_shared(name, TypeFloat4, ATTR_ELEMENT_VERTEX_MOTION, data, sharing_info);
+        break;
+      case ATTR_STD_POINT_RANDOM:
+        attr = add_shared(name, TypeFloat, ATTR_ELEMENT_VERTEX, data, sharing_info);
+        break;
+      case ATTR_STD_GENERATED_TRANSFORM:
+        attr = add_shared(name, TypeMatrix, ATTR_ELEMENT_MESH, data, sharing_info);
+        break;
+      default:
+        assert(0);
+        break;
+    }
+  }
+  else if (geometry->is_volume()) {
+    switch (std) {
+      case ATTR_STD_VERTEX_NORMAL:
+        attr = add_shared(name, TypeNormal, ATTR_ELEMENT_VERTEX_NORMAL, data, sharing_info);
+        break;
+      case ATTR_STD_CORNER_NORMAL:
+        attr = add_shared(name, TypeNormal, ATTR_ELEMENT_CORNER_NORMAL, data, sharing_info);
+        break;
+      case ATTR_STD_VOLUME_DENSITY:
+      case ATTR_STD_VOLUME_FLAME:
+      case ATTR_STD_VOLUME_HEAT:
+      case ATTR_STD_VOLUME_TEMPERATURE:
+      case ATTR_STD_VOLUME_VELOCITY_X:
+      case ATTR_STD_VOLUME_VELOCITY_Y:
+      case ATTR_STD_VOLUME_VELOCITY_Z:
+        attr = add_shared(name, TypeFloat, ATTR_ELEMENT_VOXEL, data, sharing_info);
+        break;
+      case ATTR_STD_VOLUME_COLOR:
+        attr = add_shared(name, TypeColor, ATTR_ELEMENT_VOXEL, data, sharing_info);
+        break;
+      case ATTR_STD_VOLUME_VELOCITY:
+        attr = add_shared(name, TypeVector, ATTR_ELEMENT_VOXEL, data, sharing_info);
+        break;
+      default:
+        assert(0);
+        break;
+    }
+  }
+  else if (geometry->is_hair()) {
+    switch (std) {
+      case ATTR_STD_VERTEX_NORMAL:
+        attr = add_shared(name, TypeNormal, ATTR_ELEMENT_CURVE_KEY_NORMAL, data, sharing_info);
+        break;
+      case ATTR_STD_MOTION_VERTEX_NORMAL:
+        attr = add_shared(
+            name, TypeNormal, ATTR_ELEMENT_CURVE_KEY_NORMAL_MOTION, data, sharing_info);
+        break;
+      case ATTR_STD_UV:
+        attr = add_shared(name, TypeFloat2, ATTR_ELEMENT_CURVE, data, sharing_info);
+        break;
+      case ATTR_STD_GENERATED:
+        attr = add_shared(name, TypePoint, ATTR_ELEMENT_CURVE, data, sharing_info);
+        break;
+      case ATTR_STD_MOTION_VERTEX_POSITION:
+        attr = add_shared(name, TypeFloat4, ATTR_ELEMENT_CURVE_KEY_MOTION, data, sharing_info);
+        break;
+      case ATTR_STD_CURVE_INTERCEPT:
+        attr = add_shared(name, TypeFloat, ATTR_ELEMENT_CURVE_KEY, data, sharing_info);
+        break;
+      case ATTR_STD_CURVE_LENGTH:
+        attr = add_shared(name, TypeFloat, ATTR_ELEMENT_CURVE, data, sharing_info);
+        break;
+      case ATTR_STD_CURVE_RANDOM:
+        attr = add_shared(name, TypeFloat, ATTR_ELEMENT_CURVE, data, sharing_info);
+        break;
+      case ATTR_STD_GENERATED_TRANSFORM:
+        attr = add_shared(name, TypeMatrix, ATTR_ELEMENT_MESH, data, sharing_info);
+        break;
+      case ATTR_STD_POINTINESS:
+        attr = add_shared(name, TypeFloat, ATTR_ELEMENT_VERTEX, data, sharing_info);
+        break;
+      case ATTR_STD_RANDOM_PER_ISLAND:
+        attr = add_shared(name, TypeFloat, ATTR_ELEMENT_FACE, data, sharing_info);
+        break;
+      case ATTR_STD_SHADOW_TRANSPARENCY:
+        attr = add_shared(name, TypeFloat, ATTR_ELEMENT_CURVE_KEY, data, sharing_info);
+        break;
+      default:
+        assert(0);
+        break;
+    }
+  }
+
+  attr->std = std;
+
+  return attr;
+}
+
 Attribute &AttributeSet::copy(const Attribute &attr)
 {
   Attribute &copy_attr = *add(attr.name, attr.type, attr.element);
@@ -782,10 +910,10 @@ void AttributeSet::remove(list<Attribute>::iterator it)
   attributes.erase(it);
 }
 
-void AttributeSet::resize(bool reserve_only)
+void AttributeSet::resize()
 {
   for (Attribute &attr : attributes) {
-    attr.resize(geometry, prim, reserve_only);
+    attr.resize(geometry, prim);
   }
 }
 

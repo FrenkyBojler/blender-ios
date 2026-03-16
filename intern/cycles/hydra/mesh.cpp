@@ -430,7 +430,7 @@ void HdCyclesMesh::PopulateTopology(HdSceneDelegate *sceneDelegate)
     VtVec3iArray triangles;
     _util.ComputeTriangleIndices(&triangles, &_primitiveParams);
 
-    _geom->reserve_mesh(_topology.GetNumPoints(), triangles.size());
+    _geom->resize_mesh(_topology.GetNumPoints(), triangles.size());
 
     for (size_t i = 0; i < _primitiveParams.size(); ++i) {
       const int faceIndex = HdMeshUtil::DecodeFaceIndexFromCoarseFaceParam(_primitiveParams[i]);
@@ -448,7 +448,7 @@ void HdCyclesMesh::PopulateTopology(HdSceneDelegate *sceneDelegate)
       numCorners += vertCount;
     }
 
-    _geom->reserve_subd_faces(_topology.GetNumFaces(), numCorners);
+    _geom->resize_subd_faces(_topology.GetNumFaces(), numCorners);
 
     // TODO: Handle hole indices
     size_t faceIndex = 0;

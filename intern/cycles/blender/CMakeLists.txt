@@ -7,6 +7,7 @@ set(INC
   ../../../source/blender/makesrna
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
+  ../../implicit_sharing
 )
 
 set(INC_SYS

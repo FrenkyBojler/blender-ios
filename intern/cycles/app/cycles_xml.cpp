@@ -436,7 +436,7 @@ static void xml_read_mesh(const XMLReadState &state, const xml_node node)
     for (size_t i = 0; i < nverts.size(); i++) {
       num_triangles += nverts[i] - 2;
     }
-    mesh->reserve_mesh(mesh->get_verts().size(), num_triangles);
+    mesh->resize_mesh(mesh->get_verts().size(), num_triangles);
 
     /* create triangles */
     int index_offset = 0;
@@ -558,7 +558,7 @@ static void xml_read_mesh(const XMLReadState &state, const xml_node node)
     for (size_t i = 0; i < nverts.size(); i++) {
       num_corners += nverts[i];
     }
-    mesh->reserve_subd_faces(nverts.size(), num_corners);
+    mesh->resize_subd_faces(nverts.size(), num_corners);
 
     /* create subd_faces */
     int index_offset = 0;
@@ -573,7 +573,7 @@ static void xml_read_mesh(const XMLReadState &state, const xml_node node)
         xml_read_float_array(UV, node, Attribute::standard_name(ATTR_STD_UV)))
     {
       Attribute *attr = mesh->subd_attributes.add(ATTR_STD_UV);
-      float3 *fdata = attr->data_float3();
+      float3 *fdata = attr->data_float3_for_write();
 
       index_offset = 0;
       for (size_t i = 0; i < nverts.size(); i++) {
