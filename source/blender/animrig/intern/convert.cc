@@ -223,12 +223,6 @@ bool convert_pose_bone_rotation_keys(Main *bmain,
   return true;
 }
 
-static bool is_rotation_path(const StringRefNull rna_path)
-{
-  return rna_path.endswith(".rotation_quaternion") || rna_path.endswith(".rotation_euler") ||
-         rna_path.endswith(".rotation_axis_angle");
-}
-
 RNAPathFCurveMap build_rotation_fcurve_map(Action &action, const slot_handle_t slot_handle)
 {
   RNAPathFCurveMap rotation_map;
