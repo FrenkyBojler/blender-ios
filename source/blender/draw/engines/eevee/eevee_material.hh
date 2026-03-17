@@ -355,6 +355,8 @@ struct MaterialSyncArray {
   Vector<GPUMaterial *> gpu_materials;
 };
 
+using PassSetupCallback = FunctionRef<void(const GPUMaterial &gpumat, PassMain::Sub &sub_pass)>;
+
 class MaterialModule {
  public:
   blender::Material *diffuse_mat;
@@ -392,20 +394,12 @@ class MaterialModule {
   void end_sync();
 
   /**
-   * Returned Material references are valid until the next call to this function or material_get().
+   * Returned MaterialSyncArray is only valid until the next call to this function
    */
-  MaterialSyncArray &material_array_get(const ObjectHandle &ob_handle,
-                                        bool has_motion,
-                                        bool use_subpass_arrays = false);
-  /**
-   * Returned Material references are valid until the next call to this function or
-   * material_array_get().
-   */
-  MaterialSync material_get(const ObjectHandle &ob_handle,
-                            bool has_motion,
-                            int mat_nr,
-                            eMaterialGeometry geometry_type,
-                            bool use_subpass_arrays = false);
+  MaterialSyncArray &material_passes_sync(const ObjectHandle &ob_handle,
+                                          eMaterialGeometry geometry_type,
+                                          bool has_motion,
+                                          PassSetupCallback setup);
 
   /* Request default materials and return DEFAULT_MATERIALS if they are compiled. */
   ShaderGroups default_materials_load_async()
@@ -418,13 +412,6 @@ class MaterialModule {
   }
 
  private:
-  Material &material_sync(const ObjectHandle &ob_handle,
-                          blender::Material *blender_mat,
-                          SubPassArrays &sub_pass_arrays,
-                          eMaterialGeometry geometry_type,
-                          bool has_motion,
-                          bool use_subpass_arrays);
-
   /** Return correct material or empty default material if slot is empty. */
   blender::Material *material_from_slot(Object *ob, int slot);
   MaterialPass material_pass_get(Object *ob,
