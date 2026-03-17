@@ -96,7 +96,7 @@ static void fetch_image_buffers(ImageData &image_data, bke::pbvh::Node &node)
       image_data.processors.lookup_or_add_cb(tile.tile_number, [&]() {
         StringRefNull buffer_colorspace = buffer->float_buffer.data ?
                                               IMB_colormanagement_get_float_colorspace(buffer) :
-                                              IMB_colormanagement_get_rect_colorspace(buffer);
+                                              IMB_colormanagement_get_byte_colorspace(buffer);
         StringRefNull linear_colorspace = IMB_colormanagement_role_colorspace_name_get(
             COLOR_ROLE_SCENE_LINEAR);
 
