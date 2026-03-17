@@ -576,8 +576,8 @@ static void xml_read_mesh(const XMLReadState &state, const xml_node node)
     int *subd_ptex_offset = mesh->get_subd_ptex_offset().data();
     int *subd_face_corners = mesh->get_subd_face_corners().data();
 
-    std::ranges::fill(mesh->get_subd_shader(), smooth);
-    std::ranges::fill(mesh->get_subd_smooth(), shader);
+    std::ranges::fill(mesh->get_subd_shader(), shader);
+    std::ranges::fill(mesh->get_subd_smooth(), smooth);
 
     std::ranges::copy(verts, subd_face_corners);
 
