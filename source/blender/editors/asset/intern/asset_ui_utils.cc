@@ -85,8 +85,7 @@ void asset_tooltip(const asset_system::AssetRepresentation &asset,
   }
 
   if (asset.is_online()) {
-    if (std::optional<int64_t> combined_size = asset.online_assets_files_combined_size_in_bytes())
-    {
+    if (std::optional<int64_t> combined_size = asset.online_asset_files_combined_size_in_bytes()) {
       tooltip_text_field_add(tip, {}, {}, ui::TIP_STYLE_SPACER, ui::TIP_LC_NORMAL, false);
 
       char size_ui_str[BLI_STR_FORMAT_INT64_BYTE_UNIT_SIZE];

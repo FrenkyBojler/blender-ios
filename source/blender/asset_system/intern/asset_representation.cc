@@ -190,7 +190,7 @@ Span<OnlineAssetFile> AssetRepresentation::online_asset_files() const
   return std::get<ExternalAsset>(asset_).online_info_->files;
 }
 
-std::optional<int64_t> AssetRepresentation::online_assets_files_combined_size_in_bytes() const
+std::optional<int64_t> AssetRepresentation::online_asset_files_combined_size_in_bytes() const
 {
   if (!this->is_online()) {
     return {};
