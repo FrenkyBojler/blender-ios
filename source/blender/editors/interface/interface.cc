@@ -4327,6 +4327,9 @@ static std::unique_ptr<Button> but_new(const ButtonType type)
     case ButtonType::Grip:
       but = std::make_unique<ButtonGrip>();
       break;
+    case ButtonType::But:
+      but = std::make_unique<ButtonPush>();
+      break;
     default:
       but = std::make_unique<Button>();
       break;
@@ -4777,6 +4780,13 @@ void button_rna_menu_convert_to_panel_type(Button *but, const char *panel_type)
   BLI_assert(ELEM(but->type, ButtonType::Menu, ButtonType::Color));
   //  BLI_assert(but->menu_create_func == ui_def_but_rna__menu);
   //  BLI_assert((void *)but->poin == but);
+
+  /* Any existing function argument and callback using it gets overwritten. */
+  if (but->func_argN && but->func_argN_free_fn) {
+    but->func_argN_free_fn(but->func_argN);
+  }
+  but->funcN = nullptr;
+
   but->menu_create_func = def_but_rna__panel_type;
   but->func_argN = BLI_strdup(panel_type);
   but->func_argN_free_fn = MEM_delete_void;
@@ -4808,11 +4818,14 @@ void button_rna_menu_convert_to_menu_type(Button *but, const char *menu_type)
   BLI_assert(but->type == ButtonType::Menu);
   BLI_assert(but->menu_create_func == def_but_rna__menu);
   BLI_assert((void *)but->poin == but);
-  but->menu_create_func = def_but_rna__menu_type;
 
+  /* Any existing function argument and callback using it gets overwritten. */
   if (but->func_argN && but->func_argN_free_fn) {
     but->func_argN_free_fn(but->func_argN);
   }
+  but->funcN = nullptr;
+
+  but->menu_create_func = def_but_rna__menu_type;
   but->func_argN_free_fn = MEM_delete_void;
   but->func_argN_copy_fn = MEM_dupalloc_void;
   but->func_argN = BLI_strdup(menu_type);
@@ -7090,6 +7103,37 @@ void interface_tag_script_reload()
 int button_text_padding(const Button *button)
 {
   return round_fl_to_int((UI_TEXT_MARGIN_X * U.widget_unit) / button->block->aspect);
+}
+
+std::string button_get_link(const Button *button, bContext *C)
+{
+  BLI_assert(button_opens_link(button));
+  if (STREQ(button->optype->idname, "WM_OT_url_open")) {
+    return RNA_string_get(button->opptr, "url");
+  }
+#ifdef WITH_PYTHON
+  const char *expr_imports[] = {"bpy", nullptr};
+  char expr[256];
+
+  PropertyRNA *prop = RNA_struct_find_property(button->opptr, "type");
+
+  const int active_item = RNA_property_enum_get(button->opptr, prop);
+  EnumPropertyItem item;
+  const bool found = RNA_property_enum_item_from_value(C, button->opptr, prop, active_item, &item);
+  if (!found) {
+    return "";
+  }
+  SNPRINTF_UTF8(expr,
+                "bpy.types.WM_OT_url_open_preset.lookup_url_from_type(bpy.context,'%s')",
+                item.identifier);
+  char *expr_result = nullptr;
+  std::string link;
+  if (BPY_run_string_as_string(C, expr_imports, expr, nullptr, &expr_result)) {
+    link = expr_result;
+    MEM_delete(expr_result);
+  }
+  return link;
+#endif
 }
 
 }  // namespace ui

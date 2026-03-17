@@ -364,6 +364,9 @@ struct HandleButtonMulti {
    * here so we can tell if this is a vertical motion or not. */
   float drag_dir[2] = {0.0f, 0.0f};
 
+  /* Previous mouse position for accumulating drag_dir. */
+  int drag_dir_prev[2] = {0, 0};
+
   /* values copied direct from event->xy
    * used to detect buttons between the current and initial mouse position */
   int drag_start[2] = {0, 0};
@@ -415,6 +418,7 @@ struct HandleButtonData {
   /* Button is being applied through an extra icon. */
   bool apply_through_extra_icon = false;
   bool changed_cursor = false;
+  bool changed_wokspace_status = false;
   wmTimer *flashtimer = nullptr;
 
   TextEdit text_edit;
@@ -5085,7 +5089,15 @@ static int do_but_BUT(bContext *C, Button *but, HandleButtonData *data, const wm
     }
   }
 #endif
-
+  if (button_draw_as_link(but) && !data->changed_cursor) {
+    WM_cursor_set(data->window, WM_CURSOR_HAND_POINT);
+    data->changed_cursor = true;
+  }
+  if (button_opens_link(but) && !data->changed_wokspace_status) {
+    WorkspaceStatus status(C);
+    status.item(button_get_link(but, C), ICON_NONE);
+    data->changed_wokspace_status = true;
+  }
   if (data->state == BUTTON_STATE_HIGHLIGHT) {
     if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
       button_activate_state(C, but, BUTTON_STATE_WAIT_RELEASE);
@@ -6156,6 +6168,8 @@ static int do_but_NUM(
 
 #ifdef USE_DRAG_MULTINUM
       copy_v2_v2_int(data->multi_data.drag_start, event->xy);
+      data->multi_data.drag_dir_prev[0] = mx;
+      data->multi_data.drag_dir_prev[1] = my;
 #endif
     }
   }
@@ -6190,8 +6204,10 @@ static int do_but_NUM(
       float fac;
 
 #ifdef USE_DRAG_MULTINUM
-      data->multi_data.drag_dir[0] += abs(data->draglastx - mx);
-      data->multi_data.drag_dir[1] += abs(data->draglasty - my);
+      data->multi_data.drag_dir[0] += abs(data->multi_data.drag_dir_prev[0] - mx);
+      data->multi_data.drag_dir[1] += abs(data->multi_data.drag_dir_prev[1] - my);
+      data->multi_data.drag_dir_prev[0] = mx;
+      data->multi_data.drag_dir_prev[1] = my;
 #endif
 
       fac = 1.0f;
@@ -6522,6 +6538,8 @@ static int do_but_SLI(
     }
 #ifdef USE_DRAG_MULTINUM
     copy_v2_v2_int(data->multi_data.drag_start, event->xy);
+    data->multi_data.drag_dir_prev[0] = mx;
+    data->multi_data.drag_dir_prev[1] = my;
 #endif
   }
   else if (data->state == BUTTON_STATE_NUM_EDITING) {
@@ -6556,8 +6574,10 @@ static int do_but_SLI(
     else if ((event->type == MOUSEMOVE) || event_is_snap(event)) {
       const bool is_motion = (event->type == MOUSEMOVE);
 #ifdef USE_DRAG_MULTINUM
-      data->multi_data.drag_dir[0] += abs(data->draglastx - mx);
-      data->multi_data.drag_dir[1] += abs(data->draglasty - my);
+      data->multi_data.drag_dir[0] += abs(data->multi_data.drag_dir_prev[0] - mx);
+      data->multi_data.drag_dir[1] += abs(data->multi_data.drag_dir_prev[1] - my);
+      data->multi_data.drag_dir_prev[0] = mx;
+      data->multi_data.drag_dir_prev[1] = my;
 #endif
       if (numedit_but_SLI(but,
                           data,
@@ -8135,7 +8155,8 @@ static int do_but_CURVE(
           if (dist_squared_to_line_segment_v2(m_xy, f_xy_prev, f_xy) < dist_min_sq) {
             BLI_rctf_transform_pt_v(&cumap->curr, &but->rect, f_xy, m_xy);
 
-            BKE_curvemap_insert(cuma, f_xy[0], f_xy[1]);
+            CurveMapPoint *new_pt = BKE_curvemap_insert(cuma, f_xy[0], f_xy[1]);
+            new_pt->flag &= ~CUMA_SELECT; /* deselect new point for now */
             BKE_curvemapping_changed(cumap, false);
 
             changed = true;
@@ -8155,17 +8176,29 @@ static int do_but_CURVE(
         }
       }
 
+      cmp = cuma->curve;
       if (sel != -1) {
         /* ok, we move a point */
         /* deselect all if this one is deselect. except if we hold shift */
-        if ((event->modifier & KM_SHIFT) == 0) {
-          for (int a = 0; a < cuma->totpoint; a++) {
-            cmp[a].flag &= ~CUMA_SELECT;
+        if (event->modifier & KM_SHIFT) {    /* If holding shift. */
+          if (cmp[sel].flag & CUMA_SELECT) { /* if the current point is selected. */
+            if (cmp[sel].flag & CUMA_ACTIVE) {
+              BKE_curvemap_activate_nearest_point(cuma, sel);
+            }
+            cmp[sel].flag &= ~(CUMA_SELECT | CUMA_ACTIVE);
           }
-          cmp[sel].flag |= CUMA_SELECT;
+          else {
+            for (int a = 0; a < cuma->totpoint; a++) {
+              cmp[a].flag &= ~CUMA_ACTIVE;
+            }
+            cmp[sel].flag |= (CUMA_SELECT | CUMA_ACTIVE);
+          }
         }
-        else {
-          cmp[sel].flag ^= CUMA_SELECT;
+        else { /* If not holding shift. */
+          for (int a = 0; a < cuma->totpoint; a++) {
+            cmp[a].flag &= ~(CUMA_SELECT | CUMA_ACTIVE);
+          }
+          cmp[sel].flag |= (CUMA_SELECT | CUMA_ACTIVE);
         }
       }
       else {
@@ -8210,9 +8243,9 @@ static int do_but_CURVE(
           /* deselect all, select one */
           if ((event->modifier & KM_SHIFT) == 0) {
             for (int a = 0; a < cuma->totpoint; a++) {
-              cmp[a].flag &= ~CUMA_SELECT;
+              cmp[a].flag &= ~(CUMA_SELECT | CUMA_ACTIVE);
             }
-            cmp[data->dragsel].flag |= CUMA_SELECT;
+            cmp[data->dragsel].flag |= (CUMA_SELECT | CUMA_ACTIVE);
           }
         }
         else {
@@ -8287,12 +8320,12 @@ static bool numedit_but_CURVEPROFILE(Block *block,
       }
       else {
         /* Move handles when they're selected but the control point isn't. */
-        if (ELEM(pts[a].h2, HD_FREE, HD_ALIGN) && pts[a].flag == PROF_H1_SELECT) {
+        if (ELEM(pts[a].h2, HD_FREE, HD_ALIGN) && (pts[a].flag & PROF_H1_SELECT)) {
           moved_point |= BKE_curveprofile_move_handle(&pts[a], true, snap, delta);
           last_x = pts[a].h1_loc[0];
           last_y = pts[a].h1_loc[1];
         }
-        if (ELEM(pts[a].h2, HD_FREE, HD_ALIGN) && pts[a].flag == PROF_H2_SELECT) {
+        if (ELEM(pts[a].h2, HD_FREE, HD_ALIGN) && (pts[a].flag & PROF_H2_SELECT)) {
           moved_point |= BKE_curveprofile_move_handle(&pts[a], false, snap, delta);
           last_x = pts[a].h2_loc[0];
           last_y = pts[a].h2_loc[1];
@@ -8357,7 +8390,17 @@ static bool point_draw_handles(CurveProfilePoint *point)
 {
   return (point->flag & PROF_SELECT &&
           (ELEM(point->h1, HD_FREE, HD_ALIGN) || ELEM(point->h2, HD_FREE, HD_ALIGN))) ||
-         ELEM(point->flag, PROF_H1_SELECT, PROF_H2_SELECT);
+         point->flag & PROF_H1_SELECT || point->flag & PROF_H2_SELECT;
+}
+
+static short profile_select_to_active(short selection_type)
+{
+  /* Active flags are the select flags multiplied by #PROF_ACTIVE.
+   * Static asserts ensure this relationship holds if flag values change. */
+  static_assert(PROF_ACTIVE == PROF_SELECT * 8);
+  static_assert(PROF_H1_ACTIVE == PROF_H1_SELECT * 8);
+  static_assert(PROF_H2_ACTIVE == PROF_H2_SELECT * 8);
+  return selection_type * PROF_ACTIVE;
 }
 
 /**
@@ -8460,6 +8503,7 @@ static int do_but_CURVEPROFILE(
             BLI_rctf_transform_pt_v(&profile->view_rect, &but->rect, f_xy, m_xy);
 
             CurveProfilePoint *new_pt = BKE_curveprofile_insert(profile, f_xy[0], f_xy[1]);
+            new_pt->flag &= ~PROF_SELECT; /* Deselect new point for now. */
             BKE_curveprofile_update(profile, PROF_UPDATE_CLIP);
 
             /* Get the index of the newly added point. */
@@ -8472,17 +8516,49 @@ static int do_but_CURVEPROFILE(
       }
 
       /* Change the flag for the point(s) if one was selected or added. */
+      /* Offset the selection type to get the active type. */
+      const short active_type = profile_select_to_active(selection_type);
+      pts = profile->path;
       if (i_selected != -1) {
         /* Deselect all if this one is deselected, except if we hold shift. */
         if (event->modifier & KM_SHIFT) {
-          pts[i_selected].flag ^= selection_type;
+          if (pts[i_selected].flag & selection_type) {
+            /* If the current point or handle is selected. */
+            pts[i_selected].flag ^= selection_type;
+
+            if (pts[i_selected].flag & active_type) {
+              /* If the current point or handle is active. */
+              pts[i_selected].flag &= ~(PROF_ACTIVE | PROF_H1_ACTIVE | PROF_H2_ACTIVE);
+              if (pts[i_selected].flag & PROF_SELECT) {
+                pts[i_selected].flag |= PROF_ACTIVE;
+              }
+              else if (pts[i_selected].flag & PROF_H1_SELECT) {
+                pts[i_selected].flag |= PROF_H1_ACTIVE;
+              }
+              else if (pts[i_selected].flag & PROF_H2_SELECT) {
+                pts[i_selected].flag |= PROF_H2_ACTIVE;
+              }
+              else {
+                /* If the current point including its handles are d, activate the nearest
+                 * point. */
+                BKE_curveprofile_activate_nearest_point(profile, i_selected);
+              }
+            }
+          }
+          else {
+            for (int a = 0; a < profile->path_len; a++) {
+              pts[a].flag &= ~(PROF_ACTIVE | PROF_H1_ACTIVE | PROF_H2_ACTIVE);
+            }
+            pts[i_selected].flag |= (selection_type | active_type);
+          }
         }
         else {
           for (int i = 0; i < profile->path_len; i++) {
             // pts[i].flag &= ~(PROF_SELECT | PROF_H1_SELECT | PROF_H2_SELECT);
-            profile->path[i].flag &= ~(PROF_SELECT | PROF_H1_SELECT | PROF_H2_SELECT);
+            profile->path[i].flag &= ~(PROF_SELECT | PROF_H1_SELECT | PROF_H2_SELECT |
+                                       PROF_ACTIVE | PROF_H1_ACTIVE | PROF_H2_ACTIVE);
           }
-          profile->path[i_selected].flag |= selection_type;
+          profile->path[i_selected].flag |= (selection_type | active_type);
         }
       }
       else {
@@ -9188,7 +9264,9 @@ static void button_activate_state(bContext *C, Button *but, HandleButtonState st
           time = 1;
         }
         else if (but->block->flag & BLOCK_LOOP && but->type == ButtonType::Pulldown) {
-          time = 5 * U.menuthreshold2;
+          /* When auto open is disabled, open subpanel on hover but don't rely on sub level
+           * threshold value, see: #153110 */
+          time = (U.uiflag & USER_MENUOPENAUTO) ? 5 * U.menuthreshold2 : 10;
         }
         else if (U.uiflag & USER_MENUOPENAUTO) {
           time = 5 * U.menuthreshold1;
@@ -9582,6 +9660,9 @@ static void button_activate_exit(
 
   if (data->changed_cursor) {
     WM_cursor_set(win, WM_CURSOR_DEFAULT);
+  }
+  if (data->changed_wokspace_status) {
+    ED_workspace_status_text(C, nullptr);
   }
 
   /* redraw and refresh (for popups) */

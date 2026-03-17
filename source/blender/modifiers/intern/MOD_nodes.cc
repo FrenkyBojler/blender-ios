@@ -85,7 +85,7 @@
 #include "ED_undo.hh"
 #include "ED_viewer_path.hh"
 
-#include "NOD_geometry_nodes_dependencies.hh"
+#include "NOD_dependencies.hh"
 #include "NOD_geometry_nodes_execute.hh"
 #include "NOD_geometry_nodes_gizmos.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
@@ -109,7 +109,7 @@ static void init_data(ModifierData *md)
 }
 
 static void find_dependencies_from_settings(const NodesModifierSettings &settings,
-                                            nodes::GeometryNodesEvalDependencies &deps)
+                                            nodes::EvalDependencies &deps)
 {
   IDP_foreach_property(settings.properties, IDP_TYPE_FILTER_ID, [&](IDProperty *property) {
     if (ID *id = IDP_ID_get(property)) {
@@ -132,10 +132,9 @@ static void add_collection_relation(const ModifierUpdateDepsgraphContext *ctx,
   DEG_add_collection_geometry_customdata_mask(ctx->node, &collection, &dependency_data_mask);
 }
 
-static void add_object_relation(
-    const ModifierUpdateDepsgraphContext *ctx,
-    Object &object,
-    const nodes::GeometryNodesEvalDependencies::ObjectDependencyInfo &info)
+static void add_object_relation(const ModifierUpdateDepsgraphContext *ctx,
+                                Object &object,
+                                const nodes::EvalDependencies::ObjectDependencyInfo &info)
 {
   if (info.transform) {
     DEG_add_object_relation(ctx->node, &object, DEG_OB_COMP_TRANSFORM, "Nodes Modifier");
@@ -176,8 +175,7 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
 
   DEG_add_node_tree_output_relation(ctx->node, nmd->node_group, "Nodes Modifier");
 
-  nodes::GeometryNodesEvalDependencies eval_deps =
-      nodes::gather_geometry_nodes_eval_dependencies_recursive(*nmd->node_group);
+  nodes::EvalDependencies eval_deps = nodes::gather_eval_dependencies_recursive(*nmd->node_group);
 
   /* Create dependencies to data-blocks referenced by the settings in the modifier. */
   find_dependencies_from_settings(nmd->settings, eval_deps);
@@ -258,8 +256,7 @@ static bool depends_on_time(Scene * /*scene*/, ModifierData *md)
       return true;
     }
   }
-  nodes::GeometryNodesEvalDependencies eval_deps =
-      nodes::gather_geometry_nodes_eval_dependencies_recursive(*nmd->node_group);
+  nodes::EvalDependencies eval_deps = nodes::gather_eval_dependencies_recursive(*nmd->node_group);
   return eval_deps.time_dependent;
 }
 
@@ -2038,7 +2035,7 @@ static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const Modi
 
   writer->write_struct(nmd);
 
-  BLO_write_string(writer, nmd->bake_directory);
+  writer->write_string(nmd->bake_directory);
 
   Map<IDProperty *, IDPropertyUIDataBool *> boolean_props;
   if (nmd->settings.properties != nullptr) {
@@ -2063,19 +2060,19 @@ static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const Modi
 
   writer->write_struct_array(nmd->bakes_num, nmd->bakes);
   for (const NodesModifierBake &bake : Span(nmd->bakes, nmd->bakes_num)) {
-    BLO_write_string(writer, bake.directory);
+    writer->write_string(bake.directory);
 
     writer->write_struct_array(bake.data_blocks_num, bake.data_blocks);
     for (const NodesModifierDataBlock &item : Span(bake.data_blocks, bake.data_blocks_num)) {
-      BLO_write_string(writer, item.id_name);
-      BLO_write_string(writer, item.lib_name);
+      writer->write_string(item.id_name);
+      writer->write_string(item.lib_name);
     }
     if (bake.packed) {
       writer->write_struct(bake.packed);
       writer->write_struct_array(bake.packed->meta_files_num, bake.packed->meta_files);
       writer->write_struct_array(bake.packed->blob_files_num, bake.packed->blob_files);
       const auto write_bake_file = [&](const NodesModifierBakeFile &bake_file) {
-        BLO_write_string(writer, bake_file.name);
+        writer->write_string(bake_file.name);
         if (bake_file.packed_file) {
           BKE_packedfile_blend_write(writer, bake_file.packed_file);
         }
