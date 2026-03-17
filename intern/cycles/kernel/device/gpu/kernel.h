@@ -720,11 +720,22 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
         nullptr, render_buffer, sx + x, sy + y, threshold, reset, offset, stride));
   }
 
-  /* NOTE: All threads specified in the mask must execute the intrinsic. */
-  const auto num_active_pixels_mask = ccl_gpu_ballot(!converged);
-  const int lane_id = ccl_gpu_thread_idx_x % ccl_gpu_warp_size;
-  if (lane_id == 0) {
-    atomic_fetch_and_add_uint32(num_active_pixels, popcount(num_active_pixels_mask));
+#ifdef __KERNEL_ONEAPI__
+  // Use simple atomic count for warp sizes unsupported by sycl::group_ballot
+  if (ccl_gpu_warp_size > sycl::ext::oneapi::sub_group_mask::max_bits) {
+    if (!converged) {
+      atomic_fetch_and_add_uint32(num_active_pixels, 1u);
+    }
+  }
+  else
+#endif
+  {
+    /* NOTE: All threads specified in the mask must execute the intrinsic. */
+    const auto num_active_pixels_mask = ccl_gpu_ballot(!converged);
+    const int lane_id = ccl_gpu_thread_idx_x % ccl_gpu_warp_size;
+    if (lane_id == 0) {
+      atomic_fetch_and_add_uint32(num_active_pixels, popcount(num_active_pixels_mask));
+    }
   }
 }
 ccl_gpu_kernel_postfix
@@ -1258,11 +1269,22 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
     can_split = ccl_gpu_kernel_call(kernel_shadow_catcher_path_can_split(state));
   }
 
-  /* NOTE: All threads specified in the mask must execute the intrinsic. */
-  const auto can_split_mask = ccl_gpu_ballot(can_split);
-  const int lane_id = ccl_gpu_thread_idx_x % ccl_gpu_warp_size;
-  if (lane_id == 0) {
-    atomic_fetch_and_add_uint32(num_possible_splits, popcount(can_split_mask));
+#ifdef __KERNEL_ONEAPI__
+  // Use simple atomic count for warp sizes unsupported by sycl::group_ballot
+  if (ccl_gpu_warp_size > sycl::ext::oneapi::sub_group_mask::max_bits) {
+    if (can_split) {
+      atomic_fetch_and_add_uint32(num_possible_splits, 1u);
+    }
+  }
+  else
+#endif
+  {
+    /* NOTE: All threads specified in the mask must execute the intrinsic. */
+    const auto can_split_mask = ccl_gpu_ballot(can_split);
+    const int lane_id = ccl_gpu_thread_idx_x % ccl_gpu_warp_size;
+    if (lane_id == 0) {
+      atomic_fetch_and_add_uint32(num_possible_splits, popcount(can_split_mask));
+    }
   }
 }
 ccl_gpu_kernel_postfix
