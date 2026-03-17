@@ -3440,6 +3440,7 @@ class WM_MT_splash(Menu):
         # Recent
         col2 = split.column()
         col2_title = col2.row()
+        col2.alignment = 'LEFT'
 
         found_recent = col2.template_recent_files(rows=5)
 
@@ -3453,16 +3454,21 @@ class WM_MT_splash(Menu):
         else:
             # Links if no recent files.
             col2_title.label(text="Getting Started")
-
-            col2.operator("wm.url_open_preset", text="Manual", icon='URL').type = 'MANUAL'
+            col2.link(
+                text="Manual",
+                icon='URL',
+                url=bpy.types.WM_OT_url_open_preset.lookup_url_from_type(context, 'MANUAL'))
             col2.link(
                 text="What's New",
                 icon='URL',
                 url=bpy.types.WM_OT_url_open_preset.lookup_url_from_type(context, 'RELEASE_NOTES'))
-            col2.operator("wm.url_open", text="Support", icon='URL').url = "https://www.blender.org/support/"
-            col2.operator("wm.url_open", text="User Communities", icon='URL').url = "https://www.blender.org/community/"
-            col2.operator("wm.url_open", text="Get Involved", icon='URL').url = "https://www.blender.org/get-involved/"
-            col2.operator("wm.url_open_preset", text="Blender Website", icon='URL').type = 'BLENDER'
+            col2.link(text="Support", icon='URL', url="https://www.blender.org/support/")
+            col2.link(text="User Communities", icon='URL', url="https://www.blender.org/community/")
+            col2.link(text="Get Involved", icon='URL', url="https://www.blender.org/get-involved/")
+            col2.link(
+                text="Blender Website",
+                icon='URL',
+                url=bpy.types.WM_OT_url_open_preset.lookup_url_from_type(context, 'BLENDER'))
 
         col_sep = layout.column()
         col_sep.separator()
