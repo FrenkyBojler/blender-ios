@@ -287,6 +287,7 @@ static bNodeSocket *ntree_shader_node_output_get(bNode *node, int n)
   return reinterpret_cast<bNodeSocket *>(BLI_findlink(&node->outputs, n));
 }
 
+/* TODO: should be migrated to shader_nodes_inline.c See !153704. */
 static void ntree_shader_unlink_script_nodes(bNodeTree *ntree)
 {
   /* To avoid more trouble in the node tree processing (especially inside
@@ -296,15 +297,6 @@ static void ntree_shader_unlink_script_nodes(bNodeTree *ntree)
     if ((link.tonode->type_legacy == SH_NODE_SCRIPT) ||
         (link.fromnode->type_legacy == SH_NODE_SCRIPT))
     {
-      bke::node_remove_link(ntree, link);
-    }
-  }
-}
-
-static void ntree_shader_unlink_undefined_nodes(bNodeTree *ntree)
-{
-  for (bNodeLink &link : ntree->links.items_mutable()) {
-    if (link.tonode->is_undefined() || link.fromnode->is_undefined()) {
       bke::node_remove_link(ntree, link);
     }
   }
@@ -985,7 +977,6 @@ void ntreeGPUMaterialNodes(bNodeTree *localtree, GPUMaterial *mat)
   bNodeTreeExec *exec;
 
   ntree_shader_unlink_script_nodes(localtree);
-  ntree_shader_unlink_undefined_nodes(localtree);
   bNode *output = ntreeShaderOutputNode(localtree, SHD_OUTPUT_EEVEE);
 
   /* Tree is valid if it contains no undefined implicit socket type cast. */
