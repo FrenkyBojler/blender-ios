@@ -2922,10 +2922,10 @@ static void panel_activate_state(const bContext *C, Panel *panel, const HandlePa
 
     /* Save File Browser panel order and open/close state. */
     if (CTX_wm_area(C)->spacetype == SPACE_FILE && region->regiontype == RGN_TYPE_TOOLS) {
-      for (Panel &panel : region->panels) {
-        if (STRPREFIX(panel.panelname, "FILEBROWSER_PT_")) {
-          ui_memory::memory.open("panel.sortorder")[panel.panelname] = panel.sortorder;
-          ui_memory::memory.open("panel.open")[panel.panelname] = !(panel.flag & PNL_CLOSED);
+      for (Panel &pnl : region->panels) {
+        if (STRPREFIX(pnl.panelname, "FILEBROWSER_PT_")) {
+          ui_memory::memory.open("panel.sortorder")[pnl.panelname] = pnl.sortorder;
+          ui_memory::memory.open("panel.open")[pnl.panelname] = !(pnl.flag & PNL_CLOSED);
         }
       }
     }
