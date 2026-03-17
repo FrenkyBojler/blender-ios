@@ -64,6 +64,51 @@ static const EnumPropertyItem quality_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+static const char *glare_type_enum_label(CMPNodeGlareType type)
+{
+  switch (type) {
+    case CMP_NODE_GLARE_BLOOM:
+      return N_("Bloom");
+    case CMP_NODE_GLARE_GHOST:
+      return N_("Ghosts");
+    case CMP_NODE_GLARE_STREAKS:
+      return N_("Streaks");
+    case CMP_NODE_GLARE_FOG_GLOW:
+      return N_("Fog Glow");
+    case CMP_NODE_GLARE_SIMPLE_STAR:
+      return N_("Simple Star");
+    case CMP_NODE_GLARE_SUN_BEAMS:
+      return N_("Sun Beams");
+    case CMP_NODE_GLARE_KERNEL:
+      return N_("Kernel");
+  }
+
+  return N_("Glare");
+}
+
+void node_composite_glare_label(const bNodeTree * /*ntree*/,
+                                       const bNode *node,
+                                       char *label,
+                                       int label_maxncpy)
+{
+  /* Prefer the current value of the \"Type\" menu input so that the label
+   * updates immediately when the user changes the node mode. */
+  CMPNodeGlareType type = CMP_NODE_GLARE_FOG_GLOW;
+  if (label_maxncpy <= 0) {
+    return;
+  }
+  for (const bNodeSocket *sock = (const bNodeSocket*)(node)->inputs.first; sock; sock = sock->next)
+  {
+    if (STREQ(sock->identifier, "Type") && sock->default_value != nullptr) {
+      const bNodeSocketValueMenu *menu = (const bNodeSocketValueMenu *)(sock->default_value);
+      type = CMPNodeGlareType(menu->value);
+      break;
+    }
+  }
+  const char *name = glare_type_enum_label(type);
+  BLI_strncpy_utf8(label, CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, name), label_maxncpy);
+}
+
 enum class KernelDataType : uint8_t {
   Float = 0,
   Color = 1,
@@ -2798,6 +2843,7 @@ static void node_register()
   ntype.enum_name_legacy = "GLARE";
   ntype.nclass = NODE_CLASS_OP_FILTER;
   ntype.declare = node_declare;
+  ntype.labelfunc = node_composite_glare_label;
   ntype.initfunc = node_init;
   ntype.gather_link_search_ops = gather_link_searches;
   bke::node_type_storage(
