@@ -3193,7 +3193,7 @@ static brushes::CursorSampleResult calc_brush_node_mask(const Depsgraph &depsgra
   float radius_scale = 1.0f;
   /* Corners of square brushes can go outside the brush radius. */
   if (BKE_brush_has_cube_tip(&brush, PaintMode::Sculpt)) {
-    radius_scale = M_SQRT2;
+    radius_scale = 2.0;
   }
 
   /* With these options enabled not all required nodes are inside the original brush radius, so
