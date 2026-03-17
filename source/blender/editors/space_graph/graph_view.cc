@@ -46,7 +46,7 @@ namespace blender {
 
 /* Used to ensure that the extents are not too extreme that view implodes. We need different
  * values for x and y due to the nature of the data displayed. The minimum distance on x for
- * keyframes is BEZT_BINARYSEARCH_THRESH so differences larger than that cannot occur. For the y
+ * keyframes is BEZT_BINARYSEARCH_THRESH so differences smaller than that cannot occur. For the y
  * value there is no such limit, so we have to choose a smaller number. The units are frames for
  * the x-axis and value for the y-axis. */
 constexpr float2 zoom_threshold(BEZT_BINARYSEARCH_THRESH, 0.0001f);
@@ -79,8 +79,7 @@ static void keyframe_bounds_defaults(bAnimContext &ac, rctf &r_bounds)
  *
  * For a description on the arguments, see `BKE_fcurve_calc_bounds`.
  *
- * \returns true if any bounds are found. If false is returned the `r_bounds` have not been
- * modified.
+ * \returns true if any bounds are found. If false is returned the `r_bounds` are not a valid rect.
  */
 static bool calculate_keyframe_bounds(const ListBaseT<bAnimListElem> &anim_data,
                                       bAnimContext &ac,
