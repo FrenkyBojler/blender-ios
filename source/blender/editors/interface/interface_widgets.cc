@@ -2945,6 +2945,10 @@ static void widget_state_menu_item(WidgetType *wt,
     copy_v3_v3_uchar(wt->wcol.inner, wt->wcol.text);
     wt->wcol.inner[3] = 11;
   }
+  if (state->draw_as_link) {
+    theme::get_color_4ubv(TH_LINK, wt->wcol.text);
+    theme::get_color_4ubv(TH_LINK, wt->wcol.text_sel);
+  }
 }
 
 /** \} */
@@ -4374,6 +4378,17 @@ static void widget_pulldownbut(uiWidgetColors *wcol,
   }
 }
 
+static void widget_menu_itembut_link(uiWidgetColors * /*wcol*/,
+                                     rcti *rect,
+                                     const WidgetStateInfo * /*state*/,
+                                     int /*roundboxalign*/,
+                                     const float zoom)
+{
+  const float padding = zoom * 0.125f * U.widget_unit;
+  rect->xmin += padding;
+  rect->xmax -= padding;
+}
+
 static void widget_menu_itembut(uiWidgetColors *wcol,
                                 rcti *rect,
                                 const WidgetStateInfo * /*state*/,
@@ -5093,6 +5108,10 @@ void draw_button(const bContext *C, ARegion *region, uiStyle *style, Button *but
         const bool use_unpadded = (but->flag & BUT_ICON_PREVIEW) ||
                                   ((but->flag & UI_HAS_ICON) && !but->drawstr[0]);
         wt = widget_type(use_unpadded ? UI_WTYPE_MENU_ITEM_UNPADDED : UI_WTYPE_MENU_ITEM);
+        if (button_draw_as_link(but)) {
+          wt->draw = widget_menu_itembut_link;
+          wt->custom = nullptr;
+        }
         break;
       }
     }

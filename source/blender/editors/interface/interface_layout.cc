@@ -3246,21 +3246,26 @@ void Layout::link(const StringRef url, const StringRef name, int icon)
     return;
   }
 
-  /* Force the button to not be expanded full width. */
-  Layout *layout = &this->row(false);
-  layout->alignment_set(this->alignment());
-  layout = &layout->row(false);
-  layout->alignment_set(LayoutAlign::Center);
+  Layout *layout = this;
+  Block *block = layout->block();
+
+  /* Force the button to not be expanded full width in nom menu blocks. */
+  if (!block_is_menu(block)) {
+    layout = &this->row(false);
+    layout->alignment_set(this->alignment());
+    layout = &layout->row(false);
+    layout->alignment_set(LayoutAlign::Center);
+  }
 
   if (this->root()->type == LayoutType::Menu && !icon) {
     icon = ICON_BLANK1;
   }
-  Block *block = layout->block();
   block_layout_set_current(block, layout);
   block_new_button_group(block, ButtonGroupFlag(0));
 
   /* Match button width to label items. */
-  const int w = text_icon_width_ex(layout, name, icon, text_pad_none, UI_FSTYLE_WIDGET);
+  const int w = text_icon_width_ex(layout, name, icon, text_pad_none, UI_FSTYLE_WIDGET) +
+                ((layout->emboss_ == EmbossType::Pulldown) ? (0.125f * U.widget_unit) : 0);
 
   /* Create the button. */
   Button *button;

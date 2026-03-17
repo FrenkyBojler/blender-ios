@@ -3455,6 +3455,10 @@ class WM_MT_splash(Menu):
             col2_title.label(text="Getting Started")
 
             col2.operator("wm.url_open_preset", text="Manual", icon='URL').type = 'MANUAL'
+            col2.link(
+                text="What's New",
+                icon='URL',
+                url=bpy.types.WM_OT_url_open_preset.lookup_url_from_type(context, 'RELEASE_NOTES'))
             col2.operator("wm.url_open", text="Support", icon='URL').url = "https://www.blender.org/support/"
             col2.operator("wm.url_open", text="User Communities", icon='URL').url = "https://www.blender.org/community/"
             col2.operator("wm.url_open", text="Get Involved", icon='URL').url = "https://www.blender.org/get-involved/"
@@ -3475,7 +3479,12 @@ class WM_MT_splash(Menu):
 
         col2 = split.column()
 
-        col2.operator("wm.url_open_preset", text="What's New", icon='URL').type = 'RELEASE_NOTES'
+        subcol2 = col2.column()
+        subcol2.alignment = 'LEFT'
+        subcol2.link(
+            text="What's New",
+            icon='URL',
+            url=bpy.types.WM_OT_url_open_preset.lookup_url_from_type(context, 'RELEASE_NOTES'))
         col2.operator("wm.url_open_preset", text="Donate to Blender", icon='FUND').type = 'FUND'
 
         layout.separator()
@@ -3521,14 +3530,24 @@ class WM_MT_splash_about(Menu):
         col.label(text="Licensed under the GNU General Public License")
 
         col = split.column(align=True)
+        col.alignment = 'LEFT'
         col.emboss = 'PULLDOWN_MENU'
         col.operator("wm.url_open_preset", text="Donate", icon='FUND').type = 'FUND'
-        col.operator("wm.url_open_preset", text="What's New", icon='URL').type = 'RELEASE_NOTES'
+        col.link(
+            text="What's New",
+            icon='URL',
+            url=bpy.types.WM_OT_url_open_preset.lookup_url_from_type(context, 'RELEASE_NOTES'))
         col.separator(factor=2.0)
-        col.operator("wm.url_open_preset", text="Credits", icon='URL').type = 'CREDITS'
-        col.operator("wm.url_open", text="License", icon='URL').url = "https://www.blender.org/about/license/"
-        col.operator("wm.url_open", text="Blender Store", icon='URL').url = "https://store.blender.org"
-        col.operator("wm.url_open_preset", text="Blender Website", icon='URL').type = 'BLENDER'
+        col.link(
+            text="Credits",
+            icon='URL',
+            url=bpy.types.WM_OT_url_open_preset.lookup_url_from_type(context, 'CREDITS'))
+        col.link(text="License", icon='URL', url="https://www.blender.org/about/license/")
+        col.link(text="Blender Store", icon='URL', url="https://store.blender.org")
+        col.link(
+            text="Blender Website",
+            icon='URL',
+            url=bpy.types.WM_OT_url_open_preset.lookup_url_from_type(context, 'BLENDER'))
 
 
 class WM_MT_region_toggle_pie(Menu):
