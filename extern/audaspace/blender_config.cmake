@@ -42,7 +42,7 @@ set(NUMPY_INCLUDE_DIRS ${PYTHON_NUMPY_INCLUDE_DIRS})
 
 set(SDL_FOUND ${WITH_SDL})
 if(SDL_FOUND)
-  set(USE_SDL2 TRUE)
+  set(USE_SDL3 TRUE)
   # This probably shouldn't be used, but it is.
-  set(SDL_LIBRARY "${SDL2_LIBRARY}")
+  set(SDL_LIBRARY "${SDL3_LIBRARY}")
 endif()

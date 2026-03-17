@@ -2,43 +2,20 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-set(SDL_PATCH
-  ${PATCH_CMD} -p 0 -N -d
-    ${BUILD_DIR}/sdl/src/external_sdl <
-    ${PATCH_DIR}/sdl.diff
-)
+# NOTE: SDL2 patches are no longer applicable to SDL3,
+# they will need to be reviewed and updated or removed.
 
 if(WIN32)
   set(SDL_EXTRA_ARGS
     -DSDL_STATIC=Off
   )
-
-  if(BLENDER_PLATFORM_WINDOWS_ARM)
-    set(SDL_PATCH
-      ${SDL_PATCH} &&
-      ${PATCH_CMD} -p 1 -N -d
-        ${BUILD_DIR}/sdl/src/external_sdl <
-        ${PATCH_DIR}/sdl_woa.diff
-    )
-  endif()
 else()
   set(SDL_EXTRA_ARGS
     -DSDL_STATIC=ON
     -DSDL_SHARED=OFF
     -DSDL_VIDEO=OFF
-    -DSNDIO=OFF
+    -DSDL_SNDIO=OFF
   )
-
-  # Core Haptics only available once macOS 11.0 becomes minimum.
-  if(APPLE AND NOT BLENDER_PLATFORM_ARM)
-    list(APPEND SDL_EXTRA_ARGS -DSDL_HAPTICS=OFF)
-    set(SDL_PATCH
-      ${SDL_PATCH} &&
-      ${PATCH_CMD} -p 0 -N -d
-        ${BUILD_DIR}/sdl/src/external_sdl <
-        ${PATCH_DIR}/sdl_haptics.diff
-    )
-  endif()
 endif()
 
 ExternalProject_Add(external_sdl
@@ -46,7 +23,6 @@ ExternalProject_Add(external_sdl
   DOWNLOAD_DIR ${DOWNLOAD_DIR}
   URL_HASH ${SDL_HASH_TYPE}=${SDL_HASH}
   PREFIX ${BUILD_DIR}/sdl
-  PATCH_COMMAND ${SDL_PATCH}
 
   CMAKE_ARGS
     -DCMAKE_INSTALL_PREFIX=${LIBDIR}/sdl
@@ -60,7 +36,7 @@ if(WIN32)
   if(BUILD_MODE STREQUAL Release)
     ExternalProject_Add_Step(external_sdl after_install
       COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${LIBDIR}/sdl/include/sdl2
+        ${LIBDIR}/sdl/include/SDL3
         ${HARVEST_TARGET}/sdl/include
       COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${LIBDIR}/sdl/lib
@@ -73,6 +49,6 @@ if(WIN32)
     )
   endif()
 else()
-  harvest(external_sdl sdl/include/SDL2 sdl/include "*.h")
-  harvest(external_sdl sdl/lib sdl/lib "libSDL2.a")
+  harvest(external_sdl sdl/include/SDL3 sdl/include "*.h")
+  harvest(external_sdl sdl/lib sdl/lib "libSDL3.a")
 endif()
