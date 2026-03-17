@@ -1208,8 +1208,6 @@ class TextureFromPool : public Texture, NonMovable {
   bool ensure_cube(int, int, gpu::TextureFormat, eGPUTextureUsage, const float *) = delete;
   void filter_mode(bool) = delete;
   void free() = delete;
-  gpu::Texture *mip_view(int) = delete;
-  gpu::Texture *stencil_view() = delete;
 
  private:
   /* Underlying `acquire_*` forwards to the texture pool. */
