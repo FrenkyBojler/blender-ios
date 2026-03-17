@@ -54,6 +54,11 @@ class ActionLayerItem : public AbstractTreeViewItem {
     row.prop(&layer_pointer, "is_locked", ITEM_R_ICON_ONLY, "", icon);
   }
 
+  std::optional<bool> should_be_active() const override
+  {
+    return action_.layer_active_get() == &layer_;
+  }
+
   void on_activate(bContext &C) override
   {
     /* Let RNA handle the property change. This makes sure all the notifiers and DEG
@@ -68,13 +73,42 @@ class ActionLayerItem : public AbstractTreeViewItem {
     /* Using grouped push so repeated changes to the active layer don't clog the undo queue. */
     ED_undo_grouped_push(&C, "Change Action's active layer");
   }
+
+  bool supports_renaming() const override
+  {
+    const bool is_override = ID_IS_OVERRIDE_LIBRARY(&action_);
+    if (ID_IS_LINKED(&action_) && !is_override) {
+      return false;
+    }
+    return true;
+  }
+
+  bool rename(const bContext &C, StringRefNull new_name) override
+  {
+    /* Let RNA handle the renaming. This makes sure all the notifiers and DEG
+     * update calls are properly called. */
+    PointerRNA layer_pointer = RNA_pointer_create_discrete(&action_.id, RNA_ActionLayer, &layer_);
+    PropertyRNA *prop = RNA_struct_find_property(&layer_pointer, "name");
+
+    RNA_property_string_set(&layer_pointer, prop, new_name.c_str());
+    RNA_property_update(&const_cast<bContext &>(C), &layer_pointer, prop);
+
+    ED_undo_push(&const_cast<bContext &>(C), "Rename Action Layer");
+    return true;
+  }
+
+  StringRef get_rename_string() const override
+  {
+    return layer_.name;
+  }
 };
 
 ActionLayerTreeView::ActionLayerTreeView(bAction &action) : action_(action.wrap()) {}
 
 void ActionLayerTreeView::build_tree()
 {
-  for (int i = 0; i < action_.layer_array_num; i++) {
+  /* Iterating reverse so the layers are ordered to have overwriting layers on top. */
+  for (int i = action_.layer_array_num - 1; i >= 0; i--) {
     Layer *layer = action_.layer(i);
     if (!layer) {
       continue;
