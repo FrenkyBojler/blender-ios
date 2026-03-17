@@ -327,6 +327,16 @@ display_type = 1
 sort_type = 1
 flag = 0
 
+["asset_browser"]
+details_flags = 0
+thumbnail_size = 64
+list_thumbnail_size = 32
+list_column_size = 220
+filter_id = 0
+display_type = 3
+sort_type = 1
+flag = 0
+
 ["temp.window.dimensions"]
 _default = [100.0, 900.0, 200.0, 800.0]
 PREFERENCES = [100.0, 940.0, 350.0, 900.0]

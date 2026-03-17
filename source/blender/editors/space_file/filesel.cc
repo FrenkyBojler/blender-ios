@@ -123,17 +123,17 @@ static void fileselect_ensure_updated_asset_params(SpaceFile *sfile)
   base_params->flag &= ~FILE_DIRSEL_ONLY;
   base_params->filter |= FILE_TYPE_BLENDERLIB;
   base_params->filter_id = FILTER_ID_ALL;
-  base_params->display = FILE_IMGDISPLAY;
+  base_params->display = mem["display_type"];
   base_params->sort = FILE_SORT_ASSET_CATALOG;
   /* No details columns supported for assets (wouldn't contain anything), disable them all. */
-  base_params->details_flags = 0;
+  base_params->details_flags = mem["details_flags"];
   /* Asset libraries include all sub-directories, so enable maximal recursion. */
   base_params->recursion_level = FILE_SELECT_MAX_RECURSIONS;
   /* 'SMALL' size by default. More reasonable since this is typically used as regular editor,
    * space is more of an issue here. */
-  base_params->thumbnail_size = 96;
-  base_params->list_thumbnail_size = 32;
-  base_params->list_column_size = 220;
+  base_params->thumbnail_size = mem["thumbnail_size"];
+  base_params->list_thumbnail_size = mem["list_thumbnail_size"];
+  base_params->list_column_size = mem["list_column_size"];
 
   fileselect_initialize_params_common(sfile, base_params);
 }
@@ -716,6 +716,11 @@ void ED_fileselect_params_to_userdef(SpaceFile *sfile)
     mem["sort_type"] = params->sort;
     /* In this case also remember the invert flag. */
     mem["flag"] = (int16_t(mem["flag"]) & ~FILE_SORT_INVERT) | (params->flag & FILE_SORT_INVERT);
+  }
+
+  if (sfile->browse_mode == FILE_BROWSE_MODE_ASSETS) {
+    mem["list_thumbnail_size"] = params->list_thumbnail_size;
+    mem["list_column_size"] = params->list_column_size;
   }
 }
 
