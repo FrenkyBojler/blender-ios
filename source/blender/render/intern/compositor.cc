@@ -107,6 +107,7 @@ class Context : public compositor::Context {
   {
     output_result_.release();
     viewer_output_result_.release();
+    this->release_cached_passes();
   }
 
   void update_input_data(const ContextInputData &input_data)
