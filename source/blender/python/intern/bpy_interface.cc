@@ -127,10 +127,13 @@ void bpy_context_set(bContext *C, PyGILState_STATE *gilstate)
   }
 
   if (py_call_level == 1) {
-    BLI_assert_msg(C != nullptr, "bpy: Trying to set invalid nullptr context");
     BPY_context_update(C);
 
-    pyrna_context_init(C);
+    /* Context should be available usually, but `BPY_run_string` functions explicitly allow passing
+     * a null context. */
+    if (C != nullptr) {
+      pyrna_context_init(C);
+    }
 
 #ifdef TIME_PY_RUN
     if (bpy_timer_count == 0) {
@@ -163,8 +166,10 @@ void bpy_context_clear(bContext *C, const PyGILState_STATE *gilstate)
     BPY_context_set(nullptr);
 #endif
 
-    BLI_assert_msg(C != nullptr, "bpy: Cannot clear nullptr context");
-    pyrna_context_clear(C);
+    /* See previous comment regarding null check in #bpy_context_set. */
+    if (C != nullptr) {
+      pyrna_context_clear(C);
+    }
 
 #ifdef TIME_PY_RUN
     bpy_timer_run_tot += BLI_time_now_seconds() - bpy_timer_run;

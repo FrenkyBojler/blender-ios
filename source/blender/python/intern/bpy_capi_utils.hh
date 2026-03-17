@@ -47,6 +47,11 @@ bool BPy_errors_to_report(struct ReportList *reports);
 
 struct bContext *BPY_context_get();
 
+/**
+ * Set the global `bpy.context` for Python and make the GIL and environment ready to call into
+ * Python.
+ * \param C: The context to set. In rare cases C can be null.
+ */
 extern void bpy_context_set(struct bContext *C, PyGILState_STATE *gilstate);
 /**
  * Context should be used but not now because it causes some bugs.
