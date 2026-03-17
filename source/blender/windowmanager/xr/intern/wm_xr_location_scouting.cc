@@ -1127,6 +1127,9 @@ static wmOperatorStatus wm_xr_location_scouting_review_captures_invoke(bContext 
   review_data->cam_ob = BKE_id_new_nomain<Object>("ReviewCaptureCamera");
   review_data->cam_ob->type = OB_CAMERA;
 
+  /* Lock rotation to prevent user from exiting the review camera view. Re-using quadview flags. */
+  rv3d->viewlock |= RV3D_LOCK_ROTATION;
+
   review_data->cam_data = BKE_id_new_nomain<Camera>("ReviewCaptureCameraData");
   review_data->cam_ob->data = id_cast<ID *>(review_data->cam_data);
 
@@ -1149,6 +1152,7 @@ static void wm_xr_location_scouting_review_captures_exit(bContext *C, wmOperator
   rv3d->view = rv3d->lview;
   rv3d->view_axis_roll = rv3d->lview_axis_roll;
   rv3d->persp = review_data->prev_view3d_persp;
+  rv3d->viewlock &= ~RV3D_LOCK_ROTATION;
 
   review_data->v3d->camera = review_data->prev_view3d_cam_ob;
 
