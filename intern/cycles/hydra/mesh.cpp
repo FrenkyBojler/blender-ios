@@ -470,13 +470,14 @@ void HdCyclesMesh::PopulateTopology(HdSceneDelegate *sceneDelegate)
     int *subd_ptex_offset = _geom->get_subd_ptex_offset().data();
 
     // TODO: Handle hole indices
+    int ptex_offset = 0;
     size_t faceIndex = 0;
     size_t indexOffset = 0;
     for (const int vertCount : vertCounts) {
-      subd_start_corner[i] = indexOffset;
-      subd_num_corners[i] = vertCount;
-      subd_ptex_offset[i] = ptex_offset;
-      const int num_ptex = (face.size() == 4) ? 1 : face.size();
+      subd_start_corner[faceIndex] = indexOffset;
+      subd_num_corners[faceIndex] = vertCount;
+      subd_ptex_offset[faceIndex] = ptex_offset;
+      const int num_ptex = (vertCount == 4) ? 1 : vertCount;
       ptex_offset += num_ptex;
 
       faceIndex++;
