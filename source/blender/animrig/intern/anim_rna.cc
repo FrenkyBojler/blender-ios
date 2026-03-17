@@ -11,6 +11,7 @@
 #include "ANIM_rna.hh"
 
 #include "BLI_listbase.h"
+#include "BLI_math_base.h"
 #include "BLI_string.h"
 #include "BLI_vector.hh"
 
@@ -120,6 +121,24 @@ std::optional<eRotationModes> get_rotation_mode_from_path(const StringRefNull rn
     return ROT_MODE_AXISANGLE;
   }
   return std::nullopt;
+}
+
+std::optional<eRotationModes> get_rotation_mode_from_rna_pointer(const PointerRNA &ptr)
+{
+  if (ptr.type == RNA_PoseBone) {
+    bPoseChannel *pchan = static_cast<bPoseChannel *>(ptr.data);
+    return eRotationModes(pchan->rotmode);
+  }
+  if (ptr.type == RNA_Object) {
+    Object *ob = static_cast<Object *>(ptr.data);
+    return eRotationModes(ob->rotmode);
+  }
+  return std::nullopt;
+}
+
+bool is_rotation_path(const StringRefNull rna_path)
+{
+  return get_rotation_mode_from_path(rna_path).has_value();
 }
 
 static bool is_idproperty_keyable(const IDProperty *id_prop, PointerRNA *ptr, PropertyRNA *prop)

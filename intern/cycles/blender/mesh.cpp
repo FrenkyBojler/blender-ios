@@ -709,7 +709,7 @@ static void create_mesh(Scene *scene,
       }
     }
     else {
-      /* If only face normals are needed, all faces are sharp. */
+      /* All faces are sharp or smooth. */
       std::fill(smooth, smooth + numtris, normals_domain != blender::bke::MeshNormalDomain::Face);
     }
 
