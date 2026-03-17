@@ -40,6 +40,8 @@ static std::atomic<bool> uimemory_ready{false};
 static std::condition_variable_any uimemory_init_cv;
 static std::once_flag uimemory_init_once;
 
+extern const StringRef default_toml;
+
 static std::string uimemory_file_path()
 {
   std::optional<std::string> datafiles_path = BKE_appdir_folder_id(BLENDER_USER_CONFIG, "");
@@ -308,7 +310,47 @@ template std::vector<float> Section::get<std::vector<float>>(const StringRef ite
 template void Section::set<std::vector<float>>(const StringRef item,
                                                const std::vector<float> &value);
 
-/* Global instance */
+/* Global instance. */
 Memory memory;
+
+/* Defaults. */
+
+const StringRef default_toml = R"_delim_(
+title = "Saved UI State Settings"
+name = "Blender"
+
+["file_browser"]
+details_flags = 3
+thumbnail_size = 96
+filter_id = 0
+display_type = 1
+sort_type = 1
+flag = 0
+
+["temp.window.dimensions"]
+_default = [100.0, 900.0, 200.0, 800.0]
+PREFERENCES = [100.0, 940.0, 350.0, 900.0]
+FILE_BROWSER = [100.0, 1160.0, 350.0, 950.0]
+IMAGE_EDITOR = [50.0, 1360.0, 50.0, 830.0]
+GRAPH_EDITOR = [50.0, 950.0, 200.0, 780.0]
+INFO = [100.0, 1000.0, 300.0, 880.0]
+OUTLINER = [100.0, 550.0, 350.0, 800.0]
+
+["panel.sortorder"]
+_default = -1
+
+["panel.open"]
+_default = true
+
+[show.dialog.info]
+_default = true
+
+[show.dialog.warnings]
+_default = true
+
+[show.dialog.confirmations]
+_default = true
+
+)_delim_";
 
 }  // namespace blender::ui_memory
