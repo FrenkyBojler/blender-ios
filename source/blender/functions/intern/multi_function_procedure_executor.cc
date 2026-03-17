@@ -1161,7 +1161,7 @@ void ProcedureExecutor::call(const IndexMask &full_mask, Params params, Context 
 {
   BLI_assert(procedure_.validate());
 
-  AlignedBuffer<512, 64> local_buffer;
+  AlignedBuffer<2048, 64> local_buffer;
   LinearAllocator<> linear_allocator;
   linear_allocator.provide_buffer(local_buffer);
 
