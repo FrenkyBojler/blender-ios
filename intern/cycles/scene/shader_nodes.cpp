@@ -1480,7 +1480,7 @@ void IESLightNode::get_slot()
       slot = light_manager->add_ies_from_file(filename.string());
     }
     else {
-      slot = light_manager->add_ies(ies.string());
+      slot = light_manager->add_ies(ies.string(), true);
     }
   }
 }
