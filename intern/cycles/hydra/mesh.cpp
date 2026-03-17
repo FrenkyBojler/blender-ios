@@ -485,7 +485,7 @@ void HdCyclesMesh::PopulateTopology(HdSceneDelegate *sceneDelegate)
     }
 
     std::copy_n(faceShaders.data(), faceShaders.size(), _geom->get_subd_shader().data());
-    std::ranges::fill(_geom->get_smooth(), smooth);
+    std::ranges::fill(_geom->get_subd_smooth(), smooth);
 
     _geom->tag_subd_face_corners_modified();
     _geom->tag_subd_start_corner_modified();
