@@ -454,7 +454,8 @@ PassMain::Sub *ForwardPipeline::material_opaque_add(const Object *ob,
 void ForwardPipeline::transparent_add(const ObjectHandle &ob_handle,
                                       blender::Material *blender_mat,
                                       GPUMaterial *gpumat,
-                                      PassSetupCallback setup_cb)
+                                      Vector<PassMain::Sub *> &prepass_subpasses,
+                                      Vector<PassMain::Sub *> &material_subpasses)
 {
   DRWState prepass_state = DRW_STATE_WRITE_DEPTH | DRW_STATE_CLIP_CONTROL_UNIT_RANGE |
                            inst_.film.depth.test_state;
@@ -495,7 +496,7 @@ void ForwardPipeline::transparent_add(const ObjectHandle &ob_handle,
         pass->bind_texture(HIZ_PREVIOUS_LAYER_TEX_SLOT, &inst_.hiz_buffer.back.ref_tx_);
         pass->bind_texture(RADIANCE_PREVIOUS_LAYER_TEX_SLOT, &inst_.render_buffers.combined_tx);
       }
-      setup_cb(*gpumat, *pass);
+      prepass_subpasses.append(pass);
     }
 
     /* Material */
@@ -507,7 +508,7 @@ void ForwardPipeline::transparent_add(const ObjectHandle &ob_handle,
         pass->bind_texture(HIZ_PREVIOUS_LAYER_TEX_SLOT, &inst_.hiz_buffer.back.ref_tx_);
         pass->bind_texture(RADIANCE_PREVIOUS_LAYER_TEX_SLOT, &inst_.render_buffers.combined_tx);
       }
-      setup_cb(*gpumat, *pass);
+      material_subpasses.append(pass);
     }
   }
 }
@@ -1385,7 +1386,8 @@ void VolumePipeline::add(const ObjectHandle &ob_handle,
                          const blender::Material *blender_mat,
                          GPUMaterial *occupancy_gpumat,
                          GPUMaterial *material_gpumat,
-                         PassSetupCallback setup_cb)
+                         Vector<PassMain::Sub *> &occupancy_subpasses,
+                         Vector<PassMain::Sub *> &material_subpasses)
 {
   for (int i : IndexRange(ob_handle.instances_count())) {
     /* TODO(fclem): This is against design. Sync shouldn't depend on view properties (camera). */
@@ -1393,6 +1395,8 @@ void VolumePipeline::add(const ObjectHandle &ob_handle,
     if (math::reduce_max(object_bounds.screen_bounds->size()) < 1e-5) {
       /* WORKAROUND(fclem): Fixes an issue with 0 scaled object (see #132889).
        * Is likely to be an issue somewhere else in the pipeline but it is hard to find. */
+      occupancy_subpasses.append(nullptr);
+      material_subpasses.append(nullptr);
       continue;
     }
 
@@ -1415,10 +1419,10 @@ void VolumePipeline::add(const ObjectHandle &ob_handle,
       instance_layer = layers_[index].get();
     }
 
-    setup_cb(*occupancy_gpumat,
-             *instance_layer->occupancy_add(ob_handle.object, blender_mat, occupancy_gpumat));
-    setup_cb(*material_gpumat,
-             *instance_layer->occupancy_add(ob_handle.object, blender_mat, material_gpumat));
+    occupancy_subpasses.append(
+        instance_layer->occupancy_add(ob_handle.object, blender_mat, occupancy_gpumat));
+    material_subpasses.append(
+        instance_layer->material_add(ob_handle.object, blender_mat, material_gpumat));
   }
 }
 
