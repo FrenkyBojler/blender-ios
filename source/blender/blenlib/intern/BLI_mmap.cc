@@ -425,6 +425,7 @@ BLI_mmap_file *BLI_mmap_open(int fd)
                             0) == nullptr)
     {
       VirtualFree(memory, 0, MEM_RELEASE);
+      BLI_lseek(fd, 0, SEEK_SET);
       CloseHandle(handle);
       return nullptr;
     }
