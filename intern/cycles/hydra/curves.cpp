@@ -210,7 +210,7 @@ void HdCyclesCurves::PopulateTopology(HdSceneDelegate *sceneDelegate)
 
   const VtIntArray vertCounts = topology.GetCurveVertexCounts();
 
-  int *curve_first_key = hair->get_curve_first_key().data();
+  int *curve_first_key = _geom->get_curve_first_key().data();
 
   for (int curve = 0, key = 0; curve < topology.GetNumCurves(); ++curve) {
     // Always reference shader at index zero, which is the primitive material
@@ -219,7 +219,7 @@ void HdCyclesCurves::PopulateTopology(HdSceneDelegate *sceneDelegate)
     key += vertCounts[curve];
   }
 
-  std::ranges::fill(hair->get_curve_shader(), 0);
+  std::ranges::fill(_geom->get_curve_shader(), 0);
 
   _geom->tag_curve_first_key_modified();
   _geom->tag_curve_shader_modified();
