@@ -75,12 +75,10 @@ class NODE_OT_reset_selected(Operator):
         node_active = context.active_node
         node_selected = context.selected_nodes
         node_tree = context.space_data.edit_tree
-        active_node_name = node_active.name if node_active.select else None
         valid_nodes = [n for n in node_selected if not self.ignore_node(n)]
 
         # Create output lists
         selected_node_names = [n.name for n in node_selected]
-        success_names = []
 
         # Reset all valid children in a frame
         node_active_is_frame = False
@@ -109,6 +107,8 @@ class NODE_OT_reset_selected(Operator):
             self.report({'INFO'}, message)
 
         props_to_copy = ("location", "height", "width", "select", "location_absolute", "parent")
+        success_names = []
+        active_node_name = node_active.name if node_active.select else None
 
         # Run through all valid nodes
         for node in valid_nodes:
@@ -125,7 +125,6 @@ class NODE_OT_reset_selected(Operator):
             success_names.append(new_node.name)
 
         if active_node_name is not None:
-            node_tree.nodes[active_node_name].select = True
             node_tree.nodes.active = node_tree.nodes[active_node_name]
 
         message = rpt_("Successfully reset {}").format(", ".join(success_names))
