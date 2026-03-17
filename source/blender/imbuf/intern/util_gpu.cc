@@ -386,8 +386,13 @@ gpu::Texture *IMB_create_gpu_texture(const char *name,
   bool freebuf = false;
 
   /* Create Texture. Specify read usage to allow both shader and host reads, the latter is needed
-   * by the GPU compositor. */
-  const eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_HOST_READ;
+   * by the GPU compositor. Format view is needed to generate mipmaps of SRGB textures. */
+  const eGPUTextureUsage usage =
+      GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_HOST_READ |
+      (ELEM(tex_format, gpu::TextureFormat::SRGBA_8_8_8_8, gpu::TextureFormat::SRGBA_8_8_8) ?
+           GPU_TEXTURE_USAGE_FORMAT_VIEW :
+           eGPUTextureUsage(0));
+
   tex = GPU_texture_create_2d(name, UNPACK2(size), 9999, tex_format, usage, nullptr);
   if (tex == nullptr) {
     size[0] = max_ii(1, size[0] / 2);

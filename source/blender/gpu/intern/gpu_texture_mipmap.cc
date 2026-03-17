@@ -6,7 +6,6 @@
  * \ingroup gpu
  */
 
-#include "BLI_hash_tables.hh"
 #include "BLI_index_range.hh"
 
 #include "GPU_compute.hh"
