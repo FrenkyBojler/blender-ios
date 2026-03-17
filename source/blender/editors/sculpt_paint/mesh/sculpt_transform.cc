@@ -12,6 +12,7 @@
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
+#include "BLI_math_quaternion.hh"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
@@ -90,22 +91,20 @@ static std::array<float4x4, 8> transform_matrices_init(const Object &ob,
 {
   std::array<float4x4, 8> mats;
 
-  float3 d_s;
-  float d_r[4];
-  float t_mat[4][4], r_mat[4][4], s_mat[4][4], pivot_mat[4][4], pivot_imat[4][4],
-      transform_mat[4][4];
+  float3 d_s, start_pivot_pos, start_pivot_scale;
+  float4 d_r, start_pivot_rot;
+  float4x4 t_mat, r_mat, s_mat, pivot_mat, pivot_imat, transform_mat;
 
-  float start_pivot_pos[3], start_pivot_rot[4], start_pivot_scale[3];
   switch (t_mode) {
     case TransformDisplacementMode::Original:
-      copy_v3_v3(start_pivot_pos, ss.init_pivot_pos);
-      copy_v4_v4(start_pivot_rot, ss.init_pivot_rot);
-      copy_v3_v3(start_pivot_scale, ss.init_pivot_scale);
+      start_pivot_pos = ss.init_pivot_pos;
+      start_pivot_rot = ss.init_pivot_rot;
+      start_pivot_scale = ss.init_pivot_scale;
       break;
     case TransformDisplacementMode::Incremental:
-      copy_v3_v3(start_pivot_pos, ss.prev_pivot_pos);
-      copy_v4_v4(start_pivot_rot, ss.prev_pivot_rot);
-      copy_v3_v3(start_pivot_scale, ss.prev_pivot_scale);
+      start_pivot_pos = ss.prev_pivot_pos;
+      start_pivot_rot = ss.prev_pivot_rot;
+      start_pivot_scale = ss.prev_pivot_scale;
       break;
   }
   const float4x4 &ob_to_world = ob.object_to_world();
@@ -123,39 +122,38 @@ static std::array<float4x4, 8> transform_matrices_init(const Object &ob,
     const float3 final_pivot_world = math::transform_point(ob_to_world, final_pivot_pos);
     const float3 start_pivot_world = math::transform_point(ob_to_world, start_pivot_local);
 
-    unit_m4(pivot_mat);
-
-    unit_m4(t_mat);
-    unit_m4(r_mat);
-    unit_m4(s_mat);
-
     /* Translation matrix. */
     const float3 d_t_world = final_pivot_world - start_pivot_world;
-    translate_m4(t_mat, d_t_world.x, d_t_world.y, d_t_world.z);
+    t_mat = blender::math::from_location<float4x4>(d_t_world);
 
     /* Rotation matrix. */
-    sub_qt_qtqt(d_r, ss.pivot_rot, start_pivot_rot);
-    normalize_qt(d_r);
+    blender::math::Quaternion q_pivot(ss.pivot_rot);
+    blender::math::Quaternion q_start(start_pivot_rot);
+
+    blender::math::Quaternion q_diff = q_pivot * blender::math::invert_normalized(q_start);
+    q_diff = blender::math::normalize(q_diff);
+    d_r = float4(q_diff);
+
     SCULPT_flip_quat_by_symm_area(d_r, symm, v_symm, ss.init_pivot_pos);
-    quat_to_mat4(r_mat, d_r);
+    r_mat = blender::math::from_rotation<float4x4>(blender::math::Quaternion(d_r));
 
     /* Scale matrix. */
-    sub_v3_v3v3(d_s, ss.pivot_scale, start_pivot_scale);
-    add_v3_fl(d_s, 1.0f);
-    size_to_mat4(s_mat, d_s);
+    d_s = ss.pivot_scale - start_pivot_scale;
+    d_s += 1.0f;
+    s_mat = blender::math::from_scale<float4x4>(d_s);
 
     /* Pivot matrix. */
-    translate_m4(pivot_mat, final_pivot_world.x, final_pivot_world.y, final_pivot_world.z);
-    invert_m4_m4(pivot_imat, pivot_mat);
+    pivot_mat = blender::math::from_location<float4x4>(final_pivot_world);
+    pivot_imat = blender::math::invert(pivot_mat);
 
     /* Final transform matrix. */
-    mul_m4_m4m4(transform_mat, r_mat, t_mat);
-    mul_m4_m4m4(transform_mat, transform_mat, s_mat);
-    mul_m4_m4m4(mats[i].ptr(), transform_mat, pivot_imat);
-    mul_m4_m4m4(mats[i].ptr(), pivot_mat, mats[i].ptr());
-    float temp[4][4];
-    mul_m4_m4m4(temp, mats[i].ptr(), ob_to_world.ptr());
-    mul_m4_m4m4(mats[i].ptr(), world_to_ob.ptr(), temp);
+    transform_mat = r_mat * t_mat;
+    transform_mat *= s_mat;
+    mats[i] = transform_mat * pivot_imat;
+    mats[i] = pivot_mat * mats[i];
+    float4x4 temp;
+    temp = mats[i] * ob_to_world;
+    mats[i] = world_to_ob * temp;
   }
 
   return mats;
@@ -590,10 +588,9 @@ void update_modal_transform(bContext *C, Object &ob)
       break;
     }
   }
-
-  copy_v3_v3(ss.prev_pivot_pos, ss.pivot_pos);
-  copy_v4_v4(ss.prev_pivot_rot, ss.pivot_rot);
-  copy_v3_v3(ss.prev_pivot_scale, ss.pivot_scale);
+  ss.prev_pivot_pos = ss.pivot_pos;
+  ss.prev_pivot_rot = ss.pivot_rot;
+  ss.prev_pivot_scale = ss.pivot_scale;
 
   flush_update_step(C, UpdateType::Position);
 }
