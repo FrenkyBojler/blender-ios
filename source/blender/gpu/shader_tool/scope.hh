@@ -16,12 +16,10 @@
 
 namespace blender::gpu::shader::parser {
 
-struct Tree;
-struct TreeParser;
+struct ScopeParser;
 
 struct Scope {
-  friend Tree;
-  friend TreeParser;
+  friend ScopeParser;
 
  private:
 #ifndef NDEBUG

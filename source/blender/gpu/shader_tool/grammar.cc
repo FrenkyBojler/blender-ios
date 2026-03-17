@@ -5,143 +5,72 @@
 /** \file
  * \ingroup shader_tool
  *
+ * Grammar parsing and AST building of shader sources.
+ * This need to be flexible enough to take as input MSL, GLSL, BSL and our intermediate macro heavy
+ * language.
  */
 
 #include "scope.hh"
 #include "token.hh"
 #include "token_stream.hh"
 
-/* TODO:
- * - Scope output
- * - variable decl
- * - Preprocessor
- */
-
 namespace blender::gpu::shader::parser {
 
-struct ErrorLog {
-  std::vector<std::pair<Token, std::string>> errors;
+#define EXPRESSION_TOKENS \
+  Ampersand: \
+  case BitwiseNot: \
+  case Colon: \
+  case Decrement: \
+  case Divide: \
+  case Dot: \
+  case Equal: \
+  case GEqual: \
+  case GThan: \
+  case Increment: \
+  case LEqual: \
+  case LogicalAnd: \
+  case LogicalOr: \
+  case LThan: \
+  case Minus: \
+  case Modulo: \
+  case Multiply: \
+  case Not: \
+  case NotEqual: \
+  case Or: \
+  case Plus: \
+  case Question: \
+  case Xor
 
-  void error(Token tok, const std::string &str)
-  {
-    std::string err;
-    //     err = "filename:";
-    //     err += std::to_string(tok.line_number()) + ':';
-    //     err += std::to_string(tok.char_number()) + ':';
-    err += " error: ";
-    err += str;
-    //     err += '\n';
-    //     err += tok.line_str();
-    //     err += '\n';
-    //     err += std::string(tok.char_number(), ' ') + '^';
-    //     err += '\n';
-    //     std::cerr << err << std::endl;
-    errors.emplace_back(tok, err);
-  }
-};
-
-struct Tree {
-  using Node = Scope;
-  ParserBase &parser;
-  Tree(ParserBase &parser) : parser(parser) {}
-
-  Node curr = Node(parser);
-
-  void open_scope(Token tok, ScopeType type)
-  {
-    int index = parser.scope_types.size();
-    parser.scope_types.emplace_back(type);
-    parser.scope_ranges.emplace_back(tok.index_, 1);
-
-    ScopeLinks &links = parser.scope_links.emplace_back();
-    links.parent_ = curr.index_;
-    if (links.parent_ != -1) {
-      ScopeLinks &parent_links = parser.scope_links[links.parent_];
-      if (parent_links.child_first_ == -1) {
-        parent_links.child_first_ = index;
-      }
-      links.prev_ = parent_links.child_last_;
-      parent_links.child_last_ = index;
-    }
-    if (links.prev_ != -1) {
-      parser.scope_links[links.prev_].next_ = index;
-    }
-
-    curr = Node(parser, index);
-  }
-
-  void close_scope(Token tok, ScopeType type)
-  {
-    if (curr.type() == type) {
-      IndexRange &range = parser.scope_ranges[curr.index_];
-      range.size = tok.index_ - range.start + 1;
-      curr = curr.parent();
-    }
-  }
-};
-
+/*
+ * Simple Recursive Descent Parser that creates AST nodes.
+ * For now, the AST nodes are just ranges of token (called Scopes) with a specific semantic
+ * attached.
+ *
+ * Since shader code transformations are happening on code still contains macros and preprocessor
+ * directives, this parser need to be much less pedantic regarding the target syntax.
+ */
 struct ScopeParser {
   Token curr;
 
   ParserBase &parser;
-  Tree tree;
-  ErrorLog log;
 
-  ScopeParser(ParserBase &parser, Token tok) : curr(tok), parser(parser), tree(parser) {}
+  using Node = Scope;
+  Node curr_node = Node(parser);
 
-  TokenType peek() const
-  {
-    return curr.type();
-  }
+  std::string error_str;
+  Token error_tok;
 
-  void error(const std::string &str)
-  {
-    log.error(curr, str);
-    next();
-  }
-
-  void match(char expected)
-  {
-    if (curr != TokenType(expected)) {
-      error(std::string("Syntax Error: Expected token type ") + expected + " but got " +
-            char(curr.type()));
-    }
-    curr = curr.next();
-  }
-
-  void match(char expected, char expected2)
-  {
-    if (curr != TokenType(expected) && curr != TokenType(expected2)) {
-      error(std::string("Syntax Error: Expected token type ") + expected + " or " + expected +
-            " but got " + char(curr.type()));
-    }
-    curr = curr.next();
-  }
-
-  /* Only go to next token if matching an optional token. */
-  bool match_if(char expected)
-  {
-    if (curr == TokenType(expected)) {
-      curr = curr.next();
-      return true;
-    }
-    return false;
-  }
-
-  Token next()
-  {
-    return curr = curr.next();
-  }
+  ScopeParser(ParserBase &parser, Token tok) : curr(tok), parser(parser), error_tok(parser) {}
 
   void translation_unit()
   {
-    tree.open_scope(curr, ScopeType::Global);
+    open_scope(curr, ScopeType::Global);
     /* Skip first whitespace token if it exists. */
     if (peek() == NewLine || peek() == Space) {
-      curr = curr.next();
+      next();
     }
     external_declaration();
-    tree.close_scope(parser.back(), ScopeType::Global);
+    close_scope(parser.back(), ScopeType::Global);
     match(EndOfFile);
   }
 
@@ -238,10 +167,10 @@ struct ScopeParser {
     if (peek() == lexit::TemplateOpen) {
       template_argument_list();
     }
-    tree.open_scope(curr, ScopeType::Struct);
+    open_scope(curr, ScopeType::Struct);
     match('{');
     member_declaration();
-    tree.close_scope(curr, ScopeType::Struct);
+    close_scope(curr, ScopeType::Struct);
     match('}');
   }
 
@@ -327,10 +256,10 @@ struct ScopeParser {
       match(Word);
     }
 
-    tree.open_scope(curr, ScopeType::Local);
+    open_scope(curr, ScopeType::Local);
     match('{');
     enum_values();
-    tree.close_scope(curr, ScopeType::Local);
+    close_scope(curr, ScopeType::Local);
     match('}');
   }
 
@@ -365,10 +294,10 @@ struct ScopeParser {
   void union_declaration()
   {
     match(Union);
-    tree.open_scope(curr, ScopeType::Local);
+    open_scope(curr, ScopeType::Local);
     match('{');
     member_declaration();
-    tree.close_scope(curr, ScopeType::Local);
+    close_scope(curr, ScopeType::Local);
     match('}');
   }
 
@@ -396,7 +325,7 @@ struct ScopeParser {
 
   void template_argument_list()
   {
-    tree.open_scope(curr, ScopeType::Template);
+    open_scope(curr, ScopeType::Template);
     match(TemplateOpen);
 
     bool in_argument = false;
@@ -411,15 +340,15 @@ struct ScopeParser {
         case TemplateClose:
           if (in_argument) {
             in_argument = false;
-            tree.close_scope(curr.prev(), ScopeType::TemplateArg);
+            close_scope(curr.prev(), ScopeType::TemplateArg);
           }
-          tree.close_scope(curr, ScopeType::Template);
+          close_scope(curr, ScopeType::Template);
           match(TemplateClose);
           return;
         case Comma:
           if (in_argument) {
             in_argument = false;
-            tree.close_scope(curr.prev(), ScopeType::TemplateArg);
+            close_scope(curr.prev(), ScopeType::TemplateArg);
           }
           next();
           break;
@@ -448,7 +377,7 @@ struct ScopeParser {
         case Word:
         case Number:
           if (!in_argument) {
-            tree.open_scope(curr, ScopeType::TemplateArg);
+            open_scope(curr, ScopeType::TemplateArg);
             in_argument = true;
           }
           next();
@@ -479,7 +408,7 @@ struct ScopeParser {
 
   void assignment()
   {
-    tree.open_scope(curr, ScopeType::Assignment);
+    open_scope(curr, ScopeType::Assignment);
     match('=');
 
     while (true) {
@@ -503,7 +432,7 @@ struct ScopeParser {
           local_scope(ScopeType::Local);
           break;
         case Assign:
-          tree.close_scope(curr.prev(), ScopeType::Assignment);
+          close_scope(curr.prev(), ScopeType::Assignment);
           assignment();
           return;
         case ParClose:
@@ -511,32 +440,12 @@ struct ScopeParser {
         case TemplateClose:
         case Comma:
         case SemiColon:
-        case Equal:
-          tree.close_scope(curr.prev(), ScopeType::Assignment);
+          close_scope(curr.prev(), ScopeType::Assignment);
           return;
         case This:
-        case Minus:
-        case Plus:
-        case Dot:
-        case Multiply:
-        case Colon:
-        case Question:
-        case Ampersand:
         case Word:
         case Number:
-        case Divide:
-        case LogicalAnd:
-        case LogicalOr:
-        case GThan:
-        case LThan:
-        case GEqual:
-        case LEqual:
-        case Not:
-        case NotEqual:
-        case Modulo:
-        case BitwiseNot:
-        case Or:
-        case Xor:
+        case EXPRESSION_TOKENS:
           next();
           break;
         default:
@@ -548,7 +457,7 @@ struct ScopeParser {
 
   void local_scope(ScopeType type)
   {
-    tree.open_scope(curr, type);
+    open_scope(curr, type);
     match('{');
 
     while (true) {
@@ -566,7 +475,7 @@ struct ScopeParser {
           local_scope(ScopeType::Local);
           break;
         case BracketClose:
-          tree.close_scope(curr, type);
+          close_scope(curr, type);
           match('}');
           return;
         case ParOpen:
@@ -608,30 +517,9 @@ struct ScopeParser {
         case Continue:
         case Return:
         case SemiColon:
-        case Minus:
-        case Equal:
-        case Plus:
-        case Dot:
-        case Colon:
-        case Question:
-        case Ampersand:
         case Word:
-        case Star:
-        case Divide:
-        case LogicalAnd:
-        case LogicalOr:
-        case GThan:
-        case LThan:
-        case GEqual:
-        case LEqual:
-        case Not:
-        case NotEqual:
-        case BitwiseNot:
-        case Or:
-        case Xor:
-        case Increment:
-        case Decrement:
         case Number:
+        case EXPRESSION_TOKENS:
           next();
           break;
         default:
@@ -664,7 +552,7 @@ struct ScopeParser {
 
   void condition(int arg_needed, ScopeType type)
   {
-    tree.open_scope(curr, type);
+    open_scope(curr, type);
     match('(');
 
     int arg_count = 0;
@@ -677,7 +565,7 @@ struct ScopeParser {
         case ParOpen:
           if (!in_argument) {
             if (type == ScopeType::LoopArgs) {
-              tree.open_scope(curr, ScopeType::LoopArg);
+              open_scope(curr, ScopeType::LoopArg);
             }
             in_argument = true;
           }
@@ -688,10 +576,10 @@ struct ScopeParser {
             in_argument = false;
             ++arg_count;
             if (type == ScopeType::LoopArgs) {
-              tree.close_scope(curr.prev(), ScopeType::LoopArg);
+              close_scope(curr.prev(), ScopeType::LoopArg);
             }
           }
-          tree.close_scope(curr, type);
+          close_scope(curr, type);
           if (arg_count < arg_needed) {
             /* Error about missing semicolon. */
             error("Missing loop or conditional statement");
@@ -707,43 +595,22 @@ struct ScopeParser {
           ++arg_count;
           if (in_argument && type == ScopeType::LoopArgs) {
             in_argument = false;
-            tree.close_scope(curr.prev(), ScopeType::LoopArg);
+            close_scope(curr.prev(), ScopeType::LoopArg);
           }
           next();
           break;
         case SquareOpen:
           subscript();
           break;
-        case This:
         case Comma:
-        case Colon:
-        case Dot:
-        case Assign:
-        case Equal:
-        case Increment:
-        case Decrement:
-        case LEqual:
-        case GEqual:
-        case NotEqual:
-        case Not:
+        case This:
         case Word:
-        case Multiply:
-        case And:
-        case Or:
-        case Xor:
-        case GThan:
-        case LThan:
-        case BitwiseNot:
-        case Minus:
-        case Plus:
-        case Modulo:
-        case Divide:
-        case LogicalAnd:
-        case LogicalOr:
         case Number:
+        case Assign: /* Because LEqual and GEqual might not be parsed. */
+        case EXPRESSION_TOKENS:
           if (!in_argument) {
             if (type == ScopeType::LoopArgs) {
-              tree.open_scope(curr, ScopeType::LoopArg);
+              open_scope(curr, ScopeType::LoopArg);
             }
             in_argument = true;
           }
@@ -758,7 +625,7 @@ struct ScopeParser {
 
   void function_argument_list()
   {
-    tree.open_scope(curr, ScopeType::FunctionArgs);
+    open_scope(curr, ScopeType::FunctionArgs);
     match('(');
 
     bool in_argument = false;
@@ -772,7 +639,7 @@ struct ScopeParser {
             /* This could be enabled once we get rid of all global level macros. */
             // /* Expecting at least a type before a function call. */
             // match(Word);
-            tree.open_scope(curr, ScopeType::FunctionArg);
+            open_scope(curr, ScopeType::FunctionArg);
             in_argument = true;
           }
           function_call_or_local_parenthesis();
@@ -791,21 +658,21 @@ struct ScopeParser {
         case ParClose:
           if (in_argument) {
             in_argument = false;
-            tree.close_scope(curr.prev(), ScopeType::FunctionArg);
+            close_scope(curr.prev(), ScopeType::FunctionArg);
           }
-          tree.close_scope(curr, ScopeType::FunctionArgs);
+          close_scope(curr, ScopeType::FunctionArgs);
           match(')');
           return;
         case Comma:
           if (in_argument) {
             in_argument = false;
-            tree.close_scope(curr.prev(), ScopeType::FunctionArg);
+            close_scope(curr.prev(), ScopeType::FunctionArg);
           }
           next();
           break;
         case SquareOpen:
           if (!in_argument) {
-            tree.open_scope(curr, ScopeType::FunctionArg);
+            open_scope(curr, ScopeType::FunctionArg);
             in_argument = true;
           }
           attribute_or_subscript();
@@ -835,7 +702,7 @@ struct ScopeParser {
         case Ampersand:
         case Colon:
           if (!in_argument) {
-            tree.open_scope(curr, ScopeType::FunctionArg);
+            open_scope(curr, ScopeType::FunctionArg);
             in_argument = true;
           }
           next();
@@ -860,7 +727,7 @@ struct ScopeParser {
 
   void local_parenthesis()
   {
-    tree.open_scope(curr, ScopeType::Local);
+    open_scope(curr, ScopeType::Local);
     match('(');
 
     while (true) {
@@ -872,38 +739,19 @@ struct ScopeParser {
           function_call_or_local_parenthesis();
           break;
         case ParClose:
-          tree.close_scope(curr, ScopeType::Local);
+          close_scope(curr, ScopeType::Local);
           match(')');
           return;
         case SquareOpen:
           subscript();
           break;
         case This:
-        case Equal:
         case Comma:
-        case Minus:
-        case Plus:
         case Number:
         case Word:
-        case Dot:
-        case Colon:
-        case Question:
-        case Ampersand:
-        case Star:
-        case Divide:
-        case LogicalAnd:
-        case LogicalOr:
-        case Or:
-        case Xor:
-        case GThan:
-        case LThan:
-        case GEqual:
-        case LEqual:
-        case Not:
-        case NotEqual:
-        case BitwiseNot:
+        case String:
         case Assign: /* Because LEqual and GEqual might not be parsed. */
-        case Modulo:
+        case EXPRESSION_TOKENS:
           next();
           break;
         default:
@@ -915,7 +763,7 @@ struct ScopeParser {
 
   void function_call()
   {
-    tree.open_scope(curr, ScopeType::FunctionCall);
+    open_scope(curr, ScopeType::FunctionCall);
     match('(');
 
     bool in_argument = false;
@@ -926,7 +774,7 @@ struct ScopeParser {
           break;
         case ParOpen:
           if (!in_argument) {
-            tree.open_scope(curr, ScopeType::FunctionParam);
+            open_scope(curr, ScopeType::FunctionParam);
             in_argument = true;
           }
           function_call_or_local_parenthesis();
@@ -934,9 +782,9 @@ struct ScopeParser {
         case ParClose:
           if (in_argument) {
             in_argument = false;
-            tree.close_scope(curr.prev(), ScopeType::FunctionParam);
+            close_scope(curr.prev(), ScopeType::FunctionParam);
           }
-          tree.close_scope(curr, ScopeType::FunctionCall);
+          close_scope(curr, ScopeType::FunctionCall);
           match(')');
           return;
         case Template:
@@ -951,41 +799,21 @@ struct ScopeParser {
         case Comma:
           if (in_argument) {
             in_argument = false;
-            tree.close_scope(curr.prev(), ScopeType::FunctionParam);
+            close_scope(curr.prev(), ScopeType::FunctionParam);
           }
           next();
           break;
         case SquareOpen:
           subscript();
           break;
-        case String:
-        case This:
-        case Minus:
-        case Plus:
         case Number:
         case Word:
-        case Dot:
-        case Colon:
-        case Question:
-        case Ampersand:
-        case Star:
-        case Divide:
-        case LogicalAnd:
-        case Or:
-        case Xor:
-        case LogicalOr:
-        case Not:
-        case LEqual:
-        case GEqual:
-        case GThan:
+        case String:
+        case This:
         case Assign: /* Because LEqual and GEqual might not be parsed. */
-        case Equal:
-        case LThan:
-        case NotEqual:
-        case Modulo:
-        case BitwiseNot:
+        case EXPRESSION_TOKENS:
           if (!in_argument) {
-            tree.open_scope(curr, ScopeType::FunctionParam);
+            open_scope(curr, ScopeType::FunctionParam);
             in_argument = true;
           }
           next();
@@ -1009,7 +837,7 @@ struct ScopeParser {
 
   void subscript()
   {
-    tree.open_scope(curr, ScopeType::Subscript);
+    open_scope(curr, ScopeType::Subscript);
     match('[');
 
     while (true) {
@@ -1024,31 +852,14 @@ struct ScopeParser {
           subscript();
           break;
         case SquareClose:
-          tree.close_scope(curr, ScopeType::Subscript);
+          close_scope(curr, ScopeType::Subscript);
           match(']');
           return;
-        case Minus:
-        case Plus:
-        case Dot:
-        case Multiply:
-        case Colon:
-        case Question:
-        case Ampersand:
-        case Word:
         case Number:
-        case Divide:
-        case LogicalAnd:
-        case LogicalOr:
-        case GThan:
-        case LThan:
-        case GEqual:
-        case LEqual:
-        case Not:
-        case NotEqual:
-        case Modulo:
-        case BitwiseNot:
-        case Or:
-        case Xor:
+        case Word:
+        case This:
+        case Assign: /* Because LEqual and GEqual might not be parsed. */
+        case EXPRESSION_TOKENS:
           next();
           break;
         default:
@@ -1060,9 +871,9 @@ struct ScopeParser {
 
   void attribute()
   {
-    tree.open_scope(curr, ScopeType::Subscript);
+    open_scope(curr, ScopeType::Subscript);
     match('[');
-    tree.open_scope(curr, ScopeType::Attributes);
+    open_scope(curr, ScopeType::Attributes);
     match('[');
 
     bool in_attribute = false;
@@ -1071,11 +882,11 @@ struct ScopeParser {
         case SquareClose:
           if (in_attribute) {
             in_attribute = false;
-            tree.close_scope(curr.prev(), ScopeType::Attribute);
+            close_scope(curr.prev(), ScopeType::Attribute);
           }
-          tree.close_scope(curr, ScopeType::Attributes);
+          close_scope(curr, ScopeType::Attributes);
           match(']');
-          tree.close_scope(curr, ScopeType::Subscript);
+          close_scope(curr, ScopeType::Subscript);
           match(']');
           /* Attributes can be chained. */
           if (peek() == '[') {
@@ -1088,13 +899,13 @@ struct ScopeParser {
         case Comma:
           if (in_attribute) {
             in_attribute = false;
-            tree.close_scope(curr.prev(), ScopeType::Attribute);
+            close_scope(curr.prev(), ScopeType::Attribute);
           }
           next();
           break;
         case Word:
           if (!in_attribute) {
-            tree.open_scope(curr, ScopeType::Attribute);
+            open_scope(curr, ScopeType::Attribute);
             in_attribute = true;
           }
           next();
@@ -1111,10 +922,10 @@ struct ScopeParser {
   {
     match(Namespace);
     qualified_id();
-    tree.open_scope(curr, ScopeType::Namespace);
+    open_scope(curr, ScopeType::Namespace);
     match('{');
     external_declaration();
-    tree.close_scope(curr, ScopeType::Namespace);
+    close_scope(curr, ScopeType::Namespace);
     match('}');
   }
 
@@ -1133,7 +944,7 @@ struct ScopeParser {
   void preprocessor()
   {
     const LexerBase &lex = parser;
-    tree.open_scope(curr, ScopeType::Preprocessor);
+    open_scope(curr, ScopeType::Preprocessor);
 
     int tok_id = curr.index_;
     while (true) {
@@ -1155,9 +966,123 @@ struct ScopeParser {
       tok_id++;
     }
     curr = lex[tok_id];
-    tree.close_scope(curr, ScopeType::Preprocessor);
+    close_scope(curr, ScopeType::Preprocessor);
     next();
   }
+
+ private:
+  void open_scope(Token tok, ScopeType type)
+  {
+    int index = parser.scope_types.size();
+    parser.scope_types.emplace_back(type);
+    parser.scope_ranges.emplace_back(tok.index_, 1);
+
+    ScopeLinks &links = parser.scope_links.emplace_back();
+    links.parent_ = curr_node.index_;
+    if (links.parent_ != -1) {
+      ScopeLinks &parent_links = parser.scope_links[links.parent_];
+      if (parent_links.child_first_ == -1) {
+        parent_links.child_first_ = index;
+      }
+      links.prev_ = parent_links.child_last_;
+      parent_links.child_last_ = index;
+    }
+    if (links.prev_ != -1) {
+      parser.scope_links[links.prev_].next_ = index;
+    }
+
+    curr_node = Node(parser, index);
+  }
+
+  void close_scope(Token tok, ScopeType type)
+  {
+    if (curr_node.type() == type) {
+      IndexRange &range = parser.scope_ranges[curr_node.index_];
+      range.size = tok.index_ - range.start + 1;
+      curr_node = curr_node.parent();
+    }
+  }
+
+  TokenType peek() const
+  {
+    return curr.type();
+  }
+
+  void error(const std::string &str)
+  {
+    /* Only emit one .
+     */
+    if (error_str.empty()) {
+      error_str = str;
+      error_tok = curr;
+    }
+    next();
+  }
+
+  void match(char expected)
+  {
+    if (curr != TokenType(expected)) {
+      error(std::string("Syntax Error: Expected token type ") + expected + " but got " +
+            char(curr.type()));
+    }
+    next();
+  }
+
+  void match(char expected, char expected2)
+  {
+    if (curr != TokenType(expected) && curr != TokenType(expected2)) {
+      error(std::string("Syntax Error: Expected token type ") + expected + " or " + expected +
+            " but got " + char(curr.type()));
+    }
+    next();
+  }
+
+  /* Only go to next token if matching an optional token. */
+  bool match_if(char expected)
+  {
+    if (curr == TokenType(expected)) {
+      next();
+      return true;
+    }
+    return false;
+  }
+
+  Token next()
+  {
+    return curr = curr.next();
+  }
 };
+
+void ParserBase::build_scope_tree(report_callback &report_error)
+{
+  LexerBase &lex = *this;
+
+  lex.identify_template_tokens();
+
+  scope_types.clear();
+  scope_ranges.clear();
+  scope_links.clear();
+
+  size_t predicted_scope_count = lex.size() / 2;
+  scope_types.reserve(predicted_scope_count);
+  scope_ranges.reserve(predicted_scope_count);
+  scope_links.reserve(predicted_scope_count);
+
+  ScopeParser p(*this, lex[0]);
+  p.translation_unit();
+
+  lex.reset_template_tokens();
+
+  if (!p.error_str.empty()) {
+    report_error(p.error_tok.line_number(),
+                 p.error_tok.char_number(),
+                 p.error_tok.line_str(),
+                 p.error_str.c_str());
+    /* Avoid out of bound access for the rest of the processing. Empty everything. */
+    scope_types = {ScopeType::Global};
+    scope_ranges = {IndexRange(0, 0)};
+  }
+  update_string_view();
+}
 
 }  // namespace blender::gpu::shader::parser
