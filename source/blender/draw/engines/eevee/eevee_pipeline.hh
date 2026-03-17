@@ -210,11 +210,12 @@ class ForwardPipeline {
                                      blender::Material *blender_mat,
                                      GPUMaterial *gpumat);
 
-  void transparent_add(const ObjectHandle &ob_handle,
+  void transparent_add(const Object *ob,
+                       const float3 &ob_location,
                        blender::Material *blender_mat,
                        GPUMaterial *gpumat,
-                       Vector<PassMain::Sub *> &prepass_subpasses,
-                       Vector<PassMain::Sub *> &material_subpasses);
+                       PassMain::Sub *&r_prepass_subpass,
+                       PassMain::Sub *&r_material_subpass);
 
   bool use_colored_transparency() const;
 
@@ -544,12 +545,7 @@ class VolumePipeline {
   void sync();
   void render(View &view, Texture &occupancy_tx);
 
-  void add(const ObjectHandle &ob_handle,
-           const blender::Material *blender_mat,
-           GPUMaterial *occupancy_gpumat,
-           GPUMaterial *material_gpumat,
-           Vector<PassMain::Sub *> &occupancy_subpasses,
-           Vector<PassMain::Sub *> &material_subpasses);
+  VolumeLayer *register_and_get_layer(const VolumeObjectBounds &object_bounds);
 
   std::optional<Bounds<float>> object_integration_range() const;
 

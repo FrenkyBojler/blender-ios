@@ -295,10 +295,8 @@ MaterialPass MaterialModule::material_pass_get(Object *ob,
 
 Material &MaterialModule::material_sync(const ObjectHandle &ob_handle,
                                         blender::Material *blender_mat,
-                                        SubPassArrays &sub_pass_arrays,
                                         eMaterialGeometry geometry_type,
-                                        bool has_motion,
-                                        bool use_subpass_arrays)
+                                        bool has_motion)
 {
   Object *ob = ob_handle.object;
   bool hide_on_camera = ob->visibility_flag & OB_HIDE_CAMERA;
@@ -314,21 +312,6 @@ Material &MaterialModule::material_sync(const ObjectHandle &ob_handle,
           ob, blender_mat, MAT_PIPE_VOLUME_MATERIAL, MAT_GEOM_VOLUME);
       return mat;
     });
-
-    /* Volume needs to use one sub pass per object to support layering. */
-    inst_.pipelines.volume.add(ob_handle,
-                               blender_mat,
-                               mat.volume_occupancy.gpumat,
-                               mat.volume_material.gpumat,
-                               sub_pass_arrays.volume_occupancy_sub_passes,
-                               sub_pass_arrays.volume_material_sub_passes);
-
-    BLI_assert(!use_subpass_arrays);
-    BLI_assert(sub_pass_arrays.volume_occupancy_sub_passes.size() == 1);
-    mat.volume_occupancy.sub_pass = sub_pass_arrays.volume_occupancy_sub_passes.first();
-    BLI_assert(sub_pass_arrays.volume_material_sub_passes.size() == 1);
-    mat.volume_material.sub_pass = sub_pass_arrays.volume_material_sub_passes.first();
-
     return mat;
   }
 
@@ -359,7 +342,6 @@ Material &MaterialModule::material_sync(const ObjectHandle &ob_handle,
       mat.has_surface = GPU_material_has_surface_output(mat.shading.gpumat);
     }
     else {
-      /* Order is important for transparent. */
       if (!hide_on_camera) {
         mat.prepass = material_pass_get(ob, blender_mat, prepass_pipe, geometry_type);
       }
@@ -410,40 +392,6 @@ Material &MaterialModule::material_sync(const ObjectHandle &ob_handle,
     return mat;
   });
 
-  if (mat.is_alpha_blend_transparent && !hide_on_camera) {
-    inst_.pipelines.forward.transparent_add(ob_handle,
-                                            blender_mat,
-                                            mat.shading.gpumat,
-                                            sub_pass_arrays.overlap_masking_sub_passes,
-                                            sub_pass_arrays.shading_blend_transparent_sub_passes);
-
-    if (!use_subpass_arrays && !sub_pass_arrays.overlap_masking_sub_passes.is_empty()) {
-      BLI_assert(sub_pass_arrays.overlap_masking_sub_passes.size() == 1);
-      mat.overlap_masking.sub_pass = sub_pass_arrays.overlap_masking_sub_passes.first();
-    }
-
-    if (!use_subpass_arrays) {
-      BLI_assert(sub_pass_arrays.shading_blend_transparent_sub_passes.size() == 1);
-      mat.shading.sub_pass = sub_pass_arrays.shading_blend_transparent_sub_passes.first();
-    }
-  }
-
-  if (mat.has_volume && !hide_on_camera) {
-    /* Volume needs to use one sub pass per object to support layering. */
-    inst_.pipelines.volume.add(ob_handle,
-                               blender_mat,
-                               mat.volume_occupancy.gpumat,
-                               mat.volume_material.gpumat,
-                               sub_pass_arrays.volume_occupancy_sub_passes,
-                               sub_pass_arrays.volume_material_sub_passes);
-
-    if (!use_subpass_arrays) {
-      BLI_assert(sub_pass_arrays.volume_occupancy_sub_passes.size() == 1);
-      mat.volume_occupancy.sub_pass = sub_pass_arrays.volume_occupancy_sub_passes.first();
-      BLI_assert(sub_pass_arrays.volume_material_sub_passes.size() == 1);
-      mat.volume_material.sub_pass = sub_pass_arrays.volume_material_sub_passes.first();
-    }
-  }
   return mat;
 }
 
@@ -460,33 +408,19 @@ blender::Material *MaterialModule::material_from_slot(Object *ob, int slot)
 }
 
 MaterialSyncArray &MaterialModule::material_array_get(const ObjectHandle &ob_handle,
-                                                      bool has_motion,
-                                                      bool use_subpass_arrays)
+                                                      bool has_motion)
 {
   Object *ob = ob_handle.object;
 
   material_array_.materials.clear();
   material_array_.gpu_materials.clear();
-  for (SubPassArrays &sub_pass_array : sub_pass_arrays_) {
-    sub_pass_array.clear();
-  }
 
   const int materials_len = BKE_object_material_used_with_fallback_eval(*ob);
-
-  if (sub_pass_arrays_.size() < materials_len) {
-    sub_pass_arrays_.resize(materials_len);
-  }
 
   for (auto i : IndexRange(materials_len)) {
     blender::Material *blender_mat = (material_override) ? material_override :
                                                            material_from_slot(ob, i);
-    MaterialSync mat = material_sync(ob_handle,
-                                     blender_mat,
-                                     sub_pass_arrays_[i],
-                                     to_material_geometry(ob),
-                                     has_motion,
-                                     use_subpass_arrays);
-    mat.sub_pass_arrays = &sub_pass_arrays_[i];
+    Material &mat = material_sync(ob_handle, blender_mat, to_material_geometry(ob), has_motion);
 
     /* \note Perform a whole copy since next material_sync() can move the Material memory location
      * (i.e: because of its container growing) */
@@ -496,28 +430,16 @@ MaterialSyncArray &MaterialModule::material_array_get(const ObjectHandle &ob_han
   return material_array_;
 }
 
-MaterialSync MaterialModule::material_get(const ObjectHandle &ob_handle,
-                                          bool has_motion,
-                                          int mat_nr,
-                                          eMaterialGeometry geometry_type,
-                                          bool use_subpass_arrays)
+Material MaterialModule::material_get(const ObjectHandle &ob_handle,
+                                      bool has_motion,
+                                      int mat_nr,
+                                      eMaterialGeometry geometry_type)
 {
   blender::Material *blender_mat = (material_override) ?
                                        material_override :
                                        material_from_slot(ob_handle.object, mat_nr);
 
-  for (SubPassArrays &sub_pass_array : sub_pass_arrays_) {
-    sub_pass_array.clear();
-  }
-  if (sub_pass_arrays_.size() < 1) {
-    sub_pass_arrays_.resize(1);
-  }
-
-  MaterialSync mat = material_sync(
-      ob_handle, blender_mat, sub_pass_arrays_[0], geometry_type, has_motion, use_subpass_arrays);
-  mat.sub_pass_arrays = &sub_pass_arrays_[0];
-
-  return mat;
+  return material_sync(ob_handle, blender_mat, geometry_type, has_motion);
 }
 
 ShaderGroups MaterialModule::default_materials_load(bool block_until_ready)

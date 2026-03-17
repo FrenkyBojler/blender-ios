@@ -451,11 +451,13 @@ PassMain::Sub *ForwardPipeline::material_opaque_add(const Object *ob,
   return &pass->sub(GPU_material_get_name(gpumat));
 }
 
-void ForwardPipeline::transparent_add(const ObjectHandle &ob_handle,
-                                      blender::Material *blender_mat,
-                                      GPUMaterial *gpumat,
-                                      Vector<PassMain::Sub *> &prepass_subpasses,
-                                      Vector<PassMain::Sub *> &material_subpasses)
+void ForwardPipeline::transparent_add(
+    const Object *ob,
+    const float3 &ob_location,
+    blender::Material *blender_mat,
+    GPUMaterial *gpumat,  // TODO: This shouldn't be a single one?
+    PassMain::Sub *&r_prepass_subpass,
+    PassMain::Sub *&r_material_subpass)
 {
   DRWState prepass_state = DRW_STATE_WRITE_DEPTH | DRW_STATE_CLIP_CONTROL_UNIT_RANGE |
                            inst_.film.depth.test_state;
@@ -472,7 +474,7 @@ void ForwardPipeline::transparent_add(const ObjectHandle &ob_handle,
   has_colored_transparency_ |= GPU_material_flag_get(gpumat,
                                                      GPU_MATFLAG_TRANSPARENT_MAYBE_COLORED);
   has_holdout_ |= GPU_material_flag_get(gpumat, GPU_MATFLAG_HOLDOUT) ||
-                  ob_handle.object->visibility_flag & OB_HOLDOUT;
+                  ob->visibility_flag & OB_HOLDOUT;
   /* Must be checked here too,
    * since this function is not called from PipelineModule::material_add. */
   inst_.pipelines.has_raycast |= GPU_material_flag_get(gpumat, GPU_MATFLAG_RAYCAST);
@@ -482,34 +484,30 @@ void ForwardPipeline::transparent_add(const ObjectHandle &ob_handle,
 
   /* Transparent needs to use one sub pass per object to support reordering.
    * NOTE: Pre-pass needs to be created first in order to be sorted first. */
+  float sorting_value = math::dot(ob_location, camera_forward_);
 
-  for (int i : IndexRange(ob_handle.instances_count())) {
-    float sorting_value = math::dot(float3(ob_handle.object_to_world(i).location()),
-                                    camera_forward_);
-
-    /* Prepass */
-    if (blender_mat->blend_flag & MA_BL_HIDE_BACKFACE) {
-      PassMain::Sub *pass = &transparent_ps_.sub(GPU_material_get_name(gpumat), sorting_value);
-      pass->state_set(prepass_state);
-      pass->material_set(*inst_.manager, gpumat, true, inst_.anisotropic_filtering);
-      if (bind_previous_layer) {
-        pass->bind_texture(HIZ_PREVIOUS_LAYER_TEX_SLOT, &inst_.hiz_buffer.back.ref_tx_);
-        pass->bind_texture(RADIANCE_PREVIOUS_LAYER_TEX_SLOT, &inst_.render_buffers.combined_tx);
-      }
-      prepass_subpasses.append(pass);
+  /* Prepass */
+  if (blender_mat->blend_flag & MA_BL_HIDE_BACKFACE) {
+    PassMain::Sub *pass = &transparent_ps_.sub(GPU_material_get_name(gpumat), sorting_value);
+    pass->state_set(prepass_state);
+    pass->material_set(*inst_.manager, gpumat, true, inst_.anisotropic_filtering);
+    if (bind_previous_layer) {
+      pass->bind_texture(HIZ_PREVIOUS_LAYER_TEX_SLOT, &inst_.hiz_buffer.back.ref_tx_);
+      pass->bind_texture(RADIANCE_PREVIOUS_LAYER_TEX_SLOT, &inst_.render_buffers.combined_tx);
     }
+    r_prepass_subpass = pass;
+  }
 
-    /* Material */
-    {
-      PassMain::Sub *pass = &transparent_ps_.sub(GPU_material_get_name(gpumat), sorting_value);
-      pass->state_set(material_state);
-      pass->material_set(*inst_.manager, gpumat, true);
-      if (bind_previous_layer) {
-        pass->bind_texture(HIZ_PREVIOUS_LAYER_TEX_SLOT, &inst_.hiz_buffer.back.ref_tx_);
-        pass->bind_texture(RADIANCE_PREVIOUS_LAYER_TEX_SLOT, &inst_.render_buffers.combined_tx);
-      }
-      material_subpasses.append(pass);
+  /* Material */
+  {
+    PassMain::Sub *pass = &transparent_ps_.sub(GPU_material_get_name(gpumat), sorting_value);
+    pass->state_set(material_state);
+    pass->material_set(*inst_.manager, gpumat, true);
+    if (bind_previous_layer) {
+      pass->bind_texture(HIZ_PREVIOUS_LAYER_TEX_SLOT, &inst_.hiz_buffer.back.ref_tx_);
+      pass->bind_texture(RADIANCE_PREVIOUS_LAYER_TEX_SLOT, &inst_.render_buffers.combined_tx);
     }
+    r_material_subpass = pass;
   }
 }
 
@@ -1382,48 +1380,28 @@ VolumeObjectBounds::VolumeObjectBounds(const Camera &camera,
   }
 }
 
-void VolumePipeline::add(const ObjectHandle &ob_handle,
-                         const blender::Material *blender_mat,
-                         GPUMaterial *occupancy_gpumat,
-                         GPUMaterial *material_gpumat,
-                         Vector<PassMain::Sub *> &occupancy_subpasses,
-                         Vector<PassMain::Sub *> &material_subpasses)
+VolumeLayer *VolumePipeline::register_and_get_layer(const VolumeObjectBounds &object_bounds)
 {
-  for (int i : IndexRange(ob_handle.instances_count())) {
-    /* TODO(fclem): This is against design. Sync shouldn't depend on view properties (camera). */
-    VolumeObjectBounds object_bounds(inst_.camera, ob_handle, i);
-    if (math::reduce_max(object_bounds.screen_bounds->size()) < 1e-5) {
-      /* WORKAROUND(fclem): Fixes an issue with 0 scaled object (see #132889).
-       * Is likely to be an issue somewhere else in the pipeline but it is hard to find. */
-      occupancy_subpasses.append(nullptr);
-      material_subpasses.append(nullptr);
-      continue;
-    }
-
-    object_integration_range_ = bounds::merge(object_integration_range_, object_bounds.z_range);
-
-    VolumeLayer *instance_layer = nullptr;
-
-    /* Do linear search in all layers in order. This can be optimized. */
-    for (auto &layer : layers_) {
-      if (!layer->bounds_overlaps(object_bounds)) {
-        layer->add_object_bound(object_bounds);
-        instance_layer = layer.get();
-        break;
-      }
-    }
-    /* No non-overlapping layer found. Create new one. */
-    if (!instance_layer) {
-      int64_t index = layers_.append_and_get_index(std::make_unique<VolumeLayer>(inst_));
-      (*layers_[index]).add_object_bound(object_bounds);
-      instance_layer = layers_[index].get();
-    }
-
-    occupancy_subpasses.append(
-        instance_layer->occupancy_add(ob_handle.object, blender_mat, occupancy_gpumat));
-    material_subpasses.append(
-        instance_layer->material_add(ob_handle.object, blender_mat, material_gpumat));
+  /* TODO(fclem): This is against design. Sync shouldn't depend on view properties (camera). */
+  if (math::reduce_max(object_bounds.screen_bounds->size()) < 1e-5) {
+    /* WORKAROUND(fclem): Fixes an issue with 0 scaled object (see #132889).
+     * Is likely to be an issue somewhere else in the pipeline but it is hard to find. */
+    return nullptr;
   }
+
+  object_integration_range_ = bounds::merge(object_integration_range_, object_bounds.z_range);
+
+  /* Do linear search in all layers in order. This can be optimized. */
+  for (auto &layer : layers_) {
+    if (!layer->bounds_overlaps(object_bounds)) {
+      layer->add_object_bound(object_bounds);
+      return layer.get();
+    }
+  }
+  /* No non-overlapping layer found. Create new one. */
+  int64_t index = layers_.append_and_get_index(std::make_unique<VolumeLayer>(inst_));
+  (*layers_[index]).add_object_bound(object_bounds);
+  return layers_[index].get();
 }
 
 std::optional<Bounds<float>> VolumePipeline::object_integration_range() const
