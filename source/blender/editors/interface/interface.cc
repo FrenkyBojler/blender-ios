@@ -26,6 +26,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_rect.h"
+#include "BLI_romanization.hh"
 #include "BLI_set.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
@@ -1305,7 +1306,7 @@ static void menu_block_set_keyaccels(Block *block)
       }
 
       const char *str_pt = but.str.c_str();
-      uchar menu_key;
+      uchar menu_key = 0;
       do {
         menu_key = tolower(*str_pt);
         if ((menu_key >= 'a' && menu_key <= 'z') && !(menu_key_mask & 1 << (menu_key - 'a'))) {
@@ -1327,12 +1328,26 @@ static void menu_block_set_keyaccels(Block *block)
           /* just step over every char second pass and find first usable key */
           str_pt++;
         }
+        menu_key = 0;
       } while (*str_pt);
 
-      if (*str_pt) {
+      if (menu_key) {
         but.menu_key = menu_key;
       }
       else {
+        /* Check romanization. */
+        size_t index = 0;
+        const char32_t charcode = BLI_str_utf8_as_unicode_step_safe(
+            but.str.c_str(), but.str.size(), &index);
+        char key = mandarin_pinyin_initial(charcode);
+        if (key != '?' && !(menu_key_mask & 1 << (key - 'a'))) {
+          menu_key = key;
+          but.menu_key = key;
+          menu_key_mask |= 1 << (key - 'a');
+        }
+      }
+
+      if (!menu_key) {
         /* run second pass */
         tot_missing++;
       }

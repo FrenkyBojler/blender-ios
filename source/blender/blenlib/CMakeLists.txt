@@ -126,6 +126,7 @@ set(SRC
   intern/rand.cc
   intern/rct.cc
   intern/resource_scope.cc
+  intern/romanization.cc
   intern/scanfill.cc
   intern/scanfill_utils.cc
   intern/serialize.cc
@@ -356,6 +357,7 @@ set(SRC
   BLI_random_access_iterator_mixin.hh
   BLI_rect.h
   BLI_resource_scope.hh
+  BLI_romanization.hh
   BLI_scanfill.h
   BLI_serialize.hh
   BLI_session_uid.h

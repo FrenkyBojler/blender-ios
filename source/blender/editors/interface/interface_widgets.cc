@@ -2294,6 +2294,10 @@ static void widget_draw_text(const uiFontStyle *fstyle,
           }
         }
 
+        if (ul_index == -1) {
+          ul_index = 0;
+        }
+
         if (ul_index != -1) {
           rcti bounds;
           if (BLF_str_offset_to_glyph_bounds(fstyle->uifont_id, drawstr_ofs, ul_index, &bounds) &&
@@ -2302,7 +2306,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
             int ul_width = round_fl_to_int(BLF_width(fstyle->uifont_id, "_", 2));
             int pos_x = rect->xmin + font_xofs + bounds.xmin +
                         (bounds.xmax - bounds.xmin - ul_width) / 2;
-            int pos_y = rect->ymin + font_yofs + bounds.ymin - U.pixelsize;
+            int pos_y = rect->ymin + font_yofs + bounds.ymin - U.pixelsize - U.pixelsize;
             /* Use text output because direct drawing doesn't always work. See #89246. */
             BLF_position(fstyle->uifont_id, float(pos_x), pos_y, 0.0f);
             BLF_color4ubv(fstyle->uifont_id, wcol->text);
