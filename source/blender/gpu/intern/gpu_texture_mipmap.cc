@@ -6,11 +6,11 @@
  * \ingroup gpu
  */
 
-#include <functional>
-
+#include "BLI_hash_tables.hh"
 #include "BLI_index_range.hh"
 
 #include "GPU_compute.hh"
+#include "GPU_debug.hh"
 #include "GPU_shader.hh"
 #include "GPU_shader_builtin.hh"
 #include "GPU_texture.hh"
@@ -55,6 +55,7 @@ static TextureFormat get_view_format(TextureFormat texture_format)
 
 static void update_mipmaps(Texture &texture, Shader &shader, int layer)
 {
+
   const int num_mipmaps = texture.mip_count();
   const TextureFormat view_format = get_view_format(texture.format_get());
   Vector<Texture *, 16> views;
@@ -63,15 +64,36 @@ static void update_mipmaps(Texture &texture, Shader &shader, int layer)
         __func__, &texture, view_format, mipmap, 1, layer, 1, false, false));
   }
 
-  for (int mip_start = 0; mip_start < num_mipmaps; mip_start += 7) {
+  constexpr int max_levels_per_dispatch = 2;
+
+  for (int mip_start = 0; mip_start < num_mipmaps - 1; mip_start += max_levels_per_dispatch) {
     GPU_texture_image_bind(views[mip_start], 0);
-    for (int mip_offset = 1; mip_offset < 8; mip_offset++) {
+    for (int mip_offset = 1; mip_offset <= max_levels_per_dispatch; mip_offset++) {
       GPU_texture_image_bind(views[min_ii(mip_start + mip_offset, views.size() - 1)], mip_offset);
     }
-    GPU_shader_uniform_1i(&shader, "num_levels", min_ii(views.size() - mip_start - 1, 7));
+    int num_levels = min_ii(views.size() - mip_start - 1, max_levels_per_dispatch);
+    GPU_shader_uniform_1i(&shader, "num_levels", num_levels);
 
-    // TODO: Determine dispatch size.
-    GPU_compute_dispatch(&shader, 1, 1, 1);
+    int3 mip_size;
+    texture.mip_size_get(mip_start + num_levels, mip_size);
+
+    if (num_levels == 1U) {
+      // Each thread writes one sample.
+      constexpr uint32_t warps = 4;
+      const uint32_t samples = mip_size.x * mip_size.y;
+      const uint32_t threads = warps * 32U;
+      int group_len = divide_ceil_u(samples, threads);
+      GPU_compute_dispatch(&shader, group_len, 1, 1);
+    }
+    else {
+      // Each workgroup handles a tile.
+      constexpr uint32_t TileWidth = 8;
+      constexpr uint32_t TileHeight = 8;
+      const uint32_t horizontalTiles = divide_ceil_u(mip_size.x, TileWidth);
+      const uint32_t verticalTiles = divide_ceil_u(mip_size.y, TileHeight);
+      int group_len = horizontalTiles * verticalTiles;
+      GPU_compute_dispatch(&shader, group_len, 1, 1);
+    }
   }
 
   for (Texture *view : views) {
@@ -116,7 +138,11 @@ void GPU_texture_update_mipmap_chain(Texture *tex)
   const TextureFormat texture_format = tex->format_get();
   Shader *shader = get_update_mipmap_shader(texture_format);
   if (shader) {
+    GPU_debug_capture_begin(__func__);
+    GPU_debug_group_begin("Update Mipmaps");
     update_mipmaps(*tex, *shader);
+    GPU_debug_group_end();
+    GPU_debug_capture_end();
   }
   else {
     /* No mipmap shader exists for this texture format. Fallback to backend implementation. */

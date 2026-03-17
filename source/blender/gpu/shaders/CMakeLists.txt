@@ -79,7 +79,7 @@ set(SRC_GLSL_FRAG
 
 set(SRC_GLSL_COMP
   gpu_shader_sequencer_scope_comp.glsl
-  gpu_shader_2D_update_mipmaps_unorm_8_8_8_8.bsl.hh
+  gpu_shader_2D_update_mipmaps.bsl.hh
   # TODO rename them properly to enable compilation.
   # gpu_shader_index_2d_array_lines.glsl
   # gpu_shader_index_2d_array_points.glsl
