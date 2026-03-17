@@ -540,7 +540,7 @@ static ui::Block *wm_xr_viewfinder_ui_settings_right_label_block(const bContext 
       break;
     case XR_VIEWFINDER_MODE_PLAYBACK:
       // TODO: Could add the capture camera option (Focal, DoF, f-stop)
-      /* Current shot indicator (`current shot idx / all shots`). */
+      /* Current capture indicator (`current capture idx / all captures`). */
       if (captures_len > 0) {
         const int width = captures_len >= 10 ? 2 : 1;
         const char *pad_prefix = captures_len < 10 ? "     " : "";
