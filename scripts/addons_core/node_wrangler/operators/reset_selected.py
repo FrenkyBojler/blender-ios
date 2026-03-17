@@ -13,6 +13,7 @@ from ..utils.nodes import (
     nw_check,
     nw_check_active,
     nw_check_selected,
+    transfer_links,
 )
 
 
@@ -48,28 +49,6 @@ class NODE_OT_reset_selected(Operator):
     @classmethod
     def ignore_node(cls, node):
         return node.bl_idname in cls.node_ignore
-    
-    @staticmethod
-    def transfer_links(tree, old_node, new_node):
-        for inp in old_node.inputs:
-            links = sorted(inp.links, key=lambda link: link.multi_input_sort_id)
-            for link in links:
-                is_muted = link.is_muted
-                new_socket = new_node.inputs[inp.identifier]
-                if new_socket.enabled and not new_socket.hide:
-                    new_link = tree.links.new(link.from_socket, new_socket)
-                    new_link.is_muted = is_muted
-
-        for outp in old_node.outputs:
-            for link in outp.links[:]:
-                is_muted = link.is_muted
-                new_socket = new_node.outputs[outp.identifier]
-                if new_socket.enabled and not new_socket.hide:
-                    is_multi_input = link.to_socket.is_multi_input
-                    new_link = tree.links.new(new_socket, link.to_socket)
-                    if is_multi_input:
-                        new_link.swap_multi_input_sort_id(link)
-                    new_link.is_muted = is_muted
 
     def execute(self, context):
         node_active = context.active_node
@@ -114,7 +93,7 @@ class NODE_OT_reset_selected(Operator):
         for node in valid_nodes:
             new_node = node_tree.nodes.new(node.bl_idname)
 
-            self.transfer_links(node_tree, node, new_node)
+            transfer_links(node_tree, node, new_node)
             for prop in props_to_copy:
                 setattr(new_node, prop, getattr(node, prop))
 

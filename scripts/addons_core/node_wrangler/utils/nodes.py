@@ -284,6 +284,28 @@ def is_visible_socket(socket):
     return not socket.hide and socket.enabled and socket.type != 'CUSTOM'
 
 
+def transfer_links(tree, old_node, new_node):
+    for inp in old_node.inputs:
+        links = sorted(inp.links, key=lambda link: link.multi_input_sort_id)
+        for link in links:
+            is_muted = link.is_muted
+            new_socket = new_node.inputs[inp.identifier]
+            if new_socket.enabled and not new_socket.hide:
+                new_link = tree.links.new(link.from_socket, new_socket)
+                new_link.is_muted = is_muted
+
+    for outp in old_node.outputs:
+        for link in outp.links[:]:
+            is_muted = link.is_muted
+            new_socket = new_node.outputs[outp.identifier]
+            if new_socket.enabled and not new_socket.hide:
+                is_multi_input = link.to_socket.is_multi_input
+                new_link = tree.links.new(new_socket, link.to_socket)
+                if is_multi_input:
+                    new_link.swap_multi_input_sort_id(link)
+                new_link.is_muted = is_muted
+
+
 class NWBase:
     @classmethod
     def poll(cls, context):
