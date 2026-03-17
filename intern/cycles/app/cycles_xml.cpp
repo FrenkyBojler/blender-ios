@@ -5,8 +5,6 @@
 #include <algorithm>
 #include <cstdio>
 
-#include <algorithm>
-
 #include "graph/node_xml.h"
 
 #include "scene/background.h"
