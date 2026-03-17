@@ -206,16 +206,20 @@ void HdCyclesCurves::PopulateTopology(HdSceneDelegate *sceneDelegate)
 
   const HdBasisCurvesTopology topology = GetBasisCurvesTopology(sceneDelegate);
 
-  _geom->reserve_curves(topology.GetNumCurves(), topology.CalculateNeededNumberOfControlPoints());
+  _geom->resize_curves(topology.GetNumCurves(), topology.CalculateNeededNumberOfControlPoints());
 
   const VtIntArray vertCounts = topology.GetCurveVertexCounts();
 
+  int *curve_first_key = hair->get_curve_first_key().data();
+
   for (int curve = 0, key = 0; curve < topology.GetNumCurves(); ++curve) {
     // Always reference shader at index zero, which is the primitive material
-    _geom->add_curve(key, 0);
+    curve_first_key[curve] = key;
 
     key += vertCounts[curve];
   }
+
+  std::ranges::fill(hair->get_curve_shader(), 0);
 }
 
 HDCYCLES_NAMESPACE_CLOSE_SCOPE

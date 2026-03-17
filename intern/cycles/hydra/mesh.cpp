@@ -430,14 +430,23 @@ void HdCyclesMesh::PopulateTopology(HdSceneDelegate *sceneDelegate)
     VtVec3iArray triangles;
     _util.ComputeTriangleIndices(&triangles, &_primitiveParams);
 
-    _geom->reserve_mesh(_topology.GetNumPoints(), triangles.size());
+    _geom->resize_mesh(_topology.GetNumPoints(), triangles.size());
 
+    int *triangles = mesh->get_triangles().data();
+    for (size_t i = 0; i < _primitiveParams.size(); ++i) {
+      const GfVec3i triangle = triangles[i];
+      triangles[i * 3 + 0] = triangle[0];
+      triangles[i * 3 + 1] = triangle[1];
+      triangles[i * 3 + 2] = triangle[2];
+    }
+
+    int *shader = mesh->get_shader().data();
     for (size_t i = 0; i < _primitiveParams.size(); ++i) {
       const int faceIndex = HdMeshUtil::DecodeFaceIndexFromCoarseFaceParam(_primitiveParams[i]);
-
-      const GfVec3i triangle = triangles[i];
-      _geom->add_triangle(triangle[0], triangle[1], triangle[2], faceShaders[faceIndex], smooth);
+      shader[i] = faceShaders[faceIndex];
     }
+
+    std::ranges::fill(mesh->get_smooth(), smooth);
   }
   else {
     const PxOsdSubdivTags subdivTags = GetSubdivTags(sceneDelegate);
@@ -448,17 +457,30 @@ void HdCyclesMesh::PopulateTopology(HdSceneDelegate *sceneDelegate)
       numCorners += vertCount;
     }
 
-    _geom->reserve_subd_faces(_topology.GetNumFaces(), numCorners);
+    _geom->resize_subd_faces(_topology.GetNumFaces(), numCorners);
+
+    std::ranges::copy(vertIndx, mesh->get_subd_face_corners());
+
+    int *subd_start_corner = mesh->get_subd_start_corner().data();
+    int *subd_num_corners = mesh->get_subd_num_corners().data();
+    int *subd_ptex_offset = mesh->get_subd_ptex_offset().data();
 
     // TODO: Handle hole indices
     size_t faceIndex = 0;
     size_t indexOffset = 0;
     for (const int vertCount : vertCounts) {
-      _geom->add_subd_face(&vertIndx[indexOffset], vertCount, faceShaders[faceIndex], smooth);
+      subd_start_corner[i] = indexOffset;
+      subd_num_corners[i] = vertCount;
+      subd_ptex_offset[i] = ptex_offset;
+      const int num_ptex = (face.size() == 4) ? 1 : face.size();
+      ptex_offset += num_ptex;
 
       faceIndex++;
       indexOffset += vertCount;
     }
+
+    std::ranges::copy(faceShaders, mesh->get_subd_shader());
+    std::ranges::fill(mesh->get_smooth(), smooth);
 
     const VtIntArray creaseLengths = subdivTags.GetCreaseLengths();
     if (!creaseLengths.empty()) {
