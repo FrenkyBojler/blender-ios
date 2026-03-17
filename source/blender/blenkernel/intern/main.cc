@@ -1132,4 +1132,64 @@ MainListsArray BKE_main_lists_get(Main &bmain)
   return lb;
 }
 
+MainAllIDsIterator &MainAllIDsIterator::operator++()
+{
+  if (this->curr_id_) {
+    this->curr_id_ = static_cast<ID *>(this->curr_id_->next);
+    if (this->curr_id_) {
+      return *this;
+    }
+  }
+
+  for (this->curr_lbarray_index_++;
+       this->curr_lbarray_index_ < this->lbarray_.size() &&
+       /* Listbase pointers from lbarray_ can be nullptr when no data was provided (default
+        * constructor case). */
+       (!this->lbarray_[this->curr_lbarray_index_] ||
+        BLI_listbase_is_empty(this->lbarray_[this->curr_lbarray_index_]));
+       this->curr_lbarray_index_++)
+    ;
+  if (this->curr_lbarray_index_ < this->lbarray_.size()) {
+    this->curr_id_ = static_cast<ID *>(this->lbarray_[this->curr_lbarray_index_]->first);
+  }
+  return *this;
+}
+
+MainAllIDsIterator &MainAllIDsIterator::operator--()
+{
+  if (this->curr_id_) {
+    this->curr_id_ = static_cast<ID *>(this->curr_id_->prev);
+    if (this->curr_id_) {
+      return *this;
+    }
+  }
+
+  for (this->curr_lbarray_index_--;
+       this->curr_lbarray_index_ >= 0 &&
+       /* Listbase pointers from lbarray_ can be nullptr when no data was provided (default
+        * constructor case). */
+       (!this->lbarray_[this->curr_lbarray_index_] ||
+        BLI_listbase_is_empty(this->lbarray_[this->curr_lbarray_index_]));
+       this->curr_lbarray_index_--)
+    ;
+  if (this->curr_lbarray_index_ >= 0) {
+    this->curr_id_ = static_cast<ID *>(this->lbarray_[this->curr_lbarray_index_]->last);
+  }
+  return *this;
+}
+
+size_t MainAllIDsIterator::size() const
+{
+  size_t size = 0;
+  for (const ListBaseT<ID> *lb_ids : this->lbarray_) {
+    /* Listbase pointers from lbarray_ can be nullptr when no data was provided (default
+     * constructor case). */
+    if (!lb_ids) {
+      continue;
+    }
+    size += size_t(BLI_listbase_count(lb_ids));
+  }
+  return size;
+}
+
 }  // namespace blender
