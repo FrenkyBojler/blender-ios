@@ -432,6 +432,8 @@ class TestBlendFileOpenLinkSaveAllTestFiles(TestHelper):
             bpy.ops.wm.read_homefile(use_empty=True, use_factory_startup=True)
             try:
                 bpy.ops.wm.open_mainfile(filepath=bfp, load_ui=False)
+                # NOTE: The two undo pushes are necessary to be able to undo, since the first undo push creates the
+                # initial state for memfile undo (it is not initialized by default in background mode).
                 bpy.ops.ed.undo_push()
                 bpy.ops.ed.undo_push()
                 bpy.ops.ed.undo()
