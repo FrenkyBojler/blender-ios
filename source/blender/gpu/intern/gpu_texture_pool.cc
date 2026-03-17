@@ -42,14 +42,22 @@ Texture *TexturePoolImpl::acquire_texture_impl(int3 extent,
                                                eGPUTextureUsage usage,
                                                const char * /* name */)
 {
+  /* Determine actual mipmap depth. */
+  int mip_len_max = 1 + floorf(log2f(max_iii(extent.x, extent.y, extent.z)));
+  mip_len = min_ii(mip_len, mip_len_max);
+
   /* Search pool for compatible available texture first. */
   int64_t match_index = -1;
   for (uint64_t i : pool_.index_range()) {
     Texture *tex = pool_[i].texture;
 
-    auto tex_args = std::tuple(
-        tex->format_get(), tex->type_get(), tex->width_get(), tex->height_get(), tex->depth_get());
-    if (std::tie(format, type, UNPACK3(extent)) == tex_args) {
+    auto tex_args = std::tuple(tex->format_get(),
+                               tex->type_get(),
+                               tex->width_get(),
+                               tex->height_get(),
+                               tex->depth_get(),
+                               tex->mip_count());
+    if (std::tie(format, type, UNPACK3(extent), mip_len) == tex_args) {
       match_index = i;
       break;
     }
@@ -77,18 +85,18 @@ Texture *TexturePoolImpl::acquire_texture_impl(int3 extent,
   switch (type) {
     case GPU_TEXTURE_1D:
     case GPU_TEXTURE_1D_ARRAY:
-      init_result = handle.texture->init_1D(extent.x, extent.y, 1, format);
+      init_result = handle.texture->init_1D(extent.x, extent.y, mip_len, format);
       break;
     case GPU_TEXTURE_2D:
     case GPU_TEXTURE_2D_ARRAY:
-      init_result = handle.texture->init_2D(extent.x, extent.y, extent.z, 1, format);
+      init_result = handle.texture->init_2D(extent.x, extent.y, extent.z, mip_len, format);
       break;
     case GPU_TEXTURE_3D:
-      init_result = handle.texture->init_3D(extent.x, extent.y, extent.z, 1, format);
+      init_result = handle.texture->init_3D(extent.x, extent.y, extent.z, mip_len, format);
       break;
     case GPU_TEXTURE_CUBE:
     case GPU_TEXTURE_CUBE_ARRAY:
-      init_result = handle.texture->init_cubemap(extent.x, extent.y, 1, format);
+      init_result = handle.texture->init_cubemap(extent.x, extent.y, mip_len, format);
       break;
     default:
       BLI_assert_unreachable();

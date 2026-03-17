@@ -66,11 +66,16 @@ Texture *GLTexturePool::acquire_texture_impl(int3 extent,
                                              eGPUTextureUsage usage,
                                              const char *name)
 {
+
   /* Determine format of compatible underlying texture. If there is no
    * compatible format to alias upon, we simply require an exact match
    * for the underlying texture. */
   TextureFormat compatible_format = get_compatible_texture_format(format);
   BLI_assert(compatible_format != TextureFormat::Invalid);
+
+  /* Determine actual mipmap depth. */
+  int mip_len_max = 1 + floorf(log2f(max_iii(extent.x, extent.y, extent.z)));
+  mip_len = min_ii(mip_len, mip_len_max);
 
   /* Search for the first compatible existing texture. */
   int64_t match_index = -1;
@@ -80,6 +85,11 @@ Texture *GLTexturePool::acquire_texture_impl(int3 extent,
       continue;
     }
     if (int3(handle.texture->w_, handle.texture->h_, handle.texture->d_) != extent) {
+      /* TODO(not_mark): sub-view on `texture->d_`. */
+      continue;
+    }
+    if (handle.texture->mip_count() != mip_len) {
+      /* TODO(not_mark): sub-view on mip levels. */
       continue;
     }
     match_index = i;
@@ -107,18 +117,20 @@ Texture *GLTexturePool::acquire_texture_impl(int3 extent,
     switch (type) {
       case GPU_TEXTURE_1D:
       case GPU_TEXTURE_1D_ARRAY:
-        texture_result = texture->init_1D(extent.x, extent.y, 1, compatible_format);
+        texture_result = texture->init_1D(extent.x, extent.y, mip_len, compatible_format);
         break;
       case GPU_TEXTURE_2D:
       case GPU_TEXTURE_2D_ARRAY:
-        texture_result = texture->init_2D(extent.x, extent.y, extent.z, 1, compatible_format);
+        texture_result = texture->init_2D(
+            extent.x, extent.y, extent.z, mip_len, compatible_format);
         break;
       case GPU_TEXTURE_3D:
-        texture_result = texture->init_3D(extent.x, extent.y, extent.z, 1, compatible_format);
+        texture_result = texture->init_3D(
+            extent.x, extent.y, extent.z, mip_len, compatible_format);
         break;
       case GPU_TEXTURE_CUBE:
       case GPU_TEXTURE_CUBE_ARRAY:
-        texture_result = texture->init_cubemap(extent.x, extent.y, 1, compatible_format);
+        texture_result = texture->init_cubemap(extent.x, extent.y, mip_len, compatible_format);
         break;
       default:
         BLI_assert_unreachable();

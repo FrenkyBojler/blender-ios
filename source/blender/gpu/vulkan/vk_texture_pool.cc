@@ -31,7 +31,8 @@ constexpr auto tie(const VkImageCreateInfo &info)
                   info.extent.width,
                   info.extent.height,
                   info.extent.depth,
-                  info.arrayLayers);
+                  info.arrayLayers,
+                  info.mipLevels);
 }
 }  // namespace detail
 
@@ -40,8 +41,8 @@ constexpr auto tie(const VkImageCreateInfo &info)
 template<> struct DefaultHash<VkImageCreateInfo> {
   constexpr uint64_t operator()(const VkImageCreateInfo &value) const
   {
-    const auto &[_1, _2, _3, _4, _5, _6, _7, _8] = detail::tie(value);
-    return get_default_hash(_1, _2, _3, _4, get_default_hash(_5, _6, _7, _8));
+    const auto &[_1, _2, _3, _4, _5, _6, _7, _8, _9] = detail::tie(value);
+    return get_default_hash(_1, _2, _3, _4, get_default_hash(_5, _6, _7, _8, _9));
   }
 };
 
@@ -344,6 +345,10 @@ Texture *VKTexturePool::acquire_texture_impl(int3 extent,
                                              eGPUTextureUsage usage,
                                              const char *name)
 {
+  /* Determine actual mipmap depth. */
+  int mip_len_max = 1 + floorf(log2f(max_iii(extent.x, extent.y, extent.z)));
+  mip_len = min_ii(mip_len, mip_len_max);
+
   /* Initialize VKTexture return object. */
   VKTexture *texture = new VKTexture(name);
   texture->w_ = extent.x;
@@ -353,7 +358,9 @@ Texture *VKTexturePool::acquire_texture_impl(int3 extent,
   texture->format_flag_ = to_format_flag(format);
   texture->type_ = type;
   texture->gpu_image_usage_flags_ = usage;
-  texture->mipmaps_ = 1;
+  texture->mipmaps_ = mip_len;
+  texture->mip_min_ = 0;
+  texture->mip_max_ = mip_len - 1;
   /* R16G16F16 formats are typically not supported (<1%). */
   texture->device_format_ = format;
   if (texture->device_format_ == TextureFormat::SFLOAT_16_16_16) {
@@ -375,7 +382,7 @@ Texture *VKTexturePool::acquire_texture_impl(int3 extent,
       .imageType = to_vk_image_type(type),
       .format = to_vk_format(format),
       .extent = texture->vk_extent_3d(0),
-      .mipLevels = 1,
+      .mipLevels = max_ii(texture->mip_count(), 1),
       .arrayLayers = static_cast<uint32_t>(texture->vk_layer_count(1)),
       .samples = VK_SAMPLE_COUNT_1_BIT,
       .tiling = VK_IMAGE_TILING_OPTIMAL,
