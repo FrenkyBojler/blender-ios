@@ -449,6 +449,10 @@ static void applyRotation(TransInfo *t)
   const std::optional<int> quadrant = transform_angle_to_quadrant_or_null(
       t, is_large_rotation_limited);
 
+  /* TODO: remove before committing. */
+  printf(
+      "Rotation: %s (angle=%.4f)\n", quadrant.has_value() ? "exact quadrant" : "standard", final);
+
   const bool is_large_rotation = hasNumInput(&t->num);
   applyRotationValue(t, final, axis_final, is_large_rotation, quadrant);
 
