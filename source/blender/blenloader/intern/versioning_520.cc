@@ -111,6 +111,7 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     }
   }
 
+  /* Convert H.264 codec value for older files (2.79), see #155775. */
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 9)) {
     for (Scene &scene : bmain->scenes) {
       if (scene.r.ffcodecdata.codec == 28) {
