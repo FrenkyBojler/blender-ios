@@ -1049,8 +1049,9 @@ void wm_xr_viewfinder_draw(const bContext *C,
 
 struct CaptureReviewData {
   /* Context. */
-  View3D *v3d;
+  ARegion *region;
   RegionView3D *rv3d;
+  View3D *v3d;
 
   /* Previous camera to restore on exit. */
   Object *prev_view3d_cam_ob;
@@ -1112,8 +1113,9 @@ static wmOperatorStatus wm_xr_location_scouting_review_captures_invoke(bContext 
   }
 
   CaptureReviewData *review_data = MEM_new_zeroed<CaptureReviewData>("View3DReviewCaptureData");
-  review_data->v3d = v3d;
+  review_data->region = region;
   review_data->rv3d = rv3d;
+  review_data->v3d = v3d;
 
   review_data->prev_view3d_cam_ob = v3d->camera;
   ED_view3d_lastview_store(rv3d);
@@ -1216,7 +1218,7 @@ static wmOperatorStatus wm_xr_location_scouting_review_captures_modal(bContext *
   review_data->v3d->camera = review_data->cam_ob;
 
   /* Redraw viewport. */
-  ED_region_tag_redraw(CTX_wm_region(C));
+  ED_region_tag_redraw(review_data->region);
 
   return OPERATOR_PASS_THROUGH;
 }
