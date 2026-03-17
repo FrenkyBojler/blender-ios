@@ -4,20 +4,13 @@
 
 #include "gpu_shader_math_constants_lib.glsl"
 #include "gpu_shader_math_rotation_conversion_lib.glsl"
+#include "gpu_shader_math_rotation_lib.glsl"
 
 float3 transform_point_by_quaternion(float3 v, float4 q)
 {
   float3 qv = q.yzw;
   float3 t = 2.0 * cross(qv, v);
   return v + q.x * t + cross(qv, t);
-}
-
-float4 quaternion_multiply_float4(float4 a, float4 b)
-{
-  return float4(a.x * b.x - a.y * b.y - a.z * b.z - a.w * b.w,
-                a.x * b.y + a.y * b.x + a.z * b.w - a.w * b.z,
-                a.x * b.z - a.y * b.w + a.z * b.x + a.w * b.y,
-                a.x * b.w + a.y * b.z - a.z * b.y + a.w * b.x);
 }
 
 bool is_zero_vector(float3 v)
@@ -72,7 +65,7 @@ void node_align_rotation_to_vector_auto_pivot(
   aa.axis = normalize(rotation_axis);
   aa.angle = angle;
 
-  out_rot = quaternion_multiply_float4(to_axis_angle(aa).as_float4(), old_rotation);
+  out_rot = math_quaternion_multiply(to_axis_angle(aa).as_float4(), old_rotation);
 }
 
 [[node]]
@@ -108,5 +101,5 @@ void node_align_rotation_to_vector_fixed_pivot(float4 old_rotation,
   aa.axis = normalize(pivot_axis);
   aa.angle = angle;
 
-  out_rot = quaternion_multiply_float4(to_axis_angle(aa).as_float4(), old_rotation);
+  out_rot = math_quaternion_multiply(to_axis_angle(aa).as_float4(), old_rotation);
 }
