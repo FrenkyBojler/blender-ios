@@ -3479,9 +3479,8 @@ class WM_MT_splash(Menu):
 
         col2 = split.column()
 
-        subcol2 = col2.column()
-        subcol2.alignment = 'LEFT'
-        subcol2.link(
+        col2.alignment = 'LEFT'
+        col2.link(
             text="What's New",
             icon='URL',
             url=bpy.types.WM_OT_url_open_preset.lookup_url_from_type(context, 'RELEASE_NOTES'))
