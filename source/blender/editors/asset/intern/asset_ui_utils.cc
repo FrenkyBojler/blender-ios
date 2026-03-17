@@ -6,6 +6,7 @@
  * \ingroup edasset
  */
 
+#include <optional>
 #include <string>
 
 #include "AS_asset_library.hh"
@@ -16,6 +17,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
+#include "BLI_string.h"
 
 #include "BLT_translation.hh"
 
@@ -47,6 +49,11 @@ void asset_tooltip(const asset_system::AssetRepresentation &asset,
 
   switch (asset.owner_asset_library().library_type()) {
     case ASSET_LIBRARY_CUSTOM: {
+      if (asset.is_online()) {
+        /* Don't show file path or .blend name. Data on disk is just a cache. */
+        break;
+      }
+
       tooltip_text_field_add(tip, {}, {}, ui::TIP_STYLE_SPACER, ui::TIP_LC_NORMAL, false);
 
       const std::string full_blend_path = asset.full_library_path();
@@ -75,6 +82,25 @@ void asset_tooltip(const asset_system::AssetRepresentation &asset,
     default:
       /* Intentionally empty. */
       break;
+  }
+
+  if (asset.is_online()) {
+    if (std::optional<int64_t> combined_size = asset.online_assets_files_combined_size_in_bytes())
+    {
+      tooltip_text_field_add(tip, {}, {}, ui::TIP_STYLE_SPACER, ui::TIP_LC_NORMAL, false);
+
+      char size_ui_str[BLI_STR_FORMAT_INT64_BYTE_UNIT_SIZE];
+      BLI_str_format_byte_unit(size_ui_str, *combined_size, true);
+      tooltip_text_field_add(tip,
+                             fmt::format(fmt::runtime(TIP_("Download Size: {}")), size_ui_str),
+                             {},
+                             ui::TIP_STYLE_NORMAL,
+                             ui::TIP_LC_VALUE);
+    }
+    if (std::optional<std::string> remote_url = asset.owner_asset_library().remote_url()) {
+      tooltip_text_field_add(tip, {}, {}, ui::TIP_STYLE_SPACER, ui::TIP_LC_NORMAL, false);
+      tooltip_text_field_add(tip, *remote_url, {}, ui::TIP_STYLE_NORMAL, ui::TIP_LC_PYTHON);
+    }
   }
 }
 
