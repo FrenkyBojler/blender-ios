@@ -170,16 +170,16 @@ Texture *GLTexturePool::acquire_texture_impl(int3 extent,
     case GPU_TEXTURE_3D:
     case GPU_TEXTURE_CUBE:
       view_result = view->init_view(
-          texture_handle.texture, format, type, 0, 1, 0, 1, false, false);
+          texture_handle.texture, format, type, 0, mip_len, 0, 1, false, false);
       break;
     case GPU_TEXTURE_1D_ARRAY:
       view_result = view->init_view(
-          texture_handle.texture, format, type, 0, 1, 0, extent.y, false, false);
+          texture_handle.texture, format, type, 0, mip_len, 0, extent.y, false, false);
       break;
     case GPU_TEXTURE_2D_ARRAY:
     case GPU_TEXTURE_CUBE_ARRAY:
       view_result = view->init_view(
-          texture_handle.texture, format, type, 0, 1, 0, extent.z, false, false);
+          texture_handle.texture, format, type, 0, mip_len, 0, extent.z, false, false);
       break;
     default:
       BLI_assert_unreachable();
