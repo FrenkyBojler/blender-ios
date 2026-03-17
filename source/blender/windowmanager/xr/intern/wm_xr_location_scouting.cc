@@ -235,12 +235,15 @@ static void wm_xr_viewfinder_transform_update_smoothed(wmXrSessionState *state,
   float raw_capture_orientation_quat[4];
   mat4_to_loc_quat(raw_capture_position, raw_capture_orientation_quat, raw_capture_mat);
 
-  if (state->viewfinder.smoothing_delta_t > 0) {
+  const double current_time = BLI_time_now_seconds();
+  const float delta_t = float(current_time - state->viewfinder.smoothing_delta_t);
+
+  /* Delta-T threshold used to reset smoothing when switching between Playback/Live mode. */
+  constexpr float delta_t_threshold = 0.25f;
+
+  if (state->viewfinder.smoothing_delta_t != 0.0f && delta_t < delta_t_threshold) {
     /* Apply exponential movement smoothing. */
     constexpr float movement_smoothing_speed = 25.0f;
-
-    const double current_time = BLI_time_now_seconds();
-    const float delta_t = float(current_time - state->viewfinder.smoothing_delta_t);
     const float clamped_delta = min_ff(delta_t, 0.1f);
     const float factor = 1.0f - exp(-clamped_delta * movement_smoothing_speed);
 
@@ -252,14 +255,14 @@ static void wm_xr_viewfinder_transform_update_smoothed(wmXrSessionState *state,
                    state->viewfinder.capture_orientation_quat,
                    raw_capture_orientation_quat,
                    factor);
-    state->viewfinder.smoothing_delta_t = current_time;
   }
   else {
-    /* Initialization. */
+    /* Initialize smoothing, or reset if delta_t threshold was exceeded. */
     copy_v3_v3(state->viewfinder.capture_position, raw_capture_position);
     copy_qt_qt(state->viewfinder.capture_orientation_quat, raw_capture_orientation_quat);
-    state->viewfinder.smoothing_delta_t = BLI_time_now_seconds();
   }
+
+  state->viewfinder.smoothing_delta_t = current_time;
 
   quat_to_mat4(r_smoothed_mat, state->viewfinder.capture_orientation_quat);
   copy_v3_v3(r_smoothed_mat[3], state->viewfinder.capture_position);
