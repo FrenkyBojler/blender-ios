@@ -7,6 +7,9 @@ from pathlib import Path
 import tomllib
 import logging
 
+import cattrs
+from attrs import define
+
 import bpy
 from bpy.types import Operator
 from bpy.app.translations import pgettext_rpt as rpt_
@@ -16,6 +19,14 @@ logger = logging.getLogger(__name__)
 # Directory and file name where the project is read/written to disk.
 PROJECT_DIR = ".blender_project"
 PROJECT_CONFIG = "project.toml"
+
+
+# -------------------------------------------------------------
+# Types that define the schema for reading/writing project config TOML files.
+
+@define
+class ProjectConfig:
+    name: str
 
 
 # -------------------------------------------------------------
@@ -154,15 +165,7 @@ def find_and_load_project_for_blend_path(context, blend_path, report=None):
 
     # Load project.
     config = read_project_toml_config(root_path, report)
-    if config is None:
-        if report:
-            report({'ERROR'}, rpt_("Invalid project: no '{}' found.").format(PROJECT_CONFIG))
-        raise ProjectLoadException
-
-    validate_config(config, report)
-
-    bpy.data.project_init(config["name"], str(root_path))
-
+    bpy.data.project_init(config.name, str(root_path))
     bpy.data.project.is_dirty = False
 
 
@@ -179,22 +182,21 @@ def find_project_root_from_blend_file_path(blend_path):
     return None
 
 
-def read_project_toml_config(root_path, report):
+def read_project_toml_config(root_path, report=None) -> ProjectConfig:
     """ Reads the project config for the given project root path.
 
         Throws a ProjectLoadException if no config is found, if the config is
-        not readable due to filesystem permissions, or if it contains invalid
-        TOML.
+        not readable due to filesystem permissions, or if it's not a valid
+        project config (e.g. contains invalid TOML or doesn't match the schema).
 
-        Optionally (can be `None`) takes an `Operator.report` for reporting
-        errors to the user.
+        Optionally takes an `Operator.report` for reporting errors to the user.
 
-        Returns the config as a Python dictionary.
+        Returns the configuration (`ProjectConfig`).
     """
     config_path = root_path.joinpath(PROJECT_DIR, PROJECT_CONFIG)
     try:
         with open(config_path, "rb") as f:
-            return tomllib.load(f)
+            config_dict = tomllib.load(f)
     except FileNotFoundError:
         if report:
             report({'ERROR'}, rpt_("Project has no {} file.").format(PROJECT_CONFIG))
@@ -208,49 +210,32 @@ def read_project_toml_config(root_path, report):
             report({'ERROR'}, rpt_("Project's {} file contains invalid TOML.").format(PROJECT_CONFIG))
         raise ProjectLoadException
 
+    # Validate schema and covert to ProjectConfig class.
+    converter = cattrs.Converter()
+    project_config = converter.structure(config_dict, ProjectConfig)
 
-def validate_config(config_dict, report):
-    """ Checks that the passed config is valid.
-
-        This consists of ensuring that all required fields exist, and
-        that all fields present are of the right type and have valid values.
-
-        Throws a ProjectLoadException if there's a validation error.
-
-        Optionally (can be `None`) takes an `Operator.report` for reporting
-        errors to the user.
-
-        No return value.
-    """
-    if "name" not in config_dict:
-        if report:
-            report({'ERROR'}, rpt_("Invalid project: no project name defined in '{}'.").format(PROJECT_CONFIG))
-        raise ProjectLoadException
-
-    if type(config_dict["name"]) != str:
-        if report:
-            report({'ERROR'}, "Invalid project: project name is not a string.")
-        raise ProjectLoadException
-
-    if config_dict["name"] == "":
+    # Other validation not handled by the schema.
+    if project_config.name == "":
         if report:
             report({'ERROR'}, "Invalid project: project name is empty.")
         raise ProjectLoadException
 
+    return project_config
+
 
 def blend_file_is_in_valid_project(blend_file_path):
-    """ Returns true if the specified blend file is inside a valid project, false if there is no project or it's invalid.
+    """ Returns true if the specified blend file is inside a valid project,
+        false if there is no project or it's invalid.
 
         An "invalid project" is one whose TOML config is non-existent or doesn't
-        validate. See `validate_config()`.
+        validate. See `read_project_toml_config()`.
     """
     project_root = find_project_root_from_blend_file_path(blend_file_path)
     if project_root is None:
         return False
 
     try:
-        config_dict = read_project_toml_config(project_root, None)
-        validate_config(config_dict, None)
+        _ = read_project_toml_config(project_root, None)
     except ProjectLoadException:
         # No valid project found.
         return False
