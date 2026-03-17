@@ -48,7 +48,7 @@ class ActionLayerItem : public AbstractTreeViewItem {
 
   void build_row(Layout &row) override
   {
-    Button *name_label = uiItemL_ex(&row, layer_.name, ICON_NONE, false, false);
+    uiItemL_ex(&row, layer_.name, ICON_NONE, false, false);
     PointerRNA layer_pointer = RNA_pointer_create_discrete(&action_.id, RNA_ActionLayer, &layer_);
     const int icon = layer_.is_locked() ? ICON_LOCKED : ICON_UNLOCKED;
     row.prop(&layer_pointer, "is_locked", ITEM_R_ICON_ONLY, "", icon);

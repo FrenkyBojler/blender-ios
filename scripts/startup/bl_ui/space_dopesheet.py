@@ -4,6 +4,7 @@
 
 import bpy
 from bpy.types import (
+    Context,
     Header,
     Menu,
     Panel,
@@ -705,6 +706,26 @@ class DOPESHEET_MT_key_transform(Menu):
         layout.operator("transform.transform", text="Scale").mode = 'TIME_SCALE'
 
 
+class ANIM_PT_action_layers_panel(Panel):
+    bl_space_type = 'DOPESHEET_EDITOR'
+    bl_category = "Action"
+    bl_region_type = 'UI'
+    bl_label = "Layers"
+
+    @classmethod
+    def poll(cls, context: Context):
+        return context.preferences.experimental.use_action_layers
+
+    def draw(self, context: Context):
+        layout = self.layout
+        action = context.active_action
+        if not context.preferences.experimental.use_action_layers:
+            return
+        layout.template_action_layer_list(action)
+        if action.layers.active:
+            layout.prop(action.layers.active, "mix_mode")
+
+
 class DopesheetActionPanelBase:
     bl_region_type = 'UI'
     bl_label = "Action"
@@ -723,11 +744,6 @@ class DopesheetActionPanelBase:
         row.prop(action, "frame_end", text="End")
 
         col.prop(action, "use_cyclic")
-
-        if context.preferences.experimental.use_action_layers:
-            layout.template_action_layer_list(action)
-            if action.layers.active:
-                layout.prop(action.layers.active, "mix_mode")
 
 
 class DOPESHEET_PT_custom_props_action(PropertyPanel, Panel):
@@ -1111,6 +1127,7 @@ classes = (
     DOPESHEET_PT_filters,
     DOPESHEET_PT_action,
     DOPESHEET_PT_action_slot,
+    ANIM_PT_action_layers_panel,
     DOPESHEET_PT_custom_props_action,
     DOPESHEET_PT_snapping,
     DOPESHEET_PT_grease_pencil_mode,
