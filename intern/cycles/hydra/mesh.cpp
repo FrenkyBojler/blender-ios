@@ -432,12 +432,12 @@ void HdCyclesMesh::PopulateTopology(HdSceneDelegate *sceneDelegate)
 
     _geom->resize_mesh(_topology.GetNumPoints(), triangles.size());
 
-    int *triangles = _geom->get_triangles().data();
+    int *geom_indices = _geom->get_triangles().data();
     for (size_t i = 0; i < _primitiveParams.size(); ++i) {
       const GfVec3i triangle = triangles[i];
-      triangles[i * 3 + 0] = triangle[0];
-      triangles[i * 3 + 1] = triangle[1];
-      triangles[i * 3 + 2] = triangle[2];
+      geom_indices[i * 3 + 0] = triangle[0];
+      geom_indices[i * 3 + 1] = triangle[1];
+      geom_indices[i * 3 + 2] = triangle[2];
     }
 
     int *shader = _geom->get_shader().data();
@@ -463,7 +463,7 @@ void HdCyclesMesh::PopulateTopology(HdSceneDelegate *sceneDelegate)
 
     _geom->resize_subd_faces(_topology.GetNumFaces(), numCorners);
 
-    std::ranges::copy(vertIndx, _geom->get_subd_face_corners());
+    std::copy_n(vertIndx.data(), vertIndx.size(), _geom->get_subd_face_corners().data());
 
     int *subd_start_corner = _geom->get_subd_start_corner().data();
     int *subd_num_corners = _geom->get_subd_num_corners().data();
@@ -484,7 +484,7 @@ void HdCyclesMesh::PopulateTopology(HdSceneDelegate *sceneDelegate)
       indexOffset += vertCount;
     }
 
-    std::ranges::copy(faceShaders, _geom->get_subd_shader());
+    std::copy_n(faceShaders.data(), faceShaders.size(), _geom->get_subd_shader().data());
     std::ranges::fill(_geom->get_smooth(), smooth);
 
     _geom->tag_subd_face_corners_modified();
