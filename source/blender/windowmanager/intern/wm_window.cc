@@ -1443,7 +1443,9 @@ wmWindow *WM_window_open_temp(bContext *C, const char *title, int space_type, bo
 
   wmWindow *win = WM_window_open(
       C, title, &rect, space_type, false, dialog, true, align, nullptr, nullptr);
-  win->runtime->memory_key = key;
+  if (win) {
+    win->runtime->memory_key = key;
+  }
   return win;
 }
 
