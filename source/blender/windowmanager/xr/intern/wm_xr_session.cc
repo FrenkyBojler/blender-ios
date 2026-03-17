@@ -605,8 +605,8 @@ void WM_xr_session_state_viewfinder_capture_dof_fstop_set(wmXrData *xr, float do
   }
 }
 
-bool WM_xr_session_state_viewfinder_playback_show_active_capture_in_space_enabled_get(const wmXrData *xr,
-                                                                         bool *r_enabled)
+bool WM_xr_session_state_viewfinder_playback_show_active_capture_in_space_enabled_get(
+    const wmXrData *xr, bool *r_enabled)
 {
   if (!WM_xr_session_is_ready(xr) || !xr->runtime->session_state.is_view_data_set) {
     *r_enabled = 0.0f;
@@ -618,7 +618,7 @@ bool WM_xr_session_state_viewfinder_playback_show_active_capture_in_space_enable
 }
 
 void WM_xr_session_state_viewfinder_playback_show_active_capture_in_space_enabled_set(wmXrData *xr,
-                                                                         bool enabled)
+                                                                                      bool enabled)
 {
   if (WM_xr_session_exists(xr)) {
     xr->runtime->session_state.viewfinder.playback_show_active_capture_in_space_enabled = enabled;

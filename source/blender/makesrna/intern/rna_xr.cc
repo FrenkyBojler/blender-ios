@@ -1176,7 +1176,8 @@ static void rna_XrSessionState_viewfinder_capture_dof_distance_set(PointerRNA *p
 #  endif
 }
 
-static bool rna_XrSessionState_viewfinder_playback_show_active_capture_in_space_enabled_get(PointerRNA *ptr)
+static bool rna_XrSessionState_viewfinder_playback_show_active_capture_in_space_enabled_get(
+    PointerRNA *ptr)
 {
   bool value;
 #  ifdef WITH_XR_OPENXR
@@ -1189,8 +1190,8 @@ static bool rna_XrSessionState_viewfinder_playback_show_active_capture_in_space_
   return value;
 }
 
-static void rna_XrSessionState_viewfinder_playback_show_active_capture_in_space_enabled_set(PointerRNA *ptr,
-                                                                               bool value)
+static void rna_XrSessionState_viewfinder_playback_show_active_capture_in_space_enabled_set(
+    PointerRNA *ptr, bool value)
 {
 #  ifdef WITH_XR_OPENXR
   wmXrData *xr = rna_XrSession_wm_xr_data_get(ptr);
@@ -2913,16 +2914,16 @@ static void rna_def_xr_session_state_viewfinder(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Viewfinder Capture F-Stop", "Viewfinder capture f-stop ratio");
   RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
 
-  prop = RNA_def_property(srna, "playback_show_active_capture_in_space_enabled", PROP_BOOLEAN, PROP_NONE);
+  prop = RNA_def_property(
+      srna, "playback_show_active_capture_in_space_enabled", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_boolean_funcs(
       prop,
       "rna_XrSessionState_viewfinder_playback_show_active_capture_in_space_enabled_get",
       "rna_XrSessionState_viewfinder_playback_show_active_capture_in_space_enabled_set");
-  RNA_def_property_ui_text(
-      prop,
-      "Viewfinder Playback Show active capture in space enabled",
-      "Display active capture in space when in Viewfinder Playback mode");
+  RNA_def_property_ui_text(prop,
+                           "Viewfinder Playback Show active capture in space enabled",
+                           "Display active capture in space when in Viewfinder Playback mode");
   RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
 
   prop = RNA_def_property(srna, "active_mode", PROP_ENUM, PROP_NONE);
