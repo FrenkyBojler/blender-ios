@@ -66,7 +66,7 @@ extern PyTypeObject Py_ImBufBuffer_Type;
  * \{ */
 
 struct Py_ImBuf {
-  PyObject_VAR_HEAD
+  PyObject_HEAD
   /* can be nullptr */
   ImBuf *ibuf;
   /** Number of active buffer protocol exports (via #Py_ImBufBuffer). */
