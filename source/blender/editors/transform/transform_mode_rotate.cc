@@ -7,6 +7,7 @@
  */
 
 #include <cstdlib>
+#include <optional>
 
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
@@ -45,9 +46,42 @@ struct RotateMatrixCache {
   float mat[3][3];
 };
 
-static void rmat_cache_init(RotateMatrixCache *rmc, const float angle, const float axis[3])
+/**
+ * Build a rotation matrix, using exact sin/cos when a quadrant index (0..3) is provided.
+ * \param quadrant: If set, the exact quadrant (0=0, 1=90, 2=180, 3=270 degrees).
+ */
+static void axis_angle_normalized_to_mat3_with_quadrant(float mat[3][3],
+                                                        const float axis[3],
+                                                        const float angle,
+                                                        const std::optional<int> quadrant)
 {
-  axis_angle_normalized_to_mat3(rmc->mat, axis, angle);
+  if (quadrant.has_value()) {
+    BLI_assert(*quadrant >= 0 && *quadrant < 4);
+    const float sin_lut[4] = {0.0f, 1.0f, 0.0f, -1.0f};
+    const float cos_lut[4] = {1.0f, 0.0f, -1.0f, 0.0f};
+    axis_angle_normalized_to_mat3_ex(mat, axis, sin_lut[*quadrant], cos_lut[*quadrant]);
+  }
+  else {
+    axis_angle_normalized_to_mat3(mat, axis, angle);
+  }
+}
+
+static void rmat_cache_init(RotateMatrixCache *rmc,
+                            const float angle,
+                            const float axis[3],
+                            const std::optional<int> quadrant)
+{
+  if (quadrant.has_value()) {
+    /* Verify the angle (radians) is close to a multiple of 90 degrees.
+     * Failure indicates the quadrant and angle have gone out of sync,
+     * e.g. the angle was modified without clearing the quadrant.
+     * Check both near-zero and near-M_PI_2 because `fmodf` can return
+     * either depending on float representation (e.g. `18 * DEG2RAD(5)` vs `M_PI_2`). */
+    const float epsilon = DEG2RADF(0.5f) * max_ff(1.0f, fabsf(angle) / 1000.0f);
+    const float remainder = fabsf(fmodf(angle, float(M_PI_2)));
+    BLI_assert(remainder < epsilon || (float(M_PI_2) - remainder) < epsilon);
+  }
+  axis_angle_normalized_to_mat3_with_quadrant(rmc->mat, axis, angle, quadrant);
   rmc->do_update_matrix = 0;
 }
 
@@ -56,10 +90,13 @@ static void rmat_cache_reset(RotateMatrixCache *rmc)
   rmc->do_update_matrix = 2;
 }
 
-static void rmat_cache_update(RotateMatrixCache *rmc, const float axis[3], const float angle)
+static void rmat_cache_update(RotateMatrixCache *rmc,
+                              const float axis[3],
+                              const float angle,
+                              const std::optional<int> quadrant)
 {
   if (rmc->do_update_matrix > 0) {
-    axis_angle_normalized_to_mat3(rmc->mat, axis, angle);
+    axis_angle_normalized_to_mat3_with_quadrant(rmc->mat, axis, angle, quadrant);
     rmc->do_update_matrix--;
   }
 }
@@ -78,23 +115,30 @@ static void transdata_elem_rotate(const TransInfo *t,
                                   const float angle,
                                   const float angle_step,
                                   const bool is_large_rotation,
+                                  const std::optional<int> quadrant,
                                   RotateMatrixCache *rmc)
 {
   float axis_buffer[3];
   const float *axis_final = axis;
 
   float angle_final = angle;
+  /* When the angle is scaled by a factor, it's no longer a known quadrant angle. */
+  std::optional<int> quadrant_final = quadrant;
   if (t->con.applyRot) {
     copy_v3_v3(axis_buffer, axis);
     axis_final = axis_buffer;
     t->con.applyRot(t, tc, td, axis_buffer);
     angle_final = angle * td->factor;
+    quadrant_final = std::nullopt;
     /* Even though final angle might be identical to orig value,
      * we have to update the rotation matrix in that case... */
     rmat_cache_reset(rmc);
   }
   else if (t->flag & T_PROP_EDIT) {
     angle_final = angle * td->factor;
+    if (td->factor != 1.0f) {
+      quadrant_final = std::nullopt;
+    }
   }
 
   /* Rotation is very likely to be above 180 degrees we need to do rotation by steps.
@@ -112,7 +156,9 @@ static void transdata_elem_rotate(const TransInfo *t,
     for (float angle_progress = angle_step; fabsf(angle_progress) < fabsf(angle_final);
          angle_progress += angle_step)
     {
-      axis_angle_normalized_to_mat3(rmc->mat, axis_final, angle_progress);
+      /* Intermediate step angles are not quadrant angles. */
+      axis_angle_normalized_to_mat3_with_quadrant(
+          rmc->mat, axis_final, angle_progress, std::nullopt);
       ElementRotation(t, tc, td, td_ext, rmc->mat, t->around);
     }
     rmat_cache_reset(rmc);
@@ -121,7 +167,7 @@ static void transdata_elem_rotate(const TransInfo *t,
     rmat_cache_reset(rmc);
   }
 
-  rmat_cache_update(rmc, axis_final, angle_final);
+  rmat_cache_update(rmc, axis_final, angle_final, quadrant_final);
 
   ElementRotation(t, tc, td, td_ext, rmc->mat, t->around);
 }
@@ -192,7 +238,8 @@ static float large_rotation_limit(float angle)
 static void applyRotationValue(TransInfo *t,
                                float angle,
                                const float axis[3],
-                               const bool is_large_rotation)
+                               const bool is_large_rotation,
+                               const std::optional<int> quadrant)
 {
   const float angle_sign = angle < 0.0f ? -1.0f : 1.0f;
   /* We cannot use something too close to 180 degrees, or 'continuous' rotation may fail
@@ -208,14 +255,15 @@ static void applyRotationValue(TransInfo *t,
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
     threading::parallel_for(IndexRange(tc->data_len), 1024, [&](const IndexRange range) {
       RotateMatrixCache rmc = {0};
-      rmat_cache_init(&rmc, angle, axis);
+      rmat_cache_init(&rmc, angle, axis, quadrant);
       for (const int i : range) {
         TransData *td = &tc->data[i];
         TransDataExtension *td_ext = tc->data_ext ? &tc->data_ext[i] : nullptr;
         if (td->flag & TD_SKIP) {
           continue;
         }
-        transdata_elem_rotate(t, tc, td, td_ext, axis, angle, angle_step, is_large_rotation, &rmc);
+        transdata_elem_rotate(
+            t, tc, td, td_ext, axis, angle, angle_step, is_large_rotation, quadrant, &rmc);
       }
     });
   }
@@ -285,16 +333,102 @@ static bool clip_uv_transform_rotate(const TransInfo *t, float *vec, float *vec_
   return true;
 }
 
+/**
+ * Return the quadrant index (0..3) if a degree value is an integer multiple of 90,
+ * or #std::nullopt otherwise.
+ */
+static std::optional<int> angle_to_quadrant_or_null_from_degrees(const double degrees)
+{
+  if (!ED_numinput_double_is_int(degrees)) {
+    return std::nullopt;
+  }
+  const int64_t deg = int64_t(degrees);
+  if ((deg % 90) != 0) {
+    return std::nullopt;
+  }
+  return int(((deg / 90) % 4 + 4) % 4);
+}
+
+/**
+ * Return the quadrant index (0..3) if the numeric input is a multiple of 90 degrees,
+ * or #std::nullopt otherwise.
+ * Uses the pre-unit-scale value stored in #NumInput.val_no_units,
+ * and #NUM_INT_INPUT_VALUE to confirm it was an integer.
+ */
+static std::optional<int> angle_to_quadrant_or_null_from_numinput(const NumInput *n)
+{
+  if (!(n->val_flag[0] & NUM_INT_INPUT_VALUE)) {
+    return std::nullopt;
+  }
+  return angle_to_quadrant_or_null_from_degrees(n->val_no_units[0]);
+}
+
+/**
+ * Return the quadrant index (0..3) if a snapped angle (radians) corresponds
+ * to a multiple of 90 degrees, or #std::nullopt otherwise.
+ *
+ * \param snap_increment: The snap increment in radians (e.g. DEG2RAD(5)).
+ * Uses the increment to recover the exact integer degree value via step count.
+ */
+static std::optional<int> angle_to_quadrant_or_null_from_radians(const float angle,
+                                                                 const float snap_increment)
+{
+  if (angle == 0.0f) {
+    return angle_to_quadrant_or_null_from_degrees(0.0);
+  }
+  /* Snap increment is zero when snapping is not active, avoid division by zero below. */
+  if (snap_increment == 0.0f) {
+    return std::nullopt;
+  }
+  /* Recover the integer step count and degree increment. */
+  const double increment_deg = round(RAD2DEG(double(snap_increment)));
+  if (!ED_numinput_double_is_int(increment_deg) || increment_deg == 0.0) {
+    return std::nullopt;
+  }
+  const int64_t steps = int64_t(roundf(angle / snap_increment));
+  return angle_to_quadrant_or_null_from_degrees(double(steps * int64_t(increment_deg)));
+}
+
+/**
+ * Return the quadrant index (0..3) if the current rotation is a multiple of 90 degrees,
+ * detected from either numeric input or snap increment. Returns #std::nullopt otherwise.
+ * Reads #TransInfo.values_final which must be set before calling.
+ *
+ * \param is_large_rotation_limited: When true, #large_rotation_limit modified the radian angle,
+ * breaking the correspondence between the input value and the actual angle.
+ */
+static std::optional<int> transform_angle_to_quadrant_or_null(const TransInfo *t,
+                                                              const bool is_large_rotation_limited)
+{
+  /* `large_rotation_limit` uses float `fmodf` which loses precision for very large angles,
+   * the resulting radian value no longer corresponds to the original degree input. */
+  if (is_large_rotation_limited) {
+    return std::nullopt;
+  }
+  if (hasNumInput(&t->num)) {
+    return angle_to_quadrant_or_null_from_numinput(&t->num);
+  }
+  /* Only use snap quadrant when increment snap was used (not geometry snap). */
+  if (transform_snap_is_active(t) && !validSnap(t)) {
+    return angle_to_quadrant_or_null_from_radians(t->values_final[0],
+                                                  transform_snap_increment_get(t));
+  }
+  return std::nullopt;
+}
+
 static void applyRotation(TransInfo *t)
 {
   float3 axis_final;
   transform_mode_rotation_axis_get(t, axis_final);
 
   float final;
+  bool is_large_rotation_limited = false;
   if (applyNumInput(&t->num, &final)) {
     /* We have to limit the amount of turns to a reasonable number here,
      * to avoid things getting *very* slow, see how applyRotationValue() handles those... */
+    const float final_unlimited = final;
     final = large_rotation_limit(final);
+    is_large_rotation_limited = (final != final_unlimited);
   }
   else {
     final = t->values[0] + t->values_modal_offset[0];
@@ -312,12 +446,15 @@ static void applyRotation(TransInfo *t)
 
   t->values_final[0] = final;
 
+  const std::optional<int> quadrant = transform_angle_to_quadrant_or_null(
+      t, is_large_rotation_limited);
+
   const bool is_large_rotation = hasNumInput(&t->num);
-  applyRotationValue(t, final, axis_final, is_large_rotation);
+  applyRotationValue(t, final, axis_final, is_large_rotation, quadrant);
 
   if (t->flag & T_CLIP_UV) {
     if (clip_uv_transform_rotate(t, t->values_final, t->values_inside_constraints)) {
-      applyRotationValue(t, t->values_final[0], axis_final, is_large_rotation);
+      applyRotationValue(t, t->values_final[0], axis_final, is_large_rotation, quadrant);
     }
 
     /* Not ideal, see #clipUVData code-comment. */
@@ -337,11 +474,13 @@ static void applyRotationMatrix(TransInfo *t, float mat_xform[4][4])
 {
   float3 axis_final;
   transform_mode_rotation_axis_get(t, axis_final);
-  const float angle_final = t->values_final[0];
 
   float mat3[3][3];
   float mat4[4][4];
-  axis_angle_normalized_to_mat3(mat3, axis_final, angle_final);
+  /* NOTE: is_large_rotation_limited state from applyRotation is not available here,
+   * but values_final was already set by applyRotation which skips quadrant in that case. */
+  axis_angle_normalized_to_mat3_with_quadrant(
+      mat3, axis_final, t->values_final[0], transform_angle_to_quadrant_or_null(t, false));
   copy_m4_m3(mat4, mat3);
   transform_pivot_set_m4(mat4, t->center_global);
   mul_m4_m4m4(mat_xform, mat4, mat_xform);
