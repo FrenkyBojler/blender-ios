@@ -2690,7 +2690,7 @@ static void but_paste_color(bContext *C, Button *but, char *buf_paste)
   if (parse_float_array(buf_paste, rgba, 4)) {
     is_parsed = true;
   }
-  else if (hex_to_rgba(buf_paste, rgba, rgba + 1, rgba + 2, rgba + 3)) {
+  else if (hex_to_rgba(buf_paste, &rgba[0], &rgba[1], &rgba[2], &rgba[3])) {
     IMB_colormanagement_srgb_to_scene_linear_v3(rgba, rgba);
     is_parsed = true;
   }
@@ -2708,7 +2708,7 @@ static void but_paste_color(bContext *C, Button *but, char *buf_paste)
     }
   }
   else {
-    WM_global_report(RPT_ERROR, "Paste expected 4 numbers, formatted: '[n, n, n, n]'");
+    WM_global_report(RPT_ERROR, "Paste expected hex code or 4 numbers, formatted: '[n, n, n, n]'");
   }
 }
 
