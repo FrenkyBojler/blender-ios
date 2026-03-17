@@ -317,7 +317,7 @@ void wm_xr_viewfinder_render_view(wmXrData *xr_data)
       float viewfinder_capture_mat[4][4];
       wm_xr_viewfinder_transform_update_smoothed(state, raw_capture_mat, viewfinder_capture_mat);
 
-      /* Apply XR view scale. */
+      /* Apply XR viewer scale. */
       mul_v3_fl(viewfinder_capture_mat[0], state->viewer_scale);
       mul_v3_fl(viewfinder_capture_mat[1], state->viewer_scale);
       mul_v3_fl(viewfinder_capture_mat[2], state->viewer_scale);
@@ -1210,7 +1210,7 @@ static wmOperatorStatus wm_xr_location_scouting_review_captures_modal(bContext *
 
   /* Camera viewport display settings, set passepartout to emphasize that the modal is enabled. */
   review_data->cam_data->flag |= CAM_SHOWPASSEPARTOUT;
-  review_data->cam_data->passepartalpha = 0.995f; /* *Almost* completely opaque. */
+  review_data->cam_data->passepartalpha = 0.99f; /* *Almost* completely opaque. */
 
   float capture_cam_mat[4][4];
   wm_xr_pose_to_mat(&capture->pose, capture_cam_mat);

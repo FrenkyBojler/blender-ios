@@ -282,6 +282,6 @@ def unregister():
     del bpy.types.Scene.vr_captures
     del bpy.types.Scene.vr_captures_selected
 
-    del bpy.types.WindowManager.vr_captures_is_reviewing
+    del bpy.types.WindowManager.vr_capture_review_running
 
     bpy.app.handlers.load_post.remove(vr_ensure_default_landmark)
