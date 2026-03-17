@@ -398,6 +398,11 @@ static void ExportCurveSegments(Scene *scene, Hair *hair, ParticleCurveData *CDa
     }
   }
 
+  hair->tag_curve_keys_modified();
+  hair->tag_curve_radius_modified();
+  hair->tag_curve_first_key_modified();
+  hair->tag_curve_shader_modified();
+
   /* check allocation */
   if ((hair->get_curve_keys().size() != num_keys) || (hair->num_curves() != num_curves)) {
     LOG_ERROR << "Hair memory allocation failed, clearing data.";

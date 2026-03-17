@@ -595,6 +595,13 @@ static void xml_read_mesh(const XMLReadState &state, const xml_node node)
       ptex_offset += num_ptex;
     }
 
+    mesh->tag_subd_face_corners_modified();
+    mesh->tag_subd_start_corner_modified();
+    mesh->tag_subd_num_corners_modified();
+    mesh->tag_subd_shader_modified();
+    mesh->tag_subd_smooth_modified();
+    mesh->tag_subd_ptex_offset_modified();
+
     /* UV map */
     if (xml_read_float_array(UV, node, "UV") ||
         xml_read_float_array(UV, node, Attribute::standard_name(ATTR_STD_UV)))

@@ -447,6 +447,10 @@ void HdCyclesMesh::PopulateTopology(HdSceneDelegate *sceneDelegate)
     }
 
     std::ranges::fill(mesh->get_smooth(), smooth);
+
+    mesh->tag_triangles_modified();
+    mesh->tag_shader_modified();
+    mesh->tag_smooth_modified();
   }
   else {
     const PxOsdSubdivTags subdivTags = GetSubdivTags(sceneDelegate);
@@ -481,6 +485,13 @@ void HdCyclesMesh::PopulateTopology(HdSceneDelegate *sceneDelegate)
 
     std::ranges::copy(faceShaders, mesh->get_subd_shader());
     std::ranges::fill(mesh->get_smooth(), smooth);
+
+    mesh->tag_subd_face_corners_modified();
+    mesh->tag_subd_start_corner_modified();
+    mesh->tag_subd_num_corners_modified();
+    mesh->tag_subd_shader_modified();
+    mesh->tag_subd_smooth_modified();
+    mesh->tag_subd_ptex_offset_modified();
 
     const VtIntArray creaseLengths = subdivTags.GetCreaseLengths();
     if (!creaseLengths.empty()) {

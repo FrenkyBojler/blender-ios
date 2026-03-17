@@ -220,6 +220,9 @@ void HdCyclesCurves::PopulateTopology(HdSceneDelegate *sceneDelegate)
   }
 
   std::ranges::fill(hair->get_curve_shader(), 0);
+
+  _geom->tag_curve_first_key_modified();
+  _geom->tag_curve_shader_modified();
 }
 
 HDCYCLES_NAMESPACE_CLOSE_SCOPE
