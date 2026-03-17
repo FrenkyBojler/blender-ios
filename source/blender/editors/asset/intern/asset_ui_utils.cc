@@ -47,6 +47,11 @@ void asset_tooltip(const asset_system::AssetRepresentation &asset,
 
   switch (asset.owner_asset_library().library_type()) {
     case ASSET_LIBRARY_CUSTOM: {
+      if (asset.is_online()) {
+        /* Don't show file path or .blend name. Data on disk is just a cache. */
+        break;
+      }
+
       tooltip_text_field_add(tip, {}, {}, ui::TIP_STYLE_SPACER, ui::TIP_LC_NORMAL, false);
 
       const std::string full_blend_path = asset.full_library_path();
@@ -75,6 +80,13 @@ void asset_tooltip(const asset_system::AssetRepresentation &asset,
     default:
       /* Intentionally empty. */
       break;
+  }
+
+  if (asset.is_online()) {
+    if (std::optional<std::string> remote_url = asset.owner_asset_library().remote_url()) {
+      tooltip_text_field_add(tip, {}, {}, ui::TIP_STYLE_SPACER, ui::TIP_LC_NORMAL, false);
+      tooltip_text_field_add(tip, *remote_url, {}, ui::TIP_STYLE_NORMAL, ui::TIP_LC_PYTHON);
+    }
   }
 }
 
