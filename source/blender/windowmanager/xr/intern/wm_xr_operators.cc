@@ -134,17 +134,16 @@ static wmOperatorStatus wm_xr_session_toggle_exec(bContext *C, wmOperator * /*op
 {
   Main *bmain = CTX_data_main(C);
   wmWindowManager *wm = CTX_wm_manager(C);
-  wmWindow *win = CTX_wm_window(C);
   View3D *v3d = CTX_wm_view3d(C);
 
   /* Lazily-create XR context - tries to dynamic-link to the runtime,
    * reading `active_runtime.json`. */
-  if (wm_xr_init(wm) == false) {
+  if (wm_xr_init(C) == false) {
     return OPERATOR_CANCELLED;
   }
 
   v3d->runtime.flag |= V3D_RUNTIME_XR_SESSION_ROOT;
-  wm_xr_session_toggle(wm, win, wm_xr_session_update_screen_on_exit_cb);
+  wm_xr_session_toggle(wm, wm_xr_session_update_screen_on_exit_cb);
   wm_xr_session_update_screen(bmain, &wm->xr);
 
   WM_event_add_notifier(C, NC_WM | ND_XR_DATA_CHANGED, nullptr);
@@ -1822,7 +1821,7 @@ static void WM_OT_xr_navigation_reset(wmOperatorType *ot)
 /* -------------------------------------------------------------------- */
 /** \name XR Navigation Swap Hands
  *
- * Resets XR navigation deltas relative to session base pose.
+ * Swaps XR navigation controls between left and right controllers.
  * \{ */
 
 static wmOperatorStatus wm_xr_navigation_swap_hands_invoke(bContext *C,

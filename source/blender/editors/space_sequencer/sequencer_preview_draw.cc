@@ -971,9 +971,7 @@ static void update_cpu_scopes(const SpaceSeq &space_sequencer,
 
 static bool sequencer_draw_get_transform_preview(const SpaceSeq &sseq, const Scene &scene)
 {
-  if ((scene.ed->runtime.flag & SEQ_SHOW_TRANSFORM_PREVIEW) &&
-      (sseq.draw_flag & SEQ_DRAW_TRANSFORM_PREVIEW))
-  {
+  if (scene.ed->runtime->show_transform_preview && (sseq.draw_flag & SEQ_DRAW_TRANSFORM_PREVIEW)) {
     return true;
   }
 
@@ -991,8 +989,8 @@ static int sequencer_draw_get_transform_preview_frame(const Scene *scene)
 {
   int preview_frame;
 
-  if (scene->ed->runtime.flag & SEQ_SHOW_TRANSFORM_PREVIEW) {
-    preview_frame = scene->ed->runtime.transform_preview_frame;
+  if (scene->ed->runtime->show_transform_preview) {
+    preview_frame = scene->ed->runtime->transform_preview_frame;
     return preview_frame;
   }
 
@@ -1272,8 +1270,7 @@ static void preview_draw_color_render_begin(ARegion &region)
   gpu::FrameBuffer *render_fb = GPU_viewport_framebuffer_render_get(viewport);
   GPU_framebuffer_bind(render_fb);
 
-  float col[4] = {0, 0, 0, 0};
-  GPU_framebuffer_clear_color(render_fb, col);
+  GPU_framebuffer_clear_color(render_fb, double4(0.0));
 }
 
 /* Configure current GPU state to draw on the overlay frame-buffer of the viewport. */

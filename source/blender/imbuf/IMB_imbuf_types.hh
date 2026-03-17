@@ -80,8 +80,11 @@ using ColorSpace = ocio::ColorSpace;
 
 struct ImbFormatOptions {
   short flag = 0;
-  /** Quality serves dual purpose as quality number for JPEG or compression amount for PNG. */
-  char quality = 0;
+  /** Quality for JPEG, WebP, AVIF. */
+  char quality = 90;
+  /* Compression amount for PNG.
+   * Default to low compression ratio that is not time consuming. */
+  char compress = 15;
 };
 
 /* -------------------------------------------------------------------- */
@@ -315,6 +318,9 @@ enum {
   IB_DISPLAY_BUFFER_INVALID = (1 << 4),
   /** image buffer is persistent in the memory and should never be removed from the cache */
   IB_PERSISTENT = (1 << 5),
+  /** The image buffer is backed by a GPU texture storage but the host buffers either do not exist
+   * or are out-dated and needs to read from the GPU texture. */
+  IB_HOST_BUFFER_INVALID = (1 << 6),
 };
 
 /** \} */

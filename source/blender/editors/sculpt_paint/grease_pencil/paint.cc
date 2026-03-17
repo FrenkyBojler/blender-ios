@@ -407,7 +407,7 @@ struct PaintOperationExecutor {
         "material_index", bke::AttrDomain::Curve);
     bke::SpanAttributeWriter<bool> cyclic = attributes.lookup_or_add_for_write_span<bool>(
         "cyclic", bke::AttrDomain::Curve);
-    cyclic.span[active_curve] = false;
+    cyclic.span[active_curve] = use_fill;
     materials.span[active_curve] = material_index;
     curve_attributes_to_skip.add_multiple({"material_index", "cyclic"});
     cyclic.finish();
@@ -485,9 +485,7 @@ struct PaintOperationExecutor {
     if (use_fill && (start_opacity < 1.0f || attributes.contains("fill_opacity"))) {
       if (bke::SpanAttributeWriter<float> fill_opacities =
               attributes.lookup_or_add_for_write_span<float>(
-                  "fill_opacity",
-                  bke::AttrDomain::Curve,
-                  bke::AttributeInitVArray(VArray<float>::from_single(1.0f, curves.curves_num()))))
+                  "fill_opacity", bke::AttrDomain::Curve, bke::AttributeInitValue(1.0f)))
       {
         fill_opacities.span[active_curve] = start_opacity;
         curve_attributes_to_skip.add("fill_opacity");
@@ -1467,18 +1465,7 @@ static int trim_end_points(bke::greasepencil::Drawing &drawing,
     }
 
     bke::GSpanAttributeWriter dst = attributes.lookup_for_write_span(iter.name);
-    GMutableSpan attribute_data = dst.span;
-
-    bke::attribute_math::to_static_type(attribute_data.type(), [&]<typename T>() {
-      MutableSpan<T> span_data = attribute_data.typed<T>();
-
-      for (int i = last_active_point - num_points_to_remove + 1;
-           i < curves.points_num() - num_points_to_remove;
-           i++)
-      {
-        span_data[i] = span_data[i + num_points_to_remove];
-      }
-    });
+    bke::attribute_math::shift_left(dst.span, last_active_point, curves.points_num(), 0);
     dst.finish();
   });
 

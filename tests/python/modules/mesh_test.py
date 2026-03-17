@@ -243,6 +243,7 @@ class MeshTest(ABC):
         self.expected_object.name = self.exp_object_name
         x, y, z = self.test_object.location
         self.expected_object.location = (x, y + 10, z)
+        self.apply_operations(self.expected_object.name)
 
     def create_evaluated_object(self):
         """
@@ -400,12 +401,9 @@ class MeshTest(ABC):
         """
         self.evaluated_object.location = self.expected_object.location
         expected_object_name = self.expected_object.name
-        evaluated_selection = {
-            v.index for v in self.evaluated_object.data.vertices if v.select}
 
         bpy.data.objects.remove(self.expected_object, do_unlink=True)
         self.evaluated_object.name = expected_object_name
-        self.do_selection(self.evaluated_object.data, "VERT", evaluated_selection, False)
 
         self.activate_test_object()
 

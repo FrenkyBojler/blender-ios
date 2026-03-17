@@ -92,6 +92,7 @@ bool BlenderSync::object_can_have_geometry(blender::Object &b_ob)
     case blender::OB_CURVES:
     case blender::OB_POINTCLOUD:
     case blender::OB_VOLUME:
+      /* TODO(weizhen): OB_LAMP */
       return true;
     default:
       return false;
@@ -371,9 +372,6 @@ Object *BlenderSync::sync_object(blender::ViewLayer &b_view_layer,
 
   return object;
 }
-
-extern "C" blender::DupliObject *rna_hack_DepsgraphObjectInstance_dupli_object_get(
-    blender::PointerRNA *ptr);
 
 static float4 lookup_instance_property(blender::Object &ob,
                                        blender::DEGObjectIterData &b_deg_iter_data,
