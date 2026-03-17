@@ -60,6 +60,7 @@ GLTexturePool::~GLTexturePool()
 }
 
 Texture *GLTexturePool::acquire_texture_impl(int3 extent,
+                                             int mip_len,
                                              GPUTextureType type,
                                              TextureFormat format,
                                              eGPUTextureUsage usage,

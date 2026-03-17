@@ -21,7 +21,7 @@ static CLG_LogRef LOG = {"gpu.vulkan"};
 
 namespace detail {
 /* Wrap non-hardcoded arguments of VkImageCreateInfo as tuple of lvalues.
- * Keep in sync with `VKTexturePool::acquire_texture()`. */
+ * Keep in sync with `VKTexturePool::acquire_texture_impl()`. */
 constexpr auto tie(const VkImageCreateInfo &info)
 {
   return std::tie(info.format,
@@ -338,6 +338,7 @@ VKTexturePool::~VKTexturePool()
 }
 
 Texture *VKTexturePool::acquire_texture_impl(int3 extent,
+                                             int mip_len,
                                              GPUTextureType type,
                                              TextureFormat format,
                                              eGPUTextureUsage usage,

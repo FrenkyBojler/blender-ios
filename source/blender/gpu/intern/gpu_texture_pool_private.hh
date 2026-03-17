@@ -20,6 +20,7 @@ namespace blender::gpu {
 class TexturePoolBase : public TexturePool {
  protected:
   virtual Texture *acquire_texture_impl(int3 extent,
+                                        int mip_len,
                                         GPUTextureType type,
                                         TextureFormat format,
                                         eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL,
@@ -27,58 +28,68 @@ class TexturePoolBase : public TexturePool {
 
  public:
   Texture *acquire_texture_1d(int extent,
+                              int mip_len,
                               TextureFormat format,
                               eGPUTextureUsage usage,
                               const char *name = nullptr) override
   {
-    return acquire_texture_impl({extent, 0, 0}, GPU_TEXTURE_1D, format, usage, name);
+    return acquire_texture_impl({extent, 0, 0}, mip_len, GPU_TEXTURE_1D, format, usage, name);
   }
   Texture *acquire_texture_1d_array(int extent,
                                     int layer_len,
-                                    TextureFormat format,
-                                    eGPUTextureUsage usage,
-                                    const char *name = nullptr) override
-  {
-    return acquire_texture_impl({extent, layer_len, 0}, GPU_TEXTURE_1D_ARRAY, format, usage, name);
-  }
-  Texture *acquire_texture_2d(int2 extent,
-                              TextureFormat format,
-                              eGPUTextureUsage usage,
-                              const char *name = nullptr) override
-  {
-    return acquire_texture_impl({extent.x, extent.y, 0}, GPU_TEXTURE_2D, format, usage, name);
-  }
-  Texture *acquire_texture_2d_array(int2 extent,
-                                    int layer_len,
+                                    int mip_len,
                                     TextureFormat format,
                                     eGPUTextureUsage usage,
                                     const char *name = nullptr) override
   {
     return acquire_texture_impl(
-        {extent.x, extent.y, layer_len}, GPU_TEXTURE_2D_ARRAY, format, usage, name);
+        {extent, layer_len, 0}, mip_len, GPU_TEXTURE_1D_ARRAY, format, usage, name);
   }
-  Texture *acquire_texture_3d(int3 extent,
+  Texture *acquire_texture_2d(int2 extent,
+                              int mip_len,
                               TextureFormat format,
                               eGPUTextureUsage usage,
                               const char *name = nullptr) override
   {
-    return acquire_texture_impl(extent, GPU_TEXTURE_3D, format, usage, name);
+    return acquire_texture_impl(
+        {extent.x, extent.y, 0}, mip_len, GPU_TEXTURE_2D, format, usage, name);
+  }
+  Texture *acquire_texture_2d_array(int2 extent,
+                                    int layer_len,
+                                    int mip_len,
+                                    TextureFormat format,
+                                    eGPUTextureUsage usage,
+                                    const char *name = nullptr) override
+  {
+    return acquire_texture_impl(
+        {extent.x, extent.y, layer_len}, mip_len, GPU_TEXTURE_2D_ARRAY, format, usage, name);
+  }
+  Texture *acquire_texture_3d(int3 extent,
+                              int mip_len,
+                              TextureFormat format,
+                              eGPUTextureUsage usage,
+                              const char *name = nullptr) override
+  {
+    return acquire_texture_impl(extent, mip_len, GPU_TEXTURE_3D, format, usage, name);
   }
   Texture *acquire_texture_cube(int extent,
+                                int mip_len,
                                 TextureFormat format,
                                 eGPUTextureUsage usage,
                                 const char *name = nullptr) override
   {
-    return acquire_texture_impl({extent, extent, 0}, GPU_TEXTURE_CUBE, format, usage, name);
+    return acquire_texture_impl(
+        {extent, extent, 0}, mip_len, GPU_TEXTURE_CUBE, format, usage, name);
   }
   Texture *acquire_texture_cube_array(int extent,
                                       int layer_len,
+                                      int mip_len,
                                       TextureFormat format,
                                       eGPUTextureUsage usage,
                                       const char *name = nullptr) override
   {
     return acquire_texture_impl(
-        {extent, extent, layer_len}, GPU_TEXTURE_CUBE_ARRAY, format, usage, name);
+        {extent, extent, layer_len}, mip_len, GPU_TEXTURE_CUBE_ARRAY, format, usage, name);
   }
 };
 
@@ -118,6 +129,7 @@ class TexturePoolImpl : public TexturePoolBase {
 
  protected:
   Texture *acquire_texture_impl(int3 extent,
+                                int mip_len,
                                 GPUTextureType type,
                                 TextureFormat format,
                                 eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL,

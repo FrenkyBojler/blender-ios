@@ -1085,9 +1085,10 @@ class TextureFromPool : public Texture, NonMovable {
    */
   bool acquire_1d(int extent,
                   gpu::TextureFormat format,
-                  eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL)
+                  eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL,
+                  int mip_len = 1)
   {
-    return acquire_impl(extent, 0, 0, format, usage, false, false);
+    return acquire_impl(extent, 0, 0, mip_len, format, usage, false, false);
   }
 
   /**
@@ -1097,9 +1098,10 @@ class TextureFromPool : public Texture, NonMovable {
   bool acquire_1d_array(int extent,
                         int layers,
                         gpu::TextureFormat format,
-                        eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL)
+                        eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL,
+                        int mip_len = 1)
   {
-    return acquire_impl(extent, layers, 0, format, usage, true, false);
+    return acquire_impl(extent, layers, 0, mip_len, format, usage, true, false);
   }
 
   /**
@@ -1108,9 +1110,10 @@ class TextureFromPool : public Texture, NonMovable {
    */
   bool acquire_2d(int2 extent,
                   gpu::TextureFormat format,
-                  eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL)
+                  eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL,
+                  int mip_len = 1)
   {
-    return acquire_impl(extent.x, extent.y, 0, format, usage, false, false);
+    return acquire_impl(extent.x, extent.y, 0, mip_len, format, usage, false, false);
   }
 
   /**
@@ -1120,9 +1123,10 @@ class TextureFromPool : public Texture, NonMovable {
   bool acquire_2d_array(int2 extent,
                         int layers,
                         gpu::TextureFormat format,
-                        eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL)
+                        eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL,
+                        int mip_len = 1)
   {
-    return acquire_impl(extent.x, extent.y, layers, format, usage, true, false);
+    return acquire_impl(extent.x, extent.y, layers, mip_len, format, usage, true, false);
   }
 
   /**
@@ -1131,9 +1135,10 @@ class TextureFromPool : public Texture, NonMovable {
    */
   bool acquire_3d(int3 extent,
                   gpu::TextureFormat format,
-                  eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL)
+                  eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL,
+                  int mip_len = 1)
   {
-    return acquire_impl(extent.x, extent.y, extent.z, format, usage, false, false);
+    return acquire_impl(extent.x, extent.y, extent.z, mip_len, format, usage, false, false);
   }
 
   /**
@@ -1142,9 +1147,10 @@ class TextureFromPool : public Texture, NonMovable {
    */
   bool acquire_cube(int extent,
                     gpu::TextureFormat format,
-                    eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL)
+                    eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL,
+                    int mip_len = 1)
   {
-    return acquire_impl(extent, 0, 0, format, usage, false, true);
+    return acquire_impl(extent, 0, 0, mip_len, format, usage, false, true);
   }
 
   /**
@@ -1154,9 +1160,10 @@ class TextureFromPool : public Texture, NonMovable {
   bool acquire_cube_array(int extent,
                           int layers,
                           gpu::TextureFormat format,
-                          eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL)
+                          eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL,
+                          int mip_len = 1)
   {
-    return acquire_impl(extent, layers, 0, format, usage, true, true);
+    return acquire_impl(extent, layers, 0, mip_len, format, usage, true, true);
   }
 
   /* Invalidate the acquired texture for this frame. Multiple releases can be done safely. */
@@ -1209,6 +1216,7 @@ class TextureFromPool : public Texture, NonMovable {
   bool acquire_impl(int w,
                     int h,
                     int d,
+                    int mip_len,
                     gpu::TextureFormat format,
                     eGPUTextureUsage usage,
                     bool layered,
@@ -1229,29 +1237,29 @@ class TextureFromPool : public Texture, NonMovable {
     pool_ = &gpu::TexturePool::get();
 
     if (h == 0) {
-      tx_ = pool_->acquire_texture_1d(w, format, usage, name_);
+      tx_ = pool_->acquire_texture_1d(w, mip_len, format, usage, name_);
     }
     else if (cubemap) {
       if (layered) {
-        tx_ = pool_->acquire_texture_cube_array(w, h, format, usage, name_);
+        tx_ = pool_->acquire_texture_cube_array(w, h, mip_len, format, usage, name_);
       }
       else {
-        tx_ = pool_->acquire_texture_cube(w, format, usage, name_);
+        tx_ = pool_->acquire_texture_cube(w, mip_len, format, usage, name_);
       }
     }
     else if (d == 0) {
       if (layered) {
-        tx_ = pool_->acquire_texture_1d_array(w, h, format, usage, name_);
+        tx_ = pool_->acquire_texture_1d_array(w, h, mip_len, format, usage, name_);
       }
       else {
-        tx_ = pool_->acquire_texture_2d({w, h}, format, usage, name_);
+        tx_ = pool_->acquire_texture_2d({w, h}, mip_len, format, usage, name_);
       }
     }
     else if (layered) {
-      tx_ = pool_->acquire_texture_2d_array({w, h}, d, format, usage, name_);
+      tx_ = pool_->acquire_texture_2d_array({w, h}, d, mip_len, format, usage, name_);
     }
     else {
-      tx_ = pool_->acquire_texture_3d({w, h, d}, format, usage, name_);
+      tx_ = pool_->acquire_texture_3d({w, h, d}, mip_len, format, usage, name_);
     }
 
     if (G.debug & G_DEBUG_GPU) {
