@@ -354,8 +354,8 @@ static void shrinkwrap_calc_nearest_vertex(ShrinkwrapCalcData *calc)
     BVHTreeNearest nearest{};
     nearest.index = -1;
     nearest.dist_sq = FLT_MAX;
-    for (const int i : range) {
-      shrinkwrap_calc_nearest_vertex_cb_ex(calc, &calc->tree->treeData, i, &nearest);
+    for (const int64_t i : range) {
+      shrinkwrap_calc_nearest_vertex_cb_ex(calc, &calc->tree->treeData, int(i), &nearest);
     }
   });
 }
@@ -621,8 +621,8 @@ static void shrinkwrap_calc_normal_projection(ShrinkwrapCalcData *calc)
      * for finding the best hit, to get the real dist,
      * measure the len_v3v3() from the input coord to hit.co */
     BVHTreeRayHit hit{};
-    for (const int i : range) {
-      shrinkwrap_calc_normal_projection_cb_ex(calc, aux_tree, proj_axis, &local2aux, i, &hit);
+    for (const int64_t i : range) {
+      shrinkwrap_calc_normal_projection_cb_ex(calc, aux_tree, proj_axis, &local2aux, int(i), &hit);
     }
   });
 
@@ -1282,8 +1282,8 @@ static void shrinkwrap_calc_nearest_surface_point(ShrinkwrapCalcData *calc)
     BVHTreeNearest nearest{};
     nearest.index = -1;
     nearest.dist_sq = FLT_MAX;
-    for (const int i : range) {
-      shrinkwrap_calc_nearest_surface_point_cb_ex(calc, i, &nearest);
+    for (const int64_t i : range) {
+      shrinkwrap_calc_nearest_surface_point_cb_ex(calc, int(i), &nearest);
     }
   });
 }
