@@ -533,7 +533,7 @@ static void import_file(ImportJobData *data, const char *filepath, float progres
   /* Parse Alembic Archive. */
   AbcObjectReader::ptr_vector assign_as_parent;
   std::vector<AbcObjectReader *> readers{};
-  int parent_count = -1;
+  int parent_count = 0;
   visit_object(archive->getTop(), readers, data->settings, assign_as_parent, parent_count);
 
   /* There shouldn't be any orphans. */
@@ -1038,15 +1038,14 @@ void ABC_geo_and_trans(Main *bmain,
       AbcObjectReader *parent_reader = reader->parent_reader;
       if (parent_reader == nullptr || !reader->inherits_xform()) {
         parent_ids.append(-1);
-        parent_counts.append(-1);
       }
       else {
         auto it = std::find(readers.begin(), readers.end(), parent_reader);
         int index = std::distance(readers.begin(), it);
-
         parent_ids.append(index);
-        parent_counts.append(reader->parent_count());
       }
+      
+      parent_counts.append(reader->parent_count());
     }
   }
 
