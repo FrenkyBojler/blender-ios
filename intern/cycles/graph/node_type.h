@@ -134,6 +134,7 @@ struct NodeType {
                        Type type = NONE,
                        const NodeType *base = nullptr);
   static const NodeType *find(ustring name);
+  static const vector<ustring> get_type_names();
 
  private:
   static unordered_map<ustring, NodeType> &types();

@@ -243,4 +243,17 @@ const NodeType *NodeType::find(ustring name)
   return (it == types().end()) ? nullptr : &it->second;
 }
 
+const vector<ustring> NodeType::get_type_names()
+{
+  thread_scoped_lock lock(types_mutex_);
+
+  vector<ustring> type_names;
+  type_names.reserve(types().size());
+
+  for (const auto& node_type : types()) {
+    type_names.push_back(node_type.first);
+  }
+  return type_names;
+}
+
 CCL_NAMESPACE_END
