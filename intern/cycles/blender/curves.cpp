@@ -353,6 +353,8 @@ static void ExportCurveSegments(Scene *scene, Hair *hair, ParticleCurveData *CDa
          curve < CData->psys_firstcurve[sys] + CData->psys_curvenum[sys];
          curve++)
     {
+      curve_first_key[num_curves] = num_keys;
+
       for (int curvekey = CData->curve_firstkey[curve];
            curvekey < CData->curve_firstkey[curve] + CData->curve_keynum[curve];
            curvekey++)
@@ -391,7 +393,6 @@ static void ExportCurveSegments(Scene *scene, Hair *hair, ParticleCurveData *CDa
         attr_random[num_curves] = hash_uint2_to_float(num_curves, 0);
       }
 
-      curve_first_key[num_curves] = num_keys;
       curve_shader[num_curves] = CData->psys_shader[sys];
 
       num_curves++;
