@@ -139,6 +139,11 @@ VkImage VKImageCache::get_or_create(const VKImageInfo &info)
   VkImage image = create_and_bind_vk_image(info, name_str);
   cache_.add_new(info, {.image = image});
 
+  /* Register VkImage as resource for synchronization. */
+  bool use_subresource_tracking = info.create_info.arrayLayers > 1 ||
+                                  info.create_info.mipLevels > 1;
+  device.resources.add_aliased_image(image, use_subresource_tracking, name_str.c_str());
+
   return image;
 }
 
@@ -347,6 +352,7 @@ Texture *VKTexturePool::acquire_texture_impl(int3 extent,
   texture->format_flag_ = to_format_flag(format);
   texture->type_ = type;
   texture->gpu_image_usage_flags_ = usage;
+  texture->mipmaps_ = 1;
   /* R16G16F16 formats are typically not supported (<1%). */
   texture->device_format_ = format;
   if (texture->device_format_ == TextureFormat::SFLOAT_16_16_16) {
@@ -369,7 +375,7 @@ Texture *VKTexturePool::acquire_texture_impl(int3 extent,
       .format = to_vk_format(format),
       .extent = texture->vk_extent_3d(0),
       .mipLevels = 1,
-      .arrayLayers = texture->vk_layer_count(1),
+      .arrayLayers = static_cast<uint32_t>(texture->vk_layer_count(1)),
       .samples = VK_SAMPLE_COUNT_1_BIT,
       .tiling = VK_IMAGE_TILING_OPTIMAL,
       .usage = to_vk_image_usage(usage, to_format_flag(format), false),

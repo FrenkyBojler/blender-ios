@@ -1165,6 +1165,7 @@ class TextureFromPool : public Texture, NonMovable {
     if (tx_ == nullptr) {
       return;
     }
+    free_texture_views();
     pool_->release_texture(tx_);
     tx_ = nullptr;
     pool_ = nullptr;
@@ -1201,7 +1202,6 @@ class TextureFromPool : public Texture, NonMovable {
   void filter_mode(bool) = delete;
   void free() = delete;
   gpu::Texture *mip_view(int) = delete;
-  gpu::Texture *layer_view(int) = delete;
   gpu::Texture *stencil_view() = delete;
 
  private:
