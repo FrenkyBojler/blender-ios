@@ -371,12 +371,14 @@ class NodeSwapOperator(NodeOperator):
                 for i, input in enumerate(old_node.inputs):
                     for link in input.links[:]:
                         try:
+                            is_muted = link.is_muted
                             new_socket = new_node.inputs[i]
 
                             if new_socket.hide or not new_socket.enabled:
                                 continue
 
-                            tree.links.new(link.from_socket, new_socket)
+                            new_link = tree.links.new(link.from_socket, new_socket)
+                            new_link.is_muted = is_muted
                         except IndexError:
                             pass
             else:
@@ -385,12 +387,14 @@ class NodeSwapOperator(NodeOperator):
 
                     for link in links:
                         try:
+                            is_muted = link.is_muted
                             new_socket = new_node.inputs[input.name]
 
                             if new_socket.hide or not new_socket.enabled:
                                 continue
 
-                            tree.links.new(link.from_socket, new_socket)
+                            new_link = tree.links.new(link.from_socket, new_socket)
+                            new_link.is_muted = is_muted
                         except KeyError:
                             pass
 
@@ -399,12 +403,14 @@ class NodeSwapOperator(NodeOperator):
                 for i, output in enumerate(old_node.outputs):
                     for link in output.links[:]:
                         try:
+                            is_muted = link.is_muted
                             new_socket = new_node.outputs[i]
 
                             if new_socket.hide or not new_socket.enabled:
                                 continue
 
                             new_link = tree.links.new(new_socket, link.to_socket)
+                            new_link.is_muted = is_muted
                         except IndexError:
                             pass
 
@@ -412,6 +418,7 @@ class NodeSwapOperator(NodeOperator):
                 for output in old_node.outputs:
                     for link in output.links[:]:
                         try:
+                            is_muted = link.is_muted
                             new_socket = new_node.outputs[output.name]
 
                             if new_socket.hide or not new_socket.enabled:
@@ -420,6 +427,7 @@ class NodeSwapOperator(NodeOperator):
                             is_multi_input = link.to_socket.is_multi_input
 
                             new_link = tree.links.new(new_socket, link.to_socket)
+                            new_link.is_muted = is_muted
 
                             if is_multi_input:
                                 new_link.swap_multi_input_sort_id(link)
