@@ -42,7 +42,7 @@ const EnumPropertyItem rna_enum_layer_mix_mode_items[] = {
      0,
      "Combine",
      "Channels in this layer are added to underlying layers"},
-     {0, nullptr, 0, nullptr, nullptr},
+    {0, nullptr, 0, nullptr, nullptr},
 };
 
 const EnumPropertyItem rna_enum_strip_type_items[] = {
