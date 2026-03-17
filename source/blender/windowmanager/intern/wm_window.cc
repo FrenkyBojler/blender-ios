@@ -1412,6 +1412,7 @@ wmWindow *WM_window_open_temp(bContext *C, const char *title, int space_type, bo
   eWindowAlignment align;
 
   const int index = RNA_enum_from_value(rna_enum_space_type_items, space_type);
+  BLI_assert(index != -1);
   const EnumPropertyItem item = rna_enum_space_type_items[index];
   StringRef key = item.identifier;
 
