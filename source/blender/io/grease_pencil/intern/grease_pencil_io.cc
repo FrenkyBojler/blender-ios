@@ -358,6 +358,36 @@ Vector<GreasePencilExporter::ObjectInfo> GreasePencilExporter::retrieve_objects(
   return objects;
 }
 
+static float get_miter_limit_angle(const VArray<float> miter_angles,
+                                   const IndexRange points,
+                                   const bool is_cyclic)
+{
+  /* Because the SVG file format only supports `linejoin` type per stroke. We use priority
+   * system to decide what type to use.
+   * The order from lowest to highest is `Round`, `Bevel` then `Miter` */
+  float miter_limit_angle = GP_STROKE_MITER_ANGLE_ROUND;
+
+  /* Don't check the ends unless cyclical. */
+  for (const int point_i : points.drop_back(is_cyclic ? 0 : 1).drop_front(is_cyclic ? 0 : 1)) {
+    const float point_miter_angle = miter_angles[point_i];
+
+    /* Miter should take priority over Round. */
+    if (point_miter_angle <= GP_STROKE_MITER_ANGLE_ROUND) {
+      continue;
+    }
+
+    /* This point's limit should replace the the round type. */
+    if (miter_limit_angle <= GP_STROKE_MITER_ANGLE_ROUND) {
+      miter_limit_angle = point_miter_angle;
+    }
+
+    /* Sharp corners (Lower angles) should take priority. */
+    miter_limit_angle = math::min(miter_limit_angle, point_miter_angle);
+  }
+
+  return miter_limit_angle;
+}
+
 void GreasePencilExporter::foreach_shape_in_layer(const Object &object,
                                                   const bke::greasepencil::Layer &layer,
                                                   const bke::greasepencil::Drawing &drawing,
@@ -495,29 +525,7 @@ void GreasePencilExporter::foreach_shape_in_layer(const Object &object,
         const bool round_cap = start_cap == GP_STROKE_CAP_TYPE_ROUND ||
                                end_cap == GP_STROKE_CAP_TYPE_ROUND;
 
-        /* Because the SVG file format only supports `linejoin` type per stroke. We use priority
-         * system to decide what type to use.
-         * The order from lowest to highest is `Round`, `Bevel` then `Miter` */
-        float miter_limit_angle = GP_STROKE_MITER_ANGLE_ROUND;
-
-        /* Don't check the ends unless cyclical. */
-        for (const int point_i : points.drop_back(is_cyclic ? 0 : 1).drop_front(is_cyclic ? 0 : 1))
-        {
-          const float point_miter_angle = miter_angles[point_i];
-
-          /* Miter should take priority over Round. */
-          if (point_miter_angle <= GP_STROKE_MITER_ANGLE_ROUND) {
-            continue;
-          }
-
-          /* This point's limit should replace the the round type. */
-          if (miter_limit_angle <= GP_STROKE_MITER_ANGLE_ROUND) {
-            miter_limit_angle = point_miter_angle;
-          }
-
-          /* Sharp corners (Lower angles) should take priority. */
-          miter_limit_angle = math::min(miter_limit_angle, point_miter_angle);
-        }
+        const float miter_limit_angle = get_miter_limit_angle(miter_angles, points, is_cyclic);
 
         shape_fn(positions,
                  positions_left,
