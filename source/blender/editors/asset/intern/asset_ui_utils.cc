@@ -6,6 +6,7 @@
  * \ingroup edasset
  */
 
+#include <optional>
 #include <string>
 
 #include "AS_asset_library.hh"
