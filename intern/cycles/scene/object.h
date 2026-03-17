@@ -167,6 +167,8 @@ class ObjectManager {
   ObjectManager();
   ~ObjectManager();
 
+  void update_motion_pre(Scene *scene);
+
   void device_update(Device *device, DeviceScene *dscene, Scene *scene, Progress &progress);
   void device_update_transforms(DeviceScene *dscene, Scene *scene, Progress &progress);
   void device_update_prim_offsets(Device *device, DeviceScene *dscene, Scene *scene);

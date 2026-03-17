@@ -376,7 +376,7 @@ void Camera::update(Scene *scene)
       }
     }
     else {
-      if (have_motion || fov != fov_pre || fov != fov_post) {
+      if (have_motion || fov != fov_pre || fov != fov_post || viewplane != viewplane_pre) {
         /* Note the values for perspective_pre/perspective_post calculated for MOTION_PASS are
          * different to those calculated for MOTION_BLUR below, so the code has not been combined.
          */
@@ -505,6 +505,25 @@ void Camera::update(Scene *scene)
   need_device_update = true;
   need_flags_update = true;
   previous_need_motion = need_motion;
+}
+
+void Camera::update_motion_pre()
+{
+  array<Transform> motion = get_motion();
+  if (!motion.empty()) {
+    motion[0] = matrix;
+
+    /* Trigger another update if there was motion compared to previous frame, so that last viewport
+     * camera movement does not stick around. */
+    set_motion(motion);
+  }
+
+  if (fov != fov_pre || viewplane != viewplane_pre) {
+    fov_pre = fov;
+    viewplane_pre = viewplane;
+
+    tag_modified();
+  }
 }
 
 void Camera::device_update(Device * /*device*/, DeviceScene *dscene, Scene *scene)

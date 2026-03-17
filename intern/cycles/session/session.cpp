@@ -692,6 +692,12 @@ bool Session::update_scene(const bool reset_samples)
   const bool reset = scene->need_reset(false);
 
   if (scene->update(progress)) {
+    if (!params.background) {
+      scene->camera->update_motion_pre();
+      scene->object_manager->update_motion_pre(scene.get());
+      scene->geometry_manager->update_motion_pre(scene.get());
+    }
+
     profiler.reset(scene->shaders.size(), scene->objects.size());
   }
 

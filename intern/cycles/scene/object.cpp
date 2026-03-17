@@ -491,6 +491,39 @@ ObjectManager::ObjectManager()
 
 ObjectManager::~ObjectManager() = default;
 
+void ObjectManager::update_motion_pre(Scene *scene)
+{
+  bool update = false;
+
+  static const int OBJECTS_PER_TASK = 32;
+  parallel_for(blocked_range<size_t>(0, scene->objects.size(), OBJECTS_PER_TASK),
+               [&](const blocked_range<size_t> &r) {
+                 for (size_t i = r.begin(); i != r.end(); i++) {
+                   Object *ob = scene->objects[i];
+
+                   const bool use_motion = ob->use_motion();
+
+                   array<Transform> motion = ob->get_motion();
+                   if (motion.empty()) {
+                     motion.resize(1);
+                   }
+                   motion[0] = ob->tfm;
+
+                   /* Trigger another update if there was motion compared to previous frame, so
+                    * that last movement does not stick around. */
+                   ob->set_motion(motion);
+
+                   if (use_motion && ob->motion_is_modified()) {
+                     update = true;
+                   }
+                 }
+               });
+
+  if (update) {
+    tag_update(scene, TRANSFORM_MODIFIED);
+  }
+}
+
 static float object_volume_density(const Transform &tfm, Geometry *geom)
 {
   if (geom->is_volume()) {

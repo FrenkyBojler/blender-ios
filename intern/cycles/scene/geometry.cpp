@@ -173,6 +173,45 @@ GeometryManager::GeometryManager()
 
 GeometryManager::~GeometryManager() = default;
 
+void GeometryManager::update_motion_pre(Scene *scene)
+{
+  bool update = false;
+
+  for (Geometry *geom : scene->geometry) {
+    if (geom->is_mesh() || geom->is_volume()) {
+      Mesh *mesh = static_cast<Mesh *>(geom);
+
+      if (mesh->motion_steps == 0) {
+        mesh->motion_steps = 2;
+      }
+
+      Attribute *attr_mP = mesh->attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
+      if (attr_mP) {
+        if (memcmp(attr_mP->data_float3(),
+                   mesh->verts.data(),
+                   mesh->verts.size() * sizeof(float3)) != 0)
+        {
+          update = true;
+          attr_mP->modified = true;
+        }
+        else {
+          continue;
+        }
+      }
+      else {
+        update = true;
+        attr_mP = mesh->attributes.add(ATTR_STD_MOTION_VERTEX_POSITION);
+      }
+
+      mesh->copy_center_to_motion_step(0);
+    }
+  }
+
+  if (update) {
+    tag_update(scene, TRANSFORM_MODIFIED);
+  }
+}
+
 void GeometryManager::update_osl_globals(Device *device, Scene *scene)
 {
 #ifdef WITH_OSL

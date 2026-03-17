@@ -155,6 +155,7 @@ class Camera : public Node {
   NODE_SOCKET_API(bool, use_perspective_motion)
   NODE_SOCKET_API(float, fov_pre)
   NODE_SOCKET_API(float, fov_post)
+  BoundBox2D viewplane_pre;
 
   /* computed camera parameters */
   ProjectionTransform screentoworld;
@@ -207,6 +208,8 @@ class Camera : public Node {
   void compute_auto_viewplane();
 
   void update(Scene *scene);
+
+  void update_motion_pre();
 
   void device_update(Device *device, DeviceScene *dscene, Scene *scene);
   void device_update_volume(Device *device, DeviceScene *dscene, Scene *scene);

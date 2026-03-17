@@ -621,8 +621,11 @@ static void blender_camera_sync(Camera *cam,
   /* transform */
   cam->set_matrix(blender_camera_matrix(bcam->matrix, bcam->type, bcam->panorama_type));
 
-  array<Transform> motion;
+  array<Transform> motion = cam->get_motion();
   motion.resize(bcam->motion_steps, cam->get_matrix());
+  if (bcam->motion_steps != 0) {
+    motion[bcam->motion_steps / 2] = cam->get_matrix();
+  }
   cam->set_motion(motion);
   cam->set_use_perspective_motion(false);
 
@@ -1104,6 +1107,7 @@ void BlenderSync::sync_view(blender::View3D *b_v3d,
   blender_camera_from_view(&bcam, *b_engine, *b_scene, *b_data, b_v3d, b_rv3d, width, height);
   blender_camera_border(
       &bcam, *b_engine, b_render_settings, *b_scene, *b_data, b_v3d, b_rv3d, width, height);
+  bcam.motion_steps = scene->need_motion() != Scene::MOTION_NONE ? 2 : 0;
   blender::PointerRNA scene_rna_ptr = RNA_id_pointer_create(&b_scene->id);
   blender::PointerRNA cscene = RNA_pointer_get(&scene_rna_ptr, "cycles");
   blender_camera_sync(scene->camera, scene, &bcam, width, height, "", &cscene);
