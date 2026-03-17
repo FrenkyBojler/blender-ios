@@ -209,7 +209,7 @@ static int handle_region_semi_modal_buttons(bContext *C, const wmEvent *event, A
 /** Tolerance for closing menus (in pixels). */
 #define MENU_TOWARDS_WIGGLE_ROOM 64
 
-static constexpr double menu_keep_open_thresh = 1.25;
+static constexpr double menu_keep_open_duration = 1.25;
 
 enum ButtonActivateType {
   BUTTON_ACTIVATE_OVER,
@@ -10947,7 +10947,7 @@ static int handle_menu_mmb_event(bContext *C,
   const bool inside = BLI_rctf_isect_pt(&block->rect, mx, my);
 
   int retval = WM_UI_HANDLER_CONTINUE;
-  /* Remove the #menu::keep_open_timer once the mouse is withing the popup. */
+  /* Remove the #menu::keep_open_timer once the mouse is within the popup. */
   if (!menu->mmb_panning && inside) {
     if (menu->keep_open_timer) {
       WM_event_timer_remove(CTX_wm_manager(C), win, menu->keep_open_timer);
@@ -10969,7 +10969,7 @@ static int handle_menu_mmb_event(bContext *C,
       /* Set the threshold to prevent from closing the menu when middle mouse button panning ends
        * outside the menu bounds. */
       menu->keep_open_timer = WM_event_timer_add(
-          CTX_wm_manager(C), CTX_wm_window(C), TIMER, menu_keep_open_thresh);
+          CTX_wm_manager(C), CTX_wm_window(C), TIMER, menu_keep_open_duration);
     }
     retval = WM_UI_HANDLER_BREAK;
   }
@@ -10988,8 +10988,7 @@ static int handle_menu_mmb_event(bContext *C,
     retval = WM_UI_HANDLER_BREAK;
   }
   else if (event->type == MIDDLEMOUSE) {
-    /* Let parent menus to handle middle mouse panning if the mouse is not withing the current
-     * menu. */
+    /* Let parent menus handle middle mouse panning if the mouse is not within the current menu. */
     if (menu_pass_event_to_parent_if_nonactive(menu, but, level, is_parent_menu, 0) ||
         !(block->flag & (BLOCK_CLIPTOP | BLOCK_CLIPBOTTOM)))
     {
