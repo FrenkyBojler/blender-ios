@@ -4378,17 +4378,6 @@ static void widget_pulldownbut(uiWidgetColors *wcol,
   }
 }
 
-static void widget_menu_itembut_link(uiWidgetColors * /*wcol*/,
-                                     rcti *rect,
-                                     const WidgetStateInfo * /*state*/,
-                                     int /*roundboxalign*/,
-                                     const float zoom)
-{
-  const float padding = zoom * 0.125f * U.widget_unit;
-  rect->xmin += padding;
-  rect->xmax -= padding;
-}
-
 static void widget_menu_itembut(uiWidgetColors *wcol,
                                 rcti *rect,
                                 const WidgetStateInfo * /*state*/,
@@ -5109,8 +5098,11 @@ void draw_button(const bContext *C, ARegion *region, uiStyle *style, Button *but
                                   ((but->flag & UI_HAS_ICON) && !but->drawstr[0]);
         wt = widget_type(use_unpadded ? UI_WTYPE_MENU_ITEM_UNPADDED : UI_WTYPE_MENU_ITEM);
         if (button_draw_as_link(but)) {
-          wt->draw = widget_menu_itembut_link;
+          wt->draw = nullptr;
           wt->custom = nullptr;
+          /** Align to other menu buttons, see #widget_menu_itembut. */
+          const float padding = (1.0f / but->block->aspect) * 0.125f * U.widget_unit;
+          BLI_rcti_pad(rect, -padding, 0);
         }
         break;
       }
