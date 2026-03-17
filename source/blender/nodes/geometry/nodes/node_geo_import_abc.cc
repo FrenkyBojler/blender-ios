@@ -49,7 +49,6 @@ static void node_declare(NodeDeclarationBuilder &b)
   {
     auto &p = b.add_panel("Velocity"_ustr).default_closed(true);
     p.add_input<decl::String>("Velocity Attribute").default_value(".velocity").optional_label();
-    p.add_input<decl::Int>("Velocity Unit");
     p.add_input<decl::Float>("Velocity Scale").default_value(1.0f);
   }
 }
