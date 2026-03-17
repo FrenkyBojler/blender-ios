@@ -206,7 +206,7 @@ ScreenTraceHitData raytrace_planar(RayTraceData rt_data,
 
 /* Modify the ray origin before tracing it. We must do this because ray origin is implicitly
  * reconstructed from gbuffer depth which we cannot modify. */
-Ray raytrace_thickness_ray_amend(Ray ray, ClosureUndetermined cl, float3 V, float thickness)
+Ray raytrace_thickness_ray_amend(Ray ray, ClosureUndetermined cl, float3 V, Thickness thickness)
 {
   switch (cl.type) {
     case CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID:
@@ -268,7 +268,7 @@ bool clip_ray(float3 &start,
 }
 
 /*
- * Similar to raytrace_screen, but modified to fit the needs of the Raycast node:
+ * Similar to `raytrace_screen`, but modified to fit the needs of the Ray-cast node:
  * - Improves the support for rays parallel or nearly parallel to the incoming direction.
  * - Supports discarding hits against other objects.
  * - Traverses every single pixel between start and end, unless the number of steps required is
