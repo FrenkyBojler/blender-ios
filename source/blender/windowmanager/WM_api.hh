@@ -2307,10 +2307,10 @@ void WM_xr_session_state_viewfinder_capture_dof_distance_set(wmXrData *xr, float
 bool WM_xr_session_state_viewfinder_capture_dof_fstop_get(const wmXrData *xr, float *r_dof_fstop);
 void WM_xr_session_state_viewfinder_capture_dof_fstop_set(wmXrData *xr, float dof_fstop);
 
-bool WM_xr_session_state_viewfinder_playback_capture_preview_enabled_get(const wmXrData *xr,
-                                                                         bool *r_preview_enabled);
-void WM_xr_session_state_viewfinder_playback_capture_preview_enabled_set(wmXrData *xr,
-                                                                         bool preview_enabled);
+bool WM_xr_session_state_viewfinder_playback_show_active_capture_in_space_enabled_get(const wmXrData *xr,
+                                                                         bool *r_enabled);
+void WM_xr_session_state_viewfinder_playback_show_active_capture_in_space_enabled_set(wmXrData *xr,
+                                                                         bool enabled);
 
 bool WM_xr_session_state_viewfinder_active_mode_get(const wmXrData *xr, eXrViewfinderMode *r_mode);
 void WM_xr_session_state_viewfinder_active_mode_set(wmXrData *xr, eXrViewfinderMode mode);

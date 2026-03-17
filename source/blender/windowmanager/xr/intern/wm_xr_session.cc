@@ -605,23 +605,23 @@ void WM_xr_session_state_viewfinder_capture_dof_fstop_set(wmXrData *xr, float do
   }
 }
 
-bool WM_xr_session_state_viewfinder_playback_capture_preview_enabled_get(const wmXrData *xr,
-                                                                         bool *r_preview_enabled)
+bool WM_xr_session_state_viewfinder_playback_show_active_capture_in_space_enabled_get(const wmXrData *xr,
+                                                                         bool *r_enabled)
 {
   if (!WM_xr_session_is_ready(xr) || !xr->runtime->session_state.is_view_data_set) {
-    *r_preview_enabled = 0.0f;
+    *r_enabled = 0.0f;
     return false;
   }
 
-  *r_preview_enabled = xr->runtime->session_state.viewfinder.playback_capture_preview_enabled;
+  *r_enabled = xr->runtime->session_state.viewfinder.playback_show_active_capture_in_space_enabled;
   return true;
 }
 
-void WM_xr_session_state_viewfinder_playback_capture_preview_enabled_set(wmXrData *xr,
-                                                                         bool preview_enabled)
+void WM_xr_session_state_viewfinder_playback_show_active_capture_in_space_enabled_set(wmXrData *xr,
+                                                                         bool enabled)
 {
   if (WM_xr_session_exists(xr)) {
-    xr->runtime->session_state.viewfinder.playback_capture_preview_enabled = preview_enabled;
+    xr->runtime->session_state.viewfinder.playback_show_active_capture_in_space_enabled = enabled;
   }
 }
 
@@ -877,7 +877,7 @@ void WM_xr_session_state_viewfinder_reset(wmXrSessionState *state)
   state->viewfinder.capture_dof_distance = 10.0f;
 
   /* Playback settings. */
-  state->viewfinder.playback_capture_preview_enabled = false;
+  state->viewfinder.playback_show_active_capture_in_space_enabled = false;
 
   /* Active modes. */
   state->viewfinder.active_mode = XR_VIEWFINDER_MODE_LIVE;

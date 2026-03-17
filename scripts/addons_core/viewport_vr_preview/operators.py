@@ -472,7 +472,7 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_apply_action(Operator):
 
                 # Preview the selected capture in space toggle
                 case 'PREVIEW':
-                    xr_viewfinder.playback_capture_preview_enabled = not xr_viewfinder.playback_capture_preview_enabled
+                    xr_viewfinder.playback_show_active_capture_in_space_enabled = not xr_viewfinder.playback_show_active_capture_in_space_enabled
 
                     return {'FINISHED'}
 

@@ -499,8 +499,9 @@ static ui::Block *wm_xr_viewfinder_ui_settings_left_label_block(const bContext *
   ui::Layout &layout = wm_xr_viewfinder_ui_prepare_block(&block, C, ui::EmbossType::Emboss);
 
   if (state->viewfinder.active_mode == XR_VIEWFINDER_MODE_PLAYBACK) {
-    std::string settings_left_side_label = fmt::format(
-        "Preview Shots: {}", state->viewfinder.playback_capture_preview_enabled ? "on" : "off");
+    const std::string settings_left_side_label = fmt::format(
+        "Show active capture in space: {}",
+        state->viewfinder.playback_show_active_capture_in_space_enabled ? "on" : "off");
     layout.label(settings_left_side_label.c_str(), ICON_NONE);
   }
 
@@ -709,7 +710,7 @@ static void wm_xr_viewfinder_gizmo_draw_capture_camera(const bContext *C, wmXrSe
 {
   /* NOTE: This duplicates logic from the Python add-on VIEW3D_GGT_vr_captures gizmo, not ideal. */
   if (state->viewfinder.active_mode != XR_VIEWFINDER_MODE_PLAYBACK ||
-      state->viewfinder.playback_capture_preview_enabled == false)
+      state->viewfinder.playback_show_active_capture_in_space_enabled == false)
   {
     return;
   }

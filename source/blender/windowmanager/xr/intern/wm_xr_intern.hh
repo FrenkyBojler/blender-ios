@@ -55,7 +55,7 @@ struct wmXrViewfinderState {
   float capture_dof_fstop;
 
   /* Playback settings. */
-  bool playback_capture_preview_enabled;
+  bool playback_show_active_capture_in_space_enabled;
 
   /** Active modes, concept differs from the rest of the Blender UI. */
   eXrViewfinderMode active_mode;
