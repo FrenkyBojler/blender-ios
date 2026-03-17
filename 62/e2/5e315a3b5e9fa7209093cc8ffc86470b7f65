@@ -1,1 +1,2 @@
 Referenced by issue #155775, mov_av_codec_id_get reaches unreachable code
+Referenced by pull request #155804, Fix #155775: mov_av_codec_id_get reaches unreachable code
