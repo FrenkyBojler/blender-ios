@@ -1635,6 +1635,38 @@ static void append_stroke_to_multiframe_drawings(
   }
 }
 
+static void convert_stroke_type(bke::greasepencil::Drawing &drawing,
+                                const int active_curve,
+                                const float threshold,
+                                const int8_t curve_type)
+{
+  bke::CurvesGeometry &curves = drawing.strokes_for_write();
+  const IndexMask selection = IndexRange::from_single(active_curve);
+  const VArray<float> thresholds = VArray<float>::from_single(threshold, curves.curves_num());
+
+  /* TODO: Detect or manually provide corners. */
+  const VArray<bool> corners = VArray<bool>::from_single(false, curves.points_num());
+  curves = geometry::fit_poly_to_bezier_curves(
+      curves, selection, thresholds, corners, geometry::FitMethod::Refit, {});
+
+  if (curve_type == CURVE_TYPE_CATMULL_ROM) {
+    geometry::ConvertCurvesOptions options;
+    options.convert_bezier_handles_to_poly_points = false;
+    options.convert_bezier_handles_to_catmull_rom_points = false;
+    options.keep_bezier_shape_as_nurbs = true;
+    options.keep_catmull_rom_shape_as_nurbs = true;
+    curves = geometry::convert_curves(curves, selection, CURVE_TYPE_CATMULL_ROM, {}, options);
+  }
+  else if (curve_type == CURVE_TYPE_NURBS) {
+    geometry::ConvertCurvesOptions options;
+    options.convert_bezier_handles_to_poly_points = false;
+    options.convert_bezier_handles_to_catmull_rom_points = false;
+    options.keep_bezier_shape_as_nurbs = true;
+    options.keep_catmull_rom_shape_as_nurbs = true;
+    curves = geometry::convert_curves(curves, selection, CURVE_TYPE_NURBS, {}, options);
+  }
+}
+
 void PaintOperation::on_stroke_done(const bContext &C)
 {
   using namespace blender::bke;
@@ -1702,33 +1734,8 @@ void PaintOperation::on_stroke_done(const bContext &C)
                      on_back);
     }
     if (settings->curve_type != CURVE_TYPE_POLY) {
-      const IndexMask selection = IndexRange::from_single(active_curve);
-      bke::CurvesGeometry &curves = drawing.strokes_for_write();
-
-      const float threshold = settings->conversion_threshold;
-      const VArray<float> thresholds = VArray<float>::from_single(threshold, curves.curves_num());
-
-      /* TODO: Detect or manually provide corners. */
-      const VArray<bool> corners = VArray<bool>::from_single(false, curves.points_num());
-      curves = geometry::fit_poly_to_bezier_curves(
-          curves, selection, thresholds, corners, geometry::FitMethod::Refit, {});
-
-      if (settings->curve_type == CURVE_TYPE_CATMULL_ROM) {
-        geometry::ConvertCurvesOptions options;
-        options.convert_bezier_handles_to_poly_points = false;
-        options.convert_bezier_handles_to_catmull_rom_points = false;
-        options.keep_bezier_shape_as_nurbs = true;
-        options.keep_catmull_rom_shape_as_nurbs = true;
-        curves = geometry::convert_curves(curves, selection, CURVE_TYPE_CATMULL_ROM, {}, options);
-      }
-      else if (settings->curve_type == CURVE_TYPE_NURBS) {
-        geometry::ConvertCurvesOptions options;
-        options.convert_bezier_handles_to_poly_points = false;
-        options.convert_bezier_handles_to_catmull_rom_points = false;
-        options.keep_bezier_shape_as_nurbs = true;
-        options.keep_catmull_rom_shape_as_nurbs = true;
-        curves = geometry::convert_curves(curves, selection, CURVE_TYPE_NURBS, {}, options);
-      }
+      convert_stroke_type(
+          drawing, active_curve, settings->conversion_threshold, settings->curve_type);
     }
   }
 
