@@ -727,7 +727,6 @@ class DopesheetActionPanelBase:
         if context.preferences.experimental.use_action_layers:
             layout.template_action_layer_list(action)
             if action.layers.active:
-                layout.prop(action.layers.active, "is_locked")
                 layout.prop(action.layers.active, "mix_mode")
 
 

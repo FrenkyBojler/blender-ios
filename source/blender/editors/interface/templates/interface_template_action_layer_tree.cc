@@ -13,6 +13,11 @@
 #include "UI_interface.hh"
 #include "UI_tree_view.hh"
 
+#include "ED_undo.hh"
+
+#include "RNA_access.hh"
+#include "RNA_prototypes.hh"
+
 namespace blender::ui {
 
 namespace action_layer {
@@ -33,7 +38,7 @@ class ActionLayerItem : public AbstractTreeViewItem {
  private:
   Action &action_;
   int layer_index_;
-  ActionLayer &layer_;
+  Layer &layer_;
 
  public:
   ActionLayerItem(Action &action, const int layer_index)
@@ -45,6 +50,24 @@ class ActionLayerItem : public AbstractTreeViewItem {
   void build_row(Layout &row) override
   {
     Button *name_label = uiItemL_ex(&row, layer_.name, ICON_NONE, false, false);
+    PointerRNA layer_pointer = RNA_pointer_create_discrete(&action_.id, RNA_ActionLayer, &layer_);
+    const int icon = layer_.is_locked() ? ICON_LOCKED : ICON_UNLOCKED;
+    row.prop(&layer_pointer, "is_locked", ITEM_R_ICON_ONLY, "", icon);
+  }
+
+  void on_activate(bContext &C) override
+  {
+    /* Let RNA handle the property change. This makes sure all the notifiers and DEG
+     * update calls are properly called. */
+    PointerRNA layers_ptr = RNA_pointer_create_discrete(&action_.id, RNA_ActionLayers, &action_);
+    PropertyRNA *prop = RNA_struct_find_property(&layers_ptr, "active");
+    PointerRNA layer_pointer = RNA_pointer_create_discrete(&action_.id, RNA_ActionLayer, &layer_);
+
+    RNA_property_pointer_set(&layers_ptr, prop, layer_pointer, nullptr);
+    RNA_property_update(&C, &layers_ptr, prop);
+
+    /* Using grouped push so repeated changes to the active layer don't clog the undo queue. */
+    ED_undo_grouped_push(&C, "Change Action's active layer");
   }
 };
 
