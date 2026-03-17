@@ -31,7 +31,6 @@ class ActionLayerTreeView : public AbstractTreeView {
   explicit ActionLayerTreeView(bAction &action);
   void build_tree() override;
   bool listen(const wmNotifier &notifier) const override;
-
 };
 
 class ActionLayerItem : public AbstractTreeViewItem {
