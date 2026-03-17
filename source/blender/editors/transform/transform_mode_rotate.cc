@@ -129,7 +129,9 @@ static void transdata_elem_rotate(const TransInfo *t,
     axis_final = axis_buffer;
     t->con.applyRot(t, tc, td, axis_buffer);
     angle_final = angle * td->factor;
-    quadrant_final = std::nullopt;
+    if (td->factor != 1.0f) {
+      quadrant_final = std::nullopt;
+    }
     /* Even though final angle might be identical to orig value,
      * we have to update the rotation matrix in that case... */
     rmat_cache_reset(rmc);
