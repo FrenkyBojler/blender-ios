@@ -3249,7 +3249,7 @@ void Layout::link(const StringRef url, const StringRef name, int icon)
   Layout *layout = this;
   Block *block = layout->block();
 
-  /* Force the button to not be expanded full width in nom menu blocks. */
+  /* Force the button to not be expanded full width in non men- blocks. */
   if (!block_is_menu(block)) {
     layout = &this->row(false);
     layout->alignment_set(this->alignment());
