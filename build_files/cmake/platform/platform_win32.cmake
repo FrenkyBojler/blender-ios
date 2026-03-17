@@ -772,7 +772,7 @@ if(WITH_SDL)
   set(SDL ${LIBDIR}/sdl)
   set(SDL_INCLUDE_DIR ${SDL}/include)
   set(SDL_LIBPATH ${SDL}/lib)
-  set(SDL_LIBRARY ${SDL_LIBPATH}/SDL2.lib)
+  set(SDL_LIBRARY ${SDL_LIBPATH}/SDL3.lib)
 endif()
 
 # Audio IO

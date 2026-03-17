@@ -1572,7 +1572,7 @@ elseif(WIN32)
   )
 
   windows_install_shared_manifest(
-    FILES ${LIBDIR}/sdl/lib/SDL2.dll
+    FILES ${LIBDIR}/sdl/lib/SDL3.dll
     ALL
   )
 
