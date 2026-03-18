@@ -194,7 +194,8 @@ CombinedKeyingResult insert_keyframes(Main *bmain,
  * and extra keyframe filtering.
  *
  * \note this function no longer deals with the NLA. For NLA support use
- * animrig::nla::insert_keyframe_direct
+ * animrig::nla::insert_keyframe_direct Other high level keyframing functions still work with the
+ * NLA. See `insert_keyframes`.
  *
  * \return Success.
  */

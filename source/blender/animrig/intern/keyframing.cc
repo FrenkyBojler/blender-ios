@@ -54,6 +54,7 @@ void generate_single_keying_result_report(const SingleKeyingResult result, Repor
       BKE_reportf(reports, RPT_INFO, "Successfully inserted a key.");
       break;
     case SingleKeyingResult::UNKNOWN_FAILURE:
+      BKE_reportf(reports, RPT_ERROR, "Keyframe insertion failed for an unknown reason.");
       break;
     case SingleKeyingResult::CANNOT_CREATE_FCURVE:
       BKE_reportf(reports, RPT_ERROR, "Failed to create the F-Curve.");
@@ -449,20 +450,17 @@ SingleKeyingResult insert_keyframe_direct(PointerRNA &ptr,
   Vector<float> values = get_property_values(&ptr, &prop, visual_keyframing);
 
   const int index = fcu.array_index;
-  float current_value = 0.0f;
-  if (index >= 0 && index < values.size()) {
-    current_value = values[index];
-  }
-  else {
+  if (index < 0 || index >= values.size()) {
     /* Can only happen if the FCurve and PropertyRNA do not match which
      * should never be the case. */
     BLI_assert_unreachable();
+    return SingleKeyingResult::UNKNOWN_FAILURE;
   }
 
   KeyframeSettings settings = get_keyframe_settings((flag & INSERTKEY_NO_USERPREF) == 0);
   settings.keyframe_type = keytype;
 
-  return insert_vert_fcurve(&fcu, {fcurve_frame, current_value}, settings, flag);
+  return insert_vert_fcurve(&fcu, {fcurve_frame, values[index]}, settings, flag);
 }
 
 /* ************************************************** */
