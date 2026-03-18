@@ -38,6 +38,9 @@ class MutableAttributeAccessor;
 struct LooseVertCache;
 struct LooseEdgeCache;
 enum class MeshNormalDomain : int8_t;
+namespace bvh {
+class Tree;
+}
 }  // namespace bke
 
 struct AnimData;
@@ -543,6 +546,8 @@ struct Mesh {
   bke::BVHTreeFromMesh bvh_loose_edges() const;
   bke::BVHTreeFromMesh bvh_loose_no_hidden_verts() const;
   bke::BVHTreeFromMesh bvh_loose_no_hidden_edges() const;
+
+  const blender::bke::bvh::Tree &bvh_tree() const;
 
   void count_memory(MemoryCounter &memory) const;
 

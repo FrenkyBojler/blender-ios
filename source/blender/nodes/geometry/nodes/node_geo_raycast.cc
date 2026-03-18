@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_bvh.hh"
 #include "DNA_mesh_types.h"
 
 #include "BKE_bvhutils.hh"
@@ -129,61 +130,62 @@ static void raycast_to_mesh(const IndexMask &mask,
                             const MutableSpan<float3> r_hit_normals,
                             const MutableSpan<float> r_hit_distances)
 {
-  bke::BVHTreeFromMesh tree_data = mesh.bvh_corner_tris();
-  if (tree_data.tree == nullptr) {
-    return;
-  }
-
+  const bke::bvh::Tree &tree_data = mesh.bvh_tree();
   mask.foreach_index([&](const int i) {
-    const float ray_length = ray_lengths[i];
-    const float3 ray_origin = ray_origins[i];
-    const float3 ray_direction = ray_directions[i];
+    bke::bvh::Ray ray{};
+    ray.origin = ray_origins[i];
+    ray.direction = ray_directions[i];
+    ray.dist_min = 0.0f;
+    ray.dist_max = ray_lengths[i];
 
-    BVHTreeRayHit hit;
-    hit.index = -1;
-    hit.dist = ray_length;
-    if (BLI_bvhtree_ray_cast(tree_data.tree,
-                             ray_origin,
-                             ray_direction,
-                             0.0f,
-                             &hit,
-                             tree_data.raycast_callback,
-                             &tree_data) != -1)
-    {
-      if (!r_hit.is_empty()) {
-        r_hit[i] = hit.index >= 0;
-      }
-      if (!r_hit_indices.is_empty()) {
-        /* The caller must be able to handle invalid indices anyway, so don't clamp this value. */
-        r_hit_indices[i] = hit.index;
-      }
-      if (!r_hit_positions.is_empty()) {
-        r_hit_positions[i] = hit.co;
-      }
-      if (!r_hit_normals.is_empty()) {
-        r_hit_normals[i] = hit.no;
-      }
-      if (!r_hit_distances.is_empty()) {
-        r_hit_distances[i] = hit.dist;
-      }
-    }
-    else {
-      if (!r_hit.is_empty()) {
-        r_hit[i] = false;
-      }
-      if (!r_hit_indices.is_empty()) {
-        r_hit_indices[i] = -1;
-      }
-      if (!r_hit_positions.is_empty()) {
-        r_hit_positions[i] = float3(0.0f, 0.0f, 0.0f);
-      }
-      if (!r_hit_normals.is_empty()) {
-        r_hit_normals[i] = float3(0.0f, 0.0f, 0.0f);
-      }
-      if (!r_hit_distances.is_empty()) {
-        r_hit_distances[i] = ray_length;
-      }
-    }
+    bke::bvh::RayHit hit;
+    tree_data.ray_intersect1(ray, hit);
+
+    // BVHTreeRayHit hit;
+    // hit.index = -1;
+    // hit.dist = ray_length;
+    // if (BLI_bvhtree_ray_cast(tree_data.tree,
+    //                          ray_origin,
+    //                          ray_direction,
+    //                          0.0f,
+    //                          &hit,
+    //                          tree_data.raycast_callback,
+    //                          &tree_data) != -1)
+    // {
+    //   if (!r_hit.is_empty()) {
+    //     r_hit[i] = hit.index >= 0;
+    //   }
+    //   if (!r_hit_indices.is_empty()) {
+    //     /* The caller must be able to handle invalid indices anyway, so don't clamp this value.
+    //     */ r_hit_indices[i] = hit.index;
+    //   }
+    //   if (!r_hit_positions.is_empty()) {
+    //     r_hit_positions[i] = hit.co;
+    //   }
+    //   if (!r_hit_normals.is_empty()) {
+    //     r_hit_normals[i] = hit.no;
+    //   }
+    //   if (!r_hit_distances.is_empty()) {
+    //     r_hit_distances[i] = hit.dist;
+    //   }
+    // }
+    // else {
+    //   if (!r_hit.is_empty()) {
+    //     r_hit[i] = false;
+    //   }
+    //   if (!r_hit_indices.is_empty()) {
+    //     r_hit_indices[i] = -1;
+    //   }
+    //   if (!r_hit_positions.is_empty()) {
+    //     r_hit_positions[i] = float3(0.0f, 0.0f, 0.0f);
+    //   }
+    //   if (!r_hit_normals.is_empty()) {
+    //     r_hit_normals[i] = float3(0.0f, 0.0f, 0.0f);
+    //   }
+    //   if (!r_hit_distances.is_empty()) {
+    //     r_hit_distances[i] = ray_length;
+    //   }
+    // }
   });
 }
 
