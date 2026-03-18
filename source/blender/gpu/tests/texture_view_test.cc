@@ -2,6 +2,12 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
+/*
+ * Set of tests to identify issues with glTextureView and glGetTexImage. Note; these tests
+ * rely on device-to-host data conversion (f16 -> f32) for texture readback, which is only
+ * currently supported on OpenGL. Hence, they are only enabled on OpenGL.
+ */
+
 #include "gpu_testing.hh"
 
 #include "MEM_guardedalloc.h"
@@ -73,9 +79,11 @@ template<typename T>
 static Vector<T> read_texture(gpu::Texture *texture, eGPUDataFormat data_format)
 {
   TextureFormat format = GPU_texture_format(texture);
+  const int channels = to_component_len(format);
 
   void *src = GPU_texture_read(texture, data_format, 0);
-  Vector<T> dst(texture_size * to_component_len(format));
+  Vector<T> dst;
+  dst.resize(texture_size * channels);
   std::memcpy(static_cast<void *>(dst.data()), src, sizeof(float) * dst.size());
 
   MEM_delete_void(src);
@@ -87,13 +95,12 @@ static Vector<T> read_texture(gpu::Texture *texture, eGPUDataFormat data_format)
  * attempt to perform a framebuffer color clear over the view texture. */
 template<TextureFormat FormatA, TextureFormat FormatB> static void texture_view_create_test()
 {
-  /* Note; these tests rely on device to host data conversion for texture readback, which is
-   * currently only supported on OpenGL. */
-  if (GPU_backend_get_type() != GPU_BACKEND_OPENGL) {
-    GTEST_SKIP();
-  }
-
   GPU_render_begin();
+
+  /* Float comparator threshold; half-to-full conversion has significant precision loss. */
+  constexpr auto f_eq = [](float a, float b) {
+    return std::abs(a - b) < 1e5f;
+  };
 
   gpu::Texture *base = create_base_texture(FormatA);
   gpu::Texture *view = create_view_texture(FormatB, base);
@@ -115,7 +122,8 @@ template<TextureFormat FormatA, TextureFormat FormatB> static void texture_view_
   else if (ELEM(to_texture_data_format(FormatB), GPU_DATA_FLOAT, GPU_DATA_10_11_11_REV)) {
     auto zero_expected = repeat_data(zero, texture_size, to_component_len(FormatB));
     auto zero_readback = read_texture<float>(view, GPU_DATA_FLOAT);
-    EXPECT_TRUE(std::equal(zero_expected.begin(), zero_expected.end(), zero_readback.begin()));
+
+    EXPECT_TRUE(std::equal(zero_expected.begin(), zero_expected.end(), zero_readback.begin(), f_eq));
   }
   else {
     BLI_assert_unreachable();
@@ -149,7 +157,8 @@ template<TextureFormat FormatA, TextureFormat FormatB> static void texture_view_
   else if (ELEM(to_texture_data_format(FormatB), GPU_DATA_FLOAT, GPU_DATA_10_11_11_REV)) {
     auto colr_expected = repeat_data(colr, texture_size, to_component_len(FormatB));
     auto colr_readback = read_texture<float>(view, GPU_DATA_FLOAT);
-    EXPECT_TRUE(std::equal(colr_expected.begin(), colr_expected.end(), colr_expected.begin()));
+
+    EXPECT_TRUE(std::equal(colr_expected.begin(), colr_expected.end(), colr_expected.begin(), f_eq));
   }
   else {
     BLI_assert_unreachable();
@@ -168,7 +177,7 @@ static void test_vexture_view_SFLOAT_32_32_32_32()
   texture_view_create_test<TextureFormat::SFLOAT_32_32_32_32, TextureFormat::UINT_32_32_32_32>();
   texture_view_create_test<TextureFormat::SFLOAT_32_32_32_32, TextureFormat::SINT_32_32_32_32>();
 }
-GPU_TEST(vexture_view_SFLOAT_32_32_32_32);
+GPU_OPENGL_TEST(vexture_view_SFLOAT_32_32_32_32);
 
 static void test_texture_view_SFLOAT_32_32()
 {
@@ -181,7 +190,7 @@ static void test_texture_view_SFLOAT_32_32()
   texture_view_create_test<TextureFormat::SFLOAT_32_32, TextureFormat::SNORM_16_16_16_16>();
   texture_view_create_test<TextureFormat::SFLOAT_32_32, TextureFormat::UNORM_16_16_16_16>();
 }
-GPU_TEST(texture_view_SFLOAT_32_32);
+GPU_OPENGL_TEST(texture_view_SFLOAT_32_32);
 
 static void test_texture_view_SFLOAT_32()
 {
@@ -197,14 +206,16 @@ static void test_texture_view_SFLOAT_32()
   texture_view_create_test<TextureFormat::SFLOAT_32, TextureFormat::SNORM_8_8_8_8>();
   texture_view_create_test<TextureFormat::SFLOAT_32, TextureFormat::UNORM_16_16>();
   texture_view_create_test<TextureFormat::SFLOAT_32, TextureFormat::UNORM_8_8_8_8>();
+
   /* Note the special formats. */
   texture_view_create_test<TextureFormat::SFLOAT_32, TextureFormat::UFLOAT_11_11_10>();
   texture_view_create_test<TextureFormat::SFLOAT_32, TextureFormat::SRGBA_8_8_8_8>();
+
   /* Skipped: readback is not handled as we store these in reverse order. */
   // texture_view_create_test<TextureFormat::SFLOAT_32, TextureFormat::UINT_10_10_10_2>();
   // texture_view_create_test<TextureFormat::SFLOAT_32, TextureFormat::UNORM_10_10_10_2>();
 }
-GPU_TEST(texture_view_SFLOAT_32);
+GPU_OPENGL_TEST(texture_view_SFLOAT_32);
 
 static void test_texture_view_SFLOAT_16()
 {
@@ -218,7 +229,7 @@ static void test_texture_view_SFLOAT_16()
   texture_view_create_test<TextureFormat::SFLOAT_16, TextureFormat::UNORM_16>();
   texture_view_create_test<TextureFormat::SFLOAT_16, TextureFormat::UNORM_8_8>();
 }
-GPU_TEST(texture_view_SFLOAT_16);
+GPU_OPENGL_TEST(texture_view_SFLOAT_16);
 
 static void test_texture_view_UINT_8()
 {
@@ -227,6 +238,6 @@ static void test_texture_view_UINT_8()
   texture_view_create_test<TextureFormat::UINT_8, TextureFormat::SNORM_8>();
   texture_view_create_test<TextureFormat::UINT_8, TextureFormat::UNORM_8>();
 }
-GPU_TEST(texture_view_UINT_8);
+GPU_OPENGL_TEST(texture_view_UINT_8);
 
 }  // namespace blender::gpu::tests
