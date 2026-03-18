@@ -383,7 +383,6 @@ void template_collection_importer(Layout *layout, bContext *C)
   col.op("COLLECTION_OT_importer_remove", std::nullopt, ICON_REMOVE);
 
   /* Draw the importer. */
-  using namespace blender;
   PointerRNA importer_ptr = RNA_pointer_create_discrete(
       &collection->id, RNA_CollectionImport, data);
   PanelLayout panel = layout->panel_prop(C, &importer_ptr, "is_open");

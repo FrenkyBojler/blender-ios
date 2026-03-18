@@ -509,7 +509,7 @@ void BKE_collection_add_from_collection(Main *bmain,
   bool is_instantiated = false;
 
   FOREACH_SCENE_COLLECTION_BEGIN (scene, collection) {
-    if (BKE_collection_is_editable(collection) &&
+    if (BKE_collection_is_content_editable(collection) &&
         BKE_collection_child_find(collection, collection_src))
     {
       collection_child_add(bmain, collection, collection_dst, nullptr, 0, true);
@@ -1384,7 +1384,7 @@ static bool collection_is_editable_in_viewlayer(const ViewLayer *view_layer,
                                           nullptr;
   r_is_in_viewlayer = layer_collection != nullptr;
 
-  if (!BKE_collection_is_editable(collection)) {
+  if (!BKE_collection_is_content_editable(collection)) {
     return false;
   }
   if (!view_layer) {
@@ -1507,7 +1507,7 @@ static bool collection_object_remove(
   return true;
 }
 
-bool BKE_collection_is_editable(const Collection *collection)
+bool BKE_collection_is_content_editable(const Collection *collection)
 {
   const bool has_importer = collection->importer != nullptr;
   return ID_IS_EDITABLE(collection) && !ID_IS_OVERRIDE_LIBRARY(collection) && !has_importer;
@@ -1649,7 +1649,9 @@ void BKE_collection_object_add_from(Main *bmain, Scene *scene, Object *ob_src, O
   bool is_instantiated = false;
 
   FOREACH_SCENE_COLLECTION_BEGIN (scene, collection) {
-    if (BKE_collection_is_editable(collection) && BKE_collection_has_object(collection, ob_src)) {
+    if (BKE_collection_is_content_editable(collection) &&
+        BKE_collection_has_object(collection, ob_src))
+    {
       collection_object_add(bmain, collection, ob_dst, nullptr, 0, true);
       is_instantiated = true;
     }
@@ -1733,7 +1735,7 @@ static bool scene_collections_object_remove(
   }
 
   FOREACH_SCENE_COLLECTION_BEGIN (scene, collection) {
-    if (!BKE_collection_is_editable(collection)) {
+    if (!BKE_collection_is_content_editable(collection)) {
       continue;
     }
     if (collection == collection_skip) {

@@ -2273,7 +2273,7 @@ static wmOperatorStatus move_to_collection_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  if (!BKE_collection_is_editable(collection)) {
+  if (!BKE_collection_is_content_editable(collection)) {
     BKE_report(
         op->reports, RPT_ERROR, "Cannot add objects to a library override or linked collection");
     return OPERATOR_CANCELLED;
