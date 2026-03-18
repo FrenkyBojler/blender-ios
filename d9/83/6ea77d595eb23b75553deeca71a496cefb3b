@@ -1,1 +1,2 @@
 Referenced by issue #103666, Defocus Node with timeline camera change (Camera markers), problem
+Referenced by issue #127726, Camera DOF focus distance is not updating on animations with compositing Defocus node when using timeline camera markers
