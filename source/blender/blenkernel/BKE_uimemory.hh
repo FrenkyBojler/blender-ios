@@ -17,10 +17,9 @@
 
 namespace blender::ui_memory {
 
-struct Section {
-  std::string section;
-
-  explicit Section(const StringRef sec) : section(sec.data(), sec.size()) {}
+class Section {
+ public:
+  explicit Section(const StringRef sec) : section_(sec.data(), sec.size()) {}
 
   template<typename T> T get(const StringRef item) const;
   template<typename T> void set(const StringRef item, const T &value);
@@ -53,6 +52,9 @@ struct Section {
   {
     return Proxy(this, item);
   }
+
+ private:
+  std::string section_;
 };
 
 struct Memory {

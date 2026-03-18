@@ -184,7 +184,7 @@ template<typename T> T Section::get(const StringRef item) const
   memory.ensure_init();
 
   std::lock_guard<Mutex> lock(uimemory_mutex);
-  const std::string &sec = section;
+  const std::string &sec = section_;
   const std::string key(item.data(), item.size());
 
   /* Try user value first. */
@@ -220,7 +220,7 @@ template<typename T> void Section::set(const StringRef item, const T &value)
   memory.ensure_init();
 
   std::lock_guard<Mutex> lock(uimemory_mutex);
-  const std::string &sec = section;
+  const std::string &sec = section_;
   const std::string key(item.data(), item.size());
   if (sec.empty()) {
     uimemory_current[key] = value;
@@ -239,11 +239,11 @@ void Section::remove(const StringRef item)
   }
   toml::table &root_tbl = uimemory_current.as_table();
   const std::string key(item.data(), item.size());
-  if (section.empty()) {
+  if (section_.empty()) {
     root_tbl.erase(key);
     return;
   }
-  auto section_it = root_tbl.find(section);
+  auto section_it = root_tbl.find(section_);
   if (section_it == root_tbl.end()) {
     return;
   }
@@ -259,11 +259,11 @@ void Section::remove_section()
 {
   memory.ensure_init();
   std::lock_guard<Mutex> lock(uimemory_mutex);
-  if (section.empty() || !uimemory_current.is_table()) {
+  if (section_.empty() || !uimemory_current.is_table()) {
     return;
   }
   toml::table &root_tbl = uimemory_current.as_table();
-  root_tbl.erase(section);
+  root_tbl.erase(section_);
 }
 
 template std::string Section::get<std::string>(const StringRef item) const;
