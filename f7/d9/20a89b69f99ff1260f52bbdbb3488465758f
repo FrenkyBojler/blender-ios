@@ -1,2 +1,3 @@
 Referenced by issue #153255, lite build fails
 Referenced by issue #155828, When the “Face Smoothness” checkbox is selected, FreeStyle cannot render the output.
+Referenced by issue #155846, regression: mesh attributes are not initialized to zeros
