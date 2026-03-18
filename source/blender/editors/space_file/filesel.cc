@@ -45,7 +45,7 @@
 #include "BKE_idtype.hh"
 #include "BKE_main.hh"
 #include "BKE_preferences.h"
-#include "BKE_uimemory.hh"
+#include "BKE_recents.hh"
 
 #include "BLO_userdef_default.h"
 
@@ -100,7 +100,7 @@ static void fileselect_initialize_params_common(SpaceFile *sfile, FileSelectPara
 
 static void fileselect_ensure_updated_asset_params(SpaceFile *sfile)
 {
-  ui_memory::Section mem = ui_memory::memory.section("asset_browser");
+  recents::Section mem = recents::RECENTS.section("asset_browser");
 
   BLI_assert(sfile->browse_mode == FILE_BROWSE_MODE_ASSETS);
   BLI_assert(sfile->op == nullptr);
@@ -146,7 +146,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
 {
   BLI_assert(sfile->browse_mode == FILE_BROWSE_MODE_FILES);
 
-  ui_memory::Section mem = ui_memory::memory.section("file_browser");
+  recents::Section mem = recents::RECENTS.section("file_browser");
   FileSelectParams *params;
   wmOperator *op = sfile->op;
 
@@ -162,7 +162,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
                             sfile->params->file,
                             sizeof(sfile->params->file));
     sfile->params->filter_glob[0] = '\0';
-    ui_memory::Section mem = ui_memory::memory.section("file_browser");
+    recents::Section mem = recents::RECENTS.section("file_browser");
     sfile->params->thumbnail_size = mem["thumbnail_size"];
     sfile->params->details_flags = mem["details_flags"];
     sfile->params->filter_id = mem["filter_id"];
@@ -670,7 +670,7 @@ static bool file_select_use_default_sort_type(const SpaceFile *sfile)
 void ED_fileselect_set_params_from_userdef(SpaceFile *sfile)
 {
   wmOperator *op = sfile->op;
-  ui_memory::Section mem = ui_memory::memory.section("file_browser");
+  recents::Section mem = recents::RECENTS.section("file_browser");
 
   sfile->browse_mode = FILE_BROWSE_MODE_FILES;
 
@@ -699,7 +699,7 @@ void ED_fileselect_set_params_from_userdef(SpaceFile *sfile)
 void ED_fileselect_params_to_userdef(SpaceFile *sfile)
 {
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
-  ui_memory::Section mem = ui_memory::memory.section(
+  recents::Section mem = recents::RECENTS.section(
       sfile->browse_mode == FILE_BROWSE_MODE_ASSETS ? "asset_browser" : "file_browser");
   mem["thumbnail_size"] = params->thumbnail_size;
   mem["details_flags"] = params->details_flags;

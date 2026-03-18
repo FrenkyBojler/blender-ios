@@ -261,6 +261,7 @@ set(SRC
   intern/pose_backup.cc
   intern/preferences.cc
   intern/preview_image.cc
+  intern/recents.cc
   intern/report.cc
   intern/rigidbody.cc
   intern/scene.cc
@@ -297,7 +298,6 @@ set(SRC
   intern/tracking_stabilize.cc
   intern/tracking_util.cc
   intern/type_conversions.cc
-  intern/uimemory.cc
   intern/undo_system.cc
   intern/unit.cc
   intern/uvproject.cc
@@ -495,6 +495,7 @@ set(SRC
   BKE_pose_backup.h
   BKE_preferences.h
   BKE_preview_image.hh
+  BKE_recents.hh
   BKE_report.hh
   BKE_rigidbody.h
   BKE_scene.hh
@@ -520,7 +521,6 @@ set(SRC
   BKE_texture.h
   BKE_tracking.hh
   BKE_type_conversions.hh
-  BKE_uimemory.hh
   BKE_undo_system.hh
   BKE_unit.hh
   BKE_uvproject.h

@@ -31,7 +31,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_screen.hh"
-#include "BKE_uimemory.hh"
+#include "BKE_recents.hh"
 
 #include "RNA_access.hh"
 
@@ -745,11 +745,11 @@ Panel *panel_begin(
   if (newpanel && region->regiontype == RGN_TYPE_TOOLS &&
       STRPREFIX(panel->panelname, "FILEBROWSER_PT_"))
   {
-    const int order = ui_memory::memory.section("panel.sortorder")[panel->panelname];
+    const int order = recents::RECENTS.section("panel.sortorder")[panel->panelname];
     if (order >= 0) {
       panel->sortorder = order;
       SET_FLAG_FROM_TEST(
-          panel->flag, !ui_memory::memory.section("panel.open")[panel->panelname], PNL_CLOSED);
+          panel->flag, !recents::RECENTS.section("panel.open")[panel->panelname], PNL_CLOSED);
     }
   }
 
@@ -2924,8 +2924,8 @@ static void panel_activate_state(const bContext *C, Panel *panel, const HandlePa
     if (CTX_wm_area(C)->spacetype == SPACE_FILE && region->regiontype == RGN_TYPE_TOOLS) {
       for (Panel &pnl : region->panels) {
         if (STRPREFIX(pnl.panelname, "FILEBROWSER_PT_")) {
-          ui_memory::memory.section("panel.sortorder")[pnl.panelname] = pnl.sortorder;
-          ui_memory::memory.section("panel.open")[pnl.panelname] = !(pnl.flag & PNL_CLOSED);
+          recents::RECENTS.section("panel.sortorder")[pnl.panelname] = pnl.sortorder;
+          recents::RECENTS.section("panel.open")[pnl.panelname] = !(pnl.flag & PNL_CLOSED);
         }
       }
     }

@@ -49,7 +49,7 @@
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
 #include "BKE_sound.hh"
-#include "BKE_uimemory.hh"
+#include "BKE_recents.hh"
 #include "BKE_vfont.hh"
 
 #include "BKE_addon.h"
@@ -234,7 +234,7 @@ void WM_init(bContext *C, int argc, const char **argv)
   BLF_init();
 
   if (!G.background) {
-    ui_memory::memory.init_async();
+    recents::RECENTS.init_async();
   }
 
   BLT_lang_init();
@@ -625,7 +625,7 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
   BLF_exit();
 
   if (!G.background && do_user_exit_actions) {
-    ui_memory::memory.save();
+    recents::RECENTS.save();
   }
 
   BLT_lang_free();

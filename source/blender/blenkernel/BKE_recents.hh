@@ -5,7 +5,7 @@
 /** \file
  * \ingroup bli
  *
- * Memory / Section API for persisted UI state.
+ * Recents API for persisted UI state.
  */
 
 #pragma once
@@ -15,7 +15,7 @@
 
 #include "BLI_string_ref.hh"
 
-namespace blender::ui_memory {
+namespace blender::recents {
 
 class Section {
  public:
@@ -57,7 +57,7 @@ class Section {
   std::string section_;
 };
 
-struct Memory {
+struct RecentsFile {
   void init();
   void init_async();
   void ensure_init() const;
@@ -69,6 +69,6 @@ struct Memory {
 };
 
 /* Global instance used by callers. */
-extern Memory memory;
+extern RecentsFile RECENTS;
 
-}  // namespace blender::ui_memory
+}  // namespace blender::recents

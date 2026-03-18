@@ -5,7 +5,7 @@
 /** \file
  * \ingroup bli
  *
- * Implementation of Memory / Section backed by TOML.
+ * Implementation of RecentsFile / Section backed by TOML.
  */
 
 #include "toml.hpp"
@@ -19,29 +19,29 @@
 
 #include "BKE_appdir.hh"
 #include "BKE_global.hh"
-#include "BKE_uimemory.hh"
+#include "BKE_recents.hh"
 
 #include "BLI_fileops.h"
 #include "BLI_mutex.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_time.h"
 
-namespace blender::ui_memory {
+namespace blender::recents {
 
 constexpr toml::spec version = toml::spec::v(1, 1, 0);
 
-/* TOML storage. Protected by memory_mutex. */
-static toml::value uimemory_current;
-static toml::value uimemory_default;
-static Mutex uimemory_mutex;      /* protects TOML values */
-static Mutex uimemory_init_mutex; /* used with cv for init wait */
-static std::atomic<bool> uimemory_ready{false};
-static std::condition_variable_any uimemory_init_cv;
-static std::once_flag uimemory_init_once;
+/* TOML storage. Protected by recents_mutex. */
+static toml::value recents_current;
+static toml::value recents_default;
+static Mutex recents_mutex;       /* protects TOML values */
+static Mutex recents_init_mutex; /* used with cv for init wait */
+static std::atomic<bool> recents_ready{false};
+static std::condition_variable_any recents_init_cv;
+static std::once_flag recents_init_once;
 
 extern const StringRef default_toml;
 
-static std::string uimemory_file_path()
+static std::string recents_file_path()
 {
   std::optional<std::string> datafiles_path = BKE_appdir_folder_id(BLENDER_USER_CONFIG, "");
   if (datafiles_path.has_value()) {
@@ -50,7 +50,7 @@ static std::string uimemory_file_path()
   return {};
 }
 
-static void uimemory_print_errors(std::vector<toml::error_info> errors)
+static void recents_print_errors(std::vector<toml::error_info> errors)
 {
   for (const toml::error_info &error : errors) {
     std::string msg = toml::format_error(error);
@@ -58,71 +58,70 @@ static void uimemory_print_errors(std::vector<toml::error_info> errors)
   }
 }
 
-static void uimemory_init_impl()
+static void recents_init_impl()
 {
   toml::result default_result = toml::try_parse_str(default_toml, version);
   if (default_result.is_ok()) {
-    std::lock_guard<Mutex> lock(uimemory_mutex);
-    uimemory_default = default_result.unwrap();
+    std::lock_guard<Mutex> lock(recents_mutex);
+    recents_default = default_result.unwrap();
   }
   else {
-    uimemory_print_errors(default_result.unwrap_err());
+    recents_print_errors(default_result.unwrap_err());
   }
 
   /* Load from on-disk file if found. */
   /* In background mode avoid any file I/O or console error output. The
    * in-memory defaults are still parsed above so API calls will work. */
   if (!G.background) {
-    const std::string path = uimemory_file_path();
+    const std::string path = recents_file_path();
     if (!path.empty() && BLI_exists(path.c_str())) {
       toml::result file_result = toml::try_parse(path, version);
       if (file_result.is_ok()) {
-        std::lock_guard<Mutex> lock(uimemory_mutex);
-        uimemory_current = file_result.unwrap();
+        std::lock_guard<Mutex> lock(recents_mutex);
+        recents_current = file_result.unwrap();
       }
       else {
-        uimemory_print_errors(file_result.unwrap_err());
+        recents_print_errors(file_result.unwrap_err());
       }
     }
   }
 
   /* Mark ready and wake any waiters. */
-  uimemory_ready.store(true, std::memory_order_release);
-  uimemory_init_cv.notify_all();
+  recents_ready.store(true, std::memory_order_release);
+  recents_init_cv.notify_all();
 }
 
-void Memory::init()
+void RecentsFile::init()
 {
-  uimemory_init_impl();
+  recents_init_impl();
 }
 
-void Memory::init_async()
+void RecentsFile::init_async()
 {
-  std::call_once(uimemory_init_once,
-                 []() { std::thread([]() { uimemory_init_impl(); }).detach(); });
+  std::call_once(recents_init_once, []() { std::thread([]() { recents_init_impl(); }).detach(); });
 }
 
-void Memory::ensure_init() const
+void RecentsFile::ensure_init() const
 {
-  if (uimemory_ready.load(std::memory_order_acquire)) {
+  if (recents_ready.load(std::memory_order_acquire)) {
     return;
   }
 
   /* If async init wasn't started for some reason (like background mode), start
    * init synchronously. If async init is already scheduled then this call_once
    * will do nothing and we will wait below for the background thread to finish. */
-  std::call_once(uimemory_init_once, uimemory_init_impl);
+  std::call_once(recents_init_once, recents_init_impl);
 
-  if (uimemory_ready.load(std::memory_order_acquire)) {
+  if (recents_ready.load(std::memory_order_acquire)) {
     return;
   }
 
   /* Wait using BLI Mutex + condition_variable_any. */
-  std::unique_lock<Mutex> lock(uimemory_init_mutex);
-  uimemory_init_cv.wait(lock, [] { return uimemory_ready.load(std::memory_order_acquire); });
+  std::unique_lock<Mutex> lock(recents_init_mutex);
+  recents_init_cv.wait(lock, [] { return recents_ready.load(std::memory_order_acquire); });
 }
 
-bool Memory::save() const
+bool RecentsFile::save() const
 {
   ensure_init();
 
@@ -131,12 +130,12 @@ bool Memory::save() const
     return false;
   }
 
-  std::lock_guard<Mutex> lock(uimemory_mutex);
-  if (uimemory_current.is_empty()) {
+  std::lock_guard<Mutex> lock(recents_mutex);
+  if (recents_current.is_empty()) {
     return false;
   }
-  std::string toml_as_string = toml::format(uimemory_current, version);
-  FILE *file_handle = BLI_fopen(uimemory_file_path().c_str(), "w");
+  std::string toml_as_string = toml::format(recents_current, version);
+  FILE *file_handle = BLI_fopen(recents_file_path().c_str(), "w");
   if (file_handle == nullptr) {
     return false;
   }
@@ -145,7 +144,7 @@ bool Memory::save() const
   return true;
 }
 
-static const toml::value *uimemory_find_in(const toml::value &root,
+static const toml::value *recents_find_in(const toml::value &root,
                                            const std::string &section_name,
                                            const std::string &item_key)
 {
@@ -189,30 +188,30 @@ static const toml::value *uimemory_find_in(const toml::value &root,
 
 template<typename T> T Section::get(const StringRef item_key) const
 {
-  memory.ensure_init();
+  RECENTS.ensure_init();
 
-  std::lock_guard<Mutex> lock(uimemory_mutex);
+  std::lock_guard<Mutex> lock(recents_mutex);
 
   /* Try user value first. */
-  if (const toml::value *v = uimemory_find_in(uimemory_current, section_, item_key)) {
+  if (const toml::value *v = recents_find_in(recents_current, section_, item_key)) {
     return toml::get_or(*v, T{});
   }
 
   /* Per-key default value. */
-  if (const toml::value *v = uimemory_find_in(uimemory_default, section_, item_key)) {
+  if (const toml::value *v = recents_find_in(recents_default, section_, item_key)) {
     return toml::get_or(*v, T{});
   }
 
   /* User's section-level "_default" (user override of section default). */
   if (!section_.empty()) {
-    if (const toml::value *v = uimemory_find_in(uimemory_current, section_, "_default")) {
+    if (const toml::value *v = recents_find_in(recents_current, section_, "_default")) {
       return toml::get_or(*v, T{});
     }
   }
 
   /* Builtin section-level "_default". */
   if (!section_.empty()) {
-    if (const toml::value *v = uimemory_find_in(uimemory_default, section_, "_default")) {
+    if (const toml::value *v = recents_find_in(recents_default, section_, "_default")) {
       return toml::get_or(*v, T{});
     }
   }
@@ -223,25 +222,25 @@ template<typename T> T Section::get(const StringRef item_key) const
 
 template<typename T> void Section::set(const StringRef item_key, const T &value)
 {
-  memory.ensure_init();
+  RECENTS.ensure_init();
 
-  std::lock_guard<Mutex> lock(uimemory_mutex);
+  std::lock_guard<Mutex> lock(recents_mutex);
   if (section_.empty()) {
-    uimemory_current[item_key] = value;
+    recents_current[item_key] = value;
   }
   else {
-    uimemory_current[section_][item_key] = value;
+    recents_current[section_][item_key] = value;
   }
 }
 
 void Section::remove(const StringRef item_key)
 {
-  memory.ensure_init();
-  std::lock_guard<Mutex> lock(uimemory_mutex);
-  if (!uimemory_current.is_table()) {
+  RECENTS.ensure_init();
+  std::lock_guard<Mutex> lock(recents_mutex);
+  if (!recents_current.is_table()) {
     return;
   }
-  toml::table &root_table = uimemory_current.as_table();
+  toml::table &root_table = recents_current.as_table();
   if (section_.empty()) {
     root_table.erase(item_key);
     return;
@@ -260,12 +259,12 @@ void Section::remove(const StringRef item_key)
 
 void Section::remove_section()
 {
-  memory.ensure_init();
-  std::lock_guard<Mutex> lock(uimemory_mutex);
-  if (section_.empty() || !uimemory_current.is_table()) {
+  RECENTS.ensure_init();
+  std::lock_guard<Mutex> lock(recents_mutex);
+  if (section_.empty() || !recents_current.is_table()) {
     return;
   }
-  toml::table &root_table = uimemory_current.as_table();
+  toml::table &root_table = recents_current.as_table();
   root_table.erase(section_);
 }
 
@@ -314,7 +313,7 @@ template void Section::set<std::vector<float>>(const StringRef item_key,
                                                const std::vector<float> &value);
 
 /* Global instance. */
-Memory memory;
+RecentsFile RECENTS;
 
 /* Defaults. */
 
@@ -366,4 +365,4 @@ _default = true
 
 )_delim_";
 
-}  // namespace blender::ui_memory
+}  // namespace blender::recents
