@@ -62,10 +62,9 @@ struct Memory {
   void init_async();
   void ensure_init() const;
   bool save() const;
-  /* Open a section handle. */
-  Section open(const StringRef section) const
+  Section section(const StringRef section_name) const
   {
-    return Section(section);
+    return Section(section_name);
   }
 };
 

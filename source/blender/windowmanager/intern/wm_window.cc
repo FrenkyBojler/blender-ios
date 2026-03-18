@@ -505,7 +505,7 @@ void wm_window_close_request(bContext *C, wmWindowManager *wm, wmWindow *win)
                                      float(win->posy) * fac,
                                      float(win->posy) * fac + float(win->sizey) * fac};
 
-        ui_memory::memory.open(
+        ui_memory::memory.section(
             "temp.window.dimensions")[win->runtime->recents_storage_key] = bounds;
       }
     }
@@ -1421,7 +1421,7 @@ wmWindow *WM_window_open_temp(bContext *C, const char *title, int space_type, bo
   const EnumPropertyItem item = rna_enum_space_type_items[index];
   StringRef key = item.identifier;
 
-  std::vector<float> bounds = ui_memory::memory.open("temp.window.dimensions")[key];
+  std::vector<float> bounds = ui_memory::memory.section("temp.window.dimensions")[key];
 
   const bool bounds_valid = (bounds.size() == 4 && (bounds[1] - bounds[0] > 150.0f) &&
                              (bounds[3] - bounds[2] > 100.0f));
