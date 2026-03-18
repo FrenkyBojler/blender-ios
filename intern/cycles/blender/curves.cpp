@@ -307,24 +307,6 @@ static void ExportCurveSegments(Scene *scene, Hair *hair, ParticleCurveData *CDa
     return;
   }
 
-  packed_normal *attr_normal = nullptr;
-  float *attr_intercept = nullptr;
-  float *attr_length = nullptr;
-  float *attr_random = nullptr;
-
-  if (hair->need_attribute(scene, ATTR_STD_VERTEX_NORMAL)) {
-    attr_normal = hair->attributes.add(ATTR_STD_VERTEX_NORMAL)->data_normal_for_write();
-  }
-  if (hair->need_attribute(scene, ATTR_STD_CURVE_INTERCEPT)) {
-    attr_intercept = hair->attributes.add(ATTR_STD_CURVE_INTERCEPT)->data_float_for_write();
-  }
-  if (hair->need_attribute(scene, ATTR_STD_CURVE_LENGTH)) {
-    attr_length = hair->attributes.add(ATTR_STD_CURVE_LENGTH)->data_float_for_write();
-  }
-  if (hair->need_attribute(scene, ATTR_STD_CURVE_RANDOM)) {
-    attr_random = hair->attributes.add(ATTR_STD_CURVE_RANDOM)->data_float_for_write();
-  }
-
   /* compute and reserve size of arrays */
   for (int sys = 0; sys < CData->psys_firstcurve.size(); sys++) {
     for (int curve = CData->psys_firstcurve[sys];
@@ -336,8 +318,31 @@ static void ExportCurveSegments(Scene *scene, Hair *hair, ParticleCurveData *CDa
     }
   }
 
-  // TODO: RESERVE TO RESIZE (AND OTHER PLACES)
   hair->resize_curves(hair->num_curves() + num_curves, hair->get_curve_keys().size() + num_keys);
+
+  packed_normal *attr_normal = nullptr;
+  float *attr_intercept = nullptr;
+  float *attr_length = nullptr;
+  float *attr_random = nullptr;
+
+  if (hair->need_attribute(scene, ATTR_STD_VERTEX_NORMAL)) {
+    attr_normal = hair->attributes.add(ATTR_STD_VERTEX_NORMAL)->data_normal();
+  }
+  if (hair->need_attribute(scene, ATTR_STD_CURVE_INTERCEPT)) {
+    attr_intercept = hair->attributes.add(ATTR_STD_CURVE_INTERCEPT)->data_float();
+  }
+  if (hair->need_attribute(scene, ATTR_STD_CURVE_LENGTH)) {
+    attr_length = hair->attributes.add(ATTR_STD_CURVE_LENGTH)->data_float();
+  }
+  if (hair->need_attribute(scene, ATTR_STD_CURVE_RANDOM)) {
+    attr_random = hair->attributes.add(ATTR_STD_CURVE_RANDOM)->data_float();
+  }
+
+  int *curve_first_key = hair->get_curve_first_key().data();
+  int *curve_shader = hair->get_curve_shader().data();
+
+  float3 *curve_keys = hair->get_curve_keys().data();
+  float *curve_radius = hair->get_curve_radius().data();
 
   num_keys = 0;
   num_curves = 0;
@@ -348,6 +353,8 @@ static void ExportCurveSegments(Scene *scene, Hair *hair, ParticleCurveData *CDa
          curve < CData->psys_firstcurve[sys] + CData->psys_curvenum[sys];
          curve++)
     {
+      curve_first_key[num_curves] = num_keys;
+
       for (int curvekey = CData->curve_firstkey[curve];
            curvekey < CData->curve_firstkey[curve] + CData->curve_keynum[curve];
            curvekey++)
@@ -363,7 +370,8 @@ static void ExportCurveSegments(Scene *scene, Hair *hair, ParticleCurveData *CDa
         {
           radius = 0.0f;
         }
-        hair->add_curve_key(ickey_loc, radius);
+        curve_keys[num_keys] = ickey_loc;
+        curve_radius[num_keys] = radius;
         if (attr_intercept) {
           attr_intercept[num_keys] = time;
         }
@@ -385,10 +393,16 @@ static void ExportCurveSegments(Scene *scene, Hair *hair, ParticleCurveData *CDa
         attr_random[num_curves] = hash_uint2_to_float(num_curves, 0);
       }
 
-      hair->add_curve(num_keys, CData->psys_shader[sys]);
+      curve_shader[num_curves] = CData->psys_shader[sys];
+
       num_curves++;
     }
   }
+
+  hair->tag_curve_keys_modified();
+  hair->tag_curve_radius_modified();
+  hair->tag_curve_first_key_modified();
+  hair->tag_curve_shader_modified();
 
   /* check allocation */
   if ((hair->get_curve_keys().size() != num_keys) || (hair->num_curves() != num_curves)) {

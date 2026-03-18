@@ -51,11 +51,7 @@ Attribute::Attribute(ustring name,
     this->sharing_info = ImplicitSharingPtr<>(shared_value);
   }
   else {
-    const size_t size = Attribute::element_size(geom, element, prim);
-    char *data = new char[size * this->data_sizeof()];
-    this->buffer = data;
-    this->size = size;
-    this->sharing_info = ImplicitSharingPtr<>(new SharingInfoForFree(data));
+    resize(geom, prim);
   }
 }
 
@@ -72,11 +68,11 @@ Attribute::Attribute(ustring name,
   this->sharing_info = ImplicitSharingPtr<>(&sharing_info);
 }
 
-Attribute::~Attribute() = default;
-
 void Attribute::resize(Geometry *geom, AttributePrimitive prim)
 {
-  this->resize(Attribute::element_size(geom, element, prim));
+  if (!(element & ATTR_ELEMENT_VOXEL)) {
+    buffer.resize(buffer_size(geom, prim), 0);
+  }
 }
 
 void Attribute::resize(const size_t num_elements)

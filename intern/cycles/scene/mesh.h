@@ -202,10 +202,6 @@ class Mesh : public Geometry {
   void reserve_subd_creases(const size_t num_creases);
   void clear_non_sockets();
   void clear(bool preserve_shaders = false) override;
-  void add_vertex(const float3 P);
-  void add_vertex_slow(const float3 P);
-  void add_triangle(const int v0, const int v1, const int v2, const int shader, bool smooth);
-  void add_subd_face(const int *corners, const int num_corners, const int shader_, bool smooth_);
   void add_edge_crease(const int v0, const int v1, const float weight);
   void add_vertex_crease(const int v, const float weight);
 

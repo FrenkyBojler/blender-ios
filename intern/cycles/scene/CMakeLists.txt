@@ -9,6 +9,9 @@ set(INC
   ../../implicit_sharing
 )
 
+set(INC_SYS
+)
+
 set(SRC
   attribute.cpp
   background.cpp

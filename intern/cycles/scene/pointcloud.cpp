@@ -124,17 +124,6 @@ void PointCloud::clear(const bool preserve_shaders)
   tag_shader_modified();
 }
 
-void PointCloud::add_point(const float3 co, const float r, const int shader_index)
-{
-  points.push_back_reserved(co);
-  radius.push_back_reserved(r);
-  shader.push_back_reserved(shader_index);
-
-  tag_points_modified();
-  tag_radius_modified();
-  tag_shader_modified();
-}
-
 void PointCloud::copy_center_to_motion_step(const int motion_step)
 {
   Attribute *attr_mP = attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
