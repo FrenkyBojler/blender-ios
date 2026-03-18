@@ -13,7 +13,7 @@
 
 #include "BKE_attribute_math.hh"
 #include "BKE_brush.hh"
-#include "BKE_bvhutils.hh"
+#include "BKE_bvh.hh"
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
 #include "BKE_mesh.hh"
@@ -460,25 +460,15 @@ struct SlideOperationExecutor {
     float best_dist_sq_su = FLT_MAX;
     int best_tri_index_eval;
     float3 best_hit_pos_su;
-    BLI_bvhtree_ray_cast_all_cpp(
-        *surface_bvh_eval_.tree,
-        ray_start_su,
-        ray_direction_su,
-        0.0f,
-        FLT_MAX,
-        [&](const int tri_index, const BVHTreeRay &ray, BVHTreeRayHit &hit) {
-          surface_bvh_eval_.raycast_callback(&surface_bvh_eval_, tri_index, &ray, &hit);
-          if (hit.index < 0) {
-            return;
-          }
-          const float3 hit_pos_su = hit.co;
-          const float dist_sq_su = math::distance_squared(hit_pos_su, point_su);
-          if (dist_sq_su < best_dist_sq_su) {
-            best_dist_sq_su = dist_sq_su;
-            best_hit_pos_su = hit_pos_su;
-            best_tri_index_eval = hit.index;
-          }
-        });
+    const bke::bvh::Ray ray{ray_start_su, ray_direction_su, 0.0f, FLT_MAX};
+    surface_bvh_eval_->ray_intersect_all(ray, [&](const bke::bvh::RayHit &hit) {
+      const float dist_sq_su = math::distance_squared(hit.position, point_su);
+      if (dist_sq_su < best_dist_sq_su) {
+        best_dist_sq_su = dist_sq_su;
+        best_hit_pos_su = hit.position;
+        best_tri_index_eval = hit.index;
+      }
+    });
 
     if (best_dist_sq_su == FLT_MAX) {
       return false;

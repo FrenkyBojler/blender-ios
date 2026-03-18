@@ -120,7 +120,8 @@ Tree Tree::from_tris(const Mesh &mesh, const IndexMask &face_mask)
   rtcSetDeviceMemoryMonitorFunction(tree.rtc_device, rtc_memory_monitor_func, nullptr);
 
   tree.rtc_scene = rtcNewScene(tree.rtc_device);
-  const RTCSceneFlags scene_flags = RTC_SCENE_FLAG_ROBUST;
+  const RTCSceneFlags scene_flags = RTCSceneFlags(RTC_SCENE_FLAG_ROBUST |
+                                                   RTC_SCENE_FLAG_FILTER_FUNCTION_IN_ARGUMENTS);
   rtcSetSceneFlags(tree.rtc_scene, scene_flags);
   RTCBuildQuality build_quality = RTC_BUILD_QUALITY_MEDIUM;
   rtcSetSceneBuildQuality(tree.rtc_scene, build_quality);
@@ -176,6 +177,60 @@ std::optional<RayHit> Tree::ray_intersect(const Ray &ray) const
   hit.bary_coord = float2(rtc_hit.hit.u, rtc_hit.hit.v);
   hit.index = rtc_hit.hit.primID;
   return hit;
+}
+
+void Tree::ray_intersect_all(const Ray &ray, FunctionRef<void(const RayHit &)> fn) const
+{
+  struct AllHitsContext {
+    RTCRayQueryContext rtc_context;
+    FunctionRef<void(const RayHit &)> *fn;
+    float3 origin;
+    float3 direction;
+  };
+
+  AllHitsContext ctx;
+  rtcInitRayQueryContext(&ctx.rtc_context);
+  ctx.fn = &fn;
+  ctx.origin = ray.origin;
+  ctx.direction = ray.direction;
+
+  RTCRayHit rtc_hit;
+  rtc_hit.ray.org_x = ray.origin.x;
+  rtc_hit.ray.org_y = ray.origin.y;
+  rtc_hit.ray.org_z = ray.origin.z;
+  rtc_hit.ray.dir_x = ray.direction.x;
+  rtc_hit.ray.dir_y = ray.direction.y;
+  rtc_hit.ray.dir_z = ray.direction.z;
+  rtc_hit.ray.tnear = ray.dist_min;
+  rtc_hit.ray.tfar = ray.dist_max;
+  rtc_hit.ray.time = 0.0f;
+  rtc_hit.ray.mask = 0xffffffff;
+  rtc_hit.ray.id = 0;
+  rtc_hit.ray.flags = 0;
+  rtc_hit.hit.geomID = RTC_INVALID_GEOMETRY_ID;
+  rtc_hit.hit.instID[0] = RTC_INVALID_GEOMETRY_ID;
+
+  RTCIntersectArguments args;
+  rtcInitIntersectArguments(&args);
+  args.context = &ctx.rtc_context;
+  args.filter = [](const RTCFilterFunctionNArguments *filter_args) {
+    AllHitsContext *ctx = reinterpret_cast<AllHitsContext *>(filter_args->context);
+    const RTCHit rtc_hit = rtcGetHitFromHitN(filter_args->hit, filter_args->N, 0);
+    const RTCRay rtc_ray = rtcGetRayFromRayN(filter_args->ray, filter_args->N, 0);
+
+    RayHit hit;
+    hit.position = ctx->origin + rtc_ray.tfar * ctx->direction;
+    hit.normal = float3(rtc_hit.Ng_x, rtc_hit.Ng_y, rtc_hit.Ng_z);
+    hit.bary_coord = float2(rtc_hit.u, rtc_hit.v);
+    hit.index = int(rtc_hit.primID);
+    hit.distance = rtc_ray.tfar;
+    (*ctx->fn)(hit);
+
+    /* Reject hit to continue traversal for all remaining intersections. */
+    filter_args->valid[0] = 0;
+  };
+
+  rtcIntersect1(this->rtc_scene, &rtc_hit, &args);
 }
 
 std::optional<ClosestPointResult> Tree::closest_point(const float3 &point,
@@ -251,6 +306,11 @@ bool Tree::ray_intersect1(const Ray &ray, Hit &r_hit) const
 {
   UNUSED_VARS(ray, r_hit);
   return false;
+}
+
+void Tree::ray_intersect_all(const Ray &ray, FunctionRef<void(const RayHit &)> fn) const
+{
+  UNUSED_VARS(ray, fn);
 }
 
 }  // namespace blender::bke::bvh

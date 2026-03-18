@@ -69,6 +69,8 @@ class Tree {
                                       const float3 &direction,
                                       float dist_max = std::numeric_limits<float>::max()) const;
 
+  void ray_intersect_all(const Ray &ray, FunctionRef<void(const RayHit &)> fn) const;
+
   std::optional<ClosestPointResult> closest_point(
       const float3 &point, float radius = std::numeric_limits<float>::max()) const;
 
