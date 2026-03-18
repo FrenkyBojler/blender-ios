@@ -139,53 +139,41 @@ static void raycast_to_mesh(const IndexMask &mask,
     ray.dist_max = ray_lengths[i];
 
     bke::bvh::RayHit hit;
-    tree_data.ray_intersect1(ray, hit);
-
-    // BVHTreeRayHit hit;
-    // hit.index = -1;
-    // hit.dist = ray_length;
-    // if (BLI_bvhtree_ray_cast(tree_data.tree,
-    //                          ray_origin,
-    //                          ray_direction,
-    //                          0.0f,
-    //                          &hit,
-    //                          tree_data.raycast_callback,
-    //                          &tree_data) != -1)
-    // {
-    //   if (!r_hit.is_empty()) {
-    //     r_hit[i] = hit.index >= 0;
-    //   }
-    //   if (!r_hit_indices.is_empty()) {
-    //     /* The caller must be able to handle invalid indices anyway, so don't clamp this value.
-    //     */ r_hit_indices[i] = hit.index;
-    //   }
-    //   if (!r_hit_positions.is_empty()) {
-    //     r_hit_positions[i] = hit.co;
-    //   }
-    //   if (!r_hit_normals.is_empty()) {
-    //     r_hit_normals[i] = hit.no;
-    //   }
-    //   if (!r_hit_distances.is_empty()) {
-    //     r_hit_distances[i] = hit.dist;
-    //   }
-    // }
-    // else {
-    //   if (!r_hit.is_empty()) {
-    //     r_hit[i] = false;
-    //   }
-    //   if (!r_hit_indices.is_empty()) {
-    //     r_hit_indices[i] = -1;
-    //   }
-    //   if (!r_hit_positions.is_empty()) {
-    //     r_hit_positions[i] = float3(0.0f, 0.0f, 0.0f);
-    //   }
-    //   if (!r_hit_normals.is_empty()) {
-    //     r_hit_normals[i] = float3(0.0f, 0.0f, 0.0f);
-    //   }
-    //   if (!r_hit_distances.is_empty()) {
-    //     r_hit_distances[i] = ray_length;
-    //   }
-    // }
+    if (tree_data.ray_intersect1(ray, hit)) {
+      if (!r_hit.is_empty()) {
+        r_hit[i] = true;
+      }
+      if (!r_hit_indices.is_empty()) {
+        /* The caller must be able to handle invalid indices anyway, so don't clamp this value. */
+        r_hit_indices[i] = hit.hit.primitive_id;
+      }
+      if (!r_hit_positions.is_empty()) {
+        r_hit_positions[i] = hit.ray.origin + hit.ray.direction * hit.ray.dist_max;
+      }
+      if (!r_hit_normals.is_empty()) {
+        r_hit_normals[i] = hit.hit.normal;
+      }
+      if (!r_hit_distances.is_empty()) {
+        r_hit_distances[i] = math::length(hit.ray.direction * hit.ray.dist_max);
+      }
+    }
+    else {
+      if (!r_hit.is_empty()) {
+        r_hit[i] = false;
+      }
+      if (!r_hit_indices.is_empty()) {
+        r_hit_indices[i] = -1;
+      }
+      if (!r_hit_positions.is_empty()) {
+        r_hit_positions[i] = float3(0.0f, 0.0f, 0.0f);
+      }
+      if (!r_hit_normals.is_empty()) {
+        r_hit_normals[i] = float3(0.0f, 0.0f, 0.0f);
+      }
+      if (!r_hit_distances.is_empty()) {
+        r_hit_distances[i] = ray_lengths[i];
+      }
+    }
   });
 }
 
