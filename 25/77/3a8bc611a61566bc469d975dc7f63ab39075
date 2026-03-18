@@ -2,3 +2,4 @@ Referenced by pull request #154966, Fix: Add Curves on Mesh wrong interpolation 
 Referenced by commit 921309f3fcc2db6e11b6eb2a5a90a2969618e998, Fix: Neighbor weight truncation in hair curve addition after refactor
 Referenced by pull request #155189, Attributes: Add missing threading to mix_groups function
 Referenced by commit 683217ded8c52d720f207d3e04ad3b90305b57d5, Attributes: Add missing threading to mix_groups function
+Referenced by issue #155819, Inherit attribute issues
