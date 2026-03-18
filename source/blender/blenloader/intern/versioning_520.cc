@@ -15,6 +15,7 @@
 #include "BLI_sys_types.h"
 
 #include "BKE_main.hh"
+#include "BKE_mesh_legacy_convert.hh"
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
 
@@ -111,7 +112,13 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 8)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 9)) {
+    for (Mesh &mesh : bmain->meshes) {
+      bke::mesh_freestyle_marks_to_generic(mesh);
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 10)) {
     for (Material &materials : bmain->materials) {
       if (materials.gp_style != nullptr) {
         materials.gp_style->placement_mode = GP_MATERIAL_PLACEMENT_COUNT;
