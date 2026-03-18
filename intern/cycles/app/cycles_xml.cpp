@@ -607,7 +607,7 @@ static void xml_read_mesh(const XMLReadState &state, const xml_node node)
         xml_read_float_array(UV, node, Attribute::standard_name(ATTR_STD_UV)))
     {
       Attribute *attr = mesh->subd_attributes.add(ATTR_STD_UV);
-      float3 *fdata = attr->data_float3_for_write();
+      float3 *fdata = attr->data_float3();
 
       int index_offset = 0;
       for (size_t i = 0; i < nverts.size(); i++) {

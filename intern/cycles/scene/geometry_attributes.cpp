@@ -337,7 +337,7 @@ class AttributeTableBuilder {
       offset = handle.kernel_id();
     }
     else if (mattr->element & ATTR_ELEMENT_IS_BYTE) {
-      offset = attr_uchar4.add(mattr->data_uchar4_for_write(), size, mattr->modified);
+      offset = attr_uchar4.add(mattr->data_uchar4(), size, mattr->modified);
     }
     else if (mattr->element & ATTR_ELEMENT_IS_NORMAL) {
       offset = attr_normal.add(mattr->data_normal(), size, mattr->modified);
@@ -511,7 +511,7 @@ void GeometryManager::device_update_attributes(Device *device,
 
         Attribute *attr = values.add(param.name(), param.type(), ATTR_ELEMENT_OBJECT);
         assert(param.datasize() == attr->buffer.size());
-        memcpy(attr->data_for_write(), param.data(), param.datasize());
+        memcpy(attr->data(), param.data(), param.datasize());
       }
     }
   }

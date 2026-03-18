@@ -87,42 +87,42 @@ class Attribute {
   static size_t element_size(Geometry *geom, AttributeElement element, AttributePrimitive prim);
   size_t buffer_size(Geometry *geom, AttributePrimitive prim) const;
 
-  char *data_for_write()
+  char *data()
   {
     assert(sharing_info->is_mutable());
     return static_cast<char *>(const_cast<void *>(buffer));
   }
-  float2 *data_float2_for_write()
+  float2 *data_float2()
   {
     assert(data_sizeof() == sizeof(float2));
     return (float2 *)data();
   }
-  float3 *data_float3_for_write()
+  float3 *data_float3()
   {
     assert(data_sizeof() == sizeof(float3));
     return (float3 *)data();
   }
-  float4 *data_float4_for_write()
+  float4 *data_float4()
   {
     assert(data_sizeof_for_write() == sizeof(float4));
     return (float4 *)data();
   }
-  float *data_float_for_write()
+  float *data_float()
   {
     assert(data_sizeof() == sizeof(float));
     return (float *)data();
   }
-  uchar4 *data_uchar4_for_write()
+  uchar4 *data_uchar4()
   {
     assert(data_sizeof() == sizeof(uchar4));
     return (uchar4 *)data();
   }
-  packed_normal *data_normal_for_write()
+  packed_normal *data_normal()
   {
     assert(data_sizeof() == sizeof(packed_normal));
     return (packed_normal *)data();
   }
-  Transform *data_transform_for_write()
+  Transform *data_transform()
   {
     assert(data_sizeof() == sizeof(Transform));
     return (Transform *)data();
