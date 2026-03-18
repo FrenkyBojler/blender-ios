@@ -9,6 +9,7 @@ import modules.ui_test_utils as ui
 
 
 def sculpt_mode_toolbar():
+    import sys
     e, t, window = ui.test_window()
 
     # In the default properties area, set it to the tool tab to force access of all
@@ -87,7 +88,12 @@ def sculpt_mode_toolbar():
     t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, "builtin.cloth_filter")
 
     yield e.shift.space()
-    yield e.ctrl.x()
+    if sys.platform == "darwin":
+        # Assigning a keymap entry to Ctrl on MacOS also assigns it to Command. In most cases, either
+        # keybind is accepted. However, the toolbar specifically responds to Command, not Ctrl
+        yield e.oskey.x()
+    else:
+        yield e.ctrl.x()
     t.assertEqual(window.workspace.tools.from_space_view3d_mode('SCULPT').idname, "builtin.color_filter")
 
     yield e.shift.space()
