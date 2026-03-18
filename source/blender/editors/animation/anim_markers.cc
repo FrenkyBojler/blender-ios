@@ -1722,13 +1722,13 @@ static void MARKER_OT_select_all(wmOperatorType *ot)
 enum eMarkers_LeftRightSelect_Mode {
   MARKERS_LRSEL_LEFT = 0,
   MARKERS_LRSEL_RIGHT,
-  MARKERS_LRSEL_TEST,
+  MARKERS_LRSEL_CLICK_SIDE,
 };
 
 static const EnumPropertyItem prop_markers_select_leftright_modes[] = {
     {MARKERS_LRSEL_LEFT, "LEFT", 0, "Before Current Frame", ""},
     {MARKERS_LRSEL_RIGHT, "RIGHT", 0, "After Current Frame", ""},
-    {MARKERS_LRSEL_TEST, "CHECK", 0, "Check if Select Left or Right", ""},
+    {MARKERS_LRSEL_CLICK_SIDE, "CLICK_SIDE", 0, "Check which side was clicked", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -1790,19 +1790,15 @@ static wmOperatorStatus ed_marker_select_leftright_invoke(bContext *C,
     return OPERATOR_PASS_THROUGH;
   }
 
-  const eMarkers_LeftRightSelect_Mode mode = eMarkers_LeftRightSelect_Mode(
+  eMarkers_LeftRightSelect_Mode mode = eMarkers_LeftRightSelect_Mode(
       RNA_enum_get(op->ptr, "mode"));
 
-  const float mouse_frame = ui::view2d_region_to_view_x(v2d, event->mval[0]);
-
-  if (mode == MARKERS_LRSEL_TEST) {
-    if (mouse_frame < BKE_scene_frame_get(scene)) {
-      RNA_enum_set(op->ptr, "mode", MARKERS_LRSEL_LEFT);
-    }
-    else {
-      RNA_enum_set(op->ptr, "mode", MARKERS_LRSEL_RIGHT);
-    }
+  if (mode == MARKERS_LRSEL_CLICK_SIDE) {
+    const float mouse_frame = ui::view2d_region_to_view_x(v2d, event->mval[0]);
+    const float scene_frame = BKE_scene_frame_get(scene);
+    mode = mouse_frame < scene_frame ? MARKERS_LRSEL_LEFT : MARKERS_LRSEL_RIGHT;
   }
+  RNA_enum_set(op->ptr, "mode", mode);
 
   return ed_marker_select_leftright_exec(C, op);
 }
