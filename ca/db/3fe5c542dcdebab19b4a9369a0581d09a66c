@@ -8,3 +8,4 @@ Referenced by commit f9126f5f67e27ba15160dcc134c2a2d8bfeb59d3, Fix #149890: Memf
 Referenced by issue #150350, Selection of geometry and materials unusually slow in 5.0
 Referenced by issue #150393, Slowdown/Lagging Armature Object/Data caused by huge Custom Property
 Referenced by issue #151195, Segfault on undo/redo of Make Local with geometry nodes
+Referenced by issue #155835, Blender 5.1 LTS selecting object is noticeable slower(Delay) than blender 4.5.X in large scale/Lots of collections files
