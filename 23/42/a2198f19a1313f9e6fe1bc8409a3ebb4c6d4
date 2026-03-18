@@ -1,2 +1,3 @@
 Referenced by issue #155698, Spreadsheet shows stale vertex group attribute after removal via Python Console
 Referenced by issue #155798, subdiv broken
+Referenced by issue #155858, Blender 5.1 performance regression when accessing UV vectors in Python
