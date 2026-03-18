@@ -8,7 +8,7 @@
  * Implementation of Memory / Section backed by TOML.
  */
 
-#include "../../../extern/toml11/toml.hpp"
+#include "toml.hpp"
 
 #include <atomic>
 #include <condition_variable>

@@ -419,6 +419,7 @@ set(SRC
 set(LIB
   PUBLIC bf::dna
   PRIVATE bf::extern::json
+  PRIVATE bf::extern::toml
   PRIVATE bf::extern::xxhash
   bf_intern_eigen
   PRIVATE bf::intern::guardedalloc
