@@ -939,6 +939,10 @@ struct ScopeParser {
   {
     open_scope(curr, ScopeType::Subscript);
     match('[');
+    if (peek() == '[') {
+      error("Unexpected attribute specifier");
+      return;
+    }
 
     while (true) {
       switch (peek()) {
