@@ -295,9 +295,11 @@ bool convert_pose_bone_rotation_keys(Main *bmain,
     const RNAFCurveMap &fcu_map = item.value;
     const std::string rotation_mode_path = pchan_path.value() + ".rotation_mode";
     Vector<std::pair<float, eRotationModes>> rotation_mode_ranges;
+    FCurve *rotation_mode_fcurve = nullptr;
     if (const SortedFCurveBuffer *rotation_mode_buffer = fcu_map.lookup_ptr(rotation_mode_path)) {
       BLI_assert(rotation_mode_buffer->fcurves().size() > 0);
-      rotation_mode_ranges = get_rotation_mode_ranges(*rotation_mode_buffer->fcurves()[0]);
+      rotation_mode_fcurve = rotation_mode_buffer->fcurves()[0];
+      rotation_mode_ranges = get_rotation_mode_ranges(*rotation_mode_fcurve);
     }
     else {
       /* Defaulting back to the struct value means that this can have unexpected results when
@@ -328,6 +330,12 @@ bool convert_pose_bone_rotation_keys(Main *bmain,
                                   range,
                                   pchan);
       modified_keys = true;
+    }
+    if (rotation_mode_fcurve && rotation_mode_fcurve->bezt) {
+      for (const int i : IndexRange(rotation_mode_fcurve->totvert)) {
+        rotation_mode_fcurve->bezt[i].vec[1][1] = to_mode;
+      }
+      BKE_fcurve_handles_recalc(*rotation_mode_fcurve);
     }
   }
 
