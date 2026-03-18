@@ -2628,53 +2628,66 @@ enum {
   SEQ_SELECT_GROUP_TYPE_BASIC,
   SEQ_SELECT_GROUP_TYPE_EFFECT,
   SEQ_SELECT_GROUP_DATA,
-  SEQ_SELECT_GROUP_EFFECT,
-  SEQ_SELECT_GROUP_EFFECT_LINK,
-  SEQ_SELECT_GROUP_OVERLAP,
+  SEQ_SELECT_GROUP_EFFECT_USER,
+  SEQ_SELECT_GROUP_COVERED,
+  SEQ_SELECT_GROUP_TIME_OVERLAP,
 };
 
 static const EnumPropertyItem sequencer_prop_select_grouped_types[] = {
-    {SEQ_SELECT_GROUP_TYPE, "TYPE", 0, "Type", "Shared strip type"},
+    {SEQ_SELECT_GROUP_TYPE,
+     "TYPE",
+     0,
+     "Type",
+     "Select all strips of the same specific type as the active strip"},
     {SEQ_SELECT_GROUP_TYPE_BASIC,
      "TYPE_BASIC",
      0,
-     "Global Type",
-     "All strips of same basic type (graphical or sound)"},
+     "Visual or Sound",
+     "Select all visual strips if the active strip is visual, or all sound strips if it is not"},
     {SEQ_SELECT_GROUP_TYPE_EFFECT,
      "TYPE_EFFECT",
      0,
-     "Effect Type",
-     "Shared strip effect type (if active strip is not an effect one, select all non-effect "
-     "strips)"},
-    {SEQ_SELECT_GROUP_DATA, "DATA", 0, "Data", "Shared data (scene, image, sound, etc.)"},
-    {SEQ_SELECT_GROUP_EFFECT, "EFFECT", 0, "Effect", "Shared effects"},
-    {SEQ_SELECT_GROUP_EFFECT_LINK,
-     "EFFECT_LINK",
+     "Effect or Non-Effect",
+     "Select all effect strips if the active strip is an effect, or all non-effect strips if it "
+     "is not"},
+    {SEQ_SELECT_GROUP_DATA,
+     "DATA",
      0,
-     "Effect/Linked",
-     "Other strips affected by the active one (sharing some time, and below or "
-     "effect-assigned)"},
-    {SEQ_SELECT_GROUP_OVERLAP, "OVERLAP", 0, "Overlap", "Overlapping time"},
+     "Data",
+     "Select strips referencing the same source data as the active strip, with matching file "
+     "directory, scene, clip, or mask"},
+    {SEQ_SELECT_GROUP_EFFECT_USER,
+     "EFFECT_USER",
+     0,
+     "Shared Effect User",
+     "Select strips that are inputs to the same effect type as the active strip"},
+    {SEQ_SELECT_GROUP_COVERED,
+     "COVERED",
+     0,
+     "Covered",
+     "Select strips covered by the active strip on lower channels that have overlapping time "
+     "ranges, plus their full effect chains"},
+    {SEQ_SELECT_GROUP_TIME_OVERLAP,
+     "TIME_OVERLAP",
+     0,
+     "Time Overlap",
+     "Select all strips whose time range overlaps the active strip, on any channel"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-#define STRIP_IS_SOUND(_strip) (_strip->type == STRIP_TYPE_SOUND)
-
-#define STRIP_USE_DATA(_strip) \
-  (ELEM(_strip->type, STRIP_TYPE_SCENE, STRIP_TYPE_MOVIECLIP, STRIP_TYPE_MASK) || \
-   STRIP_HAS_PATH(_strip))
-
-#define STRIP_CHANNEL_CHECK(_strip, _chan) ELEM((_chan), 0, (_strip)->channel)
-
-static bool select_grouped_type(Span<Strip *> strips,
-                                ListBaseT<Strip> * /*seqbase*/,
+static bool strip_use_data(const Strip *strip)
+{
+  return ELEM(strip->type, STRIP_TYPE_SCENE, STRIP_TYPE_MOVIECLIP, STRIP_TYPE_MASK) ||
+         STRIP_HAS_PATH(strip);
+}
+static bool select_grouped_type(VectorSet<Strip *> strips,
                                 Strip *act_strip,
-                                const int channel)
+                                std::optional<int> channel)
 {
   bool changed = false;
 
   for (Strip *strip : strips) {
-    if (STRIP_CHANNEL_CHECK(strip, channel) && strip->type == act_strip->type) {
+    if ((!channel || strip->channel == *channel) && strip->type == act_strip->type) {
       strip->flag |= SEQ_SELECT;
       changed = true;
     }
@@ -2683,17 +2696,15 @@ static bool select_grouped_type(Span<Strip *> strips,
   return changed;
 }
 
-static bool select_grouped_type_basic(Span<Strip *> strips,
-                                      ListBaseT<Strip> * /*seqbase*/,
+static bool select_grouped_type_basic(VectorSet<Strip *> strips,
                                       Strip *act_strip,
-                                      const int channel)
+                                      std::optional<int> channel)
 {
   bool changed = false;
-  const bool is_sound = STRIP_IS_SOUND(act_strip);
+  const bool is_sound = (act_strip->type == STRIP_TYPE_SOUND);
 
   for (Strip *strip : strips) {
-    if (STRIP_CHANNEL_CHECK(strip, channel) &&
-        (is_sound ? STRIP_IS_SOUND(strip) : !STRIP_IS_SOUND(strip)))
+    if ((!channel || strip->channel == *channel) && (strip->type == STRIP_TYPE_SOUND) == is_sound)
     {
       strip->flag |= SEQ_SELECT;
       changed = true;
@@ -2703,18 +2714,15 @@ static bool select_grouped_type_basic(Span<Strip *> strips,
   return changed;
 }
 
-static bool select_grouped_type_effect(Span<Strip *> strips,
-                                       ListBaseT<Strip> * /*seqbase*/,
+static bool select_grouped_type_effect(VectorSet<Strip *> strips,
                                        Strip *act_strip,
-                                       const int channel)
+                                       std::optional<int> channel)
 {
   bool changed = false;
   const bool is_effect = act_strip->is_effect();
 
   for (Strip *strip : strips) {
-    if (STRIP_CHANNEL_CHECK(strip, channel) &&
-        (is_effect ? strip->is_effect() : !strip->is_effect()))
-    {
+    if ((!channel || strip->channel == *channel) && strip->is_effect() == is_effect) {
       strip->flag |= SEQ_SELECT;
       changed = true;
     }
@@ -2723,75 +2731,59 @@ static bool select_grouped_type_effect(Span<Strip *> strips,
   return changed;
 }
 
-static bool select_grouped_data(Span<Strip *> strips,
-                                ListBaseT<Strip> * /*seqbase*/,
+static bool select_grouped_data(VectorSet<Strip *> strips,
                                 Strip *act_strip,
-                                const int channel)
+                                std::optional<int> channel)
 {
   bool changed = false;
   const char *dirpath = act_strip->data ? act_strip->data->dirpath : nullptr;
 
-  if (!STRIP_USE_DATA(act_strip)) {
+  if (!strip_use_data(act_strip)) {
     return changed;
   }
 
-  if (STRIP_HAS_PATH(act_strip) && dirpath) {
+  auto select_matching = [&](auto condition) {
     for (Strip *strip : strips) {
-      if (STRIP_CHANNEL_CHECK(strip, channel) && STRIP_HAS_PATH(strip) && strip->data &&
-          STREQ(strip->data->dirpath, dirpath))
-      {
+      if ((!channel || strip->channel == *channel) && condition(strip)) {
         strip->flag |= SEQ_SELECT;
         changed = true;
       }
     }
+  };
+
+  if (STRIP_HAS_PATH(act_strip) && dirpath) {
+    select_matching([&](Strip *strip) {
+      return STRIP_HAS_PATH(strip) && strip->data && STREQ(strip->data->dirpath, dirpath);
+    });
   }
   else if (act_strip->type == STRIP_TYPE_SCENE) {
-    Scene *sce = act_strip->scene;
-    for (Strip *strip : strips) {
-      if (STRIP_CHANNEL_CHECK(strip, channel) && strip->type == STRIP_TYPE_SCENE &&
-          strip->scene == sce)
-      {
-        strip->flag |= SEQ_SELECT;
-        changed = true;
-      }
-    }
+    Scene *scene = act_strip->scene;
+    select_matching(
+        [&](Strip *strip) { return strip->type == STRIP_TYPE_SCENE && strip->scene == scene; });
   }
   else if (act_strip->type == STRIP_TYPE_MOVIECLIP) {
     MovieClip *clip = act_strip->clip;
-    for (Strip *strip : strips) {
-      if (STRIP_CHANNEL_CHECK(strip, channel) && strip->type == STRIP_TYPE_MOVIECLIP &&
-          strip->clip == clip)
-      {
-        strip->flag |= SEQ_SELECT;
-        changed = true;
-      }
-    }
+    select_matching(
+        [&](Strip *strip) { return strip->type == STRIP_TYPE_MOVIECLIP && strip->clip == clip; });
   }
   else if (act_strip->type == STRIP_TYPE_MASK) {
     Mask *mask = act_strip->mask;
-    for (Strip *strip : strips) {
-      if (STRIP_CHANNEL_CHECK(strip, channel) && strip->type == STRIP_TYPE_MASK &&
-          strip->mask == mask)
-      {
-        strip->flag |= SEQ_SELECT;
-        changed = true;
-      }
-    }
+    select_matching(
+        [&](Strip *strip) { return strip->type == STRIP_TYPE_MASK && strip->mask == mask; });
   }
 
   return changed;
 }
 
-static bool select_grouped_effect(Span<Strip *> strips,
-                                  ListBaseT<Strip> * /*seqbase*/,
+static bool select_grouped_effect(VectorSet<Strip *> strips,
                                   Strip *act_strip,
-                                  const int channel)
+                                  std::optional<int> channel)
 {
   bool changed = false;
   Set<StripType> effects;
 
   for (const Strip *strip : strips) {
-    if (STRIP_CHANNEL_CHECK(strip, channel) && strip->is_effect() &&
+    if ((!channel || strip->channel == *channel) && strip->is_effect() &&
         seq::relation_is_effect_of_strip(strip, act_strip))
     {
       effects.add(StripType(strip->type));
@@ -2799,7 +2791,7 @@ static bool select_grouped_effect(Span<Strip *> strips,
   }
 
   for (Strip *strip : strips) {
-    if (STRIP_CHANNEL_CHECK(strip, channel) && effects.contains(StripType(strip->type))) {
+    if ((!channel || strip->channel == *channel) && effects.contains(StripType(strip->type))) {
       if (strip->input1) {
         strip->input1->flag |= SEQ_SELECT;
       }
@@ -2814,8 +2806,7 @@ static bool select_grouped_effect(Span<Strip *> strips,
 }
 
 static bool select_grouped_time_overlap(const Scene *scene,
-                                        Span<Strip *> strips,
-                                        ListBaseT<Strip> * /*seqbase*/,
+                                        VectorSet<Strip *> strips,
                                         Strip *act_strip)
 {
   bool changed = false;
@@ -2832,25 +2823,21 @@ static bool select_grouped_time_overlap(const Scene *scene,
   return changed;
 }
 
-/* Select all strips overlapping in time and occupying a channel below the `act_strip`. Then
- * additionally select the entire effect chain of the result. */
 static bool select_grouped_effect_link(const Scene *scene,
                                        VectorSet<Strip *> strips,
                                        ListBaseT<Strip> *seqbase,
-                                       Strip *act_strip,
-                                       const int /*channel*/)
+                                       Strip *act_strip)
 {
   VectorSet<Strip *> strips_to_select;
 
-  /* Get all strips intersecting in time below the given channel. */
   for (Strip *strip : strips) {
     if (strip->channel > act_strip->channel) {
-      continue; /* Not lower channel. */
+      continue;
     }
     if (act_strip->right_handle(scene) <= strip->left_handle() ||
         act_strip->left_handle() >= strip->right_handle(scene))
     {
-      continue; /* Not intersecting in time. */
+      continue;
     }
     strips_to_select.add(strip);
   }
@@ -2867,29 +2854,33 @@ static bool select_grouped_effect_link(const Scene *scene,
   return changed;
 }
 
-#undef STRIP_IS_SOUND
-#undef STRIP_USE_DATA
-
 static wmOperatorStatus sequencer_select_grouped_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_sequencer_scene(C);
-  ListBaseT<Strip> *seqbase = seq::active_seqbase_get(seq::editing_get(scene));
+  Editing *ed = seq::editing_get(scene);
+  SpaceSeq *sseq = CTX_wm_space_seq(C);
+  ListBaseT<Strip> *seqbase = seq::active_seqbase_get(ed);
+  ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
   Strip *act_strip = seq::select_active_get(scene);
 
-  const bool is_preview = sequencer_view_has_preview_poll(C);
-  if (is_preview && !sequencer_view_preview_only_poll(C)) {
-    return OPERATOR_CANCELLED;
-  }
-
-  VectorSet strips = all_strips_from_context(C);
-
+  /* TODO(john): We can't use `all_strips_from_context` because it checks for a `RGN_TYPE_PREVIEW`,
+   * and when clicking an enum menu item in the UI, the context is always `RGN_TYPE_WINDOW`. If we
+   * make changes to Sequencer & Preview view type context, we can adjust the logic in there to
+   * allow it to be re-used here. */
+  const bool is_preview = (sseq && (sseq->view == SEQ_VIEW_PREVIEW) &&
+                           (sseq->mainb == SEQ_DRAW_IMG_IMBUF));
+  VectorSet<Strip *> strips = is_preview ? seq::query_rendered_strips(
+                                               scene, channels, seqbase, scene->r.cfra, 0) :
+                                           seq::query_all_strips(seqbase);
   if (act_strip == nullptr || (is_preview && !strips.contains(act_strip))) {
-    BKE_report(op->reports, RPT_ERROR, "No active strip!");
+    BKE_report(op->reports, RPT_ERROR, "No active strip in context");
     return OPERATOR_CANCELLED;
   }
 
   const int type = RNA_enum_get(op->ptr, "type");
-  const int channel = RNA_boolean_get(op->ptr, "use_active_channel") ? act_strip->channel : 0;
+  const std::optional<int> channel = RNA_boolean_get(op->ptr, "use_active_channel") ?
+                                         std::optional<int>(act_strip->channel) :
+                                         std::nullopt;
   const bool extend = RNA_boolean_get(op->ptr, "extend");
 
   bool changed = false;
@@ -2903,25 +2894,25 @@ static wmOperatorStatus sequencer_select_grouped_exec(bContext *C, wmOperator *o
 
   switch (type) {
     case SEQ_SELECT_GROUP_TYPE:
-      changed |= select_grouped_type(strips, seqbase, act_strip, channel);
+      changed |= select_grouped_type(strips, act_strip, channel);
       break;
     case SEQ_SELECT_GROUP_TYPE_BASIC:
-      changed |= select_grouped_type_basic(strips, seqbase, act_strip, channel);
+      changed |= select_grouped_type_basic(strips, act_strip, channel);
       break;
     case SEQ_SELECT_GROUP_TYPE_EFFECT:
-      changed |= select_grouped_type_effect(strips, seqbase, act_strip, channel);
+      changed |= select_grouped_type_effect(strips, act_strip, channel);
       break;
     case SEQ_SELECT_GROUP_DATA:
-      changed |= select_grouped_data(strips, seqbase, act_strip, channel);
+      changed |= select_grouped_data(strips, act_strip, channel);
       break;
-    case SEQ_SELECT_GROUP_EFFECT:
-      changed |= select_grouped_effect(strips, seqbase, act_strip, channel);
+    case SEQ_SELECT_GROUP_EFFECT_USER:
+      changed |= select_grouped_effect(strips, act_strip, channel);
       break;
-    case SEQ_SELECT_GROUP_EFFECT_LINK:
-      changed |= select_grouped_effect_link(scene, strips, seqbase, act_strip, channel);
+    case SEQ_SELECT_GROUP_COVERED:
+      changed |= select_grouped_effect_link(scene, strips, seqbase, act_strip);
       break;
-    case SEQ_SELECT_GROUP_OVERLAP:
-      changed |= select_grouped_time_overlap(scene, strips, seqbase, act_strip);
+    case SEQ_SELECT_GROUP_TIME_OVERLAP:
+      changed |= select_grouped_time_overlap(scene, strips, act_strip);
       break;
     default:
       BLI_assert(0);
