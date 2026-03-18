@@ -493,7 +493,7 @@ void wm_window_close_request(bContext *C, wmWindowManager *wm, wmWindow *win)
   {
     bScreen *screen = WM_window_get_active_screen(win);
     if (screen && screen->temp && BLI_listbase_is_single(&screen->areabase)) {
-      if (!win->runtime->memory_key.empty()) {
+      if (!win->runtime->recents_storage_key.empty()) {
         /* Get DPI and scale from parent window, if there is one. */
         WM_window_dpi_set_userdef(win->parent ? win->parent : win);
 
@@ -505,7 +505,8 @@ void wm_window_close_request(bContext *C, wmWindowManager *wm, wmWindow *win)
                                      float(win->posy) * fac,
                                      float(win->posy) * fac + float(win->sizey) * fac};
 
-        ui_memory::memory.open("temp.window.dimensions")[win->runtime->memory_key] = bounds;
+        ui_memory::memory.open(
+            "temp.window.dimensions")[win->runtime->recents_storage_key] = bounds;
       }
     }
   }
@@ -1448,7 +1449,7 @@ wmWindow *WM_window_open_temp(bContext *C, const char *title, int space_type, bo
   wmWindow *win = WM_window_open(
       C, title, &rect, space_type, false, dialog, true, align, nullptr, nullptr);
   if (win) {
-    win->runtime->memory_key = key;
+    win->runtime->recents_storage_key = key;
   }
   return win;
 }
