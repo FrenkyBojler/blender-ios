@@ -101,7 +101,7 @@ static void math_input_defaults(bNode &node, NodeMathOperation mode)
     case NODE_MATH_MULTIPLY:
     case NODE_MATH_DIVIDE:
     case NODE_MATH_EXPONENT:
-    case NODE_MATH_TRUNC:
+    case NODE_MATH_FLOORED_MODULO:
     case NODE_MATH_MODULO:
     case NODE_MATH_ARCTAN2:
       value_2 = 1.0f;
