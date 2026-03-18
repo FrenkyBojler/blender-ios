@@ -103,7 +103,7 @@ static void node_eval_inverse(inverse_eval::InverseEvalParams &params)
   float3 translation;
   math::Quaternion rotation;
   float3 scale;
-  math::to_loc_rot_scale_safe<true>(transform, translation, rotation, scale);
+  math::to_loc_rot_scale_safe<false>(transform, translation, rotation, scale);
   params.set_input("Translation", translation);
   params.set_input("Rotation", rotation);
   params.set_input("Scale", scale);
