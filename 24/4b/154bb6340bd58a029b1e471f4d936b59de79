@@ -1,3 +1,4 @@
 Referenced by issue #153093, Adaptive subdivision ignores viewport display option
 Referenced by pull request #153138, Fix #153093: Cycles: Adaptive subdivision ignores viewport display option
 Referenced by commit f199d160e4251432492ed728d14d8738b7f2761c, Fix #153093: Cycles: Adaptive subdivision ignores viewport display option
+Referenced by issue #155851, Cycles always crash with Background Scene
