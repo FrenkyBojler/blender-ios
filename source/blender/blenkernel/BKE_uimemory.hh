@@ -20,7 +20,7 @@ namespace blender::ui_memory {
 struct Section {
   std::string section;
 
-  Section(const StringRef sec) : section(sec.data(), sec.size()) {}
+  explicit Section(const StringRef sec) : section(sec.data(), sec.size()) {}
 
   template<typename T> T get(const StringRef item) const;
   template<typename T> void set(const StringRef item, const T &value);
