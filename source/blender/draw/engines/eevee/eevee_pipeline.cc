@@ -501,7 +501,7 @@ void ForwardPipeline::transparent_add(const Object *ob,
   {
     PassMain::Sub *pass = &transparent_ps_.sub(GPU_material_get_name(gpumat), sorting_value);
     pass->state_set(material_state);
-    pass->material_set(*inst_.manager, gpumat, true);
+    pass->material_set(*inst_.manager, gpumat, true, inst_.anisotropic_filtering);
     if (bind_previous_layer) {
       pass->bind_texture(HIZ_PREVIOUS_LAYER_TEX_SLOT, &inst_.hiz_buffer.back.ref_tx_);
       pass->bind_texture(RADIANCE_PREVIOUS_LAYER_TEX_SLOT, &inst_.render_buffers.combined_tx);
