@@ -112,9 +112,6 @@ def add_closure_zone(layout, label):
 
 
 def nodes_math_defaults_cb(node_idname, enum_identifier, props):
-    assert node_idname == 'ShaderNodeMath'
-    # if node_idname != 'ShaderNodeMath':
-    #     return
     if enum_identifier in ('MULTIPLY', 'POWER', 'MODULO', 'FLOORED_MODULO', 'ARCTAN2'):
         prop = props.settings.add()
         prop.name = "inputs[\"Value_001\"].default_value"
