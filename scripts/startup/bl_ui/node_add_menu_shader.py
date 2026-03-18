@@ -435,12 +435,7 @@ class NODE_MT_shader_node_math_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "ShaderNodeClamp")
         self.node_operator(layout, "ShaderNodeFloatCurve")
         self.node_operator(layout, "ShaderNodeMapRange")
-        self.node_operator_with_searchable_enum(
-            context,
-            layout,
-            "ShaderNodeMath",
-            "operation",
-            defaults_callback=node_add_menu.nodes_math_defaults_cb)
+        self.node_operator_with_searchable_enum(context, layout, "ShaderNodeMath", "operation")
         self.node_operator(layout, "ShaderNodeMix")
 
         self.draw_assets_for_catalog(layout, self.menu_path)

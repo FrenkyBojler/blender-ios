@@ -13,7 +13,6 @@ __all__ = (
     "add_repeat_zone",
     "add_simulation_zone",
     "draw_node_group_add_menu",
-    "nodes_math_defaults_cb"
 )
 
 import bpy
@@ -111,27 +110,6 @@ def add_closure_zone(layout, label):
     return props
 
 
-def nodes_math_defaults_cb(node_idname, enum_identifier, props):
-    assert node_idname == 'ShaderNodeMath'
-    # if node_idname != 'ShaderNodeMath':
-    #     return
-    if enum_identifier in ('MULTIPLY', 'POWER', 'MODULO', 'FLOORED_MODULO', 'ARCTAN2'):
-        prop = props.settings.add()
-        prop.name = "inputs[\"Value_001\"].default_value"
-        prop.value = "1.0"
-    elif enum_identifier in ('ADD', 'SUBTRACT'):
-        prop = props.settings.add()
-        prop.name = "inputs[\"Value_001\"].default_value"
-        prop.value = "0.0"
-    elif enum_identifier in ('MULTIPLY_ADD'):
-        prop = props.settings.add()
-        prop.name = "inputs[\"Value_001\"].default_value"
-        prop.value = "1.0"
-        prop = props.settings.add()
-        prop.name = "inputs[\"Value_002\"].default_value"
-        prop.value = "0.0"
-
-
 class NodeMenu(Menu):
     """A base-class defining the shared methods for AddNodeMenu and SwapNodeMenu."""
     draw_assets: bool
@@ -176,14 +154,7 @@ class NodeMenu(Menu):
         return None
 
     @classmethod
-    def node_operator_with_searchable_enum(
-            cls,
-            context,
-            layout,
-            node_idname,
-            property_name,
-            search_weight=0.0,
-            defaults_callback=None):
+    def node_operator_with_searchable_enum(cls, context, layout, node_idname, property_name, search_weight=0.0):
         """Similar to `node_operator`, but with extra entries based on a enum property while in search."""
         operators = []
         operators.append(cls.node_operator(layout, node_idname, search_weight=search_weight))
@@ -205,8 +176,6 @@ class NodeMenu(Menu):
                 prop = props.settings.add()
                 prop.name = property_name
                 prop.value = repr(item.identifier)
-                if defaults_callback is not None:
-                    defaults_callback(node_idname, item.identifier, props)
                 operators.append(props)
 
         for props in operators:
