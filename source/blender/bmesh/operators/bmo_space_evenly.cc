@@ -65,35 +65,18 @@ enum InterpolationMethod {
 };
 
 /**
- * Return the next unvisited candidate edge connected to v,
- * preferring the edge that continues e_prev most directly.
+ * Return the next unvisited candidate edge connected to v.
  */
-static BMEdge *get_next_space_edge(BMVert *v, BMEdge *e_prev, Set<BMEdge *> &r_visited)
+static BMEdge *get_next_space_edge(BMVert *v, Set<BMEdge *> &r_visited)
 {
-  BMEdge *best_edge = nullptr;
-  float best_straightness = -1.0f;
-  BMVert *vert_behind = BM_edge_other_vert(e_prev, v);
-  float3 incoming_dir = math::normalize(float3(v->co) - float3(vert_behind->co));
-
   BMIter eiter;
   BMEdge *e_next;
   BM_ITER_ELEM (e_next, &eiter, v, BM_EDGES_OF_VERT) {
-    if (r_visited.contains(e_next)) {
-      continue;
-    }
-
-    if (BM_elem_flag_test(e_next, BM_ELEM_TAG)) {
-      BMVert *vert_ahead = BM_edge_other_vert(e_next, v);
-      float3 outgoing_dir = math::normalize(float3(vert_ahead->co) - float3(v->co));
-      float straightness = math::dot(incoming_dir, outgoing_dir);
-
-      if (straightness > best_straightness) {
-        best_straightness = straightness;
-        best_edge = e_next;
-      }
+    if (!r_visited.contains(e_next) && BM_elem_flag_test(e_next, BM_ELEM_TAG)) {
+      return e_next;
     }
   }
-  return best_edge;
+  return nullptr;
 }
 
 /**
@@ -108,7 +91,7 @@ static SpaceChainData walk_edges(BMEdge *start_edge, Set<BMEdge *> &r_visited)
 
   auto walk_fn = [&](BMVert *curr_v, BMEdge *curr_e, Vector<BMVert *> &list) {
     while (true) {
-      BMEdge *next_e = get_next_space_edge(curr_v, curr_e, r_visited);
+      BMEdge *next_e = get_next_space_edge(curr_v, r_visited);
       if (!next_e) {
         break;
       }
