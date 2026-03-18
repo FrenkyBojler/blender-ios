@@ -6,11 +6,14 @@
 
 #include "BLI_math_vector_types.hh"
 
-struct Mesh;
 struct RTCDeviceTy;
 struct RTCSceneTy;
 
-namespace blender::bke::bvh {
+namespace blender {
+
+struct Mesh;
+
+namespace bke::bvh {
 
 struct Ray {
   static constexpr unsigned int MASK_FULL = 0xffffffff;
@@ -79,4 +82,5 @@ class Tree {
   bool ray_intersect1(const Ray &ray, RayHit &r_hit) const;
 };
 
-}  // namespace blender::bke::bvh
+}  // namespace bke::bvh
+}  // namespace blender

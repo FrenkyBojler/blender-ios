@@ -608,6 +608,13 @@ if(WITH_BINRELOC)
   add_definitions(-DWITH_BINRELOC)
 endif()
 
+if(WITH_CYCLES_EMBREE)
+  list(APPEND LIB
+    PRIVATE bf::dependencies::optional::embree
+  )
+  add_definitions(-DWITH_EMBREE)
+endif()
+
 
 if(WIN32)
   list(APPEND INC
