@@ -696,7 +696,7 @@ void ED_fileselect_set_params_from_userdef(SpaceFile *sfile)
   }
 }
 
-void ED_fileselect_params_to_userdef(SpaceFile *sfile)
+void ED_fileselect_params_save(SpaceFile *sfile)
 {
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
   recents::Section recents = recents::section(
@@ -1331,7 +1331,7 @@ void ED_fileselect_exit(wmWindowManager *wm, SpaceFile *sfile)
     return;
   }
 
-  ED_fileselect_params_to_userdef(sfile);
+  ED_fileselect_params_save(sfile);
 
   if (sfile->op) {
     WM_event_fileselect_event(wm, sfile->op, EVT_FILESELECT_EXTERNAL_CANCEL);
