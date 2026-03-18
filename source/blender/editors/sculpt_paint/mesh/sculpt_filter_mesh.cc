@@ -141,6 +141,7 @@ void cache_init(bContext *C,
 
   ss.filter_cache = MEM_new<filter::Cache>(__func__);
   ss.filter_cache->start_filter_strength = start_strength;
+  ss.filter_cache->has_dragged = false;
   ss.filter_cache->random_seed = rand();
 
   ss.filter_cache->node_mask = bke::pbvh::search_nodes(
@@ -2505,7 +2506,7 @@ static wmOperatorStatus sculpt_mesh_filter_start(bContext *C, wmOperator *op)
 
   BKE_sculpt_update_object_for_edit(depsgraph, &ob, false);
 
-  if (report_if_shape_key_is_locked(ob, op->reports)) {
+  if (!shape_key_check(ob, op->reports)) {
     return OPERATOR_CANCELLED;
   }
 
