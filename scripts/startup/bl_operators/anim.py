@@ -911,7 +911,7 @@ class ANIM_OT_filter_channels(Operator):
     bl_label = "Filter animation channels"
     bl_description = "Filter animation channels of specific types such as location, rotation, etc."
 
-    filter_text : StringProperty(name="filter text", default="Location")
+    filter_text: StringProperty(name="filter text", default="Location")
 
     @classmethod
     def poll(cls, context):
