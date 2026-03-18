@@ -46,10 +46,10 @@
 #include "BKE_mball_tessellate.hh"
 #include "BKE_preferences.h"
 #include "BKE_preview_image.hh"
+#include "BKE_recents.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
 #include "BKE_sound.hh"
-#include "BKE_recents.hh"
 #include "BKE_vfont.hh"
 
 #include "BKE_addon.h"
@@ -234,7 +234,7 @@ void WM_init(bContext *C, int argc, const char **argv)
   BLF_init();
 
   if (!G.background) {
-    recents::RECENTS.init_async();
+    recents::init_async();
   }
 
   BLT_lang_init();
@@ -625,7 +625,7 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
   BLF_exit();
 
   if (!G.background && do_user_exit_actions) {
-    recents::RECENTS.save();
+    recents::save();
   }
 
   BLT_lang_free();

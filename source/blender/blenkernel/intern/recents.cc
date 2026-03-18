@@ -33,13 +33,13 @@ constexpr toml::spec version = toml::spec::v(1, 1, 0);
 /* TOML storage. Protected by recents_mutex. */
 static toml::value recents_current;
 static toml::value recents_default;
-static Mutex recents_mutex;       /* protects TOML values */
+static Mutex recents_mutex;      /* protects TOML values */
 static Mutex recents_init_mutex; /* used with cv for init wait */
 static std::atomic<bool> recents_ready{false};
 static std::condition_variable_any recents_init_cv;
 static std::once_flag recents_init_once;
 
-extern const StringRef default_toml;
+const StringRef &recents_defaults();
 
 static std::string recents_file_path()
 {
@@ -50,7 +50,7 @@ static std::string recents_file_path()
   return {};
 }
 
-static void recents_print_errors(std::vector<toml::error_info> errors)
+static void recents_print_errors(const std::vector<toml::error_info> &errors)
 {
   for (const toml::error_info &error : errors) {
     std::string msg = toml::format_error(error);
@@ -60,7 +60,7 @@ static void recents_print_errors(std::vector<toml::error_info> errors)
 
 static void recents_init_impl()
 {
-  toml::result default_result = toml::try_parse_str(default_toml, version);
+  toml::result default_result = toml::try_parse_str(recents_defaults(), version);
   if (default_result.is_ok()) {
     std::lock_guard<Mutex> lock(recents_mutex);
     recents_default = default_result.unwrap();
@@ -91,17 +91,17 @@ static void recents_init_impl()
   recents_init_cv.notify_all();
 }
 
-void RecentsFile::init()
+void init()
 {
   recents_init_impl();
 }
 
-void RecentsFile::init_async()
+void init_async()
 {
   std::call_once(recents_init_once, []() { std::thread([]() { recents_init_impl(); }).detach(); });
 }
 
-void RecentsFile::ensure_init() const
+void ensure_init()
 {
   if (recents_ready.load(std::memory_order_acquire)) {
     return;
@@ -121,7 +121,7 @@ void RecentsFile::ensure_init() const
   recents_init_cv.wait(lock, [] { return recents_ready.load(std::memory_order_acquire); });
 }
 
-bool RecentsFile::save() const
+bool save()
 {
   ensure_init();
 
@@ -144,9 +144,14 @@ bool RecentsFile::save() const
   return true;
 }
 
+Section section(const StringRef section_name)
+{
+  return Section(section_name);
+}
+
 static const toml::value *recents_find_in(const toml::value &root,
-                                           const std::string &section_name,
-                                           const std::string &item_key)
+                                          const std::string &section_name,
+                                          const std::string &item_key)
 {
   if (!root.is_table()) {
     /* Only tables can contain key/value pairs. */
@@ -188,7 +193,7 @@ static const toml::value *recents_find_in(const toml::value &root,
 
 template<typename T> T Section::get(const StringRef item_key) const
 {
-  RECENTS.ensure_init();
+  ensure_init();
 
   std::lock_guard<Mutex> lock(recents_mutex);
 
@@ -222,7 +227,7 @@ template<typename T> T Section::get(const StringRef item_key) const
 
 template<typename T> void Section::set(const StringRef item_key, const T &value)
 {
-  RECENTS.ensure_init();
+  ensure_init();
 
   std::lock_guard<Mutex> lock(recents_mutex);
   if (section_.empty()) {
@@ -235,7 +240,7 @@ template<typename T> void Section::set(const StringRef item_key, const T &value)
 
 void Section::remove(const StringRef item_key)
 {
-  RECENTS.ensure_init();
+  ensure_init();
   std::lock_guard<Mutex> lock(recents_mutex);
   if (!recents_current.is_table()) {
     return;
@@ -259,7 +264,7 @@ void Section::remove(const StringRef item_key)
 
 void Section::remove_section()
 {
-  RECENTS.ensure_init();
+  ensure_init();
   std::lock_guard<Mutex> lock(recents_mutex);
   if (section_.empty() || !recents_current.is_table()) {
     return;
@@ -312,12 +317,11 @@ template std::vector<float> Section::get<std::vector<float>>(const StringRef ite
 template void Section::set<std::vector<float>>(const StringRef item_key,
                                                const std::vector<float> &value);
 
-/* Global instance. */
-RecentsFile RECENTS;
-
 /* Defaults. */
 
-const StringRef default_toml = R"_delim_(
+const StringRef &recents_defaults()
+{
+  static const StringRef s = R"_delim_(
 title = "Saved UI State Settings"
 name = "Blender"
 
@@ -364,5 +368,7 @@ _default = true
 _default = true
 
 )_delim_";
+  return s;
+}
 
 }  // namespace blender::recents

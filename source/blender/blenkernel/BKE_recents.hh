@@ -57,18 +57,11 @@ class Section {
   std::string section_;
 };
 
-struct RecentsFile {
-  void init();
-  void init_async();
-  void ensure_init() const;
-  bool save() const;
-  Section section(const StringRef section_name) const
-  {
-    return Section(section_name);
-  }
-};
+void init();
+void init_async();
+void ensure_init();
+bool save();
 
-/* Global instance used by callers. */
-extern RecentsFile RECENTS;
+Section section(const StringRef section_name);
 
 }  // namespace blender::recents

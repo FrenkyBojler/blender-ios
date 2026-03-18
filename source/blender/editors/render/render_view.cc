@@ -19,10 +19,10 @@
 #include "BKE_context.hh"
 #include "BKE_global.hh"
 #include "BKE_image.hh"
+#include "BKE_recents.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
-#include "BKE_recents.hh"
 
 #include "BLT_translation.hh"
 
@@ -156,7 +156,7 @@ ScrArea *render_view_open(bContext *C, int mx, int my, ReportList *reports)
     WM_window_dpi_set_userdef(CTX_wm_window(C));
 
     const StringRef key = "IMAGE_EDITOR";
-    std::vector<float> bounds = recents::RECENTS.section("temp.window.dimensions")[key];
+    std::vector<float> bounds = recents::section("temp.window.dimensions")[key];
 
     const bool bounds_valid = (bounds.size() == 4 && (bounds[1] - bounds[0] > 150.0f) &&
                                (bounds[3] - bounds[2] > 100.0f));
