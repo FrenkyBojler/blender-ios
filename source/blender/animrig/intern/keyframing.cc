@@ -31,6 +31,7 @@
 #include "DNA_scene_types.h"
 
 #include "BLI_math_base.h"
+#include "BLI_task.hh"
 #include "BLI_utildefines.h"
 #include "BLT_translation.hh"
 
@@ -314,13 +315,25 @@ static bool assigned_action_has_keyframe_at(AnimData &adt, const float frame)
     return false;
   }
 
-  for (FCurve *fcu : animrig::fcurves_for_assigned_action(&adt)) {
-    if (fcurve_frame_has_keyframe(fcu, frame)) {
-      return true;
-    }
-  }
-
-  return false;
+  const Span<FCurve *> fcurves = animrig::fcurves_for_assigned_action(&adt);
+  /* 1024 is a common value for memory bandwidth limited tasks. The number isn't critical: 512
+   * works fine here, but 128 and 4096 seem to work equally well in testing. */
+  return threading::parallel_reduce<bool>(
+      fcurves.index_range(),
+      512,
+      false,
+      [&](const IndexRange range, const bool is_found) {
+        if (is_found) {
+          return true;
+        }
+        for (FCurve *fcu : fcurves.slice(range)) {
+          if (fcurve_frame_has_keyframe(fcu, frame)) {
+            return true;
+          }
+        }
+        return false;
+      },
+      std::logical_or<bool>());
 }
 
 /* Checks whether an Object has a keyframe for a given frame. */
