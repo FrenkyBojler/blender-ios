@@ -52,7 +52,7 @@ static std::string uimemory_file_path()
 
 static void uimemory_print_errors(std::vector<toml::error_info> errors)
 {
-  for (auto &error : errors) {
+  for (const toml::error_info &error : errors) {
     std::string msg = toml::format_error(error);
     fprintf(stderr, "%s\n", msg.c_str());
   }
@@ -155,14 +155,14 @@ static const toml::value *uimemory_find_in(const toml::value &root,
   const toml::table &root_tbl = root.as_table();
 
   if (section_name.empty()) {
-    auto it = root_tbl.find(k);
+    toml::table::const_iterator it = root_tbl.find(k);
     if (it != root_tbl.end()) {
       return &it->second;
     }
     return nullptr;
   }
 
-  auto sit = root_tbl.find(section_name);
+  toml::table::const_iterator sit = root_tbl.find(section_name);
   if (sit == root_tbl.end()) {
     return nullptr;
   }
@@ -171,7 +171,7 @@ static const toml::value *uimemory_find_in(const toml::value &root,
     return nullptr;
   }
   const toml::table &sec_tbl = sec_val.as_table();
-  auto it = sec_tbl.find(k);
+  toml::table::const_iterator it = sec_tbl.find(k);
   if (it != sec_tbl.end()) {
     return &it->second;
   }
@@ -242,7 +242,7 @@ void Section::remove(const StringRef item)
     root_tbl.erase(key);
     return;
   }
-  auto section_it = root_tbl.find(section_);
+  toml::table::iterator section_it = root_tbl.find(section_);
   if (section_it == root_tbl.end()) {
     return;
   }
