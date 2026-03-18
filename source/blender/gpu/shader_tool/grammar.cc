@@ -16,6 +16,106 @@
 
 namespace blender::gpu::shader::parser {
 
+std::string to_string(TokenType type)
+{
+  switch (type) {
+    case Word:
+      return "Word";
+    case Number:
+      return "Number";
+    case TemplateOpen:
+      return "<";
+    case TemplateClose:
+      return ">";
+    case NewLine:
+      return "NewLine";
+    case LogicalAnd:
+      return "&&";
+    case Break:
+      return "break";
+    case Const:
+      return "const";
+    case Constexpr:
+      return "constexpr";
+    case Do:
+      return "do";
+    case Decrement:
+      return "decrement";
+    case NotEqual:
+      return "!=";
+    case Equal:
+      return "==";
+    case For:
+      return "for";
+    case While:
+      return "while";
+    case LogicalOr:
+      return "||";
+    case GEqual:
+      return ">=";
+    case Switch:
+      return "switch";
+    case Case:
+      return "case";
+    case If:
+      return "if";
+    case Else:
+      return "else";
+    case Elif:
+      return "elif";
+    case Endif:
+      return "endif";
+    case Ifdef:
+      return "ifdef";
+    case Ifndef:
+      return "ifndef";
+    case Inline:
+      return "inline";
+    case LEqual:
+      return "<=";
+    case Static:
+      return "static";
+    case Enum:
+      return "enum";
+    case Namespace:
+      return "namespace";
+    case Define:
+      return "define";
+    case Union:
+      return "union";
+    case Continue:
+      return "continue";
+    case Line:
+      return "line";
+    case Increment:
+      return "++";
+    case Pragma:
+      return "pragma";
+    case DoubleHash:
+      return "##";
+    case Return:
+      return "return";
+    case Struct:
+      return "struct";
+    case Class:
+      return "class";
+    case Template:
+      return "template";
+    case This:
+      return "this";
+    case Using:
+      return "using";
+    case Undef:
+      return "undef";
+    case Private:
+      return "private";
+    case Public:
+      return "public";
+    default:
+      return std::string(1, char(type));
+  }
+}
+
 #define EXPRESSION_TOKENS \
   Ampersand: \
   case BitwiseNot: \
@@ -130,7 +230,7 @@ struct ScopeParser {
         case BracketClose:
           return;
         default:
-          error("Unexpected token: Expecting declaration");
+          error("Unexpected token \"" + to_string(peek()) + "\": Expecting declaration");
           break;
       }
     }
@@ -235,7 +335,7 @@ struct ScopeParser {
           next();
           break;
         default:
-          error("Unexpected token");
+          error("Unexpected token \"" + to_string(peek()) + "\"");
           return;
       }
     }
@@ -284,7 +384,7 @@ struct ScopeParser {
           next();
           break;
         default:
-          error("Unexpected token");
+          error("Unexpected token \"" + to_string(peek()) + "\"");
           return;
       }
     }
@@ -383,7 +483,7 @@ struct ScopeParser {
           next();
           break;
         default:
-          error("Unexpected token");
+          error("Unexpected token \"" + to_string(peek()) + "\"");
           return;
       }
     }
@@ -449,7 +549,7 @@ struct ScopeParser {
           next();
           break;
         default:
-          error("Unexpected token");
+          error("Unexpected token \"" + to_string(peek()) + "\"");
           return;
       }
     }
@@ -523,7 +623,7 @@ struct ScopeParser {
           next();
           break;
         default:
-          error("Unexpected token");
+          error("Unexpected token \"" + to_string(peek()) + "\"");
           return;
       }
     }
@@ -617,7 +717,7 @@ struct ScopeParser {
           next();
           break;
         default:
-          error("Unexpected token");
+          error("Unexpected token \"" + to_string(peek()) + "\"");
           return;
       }
     }
@@ -708,7 +808,7 @@ struct ScopeParser {
           next();
           break;
         default:
-          error("Unexpected token");
+          error("Unexpected token \"" + to_string(peek()) + "\"");
           return;
       }
     }
@@ -755,7 +855,7 @@ struct ScopeParser {
           next();
           break;
         default:
-          error("Unexpected token");
+          error("Unexpected token \"" + to_string(peek()) + "\"");
           return;
       }
     }
@@ -819,7 +919,7 @@ struct ScopeParser {
           next();
           break;
         default:
-          error("Unexpected token");
+          error("Unexpected token \"" + to_string(peek()) + "\"");
           return;
       }
     }
@@ -863,7 +963,7 @@ struct ScopeParser {
           next();
           break;
         default:
-          error("Unexpected token");
+          error("Unexpected token \"" + to_string(peek()) + "\"");
           return;
       }
     }
@@ -911,7 +1011,7 @@ struct ScopeParser {
           next();
           break;
         default:
-          error("Unexpected token");
+          error("Unexpected token \"" + to_string(peek()) + "\"");
           return;
       }
     }
@@ -1022,8 +1122,8 @@ struct ScopeParser {
   void match(char expected)
   {
     if (curr != TokenType(expected)) {
-      error(std::string("Syntax Error: Expected token type ") + expected + " but got " +
-            char(curr.type()));
+      error("Syntax Error: Expected token \"" + to_string(TokenType(expected)) + "\" but got \"" +
+            to_string(curr.type()) + "\"");
     }
     next();
   }
@@ -1031,8 +1131,8 @@ struct ScopeParser {
   void match(char expected, char expected2)
   {
     if (curr != TokenType(expected) && curr != TokenType(expected2)) {
-      error(std::string("Syntax Error: Expected token type ") + expected + " or " + expected +
-            " but got " + char(curr.type()));
+      error("Syntax Error: Expected token \"" + to_string(TokenType(expected)) + "\" or \"" +
+            to_string(TokenType(expected)) + "\" but got \"" + to_string(curr.type()) + "\"");
     }
     next();
   }
