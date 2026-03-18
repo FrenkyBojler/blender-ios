@@ -920,7 +920,8 @@ std::string ShaderOperation::generate_code_for_outputs(ShaderCreateInfo &shader_
   return store_float_function.str() + store_float2_function.str() + store_float3_function.str() +
          store_float4_function.str() + store_color_function.str() + store_int_function.str() +
          store_int2_function.str() + store_int3_function.str() + store_bool_function.str() +
-         store_float4x4_function.str() + store_menu_function.str() + store_quaternion_function.str();
+         store_float4x4_function.str() + store_menu_function.str() +
+         store_quaternion_function.str();
 }
 
 static const char *glsl_type_from_result_type(ResultType type)

@@ -72,7 +72,7 @@ void node_align_rotation_to_vector_fixed_pivot(float4 old_rotation,
                                                float3 local_pivot_axis,
                                                out float4 out_rotation)
 {
-  if (all(equal(local_main_axis, local_pivot_axis))) {
+  if (local_main_axis == local_pivot_axis) {
     /* Can't compute any meaningful rotation angle in this case. */
     out_rotation = old_rotation;
     return;
