@@ -111,12 +111,18 @@ def add_closure_zone(layout, label):
     return props
 
 
-def nodes_math_defaults_cb(node_idname, enum_identifier, props):
+def nodes_math_defaults_cb(enum_identifier, props):
     if enum_identifier in ('MULTIPLY', 'POWER', 'MODULO', 'FLOORED_MODULO', 'ARCTAN2'):
+        prop = props.settings.add()
+        prop.name = "inputs[\"Value\"].default_value"
+        prop.value = "1.0"
         prop = props.settings.add()
         prop.name = "inputs[\"Value_001\"].default_value"
         prop.value = "1.0"
     elif enum_identifier in ('ADD', 'SUBTRACT'):
+        prop = props.settings.add()
+        prop.name = "inputs[\"Value\"].default_value"
+        prop.value = "0.0"
         prop = props.settings.add()
         prop.name = "inputs[\"Value_001\"].default_value"
         prop.value = "0.0"
@@ -203,7 +209,7 @@ class NodeMenu(Menu):
                 prop.name = property_name
                 prop.value = repr(item.identifier)
                 if defaults_callback is not None:
-                    defaults_callback(node_idname, item.identifier, props)
+                    defaults_callback(item.identifier, props)
                 operators.append(props)
 
         for props in operators:
