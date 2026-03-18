@@ -327,21 +327,17 @@ static void calc_face_centers(const Span<float3> positions,
 }
 
 static void find_nearest_tris(const Span<float3> positions,
-                              BVHTreeFromMesh &bvhtree,
+                              const bvh::Tree &bvhtree,
                               MutableSpan<int> tris)
 {
   for (const int i : positions.index_range()) {
-    BVHTreeNearest nearest;
-    nearest.index = -1;
-    nearest.dist_sq = FLT_MAX;
-    BLI_bvhtree_find_nearest(
-        bvhtree.tree, positions[i], &nearest, bvhtree.nearest_callback, &bvhtree);
+    const bvh::ClosestPointResult nearest = *bvhtree.closest_point(positions[i]);
     tris[i] = nearest.index;
   }
 }
 
 static void find_nearest_tris_parallel(const Span<float3> positions,
-                                       BVHTreeFromMesh &bvhtree,
+                                       const bvh::Tree &bvhtree,
                                        MutableSpan<int> tris)
 {
   threading::parallel_for(tris.index_range(), 512, [&](const IndexRange range) {
@@ -353,7 +349,7 @@ static void find_nearest_faces(const Span<int> src_tri_faces,
                                const Span<float3> dst_positions,
                                const OffsetIndices<int> dst_faces,
                                const Span<int> dst_corner_verts,
-                               BVHTreeFromMesh &bvhtree,
+                               const bvh::Tree &bvhtree,
                                MutableSpan<int> nearest_faces)
 {
   struct TLS {
@@ -384,7 +380,7 @@ static void find_nearest_edges(const Span<float3> src_positions,
                                const Span<int> src_tri_faces,
                                const Span<float3> dst_positions,
                                const Span<int2> dst_edges,
-                               BVHTreeFromMesh &bvhtree,
+                               const bvh::Tree &bvhtree,
                                MutableSpan<int> nearest_edges)
 {
   struct TLS {
@@ -561,7 +557,7 @@ void mesh_remesh_reproject_attributes(const Mesh &src, Mesh &dst)
    * the decisions made here, which mainly results in easier refactoring, more generic code, and
    * possibly improved performance from lower cache usage in the "complex" sampling part of the
    * algorithm and the copying itself. */
-  BVHTreeFromMesh bvhtree = src.bvh_corner_tris();
+  const bvh::Tree &bvhtree = src.bvh_tree();
 
   const Span<float3> dst_positions = dst.vert_positions();
   const OffsetIndices dst_faces = dst.faces();

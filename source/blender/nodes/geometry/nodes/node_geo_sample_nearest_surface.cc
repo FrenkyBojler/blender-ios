@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_bvhutils.hh"
+#include "BKE_bvh.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_sample.hh"
 
@@ -86,7 +86,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 class SampleNearestSurfaceFunction : public mf::MultiFunction {
  private:
   GeometrySet source_;
-  Array<bke::BVHTreeFromMesh> bvh_trees_;
+  Array<bke::bvh::OptionallyOwnedTree> bvh_trees_;
   VectorSet<int> group_indices_;
 
  public:
@@ -129,7 +129,7 @@ class SampleNearestSurfaceFunction : public mf::MultiFunction {
         [&](const IndexRange range) {
           for (const int group_i : range) {
             const IndexMask &group_mask = group_masks[group_i];
-            bvh_trees_[group_i] = bke::bvhtree_from_mesh_tris_init(mesh, group_mask);
+            bvh_trees_[group_i] = bke::bvh::tree_from_mesh_tris_mask(mesh, group_mask);
           }
         },
         threading::individual_task_sizes(
@@ -160,17 +160,18 @@ class SampleNearestSurfaceFunction : public mf::MultiFunction {
         }
         return;
       }
-      const bke::BVHTreeFromMesh &bvh = bvh_trees_[group_index];
-      BVHTreeNearest nearest;
-      nearest.dist_sq = FLT_MAX;
-      nearest.index = -1;
-      BLI_bvhtree_find_nearest(bvh.tree,
-                               position,
-                               &nearest,
-                               bvh.nearest_callback,
-                               const_cast<bke::BVHTreeFromMesh *>(&bvh));
-      triangle_index[i] = nearest.index;
-      sample_position[i] = nearest.co;
+      const bke::bvh::OptionallyOwnedTree &bvh = bvh_trees_[group_index];
+      const std::optional<bke::bvh::ClosestPointResult> result = bvh.tree->closest_point(position);
+      if (!result) {
+        triangle_index[i] = -1;
+        sample_position[i] = float3(0, 0, 0);
+        if (!is_valid_span.is_empty()) {
+          is_valid_span[i] = false;
+        }
+        return;
+      }
+      triangle_index[i] = result->index;
+      sample_position[i] = result->position;
       if (!is_valid_span.is_empty()) {
         is_valid_span[i] = true;
       }

@@ -270,7 +270,7 @@ static void try_convert_single_object(Object &curves_ob,
   }
   Mesh &surface_me = *id_cast<Mesh *>(surface_ob.data);
 
-  bke::BVHTreeFromMesh surface_bvh = surface_me.bvh_corner_tris();
+  const bke::bvh::Tree &surface_bvh = surface_me.bvh_tree();
 
   const Span<float3> positions_cu = curves.positions();
   const Span<int> tri_faces = surface_me.corner_tri_faces();
@@ -341,11 +341,7 @@ static void try_convert_single_object(Object &curves_ob,
     const float3 &root_pos_cu = positions_cu[points.first()];
     const float3 root_pos_su = math::transform_point(transforms.curves_to_surface, root_pos_cu);
 
-    BVHTreeNearest nearest;
-    nearest.dist_sq = FLT_MAX;
-    BLI_bvhtree_find_nearest(
-        surface_bvh.tree, root_pos_su, &nearest, surface_bvh.nearest_callback, &surface_bvh);
-    BLI_assert(nearest.index >= 0);
+    const bke::bvh::ClosestPointResult nearest = *surface_bvh.closest_point(root_pos_su);
 
     const int tri_i = nearest.index;
     const int face_i = tri_faces[tri_i];

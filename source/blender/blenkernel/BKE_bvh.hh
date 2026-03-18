@@ -4,7 +4,12 @@
 
 #pragma once
 
+#include "BLI_index_mask_fwd.hh"
 #include "BLI_math_vector_types.hh"
+
+#include <limits>
+#include <memory>
+#include <optional>
 
 struct RTCDeviceTy;
 struct RTCSceneTy;
@@ -63,6 +68,13 @@ struct RayHit {
   Hit hit;
 };
 
+struct ClosestPointResult {
+  float3 position;
+  uint32_t index;
+  /* Currently unused. */
+  uint32_t geomID;
+};
+
 class Tree {
  private:
   RTCDeviceTy *rtc_device = nullptr;
@@ -71,16 +83,28 @@ class Tree {
  public:
   Tree();
   Tree(const Tree &) = delete;
+  Tree &operator=(const Tree &) = delete;
+  Tree(Tree &&);
+  Tree &operator=(Tree &&);
   ~Tree();
 
-  Tree &operator=(const Tree &) = delete;
+  static Tree from_tris(const Mesh &mesh, const IndexMask &mask);
+  static Tree from_single_mesh(const Mesh &mesh);
 
   void free();
 
-  void build_single_mesh(const Mesh &mesh);
-
   bool ray_intersect1(const Ray &ray, RayHit &r_hit) const;
+
+  std::optional<ClosestPointResult> closest_point(
+      const float3 &point, float radius = std::numeric_limits<float>::max()) const;
 };
+
+struct OptionallyOwnedTree {
+  std::unique_ptr<Tree> owned_tree;
+  const Tree *tree;
+};
+
+OptionallyOwnedTree tree_from_mesh_tris_mask(const Mesh &mesh, const IndexMask &mask);
 
 }  // namespace bke::bvh
 }  // namespace blender

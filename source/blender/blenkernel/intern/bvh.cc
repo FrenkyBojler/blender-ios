@@ -4,6 +4,8 @@
 
 #include "DNA_mesh_types.h"
 
+#include "BLI_index_mask.hh"
+
 #include "BKE_mesh.hh"
 #include "BKE_mesh_runtime.hh"
 
@@ -15,9 +17,25 @@ namespace blender::bke::bvh {
 
 Tree::Tree() = default;
 
+Tree::Tree(Tree &&other)
+    : rtc_device(std::exchange(other.rtc_device, nullptr)),
+      rtc_scene(std::exchange(other.rtc_scene, nullptr))
+{
+}
+
+Tree &Tree::operator=(Tree &&other)
+{
+  if (this != &other) {
+    this->free();
+    this->rtc_device = std::exchange(other.rtc_device, nullptr);
+    this->rtc_scene = std::exchange(other.rtc_scene, nullptr);
+  }
+  return *this;
+}
+
 Tree::~Tree()
 {
-  free();
+  this->free();
 }
 
 static void rtc_error_func(void * /*userPtr*/, RTCError /*error*/, const char * /*str*/) {}
@@ -34,10 +52,10 @@ static bool rtc_progress_func(void * /*user_ptr*/, const double /*n*/)
 
 void Tree::free()
 {
-  rtcReleaseScene(rtc_scene);
-  rtc_scene = nullptr;
-  rtcReleaseDevice(rtc_device);
-  rtc_device = nullptr;
+  rtcReleaseScene(this->rtc_scene);
+  this->rtc_scene = nullptr;
+  rtcReleaseDevice(this->rtc_device);
+  this->rtc_device = nullptr;
 }
 
 struct BvhBuildContext {
@@ -49,59 +67,83 @@ struct BvhBuildContext {
 static void add_triangles(const BvhBuildContext &ctx,
                           const int id,
                           const Span<float3> positions,
+                          const OffsetIndices<int> faces,
                           const Span<int> corner_verts,
-                          const Span<int3> corner_tris)
+                          const Span<int3> corner_tris,
+                          const IndexMask &face_mask)
 {
   RTCGeometry geom_id = rtcNewGeometry(ctx.device, RTC_GEOMETRY_TYPE_TRIANGLE);
   rtcSetGeometryBuildQuality(geom_id, ctx.build_quality);
 
-  unsigned *rtc_indices = static_cast<unsigned *>(rtcSetNewGeometryBuffer(
-      geom_id, RTC_BUFFER_TYPE_INDEX, 0, RTC_FORMAT_UINT3, sizeof(int) * 3, corner_tris.size()));
-  for (const int64_t i : corner_tris.index_range()) {
-    rtc_indices[0] = corner_verts[corner_tris[i][0]];
-    rtc_indices[1] = corner_verts[corner_tris[i][1]];
-    rtc_indices[2] = corner_verts[corner_tris[i][2]];
-    rtc_indices += 3;
+  int tris_num = 0;
+  face_mask.foreach_index_optimized<int>(
+      [&](const int i) { tris_num += mesh::face_triangles_num(faces[i].size()); });
+
+  uint3 *rtc_indices = static_cast<uint3 *>(rtcSetNewGeometryBuffer(
+      geom_id, RTC_BUFFER_TYPE_INDEX, 0, RTC_FORMAT_UINT3, sizeof(int3), tris_num));
+  if (face_mask.size() == faces.size()) {
+    mesh::vert_tris_from_corner_tris(
+        corner_verts, corner_tris, MutableSpan(rtc_indices, corner_tris.size()).cast<int3>());
+  }
+  else {
+    int pos = 0;
+    face_mask.foreach_index_optimized<int>([&](const int face) {
+      for (const int tri : mesh::face_triangles_range(faces, face)) {
+        rtc_indices[pos] = uint3(corner_verts[corner_tris[tri][0]],
+                                 corner_verts[corner_tris[tri][1]],
+                                 corner_verts[corner_tris[tri][2]]);
+        pos++;
+      }
+    });
   }
 
-  float *rtc_verts = static_cast<float *>(rtcSetNewGeometryBuffer(
-      geom_id, RTC_BUFFER_TYPE_VERTEX, 0, RTC_FORMAT_FLOAT3, sizeof(float3), positions.size()));
-  std::ranges::copy(positions.cast<float>(), rtc_verts);
-
-  // rtcSetGeometryUserData(geom_id, (void *)prim_offset);
-  // rtcSetGeometryOccludedFilterFunction(geom_id, kernel_embree_filter_occluded_func);
-  // rtcSetGeometryIntersectFilterFunction(geom_id, kernel_embree_filter_intersection_func);
-  // rtcSetGeometryMask(geom_id, 1);
+  rtcSetSharedGeometryBuffer(geom_id,
+                             RTC_BUFFER_TYPE_VERTEX,
+                             0,
+                             RTC_FORMAT_FLOAT3,
+                             positions.data(),
+                             0,
+                             sizeof(float3),
+                             positions.size());
 
   rtcCommitGeometry(geom_id);
   rtcAttachGeometryByID(ctx.scene, geom_id, id);
   rtcReleaseGeometry(geom_id);
 }
 
-static void add_mesh(const BvhBuildContext &ctx, const int id, const Mesh &mesh)
+Tree Tree::from_tris(const Mesh &mesh, const IndexMask &face_mask)
 {
-  add_triangles(ctx, id, mesh.vert_positions(), mesh.corner_verts(), mesh.corner_tris());
+  Tree tree;
+  tree.rtc_device = rtcNewDevice("verbose=0");
+
+  rtcSetDeviceErrorFunction(tree.rtc_device, rtc_error_func, nullptr);
+  rtcSetDeviceMemoryMonitorFunction(tree.rtc_device, rtc_memory_monitor_func, nullptr);
+
+  tree.rtc_scene = rtcNewScene(tree.rtc_device);
+  const RTCSceneFlags scene_flags = RTC_SCENE_FLAG_ROBUST;
+  rtcSetSceneFlags(tree.rtc_scene, scene_flags);
+  RTCBuildQuality build_quality = RTC_BUILD_QUALITY_MEDIUM;
+  rtcSetSceneBuildQuality(tree.rtc_scene, build_quality);
+
+  BvhBuildContext ctx{tree.rtc_device, tree.rtc_scene, build_quality};
+
+  add_triangles(ctx,
+                0,
+                mesh.vert_positions(),
+                mesh.faces(),
+                mesh.corner_verts(),
+                mesh.corner_tris(),
+                face_mask);
+
+  rtcSetSceneProgressMonitorFunction(tree.rtc_scene, rtc_progress_func, nullptr);
+  rtcCommitScene(tree.rtc_scene);
+
+  return tree;
 }
 
-void Tree::build_single_mesh(const Mesh &mesh)
+Tree Tree::from_single_mesh(const Mesh &mesh)
 {
-  this->rtc_device = rtcNewDevice("verbose=0");
-
-  rtcSetDeviceErrorFunction(rtc_device, rtc_error_func, nullptr);
-  rtcSetDeviceMemoryMonitorFunction(rtc_device, rtc_memory_monitor_func, nullptr);
-
-  this->rtc_scene = rtcNewScene(rtc_device);
-  const RTCSceneFlags scene_flags = RTC_SCENE_FLAG_ROBUST;
-  rtcSetSceneFlags(rtc_scene, scene_flags);
-  RTCBuildQuality build_quality = RTC_BUILD_QUALITY_MEDIUM;
-  rtcSetSceneBuildQuality(rtc_scene, build_quality);
-
-  BvhBuildContext ctx{rtc_device, rtc_scene, build_quality};
-
-  add_mesh(ctx, 0, mesh);
-
-  rtcSetSceneProgressMonitorFunction(rtc_scene, rtc_progress_func, nullptr);
-  rtcCommitScene(rtc_scene);
+  return from_tris(mesh, mesh.corner_tris().index_range());
 }
 
 bool Tree::ray_intersect1(const Ray &ray, RayHit &r_hit) const
@@ -150,6 +192,37 @@ bool Tree::ray_intersect1(const Ray &ray, RayHit &r_hit) const
   }
 
   return true;
+}
+
+std::optional<ClosestPointResult> Tree::closest_point(const float3 &point,
+                                                      const float radius) const
+{
+  RTCPointQuery query{};
+  query.x = point.x;
+  query.y = point.y;
+  query.z = point.z;
+  query.time = 0.0f;
+  query.radius = radius;
+  RTCPointQueryContext context{};
+  rtcInitPointQueryContext(&context);
+  ClosestPointResult result;
+  if (!rtcPointQuery(this->rtc_scene, &query, &context, nullptr, &result)) {
+    return std::nullopt;
+  }
+  return result;
+}
+
+OptionallyOwnedTree tree_from_mesh_tris_mask(const Mesh &mesh, const IndexMask &mask)
+{
+  OptionallyOwnedTree result;
+  if (mask.size() == mesh.faces_num) {
+    result.tree = &mesh.bvh_tree();
+  }
+  else {
+    result.owned_tree = std::make_unique<Tree>(Tree::from_tris(mesh, mask));
+    result.tree = result.owned_tree.get();
+  }
+  return result;
 }
 
 }  // namespace blender::bke::bvh
