@@ -266,6 +266,10 @@ struct ScopeParser {
     /* For specialization. */
     if (peek() == lexit::TemplateOpen) {
       template_argument_list();
+      if (peek() == ';') {
+        /* Template explicit instantiation. */
+        return;
+      }
     }
     open_scope(curr, ScopeType::Struct);
     match('{');
@@ -345,6 +349,8 @@ struct ScopeParser {
   void enum_declaration()
   {
     match(Enum);
+    /* Optional class qualifier. */
+    match_if(Class);
     /* Optional attributes. */
     if (peek() == '[') {
       attribute();
@@ -405,7 +411,7 @@ struct ScopeParser {
   {
     match(Template);
 
-    if (peek() == Word) {
+    if (peek() == Word || peek() == Struct) {
       /* Template instantiation. */
       return;
     }
@@ -414,9 +420,9 @@ struct ScopeParser {
 
   void template_explicit_call()
   {
-    if (curr.prev() != '.') {
+    if ((curr.prev() != '.') && (curr.prev(1) != '>' && curr.prev(2) != '-')) {
       /* Expected a method call. */
-      match(Word);
+      error("Expected explicit template method call");
     }
     else {
       match(Template);
@@ -476,6 +482,7 @@ struct ScopeParser {
         case Const:
         case Word:
         case Number:
+        case Enum:
           if (!in_argument) {
             open_scope(curr, ScopeType::TemplateArg);
             in_argument = true;
@@ -672,9 +679,9 @@ struct ScopeParser {
           function_call_or_local_parenthesis();
           break;
         case ParClose:
+          ++arg_count;
           if (in_argument) {
             in_argument = false;
-            ++arg_count;
             if (type == ScopeType::LoopArgs) {
               close_scope(curr.prev(), ScopeType::LoopArg);
             }
@@ -693,6 +700,11 @@ struct ScopeParser {
           return;
         case SemiColon:
           ++arg_count;
+          if (arg_count == arg_needed) {
+            /* Error about extra semicolon. */
+            error("Extraneous loop or conditional statement");
+            return;
+          }
           if (in_argument && type == ScopeType::LoopArgs) {
             in_argument = false;
             close_scope(curr.prev(), ScopeType::LoopArg);
