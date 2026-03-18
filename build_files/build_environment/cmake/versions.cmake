@@ -248,9 +248,9 @@ Google, Inc. (http://www.google.com/).
 DigitalFish (http://digitalfish.com/).
 ]=])
 
-set(SDL_VERSION 3.2.8)
+set(SDL_VERSION 3.4.2)
 set(SDL_URI https://github.com/libsdl-org/SDL/releases/download/release-${SDL_VERSION}/SDL3-${SDL_VERSION}.tar.gz)
-set(SDL_HASH 0) # TODO: update hash for SDL3 release.
+set(SDL_HASH b488ea1ede947c06855588314effe905)
 set(SDL_HASH_TYPE MD5)
 set(SDL_FILE SDL3-${SDL_VERSION}.tar.gz)
 set(SDL_CPE "cpe:2.3:a:libsdl:sdl:${SDL_VERSION}:*:*:*:*:*:*:*")
