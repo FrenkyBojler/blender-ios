@@ -783,13 +783,13 @@ class MainAllIDsIterator {
     ++(*this);
   }
 
-  MainAllIDsIterator begin()
+  MainAllIDsIterator begin() const
   {
     MainAllIDsIterator tmp = this->rend();
     return ++tmp;
   }
 
-  MainAllIDsIterator end()
+  MainAllIDsIterator end() const
   {
     MainAllIDsIterator tmp = *this;
     tmp.curr_lbarray_index_ = tmp.lbarray_.size();
@@ -797,13 +797,13 @@ class MainAllIDsIterator {
     return tmp;
   }
 
-  MainAllIDsIterator rbegin()
+  MainAllIDsIterator rbegin() const
   {
     MainAllIDsIterator tmp = this->end();
     return --tmp;
   }
 
-  MainAllIDsIterator rend()
+  MainAllIDsIterator rend() const
   {
     MainAllIDsIterator tmp = *this;
     tmp.curr_lbarray_index_ = -1;

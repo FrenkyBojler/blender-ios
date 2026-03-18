@@ -222,14 +222,14 @@ static void rna_iterator_BlendData_all_ids_next(CollectionPropertyIterator *iter
   iter->valid = (*internal_iter != internal_iter->end());
 }
 
-void rna_iterator_BlendData_all_ids_end(CollectionPropertyIterator *iter)
+static void rna_iterator_BlendData_all_ids_end(CollectionPropertyIterator *iter)
 {
   MainAllIDsIterator *internal_iter = static_cast<MainAllIDsIterator *>(iter->internal.custom);
   MEM_delete(internal_iter);
   iter->internal.custom = nullptr;
 }
 
-PointerRNA rna_iterator_BlendData_all_ids_get(CollectionPropertyIterator *iter)
+static PointerRNA rna_iterator_BlendData_all_ids_get(CollectionPropertyIterator *iter)
 {
   MainAllIDsIterator *internal_iter = static_cast<MainAllIDsIterator *>(iter->internal.custom);
   ID &id = **internal_iter;
