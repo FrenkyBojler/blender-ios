@@ -187,10 +187,15 @@ void Instance::init(const int2 &output_res,
     if (is_navigating && scene->eevee.flag & SCE_EEVEE_SHADOW_JITTERED_VIEWPORT) {
       sampling.reset();
     }
+    if (is_playback) {
+      sampling.reset();
+    }
   }
   else {
     is_image_render = true;
   }
+
+  anisotropic_filtering = GPU_anisotropic_filtering_flags(scene->r.anisotropic_filter);
 
   sampling.init(scene);
   camera.init();

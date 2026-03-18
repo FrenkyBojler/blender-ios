@@ -5,6 +5,8 @@
 #include "NOD_inverse_eval_params.hh"
 #include "NOD_value_elem_eval.hh"
 
+#include "GPU_material.hh"
+
 #include "node_function_util.hh"
 
 namespace blender::nodes::node_fn_separate_matrix_cc {
@@ -15,25 +17,25 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
   b.allow_any_socket_order();
 
-  PanelDeclarationBuilder &column_a = b.add_panel("Column 1").default_closed(true);
+  PanelDeclarationBuilder &column_a = b.add_panel("Column 1"_ustr).default_closed(true);
   column_a.add_output<decl::Float>("Column 1 Row 1");
   column_a.add_output<decl::Float>("Column 1 Row 2");
   column_a.add_output<decl::Float>("Column 1 Row 3");
   column_a.add_output<decl::Float>("Column 1 Row 4");
 
-  PanelDeclarationBuilder &column_b = b.add_panel("Column 2").default_closed(true);
+  PanelDeclarationBuilder &column_b = b.add_panel("Column 2"_ustr).default_closed(true);
   column_b.add_output<decl::Float>("Column 2 Row 1");
   column_b.add_output<decl::Float>("Column 2 Row 2");
   column_b.add_output<decl::Float>("Column 2 Row 3");
   column_b.add_output<decl::Float>("Column 2 Row 4");
 
-  PanelDeclarationBuilder &column_c = b.add_panel("Column 3").default_closed(true);
+  PanelDeclarationBuilder &column_c = b.add_panel("Column 3"_ustr).default_closed(true);
   column_c.add_output<decl::Float>("Column 3 Row 1");
   column_c.add_output<decl::Float>("Column 3 Row 2");
   column_c.add_output<decl::Float>("Column 3 Row 3");
   column_c.add_output<decl::Float>("Column 3 Row 4");
 
-  PanelDeclarationBuilder &column_d = b.add_panel("Column 4").default_closed(true);
+  PanelDeclarationBuilder &column_d = b.add_panel("Column 4"_ustr).default_closed(true);
   column_d.add_output<decl::Float>("Column 4 Row 1");
   column_d.add_output<decl::Float>("Column 4 Row 2");
   column_d.add_output<decl::Float>("Column 4 Row 3");
@@ -270,10 +272,19 @@ static void node_eval_inverse(inverse_eval::InverseEvalParams &params)
   params.set_input("Matrix", matrix);
 }
 
+static int node_gpu_material(GPUMaterial *material,
+                             bNode *node,
+                             bNodeExecData * /*execdata*/,
+                             GPUNodeStack *inputs,
+                             GPUNodeStack *outputs)
+{
+  return GPU_stack_link(material, node, "node_function_separate_matrix", inputs, outputs);
+}
+
 static void node_register()
 {
   static bke::bNodeType ntype;
-  fn_node_type_base(&ntype, "FunctionNodeSeparateMatrix", FN_NODE_SEPARATE_MATRIX);
+  fn_cmp_node_type_base(&ntype, "FunctionNodeSeparateMatrix", FN_NODE_SEPARATE_MATRIX);
   ntype.ui_name = "Separate Matrix";
   ntype.ui_description = "Split a 4x4 matrix into its individual values";
   ntype.enum_name_legacy = "SEPARATE_MATRIX";
@@ -283,6 +294,7 @@ static void node_register()
   ntype.eval_elem = node_eval_elem;
   ntype.eval_inverse_elem = node_eval_inverse_elem;
   ntype.eval_inverse = node_eval_inverse;
+  ntype.gpu_fn = node_gpu_material;
   bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)

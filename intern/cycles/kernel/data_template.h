@@ -38,8 +38,6 @@ KERNEL_STRUCT_MEMBER(background, int, map_res_y)
 KERNEL_STRUCT_MEMBER(background, int, use_mis)
 /* Light-group. */
 KERNEL_STRUCT_MEMBER(background, int, lightgroup)
-/* Light Index. */
-KERNEL_STRUCT_MEMBER(background, int, light_index)
 /* Object Index. */
 KERNEL_STRUCT_MEMBER(background, int, object_index)
 /* Padding. */
@@ -238,6 +236,9 @@ KERNEL_STRUCT_END(KernelIntegrator)
 
 KERNEL_STRUCT_BEGIN(KernelSVMUsage, svm_usage)
 #define SHADER_NODE_TYPE(type) KERNEL_STRUCT_MEMBER(svm_usage, int, type)
+#define SHADER_NODE_TYPE_DERIVATIVE(type) \
+  SHADER_NODE_TYPE(type) \
+  SHADER_NODE_TYPE(type##_DERIVATIVE)
 #include "kernel/svm/node_types_template.h"
 KERNEL_STRUCT_END(KernelSVMUsage)
 

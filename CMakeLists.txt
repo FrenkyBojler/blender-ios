@@ -599,7 +599,7 @@ endif()
 option(WITH_PYTHON_INSTALL "Copy system python into the blender install directory" ON)
 
 option(WITH_INSTALL_COPYRIGHT "\
-Copy the official Blender Authors's copyright.txt into the Blender install directory"
+Copy the official Blender Authors copyright.txt into the Blender install directory"
   OFF
 )
 mark_as_advanced(WITH_INSTALL_COPYRIGHT)
@@ -886,7 +886,7 @@ endif()
 option(WITH_UI_TESTS_VULKAN "\
 Enable UI tests using the Vulkan backend. \
 Requires WITH_UI_TESTS and WITH_GPU_RENDER_TESTS_VULKAN."
-  OFF
+  ON
 )
 mark_as_advanced(WITH_UI_TESTS_VULKAN)
 
@@ -959,8 +959,8 @@ mark_as_advanced(
 if(POLICY CMP0119)
   option(WITH_GPU_SHADER_CPP_COMPILATION "\
   Compiler shaders using C++. \
-  Allows testing Metal compilation on other platform and enable C++ IDE support for shader code"
-    OFF
+  Allows testing shader compilation offline and enable C++ IDE support for shader code"
+    ON
   )
   mark_as_advanced(WITH_GPU_SHADER_CPP_COMPILATION)
 else()
