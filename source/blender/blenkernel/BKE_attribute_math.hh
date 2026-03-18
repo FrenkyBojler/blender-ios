@@ -467,7 +467,7 @@ inline T mix_indices(const Span<T> src,
   AccumT accum(0);
   float weight_accum = 0.0f;
   for (const int i : indices.index_range()) {
-    accum += to_accum_fn(src[i]) * weights[i];
+    accum += to_accum_fn(src[indices[i]]) * weights[i];
     weight_accum += weights[i];
   }
   return to_final_fn(accum * math::safe_rcp(weight_accum));
@@ -908,6 +908,18 @@ inline void mix_groups(GSpan src, GroupedSpan<int> indices, GMutableSpan dst)
  * Extra implementations of functions from #BLI_array_utils.hh for all attribute types,
  * used to avoid templating the same logic for each type in many places.
  * \{ */
+
+/**
+ * Move elements from [src_begin, src_end) to dest_begin.
+ * dest_begin must be <= src_begin.
+ */
+void shift_left(GMutableSpan data, int src_begin, int src_end, int dst_begin);
+
+/**
+ * Move elements from [src_begin, src_end) to a range ending at dst_end.
+ * dst_end must be >= src_end.
+ */
+void shift_right(GMutableSpan data, int src_begin, int src_end, int dst_begin);
 
 void gather(GSpan src, Span<int> map, GMutableSpan dst);
 void gather(const GVArray &src, Span<int> map, GMutableSpan dst);
