@@ -703,20 +703,17 @@ static void backpropagate_socket_values_through_node(
     }
   }
 
-  Map<const bNodeSocket *, SocketValueVariant> updated_socket_values;
-  Map<const bNodeSocket *, ElemVariant> updated_socket_elems;
-  InverseEvalParams params{node, old_socket_values, updated_socket_values, updated_socket_elems};
+  Map<const bNodeSocket *, InverseEvalParam> updated_socket_values;
+  InverseEvalParams params{node, old_socket_values, updated_socket_values};
   ntype.eval_inverse(params);
   /* Write back new socket values. */
   for (auto &&item : updated_socket_values.items()) {
     const bNodeSocket &socket = *item.key;
-    const std::optional<ElemVariant> ele = updated_socket_elems.lookup_try(&socket);
-    if (ele.has_value()) {
-      if (*ele) {
-        elem_by_socket.add({context, &socket}, *ele);
-      }
+    const ElemVariant ele = item.value.elem;
+    if (ele) {
+      elem_by_socket.add({context, &socket}, ele);
     }
-    value_by_socket.add({context, &socket}, std::move(item.value));
+    value_by_socket.add({context, &socket}, std::move(item.value.value));
     r_modified_inputs.append(&socket);
   }
 }
@@ -837,12 +834,8 @@ bool backpropagate_socket_values(bContext &C,
 InverseEvalParams::InverseEvalParams(
     const bNode &node,
     const Map<const bNodeSocket *, bke::SocketValueVariant> &socket_values,
-    Map<const bNodeSocket *, bke::SocketValueVariant> &updated_socket_values,
-    Map<const bNodeSocket *, value_elem::ElemVariant> &updated_socket_elems)
-    : socket_values_(socket_values),
-      updated_socket_values_(updated_socket_values),
-      updated_socket_elems_(updated_socket_elems),
-      node(node)
+    Map<const bNodeSocket *, InverseEvalParam> &updated_socket_values)
+    : socket_values_(socket_values), updated_socket_values_(updated_socket_values), node(node)
 {
 }
 
