@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_bvh.hh"
 #include "DNA_mesh_types.h"
 #include "DNA_pointcloud_types.h"
 
@@ -138,8 +139,23 @@ static void get_closest_mesh_tris(const Mesh &mesh,
                                   const MutableSpan<float3> r_positions)
 {
   BLI_assert(mesh.faces_num > 0);
-  bke::BVHTreeFromMesh tree_data = mesh.bvh_corner_tris();
-  get_closest_in_bvhtree(tree_data, positions, mask, r_tri_indices, r_distances_sq, r_positions);
+  const bke::bvh::Tree &tree = mesh.bvh_tree();
+  mask.foreach_index([&](const int i) {
+    const float3 position = positions[i];
+    const std::optional<bke::bvh::ClosestPointResult> nearest = tree.closest_point(position);
+    if (!nearest) {
+      return;
+    }
+    if (!r_tri_indices.is_empty()) {
+      r_tri_indices[i] = nearest->index;
+    }
+    if (!r_distances_sq.is_empty()) {
+      r_distances_sq[i] = math::distance_squared(position, nearest->position);
+    }
+    if (!r_positions.is_empty()) {
+      r_positions[i] = nearest->position;
+    }
+  });
 }
 
 static void get_closest_mesh_faces(const Mesh &mesh,

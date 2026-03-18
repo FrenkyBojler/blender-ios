@@ -24,8 +24,10 @@ struct Mesh;
 
 class RandomNumberGenerator;
 namespace bke {
-struct BVHTreeFromMesh;
+namespace bvh {
+class Tree;
 }
+}  // namespace bke
 
 namespace bke::mesh_surface_sample {
 
@@ -101,7 +103,7 @@ int sample_surface_points_spherical(RandomNumberGenerator &rng,
 int sample_surface_points_projected(
     RandomNumberGenerator &rng,
     const Mesh &mesh,
-    bke::BVHTreeFromMesh &mesh_bvhtree,
+    const bke::bvh::Tree &mesh_bvhtree,
     const float2 &sample_pos_re,
     float sample_radius_re,
     FunctionRef<void(const float2 &pos_re, float3 &r_start, float3 &r_end)> region_position_to_ray,

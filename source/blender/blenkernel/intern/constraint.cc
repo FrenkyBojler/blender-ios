@@ -7,6 +7,7 @@
  */
 
 /* Allow using deprecated functionality for .blend file I/O. */
+#include "BKE_bvh.hh"
 #define DNA_DEPRECATED_ALLOW
 
 #include <algorithm>
@@ -5140,22 +5141,10 @@ static void followtrack_project_to_depth_object_if_needed(FollowTrackContext *co
    * since this isn't typically used in edit-mode. */
   BKE_mesh_wrapper_ensure_mdata(const_cast<Mesh *>(depth_mesh));
 
-  bke::BVHTreeFromMesh tree_data = depth_mesh->bvh_corner_tris();
-
-  BVHTreeRayHit hit;
-  hit.dist = BVH_RAYCAST_DIST_MAX;
-  hit.index = -1;
-
-  const int result = BLI_bvhtree_ray_cast(tree_data.tree,
-                                          ray_start,
-                                          ray_direction,
-                                          0.0f,
-                                          &hit,
-                                          tree_data.raycast_callback,
-                                          &tree_data);
-
-  if (result != -1) {
-    mul_v3_m4v3(cob->matrix[3], depth_object->object_to_world().ptr(), hit.co);
+  const bke::bvh::Tree &tree = depth_mesh->bvh_tree();
+  const std::optional<bke::bvh::RayHit> hit = tree.ray_intersect(ray_start, ray_direction);
+  if (hit) {
+    mul_v3_m4v3(cob->matrix[3], depth_object->object_to_world().ptr(), hit->position);
   }
 }
 

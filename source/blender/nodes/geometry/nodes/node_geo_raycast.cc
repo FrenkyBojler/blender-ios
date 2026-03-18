@@ -138,23 +138,22 @@ static void raycast_to_mesh(const IndexMask &mask,
     ray.dist_min = 0.0f;
     ray.dist_max = ray_lengths[i];
 
-    bke::bvh::RayHit hit;
-    if (tree_data.ray_intersect1(ray, hit)) {
+    if (const std::optional<bke::bvh::RayHit> hit = tree_data.ray_intersect(ray)) {
       if (!r_hit.is_empty()) {
         r_hit[i] = true;
       }
       if (!r_hit_indices.is_empty()) {
         /* The caller must be able to handle invalid indices anyway, so don't clamp this value. */
-        r_hit_indices[i] = hit.hit.primitive_id;
+        r_hit_indices[i] = hit->index;
       }
       if (!r_hit_positions.is_empty()) {
-        r_hit_positions[i] = hit.ray.origin + hit.ray.direction * hit.ray.dist_max;
+        r_hit_positions[i] = hit->position;
       }
       if (!r_hit_normals.is_empty()) {
-        r_hit_normals[i] = hit.hit.normal;
+        r_hit_normals[i] = math::normalize(hit->normal);
       }
       if (!r_hit_distances.is_empty()) {
-        r_hit_distances[i] = math::length(hit.ray.direction * hit.ray.dist_max);
+        r_hit_distances[i] = hit->distance;
       }
     }
     else {

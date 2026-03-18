@@ -146,7 +146,7 @@ Tree Tree::from_single_mesh(const Mesh &mesh)
   return from_tris(mesh, mesh.corner_tris().index_range());
 }
 
-bool Tree::ray_intersect1(const Ray &ray, RayHit &r_hit) const
+std::optional<RayHit> Tree::ray_intersect(const Ray &ray) const
 {
   RTCRayHit rtc_hit;
   rtc_hit.ray.org_x = ray.origin.x;
@@ -157,41 +157,25 @@ bool Tree::ray_intersect1(const Ray &ray, RayHit &r_hit) const
   rtc_hit.ray.dir_z = ray.direction.z;
   rtc_hit.ray.tnear = ray.dist_min;
   rtc_hit.ray.tfar = ray.dist_max;
-  rtc_hit.ray.time = ray.time; /* Motion blur time */
-  rtc_hit.ray.mask = ray.mask;
+  rtc_hit.ray.time = 0.0f; /* Motion blur time */
+  rtc_hit.ray.mask = 0xffffffff;
   rtc_hit.hit.geomID = RTC_INVALID_GEOMETRY_ID;
   rtc_hit.hit.instID[0] = RTC_INVALID_GEOMETRY_ID;
   rtcIntersect1(rtc_scene, &rtc_hit);
-
   if (rtc_hit.hit.geomID == RTC_INVALID_GEOMETRY_ID ||
       rtc_hit.hit.primID == RTC_INVALID_GEOMETRY_ID)
   {
-    return false;
+    return std::nullopt;
   }
 
-  r_hit.ray.origin = float3(rtc_hit.ray.org_x, rtc_hit.ray.org_y, rtc_hit.ray.org_z);
-  r_hit.ray.dist_min = rtc_hit.ray.tnear;
-  r_hit.ray.direction = float3(rtc_hit.ray.dir_x, rtc_hit.ray.dir_y, rtc_hit.ray.dir_z);
-  r_hit.ray.time = rtc_hit.ray.time;
-  r_hit.ray.dist_max = rtc_hit.ray.tfar;
-  r_hit.ray.mask = rtc_hit.ray.mask;
-  r_hit.ray.id = rtc_hit.ray.id;
-  r_hit.ray.flags = rtc_hit.ray.flags;
-
-  r_hit.hit.normal = float3(rtc_hit.hit.Ng_x, rtc_hit.hit.Ng_y, rtc_hit.hit.Ng_z);
-  r_hit.hit.uv = float2(rtc_hit.hit.u, rtc_hit.hit.v);
-  r_hit.hit.primitive_id = rtc_hit.hit.primID;
-  r_hit.hit.geometry_id = rtc_hit.hit.geomID;
-  static constexpr int MAX_INSTANCE_ID_COPY = std::min(Hit::MAX_INSTANCE_LEVEL,
-                                                       RTC_MAX_INSTANCE_LEVEL_COUNT);
-  for (int i = 0; i < MAX_INSTANCE_ID_COPY; ++i) {
-    r_hit.hit.instance_id[i] = rtc_hit.hit.instID[i];
-  }
-  for (int i = MAX_INSTANCE_ID_COPY; i < Hit::MAX_INSTANCE_LEVEL; ++i) {
-    r_hit.hit.instance_id[i] = Hit::INVALID_INSTANCE_ID;
-  }
-
-  return true;
+  RayHit hit;
+  hit.position = float3(rtc_hit.ray.org_x + rtc_hit.ray.tfar * rtc_hit.ray.dir_x,
+                        rtc_hit.ray.org_y + rtc_hit.ray.tfar * rtc_hit.ray.dir_y,
+                        rtc_hit.ray.org_z + rtc_hit.ray.tfar * rtc_hit.ray.dir_z);
+  hit.normal = float3(rtc_hit.hit.Ng_x, rtc_hit.hit.Ng_y, rtc_hit.hit.Ng_z);
+  hit.bary_coord = float2(rtc_hit.hit.u, rtc_hit.hit.v);
+  hit.index = rtc_hit.hit.primID;
+  return hit;
 }
 
 std::optional<ClosestPointResult> Tree::closest_point(const float3 &point,
@@ -210,6 +194,27 @@ std::optional<ClosestPointResult> Tree::closest_point(const float3 &point,
     return std::nullopt;
   }
   return result;
+}
+
+void Tree::range_query(const float3 &point, const float radius, FunctionRef<bool(int)> fn) const
+{
+  RTCPointQuery query{};
+  query.x = point.x;
+  query.y = point.y;
+  query.z = point.z;
+  query.time = 0.0f;
+  query.radius = radius;
+  RTCPointQueryContext context{};
+  rtcInitPointQueryContext(&context);
+  rtcPointQuery(
+      this->rtc_scene,
+      &query,
+      &context,
+      [](RTCPointQueryFunctionArguments *args) -> bool {
+        FunctionRef<bool(int)> fn = *static_cast<FunctionRef<bool(int)> *>(args->userPtr);
+        return fn(args->primID);
+      },
+      &fn);
 }
 
 OptionallyOwnedTree tree_from_mesh_tris_mask(const Mesh &mesh, const IndexMask &mask)

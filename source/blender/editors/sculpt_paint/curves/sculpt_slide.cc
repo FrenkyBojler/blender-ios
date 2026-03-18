@@ -104,7 +104,7 @@ struct SlideOperationExecutor {
   Span<int> surface_corner_verts_eval_;
   Span<int3> surface_corner_tris_eval_;
   VArraySpan<float2> surface_uv_map_eval_;
-  bke::BVHTreeFromMesh surface_bvh_eval_;
+  const bke::bvh::Tree *surface_bvh_eval_ = nullptr;
 
   VArray<float> curve_factors_;
   IndexMaskMemory selected_curve_memory_;
@@ -193,7 +193,7 @@ struct SlideOperationExecutor {
       report_missing_uv_map_on_evaluated_surface(stroke_extension.reports);
       return;
     }
-    surface_bvh_eval_ = surface_eval_->bvh_corner_tris();
+    surface_bvh_eval_ = &surface_eval_->bvh_tree();
 
     if (stroke_extension.is_first) {
       self_->initial_brush_pos_re_ = brush_pos_re_;
@@ -225,13 +225,14 @@ struct SlideOperationExecutor {
     const Vector<float4x4> brush_transforms = get_symmetry_brush_transforms(
         eCurvesSymmetryType(curves_id_orig_->symmetry));
     const float brush_radius_re = brush_radius_base_re_ * brush_radius_factor_;
-    const std::optional<CurvesBrush3D> brush_3d = sample_curves_surface_3d_brush(*ctx_.depsgraph,
-                                                                                 *ctx_.region,
-                                                                                 *ctx_.v3d,
-                                                                                 transforms_,
-                                                                                 surface_bvh_eval_,
-                                                                                 brush_pos_re_,
-                                                                                 brush_radius_re);
+    const std::optional<CurvesBrush3D> brush_3d = sample_curves_surface_3d_brush(
+        *ctx_.depsgraph,
+        *ctx_.region,
+        *ctx_.v3d,
+        transforms_,
+        *surface_bvh_eval_,
+        brush_pos_re_,
+        brush_radius_re);
     if (!brush_3d.has_value()) {
       return;
     }

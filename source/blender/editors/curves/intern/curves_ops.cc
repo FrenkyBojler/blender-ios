@@ -26,6 +26,7 @@
 
 #include "BKE_attribute.h"
 #include "BKE_attribute_math.hh"
+#include "BKE_bvh.hh"
 #include "BKE_bvhutils.hh"
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
@@ -604,7 +605,7 @@ static void snap_curves_to_surface_exec_object(Object &curves_ob,
 
   switch (attach_mode) {
     case AttachMode::Nearest: {
-      bke::BVHTreeFromMesh surface_bvh = surface_mesh.bvh_corner_tris();
+      const bke::bvh::Tree &surface_bvh = surface_mesh.bvh_tree();
 
       threading::parallel_for(curves.curves_range(), 256, [&](const IndexRange curves_range) {
         for (const int curve_i : curves_range) {
@@ -614,20 +615,14 @@ static void snap_curves_to_surface_exec_object(Object &curves_ob,
           const float3 old_first_point_pos_su = math::transform_point(transforms.curves_to_surface,
                                                                       old_first_point_pos_cu);
 
-          BVHTreeNearest nearest;
-          nearest.index = -1;
-          nearest.dist_sq = FLT_MAX;
-          BLI_bvhtree_find_nearest(surface_bvh.tree,
-                                   old_first_point_pos_su,
-                                   &nearest,
-                                   surface_bvh.nearest_callback,
-                                   &surface_bvh);
-          const int tri_index = nearest.index;
-          if (tri_index == -1) {
+          const std::optional<bke::bvh::ClosestPointResult> nearest = surface_bvh.closest_point(
+              old_first_point_pos_su);
+          if (!nearest) {
             continue;
           }
+          const int tri_index = nearest->index;
 
-          const float3 new_first_point_pos_su = nearest.co;
+          const float3 new_first_point_pos_su = nearest->position;
           const float3 new_first_point_pos_cu = math::transform_point(transforms.surface_to_curves,
                                                                       new_first_point_pos_su);
           const float3 pos_diff_cu = new_first_point_pos_cu - old_first_point_pos_cu;
