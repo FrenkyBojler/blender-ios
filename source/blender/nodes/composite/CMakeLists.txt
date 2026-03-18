@@ -99,6 +99,7 @@ set(SRC
   nodes/node_composite_set_alpha.cc
   nodes/node_composite_split.cc
   nodes/node_composite_stabilize_2d.cc
+  nodes/node_composite_string_to_image.cc
   nodes/node_composite_strip_info.cc
   nodes/node_composite_switch.cc
   nodes/node_composite_switch_view.cc
@@ -118,6 +119,7 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenfont
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
   PRIVATE bf::blentranslation
