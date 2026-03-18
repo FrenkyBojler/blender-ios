@@ -6342,6 +6342,7 @@ static void rna_def_userdef_system(BlenderRNA *brna)
                            "Allow Blender to access the internet to check for any new update "
                            "available for the current release");
 
+  /* Audio */
   prop = RNA_def_property(srna, "audio_mixing_buffer", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "mixbufsize");
   RNA_def_property_enum_items(prop, audio_mixing_samples_items);

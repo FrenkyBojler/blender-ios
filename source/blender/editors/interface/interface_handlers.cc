@@ -2949,6 +2949,7 @@ static bool but_copy(bContext *C, Button *but, const bool copy_array)
     case ButtonType::CurveProfile:
       but_copy_CurveProfile(but);
       break;
+
     case ButtonType::But:
       if (!but->optype) {
         break;
