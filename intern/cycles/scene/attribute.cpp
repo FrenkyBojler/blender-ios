@@ -71,7 +71,7 @@ Attribute::Attribute(ustring name,
 void Attribute::resize(Geometry *geom, AttributePrimitive prim)
 {
   if (!(element & ATTR_ELEMENT_VOXEL)) {
-    buffer.resize(buffer_size(geom, prim), 0);
+    this->resize(Attribute::element_size(geom, element, prim));
   }
 }
 
