@@ -65,7 +65,7 @@ static gpu::Texture *create_base_texture(TextureFormat format)
   return base;
 }
 
-/* Create a view texture  of compatible aliasing format. */
+/* Create a view texture of compatible aliasing format. */
 static gpu::Texture *create_view_texture(TextureFormat format, gpu::Texture *base)
 {
   gpu::Texture *view = GPU_texture_create_view("view", base, format, 0, 1, 0, 1, false, false);
@@ -98,9 +98,7 @@ template<TextureFormat FormatA, TextureFormat FormatB> static void texture_view_
   GPU_render_begin();
 
   /* Float comparator threshold; half-to-full conversion has significant precision loss. */
-  constexpr auto f_eq = [](float a, float b) {
-    return std::abs(a - b) < 1e5f;
-  };
+  constexpr auto f_eq = [](float a, float b) { return std::abs(a - b) < 1e5f; };
 
   gpu::Texture *base = create_base_texture(FormatA);
   gpu::Texture *view = create_view_texture(FormatB, base);
@@ -123,7 +121,8 @@ template<TextureFormat FormatA, TextureFormat FormatB> static void texture_view_
     auto zero_expected = repeat_data(zero, texture_size, to_component_len(FormatB));
     auto zero_readback = read_texture<float>(view, GPU_DATA_FLOAT);
 
-    EXPECT_TRUE(std::equal(zero_expected.begin(), zero_expected.end(), zero_readback.begin(), f_eq));
+    EXPECT_TRUE(
+        std::equal(zero_expected.begin(), zero_expected.end(), zero_readback.begin(), f_eq));
   }
   else {
     BLI_assert_unreachable();
@@ -158,7 +157,8 @@ template<TextureFormat FormatA, TextureFormat FormatB> static void texture_view_
     auto colr_expected = repeat_data(colr, texture_size, to_component_len(FormatB));
     auto colr_readback = read_texture<float>(view, GPU_DATA_FLOAT);
 
-    EXPECT_TRUE(std::equal(colr_expected.begin(), colr_expected.end(), colr_expected.begin(), f_eq));
+    EXPECT_TRUE(
+        std::equal(colr_expected.begin(), colr_expected.end(), colr_expected.begin(), f_eq));
   }
   else {
     BLI_assert_unreachable();
