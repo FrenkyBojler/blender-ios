@@ -13,6 +13,8 @@
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 
+#include "BKE_scene.hh"
+
 #include "IMB_imbuf.hh"
 
 #include "SEQ_relations.hh"
@@ -310,8 +312,9 @@ bool source_image_cache_evict(Scene *scene)
   }
   const bool prefetch_loops_around = cur_prefetch_start > cur_prefetch_end;
 
-  const int timeline_start = PSFRA;
-  const int timeline_end = PEFRA;
+  const int2 playback_range = BKE_scene_get_playback_range(scene);
+  const int timeline_start = playback_range[0];
+  const int timeline_end = playback_range[1];
   /* If we wrap around, treat the timeline start as the playback head position.
    * This is to try to mitigate un-needed cache evictions. */
   const int cur_frame = prefetch_loops_around ? timeline_start : scene->r.cfra;

@@ -29,6 +29,7 @@
 #include "BKE_global.hh"
 #include "BKE_layer.hh"
 #include "BKE_main.hh"
+#include "BKE_scene.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
@@ -203,12 +204,10 @@ static bool seq_prefetch_is_cache_full(Scene *scene)
 static int seq_prefetch_cfra(PrefetchJob *pfjob)
 {
   int new_frame = pfjob->cfra + pfjob->num_frames_prefetched;
-  Scene *scene = pfjob->scene; /* For the start/end frame macros. */
-  int timeline_start = PSFRA;
-  int timeline_end = PEFRA;
-  if (new_frame >= timeline_end) {
+  const int2 playback_range = BKE_scene_get_playback_range(pfjob->scene);
+  if (new_frame >= playback_range[1]) {
     /* Wrap around to where we will jump when we reach the end frame. */
-    new_frame = timeline_start + new_frame - timeline_end;
+    new_frame = playback_range[0] + new_frame - playback_range[1];
   }
   return new_frame;
 }
@@ -302,11 +301,11 @@ static void seq_prefetch_update_area(PrefetchJob *pfjob)
   }
 
   /* timeline span changes */
-  Scene *scene = pfjob->scene; /* For the start/end frame macros. */
-  if (pfjob->timeline_start != PSFRA || pfjob->timeline_end != PEFRA) {
-    pfjob->timeline_start = PSFRA;
-    pfjob->timeline_end = PEFRA;
-    pfjob->timeline_length = PEFRA - PSFRA;
+  const int2 playback_range = BKE_scene_get_playback_range(pfjob->scene);
+  if (pfjob->timeline_start != playback_range[0] || pfjob->timeline_end != playback_range[1]) {
+    pfjob->timeline_start = playback_range[0];
+    pfjob->timeline_end = playback_range[1];
+    pfjob->timeline_length = playback_range[1] - playback_range[0];
     /* Reset the number of prefetched frames as we need to re-evaluate which
      * frames to keep in the cache.
      */
@@ -314,6 +313,7 @@ static void seq_prefetch_update_area(PrefetchJob *pfjob)
   }
 
   /* cache flag changes */
+  Scene *scene = pfjob->scene;
   if (pfjob->cache_flags != scene->ed->cache_flag) {
     pfjob->cache_flags = scene->ed->cache_flag;
     pfjob->num_frames_prefetched = 1;
@@ -621,11 +621,12 @@ static PrefetchJob *seq_prefetch_start_ex(const RenderData *context, float cfra)
   }
   pfjob->bmain = context->bmain;
 
-  Scene *scene = pfjob->scene; /* For the start/end frame macros. */
+  Scene *scene = pfjob->scene;
+  const int2 playback_range = BKE_scene_get_playback_range(pfjob->scene);
   pfjob->cfra = cfra;
-  pfjob->timeline_start = PSFRA;
-  pfjob->timeline_end = PEFRA;
-  pfjob->timeline_length = PEFRA - PSFRA;
+  pfjob->timeline_start = playback_range[0];
+  pfjob->timeline_end = playback_range[1];
+  pfjob->timeline_length = playback_range[1] - playback_range[0];
   pfjob->num_frames_prefetched = 1;
   pfjob->cache_flags = scene->ed->cache_flag;
 

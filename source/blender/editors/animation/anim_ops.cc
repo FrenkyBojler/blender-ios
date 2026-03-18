@@ -618,7 +618,8 @@ static float frame_from_event(bContext *C, const wmEvent *event)
 
   /* respect preview range restrictions (if only allowed to move around within that range) */
   if (scene->r.flag & SCER_LOCK_FRAME_SELECTION) {
-    CLAMP(frame, PSFRA, PEFRA);
+    const int2 playback_range = BKE_scene_get_playback_range(scene);
+    CLAMP(frame, playback_range[0], playback_range[1]);
   }
 
   return frame;
@@ -931,7 +932,8 @@ static wmOperatorStatus anim_set_sfra_exec(bContext *C, wmOperator *op)
     scene->r.sfra = frame;
   }
 
-  if (PEFRA < frame) {
+  const int2 playback_range = BKE_scene_get_playback_range(scene);
+  if (playback_range[1] < frame) {
     if (PRVRANGEON) {
       scene->r.pefra = frame;
     }
@@ -987,7 +989,8 @@ static wmOperatorStatus anim_set_efra_exec(bContext *C, wmOperator *op)
     scene->r.efra = frame;
   }
 
-  if (PSFRA > frame) {
+  const int2 playback_range = BKE_scene_get_playback_range(scene);
+  if (playback_range[0] > frame) {
     if (PRVRANGEON) {
       scene->r.psfra = frame;
     }
@@ -1197,8 +1200,9 @@ static wmOperatorStatus scene_range_frame_exec(bContext *C, wmOperator * /*op*/)
   BLI_assert(region);
 
   View2D &v2d = region->v2d;
-  v2d.cur.xmin = PSFRA;
-  v2d.cur.xmax = PEFRA;
+  const int2 playback_range = BKE_scene_get_playback_range(scene);
+  v2d.cur.xmin = playback_range[0];
+  v2d.cur.xmax = playback_range[1];
 
   v2d.cur = ANIM_frame_range_view2d_add_xmargin(v2d, v2d.cur);
 

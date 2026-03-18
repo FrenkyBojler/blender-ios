@@ -15,6 +15,7 @@
 #include "BLI_string_utf8.h"
 
 #include "BKE_nla.hh"
+#include "BKE_scene.hh"
 #include "BKE_unit.hh"
 
 #include "ED_screen.hh"
@@ -202,8 +203,9 @@ static void initTimeSlide(TransInfo *t, wmOperator * /*op*/)
 
     if (min == max) {
       /* Just use the current frame ranges. */
-      min = float(PSFRA);
-      max = float(PEFRA);
+      const int2 playback_range = BKE_scene_get_playback_range(scene);
+      min = float(playback_range[0]);
+      max = float(playback_range[1]);
     }
 
     range[0] = min;

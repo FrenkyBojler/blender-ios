@@ -3617,6 +3617,7 @@ static wmOperatorStatus frame_jump_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
   wmTimer *animtimer = CTX_wm_screen(C)->animtimer;
+  const int2 playback_range = BKE_scene_get_playback_range(scene);
 
   /* Don't change scene->r.cfra directly if animtimer is running as this can cause
    * first/last frame not to be actually shown (bad since for example physics
@@ -3628,18 +3629,18 @@ static wmOperatorStatus frame_jump_exec(bContext *C, wmOperator *op)
     sad->flag |= ANIMPLAY_FLAG_USE_NEXT_FRAME;
 
     if (RNA_boolean_get(op->ptr, "end")) {
-      sad->nextfra = PEFRA;
+      sad->nextfra = playback_range[1];
     }
     else {
-      sad->nextfra = PSFRA;
+      sad->nextfra = playback_range[0];
     }
   }
   else {
     if (RNA_boolean_get(op->ptr, "end")) {
-      scene->r.cfra = PEFRA;
+      scene->r.cfra = playback_range[1];
     }
     else {
-      scene->r.cfra = PSFRA;
+      scene->r.cfra = playback_range[0];
     }
 
     ED_areas_do_frame_follow(C, true);
@@ -6195,8 +6196,9 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
   }
 
   /* Handle reaching the extreme frames. */
-  const int start_frame = PSFRA;
-  const int end_frame = PEFRA;
+  const int2 playback_range = BKE_scene_get_playback_range(scene);
+  const int start_frame = playback_range[0];
+  const int end_frame = playback_range[1];
   const bool is_playing_forward = (sad->flag & ANIMPLAY_FLAG_REVERSE) == 0;
   const bool is_extreme_frame = is_playing_forward ? scene->r.cfra > end_frame :
                                                      scene->r.cfra < start_frame;

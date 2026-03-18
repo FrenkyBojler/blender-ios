@@ -2926,8 +2926,6 @@ extern const char *RE_engine_id_BLENDER_EEVEE_NEXT;
   ((!(v3d)->scenelock && (v3d)->camera) ? (v3d)->camera : (scene)->camera)
 
 #define PRVRANGEON (scene->r.flag & SCER_PRV_RANGE)
-#define PSFRA ((PRVRANGEON) ? (scene->r.psfra) : (scene->r.sfra))
-#define PEFRA ((PRVRANGEON) ? (scene->r.pefra) : (scene->r.efra))
 #define FRA2TIME(a) ((((double)scene->r.frs_sec_base) * (double)(a)) / (double)scene->r.frs_sec)
 #define TIME2FRA(a) ((((double)scene->r.frs_sec) * (double)(a)) / (double)scene->r.frs_sec_base)
 

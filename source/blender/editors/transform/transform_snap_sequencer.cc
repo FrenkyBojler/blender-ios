@@ -24,6 +24,8 @@
 #include "DNA_sequence_types.h"
 #include "DNA_space_types.h"
 
+#include "BKE_scene.hh"
+
 #include "ED_transform.hh"
 
 #include "UI_view2d.hh"
@@ -297,8 +299,9 @@ static void points_build_targets_timeline(const Scene *scene,
   }
 
   if (snap_mode & SEQ_SNAP_TO_FRAME_RANGE) {
-    snap_data->target_snap_points.append(float2(PSFRA, all_channels));
-    snap_data->target_snap_points.append(float2(PEFRA + 1, all_channels));
+    const int2 playback_range = BKE_scene_get_playback_range(scene);
+    snap_data->target_snap_points.append(float2(playback_range[0], all_channels));
+    snap_data->target_snap_points.append(float2(playback_range[1] + 1, all_channels));
     /* Also snap to meta-strip display range if we are in a meta-strip. */
     MetaStack *ms = seq::meta_stack_active_get(seq::editing_get(scene));
     if (ms != nullptr) {
