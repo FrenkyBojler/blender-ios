@@ -1,1 +1,2 @@
 Referenced by issue #155817, Cycles: Transparent curve shadows disappear when the scene is updated
+Referenced by pull request #155857, Fix #155817: Cycles transparent curve shadows disappear on scene update
