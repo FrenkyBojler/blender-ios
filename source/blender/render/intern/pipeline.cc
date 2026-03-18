@@ -179,7 +179,7 @@ static bool do_write_image_or_movie(Render *re,
                                     Scene *scene,
                                     const int totvideos,
                                     const char *filepath_override,
-                                    const bool write_anim);
+                                    const bool write_anim_or_still);
 
 /* default callbacks, set in each new render */
 static void result_rcti_nothing(void * /*arg*/, RenderResult * /*rr*/, rcti * /*rect*/) {}
@@ -1381,7 +1381,7 @@ static ImBuf *seq_process_render_image(ImBuf *src,
     dst = IMB_allocImBuf(src->x, src->y, src->planes, 0);
     IMB_alloc_float_pixels(dst, src->channels, false);
     /* Transform from sequencer space to scene linear. */
-    const char *from_colorspace = IMB_colormanagement_get_rect_colorspace(src);
+    const char *from_colorspace = IMB_colormanagement_get_byte_colorspace(src);
     const char *to_colorspace = IMB_colormanagement_role_colorspace_name_get(
         COLOR_ROLE_SCENE_LINEAR);
     IMB_colormanagement_transform_byte_to_float(dst->float_buffer.data,
@@ -1977,7 +1977,7 @@ void RE_RenderFrame(Render *re,
             nullptr);
 
         if (errors.is_empty()) {
-          do_write_image_or_movie(re, bmain, scene, 0, filepath_override, false);
+          do_write_image_or_movie(re, bmain, scene, 0, filepath_override, write_still);
         }
         else {
           BKE_report_path_template_errors(re->reports, RPT_ERROR, rd.pic, errors);
@@ -2175,7 +2175,7 @@ static bool do_write_image_or_movie(Render *re,
                                     Scene *scene,
                                     const int totvideos,
                                     const char *filepath_override,
-                                    const bool write_anim)
+                                    const bool write_anim_or_still)
 {
   char filepath[FILE_MAX];
   RenderResult rres;
@@ -2186,7 +2186,7 @@ static bool do_write_image_or_movie(Render *re,
   /* Only disable file writing if postprocessing is also disabled. */
   const bool do_write_file = (!(re_type->flag & RE_USE_NO_IMAGE_SAVE) ||
                               (re_type->flag & RE_USE_POSTPROCESS)) &&
-                             write_anim;
+                             write_anim_or_still;
 
   if (do_write_file) {
     RE_AcquireResultImageViews(re, &rres);
@@ -2367,7 +2367,8 @@ void RE_RenderAnim(Render *re,
     bool is_error = false;
     re->movie_writers.reserve(totvideos);
     for (int i = 0; i < totvideos; i++) {
-      const char *suffix = BKE_scene_multiview_view_id_suffix_get(&re->r, i);
+      const char *suffix = is_multiview_name ? BKE_scene_multiview_view_id_suffix_get(&re->r, i) :
+                                               "";
       MovieWriter *writer = MOV_write_begin(re->pipeline_scene_eval,
                                             &re->r,
                                             &image_format,

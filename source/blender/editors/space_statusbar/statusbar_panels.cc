@@ -73,41 +73,8 @@ static void version_update_draw_body(VersionUpdateInfo &update, ui::Layout &layo
   row.emboss_set(ui::EmbossType::None);
   row.alignment_set(ui::LayoutAlign::Expand);
   row.label(update.description, ICON_NONE);
-  layout.column(true).alignment_set(ui::LayoutAlign::Left);
-  ui::Button *but = uiDefButO_ptr(layout.block(),
-                                  ui::ButtonType::Link,
-                                  WM_operatortype_find("WM_OT_url_open", true),
-                                  wm::OpCallContext::ExecDefault,
-                                  "Whats new",
-                                  0,
-                                  0,
-                                  UI_UNIT_X * 3.3f,
-                                  UI_UNIT_Y,
-                                  std::nullopt);
-  button_drawflag_enable(but, ui::BUT_HAS_QUICK_TOOLTIP);
-  ui::button_func_quick_tooltip_set(
-      but, [release_notes_url = update.release_notes_url](const ui::Button * /*but*/) {
-        return release_notes_url;
-      });
-  ui::button_func_tooltip_custom_set(
-      but,
-      [](bContext & /*C*/, ui::TooltipData &data, ui::Button * /*but*/, void *argN) {
-        tooltip_text_field_add(data,
-                               static_cast<const char *>(argN),
-                               {},
-                               ui::TIP_STYLE_HEADER,
-                               ui::TIP_LC_NORMAL,
-                               false);
-      },
-      BLI_strdup(update.release_notes_url.c_str()),
-      MEM_delete_void);
-
-  PointerRNA *opptr = button_operator_ptr_ensure(but);
-  opptr->data = bke::idprop::create_group("wmOperatorProperties").release();
-
-  RNA_string_set(opptr, "url", update.release_notes_url.c_str());
-
-  ui::button_drawflag_enable(but, ui::BUT_TEXT_LEFT | ui::BUT_NO_TEXT_PADDING);
+  layout.alignment_set(ui::LayoutAlign::Left);
+  layout.link(update.release_notes_url, "Whats new", ICON_NONE);
 
   ui::Layout &buttons_row = layout.row(true);
 

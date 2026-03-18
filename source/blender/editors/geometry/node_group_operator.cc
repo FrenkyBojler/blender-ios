@@ -69,8 +69,8 @@
 
 #include "BLT_translation.hh"
 
+#include "NOD_dependencies.hh"
 #include "NOD_geometry_nodes_caller_ui.hh"
-#include "NOD_geometry_nodes_dependencies.hh"
 #include "NOD_geometry_nodes_execute.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
 
@@ -698,8 +698,8 @@ static void store_result_geometry(const bContext &C,
 static void gather_node_group_ids(const bNodeTree &node_tree, Set<ID *> &ids)
 {
   const int orig_size = ids.size();
-  BLI_assert(node_tree.runtime->geometry_nodes_eval_dependencies);
-  for (ID *id : node_tree.runtime->geometry_nodes_eval_dependencies->ids.values()) {
+  BLI_assert(node_tree.runtime->eval_dependencies);
+  for (ID *id : node_tree.runtime->eval_dependencies->ids.values()) {
     ids.add(id);
   }
   if (ids.size() != orig_size) {
@@ -726,6 +726,7 @@ static std::optional<ID_Type> socket_type_to_id_type(const eNodeSocketDatatype s
     case SOCK_CUSTOM:
     case SOCK_FLOAT:
     case SOCK_VECTOR:
+    case SOCK_INT_VECTOR:
     case SOCK_RGBA:
     case SOCK_SHADER:
     case SOCK_BOOLEAN:
