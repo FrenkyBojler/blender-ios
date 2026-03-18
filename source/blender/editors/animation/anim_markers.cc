@@ -1375,9 +1375,7 @@ static void select_marker_camera_switch(
     bContext *C, bool camera, bool extend, ListBaseT<TimeMarker> *markers, int cfra)
 {
   using namespace blender::ed;
-  if (camera) {
-    BLI_assert(CTX_data_mode_enum(C) == CTX_MODE_OBJECT);
-
+  if (camera && CTX_data_mode_enum(C) == CTX_MODE_OBJECT) {
     const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
     Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
 
@@ -1516,9 +1514,10 @@ static wmOperatorStatus ed_marker_select_exec(bContext *C, wmOperator *op)
     /* Supporting mode switching from this operator doesn't seem so useful.
      * So only allow setting the active camera in object-mode. */
     if (CTX_data_mode_enum(C) != CTX_MODE_OBJECT) {
-      BKE_report(
-          op->reports, RPT_WARNING, "Selecting the camera is only supported in object mode");
-      camera = false;
+      BKE_report(op->reports,
+                 RPT_WARNING,
+                 "Automatic selection of the camera bound to this marker is only supported in "
+                 "object mode");
     }
   }
   int mval[2];
