@@ -204,9 +204,13 @@ static void convert_fcurves_rotation_mode(Span<FCurve *> evaluation_buffer,
     for (int i : insertion_buffer.index_range()) {
       FCurve *fcurve = insertion_buffer[i];
       BLI_assert_msg(fcurve, "For insertion all FCurves are expected to be created before");
-      insert_vert_fcurve(fcurve, {frame, converted_rotation[i]}, settings, eInsertKeyFlags(0));
+      insert_vert_fcurve(fcurve, {frame, converted_rotation[i]}, settings, INSERTKEY_FAST);
     }
     previous_conversion = converted_rotation;
+  }
+
+  for (FCurve *fcurve : insertion_buffer) {
+    BKE_fcurve_handles_recalc(*fcurve);
   }
 }
 
