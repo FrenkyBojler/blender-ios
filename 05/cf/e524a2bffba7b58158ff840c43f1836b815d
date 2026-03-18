@@ -4,3 +4,4 @@ Referenced by issue #153269, HIP and HIP-RT causes AMD GPU drivers to crash on L
 Referenced by issue #151096, absolute increment snap behave differently
 Referenced by issue #153293, Random "worlds" being added automatically.
 Referenced by issue #155798, subdiv broken
+Referenced by issue #155846, regression: mesh attributes are not initialized to zeros
