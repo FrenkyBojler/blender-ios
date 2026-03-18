@@ -5,20 +5,20 @@
 [[node]]
 void axis_angle_to_rotation(float3 axis, float angle, out float4 rotation)
 {
-  float len = length(axis);
-  if (len == 0.0) {
-    rotation = float4(1.0, 0.0, 0.0, 0.0);
+  const float len = length(axis);
+  if (len == 0.0f) {
+    rotation = float4(1.0f, 0.0f, 0.0f, 0.0f);
   }
   else {
-    float3 naxis = axis / len;
+    const float3 naxis = axis / len;
 
-    float angle_cos = cos(angle);
+    const float angle_cos = cos(angle);
     /** Using half angle identities: sin(angle / 2) = sqrt((1 - angle_cos) / 2) */
-    float sine = sqrt(0.5 - angle_cos * 0.5);
-    float cosine = sqrt(0.5 + angle_cos * 0.5);
+    float sine = sqrt(0.5f - angle_cos * 0.5f);
+    const float cosine = sqrt(0.5f + angle_cos * 0.5f);
 
-    float angle_sin = sin(angle);
-    if (angle_sin < 0.0) {
+    const float angle_sin = sin(angle);
+    if (angle_sin < 0.0f) {
       sine = -sine;
     }
 

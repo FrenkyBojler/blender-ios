@@ -107,7 +107,6 @@ gpu::TextureFormat Result::gpu_texture_format(ResultType type, ResultPrecision p
            * practice. */
           return gpu::TextureFormat::SINT_8;
         case ResultType::Quaternion:
-          /* Rotations are stored as unit quaternions (4 floats). */
           return gpu::TextureFormat::SFLOAT_16_16_16_16;
         case ResultType::String:
         case ResultType::Object:
@@ -154,7 +153,6 @@ gpu::TextureFormat Result::gpu_texture_format(ResultType type, ResultPrecision p
            * practice. */
           return gpu::TextureFormat::SINT_8;
         case ResultType::Quaternion:
-          /* Rotations are stored as unit quaternions (4 floats). */
           return gpu::TextureFormat::SFLOAT_32_32_32_32;
         case ResultType::String:
         case ResultType::Object:
@@ -424,7 +422,7 @@ const char *Result::type_name(const ResultType type)
     case ResultType::Menu:
       return "menu";
     case ResultType::Quaternion:
-      return "rotation";
+      return "quaternion";
     case ResultType::String:
       return "string";
     case ResultType::Object:
@@ -546,7 +544,7 @@ void Result::allocate_single_value()
       this->set_single_value(nodes::MenuValue(0));
       break;
     case ResultType::Quaternion:
-      this->set_single_value(math::Quaternion::identity());
+      this->set_single_value(math::Quaternion(0.0f, 0.0f, 0.0f, 0.0f));
       break;
     case ResultType::String:
       this->set_single_value(std::string(""));

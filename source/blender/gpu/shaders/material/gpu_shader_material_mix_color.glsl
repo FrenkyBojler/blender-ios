@@ -674,6 +674,6 @@ void node_mix_rotation(float fac,
                        float4 &outcol,
                        float4 &outrot)
 {
-  float4 rot2_nearest = (dot(rot1, rot2) >= 0.0) ? rot2 : -rot2;
+  const float4 rot2_nearest = (dot(rot1, rot2) >= 0.0f) ? rot2 : -rot2;
   outrot = normalize(mix(rot1, rot2_nearest, fac));
 }

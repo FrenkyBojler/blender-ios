@@ -10,7 +10,7 @@ void rotate_vector(float3 vector, float4 rotation, float3 &result)
    *   v' = v + w * t + cross(qv, t)
    *   where t = 2 * cross(qv, v)
    */
-  float3 qv = rotation.yzw;
-  float3 t = 2.0 * cross(qv, vector);
+  const float3 qv = rotation.yzw;
+  const float3 t = 2.0f * cross(qv, vector);
   result = vector + rotation.x * t + cross(qv, t);
 }

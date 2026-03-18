@@ -290,7 +290,7 @@ static const char *get_set_function_name(const ResultType type)
       /* GPUMaterial doesn't support int, so it is passed as a float. */
       return "set_float";
     case ResultType::Quaternion:
-      return "set_float4";
+      return "set_quaternion";
     case ResultType::String:
     case ResultType::Object:
     case ResultType::Image:
@@ -525,7 +525,7 @@ static const char *get_store_function_name(ResultType type)
     case ResultType::Menu:
       return "node_compositor_store_output_menu";
     case ResultType::Quaternion:
-      return "node_compositor_store_output_rotation";
+      return "node_compositor_store_output_quaternion";
     case ResultType::String:
     case ResultType::Object:
     case ResultType::Image:
@@ -784,8 +784,8 @@ std::string ShaderOperation::generate_code_for_outputs(ShaderCreateInfo &shader_
       "void store_float4x4(const uint id, float4x4 value)";
   /* GPUMaterial doesn't support int, so it is passed as a float. */
   const std::string store_menu_function_header = "void store_menu(const uint id, float value)";
-  const std::string store_rotation_function_header =
-      "void store_rotation(const uint id, vec4 value)";
+  const std::string store_quaternion_function_header =
+      "void store_quaternion(const uint id, vec4 value)";
 
   /* Each of the store functions is essentially a single switch case on the given ID, so start by
    * opening the function with a curly bracket followed by opening a switch statement in each of
@@ -801,7 +801,7 @@ std::string ShaderOperation::generate_code_for_outputs(ShaderCreateInfo &shader_
   std::stringstream store_bool_function;
   std::stringstream store_float4x4_function;
   std::stringstream store_menu_function;
-  std::stringstream store_rotation_function;
+  std::stringstream store_quaternion_function;
   const std::string store_function_start = "\n{\n  switch (id) {\n";
   store_float_function << store_float_function_header << store_function_start;
   store_float2_function << store_float2_function_header << store_function_start;
@@ -814,7 +814,7 @@ std::string ShaderOperation::generate_code_for_outputs(ShaderCreateInfo &shader_
   store_bool_function << store_bool_function_header << store_function_start;
   store_float4x4_function << store_float4x4_function_header << store_function_start;
   store_menu_function << store_menu_function_header << store_function_start;
-  store_rotation_function << store_rotation_function_header << store_function_start;
+  store_quaternion_function << store_quaternion_function_header << store_function_start;
 
   shader_create_info.builtins(BuiltinBits::GLOBAL_INVOCATION_ID);
 
@@ -886,7 +886,7 @@ std::string ShaderOperation::generate_code_for_outputs(ShaderCreateInfo &shader_
         store_menu_function << common_case_code.str();
         break;
       case ResultType::Quaternion:
-        store_rotation_function << common_case_code.str();
+        store_quaternion_function << common_case_code.str();
         break;
       case ResultType::String:
       case ResultType::Object:
@@ -915,12 +915,12 @@ std::string ShaderOperation::generate_code_for_outputs(ShaderCreateInfo &shader_
   store_bool_function << store_function_end;
   store_float4x4_function << store_function_end;
   store_menu_function << store_function_end;
-  store_rotation_function << store_function_end;
+  store_quaternion_function << store_function_end;
 
   return store_float_function.str() + store_float2_function.str() + store_float3_function.str() +
          store_float4_function.str() + store_color_function.str() + store_int_function.str() +
          store_int2_function.str() + store_int3_function.str() + store_bool_function.str() +
-         store_float4x4_function.str() + store_menu_function.str() + store_rotation_function.str();
+         store_float4x4_function.str() + store_menu_function.str() + store_quaternion_function.str();
 }
 
 static const char *glsl_type_from_result_type(ResultType type)

@@ -664,22 +664,6 @@ void convert_int3_to_bool()
   imageStore(image_out, texel, int4(int3_to_bool(value.xyz)));
 }
 
-void convert_int3_to_quaternion()
-{
-  auto &sampler_in = sampler_get(compositor_convert_int3_to_quaternion, input_tx);
-  auto &image_out = image_get(compositor_convert_int3_to_quaternion, output_img);
-  int2 texel = int2(gl_GlobalInvocationID.xy);
-  int4 value = texture_load(sampler_in, texel);
-
-  EulerXYZ eul;
-  eul.x = float(value.x);
-  eul.y = float(value.y);
-  eul.z = float(value.z);
-  Quaternion quat = to_quaternion(eul);
-
-  imageStore(image_out, texel, float4(quat.x, quat.y, quat.z, quat.w));
-}
-
 /* --------------------------------------------------------------------
  * Bool to other.
  */
@@ -793,23 +777,6 @@ void convert_quaternion_to_float3()
   float3 result = to_euler(from_rotation(quat)).as_float3();
 
   imageStore(image_out, texel, float4(result, 0.0f));
-}
-
-void convert_quaternion_to_int3()
-{
-  auto &sampler_in = sampler_get(compositor_convert_quaternion_to_int3, input_tx);
-  auto &image_out = image_get(compositor_convert_quaternion_to_int3, output_img);
-  int2 texel = int2(gl_GlobalInvocationID.xy);
-  float4 value = texture_load(sampler_in, texel);
-
-  Quaternion quat;
-  quat.x = value.x;
-  quat.y = value.y;
-  quat.z = value.z;
-  quat.w = value.w;
-  float3 result = to_euler(from_rotation(quat)).as_float3();
-
-  imageStore(image_out, texel, int4(int3(result), 0));
 }
 
 void convert_quaternion_to_float4x4()

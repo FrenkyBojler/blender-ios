@@ -168,7 +168,6 @@ const char *RealizeOnDomainOperation::get_realization_shader_name()
       case ResultType::Menu:
         return "compositor_realize_on_domain_menu";
       case ResultType::Quaternion:
-        /* Rotations are stored as unit quaternions (float4). */
         return "compositor_realize_on_domain_bicubic_float4";
       case ResultType::String:
       case ResultType::Object:
@@ -210,7 +209,6 @@ const char *RealizeOnDomainOperation::get_realization_shader_name()
       case ResultType::Menu:
         return "compositor_realize_on_domain_menu";
       case ResultType::Quaternion:
-        /* Rotations are stored as unit quaternions (float4). */
         return "compositor_realize_on_domain_float4";
       case ResultType::String:
       case ResultType::Object:
@@ -260,6 +258,7 @@ void RealizeOnDomainOperation::realize_on_domain_cpu(const float3x3 &transformat
                       Color,
                       int32_t,
                       int2,
+                      int3,
                       bool,
                       float4x4,
                       nodes::MenuValue,

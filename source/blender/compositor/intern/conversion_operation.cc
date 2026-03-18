@@ -57,7 +57,7 @@ static bool is_conversion_supported(const ResultType from_type, const ResultType
         case ResultType::Bool:
           return true;
         case ResultType::Quaternion:
-          return ELEM(from_type, ResultType::Float, ResultType::Float3, ResultType::Int3);
+          return ELEM(from_type, ResultType::Float, ResultType::Float3);
         case ResultType::Float4x4:
         case ResultType::Menu:
         case ResultType::String:
@@ -76,8 +76,7 @@ static bool is_conversion_supported(const ResultType from_type, const ResultType
       return ELEM(to_type,
                   ResultType::Quaternion,
                   ResultType::Float4x4,
-                  ResultType::Float3,
-                  ResultType::Int3);
+                  ResultType::Float3);
     case ResultType::Menu:
     case ResultType::String:
     case ResultType::Object:

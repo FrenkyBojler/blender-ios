@@ -141,7 +141,7 @@ static bool composite_validate_link(eNodeSocketDatatype from_type, eNodeSocketDa
     return true;
   }
 
-  if (ELEM(from_type, SOCK_FLOAT, SOCK_VECTOR, SOCK_INT_VECTOR) && to_type == SOCK_ROTATION) {
+  if (ELEM(from_type, SOCK_FLOAT, SOCK_VECTOR) && to_type == SOCK_ROTATION) {
     return true;
   }
 
@@ -152,7 +152,7 @@ static bool composite_validate_link(eNodeSocketDatatype from_type, eNodeSocketDa
     return true;
   }
 
-  if (from_type == SOCK_ROTATION && ELEM(to_type, SOCK_VECTOR, SOCK_INT_VECTOR)) {
+  if (from_type == SOCK_ROTATION && to_type == SOCK_VECTOR) {
     return true;
   }
 
