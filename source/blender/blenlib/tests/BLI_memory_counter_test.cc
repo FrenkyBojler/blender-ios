@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
+#include "BLI_implicit_sharing.hh"
 #include "BLI_implicit_sharing_ptr.hh"
 #include "BLI_memory_counter.hh"
 

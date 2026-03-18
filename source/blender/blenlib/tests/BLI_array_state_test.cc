@@ -5,6 +5,7 @@
 #include "testing/testing.h"
 
 #include "BLI_array_state.hh"
+#include "BLI_implicit_sharing.hh"
 
 namespace blender::tests {
 
