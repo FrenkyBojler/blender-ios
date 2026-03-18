@@ -59,7 +59,6 @@ static gpu::Texture *create_base_texture(TextureFormat format)
   GPU_framebuffer_bind(fbo);
   GPU_framebuffer_clear(fbo, GPUFrameBufferBits::GPU_COLOR_BIT, {0.0, 0.0, 0.0, 0.0}, 0.0f, 0u);
   GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
-
   GPU_framebuffer_free(fbo);
 
   return base;
@@ -120,7 +119,6 @@ template<TextureFormat FormatA, TextureFormat FormatB> static void texture_view_
   else if (ELEM(to_texture_data_format(FormatB), GPU_DATA_FLOAT, GPU_DATA_10_11_11_REV)) {
     auto zero_expected = repeat_data(zero, texture_size, to_component_len(FormatB));
     auto zero_readback = read_texture<float>(view, GPU_DATA_FLOAT);
-
     EXPECT_TRUE(
         std::equal(zero_expected.begin(), zero_expected.end(), zero_readback.begin(), f_eq));
   }
@@ -156,7 +154,6 @@ template<TextureFormat FormatA, TextureFormat FormatB> static void texture_view_
   else if (ELEM(to_texture_data_format(FormatB), GPU_DATA_FLOAT, GPU_DATA_10_11_11_REV)) {
     auto colr_expected = repeat_data(colr, texture_size, to_component_len(FormatB));
     auto colr_readback = read_texture<float>(view, GPU_DATA_FLOAT);
-
     EXPECT_TRUE(
         std::equal(colr_expected.begin(), colr_expected.end(), colr_expected.begin(), f_eq));
   }
