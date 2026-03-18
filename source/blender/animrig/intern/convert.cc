@@ -153,14 +153,24 @@ static Vector<std::pair<float, eRotationModes>> get_rotation_mode_ranges(const F
   return changes;
 }
 
-static void convert_fcurves_rotation_mode(Span<FCurve *> evaluation_buffer,
-                                          Span<FCurve *> insertion_buffer,
+/**
+ * For all keyframes in the `evaluation_buffer` in the given range, insert values into
+ * `insertion_buffer` that represent the same rotation but in the given rotation mode.
+ *
+ * \param evaluation_buffer It is assumed that those FCurves match the rotation mode `from_mode`.
+ * They will be read for keyframe values. It is allowed to have nullptr FCurves in here.
+ * \param insertion_buffer The FCurves relating to `to_mode`. Keyframes for the converted rotation
+ * mode will be inserted here. None of the FCurves shall be a nullptr.
+ * \param range Limits the range in which to convert and insert rotation keys. Interpreted
+ * inclusive at the start and exclusive at the end.
+ */
+static void convert_fcurves_rotation_mode(const Span<const FCurve *> evaluation_buffer,
+                                          const Span<FCurve *> insertion_buffer,
                                           const eRotationModes from_mode,
                                           const eRotationModes to_mode,
                                           const float2 range,
                                           bPoseChannel &pchan)
 {
-  Vector<int64_t> keyframe_ids = build_keyframe_ids(evaluation_buffer);
   /* Storing the previous rotation for euler angles larger than 180 degrees. */
   float4 previous_conversion(0);
   float4 converted_rotation(0);
@@ -169,20 +179,21 @@ static void convert_fcurves_rotation_mode(Span<FCurve *> evaluation_buffer,
   /* Filling the array with the current values to have good base values in case not every array
    * index is keyed. */
   get_rotation_values(pchan, rotation_values);
-  KeyframeSettings settings = {BEZT_KEYTYPE_KEYFRAME, HD_AUTO_ANIM, BEZT_IPO_BEZ};
-  for (FCurve *fcurve : evaluation_buffer) {
+  KeyframeSettings settings;
+  for (const FCurve *fcurve : evaluation_buffer) {
     if (!fcurve || !fcurve->bezt) {
       continue;
     }
     /* Using the settings of the first key assumes that the settings are consistent which they
      * may not be. We will need to see if this is an issue in practice. */
-    BezTriple &key = fcurve->bezt[0];
+    const BezTriple &key = fcurve->bezt[0];
     settings.handle = eBezTriple_Handle(key.h1);
     settings.interpolation = eBezTriple_Interpolation(key.ipo);
     settings.keyframe_type = BEZKEYTYPE(&key);
     break;
   }
 
+  Vector<int64_t> keyframe_ids = build_keyframe_ids(evaluation_buffer);
   for (const int64_t frame_id : keyframe_ids) {
     const float frame = frame_id * BEZT_BINARYSEARCH_THRESH;
     if (frame < range[0]) {
@@ -192,13 +203,14 @@ static void convert_fcurves_rotation_mode(Span<FCurve *> evaluation_buffer,
       break;
     }
     /* Generate the current rotation values respecting missing FCurves. */
-    for (FCurve *fcurve : evaluation_buffer) {
+    for (const FCurve *fcurve : evaluation_buffer) {
       if (!fcurve) {
         continue;
       }
       rotation_values[fcurve->array_index] = evaluate_fcurve(fcurve, frame);
     }
-    /* Convert those to the new rotation mode. */
+    /* Convert those to the new rotation mode. This always goes via quaternion to keep it
+     * simple.  */
     rotation_values_to_quat(rotation_values, from_mode, rot_quat);
     quat_to_rotation_values(rot_quat, to_mode, previous_conversion, converted_rotation);
     for (int i : insertion_buffer.index_range()) {
@@ -223,6 +235,7 @@ static void convert_rotation_mode_range(Main &bmain,
                                         const float2 range,
                                         bPoseChannel &pchan)
 {
+  const char *fcurve_group_name = pchan.name;
   const int evaluation_buffer_count = from_mode > ROT_MODE_QUAT ? 3 : 4;
   const int insertion_buffer_count = to_mode > ROT_MODE_QUAT ? 3 : 4;
 
@@ -240,22 +253,24 @@ static void convert_rotation_mode_range(Main &bmain,
     if (is_rotation_order_change) {
       /* Cannot use the FCurve directly from the channelbag. Modifying that while converting the
        * rotation mode would influence the result. */
-      FCurveDescriptor descriptor = {new_rotation_path, 0, PROP_FLOAT, PROP_EULER, pchan.name};
+      FCurveDescriptor descriptor = {
+          new_rotation_path, 0, PROP_FLOAT, PROP_EULER, fcurve_group_name};
       BLI_assert_msg(evaluation_buffer_count == insertion_buffer_count &&
                          evaluation_buffer_count == 3,
                      "Both rotation modes are euler so should have 3 elements.");
-      for (int i : IndexRange(3)) {
+      for (const int i : IndexRange(3)) {
         descriptor.array_index = i;
         insertion_buffer[i] = &channelbag.fcurve_ensure(&bmain, descriptor);
         evaluation_buffer[i] = BKE_fcurve_copy(insertion_buffer[i]);
       }
     }
     else {
-      for (int i : IndexRange(evaluation_buffer_count)) {
+      for (const int i : IndexRange(evaluation_buffer_count)) {
         evaluation_buffer[i] = fcurve_buffer.get_fcurve_by_array_index(i);
       }
-      FCurveDescriptor descriptor = {new_rotation_path, 0, PROP_FLOAT, PROP_EULER, pchan.name};
-      for (int i : IndexRange(insertion_buffer_count)) {
+      FCurveDescriptor descriptor = {
+          new_rotation_path, 0, PROP_FLOAT, PROP_EULER, fcurve_group_name};
+      for (const int i : IndexRange(insertion_buffer_count)) {
         descriptor.array_index = i;
         insertion_buffer[i] = &channelbag.fcurve_ensure(&bmain, descriptor);
       }
@@ -271,13 +286,13 @@ static void convert_rotation_mode_range(Main &bmain,
       BKE_fcurve_free(fcurve);
     }
   }
-    else {
-      /* When changing between euler, axis angle or quaternion the currently existing rotation
-       * FCurves need to be removed. */
-      for (FCurve *fcurve : evaluation_buffer) {
-        channelbag.fcurve_remove(*fcurve);
-      }
+  else {
+    /* When changing between euler, axis angle or quaternion the currently existing rotation
+     * FCurves need to be removed. */
+    for (FCurve *fcurve : evaluation_buffer) {
+      channelbag.fcurve_remove(*fcurve);
     }
+  }
 }
 
 bool convert_pose_bone_rotation_keys(Main *bmain,
@@ -287,8 +302,8 @@ bool convert_pose_bone_rotation_keys(Main *bmain,
                                      const eRotationModes to_mode)
 {
   PointerRNA ptr = RNA_pointer_create_discrete(&owner_id, RNA_PoseBone, &pchan);
-  const std::optional<std::string> pchan_path = RNA_path_from_ID_to_struct(&ptr);
-  if (!pchan_path) {
+  const std::optional<std::string> pointer_path = RNA_path_from_ID_to_struct(&ptr);
+  if (!pointer_path) {
     return false;
   }
 
@@ -297,7 +312,7 @@ bool convert_pose_bone_rotation_keys(Main *bmain,
   for (const auto &item : channelbag_fcurve_map.items()) {
     Channelbag *channelbag = item.key;
     const RNAFCurveMap &fcu_map = item.value;
-    const std::string rotation_mode_path = pchan_path.value() + ".rotation_mode";
+    const std::string rotation_mode_path = pointer_path.value() + ".rotation_mode";
     Vector<std::pair<float, eRotationModes>> rotation_mode_ranges;
     FCurve *rotation_mode_fcurve = nullptr;
     if (const SortedFCurveBuffer *rotation_mode_buffer = fcu_map.lookup_ptr(rotation_mode_path)) {
@@ -316,7 +331,7 @@ bool convert_pose_bone_rotation_keys(Main *bmain,
       const std::pair<float, eRotationModes> &rotation_mode_range = rotation_mode_ranges[i];
       const eRotationModes from_mode = rotation_mode_range.second;
       const StringRef rotation_mode = get_rotation_mode_path(from_mode);
-      const std::string current_rotation_path = pchan_path.value() + "." + rotation_mode;
+      const std::string current_rotation_path = pointer_path.value() + "." + rotation_mode;
       const SortedFCurveBuffer *rotation_fcurves = fcu_map.lookup_ptr(current_rotation_path);
       if (!rotation_fcurves) {
         continue;
@@ -328,7 +343,7 @@ bool convert_pose_bone_rotation_keys(Main *bmain,
       convert_rotation_mode_range(*bmain,
                                   *channelbag,
                                   *rotation_fcurves,
-                                  pchan_path.value(),
+                                  pointer_path.value(),
                                   from_mode,
                                   to_mode,
                                   range,
