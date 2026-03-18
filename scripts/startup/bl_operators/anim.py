@@ -906,6 +906,22 @@ class ANIM_OT_version_bone_hide_property(Operator):
         return {'FINISHED'}
 
 
+class ANIM_OT_filter_channels(Operator):
+    bl_idname = "anim.filter_channels"
+    bl_label = "Filter animation channels"
+    bl_description = "Filter animation channels of specific types such as location, rotation, etc."
+
+    filter_text : StringProperty(name="filter text", default="Location")
+
+    @classmethod
+    def poll(cls, context):
+        return hasattr(context.space_data.dopesheet, "filter_text")
+
+    def invoke(self, context, event):
+        context.space_data.dopesheet.filter_text = self.filter_text
+        return {'FINISHED'}
+
+
 classes = (
     ANIM_OT_keying_set_export,
     NLA_OT_bake,
@@ -920,4 +936,5 @@ classes = (
     ANIM_OT_slot_unassign_from_nla_strip,
     ANIM_OT_slot_unassign_from_constraint,
     ANIM_OT_version_bone_hide_property,
+    ANIM_OT_filter_channels,
 )

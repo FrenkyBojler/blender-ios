@@ -3818,6 +3818,14 @@ def km_animation(_params):
         ("anim.previewrange_clear", {"type": 'P', "value": 'PRESS', "alt": True}, None),
         ("anim.start_frame_set", {"type": 'HOME', "value": 'PRESS', "ctrl": True}, None),
         ("anim.end_frame_set", {"type": 'END', "value": 'PRESS', "ctrl": True}, None),
+        ("anim.filter_channels", {"type": 'ONE', "value": 'PRESS'},
+         {"properties": [("filter_text", "location")]}),
+        ("anim.filter_channels", {"type": 'TWO', "value": 'PRESS'},
+         {"properties": [("filter_text", "rotation")]}),
+        ("anim.filter_channels", {"type": 'THREE', "value": 'PRESS'},
+         {"properties": [("filter_text", "scale")]}),
+        ("anim.filter_channels", {"type": 'ESC', "value": 'PRESS'},
+         {"properties": [("filter_text", "")]}),
     ])
 
     return keymap
@@ -3889,6 +3897,14 @@ def km_animation_channels(params):
         # View
         ("anim.channel_view_pick", {"type": 'MIDDLEMOUSE', "value": 'PRESS', "alt": True}, None),
         ("anim.channels_view_selected", {"type": 'NUMPAD_PERIOD', "value": 'PRESS'}, None),
+        ("anim.filter_channels", {"type": 'ONE', "value": 'PRESS'},
+         {"properties": [("filter_text", "location")]}),
+        ("anim.filter_channels", {"type": 'TWO', "value": 'PRESS'},
+         {"properties": [("filter_text", "rotation")]}),
+        ("anim.filter_channels", {"type": 'THREE', "value": 'PRESS'},
+         {"properties": [("filter_text", "scale")]}),
+        ("anim.filter_channels", {"type": 'ESC', "value": 'PRESS'},
+         {"properties": [("filter_text", "")]}),
     ])
 
     return keymap
