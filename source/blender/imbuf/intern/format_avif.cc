@@ -72,16 +72,15 @@ static uchar *imb_save_avif_padding_workaround_begin(const ImBuf *ibuf,
                                                      WriteContext &ctx,
                                                      const bool prefer_float)
 {
-  if ((ibuf->x % AVIF_BLOCK_SIZE) == 0) {
+  /* The bug only affects the 8-bit path (the 10/12-bit path copies per-pixel). */
+  const bool use_float = prefer_float && (ibuf->float_buffer.data != nullptr);
+  if (use_float || (ibuf->x % AVIF_BLOCK_SIZE) == 0) {
     return nullptr;
   }
 
   const size_t size_orig = size_t(ibuf->y) * ctx.mem_ystride;
   const size_t size_pad = size_orig + (AVIF_BLOCK_SIZE * ctx.mem_xstride);
-
-  const bool use_float = prefer_float && (ibuf->float_buffer.data != nullptr);
-  const uchar *src_base = use_float ? reinterpret_cast<const uchar *>(ibuf->float_buffer.data) :
-                                      ibuf->byte_buffer.data;
+  const uchar *src_base = ibuf->byte_buffer.data;
 
   uchar *buf_padded = MEM_new_array_uninitialized<uchar>(size_pad, __func__);
   memcpy(buf_padded, src_base, size_orig);
@@ -95,9 +94,8 @@ static uchar *imb_save_avif_padding_workaround_begin(const ImBuf *ibuf,
 
 static void imb_save_avif_padding_workaround_end(const uchar *buf_padded)
 {
-  if (buf_padded) {
-    MEM_delete(buf_padded);
-  }
+  /* May be null. */
+  MEM_delete(buf_padded);
 }
 
 bool imb_save_avif(ImBuf *ibuf, const char *filepath, int flags)
@@ -112,7 +110,10 @@ bool imb_save_avif(ImBuf *ibuf, const char *filepath, int flags)
   WriteContext ctx = imb_create_write_context("heif", ibuf, flags, use_float);
   ImageSpec file_spec = imb_create_write_spec(ctx, file_channels, data_format);
 
-  const uchar *buf_padded = imb_save_avif_padding_workaround_begin(ibuf, ctx, use_float);
+  const uchar *buf_padded = nullptr;
+  if (OIIO_VERSION_LESS(3, 2, 0)) {
+    buf_padded = imb_save_avif_padding_workaround_begin(ibuf, ctx, use_float);
+  }
 
   /* Skip if the float buffer was managed already. */
   if (use_float &&
