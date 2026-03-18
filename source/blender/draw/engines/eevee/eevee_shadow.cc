@@ -770,20 +770,20 @@ void ShadowModule::sync_object(const ObjectHandle &ob_handle,
     ResourceIndex resource_index = ob_handle.res_handle.sub_handle(i);
     if (is_shadow_caster && (ob_handle.recalc || !is_initialized || has_jittered_transparency)) {
       if (ob_handle.recalc && is_initialized) {
-        past_casters_updated_.append(shadow_ob.resource_handle.resource_index());
+        past_casters_updated_.append(shadow_ob.resource_handle.raw);
       }
 
       if (has_jittered_transparency) {
-        jittered_transparent_casters_.append(resource_index.resource_index());
+        jittered_transparent_casters_.append(resource_index.raw);
       }
       else {
-        curr_casters_updated_.append(resource_index.resource_index());
+        curr_casters_updated_.append(resource_index.raw);
       }
     }
     shadow_ob.resource_handle = resource_index;
 
     if (is_shadow_caster) {
-      curr_casters_.append(resource_index.resource_index());
+      curr_casters_.append(resource_index.raw);
     }
   }
 
@@ -833,7 +833,7 @@ void ShadowModule::end_sync()
     /* Do not discard casters in baking mode. See WORKAROUND in `surfels_create`. */
     if (!shadow_ob.used && !inst_.is_baking()) {
       /* May not be a caster, but it does not matter, be conservative. */
-      past_casters_updated_.append(shadow_ob.resource_handle.resource_index());
+      past_casters_updated_.append(shadow_ob.resource_handle.raw);
       objects_.remove(it);
     }
     else {
