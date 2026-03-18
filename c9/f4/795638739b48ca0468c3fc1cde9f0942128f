@@ -2,3 +2,4 @@ Referenced by issue #155159, Regression: Vertex Paint: Invoking "Dirty Vertex Co
 Referenced by pull request #155194, Fix #155159: attribute value lookup by index is very slow
 Referenced by commit 3f908d7634c7fd5f707201c6f8a0408fd3800e66, Fix #155159: attribute value lookup by index is very slow
 Referenced by issue #155669, Assigning values to vector attribute is extremely slow
+Referenced by issue #155858, Blender 5.1 performance regression when accessing UV vectors in Python
