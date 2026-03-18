@@ -451,13 +451,12 @@ PassMain::Sub *ForwardPipeline::material_opaque_add(const Object *ob,
   return &pass->sub(GPU_material_get_name(gpumat));
 }
 
-void ForwardPipeline::transparent_add(
-    const Object *ob,
-    const float3 &ob_location,
-    blender::Material *blender_mat,
-    GPUMaterial *gpumat,  // TODO: This shouldn't be a single one?
-    PassMain::Sub *&r_prepass_subpass,
-    PassMain::Sub *&r_material_subpass)
+void ForwardPipeline::transparent_add(const Object *ob,
+                                      const float3 &ob_location,
+                                      blender::Material *blender_mat,
+                                      GPUMaterial *gpumat,
+                                      PassMain::Sub *&r_prepass_subpass,
+                                      PassMain::Sub *&r_material_subpass)
 {
   DRWState prepass_state = DRW_STATE_WRITE_DEPTH | DRW_STATE_CLIP_CONTROL_UNIT_RANGE |
                            inst_.film.depth.test_state;

@@ -310,6 +310,7 @@ Material &MaterialModule::material_sync(const ObjectHandle &ob_handle,
           ob, blender_mat, MAT_PIPE_VOLUME_OCCUPANCY, MAT_GEOM_VOLUME);
       mat.volume_material = material_pass_get(
           ob, blender_mat, MAT_PIPE_VOLUME_MATERIAL, MAT_GEOM_VOLUME);
+      mat.has_volume = GPU_material_has_volume_output(mat.volume_material.gpumat);
       return mat;
     });
     return mat;

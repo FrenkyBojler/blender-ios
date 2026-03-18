@@ -12,6 +12,7 @@
 #pragma once
 
 #include "BKE_duplilist.hh"
+#include "BLI_function_ref.hh"
 #include "BLI_map.hh"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
@@ -48,6 +49,9 @@ struct WorldHandle : public BaseHandle {};
 
 struct SceneHandle : public BaseHandle {};
 
+struct Material;
+struct MaterialPass;
+
 class SyncModule {
  private:
   Instance &inst_;
@@ -66,6 +70,20 @@ class SyncModule {
   void sync_volume(const ObjectRef &ob_ref);
   void sync_curves(const ObjectRef &ob_ref,
                    struct HairParticleInfo const *hair_particle = nullptr);
+
+ private:
+  void sync_common_passes(const Material &material,
+                          FunctionRef<void(const MaterialPass &)> sync_cb);
+  void sync_volume_passes(const ObjectHandle &ob_handle,
+                          const Material &material,
+                          FunctionRef<void(const MaterialPass &, int)> sync_cb);
+  void sync_alpha_blended_passes(const ObjectHandle &ob_handle,
+                                 const Material &material,
+                                 FunctionRef<void(const MaterialPass &, int)> sync_cb);
+
+  void sync_common(const ObjectHandle &ob_handle,
+                   Span<Material *> materials,
+                   Span<GPUMaterial *> gpu_materials);
 };
 
 struct HairParticleInfo {

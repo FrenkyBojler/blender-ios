@@ -71,6 +71,121 @@ static inline void volume_call(PassMain::Sub *pass,
   }
 }
 
+/* -------------------------------------------------------------------- */
+/** \name Common Helpers
+ * \{ */
+
+void SyncModule::sync_common_passes(const Material &material,
+                                    FunctionRef<void(const MaterialPass &)> sync_cb)
+{
+  sync_cb(material.shadow);
+  sync_cb(material.shading);
+  sync_cb(material.prepass);
+
+  sync_cb(material.capture);
+  sync_cb(material.lightprobe_sphere_prepass);
+  sync_cb(material.lightprobe_sphere_shading);
+  sync_cb(material.planar_probe_prepass);
+  sync_cb(material.planar_probe_shading);
+}
+
+void SyncModule::sync_volume_passes(const ObjectHandle &ob_handle,
+                                    const Material &material,
+                                    FunctionRef<void(const MaterialPass &, int)> sync_cb)
+{
+  blender::Material *blender_mat = GPU_material_get_material(material.volume_material.gpumat);
+
+  for (int instance : IndexRange(ob_handle.instances_count())) {
+    VolumeLayer *layer = inst_.pipelines.volume.register_and_get_layer(
+        VolumeObjectBounds(inst_.camera, ob_handle, instance));
+
+    if (!layer) {
+      continue;
+    }
+
+    sync_cb(MaterialPass{material.volume_occupancy.gpumat,
+                         layer->occupancy_add(
+                             ob_handle.object, blender_mat, material.volume_occupancy.gpumat)},
+            instance);
+
+    sync_cb(MaterialPass{material.volume_material.gpumat,
+                         layer->material_add(
+                             ob_handle.object, blender_mat, material.volume_material.gpumat)},
+            instance);
+  }
+}
+
+void SyncModule::sync_alpha_blended_passes(const ObjectHandle &ob_handle,
+                                           const Material &material,
+                                           FunctionRef<void(const MaterialPass &, int)> sync_cb)
+{
+  const bool hide_on_camera = ob_handle.object->visibility_flag & OB_HIDE_CAMERA;
+  if (hide_on_camera || !material.is_alpha_blend_transparent) {
+    return;
+  }
+
+  blender::Material *blender_mat = GPU_material_get_material(material.shading.gpumat);
+
+  for (int instance : IndexRange(ob_handle.instances_count())) {
+    PassMain::Sub *prepass = nullptr;
+    PassMain::Sub *matpass = nullptr;
+
+    inst_.pipelines.forward.transparent_add(ob_handle.object,
+                                            ob_handle.object_to_world(instance).location(),
+                                            blender_mat,
+                                            material.shading.gpumat,
+                                            prepass,
+                                            matpass);
+
+    sync_cb(MaterialPass{material.overlap_masking.gpumat, prepass}, instance);
+    sync_cb(MaterialPass{material.shading.gpumat, matpass}, instance);
+  }
+}
+
+void SyncModule::sync_common(const ObjectHandle &ob_handle,
+                             Span<Material *> materials,
+                             Span<GPUMaterial *> gpu_materials)
+{
+  bool has_volume = false;
+  bool is_alpha_blend = false;
+  bool has_transparent_shadows = false;
+  float inflate_bounds = 0.0f;
+  for (const Material *material : materials) {
+    has_volume |= material->has_volume;
+    if (material->has_volume && !material->has_surface) {
+      continue;
+    }
+
+    is_alpha_blend |= material->is_alpha_blend_transparent;
+    has_transparent_shadows |= material->has_transparent_shadows;
+
+    GPUMaterial *gpu_material = material->shading.gpumat;
+    blender::Material *bl_material = GPU_material_get_material(gpu_material);
+
+    if (GPU_material_has_displacement_output(gpu_material)) {
+      inflate_bounds = math::max(inflate_bounds, bl_material->inflate_bounds);
+    }
+
+    inst_.cryptomatte.sync_material(bl_material);
+  }
+
+  inst_.cryptomatte.sync_object(ob_handle);
+
+  inst_.shadows.sync_object(ob_handle, is_alpha_blend, has_transparent_shadows);
+
+  if (has_volume) {
+    inst_.volume.object_sync(ob_handle);
+  }
+
+  if (inflate_bounds != 0.0f) {
+    inst_.manager->update_handle_bounds(ob_handle.res_handle, ob_handle, inflate_bounds);
+  }
+
+  inst_.manager->extract_object_attributes(ob_handle.res_handle, ob_handle, gpu_materials);
+}
+
+/** \} */
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -102,12 +217,8 @@ void SyncModule::sync_mesh(const ObjectRef &ob_ref)
     return;
   }
 
-  const bool hide_on_camera = ob_handle.object->visibility_flag & OB_HIDE_CAMERA;
+  Vector<Material *, 8> synced_materials;
 
-  bool is_alpha_blend = false;
-  bool has_transparent_shadows = false;
-  bool has_volume = false;
-  float inflate_bounds = 0.0f;
   for (auto i : material_array.gpu_materials.index_range()) {
     gpu::Batch *geom = mat_geom[i];
     if (geom == nullptr) {
@@ -115,36 +226,17 @@ void SyncModule::sync_mesh(const ObjectRef &ob_ref)
     }
 
     Material &material = material_array.materials[i];
-    GPUMaterial *gpu_material = material_array.gpu_materials[i];
-    blender::Material *blender_mat = GPU_material_get_material(gpu_material);
+    synced_materials.append(&material);
 
     if (material.has_volume) {
-      has_volume = true;
-
-      blender::Material *blender_mat = GPU_material_get_material(material.volume_material.gpumat);
-      for (int instance : IndexRange(ob_handle.instances_count())) {
-        VolumeLayer *layer = inst_.pipelines.volume.register_and_get_layer(
-            VolumeObjectBounds(inst_.camera, ob_handle, instance));
-
-        if (!layer) {
-          continue;
-        }
-
-        volume_call(
-            layer->occupancy_add(ob_handle.object, blender_mat, material.volume_occupancy.gpumat),
-            material.volume_occupancy.gpumat,
-            inst_.scene,
-            ob_handle.object,
-            geom,
-            ob_handle.res_handle.sub_handle(instance));
-        volume_call(
-            layer->material_add(ob_handle.object, blender_mat, material.volume_material.gpumat),
-            material.volume_material.gpumat,
-            inst_.scene,
-            ob_handle.object,
-            geom,
-            ob_handle.res_handle.sub_handle(instance));
-      }
+      sync_volume_passes(ob_handle, material, [&](const MaterialPass &pass, int instance) {
+        volume_call(pass.sub_pass,
+                    pass.gpumat,
+                    inst_.scene,
+                    ob_handle.object,
+                    geom,
+                    ob_handle.res_handle.sub_handle(instance));
+      });
 
       /* Do not render surface if we are rendering a volume object
        * and do not have a surface closure. */
@@ -153,55 +245,16 @@ void SyncModule::sync_mesh(const ObjectRef &ob_ref)
       }
     }
 
-    geometry_call(material.capture.sub_pass, geom, ob_handle.res_handle);
-    geometry_call(material.prepass.sub_pass, geom, ob_handle.res_handle);
-    geometry_call(material.shading.sub_pass, geom, ob_handle.res_handle);
-    geometry_call(material.shadow.sub_pass, geom, ob_handle.res_handle);
+    sync_common_passes(material, [&](const MaterialPass &pass) {
+      geometry_call(pass.sub_pass, geom, ob_handle.res_handle);
+    });
 
-    if (!hide_on_camera && material.is_alpha_blend_transparent) {
-      for (int instance : IndexRange(ob_handle.instances_count())) {
-        PassMain::Sub *prepass_subpass = nullptr;
-        PassMain::Sub *material_subpass = nullptr;
-        inst_.pipelines.forward.transparent_add(ob_handle.object,
-                                                ob_handle.object_to_world(instance).location(),
-                                                blender_mat,
-                                                material.shading.gpumat,
-                                                prepass_subpass,
-                                                material_subpass);
-        geometry_call(prepass_subpass, geom, ob_handle.res_handle.sub_handle(instance));
-        geometry_call(material_subpass, geom, ob_handle.res_handle.sub_handle(instance));
-      }
-    }
-
-    geometry_call(material.planar_probe_prepass.sub_pass, geom, ob_handle.res_handle);
-    geometry_call(material.planar_probe_shading.sub_pass, geom, ob_handle.res_handle);
-    geometry_call(material.lightprobe_sphere_prepass.sub_pass, geom, ob_handle.res_handle);
-    geometry_call(material.lightprobe_sphere_shading.sub_pass, geom, ob_handle.res_handle);
-
-    is_alpha_blend = is_alpha_blend || material.is_alpha_blend_transparent;
-    has_transparent_shadows = has_transparent_shadows || material.has_transparent_shadows;
-
-    blender::Material *mat = GPU_material_get_material(gpu_material);
-    inst_.cryptomatte.sync_material(mat);
-
-    if (GPU_material_has_displacement_output(gpu_material)) {
-      inflate_bounds = math::max(inflate_bounds, mat->inflate_bounds);
-    }
+    sync_alpha_blended_passes(ob_handle, material, [&](const MaterialPass &pass, int instance) {
+      geometry_call(pass.sub_pass, geom, ob_handle.res_handle.sub_handle(instance));
+    });
   }
 
-  if (has_volume) {
-    inst_.volume.object_sync(ob_handle);
-  }
-
-  if (inflate_bounds != 0.0f) {
-    inst_.manager->update_handle_bounds(ob_handle.res_handle, ob_ref, inflate_bounds);
-  }
-
-  inst_.manager->extract_object_attributes(
-      ob_handle.res_handle, ob_ref, material_array.gpu_materials);
-
-  inst_.shadows.sync_object(ob_handle, is_alpha_blend, has_transparent_shadows);
-  inst_.cryptomatte.sync_object(ob_handle);
+  sync_common(ob_handle, synced_materials.as_span(), material_array.gpu_materials);
 }
 
 bool SyncModule::sync_sculpt(const ObjectRef &ob_ref)
@@ -221,12 +274,8 @@ bool SyncModule::sync_sculpt(const ObjectRef &ob_ref)
   bool has_motion = false;
   MaterialSyncArray &material_array = inst_.materials.material_array_get(ob_handle, has_motion);
 
-  const bool hide_on_camera = ob_handle.object->visibility_flag & OB_HIDE_CAMERA;
+  Vector<Material *, 8> synced_materials;
 
-  bool is_alpha_blend = false;
-  bool has_transparent_shadows = false;
-  bool has_volume = false;
-  float inflate_bounds = 0.0f;
   for (SculptBatch &batch :
        sculpt_batches_per_material_get(ob_ref.object, material_array.gpu_materials))
   {
@@ -236,83 +285,35 @@ bool SyncModule::sync_sculpt(const ObjectRef &ob_ref)
     }
 
     Material &material = material_array.materials[batch.material_slot];
-    GPUMaterial *gpu_material = material_array.gpu_materials[batch.material_slot];
-    blender::Material *blender_mat = GPU_material_get_material(gpu_material);
+    synced_materials.append(&material);
 
     if (material.has_volume) {
-      has_volume = true;
-
-      blender::Material *blender_mat = GPU_material_get_material(material.volume_material.gpumat);
-      VolumeLayer *layer = inst_.pipelines.volume.register_and_get_layer(
-          VolumeObjectBounds(inst_.camera, ob_handle, 0));
-
-      if (layer) {
-        volume_call(
-            layer->occupancy_add(ob_handle.object, blender_mat, material.volume_occupancy.gpumat),
-            material.volume_occupancy.gpumat,
-            inst_.scene,
-            ob_handle.object,
-            geom,
-            ob_handle.res_handle);
-        volume_call(
-            layer->material_add(ob_handle.object, blender_mat, material.volume_material.gpumat),
-            material.volume_material.gpumat,
-            inst_.scene,
-            ob_handle.object,
-            geom,
-            ob_handle.res_handle);
-      }
+      sync_volume_passes(ob_handle, material, [&](const MaterialPass &pass, int instance) {
+        volume_call(pass.sub_pass,
+                    pass.gpumat,
+                    inst_.scene,
+                    ob_handle.object,
+                    geom,
+                    ob_handle.res_handle.sub_handle(instance));
+      });
 
       /* Do not render surface if we are rendering a volume object
        * and do not have a surface closure. */
-      if (material.has_surface == false) {
+      if (!material.has_surface) {
         continue;
       }
     }
 
-    geometry_call(material.capture.sub_pass, geom, ob_handle.res_handle);
-    geometry_call(material.overlap_masking.sub_pass, geom, ob_handle.res_handle);
-    geometry_call(material.prepass.sub_pass, geom, ob_handle.res_handle);
-    geometry_call(material.shading.sub_pass, geom, ob_handle.res_handle);
-    geometry_call(material.shadow.sub_pass, geom, ob_handle.res_handle);
+    sync_common_passes(material, [&](const MaterialPass &pass) {
+      geometry_call(pass.sub_pass, geom, ob_handle.res_handle);
+    });
 
-    geometry_call(material.planar_probe_prepass.sub_pass, geom, ob_handle.res_handle);
-    geometry_call(material.planar_probe_shading.sub_pass, geom, ob_handle.res_handle);
-    geometry_call(material.lightprobe_sphere_prepass.sub_pass, geom, ob_handle.res_handle);
-    geometry_call(material.lightprobe_sphere_shading.sub_pass, geom, ob_handle.res_handle);
-
-    if (!hide_on_camera && material.is_alpha_blend_transparent) {
-      PassMain::Sub *prepass_subpass = nullptr;
-      PassMain::Sub *material_subpass = nullptr;
-      inst_.pipelines.forward.transparent_add(ob_handle.object,
-                                              ob_handle.object_to_world().location(),
-                                              blender_mat,
-                                              material.shading.gpumat,
-                                              prepass_subpass,
-                                              material_subpass);
-      geometry_call(prepass_subpass, geom, ob_handle.res_handle);
-      geometry_call(material_subpass, geom, ob_handle.res_handle);
-    }
-
-    is_alpha_blend = is_alpha_blend || material.is_alpha_blend_transparent;
-    has_transparent_shadows = has_transparent_shadows || material.has_transparent_shadows;
-
-    inst_.cryptomatte.sync_material(blender_mat);
-
-    if (GPU_material_has_displacement_output(gpu_material)) {
-      inflate_bounds = math::max(inflate_bounds, blender_mat->inflate_bounds);
-    }
+    sync_alpha_blended_passes(ob_handle, material, [&](const MaterialPass &pass, int instance) {
+      geometry_call(pass.sub_pass, geom, ob_handle.res_handle.sub_handle(instance));
+    });
   }
 
-  if (has_volume) {
-    inst_.volume.object_sync(ob_handle);
-  }
-
-  inst_.manager->extract_object_attributes(
-      ob_handle.res_handle, ob_handle, material_array.gpu_materials);
-
-  inst_.shadows.sync_object(ob_handle, is_alpha_blend, has_transparent_shadows);
-  inst_.cryptomatte.sync_object(ob_handle);
+  sync_common(ob_handle, synced_materials.as_span(), material_array.gpu_materials);
 
   return true;
 }
@@ -356,68 +357,25 @@ void SyncModule::sync_pointcloud(const ObjectRef &ob_ref)
   };
 
   if (material.has_volume) {
-    /* Only support single volume material for now. */
-    blender::Material *blender_mat = GPU_material_get_material(material.volume_material.gpumat);
-    VolumeLayer *layer = inst_.pipelines.volume.register_and_get_layer(
-        VolumeObjectBounds(inst_.camera, ob_handle, 0));
-
-    if (layer) {
-      drawcall_add(MaterialPass{material.volume_occupancy.gpumat,
-                                layer->occupancy_add(ob_handle.object,
-                                                     blender_mat,
-                                                     material.volume_occupancy.gpumat)},
-                   true);
-      drawcall_add(MaterialPass{
-          material.volume_material.gpumat,
-          layer->material_add(ob_handle.object, blender_mat, material.volume_material.gpumat)});
-    }
-    inst_.volume.object_sync(ob_handle);
+    sync_volume_passes(ob_handle, material, [&](const MaterialPass &pass, int /*instance*/) {
+      drawcall_add(pass, pass.gpumat == material.volume_occupancy.gpumat);
+    });
 
     /* Do not render surface if we are rendering a volume object
      * and do not have a surface closure. */
-    if (material.has_surface == false) {
+    if (!material.has_surface) {
+      // TODO: This was the previous behavior, but is it correct to skip extract_object_attributes?
+      inst_.volume.object_sync(ob_handle);
       return;
     }
   }
 
-  drawcall_add(material.capture);
-  drawcall_add(material.overlap_masking);
-  drawcall_add(material.prepass);
-  drawcall_add(material.shading);
-  drawcall_add(material.shadow);
+  sync_common_passes(material, [&](const MaterialPass &pass) { drawcall_add(pass); });
 
-  drawcall_add(material.planar_probe_prepass);
-  drawcall_add(material.planar_probe_shading);
-  drawcall_add(material.lightprobe_sphere_prepass);
-  drawcall_add(material.lightprobe_sphere_shading);
+  sync_alpha_blended_passes(
+      ob_handle, material, [&](const MaterialPass &pass, int instance) { drawcall_add(pass); });
 
-  const bool hide_on_camera = ob_handle.object->visibility_flag & OB_HIDE_CAMERA;
-  if (!hide_on_camera && material.is_alpha_blend_transparent) {
-    PassMain::Sub *prepass_subpass = nullptr;
-    PassMain::Sub *material_subpass = nullptr;
-    inst_.pipelines.forward.transparent_add(ob_handle.object,
-                                            ob_handle.object_to_world().location(),
-                                            GPU_material_get_material(material.shading.gpumat),
-                                            material.shading.gpumat,
-                                            prepass_subpass,
-                                            material_subpass);
-    drawcall_add(MaterialPass{material.overlap_masking.gpumat, prepass_subpass});
-    drawcall_add(MaterialPass{material.shading.gpumat, material_subpass});
-  }
-
-  inst_.cryptomatte.sync_object(ob_handle);
-  GPUMaterial *gpu_material = material.shading.gpumat;
-  blender::Material *mat = GPU_material_get_material(gpu_material);
-  inst_.cryptomatte.sync_material(mat);
-
-  if (GPU_material_has_displacement_output(gpu_material) && mat->inflate_bounds != 0.0f) {
-    inst_.manager->update_handle_bounds(ob_handle.res_handle, ob_ref, mat->inflate_bounds);
-  }
-
-  inst_.manager->extract_object_attributes(ob_handle.res_handle, ob_ref, material.shading.gpumat);
-
-  inst_.shadows.sync_object(
-      ob_handle, material.is_alpha_blend_transparent, material.has_transparent_shadows);
+  sync_common(ob_handle, {&material}, {material.shading.gpumat});
 }
 
 /** \} */
@@ -442,7 +400,7 @@ void SyncModule::sync_volume(const ObjectRef &ob_ref)
   Material material = inst_.materials.material_get(
       ob_handle, has_motion, material_slot - 1, MAT_GEOM_VOLUME);
 
-  if (!GPU_material_has_volume_output(material.volume_material.gpumat)) {
+  if (!material.has_volume) {
     return;
   }
 
@@ -454,51 +412,30 @@ void SyncModule::sync_volume(const ObjectRef &ob_ref)
     return;
   }
 
-  auto drawcall_add =
-      [&](const MaterialPass &matpass, gpu::Batch *geom, ResourceHandleRange res_handle) {
-        if (matpass.sub_pass == nullptr) {
-          return false;
-        }
-        PassMain::Sub *object_pass = volume_sub_pass(
-            *matpass.sub_pass, inst_.scene, ob_handle.object, matpass.gpumat);
-        if (object_pass != nullptr) {
-          object_pass->draw(geom, res_handle);
-          return true;
-        }
-        return false;
-      };
-
   /* Use bounding box tag empty spaces. */
   gpu::Batch *geom = inst_.volume.unit_cube_batch_get();
-
-  blender::Material *blender_mat = GPU_material_get_material(material.volume_material.gpumat);
-  VolumeLayer *layer = inst_.pipelines.volume.register_and_get_layer(
-      VolumeObjectBounds(inst_.camera, ob_handle, 0));
-
   bool is_rendered = false;
-  if (layer) {
-    is_rendered |= drawcall_add(
-        MaterialPass{
-            material.volume_occupancy.gpumat,
-            layer->occupancy_add(ob_handle.object, blender_mat, material.volume_occupancy.gpumat)},
-        geom,
-        ob_handle.res_handle);
-    is_rendered |= drawcall_add(
-        MaterialPass{
-            material.volume_material.gpumat,
-            layer->material_add(ob_handle.object, blender_mat, material.volume_material.gpumat)},
-        geom,
-        ob_handle.res_handle);
-  }
+
+  sync_volume_passes(ob_handle, material, [&](const MaterialPass &pass, int /*instance*/) {
+    if (pass.sub_pass == nullptr) {
+      return;
+    }
+    PassMain::Sub *object_pass = volume_sub_pass(
+        *pass.sub_pass, inst_.scene, ob_handle.object, pass.gpumat);
+    if (object_pass != nullptr) {
+      object_pass->draw(geom, ob_handle.res_handle);
+      is_rendered = true;
+    }
+  });
 
   if (!is_rendered) {
     return;
   }
 
+  inst_.volume.object_sync(ob_handle);
+
   inst_.manager->extract_object_attributes(
       ob_handle.res_handle, ob_handle, material.volume_material.gpumat);
-
-  inst_.volume.object_sync(ob_handle);
 }
 
 /** \} */
@@ -554,63 +491,25 @@ void SyncModule::sync_curves(const ObjectRef &ob_ref, HairParticleInfo const *ha
 
   if (material.has_volume) {
     /* Only support single volume material for now. */
-    blender::Material *blender_mat = GPU_material_get_material(material.volume_material.gpumat);
-    VolumeLayer *layer = inst_.pipelines.volume.register_and_get_layer(
-        VolumeObjectBounds(inst_.camera, ob_handle, 0));
-    if (layer) {
-      drawcall_add(MaterialPass{
-          material.volume_occupancy.gpumat,
-          layer->occupancy_add(ob_handle.object, blender_mat, material.volume_occupancy.gpumat)});
-      drawcall_add(MaterialPass{
-          material.volume_material.gpumat,
-          layer->material_add(ob_handle.object, blender_mat, material.volume_material.gpumat)});
-    }
-    inst_.volume.object_sync(ob_handle);
+    sync_volume_passes(ob_handle, material, [&](const MaterialPass &pass, int /*instance*/) {
+      drawcall_add(pass);
+    });
+
     /* Do not render surface if we are rendering a volume object
      * and do not have a surface closure. */
-    if (material.has_surface == false) {
+    if (!material.has_surface) {
+      // TODO: This was the previous behavior, but is it correct to skip extract_object_attributes?
+      inst_.volume.object_sync(ob_handle);
       return;
     }
   }
 
-  drawcall_add(material.capture);
-  drawcall_add(material.overlap_masking);
-  drawcall_add(material.prepass);
-  drawcall_add(material.shading);
-  drawcall_add(material.shadow);
+  sync_common_passes(material, [&](const MaterialPass &pass) { drawcall_add(pass); });
 
-  drawcall_add(material.planar_probe_prepass);
-  drawcall_add(material.planar_probe_shading);
-  drawcall_add(material.lightprobe_sphere_prepass);
-  drawcall_add(material.lightprobe_sphere_shading);
+  sync_alpha_blended_passes(
+      ob_handle, material, [&](const MaterialPass &pass, int instance) { drawcall_add(pass); });
 
-  const bool hide_on_camera = ob_handle.object->visibility_flag & OB_HIDE_CAMERA;
-  if (!hide_on_camera && material.is_alpha_blend_transparent) {
-    PassMain::Sub *prepass_subpass = nullptr;
-    PassMain::Sub *material_subpass = nullptr;
-    inst_.pipelines.forward.transparent_add(ob_handle.object,
-                                            ob_handle.object_to_world().location(),
-                                            GPU_material_get_material(material.shading.gpumat),
-                                            material.shading.gpumat,
-                                            prepass_subpass,
-                                            material_subpass);
-    drawcall_add(MaterialPass{material.overlap_masking.gpumat, prepass_subpass});
-    drawcall_add(MaterialPass{material.shading.gpumat, material_subpass});
-  }
-
-  inst_.cryptomatte.sync_object(ob_handle);
-  GPUMaterial *gpu_material = material.shading.gpumat;
-  blender::Material *mat = GPU_material_get_material(gpu_material);
-  inst_.cryptomatte.sync_material(mat);
-
-  if (GPU_material_has_displacement_output(gpu_material) && mat->inflate_bounds != 0.0f) {
-    inst_.manager->update_handle_bounds(ob_handle.res_handle, ob_ref, mat->inflate_bounds);
-  }
-
-  inst_.manager->extract_object_attributes(ob_handle.res_handle, ob_ref, material.shading.gpumat);
-
-  inst_.shadows.sync_object(
-      ob_handle, material.is_alpha_blend_transparent, material.has_transparent_shadows);
+  sync_common(ob_handle, {&material}, {material.shading.gpumat});
 }
 
 /** \} */
