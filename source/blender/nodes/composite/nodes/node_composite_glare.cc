@@ -114,7 +114,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .static_items(quality_items)
       .optional_label();
 
-  PanelDeclarationBuilder &highlights_panel = b.add_panel("Highlights").default_closed(true);
+  PanelDeclarationBuilder &highlights_panel = b.add_panel("Highlights"_ustr).default_closed(true);
   highlights_panel.add_input<decl::Float>("Threshold", "Highlights Threshold")
       .default_value(1.0f)
       .min(0.0f)
@@ -129,7 +129,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("The smoothness of the extracted highlights");
 
   PanelDeclarationBuilder &supress_highlights_panel =
-      highlights_panel.add_panel("Clamp").default_closed(true);
+      highlights_panel.add_panel("Clamp"_ustr).default_closed(true);
   supress_highlights_panel.add_input<decl::Bool>("Clamp", "Clamp Highlights")
       .default_value(false)
       .panel_toggle()
@@ -140,7 +140,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description(
           "Clamp bright highlights such that their brightness are not larger than this value");
 
-  PanelDeclarationBuilder &mix_panel = b.add_panel("Adjust");
+  PanelDeclarationBuilder &mix_panel = b.add_panel("Adjust"_ustr);
   mix_panel.add_input<decl::Float>("Strength")
       .default_value(1.0f)
       .min(0.0f)
@@ -157,7 +157,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
       .description("Tints the glare. Consider desaturating the glare to more accurate tinting");
 
-  PanelDeclarationBuilder &glare_panel = b.add_panel("Glare");
+  PanelDeclarationBuilder &glare_panel = b.add_panel("Glare"_ustr);
   glare_panel.add_input<decl::Float>("Size")
       .default_value(0.5f)
       .min(0.0f)
@@ -286,26 +286,19 @@ class GlareOperation : public NodeOperation {
   void execute() override
   {
     const Result &image_input = this->get_input("Image");
-    Result &glare_output = this->get_result("Glare");
-    Result &highlights_output = this->get_result("Highlights");
-
     if (image_input.is_single_value()) {
       Result &image_output = this->get_result("Image");
       if (image_output.should_compute()) {
         image_output.share_data(image_input);
       }
-      if (glare_output.should_compute()) {
-        glare_output.allocate_invalid();
-      }
-      if (highlights_output.should_compute()) {
-        highlights_output.allocate_invalid();
-      }
+      this->allocate_default_remaining_outputs();
       return;
     }
 
     Result highlights = this->compute_highlights();
     Result glare = this->compute_glare(highlights);
 
+    Result &highlights_output = this->get_result("Highlights");
     if (highlights_output.should_compute()) {
       if (highlights.domain().data_size != image_input.domain().data_size) {
         /* The highlights were computed on a fraction of the image size, see the get_quality_factor
@@ -322,6 +315,7 @@ class GlareOperation : public NodeOperation {
     /* Combine the original input and the generated glare. */
     execute_mix(glare);
 
+    Result &glare_output = this->get_result("Glare");
     if (glare_output.should_compute()) {
       this->write_glare_output(glare);
     }
@@ -2685,7 +2679,7 @@ class GlareOperation : public NodeOperation {
   /* The computed glare might need to be normalized to be energy conserving or be in a reasonable
    * range, instead of doing that in a separate step as part of the glare computation, we delay the
    * normalization until the mixing step as an optimization, since we multiply by the tint and
-   * strength anyways. */
+   * strength anyway. */
   float get_normalization_scale()
   {
     switch (this->get_type()) {
