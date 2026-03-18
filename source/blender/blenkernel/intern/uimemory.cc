@@ -29,7 +29,6 @@
 namespace blender::ui_memory {
 
 constexpr toml::spec version = toml::spec::v(1, 1, 0);
-#define UIMEMORY_FILE_NAME "uimemory.toml"
 
 /* TOML storage. Protected by memory_mutex. */
 static toml::value uimemory_current;
@@ -46,7 +45,7 @@ static std::string uimemory_file_path()
 {
   std::optional<std::string> datafiles_path = BKE_appdir_folder_id(BLENDER_USER_CONFIG, "");
   if (datafiles_path.has_value()) {
-    return *datafiles_path + SEP + UIMEMORY_FILE_NAME;
+    return *datafiles_path + SEP + BLENDER_RECENTS_FILE;
   }
   return {};
 }
