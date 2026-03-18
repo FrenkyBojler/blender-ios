@@ -58,5 +58,11 @@ bool convert_pose_bone_rotation_keys(Main *bmain,
  */
 ChannelbagToFCurveMap build_rotation_fcurve_map(Action &action, slot_handle_t slot_handle);
 
+/**
+ * Bake all existing rotation fcurves that start with the given `base_rna_path`.
+ */
+void bake_rotation_fcurves(ChannelbagToFCurveMap &channelbag_fcurve_map,
+                           StringRefNull base_rna_path);
+
 }  // namespace animrig
 }  // namespace blender

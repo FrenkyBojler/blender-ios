@@ -281,26 +281,8 @@ static void rna_PoseChannel_convert_rotation_mode(ID *id,
         adt->action->wrap(), adt->slot_handle);
 
     if (bake) {
-      std::string rotation_rna_path = fmt::format(
-          "{}.{}",
-          animrig::get_pose_bone_rna_path(*pchan),
-          animrig::get_rotation_mode_path(eRotationModes(pchan->rotmode)));
-
-      for (const auto &item : channelbag_fcurve_map.items()) {
-        animrig::RNAFCurveMap &rna_fcurve_map = item.value;
-        animrig::SortedFCurveBuffer *fcurve_buffer = rna_fcurve_map.lookup_ptr(rotation_rna_path);
-        if (!fcurve_buffer) {
-          continue;
-        }
-        for (FCurve *fcurve : fcurve_buffer->fcurves()) {
-          if (!fcurve || !fcurve->bezt) {
-            continue;
-          }
-          float2 range;
-          BKE_fcurve_calc_range(fcurve, &range[0], &range[1], false);
-          animrig::bake_fcurve(fcurve, int2(range), 1, animrig::BakeCurveRemove::ALL);
-        }
-      }
+      animrig::bake_rotation_fcurves(channelbag_fcurve_map,
+                                     animrig::get_pose_bone_rna_path(*pchan));
     }
 
     const bool converted = animrig::convert_pose_bone_rotation_keys(

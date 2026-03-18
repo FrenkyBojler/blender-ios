@@ -41,24 +41,7 @@ def _action_slot_has_rna_path(action: bpy.types.Action, slot: bpy.types.ActionSl
     return False
 
 
-class ConvertRotationMode(unittest.TestCase):
-
-    action: bpy.types.Action
-    action_slot: bpy.types.ActionSlot
-
-    keyed_frames = [1, 6, 11, 16, 21]
-    bone_quat: bpy.types.PoseBone
-    bone_axis_angle: bpy.types.PoseBone
-    bone_xyz: bpy.types.PoseBone
-    bone_zyx: bpy.types.PoseBone
-
-    bone_euler_360: bpy.types.PoseBone
-
-    bone_no_rotation_keys: bpy.types.PoseBone
-    bone_partially_keyed: bpy.types.PoseBone
-    bone_subframes: bpy.types.PoseBone
-    bone_keyed_rotation_mode: bpy.types.PoseBone
-
+class ConvertRotationModeBase(unittest.TestCase):
     def _assert_almost_equal_rotation_matrix(self, a: mathutils.Matrix, b: mathutils.Matrix):
         equal = True
         for j in range(3):
@@ -81,6 +64,45 @@ class ConvertRotationMode(unittest.TestCase):
         self.assertAlmostEqual(a.y, b.y, 2, msg)
         self.assertAlmostEqual(a.z, b.z, 2, msg)
         self.assertAlmostEqual(a.w, b.w, 2, msg)
+
+
+class ConvertRotationModeObject(ConvertRotationModeBase):
+    action: bpy.types.Action
+    action_slot: bpy.types.ActionSlot
+    keyed_frames = [1, 6, 11, 16, 21]
+
+    suzanne: bpy.types.Object
+
+    def setUp(self) -> None:
+        bpy.ops.wm.open_mainfile(filepath=str(args.testdir / "rotation_mode_conversion.blend"))
+        self.suzanne = bpy.data.objects["Suzanne"]
+        self.action = self.suzanne.animation_data.action
+        self.action_slot = self.suzanne.animation_data.action_slot
+
+    def test_convert_to_quaternion(self):
+        pass
+
+    def test_convert_to_zxy(self):
+        pass
+
+
+class ConvertRotationModeBones(ConvertRotationModeBase):
+
+    action: bpy.types.Action
+    action_slot: bpy.types.ActionSlot
+    keyed_frames = [1, 6, 11, 16, 21]
+
+    bone_quat: bpy.types.PoseBone
+    bone_axis_angle: bpy.types.PoseBone
+    bone_xyz: bpy.types.PoseBone
+    bone_zyx: bpy.types.PoseBone
+
+    bone_euler_360: bpy.types.PoseBone
+
+    bone_no_rotation_keys: bpy.types.PoseBone
+    bone_partially_keyed: bpy.types.PoseBone
+    bone_subframes: bpy.types.PoseBone
+    bone_keyed_rotation_mode: bpy.types.PoseBone
 
     def setUp(self) -> None:
         bpy.ops.wm.open_mainfile(filepath=str(args.testdir / "rotation_mode_conversion.blend"))

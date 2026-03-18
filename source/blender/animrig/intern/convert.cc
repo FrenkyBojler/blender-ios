@@ -384,4 +384,36 @@ ChannelbagToFCurveMap build_rotation_fcurve_map(Action &action, const slot_handl
   return rotation_map;
 }
 
+void bake_rotation_fcurves(ChannelbagToFCurveMap &channelbag_fcurve_map,
+                           StringRefNull base_rna_path)
+{
+  /* Need to bake on all potential FCurves to cover */
+  Array<StringRef> rotation_modes = {
+      "rotation_euler", "rotation_quaternion", "rotation_axis_angle"};
+  for (const StringRef rotation_mode : rotation_modes) {
+    std::string rotation_rna_path;
+    if (base_rna_path.is_empty()) {
+      rotation_rna_path = rotation_mode;
+    }
+    else {
+      rotation_rna_path = fmt::format("{}.{}", base_rna_path, rotation_mode);
+    }
+
+    for (RNAFCurveMap &rna_fcurve_map : channelbag_fcurve_map.values()) {
+      SortedFCurveBuffer *fcurve_buffer = rna_fcurve_map.lookup_ptr(rotation_rna_path);
+      if (!fcurve_buffer) {
+        continue;
+      }
+      for (FCurve *fcurve : fcurve_buffer->fcurves()) {
+        if (!fcurve || !fcurve->bezt) {
+          continue;
+        }
+        float2 range;
+        BKE_fcurve_calc_range(fcurve, &range[0], &range[1], false);
+        bake_fcurve(fcurve, int2(range), 1, BakeCurveRemove::ALL);
+      }
+    }
+  }
+}
+
 }  // namespace blender::animrig
