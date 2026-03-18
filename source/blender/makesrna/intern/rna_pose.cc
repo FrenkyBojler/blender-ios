@@ -63,7 +63,7 @@ const EnumPropertyItem rna_enum_color_sets_items[] = {
 };
 
 }  // namespace blender
-
+// #define RNA_RUNTIME
 #ifdef RNA_RUNTIME
 
 #  include <algorithm>
@@ -277,7 +277,7 @@ static void rna_PoseChannel_convert_rotation_mode(ID *id,
 
   AnimData *adt = BKE_animdata_from_id(id);
   if (adt && adt->action && adt->slot_handle != animrig::Slot::unassigned) {
-    animrig::RNAPathFCurveMap fcurves_by_rna_path = animrig::build_rotation_fcurve_map(
+    animrig::ChannelbagToFCurveMap channelbag_fcurve_map = animrig::build_rotation_fcurve_map(
         adt->action->wrap(), adt->slot_handle);
 
     if (bake) {
@@ -285,25 +285,26 @@ static void rna_PoseChannel_convert_rotation_mode(ID *id,
           "{}.{}",
           animrig::get_pose_bone_rna_path(*pchan),
           animrig::get_rotation_mode_path(eRotationModes(pchan->rotmode)));
-      animrig::ChannelbagFCurveMap *channelbag_fcu_map = fcurves_by_rna_path.lookup_ptr(
-          rotation_rna_path);
-      if (channelbag_fcu_map) {
-        for (animrig::RotationFCurves &bar : channelbag_fcu_map->values()) {
-          for (int i : IndexRange(4)) {
-            FCurve *fcu = bar.fcurves[i];
-            if (!fcu || !fcu->bezt) {
-              continue;
-            }
-            float2 range;
-            BKE_fcurve_calc_range(fcu, &range[0], &range[1], false);
-            animrig::bake_fcurve(fcu, int2(range), 1, animrig::BakeCurveRemove::ALL);
+
+      for (const auto &item : channelbag_fcurve_map.items()) {
+        animrig::RNAFCurveMap &rna_fcurve_map = item.value;
+        animrig::SortedFCurveBuffer *fcurve_buffer = rna_fcurve_map.lookup_ptr(rotation_rna_path);
+        if (!fcurve_buffer) {
+          continue;
+        }
+        for (FCurve *fcurve : fcurve_buffer->fcurves()) {
+          if (!fcurve || !fcurve->bezt) {
+            continue;
           }
+          float2 range;
+          BKE_fcurve_calc_range(fcurve, &range[0], &range[1], false);
+          animrig::bake_fcurve(fcurve, int2(range), 1, animrig::BakeCurveRemove::ALL);
         }
       }
     }
 
     const bool converted = animrig::convert_pose_bone_rotation_keys(
-        main, *id, *pchan, fcurves_by_rna_path, eRotationModes(rotation_mode));
+        main, *id, *pchan, channelbag_fcurve_map, eRotationModes(rotation_mode));
     if (converted) {
       DEG_id_tag_update(&adt->action->id, ID_RECALC_ANIMATION);
       DEG_id_tag_update(id, ID_RECALC_GEOMETRY);

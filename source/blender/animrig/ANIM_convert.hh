@@ -20,21 +20,26 @@ namespace animrig {
 
 struct Channelbag;
 
-/* Rotation FCurves belonging to a single rotation property. They will be sorted by array index.
- * The last index is a nullptr for euler. */
-struct RotationFCurves {
-  FCurve *fcurves[4];
+/**
+ * A non owning storage buffer for FCurves where they are sorted by `array_index`.
+ */
+class SortedFCurveBuffer {
+  Vector<FCurve *> fcurves_;
 
-  void insert_fcurve(FCurve *fcurve)
-  {
-    fcurves[fcurve->array_index] = fcurve;
-  }
+ public:
+  void insert_fcurve(FCurve &fcurve);
+  Span<FCurve *> fcurves() const;
+  /**
+   * Returns the FCurve with the given array index from the buffer or a nullptr if that index
+   * does not exist.
+   */
+  FCurve *get_fcurve_by_array_index(int array_index) const;
 };
 
-/* Rotation FCurves sorted by the channelbag which they are in. */
-using ChannelbagFCurveMap = Map<Channelbag *, RotationFCurves>;
-/* FCurves sorted by their RNA path. */
-using RNAPathFCurveMap = Map<StringRef, ChannelbagFCurveMap>;
+/* FCurves grouped by their RNA path. */
+using RNAFCurveMap = Map<StringRefNull, SortedFCurveBuffer>;
+/* For each Channelbag FCurves grouped by their RNA path. */
+using ChannelbagToFCurveMap = Map<Channelbag *, RNAFCurveMap>;
 
 /**
  * Convert any keyframe data for the given bone to the given rotation mode.
@@ -44,14 +49,14 @@ using RNAPathFCurveMap = Map<StringRef, ChannelbagFCurveMap>;
 bool convert_pose_bone_rotation_keys(Main *bmain,
                                      ID &owner_id,
                                      bPoseChannel &pchan,
-                                     const RNAPathFCurveMap &fcurves_by_rna_path,
+                                     const ChannelbagToFCurveMap &fcurves_by_rna_path,
                                      eRotationModes to_mode);
 
 /**
  * Creates a map of RNA paths and the rotation FCurves associated with that rna path.
  * That means `rotation_euler` and `rotation_quaternion` will have different entries in the map.
  */
-RNAPathFCurveMap build_rotation_fcurve_map(Action &action, slot_handle_t slot_handle);
+ChannelbagToFCurveMap build_rotation_fcurve_map(Action &action, slot_handle_t slot_handle);
 
 }  // namespace animrig
 }  // namespace blender
