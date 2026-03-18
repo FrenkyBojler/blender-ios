@@ -329,7 +329,7 @@ struct Material {
   MaterialPass volume_material;
 };
 
-struct MaterialSyncArray {
+struct MaterialArray {
   Vector<Material> materials;
   Vector<GPUMaterial *> gpu_materials;
 };
@@ -353,7 +353,7 @@ class MaterialModule {
   Map<MaterialKey, Material> material_map_;
   Map<ShaderKey, PassMain::Sub *> shader_map_;
 
-  MaterialSyncArray material_array_;
+  MaterialArray material_array_;
 
   blender::Material *error_mat_;
 
@@ -372,7 +372,7 @@ class MaterialModule {
   /**
    * Returned Material references are valid until the next call to this function or material_get().
    */
-  MaterialSyncArray &material_array_get(const ObjectHandle &ob_handle, bool has_motion);
+  MaterialArray &material_array_get(const ObjectHandle &ob_handle, bool has_motion);
   /**
    * Returned Material references are valid until the next call to this function or
    * material_array_get().

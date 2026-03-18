@@ -408,8 +408,7 @@ blender::Material *MaterialModule::material_from_slot(Object *ob, int slot)
   return ma;
 }
 
-MaterialSyncArray &MaterialModule::material_array_get(const ObjectHandle &ob_handle,
-                                                      bool has_motion)
+MaterialArray &MaterialModule::material_array_get(const ObjectHandle &ob_handle, bool has_motion)
 {
   Object *ob = ob_handle.object;
 

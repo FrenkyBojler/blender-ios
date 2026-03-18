@@ -209,7 +209,7 @@ void SyncModule::sync_mesh(const ObjectRef &ob_ref)
 
   bool has_motion = inst_.velocity.step_object_sync(ob_handle);
 
-  MaterialSyncArray &material_array = inst_.materials.material_array_get(ob_handle, has_motion);
+  MaterialArray &material_array = inst_.materials.material_array_get(ob_handle, has_motion);
 
   Span<gpu::Batch *> mat_geom = DRW_cache_object_surface_material_get(
       ob_handle.object, material_array.gpu_materials);
@@ -272,7 +272,7 @@ bool SyncModule::sync_sculpt(const ObjectRef &ob_ref)
   ObjectHandle ob_handle = sync_object(ob_ref, inst_.manager->unique_handle_for_sculpt(ob_ref));
 
   bool has_motion = false;
-  MaterialSyncArray &material_array = inst_.materials.material_array_get(ob_handle, has_motion);
+  MaterialArray &material_array = inst_.materials.material_array_get(ob_handle, has_motion);
 
   Vector<Material *, 8> synced_materials;
 
