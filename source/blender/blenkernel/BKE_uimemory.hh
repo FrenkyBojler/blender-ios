@@ -21,10 +21,10 @@ class Section {
  public:
   explicit Section(const StringRef sec) : section_(sec.data(), sec.size()) {}
 
-  template<typename T> T get(const StringRef item) const;
-  template<typename T> void set(const StringRef item, const T &value);
+  template<typename T> T get(const StringRef item_key) const;
+  template<typename T> void set(const StringRef item_key, const T &value);
 
-  void remove(const StringRef item);
+  void remove(const StringRef item_key);
   void remove_section();
 
   struct Proxy {
@@ -48,9 +48,9 @@ class Section {
     }
   };
 
-  Proxy operator[](const StringRef item)
+  Proxy operator[](const StringRef item_key)
   {
-    return Proxy(this, item);
+    return Proxy(this, item_key);
   }
 
  private:

@@ -135,77 +135,84 @@ bool Memory::save() const
   if (uimemory_current.is_empty()) {
     return false;
   }
-  std::string s = toml::format(uimemory_current, version);
-  FILE *fp = BLI_fopen(uimemory_file_path().c_str(), "w");
-  if (fp == nullptr) {
+  std::string toml_as_string = toml::format(uimemory_current, version);
+  FILE *file_handle = BLI_fopen(uimemory_file_path().c_str(), "w");
+  if (file_handle == nullptr) {
     return false;
   }
-  fputs(s.c_str(), fp);
-  fclose(fp);
+  fputs(toml_as_string.c_str(), file_handle);
+  fclose(file_handle);
   return true;
 }
 
 static const toml::value *uimemory_find_in(const toml::value &root,
                                            const std::string &section_name,
-                                           const std::string &k)
+                                           const std::string &item_key)
 {
   if (!root.is_table()) {
+    /* Only tables can contain key/value pairs. */
     return nullptr;
   }
-  const toml::table &root_tbl = root.as_table();
+
+  const toml::table &root_table = root.as_table();
 
   if (section_name.empty()) {
-    toml::table::const_iterator it = root_tbl.find(k);
-    if (it != root_tbl.end()) {
-      return &it->second;
+    /* No section name, so look in the root of the document. */
+    toml::table::const_iterator root_iter = root_table.find(item_key);
+    if (root_iter != root_table.end()) {
+      /* std::pair. first is key, second is value. */
+      return &root_iter->second;
     }
     return nullptr;
   }
 
-  toml::table::const_iterator sit = root_tbl.find(section_name);
-  if (sit == root_tbl.end()) {
+  toml::table::const_iterator section_iter = root_table.find(section_name);
+  if (section_iter == root_table.end()) {
+    /* The named section does not exist. */
     return nullptr;
   }
-  const toml::value &sec_val = sit->second;
-  if (!sec_val.is_table()) {
+  const toml::value &section_value = section_iter->second;
+  if (!section_value.is_table()) {
+    /* The named section is not a table. */
     return nullptr;
   }
-  const toml::table &sec_tbl = sec_val.as_table();
-  toml::table::const_iterator it = sec_tbl.find(k);
-  if (it != sec_tbl.end()) {
-    return &it->second;
+
+  /* Search the named section table for the item key value. */
+  const toml::table &section_table = section_value.as_table();
+  toml::table::const_iterator result = section_table.find(item_key);
+  if (result != section_table.end()) {
+    return &result->second;
   }
+
   return nullptr;
 }
 
-template<typename T> T Section::get(const StringRef item) const
+template<typename T> T Section::get(const StringRef item_key) const
 {
   memory.ensure_init();
 
   std::lock_guard<Mutex> lock(uimemory_mutex);
-  const std::string &sec = section_;
-  const std::string key(item.data(), item.size());
 
   /* Try user value first. */
-  if (const toml::value *v = uimemory_find_in(uimemory_current, sec, key)) {
+  if (const toml::value *v = uimemory_find_in(uimemory_current, section_, item_key)) {
     return toml::get_or(*v, T{});
   }
 
   /* Per-key default value. */
-  if (const toml::value *v = uimemory_find_in(uimemory_default, sec, key)) {
+  if (const toml::value *v = uimemory_find_in(uimemory_default, section_, item_key)) {
     return toml::get_or(*v, T{});
   }
 
   /* User's section-level "_default" (user override of section default). */
-  if (!sec.empty()) {
-    if (const toml::value *v = uimemory_find_in(uimemory_current, sec, "_default")) {
+  if (!section_.empty()) {
+    if (const toml::value *v = uimemory_find_in(uimemory_current, section_, "_default")) {
       return toml::get_or(*v, T{});
     }
   }
 
   /* Builtin section-level "_default". */
-  if (!sec.empty()) {
-    if (const toml::value *v = uimemory_find_in(uimemory_default, sec, "_default")) {
+  if (!section_.empty()) {
+    if (const toml::value *v = uimemory_find_in(uimemory_default, section_, "_default")) {
       return toml::get_or(*v, T{});
     }
   }
@@ -214,44 +221,41 @@ template<typename T> T Section::get(const StringRef item) const
   return T{};
 }
 
-template<typename T> void Section::set(const StringRef item, const T &value)
+template<typename T> void Section::set(const StringRef item_key, const T &value)
 {
   memory.ensure_init();
 
   std::lock_guard<Mutex> lock(uimemory_mutex);
-  const std::string &sec = section_;
-  const std::string key(item.data(), item.size());
-  if (sec.empty()) {
-    uimemory_current[key] = value;
+  if (section_.empty()) {
+    uimemory_current[item_key] = value;
   }
   else {
-    uimemory_current[sec][key] = value;
+    uimemory_current[section_][item_key] = value;
   }
 }
 
-void Section::remove(const StringRef item)
+void Section::remove(const StringRef item_key)
 {
   memory.ensure_init();
   std::lock_guard<Mutex> lock(uimemory_mutex);
   if (!uimemory_current.is_table()) {
     return;
   }
-  toml::table &root_tbl = uimemory_current.as_table();
-  const std::string key(item.data(), item.size());
+  toml::table &root_table = uimemory_current.as_table();
   if (section_.empty()) {
-    root_tbl.erase(key);
+    root_table.erase(item_key);
     return;
   }
-  toml::table::iterator section_it = root_tbl.find(section_);
-  if (section_it == root_tbl.end()) {
+  toml::table::iterator section_iter = root_table.find(section_);
+  if (section_iter == root_table.end()) {
     return;
   }
-  toml::value &sec_val = section_it->second;
-  if (!sec_val.is_table()) {
+  toml::value &section_value = section_iter->second;
+  if (!section_value.is_table()) {
     return;
   }
-  toml::table &sec_tbl = sec_val.as_table();
-  sec_tbl.erase(key);
+  toml::table &section_table = section_value.as_table();
+  section_table.erase(item_key);
 }
 
 void Section::remove_section()
@@ -261,52 +265,52 @@ void Section::remove_section()
   if (section_.empty() || !uimemory_current.is_table()) {
     return;
   }
-  toml::table &root_tbl = uimemory_current.as_table();
-  root_tbl.erase(section_);
+  toml::table &root_table = uimemory_current.as_table();
+  root_table.erase(section_);
 }
 
-template std::string Section::get<std::string>(const StringRef item) const;
-template void Section::set<std::string>(const StringRef item, const std::string &value);
+template std::string Section::get<std::string>(const StringRef item_key) const;
+template void Section::set<std::string>(const StringRef item_key, const std::string &value);
 
-template char Section::get<char>(const StringRef item) const;
-template void Section::set<char>(const StringRef item, const char &value);
+template char Section::get<char>(const StringRef item_key) const;
+template void Section::set<char>(const StringRef item_key, const char &value);
+template bool Section::get<bool>(const StringRef item_key) const;
+template void Section::set<bool>(const StringRef item_key, const bool &value);
 
-template bool Section::get<bool>(const StringRef item) const;
-template void Section::set<bool>(const StringRef item, const bool &value);
+template int16_t Section::get<int16_t>(const StringRef item_key) const;
+template void Section::set<int16_t>(const StringRef item_key, const int16_t &value);
 
-template int16_t Section::get<int16_t>(const StringRef item) const;
-template void Section::set<int16_t>(const StringRef item, const int16_t &value);
+template uint16_t Section::get<uint16_t>(const StringRef item_key) const;
+template void Section::set<uint16_t>(const StringRef item_key, const uint16_t &value);
 
-template uint16_t Section::get<uint16_t>(const StringRef item) const;
-template void Section::set<uint16_t>(const StringRef item, const uint16_t &value);
+template int32_t Section::get<int32_t>(const StringRef item_key) const;
+template void Section::set<int32_t>(const StringRef item_key, const int32_t &value);
 
-template int32_t Section::get<int32_t>(const StringRef item) const;
-template void Section::set<int32_t>(const StringRef item, const int32_t &value);
+template uint32_t Section::get<uint32_t>(const StringRef item_key) const;
+template void Section::set<uint32_t>(const StringRef item_key, const uint32_t &value);
 
-template uint32_t Section::get<uint32_t>(const StringRef item) const;
-template void Section::set<uint32_t>(const StringRef item, const uint32_t &value);
+template int64_t Section::get<int64_t>(const StringRef item_key) const;
+template void Section::set<int64_t>(const StringRef item_key, const int64_t &value);
 
-template int64_t Section::get<int64_t>(const StringRef item) const;
-template void Section::set<int64_t>(const StringRef item, const int64_t &value);
+template uint64_t Section::get<uint64_t>(const StringRef item_key) const;
+template void Section::set<uint64_t>(const StringRef item_key, const uint64_t &value);
 
-template uint64_t Section::get<uint64_t>(const StringRef item) const;
-template void Section::set<uint64_t>(const StringRef item, const uint64_t &value);
+template float Section::get<float>(const StringRef item_key) const;
+template void Section::set<float>(const StringRef item_key, const float &value);
 
-template float Section::get<float>(const StringRef item) const;
-template void Section::set<float>(const StringRef item, const float &value);
+template double Section::get<double>(const StringRef item_key) const;
+template void Section::set<double>(const StringRef item_key, const double &value);
 
-template double Section::get<double>(const StringRef item) const;
-template void Section::set<double>(const StringRef item, const double &value);
+template std::vector<int> Section::get<std::vector<int>>(const StringRef item_key) const;
+template void Section::set<std::vector<int>>(const StringRef item_key,
+                                             const std::vector<int> &value);
 
-template std::vector<int> Section::get<std::vector<int>>(const StringRef item) const;
-template void Section::set<std::vector<int>>(const StringRef item, const std::vector<int> &value);
-
-template std::vector<double> Section::get<std::vector<double>>(const StringRef item) const;
-template void Section::set<std::vector<double>>(const StringRef item,
+template std::vector<double> Section::get<std::vector<double>>(const StringRef item_key) const;
+template void Section::set<std::vector<double>>(const StringRef item_key,
                                                 const std::vector<double> &value);
 
-template std::vector<float> Section::get<std::vector<float>>(const StringRef item) const;
-template void Section::set<std::vector<float>>(const StringRef item,
+template std::vector<float> Section::get<std::vector<float>>(const StringRef item_key) const;
+template void Section::set<std::vector<float>>(const StringRef item_key,
                                                const std::vector<float> &value);
 
 /* Global instance. */
