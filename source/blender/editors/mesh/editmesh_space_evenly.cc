@@ -41,7 +41,6 @@ static wmOperatorStatus edbm_space_exec(bContext *C, wmOperator *op)
 
   const float influence = RNA_float_get(op->ptr, "influence");
   const int interpolation = RNA_enum_get(op->ptr, "interpolation");
-  const bool use_parallel = RNA_boolean_get(op->ptr, "use_parallel");
   bool lock[3];
   RNA_boolean_get_array(op->ptr, "lock", lock);
   bool changed = false;
@@ -58,11 +57,10 @@ static wmOperatorStatus edbm_space_exec(bContext *C, wmOperator *op)
     }
     if (!EDBM_op_callf(em,
                        op,
-                       "space_evenly geom=%hvef interpolation=%i use_parallel=%b factor=%f "
+                       "space_evenly geom=%hvef interpolation=%i factor=%f "
                        "lock_x=%b lock_y=%b lock_z=%b",
                        BM_ELEM_SELECT,
                        interpolation,
-                       use_parallel,
                        influence,
                        lock[0],
                        lock[1],
@@ -86,7 +84,6 @@ static void edbm_space_ui(bContext * /*C*/, wmOperator *op)
   layout.use_property_split_set(true);
 
   layout.prop(op->ptr, "influence", UI_ITEM_NONE, IFACE_("Factor"), ICON_NONE);
-  layout.prop(op->ptr, "use_parallel", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   ui::Layout &lock_row = layout.row(true, IFACE_("Lock"));
   PropertyRNA *lock_prop = RNA_struct_find_property(op->ptr, "lock");
@@ -115,11 +112,6 @@ void MESH_OT_space_evenly(wmOperatorType *ot)
   RNA_def_float_factor(
       ot->srna, "influence", 1.0f, 0.0f, 1.0f, "Influence", "Force of the tool", 0.0f, 1.0f);
 
-  RNA_def_boolean(ot->srna,
-                  "use_parallel",
-                  false,
-                  "Parallel Loops",
-                  "Also use non-selected parallel loops as input");
   RNA_def_boolean_array(ot->srna, "lock", 3, nullptr, "Lock", "Lock editing of the axis");
   RNA_def_enum(ot->srna,
                "interpolation",

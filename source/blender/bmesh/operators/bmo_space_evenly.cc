@@ -65,124 +65,6 @@ enum InterpolationMethod {
 };
 
 /**
- * Extracts the parallel vertex chain across a quad strip.
- * Given an edge loop selection and a starting face, this
- * returns the immediate adjacent parallel loop.
- */
-static bool extract_parallel_chain(const SpaceChainData &base,
-                                   BMFace *start_face,
-                                   SpaceChainData &r_parallel)
-{
-  if (base.verts.size() < 2 || start_face->len != 4) {
-    return false;
-  }
-
-  BMFace *current_face = start_face;
-  r_parallel.is_closed = base.is_closed;
-  /* A closed chain of vertices will have the last vertex connecting back to the
-   * first one so the number of segments between vertices is the same as the total
-   * number of vertices. */
-  int num_segments = base.is_closed ? base.verts.size() : base.verts.size() - 1;
-
-  for (const int i : IndexRange(num_segments)) {
-    BMVert *v_curr = base.verts[i];
-    BMVert *v_next = base.verts[mod_i(i + 1, base.verts.size())];
-
-    BMEdge *base_edge = BM_edge_exists(v_curr, v_next);
-    BMLoop *selection_loop = BM_face_edge_share_loop(current_face, base_edge);
-
-    BMVert *opp_curr, *opp_next;
-    BMEdge *side_edge;
-
-    if (selection_loop->v == v_curr) {
-      opp_curr = selection_loop->prev->v;
-      opp_next = selection_loop->next->next->v;
-      side_edge = selection_loop->next->e;
-    }
-    else {
-      opp_curr = selection_loop->next->next->v;
-      opp_next = selection_loop->prev->v;
-      side_edge = selection_loop->prev->e;
-    }
-
-    if (i == 0) {
-      r_parallel.verts.append(opp_curr);
-    }
-    r_parallel.verts.append(opp_next);
-
-    if (i < num_segments - 1) {
-      BMVert *v_after = base.verts[mod_i(i + 2, base.verts.size())];
-      BMEdge *next_base_edge = BM_edge_exists(v_next, v_after);
-      BMFace *next_face = nullptr;
-      BMIter fiter;
-      BMFace *f;
-      BM_ITER_ELEM (f, &fiter, next_base_edge, BM_FACES_OF_EDGE) {
-        if (f->len == 4 && f != current_face && BM_face_edge_share_loop(f, side_edge)) {
-          next_face = f;
-          break;
-        }
-      }
-      if (!next_face) {
-        return false;
-      }
-      current_face = next_face;
-    }
-  }
-
-  return true;
-}
-
-/**
- * Follows quad strips starting from the initial selection to gather all parallel loops.
- * The process continues until the strip is interrupted by a mesh boundary, irregular
- * topology(triangles or ngons in this case), or when the search cycles back
- * to a processed vertex.
- */
-static void expand_parallel_chains(const SpaceChainData &base_chain,
-                                   BMFace *start_face,
-                                   Set<BMVert *> &visited_verts,
-                                   Vector<SpaceChainData> &r_all_chains)
-{
-  SpaceChainData current_chain = base_chain;
-  BMFace *current_face = start_face;
-
-  while (true) {
-    SpaceChainData parallel_chain;
-    if (!extract_parallel_chain(current_chain, current_face, parallel_chain)) {
-      break;
-    }
-
-    if (visited_verts.contains(parallel_chain.verts[0])) {
-      break;
-    }
-
-    for (BMVert *v : parallel_chain.verts) {
-      visited_verts.add(v);
-    }
-    r_all_chains.append(parallel_chain);
-    BMEdge *first_parallel_edge = BM_edge_exists(parallel_chain.verts[0], parallel_chain.verts[1]);
-    if (!first_parallel_edge) {
-      break;
-    }
-
-    BMFace *next_face = nullptr;
-    BMIter fiter;
-    BMFace *f;
-    BM_ITER_ELEM (f, &fiter, first_parallel_edge, BM_FACES_OF_EDGE) {
-      if (f != current_face) {
-        next_face = f;
-        break;
-      }
-    }
-    if (!next_face) {
-      break;
-    }
-    current_chain = std::move(parallel_chain);
-    current_face = next_face;
-  }
-}
-
-/**
  * Return the next unvisited candidate edge connected to v,
  * preferring the edge that continues e_prev most directly.
  */
@@ -262,9 +144,8 @@ static SpaceChainData walk_edges(BMEdge *start_edge, Set<BMEdge *> &r_visited)
 
 /**
  * Build vertex chains from selected edges.
- * When use_parallel is true, propagates across quads to find all parallel loops.
  */
-static void get_space_input_chains(BMesh *bm, bool use_parallel, Vector<SpaceChainData> &r_chains)
+static void get_space_input_chains(BMesh *bm, Vector<SpaceChainData> &r_chains)
 {
   Set<BMEdge *> visited;
   Vector<SpaceChainData> base_chains;
@@ -293,30 +174,6 @@ static void get_space_input_chains(BMesh *bm, bool use_parallel, Vector<SpaceCha
 
   for (const SpaceChainData &chain : base_chains) {
     r_chains.append(chain);
-  }
-
-  if (!use_parallel) {
-    return;
-  }
-
-  Set<BMVert *> global_visited_parallel;
-  for (const SpaceChainData &base_chain : base_chains) {
-    for (BMVert *v : base_chain.verts) {
-      global_visited_parallel.add(v);
-    }
-  }
-
-  for (const SpaceChainData &base_chain : base_chains) {
-    BMEdge *first_edge = BM_edge_exists(base_chain.verts[0], base_chain.verts[1]);
-    if (!first_edge) {
-      continue;
-    }
-
-    BMIter fiter;
-    BMFace *f;
-    BM_ITER_ELEM (f, &fiter, first_edge, BM_FACES_OF_EDGE) {
-      expand_parallel_chains(base_chain, f, global_visited_parallel, r_chains);
-    }
   }
 }
 
@@ -484,7 +341,6 @@ void bmo_space_evenly_exec(BMesh *bm, BMOperator *op)
 {
   const float influence = BMO_slot_float_get(op->slots_in, "factor");
   const int interpolation = BMO_slot_int_get(op->slots_in, "interpolation");
-  const bool use_parallel = BMO_slot_bool_get(op->slots_in, "use_parallel");
   const bool lock_x = BMO_slot_bool_get(op->slots_in, "lock_x");
   const bool lock_y = BMO_slot_bool_get(op->slots_in, "lock_y");
   const bool lock_z = BMO_slot_bool_get(op->slots_in, "lock_z");
@@ -494,7 +350,7 @@ void bmo_space_evenly_exec(BMesh *bm, BMOperator *op)
       bm, op->slots_in, "geom", BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_TAG, false);
 
   Vector<SpaceChainData> chains;
-  get_space_input_chains(bm, use_parallel, chains);
+  get_space_input_chains(bm, chains);
 
   for (SpaceChainData &chain : chains) {
     SpaceMeasurements measure = measure_chain(chain);
