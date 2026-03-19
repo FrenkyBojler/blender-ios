@@ -1674,7 +1674,10 @@ static void execute_realize_mesh_task(const RealizeInstancesOptions &options,
                                       MutableSpan<int> all_dst_corner_edges,
                                       MutableSpan<int> all_dst_vert_ids,
                                       MutableSpan<int> all_dst_material_indices,
-                                      GSpanAttributeWriter &all_dst_custom_normals)
+                                      GSpanAttributeWriter &all_dst_custom_normals,
+                                      MutableSpan<int> all_dst_origindex_vert,
+                                      MutableSpan<int> all_dst_origindex_edge,
+                                      MutableSpan<int> all_dst_origindex_face)
 {
   const MeshRealizeInfo &mesh_info = *task.mesh_info;
   const Mesh &mesh = *mesh_info.mesh;
@@ -1793,7 +1796,45 @@ static void execute_realize_mesh_task(const RealizeInstancesOptions &options,
                                     ordered_attributes,
                                     domain_to_range,
                                     dst_attribute_writers);
+
+  /* Copy original index data per instance. */
+  if (!all_dst_origindex_vert.is_empty()) {
+    const IndexRange dst_range(task.start_indices.vert, mesh.verts_num);
+    if (const int *src_data = static_cast<const int *>(
+            CustomData_get_layer(&mesh.vert_data, CD_ORIGINDEX)))
+    {
+      all_dst_origindex_vert.slice(dst_range).copy_from(Span<int>(src_data, mesh.verts_num));
+    }
+    else {
+      all_dst_origindex_vert.slice(dst_range).fill(ORIGINDEX_NONE);
+    }
+  }
+
+  if (!all_dst_origindex_edge.is_empty()) {
+    const IndexRange dst_range(task.start_indices.edge, mesh.edges_num);
+    if (const int *src_data = static_cast<const int *>(
+            CustomData_get_layer(&mesh.edge_data, CD_ORIGINDEX)))
+    {
+      all_dst_origindex_edge.slice(dst_range).copy_from(Span<int>(src_data, mesh.edges_num));
+    }
+    else {
+      all_dst_origindex_edge.slice(dst_range).fill(ORIGINDEX_NONE);
+    }
+  }
+
+  if (!all_dst_origindex_face.is_empty()) {
+    const IndexRange dst_range(task.start_indices.face, mesh.faces_num);
+    if (const int *src_data = static_cast<const int *>(
+            CustomData_get_layer(&mesh.face_data, CD_ORIGINDEX)))
+    {
+      all_dst_origindex_face.slice(dst_range).copy_from(Span<int>(src_data, mesh.faces_num));
+    }
+    else {
+      all_dst_origindex_face.slice(dst_range).fill(ORIGINDEX_NONE);
+    }
+  }
 }
+
 static void copy_vertex_group_name(ListBaseT<bDeformGroup> *dst_deform_group,
                                    const OrderedAttributes &ordered_attributes,
                                    const bDeformGroup &src_deform_group)
@@ -1984,46 +2025,10 @@ static void execute_realize_mesh_tasks(const RealizeInstancesOptions &options,
                                 dst_corner_edges,
                                 vert_ids.span,
                                 material_indices.span,
-                                custom_normals);
-
-      /* Copy original index data per instance. */
-      const Mesh *src_mesh = task.mesh_info->mesh;
-
-      if (all_meshes_info.create_origindex_vert_attribute) {
-        const IndexRange dst_range(task.start_indices.vert, src_mesh->verts_num);
-        if (const int *src_data = static_cast<const int *>(
-                CustomData_get_layer(&src_mesh->vert_data, CD_ORIGINDEX)))
-        {
-          dst_origindex_vert.slice(dst_range).copy_from(Span<int>(src_data, src_mesh->verts_num));
-        }
-        else {
-          dst_origindex_vert.slice(dst_range).fill(ORIGINDEX_NONE);
-        }
-      }
-
-      if (all_meshes_info.create_origindex_edge_attribute) {
-        const IndexRange dst_range(task.start_indices.edge, src_mesh->edges_num);
-        if (const int *src_data = static_cast<const int *>(
-                CustomData_get_layer(&src_mesh->edge_data, CD_ORIGINDEX)))
-        {
-          dst_origindex_edge.slice(dst_range).copy_from(Span<int>(src_data, src_mesh->edges_num));
-        }
-        else {
-          dst_origindex_edge.slice(dst_range).fill(ORIGINDEX_NONE);
-        }
-      }
-
-      if (all_meshes_info.create_origindex_face_attribute) {
-        const IndexRange dst_range(task.start_indices.face, src_mesh->faces_num);
-        if (const int *src_data = static_cast<const int *>(
-                CustomData_get_layer(&src_mesh->face_data, CD_ORIGINDEX)))
-        {
-          dst_origindex_face.slice(dst_range).copy_from(Span<int>(src_data, src_mesh->faces_num));
-        }
-        else {
-          dst_origindex_face.slice(dst_range).fill(ORIGINDEX_NONE);
-        }
-      }
+                                custom_normals,
+                                dst_origindex_vert,
+                                dst_origindex_edge,
+                                dst_origindex_face);
     }
   });
 
