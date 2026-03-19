@@ -586,6 +586,7 @@ class TransformGizmos : public NodeGizmos {
       RNA_float_set(gizmo->ptr, "length", length);
 
       WM_gizmo_set_line_width(gizmo, 2.0f);
+      unit_m4(gizmo->matrix_offset);
     }
   }
 
