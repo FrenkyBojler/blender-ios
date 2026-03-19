@@ -111,10 +111,10 @@ def add_closure_zone(layout, label):
 
 
 def color_mix_node_defaults(enum_identifier, props):
-    if enum_identifier in ('ADD', 'MULTIPLY', 'SUBTRACT', 'DIVIDE', 'DIFFERENCE'):
+    if enum_identifier == 'MIX':
         prop = props.settings.add()
         prop.name = "inputs[\"Factor\"].default_value"
-        prop.value = "1.0"
+        prop.value = "0.5"
 
 
 class NodeMenu(Menu):
