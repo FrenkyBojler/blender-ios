@@ -1042,8 +1042,7 @@ std::optional<AssetWeakReference> BKE_paint_brush_type_default_reference(
   return paint_brush_asset_reference_from_essentials(name.c_str(), paint_mode);
 }
 
-static void paint_brush_set_default_reference(Paint *paint,
-                                              const bool do_regular = true)
+static void paint_brush_set_default_reference(Paint *paint, const bool do_regular = true)
 {
   if (!paint->runtime || !paint->runtime->initialized) {
     /* Can happen when loading old file where toolsettings are created in versioning, without
@@ -1053,8 +1052,7 @@ static void paint_brush_set_default_reference(Paint *paint,
 
   StringRefNull name;
 
-  paint_brush_default_essentials_name_get(
-      paint->runtime->paint_mode, std::nullopt, &name);
+  paint_brush_default_essentials_name_get(paint->runtime->paint_mode, std::nullopt, &name);
 
   if (do_regular && !name.is_empty()) {
     paint_brush_set_essentials_reference(paint, name.c_str());
