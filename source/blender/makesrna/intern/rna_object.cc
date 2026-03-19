@@ -30,6 +30,10 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#include "ANIM_action.hh"
+#include "ANIM_action_iterators.hh"
+#include "ANIM_convert.hh"
+
 namespace blender {
 
 const EnumPropertyItem rna_enum_object_mode_items[] = {
@@ -273,7 +277,7 @@ const EnumPropertyItem rna_enum_object_axis_items[] = {
 };
 
 }  // namespace blender
-
+// #define RNA_RUNTIME
 #ifdef RNA_RUNTIME
 
 #  include <algorithm>
@@ -1196,6 +1200,54 @@ static void rna_Object_rotation_mode_set(PointerRNA *ptr, int value)
 
   /* finally, set the new rotation type */
   ob->rotmode = clamp_i(value, ROT_MODE_MIN, ROT_MODE_MAX);
+}
+
+static void rna_Object_convert_rotation_mode(
+    ID *id, Object *ob, Main *main, bContext *C, const short rotation_mode, const bool bake)
+{
+  /* Already in the correct mode. */
+  if (ob->rotmode == rotation_mode) {
+    return;
+  }
+
+  if (rotation_mode < ROT_MODE_MIN || rotation_mode > ROT_MODE_MAX) {
+    return;
+  }
+
+  /* A map built per action to make it quicker to find the FCurves by RNA path. */
+  Map<std::pair<animrig::Action *, int32_t>, animrig::ChannelbagToFCurveMap> data_map;
+
+  animrig::Rotateable rotateable(*ob);
+  bool converted_actions = false;
+  animrig::foreach_action_slot_use(
+      *id, [&](animrig::Action &action, const animrig::slot_handle_t slot_handle) {
+        if (!data_map.contains({&action, slot_handle})) {
+          animrig::ChannelbagToFCurveMap fcurve_map = animrig::build_rotation_fcurve_map(
+              action, slot_handle);
+          data_map.add({&action, slot_handle}, fcurve_map);
+        }
+        animrig::ChannelbagToFCurveMap &channelbag_fcurve_map = data_map.lookup(
+            {&action, slot_handle});
+        if (bake) {
+          animrig::bake_rotation_fcurves(channelbag_fcurve_map, "");
+        }
+        converted_actions |= animrig::convert_pose_bone_rotation_keys(
+            main, rotateable, channelbag_fcurve_map, eRotationModes(rotation_mode));
+        DEG_id_tag_update(&action.id, ID_RECALC_ANIMATION);
+        return true;
+      });
+
+  if (converted_actions) {
+    DEG_id_tag_update(id, ID_RECALC_GEOMETRY);
+    WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, id);
+    WM_event_add_notifier(C, NC_OBJECT | ND_POSE, id);
+  }
+  else {
+    BKE_rotMode_change_values(
+        ob->quat, ob->rot, ob->rotAxis, &ob->rotAngle, ob->rotmode, short(rotation_mode));
+  }
+
+  ob->rotmode = rotation_mode;
 }
 
 static void rna_Object_dimensions_get(PointerRNA *ptr, float *value)
@@ -3164,6 +3216,24 @@ static void rna_def_object(BlenderRNA *brna)
       /* This description is shared by other "rotation_mode" properties. */
       "The kind of rotation to apply, values from other rotation modes are not used");
   RNA_def_property_update(prop, NC_OBJECT | ND_TRANSFORM, "rna_Object_internal_update");
+
+  FunctionRNA *func = RNA_def_function(
+      srna, "convert_rotation_mode", "rna_Object_convert_rotation_mode");
+  RNA_def_function_ui_description(
+      func, "Changes the rotation mode and converts all animation to match that new mode");
+  RNA_def_function_flag(func, FUNC_USE_CONTEXT | FUNC_USE_MAIN | FUNC_USE_SELF_ID);
+  PropertyRNA *parm = RNA_def_enum(func,
+                                   "rotation_mode",
+                                   rna_enum_object_rotation_mode_items,
+                                   ROT_MODE_XYZ,
+                                   "Rotation Mode",
+                                   "The rotation mode to change to");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_boolean(func,
+                         "bake",
+                         false,
+                         "Bake",
+                         "Insert a key on every frame to ensure interpolation is preserved");
 
   prop = RNA_def_property(srna, "scale", PROP_FLOAT, PROP_XYZ);
   RNA_def_property_flag(prop, PROP_PROPORTIONAL);

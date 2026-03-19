@@ -43,6 +43,7 @@
 #include "ED_screen.hh"
 
 #include "ANIM_action.hh"
+#include "ANIM_action_iterators.hh"
 #include "ANIM_armature.hh"
 #include "ANIM_bone_collections.hh"
 #include "ANIM_convert.hh"
@@ -624,8 +625,8 @@ static wmOperatorStatus pose_bone_rotmode_exec(bContext *C, wmOperator *op)
   const short mode = RNA_enum_get(op->ptr, "type");
   Object *prev_ob = nullptr;
 
-  /* A map built per action to make it quicker to find the FCurves of one bPoseChannel. */
-  Map<std::pair<bAction *, int32_t>, animrig::ChannelbagToFCurveMap> data_map;
+  /* A map built per action to make it quicker to find the FCurves by RNA path. */
+  Map<std::pair<animrig::Action *, int32_t>, animrig::ChannelbagToFCurveMap> data_map;
 
   /* Set rotation mode of selected bones. */
   CTX_DATA_BEGIN_WITH_ID (C, bPoseChannel *, pchan, selected_pose_bones, Object *, ob) {
@@ -633,20 +634,25 @@ static wmOperatorStatus pose_bone_rotmode_exec(bContext *C, wmOperator *op)
       /* Already in the correct mode. */
       continue;
     }
-    AnimData *adt = BKE_animdata_from_id(&ob->id);
-    if (adt && adt->action && adt->slot_handle != animrig::Slot::unassigned) {
-      if (!data_map.contains({adt->action, adt->slot_handle})) {
-        animrig::ChannelbagToFCurveMap fcurve_map = animrig::build_rotation_fcurve_map(
-            adt->action->wrap(), adt->slot_handle);
-        data_map.add({adt->action, adt->slot_handle}, fcurve_map);
-      }
-      animrig::ChannelbagToFCurveMap &fcurves_by_rna_path = data_map.lookup(
-          {adt->action, adt->slot_handle});
-      animrig::convert_pose_bone_rotation_keys(
-          CTX_data_main(C), ob->id, *pchan, fcurves_by_rna_path, eRotationModes(mode));
-      DEG_id_tag_update(&adt->action->id, ID_RECALC_ANIMATION);
-    }
-    else {
+    animrig::Rotateable rotateable(*pchan);
+    int visited_actions = 0;
+    animrig::foreach_action_slot_use(
+        ob->id, [&](animrig::Action &action, const animrig::slot_handle_t slot_handle) {
+          if (!data_map.contains({&action, slot_handle})) {
+            animrig::ChannelbagToFCurveMap fcurve_map = animrig::build_rotation_fcurve_map(
+                action, slot_handle);
+            data_map.add({&action, slot_handle}, fcurve_map);
+          }
+          animrig::ChannelbagToFCurveMap &channelbag_fcurve_map = data_map.lookup(
+              {&action, slot_handle});
+          animrig::convert_pose_bone_rotation_keys(
+              CTX_data_main(C), rotateable, channelbag_fcurve_map, eRotationModes(mode));
+          DEG_id_tag_update(&action.id, ID_RECALC_ANIMATION);
+          visited_actions++;
+          return true;
+        });
+
+    if (visited_actions == 0) {
       /* No animation, just convert the values. */
       BKE_rotMode_change_values(
           pchan->quat, pchan->eul, pchan->rotAxis, &pchan->rotAngle, pchan->rotmode, mode);

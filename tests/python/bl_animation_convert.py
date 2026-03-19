@@ -78,6 +78,44 @@ class ConvertRotationModeObject(ConvertRotationModeBase):
         self.suzanne = bpy.data.objects["Suzanne"]
         self.action = self.suzanne.animation_data.action
         self.action_slot = self.suzanne.animation_data.action_slot
+        self.assertEqual(self.suzanne.rotation_mode, 'XYZ')
+
+    def test_convert_to_quaternion(self):
+        self.suzanne.convert_rotation_mode('QUATERNION')
+        quats = {}
+        for frame in self.keyed_frames:
+            bpy.context.scene.frame_set(frame)
+            quats[frame] = self.suzanne.rotation_quaternion
+        self.assertEqual(self.suzanne.rotation_mode, 'QUATERNION')
+        for frame in self.keyed_frames:
+            bpy.context.scene.frame_set(frame)
+            self._assert_almost_equal_quat(quats[frame], self.suzanne.rotation_quaternion)
+
+    def test_convert_to_zxy(self):
+        self.suzanne.convert_rotation_mode('ZXY')
+        eulers = {}
+        for frame in self.keyed_frames:
+            bpy.context.scene.frame_set(frame)
+            eulers[frame] = self.suzanne.rotation_euler
+        self.assertEqual(self.suzanne.rotation_mode, 'ZXY')
+        for frame in self.keyed_frames:
+            bpy.context.scene.frame_set(frame)
+            self._assert_almost_equal_euler(eulers[frame], self.suzanne.rotation_euler)
+
+
+class ConvertRotationModeNLA(ConvertRotationModeBase):
+    """Verifying that actions stored in the NLA of an object are also converted."""
+    action: bpy.types.Action
+    action_slot: bpy.types.ActionSlot
+    keyed_frames = [1, 6, 11, 16, 21]
+
+    nla_object: bpy.types.Object
+    reference_object: bpy.types.Object
+
+    def setUp(self) -> None:
+        bpy.ops.wm.open_mainfile(filepath=str(args.testdir / "rotation_mode_conversion.blend"))
+        self.nla_object = bpy.data.objects["Suzanne_NLA"]
+        self.reference_object = bpy.data.objects["Suzanne"]
 
     def test_convert_to_quaternion(self):
         pass
@@ -251,6 +289,7 @@ class ConvertRotationModeBones(ConvertRotationModeBase):
                 value = fcurve.evaluate(i)
                 # Whatever rotation, the code should choose the one closest to the previous rotation.
                 self.assertLess(abs(prev_value - value), 2 * math.pi)
+                prev_value = value
 
     def test_convert_partially_keyed_rotation(self):
         """ When converting rotations without baking the resulting animation will have all channels keyed if at least one channel has a key on a frame. """
