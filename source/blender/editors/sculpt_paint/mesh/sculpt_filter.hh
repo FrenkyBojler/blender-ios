@@ -95,7 +95,10 @@ struct Cache {
 
   int active_face_set;
 
-  TransformDisplacementMode transform_displacement_mode;
+  struct {
+    TransformDisplacementMode displacement_mode;
+    TransformOrientationType orientation_type;
+  } transform;
 
   std::unique_ptr<auto_mask::Cache> automasking;
   float3 initial_normal;

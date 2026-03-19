@@ -95,7 +95,8 @@ static void createTransSculpt(bContext *C, TransInfo *t)
   normalize_m3(td->axismtx);
 
   BLI_assert(!(t->options & CTX_PAINT_CURVE));
-  sculpt_paint::init_transform(C, ob, t->mval, t->undo_name);
+  const TransformOrientationType orientation = TransformOrientationType(t->orient[t->orient_curr].type);
+  sculpt_paint::init_transform(C, ob, t->mval, t->undo_name, t->orient_curr, orientation);
 }
 
 /** \} */

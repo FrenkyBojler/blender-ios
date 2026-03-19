@@ -362,7 +362,7 @@ enum {
 };
 
 /** #TransformOrientationSlot.type */
-enum {
+enum TransformOrientationType {
   V3D_ORIENT_GLOBAL = 0,
   V3D_ORIENT_LOCAL = 1,
   V3D_ORIENT_NORMAL = 2,

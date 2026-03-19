@@ -53,7 +53,7 @@
 
 namespace blender::ed::sculpt_paint {
 
-void init_transform(bContext *C, Object &ob, const float mval_fl[2], const char *undo_name)
+void init_transform(bContext *C, Object &ob, const TransformOrientationType orientation_type, const float mval_fl[2], const char *undo_name)
 {
   const Scene &scene = *CTX_data_scene(C);
   Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
@@ -76,17 +76,18 @@ void init_transform(bContext *C, Object &ob, const float mval_fl[2], const char 
   filter::cache_init(C, ob, sd, undo::Type::Position, mval_fl, 5.0, 1.0f);
 
   if (sd.transform_mode == SCULPT_TRANSFORM_MODE_RADIUS_ELASTIC) {
-    ss.filter_cache->transform_displacement_mode = TransformDisplacementMode::Incremental;
+    ss.filter_cache->transform.displacement_mode = TransformDisplacementMode::Incremental;
   }
   else {
-    ss.filter_cache->transform_displacement_mode = TransformDisplacementMode::Original;
+    ss.filter_cache->transform.displacement_mode = TransformDisplacementMode::Original;
   }
 }
 
 static std::array<float4x4, 8> transform_matrices_init(const Object &ob,
                                                        const SculptSession &ss,
                                                        const ePaintSymmetryFlags symm,
-                                                       const TransformDisplacementMode t_mode)
+                                                       const TransformDisplacementMode t_mode,
+                                                       const TransformOrientationType orientation_type)
 {
   std::array<float4x4, 8> mats;
 
@@ -130,8 +131,16 @@ static std::array<float4x4, 8> transform_matrices_init(const Object &ob,
     unit_m4(s_mat);
 
     /* Translation matrix. */
-    const float3 d_t_world = final_pivot_world - start_pivot_world;
-    translate_m4(t_mat, d_t_world.x, d_t_world.y, d_t_world.z);
+    if (ELEM(orientation_type, V3D_ORIENT_GLOBAL, V3D_ORIENT_VIEW)) {
+      const float3 d_t_world = final_pivot_world - start_pivot_world;
+      translate_m4(t_mat, d_t_world.x, d_t_world.y, d_t_world.z);
+    }
+    else {
+      float3 d_t;
+      sub_v3_v3v3(d_t, ss.pivot_pos, start_pivot_pos);
+      d_t = SCULPT_flip_v3_by_symm_area(d_t, symm, v_symm, ss.init_pivot_pos);
+      translate_m4(t_mat, d_t.x, d_t.y, d_t.z);
+    }
 
     /* Rotation matrix. */
     sub_qt_qtqt(d_r, ss.pivot_rot, start_pivot_rot);
@@ -145,7 +154,13 @@ static std::array<float4x4, 8> transform_matrices_init(const Object &ob,
     size_to_mat4(s_mat, d_s);
 
     /* Pivot matrix. */
-    translate_m4(pivot_mat, final_pivot_world.x, final_pivot_world.y, final_pivot_world.z);
+    float3 final_pivot;
+    if (ELEM(orientation_type, V3D_ORIENT_GLOBAL, V3D_ORIENT_VIEW)) {
+      final_pivot = final_pivot_world;
+    } else {
+      final_pivot = final_pivot_pos;
+    }
+    translate_m4(pivot_mat, final_pivot.x, final_pivot.y, final_pivot.z);
     invert_m4_m4(pivot_imat, pivot_mat);
 
     /* Final transform matrix. */
@@ -153,9 +168,12 @@ static std::array<float4x4, 8> transform_matrices_init(const Object &ob,
     mul_m4_m4m4(transform_mat, transform_mat, s_mat);
     mul_m4_m4m4(mats[i].ptr(), transform_mat, pivot_imat);
     mul_m4_m4m4(mats[i].ptr(), pivot_mat, mats[i].ptr());
-    float temp[4][4];
-    mul_m4_m4m4(temp, mats[i].ptr(), ob_to_world.ptr());
-    mul_m4_m4m4(mats[i].ptr(), world_to_ob.ptr(), temp);
+
+    if (ELEM(orientation_type, V3D_ORIENT_GLOBAL, V3D_ORIENT_VIEW)) {
+      float temp[4][4];
+      mul_m4_m4m4(temp, mats[i].ptr(), ob_to_world.ptr());
+      mul_m4_m4m4(mats[i].ptr(), world_to_ob.ptr(), temp);
+    }
   }
 
   return mats;
@@ -301,7 +319,7 @@ static void sculpt_transform_all_vertices(const Depsgraph &depsgraph, const Scul
   const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(ob);
 
   std::array<float4x4, 8> transform_mats = transform_matrices_init(
-      ob, ss, symm, ss.filter_cache->transform_displacement_mode);
+      ob, ss, symm, ss.filter_cache->transform.displacement_mode, ss.filter_cache->transform.orientation_type);
 
   /* Regular transform applies all symmetry passes at once as it is split by symmetry areas
    * (each vertex can only be transformed once by the transform matrix of its area). */
@@ -473,13 +491,13 @@ static void transform_radius_elastic(const Depsgraph &depsgraph,
                                      const float transform_radius)
 {
   SculptSession &ss = *ob.runtime->sculpt_session;
-  BLI_assert(ss.filter_cache->transform_displacement_mode ==
+  BLI_assert(ss.filter_cache->transform.displacement_mode ==
              TransformDisplacementMode::Incremental);
 
   const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(ob);
 
   std::array<float4x4, 8> transform_mats = transform_matrices_init(
-      ob, ss, symm, ss.filter_cache->transform_displacement_mode);
+      ob, ss, symm, ss.filter_cache->transform.displacement_mode, ss.filter_cache->transform.orientation_type);
 
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
   const IndexMask &node_mask = ss.filter_cache->node_mask;
