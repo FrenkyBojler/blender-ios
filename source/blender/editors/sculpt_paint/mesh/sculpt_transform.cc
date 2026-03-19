@@ -91,9 +91,8 @@ static std::array<float4x4, 8> transform_matrices_init(const Object &ob,
 {
   std::array<float4x4, 8> mats;
 
-  float3 d_s, start_pivot_pos, start_pivot_scale;
-  float4 d_r, start_pivot_rot;
-  float4x4 t_mat, r_mat, s_mat, pivot_mat, pivot_imat, transform_mat;
+  float3 start_pivot_pos, start_pivot_scale;
+  blender::math::Quaternion start_pivot_rot;
 
   switch (t_mode) {
     case TransformDisplacementMode::Original:
@@ -124,36 +123,24 @@ static std::array<float4x4, 8> transform_matrices_init(const Object &ob,
 
     /* Translation matrix. */
     const float3 d_t_world = final_pivot_world - start_pivot_world;
-    t_mat = blender::math::from_location<float4x4>(d_t_world);
 
     /* Rotation matrix. */
-    blender::math::Quaternion q_pivot(ss.pivot_rot);
-    blender::math::Quaternion q_start(start_pivot_rot);
-
-    blender::math::Quaternion q_diff = q_pivot * blender::math::invert_normalized(q_start);
-    q_diff = blender::math::normalize(q_diff);
-    d_r = float4(q_diff);
-
+    const math::Quaternion q_diff = ss.pivot_rot * math::invert_normalized(start_pivot_rot);
+    float4 d_r = float4(q_diff);
     SCULPT_flip_quat_by_symm_area(d_r, symm, v_symm, ss.init_pivot_pos);
-    r_mat = blender::math::from_rotation<float4x4>(blender::math::Quaternion(d_r));
 
     /* Scale matrix. */
-    d_s = ss.pivot_scale - start_pivot_scale;
-    d_s += 1.0f;
-    s_mat = blender::math::from_scale<float4x4>(d_s);
+    const float3 d_s = float3(1.0f) + (ss.pivot_scale - start_pivot_scale);
 
     /* Pivot matrix. */
-    pivot_mat = blender::math::from_location<float4x4>(final_pivot_world);
-    pivot_imat = blender::math::invert(pivot_mat);
+    const float4x4 pivot_mat = math::from_location<float4x4>(final_pivot_world);
+    const float4x4 pivot_imat = math::invert(pivot_mat);
 
     /* Final transform matrix. */
-    transform_mat = r_mat * t_mat;
-    transform_mat *= s_mat;
-    mats[i] = transform_mat * pivot_imat;
-    mats[i] = pivot_mat * mats[i];
-    float4x4 temp;
-    temp = mats[i] * ob_to_world;
-    mats[i] = world_to_ob * temp;
+    const float4x4 transform_mat = math::from_loc_rot_scale<float4x4>(
+        d_t_world, blender::math::Quaternion(d_r), d_s);
+    mats[i] = pivot_mat * transform_mat * pivot_imat;
+    mats[i] = world_to_ob * mats[i] * ob_to_world;
   }
 
   return mats;

@@ -14,6 +14,7 @@
 #include "BLI_bit_vector.hh"
 #include "BLI_enum_flags.hh"
 #include "BLI_math_matrix_types.hh"
+#include "BLI_math_quaternion.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_ordered_edge.hh"
@@ -473,15 +474,15 @@ struct SculptSession : NonCopyable, NonMovable {
 
   /* Transform operator */
   float3 pivot_pos = {};
-  float4 pivot_rot = float4(0.0f, 0.0f, 0.0f, 1.0f);
+  math::Quaternion pivot_rot = math::Quaternion(0.0f, 0.0f, 0.0f, 1.0f);
   float3 pivot_scale = {};
 
   float3 init_pivot_pos = {};
-  float4 init_pivot_rot = float4(0.0f, 0.0f, 0.0f, 1.0f);
+  math::Quaternion init_pivot_rot = math::Quaternion(0.0f, 0.0f, 0.0f, 1.0f);
   float3 init_pivot_scale = {};
 
   float3 prev_pivot_pos = {};
-  float4 prev_pivot_rot = float4(0.0f, 0.0f, 0.0f, 1.0f);
+  math::Quaternion prev_pivot_rot = math::Quaternion(0.0f, 0.0f, 0.0f, 1.0f);
   float3 prev_pivot_scale = {};
 
   eObjectMode mode_type;

@@ -73,13 +73,13 @@ static void createTransSculpt(bContext *C, TransInfo *t)
   td_ext->rot = nullptr;
   td_ext->rotAxis = nullptr;
   td_ext->rotAngle = nullptr;
-  td_ext->quat = ss.pivot_rot;
+  td_ext->quat = (float *)&ss.pivot_rot;
   copy_m4_m4(td_ext->obmat, ob.object_to_world().ptr());
   copy_m3_m3(td_ext->l_smtx, obmat_inv);
   copy_m3_m4(td_ext->r_mtx, ob.object_to_world().ptr());
   copy_m3_m3(td_ext->r_smtx, obmat_inv);
 
-  copy_qt_qt(td_ext->iquat, ss.pivot_rot);
+  copy_qt_qt(td_ext->iquat, (float *)&ss.pivot_rot);
   td_ext->rotOrder = ROT_MODE_QUAT;
 
   ss.pivot_scale[0] = 1.0f;
