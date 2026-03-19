@@ -588,10 +588,10 @@ static void calculate_cone_uvs(const ConeConfig &config, Mesh *mesh, const Strin
 
     for (const int i : IndexRange(config.side_segments)) {
       for (const int j : IndexRange(config.circle_segments)) {
-        uvs[corner++] = float2(j * x_delta, i * y_delta + bottom);
-        uvs[corner++] = float2(j * x_delta, (i + 1) * y_delta + bottom);
-        uvs[corner++] = float2((j + 1) * x_delta, (i + 1) * y_delta + bottom);
-        uvs[corner++] = float2((j + 1) * x_delta, i * y_delta + bottom);
+        uvs[corner++] = float2(j * x_delta, 1.0f - i * y_delta);
+        uvs[corner++] = float2(j * x_delta, 1.0f - (i + 1) * y_delta);
+        uvs[corner++] = float2((j + 1) * x_delta, 1.0f - (i + 1) * y_delta);
+        uvs[corner++] = float2((j + 1) * x_delta, 1.0f - i * y_delta);
       }
     }
   }

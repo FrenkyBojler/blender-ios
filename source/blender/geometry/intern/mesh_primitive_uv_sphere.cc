@@ -254,9 +254,9 @@ BLI_NOINLINE static void calculate_sphere_uvs(Mesh *mesh,
   for (const int i_segment : IndexRange(segments)) {
     const int loop_start = i_segment * 3;
     const float segment = float(i_segment);
-    uvs[loop_start + 0] = float2((segment + 0.5f) * segments_inv, 0.0f);
-    uvs[loop_start + 1] = float2(segment * segments_inv, dy);
-    uvs[loop_start + 2] = float2((segment + 1.0f) * segments_inv, dy);
+    uvs[loop_start + 0] = float2((segment + 0.5f) * segments_inv, 1.0f);
+    uvs[loop_start + 1] = float2(segment * segments_inv, 1.0f - dy);
+    uvs[loop_start + 2] = float2((segment + 1.0f) * segments_inv, 1.0f - dy);
   }
 
   const int rings_loop_start = segments * 3;
@@ -266,10 +266,10 @@ BLI_NOINLINE static void calculate_sphere_uvs(Mesh *mesh,
     for (const int i_segment : IndexRange(segments)) {
       const int loop_start = ring_loop_start + i_segment * 4;
       const float segment = float(i_segment);
-      uvs[loop_start + 0] = float2(segment * segments_inv, ring / rings);
-      uvs[loop_start + 1] = float2(segment * segments_inv, (ring + 1.0f) / rings);
-      uvs[loop_start + 2] = float2((segment + 1.0f) * segments_inv, (ring + 1.0f) / rings);
-      uvs[loop_start + 3] = float2((segment + 1.0f) * segments_inv, ring / rings);
+      uvs[loop_start + 0] = float2(segment * segments_inv, 1.0f - ring / rings);
+      uvs[loop_start + 1] = float2(segment * segments_inv, 1.0f - (ring + 1.0f) / rings);
+      uvs[loop_start + 2] = float2((segment + 1.0f) * segments_inv, 1.0f - (ring + 1.0f) / rings);
+      uvs[loop_start + 3] = float2((segment + 1.0f) * segments_inv, 1.0f - ring / rings);
     }
   }
 
@@ -277,9 +277,9 @@ BLI_NOINLINE static void calculate_sphere_uvs(Mesh *mesh,
   for (const int i_segment : IndexRange(segments)) {
     const int loop_start = bottom_loop_start + i_segment * 3;
     const float segment = float(i_segment);
-    uvs[loop_start + 0] = float2((segment + 0.5f) * segments_inv, 1.0f);
-    uvs[loop_start + 1] = float2((segment + 1.0f) * segments_inv, 1.0f - dy);
-    uvs[loop_start + 2] = float2(segment * segments_inv, 1.0f - dy);
+    uvs[loop_start + 0] = float2((segment + 0.5f) * segments_inv, 0.0f);
+    uvs[loop_start + 1] = float2((segment + 1.0f) * segments_inv, dy);
+    uvs[loop_start + 2] = float2(segment * segments_inv, dy);
   }
 
   uv_attribute.finish();
