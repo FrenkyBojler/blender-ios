@@ -68,7 +68,7 @@ Rotateable::Rotateable(bPoseChannel &pose_bone)
   rna_path_from_id = get_pose_bone_rna_path(pose_bone);
 }
 
-std::string Rotateable::rna_path_to_property(const StringRef property_name) const
+std::string Rotateable::get_rna_path_for_property(const StringRef property_name) const
 {
   if (rna_path_from_id.empty()) {
     return std::string(property_name);
@@ -122,6 +122,7 @@ static void rotation_values_to_quat(const float4 &rotation_values,
       eulO_to_quat(r_quat, rotation_values, mode);
       break;
   }
+  normalize_qt(r_quat);
 }
 
 static void quat_to_rotation_values(const float4 &quat,
@@ -254,15 +255,16 @@ static void convert_rotation_mode_range(Main &bmain,
   const bool is_rotation_order_change = from_mode > ROT_MODE_QUAT && to_mode > ROT_MODE_QUAT;
 
   {
-    const StringRef rotation_mode_name = get_rotation_mode_path(to_mode);
-    const std::string new_rotation_path = rotateable.rna_path_to_property(rotation_mode_name);
+    const StringRef rotation_property_name = get_rotation_mode_path(to_mode);
+    const std::string to_mode_rna_path = rotateable.get_rna_path_for_property(
+        rotation_property_name);
 
     /* True if the conversion is just between different euler rotations. */
     if (is_rotation_order_change) {
       /* Cannot use the FCurve directly from the channelbag. Modifying that while converting the
        * rotation mode would influence the result. */
       FCurveDescriptor descriptor = {
-          new_rotation_path, 0, PROP_FLOAT, PROP_EULER, rotateable.get_group_name()};
+          to_mode_rna_path, 0, PROP_FLOAT, PROP_EULER, rotateable.get_group_name()};
       BLI_assert_msg(evaluation_buffer_count == insertion_buffer_count &&
                          evaluation_buffer_count == 3,
                      "Both rotation modes are euler so should have 3 elements.");
@@ -277,7 +279,7 @@ static void convert_rotation_mode_range(Main &bmain,
         evaluation_buffer[i] = fcurve_buffer.get_fcurve_by_array_index(i);
       }
       FCurveDescriptor descriptor = {
-          new_rotation_path, 0, PROP_FLOAT, PROP_EULER, rotateable.get_group_name()};
+          to_mode_rna_path, 0, PROP_FLOAT, PROP_NONE, rotateable.get_group_name()};
       for (const int i : IndexRange(insertion_buffer_count)) {
         descriptor.array_index = i;
         insertion_buffer[i] = &channelbag.fcurve_ensure(&bmain, descriptor);
@@ -313,7 +315,7 @@ bool convert_pose_bone_rotation_keys(Main *bmain,
   for (const auto &item : channelbag_fcurve_map.items()) {
     Channelbag *channelbag = item.key;
     const RNAFCurveMap &fcu_map = item.value;
-    const std::string rotation_mode_path = rotateable.rna_path_to_property("rotation_mode");
+    const std::string rotation_mode_path = rotateable.get_rna_path_for_property("rotation_mode");
     Vector<std::pair<float, eRotationModes>> rotation_mode_ranges;
     FCurve *rotation_mode_fcurve = nullptr;
     if (const SortedFCurveBuffer *rotation_mode_buffer = fcu_map.lookup_ptr(rotation_mode_path)) {
@@ -331,9 +333,10 @@ bool convert_pose_bone_rotation_keys(Main *bmain,
     for (const int i : rotation_mode_ranges.index_range()) {
       const std::pair<float, eRotationModes> &rotation_mode_range = rotation_mode_ranges[i];
       const eRotationModes from_mode = rotation_mode_range.second;
-      const StringRef rotation_mode = get_rotation_mode_path(from_mode);
-      const std::string current_rotation_path = rotateable.rna_path_to_property(rotation_mode);
-      const SortedFCurveBuffer *rotation_fcurves = fcu_map.lookup_ptr(current_rotation_path);
+      const StringRef rotation_property_name = get_rotation_mode_path(from_mode);
+      const std::string from_mode_rna_path = rotateable.get_rna_path_for_property(
+          rotation_property_name);
+      const SortedFCurveBuffer *rotation_fcurves = fcu_map.lookup_ptr(from_mode_rna_path);
       if (!rotation_fcurves) {
         continue;
       }
@@ -386,7 +389,7 @@ void bake_rotation_fcurves(const ChannelbagToFCurveMap &channelbag_fcurve_map,
   const Array<StringRef> rotation_modes = {
       "rotation_euler", "rotation_quaternion", "rotation_axis_angle"};
   for (const StringRef rotation_mode : rotation_modes) {
-    std::string rotation_rna_path = rotateable.rna_path_to_property(rotation_mode);
+    std::string rotation_rna_path = rotateable.get_rna_path_for_property(rotation_mode);
 
     for (const RNAFCurveMap &rna_fcurve_map : channelbag_fcurve_map.values()) {
       const SortedFCurveBuffer *fcurve_buffer = rna_fcurve_map.lookup_ptr(rotation_rna_path);

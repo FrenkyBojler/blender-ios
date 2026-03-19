@@ -65,7 +65,7 @@ class Rotateable {
     }
   }
 
-  std::string rna_path_to_property(const StringRef property_name) const;
+  std::string get_rna_path_for_property(const StringRef property_name) const;
 };
 
 /**

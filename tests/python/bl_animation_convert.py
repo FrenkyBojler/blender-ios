@@ -71,36 +71,45 @@ class ConvertRotationModeObject(ConvertRotationModeBase):
     action_slot: bpy.types.ActionSlot
     keyed_frames = [1, 6, 11, 16, 21]
 
-    suzanne: bpy.types.Object
+    obj: bpy.types.Object
+    reference_obj: bpy.types.Object
 
     def setUp(self) -> None:
         bpy.ops.wm.open_mainfile(filepath=str(args.testdir / "rotation_mode_conversion.blend"))
-        self.suzanne = bpy.data.objects["Suzanne"]
-        self.action = self.suzanne.animation_data.action
-        self.action_slot = self.suzanne.animation_data.action_slot
-        self.assertEqual(self.suzanne.rotation_mode, 'XYZ')
+        self.obj = bpy.data.objects["Suzanne"]
+        # The NLA object has the exact same animation, so it is possible to compare rotation matrices.
+        self.reference_obj = bpy.data.objects["Suzanne_NLA"]
+        self.action = self.obj.animation_data.action
+        self.action_slot = self.obj.animation_data.action_slot
+        self.assertEqual(self.obj.rotation_mode, 'XYZ')
 
     def test_convert_to_quaternion(self):
-        self.suzanne.convert_rotation_mode('QUATERNION')
-        quats = {}
+        self.obj.convert_rotation_mode('QUATERNION')
+        self.assertEqual(self.obj.rotation_mode, 'QUATERNION')
         for frame in self.keyed_frames:
             bpy.context.scene.frame_set(frame)
-            quats[frame] = self.suzanne.rotation_quaternion
-        self.assertEqual(self.suzanne.rotation_mode, 'QUATERNION')
-        for frame in self.keyed_frames:
-            bpy.context.scene.frame_set(frame)
-            self._assert_almost_equal_quat(quats[frame], self.suzanne.rotation_quaternion)
+            self._assert_almost_equal_rotation_matrix(self.reference_obj.matrix_world, self.obj.matrix_world)
 
     def test_convert_to_zxy(self):
-        self.suzanne.convert_rotation_mode('ZXY')
-        eulers = {}
+        self.obj.convert_rotation_mode('ZXY')
         for frame in self.keyed_frames:
             bpy.context.scene.frame_set(frame)
-            eulers[frame] = self.suzanne.rotation_euler
-        self.assertEqual(self.suzanne.rotation_mode, 'ZXY')
-        for frame in self.keyed_frames:
+            self._assert_almost_equal_rotation_matrix(self.reference_obj.matrix_world, self.obj.matrix_world)
+
+    def test_convert_rotation_bake(self):
+        self.obj.convert_rotation_mode('QUATERNION', bake=True)
+
+        fcurves = _get_fcurves_with_rna_path(
+            self.action,
+            self.action_slot,
+            'rotation_quaternion')
+
+        for fcurve in fcurves:
+            self.assertEqual(len(fcurve.keyframe_points), 21)
+
+        for frame in range(self.keyed_frames[0], self.keyed_frames[1] + 1):
             bpy.context.scene.frame_set(frame)
-            self._assert_almost_equal_euler(eulers[frame], self.suzanne.rotation_euler)
+            self._assert_almost_equal_rotation_matrix(self.reference_obj.matrix_world, self.obj.matrix_world)
 
 
 class ConvertRotationModeNLA(ConvertRotationModeBase):
@@ -142,6 +151,7 @@ class ConvertRotationModeBones(ConvertRotationModeBase):
     bone_zyx: bpy.types.PoseBone
 
     bone_euler_360: bpy.types.PoseBone
+    bone_quat_to_xyz_bake: bpy.types.PoseBone
 
     bone_no_rotation_keys: bpy.types.PoseBone
     bone_partially_keyed: bpy.types.PoseBone
@@ -161,6 +171,7 @@ class ConvertRotationModeBones(ConvertRotationModeBase):
         self.bone_zyx = pose.bones["bone_zyx"]
 
         self.bone_euler_360 = pose.bones["bone_euler_rotation_360"]
+        self.bone_quat_to_xyz_bake = pose.bones["bone_quat_to_xyz_bake"]
 
         self.bone_no_rotation_keys = pose.bones["bone_no_rotation_keys"]
         self.bone_partially_keyed = pose.bones["bone_partially_keyed"]
@@ -242,6 +253,18 @@ class ConvertRotationModeBones(ConvertRotationModeBase):
             quat = list(self.bone_euler_360.rotation_quaternion)
             self.assertNotEqual(quat, prev_quat, f"Identical Quaternions on frame {i}")
             prev_quat = quat
+
+    def test_bake_conversion(self):
+        """When baking, all animation on full frames should be preserved. Subframe interpolation may deviate."""
+        # bone_quat_to_xyz_bake and bone_quat have identical animation. By
+        # converting one of them to xyz we can confirm that the baking preserves
+        # interpolation. We cannot compare a baked quaternion to the bone_xyz
+        # since euler and quaternion interpolate differently.
+        self.bone_quat_to_xyz_bake.convert_rotation_mode('XYZ', bake=True)
+        for i in range(self.keyed_frames[0], self.keyed_frames[1] + 1):
+            bpy.context.scene.frame_set(i)
+            # We have to compare to the quat bone here,
+            self._assert_almost_equal_rotation_matrix(self.bone_quat_to_xyz_bake.matrix, self.bone_quat.matrix)
 
     def test_convert_keyed_rotation_mode(self):
         """ When the rotation mode itself is keyed and changes during the animation,
