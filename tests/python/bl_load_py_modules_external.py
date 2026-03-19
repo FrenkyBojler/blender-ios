@@ -27,6 +27,7 @@ MODULES_TO_LOAD = (
     'zstandard',
 )
 
+
 class ModuleLoadTest(unittest.TestCase):
     def test_load_modules(self) -> None:
         failed_modules: list[str] = []
@@ -44,7 +45,7 @@ class ModuleLoadTest(unittest.TestCase):
 
 def main() -> None:
     if "--" in sys.argv:
-        argv = sys.argv[sys.argv.index("--") + 1 :].copy()
+        argv = sys.argv[sys.argv.index("--") + 1:].copy()
     else:
         argv = []
 
