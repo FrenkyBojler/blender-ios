@@ -35,7 +35,6 @@ struct bNodeTree;
 namespace nodes {
 struct FieldInferencingInterface;
 struct EvalDependencies;
-struct GeometryNodesEvalDependencies;
 struct GeneratedTreeSrnaData;
 class NodeDeclaration;
 struct GeometryNodesLazyFunctionGraphInfo;
