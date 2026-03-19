@@ -319,12 +319,16 @@ struct Material {
   MaterialPass shadow;
   MaterialPass shading;
   MaterialPass prepass;
-  MaterialPass overlap_masking;
   MaterialPass capture;
   MaterialPass lightprobe_sphere_prepass;
   MaterialPass lightprobe_sphere_shading;
   MaterialPass planar_probe_prepass;
   MaterialPass planar_probe_shading;
+  /* These pipelines need a sub-pass per object/instance, so the returned sub_pass for these are
+   * always null and the sub-pass creation is handled directly by the SyncModule.
+   * Note that this also applies to the shading MaterialPass in the case of alpha-blended
+   * materials. */
+  MaterialPass overlap_masking;
   MaterialPass volume_occupancy;
   MaterialPass volume_material;
 };
