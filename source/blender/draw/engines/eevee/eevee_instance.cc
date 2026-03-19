@@ -398,7 +398,7 @@ void Instance::object_sync(ObjectRef &ob_ref, Manager & /*manager*/)
 
   if (partsys_is_visible && ob != draw_ctx->object_edit) {
     auto sync_hair = [&](const HairParticleInfo &info) { sync.sync_curves(ob_ref, &info); };
-    foreach_hair_particle(*this, ob_ref, 0, sync_hair);
+    foreach_hair_particle(*this, ob_ref, sync_hair);
   }
 
   if (object_is_visible) {

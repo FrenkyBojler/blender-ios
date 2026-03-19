@@ -372,8 +372,9 @@ void SyncModule::sync_pointcloud(const ObjectRef &ob_ref)
 
   sync_common_passes(material, [&](const MaterialPass &pass) { drawcall_add(pass); });
 
-  sync_alpha_blended_passes(
-      ob_handle, material, [&](const MaterialPass &pass, int instance) { drawcall_add(pass); });
+  sync_alpha_blended_passes(ob_handle, material, [&](const MaterialPass &pass, int /*instance*/) {
+    drawcall_add(pass);
+  });
 
   sync_common(ob_handle, {&material}, {material.shading.gpumat});
 }
@@ -506,18 +507,16 @@ void SyncModule::sync_curves(const ObjectRef &ob_ref, HairParticleInfo const *ha
 
   sync_common_passes(material, [&](const MaterialPass &pass) { drawcall_add(pass); });
 
-  sync_alpha_blended_passes(
-      ob_handle, material, [&](const MaterialPass &pass, int instance) { drawcall_add(pass); });
+  sync_alpha_blended_passes(ob_handle, material, [&](const MaterialPass &pass, int /*instance*/) {
+    drawcall_add(pass);
+  });
 
   sync_common(ob_handle, {&material}, {material.shading.gpumat});
 }
 
 /** \} */
 
-void foreach_hair_particle(Instance &inst,
-                           ObjectRef &ob_ref,
-                           int instance_index,
-                           HairHandleCallback callback)
+void foreach_hair_particle(Instance &inst, ObjectRef &ob_ref, HairHandleCallback callback)
 {
   uint sub_key = 1;
 

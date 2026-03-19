@@ -94,10 +94,7 @@ struct HairParticleInfo {
 };
 
 using HairHandleCallback = FunctionRef<void(const HairParticleInfo &)>;
-void foreach_hair_particle(Instance &inst,
-                           ObjectRef &ob_ref,
-                           int instance_index,
-                           HairHandleCallback callback);
+void foreach_hair_particle(Instance &inst, ObjectRef &ob_ref, HairHandleCallback callback);
 
 /** \} */
 
