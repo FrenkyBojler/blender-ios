@@ -1,1 +1,1 @@
-Referenced by issue #155890, Compositor Displacement
+Referenced by issue #155890, EEVEE clamps color AOVs which breaks when using vectors e.g. for compositor displacement
