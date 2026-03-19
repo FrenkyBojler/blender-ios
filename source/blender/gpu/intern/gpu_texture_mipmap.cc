@@ -31,6 +31,8 @@ static Shader *get_update_mipmap_shader(TextureFormat texture_format)
   switch (texture_format) {
     case TextureFormat::UNORM_8_8_8_8:
       return GPU_shader_get_builtin_shader(GPU_SHADER_2D_UPDATE_MIPMAPS_UNORM_8_8_8_8);
+    case TextureFormat::SFLOAT_16:
+      return GPU_shader_get_builtin_shader(GPU_SHADER_2D_UPDATE_MIPMAPS_SFLOAT_16);
 
     default:
       break;
@@ -149,7 +151,7 @@ void GPU_texture_update_mipmap_chain(Texture *tex)
               "implementation, this could lead to different results between platforms.",
               GPU_texture_format_name(texture_format));
     /* XXX: currently we assert when here to find all the common cases.*/
-    //BLI_assert(tex->format_flag_get() & gpu::GPU_FORMAT_SRGB);
+    // BLI_assert(tex->format_flag_get() & gpu::GPU_FORMAT_SRGB);
     tex->generate_mipmap();
   }
 }
