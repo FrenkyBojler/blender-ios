@@ -56,9 +56,9 @@ class Attribute {
   AttributeStandard std;
 
   TypeDesc type;
-  const void *sharing_info;
-  const void *buffer;
-  int size;
+  const void *sharing_info = nullptr;
+  const void *buffer = nullptr;
+  int size = 0;
   AttributeElement element;
   uint flags; /* enum AttributeFlag */
 
@@ -74,7 +74,8 @@ class Attribute {
             AttributeElement element,
             const void *data,
             const void *sharing_info);
-  Attribute(Attribute &&other) = default;
+  Attribute(Attribute &&other) = delete;
+  Attribute &operator=(Attribute &&other) = delete;
   Attribute(const Attribute &other) = delete;
   Attribute &operator=(const Attribute &other) = delete;
   ~Attribute();

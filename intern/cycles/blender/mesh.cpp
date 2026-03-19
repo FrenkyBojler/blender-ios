@@ -189,7 +189,7 @@ static void attr_create_generic(Scene *scene,
         const AttributeElement element = blender_domain_to_attr_element(b_attr.domain);
         if constexpr (Converter::layout_compatible) {
           if (Attribute::element_size(mesh, element, attributes.prim) == src_varray.size()) {
-            if (src_varray.is_span() && b_attr.sharing_info) {
+            if (info.type == blender::CommonVArrayInfo::Type::Span && b_attr.sharing_info) {
               Attribute *attr = attributes.add_shared(
                   name, Converter::type_desc, element, info.data, b_attr.sharing_info);
               if (is_render_color) {

@@ -59,6 +59,9 @@ Attribute::~Attribute()
   else if (sharing_info) {
     g_implicit_sharing_user_remove_fn(sharing_info);
   }
+  else {
+    delete[] static_cast<const char *>(buffer);
+  }
 }
 
 void Attribute::resize(Geometry *geom, AttributePrimitive prim)
@@ -76,8 +79,12 @@ void Attribute::resize(const size_t num_elements)
       return;
     }
     char *new_data = new char[new_size * this->data_sizeof()];
-    memcpy(
-        new_data, this->buffer, std::min(num_elements, size_t(this->size)) * this->data_sizeof());
+    if (this->buffer) {
+      assert(this->size > 0);
+      memcpy(new_data,
+             this->buffer,
+             std::min(num_elements, size_t(this->size)) * this->data_sizeof());
+    }
     if (this->sharing_info) {
       g_implicit_sharing_user_remove_fn(this->sharing_info);
     }
@@ -95,11 +102,24 @@ void Attribute::set_data_from(Attribute &&other)
 
   this->flags = other.flags;
 
-  if (this->sharing_info != other.sharing_info) {
+  const auto take_data = [&]() {
     this->buffer = other.buffer;
     this->sharing_info = other.sharing_info;
-    g_implicit_sharing_user_add_fn(this->sharing_info);
+    this->size = other.size;
+    other.buffer = nullptr;
+    other.sharing_info = nullptr;
+    other.size = 0;
     modified = true;
+  };
+
+  if (this->size != other.size) {
+    take_data();
+  }
+  else if (this->sharing_info != other.sharing_info) {
+    take_data();
+  }
+  else if (memcmp(this->buffer, other.buffer, this->data_sizeof() * this->size) != 0) {
+    take_data();
   }
 }
 
@@ -433,8 +453,7 @@ Attribute *AttributeSet::add(ustring name, const TypeDesc type, AttributeElement
     remove(name);
   }
 
-  Attribute new_attr(name, type, element, geometry, prim);
-  attributes.emplace_back(std::move(new_attr));
+  attributes.emplace_back(name, type, element, geometry, prim);
   tag_modified(attributes.back());
   return &attributes.back();
 }
@@ -457,8 +476,7 @@ Attribute *AttributeSet::add_shared(ustring name,
     remove(name);
   }
 
-  Attribute new_attr(name, type, element, data, sharing_info);
-  attributes.emplace_back(std::move(new_attr));
+  attributes.emplace_back(name, type, element, data, sharing_info);
   tag_modified(attributes.back());
   return &attributes.back();
 }

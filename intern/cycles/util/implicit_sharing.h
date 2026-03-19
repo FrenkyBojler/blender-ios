@@ -7,11 +7,11 @@
 CCL_NAMESPACE_BEGIN
 
 using ImplicitSharingUserAddFn = void (*)(const void *);
-using ImplicitSharingUserAddFn = void (*)(const void *);
+using ImplicitSharingUserRemoveFn = void (*)(const void *);
 
 extern ImplicitSharingUserAddFn g_implicit_sharing_user_add_fn;
-extern ImplicitSharingUserAddFn g_implicit_sharing_user_remove_fn;
+extern ImplicitSharingUserRemoveFn g_implicit_sharing_user_remove_fn;
 
-void implicit_sharing_init(ImplicitSharingUserAddFn add_fn, ImplicitSharingUserAddFn remove_fn);
+void implicit_sharing_init(ImplicitSharingUserAddFn add_fn, ImplicitSharingUserRemoveFn remove_fn);
 
 CCL_NAMESPACE_END
