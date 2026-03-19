@@ -11,6 +11,8 @@
 
 #include "CLG_log.h"
 
+#include <fmt/format.h>
+
 #include <cstring>
 #include <optional>
 
@@ -1507,10 +1509,34 @@ static bool collection_object_remove(
   return true;
 }
 
-bool BKE_collection_is_content_editable(const Collection *collection)
+bool BKE_collection_is_content_editable(const Collection *collection, std::string *r_reason)
 {
-  const bool has_importer = collection->importer != nullptr;
-  return ID_IS_EDITABLE(collection) && !ID_IS_OVERRIDE_LIBRARY(collection) && !has_importer;
+  if (ID_IS_OVERRIDE_LIBRARY(collection)) {
+    if (r_reason) {
+      *r_reason = fmt::format(fmt::runtime(RPT_("The collection '{}' is overriden.")),
+                              collection->id.name + 2);
+    }
+    return false;
+  }
+
+  if (!ID_IS_EDITABLE(collection)) {
+    if (r_reason) {
+      *r_reason = fmt::format(fmt::runtime(RPT_("The collection '{}' is linked.")),
+                              collection->id.name + 2);
+    }
+    return false;
+  }
+
+  if (collection->importer != nullptr) {
+    if (r_reason) {
+      *r_reason = fmt::format(
+          fmt::runtime(RPT_("The collection '{}' belongs to a collection importer.")),
+          collection->id.name + 2);
+    }
+    return false;
+  }
+
+  return true;
 }
 
 CollectionImport *BKE_collection_importer_add(Collection *collection, const char *idname)

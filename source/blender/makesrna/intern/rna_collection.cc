@@ -44,6 +44,8 @@ BLI_STATIC_ASSERT(ARRAY_SIZE(rna_enum_collection_color_items) - 2 == COLLECTION_
 
 #ifdef RNA_RUNTIME
 
+#  include <string>
+
 #  include <fmt/format.h>
 
 #  include "DNA_object_types.h"
@@ -115,32 +117,17 @@ static bool rna_collection_objects_edit_check(Collection *collection,
     BKE_reportf(reports, RPT_ERROR, "Collection '%s' is not an original ID", object->id.name + 2);
     return false;
   }
-  /* Currently this should not be allowed (might be supported in the future though...). */
-  if (ID_IS_OVERRIDE_LIBRARY(&collection->id)) {
+
+  std::string reason;
+  if (!BKE_collection_is_content_editable(collection, &reason)) {
     BKE_reportf(reports,
                 RPT_ERROR,
-                "Could not (un)link the object '%s' because the collection '%s' is overridden",
+                "Could not (un)link the object '%s'. %s",
                 object->id.name + 2,
-                collection->id.name + 2);
+                reason.c_str());
     return false;
   }
-  if (!ID_IS_EDITABLE(&collection->id)) {
-    BKE_reportf(reports,
-                RPT_ERROR,
-                "Could not (un)link the object '%s' because the collection '%s' is linked",
-                object->id.name + 2,
-                collection->id.name + 2);
-    return false;
-  }
-  if (collection->importer != nullptr) {
-    BKE_reportf(
-        reports,
-        RPT_ERROR,
-        "Could not (un)link the object '%s' because the collection '%s' cannot be modified",
-        object->id.name + 2,
-        collection->id.name + 2);
-    return false;
-  }
+
   return true;
 }
 
@@ -252,30 +239,14 @@ static bool rna_collection_children_edit_check(Collection *collection,
     BKE_reportf(reports, RPT_ERROR, "Collection '%s' is not an original ID", child->id.name + 2);
     return false;
   }
-  /* Currently this should not be allowed (might be supported in the future though...). */
-  if (ID_IS_OVERRIDE_LIBRARY(&collection->id)) {
+
+  std::string reason;
+  if (!BKE_collection_is_content_editable(collection, &reason)) {
     BKE_reportf(reports,
                 RPT_ERROR,
-                "Could not (un)link the collection '%s' because the collection '%s' is overridden",
+                "Could not (un)link the collection '%s'. %s",
                 child->id.name + 2,
-                collection->id.name + 2);
-    return false;
-  }
-  if (!ID_IS_EDITABLE(&collection->id)) {
-    BKE_reportf(reports,
-                RPT_ERROR,
-                "Could not (un)link the collection '%s' because the collection '%s' is linked",
-                child->id.name + 2,
-                collection->id.name + 2);
-    return false;
-  }
-  if (collection->importer != nullptr) {
-    BKE_reportf(
-        reports,
-        RPT_ERROR,
-        "Could not (un)link the collection '%s' because the collection '%s' cannot be modified",
-        child->id.name + 2,
-        collection->id.name + 2);
+                reason.c_str());
     return false;
   }
   return true;

@@ -8,6 +8,8 @@
  * \ingroup bke
  */
 
+#include <string>
+
 #include "BLI_ghash.h"
 #include "BLI_iterator.h"
 #include "BLI_map.hh"
@@ -120,9 +122,11 @@ void BKE_collection_add_from_collection(Main *bmain,
 void BKE_collection_free_data(Collection *collection);
 
 /**
- * Can the collection be modified.
+ * Can the collection contents be modified. Returns an optional reason if the content is not
+ * editable.
  */
-bool BKE_collection_is_content_editable(const Collection *collection);
+bool BKE_collection_is_content_editable(const Collection *collection,
+                                        std::string *reason = nullptr);
 
 /**
  * Add a new collection importer to the collection.
