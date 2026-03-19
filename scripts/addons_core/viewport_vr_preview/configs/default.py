@@ -1433,7 +1433,7 @@ actionconfig_data = [
                     "viewfinder_capture",
                     {
                         "type": "FLOAT",
-                        "user_paths": ["/user/hand/left", "user/hand/right"],
+                        "user_paths": ["/user/hand/left", "/user/hand/right"],
                         "op": "view3d.vr_location_scouting_viewfinder_capture",
                         "op_mode": "PRESS",
                         "bimanual": "False",
@@ -1784,7 +1784,7 @@ actionconfig_data = [
                     "viewfinder_cycle_action_right",
                     {
                         "type": "FLOAT",
-                        "user_paths": ["/user/hand/left", "user/hand/right"],
+                        "user_paths": ["/user/hand/left", "/user/hand/right"],
                         "op": "view3d.vr_location_scouting_viewfinder_cycle_action",
                         "op_mode": "PRESS",
                         "bimanual": "False",
@@ -1804,7 +1804,7 @@ actionconfig_data = [
                                     "profile": "/interaction_profiles/huawei/controller",
                                     "component_paths": ["/input/trackpad/x", "/input/trackpad/x"],
                                     "threshold": "0.65",
-                                    "axis_region": "NEGATIVE",
+                                    "axis_region": "POSITIVE",
                                 },
                             ),
                             (
@@ -1813,7 +1813,7 @@ actionconfig_data = [
                                     "profile": "/interaction_profiles/valve/index_controller",
                                     "component_paths": ["/input/thumbstick/x", "/input/thumbstick/x"],
                                     "threshold": "0.65",
-                                    "axis_region": "NEGATIVE",
+                                    "axis_region": "POSITIVE",
                                 },
                             ),
                             (
@@ -1822,7 +1822,7 @@ actionconfig_data = [
                                     "profile": "/interaction_profiles/oculus/touch_controller",
                                     "component_paths": ["/input/thumbstick/x", "/input/thumbstick/x"],
                                     "threshold": "0.65",
-                                    "axis_region": "NEGATIVE",
+                                    "axis_region": "POSITIVE",
                                 },
                             ),
                             (
@@ -1831,7 +1831,7 @@ actionconfig_data = [
                                     "profile": "/interaction_profiles/hp/mixed_reality_controller",
                                     "component_paths": ["/input/thumbstick/x", "/input/thumbstick/x"],
                                     "threshold": "0.65",
-                                    "axis_region": "NEGATIVE",
+                                    "axis_region": "POSITIVE",
                                 },
                             ),
                             (
@@ -1840,7 +1840,7 @@ actionconfig_data = [
                                     "profile": "/interaction_profiles/htc/vive_controller",
                                     "component_paths": ["/input/trackpad/x", "/input/trackpad/x"],
                                     "threshold": "0.65",
-                                    "axis_region": "NEGATIVE",
+                                    "axis_region": "POSITIVE",
                                 },
                             ),
                             (
@@ -1849,7 +1849,7 @@ actionconfig_data = [
                                     "profile": "/interaction_profiles/htc/vive_cosmos_controller",
                                     "component_paths": ["/input/thumbstick/x", "/input/thumbstick/x"],
                                     "threshold": "0.65",
-                                    "axis_region": "NEGATIVE",
+                                    "axis_region": "POSITIVE",
                                 },
                             ),
                             (
@@ -1858,7 +1858,7 @@ actionconfig_data = [
                                     "profile": "/interaction_profiles/htc/vive_focus3_controller",
                                     "component_paths": ["/input/thumbstick/x", "/input/thumbstick/x"],
                                     "threshold": "0.65",
-                                    "axis_region": "NEGATIVE",
+                                    "axis_region": "POSITIVE",
                                 },
                             ),
                             (
@@ -1867,7 +1867,7 @@ actionconfig_data = [
                                     "profile": "/interaction_profiles/microsoft/motion_controller",
                                     "component_paths": ["/input/thumbstick/x", "/input/thumbstick/x"],
                                     "threshold": "0.65",
-                                    "axis_region": "NEGATIVE",
+                                    "axis_region": "POSITIVE",
                                 },
                             ),
                         ],
