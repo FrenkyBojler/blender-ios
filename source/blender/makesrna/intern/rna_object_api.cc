@@ -717,7 +717,6 @@ static void rna_Object_closest_point_on_mesh(Object *ob,
     nearest.dist_sq = distance * distance;
 
     const bke::bvh::Tree &bvh_tree = mesh_eval->bvh_tree();
-
     if (const std::optional<bke::bvh::ClosestPointResult> nearest = bvh_tree->closest_point(
             origin, distance))
     {
