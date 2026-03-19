@@ -261,6 +261,11 @@ void view3d_operatortypes()
   ed::transform::transform_operatortypes();
 }
 
+#ifdef WITH_XR_OPENXR
+/* XR Capture Review operator, added to View3D binding. */
+void capture_review_keymap(wmKeyConfig *keyconf);
+#endif
+
 void view3d_keymap(wmKeyConfig *keyconf)
 {
   WM_keymap_ensure(keyconf, "3D View Generic", SPACE_VIEW3D, RGN_TYPE_WINDOW);
@@ -275,6 +280,7 @@ void view3d_keymap(wmKeyConfig *keyconf)
   viewzoom_modal_keymap(keyconf);
   viewdolly_modal_keymap(keyconf);
   viewplace_modal_keymap(keyconf);
+  capture_review_keymap(keyconf);
 }
 
 /** \} */

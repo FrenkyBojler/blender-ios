@@ -23,6 +23,8 @@
 #include "BLI_rect.h"
 #include "BLI_time.h"
 
+#include "BLT_translation.hh"
+
 #include "DNA_camera_types.h"
 #include "DNA_scene_types.h"
 
@@ -1053,7 +1055,6 @@ void wm_xr_viewfinder_draw(const bContext *C,
 
 struct CaptureReviewData {
   /* Context. */
-  ARegion *region;
   RegionView3D *rv3d;
   View3D *v3d;
 
@@ -1065,6 +1066,71 @@ struct CaptureReviewData {
   Object *cam_ob;
   Camera *cam_data;
 };
+
+/* NOTE: these defines are saved in keymap files, do not change values but just add new ones */
+enum {
+  CAPTURE_REVIEW_MODAL_EXIT = 1,
+
+  CAPTURE_REVIEW_MODAL_PREV,
+  CAPTURE_REVIEW_MODAL_NEXT,
+
+  CAPTURE_REVIEW_MODAL_ADD_CAMERA,
+  CAPTURE_REVIEW_MODAL_ADD_MARKER,
+};
+
+void capture_review_keymap(wmKeyConfig *keyconf)
+{
+  static const EnumPropertyItem modal_items[] = {
+      {CAPTURE_REVIEW_MODAL_EXIT, "EXIT", 0, "Exit", ""},
+
+      {CAPTURE_REVIEW_MODAL_PREV, "PREVIOUS", 0, "Previous Capture", "Switch to previous capture"},
+      {CAPTURE_REVIEW_MODAL_NEXT, "NEXT", 0, "Next Capture", "Switch to next capture"},
+
+      {CAPTURE_REVIEW_MODAL_ADD_CAMERA,
+       "ADD_CAMERA",
+       0,
+       "Add Camera",
+       "Add Camera from current capture"},
+      {CAPTURE_REVIEW_MODAL_ADD_MARKER,
+       "ADD_MARKER",
+       0,
+       "Add Marker",
+       "Add Marker from current capture"},
+
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  wmKeyMap *keymap = WM_modalkeymap_find(keyconf, "XR Capture Review Modal");
+
+  /* This function is called for each space-type, only needs to add map once. */
+  if (keymap && keymap->modal_items) {
+    return;
+  }
+
+  keymap = WM_modalkeymap_ensure(keyconf, "XR Capture Review Modal", modal_items);
+
+  /* Assign map to operators. */
+  WM_modalkeymap_assign(keymap, "WM_OT_xr_location_scouting_review_captures");
+}
+
+static void wm_xr_location_scouting_review_draw_status(bContext *C, wmOperator *op)
+{
+  WorkspaceStatus status(C);
+
+  status.opmodal(IFACE_("Exit"), op->type, CAPTURE_REVIEW_MODAL_EXIT);
+
+  status.opmodal("", op->type, CAPTURE_REVIEW_MODAL_PREV);
+  status.item(IFACE_("Previous"), ICON_NONE);
+
+  status.opmodal("", op->type, CAPTURE_REVIEW_MODAL_NEXT);
+  status.item(IFACE_("Next"), ICON_NONE);
+
+  status.opmodal("", op->type, CAPTURE_REVIEW_MODAL_ADD_CAMERA);
+  status.item(IFACE_("Add Camera"), ICON_NONE);
+
+  status.opmodal("", op->type, CAPTURE_REVIEW_MODAL_ADD_MARKER);
+  status.item(IFACE_("Add Marker"), ICON_NONE);
+}
 
 bool wm_xr_location_scouting_review_captures_poll(bContext *C)
 {
@@ -1117,7 +1183,6 @@ static wmOperatorStatus wm_xr_location_scouting_review_captures_invoke(bContext 
   }
 
   CaptureReviewData *review_data = MEM_new_zeroed<CaptureReviewData>("View3DReviewCaptureData");
-  review_data->region = region;
   review_data->rv3d = rv3d;
   review_data->v3d = v3d;
 
@@ -1143,6 +1208,8 @@ static wmOperatorStatus wm_xr_location_scouting_review_captures_invoke(bContext 
   wm_xr_location_scouting_review_captures_set_running_state(C, true);
 
   WM_event_add_modal_handler(C, op);
+  wm_xr_location_scouting_review_draw_status(C, op);
+
   return OPERATOR_RUNNING_MODAL;
 }
 
@@ -1160,9 +1227,11 @@ static void wm_xr_location_scouting_review_captures_exit(bContext *C, wmOperator
 
   review_data->v3d->camera = review_data->prev_view3d_cam_ob;
 
-  /* Set the running state to false, redraw entire area (both the viewport and N-panel regions). */
   wm_xr_location_scouting_review_captures_set_running_state(C, false);
+
+  /* Redraw entire area (both the viewport and N-panel regions), clear status text. */
   ED_area_tag_redraw(CTX_wm_area(C));
+  ED_workspace_status_text(C, nullptr);
 
   /* Free data. */
   BKE_id_free(nullptr, id_cast<ID *>(review_data->cam_ob));
@@ -1176,6 +1245,48 @@ static void wm_xr_location_scouting_review_captures_cancel(bContext *C, wmOperat
   wm_xr_location_scouting_review_captures_exit(C, op);
 }
 
+static bool wm_xr_location_scouting_review_captures_event(bContext *C, const wmEvent *event)
+{
+  /* Return true if event is handled, false otherwise. */
+  if (event->type != EVT_MODAL_MAP) {
+    return false;
+  }
+
+  switch (event->val) {
+    case CAPTURE_REVIEW_MODAL_EXIT:
+      wm_xr_location_scouting_review_captures_set_running_state(C, false);
+      break;
+    case CAPTURE_REVIEW_MODAL_PREV:
+    case CAPTURE_REVIEW_MODAL_NEXT: {
+      wmOperatorType *ot = WM_operatortype_find("VIEW3D_OT_vr_location_scouting_browse_captures", false);
+
+      PointerRNA props_ptr = WM_operator_properties_create_ptr(ot);
+      RNA_boolean_set(&props_ptr, "backward", event->val == CAPTURE_REVIEW_MODAL_PREV);
+
+      WM_operator_name_call_ptr(C, ot, wm::OpCallContext::ExecDefault, &props_ptr, nullptr);
+      WM_operator_properties_free(&props_ptr);
+
+      break;
+    }
+    case CAPTURE_REVIEW_MODAL_ADD_CAMERA:
+      WM_operator_name_call(C,
+                            "VIEW3D_OT_vr_location_scouting_add_camera_from_capture",
+                            wm::OpCallContext::ExecDefault,
+                            nullptr,
+                            nullptr);
+      break;
+    case CAPTURE_REVIEW_MODAL_ADD_MARKER:
+      WM_operator_name_call(C,
+                            "VIEW3D_OT_vr_location_scouting_add_marker_from_capture",
+                            wm::OpCallContext::ExecDefault,
+                            nullptr,
+                            nullptr);
+      break;
+  }
+
+  return true;
+}
+
 static wmOperatorStatus wm_xr_location_scouting_review_captures_modal(bContext *C,
                                                                       wmOperator *op,
                                                                       const wmEvent *event)
@@ -1184,18 +1295,15 @@ static wmOperatorStatus wm_xr_location_scouting_review_captures_modal(bContext *
   Scene *scene = CTX_data_scene(C);
   auto capture = wm_xr_location_scouting_get_active_capture(scene);
 
-  if (event->type == EVT_ESCKEY) {
-    wm_xr_location_scouting_review_captures_exit(C, op);
-    return OPERATOR_FINISHED;
-  }
-
   if (!capture.has_value()) {
     BKE_report(op->reports, RPT_INFO, "No VR captures to display, exiting capture review...");
     wm_xr_location_scouting_review_captures_exit(C, op);
     return OPERATOR_FINISHED;
   }
 
-  /* Exit requested from the UI button, state set by the operator invoke. */
+  const bool event_handled = wm_xr_location_scouting_review_captures_event(C, event);
+
+  /* Exit requested, state set by the operator invoke from UI, or event function from keymap. */
   if (!wm_xr_location_scouting_review_captures_get_running_state(C)) {
     wm_xr_location_scouting_review_captures_exit(C, op);
     return OPERATOR_FINISHED;
@@ -1225,8 +1333,12 @@ static wmOperatorStatus wm_xr_location_scouting_review_captures_modal(bContext *
   /* Set fake Camera object as the View3D camera. */
   review_data->v3d->camera = review_data->cam_ob;
 
-  /* Redraw viewport. */
-  ED_region_tag_redraw(review_data->region);
+  ED_area_tag_redraw(CTX_wm_area(C));
+  wm_xr_location_scouting_review_draw_status(C, op);
+
+  if (event_handled) {
+    return OPERATOR_RUNNING_MODAL;
+  }
 
   return OPERATOR_PASS_THROUGH;
 }
