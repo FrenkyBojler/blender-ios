@@ -1126,13 +1126,13 @@ struct ScopeParser {
 
   void error(const std::string &str)
   {
-    /* Only emit one .
-     */
+    /* Only emit one error to avoid a cascade of error. */
     if (error_str.empty()) {
       error_str = str;
       error_tok = curr;
+      /* Set token to EndOfFile/Invalid. */
+      curr = Token(parser);
     }
-    next();
   }
 
   void match(char expected)
