@@ -139,7 +139,9 @@ GHOST_TSuccess GHOST_ContextSDL::initializeDrawingContext()
       }
     }
 
+#ifdef WITH_OPENGL_BACKEND
     initClearGL();
+#endif
     SDL_GL_SwapWindow(window_);
 
     active_context_ = this;
