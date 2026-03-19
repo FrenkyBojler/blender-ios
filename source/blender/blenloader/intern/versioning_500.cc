@@ -2961,7 +2961,7 @@ static void remove_in_and_out_node_panel_recursive(bNodeTreeInterfacePanel &pane
 }
 
 /**
- * Fix node interface sockest that could become both inputs and outputs before the current design
+ * Fix node interface sockets that could become both inputs and outputs before the current design
  * was settled on.
  */
 static void remove_in_and_out_node_interface(bNodeTree &node_tree)
@@ -4497,12 +4497,6 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
    *
    * \note Keep this message at the bottom of the function.
    */
-
-  /* Keep this versioning always enabled at the bottom of the function; it can only be moved
-   * behind a subversion bump when the file format is changed. */
-  for (Mesh &mesh : bmain->meshes) {
-    bke::mesh_freestyle_marks_to_generic(mesh);
-  }
 
   /* TODO: Can be moved to subversion bump. */
   AS_asset_library_import_method_ensure_valid(*bmain);

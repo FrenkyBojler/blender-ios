@@ -649,7 +649,7 @@ void colormanagement_init()
       /* OpenColorIO has issues with "$" in paths, as it uses that for variable expansion
        * and there appears to be no way to escape the symbol.
        *
-       * Work aroud it by setting the environment variable, which may also be useful for
+       * Work around it by setting the environment variable, which may also be useful for
        * plug-ins to inherit the Blender OCIO config. */
       std::optional<std::string> old_ocio_env;
       if (ocio_env) {
@@ -1113,6 +1113,11 @@ static bool colormanage_check_colorspace_settings(ColorManagedColorspaceSettings
   return colormanage_check_colorspace_name(settings->name, what);
 }
 
+ColorManagedConfig &IMB_colormanagement_get_config()
+{
+  return *g_config();
+}
+
 void IMB_colormanagement_check_file_config(Main *bmain)
 {
   const ocio::Display *default_display = g_config()->get_default_display();
@@ -1264,10 +1269,10 @@ void IMB_colormanagement_check_is_data(ImBuf *ibuf, const char *name)
   }
 }
 
-void IMB_colormanagegent_copy_settings(ImBuf *ibuf_src, ImBuf *ibuf_dst)
+void IMB_colormanagement_copy_settings(ImBuf *ibuf_src, ImBuf *ibuf_dst)
 {
   IMB_colormanagement_assign_byte_colorspace(ibuf_dst,
-                                             IMB_colormanagement_get_rect_colorspace(ibuf_src));
+                                             IMB_colormanagement_get_byte_colorspace(ibuf_src));
   IMB_colormanagement_assign_float_colorspace(ibuf_dst,
                                               IMB_colormanagement_get_float_colorspace(ibuf_src));
   if (ibuf_src->flags & IB_alphamode_premul) {
@@ -1318,7 +1323,7 @@ const char *IMB_colormanagement_get_float_colorspace(const ImBuf *ibuf)
   return IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_SCENE_LINEAR);
 }
 
-const char *IMB_colormanagement_get_rect_colorspace(const ImBuf *ibuf)
+const char *IMB_colormanagement_get_byte_colorspace(const ImBuf *ibuf)
 {
   if (ibuf->byte_buffer.colorspace) {
     return ibuf->byte_buffer.colorspace->name().c_str();
