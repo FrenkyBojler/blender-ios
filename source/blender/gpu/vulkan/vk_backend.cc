@@ -75,7 +75,8 @@ bool GPU_vulkan_is_supported_driver(VkPhysicalDevice vk_physical_device)
     const uint32_t driver_version = vk_physical_device_properties.properties.driverVersion;
     uint32_t driver_version_major = driver_version >> 14u;
     uint32_t driver_version_minor = driver_version & 0x3fffu;
-    if (driver_version_major < 101 || driver_version_major == 101 && driver_version_minor < 2140) {
+    if (driver_version_major < 101 || (driver_version_major == 101 && driver_version_minor < 2140))
+    {
       return false;
     }
   }
@@ -561,14 +562,6 @@ void VKBackend::init_resources()
 void VKBackend::delete_resources()
 {
   MEM_delete(compiler_);
-}
-
-void VKBackend::samplers_update()
-{
-  VKDevice &device = VKBackend::get().device;
-  if (device.is_initialized()) {
-    device.reinit();
-  }
 }
 
 void VKBackend::compute_dispatch(int groups_x_len, int groups_y_len, int groups_z_len)
