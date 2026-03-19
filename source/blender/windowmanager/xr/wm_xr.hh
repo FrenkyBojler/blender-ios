@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include "GHOST_Types.hh"
+
 namespace blender {
 
 struct wmWindow;
@@ -26,5 +28,22 @@ bool wm_xr_events_handle(wmWindowManager *wm);
 /* `wm_xr_operators.cc` */
 
 void wm_xr_operatortypes_register();
+
+/* `wm_xr_location_scouting.cc` */
+
+struct XrLocationScoutingCapture {
+  /* NOTE: Keep in sync with the Python VR Scene Inspection add-on VRCapture class.
+   *       See comment in #wm_xr_get_active_location_scouting_capture. */
+  GHOST_XrPose pose;
+
+  float lens_focal;
+
+  bool dof_enabled;
+  float dof_distance;
+  float dof_fstop;
+};
+
+bool wm_xr_location_scouting_is_captures_empty(Scene *scene);
+std::optional<XrLocationScoutingCapture> wm_xr_location_scouting_get_active_capture(Scene *scene);
 
 }  // namespace blender

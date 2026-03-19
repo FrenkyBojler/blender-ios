@@ -156,9 +156,9 @@ class VIEW3D_PT_vr_location_scouting_captures(VRButtonsPanel, Panel):
         row.operator("view3d.vr_location_scouting_add_marker_from_capture", icon='MARKER', text="Add Marker")
 
         is_reviewing = context.window_manager.vr_capture_review_running
-        review_captures_text = "Review VR Captures" if not is_reviewing else "Exit Review"
-        review_captures_icon = 'HIDE_OFF' if not is_reviewing else 'CANCEL'
-        layout.operator("wm.xr_location_scouting_review_captures", text=review_captures_text, icon=review_captures_icon,
+        capture_review_text = "Review VR Captures" if not is_reviewing else "Exit Review"
+        capture_review_icon = 'HIDE_OFF' if not is_reviewing else 'CANCEL'
+        layout.operator("view3d.location_scouting_capture_review", text=capture_review_text, icon=capture_review_icon,
                         depress=is_reviewing)
 
 

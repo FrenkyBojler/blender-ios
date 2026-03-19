@@ -105,6 +105,15 @@ endif()
 
 if(WITH_XR_OPENXR)
   add_definitions(-DWITH_XR_OPENXR)
+
+  list(APPEND SRC
+    view3d_location_scouting.cc
+  )
+
+  list(APPEND INC
+    ../../../../intern/ghost
+    ../../windowmanager/xr/
+  )
 endif()
 
 blender_add_lib(bf_editor_space_view3d "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

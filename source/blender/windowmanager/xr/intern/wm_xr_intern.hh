@@ -318,6 +318,5 @@ void wm_xr_viewfinder_render_view(wmXrData *xr_data);
 void wm_xr_viewfinder_draw(const bContext *C,
                            const XrSessionSettings *settings,
                            wmXrSessionState *state);
-void WM_OT_xr_location_scouting_review_captures(wmOperatorType *ot);
 
 }  // namespace blender

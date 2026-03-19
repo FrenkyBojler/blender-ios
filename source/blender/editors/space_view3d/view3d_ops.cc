@@ -258,13 +258,12 @@ void view3d_operatortypes()
   WM_operatortype_append(VIEW3D_OT_ruler_add);
   WM_operatortype_append(VIEW3D_OT_ruler_remove);
 
+#ifdef WITH_XR_OPENXR
+  WM_operatortype_append(VIEW3D_OT_location_scouting_capture_review);
+#endif
+
   ed::transform::transform_operatortypes();
 }
-
-#ifdef WITH_XR_OPENXR
-/* XR Capture Review operator, added to View3D binding. */
-void capture_review_keymap(wmKeyConfig *keyconf);
-#endif
 
 void view3d_keymap(wmKeyConfig *keyconf)
 {
@@ -280,7 +279,10 @@ void view3d_keymap(wmKeyConfig *keyconf)
   viewzoom_modal_keymap(keyconf);
   viewdolly_modal_keymap(keyconf);
   viewplace_modal_keymap(keyconf);
-  capture_review_keymap(keyconf);
+
+#ifdef WITH_XR_OPENXR
+  location_scouting_capture_review_modal_keymap(keyconf);
+#endif
 }
 
 /** \} */
