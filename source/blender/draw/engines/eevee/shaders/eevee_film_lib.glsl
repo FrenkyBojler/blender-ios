@@ -557,7 +557,8 @@ void film_store_combined(
   imageStoreFast(out_combined_img, dst.texel, color);
 }
 
-void film_store_color(FilmSample dst, int pass_id, float4 color, float4 &display)
+void film_store_color(
+    FilmSample dst, int pass_id, float4 color, float4 &display, bool do_clamp_negative_values)
 {
   if (pass_id == -1) {
     return;
@@ -572,7 +573,9 @@ void film_store_color(FilmSample dst, int pass_id, float4 color, float4 &display
     color = float4(0.0f, 0.0f, 0.0f, 1.0f);
   }
 
-  color = clamp_negative_values(color);
+  if (do_clamp_negative_values) {
+    color = clamp_negative_values(color);
+  }
 
   /* Fix alpha not accumulating to 1 because of float imprecision. But here we cannot assume that
    * the alpha contains actual transparency and not user data. Only bias if very close to 1. */
@@ -761,10 +764,11 @@ void film_process_data(int2 texel_film, float4 &out_color, float &out_depth)
                         rp_color_tx,
                         emission_accum);
     }
-    film_store_color(dst, uniform_buf.film.diffuse_light_id, diffuse_light_accum, out_color);
-    film_store_color(dst, uniform_buf.film.specular_light_id, specular_light_accum, out_color);
-    film_store_color(dst, uniform_buf.film.volume_light_id, volume_light_accum, out_color);
-    film_store_color(dst, uniform_buf.film.emission_id, emission_accum, out_color);
+    film_store_color(dst, uniform_buf.film.diffuse_light_id, diffuse_light_accum, out_color, true);
+    film_store_color(
+        dst, uniform_buf.film.specular_light_id, specular_light_accum, out_color, true);
+    film_store_color(dst, uniform_buf.film.volume_light_id, volume_light_accum, out_color, true);
+    film_store_color(dst, uniform_buf.film.emission_id, emission_accum, out_color, true);
   }
 
   if (flag_test(enabled_categories, PASS_CATEGORY_COLOR_2)) {
@@ -808,11 +812,12 @@ void film_process_data(int2 texel_film, float4 &out_color, float &out_depth)
     float4 shadow_accum_color = float4(float3(shadow_accum), weight_accum);
     float4 ao_accum_color = float4(float3(ao_accum), weight_accum);
 
-    film_store_color(dst, uniform_buf.film.diffuse_color_id, diffuse_color_accum, out_color);
-    film_store_color(dst, uniform_buf.film.specular_color_id, specular_color_accum, out_color);
-    film_store_color(dst, uniform_buf.film.environment_id, environment_accum, out_color);
-    film_store_color(dst, uniform_buf.film.shadow_id, shadow_accum_color, out_color);
-    film_store_color(dst, uniform_buf.film.ambient_occlusion_id, ao_accum_color, out_color);
+    film_store_color(dst, uniform_buf.film.diffuse_color_id, diffuse_color_accum, out_color, true);
+    film_store_color(
+        dst, uniform_buf.film.specular_color_id, specular_color_accum, out_color, true);
+    film_store_color(dst, uniform_buf.film.environment_id, environment_accum, out_color, true);
+    film_store_color(dst, uniform_buf.film.shadow_id, shadow_accum_color, out_color, true);
+    film_store_color(dst, uniform_buf.film.ambient_occlusion_id, ao_accum_color, out_color, true);
     film_store_value(dst, uniform_buf.film.mist_id, mist_accum, out_color);
   }
 
@@ -830,7 +835,7 @@ void film_process_data(int2 texel_film, float4 &out_color, float &out_depth)
     /* Alpha stores transmittance for transparent pass. */
     transparent_accum.a = weight_accum - transparent_accum.a;
 
-    film_store_color(dst, uniform_buf.film.transparent_id, transparent_accum, out_color);
+    film_store_color(dst, uniform_buf.film.transparent_id, transparent_accum, out_color, true);
   }
 
   if (flag_test(enabled_categories, PASS_CATEGORY_AOV)) {
@@ -841,7 +846,7 @@ void film_process_data(int2 texel_film, float4 &out_color, float &out_depth)
         FilmSample src = film_sample_get(i, texel_film);
         film_sample_accum(src, 0, uniform_buf.render_pass.color_len + aov, rp_color_tx, aov_accum);
       }
-      film_store_color(dst, uniform_buf.film.aov_color_id + aov, aov_accum, out_color);
+      film_store_color(dst, uniform_buf.film.aov_color_id + aov, aov_accum, out_color, false);
     }
 
     for (int aov = 0; aov < uniform_buf.film.aov_value_len; aov++) {
