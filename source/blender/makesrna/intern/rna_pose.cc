@@ -292,8 +292,7 @@ static void rna_PoseChannel_convert_rotation_mode(ID *id,
         animrig::ChannelbagToFCurveMap &channelbag_fcurve_map = data_map.lookup(
             {&action, slot_handle});
         if (bake) {
-          animrig::bake_rotation_fcurves(channelbag_fcurve_map,
-                                         animrig::get_pose_bone_rna_path(*pchan));
+          animrig::bake_rotation_fcurves(channelbag_fcurve_map, rotateable);
         }
         converted_actions |= animrig::convert_pose_bone_rotation_keys(
             main, rotateable, channelbag_fcurve_map, eRotationModes(rotation_mode));

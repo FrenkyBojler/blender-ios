@@ -48,6 +48,7 @@
 #include "ANIM_bone_collections.hh"
 #include "ANIM_convert.hh"
 #include "ANIM_keyframing.hh"
+#include "ANIM_rna.hh"
 
 #include "armature_intern.hh"
 
@@ -623,6 +624,7 @@ void POSE_OT_autoside_names(wmOperatorType *ot)
 static wmOperatorStatus pose_bone_rotmode_exec(bContext *C, wmOperator *op)
 {
   const short mode = RNA_enum_get(op->ptr, "type");
+  const bool bake = RNA_boolean_get(op->ptr, "bake");
   Object *prev_ob = nullptr;
 
   /* A map built per action to make it quicker to find the FCurves by RNA path. */
@@ -645,6 +647,9 @@ static wmOperatorStatus pose_bone_rotmode_exec(bContext *C, wmOperator *op)
           }
           animrig::ChannelbagToFCurveMap &channelbag_fcurve_map = data_map.lookup(
               {&action, slot_handle});
+          if (bake) {
+            animrig::bake_rotation_fcurves(channelbag_fcurve_map, rotateable);
+          }
           animrig::convert_pose_bone_rotation_keys(
               CTX_data_main(C), rotateable, channelbag_fcurve_map, eRotationModes(mode));
           DEG_id_tag_update(&action.id, ID_RECALC_ANIMATION);
@@ -692,6 +697,12 @@ void POSE_OT_rotation_mode_set(wmOperatorType *ot)
   /* properties */
   ot->prop = RNA_def_enum(
       ot->srna, "type", rna_enum_object_rotation_mode_items, 0, "Rotation Mode", "");
+  RNA_def_boolean(ot->srna,
+                  "bake",
+                  false,
+                  "Bake",
+                  "Creates a key on every frame before conversion so interpolation is preserved "
+                  "in the new mode");
 }
 
 /* ********************************************** */

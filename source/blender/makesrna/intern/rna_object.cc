@@ -1229,7 +1229,7 @@ static void rna_Object_convert_rotation_mode(
         animrig::ChannelbagToFCurveMap &channelbag_fcurve_map = data_map.lookup(
             {&action, slot_handle});
         if (bake) {
-          animrig::bake_rotation_fcurves(channelbag_fcurve_map, "");
+          animrig::bake_rotation_fcurves(channelbag_fcurve_map, rotateable);
         }
         converted_actions |= animrig::convert_pose_bone_rotation_keys(
             main, rotateable, channelbag_fcurve_map, eRotationModes(rotation_mode));

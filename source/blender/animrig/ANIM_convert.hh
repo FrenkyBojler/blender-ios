@@ -108,8 +108,8 @@ ChannelbagToFCurveMap build_rotation_fcurve_map(Action &action, slot_handle_t sl
 /**
  * Bake all existing rotation fcurves that start with the given `base_rna_path`.
  */
-void bake_rotation_fcurves(ChannelbagToFCurveMap &channelbag_fcurve_map,
-                           StringRefNull base_rna_path);
+void bake_rotation_fcurves(const ChannelbagToFCurveMap &channelbag_fcurve_map,
+                           const Rotateable &rotateable);
 
 }  // namespace animrig
 }  // namespace blender

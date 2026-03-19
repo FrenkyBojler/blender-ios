@@ -258,7 +258,6 @@ static void convert_rotation_mode_range(Main &bmain,
     const std::string new_rotation_path = rotateable.rna_path_to_property(rotation_mode_name);
 
     /* True if the conversion is just between different euler rotations. */
-
     if (is_rotation_order_change) {
       /* Cannot use the FCurve directly from the channelbag. Modifying that while converting the
        * rotation mode would influence the result. */
@@ -380,23 +379,17 @@ ChannelbagToFCurveMap build_rotation_fcurve_map(Action &action, const slot_handl
   return rotation_map;
 }
 
-void bake_rotation_fcurves(ChannelbagToFCurveMap &channelbag_fcurve_map,
-                           StringRefNull base_rna_path)
+void bake_rotation_fcurves(const ChannelbagToFCurveMap &channelbag_fcurve_map,
+                           const Rotateable &rotateable)
 {
-  /* Need to bake on all potential FCurves to cover */
-  Array<StringRef> rotation_modes = {
+  /* Need to bake on all potential FCurves to cover. */
+  const Array<StringRef> rotation_modes = {
       "rotation_euler", "rotation_quaternion", "rotation_axis_angle"};
   for (const StringRef rotation_mode : rotation_modes) {
-    std::string rotation_rna_path;
-    if (base_rna_path.is_empty()) {
-      rotation_rna_path = rotation_mode;
-    }
-    else {
-      rotation_rna_path = fmt::format("{}.{}", base_rna_path, rotation_mode);
-    }
+    std::string rotation_rna_path = rotateable.rna_path_to_property(rotation_mode);
 
-    for (RNAFCurveMap &rna_fcurve_map : channelbag_fcurve_map.values()) {
-      SortedFCurveBuffer *fcurve_buffer = rna_fcurve_map.lookup_ptr(rotation_rna_path);
+    for (const RNAFCurveMap &rna_fcurve_map : channelbag_fcurve_map.values()) {
+      const SortedFCurveBuffer *fcurve_buffer = rna_fcurve_map.lookup_ptr(rotation_rna_path);
       if (!fcurve_buffer) {
         continue;
       }
