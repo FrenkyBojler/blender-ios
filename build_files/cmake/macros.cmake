@@ -547,6 +547,20 @@ function(setup_platform_linker_flags
   endif()
 endfunction()
 
+# Hide internal symbols for targets that might otherwise conflict with plugins.
+function(setup_platform_linker_symbol_hiding target)
+  if(DEFINED PLATFORM_LINKFLAGS_SYMBOL_HIDING)
+    set_property(
+      TARGET ${target} APPEND_STRING PROPERTY
+      LINK_FLAGS " ${PLATFORM_LINKFLAGS_SYMBOL_HIDING}"
+    )
+  endif()
+
+  if(DEFINED PLATFORM_SYMBOLS_MAP)
+    set_target_properties(${target} PROPERTIES LINK_DEPENDS ${PLATFORM_SYMBOLS_MAP})
+  endif()
+endfunction()
+
 # Platform specific libraries for targets.
 function(setup_platform_linker_libs
   target
@@ -1022,6 +1036,10 @@ endfunction()
 function(data_to_c
   file_from file_to
   list_to_add
+  # Optional 4th argument: override the symbol name used in the generated C file,
+  # useful when different files share the same basename and would produce conflicting symbols.
+  # When omitted the symbol name is derived from the filename.
+  symbol_name_override
   )
 
   list(APPEND ${list_to_add} ${file_to})
@@ -1031,7 +1049,7 @@ function(data_to_c
 
   add_custom_command(
     OUTPUT ${file_to}
-    COMMAND "$<TARGET_FILE:datatoc>" ${file_from} ${file_to}
+    COMMAND "$<TARGET_FILE:datatoc>" ${file_from} ${file_to} ${symbol_name_override}
     DEPENDS ${file_from} datatoc)
 
   set_source_files_properties(${file_to} PROPERTIES GENERATED TRUE)
