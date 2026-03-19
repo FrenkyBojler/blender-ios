@@ -158,7 +158,7 @@ class VIEW3D_PT_vr_location_scouting_captures(VRButtonsPanel, Panel):
         is_reviewing = context.window_manager.vr_capture_review_running
         capture_review_text = "Review VR Captures" if not is_reviewing else "Exit Review"
         capture_review_icon = 'HIDE_OFF' if not is_reviewing else 'CANCEL'
-        layout.operator("view3d.location_scouting_capture_review", text=capture_review_text, icon=capture_review_icon,
+        layout.operator("view3d.vr_location_scouting_capture_review", text=capture_review_text, icon=capture_review_icon,
                         depress=is_reviewing)
 
 

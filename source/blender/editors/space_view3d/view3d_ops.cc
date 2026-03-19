@@ -259,7 +259,7 @@ void view3d_operatortypes()
   WM_operatortype_append(VIEW3D_OT_ruler_remove);
 
 #ifdef WITH_XR_OPENXR
-  WM_operatortype_append(VIEW3D_OT_location_scouting_capture_review);
+  WM_operatortype_append(VIEW3D_OT_vr_location_scouting_capture_review);
 #endif
 
   ed::transform::transform_operatortypes();
@@ -281,7 +281,7 @@ void view3d_keymap(wmKeyConfig *keyconf)
   viewplace_modal_keymap(keyconf);
 
 #ifdef WITH_XR_OPENXR
-  location_scouting_capture_review_modal_keymap(keyconf);
+  vr_location_scouting_capture_review_modal_keymap(keyconf);
 #endif
 }
 

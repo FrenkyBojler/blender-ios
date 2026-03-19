@@ -6673,7 +6673,7 @@ def km_view3d_dolly_modal(_params):
 def km_view3d_capture_review_modal(_params):
     items = []
     keymap = (
-        "View3D Location Scouting Capture Review Modal",
+        "View3D VR Location Scouting Capture Review Modal",
         {"space_type": 'EMPTY', "region_type": 'WINDOW', "modal": True},
         {"items": items},
     )

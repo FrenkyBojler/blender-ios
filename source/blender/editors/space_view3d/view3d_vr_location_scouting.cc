@@ -60,7 +60,7 @@ enum {
   CAPTURE_REVIEW_MODAL_ADD_MARKER,
 };
 
-void location_scouting_capture_review_modal_keymap(wmKeyConfig *keyconf)
+void vr_location_scouting_capture_review_modal_keymap(wmKeyConfig *keyconf)
 {
   static const EnumPropertyItem modal_items[] = {
       {CAPTURE_REVIEW_MODAL_EXIT, "EXIT", 0, "Exit", ""},
@@ -82,17 +82,17 @@ void location_scouting_capture_review_modal_keymap(wmKeyConfig *keyconf)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  wmKeyMap *keymap = WM_modalkeymap_find(keyconf, "View3D Location Scouting Capture Review Modal");
+  wmKeyMap *keymap = WM_modalkeymap_find(keyconf, "View3D VR Location Scouting Capture Review Modal");
 
   /* This function is called for each space-type, only needs to add map once. */
   if (keymap && keymap->modal_items) {
     return;
   }
 
-  keymap = WM_modalkeymap_ensure(keyconf, "View3D Location Scouting Capture Review Modal", modal_items);
+  keymap = WM_modalkeymap_ensure(keyconf, "View3D VR Location Scouting Capture Review Modal", modal_items);
 
   /* Assign map to operators. */
-  WM_modalkeymap_assign(keymap, "VIEW3D_OT_location_scouting_capture_review");
+  WM_modalkeymap_assign(keymap, "VIEW3D_OT_vr_location_scouting_capture_review");
 }
 
 static void location_scouting_review_draw_status(bContext *C, wmOperator *op)
@@ -114,14 +114,14 @@ static void location_scouting_review_draw_status(bContext *C, wmOperator *op)
   status.item(IFACE_("Add Marker"), ICON_NONE);
 }
 
-bool location_scouting_capture_review_poll(bContext *C)
+bool vr_location_scouting_capture_review_poll(bContext *C)
 {
   return !wm_xr_location_scouting_is_captures_empty(CTX_data_scene(C)) &&
          ED_operator_region_view3d_active(C);
 }
 
 /* The capture review property is stored on the WM, registered by the VR Python add-on. */
-static bool location_scouting_capture_review_get_running_state(bContext *C)
+static bool vr_location_scouting_capture_review_get_running_state(bContext *C)
 {
   PointerRNA wm_ptr = RNA_id_pointer_create(&CTX_wm_manager(C)->id);
   PropertyRNA *state_prop = RNA_struct_find_property(&wm_ptr, "vr_capture_review_running");
@@ -132,7 +132,7 @@ static bool location_scouting_capture_review_get_running_state(bContext *C)
   return RNA_property_boolean_get(&wm_ptr, state_prop);
 }
 
-static void location_scouting_capture_review_set_running_state(bContext *C,
+static void vr_location_scouting_capture_review_set_running_state(bContext *C,
                                                                       const bool state)
 {
   PointerRNA wm_ptr = RNA_id_pointer_create(&CTX_wm_manager(C)->id);
@@ -144,14 +144,14 @@ static void location_scouting_capture_review_set_running_state(bContext *C,
   RNA_property_boolean_set(&wm_ptr, state_prop, state);
 }
 
-static wmOperatorStatus location_scouting_capture_review_invoke(bContext *C,
+static wmOperatorStatus vr_location_scouting_capture_review_invoke(bContext *C,
                                                                        wmOperator *op,
                                                                        const wmEvent * /*event*/)
 {
   /* Operator invoked while already running, toggle off. */
-  if (location_scouting_capture_review_get_running_state(C)) {
+  if (vr_location_scouting_capture_review_get_running_state(C)) {
     /* Set the running state (stored on the WM) to false, catched by the running operator modal. */
-    location_scouting_capture_review_set_running_state(C, false);
+    vr_location_scouting_capture_review_set_running_state(C, false);
     return OPERATOR_CANCELLED;
   }
 
@@ -187,7 +187,7 @@ static wmOperatorStatus location_scouting_capture_review_invoke(bContext *C,
   op->customdata = review_data;
 
   /* Set running state. */
-  location_scouting_capture_review_set_running_state(C, true);
+  vr_location_scouting_capture_review_set_running_state(C, true);
 
   WM_event_add_modal_handler(C, op);
   location_scouting_review_draw_status(C, op);
@@ -195,7 +195,7 @@ static wmOperatorStatus location_scouting_capture_review_invoke(bContext *C,
   return OPERATOR_RUNNING_MODAL;
 }
 
-static void location_scouting_capture_review_exit(bContext *C, wmOperator *op)
+static void vr_location_scouting_capture_review_exit(bContext *C, wmOperator *op)
 {
   CaptureReviewData *review_data = static_cast<CaptureReviewData *>(op->customdata);
   RegionView3D *rv3d = review_data->rv3d;
@@ -209,7 +209,7 @@ static void location_scouting_capture_review_exit(bContext *C, wmOperator *op)
 
   review_data->v3d->camera = review_data->prev_view3d_cam_ob;
 
-  location_scouting_capture_review_set_running_state(C, false);
+  vr_location_scouting_capture_review_set_running_state(C, false);
 
   /* Redraw entire area (both the viewport and N-panel regions), clear status text. */
   ED_area_tag_redraw(CTX_wm_area(C));
@@ -222,12 +222,12 @@ static void location_scouting_capture_review_exit(bContext *C, wmOperator *op)
   MEM_delete(review_data);
 }
 
-static void location_scouting_capture_review_cancel(bContext *C, wmOperator *op)
+static void vr_location_scouting_capture_review_cancel(bContext *C, wmOperator *op)
 {
-  location_scouting_capture_review_exit(C, op);
+  vr_location_scouting_capture_review_exit(C, op);
 }
 
-static bool location_scouting_capture_review_event(bContext *C, const wmEvent *event)
+static bool vr_location_scouting_capture_review_event(bContext *C, const wmEvent *event)
 {
   /* Return true if event is handled, false otherwise. */
   if (event->type != EVT_MODAL_MAP) {
@@ -236,7 +236,7 @@ static bool location_scouting_capture_review_event(bContext *C, const wmEvent *e
 
   switch (event->val) {
     case CAPTURE_REVIEW_MODAL_EXIT:
-      location_scouting_capture_review_set_running_state(C, false);
+      vr_location_scouting_capture_review_set_running_state(C, false);
       break;
     case CAPTURE_REVIEW_MODAL_PREV:
     case CAPTURE_REVIEW_MODAL_NEXT: {
@@ -270,7 +270,7 @@ static bool location_scouting_capture_review_event(bContext *C, const wmEvent *e
   return true;
 }
 
-static wmOperatorStatus location_scouting_capture_review_modal(bContext *C,
+static wmOperatorStatus vr_location_scouting_capture_review_modal(bContext *C,
                                                                       wmOperator *op,
                                                                       const wmEvent *event)
 {
@@ -280,15 +280,15 @@ static wmOperatorStatus location_scouting_capture_review_modal(bContext *C,
 
   if (!capture.has_value()) {
     BKE_report(op->reports, RPT_INFO, "No VR captures to display, exiting capture review...");
-    location_scouting_capture_review_exit(C, op);
+    vr_location_scouting_capture_review_exit(C, op);
     return OPERATOR_FINISHED;
   }
 
-  const bool event_handled = location_scouting_capture_review_event(C, event);
+  const bool event_handled = vr_location_scouting_capture_review_event(C, event);
 
   /* Exit requested, state set by the operator invoke from UI, or event function from keymap. */
-  if (!location_scouting_capture_review_get_running_state(C)) {
-    location_scouting_capture_review_exit(C, op);
+  if (!vr_location_scouting_capture_review_get_running_state(C)) {
+    vr_location_scouting_capture_review_exit(C, op);
     return OPERATOR_FINISHED;
   }
 
@@ -327,18 +327,18 @@ static wmOperatorStatus location_scouting_capture_review_modal(bContext *C,
   return OPERATOR_PASS_THROUGH;
 }
 
-void VIEW3D_OT_location_scouting_capture_review(wmOperatorType *ot)
+void VIEW3D_OT_vr_location_scouting_capture_review(wmOperatorType *ot)
 {
   /* Identifiers. */
-  ot->name = "Review VR Captures";
+  ot->name = "Location Scouting Capture Review";
   ot->description = "Interactively review Location Scouting VR Captures";
-  ot->idname = "VIEW3D_OT_location_scouting_capture_review";
+  ot->idname = "VIEW3D_OT_vr_location_scouting_capture_review";
 
   /* Callbacks. */
-  ot->invoke = location_scouting_capture_review_invoke;
-  ot->cancel = location_scouting_capture_review_cancel;
-  ot->modal = location_scouting_capture_review_modal;
-  ot->poll = location_scouting_capture_review_poll;
+  ot->invoke = vr_location_scouting_capture_review_invoke;
+  ot->cancel = vr_location_scouting_capture_review_cancel;
+  ot->modal = vr_location_scouting_capture_review_modal;
+  ot->poll = vr_location_scouting_capture_review_poll;
 }
 
 /** \} */
