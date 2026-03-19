@@ -147,6 +147,10 @@ static void do_encode_pixels(const uv_islands::MeshData &mesh_data,
 {
   NodeData *node_data = node.pixels_;
 
+  /* Assuming a quad mesh, we'll have at least 2 * faces entries */
+  node_data->uv_primitives.tri_indices.reserve(node.faces().size() * 2);
+  node_data->uv_primitives.delta_barycentric_coords.reserve(node.faces().size() * 2);
+
   for (ImageTile &tile : image.tiles) {
     image::ImageTileWrapper image_tile(&tile);
     image_user.tile = image_tile.get_tile_number();
@@ -177,14 +181,10 @@ static void do_encode_pixels(const uv_islands::MeshData &mesh_data,
           const float maxu = clamp_f(max_fff(uvs[0].x, uvs[1].x, uvs[2].x), 0.0f, 1.0f);
           const int maxx = min_ii(ceil(maxu * image_buffer->x), image_buffer->x);
 
-          /* TODO: Perform bounds check */
-          int uv_prim_index = node_data->uv_primitives.size();
-          node_data->uv_primitives.append(tri);
-          UVPrimitivePaintInput &paint_input = node_data->uv_primitives.last();
-
-          /* Calculate barycentric delta */
-          paint_input.delta_barycentric_coord_u = calc_barycentric_delta_x(
-              image_buffer, uvs, minx, miny);
+          const int uv_prim_index = node_data->uv_primitives.tri_indices.size();
+          node_data->uv_primitives.tri_indices.append(tri);
+          node_data->uv_primitives.delta_barycentric_coords.append(
+              calc_barycentric_delta_x(image_buffer, uvs, minx, miny));
 
           /* Extract the pixels. */
           extract_barycentric_pixels(tile_data,
@@ -206,6 +206,9 @@ static void do_encode_pixels(const uv_islands::MeshData &mesh_data,
     if (tile_data.pixel_rows.is_empty()) {
       continue;
     }
+
+    BLI_assert(node_data->uv_primitives.delta_barycentric_coords.size() ==
+               node_data->uv_primitives.tri_indices.size());
 
     node_data->tiles.append(tile_data);
   }
@@ -451,22 +454,39 @@ PBVHData &data_get(Tree &pbvh)
   return *data;
 }
 
-void mark_image_dirty(Node &node, Image &image, ImageUser &image_user)
+/* TODO: This is a awkward to have to re-iterate over the image tiles to find the matching tile.
+ * Investigate storing the pointer on the `UDIMTilePixels` struct instead, or storing this as a
+ * second map in `ImageData` */
+static std::optional<image::ImageTileWrapper> find_image_tile(Image &image,
+                                                              const image::TileNumber tile_number)
+{
+  for (ImageTile &image_tile : image.tiles) {
+    image::ImageTileWrapper wrapper = image::ImageTileWrapper(&image_tile);
+    if (wrapper.get_tile_number() == tile_number) {
+      return std::make_optional(wrapper);
+    }
+  }
+  /* Logically, we should be unable to reference a image_tile here without having first gotten it
+   * from the image tile itself. */
+  BLI_assert(0);
+  return std::nullopt;
+}
+
+void mark_image_dirty(bke::pbvh::Node &node,
+                      Image &image,
+                      Map<image::TileNumber, ImBuf *> &buffers)
 {
   BLI_assert(node.pixels_ != nullptr);
   NodeData *node_data = node.pixels_;
   if (node_data->flags.dirty) {
-    ImageUser local_image_user = image_user;
-    for (ImageTile &tile : image.tiles) {
-      image::ImageTileWrapper image_tile(&tile);
-      local_image_user.tile = image_tile.get_tile_number();
-      ImBuf *image_buffer = BKE_image_acquire_ibuf(&image, &local_image_user, nullptr);
-      if (image_buffer == nullptr) {
+    for (UDIMTilePixels &tile : node_data->tiles) {
+      std::optional<image::ImageTileWrapper> image_tile = find_image_tile(image, tile.tile_number);
+      ImBuf *image_buffer = buffers.lookup_default(tile.tile_number, nullptr);
+      if (image_buffer == nullptr || !image_tile) {
         continue;
       }
 
-      node_data->mark_region(image, image_tile, *image_buffer);
-      BKE_image_release_ibuf(&image, image_buffer, nullptr);
+      node_data->mark_region(tile, image, *image_tile, *image_buffer);
     }
     node_data->flags.dirty = false;
   }
