@@ -68,8 +68,7 @@ bool wm_xr_location_scouting_is_captures_empty(Scene *scene)
   return false;
 }
 
-std::optional<XrLocationScoutingCapture> wm_xr_location_scouting_get_active_capture(
-    Scene *scene)
+std::optional<XrLocationScoutingCapture> wm_xr_location_scouting_get_active_capture(Scene *scene)
 {
   /* Workaround: To allow for conditionally registering the location scouting capture collection on
    *             the Scene while not polluting the main DNA Scene struct, and generally keep the
@@ -122,7 +121,9 @@ std::optional<XrLocationScoutingCapture> wm_xr_location_scouting_get_active_capt
   return std::make_optional(capture);
 }
 
-GHOST_XrPose wm_xr_location_scouting_capture_to_ghost_pose(const XrLocationScoutingCapture &capture) {
+GHOST_XrPose wm_xr_location_scouting_capture_to_ghost_pose(
+    const XrLocationScoutingCapture &capture)
+{
   /* Create a GHOST_XrPose from a XrLocationScoutingCapture. Used to prevent storing GHOST types
    * inside XrLocationScoutingCapture while still being able to use wm_xr_pose_* functions. */
   GHOST_XrPose pose;

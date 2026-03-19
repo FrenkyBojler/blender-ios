@@ -82,14 +82,16 @@ void vr_location_scouting_capture_review_modal_keymap(wmKeyConfig *keyconf)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  wmKeyMap *keymap = WM_modalkeymap_find(keyconf, "View3D VR Location Scouting Capture Review Modal");
+  wmKeyMap *keymap = WM_modalkeymap_find(keyconf,
+                                         "View3D VR Location Scouting Capture Review Modal");
 
   /* This function is called for each space-type, only needs to add map once. */
   if (keymap && keymap->modal_items) {
     return;
   }
 
-  keymap = WM_modalkeymap_ensure(keyconf, "View3D VR Location Scouting Capture Review Modal", modal_items);
+  keymap = WM_modalkeymap_ensure(
+      keyconf, "View3D VR Location Scouting Capture Review Modal", modal_items);
 
   /* Assign map to operators. */
   WM_modalkeymap_assign(keymap, "VIEW3D_OT_vr_location_scouting_capture_review");
@@ -132,8 +134,7 @@ static bool vr_location_scouting_capture_review_get_running_state(bContext *C)
   return RNA_property_boolean_get(&wm_ptr, state_prop);
 }
 
-static void vr_location_scouting_capture_review_set_running_state(bContext *C,
-                                                                      const bool state)
+static void vr_location_scouting_capture_review_set_running_state(bContext *C, const bool state)
 {
   PointerRNA wm_ptr = RNA_id_pointer_create(&CTX_wm_manager(C)->id);
   PropertyRNA *state_prop = RNA_struct_find_property(&wm_ptr, "vr_capture_review_running");
@@ -145,8 +146,8 @@ static void vr_location_scouting_capture_review_set_running_state(bContext *C,
 }
 
 static wmOperatorStatus vr_location_scouting_capture_review_invoke(bContext *C,
-                                                                       wmOperator *op,
-                                                                       const wmEvent * /*event*/)
+                                                                   wmOperator *op,
+                                                                   const wmEvent * /*event*/)
 {
   /* Operator invoked while already running, toggle off. */
   if (vr_location_scouting_capture_review_get_running_state(C)) {
@@ -271,8 +272,8 @@ static bool vr_location_scouting_capture_review_event(bContext *C, const wmEvent
 }
 
 static wmOperatorStatus vr_location_scouting_capture_review_modal(bContext *C,
-                                                                      wmOperator *op,
-                                                                      const wmEvent *event)
+                                                                  wmOperator *op,
+                                                                  const wmEvent *event)
 {
   /* Get the current capture. */
   Scene *scene = CTX_data_scene(C);

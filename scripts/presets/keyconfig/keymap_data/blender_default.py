@@ -6670,6 +6670,7 @@ def km_view3d_dolly_modal(_params):
 
     return keymap
 
+
 def km_view3d_capture_review_modal(_params):
     items = []
     keymap = (
