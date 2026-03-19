@@ -417,7 +417,6 @@ set(SRC
 )
 
 set(LIB
-  PUBLIC bf::intern::implicit_sharing
   PUBLIC bf::dna
   PRIVATE bf::extern::json
   PRIVATE bf::extern::xxhash

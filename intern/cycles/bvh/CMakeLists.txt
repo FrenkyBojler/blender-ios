@@ -4,7 +4,6 @@
 
 set(INC
   ..
-  ../../implicit_sharing
 )
 
 set(INC_SYS

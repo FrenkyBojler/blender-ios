@@ -9,7 +9,6 @@ endif()
 
 set(INC
   ..
-  ../../implicit_sharing
 )
 
 set(LIB

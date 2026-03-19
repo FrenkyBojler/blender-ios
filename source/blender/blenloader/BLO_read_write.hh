@@ -39,10 +39,9 @@
 #include "BLI_implicit_sharing.hh"
 #include "BLI_map.hh"
 
-class ImplicitSharingInfo;
-
 namespace blender {
 
+class ImplicitSharingInfo;
 struct BlendFileReadReport;
 struct BlendLibReader;
 struct ID;

@@ -162,7 +162,7 @@ void SubdAttributeInterpolation::setup_attribute_vertex_linear(const Attribute &
   const typename T::Type *subd_data = reinterpret_cast<const typename T::Type *>(
                                           subd_attr.data()) +
                                       motion_step * mesh.get_num_subd_base_verts();
-  typename T::Type *mesh_data = reinterpret_cast<typename T::Type *>(mesh_attr.data_for_write()) +
+  typename T::Type *mesh_data = reinterpret_cast<typename T::Type *>(mesh_attr.data()) +
                                 motion_step * mesh.get_verts().size();
 
   assert(mesh_data != nullptr);
@@ -276,7 +276,7 @@ void SubdAttributeInterpolation::setup_attribute_vertex_smooth(const Attribute &
   }
 
   /* Evaluate patches at limit. */
-  typename T::Type *mesh_data = reinterpret_cast<typename T::Type *>(mesh_attr.data_for_write()) +
+  typename T::Type *mesh_data = reinterpret_cast<typename T::Type *>(mesh_attr.data()) +
                                 mesh.get_verts().size() * motion_step;
 
   assert(mesh_data != nullptr);
@@ -347,7 +347,7 @@ void SubdAttributeInterpolation::setup_attribute_corner_linear(const Attribute &
   const typename T::Type *subd_data = reinterpret_cast<const typename T::Type *>(
                                           subd_attr.data()) +
                                       motion_step * mesh.get_subd_face_corners().size();
-  typename T::Type *mesh_data = reinterpret_cast<typename T::Type *>(mesh_attr.data_for_write()) +
+  typename T::Type *mesh_data = reinterpret_cast<typename T::Type *>(mesh_attr.data()) +
                                 motion_step * mesh.num_triangles() * 3;
 
   assert(mesh_data != nullptr);
@@ -458,7 +458,7 @@ void SubdAttributeInterpolation::setup_attribute_corner_smooth(Attribute &mesh_a
 
   /* Evaluate patches at limit. */
   const typename T::AccumType *subd_data = refined_data;
-  typename T::Type *mesh_data = reinterpret_cast<typename T::Type *>(mesh_attr.data_for_write());
+  typename T::Type *mesh_data = reinterpret_cast<typename T::Type *>(mesh_attr.data());
 
   assert(mesh_data != nullptr);
 
@@ -509,7 +509,7 @@ void SubdAttributeInterpolation::setup_attribute_face(const Attribute &subd_attr
   /* Copy value from face to triangle. */
   SubdAttribute attr;
   const typename T::Type *subd_data = reinterpret_cast<const typename T::Type *>(subd_attr.data());
-  typename T::Type *mesh_data = reinterpret_cast<typename T::Type *>(mesh_attr.data_for_write());
+  typename T::Type *mesh_data = reinterpret_cast<typename T::Type *>(mesh_attr.data());
 
   assert(mesh_data != nullptr);
 

@@ -266,7 +266,6 @@ set(INC
   ../../../../intern/cycles/blender
   ../../../../intern/memutil
   ../../../../intern/mantaflow/extern
-  ../../../../intern/implicit_sharing
 
 
   # RNA_prototypes.hh

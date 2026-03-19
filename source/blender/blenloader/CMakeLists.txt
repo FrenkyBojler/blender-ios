@@ -6,6 +6,7 @@ set(INC
   PUBLIC .
   ../editors/include
   ../makesrna
+
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )

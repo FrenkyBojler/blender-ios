@@ -10,7 +10,6 @@ add_subdirectory(libmv)
 add_subdirectory(memutil)
 add_subdirectory(opensubdiv)
 add_subdirectory(mikktspace)
-add_subdirectory(implicit_sharing)
 add_subdirectory(eigen)
 add_subdirectory(sky)
 

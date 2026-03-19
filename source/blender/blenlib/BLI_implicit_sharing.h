@@ -10,12 +10,11 @@
  * This file only exists to forward declare `ImplicitSharingInfo` in C code.
  */
 
-class ImplicitSharingInfo;
-
 namespace blender {
 
 #ifdef __cplusplus
 
+class ImplicitSharingInfo;
 using ImplicitSharingInfoHandle = ImplicitSharingInfo;
 
 #else

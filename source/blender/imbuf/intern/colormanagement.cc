@@ -34,7 +34,6 @@
 #include "BLI_color.hh"
 #include "BLI_colorspace.hh"
 #include "BLI_fileops.hh"
-#include "BLI_implicit_sharing.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_color.h"
 #include "BLI_math_color.hh"

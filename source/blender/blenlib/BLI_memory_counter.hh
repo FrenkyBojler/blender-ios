@@ -12,7 +12,6 @@
 #include "BLI_implicit_sharing_ptr.hh"
 #include "BLI_memory_counter_fwd.hh"
 #include "BLI_set.hh"
-#include "BLI_utility_mixins.hh"
 
 namespace blender::memory_counter {
 
