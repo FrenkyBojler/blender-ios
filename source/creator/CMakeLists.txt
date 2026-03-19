@@ -82,11 +82,6 @@ if(WITH_TBB)
   endif()
 endif()
 
-if(WIN32)
-  # Windows.h will define min/max macros that will collide with the STL versions.
-  add_definitions(-DNOMINMAX)
-endif()
-
 if(WITH_USD)
   # USD links libMaterialX, when using pre-compiled libraries
   # ensures `usd_ms` can find `MaterialXRender` and friends.
@@ -1933,10 +1928,7 @@ unset(LIB)
 
 setup_platform_linker_flags(blender)
 setup_platform_linker_libs(blender)
-
-if(DEFINED PLATFORM_SYMBOLS_MAP)
-  set_target_properties(blender PROPERTIES LINK_DEPENDS ${PLATFORM_SYMBOLS_MAP})
-endif()
+setup_platform_linker_symbol_hiding(blender)
 
 blender_target_include_dirs(blender ${INC})
 
@@ -2034,12 +2026,15 @@ endif()
 
 if(WIN32)
   if(WITH_CYCLES_DEVICE_HIPRT)
-    if(EXISTS ${LIBDIR}/hiprt/bin/hiprt64.dll)
-      windows_install_shared_manifest(
-        FILES ${LIBDIR}/hiprt/bin/hiprt64.dll
-        ALL
-      )
-    endif()
+    # Cycles does `find_package(HIPRT)` for its compilation purposes, and the variables defined by
+    # the FindHIPRT.cmake are only available in Cycles. In order to access HIPRT_VERSION need to
+    # find the package from here as well.
+    # For the strict compilation rely on Cycles to take care of set_and_warn_library_found().
+    find_package(HIPRT)
+    windows_install_shared_manifest(
+      FILES ${LIBDIR}/hiprt/bin/hiprt${HIPRT_VERSION}64.dll
+      ALL
+    )
   endif()
 endif()
 

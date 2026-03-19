@@ -29,6 +29,7 @@
 #include "DNA_object_types.h"
 
 #include "BKE_context.hh"
+#include "BKE_curve.hh"
 #include "BKE_key.hh"
 #include "BKE_lattice.hh"
 #include "BKE_library.hh"
@@ -896,6 +897,25 @@ static wmOperatorStatus shape_key_make_basis_exec(bContext *C, wmOperator * /*op
   new_basis_key->relative = 0;
   old_basis_key->relative = 0;
 
+  /* Apply new basis key on original data. This is needed so that creating new shape-keys will
+   * start from the new basis shape. */
+  switch (ob->type) {
+    case OB_MESH: {
+      Mesh *mesh = id_cast<Mesh *>(ob->data);
+      BKE_keyblock_convert_to_mesh(new_basis_key, mesh->vert_positions_for_write());
+      break;
+    }
+    case OB_CURVES_LEGACY:
+    case OB_SURF:
+      BKE_keyblock_convert_to_curve(new_basis_key,
+                                    id_cast<Curve *>(ob->data),
+                                    BKE_curve_nurbs_get(id_cast<Curve *>(ob->data)));
+      break;
+    case OB_LATTICE:
+      BKE_keyblock_convert_to_lattice(new_basis_key, id_cast<Lattice *>(ob->data));
+      break;
+  }
+
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 
@@ -1032,7 +1052,7 @@ void OBJECT_OT_shape_key_apply_to_basis(wmOperatorType *ot)
 {
   ot->name = "Apply to Basis Key";
   ot->idname = "OBJECT_OT_shape_key_apply_to_basis";
-  ot->description = "Appply deformations of selected shape keys to the basis key, removing them";
+  ot->description = "Apply deformations of selected shape keys to the basis key, removing them";
 
   ot->poll = shape_key_apply_to_basis_poll;
   ot->exec = shape_key_apply_to_basis_exec;
