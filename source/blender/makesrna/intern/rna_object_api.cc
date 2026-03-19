@@ -657,29 +657,22 @@ static void rna_Object_ray_cast(Object *ob,
 
     /* No need to managing allocation or freeing of the BVH data.
      * This is generated and freed as needed. */
-    bke::BVHTreeFromMesh treeData = mesh_eval->bvh_corner_tris();
 
     /* may fail if the mesh has no faces, in that case the ray-cast misses */
-    if (treeData.tree != nullptr) {
+    if (mesh_eval->faces_num != 0) {
+      const bke::bvh::Tree &bvh_tree = mesh_eval->bvh_tree();
       BVHTreeRayHit hit;
 
       hit.index = -1;
       hit.dist = distance;
 
-      if (BLI_bvhtree_ray_cast(treeData.tree,
-                               origin,
-                               direction_unit,
-                               0.0f,
-                               &hit,
-                               treeData.raycast_callback,
-                               &treeData) != -1)
-      {
-        if (hit.dist <= distance) {
+      if (const std::optional<bke::bvh::RayHit> hit = bvh_tree.ray_intersect(origin, direction)) {
+        if (hit->distance <= distance) {
           *r_success = success = true;
 
-          copy_v3_v3(r_location, hit.co);
-          copy_v3_v3(r_normal, hit.no);
-          *r_index = mesh_corner_tri_to_face_index(mesh_eval, hit.index);
+          copy_v3_v3(r_location, hit->position);
+          copy_v3_v3(r_normal, hit->normal);
+          *r_index = mesh_corner_tri_to_face_index(mesh_eval, hit->index);
         }
       }
     }
@@ -712,13 +705,9 @@ static void rna_Object_closest_point_on_mesh(Object *ob,
   /* No need to managing allocation or freeing of the BVH data.
    * this is generated and freed as needed. */
   Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob);
-  bke::BVHTreeFromMesh treeData = mesh_eval->bvh_corner_tris();
+  const bke::bvh::Tree &bvh_tree = mesh_eval->bvh_tree();
 
-  if (treeData.tree == nullptr) {
-    BKE_reportf(reports,
-                RPT_ERROR,
-                "Object '%s' could not create internal data for finding nearest point",
-                ob->id.name + 2);
+  if (mesh_eval->faces_num == 0) {
     return;
   }
   else {
@@ -727,14 +716,16 @@ static void rna_Object_closest_point_on_mesh(Object *ob,
     nearest.index = -1;
     nearest.dist_sq = distance * distance;
 
-    if (BLI_bvhtree_find_nearest(
-            treeData.tree, origin, &nearest, treeData.nearest_callback, &treeData) != -1)
+    const bke::bvh::Tree &bvh_tree = mesh_eval->bvh_tree();
+
+    if (const std::optional<bke::bvh::ClosestPointResult> nearest = bvh_tree->closest_point(
+            origin, distance))
     {
       *r_success = true;
 
-      copy_v3_v3(r_location, nearest.co);
-      copy_v3_v3(r_normal, nearest.no);
-      *r_index = mesh_corner_tri_to_face_index(mesh_eval, nearest.index);
+      copy_v3_v3(r_location, nearest->position);
+      copy_v3_v3(r_normal, nearest->normal);
+      *r_index = mesh_corner_tri_to_face_index(mesh_eval, nearest->index);
     }
     else {
       *r_success = false;

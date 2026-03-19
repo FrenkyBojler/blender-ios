@@ -4060,16 +4060,14 @@ static void init_scene_project_brush_targets(const Depsgraph &depsgraph,
     }
 
     const Mesh &mesh = *id_cast<const Mesh *>(object->data);
-    bke::BVHTreeFromMesh tree_data = mesh.bvh_corner_tris();
-
-    if (tree_data.tree == nullptr) {
+    if (mesh.faces_num == 0) {
       continue;
     }
-
+    const bke::bvh::Tree &tree_data = mesh.bvh_tree();
     const float4x4 active_to_target_matrix = object->world_to_object() *
                                              active_object.object_to_world();
 
-    ProjectBrushTarget project_target{std::move(tree_data), active_to_target_matrix};
+    ProjectBrushTarget project_target{&tree_data, active_to_target_matrix};
     cache.project_targets.append(std::move(project_target));
   }
 }

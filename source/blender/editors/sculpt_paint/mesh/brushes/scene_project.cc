@@ -31,6 +31,7 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
+#include "BKE_bvh.hh"
 #include "BKE_mesh.hh"
 #include "BKE_object_types.hh"
 #include "BKE_paint.hh"
@@ -68,17 +69,10 @@ static inline float absolute_min_distance(const float d1, const float d2)
 
 static inline void raycast(const float3 &ray_origin,
                            const float3 &ray_normal,
-                           const bke::BVHTreeFromMesh &tree_data,
-                           BVHTreeRayHit &hit)
+                           const bke::bvh::Tree &tree_data,
+                           std::optional<bke::bvh::RayHit> &hit)
 {
-  hit.dist = BVH_RAYCAST_DIST_MAX;
-  BLI_bvhtree_ray_cast(tree_data.tree,
-                       ray_origin,
-                       ray_normal,
-                       0.0f,
-                       &hit,
-                       tree_data.raycast_callback,
-                       const_cast<bke::BVHTreeFromMesh *>(&tree_data));
+  hit = tree_data.ray_intersect(ray_origin, ray_normal);
 }
 
 /**
@@ -130,15 +124,15 @@ static void object_raycast(const ProjectBrushTarget &project_target,
 
   threading::isolate_task([&]() {
     threading::parallel_for(positions.index_range(), 256, [&](IndexRange range) {
-      BVHTreeRayHit hit;
+      std::optional<bke::bvh::RayHit> hit;
 
       for (const int i : range) {
         if (factors[i] == 0.0f) {
           continue;
         }
 
-        raycast(ray_origins[i], ray_direction, project_target.tree_data, hit);
-        best_hit_distances[i] = absolute_min_distance(best_hit_distances[i], hit.dist);
+        raycast(ray_origins[i], ray_direction, *project_target.tree_data, hit);
+        best_hit_distances[i] = absolute_min_distance(best_hit_distances[i], hit->distance);
       }
 
       if (bidirectional) {
@@ -147,8 +141,8 @@ static void object_raycast(const ProjectBrushTarget &project_target,
             continue;
           }
 
-          raycast(ray_origins[i], -ray_direction, project_target.tree_data, hit);
-          best_hit_distances[i] = absolute_min_distance(best_hit_distances[i], -hit.dist);
+          raycast(ray_origins[i], -ray_direction, *project_target.tree_data, hit);
+          best_hit_distances[i] = absolute_min_distance(best_hit_distances[i], -hit->distance);
         }
       }
     });
