@@ -656,8 +656,10 @@ static wmOperatorStatus layer_add_exec(bContext *C, wmOperator * /* op */)
   AnimData *adt = ED_actedit_animdata_from_context(C, &animated_id);
   animrig::Action &action = adt->action->wrap();
   action.layer_add(std::nullopt);
+
   DEG_id_tag_update(&action.id, ID_RECALC_ANIMATION);
-  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_ADDED, nullptr);
+
   return OPERATOR_FINISHED;
 }
 
@@ -692,8 +694,10 @@ static wmOperatorStatus layer_remove_exec(bContext *C, wmOperator * /* op */)
   AnimData *adt = ED_actedit_animdata_from_context(C, &animated_id);
   animrig::Action &action = adt->action->wrap();
   action.layer_remove(*action.layer_active_get());
+
   DEG_id_tag_update(&action.id, ID_RECALC_ANIMATION);
-  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_REMOVED, nullptr);
+
   return OPERATOR_FINISHED;
 }
 

@@ -1931,7 +1931,8 @@ static void rna_def_action_layer(BlenderRNA *brna)
       prop, "Mix Mode", "How animation of this layer is blended into the lower layers");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_enum_items(prop, rna_enum_layer_mix_mode_items);
-  RNA_def_property_update(prop, NC_ANIMATION | ND_ANIMCHAN, "rna_Action_tag_animupdate");
+  RNA_def_property_update(
+      prop, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, "rna_Action_tag_animupdate");
 
   prop = RNA_def_property(srna, "is_locked", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_ui_text(
@@ -1940,7 +1941,7 @@ static void rna_def_action_layer(BlenderRNA *brna)
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
-  RNA_def_property_update_notifier(prop, NC_ANIMATION | ND_ANIMCHAN);
+  RNA_def_property_update_notifier(prop, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED);
 
   /* Collection properties. */
   prop = RNA_def_property(srna, "strips", PROP_COLLECTION, PROP_NONE);
