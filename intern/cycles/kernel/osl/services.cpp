@@ -16,6 +16,7 @@
 #include "util/colorspace.h"
 #include "util/log.h"
 #include "util/string.h"
+#include "util/types_image.h"
 
 #include "kernel/device/cpu/image.h"
 
@@ -314,14 +315,14 @@ OSL::TextureSystem::TextureHandle *OSLRenderServices::get_texture_handle(
           break;
         }
         return reinterpret_cast<OSL::TextureSystem::TextureHandle *>(OSL_TEXTURE_HANDLE_TYPE_SVM |
-                                                                     it->second.svm_slots[0].y);
+                                                                     it->second.id);
       case OSLTextureHandle::IES:
         if (!it->second.handle.empty() && it->second.handle.get_manager() != image_manager) {
           it.clear();
           break;
         }
         return reinterpret_cast<OSL::TextureSystem::TextureHandle *>(OSL_TEXTURE_HANDLE_TYPE_IES |
-                                                                     it->second.svm_slots[0].y);
+                                                                     it->second.id);
       case OSLTextureHandle::AO:
         return reinterpret_cast<OSL::TextureSystem::TextureHandle *>(
             OSL_TEXTURE_HANDLE_TYPE_AO_OR_BEVEL | 1);
@@ -346,7 +347,7 @@ OSL::TextureSystem::TextureHandle *OSLRenderServices::get_texture_handle(
   }
 
   return reinterpret_cast<OSL::TextureSystem::TextureHandle *>(OSL_TEXTURE_HANDLE_TYPE_SVM |
-                                                               handle.svm_slot());
+                                                               handle.kernel_id());
 }
 
 bool OSLRenderServices::good(OSL::TextureSystem::TextureHandle *texture_handle)
@@ -425,37 +426,8 @@ bool OSLRenderServices::texture(OSLUStringHash filename,
       break;
     }
     case OSLTextureHandle::SVM: {
-      int id = -1;
-      if (handle->svm_slots[0].w == -1) {
-        /* Packed single texture. */
-        id = handle->svm_slots[0].y;
-      }
-      else {
-        /* Packed tiled texture. */
-        const int tx = (int)s;
-        const int ty = (int)t;
-        const int tile = 1001 + 10 * ty + tx;
-        for (const int4 &tile_node : handle->svm_slots) {
-          if (tile_node.x == tile) {
-            id = tile_node.y;
-            break;
-          }
-          if (tile_node.z == tile) {
-            id = tile_node.w;
-            break;
-          }
-        }
-        s -= tx;
-        t -= ty;
-      }
-
-      float4 rgba;
-      if (id == -1) {
-        rgba = IMAGE_MISSING_RGBA;
-      }
-      else {
-        rgba = kernel_image_interp(kernel_globals, id, s, 1.0f - t);
-      }
+      const float4 rgba = kernel_image_interp_with_udim(
+          kernel_globals, sd, handle->id, dual2(make_float2(s, 1.0f - t)));
 
       result[0] = rgba[0];
       if (nchannels > 1) {
@@ -472,7 +444,7 @@ bool OSLRenderServices::texture(OSLUStringHash filename,
     }
     case OSLTextureHandle::IES: {
       /* IES light. */
-      result[0] = kernel_ies_interp(kernel_globals, handle->svm_slots[0].y, s, t);
+      result[0] = kernel_ies_interp(kernel_globals, handle->id, s, t);
       status = true;
       break;
     }
@@ -558,10 +530,9 @@ bool OSLRenderServices::texture3d(OSLUStringHash filename,
   switch (texture_type) {
     case OSLTextureHandle::SVM: {
       /* Packed texture. */
-      const int slot = handle->svm_slots[0].y;
       const float3 P_float3 = make_float3(P.x, P.y, P.z);
       float4 rgba = kernel_image_interp_3d(
-          kernel_globals, globals->sd, slot, P_float3, INTERPOLATION_NONE, false);
+          kernel_globals, globals->sd, handle->id, P_float3, INTERPOLATION_NONE, false);
 
       result[0] = rgba[0];
       if (nchannels > 1) {
@@ -789,24 +760,20 @@ bool OSLRenderServices::trace(TraceOpt &options,
 
   ray.P = make_float3(P.x, P.y, P.z);
   ray.D = make_float3(R.x, R.y, R.z);
-  ray.tmin = 0.0f;
-  ray.tmax = (options.maxdist == 1.0e30f) ? FLT_MAX : options.maxdist - options.mindist;
+  ray.tmin = options.mindist;
+  ray.tmax = (options.maxdist == 1.0e30f) ? FLT_MAX : options.maxdist;
   ray.time = sd->time;
   ray.self.object = OBJECT_NONE;
   ray.self.prim = PRIM_NONE;
   ray.self.light_object = OBJECT_NONE;
   ray.self.light_prim = PRIM_NONE;
 
-  if (options.mindist == 0.0f) {
+  if (ray.tmin == 0.0f) {
     /* avoid self-intersections */
     if (ray.P == sd->P) {
       ray.self.object = sd->object;
       ray.self.prim = sd->prim;
     }
-  }
-  else {
-    /* offset for minimum distance */
-    ray.P += options.mindist * ray.D;
   }
 
   /* ray differentials */

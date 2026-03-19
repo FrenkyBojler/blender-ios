@@ -30,6 +30,7 @@ class TestEntry:
     device_type: str = 'CPU'
     device_id: str = 'CPU'
     device_name: str = 'Unknown CPU'
+    device_cpu: str = ''
     status: str = 'queued'
     # Short, single-line error.
     error_msg: str = ''
@@ -249,11 +250,13 @@ class TestConfig:
 
             # Filter devices that are supported by this test. Add a default CPU when
             # no devices are supported for backwards compatibility
-            devices = self.devices
+            supported_device_types = ['CPU']
             if test.use_device():
-                devices = filter(lambda device: device.type in test.supported_device_types(), devices)
+                supported_device_types = test.supported_device_types()
+
+            devices = filter(lambda device: device.type in test.supported_device_types(), self.devices)
             if not devices:
-                devices = ['CPU']
+                devices = filter(lambda device: device.type == 'CPU', self.devices)
 
             for device in devices:
                 entry = self.queue.find(revision_name, test_name, test_category, device.id)
@@ -270,6 +273,9 @@ class TestConfig:
                         entry.executable = executable
                         entry.benchmark_type = self.benchmark_type
                         entry.date = date
+                        entry.device_name = device.name
+                        if device.cpu:
+                            entry.device_cpu = device.cpu
                         if entry.status in {'done', 'failed'}:
                             entry.status = 'outdated'
                 else:
@@ -285,6 +291,7 @@ class TestConfig:
                         device_type=device.type,
                         device_id=device.id,
                         device_name=device.name,
+                        device_cpu=device.cpu,
                         benchmark_type=self.benchmark_type)
                 entries.append(entry)
 
