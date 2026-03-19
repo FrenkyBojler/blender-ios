@@ -44,6 +44,7 @@
 #include "BKE_context.hh"
 #include "BKE_idtype.hh"
 #include "BKE_main.hh"
+#include "BKE_path_templates.hh"
 #include "BKE_preferences.h"
 
 #include "BLO_userdef_default.h"
@@ -1174,6 +1175,10 @@ void ED_file_change_dir_ex(bContext *C, ScrArea *area)
      * and usually very annoying to keep it actually! */
     params->filter_search[0] = '\0';
     params->active_file = -1;
+
+    bke::path_templates::VariableMap template_variables;
+    BKE_add_template_variables_general(template_variables, nullptr);
+    BKE_path_apply_template(params->dir, FILE_MAX_LIBEXTRA, template_variables);
 
     if (BLI_path_is_rel(params->dir)) {
       const char *base_path = BKE_main_blendfile_path(CTX_data_main(C));

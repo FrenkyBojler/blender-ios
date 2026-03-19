@@ -25,6 +25,7 @@
 
 #include "BKE_appdir.hh"
 #include "BKE_main.hh"
+#include "BKE_path_templates.hh"
 
 #include "ED_fileselect.hh"
 
@@ -521,13 +522,17 @@ int fsmenu_get_active_indices(FSMenu *fsmenu, enum FSMenuCategory category, cons
   FSMenuEntry *fsm_iter = ED_fsmenu_get_category(fsmenu, category);
   int i;
 
+  bke::path_templates::VariableMap template_variables;
+  BKE_add_template_variables_general(template_variables, nullptr);
+
   for (i = 0; fsm_iter; fsm_iter = fsm_iter->next, i++) {
-    char absolute_dir[FILE_MAX];
+    char absolute_path[FILE_MAX_LIBEXTRA];
     char *path = fsm_iter->path;
-    if (BLI_path_is_rel(path)) {
-      STRNCPY(absolute_dir, path);
-      BLI_path_abs(absolute_dir, BKE_main_blendfile_path_from_global());
-      path = absolute_dir;
+    if (BLI_path_is_rel(path) || BKE_path_contains_template_syntax(path)) {
+      STRNCPY(absolute_path, path);
+      BKE_path_apply_template(absolute_path, FILE_MAX_LIBEXTRA, template_variables);
+      BLI_path_abs(absolute_path, BKE_main_blendfile_path_from_global());
+      path = absolute_path;
     }
     if (BLI_path_cmp(dir, path) == 0) {
       return i;
