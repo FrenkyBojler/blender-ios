@@ -95,8 +95,8 @@ std::optional<XrLocationScoutingCapture> wm_xr_location_scouting_get_active_capt
   PropertyRNA *location_prop = RNA_struct_find_property(&current_capture, "location");
   PropertyRNA *orientation_prop = RNA_struct_find_property(&current_capture, "orientation");
 
-  float capture_location[3];
-  float capture_orientation[4];
+  float3 capture_location;
+  float4 capture_orientation;
   RNA_property_float_get_array(&current_capture, location_prop, capture_location);
   RNA_property_float_get_array(&current_capture, orientation_prop, capture_orientation);
 
@@ -112,13 +112,26 @@ std::optional<XrLocationScoutingCapture> wm_xr_location_scouting_get_active_capt
   PropertyRNA *dof_fstop_prop = RNA_struct_find_property(&current_capture, "dof_fstop");
 
   XrLocationScoutingCapture capture = {
-      .pose = capture_pose,
+      .position = capture_location,
+      .orientation_quat = capture_orientation,
       .lens_focal = RNA_property_float_get(&current_capture, lens_focal_prop),
       .dof_enabled = RNA_property_boolean_get(&current_capture, dof_enabled_prop),
       .dof_distance = RNA_property_float_get(&current_capture, dof_distance_prop),
       .dof_fstop = RNA_property_float_get(&current_capture, dof_fstop_prop)};
 
   return std::make_optional(capture);
+}
+
+GHOST_XrPose wm_xr_location_scouting_capture_to_ghost_pose(const XrLocationScoutingCapture &capture) {
+  /* Create a GHOST_XrPose from a XrLocationScoutingCapture. Used to prevent storing GHOST types
+   * inside XrLocationScoutingCapture while still being able to use wm_xr_pose_* functions. */
+  GHOST_XrPose pose;
+
+  pose.is_active = true;
+  copy_v3_v3(pose.position, capture.position);
+  copy_qt_qt(pose.orientation_quat, capture.orientation_quat);
+
+  return pose;
 }
 
 /** \} */
@@ -325,7 +338,8 @@ void wm_xr_viewfinder_render_view(wmXrData *xr_data)
         return;
       }
 
-      wm_xr_pose_scale_to_imat(&capture->pose, state->viewer_scale, viewfinder_render_viewmat);
+      const GHOST_XrPose capture_pose = wm_xr_location_scouting_capture_to_ghost_pose(*capture);
+      wm_xr_pose_scale_to_imat(&capture_pose, state->viewer_scale, viewfinder_render_viewmat);
       cam_render_params.lens = capture->lens_focal;
 
       SET_FLAG_FROM_TEST(cam_render_data->dof.flag, capture->dof_enabled, CAM_DOF_ENABLED);
@@ -707,7 +721,9 @@ static void wm_xr_viewfinder_gizmo_draw_capture_camera(const bContext *C, wmXrSe
   }
 
   float capture_mat[4][4];
-  wm_xr_pose_to_mat(&capture->pose, capture_mat);
+
+  const GHOST_XrPose capture_pose = wm_xr_location_scouting_capture_to_ghost_pose(*capture);
+  wm_xr_pose_to_mat(&capture_pose, capture_mat);
 
   /* Compute focal. */
   constexpr float sensor_fit_fac = 36 * 2; /* Twice the default Camera sensor fit (36mm). */

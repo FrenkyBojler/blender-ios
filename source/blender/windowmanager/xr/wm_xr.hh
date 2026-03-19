@@ -8,8 +8,6 @@
 
 #pragma once
 
-#include "GHOST_Types.hh"
-
 namespace blender {
 
 struct wmWindow;
@@ -31,10 +29,11 @@ void wm_xr_operatortypes_register();
 
 /* `wm_xr_location_scouting.cc` */
 
+/* NOTE: Keep in sync with the Python VR Scene Inspection add-on VRCapture class.
+ *       See comment in #wm_xr_get_active_location_scouting_capture. */
 struct XrLocationScoutingCapture {
-  /* NOTE: Keep in sync with the Python VR Scene Inspection add-on VRCapture class.
-   *       See comment in #wm_xr_get_active_location_scouting_capture. */
-  GHOST_XrPose pose;
+  float3 position;
+  float4 orientation_quat;
 
   float lens_focal;
 

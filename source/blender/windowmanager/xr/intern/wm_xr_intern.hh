@@ -312,7 +312,7 @@ bool wm_xr_passthrough_enabled(void *customdata);
  */
 void wm_xr_disable_passthrough(void *customdata);
 
-/* `wm_xr_location_scouting` */
+/* `wm_xr_location_scouting.cc` */
 
 void wm_xr_viewfinder_render_view(wmXrData *xr_data);
 void wm_xr_viewfinder_draw(const bContext *C,
