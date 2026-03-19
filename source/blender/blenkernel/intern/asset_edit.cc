@@ -160,7 +160,7 @@ static bool asset_write_in_library(Main &bmain,
 
   ID &id = const_cast<ID &>(id_const);
 
-  /* This is not expected to ever happen currently from this codepath. */
+  /* This is not expected to ever happen currently from this code-path. */
   BLI_assert(!ID_IS_PACKED(&id));
 
   PartialWriteContext lib_write_ctx{bmain};
@@ -168,6 +168,13 @@ static bool asset_write_in_library(Main &bmain,
                                     {(PartialWriteContext::IDAddOperations::MAKE_LOCAL |
                                       PartialWriteContext::IDAddOperations::SET_FAKE_USER |
                                       PartialWriteContext::IDAddOperations::ADD_DEPENDENCIES)});
+  if (!new_id) {
+    BKE_reportf(&reports,
+                RPT_ERROR,
+                "Could not create a copy of ID '%s' to write it in the library",
+                id.name);
+    return false;
+  }
 
   std::string new_name = name;
   BKE_libblock_rename(lib_write_ctx.bmain, *new_id, new_name);

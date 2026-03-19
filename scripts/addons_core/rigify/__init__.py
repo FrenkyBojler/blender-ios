@@ -483,6 +483,8 @@ class RigifyBoneCollectionReference(bpy.types.PropertyGroup):
     uid: IntProperty(name="Unique ID", default=-1)
 
     def find_collection(self, *, update=False, raise_error=False) -> bpy.types.BoneCollection | None:
+        if self.uid < 0:
+            return None
         return utils.layers.resolve_collection_reference(self.id_data, self, update=update, raise_error=raise_error)
 
     def set_collection(self, coll: bpy.types.BoneCollection | None):
@@ -666,6 +668,7 @@ def register():
 
 
 def register_rig_parameters():
+    seen_error = False
     for rig in rig_lists.rigs:
         rig_module = rig_lists.rigs[rig]['module']
         rig_class = rig_module.Rig
@@ -678,6 +681,12 @@ def register_rig_parameters():
         except Exception:
             import traceback
             traceback.print_exc()
+            seen_error = True
+
+    if seen_error:
+        # Make sure errors are seen by the caller. This helps to catch issues with
+        # Rigify in automated systems like the buildbot.
+        raise RuntimeError("There was an issue registering at least one Rigify rig type, check the terminal for errors")
 
 
 def unregister():
