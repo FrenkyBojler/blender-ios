@@ -379,12 +379,12 @@ void smooth_brush_toggle_off(Paint *paint, StrokeCache *cache)
   /* The current brush should match with what we have stored in the cache. */
   BLI_assert(brush == cache->brush);
 
-  /* If saved_active_brush is not set, brush was not switched/affected in
+  /* If original_active_brush is not set, brush was not switched/affected in
    * smooth_brush_toggle_on(). */
-  if (cache->saved_active_brush) {
-    BKE_brush_size_set(paint, brush, cache->saved_smooth_size);
-    BKE_paint_brush_set(paint, cache->saved_active_brush);
-    cache->saved_active_brush = nullptr;
+  if (cache->toggle_settings.original_active_brush) {
+    BKE_brush_size_set(paint, brush, cache->toggle_settings.original_brush_size);
+    BKE_paint_brush_set(paint, cache->toggle_settings.original_active_brush);
+    cache->toggle_settings.original_active_brush = nullptr;
   }
 }
 void update_cache_invariants(
@@ -416,20 +416,20 @@ void update_cache_invariants(
   }
 
   const auto mode = BrushStrokeMode(RNA_enum_get(op->ptr, "mode"));
-  cache->invert = mode == BrushStrokeMode::Invert;
+  cache->toggle_settings.invert = mode == BrushStrokeMode::Invert;
 
   const auto brush_switch_mode = BrushSwitchMode(RNA_enum_get(op->ptr, "brush_toggle"));
-  cache->alt_smooth = brush_switch_mode == BrushSwitchMode::Smooth;
+  cache->toggle_settings.alt_smooth = brush_switch_mode == BrushSwitchMode::Smooth;
   /* not very nice, but with current events system implementation
    * we can't handle brush appearance inversion hotkey separately (sergey) */
-  if (cache->invert) {
+  if (cache->toggle_settings.invert) {
     paint_runtime.draw_inverted = true;
   }
   else {
     paint_runtime.draw_inverted = false;
   }
 
-  if (cache->alt_smooth) {
+  if (cache->toggle_settings.alt_smooth) {
     vwpaint::smooth_brush_toggle_on(bmain, &vp.paint, cache);
   }
 
@@ -545,15 +545,15 @@ void smooth_brush_toggle_on(Main *bmain, Paint *paint, StrokeCache *cache)
   if (!BKE_paint_brush_set_essentials(bmain, paint, "Blur")) {
     BKE_paint_brush_set(paint, cur_brush);
     CLOG_WARN(&LOG, "Unable to switch to the 'Blur' essentials brush asset");
-    cache->saved_active_brush = nullptr;
+    cache->toggle_settings.original_active_brush = nullptr;
     return;
   }
 
   Brush *smooth_brush = BKE_paint_brush(paint);
   int cur_brush_size = BKE_brush_size_get(paint, cur_brush);
 
-  cache->saved_active_brush = cur_brush;
-  cache->saved_smooth_size = BKE_brush_size_get(paint, smooth_brush);
+  cache->toggle_settings.original_active_brush = cur_brush;
+  cache->toggle_settings.original_brush_size = BKE_brush_size_get(paint, smooth_brush);
   BKE_brush_size_set(paint, smooth_brush, cur_brush_size);
   bke::brush::common_pressure_curves_init(*smooth_brush);
 }
@@ -2075,7 +2075,7 @@ void VertexPaintStroke::done(bool /*is_cancel*/)
 
   SculptSession &ss = *ob.runtime->sculpt_session;
 
-  if (ss.cache && ss.cache->alt_smooth) {
+  if (ss.cache && ss.cache->toggle_settings.alt_smooth) {
     vwpaint::smooth_brush_toggle_off(this->paint, ss.cache);
   }
 

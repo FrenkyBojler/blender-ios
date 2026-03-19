@@ -1881,7 +1881,7 @@ void WeightPaintStroke::update_step(wmOperator *op, PointerRNA *itemptr)
   wpi.vgroup_validmap = wpd->vgroup_validmap;
   wpi.vgroup_locked = wpd->vgroup_locked;
   wpi.vgroup_unlocked = wpd->vgroup_unlocked;
-  wpi.do_flip = RNA_boolean_get(op->ptr, "pen_flip") || ss.cache->invert;
+  wpi.do_flip = RNA_boolean_get(op->ptr, "pen_flip") || ss.cache->toggle_settings.invert;
   wpi.do_multipaint = wpd->do_multipaint;
   wpi.do_auto_normalize = ((ts.auto_normalize != 0) && (wpi.vgroup_validmap != nullptr) &&
                            (wpi.do_multipaint || wpi.vgroup_validmap[wpi.active.index]));
@@ -1918,7 +1918,7 @@ void WeightPaintStroke::done(bool /*is_cancel*/)
 
   SculptSession &ss = *ob.runtime->sculpt_session;
 
-  if (ss.cache->alt_smooth) {
+  if (ss.cache->toggle_settings.alt_smooth) {
     vwpaint::smooth_brush_toggle_off(this->paint, ss.cache);
   }
 
