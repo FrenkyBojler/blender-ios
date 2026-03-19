@@ -416,23 +416,35 @@ void update_mipmaps([[resource_table]] SRT &srt,
   }
 }
 
-struct UpdateMipmapsUNORM_8_8_8_8 {
+struct Resources {
+  [[compilation_constant]] const bool use_shared_srgb_uint;
+  [[compilation_constant]] const bool use_shared_float;
+  [[compilation_constant]] const bool use_UNORM_8_8_8_8;
   [[push_constant]] const int num_levels;
-  [[image(0, read, UNORM_8_8_8_8)]] image2D mip0;
-  [[image(1, write, UNORM_8_8_8_8)]] image2D mip1;
-  [[image(2, write, UNORM_8_8_8_8)]] image2D mip2;
+  [[image(0, read, UNORM_8_8_8_8), condition(use_UNORM_8_8_8_8)]] image2D mip0;
+  [[image(1, write, UNORM_8_8_8_8), condition(use_UNORM_8_8_8_8)]] image2D mip1;
+  [[image(2, write, UNORM_8_8_8_8), condition(use_UNORM_8_8_8_8)]] image2D mip2;
 
   /**
    * When generating 2 levels, the results of generating the intermediate *level(first level
    * generated) are cached here; this is the input tile *needed to generate the 8x8 tile of the
    * second level generated.
    */
-  [[shared]] uint shared_level[MAX_SHARED_SAMPLES][MAX_SHARED_SAMPLES];
+  [[shared, condition(use_shared_srgb_uint)]] uint shared_level_srgb_uint[MAX_SHARED_SAMPLES]
+                                                                         [MAX_SHARED_SAMPLES];
+  [[shared,
+    condition(use_shared_float)]] float shared_level_float[MAX_SHARED_SAMPLES][MAX_SHARED_SAMPLES];
 
   float4 load_sample(int2 src_coord, int /*src_level*/, bool load_from_shared)
   {
     if (load_from_shared) {
-      return srgb_unpack(shared_level[src_coord.y][src_coord.x]);
+      if (use_shared_srgb_uint) {
+        return srgb_unpack(shared_level_srgb_uint[src_coord.y][src_coord.x]);
+      }
+      if (use_shared_float) {
+        return float4(shared_level_float[src_coord.y][src_coord.x]);
+      }
+      return float4(0.0);
     }
     return imageLoad(mip0, src_coord);
   }
@@ -449,7 +461,12 @@ struct UpdateMipmapsUNORM_8_8_8_8 {
 
   void store_shared_sample(int2 dst_coord, float4 color)
   {
-    shared_level[dst_coord.y][dst_coord.x] = srgb_pack(color);
+    if (use_shared_srgb_uint) {
+      shared_level_srgb_uint[dst_coord.y][dst_coord.x] = srgb_pack(color);
+    }
+    else if (use_shared_float) {
+      shared_level_float[dst_coord.y][dst_coord.x] = color.x;
+    }
   }
 
   int2 level_size(int level)
@@ -467,46 +484,45 @@ struct UpdateMipmapsUNORM_8_8_8_8 {
   }
 };
 
-template float4 reduce_store_sample<UpdateMipmapsUNORM_8_8_8_8>(
-    [[resource_table]] UpdateMipmapsUNORM_8_8_8_8 &srt,
-    int2 srcCoord_,
-    int srcLevel_,
-    bool loadFromShared_,
-    int2 kernelSize_,
-    int2 dstImageSize_,
-    int2 dstCoord_,
-    int dstLevel_);
-template void intermediateLevelLoop_<UpdateMipmapsUNORM_8_8_8_8>(
-    [[resource_table]] UpdateMipmapsUNORM_8_8_8_8 &srt,
-    int2 initDstCoord_,
-    int2 initSharedCoord_,
-    int2 step_,
-    int iterations_,
-    bool boundsCheck_);
-template void fillIntermediateTile_<UpdateMipmapsUNORM_8_8_8_8>(UpdateMipmapsUNORM_8_8_8_8 &srt,
-                                                                uint local_index,
-                                                                int2 dstTileCoord_,
-                                                                bool boundsCheck_);
-template void fillLastTile_<UpdateMipmapsUNORM_8_8_8_8>(UpdateMipmapsUNORM_8_8_8_8 &srt,
-                                                        uint local_index,
-                                                        int2 dstTileCoord_,
-                                                        bool boundsCheck_);
-template void update_mipmaps<UpdateMipmapsUNORM_8_8_8_8>(UpdateMipmapsUNORM_8_8_8_8 &srt,
-                                                         const uint3 global_id,
-                                                         const uint3 group_id,
-                                                         const uint local_index);
+template float4 reduce_store_sample<Resources>([[resource_table]] Resources &srt,
+                                               int2 srcCoord_,
+                                               int srcLevel_,
+                                               bool loadFromShared_,
+                                               int2 kernelSize_,
+                                               int2 dstImageSize_,
+                                               int2 dstCoord_,
+                                               int dstLevel_);
+template void intermediateLevelLoop_<Resources>([[resource_table]] Resources &srt,
+                                                int2 initDstCoord_,
+                                                int2 initSharedCoord_,
+                                                int2 step_,
+                                                int iterations_,
+                                                bool boundsCheck_);
+template void fillIntermediateTile_<Resources>(Resources &srt,
+                                               uint local_index,
+                                               int2 dstTileCoord_,
+                                               bool boundsCheck_);
+template void fillLastTile_<Resources>(Resources &srt,
+                                       uint local_index,
+                                       int2 dstTileCoord_,
+                                       bool boundsCheck_);
+template void update_mipmaps<Resources>(Resources &srt,
+                                        const uint3 global_id,
+                                        const uint3 group_id,
+                                        const uint local_index);
 
 [[local_size(LOCAL_SIZE_X)]] [[compute]]
 void update_mipmaps_UNORM_8_8_8_8([[global_invocation_id]] const uint3 global_id,
                                   [[work_group_id]] const uint3 group_id,
                                   [[local_invocation_index]] const uint local_index,
-                                  [[resource_table]] UpdateMipmapsUNORM_8_8_8_8 &srt)
+                                  [[resource_table]] Resources &srt)
 {
-  update_mipmaps<UpdateMipmapsUNORM_8_8_8_8>(srt, global_id, group_id, local_index);
+  update_mipmaps<Resources>(srt, global_id, group_id, local_index);
 }
 
 }  // namespace builtin::mipmaps
 
 PipelineCompute gpu_shader_2D_update_mipmaps_unorm_8_8_8_8(
     builtin::mipmaps::update_mipmaps_UNORM_8_8_8_8,
-    builtin::mipmaps::UpdateMipmapsUNORM_8_8_8_8{});
+    builtin::mipmaps::Resources{
+        .use_shared_srgb_uint = true, .use_shared_float = false, .use_UNORM_8_8_8_8 = true});
