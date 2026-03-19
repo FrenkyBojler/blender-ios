@@ -721,7 +721,11 @@ class ANIM_PT_action_layers_panel(Panel):
         action = context.active_action
         if not context.preferences.experimental.use_action_layers:
             return
-        layout.template_action_layer_list(action)
+        row = layout.row()
+        row.template_action_layer_list(action)
+        col = row.column()
+        col.operator("action.layer_add", text="", icon="ADD")
+        col.operator("action.layer_remove", text="", icon="REMOVE")
         if action.layers.active:
             layout.prop(action.layers.active, "mix_mode")
 

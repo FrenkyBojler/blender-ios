@@ -650,4 +650,96 @@ void ACTION_OT_unlink(wmOperatorType *ot)
 
 /** \} */
 
+static wmOperatorStatus layer_add_exec(bContext *C, wmOperator * /* op */)
+{
+  ID *animated_id = nullptr;
+  AnimData *adt = ED_actedit_animdata_from_context(C, &animated_id);
+  animrig::Action &action = adt->action->wrap();
+  action.layer_add(std::nullopt);
+  DEG_id_tag_update(&action.id, ID_RECALC_ANIMATION);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN, nullptr);
+  return OPERATOR_FINISHED;
+}
+
+static bool layer_add_poll(bContext *C)
+{
+  ID *animated_id = nullptr;
+  AnimData *adt = ED_actedit_animdata_from_context(C, &animated_id);
+  if (!animated_id || !adt) {
+    return false;
+  }
+  if (!BKE_id_is_editable(CTX_data_main(C), animated_id)) {
+    return false;
+  }
+  return adt->action;
+}
+
+void ACTION_OT_layer_add(wmOperatorType *ot)
+{
+  ot->name = "Layer Add";
+  ot->idname = "ACTION_OT_layer_add";
+  ot->description = "Add a layer to the action";
+
+  ot->exec = layer_add_exec;
+  ot->poll = layer_add_poll;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+static wmOperatorStatus layer_remove_exec(bContext *C, wmOperator * /* op */)
+{
+  ID *animated_id = nullptr;
+  AnimData *adt = ED_actedit_animdata_from_context(C, &animated_id);
+  animrig::Action &action = adt->action->wrap();
+  action.layer_remove(*action.layer_active_get());
+  DEG_id_tag_update(&action.id, ID_RECALC_ANIMATION);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN, nullptr);
+  return OPERATOR_FINISHED;
+}
+
+static bool layer_remove_poll(bContext *C)
+{
+  ID *animated_id = nullptr;
+  AnimData *adt = ED_actedit_animdata_from_context(C, &animated_id);
+  if (!animated_id || !adt || !adt->action) {
+    return false;
+  }
+  if (!BKE_id_is_editable(CTX_data_main(C), animated_id)) {
+    return false;
+  }
+  animrig::Action &action = adt->action->wrap();
+  return action.layer_active_get();
+}
+
+static wmOperatorStatus layer_remove_invoke(bContext *C,
+                                            wmOperator *op,
+                                            const wmEvent * /* event */)
+{
+  if (RNA_boolean_get(op->ptr, "confirm")) {
+    return WM_operator_confirm_ex(C,
+                                  op,
+                                  IFACE_("Remove active layer and all animation on it?"),
+                                  nullptr,
+                                  CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Remove"),
+                                  ui::AlertIcon::None,
+                                  false);
+  }
+  return layer_remove_exec(C, op);
+}
+
+void ACTION_OT_layer_remove(wmOperatorType *ot)
+{
+  ot->name = "Layer Remove";
+  ot->idname = "ACTION_OT_layer_remove";
+  ot->description = "Remove a layer from the action and delete all data on it";
+
+  ot->invoke = layer_remove_invoke;
+  ot->exec = layer_remove_exec;
+  ot->poll = layer_remove_poll;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  WM_operator_properties_confirm_or_exec(ot);
+}
+
 }  // namespace blender

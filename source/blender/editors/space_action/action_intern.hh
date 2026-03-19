@@ -110,6 +110,9 @@ void ACTION_OT_mirror(wmOperatorType *ot);
 void ACTION_OT_new(wmOperatorType *ot);
 void ACTION_OT_unlink(wmOperatorType *ot);
 
+void ACTION_OT_layer_add(wmOperatorType *ot);
+void ACTION_OT_layer_remove(wmOperatorType *ot);
+
 void ACTION_OT_push_down(wmOperatorType *ot);
 void ACTION_OT_stash(wmOperatorType *ot);
 void ACTION_OT_stash_and_create(wmOperatorType *ot);
