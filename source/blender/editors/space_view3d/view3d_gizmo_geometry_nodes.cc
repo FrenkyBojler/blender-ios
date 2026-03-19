@@ -700,6 +700,16 @@ class TransformGizmos : public NodeGizmos {
       const math::Axis axis = math::Axis::from_int(axis_i);
       wmGizmo *gizmo = scale_gizmos_[axis_i];
       if (gizmo_is_interacting(*gizmo)) {
+        const float current_scale = edit_data_.current_scale[axis_i];
+
+        /* During interaction, visually scale the arrow stem to reflect the current
+         * scale value, instead of sliding. The Z column scales the stem length,
+         * the W column compensates the position so the base stays fixed. */
+        float4x4 mat_offset = float4x4::identity();
+        mat_offset[3][2] = -current_scale;
+        mat_offset[2][2] = 1.0f + current_scale;
+
+        copy_m4_m4(gizmo->matrix_offset, mat_offset.ptr());
         continue;
       }
 
