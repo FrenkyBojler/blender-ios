@@ -2,3 +2,4 @@ Referenced by issue #107580, Issue with Glossy Direct/Indirect Pass in Compositi
 Referenced by issue #106705, Regression: Glossy Direct pass produce different results than it did in previous versions of Blender.
 Referenced by issue #104586, Regression: Blender 3.5: Hair: Cycles render passes GlossDir, GlossInd, GlossCol, TransDir, TransInd, and TransCol
 Referenced by issue #104041, Baked diffuse color is too bright with sheen.
+Referenced by issue #87028, Glossy Direct/Indirect pass multiplied by the Glossy Color pass using Principled BSDF (Cycles and EEVEE)
