@@ -2887,7 +2887,7 @@ static void ANIM_OT_channels_delete(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static wmOperatorStatus animmodifiers_delete_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus animmodifiers_delete_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
   
@@ -2906,7 +2906,9 @@ static wmOperatorStatus animmodifiers_delete_exec(bContext *C, wmOperator * /*op
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   ANIM_animdata_filter(
       &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
-
+  
+  int modifier_count = 0;
+  int fcurve_count = 0;
   for (bAnimListElem &ale : anim_data) {
 
     if (!ELEM(ale.type, ANIMTYPE_FCURVE, ANIMTYPE_NLACURVE)) {
@@ -2918,6 +2920,9 @@ static wmOperatorStatus animmodifiers_delete_exec(bContext *C, wmOperator * /*op
       continue;
     }
 
+    fcurve_count++;
+    modifier_count += BLI_listbase_count(&fcu->modifiers);
+
     free_fmodifiers(&fcu->modifiers);
     ale.update |= ANIM_UPDATE_DEPS;
   }
@@ -2928,6 +2933,10 @@ static wmOperatorStatus animmodifiers_delete_exec(bContext *C, wmOperator * /*op
   WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
   DEG_relations_tag_update(CTX_data_main(C));
 
+  if (fcurve_count > 0) {
+    BKE_reportf(op->reports, RPT_INFO, "Removed %d modifiers from %d FCurve(s)", modifier_count, fcurve_count);
+  }
+  
   return OPERATOR_FINISHED;
 }
 
