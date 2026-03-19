@@ -252,15 +252,14 @@ static void convert_rotation_mode_range(Main &bmain,
   Array<FCurve *> evaluation_buffer(evaluation_buffer_count);
   Array<FCurve *> insertion_buffer(insertion_buffer_count);
 
-  const bool is_rotation_order_change = from_mode > ROT_MODE_QUAT && to_mode > ROT_MODE_QUAT;
+  const bool is_euler_to_euler = from_mode > ROT_MODE_QUAT && to_mode > ROT_MODE_QUAT;
 
   {
     const StringRef rotation_property_name = get_rotation_mode_path(to_mode);
     const std::string to_mode_rna_path = rotateable.get_rna_path_for_property(
         rotation_property_name);
 
-    /* True if the conversion is just between different euler rotations. */
-    if (is_rotation_order_change) {
+    if (is_euler_to_euler) {
       /* Cannot use the FCurve directly from the channelbag. Modifying that while converting the
        * rotation mode would influence the result. */
       FCurveDescriptor descriptor = {
@@ -278,8 +277,16 @@ static void convert_rotation_mode_range(Main &bmain,
       for (const int i : IndexRange(evaluation_buffer_count)) {
         evaluation_buffer[i] = fcurve_buffer.get_fcurve_by_array_index(i);
       }
+      /* Is needed to get correct FCurve colors. */
+      PropertySubType prop_subtype = PROP_EULER;
+      if (to_mode == ROT_MODE_QUAT) {
+        prop_subtype = PROP_QUATERNION;
+      }
+      else if (to_mode == ROT_MODE_AXISANGLE) {
+        prop_subtype = PROP_AXISANGLE;
+      }
       FCurveDescriptor descriptor = {
-          to_mode_rna_path, 0, PROP_FLOAT, PROP_NONE, rotateable.get_group_name()};
+          to_mode_rna_path, 0, PROP_FLOAT, prop_subtype, rotateable.get_group_name()};
       for (const int i : IndexRange(insertion_buffer_count)) {
         descriptor.array_index = i;
         insertion_buffer[i] = &channelbag.fcurve_ensure(&bmain, descriptor);
@@ -290,7 +297,7 @@ static void convert_rotation_mode_range(Main &bmain,
   convert_fcurves_rotation_mode(
       evaluation_buffer, insertion_buffer, from_mode, to_mode, range, rotateable);
 
-  if (is_rotation_order_change) {
+  if (is_euler_to_euler) {
     /* Free the FCurves that have been duplicated beforehand. */
     for (FCurve *fcurve : evaluation_buffer) {
       BKE_fcurve_free(fcurve);
