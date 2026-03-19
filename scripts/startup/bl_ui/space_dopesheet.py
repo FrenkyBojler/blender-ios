@@ -723,7 +723,7 @@ class ANIM_PT_action_layers_panel(Panel):
             return
         row = layout.row()
         row.template_action_layer_list(action)
-        col = row.column()
+        col = row.column(align=True)
         col.operator("action.layer_add", text="", icon="ADD")
         col.operator("action.layer_remove", text="", icon="REMOVE")
         if action.layers.active:
