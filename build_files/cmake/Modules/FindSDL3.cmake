@@ -29,11 +29,11 @@ set(_sdl3_SEARCH_DIRS
 
 find_path(SDL3_INCLUDE_DIR
   NAMES
-  SDL.h
+  SDL3/SDL.h
   HINTS
     ${_sdl3_SEARCH_DIRS}
   PATH_SUFFIXES
-    include/SDL3 include SDL3
+    include
 )
 
 find_library(SDL3_LIBRARY

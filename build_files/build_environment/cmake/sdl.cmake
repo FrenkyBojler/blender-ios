@@ -36,7 +36,7 @@ if(WIN32)
   if(BUILD_MODE STREQUAL Release)
     ExternalProject_Add_Step(external_sdl after_install
       COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${LIBDIR}/sdl/include/SDL3
+        ${LIBDIR}/sdl/include/
         ${HARVEST_TARGET}/sdl/include
       COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${LIBDIR}/sdl/lib
@@ -49,6 +49,6 @@ if(WIN32)
     )
   endif()
 else()
-  harvest(external_sdl sdl/include/SDL3 sdl/include "*.h")
+  harvest(external_sdl sdl/include sdl/include "*.h")
   harvest(external_sdl sdl/lib sdl/lib "libSDL3.a")
 endif()
