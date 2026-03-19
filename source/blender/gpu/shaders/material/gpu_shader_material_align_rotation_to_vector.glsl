@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "gpu_shader_math_constants_lib.glsl"
-#include "gpu_shader_math_vector_compare_lib.glsl"
 #include "gpu_shader_math_rotation_conversion_lib.glsl"
 #include "gpu_shader_math_rotation_lib.glsl"
+#include "gpu_shader_math_vector_compare_lib.glsl"
 
 float3 transform_point_by_quaternion(float3 v, float4 q)
 {
@@ -33,8 +33,11 @@ float angle_signed_on_axis_v3v3_v3(float3 v1, float3 v2, float3 axis)
 }
 
 [[node]]
-void node_align_rotation_to_vector_auto_pivot(
-    float4 old_rotation, float factor, float3 input_vector, float3 local_main_axis, out float4 out_rotation)
+void node_align_rotation_to_vector_auto_pivot(float4 old_rotation,
+                                              float factor,
+                                              float3 input_vector,
+                                              float3 local_main_axis,
+                                              out float4 out_rotation)
 {
   if (is_zero(input_vector)) {
     out_rotation = old_rotation;
