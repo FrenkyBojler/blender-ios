@@ -1722,10 +1722,6 @@ static void rna_def_userdef_theme_ui_style(BlenderRNA *brna)
   RNA_def_property_struct_type(prop, "ThemeFontStyle");
   RNA_def_property_ui_text(prop, "Tooltip Style", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-
-  prop = RNA_def_float(
-      srna, "text_line_height", 0.75, 0.25f, FLT_MAX, "Text Line Height", "", 0.25f, FLT_MAX);
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 }
 
 static void rna_def_userdef_theme_ui_wcol(BlenderRNA *brna)
