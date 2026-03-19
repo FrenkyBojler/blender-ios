@@ -1040,7 +1040,7 @@ void EraseOperation::on_stroke_begin(const bContext &C, const InputSample & /*st
   Paint *paint = BKE_paint_get_active_from_context(&C);
   Brush *brush = BKE_paint_brush(paint);
 
-  radius_ = BKE_brush_size_get(paint, brush) / 2.0f;
+  radius_ = BKE_brush_radius_get(paint, brush);
 
   /* If we're using the draw tool to erase (e.g. while holding ctrl), then we should use the
    * eraser brush instead. */
