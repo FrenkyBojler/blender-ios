@@ -1020,7 +1020,7 @@ struct PopupBlockHandle {
   char menu_idname[64] = "";
 
   bool mmb_panning = false;
-  int mmb_panning_last_y;
+  int mmb_panning_last_y = 0;
   /** Short period of time that prevents closing the current menu with ongoing actions like middle
    * mouse panning.  */
   wmTimer *keep_open_timer = nullptr;

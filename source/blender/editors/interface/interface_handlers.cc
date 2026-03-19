@@ -10983,7 +10983,6 @@ static int handle_menu_mmb_event(bContext *C,
     }
     retval = WM_UI_HANDLER_BREAK;
   }
-
   else if (event->type == MOUSEMOVE && !inside && menu->keep_open_timer) {
     retval = WM_UI_HANDLER_BREAK;
   }
