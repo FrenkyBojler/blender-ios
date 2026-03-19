@@ -15,23 +15,6 @@ CCL_NAMESPACE_BEGIN
 
 /* Attribute */
 
-class SharingInfoForFree : public ImplicitSharingInfo {
- public:
-  char *data;
-
-  SharingInfoForFree(char *data) : data(data)
-  {
-    assert(data != nullptr);
-  }
-
- private:
-  void delete_self_with_data() override
-  {
-    delete[] data;
-    delete this;
-  }
-};
-
 Attribute::Attribute(ustring name,
                      const TypeDesc type,
                      AttributeElement element,
@@ -45,10 +28,9 @@ Attribute::Attribute(ustring name,
          type == TypeRGBA);
 
   if (element & ATTR_ELEMENT_VOXEL) {
-    auto *shared_value = new ImplicitSharedValue<ImageHandle>();
-    this->buffer = &shared_value->data;
+    this->buffer = new ImageHandle();
     this->size = Attribute::element_size(geom, element, prim);
-    this->sharing_info = ImplicitSharingPtr<>(shared_value);
+    this->sharing_info = nullptr;
   }
   else {
     resize(geom, prim);
@@ -59,13 +41,24 @@ Attribute::Attribute(ustring name,
                      const TypeDesc type,
                      AttributeElement element,
                      const void *data,
-                     const ImplicitSharingInfo &sharing_info)
+                     const void *sharing_info)
     : name(name), std(ATTR_STD_NONE), type(type), element(element), flags(0), modified(true)
 {
   assert((element & ATTR_ELEMENT_VOXEL) == 0);
   this->buffer = data;
-  sharing_info.add_user();
-  this->sharing_info = ImplicitSharingPtr<>(&sharing_info);
+  g_implicit_sharing_user_add_fn(sharing_info);
+  this->sharing_info = sharing_info;
+}
+
+Attribute::~Attribute()
+{
+  /* For voxel data, we need to free the image handle. */
+  if (element & ATTR_ELEMENT_VOXEL) {
+    delete &data_voxel();
+  }
+  else if (sharing_info) {
+    g_implicit_sharing_user_remove_fn(sharing_info);
+  }
 }
 
 void Attribute::resize(Geometry *geom, AttributePrimitive prim)
@@ -83,10 +76,14 @@ void Attribute::resize(const size_t num_elements)
       return;
     }
     char *new_data = new char[new_size * this->data_sizeof()];
-    memcpy(new_data, this->buffer, size_t(this->size) * this->data_sizeof());
-    this->sharing_info = ImplicitSharingPtr<>(new SharingInfoForFree(new_data));
+    memcpy(
+        new_data, this->buffer, std::min(num_elements, size_t(this->size)) * this->data_sizeof());
+    if (this->sharing_info) {
+      g_implicit_sharing_user_remove_fn(this->sharing_info);
+    }
     this->buffer = new_data;
     this->size = new_size;
+    this->sharing_info = nullptr;
   }
 }
 
@@ -101,6 +98,7 @@ void Attribute::set_data_from(Attribute &&other)
   if (this->sharing_info != other.sharing_info) {
     this->buffer = other.buffer;
     this->sharing_info = other.sharing_info;
+    g_implicit_sharing_user_add_fn(this->sharing_info);
     modified = true;
   }
 }
@@ -445,7 +443,7 @@ Attribute *AttributeSet::add_shared(ustring name,
                                     const TypeDesc type,
                                     AttributeElement element,
                                     const void *data,
-                                    const ImplicitSharingInfo &sharing_info)
+                                    const void *sharing_info)
 {
   Attribute *attr = find(name);
 
@@ -492,68 +490,46 @@ void AttributeSet::remove(ustring name)
   }
 }
 
-Attribute *AttributeSet::add(AttributeStandard std, ustring name)
+static TypeDesc find_type_from_geometry_std(Geometry *geometry, AttributeStandard std)
 {
-  Attribute *attr = nullptr;
-
-  if (name.empty()) {
-    name = Attribute::standard_name(std);
-  }
-
   if (geometry->is_mesh()) {
     switch (std) {
       case ATTR_STD_VERTEX_NORMAL:
-        attr = add(name, TypeNormal, ATTR_ELEMENT_VERTEX_NORMAL);
-        break;
+        return TypeNormal;
       case ATTR_STD_NORMAL_UNDISPLACED:
-        attr = add(name, TypeNormal, ATTR_ELEMENT_VERTEX_NORMAL);
-        break;
+        return TypeNormal;
       case ATTR_STD_UV:
-        attr = add(name, TypeFloat2, ATTR_ELEMENT_CORNER);
-        break;
+        return TypeFloat2;
       case ATTR_STD_UV_TANGENT:
       case ATTR_STD_UV_TANGENT_UNDISPLACED:
-        attr = add(name, TypeVector, ATTR_ELEMENT_CORNER);
-        break;
+        return TypeVector;
       case ATTR_STD_UV_TANGENT_SIGN:
       case ATTR_STD_UV_TANGENT_SIGN_UNDISPLACED:
-        attr = add(name, TypeFloat, ATTR_ELEMENT_CORNER);
-        break;
+        return TypeFloat;
       case ATTR_STD_VERTEX_COLOR:
-        attr = add(name, TypeRGBA, ATTR_ELEMENT_CORNER_BYTE);
-        break;
+        return TypeRGBA;
       case ATTR_STD_GENERATED:
       case ATTR_STD_POSITION_UNDEFORMED:
       case ATTR_STD_POSITION_UNDISPLACED:
-        attr = add(name, TypePoint, ATTR_ELEMENT_VERTEX);
-        break;
+        return TypePoint;
       case ATTR_STD_MOTION_VERTEX_POSITION:
-        attr = add(name, TypePoint, ATTR_ELEMENT_VERTEX_MOTION);
-        break;
+        return TypePoint;
       case ATTR_STD_MOTION_VERTEX_NORMAL:
-        attr = add(name, TypeNormal, ATTR_ELEMENT_VERTEX_NORMAL_MOTION);
-        break;
+        return TypeNormal;
       case ATTR_STD_CORNER_NORMAL:
-        attr = add(name, TypeNormal, ATTR_ELEMENT_CORNER_NORMAL);
-        break;
+        return TypeNormal;
       case ATTR_STD_MOTION_CORNER_NORMAL:
-        attr = add(name, TypeNormal, ATTR_ELEMENT_CORNER_NORMAL_MOTION);
-        break;
+        return TypeNormal;
       case ATTR_STD_PTEX_FACE_ID:
-        attr = add(name, TypeFloat, ATTR_ELEMENT_FACE);
-        break;
+        return TypeFloat;
       case ATTR_STD_PTEX_UV:
-        attr = add(name, TypeFloat2, ATTR_ELEMENT_CORNER);
-        break;
+        return TypeFloat2;
       case ATTR_STD_GENERATED_TRANSFORM:
-        attr = add(name, TypeMatrix, ATTR_ELEMENT_MESH);
-        break;
+        return TypeMatrix;
       case ATTR_STD_POINTINESS:
-        attr = add(name, TypeFloat, ATTR_ELEMENT_VERTEX);
-        break;
+        return TypeFloat;
       case ATTR_STD_RANDOM_PER_ISLAND:
-        attr = add(name, TypeFloat, ATTR_ELEMENT_FACE);
-        break;
+        return TypeFloat;
       default:
         assert(0);
         break;
@@ -562,20 +538,15 @@ Attribute *AttributeSet::add(AttributeStandard std, ustring name)
   else if (geometry->is_pointcloud()) {
     switch (std) {
       case ATTR_STD_UV:
-        attr = add(name, TypeFloat2, ATTR_ELEMENT_VERTEX);
-        break;
+        return TypeFloat2;
       case ATTR_STD_GENERATED:
-        attr = add(name, TypePoint, ATTR_ELEMENT_VERTEX);
-        break;
+        return TypePoint;
       case ATTR_STD_MOTION_VERTEX_POSITION:
-        attr = add(name, TypeFloat4, ATTR_ELEMENT_VERTEX_MOTION);
-        break;
+        return TypeFloat4;
       case ATTR_STD_POINT_RANDOM:
-        attr = add(name, TypeFloat, ATTR_ELEMENT_VERTEX);
-        break;
+        return TypeFloat;
       case ATTR_STD_GENERATED_TRANSFORM:
-        attr = add(name, TypeMatrix, ATTR_ELEMENT_MESH);
-        break;
+        return TypeMatrix;
       default:
         assert(0);
         break;
@@ -584,11 +555,9 @@ Attribute *AttributeSet::add(AttributeStandard std, ustring name)
   else if (geometry->is_volume()) {
     switch (std) {
       case ATTR_STD_VERTEX_NORMAL:
-        attr = add(name, TypeNormal, ATTR_ELEMENT_VERTEX_NORMAL);
-        break;
+        return TypeNormal;
       case ATTR_STD_CORNER_NORMAL:
-        attr = add(name, TypeNormal, ATTR_ELEMENT_CORNER_NORMAL);
-        break;
+        return TypeNormal;
       case ATTR_STD_VOLUME_DENSITY:
       case ATTR_STD_VOLUME_FLAME:
       case ATTR_STD_VOLUME_HEAT:
@@ -596,14 +565,11 @@ Attribute *AttributeSet::add(AttributeStandard std, ustring name)
       case ATTR_STD_VOLUME_VELOCITY_X:
       case ATTR_STD_VOLUME_VELOCITY_Y:
       case ATTR_STD_VOLUME_VELOCITY_Z:
-        attr = add(name, TypeFloat, ATTR_ELEMENT_VOXEL);
-        break;
+        return TypeFloat;
       case ATTR_STD_VOLUME_COLOR:
-        attr = add(name, TypeColor, ATTR_ELEMENT_VOXEL);
-        break;
+        return TypeColor;
       case ATTR_STD_VOLUME_VELOCITY:
-        attr = add(name, TypeVector, ATTR_ELEMENT_VOXEL);
-        break;
+        return TypeVector;
       default:
         assert(0);
         break;
@@ -612,46 +578,169 @@ Attribute *AttributeSet::add(AttributeStandard std, ustring name)
   else if (geometry->is_hair()) {
     switch (std) {
       case ATTR_STD_VERTEX_NORMAL:
-        attr = add(name, TypeNormal, ATTR_ELEMENT_CURVE_KEY_NORMAL);
-        break;
+        return TypeNormal;
       case ATTR_STD_MOTION_VERTEX_NORMAL:
-        attr = add(name, TypeNormal, ATTR_ELEMENT_CURVE_KEY_NORMAL_MOTION);
-        break;
+        return TypeNormal;
       case ATTR_STD_UV:
-        attr = add(name, TypeFloat2, ATTR_ELEMENT_CURVE);
-        break;
+        return TypeFloat2;
       case ATTR_STD_GENERATED:
-        attr = add(name, TypePoint, ATTR_ELEMENT_CURVE);
-        break;
+        return TypePoint;
       case ATTR_STD_MOTION_VERTEX_POSITION:
-        attr = add(name, TypeFloat4, ATTR_ELEMENT_CURVE_KEY_MOTION);
-        break;
+        return TypeFloat4;
       case ATTR_STD_CURVE_INTERCEPT:
-        attr = add(name, TypeFloat, ATTR_ELEMENT_CURVE_KEY);
-        break;
+        return TypeFloat;
       case ATTR_STD_CURVE_LENGTH:
-        attr = add(name, TypeFloat, ATTR_ELEMENT_CURVE);
-        break;
+        return TypeFloat;
       case ATTR_STD_CURVE_RANDOM:
-        attr = add(name, TypeFloat, ATTR_ELEMENT_CURVE);
-        break;
+        return TypeFloat;
       case ATTR_STD_GENERATED_TRANSFORM:
-        attr = add(name, TypeMatrix, ATTR_ELEMENT_MESH);
-        break;
+        return TypeMatrix;
       case ATTR_STD_POINTINESS:
-        attr = add(name, TypeFloat, ATTR_ELEMENT_VERTEX);
-        break;
+        return TypeFloat;
       case ATTR_STD_RANDOM_PER_ISLAND:
-        attr = add(name, TypeFloat, ATTR_ELEMENT_FACE);
-        break;
+        return TypeFloat;
       case ATTR_STD_SHADOW_TRANSPARENCY:
-        attr = add(name, TypeFloat, ATTR_ELEMENT_CURVE_KEY);
-        break;
+        return TypeFloat;
       default:
         assert(0);
         break;
     }
   }
+  assert(0);
+  return TypeFloat;
+}
+
+static AttributeElement find_element_from_geometry_std(Geometry *geometry, AttributeStandard std)
+{
+  if (geometry->is_mesh()) {
+    switch (std) {
+      case ATTR_STD_VERTEX_NORMAL:
+        return ATTR_ELEMENT_VERTEX_NORMAL;
+      case ATTR_STD_NORMAL_UNDISPLACED:
+        return ATTR_ELEMENT_VERTEX_NORMAL;
+      case ATTR_STD_UV:
+        return ATTR_ELEMENT_CORNER;
+      case ATTR_STD_UV_TANGENT:
+      case ATTR_STD_UV_TANGENT_UNDISPLACED:
+        return ATTR_ELEMENT_CORNER;
+      case ATTR_STD_UV_TANGENT_SIGN:
+      case ATTR_STD_UV_TANGENT_SIGN_UNDISPLACED:
+        return ATTR_ELEMENT_CORNER;
+      case ATTR_STD_VERTEX_COLOR:
+        return ATTR_ELEMENT_CORNER_BYTE;
+      case ATTR_STD_GENERATED:
+      case ATTR_STD_POSITION_UNDEFORMED:
+      case ATTR_STD_POSITION_UNDISPLACED:
+        return ATTR_ELEMENT_VERTEX;
+      case ATTR_STD_MOTION_VERTEX_POSITION:
+        return ATTR_ELEMENT_VERTEX_MOTION;
+      case ATTR_STD_MOTION_VERTEX_NORMAL:
+        return ATTR_ELEMENT_VERTEX_NORMAL_MOTION;
+      case ATTR_STD_CORNER_NORMAL:
+        return ATTR_ELEMENT_CORNER_NORMAL;
+      case ATTR_STD_MOTION_CORNER_NORMAL:
+        return ATTR_ELEMENT_CORNER_NORMAL_MOTION;
+      case ATTR_STD_PTEX_FACE_ID:
+        return ATTR_ELEMENT_FACE;
+      case ATTR_STD_PTEX_UV:
+        return ATTR_ELEMENT_CORNER;
+      case ATTR_STD_GENERATED_TRANSFORM:
+        return ATTR_ELEMENT_MESH;
+      case ATTR_STD_POINTINESS:
+        return ATTR_ELEMENT_VERTEX;
+      case ATTR_STD_RANDOM_PER_ISLAND:
+        return ATTR_ELEMENT_FACE;
+      default:
+        assert(0);
+        break;
+    }
+  }
+  else if (geometry->is_pointcloud()) {
+    switch (std) {
+      case ATTR_STD_UV:
+        return ATTR_ELEMENT_VERTEX;
+      case ATTR_STD_GENERATED:
+        return ATTR_ELEMENT_VERTEX;
+      case ATTR_STD_MOTION_VERTEX_POSITION:
+        return ATTR_ELEMENT_VERTEX_MOTION;
+      case ATTR_STD_POINT_RANDOM:
+        return ATTR_ELEMENT_VERTEX;
+      case ATTR_STD_GENERATED_TRANSFORM:
+        return ATTR_ELEMENT_MESH;
+      default:
+        assert(0);
+        break;
+    }
+  }
+  else if (geometry->is_volume()) {
+    switch (std) {
+      case ATTR_STD_VERTEX_NORMAL:
+        return ATTR_ELEMENT_VERTEX_NORMAL;
+      case ATTR_STD_CORNER_NORMAL:
+        return ATTR_ELEMENT_CORNER_NORMAL;
+      case ATTR_STD_VOLUME_DENSITY:
+      case ATTR_STD_VOLUME_FLAME:
+      case ATTR_STD_VOLUME_HEAT:
+      case ATTR_STD_VOLUME_TEMPERATURE:
+      case ATTR_STD_VOLUME_VELOCITY_X:
+      case ATTR_STD_VOLUME_VELOCITY_Y:
+      case ATTR_STD_VOLUME_VELOCITY_Z:
+        return ATTR_ELEMENT_VOXEL;
+      case ATTR_STD_VOLUME_COLOR:
+        return ATTR_ELEMENT_VOXEL;
+      case ATTR_STD_VOLUME_VELOCITY:
+        return ATTR_ELEMENT_VOXEL;
+      default:
+        assert(0);
+        break;
+    }
+  }
+  else if (geometry->is_hair()) {
+    switch (std) {
+      case ATTR_STD_VERTEX_NORMAL:
+        return ATTR_ELEMENT_CURVE_KEY_NORMAL;
+      case ATTR_STD_MOTION_VERTEX_NORMAL:
+        return ATTR_ELEMENT_CURVE_KEY_NORMAL_MOTION;
+      case ATTR_STD_UV:
+        return ATTR_ELEMENT_CURVE;
+      case ATTR_STD_GENERATED:
+        return ATTR_ELEMENT_CURVE;
+      case ATTR_STD_MOTION_VERTEX_POSITION:
+        return ATTR_ELEMENT_CURVE_KEY_MOTION;
+      case ATTR_STD_CURVE_INTERCEPT:
+        return ATTR_ELEMENT_CURVE_KEY;
+      case ATTR_STD_CURVE_LENGTH:
+        return ATTR_ELEMENT_CURVE;
+      case ATTR_STD_CURVE_RANDOM:
+        return ATTR_ELEMENT_CURVE;
+      case ATTR_STD_GENERATED_TRANSFORM:
+        return ATTR_ELEMENT_MESH;
+      case ATTR_STD_POINTINESS:
+        return ATTR_ELEMENT_VERTEX;
+      case ATTR_STD_RANDOM_PER_ISLAND:
+        return ATTR_ELEMENT_FACE;
+      case ATTR_STD_SHADOW_TRANSPARENCY:
+        return ATTR_ELEMENT_CURVE_KEY;
+      default:
+        assert(0);
+        break;
+    }
+  }
+  assert(0);
+  return ATTR_ELEMENT_NONE;
+}
+
+Attribute *AttributeSet::add(AttributeStandard std, ustring name)
+{
+  Attribute *attr = nullptr;
+
+  if (name.empty()) {
+    name = Attribute::standard_name(std);
+  }
+
+  attr = add(name,
+             find_type_from_geometry_std(geometry, std),
+             find_element_from_geometry_std(geometry, std));
 
   attr->std = std;
 
@@ -661,7 +750,7 @@ Attribute *AttributeSet::add(AttributeStandard std, ustring name)
 Attribute *AttributeSet::add_shared(AttributeStandard std,
                                     ustring name,
                                     const void *data,
-                                    const ImplicitSharingInfo &sharing_info)
+                                    const void *sharing_info)
 {
   Attribute *attr = nullptr;
 
@@ -669,159 +758,11 @@ Attribute *AttributeSet::add_shared(AttributeStandard std,
     name = Attribute::standard_name(std);
   }
 
-  if (geometry->is_mesh()) {
-    switch (std) {
-      case ATTR_STD_VERTEX_NORMAL:
-        attr = add_shared(name, TypeNormal, ATTR_ELEMENT_VERTEX_NORMAL, data, sharing_info);
-        break;
-      case ATTR_STD_NORMAL_UNDISPLACED:
-        attr = add_shared(name, TypeNormal, ATTR_ELEMENT_VERTEX_NORMAL, data, sharing_info);
-        break;
-      case ATTR_STD_UV:
-        attr = add_shared(name, TypeFloat2, ATTR_ELEMENT_CORNER, data, sharing_info);
-        break;
-      case ATTR_STD_UV_TANGENT:
-      case ATTR_STD_UV_TANGENT_UNDISPLACED:
-        attr = add_shared(name, TypeVector, ATTR_ELEMENT_CORNER, data, sharing_info);
-        break;
-      case ATTR_STD_UV_TANGENT_SIGN:
-      case ATTR_STD_UV_TANGENT_SIGN_UNDISPLACED:
-        attr = add_shared(name, TypeFloat, ATTR_ELEMENT_CORNER, data, sharing_info);
-        break;
-      case ATTR_STD_VERTEX_COLOR:
-        attr = add_shared(name, TypeRGBA, ATTR_ELEMENT_CORNER_BYTE, data, sharing_info);
-        break;
-      case ATTR_STD_GENERATED:
-      case ATTR_STD_POSITION_UNDEFORMED:
-      case ATTR_STD_POSITION_UNDISPLACED:
-        attr = add_shared(name, TypePoint, ATTR_ELEMENT_VERTEX, data, sharing_info);
-        break;
-      case ATTR_STD_MOTION_VERTEX_POSITION:
-        attr = add_shared(name, TypePoint, ATTR_ELEMENT_VERTEX_MOTION, data, sharing_info);
-        break;
-      case ATTR_STD_MOTION_VERTEX_NORMAL:
-        attr = add_shared(name, TypeNormal, ATTR_ELEMENT_VERTEX_NORMAL_MOTION, data, sharing_info);
-        break;
-      case ATTR_STD_CORNER_NORMAL:
-        attr = add_shared(name, TypeNormal, ATTR_ELEMENT_CORNER_NORMAL, data, sharing_info);
-        break;
-      case ATTR_STD_MOTION_CORNER_NORMAL:
-        attr = add_shared(name, TypeNormal, ATTR_ELEMENT_CORNER_NORMAL_MOTION, data, sharing_info);
-        break;
-      case ATTR_STD_PTEX_FACE_ID:
-        attr = add_shared(name, TypeFloat, ATTR_ELEMENT_FACE, data, sharing_info);
-        break;
-      case ATTR_STD_PTEX_UV:
-        attr = add_shared(name, TypeFloat2, ATTR_ELEMENT_CORNER, data, sharing_info);
-        break;
-      case ATTR_STD_GENERATED_TRANSFORM:
-        attr = add_shared(name, TypeMatrix, ATTR_ELEMENT_MESH, data, sharing_info);
-        break;
-      case ATTR_STD_POINTINESS:
-        attr = add_shared(name, TypeFloat, ATTR_ELEMENT_VERTEX, data, sharing_info);
-        break;
-      case ATTR_STD_RANDOM_PER_ISLAND:
-        attr = add_shared(name, TypeFloat, ATTR_ELEMENT_FACE, data, sharing_info);
-        break;
-      default:
-        assert(0);
-        break;
-    }
-  }
-  else if (geometry->is_pointcloud()) {
-    switch (std) {
-      case ATTR_STD_UV:
-        attr = add_shared(name, TypeFloat2, ATTR_ELEMENT_VERTEX, data, sharing_info);
-        break;
-      case ATTR_STD_GENERATED:
-        attr = add_shared(name, TypePoint, ATTR_ELEMENT_VERTEX, data, sharing_info);
-        break;
-      case ATTR_STD_MOTION_VERTEX_POSITION:
-        attr = add_shared(name, TypeFloat4, ATTR_ELEMENT_VERTEX_MOTION, data, sharing_info);
-        break;
-      case ATTR_STD_POINT_RANDOM:
-        attr = add_shared(name, TypeFloat, ATTR_ELEMENT_VERTEX, data, sharing_info);
-        break;
-      case ATTR_STD_GENERATED_TRANSFORM:
-        attr = add_shared(name, TypeMatrix, ATTR_ELEMENT_MESH, data, sharing_info);
-        break;
-      default:
-        assert(0);
-        break;
-    }
-  }
-  else if (geometry->is_volume()) {
-    switch (std) {
-      case ATTR_STD_VERTEX_NORMAL:
-        attr = add_shared(name, TypeNormal, ATTR_ELEMENT_VERTEX_NORMAL, data, sharing_info);
-        break;
-      case ATTR_STD_CORNER_NORMAL:
-        attr = add_shared(name, TypeNormal, ATTR_ELEMENT_CORNER_NORMAL, data, sharing_info);
-        break;
-      case ATTR_STD_VOLUME_DENSITY:
-      case ATTR_STD_VOLUME_FLAME:
-      case ATTR_STD_VOLUME_HEAT:
-      case ATTR_STD_VOLUME_TEMPERATURE:
-      case ATTR_STD_VOLUME_VELOCITY_X:
-      case ATTR_STD_VOLUME_VELOCITY_Y:
-      case ATTR_STD_VOLUME_VELOCITY_Z:
-        attr = add_shared(name, TypeFloat, ATTR_ELEMENT_VOXEL, data, sharing_info);
-        break;
-      case ATTR_STD_VOLUME_COLOR:
-        attr = add_shared(name, TypeColor, ATTR_ELEMENT_VOXEL, data, sharing_info);
-        break;
-      case ATTR_STD_VOLUME_VELOCITY:
-        attr = add_shared(name, TypeVector, ATTR_ELEMENT_VOXEL, data, sharing_info);
-        break;
-      default:
-        assert(0);
-        break;
-    }
-  }
-  else if (geometry->is_hair()) {
-    switch (std) {
-      case ATTR_STD_VERTEX_NORMAL:
-        attr = add_shared(name, TypeNormal, ATTR_ELEMENT_CURVE_KEY_NORMAL, data, sharing_info);
-        break;
-      case ATTR_STD_MOTION_VERTEX_NORMAL:
-        attr = add_shared(
-            name, TypeNormal, ATTR_ELEMENT_CURVE_KEY_NORMAL_MOTION, data, sharing_info);
-        break;
-      case ATTR_STD_UV:
-        attr = add_shared(name, TypeFloat2, ATTR_ELEMENT_CURVE, data, sharing_info);
-        break;
-      case ATTR_STD_GENERATED:
-        attr = add_shared(name, TypePoint, ATTR_ELEMENT_CURVE, data, sharing_info);
-        break;
-      case ATTR_STD_MOTION_VERTEX_POSITION:
-        attr = add_shared(name, TypeFloat4, ATTR_ELEMENT_CURVE_KEY_MOTION, data, sharing_info);
-        break;
-      case ATTR_STD_CURVE_INTERCEPT:
-        attr = add_shared(name, TypeFloat, ATTR_ELEMENT_CURVE_KEY, data, sharing_info);
-        break;
-      case ATTR_STD_CURVE_LENGTH:
-        attr = add_shared(name, TypeFloat, ATTR_ELEMENT_CURVE, data, sharing_info);
-        break;
-      case ATTR_STD_CURVE_RANDOM:
-        attr = add_shared(name, TypeFloat, ATTR_ELEMENT_CURVE, data, sharing_info);
-        break;
-      case ATTR_STD_GENERATED_TRANSFORM:
-        attr = add_shared(name, TypeMatrix, ATTR_ELEMENT_MESH, data, sharing_info);
-        break;
-      case ATTR_STD_POINTINESS:
-        attr = add_shared(name, TypeFloat, ATTR_ELEMENT_VERTEX, data, sharing_info);
-        break;
-      case ATTR_STD_RANDOM_PER_ISLAND:
-        attr = add_shared(name, TypeFloat, ATTR_ELEMENT_FACE, data, sharing_info);
-        break;
-      case ATTR_STD_SHADOW_TRANSPARENCY:
-        attr = add_shared(name, TypeFloat, ATTR_ELEMENT_CURVE_KEY, data, sharing_info);
-        break;
-      default:
-        assert(0);
-        break;
-    }
-  }
+  attr = add_shared(name,
+                    find_type_from_geometry_std(geometry, std),
+                    find_element_from_geometry_std(geometry, std),
+                    data,
+                    sharing_info);
 
   attr->std = std;
 

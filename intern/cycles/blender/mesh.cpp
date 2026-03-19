@@ -173,26 +173,25 @@ static void attr_create_generic(Scene *scene,
       using CyclesT = typename Converter::CyclesT;
       if constexpr (!std::is_void_v<CyclesT>) {
         const blender::VArray<BlenderT> src_varray = b_attr.varray.typed<BlenderT>();
+        const blender::CommonVArrayInfo info = b_attr.varray.common_info();
 
-        if (const std::optional<BlenderT> single_value = src_varray.get_if_single()) {
+        if (info.type == blender::CommonVArrayInfo::Type::Single) {
+          const auto &single_value = *static_cast<const BlenderT *>(info.data);
           Attribute *attr = attributes.add(name, Converter::type_desc, ATTR_ELEMENT_MESH);
           if (is_render_color) {
             attr->std = ATTR_STD_VERTEX_COLOR;
           }
           CyclesT *data = reinterpret_cast<CyclesT *>(attr->data());
-          *data = Converter::convert(*single_value);
+          *data = Converter::convert(single_value);
           return;
         }
 
         const AttributeElement element = blender_domain_to_attr_element(b_attr.domain);
-        if (sizeof(BlenderT) == sizeof(CyclesT)) {
+        if constexpr (Converter::layout_compatible) {
           if (Attribute::element_size(mesh, element, attributes.prim) == src_varray.size()) {
             if (src_varray.is_span() && b_attr.sharing_info) {
-              Attribute *attr = attributes.add_shared(name,
-                                                      Converter::type_desc,
-                                                      element,
-                                                      src_varray.get_internal_span().data(),
-                                                      *b_attr.sharing_info);
+              Attribute *attr = attributes.add_shared(
+                  name, Converter::type_desc, element, info.data, b_attr.sharing_info);
               if (is_render_color) {
                 attr->std = ATTR_STD_VERTEX_COLOR;
               }
@@ -347,17 +346,15 @@ static void attr_create_subd_uv_map(Scene *scene,
     Attribute *uv_attr = nullptr;
     const blender::bke::AttributeReader b_uv_map = b_attributes.lookup<blender::float2>(
         uv_name.c_str(), blender::bke::AttrDomain::Corner);
-    if (b_uv_map.sharing_info && b_uv_map.varray.is_span()) {
+    const blender::CommonVArrayInfo info = b_uv_map.varray.common_info();
+    if (b_uv_map.sharing_info && info.type == blender::CommonVArrayInfo::Type::Span) {
       if (active_render) {
         uv_attr = mesh->subd_attributes.add_shared(
-            uv_std, uv_name, b_uv_map.varray.get_internal_span().data(), *b_uv_map.sharing_info);
+            uv_std, uv_name, info.data, b_uv_map.sharing_info);
       }
       else {
-        uv_attr = mesh->subd_attributes.add_shared(uv_name,
-                                                   TypeFloat2,
-                                                   ATTR_ELEMENT_CORNER,
-                                                   b_uv_map.varray.get_internal_span().data(),
-                                                   *b_uv_map.sharing_info);
+        uv_attr = mesh->subd_attributes.add_shared(
+            uv_name, TypeFloat2, ATTR_ELEMENT_CORNER, info.data, b_uv_map.sharing_info);
       }
     }
     else {

@@ -510,7 +510,7 @@ void GeometryManager::device_update_attributes(Device *device,
         attributes.add(param.name());
 
         Attribute *attr = values.add(param.name(), param.type(), ATTR_ELEMENT_OBJECT);
-        assert(param.datasize() == attr->buffer.size());
+        assert(param.nvalues() == attr->size);
         memcpy(attr->data(), param.data(), param.datasize());
       }
     }

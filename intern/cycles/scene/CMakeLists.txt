@@ -6,7 +6,6 @@ set(INC
   ..
   ../../sky/include
   ../../mikktspace
-  ../../implicit_sharing
 )
 
 set(INC_SYS

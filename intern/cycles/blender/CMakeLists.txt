@@ -7,7 +7,6 @@ set(INC
   ../../../source/blender/makesrna
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
-  ../../implicit_sharing
 )
 
 set(INC_SYS
@@ -18,6 +17,7 @@ set(SRC
   device.cpp
   display_driver.cpp
   image.cpp
+  implicit_sharing.cpp
   geometry.cpp
   light.cpp
   light_linking.cpp

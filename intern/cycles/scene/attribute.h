@@ -8,7 +8,7 @@
 
 #include "kernel/types.h"
 
-#include "implicit_sharing_ptr.hh"
+#include "util/implicit_sharing.h"  // IWYU pragma: export
 #include "util/list.h"
 #include "util/param.h"
 #include "util/set.h"
@@ -56,7 +56,7 @@ class Attribute {
   AttributeStandard std;
 
   TypeDesc type;
-  ImplicitSharingPtr<> sharing_info;
+  const void *sharing_info;
   const void *buffer;
   int size;
   AttributeElement element;
@@ -73,7 +73,7 @@ class Attribute {
             const TypeDesc type,
             AttributeElement element,
             const void *data,
-            const ImplicitSharingInfo &sharing_info);
+            const void *sharing_info);
   Attribute(Attribute &&other) = default;
   Attribute(const Attribute &other) = delete;
   Attribute &operator=(const Attribute &other) = delete;
@@ -89,7 +89,6 @@ class Attribute {
 
   char *data()
   {
-    assert(sharing_info->is_mutable());
     return static_cast<char *>(const_cast<void *>(buffer));
   }
   float2 *data_float2()
@@ -104,7 +103,7 @@ class Attribute {
   }
   float4 *data_float4()
   {
-    assert(data_sizeof_for_write() == sizeof(float4));
+    assert(data_sizeof() == sizeof(float4));
     return (float4 *)data();
   }
   float *data_float()
@@ -209,7 +208,7 @@ class AttributeSet {
                         const TypeDesc type,
                         AttributeElement element,
                         const void *data,
-                        const ImplicitSharingInfo &sharing_info);
+                        const void *sharing_info);
   Attribute *find(ustring name) const;
   void remove(ustring name);
 
@@ -217,7 +216,7 @@ class AttributeSet {
   Attribute *add_shared(AttributeStandard std,
                         ustring name,
                         const void *data,
-                        const ImplicitSharingInfo &sharing_info);
+                        const void *sharing_info);
   Attribute *find(AttributeStandard std) const;
   void remove(AttributeStandard std);
 

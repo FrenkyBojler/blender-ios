@@ -92,10 +92,10 @@ static void copy_attributes(PointCloud *pointcloud,
           return;
         }
 
-        if (info.type == blender::CommonVArrayInfo::Type::Span && b_attr.sharing_info) {
-          if (sizeof(BlenderT) == sizeof(CyclesT)) {
+        if constexpr (Converter::layout_compatible) {
+          if (info.type == blender::CommonVArrayInfo::Type::Span && b_attr.sharing_info) {
             attributes.add_shared(
-                name, Converter::type_desc, ATTR_ELEMENT_VERTEX, info.data, *b_attr.sharing_info);
+                name, Converter::type_desc, ATTR_ELEMENT_VERTEX, info.data, b_attr.sharing_info);
             return;
           }
         }
