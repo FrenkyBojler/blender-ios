@@ -1130,6 +1130,8 @@ static const char *toolsystem_default_tool(const bToolKey *tkey)
           return "builtin_brush.Comb";
         case CTX_MODE_EDIT_TEXT:
           return "builtin.select_text";
+        case CTX_MODE_EDIT_GREASE_PENCIL:
+          return "builtin.select_lasso";
       }
       break;
     case SPACE_IMAGE:
@@ -1146,7 +1148,7 @@ static const char *toolsystem_default_tool(const bToolKey *tkey)
       return "builtin.select_box";
     }
     case SPACE_SEQ: {
-      return "builtin.select_box";
+      return "builtin.select_lasso";
     }
   }
 

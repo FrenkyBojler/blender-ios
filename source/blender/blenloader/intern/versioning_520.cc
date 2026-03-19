@@ -10,14 +10,18 @@
 
 #include "DNA_ID.h"
 #include "DNA_brush_types.h"
+#include "DNA_workspace_types.h"
+#include "BKE_context.hh"
 
 #include "BLI_listbase_iterator.hh"
 #include "BLI_sys_types.h"
+#include "BLI_string_utf8.h"
 
 #include "BKE_main.hh"
 #include "BKE_mesh_legacy_convert.hh"
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
+#include "BKE_workspace.hh"
 
 #include "SEQ_sequencer.hh"
 
@@ -123,6 +127,19 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     for (Scene &scene : bmain->scenes) {
       if (scene.r.ffcodecdata.codec == 28) {
         scene.r.ffcodecdata.codec = 27;
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 11)) {
+    for (WorkSpace &workspace : bmain->workspaces) {
+      for (bToolRef &tref : workspace.tools) {
+
+        if (tref.space_type == SPACE_VIEW3D && tref.mode == CTX_MODE_EDIT_GREASE_PENCIL) {
+          if (STREQ(tref.idname, "builtin.select_box")) {
+            STRNCPY_UTF8(tref.idname, "builtin.select_lasso");
+          }
+        }
       }
     }
   }
