@@ -407,9 +407,7 @@ string(APPEND CMAKE_CXX_FLAGS " -ftemplate-depth=1024")
 # Avoid conflicts with Luxrender, and other plug-ins that may use the same
 # libraries as Blender with a different version or build options.
 set(PLATFORM_SYMBOLS_MAP ${CMAKE_SOURCE_DIR}/source/creator/symbols_apple.map)
-string(APPEND PLATFORM_LINKFLAGS
-  " -Wl,-unexported_symbols_list,'${PLATFORM_SYMBOLS_MAP}'"
-)
+set(PLATFORM_LINKFLAGS_SYMBOL_HIDING "-Wl,-unexported_symbols_list,'${PLATFORM_SYMBOLS_MAP}'")
 
 if(${XCODE_VERSION} VERSION_EQUAL 15.0)
   # V4.5 specific workaround: Enforce the legacy Xcode linker to avoid incorrect
@@ -433,6 +431,15 @@ elseif(${XCODE_VERSION} VERSION_GREATER_EQUAL 15.0)
     # it is corrected in CMake 3.29:
     #    https://gitlab.kitware.com/cmake/cmake/-/issues/25297
     string(APPEND PLATFORM_LINKFLAGS " -Xlinker -no_warn_duplicate_libraries")
+
+    # Silence: ld: warning: reducing alignment of section __DATA,__common from 0x8000
+    #          to 0x4000 because it exceeds segment maximum alignment
+    #
+    # The issue is caused by large tentative symbols from libraries such as ffmpeg
+    # causing the linker to internally bump the alignment of __DATA,__common to 0x8000,
+    # which exceeds the macOS page size of 0x4000. Explicitly request 0x4000 alignment
+    # for common symbols to suppress the warning.
+    string(APPEND PLATFORM_LINKFLAGS " -Xlinker -max_default_common_align -Xlinker 0x4000")
   endif()
 endif()
 

@@ -842,19 +842,19 @@ void draw_data_blocks(const bContext *C, ui::Layout &layout, PointerRNA &bake_rn
   if (ui::Layout *panel = layout.panel(
           C, "data_block_references", true, IFACE_("Data-Block References")))
   {
-    ui::template_list(panel,
-                      C,
-                      data_block_list->idname,
-                      "",
-                      &bake_rna,
-                      "data_blocks",
-                      &data_blocks_ptr,
-                      "active_index",
-                      nullptr,
-                      3,
-                      5,
-                      UILST_LAYOUT_DEFAULT,
-                      ui::TEMPLATE_LIST_FLAG_NONE);
+    ui::template_uilist(panel,
+                        C,
+                        data_block_list->idname,
+                        "",
+                        &bake_rna,
+                        "data_blocks",
+                        &data_blocks_ptr,
+                        "active_index",
+                        nullptr,
+                        3,
+                        5,
+                        UILST_LAYOUT_DEFAULT,
+                        ui::TEMPLATE_LIST_FLAG_NONE);
   }
 }
 
@@ -870,7 +870,7 @@ StructRNA **BakeItemsAccessor::item_srna = &RNA_NodeGeometryBakeItem;
 
 void BakeItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
-  BLO_write_string(writer, item.name);
+  writer->write_string(item.name);
 }
 
 void BakeItemsAccessor::blend_read_data_item(BlendDataReader *reader, ItemT &item)

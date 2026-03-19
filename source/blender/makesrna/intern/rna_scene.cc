@@ -792,6 +792,7 @@ static const EnumPropertyItem eevee_resolution_scale_items[] = {
 #  include "DEG_depsgraph_build.hh"
 #  include "DEG_depsgraph_query.hh"
 
+#  include "SEQ_iterator.hh"
 #  include "SEQ_relations.hh"
 #  include "SEQ_sequencer.hh"
 #  include "SEQ_sound.hh"
@@ -1320,6 +1321,22 @@ static std::optional<std::string> rna_BakeSettings_path(const PointerRNA * /*ptr
   return "render.bake";
 }
 
+Strip *rna_strip_find_by_colorspace_settings(
+    Editing *ed, const ColorManagedColorspaceSettings *colorspace_settings)
+{
+  Strip *found_strip = nullptr;
+
+  seq::foreach_strip(&ed->seqbase, [&](Strip *strip) -> bool {
+    if (strip->data && &strip->data->colorspace_settings == colorspace_settings) {
+      found_strip = strip;
+      return false;
+    }
+    return true;
+  });
+
+  return found_strip;
+}
+
 static std::optional<std::string> rna_ImageFormatSettings_path(
     const PointerRNA *ptr, FunctionRef<bool(ImageFormatData *)> match)
 {
@@ -1417,6 +1434,26 @@ std::optional<std::string> rna_ColorManagedInputColorspaceSettings_path(const Po
   if (path) {
     return *path + ".linear_colorspace_settings";
   }
+
+  /* Images and Movieclips have this directly. */
+  if (ELEM(GS(ptr->owner_id->name), ID_IM, ID_MC)) {
+    return "colorspace_settings";
+  }
+
+  /* Search VSE for ImageStrips/MovieStrips. */
+  if (GS(ptr->owner_id->name) == ID_SCE) {
+    Scene *scene = id_cast<Scene *>(ptr->owner_id);
+    if (scene->ed) {
+      Strip *strip = rna_strip_find_by_colorspace_settings(scene->ed, data);
+
+      if (strip) {
+        char name_esc[(sizeof(strip->name) - 2) * 2];
+        BLI_str_escape(name_esc, strip->name + 2, sizeof(name_esc));
+        return fmt::format("sequence_editor.strips_all[\"{}\"].colorspace_settings", name_esc);
+      }
+    }
+  }
+
   return std::nullopt;
 }
 
@@ -6894,6 +6931,31 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
+  static const EnumPropertyItem anisotropic_items[] = {
+      {1, "FILTER_0", 0, "Off", "Turn off anisotropic filtering"},
+      {2,
+       "FILTER_2",
+       0,
+       "2" BLI_STR_UTF8_MULTIPLICATION_SIGN,
+       "Use 2 samples for anisotropic filtering"},
+      {4,
+       "FILTER_4",
+       0,
+       "4" BLI_STR_UTF8_MULTIPLICATION_SIGN,
+       "Use 4 samples for anisotropic filtering"},
+      {8,
+       "FILTER_8",
+       0,
+       "8" BLI_STR_UTF8_MULTIPLICATION_SIGN,
+       "Use 8 samples for anisotropic filtering"},
+      {16,
+       "FILTER_16",
+       0,
+       "16" BLI_STR_UTF8_MULTIPLICATION_SIGN,
+       "Use 16 samples for anisotropic filtering"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
   static const EnumPropertyItem threads_mode_items[] = {
       {0,
        "AUTO",
@@ -7234,6 +7296,13 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
                            "High Quality Normals",
                            "Use high quality tangent space at the cost of lower performance");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_Scene_mesh_quality_update");
+
+  prop = RNA_def_property(srna, "anisotropic_filter", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "anisotropic_filter");
+  RNA_def_property_enum_items(prop, anisotropic_items);
+  RNA_def_property_ui_text(
+      prop, "Anisotropic Filtering", "Quality of anisotropic filtering in materials");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_Scene_render_update");
 
   /* border */
   prop = RNA_def_property(srna, "use_border", PROP_BOOLEAN, PROP_NONE);
@@ -8895,6 +8964,13 @@ void RNA_def_scene(BlenderRNA *brna)
   RNA_def_property_ui_text(prop,
                            "Lock Frame Selection",
                            "Don't allow frame to be selected with mouse outside of frame range");
+  RNA_def_property_update(prop, NC_SCENE | ND_FRAME, nullptr);
+
+  prop = RNA_def_property(srna, "allow_preroll", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "r.flag", SCER_ALLOW_PREROLL);
+  RNA_def_property_ui_text(
+      prop, "Allow Preroll", "Allows playing back frames before the playback start frame");
   RNA_def_property_update(prop, NC_SCENE | ND_FRAME, nullptr);
 
   /* Preview Range (frame-range for UI playback) */
