@@ -598,6 +598,7 @@ PaintMode BKE_paintmode_get_from_tool(const bToolRef *tref)
 
 bool BKE_paint_use_unified_size(const Paint *paint)
 {
+  /* For now, Grease Pencil Draw mode doesn't use the unified paint settings. */
   if (paint->runtime->ob_mode == OB_MODE_PAINT_GREASE_PENCIL) {
     return false;
   }
@@ -607,6 +608,7 @@ bool BKE_paint_use_unified_size(const Paint *paint)
 
 bool BKE_paint_use_unified_strength(const Paint *paint)
 {
+  /* For now, Grease Pencil Draw mode doesn't use the unified paint settings. */
   if (paint->runtime->ob_mode == OB_MODE_PAINT_GREASE_PENCIL) {
     return false;
   }
@@ -616,7 +618,7 @@ bool BKE_paint_use_unified_strength(const Paint *paint)
 
 bool BKE_paint_use_unified_color(const Paint *paint)
 {
-  /* Grease pencil draw mode never uses unified paint. */
+  /* For now, Grease Pencil Draw mode doesn't use the unified paint settings. */
   if (paint->runtime->ob_mode == OB_MODE_PAINT_GREASE_PENCIL) {
     return false;
   }
