@@ -67,8 +67,6 @@ TEST_F(BMainAllIDsIteratorTest, basics)
   EXPECT_EQ(empty_main_iter, empty_main_iter.end());
   EXPECT_EQ(0, empty_main_iter.size());
   EXPECT_EQ(empty_main_iter.begin(), empty_main_iter.end());
-  EXPECT_EQ(empty_main_iter.rbegin(), empty_main_iter.rend());
-  EXPECT_NE(empty_main_iter.rend(), empty_main_iter.end());
 
   Library *lib = BKE_id_new<Library>(bmain, "Library");
   Collection *coll = BKE_id_new<Collection>(bmain, "Collection");
@@ -92,11 +90,8 @@ TEST_F(BMainAllIDsIteratorTest, basics)
   }
   EXPECT_EQ(4, i);
 
-  MainAllIDsIterator main_iter_reverse{*bmain};
-  auto reversed_main_iter = std::views::reverse(main_iter_reverse);
-  EXPECT_EQ(4, reversed_main_iter.size());
   i = 4;
-  for (ID &id_iter : reversed_main_iter) {
+  for (ID &id_iter : main_iter.begin() | std::views::reverse) {
     i--;
     EXPECT_EQ(expected_ids[i], &id_iter);
   }

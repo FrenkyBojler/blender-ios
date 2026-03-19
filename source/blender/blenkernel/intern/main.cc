@@ -1148,15 +1148,16 @@ MainAllIDsIterator &MainAllIDsIterator::operator++()
              this->curr_lbarray_index_ <= int64_t(this->lbarray_.size()));
 
   if (this->curr_lbarray_index_ < int64_t(this->lbarray_.size())) {
-    for (this->curr_lbarray_index_++;
-         this->curr_lbarray_index_ < this->lbarray_.size() &&
-         /* Listbase pointers from lbarray_ can be nullptr when no data was provided (default
-          * constructor case). */
-         (!this->lbarray_[this->curr_lbarray_index_] ||
-          BLI_listbase_is_empty(this->lbarray_[this->curr_lbarray_index_]));
-         this->curr_lbarray_index_++)
-      ;
-    if (this->curr_lbarray_index_ < this->lbarray_.size()) {
+    this->curr_lbarray_index_++;
+    while (this->curr_lbarray_index_ < int64_t(this->lbarray_.size()) &&
+           /* Listbase pointers from lbarray_ can be nullptr when no data was provided (default
+            * constructor case). */
+           (!this->lbarray_[this->curr_lbarray_index_] ||
+            BLI_listbase_is_empty(this->lbarray_[this->curr_lbarray_index_])))
+    {
+      this->curr_lbarray_index_++;
+    }
+    if (this->curr_lbarray_index_ < int64_t(this->lbarray_.size())) {
       this->curr_id_ = static_cast<ID *>(this->lbarray_[this->curr_lbarray_index_]->first);
     }
   }
@@ -1178,14 +1179,15 @@ MainAllIDsIterator &MainAllIDsIterator::operator--()
              this->curr_lbarray_index_ <= int64_t(this->lbarray_.size()));
 
   if (this->curr_lbarray_index_ >= 0) {
-    for (this->curr_lbarray_index_--;
-         this->curr_lbarray_index_ >= 0 &&
-         /* Listbase pointers from lbarray_ can be nullptr when no data was provided (default
-          * constructor case). */
-         (!this->lbarray_[this->curr_lbarray_index_] ||
-          BLI_listbase_is_empty(this->lbarray_[this->curr_lbarray_index_]));
-         this->curr_lbarray_index_--)
-      ;
+    this->curr_lbarray_index_--;
+    while (this->curr_lbarray_index_ >= 0 &&
+           /* Listbase pointers from lbarray_ can be nullptr when no data was provided (default
+            * constructor case). */
+           (!this->lbarray_[this->curr_lbarray_index_] ||
+            BLI_listbase_is_empty(this->lbarray_[this->curr_lbarray_index_])))
+    {
+      this->curr_lbarray_index_--;
+    }
     if (this->curr_lbarray_index_ >= 0) {
       this->curr_id_ = static_cast<ID *>(this->lbarray_[this->curr_lbarray_index_]->last);
     }
@@ -1193,16 +1195,16 @@ MainAllIDsIterator &MainAllIDsIterator::operator--()
   return *this;
 }
 
-size_t MainAllIDsIterator::size() const
+int64_t MainAllIDsIterator::size() const
 {
-  size_t size = 0;
+  int64_t size = 0;
   for (const ListBaseT<ID> *lb_ids : this->lbarray_) {
     /* Listbase pointers from lbarray_ can be nullptr when no data was provided (default
      * constructor case). */
     if (!lb_ids) {
       continue;
     }
-    size += size_t(BLI_listbase_count(lb_ids));
+    size += BLI_listbase_count(lb_ids);
   }
   return size;
 }

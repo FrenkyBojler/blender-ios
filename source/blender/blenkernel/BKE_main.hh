@@ -752,6 +752,13 @@ MainListsArray BKE_main_lists_get(Main &bmain);
  *     (starting with libraries).
  *   - Within a same type, IDs are iterated based on their libraries (local IDs always iterated
  *     first) and names (alphanumeric sorting).
+ *
+ * This iterator will remain stable if the underlying Main is modified, as long as the current ID
+ * pointed at by the iterator is not modified.
+ *   - Renaming the current ID may shift it position in the underlying main, making the iterator no
+ *     more stable (some items may be skipped, or iterated over several times).
+ *   - Deleting the current ID will fully invalidate the iterator, attempt to use it in any way
+ *     afterwards will result in invalid memory accesses.
  */
 class MainAllIDsIterator {
  public:
@@ -773,19 +780,21 @@ class MainAllIDsIterator {
     ++(*this);
   }
 
-  MainAllIDsIterator(MainListsArray &lbarray) : lbarray_(lbarray)
+  explicit MainAllIDsIterator(MainListsArray &lbarray) : lbarray_(lbarray)
   {
     ++(*this);
   }
 
-  MainAllIDsIterator(Main &bmain) : lbarray_(BKE_main_lists_get(bmain))
+  explicit MainAllIDsIterator(Main &bmain) : lbarray_(BKE_main_lists_get(bmain))
   {
     ++(*this);
   }
 
   MainAllIDsIterator begin() const
   {
-    MainAllIDsIterator tmp = this->rend();
+    MainAllIDsIterator tmp = *this;
+    tmp.curr_lbarray_index_ = -1;
+    tmp.curr_id_ = nullptr;
     return ++tmp;
   }
 
@@ -797,19 +806,19 @@ class MainAllIDsIterator {
     return tmp;
   }
 
-  MainAllIDsIterator rbegin() const
-  {
-    MainAllIDsIterator tmp = this->end();
-    return --tmp;
-  }
+  // MainAllIDsIterator rbegin() const
+  // {
+  //   MainAllIDsIterator tmp = this->end();
+  //   return --tmp;
+  // }
 
-  MainAllIDsIterator rend() const
-  {
-    MainAllIDsIterator tmp = *this;
-    tmp.curr_lbarray_index_ = -1;
-    tmp.curr_id_ = nullptr;
-    return tmp;
-  }
+  // MainAllIDsIterator rend() const
+  // {
+  //   MainAllIDsIterator tmp = *this;
+  //   tmp.curr_lbarray_index_ = -1;
+  //   tmp.curr_id_ = nullptr;
+  //   return tmp;
+  // }
 
   MainAllIDsIterator &operator++();
 
@@ -844,8 +853,8 @@ class MainAllIDsIterator {
     return *curr_id_;
   }
 
-  /** Return the total number of IDs in the Main databse that this iterator is iterating over. */
-  size_t size() const;
+  /** Return the total number of IDs in the Main database that this iterator is iterating over. */
+  int64_t size() const;
 };
 
 #define MAIN_VERSION_FILE_ATLEAST(main, ver, subver) \
