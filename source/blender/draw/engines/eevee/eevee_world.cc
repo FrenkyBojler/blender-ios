@@ -63,10 +63,8 @@ void World::sync()
   bool has_update = false;
 
   WorldHandle wo_handle = {inst_.scene->world ? inst_.get_recalc_flags(*inst_.scene->world) : 0};
-  if (inst_.scene->world != nullptr) {
-    /* Detect world update before overriding it. */
-    has_update = wo_handle.recalc != 0;
-  }
+  /* Detect world update before overriding it. */
+  has_update = wo_handle.recalc != 0;
 
   bool wait_ready = true;  // TODO !inst_.is_image_render;
 
