@@ -118,10 +118,16 @@ class ConvertRotationModeNLA(ConvertRotationModeBase):
         self.reference_object = bpy.data.objects["Suzanne"]
 
     def test_convert_to_quaternion(self):
-        pass
+        self.nla_object.convert_rotation_mode('QUATERNION')
+        for frame in self.keyed_frames:
+            bpy.context.scene.frame_set(frame)
+            self._assert_almost_equal_rotation_matrix(self.nla_object.matrix_world, self.reference_object.matrix_world)
 
     def test_convert_to_zxy(self):
-        pass
+        self.nla_object.convert_rotation_mode('ZXY')
+        for frame in self.keyed_frames:
+            bpy.context.scene.frame_set(frame)
+            self._assert_almost_equal_rotation_matrix(self.nla_object.matrix_world, self.reference_object.matrix_world)
 
 
 class ConvertRotationModeBones(ConvertRotationModeBase):
