@@ -56,6 +56,10 @@ class Attribute {
   AttributeStandard std;
 
   TypeDesc type;
+  /**
+   * Optionally used to share ownership of #buffer, see implicit_sharing.h.
+   * If this is null, #buffer is wholly owned by this Attribute.
+   */
   const void *sharing_info = nullptr;
   const void *buffer = nullptr;
   int size = 0;
