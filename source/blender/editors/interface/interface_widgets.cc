@@ -2634,7 +2634,6 @@ static void widget_draw_text_icon(const uiFontStyle *fstyle,
   }
 
   /* Always draw text for text-button cursor. */
-
   if (!button_label_is_multiline(but)) {
     widget_draw_text(fstyle, wcol, but, rect);
   }

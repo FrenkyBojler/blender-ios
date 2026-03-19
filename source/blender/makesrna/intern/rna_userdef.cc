@@ -347,7 +347,6 @@ static void rna_userdef_gpu_and_text_update(Main *bmain, Scene *scene, PointerRN
   rna_userdef_gpu_update(bmain, scene, ptr);
   WM_main_add_notifier(NC_FONT_UI, nullptr);
   USERDEF_TAG_DIRTY;
-  USERDEF_TAG_DIRTY;
 }
 
 static void rna_userdef_screen_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA * /*ptr*/)

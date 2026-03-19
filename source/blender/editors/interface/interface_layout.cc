@@ -545,9 +545,9 @@ static void item_translate_y(Item *item, const int delta)
     bitem->but->rect.ymax += delta;
   }
   else {
-    auto *layout = static_cast<Layout *>(item);
+    Layout *layout = static_cast<Layout *>(item);
     LayoutInternal::layout_translate_y(layout, delta);
-    for (auto sub : layout->items()) {
+    for (Item *sub : layout->items()) {
       item_translate_y(sub, delta);
     }
   }
@@ -5691,7 +5691,7 @@ static void label_multiline_wrap_lines(ButtonLabel *button)
       fstyle.uifont_id, cache.text, width, BLFWrapMode::HardLimit);
 }
 
-static void resolve_multiline_label(ButtonLabel *button)
+static void resolve_label_multiline(ButtonLabel *button)
 {
   static constexpr float label_multiline_line_height_factor = 0.75f;
 
@@ -5721,7 +5721,7 @@ int Layout::resolve_dynamic_height()
       ButtonItem *sub_bitem = static_cast<ButtonItem *>(subitem);
       if (button_label_is_multiline(sub_bitem->but)) {
         int2 size = subitem->size();
-        resolve_multiline_label(static_cast<ButtonLabel *>(sub_bitem->but));
+        resolve_label_multiline(static_cast<ButtonLabel *>(sub_bitem->but));
         int2 new_size = subitem->size();
         if (this->local_direction() == LayoutDirection::Vertical) {
           extra_y_offs += new_size.y - size.y;
