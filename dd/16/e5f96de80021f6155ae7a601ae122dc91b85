@@ -1,3 +1,4 @@
 Referenced by issue #143802, Grease pencil: Divide blend mode doesn't work
 Referenced by issue #155354, Grease Pencil over a reference image causes onion skin to not work
 Referenced by issue #131411, Grease Pencil Drawing Dramatically Different Between Viewport and Render
+Referenced by issue #80038, GPencil: Low hardness values always draws yellow
