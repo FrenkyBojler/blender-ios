@@ -431,6 +431,10 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(space_view3d.gp_wire_edit);
   }
 
+  if (!USER_VERSION_ATLEAST(502, 8)) {
+    FROM_DEFAULT_V4_UCHAR(tui.link);
+  }
+
   if (!USER_VERSION_ATLEAST(502, 100)) {
     btheme->tui.notification_blend = U_theme_default.tui.notification_blend;
   }

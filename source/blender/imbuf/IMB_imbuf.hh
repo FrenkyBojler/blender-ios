@@ -13,6 +13,7 @@
 
 #include "BLI_enum_flags.hh"
 #include "BLI_math_matrix_types.hh"
+#include "BLI_span.hh"
 
 #include "IMB_imbuf_types.hh"
 
@@ -42,25 +43,25 @@ void IMB_deactivate_gpu_context();
  * Load image.
  */
 ImBuf *IMB_load_image_from_memory(const unsigned char *mem,
-                                  const size_t size,
-                                  const int flags,
+                                  size_t size,
+                                  int flags,
                                   const char *descr,
                                   const char *filepath = nullptr,
                                   char r_colorspace[IM_MAX_SPACE] = nullptr);
 
-ImBuf *IMB_load_image_from_file_descriptor(const int file,
-                                           const int flags,
+ImBuf *IMB_load_image_from_file_descriptor(int file,
+                                           int flags,
                                            const char *filepath = nullptr,
                                            char r_colorspace[IM_MAX_SPACE] = nullptr);
 
 ImBuf *IMB_load_image_from_filepath(const char *filepath,
-                                    const int flags,
+                                    int flags,
                                     char r_colorspace[IM_MAX_SPACE] = nullptr);
 
 /**
  * Save image.
  */
-bool IMB_save_image(ImBuf *ibuf, const char *filepath, const int flags);
+bool IMB_save_image(ImBuf *ibuf, const char *filepath, int flags);
 
 /**
  * Test image file.
@@ -69,6 +70,11 @@ bool IMB_test_image(const char *filepath);
 bool IMB_test_image_type_matches(const char *filepath, int filetype);
 int IMB_test_image_type_from_memory(const unsigned char *buf, size_t buf_size);
 int IMB_test_image_type(const char *filepath);
+
+/**
+ * Return true if the file type is supported (compiled in).
+ */
+bool IMB_ftype_is_supported(int ftype);
 
 /**
  * Load thumbnail image.
@@ -82,9 +88,9 @@ enum class IMBThumbLoadFlags {
 ENUM_OPERATORS(IMBThumbLoadFlags);
 
 ImBuf *IMB_thumb_load_image(const char *filepath,
-                            const size_t max_thumb_size,
+                            size_t max_thumb_size,
                             char colorspace[IM_MAX_SPACE],
-                            const IMBThumbLoadFlags load_flags = IMBThumbLoadFlags::Zero);
+                            IMBThumbLoadFlags load_flags = IMBThumbLoadFlags::Zero);
 
 /**
  * Allocate and free image buffer.
@@ -238,6 +244,10 @@ void IMB_blend_color_byte(unsigned char dst[4],
 void IMB_blend_color_float(float dst[4],
                            const float src1[4],
                            const float src2[4],
+                           IMB_BlendMode mode);
+void IMB_blend_color_float(MutableSpan<float4> dst,
+                           Span<float4> src1,
+                           Span<float4> src2,
                            IMB_BlendMode mode);
 
 /**
@@ -527,9 +537,7 @@ void IMB_free_byte_pixels(ImBuf *ibuf);
  * Allocate storage for float type pixels.
  * If the image already contains float data storage, it is freed first.
  */
-bool IMB_alloc_float_pixels(ImBuf *ibuf,
-                            const unsigned int channels,
-                            bool initialize_pixels = true);
+bool IMB_alloc_float_pixels(ImBuf *ibuf, unsigned int channels, bool initialize_pixels = true);
 /**
  * Deallocate image float storage.
  */
