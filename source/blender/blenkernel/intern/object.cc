@@ -837,7 +837,9 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
     BKE_lightprobe_cache_blend_write(writer, ob->lightprobe_cache);
   }
 
-  forward_compat::free_legacy_geometry_nodes_properties(*ob);
+  if (!is_undo) {
+    forward_compat::free_legacy_geometry_nodes_properties(*ob);
+  }
 }
 
 static void object_blend_read_data(BlendDataReader *reader, ID *id)
