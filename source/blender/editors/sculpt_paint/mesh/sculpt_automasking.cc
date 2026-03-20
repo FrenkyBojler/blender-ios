@@ -1675,20 +1675,15 @@ std::unique_ptr<Cache> cache_init(const Depsgraph &depsgraph,
     const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(ob);
     islands::ensure_cache(ob);
 
-    Vector<int> sym_verts = find_symm_verts(
-        depsgraph, ob, ss.active_vert_index(), std::numeric_limits<float>::max(), false);
+    std::array<int, PAINT_SYMM_AREAS> sym_verts = find_all_symm_verts(
+        depsgraph, ob, ss.active_vert_index(), std::numeric_limits<float>::max());
 
-    int sym_vert_index = 0;
-    for (int symm_it = 0; symm_it <= symm; symm_it++) {
+    for (int symm_it = 0; symm_it < PAINT_SYMM_AREAS; symm_it++) {
       if (!is_symmetry_iteration_valid(symm_it, symm)) {
         continue;
       }
-      if (sym_vert_index >= sym_verts.size()) {
-        break;
-      }
-      automasking->settings.initial_island_nr[symm_it] = islands::vert_id_get(
-          ss, sym_verts[sym_vert_index]);
-      sym_vert_index++;
+      automasking->settings.initial_island_nr[symm_it] = islands::vert_id_get(ss,
+                                                                              sym_verts[symm_it]);
     }
   }
 
