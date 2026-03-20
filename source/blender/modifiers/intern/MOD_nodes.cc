@@ -232,6 +232,20 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
   if (eval_deps.needs_own_transform) {
     DEG_add_depends_on_transform_relation(ctx->node, "Nodes Modifier");
   }
+  if (eval_deps.needs_armature_pose) {
+    /* When Bone Info nodes are used, the armature providing pose data may come
+     * dynamically through links (e.g. Self Object -> Object Info -> Parent -> Bone Info).
+     * Add pose dependencies for the self object's parent if it's an armature,
+     * and for any armature objects already in the dependency set. */
+    for (Object *parent = ctx->object->parent; parent; parent = parent->parent) {
+      if (parent->type == OB_ARMATURE) {
+        DEG_add_object_relation(
+            ctx->node, parent, DEG_OB_COMP_EVAL_POSE, "Nodes Modifier");
+        DEG_add_object_relation(
+            ctx->node, parent, DEG_OB_COMP_TRANSFORM, "Nodes Modifier");
+      }
+    }
+  }
   if (eval_deps.needs_active_camera) {
     DEG_add_scene_camera_relation(ctx->node, ctx->scene, DEG_OB_COMP_TRANSFORM, "Nodes Modifier");
   }
