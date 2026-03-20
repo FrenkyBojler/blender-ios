@@ -540,11 +540,9 @@ class XpbdSolverStep {
       this->create_chunk_constraints__rod_stretch_shear(tls, chunk_i);
       this->create_chunk_constraints__rod_bend_twist(tls, chunk_i);
       this->create_chunk_constraints__damping(tls, chunk_i);
+      this->create_chunk_constraints__pin_positions(tls, chunk_i);
+      this->create_chunk_constraints__pin_rotations(tls, chunk_i);
     });
-
-    this->create_constraints__pin_positions();
-    this->create_constraints__pin_rotations();
-    this->create_constraints__edge_length();
 
     this->do_simulation();
 
@@ -1586,30 +1584,15 @@ class XpbdSolverStep {
         const EdgeLengthConstraint &constraint =
             constraints_.edge_length_constraints[constraint_usage.constraint_i];
         const Mesh &mesh = *geometries_.geometry_sets[data_key.geo_bundle_i].geometry.get_mesh();
-        const int edge_num = mesh.edges_num;
+        const Span<int2> edges = mesh.edges();
+        const int edge_num = edges.size();
+
         constraint_usage.lambdas = tls.allocator.allocate_array<float>(edge_num);
         constraint_usage.rest_lengths = *geo_data.attributes.lookup_or_default<float>(
             this->prop_attr_name(constraint.path, "rest_length"), AttrDomain::Edge, 0.0f);
         constraint_usage.compliances = *geo_data.attributes.lookup_or_default<float>(
             this->prop_attr_name(constraint.path, "compliance"), AttrDomain::Edge, 0.0f);
-      }
-    }
-  }
 
-  void create_constraints__edge_length()
-  {
-    TLS &tls = tls_.local();
-    for (const int data_key_i : geometries_.data_keys.index_range()) {
-      const DataKey &data_key = geometries_.data_keys[data_key_i];
-      GeometryData &geo_data = geometries_.data[data_key_i];
-      if (geo_data.edge_length_constraints.is_empty()) {
-        continue;
-      }
-
-      const Mesh &mesh = *geometries_.geometry_sets[data_key.geo_bundle_i].geometry.get_mesh();
-      const Span<int2> edges = mesh.edges();
-
-      for (EdgeLengthConstraintUsage &constraint_usage : geo_data.edge_length_constraints) {
         auto &constraint_set = tls.scope.construct<xpbd::DistanceConstraintSet>(
             data_key_i,
             edges,
@@ -1773,42 +1756,36 @@ class XpbdSolverStep {
     }
   }
 
-  void create_constraints__pin_positions()
+  void create_chunk_constraints__pin_positions(TLS &tls, const int chunk_i)
   {
-    TLS &tls = tls_.local();
-    for (const int data_key_i : geometries_.data_keys.index_range()) {
-      GeometryData &geo_data = geometries_.data[data_key_i];
-      for (const int constraint_usage_i : geo_data.pin_position_constraints.index_range()) {
-        PinPositionConstraintUsage &constraint_usage =
-            geo_data.pin_position_constraints[constraint_usage_i];
+    const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
+    ChunkData &chunk_data = chunks_data_[chunk_i];
+    GeometryData &geo_data = geometries_.data[chunk.data_key_i];
+    for (const int constraint_usage_i : geo_data.pin_position_constraints.index_range()) {
+      const PinPositionConstraintUsage &constraint_usage =
+          geo_data.pin_position_constraints[constraint_usage_i];
 
-        /* Detect hard pinned points. */
-        for (const int pin_i : constraint_usage.points.index_range()) {
-          const int point_i = constraint_usage.points[pin_i];
-          const float compliance = constraint_usage.compliances[pin_i];
-          if (compliance <= 0.0f) {
-            geo_data.is_hard_pinned[point_i] = true;
-          }
-        }
-
-        for (const int chunk_i : geo_data.chunks) {
-          const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
-          const IndexRange pin_range = unique_sorted_indices::find_content_range<int>(
-              constraint_usage.points, chunk.points_range);
-          if (pin_range.is_empty()) {
-            continue;
-          }
-          ChunkData &chunk_data = chunks_data_[chunk_i];
-          chunk_data.pin_position_constraints.append({constraint_usage_i, pin_range});
-          chunk_data.static_constraints.append(
-              &tls.scope.construct<xpbd::PinPositionConstraintSet>(
-                  data_key_i,
-                  constraint_usage.points.slice(pin_range),
-                  constraint_usage.current_positions.slice(pin_range),
-                  constraint_usage.compliances.slice(pin_range),
-                  constraint_usage.lambdas.slice(pin_range)));
+      /* Detect hard pinned points. */
+      for (const int pin_i : constraint_usage.points.index_range()) {
+        const int point_i = constraint_usage.points[pin_i];
+        const float compliance = constraint_usage.compliances[pin_i];
+        if (compliance <= 0.0f) {
+          geo_data.is_hard_pinned[point_i] = true;
         }
       }
+
+      const IndexRange pin_range = unique_sorted_indices::find_content_range<int>(
+          constraint_usage.points, chunk.points_range);
+      if (pin_range.is_empty()) {
+        continue;
+      }
+      chunk_data.pin_position_constraints.append({constraint_usage_i, pin_range});
+      chunk_data.static_constraints.append(&tls.scope.construct<xpbd::PinPositionConstraintSet>(
+          chunk.data_key_i,
+          constraint_usage.points.slice(pin_range),
+          constraint_usage.current_positions.slice(pin_range),
+          constraint_usage.compliances.slice(pin_range),
+          constraint_usage.lambdas.slice(pin_range)));
     }
   }
 
@@ -1934,33 +1911,27 @@ class XpbdSolverStep {
     }
   }
 
-  void create_constraints__pin_rotations()
+  void create_chunk_constraints__pin_rotations(TLS &tls, const int chunk_i)
   {
-    TLS &tls = tls_.local();
-    for (const int data_key_i : geometries_.data_keys.index_range()) {
-      GeometryData &geo_data = geometries_.data[data_key_i];
-      for (const int constraint_usage_i : geo_data.pin_rotation_constraints.index_range()) {
-        PinRotationConstraintUsage &constraint_usage =
-            geo_data.pin_rotation_constraints[constraint_usage_i];
+    const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
+    ChunkData &chunk_data = chunks_data_[chunk_i];
+    const GeometryData &geo_data = geometries_.data[chunk.data_key_i];
+    for (const int constraint_usage_i : geo_data.pin_rotation_constraints.index_range()) {
+      const PinRotationConstraintUsage &constraint_usage =
+          geo_data.pin_rotation_constraints[constraint_usage_i];
 
-        for (const int chunk_i : geo_data.chunks) {
-          const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
-          const IndexRange pin_range = unique_sorted_indices::find_content_range<int>(
-              constraint_usage.points, chunk.points_range);
-          if (pin_range.is_empty()) {
-            continue;
-          }
-          ChunkData &chunk_data = chunks_data_[chunk_i];
-          chunk_data.pin_rotation_constraints.append({constraint_usage_i, pin_range});
-          chunk_data.static_constraints.append(
-              &tls.scope.construct<xpbd::PinRotationConstraintSet>(
-                  data_key_i,
-                  constraint_usage.points.slice(pin_range),
-                  constraint_usage.current_rotations.slice(pin_range),
-                  constraint_usage.compliances.slice(pin_range),
-                  constraint_usage.lambdas.slice(pin_range)));
-        }
+      const IndexRange pin_range = unique_sorted_indices::find_content_range<int>(
+          constraint_usage.points, chunk.points_range);
+      if (pin_range.is_empty()) {
+        continue;
       }
+      chunk_data.pin_rotation_constraints.append({constraint_usage_i, pin_range});
+      chunk_data.static_constraints.append(&tls.scope.construct<xpbd::PinRotationConstraintSet>(
+          chunk.data_key_i,
+          constraint_usage.points.slice(pin_range),
+          constraint_usage.current_rotations.slice(pin_range),
+          constraint_usage.compliances.slice(pin_range),
+          constraint_usage.lambdas.slice(pin_range)));
     }
   }
 
