@@ -6037,11 +6037,12 @@ static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
     return OPERATOR_CANCELLED;
   }
   /* Currently, we only switch the brush as part of StrokeCache initialization, which does not
-   * happen until the brush goes over the mesh. Thus, this mask layer creation may is not happen.
+   * happen until the brush goes over the mesh. Instead, check the #BrushSwitchMode which will
+   * tell if the brush will toggled at that point.
    *
    * Temporary mitigation to avoid backporting larger refactor for 5.1 backport.
    *
-   * TODO: Remove this, create stroke cache at very beginning with these "immutable" values.
+   * TODO: Remove this workaround, create `StrokeCache` here with "immutable" toggle values.
    */
   const BrushSwitchMode mode = BrushSwitchMode(RNA_enum_get(op->ptr, "brush_toggle"));
   if (brush_type_is_mask(brush.sculpt_brush_type) || mode == BrushSwitchMode::Mask) {
