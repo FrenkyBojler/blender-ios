@@ -1489,8 +1489,9 @@ set(CXX_WARNINGS "")
 # suppress warnings by modifying the code or for code which is maintained externally.
 # For GCC this typically means adding `-Wno-*` arguments to negate warnings
 # that are useful in the general case.
-set(C_REMOVE_STRICT_FLAGS "")
-set(CXX_REMOVE_STRICT_FLAGS "")
+set(C_REMOVE_STRICT_FLAGS "")    # C-only.
+set(CXX_REMOVE_STRICT_FLAGS "")  # C++-only.
+set(CC_REMOVE_STRICT_FLAGS "")   # Shared C & C++.
 
 # Libraries to link to targets in setup_platform_linker_libs
 set(PLATFORM_LINKLIBS "")
@@ -2074,18 +2075,18 @@ if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
 
   # flags to undo strict flags
   add_check_c_compiler_flags(
-    C_REMOVE_STRICT_FLAGS
+    CC_REMOVE_STRICT_FLAGS
 
-    C_WARN_NO_DEPRECATED_DECLARATIONS -Wno-deprecated-declarations
-    C_WARN_NO_UNUSED_PARAMETER -Wno-unused-parameter
-    C_WARN_NO_UNUSED_FUNCTION -Wno-unused-function
-    C_WARN_NO_TYPE_LIMITS -Wno-type-limits
-    C_WARN_NO_INT_IN_BOOL_CONTEXT -Wno-int-in-bool-context
-    C_WARN_NO_FORMAT -Wno-format
-    C_WARN_NO_SWITCH -Wno-switch
-    C_WARN_NO_UNUSED_VARIABLE -Wno-unused-variable
-    C_WARN_NO_UNINITIALIZED -Wno-uninitialized
-    C_WARN_NO_IMPLICIT_FALLTHROUGH -Wno-implicit-fallthrough
+    CC_WARN_NO_DEPRECATED_DECLARATIONS -Wno-deprecated-declarations
+    CC_WARN_NO_UNUSED_PARAMETER -Wno-unused-parameter
+    CC_WARN_NO_UNUSED_FUNCTION -Wno-unused-function
+    CC_WARN_NO_TYPE_LIMITS -Wno-type-limits
+    CC_WARN_NO_INT_IN_BOOL_CONTEXT -Wno-int-in-bool-context
+    CC_WARN_NO_FORMAT -Wno-format
+    CC_WARN_NO_SWITCH -Wno-switch
+    CC_WARN_NO_UNUSED_VARIABLE -Wno-unused-variable
+    CC_WARN_NO_UNINITIALIZED -Wno-uninitialized
+    CC_WARN_NO_IMPLICIT_FALLTHROUGH -Wno-implicit-fallthrough
   )
 
 
@@ -2103,8 +2104,8 @@ if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
 
   if(NOT APPLE)
     add_check_c_compiler_flags(
-      C_REMOVE_STRICT_FLAGS
-      C_WARN_NO_ERROR_UNUSED_BUT_SET_VARIABLE -Wno-error=unused-but-set-variable
+      CC_REMOVE_STRICT_FLAGS
+      CC_WARN_NO_ERROR_UNUSED_BUT_SET_VARIABLE -Wno-error=unused-but-set-variable
     )
   endif()
 
@@ -2188,27 +2189,27 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
   # flags to undo strict flags
 
   add_check_c_compiler_flags(
-    C_REMOVE_STRICT_FLAGS
+    CC_REMOVE_STRICT_FLAGS
 
-    C_WARN_NO_UNUSED_PARAMETER -Wno-unused-parameter
-    C_WARN_NO_UNUSED_VARIABLE -Wno-unused-variable
-    C_WARN_NO_UNUSED_MACROS -Wno-unused-macros
-    C_WARN_NO_MISLEADING_INDENTATION -Wno-misleading-indentation
+    CC_WARN_NO_UNUSED_PARAMETER -Wno-unused-parameter
+    CC_WARN_NO_UNUSED_VARIABLE -Wno-unused-variable
+    CC_WARN_NO_UNUSED_MACROS -Wno-unused-macros
+    CC_WARN_NO_MISLEADING_INDENTATION -Wno-misleading-indentation
 
-    C_WARN_NO_MISSING_VARIABLE_DECLARATIONS -Wno-missing-variable-declarations
-    C_WARN_NO_INCOMPAT_PTR_DISCARD_QUAL -Wno-incompatible-pointer-types-discards-qualifiers
-    C_WARN_NO_UNUSED_FUNCTION -Wno-unused-function
-    C_WARN_NO_INT_TO_VOID_POINTER_CAST -Wno-int-to-void-pointer-cast
-    C_WARN_NO_MISSING_PROTOTYPES -Wno-missing-prototypes
-    C_WARN_NO_DUPLICATE_ENUM -Wno-duplicate-enum
-    C_WARN_NO_UNDEF -Wno-undef
-    C_WARN_NO_MISSING_NORETURN -Wno-missing-noreturn
-    C_WARN_NO_UNUSED_BUT_SET_VARIABLE -Wno-unused-but-set-variable
-    C_WARN_NO_DEPRECATED_DECLARATIONS -Wno-deprecated-declarations
-    C_WARN_NO_STRICT_PROTOTYPES -Wno-strict-prototypes
-    C_WARN_NO_BITWISE_INSTEAD_OF_LOGICAL -Wno-bitwise-instead-of-logical
-    C_WARN_NO_IMPLICIT_CONST_INT_FLOAT_CONVERSION -Wno-implicit-const-int-float-conversion
-    C_WARN_NO_SINGLE_BIT_BITFIELD_CONSTANT_CONVERSION -Wno-single-bit-bitfield-constant-conversion
+    CC_WARN_NO_MISSING_VARIABLE_DECLARATIONS -Wno-missing-variable-declarations
+    CC_WARN_NO_INCOMPAT_PTR_DISCARD_QUAL -Wno-incompatible-pointer-types-discards-qualifiers
+    CC_WARN_NO_UNUSED_FUNCTION -Wno-unused-function
+    CC_WARN_NO_INT_TO_VOID_POINTER_CAST -Wno-int-to-void-pointer-cast
+    CC_WARN_NO_MISSING_PROTOTYPES -Wno-missing-prototypes
+    CC_WARN_NO_DUPLICATE_ENUM -Wno-duplicate-enum
+    CC_WARN_NO_UNDEF -Wno-undef
+    CC_WARN_NO_MISSING_NORETURN -Wno-missing-noreturn
+    CC_WARN_NO_UNUSED_BUT_SET_VARIABLE -Wno-unused-but-set-variable
+    CC_WARN_NO_DEPRECATED_DECLARATIONS -Wno-deprecated-declarations
+    CC_WARN_NO_STRICT_PROTOTYPES -Wno-strict-prototypes
+    CC_WARN_NO_BITWISE_INSTEAD_OF_LOGICAL -Wno-bitwise-instead-of-logical
+    CC_WARN_NO_IMPLICIT_CONST_INT_FLOAT_CONVERSION -Wno-implicit-const-int-float-conversion
+    CC_WARN_NO_SINGLE_BIT_BITFIELD_CONSTANT_CONVERSION -Wno-single-bit-bitfield-constant-conversion
   )
 
   add_check_cxx_compiler_flags(
@@ -2293,12 +2294,6 @@ elseif(CMAKE_C_COMPILER_ID STREQUAL "MSVC")
   set(CXX_WARNINGS "${_WARNINGS}")
   unset(_WARNINGS)
 endif()
-
-# For C++ we want to remove the C flags  as well, however we do NOT want to
-# test these flags for both C an CXX since they cost 1-2 seconds each on windows
-# adding 15+ seconds to the initial configure on windows. So for now just append
-# the C flags to the CXX ones if this ever causes issues we can re-evaluate this.
-set(CXX_REMOVE_STRICT_FLAGS "${CXX_REMOVE_STRICT_FLAGS} ${C_REMOVE_STRICT_FLAGS}")
 
 # Xcode enables additional warning flags by default. Disable some to match
 # command line build and other platforms more closely.

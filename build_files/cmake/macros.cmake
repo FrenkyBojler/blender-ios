@@ -755,6 +755,7 @@ macro(remove_strict_flags)
     # negate flags implied by '-Wall'
     add_c_flag("${C_REMOVE_STRICT_FLAGS}")
     add_cxx_flag("${CXX_REMOVE_STRICT_FLAGS}")
+    add_cc_flag("${CC_REMOVE_STRICT_FLAGS}")
   endif()
 
   if(CMAKE_C_COMPILER_ID MATCHES "Clang")
@@ -768,6 +769,7 @@ macro(remove_strict_flags)
     # negate flags implied by '-Wall'
     add_c_flag("${C_REMOVE_STRICT_FLAGS}")
     add_cxx_flag("${CXX_REMOVE_STRICT_FLAGS}")
+    add_cc_flag("${CC_REMOVE_STRICT_FLAGS}")
   endif()
 
   if(MSVC)
@@ -816,7 +818,7 @@ macro(remove_strict_c_flags_file
        (CMAKE_C_COMPILER_ID MATCHES "Clang"))
       set_source_files_properties(
         ${_SOURCE} PROPERTIES
-        COMPILE_FLAGS "${C_REMOVE_STRICT_FLAGS}"
+        COMPILE_FLAGS "${C_REMOVE_STRICT_FLAGS} ${CC_REMOVE_STRICT_FLAGS}"
       )
     endif()
     if(MSVC)
@@ -833,7 +835,7 @@ macro(remove_strict_cxx_flags_file
        (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
       set_source_files_properties(
         ${_SOURCE} PROPERTIES
-        COMPILE_FLAGS "${CXX_REMOVE_STRICT_FLAGS}"
+        COMPILE_FLAGS "${CXX_REMOVE_STRICT_FLAGS} ${CC_REMOVE_STRICT_FLAGS}"
       )
     endif()
     if(MSVC)
