@@ -564,8 +564,7 @@ namespace ed::sculpt_paint {
 Vector<int> find_symm_verts_mesh(const Depsgraph &depsgraph,
                                  const Object &object,
                                  const int original_vert,
-                                 const float max_distance,
-                                 const bool sorted)
+                                 const float max_distance)
 {
   const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
@@ -593,16 +592,13 @@ Vector<int> find_symm_verts_mesh(const Depsgraph &depsgraph,
     symm_verts.append(*nearest);
   }
 
-  if (sorted) {
-    std::ranges::sort(symm_verts);
-  }
+  std::ranges::sort(symm_verts);
   return symm_verts;
 }
 
 Vector<int> find_symm_verts_grids(const Object &object,
                                   const int original_vert,
-                                  const float max_distance,
-                                  const bool sorted)
+                                  const float max_distance)
 {
   const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
@@ -629,16 +625,13 @@ Vector<int> find_symm_verts_grids(const Object &object,
     symm_verts.append(nearest->to_index(key));
   }
 
-  if (sorted) {
-    std::ranges::sort(symm_verts);
-  }
+  std::ranges::sort(symm_verts);
   return symm_verts;
 }
 
 Vector<int> find_symm_verts_bmesh(const Object &object,
                                   const int original_vert,
-                                  const float max_distance,
-                                  const bool sorted)
+                                  const float max_distance)
 {
   const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(object);
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
@@ -664,26 +657,23 @@ Vector<int> find_symm_verts_bmesh(const Object &object,
     symm_verts.append(BM_elem_index_get(*nearest));
   }
 
-  if (sorted) {
-    std::ranges::sort(symm_verts);
-  }
+  std::ranges::sort(symm_verts);
   return symm_verts;
 }
 
 Vector<int> find_symm_verts(const Depsgraph &depsgraph,
                             const Object &object,
                             const int original_vert,
-                            const float max_distance,
-                            const bool sorted)
+                            const float max_distance)
 {
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh:
-      return find_symm_verts_mesh(depsgraph, object, original_vert, max_distance, sorted);
+      return find_symm_verts_mesh(depsgraph, object, original_vert, max_distance);
     case bke::pbvh::Type::Grids:
-      return find_symm_verts_grids(object, original_vert, max_distance, sorted);
+      return find_symm_verts_grids(object, original_vert, max_distance);
     case bke::pbvh::Type::BMesh:
-      return find_symm_verts_bmesh(object, original_vert, max_distance, sorted);
+      return find_symm_verts_bmesh(object, original_vert, max_distance);
   }
   BLI_assert_unreachable();
   return {};

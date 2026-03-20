@@ -733,33 +733,31 @@ namespace ed::sculpt_paint {
 Vector<int> find_symm_verts_mesh(const Depsgraph &depsgraph,
                                  const Object &object,
                                  int original_vert,
-                                 float max_distance = std::numeric_limits<float>::max(),
-                                 bool sorted = true);
+                                 float max_distance = std::numeric_limits<float>::max());
 Vector<int> find_symm_verts_grids(const Object &object,
                                   int original_vert,
-                                  float max_distance = std::numeric_limits<float>::max(),
-                                  bool sorted = true);
+                                  float max_distance = std::numeric_limits<float>::max());
 Vector<int> find_symm_verts_bmesh(const Object &object,
                                   int original_vert,
-                                  float max_distance = std::numeric_limits<float>::max(),
-                                  bool sorted = true);
+                                  float max_distance = std::numeric_limits<float>::max());
 Vector<int> find_symm_verts(const Depsgraph &depsgraph,
                             const Object &object,
                             int original_vert,
-                            float max_distance = std::numeric_limits<float>::max(),
-                            bool sorted = true);
+                            float max_distance = std::numeric_limits<float>::max());
 
 std::array<int, PAINT_SYMM_AREAS> find_all_symm_verts_mesh(
     const Depsgraph &depsgraph,
     const Object &object,
     int original_vert,
     float max_distance = std::numeric_limits<float>::max());
-std::array<int, PAINT_SYMM_AREAS> find_all_symm_verts_grids(const Object &object,
-                                      int original_vert,
-                                      float max_distance = std::numeric_limits<float>::max());
-std::array<int, PAINT_SYMM_AREAS> find_all_symm_verts_bmesh(const Object &object,
-                                      int original_vert,
-                                      float max_distance = std::numeric_limits<float>::max());
+std::array<int, PAINT_SYMM_AREAS> find_all_symm_verts_grids(
+    const Object &object,
+    int original_vert,
+    float max_distance = std::numeric_limits<float>::max());
+std::array<int, PAINT_SYMM_AREAS> find_all_symm_verts_bmesh(
+    const Object &object,
+    int original_vert,
+    float max_distance = std::numeric_limits<float>::max());
 std::array<int, PAINT_SYMM_AREAS> find_all_symm_verts(
     const Depsgraph &depsgraph,
     const Object &object,
