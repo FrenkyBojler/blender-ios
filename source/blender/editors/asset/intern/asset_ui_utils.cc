@@ -68,6 +68,7 @@ void asset_tooltip(const asset_system::AssetRepresentation &asset,
           tip, TIP_("Asset Library: Current File"), {}, ui::TIP_STYLE_NORMAL, ui::TIP_LC_VALUE);
       break;
     case ASSET_LIBRARY_ESSENTIALS:
+    case ASSET_LIBRARY_ONLINE_ESSENTIALS:
       tooltip_text_field_add(tip, {}, {}, ui::TIP_STYLE_SPACER, ui::TIP_LC_NORMAL, false);
       tooltip_text_field_add(
           tip, TIP_("Asset Library: Essentials"), {}, ui::TIP_STYLE_NORMAL, ui::TIP_LC_VALUE);
@@ -120,8 +121,10 @@ std::optional<AssetLibraryReference> get_user_library_ref_for_save(
       preferred_library ? preferred_library->library_reference() : std::nullopt;
   BLI_assert(!preferred_library || bool(preferred_library_ref));
 
-  if (preferred_library_ref &&
-      !ELEM(preferred_library_ref->type, ASSET_LIBRARY_ALL, ASSET_LIBRARY_ESSENTIALS))
+  if (preferred_library_ref && !ELEM(preferred_library_ref->type,
+                                     ASSET_LIBRARY_ALL,
+                                     ASSET_LIBRARY_ESSENTIALS,
+                                     ASSET_LIBRARY_ONLINE_ESSENTIALS))
   {
     return preferred_library_ref;
   }

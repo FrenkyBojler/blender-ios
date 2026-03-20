@@ -262,7 +262,10 @@ bool AssetRepresentation::is_online() const
 
 bool AssetRepresentation::is_potentially_editable_asset_blend() const
 {
-  if (this->owner_asset_library_.library_type() == ASSET_LIBRARY_ESSENTIALS) {
+  if (ELEM(this->owner_asset_library_.library_type(),
+           ASSET_LIBRARY_ESSENTIALS,
+           ASSET_LIBRARY_ONLINE_ESSENTIALS))
+  {
     return false;
   }
 

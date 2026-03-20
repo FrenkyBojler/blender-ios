@@ -28,6 +28,7 @@
 #include "BLI_string.h"
 #include "BLI_utility_mixins.hh"
 
+#include "DNA_space_enums.h"
 #include "DNA_space_types.h"
 
 #include "WM_api.hh"
@@ -360,7 +361,8 @@ static std::optional<eFileSelectType> asset_library_reference_to_fileselect_type
     case ASSET_LIBRARY_ALL:
       return FILE_ASSET_LIBRARY_ALL;
     case ASSET_LIBRARY_ESSENTIALS:
-      return FILE_ASSET_LIBRARY;
+    case ASSET_LIBRARY_ONLINE_ESSENTIALS:
+      return FILE_ASSET_LIBRARY_ESSENTIALS;
     case ASSET_LIBRARY_CUSTOM: {
       const bUserAssetLibrary *user_library = BKE_preferences_asset_library_find_index(
           &U, library_reference.custom_library_index);

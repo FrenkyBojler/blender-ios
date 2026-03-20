@@ -82,6 +82,9 @@ AssetLibrary *AssetLibraryService::get_asset_library(
 
       return this->get_asset_library_on_disk_builtin(type, root_path);
     }
+    case ASSET_LIBRARY_ONLINE_ESSENTIALS: {
+      return this->get_online_essentials_asset_library();
+    }
     case ASSET_LIBRARY_LOCAL: {
       /* For the "Current File" library we get the asset library root path based on main. */
       std::string root_path = bmain ? AS_asset_library_find_suitable_root_path_from_main(bmain) :
@@ -103,6 +106,9 @@ AssetLibrary *AssetLibraryService::get_asset_library(
       }
 
       if (custom_library->flag & ASSET_LIBRARY_USE_REMOTE_URL) {
+        if (custom_library->remote_url == online_essentials_url()) {
+          return this->get_online_essentials_asset_library();
+        }
         return this->get_remote_asset_library(*custom_library);
       }
 
@@ -121,6 +127,21 @@ AssetLibrary *AssetLibraryService::get_asset_library(
   }
 
   return nullptr;
+}
+
+AssetLibrary *AssetLibraryService::get_online_essentials_asset_library()
+{
+  if (online_essentials_library_) {
+    CLOG_DEBUG(&LOG, "get online essentials lib (cached)");
+    online_essentials_library_->load_or_reload_catalogs();
+  }
+  else {
+    CLOG_DEBUG(&LOG, "get online essentials lib (loaded)");
+    online_essentials_library_ = std::make_unique<OnlineEssentialsLibrary>();
+  }
+
+  AssetLibrary *lib = online_essentials_library_.get();
+  return lib;
 }
 
 AssetLibrary *AssetLibraryService::get_remote_asset_library(
@@ -316,6 +337,24 @@ AssetLibrary *AssetLibraryService::move_runtime_current_file_into_on_disk_librar
   return on_disk_library;
 }
 
+void AssetLibraryService::essentials_import_method_update() const
+{
+  AssetLibraryReference library_ref{};
+  library_ref.custom_library_index = -1;
+  library_ref.type = ASSET_LIBRARY_ESSENTIALS;
+  /* TODO this shouldn't load the library, only update if already loaded. */
+  EssentialsAssetLibrary *library = dynamic_cast<EssentialsAssetLibrary *>(
+      AS_asset_library_load(nullptr, library_ref));
+  if (library) {
+    library->update_default_import_method();
+  }
+
+  AssetLibraryService *service = AssetLibraryService::get();
+  if (service->online_essentials_library_) {
+    service->online_essentials_library_->update_default_import_method();
+  }
+}
+
 AssetLibrary *AssetLibraryService::get_asset_library_all(const Main *bmain)
 {
   /* (Re-)load all other asset libraries. */
@@ -404,6 +443,9 @@ std::string AssetLibraryService::resolve_asset_weak_reference_to_library_path(
     }
     case ASSET_LIBRARY_ESSENTIALS:
       library_dirpath = essentials_directory_path();
+      break;
+    case ASSET_LIBRARY_ONLINE_ESSENTIALS:
+      library_dirpath = online_essentials_cache_directory_path();
       break;
     case ASSET_LIBRARY_LOCAL:
     case ASSET_LIBRARY_ALL:
@@ -516,7 +558,8 @@ std::optional<AssetLibraryService::ExplodedPath> AssetLibraryService::
       return exploded;
     }
     case ASSET_LIBRARY_CUSTOM:
-    case ASSET_LIBRARY_ESSENTIALS: {
+    case ASSET_LIBRARY_ESSENTIALS:
+    case ASSET_LIBRARY_ONLINE_ESSENTIALS: {
       std::string full_path = this->resolve_asset_weak_reference_to_full_path(asset_reference);
       /* #full_path uses native slashes, so others don't need to be considered in the following. */
 
@@ -569,6 +612,9 @@ std::string AssetLibraryService::root_path_from_library_ref(
   }
   if (ELEM(library_reference.type, ASSET_LIBRARY_ESSENTIALS)) {
     return essentials_directory_path();
+  }
+  if (library_reference.type == ASSET_LIBRARY_ONLINE_ESSENTIALS) {
+    return online_essentials_cache_directory_path();
   }
 
   bUserAssetLibrary *custom_library = find_custom_asset_library_from_library_ref(
@@ -644,6 +690,10 @@ void AssetLibraryService::foreach_loaded_asset_library(FunctionRef<void(AssetLib
 
   if (current_file_library_) {
     fn(*current_file_library_);
+  }
+
+  if (online_essentials_library_) {
+    fn(*online_essentials_library_);
   }
 
   for (const auto &asset_lib_uptr : on_disk_libraries_.values()) {

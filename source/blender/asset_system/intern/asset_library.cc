@@ -22,6 +22,7 @@
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
+#include "DNA_asset_types.h"
 #include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
@@ -216,14 +217,8 @@ void AS_asset_library_import_method_ensure_valid(Main &bmain)
 
 void AS_asset_library_essential_import_method_update()
 {
-  AssetLibraryReference library_ref{};
-  library_ref.custom_library_index = -1;
-  library_ref.type = ASSET_LIBRARY_ESSENTIALS;
-  EssentialsAssetLibrary *library = dynamic_cast<EssentialsAssetLibrary *>(
-      AS_asset_library_load(nullptr, library_ref));
-  if (library) {
-    library->update_default_import_method();
-  }
+  AssetLibraryService *service = AssetLibraryService::get();
+  service->essentials_import_method_update();
 }
 
 namespace asset_system {
@@ -462,6 +457,14 @@ Vector<AssetLibraryReference> all_valid_asset_library_refs()
     result.append(library_ref);
   }
 
+  const bool skip_remote_libraries = !USER_EXPERIMENTAL_TEST(&U, use_remote_asset_libraries);
+  if (!skip_remote_libraries) {
+    AssetLibraryReference library_ref{};
+    library_ref.custom_library_index = -1;
+    library_ref.type = ASSET_LIBRARY_ONLINE_ESSENTIALS;
+    result.append(library_ref);
+  }
+
   for (const auto [i, asset_library] : U.asset_libraries.enumerate()) {
     if (!BKE_preferences_asset_library_is_valid(&U, &asset_library, true)) {
       continue;
@@ -492,6 +495,22 @@ AssetLibraryReference current_file_library_reference()
   AssetLibraryReference library_ref{};
   library_ref.custom_library_index = -1;
   library_ref.type = ASSET_LIBRARY_LOCAL;
+  return library_ref;
+}
+
+AssetLibraryReference essentials_library_reference()
+{
+  AssetLibraryReference library_ref{};
+  library_ref.custom_library_index = -1;
+  library_ref.type = ASSET_LIBRARY_ESSENTIALS;
+  return library_ref;
+}
+
+AssetLibraryReference online_essentials_library_reference()
+{
+  AssetLibraryReference library_ref{};
+  library_ref.custom_library_index = -1;
+  library_ref.type = ASSET_LIBRARY_ONLINE_ESSENTIALS;
   return library_ref;
 }
 

@@ -224,6 +224,8 @@ Vector<AssetLibraryReference> all_valid_asset_library_refs();
 
 AssetLibraryReference all_library_reference();
 AssetLibraryReference current_file_library_reference();
+AssetLibraryReference essentials_library_reference();
+AssetLibraryReference online_essentials_library_reference();
 void all_library_reload_catalogs_if_dirty();
 
 /**

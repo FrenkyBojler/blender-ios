@@ -20,6 +20,7 @@
 #include "AS_asset_representation.hh"
 #include "AS_remote_library.hh"
 
+#include "DNA_space_enums.h"
 #include "MEM_guardedalloc.h"
 
 #include "BLF_api.hh"
@@ -876,6 +877,9 @@ void filelist_settype(FileList *filelist, short type)
       break;
     case FILE_ASSET_LIBRARY_REMOTE:
       filelist_set_readjob_remote_asset_library(filelist);
+      break;
+    case FILE_ASSET_LIBRARY_ESSENTIALS:
+      filelist_set_readjob_essentials_asset_library(filelist);
       break;
     case FILE_ASSET_LIBRARY_ALL:
       filelist_set_readjob_all_asset_library(filelist);

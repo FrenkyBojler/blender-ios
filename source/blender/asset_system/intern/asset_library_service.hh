@@ -15,6 +15,7 @@
 
 #include "BLI_function_ref.hh"
 #include "BLI_map.hh"
+#include "essentials_library.hh"
 
 #include <memory>
 
@@ -64,6 +65,7 @@ class AssetLibraryService {
   std::unique_ptr<RuntimeAssetLibrary> current_file_library_;
   /** The "all" asset library, merging all other libraries into one. */
   std::unique_ptr<AllAssetLibrary> all_library_;
+  std::unique_ptr<OnlineEssentialsLibrary> online_essentials_library_;
 
   /** Handlers for managing the life cycle of the AssetLibraryService instance. */
   bCallbackFuncStore on_load_callback_store_;
@@ -95,6 +97,8 @@ class AssetLibraryService {
    * store the library in, based on the #Main.filepath from \a main).
    */
   static AssetLibrary *move_runtime_current_file_into_on_disk_library(const Main &bmain);
+
+  void essentials_import_method_update() const;
 
   AssetLibrary *get_asset_library(const Main *bmain,
                                   const AssetLibraryReference &library_reference);
@@ -185,6 +189,7 @@ class AssetLibraryService {
 
   AssetLibrary *find_loaded_on_disk_asset_library_from_name(StringRef name) const;
 
+  AssetLibrary *get_online_essentials_asset_library();
   AssetLibrary *get_remote_asset_library(const bUserAssetLibrary &custom_library);
   /**
    * Get the given asset library. Opens it (i.e. creates a new AssetLibrary instance) if necessary.

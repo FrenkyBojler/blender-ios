@@ -18,6 +18,7 @@ struct UserDef;
 struct bUserExtensionRepo;
 struct bUserAssetLibrary;
 struct bUserAssetShelfSettings;
+struct StringRef;
 
 /* -------------------------------------------------------------------- */
 /** \name Preferences File
@@ -51,6 +52,10 @@ struct bUserAssetLibrary *BKE_preferences_remote_asset_library_add(struct UserDe
                                                                    const char *name,
                                                                    const char *remote_url)
     ATTR_NONNULL(1, 3);
+
+void BKE_preferences_remote_asset_library_url_set(bUserAssetLibrary *library,
+                                                  const StringRef remote_url);
+
 /**
  * Unlink and free a library preference member.
  * \note Free's \a library itself.

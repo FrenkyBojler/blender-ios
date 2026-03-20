@@ -7,6 +7,7 @@
  */
 
 #include "AS_asset_library.hh"
+#include "AS_essentials_library.hh"
 
 #include "BLI_listbase.h"
 #include "BLI_string.h"
@@ -102,7 +103,15 @@ static void filelist_start_job_all_asset_library(FileListReadJob *job_params)
 {
   Set<StringRef> requested_urls;
 
-  asset_system::foreach_registered_remote_library([&](bUserAssetLibrary &library) {
+  /* Request online essentials library. */
+  {
+    asset_system::RemoteLibraryDefinitionRef online_essentials_library_def{
+        asset_system::online_essentials_url(),
+        asset_system::online_essentials_cache_directory_path()};
+    remote_asset_library_request(job_params, online_essentials_library_def);
+  }
+
+  asset_system::foreach_registered_user_remote_library([&](bUserAssetLibrary &library) {
     if (!requested_urls.contains(library.remote_url)) {
       requested_urls.add(library.remote_url);
 
