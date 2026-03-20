@@ -801,11 +801,10 @@ static wmOperatorStatus wm_xr_navigation_fly_invoke(bContext *C,
     const eXrViewfinderHand viewfinder_hand = eXrViewfinderHand(
         xr->session_settings.viewfinder_hand);
 
-    const bool clashes_with_viewfinder =
-        (ELEM(mode, XR_FLY_VIEWER_LEFT, XR_FLY_VIEWER_RIGHT) &&
-         viewfinder_hand == XR_VIEWFINDER_HAND_LEFT) ||
-        (ELEM(mode, XR_FLY_TURNLEFT, XR_FLY_TURNRIGHT) &&
-         viewfinder_hand == XR_VIEWFINDER_HAND_RIGHT);
+    const bool clashes_with_viewfinder = (ELEM(mode, XR_FLY_VIEWER_LEFT, XR_FLY_VIEWER_RIGHT) &&
+                                          viewfinder_hand == XR_VIEWFINDER_HAND_LEFT) ||
+                                         (ELEM(mode, XR_FLY_TURNLEFT, XR_FLY_TURNRIGHT) &&
+                                          viewfinder_hand == XR_VIEWFINDER_HAND_RIGHT);
 
     if (clashes_with_viewfinder) {
       return OPERATOR_PASS_THROUGH;
