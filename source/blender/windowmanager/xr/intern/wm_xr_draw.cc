@@ -461,8 +461,8 @@ void wm_xr_draw_controllers(const bContext *C, ARegion * /*region*/, void *custo
   wmXrSessionState *state = &xr->runtime->session_state;
 
   wm_xr_controller_model_draw(C, settings, xr_context, state);
-  wm_xr_viewfinder_draw(C, settings, state);
   wm_xr_controller_aim_draw(settings, state);
+  wm_xr_viewfinder_draw(C, settings, state);
 }
 
 }  // namespace blender
