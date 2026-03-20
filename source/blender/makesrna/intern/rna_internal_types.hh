@@ -747,9 +747,10 @@ struct BlenderRNA {
   Map<StringRef, StructRNA *> structs_map;
 
   /**
-   * This RNA container is created at runtime and not not the main static RNA. This is currently
-   * needed because we "override the destruction" of the main RNA static RNA container via
-   * #RNA_exit() rather than relying on static initialization order for destruction.
+   * This RNA container is created at runtime and is not the main static RNA. This is currently
+   * needed because we the main RNA static RNA container is cleared via #RNA_exit() rather than
+   * relying on static initialization order (and therefore the destructor), and we need some way to
+   * signal this.
    */
   bool runtime;
 };
