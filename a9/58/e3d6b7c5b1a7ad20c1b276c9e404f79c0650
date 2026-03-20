@@ -22,3 +22,4 @@ Referenced by commit 37bccf0ab349c28b4f10887109fd9d4cf92268df, Fix #154767: Acti
 Referenced by issue #155986, Crash when entering object editing mode with an instancing object
 Referenced by pull request #156005, Fix #155986: Crash when entering editmode on an object with face duplis
 Referenced by issue #129604, Geometry Nodes: Primitives UV Map display issue
+Referenced by commit c5898cb87adc08b41c7eb146034e8df2172900b2, Fix #155986: Crash when entering editmode on an object with face duplis
