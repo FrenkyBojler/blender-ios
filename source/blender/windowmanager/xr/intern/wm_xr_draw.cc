@@ -365,8 +365,6 @@ static void wm_xr_controller_model_draw(const bContext *C,
       GPU_matrix_pop();
     }
   }
-
-  wm_xr_viewfinder_draw(C, settings, state);
 }
 
 static void wm_xr_controller_aim_draw(const XrSessionSettings *settings, wmXrSessionState *state)
@@ -463,6 +461,7 @@ void wm_xr_draw_controllers(const bContext *C, ARegion * /*region*/, void *custo
   wmXrSessionState *state = &xr->runtime->session_state;
 
   wm_xr_controller_model_draw(C, settings, xr_context, state);
+  wm_xr_viewfinder_draw(C, settings, state);
   wm_xr_controller_aim_draw(settings, state);
 }
 
