@@ -3,3 +3,4 @@ Referenced by issue #155798, subdiv broken
 Referenced by issue #155858, Blender 5.1 performance regression when accessing UV vectors in Python
 Referenced by pull request #155867, Fix #155858: accessing UV vectors in Python is extremely slow
 Referenced by issue #155894, Geometry node modifier does not list vertex groups
+Referenced by pull request #156014, Use attribute dedicated lookup_int for Float4
