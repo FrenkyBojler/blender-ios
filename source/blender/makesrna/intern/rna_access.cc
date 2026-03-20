@@ -6293,11 +6293,9 @@ void RNA_sync_system_properties(PointerRNA &ptr, IDProperty &idprops)
     }
 
     const StringRefNull identifier = RNA_property_identifier(&rna_prop);
-    IDProperty *idprop = IDP_GetPropertyFromGroup(&idprops, identifier.c_str());
+    IDProperty *idprop = IDP_GetPropertyFromGroup(&idprops, identifier);
     if (!idprop) {
-      /* Create an IDProperty of an arbitrary type, to be converted to the correct type next. */
-      idprop = bke::idprop::create_group(identifier, IDP_FLAG_STATIC_TYPE).release();
-      IDP_AddToGroup(&idprops, idprop);
+      continue;
     }
 
     used_props.add_new(idprop);
