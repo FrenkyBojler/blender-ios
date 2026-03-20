@@ -290,15 +290,15 @@ float ambient_occlusion_eval(float3 normal,
 #endif
 }
 
-void raycast_eval(float3 position,
-                  float3 direction,
-                  float max_distance,
-                  bool self_only,
-                  bool &is_hit,
-                  bool &self_hit,
-                  float &hit_distance,
-                  float3 &hit_position,
-                  float3 &hit_normal)
+void raycast_world_eval(float3 position,
+                        float3 direction,
+                        float max_distance,
+                        bool self_only,
+                        bool &is_hit,
+                        bool &self_hit,
+                        float &hit_distance,
+                        float3 &hit_position,
+                        float3 &hit_normal)
 {
   is_hit = false;
   self_hit = false;
@@ -355,6 +355,57 @@ void raycast_eval(float3 position,
     uint hit_id = texelFetch(object_id_tx, hit_texel, 0).x;
     self_hit = self_only || (hit_id == self_id);
   }
+#endif
+}
+
+void raycast_offset_eval(float3 offset,
+                         float max_distance,
+                         bool self_only,
+                         bool &is_hit,
+                         bool &self_hit,
+                         float &hit_distance,
+                         float3 &hit_position,
+                         float3 &hit_normal)
+{
+  is_hit = false;
+  self_hit = false;
+  hit_distance = max_distance;
+  hit_position = float3(0.0f);
+  hit_normal = float3(0.0f);
+
+#if defined(MAT_RAYCAST)
+  float3 vs_target = drw_point_world_to_view(g_data.P) + offset;
+  float2 screen_target = drw_point_view_to_screen(vs_target).xy;
+
+#  if 0
+  /* TODO: This should be the correct code but it currently fails when rendering probes.
+   * (The values are always the ones from the main View) */
+  const float2 extent = float2(uniform_buf.film.render_extent);
+  const float2 hiz_uv_scale = uniform_buf.hiz.uv_scale;
+#  else
+  const float2 extent = float2(textureSize(object_id_tx, 0).xy);
+  const float2 hiz_uv_scale = extent / float2(textureSize(hiz_tx, 0));
+#  endif
+
+  float depth = texture(hiz_tx, screen_target * hiz_uv_scale).x;
+
+  if (depth == 1.0f) {
+    return;
+  }
+
+  uint self_id = drw_resource_id() & 0xFFFF;
+  uint hit_id = texelFetch(object_id_tx, int2(screen_target * extent), 0).x;
+
+  self_hit = self_id == hit_id;
+
+  if (self_only && !self_hit) {
+    return;
+  }
+
+  is_hit = true;
+  hit_normal = normalize(texture(prepass_normal_tx, screen_target).xyz * 2.0f - 1.0f);
+  hit_position = drw_point_screen_to_world(float3(screen_target, depth));
+  hit_distance = distance(drw_view_position(), hit_position);
 #endif
 }
 

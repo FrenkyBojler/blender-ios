@@ -17,6 +17,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Vector>("Position").hide_value();
   b.add_input<decl::Vector>("Direction").hide_value();
+  b.add_input<decl::Vector>("Offset");
   b.add_input<decl::Float>("Length").default_value(1.0);
   b.add_output<decl::Float>("Is Hit");
   b.add_output<decl::Float>("Self Hit");
@@ -27,12 +28,25 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_shader_init(bNodeTree * /*ntree*/, bNode *node)
 {
-  node->custom1 = 0; /* Only Local */
+  node->custom1 = 0;                      /* Only Local */
+  node->custom2 = SHD_RAYCAST_MODE_WORLD; /* Mode */
 }
 
 static void node_shader_buts(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
+  layout.prop(ptr, "mode", ui::ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
   layout.prop(ptr, "only_local", ui::ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+}
+
+static void node_shader_update(bNodeTree *ntree, bNode *node)
+{
+  bNodeSocket *position = bke::node_find_socket(*node, SOCK_IN, "Position");
+  bNodeSocket *direction = bke::node_find_socket(*node, SOCK_IN, "Direction");
+  bNodeSocket *offset = bke::node_find_socket(*node, SOCK_IN, "Offset");
+
+  bke::node_set_socket_availability(*ntree, *position, node->custom2 == SHD_RAYCAST_MODE_WORLD);
+  bke::node_set_socket_availability(*ntree, *direction, node->custom2 == SHD_RAYCAST_MODE_WORLD);
+  bke::node_set_socket_availability(*ntree, *offset, node->custom2 == SHD_RAYCAST_MODE_OFFSET);
 }
 
 static int node_shader_gpu(GPUMaterial *mat,
@@ -52,10 +66,13 @@ static int node_shader_gpu(GPUMaterial *mat,
   }
 
   const bool only_local = node->custom1;
-  if (only_local) {
-    return GPU_stack_link(mat, node, "node_raycast_only_local", in, out);
-  }
-  return GPU_stack_link(mat, node, "node_raycast", in, out);
+  const char *function_name = node->custom2 == SHD_RAYCAST_MODE_WORLD ?
+                                  (only_local ? "node_raycast_world_only_local" :
+                                                "node_raycast_world") :
+                                  (only_local ? "node_raycast_offset_only_local" :
+                                                "node_raycast_offset");
+
+  return GPU_stack_link(mat, node, function_name, in, out);
 }
 
 NODE_SHADER_MATERIALX_BEGIN
@@ -83,6 +100,7 @@ void register_node_type_sh_raycast()
   ntype.initfunc = file_ns::node_shader_init;
   ntype.add_ui_poll = object_shader_nodes_poll;
   ntype.draw_buttons = file_ns::node_shader_buts;
+  ntype.updatefunc = file_ns::node_shader_update;
   ntype.declare = file_ns::node_declare;
   ntype.gpu_fn = file_ns::node_shader_gpu;
   ntype.materialx_fn = file_ns::node_shader_materialx;

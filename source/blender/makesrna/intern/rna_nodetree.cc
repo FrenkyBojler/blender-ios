@@ -6221,6 +6221,27 @@ static void def_sh_raycast(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_boolean_sdna(prop, nullptr, "custom1", 0);
   RNA_def_property_ui_text(prop, "Only Local", "Only raycast against the object itself");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  static const EnumPropertyItem rna_enum_node_raycast_mode_items[] = {
+      {SHD_RAYCAST_MODE_WORLD,
+       "World",
+       0,
+       "World",
+       "Absolute ray position and direction in world space"},
+      {SHD_RAYCAST_MODE_OFFSET,
+       "Offset",
+       0,
+       "Ray Offset",
+       "Offset relative to the current shading ray"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom2");
+  RNA_def_property_enum_items(prop, rna_enum_node_raycast_mode_items);
+  RNA_def_property_ui_text(prop, "Mode", "Ray origin and direction mode");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, 0, "rna_ShaderNode_socket_update");
 }
 
 static void def_sh_displacement(BlenderRNA * /*brna*/, StructRNA *srna)

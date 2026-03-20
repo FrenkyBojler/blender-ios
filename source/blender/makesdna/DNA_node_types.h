@@ -678,6 +678,11 @@ enum {
   SHD_AO_LOCAL = 2,
 };
 
+enum {
+  SHD_RAYCAST_MODE_WORLD = 0,
+  SHD_RAYCAST_MODE_OFFSET = 1,
+};
+
 /** Mapping node vector types. */
 enum {
   NODE_MAPPING_TYPE_POINT = 0,
