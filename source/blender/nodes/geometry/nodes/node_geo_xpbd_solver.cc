@@ -351,25 +351,6 @@ struct Geometries {
   std::array<Array<xpbd::GeometryRef>, 2> solver_refs;
 };
 
-struct FieldEvaluatorKey {
-  int data_key_i;
-  AttrDomain domain;
-  Field<bool> selection;
-
-  friend bool operator==(const FieldEvaluatorKey &a, const FieldEvaluatorKey &b) = default;
-
-  uint64_t hash() const
-  {
-    return get_default_hash(this->data_key_i, this->domain, this->selection ? this->selection : 0);
-  }
-};
-
-static const Field<bool> &get_constant_true_field()
-{
-  static const Field<bool> field = fn::make_constant_field<bool>(true);
-  return field;
-}
-
 struct SubstepInterval {
   int current_i;
   float begin_factor;
@@ -533,7 +514,6 @@ class XpbdSolverStep {
   Array<ChunkData> chunks_data_;
 
   Mutex field_evaluators_mutex_;
-  Map<FieldEvaluatorKey, fn::FieldEvaluator *> field_evaluators_;
 
   Mutex warnings_mutex_;
   VectorSet<std::string> warnings_;
@@ -575,8 +555,6 @@ class XpbdSolverStep {
 
     this->prepare_inverse_masses();
     this->prepare_inverse_moments_of_inertia();
-
-    this->evaluate_constraint_fields();
 
     this->create_constraints__rod_stretch_shear();
     this->create_constraints__rod_bend_twist();
@@ -1738,10 +1716,6 @@ class XpbdSolverStep {
     const Span<std::string> paths = nested_bundle_paths_.lookup(PinPositionBundle::name);
     for (const StringRef path : paths) {
       const Bundle &bundle = **world_.lookup_path_ptr<BundlePtr>(path);
-      std::optional<Field<float3>> position_field = bundle.lookup<Field<float3>>("position");
-      if (!position_field) {
-        continue;
-      }
       PinPositionConstraint constraint;
       constraint.path = path;
       constraint.lambda_attr = bundle.lookup<std::string>("lambda_attribute").value_or("");
@@ -1896,11 +1870,7 @@ class XpbdSolverStep {
     const Span<std::string> paths = nested_bundle_paths_.lookup(PinRotationBundle::name);
     for (const StringRef path : paths) {
       const Bundle &bundle = **world_.lookup_path_ptr<BundlePtr>(path);
-      std::optional<Field<math::Quaternion>> rotation_field =
-          bundle.lookup<Field<math::Quaternion>>("rotation");
-      if (!rotation_field) {
-        continue;
-      }
+
       PinRotationConstraint constraint;
       constraint.path = path;
       const int constraint_i = constraints_.pin_rotation_constraints.append_and_get_index(
@@ -2013,25 +1983,6 @@ class XpbdSolverStep {
         }
       }
     }
-  }
-
-  void evaluate_constraint_fields()
-  {
-    Vector<fn::FieldEvaluator *> evaluators;
-    for (fn::FieldEvaluator *evaluator : field_evaluators_.values()) {
-      evaluators.append(evaluator);
-    }
-    threading::parallel_for(
-        evaluators.index_range(),
-        1024,
-        [&](const IndexRange range) {
-          for (fn::FieldEvaluator *evaluator : evaluators.as_span().slice(range)) {
-            evaluator->evaluate();
-          }
-        },
-        threading::individual_task_sizes(
-            [&](const int i) { return evaluators[i]->evaluation_mask().size(); },
-            geometries_.total_points_num));
   }
 
   void do_simulation()
@@ -2535,62 +2486,6 @@ class XpbdSolverStep {
     const std::string filter = behavior.lookup<std::string>("filter").value_or("");
     const bool match = tag_filter_matches(filter, geo_set_data.tags);
     return match;
-  }
-
-  template<typename T>
-  Field<T> get_field_or_constant(const Bundle &bundle,
-                                 const StringRef name,
-                                 const T &default_value)
-  {
-    const std::optional<Field<T>> field = bundle.lookup<Field<T>>(name);
-    if (field) {
-      return *field;
-    }
-    return fn::make_constant_field(default_value);
-  }
-
-  fn::FieldEvaluator &get_field_evaluator(const int data_key_i,
-                                          const AttrDomain domain,
-                                          std::optional<Field<bool>> selection = std::nullopt)
-  {
-    FieldEvaluatorKey key{data_key_i, domain, selection ? *selection : get_constant_true_field()};
-    std::lock_guard lock{field_evaluators_mutex_};
-    return *field_evaluators_.lookup_or_add_cb(key, [&]() {
-      TLS &tls = tls_.local();
-      const auto &field_context = this->make_geometry_field_context(tls, data_key_i, domain);
-      const int domain_size = geometries_.data[data_key_i].attributes.domain_size(domain);
-      auto &evaluator = tls.scope.construct<fn::FieldEvaluator>(field_context, domain_size);
-      if (selection) {
-        evaluator.set_selection(*selection);
-      }
-      return &evaluator;
-    });
-  }
-
-  fn::FieldContext &make_geometry_field_context(TLS &tls,
-                                                const int data_key_i,
-                                                const AttrDomain domain)
-  {
-    const DataKey &data_key = geometries_.data_keys[data_key_i];
-    const GeometrySet &geometry_set = geometries_.geometry_sets[data_key.geo_bundle_i].geometry;
-    switch (data_key.type) {
-      case bke::GeometryComponent::Type::Mesh:
-        return tls.scope.construct<bke::MeshFieldContext>(*geometry_set.get_mesh(), domain);
-      case bke::GeometryComponent::Type::PointCloud:
-        return tls.scope.construct<bke::PointCloudFieldContext>(*geometry_set.get_pointcloud());
-      case bke::GeometryComponent::Type::Instance:
-        return tls.scope.construct<bke::InstancesFieldContext>(*geometry_set.get_instances());
-      case bke::GeometryComponent::Type::Curve:
-        return tls.scope.construct<bke::CurvesFieldContext>(*geometry_set.get_curves(), domain);
-      case bke::GeometryComponent::Type::GreasePencil:
-        return tls.scope.construct<bke::GreasePencilLayerFieldContext>(
-            *geometry_set.get_grease_pencil(), domain, *data_key.layer_i);
-      case bke::GeometryComponent::Type::Volume:
-      case bke::GeometryComponent::Type::Edit:
-        break;
-    }
-    BLI_assert_unreachable();
-    return tls.scope.construct<fn::FieldContext>();
   }
 
   void parallel_for_each_chunk(const int grain_size, const FunctionRef<void(int chunk_i)> fn)
