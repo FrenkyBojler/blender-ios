@@ -19,6 +19,7 @@ struct IndexTransform {
   bool index_is_reversed;
 };
 
-std::variant<std::monostate, int, IndexTransform> field_as_index_transform(const fn::Field<int> &index_field);
+std::variant<std::monostate, int, IndexTransform> field_as_index_transform(
+    const fn::Field<int> &index_field);
 
 }  // namespace blender::nodes

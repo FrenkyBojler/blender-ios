@@ -94,7 +94,8 @@ class IndexFieldContext : public fn::FieldContext {
   }
 };
 
-std::variant<std::monostate, int, IndexTransform> field_as_index_transform(const fn::Field<int> &index_field)
+std::variant<std::monostate, int, IndexTransform> field_as_index_transform(
+    const fn::Field<int> &index_field)
 {
   const std::shared_ptr<const fn::FieldInputs> &dependencys = index_field.node().field_inputs();
   if (!dependencys) {
@@ -121,11 +122,11 @@ std::variant<std::monostate, int, IndexTransform> field_as_index_transform(const
   std::array<int, 2> dst_indices;
   evaluator.add_with_destination(index_field, GMutableSpan(MutableSpan(dst_indices)));
   evaluator.evaluate();
-  
+
   if (dst_indices[0] == dst_indices[1]) {
     return dst_indices[0];
   }
-  
+
   return IndexTransform{dst_indices[0], dst_indices[0] > dst_indices[1]};
 }
 

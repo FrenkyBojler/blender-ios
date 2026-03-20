@@ -518,22 +518,26 @@ template<typename T> inline bool Bounds<T>::intersects_segment(const T &start, c
   }
 }
 
-template<typename T, typename OtherT> inline Bounds<T> operator+(const Bounds<T> &a, const OtherT &b)
+template<typename T, typename OtherT>
+inline Bounds<T> operator+(const Bounds<T> &a, const OtherT &b)
 {
   return {a.min + b, a.max + b};
 }
 
-template<typename T, typename OtherT> inline Bounds<T> operator+(const OtherT &a, const Bounds<T> &b)
+template<typename T, typename OtherT>
+inline Bounds<T> operator+(const OtherT &a, const Bounds<T> &b)
 {
   return {a + b.min, a + b.max};
 }
 
-template<typename T, typename OtherT> inline Bounds<T> operator-(const OtherT &a, const Bounds<T> &b)
+template<typename T, typename OtherT>
+inline Bounds<T> operator-(const OtherT &a, const Bounds<T> &b)
 {
   return {a - b.min, a - b.max};
 }
 
-template<typename T, typename OtherT> inline Bounds<T> operator-(const Bounds<T> &a, const OtherT &b)
+template<typename T, typename OtherT>
+inline Bounds<T> operator-(const Bounds<T> &a, const OtherT &b)
 {
   return {a.min - b, a.max - b};
 }
