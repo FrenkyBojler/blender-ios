@@ -1279,10 +1279,10 @@ class XpbdSolverStep {
                   [interpolated_mesh]() { BKE_id_free(nullptr, interpolated_mesh); });
               MutableSpan<float3> substep_positions =
                   interpolated_mesh->vert_positions_for_write();
-            for (const int i : IndexRange(verts_num)) {
-              substep_positions[i] = math::interpolate(
+              for (const int i : IndexRange(verts_num)) {
+                substep_positions[i] = math::interpolate(
                     begin_positions[i], end_positions[i], mix_factor);
-            }
+              }
               interpolated_mesh->tag_positions_changed();
               substep_mesh = interpolated_mesh;
             }
@@ -2347,6 +2347,10 @@ class XpbdSolverStep {
     const IndexRange points_range = chunk.points_range;
     geo_data.position_attr.span.slice(points_range)
         .copy_from(geo_data.temp_positions.as_span().slice(points_range));
+    if (geo_data.uses_rotation) {
+      geo_data.rotation_attr.span.slice(points_range)
+          .copy_from(geo_data.temp_rotations.as_span().slice(points_range));
+    }
   }
 
   void finish_common_attribute_writers()
