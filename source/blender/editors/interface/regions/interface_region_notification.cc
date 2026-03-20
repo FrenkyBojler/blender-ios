@@ -8,7 +8,6 @@
  * PopUp Region (Generic)
  */
 
-
 #include "BKE_screen.hh"
 
 #include "BLF_api.hh"

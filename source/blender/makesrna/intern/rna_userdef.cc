@@ -5063,14 +5063,14 @@ static void rna_def_userdef_view(BlenderRNA *brna)
   RNA_def_property_enum_default(prop, USER_NOTIFICATION_POS_RIGHT);
   RNA_def_property_ui_text(
       prop, "Notification Position", "Position of toast notifications relative to the window");
-  RNA_def_property_update(prop, 0, "rna_userdef_gpu_update");
+  RNA_def_property_update(prop, 0, "rna_userdef_update");
 
   prop = RNA_def_property(srna, "notification_seconds", PROP_FLOAT, PROP_TIME);
   RNA_def_property_range(prop, 0.0f, 30.0f);
   RNA_def_property_ui_range(prop, 2.0f, 20.0f, 100.0f, 1);
   RNA_def_property_ui_text(
       prop, "Notification Duration", "Minimum time in seconds to display notifications");
-  RNA_def_property_update(prop, 0, "rna_userdef_gpu_update");
+  RNA_def_property_update(prop, 0, "rna_userdef_update");
 
   prop = RNA_def_property(srna, "show_area_handle", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "uiflag", USER_AREA_CORNER_HANDLE);

@@ -1204,11 +1204,11 @@ static void wm_draw_window_onscreen(bContext *C, wmWindow *win, int view)
         continue;
       }
 
-      const wmWindow *win = CTX_wm_window(C);
-      wmViewport(&region.winrct);
+      GPU_viewport(region.winrct.xmin, region.winrct.ymin, region.winx, region.winy);
+      wmOrtho2_region_pixelspace(&region);
       region.runtime->type->draw_overlay(C, &region);
-      wmWindowViewport(win);
     }
+    wmWindowViewport(win);
   }
 
   /* Blend in floating regions (menus). */
