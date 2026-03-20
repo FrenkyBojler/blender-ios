@@ -41,11 +41,7 @@ BLI_CPP_TYPE_MAKE(Text *, CPPTypeFlags::BasicType)
 BLI_CPP_TYPE_MAKE(Mask *, CPPTypeFlags::BasicType)
 BLI_CPP_TYPE_MAKE(bSound *, CPPTypeFlags::BasicType)
 
-inline bool operator==(const MStringProperty &a, const MStringProperty &b)
-{
-  return (a.s_len == b.s_len) && (strncmp(a.s, b.s, sizeof(a.s)) == 0);
-}
-BLI_CPP_TYPE_MAKE(MStringProperty, CPPTypeFlags::EqualityComparable);
+BLI_CPP_TYPE_MAKE(MStringProperty, CPPTypeFlags::None);
 BLI_CPP_TYPE_MAKE(nodes::MenuValue, CPPTypeFlags::Hashable | CPPTypeFlags::EqualityComparable);
 BLI_CPP_TYPE_MAKE(nodes::BundlePtr, CPPTypeFlags::EqualityComparable);
 BLI_CPP_TYPE_MAKE(nodes::ClosurePtr, CPPTypeFlags::EqualityComparable);
