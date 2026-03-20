@@ -176,6 +176,37 @@ struct ImageData : NonCopyable {
 
 }  // namespace paint::image
 
+struct StrokeToggleSettings {
+  /**
+   * Whether the modifier key that controls inverting brush behavior is active currently.
+   * Generally signals a change in behavior for brushes.
+   *
+   * \see BrushStrokeMode::Invert.
+   */
+  bool invert = false;
+  bool pen_flip = false;
+
+  /**
+   * Whether the modifier key that controls smoothing is active currently.
+   * Generally signals a change in behavior for different brushes.
+   *
+   * \see BrushSwitchMode::Smooth.
+   */
+  bool alt_smooth = false;
+
+  /**
+   * Whether the modifier key that controls masking is active currently.
+   * Switches the active brush to the mask brush during the stroke.
+   *
+   * \see BrushSwitchMode::Mask.
+   */
+  bool alt_mask = false;
+
+  Brush *original_active_brush = nullptr;
+  BrushMaskTool original_brush_mask_tool = BRUSH_MASK_DRAW;
+  int original_brush_size = 0;
+};
+
 /**
  * This structure contains all the temporary data
  * needed for individual brush strokes.
@@ -201,37 +232,7 @@ struct StrokeCache {
    */
   bool initial_direction_flipped = false;
 
-  struct {
-    /**
-     * Whether the modifier key that controls inverting brush behavior is active currently.
-     * Generally signals a change in behavior for brushes.
-     *
-     * \see BrushStrokeMode::Invert.
-     */
-    bool invert = false;
-    bool pen_flip = false;
-
-    /**
-     * Whether the modifier key that controls smoothing is active currently.
-     * Generally signals a change in behavior for different brushes.
-     *
-     * \see BrushSwitchMode::Smooth.
-     */
-    bool alt_smooth = false;
-
-    /**
-     * Whether the modifier key that controls masking is active currently.
-     * Switches the active brush to the mask brush during the stroke.
-     *
-     * \see BrushSwitchMode::Mask.
-     */
-    bool alt_mask = false;
-
-    Brush *original_active_brush = nullptr;
-    BrushMaskTool original_brush_mask_tool = BRUSH_MASK_DRAW;
-    /* Smooth tool copies the size of the current tool. */
-    int original_brush_size = 0;
-  } toggle_settings;
+  StrokeToggleSettings toggle_settings = {};
 
   /* Variants */
   float radius = 0.0f;
