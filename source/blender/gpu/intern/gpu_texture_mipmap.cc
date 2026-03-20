@@ -151,7 +151,7 @@ void GPU_texture_update_mipmap_chain(Texture *tex)
               "implementation, this could lead to different results between platforms.",
               GPU_texture_format_name(texture_format));
     /* XXX: currently we assert when here to find all the common cases.*/
-    // BLI_assert(tex->format_flag_get() & gpu::GPU_FORMAT_SRGB);
+    BLI_assert(tex->format_flag_get() & gpu::GPU_FORMAT_SRGB);
     tex->generate_mipmap();
   }
 }
