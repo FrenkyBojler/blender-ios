@@ -203,25 +203,24 @@ void do_versions_after_linking_520(FileData * /*fd*/, Main *bmain)
       do_version_file_output_use_file_extension_recursive(*node_tree, scene);
     }
   }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 12)) {
+    for (Object &object : bmain->objects) {
+      for (ModifierData &md : object.modifiers) {
+        if (md.type == eModifierType_Nodes) {
+          version_geometry_nodes_properties(
+              *bmain, object, reinterpret_cast<NodesModifierData &>(md));
+        }
+      }
+    }
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
    *
    * \note Keep this message at the bottom of the function.
    */
-
-  /* Keep this block at the end of this function until file format changes in 6.0.
-   * Geometry Nodes modifier properties are written in the old format by
-   * #create_legacy_geometry_nodes_properties. Versioning to change properties in the new runtime
-   * format has to happen after this versioning step. */
-  for (Object &object : bmain->objects) {
-    for (ModifierData &md : object.modifiers) {
-      if (md.type == eModifierType_Nodes) {
-        version_geometry_nodes_properties(
-            *bmain, object, reinterpret_cast<NodesModifierData &>(md));
-      }
-    }
-  }
 }
 
 void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
