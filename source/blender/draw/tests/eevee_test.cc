@@ -256,6 +256,7 @@ static void test_eevee_shadow_tag_update()
   PassSimple pass("Test");
   pass.shader_set(sh);
   pass.framebuffer_set(&fb);
+  pass.push_constant("tilemap_count", int(tilemaps_data.size()));
   pass.bind_ssbo("tilemaps_buf", tilemaps_data);
   pass.bind_ssbo("tiles_buf", tiles_data);
   pass.bind_ssbo("bounds_buf", &manager.bounds_buf.previous());
