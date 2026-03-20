@@ -50,32 +50,6 @@ constexpr StringRefNull static_friction = "static_friction";
 constexpr StringRefNull dynamic_friction = "dynamic_friction";
 constexpr StringRefNull radius = "radius";
 
-#define SIM_PROP "sim:prop:"
-#define SIM_PROP_PREV "sim:prop_prev:"
-
-constexpr StringRefNull pin_position_prefix = SIM_PROP "pin_position";
-constexpr StringRefNull pin_position_selection_prefix = SIM_PROP "pin_position_selection";
-constexpr StringRefNull pin_position_compliance_prefix = SIM_PROP "pin_position_compliance";
-constexpr StringRefNull prev_pin_position_prefix = SIM_PROP_PREV "pin_position";
-constexpr StringRefNull prev_pin_position_selection_prefix = SIM_PROP_PREV
-    "pin_position_selection";
-
-constexpr StringRefNull pin_rotation_prefix = SIM_PROP "pin_rotation";
-constexpr StringRefNull pin_rotation_selection_prefix = SIM_PROP "pin_rotation_selection";
-constexpr StringRefNull pin_rotation_compliance_prefix = SIM_PROP "pin_rotation_compliance";
-constexpr StringRefNull prev_pin_rotation_prefix = SIM_PROP_PREV "pin_rotation";
-constexpr StringRefNull prev_pin_rotation_selection_prefix = SIM_PROP_PREV
-    "pin_rotation_selection";
-
-constexpr StringRefNull linear_damping_prefix = SIM_PROP "linear_damping";
-constexpr StringRefNull angular_damping_prefix = SIM_PROP "angular_damping";
-
-constexpr StringRefNull edge_length_prefix = SIM_PROP "edge_length";
-constexpr StringRefNull edge_length_compliance_prefix = SIM_PROP "edge_length_compliance";
-
-#undef SIM_PROP
-#undef SIM_PROP_PREV
-
 }  // namespace attribute_names
 
 static NestedBundleTypePtr make_world_type()
@@ -1671,13 +1645,9 @@ class XpbdSolverStep {
         const int edge_num = mesh.edges_num;
         constraint_usage.lambdas = tls.allocator.allocate_array<float>(edge_num);
         constraint_usage.rest_lengths = *geo_data.attributes.lookup_or_default<float>(
-            fmt::format("{}:{}", attribute_names::edge_length_prefix, constraint.path),
-            AttrDomain::Edge,
-            0.0f);
+            this->prop_attr_name(constraint.path, "length"), AttrDomain::Edge, 0.0f);
         constraint_usage.compliances = *geo_data.attributes.lookup_or_default<float>(
-            fmt::format("{}:{}", attribute_names::edge_length_compliance_prefix, constraint.path),
-            AttrDomain::Edge,
-            0.0f);
+            this->prop_attr_name(constraint.path, "compliance"), AttrDomain::Edge, 0.0f);
       }
     }
   }
@@ -1735,13 +1705,9 @@ class XpbdSolverStep {
         const DampingConstraint &constraint =
             constraints_.damping_constraints[constraint_usage.constraint_i];
         constraint_usage.linear_dampings = *geo_data.attributes.lookup_or_default<float>(
-            fmt::format("{}:{}", attribute_names::linear_damping_prefix, constraint.path),
-            geo_data.domain,
-            0.0f);
+            this->prop_attr_name(constraint.path, "linear"), geo_data.domain, 0.0f);
         constraint_usage.angular_dampings = *geo_data.attributes.lookup_or_default<float>(
-            fmt::format("{}:{}", attribute_names::angular_damping_prefix, constraint.path),
-            geo_data.domain,
-            0.0f);
+            this->prop_attr_name(constraint.path, "angular"), geo_data.domain, 0.0f);
 
         constraint_usage.linear_damping_lambdas = tls.allocator.allocate_array<float>(
             geo_data.size);
@@ -1816,11 +1782,9 @@ class XpbdSolverStep {
             constraints_.pin_position_constraints[constraint_usage.constraint_i];
 
         const VArray<bool> selection_attr = *geo_data.attributes.lookup<bool>(
-            fmt::format("{}:{}", attribute_names::pin_position_selection_prefix, constraint.path),
-            geo_data.domain);
+            this->prop_attr_name(constraint.path, "selection"), geo_data.domain);
         const VArray<float3> positions_attr = *geo_data.attributes.lookup<float3>(
-            fmt::format("{}:{}", attribute_names::pin_position_prefix, constraint.path),
-            geo_data.domain);
+            this->prop_attr_name(constraint.path, "position"), geo_data.domain);
         if (!positions_attr || !selection_attr) {
           continue;
         }
@@ -1829,16 +1793,11 @@ class XpbdSolverStep {
           continue;
         }
         const VArray<float> compliances_attr = *geo_data.attributes.lookup_or_default<float>(
-            fmt::format("{}:{}", attribute_names::pin_position_compliance_prefix, constraint.path),
-            geo_data.domain,
-            0.0f);
+            this->prop_attr_name(constraint.path, "compliance"), geo_data.domain, 0.0f);
         const VArray<bool> prev_selection_attr = *geo_data.attributes.lookup<bool>(
-            fmt::format(
-                "{}:{}", attribute_names::prev_pin_position_selection_prefix, constraint.path),
-            geo_data.domain);
+            this->prev_prop_attr_name(constraint.path, "selection"), geo_data.domain);
         const VArray<float3> prev_positions_attr = *geo_data.attributes.lookup<float3>(
-            fmt::format("{}:{}", attribute_names::prev_pin_position_prefix, constraint.path),
-            geo_data.domain);
+            this->prev_prop_attr_name(constraint.path, "position"), geo_data.domain);
 
         const int pin_num = pin_selection.size();
         MutableSpan<int> points = tls.allocator.allocate_array<int>(pin_num);
@@ -1984,12 +1943,10 @@ class XpbdSolverStep {
             constraints_.pin_rotation_constraints[constraint_usage.constraint_i];
 
         const VArray<bool> selection_attr = *geo_data.attributes.lookup<bool>(
-            fmt::format("{}:{}", attribute_names::pin_rotation_selection_prefix, constraint.path),
-            geo_data.domain);
+            this->prop_attr_name(constraint.path, "selection"), geo_data.domain);
         const VArray<math::Quaternion> rotation_attr =
             *geo_data.attributes.lookup<math::Quaternion>(
-                fmt::format("{}:{}", attribute_names::pin_rotation_prefix, constraint.path),
-                geo_data.domain);
+                this->prop_attr_name(constraint.path, "rotation"), geo_data.domain);
         if (!selection_attr || !rotation_attr) {
           continue;
         }
@@ -1998,17 +1955,12 @@ class XpbdSolverStep {
           continue;
         }
         const VArray<float> compliances_attr = *geo_data.attributes.lookup_or_default<float>(
-            fmt::format("{}:{}", attribute_names::pin_rotation_compliance_prefix, constraint.path),
-            geo_data.domain,
-            0.0f);
+            this->prop_attr_name(constraint.path, "compliance"), geo_data.domain, 0.0f);
         const VArray<bool> prev_selection_attr = *geo_data.attributes.lookup<bool>(
-            fmt::format(
-                "{}:{}", attribute_names::prev_pin_rotation_selection_prefix, constraint.path),
-            geo_data.domain);
+            this->prev_prop_attr_name(constraint.path, "selection"), geo_data.domain);
         const VArray<math::Quaternion> prev_rotations_attr =
             *geo_data.attributes.lookup<math::Quaternion>(
-                fmt::format("{}:{}", attribute_names::prev_pin_rotation_prefix, constraint.path),
-                geo_data.domain);
+                this->prev_prop_attr_name(constraint.path, "rotation"), geo_data.domain);
 
         const int pin_num = pin_selection.size();
         MutableSpan<int> points = tls.allocator.allocate_array<int>(pin_num);
@@ -2677,6 +2629,16 @@ class XpbdSolverStep {
       GeometrySetData &geo_set_data = geometries_.geometry_sets[geo_bundle_i];
       world_.add_path_override(geo_set_data.path, std::move(geo_set_data.geometry));
     }
+  }
+
+  std::string prop_attr_name(const StringRef effector_path, const StringRef prop_name) const
+  {
+    return fmt::format("sim:prop:{}:{}", effector_path, prop_name);
+  }
+
+  std::string prev_prop_attr_name(const StringRef effector_path, const StringRef prop_name) const
+  {
+    return fmt::format("sim:prop_prev:{}:{}", effector_path, prop_name);
   }
 
   void report_warning(std::string warning)
