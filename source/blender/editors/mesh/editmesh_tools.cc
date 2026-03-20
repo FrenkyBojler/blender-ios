@@ -6061,15 +6061,15 @@ static wmOperatorStatus edbm_dissolve_edges_exec(bContext *C, wmOperator *op)
 
     BM_custom_loop_normals_to_vector_layer(em->bm);
 
-    if (!EDBM_op_callf(
-            em,
-            op,
-            "dissolve_edges edges=%he use_verts=%b use_face_split=%b angle_threshold=%f use_preserve_quads=%b",
-            BM_ELEM_SELECT,
-            use_verts,
-            use_face_split,
-            angle_threshold,
-            use_preserve_quads))
+    if (!EDBM_op_callf(em,
+                       op,
+                       "dissolve_edges edges=%he use_verts=%b use_face_split=%b "
+                       "angle_threshold=%f use_preserve_quads=%b",
+                       BM_ELEM_SELECT,
+                       use_verts,
+                       use_face_split,
+                       angle_threshold,
+                       use_preserve_quads))
     {
       continue;
     }
