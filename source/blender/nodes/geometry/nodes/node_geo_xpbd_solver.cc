@@ -735,7 +735,7 @@ class XpbdSolverStep {
            math::normalize(prev_normal_sim),
            friction});
       for (const int data_key_i : geometries_.data_keys.index_range()) {
-        if (this->behavior_applies_to_geometry(path, bundle, data_key_i)) {
+        if (this->effector_applies_to_geometry(path, bundle, data_key_i)) {
           geometries_.data[data_key_i].infinite_plane_colliders.append({collider_i});
         }
       }
@@ -814,7 +814,7 @@ class XpbdSolverStep {
       }
       Vector<int> affected_data;
       for (const int data_key_i : geometries_.data_keys.index_range()) {
-        if (this->behavior_applies_to_geometry(path, bundle, data_key_i)) {
+        if (this->effector_applies_to_geometry(path, bundle, data_key_i)) {
           affected_data.append(data_key_i);
         }
       }
@@ -1404,7 +1404,7 @@ class XpbdSolverStep {
         if (!geo_data.curves) {
           continue;
         }
-        if (!this->behavior_applies_to_geometry(path, bundle, data_key_i)) {
+        if (!this->effector_applies_to_geometry(path, bundle, data_key_i)) {
           continue;
         }
         geo_data.rod_stretch_shear_constraints.append({constraint_i});
@@ -1506,7 +1506,7 @@ class XpbdSolverStep {
         if (!geo_data.curves) {
           continue;
         }
-        if (!this->behavior_applies_to_geometry(path, bundle, data_key_i)) {
+        if (!this->effector_applies_to_geometry(path, bundle, data_key_i)) {
           continue;
         }
         geo_data.rod_bend_twist_constraints.append({constraint_i});
@@ -1569,7 +1569,7 @@ class XpbdSolverStep {
         if (data_key.type != GeometryComponent::Type::Mesh) {
           continue;
         }
-        if (this->behavior_applies_to_geometry(path, bundle, data_key_i)) {
+        if (this->effector_applies_to_geometry(path, bundle, data_key_i)) {
           geo_data.edge_length_constraints.append({constraint_i});
         }
       }
@@ -1618,7 +1618,7 @@ class XpbdSolverStep {
 
       for (const int data_key_i : geometries_.data_keys.index_range()) {
         GeometryData &geo_data = geometries_.data[data_key_i];
-        if (this->behavior_applies_to_geometry(path, bundle, data_key_i)) {
+        if (this->effector_applies_to_geometry(path, bundle, data_key_i)) {
           geo_data.damping_constraints.append({constraint_i});
         }
       }
@@ -1684,7 +1684,7 @@ class XpbdSolverStep {
 
       for (const int data_key_i : geometries_.data_keys.index_range()) {
         GeometryData &geo_data = geometries_.data[data_key_i];
-        if (this->behavior_applies_to_geometry(path, bundle, data_key_i)) {
+        if (this->effector_applies_to_geometry(path, bundle, data_key_i)) {
           geo_data.pin_position_constraints.append({constraint_i});
         }
       }
@@ -1835,7 +1835,7 @@ class XpbdSolverStep {
         if (!geo_data.uses_rotation) {
           continue;
         }
-        if (this->behavior_applies_to_geometry(path, bundle, data_key_i)) {
+        if (this->effector_applies_to_geometry(path, bundle, data_key_i)) {
           geo_data.pin_rotation_constraints.append({constraint_i});
         }
       }
@@ -2416,28 +2416,28 @@ class XpbdSolverStep {
     return &**previous_bundle_ptr;
   }
 
-  bool behavior_applies_to_geometry(const StringRef behavior_path,
-                                    const Bundle &behavior,
+  bool effector_applies_to_geometry(const StringRef effector_path,
+                                    const Bundle &effector,
                                     const int data_key_i) const
   {
     const DataKey &data_key = geometries_.data_keys[data_key_i];
     const GeometrySetData &geo_set_data = geometries_.geometry_sets[data_key.geo_bundle_i];
     const StringRef geo_bundle_path = geo_set_data.path;
 
-    const bool filter_local = behavior.lookup<bool>("filter_local").value_or(false);
+    const bool filter_local = effector.lookup<bool>("filter_local").value_or(false);
     if (filter_local) {
-      const int pos = behavior_path.rfind('/');
+      const int pos = effector_path.rfind('/');
       if (pos == StringRef::not_found) {
-        /* The behavior is at the root level, so a local filter applies to everything.*/
+        /* The effector is at the root level, so a local filter applies to everything.*/
         return true;
       }
-      const StringRef behavior_parent_path = behavior_path.substr(0, pos);
-      if (geo_bundle_path.startswith(behavior_parent_path)) {
+      const StringRef effector_parent_path = effector_path.substr(0, pos);
+      if (geo_bundle_path.startswith(effector_parent_path)) {
         return true;
       }
       return false;
     }
-    const std::string filter = behavior.lookup<std::string>("filter").value_or("");
+    const std::string filter = effector.lookup<std::string>("filter").value_or("");
     const bool match = tag_filter_matches(filter, geo_set_data.tags);
     return match;
   }
