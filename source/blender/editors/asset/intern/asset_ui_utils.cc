@@ -96,10 +96,6 @@ void asset_tooltip(const asset_system::AssetRepresentation &asset,
                              ui::TIP_STYLE_NORMAL,
                              ui::TIP_LC_VALUE);
     }
-    if (std::optional<std::string> remote_url = asset.owner_asset_library().remote_url()) {
-      tooltip_text_field_add(tip, {}, {}, ui::TIP_STYLE_SPACER, ui::TIP_LC_NORMAL, false);
-      tooltip_text_field_add(tip, *remote_url, {}, ui::TIP_STYLE_NORMAL, ui::TIP_LC_PYTHON);
-    }
   }
 }
 
