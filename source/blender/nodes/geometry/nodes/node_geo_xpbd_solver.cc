@@ -478,7 +478,6 @@ class XpbdSolverStep {
   const float interpolation_begin_;
   const float interpolation_end_;
 
-  const float4x4 simulation_to_world_;
   const float4x4 world_to_simulation_;
 
   std::string geometry_tag_filter_;
@@ -510,7 +509,6 @@ class XpbdSolverStep {
         sub_delta_time_(total_delta_time / substeps_),
         interpolation_begin_(interpolation_begin),
         interpolation_end_(interpolation_end),
-        simulation_to_world_(simulation_to_world),
         world_to_simulation_(math::invert(simulation_to_world)),
         geometry_tag_filter_(geometry_tag_filter),
         constraint_iterations_(constraint_iterations)
