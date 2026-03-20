@@ -835,7 +835,7 @@ static void wm_xr_viewfinder_ui_draw_background(const rctf &viewfinder_rect)
   BLI_rctf_mul(&tabs_bg_rect, 100);
   BLI_rctf_mul(&outline_rect, 100);
 
-  GPU_depth_test(GPU_DEPTH_NONE);
+  GPU_depth_test(GPU_DEPTH_ALWAYS);
 
   GPU_matrix_translate_3f(0.0f, 0.0f, -1.0f);
 
