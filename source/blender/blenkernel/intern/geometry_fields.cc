@@ -2,9 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include <iostream>
-#include <sstream>
-
 #include "BLI_array_utils.hh"
 #include "BLI_bounds.hh"
 #include "BLI_bounds_types.hh"
@@ -610,12 +607,6 @@ static void reverse_copy(const GVArray &src, const IndexMask &mask, GMutableSpan
     mask.foreach_index_optimized<int>([&](const int i) { dst_typed[i] = src_typed.last(i); },
                                       exec_mode::parallel);
   });
-}
-
-template<typename T> std::ostream &operator<<(std::ostream &stream, Bounds<T> value)
-{
-  stream << "<" << value.min << ", " << value.max << ">";
-  return stream;
 }
 
 GVArray EvaluateAtIndexInput::get_varray_for_context(const bke::GeometryFieldContext &context,

@@ -512,4 +512,19 @@ template<typename T> inline bool Bounds<T>::intersects_segment(const T &start, c
   }
 }
 
+template<typename T> inline Bounds<T> operator+(const Bounds<T> &a, const T &b)
+{
+  return {a.min + b, a.max + b};
+}
+
+template<typename T> inline Bounds<T> operator+(const T &a, const Bounds<T> &b)
+{
+  return {a + b.min, a + b.max};
+}
+
+template<typename T> inline Bounds<T> operator-(const Bounds<T> &value)
+{
+  return {-value.min, -value.max};
+}
+
 }  // namespace blender

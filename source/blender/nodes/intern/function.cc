@@ -2,19 +2,15 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_array_utils.hh"
-#include "BLI_map.hh"
-#include "BLI_multi_value_map.hh"
 #include "BLI_set.hh"
 #include "BLI_stack.hh"
-#include "BLI_vector_set.hh"
-
-#include "DNA_node_types.h"
 
 #include "FN_field.hh"
 #include "FN_multi_function.hh"
 
 #include "NOD_function.hh"
+
+#include "DNA_node_types.h"
 
 namespace blender::nodes {
 
@@ -26,6 +22,10 @@ static bool is_only_linear_int_math(const fn::GField &entry_fields)
   handled_fields.add(entry_fields);
   fields_to_check.push(entry_fields);
 
+  static const mf::MultiFunction &add_func = int_math_op(NODE_INTEGER_MATH_ADD);
+  static const mf::MultiFunction &sub_func = int_math_op(NODE_INTEGER_MATH_SUBTRACT);
+  static const mf::MultiFunction &minus_func = int_math_op(NODE_INTEGER_MATH_NEGATE);
+
   while (!fields_to_check.is_empty()) {
     const fn::GFieldRef field = fields_to_check.pop();
     const fn::FieldNode &field_node = field.node();
@@ -35,11 +35,7 @@ static bool is_only_linear_int_math(const fn::GField &entry_fields)
         break;
       case fn::FieldNodeType::Operation: {
         const fn::FieldOperation &operation = static_cast<const fn::FieldOperation &>(field_node);
-        if (!ELEM(&operation.multi_function(),
-                  &int_math_op(NODE_INTEGER_MATH_ADD),
-                  &int_math_op(NODE_INTEGER_MATH_SUBTRACT),
-                  &int_math_op(NODE_INTEGER_MATH_NEGATE)))
-        {
+        if (!ELEM(&operation.multi_function(), &add_func, &sub_func, &minus_func)) {
           return false;
         }
         for (const fn::GFieldRef operation_input : operation.inputs()) {
