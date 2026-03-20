@@ -21,3 +21,4 @@ Referenced by pull request #154813, Fix #154767: Active UV layer resets / non-ch
 Referenced by commit 37bccf0ab349c28b4f10887109fd9d4cf92268df, Fix #154767: Active UV layer resets / non-changable in edit mode
 Referenced by issue #155986, Crash when entering object editing mode with an instancing object
 Referenced by pull request #156005, Fix #155986: Crash when entering editmode on an object with face duplis
+Referenced by issue #129604, Geometry Nodes: Primitives UV Map display issue
