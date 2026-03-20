@@ -64,14 +64,27 @@ enum TextureFormat : uint32_t {
   SFLOAT_16,
 };
 
-template<enum TextureFormat format> struct Resources {
+struct SharedSRGB {
+  /**
+   * When generating 2 levels, the results of generating the intermediate *level(first level
+   * generated) are cached here; this is the input tile *needed to generate the 8x8 tile of the
+   * second level generated.
+   */
+  [[shared]] uint level[MAX_SHARED_SAMPLES][MAX_SHARED_SAMPLES];
+};
+
+struct SharedFloat {
+  [[shared]] float level[MAX_SHARED_SAMPLES][MAX_SHARED_SAMPLES];
+};
+
+template<enum TextureFormat format, typename SharedStorage> struct Resources {
   [[compilation_constant]] const int use_shared_srgb_uint;
   [[compilation_constant]] const int use_shared_float;
   [[push_constant]] const int num_levels;
   [[image(0, read, format)]] image2D mip_in;
   [[image(1, write, format)]] image2D mip_out1;
   [[image(2, write, format)]] image2D mip_out2;
-  // TODO: [[resource_table]] srt_t<SharedAccessor> accessor;
+  //[[resource_table]] srt_t<SharedStorage> shared;
 
   /**
    * When generating 2 levels, the results of generating the intermediate *level(first level
@@ -129,17 +142,17 @@ T load_sample([[resource_table]] SRT &srt, int2 src_coord)
   return T(color);
 }
 
-template struct Resources<UNORM_8_8_8_8>;
-template struct Resources<SFLOAT_16>;
+template struct Resources<UNORM_8_8_8_8, SharedSRGB>;
+template struct Resources<SFLOAT_16, SharedFloat>;
 
-template float4 load_sample<Resources<UNORM_8_8_8_8>, float4, true>(Resources<UNORM_8_8_8_8> &srt,
-                                                                    int2 src_coord);
-template float4 load_sample<Resources<UNORM_8_8_8_8>, float4, false>(Resources<UNORM_8_8_8_8> &srt,
-                                                                     int2 src_coord);
-template float4 load_sample<Resources<SFLOAT_16>, float4, true>(Resources<SFLOAT_16> &srt,
-                                                                int2 src_coord);
-template float4 load_sample<Resources<SFLOAT_16>, float4, false>(Resources<SFLOAT_16> &srt,
-                                                                 int2 src_coord);
+template float4 load_sample<Resources<UNORM_8_8_8_8, SharedSRGB>, float4, true>(
+    Resources<UNORM_8_8_8_8, SharedSRGB> &srt, int2 src_coord);
+template float4 load_sample<Resources<UNORM_8_8_8_8, SharedSRGB>, float4, false>(
+    Resources<UNORM_8_8_8_8, SharedSRGB> &srt, int2 src_coord);
+template float4 load_sample<Resources<SFLOAT_16, SharedFloat>, float4, true>(
+    Resources<SFLOAT_16, SharedFloat> &srt, int2 src_coord);
+template float4 load_sample<Resources<SFLOAT_16, SharedFloat>, float4, false>(
+    Resources<SFLOAT_16, SharedFloat> &srt, int2 src_coord);
 
 template<typename T> T pyramid_reduce(float a0, T v0, float a1, T v1, float a2, T v2)
 {
@@ -160,11 +173,11 @@ int2 kernel_size_from_input_size(int2 input_size)
               input_size.y == 1 ? 1 : (2 | (input_size.y & 1)));
 }
 /**
- * Handle loading and reducing a rectangle of size kernelSize_
- * with the given upper-left coordinate srcCoord_. Samples read from
- * mip level srcLevel_ if !loadFromShared_, sharedLevel_ otherwise.
+ * Handle loading and reducing a rectangle of size kernel_size
+ * with the given upper-left coordinate src_coord. Samples read from
+ * mip level src_level if !loadFromShared_, sharedLevel_ otherwise.
  *
- * kernelSize_ must range from 1x1 to 3x3.
+ * kernel_size must range from 1x1 to 3x3.
  *
  * Once computed, the sample is written to the given coordinate of the
  * specified destination mip level, and returned. The destination
@@ -172,36 +185,36 @@ int2 kernel_size_from_input_size(int2 input_size)
  */
 template<typename SRT, typename T, bool load_from_shared>
 float4 reduce_store_sample(SRT &srt,
-                           int2 srcCoord_,
-                           int srcLevel_,
-                           int2 kernelSize_,
-                           int2 dstImageSize_,
-                           int2 dstCoord_,
-                           int dstLevel_)
+                           int2 src_coord,
+                           int src_level,
+                           int2 kernel_size,
+                           int2 dst_image_size,
+                           int2 dst_coord,
+                           int dst_level)
 {
-  float n_ = dstImageSize_.y;
+  float n_ = dst_image_size.y;
   float rcp_ = 1.0f / (2 * n_ + 1);
-  float w0_ = rcp_ * (n_ - dstCoord_.y);
+  float w0_ = rcp_ * (n_ - dst_coord.y);
   float w1_ = rcp_ * n_;
   float w2_ = 1.0f - w0_ - w1_;
 
   float4 v0_, v1_, v2_, h0_, h1_, h2_, out_;
 
   // Reduce vertically up to 3 times (depending on kernel horizontal size)
-  switch (kernelSize_.x) {
+  switch (kernel_size.x) {
     case 3:
-      switch (kernelSize_.y) {
+      switch (kernel_size.y) {
         case 3:
-          v2_ = load_sample<SRT, T, load_from_shared>(srt, srcCoord_ + int2(2, 2));
+          v2_ = load_sample<SRT, T, load_from_shared>(srt, src_coord + int2(2, 2));
           ATTR_FALLTHROUGH;
         case 2:
-          v1_ = load_sample<SRT, T, load_from_shared>(srt, srcCoord_ + int2(2, 1));
+          v1_ = load_sample<SRT, T, load_from_shared>(srt, src_coord + int2(2, 1));
           ATTR_FALLTHROUGH;
         case 1:
-          v0_ = load_sample<SRT, T, load_from_shared>(srt, srcCoord_ + int2(2, 0));
+          v0_ = load_sample<SRT, T, load_from_shared>(srt, src_coord + int2(2, 0));
           break;
       }
-      switch (kernelSize_.y) {
+      switch (kernel_size.y) {
         case 3:
           h2_ = pyramid_reduce(w0_, v0_, w1_, v1_, w2_, v2_);
           break;
@@ -214,18 +227,18 @@ float4 reduce_store_sample(SRT &srt,
       }
       ATTR_FALLTHROUGH;
     case 2:
-      switch (kernelSize_.y) {
+      switch (kernel_size.y) {
         case 3:
-          v2_ = load_sample<SRT, T, load_from_shared>(srt, srcCoord_ + int2(1, 2));
+          v2_ = load_sample<SRT, T, load_from_shared>(srt, src_coord + int2(1, 2));
           ATTR_FALLTHROUGH;
         case 2:
-          v1_ = load_sample<SRT, T, load_from_shared>(srt, srcCoord_ + int2(1, 1));
+          v1_ = load_sample<SRT, T, load_from_shared>(srt, src_coord + int2(1, 1));
           ATTR_FALLTHROUGH;
         case 1:
-          v0_ = load_sample<SRT, T, load_from_shared>(srt, srcCoord_ + int2(1, 0));
+          v0_ = load_sample<SRT, T, load_from_shared>(srt, src_coord + int2(1, 0));
           break;
       }
-      switch (kernelSize_.y) {
+      switch (kernel_size.y) {
         case 3:
           h1_ = pyramid_reduce(w0_, v0_, w1_, v1_, w2_, v2_);
           break;
@@ -238,18 +251,18 @@ float4 reduce_store_sample(SRT &srt,
       }
       ATTR_FALLTHROUGH;
     case 1:
-      switch (kernelSize_.y) {
+      switch (kernel_size.y) {
         case 3:
-          v2_ = load_sample<SRT, T, load_from_shared>(srt, srcCoord_ + int2(0, 2));
+          v2_ = load_sample<SRT, T, load_from_shared>(srt, src_coord + int2(0, 2));
           ATTR_FALLTHROUGH;
         case 2:
-          v1_ = load_sample<SRT, T, load_from_shared>(srt, srcCoord_ + int2(0, 1));
+          v1_ = load_sample<SRT, T, load_from_shared>(srt, src_coord + int2(0, 1));
           ATTR_FALLTHROUGH;
         case 1:
-          v0_ = load_sample<SRT, T, load_from_shared>(srt, srcCoord_ + int2(0, 0));
+          v0_ = load_sample<SRT, T, load_from_shared>(srt, src_coord + int2(0, 0));
           break;
       }
-      switch (kernelSize_.y) {
+      switch (kernel_size.y) {
         case 3:
           h0_ = pyramid_reduce(w0_, v0_, w1_, v1_, w2_, v2_);
           break;
@@ -263,11 +276,11 @@ float4 reduce_store_sample(SRT &srt,
   }
 
   // Reduce up to 3 samples horizontally.
-  switch (kernelSize_.x) {
+  switch (kernel_size.x) {
     case 3:
-      n_ = dstImageSize_.x;
+      n_ = dst_image_size.x;
       rcp_ = 1.0f / (2 * n_ + 1);
-      w0_ = rcp_ * (n_ - dstCoord_.x);
+      w0_ = rcp_ * (n_ - dst_coord.x);
       w1_ = rcp_ * n_;
       w2_ = 1.0f - w0_ - w1_;
       out_ = pyramid_reduce(w0_, h0_, w1_, h1_, w2_, h2_);
@@ -280,46 +293,48 @@ float4 reduce_store_sample(SRT &srt,
   }
 
   // Write out sample.
-  srt.store_sample(dstCoord_, dstLevel_, out_);
+  srt.store_sample(dst_coord, dst_level, out_);
   return out_;
 }
-template float4 reduce_store_sample<Resources<UNORM_8_8_8_8>, float4, true>(
-    Resources<UNORM_8_8_8_8> &srt,
-    int2 srcCoord_,
-    int srcLevel_,
-    int2 kernelSize_,
-    int2 dstImageSize_,
-    int2 dstCoord_,
-    int dstLevel_);
-template float4 reduce_store_sample<Resources<UNORM_8_8_8_8>, float4, false>(
-    Resources<UNORM_8_8_8_8> &srt,
-    int2 srcCoord_,
-    int srcLevel_,
-    int2 kernelSize_,
-    int2 dstImageSize_,
-    int2 dstCoord_,
-    int dstLevel_);
-template float4 reduce_store_sample<Resources<SFLOAT_16>, float4, true>(Resources<SFLOAT_16> &srt,
-                                                                        int2 srcCoord_,
-                                                                        int srcLevel_,
-                                                                        int2 kernelSize_,
-                                                                        int2 dstImageSize_,
-                                                                        int2 dstCoord_,
-                                                                        int dstLevel_);
-template float4 reduce_store_sample<Resources<SFLOAT_16>, float4, false>(Resources<SFLOAT_16> &srt,
-                                                                         int2 srcCoord_,
-                                                                         int srcLevel_,
-                                                                         int2 kernelSize_,
-                                                                         int2 dstImageSize_,
-                                                                         int2 dstCoord_,
-                                                                         int dstLevel_);
+template float4 reduce_store_sample<Resources<UNORM_8_8_8_8, SharedFloat>, float4, true>(
+    Resources<UNORM_8_8_8_8, SharedFloat> &srt,
+    int2 src_coord,
+    int src_level,
+    int2 kernel_size,
+    int2 dst_image_size,
+    int2 dst_coord,
+    int dst_level);
+template float4 reduce_store_sample<Resources<UNORM_8_8_8_8, SharedSRGB>, float4, false>(
+    Resources<UNORM_8_8_8_8, SharedSRGB> &srt,
+    int2 src_coord,
+    int src_level,
+    int2 kernel_size,
+    int2 dst_image_size,
+    int2 dst_coord,
+    int dst_level);
+template float4 reduce_store_sample<Resources<SFLOAT_16, SharedFloat>, float4, true>(
+    Resources<SFLOAT_16, SharedFloat> &srt,
+    int2 src_coord,
+    int src_level,
+    int2 kernel_size,
+    int2 dst_image_size,
+    int2 dst_coord,
+    int dst_level);
+template float4 reduce_store_sample<Resources<SFLOAT_16, SharedFloat>, float4, false>(
+    Resources<SFLOAT_16, SharedFloat> &srt,
+    int2 src_coord,
+    int src_level,
+    int2 kernel_size,
+    int2 dst_image_size,
+    int2 dst_coord,
+    int dst_level);
 
 /**
  * Compute and write out (to the 1st mip level generated) the samples
  * at coordinates
- *     initDstCoord_,
- *     initDstCoord_ + step_, ...
- *     initDstCoord_ + (iterations_-1) * step_
+ *     initDst_coord,
+ *     initDst_coord + step_, ...
+ *     initDst_coord + (iterations_-1) * step_
  * and cache them at in the sharedLevel_ tile at coordinates
  *     initSharedCoord_,
  *     initSharedCoord_ + step_, ...
@@ -328,56 +343,58 @@ template float4 reduce_store_sample<Resources<SFLOAT_16>, float4, false>(Resourc
  */
 template<typename SRT>
 void intermediateLevelLoop_(SRT &srt,
-                            int2 initDstCoord_,
+                            int2 initDst_coord,
                             int2 initSharedCoord_,
                             int2 step_,
                             int iterations_,
                             bool boundsCheck_)
 {
-  int2 dstCoord_ = initDstCoord_;
+  int2 dst_coord = initDst_coord;
   int2 sharedCoord_ = initSharedCoord_;
-  int srcLevel_ = INPUT_LEVEL;
-  int dstLevel_ = srcLevel_ + 1;
-  int2 srcImageSize_ = srt.level_size(srcLevel_);
-  int2 dstImageSize_ = srt.level_size(dstLevel_);
-  int2 kernelSize_ = kernel_size_from_input_size(srcImageSize_);
+  int src_level = INPUT_LEVEL;
+  int dst_level = src_level + 1;
+  int2 srcImageSize_ = srt.level_size(src_level);
+  int2 dst_image_size = srt.level_size(dst_level);
+  int2 kernel_size = kernel_size_from_input_size(srcImageSize_);
 
   for (int i_ = 0; i_ < iterations_; ++i_) {
-    int2 srcCoord_ = dstCoord_ * 2;
+    int2 src_coord = dst_coord * 2;
 
     // Optional bounds check.
     if (boundsCheck_) {
-      if (uint(dstCoord_.x) >= uint(dstImageSize_.x)) {
+      if (uint(dst_coord.x) >= uint(dst_image_size.x)) {
         continue;
       }
-      if (uint(dstCoord_.y) >= uint(dstImageSize_.y)) {
+      if (uint(dst_coord.y) >= uint(dst_image_size.y)) {
         continue;
       }
     }
 
     float4 sample_ = reduce_store_sample<SRT, float4, false>(
-        srt, srcCoord_, srcLevel_, kernelSize_, dstImageSize_, dstCoord_, dstLevel_);
+        srt, src_coord, src_level, kernel_size, dst_image_size, dst_coord, dst_level);
 
     // Above function handles writing to the actual output; manually
     // cache into shared memory here.
     srt.store_shared_sample(sharedCoord_, sample_);
-    dstCoord_ += step_;
+    dst_coord += step_;
     sharedCoord_ += step_;
   }
 }
 
-template void intermediateLevelLoop_<Resources<UNORM_8_8_8_8>>(Resources<UNORM_8_8_8_8> &srt,
-                                                               int2 initDstCoord_,
-                                                               int2 initSharedCoord_,
-                                                               int2 step_,
-                                                               int iterations_,
-                                                               bool boundsCheck_);
-template void intermediateLevelLoop_<Resources<SFLOAT_16>>(Resources<SFLOAT_16> &srt,
-                                                           int2 initDstCoord_,
-                                                           int2 initSharedCoord_,
-                                                           int2 step_,
-                                                           int iterations_,
-                                                           bool boundsCheck_);
+template void intermediateLevelLoop_<Resources<UNORM_8_8_8_8, SharedSRGB>>(
+    Resources<UNORM_8_8_8_8, SharedSRGB> &srt,
+    int2 initDst_coord,
+    int2 initSharedCoord_,
+    int2 step_,
+    int iterations_,
+    bool boundsCheck_);
+template void intermediateLevelLoop_<Resources<SFLOAT_16, SharedFloat>>(
+    Resources<SFLOAT_16, SharedFloat> &srt,
+    int2 initDst_coord,
+    int2 initSharedCoord_,
+    int2 step_,
+    int iterations_,
+    bool boundsCheck_);
 
 /**
  *Function for the workgroup that handles filling the intermediate level
@@ -396,11 +413,11 @@ void fillIntermediateTile_(SRT &srt, uint local_index, int2 dstTileCoord_, bool 
   int2 step_;
   int iterations_;
 
-  int2 dstImageSize_ = srt.level_size(INPUT_LEVEL + 1);
-  int2 futureKernelSize_ = kernel_size_from_input_size(dstImageSize_);
+  int2 dst_image_size = srt.level_size(INPUT_LEVEL + 1);
+  int2 futureKernel_size = kernel_size_from_input_size(dst_image_size);
 
-  if (futureKernelSize_.x == 3) {
-    if (futureKernelSize_.y == 3) {
+  if (futureKernel_size.x == 3) {
+    if (futureKernel_size.y == 3) {
       // Fill in 2 17x7 steps and 1 17x3 step (9 idle threads)
       initThreadOffset_ = int2(local_index % 17u, local_index / 17u);
       step_ = int2(0, 7);
@@ -415,7 +432,7 @@ void fillIntermediateTile_(SRT &srt, uint local_index, int2 dstTileCoord_, bool 
     }
   }
   else {
-    if (futureKernelSize_.y == 3) {
+    if (futureKernel_size.y == 3) {
       // Fill in 2 16x8 steps and 1 16x1 step
       initThreadOffset_ = int2(local_index % 16u, local_index / 16u);
       step_ = int2(0, 8);
@@ -432,14 +449,16 @@ void fillIntermediateTile_(SRT &srt, uint local_index, int2 dstTileCoord_, bool 
   intermediateLevelLoop_<SRT>(
       srt, dstTileCoord_ + initThreadOffset_, initThreadOffset_, step_, iterations_, boundsCheck_);
 }
-template void fillIntermediateTile_<Resources<UNORM_8_8_8_8>>(Resources<UNORM_8_8_8_8> &srt,
-                                                              uint local_index,
-                                                              int2 dstTileCoord_,
-                                                              bool boundsCheck_);
-template void fillIntermediateTile_<Resources<SFLOAT_16>>(Resources<SFLOAT_16> &srt,
-                                                          uint local_index,
-                                                          int2 dstTileCoord_,
-                                                          bool boundsCheck_);
+template void fillIntermediateTile_<Resources<UNORM_8_8_8_8, SharedSRGB>>(
+    Resources<UNORM_8_8_8_8, SharedSRGB> &srt,
+    uint local_index,
+    int2 dstTileCoord_,
+    bool boundsCheck_);
+template void fillIntermediateTile_<Resources<SFLOAT_16, SharedFloat>>(
+    Resources<SFLOAT_16, SharedFloat> &srt,
+    uint local_index,
+    int2 dstTileCoord_,
+    bool boundsCheck_);
 
 /**
  * Function for the workgroup that handles filling the last level tile
@@ -455,34 +474,36 @@ void fillLastTile_(SRT &srt, uint local_index, int2 dstTileCoord_, bool boundsCh
 
   if (local_index < 8 * 8) {
     int2 threadOffset_ = int2(local_index % 8u, local_index / 8u);
-    int srcLevel_ = INPUT_LEVEL + 1;
-    int dstLevel_ = INPUT_LEVEL + 2;
-    int2 srcImageSize_ = srt.level_size(srcLevel_);
-    int2 dstImageSize_ = srt.level_size(dstLevel_);
+    int src_level = INPUT_LEVEL + 1;
+    int dst_level = INPUT_LEVEL + 2;
+    int2 srcImageSize_ = srt.level_size(src_level);
+    int2 dst_image_size = srt.level_size(dst_level);
 
     int2 srcSharedCoord_ = threadOffset_ * 2;
-    int2 kernelSize_ = kernel_size_from_input_size(srcImageSize_);
-    int2 dstCoord_ = threadOffset_ + dstTileCoord_;
+    int2 kernel_size = kernel_size_from_input_size(srcImageSize_);
+    int2 dst_coord = threadOffset_ + dstTileCoord_;
 
     bool inBounds_ = true;
     if (boundsCheck_) {
-      inBounds_ = (uint(dstCoord_.x) < uint(dstImageSize_.x)) &&
-                  (uint(dstCoord_.y) < uint(dstImageSize_.y));
+      inBounds_ = (uint(dst_coord.x) < uint(dst_image_size.x)) &&
+                  (uint(dst_coord.y) < uint(dst_image_size.y));
     }
     if (inBounds_) {
       reduce_store_sample<SRT, float4, true>(
-          srt, srcSharedCoord_, 0, kernelSize_, dstImageSize_, dstCoord_, dstLevel_);
+          srt, srcSharedCoord_, 0, kernel_size, dst_image_size, dst_coord, dst_level);
     }
   }
 }
-template void fillLastTile_<Resources<UNORM_8_8_8_8>>(Resources<UNORM_8_8_8_8> &srt,
-                                                      uint local_index,
-                                                      int2 dstTileCoord_,
-                                                      bool boundsCheck_);
-template void fillLastTile_<Resources<SFLOAT_16>>(Resources<SFLOAT_16> &srt,
-                                                  uint local_index,
-                                                  int2 dstTileCoord_,
-                                                  bool boundsCheck_);
+template void fillLastTile_<Resources<UNORM_8_8_8_8, SharedSRGB>>(
+    Resources<UNORM_8_8_8_8, SharedSRGB> &srt,
+    uint local_index,
+    int2 dstTileCoord_,
+    bool boundsCheck_);
+template void fillLastTile_<Resources<SFLOAT_16, SharedFloat>>(
+    Resources<SFLOAT_16, SharedFloat> &srt,
+    uint local_index,
+    int2 dstTileCoord_,
+    bool boundsCheck_);
 
 template<typename SRT, typename T>
 void update_mipmaps(const uint3 global_id,
@@ -493,14 +514,15 @@ void update_mipmaps(const uint3 global_id,
   int inputLevel_ = INPUT_LEVEL;
 
   if (srt.num_levels == 1u) {
-    int2 kernelSize_ = kernel_size_from_input_size(srt.level_size(inputLevel_));
-    int2 dstImageSize_ = srt.level_size(inputLevel_ + 1);
-    int2 dstCoord_ = int2(int(global_id.x) % dstImageSize_.x, int(global_id.x) / dstImageSize_.x);
-    int2 srcCoord_ = dstCoord_ * 2;
+    int2 kernel_size = kernel_size_from_input_size(srt.level_size(inputLevel_));
+    int2 dst_image_size = srt.level_size(inputLevel_ + 1);
+    int2 dst_coord = int2(int(global_id.x) % dst_image_size.x,
+                          int(global_id.x) / dst_image_size.x);
+    int2 src_coord = dst_coord * 2;
 
-    if (dstCoord_.y < dstImageSize_.y) {
+    if (dst_coord.y < dst_image_size.y) {
       reduce_store_sample<SRT, float4, false>(
-          srt, srcCoord_, inputLevel_, kernelSize_, dstImageSize_, dstCoord_, inputLevel_ + 1);
+          srt, src_coord, inputLevel_, kernel_size, dst_image_size, dst_coord, inputLevel_ + 1);
     }
   }
   else  // Handling two levels.
@@ -538,16 +560,16 @@ void update_mipmaps(const uint3 global_id,
     }
   }
 }
-template void update_mipmaps<Resources<UNORM_8_8_8_8>, float4>(
+template void update_mipmaps<Resources<UNORM_8_8_8_8, SharedSRGB>, float4>(
     [[global_invocation_id]] const uint3 global_id,
     [[work_group_id]] const uint3 group_id,
     [[local_invocation_index]] const uint local_index,
-    [[resource_table]] Resources<UNORM_8_8_8_8> &srt);
-template void update_mipmaps<Resources<SFLOAT_16>, float>(
+    [[resource_table]] Resources<UNORM_8_8_8_8, SharedSRGB> &srt);
+template void update_mipmaps<Resources<SFLOAT_16, SharedFloat>, float>(
     [[global_invocation_id]] const uint3 global_id,
     [[work_group_id]] const uint3 group_id,
     [[local_invocation_index]] const uint local_index,
-    [[resource_table]] Resources<SFLOAT_16> &srt);
+    [[resource_table]] Resources<SFLOAT_16, SharedFloat> &srt);
 
 /**
  * \brief Update mipmaps entry compute shader entry point for multi component images.
@@ -556,9 +578,10 @@ template void update_mipmaps<Resources<SFLOAT_16>, float>(
 void update_mipmaps_float4([[global_invocation_id]] const uint3 global_id,
                            [[work_group_id]] const uint3 group_id,
                            [[local_invocation_index]] const uint local_index,
-                           [[resource_table]] Resources<UNORM_8_8_8_8> &srt)
+                           [[resource_table]] Resources<UNORM_8_8_8_8, SharedSRGB> &srt)
 {
-  update_mipmaps<Resources<UNORM_8_8_8_8>, float4>(global_id, group_id, local_index, srt);
+  update_mipmaps<Resources<UNORM_8_8_8_8, SharedSRGB>, float4>(
+      global_id, group_id, local_index, srt);
 }
 
 /**
@@ -568,19 +591,19 @@ void update_mipmaps_float4([[global_invocation_id]] const uint3 global_id,
 void update_mipmaps_float([[global_invocation_id]] const uint3 global_id,
                           [[work_group_id]] const uint3 group_id,
                           [[local_invocation_index]] const uint local_index,
-                          [[resource_table]] Resources<SFLOAT_16> &srt)
+                          [[resource_table]] Resources<SFLOAT_16, SharedFloat> &srt)
 {
-  update_mipmaps<Resources<SFLOAT_16>, float>(global_id, group_id, local_index, srt);
+  update_mipmaps<Resources<SFLOAT_16, SharedFloat>, float>(global_id, group_id, local_index, srt);
 }
 
 }  // namespace builtin::mipmaps
 
 PipelineCompute gpu_shader_2D_update_mipmaps_unorm_8_8_8_8(
     builtin::mipmaps::update_mipmaps_float4,
-    builtin::mipmaps::Resources<builtin::mipmaps::UNORM_8_8_8_8>{.use_shared_srgb_uint = true,
-                                                                 .use_shared_float = false});
+    builtin::mipmaps::Resources<builtin::mipmaps::UNORM_8_8_8_8, builtin::mipmaps::SharedSRGB>{
+        .use_shared_srgb_uint = true, .use_shared_float = false});
 
 PipelineCompute gpu_shader_2D_update_mipmaps_sfloat_16(
     builtin::mipmaps::update_mipmaps_float,
-    builtin::mipmaps::Resources<builtin::mipmaps::SFLOAT_16>{.use_shared_srgb_uint = false,
-                                                             .use_shared_float = true});
+    builtin::mipmaps::Resources<builtin::mipmaps::SFLOAT_16, builtin::mipmaps::SharedFloat>{
+        .use_shared_srgb_uint = false, .use_shared_float = true});
