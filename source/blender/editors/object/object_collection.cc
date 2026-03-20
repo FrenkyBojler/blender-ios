@@ -1078,20 +1078,10 @@ static wmOperatorStatus collection_link_exec(bContext *C, wmOperator *op)
     return OPERATOR_FINISHED;
   }
 
-  /* Currently this should not be allowed (might be supported in the future though...). */
-  if (ID_IS_OVERRIDE_LIBRARY(&collection->id)) {
-    BKE_report(op->reports, RPT_ERROR, "Could not add the collection because it is overridden");
-    return OPERATOR_CANCELLED;
-  }
-  /* Linked collections are already checked for by using RNA_collection_local_itemf
-   * but operator can be called without invoke */
-  if (!ID_IS_EDITABLE(&collection->id)) {
-    BKE_report(op->reports, RPT_ERROR, "Could not add the collection because it is linked");
-    return OPERATOR_CANCELLED;
-  }
-  if (collection->importer != nullptr) {
-    BKE_report(
-        op->reports, RPT_ERROR, "Could not add the collection because it cannot be modified");
+  std::string reason;
+  if (!BKE_collection_is_content_editable(collection, &reason)) {
+    BKE_reportf(
+        op->reports, RPT_ERROR, "Cannot add objects to the collection. %s", reason.c_str());
     return OPERATOR_CANCELLED;
   }
 
@@ -1151,10 +1141,11 @@ static wmOperatorStatus collection_remove_exec(bContext *C, wmOperator *op)
   if (!ob || !collection) {
     return OPERATOR_CANCELLED;
   }
-  if (!BKE_collection_is_content_editable(collection)) {
-    BKE_report(op->reports,
-               RPT_ERROR,
-               "Cannot remove an object from a linked or library override collection");
+
+  std::string reason;
+  if (!BKE_collection_is_content_editable(collection, &reason)) {
+    BKE_reportf(
+        op->reports, RPT_ERROR, "Cannot remove an object from the collection. %s", reason.c_str());
     return OPERATOR_CANCELLED;
   }
 

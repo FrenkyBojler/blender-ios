@@ -1525,7 +1525,7 @@ bool BKE_collection_is_content_editable(const Collection *collection, std::strin
 {
   if (ID_IS_OVERRIDE_LIBRARY(collection)) {
     if (r_reason) {
-      *r_reason = fmt::format(fmt::runtime(RPT_("The collection '{}' is overriden.")),
+      *r_reason = fmt::format(fmt::runtime(RPT_("Collection '{}' is overriden.")),
                               collection->id.name + 2);
     }
     return false;
@@ -1533,7 +1533,7 @@ bool BKE_collection_is_content_editable(const Collection *collection, std::strin
 
   if (!ID_IS_EDITABLE(collection)) {
     if (r_reason) {
-      *r_reason = fmt::format(fmt::runtime(RPT_("The collection '{}' is linked.")),
+      *r_reason = fmt::format(fmt::runtime(RPT_("Collection '{}' is linked.")),
                               collection->id.name + 2);
     }
     return false;
@@ -1542,7 +1542,7 @@ bool BKE_collection_is_content_editable(const Collection *collection, std::strin
   if (collection->importer != nullptr) {
     if (r_reason) {
       *r_reason = fmt::format(
-          fmt::runtime(RPT_("The collection '{}' belongs to a collection importer.")),
+          fmt::runtime(RPT_("Collection '{}' belongs to a collection importer.")),
           collection->id.name + 2);
     }
     return false;
