@@ -328,11 +328,6 @@ void wm_xr_viewfinder_render_view(wmXrData *xr_data)
       float viewfinder_capture_mat[4][4];
       wm_xr_viewfinder_transform_update_smoothed(state, raw_capture_mat, viewfinder_capture_mat);
 
-      /* Apply XR viewer scale. */
-      mul_v3_fl(viewfinder_capture_mat[0], state->viewer_scale);
-      mul_v3_fl(viewfinder_capture_mat[1], state->viewer_scale);
-      mul_v3_fl(viewfinder_capture_mat[2], state->viewer_scale);
-
       invert_m4_m4(viewfinder_render_viewmat, viewfinder_capture_mat);
 
       cam_render_params.lens = state->viewfinder.capture_lens_focal;
@@ -351,7 +346,7 @@ void wm_xr_viewfinder_render_view(wmXrData *xr_data)
       }
 
       const GHOST_XrPose capture_pose = wm_xr_location_scouting_capture_to_ghost_pose(*capture);
-      wm_xr_pose_scale_to_imat(&capture_pose, state->viewer_scale, viewfinder_render_viewmat);
+      wm_xr_pose_to_imat(&capture_pose, viewfinder_render_viewmat);
       cam_render_params.lens = capture->lens_focal;
 
       SET_FLAG_FROM_TEST(cam_render_data->dof.flag, capture->dof_enabled, CAM_DOF_ENABLED);
