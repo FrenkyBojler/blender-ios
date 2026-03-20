@@ -290,6 +290,7 @@ void MEM_use_guarded_allocator(void);
 
 #ifdef __cplusplus
 
+#  include <algorithm>
 #  include <any>
 #  include <memory>
 #  include <new>
