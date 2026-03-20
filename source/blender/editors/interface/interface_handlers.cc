@@ -11028,7 +11028,7 @@ static int handle_menu_mmb_event(bContext *C,
     }
     retval = WM_UI_HANDLER_BREAK;
   }
-  if (menu->mmb_panning && !ELEM(event->type, EVT_ESCKEY, RIGHTMOUSE,TIMER)) {
+  if (menu->mmb_panning && !ELEM(event->type, EVT_ESCKEY, RIGHTMOUSE, TIMER)) {
     retval = WM_UI_HANDLER_BREAK;
   }
   return retval;
