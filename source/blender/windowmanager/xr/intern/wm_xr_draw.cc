@@ -294,8 +294,7 @@ static gpu::Batch *wm_xr_controller_model_batch_create(GHOST_IXrContext *xr_cont
   return GPU_batch_create_ex(GPU_PRIM_TRIS, vbo, ibo, GPU_BATCH_OWNS_VBO | GPU_BATCH_OWNS_INDEX);
 }
 
-static void wm_xr_controller_model_draw(const bContext *C,
-                                        const XrSessionSettings *settings,
+static void wm_xr_controller_model_draw(const XrSessionSettings *settings,
                                         GHOST_IXrContext *xr_context,
                                         wmXrSessionState *state)
 {
@@ -460,7 +459,7 @@ void wm_xr_draw_controllers(const bContext *C, ARegion * /*region*/, void *custo
   GHOST_IXrContext *xr_context = xr->runtime->ghost_context;
   wmXrSessionState *state = &xr->runtime->session_state;
 
-  wm_xr_controller_model_draw(C, settings, xr_context, state);
+  wm_xr_controller_model_draw(settings, xr_context, state);
   wm_xr_controller_aim_draw(settings, state);
   wm_xr_viewfinder_draw(C, settings, state);
 }
