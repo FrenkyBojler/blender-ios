@@ -78,6 +78,15 @@ template<typename T> struct Bounds {
    * This matches the behavior of #BLI_rctf_isect_segment/#BLI_rcti_isect_segment.
    */
   bool intersects_segment(const T &start, const T &end);
+  
+  friend Bounds<T> operator+(const Bounds<T> &a, const T &b)
+  {
+    return {a.min + b, a.max + b};
+  }
+  friend Bounds<T> operator-(const Bounds<T> &a, const T &b)
+  {
+    return {a.min - b, a.max - b};
+  }
 };
 
 }  // namespace blender

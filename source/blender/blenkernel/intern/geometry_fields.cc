@@ -2,7 +2,12 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <iostream>
+#include <sstream>
+
 #include "BLI_array_utils.hh"
+#include "BLI_bounds.hh"
+#include "BLI_bounds_types.hh"
 
 #include "BKE_attribute.hh"
 #include "BKE_curves.hh"
@@ -16,6 +21,8 @@
 #include "DNA_pointcloud_types.h"
 
 #include "BLT_translation.hh"
+
+#include "NOD_function.hh"
 
 #include <fmt/format.h>
 
@@ -592,6 +599,27 @@ EvaluateAtIndexInput::EvaluateAtIndexInput(fn::Field<int> index_field,
 {
 }
 
+static void reverse_copy(const GVArray &src, const IndexMask &mask, GMutableSpan dst)
+{
+  BLI_assert(src.type() == dst.type());
+  BLI_assert(src.size() == dst.size());
+  BLI_assert(mask.min_array_size() <= src.size());
+  bke::attribute_math::to_static_type(dst.type(), [&]<typename T>(){
+    const VArraySpan<T> src_typed = src.typed<T>();
+    MutableSpan<T> dst_typed = dst.typed<T>();
+    mask.foreach_index_optimized<int>([&](const int i) {
+      dst_typed[i] = src_typed.last(i);
+    }, exec_mode::parallel);
+  });
+}
+
+template<typename T>
+std::ostream &operator<<(std::ostream &stream, Bounds<T> value)
+{
+  stream << "<" << value.min << ", " << value.max << ">";
+  return stream;
+}
+
 GVArray EvaluateAtIndexInput::get_varray_for_context(const bke::GeometryFieldContext &context,
                                                      const IndexMask &mask) const
 {
@@ -600,21 +628,85 @@ GVArray EvaluateAtIndexInput::get_varray_for_context(const bke::GeometryFieldCon
     return {};
   }
 
+  const int domain_size = attributes->domain_size(value_field_domain_);
   const bke::GeometryFieldContext value_context{context, value_field_domain_};
-  fn::FieldEvaluator value_evaluator{value_context, attributes->domain_size(value_field_domain_)};
+  fn::FieldEvaluator value_evaluator{value_context, domain_size};
   value_evaluator.add(value_field_);
   value_evaluator.evaluate();
   const GVArray &values = value_evaluator.get_evaluated(0);
+
+  const IndexRange mask_bounds = mask.bounds();
+  const std::optional<nodes::IndexTransform> bounds_transform = nodes::field_as_range(index_field_);
+  if (bounds_transform.has_value()) {
+    if (bounds_transform->index_is_reversed) {
+      const auto range_to_read = Bounds<int64_t>(-mask_bounds.one_after_last(),
+                                                 -mask_bounds.first()) + (bounds_transform->shift + 1);
+      const std::optional<Bounds<int64_t>> src_bounds = bounds::intersect<int64_t>({0, domain_size}, range_to_read);
+      if (!src_bounds.has_value()) {
+        return {};
+      }
+
+      const Bounds<int64_t> shifted_back = *src_bounds - (bounds_transform->shift + 1);
+      const auto dst_bounds = Bounds<int64_t>(-shifted_back.max, -shifted_back.min);
+      const IndexRange src_range = IndexRange::from_begin_end(src_bounds->min, src_bounds->max);
+      const IndexRange dst_range = IndexRange::from_begin_end(dst_bounds.min, dst_bounds.max);
+      const IndexMask valid_mask = mask.slice_content(dst_range);
+
+      if (valid_mask.is_empty()) {
+        return {};
+      }
+
+      IndexMaskMemory memory;
+      GArray<> dst_array(values.type(), mask.min_array_size());
+
+      reverse_copy(values.slice(src_range),
+                   valid_mask.shift(-dst_range.first(), memory),
+                   dst_array.as_mutable_span().slice(dst_range));
+
+      dst_array.type().value_initialize_indices(dst_array.data(), valid_mask.complement(mask, memory));
+
+      return GVArray::from_garray(std::move(dst_array));
+    } else {
+      const int64_t offset = bounds_transform->shift;
+      const auto range_to_read = Bounds<int64_t>(mask_bounds.first(), mask_bounds.one_after_last()) + offset;
+      const std::optional<Bounds<int64_t>> src_bounds = bounds::intersect<int64_t>({0, domain_size}, range_to_read);
+      if (!src_bounds.has_value()) {
+        return {};
+      }
+
+      const Bounds<int64_t> dst_bounds = *src_bounds - offset;
+      const IndexRange src_range = IndexRange::from_begin_end(src_bounds->min, src_bounds->max);
+      const IndexRange dst_range = IndexRange::from_begin_end(dst_bounds.min, dst_bounds.max);
+      const IndexMask valid_mask = mask.slice_content(dst_range);
+
+      if (valid_mask.is_empty()) {
+        return {};
+      }
+
+      IndexMaskMemory memory;
+      GArray<> dst_array(values.type(), mask.min_array_size());
+
+      array_utils::copy(values.slice(src_range),
+                        valid_mask.shift(-dst_range.first(), memory),
+                        dst_array.as_mutable_span().slice(dst_range));
+
+      dst_array.type().value_initialize_indices(dst_array.data(), valid_mask.complement(mask, memory));
+
+      return GVArray::from_garray(std::move(dst_array));
+    }
+  }
+
+  GArray<> dst_array(values.type(), mask.min_array_size());
 
   fn::FieldEvaluator index_evaluator{context, &mask};
   index_evaluator.add(index_field_);
   index_evaluator.evaluate();
   const VArraySpan<int> indices = index_evaluator.get_evaluated<int>(0);
 
-  GArray<> dst_array(values.type(), mask.min_array_size());
   IndexMaskMemory memory;
   const IndexMask valid_mask = array_utils::indices_in_range(
       mask, indices, values.index_range(), memory);
+
   bke::attribute_math::gather(values, indices, valid_mask, dst_array);
   dst_array.type().value_initialize_indices(dst_array.data(), valid_mask.complement(mask, memory));
   return GVArray::from_garray(std::move(dst_array));
