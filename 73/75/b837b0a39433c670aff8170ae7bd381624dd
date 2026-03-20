@@ -1,1 +1,2 @@
 Referenced by issue #155910, Blender 5.1 sculpt mode rotate and scale tool doesn't take local axis into account
+Referenced by pull request #156055, Revert "Fix #127398 : Transform tool not working correctly with non-uniform scaling"
