@@ -37,6 +37,7 @@ namespace blender::nodes::node_geo_xpbd_solver_cc {
 using namespace physics_bundles;
 
 namespace attribute_names {
+
 constexpr StringRefNull position = "position";
 constexpr StringRefNull velocity = "velocity";
 constexpr StringRefNull rotation = "rotation";
@@ -48,6 +49,18 @@ constexpr StringRefNull moment_of_inertia = "moment_of_inertia";
 constexpr StringRefNull static_friction = "static_friction";
 constexpr StringRefNull dynamic_friction = "dynamic_friction";
 constexpr StringRefNull radius = "radius";
+
+#define SIM_PROP "sim:prop:"
+#define SIM_PROP_PREV "sim:prop_prev:"
+
+constexpr StringRefNull pin_position_prefix = SIM_PROP "pin_position";
+constexpr StringRefNull pin_position_selection_prefix = SIM_PROP "pin_position_selection";
+constexpr StringRefNull pin_position_compliance_prefix = SIM_PROP "pin_position_compliance";
+constexpr StringRefNull prev_pin_position_prefix = SIM_PROP_PREV "pin_position";
+constexpr StringRefNull prev_pin_position_selection_prefix = SIM_PROP_PREV
+    "pin_position_selection";
+
+#undef SIM_PROP
 
 }  // namespace attribute_names
 
@@ -166,26 +179,18 @@ struct RodBendTwistConstraintUsage {
 
 struct PinPositionConstraint {
   std::string path;
-  Field<bool> selection;
-  Field<float3> position;
-  Field<float> compliance;
-  std::string prev_position_attr;
-  std::string was_pinned_attr;
   std::string lambda_attr;
 };
 struct PinPositionConstraintUsage {
   /** Index of corresponding #PinPositionConstraint. */
   int constraint_i;
 
-  fn::FieldEvaluator *evaluator = nullptr;
-  VArray<float3> positions_varray;
-  VArray<float> compliances_varray;
-
   Span<int> points;
   Span<float3> begin_positions;
   Span<float3> end_positions;
-  MutableSpan<float3> current_positions;
   Span<float> compliances;
+
+  MutableSpan<float3> current_positions;
   MutableSpan<float> lambdas;
 };
 struct PinPositionConstraintChunkUsage {
@@ -1781,6 +1786,7 @@ class XpbdSolverStep {
 
   void gather_from_world__pin_positions()
   {
+    TLS &tls = tls_.local();
     const Span<std::string> paths = nested_bundle_paths_.lookup(PinPositionBundle::name);
     for (const StringRef path : paths) {
       const Bundle &bundle = **world_.lookup_path_ptr<BundlePtr>(path);
@@ -1790,12 +1796,6 @@ class XpbdSolverStep {
       }
       PinPositionConstraint constraint;
       constraint.path = path;
-      constraint.selection = this->get_field_or_constant<bool>(bundle, "selection", true);
-      constraint.position = *position_field;
-      constraint.compliance = this->get_field_or_constant<float>(bundle, "compliance", 0.0f);
-      constraint.prev_position_attr =
-          bundle.lookup<std::string>("previous_pin_position_attribute").value_or("");
-      constraint.was_pinned_attr = bundle.lookup<std::string>("was_pinned_attribute").value_or("");
       constraint.lambda_attr = bundle.lookup<std::string>("lambda_attribute").value_or("");
       const int constraint_i = constraints_.pin_position_constraints.append_and_get_index(
           std::move(constraint));
@@ -1812,11 +1812,69 @@ class XpbdSolverStep {
       for (PinPositionConstraintUsage &constraint_usage : geo_data.pin_position_constraints) {
         const PinPositionConstraint &constraint =
             constraints_.pin_position_constraints[constraint_usage.constraint_i];
-        fn::FieldEvaluator &evaluator = this->get_field_evaluator(
-            data_key_i, geo_data.domain, constraint.selection);
-        constraint_usage.evaluator = &evaluator;
-        evaluator.add(constraint.position, &constraint_usage.positions_varray);
-        evaluator.add(constraint.compliance, &constraint_usage.compliances_varray);
+        const VArray<bool> selection_attr = *geo_data.attributes.lookup<bool>(
+            fmt::format("{}:{}", attribute_names::pin_position_selection_prefix, constraint.path),
+            AttrDomain::Point);
+        const VArray<float3> positions_attr = *geo_data.attributes.lookup<float3>(
+            fmt::format("{}:{}", attribute_names::pin_position_prefix, constraint.path),
+            AttrDomain::Point);
+        if (!positions_attr || !selection_attr) {
+          continue;
+        }
+        const IndexMask pin_selection = IndexMask::from_bools(selection_attr, tls.allocator);
+        if (pin_selection.is_empty()) {
+          continue;
+        }
+
+        const VArray<float> compliances_attr = *geo_data.attributes.lookup_or_default<float>(
+            fmt::format("{}:{}", attribute_names::pin_position_compliance_prefix, constraint.path),
+            AttrDomain::Point,
+            0.0f);
+        const VArray<bool> prev_selection_attr = *geo_data.attributes.lookup<bool>(
+            fmt::format(
+                "{}:{}", attribute_names::prev_pin_position_selection_prefix, constraint.path),
+            AttrDomain::Point);
+        const VArray<float3> prev_positions_attr = *geo_data.attributes.lookup<float3>(
+            fmt::format("{}:{}", attribute_names::prev_pin_position_prefix, constraint.path),
+            AttrDomain::Point);
+
+        MutableSpan<int> points = tls.allocator.allocate_array<int>(pin_selection.size());
+        pin_selection.to_indices(points);
+        const int pin_num = pin_selection.size();
+
+        MutableSpan<float3> end_positions = tls.allocator.allocate_array<float3>(pin_num);
+        MutableSpan<float> compliances = tls.allocator.allocate_array<float>(pin_num);
+
+        positions_attr.materialize_compressed_to_uninitialized(pin_selection, end_positions);
+        compliances_attr.materialize_compressed_to_uninitialized(pin_selection, compliances);
+
+        constraint_usage.points = points;
+        constraint_usage.end_positions = end_positions;
+        constraint_usage.compliances = compliances;
+        /* These will be initialized later. */
+        constraint_usage.lambdas = tls.allocator.allocate_array<float>(pin_num);
+        constraint_usage.current_positions = tls.allocator.allocate_array<float3>(pin_num);
+
+        /* Initialize the previous pin position. */
+        if (prev_selection_attr && prev_positions_attr) {
+          MutableSpan<float3> begin_positions = tls.allocator.allocate_array<float3>(pin_num);
+          threading::parallel_for(pin_selection.index_range(), 1024, [&](const IndexRange range) {
+            for (const int pin_i : range) {
+              const int point_i = points[pin_i];
+              const bool was_pinned = prev_selection_attr[point_i];
+              if (was_pinned) {
+                begin_positions[pin_i] = prev_positions_attr[point_i];
+              }
+              else {
+                begin_positions[pin_i] = geo_data.position_attr.span[point_i];
+              }
+            }
+          });
+          constraint_usage.begin_positions = begin_positions;
+        }
+        else {
+          constraint_usage.begin_positions = end_positions;
+        }
       }
     }
   }
@@ -1829,64 +1887,20 @@ class XpbdSolverStep {
       for (const int constraint_usage_i : geo_data.pin_position_constraints.index_range()) {
         PinPositionConstraintUsage &constraint_usage =
             geo_data.pin_position_constraints[constraint_usage_i];
-        const PinPositionConstraint &constraint =
-            constraints_.pin_position_constraints[constraint_usage.constraint_i];
 
-        const IndexMask &pin_mask = constraint_usage.evaluator->get_evaluated_selection_as_mask();
-        const int pin_num = pin_mask.size();
-
-        MutableSpan<int> points = tls.allocator.allocate_array<int>(pin_num);
-        MutableSpan<float3> begin_positions = tls.allocator.allocate_array<float3>(pin_num);
-        MutableSpan<float3> end_positions = tls.allocator.allocate_array<float3>(pin_num);
-        MutableSpan<float3> current_positions = tls.allocator.allocate_array<float3>(pin_num);
-        MutableSpan<float> lambdas = tls.allocator.allocate_array<float>(pin_num);
-        MutableSpan<float> compliances = tls.allocator.allocate_array<float>(pin_num);
-
-        constraint_usage.points = points;
-        constraint_usage.begin_positions = begin_positions;
-        constraint_usage.end_positions = end_positions;
-        constraint_usage.current_positions = current_positions;
-        constraint_usage.lambdas = lambdas;
-        constraint_usage.compliances = compliances;
-
-        pin_mask.to_indices(points);
-        constraint_usage.positions_varray.materialize_compressed_to_uninitialized(pin_mask,
-                                                                                  end_positions);
-        constraint_usage.compliances_varray.materialize_compressed_to_uninitialized(pin_mask,
-                                                                                    compliances);
-
-        for (const int pin_i : points.index_range()) {
-          const int point_i = points[pin_i];
-          const float compliance = compliances[pin_i];
+        /* Detect hard pinned points. */
+        for (const int pin_i : constraint_usage.points.index_range()) {
+          const int point_i = constraint_usage.points[pin_i];
+          const float compliance = constraint_usage.compliances[pin_i];
           if (compliance <= 0.0f) {
             geo_data.is_hard_pinned[point_i] = true;
           }
         }
 
-        const VArraySpan<float3> prev_positions_attr = *geo_data.attributes.lookup<float3>(
-            constraint.prev_position_attr, geo_data.domain);
-        const VArraySpan<bool> was_pinned_attr = *geo_data.attributes.lookup<bool>(
-            constraint.was_pinned_attr, geo_data.domain);
-        const bool has_prev_info = !prev_positions_attr.is_empty() && !was_pinned_attr.is_empty();
-
-        threading::parallel_for(IndexRange(pin_num), 1024, [&](const IndexRange range) {
-          for (const int pin_i : range) {
-            const int point_i = points[pin_i];
-            float3 &begin_position = begin_positions[pin_i];
-            if (has_prev_info) {
-              if (was_pinned_attr[point_i]) {
-                begin_position = prev_positions_attr[point_i];
-                continue;
-              }
-            }
-            begin_position = geo_data.position_attr.span[point_i];
-          }
-        });
-
         for (const int chunk_i : geo_data.chunks) {
           const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
           const IndexRange pin_range = unique_sorted_indices::find_content_range<int>(
-              points, chunk.points_range);
+              constraint_usage.points, chunk.points_range);
           if (pin_range.is_empty()) {
             continue;
           }
@@ -1895,10 +1909,10 @@ class XpbdSolverStep {
           chunk_data.static_constraints.append(
               &tls.scope.construct<xpbd::PinPositionConstraintSet>(
                   data_key_i,
-                  points.slice(pin_range),
-                  current_positions.slice(pin_range),
-                  compliances.slice(pin_range),
-                  lambdas.slice(pin_range)));
+                  constraint_usage.points.slice(pin_range),
+                  constraint_usage.current_positions.slice(pin_range),
+                  constraint_usage.compliances.slice(pin_range),
+                  constraint_usage.lambdas.slice(pin_range)));
         }
       }
     }
@@ -1912,8 +1926,6 @@ class XpbdSolverStep {
       {
         const PinPositionConstraint &constraint =
             constraints_.pin_position_constraints[constraint_usage.constraint_i];
-        geo_data.attributes.remove(constraint.was_pinned_attr);
-        geo_data.attributes.remove(constraint.prev_position_attr);
         geo_data.attributes.remove(constraint.lambda_attr);
       }
       for (const PinPositionConstraintUsage &constraint_usage : geo_data.pin_position_constraints)
@@ -1924,25 +1936,6 @@ class XpbdSolverStep {
         }
         const PinPositionConstraint &constraint =
             constraints_.pin_position_constraints[constraint_usage.constraint_i];
-        if (bke::SpanAttributeWriter<bool> was_pinned_attr =
-                this->get_output_attribute_writer<bool>(
-                    data_key_i, constraint.was_pinned_attr, geo_data.domain))
-        {
-          for (const int point_i : constraint_usage.points) {
-            was_pinned_attr.span[point_i] = true;
-          }
-          was_pinned_attr.finish();
-        }
-        if (bke::SpanAttributeWriter<float3> prev_position_attr =
-                this->get_output_attribute_writer<float3>(
-                    data_key_i, constraint.prev_position_attr, geo_data.domain))
-        {
-          for (const int pin_i : constraint_usage.points.index_range()) {
-            const int point_i = constraint_usage.points[pin_i];
-            prev_position_attr.span[point_i] = constraint_usage.end_positions[pin_i];
-          }
-          prev_position_attr.finish();
-        }
         if (bke::SpanAttributeWriter<float> lambda_attr = this->get_output_attribute_writer<float>(
                 data_key_i, constraint.lambda_attr, geo_data.domain))
         {

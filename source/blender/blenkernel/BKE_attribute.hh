@@ -704,10 +704,22 @@ class AttributeAccessor {
                                        const AttrDomain domain,
                                        const T &default_value) const
   {
-    if (AttributeReader<T> varray = this->lookup<T>(name, domain)) {
-      return varray;
+    if (AttributeReader<T> attr = this->lookup<T>(name, domain)) {
+      return attr;
     }
     return {VArray<T>::from_single(default_value, this->domain_size(domain)), domain};
+  }
+
+  template<typename T>
+  AttributeReader<T> lookup_or_default_varray(const StringRef name,
+                                              const AttrDomain domain,
+                                              const VArray<T> &default_varray) const
+  {
+    if (AttributeReader<T> attr = this->lookup<T>(name, domain)) {
+      return attr;
+    }
+    BLI_assert(default_varray.size() == this->domain_size(domain));
+    return {default_varray, domain};
   }
 
   /**
