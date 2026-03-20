@@ -591,6 +591,11 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_cycle_action(Operator):
         if not xr_event_match_viewfinder_hand(xr_event, xr_settings):
             return {'CANCELLED'}
 
+        # Filter by axis direction to prevent both left/right actions from firing on the same joystick input
+        axis_value = xr_event.state[0]
+        if (self.cycle_left and axis_value >= 0) or (not self.cycle_left and axis_value <= 0):
+            return {'CANCELLED'}
+
         return self.execute(context)
 
 
