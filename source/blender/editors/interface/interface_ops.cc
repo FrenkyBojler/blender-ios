@@ -2896,8 +2896,7 @@ static void UI_OT_view_item_select(wmOperatorType *ot)
 /* -------------------------------------------------------------------- */
 /** \name UI View Item Delete Operator
  *
- * Operator for deleting selected view items, binded to the `X` hotkey.
- *
+ * Operator for deleting selected view items, bound to the `X` hotkey.
  * \{ */
 
 static wmOperatorStatus view_item_delete_invoke(bContext *C,
@@ -2907,6 +2906,9 @@ static wmOperatorStatus view_item_delete_invoke(bContext *C,
   AbstractView *view = get_view_focused(C);
 
   view->foreach_view_item([&](AbstractViewItem &item) {
+    if (!item.is_filtered_visible()) {
+      return;
+    }
     if (item.is_active() || item.is_selected()) {
       item.delete_item(C);
     }
@@ -3047,6 +3049,7 @@ void operatortypes_ui()
   WM_operatortype_append(UI_OT_eyedropper_driver);
   WM_operatortype_append(UI_OT_eyedropper_bone);
   WM_operatortype_append(UI_OT_eyedropper_grease_pencil_color);
+  WM_menutype_add(UI_MT_color_space_select());
 }
 
 void keymap_ui(wmKeyConfig *keyconf)

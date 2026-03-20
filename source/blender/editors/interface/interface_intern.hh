@@ -367,6 +367,11 @@ struct Button : NonMovable {
   virtual ~Button() = default;
 };
 
+/** Derived struct for #ButtonType::But */
+struct ButtonPush : public Button {
+  bool draw_as_link = false;
+};
+
 /** Derived struct for #ButtonType::Num */
 struct ButtonNumber : public Button {
   float step_size = 0.0f;
@@ -1588,6 +1593,9 @@ Button *button_prev(Button *but) ATTR_WARN_UNUSED_RESULT;
 Button *button_next(Button *but) ATTR_WARN_UNUSED_RESULT;
 Button *button_first(Block *block) ATTR_WARN_UNUSED_RESULT;
 Button *button_last(Block *block) ATTR_WARN_UNUSED_RESULT;
+bool button_opens_link(const Button *button);
+std::string button_get_link(const Button *button, bContext *C);
+bool button_draw_as_link(const Button *button);
 
 Button *block_active_but_get(const Block *block);
 bool block_is_menu(const Block *block) ATTR_WARN_UNUSED_RESULT;
@@ -1650,6 +1658,10 @@ void UI_OT_eyedropper_driver(wmOperatorType *ot);
 /* `eyedroppers/eyedropper_grease_pencil_colorr.cc` */
 
 void UI_OT_eyedropper_grease_pencil_color(wmOperatorType *ot);
+
+/* interface_ops_color.cc */
+
+MenuType *UI_MT_color_space_select();
 
 /* `templates/interface_template_asset_shelf_popover.cc` */
 std::optional<StringRefNull> asset_shelf_idname_from_button_context(const Button *but);
