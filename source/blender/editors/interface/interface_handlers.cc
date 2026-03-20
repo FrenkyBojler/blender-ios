@@ -11072,7 +11072,7 @@ static int handle_menu_event(bContext *C,
 
   wmWindow *win = CTX_wm_window(C);
 
-  if (!menu->is_grab && is_floating) {
+  if (!menu->mmb_panning && !menu->is_grab && is_floating) {
     if (inside_title && (!but || but->type == ButtonType::Image)) {
       if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
         /* Initial press before starting to drag. */
