@@ -209,7 +209,7 @@ static int handle_region_semi_modal_buttons(bContext *C, const wmEvent *event, A
 /** Tolerance for closing menus (in pixels). */
 #define MENU_TOWARDS_WIGGLE_ROOM 64
 
-static constexpr double menu_keep_open_duration = 1.25;
+static constexpr double menu_keep_open_duration = 0.4f;
 
 enum ButtonActivateType {
   BUTTON_ACTIVATE_OVER,
@@ -11028,7 +11028,7 @@ static int handle_menu_mmb_event(bContext *C,
     }
     retval = WM_UI_HANDLER_BREAK;
   }
-  if (menu->mmb_panning && !ELEM(event->type, EVT_ESCKEY, RIGHTMOUSE)) {
+  if (menu->mmb_panning && !ELEM(event->type, EVT_ESCKEY, RIGHTMOUSE,TIMER)) {
     retval = WM_UI_HANDLER_BREAK;
   }
   return retval;
