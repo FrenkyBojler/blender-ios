@@ -150,8 +150,6 @@ struct RodStretchShearConstraintUsage {
 
 struct RodBendTwistConstraint {
   std::string path;
-  Field<math::Quaternion> rest_bend_rotation;
-  Field<float> compliance;
 };
 struct RodBendTwistConstraintUsage {
   /** Index of corresponding #RodBendTwistConstraint. */
@@ -314,7 +312,7 @@ struct GeometryData {
   Vector<InfinitePlaneColliderUsage> infinite_plane_colliders;
   Vector<MeshColliderUsage> mesh_colliders;
   Vector<RodStretchShearConstraintUsage> rod_stretch_shear_constraints;
-  std::optional<RodBendTwistConstraintUsage> rod_bend_twist_constraint;
+  Vector<RodBendTwistConstraintUsage> rod_bend_twist_constraints;
 
   Vector<ConstraintWithColoring> static_constraints;
 };
@@ -1532,9 +1530,6 @@ class XpbdSolverStep {
 
       RodBendTwistConstraint constraint;
       constraint.path = path;
-      constraint.rest_bend_rotation = this->get_field_or_constant(
-          bundle, "rest_bend_rotation", math::Quaternion::identity());
-      constraint.compliance = this->get_field_or_constant(bundle, "compliance", 0.0f);
 
       const int constraint_i = constraints_.rod_bend_twist_constraints.append_and_get_index(
           std::move(constraint));
@@ -1550,27 +1545,23 @@ class XpbdSolverStep {
         if (!this->behavior_applies_to_geometry(path, bundle, data_key_i)) {
           continue;
         }
-        if (geo_data.rod_bend_twist_constraint.has_value()) {
-          this->report_warning(RPT_("Duplicate rod bend/twist constraint"));
-          break;
-        }
-        geo_data.rod_bend_twist_constraint = {constraint_i};
+        geo_data.rod_bend_twist_constraints.append({constraint_i});
       }
     }
     for (const int data_key_i : geometries_.data_keys.index_range()) {
       GeometryData &geo_data = geometries_.data[data_key_i];
-      if (!geo_data.rod_bend_twist_constraint.has_value()) {
-        continue;
+      for (RodBendTwistConstraintUsage &constraint_usage : geo_data.rod_bend_twist_constraints) {
+        const RodBendTwistConstraint &constraint =
+            constraints_.rod_bend_twist_constraints[constraint_usage.constraint_i];
+        constraint_usage.lambdas = tls.allocator.allocate_array<float4>(geo_data.size);
+        constraint_usage.compliances = *geo_data.attributes.lookup_or_default<float>(
+            this->prop_attr_name(constraint.path, "compliance"), geo_data.domain, 0.0f);
+        constraint_usage.rest_bend_rotations =
+            *geo_data.attributes.lookup_or_default<math::Quaternion>(
+                this->prop_attr_name(constraint.path, "rest_bend_rotation"),
+                geo_data.domain,
+                math::Quaternion::identity());
       }
-      RodBendTwistConstraintUsage &constraint_usage = *geo_data.rod_bend_twist_constraint;
-      const RodBendTwistConstraint &constraint =
-          constraints_.rod_bend_twist_constraints[constraint_usage.constraint_i];
-
-      constraint_usage.lambdas = tls.allocator.allocate_array<float4>(geo_data.size);
-
-      fn::FieldEvaluator &evaluator = this->get_field_evaluator(data_key_i, geo_data.domain);
-      evaluator.add(constraint.rest_bend_rotation, &constraint_usage.rest_bend_rotations);
-      evaluator.add(constraint.compliance, &constraint_usage.compliances);
     }
   }
 
@@ -1579,26 +1570,26 @@ class XpbdSolverStep {
     TLS &tls = tls_.local();
     for (const int data_key_i : geometries_.data_keys.index_range()) {
       GeometryData &geo_data = geometries_.data[data_key_i];
-      if (!geo_data.rod_bend_twist_constraint.has_value()) {
-        continue;
-      }
-      RodBendTwistConstraintUsage &constraint_usage = *geo_data.rod_bend_twist_constraint;
-      bke::CurvesGeometry &curves = *geo_data.curves;
-      const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+      for (const RodBendTwistConstraintUsage &constraint_usage :
+           geo_data.rod_bend_twist_constraints)
+      {
+        bke::CurvesGeometry &curves = *geo_data.curves;
+        const OffsetIndices<int> points_by_curve = curves.points_by_curve();
 
-      const VArraySpanGetter<float> compliances{
-          tls.scope, constraint_usage.compliances, geometries_.max_chunk_size};
+        const VArraySpanGetter<float> compliances{
+            tls.scope, constraint_usage.compliances, geometries_.max_chunk_size};
 
-      for (const int chunk_i : geo_data.chunks) {
-        const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
-        chunks_data_[chunk_i].static_constraints.append(
-            &tls.scope.construct<xpbd::RodBendAndTwistConstraintSet>(
-                data_key_i,
-                *chunk.curves_range,
-                points_by_curve,
-                constraint_usage.rest_bend_rotations,
-                compliances.get_span_for_range(chunk.points_range),
-                constraint_usage.lambdas));
+        for (const int chunk_i : geo_data.chunks) {
+          const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
+          chunks_data_[chunk_i].static_constraints.append(
+              &tls.scope.construct<xpbd::RodBendAndTwistConstraintSet>(
+                  data_key_i,
+                  *chunk.curves_range,
+                  points_by_curve,
+                  constraint_usage.rest_bend_rotations,
+                  compliances.get_span_for_range(chunk.points_range),
+                  constraint_usage.lambdas));
+        }
       }
     }
   }
