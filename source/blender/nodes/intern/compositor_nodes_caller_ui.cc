@@ -131,28 +131,6 @@ static void strip_search_add_items(const StringRef str,
   }
 }
 
-/* Query strips that intersect in time with strip_reference. */
-static void query_interval_strips_with_image_output(const Scene *scene,
-                                                    Strip *strip_reference,
-                                                    ListBaseT<Strip> *seqbase,
-                                                    VectorSet<Strip *> &strips)
-{
-  for (Strip &strip_test : *seqbase) {
-    if (strip_reference == &strip_test) {
-      continue;
-    }
-    if (!strip_test.has_image_output()) {
-      continue;
-    }
-    if (strip_test.right_handle(scene) <= strip_reference->left_handle() ||
-        strip_test.left_handle() >= strip_reference->right_handle(scene))
-    {
-      continue; /* Not intersecting in time. */
-    }
-    strips.add(&strip_test);
-  }
-}
-
 SearchInfo SocketSearchData::get_search_info(const bContext &C) const
 {
   Scene *sequencer_scene = CTX_data_sequencer_scene(&C);
@@ -169,7 +147,24 @@ SearchInfo SocketSearchData::get_search_info(const bContext &C) const
     Strip *meta = seq::lookup_meta_by_strip(ed, this->strip);
     ListBaseT<Strip> *seqbase = (meta != nullptr) ? &meta->seqbase : &ed->seqbase;
     VectorSet<Strip *> all_strips = seq::query_by_reference(
-        strip, sequencer_scene, seqbase, query_interval_strips_with_image_output);
+        strip,
+        seqbase,
+        [&](Strip *strip_reference, ListBaseT<Strip> *seqbase, VectorSet<Strip *> &strips) {
+          for (Strip &strip_test : *seqbase) {
+            if (strip_reference == &strip_test) {
+              continue;
+            }
+            if (!strip_test.has_image_output()) {
+              continue;
+            }
+            if (strip_test.right_handle(sequencer_scene) <= strip_reference->left_handle() ||
+                strip_test.left_handle() >= strip_reference->right_handle(sequencer_scene))
+            {
+              continue; /* Not intersecting in time. */
+            }
+            strips.add(&strip_test);
+          }
+        });
     Vector<std::string> strip_names;
     for (const Strip *strip : all_strips) {
       strip_names.append(strip->name + 2);
