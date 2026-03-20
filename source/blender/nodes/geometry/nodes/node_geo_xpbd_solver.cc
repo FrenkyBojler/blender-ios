@@ -539,9 +539,9 @@ class XpbdSolverStep {
       TLS &tls = tls_.local();
       this->create_chunk_constraints__rod_stretch_shear(tls, chunk_i);
       this->create_chunk_constraints__rod_bend_twist(tls, chunk_i);
+      this->create_chunk_constraints__damping(tls, chunk_i);
     });
 
-    this->create_constraints__damping();
     this->create_constraints__pin_positions();
     this->create_constraints__pin_rotations();
     this->create_constraints__edge_length();
@@ -1665,32 +1665,26 @@ class XpbdSolverStep {
     }
   }
 
-  void create_constraints__damping()
+  void create_chunk_constraints__damping(TLS &tls, const int chunk_i)
   {
-    TLS &tls = tls_.local();
-    for (const int data_key_i : geometries_.data_keys.index_range()) {
-      GeometryData &geo_data = geometries_.data[data_key_i];
+    const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
+    ChunkData &chunk_data = chunks_data_[chunk_i];
+    const GeometryData &geo_data = geometries_.data[chunk.data_key_i];
 
-      for (DampingConstraintUsage &constraint_usage : geo_data.damping_constraints) {
-        for (const int chunk_i : geo_data.chunks) {
-          const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
-          ChunkData &chunk_data = chunks_data_[chunk_i];
-
-          chunk_data.static_velocity_constraints.append(
-              &tls.scope.construct<xpbd::LinearDampingConstraintSet>(
-                  data_key_i,
-                  chunk.points_range,
-                  constraint_usage.linear_dampings.get_span_for_range(chunk.points_range),
-                  constraint_usage.linear_damping_lambdas.slice(chunk.points_range)));
-          if (geo_data.uses_rotation) {
-            chunk_data.static_velocity_constraints.append(
-                &tls.scope.construct<xpbd::AngularDampingConstraintSet>(
-                    data_key_i,
-                    chunk.points_range,
-                    constraint_usage.angular_dampings.get_span_for_range(chunk.points_range),
-                    constraint_usage.angular_damping_lambdas.slice(chunk.points_range)));
-          }
-        }
+    for (const DampingConstraintUsage &constraint_usage : geo_data.damping_constraints) {
+      chunk_data.static_velocity_constraints.append(
+          &tls.scope.construct<xpbd::LinearDampingConstraintSet>(
+              chunk.data_key_i,
+              chunk.points_range,
+              constraint_usage.linear_dampings.get_span_for_range(chunk.points_range),
+              constraint_usage.linear_damping_lambdas.slice(chunk.points_range)));
+      if (geo_data.uses_rotation) {
+        chunk_data.static_velocity_constraints.append(
+            &tls.scope.construct<xpbd::AngularDampingConstraintSet>(
+                chunk.data_key_i,
+                chunk.points_range,
+                constraint_usage.angular_dampings.get_span_for_range(chunk.points_range),
+                constraint_usage.angular_damping_lambdas.slice(chunk.points_range)));
       }
     }
   }
