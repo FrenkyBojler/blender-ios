@@ -41,8 +41,8 @@ static void filelist_readjob_essentials_asset_library(FileListReadJob *job_param
     filelist_readjob_recursive_dir_add_items(true, job_params, stop, do_update, progress);
   }
   else {
-    /* Can't actually be selected from the UI. But be nice and support only loading the essentials
-     * here.  */
+    /* Can't actually be selected from the UI. But be nice and support loading just the online
+     * essentials. Scripts may want to do that. */
     BLI_assert(job_params->filelist->asset_library_ref->type == ASSET_LIBRARY_ONLINE_ESSENTIALS);
   }
 
@@ -51,7 +51,7 @@ static void filelist_readjob_essentials_asset_library(FileListReadJob *job_param
       job_params->current_main, asset_system::online_essentials_library_reference());
   STRNCPY(filelist->filelist.root, asset_system::online_essentials_cache_directory_path().c_str());
 
-  BLI_assert_msg(job_params->remote_library_requests.size() == 1,
+  BLI_assert_msg(job_params->remote_library_requests.size() <= 1,
                  "reading callback for a single remote library should only have a single remote "
                  "library request registered (check what the starting callback is requesting)");
   for (auto [url, request] : job_params->remote_library_requests.items()) {

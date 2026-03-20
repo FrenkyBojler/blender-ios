@@ -530,6 +530,9 @@ bool is_or_contains_remote_libraries(const AssetLibraryReference &reference)
         }
       }
       break;
+    case ASSET_LIBRARY_ESSENTIALS:
+    case ASSET_LIBRARY_ONLINE_ESSENTIALS:
+      return true;
     case ASSET_LIBRARY_CUSTOM: {
       if (bUserAssetLibrary *asset_library =
               AssetLibraryService::find_custom_asset_library_from_library_ref(reference))
