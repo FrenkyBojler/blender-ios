@@ -615,6 +615,88 @@ static void node_group_make_insert_selected(const bContext &C,
   BKE_main_ensure_invariants(bmain);
 }
 
+/* Find the top-most parent shared by all the nodes, or null if no parent contains all nodes. */
+static bNode *find_common_parent_node(const Span<bNode *> nodes)
+{
+  if (nodes.is_empty()) {
+    return nullptr;
+  }
+  /* Special case: single node parent never has more than one child. */
+  if (nodes.size() == 1) {
+    return nodes.first()->parent;
+  }
+
+  /* Map of all parents of the node set, along with their depth and the number of children in the
+   * node set. The root is the deepest parent with more than one child. */
+  struct ParentInfo {
+    /* Number of children in the node set. */
+    int num_children;
+    /* Max distance to any child in the node set. */
+    int max_depth;
+  };
+  Map<bNode *, ParentInfo> parents;
+
+  /* Update existing parent child count and depth. Returns true if parent info exists. */
+  auto add_child_to_existing_parent = [&](bNode *parent, int max_depth) {
+    ParentInfo *info = parents.lookup_ptr(parent);
+    if (!info) {
+      return false;
+    }
+
+    /* Add a child to the shared parent. */
+    ++info->num_children;
+
+    /* Update max depth for existing parents. */
+    for (; parent != nullptr; parent = parent->parent, ++max_depth) {
+      ParentInfo &old_info = parents.lookup(parent);
+      if (old_info.max_depth >= max_depth) {
+        break;
+      }
+      /* Update existing parent depth. */
+      old_info.max_depth = max_depth;
+    }
+
+    return true;
+  };
+
+  /* Record all parents. */
+  for (const bNode *node : nodes) {
+    /* If any node has no parent there can not be no shared parent either, cancel. */
+    if (!node->parent) {
+      return nullptr;
+    }
+
+    bNode *parent = node->parent;
+    int max_depth = 1;
+    for (; parent != nullptr; parent = parent->parent, ++max_depth) {
+      /* Stop after finding an existing parent. */
+      if (add_child_to_existing_parent(parent, max_depth)) {
+        break;
+      }
+
+      /* Parent hasn't been seen before. */
+      parents.add_new(parent, {1, max_depth});
+    }
+  }
+
+  /* Find deepest parent with more than one child. */
+  bNode *common_parent = nullptr;
+  int common_parent_depth = 0;
+  for (const auto &item : parents.items()) {
+    if (item.value.num_children < 2) {
+      continue;
+    }
+    if (!common_parent) {
+      common_parent = item.key;
+      continue;
+    }
+    if (item.value.max_depth > common_parent_depth) {
+      common_parent = item.key;
+    }
+  }
+  return common_parent;
+}
+
 static bNode *node_group_make_from_nodes(const bContext &C,
                                          bNodeTree &ntree,
                                          const Span<bNode *> nodes_to_group,
@@ -634,6 +716,9 @@ static bNode *node_group_make_from_nodes(const bContext &C,
   if (const std::optional<Bounds<float2>> bounds = node_location_bounds(nodes_to_group)) {
     gnode->location[0] = bounds->center()[0];
     gnode->location[1] = bounds->center()[1];
+  }
+  if (bNode *parent = find_common_parent_node(nodes_to_group)) {
+    gnode->parent = parent;
   }
 
   node_group_make_insert_selected(C, ntree, gnode, nodes_to_group);
