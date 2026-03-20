@@ -81,7 +81,7 @@ void asset_tooltip(const asset_system::AssetRepresentation &asset,
 BIFIconID asset_preview_icon_id(const asset_system::AssetRepresentation &asset)
 {
   if (const PreviewImage *preview = asset.get_preview()) {
-    if (!BKE_previewimg_is_invalid(preview)) {
+    if (!BKE_previewimg_is_invalid(preview, ICON_SIZE_ICON)) {
       return preview->runtime->icon_id;
     }
   }
@@ -118,7 +118,7 @@ std::optional<AssetLibraryReference> get_user_library_ref_for_save(
 {
   std::optional<AssetLibraryReference> preferred_library_ref =
       preferred_library ? preferred_library->library_reference() : std::nullopt;
-  BLI_assert(bool(preferred_library_ref));
+  BLI_assert(!preferred_library || bool(preferred_library_ref));
 
   if (preferred_library_ref &&
       !ELEM(preferred_library_ref->type, ASSET_LIBRARY_ALL, ASSET_LIBRARY_ESSENTIALS))

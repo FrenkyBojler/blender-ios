@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'1ece094312b3')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'45d5533d8e66')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-02 14:51+0000\n"
+"POT-Creation-Date: 2026-03-16 11:01+0000\n"
 "PO-Revision-Date: 2025-07-23 15:32+0000\n"
 "Last-Translator: Leevi Oksanen <laavi.oksanen@gmail.com>\n"
 "Language-Team: Finnish <https://translate.blender.org/projects/blender-ui/ui/fi/>\n"
@@ -3641,18 +3641,6 @@ msgid "View"
 msgstr "Näkymä"
 
 
-msgid "Mix"
-msgstr "Sekoita"
-
-
-msgid "Screen"
-msgstr "Näyttö"
-
-
-msgid "Divide"
-msgstr "Jaa"
-
-
 msgid "Brightness"
 msgstr "Kirkkaus"
 
@@ -5866,6 +5854,10 @@ msgid "Use Masks"
 msgstr "Käytä maskeja"
 
 
+msgid "Divide"
+msgstr "Jaa"
+
+
 msgid "Active Grease Pencil layer"
 msgstr "Aktiivinen öljykynän taso"
 
@@ -7244,8 +7236,20 @@ msgid "Direction"
 msgstr "Suunta"
 
 
+msgid "Mix"
+msgstr "Sekoita"
+
+
+msgid "Screen"
+msgstr "Näyttö"
+
+
 msgid "ID Type"
 msgstr "ID-tyyppi"
+
+
+msgid "Show/Hide"
+msgstr "Näytä/Piilota"
 
 
 msgid "Math"
@@ -7256,14 +7260,6 @@ msgid "UV"
 msgstr "UV"
 
 
-msgid "Metaball"
-msgstr "Metapallo"
-
-
-msgid "Show/Hide"
-msgstr "Näytä/Piilota"
-
-
 msgid "Read"
 msgstr "Lue"
 
@@ -7272,8 +7268,28 @@ msgid "Write"
 msgstr "Kirjoita"
 
 
+msgid "Hooks"
+msgstr "Koukut"
+
+
+msgid "Random Mask"
+msgstr "Satunnainen maski"
+
+
 msgid "Names"
 msgstr "Nimet"
+
+
+msgid "Mesh Select Mode"
+msgstr "Muodon valintatila"
+
+
+msgid "Metaball"
+msgstr "Metapallo"
+
+
+msgid "Utilities"
+msgstr "Työkalut"
 
 
 msgid "UV Mapping"
@@ -7296,10 +7312,6 @@ msgid "Select Loops"
 msgstr "Valitse silmukat"
 
 
-msgid "Utilities"
-msgstr "Työkalut"
-
-
 msgid "Light"
 msgstr "Valo"
 
@@ -7308,32 +7320,20 @@ msgid "Light Probe"
 msgstr "Valoluotain"
 
 
-msgid "Add Image"
-msgstr "Lisää kuva"
-
-
-msgid "Track"
-msgstr "Raide"
-
-
-msgid "Hooks"
-msgstr "Koukut"
-
-
-msgid "Random Mask"
-msgstr "Satunnainen maski"
-
-
-msgid "Mesh Select Mode"
-msgstr "Muodon valintatila"
-
-
 msgid "Instances"
 msgstr "Instanssit"
 
 
+msgid "Add Image"
+msgstr "Lisää kuva"
+
+
 msgid "Import"
 msgstr "Tuo"
+
+
+msgid "Track"
+msgstr "Raide"
 
 
 msgid "Basic"
@@ -7734,10 +7734,6 @@ msgstr "V-akseli"
 
 msgid "UV Center"
 msgstr "UV-keskus"
-
-
-msgid "Use Channel"
-msgstr "Käytä kanavaa"
 
 
 msgid "Wave Modifier"
@@ -10034,6 +10030,11 @@ msgid "Save Sequence"
 msgstr "Tallenna sekvenssi"
 
 
+msgctxt "Mesh"
+msgid "Angle"
+msgstr "Kulma"
+
+
 msgid "Expand"
 msgstr "Laajenna"
 
@@ -10919,11 +10920,6 @@ msgid "Dynamic Grid Size"
 msgstr "Dynaaminen Ruudukon Koko"
 
 
-msgctxt "Mesh"
-msgid "Angle"
-msgstr "Kulma"
-
-
 msgid "Dynamic grid"
 msgstr "Dynaaminen ruudukko"
 
@@ -11031,6 +11027,31 @@ msgstr "Käytä huomioita"
 msgctxt "Sound"
 msgid "Pan"
 msgstr "Panoroi"
+
+
+msgctxt "Sequence"
+msgid "Brightness/Contrast"
+msgstr "Kirkkaus/Kontrasti"
+
+
+msgctxt "Sequence"
+msgid "Color Balance"
+msgstr "Väritasapaino"
+
+
+msgctxt "Sequence"
+msgid "Curves"
+msgstr "Käyrät"
+
+
+msgctxt "Sequence"
+msgid "Hue Correct"
+msgstr "Sävykorjaus"
+
+
+msgctxt "Sequence"
+msgid "White Balance"
+msgstr "Valkotasapaino"
 
 
 msgid "Move along X axis"
@@ -13244,6 +13265,11 @@ msgstr "Uusi"
 
 
 msgctxt "Operator"
+msgid "Save Copy..."
+msgstr "Tallenna kopio..."
+
+
+msgctxt "Operator"
 msgid "Quit"
 msgstr "Poistu"
 
@@ -13276,11 +13302,6 @@ msgstr "Toista historia..."
 msgctxt "Operator"
 msgid "Preferences..."
 msgstr "Mieltymykset..."
-
-
-msgctxt "Operator"
-msgid "Save Copy..."
-msgstr "Tallenna kopio..."
 
 
 msgid "More..."
@@ -13710,10 +13731,6 @@ msgid "Eyes"
 msgstr "Silmät"
 
 
-msgid "Pupils"
-msgstr "Pupillit"
-
-
 msgid "Nothing selected"
 msgstr "Mitään ei ole valittu"
 
@@ -13852,10 +13869,6 @@ msgstr "Kylläisyys:"
 
 msgid "Lightness:"
 msgstr "Valoisuus:"
-
-
-msgid "Value:"
-msgstr "Arvo:"
 
 
 msgid "Alpha:"
@@ -14497,10 +14510,6 @@ msgid "No active camera set"
 msgstr "Ei aktiivista kamerasarjaa"
 
 
-msgid "Attribute Data Detected"
-msgstr "Attribuutti-data havaittu"
-
-
 msgid "PaintCurve"
 msgstr "Maalikäyrä"
 
@@ -14671,6 +14680,10 @@ msgstr "Avainkehys"
 
 msgid "Driver Value:"
 msgstr "Ajuriarvo:"
+
+
+msgid "Value:"
+msgstr "Arvo:"
 
 
 msgid "Driver:"
@@ -16525,33 +16538,8 @@ msgstr "Kaikki renderöintitasot on poistettu käytöstä"
 
 
 msgctxt "Sequence"
-msgid "Brightness/Contrast"
-msgstr "Kirkkaus/Kontrasti"
-
-
-msgctxt "Sequence"
-msgid "Color Balance"
-msgstr "Väritasapaino"
-
-
-msgctxt "Sequence"
-msgid "Curves"
-msgstr "Käyrät"
-
-
-msgctxt "Sequence"
-msgid "Hue Correct"
-msgstr "Sävykorjaus"
-
-
-msgctxt "Sequence"
 msgid "Tonemap"
 msgstr "Sävykartta"
-
-
-msgctxt "Sequence"
-msgid "White Balance"
-msgstr "Valkotasapaino"
 
 
 msgctxt "Sequence"

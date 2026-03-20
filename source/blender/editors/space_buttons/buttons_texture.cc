@@ -229,7 +229,7 @@ static void buttons_texture_modifier_foreach(void *user_data,
 
   if (md->type == eModifierType_Nodes) {
     NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(md);
-    if (nmd->node_group != nullptr) {
+    if (nmd->node_group != nullptr && !ID_MISSING(nmd->node_group)) {
       Set<const bNodeTree *> handled_groups;
       buttons_texture_modifier_geonodes_users_add(ob, nmd, nmd->node_group, users, handled_groups);
     }
@@ -498,7 +498,7 @@ static void template_texture_user_menu(bContext *C, ui::Layout *layout, void * /
     /* add label per category */
     if (!last_category || !STREQ(last_category, user.category)) {
       layout->label(IFACE_(user.category), ICON_NONE);
-      but = block->buttons.last().get();
+      but = block->buttons_ptrs.last().get();
       but->drawflag = ui::BUT_TEXT_LEFT;
     }
 

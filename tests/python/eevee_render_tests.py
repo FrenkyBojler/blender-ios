@@ -42,6 +42,8 @@ BLOCKLIST = [
     "light_path_is_diffuse_ray.blend",
     # Blocked due to stochastic diffuse/transmission layering resulting in non-deterministic surfel lighting.
     "principled_bsdf_transmission.blend",
+    # Blocked due to platform-dependent noise differences (likely floating-point/fast-math differences).
+    "raycast_bump.blend",
 ]
 
 BLOCKLIST_METAL = [
@@ -265,6 +267,12 @@ def main():
     elif test_dir_name.startswith('principled_bsdf'):
         # principled bsdf transmission test
         report.set_fail_threshold(0.02)
+    elif test_dir_name.startswith('camera'):
+        # Line/rasterization difference (Old AMD/Linux/OpenGL only, see #154515)
+        report.set_fail_threshold(0.0375)
+    elif test_dir_name.startswith('raycast'):
+        # Line/rasterization difference (Old AMD/Linux/OpenGL only, see #154516)
+        report.set_fail_threshold(0.02)
 
     # Noise pattern changes depending on platform. Mostly caused by transparency.
     # TODO(fclem): See if we can just increase number of samples per file.
@@ -286,6 +294,9 @@ def main():
     elif test_dir_name.startswith('light'):
         # Noise difference in background
         report.set_fail_threshold(0.03)
+    elif test_dir_name.startswith('texture'):
+        # Noise difference in "white noise 256pp" (Old AMD/Linux/OpenGL only, see #154515)
+        report.set_fail_threshold(0.02)
 
     ok = report.run(args.testdir, args.blender, get_arguments, batch=args.batch)
     sys.exit(not ok)

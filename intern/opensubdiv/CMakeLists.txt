@@ -75,11 +75,6 @@ if(WITH_OPENSUBDIV)
     bf::dependencies::epoxy
   )
 
-  if(WIN32)
-    add_definitions(-DNOMINMAX)
-    add_definitions(-D_USE_MATH_DEFINES)
-  endif()
-
   if(WITH_METAL_BACKEND)
     add_definitions(-DWITH_METAL_BACKEND)
   endif()
