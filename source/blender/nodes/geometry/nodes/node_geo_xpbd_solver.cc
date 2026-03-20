@@ -100,6 +100,11 @@ static void node_declare(NodeDeclarationBuilder &b)
     solver_panel.add_input<decl::Int>("Substeps").default_value(10).min(1);
     solver_panel.add_input<decl::Int>("Constraint Iterations").default_value(1).min(1);
   }
+  {
+    auto &p = b.add_panel("Interpolation Range"_ustr).default_closed(true);
+    p.add_input<decl::Float>("Begin").default_value(0.0).min(0.0);
+    p.add_input<decl::Float>("End").default_value(1.0).min(0.0);
+  }
 }
 
 struct DataKey {
@@ -353,18 +358,19 @@ struct Geometries {
 
 struct SubstepInterval {
   int current_i;
-  float begin_factor;
-  float end_factor;
-  bool is_first;
-  bool is_last;
+  float interpolate_begin;
+  float interpolate_end;
 
-  SubstepInterval(const int substeps, const int current_i)
+  SubstepInterval(const int substeps,
+                  const int current_i,
+                  const float interpolation_begin,
+                  const float interpolation_end)
       : current_i(current_i),
-        begin_factor(float(current_i) / substeps),
-        end_factor(float(current_i + 1) / substeps),
-        is_first(current_i == 0),
-        is_last(current_i == substeps - 1)
-
+        interpolate_begin(float(current_i) / substeps * (interpolation_end - interpolation_begin) +
+                          interpolation_begin),
+        interpolate_end(float(current_i + 1) / substeps *
+                            (interpolation_end - interpolation_begin) +
+                        interpolation_begin)
   {
   }
 };
@@ -502,6 +508,9 @@ class XpbdSolverStep {
   const float sub_delta_time_;
   float substep_compliance_factor_;
 
+  const float interpolation_begin_;
+  const float interpolation_end_;
+
   const float4x4 simulation_to_world_;
   const float4x4 world_to_simulation_;
 
@@ -525,11 +534,15 @@ class XpbdSolverStep {
                  const float total_delta_time,
                  const int substeps,
                  const int constraint_iterations,
+                 const float interpolation_begin,
+                 const float interpolation_end,
                  const StringRef geometry_tag_filter,
                  const float4x4 &simulation_to_world)
       : world_(world),
         substeps_(substeps),
         sub_delta_time_(total_delta_time / substeps_),
+        interpolation_begin_(interpolation_begin),
+        interpolation_end_(interpolation_end),
         simulation_to_world_(simulation_to_world),
         world_to_simulation_(math::invert(simulation_to_world)),
         geometry_tag_filter_(geometry_tag_filter),
@@ -778,13 +791,13 @@ class XpbdSolverStep {
       const InfinitePlaneCollider &collider =
           constraints_.infinite_plane_colliders[collider_usage.constraint_i];
       const float3 collider_position = math::interpolate(
-          collider.begin_position, collider.end_position, substep.end_factor);
+          collider.begin_position, collider.end_position, substep.interpolate_end);
       const float3 collider_normal = math::interpolate(
-          collider.begin_normal, collider.end_normal, substep.end_factor);
+          collider.begin_normal, collider.end_normal, substep.interpolate_end);
       for (const int point_i : chunk.points_range) {
         const float3 &position = positions[point_i];
         const float radius = math::interpolate(
-            geo_data.prev_radii[point_i], geo_data.radii[point_i], substep.end_factor);
+            geo_data.prev_radii[point_i], geo_data.radii[point_i], substep.interpolate_end);
 
         const float distance = math::dot(position - collider_position, collider_normal) - radius;
         if (distance >= max_distance) {
@@ -865,9 +878,9 @@ class XpbdSolverStep {
     for (const MeshColliderUsage &collider_usage : geo_data.mesh_colliders) {
       const MeshCollider &collider = constraints_.mesh_colliders[collider_usage.constraint_i];
       const float4x4 &mesh_to_local = math::interpolate(
-          collider.begin_transform, collider.end_transform, substep.end_factor);
+          collider.begin_transform, collider.end_transform, substep.interpolate_end);
       const float4x4 &prev_mesh_to_local = math::interpolate(
-          collider.begin_transform, collider.end_transform, substep.begin_factor);
+          collider.begin_transform, collider.end_transform, substep.interpolate_begin);
       const float4x4 local_to_mesh = math::invert(mesh_to_local);
       /* Only uniform scaling is correctly handled here. For non-uniform scaling, just the max
        * scale along one axis is used. */
@@ -941,7 +954,7 @@ class XpbdSolverStep {
       const float3 &pos_local = positions[point_i];
       const float3 pos_mesh = math::transform_point(local_to_mesh, pos_local);
       const float radius_local = math::interpolate(
-          geo_data.prev_radii[point_i], geo_data.radii[point_i], substep.end_factor);
+          geo_data.prev_radii[point_i], geo_data.radii[point_i], substep.interpolate_end);
       const float radius_mesh = local_to_mesh_radius_factor * radius_local;
       const std::optional<ClosestMeshContact> contact = this->get_closest_mesh_contact(
           pos_mesh, bvh, corner_tris, corner_verts, vert_positions, max_distance + radius_mesh);
@@ -1012,7 +1025,7 @@ class XpbdSolverStep {
       const float3 &pos_local = positions[point_i];
       const float3 pos_mesh = math::transform_point(local_to_mesh, pos_local);
       const float radius_local = math::interpolate(
-          geo_data.prev_radii[point_i], geo_data.radii[point_i], substep.end_factor);
+          geo_data.prev_radii[point_i], geo_data.radii[point_i], substep.interpolate_end);
       const float radius_mesh = local_to_mesh_radius_factor * radius_local;
       const std::optional<ClosestMeshContact> contact = this->get_closest_mesh_contact(
           pos_mesh, bvh, corner_tris, corner_verts, vert_positions, max_distance + radius_mesh);
@@ -1247,28 +1260,39 @@ class XpbdSolverStep {
     const Span<float3> end_positions = mesh.vert_positions();
 
     threading::parallel_for(
-        IndexRange(substeps_ - 1),
-        std::max(1024 / verts_num, 1),
-        [&](const IndexRange substep_range) {
+        IndexRange(substeps_ + 1), std::max(1024 / verts_num, 1), [&](const IndexRange range) {
           TLS &tls = tls_.local();
-          for (const int substep_i : substep_range) {
-            const SubstepInterval substep(substeps_, substep_i);
-            Mesh *substep_mesh = BKE_mesh_copy_for_eval(mesh);
-            tls.scope.add_destruct_call([substep_mesh]() { BKE_id_free(nullptr, substep_mesh); });
-            MutableSpan<float3> substep_positions = substep_mesh->vert_positions_for_write();
+          for (const int mesh_i : range) {
+            const float mix_factor = (mesh_i - 1) / float(substeps_) *
+                                         (interpolation_end_ - interpolation_begin_) +
+                                     interpolation_begin_;
+            const Mesh *substep_mesh = nullptr;
+            if (mix_factor == 0.0f && mesh_i == 0) {
+              substep_mesh = prev_mesh;
+            }
+            else if (mix_factor == 1.0f) {
+              substep_mesh = &mesh;
+            }
+            else {
+              Mesh *interpolated_mesh = BKE_mesh_copy_for_eval(mesh);
+              tls.scope.add_destruct_call(
+                  [interpolated_mesh]() { BKE_id_free(nullptr, interpolated_mesh); });
+              MutableSpan<float3> substep_positions =
+                  interpolated_mesh->vert_positions_for_write();
             for (const int i : IndexRange(verts_num)) {
               substep_positions[i] = math::interpolate(
-                  begin_positions[i], end_positions[i], substep.end_factor);
+                    begin_positions[i], end_positions[i], mix_factor);
             }
-            substep_mesh->tag_positions_changed();
-            result.substep_meshes[substep_i + 1] = substep_mesh;
-            result.substep_bvh_trees[substep_i] = substep_mesh->bvh_corner_tris();
+              interpolated_mesh->tag_positions_changed();
+              substep_mesh = interpolated_mesh;
+            }
+            result.substep_meshes[mesh_i] = substep_mesh;
+            if (mesh_i > 0) {
+              /* The bvh tree is not needed for the first substep. */
+              result.substep_bvh_trees[mesh_i - 1] = substep_mesh->bvh_corner_tris();
+            }
           }
         });
-
-    result.substep_meshes.first() = prev_mesh;
-    result.substep_meshes.last() = &mesh;
-    result.substep_bvh_trees.last() = mesh.bvh_corner_tris();
     return result;
   }
 
@@ -1993,7 +2017,8 @@ class XpbdSolverStep {
       this->parallel_for_each_chunk(1, [&](const int chunk_i) {
         int solver_refs_i = 0;
         for (const int substep_i : IndexRange(substeps_)) {
-          const SubstepInterval substep(substeps_, substep_i);
+          const SubstepInterval substep(
+              substeps_, substep_i, interpolation_begin_, interpolation_end_);
           this->simulate__update_pins__chunk(chunk_i, substep);
           this->simulate__inertial_update__chunk(chunk_i, solver_refs_i);
           this->simulate__gather_dynamic_constraints__chunk(substep, chunk_i, solver_refs_i);
@@ -2017,7 +2042,8 @@ class XpbdSolverStep {
     else {
       int solver_refs_i = 0;
       for (const int substep_i : IndexRange(substeps_)) {
-        const SubstepInterval substep(substeps_, substep_i);
+        const SubstepInterval substep(
+            substeps_, substep_i, interpolation_begin_, interpolation_end_);
         this->parallel_for_each_chunk(16, [&](const int chunk_i) {
           this->simulate__update_pins__chunk(chunk_i, substep);
           this->simulate__inertial_update__chunk(chunk_i, solver_refs_i);
@@ -2102,7 +2128,7 @@ class XpbdSolverStep {
       for (const int pin_i : constraint_chunk_usage.pin_range) {
         const float3 &begin_pos = constraint_usage.begin_positions[pin_i];
         const float3 &end_pos = constraint_usage.end_positions[pin_i];
-        const float3 pin_pos = math::interpolate(begin_pos, end_pos, substep.end_factor);
+        const float3 pin_pos = math::interpolate(begin_pos, end_pos, substep.interpolate_end);
         constraint_usage.current_positions[pin_i] = pin_pos;
       }
     }
@@ -2116,7 +2142,7 @@ class XpbdSolverStep {
           const math::Quaternion &begin_rot = constraint_usage.begin_rotations[pin_i];
           const math::Quaternion &end_rot = constraint_usage.end_rotations[pin_i];
           const math::Quaternion pin_rot = math::interpolate(
-              begin_rot, end_rot, substep.end_factor);
+              begin_rot, end_rot, substep.interpolate_end);
           constraint_usage.current_rotations[pin_i] = pin_rot;
         }
       }
@@ -2540,11 +2566,15 @@ static void node_geo_exec(GeoNodeExecParams params)
   Bundle &world = world_ptr.ensure_mutable_inplace();
   const std::string geometry_tag_filter = params.extract_input<std::string>("Filter");
   const float4x4 simulation_to_world = params.extract_input<float4x4>("Simulation to World");
+  const float interpolation_begin = params.extract_input<float>("Begin");
+  const float interpolation_end = params.extract_input<float>("End");
 
   XpbdSolverStep step(world,
                       delta_time,
                       substeps,
                       constraint_iterations,
+                      interpolation_begin,
+                      interpolation_end,
                       geometry_tag_filter,
                       simulation_to_world);
   step.do_step();
