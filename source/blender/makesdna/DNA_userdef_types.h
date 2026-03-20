@@ -1216,14 +1216,12 @@ struct UserDef {
 
   float collection_instance_empty_size = 1.0f;
   char text_flag = 0;
-  char _pad10[1] = {};
+
+  char save_modified_images = USER_SAVE_MODIFIED_IMAGES_ASK; /* eUserpref_Save_Modified_Images */
 
   char file_preview_type = USER_FILE_PREVIEW_AUTO; /* eUserpref_File_Preview_Type */
   char statusbar_flag = STATUSBAR_SHOW_VERSION |
                         STATUSBAR_SHOW_EXTENSIONS_UPDATES; /* eUserpref_StatusBar_Flag */
-
-  char save_modified_images = USER_SAVE_MODIFIED_IMAGES_ASK; /* eUserpref_Save_Modified_Images */
-  char _pad19[7];
 
   struct WalkNavigation walk_navigation;
   struct XrNavigation xr_navigation;
