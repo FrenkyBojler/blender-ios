@@ -1827,15 +1827,26 @@ static wmOperatorStatus wm_xr_navigation_reset_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
+static wmOperatorStatus wm_xr_navigation_reset_invoke(bContext *C,
+                                                      wmOperator *op,
+                                                      const wmEvent *event)
+{
+  if (wm_xr_viewfinder_operator_event_match_hand(C, event)) {
+    return OPERATOR_CANCELLED;
+  }
+
+  return wm_xr_navigation_reset_exec(C, op);
+}
+
 static void WM_OT_xr_navigation_reset(wmOperatorType *ot)
 {
   /* Identifiers. */
   ot->name = "XR Navigation Reset";
   ot->idname = "WM_OT_xr_navigation_reset";
   ot->description = "Reset VR navigation deltas relative to session base pose";
-  // TODO: probably add an invoke here to properly handle the viewfinder case, also fix the haptics.
 
   /* Callbacks. */
+  ot->invoke = wm_xr_navigation_reset_invoke;
   ot->exec = wm_xr_navigation_reset_exec;
   ot->poll = wm_xr_operator_sessionactive;
 
