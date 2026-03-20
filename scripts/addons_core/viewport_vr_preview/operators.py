@@ -275,7 +275,7 @@ class VIEW3D_OT_vr_landmark_activate(Operator):
         return {'FINISHED'}
 
 
-# Location Scouting
+# Location Scouting Viewfinder
 def viewfinder_camera_gizmo_view3d_redraw_workaround():
     # Workaround: After capturing or deleting a shot from the VR viewfinder, tag all View3D areas in the current context
     #             window (parent XR window) for redraw to display the newly created/deleted capture.
@@ -294,6 +294,17 @@ def viewfinder_camera_gizmo_view3d_redraw_workaround():
                 screen=window.screen
         ):
             bpy.context.region.tag_redraw()
+
+
+def xr_event_match_viewfinder_hand(xr_event, xr_settings):
+    # Check if the current XR event matches with the Viewfinder hand. Equivalent to the internal
+    # wm_xr_operator_event_match_viewfinder_hand C++ function.
+    hand_user_path_map = {
+        'LEFT': "/user/hand/left",
+        'RIGHT': "/user/hand/right"
+    }
+
+    return xr_event.user_path == hand_user_path_map[xr_settings.viewfinder_hand]
 
 
 class VIEW3D_OT_vr_location_scouting_viewfinder_capture(Operator):
@@ -356,6 +367,15 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_capture(Operator):
         viewfinder_camera_gizmo_view3d_redraw_workaround()
 
         return {'FINISHED'}
+
+    def invoke(self, context, event):
+        xr_event = event.xr
+        xr_settings = context.window_manager.xr_session_settings
+
+        if not xr_event_match_viewfinder_hand(xr_event, xr_settings):
+            return {'CANCELLED'}
+
+        return self.execute(context)
 
 
 class VIEW3D_OT_vr_location_scouting_viewfinder_apply_action(Operator):
@@ -488,6 +508,15 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_apply_action(Operator):
 
         return {'CANCELLED'}
 
+    def invoke(self, context, event):
+        xr_event = event.xr
+        xr_settings = context.window_manager.xr_session_settings
+
+        if not xr_event_match_viewfinder_hand(xr_event, xr_settings):
+            return {'CANCELLED'}
+
+        return self.execute(context)
+
 
 class VIEW3D_OT_vr_location_scouting_viewfinder_cycle_mode(Operator):
     bl_idname = "view3d.vr_location_scouting_viewfinder_cycle_mode"
@@ -505,6 +534,15 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_cycle_mode(Operator):
         xr_viewfinder.active_mode = enum_values[(current_mode_idx + 1) % len(enum_values)]
 
         return {'FINISHED'}
+
+    def invoke(self, context, event):
+        xr_event = event.xr
+        xr_settings = context.window_manager.xr_session_settings
+
+        if not xr_event_match_viewfinder_hand(xr_event, xr_settings):
+            return {'CANCELLED'}
+
+        return self.execute(context)
 
 
 class VIEW3D_OT_vr_location_scouting_viewfinder_cycle_action(Operator):
@@ -546,7 +584,17 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_cycle_action(Operator):
 
         return {'FINISHED'}
 
+    def invoke(self, context, event):
+        xr_event = event.xr
+        xr_settings = context.window_manager.xr_session_settings
 
+        if not xr_event_match_viewfinder_hand(xr_event, xr_settings):
+            return {'CANCELLED'}
+
+        return self.execute(context)
+
+
+# Location Scouting Captures
 def capture_camera_name(capture):
     return data_("Camera") + "_" + capture.name
 

@@ -422,6 +422,10 @@ static wmOperatorStatus wm_xr_navigation_grab_invoke(bContext *C,
     return OPERATOR_PASS_THROUGH;
   }
 
+  if (wm_xr_viewfinder_operator_event_match_hand(C, event)) {
+    return OPERATOR_PASS_THROUGH;
+  }
+
   const wmXrActionData *actiondata = static_cast<const wmXrActionData *>(event->customdata);
 
   wm_xr_grab_init(op);
@@ -789,8 +793,26 @@ static wmOperatorStatus wm_xr_navigation_fly_invoke(bContext *C,
   }
 
   wmWindowManager *wm = CTX_wm_manager(C);
+  wmXrData *xr = &wm->xr;
 
-  wm_xr_fly_init(op, &wm->xr);
+  if (wm_xr_viewfinder_operator_event_match_hand(C, event)) {
+    const bool swap_hands = xr->runtime->session_state.swap_hands;
+    const eXrFlyMode mode = eXrFlyMode(RNA_enum_get(op->ptr, swap_hands ? "alt_mode" : "mode"));
+    const eXrViewfinderHand viewfinder_hand = eXrViewfinderHand(
+        xr->session_settings.viewfinder_hand);
+
+    const bool clashes_with_viewfinder =
+        (ELEM(mode, XR_FLY_VIEWER_LEFT, XR_FLY_VIEWER_RIGHT) &&
+         viewfinder_hand == XR_VIEWFINDER_HAND_LEFT) ||
+        (ELEM(mode, XR_FLY_TURNLEFT, XR_FLY_TURNRIGHT) &&
+         viewfinder_hand == XR_VIEWFINDER_HAND_RIGHT);
+
+    if (clashes_with_viewfinder) {
+      return OPERATOR_PASS_THROUGH;
+    }
+  }
+
+  wm_xr_fly_init(op, xr);
 
   WM_event_add_modal_handler(C, op);
 
@@ -1555,6 +1577,10 @@ static wmOperatorStatus wm_xr_navigation_teleport_invoke(bContext *C,
     return OPERATOR_PASS_THROUGH;
   }
 
+  if (wm_xr_viewfinder_operator_event_match_hand(C, event)) {
+    return OPERATOR_PASS_THROUGH;
+  }
+
   wm_xr_navigation_teleport_init(op);
 
   const wmOperatorStatus retval = op->type->modal(C, op, event);
@@ -1807,6 +1833,7 @@ static void WM_OT_xr_navigation_reset(wmOperatorType *ot)
   ot->name = "XR Navigation Reset";
   ot->idname = "WM_OT_xr_navigation_reset";
   ot->description = "Reset VR navigation deltas relative to session base pose";
+  // TODO: probably add an invoke here to properly handle the viewfinder case, also fix the haptics.
 
   /* Callbacks. */
   ot->exec = wm_xr_navigation_reset_exec;

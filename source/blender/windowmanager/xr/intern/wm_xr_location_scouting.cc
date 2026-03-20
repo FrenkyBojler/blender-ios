@@ -144,32 +144,43 @@ GHOST_XrPose wm_xr_location_scouting_capture_to_ghost_pose(
 /* Factor used to size UI widgets in XR world space. Going from scene to UI units. */
 static constexpr float xr_ui_unit_fac = 0.05f;
 
-static wmXrController *wm_xr_viewfinder_get_controller(const XrSessionSettings *settings,
-                                                       const wmXrSessionState *state)
+static const char *wm_xr_viewfinder_get_hand_user_path(const XrSessionSettings *settings)
 {
-  // TODO: Automatically switch control scheme on hand change.
-
-  const char *subaction_path;
-
   switch (settings->viewfinder_hand) {
     case XR_VIEWFINDER_HAND_LEFT:
-      subaction_path = "/user/hand/left";
-      break;
+      return "/user/hand/left";
     case XR_VIEWFINDER_HAND_RIGHT:
-      subaction_path = "/user/hand/right";
-      break;
+      return "/user/hand/right";
     default:
       BLI_assert_unreachable();
       return nullptr;
   }
+}
+
+static wmXrController *wm_xr_viewfinder_get_controller(const XrSessionSettings *settings,
+                                                       const wmXrSessionState *state)
+{
+  const char *user_path = wm_xr_viewfinder_get_hand_user_path(settings);
 
   for (wmXrController &controller : state->controllers) {
-    if (STREQ(controller.subaction_path, subaction_path) && controller.grip_active) {
+    if (STREQ(controller.subaction_path, user_path) && controller.grip_active) {
       return &controller;
     }
   }
 
   return nullptr;
+}
+
+bool wm_xr_viewfinder_operator_event_match_hand(bContext *C, const wmEvent *event)
+{
+  XrSessionSettings *settings = &CTX_wm_manager(C)->xr.session_settings;
+  wmXrActionData *actiondata = static_cast<wmXrActionData *>(event->customdata);
+
+  if (!settings->viewfinder_enabled) {
+    return false;
+  }
+
+  return STREQ(actiondata->user_path, wm_xr_viewfinder_get_hand_user_path(settings));
 }
 
 static rctf wm_xr_viewfinder_get_rect(const bContext *C, const XrSessionSettings *settings)
