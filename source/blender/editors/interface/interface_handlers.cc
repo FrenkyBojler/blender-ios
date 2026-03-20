@@ -10996,12 +10996,15 @@ static int handle_menu_mmb_event(bContext *C,
   else if (event->type == MOUSEMOVE && !inside && menu->keep_open_timer) {
     retval = WM_UI_HANDLER_BREAK;
   }
-  else if (event->type == MIDDLEMOUSE) {
+  else if (event->type == MIDDLEMOUSE && !inside) {
     /* Let parent menus handle middle mouse panning if the mouse is not within the current menu. */
-    if (menu_pass_event_to_parent_if_nonactive(menu, but, level, is_parent_menu, 0) ||
-        !(block->flag & (BLOCK_CLIPTOP | BLOCK_CLIPBOTTOM)))
-    {
+    if (menu_pass_event_to_parent_if_nonactive(menu, but, level, is_parent_menu, 0)) {
       return WM_UI_HANDLER_CONTINUE;
+    }
+  }
+  else if (event->type == MIDDLEMOUSE) {
+    if (!(block->flag & (BLOCK_CLIPTOP | BLOCK_CLIPBOTTOM))) {
+      return WM_UI_HANDLER_BREAK;
     }
     menu->mmb_panning = event->val == KM_PRESS;
     if (menu->mmb_panning) {
