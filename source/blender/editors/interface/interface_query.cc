@@ -339,7 +339,7 @@ Button *button_find_mouse_over_ex(const ARegion *region,
   for (Block &block : region->runtime->uiblocks) {
     float mx = xy[0], my = xy[1];
     window_to_block_fl(region, &block, &mx, &my);
-    /* Skip when the mouse is hovering auto-scroll handles. */
+    /* Skip when the mouse is hovering auto-scroll handlers. */
     if ((block.flag & BLOCK_CLIPTOP && block.rect.ymax - UI_MENU_SCROLL_MOUSE < my) ||
         (block.flag & BLOCK_CLIPBOTTOM && block.rect.ymin + UI_MENU_SCROLL_MOUSE > my))
     {

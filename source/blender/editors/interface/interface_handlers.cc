@@ -9997,7 +9997,7 @@ static int handle_button_event(bContext *C, const wmEvent *event, Button *but)
         if (event->customdata == data->autoopentimer) {
           WM_event_timer_remove(data->wm, data->window, data->autoopentimer);
           data->autoopentimer = nullptr;
-          /* Do not open sub-menus while using a auto-scroll handle. */
+          /* Do not open sub-menus while using an auto-scroll handler. */
           if ((!block->handle || !block->handle->scrolltimer) &&
               (button_contains_point_px(but, region, event->xy) || but->active))
           {
