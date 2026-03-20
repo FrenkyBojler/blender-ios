@@ -1,2 +1,3 @@
 Referenced by issue #155533, 5.1: Candidates for corrective releases
 Referenced by pull request #155882, Fix: incorrect buffer size in object_foreach_path_particles
+Referenced by commit 05e54411a99fcbcda73bcc8c7858211c2df20c5c, Fix: incorrect buffer size in object_foreach_path_particles
