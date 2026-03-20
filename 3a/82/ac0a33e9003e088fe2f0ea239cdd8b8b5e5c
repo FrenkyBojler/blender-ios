@@ -3,3 +3,4 @@ Referenced by issue #150360, BMesh float boolean creates duplicate edges, causin
 Referenced by issue #151029, Crash in merge by distance in 5.1
 Referenced by pull request #151065, Fix #151029: Merge by distance crash after recent refactor
 Referenced by commit 85b410220c37d93e148a112a17bc7ecaf3bc7e3a, Fix #151029: Merge by distance crash after recent refactor
+Referenced by issue #155985, 5.1 breaks legacy hair simulation grooms when object has "Mirror" modifier and hair uses "Use Modifier Stack"
