@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <memory>
 #include <optional>
 #include <utility>
 
@@ -15,9 +16,8 @@
 
 #include "BLI_function_ref.hh"
 #include "BLI_map.hh"
-#include "essentials_library.hh"
 
-#include <memory>
+#include "essentials_library.hh"
 
 namespace blender {
 
