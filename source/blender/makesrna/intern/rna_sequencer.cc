@@ -916,7 +916,7 @@ static void rna_Strip_name_set(PointerRNA *ptr, const char *value)
                                   strip->name + 2,
                                   0,
                                   0,
-                                  1,
+                                  true,
                                   true);
   }
 }
@@ -1592,7 +1592,7 @@ static void rna_StripModifier_name_set(PointerRNA *ptr, const char *value)
 
     SNPRINTF(rna_path_prefix, "sequence_editor.strips_all[\"%s\"].modifiers", strip_name_esc);
     BKE_animdata_fix_paths_rename(
-        &scene->id, adt, nullptr, rna_path_prefix, oldname, smd->name, 0, 0, 1, true);
+        &scene->id, adt, nullptr, rna_path_prefix, oldname, smd->name, 0, 0, true, true);
   }
 }
 
