@@ -60,6 +60,13 @@ constexpr StringRefNull prev_pin_position_prefix = SIM_PROP_PREV "pin_position";
 constexpr StringRefNull prev_pin_position_selection_prefix = SIM_PROP_PREV
     "pin_position_selection";
 
+constexpr StringRefNull pin_rotation_prefix = SIM_PROP "pin_rotation";
+constexpr StringRefNull pin_rotation_selection_prefix = SIM_PROP "pin_rotation_selection";
+constexpr StringRefNull pin_rotation_compliance_prefix = SIM_PROP "pin_rotation_compliance";
+constexpr StringRefNull prev_pin_rotation_prefix = SIM_PROP_PREV "pin_rotation";
+constexpr StringRefNull prev_pin_rotation_selection_prefix = SIM_PROP_PREV
+    "pin_rotation_selection";
+
 #undef SIM_PROP
 
 }  // namespace attribute_names
@@ -201,25 +208,17 @@ struct PinPositionConstraintChunkUsage {
 
 struct PinRotationConstraint {
   std::string path;
-  Field<bool> selection;
-  Field<math::Quaternion> rotation;
-  Field<float> compliance;
-  std::string prev_rotation_attr;
-  std::string was_pinned_attr;
 };
 struct PinRotationConstraintUsage {
   /** Index of corresponding #PinRotationConstraint. */
   const int constraint_i;
 
-  fn::FieldEvaluator *evaluator = nullptr;
-  VArray<math::Quaternion> rotations_varray;
-  VArray<float> compliances_varray;
-
   Span<int> points;
   Span<math::Quaternion> begin_rotations;
   Span<math::Quaternion> end_rotations;
-  MutableSpan<math::Quaternion> current_rotations;
   Span<float> compliances;
+
+  MutableSpan<math::Quaternion> current_rotations;
   MutableSpan<float4> lambdas;
 };
 struct PinRotationConstraintChunkUsage {
@@ -618,7 +617,6 @@ class XpbdSolverStep {
     this->do_simulation();
 
     this->write_back__pin_positions();
-    this->write_back__pin_rotations();
     this->write_back__rod_stretch_shear();
 
     this->finish_common_attribute_writers();
@@ -1812,12 +1810,13 @@ class XpbdSolverStep {
       for (PinPositionConstraintUsage &constraint_usage : geo_data.pin_position_constraints) {
         const PinPositionConstraint &constraint =
             constraints_.pin_position_constraints[constraint_usage.constraint_i];
+
         const VArray<bool> selection_attr = *geo_data.attributes.lookup<bool>(
             fmt::format("{}:{}", attribute_names::pin_position_selection_prefix, constraint.path),
-            AttrDomain::Point);
+            geo_data.domain);
         const VArray<float3> positions_attr = *geo_data.attributes.lookup<float3>(
             fmt::format("{}:{}", attribute_names::pin_position_prefix, constraint.path),
-            AttrDomain::Point);
+            geo_data.domain);
         if (!positions_attr || !selection_attr) {
           continue;
         }
@@ -1825,22 +1824,21 @@ class XpbdSolverStep {
         if (pin_selection.is_empty()) {
           continue;
         }
-
         const VArray<float> compliances_attr = *geo_data.attributes.lookup_or_default<float>(
             fmt::format("{}:{}", attribute_names::pin_position_compliance_prefix, constraint.path),
-            AttrDomain::Point,
+            geo_data.domain,
             0.0f);
         const VArray<bool> prev_selection_attr = *geo_data.attributes.lookup<bool>(
             fmt::format(
                 "{}:{}", attribute_names::prev_pin_position_selection_prefix, constraint.path),
-            AttrDomain::Point);
+            geo_data.domain);
         const VArray<float3> prev_positions_attr = *geo_data.attributes.lookup<float3>(
             fmt::format("{}:{}", attribute_names::prev_pin_position_prefix, constraint.path),
-            AttrDomain::Point);
+            geo_data.domain);
 
-        MutableSpan<int> points = tls.allocator.allocate_array<int>(pin_selection.size());
-        pin_selection.to_indices(points);
         const int pin_num = pin_selection.size();
+        MutableSpan<int> points = tls.allocator.allocate_array<int>(pin_num);
+        pin_selection.to_indices(points);
 
         MutableSpan<float3> end_positions = tls.allocator.allocate_array<float3>(pin_num);
         MutableSpan<float> compliances = tls.allocator.allocate_array<float>(pin_num);
@@ -1951,6 +1949,7 @@ class XpbdSolverStep {
 
   void gather_from_world__pin_rotations()
   {
+    TLS &tls = tls_.local();
     const Span<std::string> paths = nested_bundle_paths_.lookup(PinRotationBundle::name);
     for (const StringRef path : paths) {
       const Bundle &bundle = **world_.lookup_path_ptr<BundlePtr>(path);
@@ -1961,12 +1960,6 @@ class XpbdSolverStep {
       }
       PinRotationConstraint constraint;
       constraint.path = path;
-      constraint.selection = this->get_field_or_constant<bool>(bundle, "selection", true);
-      constraint.rotation = *rotation_field;
-      constraint.compliance = this->get_field_or_constant<float>(bundle, "compliance", 0.0f);
-      constraint.prev_rotation_attr =
-          bundle.lookup<std::string>("previous_pin_rotation_attribute").value_or("");
-      constraint.was_pinned_attr = bundle.lookup<std::string>("was_pinned_attribute").value_or("");
       const int constraint_i = constraints_.pin_rotation_constraints.append_and_get_index(
           std::move(constraint));
 
@@ -1985,11 +1978,73 @@ class XpbdSolverStep {
       for (PinRotationConstraintUsage &constraint_usage : geo_data.pin_rotation_constraints) {
         const PinRotationConstraint &constraint =
             constraints_.pin_rotation_constraints[constraint_usage.constraint_i];
-        fn::FieldEvaluator &evaluator = this->get_field_evaluator(
-            data_key_i, geo_data.domain, constraint.selection);
-        constraint_usage.evaluator = &evaluator;
-        evaluator.add(constraint.rotation, &constraint_usage.rotations_varray);
-        evaluator.add(constraint.compliance, &constraint_usage.compliances_varray);
+
+        const VArray<bool> selection_attr = *geo_data.attributes.lookup<bool>(
+            fmt::format("{}:{}", attribute_names::pin_rotation_selection_prefix, constraint.path),
+            geo_data.domain);
+        const VArray<math::Quaternion> rotation_attr =
+            *geo_data.attributes.lookup<math::Quaternion>(
+                fmt::format("{}:{}", attribute_names::pin_rotation_prefix, constraint.path),
+                geo_data.domain);
+        if (!selection_attr || !rotation_attr) {
+          continue;
+        }
+        const IndexMask pin_selection = IndexMask::from_bools(selection_attr, tls.allocator);
+        if (pin_selection.is_empty()) {
+          continue;
+        }
+        const VArray<float> compliances_attr = *geo_data.attributes.lookup_or_default<float>(
+            fmt::format("{}:{}", attribute_names::pin_rotation_compliance_prefix, constraint.path),
+            geo_data.domain,
+            0.0f);
+        const VArray<bool> prev_selection_attr = *geo_data.attributes.lookup<bool>(
+            fmt::format(
+                "{}:{}", attribute_names::prev_pin_rotation_selection_prefix, constraint.path),
+            geo_data.domain);
+        const VArray<math::Quaternion> prev_rotations_attr =
+            *geo_data.attributes.lookup<math::Quaternion>(
+                fmt::format("{}:{}", attribute_names::prev_pin_rotation_prefix, constraint.path),
+                geo_data.domain);
+
+        const int pin_num = pin_selection.size();
+        MutableSpan<int> points = tls.allocator.allocate_array<int>(pin_num);
+        pin_selection.to_indices(points);
+
+        MutableSpan<math::Quaternion> end_rotations =
+            tls.allocator.allocate_array<math::Quaternion>(pin_num);
+        MutableSpan<float> compliances = tls.allocator.allocate_array<float>(pin_num);
+
+        rotation_attr.materialize_compressed_to_uninitialized(pin_selection, end_rotations);
+        compliances_attr.materialize_compressed_to_uninitialized(pin_selection, compliances);
+
+        constraint_usage.points = points;
+        constraint_usage.end_rotations = end_rotations;
+        constraint_usage.compliances = compliances;
+        /* These will be initialized later. */
+        constraint_usage.lambdas = tls.allocator.allocate_array<float4>(pin_num);
+        constraint_usage.current_rotations = tls.allocator.allocate_array<math::Quaternion>(
+            pin_num);
+
+        /* Initialize the previous pin rotation. */
+        if (prev_selection_attr && prev_rotations_attr) {
+          MutableSpan<math::Quaternion> begin_rotations =
+              tls.allocator.allocate_array<math::Quaternion>(pin_num);
+          threading::parallel_for(pin_selection.index_range(), 1024, [&](const IndexRange range) {
+            for (const int pin_i : range) {
+              const int point_i = points[pin_i];
+              const bool was_pinned = prev_selection_attr[point_i];
+              if (was_pinned) {
+                begin_rotations[pin_i] = prev_rotations_attr[point_i];
+                continue;
+              }
+              begin_rotations[pin_i] = geo_data.rotation_attr.span[point_i];
+            }
+          });
+          constraint_usage.begin_rotations = begin_rotations;
+        }
+        else {
+          constraint_usage.begin_rotations = end_rotations;
+        }
       }
     }
   }
@@ -2002,60 +2057,11 @@ class XpbdSolverStep {
       for (const int constraint_usage_i : geo_data.pin_rotation_constraints.index_range()) {
         PinRotationConstraintUsage &constraint_usage =
             geo_data.pin_rotation_constraints[constraint_usage_i];
-        const PinRotationConstraint &constraint =
-            constraints_.pin_rotation_constraints[constraint_usage.constraint_i];
-
-        const IndexMask &pin_mask = constraint_usage.evaluator->get_evaluated_selection_as_mask();
-        const int pin_num = pin_mask.size();
-
-        MutableSpan<int> points = tls.allocator.allocate_array<int>(pin_num);
-        MutableSpan<math::Quaternion> begin_rotations =
-            tls.allocator.allocate_array<math::Quaternion>(pin_num);
-        MutableSpan<math::Quaternion> end_rotations =
-            tls.allocator.allocate_array<math::Quaternion>(pin_num);
-        MutableSpan<math::Quaternion> current_rotations =
-            tls.allocator.allocate_array<math::Quaternion>(pin_num);
-        MutableSpan<float> compliances = tls.allocator.allocate_array<float>(pin_num);
-        MutableSpan<float4> lambdas = tls.allocator.allocate_array<float4>(pin_num);
-
-        constraint_usage.points = points;
-        constraint_usage.begin_rotations = begin_rotations;
-        constraint_usage.end_rotations = end_rotations;
-        constraint_usage.current_rotations = current_rotations;
-        constraint_usage.compliances = compliances;
-        constraint_usage.lambdas = lambdas;
-
-        pin_mask.to_indices(points);
-        constraint_usage.rotations_varray.materialize_compressed_to_uninitialized(pin_mask,
-                                                                                  end_rotations);
-        constraint_usage.compliances_varray.materialize_compressed_to_uninitialized(pin_mask,
-                                                                                    compliances);
-
-        const VArraySpan<math::Quaternion> prev_rotations_attr =
-            *geo_data.attributes.lookup<math::Quaternion>(constraint.prev_rotation_attr,
-                                                          geo_data.domain);
-        const VArraySpan<bool> was_pinned_attr = *geo_data.attributes.lookup<bool>(
-            constraint.was_pinned_attr, geo_data.domain);
-        const bool has_prev_info = !prev_rotations_attr.is_empty() && !was_pinned_attr.is_empty();
-
-        threading::parallel_for(IndexRange(pin_num), 1024, [&](const IndexRange range) {
-          for (const int pin_i : range) {
-            const int point_i = points[pin_i];
-            math::Quaternion &begin_rotation = begin_rotations[pin_i];
-            if (has_prev_info) {
-              if (was_pinned_attr[point_i]) {
-                begin_rotation = prev_rotations_attr[point_i];
-                continue;
-              }
-            }
-            begin_rotation = geo_data.rotation_attr.span[point_i];
-          }
-        });
 
         for (const int chunk_i : geo_data.chunks) {
           const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
           const IndexRange pin_range = unique_sorted_indices::find_content_range<int>(
-              points, chunk.points_range);
+              constraint_usage.points, chunk.points_range);
           if (pin_range.is_empty()) {
             continue;
           }
@@ -2064,52 +2070,10 @@ class XpbdSolverStep {
           chunk_data.static_constraints.append(
               &tls.scope.construct<xpbd::PinRotationConstraintSet>(
                   data_key_i,
-                  points.slice(pin_range),
-                  current_rotations.slice(pin_range),
-                  compliances.slice(pin_range),
-                  lambdas.slice(pin_range)));
-        }
-      }
-    }
-  }
-
-  void write_back__pin_rotations()
-  {
-    for (const int data_key_i : geometries_.data_keys.index_range()) {
-      GeometryData &geo_data = geometries_.data[data_key_i];
-      for (const PinRotationConstraintUsage &constraint_usage : geo_data.pin_rotation_constraints)
-      {
-        const PinRotationConstraint &constraint =
-            constraints_.pin_rotation_constraints[constraint_usage.constraint_i];
-        geo_data.attributes.remove(constraint.was_pinned_attr);
-        geo_data.attributes.remove(constraint.prev_rotation_attr);
-      }
-      for (const PinRotationConstraintUsage &constraint_usage : geo_data.pin_rotation_constraints)
-      {
-        if (constraint_usage.points.is_empty()) {
-          /* If there is nothing pinned, these attributes don't need to exist. */
-          continue;
-        }
-        const PinRotationConstraint &constraint =
-            constraints_.pin_rotation_constraints[constraint_usage.constraint_i];
-        if (bke::SpanAttributeWriter<bool> was_pinned_attr =
-                this->get_output_attribute_writer<bool>(
-                    data_key_i, constraint.was_pinned_attr, geo_data.domain))
-        {
-          for (const int point_i : constraint_usage.points) {
-            was_pinned_attr.span[point_i] = true;
-          }
-          was_pinned_attr.finish();
-        }
-        if (bke::SpanAttributeWriter<math::Quaternion> prev_rotation_attr =
-                this->get_output_attribute_writer<math::Quaternion>(
-                    data_key_i, constraint.prev_rotation_attr, geo_data.domain))
-        {
-          for (const int pin_i : constraint_usage.points.index_range()) {
-            const int point_i = constraint_usage.points[pin_i];
-            prev_rotation_attr.span[point_i] = constraint_usage.end_rotations[pin_i];
-          }
-          prev_rotation_attr.finish();
+                  constraint_usage.points.slice(pin_range),
+                  constraint_usage.current_rotations.slice(pin_range),
+                  constraint_usage.compliances.slice(pin_range),
+                  constraint_usage.lambdas.slice(pin_range)));
         }
       }
     }
