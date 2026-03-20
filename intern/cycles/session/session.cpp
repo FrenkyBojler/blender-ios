@@ -168,14 +168,14 @@ void Session::run_main_render_loop()
 
     if (!render_work) {
       if (LOG_IS_ON(LOG_LEVEL_INFO)) {
-        double total_time;
-        double render_time;
-        progress.get_time(total_time, render_time);
-        LOG_INFO << "Rendering in main loop is done in " << render_time << " seconds.";
         if (did_cancel) {
           LOG_INFO << "Rendering was canceled.";
         }
         else {
+          double total_time;
+          double render_time;
+          progress.get_time(total_time, render_time);
+          LOG_INFO << "Rendering in main loop is done in " << render_time << " seconds.";
           LOG_INFO << path_trace_->full_report();
         }
       }
