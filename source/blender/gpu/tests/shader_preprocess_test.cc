@@ -852,6 +852,77 @@ void func(ATfloat a) {}
     EXPECT_EQ(output, expect);
     EXPECT_EQ(error, "");
   }
+  {
+    /* Struct templated methods. */
+    string input = R"(
+namespace N {
+
+struct A {
+  int i;
+  template<typename T> static void fn1(T a) {}
+  template<typename T> static T fn2() { return T(0); }
+  template<typename T> void fn3(T a) { i += int(fn4<T>()); }
+  template<typename T> T fn4() { fn3(0); return T(0); }
+};
+
+template void A::fn1<int>(int);
+template int A::fn2<int>();
+template void A::fn3<int>(int);
+template int A::fn4<int>();
+
+void fn(A a)
+{
+  A::fn1(0);
+  A::fn2<int>();
+  a.fn3(0);
+  a.fn4<int>();
+}
+
+}
+)";
+    string expect = R"(
+#line 4
+struct N_A {
+  int i;
+
+
+
+
+
+
+#line 17
+};
+#line 25
+#ifndef GPU_METAL
+N_A N_A_ctor_();
+void N_A_fn1(int a);
+int N_A_fn2Tint();
+void _fn3(_ref(N_A ,this_), int a);
+int _fn4Tint(_ref(N_A ,this_));
+#endif
+#line 4
+                   N_A N_A_ctor_() {N_A r;r.i=0;return r;}
+#line 6
+       void N_A_fn1(int a) {}
+       int N_A_fn2Tint() { return int(0); }
+void _fn3(_ref(N_A ,this_), int a) { this_.i += int(_fn4Tint(this_)); }
+int _fn4Tint(_ref(N_A ,this_)) { _fn3(this_, 0); return int(0); }
+#line 24
+void N_fn(N_A a)
+{
+  N_A_fn1(0);
+  N_A_fn2Tint();
+  _fn3(a, 0);
+  _fn4Tint(a);
+}
+
+
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
 }
 GPU_TEST(preprocess_template_struct);
 
@@ -1237,6 +1308,16 @@ static void test_preprocess_static_branch()
 
   {
     string input = R"(
+struct Resources {
+  [[compilation_constant]] const int use_color_band;
+
+  void fn() {
+    if (use_color_band) [[static_branch]] {
+      test;
+    }
+  }
+};
+
 void func([[resource_table]] Resources &srt)
 {
   if (srt.use_color_band) [[static_branch]] {
@@ -1265,65 +1346,114 @@ void func([[resource_table]] Resources &srt)
 }
 )";
     string expect = R"(
+#define access_Resources_use_color_band() use_color_band
+#ifdef CREATE_INFO_RES_PASS_Resources
+CREATE_INFO_RES_PASS_Resources
+#endif
+#ifdef CREATE_INFO_RES_BATCH_Resources
+CREATE_INFO_RES_BATCH_Resources
+#endif
+#ifdef CREATE_INFO_RES_GEOMETRY_Resources
+CREATE_INFO_RES_GEOMETRY_Resources
+#endif
+#ifdef CREATE_INFO_RES_SHARED_VARS_Resources
+CREATE_INFO_RES_SHARED_VARS_Resources
+#endif
+#line 2
+struct Resources {
+#line 18
+int _pad;};
+#line 21
+#ifndef GPU_METAL
+Resources Resources_ctor_();
+void _fn(Resources  this_);
+Resources Resources_new_();
+#endif
+#line 2
+                         Resources Resources_ctor_() {Resources r;r._pad=0;return r;}
+#line 5
 
 #if defined(CREATE_INFO_Resources)
-#line 2
-void func(Resources  srt)
-{
+#line 5
+  void _fn(Resources  this_) {
 
 #if SRT_CONSTANT_use_color_band
-#line 4
-                                                               {
-    test;
-  }
-#endif
+#line 6
+                                                                 {
+      test;
+    }
 
-#if SRT_CONSTANT_use_color_band == 1
-#line 8
-                                                                    {
-    test;
-  }
-#else
-#line 10
-         {
-    test;
+#endif
+#line 9
   }
 #endif
+       Resources Resources_new_()
+{
+  Resources result;
+  result._pad = 0;
+  return result;
+#line 9
+}
+#line 12
+
+#if defined(CREATE_INFO_Resources)
+#line 12
+void func(Resources  srt)
+{
 
 #if SRT_CONSTANT_use_color_band
 #line 14
                                                                {
     test;
   }
+#endif
+
+#if SRT_CONSTANT_use_color_band == 1
+#line 18
+                                                                    {
+    test;
+  }
+#else
+#line 20
+         {
+    test;
+  }
+#endif
+
+#if SRT_CONSTANT_use_color_band
+#line 24
+                                                               {
+    test;
+  }
 #elif SRT_CONSTANT_use_color_band
-#line 16
+#line 26
                                                                       {
     test;
   }
 #endif
 
 #if SRT_CONSTANT_use_color_band
-#line 20
+#line 30
                                                                {
     test;
   }
 #elif SRT_CONSTANT_use_color_band
-#line 22
+#line 32
                                                                       {
     test;
   }
 #else
-#line 24
+#line 34
          {
     test;
   }
 
 #endif
-#line 27
+#line 37
 }
 
 #endif
-#line 28
+#line 38
 )";
     string error;
     string output = process_test_string(input, error);
@@ -1356,7 +1486,9 @@ void func([[resource_table]] Resources &srt)
 )";
     string error;
     string output = process_test_string(input, error);
-    EXPECT_EQ(error, "Expecting compilation or specialization constant.");
+    EXPECT_EQ(error,
+              "Expecting compilation or specialization constant. Make sure SRT arguments "
+              "have the [[resource_table]] attribute.");
   }
   {
     string input = R"(

@@ -119,12 +119,13 @@ SourceProcessor::Result SourceProcessor::convert(vector<Symbol> symbols_set)
       /* Lower SRT and Interfaces. */
       lower_entry_points(parser);
       lower_pipeline_definition(parser, filename);
+      /* Lower implicit members before we remove SRT member from their struct. */
+      lower_implicit_member(parser);
       lower_resource_table(parser);
       lower_resource_access_functions(parser);
       /* Lower class methods. */
       lower_default_constructors(parser);
       lower_function_default_arguments(parser);
-      lower_implicit_member(parser);
       lower_method_definitions(parser);
       lower_method_calls(parser);
       lower_empty_struct(parser);
@@ -437,9 +438,23 @@ void SourceProcessor::parse_includes(Parser &parser)
   });
 }
 
+bool SourceProcessor::has_pragma(Parser &parser, string_view pragma_str)
+{
+  bool has_pragma = false;
+  /* Can't use foreach_match because it skips preprocessor scopes. */
+  parser().foreach_token(Hash, [&](Token tok) {
+    if (tok.scope().type() == ScopeType::Preprocessor && tok.next(1).str() == "pragma" &&
+        tok.next(2).str() == pragma_str)
+    {
+      has_pragma = true;
+    }
+  });
+  return has_pragma;
+}
+
 void SourceProcessor::parse_pragma_runtime_generated(Parser &parser)
 {
-  if (parser.str().find("\n#pragma runtime_generated") != string::npos) {
+  if (has_pragma(parser, "runtime_generated")) {
     metadata_.builtins.emplace_back(metadata::Builtin::runtime_generated);
   }
 }
@@ -449,7 +464,7 @@ void SourceProcessor::lint_pragma_once(Parser &parser, const string &filename)
   if (filename.find("_lib.") == string::npos && filename.find(".hh") == string::npos) {
     return;
   }
-  if (parser.str().find("\n#pragma once") == string::npos) {
+  if (!has_pragma(parser, "once")) {
     report_error_(0, 0, "", "Header files must contain #pragma once directive.");
   }
 }
@@ -1328,6 +1343,11 @@ void SourceProcessor::lower_function_default_arguments(Parser &parser)
       });
 
   parser.apply_mutations();
+
+  /* The above code can produce call to methods without `this->` prefix.
+   * Since lower_implicit_member was already called, we call it again to process these few
+   * occurrences. */
+  lower_implicit_member(parser);
 }
 
 /* Successive mutations can introduce a lot of unneeded line directives. */

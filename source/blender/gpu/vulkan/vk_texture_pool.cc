@@ -66,7 +66,7 @@ static VkImage create_and_bind_vk_image(const VKImageInfo &info, const std::stri
   UNUSED_VARS_NDEBUG(create_result);
   BLI_assert(create_result == VK_SUCCESS);
 
-  /* Bind VkImage handle to provived VmaAllocation. */
+  /* Bind VkImage handle to provided VmaAllocation. */
   VkResult bind_result = vmaBindImageMemory2(
       device.mem_allocator_get(), info.allocation, info.segment.offset, image, nullptr);
   UNUSED_VARS_NDEBUG(bind_result);
@@ -554,7 +554,7 @@ void VKTexturePool::log_usage_data()
     log_message += std::format(" ({} cached VkImages)", current_usage_data_.image_cache_size);
   }
 
-  CLOG_TRACE(&LOG, log_message.c_str());
+  CLOG_TRACE(&LOG, "%s", log_message.c_str());
 }
 
 }  // namespace gpu
