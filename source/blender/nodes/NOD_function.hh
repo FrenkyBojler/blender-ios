@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <variant>
+
 #include "FN_field.hh"
 
 #include "DNA_node_types.h"
@@ -17,6 +19,6 @@ struct IndexTransform {
   bool index_is_reversed;
 };
 
-std::optional<IndexTransform> field_as_range(const fn::Field<int> &index_field);
+std::variant<std::monostate, int, IndexTransform> field_as_index_transform(const fn::Field<int> &index_field);
 
 }  // namespace blender::nodes

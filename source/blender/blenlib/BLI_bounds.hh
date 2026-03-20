@@ -282,6 +282,12 @@ inline Bounds<VecBase<T, 2>> transform_bounds(const MatBase<T, D, D> &matrix,
   return {math::min(Span(points)), math::max(Span(points))};
 }
 
+template<typename T, typename OtherT>
+inline Bounds<T> rotate(const Bounds<T> value, const OtherT &origin)
+{
+  return {origin - value.max, origin - value.min};
+}
+
 namespace detail {
 
 template<typename T, int Size>
@@ -512,14 +518,24 @@ template<typename T> inline bool Bounds<T>::intersects_segment(const T &start, c
   }
 }
 
-template<typename T> inline Bounds<T> operator+(const Bounds<T> &a, const T &b)
+template<typename T, typename OtherT> inline Bounds<T> operator+(const Bounds<T> &a, const OtherT &b)
 {
   return {a.min + b, a.max + b};
 }
 
-template<typename T> inline Bounds<T> operator+(const T &a, const Bounds<T> &b)
+template<typename T, typename OtherT> inline Bounds<T> operator+(const OtherT &a, const Bounds<T> &b)
 {
   return {a + b.min, a + b.max};
+}
+
+template<typename T, typename OtherT> inline Bounds<T> operator-(const OtherT &a, const Bounds<T> &b)
+{
+  return {a - b.min, a - b.max};
+}
+
+template<typename T, typename OtherT> inline Bounds<T> operator-(const Bounds<T> &a, const OtherT &b)
+{
+  return {a.min - b, a.max - b};
 }
 
 template<typename T> inline Bounds<T> operator-(const Bounds<T> &value)

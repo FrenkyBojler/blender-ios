@@ -115,6 +115,7 @@ const mf::MultiFunction &int_math_op(const NodeIntegerMathOperation operation)
   }
 
   BLI_assert_unreachable();
+  return add_fn;
 }
 
 }  // namespace blender::nodes

@@ -2,6 +2,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <iostream>
+#include <sstream>
+
 #include "BLI_array_utils.hh"
 #include "BLI_bounds.hh"
 #include "BLI_bounds_types.hh"
@@ -609,6 +612,69 @@ static void reverse_copy(const GVArray &src, const IndexMask &mask, GMutableSpan
   });
 }
 
+static Bounds<int64_t> to_bounds(const IndexRange range)
+{
+  return {range.start(), range.one_after_last()};
+}
+
+static IndexRange to_range(const Bounds<int64_t> bounds)
+{
+  return IndexRange::from_begin_end(bounds.min, bounds.max);
+}
+
+static GVArray copy_with_transform(const nodes::IndexTransform &transform,
+                                   const GVArray &src,
+                                   const IndexMask &mask)
+{
+  /* If range is reversed then .start() is end so must add one to make it .last() */
+  const int first_index_offset = transform.shift +
+                                 int(transform.index_is_reversed);
+
+  const Bounds<int64_t> input_dst_bounds = to_bounds(mask.bounds());
+  const Bounds<int64_t> input_src_bounds = (transform.index_is_reversed ?
+                                                bounds::rotate<int64_t>(input_dst_bounds, 0) :
+                                                input_dst_bounds) +
+                                           first_index_offset;
+
+  const std::optional<Bounds<int64_t>> src_bounds = bounds::intersect<int64_t>(to_bounds(src.index_range()), input_src_bounds);
+  if (!src_bounds.has_value()) {
+    return {};
+  }
+
+  const Bounds<int64_t> dst_bounds = transform.index_is_reversed ?
+                                     bounds::rotate(*src_bounds - first_index_offset, 0) :
+                                     (*src_bounds - first_index_offset);
+
+  const IndexRange src_range = to_range(*src_bounds);
+  const IndexRange dst_range = to_range(dst_bounds);
+  const IndexMask valid_mask = mask.slice_content(dst_range);
+  if (valid_mask.is_empty()) {
+    return {};
+  }
+
+  IndexMaskMemory memory;
+  GArray<> dst_array(src.type(), mask.min_array_size());
+
+  if (transform.index_is_reversed) {
+    reverse_copy(src.slice(src_range),
+                 valid_mask.shift(-dst_range.first(), memory),
+                 dst_array.as_mutable_span().slice(dst_range));
+  }
+  else {
+    array_utils::copy(src.slice(src_range),
+                      valid_mask.shift(-dst_range.first(), memory),
+                      dst_array.as_mutable_span().slice(dst_range));
+  }
+
+  dst_array.type().value_initialize_indices(dst_array.data(),
+                                            valid_mask.complement(mask, memory));
+
+  return GVArray::from_garray(std::move(dst_array));
+}
+
+static int samples = 0;
+static int good_samples = 0;
+
 GVArray EvaluateAtIndexInput::get_varray_for_context(const bke::GeometryFieldContext &context,
                                                      const IndexMask &mask) const
 {
@@ -624,75 +690,23 @@ GVArray EvaluateAtIndexInput::get_varray_for_context(const bke::GeometryFieldCon
   value_evaluator.evaluate();
   const GVArray &values = value_evaluator.get_evaluated(0);
 
-  const IndexRange mask_bounds = mask.bounds();
-  const std::optional<nodes::IndexTransform> bounds_transform = nodes::field_as_range(
-      index_field_);
-  if (bounds_transform.has_value()) {
-    if (bounds_transform->index_is_reversed) {
-      const auto range_to_read = Bounds<int64_t>(-mask_bounds.one_after_last(),
-                                                 -mask_bounds.first()) +
-                                 (bounds_transform->shift + 1);
-      const std::optional<Bounds<int64_t>> src_bounds = bounds::intersect<int64_t>(
-          {0, domain_size}, range_to_read);
-      if (!src_bounds.has_value()) {
-        return {};
-      }
+  samples++;
 
-      const Bounds<int64_t> shifted_back = *src_bounds - (bounds_transform->shift + 1);
-      const auto dst_bounds = Bounds<int64_t>(-shifted_back.max, -shifted_back.min);
-      const IndexRange src_range = IndexRange::from_begin_end(src_bounds->min, src_bounds->max);
-      const IndexRange dst_range = IndexRange::from_begin_end(dst_bounds.min, dst_bounds.max);
-      const IndexMask valid_mask = mask.slice_content(dst_range);
-
-      if (valid_mask.is_empty()) {
-        return {};
-      }
-
-      IndexMaskMemory memory;
-      GArray<> dst_array(values.type(), mask.min_array_size());
-
-      reverse_copy(values.slice(src_range),
-                   valid_mask.shift(-dst_range.first(), memory),
-                   dst_array.as_mutable_span().slice(dst_range));
-
-      dst_array.type().value_initialize_indices(dst_array.data(),
-                                                valid_mask.complement(mask, memory));
-
-      return GVArray::from_garray(std::move(dst_array));
-    }
-    else {
-      const int64_t offset = bounds_transform->shift;
-      const auto range_to_read = Bounds<int64_t>(mask_bounds.first(),
-                                                 mask_bounds.one_after_last()) +
-                                 offset;
-      const std::optional<Bounds<int64_t>> src_bounds = bounds::intersect<int64_t>(
-          {0, domain_size}, range_to_read);
-      if (!src_bounds.has_value()) {
-        return {};
-      }
-
-      const Bounds<int64_t> dst_bounds = *src_bounds - offset;
-      const IndexRange src_range = IndexRange::from_begin_end(src_bounds->min, src_bounds->max);
-      const IndexRange dst_range = IndexRange::from_begin_end(dst_bounds.min, dst_bounds.max);
-      const IndexMask valid_mask = mask.slice_content(dst_range);
-
-      if (valid_mask.is_empty()) {
-        return {};
-      }
-
-      IndexMaskMemory memory;
-      GArray<> dst_array(values.type(), mask.min_array_size());
-
-      array_utils::copy(values.slice(src_range),
-                        valid_mask.shift(-dst_range.first(), memory),
-                        dst_array.as_mutable_span().slice(dst_range));
-
-      dst_array.type().value_initialize_indices(dst_array.data(),
-                                                valid_mask.complement(mask, memory));
-
-      return GVArray::from_garray(std::move(dst_array));
-    }
+  const std::variant<std::monostate, int, nodes::IndexTransform> bounds_transform = nodes::field_as_index_transform(index_field_);
+  if (std::holds_alternative<nodes::IndexTransform>(bounds_transform)) {
+    
+    good_samples++;
+    
+    std::stringstream aaa;
+    aaa << samples << ", " <<  good_samples << ";\n";
+    std::cout << aaa.str();
+    
+    return copy_with_transform(*std::get_if<nodes::IndexTransform>(&bounds_transform), values, mask);
   }
+    
+  std::stringstream aaa;
+  aaa << samples << ", " <<  good_samples << ";\n";
+  std::cout << aaa.str();
 
   GArray<> dst_array(values.type(), mask.min_array_size());
 
