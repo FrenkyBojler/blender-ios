@@ -806,20 +806,6 @@ class MainAllIDsIterator {
     return tmp;
   }
 
-  // MainAllIDsIterator rbegin() const
-  // {
-  //   MainAllIDsIterator tmp = this->end();
-  //   return --tmp;
-  // }
-
-  // MainAllIDsIterator rend() const
-  // {
-  //   MainAllIDsIterator tmp = *this;
-  //   tmp.curr_lbarray_index_ = -1;
-  //   tmp.curr_id_ = nullptr;
-  //   return tmp;
-  // }
-
   MainAllIDsIterator &operator++();
 
   MainAllIDsIterator operator++(int)
@@ -841,11 +827,6 @@ class MainAllIDsIterator {
   friend bool operator==(const MainAllIDsIterator &a, const MainAllIDsIterator &b)
   {
     return a.curr_id_ == b.curr_id_ && a.curr_lbarray_index_ == b.curr_lbarray_index_;
-  }
-
-  friend bool operator!=(const MainAllIDsIterator &a, const MainAllIDsIterator &b)
-  {
-    return a.curr_id_ != b.curr_id_ || a.curr_lbarray_index_ != b.curr_lbarray_index_;
   }
 
   ID &operator*() const
