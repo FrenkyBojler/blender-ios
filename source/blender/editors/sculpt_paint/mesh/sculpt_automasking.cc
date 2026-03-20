@@ -1672,11 +1672,11 @@ std::unique_ptr<Cache> cache_init(const Depsgraph &depsgraph,
 
   vert_random_access_ensure(ob);
   if (mode & BRUSH_AUTOMASKING_TOPOLOGY && ss.active_vert_index() != -1) {
-    const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(ob);
     islands::ensure_cache(ob);
 
     std::array<int, PAINT_SYMM_AREAS> sym_verts = find_all_symm_verts(
         depsgraph, ob, ss.active_vert_index(), std::numeric_limits<float>::max());
+    const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(ob);
 
     for (int symm_it = 0; symm_it < PAINT_SYMM_AREAS; symm_it++) {
       if (!is_symmetry_iteration_valid(symm_it, symm)) {
