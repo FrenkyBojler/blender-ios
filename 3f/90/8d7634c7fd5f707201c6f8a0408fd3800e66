@@ -2,3 +2,4 @@ Referenced by pull request #155578, RNA: Remove DNA dependency in rna_def_proper
 Referenced by commit 6f7ae3372ac2699770d92c1b628dcfd0cdca82c4, RNA: Remove DNA dependency in rna_def_property_lookup_int_func
 Referenced by issue #155858, Blender 5.1 performance regression when accessing UV vectors in Python
 Referenced by pull request #155867, Fix #155858: accessing UV vectors in Python is extremely slow
+Referenced by pull request #156014, Use attribute dedicated lookup_int for Float4
