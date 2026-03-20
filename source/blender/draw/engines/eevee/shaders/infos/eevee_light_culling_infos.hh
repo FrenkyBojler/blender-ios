@@ -80,20 +80,6 @@ STORAGE_BUF(2, write, uint, out_light_tile_buf[])
 COMPUTE_SOURCE("eevee_light_culling_tile_comp.glsl")
 GPU_SHADER_CREATE_END()
 
-GPU_SHADER_CREATE_INFO(eevee_light_shadow_setup)
-DO_STATIC_COMPILATION()
-TYPEDEF_SOURCE("eevee_light_shared.hh")
-TYPEDEF_SOURCE("eevee_shadow_shared.hh")
-ADDITIONAL_INFO(eevee_sampling_data)
-ADDITIONAL_INFO(eevee_global_ubo)
-LOCAL_GROUP_SIZE(CULLING_SELECT_GROUP_SIZE)
-STORAGE_BUF(0, read, LightCullingData, light_cull_buf)
-STORAGE_BUF(1, read_write, LightData, light_buf[])
-STORAGE_BUF(2, read_write, ShadowTileMapData, tilemaps_buf[])
-STORAGE_BUF(3, read_write, ShadowTileMapClip, tilemaps_clip_buf[])
-COMPUTE_SOURCE("eevee_light_shadow_setup_comp.glsl")
-GPU_SHADER_CREATE_END()
-
 /** \} */
 
 /* -------------------------------------------------------------------- */

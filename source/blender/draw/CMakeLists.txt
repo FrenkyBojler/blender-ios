@@ -463,7 +463,7 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_light_culling_sort_comp.glsl
   engines/eevee/shaders/eevee_light_culling_tile_comp.glsl
   engines/eevee/shaders/eevee_light_culling_zbin_comp.glsl
-  engines/eevee/shaders/eevee_light_shadow_setup_comp.glsl
+  engines/eevee/shaders/eevee_light_shadow_setup.bsl.hh
   engines/eevee/shaders/eevee_light_eval_lib.glsl
   engines/eevee/shaders/eevee_light_iter_lib.glsl
   engines/eevee/shaders/eevee_light_lib.glsl
