@@ -12,6 +12,7 @@
 #include "BKE_mesh_sample.hh"
 
 #include "BLI_stack.hh"
+#include "BLI_virtual_array_range_spans.hh"
 
 #include "DNA_curves_types.h"
 #include "DNA_mesh_types.h"
@@ -133,8 +134,8 @@ struct DampingConstraint {
 struct DampingConstraintUsage {
   /** Index of corresponding #DampingConstraint. */
   int constraint_i;
-  VArray<float> linear_dampings;
-  VArray<float> angular_dampings;
+  VArrayRangeSpans<float> linear_dampings;
+  VArrayRangeSpans<float> angular_dampings;
   MutableSpan<float> linear_damping_lambdas;
   MutableSpan<float> angular_damping_lambdas;
 };
@@ -148,7 +149,7 @@ struct RodStretchShearConstraintUsage {
   /** Index of corresponding #RodStretchShearConstraint. */
   int constraint_i;
   VArraySpan<float> rest_lengths;
-  VArray<float> compliances;
+  VArrayRangeSpans<float> compliances;
   MutableSpan<float3> lambdas_pos;
   MutableSpan<float3> lambdas_rot;
 };
@@ -160,7 +161,7 @@ struct RodBendTwistConstraintUsage {
   /** Index of corresponding #RodBendTwistConstraint. */
   int constraint_i;
   VArraySpan<math::Quaternion> rest_bend_rotations;
-  VArray<float> compliances;
+  VArrayRangeSpans<float> compliances;
   MutableSpan<float4> lambdas;
 };
 
@@ -444,40 +445,6 @@ struct ChunkData {
   ExternalPlaneContacts external_plane_contacts;
 };
 
-template<typename T> class VArraySpanGetter {
- private:
-  const int max_range_size_;
-  std::optional<Span<T>> full_span_;
-  std::optional<Span<T>> chunk_span_;
-
- public:
-  VArraySpanGetter(ResourceScope &scope, const VArray<T> &varray, const int max_range_size)
-      : max_range_size_(max_range_size)
-  {
-    if (varray.is_span()) {
-      full_span_ = varray.get_internal_span();
-    }
-    else if (const std::optional<T> single_value = varray.get_if_single()) {
-      chunk_span_ = scope.allocator().construct_array<T>(max_range_size, *single_value);
-    }
-    else {
-      MutableSpan<T> full_span = scope.allocator().allocate_array<T>(max_range_size);
-      varray.materialize_to_uninitialized(full_span);
-      full_span_ = full_span;
-    }
-  }
-
-  Span<T> get_span_for_range(const IndexRange range) const
-  {
-    const int range_size = range.size();
-    BLI_assert(range_size <= max_range_size_);
-    if (full_span_) {
-      return full_span_->slice(range);
-    }
-    return chunk_span_->take_front(range_size);
-  }
-};
-
 struct ConstraintsInfo {
   Vector<InfinitePlaneCollider> infinite_plane_colliders;
   Vector<MeshCollider> mesh_colliders;
@@ -556,6 +523,8 @@ class XpbdSolverStep {
     this->gather_nested_bundle_paths();
     this->gather_from_world__geometries();
     this->prepare_geometry_chunks();
+    this->prepare_inverse_masses();
+    this->prepare_inverse_moments_of_inertia();
 
     this->gather_from_world__infinite_plane_colliders();
     this->gather_from_world__mesh_colliders();
@@ -566,11 +535,12 @@ class XpbdSolverStep {
     this->gather_from_world__pin_positions();
     this->gather_from_world__pin_rotations();
 
-    this->prepare_inverse_masses();
-    this->prepare_inverse_moments_of_inertia();
+    this->parallel_for_each_chunk(32, [&](const int chunk_i) {
+      TLS &tls = tls_.local();
+      this->create_chunk_constraints__rod_stretch_shear(tls, chunk_i);
+      this->create_chunk_constraints__rod_bend_twist(tls, chunk_i);
+    });
 
-    this->create_constraints__rod_stretch_shear();
-    this->create_constraints__rod_bend_twist();
     this->create_constraints__damping();
     this->create_constraints__pin_positions();
     this->create_constraints__pin_rotations();
@@ -1452,8 +1422,10 @@ class XpbdSolverStep {
         const RodStretchShearConstraint &constraint =
             constraints_.rod_stretch_shear_constraints[constraint_usage.constraint_i];
 
-        constraint_usage.compliances = *geo_data.attributes.lookup_or_default<float>(
-            this->prop_attr_name(constraint.path, "compliance"), geo_data.domain, 0.0f);
+        constraint_usage.compliances = this->make_range_spans(
+            tls,
+            *geo_data.attributes.lookup_or_default<float>(
+                this->prop_attr_name(constraint.path, "compliance"), geo_data.domain, 0.0f));
         constraint_usage.rest_lengths = *geo_data.attributes.lookup_or_default<float>(
             this->prop_attr_name(constraint.path, "rest_length"), geo_data.domain, 0.0f);
 
@@ -1463,34 +1435,28 @@ class XpbdSolverStep {
     }
   }
 
-  void create_constraints__rod_stretch_shear()
+  void create_chunk_constraints__rod_stretch_shear(TLS &tls, const int chunk_i)
   {
-    TLS &tls = tls_.local();
-    for (const int data_key_i : geometries_.data_keys.index_range()) {
-      GeometryData &geo_data = geometries_.data[data_key_i];
-      for (const RodStretchShearConstraintUsage &constraint_usage :
-           geo_data.rod_stretch_shear_constraints)
-      {
-        bke::CurvesGeometry &curves = *geo_data.curves;
-        const OffsetIndices<int> points_by_curve = curves.points_by_curve();
-
-        const VArraySpanGetter<float> compliances{
-            tls.scope, constraint_usage.compliances, geometries_.max_chunk_size};
-
-        for (const int chunk_i : geo_data.chunks) {
-          const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
-          ChunkData &chunk_data = chunks_data_[chunk_i];
-          chunk_data.static_constraints.append(
-              &tls.scope.construct<xpbd::RodStretchAndShearConstraintSet>(
-                  data_key_i,
-                  *chunk.curves_range,
-                  points_by_curve,
-                  constraint_usage.rest_lengths,
-                  compliances.get_span_for_range(chunk.points_range),
-                  constraint_usage.lambdas_pos,
-                  constraint_usage.lambdas_rot));
-        }
-      }
+    const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
+    ChunkData &chunk_data = chunks_data_[chunk_i];
+    const GeometryData &geo_data = geometries_.data[chunk.data_key_i];
+    if (geo_data.rod_stretch_shear_constraints.is_empty()) {
+      return;
+    }
+    const bke::CurvesGeometry &curves = *geo_data.curves;
+    const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+    for (const RodStretchShearConstraintUsage &constraint_usage :
+         geo_data.rod_stretch_shear_constraints)
+    {
+      chunk_data.static_constraints.append(
+          &tls.scope.construct<xpbd::RodStretchAndShearConstraintSet>(
+              chunk.data_key_i,
+              *chunk.curves_range,
+              points_by_curve,
+              constraint_usage.rest_lengths,
+              constraint_usage.compliances.get_span_for_range(chunk.points_range),
+              constraint_usage.lambdas_pos,
+              constraint_usage.lambdas_rot));
     }
   }
 
@@ -1556,8 +1522,10 @@ class XpbdSolverStep {
         const RodBendTwistConstraint &constraint =
             constraints_.rod_bend_twist_constraints[constraint_usage.constraint_i];
         constraint_usage.lambdas = tls.allocator.allocate_array<float4>(geo_data.size);
-        constraint_usage.compliances = *geo_data.attributes.lookup_or_default<float>(
-            this->prop_attr_name(constraint.path, "compliance"), geo_data.domain, 0.0f);
+        constraint_usage.compliances = this->make_range_spans(
+            tls,
+            *geo_data.attributes.lookup_or_default<float>(
+                this->prop_attr_name(constraint.path, "compliance"), geo_data.domain, 0.0f));
         constraint_usage.rest_bend_rotations =
             *geo_data.attributes.lookup_or_default<math::Quaternion>(
                 this->prop_attr_name(constraint.path, "rest_bend_rotation"),
@@ -1567,32 +1535,26 @@ class XpbdSolverStep {
     }
   }
 
-  void create_constraints__rod_bend_twist()
+  void create_chunk_constraints__rod_bend_twist(TLS &tls, const int chunk_i)
   {
-    TLS &tls = tls_.local();
-    for (const int data_key_i : geometries_.data_keys.index_range()) {
-      GeometryData &geo_data = geometries_.data[data_key_i];
-      for (const RodBendTwistConstraintUsage &constraint_usage :
-           geo_data.rod_bend_twist_constraints)
-      {
-        bke::CurvesGeometry &curves = *geo_data.curves;
-        const OffsetIndices<int> points_by_curve = curves.points_by_curve();
-
-        const VArraySpanGetter<float> compliances{
-            tls.scope, constraint_usage.compliances, geometries_.max_chunk_size};
-
-        for (const int chunk_i : geo_data.chunks) {
-          const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
-          chunks_data_[chunk_i].static_constraints.append(
-              &tls.scope.construct<xpbd::RodBendAndTwistConstraintSet>(
-                  data_key_i,
-                  *chunk.curves_range,
-                  points_by_curve,
-                  constraint_usage.rest_bend_rotations,
-                  compliances.get_span_for_range(chunk.points_range),
-                  constraint_usage.lambdas));
-        }
-      }
+    const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
+    ChunkData &chunk_data = chunks_data_[chunk_i];
+    const GeometryData &geo_data = geometries_.data[chunk.data_key_i];
+    if (geo_data.rod_bend_twist_constraints.is_empty()) {
+      return;
+    }
+    const bke::CurvesGeometry &curves = *geo_data.curves;
+    const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+    for (const RodBendTwistConstraintUsage &constraint_usage : geo_data.rod_bend_twist_constraints)
+    {
+      chunk_data.static_constraints.append(
+          &tls.scope.construct<xpbd::RodBendAndTwistConstraintSet>(
+              chunk.data_key_i,
+              *chunk.curves_range,
+              points_by_curve,
+              constraint_usage.rest_bend_rotations,
+              constraint_usage.compliances.get_span_for_range(chunk.points_range),
+              constraint_usage.lambdas));
     }
   }
 
@@ -1686,10 +1648,14 @@ class XpbdSolverStep {
       for (DampingConstraintUsage &constraint_usage : geo_data.damping_constraints) {
         const DampingConstraint &constraint =
             constraints_.damping_constraints[constraint_usage.constraint_i];
-        constraint_usage.linear_dampings = *geo_data.attributes.lookup_or_default<float>(
-            this->prop_attr_name(constraint.path, "linear"), geo_data.domain, 0.0f);
-        constraint_usage.angular_dampings = *geo_data.attributes.lookup_or_default<float>(
-            this->prop_attr_name(constraint.path, "angular"), geo_data.domain, 0.0f);
+        constraint_usage.linear_dampings = this->make_range_spans(
+            tls,
+            *geo_data.attributes.lookup_or_default<float>(
+                this->prop_attr_name(constraint.path, "linear"), geo_data.domain, 0.0f));
+        constraint_usage.angular_dampings = this->make_range_spans(
+            tls,
+            *geo_data.attributes.lookup_or_default<float>(
+                this->prop_attr_name(constraint.path, "angular"), geo_data.domain, 0.0f));
 
         constraint_usage.linear_damping_lambdas = tls.allocator.allocate_array<float>(
             geo_data.size);
@@ -1706,11 +1672,6 @@ class XpbdSolverStep {
       GeometryData &geo_data = geometries_.data[data_key_i];
 
       for (DampingConstraintUsage &constraint_usage : geo_data.damping_constraints) {
-        const VArraySpanGetter<float> linear_dampings{
-            tls.scope, constraint_usage.linear_dampings, geometries_.max_chunk_size};
-        const VArraySpanGetter<float> angular_dampings{
-            tls.scope, constraint_usage.angular_dampings, geometries_.max_chunk_size};
-
         for (const int chunk_i : geo_data.chunks) {
           const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
           ChunkData &chunk_data = chunks_data_[chunk_i];
@@ -1719,14 +1680,14 @@ class XpbdSolverStep {
               &tls.scope.construct<xpbd::LinearDampingConstraintSet>(
                   data_key_i,
                   chunk.points_range,
-                  linear_dampings.get_span_for_range(chunk.points_range),
+                  constraint_usage.linear_dampings.get_span_for_range(chunk.points_range),
                   constraint_usage.linear_damping_lambdas.slice(chunk.points_range)));
           if (geo_data.uses_rotation) {
             chunk_data.static_velocity_constraints.append(
                 &tls.scope.construct<xpbd::AngularDampingConstraintSet>(
                     data_key_i,
                     chunk.points_range,
-                    angular_dampings.get_span_for_range(chunk.points_range),
+                    constraint_usage.angular_dampings.get_span_for_range(chunk.points_range),
                     constraint_usage.angular_damping_lambdas.slice(chunk.points_range)));
           }
         }
@@ -2534,6 +2495,11 @@ class XpbdSolverStep {
       GeometrySetData &geo_set_data = geometries_.geometry_sets[geo_bundle_i];
       world_.add_path_override(geo_set_data.path, std::move(geo_set_data.geometry));
     }
+  }
+
+  template<typename T> VArrayRangeSpans<T> make_range_spans(TLS &tls, const VArray<T> &varray)
+  {
+    return VArrayRangeSpans<T>(tls.scope, varray, geometries_.max_chunk_size);
   }
 
   std::string prop_attr_name(const StringRef effector_path, const StringRef prop_name) const
