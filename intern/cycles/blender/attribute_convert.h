@@ -57,6 +57,8 @@ template<> struct AttributeConverter<blender::float3> {
 template<> struct AttributeConverter<blender::float4> {
   using CyclesT = float4;
   static constexpr auto type_desc = TypeFloat4;
+  /* Allocation alignment is not compatible with Cycles */
+  static constexpr bool layout_compatible = false;
   static CyclesT convert(const blender::float4 &value)
   {
     return make_float4(value[0], value[1], value[2], value[3]);
@@ -65,7 +67,8 @@ template<> struct AttributeConverter<blender::float4> {
 template<> struct AttributeConverter<blender::ColorGeometry4f> {
   using CyclesT = float4;
   static constexpr auto type_desc = TypeRGBA;
-  static constexpr bool layout_compatible = true;
+  /* Allocation alignment is not compatible with Cycles */
+  static constexpr bool layout_compatible = false;
   static CyclesT convert(const blender::ColorGeometry4f &value)
   {
     return make_float4(value[0], value[1], value[2], value[3]);
