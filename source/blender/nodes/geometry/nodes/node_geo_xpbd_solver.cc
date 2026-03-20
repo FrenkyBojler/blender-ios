@@ -70,7 +70,11 @@ constexpr StringRefNull prev_pin_rotation_selection_prefix = SIM_PROP_PREV
 constexpr StringRefNull linear_damping_prefix = SIM_PROP "linear_damping";
 constexpr StringRefNull angular_damping_prefix = SIM_PROP "angular_damping";
 
+constexpr StringRefNull edge_length_prefix = SIM_PROP "edge_length";
+constexpr StringRefNull edge_length_compliance_prefix = SIM_PROP "edge_length_compliance";
+
 #undef SIM_PROP
+#undef SIM_PROP_PREV
 
 }  // namespace attribute_names
 
@@ -230,8 +234,6 @@ struct PinRotationConstraintChunkUsage {
 
 struct EdgeLengthConstraint {
   std::string path;
-  Field<float> rest_length;
-  Field<float> compliance;
 };
 struct EdgeLengthConstraintUsage {
   /** Index of corresponding #EdgeLengthConstraint. */
@@ -1644,13 +1646,8 @@ class XpbdSolverStep {
     const Span<std::string> paths = nested_bundle_paths_.lookup(EdgeLengthConstraintBundle::name);
     for (const StringRef path : paths) {
       const Bundle &bundle = **world_.lookup_path_ptr<BundlePtr>(path);
-      const Field<float> rest_length_field = this->get_field_or_constant(
-          bundle, "rest_length", 0.0f);
-      const Field<float> compliance_field = this->get_field_or_constant(
-          bundle, "compliance", 0.0f);
 
-      const int constraint_i = constraints_.edge_length_constraints.append_and_get_index(
-          {path, rest_length_field, compliance_field});
+      const int constraint_i = constraints_.edge_length_constraints.append_and_get_index({path});
 
       for (const int data_key_i : geometries_.data.index_range()) {
         const DataKey &data_key = geometries_.data_keys[data_key_i];
@@ -1673,9 +1670,14 @@ class XpbdSolverStep {
         const Mesh &mesh = *geometries_.geometry_sets[data_key.geo_bundle_i].geometry.get_mesh();
         const int edge_num = mesh.edges_num;
         constraint_usage.lambdas = tls.allocator.allocate_array<float>(edge_num);
-        fn::FieldEvaluator &evaluator = this->get_field_evaluator(data_key_i, AttrDomain::Edge);
-        evaluator.add(constraint.rest_length, &constraint_usage.rest_lengths);
-        evaluator.add(constraint.compliance, &constraint_usage.compliances);
+        constraint_usage.rest_lengths = *geo_data.attributes.lookup_or_default<float>(
+            fmt::format("{}:{}", attribute_names::edge_length_prefix, constraint.path),
+            AttrDomain::Edge,
+            0.0f);
+        constraint_usage.compliances = *geo_data.attributes.lookup_or_default<float>(
+            fmt::format("{}:{}", attribute_names::edge_length_compliance_prefix, constraint.path),
+            AttrDomain::Edge,
+            0.0f);
       }
     }
   }
