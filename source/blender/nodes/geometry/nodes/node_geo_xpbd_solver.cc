@@ -67,6 +67,9 @@ constexpr StringRefNull prev_pin_rotation_prefix = SIM_PROP_PREV "pin_rotation";
 constexpr StringRefNull prev_pin_rotation_selection_prefix = SIM_PROP_PREV
     "pin_rotation_selection";
 
+constexpr StringRefNull linear_damping_prefix = SIM_PROP "linear_damping";
+constexpr StringRefNull angular_damping_prefix = SIM_PROP "angular_damping";
+
 #undef SIM_PROP
 
 }  // namespace attribute_names
@@ -143,8 +146,6 @@ struct GeometryDataChunk {
 
 struct DampingConstraint {
   std::string path;
-  Field<float> linear_damping;
-  Field<float> angular_damping;
 };
 struct DampingConstraintUsage {
   /** Index of corresponding #DampingConstraint. */
@@ -1715,13 +1716,8 @@ class XpbdSolverStep {
         continue;
       }
       const Bundle &bundle = **bundle_ptr;
-      const Field<float> linear_damping = this->get_field_or_constant<float>(
-          bundle, "linear_damping", 0.0f);
-      const Field<float> angular_damping = this->get_field_or_constant<float>(
-          bundle, "angular_damping", 0.0f);
 
-      const int constraint_i = constraints_.damping_constraints.append_and_get_index(
-          {path, linear_damping, angular_damping});
+      const int constraint_i = constraints_.damping_constraints.append_and_get_index({path});
 
       for (const int data_key_i : geometries_.data_keys.index_range()) {
         GeometryData &geo_data = geometries_.data[data_key_i];
@@ -1736,13 +1732,19 @@ class XpbdSolverStep {
       for (DampingConstraintUsage &constraint_usage : geo_data.damping_constraints) {
         const DampingConstraint &constraint =
             constraints_.damping_constraints[constraint_usage.constraint_i];
+        constraint_usage.linear_dampings = *geo_data.attributes.lookup_or_default<float>(
+            fmt::format("{}:{}", attribute_names::linear_damping_prefix, constraint.path),
+            geo_data.domain,
+            0.0f);
+        constraint_usage.angular_dampings = *geo_data.attributes.lookup_or_default<float>(
+            fmt::format("{}:{}", attribute_names::angular_damping_prefix, constraint.path),
+            geo_data.domain,
+            0.0f);
+
         constraint_usage.linear_damping_lambdas = tls.allocator.allocate_array<float>(
             geo_data.size);
         constraint_usage.angular_damping_lambdas = tls.allocator.allocate_array<float>(
             geo_data.size);
-        fn::FieldEvaluator &evaluator = this->get_field_evaluator(data_key_i, geo_data.domain);
-        evaluator.add(constraint.linear_damping, &constraint_usage.linear_dampings);
-        evaluator.add(constraint.angular_damping, &constraint_usage.angular_dampings);
       }
     }
   }
