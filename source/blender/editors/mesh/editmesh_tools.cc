@@ -6219,6 +6219,10 @@ static bool dissolve_mode_poll_property(const bContext *C, wmOperator *op, const
     if (STREQ(prop_id, "angle_threshold")) {
       return false;
     }
+    /* Preserve Quads is only used in edge select mode. */
+    if (STREQ(prop_id, "preserve_quads")) {
+      return false;
+    }
   }
   return true;
 }
