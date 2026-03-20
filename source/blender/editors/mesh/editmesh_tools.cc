@@ -6220,7 +6220,7 @@ static bool dissolve_mode_poll_property(const bContext *C, wmOperator *op, const
       return false;
     }
     /* Preserve Quads is only used in edge select mode. */
-    if (STREQ(prop_id, "preserve_quads")) {
+    if (STREQ(prop_id, "use_preserve_quads")) {
       return false;
     }
   }
