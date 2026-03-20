@@ -2,9 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include <iostream>
-#include <sstream>
-
 #include "BLI_array_utils.hh"
 #include "BLI_bounds.hh"
 #include "BLI_bounds_types.hh"
@@ -671,9 +668,6 @@ static GVArray copy_with_transform(const nodes::IndexTransform &transform,
   return GVArray::from_garray(std::move(dst_array));
 }
 
-static int samples = 0;
-static int good_samples = 0;
-
 GVArray EvaluateAtIndexInput::get_varray_for_context(const bke::GeometryFieldContext &context,
                                                      const IndexMask &mask) const
 {
@@ -689,25 +683,12 @@ GVArray EvaluateAtIndexInput::get_varray_for_context(const bke::GeometryFieldCon
   value_evaluator.evaluate();
   const GVArray &values = value_evaluator.get_evaluated(0);
 
-  samples++;
-
   const std::variant<std::monostate, int, nodes::IndexTransform> bounds_transform =
       nodes::field_as_index_transform(index_field_);
   if (std::holds_alternative<nodes::IndexTransform>(bounds_transform)) {
-
-    good_samples++;
-
-    std::stringstream aaa;
-    aaa << samples << ", " << good_samples << ";\n";
-    std::cout << aaa.str();
-
     return copy_with_transform(
         *std::get_if<nodes::IndexTransform>(&bounds_transform), values, mask);
   }
-
-  std::stringstream aaa;
-  aaa << samples << ", " << good_samples << ";\n";
-  std::cout << aaa.str();
 
   GArray<> dst_array(values.type(), mask.min_array_size());
 

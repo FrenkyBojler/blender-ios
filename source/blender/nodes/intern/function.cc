@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_array_utils.hh"
 #include "BLI_set.hh"
 #include "BLI_stack.hh"
 
@@ -20,12 +21,12 @@ struct LineFunc {
   int offset;
 };
 
-static std::optional<LineFunc> as_integer_line_function(const fn::GField &entry_fields)
+static std::optional<LineFunc> as_integer_line_function_imp(const fn::GField &entry_field)
 {
   Map<fn::GFieldRef, LineFunc> known_fields;
 
-  Stack<std::pair<fn::GFieldRef, std::optiona<LineFunc>>> fields_to_check;
-  fields_to_check.push(std::make_pair(entry_fields, std::nulopt));
+  Stack<fn::GFieldRef> fields_to_check;
+  fields_to_check.push(entry_field);
 
   static const mf::MultiFunction &add_func = int_math_op(NODE_INTEGER_MATH_ADD);
   static const mf::MultiFunction &sub_func = int_math_op(NODE_INTEGER_MATH_SUBTRACT);
@@ -34,44 +35,114 @@ static std::optional<LineFunc> as_integer_line_function(const fn::GField &entry_
   static const mf::MultiFunction &mul_add_func = int_math_op(NODE_INTEGER_MATH_MULTIPLY_ADD);
 
   while (!fields_to_check.is_empty()) {
-    const auto [field, factor] = fields_to_check.pop();
-
-    if (factor.has_value()) {
-      BLI_assert(known_fields.contains(field));
+    const fn::GFieldRef field = fields_to_check.pop();
+    if (known_fields.contains(field)) {
       continue;
     }
 
     const fn::FieldNode &field_node = field.node();
-    switch (field_node.node_type()) {
-      case fn::FieldNodeType::Input: {
-        BLI_assert(dynamic_cast<const fn::IndexFieldInput *>(&field_node) != nullptr);
-        known_fields.add(field, {1, 0});
-        continue;
-      }
-      case fn::FieldNodeType::Constant: {
-        /* Currently any constant values are evaluated in place.
-         * So any conversion was made before field construction.
-         * See #execute_multi_function_on_value_variant for more info. */
-        const int offset = field_node.value().get<int>();
-        known_fields.add(field, {0, offset});
-        continue;
-      }
-      case fn::FieldNodeType::Operation: {
-        const fn::FieldOperation &operation = static_cast<const fn::FieldOperation &>(field_node);
-        if (!ELEM(&operation.multi_function(), &add_func, &sub_func, &minus_func)) {
-          return false;
-        }
-        for (const fn::GFieldRef operation_input : operation.inputs()) {
-          if (handled_fields.add(operation_input)) {
-            fields_to_check.push(operation_input);
-          }
-        }
-        break;
-      }
+    const fn::FieldNodeType node_type = field_node.node_type();
+    if (node_type == fn::FieldNodeType::Input) {
+      BLI_assert(dynamic_cast<const fn::IndexFieldInput *>(&field_node) != nullptr);
+      known_fields.add(field, {1, 0});
+      continue;
     }
+
+    if (node_type == fn::FieldNodeType::Constant) {
+      /* Currently any constant values are evaluated in place.
+       * So any conversion was made before field construction.
+       * See #execute_multi_function_on_value_variant for more info. */
+      const int offset = *dynamic_cast<const fn::FieldConstant &>(field_node).value().get<int>();
+      known_fields.add(field, {0, offset});
+      continue;
+    }
+
+    BLI_assert(node_type == fn::FieldNodeType::Operation);
+    const fn::FieldOperation &operation = static_cast<const fn::FieldOperation &>(field_node);
+    const mf::MultiFunction &node_function = operation.multi_function();
+    if (!ELEM(&node_function, &minus_func, &add_func, &sub_func, &mul_func, &mul_add_func)) {
+      return std::nullopt;
+    }
+
+    const Span<fn::GField> inputs = operation.inputs();
+    const bool all_known = std::all_of(
+        inputs.begin(), inputs.end(), [&](const fn::GFieldRef input_field) {
+          return known_fields.contains(input_field);
+        });
+
+    if (!all_known) {
+      fields_to_check.push(field);
+
+      for (const fn::GFieldRef input_field : inputs) {
+        if (!known_fields.contains(input_field)) {
+          fields_to_check.push(input_field);
+        }
+      }
+
+      continue;
+    }
+
+    const LineFunc &first_arg = known_fields.lookup(inputs[0]);
+    if (&node_function == &minus_func) {
+      known_fields.add(field, {-first_arg.factor, -first_arg.offset});
+      continue;
+    }
+
+    const LineFunc &second_arg = known_fields.lookup(inputs[1]);
+    if (&node_function == &add_func) {
+      known_fields.add(
+          field, {first_arg.factor + second_arg.factor, first_arg.offset + second_arg.offset});
+      continue;
+    }
+
+    if (&node_function == &sub_func) {
+      known_fields.add(
+          field, {first_arg.factor - second_arg.factor, first_arg.offset - second_arg.offset});
+      continue;
+    }
+
+    if (&node_function == &mul_func) {
+
+      if (second_arg.factor == 0) {
+        known_fields.add(
+            field, {first_arg.factor * second_arg.offset, first_arg.offset * second_arg.offset});
+        continue;
+      }
+
+      if (first_arg.factor == 0) {
+        known_fields.add(
+            field, {second_arg.factor * first_arg.offset, second_arg.offset * first_arg.offset});
+        continue;
+      }
+
+      /* This simple implementation does not support non-linear polynomial even as temporarily
+       * values`. */
+      return std::nullopt;
+    }
+
+    BLI_assert(&node_function == &mul_add_func);
+
+    const LineFunc &third_arg = known_fields.lookup(inputs[2]);
+    if (second_arg.factor == 0) {
+      known_fields.add(field,
+                       {first_arg.factor * second_arg.offset + third_arg.factor,
+                        first_arg.offset * second_arg.offset + third_arg.offset});
+      continue;
+    }
+
+    if (first_arg.factor == 0) {
+      known_fields.add(field,
+                       {second_arg.factor * first_arg.offset + third_arg.factor,
+                        second_arg.offset * first_arg.offset + third_arg.offset});
+      continue;
+    }
+
+    /* This simple implementation does not support non-linear polynomial even as temporarily
+     * values`. */
+    return std::nullopt;
   }
 
-  return true;
+  return known_fields.lookup(entry_field);
 }
 
 class IndexFieldContext : public fn::FieldContext {
@@ -82,7 +153,7 @@ class IndexFieldContext : public fn::FieldContext {
 
   GVArray get_varray_for_input(const fn::FieldInput &field_input,
                                const IndexMask &mask,
-                               ResourceScope &scope) const final
+                               ResourceScope & /*scope*/) const final
   {
     BLI_assert(mask.size() <= indices_.size());
 
@@ -93,6 +164,39 @@ class IndexFieldContext : public fn::FieldContext {
     return VArray<int>::from_span(indices_);
   }
 };
+
+static void evaluate_on(const Span<int> src_indices,
+                        const fn::GField &field,
+                        MutableSpan<int> dst_indices)
+{
+  BLI_assert(src_indices.size() == dst_indices.size());
+  const IndexFieldContext context(src_indices);
+  fn::FieldEvaluator evaluator(context, src_indices.size());
+
+  evaluator.add_with_destination(field, dst_indices);
+  evaluator.evaluate();
+}
+
+static std::optional<LineFunc> as_integer_line_function(const fn::GField &field)
+{
+  const std::optional<LineFunc> as_func = as_integer_line_function_imp(field);
+  if (!as_func.has_value()) {
+    return std::nullopt;
+  }
+
+#ifndef NDEBUG
+  std::array<int, 10> src_indices;
+  array_utils::fill_index_range<int>(src_indices, -5);
+  std::array<int, 10> dst_indices;
+  evaluate_on(src_indices, field, dst_indices);
+
+  for (const int i : IndexRange(10)) {
+    BLI_assert(src_indices[i] * as_func->factor + as_func->offset == dst_indices[i]);
+  }
+#endif
+
+  return as_func;
+}
 
 std::variant<std::monostate, int, IndexTransform> field_as_index_transform(
     const fn::Field<int> &index_field)
@@ -111,23 +215,20 @@ std::variant<std::monostate, int, IndexTransform> field_as_index_transform(
     return std::monostate{};
   }
 
-  if (!is_only_linear_int_math(index_field)) {
+  const std::optional<LineFunc> as_func = as_integer_line_function(index_field);
+  if (!as_func.has_value()) {
     return std::monostate{};
   }
 
-  const std::array<int, 2> src_indices({0, 1});
-  const IndexFieldContext context(src_indices);
-  fn::FieldEvaluator evaluator(context, 2);
-
-  std::array<int, 2> dst_indices;
-  evaluator.add_with_destination(index_field, GMutableSpan(MutableSpan(dst_indices)));
-  evaluator.evaluate();
-
-  if (dst_indices[0] == dst_indices[1]) {
-    return dst_indices[0];
+  if (as_func->factor == 0) {
+    return as_func->offset;
   }
 
-  return IndexTransform{dst_indices[0], dst_indices[0] > dst_indices[1]};
+  if (!ELEM(as_func->factor, -1, 1)) {
+    return std::monostate{};
+  }
+
+  return IndexTransform{as_func->offset, as_func->factor < 0};
 }
 
 }  // namespace blender::nodes
