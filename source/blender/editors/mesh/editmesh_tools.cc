@@ -5940,14 +5940,6 @@ static void edbm_dissolve_prop__use_face_split(wmOperatorType *ot)
                   "Face Split",
                   "Split off face corners to maintain surrounding geometry");
 }
-static void edbm_dissolve_prop__use_preserve_quads(wmOperatorType *ot)
-{
-  RNA_def_boolean(ot->srna,
-                  "use_preserve_quads",
-                  true,
-                  "Preserve Quads",
-                  "When dissolving the edge between two triangles, don't dissolve vertices");
-}
 static void edbm_dissolve_prop__use_boundary_tear(wmOperatorType *ot)
 {
   RNA_def_boolean(ot->srna,
@@ -5974,6 +5966,14 @@ static void edbm_dissolve_prop__use_angle_threshold(wmOperatorType *ot, int flag
   if (flag) {
     RNA_def_property_flag(prop, PropertyFlag(flag));
   }
+}
+static void edbm_dissolve_prop__use_preserve_quads(wmOperatorType *ot)
+{
+  RNA_def_boolean(ot->srna,
+                  "use_preserve_quads",
+                  true,
+                  "Preserve Quads",
+                  "When dissolving the edge between two triangles, don't dissolve vertices");
 }
 
 static wmOperatorStatus edbm_dissolve_verts_exec(bContext *C, wmOperator *op)
