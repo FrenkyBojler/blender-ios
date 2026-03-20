@@ -5967,13 +5967,16 @@ static void edbm_dissolve_prop__use_angle_threshold(wmOperatorType *ot, int flag
     RNA_def_property_flag(prop, PropertyFlag(flag));
   }
 }
-static void edbm_dissolve_prop__use_preserve_quads(wmOperatorType *ot)
+static void edbm_dissolve_prop__use_preserve_quads(wmOperatorType *ot, bool value, int flag)
 {
-  RNA_def_boolean(ot->srna,
+    PropertyRNA *prop = RNA_def_boolean(ot->srna,
                   "use_preserve_quads",
-                  true,
+                  value,
                   "Preserve Quads",
                   "When dissolving the edge between two triangles, don't dissolve vertices");
+  if (flag) {
+    RNA_def_property_flag(prop, PropertyFlag(flag));
+  }
 }
 
 static wmOperatorStatus edbm_dissolve_verts_exec(bContext *C, wmOperator *op)
@@ -6103,7 +6106,7 @@ void MESH_OT_dissolve_edges(wmOperatorType *ot)
   edbm_dissolve_prop__use_verts(ot, true, 0);
   edbm_dissolve_prop__use_angle_threshold(ot, 0);
   edbm_dissolve_prop__use_face_split(ot);
-  edbm_dissolve_prop__use_preserve_quads(ot);
+  edbm_dissolve_prop__use_preserve_quads(ot, true, 0);
 }
 
 /** \} */
@@ -6244,8 +6247,8 @@ void MESH_OT_dissolve_mode(wmOperatorType *ot)
 
   edbm_dissolve_prop__use_verts(ot, false, PROP_SKIP_SAVE);
   edbm_dissolve_prop__use_angle_threshold(ot, PROP_SKIP_SAVE);
+  edbm_dissolve_prop__use_preserve_quads(ot, true, PROP_SKIP_SAVE);
   edbm_dissolve_prop__use_face_split(ot);
-  edbm_dissolve_prop__use_preserve_quads(ot);
   edbm_dissolve_prop__use_boundary_tear(ot);
 }
 
