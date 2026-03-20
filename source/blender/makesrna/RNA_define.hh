@@ -33,6 +33,10 @@ namespace blender {
 struct Scene;
 
 BlenderRNA *RNA_create();
+/**
+ * Create a container for RNA types that are defined at runtime (in contrast to the main global
+ * #BlenderRNA which contains RNA types defined at startup from static data).
+ */
 BlenderRNA *RNA_create_runtime();
 void RNA_define_free(BlenderRNA *brna);
 void RNA_free(BlenderRNA *brna);
