@@ -64,17 +64,44 @@ enum TextureFormat : uint32_t {
   SFLOAT_16,
 };
 
+// template <typename SharedStorage> store_shared_sample()
+
 struct SharedSRGB {
   /**
    * When generating 2 levels, the results of generating the intermediate *level(first level
    * generated) are cached here; this is the input tile *needed to generate the 8x8 tile of the
    * second level generated.
    */
-  [[shared]] uint level[MAX_SHARED_SAMPLES][MAX_SHARED_SAMPLES];
+  [[shared]] uint intermediate_level[MAX_SHARED_SAMPLES][MAX_SHARED_SAMPLES];
+
+  void store_sample(int2 dst_coord, float4 color)
+  {
+    intermediate_level[dst_coord.y][dst_coord.x] = srgb_pack(color);
+  }
+
+  float4 load_sample(int2 src_coord)
+  {
+    return srgb_unpack(intermediate_level[src_coord.y][src_coord.x]);
+  }
 };
 
 struct SharedFloat {
-  [[shared]] float level[MAX_SHARED_SAMPLES][MAX_SHARED_SAMPLES];
+  /**
+   * When generating 2 levels, the results of generating the intermediate *level(first level
+   * generated) are cached here; this is the input tile *needed to generate the 8x8 tile of the
+   * second level generated.
+   */
+  [[shared]] float intermediate_level[MAX_SHARED_SAMPLES][MAX_SHARED_SAMPLES];
+
+  void store_sample(int2 dst_coord, float4 color)
+  {
+    intermediate_level[dst_coord.y][dst_coord.x] = color.x;
+  }
+
+  float4 load_sample(int2 src_coord)
+  {
+    return float4(intermediate_level[src_coord.y][src_coord.x]);
+  }
 };
 
 template<enum TextureFormat format, typename SharedStorage> struct Resources {
@@ -84,7 +111,7 @@ template<enum TextureFormat format, typename SharedStorage> struct Resources {
   [[image(0, read, format)]] image2D mip_in;
   [[image(1, write, format)]] image2D mip_out1;
   [[image(2, write, format)]] image2D mip_out2;
-  //[[resource_table]] srt_t<SharedStorage> shared;
+  [[resource_table]] srt_t<SharedStorage> shared_storage;
 
   /**
    * When generating 2 levels, the results of generating the intermediate *level(first level
@@ -108,12 +135,15 @@ template<enum TextureFormat format, typename SharedStorage> struct Resources {
 
   void store_shared_sample(int2 dst_coord, float4 color)
   {
-    if (use_shared_srgb_uint) [[static_branch]] {
-      shared_level_srgb_uint[dst_coord.y][dst_coord.x] = srgb_pack(color);
-    }
-    if (use_shared_float) [[static_branch]] {
-      shared_level_float[dst_coord.y][dst_coord.x] = color.x;
-    }
+    SharedStorage &storage = shared_storage;
+    storage.store_sample(dst_coord, color);
+  }
+
+  template<typename T> T load_shared_sample(int2 src_coord)
+  {
+    SharedStorage &storage = shared_storage;
+    float4 color = storage.load_sample(src_coord);
+    return T(color);
   }
 
   int2 level_size(int level)
@@ -123,6 +153,7 @@ template<enum TextureFormat format, typename SharedStorage> struct Resources {
     return mip_size;
   }
 };
+
 template<typename SRT, typename T, bool load_from_shared>
 T load_sample([[resource_table]] SRT &srt, int2 src_coord)
 {
@@ -144,6 +175,9 @@ T load_sample([[resource_table]] SRT &srt, int2 src_coord)
 
 template struct Resources<UNORM_8_8_8_8, SharedSRGB>;
 template struct Resources<SFLOAT_16, SharedFloat>;
+
+template float4 Resources<UNORM_8_8_8_8, SharedSRGB>::load_shared_sample<float4>(int2 src_coord);
+template float Resources<SFLOAT_16, SharedFloat>::load_shared_sample<float>(int2 src_coord);
 
 template float4 load_sample<Resources<UNORM_8_8_8_8, SharedSRGB>, float4, true>(
     Resources<UNORM_8_8_8_8, SharedSRGB> &srt, int2 src_coord);
