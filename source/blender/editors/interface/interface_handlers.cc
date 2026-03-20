@@ -9998,7 +9998,9 @@ static int handle_button_event(bContext *C, const wmEvent *event, Button *but)
           WM_event_timer_remove(data->wm, data->window, data->autoopentimer);
           data->autoopentimer = nullptr;
 
-          if (button_contains_point_px(but, region, event->xy) || but->active) {
+          if ((!block->handle || !block->handle->scrolltimer) &&
+              (button_contains_point_px(but, region, event->xy) || but->active))
+          {
             button_activate_state(C, but, BUTTON_STATE_MENU_OPEN);
           }
         }
