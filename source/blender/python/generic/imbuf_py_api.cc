@@ -147,6 +147,9 @@ static void py_imbuf_warn_corrupt_ftype(const int ftype)
  */
 static const char *py_imbuf_ftype_to_id_with_fallback(const int ftype)
 {
+  if (ftype == IMB_FTYPE_NONE) {
+    return py_imbuf_type_none;
+  }
   const char *id = IMB_ftype_to_id(ftype);
   if (UNLIKELY(id == nullptr)) {
     py_imbuf_warn_corrupt_ftype(ftype);
