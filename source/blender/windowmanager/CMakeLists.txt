@@ -125,6 +125,22 @@ else()
   )
 endif()
 
+if(WITH_GHOST_WAYLAND)
+  list(APPEND SRC
+    intern/wm_window_icon.cc
+    intern/wm_window_icon.hh
+  )
+  # Full-color application icon for the Wayland window icon.
+  data_to_c(
+    "${CMAKE_SOURCE_DIR}/release/freedesktop/icons/scalable/apps/blender.svg"
+    "${CMAKE_CURRENT_BINARY_DIR}/blender_app_icon.svg.c"
+    SRC
+    # Name override to avoid conflicting with the UI icon `datatoc_blender_svg`.
+    "blender_app_icon_svg"
+  )
+  add_definitions(-DWITH_GHOST_WAYLAND)
+endif()
+
 if(WITH_GHOST_CSD)
   list(APPEND SRC
     intern/wm_window_csd_draw.cc
@@ -179,6 +195,7 @@ if(WITH_XR_OPENXR)
     xr/intern/wm_xr_action.cc
     xr/intern/wm_xr_actionmap.cc
     xr/intern/wm_xr_draw.cc
+    xr/intern/wm_xr_location_scouting.cc
     xr/intern/wm_xr_operators.cc
     xr/intern/wm_xr_session.cc
 

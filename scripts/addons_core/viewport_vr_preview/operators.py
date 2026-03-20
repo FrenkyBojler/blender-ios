@@ -275,12 +275,43 @@ class VIEW3D_OT_vr_landmark_activate(Operator):
         return {'FINISHED'}
 
 
-# Location Scouting
+# Location Scouting Viewfinder
+def viewfinder_camera_gizmo_view3d_redraw_workaround():
+    # Workaround: After capturing or deleting a shot from the VR viewfinder, tag all View3D areas in the current context
+    #             window (parent XR window) for redraw to display the newly created/deleted capture.
+    #             The alternative to this is to give the capture camera Gizmo (VIEW3D_GGT_vr_captures) the VR_REDRAWS
+    #             option, however this makes it constantly redraw, causing performances to drop.
+
+    window = bpy.context.window
+
+    areas = [area for area in window.screen.areas if area.type == 'VIEW_3D']
+    for area in areas:
+        view3d_region = [region for region in area.regions if region.type == 'WINDOW'][0]
+        with bpy.context.temp_override(
+                window=window,
+                area=area,
+                region=view3d_region,
+                screen=window.screen
+        ):
+            bpy.context.region.tag_redraw()
+
+
+def xr_event_match_viewfinder_hand(xr_event, xr_settings):
+    # Check if the current XR event matches with the Viewfinder hand. Equivalent to the internal
+    # wm_xr_operator_event_match_viewfinder_hand C++ function.
+    hand_user_path_map = {
+        'LEFT': "/user/hand/left",
+        'RIGHT': "/user/hand/right"
+    }
+
+    return xr_event.user_path == hand_user_path_map[xr_settings.viewfinder_hand]
+
+
 class VIEW3D_OT_vr_location_scouting_viewfinder_capture(Operator):
     bl_idname = "view3d.vr_location_scouting_viewfinder_capture"
     bl_label = "Viewfinder Capture"
     bl_description = "Create a VR Capture from the Location Scouting Viewfinder pose and mark it as selected"
-    bl_options = {'UNDO'}
+    bl_options = {'UNDO', 'INTERNAL'}
 
     @classmethod
     def poll(cls, context):
@@ -289,10 +320,10 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_capture(Operator):
         xr_settings = context.window_manager.xr_session_settings
         xr_viewfinder = context.window_manager.xr_session_state.viewfinder
 
-        viewfinder_enable = xr_settings.viewfinder_enable
+        viewfinder_enabled = xr_settings.viewfinder_enabled
         viewfinder_in_live_mode = xr_viewfinder.active_mode == "LIVE"
 
-        return session_is_running and viewfinder_enable and viewfinder_in_live_mode
+        return session_is_running and viewfinder_enabled and viewfinder_in_live_mode
 
     def execute(self, context):
         scene = context.scene
@@ -317,7 +348,7 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_capture(Operator):
             while idx in existing_indexes:
                 idx += 1
 
-            return f"{base} {idx:03d}"
+            return f"{base}_{idx:03d}"
 
         capture = captures.add()
         captures[-1].name = unique_name(captures, "Capture")
@@ -326,20 +357,32 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_capture(Operator):
         capture.location = xr_viewfinder.location
         capture.orientation = xr_viewfinder.orientation
 
-        capture.lens_focal = xr_viewfinder.capture_lens
-        capture.dof_enable = xr_viewfinder.capture_use_dof
-        capture.dof_dist = xr_viewfinder.capture_focus_distance
-        capture.dof_fstop = xr_viewfinder.capture_aperture_fstop
+        capture.lens_focal = xr_viewfinder.capture_lens_focal
+        capture.dof_enabled = xr_viewfinder.capture_dof_enabled
+        capture.dof_distance = xr_viewfinder.capture_dof_distance
+        capture.dof_fstop = xr_viewfinder.capture_dof_fstop
 
         xr_viewfinder.runtime_capture_flash = 1  # Internal value, setting to 1 will trigger a flash
 
+        viewfinder_camera_gizmo_view3d_redraw_workaround()
+
         return {'FINISHED'}
+
+    def invoke(self, context, event):
+        xr_event = event.xr
+        xr_settings = context.window_manager.xr_session_settings
+
+        if not xr_event_match_viewfinder_hand(xr_event, xr_settings):
+            return {'CANCELLED'}
+
+        return self.execute(context)
 
 
 class VIEW3D_OT_vr_location_scouting_viewfinder_apply_action(Operator):
     bl_idname = "view3d.vr_location_scouting_viewfinder_apply_action"
     bl_label = "Viewfinder Apply Action"
     bl_description = "Apply the currently selected Viewfinder action (Zoom Control/Playback selection for now)"
+    bl_options = {'INTERNAL'}
 
     # Differentiate between an up and down action(two possible buttons)
     action_up: bpy.props.BoolProperty(
@@ -347,13 +390,45 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_apply_action(Operator):
         options={'HIDDEN'},
     )
 
+    @staticmethod
+    def get_next_in_map(current, map_, up_dir) -> int:
+        # Find the closest map idx to the current
+        diff_list = [abs(elem - current) for elem in map_]
+        current_idx = diff_list.index(min(diff_list))
+
+        # Find the next element going up or down, clamping at bounds
+        if up_dir:
+            # Zoom in
+            next_idx = min(current_idx + 1, len(map_) - 1)
+        else:
+            # Zoom out
+            next_idx = max(current_idx - 1, 0)
+
+        return next_idx
+
+    @staticmethod
+    def focus_distance_raycast(context, view_origin, view_quat):
+        scene = context.scene
+        depsgraph = context.evaluated_depsgraph_get()
+
+        direction = Vector((0.0, 0.0, -1.0))
+        world_dir = view_quat @ direction
+        world_dir.normalize()
+
+        hit_success, hit_location, _, _, _, _ = scene.ray_cast(depsgraph, view_origin, world_dir)
+
+        if hit_success:
+            return (hit_location - view_origin).length
+
+        return None
+
     @classmethod
     def poll(cls, context):
         session_is_running = bpy.types.XrSessionState.is_running(context)
         has_scene_camera = context.scene.camera is not None
-        viewfinder_enable = context.window_manager.xr_session_settings.viewfinder_enable
+        viewfinder_enabled = context.window_manager.xr_session_settings.viewfinder_enabled
 
-        return session_is_running and has_scene_camera and viewfinder_enable
+        return session_is_running and has_scene_camera and viewfinder_enabled
 
     def execute(self, context):
         wm = context.window_manager
@@ -364,65 +439,39 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_apply_action(Operator):
             fstop_map = (0.1, 0.2, 0.4, 0.8, 1, 1.2, 1.4, 1.7, 2, 2.4, 2.8, 3.3,
                          4, 4.8, 5.6, 6.7, 8, 9.5, 11, 13, 16, 19, 22, 27, 32)
 
-            def get_next_in_map(current, map_, up_dir) -> int:
-                # Find the closest map idx to the current
-                diff_list = [abs(elem - current) for elem in map_]
-                current_idx = diff_list.index(min(diff_list))
-
-                # Find the next element going up or down, clamping at bounds
-                if up_dir:
-                    # Zoom in
-                    next_idx = min(current_idx + 1, len(map_) - 1)
-                else:
-                    # Zoom out
-                    next_idx = max(current_idx - 1, 0)
-
-                return next_idx
-
             match xr_viewfinder.active_action_live:
                 # View Zoom Control
                 case 'LENS':
-                    current_focal = xr_viewfinder.capture_lens
+                    current_focal = xr_viewfinder.capture_lens_focal
 
-                    new_idx = get_next_in_map(current_focal, focal_map, self.action_up)
-                    xr_viewfinder.capture_lens = focal_map[new_idx]
+                    new_idx = self.get_next_in_map(current_focal, focal_map, self.action_up)
+                    xr_viewfinder.capture_lens_focal = focal_map[new_idx]
 
                     return {'FINISHED'}
 
                 # Toggle DoF on/off
                 case 'DOF':
-                    xr_viewfinder.capture_use_dof = not xr_viewfinder.capture_use_dof
+                    xr_viewfinder.capture_dof_enabled = not xr_viewfinder.capture_dof_enabled
 
                     return {'FINISHED'}
 
                 # Focus distance control (ray-cast autofocus)
                 case 'FOCUS':
-                    scene = context.scene
-                    depsgraph = context.evaluated_depsgraph_get()
+                    raycast_hit = self.focus_distance_raycast(context,
+                                                              xr_viewfinder.location,
+                                                              xr_viewfinder.orientation)
 
-                    # Cast a ray from the Viewfinder PoV to find the distance to the nearest object
-                    view_origin = xr_viewfinder.location
-                    view_quat = xr_viewfinder.orientation
-
-                    direction = Vector((0.0, 0.0, -1.0))
-                    world_dir = view_quat @ direction
-                    world_dir.normalize()
-
-                    hit_success, hit_location, _, _, _, _ = scene.ray_cast(depsgraph, view_origin, world_dir)
-
-                    if hit_success:
-                        distance = (hit_location - view_origin).length
-                        # Set the DoF Focus Distance from the hit
-                        xr_viewfinder.capture_focus_distance = distance
+                    if raycast_hit is not None:
+                        xr_viewfinder.capture_dof_distance = raycast_hit
 
                     return {'FINISHED'}
 
                 # F-Stop control
                 case 'APERTURE':
-                    current_fstop = xr_viewfinder.capture_aperture_fstop
+                    current_fstop = xr_viewfinder.capture_dof_fstop
 
-                    new_idx = get_next_in_map(current_fstop, fstop_map, self.action_up)
-                    xr_viewfinder.capture_aperture_fstop = fstop_map[new_idx]
+                    new_idx = self.get_next_in_map(current_fstop, fstop_map, self.action_up)
+                    xr_viewfinder.capture_dof_fstop = fstop_map[new_idx]
 
                     return {'FINISHED'}
 
@@ -441,44 +490,39 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_apply_action(Operator):
 
                     return {'FINISHED'}
 
-                # Preview the selected capture in space TODO: Remove in favor of gizmos
+                # Preview the selected capture in space toggle
                 case 'PREVIEW':
-                    current_capture = captures[scene.vr_captures_selected]
-
-                    preview_cone_name = "CapturePreviewCone"
-
-                    # Create a dummy cone (or fetch it if it already exists) to represent the captured point
-                    if preview_cone_name in bpy.data.objects:
-                        cone = bpy.data.objects[preview_cone_name]
-                    else:
-                        # Create a new cone
-                        bpy.ops.mesh.primitive_cone_add(vertices=8, radius1=0.25, depth=0.5, end_fill_type='NOTHING')
-                        cone = bpy.context.active_object
-                        cone.name = preview_cone_name
-
-                    cone.location = current_capture.location
-                    cone.rotation_quaternion = current_capture.orientation
-                    cone.rotation_mode = 'QUATERNION'
-
-                    # Scale on local Z to represent focal length, 50mm being 1.0 scale
-                    cone.scale.z = current_capture.lens_focal / 50
+                    xr_viewfinder.playback_show_active_capture_in_space_enabled = not xr_viewfinder.playback_show_active_capture_in_space_enabled
 
                     return {'FINISHED'}
 
                 # Delete the selected capture
                 case 'DELETE':
                     captures.remove(scene.vr_captures_selected)
-                    scene.vr_captures_selected -= 1
+                    if scene.vr_captures_selected > 0:
+                        scene.vr_captures_selected -= 1
+
+                    viewfinder_camera_gizmo_view3d_redraw_workaround()
 
                     return {'FINISHED'}
 
         return {'CANCELLED'}
+
+    def invoke(self, context, event):
+        xr_event = event.xr
+        xr_settings = context.window_manager.xr_session_settings
+
+        if not xr_event_match_viewfinder_hand(xr_event, xr_settings):
+            return {'CANCELLED'}
+
+        return self.execute(context)
 
 
 class VIEW3D_OT_vr_location_scouting_viewfinder_cycle_mode(Operator):
     bl_idname = "view3d.vr_location_scouting_viewfinder_cycle_mode"
     bl_label = "Viewfinder Cycle Mode"
     bl_description = "Cycle the currently active Viewfinder mode"
+    bl_options = {'INTERNAL'}
 
     def execute(self, context):
         xr_viewfinder = context.window_manager.xr_session_state.viewfinder
@@ -491,11 +535,21 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_cycle_mode(Operator):
 
         return {'FINISHED'}
 
+    def invoke(self, context, event):
+        xr_event = event.xr
+        xr_settings = context.window_manager.xr_session_settings
+
+        if not xr_event_match_viewfinder_hand(xr_event, xr_settings):
+            return {'CANCELLED'}
+
+        return self.execute(context)
+
 
 class VIEW3D_OT_vr_location_scouting_viewfinder_cycle_action(Operator):
     bl_idname = "view3d.vr_location_scouting_viewfinder_cycle_action"
     bl_label = "Viewfinder Cycle Action"
     bl_description = "Cycle the currently active Viewfinder action left or right"
+    bl_options = {'INTERNAL'}
 
     cycle_left: bpy.props.BoolProperty(
         name="Cycle Left",
@@ -515,7 +569,7 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_cycle_action(Operator):
                 current_action_idx = enum_keys.index(xr_viewfinder.active_action_live)
 
                 # Special case: only allow cycling to non-DoF action if DoF is not enabled
-                enum_length = len(enum_keys) if xr_viewfinder.capture_use_dof else (enum_keys.index('DOF') + 1)
+                enum_length = len(enum_keys) if xr_viewfinder.capture_dof_enabled else (enum_keys.index('DOF') + 1)
                 new_action_idx = (current_action_idx + increment) % enum_length
 
                 xr_viewfinder.active_action_live = enum_keys[new_action_idx]
@@ -530,39 +584,102 @@ class VIEW3D_OT_vr_location_scouting_viewfinder_cycle_action(Operator):
 
         return {'FINISHED'}
 
+    def invoke(self, context, event):
+        xr_event = event.xr
+        xr_settings = context.window_manager.xr_session_settings
+
+        if not xr_event_match_viewfinder_hand(xr_event, xr_settings):
+            return {'CANCELLED'}
+
+        axis_value = xr_event.state[0]
+        self.cycle_left = axis_value <= 0
+
+        return self.execute(context)
+
+
+# Location Scouting Captures
+def capture_camera_name(capture):
+    return data_("Camera") + "_" + capture.name
+
+
+def add_camera_from_capture(scene, capture):
+    cam = bpy.data.cameras.new(capture_camera_name(capture))
+    new_cam = bpy.data.objects.new(capture_camera_name(capture), cam)
+    scene.collection.objects.link(new_cam)
+
+    new_cam.location = capture.location
+    new_cam.rotation_mode = 'QUATERNION'
+    new_cam.rotation_quaternion = capture.orientation
+    new_cam.rotation_mode = 'XYZ'
+
+    new_cam.data.lens = capture.lens_focal
+    new_cam.data.dof.use_dof = capture.dof_enabled
+    new_cam.data.dof.focus_distance = capture.dof_distance
+    new_cam.data.dof.aperture_fstop = capture.dof_fstop
+
+    return new_cam
+
 
 class VIEW3D_OT_vr_location_scouting_add_camera_from_capture(Operator):
     bl_idname = "view3d.vr_location_scouting_add_camera_from_capture"
     bl_label = "Add Camera from VR Capture"
-    bl_description = "Create a new Camera from the selected VR Capture"
+    bl_description = "Create a new Camera Object from the selected VR Capture"
     bl_options = {'UNDO', 'REGISTER'}
+
+    @classmethod
+    def poll(cls, context):
+        return len(context.scene.vr_captures) > 0
 
     def execute(self, context):
         scene = context.scene
         capture = properties.VRCapture.get_selected_capture(context)
 
-        cam = bpy.data.cameras.new(data_("Camera") + "_" + capture.name)  # TODO: Naming needs improvements
-        new_cam = bpy.data.objects.new(data_("Camera") + "_" + capture.name, cam)
-        scene.collection.objects.link(new_cam)
+        add_camera_from_capture(scene, capture)
 
-        new_cam.location = capture.location
-        new_cam.rotation_mode = 'QUATERNION'
-        new_cam.rotation_quaternion = capture.orientation
-        new_cam.rotation_mode = 'XYZ'
+        return {'FINISHED'}
 
-        new_cam.data.lens = capture.lens_focal
-        new_cam.data.dof.use_dof = capture.dof_enable
-        new_cam.data.dof.focus_distance = capture.dof_dist
-        new_cam.data.dof.aperture_fstop = capture.dof_fstop
+
+class VIEW3D_OT_vr_location_scouting_add_marker_from_capture(Operator):
+    bl_idname = "view3d.vr_location_scouting_add_marker_from_capture"
+    bl_label = "Create Camera Marker from VR Capture"
+    bl_description = "Create a new Camera bound to a Marker from the selected VR Capture at the current frame"
+    bl_options = {'UNDO', 'REGISTER'}
+
+    @classmethod
+    def poll(cls, context):
+        return len(context.scene.vr_captures) > 0
+
+    def execute(self, context):
+        scene = context.scene
+        sel_capture = properties.VRCapture.get_selected_capture(context)
+
+        # Check if the selected capture camera already exist, if not create it.
+        capture_cam = scene.objects.get(capture_camera_name(sel_capture))
+
+        def cam_matches_capture(camera, capture):
+            if camera is None:
+                return False
+
+            return camera.location == capture.location and camera.rotation_quaternion == capture.orientation
+
+        if not cam_matches_capture(capture_cam, sel_capture):
+            capture_cam = add_camera_from_capture(scene, sel_capture)
+
+        marker = scene.timeline_markers.new(capture_cam.name, frame=scene.frame_current)
+        marker.camera = capture_cam
 
         return {'FINISHED'}
 
 
 class VIEW3D_OT_vr_location_scouting_active_camera_to_capture(Operator):
     bl_idname = "view3d.vr_location_scouting_active_camera_to_capture"
-    bl_label = "Set Camera settings from VR Capture"
+    bl_label = "Set Camera from VR Capture"
     bl_description = "Set the active Scene Camera settings from the selected VR Capture"
     bl_options = {'UNDO', 'REGISTER'}
+
+    @classmethod
+    def poll(cls, context):
+        return len(context.scene.vr_captures) > 0
 
     def execute(self, context):
         capture = properties.VRCapture.get_selected_capture(context)
@@ -580,18 +697,22 @@ class VIEW3D_OT_vr_location_scouting_active_camera_to_capture(Operator):
         cam.data.sensor_width = 36
 
         cam.data.lens = capture.lens_focal
-        cam.data.dof.use_dof = capture.dof_enable
-        cam.data.dof.focus_distance = capture.dof_dist
+        cam.data.dof.use_dof = capture.dof_enabled
+        cam.data.dof.focus_distance = capture.dof_distance
         cam.data.dof.aperture_fstop = capture.dof_fstop
 
         return {'FINISHED'}
 
 
-class VIEW3D_OT_vr_location_scouting_capture_remove(Operator):
-    bl_idname = "view3d.vr_location_scouting_capture_remove"
-    bl_label = "Remove VR Capture"
-    bl_description = "Delete the selected VR capture from the list"
+class VIEW3D_OT_vr_location_scouting_remove_capture(Operator):
+    bl_idname = "view3d.vr_location_scouting_remove_capture"
+    bl_label = "Remove Location Scouting Capture"
+    bl_description = "Remove the selected Location Scouting Capture"
     bl_options = {'UNDO', 'REGISTER'}
+
+    @classmethod
+    def poll(cls, context):
+        return len(context.scene.vr_captures) > 0
 
     def execute(self, context):
         scene = context.scene
@@ -602,6 +723,34 @@ class VIEW3D_OT_vr_location_scouting_capture_remove(Operator):
 
         if scene.vr_captures_selected > 0:
             scene.vr_captures_selected -= 1
+
+        viewfinder_camera_gizmo_view3d_redraw_workaround()
+
+        return {'FINISHED'}
+
+
+class VIEW3D_OT_vr_location_scouting_browse_captures(Operator):
+    bl_idname = "view3d.vr_location_scouting_browse_captures"
+    bl_label = "Browse Location Scouting Captures"
+    bl_description = "Browse Location Scouting Captures forward or backward"
+
+    backward: bpy.props.BoolProperty(
+        name="Browse Backward",
+        default=False,
+        options={'HIDDEN', 'SKIP_SAVE'},
+    )
+
+    @classmethod
+    def poll(cls, context):
+        return len(context.scene.vr_captures) > 0
+
+    def execute(self, context):
+        scene = context.scene
+
+        incr = -1 if self.backward else 1
+        scene.vr_captures_selected = (scene.vr_captures_selected + incr) % len(scene.vr_captures)
+
+        viewfinder_camera_gizmo_view3d_redraw_workaround()
 
         return {'FINISHED'}
 
@@ -856,7 +1005,7 @@ class VIEW3D_GGT_vr_captures(GizmoGroup):
     bl_label = "VR Location Scouting Captures Indicators"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'WINDOW'
-    bl_options = {'3D', 'DEPTH_3D', 'PERSISTENT', 'SCALE', 'VR_REDRAWS'}
+    bl_options = {'3D', 'DEPTH_3D', 'PERSISTENT', 'SCALE'}
 
     @staticmethod
     def compute_aspect(render_settings) -> tuple[float, float]:
@@ -866,18 +1015,15 @@ class VIEW3D_GGT_vr_captures(GizmoGroup):
         aspect_x = render_x / render_y if render_x < render_y else 1
         aspect_y = render_y / render_x if render_x > render_y else 1
 
-        # Base apsect to match native Blender Camera Gizmo (using Auto Sensor Fit)
+        # Base aspect to match native Blender Camera Gizmo (using Auto Sensor Fit)
         base_aspect = 1 / 4
         return aspect_x * base_aspect, aspect_y * base_aspect
 
     @staticmethod
     def get_selection_color(context, is_active_capture) -> tuple[float, float, float]:
-        theme = context.preferences.themes[0]
-        selection_color = Color(theme.view_3d.object_active)
+        selection_color = Color((0.25, 0.81, 1.0))
 
         # Shift the hue of the base theme selection color, decrease its saturation/value further for inactive captures
-        selection_color.h += 0.45
-        selection_color.s -= 0.1
         if not is_active_capture:
             selection_color.s += 0.2
             selection_color.v -= 0.5
@@ -896,15 +1042,12 @@ class VIEW3D_GGT_vr_captures(GizmoGroup):
     @classmethod
     def poll(cls, context):
         view3d = context.space_data
-        # TODO: Might require some optimizations due to the use of VR_REDRAWS
         return view3d.shading.vr_show_captures
 
     def setup(self, context):
         pass
 
     def draw_prepare(self, context):
-        # TODO: Make this gizmo visible from inside the XR view (might need to create a separate gizmo)
-        #       Could also handle viewport selection, but that might be more confusing than anything.
         for g in self.gizmos:
             self.gizmos.remove(g)
 
@@ -943,8 +1086,10 @@ classes = (
     VIEW3D_OT_vr_location_scouting_viewfinder_capture,
     VIEW3D_OT_vr_location_scouting_viewfinder_apply_action,
     VIEW3D_OT_vr_location_scouting_add_camera_from_capture,
+    VIEW3D_OT_vr_location_scouting_add_marker_from_capture,
     VIEW3D_OT_vr_location_scouting_active_camera_to_capture,
-    VIEW3D_OT_vr_location_scouting_capture_remove,
+    VIEW3D_OT_vr_location_scouting_remove_capture,
+    VIEW3D_OT_vr_location_scouting_browse_captures,
     VIEW3D_OT_vr_location_scouting_viewfinder_cycle_mode,
     VIEW3D_OT_vr_location_scouting_viewfinder_cycle_action,
 

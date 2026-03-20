@@ -122,6 +122,8 @@ if(WITH_UI_TESTS)
       # while this could be investigated, use windowed mode instead.
       # Use a window size that balances software GPU rendering with enough room to use the UI.
       --factory-startup
+      # Workaround for https://projects.blender.org/blender/blender/issues/154770.
+      --no-native-pixels
       # No need for window frame with tests.
       --no-window-frame
       -p 0 0 800 600
@@ -265,6 +267,32 @@ add_blender_test(
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_bpy_app.py
 )
 
+if (WITH_GPU_BACKEND_TESTS)
+  if(WITH_OPENGL_BACKEND)
+    add_blender_test(
+      script_pyapi_gpu_opengl
+      --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_gpu.py
+      --gpu-backend opengl
+    )
+  endif()
+
+  if(WITH_METAL_BACKEND)
+    add_blender_test(
+      script_pyapi_gpu_metal
+      --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_gpu.py
+      --gpu-backend metal
+    )
+  endif()
+
+  if(WITH_VULKAN_BACKEND)
+    add_blender_test(
+      script_pyapi_gpu_vulkan
+      --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_gpu.py
+      --gpu-backend vulkan
+    )
+  endif()
+endif()
+
 add_blender_test(
   script_pyapi_bpy_app_tempdir
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_bpy_app_tempdir.py
@@ -318,6 +346,21 @@ add_blender_test(
 add_blender_test(
   script_pyapi_bmesh
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_bmesh.py
+)
+
+add_blender_test(
+  imbuf_py_api
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_imbuf_py_api.py
+)
+
+add_blender_test(
+  operator_function_py_api
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_operator_function_py_api.py
+)
+
+add_blender_test(
+  operator_wrap_py_api
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_operator_wrap_py_api.py
 )
 
 add_blender_test(
@@ -934,7 +977,8 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
     add_gpu_render_tests(eevee "eevee_render_tests.py" "${gpu_render_tests}")
     add_gpu_render_tests(workbench "workbench_render_tests.py" "${gpu_render_tests}")
     if(WITH_GPU_RENDER_TESTS_HEADED)
-      add_gpu_render_tests(overlay "overlay_render_tests.py" "${gpu_render_tests}")
+      # Temporarilly disabled until 154533 is merged to avoid errors on the builder.
+      # add_gpu_render_tests(overlay "overlay_render_tests.py" "${gpu_render_tests}")
     endif()
     if(WITH_HYDRA)
       add_gpu_render_tests(storm_hydra "storm_render_tests.py" "${gpu_render_tests}" --export_method "HYDRA")
@@ -1234,7 +1278,7 @@ if(TEST_SRC_DIR_EXISTS)
     --python ${CMAKE_CURRENT_LIST_DIR}/io_gltf_import_test.py
     --
     --testdir "${TEST_SRC_DIR}/io_tests/gltf/import"
-    --outdir "${TEST_OUT_DIR}/io_gltf"
+    --outdir "${TEST_OUT_DIR}/io_gltf_import"
   )
 endif()
 
@@ -1244,7 +1288,7 @@ if(TEST_SRC_DIR_EXISTS)
     --python ${CMAKE_CURRENT_LIST_DIR}/io_gltf_roundtrip_test.py
     --
     --testdir "${TEST_SRC_DIR}/io_tests/gltf/roundtrip"
-    --outdir "${TEST_OUT_DIR}/io_gltf"
+    --outdir "${TEST_OUT_DIR}/io_gltf_roundtrip"
   )
 endif()
 
@@ -1254,7 +1298,7 @@ if(TEST_SRC_DIR_EXISTS)
     --python ${CMAKE_CURRENT_LIST_DIR}/io_gltf_export_test.py
     --
     --testdir "${TEST_SRC_DIR}/io_tests/gltf/export"
-    --outdir "${TEST_OUT_DIR}/io_gltf"
+    --outdir "${TEST_OUT_DIR}/io_gltf_export"
   )
 endif()
 
@@ -1343,6 +1387,7 @@ if(TEST_SRC_DIR_EXISTS)
     transform
     blend_modes_byte
     blend_modes_float
+    colorspace
   )
   set(video_output_tests "")
 
@@ -1499,6 +1544,7 @@ if(WITH_UI_TESTS)
     test_sculpt.mask_expand_and_invert
     test_sculpt.mask_gestures
     test_sculpt.trim_gestures
+    test_sculpt.primitive_tool_add
     test_tools.sculpt_mode_toolbar
     test_undo.compositor_make_group
     test_undo.text_editor_edit_mode_mix

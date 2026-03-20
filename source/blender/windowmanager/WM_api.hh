@@ -1484,7 +1484,7 @@ void WM_uilisttype_free();
  * The "full" list-ID is an internal name used for storing and identifying a list. It is built like
  * this:
  * `{uiListType.idname}_{list_id}`, whereby `list_id` is an optional parameter passed to
- * `ui::Layout.template_list()`. If it is not set, the full list-ID is just
+ * `ui::Layout.template_uilist()`. If it is not set, the full list-ID is just
  * `{uiListType.idname}_`.
  *
  * Note that whenever the Python API refers to the list-ID, it's the short, "non-full" one it
@@ -2251,7 +2251,9 @@ bool WM_xr_session_is_ready(const wmXrData *xr);
 
 wmXrSessionState *WM_xr_session_state_handle_get(const wmXrData *xr);
 wmXrViewfinderState *WM_xr_session_state_viewfinder_handle_get(const wmXrData *xr);
-ScrArea *WM_xr_session_area_get(const wmXrData *xr);
+
+bContext *WM_xr_session_context_get(const wmXrData *xr);
+bContext *WM_xr_session_context_ensure(wmXrData *xr, const wmWindowManager *wm);
 
 void WM_xr_session_base_pose_reset(wmXrData *xr);
 void WM_xr_session_state_navigation_reset(wmXrSessionState *state);
@@ -2265,6 +2267,7 @@ bool WM_xr_session_state_viewer_pose_rotation_get(const wmXrData *xr, float r_ro
 bool WM_xr_session_state_viewer_pose_matrix_info_get(const wmXrData *xr,
                                                      float r_viewmat[4][4],
                                                      float *r_focal_len);
+bool WM_xr_session_state_viewer_scale_get(const wmXrData *xr, float *r_scale);
 
 bool WM_xr_session_state_controller_grip_location_get(const wmXrData *xr,
                                                       unsigned int subaction_idx,
@@ -2292,16 +2295,22 @@ bool WM_xr_session_state_viewfinder_orientation_get(const wmXrData *xr, float r_
 bool WM_xr_session_state_viewfinder_runtime_capture_flash_get(const wmXrData *xr, float *r_flash);
 void WM_xr_session_state_viewfinder_runtime_capture_flash_set(wmXrData *xr, float flash);
 
-bool WM_xr_session_state_viewfinder_capture_use_dof_get(const wmXrData *xr, bool *r_use_dof);
-void WM_xr_session_state_viewfinder_capture_use_dof_set(wmXrData *xr, bool use_dof);
-bool WM_xr_session_state_viewfinder_capture_lens_get(const wmXrData *xr, float *r_lens);
-void WM_xr_session_state_viewfinder_capture_lens_set(wmXrData *xr, float lens);
-bool WM_xr_session_state_viewfinder_capture_aperture_fstop_get(const wmXrData *xr,
-                                                               float *r_aperture_fstop);
-void WM_xr_session_state_viewfinder_capture_aperture_fstop_set(wmXrData *xr, float aperture_fstop);
-bool WM_xr_session_state_viewfinder_capture_focus_distance_get(const wmXrData *xr,
-                                                               float *r_focus_distance);
-void WM_xr_session_state_viewfinder_capture_focus_distance_set(wmXrData *xr, float focus_distance);
+bool WM_xr_session_state_viewfinder_capture_dof_enabled_get(const wmXrData *xr,
+                                                            bool *r_dof_enabled);
+void WM_xr_session_state_viewfinder_capture_dof_enabled_set(wmXrData *xr, bool dof_enabled);
+bool WM_xr_session_state_viewfinder_capture_lens_focal_get(const wmXrData *xr,
+                                                           float *r_lens_focal);
+void WM_xr_session_state_viewfinder_capture_lens_focal_set(wmXrData *xr, float lens_focal);
+bool WM_xr_session_state_viewfinder_capture_dof_distance_get(const wmXrData *xr,
+                                                             float *r_dof_distance);
+void WM_xr_session_state_viewfinder_capture_dof_distance_set(wmXrData *xr, float dof_distance);
+bool WM_xr_session_state_viewfinder_capture_dof_fstop_get(const wmXrData *xr, float *r_dof_fstop);
+void WM_xr_session_state_viewfinder_capture_dof_fstop_set(wmXrData *xr, float dof_fstop);
+
+bool WM_xr_session_state_viewfinder_playback_show_active_capture_in_space_enabled_get(
+    const wmXrData *xr, bool *r_enabled);
+void WM_xr_session_state_viewfinder_playback_show_active_capture_in_space_enabled_set(
+    wmXrData *xr, bool enabled);
 
 bool WM_xr_session_state_viewfinder_active_mode_get(const wmXrData *xr, eXrViewfinderMode *r_mode);
 void WM_xr_session_state_viewfinder_active_mode_set(wmXrData *xr, eXrViewfinderMode mode);

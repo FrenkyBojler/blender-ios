@@ -26,6 +26,7 @@ namespace blender {
 struct bContext;
 struct ARegion;
 struct Camera;
+struct GPUOffScreen;
 struct Object;
 struct wmWindow;
 struct wmWindowManager;
@@ -37,21 +38,26 @@ namespace gpu {
 class Texture;
 }
 
-// TODO: eventually move to its own header file with its enums
 struct wmXrViewfinderState {
   float capture_position[3];
   float capture_orientation_quat[4];
 
+  GPUOffScreen *framebuffer;
+  gpu::Texture *backside_logo_texture;
+
   /* Runtime values. */
-  Camera *runtime_cam_data_id;
+  Camera *render_cam_data_id;
+  double smoothing_delta_t;
   float runtime_capture_flash;
-  double runtime_smoothing_delta_t;
 
   /* Capture settings. */
-  bool capture_use_dof;
-  float capture_lens;
-  float capture_aperture_fstop;
-  float capture_focus_distance;
+  bool capture_dof_enabled;
+  float capture_lens_focal;
+  float capture_dof_distance;
+  float capture_dof_fstop;
+
+  /* Playback settings. */
+  bool playback_show_active_capture_in_space_enabled;
 
   /** Active modes, concept differs from the rest of the Blender UI. */
   eXrViewfinderMode active_mode;
@@ -64,7 +70,7 @@ struct wmXrSessionState {
 
   /** Last known viewer pose (centroid of eyes, in world space) stored for queries. */
   GHOST_XrPose viewer_pose;
-  /** The last known view matrix, calculated from above's viewer pose. */
+  /** The last known view matrix, calculated from the above viewer pose. */
   float viewer_viewmat[4][4];
   /** The last known viewer matrix, without navigation applied. */
   float viewer_mat_base[4][4];
@@ -78,6 +84,8 @@ struct wmXrSessionState {
   Object *prev_base_pose_object;
   /** Copy of XrSessionSettings.flag created on the last draw call, stored to detect changes. */
   int prev_settings_flag;
+  /** Copy of XrSessionSettings.view_scale, stored to detect changes. */
+  float prev_view_scale_setting;
   /** Copy of wmXrDrawData.base_pose. */
   GHOST_XrPose prev_base_pose;
   /** Copy of wmXrDrawData.base_scale. */
@@ -94,10 +102,12 @@ struct wmXrSessionState {
   /** Current navigation transforms. */
   GHOST_XrPose nav_pose;
   float nav_scale;
-  /** Navigation transforms from the last actions sync, used to calculate the viewer/controller
-   * poses. */
-  GHOST_XrPose nav_pose_prev;
-  float nav_scale_prev;
+  float viewer_scale;
+
+  /** Navigation transforms and viewer scale from the last action sync, used to calculate the
+   * viewer/controller poses. */
+  GHOST_XrPose nav_pose_last_actions_sync;
+  float viewer_scale_last_actions_sync;
   bool is_navigation_dirty;
 
   /** Last known controller data. */
@@ -117,14 +127,14 @@ struct wmXrSessionState {
 };
 
 struct wmXrRuntimeData {
+  /* GHOST XR context. */
   GHOST_IXrContext *ghost_context;
 
-  /** The window the session was started in. Stored to be able to follow its view-layer. This may
-   * be an invalid reference, i.e. the window may have been closed. */
-  wmWindow *session_root_win;
+  /* XR-specific Blender context. */
+  bContext *b_context;
 
-  /** Off-screen area used for XR events. */
-  struct ScrArea *area;
+  /* Owning pointer to the XR offscreen area. Must be freed on XR session exit. */
+  ScrArea *offscreen_area;
 
   /** Although this struct is internal, RNA gets a handle to this for state information queries. */
   wmXrSessionState session_state;
@@ -152,9 +162,6 @@ struct wmXrSurfaceData {
 };
 
 struct wmXrDrawData {
-  struct Scene *scene;
-  struct Depsgraph *depsgraph;
-
   wmXrData *xr_data;
   wmXrSurfaceData *surface_data;
 
@@ -310,5 +317,13 @@ bool wm_xr_passthrough_enabled(void *customdata);
  * It's assigned to Ghost-XR as a callback (see GHOST_XrDisablePassthroughFunc()).
  */
 void wm_xr_disable_passthrough(void *customdata);
+
+/* `wm_xr_location_scouting.cc` */
+
+bool wm_xr_viewfinder_operator_event_match_hand(bContext *C, const wmEvent *event);
+void wm_xr_viewfinder_render_view(wmXrData *xr_data);
+void wm_xr_viewfinder_draw(const bContext *C,
+                           const XrSessionSettings *settings,
+                           wmXrSessionState *state);
 
 }  // namespace blender
