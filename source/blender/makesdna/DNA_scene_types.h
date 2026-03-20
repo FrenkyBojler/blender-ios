@@ -11,6 +11,7 @@
 #include "DNA_defs.h"
 
 #include "BLI_enum_flags.hh"
+#include "BLI_map.hh"
 #include "BLI_math_constants.h"
 
 /**
@@ -32,9 +33,7 @@
 #include "DNA_vec_types.h"
 #include "DNA_view3d_types.h"
 
-#ifdef __cplusplus
-#  include "BLI_map.hh"
-#endif
+namespace blender {
 
 struct AnimData;
 struct Brush;
@@ -42,6 +41,7 @@ struct Collection;
 struct CurveMapping;
 struct CurveProfile;
 struct CustomData_MeshMasks;
+struct Depsgraph;
 struct Editing;
 struct Image;
 struct MovieClip;
@@ -50,11 +50,9 @@ struct Scene;
 struct World;
 struct bGPdata;
 struct bNodeTree;
-struct Depsgraph;
+struct KeyingSet;
+struct TransformOrientation;
 
-/** Workaround to forward-declare C++ type in C header. */
-#ifdef __cplusplus
-namespace blender {
 namespace bke {
 struct PaintRuntime;
 class SceneRuntime;
@@ -62,17 +60,7 @@ class SceneRuntime;
 namespace ocio {
 class ColorSpace;
 }
-}  // namespace blender
-using PaintRuntimeHandle = blender::bke::PaintRuntime;
-using SceneRuntimeHandle = blender::bke::SceneRuntime;
-using ColorSpaceHandle = blender::ocio::ColorSpace;
-using SceneDepsgraphsMap = blender::Map<struct DepsgraphKey, Depsgraph *, 4>;
-#else   // __cplusplus
-struct PaintRuntimeHandle;
-struct SceneRuntimeHandle;
-struct ColorSpaceHandle;
-struct SceneDepsgraphsMap;
-#endif  // __cplusplus
+using SceneDepsgraphsMap = Map<struct DepsgraphKey, Depsgraph *, 4>;
 
 /* -------------------------------------------------------------------- */
 /** \name FFMPEG
@@ -375,6 +363,7 @@ enum {
   R_IMF_IMTYPE_PSD = 34,
   R_IMF_IMTYPE_WEBP = 35,
   /* R_IMF_IMTYPE_AV1 = 36, DEPRECATED */
+  R_IMF_IMTYPE_AVIF = 37,
 
   R_IMF_IMTYPE_INVALID = 255,
 };
@@ -426,7 +415,8 @@ enum {
   R_IMF_EXR_CODEC_B44A = 7,
   R_IMF_EXR_CODEC_DWAA = 8,
   R_IMF_EXR_CODEC_DWAB = 9,
-  R_IMF_EXR_CODEC_MAX = 10,
+  R_IMF_EXR_CODEC_HTJ2K = 10,
+  R_IMF_EXR_CODEC_MAX = 11,
 };
 
 /** #ImageFormatData::exr_flag */
@@ -698,6 +688,12 @@ enum eCompositorDenoiseQaulity {
   SCE_COMPOSITOR_DENOISE_FAST = 2,
 };
 
+/** #RenderData::save_mode */
+enum eRenderOutputMode {
+  R_SAVE_MODE_DEFAULT = 0,
+  R_SAVE_MODE_DISABLED = 1,
+};
+
 /** #RenderData::time_jump_unit */
 enum {
   SCE_TIME_JUMP_FRAME = 0,
@@ -709,6 +705,9 @@ enum {
   /** Use preview range. */
   SCER_PRV_RANGE = 1 << 0,
   SCER_LOCK_FRAME_SELECTION = 1 << 1,
+  /* If set, allows frames before the playback start frame to be played instead of snapping to the
+     start frame. */
+  SCER_ALLOW_PREROLL = 1 << 2,
   /** Show/use sub-frames (for checking motion blur). */
   SCER_SHOW_SUBFRAME = 1 << 3,
 };
@@ -745,6 +744,7 @@ enum {
   R_EDGE_FRS = 1 << 25,        /* R_EDGE reserved for Freestyle */
   R_PERSISTENT_DATA = 1 << 26, /* Keep data around for re-render. */
   R_MODE_UNUSED_27 = 1 << 27,  /* cleared */
+  R_SAVE_OUTPUT = 1 << 28,
 };
 
 /** #RenderData::seq_flag */
@@ -891,7 +891,7 @@ struct RenderData {
   /**
    * Flags for render settings. Use bit-masking to access the settings.
    */
-  int mode = 0;
+  int mode = R_SAVE_OUTPUT;
 
   short frs_sec = 24;
 
@@ -1001,10 +1001,10 @@ struct RenderData {
 
   /** Render engine. */
   char engine[32] = "";
-  char _pad2[2] = {};
 
   /** Performance Options. */
   short perf_flag = 0;
+  short anisotropic_filter = 2;
 
   /** Baking. */
   struct BakeData bake;
@@ -1227,7 +1227,7 @@ struct Paint {
   float tile_offset[3] = {1.0f, 1.0f, 1.0f};
   struct UnifiedPaintSettings unified_paint_settings;
 
-  PaintRuntimeHandle *runtime = nullptr;
+  bke::PaintRuntime *runtime = nullptr;
 };
 
 /** \} */
@@ -1761,7 +1761,7 @@ struct MeshStatVis {
  * \{ */
 
 /** #SequencerToolSettings::snap_mode */
-enum {
+enum eSequencerSnapMode {
   SEQ_SNAP_TO_STRIPS = 1 << 0,
   SEQ_SNAP_TO_CURRENT_FRAME = 1 << 1,
   SEQ_SNAP_TO_STRIP_HOLD = 1 << 2,
@@ -1773,14 +1773,16 @@ enum {
   SEQ_SNAP_TO_STRIPS_PREVIEW = 1 << 6,
 
   SEQ_SNAP_TO_RETIMING = 1 << 7,
-  SEQ_SNAP_TO_FRAME_RANGE = 1 << 8,
+  SEQ_SNAP_TO_INCREMENT = 1 << 8, /* NOTE: Treated identically to `SCE_SNAP_TO_INCREMENT`. */
+  SEQ_SNAP_TO_FRAME_RANGE = 1 << 9,
 };
 
 /** #SequencerToolSettings::snap_flag */
-enum {
+enum eSequencerSnapFlag {
   SEQ_SNAP_IGNORE_MUTED = 1 << 0,
   SEQ_SNAP_IGNORE_SOUND = 1 << 1,
   SEQ_SNAP_CURRENT_FRAME_TO_STRIPS = 1 << 2,
+  SEQ_SNAP_TO_ALL_CHANNEL_STRIPS = 1 << 3,
 };
 
 struct SequencerToolSettings {
@@ -1877,7 +1879,8 @@ enum eSnapMode {
   SCE_SNAP_TO_KEYS = (1 << 3),
   SCE_SNAP_TO_STRIPS = (1 << 4),
 
-  /** #ToolSettings::snap_mode and #ToolSettings::snap_node_mode and #ToolSettings.snap_uv_mode */
+  /** #ToolSettings::snap_mode and #ToolSettings::snap_node_mode and #ToolSettings.snap_uv_mode and
+     #ToolSettings::snap_mode_tools */
   SCE_SNAP_TO_POINT = (1 << 0),
   SCE_SNAP_TO_EDGE_MIDPOINT = (1 << 1),
   SCE_SNAP_TO_EDGE_ENDPOINT = (1 << 2),
@@ -1896,8 +1899,14 @@ enum eSnapMode {
 };
 ENUM_OPERATORS(eSnapMode)
 
+/**
+ * \note The exact value here is used in an enum, any changes require versioning.
+ */
 #define SCE_SNAP_TO_VERTEX (SCE_SNAP_TO_POINT | SCE_SNAP_TO_EDGE_ENDPOINT)
 
+/**
+ * \note The exact value here is used in an enum, any changes require versioning.
+ */
 #define SCE_SNAP_TO_GEOM \
   (SCE_SNAP_TO_VERTEX | SCE_SNAP_TO_EDGE | SCE_SNAP_TO_FACE | SCE_SNAP_TO_FACE_MIDPOINT | \
    SCE_SNAP_TO_EDGE_MIDPOINT | SCE_SNAP_TO_EDGE_PERPENDICULAR)
@@ -2639,6 +2648,10 @@ struct SceneEEVEE {
   float clamp_volume_direct = 0;
   float clamp_volume_indirect = 0;
 
+  /** Global lighting intensity. */
+  float direct_light_intensity = 1.0f;
+  float indirect_light_intensity = 1.0f;
+
   int ray_tracing_method = RAYTRACE_EEVEE_METHOD_SCREEN;
 
   struct RaytraceEEVEE ray_tracing_options;
@@ -2703,6 +2716,15 @@ enum {
   SCE_CUSTOM_SIMULATION_RANGE = 1 << 6,
 };
 
+/** #Scene::playback_loop_mode */
+enum eScenePlaybackLoopMode {
+  SCE_LOOP_MODE_INFINITE = 0,
+  SCE_LOOP_MODE_STOP_END_FRAME = 1,
+  SCE_LOOP_MODE_STOP_START_FRAME = 2,
+  SCE_LOOP_MODE_RESTORE = 3,
+  SCE_LOOP_MODE_BOUNCE = 4,
+};
+
 /* Return flag BKE_scene_base_iter_next functions. */
 enum {
   // F_ERROR = -1, /* UNUSED. */
@@ -2762,7 +2784,7 @@ struct Scene {
   struct AudioData audio;
 
   ListBaseT<TimeMarker> markers = {nullptr, nullptr};
-  ListBaseT<struct TransformOrientation> transform_spaces = {nullptr, nullptr};
+  ListBaseT<TransformOrientation> transform_spaces = {nullptr, nullptr};
 
   /** First is the [scene, translate, rotate, scale]. */
   TransformOrientationSlot orientation_slots[4];
@@ -2772,7 +2794,9 @@ struct Scene {
 
   /** None of the dependency graph vars is mean to be saved. */
   SceneDepsgraphsMap *depsgraph_hash = nullptr;
-  char _pad7[4] = {};
+
+  uint8_t playback_loop_mode = SCE_LOOP_MODE_INFINITE;
+  char _pad7[3] = {};
 
   /* User-Defined KeyingSets. */
   /**
@@ -2834,7 +2858,7 @@ struct Scene {
   struct SceneGpencil grease_pencil_settings;
   struct SceneHydra hydra;
 
-  SceneRuntimeHandle *runtime = nullptr;
+  bke::SceneRuntime *runtime = nullptr;
 #ifdef __cplusplus
   /* Return the frame rate of the scene. */
   double frames_per_second() const;
@@ -2908,3 +2932,5 @@ extern const char *RE_engine_id_BLENDER_EEVEE_NEXT;
 #define TIME2FRA(a) ((((double)scene->r.frs_sec) * (double)(a)) / (double)scene->r.frs_sec_base)
 
 /** \} */
+
+}  // namespace blender

@@ -2,13 +2,11 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/** \file
- * \ingroup cmpnodes
- */
-
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
+
+#include "BKE_node_runtime.hh"
 
 #include "RNA_types.hh"
 
@@ -39,7 +37,7 @@ static const EnumPropertyItem type_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static void cmp_node_filter_declare(NodeDeclarationBuilder &b)
+static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
@@ -67,7 +65,7 @@ class SocketSearchOp {
   void operator()(LinkSearchOpParams &params)
   {
     bNode &node = params.add_node("CompositorNodeFilter");
-    bNodeSocket &type_socket = *blender::bke::node_find_socket(node, SOCK_IN, "Type");
+    bNodeSocket &type_socket = *bke::node_find_socket(node, SOCK_IN, "Type");
     type_socket.default_value_typed<bNodeSocketValueMenu>()->value = this->filter_type;
     params.update_and_connect_available_socket(node, "Image");
   }
@@ -285,29 +283,27 @@ class FilterOperation : public NodeOperation {
   }
 };
 
-static NodeOperation *get_compositor_operation(Context &context, DNode node)
+static NodeOperation *get_compositor_operation(Context &context, const bNode &node)
 {
   return new FilterOperation(context, node);
 }
 
-}  // namespace blender::nodes::node_composite_filter_cc
-
-static void register_node_type_cmp_filter()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_composite_filter_cc;
-
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodeFilter", CMP_NODE_FILTER);
   ntype.ui_name = "Filter";
   ntype.ui_description = "Apply common image enhancement filters";
   ntype.enum_name_legacy = "FILTER";
   ntype.nclass = NODE_CLASS_OP_FILTER;
-  ntype.declare = file_ns::cmp_node_filter_declare;
+  ntype.declare = node_declare;
   ntype.flag |= NODE_PREVIEW;
-  ntype.get_compositor_operation = file_ns::get_compositor_operation;
-  ntype.gather_link_search_ops = file_ns::gather_link_searches;
+  ntype.get_compositor_operation = get_compositor_operation;
+  ntype.gather_link_search_ops = gather_link_searches;
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
-NOD_REGISTER_NODE(register_node_type_cmp_filter)
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_composite_filter_cc

@@ -219,6 +219,24 @@ static void find_auto_structure_type_sockets(const bNodeTree &tree,
       }
     }
   }
+
+  /* Handle Store Bundle Item nodes. */
+  for (const bNode *node : tree.nodes_by_type("NodeStoreBundleItem")) {
+    auto &storage = *static_cast<NodeStoreBundleItem *>(node->storage);
+    if (storage.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
+      const bNodeSocket &socket = *node->input_by_identifier("Item");
+      is_auto_structure_type[socket.index_in_tree()].set();
+    }
+  }
+
+  /* Handle Get Bundle Item nodes. */
+  for (const bNode *node : tree.nodes_by_type("NodeGetBundleItem")) {
+    auto &storage = *static_cast<NodeGetBundleItem *>(node->storage);
+    if (storage.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
+      const bNodeSocket &socket = *node->output_by_identifier("Item");
+      is_auto_structure_type[socket.index_in_tree()].set();
+    }
+  }
 }
 
 static void init_input_requirements(const bNodeTree &tree,
@@ -235,10 +253,6 @@ static void init_input_requirements(const bNodeTree &tree,
       const nodes::SocketDeclaration *declaration = socket->runtime->declaration;
       if (!declaration) {
         requirement = DataRequirement::None;
-        continue;
-      }
-      if (nodes::socket_type_always_single(eNodeSocketDatatype(socket->type))) {
-        requirement = DataRequirement::Single;
         continue;
       }
       switch (declaration->structure_type) {
@@ -906,14 +920,6 @@ static StructureTypeInferenceResult calc_structure_type_interface(const bNodeTre
                           result.socket_structure_types);
   store_group_output_structure_types(
       tree, node_interfaces, result.socket_structure_types, result.group_interface);
-
-  /* Ensure that the structure type is never invalid. */
-  for (const int i : tree.all_sockets().index_range()) {
-    const bNodeSocket &socket = *tree.all_sockets()[i];
-    if (nodes::socket_type_always_single(eNodeSocketDatatype(socket.type))) {
-      result.socket_structure_types[i] = StructureType::Single;
-    }
-  }
 
   return result;
 }

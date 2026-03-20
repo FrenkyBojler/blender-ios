@@ -14,18 +14,16 @@
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
 
-#ifdef __cplusplus
-namespace blender::bke {
+namespace blender {
+
+namespace bke {
 struct CollectionRuntime;
-}  // namespace blender::bke
-using CollectionRuntimeHandle = blender::bke::CollectionRuntime;
-#else
-struct CollectionRuntimeHandle;
-#endif
+}  // namespace bke
 
 struct Collection;
 struct Object;
 struct GHash;
+struct LayoutPanelState;
 
 enum IOHandlerPanelFlag {
   IO_HANDLER_PANEL_OPEN = 1 << 0,
@@ -143,6 +141,8 @@ struct CollectionExport {
   uint32_t flag = 0;
 
   uint32_t _pad0 = {};
+
+  ListBaseT<LayoutPanelState> layout_panel_states = {nullptr, nullptr};
 };
 
 struct Collection {
@@ -184,5 +184,7 @@ struct Collection {
   DNA_DEPRECATED struct ViewLayer *view_layer = nullptr;
 
   /* Keep last. */
-  CollectionRuntimeHandle *runtime = nullptr;
+  bke::CollectionRuntime *runtime = nullptr;
 };
+
+}  // namespace blender

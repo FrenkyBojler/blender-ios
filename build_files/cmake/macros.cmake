@@ -5,9 +5,9 @@
 macro(list_insert_after
   list_id item_check item_add
   )
-  set(_index)
+  set(_index "")
   list(FIND "${list_id}" "${item_check}" _index)
-  if("${_index}" MATCHES "-1")
+  if(${_index} EQUAL -1)
     message(FATAL_ERROR "'${list_id}' doesn't contain '${item_check}'")
   endif()
   math(EXPR _index "${_index} + 1")
@@ -18,9 +18,9 @@ endmacro()
 macro(list_insert_before
   list_id item_check item_add
   )
-  set(_index)
+  set(_index "")
   list(FIND "${list_id}" "${item_check}" _index)
-  if("${_index}" MATCHES "-1")
+  if(${_index} EQUAL -1)
     message(FATAL_ERROR "'${list_id}' doesn't contain '${item_check}'")
   endif()
   list(INSERT ${list_id} "${_index}" ${item_add})
@@ -54,16 +54,22 @@ macro(path_ensure_trailing_slash
   path_new path_input
   )
   file(TO_NATIVE_PATH "/" _path_sep)
-  string(REGEX REPLACE "[${_path_sep}]+$" "" ${path_new} ${path_input})
+  # Escape for use in regex (`string(REGEX QUOTE ...)` is only available in CMake 4.2+).
+  string(REPLACE "\\" "\\\\" _path_sep_escaped "${_path_sep}")
+  string(REGEX REPLACE "[${_path_sep_escaped}]+$" "" ${path_new} ${path_input})
   set(${path_new} "${${path_new}}${_path_sep}")
   unset(_path_sep)
+  unset(_path_sep_escaped)
 endmacro()
 
 macro(path_strip_trailing_slash
   path_new path_input
   )
   file(TO_NATIVE_PATH "/" _path_sep)
-  string(REGEX REPLACE "[${_path_sep}]+$" "" ${path_new} ${path_input})
+  # Escape for use in regex (`string(REGEX QUOTE ...)` is only available in CMake 4.2+).
+  string(REPLACE "\\" "\\\\" _path_sep_escaped "${_path_sep}")
+  string(REGEX REPLACE "[${_path_sep_escaped}]+$" "" ${path_new} ${path_input})
+  unset(_path_sep_escaped)
 endmacro()
 
 # Our own version of `cmake_path(IS_PREFIX ..)`.
@@ -78,7 +84,18 @@ macro(path_is_prefix
   get_filename_component(_abs_suffix "${${path}}" ABSOLUTE)
   string(LENGTH "${_abs_prefix}" _len)
   string(SUBSTRING "${_abs_suffix}" 0 "${_len}" _substr)
-  string(COMPARE EQUAL "${_abs_prefix}" "${_substr}" "${result_var}")
+  string(COMPARE EQUAL "${_abs_prefix}" "${_substr}" _is_prefix)
+  # Ensure "/foo/bar" isn't considered a prefix of "/foo/bar_baz".
+  # Checking "/" is sufficient on WIN32 since `get_filename_component` normalizes paths.
+  if(_is_prefix)
+    string(SUBSTRING "${_abs_suffix}" "${_len}" 1 _next_char)
+    if(NOT "${_next_char}" STREQUAL "" AND NOT "${_next_char}" STREQUAL "/")
+      set(_is_prefix FALSE)
+    endif()
+    unset(_next_char)
+  endif()
+  set("${result_var}" "${_is_prefix}")
+  unset(_is_prefix)
   unset(_abs_prefix)
   unset(_abs_suffix)
   unset(_len)
@@ -107,10 +124,10 @@ macro(file_list_suffix
   )
 
   # in case of empty list
-  set(_fp)
-  set(_fp_suffixed)
+  set(_fp "")
+  set(_fp_suffixed "")
 
-  set(fp_list_new)
+  set(fp_list_new "")
 
   foreach(_fp ${fp_list})
     file_suffix(_fp_suffixed "${_fp}" "${fn_suffix}")
@@ -271,7 +288,7 @@ function(blender_source_group
       # remove ../'s
       get_filename_component(_SRC_DIR ${_SRC} REALPATH)
       get_filename_component(_SRC_DIR ${_SRC_DIR} DIRECTORY)
-      string(FIND ${_SRC_DIR} "${CMAKE_CURRENT_SOURCE_DIR}/" _pos)
+      string(FIND "${_SRC_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/" _pos)
       if(NOT _pos EQUAL -1)
         string(REPLACE "${CMAKE_CURRENT_SOURCE_DIR}/" "" GROUP_ID ${_SRC_DIR})
         string(REPLACE "/" "\\" GROUP_ID ${GROUP_ID})
@@ -284,12 +301,12 @@ function(blender_source_group
     source_group("Source Files" FILES CMakeLists.txt)
     foreach(_SRC ${sources})
       get_filename_component(_SRC_EXT ${_SRC} EXT)
-      if((${_SRC_EXT} MATCHES ".h") OR
-         (${_SRC_EXT} MATCHES ".hpp") OR
-         (${_SRC_EXT} MATCHES ".hh"))
+      if(("${_SRC_EXT}" STREQUAL ".h") OR
+         ("${_SRC_EXT}" STREQUAL ".hpp") OR
+         ("${_SRC_EXT}" STREQUAL ".hh"))
 
         set(GROUP_ID "Header Files")
-      elseif(${_SRC_EXT} MATCHES ".glsl$")
+      elseif("${_SRC_EXT}" STREQUAL ".glsl")
         set(GROUP_ID "Shaders")
       else()
         set(GROUP_ID "Source Files")
@@ -313,18 +330,23 @@ endfunction()
 # 'name' should always match the target name,
 # use this macro before add_library or add_executable.
 #
-# Optionally takes an arg passed to set(), eg PARENT_SCOPE.
+# Optionally takes an ARGV1 passed to set(), eg `PARENT_SCOPE`.
 macro(add_cc_flags_custom_test
   name
   )
 
+  # NOTE: When ARGV1 is PARENT_SCOPE, propagate to the caller's parent scope.
+  # `string(APPEND)` alone only modifies the local scope, and `set()` is
+  # needed because `string(APPEND)` does not support PARENT_SCOPE.
   string(TOUPPER ${name} _name_upper)
   if(DEFINED CMAKE_C_FLAGS_${_name_upper})
     message(
       STATUS
       "Using custom CFLAGS: "
       "CMAKE_C_FLAGS_${_name_upper} in \"${CMAKE_CURRENT_SOURCE_DIR}\"")
-    string(APPEND CMAKE_C_FLAGS " ${CMAKE_C_FLAGS_${_name_upper}}" ${ARGV1})
+    string(APPEND CMAKE_C_FLAGS " ${CMAKE_C_FLAGS_${_name_upper}}")
+    # Harmless if ARGV1 isn't set.
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}" ${ARGV1})
   endif()
   if(DEFINED CMAKE_CXX_FLAGS_${_name_upper})
     message(
@@ -332,7 +354,9 @@ macro(add_cc_flags_custom_test
       "Using custom CXXFLAGS: "
       "CMAKE_CXX_FLAGS_${_name_upper} in \"${CMAKE_CURRENT_SOURCE_DIR}\""
     )
-    string(APPEND CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS_${_name_upper}}" ${ARGV1})
+    string(APPEND CMAKE_CXX_FLAGS " ${CMAKE_CXX_FLAGS_${_name_upper}}")
+    # Harmless if ARGV1 isn't set.
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}" ${ARGV1})
   endif()
   unset(_name_upper)
 
@@ -358,26 +382,27 @@ function(blender_link_libraries
   #
   #   set(FOO_LIBRARIES optimized libfoo.lib debug libfoo_d.lib)
   #
-  # Complications starts with a single argument for library_deps: all the elements are being
+  # Complications start with a single argument for library_deps: all the elements are being
   # put to a list: "${FOO_LIBRARIES}" will become "optimized;libfoo.lib;debug;libfoo_d.lib".
-  # This makes it impossible to pass it as-is to target_link_libraries sine it will treat
+  # This makes it impossible to pass it as-is to target_link_libraries since it will treat
   # this argument as a list of libraries to be linked against, causing missing libraries
   # for optimized.lib.
   #
-  # What this code does it traverses library_deps and extracts information about whether
-  # library is to provided as general, debug or optimized. This is a little state machine which
-  # keeps track of which build type library is to provided for:
+  # What this code does is traverse library_deps and extracts information about whether
+  # library is to be provided as general, debug or optimized. This is a little state machine which
+  # keeps track of which build type library is to be provided for:
   #
   # - If "debug" or "optimized" word is found, the next element in the list is expected to be
   #   a library which will be passed to target_link_libraries() under corresponding build type.
   #
   # - If there is no "debug" or "optimized" used library is specified for all build types.
   #
-  # NOTE: If separated libraries for debug and release are needed every library is the list are
+  # NOTE: If separated libraries for debug and release are needed every library in the list is
   # to be prefixed explicitly.
   #
   # Use: "optimized libfoo optimized libbar debug libfoo_d debug libbar_d"
   # NOT: "optimized libfoo libbar debug libfoo_d libbar_d"
+  set(dependency_libraries "")
   if(NOT "${library_deps}" STREQUAL "")
     set(next_library_mode "")
     set(next_interface_mode "PRIVATE")
@@ -392,16 +417,25 @@ function(blender_link_libraries
         set(next_interface_mode "${library}")
       else()
         if("${next_library_mode}" STREQUAL "optimized")
-          target_link_libraries(${target} ${next_interface_mode} optimized ${library})
+          set(link_library ${next_interface_mode} optimized ${library})
         elseif("${next_library_mode}" STREQUAL "debug")
-          target_link_libraries(${target} ${next_interface_mode} debug ${library})
+          set(link_library ${next_interface_mode} debug ${library})
         else()
-          target_link_libraries(${target} ${next_interface_mode} ${library})
+          set(link_library ${next_interface_mode} ${library})
         endif()
         set(next_library_mode "")
+        if(library MATCHES "^bf::dependencies")
+          list(APPEND dependency_libraries ${link_library})
+        else()
+          target_link_libraries(${target} ${link_library})
+        endif()
       endif()
     endforeach()
   endif()
+
+  # Ensure external dependencies are last in the list of libraries, so that bf::extern include
+  # directories have priority over system library include directories that might conflict.
+  target_link_libraries(${target} ${dependency_libraries})
 endfunction()
 
 function(blender_add_lib__impl
@@ -438,7 +472,7 @@ function(blender_add_lib__impl
   # Not for system includes because they can resolve to the same path
   # list_assert_duplicates("${includes_sys}")
 
-  # blenders dependency loops are longer than cmake expects and we need additional loops to
+  # Blender's dependency loops are longer than cmake expects and we need additional loops to
   # properly link.
   set_property(TARGET ${name} APPEND PROPERTY LINK_INTERFACE_MULTIPLICITY 3)
 endfunction()
@@ -475,10 +509,11 @@ endfunction()
 # Ninja only: assign 'heavy pool' to some targets that are especially RAM-consuming to build.
 function(setup_heavy_lib_pool)
   if(WITH_NINJA_POOL_JOBS AND NINJA_MAX_NUM_PARALLEL_COMPILE_HEAVY_JOBS)
-    set(_HEAVY_LIBS)
-    set(_TARGET)
+    set(_HEAVY_LIBS "")
+    set(_HEAVY_FILES "")
+    set(_TARGET "")
     if(WITH_CYCLES)
-      list(APPEND _HEAVY_LIBS "cycles_device" "cycles_kernel")
+      list(APPEND _HEAVY_LIBS "cycles_device" "cycles_kernel" "cycles_hydra")
     endif()
     if(WITH_LIBMV)
       list(APPEND _HEAVY_LIBS "extern_ceres" "bf_intern_libmv")
@@ -487,13 +522,27 @@ function(setup_heavy_lib_pool)
       list(APPEND _HEAVY_LIBS "bf_intern_openvdb")
     endif()
 
+    # A few specific files are very heavy to compile in Clang or GCC
+    # (several GB of RAM required in debug + ASAN builds e.g.).
+    list(APPEND _HEAVY_FILES "source/blender/blenkernel/intern/volume.cc")
+    list(APPEND _HEAVY_FILES "source/blender/blenkernel/intern/volume_to_mesh.cc")
+    list(APPEND _HEAVY_FILES "source/blender/blenkernel/intern/volume_grid.cc")
+    list(APPEND _HEAVY_FILES "source/blender/modifiers/intern/MOD_volume_displace.cc")
+    list(APPEND _HEAVY_FILES "source/blender/geometry/intern/mesh_to_volume.cc")
+
     foreach(_TARGET ${_HEAVY_LIBS})
       if(TARGET ${_TARGET})
         set_property(TARGET ${_TARGET} PROPERTY JOB_POOL_COMPILE compile_heavy_job_pool)
       endif()
     endforeach()
+    if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.2.0")
+      foreach(_FILE ${_HEAVY_FILES})
+        set_property(SOURCE ${_FILE} PROPERTY JOB_POOL_COMPILE compile_heavy_job_pool)
+      endforeach()
+    endif()
     unset(_TARGET)
     unset(_HEAVY_LIBS)
+    unset(_HEAVY_FILES)
   endif()
 endfunction()
 
@@ -522,13 +571,30 @@ function(setup_platform_linker_flags
   endif()
 endfunction()
 
+# Hide internal symbols for targets that might otherwise conflict with plugins.
+function(setup_platform_linker_symbol_hiding target)
+  if(DEFINED PLATFORM_LINKFLAGS_SYMBOL_HIDING)
+    set_property(
+      TARGET ${target} APPEND_STRING PROPERTY
+      LINK_FLAGS " ${PLATFORM_LINKFLAGS_SYMBOL_HIDING}"
+    )
+  endif()
+
+  if(DEFINED PLATFORM_SYMBOLS_MAP)
+    set_target_properties(${target} PROPERTIES LINK_DEPENDS ${PLATFORM_SYMBOLS_MAP})
+  endif()
+endfunction()
+
 # Platform specific libraries for targets.
 function(setup_platform_linker_libs
   target
   )
-  # jemalloc must be early in the list, to be before pthread (see #57998).
-  if(WITH_MEM_JEMALLOC)
-    target_link_libraries(${target} PRIVATE ${JEMALLOC_LIBRARIES})
+  # TBB malloc must be early in the list, to be before PTHREAD (see #57998).
+  if(WITH_TBB_MALLOC_PROXY)
+    target_link_libraries(${target}
+      PRIVATE ${TBB_MALLOC_LIBRARIES}
+      PRIVATE ${TBB_MALLOC_PROXY_LIBRARIES}
+    )
   endif()
 
   if(WIN32 AND NOT UNIX)
@@ -546,14 +612,14 @@ macro(get_sse_flags
 
   if (CMAKE_SYSTEM_PROCESSOR MATCHES "(x86_64)|(AMD64)" OR CMAKE_OSX_ARCHITECTURES MATCHES x86_64)
     # message(STATUS "Detecting SSE support")
-    if(CMAKE_COMPILER_IS_GNUCC OR (CMAKE_C_COMPILER_ID MATCHES "Clang"))
+    if((CMAKE_C_COMPILER_ID STREQUAL "GNU") OR (CMAKE_C_COMPILER_ID MATCHES "Clang"))
       set(${_sse42_flags} "-march=x86-64-v2")
     elseif(MSVC)
       # MSVC has no specific compile flags for SSE42 (only for AVX).
       set(${_sse42_flags})
       # It also doesn't define __SSE__/__MMX__ flags and only does the AVX and higher flags.
       # For consistency we define these flags for MSVC.
-      add_compile_definitions(__MMX__ __SSE__ __SSE2__ _SSE3__ __SSE4_1__ __SSE4_2__)
+      add_compile_definitions(__MMX__ __SSE__ __SSE2__ __SSE3__ __SSE4_1__ __SSE4_2__)
     elseif(CMAKE_C_COMPILER_ID STREQUAL "Intel")
       if(WIN32)
         set(${_sse42_flags} "/QxSSE4.2")
@@ -629,13 +695,19 @@ macro(add_c_flag
   flag)
 
   string(APPEND CMAKE_C_FLAGS " ${flag}")
-  string(APPEND CMAKE_CXX_FLAGS " ${flag}")
 endmacro()
 
 macro(add_cxx_flag
   flag)
 
   string(APPEND CMAKE_CXX_FLAGS " ${flag}")
+endmacro()
+
+macro(add_cc_flag
+  flag)
+
+  add_c_flag("${flag}")
+  add_cxx_flag("${flag}")
 endmacro()
 
 # Needed to "negate" options: `-Wno-example`
@@ -659,7 +731,7 @@ endmacro()
 
 macro(remove_strict_flags)
 
-  if(CMAKE_COMPILER_IS_GNUCC)
+  if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
     remove_cc_flag(
       "-Wstrict-prototypes"
       "-Wsuggest-attribute=format"
@@ -714,7 +786,7 @@ macro(remove_strict_flags)
 endmacro()
 
 macro(remove_extra_strict_flags)
-  if(CMAKE_COMPILER_IS_GNUCC)
+  if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
     remove_cc_flag(
       "-Wunused-parameter"
     )
@@ -740,7 +812,7 @@ endmacro()
 macro(remove_strict_c_flags_file
   filenames)
   foreach(_SOURCE ${ARGV})
-    if(CMAKE_COMPILER_IS_GNUCC OR
+    if((CMAKE_C_COMPILER_ID STREQUAL "GNU") OR
        (CMAKE_C_COMPILER_ID MATCHES "Clang"))
       set_source_files_properties(
         ${_SOURCE} PROPERTIES
@@ -756,9 +828,8 @@ endmacro()
 
 macro(remove_strict_cxx_flags_file
   filenames)
-  remove_strict_c_flags_file(${filenames} ${ARHV})
   foreach(_SOURCE ${ARGV})
-    if(CMAKE_COMPILER_IS_GNUCC OR
+    if((CMAKE_CXX_COMPILER_ID STREQUAL "GNU") OR
        (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
       set_source_files_properties(
         ${_SOURCE} PROPERTIES
@@ -774,7 +845,7 @@ endmacro()
 
 # External libs may need 'signed char' to be default.
 macro(remove_cc_flag_unsigned_char)
-  if(CMAKE_COMPILER_IS_GNUCC OR
+  if((CMAKE_C_COMPILER_ID STREQUAL "GNU") OR
      (CMAKE_C_COMPILER_ID MATCHES "Clang") OR
      (CMAKE_C_COMPILER_ID STREQUAL "Intel"))
     remove_cc_flag("-funsigned-char")
@@ -883,15 +954,15 @@ function(get_blender_version)
     _out_version_cycle "${_contents}"
   )
 
-  if(NOT ${_out_version} MATCHES "[0-9]+")
+  if(NOT ${_out_version} MATCHES "^[0-9]+$")
     message(FATAL_ERROR "Version parsing failed for BLENDER_VERSION")
   endif()
 
-  if(NOT ${_out_version_patch} MATCHES "[0-9]+")
+  if(NOT ${_out_version_patch} MATCHES "^[0-9]+$")
     message(FATAL_ERROR "Version parsing failed for BLENDER_VERSION_PATCH")
   endif()
 
-  if(NOT ${_out_version_cycle} MATCHES "[a-z]+")
+  if(NOT ${_out_version_cycle} MATCHES "^[a-z]+$")
     message(FATAL_ERROR "Version parsing failed for BLENDER_VERSION_CYCLE")
   endif()
 
@@ -994,16 +1065,18 @@ endfunction()
 function(data_to_c
   file_from file_to
   list_to_add
+  # Optional 4th argument: override the symbol name used in the generated C file,
+  # useful when different files share the same basename and would produce conflicting symbols.
+  # When omitted the symbol name is derived from the filename.
+  symbol_name_override
   )
 
   list(APPEND ${list_to_add} ${file_to})
   set(${list_to_add} ${${list_to_add}} PARENT_SCOPE)
 
-  get_filename_component(_file_to_path ${file_to} PATH)
-
   add_custom_command(
     OUTPUT ${file_to}
-    COMMAND "$<TARGET_FILE:datatoc>" ${file_from} ${file_to}
+    COMMAND "$<TARGET_FILE:datatoc>" ${file_from} ${file_to} ${symbol_name_override}
     DEPENDS ${file_from} datatoc)
 
   set_source_files_properties(${file_to} PROPERTIES GENERATED TRUE)
@@ -1025,8 +1098,6 @@ function(data_to_c_simple
   list(APPEND ${list_to_add} ${file_from})
   set(${list_to_add} ${${list_to_add}} PARENT_SCOPE)
 
-  get_filename_component(_file_to_path ${_file_to} PATH)
-
   add_custom_command(
     OUTPUT  ${_file_to}
     COMMAND "$<TARGET_FILE:datatoc>" ${_file_from} ${_file_to}
@@ -1040,6 +1111,7 @@ endfunction()
 function(glsl_to_c
   file_from
   list_to_add
+  include_list
   )
 
   # remove ../'s
@@ -1049,16 +1121,21 @@ function(glsl_to_c
   get_filename_component(_file_info ${CMAKE_CURRENT_BINARY_DIR}/${file_from}.info  REALPATH)
   get_filename_component(_file_to   ${CMAKE_CURRENT_BINARY_DIR}/${file_from}.c  REALPATH)
 
+  # Turn include directories into absolute paths
+  set(_inc_list "")
+  foreach(path IN LISTS ${include_list})
+    get_filename_component(_inc_path ${CMAKE_CURRENT_SOURCE_DIR}/${path} REALPATH)
+    list(APPEND _inc_list ${_inc_path})
+  endforeach()
+
   list(APPEND ${list_to_add} ${_file_to})
   source_group(Generated FILES ${_file_to})
   list(APPEND ${list_to_add} ${file_from})
   set(${list_to_add} ${${list_to_add}} PARENT_SCOPE)
 
-  get_filename_component(_file_to_path ${_file_to} PATH)
-
   add_custom_command(
     OUTPUT  ${_file_to} ${_file_meta} ${_file_info}
-    COMMAND "$<TARGET_FILE:shader_tool>" ${_file_from} ${_file_tmp} ${_file_meta} ${_file_info}
+    COMMAND "$<TARGET_FILE:shader_tool>" ${_file_from} ${_file_tmp} ${_file_meta} ${_file_info} ${_inc_list}
     COMMAND "$<TARGET_FILE:datatoc>" ${_file_tmp} ${_file_to}
     DEPENDS ${_file_from} datatoc shader_tool)
 
@@ -1260,7 +1337,7 @@ macro(find_python_module_file
     )
     if(${out_var_abs})
       # Internal because this is only to track changes (users never need to manipulate it).
-      set(_${out_var_abs}_DEPS "${_python_mod_file_deps_test}" CACHE INTERNAL STRING "")
+      set(_${out_var_abs}_DEPS "${_python_mod_file_deps_test}" CACHE INTERNAL "")
     endif()
   endif()
 
@@ -1360,7 +1437,7 @@ endmacro()
 
 macro(windows_install_shared_manifest)
   set(options OPTIONAL DEBUG RELEASE ALL)
-  set(oneValueArgs)
+  set(oneValueArgs "")
   set(multiValueArgs FILES)
   cmake_parse_arguments(
     WINDOWS_INSTALL
@@ -1411,7 +1488,7 @@ macro(windows_install_shared_manifest)
 endmacro()
 
 macro(windows_generate_manifest)
-  set(options)
+  set(options "")
   set(oneValueArgs OUTPUT NAME)
   set(multiValueArgs FILES)
   cmake_parse_arguments(
@@ -1480,30 +1557,8 @@ macro(windows_process_platform_bundled_libraries library_deps)
   endif()
 endmacro()
 
-macro(with_shader_cpp_compilation_config)
-  # avoid noisy warnings
-  if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
-    add_c_flag("-Wno-unused-result")
-    remove_cc_flag("-Wmissing-declarations")
-    # Would be nice to enable the warning once we support references.
-    add_cxx_flag("-Wno-uninitialized")
-    # Would be nice to enable the warning once we support nameless parameters.
-    add_cxx_flag("-Wno-unused-parameter")
-    # To compile libraries.
-    add_cxx_flag("-Wno-pragma-once-outside-header")
-  elseif(MSVC)
-    # Equivalent to "-Wno-uninitialized"
-    add_cxx_flag("/wd4700")
-    # Equivalent to "-Wno-unused-parameter"
-    add_cxx_flag("/wd4100")
-    # Disable "potential divide by 0" warning
-    add_cxx_flag("/wd4723")
-  endif()
-  add_definitions(-DGPU_SHADER)
-endmacro()
-
 function(compile_sources_as_cpp
-  executable
+  library
   sources
   define
   )
@@ -1512,16 +1567,44 @@ function(compile_sources_as_cpp
     set_source_files_properties(${glsl_file} PROPERTIES LANGUAGE CXX)
   endforeach()
 
-  add_library(${executable} OBJECT ${sources})
-  set_target_properties(${executable} PROPERTIES LINKER_LANGUAGE CXX)
-  target_include_directories(${executable} PUBLIC ${INC_GLSL})
-  target_compile_definitions(${executable} PRIVATE ${define})
+  add_library(${library} OBJECT ${sources})
+  set_target_properties(${library} PROPERTIES LINKER_LANGUAGE CXX)
+  target_include_directories(${library} PUBLIC ${INC_GLSL})
+  target_compile_definitions(${library} PRIVATE ${define} -DGPU_SHADER)
+
+  # avoid noisy warnings
+  if((CMAKE_C_COMPILER_ID STREQUAL "GNU") OR (CMAKE_C_COMPILER_ID MATCHES "Clang"))
+    target_compile_options(${library} PRIVATE "-Wno-unused-result")
+    target_compile_options(${library} PRIVATE "-Wno-missing-declarations")
+    # Would be nice to enable the warning once we support references.
+    target_compile_options(${library} PRIVATE "-Wno-uninitialized")
+    # Would be nice to enable the warning once we support nameless parameters.
+    target_compile_options(${library} PRIVATE "-Wno-unused-parameter")
+    # To compile libraries.
+    target_compile_options(${library} PRIVATE "-Wno-pragma-once-outside-header")
+    target_compile_options(${library} PRIVATE "-Wno-unknown-pragmas")
+  elseif(MSVC)
+    # Equivalent to "-Wno-uninitialized"
+    target_compile_options(${library} PRIVATE "/wd4700")
+    # Equivalent to "-Wno-unused-parameter"
+    target_compile_options(${library} PRIVATE "/wd4100")
+    # Disable "potential divide by 0" warning
+    target_compile_options(${library} PRIVATE "/wd4723")
+    # Disable unkown pragma warning
+    target_compile_options(${library} PRIVATE "/wd4068")
+    # Disable unknown attribute warning
+    target_compile_options(${library} PRIVATE "/wd5030")
+    target_compile_options(${library} PRIVATE "/wd5222")
+  endif()
+  if(WIN32 AND NOT MSVC_CLANG)
+    set_target_properties(${library} PROPERTIES STATIC_LIBRARY_OPTIONS "-ignore:4006")
+  endif()
 endfunction()
 
 macro(optimize_debug_target executable)
   if(WITH_OPTIMIZED_BUILD_TOOLS)
     if(WIN32)
-      remove_cc_flag(${executable} "/Od" "/RTC1")
+      remove_cc_flag("/Od" "/RTC1")
       target_compile_options(${executable} PRIVATE "/Ox")
       target_compile_definitions(${executable} PRIVATE "_ITERATOR_DEBUG_LEVEL=0")
     else()

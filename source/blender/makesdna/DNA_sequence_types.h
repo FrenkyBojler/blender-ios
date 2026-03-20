@@ -19,46 +19,19 @@
 #include "DNA_listBase.h"
 #include "DNA_vec_types.h" /* for #rctf */
 
+namespace blender {
+
 struct MovieClip;
 struct Scene;
 struct VFont;
 struct bSound;
 
-#ifdef __cplusplus
-namespace blender::seq {
-struct FinalImageCache;
-struct IntraFrameCache;
-struct MediaPresence;
-struct PreviewCache;
-struct ThumbnailCache;
+namespace seq {
+struct EditingRuntime;
 struct TextVarsRuntime;
-struct PrefetchJob;
-struct SourceImageCache;
-struct StripLookup;
 struct StripRuntime;
-}  // namespace blender::seq
-using FinalImageCache = blender::seq::FinalImageCache;
-using IntraFrameCache = blender::seq::IntraFrameCache;
-using MediaPresence = blender::seq::MediaPresence;
-using PreviewCache = blender::seq::PreviewCache;
-using ThumbnailCache = blender::seq::ThumbnailCache;
-using TextVarsRuntime = blender::seq::TextVarsRuntime;
-using PrefetchJob = blender::seq::PrefetchJob;
-using SourceImageCache = blender::seq::SourceImageCache;
-using StripLookup = blender::seq::StripLookup;
-using StripRuntime = blender::seq::StripRuntime;
-#else
-struct FinalImageCache;
-struct IntraFrameCache;
-struct MediaPresence;
-struct PreviewCache;
-struct ThumbnailCache;
-struct TextVarsRuntime;
-struct PrefetchJob;
-struct SourceImageCache;
-struct StripLookup;
-struct StripRuntime;
-#endif
+struct StripModifierDataRuntime;
+}  // namespace seq
 
 /** #Strip.flag */
 enum eStripFlag {
@@ -167,6 +140,7 @@ enum StripType {
   STRIP_TYPE_MUL = 14,
   /* Removed (behavior was the same as alpha-over), only used when reading old files. */
   STRIP_TYPE_OVERDROP_REMOVED = 15,
+  STRIP_TYPE_COMPOSITOR = 16,
   /* STRIP_TYPE_PLUGIN = 24, */ /* Removed. */
   STRIP_TYPE_WIPE = 25,
   STRIP_TYPE_GLOW = 26,
@@ -420,7 +394,7 @@ struct Strip {
   /** List of channels for meta-strips. */
   ListBaseT<struct SeqTimelineChannel> channels = {nullptr, nullptr};
 
-  /* List of strip connections (one-way, not bidirectional). */
+  /* List of one-way strip connections (they are required to point back to this strip). */
   ListBaseT<struct StripConnection> connections = {nullptr, nullptr};
 
   /** The linked "bSound" object. */
@@ -475,10 +449,15 @@ struct Strip {
   int retiming_keys_num = 0;
   char _pad6[4] = {};
 
-  StripRuntime *runtime = nullptr;
+  seq::StripRuntime *runtime = nullptr;
 
 #ifdef __cplusplus
   bool is_effect() const;
+  int effect_num_inputs_get() const;
+  bool is_effect_with_inputs() const
+  {
+    return this->effect_num_inputs_get() != 0;
+  }
 
   /**
    * Get timeline frame where strip content starts.
@@ -522,13 +501,10 @@ struct Strip {
    */
   void right_handle_set(const Scene *scene, int timeline_frame);
   /**
-   * This function has same effect as calling @Strip::right_handle_frame_set and
-   * @Strip::left_handle_frame_set. If both handles are to be set after strip length changes, it is
-   * recommended to use this function as the order of setting handles is important. See #131731.
+   * Set the left and right handles of the strip.
+   * \note `left_frame` must be less than `right_frame`.
    */
-  void handles_set(const Scene *scene,
-                   int left_handle_timeline_frame,
-                   int right_handle_timeline_frame);
+  void handles_set(const Scene *scene, int left_frame, int right_frame);
   /**
    * Test if strip intersects with timeline frame.
    * \note This checks if strip would be rendered at this frame. For rendering it is assumed, that
@@ -617,25 +593,6 @@ enum eEditingCacheFlag {
   SEQ_CACHE_UNUSED_11 = (1 << 11), /* Was SEQ_CACHE_DISK_CACHE_ENABLE */
 };
 
-enum eEditingRuntimeFlag {
-  SEQ_SHOW_TRANSFORM_PREVIEW = (1 << 0),
-};
-
-struct EditingRuntime {
-  StripLookup *strip_lookup = nullptr;
-  MediaPresence *media_presence = nullptr;
-  ThumbnailCache *thumbnail_cache = nullptr;
-  IntraFrameCache *intra_frame_cache = nullptr;
-  SourceImageCache *source_image_cache = nullptr;
-  FinalImageCache *final_image_cache = nullptr;
-  PreviewCache *preview_cache = nullptr;
-  /** Used for rendering a different frame using sequencer_draw_get_transform_preview from the box
-   * blade tool. */
-  int transform_preview_frame = 0;
-  /** Determines if transform_preview_frame should be used for transform preview. */
-  uint32_t flag = 0; /* eEditingRuntimeFlag */
-};
-
 struct Editing {
   /**
    * The current meta-strip being edited and/or viewed, may be null, in which case the top-most
@@ -660,10 +617,12 @@ struct Editing {
   int show_missing_media_flag = 0; /* eEditingShowMissingMediaFlag */
   int cache_flag = 0;              /* eEditingCacheFlag */
 
-  PrefetchJob *prefetch_job = nullptr;
+  seq::EditingRuntime *runtime = nullptr;
 
-  EditingRuntime runtime;
-
+#if defined(__cplusplus) && !defined(DNA_NO_EXTERNAL_CONSTRUCTORS)
+  Editing();
+  ~Editing();
+#endif
 #ifdef __cplusplus
   /** Access currently displayed strips, from root sequence or a meta-strip. */
   ListBaseT<Strip> *current_strips();
@@ -854,7 +813,7 @@ struct TextVars {
   char anchor_x = 0; /* eEffectTextAlignX */
   char anchor_y = 0; /* eEffectTextAlignY */
   char _pad1 = {};
-  TextVarsRuntime *runtime = nullptr;
+  seq::TextVarsRuntime *runtime = nullptr;
 
   /* Fixed size text buffer, only exists for forward/backward compatibility.
    * #TextVars::text_ptr and #TextVars::text_len_bytes are used for full text. */
@@ -867,6 +826,10 @@ struct ColorMixVars {
   int blend_effect = 0; /* StripBlendMode */
   /** Blend factor [0.0f, 1.0f]. */
   float factor = 0;
+};
+
+struct CompositorEffectVars {
+  struct bNodeTree *node_group = nullptr;
 };
 
 /** \} */
@@ -895,6 +858,7 @@ enum eStripModifierType {
 
 /** #StripModifierData.flag */
 enum eStripModifierFlag {
+  STRIP_MODIFIER_FLAG_NONE = 0,
   STRIP_MODIFIER_FLAG_MUTE = (1 << 0),
   STRIP_MODIFIER_FLAG_EXPANDED = (1 << 1),
   STRIP_MODIFIER_FLAG_ACTIVE = (1 << 2),
@@ -910,18 +874,6 @@ enum eModMaskTime {
   STRIP_MASK_TIME_RELATIVE = 0,
   /* Global (scene) frame number will be used to access the mask. */
   STRIP_MASK_TIME_ABSOLUTE = 1,
-};
-
-struct StripModifierDataRuntime {
-  /* Reference parameters for optimizing updates. Sound modifiers can store parameters, sound
-   * inputs and outputs. When all existing parameters do match new ones, the update can be skipped
-   * and old sound handle may be returned. This is to prevent audio glitches, see #141595 */
-
-  float *last_buf = nullptr; /* Equalizer frequency/volume curve buffer */
-
-  /* Reference sound handles (may be used by any sound modifier). */
-  void *last_sound_in = nullptr;
-  void *last_sound_out = nullptr;
 };
 
 struct StripModifierData {
@@ -944,7 +896,7 @@ struct StripModifierData {
   uint16_t layout_panel_open_flag = 0;
   uint16_t ui_expand_flag = 0;
 
-  StripModifierDataRuntime runtime;
+  blender::seq::StripModifierDataRuntime *runtime = nullptr;
 };
 
 struct ColorBalanceModifierData {
@@ -1033,3 +985,5 @@ struct EchoModifierData {
 };
 
 /** \} */
+
+}  // namespace blender

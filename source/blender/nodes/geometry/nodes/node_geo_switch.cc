@@ -17,7 +17,9 @@
 
 #include "FN_multi_function_builder.hh"
 
-namespace blender::nodes::node_geo_switch_cc {
+namespace blender {
+
+namespace nodes::node_geo_switch_cc {
 
 NODE_STORAGE_FUNCS(NodeSwitch)
 
@@ -35,7 +37,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   auto &true_decl = b.add_input(socket_type, "True");
   auto &output_decl = b.add_output(socket_type, "Output");
 
-  if (socket_type_supports_fields(socket_type)) {
+  if (socket_type_supports_attributes(socket_type)) {
     switch_decl.supports_field();
     false_decl.supports_field();
     true_decl.supports_field();
@@ -48,14 +50,10 @@ static void node_declare(NodeDeclarationBuilder &b)
     output_decl.reference_pass_all();
   }
 
-  const StructureType structure_type = socket_type_always_single(socket_type) ?
-                                           StructureType::Single :
-                                           StructureType::Dynamic;
-
-  switch_decl.structure_type(structure_type);
-  false_decl.structure_type(structure_type);
-  true_decl.structure_type(structure_type);
-  output_decl.structure_type(structure_type);
+  switch_decl.structure_type(StructureType::Dynamic);
+  false_decl.structure_type(StructureType::Dynamic);
+  true_decl.structure_type(StructureType::Dynamic);
+  output_decl.structure_type(StructureType::Dynamic);
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
@@ -65,7 +63,7 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeSwitch *data = MEM_new_for_free<NodeSwitch>(__func__);
+  NodeSwitch *data = MEM_new<NodeSwitch>(__func__);
   data->input_type = SOCK_FLOAT;
   node->storage = data;
 }
@@ -111,11 +109,12 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 
 class LazyFunctionForSwitchNode : public LazyFunction {
  private:
+  int32_t node_id_;
   bool can_be_field_ = false;
   const CPPType *base_type_;
 
  public:
-  LazyFunctionForSwitchNode(const bNode &node)
+  LazyFunctionForSwitchNode(const bNode &node) : node_id_(node.identifier)
   {
     const NodeSwitch &storage = node_storage(node);
     const eNodeSocketDatatype data_type = eNodeSocketDatatype(storage.input_type);
@@ -139,15 +138,29 @@ class LazyFunctionForSwitchNode : public LazyFunction {
     outputs_.append_as("Value", cpp_type);
   }
 
-  void execute_impl(lf::Params &params, const lf::Context & /*context*/) const override
+  void execute_impl(lf::Params &params, const lf::Context &context) const override
   {
     SocketValueVariant condition_variant = params.get_input<SocketValueVariant>(0);
-    if (condition_variant.is_context_dependent_field() && can_be_field_) {
-      this->execute_field(condition_variant.get<Field<bool>>(), params);
-    }
-    else {
+    if (!condition_variant.is_context_dependent_field()) {
       this->execute_single(condition_variant.get<bool>(), params);
+      return;
     }
+
+    if (can_be_field_) {
+      this->execute_field(condition_variant.get<Field<bool>>(), params);
+      return;
+    }
+
+    auto &user_data = *static_cast<GeoNodesUserData *>(context.user_data);
+    auto &local_user_data = *static_cast<GeoNodesLocalUserData *>(context.local_user_data);
+    if (geo_eval_log::GeoTreeLogger *tree_logger = local_user_data.try_get_tree_logger(user_data))
+    {
+      tree_logger->node_warnings.append(
+          *tree_logger->allocator,
+          {node_id_, {NodeWarningType::Error, N_("Type cannot be switched by a field")}});
+    }
+
+    this->execute_single(condition_variant.get<bool>(), params);
   }
 
   static constexpr int false_input_index = 1;
@@ -200,26 +213,20 @@ class LazyFunctionForSwitchNode : public LazyFunction {
   const MultiFunction &get_switch_multi_function() const
   {
     const MultiFunction *switch_multi_function = nullptr;
-    base_type_->to_static_type_tag<float,
-                                   int,
-                                   bool,
-                                   float3,
-                                   ColorGeometry4f,
-                                   std::string,
-                                   math::Quaternion,
-                                   float4x4,
-                                   MenuValue>([&](auto type_tag) {
-      using T = typename decltype(type_tag)::type;
-      if constexpr (std::is_void_v<T>) {
-        BLI_assert_unreachable();
-      }
-      else {
-        static auto switch_fn = mf::build::SI3_SO<bool, T, T, T>(
-            "Switch", [](const bool condition, const T &false_value, const T &true_value) {
-              return condition ? true_value : false_value;
-            });
-        switch_multi_function = &switch_fn;
-      }
+    base_type_->to_static_type<float,
+                               int,
+                               bool,
+                               float3,
+                               ColorGeometry4f,
+                               std::string,
+                               math::Quaternion,
+                               float4x4,
+                               MenuValue>([&]<typename T>() {
+      static auto switch_fn = mf::build::SI3_SO<bool, T, T, T>(
+          "Switch", [](const bool condition, const T &false_value, const T &true_value) {
+            return condition ? true_value : false_value;
+          });
+      switch_multi_function = &switch_fn;
     });
     BLI_assert(switch_multi_function != nullptr);
     return *switch_multi_function;
@@ -257,7 +264,7 @@ static void node_rna(StructRNA *srna)
 
 static void register_node()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeSwitch", GEO_NODE_SWITCH);
   ntype.ui_name = "Switch";
@@ -266,21 +273,21 @@ static void register_node()
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
-  blender::bke::node_type_storage(
+  bke::node_type_storage(
       ntype, "NodeSwitch", node_free_standard_storage, node_copy_standard_storage);
   ntype.gather_link_search_ops = node_gather_link_searches;
   ntype.draw_buttons = node_layout;
   ntype.ignore_inferred_input_socket_visibility = true;
   ntype.internally_linked_input = node_internally_linked_input;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }
 NOD_REGISTER_NODE(register_node)
 
-}  // namespace blender::nodes::node_geo_switch_cc
+}  // namespace nodes::node_geo_switch_cc
 
-namespace blender::nodes {
+namespace nodes {
 
 std::unique_ptr<LazyFunction> get_switch_node_lazy_function(const bNode &node)
 {
@@ -289,4 +296,5 @@ std::unique_ptr<LazyFunction> get_switch_node_lazy_function(const bNode &node)
   return std::make_unique<LazyFunctionForSwitchNode>(node);
 }
 
-}  // namespace blender::nodes
+}  // namespace nodes
+}  // namespace blender
