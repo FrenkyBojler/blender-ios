@@ -5969,11 +5969,12 @@ static void edbm_dissolve_prop__use_angle_threshold(wmOperatorType *ot, int flag
 }
 static void edbm_dissolve_prop__use_preserve_quads(wmOperatorType *ot, bool value, int flag)
 {
-    PropertyRNA *prop = RNA_def_boolean(ot->srna,
-                  "use_preserve_quads",
-                  value,
-                  "Preserve Quads",
-                  "When dissolving the edge between two triangles, don't dissolve vertices");
+  PropertyRNA *prop = RNA_def_boolean(
+      ot->srna,
+      "use_preserve_quads",
+      value,
+      "Preserve Quads",
+      "When dissolving the edge between two triangles, don't dissolve vertices");
   if (flag) {
     RNA_def_property_flag(prop, PropertyFlag(flag));
   }
