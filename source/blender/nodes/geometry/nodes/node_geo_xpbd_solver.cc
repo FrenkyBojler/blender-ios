@@ -136,8 +136,6 @@ struct DampingConstraintUsage {
 
 struct RodStretchShearConstraint {
   std::string path;
-  Field<float> rest_length;
-  Field<float> compliance;
   std::string lambda_pos_attr;
   std::string lambda_rot_attr;
 };
@@ -315,9 +313,7 @@ struct GeometryData {
   Vector<EdgeLengthConstraintUsage> edge_length_constraints;
   Vector<InfinitePlaneColliderUsage> infinite_plane_colliders;
   Vector<MeshColliderUsage> mesh_colliders;
-
-  /** Only a single constraint of these types is allowed. */
-  std::optional<RodStretchShearConstraintUsage> rod_stretch_shear_constraint;
+  Vector<RodStretchShearConstraintUsage> rod_stretch_shear_constraints;
   std::optional<RodBendTwistConstraintUsage> rod_bend_twist_constraint;
 
   Vector<ConstraintWithColoring> static_constraints;
@@ -1426,8 +1422,6 @@ class XpbdSolverStep {
       const Bundle &bundle = **world_.lookup_path_ptr<BundlePtr>(path);
       RodStretchShearConstraint constraint;
       constraint.path = path;
-      constraint.rest_length = this->get_field_or_constant<float>(bundle, "rest_length", 0.0f);
-      constraint.compliance = this->get_field_or_constant<float>(bundle, "compliance", 0.0f);
       constraint.lambda_pos_attr =
           bundle.lookup<std::string>("lambda_position_attribute").value_or("");
       constraint.lambda_rot_attr =
@@ -1447,28 +1441,25 @@ class XpbdSolverStep {
         if (!this->behavior_applies_to_geometry(path, bundle, data_key_i)) {
           continue;
         }
-        if (geo_data.rod_stretch_shear_constraint.has_value()) {
-          this->report_warning(RPT_("Duplicate rod stretch/shear constraint"));
-          break;
-        }
-        geo_data.rod_stretch_shear_constraint = {constraint_i};
+        geo_data.rod_stretch_shear_constraints.append({constraint_i});
       }
     }
     for (const int data_key_i : geometries_.data_keys.index_range()) {
       GeometryData &geo_data = geometries_.data[data_key_i];
-      if (!geo_data.rod_stretch_shear_constraint.has_value()) {
-        continue;
+      for (RodStretchShearConstraintUsage &constraint_usage :
+           geo_data.rod_stretch_shear_constraints)
+      {
+        const RodStretchShearConstraint &constraint =
+            constraints_.rod_stretch_shear_constraints[constraint_usage.constraint_i];
+
+        constraint_usage.compliances = *geo_data.attributes.lookup_or_default<float>(
+            this->prop_attr_name(constraint.path, "compliance"), geo_data.domain, 0.0f);
+        constraint_usage.rest_lengths = *geo_data.attributes.lookup_or_default<float>(
+            this->prop_attr_name(constraint.path, "rest_length"), geo_data.domain, 0.0f);
+
+        constraint_usage.lambdas_pos = tls.allocator.allocate_array<float3>(geo_data.size);
+        constraint_usage.lambdas_rot = tls.allocator.allocate_array<float3>(geo_data.size);
       }
-      RodStretchShearConstraintUsage &constraint_usage = *geo_data.rod_stretch_shear_constraint;
-      const RodStretchShearConstraint &constraint =
-          constraints_.rod_stretch_shear_constraints[constraint_usage.constraint_i];
-
-      constraint_usage.lambdas_pos = tls.allocator.allocate_array<float3>(geo_data.size);
-      constraint_usage.lambdas_rot = tls.allocator.allocate_array<float3>(geo_data.size);
-
-      fn::FieldEvaluator &evaluator = this->get_field_evaluator(data_key_i, geo_data.domain);
-      evaluator.add(constraint.rest_length, &constraint_usage.rest_lengths);
-      evaluator.add(constraint.compliance, &constraint_usage.compliances);
     }
   }
 
@@ -1477,28 +1468,28 @@ class XpbdSolverStep {
     TLS &tls = tls_.local();
     for (const int data_key_i : geometries_.data_keys.index_range()) {
       GeometryData &geo_data = geometries_.data[data_key_i];
-      if (!geo_data.rod_stretch_shear_constraint.has_value()) {
-        continue;
-      }
-      RodStretchShearConstraintUsage &constraint_usage = *geo_data.rod_stretch_shear_constraint;
-      bke::CurvesGeometry &curves = *geo_data.curves;
-      const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+      for (const RodStretchShearConstraintUsage &constraint_usage :
+           geo_data.rod_stretch_shear_constraints)
+      {
+        bke::CurvesGeometry &curves = *geo_data.curves;
+        const OffsetIndices<int> points_by_curve = curves.points_by_curve();
 
-      const VArraySpanGetter<float> compliances{
-          tls.scope, constraint_usage.compliances, geometries_.max_chunk_size};
+        const VArraySpanGetter<float> compliances{
+            tls.scope, constraint_usage.compliances, geometries_.max_chunk_size};
 
-      for (const int chunk_i : geo_data.chunks) {
-        const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
-        ChunkData &chunk_data = chunks_data_[chunk_i];
-        chunk_data.static_constraints.append(
-            &tls.scope.construct<xpbd::RodStretchAndShearConstraintSet>(
-                data_key_i,
-                *chunk.curves_range,
-                points_by_curve,
-                constraint_usage.rest_lengths,
-                compliances.get_span_for_range(chunk.points_range),
-                constraint_usage.lambdas_pos,
-                constraint_usage.lambdas_rot));
+        for (const int chunk_i : geo_data.chunks) {
+          const GeometryDataChunk &chunk = geometries_.chunks[chunk_i];
+          ChunkData &chunk_data = chunks_data_[chunk_i];
+          chunk_data.static_constraints.append(
+              &tls.scope.construct<xpbd::RodStretchAndShearConstraintSet>(
+                  data_key_i,
+                  *chunk.curves_range,
+                  points_by_curve,
+                  constraint_usage.rest_lengths,
+                  compliances.get_span_for_range(chunk.points_range),
+                  constraint_usage.lambdas_pos,
+                  constraint_usage.lambdas_rot));
+        }
       }
     }
   }
@@ -1507,29 +1498,27 @@ class XpbdSolverStep {
   {
     for (const int data_key_i : geometries_.data_keys.index_range()) {
       GeometryData &geo_data = geometries_.data[data_key_i];
-      if (!geo_data.rod_stretch_shear_constraint.has_value()) {
-        continue;
-      }
-      const RodStretchShearConstraintUsage &constraint_usage =
-          *geo_data.rod_stretch_shear_constraint;
-      const RodStretchShearConstraint &constraint =
-          constraints_
-              .rod_stretch_shear_constraints[geo_data.rod_stretch_shear_constraint->constraint_i];
-      geo_data.attributes.remove(constraint.lambda_pos_attr);
-      geo_data.attributes.remove(constraint.lambda_rot_attr);
-      if (bke::SpanAttributeWriter<float3> lambda_pos_attr =
-              this->get_output_attribute_writer<float3>(
-                  data_key_i, constraint.lambda_pos_attr, geo_data.domain))
+      for (const RodStretchShearConstraintUsage &constraint_usage :
+           geo_data.rod_stretch_shear_constraints)
       {
-        lambda_pos_attr.span.copy_from(constraint_usage.lambdas_pos);
-        lambda_pos_attr.finish();
-      }
-      if (bke::SpanAttributeWriter<float3> lambda_rot_attr =
-              this->get_output_attribute_writer<float3>(
-                  data_key_i, constraint.lambda_rot_attr, geo_data.domain))
-      {
-        lambda_rot_attr.span.copy_from(constraint_usage.lambdas_rot);
-        lambda_rot_attr.finish();
+        const RodStretchShearConstraint &constraint =
+            constraints_.rod_stretch_shear_constraints[constraint_usage.constraint_i];
+        geo_data.attributes.remove(constraint.lambda_pos_attr);
+        geo_data.attributes.remove(constraint.lambda_rot_attr);
+        if (bke::SpanAttributeWriter<float3> lambda_pos_attr =
+                this->get_output_attribute_writer<float3>(
+                    data_key_i, constraint.lambda_pos_attr, geo_data.domain))
+        {
+          lambda_pos_attr.span.copy_from(constraint_usage.lambdas_pos);
+          lambda_pos_attr.finish();
+        }
+        if (bke::SpanAttributeWriter<float3> lambda_rot_attr =
+                this->get_output_attribute_writer<float3>(
+                    data_key_i, constraint.lambda_rot_attr, geo_data.domain))
+        {
+          lambda_rot_attr.span.copy_from(constraint_usage.lambdas_rot);
+          lambda_rot_attr.finish();
+        }
       }
     }
   }
@@ -1645,7 +1634,7 @@ class XpbdSolverStep {
         const int edge_num = mesh.edges_num;
         constraint_usage.lambdas = tls.allocator.allocate_array<float>(edge_num);
         constraint_usage.rest_lengths = *geo_data.attributes.lookup_or_default<float>(
-            this->prop_attr_name(constraint.path, "length"), AttrDomain::Edge, 0.0f);
+            this->prop_attr_name(constraint.path, "rest_length"), AttrDomain::Edge, 0.0f);
         constraint_usage.compliances = *geo_data.attributes.lookup_or_default<float>(
             this->prop_attr_name(constraint.path, "compliance"), AttrDomain::Edge, 0.0f);
       }
