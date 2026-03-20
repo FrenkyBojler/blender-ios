@@ -110,7 +110,8 @@ template<enum TextureFormat format> struct Resources {
     return mip_size;
   }
 };
-template<typename SRT, typename T, bool load_from_shared> T load_sample(SRT &srt, int2 src_coord)
+template<typename SRT, typename T, bool load_from_shared>
+T load_sample([[resource_table]] SRT &srt, int2 src_coord)
 {
   float4 color;
   if (load_from_shared) {
@@ -428,7 +429,7 @@ void fillIntermediateTile_(SRT &srt, uint local_index, int2 dstTileCoord_, bool 
     }
   }
 
-  intermediateLevelLoop_(
+  intermediateLevelLoop_<SRT>(
       srt, dstTileCoord_ + initThreadOffset_, initThreadOffset_, step_, iterations_, boundsCheck_);
 }
 template void fillIntermediateTile_<Resources<UNORM_8_8_8_8>>(Resources<UNORM_8_8_8_8> &srt,
@@ -484,7 +485,10 @@ template void fillLastTile_<Resources<SFLOAT_16>>(Resources<SFLOAT_16> &srt,
                                                   bool boundsCheck_);
 
 template<typename SRT, typename T>
-void update_mipmaps(const uint3 global_id, const uint3 group_id, const uint local_index, SRT &srt)
+void update_mipmaps(const uint3 global_id,
+                    const uint3 group_id,
+                    const uint local_index,
+                    [[resource_table]] SRT &srt)
 {
   int inputLevel_ = INPUT_LEVEL;
 
@@ -524,13 +528,13 @@ void update_mipmaps(const uint3 global_id, const uint3 group_id, const uint loca
 
       // Compute the inputLevel_ + 2 tile of size 8x8, loading
       // inupts from shared memory.
-      fillLastTile_(srt, local_index, tileIdx_ * int2(8, 8), true);
+      fillLastTile_<SRT>(srt, local_index, tileIdx_ * int2(8, 8), true);
     }
     else {
       // Same with no bounds checking.
       fillIntermediateTile_<SRT>(srt, local_index, tileIdx_ * 2 * int2(8, 8), false);
       barrier();
-      fillLastTile_(srt, local_index, tileIdx_ * int2(8, 8), false);
+      fillLastTile_<SRT>(srt, local_index, tileIdx_ * int2(8, 8), false);
     }
   }
 }
