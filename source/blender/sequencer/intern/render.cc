@@ -829,8 +829,8 @@ void convert_multilayer_ibuf(ImBuf *ibuf)
   /* Combined layer might be non-4 channels, however the rest
    * of sequencer assumes RGBA everywhere. Convert to 4 channel if needed. */
   if (ibuf->float_buffer.data != nullptr && ibuf->channels != 4) {
-    float *dst = MEM_new_array_uninitialized<float>(4 * size_t(ibuf->x) * size_t(ibuf->y),
-                                                    __func__);
+    float *dst = MEM_new_array_uninitialized_aligned<float>(
+        4 * size_t(ibuf->x) * size_t(ibuf->y), IMBUF_FLOAT_ALIGNMENT, __func__);
     IMB_buffer_float_from_float_threaded(dst,
                                          ibuf->float_buffer.data,
                                          ibuf->channels,

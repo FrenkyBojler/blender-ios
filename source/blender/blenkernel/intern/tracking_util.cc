@@ -655,7 +655,8 @@ static ImBuf *float_image_to_ibuf(libmv_FloatImage *float_image)
   ImBuf *ibuf = IMB_allocImBuf(float_image->width, float_image->height, 32, 0);
   size_t num_total_channels = size_t(ibuf->x) * size_t(ibuf->y) * float_image->channels;
   ibuf->channels = float_image->channels;
-  float *rect_float = MEM_new_array_zeroed<float>(num_total_channels, "tracking grayscale image");
+  float *rect_float = MEM_new_array_zeroed_aligned<float>(
+      num_total_channels, IMBUF_FLOAT_ALIGNMENT, "tracking grayscale image");
   if (rect_float != nullptr) {
     IMB_assign_float_buffer(ibuf, rect_float, IB_TAKE_OWNERSHIP);
 

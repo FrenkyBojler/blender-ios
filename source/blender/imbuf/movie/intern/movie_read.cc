@@ -1290,7 +1290,10 @@ static ImBuf *ffmpeg_fetchibuf(MovieReader *anim, int position, IMB_Timecode_Typ
   ImBuf *cur_frame_final = IMB_allocImBuf(anim->x, anim->y, planes, 0);
 
   /* Allocate the storage explicitly to ensure the memory is aligned. */
-  const size_t align = ffmpeg_get_buffer_alignment();
+  size_t align = ffmpeg_get_buffer_alignment();
+  if (anim->is_float) {
+    align = std::max(align, IMBUF_FLOAT_ALIGNMENT);
+  }
   const size_t pixel_size = anim->is_float ? 16 : 4;
   uint8_t *buffer_data = static_cast<uint8_t *>(
       MEM_new_uninitialized_aligned(pixel_size * anim->x * anim->y, align, "ffmpeg ibuf"));

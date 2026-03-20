@@ -209,7 +209,8 @@ static void render_layer_allocate_pass(RenderResult *rr, RenderPass *rp)
    * channels. */
 
   const size_t rectsize = size_t(rr->rectx) * rr->recty * rp->channels;
-  float *buffer_data = MEM_new_array_zeroed<float>(rectsize, rp->name);
+  float *buffer_data = MEM_new_array_zeroed_aligned<float>(
+      rectsize, IMBUF_FLOAT_ALIGNMENT, rp->name);
 
   rp->ibuf = IMB_allocImBuf(rr->rectx, rr->recty, get_num_planes_for_pass_ibuf(*rp), 0);
   rp->ibuf->channels = rp->channels;
@@ -1153,8 +1154,8 @@ void RE_render_result_rect_from_ibuf(RenderResult *rr, const ImBuf *ibuf, const 
     rr->have_combined = true;
 
     if (!rv_ibuf->float_buffer.data) {
-      float *data = MEM_new_array_uninitialized<float>(4 * size_t(rr->rectx) * size_t(rr->recty),
-                                                       "render_seq float");
+      float *data = MEM_new_array_uninitialized_aligned<float>(
+          4 * size_t(rr->rectx) * size_t(rr->recty), IMBUF_FLOAT_ALIGNMENT, "render_seq float");
       IMB_assign_float_buffer(rv_ibuf, data, IB_TAKE_OWNERSHIP);
     }
 

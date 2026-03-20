@@ -43,7 +43,9 @@ template<typename T> struct vec_struct_base<T, 3, false> : VecSwizzleFunc<T, 3> 
   T x, y, z;
 };
 
-template<typename T> struct vec_struct_base<T, 4, false> : VecSwizzleFunc<T, 4> {
+template<typename T>
+struct alignas(std::is_same_v<T, float> ? 16 : alignof(T))
+    vec_struct_base<T, 4, false> : VecSwizzleFunc<T, 4> {
   T x, y, z, w;
 };
 

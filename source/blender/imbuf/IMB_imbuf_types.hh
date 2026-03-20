@@ -15,6 +15,8 @@
 
 #include "IMB_imbuf_enums.h"
 
+#include <cstddef>
+
 namespace blender {
 
 struct ColormanageCache;
@@ -77,6 +79,12 @@ using ColorSpace = ocio::ColorSpace;
 
 #define AVIF_10BIT (1 << 8)
 #define AVIF_12BIT (1 << 9)
+
+/**
+ * ImBuf float buffers should be aligned to at least this value, to match alignment of Cycles and
+ * Blender Color and float4 types.
+ */
+constexpr size_t IMBUF_FLOAT_ALIGNMENT = 16;
 
 struct ImbFormatOptions {
   short flag = 0;

@@ -165,17 +165,14 @@ void *MEM_new_uninitialized_aligned(size_t len,
 /**
  * Allocate an aligned block of memory that remains uninitialized.
  */
-extern void *(*MEM_new_array_uninitialized_aligned)(
+extern void *(*mem_new_array_uninitialized_aligned)(
     size_t len,
     size_t size,
     size_t alignment,
     const char *str) /* ATTR_MALLOC */ ATTR_WARN_UNUSED_RESULT ATTR_ALLOC_SIZE(1, 2)
     ATTR_NONNULL(4);
 
-/**
- * Allocate an aligned block of memory that is initialized with zeros.
- */
-extern void *(*MEM_new_array_zeroed_aligned)(
+extern void *(*mem_new_array_zeroed_aligned)(
     size_t len,
     size_t size,
     size_t alignment,
@@ -309,6 +306,28 @@ void MEM_use_guarded_allocator(void);
 #  define MEM_MIN_CPP_ALIGNMENT \
     (__STDCPP_DEFAULT_NEW_ALIGNMENT__ < alignof(void *) ? __STDCPP_DEFAULT_NEW_ALIGNMENT__ : \
                                                           alignof(void *))
+
+/**
+ * Allocate an aligned block of memory that remains uninitialized.
+ */
+[[nodiscard]] ATTR_NONNULL(4) inline void *MEM_new_array_uninitialized_aligned(size_t len,
+                                                                               size_t size,
+                                                                               size_t alignment,
+                                                                               const char *str)
+{
+  return mem_new_array_uninitialized_aligned(len, size, alignment, str);
+}
+
+/**
+ * Allocate an aligned block of memory that is initialized with zeros.
+ */
+[[nodiscard]] ATTR_NONNULL(4) inline void *MEM_new_array_zeroed_aligned(size_t len,
+                                                                        size_t size,
+                                                                        size_t alignment,
+                                                                        const char *str)
+{
+  return mem_new_array_zeroed_aligned(len, size, alignment, str);
+}
 
 /* -------------------------------------------------------------------- */
 /**
@@ -555,7 +574,7 @@ template<typename T> inline T *MEM_new_zeroed(const char *allocation_name)
 #  else
   static_assert(std::is_trivial_v<T>, "For non-trivial types, MEM_new must be used.");
 #  endif
-  return static_cast<T *>(MEM_new_array_zeroed_aligned(1, sizeof(T), alignof(T), allocation_name));
+  return static_cast<T *>(mem_new_array_zeroed_aligned(1, sizeof(T), alignof(T), allocation_name));
 }
 
 /**
@@ -573,7 +592,28 @@ inline T *MEM_new_array_zeroed(const size_t length, const char *allocation_name)
   static_assert(std::is_trivial_v<T>, "For non-trivial types, MEM_new must be used.");
 #  endif
   return static_cast<T *>(
-      MEM_new_array_zeroed_aligned(length, sizeof(T), alignof(T), allocation_name));
+      mem_new_array_zeroed_aligned(length, sizeof(T), alignof(T), allocation_name));
+}
+
+/**
+ * Type-safe version of #MEM_new_array_zeroed/#MEM_new_array_zeroed_aligned, with additional
+ * control for increasing alignment.
+ *
+ * It has the same restrictions and limitations as the type-safe version of #MEM_new_zeroed<T>.
+ */
+template<typename T>
+inline T *MEM_new_array_zeroed_aligned(const size_t length,
+                                       const size_t alignment,
+                                       const char *allocation_name)
+{
+#  ifdef _MSC_VER
+  static_assert(std::is_trivially_constructible_v<T>,
+                "For non-trivial types, MEM_new must be used.");
+#  else
+  static_assert(std::is_trivial_v<T>, "For non-trivial types, MEM_new must be used.");
+#  endif
+  return static_cast<T *>(mem_new_array_zeroed_aligned(
+      length, sizeof(T), std::max(alignment, alignof(T)), allocation_name));
 }
 
 /**
@@ -615,7 +655,29 @@ inline T *MEM_new_array_uninitialized(const size_t length, const char *allocatio
   static_assert(std::is_trivial_v<T>, "For non-trivial types, MEM_new must be used.");
 #  endif
   return static_cast<T *>(
-      MEM_new_array_uninitialized_aligned(length, sizeof(T), alignof(T), allocation_name));
+      mem_new_array_zeroed_aligned(length, sizeof(T), alignof(T), allocation_name));
+}
+
+/**
+ * Type-safe version of #MEM_new_array_uninitialized/#MEM_new_uninitialized_aligned, with
+ * additional control for increasing alignment.
+ *
+ * It has the same restrictions and limitations as the type-safe version of
+ * #MEM_new_uninitialized<T>.
+ */
+template<typename T>
+inline T *MEM_new_array_uninitialized_aligned(const size_t length,
+                                              const size_t alignment,
+                                              const char *allocation_name)
+{
+#  ifdef _MSC_VER
+  static_assert(std::is_trivially_constructible_v<T>,
+                "For non-trivial types, MEM_new must be used.");
+#  else
+  static_assert(std::is_trivial_v<T>, "For non-trivial types, MEM_new must be used.");
+#  endif
+  return static_cast<T *>(mem_new_array_zeroed_aligned(
+      length, sizeof(T), std::max(alignment, alignof(T)), allocation_name));
 }
 
 /**

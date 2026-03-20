@@ -1735,8 +1735,10 @@ static bool imb_exr_multilayer_parse_channels_from_file(ExrHandle *handle)
   for (ExrLayer &lay : handle->layers) {
     for (ExrPass &pass : lay.passes) {
       if (pass.totchan) {
-        pass.rect = MEM_new_array_zeroed<float>(
-            size_t(handle->width) * size_t(handle->height) * size_t(pass.totchan), "pass rect");
+        pass.rect = MEM_new_array_zeroed_aligned<float>(
+            size_t(handle->width) * size_t(handle->height) * size_t(pass.totchan),
+            IMBUF_FLOAT_ALIGNMENT,
+            "pass rect");
         if (pass.totchan == 1) {
           ExrChannel &echan = *pass.chan[0];
           echan.rect = pass.rect;

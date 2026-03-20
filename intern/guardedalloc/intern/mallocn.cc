@@ -46,11 +46,11 @@ void *(*mem_guarded::internal::mem_mallocN_aligned_ex)(size_t len,
                                                        const char *str,
                                                        DestructorType destructor_type) =
     MEM_lockfree_mallocN_aligned;
-void *(*MEM_new_array_uninitialized_aligned)(size_t len,
+void *(*mem_new_array_uninitialized_aligned)(size_t len,
                                              size_t size,
                                              size_t alignment,
                                              const char *str) = MEM_lockfree_malloc_arrayN_aligned;
-void *(*MEM_new_array_zeroed_aligned)(size_t len,
+void *(*mem_new_array_zeroed_aligned)(size_t len,
                                       size_t size,
                                       size_t alignment,
                                       const char *str) = MEM_lockfree_calloc_arrayN_aligned;
@@ -173,8 +173,8 @@ void MEM_use_lockfree_allocator()
   mem_mallocN = MEM_lockfree_mallocN;
   mem_malloc_arrayN = MEM_lockfree_malloc_arrayN;
   mem_mallocN_aligned_ex = MEM_lockfree_mallocN_aligned;
-  MEM_new_array_uninitialized_aligned = MEM_lockfree_malloc_arrayN_aligned;
-  MEM_new_array_zeroed_aligned = MEM_lockfree_calloc_arrayN_aligned;
+  mem_new_array_uninitialized_aligned = MEM_lockfree_malloc_arrayN_aligned;
+  mem_new_array_zeroed_aligned = MEM_lockfree_calloc_arrayN_aligned;
   MEM_printmemlist_pydict = MEM_lockfree_printmemlist_pydict;
   MEM_printmemlist = MEM_lockfree_printmemlist;
   MEM_callbackmemlist = MEM_lockfree_callbackmemlist;
@@ -209,8 +209,8 @@ void MEM_use_guarded_allocator()
   mem_mallocN = MEM_guarded_mallocN;
   mem_malloc_arrayN = MEM_guarded_malloc_arrayN;
   mem_mallocN_aligned_ex = MEM_guarded_mallocN_aligned;
-  MEM_new_array_uninitialized_aligned = MEM_guarded_malloc_arrayN_aligned;
-  MEM_new_array_zeroed_aligned = MEM_guarded_calloc_arrayN_aligned;
+  mem_new_array_uninitialized_aligned = MEM_guarded_malloc_arrayN_aligned;
+  mem_new_array_zeroed_aligned = MEM_guarded_calloc_arrayN_aligned;
   MEM_printmemlist_pydict = MEM_guarded_printmemlist_pydict;
   MEM_printmemlist = MEM_guarded_printmemlist;
   MEM_callbackmemlist = MEM_guarded_callbackmemlist;

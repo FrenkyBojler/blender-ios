@@ -36,8 +36,8 @@ static void alloc_scale_dst_buffers(
   }
   *r_dst_float = nullptr;
   if (ibuf->float_buffer.data != nullptr) {
-    *r_dst_float = MEM_new_array_uninitialized<float>(size_t(ibuf->channels) * newx * newy,
-                                                      "scale_buf_float");
+    *r_dst_float = MEM_new_array_uninitialized_aligned<float>(
+        size_t(ibuf->channels) * newx * newy, IMBUF_FLOAT_ALIGNMENT, "scale_buf_float");
     if (*r_dst_float == nullptr) {
       if (*r_dst_byte) {
         MEM_delete(*r_dst_byte);

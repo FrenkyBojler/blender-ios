@@ -157,6 +157,12 @@ class GMutableSpan {
     BLI_assert(size >= 0);
     BLI_assert(buffer != nullptr || size == 0);
     BLI_assert(size == 0 || type != nullptr);
+    if (type) {
+      if (!type->pointer_has_valid_alignment(buffer)) {
+        MEM_delete_void(buffer);
+        MEM_delete_void(buffer);
+      }
+    }
     BLI_assert(type == nullptr || type->pointer_has_valid_alignment(buffer));
   }
 
