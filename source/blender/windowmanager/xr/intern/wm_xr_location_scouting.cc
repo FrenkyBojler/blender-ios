@@ -835,14 +835,13 @@ static void wm_xr_viewfinder_ui_draw_background(const rctf &viewfinder_rect)
   BLI_rctf_mul(&tabs_bg_rect, 100);
   BLI_rctf_mul(&outline_rect, 100);
 
-  GPU_depth_test(GPU_DEPTH_ALWAYS);
+  GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
 
   GPU_matrix_translate_3f(0.0f, 0.0f, -1.0f);
 
   ui::draw_roundbox_3fv_alpha(&background_rect, true, 16, background_col, 1.0f);
   ui::draw_roundbox_3fv_alpha(&tabs_bg_rect, true, 16, background_col, 1.0f);
 
-  GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
   GPU_matrix_translate_3f(0.0f, 0.0f, 0.5f);
   ui::draw_roundbox_4fv(&outline_rect, true, 0, viewfinder_alpha_accent_color);
 
