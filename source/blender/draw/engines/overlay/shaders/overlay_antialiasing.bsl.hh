@@ -11,7 +11,6 @@
  */
 
 #pragma once
-#pragma create_info
 
 #include "gpu_shader_compat.hh"
 #include "gpu_shader_fullscreen_lib.glsl"
@@ -56,7 +55,7 @@ struct Resources {
   [[sampler(1)]] const sampler2D color_tx;
   [[sampler(2)]] const sampler2D line_tx;
 
-  [[push_constant]] bool do_smooth_lines;
+  [[push_constant]] const bool do_smooth_lines;
 
   TexelData fetch_texel(int2 texel, int2 offset)
   {
@@ -197,6 +196,6 @@ struct FragOut {
   frag.color = center.color;
 }
 
-PipelineGraphic pipeline(vert_main, frag_main, Resources{});
+PipelineGraphic pipeline(vert_main, frag_main);
 
 }  // namespace overlay::antialiasing
