@@ -20,3 +20,4 @@ Referenced by commit 0319a9d231d9a22fc38ae767043d86037380cc67, Fix #154706: OBJ 
 Referenced by pull request #154813, Fix #154767: Active UV layer resets / non-changable in edit mode
 Referenced by commit 37bccf0ab349c28b4f10887109fd9d4cf92268df, Fix #154767: Active UV layer resets / non-changable in edit mode
 Referenced by issue #155986, Crash when entering object editing mode with an instancing object
+Referenced by pull request #156005, Fix #155986: Crash when entering editmode on an object with face duplis
