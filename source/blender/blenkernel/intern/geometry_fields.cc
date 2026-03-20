@@ -604,17 +604,15 @@ static void reverse_copy(const GVArray &src, const IndexMask &mask, GMutableSpan
   BLI_assert(src.type() == dst.type());
   BLI_assert(src.size() == dst.size());
   BLI_assert(mask.min_array_size() <= src.size());
-  bke::attribute_math::to_static_type(dst.type(), [&]<typename T>(){
+  bke::attribute_math::to_static_type(dst.type(), [&]<typename T>() {
     const VArraySpan<T> src_typed = src.typed<T>();
     MutableSpan<T> dst_typed = dst.typed<T>();
-    mask.foreach_index_optimized<int>([&](const int i) {
-      dst_typed[i] = src_typed.last(i);
-    }, exec_mode::parallel);
+    mask.foreach_index_optimized<int>([&](const int i) { dst_typed[i] = src_typed.last(i); },
+                                      exec_mode::parallel);
   });
 }
 
-template<typename T>
-std::ostream &operator<<(std::ostream &stream, Bounds<T> value)
+template<typename T> std::ostream &operator<<(std::ostream &stream, Bounds<T> value)
 {
   stream << "<" << value.min << ", " << value.max << ">";
   return stream;
@@ -636,12 +634,15 @@ GVArray EvaluateAtIndexInput::get_varray_for_context(const bke::GeometryFieldCon
   const GVArray &values = value_evaluator.get_evaluated(0);
 
   const IndexRange mask_bounds = mask.bounds();
-  const std::optional<nodes::IndexTransform> bounds_transform = nodes::field_as_range(index_field_);
+  const std::optional<nodes::IndexTransform> bounds_transform = nodes::field_as_range(
+      index_field_);
   if (bounds_transform.has_value()) {
     if (bounds_transform->index_is_reversed) {
       const auto range_to_read = Bounds<int64_t>(-mask_bounds.one_after_last(),
-                                                 -mask_bounds.first()) + (bounds_transform->shift + 1);
-      const std::optional<Bounds<int64_t>> src_bounds = bounds::intersect<int64_t>({0, domain_size}, range_to_read);
+                                                 -mask_bounds.first()) +
+                                 (bounds_transform->shift + 1);
+      const std::optional<Bounds<int64_t>> src_bounds = bounds::intersect<int64_t>(
+          {0, domain_size}, range_to_read);
       if (!src_bounds.has_value()) {
         return {};
       }
@@ -663,13 +664,18 @@ GVArray EvaluateAtIndexInput::get_varray_for_context(const bke::GeometryFieldCon
                    valid_mask.shift(-dst_range.first(), memory),
                    dst_array.as_mutable_span().slice(dst_range));
 
-      dst_array.type().value_initialize_indices(dst_array.data(), valid_mask.complement(mask, memory));
+      dst_array.type().value_initialize_indices(dst_array.data(),
+                                                valid_mask.complement(mask, memory));
 
       return GVArray::from_garray(std::move(dst_array));
-    } else {
+    }
+    else {
       const int64_t offset = bounds_transform->shift;
-      const auto range_to_read = Bounds<int64_t>(mask_bounds.first(), mask_bounds.one_after_last()) + offset;
-      const std::optional<Bounds<int64_t>> src_bounds = bounds::intersect<int64_t>({0, domain_size}, range_to_read);
+      const auto range_to_read = Bounds<int64_t>(mask_bounds.first(),
+                                                 mask_bounds.one_after_last()) +
+                                 offset;
+      const std::optional<Bounds<int64_t>> src_bounds = bounds::intersect<int64_t>(
+          {0, domain_size}, range_to_read);
       if (!src_bounds.has_value()) {
         return {};
       }
@@ -690,7 +696,8 @@ GVArray EvaluateAtIndexInput::get_varray_for_context(const bke::GeometryFieldCon
                         valid_mask.shift(-dst_range.first(), memory),
                         dst_array.as_mutable_span().slice(dst_range));
 
-      dst_array.type().value_initialize_indices(dst_array.data(), valid_mask.complement(mask, memory));
+      dst_array.type().value_initialize_indices(dst_array.data(),
+                                                valid_mask.complement(mask, memory));
 
       return GVArray::from_garray(std::move(dst_array));
     }

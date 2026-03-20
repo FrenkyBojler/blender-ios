@@ -11,8 +11,8 @@
 
 #include "DNA_node_types.h"
 
-#include "FN_multi_function.hh"
 #include "FN_field.hh"
+#include "FN_multi_function.hh"
 
 #include "NOD_function.hh"
 
@@ -38,7 +38,8 @@ static bool is_only_linear_int_math(const fn::GField &entry_fields)
         if (!ELEM(&operation.multi_function(),
                   &int_math_op(NODE_INTEGER_MATH_ADD),
                   &int_math_op(NODE_INTEGER_MATH_SUBTRACT),
-                  &int_math_op(NODE_INTEGER_MATH_NEGATE))) {
+                  &int_math_op(NODE_INTEGER_MATH_NEGATE)))
+        {
           return false;
         }
         for (const fn::GFieldRef operation_input : operation.inputs()) {
@@ -56,16 +57,16 @@ static bool is_only_linear_int_math(const fn::GField &entry_fields)
 
 class IndexFieldContext : public fn::FieldContext {
   Span<int> indices_;
- 
+
  public:
   IndexFieldContext(const Span<int> indices) : indices_(indices) {}
-  
+
   GVArray get_varray_for_input(const fn::FieldInput &field_input,
                                const IndexMask &mask,
                                ResourceScope &scope) const final
   {
     BLI_assert(mask.size() <= indices_.size());
-    
+
     if (dynamic_cast<const fn::IndexFieldInput *>(&field_input) == nullptr) {
       return {};
     }
@@ -84,7 +85,8 @@ std::optional<IndexTransform> field_as_range(const fn::Field<int> &index_field)
     return std::nullopt;
   }
 
-  const fn::FieldInput &source_index_field = dependencys->deduplicated_nodes.as_span().first().get();
+  const fn::FieldInput &source_index_field =
+      dependencys->deduplicated_nodes.as_span().first().get();
   if (dynamic_cast<const fn::IndexFieldInput *>(&source_index_field) == nullptr) {
     return std::nullopt;
   }
