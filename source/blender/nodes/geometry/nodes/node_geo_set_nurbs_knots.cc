@@ -75,9 +75,8 @@ static void set_curves_knots(bke::CurvesGeometry &curves,
           const int points_num = points_by_curve[i_curve].size();
           const int order = nurbs_orders[i_curve];
           const bool is_cyclic = cyclic[i_curve];
-          const int knot_num_i_curve = bke::curves::nurbs::knots_num(points_num, order, is_cyclic);
-          if (knot_num_i_curve == new_knot_sequence.size() && (knot_validator[order - 1] > 0) ||
-              (knot_validator.first() > 0 && is_cyclic))
+          if (points_num + order == new_knot_sequence.size() &&
+              (knot_validator[order - 1] > 0 || (knot_validator.first() > 0 && is_cyclic)))
           {
             knot_mode[i_curve] = NURBS_KNOT_MODE_CUSTOM;
             curves_to_write[i_curve] = true;
@@ -98,9 +97,7 @@ static void set_curves_knots(bke::CurvesGeometry &curves,
 
   curves_to_write_mask.foreach_index([&](const int i_curve) {
     const IndexRange dst = custom_knots_by_curve[i_curve];
-    if (dst.size() == new_knot_sequence.size()) {
-      custom_knots.slice(dst).copy_from(new_knot_sequence);
-    }
+    custom_knots.slice(dst).copy_from(new_knot_sequence);
   });
 }
 
@@ -115,6 +112,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   std::atomic<bool> any_affected = false;
 
   if (!input_knot) {
+    params.set_output("Curves", std::move(geometry_set));
     return;
   }
 
@@ -125,6 +123,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   if (knot_validator.first() == 0) {
     params.error_message_add(NodeWarningType::Error, TIP_("Invalid knot sequence"));
+    params.set_output("Curves", std::move(geometry_set));
     return;
   }
 
