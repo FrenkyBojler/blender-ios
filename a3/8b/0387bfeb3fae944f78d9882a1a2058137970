@@ -1,2 +1,3 @@
 Referenced by issue #149663, Modeling: Bug using snapping when there are other objects as instances in the scene
 Referenced by issue #150150, scene.ray_cast in 5.0 no longer considers scene when in mesh edit mode
+Referenced by issue #133460, Bezier curve with specific modifiers enables snapping to its evaluated points
