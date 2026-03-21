@@ -387,6 +387,33 @@ void smooth_brush_toggle_off(Paint *paint, StrokeCache *cache)
     cache->toggle_settings.original_active_brush = nullptr;
   }
 }
+
+static StrokeToggleSettings create_toggle_settings(const wmOperator &op,
+                                                   Main &bmain,
+                                                   Paint &paint)
+{
+  const BrushStrokeMode stroke_mode = BrushStrokeMode(RNA_enum_get(op.ptr, "mode"));
+  const BrushSwitchMode brush_switch_mode = BrushSwitchMode(RNA_enum_get(op.ptr, "brush_toggle"));
+  const bool pen_flip = RNA_boolean_get(op.ptr, "pen_flip");
+
+  StrokeToggleSettings toggle_settings;
+
+  toggle_settings.invert = stroke_mode == BrushStrokeMode::Invert;
+  toggle_settings.alt_smooth = brush_switch_mode == BrushSwitchMode::Smooth;
+  /* not very nice, but with current events system implementation
+   * we can't handle brush appearance inversion hotkey separately (sergey) */
+
+  if (toggle_settings.alt_smooth) {
+    vwpaint::smooth_brush_toggle_on(bmain, paint, toggle_settings);
+  }
+
+}
+
+void create_stroke_cache()
+{
+
+}
+
 void update_cache_invariants(
     Main *bmain, VPaint &vp, SculptSession &ss, wmOperator *op, const float mval[2])
 {
@@ -427,10 +454,6 @@ void update_cache_invariants(
   }
   else {
     paint_runtime.draw_inverted = false;
-  }
-
-  if (cache->toggle_settings.alt_smooth) {
-    vwpaint::smooth_brush_toggle_on(bmain, &vp.paint, cache);
   }
 
   copy_v2_v2(cache->mouse, cache->initial_mouse);
@@ -537,7 +560,7 @@ void last_stroke_update(const float location[3], Paint &paint)
 
 /* -------------------------------------------------------------------- */
 
-void smooth_brush_toggle_on(Main *bmain, Paint *paint, StrokeCache *cache)
+void smooth_brush_toggle_on(Main *bmain, Paint *paint, StrokeToggleSettings &cache)
 {
   Brush *cur_brush = BKE_paint_brush(paint);
 
