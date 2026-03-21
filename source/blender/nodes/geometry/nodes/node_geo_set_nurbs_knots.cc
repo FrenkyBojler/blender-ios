@@ -17,6 +17,8 @@ namespace blender::nodes::node_geo_set_nurbs_knots_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
   b.add_input<decl::Geometry>("Curves")
       .supported_type({GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil})
       .description("NURBS Curve to change the knot sequence of");
