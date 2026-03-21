@@ -10,6 +10,8 @@
  * \ingroup imbuf
  */
 
+namespace blender {
+
 #define IM_MAX_SPACE 64
 
 /** #ImBuf.ftype: main image types. */
@@ -36,7 +38,9 @@ enum eImbFileType {
 #ifdef WITH_IMAGE_WEBP
   IMB_FTYPE_WEBP = 14,
 #endif
+  IMB_FTYPE_AVIF = 15,
 };
+#define IMB_FTYPE_LAST IMB_FTYPE_AVIF
 
 /** NOTE: Keep in sync with #MovieClipProxy.build_size_flag */
 enum IMB_Proxy_Size {
@@ -48,3 +52,5 @@ enum IMB_Proxy_Size {
   IMB_PROXY_MAX_SLOT = 4,
 };
 ENUM_OPERATORS(IMB_Proxy_Size);
+
+}  // namespace blender

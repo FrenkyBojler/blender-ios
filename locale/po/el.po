@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Beta (b'd29f9f6118e5')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'45d5533d8e66')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-11-10 09:45+0000\n"
+"POT-Creation-Date: 2026-03-16 11:01+0000\n"
 "PO-Revision-Date: 2025-07-23 15:19+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Greek <https://translate.blender.org/projects/blender-ui/ui/el/>\n"
@@ -187,14 +187,6 @@ msgid "View"
 msgstr "View"
 
 
-msgid "Mix"
-msgstr "Μείξη"
-
-
-msgid "Screen"
-msgstr "Οθόνη"
-
-
 msgid "Near"
 msgstr "Κοντά"
 
@@ -335,6 +327,18 @@ msgid "Collision"
 msgstr "Σύγκρουση"
 
 
+msgid "Font"
+msgstr "Γραμματοσειρά"
+
+
+msgid "Text"
+msgstr "Κείμενο"
+
+
+msgid "Sound"
+msgstr "Ήχος"
+
+
 msgid "Border"
 msgstr "Πλαίσιο"
 
@@ -377,10 +381,6 @@ msgstr "Προεξοχή"
 
 msgid "Path"
 msgstr "Μονοπάτι"
-
-
-msgid "Font"
-msgstr "Γραμματοσειρά"
 
 
 msgid "Shear"
@@ -471,10 +471,6 @@ msgid "Lattice"
 msgstr "Πλέγμα"
 
 
-msgid "Sound"
-msgstr "Ήχος"
-
-
 msgid "Blend"
 msgstr "Ανάμιξη"
 
@@ -515,8 +511,12 @@ msgid "Keyboard"
 msgstr "Πληκτρολόγιο"
 
 
-msgid "Track"
-msgstr "Ανίχνευση"
+msgid "Mix"
+msgstr "Μείξη"
+
+
+msgid "Screen"
+msgstr "Οθόνη"
 
 
 msgid "Make Single User"
@@ -529,10 +529,6 @@ msgstr "Εφαρμογή"
 
 msgid "Merge"
 msgstr "Συγχώνευση"
-
-
-msgid "Text"
-msgstr "Κείμενο"
 
 
 msgid "Metaball"
@@ -551,16 +547,20 @@ msgid "Select Linked"
 msgstr "Επιλογή Συνδεδεμένων"
 
 
-msgid "Import"
-msgstr "Εισαγωγή"
-
-
 msgid "Light"
 msgstr "Φως"
 
 
+msgid "Import"
+msgstr "Εισαγωγή"
+
+
 msgid "Rigid Body"
 msgstr "Rigid Body"
+
+
+msgid "Track"
+msgstr "Ανίχνευση"
 
 
 msgid "Cache"
@@ -758,10 +758,6 @@ msgstr "Replace Image"
 msgctxt "Operator"
 msgid "Fill"
 msgstr "Συμπλήρωμα"
-
-
-msgid "Ring"
-msgstr "Ring"
 
 
 msgid "Merge selected vertices"

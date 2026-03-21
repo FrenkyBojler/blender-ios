@@ -10,6 +10,8 @@
 
 #include "IMB_imbuf.hh"
 
+namespace blender {
+
 struct ImBuf;
 struct ImFileColorSpace;
 
@@ -291,6 +293,19 @@ ImBuf *imb_load_psd(const unsigned char *mem,
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Format: AVIF (#IMB_FTYPE_AVIF)
+ * \{ */
+
+bool imb_is_a_avif(const unsigned char *mem, size_t size);
+ImBuf *imb_load_avif(const unsigned char *mem,
+                     size_t size,
+                     int flags,
+                     ImFileColorSpace &r_colorspace);
+bool imb_save_avif(ImBuf *ibuf, const char *filepath, int flags);
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Format: SVG - Only for thumbnails.
  * \{ */
 
@@ -302,3 +317,5 @@ ImBuf *imb_load_filepath_thumbnail_svg(const char *filepath,
                                        size_t *r_height);
 
 /** \} */
+
+}  // namespace blender
