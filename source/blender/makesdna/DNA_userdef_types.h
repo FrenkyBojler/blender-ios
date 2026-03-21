@@ -489,6 +489,18 @@ enum eUserpref_FactorDisplay {
   USER_FACTOR_AS_PERCENTAGE = 1,
 };
 
+/** #UserDef.bone_rotation_mode */
+enum eUserpref_BoneRotationMode {
+  USER_BONE_ROT_MODE_QUAT = 0,
+  USER_BONE_ROT_MODE_XYZ,
+  USER_BONE_ROT_MODE_XZY,
+  USER_BONE_ROT_MODE_YXZ,
+  USER_BONE_ROT_MODE_YZX,
+  USER_BONE_ROT_MODE_ZXY,
+  USER_BONE_ROT_MODE_ZYX,
+  USER_BONE_ROT_MODE_AXISANGLE,
+};
+
 /** #UserDef.xr_navigation_flag */
 enum eUserpref_XrNavigationFlags {
   USER_XR_NAV_SNAP_TURN = (1 << 0),
@@ -1225,6 +1237,9 @@ struct UserDef {
   UserDef_TempWinBounds stored_bounds;
 
   UserDef_Experimental experimental;
+
+  int bone_new_rotation_mode = USER_BONE_ROT_MODE_QUAT; /* eUserpref_BoneRotationMode */
+  char _pad[4] = {};
 
   /** Runtime data (keep last). */
   UserDef_Runtime runtime;

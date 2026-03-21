@@ -531,9 +531,34 @@ class USERPREF_PT_edit_annotations(EditingPanel, CenterAlignMixIn, Panel):
         col.prop(edit, "grease_pencil_default_color", text="Default Color")
         col.prop(edit, "grease_pencil_eraser_radius", text="Eraser Radius")
 
+class USERPREF_PT_edit_rigging(EditingPanel, Panel):
+    bl_label = "Rigging"
+    bl_options = {'DEFAULT_CLOSED'}
 
-class USERPREF_PT_edit_weight_paint(EditingPanel, CenterAlignMixIn, Panel):
+    def draw(self, context):
+        pass
+
+
+class USERPREF_PT_edit_rigging_armatures(EditingPanel, CenterAlignMixIn, Panel):
+    bl_label = "Armatures"
+    bl_parent_id = "USERPREF_PT_edit_rigging"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw_centered(self, context, layout):
+        prefs = context.preferences
+        view = prefs.view
+
+        # Rotation Mode
+        layout.use_property_split = True
+        layout.prop(view, "bone_new_rotation_mode")
+
+        # Display Type
+        layout.label(text="Display Type Here (ENUM)")
+
+
+class USERPREF_PT_edit_rigging_weight_paint(EditingPanel, CenterAlignMixIn, Panel):
     bl_label = "Weight Paint"
+    bl_parent_id = "USERPREF_PT_edit_rigging"
     bl_options = {'DEFAULT_CLOSED'}
 
     def draw_centered(self, context, layout):
@@ -3138,7 +3163,9 @@ classes = (
     USERPREF_PT_edit_objects_duplicate_data,
     USERPREF_PT_edit_cursor,
     USERPREF_PT_edit_annotations,
-    USERPREF_PT_edit_weight_paint,
+    USERPREF_PT_edit_rigging,
+    USERPREF_PT_edit_rigging_armatures,
+    USERPREF_PT_edit_rigging_weight_paint,
     USERPREF_PT_edit_gpencil,
     USERPREF_PT_edit_text_editor,
     USERPREF_PT_edit_node_editor,
