@@ -508,7 +508,6 @@ endif()
 if(WITH_OPENSUBDIV)
   find_package(OpenSubdiv)
 
-  set(OPENSUBDIV_LIBRARIES ${OPENSUBDIV_LIBRARIES})
   set(OPENSUBDIV_LIBPATH "")  # TODO, remove and reference the absolute path everywhere
 
   set_and_warn_library_found("OpenSubdiv" OPENSUBDIV_FOUND WITH_OPENSUBDIV)
@@ -663,6 +662,7 @@ if(WITH_SYSTEM_FREETYPE)
 endif()
 
 find_package_wrapper(Eigen3 REQUIRED)
+mark_as_advanced(Eigen3_DIR)
 
 if(WITH_LIBMV)
   find_package_wrapper(Ceres REQUIRED)
@@ -1011,9 +1011,17 @@ unset(_IS_LINKER_DEFAULT)
 # Avoid conflicts with Mesa llvmpipe, Luxrender, and other plug-ins that may
 # use the same libraries as Blender with a different version or build options.
 set(PLATFORM_SYMBOLS_MAP ${CMAKE_SOURCE_DIR}/source/creator/symbols_unix.map)
-set(PLATFORM_LINKFLAGS
-  "${PLATFORM_LINKFLAGS} -Wl,--version-script='${PLATFORM_SYMBOLS_MAP}'"
-)
+set(PLATFORM_LINKFLAGS_SYMBOL_HIDING "-Wl,--version-script='${PLATFORM_SYMBOLS_MAP}'")
+
+# We do not ensure transitive dependencies of dynamic libraries are available at
+# link time. This allows that for classic ld, which is more strict than gold, lld
+# or mold. The ideal solution would be to switch all dependencies to CMake configs
+# that fully specify transitive dependencies.
+if(NOT WITH_PYTHON_MODULE)
+  set(PLATFORM_LINKFLAGS
+    "${PLATFORM_LINKFLAGS} -Wl,--allow-shlib-undefined -Wl,--unresolved-symbols=ignore-in-shared-libs"
+  )
+endif()
 
 # Don't use position independent executable for portable install since file
 # browsers can't properly detect blender as an executable then. Still enabled

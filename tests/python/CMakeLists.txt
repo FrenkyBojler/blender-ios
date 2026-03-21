@@ -122,10 +122,14 @@ if(WITH_UI_TESTS)
       # while this could be investigated, use windowed mode instead.
       # Use a window size that balances software GPU rendering with enough room to use the UI.
       --factory-startup
+      # Workaround for https://projects.blender.org/blender/blender/issues/154770.
+      --no-native-pixels
       # No need for window frame with tests.
       --no-window-frame
       -p 0 0 800 600
       --gpu-backend ${backend}
+      # Log operator calls at a debug level so it is easier to debug runs on the buildbot that fail
+      --log "operator" --log-level "debug"
       "${EXE_PARAMS}"
       "${TEST_BLENDER_EXE_PARAMS_NO_THUMB}"
       "${ARGN}"
@@ -263,6 +267,32 @@ add_blender_test(
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_bpy_app.py
 )
 
+if (WITH_GPU_BACKEND_TESTS)
+  if(WITH_OPENGL_BACKEND)
+    add_blender_test(
+      script_pyapi_gpu_opengl
+      --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_gpu.py
+      --gpu-backend opengl
+    )
+  endif()
+
+  if(WITH_METAL_BACKEND)
+    add_blender_test(
+      script_pyapi_gpu_metal
+      --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_gpu.py
+      --gpu-backend metal
+    )
+  endif()
+
+  if(WITH_VULKAN_BACKEND)
+    add_blender_test(
+      script_pyapi_gpu_vulkan
+      --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_gpu.py
+      --gpu-backend vulkan
+    )
+  endif()
+endif()
+
 add_blender_test(
   script_pyapi_bpy_app_tempdir
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_bpy_app_tempdir.py
@@ -319,8 +349,28 @@ add_blender_test(
 )
 
 add_blender_test(
+  imbuf_py_api
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_imbuf_py_api.py
+)
+
+add_blender_test(
+  operator_function_py_api
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_operator_function_py_api.py
+)
+
+add_blender_test(
+  operator_wrap_py_api
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_operator_wrap_py_api.py
+)
+
+add_blender_test(
   script_pyapi_grease_pencil
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_grease_pencil.py
+)
+
+add_blender_test(
+  script_pyapi_annotations
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_annotations.py
 )
 
 # ------------------------------------------------------------------------------
@@ -909,7 +959,7 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
         endforeach()
       endif()
 
-      if(WITH_VULKAN_BACKEND AND (name STREQUAL "workbench" OR name STREQUAL "overlay" OR WITH_GPU_RENDER_TESTS_VULKAN)
+      if(WITH_VULKAN_BACKEND AND (name STREQUAL "overlay" OR WITH_GPU_RENDER_TESTS_VULKAN)
           AND (NOT (name STREQUAL "storm_hydra" OR name STREQUAL "storm_usd") OR WITH_STORM_TESTS_VULKAN))
         foreach(render_test ${render_tests})
           add_render_test(
@@ -927,7 +977,8 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
     add_gpu_render_tests(eevee "eevee_render_tests.py" "${gpu_render_tests}")
     add_gpu_render_tests(workbench "workbench_render_tests.py" "${gpu_render_tests}")
     if(WITH_GPU_RENDER_TESTS_HEADED)
-      add_gpu_render_tests(overlay "overlay_render_tests.py" "${gpu_render_tests}")
+      # Temporarilly disabled until 154533 is merged to avoid errors on the builder.
+      # add_gpu_render_tests(overlay "overlay_render_tests.py" "${gpu_render_tests}")
     endif()
     if(WITH_HYDRA)
       add_gpu_render_tests(storm_hydra "storm_render_tests.py" "${gpu_render_tests}" --export_method "HYDRA")
@@ -1227,7 +1278,7 @@ if(TEST_SRC_DIR_EXISTS)
     --python ${CMAKE_CURRENT_LIST_DIR}/io_gltf_import_test.py
     --
     --testdir "${TEST_SRC_DIR}/io_tests/gltf/import"
-    --outdir "${TEST_OUT_DIR}/io_gltf"
+    --outdir "${TEST_OUT_DIR}/io_gltf_import"
   )
 endif()
 
@@ -1237,7 +1288,7 @@ if(TEST_SRC_DIR_EXISTS)
     --python ${CMAKE_CURRENT_LIST_DIR}/io_gltf_roundtrip_test.py
     --
     --testdir "${TEST_SRC_DIR}/io_tests/gltf/roundtrip"
-    --outdir "${TEST_OUT_DIR}/io_gltf"
+    --outdir "${TEST_OUT_DIR}/io_gltf_roundtrip"
   )
 endif()
 
@@ -1247,7 +1298,7 @@ if(TEST_SRC_DIR_EXISTS)
     --python ${CMAKE_CURRENT_LIST_DIR}/io_gltf_export_test.py
     --
     --testdir "${TEST_SRC_DIR}/io_tests/gltf/export"
-    --outdir "${TEST_OUT_DIR}/io_gltf"
+    --outdir "${TEST_OUT_DIR}/io_gltf_export"
   )
 endif()
 
@@ -1336,6 +1387,7 @@ if(TEST_SRC_DIR_EXISTS)
     transform
     blend_modes_byte
     blend_modes_float
+    colorspace
   )
   set(video_output_tests "")
 
@@ -1385,6 +1437,17 @@ endif()
 # ------------------------------------------------------------------------------
 
 if(TEST_SRC_DIR_EXISTS)
+  add_blender_test(
+    bl_voxel_remesh
+    --python ${CMAKE_CURRENT_LIST_DIR}/sculpt_paint/voxel_remesh_test.py
+  )
+
+  add_blender_test(
+    bl_voxel_remesh_compare
+    ${TEST_SRC_DIR}/sculpting/voxel_remesh_compare.blend
+    --python ${CMAKE_CURRENT_LIST_DIR}/sculpt_paint/voxel_remesh_compare_test.py
+  )
+
   add_blender_test(
     bl_sculpt_mask
     --python ${CMAKE_CURRENT_LIST_DIR}/sculpt_paint/mask_test.py
@@ -1481,6 +1544,7 @@ if(WITH_UI_TESTS)
     test_sculpt.mask_expand_and_invert
     test_sculpt.mask_gestures
     test_sculpt.trim_gestures
+    test_sculpt.primitive_tool_add
     test_tools.sculpt_mode_toolbar
     test_undo.compositor_make_group
     test_undo.text_editor_edit_mode_mix
@@ -1533,6 +1597,15 @@ if(TEST_SRC_DIR_EXISTS)
   # TODO: disabled for now after collection unification
   # add_subdirectory(view_layer)
 endif()
+
+# ------------------------------------------------------------------------------
+# Remote Asset Library tests
+# ------------------------------------------------------------------------------
+if(TEST_SRC_DIR_EXISTS)
+  add_subdirectory(assets)
+endif()
+
+
 
 # ------------------------------------------------------------------------------
 # Linux Release sanity checks

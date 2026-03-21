@@ -92,6 +92,7 @@ bool BlenderSync::object_can_have_geometry(blender::Object &b_ob)
     case blender::OB_CURVES:
     case blender::OB_POINTCLOUD:
     case blender::OB_VOLUME:
+      /* TODO(weizhen): OB_LAMP */
       return true;
     default:
       return false;
@@ -203,8 +204,9 @@ Object *BlenderSync::sync_object(blender::ViewLayer &b_view_layer,
   /* Visibility flags for both parent and child. */
   blender::PointerRNA b_ob_rna_ptr = RNA_id_pointer_create(&b_ob.id);
   blender::PointerRNA cobject = RNA_pointer_get(&b_ob_rna_ptr, "cycles");
+  /* Note base_parent is null for objects from the background scene. */
   const blender::Base *base_parent = BKE_view_layer_base_find(&b_view_layer, b_parent);
-  const bool use_holdout = ((base_parent->flag & blender::BASE_HOLDOUT) != 0) ||
+  const bool use_holdout = (base_parent && (base_parent->flag & blender::BASE_HOLDOUT) != 0) ||
                            ((b_parent->visibility_flag & blender::OB_HOLDOUT) != 0);
   uint visibility = object_ray_visibility(b_ob) & PATH_RAY_ALL_VISIBILITY;
 
@@ -220,7 +222,7 @@ Object *BlenderSync::sync_object(blender::ViewLayer &b_view_layer,
 #endif
 
   /* Clear camera visibility for indirect only objects. */
-  const bool use_indirect_only = !use_holdout &&
+  const bool use_indirect_only = !use_holdout && base_parent &&
                                  ((base_parent->flag & blender::BASE_INDIRECT_ONLY) != 0);
   if (use_indirect_only) {
     visibility &= ~PATH_RAY_CAMERA;
@@ -371,9 +373,6 @@ Object *BlenderSync::sync_object(blender::ViewLayer &b_view_layer,
 
   return object;
 }
-
-extern "C" blender::DupliObject *rna_hack_DepsgraphObjectInstance_dupli_object_get(
-    blender::PointerRNA *ptr);
 
 static float4 lookup_instance_property(blender::Object &ob,
                                        blender::DEGObjectIterData &b_deg_iter_data,

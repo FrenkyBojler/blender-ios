@@ -2212,7 +2212,7 @@ static void outliner_buttons(const bContext *C,
                 "");
   button_retval_set(bt, OL_NAMEBUTTON);
   /* Handle undo through the #template_id_cb set below. Default undo handling from the button
-   * code (see #ui_apply_but_undo) would not work here, as the new name is not yet applied to the
+   * code (see #apply_but_undo) would not work here, as the new name is not yet applied to the
    * ID. */
   button_flag_disable(bt, ui::BUT_UNDO);
   button_func_rename_set(bt, namebutton_fn, tselem);
@@ -2815,6 +2815,7 @@ TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
           case STRIP_TYPE_CROSS:
           case STRIP_TYPE_GAMCROSS:
           case STRIP_TYPE_WIPE:
+          case STRIP_TYPE_COMPOSITOR:
             data.icon = ICON_ARROW_LEFTRIGHT;
             break;
           case STRIP_TYPE_META:
