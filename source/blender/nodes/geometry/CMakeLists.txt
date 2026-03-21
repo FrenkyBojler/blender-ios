@@ -221,6 +221,7 @@ set(SRC
   nodes/node_geo_sample_uv_surface.cc
   nodes/node_geo_scale_elements.cc
   nodes/node_geo_scale_instances.cc
+  nodes/node_geo_scan_folder.cc
   nodes/node_geo_search_in_folder.cc
   nodes/node_geo_sdf_grid_boolean.cc
   nodes/node_geo_sdf_grid_fillet.cc

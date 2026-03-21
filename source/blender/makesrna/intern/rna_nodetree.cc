@@ -10525,6 +10525,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeSampleUVSurface");
   define("GeometryNode", "GeometryNodeScaleElements");
   define("GeometryNode", "GeometryNodeScaleInstances");
+  define("GeometryNode", "GeometryNodeScanFolder");
   define("GeometryNode", "GeometryNodeSDFGridBoolean");
   define("GeometryNode", "GeometryNodeSearchInFolder");
   define("GeometryNode", "GeometryNodeSDFGridFillet");
