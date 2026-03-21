@@ -20,16 +20,16 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Geometry>("Curves")
       .supported_type({GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil})
       .description("NURBS Curve to change the knot sequence of");
+  b.add_output<decl::Geometry>("Curves").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
   b.add_input(SOCK_FLOAT, "Knot").structure_type(StructureType::List).hide_value();
-  b.add_output<decl::Geometry>("Curves").propagate_all();
 }
 
 /**
  * Used to check the knot sequence of each curve without executing `count_nonzero_knot_spans()`
  * everytime. The array tells how many breakpoints exist ahead of a specified knot.
- * If greater than zero at the degree-th knot (or first knot for cyclic curve), the curve knot sequence
- * is valid.
+ * If greater than zero at the degree-th knot (or first knot for cyclic curve), the curve knot
+ * sequence is valid.
  */
 static Array<int> reversed_accumulation_delta(const VArray<float> &array)
 {
