@@ -198,6 +198,10 @@ struct ShapedGlyph {
   rcti integer_bounds() const;
 };
 
+#ifndef WITH_HARFBUZZ
+#  define hb_feature_t int /* Dummy type when Harfbuzz is not available. */
+#endif
+
 struct ShapingData {
   blender::Vector<ShapedGlyph> glyphs = {};
   ft_pix width = 0;
@@ -208,6 +212,7 @@ struct ShapingData {
               size_t len,
               blender::Vector<hb_feature_t> *features = nullptr);
   bool load_from_cache(FontBLF *font, GlyphCacheBLF *gc, const char *str, size_t len);
+  void legacy_layout(FontBLF *font, GlyphCacheBLF *gc, const char *str, size_t len);
 };
 
 struct BatchBLF {
@@ -256,9 +261,11 @@ struct GlyphCacheBLF {
   /** Column width when printing monospaced. */
   int fixed_width;
 
+#ifdef WITH_HARFBUZZ
   hb_segment_properties_t props;
   hb_shape_plan_t *shaping_plan = nullptr;
   ShapingCache shaping_cache;
+#endif
 
   /** The glyphs. */
   Map<GlyphCacheKey, std::unique_ptr<GlyphBLF>> glyphs;

@@ -8,9 +8,11 @@
  * Text shaping and glyph positioning using Harfbuzz.
  */
 
-#include <harfbuzz/hb-ft.h>
-#include <harfbuzz/hb-ot.h>
-#include <harfbuzz/hb.h>
+#ifdef WITH_HARFBUZZ
+#  include <harfbuzz/hb-ft.h>
+#  include <harfbuzz/hb-ot.h>
+#  include <harfbuzz/hb.h>
+#endif
 
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
@@ -35,6 +37,27 @@ rcti ShapedGlyph::integer_bounds() const
   return r;
 }
 
+void ShapingData::legacy_layout(FontBLF *font, GlyphCacheBLF *gc, const char *str, size_t len)
+{
+  size_t char_count = BLI_strnlen_utf8(str, len);
+  std::u32string str32(char_count + 1, 0);
+  BLI_str_utf8_as_utf32(str32.data(), str, char_count + 1);
+
+  for (size_t i = 0; i < char_count; i++) {
+    char32_t codepoint = str32[i];
+    GlyphBLF *g = blf_glyph_ensure(font, gc, codepoint);
+    g = blf_glyph_ensure_subpixel(font, gc, g, this->width);
+    if (g) {
+      rcti bounds = {
+          this->width, this->width + g->box_xmax - g->box_xmin, 0, g->box_ymax - g->box_ymin};
+      this->glyphs.append({font, gc, g, bounds, size_t(BLI_str_utf8_from_unicode_len(codepoint))});
+      this->width += g->advance_x;
+      this->height = std::max(this->height, g->box_ymax - g->box_ymin);
+    }
+  }
+}
+
+#ifdef WITH_HARFBUZZ
 static void blf_font_otf_feature_set(blender::Vector<hb_feature_t> &features,
                                      hb_tag_t tag,
                                      uint32_t value)
@@ -94,6 +117,7 @@ bool ShapingData::load_from_cache(FontBLF *font, GlyphCacheBLF *gc, const char *
 
   for (const CachedGlyph &glyph : cached->glyphs) {
     GlyphBLF *g = blf_glyph_ensure(font, gc, glyph.charcode, glyph.glyph_id);
+    g = blf_glyph_ensure_subpixel(font, gc, g, glyph.bounds.xmin);
     this->glyphs.append({font, gc, g, glyph.bounds, glyph.index_utf8});
   }
   this->width = cached->width;
@@ -250,6 +274,7 @@ ShapingData::ShapingData(FontBLF *font,
       const int advance = ((font->flags & BLF_MONOSPACED) ?
                                ft_pix_from_int(cwidth) * BLI_wcwidth_safe(codepoint) :
                                glyph_pos[i].x_advance);
+
       if (g->box_xmin == g->box_xmax) {
         /* Can happen with some spacing characters. */
         g->box_xmax = g->box_xmin + advance;
@@ -299,6 +324,20 @@ ShapingData::ShapingData(FontBLF *font,
     gc->shaping_cache.add_new(str, cache_string);
   }
 }
+
+#else
+
+/* Fallback when Harfbuzz is not available, legacy layout only. */
+ShapingData::ShapingData(FontBLF *font,
+                         GlyphCacheBLF *gc,
+                         const char *str,
+                         size_t len,
+                         blender::Vector<hb_feature_t> * /*features*/)
+{
+  legacy_layout(font, gc, str, len);
+}
+
+#endif
 
 /** \} */
 

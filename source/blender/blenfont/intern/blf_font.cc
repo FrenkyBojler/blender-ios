@@ -1461,7 +1461,9 @@ static void blf_font_fill(FontBLF *font)
   font->char_width = 1.0f;
   font->char_spacing = 0.0f;
 
+#ifdef WITH_HARFBUZZ
   font->hb_font = nullptr;
+#endif
   font->tex_size_max = -1;
 
   font->buf_info.fbuf = nullptr;
@@ -1865,9 +1867,11 @@ void blf_font_free(FontBLF *font)
 {
   blf_glyph_cache_clear(font);
 
+#ifdef WITH_HARFBUZZ
   if (font->hb_font) {
     hb_font_destroy(font->hb_font);
   }
+#endif
 
   if (font->variations) {
     FT_Done_MM_Var(font->ft_lib, font->variations);

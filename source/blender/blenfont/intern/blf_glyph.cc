@@ -156,9 +156,11 @@ GlyphCacheBLF::~GlyphCacheBLF()
   if (this->bitmap_result) {
     MEM_delete(this->bitmap_result);
   }
+#ifdef WITH_HARFBUZZ
   if (this->shaping_plan) {
     hb_shape_plan_destroy(this->shaping_plan);
   }
+#endif
 }
 
 void blf_glyph_cache_clear(FontBLF *font)
@@ -233,7 +235,7 @@ static GlyphBLF *blf_glyph_cache_add_glyph(GlyphCacheBLF *gc,
   std::unique_ptr<GlyphBLF> g = std::make_unique<GlyphBLF>();
   g->c = charcode;
   g->idx = glyph_index;
-  g->advance_x = ft_pix(glyph->advance.x);
+  g->advance_x = ft_pix(glyph->linearHoriAdvance >> 10);
   g->subpixel = subpixel;
 
   FT_BBox bbox;
