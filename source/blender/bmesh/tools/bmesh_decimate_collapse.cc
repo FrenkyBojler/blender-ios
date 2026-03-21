@@ -441,9 +441,14 @@ static int *bm_edge_symmetry_map(BMesh *bm, uint symmetry_axis, float limit)
       sub_v3_v3v3(sym_data.e_dir, sym_data.e_v2_co, sym_data.e_v1_co);
       sym_data.e_found_index = -1;
 
-      kdtree_range_search_cb<float3>(tree, co, limit, [&](int index, const float3 &co, float dist_sq) {
-        bm_edge_symmetry_check_cb(&sym_data, index, co, dist_sq);
-      }, &sym_data);
+      kdtree_range_search_cb<float3>(
+          tree,
+          co,
+          limit,
+          [&](int index, const float3 &co, float dist_sq) {
+            bm_edge_symmetry_check_cb(&sym_data, index, co, dist_sq);
+          },
+          &sym_data);
 
       if (sym_data.e_found_index != -1) {
         const int i_other = sym_data.e_found_index;
