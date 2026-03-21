@@ -195,6 +195,12 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const SamplerOptions &optio
       shader_name = "compositor_realize_on_domain_float4x4";
       break;
     case ResultType::String:
+    case ResultType::Object:
+    case ResultType::Image:
+    case ResultType::Font:
+    case ResultType::Scene:
+    case ResultType::Text:
+    case ResultType::Mask:
       /* Single only types do not support GPU code path. */
       BLI_assert(Result::is_single_value_only_type(this->get_input().type()));
       BLI_assert_unreachable();
@@ -317,6 +323,14 @@ void RealizeOnDomainOperation::realize_on_domain_cpu(const SamplerOptions &optio
       realize_on_domain<nodes::MenuValue>(input, output, transformation);
       break;
     case ResultType::String:
+    case ResultType::Object:
+    case ResultType::Image:
+    case ResultType::Font:
+    case ResultType::Scene:
+    case ResultType::Text:
+    case ResultType::Mask:
+      /* Single only types do not support GPU code path. */
+      BLI_assert(Result::is_single_value_only_type(this->get_input().type()));
       BLI_assert_unreachable();
   }
 }
