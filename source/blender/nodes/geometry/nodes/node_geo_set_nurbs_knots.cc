@@ -19,19 +19,25 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Geometry>("Curves")
       .supported_type({GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil})
-      .description("Curve to convert to a mesh using the given profile");
+      .description("NURBS Curve to change the knot sequence of");
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
   b.add_input(SOCK_FLOAT, "Knot").structure_type(StructureType::List).hide_value();
   b.add_output<decl::Geometry>("Curves").propagate_all();
 }
 
-static Array<int> reversed_accumulation_delta(const Span<float> span)
+/**
+ * Used to check the knot sequence of each curve without executing `count_nonzero_knot_spans()`
+ * everytime. The array tells how many breakpoints exist ahead of a specified knot.
+ * If greater than zero at the degree-th knot (or first knot for cyclic curve), the curve knot sequence
+ * is valid.
+ */
+static Array<int> reversed_accumulation_delta(const VArray<float> &array)
 {
-  const int delta_size = span.size() - 1;
+  const int delta_size = array.size() - 1;
   Array<int> result(delta_size);
   int accumulation = 0;
   for (const int i : result.index_range()) {
-    if (span[delta_size - i] - span[delta_size - 1 - i] > 0.0f) {
+    if (array[delta_size - i] - array[delta_size - 1 - i] > 0.0f) {
       accumulation++;
     }
     result[delta_size - 1 - i] = accumulation;
@@ -42,7 +48,7 @@ static Array<int> reversed_accumulation_delta(const Span<float> span)
 static void set_curves_knots(bke::CurvesGeometry &curves,
                              const fn::FieldContext &field_context,
                              const Field<bool> &selection_field,
-                             const Span<float> &new_knot_sequence,
+                             const VArray<float> &new_knot_sequence,
                              std::atomic<bool> &has_nurbs,
                              std::atomic<bool> &any_affected,
                              const Array<int> &knot_validator)
@@ -52,7 +58,7 @@ static void set_curves_knots(bke::CurvesGeometry &curves,
   }
   has_nurbs = true;
 
-  // Evaluate selection
+  /* Evaluates selection */
   fn::FieldEvaluator selection_evaluator{field_context, curves.curves_num()};
   selection_evaluator.add(selection_field);
   selection_evaluator.evaluate();
@@ -61,43 +67,43 @@ static void set_curves_knots(bke::CurvesGeometry &curves,
     return;
   }
 
-  // Set knot mode for every matching curve
+  /* Sets knot mode for every matching curve. */
   const VArray<int8_t> curve_types = curves.curve_types();
   const OffsetIndices points_by_curve = curves.points_by_curve();
   const VArray<int8_t> nurbs_orders = curves.nurbs_orders();
   const VArray<bool> cyclic = curves.cyclic();
   MutableSpan<int8_t> knot_mode = curves.nurbs_knots_modes_for_write();
+  IndexMaskMemory memory;
 
-  Array<bool> curves_to_write(curves.curves_num(), false);
-  selection.foreach_index(
+  const IndexMask curves_to_write = IndexMask::from_predicate(
+      selection,
+      memory,
       [&](const int i_curve) {
-        if (curve_types[i_curve] == CURVE_TYPE_NURBS) {
-          const int points_num = points_by_curve[i_curve].size();
-          const int order = nurbs_orders[i_curve];
-          const bool is_cyclic = cyclic[i_curve];
-          if (points_num + order == new_knot_sequence.size() &&
-              (knot_validator[order - 1] > 0 || (knot_validator.first() > 0 && is_cyclic)))
-          {
-            knot_mode[i_curve] = NURBS_KNOT_MODE_CUSTOM;
-            curves_to_write[i_curve] = true;
-            any_affected = true;
-          }
+        if (curve_types[i_curve] != CURVE_TYPE_NURBS) {
+          return false;
         }
+        const int points_num = points_by_curve[i_curve].size();
+        const int order = nurbs_orders[i_curve];
+        const bool is_cyclic = cyclic[i_curve];
+        return points_num + order == new_knot_sequence.size() &&
+               (knot_validator[order - 1] > 0 || (knot_validator.first() > 0 && is_cyclic));
       },
       exec_mode::grain_size(2048));
 
-  // Update custom knot array size
+  curves_to_write.foreach_index([&](const int i_curve) {
+    knot_mode[i_curve] = NURBS_KNOT_MODE_CUSTOM;
+    any_affected = true;
+  });
+
+  /* Updates custom knot array size. */
   curves.nurbs_custom_knots_update_size();
 
-  // Write new knots
+  /* Writes new knots. */
   const OffsetIndices custom_knots_by_curve = curves.nurbs_custom_knots_by_curve();
   MutableSpan<float> custom_knots = curves.nurbs_custom_knots_for_write();
-  IndexMaskMemory memory;
-  const IndexMask curves_to_write_mask = IndexMask::from_bools(curves_to_write, memory);
-
-  curves_to_write_mask.foreach_index([&](const int i_curve) {
+  curves_to_write.foreach_index([&](const int i_curve) {
     const IndexRange dst = custom_knots_by_curve[i_curve];
-    custom_knots.slice(dst).copy_from(new_knot_sequence);
+    new_knot_sequence.materialize(custom_knots.slice(dst));
   });
 }
 
@@ -116,9 +122,9 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  const Span<float> input_knot_span = std::get<Span<float>>(input_knot->values<float>());
+  const VArray<float> input_knot_span = input_knot->varray<float>();
 
-  // Used to check knot sequence without having to use count_nonzero_knot_spans() for each curve.
+  /* Used to check knot sequence without using `count_nonzero_knot_spans()` for each curve.*/
   const Array<int> knot_validator = reversed_accumulation_delta(input_knot_span);
 
   if (knot_validator.first() == 0) {

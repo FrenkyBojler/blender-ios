@@ -389,9 +389,7 @@ class NODE_MT_gn_input_scene_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeIsViewport")
         if context.space_data.node_tree_sub_type == 'TOOL':
             self.node_operator_with_outputs(
-                context,
-                layout,
-                "GeometryNodeToolMousePosition",
+                context, layout, "GeometryNodeToolMousePosition",
                 ["Mouse X", "Mouse Y", "Region Width", "Region Height"],
             )
         self.node_operator(layout, "GeometryNodeObjectInfo")
@@ -399,9 +397,7 @@ class NODE_MT_gn_input_scene_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeSelfObject")
         if context.space_data.node_tree_sub_type == 'TOOL':
             self.node_operator_with_outputs(
-                context,
-                layout,
-                "GeometryNodeViewportTransform",
+                context, layout, "GeometryNodeViewportTransform",
                 ["Projection", "View", "Is Orthographic"],
             )
 
@@ -852,11 +848,7 @@ class NODE_MT_gn_utilities_math_base(node_add_menu.NodeMenu):
     def draw(self, context):
         layout = self.layout
         self.node_operator_with_searchable_enum(
-            context,
-            layout,
-            "FunctionNodeBitMath",
-            "operation",
-            search_weight=-1.0,
+            context, layout, "FunctionNodeBitMath", "operation", search_weight=-1.0,
         )
         self.node_operator_with_searchable_enum(context, layout, "FunctionNodeBooleanMath", "operation")
         self.node_operator_with_searchable_enum(context, layout, "FunctionNodeIntegerMath", "operation")
@@ -1111,7 +1103,9 @@ add_menus = {
     "NODE_MT_geometry_node_add_all": NODE_MT_gn_all_base,
 }
 add_menus = node_add_menu.generate_menus(
-    add_menus, template=node_add_menu.AddNodeMenu, base_dict=node_add_menu.add_base_pathing_dict
+    add_menus,
+    template=node_add_menu.AddNodeMenu,
+    base_dict=node_add_menu.add_base_pathing_dict
 )
 
 
@@ -1175,7 +1169,9 @@ swap_menus = {
     "NODE_MT_geometry_node_swap_all": NODE_MT_gn_all_base,
 }
 swap_menus = node_add_menu.generate_menus(
-    swap_menus, template=node_add_menu.SwapNodeMenu, base_dict=node_add_menu.swap_base_pathing_dict
+    swap_menus,
+    template=node_add_menu.SwapNodeMenu,
+    base_dict=node_add_menu.swap_base_pathing_dict
 )
 
 
@@ -1187,6 +1183,5 @@ classes = (
 
 if __name__ == "__main__":  # only for live edit.
     from bpy.utils import register_class
-
     for cls in classes:
         register_class(cls)
