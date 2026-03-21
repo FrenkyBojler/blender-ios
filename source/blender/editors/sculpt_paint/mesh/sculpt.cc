@@ -3924,12 +3924,12 @@ static void sculpt_init_mirror_clipping(const Object &ob, const SculptSession &s
   ss.cache->mirror_modifier_clip.mat_inv = math::invert(ss.cache->mirror_modifier_clip.mat);
 }
 
-static void smooth_brush_toggle_on(Main *bmain, Paint *paint, StrokeCache *cache)
+static void smooth_brush_toggle_on(Main *bmain, Paint *paint, StrokeToggleSettings &toggle_settings)
 {
   Brush *cur_brush = BKE_paint_brush(paint);
 
   if (cur_brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_MASK) {
-    cache->toggle_settings.original_brush_mask_tool = BrushMaskTool(cur_brush->mask_tool);
+    toggle_settings.original_brush_mask_tool = BrushMaskTool(cur_brush->mask_tool);
     cur_brush->mask_tool = BRUSH_MASK_SMOOTH;
     return;
   }
@@ -3947,16 +3947,16 @@ static void smooth_brush_toggle_on(Main *bmain, Paint *paint, StrokeCache *cache
   if (!BKE_paint_brush_set_essentials(bmain, paint, target_asset)) {
     BKE_paint_brush_set(paint, cur_brush);
     CLOG_WARN(&LOG, "Unable to switch to the '%s' essentials brush asset", target_asset);
-    cache->toggle_settings.original_active_brush = nullptr;
+    toggle_settings.original_active_brush = nullptr;
     return;
   }
 
   Brush *smooth_brush = BKE_paint_brush(paint);
   int cur_brush_size = BKE_brush_size_get(paint, cur_brush);
 
-  cache->toggle_settings.original_active_brush = cur_brush;
+  toggle_settings.original_active_brush = cur_brush;
 
-  cache->toggle_settings.original_brush_size = BKE_brush_size_get(paint, smooth_brush);
+  toggle_settings.original_brush_size = BKE_brush_size_get(paint, smooth_brush);
   BKE_brush_size_set(paint, smooth_brush, cur_brush_size);
   bke::brush::common_pressure_curves_init(*smooth_brush);
 }
@@ -3987,24 +3987,24 @@ static void smooth_brush_toggle_off(Paint *paint, StrokeCache *cache)
   }
 }
 
-static void mask_brush_toggle_on(Main *bmain, Paint *paint, StrokeCache *cache)
+static void mask_brush_toggle_on(Main *bmain, Paint *paint, StrokeToggleSettings &toggle_settings)
 {
   Brush *cur_brush = BKE_paint_brush(paint);
 
   /* User is already using Mask brush */
   if (cur_brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_MASK) {
-    cache->toggle_settings.original_brush_mask_tool = BrushMaskTool(cur_brush->mask_tool);
-    cache->toggle_settings.original_active_brush = nullptr;
+    toggle_settings.original_brush_mask_tool = BrushMaskTool(cur_brush->mask_tool);
+    toggle_settings.original_active_brush = nullptr;
     return;
   }
 
   /* Save current brush */
-  cache->toggle_settings.original_active_brush = cur_brush;
+  toggle_settings.original_active_brush = cur_brush;
 
   /* Switch to Mask essentials brush */
   if (!BKE_paint_brush_set_essentials(bmain, paint, "Mask")) {
     BKE_paint_brush_set(paint, cur_brush);
-    cache->toggle_settings.original_active_brush = nullptr;
+    toggle_settings.original_active_brush = nullptr;
     CLOG_WARN(&LOG, "Unable to switch to the 'Mask' essentials brush asset");
     return;
   }
@@ -4013,7 +4013,7 @@ static void mask_brush_toggle_on(Main *bmain, Paint *paint, StrokeCache *cache)
 
   /* Match brush size */
   const int cur_brush_size = BKE_brush_size_get(paint, cur_brush);
-  cache->toggle_settings.original_brush_size = BKE_brush_size_get(paint, mask_brush);
+  toggle_settings.original_brush_size = BKE_brush_size_get(paint, mask_brush);
   BKE_brush_size_set(paint, mask_brush, cur_brush_size);
 
   if (mask_brush->curve_distance_falloff) {
@@ -5007,10 +5007,7 @@ struct SculptPaintStroke final : public PaintStroke {
     wm_ = CTX_wm_manager(C);
   }
 
-  void stroke_cache_init(BrushStrokeMode stroke_mode,
-                         BrushSwitchMode brush_switch_mode,
-                         bool pen_flip,
-                         const float mval[2]);
+  void stroke_cache_init(const float mval[2]);
   void stroke_cache_update(PointerRNA *ptr);
 
   bool get_location(float out[3], const float mouse[2], bool force_original) override;
@@ -5566,6 +5563,33 @@ static void stroke_undo_end(PaintModeSettings &paint_mode_settings, Object &obje
 
 namespace ed::sculpt_paint {
 
+/** Creates stroke-level toggle settings, modifies the current active brush if needed */
+static StrokeToggleSettings create_toggle_settings(const wmOperator &op,
+                                                   Main &bmain,
+                                                   Paint &paint)
+{
+  const BrushStrokeMode stroke_mode = BrushStrokeMode(RNA_enum_get(op.ptr, "mode"));
+  const BrushSwitchMode brush_switch_mode = BrushSwitchMode(RNA_enum_get(op.ptr, "brush_toggle"));
+  const bool pen_flip = RNA_boolean_get(op.ptr, "pen_flip");
+
+  StrokeToggleSettings toggle_settings;
+
+  toggle_settings.pen_flip = pen_flip;
+  toggle_settings.invert = stroke_mode == BrushStrokeMode::Invert;
+  toggle_settings.alt_smooth = brush_switch_mode == BrushSwitchMode::Smooth;
+  toggle_settings.alt_mask = brush_switch_mode == BrushSwitchMode::Mask;
+
+  /* Alt-Smooth. */
+  if (toggle_settings.alt_smooth) {
+    smooth_brush_toggle_on(&bmain, &paint, toggle_settings);
+  }
+  /* Alt-Mask. */
+  if (toggle_settings.alt_mask) {
+    mask_brush_toggle_on(&bmain, &paint, toggle_settings);
+  }
+  return toggle_settings;
+}
+
 bool color_supported_check(const Scene &scene, Object &object, ReportList *reports)
 {
   if (const SculptSession &ss = *object.runtime->sculpt_session; ss.bm) {
@@ -5580,20 +5604,16 @@ bool color_supported_check(const Scene &scene, Object &object, ReportList *repor
   return true;
 }
 
-void SculptPaintStroke::stroke_cache_init(const BrushStrokeMode stroke_mode,
-                                          const BrushSwitchMode brush_switch_mode,
-                                          const bool pen_flip,
-                                          const float mval[2])
+/* TODO: `init` is a bad name */
+void SculptPaintStroke::stroke_cache_init(const float mval[2])
 {
-  StrokeCache *cache = MEM_new<StrokeCache>(__func__);
   bke::PaintRuntime *paint_runtime = sculpt_->paint.runtime;
   const Brush *brush = this->brush;
   ViewContext *vc = &this->vc;
   Object &ob = *this->object;
 
   SculptSession &ss = *ob.runtime->sculpt_session;
-
-  ss.cache = cache;
+  StrokeCache *cache = ss.cache;
 
   /* Set scaling adjustment. */
   float max_scale = 0.0f;
@@ -5618,24 +5638,6 @@ void SculptPaintStroke::stroke_cache_init(const BrushStrokeMode stroke_mode,
 
   cache->initial_normal_symm = ss.cursor_sampled_normal.value_or(ss.cursor_normal);
   cache->initial_normal = ss.cursor_sampled_normal.value_or(ss.cursor_normal);
-
-  cache->toggle_settings.pen_flip = pen_flip;
-  cache->toggle_settings.invert = stroke_mode == BrushStrokeMode::Invert;
-  cache->toggle_settings.alt_smooth = brush_switch_mode == BrushSwitchMode::Smooth;
-  cache->toggle_settings.alt_mask = brush_switch_mode == BrushSwitchMode::Mask;
-
-  /* Alt-Smooth. */
-  if (cache->toggle_settings.alt_smooth) {
-    smooth_brush_toggle_on(bmain_, this->paint, cache);
-    /* Refresh the brush pointer in case we switched brush in the toggle function. */
-    brush = BKE_paint_brush(this->paint);
-  }
-  /* Alt-Mask. */
-  if (cache->toggle_settings.alt_mask) {
-    mask_brush_toggle_on(bmain_, this->paint, cache);
-    /* Refresh brush pointer after switching. */
-    brush = BKE_paint_brush(this->paint);
-  }
 
   cache->normal_weight = brush->normal_weight;
 
@@ -5759,10 +5761,7 @@ bool SculptPaintStroke::test_start(wmOperator *op, const float mval[2])
 
     ED_view3d_init_mats_rv3d(&ob, this->vc.rv3d);
 
-    stroke_cache_init(BrushStrokeMode(RNA_enum_get(op->ptr, "mode")),
-                      BrushSwitchMode(RNA_enum_get(op->ptr, "brush_toggle")),
-                      RNA_boolean_get(op->ptr, "pen_flip"),
-                      mval);
+    stroke_cache_init(mval);
     if (brush && brush_type_is_paint(brush->sculpt_brush_type)) {
       BKE_curvemapping_init(brush->curve_rand_hue);
       BKE_curvemapping_init(brush->curve_rand_saturation);
@@ -6038,15 +6037,6 @@ static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
   {
     return OPERATOR_CANCELLED;
   }
-  if (brush_type_is_mask(brush.sculpt_brush_type)) {
-    MultiresModifierData *mmd = BKE_sculpt_multires_active(&scene, &ob);
-    BKE_sculpt_mask_layers_ensure(CTX_data_depsgraph_pointer(C), CTX_data_main(C), &ob, mmd);
-
-    ed::sculpt_paint::mask_overlay_check(*C, *op);
-  }
-  if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_DRAW_FACE_SETS) {
-    ed::sculpt_paint::face_set_overlay_check(*C, *op);
-  }
   if (!brush_type_is_attribute_only(brush.sculpt_brush_type) && !shape_key_check(ob, op->reports))
   {
     return OPERATOR_CANCELLED;
@@ -6063,6 +6053,20 @@ static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
   }
 
   stroke = MEM_new<SculptPaintStroke>(__func__, C, op, event->type);
+  StrokeCache *cache = MEM_new<StrokeCache>(__func__);
+  cache->toggle_settings = create_toggle_settings(*op, *CTX_data_main(C), sd.paint);
+  SculptSession &ss = *ob.runtime->sculpt_session;
+  ss.cache = cache;
+
+  if (brush_type_is_mask(brush.sculpt_brush_type)) {
+    MultiresModifierData *mmd = BKE_sculpt_multires_active(&scene, &ob);
+    BKE_sculpt_mask_layers_ensure(CTX_data_depsgraph_pointer(C), CTX_data_main(C), &ob, mmd);
+
+    ed::sculpt_paint::mask_overlay_check(*C, *op);
+  }
+  if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_DRAW_FACE_SETS) {
+    ed::sculpt_paint::face_set_overlay_check(*C, *op);
+  }
 
   op->customdata = stroke;
 
