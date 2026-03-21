@@ -3,3 +3,4 @@ Referenced by commit 6f7ae3372ac2699770d92c1b628dcfd0cdca82c4, RNA: Remove DNA d
 Referenced by issue #155858, Blender 5.1 performance regression when accessing UV vectors in Python
 Referenced by pull request #155867, Fix #155858: accessing UV vectors in Python is extremely slow
 Referenced by pull request #156014, Cleanup: Use attribute dedicated lookup_int for Float4
+Referenced by commit 25cebfa62445de5e7d10bd9d23407068e078ca86, Cleanup: Use attribute dedicated lookup_int for Float4
