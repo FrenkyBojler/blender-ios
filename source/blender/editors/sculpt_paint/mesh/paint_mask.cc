@@ -207,6 +207,7 @@ void update_mask_mesh(const Depsgraph &depsgraph,
   const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
   bke::SpanAttributeWriter<float> mask = attributes.lookup_or_add_for_write_span<float>(
       ".sculpt_mask", bke::AttrDomain::Point);
+  std::vector<float> init_mask(mask.span.begin(), mask.span.end());
   if (!mask) {
     return;
   }
@@ -222,11 +223,11 @@ void update_mask_mesh(const Depsgraph &depsgraph,
   node_mask.foreach_index(
       [&](const int i) {
         LocalData &tls = all_tls.local();
-        const Span<int> verts = hide::node_visible_verts(nodes[i], hide_vert, tls.visible_verts);
+        const Span<int> verts = nodes[i].all_verts();
         tls.mask.resize(verts.size());
         gather_data_mesh(mask.span.as_span(), verts, tls.mask.as_mutable_span());
         update_fn(tls.mask, verts);
-        if (array_utils::indexed_data_equal<float>(mask.span, verts, tls.mask)) {
+        if (array_utils::indexed_data_equal<float>(init_mask, verts, tls.mask)) {
           return;
         }
         undo::push_node(depsgraph, object, &nodes[i], undo::Type::Mask);
@@ -235,7 +236,6 @@ void update_mask_mesh(const Depsgraph &depsgraph,
         node_changed[i] = true;
       },
       exec_mode::grain_size(1));
-
   IndexMaskMemory memory;
   pbvh.tag_masks_changed(IndexMask::from_bools(node_changed, memory));
 
@@ -418,8 +418,8 @@ static void fill_mask_mesh(const Depsgraph &depsgraph,
       [&](const int i) {
         Vector<int> &index_data = all_index_data.local();
         const Span<int> verts = hide::node_visible_verts(nodes[i], hide_vert, index_data);
-        if (std::all_of(verts.begin(), verts.end(), [&](int i) { return mask.span[i] == value; }))
-        {
+        if (std::all_of(
+                verts.begin(), verts.end(), [&](int i) { return mask.span[i] == value; })) {
           return;
         }
         undo::push_node(depsgraph, object, &nodes[i], undo::Type::Mask);
@@ -469,12 +469,15 @@ static void fill_mask_grids(Main &bmain,
   node_mask.foreach_index(
       [&](const int i) {
         const Span<int> grid_indices = nodes[i].grids();
-        if (std::all_of(grid_indices.begin(), grid_indices.end(), [&](const int grid) {
-              const Span<float> grid_masks = masks.slice(bke::ccg::grid_range(key, grid));
-              return std::all_of(grid_masks.begin(), grid_masks.end(), [&](const float mask) {
-                return mask == value;
-              });
-            }))
+        if (std::all_of(
+                grid_indices.begin(),
+                grid_indices.end(),
+                [&](const int grid) {
+                  const Span<float> grid_masks = masks.slice(bke::ccg::grid_range(key, grid));
+                  return std::all_of(grid_masks.begin(), grid_masks.end(), [&](const float mask) {
+                    return mask == value;
+                  });
+                }))
         {
           return;
         }
