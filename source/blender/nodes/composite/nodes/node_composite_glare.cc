@@ -63,7 +63,32 @@ static const EnumPropertyItem quality_items[] = {
     {CMP_NODE_GLARE_QUALITY_LOW, "LOW", 0, N_("Low"), ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
+static void node_composite_glare_label(const bNodeTree * /*ntree*/,
+                                       const bNode *node,
+                                       char *label,
+                                       int label_maxncpy)
+{
+  /* Prefer the current value of the "Type" menu input so that the label
+   * updates immediately when the user changes the node mode. */
+  CMPNodeGlareType type = CMP_NODE_GLARE_FOG_GLOW;
 
+  if (label_maxncpy <= 0) {
+    return;
+  }
+
+  for (const bNodeSocket *sock = static_cast<const bNodeSocket *>(node->inputs.first); sock;
+       sock = sock->next)
+  {
+    if (STREQ(sock->identifier, "Type") && sock->default_value != nullptr) {
+      const bNodeSocketValueMenu *menu = static_cast<const bNodeSocketValueMenu *>(
+          sock->default_value);
+      type = CMPNodeGlareType(menu->value);
+      break;
+    }
+  }
+
+  BLI_strncpy(label, EnumPropertyItem(type), label_maxncpy);
+}
 enum class KernelDataType : uint8_t {
   Float = 0,
   Color = 1,
