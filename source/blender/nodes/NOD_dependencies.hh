@@ -46,7 +46,7 @@ struct EvalDependencies {
   bool needs_active_camera = false;
   bool needs_scene_render_params = false;
   bool time_dependent = false;
-  bool needs_armature_pose = false;
+  bool needs_parent_object = false;
 
   /**
    * Adds a generic data-block dependency. Note that this does not add a dependency to e.g. the

@@ -61,7 +61,7 @@ void EvalDependencies::merge(const EvalDependencies &other)
   this->needs_active_camera |= other.needs_active_camera;
   this->needs_scene_render_params |= other.needs_scene_render_params;
   this->time_dependent |= other.time_dependent;
-  this->needs_armature_pose |= other.needs_armature_pose;
+  this->needs_parent_object |= other.needs_parent_object;
 }
 
 static void add_eval_dependencies_from_socket(const bNodeSocket &socket, EvalDependencies &deps)
@@ -228,7 +228,15 @@ static void gather_geometry_nodes_eval_dependencies(
   deps.needs_scene_render_params |= needs_scene_render_params(ntree);
   deps.time_dependent |= has_enabled_nodes_of_type(ntree, "GeometryNodeSimulationInput") ||
                          has_enabled_nodes_of_type(ntree, "GeometryNodeInputSceneTime");
-  deps.needs_armature_pose |= has_enabled_nodes_of_type(ntree, "GeometryNodeBoneInfo");
+  deps.needs_parent_object |= has_enabled_nodes_of_type(ntree, "GeometryNodeBoneInfo");
+
+  for (const bNode *node : ntree.nodes_by_type("GeometryNodeObjectInfo")) {
+    if (node->is_muted()) {
+      continue;
+    }
+    const bNodeSocket &parent_socket = *node->output_by_identifier("Parent");
+    deps.needs_parent_object |= parent_socket.is_logically_linked();
+  }
 
   add_eval_dependencies_from_node_data(ntree, deps);
   add_own_transform_dependencies(ntree, deps);

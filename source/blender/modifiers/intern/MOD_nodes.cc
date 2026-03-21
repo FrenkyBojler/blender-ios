@@ -232,17 +232,25 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
   if (eval_deps.needs_own_transform) {
     DEG_add_depends_on_transform_relation(ctx->node, "Nodes Modifier");
   }
-  if (eval_deps.needs_armature_pose) {
-    /* When Bone Info nodes are used, the armature providing pose data may come
-     * dynamically through links (e.g. Self Object -> Object Info -> Parent -> Bone Info).
-     * Add pose dependencies for the self object's parent if it's an armature,
-     * and for any armature objects already in the dependency set. */
-    for (Object *parent = ctx->object->parent; parent; parent = parent->parent) {
-      if (parent->type == OB_ARMATURE) {
-        DEG_add_object_relation(
-            ctx->node, parent, DEG_OB_COMP_EVAL_POSE, "Nodes Modifier");
+  if (eval_deps.needs_parent_object) {
+    /* When the Parent socket of Object Info or Bone Info nodes are used, the parent of any
+     * referenced object may be needed. Walk parent chains for all objects in the dependency
+     * set (and the modifier object itself) so that any parent change triggers re-evaluation.
+     * Armature parents additionally get a pose dependency. */
+    auto add_parent_deps = [&](Object *object) {
+      for (Object *parent = object->parent; parent; parent = parent->parent) {
         DEG_add_object_relation(
             ctx->node, parent, DEG_OB_COMP_TRANSFORM, "Nodes Modifier");
+        if (parent->type == OB_ARMATURE) {
+          DEG_add_object_relation(
+              ctx->node, parent, DEG_OB_COMP_EVAL_POSE, "Nodes Modifier");
+        }
+      }
+    };
+    add_parent_deps(ctx->object);
+    for (ID *id : eval_deps.ids.values()) {
+      if (GS(id->name) == ID_OB) {
+        add_parent_deps(reinterpret_cast<Object *>(id));
       }
     }
   }
