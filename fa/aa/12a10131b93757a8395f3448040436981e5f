@@ -1,0 +1,1 @@
+Referenced by issue #130549, bpy_module build: libextern_draco.so doesn't get installed in the right directory
