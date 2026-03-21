@@ -12,7 +12,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_array.hh"
-#include "BLI_array_utils.hh"
 #include "BLI_kdtree_types.hh"
 #include "BLI_math_base.h"
 #include "BLI_math_vector.hh"
@@ -98,40 +97,8 @@ inline void kdtree_insert(KDTree<CoordT> *tree, int index, const CoordT &co)
 
 namespace detail {
 
-template<typename CoordT>
-static void kdtree_balance(const Span<KDTreeNode<CoordT>> nodes,
-                           uint axis,
-                           const uint ofs,
-                           MutableSpan<int> indices)
-{
-  if (indices.is_empty()) {
-    return;
-  }
-  if (indices.size() == 1) {
-    return;
-  }
-
-  const int median = indices.size() / 2;
-  std::nth_element(indices.begin(),
-                   indices.begin() + median,
-                   indices.end(),
-                   [&](const int &a, const int &b) {
-                     if (nodes[a].co[axis] == nodes[b].co[axis]) {
-                       return a < b;
-                     }
-                     return nodes[a].co[axis] < nodes[b].co[axis];
-                   });
-
-  axis = (axis + 1) % KDTreeNode<CoordT>::DimsNum;
-
-  kdtree_balance(nodes, axis, ofs, indices.take_front(median));
-  kdtree_balance(nodes, axis, (median + 1) + ofs, indices.drop_front(median + 1));
-}
-
-template<typename CoordT>
-static uint kdtree_set_child(MutableSpan<KDTreeNode<CoordT>> nodes,
-                             uint axis,
-                             const uint ofs)
+template<typename CoordT, int Axis>
+static uint kdtree_balance(MutableSpan<KDTreeNode<CoordT>> nodes, const uint ofs)
 {
   if (nodes.is_empty()) {
     return kd_node_unset;
@@ -141,14 +108,29 @@ static uint kdtree_set_child(MutableSpan<KDTreeNode<CoordT>> nodes,
   }
 
   const int median = nodes.size() / 2;
+  std::nth_element(nodes.begin(),
+                   nodes.begin() + median,
+                   nodes.end(),
+                   [&](const KDTreeNode<CoordT> &a, const KDTreeNode<CoordT> &b) {
+                     if (a.co[Axis] != b.co[Axis]) {
+                      return a.co[Axis] < b.co[Axis];
+                     }
+
+                     constexpr int next_axis = (Axis + 1) % KDTreeNode<CoordT>::DimsNum;
+                     if (a.co[next_axis] != b.co[next_axis]) {
+                       return a.co[next_axis] < b.co[next_axis];
+                     }
+
+                     constexpr int last_axis = (Axis + 2) % KDTreeNode<CoordT>::DimsNum;
+                     return a.co[last_axis] < b.co[last_axis];
+                   });
 
   /* Set node and sort sub-nodes. */
   KDTreeNode<CoordT> &node = nodes[median];
-  node.d = axis;
-  axis = (axis + 1) % KDTreeNode<CoordT>::DimsNum;
+  node.d = Axis;
 
-  node.left = kdtree_set_child(nodes.take_front(median), axis, ofs);
-  node.right = kdtree_set_child(nodes.drop_front(median + 1), axis, (median + 1) + ofs);
+  node.left = kdtree_balance<CoordT, (Axis + 1) % KDTreeNode<CoordT>::DimsNum>(nodes.take_front(median), ofs);
+  node.right = kdtree_balance<CoordT, (Axis + 1) % KDTreeNode<CoordT>::DimsNum>(nodes.drop_front(median + 1), (median + 1) + ofs);
 
   return median + ofs;
 }
@@ -157,24 +139,14 @@ static uint kdtree_set_child(MutableSpan<KDTreeNode<CoordT>> nodes,
 
 template<typename CoordT> inline void kdtree_balance(KDTree<CoordT> *tree)
 {
-  MutableSpan<KDTreeNode<CoordT>> nodes(tree->nodes, tree->nodes_len);
-  for (KDTreeNode<CoordT> &node : nodes) {
-    node.left = detail::kd_node_unset;
-    node.right = detail::kd_node_unset;
+  if (tree->root != detail::kd_node_root_is_init) {
+    for (uint i = 0; i < tree->nodes_len; i++) {
+      tree->nodes[i].left = detail::kd_node_unset;
+      tree->nodes[i].right = detail::kd_node_unset;
+    }
   }
 
-  Array<int> indices(nodes.size());
-  array_utils::fill_index_range(indices.as_mutable_span());
-  detail::kdtree_balance<CoordT>(nodes,
-                                 0,
-                                 0,
-                                 indices.as_mutable_span());
-  
-  Array<KDTreeNode<CoordT>> buffer(nodes.size());
-  array_utils::copy<KDTreeNode<CoordT>>(nodes, buffer);
-  array_utils::gather<KDTreeNode<CoordT>>(buffer.as_span(), indices.as_span(), nodes);
-
-  tree->root = detail::kdtree_set_child<CoordT>(nodes, 0, 0);
+  tree->root = detail::kdtree_balance<CoordT, 0>(MutableSpan(tree->nodes, tree->nodes_len), 0);
 
 #ifndef NDEBUG
   tree->is_balanced = true;
