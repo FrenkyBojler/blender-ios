@@ -86,8 +86,13 @@ static void node_composite_glare_label(const bNodeTree * /*ntree*/,
       break;
     }
   }
-
-  BLI_strncpy(label, EnumPropertyItem(type), label_maxncpy);
+  for (const EnumPropertyItem *item = type_items; item->identifier != nullptr; item++) {
+    if (item->value == type) {
+      BLI_strncpy(label, IFACE_(item->name), label_maxncpy);
+      return;
+    }
+  }
+  BLI_strncpy(label, IFACE_("Glare"), label_maxncpy);
 }
 enum class KernelDataType : uint8_t {
   Float = 0,
@@ -2825,6 +2830,7 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   ntype.gather_link_search_ops = gather_link_searches;
+  ntype.labelfunc = node_composite_glare_label;
   bke::node_type_storage(
       ntype, "NodeGlare", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = get_compositor_operation;
