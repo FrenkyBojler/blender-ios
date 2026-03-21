@@ -498,7 +498,10 @@ void evaluate_constant_field(const GField &field, void *r_value)
     return;
   }
 
-  ResourceScope scope;
+  AlignedBuffer<512, 64> local_buffer;
+  LinearAllocator<> allocator;
+  allocator.provide_buffer(local_buffer);
+  ResourceScope scope(allocator);
   FieldContext context;
   Vector<GVArray> varrays = evaluate_fields(scope, {field}, IndexRange(1), context);
   varrays[0].get_to_uninitialized(0, r_value);
