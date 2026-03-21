@@ -40,7 +40,7 @@
 namespace blender {
 static auto len_squared_v3v3_with_normal_bias(const float3 &normal)
 {
-  return [&](const float3 &co_search, const float3 &co_test) -> float {
+  return [=](const float3 &co_search, const float3 &co_test) -> float {
     float d[3], dist;
 
     sub_v3_v3v3(d, co_test, co_search);

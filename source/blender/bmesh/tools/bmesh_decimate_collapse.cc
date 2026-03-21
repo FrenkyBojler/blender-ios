@@ -369,6 +369,37 @@ struct KD_Symmetry_Data {
   float limit_sq;
 };
 
+static bool bm_edge_symmetry_check_cb(void *user_data,
+                                      int index,
+                                      const float3 & /*co*/,
+                                      float /*dist_sq*/)
+{
+  KD_Symmetry_Data *sym_data = static_cast<KD_Symmetry_Data *>(user_data);
+  BMEdge *e_other = sym_data->etable[index];
+  float e_other_dir[3];
+
+  sub_v3_v3v3(e_other_dir, e_other->v2->co, e_other->v1->co);
+
+  if (dot_v3v3(e_other_dir, sym_data->e_dir) > 0.0f) {
+    if ((len_squared_v3v3(sym_data->e_v1_co, e_other->v1->co) > sym_data->limit_sq) ||
+        (len_squared_v3v3(sym_data->e_v2_co, e_other->v2->co) > sym_data->limit_sq))
+    {
+      return true;
+    }
+  }
+  else {
+    if ((len_squared_v3v3(sym_data->e_v1_co, e_other->v2->co) > sym_data->limit_sq) ||
+        (len_squared_v3v3(sym_data->e_v2_co, e_other->v1->co) > sym_data->limit_sq))
+    {
+      return true;
+    }
+  }
+
+  /* exit on first-hit, this is OK since the search range is very small */
+  sym_data->e_found_index = index;
+  return false;
+}
+
 static int *bm_edge_symmetry_map(BMesh *bm, uint symmetry_axis, float limit)
 {
   KD_Symmetry_Data sym_data;
@@ -410,32 +441,9 @@ static int *bm_edge_symmetry_map(BMesh *bm, uint symmetry_axis, float limit)
       sub_v3_v3v3(sym_data.e_dir, sym_data.e_v2_co, sym_data.e_v1_co);
       sym_data.e_found_index = -1;
 
-      kdtree_range_search_cb<float3>(
-          tree, co, limit, [&](int index, const float3 & /*co*/, float /*dist_sq*/) {
-            BMEdge *e_other = sym_data.etable[index];
-            float e_other_dir[3];
-
-            sub_v3_v3v3(e_other_dir, e_other->v2->co, e_other->v1->co);
-
-            if (dot_v3v3(e_other_dir, sym_data.e_dir) > 0.0f) {
-              if ((len_squared_v3v3(sym_data.e_v1_co, e_other->v1->co) > sym_data.limit_sq) ||
-                  (len_squared_v3v3(sym_data.e_v2_co, e_other->v2->co) > sym_data.limit_sq))
-              {
-                return true;
-              }
-            }
-            else {
-              if ((len_squared_v3v3(sym_data.e_v1_co, e_other->v2->co) > sym_data.limit_sq) ||
-                  (len_squared_v3v3(sym_data.e_v2_co, e_other->v1->co) > sym_data.limit_sq))
-              {
-                return true;
-              }
-            }
-
-            /* exit on first-hit, this is OK since the search range is very small */
-            sym_data.e_found_index = index;
-            return false;
-          });
+      kdtree_range_search_cb<float3>(tree, co, limit, [&](int index, const float3 &co, float dist_sq) {
+        bm_edge_symmetry_check_cb(&sym_data, index, co, dist_sq);
+      }, &sym_data);
 
       if (sym_data.e_found_index != -1) {
         const int i_other = sym_data.e_found_index;
