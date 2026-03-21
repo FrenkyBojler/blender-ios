@@ -116,8 +116,7 @@ bool ShapingData::load_from_cache(FontBLF *font, GlyphCacheBLF *gc, const char *
   }
 
   for (const CachedGlyph &glyph : cached->glyphs) {
-    GlyphBLF *g = blf_glyph_ensure(font, gc, glyph.charcode, glyph.glyph_id);
-    g = blf_glyph_ensure_subpixel(font, gc, g, glyph.bounds.xmin);
+    GlyphBLF *g = blf_glyph_ensure(font, gc, glyph.charcode, glyph.glyph_id, glyph.subpixel);
     this->glyphs.append({font, gc, g, glyph.bounds, glyph.index_utf8});
   }
   this->width = cached->width;
@@ -281,6 +280,7 @@ ShapingData::ShapingData(FontBLF *font,
       }
 
       g = blf_glyph_ensure_subpixel(segment_font, segment_gc, g, pen_x);
+
       rcti bounds = {pen_x + glyph_pos[i].x_offset,
                      pen_x + g->box_xmax + glyph_pos[i].x_offset,
                      glyph_pos[i].y_offset,
@@ -319,7 +319,8 @@ ShapingData::ShapingData(FontBLF *font,
       cache_string.glyphs[i] = {this->glyphs[i].g->idx,
                                 this->glyphs[i].g->c,
                                 this->glyphs[i].bounds,
-                                this->glyphs[i].index_utf8};
+                                this->glyphs[i].index_utf8,
+                                this->glyphs[i].g->subpixel};
     }
     gc->shaping_cache.add_new(str, cache_string);
   }

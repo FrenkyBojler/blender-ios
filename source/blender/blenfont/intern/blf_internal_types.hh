@@ -116,6 +116,7 @@ struct CachedGlyph {
   uint32_t charcode = 0;
   rcti bounds = {};
   size_t index_utf8 = 0;
+  uint8_t subpixel = 0;
 };
 
 struct CachedString {
