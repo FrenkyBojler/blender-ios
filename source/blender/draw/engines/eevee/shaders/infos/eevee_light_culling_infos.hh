@@ -26,60 +26,6 @@
 /** \name Culling
  * \{ */
 
-GPU_SHADER_CREATE_INFO(eevee_light_culling_select)
-DO_STATIC_COMPILATION()
-TYPEDEF_SOURCE("eevee_light_shared.hh")
-ADDITIONAL_INFO(draw_view)
-ADDITIONAL_INFO(draw_view_culling)
-LOCAL_GROUP_SIZE(CULLING_SELECT_GROUP_SIZE)
-STORAGE_BUF(0, read_write, LightCullingData, light_cull_buf)
-STORAGE_BUF(1, read, LightData, in_light_buf[])
-STORAGE_BUF(2, write, LightData, out_light_buf[])
-STORAGE_BUF(3, write, float, out_zdist_buf[])
-STORAGE_BUF(4, write, uint, out_key_buf[])
-UNIFORM_BUF(0, LightData, sunlight_buf[2])
-COMPUTE_SOURCE("eevee_light_culling_select_comp.glsl")
-GPU_SHADER_CREATE_END()
-
-GPU_SHADER_CREATE_INFO(eevee_light_culling_sort)
-DO_STATIC_COMPILATION()
-TYPEDEF_SOURCE("eevee_light_shared.hh")
-ADDITIONAL_INFO(draw_view)
-STORAGE_BUF(0, read, LightCullingData, light_cull_buf)
-STORAGE_BUF(1, read, LightData, in_light_buf[])
-STORAGE_BUF(2, write, LightData, out_light_buf[])
-STORAGE_BUF(3, read, float, in_zdist_buf[])
-STORAGE_BUF(4, read, uint, in_key_buf[])
-LOCAL_GROUP_SIZE(CULLING_SORT_GROUP_SIZE)
-COMPUTE_SOURCE("eevee_light_culling_sort_comp.glsl")
-GPU_SHADER_CREATE_END()
-
-GPU_SHADER_CREATE_INFO(eevee_light_culling_zbin)
-DO_STATIC_COMPILATION()
-TYPEDEF_SOURCE("eevee_light_shared.hh")
-ADDITIONAL_INFO(draw_view)
-LOCAL_GROUP_SIZE(CULLING_ZBIN_GROUP_SIZE)
-/* Fits the limit of 32KB. */
-GROUP_SHARED(uint, zbin_max[CULLING_ZBIN_COUNT])
-GROUP_SHARED(uint, zbin_min[CULLING_ZBIN_COUNT])
-STORAGE_BUF(0, read, LightCullingData, light_cull_buf)
-STORAGE_BUF(1, read, LightData, light_buf[])
-STORAGE_BUF(2, write, uint, out_zbin_buf[])
-COMPUTE_SOURCE("eevee_light_culling_zbin_comp.glsl")
-GPU_SHADER_CREATE_END()
-
-GPU_SHADER_CREATE_INFO(eevee_light_culling_tile)
-DO_STATIC_COMPILATION()
-TYPEDEF_SOURCE("eevee_light_shared.hh")
-ADDITIONAL_INFO(draw_view)
-ADDITIONAL_INFO(draw_view_culling)
-LOCAL_GROUP_SIZE(CULLING_TILE_GROUP_SIZE)
-STORAGE_BUF(0, read, LightCullingData, light_cull_buf)
-STORAGE_BUF(1, read, LightData, light_buf[])
-STORAGE_BUF(2, write, uint, out_light_tile_buf[])
-COMPUTE_SOURCE("eevee_light_culling_tile_comp.glsl")
-GPU_SHADER_CREATE_END()
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
