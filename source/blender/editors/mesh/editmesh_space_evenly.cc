@@ -51,10 +51,6 @@ static wmOperatorStatus edbm_space_exec(bContext *C, wmOperator *op)
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     BMesh *bm = em->bm;
-
-    if (bm->totvert < 3) {
-      continue;
-    }
     if (!EDBM_op_callf(em,
                        op,
                        "space_evenly geom=%hvef interpolation=%i factor=%f "
