@@ -2133,9 +2133,11 @@ static void readfile_id_runtime_data_ensure(ID &id)
   id.runtime->readfile_data = MEM_new_zeroed<ID_Readfile_Data>(__func__);
 }
 
-ID_Readfile_Data::Tags BLO_readfile_id_runtime_tags(ID &id)
+ID_Readfile_Data::Tags BLO_readfile_id_runtime_tags(const ID &id)
 {
-  if (!id.runtime->readfile_data) {
+  /* NOTE: While usually not expected, there are some valid cases where ID::runtime will be nullptr
+   * (e.g. for temporary buffers used as 'proxies' of actual IDs in writefile process). */
+  if (!id.runtime || !id.runtime->readfile_data) {
     return ID_Readfile_Data::Tags{};
   }
   return id.runtime->readfile_data->tags;
@@ -3730,6 +3732,9 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
   if (!main->is_read_invalid) {
     blo_do_versions_510(fd, lib, main);
   }
+  if (!main->is_read_invalid) {
+    blo_do_versions_520(fd, lib, main);
+  }
 
   /* WATCH IT!!!: pointers from libdata have not been converted yet here! */
   /* WATCH IT 2!: #UserDef struct init see #do_versions_userdef() above! */
@@ -3794,6 +3799,9 @@ static void do_versions_after_linking(FileData *fd, Main *main)
   }
   if (!main->is_read_invalid) {
     do_versions_after_linking_510(fd, main);
+  }
+  if (!main->is_read_invalid) {
+    do_versions_after_linking_520(fd, main);
   }
 
   main->is_locked_for_linking = false;
@@ -4499,6 +4507,8 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
 
     /* Make all relative paths, relative to the open blend file. */
     fix_relpaths_library(fd->relabase, bfd->main);
+
+    bfd->main->need_preview_render_restart = fd->need_preview_render_restart;
   }
   else {
     BKE_layer_collection_resync_allow();
@@ -4781,7 +4791,20 @@ static Main *blo_find_main_for_library_and_idname(FileData *fd,
           UNUSED_VARS_NDEBUG(packed_id, id_bhead);
           continue;
         }
-        BLI_assert(ELEM(main_it->curlib->runtime->filedata, fd, nullptr));
+        /* Since an archive library is an abstract, local storage for packed data, in complex
+         * production files with many layers of libraries, a single archive library may end up
+         * 'containing' packed IDs from _different_ sources (reminder, packed IDs are stored in
+         * their _user_ blend-files).
+         *
+         * This 'local merge' of all 'instances' of the same archive libraries and their packed IDs
+         * across all of the dependencies means that, across several iterations of ID expanding
+         * from several different real library dependencies, a same local archive library (and its
+         * Main) may be re-used for different file-data.
+         *
+         * So asserting that `BLI_assert(ELEM(main_it->curlib->runtime->filedata, fd, nullptr));`
+         * is not possible here (though _usually_ true). Instead, simply ensure that the chosen
+         * archive library does not own its file-data (it never should!), before overriding it. */
+        BLI_assert(!main_it->curlib->runtime->is_filedata_owner);
         main_it->curlib->runtime->filedata = fd;
         main_it->curlib->runtime->is_filedata_owner = false;
         BLI_assert(main_it->versionfile != 0);
@@ -5601,6 +5624,9 @@ static void read_library_clear_weak_links(FileData *basefd, Main *mainvar)
       {
         CLOG_DEBUG(&LOG, "Dropping weak link to '%s'", id->name);
         change_link_placeholder_to_real_ID_pointer(basefd, id, nullptr);
+        /* Some ID-specific data may already have been allocated (e.g. the ID::runtime), so some
+         * low-level proper ID 'deletion' is needed here. */
+        BKE_libblock_free_data(id, false);
         BLI_freelinkN(lbarray[a], id);
       }
       id = id_next;
@@ -6115,6 +6141,11 @@ Main *BLO_read_lib_get_main(BlendLibReader *reader)
 BlendFileReadReport *BLO_read_lib_reports(BlendLibReader *reader)
 {
   return reader->fd->reports;
+}
+
+void BLO_read_data_set_need_preview_render_restart(BlendDataReader *reader)
+{
+  reader->fd->need_preview_render_restart = true;
 }
 
 /** \} */

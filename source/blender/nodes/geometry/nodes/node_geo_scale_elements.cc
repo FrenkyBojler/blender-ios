@@ -79,13 +79,6 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
   node->custom1 = int16_t(AttrDomain::Face);
 }
 
-static Array<int> create_reverse_offsets(const Span<int> indices, const int items_num)
-{
-  Array<int> offsets(items_num + 1, 0);
-  offset_indices::build_reverse_offsets(indices, offsets);
-  return offsets;
-}
-
 static Span<int> front_indices_to_same_value(const Span<int> indices, const Span<int> values)
 {
   const int value = values[indices.first()];
@@ -139,32 +132,6 @@ static void from_indices_large_groups(const Span<int> group_indices,
   });
 }
 
-static Array<int> reverse_indices_in_groups(const Span<int> group_indices,
-                                            const OffsetIndices<int> offsets)
-{
-  if (group_indices.is_empty()) {
-    return {};
-  }
-  BLI_assert(*std::max_element(group_indices.begin(), group_indices.end()) < offsets.size());
-  BLI_assert(*std::min_element(group_indices.begin(), group_indices.end()) >= 0);
-
-  /* `counts` keeps track of how many elements have been added to each group, and is incremented
-   * atomically by many threads in parallel. `calloc` can be measurably faster than a parallel fill
-   * of zero. Alternatively the offsets could be copied and incremented directly, but the cost of
-   * the copy is slightly higher than the cost of `calloc`. */
-  int *counts = MEM_new_array_zeroed<int>(offsets.size(), __func__);
-  BLI_SCOPED_DEFER([&]() { MEM_delete(counts); })
-  Array<int> results(group_indices.size());
-  threading::parallel_for(group_indices.index_range(), 1024, [&](const IndexRange range) {
-    for (const int64_t i : range) {
-      const int group_index = group_indices[i];
-      const int index_in_group = atomic_fetch_and_add_int32(&counts[group_index], 1);
-      results[offsets[group_index][index_in_group]] = int(i);
-    }
-  });
-  return results;
-}
-
 static GroupedSpan<int> gather_groups(const Span<int> group_indices,
                                       const int groups_num,
                                       Array<int> &r_offsets,
@@ -177,8 +144,7 @@ static GroupedSpan<int> gather_groups(const Span<int> group_indices,
     from_indices_large_groups(group_indices, r_offsets, r_indices);
   }
   else {
-    r_offsets = create_reverse_offsets(group_indices, groups_num);
-    r_indices = reverse_indices_in_groups(group_indices, r_offsets.as_span());
+    offset_indices::build_groups_from_indices(group_indices, groups_num, r_offsets, r_indices);
   }
   return {OffsetIndices<int>(r_offsets), r_indices};
 }
@@ -341,23 +307,27 @@ static int face_to_vert_islands(const Mesh &mesh,
   AtomicDisjointSet disjoint_set(vert_mask.size());
   const GroupedSpan<int> face_verts(mesh.faces(), mesh.corner_verts());
 
-  face_mask.foreach_index_optimized<int>(GrainSize(4096), [&](const int face_i) {
-    const Span<int> verts = face_verts[face_i];
-    const int v1 = verts_pos[verts.first()];
-    for (const int vert_i : verts.drop_front(1)) {
-      const int v2 = verts_pos[vert_i];
-      disjoint_set.join(v1, v2);
-    }
-  });
+  face_mask.foreach_index_optimized<int>(
+      [&](const int face_i) {
+        const Span<int> verts = face_verts[face_i];
+        const int v1 = verts_pos[verts.first()];
+        for (const int vert_i : verts.drop_front(1)) {
+          const int v2 = verts_pos[vert_i];
+          disjoint_set.join(v1, v2);
+        }
+      },
+      exec_mode::grain_size(4096));
 
   disjoint_set.calc_reduced_ids(vert_island_indices);
 
-  face_mask.foreach_index(GrainSize(4096), [&](const int face_i, const int face_pos) {
-    const int face_vert_i = face_verts[face_i].first();
-    const int vert_pos = verts_pos[face_vert_i];
-    const int vert_island = vert_island_indices[vert_pos];
-    face_island_indices[face_pos] = vert_island;
-  });
+  face_mask.foreach_index(
+      [&](const int face_i, const int face_pos) {
+        const int face_vert_i = face_verts[face_i].first();
+        const int vert_pos = verts_pos[face_vert_i];
+        const int vert_island = vert_island_indices[vert_pos];
+        face_island_indices[face_pos] = vert_island;
+      },
+      exec_mode::grain_size(4096));
 
   return disjoint_set.count_sets();
 }
@@ -409,22 +379,26 @@ static int edge_to_vert_islands(const Mesh &mesh,
   AtomicDisjointSet disjoint_set(vert_mask.size());
   const Span<int2> edges = mesh.edges();
 
-  edge_mask.foreach_index_optimized<int>(GrainSize(4096), [&](const int edge_i) {
-    const int2 edge = edges[edge_i];
-    const int v1 = verts_pos[edge[0]];
-    const int v2 = verts_pos[edge[1]];
-    disjoint_set.join(v1, v2);
-  });
+  edge_mask.foreach_index_optimized<int>(
+      [&](const int edge_i) {
+        const int2 edge = edges[edge_i];
+        const int v1 = verts_pos[edge[0]];
+        const int v2 = verts_pos[edge[1]];
+        disjoint_set.join(v1, v2);
+      },
+      exec_mode::grain_size(4096));
 
   disjoint_set.calc_reduced_ids(vert_island_indices);
 
-  edge_mask.foreach_index(GrainSize(4096), [&](const int edge_i, const int edge_pos) {
-    const int2 edge = edges[edge_i];
-    const int edge_vert_i = edge[0];
-    const int vert_pos = verts_pos[edge_vert_i];
-    const int vert_island = vert_island_indices[vert_pos];
-    edge_island_indices[edge_pos] = vert_island;
-  });
+  edge_mask.foreach_index(
+      [&](const int edge_i, const int edge_pos) {
+        const int2 edge = edges[edge_i];
+        const int edge_vert_i = edge[0];
+        const int vert_pos = verts_pos[edge_vert_i];
+        const int vert_island = vert_island_indices[vert_pos];
+        edge_island_indices[edge_pos] = vert_island;
+      },
+      exec_mode::grain_size(4096));
 
   return disjoint_set.count_sets();
 }

@@ -75,7 +75,8 @@ bool GPU_vulkan_is_supported_driver(VkPhysicalDevice vk_physical_device)
     const uint32_t driver_version = vk_physical_device_properties.properties.driverVersion;
     uint32_t driver_version_major = driver_version >> 14u;
     uint32_t driver_version_minor = driver_version & 0x3fffu;
-    if (driver_version_major < 101 || driver_version_major == 101 && driver_version_minor < 2140) {
+    if (driver_version_major < 101 || (driver_version_major == 101 && driver_version_minor < 2140))
+    {
       return false;
     }
   }
@@ -152,10 +153,10 @@ static Vector<StringRefNull> missing_capabilities_get(VkPhysicalDevice vk_physic
   if (features.features.geometryShader == VK_FALSE) {
     missing_capabilities.append("geometry shaders");
   }
+#endif
   if (features.features.vertexPipelineStoresAndAtomics == VK_FALSE) {
     missing_capabilities.append("vertex pipeline stores and atomics");
   }
-#endif
   if (features.features.multiViewport == VK_FALSE) {
     missing_capabilities.append("multi viewport");
   }
@@ -364,7 +365,7 @@ static void init_device_list(GHOST_IContext *ghost_context)
     index++;
   }
 
-  std::sort(GPG.devices.begin(), GPG.devices.end(), [&](const GPUDevice &a, const GPUDevice &b) {
+  std::ranges::sort(GPG.devices, [&](const GPUDevice &a, const GPUDevice &b) {
     if (a.name == b.name) {
       return a.index < b.index;
     }
@@ -502,7 +503,7 @@ void VKBackend::detect_workarounds(VKDevice &device)
    *
    * TODO: We should re-validate vertex input dynamic state as there are multiple vendors with
    * similar issues. It might be an oversight. Will wait for feedback from the driver developers
-   * and perfrom some out of bounds error checks.
+   * and perform some out of bounds error checks.
    */
   if (GPU_type_matches(GPU_DEVICE_QUALCOMM, GPU_OS_WIN, GPU_DRIVER_ANY)) {
     extensions.vertex_input_dynamic_state = false;
@@ -561,14 +562,6 @@ void VKBackend::init_resources()
 void VKBackend::delete_resources()
 {
   MEM_delete(compiler_);
-}
-
-void VKBackend::samplers_update()
-{
-  VKDevice &device = VKBackend::get().device;
-  if (device.is_initialized()) {
-    device.reinit();
-  }
 }
 
 void VKBackend::compute_dispatch(int groups_x_len, int groups_y_len, int groups_z_len)

@@ -248,6 +248,8 @@ void BKE_object_obdata_size_init(Object *ob, float size);
 void BKE_object_scale_to_mat3(const Object *ob, float r_mat[3][3]);
 void BKE_object_rot_to_mat3(const Object *ob, float r_mat[3][3], bool use_drot);
 void BKE_object_mat3_to_rot(Object *ob, float r_mat[3][3], bool use_compat);
+float4 BKE_object_rot_to_quat(const Object &ob);
+void BKE_object_quat_to_rot(Object &ob, const float4 &quat);
 void BKE_object_to_mat3(const Object *ob, float r_mat[3][3]);
 void BKE_object_to_mat4(const Object *ob, float r_mat[4][4]);
 /**
@@ -563,7 +565,11 @@ int BKE_object_is_modified(Scene *scene, Object *ob);
  * and we can still if there was actual deformation afterwards.
  */
 int BKE_object_is_deform_modified(Scene *scene, Object *ob);
-
+/**
+ * Populates r_axis with the mirror axes that are currently active
+ * and have merging enabled on an object.
+ */
+void BKE_object_get_mirror_axes(const Object *ob, bool r_axis[3]);
 /**
  * Check of objects moves in time.
  *
