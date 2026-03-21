@@ -183,7 +183,7 @@ static void collection_free_data(ID *id)
   Collection *collection = id_cast<Collection *>(id);
 
   /* No animation-data here. */
-  BKE_previewimg_free(&collection->preview);
+  BKE_previewimg_id_free(&collection->id);
 
   BLI_freelistN(&collection->gobject);
   if (collection->runtime->gobject_hash) {
@@ -296,6 +296,10 @@ void BKE_collection_blend_write_nolib(BlendWriter *writer, Collection *collectio
     if (data.export_properties) {
       IDP_BlendWrite(writer, data.export_properties);
     }
+    writer->write_struct_list(&data.layout_panel_states);
+    for (const LayoutPanelState &state : data.layout_panel_states) {
+      writer->write_string(state.idname);
+    }
   }
 }
 
@@ -351,6 +355,10 @@ void BKE_collection_blend_read_data(BlendDataReader *reader, Collection *collect
   for (CollectionExport &data : collection->exporters) {
     BLO_read_struct(reader, IDProperty, &data.export_properties);
     IDP_BlendDataRead(reader, &data.export_properties);
+    BLO_read_struct_list(reader, LayoutPanelState, &data.layout_panel_states);
+    for (LayoutPanelState &state : data.layout_panel_states) {
+      BLO_read_string(reader, &state.idname);
+    }
   }
 
   BLO_read_struct(reader, PreviewImage, &collection->preview);
@@ -383,34 +391,34 @@ static void collection_blend_read_after_liblink(BlendLibReader * /*reader*/, ID 
 }
 
 IDTypeInfo IDType_ID_GR = {
-    /*id_code*/ Collection::id_type,
-    /*id_filter*/ FILTER_ID_GR,
-    /*dependencies_id_types*/ FILTER_ID_OB | FILTER_ID_GR,
-    /*main_listbase_index*/ INDEX_ID_GR,
-    /*struct_size*/ sizeof(Collection),
-    /*name*/ "Collection",
-    /*name_plural*/ N_("collections"),
-    /*translation_context*/ BLT_I18NCONTEXT_ID_COLLECTION,
-    /*flags*/ IDTYPE_FLAGS_NO_ANIMDATA | IDTYPE_FLAGS_APPEND_IS_REUSABLE,
-    /*asset_type_info*/ nullptr,
+    .id_code = Collection::id_type,
+    .id_filter = FILTER_ID_GR,
+    .dependencies_id_types = FILTER_ID_OB | FILTER_ID_GR,
+    .main_listbase_index = INDEX_ID_GR,
+    .struct_size = sizeof(Collection),
+    .name = "Collection",
+    .name_plural = N_("collections"),
+    .translation_context = BLT_I18NCONTEXT_ID_COLLECTION,
+    .flags = IDTYPE_FLAGS_NO_ANIMDATA | IDTYPE_FLAGS_APPEND_IS_REUSABLE,
+    .asset_type_info = nullptr,
 
-    /*init_data*/ collection_init_data,
-    /*copy_data*/ collection_copy_data,
-    /*free_data*/ collection_free_data,
-    /*make_local*/ nullptr,
-    /*foreach_id*/ collection_foreach_id,
-    /*foreach_cache*/ nullptr,
-    /*foreach_path*/ nullptr,
-    /*foreach_working_space_color*/ nullptr,
-    /*owner_pointer_get*/ collection_owner_pointer_get,
+    .init_data = collection_init_data,
+    .copy_data = collection_copy_data,
+    .free_data = collection_free_data,
+    .make_local = nullptr,
+    .foreach_id = collection_foreach_id,
+    .foreach_cache = nullptr,
+    .foreach_path = nullptr,
+    .foreach_working_space_color = nullptr,
+    .owner_pointer_get = collection_owner_pointer_get,
 
-    /*blend_write*/ collection_blend_write,
-    /*blend_read_data*/ collection_blend_read_data,
-    /*blend_read_after_liblink*/ collection_blend_read_after_liblink,
+    .blend_write = collection_blend_write,
+    .blend_read_data = collection_blend_read_data,
+    .blend_read_after_liblink = collection_blend_read_after_liblink,
 
-    /*blend_read_undo_preserve*/ nullptr,
+    .blend_read_undo_preserve = nullptr,
 
-    /*lib_override_apply_post*/ nullptr,
+    .lib_override_apply_post = nullptr,
 };
 
 /** \} */
@@ -539,6 +547,10 @@ void BKE_collection_exporter_free_data(CollectionExport *data)
 {
   if (data->export_properties) {
     IDP_FreeProperty(data->export_properties);
+  }
+  for (const LayoutPanelState &state : data->layout_panel_states.items_mutable()) {
+    MEM_delete(state.idname);
+    MEM_delete(&state);
   }
 }
 
@@ -850,7 +862,7 @@ static void collection_object_cache_fill(ListBaseT<Base> *lb,
     Base *base = static_cast<Base *>(BLI_findptr(lb, cob.ob, offsetof(Base, object)));
 
     if (base == nullptr) {
-      base = MEM_new_for_free<Base>("Object Base");
+      base = MEM_new<Base>("Object Base");
       base->object = cob.ob;
       BLI_addtail(lb, base);
       if (with_instances && cob.ob->instance_collection) {
@@ -1420,7 +1432,7 @@ static bool collection_object_add(Main *bmain,
   bool newly_added = false;
   CollectionObject *cob = collection->runtime->gobject_hash->lookup_or_add_cb(ob, [&]() {
     newly_added = true;
-    return MEM_new_for_free<CollectionObject>(__func__);
+    return MEM_new<CollectionObject>(__func__);
   });
   if (!newly_added) {
     return false;
@@ -1482,7 +1494,7 @@ CollectionExport *BKE_collection_exporter_add(Collection *collection, char *idna
 {
   /* Add a new #CollectionExport item to our handler list and fill it with #FileHandlerType
    * information. Also load in the operator's properties now as well. */
-  CollectionExport *data = MEM_new_for_free<CollectionExport>("CollectionExport");
+  CollectionExport *data = MEM_new<CollectionExport>("CollectionExport");
   STRNCPY(data->fh_idname, idname);
 
   BKE_collection_exporter_name_set(&collection->exporters, data, label);
@@ -1503,7 +1515,7 @@ void BKE_collection_exporter_remove(Collection *collection, CollectionExport *da
   BLI_remlink(exporters, data);
   BKE_collection_exporter_free_data(data);
 
-  MEM_freeN(data);
+  MEM_delete(data);
 
   const int count = BLI_listbase_count(exporters);
   const int new_index = count == 0 ? 0 : std::min(collection->active_exporter_index, count - 1);
@@ -1521,7 +1533,7 @@ bool BKE_collection_exporter_move(Collection *collection, const int from, const 
 
 static void collection_exporter_copy(Collection *collection, CollectionExport *data)
 {
-  CollectionExport *new_data = MEM_new_for_free<CollectionExport>("CollectionExport");
+  CollectionExport *new_data = MEM_new<CollectionExport>("CollectionExport");
   STRNCPY(new_data->fh_idname, data->fh_idname);
   new_data->export_properties = IDP_CopyProperty(data->export_properties);
   new_data->flag = data->flag;
@@ -1531,7 +1543,11 @@ static void collection_exporter_copy(Collection *collection, CollectionExport *d
   if (filepath) {
     IDP_AssignString(filepath, "");
   }
-
+  for (LayoutPanelState &state : data->layout_panel_states) {
+    LayoutPanelState *new_state = MEM_new<LayoutPanelState>(__func__, state);
+    new_state->idname = BLI_strdup(state.idname);
+    BLI_addtail(&new_data->layout_panel_states, new_state);
+  }
   BLI_addtail(&collection->exporters, new_data);
 }
 
@@ -1957,7 +1973,7 @@ static bool collection_child_add(Main *bmain,
     return false;
   }
 
-  child = MEM_new_for_free<CollectionChild>("CollectionChild");
+  child = MEM_new<CollectionChild>("CollectionChild");
   child->collection = collection;
   if (light_linking) {
     child->light_linking = *light_linking;
@@ -1966,7 +1982,7 @@ static bool collection_child_add(Main *bmain,
 
   /* Don't add parent links for depsgraph datablocks, these are not kept in sync. */
   if ((id_create_flag & LIB_ID_CREATE_NO_MAIN) == 0) {
-    CollectionParent *cparent = MEM_callocN<CollectionParent>("CollectionParent");
+    CollectionParent *cparent = MEM_new_zeroed<CollectionParent>("CollectionParent");
     cparent->collection = parent;
     BLI_addtail(&collection->runtime->parents, cparent);
   }
@@ -2049,7 +2065,7 @@ void BKE_collection_parent_relations_rebuild(Collection *collection)
     }
 
     BLI_assert(collection_find_parent(child.collection, collection) == nullptr);
-    CollectionParent *cparent = MEM_callocN<CollectionParent>(__func__);
+    CollectionParent *cparent = MEM_new_zeroed<CollectionParent>(__func__);
     cparent->collection = collection;
     BLI_addtail(&child.collection->runtime->parents, cparent);
   }
@@ -2293,8 +2309,8 @@ static void scene_collections_array(Scene *scene,
 
   BLI_assert(*r_collections_array_len > 0);
 
-  Collection **array = MEM_malloc_arrayN<Collection *>(size_t(*r_collections_array_len),
-                                                       "CollectionArray");
+  Collection **array = MEM_new_array_uninitialized<Collection *>(size_t(*r_collections_array_len),
+                                                                 "CollectionArray");
   *r_collections_array = array;
   scene_collection_callback(collection, scene_collections_build_array, &array);
 }
@@ -2302,7 +2318,7 @@ static void scene_collections_array(Scene *scene,
 void BKE_scene_collections_iterator_begin(BLI_Iterator *iter, void *data_in)
 {
   Scene *scene = static_cast<Scene *>(data_in);
-  CollectionsIteratorData *data = MEM_callocN<CollectionsIteratorData>(__func__);
+  CollectionsIteratorData *data = MEM_new_zeroed<CollectionsIteratorData>(__func__);
 
   data->scene = scene;
 
@@ -2334,9 +2350,9 @@ void BKE_scene_collections_iterator_end(BLI_Iterator *iter)
 
   if (data) {
     if (data->array) {
-      MEM_freeN(data->array);
+      MEM_delete(data->array);
     }
-    MEM_freeN(data);
+    MEM_delete(data);
   }
   iter->valid = false;
 }
@@ -2353,7 +2369,7 @@ static void scene_objects_iterator_begin(BLI_Iterator *iter,
                                          Scene *scene,
                                          Set<Object *> *visited_objects)
 {
-  SceneObjectsIteratorData *data = MEM_callocN<SceneObjectsIteratorData>(__func__);
+  SceneObjectsIteratorData *data = MEM_new_zeroed<SceneObjectsIteratorData>(__func__);
 
   BLI_ITERATOR_INIT(iter);
   iter->data = data;
@@ -2497,7 +2513,7 @@ void BKE_scene_objects_iterator_end(BLI_Iterator *iter)
     if (data->visited != nullptr) {
       MEM_delete(data->visited);
     }
-    MEM_freeN(data);
+    MEM_delete(data);
   }
 }
 

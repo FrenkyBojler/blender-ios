@@ -369,7 +369,7 @@ static void transformops_exit(bContext *C, wmOperator *op)
 
   TransInfo *t = static_cast<TransInfo *>(op->customdata);
   saveTransform(C, t, op);
-  MEM_freeN(t);
+  MEM_delete(t);
   op->customdata = nullptr;
   G.moving = 0;
 }
@@ -389,7 +389,7 @@ static int transformops_data(bContext *C, wmOperator *op, const wmEvent *event)
 {
   int retval = 1;
   if (op->customdata == nullptr) {
-    TransInfo *t = MEM_callocN<TransInfo>("TransInfo data2");
+    TransInfo *t = MEM_new_zeroed<TransInfo>("TransInfo data2");
 
     t->undo_name = op->type->name;
 
@@ -402,7 +402,7 @@ static int transformops_data(bContext *C, wmOperator *op, const wmEvent *event)
       op->customdata = t;
     }
     else {
-      MEM_freeN(t);
+      MEM_delete(t);
     }
   }
 
@@ -1388,7 +1388,7 @@ static void TRANSFORM_OT_seq_slide(wmOperatorType *ot)
 
   prop = RNA_def_float_vector(
       ot->srna, "value", 2, nullptr, -FLT_MAX, FLT_MAX, "Offset", "", -FLT_MAX, FLT_MAX);
-  RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 1, 0);
+  RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 100, 0);
 
   prop = RNA_def_boolean(ot->srna,
                          "use_restore_handle_selection",

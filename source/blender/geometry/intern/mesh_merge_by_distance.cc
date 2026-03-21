@@ -1449,31 +1449,6 @@ static void copy_first_from_src(const Span<T> src,
   }
 }
 
-static void mix_src_indices(const GSpan src_attr,
-                            const GroupedSpan<int> dst_to_src,
-                            GMutableSpan dst_attr)
-{
-  bke::attribute_math::convert_to_static_type(src_attr.type(), [&](auto dummy) {
-    using T = decltype(dummy);
-    const Span<T> src = src_attr.typed<T>();
-    MutableSpan<T> dst = dst_attr.typed<T>();
-    threading::parallel_for(dst.index_range(), 2048, [&](const IndexRange range) {
-      for (const int dst_index : range) {
-        const Span<int> src_indices = dst_to_src[dst_index];
-        if (src_indices.size() == 1) {
-          dst[dst_index] = src[src_indices.first()];
-          continue;
-        }
-        bke::attribute_math::DefaultMixer<T> mixer({&dst[dst_index], 1});
-        for (const int src_index : src_indices) {
-          mixer.mix_in(0, src[src_index]);
-        }
-        mixer.finalize();
-      }
-    });
-  });
-}
-
 static void mix_attributes(const bke::AttributeAccessor src_attributes,
                            const GroupedSpan<int> dst_to_src,
                            const bke::AttrDomain domain,
@@ -1487,10 +1462,20 @@ static void mix_attributes(const bke::AttributeAccessor src_attributes,
     if (skip_names.contains(iter.name)) {
       return;
     }
-    const GVArraySpan src_attr = *iter.get();
+    if (iter.data_type == bke::AttrType::String) {
+      return;
+    }
+    const GVArray src_attr = *iter.get();
+    const CommonVArrayInfo info = src_attr.common_info();
+    if (info.type == CommonVArrayInfo::Type::Single) {
+      const bke::AttributeInitValue init(GPointer(src_attr.type(), info.data));
+      if (dst_attributes.add(iter.name, iter.domain, iter.data_type, init)) {
+        return;
+      }
+    }
     bke::GSpanAttributeWriter dst_attr = dst_attributes.lookup_or_add_for_write_only_span(
         iter.name, iter.domain, iter.data_type);
-    mix_src_indices(src_attr, dst_to_src, dst_attr.span);
+    bke::attribute_math::mix_groups(GVArraySpan(src_attr), dst_to_src, dst_attr.span);
     dst_attr.finish();
   });
 }
@@ -1744,6 +1729,13 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
       return;
     }
     const GVArray src_attr = *iter.get();
+    const CommonVArrayInfo info = src_attr.common_info();
+    if (info.type == CommonVArrayInfo::Type::Single) {
+      const bke::AttributeInitValue init(GPointer(src_attr.type(), info.data));
+      if (dst_attributes.add(iter.name, iter.domain, iter.data_type, init)) {
+        return;
+      }
+    }
     const CPPType &type = src_attr.type();
     bke::GSpanAttributeWriter dst_attr = dst_attributes.lookup_or_add_for_write_only_span(
         iter.name, iter.domain, iter.data_type);
@@ -1767,14 +1759,16 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
   IndexMaskMemory memory;
   const IndexMask out_of_context_faces = IndexMask::from_bools(dst_face_unaffected, memory);
 
-  out_of_context_faces.foreach_index(GrainSize(1024), [&](const int dst_face_index) {
-    const IndexRange src_face = src_faces[dst_to_src_faces[dst_face_index]];
-    const IndexRange dst_face = dst_faces[dst_face_index];
-    for (const int i : src_face.index_range()) {
-      dst_corner_verts[dst_face[i]] = vert_final_map[src_corner_verts[src_face[i]]];
-      dst_corner_edges[dst_face[i]] = edge_final_map[src_corner_edges[src_face[i]]];
-    }
-  });
+  out_of_context_faces.foreach_index(
+      [&](const int dst_face_index) {
+        const IndexRange src_face = src_faces[dst_to_src_faces[dst_face_index]];
+        const IndexRange dst_face = dst_faces[dst_face_index];
+        for (const int i : src_face.index_range()) {
+          dst_corner_verts[dst_face[i]] = vert_final_map[src_corner_verts[src_face[i]]];
+          dst_corner_edges[dst_face[i]] = edge_final_map[src_corner_edges[src_face[i]]];
+        }
+      },
+      exec_mode::grain_size(1024));
 
   mix_attributes(src_attributes,
                  dst_to_src_corners,

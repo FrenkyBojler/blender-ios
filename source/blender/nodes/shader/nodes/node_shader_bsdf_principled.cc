@@ -71,7 +71,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 #define SOCK_WEIGHT_ID 6
 
   /* Panel for Diffuse settings. */
-  PanelDeclarationBuilder &diffuse = b.add_panel("Diffuse").default_closed(true);
+  PanelDeclarationBuilder &diffuse = b.add_panel("Diffuse"_ustr).default_closed(true);
   diffuse.add_input<decl::Float>("Diffuse Roughness")
       .default_value(0.0f)
       .min(0.0f)
@@ -83,7 +83,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 #define SOCK_DIFFUSE_ROUGHNESS_ID 7
 
   /* Panel for Subsurface scattering settings. */
-  PanelDeclarationBuilder &sss = b.add_panel("Subsurface").default_closed(true);
+  PanelDeclarationBuilder &sss = b.add_panel("Subsurface"_ustr).default_closed(true);
   sss.add_layout([](ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr) {
     layout.prop(ptr, "subsurface_method", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
   });
@@ -118,7 +118,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       .max(3.8f)
       .subtype(PROP_FACTOR)
       .short_label("IOR")
-      .description("Index of Refraction (IOR) used for rays that enter the subsurface component");
+      .description("Index of Refraction (IOR) used for rays that enter the subsurface component")
+      .make_available([](bNode &node) { node.custom2 = SHD_SUBSURFACE_RANDOM_WALK_SKIN; });
 #define SOCK_SUBSURFACE_IOR_ID 11
   sss.add_input<decl::Float>("Subsurface Anisotropy")
       .default_value(0.0f)
@@ -130,11 +131,12 @@ static void node_declare(NodeDeclarationBuilder &b)
           "Directionality of volume scattering within the subsurface medium. "
           "Zero scatters uniformly in all directions, with higher values "
           "scattering more strongly forward. For example, skin has been measured "
-          "to have an anisotropy of 0.8");
+          "to have an anisotropy of 0.8")
+      .make_available([](bNode &node) { node.custom2 = SHD_SUBSURFACE_RANDOM_WALK; });
 #define SOCK_SUBSURFACE_ANISOTROPY_ID 12
 
   /* Panel for Specular settings. */
-  PanelDeclarationBuilder &spec = b.add_panel("Specular").default_closed(true);
+  PanelDeclarationBuilder &spec = b.add_panel("Specular"_ustr).default_closed(true);
   spec.add_layout([](ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr) {
     layout.prop(ptr, "distribution", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
   });
@@ -178,7 +180,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 #define SOCK_TANGENT_ID 17
 
   /* Panel for Transmission settings. */
-  PanelDeclarationBuilder &transmission = b.add_panel("Transmission").default_closed(true);
+  PanelDeclarationBuilder &transmission = b.add_panel("Transmission"_ustr).default_closed(true);
   transmission.add_input<decl::Float>("Transmission Weight")
       .default_value(0.0f)
       .min(0.0f)
@@ -189,7 +191,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 #define SOCK_TRANSMISSION_WEIGHT_ID 18
 
   /* Panel for Coat settings. */
-  PanelDeclarationBuilder &coat = b.add_panel("Coat").default_closed(true);
+  PanelDeclarationBuilder &coat = b.add_panel("Coat"_ustr).default_closed(true);
   coat.add_input<decl::Float>("Coat Weight")
       .default_value(0.0f)
       .min(0.0f)
@@ -230,7 +232,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 #define SOCK_COAT_NORMAL_ID 23
 
   /* Panel for Sheen settings. */
-  PanelDeclarationBuilder &sheen = b.add_panel("Sheen").default_closed(true);
+  PanelDeclarationBuilder &sheen = b.add_panel("Sheen"_ustr).default_closed(true);
   sheen.add_input<decl::Float>("Sheen Weight")
       .default_value(0.0f)
       .min(0.0f)
@@ -258,7 +260,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 #define SOCK_SHEEN_TINT_ID 26
 
   /* Panel for Emission settings. */
-  PanelDeclarationBuilder &emis = b.add_panel("Emission").default_closed(true);
+  PanelDeclarationBuilder &emis = b.add_panel("Emission"_ustr).default_closed(true);
   emis.add_input<decl::Color>("Emission Color")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
       .short_label("Color")
@@ -276,7 +278,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 #define SOCK_EMISSION_STRENGTH_ID 28
 
   /* Panel for Thin Film settings. */
-  PanelDeclarationBuilder &film = b.add_panel("Thin Film").default_closed(true);
+  PanelDeclarationBuilder &film = b.add_panel("Thin Film"_ustr).default_closed(true);
   film.add_input<decl::Float>("Thin Film Thickness")
       .default_value(0.0)
       .min(0.0f)
@@ -744,6 +746,7 @@ void register_node_type_sh_bsdf_principled()
   ntype.enum_name_legacy = "BSDF_PRINCIPLED";
   ntype.nclass = NODE_CLASS_SHADER;
   ntype.declare = file_ns::node_declare;
+  ntype.gather_link_search_ops = search_link_ops_for_shader_bsdf_node;
   ntype.add_ui_poll = object_shader_nodes_poll;
   bke::node_type_size_preset(ntype, bke::eNodeSizePreset::Large);
   ntype.initfunc = file_ns::node_shader_init_principled;

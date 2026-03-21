@@ -397,8 +397,8 @@ static void process_inputs(const USDExporterContext &usd_export_context,
               usd_export_context, usd_material, usdtokens::primvar_float, attr_node);
         }
 
-        std::string attr_name = make_safe_name(storage->name,
-                                               usd_export_context.export_params.allow_unicode);
+        std::string attr_name = make_safe_primvar_name(
+            storage->name, usd_export_context.export_params.allow_unicode);
         usd_shader.CreateInput(usdtokens::varname, pxr::SdfValueTypeNames->String).Set(attr_name);
 
         pxr::UsdShadeConnectionSourceInfo source_info(usd_shader.ConnectableAPI(),
@@ -672,7 +672,7 @@ static void create_uvmap_shader(const USDExporterContext &usd_export_context,
     uv_name = usdtokens::st;
   }
   /* We need to make valid, same as was done when exporting UV primvar. */
-  uv_name = make_safe_name(uv_name, usd_export_context.export_params.allow_unicode);
+  uv_name = make_safe_primvar_name(uv_name, usd_export_context.export_params.allow_unicode);
 
   uv_shader.CreateInput(usdtokens::varname, pxr::SdfValueTypeNames->String).Set(uv_name);
   usd_input.ConnectToSource(uv_shader.ConnectableAPI(), usdtokens::result);
@@ -947,7 +947,7 @@ static void export_in_memory_texture(Image *ima,
           imbuf, export_dir, image_abs_path, tile_filepath, allow_overwrite, reports);
       BKE_image_release_ibuf(ima, imbuf, nullptr);
     }
-    MEM_freeN(udim_pattern);
+    MEM_delete(udim_pattern);
   }
 }
 
@@ -1349,7 +1349,7 @@ static void copy_tiled_textures(Image *ima,
   /* Only <UDIM> tile formats are supported by USD right now. */
   if (tile_format != UDIM_TILE_FORMAT_UDIM) {
     CLOG_WARN(&LOG, "Unsupported tile format for '%s'", src_path);
-    MEM_SAFE_FREE(udim_pattern);
+    MEM_SAFE_DELETE(udim_pattern);
     return;
   }
 
@@ -1385,7 +1385,7 @@ static void copy_tiled_textures(Image *ima,
                   dest_tile_path);
     }
   }
-  MEM_SAFE_FREE(udim_pattern);
+  MEM_SAFE_DELETE(udim_pattern);
 }
 
 /* Copy the given image to the destination directory. */

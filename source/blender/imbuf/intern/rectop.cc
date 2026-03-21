@@ -202,6 +202,143 @@ void IMB_blend_color_float(float dst[4],
   }
 }
 
+void IMB_blend_color_float(const MutableSpan<float4> dst,
+                           const Span<float4> src1,
+                           const Span<float4> src2,
+                           const IMB_BlendMode mode)
+{
+  BLI_assert(dst.size() == src1.size());
+  BLI_assert(dst.size() == src2.size());
+
+  switch (mode) {
+    case IMB_BLEND_MIX:
+      for (const int i : dst.index_range()) {
+        blend_color_mix_float(dst[i], src1[i], src2[i]);
+      }
+      break;
+    case IMB_BLEND_ADD:
+      for (const int i : dst.index_range()) {
+        blend_color_add_float(dst[i], src1[i], src2[i]);
+      }
+      break;
+    case IMB_BLEND_SUB:
+      for (const int i : dst.index_range()) {
+        blend_color_sub_float(dst[i], src1[i], src2[i]);
+      }
+      break;
+    case IMB_BLEND_MUL:
+      for (const int i : dst.index_range()) {
+        blend_color_mul_float(dst[i], src1[i], src2[i]);
+      }
+      break;
+    case IMB_BLEND_LIGHTEN:
+      for (const int i : dst.index_range()) {
+        blend_color_lighten_float(dst[i], src1[i], src2[i]);
+      }
+      break;
+    case IMB_BLEND_DARKEN:
+      for (const int i : dst.index_range()) {
+        blend_color_darken_float(dst[i], src1[i], src2[i]);
+      }
+      break;
+    case IMB_BLEND_ERASE_ALPHA:
+      for (const int i : dst.index_range()) {
+        blend_color_erase_alpha_float(dst[i], src1[i], src2[i]);
+      }
+      break;
+    case IMB_BLEND_ADD_ALPHA:
+      for (const int i : dst.index_range()) {
+        blend_color_add_alpha_float(dst[i], src1[i], src2[i]);
+      }
+      break;
+    case IMB_BLEND_OVERLAY:
+      for (const int i : dst.index_range()) {
+        blend_color_overlay_float(dst[i], src1[i], src2[i]);
+      }
+      break;
+    case IMB_BLEND_HARDLIGHT:
+      for (const int i : dst.index_range()) {
+        blend_color_hardlight_float(dst[i], src1[i], src2[i]);
+      }
+      break;
+    case IMB_BLEND_COLORBURN:
+      for (const int i : dst.index_range()) {
+        blend_color_burn_float(dst[i], src1[i], src2[i]);
+      }
+      break;
+    case IMB_BLEND_LINEARBURN:
+      for (const int i : dst.index_range()) {
+        blend_color_linearburn_float(dst[i], src1[i], src2[i]);
+      }
+      break;
+    case IMB_BLEND_COLORDODGE:
+      for (const int i : dst.index_range()) {
+        blend_color_dodge_float(dst[i], src1[i], src2[i]);
+      }
+      break;
+    case IMB_BLEND_SCREEN:
+      for (const int i : dst.index_range()) {
+        blend_color_screen_float(dst[i], src1[i], src2[i]);
+      }
+      break;
+    case IMB_BLEND_SOFTLIGHT:
+      for (const int i : dst.index_range()) {
+        blend_color_softlight_float(dst[i], src1[i], src2[i]);
+      }
+      break;
+    case IMB_BLEND_PINLIGHT:
+      for (const int i : dst.index_range()) {
+        blend_color_pinlight_float(dst[i], src1[i], src2[i]);
+      }
+      break;
+    case IMB_BLEND_LINEARLIGHT:
+      for (const int i : dst.index_range()) {
+        blend_color_linearlight_float(dst[i], src1[i], src2[i]);
+      }
+      break;
+    case IMB_BLEND_VIVIDLIGHT:
+      for (const int i : dst.index_range()) {
+        blend_color_vividlight_float(dst[i], src1[i], src2[i]);
+      }
+      break;
+    case IMB_BLEND_DIFFERENCE:
+      for (const int i : dst.index_range()) {
+        blend_color_difference_float(dst[i], src1[i], src2[i]);
+      }
+      break;
+    case IMB_BLEND_EXCLUSION:
+      for (const int i : dst.index_range()) {
+        blend_color_exclusion_float(dst[i], src1[i], src2[i]);
+      }
+      break;
+    case IMB_BLEND_COLOR:
+      for (const int i : dst.index_range()) {
+        blend_color_color_float(dst[i], src1[i], src2[i]);
+      }
+      break;
+    case IMB_BLEND_HUE:
+      for (const int i : dst.index_range()) {
+        blend_color_hue_float(dst[i], src1[i], src2[i]);
+      }
+      break;
+    case IMB_BLEND_SATURATION:
+      for (const int i : dst.index_range()) {
+        blend_color_saturation_float(dst[i], src1[i], src2[i]);
+      }
+      break;
+    case IMB_BLEND_LUMINOSITY:
+      for (const int i : dst.index_range()) {
+        blend_color_luminosity_float(dst[i], src1[i], src2[i]);
+      }
+      break;
+    default:
+      for (const int i : dst.index_range()) {
+        dst[i] = src1[i];
+      }
+      break;
+  }
+}
+
 /* -------------------------------------------------------------------- */
 /** \name Crop
  * \{ */
@@ -220,7 +357,7 @@ static void rect_crop_4bytes(void **buf_p, const int size_src[2], const rcti *cr
   for (int y = 0; y < size_dst[1]; y++, src += size_dst[0], dst += size_src[0]) {
     memmove(src, dst, sizeof(uint) * size_dst[0]);
   }
-  *buf_p = MEM_reallocN(*buf_p, sizeof(uint) * size_dst[0] * size_dst[1]);
+  *buf_p = MEM_realloc_uninitialized(*buf_p, sizeof(uint) * size_dst[0] * size_dst[1]);
 }
 
 static void rect_crop_16bytes(void **buf_p, const int size_src[2], const rcti *crop)
@@ -237,7 +374,8 @@ static void rect_crop_16bytes(void **buf_p, const int size_src[2], const rcti *c
   for (int y = 0; y < size_dst[1]; y++, src += size_dst[0], dst += size_src[0]) {
     memmove(src, dst, sizeof(uint[4]) * size_dst[0]);
   }
-  *buf_p = static_cast<void *>(MEM_reallocN(*buf_p, sizeof(uint[4]) * size_dst[0] * size_dst[1]));
+  *buf_p = static_cast<void *>(
+      MEM_realloc_uninitialized(*buf_p, sizeof(uint[4]) * size_dst[0] * size_dst[1]));
 }
 
 void IMB_rect_crop(ImBuf *ibuf, const rcti *crop)
@@ -274,8 +412,8 @@ static void rect_realloc_4bytes(void **buf_p, const uint size[2])
   if (*buf_p == nullptr) {
     return;
   }
-  MEM_freeN(*buf_p);
-  *buf_p = MEM_malloc_arrayN<uint>(size_t(size[0]) * size_t(size[1]), __func__);
+  MEM_delete_void(*buf_p);
+  *buf_p = MEM_new_array_uninitialized<uint>(size_t(size[0]) * size_t(size[1]), __func__);
 }
 
 static void rect_realloc_16bytes(void **buf_p, const uint size[2])
@@ -283,8 +421,8 @@ static void rect_realloc_16bytes(void **buf_p, const uint size[2])
   if (*buf_p == nullptr) {
     return;
   }
-  MEM_freeN(*buf_p);
-  *buf_p = MEM_malloc_arrayN<uint>(4 * size_t(size[0]) * size_t(size[1]), __func__);
+  MEM_delete_void(*buf_p);
+  *buf_p = MEM_new_array_uninitialized<uint>(4 * size_t(size[0]) * size_t(size[1]), __func__);
 }
 
 void IMB_rect_size_set(ImBuf *ibuf, const uint size[2])

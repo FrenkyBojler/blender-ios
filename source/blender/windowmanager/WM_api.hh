@@ -14,6 +14,7 @@
  * \todo document
  */
 
+#include <functional>
 #include <optional>
 #include <string>
 
@@ -30,6 +31,8 @@
 
 #include "WM_keymap.hh"
 #include "WM_types.hh"
+
+class GHOST_IContext;
 
 namespace blender {
 
@@ -311,6 +314,9 @@ bool WM_window_pixels_read_sample(bContext *C, wmWindow *win, const int pos[2], 
  * Support for native pixel size
  *
  * \note macOS retina opens window in size X, but it has up to 2 x more pixels.
+ *
+ * \warning This includes CSD (Client-Side Decoration) area such as the title-bar.
+ * Use #WM_window_rect_calc to get the usable content bounds.
  */
 int WM_window_native_pixel_x(const wmWindow *win);
 int WM_window_native_pixel_y(const wmWindow *win);
@@ -385,10 +391,10 @@ void WM_window_ensure_active_view_layer(wmWindow *win) ATTR_NONNULL(1);
 
 bool WM_window_is_temp_screen(const wmWindow *win) ATTR_WARN_UNUSED_RESULT;
 
-void *WM_system_gpu_context_create();
-void WM_system_gpu_context_dispose(void *context);
-void WM_system_gpu_context_activate(void *context);
-void WM_system_gpu_context_release(void *context);
+GHOST_IContext *WM_system_gpu_context_create();
+void WM_system_gpu_context_dispose(GHOST_IContext *context);
+void WM_system_gpu_context_activate(GHOST_IContext *context);
+void WM_system_gpu_context_release(GHOST_IContext *context);
 
 /** #WM_window_open alignment. */
 enum eWindowAlignment {
@@ -748,11 +754,10 @@ void WM_event_free_ui_handler_all(bContext *C,
 /**
  * Add a modal handler to `win`, `area` and `region` may optionally be NULL.
  */
-wmEventHandler_Op *WM_event_add_modal_handler_ex(wmWindowManager *wm,
-                                                 wmWindow *win,
+wmEventHandler_Op *WM_event_add_modal_handler_ex(wmWindow *win,
                                                  ScrArea *area,
                                                  ARegion *region,
-                                                 wmOperator *op) ATTR_NONNULL(1, 2, 5);
+                                                 wmOperator *op) ATTR_NONNULL(1, 4);
 wmEventHandler_Op *WM_event_add_modal_handler(bContext *C, wmOperator *op) ATTR_NONNULL(1, 2);
 void WM_event_remove_modal_handler(ListBaseT<wmEventHandler> *handlers,
                                    const wmOperator *op,
@@ -1478,7 +1483,7 @@ void WM_uilisttype_free();
  * The "full" list-ID is an internal name used for storing and identifying a list. It is built like
  * this:
  * `{uiListType.idname}_{list_id}`, whereby `list_id` is an optional parameter passed to
- * `ui::Layout.template_list()`. If it is not set, the full list-ID is just
+ * `ui::Layout.template_uilist()`. If it is not set, the full list-ID is just
  * `{uiListType.idname}_`.
  *
  * Note that whenever the Python API refers to the list-ID, it's the short, "non-full" one it
@@ -1607,7 +1612,7 @@ void WM_event_fileselect_event(wmWindowManager *wm, void *ophandle, int eventval
 
 /** Return a borrowed reference to the custom-data. */
 void *WM_event_consecutive_data_get(wmWindow *win, const char *id);
-/** Set the custom-data (and own the pointer), free with #MEM_freeN. */
+/** Set the custom-data (and own the pointer), free with #MEM_delete_void. */
 void WM_event_consecutive_data_set(wmWindow *win, const char *id, void *custom_data);
 /** Clear and free the consecutive custom-data. */
 void WM_event_consecutive_data_free(wmWindow *win);
@@ -1682,6 +1687,20 @@ wmDropBox *WM_dropbox_add(ListBaseT<wmDropBox> *lb,
                           void (*cancel)(Main *bmain, wmDrag *drag, wmDropBox *drop),
                           WMDropboxTooltipFunc tooltip);
 /**
+ * Register a "prefetch" handler that gets triggered whenever dragging starts, independent of which
+ * drop handlers are available or will be used in the end.
+ *
+ * #wmDropBox::on_drag_start() is similar, but it will only be executed for drop-boxes visible in a
+ * window. For example, sequencer drop-boxes pre-fetch information about dragged media files this
+ * way, but this should only be done if a sequencer is visible somewhere.
+ *
+ * Contrary to the #wmDropBox::on_drag_start() prefetch handlers, the "global" prefetch handlers
+ * here always trigger for the given data type.
+ */
+void WM_drag_global_prefetch_handler_add(
+    const eWM_DragDataType drag_type,
+    const std::function<void(bContext &C, wmDrag &drag)> on_drag_start);
+/**
  * Ensure operator pointers & properties are valid after operators have been added/removed.
  */
 void WM_dropbox_update_ot();
@@ -1748,7 +1767,7 @@ void WM_drag_add_asset_list_item(wmDrag *drag, const asset_system::AssetRepresen
 
 const ListBaseT<wmDragAssetListItem> *WM_drag_asset_list_get(const wmDrag *drag);
 
-const char *WM_drag_get_item_name(wmDrag *drag);
+const std::string WM_drag_get_item_name(wmDrag *drag);
 
 /* Paths drag and drop. */
 /**
@@ -1894,7 +1913,11 @@ bool WM_jobs_is_running(const wmJob *wm_job);
 bool WM_jobs_is_stopped(const wmWindowManager *wm, const void *owner);
 void *WM_jobs_customdata_get(wmJob *wm_job);
 void WM_jobs_customdata_set(wmJob *wm_job, void *customdata, void (*free)(void *));
-void WM_jobs_timer(wmJob *wm_job, double time_step, unsigned int note, unsigned int endnote);
+void WM_jobs_timer(wmJob *wm_job,
+                   double time_step,
+                   unsigned int note,
+                   unsigned int endnote,
+                   void (*timer_step)(void *) = nullptr);
 void WM_jobs_delay_start(wmJob *wm_job, double delay_time);
 
 using wm_jobs_start_callback = void (*)(void *custom_data, wmJobWorkerStatus *worker_status);
@@ -2065,6 +2088,7 @@ const char *WM_window_cursor_keymap_status_get(const wmWindow *win,
                                                int button_index,
                                                int type_index);
 void WM_window_cursor_keymap_status_refresh(bContext *C, wmWindow *win);
+void WM_window_cursor_keymap_status_free(wmWindow *win);
 
 void WM_window_status_area_tag_redraw(wmWindow *win);
 /**
@@ -2224,7 +2248,10 @@ bool WM_xr_session_exists(const wmXrData *xr);
  */
 bool WM_xr_session_is_ready(const wmXrData *xr);
 wmXrSessionState *WM_xr_session_state_handle_get(const wmXrData *xr);
-ScrArea *WM_xr_session_area_get(const wmXrData *xr);
+
+bContext *WM_xr_session_context_get(const wmXrData *xr);
+bContext *WM_xr_session_context_ensure(wmXrData *xr, const wmWindowManager *wm);
+
 void WM_xr_session_base_pose_reset(wmXrData *xr);
 bool WM_xr_session_state_viewer_pose_location_get(const wmXrData *xr, float r_location[3]);
 bool WM_xr_session_state_viewer_pose_rotation_get(const wmXrData *xr, float r_rotation[4]);
@@ -2249,8 +2276,8 @@ bool WM_xr_session_state_nav_rotation_get(const wmXrData *xr, float r_rotation[4
 void WM_xr_session_state_nav_rotation_set(wmXrData *xr, const float rotation[4]);
 bool WM_xr_session_state_nav_scale_get(const wmXrData *xr, float *r_scale);
 void WM_xr_session_state_nav_scale_set(wmXrData *xr, float scale);
+bool WM_xr_session_state_viewer_scale_get(const wmXrData *xr, float *r_scale);
 void WM_xr_session_state_navigation_reset(wmXrSessionState *state);
-void WM_xr_session_state_vignette_reset(wmXrSessionState *state);
 void WM_xr_session_state_vignette_activate(wmXrData *xr);
 void WM_xr_session_state_vignette_update(wmXrSessionState *state);
 

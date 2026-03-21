@@ -1198,7 +1198,7 @@ static bool edbm_connect_vert_pair(BMEditMesh *em, Mesh *mesh, wmOperator *op)
     return false;
   }
 
-  BMVert **verts = MEM_malloc_arrayN<BMVert *>(verts_len, __func__);
+  BMVert **verts = MEM_new_array_uninitialized<BMVert *>(verts_len, __func__);
   {
     BMIter iter;
     BMVert *v;
@@ -1285,7 +1285,7 @@ static bool edbm_connect_vert_pair(BMEditMesh *em, Mesh *mesh, wmOperator *op)
       EDBM_redo_state_free(&em_backup);
     }
   }
-  MEM_freeN(verts);
+  MEM_delete(verts);
 
   return len;
 }
@@ -1350,7 +1350,10 @@ static bool bm_vert_is_select_history_open(BMesh *bm)
   return false;
 }
 
-static bool bm_vert_connect_pair(BMesh *bm, BMVert *v_a, BMVert *v_b)
+static bool bm_vert_connect_pair(BMesh *bm,
+                                 BMVert *v_a,
+                                 BMVert *v_b,
+                                 const bool skip_normals = false)
 {
   BMOperator bmop;
   BMVert **verts;
@@ -1362,8 +1365,11 @@ static bool bm_vert_connect_pair(BMesh *bm, BMVert *v_a, BMVert *v_b)
   verts[0] = v_a;
   verts[1] = v_b;
 
-  BM_vert_normal_update(verts[0]);
-  BM_vert_normal_update(verts[1]);
+  /* Note that normals may be overridden when connecting more than 2 vertices. */
+  if (!skip_normals) {
+    BM_vert_normal_update(verts[0]);
+    BM_vert_normal_update(verts[1]);
+  }
 
   BMO_op_exec(bm, &bmop);
   BMO_slot_buffer_hflag_enable(bm, bmop.slots_out, "edges.out", BM_EDGE, BM_ELEM_SELECT, true);
@@ -1403,6 +1409,21 @@ static bool bm_vert_connect_select_history(BMesh *bm)
       /* all verts have faces , connect verts via faces! */
       if (tot == bm->totvertsel) {
         BMEditSelection *ese_last;
+        Map<BMVert *, float3> orig_normals;
+
+        /* Connecting more than 2 vertices can change the mesh normal state, which can break
+         * symmetry in cases where it is expected so we store the original normals to restore
+         * later before connecting. See #154197 */
+        const bool is_multi_cut = (bm->totvertsel > 2);
+        if (is_multi_cut) {
+          for (ese_last = static_cast<BMEditSelection *>(bm->selected.first); ese_last;
+               ese_last = ese_last->next)
+          {
+            BMVert *v = reinterpret_cast<BMVert *>(ese_last->ele);
+            BM_vert_normal_update(v);
+            orig_normals.add(v, v->no);
+          }
+        }
         ese_last = static_cast<BMEditSelection *>(bm->selected.first);
         ese = ese_last->next;
 
@@ -1414,9 +1435,16 @@ static bool bm_vert_connect_select_history(BMesh *bm)
             /* pass, edge exists (and will be selected) */
           }
           else {
-            changed |= bm_vert_connect_pair(bm,
-                                            reinterpret_cast<BMVert *>(ese_last->ele),
-                                            reinterpret_cast<BMVert *>(ese->ele));
+            BMVert *v_last = reinterpret_cast<BMVert *>(ese_last->ele);
+            BMVert *v_curr = reinterpret_cast<BMVert *>(ese->ele);
+
+            if (is_multi_cut) {
+              BLI_assert(orig_normals.contains(v_last));
+              BLI_assert(orig_normals.contains(v_curr));
+              copy_v3_v3(v_last->no, orig_normals.lookup(v_last));
+              copy_v3_v3(v_curr->no, orig_normals.lookup(v_curr));
+            }
+            changed |= bm_vert_connect_pair(bm, v_last, v_curr, is_multi_cut);
           }
         } while ((void)(ese_last = ese), (ese = ese->next));
 
@@ -1707,7 +1735,7 @@ void MESH_OT_vert_connect_concave(wmOperatorType *ot)
   /* identifiers */
   ot->name = "Split Concave Faces";
   ot->idname = "MESH_OT_vert_connect_concave";
-  ot->description = "Make all faces convex";
+  ot->description = "Split concave faces by connecting vertices to make them convex";
 
   /* API callbacks. */
   ot->exec = edbm_vert_connect_concave_exec;
@@ -4409,7 +4437,7 @@ static bool mesh_separate_loose(
   int groups_len = BM_mesh_calc_edge_groups_as_arrays(
       bm_old, vert_groups.data(), edge_groups.data(), face_groups.data(), &groups);
   if (groups_len <= 1) {
-    MEM_SAFE_FREE(groups);
+    MEM_SAFE_DELETE(groups);
     return false;
   }
 
@@ -4449,7 +4477,7 @@ static bool mesh_separate_loose(
     BM_mesh_bm_to_me(nullptr, bm_old, me_old, &to_mesh_params);
   }
 
-  MEM_freeN(groups);
+  MEM_delete(groups);
   return result;
 }
 
@@ -4747,7 +4775,7 @@ static bool edbm_fill_grid_prepare(BMesh *bm, int offset, int *span_p, const boo
   }
   const int verts_len = BM_edgeloop_length_get(el_store);
   const int edges_len = verts_len - (BM_edgeloop_is_closed(el_store) ? 0 : 1);
-  BMEdge **edges = MEM_malloc_arrayN<BMEdge *>(edges_len, __func__);
+  BMEdge **edges = MEM_new_array_uninitialized<BMEdge *>(edges_len, __func__);
   BM_edgeloop_edges_get(el_store, edges);
   for (int i = 0; i < edges_len; i++) {
     BM_elem_flag_enable(edges[i], BM_ELEM_TAG);
@@ -4810,7 +4838,7 @@ static bool edbm_fill_grid_prepare(BMesh *bm, int offset, int *span_p, const boo
        *
        * NOTE: we may have already checked 'edbm_fill_grid_vert_tag_angle()' on each
        * vert, but advantage of de-duplicating is minimal. */
-      SortPtrByFloat *ele_sort = MEM_malloc_arrayN<SortPtrByFloat>(verts_len, __func__);
+      SortPtrByFloat *ele_sort = MEM_new_array_uninitialized<SortPtrByFloat>(verts_len, __func__);
       LinkData *v_link;
       for (v_link = static_cast<LinkData *>(verts->first), i = 0; v_link;
            v_link = v_link->next, i++)
@@ -4836,7 +4864,7 @@ static bool edbm_fill_grid_prepare(BMesh *bm, int offset, int *span_p, const boo
       if ((ele_sort[0].sort_value - ele_sort[verts_len - 3].sort_value) > eps_even) {
         span = BLI_findindex(verts, ele_sort[0].data);
       }
-      MEM_freeN(ele_sort);
+      MEM_delete(ele_sort);
     }
     /* end span calc */
     int start = 0;
@@ -4859,7 +4887,7 @@ static bool edbm_fill_grid_prepare(BMesh *bm, int offset, int *span_p, const boo
   /* else let the bmesh-operator handle it */
 
   BM_mesh_edgeloops_free(&eloops);
-  MEM_freeN(edges);
+  MEM_delete(edges);
 
   *span_p = span;
 
@@ -4885,7 +4913,7 @@ struct FillGridSplitJoin {
  */
 static FillGridSplitJoin *edbm_fill_grid_split_join_init(BMEditMesh *em)
 {
-  FillGridSplitJoin *split_join = MEM_callocN<FillGridSplitJoin>(__func__);
+  FillGridSplitJoin *split_join = MEM_new_zeroed<FillGridSplitJoin>(__func__);
 
   /* Split the selection into an island. */
   BMOperator split_op;
@@ -4991,7 +5019,7 @@ static void edbm_fill_grid_split_join_finish(BMEditMesh *em,
   BMO_op_exec(em->bm, &split_join->weld_op);
   BMO_op_finish(em->bm, &split_join->weld_op);
 
-  MEM_freeN(split_join);
+  MEM_delete(split_join);
 }
 
 static wmOperatorStatus edbm_fill_grid_exec(bContext *C, wmOperator *op)
@@ -5719,7 +5747,7 @@ static wmOperatorStatus edbm_decimate_exec(bContext *C, wmOperator *op)
       continue;
     }
 
-    float *vweights = MEM_malloc_arrayN<float>(bm->totvert, __func__);
+    float *vweights = MEM_new_array_uninitialized<float>(bm->totvert, __func__);
     {
       const int cd_dvert_offset = CustomData_get_offset(&bm->vdata, CD_MDEFORMVERT);
       const int defbase_act = BKE_object_defgroup_active_index_get(obedit) - 1;
@@ -5796,7 +5824,7 @@ static wmOperatorStatus edbm_decimate_exec(bContext *C, wmOperator *op)
     BM_mesh_decimate_collapse(
         em->bm, ratio_adjust, vweights, vertex_group_factor, false, symmetry_axis, symmetry_eps);
 
-    MEM_freeN(vweights);
+    MEM_delete(vweights);
 
     {
       short selectmode = em->selectmode;
@@ -6643,8 +6671,8 @@ static void sort_bmelem_flag(bContext *C,
     mul_m4_m4m4(mat, rv3d->viewmat, ob->object_to_world().ptr());
 
     if (totelem[0]) {
-      pb = pblock[0] = MEM_calloc_arrayN<char>(totelem[0], __func__);
-      sb = sblock[0] = MEM_calloc_arrayN<BMElemSort>(totelem[0], __func__);
+      pb = pblock[0] = MEM_new_array_zeroed<char>(totelem[0], __func__);
+      sb = sblock[0] = MEM_new_array_zeroed<BMElemSort>(totelem[0], __func__);
 
       BM_ITER_MESH_INDEX (ve, &iter, em->bm, BM_VERTS_OF_MESH, i) {
         if (BM_elem_flag_test(ve, flag)) {
@@ -6662,8 +6690,8 @@ static void sort_bmelem_flag(bContext *C,
     }
 
     if (totelem[1]) {
-      pb = pblock[1] = MEM_calloc_arrayN<char>(totelem[1], __func__);
-      sb = sblock[1] = MEM_calloc_arrayN<BMElemSort>(totelem[1], __func__);
+      pb = pblock[1] = MEM_new_array_zeroed<char>(totelem[1], __func__);
+      sb = sblock[1] = MEM_new_array_zeroed<BMElemSort>(totelem[1], __func__);
 
       BM_ITER_MESH_INDEX (ed, &iter, em->bm, BM_EDGES_OF_MESH, i) {
         if (BM_elem_flag_test(ed, flag)) {
@@ -6682,8 +6710,8 @@ static void sort_bmelem_flag(bContext *C,
     }
 
     if (totelem[2]) {
-      pb = pblock[2] = MEM_calloc_arrayN<char>(totelem[2], __func__);
-      sb = sblock[2] = MEM_calloc_arrayN<BMElemSort>(totelem[2], __func__);
+      pb = pblock[2] = MEM_new_array_zeroed<char>(totelem[2], __func__);
+      sb = sblock[2] = MEM_new_array_zeroed<BMElemSort>(totelem[2], __func__);
 
       BM_ITER_MESH_INDEX (fa, &iter, em->bm, BM_FACES_OF_MESH, i) {
         if (BM_elem_flag_test(fa, flag)) {
@@ -6713,8 +6741,8 @@ static void sort_bmelem_flag(bContext *C,
     mul_m4_v3(mat, cur);
 
     if (totelem[0]) {
-      pb = pblock[0] = MEM_calloc_arrayN<char>(totelem[0], __func__);
-      sb = sblock[0] = MEM_calloc_arrayN<BMElemSort>(totelem[0], __func__);
+      pb = pblock[0] = MEM_new_array_zeroed<char>(totelem[0], __func__);
+      sb = sblock[0] = MEM_new_array_zeroed<BMElemSort>(totelem[0], __func__);
 
       BM_ITER_MESH_INDEX (ve, &iter, em->bm, BM_VERTS_OF_MESH, i) {
         if (BM_elem_flag_test(ve, flag)) {
@@ -6729,8 +6757,8 @@ static void sort_bmelem_flag(bContext *C,
     }
 
     if (totelem[1]) {
-      pb = pblock[1] = MEM_calloc_arrayN<char>(totelem[1], __func__);
-      sb = sblock[1] = MEM_calloc_arrayN<BMElemSort>(totelem[1], __func__);
+      pb = pblock[1] = MEM_new_array_zeroed<char>(totelem[1], __func__);
+      sb = sblock[1] = MEM_new_array_zeroed<BMElemSort>(totelem[1], __func__);
 
       BM_ITER_MESH_INDEX (ed, &iter, em->bm, BM_EDGES_OF_MESH, i) {
         if (BM_elem_flag_test(ed, flag)) {
@@ -6748,8 +6776,8 @@ static void sort_bmelem_flag(bContext *C,
     }
 
     if (totelem[2]) {
-      pb = pblock[2] = MEM_calloc_arrayN<char>(totelem[2], __func__);
-      sb = sblock[2] = MEM_calloc_arrayN<BMElemSort>(totelem[2], __func__);
+      pb = pblock[2] = MEM_new_array_zeroed<char>(totelem[2], __func__);
+      sb = sblock[2] = MEM_new_array_zeroed<BMElemSort>(totelem[2], __func__);
 
       BM_ITER_MESH_INDEX (fa, &iter, em->bm, BM_FACES_OF_MESH, i) {
         if (BM_elem_flag_test(fa, flag)) {
@@ -6769,8 +6797,8 @@ static void sort_bmelem_flag(bContext *C,
 
   /* Faces only! */
   else if (action == SRT_MATERIAL && totelem[2]) {
-    pb = pblock[2] = MEM_calloc_arrayN<char>(totelem[2], __func__);
-    sb = sblock[2] = MEM_calloc_arrayN<BMElemSort>(totelem[2], __func__);
+    pb = pblock[2] = MEM_new_array_zeroed<char>(totelem[2], __func__);
+    sb = sblock[2] = MEM_new_array_zeroed<BMElemSort>(totelem[2], __func__);
 
     BM_ITER_MESH_INDEX (fa, &iter, em->bm, BM_FACES_OF_MESH, i) {
       if (BM_elem_flag_test(fa, flag)) {
@@ -6794,8 +6822,8 @@ static void sort_bmelem_flag(bContext *C,
     uint *tbuf[3] = {nullptr, nullptr, nullptr}, *tb;
 
     if (totelem[0]) {
-      tb = tbuf[0] = MEM_calloc_arrayN<uint>(totelem[0], __func__);
-      mp = map[0] = MEM_calloc_arrayN<uint>(totelem[0], __func__);
+      tb = tbuf[0] = MEM_new_array_zeroed<uint>(totelem[0], __func__);
+      mp = map[0] = MEM_new_array_zeroed<uint>(totelem[0], __func__);
 
       BM_ITER_MESH_INDEX (ve, &iter, em->bm, BM_VERTS_OF_MESH, i) {
         if (BM_elem_flag_test(ve, flag)) {
@@ -6809,8 +6837,8 @@ static void sort_bmelem_flag(bContext *C,
     }
 
     if (totelem[1]) {
-      tb = tbuf[1] = MEM_calloc_arrayN<uint>(totelem[1], __func__);
-      mp = map[1] = MEM_calloc_arrayN<uint>(totelem[1], __func__);
+      tb = tbuf[1] = MEM_new_array_zeroed<uint>(totelem[1], __func__);
+      mp = map[1] = MEM_new_array_zeroed<uint>(totelem[1], __func__);
 
       BM_ITER_MESH_INDEX (ed, &iter, em->bm, BM_EDGES_OF_MESH, i) {
         if (BM_elem_flag_test(ed, flag)) {
@@ -6824,8 +6852,8 @@ static void sort_bmelem_flag(bContext *C,
     }
 
     if (totelem[2]) {
-      tb = tbuf[2] = MEM_calloc_arrayN<uint>(totelem[2], __func__);
-      mp = map[2] = MEM_calloc_arrayN<uint>(totelem[2], __func__);
+      tb = tbuf[2] = MEM_new_array_zeroed<uint>(totelem[2], __func__);
+      mp = map[2] = MEM_new_array_zeroed<uint>(totelem[2], __func__);
 
       BM_ITER_MESH_INDEX (fa, &iter, em->bm, BM_FACES_OF_MESH, i) {
         if (BM_elem_flag_test(fa, flag)) {
@@ -6847,8 +6875,8 @@ static void sort_bmelem_flag(bContext *C,
         continue;
       }
       if (ELEM(aff, 0, tot)) {
-        MEM_freeN(tb);
-        MEM_freeN(mp);
+        MEM_delete(tb);
+        MEM_delete(mp);
         map[j] = nullptr;
         continue;
       }
@@ -6866,7 +6894,7 @@ static void sort_bmelem_flag(bContext *C,
       for (i = tot, tb = tbuf[j] + tot - 1; i--; tb--) {
         mp[*tb] = i;
       }
-      MEM_freeN(tbuf[j]);
+      MEM_delete(tbuf[j]);
     }
   }
 
@@ -6875,8 +6903,8 @@ static void sort_bmelem_flag(bContext *C,
       /* Re-init random generator for each element type, to get consistent random when
        * enabling/disabling an element type. */
       RNG *rng = BLI_rng_new_srandom(seed);
-      pb = pblock[0] = MEM_calloc_arrayN<char>(totelem[0], __func__);
-      sb = sblock[0] = MEM_calloc_arrayN<BMElemSort>(totelem[0], __func__);
+      pb = pblock[0] = MEM_new_array_zeroed<char>(totelem[0], __func__);
+      sb = sblock[0] = MEM_new_array_zeroed<BMElemSort>(totelem[0], __func__);
 
       BM_ITER_MESH_INDEX (ve, &iter, em->bm, BM_VERTS_OF_MESH, i) {
         if (BM_elem_flag_test(ve, flag)) {
@@ -6894,8 +6922,8 @@ static void sort_bmelem_flag(bContext *C,
 
     if (totelem[1]) {
       RNG *rng = BLI_rng_new_srandom(seed);
-      pb = pblock[1] = MEM_calloc_arrayN<char>(totelem[1], __func__);
-      sb = sblock[1] = MEM_calloc_arrayN<BMElemSort>(totelem[1], __func__);
+      pb = pblock[1] = MEM_new_array_zeroed<char>(totelem[1], __func__);
+      sb = sblock[1] = MEM_new_array_zeroed<BMElemSort>(totelem[1], __func__);
 
       BM_ITER_MESH_INDEX (ed, &iter, em->bm, BM_EDGES_OF_MESH, i) {
         if (BM_elem_flag_test(ed, flag)) {
@@ -6913,8 +6941,8 @@ static void sort_bmelem_flag(bContext *C,
 
     if (totelem[2]) {
       RNG *rng = BLI_rng_new_srandom(seed);
-      pb = pblock[2] = MEM_calloc_arrayN<char>(totelem[2], __func__);
-      sb = sblock[2] = MEM_calloc_arrayN<BMElemSort>(totelem[2], __func__);
+      pb = pblock[2] = MEM_new_array_zeroed<char>(totelem[2], __func__);
+      sb = sblock[2] = MEM_new_array_zeroed<BMElemSort>(totelem[2], __func__);
 
       BM_ITER_MESH_INDEX (fa, &iter, em->bm, BM_FACES_OF_MESH, i) {
         if (BM_elem_flag_test(fa, flag)) {
@@ -6933,8 +6961,8 @@ static void sort_bmelem_flag(bContext *C,
 
   else if (action == SRT_REVERSE) {
     if (totelem[0]) {
-      pb = pblock[0] = MEM_calloc_arrayN<char>(totelem[0], __func__);
-      sb = sblock[0] = MEM_calloc_arrayN<BMElemSort>(totelem[0], __func__);
+      pb = pblock[0] = MEM_new_array_zeroed<char>(totelem[0], __func__);
+      sb = sblock[0] = MEM_new_array_zeroed<BMElemSort>(totelem[0], __func__);
 
       BM_ITER_MESH_INDEX (ve, &iter, em->bm, BM_VERTS_OF_MESH, i) {
         if (BM_elem_flag_test(ve, flag)) {
@@ -6949,8 +6977,8 @@ static void sort_bmelem_flag(bContext *C,
     }
 
     if (totelem[1]) {
-      pb = pblock[1] = MEM_calloc_arrayN<char>(totelem[1], __func__);
-      sb = sblock[1] = MEM_calloc_arrayN<BMElemSort>(totelem[1], __func__);
+      pb = pblock[1] = MEM_new_array_zeroed<char>(totelem[1], __func__);
+      sb = sblock[1] = MEM_new_array_zeroed<BMElemSort>(totelem[1], __func__);
 
       BM_ITER_MESH_INDEX (ed, &iter, em->bm, BM_EDGES_OF_MESH, i) {
         if (BM_elem_flag_test(ed, flag)) {
@@ -6965,8 +6993,8 @@ static void sort_bmelem_flag(bContext *C,
     }
 
     if (totelem[2]) {
-      pb = pblock[2] = MEM_calloc_arrayN<char>(totelem[2], __func__);
-      sb = sblock[2] = MEM_calloc_arrayN<BMElemSort>(totelem[2], __func__);
+      pb = pblock[2] = MEM_new_array_zeroed<char>(totelem[2], __func__);
+      sb = sblock[2] = MEM_new_array_zeroed<BMElemSort>(totelem[2], __func__);
 
       BM_ITER_MESH_INDEX (fa, &iter, em->bm, BM_FACES_OF_MESH, i) {
         if (BM_elem_flag_test(fa, flag)) {
@@ -6987,13 +7015,13 @@ static void sort_bmelem_flag(bContext *C,
   if (affected[0] == 0 && affected[1] == 0 && affected[2] == 0) {
     for (j = 3; j--;) {
       if (pblock[j]) {
-        MEM_freeN(pblock[j]);
+        MEM_delete(pblock[j]);
       }
       if (sblock[j]) {
-        MEM_freeN(sblock[j]);
+        MEM_delete(sblock[j]);
       }
       if (map[j]) {
-        MEM_freeN(map[j]);
+        MEM_delete(map[j]);
       }
     }
     return;
@@ -7011,7 +7039,7 @@ static void sort_bmelem_flag(bContext *C,
 
       qsort(sb, aff, sizeof(BMElemSort), bmelemsort_comp);
 
-      mp = map[j] = MEM_malloc_arrayN<uint>(tot, __func__);
+      mp = map[j] = MEM_new_array_uninitialized<uint>(tot, __func__);
       p_blk = pb + tot - 1;
       s_blk = sb + aff - 1;
       for (i = tot; i--; p_blk--) {
@@ -7025,10 +7053,10 @@ static void sort_bmelem_flag(bContext *C,
       }
     }
     if (pb) {
-      MEM_freeN(pb);
+      MEM_delete(pb);
     }
     if (sb) {
-      MEM_freeN(sb);
+      MEM_delete(sb);
     }
   }
 
@@ -7045,7 +7073,7 @@ static void sort_bmelem_flag(bContext *C,
 
   for (j = 3; j--;) {
     if (map[j]) {
-      MEM_freeN(map[j]);
+      MEM_delete(map[j]);
     }
   }
 }
@@ -7302,7 +7330,7 @@ static int edbm_bridge_edge_loops_for_single_editmesh(wmOperator *op,
     int i;
 
     totface_del = edbm_bridge_tag_boundary_edges(em->bm);
-    totface_del_arr = MEM_malloc_arrayN<BMFace *>(totface_del, __func__);
+    totface_del_arr = MEM_new_array_uninitialized<BMFace *>(totface_del, __func__);
 
     i = 0;
     BM_ITER_MESH (f, &iter, em->bm, BM_FACES_OF_MESH) {
@@ -7386,7 +7414,7 @@ static int edbm_bridge_edge_loops_for_single_editmesh(wmOperator *op,
   }
 
   if (totface_del_arr) {
-    MEM_freeN(totface_del_arr);
+    MEM_delete(totface_del_arr);
   }
 
   if (EDBM_op_finish(em, &bmop, op, true)) {
@@ -7915,11 +7943,10 @@ static wmOperatorStatus mesh_symmetry_snap_exec(bContext *C, wmOperator *op)
 {
   const float eps = 0.00001f;
   const float eps_sq = eps * eps;
-  const bool use_topology = false;
-
   const float thresh = RNA_float_get(op->ptr, "threshold");
   const float fac = RNA_float_get(op->ptr, "factor");
   const bool use_center = RNA_boolean_get(op->ptr, "use_center");
+  const bool use_topology = RNA_boolean_get(op->ptr, "use_topology");
   const int axis_dir = RNA_enum_get(op->ptr, "direction");
 
   /* Vertices stats (total over all selected objects). */
@@ -7949,7 +7976,7 @@ static wmOperatorStatus mesh_symmetry_snap_exec(bContext *C, wmOperator *op)
     totobjects++;
 
     /* Only allocate memory after checking whether to skip object. */
-    int *index = MEM_malloc_arrayN<int>(bm->totvert, __func__);
+    int *index = MEM_new_array_uninitialized<int>(bm->totvert, __func__);
 
     /* Vertex iter. */
     BMIter iter;
@@ -8021,7 +8048,7 @@ static wmOperatorStatus mesh_symmetry_snap_exec(bContext *C, wmOperator *op)
     EDBM_update(id_cast<Mesh *>(obedit->data), &params);
 
     /* No need to end cache, just free the array. */
-    MEM_freeN(index);
+    MEM_delete(index);
   }
 
   if (totvertfail) {
@@ -8083,6 +8110,11 @@ void MESH_OT_symmetry_snap(wmOperatorType *ot)
                 1.0f);
   RNA_def_boolean(
       ot->srna, "use_center", true, "Center", "Snap middle vertices to the axis center");
+  RNA_def_boolean(ot->srna,
+                  "use_topology",
+                  false,
+                  "Topology Mirror",
+                  "Use topology to find mirrored vertices instead of spatial proximity");
 }
 
 /** \} */
@@ -9596,7 +9628,7 @@ static wmOperatorStatus edbm_set_normals_from_faces_exec(bContext *C, wmOperator
 
     BKE_editmesh_lnorspace_update(em);
 
-    float (*vert_normals)[3] = MEM_malloc_arrayN<float[3]>(bm->totvert, __func__);
+    float (*vert_normals)[3] = MEM_new_array_uninitialized<float[3]>(bm->totvert, __func__);
     {
       int v_index;
       BM_ITER_MESH_INDEX (v, &viter, bm, BM_VERTS_OF_MESH, v_index) {
@@ -9650,8 +9682,8 @@ static wmOperatorStatus edbm_set_normals_from_faces_exec(bContext *C, wmOperator
       }
     }
 
-    MEM_freeN(loop_set);
-    MEM_freeN(vert_normals);
+    MEM_delete(loop_set);
+    MEM_delete(vert_normals);
     EDBMUpdate_Params params{};
     params.calc_looptris = true;
     params.calc_normals = false;
@@ -9703,7 +9735,7 @@ static wmOperatorStatus edbm_smooth_normals_exec(bContext *C, wmOperator *op)
     BKE_editmesh_lnorspace_update(em);
     BMLoopNorEditDataArray *lnors_ed_arr = BM_loop_normal_editdata_array_init(bm, false);
 
-    float (*smooth_normal)[3] = MEM_calloc_arrayN<float[3]>(lnors_ed_arr->totloop, __func__);
+    float (*smooth_normal)[3] = MEM_new_array_zeroed<float[3]>(lnors_ed_arr->totloop, __func__);
 
     /* NOTE(@mont29): This is weird choice of operation, taking all loops of faces of current
      * vertex. Could lead to some rather far away loops weighting as much as very close ones
@@ -9760,7 +9792,7 @@ static wmOperatorStatus edbm_smooth_normals_exec(bContext *C, wmOperator *op)
     }
 
     BM_loop_normal_editdata_array_free(lnors_ed_arr);
-    MEM_freeN(smooth_normal);
+    MEM_delete(smooth_normal);
 
     EDBMUpdate_Params params{};
     params.calc_looptris = true;

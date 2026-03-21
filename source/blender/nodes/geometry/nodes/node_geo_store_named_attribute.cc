@@ -58,8 +58,7 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryStoreNamedAttribute *data = MEM_new_for_free<NodeGeometryStoreNamedAttribute>(
-      __func__);
+  NodeGeometryStoreNamedAttribute *data = MEM_new<NodeGeometryStoreNamedAttribute>(__func__);
   data->data_type = CD_PROP_FLOAT;
   data->domain = int8_t(AttrDomain::Point);
   node->storage = data;
@@ -116,7 +115,12 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Field<bool> selection = params.extract_input<Field<bool>>("Selection");
 
   GField field = params.extract_input<GField>("Value");
-  if (ELEM(data_type, bke::AttrType::Float2, bke::AttrType::ColorByte, bke::AttrType::Int8)) {
+  if (ELEM(data_type,
+           bke::AttrType::Float2,
+           bke::AttrType::Float4,
+           bke::AttrType::ColorByte,
+           bke::AttrType::Int8))
+  {
     field = bke::get_implicit_type_conversions().try_convert(
         std::move(field), bke::attribute_type_to_cpp_type(data_type));
   }

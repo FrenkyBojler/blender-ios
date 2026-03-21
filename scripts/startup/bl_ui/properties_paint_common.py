@@ -3,7 +3,9 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import bpy
-from bpy.types import Menu, Panel
+from bpy.types import (
+    Menu,
+)
 from bpy.app.translations import (
     contexts as i18n_contexts,
     pgettext_iface as iface_,
@@ -161,23 +163,14 @@ class BrushAssetShelf:
         )
 
 
-class VIEW3D_PT_brush_asset_shelf_filter(Panel):
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'HEADER'
-    bl_label = "Filter"
-    bl_parent_id = "ASSETSHELF_PT_display"
+def brush_asset_shelf_filter_draw(panel, context):
+    if context.asset_shelf.bl_idname != BrushAssetShelf.get_shelf_name_from_context(context):
+        return
 
-    @classmethod
-    def poll(cls, context):
-        if context.asset_shelf is None:
-            return False
-        return context.asset_shelf.bl_idname == BrushAssetShelf.get_shelf_name_from_context(context)
+    layout = panel.layout
+    prefs = context.preferences
 
-    def draw(self, context):
-        layout = self.layout
-        prefs = context.preferences
-
-        layout.prop(prefs.view, "use_filter_brushes_by_tool", text="By Active Tool")
+    layout.prop(prefs.view, "use_filter_brushes_by_tool", text="By Active Tool")
 
 
 class UnifiedPaintPanel:
@@ -536,18 +529,18 @@ class StrokePanel(BrushPanel):
         col.prop(brush, "stroke_method")
         col.separator()
 
-        if brush.use_anchor:
+        if brush.stroke_method == 'ANCHORED':
             col.prop(brush, "use_edge_to_edge", text="Edge to Edge")
 
-        if brush.use_airbrush:
+        if brush.stroke_method == 'AIRBRUSH':
             col.prop(brush, "rate", text="Rate", slider=True)
 
-        if brush.use_space:
+        if brush.stroke_method == 'SPACE':
             row = col.row(align=True)
             row.prop(brush, "spacing", text="Spacing")
             row.prop(brush, "use_pressure_spacing", toggle=True, text="")
 
-        if brush.use_line or brush.use_curve:
+        if brush.stroke_method in {'LINE', 'CURVE'}:
             row = col.row(align=True)
             row.prop(brush, "spacing", text="Spacing")
 
@@ -558,13 +551,13 @@ class StrokePanel(BrushPanel):
             if brush.image_paint_capabilities.has_space_attenuation or brush.sculpt_capabilities.has_space_attenuation:
                 col.prop(brush, "use_space_attenuation")
 
-        if brush.use_curve:
+        if brush.stroke_method == 'CURVE':
             col.separator()
             col.template_ID(brush, "paint_curve", new="paintcurve.new")
             col.operator("paintcurve.draw")
             col.separator()
 
-        if brush.use_space or brush.use_line or brush.use_curve:
+        if brush.stroke_method in {'SPACE', 'LINE', 'CURVE'}:
             col.separator()
             row = col.row(align=True)
             col.prop(brush, "dash_ratio", text="Dash Ratio")
@@ -792,16 +785,18 @@ def brush_settings(layout, context, brush, popover=False):
         sculpt_brush_type = brush.sculpt_brush_type
 
         # normal_radius_factor
-        layout.prop(brush, "normal_radius_factor", slider=True)
+        if capabilities.has_normal_radius:
+            layout.prop(brush, "normal_radius_factor", slider=True)
 
         if capabilities.has_tilt:
             layout.prop(brush, "tilt_strength_factor", slider=True)
 
         row = layout.row(align=True)
-        row.prop(brush, "hardness", slider=True)
-        if capabilities.has_hardness_pressure:
-            row.prop(brush, "invert_hardness_pressure", text="")
-            row.prop(brush, "use_hardness_pressure", text="")
+        if capabilities.has_hardness:
+            row.prop(brush, "hardness", slider=True)
+            if capabilities.has_hardness_pressure:
+                row.prop(brush, "invert_hardness_pressure", text="")
+                row.prop(brush, "use_hardness_pressure", text="")
 
         # auto_smooth_factor and use_inverse_smooth_pressure
         if capabilities.has_auto_smooth:
@@ -961,6 +956,12 @@ def brush_settings(layout, context, brush, popover=False):
         elif sculpt_brush_type == 'GRAB':
             layout.prop(brush, "use_grab_active_vertex")
             layout.prop(brush, "use_grab_silhouette")
+
+        elif sculpt_brush_type == 'SCENE_PROJECT':
+            layout.separator()
+            layout.prop(brush, "project_ray_direction_type")
+            layout.prop(brush, "minimum_distance")
+            layout.prop(brush, "use_bidirectional")
 
         elif sculpt_brush_type == 'PAINT':
             row = layout.row(align=True)
@@ -1711,25 +1712,20 @@ def brush_basic_grease_pencil_paint_settings(layout, context, brush, props, *, c
     if gp_settings is None:
         return
 
+    is_primitive_tool = tool.idname in {
+        "builtin.arc",
+        "builtin.curve",
+        "builtin.line",
+        "builtin.box",
+        "builtin.circle",
+        "builtin.polyline",
+    }
+
     grease_pencil_brush_type = brush.gpencil_brush_type
 
-    if grease_pencil_brush_type in {'DRAW', 'ERASE', 'TINT'} or tool.idname in {
-            "builtin.arc",
-            "builtin.curve",
-            "builtin.line",
-            "builtin.box",
-            "builtin.circle",
-            "builtin.polyline",
-    }:
+    if grease_pencil_brush_type in {'DRAW', 'ERASE', 'TINT'} or is_primitive_tool:
         size = "size"
-        if brush.use_locked_size == 'SCENE' and (grease_pencil_brush_type == 'DRAW' or tool.idname in {
-            "builtin.arc",
-            "builtin.curve",
-            "builtin.line",
-            "builtin.box",
-            "builtin.circle",
-            "builtin.polyline",
-        }):
+        if brush.use_locked_size == 'SCENE' and (grease_pencil_brush_type == 'DRAW' or is_primitive_tool):
             size = "unprojected_size"
         row = layout.row(align=True)
         row.prop(brush, size, slider=True, text="Size")
@@ -1767,23 +1763,24 @@ def brush_basic_grease_pencil_paint_settings(layout, context, brush, props, *, c
         layout.prop(props, "subdivision")
 
     # Brush details
-    if tool.idname in {
-            "builtin.arc",
-            "builtin.curve",
-            "builtin.line",
-            "builtin.box",
-            "builtin.circle",
-            "builtin.polyline",
-    }:
+    if is_primitive_tool:
+        row = layout.row(align=True)
+        if context.region.type == 'TOOL_HEADER':
+            row.prop_enum(brush.gpencil_settings, "stroke_type", 'STROKE', text="", icon='GP_DRAW_STROKE')
+            row.prop_enum(brush.gpencil_settings, "stroke_type", 'FILL', text="", icon='GP_DRAW_FILL')
+            row.prop_enum(brush.gpencil_settings, "stroke_type", 'BOTH', text="", icon='GP_DRAW_BOTH')
+        else:
+            row.prop(brush.gpencil_settings, "stroke_type")
+
         row = layout.row(align=True)
         if context.region.type == 'TOOL_HEADER':
             row.prop(gp_settings, "caps_type", text="", expand=True)
         else:
             row.prop(gp_settings, "caps_type", text="Caps Type")
 
+        row = layout.row(align=True)
         settings = context.tool_settings.gpencil_sculpt
         if compact:
-            row = layout.row(align=True)
             row.prop(settings, "use_thickness_curve", text="", icon='SPHERECURVE')
             sub = row.row(align=True)
             sub.active = settings.use_thickness_curve
@@ -1792,13 +1789,20 @@ def brush_basic_grease_pencil_paint_settings(layout, context, brush, props, *, c
                 text="Thickness Profile",
             )
         else:
-            row = layout.row(align=True)
             row.prop(settings, "use_thickness_curve", text="Use Thickness Profile")
             sub = row.row(align=True)
             if settings.use_thickness_curve:
                 # Pressure curve.
                 layout.template_curve_mapping(settings, "thickness_primitive_curve", brush=True)
     elif grease_pencil_brush_type == 'DRAW':
+        row = layout.row(align=True)
+        if compact:
+            row.prop_enum(brush.gpencil_settings, "stroke_type", 'STROKE', text="", icon='GP_DRAW_STROKE')
+            row.prop_enum(brush.gpencil_settings, "stroke_type", 'FILL', text="", icon='GP_DRAW_FILL')
+            row.prop_enum(brush.gpencil_settings, "stroke_type", 'BOTH', text="", icon='GP_DRAW_BOTH')
+        else:
+            row.prop(brush.gpencil_settings, "stroke_type")
+
         row = layout.row(align=True)
         if compact:
             row.prop(gp_settings, "caps_type", text="", expand=True)
@@ -1873,6 +1877,10 @@ def brush_basic_grease_pencil_weight_settings(layout, context, brush, *, compact
 
 
 def brush_basic_grease_pencil_vertex_settings(layout, context, brush, *, compact=False):
+    if brush.gpencil_vertex_brush_type == 'DRAW':
+        layout.prop(brush, "blend", text="Blend")
+        layout.separator()
+
     UnifiedPaintPanel.prop_unified(
         layout,
         context,
@@ -1904,9 +1912,17 @@ def brush_basic_grease_pencil_vertex_settings(layout, context, brush, *, compact
 
 
 classes = (
-    VIEW3D_PT_brush_asset_shelf_filter,
     VIEW3D_MT_tools_projectpaint_clone,
 )
+
+
+def register():
+    bpy.types.ASSETSHELF_PT_filter.append(brush_asset_shelf_filter_draw)
+
+
+def unregister():
+    bpy.types.ASSETSHELF_PT_filter.remove(brush_asset_shelf_filter_draw)
+
 
 if __name__ == "__main__":  # only for live edit.
     from bpy.utils import register_class

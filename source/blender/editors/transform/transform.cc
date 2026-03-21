@@ -1498,7 +1498,7 @@ wmOperatorStatus transformEvent(TransInfo *t, wmOperator *op, const wmEvent *eve
 
 bool calculateTransformCenter(bContext *C, int centerMode, float cent3d[3], float cent2d[2])
 {
-  TransInfo *t = MEM_callocN<TransInfo>("TransInfo data");
+  TransInfo *t = MEM_new_zeroed<TransInfo>("TransInfo data");
   bool success;
 
   t->context = C;
@@ -1542,7 +1542,7 @@ bool calculateTransformCenter(bContext *C, int centerMode, float cent3d[3], floa
 
   postTrans(C, t);
 
-  MEM_freeN(t);
+  MEM_delete(t);
 
   return success;
 }
@@ -1571,11 +1571,14 @@ static bool transinfo_show_overlay(TransInfo *t, ARegion *region)
       const SpaceAction *sact = static_cast<const SpaceAction *>(t->area->spacedata.first);
       return (sact->overlays.flag & ADS_OVERLAY_SHOW_OVERLAYS) != 0;
     }
-
     case SPACE_GRAPH: {
       /* There is no overlay flag defined yet for the Graph Editor. But there is the proportional
        * editing drawing that will not happen if we return false here. */
       return true;
+    }
+    case SPACE_CLIP: {
+      const SpaceClip *sclip = static_cast<const SpaceClip *>(t->area->spacedata.first);
+      return (sclip->overlay.flag & SC_SHOW_OVERLAYS) != 0;
     }
   }
   return false;

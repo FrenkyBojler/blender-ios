@@ -46,7 +46,7 @@ static void createTransSculpt(bContext *C, TransInfo *t)
   SculptSession &ss = *ob.runtime->sculpt_session;
 
   /* Avoid editing locked shapes. */
-  if (t->mode != TFM_DUMMY && sculpt_paint::report_if_shape_key_is_locked(ob, t->reports)) {
+  if (t->mode != TFM_DUMMY && !sculpt_paint::shape_key_check(ob, t->reports)) {
     return;
   }
 
@@ -55,8 +55,8 @@ static void createTransSculpt(bContext *C, TransInfo *t)
     TransDataContainer *tc = t->data_container;
     tc->data_len = 1;
     tc->is_active = true;
-    td = tc->data = MEM_callocN<TransData>(__func__);
-    td_ext = tc->data_ext = MEM_callocN<TransDataExtension>(__func__);
+    td = tc->data = MEM_new_zeroed<TransData>(__func__);
+    td_ext = tc->data_ext = MEM_new_zeroed<TransDataExtension>(__func__);
   }
 
   td->flag = TD_SELECTED;
