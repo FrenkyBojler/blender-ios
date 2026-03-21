@@ -35,6 +35,12 @@ if(CMAKE_C_COMPILER_ID MATCHES "Clang")
       "try running from the visual studio developer prompt."
     )
   endif()
+  # if set, leave CUDA_HOST_COMPILER alone, if not set default it with
+  # the path to cl.exe since otherwise it will try to use clang-cl and
+  # the cuda build will fail due to a non-supported compiler.
+  if(NOT DEFINED CUDA_HOST_COMPILER)
+    find_program(CUDA_HOST_COMPILER cl.exe)
+  endif()
 else()
   if(WITH_BLENDER)
     if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19.44.35216) # MSVC 2022 17.14.14
@@ -121,6 +127,7 @@ add_definitions(
   -D_CONSOLE
   -D_LIB
   -D_USE_MATH_DEFINES
+  -DWIN32_LEAN_AND_MEAN
   -DNOMINMAX
 )
 
@@ -153,7 +160,7 @@ if(WITH_WINDOWS_BUNDLE_CRT)
   # ucrtbase(d).dll cannot be in the manifest, due to the way windows 10 handles
   # redirects for this dll, for details see #88813.
   foreach(lib ${CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS})
-    string(FIND ${lib} "ucrtbase" pos)
+    string(FIND "${lib}" "ucrtbase" pos)
     if(NOT pos EQUAL -1)
       list(REMOVE_ITEM CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS ${lib})
       install(FILES ${lib} DESTINATION . COMPONENT Libraries)

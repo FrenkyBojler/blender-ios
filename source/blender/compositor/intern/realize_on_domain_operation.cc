@@ -8,7 +8,6 @@
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
 
-#include "GPU_capabilities.hh"
 #include "GPU_shader.hh"
 #include "GPU_texture.hh"
 
@@ -162,8 +161,8 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const SamplerOptions &optio
     case ResultType::Float:
     case ResultType::Float2:
     case ResultType::Float3:
-    case ResultType::Color:
     case ResultType::Float4:
+    case ResultType::Color:
       if (fast)
         shader_name = "compositor_realize_on_domain_float4";
       else if (options.sampler == math::Sampler::Bspline)
@@ -190,6 +189,10 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const SamplerOptions &optio
     case ResultType::Menu:
       fast = nearest = true;
       shader_name = "compositor_realize_on_domain_sint8";
+      break;
+    case ResultType::Float4x4:
+      fast = nearest = true;
+      shader_name = "compositor_realize_on_domain_float4x4";
       break;
     case ResultType::String:
       /* Single only types do not support GPU code path. */
@@ -307,6 +310,9 @@ void RealizeOnDomainOperation::realize_on_domain_cpu(const SamplerOptions &optio
     case ResultType::Bool:
       realize_on_domain<bool>(input, output, transformation);
       break;
+    case ResultType::Float4x4:
+      realize_on_domain<float4x4>(input, output, transformation);
+      break;
     case ResultType::Menu:
       realize_on_domain<nodes::MenuValue>(input, output, transformation);
       break;
@@ -359,15 +365,7 @@ SimpleOperation *RealizeOnDomainOperation::construct_if_needed(
     return nullptr;
   }
 
-  if (!context.use_gpu()) {
-    return new RealizeOnDomainOperation(context, realized_target_domain, input_descriptor.type);
-  }
-
-  /* Make sure the data size of the domain does not surpass what is possible on GPU. */
-  Domain safe_realized_target_domain = realized_target_domain;
-  safe_realized_target_domain.data_size = math::min(realized_target_domain.data_size,
-                                                    int2(GPU_max_texture_size()));
-  return new RealizeOnDomainOperation(context, safe_realized_target_domain, input_descriptor.type);
+  return new RealizeOnDomainOperation(context, realized_target_domain, input_descriptor.type);
 }
 
 }  // namespace blender::compositor

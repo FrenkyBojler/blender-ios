@@ -35,7 +35,7 @@ COMPUTE_FUNCTION("realize_on_domainTSampler_Bspline")
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 
-/* Nearest and Bilinear sampling, does not use wh */
+/* Nearest and Bilinear sampling which can use texture() */
 
 GPU_SHADER_CREATE_INFO(compositor_realize_on_domain_texture)
 LOCAL_GROUP_SIZE(16, 16)
@@ -77,6 +77,20 @@ GPU_SHADER_CREATE_INFO(compositor_realize_on_domain_sint8)
 ADDITIONAL_INFO(compositor_realize_on_domain_texture)
 SAMPLER(0, Int2D, input_tx)
 IMAGE(0, SINT_8, write, Int2D, domain_img)
+DO_STATIC_COMPILATION()
+GPU_SHADER_CREATE_END()
 
+/* --------
+ * Float4x4
+ * -------- */
+
+GPU_SHADER_CREATE_INFO(compositor_realize_on_domain_float4x4)
+LOCAL_GROUP_SIZE(16, 16)
+PUSH_CONSTANT(float4x4, transformation)
+PUSH_CONSTANT(float2, wh)
+COMPUTE_SOURCE("compositor_realize_on_domain.glsl")
+COMPUTE_FUNCTION("realize_on_domain_float4x4")
+SAMPLER(0, sampler2DArray, input_tx)
+IMAGE(0, SFLOAT_16_16_16_16, write, image2DArray, domain_img)
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
