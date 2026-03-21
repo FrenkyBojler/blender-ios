@@ -136,6 +136,10 @@ static ColorGeometry4b float2_to_byte_color(const float2 &a)
 {
   return color::encode(float2_to_color(a));
 }
+static math::Quaternion float2_to_quaternion(const float2 &a)
+{
+  return math::to_quaternion(math::EulerXYZ(float3(a.x, a.y, 0.0f)));
+}
 
 static bool float3_to_bool(const float3 &a)
 {
@@ -642,6 +646,7 @@ static DataTypeConversions create_implicit_conversions()
   add_implicit_conversion<float2, int8_t, float2_to_int8>(conversions);
   add_implicit_conversion<float2, ColorGeometry4f, float2_to_color>(conversions);
   add_implicit_conversion<float2, ColorGeometry4b, float2_to_byte_color>(conversions);
+  add_implicit_conversion<float2, math::Quaternion, float2_to_quaternion>(conversions);
 
   add_implicit_conversion<float3, bool, float3_to_bool>(conversions);
   add_implicit_conversion<float3, int8_t, float3_to_int8>(conversions);

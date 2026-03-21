@@ -170,6 +170,15 @@ void convert_float2_to_bool()
   imageStore(image_out, texel, int4(float2_to_bool(value.xy)));
 }
 
+void convert_float2_to_quaternion()
+{
+  auto &sampler_in = sampler_get(compositor_convert_float2_to_quaternion, input_tx);
+  auto &image_out = image_get(compositor_convert_float2_to_quaternion, output_img);
+  int2 texel = int2(gl_GlobalInvocationID.xy);
+  float4 value = texture_load(sampler_in, texel);
+  imageStore(image_out, texel, float2_to_quaternion(value.xy));
+}
+
 /* --------------------------------------------------------------------
  * Float3 to other.
  */

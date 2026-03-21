@@ -142,6 +142,11 @@ bool float2_to_bool(float2 value)
   return !all(equal(value, float2(0.0f)));
 }
 
+float4 float2_to_quaternion(float2 value)
+{
+  return to_quaternion(EulerXYZ::from_float3(float3(value, 0.0f))).as_float4();
+}
+
 /* --------------------------------------------------------------------
  * Float3 to other.
  */

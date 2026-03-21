@@ -334,6 +334,13 @@ COMPUTE_FUNCTION("convert_float2_to_bool")
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 
+GPU_SHADER_CREATE_INFO(compositor_convert_float2_to_quaternion)
+ADDITIONAL_INFO(compositor_convert_float_shared)
+IMAGE(0, SFLOAT_16_16_16_16, write, image2D, output_img)
+COMPUTE_FUNCTION("convert_float2_to_quaternion")
+DO_STATIC_COMPILATION()
+GPU_SHADER_CREATE_END()
+
 /* --------------------------------------------------------------------
  * Float3 to other.
  */
