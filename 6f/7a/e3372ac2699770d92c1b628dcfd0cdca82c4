@@ -1,3 +1,4 @@
 Referenced by commit 280683b939e07e2fa3391e1aced1a1a6e9053151, Cleanup: unused paramter warning after 6f7ae3372ac2
 Referenced by issue #155858, Blender 5.1 performance regression when accessing UV vectors in Python
 Referenced by pull request #155867, Fix #155858: accessing UV vectors in Python is extremely slow
+Referenced by commit b81d8cb88d619cb5de1f312642d3b692b2fcda8c, Fix #155858: accessing UV vectors in Python is extremely slow
