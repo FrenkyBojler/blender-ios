@@ -593,6 +593,13 @@ static void popup_block_remove(bContext *C, PopupBlockHandle *handle)
   if (handle->scrolltimer) {
     WM_event_timer_remove(wm, win, handle->scrolltimer);
   }
+  if (handle->keep_open_timer) {
+    WM_event_timer_remove(wm, win, handle->keep_open_timer);
+  }
+  if (handle->mmb_panning) {
+    WM_cursor_set(win, WM_CURSOR_DEFAULT);
+    WM_cursor_grab_disable(win, nullptr);
+  }
 }
 
 void layout_panel_popup_scroll_apply(Panel *panel, const float dy)
@@ -665,7 +672,7 @@ void popup_dummy_panel_set(ARegion *region, Block *block, StringRef idname)
     panel = BKE_panel_new(&panel_type);
   }
   panel->runtime->layout_panels.clear();
-  panel->runtime->popup_layout_panel_states = &popup_persistent_layout_panel_states(idname);
+  panel->runtime->layout_panel_states_storage = &popup_persistent_layout_panel_states(idname);
   block->panel = panel;
   panel->runtime->block = block;
 }
