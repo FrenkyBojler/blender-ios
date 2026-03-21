@@ -1491,7 +1491,7 @@ set(CXX_WARNINGS "")
 # that are useful in the general case.
 set(C_REMOVE_STRICT_FLAGS "")    # C-only.
 set(CXX_REMOVE_STRICT_FLAGS "")  # C++-only.
-set(CC_REMOVE_STRICT_FLAGS "")   # Shared C & C++.
+set(C_AND_CXX_REMOVE_STRICT_FLAGS "")   # Shared C & C++.
 
 # Libraries to link to targets in setup_platform_linker_libs
 set(PLATFORM_LINKLIBS "")
@@ -2075,18 +2075,18 @@ if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
 
   # flags to undo strict flags
   add_check_c_compiler_flags(
-    CC_REMOVE_STRICT_FLAGS
+    C_AND_CXX_REMOVE_STRICT_FLAGS
 
-    CC_WARN_NO_DEPRECATED_DECLARATIONS -Wno-deprecated-declarations
-    CC_WARN_NO_UNUSED_PARAMETER -Wno-unused-parameter
-    CC_WARN_NO_UNUSED_FUNCTION -Wno-unused-function
-    CC_WARN_NO_TYPE_LIMITS -Wno-type-limits
-    CC_WARN_NO_INT_IN_BOOL_CONTEXT -Wno-int-in-bool-context
-    CC_WARN_NO_FORMAT -Wno-format
-    CC_WARN_NO_SWITCH -Wno-switch
-    CC_WARN_NO_UNUSED_VARIABLE -Wno-unused-variable
-    CC_WARN_NO_UNINITIALIZED -Wno-uninitialized
-    CC_WARN_NO_IMPLICIT_FALLTHROUGH -Wno-implicit-fallthrough
+    C_AND_CXX_WARN_NO_DEPRECATED_DECLARATIONS -Wno-deprecated-declarations
+    C_AND_CXX_WARN_NO_UNUSED_PARAMETER -Wno-unused-parameter
+    C_AND_CXX_WARN_NO_UNUSED_FUNCTION -Wno-unused-function
+    C_AND_CXX_WARN_NO_TYPE_LIMITS -Wno-type-limits
+    C_AND_CXX_WARN_NO_INT_IN_BOOL_CONTEXT -Wno-int-in-bool-context
+    C_AND_CXX_WARN_NO_FORMAT -Wno-format
+    C_AND_CXX_WARN_NO_SWITCH -Wno-switch
+    C_AND_CXX_WARN_NO_UNUSED_VARIABLE -Wno-unused-variable
+    C_AND_CXX_WARN_NO_UNINITIALIZED -Wno-uninitialized
+    C_AND_CXX_WARN_NO_IMPLICIT_FALLTHROUGH -Wno-implicit-fallthrough
   )
 
 
@@ -2102,8 +2102,8 @@ if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
 
   if(NOT APPLE)
     add_check_c_compiler_flags(
-      CC_REMOVE_STRICT_FLAGS
-      CC_WARN_NO_ERROR_UNUSED_BUT_SET_VARIABLE -Wno-error=unused-but-set-variable
+      C_AND_CXX_REMOVE_STRICT_FLAGS
+      C_AND_CXX_WARN_NO_ERROR_UNUSED_BUT_SET_VARIABLE -Wno-error=unused-but-set-variable
     )
   endif()
 
@@ -2114,7 +2114,7 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
     # it's a bit odd to remove this flag and then add it right back in
     # but order matters here, the C/CXX warn flags come before the standard
     # W3 flag, which will reset all flags to their default state.
-    remove_cc_flag("/W3")
+    remove_c_and_cxx_flag("/W3")
     # From the clang-cl docs
     # `/W0                     Disable all warnings`
     # `/W1                     Enable -Wall`
@@ -2187,27 +2187,27 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
   # flags to undo strict flags
 
   add_check_c_compiler_flags(
-    CC_REMOVE_STRICT_FLAGS
+    C_AND_CXX_REMOVE_STRICT_FLAGS
 
-    CC_WARN_NO_UNUSED_PARAMETER -Wno-unused-parameter
-    CC_WARN_NO_UNUSED_VARIABLE -Wno-unused-variable
-    CC_WARN_NO_UNUSED_MACROS -Wno-unused-macros
-    CC_WARN_NO_MISLEADING_INDENTATION -Wno-misleading-indentation
+    C_AND_CXX_WARN_NO_UNUSED_PARAMETER -Wno-unused-parameter
+    C_AND_CXX_WARN_NO_UNUSED_VARIABLE -Wno-unused-variable
+    C_AND_CXX_WARN_NO_UNUSED_MACROS -Wno-unused-macros
+    C_AND_CXX_WARN_NO_MISLEADING_INDENTATION -Wno-misleading-indentation
 
-    CC_WARN_NO_MISSING_VARIABLE_DECLARATIONS -Wno-missing-variable-declarations
-    CC_WARN_NO_INCOMPAT_PTR_DISCARD_QUAL -Wno-incompatible-pointer-types-discards-qualifiers
-    CC_WARN_NO_UNUSED_FUNCTION -Wno-unused-function
-    CC_WARN_NO_INT_TO_VOID_POINTER_CAST -Wno-int-to-void-pointer-cast
-    CC_WARN_NO_MISSING_PROTOTYPES -Wno-missing-prototypes
-    CC_WARN_NO_DUPLICATE_ENUM -Wno-duplicate-enum
-    CC_WARN_NO_UNDEF -Wno-undef
-    CC_WARN_NO_MISSING_NORETURN -Wno-missing-noreturn
-    CC_WARN_NO_UNUSED_BUT_SET_VARIABLE -Wno-unused-but-set-variable
-    CC_WARN_NO_DEPRECATED_DECLARATIONS -Wno-deprecated-declarations
-    CC_WARN_NO_STRICT_PROTOTYPES -Wno-strict-prototypes
-    CC_WARN_NO_BITWISE_INSTEAD_OF_LOGICAL -Wno-bitwise-instead-of-logical
-    CC_WARN_NO_IMPLICIT_CONST_INT_FLOAT_CONVERSION -Wno-implicit-const-int-float-conversion
-    CC_WARN_NO_SINGLE_BIT_BITFIELD_CONSTANT_CONVERSION -Wno-single-bit-bitfield-constant-conversion
+    C_AND_CXX_WARN_NO_MISSING_VARIABLE_DECLARATIONS -Wno-missing-variable-declarations
+    C_AND_CXX_WARN_NO_INCOMPAT_PTR_DISCARD_QUAL -Wno-incompatible-pointer-types-discards-qualifiers
+    C_AND_CXX_WARN_NO_UNUSED_FUNCTION -Wno-unused-function
+    C_AND_CXX_WARN_NO_INT_TO_VOID_POINTER_CAST -Wno-int-to-void-pointer-cast
+    C_AND_CXX_WARN_NO_MISSING_PROTOTYPES -Wno-missing-prototypes
+    C_AND_CXX_WARN_NO_DUPLICATE_ENUM -Wno-duplicate-enum
+    C_AND_CXX_WARN_NO_UNDEF -Wno-undef
+    C_AND_CXX_WARN_NO_MISSING_NORETURN -Wno-missing-noreturn
+    C_AND_CXX_WARN_NO_UNUSED_BUT_SET_VARIABLE -Wno-unused-but-set-variable
+    C_AND_CXX_WARN_NO_DEPRECATED_DECLARATIONS -Wno-deprecated-declarations
+    C_AND_CXX_WARN_NO_STRICT_PROTOTYPES -Wno-strict-prototypes
+    C_AND_CXX_WARN_NO_BITWISE_INSTEAD_OF_LOGICAL -Wno-bitwise-instead-of-logical
+    C_AND_CXX_WARN_NO_IMPLICIT_CONST_INT_FLOAT_CONVERSION -Wno-implicit-const-int-float-conversion
+    C_AND_CXX_WARN_NO_SINGLE_BIT_BITFIELD_CONSTANT_CONVERSION -Wno-single-bit-bitfield-constant-conversion
   )
 
   add_check_cxx_compiler_flags(
@@ -2435,8 +2435,8 @@ endif()
 if(WITH_ASSERT_RELEASE)
   # CMake seemingly be setting the NDEBUG flag on its own already on some configurations
   # therefore we need to remove the flags if they happen to be set.
-  remove_cc_flag("-DNDEBUG") # GCC/CLang
-  remove_cc_flag("/DNDEBUG") # MSVC
+  remove_c_and_cxx_flag("-DNDEBUG") # GCC/CLang
+  remove_c_and_cxx_flag("/DNDEBUG") # MSVC
 else()
   set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS
     $<$<CONFIG:Release>:NDEBUG>
