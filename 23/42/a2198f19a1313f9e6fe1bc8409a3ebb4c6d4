@@ -4,3 +4,4 @@ Referenced by issue #155858, Blender 5.1 performance regression when accessing U
 Referenced by pull request #155867, Fix #155858: accessing UV vectors in Python is extremely slow
 Referenced by issue #155894, Geometry node modifier does not list vertex groups
 Referenced by pull request #156014, Cleanup: Use attribute dedicated lookup_int for Float4
+Referenced by commit 25cebfa62445de5e7d10bd9d23407068e078ca86, Cleanup: Use attribute dedicated lookup_int for Float4
