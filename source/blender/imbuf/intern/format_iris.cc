@@ -30,6 +30,8 @@ namespace blender {
 
 static CLG_LogRef LOG = {"image.iris"};
 
+const char *imb_file_extensions_iris[] = {".sgi", ".rgb", ".rgba", ".bw", nullptr};
+
 /**
  * The SGI IRIS magic number.
  * The value is `[0x01 0xda]` when read as a big-endian ushort.
@@ -824,6 +826,11 @@ static bool output_iris(const char *filepath,
       if (zsize == 1) {
         lumrow(reinterpret_cast<const uchar *>(lptr), reinterpret_cast<uchar *>(lumbuf), xsize);
         len = compressrow(reinterpret_cast<const uchar *>(lumbuf), rlebuf, z, xsize);
+      }
+      else if (zsize == 2) {
+        /* Map: gray=0, alpha=3 (alpha is #ImBuf byte offset 3, not 1). */
+        const int z_ofs[] = {0, 3};
+        len = compressrow(reinterpret_cast<const uchar *>(lptr), rlebuf, z_ofs[z], xsize);
       }
       else {
         if (z < 4) {

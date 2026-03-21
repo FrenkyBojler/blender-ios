@@ -87,6 +87,7 @@
 
 #include "NOD_common.hh"
 #include "NOD_composite.hh"
+#include "NOD_dependencies.hh"
 #include "NOD_geo_bake.hh"
 #include "NOD_geo_bundle.hh"
 #include "NOD_geo_capture_attribute.hh"
@@ -96,7 +97,6 @@
 #include "NOD_geo_menu_switch.hh"
 #include "NOD_geo_repeat.hh"
 #include "NOD_geo_simulation.hh"
-#include "NOD_geometry_nodes_dependencies.hh"
 #include "NOD_geometry_nodes_gizmos.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
 #include "NOD_menu_value.hh"
@@ -390,6 +390,7 @@ static void library_foreach_node_socket(bNodeSocket *sock, LibraryForeachIDData 
     case SOCK_MENU:
     case SOCK_BUNDLE:
     case SOCK_CLOSURE:
+    case SOCK_INT_VECTOR:
       break;
   }
 }
@@ -435,8 +436,8 @@ static void node_foreach_id(ID *id, LibraryForeachIDData *data)
 
   ntree->tree_interface.foreach_id(data);
 
-  if (ntree->runtime->geometry_nodes_eval_dependencies) {
-    for (ID *&id_ref : ntree->runtime->geometry_nodes_eval_dependencies->ids.values()) {
+  if (ntree->runtime->eval_dependencies) {
+    for (ID *&id_ref : ntree->runtime->eval_dependencies->ids.values()) {
       BKE_LIB_FOREACHID_PROCESS_ID(data, id_ref, IDWALK_CB_HASH_IGNORE);
     }
   }
@@ -1096,6 +1097,9 @@ static void write_node_socket_default_value(BlendWriter *writer, const bNodeSock
     case SOCK_MENU:
       writer->write_struct_cast<bNodeSocketValueMenu>(sock->default_value);
       break;
+    case SOCK_INT_VECTOR:
+      writer->write_struct_cast<bNodeSocketValueIntVector>(sock->default_value);
+      break;
     case SOCK_MATRIX:
       /* Matrix sockets currently have no default value. */
       break;
@@ -1212,12 +1216,12 @@ static void node_blend_write_storage(BlendWriter *writer, bNodeTree *ntree, bNod
   else if (node->type_legacy == SH_NODE_SCRIPT) {
     NodeShaderScript *nss = static_cast<NodeShaderScript *>(node->storage);
     if (nss->bytecode) {
-      BLO_write_string(writer, nss->bytecode);
+      writer->write_string(nss->bytecode);
     }
   }
   else if (ELEM(node->type_legacy, CMP_NODE_CRYPTOMATTE, CMP_NODE_CRYPTOMATTE_LEGACY)) {
     NodeCryptomatte *nc = static_cast<NodeCryptomatte *>(node->storage);
-    BLO_write_string(writer, nc->matte_id);
+    writer->write_string(nc->matte_id);
     for (CryptomatteEntry &entry : nc->entries) {
       writer->write_struct(&entry);
     }
@@ -1227,7 +1231,7 @@ static void node_blend_write_storage(BlendWriter *writer, bNodeTree *ntree, bNod
 void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
 {
   BKE_id_blend_write(writer, &ntree->id);
-  BLO_write_string(writer, ntree->description);
+  writer->write_string(ntree->description);
 
   /* Restore IDs overridden for forward compatibility. Otherwise their user count becomes wrong. */
   Map<ID **, ID *> ids_to_restore;
@@ -1238,7 +1242,7 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
 
   for (bNode *node : ntree->all_nodes()) {
     if (ntree->type == NTREE_SHADER && node->type_legacy == SH_NODE_BSDF_HAIR_PRINCIPLED) {
-      /* For Principeld Hair BSDF, also write to `node->custom1` for forward compatibility, because
+      /* For Principled Hair BSDF, also write to `node->custom1` for forward compatibility, because
        * prior to 4.0 `node->custom1` was used for color parametrization instead of
        * `node->storage->parametrization`. */
       NodeShaderHairPrincipled *data = static_cast<NodeShaderHairPrincipled *>(node->storage);
@@ -1286,7 +1290,7 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
 
   writer->write_struct(ntree->geometry_node_asset_traits);
   if (ntree->geometry_node_asset_traits) {
-    BLO_write_string(writer, ntree->geometry_node_asset_traits->node_tool_idname);
+    writer->write_string(ntree->geometry_node_asset_traits->node_tool_idname);
   }
 
   writer->write_struct_array(ntree->nested_node_refs_num, ntree->nested_node_refs);
@@ -1352,6 +1356,7 @@ static bool is_node_socket_supported(const bNodeSocket *sock)
     case SOCK_MATRIX:
     case SOCK_BUNDLE:
     case SOCK_CLOSURE:
+    case SOCK_INT_VECTOR:
       return true;
   }
   return false;
@@ -1558,6 +1563,9 @@ static void direct_link_node_socket_default_value(BlendDataReader *reader, bNode
       case SOCK_MENU:
         BLO_read_struct(reader, bNodeSocketValueMenu, &sock->default_value);
         break;
+      case SOCK_INT_VECTOR:
+        BLO_read_struct(reader, bNodeSocketValueIntVector, &sock->default_value);
+        break;
       case SOCK_MATRIX:
         /* Matrix sockets currently have no default value. */
       case SOCK_CUSTOM:
@@ -1738,6 +1746,7 @@ static void direct_link_node_socket_default_value(BlendDataReader *reader, bNode
       case SOCK_GEOMETRY:
       case SOCK_BUNDLE:
       case SOCK_CLOSURE:
+      case SOCK_INT_VECTOR:
         BLI_assert_unreachable();
         break;
     }
@@ -2839,6 +2848,7 @@ static void socket_id_user_increment(bNodeSocket *sock)
     case SOCK_GEOMETRY:
     case SOCK_BUNDLE:
     case SOCK_CLOSURE:
+    case SOCK_INT_VECTOR:
       break;
   }
 }
@@ -2914,6 +2924,9 @@ static void node_socket_free_default_value(bNodeSocket *sock, const bool do_id_u
       MEM_delete(&default_value_menu);
       break;
     }
+    case SOCK_INT_VECTOR:
+      MEM_delete(sock->default_value_typed<bNodeSocketValueIntVector>());
+      break;
     case SOCK_MATRIX:
     case SOCK_CUSTOM:
     case SOCK_SHADER:
@@ -2997,6 +3010,7 @@ static bool socket_id_user_decrement(bNodeSocket *sock)
     case SOCK_GEOMETRY:
     case SOCK_BUNDLE:
     case SOCK_CLOSURE:
+    case SOCK_INT_VECTOR:
       break;
   }
   return false;
@@ -3060,6 +3074,7 @@ void node_modify_socket_type(bNodeTree &ntree,
         case SOCK_MENU:
         case SOCK_BUNDLE:
         case SOCK_CLOSURE:
+        case SOCK_INT_VECTOR:
           break;
       }
     }
@@ -3117,7 +3132,7 @@ std::optional<StringRefNull> node_static_socket_type(const int type,
                                                      const int subtype,
                                                      const std::optional<int> dimensions)
 {
-  BLI_assert(!(dimensions.has_value() && type != SOCK_VECTOR));
+  BLI_assert(!(dimensions.has_value() && !ELEM(type, SOCK_VECTOR, SOCK_INT_VECTOR)));
 
   switch (eNodeSocketDatatype(type)) {
     case SOCK_FLOAT:
@@ -3239,6 +3254,37 @@ std::optional<StringRefNull> node_static_socket_type(const int type,
       else {
         BLI_assert_unreachable();
         return "NodeSocketVector";
+      }
+    case SOCK_INT_VECTOR:
+      if (!dimensions.has_value() || dimensions.value() == 3) {
+        switch (PropertySubType(subtype)) {
+          case PROP_UNSIGNED:
+            return "NodeSocketIntVectorUnsigned3D";
+          case PROP_FACTOR:
+            return "NodeSocketIntVectorFactor3D";
+          case PROP_PERCENTAGE:
+            return "NodeSocketIntVectorPercentage3D";
+          case PROP_NONE:
+          default:
+            return "NodeSocketIntVector3D";
+        }
+      }
+      else if (dimensions.value() == 2) {
+        switch (PropertySubType(subtype)) {
+          case PROP_UNSIGNED:
+            return "NodeSocketIntVectorUnsigned2D";
+          case PROP_FACTOR:
+            return "NodeSocketIntVectorFactor2D";
+          case PROP_PERCENTAGE:
+            return "NodeSocketIntVectorPercentage2D";
+          case PROP_NONE:
+          default:
+            return "NodeSocketIntVector2D";
+        }
+      }
+      else {
+        BLI_assert_unreachable();
+        return "NodeSocketIntVector3D";
       }
     case SOCK_RGBA:
       return "NodeSocketColor";
@@ -3409,6 +3455,37 @@ std::optional<StringRefNull> node_static_socket_interface_type_new(
         BLI_assert_unreachable();
         return "NodeTreeInterfaceSocketVector";
       }
+    case SOCK_INT_VECTOR:
+      if (!dimensions.has_value() || dimensions.value() == 3) {
+        switch (PropertySubType(subtype)) {
+          case PROP_UNSIGNED:
+            return "NodeTreeInterfaceSocketIntVectorUnsigned3D";
+          case PROP_FACTOR:
+            return "NodeTreeInterfaceSocketIntVectorFactor3D";
+          case PROP_PERCENTAGE:
+            return "NodeTreeInterfaceSocketIntVectorPercentage3D";
+          case PROP_NONE:
+          default:
+            return "NodeTreeInterfaceSocketIntVector3D";
+        }
+      }
+      else if (dimensions.value() == 2) {
+        switch (PropertySubType(subtype)) {
+          case PROP_UNSIGNED:
+            return "NodeTreeInterfaceSocketIntVectorUnsigned2D";
+          case PROP_FACTOR:
+            return "NodeTreeInterfaceSocketIntVectorFactor2D";
+          case PROP_PERCENTAGE:
+            return "NodeTreeInterfaceSocketIntVectorPercentage2D";
+          case PROP_NONE:
+          default:
+            return "NodeTreeInterfaceSocketIntVector2D";
+        }
+      }
+      else {
+        BLI_assert_unreachable();
+        return "NodeTreeInterfaceSocketIntVector3D";
+      }
     case SOCK_RGBA:
       return "NodeTreeInterfaceSocketColor";
     case SOCK_STRING:
@@ -3503,6 +3580,8 @@ std::optional<StringRefNull> node_static_socket_label(const int type, const int 
       return "Bundle";
     case SOCK_CLOSURE:
       return "Closure";
+    case SOCK_INT_VECTOR:
+      return "Integer Vector";
     case SOCK_CUSTOM:
       break;
   }
@@ -4044,6 +4123,8 @@ static void *socket_value_storage(bNodeSocket &socket)
       return &socket.default_value_typed<bNodeSocketValueRotation>()->value_euler;
     case SOCK_MENU:
       return &socket.default_value_typed<bNodeSocketValueMenu>()->value;
+    case SOCK_INT_VECTOR:
+      return &socket.default_value_typed<bNodeSocketValueIntVector>()->value;
     case SOCK_MATRIX:
       /* Matrix sockets currently have no default value. */
       return nullptr;
@@ -4199,8 +4280,9 @@ bNodeLink &node_add_link(
   }
 
   BKE_ntree_update_tag_link_added(&ntree, link);
+  BLI_assert(link);
 
-  if (link != nullptr && link->tosock->is_multi_input()) {
+  if (link->tosock->is_multi_input()) {
     link->multi_input_sort_id = node_count_links(&ntree, link->tosock) - 1;
   }
 

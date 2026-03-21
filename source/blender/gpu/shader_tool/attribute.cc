@@ -24,9 +24,9 @@ void SourceProcessor::lint_attributes(Parser &parser)
     Scope attributes = par_open.next().scope();
     bool invalid = false;
     attributes.foreach_attribute([&](Token attr, Scope attr_scope) {
-      string attr_str = attr.str();
+      string attr_str = string(attr.str());
       if (attr_str == "base_instance" || attr_str == "clip_distance" ||
-          attr_str == "compilation_constant" || attr_str == "compute" ||
+          attr_str == "compilation_constant" || attr_str == "compute" || attr_str == "shared" ||
           attr_str == "early_fragment_tests" || attr_str == "flat" || attr_str == "frag_coord" ||
           attr_str == "frag_stencil_ref" || attr_str == "fragment" || attr_str == "front_facing" ||
           attr_str == "global_invocation_id" || attr_str == "in" || attr_str == "instance_id" ||
@@ -121,7 +121,8 @@ void SourceProcessor::lint_attributes(Parser &parser)
       Token prev_tok = attributes.front().prev().prev();
       if (prev_tok == '(' || prev_tok == '{' || prev_tok == ';' || prev_tok == ',' ||
           prev_tok == '}' || prev_tok == ')' || prev_tok == '\n' || prev_tok == ' ' ||
-          prev_tok.is_invalid() || prev_tok.scope().type() == ScopeType::Preprocessor)
+          prev_tok == '>' || prev_tok.is_invalid() ||
+          prev_tok.scope().type() == ScopeType::Preprocessor)
       {
         /* Placement is maybe correct. Could refine a bit more. */
       }
