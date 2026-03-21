@@ -4,3 +4,4 @@ Referenced by commit 3f908d7634c7fd5f707201c6f8a0408fd3800e66, Fix #155159: attr
 Referenced by issue #155669, Assigning values to vector attribute is extremely slow
 Referenced by issue #155858, Blender 5.1 performance regression when accessing UV vectors in Python
 Referenced by pull request #155867, Fix #155858: accessing UV vectors in Python is extremely slow
+Referenced by commit b81d8cb88d619cb5de1f312642d3b692b2fcda8c, Fix #155858: accessing UV vectors in Python is extremely slow
