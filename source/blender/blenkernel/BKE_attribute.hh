@@ -725,6 +725,8 @@ class AttributeAccessor {
                        const AttrDomain from_domain,
                        const AttrDomain to_domain) const
   {
+    BLI_assert(this->domain_supported(from_domain));
+    BLI_assert(this->domain_supported(to_domain));
     return fn_->adapt_domain(owner_, varray, from_domain, to_domain);
   }
 
@@ -821,9 +823,7 @@ class MutableAttributeAccessor : public AttributeAccessor {
            const AttrType data_type,
            const AttributeInit &initializer)
   {
-    if (!this->domain_supported(domain)) {
-      return false;
-    }
+    BLI_assert(this->domain_supported(domain));
     if (this->contains(name)) {
       return false;
     }

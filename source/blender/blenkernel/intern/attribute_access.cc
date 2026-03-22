@@ -365,6 +365,7 @@ static GAttributeReader adapt_domain_and_type_if_necessary(GAttributeReader attr
                                                            const std::optional<AttrType> data_type,
                                                            const AttributeAccessor &accessor)
 {
+  BLI_assert(!domain.has_value() || accessor.domain_supported(*domain));
   if (!attribute) {
     return {};
   }
@@ -497,6 +498,7 @@ GAttributeWriter MutableAttributeAccessor::lookup_or_add_for_write(
     const AttrType data_type,
     const AttributeInit &initializer)
 {
+  BLI_assert(this->domain_supported(domain));
   std::optional<AttributeMetaData> meta_data = this->lookup_meta_data(name);
   if (meta_data.has_value()) {
     if (meta_data->domain == domain && meta_data->data_type == data_type) {
