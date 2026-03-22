@@ -109,12 +109,12 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 
 class LazyFunctionForSwitchNode : public LazyFunction {
  private:
-  int32_t node_id_;
+  const bNode &node_;
   bool can_be_field_ = false;
   const CPPType *base_type_;
 
  public:
-  LazyFunctionForSwitchNode(const bNode &node) : node_id_(node.identifier)
+  LazyFunctionForSwitchNode(const bNode &node) : node_(node)
   {
     const NodeSwitch &storage = node_storage(node);
     const eNodeSocketDatatype data_type = eNodeSocketDatatype(storage.input_type);
@@ -147,19 +147,19 @@ class LazyFunctionForSwitchNode : public LazyFunction {
       return;
     }
     tree_logger->node_warnings.append(*tree_logger->allocator,
-                                      {node_id_, {NodeWarningType::Error, error}});
+                                      {node_.identifier, {NodeWarningType::Error, error}});
   }
 
   void execute_impl(lf::Params &params, const lf::Context &context) const override
   {
     SocketValueVariant condition_variant = params.get_input<SocketValueVariant>(0);
-    if (!condition_variant.is_volume_grid()) {
+    if (condition_variant.is_volume_grid()) {
       this->log_error(context, N_("Grid is not supported as switch condition"));
       this->execute_single(false, params);
       return;
     }
 
-    if (!condition_variant.is_list()) {
+    if (condition_variant.is_list()) {
       this->log_error(context, N_("List is not supported as switch condition"));
       this->execute_single(false, params);
       return;

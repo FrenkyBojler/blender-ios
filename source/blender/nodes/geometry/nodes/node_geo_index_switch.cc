@@ -333,15 +333,44 @@ class LazyFunctionForIndexSwitchNode : public LazyFunction {
     }
   }
 
-  void execute_impl(lf::Params &params, const lf::Context & /*context*/) const override
+  void log_error(const lf::Context &context, std::string error) const
+  {
+    auto &user_data = *static_cast<GeoNodesUserData *>(context.user_data);
+    auto &local_user_data = *static_cast<GeoNodesLocalUserData *>(context.local_user_data);
+    geo_eval_log::GeoTreeLogger *tree_logger = local_user_data.try_get_tree_logger(user_data);
+    if (tree_logger == nullptr) {
+      return;
+    }
+    tree_logger->node_warnings.append(*tree_logger->allocator,
+                                      {node_.identifier, {NodeWarningType::Error, error}});
+  }
+
+  void execute_impl(lf::Params &params, const lf::Context &context) const override
   {
     SocketValueVariant index_variant = params.get_input<SocketValueVariant>(0);
-    if (index_variant.is_context_dependent_field() && can_be_field_) {
-      this->execute_field(index_variant.get<Field<int>>(), params);
+    if (index_variant.is_volume_grid()) {
+      this->log_error(context, N_("Grid is not supported as switch index"));
+      this->execute_single(index_variant.get<int>(), params);
+      return;
     }
-    else {
+
+    if (index_variant.is_list()) {
+      this->log_error(context, N_("List is not supported as switch index"));
+      this->execute_single(index_variant.get<int>(), params);
+      return;
+    }
+
+    if (!index_variant.is_context_dependent_field()) {
       this->execute_single(index_variant.get<int>(), params);
     }
+
+    if (!can_be_field_) {
+      this->log_error(context, N_("Type cannot be switched by a field"));
+      this->execute_single(index_variant.get<int>(), params);
+      return;
+    }
+
+    this->execute_field(index_variant.get<Field<int>>(), params);
   }
 
   int values_num() const
