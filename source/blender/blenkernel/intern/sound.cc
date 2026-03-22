@@ -47,8 +47,8 @@
 
 #  include <Exception.h>
 #  include <IReader.h>
-#  include <devices/CaptureDevice.h>
 #  include <devices/DeviceManager.h>
+#  include <devices/ICaptureDeviceFactory.h>
 #  include <devices/IDeviceFactory.h>
 #  include <devices/IHandle.h>
 #  include <devices/NULLDevice.h>
@@ -271,7 +271,7 @@ static char **audio_device_names = nullptr;
 static char **capture_device_names = nullptr;
 
 struct SoundVoiceoverSession {
-  std::unique_ptr<aud::CaptureDevice> capture_device;
+  std::shared_ptr<aud::IReader> capture_reader;
   std::shared_ptr<aud::IWriter> writer;
   aud::DeviceSpecs specs;
   std::string filepath;
@@ -1504,7 +1504,7 @@ char **BKE_sound_get_device_names()
 
   return audio_device_names;
 }
-// voiceover: this functions is weired, shows all devices(input and output)
+
 char **BKE_sound_get_capture_device_names()
 {
   if (capture_device_names != nullptr) {
@@ -1515,7 +1515,7 @@ char **BKE_sound_get_capture_device_names()
     capture_device_names = nullptr;
   }
 
-  std::vector<std::string> v_names = aud::CaptureDevice::getAvailableInputDeviceNames();
+  std::vector<std::string> v_names = aud::DeviceManager::getAvailableCaptureDeviceNames();
   const int names_count = int(v_names.size());
   char **names = static_cast<char **>(malloc(sizeof(char *) * (names_count + 1)));
 
@@ -1561,9 +1561,15 @@ SoundVoiceoverSession *BKE_sound_voiceover_session_start(const SoundVoiceoverSet
   session->gain = max_ff(0.0f, settings->gain);
 
   try {
-    const std::string device_name = (settings->device_name != nullptr) ? settings->device_name :
-                                                                         "";
-    session->capture_device = std::make_unique<aud::CaptureDevice>(device_name, session->specs);
+    std::string device_name = (settings->device_name != nullptr) ? settings->device_name : "";
+    if (device_name.empty()) {
+      std::vector<std::string> capture_device_names = aud::DeviceManager::getAvailableCaptureDeviceNames();
+      if (!capture_device_names.empty()) {
+        device_name = capture_device_names[0];
+      }
+    }
+    session->capture_reader = aud::DeviceManager::openCaptureDevice(
+        device_name, session->specs.specs, AUD_DEFAULT_BUFFER_SIZE);
     session->writer = aud::FileWriter::createWriter(session->filepath,
                                                     session->specs,
                                                     aud::Container(settings->container),
@@ -1581,18 +1587,15 @@ SoundVoiceoverSession *BKE_sound_voiceover_session_start(const SoundVoiceoverSet
 
 bool BKE_sound_voiceover_session_update(SoundVoiceoverSession *session, ReportList *reports)
 {
-  if (session == nullptr || !session->capture_device || !session->writer) {
+  if (session == nullptr || !session->capture_reader || !session->writer) {
     BKE_report(reports, RPT_ERROR, "Invalid voiceover session");
     return false;
   }
 
-  int available = session->capture_device->getAvailableSamples();
-  if (available <= 0) {
-    return true;
-  }
-
-  std::vector<aud::sample_t> samples(size_t(available) * size_t(session->specs.channels));
-  const int read_samples = session->capture_device->readSamples(available, samples.data());
+  int read_samples = AUD_DEFAULT_BUFFER_SIZE;
+  std::vector<aud::sample_t> samples(size_t(read_samples) * size_t(session->specs.channels));
+  bool eos = false;
+  session->capture_reader->read(read_samples, eos, samples.data());
   if (read_samples <= 0) {
     return true;
   }
@@ -1621,7 +1624,7 @@ bool BKE_sound_voiceover_session_stop(SoundVoiceoverSession *session,
   }
 
   session->writer.reset();
-  session->capture_device.reset();
+  session->capture_reader.reset();
 
   if (cancel) {
     if (BLI_exists(session->filepath.c_str())) {
