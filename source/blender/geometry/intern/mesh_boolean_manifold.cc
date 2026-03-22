@@ -4,8 +4,8 @@
 
 #ifdef WITH_MANIFOLD
 #  include <algorithm>
-#  include <iostream>
 #  include <iomanip>
+#  include <iostream>
 
 #  include "BLI_array.hh"
 #  include "BLI_array_utils.hh"
@@ -163,16 +163,14 @@ static void dump_meshgl(const MeshGL &mgl, const std::string &name)
   std::cout << std::setprecision(9);
   for (const int v : IndexRange(mgl.NumVert())) {
     const int k = v * 3;
-    std::cout << "v " << mgl.vertProperties[k] << " "
-      << mgl.vertProperties[k+1] << " "
-      << mgl.vertProperties[k+2] << "\n";
+    std::cout << "v " << mgl.vertProperties[k] << " " << mgl.vertProperties[k + 1] << " "
+              << mgl.vertProperties[k + 2] << "\n";
   }
   std::cout << "\n";
   for (const int t : IndexRange(mgl.NumTri())) {
     const int k = t * 3;
-    std::cout << "f " << mgl.triVerts[k] << " "
-      << mgl.triVerts[k + 1] << " "
-    << mgl.triVerts[k + 2] << "\n";
+    std::cout << "f " << mgl.triVerts[k] << " " << mgl.triVerts[k + 1] << " "
+              << mgl.triVerts[k + 2] << "\n";
   }
   std::cout << "\n";
 }
@@ -394,8 +392,7 @@ static void clean_meshgl(MeshGL &mgl)
     const uint32_t i0 = mgl.triVerts[k];
     const uint32_t i1 = mgl.triVerts[k + 1];
     const uint32_t i2 = mgl.triVerts[k + 2];
-    if (i0 >= numvert || i1 >= numvert || i2 >= numvert
-        || i0 == i1 || i0 == i2 || i1 == i2) {
+    if (i0 >= numvert || i1 >= numvert || i2 >= numvert || i0 == i1 || i0 == i2 || i1 == i2) {
       return true;
     }
     return false;
@@ -415,9 +412,7 @@ static void clean_meshgl(MeshGL &mgl)
         }
         return false;
       },
-      [](const bool a, const bool b) {
-        return a || b;
-      });
+      [](const bool a, const bool b) { return a || b; });
   if (!any_bad_faces) {
     /* No cleaning necessary. */
     return;
