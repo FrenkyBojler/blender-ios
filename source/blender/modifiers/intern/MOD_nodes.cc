@@ -245,6 +245,13 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
           DEG_add_object_relation(
               ctx->node, parent, DEG_OB_COMP_EVAL_POSE, "Nodes Modifier");
         }
+        if (DEG_object_has_geometry_component(parent)) {
+          DEG_add_object_relation(ctx->node, parent, DEG_OB_COMP_GEOMETRY, "Nodes Modifier");
+          DEG_add_customdata_mask(ctx->node, parent, &dependency_data_mask);
+        }
+        if (parent->type == OB_CAMERA) {
+          DEG_add_object_relation(ctx->node, parent, DEG_OB_COMP_PARAMETERS, "Nodes Modifier");
+        }
       }
     };
     add_parent_deps(ctx->object);
