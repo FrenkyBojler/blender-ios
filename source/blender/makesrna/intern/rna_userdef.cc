@@ -5125,6 +5125,52 @@ static void rna_def_userdef_view(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_userdef_update");
 
   /* Rigging. */
+  static const EnumPropertyItem armature_display_type_items[] = {
+      {OB_BOUNDBOX, "BOUNDS", 0, "Bounds", ""},
+      {OB_WIRE, "WIRE", 0, "Wire", ""},
+      {OB_SOLID, "SOLID", 0, "Solid", ""},
+      {OB_TEXTURE, "TEXTURED", 0, "Textured", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  prop = RNA_def_property(srna, "armature_new_display_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, armature_display_type_items);
+  RNA_def_property_ui_text(
+      prop,
+      "Armature Object Display Type",
+      "The default display type for armature objects when added. (Object Display Type)");
+  RNA_def_property_enum_default(prop, OB_TEXTURE);
+  RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+  static const EnumPropertyItem armature_data_display_type_items[] = {
+      {ARM_DRAW_TYPE_OCTA, "OCTAHEDRAL", 0, "Octahedral", "Display bones as octahedral shape"},
+      {ARM_DRAW_TYPE_STICK, "STICK", 0, "Stick", "Display bones as simple 2D lines with dots"},
+      {ARM_DRAW_TYPE_B_BONE,
+       "BBONE",
+       0,
+       "B-Bone",
+       "Display bones as boxes, showing subdivision and B-Splines"},
+      {ARM_DRAW_TYPE_ENVELOPE,
+       "ENVELOPE",
+       0,
+       "Envelope",
+       "Display bones as extruded spheres, showing deformation influence volume"},
+      {ARM_DRAW_TYPE_WIRE,
+       "WIRE",
+       0,
+       "Wire",
+       "Display bones as thin wires, showing subdivision and B-Splines"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  prop = RNA_def_property(srna, "armature_data_new_display_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, armature_data_display_type_items);
+  RNA_def_property_ui_text(
+      prop,
+      "Bone Display Type",
+      "The default display type for the armature data when added. (Bone Display Type)");
+  RNA_def_property_enum_default(prop, ARM_DRAW_TYPE_OCTA);
+  RNA_def_property_update(prop, 0, "rna_userdef_update");
+
   static const EnumPropertyItem bone_rotation_mode_items[] = {
       {ROT_MODE_QUAT, "QUATERNION", 0, "Quaternion", "No Gimbal Lock"},
       {ROT_MODE_XYZ, "XYZ", 0, "XYZ Euler", "XYZ Rotation Order"},
@@ -5140,26 +5186,12 @@ static void rna_def_userdef_view(BlenderRNA *brna)
        "Defines a rotation around some axis defined by 3D-Vector"},
       {0, nullptr, 0, nullptr, nullptr},
   };
+
   prop = RNA_def_property(srna, "bone_new_rotation_mode", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, bone_rotation_mode_items);
   RNA_def_property_ui_text(
       prop, "Bone Rotation Mode", "The default rotation mode when new bones are added.");
   RNA_def_property_enum_default(prop, ROT_MODE_QUAT);
-  RNA_def_property_update(prop, 0, "rna_userdef_update");
-
-  static const EnumPropertyItem armature_display_type_items[] = {
-      {OB_BOUNDBOX, "BOUNDS", 0, "Bounds", ""},
-      {OB_WIRE, "WIRE", 0, "Wire", ""},
-      {OB_SOLID, "SOLID", 0, "Solid", ""},
-      {OB_TEXTURE, "TEXTURED", 0, "Textured", ""},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
-  prop = RNA_def_property(srna, "armature_new_display_type", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(prop, armature_display_type_items);
-  RNA_def_property_ui_text(
-      prop, "Armature Display Type", "The default display type when new armatures are added.");
-  RNA_def_property_enum_default(prop, OB_TEXTURE);
   RNA_def_property_update(prop, 0, "rna_userdef_update");
 
   /* Weight Paint */

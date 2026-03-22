@@ -489,6 +489,22 @@ enum eUserpref_FactorDisplay {
   USER_FACTOR_AS_PERCENTAGE = 1,
 };
 
+/** #UserDef.armature_display_type */
+enum eUserpref_ArmatureDisplayType {
+  USER_ARM_DISPLAY_BOUNDBOX = 1,
+  USER_ARM_DISPLAY_WIRE = 2,
+  USER_ARM_DISPLAY_SOLID = 3,
+  USER_ARM_DISPLAY_TEXTURE = 4,
+};
+
+/** #UserDef.armature_data_display_type */
+enum eUserpref_ArmatureDataDisplayType {
+  USER_ARM_DRAW_TYPE_OCTA = 0,
+  USER_ARM_DRAW_TYPE_STICK,
+  USER_ARM_DRAW_TYPE_ENVELOPE,
+  USER_ARM_DRAW_TYPE_WIRE,
+};
+
 /** #UserDef.bone_rotation_mode */
 enum eUserpref_BoneRotationMode {
   USER_BONE_ROT_MODE_QUAT = 0,
@@ -499,14 +515,6 @@ enum eUserpref_BoneRotationMode {
   USER_BONE_ROT_MODE_ZXY,
   USER_BONE_ROT_MODE_ZYX,
   USER_BONE_ROT_MODE_AXISANGLE,
-};
-
-/** #UserDef.armature_display_type */
-enum eUserpref_ArmatureDisplayType {
-  USER_ARMATURE_DISPLAY_BOUNDBOX = 1,
-  USER_ARMATURE_DISPLAY_WIRE = 2,
-  USER_ARMATURE_DISPLAY_SOLID = 3,
-  USER_ARMATURE_DISPLAY_TEXTURE = 4,
 };
 
 /** #UserDef.xr_navigation_flag */
@@ -1246,12 +1254,15 @@ struct UserDef {
 
   UserDef_Experimental experimental;
 
-  char armature_new_display_type =
-      USER_ARMATURE_DISPLAY_TEXTURE; /* eUserpref_ArmatureDisplyType */
+  char armature_new_display_type = USER_ARM_DISPLAY_TEXTURE; /* eUserpref_ArmatureDisplyType */
   char _pad19[3] = {};
 
+  char armature_data_new_display_type =
+      USER_ARM_DRAW_TYPE_OCTA; /* eUserpref_ArmatureDATADisplyType */
+  char _pad20[3] = {};
+
   int bone_new_rotation_mode = USER_BONE_ROT_MODE_QUAT; /* eUserpref_BoneRotationMode */
-  char _pad20[8] = {};
+  char _pad21[4] = {};
 
   /** Runtime data (keep last). */
   UserDef_Runtime runtime;

@@ -1391,9 +1391,6 @@ static wmOperatorStatus object_armature_add_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  /* UserDef. */
-  obedit->dt = U.armature_new_display_type;
-
   /* Give the Armature its default bone collection. */
   bArmature *armature = id_cast<bArmature *>(obedit->data);
   BoneCollection *default_bonecoll = ANIM_armature_bonecoll_new(armature, "");
@@ -1402,7 +1399,10 @@ static wmOperatorStatus object_armature_add_exec(bContext *C, wmOperator *op)
   dia = RNA_float_get(op->ptr, "radius");
   ED_armature_ebone_add_primitive(obedit, dia, view_aligned);
 
-  /* userdef */
+  /* UserDef. */
+  obedit->dt = U.armature_new_display_type;
+  armature->drawtype = U.armature_data_new_display_type;
+
   if (newob && !enter_editmode) {
     editmode_exit_ex(bmain, scene, obedit, EM_FREEDATA);
   }
