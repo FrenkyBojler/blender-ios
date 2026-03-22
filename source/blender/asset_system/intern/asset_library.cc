@@ -11,6 +11,7 @@
 #include "AS_asset_catalog_tree.hh"
 #include "AS_asset_library.hh"
 #include "AS_asset_representation.hh"
+#include "AS_remote_library.hh"
 
 #include "BKE_lib_remap.hh"
 #include "BKE_main.hh"
@@ -21,15 +22,19 @@
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
+#include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
+#include "DNA_windowmanager_types.h"
 
 #include "asset_catalog_collection.hh"
 #include "asset_catalog_definition_file.hh"
 #include "asset_library_service.hh"
+#include "essentials_library.hh"
 #include "runtime_library.hh"
 #include "utils.hh"
 
-using namespace blender;
+namespace blender {
+
 using namespace blender::asset_system;
 
 bool AssetLibrary::save_catalogs_when_file_is_saved = true;
@@ -76,8 +81,7 @@ std::string AS_asset_library_root_path_from_library_ref(
   return AssetLibraryService::root_path_from_library_ref(library_reference);
 }
 
-std::string AS_asset_library_find_suitable_root_path_from_path(
-    const blender::StringRefNull input_path)
+std::string AS_asset_library_find_suitable_root_path_from_path(const StringRefNull input_path)
 {
   if (bUserAssetLibrary *preferences_lib = BKE_preferences_asset_library_containing_path(
           &U, input_path.c_str()))
@@ -161,13 +165,78 @@ void AS_asset_full_path_explode_from_weak_ref(const AssetWeakReference *asset_re
   }
 }
 
-namespace blender::asset_system {
+static void update_import_method_for_user_libraries()
+{
+  for (bUserAssetLibrary &library : U.asset_libraries) {
+    if (U.experimental.no_data_block_packing) {
+      if (library.import_method == ASSET_IMPORT_PACK) {
+        library.import_method = ASSET_IMPORT_APPEND_REUSE;
+      }
+    }
+    else {
+      if (library.import_method == ASSET_IMPORT_APPEND_REUSE) {
+        library.import_method = ASSET_IMPORT_PACK;
+      }
+    }
+  }
+}
 
-AssetLibrary::AssetLibrary(eAssetLibraryType library_type, StringRef name, StringRef root_path)
+static void update_import_method_for_asset_browsers(Main &bmain)
+{
+  for (bScreen &screen : bmain.screens) {
+    for (ScrArea &area : screen.areabase) {
+      for (SpaceLink &sl : area.spacedata) {
+        if (sl.spacetype != SPACE_FILE) {
+          continue;
+        }
+        SpaceFile *sfile = reinterpret_cast<SpaceFile *>(&sl);
+        if (!sfile->asset_params) {
+          continue;
+        }
+        if (U.experimental.no_data_block_packing) {
+          if (sfile->asset_params->import_method == FILE_ASSET_IMPORT_PACK) {
+            sfile->asset_params->import_method = FILE_ASSET_IMPORT_APPEND_REUSE;
+          }
+        }
+        else {
+          if (sfile->asset_params->import_method == FILE_ASSET_IMPORT_APPEND_REUSE) {
+            sfile->asset_params->import_method = FILE_ASSET_IMPORT_PACK;
+          }
+        }
+      }
+    }
+  }
+}
+
+void AS_asset_library_import_method_ensure_valid(Main &bmain)
+{
+  update_import_method_for_user_libraries();
+  update_import_method_for_asset_browsers(bmain);
+}
+
+void AS_asset_library_essential_import_method_update()
+{
+  AssetLibraryReference library_ref{};
+  library_ref.custom_library_index = -1;
+  library_ref.type = ASSET_LIBRARY_ESSENTIALS;
+  EssentialsAssetLibrary *library = dynamic_cast<EssentialsAssetLibrary *>(
+      AS_asset_library_load(nullptr, library_ref));
+  if (library) {
+    library->update_default_import_method();
+  }
+}
+
+namespace asset_system {
+
+AssetLibrary::AssetLibrary(
+    eAssetLibraryType library_type,
+    StringRef name,
+    StringRef root_path,
+    std::optional<AssetCatalogService::read_only_tag> catalogs_read_only_tag)
     : library_type_(library_type),
       name_(name),
       root_path_(std::make_shared<std::string>(utils::normalize_directory_path(root_path))),
-      catalog_service_(std::make_unique<AssetCatalogService>(*root_path_))
+      catalog_service_(std::make_unique<AssetCatalogService>(*root_path_, catalogs_read_only_tag))
 {
 }
 
@@ -185,13 +254,29 @@ void AssetLibrary::foreach_loaded(FunctionRef<void(AssetLibrary &)> fn,
   service->foreach_loaded_asset_library(fn, include_all_library);
 }
 
+std::optional<StringRefNull> AssetLibrary::remote_url() const
+{
+  /* Remote asset library support is implemented in #RemoteAssetLibrary::remote_url(). */
+  return {};
+};
+
+AssetCatalogService &AssetLibrary::catalog_service() const
+{
+  return *catalog_service_;
+}
+
+void AssetLibrary::refresh_catalogs()
+{
+  /* To be implemented by a subclass, like #OnDiskAssetLibrary::refresh_catalogs. */
+}
+
 void AssetLibrary::load_or_reload_catalogs()
 {
   {
     std::lock_guard lock{catalog_service_mutex_};
     /* Should never actually be the case, catalog service gets allocated with the asset library. */
     if (catalog_service_ == nullptr) {
-      auto catalog_service = std::make_unique<AssetCatalogService>(root_path());
+      auto catalog_service = std::make_unique<AssetCatalogService>(*root_path_);
       catalog_service->load_from_disk();
       catalog_service_ = std::move(catalog_service);
       return;
@@ -207,14 +292,7 @@ void AssetLibrary::load_or_reload_catalogs()
   }
 }
 
-AssetCatalogService &AssetLibrary::catalog_service() const
-{
-  return *catalog_service_;
-}
-
-void AssetLibrary::refresh_catalogs() {}
-
-std::weak_ptr<AssetRepresentation> AssetLibrary::add_external_asset(
+std::weak_ptr<AssetRepresentation> AssetLibrary::add_external_on_disk_asset(
     StringRef relative_asset_path,
     StringRef name,
     const int id_type,
@@ -224,11 +302,21 @@ std::weak_ptr<AssetRepresentation> AssetLibrary::add_external_asset(
       relative_asset_path, name, id_type, std::move(metadata), *this));
 }
 
-std::weak_ptr<AssetRepresentation> AssetLibrary::add_local_id_asset(StringRef relative_asset_path,
-                                                                    ID &id)
+std::weak_ptr<AssetRepresentation> AssetLibrary::add_external_online_asset(
+    StringRef relative_asset_path,
+    StringRef name,
+    const int id_type,
+    std::unique_ptr<AssetMetaData> metadata,
+    OnlineAssetInfo online_info)
+{
+  return asset_storage_.external_assets.lookup_key_or_add(std::make_shared<AssetRepresentation>(
+      relative_asset_path, name, id_type, std::move(metadata), *this, online_info));
+}
+
+std::weak_ptr<AssetRepresentation> AssetLibrary::add_local_id_asset(ID &id)
 {
   return asset_storage_.local_id_assets.lookup_key_or_add(
-      std::make_shared<AssetRepresentation>(relative_asset_path, id, *this));
+      std::make_shared<AssetRepresentation>(id, *this));
 }
 
 bool AssetLibrary::remove_asset(AssetRepresentation &asset)
@@ -322,7 +410,7 @@ void AssetLibrary::on_blend_save_post(Main *bmain,
                                       PointerRNA ** /*pointers*/,
                                       const int /*num_pointers*/)
 {
-  if (save_catalogs_when_file_is_saved) {
+  if (save_catalogs_when_file_is_saved && !this->catalog_service().is_read_only()) {
     this->catalog_service().write_to_disk(bmain->filepath);
   }
 }
@@ -373,9 +461,9 @@ Vector<AssetLibraryReference> all_valid_asset_library_refs()
     library_ref.type = ASSET_LIBRARY_ESSENTIALS;
     result.append(library_ref);
   }
-  int i;
-  LISTBASE_FOREACH_INDEX (const bUserAssetLibrary *, asset_library, &U.asset_libraries, i) {
-    if (!BLI_is_dir(asset_library->dirpath)) {
+
+  for (const auto [i, asset_library] : U.asset_libraries.enumerate()) {
+    if (!BKE_preferences_asset_library_is_valid(&U, &asset_library, true)) {
       continue;
     }
     AssetLibraryReference library_ref{};
@@ -413,4 +501,31 @@ void all_library_reload_catalogs_if_dirty()
   service->reload_all_library_catalogs_if_dirty();
 }
 
-}  // namespace blender::asset_system
+bool is_or_contains_remote_libraries(const AssetLibraryReference &reference)
+{
+  switch (reference.type) {
+    case ASSET_LIBRARY_ALL:
+      for (const bUserAssetLibrary &asset_library : U.asset_libraries) {
+        if (asset_library.flag & ASSET_LIBRARY_USE_REMOTE_URL) {
+          return true;
+        }
+      }
+      break;
+    case ASSET_LIBRARY_CUSTOM: {
+      if (bUserAssetLibrary *asset_library =
+              AssetLibraryService::find_custom_asset_library_from_library_ref(reference))
+      {
+        if (asset_library->flag & ASSET_LIBRARY_USE_REMOTE_URL) {
+          return true;
+        }
+      }
+      break;
+    }
+  }
+
+  return false;
+}
+
+}  // namespace asset_system
+
+}  // namespace blender

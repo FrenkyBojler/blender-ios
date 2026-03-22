@@ -71,9 +71,11 @@ set(SRC_OSL
   node_output_volume.osl
   node_particle_info.osl
   node_ray_portal_bsdf.osl
+  node_raycast.osl
   node_refraction_bsdf.osl
   node_rgb_curves.osl
   node_rgb_ramp.osl
+  node_radial_tiling.osl
   node_separate_color.osl
   node_separate_xyz.osl
   node_set_normal.osl
@@ -105,6 +107,43 @@ set(SRC_OSL
   node_rgb_to_bw.osl
 )
 
+get_filename_component(OSL_SHADER_HINT ${OSL_COMPILER} DIRECTORY)
+
+set(_osl_SEARCH_DIRS
+  ${OSL_SHADER_HINT}
+  ${OSL_SHADER_HINT}/../
+  /usr/share/OSL/
+  /usr/include/OSL/
+)
+
+if(DEFINED OSL_ROOT_DIR)
+  list(APPEND _osl_SEARCH_DIRS ${OSL_ROOT_DIR})
+endif()
+
+if(DEFINED OSL_HOME_DIR)
+  list(APPEND _osl_SEARCH_DIRS ${OSL_HOME_DIR})
+endif()
+
+find_path(OSL_SHADER_DIR
+  NAMES
+    stdosl.h
+  HINTS
+    ${_osl_SEARCH_DIRS}
+  PATH_SUFFIXES
+    share/OSL/shaders
+    shaders
+)
+mark_as_advanced(OSL_SHADER_DIR)
+unset(_osl_SEARCH_DIRS)
+
+if(NOT EXISTS "${OSL_SHADER_DIR}")
+  if(WITH_STRICT_BUILD_OPTIONS)
+    message(SEND_ERROR "Precompiled OSL shader headers are not found, stopping")
+  else()
+    message(STATUS "Precompiled OSL shader headers are not found, continuing without")
+  endif()
+endif()
+
 # The headers that OSL ships differs per release so we can not
 # hard-code this.
 file(GLOB SRC_OSL_HEADER_DIST ${OSL_SHADER_DIR}/*.h)
@@ -119,6 +158,7 @@ set(SRC_OSL_HEADERS
   node_math.h
   node_noise.h
   node_ramp_util.h
+  node_radial_tiling_shared.h
   node_voronoi.h
   stdcycles.h
   ${SRC_OSL_HEADER_DIST}

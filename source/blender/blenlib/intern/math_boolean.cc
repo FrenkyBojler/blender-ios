@@ -542,12 +542,12 @@ static int fast_expansion_sum_zeroelim(
   return hindex;
 }
 
-/*  scale_expansion_zeroelim()   Multiply an expansion by a scalar,
- *                               eliminating zero components from the
- *                               output expansion.
+/* scale_expansion_zeroelim()   Multiply an expansion by a scalar,
+ *                              eliminating zero components from the
+ *                              output expansion.
  *
- *  Sets h = be.  See either version of my paper for details.
- *  e and h cannot be the same.
+ * Sets h = be.  See either version of my paper for details.
+ * e and h cannot be the same.
  */
 static int scale_expansion_zeroelim(int elen, const double *e, double b, double *h)
 {
@@ -588,7 +588,7 @@ static int scale_expansion_zeroelim(int elen, const double *e, double b, double 
   return hindex;
 }
 
-/*  estimate()   Produce a one-word estimate of an expansion's value. */
+/* estimate()   Produce a one-word estimate of an expansion's value. */
 static double estimate(int elen, const double *e)
 {
   double Q;
@@ -2466,12 +2466,12 @@ static int sgn(double x)
 
 int orient2d(const double2 &a, const double2 &b, const double2 &c)
 {
-  return sgn(blender::robust_pred::orient2d(a, b, c));
+  return sgn(robust_pred::orient2d(a, b, c));
 }
 
 int orient2d_fast(const double2 &a, const double2 &b, const double2 &c)
 {
-  return sgn(blender::robust_pred::orient2dfast(a, b, c));
+  return sgn(robust_pred::orient2dfast(a, b, c));
 }
 
 int incircle(const double2 &a, const double2 &b, const double2 &c, const double2 &d)

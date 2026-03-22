@@ -308,8 +308,8 @@ void MTLFrameBuffer::force_clear()
   }
 }
 
-void MTLFrameBuffer::clear(eGPUFrameBufferBits buffers,
-                           const float clear_col[4],
+void MTLFrameBuffer::clear(GPUFrameBufferBits buffers,
+                           const double4 clear_col,
                            float clear_depth,
                            uint clear_stencil)
 {
@@ -358,7 +358,7 @@ void MTLFrameBuffer::clear(eGPUFrameBufferBits buffers,
   }
 }
 
-void MTLFrameBuffer::clear_multi(const float (*clear_cols)[4])
+void MTLFrameBuffer::clear_multi(Span<double4> clear_cols)
 {
   /* If we had no previous clear pending, reset clear state. */
   if (!has_pending_clear_) {
@@ -388,9 +388,7 @@ void MTLFrameBuffer::clear_multi(const float (*clear_cols)[4])
   }
 }
 
-void MTLFrameBuffer::clear_attachment(GPUAttachmentType type,
-                                      eGPUDataFormat data_format,
-                                      const void *clear_value)
+void MTLFrameBuffer::clear_attachment(GPUAttachmentType type, const double4 clear_value)
 {
   BLI_assert(MTLContext::get() == context_);
   BLI_assert(context_->active_fb == this);
@@ -402,59 +400,16 @@ void MTLFrameBuffer::clear_attachment(GPUAttachmentType type,
 
   bool do_clear = false;
 
-  if (type == GPU_FB_DEPTH_STENCIL_ATTACHMENT) {
-    if (this->has_depth_attachment() || this->has_stencil_attachment()) {
-      BLI_assert(data_format == GPU_DATA_UINT_24_8_DEPRECATED);
-      float depth = ((*(uint32_t *)clear_value) & 0x00FFFFFFu) / (float)0x00FFFFFFu;
-      int stencil = ((*(uint32_t *)clear_value) >> 24);
-      this->set_depth_attachment_clear_value(depth);
-      this->set_stencil_attachment_clear_value(stencil);
-      do_clear = true;
-    }
-  }
-  else if (type == GPU_FB_DEPTH_ATTACHMENT) {
+  if (type == GPU_FB_DEPTH_ATTACHMENT) {
     if (this->has_depth_attachment()) {
-      if (data_format == GPU_DATA_FLOAT) {
-        this->set_depth_attachment_clear_value(*(float *)clear_value);
-      }
-      else {
-        float depth = *(uint32_t *)clear_value / (float)0xFFFFFFFFu;
-        this->set_depth_attachment_clear_value(depth);
-      }
+      this->set_depth_attachment_clear_value(clear_value.x);
       do_clear = true;
     }
   }
   else {
     int slot = type - GPU_FB_COLOR_ATTACHMENT0;
     if (this->has_attachment_at_slot(slot)) {
-      float col_clear_val[4] = {0.0};
-      switch (data_format) {
-        case GPU_DATA_FLOAT: {
-          const float *vals = (float *)clear_value;
-          col_clear_val[0] = vals[0];
-          col_clear_val[1] = vals[1];
-          col_clear_val[2] = vals[2];
-          col_clear_val[3] = vals[3];
-        } break;
-        case GPU_DATA_UINT: {
-          const uint *vals = (uint *)clear_value;
-          col_clear_val[0] = (float)(vals[0]);
-          col_clear_val[1] = (float)(vals[1]);
-          col_clear_val[2] = (float)(vals[2]);
-          col_clear_val[3] = (float)(vals[3]);
-        } break;
-        case GPU_DATA_INT: {
-          const int *vals = (int *)clear_value;
-          col_clear_val[0] = (float)(vals[0]);
-          col_clear_val[1] = (float)(vals[1]);
-          col_clear_val[2] = (float)(vals[2]);
-          col_clear_val[3] = (float)(vals[3]);
-        } break;
-        default:
-          BLI_assert_msg(0, "Unhandled data format");
-          break;
-      }
-      this->set_color_attachment_clear_color(slot, col_clear_val);
+      this->set_color_attachment_clear_color(slot, clear_value);
       do_clear = true;
     }
   }
@@ -494,7 +449,7 @@ void MTLFrameBuffer::subpass_transition_impl(const GPUAttachmentState /*depth_at
   }
 }
 
-void MTLFrameBuffer::read(eGPUFrameBufferBits planes,
+void MTLFrameBuffer::read(GPUFrameBufferBits planes,
                           eGPUDataFormat format,
                           const int area[4],
                           int channel_len,
@@ -571,7 +526,7 @@ void MTLFrameBuffer::read(eGPUFrameBufferBits planes,
   }
 }
 
-void MTLFrameBuffer::blit_to(eGPUFrameBufferBits planes,
+void MTLFrameBuffer::blit_to(GPUFrameBufferBits planes,
                              int src_slot,
                              FrameBuffer *dst,
                              int dst_slot,
@@ -683,7 +638,7 @@ void MTLFrameBuffer::update_attachments(bool /*update_viewport*/)
             this->remove_depth_attachment();
             this->add_depth_attachment(
                 static_cast<gpu::MTLTexture *>(attach.tex), attach.mip, attach.layer);
-            this->set_depth_attachment_clear_value(depth_attachment_prev.clear_value.depth);
+            this->set_depth_attachment_clear_value(depth_attachment_prev.clear_value.x);
             this->set_depth_loadstore_op(depth_attachment_prev.load_action,
                                          depth_attachment_prev.store_action);
           }
@@ -702,8 +657,7 @@ void MTLFrameBuffer::update_attachments(bool /*update_viewport*/)
               this->remove_stencil_attachment();
               this->add_stencil_attachment(
                   static_cast<gpu::MTLTexture *>(attach.tex), attach.mip, attach.layer);
-              this->set_stencil_attachment_clear_value(
-                  stencil_attachment_prev.clear_value.stencil);
+              this->set_stencil_attachment_clear_value(stencil_attachment_prev.clear_value.x);
               this->set_stencil_loadstore_op(stencil_attachment_prev.load_action,
                                              stencil_attachment_prev.store_action);
             }
@@ -751,7 +705,7 @@ void MTLFrameBuffer::update_attachments(bool /*update_viewport*/)
                                        attach.mip,
                                        attach.layer);
             this->set_color_attachment_clear_color(color_slot_ind,
-                                                   color_attachment_prev.clear_value.color);
+                                                   color_attachment_prev.clear_value);
             this->set_color_loadstore_op(color_slot_ind,
                                          color_attachment_prev.load_action,
                                          color_attachment_prev.store_action);
@@ -1300,24 +1254,14 @@ void MTLFrameBuffer::attachment_set_loadstore_op(GPUAttachmentType type, GPULoad
   }
 }
 
-bool MTLFrameBuffer::set_color_attachment_clear_color(uint slot, const float clear_color[4])
+bool MTLFrameBuffer::set_color_attachment_clear_color(uint slot, const double4 clear_color)
 {
   BLI_assert(this);
   BLI_assert(slot >= 0 && slot < this->get_attachment_limit());
 
   /* Only mark as dirty if values have changed. */
   bool changed = mtl_color_attachments_[slot].load_action != GPU_LOADACTION_CLEAR;
-  float *attachment_clear_color = mtl_color_attachments_[slot].clear_value.color;
-  changed = changed || (attachment_clear_color[0] != clear_color[0] ||
-                        attachment_clear_color[1] != clear_color[1] ||
-                        attachment_clear_color[2] != clear_color[2] ||
-                        attachment_clear_color[3] != clear_color[3]);
-  if (changed) {
-    attachment_clear_color[0] = clear_color[0];
-    attachment_clear_color[1] = clear_color[1];
-    attachment_clear_color[2] = clear_color[2];
-    attachment_clear_color[3] = clear_color[3];
-  }
+  changed |= assign_if_different(mtl_color_attachments_[slot].clear_value, clear_color);
   mtl_color_attachments_[slot].load_action = GPU_LOADACTION_CLEAR;
 
   if (changed) {
@@ -1330,10 +1274,10 @@ bool MTLFrameBuffer::set_depth_attachment_clear_value(float depth_clear)
 {
   BLI_assert(this);
 
-  if (mtl_depth_attachment_.clear_value.depth != depth_clear ||
+  if (mtl_depth_attachment_.clear_value.x != depth_clear ||
       mtl_depth_attachment_.load_action != GPU_LOADACTION_CLEAR)
   {
-    mtl_depth_attachment_.clear_value.depth = depth_clear;
+    mtl_depth_attachment_.clear_value.x = depth_clear;
     mtl_depth_attachment_.load_action = GPU_LOADACTION_CLEAR;
     this->mark_loadstore_dirty();
   }
@@ -1344,10 +1288,10 @@ bool MTLFrameBuffer::set_stencil_attachment_clear_value(uint stencil_clear)
 {
   BLI_assert(this);
 
-  if (mtl_stencil_attachment_.clear_value.stencil != stencil_clear ||
+  if (mtl_stencil_attachment_.clear_value.x != stencil_clear ||
       mtl_stencil_attachment_.load_action != GPU_LOADACTION_CLEAR)
   {
-    mtl_stencil_attachment_.clear_value.stencil = stencil_clear;
+    mtl_stencil_attachment_.clear_value.x = stencil_clear;
     mtl_stencil_attachment_.load_action = GPU_LOADACTION_CLEAR;
     this->mark_loadstore_dirty();
   }
@@ -1355,12 +1299,12 @@ bool MTLFrameBuffer::set_stencil_attachment_clear_value(uint stencil_clear)
 }
 
 bool MTLFrameBuffer::set_color_loadstore_op(uint slot,
-                                            eGPULoadOp load_action,
-                                            eGPUStoreOp store_action)
+                                            GPULoadOp load_action,
+                                            GPUStoreOp store_action)
 {
   BLI_assert(this);
-  eGPULoadOp prev_load_action = mtl_color_attachments_[slot].load_action;
-  eGPUStoreOp prev_store_action = mtl_color_attachments_[slot].store_action;
+  GPULoadOp prev_load_action = mtl_color_attachments_[slot].load_action;
+  GPUStoreOp prev_store_action = mtl_color_attachments_[slot].store_action;
   mtl_color_attachments_[slot].load_action = load_action;
   mtl_color_attachments_[slot].store_action = store_action;
 
@@ -1373,11 +1317,11 @@ bool MTLFrameBuffer::set_color_loadstore_op(uint slot,
   return changed;
 }
 
-bool MTLFrameBuffer::set_depth_loadstore_op(eGPULoadOp load_action, eGPUStoreOp store_action)
+bool MTLFrameBuffer::set_depth_loadstore_op(GPULoadOp load_action, GPUStoreOp store_action)
 {
   BLI_assert(this);
-  eGPULoadOp prev_load_action = mtl_depth_attachment_.load_action;
-  eGPUStoreOp prev_store_action = mtl_depth_attachment_.store_action;
+  GPULoadOp prev_load_action = mtl_depth_attachment_.load_action;
+  GPUStoreOp prev_store_action = mtl_depth_attachment_.store_action;
   mtl_depth_attachment_.load_action = load_action;
   mtl_depth_attachment_.store_action = store_action;
 
@@ -1390,11 +1334,11 @@ bool MTLFrameBuffer::set_depth_loadstore_op(eGPULoadOp load_action, eGPUStoreOp 
   return changed;
 }
 
-bool MTLFrameBuffer::set_stencil_loadstore_op(eGPULoadOp load_action, eGPUStoreOp store_action)
+bool MTLFrameBuffer::set_stencil_loadstore_op(GPULoadOp load_action, GPUStoreOp store_action)
 {
   BLI_assert(this);
-  eGPULoadOp prev_load_action = mtl_stencil_attachment_.load_action;
-  eGPUStoreOp prev_store_action = mtl_stencil_attachment_.store_action;
+  GPULoadOp prev_load_action = mtl_stencil_attachment_.load_action;
+  GPUStoreOp prev_store_action = mtl_stencil_attachment_.store_action;
   mtl_stencil_attachment_.load_action = load_action;
   mtl_stencil_attachment_.store_action = store_action;
 
@@ -1522,14 +1466,14 @@ bool MTLFrameBuffer::validate_render_pass()
   return true;
 }
 
-MTLLoadAction mtl_load_action_from_gpu(eGPULoadOp action)
+MTLLoadAction mtl_load_action_from_gpu(GPULoadOp action)
 {
   return (action == GPU_LOADACTION_LOAD) ?
              MTLLoadActionLoad :
              ((action == GPU_LOADACTION_CLEAR) ? MTLLoadActionClear : MTLLoadActionDontCare);
 }
 
-MTLStoreAction mtl_store_action_from_gpu(eGPUStoreOp action)
+MTLStoreAction mtl_store_action_from_gpu(GPUStoreOp action)
 {
   return (action == GPU_STOREACTION_STORE) ? MTLStoreActionStore : MTLStoreActionDontCare;
 }
@@ -1658,7 +1602,7 @@ MTLRenderPassDescriptor *MTLFrameBuffer::bake_render_pass_descriptor(bool load_c
 
         /* Resolve appropriate load action -- IF force load, perform load.
          * If clear but framebuffer has no pending clear, also load. */
-        eGPULoadOp load_action = attachment_config.load_action;
+        GPULoadOp load_action = attachment_config.load_action;
         if (descriptor_config == MTL_FB_CONFIG_LOAD) {
           /* MTL_FB_CONFIG_LOAD must always load. */
           load_action = GPU_LOADACTION_LOAD;
@@ -1675,7 +1619,7 @@ MTLRenderPassDescriptor *MTLFrameBuffer::bake_render_pass_descriptor(bool load_c
         }
 
         /* Ensure memoryless attachment cannot load or store results. */
-        eGPUStoreOp store_action = attachment_config.store_action;
+        GPUStoreOp store_action = attachment_config.store_action;
         if (texture_is_memoryless && load_action == GPU_LOADACTION_LOAD) {
           load_action = GPU_LOADACTION_DONT_CARE;
         }
@@ -1691,8 +1635,7 @@ MTLRenderPassDescriptor *MTLFrameBuffer::bake_render_pass_descriptor(bool load_c
         attachment.texture = source_color_texture;
         attachment.loadAction = mtl_load_action_from_gpu(load_action);
         attachment.clearColor = (load_action == GPU_LOADACTION_CLEAR) ?
-                                    MTLClearColorMake(
-                                        UNPACK4(attachment_config.clear_value.color)) :
+                                    MTLClearColorMake(UNPACK4(attachment_config.clear_value)) :
                                     MTLClearColorMake(0.0, 0.0, 0.0, 0.0);
         attachment.storeAction = mtl_store_action_from_gpu(store_action);
         attachment.level = attachment_config.mip;
@@ -1723,7 +1666,7 @@ MTLRenderPassDescriptor *MTLFrameBuffer::bake_render_pass_descriptor(bool load_c
 
       /* Resolve appropriate load action -- IF force load, perform load.
        * If clear but framebuffer has no pending clear, also load. */
-      eGPULoadOp load_action = mtl_depth_attachment_.load_action;
+      GPULoadOp load_action = mtl_depth_attachment_.load_action;
       if (descriptor_config == MTL_FB_CONFIG_LOAD) {
         /* MTL_FB_CONFIG_LOAD must always load. */
         load_action = GPU_LOADACTION_LOAD;
@@ -1738,7 +1681,7 @@ MTLRenderPassDescriptor *MTLFrameBuffer::bake_render_pass_descriptor(bool load_c
       }
 
       /* Ensure memoryless attachment cannot load or store results. */
-      eGPUStoreOp store_action = mtl_depth_attachment_.store_action;
+      GPUStoreOp store_action = mtl_depth_attachment_.store_action;
       if (texture_is_memoryless && load_action == GPU_LOADACTION_LOAD) {
         load_action = GPU_LOADACTION_DONT_CARE;
       }
@@ -1749,7 +1692,7 @@ MTLRenderPassDescriptor *MTLFrameBuffer::bake_render_pass_descriptor(bool load_c
       framebuffer_descriptor_[descriptor_config].depthAttachment.loadAction =
           mtl_load_action_from_gpu(load_action);
       framebuffer_descriptor_[descriptor_config].depthAttachment.clearDepth =
-          (load_action == GPU_LOADACTION_CLEAR) ? mtl_depth_attachment_.clear_value.depth : 0;
+          (load_action == GPU_LOADACTION_CLEAR) ? mtl_depth_attachment_.clear_value.x : 0;
       framebuffer_descriptor_[descriptor_config].depthAttachment.storeAction =
           mtl_store_action_from_gpu(store_action);
       framebuffer_descriptor_[descriptor_config].depthAttachment.level = mtl_depth_attachment_.mip;
@@ -1762,7 +1705,7 @@ MTLRenderPassDescriptor *MTLFrameBuffer::bake_render_pass_descriptor(bool load_c
       framebuffer_descriptor_[descriptor_config].depthAttachment.texture = nil;
     }
 
-    /*  Stencil attachment. */
+    /* Stencil attachment. */
     if (mtl_stencil_attachment_.used) {
       framebuffer_descriptor_[descriptor_config].stencilAttachment.texture =
           (id<MTLTexture>)mtl_stencil_attachment_.texture->get_metal_handle_base();
@@ -1772,7 +1715,7 @@ MTLRenderPassDescriptor *MTLFrameBuffer::bake_render_pass_descriptor(bool load_c
 
       /* Resolve appropriate load action -- IF force load, perform load.
        * If clear but framebuffer has no pending clear, also load. */
-      eGPULoadOp load_action = mtl_stencil_attachment_.load_action;
+      GPULoadOp load_action = mtl_stencil_attachment_.load_action;
       if (descriptor_config == MTL_FB_CONFIG_LOAD) {
         /* MTL_FB_CONFIG_LOAD must always load. */
         load_action = GPU_LOADACTION_LOAD;
@@ -1787,7 +1730,7 @@ MTLRenderPassDescriptor *MTLFrameBuffer::bake_render_pass_descriptor(bool load_c
       }
 
       /* Ensure memoryless attachment cannot load or store results. */
-      eGPUStoreOp store_action = mtl_stencil_attachment_.store_action;
+      GPUStoreOp store_action = mtl_stencil_attachment_.store_action;
       if (texture_is_memoryless && load_action == GPU_LOADACTION_LOAD) {
         load_action = GPU_LOADACTION_DONT_CARE;
       }
@@ -1798,7 +1741,7 @@ MTLRenderPassDescriptor *MTLFrameBuffer::bake_render_pass_descriptor(bool load_c
       framebuffer_descriptor_[descriptor_config].stencilAttachment.loadAction =
           mtl_load_action_from_gpu(load_action);
       framebuffer_descriptor_[descriptor_config].stencilAttachment.clearStencil =
-          (load_action == GPU_LOADACTION_CLEAR) ? mtl_stencil_attachment_.clear_value.stencil : 0;
+          (load_action == GPU_LOADACTION_CLEAR) ? mtl_stencil_attachment_.clear_value.x : 0;
       framebuffer_descriptor_[descriptor_config].stencilAttachment.storeAction =
           mtl_store_action_from_gpu(store_action);
       framebuffer_descriptor_[descriptor_config].stencilAttachment.level =
@@ -1849,7 +1792,7 @@ void MTLFrameBuffer::blit(uint read_slot,
                           uint dst_y_offset,
                           uint width,
                           uint height,
-                          eGPUFrameBufferBits blit_buffers)
+                          GPUFrameBufferBits blit_buffers)
 {
   BLI_assert(metal_fb_write);
   if (!metal_fb_write) {

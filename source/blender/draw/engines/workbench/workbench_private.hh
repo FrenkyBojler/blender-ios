@@ -50,31 +50,31 @@ class ShaderCache {
 
   ShaderCache();
 
-  GPUShader *prepass_get(eGeometryType geometry_type,
-                         ePipelineType pipeline_type,
-                         eLightingType lighting_type,
-                         eShaderType shader_type,
-                         bool clip)
+  gpu::Shader *prepass_get(eGeometryType geometry_type,
+                           ePipelineType pipeline_type,
+                           eLightingType lighting_type,
+                           eShaderType shader_type,
+                           bool clip)
   {
     return prepass_[int(geometry_type)][int(pipeline_type)][int(lighting_type)][int(shader_type)]
                    [clip]
                        .get();
   }
 
-  GPUShader *resolve_get(eLightingType lighting_type,
-                         bool cavity = false,
-                         bool curvature = false,
-                         bool shadow = false)
+  gpu::Shader *resolve_get(eLightingType lighting_type,
+                           bool cavity = false,
+                           bool curvature = false,
+                           bool shadow = false)
   {
     return resolve_[int(lighting_type)][cavity][curvature][shadow].get();
   }
 
-  GPUShader *shadow_get(bool depth_pass, bool manifold, bool cap = false)
+  gpu::Shader *shadow_get(bool depth_pass, bool manifold, bool cap = false)
   {
     return shadow_[depth_pass][manifold][cap].get();
   }
 
-  GPUShader *volume_get(bool smoke, int interpolation, bool coba, bool slice)
+  gpu::Shader *volume_get(bool smoke, int interpolation, bool coba, bool slice)
   {
     return volume_[smoke][interpolation][coba][slice].get();
   }
@@ -114,8 +114,8 @@ struct Material {
   Material() = default;
   Material(float3 color) : base_color(color), packed_data(Material::pack_data(0.0f, 0.4f, 1.0f)) {}
 
-  Material(::Object &ob, bool random = false);
-  Material(::Material &mat)
+  Material(blender::Object &ob, bool random = false);
+  Material(blender::Material &mat)
       : base_color(&mat.r), packed_data(Material::pack_data(mat.metallic, mat.roughness, mat.a))
   {
   }
@@ -181,6 +181,8 @@ struct SceneState {
   /* When r == -1.0 the shader uses the vertex color */
   Material material_attribute_color = Material(float3(-1.0f));
 
+  bool show_paint_bvh_debug = false;
+
   void init(const DRWContext *context, bool scene_updated, Object *camera_ob = nullptr);
 };
 
@@ -193,7 +195,7 @@ struct MaterialTexture {
 
   MaterialTexture() = default;
   MaterialTexture(Object *ob, int material_index);
-  MaterialTexture(::Image *image, ImageUser *user = nullptr);
+  MaterialTexture(blender::Image *image, ImageUser *user = nullptr);
 };
 
 struct SceneResources;
@@ -398,7 +400,7 @@ class ShadowPass {
     VisibilityBuf fail_visibility_buf_ = {};
 
    public:
-    ShadowView() : View("ShadowPass.View"){};
+    ShadowView() : View("ShadowPass.View") {};
 
     void setup(View &view, float3 light_direction, bool force_fail_method);
     bool debug_object_culling(Object *ob);
@@ -456,6 +458,7 @@ class VolumePass {
 
   Texture dummy_shadow_tx_ = {"Volume.Dummy Shadow Tx"};
   Texture dummy_volume_tx_ = {"Volume.Dummy Volume Tx"};
+  Texture dummy_flag_tx_ = {"Volume.Dummy Flag Tx"};
   Texture dummy_coba_tx_ = {"Volume.Dummy Coba Tx"};
 
   gpu::Texture *stencil_tx_ = nullptr;
@@ -529,6 +532,7 @@ class DofPass {
 
   PassSimple down_ps_ = {"Workbench.DoF.DownSample"};
   PassSimple down2_ps_ = {"Workbench.DoF.DownSample2"};
+  PassSimple down3_ps_ = {"Workbench.DoF.DownSample3"};
   PassSimple blur_ps_ = {"Workbench.DoF.Blur"};
   PassSimple blur2_ps_ = {"Workbench.DoF.Blur2"};
   PassSimple resolve_ps_ = {"Workbench.DoF.Resolve"};

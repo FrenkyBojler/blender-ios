@@ -12,6 +12,9 @@
 
 #include "BLI_any.hh"
 #include "BLI_generic_pointer.hh"
+#include "BLI_memory_counter_fwd.hh"
+
+#include "BKE_node_socket_value_fwd.hh"
 
 namespace blender::bke {
 
@@ -91,13 +94,12 @@ class SocketValueVariant {
 
   /**
    * Create a variant based on the given value. This works for primitive types. For more complex
-   * types use #set explicity. Alternatively, one can use the #From or #ConstructIn utilities.
+   * types use #set explicitly. Alternatively, one can use the #From or #ConstructIn utilities.
    */
-  template<typename T,
-           /* The enable-if is necessary to avoid overridding the copy/moveconstructors. */
-           BLI_ENABLE_IF((std::is_trivial_v<std::decay_t<T>> ||
-                          is_same_any_v<std::decay_t<T>, std::string>))>
+  template<typename T>
   explicit SocketValueVariant(T &&value)
+      /* Required to avoid overriding the copy/move-constructors. */
+    requires(std::is_trivial_v<std::decay_t<T>> || is_same_any_v<std::decay_t<T>, std::string>)
   {
     this->set(std::forward<T>(value));
   }
@@ -135,10 +137,17 @@ class SocketValueVariant {
    */
   template<typename T> void set(T &&value);
 
+  eNodeSocketDatatype socket_type() const;
+
   /**
    * If true, the stored value cannot be converted to a single value without loss of information.
    */
   bool is_context_dependent_field() const;
+
+  /**
+   * If true, the value is stored as a #GField.
+   */
+  bool is_field() const;
 
   /**
    * The stored value is a volume grid.
@@ -178,6 +187,10 @@ class SocketValueVariant {
    */
   const void *get_single_ptr_raw() const;
 
+  /** Also see GeomtrySet::ensure_owns_direct_data. */
+  void ensure_owns_direct_data();
+  bool owns_direct_data() const;
+
   /**
    * Replace the stored value with the given single value.
    */
@@ -189,6 +202,8 @@ class SocketValueVariant {
    */
   void *allocate_single(eNodeSocketDatatype socket_type);
 
+  void count_memory(MemoryCounter &memory) const;
+
   friend std::ostream &operator<<(std::ostream &stream, const SocketValueVariant &value_variant);
 
  private:
@@ -198,6 +213,11 @@ class SocketValueVariant {
    */
   template<typename T> void store_impl(T value);
 };
+
+inline eNodeSocketDatatype SocketValueVariant::socket_type() const
+{
+  return socket_type_;
+}
 
 template<typename T>
 inline SocketValueVariant &SocketValueVariant::ConstructIn(void *ptr, T &&value)
@@ -216,6 +236,7 @@ template<typename T> inline SocketValueVariant SocketValueVariant::From(T &&valu
 
 template<typename T> inline void SocketValueVariant::set(T &&value)
 {
+  static_assert(!is_same_any_v<std::decay_t<T>, SocketValueVariant, bke::SocketValueVariant *>);
   this->store_impl<std::decay_t<T>>(std::forward<T>(value));
 }
 

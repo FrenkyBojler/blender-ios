@@ -12,6 +12,8 @@
 #include "BLI_utildefines.h"
 #include "BLI_utildefines_variadic.h"
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name Path Queries
  * \{ */
@@ -201,9 +203,9 @@ void BLI_path_normalize_unc(char *path, int path_maxncpy);
 /**
  * Convert `path` to a canonical representation.
  * This is intended for system paths (passed in as command-line arguments of via scripts)
- * which are valid in that they resolve to a file/directory and but could be `CWD` relative or
+ * which are valid in that they resolve to a file/directory but could be `CWD` relative or
  * contain redundant slashes that cause absolute/relative conversion to fail.
- * (specifically the "//" prefix used by Blender).
+ * (specifically the `//` prefix used by Blender).
  *
  * Perform the following operations:
  *
@@ -669,24 +671,24 @@ bool BLI_path_frame_check_chars(const char *path) ATTR_NONNULL(1) ATTR_WARN_UNUS
 #endif
 
 /**
- * If path begins with "//", strips that and replaces it with `basepath` directory.
+ * If path begins with `//`, strips that and replaces it with `basepath` directory.
  *
  * \note Also converts drive-letter prefix to something more sensible
  * if this is a non-drive-letter-based system.
  *
  * \param path: The path to convert.
  * \param basepath: The directory to base relative paths with.
- * \return true if the path was relative (started with "//").
+ * \return true if the path was relative (started with `//`).
  */
 bool BLI_path_abs(char path[FILE_MAX], const char *basepath) ATTR_NONNULL(1, 2);
 /**
- * Replaces `path` with a relative version (prefixed by "//") such that #BLI_path_abs, given
+ * Replaces `path` with a relative version (prefixed by `//`) such that #BLI_path_abs, given
  * the same `basepath`, will convert it back to its original value.
  */
 void BLI_path_rel(char path[FILE_MAX], const char *basepath) ATTR_NONNULL(1);
 
 /**
- * Does path begin with the special "//" prefix that Blender uses to indicate
+ * Does path begin with the special `//` prefix that Blender uses to indicate
  * a path relative to the .blend file.
  */
 bool BLI_path_is_rel(const char *path) ATTR_NONNULL(1) ATTR_WARN_UNUSED_RESULT;
@@ -698,7 +700,7 @@ bool BLI_path_is_rel(const char *path) ATTR_NONNULL(1) ATTR_WARN_UNUSED_RESULT;
  * \{ */
 
 /**
- * Checks for a relative path (ignoring Blender's "//") prefix
+ * Checks for a relative path (ignoring Blender's `//`) prefix
  * (unlike `!BLI_path_is_rel(path)`).
  * When false, #BLI_path_abs_from_cwd would expand the absolute path.
  */
@@ -708,7 +710,7 @@ bool BLI_path_is_abs_from_cwd(const char *path) ATTR_NONNULL(1) ATTR_WARN_UNUSED
  * \returns true if the expansion was performed.
  *
  * \note Should only be called with command line paths.
- * This is _not_ something Blender's internal paths support, instead they use the "//" prefix.
+ * This is _not_ something Blender's internal paths support, instead they use the `//` prefix.
  * In most cases #BLI_path_abs should be used instead.
  */
 bool BLI_path_abs_from_cwd(char *path, size_t path_maxncpy) ATTR_NONNULL(1);
@@ -720,13 +722,13 @@ bool BLI_path_abs_from_cwd(char *path, size_t path_maxncpy) ATTR_NONNULL(1);
  * \{ */
 
 #ifdef WIN32
-#  define SEP '\\'
-#  define ALTSEP '/'
+constexpr char SEP = '\\';
+constexpr char ALTSEP = '/';
 #  define SEP_STR "\\"
 #  define ALTSEP_STR "/"
 #else
-#  define SEP '/'
-#  define ALTSEP '\\'
+constexpr char SEP = '/';
+constexpr char ALTSEP = '\\';
 #  define SEP_STR "/"
 #  define ALTSEP_STR "\\"
 #endif
@@ -796,3 +798,5 @@ const char *BLI_getenv(const char *env) ATTR_NONNULL(1) ATTR_WARN_UNUSED_RESULT;
   (((_n)[0] == '.') && (((_n)[1] == '\0') || (((_n)[1] == '.') && ((_n)[2] == '\0'))))
 
 /** \} */
+
+}  // namespace blender

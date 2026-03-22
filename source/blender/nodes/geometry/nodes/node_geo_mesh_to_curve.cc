@@ -6,6 +6,7 @@
 
 #include "NOD_rna_define.hh"
 
+#include "GEO_foreach_geometry.hh"
 #include "GEO_mesh_to_curve.hh"
 
 #include "UI_interface_c.hh"
@@ -29,9 +30,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Geometry>("Curve").propagate_all();
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "mode", UI_ITEM_R_EXPAND, std::nullopt, 0);
+  layout.prop(ptr, "mode", ui::ITEM_R_EXPAND, std::nullopt, 0);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -39,10 +40,10 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Mode mode = Mode(params.node().custom1);
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Mesh");
 
-  geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+  geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     const Mesh *mesh = geometry_set.get_mesh();
     if (mesh == nullptr) {
-      geometry_set.remove_geometry_during_modify();
+      geometry_set.keep_only({GeometryComponent::Type::Edit});
       return;
     }
 
@@ -54,7 +55,7 @@ static void node_geo_exec(GeoNodeExecParams params)
         evaluator.evaluate();
         const IndexMask selection = evaluator.get_evaluated_as_mask(0);
         if (selection.is_empty()) {
-          geometry_set.remove_geometry_during_modify();
+          geometry_set.keep_only({GeometryComponent::Type::Edit});
           return;
         }
 
@@ -70,7 +71,7 @@ static void node_geo_exec(GeoNodeExecParams params)
         evaluator.evaluate();
         const IndexMask selection = evaluator.get_evaluated_as_mask(0);
         if (selection.is_empty()) {
-          geometry_set.remove_geometry_during_modify();
+          geometry_set.keep_only({GeometryComponent::Type::Edit});
           return;
         }
 
@@ -80,7 +81,7 @@ static void node_geo_exec(GeoNodeExecParams params)
         break;
       }
     }
-    geometry_set.keep_only_during_modify({GeometryComponent::Type::Curve});
+    geometry_set.keep_only({GeometryComponent::Type::Curve, GeometryComponent::Type::Edit});
   });
 
   params.set_output("Curve", std::move(geometry_set));
@@ -108,7 +109,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeMeshToCurve", GEO_NODE_MESH_TO_CURVE);
   ntype.ui_name = "Mesh to Curve";
@@ -118,7 +119,7 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
   node_rna(ntype.rna_ext.srna);
 }
 NOD_REGISTER_NODE(node_register)

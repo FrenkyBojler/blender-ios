@@ -14,6 +14,8 @@
 #include "BKE_geometry_set.hh"
 #include "BKE_volume_grid_fwd.hh"
 
+#include "NOD_geometry_nodes_list_fwd.hh"
+
 namespace blender::bke::bake {
 
 /**
@@ -150,13 +152,35 @@ class StringBakeItem : public BakeItem {
  */
 class BundleBakeItem : public BakeItem {
  public:
-  struct Item {
-    std::string key;
+  struct SocketValue {
     std::string socket_idname;
     std::unique_ptr<BakeItem> value;
   };
 
+  struct InternalValue {
+    ImplicitSharingPtr<> value;
+  };
+
+  struct Item {
+    std::string key;
+    std::variant<SocketValue, InternalValue> value;
+  };
+
   Vector<Item> items;
+};
+
+class ListBakeItem : public BakeItem {
+ public:
+  /* List of bake items for bundles which need additional preparation for baking. */
+  using BundleList = Vector<BundleBakeItem>;
+
+  std::variant<nodes::ListPtr, BundleList> value;
+
+  ListBakeItem(nodes::ListPtr list);
+  ListBakeItem(Vector<BundleBakeItem> &&items);
+  ~ListBakeItem() override;
+
+  void count_memory(MemoryCounter &memory) const override;
 };
 
 }  // namespace blender::bke::bake

@@ -8,11 +8,10 @@
 
 #include <cstring>
 
-#include "DNA_defaults.h"
 #include "DNA_scene_types.h"
 
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "IMB_colormanagement.hh"
@@ -24,23 +23,21 @@
 #include "BKE_image_format.hh"
 #include "BKE_path_templates.hh"
 
-namespace path_templates = blender::bke::path_templates;
+#include "BLT_translation.hh"
+
+namespace blender {
+
+namespace path_templates = bke::path_templates;
 
 /* Init/Copy/Free */
 
-void BKE_image_format_init(ImageFormatData *imf, const bool render)
+void BKE_image_format_init(ImageFormatData *imf)
 {
-  *imf = *DNA_struct_default_get(ImageFormatData);
+  *imf = ImageFormatData();
 
   BKE_color_managed_display_settings_init(&imf->display_settings);
 
-  if (render) {
-    BKE_color_managed_view_settings_init_render(
-        &imf->view_settings, &imf->display_settings, "Filmic");
-  }
-  else {
-    BKE_color_managed_view_settings_init_default(&imf->view_settings, &imf->display_settings);
-  }
+  BKE_color_managed_view_settings_init(&imf->view_settings, &imf->display_settings, "AgX");
 
   BKE_color_managed_colorspace_settings_init(&imf->linear_colorspace_settings);
 }
@@ -68,15 +65,16 @@ void BKE_image_format_update_color_space_for_type(ImageFormatData *format)
   }
 
   const bool image_requires_linear = BKE_imtype_requires_linear_float(format->imtype);
+  /* TODO: This is wrong, there are more linear colorspaces than scene linear. */
   const bool is_linear = IMB_colormanagement_space_name_is_scene_linear(
       format->linear_colorspace_settings.name);
 
   /* The color space is either not set or is linear but the image requires non-linear or vice
    * versa. So set to the default for the image type. */
   if (format->linear_colorspace_settings.name[0] == '\0' || image_requires_linear != is_linear) {
-    const int role = image_requires_linear ? COLOR_ROLE_DEFAULT_FLOAT : COLOR_ROLE_DEFAULT_BYTE;
+    const int role = image_requires_linear ? COLOR_ROLE_SCENE_LINEAR : COLOR_ROLE_DEFAULT_BYTE;
     const char *default_color_space = IMB_colormanagement_role_colorspace_name_get(role);
-    STRNCPY(format->linear_colorspace_settings.name, default_color_space);
+    STRNCPY_UTF8(format->linear_colorspace_settings.name, default_color_space);
   }
 }
 
@@ -183,7 +181,7 @@ void BKE_image_format_set(ImageFormatData *imf, ID *owner_id, const char imtype)
 
 int BKE_imtype_to_ftype(const char imtype, ImbFormatOptions *r_options)
 {
-  memset(r_options, 0, sizeof(*r_options));
+  *r_options = ImbFormatOptions();
 
   if (imtype == R_IMF_IMTYPE_TARGA) {
     return IMB_FTYPE_TGA;
@@ -199,7 +197,6 @@ int BKE_imtype_to_ftype(const char imtype, ImbFormatOptions *r_options)
     return IMB_FTYPE_RADHDR;
   }
   if (imtype == R_IMF_IMTYPE_PNG) {
-    r_options->quality = 15;
     return IMB_FTYPE_PNG;
   }
   if (imtype == R_IMF_IMTYPE_DDS) {
@@ -212,7 +209,6 @@ int BKE_imtype_to_ftype(const char imtype, ImbFormatOptions *r_options)
     return IMB_FTYPE_TIF;
   }
   if (ELEM(imtype, R_IMF_IMTYPE_OPENEXR, R_IMF_IMTYPE_MULTILAYER)) {
-    r_options->quality = 90;
     return IMB_FTYPE_OPENEXR;
   }
 #ifdef WITH_IMAGE_CINEON
@@ -226,21 +222,24 @@ int BKE_imtype_to_ftype(const char imtype, ImbFormatOptions *r_options)
 #ifdef WITH_IMAGE_OPENJPEG
   if (imtype == R_IMF_IMTYPE_JP2) {
     r_options->flag |= JP2_JP2;
-    r_options->quality = 90;
     return IMB_FTYPE_JP2;
   }
 #endif
 #ifdef WITH_IMAGE_WEBP
   if (imtype == R_IMF_IMTYPE_WEBP) {
-    r_options->quality = 90;
     return IMB_FTYPE_WEBP;
   }
 #endif
+<<<<<<< HEAD
   if (imtype == R_IMF_IMTYPE_JXL) {
     return IMB_FTYPE_JXL;
+=======
+  if (imtype == R_IMF_IMTYPE_AVIF) {
+    r_options->quality = 90;
+    return IMB_FTYPE_AVIF;
+>>>>>>> origin/main
   }
 
-  r_options->quality = 90;
   return IMB_FTYPE_JPG;
 }
 
@@ -295,8 +294,13 @@ char BKE_ftype_to_imtype(const int ftype, const ImbFormatOptions *options)
     return R_IMF_IMTYPE_WEBP;
   }
 #endif
+<<<<<<< HEAD
   if (ftype == IMB_FTYPE_JXL) {
     return R_IMF_IMTYPE_JXL;
+=======
+  if (ftype == IMB_FTYPE_AVIF) {
+    return R_IMF_IMTYPE_AVIF;
+>>>>>>> origin/main
   }
 
   return R_IMF_IMTYPE_JPEG90;
@@ -309,26 +313,12 @@ bool BKE_imtype_is_image(const char imtype)
 
 bool BKE_imtype_is_multi_layer_image(const char imtype)
 {
-  switch (imtype) {
-    case R_IMF_IMTYPE_MULTILAYER:
-      return true;
-  }
-  return false;
+  return imtype == R_IMF_IMTYPE_MULTILAYER;
 }
 
 bool BKE_imtype_is_movie(const char imtype)
 {
-  switch (imtype) {
-    case R_IMF_IMTYPE_AVIRAW:
-    case R_IMF_IMTYPE_AVIJPEG:
-    case R_IMF_IMTYPE_FFMPEG:
-    case R_IMF_IMTYPE_H264:
-    case R_IMF_IMTYPE_THEORA:
-    case R_IMF_IMTYPE_XVID:
-    case R_IMF_IMTYPE_AV1:
-      return true;
-  }
-  return false;
+  return imtype == R_IMF_IMTYPE_FFMPEG;
 }
 
 bool BKE_imtype_supports_compress(const char imtype)
@@ -345,9 +335,12 @@ bool BKE_imtype_supports_quality(const char imtype)
   switch (imtype) {
     case R_IMF_IMTYPE_JPEG90:
     case R_IMF_IMTYPE_JP2:
-    case R_IMF_IMTYPE_AVIJPEG:
     case R_IMF_IMTYPE_WEBP:
+<<<<<<< HEAD
     case R_IMF_IMTYPE_JXL:
+=======
+    case R_IMF_IMTYPE_AVIF:
+>>>>>>> origin/main
       return true;
   }
   return false;
@@ -385,7 +378,11 @@ char BKE_imtype_valid_channels(const char imtype)
     case R_IMF_IMTYPE_JP2:
     case R_IMF_IMTYPE_DPX:
     case R_IMF_IMTYPE_WEBP:
+<<<<<<< HEAD
     case R_IMF_IMTYPE_JXL:
+=======
+    case R_IMF_IMTYPE_AVIF:
+>>>>>>> origin/main
       chan_flag |= IMA_CHAN_FLAG_RGBA;
       break;
   }
@@ -428,8 +425,13 @@ char BKE_imtype_valid_depths(const char imtype)
       return R_IMF_CHAN_DEPTH_8 | R_IMF_CHAN_DEPTH_12 | R_IMF_CHAN_DEPTH_16;
     case R_IMF_IMTYPE_PNG:
       return R_IMF_CHAN_DEPTH_8 | R_IMF_CHAN_DEPTH_16;
+<<<<<<< HEAD
     case R_IMF_IMTYPE_JXL:
       return R_IMF_CHAN_DEPTH_8 | R_IMF_CHAN_DEPTH_10 | R_IMF_CHAN_DEPTH_12 | R_IMF_CHAN_DEPTH_16 | R_IMF_CHAN_DEPTH_32;
+=======
+    case R_IMF_IMTYPE_AVIF:
+      return R_IMF_CHAN_DEPTH_8 | R_IMF_CHAN_DEPTH_10 | R_IMF_CHAN_DEPTH_12;
+>>>>>>> origin/main
     /* Most formats are 8bit only. */
     default:
       return R_IMF_CHAN_DEPTH_8;
@@ -445,7 +447,7 @@ char BKE_imtype_valid_depths_with_video(char imtype, const ID *owner_id)
   if (imtype == R_IMF_IMTYPE_FFMPEG) {
     const bool is_render_out = (owner_id && GS(owner_id->name) == ID_SCE);
     if (is_render_out) {
-      const Scene *scene = (const Scene *)owner_id;
+      const Scene *scene = id_cast<const Scene *>(owner_id);
       depths |= MOV_codec_valid_bit_depths(scene->r.ffcodecdata.codec_id_get());
     }
   }
@@ -489,12 +491,6 @@ char BKE_imtype_from_arg(const char *imtype_arg)
   }
   if (STREQ(imtype_arg, "RAWTGA")) {
     return R_IMF_IMTYPE_RAWTGA;
-  }
-  if (STREQ(imtype_arg, "AVIRAW")) {
-    return R_IMF_IMTYPE_AVIRAW;
-  }
-  if (STREQ(imtype_arg, "AVIJPEG")) {
-    return R_IMF_IMTYPE_AVIJPEG;
   }
   if (STREQ(imtype_arg, "PNG")) {
     return R_IMF_IMTYPE_PNG;
@@ -545,6 +541,9 @@ char BKE_imtype_from_arg(const char *imtype_arg)
     return R_IMF_IMTYPE_WEBP;
   }
 #endif
+  if (STREQ(imtype_arg, "AVIF")) {
+    return R_IMF_IMTYPE_AVIF;
+  }
 
   return R_IMF_IMTYPE_INVALID;
 }
@@ -567,14 +566,7 @@ static int image_path_ext_from_imformat_impl(const char imtype,
   else if (imtype == R_IMF_IMTYPE_RADHDR) {
     r_ext[ext_num++] = ".hdr";
   }
-  else if (ELEM(imtype,
-                R_IMF_IMTYPE_PNG,
-                R_IMF_IMTYPE_FFMPEG,
-                R_IMF_IMTYPE_H264,
-                R_IMF_IMTYPE_THEORA,
-                R_IMF_IMTYPE_XVID,
-                R_IMF_IMTYPE_AV1))
-  {
+  else if (ELEM(imtype, R_IMF_IMTYPE_PNG, R_IMF_IMTYPE_FFMPEG)) {
     r_ext[ext_num++] = ".png";
   }
   else if (imtype == R_IMF_IMTYPE_DDS) {
@@ -629,11 +621,16 @@ static int image_path_ext_from_imformat_impl(const char imtype,
     r_ext[ext_num++] = ".webp";
   }
 #endif
+<<<<<<< HEAD
   else if (imtype == R_IMF_IMTYPE_JXL) {
     r_ext[ext_num++] = ".jxl";
+=======
+  else if (imtype == R_IMF_IMTYPE_AVIF) {
+    r_ext[ext_num++] = ".avif";
+>>>>>>> origin/main
   }
   else {
-    /* Handles: #R_IMF_IMTYPE_AVIRAW, #R_IMF_IMTYPE_AVIJPEG, #R_IMF_IMTYPE_JPEG90 etc. */
+    /* Handles: #R_IMF_IMTYPE_JPEG90 etc. */
     r_ext[ext_num++] = ".jpg";
     r_ext[ext_num++] = ".jpeg";
   }
@@ -687,7 +684,7 @@ int BKE_image_path_ext_from_imtype_ensure(char *filepath,
   return do_ensure_image_extension(filepath, filepath_maxncpy, imtype, nullptr);
 }
 
-static blender::Vector<path_templates::Error> do_makepicstring(
+static Vector<path_templates::Error> do_makepicstring(
     char filepath[FILE_MAX],
     const char *base,
     const char *relbase,
@@ -705,7 +702,7 @@ static blender::Vector<path_templates::Error> do_makepicstring(
   BLI_strncpy(filepath, base, FILE_MAX - 10); /* weak assumption */
 
   if (template_variables) {
-    const blender::Vector<path_templates::Error> variable_errors = BKE_path_apply_template(
+    const Vector<path_templates::Error> variable_errors = BKE_path_apply_template(
         filepath, FILE_MAX, *template_variables);
     if (!variable_errors.is_empty()) {
       return variable_errors;
@@ -716,6 +713,13 @@ static blender::Vector<path_templates::Error> do_makepicstring(
 
   if (use_frames) {
     BLI_path_frame(filepath, FILE_MAX, frame, 4);
+  }
+  else {
+    /* Avoid empty filename if there is no frame and only a directory was specified. */
+    const size_t len = strlen(filepath);
+    if (len && BLI_path_slash_is_native_compat(filepath[len - 1])) {
+      BLI_path_suffix(filepath, FILE_MAX, DATA_("Untitled"), "");
+    }
   }
 
   if (suffix) {
@@ -729,7 +733,7 @@ static blender::Vector<path_templates::Error> do_makepicstring(
   return {};
 }
 
-blender::Vector<path_templates::Error> BKE_image_path_from_imformat(
+Vector<path_templates::Error> BKE_image_path_from_imformat(
     char *filepath,
     const char *base,
     const char *relbase,
@@ -752,7 +756,7 @@ blender::Vector<path_templates::Error> BKE_image_path_from_imformat(
                           suffix);
 }
 
-blender::Vector<path_templates::Error> BKE_image_path_from_imtype(
+Vector<path_templates::Error> BKE_image_path_from_imtype(
     char *filepath,
     const char *base,
     const char *relbase,
@@ -793,14 +797,7 @@ void BKE_image_format_to_imbuf(ImBuf *ibuf, const ImageFormatData *imf)
   else if (imtype == R_IMF_IMTYPE_RADHDR) {
     ibuf->ftype = IMB_FTYPE_RADHDR;
   }
-  else if (ELEM(imtype,
-                R_IMF_IMTYPE_PNG,
-                R_IMF_IMTYPE_FFMPEG,
-                R_IMF_IMTYPE_H264,
-                R_IMF_IMTYPE_THEORA,
-                R_IMF_IMTYPE_XVID,
-                R_IMF_IMTYPE_AV1))
-  {
+  else if (ELEM(imtype, R_IMF_IMTYPE_PNG, R_IMF_IMTYPE_FFMPEG)) {
     ibuf->ftype = IMB_FTYPE_PNG;
 
     if (imtype == R_IMF_IMTYPE_PNG) {
@@ -808,7 +805,7 @@ void BKE_image_format_to_imbuf(ImBuf *ibuf, const ImageFormatData *imf)
         ibuf->foptions.flag |= PNG_16BIT;
       }
 
-      ibuf->foptions.quality = compress;
+      ibuf->foptions.compress = compress;
     }
   }
   else if (imtype == R_IMF_IMTYPE_DDS) {
@@ -844,6 +841,9 @@ void BKE_image_format_to_imbuf(ImBuf *ibuf, const ImageFormatData *imf)
     }
     ibuf->foptions.flag |= (imf->exr_codec & OPENEXR_CODEC_MASK);
     ibuf->foptions.quality = quality;
+    if (imf->exr_flag & R_IMF_EXR_FLAG_MULTIPART) {
+      ibuf->foptions.flag |= OPENEXR_MULTIPART;
+    }
   }
 #endif
 #ifdef WITH_IMAGE_CINEON
@@ -928,9 +928,22 @@ void BKE_image_format_to_imbuf(ImBuf *ibuf, const ImageFormatData *imf)
     ibuf->foptions.quality = quality;
   }
 #endif
+<<<<<<< HEAD
   else if (imtype == R_IMF_IMTYPE_JXL) {
     ibuf->ftype = IMB_FTYPE_JXL;
     ibuf->foptions.quality = quality;
+=======
+  else if (imtype == R_IMF_IMTYPE_AVIF) {
+    ibuf->ftype = IMB_FTYPE_AVIF;
+    ibuf->foptions.quality = quality;
+
+    if (imf->depth == R_IMF_CHAN_DEPTH_10) {
+      ibuf->foptions.flag |= AVIF_10BIT;
+    }
+    else if (imf->depth == R_IMF_CHAN_DEPTH_12) {
+      ibuf->foptions.flag |= AVIF_12BIT;
+    }
+>>>>>>> origin/main
   }
   else {
     /* #R_IMF_IMTYPE_JPEG90, etc. default to JPEG. */
@@ -986,9 +999,11 @@ void BKE_image_format_from_imbuf(ImageFormatData *im_format, const ImBuf *imbuf)
   int ftype = imbuf->ftype;
   int custom_flags = imbuf->foptions.flag;
   char quality = imbuf->foptions.quality;
+  char compress = imbuf->foptions.compress;
   bool is_depth_set = false;
 
-  BKE_image_format_init(im_format, false);
+  BKE_image_format_init(im_format);
+  im_format->media_type = MEDIA_TYPE_IMAGE;
 
   /* file type */
   if (ftype == IMB_FTYPE_IRIS) {
@@ -1005,7 +1020,7 @@ void BKE_image_format_from_imbuf(ImageFormatData *im_format, const ImBuf *imbuf)
       is_depth_set = true;
     }
 
-    im_format->compress = quality;
+    im_format->compress = compress;
   }
   else if (ftype == IMB_FTYPE_DDS) {
     im_format->imtype = R_IMF_IMTYPE_DDS;
@@ -1047,6 +1062,9 @@ void BKE_image_format_from_imbuf(ImageFormatData *im_format, const ImBuf *imbuf)
     }
     if (exr_codec < R_IMF_EXR_CODEC_MAX) {
       im_format->exr_codec = exr_codec;
+    }
+    if (custom_flags & OPENEXR_MULTIPART) {
+      im_format->exr_flag |= R_IMF_EXR_FLAG_MULTIPART;
     }
   }
 #endif
@@ -1109,9 +1127,25 @@ void BKE_image_format_from_imbuf(ImageFormatData *im_format, const ImBuf *imbuf)
     im_format->quality = quality;
   }
 #endif
+<<<<<<< HEAD
   else if (ftype == IMB_FTYPE_JXL) {
     im_format->imtype = R_IMF_IMTYPE_JXL;
     im_format->quality = quality;
+=======
+
+  else if (ftype == IMB_FTYPE_AVIF) {
+    im_format->imtype = R_IMF_IMTYPE_AVIF;
+    im_format->quality = quality;
+
+    if (custom_flags & AVIF_10BIT) {
+      im_format->depth = R_IMF_CHAN_DEPTH_10;
+      is_depth_set = true;
+    }
+    else if (custom_flags & AVIF_12BIT) {
+      im_format->depth = R_IMF_CHAN_DEPTH_12;
+      is_depth_set = true;
+    }
+>>>>>>> origin/main
   }
   else {
     im_format->imtype = R_IMF_IMTYPE_JPEG90;
@@ -1150,17 +1184,25 @@ void BKE_image_format_color_management_copy_from_scene(ImageFormatData *imf, con
 
   BKE_color_managed_display_settings_copy(&imf->display_settings, &scene->display_settings);
   BKE_color_managed_view_settings_copy(&imf->view_settings, &scene->view_settings);
-  STRNCPY(imf->linear_colorspace_settings.name,
-          IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_SCENE_LINEAR));
+  STRNCPY_UTF8(imf->linear_colorspace_settings.name,
+               IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_SCENE_LINEAR));
 }
 
 /* Output */
 
 void BKE_image_format_init_for_write(ImageFormatData *imf,
                                      const Scene *scene_src,
-                                     const ImageFormatData *imf_src)
+                                     const ImageFormatData *imf_src,
+                                     const bool allow_video)
 {
   *imf = (imf_src) ? *imf_src : scene_src->r.im_format;
+
+  /* For image saving we can not have use media type video. */
+  if (!allow_video) {
+    if (scene_src && imf->media_type == MEDIA_TYPE_VIDEO) {
+      BKE_image_format_media_type_set(imf, const_cast<ID *>(&scene_src->id), MEDIA_TYPE_IMAGE);
+    }
+  }
 
   if (imf_src && imf_src->color_management == R_IMF_COLOR_MANAGEMENT_OVERRIDE) {
     /* Use settings specific to one node, image save operation, etc. */
@@ -1182,7 +1224,9 @@ void BKE_image_format_init_for_write(ImageFormatData *imf,
     /* Use general scene settings also used for display. */
     BKE_color_managed_display_settings_copy(&imf->display_settings, &scene_src->display_settings);
     BKE_color_managed_view_settings_copy(&imf->view_settings, &scene_src->view_settings);
-    STRNCPY(imf->linear_colorspace_settings.name,
-            IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_SCENE_LINEAR));
+    STRNCPY_UTF8(imf->linear_colorspace_settings.name,
+                 IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_SCENE_LINEAR));
   }
 }
+
+}  // namespace blender

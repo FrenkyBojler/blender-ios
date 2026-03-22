@@ -7,7 +7,6 @@
  */
 
 #include <cerrno>
-#include <cstdio>
 #include <cstdlib>
 
 #include "BLI_path_utils.hh" /* For assertions. */
@@ -16,6 +15,12 @@
 #include "IMB_filetype.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
+
+#include "CLG_log.h"
+
+namespace blender {
+
+static CLG_LogRef LOG = {"image.write"};
 
 bool IMB_save_image(ImBuf *ibuf, const char *filepath, const int flags)
 {
@@ -30,8 +35,17 @@ bool IMB_save_image(ImBuf *ibuf, const char *filepath, const int flags)
 
   const ImFileType *type = IMB_file_type_from_ibuf(ibuf);
   if (type == nullptr || type->save == nullptr) {
-    fprintf(stderr, "Couldn't save picture.\n");
+    CLOG_ERROR(&LOG, "Couldn't save image to \"%s\"", filepath);
     return false;
+  }
+
+  if (flags & IB_mem) {
+    BLI_assert((type->capability_write & eImFileTypeCapability::Memory) !=
+               eImFileTypeCapability::Zero);
+  }
+  else {
+    BLI_assert((type->capability_write & eImFileTypeCapability::File) !=
+               eImFileTypeCapability::Zero);
   }
 
   /* If writing byte image from float buffer, create a byte buffer for writing.
@@ -48,3 +62,5 @@ bool IMB_save_image(ImBuf *ibuf, const char *filepath, const int flags)
 
   return type->save(ibuf, filepath, flags);
 }
+
+}  // namespace blender

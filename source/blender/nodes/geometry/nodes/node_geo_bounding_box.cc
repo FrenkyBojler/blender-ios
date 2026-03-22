@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "GEO_foreach_geometry.hh"
 #include "GEO_mesh_primitive_cuboid.hh"
 #include "GEO_transform.hh"
 
@@ -49,7 +50,7 @@ static void node_geo_exec(GeoNodeExecParams params)
    * every instance). Because geometry components are reference counted anyway, we can just
    * repurpose the original geometry sets for the output. */
   if (params.output_is_required("Bounding Box")) {
-    geometry_set.modify_geometry_sets([&](GeometrySet &sub_geometry) {
+    geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &sub_geometry) {
       std::optional<Bounds<float3>> sub_bounds;
 
       /* Reuse the min and max calculation if this is the main "real" geometry set. */
@@ -61,7 +62,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       }
 
       if (!sub_bounds) {
-        sub_geometry.remove_geometry_during_modify();
+        sub_geometry.clear();
       }
       else {
         const float3 scale = sub_bounds->max - sub_bounds->min;
@@ -69,7 +70,7 @@ static void node_geo_exec(GeoNodeExecParams params)
         Mesh *mesh = geometry::create_cuboid_mesh(scale, 2, 2, 2, "uv_map");
         geometry::transform_mesh(*mesh, center, math::Quaternion::identity(), float3(1));
         sub_geometry.replace_mesh(mesh);
-        sub_geometry.keep_only_during_modify({GeometryComponent::Type::Mesh});
+        sub_geometry.keep_only({GeometryComponent::Type::Mesh, GeometryComponent::Type::Edit});
       }
     });
 
@@ -79,7 +80,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeBoundBox", GEO_NODE_BOUNDING_BOX);
   ntype.ui_name = "Bounding Box";
   ntype.ui_description =
@@ -89,7 +90,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

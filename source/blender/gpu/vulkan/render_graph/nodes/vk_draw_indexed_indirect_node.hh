@@ -17,10 +17,9 @@ namespace blender::gpu::render_graph {
  * Information stored inside the render graph node. See `VKRenderGraphNode`.
  */
 struct VKDrawIndexedIndirectData {
-  VKPipelineData pipeline_data;
+  VKPipelineDataGraphics graphics;
   VKIndexBufferBinding index_buffer;
   VKVertexBufferBindings vertex_buffers;
-  VKViewportData viewport_data;
   VkBuffer indirect_buffer;
   VkDeviceSize offset;
   uint32_t draw_count;
@@ -51,28 +50,24 @@ class VKDrawIndexedIndirectNode
   static void set_node_data(Node &node, Storage &storage, const CreateInfo &create_info)
   {
     node.storage_index = storage.draw_indexed_indirect.append_and_get_index(create_info.node_data);
-    vk_pipeline_data_copy(storage.draw_indexed_indirect[node.storage_index].pipeline_data,
-                          create_info.node_data.pipeline_data);
   }
 
   /**
    * Extract read/write resource dependencies from `create_info` and add them to `node_links`.
    */
   void build_links(VKResourceStateTracker &resources,
-                   VKRenderGraphNodeLinks &node_links,
+                   VKRenderGraphLinks &links,
                    const CreateInfo &create_info) override
   {
-    create_info.resources.build_links(resources, node_links);
+    create_info.resources.build_links(resources, links);
     if (create_info.node_data.index_buffer.buffer != VK_NULL_HANDLE) {
-      vk_index_buffer_binding_build_links(
-          resources, node_links, create_info.node_data.index_buffer);
+      vk_index_buffer_binding_build_links(resources, links, create_info.node_data.index_buffer);
     }
 
-    vk_vertex_buffer_bindings_build_links(
-        resources, node_links, create_info.node_data.vertex_buffers);
+    vk_vertex_buffer_bindings_build_links(resources, links, create_info.node_data.vertex_buffers);
     ResourceWithStamp buffer_resource = resources.get_buffer(
         create_info.node_data.indirect_buffer);
-    node_links.inputs.append({buffer_resource, VK_ACCESS_INDIRECT_COMMAND_READ_BIT});
+    links.buffers.append({buffer_resource, VK_ACCESS_INDIRECT_COMMAND_READ_BIT});
   }
 
   /**
@@ -80,12 +75,13 @@ class VKDrawIndexedIndirectNode
    */
   void build_commands(VKCommandBufferInterface &command_buffer,
                       Data &data,
+                      Span<uint8_t> storage_push_constants,
                       VKBoundPipelines &r_bound_pipelines) override
   {
-    vk_pipeline_viewport_set_commands(
-        command_buffer, data.viewport_data, r_bound_pipelines.graphics.viewport_state);
+    vk_pipeline_dynamic_graphics_build_commands(command_buffer, data.graphics, r_bound_pipelines);
     vk_pipeline_data_build_commands(command_buffer,
-                                    data.pipeline_data,
+                                    data.graphics.pipeline_data,
+                                    storage_push_constants,
                                     r_bound_pipelines.graphics.pipeline,
                                     VK_PIPELINE_BIND_POINT_GRAPHICS,
                                     VK_SHADER_STAGE_ALL_GRAPHICS);
@@ -95,11 +91,6 @@ class VKDrawIndexedIndirectNode
         command_buffer, data.vertex_buffers, r_bound_pipelines.graphics.vertex_buffers);
     command_buffer.draw_indexed_indirect(
         data.indirect_buffer, data.offset, data.draw_count, data.stride);
-  }
-
-  void free_data(Data &data)
-  {
-    vk_pipeline_data_free(data.pipeline_data);
   }
 };
 }  // namespace blender::gpu::render_graph

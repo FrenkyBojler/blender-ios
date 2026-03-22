@@ -6,6 +6,8 @@
 
 #include <stdio.h>
 
+namespace blender {
+
 /** \file
  * \ingroup bli
  */
@@ -18,7 +20,7 @@ int BLI_cpu_support_sse42(void);
 void BLI_system_backtrace_with_os_info(FILE *fp, const void *os_info);
 void BLI_system_backtrace(FILE *fp);
 
-/** Get CPU brand, result is to be MEM_freeN()-ed. */
+/** Get CPU brand, result is to be MEM_delete()-ed. */
 char *BLI_cpu_brand_string(void);
 
 /**
@@ -29,9 +31,9 @@ char *BLI_cpu_brand_string(void);
  * purposes, and not for reachability over a network.
  *
  * \param buffer: Character buffer to write the hostname into.
- * \param bufsize: Size of the character buffer, including trailing '\0'.
+ * \param buffer_maxncpy: Size of the character buffer, including trailing '\0'.
  */
-void BLI_hostname_get(char *buffer, size_t bufsize);
+void BLI_hostname_get(char *buffer, size_t buffer_maxncpy);
 
 /** Get maximum addressable memory in megabytes. */
 size_t BLI_system_memory_max_in_megabytes(void);
@@ -60,3 +62,5 @@ void BLI_windows_exception_show_dialog(const char *filepath_crashlog,
 #else
 #  define BLI_SYSTEM_PID_H <unistd.h>
 #endif
+
+}  // namespace blender
