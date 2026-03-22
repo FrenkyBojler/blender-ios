@@ -13,6 +13,7 @@
 
 #include "BLI_listbase_iterator.hh"
 #include "BLI_sys_types.h"
+#include "BLI_string.h"
 
 #include "BKE_main.hh"
 #include "BKE_mesh_legacy_convert.hh"
@@ -137,6 +138,53 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
     }
   }
+
+
+	  /* Voiceover defaults */
+	  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 6)) {
+	    for (Scene &scene : bmain->scenes) {
+	      Editing *ed = scene.ed;
+	      if (ed == nullptr) {
+	        continue;
+	      }
+	
+	      if (ed->voiceover_pre_roll == 0) {
+	        ed->voiceover_pre_roll = 3;
+	      }
+	      if (ed->voiceover_channel == 0) {
+	        ed->voiceover_channel = 1;
+	      }
+	      if (ed->voiceover_audio_channels == 0) {
+	        ed->voiceover_audio_channels = 2;
+	      }
+	      if (ed->voiceover_sample_rate == 0) {
+	        ed->voiceover_sample_rate = 48000;
+	      }
+	      if (ed->voiceover_bitrate == 0) {
+	        ed->voiceover_bitrate = 256;
+	      }
+	      if (ed->voiceover_gain == 0.0f) {
+	        ed->voiceover_gain = 1.0f;
+	      }
+	      if (ed->voiceover_container == 0) {
+	        ed->voiceover_container = SEQ_EDIT_VOICEOVER_CONTAINER_WAV;
+	      }
+	      if (ed->voiceover_codec == 0) {
+	        ed->voiceover_codec = SEQ_EDIT_VOICEOVER_CODEC_PCM;
+	      }
+	      if (ed->voiceover_container == SEQ_EDIT_VOICEOVER_CONTAINER_MP3 &&
+	          ed->voiceover_codec == SEQ_EDIT_VOICEOVER_CODEC_PCM)
+	      {
+	        ed->voiceover_container = SEQ_EDIT_VOICEOVER_CONTAINER_WAV;
+	      }
+	      if (ed->voiceover_directory[0] == '\0') {
+	        STRNCPY(ed->voiceover_directory, "//");
+	      }
+	      if (ed->voiceover_filename[0] == '\0') {
+	        STRNCPY(ed->voiceover_filename, "voiceover");
+	      }
+	    }
+	  }
 
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
