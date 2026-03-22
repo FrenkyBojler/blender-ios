@@ -138,9 +138,33 @@ class LazyFunctionForSwitchNode : public LazyFunction {
     outputs_.append_as("Value", cpp_type);
   }
 
+  void log_error(const lf::Context &context, std::string error) const
+  {
+    auto &user_data = *static_cast<GeoNodesUserData *>(context.user_data);
+    auto &local_user_data = *static_cast<GeoNodesLocalUserData *>(context.local_user_data);
+    geo_eval_log::GeoTreeLogger *tree_logger = local_user_data.try_get_tree_logger(user_data);
+    if (tree_logger == nullptr) {
+      return;
+    }
+    tree_logger->node_warnings.append(*tree_logger->allocator,
+                                      {node_id_, {NodeWarningType::Error, error}});
+  }
+
   void execute_impl(lf::Params &params, const lf::Context &context) const override
   {
     SocketValueVariant condition_variant = params.get_input<SocketValueVariant>(0);
+    if (!condition_variant.is_volume_grid()) {
+      this->log_error(context, N_("Grid is not supported as switch condition"));
+      this->execute_single(false, params);
+      return;
+    }
+
+    if (!condition_variant.is_list()) {
+      this->log_error(context, N_("List is not supported as switch condition"));
+      this->execute_single(false, params);
+      return;
+    }
+
     if (!condition_variant.is_context_dependent_field()) {
       this->execute_single(condition_variant.get<bool>(), params);
       return;
@@ -151,15 +175,7 @@ class LazyFunctionForSwitchNode : public LazyFunction {
       return;
     }
 
-    auto &user_data = *static_cast<GeoNodesUserData *>(context.user_data);
-    auto &local_user_data = *static_cast<GeoNodesLocalUserData *>(context.local_user_data);
-    if (geo_eval_log::GeoTreeLogger *tree_logger = local_user_data.try_get_tree_logger(user_data))
-    {
-      tree_logger->node_warnings.append(
-          *tree_logger->allocator,
-          {node_id_, {NodeWarningType::Error, N_("Type cannot be switched by a field")}});
-    }
-
+    this->log_error(context, N_("Type cannot be switched by a field"));
     this->execute_single(condition_variant.get<bool>(), params);
   }
 
