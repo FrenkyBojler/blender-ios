@@ -1,2 +1,3 @@
 Referenced by issue #153959, Eevee: Holdout object and collection setting results in black objects when material "Render Method" is set to "Blended"
 Referenced by issue #154895, EEVEE Transparent Render Pass glitched on 5.1
+Referenced by issue #156032, EEVEE: Holdout Collection renders black
