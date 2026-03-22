@@ -893,6 +893,9 @@ static void render_endjob(void *rjv)
   /* potentially set by caller */
   rj->scene->r.scemode &= ~R_NO_FRAME_UPDATE;
 
+  /* Prevent render cache from polluting preview cache in VSE. */
+  seq::cache_cleanup(rj->scene, seq::CacheCleanup::FinalAndIntra);
+
   if (rj->single_layer) {
     BKE_ntree_update_tag_id_changed(rj->main, &rj->scene->id);
     BKE_ntree_update(*rj->main);
@@ -1149,7 +1152,7 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
   /* flush sculpt and editmode changes */
   ED_editors_flush_edits_ex(bmain, true, false);
 
-  /* Cleanup VSE cache, since it is not guaranteed that stored images are invalid. */
+  /* Prevent preview cache from polluting render cache in VSE. */
   seq::cache_cleanup(scene, seq::CacheCleanup::FinalAndIntra);
 
   /* store spare

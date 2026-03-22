@@ -81,11 +81,8 @@
 #include "RE_engine.h"
 #include "RE_pipeline.h"
 
-#include "SEQ_channels.hh"
-#include "SEQ_iterator.hh"
 #include "SEQ_relations.hh"
 #include "SEQ_render.hh"
-#include "SEQ_sequencer.hh"
 
 #include "GPU_capabilities.hh"
 #include "GPU_context.hh"
@@ -1406,35 +1403,6 @@ static ImBuf *seq_process_render_image(ImBuf *src,
   return dst;
 }
 
-static bool seq_final_render_should_skip_cache(Scene *scene, Render *render)
-{
-  if (!scene) {
-    return false;
-  }
-
-  Editing *ed = blender::seq::editing_get(scene);
-  if (!ed) {
-    return false;
-  }
-
-  ListBaseT<SeqTimelineChannel> *channels = blender::seq::channels_displayed_get(ed);
-  blender::VectorSet<Strip *> strips = blender::seq::query_rendered_strips(
-      scene, channels, &ed->seqbase, render->r.cfra, 0);
-
-  for (Strip *strip : strips) {
-    for (StripModifierData &smd : strip->modifiers) {
-      const bool show_preview = (smd.flag & STRIP_MODIFIER_FLAG_SHOW_PREVIEW) != 0;
-      const bool show_render = (smd.flag & STRIP_MODIFIER_FLAG_MUTE) == 0;
-      /* If rendering, and some modifier's display in render vs. preview differ,
-       * do not cache the final rendered frame for the sequencer timeline. */
-      if (show_preview != show_render) {
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
 /* Render sequencer strips into render result. */
 static void do_render_sequencer(Render *re)
 {
@@ -1474,7 +1442,6 @@ static void do_render_sequencer(Render *re)
                          SEQ_RENDER_SIZE_SCENE,
                          re,
                          &context);
-  context.skip_cache = seq_final_render_should_skip_cache(re->scene, re);
 
   /* The render-result gets destroyed during the rendering, so we first collect all ibufs
    * and then we populate the final render-result. */

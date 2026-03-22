@@ -1743,15 +1743,9 @@ ImBuf *seq_render_strip(const RenderData *context,
   bool use_preprocess = false;
   bool is_proxy_image = false;
 
-  ImBuf *ibuf = nullptr;
-  /* Cache is skipped for render contexts of sequencer-type scene strips and final renders where
-   * some strip's modifier visibility differs between preview and render. In the latter case, the
-   * sequencer should not use the intra-frame cache result produced by the render. */
-  if (!context->skip_cache) {
-    ibuf = intra_frame_cache_get_preprocessed(context->scene, strip);
-    if (ibuf != nullptr) {
-      return ibuf;
-    }
+  ImBuf *ibuf = intra_frame_cache_get_preprocessed(context->scene, strip);
+  if (ibuf != nullptr) {
+    return ibuf;
   }
 
   /* Proxies are not stored in cache. */
@@ -1767,9 +1761,7 @@ ImBuf *seq_render_strip(const RenderData *context,
     use_preprocess = seq_input_have_to_preprocess(strip);
     ibuf = seq_render_preprocess_ibuf(
         context, state, strip, ibuf, timeline_frame, use_preprocess, is_proxy_image);
-    if (!context->skip_cache) {
-      intra_frame_cache_put_preprocessed(context->scene, strip, ibuf);
-    }
+    intra_frame_cache_put_preprocessed(context->scene, strip, ibuf);
   }
 
   if (ibuf == nullptr) {
