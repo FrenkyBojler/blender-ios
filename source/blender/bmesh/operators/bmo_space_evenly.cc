@@ -65,55 +65,50 @@ enum InterpolationMethod {
 };
 
 /**
- * Return the next unvisited candidate edge connected to v.
- */
-static BMEdge *get_next_space_edge(BMVert *v, Set<BMEdge *> &r_visited)
-{
-  BMIter eiter;
-  BMEdge *e_next;
-  BM_ITER_ELEM (e_next, &eiter, v, BM_EDGES_OF_VERT) {
-    if (!r_visited.contains(e_next) && BM_elem_flag_test(e_next, BM_ELEM_TAG)) {
-      return e_next;
-    }
-  }
-  return nullptr;
-}
-
-/**
  * Walk from start_edge in both directions and return the resulting vertex chain.
  */
 static SpaceChainData walk_edges(BMEdge *start_edge, Set<BMEdge *> &r_visited)
 {
   SpaceChainData chain_data;
+  Set<BMVert *> visited_verts;
+
   chain_data.verts.append(start_edge->v1);
   chain_data.verts.append(start_edge->v2);
+  visited_verts.add(start_edge->v1);
+  visited_verts.add(start_edge->v2);
   r_visited.add(start_edge);
 
-  auto walk_fn = [&](BMVert *curr_v, BMEdge *curr_e, Vector<BMVert *> &list) {
+  auto walk_fn = [&](BMVert *curr_v, Vector<BMVert *> &list) {
     while (true) {
-      BMEdge *next_e = get_next_space_edge(curr_v, r_visited);
+      BMEdge *next_e = nullptr;
+      BMIter eiter;
+      BMEdge *e_candidate;
+      BM_ITER_ELEM (e_candidate, &eiter, curr_v, BM_EDGES_OF_VERT) {
+        if (!r_visited.contains(e_candidate) && BM_elem_flag_test(e_candidate, BM_ELEM_TAG)) {
+          next_e = e_candidate;
+          break;
+        }
+      }
       if (!next_e) {
         break;
       }
-      curr_v = BM_edge_other_vert(next_e, curr_v);
-      curr_e = next_e;
+      BMVert *next_v = BM_edge_other_vert(next_e, curr_v);
+      if (visited_verts.contains(next_v)) {
+        break;
+      }
+      curr_v = next_v;
+      visited_verts.add(curr_v);
       list.append(curr_v);
-      r_visited.add(curr_e);
+      r_visited.add(next_e);
     }
   };
 
   /* The initial edge direction (v1 -> v2) is arbitrary.
    * We walk from v2 to extend this sequence. */
-  walk_fn(start_edge->v2, start_edge, chain_data.verts);
-
-  if (chain_data.verts.size() > 2 && chain_data.verts.first() == chain_data.verts.last()) {
-    chain_data.verts.remove_last();
-    chain_data.is_closed = true;
-    return chain_data;
-  }
+  walk_fn(start_edge->v2, chain_data.verts);
 
   Vector<BMVert *> pre_chain;
-  walk_fn(start_edge->v1, start_edge, pre_chain);
+  walk_fn(start_edge->v1, pre_chain);
 
   if (!pre_chain.is_empty()) {
     std::reverse(pre_chain.begin(), pre_chain.end());
@@ -121,7 +116,17 @@ static SpaceChainData walk_edges(BMEdge *start_edge, Set<BMEdge *> &r_visited)
     chain_data.verts = std::move(pre_chain);
   }
 
-  chain_data.is_closed = false;
+  BMEdge *closing_edge = BM_edge_exists(chain_data.verts.first(), chain_data.verts.last());
+  if (closing_edge && BM_elem_flag_test(closing_edge, BM_ELEM_TAG)) {
+    if (!r_visited.contains(closing_edge)) {
+      r_visited.add(closing_edge);
+    }
+    chain_data.is_closed = true;
+  }
+  else {
+    chain_data.is_closed = false;
+  }
+
   return chain_data;
 }
 
@@ -131,7 +136,6 @@ static SpaceChainData walk_edges(BMEdge *start_edge, Set<BMEdge *> &r_visited)
 static void get_space_input_chains(BMesh *bm, Vector<SpaceChainData> &r_chains)
 {
   Set<BMEdge *> visited;
-  Vector<SpaceChainData> base_chains;
   BMIter iter;
   BMEdge *edge;
   BM_ITER_MESH (edge, &iter, bm, BM_EDGES_OF_MESH) {
@@ -150,13 +154,9 @@ static void get_space_input_chains(BMesh *bm, Vector<SpaceChainData> &r_chains)
         }
       }
       if (!all_stacked) {
-        base_chains.append(std::move(chain));
+        r_chains.append(std::move(chain));
       }
     }
-  }
-
-  for (const SpaceChainData &chain : base_chains) {
-    r_chains.append(chain);
   }
 }
 
@@ -164,24 +164,25 @@ static void get_space_input_chains(BMesh *bm, Vector<SpaceChainData> &r_chains)
  * Compute cumulative distances along the chain and the corresponding
  * evenly spaced target distances.
  */
-static SpaceMeasurements measure_chain(const SpaceChainData &loop)
+static SpaceMeasurements measure_chain(const SpaceChainData &chain)
 {
   SpaceMeasurements measure;
-  const int num_verts = loop.verts.size();
+  const int num_verts = chain.verts.size();
 
   /* Measure cumulative distances. */
   float current_dist = 0.0f;
-  measure.knot_distances.reserve(num_verts + (loop.is_closed ? 1 : 0));
+  measure.knot_distances.reserve(num_verts + (chain.is_closed ? 1 : 0));
   /* The very first vertex is at distance 0. */
   measure.knot_distances.append(0.0f);
 
-  for (int i = 1; i < num_verts; i++) {
-    current_dist += len_v3v3(loop.verts[i]->co, loop.verts[i - 1]->co);
+  for (const int i : IndexRange(num_verts).drop_front(1)) {
+    current_dist += math::distance(float3(chain.verts[i]->co), float3(chain.verts[i - 1]->co));
     measure.knot_distances.append(current_dist);
   }
-  /* The for loop missed the final gap if its a closed loop. */
-  if (loop.is_closed) {
-    current_dist += len_v3v3(loop.verts.last()->co, loop.verts.first()->co);
+  /* The for loop missed the final gap if its a closed chain. */
+  if (chain.is_closed) {
+    current_dist += math::distance(float3(chain.verts.last()->co),
+                                   float3(chain.verts.first()->co));
     measure.knot_distances.append(current_dist);
   }
   measure.total_length = current_dist;
@@ -189,9 +190,8 @@ static SpaceMeasurements measure_chain(const SpaceChainData &loop)
   /* Generally, for any given number of n points, there's always n-1 piecewise cubic spline
    * equations but for a closed chain, the last vertex will connect back to the first so there's n
    * cubic spline equations in that case. */
-  const int num_segments = loop.is_closed ? num_verts : num_verts - 1;
-
-  float step = measure.total_length / (float)num_segments;
+  const int num_segments = chain.is_closed ? num_verts : num_verts - 1;
+  float step = measure.total_length / float(num_segments);
   measure.spaced_distances.reserve(num_verts);
 
   for (const int i : IndexRange(num_verts)) {
@@ -223,7 +223,7 @@ static void solve_thomas_algorithm(Span<float> t, Span<float> y, Vector<SplineCo
   Vector<float> d(n);
 
   /* Calculate the length of each segment between consecutive knots. */
-  for (int i = 0; i < n - 1; i++) {
+  for (const int i : IndexRange(n - 1)) {
     h[i] = t[i + 1] - t[i];
     /* In the case where there are two overlapping verticies, we give an arbitrary length
      * to prevent a zero division. */
@@ -238,7 +238,7 @@ static void solve_thomas_algorithm(Span<float> t, Span<float> y, Vector<SplineCo
   z[0] = 0.0f;
 
   /* Forward Elimination. */
-  for (int i = 1; i < n - 1; i++) {
+  for (const int i : IndexRange(1, n - 2)) {
     float q = (3.0f / h[i]) * (y[i + 1] - y[i]) - (3.0f / h[i - 1]) * (y[i] - y[i - 1]);
     l[i] = 2.0f * (t[i + 1] - t[i - 1]) - h[i - 1] * u[i - 1];
     if (l[i] == 0.0f) {
@@ -265,18 +265,84 @@ static void solve_thomas_algorithm(Span<float> t, Span<float> y, Vector<SplineCo
   }
 }
 
-static void calculate_splines_axis(Span<float> distances,
-                                   Span<float> coordinates,
+/**
+ * Compute cubic spline coefficients for one coordinate axis.
+ *
+ * For open chains this solves the tridiagonal system directly.
+ * For closed chains, 4 vertices from the end are copied before the start and 4 from
+ * the start after the end, making the closed loop appear open to the Thomas algorithm.
+ */
+static void calculate_splines_axis(Span<float> unique_distances,
+                                   Span<float> unique_coords,
+                                   bool is_closed,
+                                   float total_length,
                                    Vector<SplineCoeffs> &r_coeffs)
 {
-  /* Todo: Add closed chain spline support. */
-  solve_thomas_algorithm(distances, coordinates, r_coeffs);
+  int num_points = unique_coords.size();
+  if (is_closed) {
+    Vector<float> padded_coords;
+    Vector<float> padded_distances;
+    float dist_start = unique_distances[0];
+    float running_dt = 0.0f;
+
+    for (const int k : IndexRange(1, 4)) {
+      int coord_index = mod_i(num_points - k, num_points);
+      padded_coords.insert(0, unique_coords[coord_index]);
+
+      int knot_index_curr = mod_i(num_points - k + 1, num_points);
+      int knot_index_prev = mod_i(num_points - k, num_points);
+      float segment_length;
+      if (knot_index_curr == 0) {
+        segment_length = total_length - unique_distances[num_points - 1];
+      }
+      else {
+        segment_length = unique_distances[knot_index_curr] - unique_distances[knot_index_prev];
+      }
+      running_dt += segment_length;
+      padded_distances.insert(0, dist_start - running_dt);
+    }
+    padded_coords.extend(unique_coords);
+    padded_distances.extend(unique_distances);
+    padded_coords.append(unique_coords[0]);
+    padded_distances.append(total_length);
+
+    running_dt = 0.0f;
+    for (const int k : IndexRange(4)) {
+      int coord_index = mod_i(k + 1, num_points);
+      padded_coords.append(unique_coords[coord_index]);
+
+      int knot_index_curr = mod_i(k + 1, num_points);
+      int knot_index_prev = mod_i(k, num_points);
+      float segment_length;
+      if (knot_index_curr == 0) {
+        segment_length = total_length - unique_distances[num_points - 1];
+      }
+      else {
+        segment_length = unique_distances[knot_index_curr] - unique_distances[knot_index_prev];
+      }
+
+      running_dt += segment_length;
+      padded_distances.append(total_length + running_dt);
+    }
+
+    Vector<SplineCoeffs> all_coeffs;
+    solve_thomas_algorithm(padded_distances, padded_coords, all_coeffs);
+
+    if (all_coeffs.size() > 8) {
+      for (const int i : IndexRange(4, all_coeffs.size() - 8)) {
+        r_coeffs.append(all_coeffs[i]);
+      }
+    }
+  }
+  else {
+    solve_thomas_algorithm(unique_distances, unique_coords, r_coeffs);
+  }
 }
 
 /** Return the index of the spline segment that contains target_distance. */
 static int find_spline_segment(Span<float> knot_distances, float target_distance)
 {
-  for (int k = 0; k < knot_distances.size() - 1; k++) {
+  for (const int k : IndexRange(knot_distances.size() - 1)) {
     if (target_distance >= knot_distances[k] && target_distance <= knot_distances[k + 1]) {
       return k;
     }
@@ -287,21 +353,19 @@ static int find_spline_segment(Span<float> knot_distances, float target_distance
 
 /** Evaluate linear interpolation at target_distance. */
 static float3 evaluate_linear(Span<float> tknots,
-                              Span<float> solver_x,
-                              Span<float> solver_y,
-                              Span<float> solver_z,
+                              Span<float> coords_x,
+                              Span<float> coords_y,
+                              Span<float> coords_z,
                               float target_distance)
 {
-  int n = find_spline_segment(tknots, target_distance);
-  float t_start = tknots[n];
-  float t_end = tknots[n + 1];
-  float t_factor = 0.0f;
-  if (t_end - t_start > 1e-6f) {
-    t_factor = (target_distance - t_start) / (t_end - t_start);
-  }
-  float3 p1(solver_x[n], solver_y[n], solver_z[n]);
-  float3 p2(solver_x[n + 1], solver_y[n + 1], solver_z[n + 1]);
-  return math::interpolate(p1, p2, t_factor);
+  int segment = find_spline_segment(tknots, target_distance);
+  float seg_start = tknots[segment];
+  float seg_end = tknots[segment + 1];
+  float blend = (target_distance - seg_start) / (seg_end - seg_start);
+  int next_knot = mod_i(segment + 1, coords_x.size());
+  float3 start_pos(coords_x[segment], coords_y[segment], coords_z[segment]);
+  float3 end_pos(coords_x[next_knot], coords_y[next_knot], coords_z[next_knot]);
+  return math::interpolate(start_pos, end_pos, blend);
 }
 
 /** Evaluates the cubic spline at target_distance. */
@@ -311,13 +375,16 @@ static float3 evaluate_cubic(Span<float> tknots,
                              Span<SplineCoeffs> coeffs_z,
                              float target_distance)
 {
-  int n = find_spline_segment(tknots, target_distance);
-  float dt = target_distance - coeffs_x[n].x;
+  int segment = find_spline_segment(tknots, target_distance);
+  float dt = target_distance - coeffs_x[segment].x;
   float dt2 = dt * dt;
   float dt3 = dt2 * dt;
-  return float3(coeffs_x[n].a + coeffs_x[n].b * dt + coeffs_x[n].c * dt2 + coeffs_x[n].d * dt3,
-                coeffs_y[n].a + coeffs_y[n].b * dt + coeffs_y[n].c * dt2 + coeffs_y[n].d * dt3,
-                coeffs_z[n].a + coeffs_z[n].b * dt + coeffs_z[n].c * dt2 + coeffs_z[n].d * dt3);
+  const SplineCoeffs &cx = coeffs_x[segment];
+  const SplineCoeffs &cy = coeffs_y[segment];
+  const SplineCoeffs &cz = coeffs_z[segment];
+  return float3(cx.a + cx.b * dt + cx.c * dt2 + cx.d * dt3,
+                cy.a + cy.b * dt + cy.c * dt2 + cy.d * dt3,
+                cz.a + cz.b * dt + cz.c * dt2 + cz.d * dt3);
 }
 
 void bmo_space_evenly_exec(BMesh *bm, BMOperator *op)
@@ -338,26 +405,26 @@ void bmo_space_evenly_exec(BMesh *bm, BMOperator *op)
   for (SpaceChainData &chain : chains) {
     SpaceMeasurements measure = measure_chain(chain);
 
-    Vector<float> solver_x, solver_y, solver_z;
+    Vector<float> coords_x, coords_y, coords_z;
     for (BMVert *v : chain.verts) {
-      solver_x.append(v->co[0]);
-      solver_y.append(v->co[1]);
-      solver_z.append(v->co[2]);
+      coords_x.append(v->co[0]);
+      coords_y.append(v->co[1]);
+      coords_z.append(v->co[2]);
     }
-    if (chain.is_closed) {
-      solver_x.append(chain.verts[0]->co[0]);
-      solver_y.append(chain.verts[0]->co[1]);
-      solver_z.append(chain.verts[0]->co[2]);
-    }
-
     Vector<SplineCoeffs> coeffs_x, coeffs_y, coeffs_z;
     if (interpolation == Cubic) {
-      calculate_splines_axis(measure.knot_distances, solver_x, coeffs_x);
-      calculate_splines_axis(measure.knot_distances, solver_y, coeffs_y);
-      calculate_splines_axis(measure.knot_distances, solver_z, coeffs_z);
+      Span<float> unique_dists = chain.is_closed ?
+                                     Span<float>(measure.knot_distances).drop_back(1) :
+                                     Span<float>(measure.knot_distances);
+      calculate_splines_axis(
+          unique_dists, coords_x, chain.is_closed, measure.total_length, coeffs_x);
+      calculate_splines_axis(
+          unique_dists, coords_y, chain.is_closed, measure.total_length, coeffs_y);
+      calculate_splines_axis(
+          unique_dists, coords_z, chain.is_closed, measure.total_length, coeffs_z);
     }
 
-    for (int i = 0; i < chain.verts.size(); i++) {
+    for (const int i : IndexRange(chain.verts.size())) {
       /* The first and last vertices of an open chain are anchor points so they are skipped. */
       if (!chain.is_closed && (i == 0 || i == chain.verts.size() - 1)) {
         continue;
@@ -368,7 +435,7 @@ void bmo_space_evenly_exec(BMesh *bm, BMOperator *op)
 
       if (interpolation == Linear) {
         new_pos = evaluate_linear(
-            measure.knot_distances, solver_x, solver_y, solver_z, target_distance);
+            measure.knot_distances, coords_x, coords_y, coords_z, target_distance);
       }
       else {
         new_pos = evaluate_cubic(
@@ -386,7 +453,9 @@ void bmo_space_evenly_exec(BMesh *bm, BMOperator *op)
       }
 
       float3 final_pos = math::interpolate(float3(chain.verts[i]->co), new_pos, influence);
-      copy_v3_v3(chain.verts[i]->co, final_pos);
+      chain.verts[i]->co[0] = final_pos.x;
+      chain.verts[i]->co[1] = final_pos.y;
+      chain.verts[i]->co[2] = final_pos.z;
     }
   }
 }
