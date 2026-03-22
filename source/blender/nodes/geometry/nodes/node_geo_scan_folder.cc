@@ -17,8 +17,10 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("Path to Folder");
   b.add_input<decl::Bool>("Deep Search");
 
-  b.add_output<decl::String>("Files");
-  b.add_output<decl::String>("Folders");
+  b.add_output<decl::String>("Files")
+  .structure_type(StructureType::List);
+  b.add_output<decl::String>("Folders")
+  .structure_type(StructureType::List);
 }
 
 void append_path_to_string(std::string &target, const std::string &entry_path)
@@ -32,8 +34,8 @@ void append_path_to_string(std::string &target, const std::string &entry_path)
 }
 void bli_scan_folder(const StringRef path,
                      bool deep,
-                     std::string &filepaths,
-                     std::string &folders)
+                     Vector<std::string> &filepaths,
+                     Vector<std::string> &folders)
 {
 
   direntry *filelist = nullptr;
@@ -49,11 +51,13 @@ void bli_scan_folder(const StringRef path,
 
     if (S_ISREG(entry->type))
     {
-      append_path_to_string(filepaths, path + entry->relname);
+      //append_path_to_string(filepaths, path + entry->relname);
+      filepaths.append(path + entry->relname);
     }
     else if (S_ISDIR(entry->type) && strcmp(filename, ".") != 0 && strcmp(filename, "..") != 0) {
       std::string sub_path = path + entry->relname + "/";
-      append_path_to_string(folders, sub_path);
+      //append_path_to_string(folders, sub_path);
+      folders.append(sub_path);
       if (deep) {
         bli_scan_folder(sub_path, deep, filepaths, folders);
       }
@@ -69,16 +73,16 @@ static void node_geo_exec(GeoNodeExecParams params)
     params.set_default_remaining_outputs();
     return;
   }
-  std::string files;
-  std::string folders;
+  Vector<std::string> files;
+  Vector<std::string> folders;
 
   bli_scan_folder(*path,
                        params.extract_input<bool>("Deep Search"),
                        files,
                        folders);
 
-  params.set_output("Files", files);
-  params.set_output("Folders", folders);
+  params.set_output("Files", List::from_container(std::move(files)));
+  params.set_output("Folders", List::from_container(std::move(folders)));
 }
 
 static void node_register()
