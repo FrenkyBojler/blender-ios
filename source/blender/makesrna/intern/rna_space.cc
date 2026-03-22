@@ -2388,8 +2388,6 @@ static void rna_SpaceProperties_search_filter_update(Main * /*bmain*/,
                                                      PointerRNA *ptr)
 {
   ScrArea *area = rna_area_from_space(ptr);
-
-  /* Update the search filter flag for the main region with the panels. */
   ARegion *main_region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
   BLI_assert(main_region != nullptr);
   ED_region_search_filter_update(area, main_region);
@@ -2418,14 +2416,11 @@ static void rna_SpaceProperties_use_property_search_set(PointerRNA *ptr, bool va
   ED_buttons_use_property_search_set(sbuts, value);
 }
 
-static void rna_SpaceProperties_use_property_search_update(Main * /*bmain*/,
-                                                           Scene * /*scene*/,
+static void rna_SpaceProperties_use_property_search_update(Main *bmain,
+                                                           Scene *scene,
                                                            PointerRNA *ptr)
 {
-  ScrArea *area = rna_area_from_space(ptr);
-  ARegion *main_region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
-  BLI_assert(main_region != nullptr);
-  ED_region_search_filter_update(area, main_region);
+  rna_SpaceProperties_search_filter_update(bmain, scene, ptr);
 }
 
 /* Space Userpref */

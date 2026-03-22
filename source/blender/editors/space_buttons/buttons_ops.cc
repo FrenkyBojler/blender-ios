@@ -57,6 +57,9 @@ static wmOperatorStatus buttons_start_filter_exec(bContext *C, wmOperator * /*op
 {
   SpaceProperties *space = CTX_wm_space_properties(C);
   ScrArea *area = CTX_wm_area(C);
+  /* The search field lives in the PROPERTIES_PT_search header popover.
+   * The header region hosts the popover button, so activating the RNA
+   * text button there keeps the original focus-on-open behaviour. */
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_HEADER);
 
   ui::textbutton_activate_rna(C, region, space, "search_filter");
@@ -84,7 +87,9 @@ static wmOperatorStatus buttons_clear_filter_exec(bContext *C, wmOperator * /*op
   ED_buttons_use_property_search_set(space, false);
 
   ScrArea *area = CTX_wm_area(C);
-  ED_region_search_filter_update(area, CTX_wm_region(C));
+  /* Always update the main window region so that panels get RGN_FLAG_SEARCH_FILTER_UPDATE
+   * and clear PANEL_USE_CLOSED_FROM_SEARCH on the next layout pass. */
+  ED_region_search_filter_update(area, BKE_area_find_region_type(area, RGN_TYPE_WINDOW));
   ED_area_tag_redraw(area);
 
   return OPERATOR_FINISHED;
