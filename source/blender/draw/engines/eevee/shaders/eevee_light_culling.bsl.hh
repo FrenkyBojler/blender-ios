@@ -4,11 +4,20 @@
 
 #pragma once
 
+#include "infos/eevee_common_infos.hh"
+#include "infos/eevee_light_infos.hh"
+
+SHADER_LIBRARY_CREATE_INFO(eevee_hiz_data)
+SHADER_LIBRARY_CREATE_INFO(eevee_light_data)
+
 #include "draw_intersect_lib.glsl"
 #include "draw_shape_lib.glsl"
 #include "draw_view_lib.glsl"
 #include "eevee_light_iter_lib.glsl"
+#include "eevee_light_lib.glsl"
 #include "eevee_light_shared.hh"
+#include "gpu_shader_debug_gradients_lib.glsl"
+#include "gpu_shader_fullscreen_lib.glsl"
 #include "gpu_shader_math_matrix_transform_lib.glsl"
 
 namespace eevee::light::culling {
@@ -458,5 +467,73 @@ PipelineCompute cull(cull_main);
 PipelineCompute sort(sort_main);
 PipelineCompute zbin(zbin_main);
 PipelineCompute tile(tile_main);
+
+struct DebugVertOut {
+  [[smooth]] float2 screen_uv;
+};
+
+struct DebugFragOut {
+  [[frag_color(0), index(0)]] float4 out_debug_color_add;
+  [[frag_color(0), index(1)]] float4 out_debug_color_mul;
+};
+
+struct Debug {
+  [[legacy_info]] ShaderCreateInfo draw_view;
+  [[legacy_info]] ShaderCreateInfo eevee_light_data;
+  [[legacy_info]] ShaderCreateInfo eevee_hiz_data;
+};
+
+[[vertex]]
+void debug_vert([[vertex_id]] const int vert_id,
+                [[position]] float4 &out_position,
+                [[out]] DebugVertOut &v_out)
+{
+  fullscreen_vertex(vert_id, out_position, v_out.screen_uv);
+}
+
+[[fragment]]
+void debug_frag([[resource_table]] Debug &srt,
+                [[frag_coord]] const float4 frag_co,
+                [[in]] const DebugVertOut &v_out,
+                [[out]] DebugFragOut &frag_out)
+{
+  int2 texel = int2(frag_co.xy);
+
+  float depth = texelFetch(hiz_tx, texel, 0).r;
+  float vP_z = drw_depth_screen_to_view(depth);
+  float3 P = drw_point_screen_to_world(float3(v_out.screen_uv, depth));
+
+  float light_count = 0.0f;
+  uint light_cull = 0u;
+  float2 px = frag_co.xy;
+  LIGHT_FOREACH_BEGIN_LOCAL (light_cull_buf, light_zbin_buf, light_tile_buf, px, vP_z, l_idx) {
+    light_cull |= 1u << l_idx;
+    light_count += 1.0f;
+  }
+  LIGHT_FOREACH_END
+
+  uint light_nocull = 0u;
+  LIGHT_FOREACH_BEGIN_LOCAL_NO_CULL(light_cull_buf, l_idx)
+  {
+    LightData light = light_buf[l_idx];
+    LightVector lv = light_vector_get(light, false, P);
+    if (light_attenuation_surface(light, false, lv) > LIGHT_ATTENUATION_THRESHOLD) {
+      light_nocull |= 1u << l_idx;
+    }
+  }
+  LIGHT_FOREACH_END
+
+  float4 color = float4(heatmap_gradient(light_count / 4.0f), 1.0f);
+
+  if ((light_cull & light_nocull) != light_nocull) {
+    /* ERROR. Some lights were culled incorrectly. */
+    color = float4(0.0f, 1.0f, 0.0f, 1.0f);
+  }
+
+  frag_out.out_debug_color_add = float4(color.rgb, 0.0f) * 0.2f;
+  frag_out.out_debug_color_mul = color;
+}
+
+PipelineGraphic debug(debug_vert, debug_frag);
 
 }  // namespace eevee::light::culling

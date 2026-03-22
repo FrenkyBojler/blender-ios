@@ -58,7 +58,6 @@ set(SRC_GLSL_FRAG
   eevee_film_copy_frag.glsl
   eevee_film_frag.glsl
   eevee_hiz_debug_frag.glsl
-  eevee_light_culling_debug_frag.glsl
   eevee_lookdev_display_frag.glsl
   eevee_occupancy_convert_frag.glsl
   eevee_renderpass_clear_frag.glsl
