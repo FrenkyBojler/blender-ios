@@ -56,6 +56,7 @@ static const EnumPropertyItem popup_draw_direction_items[] = {
 #  include "BKE_report.hh"
 
 #  include "ED_asset_filter.hh"
+#  include "ED_buttons.hh"
 #  include "ED_geometry.hh"
 #  include "ED_node.hh"
 #  include "ED_object.hh"
@@ -642,6 +643,11 @@ static void rna_uiLayoutContextStringSet(Layout *layout, const char *name, const
 static void rna_uiLayoutSeparatorSpacer(Layout *layout)
 {
   layout->separator_spacer();
+}
+
+static void rna_uiTemplateSpacePropertiesContext(Layout *layout, bContext *C)
+{
+  ED_space_properties_context_path_draw(layout, C);
 }
 
 static void rna_uiTemplateID(Layout *layout,
@@ -1793,6 +1799,12 @@ void RNA_api_ui_layout(StructRNA *srna)
   func = RNA_def_function(srna, "template_header", "template_header");
   RNA_def_function_flag(func, FUNC_USE_CONTEXT);
   RNA_def_function_ui_description(func, "Inserts common Space header UI (editor type selector)");
+
+  func = RNA_def_function(srna,
+                          "template_space_properties_context",
+                          "rna_uiTemplateSpacePropertiesContext");
+  RNA_def_function_flag(func, FUNC_USE_CONTEXT);
+  RNA_def_function_ui_description(func, "Context path for the Properties Editor");
 
   func = RNA_def_function(srna, "template_ID", "rna_uiTemplateID");
   RNA_def_function_flag(func, FUNC_USE_CONTEXT);

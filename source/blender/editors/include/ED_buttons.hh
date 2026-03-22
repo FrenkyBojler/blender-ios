@@ -38,6 +38,9 @@ void ED_buttons_search_string_set(SpaceProperties *sbuts, const char *value);
 int ED_buttons_search_string_length(SpaceProperties *sbuts);
 const char *ED_buttons_search_string_get(SpaceProperties *sbuts);
 
+bool ED_buttons_use_property_search_get(const SpaceProperties *sbuts);
+void ED_buttons_use_property_search_set(SpaceProperties *sbuts, bool value);
+
 bool ED_buttons_should_sync_with_outliner(const bContext *C,
                                           const SpaceProperties *sbuts,
                                           ScrArea *area);
@@ -45,5 +48,12 @@ void ED_buttons_set_context(const bContext *C,
                             SpaceProperties *sbuts,
                             PointerRNA *ptr,
                             int context);
+
+/**
+ * Draw the context breadcrumb path (icon + name entries separated by right-arrow) for the
+ * Properties Editor into \a layout. Does nothing when the Tool context is active or the path
+ * is empty. Intended for use in the header region.
+ */
+void ED_space_properties_context_path_draw(ui::Layout *layout, const bContext *C);
 
 }  // namespace blender

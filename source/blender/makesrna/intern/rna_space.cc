@@ -2395,6 +2395,39 @@ static void rna_SpaceProperties_search_filter_update(Main * /*bmain*/,
   ED_region_search_filter_update(area, main_region);
 }
 
+static void rna_SpaceProperties_search_filter_set_with_arm(PointerRNA *ptr, const char *value)
+{
+  SpaceProperties *sbuts = static_cast<SpaceProperties *>(ptr->data);
+
+  ED_buttons_search_string_set(sbuts, value);
+  /* Auto-arm search when the user types something into the popover. */
+  if (value[0] != '\0') {
+    ED_buttons_use_property_search_set(sbuts, true);
+  }
+}
+
+static bool rna_SpaceProperties_use_property_search_get(PointerRNA *ptr)
+{
+  SpaceProperties *sbuts = static_cast<SpaceProperties *>(ptr->data);
+  return ED_buttons_use_property_search_get(sbuts);
+}
+
+static void rna_SpaceProperties_use_property_search_set(PointerRNA *ptr, bool value)
+{
+  SpaceProperties *sbuts = static_cast<SpaceProperties *>(ptr->data);
+  ED_buttons_use_property_search_set(sbuts, value);
+}
+
+static void rna_SpaceProperties_use_property_search_update(Main * /*bmain*/,
+                                                           Scene * /*scene*/,
+                                                           PointerRNA *ptr)
+{
+  ScrArea *area = rna_area_from_space(ptr);
+  ARegion *main_region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
+  BLI_assert(main_region != nullptr);
+  ED_region_search_filter_update(area, main_region);
+}
+
 /* Space Userpref */
 static int rna_SpaceUserPref_tab_search_results_getlength(const PointerRNA *ptr,
                                                           int length[RNA_MAX_ARRAY_DIMENSION])
@@ -6125,11 +6158,20 @@ static void rna_def_space_properties(BlenderRNA *brna)
   RNA_def_property_string_funcs(prop,
                                 "rna_SpaceProperties_search_filter_get",
                                 "rna_SpaceProperties_search_filter_length",
-                                "rna_SpaceProperties_search_filter_set");
+                                "rna_SpaceProperties_search_filter_set_with_arm");
   RNA_def_property_ui_text(prop, "Display Filter", "Live search filtering string");
   RNA_def_property_flag(prop, PROP_TEXTEDIT_UPDATE);
   RNA_def_property_update(
       prop, NC_SPACE | ND_SPACE_PROPERTIES, "rna_SpaceProperties_search_filter_update");
+
+  prop = RNA_def_property(srna, "use_property_search", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_funcs(prop,
+                                 "rna_SpaceProperties_use_property_search_get",
+                                 "rna_SpaceProperties_use_property_search_set");
+  RNA_def_property_ui_text(prop, "Property Search", "Filter properties by name");
+  RNA_def_property_ui_icon(prop, ICON_VIEWZOOM, 0);
+  RNA_def_property_update(
+      prop, NC_SPACE | ND_SPACE_PROPERTIES, "rna_SpaceProperties_use_property_search_update");
 
   /* Outliner sync. */
   prop = RNA_def_property(srna, "outliner_sync", PROP_ENUM, PROP_NONE);

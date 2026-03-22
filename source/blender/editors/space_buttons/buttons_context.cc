@@ -13,7 +13,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
-#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -37,7 +36,6 @@
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
 #include "BKE_particle.h"
-#include "BKE_screen.hh"
 
 #include "SEQ_modifier.hh"
 #include "SEQ_select.hh"
@@ -1256,22 +1254,20 @@ int /*eContextResult*/ buttons_context(const bContext *C,
 
 /************************* Drawing the Path ************************/
 
-static bool buttons_panel_context_poll(const bContext *C, PanelType * /*pt*/)
+void ED_space_properties_context_path_draw(ui::Layout *layout, const bContext *C)
 {
   SpaceProperties *sbuts = CTX_wm_space_properties(C);
-  return sbuts->mainb != BCONTEXT_TOOL;
-}
 
-static void buttons_panel_context_draw(const bContext *C, Panel *panel)
-{
-  SpaceProperties *sbuts = CTX_wm_space_properties(C);
+  if (sbuts->mainb == BCONTEXT_TOOL) {
+    return;
+  }
+
   ButsContextPath *path = static_cast<ButsContextPath *>(sbuts->path);
-
   if (!path) {
     return;
   }
 
-  ui::Layout &row = panel->layout->row(true);
+  ui::Layout &row = layout->row(true);
   row.alignment_set(ui::LayoutAlign::Left);
 
   bool first = true;
@@ -1329,25 +1325,6 @@ static void buttons_panel_context_draw(const bContext *C, Panel *panel)
 
     first = false;
   }
-
-  ui::Layout &pin_row = row.row(false);
-  pin_row.alignment_set(ui::LayoutAlign::Right);
-  pin_row.separator_spacer();
-  pin_row.emboss_set(ui::EmbossType::None);
-  pin_row.op(
-      "BUTTONS_OT_toggle_pin", "", (sbuts->flag & SB_PIN_CONTEXT) ? ICON_PINNED : ICON_UNPINNED);
-}
-
-void buttons_context_register(ARegionType *art)
-{
-  PanelType *pt = MEM_new_zeroed<PanelType>("spacetype buttons panel context");
-  STRNCPY_UTF8(pt->idname, "PROPERTIES_PT_context");
-  STRNCPY_UTF8(pt->label, N_("Context")); /* XXX C panels unavailable through RNA bpy.types! */
-  STRNCPY_UTF8(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
-  pt->poll = buttons_panel_context_poll;
-  pt->draw = buttons_panel_context_draw;
-  pt->flag = PANEL_TYPE_NO_HEADER | PANEL_TYPE_NO_SEARCH;
-  BLI_addtail(&art->paneltypes, pt);
 }
 
 ID *buttons_context_id_path(const bContext *C)

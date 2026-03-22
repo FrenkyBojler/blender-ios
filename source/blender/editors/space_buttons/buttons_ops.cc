@@ -31,6 +31,7 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#include "ED_buttons.hh"
 #include "ED_screen.hh"
 #include "ED_undo.hh"
 
@@ -80,6 +81,7 @@ static wmOperatorStatus buttons_clear_filter_exec(bContext *C, wmOperator * /*op
   SpaceProperties *space = CTX_wm_space_properties(C);
 
   space->runtime->search_string[0] = '\0';
+  ED_buttons_use_property_search_set(space, false);
 
   ScrArea *area = CTX_wm_area(C);
   ED_region_search_filter_update(area, CTX_wm_region(C));

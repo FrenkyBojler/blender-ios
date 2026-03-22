@@ -44,26 +44,25 @@ class PROPERTIES_HT_header(Header):
     def draw(self, context):
         layout = self.layout
         view = context.space_data
-        region = context.region
-        ui_scale = context.preferences.system.ui_scale
 
         layout.template_header()
+        layout.template_space_properties_context()
 
         layout.separator_spacer()
 
-        if self._search_poll(context.space_data):
-            # The following is an ugly attempt to make the search button center-align better visually.
-            # A dummy icon is inserted that has to be scaled as the available width changes.
-            content_size_est = 160 * ui_scale
-            layout_scale = min(1, max(0, (region.width / content_size_est) - 1))
-            if layout_scale > 0:
-                row = layout.row()
-                row.scale_x = layout_scale
-                row.label(icon='BLANK1')
+        if self._search_poll(view):
+            row = layout.row(align=True)
+            row.prop(view, "use_property_search", icon='VIEWZOOM', text="")
+            sub = row.row(align=True)
+            sub.active = view.use_property_search
+            sub.popover(panel="PROPERTIES_PT_search", text="")
 
-            layout.prop(view, "search_filter", icon='VIEWZOOM', text="")
-
-        layout.separator_spacer()
+        layout.operator(
+            "buttons.toggle_pin",
+            text="",
+            icon='PINNED' if view.use_pin_id else 'UNPINNED',
+            depress=view.use_pin_id,
+        )
 
         layout.popover(panel="PROPERTIES_PT_options", text="")
 
@@ -85,7 +84,7 @@ class PROPERTIES_PT_navigation_bar(Panel):
 
         layout.scale_x = 1.4
         layout.scale_y = 1.4
-        if view.search_filter:
+        if view.use_property_search and view.search_filter:
             layout.prop_tabs_enum(
                 view, "context", data_highlight=view,
                 property_highlight="tab_search_results", icon_only=True,
@@ -192,11 +191,28 @@ class PROPERTIES_PT_visibility(Panel):
             row.prop(space, prop, text="")
 
 
+class PROPERTIES_PT_search(Panel):
+    """Filter displayed properties"""
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'HEADER'
+    bl_label = "Filter"
+
+    @classmethod
+    def poll(cls, context):
+        return PROPERTIES_HT_header._search_poll(context.space_data)
+
+    def draw(self, context):
+        layout = self.layout
+        space = context.space_data
+        layout.prop(space, "search_filter", icon='VIEWZOOM', text="")
+
+
 classes = (
     PROPERTIES_HT_header,
     PROPERTIES_PT_navigation_bar,
     PROPERTIES_PT_options,
     PROPERTIES_PT_visibility,
+    PROPERTIES_PT_search,
 )
 
 if __name__ == "__main__":  # only for live edit.

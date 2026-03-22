@@ -31,6 +31,11 @@ struct SpaceProperties_Runtime {
   /** For filtering properties displayed in the space. */
   char search_string[UI_MAX_NAME_STR];
   /**
+   * Whether the property search filter is currently active (armed).
+   * The filter only affects panels when this is true AND #search_string is non-empty.
+   */
+  bool use_property_search;
+  /**
    * Bit-field (in the same order as the tabs) for whether each tab has properties
    * that match the search filter. Only valid when #search_string is set.
    */
@@ -80,7 +85,6 @@ struct ButsContextTexture {
 
 void buttons_context_compute(const bContext *C, SpaceProperties *sbuts);
 int buttons_context(const bContext *C, const char *member, bContextDataResult *result);
-void buttons_context_register(ARegionType *art);
 ID *buttons_context_id_path(const bContext *C);
 
 extern "C" const char *buttons_context_dir[]; /* doc access */

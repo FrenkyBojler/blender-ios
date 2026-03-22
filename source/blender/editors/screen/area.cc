@@ -829,7 +829,13 @@ const char *ED_area_region_search_filter_get(const ScrArea *area, const ARegion 
   if (area->spacetype == SPACE_PROPERTIES) {
     SpaceProperties *sbuts = static_cast<SpaceProperties *>(area->spacedata.first);
     if (region->regiontype == RGN_TYPE_WINDOW) {
-      return ED_buttons_search_string_get(sbuts);
+      /* Only expose the filter string when the search toggle is enabled, so that
+       * panel expansion and property highlighting revert immediately when toggled off,
+       * even if the search string still contains text. */
+      if (ED_buttons_use_property_search_get(sbuts)) {
+        return ED_buttons_search_string_get(sbuts);
+      }
+      return "";
     }
   }
   else if (area->spacetype == SPACE_USERPREF) {
@@ -847,10 +853,12 @@ void ED_region_search_filter_update(const ScrArea *area, ARegion *region)
   region->flag |= RGN_FLAG_SEARCH_FILTER_UPDATE;
 
   const char *search_filter = ED_area_region_search_filter_get(area, region);
-  SET_FLAG_FROM_TEST(region->flag,
-                     region->regiontype == RGN_TYPE_WINDOW && search_filter &&
-                         search_filter[0] != '\0',
-                     RGN_FLAG_SEARCH_FILTER_ACTIVE);
+
+  /* ED_area_region_search_filter_get already gates the Properties Editor's filter on the
+   * use_property_search toggle, so a simple non-empty check is sufficient here. */
+  const bool search_active = region->regiontype == RGN_TYPE_WINDOW && search_filter &&
+                             search_filter[0] != '\0';
+  SET_FLAG_FROM_TEST(region->flag, search_active, RGN_FLAG_SEARCH_FILTER_ACTIVE);
 }
 
 /* *************************************************************** */

@@ -70,6 +70,7 @@ static SpaceLink *buttons_create(const ScrArea * /*area*/, const Scene * /*scene
 
   sbuts->runtime = MEM_new<SpaceProperties_Runtime>(__func__);
   sbuts->runtime->search_string[0] = '\0';
+  sbuts->runtime->use_property_search = false;
   sbuts->runtime->tab_search_results = BLI_BITMAP_NEW(BCONTEXT_TOT, __func__);
 
   sbuts->spacetype = SPACE_PROPERTIES;
@@ -142,6 +143,7 @@ static SpaceLink *buttons_duplicate(SpaceLink *sl)
   sbutsn->texuser = nullptr;
   sbutsn->runtime = MEM_new<SpaceProperties_Runtime>(__func__, *sfile_old->runtime);
   sbutsn->runtime->search_string[0] = '\0';
+  sbutsn->runtime->use_property_search = false;
   sbutsn->runtime->tab_search_results = BLI_BITMAP_NEW(BCONTEXT_TOT, __func__);
 
   return reinterpret_cast<SpaceLink *>(sbutsn);
@@ -344,6 +346,18 @@ void ED_buttons_search_string_set(SpaceProperties *sbuts, const char *value)
 bool ED_buttons_tab_has_search_result(SpaceProperties *sbuts, const int index)
 {
   return BLI_BITMAP_TEST(sbuts->runtime->tab_search_results, index);
+}
+
+bool ED_buttons_use_property_search_get(const SpaceProperties *sbuts)
+{
+  return sbuts->runtime ? sbuts->runtime->use_property_search : false;
+}
+
+void ED_buttons_use_property_search_set(SpaceProperties *sbuts, const bool value)
+{
+  if (sbuts->runtime) {
+    sbuts->runtime->use_property_search = value;
+  }
 }
 
 /** \} */
@@ -1045,6 +1059,7 @@ static void buttons_space_blend_read_data(BlendDataReader * /*reader*/, SpaceLin
   SpaceProperties *sbuts = reinterpret_cast<SpaceProperties *>(sl);
   sbuts->runtime = MEM_new<SpaceProperties_Runtime>(__func__);
   sbuts->runtime->search_string[0] = '\0';
+  sbuts->runtime->use_property_search = false;
   sbuts->runtime->tab_search_results = BLI_BITMAP_NEW(BCONTEXT_TOT * 2, __func__);
 
   sbuts->path = nullptr;
@@ -1106,7 +1121,6 @@ void ED_spacetype_buttons()
   art->listener = buttons_main_region_listener;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_FRAMES;
   art->lock = REGION_DRAW_LOCK_ALL;
-  buttons_context_register(art);
   BLI_addhead(&st->regiontypes, art);
 
   /* Register the panel types from modifiers. The actual panels are built per modifier rather
