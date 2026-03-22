@@ -198,21 +198,29 @@ static bool is_collection_element(TreeElement *te)
   return outliner_is_collection_tree_element(te);
 }
 
-static bool outliner_is_tree_element_in_collection(TreeElement *te, ID *id)
+/* Check if a collection is being dragged inside its own hierarchy. */
+static bool outliner_is_collection_dragged_into_itself(TreeElement *drop_target_te, ID *dragged_id)
 {
-  if (!(te && id && GS(id->name) == ID_GR)) {
+  if (!(drop_target_te && dragged_id && GS(dragged_id->name) == ID_GR)) {
     return false;
   }
 
-  TreeElement *collection_te = outliner_data_from_tree_element_and_parents(is_collection_element,
-                                                                           te);
+  /* The drop_target_te could be anything. So, traverse up to get the
+   * parent tree_element that represents a collection. */
+  TreeElement *coll_te = outliner_data_from_tree_element_and_parents(is_collection_element,
+                                                                     drop_target_te);
 
-  while (collection_te && collection_te->parent != nullptr) {
-    Collection *parent_collection = outliner_collection_from_tree_element(collection_te->parent);
-    if (&parent_collection->id == id) {
+  while (coll_te && coll_te->parent != nullptr) {
+    /* Get the actual collection type. */
+    Collection *te_parent_coll = outliner_collection_from_tree_element(coll_te->parent);
+
+    if (&te_parent_coll->id == dragged_id) {
+      /* The destination te is inside the dragged collection's hierarchy. */
       return true;
     }
-    collection_te = collection_te->parent;
+
+    /* Keep going up the hierarchy */
+    coll_te = coll_te->parent;
   }
   return false;
 }
@@ -1181,8 +1189,7 @@ static bool collection_drop_init(bContext *C, wmDrag *drag, const int xy[2], Col
     return false;
   }
 
-  /* Check if the drag destination is inside the dragged collections. */
-  if (outliner_is_tree_element_in_collection(te, id)) {
+  if (outliner_is_collection_dragged_into_itself(te, id)) {
     return false;
   }
 
