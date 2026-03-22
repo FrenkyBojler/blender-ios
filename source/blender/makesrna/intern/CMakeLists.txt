@@ -159,9 +159,9 @@ set_source_files_properties(${GENSRC} PROPERTIES GENERATED TRUE)
 # CFLAGS for Generated Files
 #
 # less strict flags for generated source
-set(GENSRC_FLAGS)
-set(GENSRC_CFLAGS)
-set(GENSRC_CXXFLAGS)
+set(GENSRC_FLAGS "")
+set(GENSRC_CFLAGS "")
+set(GENSRC_CXXFLAGS "")
 if((CMAKE_C_COMPILER_ID STREQUAL "GNU") OR (CMAKE_C_COMPILER_ID MATCHES "Clang"))
   set(GENSRC_CFLAGS "-Wno-missing-prototypes")
   set(GENSRC_CXXFLAGS "-Wno-missing-declarations")
@@ -430,8 +430,8 @@ add_custom_command(
 # Build bf_rna
 set(SRC
   rna_access.cc
-  rna_define.cc
   rna_access_compare_override.cc
+  rna_define.cc
   rna_path.cc
   ${GENSRC}
 
@@ -446,6 +446,7 @@ set(SRC
 
 set(LIB
   PRIVATE bf::animrig
+  PRIVATE bf::blenlib
   PRIVATE bf::dna
   bf_editor_space_api
 

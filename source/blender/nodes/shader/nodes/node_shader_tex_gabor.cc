@@ -2,7 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_math_numbers.hh"
+#include <numbers>
+
 #include "BLI_noise.hh"
 
 #include "BKE_texture.h"
@@ -46,11 +47,11 @@ static void sh_node_tex_gabor_declare(NodeDeclarationBuilder &b)
           "The directionality of Gabor noise. 1 means the noise is completely directional, while "
           "0 means the noise is omnidirectional");
   b.add_input<decl::Float>("Orientation", "Orientation 2D")
-      .default_value(math::numbers::pi / 4)
+      .default_value(std::numbers::pi / 4)
       .subtype(PROP_ANGLE)
       .description("The direction of the anisotropic Gabor noise");
   b.add_input<decl::Vector>("Orientation", "Orientation 3D")
-      .default_value({math::numbers::sqrt2, math::numbers::sqrt2, 0.0f})
+      .default_value({std::numbers::sqrt2, std::numbers::sqrt2, 0.0f})
       .subtype(PROP_DIRECTION)
       .description("The direction of the anisotropic Gabor noise");
   b.add_output<decl::Float>("Value").description(
@@ -69,7 +70,7 @@ static void node_shader_buts_tex_gabor(ui::Layout &layout, bContext * /*C*/, Poi
 
 static void node_shader_init_tex_gabor(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeTexGabor *storage = MEM_new_for_free<NodeTexGabor>(__func__);
+  NodeTexGabor *storage = MEM_new<NodeTexGabor>(__func__);
   BKE_texture_mapping_default(&storage->base.tex_mapping, TEXMAP_TYPE_POINT);
   BKE_texture_colormapping_default(&storage->base.color_mapping);
 

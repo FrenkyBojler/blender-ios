@@ -125,6 +125,9 @@ static void versioning_update_noise_texture_node(bNodeTree *ntree)
     if (node.type_legacy != SH_NODE_TEX_NOISE) {
       continue;
     }
+    if (!version_node_ensure_storage_or_invalidate(node)) {
+      continue;
+    }
 
     (static_cast<NodeTexNoise *>(node.storage))->type = SHD_NOISE_FBM;
 
@@ -186,15 +189,19 @@ static void versioning_replace_musgrave_texture_node(bNodeTree *ntree)
     if (node.type_legacy != SH_NODE_TEX_MUSGRAVE_DEPRECATED) {
       continue;
     }
+    if (!version_node_ensure_storage_or_invalidate(node)) {
+      continue;
+    }
 
     STRNCPY_UTF8(node.idname, "ShaderNodeTexNoise");
     node.type_legacy = SH_NODE_TEX_NOISE;
-    NodeTexNoise *data = MEM_new_for_free<NodeTexNoise>(__func__);
-    data->base = (static_cast<NodeTexMusgrave *>(node.storage))->base;
-    data->dimensions = (static_cast<NodeTexMusgrave *>(node.storage))->dimensions;
+    NodeTexNoise *data = MEM_new<NodeTexNoise>(__func__);
+    NodeTexMusgrave *musgrave_data = static_cast<NodeTexMusgrave *>(node.storage);
+    data->base = musgrave_data->base;
+    data->dimensions = musgrave_data->dimensions;
     data->normalize = false;
-    data->type = (static_cast<NodeTexMusgrave *>(node.storage))->musgrave_type;
-    MEM_freeN(node.storage);
+    data->type = musgrave_data->musgrave_type;
+    MEM_delete(musgrave_data);
     node.storage = data;
 
     bNodeLink *detail_link = nullptr;
@@ -577,7 +584,7 @@ static void versioning_replace_splitviewer(bNodeTree *ntree)
 
     STRNCPY_UTF8(node.idname, "CompositorNodeSplit");
     node.type_legacy = CMP_NODE_SPLIT;
-    MEM_freeN(node.storage);
+    MEM_delete_void(node.storage);
     node.storage = nullptr;
 
     bNode *viewer_node = bke::node_add_static_node(nullptr, *ntree, CMP_NODE_VIEWER);
@@ -672,10 +679,10 @@ static void change_input_socket_to_rotation_type(bNodeTree &ntree,
   socket.type = SOCK_ROTATION;
   STRNCPY_UTF8(socket.idname, "NodeSocketRotation");
   auto *old_value = static_cast<bNodeSocketValueVector *>(socket.default_value);
-  auto *new_value = MEM_new_for_free<bNodeSocketValueRotation>(__func__);
+  auto *new_value = MEM_new<bNodeSocketValueRotation>(__func__);
   copy_v3_v3(new_value->value_euler, old_value->value);
   socket.default_value = new_value;
-  MEM_freeN(old_value);
+  MEM_delete(old_value);
   for (bNodeLink &link : ntree.links.items_mutable()) {
     if (link.tosock != &socket) {
       continue;
@@ -801,7 +808,7 @@ static void versioning_fix_socket_subtype_idnames(bNodeTree *ntree)
       bNodeTreeInterfaceSocket &socket = reinterpret_cast<bNodeTreeInterfaceSocket &>(item);
       StringRef corrected_socket_type = legacy_socket_idname_to_socket_type(socket.socket_type);
       if (socket.socket_type != corrected_socket_type) {
-        MEM_freeN(socket.socket_type);
+        MEM_delete(socket.socket_type);
         socket.socket_type = BLI_strdup(corrected_socket_type.data());
       }
     }
@@ -1046,8 +1053,10 @@ void blo_do_versions_410(FileData *fd, Library * /*lib*/, Main *bmain)
       if (ntree->type == NTREE_COMPOSIT) {
         for (bNode &node : ntree->nodes) {
           if (node.type_legacy == CMP_NODE_KEYING) {
-            NodeKeyingData &keying_data = *static_cast<NodeKeyingData *>(node.storage);
-            keying_data.edge_kernel_radius = max_ii(keying_data.edge_kernel_radius - 1, 0);
+            if (version_node_ensure_storage_or_invalidate(node)) {
+              NodeKeyingData &keying_data = *static_cast<NodeKeyingData *>(node.storage);
+              keying_data.edge_kernel_radius = max_ii(keying_data.edge_kernel_radius - 1, 0);
+            }
           }
         }
       }

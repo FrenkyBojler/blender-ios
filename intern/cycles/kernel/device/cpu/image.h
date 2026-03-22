@@ -6,7 +6,9 @@
 
 #include "kernel/device/cpu/compat.h"
 #include "kernel/device/cpu/globals.h"
+#include "kernel/util/image_2d.h"
 
+#include "util/defines.h"
 #include "util/half.h"
 #include "util/types_image.h"
 
@@ -323,9 +325,21 @@ template<typename TexT, typename OutT = float4> struct ImageInterpolator {
 
 #undef SET_CUBIC_SPLINE_WEIGHTS
 
-ccl_device float4 kernel_image_interp(KernelGlobals kg, const int id, const float x, float y)
+ccl_device float4 kernel_image_interp(KernelGlobals kg,
+                                      ccl_private ShaderData * /*sd*/,
+                                      const int image_texture_id,
+                                      dual2 uv)
 {
-  const KernelImageInfo &info = kernel_data_fetch(image_info, id);
+  if (image_texture_id == KERNEL_IMAGE_NONE) {
+    return IMAGE_MISSING_RGBA;
+  }
+  const ccl_global KernelImageTexture &tex = kernel_data_fetch(image_textures, image_texture_id);
+  if (tex.image_info_id == KERNEL_IMAGE_NONE) {
+    return IMAGE_MISSING_RGBA;
+  }
+  const KernelImageInfo &info = kernel_data_fetch(image_info, tex.image_info_id);
+  const float x = uv.val.x;
+  const float y = uv.val.y;
 
   if (UNLIKELY(!info.data)) {
     return zero_float4();
@@ -360,6 +374,19 @@ ccl_device float4 kernel_image_interp(KernelGlobals kg, const int id, const floa
       assert(0);
       return IMAGE_MISSING_RGBA;
   }
+}
+
+ccl_device_forceinline float4 kernel_image_interp_with_udim(KernelGlobals kg,
+                                                            ShaderData *sd,
+                                                            const int udim_id,
+                                                            dual2 uv)
+{
+  const int image_texture_id = kernel_image_udim_map(kg, udim_id, uv.val);
+  if (image_texture_id == KERNEL_IMAGE_NONE) {
+    return IMAGE_MISSING_RGBA;
+  }
+
+  return kernel_image_interp(kg, sd, image_texture_id, uv);
 }
 
 } /* Namespace. */

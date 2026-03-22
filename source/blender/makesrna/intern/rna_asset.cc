@@ -203,7 +203,7 @@ static void rna_AssetMetaData_author_set(PointerRNA *ptr, const char *value)
   AssetMetaData *asset_data = static_cast<AssetMetaData *>(ptr->data);
 
   if (asset_data->author) {
-    MEM_freeN(asset_data->author);
+    MEM_delete(asset_data->author);
   }
 
   if (value[0]) {
@@ -237,7 +237,7 @@ static void rna_AssetMetaData_description_set(PointerRNA *ptr, const char *value
   AssetMetaData *asset_data = static_cast<AssetMetaData *>(ptr->data);
 
   if (asset_data->description) {
-    MEM_freeN(asset_data->description);
+    MEM_delete(asset_data->description);
   }
 
   if (value[0]) {
@@ -271,7 +271,7 @@ static void rna_AssetMetaData_copyright_set(PointerRNA *ptr, const char *value)
   AssetMetaData *asset_data = static_cast<AssetMetaData *>(ptr->data);
 
   if (asset_data->copyright) {
-    MEM_freeN(asset_data->copyright);
+    MEM_delete(asset_data->copyright);
   }
 
   if (value[0]) {
@@ -305,7 +305,7 @@ static void rna_AssetMetaData_license_set(PointerRNA *ptr, const char *value)
   AssetMetaData *asset_data = static_cast<AssetMetaData *>(ptr->data);
 
   if (asset_data->license) {
-    MEM_freeN(asset_data->license);
+    MEM_delete(asset_data->license);
   }
 
   if (value[0]) {
@@ -449,6 +449,12 @@ static int rna_AssetRepresentation_full_path_length(PointerRNA *ptr)
   return full_path.size();
 }
 
+static bool rna_AssetRepresentation_is_online_get(PointerRNA *ptr)
+{
+  const AssetRepresentation *asset = static_cast<const AssetRepresentation *>(ptr->data);
+  return asset->is_online();
+}
+
 const EnumPropertyItem *rna_asset_library_reference_itemf(bContext * /*C*/,
                                                           PointerRNA * /*ptr*/,
                                                           PropertyRNA * /*prop*/,
@@ -457,7 +463,8 @@ const EnumPropertyItem *rna_asset_library_reference_itemf(bContext * /*C*/,
   const EnumPropertyItem *items = ed::asset::library_reference_to_rna_enum_itemf(
       /* Include all valid libraries for the user to choose from. */
       /*include_readonly=*/true,
-      /*include_current_file=*/true);
+      /*include_current_file=*/true,
+      /*include_remote_libraries=*/true);
   if (!items) {
     *r_free = false;
     return rna_enum_dummy_NULL_items;
@@ -684,6 +691,12 @@ static void rna_def_asset_representation(BlenderRNA *brna)
       "Full Path",
       "Absolute path to the .blend file containing this asset extended with the path "
       "of the asset inside the file");
+
+  prop = RNA_def_property(srna, "is_online", PROP_BOOLEAN, PROP_BOOLEAN);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_boolean_funcs(prop, "rna_AssetRepresentation_is_online_get", nullptr);
+  RNA_def_property_ui_text(
+      prop, "Is Online", "True if this asset is accessed via internet, not stored on disk");
 }
 
 static void rna_def_asset_library_reference(BlenderRNA *brna)

@@ -61,15 +61,14 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeFunctionFormatString *data = MEM_new_for_free<NodeFunctionFormatString>(__func__);
+  NodeFunctionFormatString *data = MEM_new<NodeFunctionFormatString>(__func__);
   node->storage = data;
 }
 
 static void node_copy_storage(bNodeTree * /*tree*/, bNode *dst_node, const bNode *src_node)
 {
   const NodeFunctionFormatString &src_storage = node_storage(*src_node);
-  auto *dst_storage = MEM_new_for_free<NodeFunctionFormatString>(__func__,
-                                                                 dna::shallow_copy(src_storage));
+  auto *dst_storage = MEM_new<NodeFunctionFormatString>(__func__, dna::shallow_copy(src_storage));
   dst_node->storage = dst_storage;
 
   socket_items::copy_array<FormatStringItemsAccessor>(*src_node, *dst_node);
@@ -78,7 +77,7 @@ static void node_copy_storage(bNodeTree * /*tree*/, bNode *dst_node, const bNode
 static void node_free_storage(bNode *node)
 {
   socket_items::destruct_array<FormatStringItemsAccessor>(*node);
-  MEM_freeN(node->storage);
+  MEM_delete(static_cast<NodeFunctionFormatString *>(node->storage));
 }
 
 static bool node_insert_link(bke::NodeInsertLinkParams &params)
@@ -751,14 +750,20 @@ class FormatStringMultiFunction : public mf::MultiFunction {
       }
     }
     else {
-      mask.foreach_index(GrainSize(256), [&](const int64_t i) {
-        const StringRef format = formats[i];
-        if (!format_strings(
-                format, inputs, input_names_, IndexRange::from_single(i), outputs, error_message))
-        {
-          outputs[i].clear();
-        }
-      });
+      mask.foreach_index(
+          [&](const int64_t i) {
+            const StringRef format = formats[i];
+            if (!format_strings(format,
+                                inputs,
+                                input_names_,
+                                IndexRange::from_single(i),
+                                outputs,
+                                error_message))
+            {
+              outputs[i].clear();
+            }
+          },
+          exec_mode::grain_size(256));
     }
 
     if (error_message.has_value()) {
@@ -803,7 +808,7 @@ StructRNA **FormatStringItemsAccessor::item_srna = &RNA_NodeFunctionFormatString
 
 void FormatStringItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
-  BLO_write_string(writer, item.name);
+  writer->write_string(item.name);
 }
 
 void FormatStringItemsAccessor::blend_read_data_item(BlendDataReader *reader, ItemT &item)

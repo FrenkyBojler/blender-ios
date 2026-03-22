@@ -272,13 +272,8 @@ static void envelope_bone_weighting(Object *ob,
   }
 }
 
-static void add_verts_to_dgroups(ReportList *reports,
-                                 Depsgraph *depsgraph,
-                                 Scene * /*scene*/,
-                                 Object *ob,
-                                 Object *par,
-                                 int heat,
-                                 const bool mirror)
+static void add_verts_to_dgroups(
+    ReportList *reports, Scene * /*scene*/, Object *ob, Object *par, int heat, const bool mirror)
 {
   /* This functions implements the automatic computation of vertex group
    * weights, either through envelopes or using a heat equilibrium.
@@ -334,24 +329,24 @@ static void add_verts_to_dgroups(ReportList *reports,
 
   /* create an array of pointer to bones that are skinnable
    * and fill it with all of the skinnable bones */
-  bonelist = MEM_calloc_arrayN<Bone *>(numbones, "bonelist");
+  bonelist = MEM_new_array_zeroed<Bone *>(numbones, "bonelist");
   looper_data.list = bonelist;
   bone_looper(ob, static_cast<Bone *>(arm->bonebase.first), &looper_data, bone_skinnable_cb);
 
   /* create an array of pointers to the deform groups that
    * correspond to the skinnable bones (creating them
    * as necessary. */
-  dgrouplist = MEM_calloc_arrayN<bDeformGroup *>(numbones, "dgrouplist");
-  dgroupflip = MEM_calloc_arrayN<bDeformGroup *>(numbones, "dgroupflip");
+  dgrouplist = MEM_new_array_zeroed<bDeformGroup *>(numbones, "dgrouplist");
+  dgroupflip = MEM_new_array_zeroed<bDeformGroup *>(numbones, "dgroupflip");
 
   looper_data.list = dgrouplist;
   bone_looper(ob, static_cast<Bone *>(arm->bonebase.first), &looper_data, dgroup_skinnable_cb);
 
   /* create an array of root and tip positions transformed into
    * global coords */
-  root = MEM_calloc_arrayN<float[3]>(numbones, "root");
-  tip = MEM_calloc_arrayN<float[3]>(numbones, "tip");
-  selected = MEM_calloc_arrayN<bool>(numbones, "selected");
+  root = MEM_new_array_zeroed<float[3]>(numbones, "root");
+  tip = MEM_new_array_zeroed<float[3]>(numbones, "tip");
+  selected = MEM_new_array_zeroed<bool>(numbones, "selected");
 
   for (int j = 0; j < numbones; j++) {
     bone = bonelist[j];
@@ -418,17 +413,7 @@ static void add_verts_to_dgroups(ReportList *reports,
   mesh = id_cast<Mesh *>(ob->data);
   verts.reinitialize(mesh->verts_num);
 
-  if (wpmode) {
-    /* if in weight paint mode, use final verts from evaluated mesh */
-    const Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
-    const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
-    if (mesh_eval) {
-      BKE_mesh_foreach_mapped_vert_coords_get(
-          mesh_eval, reinterpret_cast<float (*)[3]>(verts.data()), mesh->verts_num);
-      vertsfilled = 1;
-    }
-  }
-  else if (BKE_modifiers_findby_type(ob, eModifierType_Subsurf)) {
+  if (BKE_modifiers_findby_type(ob, eModifierType_Subsurf)) {
     /* Is subdivision-surface on? Lets use the verts on the limit surface then.
      * = same amount of vertices as mesh, but vertices moved to the
      * subdivision-surfaced position, like for 'optimal'. */
@@ -481,16 +466,16 @@ static void add_verts_to_dgroups(ReportList *reports,
   ED_mesh_mirror_spatial_table_end(ob);
 
   /* free the memory allocated */
-  MEM_freeN(bonelist);
-  MEM_freeN(dgrouplist);
-  MEM_freeN(dgroupflip);
-  MEM_freeN(root);
-  MEM_freeN(tip);
-  MEM_freeN(selected);
+  MEM_delete(bonelist);
+  MEM_delete(dgrouplist);
+  MEM_delete(dgroupflip);
+  MEM_delete(root);
+  MEM_delete(tip);
+  MEM_delete(selected);
 }
 
 void ED_object_vgroup_calc_from_armature(ReportList *reports,
-                                         Depsgraph *depsgraph,
+                                         Depsgraph * /* depsgraph */,
                                          Scene *scene,
                                          Object *ob,
                                          Object *par,
@@ -522,7 +507,7 @@ void ED_object_vgroup_calc_from_armature(ReportList *reports,
      * that are populated with the vertices for which the
      * bone is closest.
      */
-    add_verts_to_dgroups(reports, depsgraph, scene, ob, par, (mode == ARM_GROUPS_AUTO), mirror);
+    add_verts_to_dgroups(reports, scene, ob, par, (mode == ARM_GROUPS_AUTO), mirror);
   }
 }
 

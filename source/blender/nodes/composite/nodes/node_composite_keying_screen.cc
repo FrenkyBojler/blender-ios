@@ -49,7 +49,7 @@ static void node_init(const bContext *C, PointerRNA *ptr)
 {
   bNode *node = static_cast<bNode *>(ptr->data);
 
-  NodeKeyingScreenData *data = MEM_new_for_free<NodeKeyingScreenData>(__func__);
+  NodeKeyingScreenData *data = MEM_new<NodeKeyingScreenData>(__func__);
   node->storage = data;
 
   const Scene *scene = CTX_data_scene(C);
@@ -88,10 +88,9 @@ class KeyingScreenOperation : public NodeOperation {
 
   void execute() override
   {
-    Result &keying_screen = get_result("Screen");
     MovieTrackingObject *movie_tracking_object = get_movie_tracking_object();
     if (!movie_tracking_object) {
-      keying_screen.allocate_invalid();
+      this->allocate_default_remaining_outputs();
       return;
     }
 
@@ -99,10 +98,11 @@ class KeyingScreenOperation : public NodeOperation {
         context(), get_movie_clip(), movie_tracking_object, get_smoothness());
 
     if (!cached_keying_screen.is_allocated()) {
-      keying_screen.allocate_invalid();
+      this->allocate_default_remaining_outputs();
       return;
     }
 
+    Result &keying_screen = get_result("Screen");
     keying_screen.wrap_external(cached_keying_screen);
   }
 

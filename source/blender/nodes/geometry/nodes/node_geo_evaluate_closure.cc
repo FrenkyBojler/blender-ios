@@ -33,7 +33,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Closure>("Closure");
 
   const bNode *node = b.node_or_null();
-  auto &panel = b.add_panel("Interface");
+  auto &panel = b.add_panel("Interface"_ustr);
   if (node) {
     const auto &storage = node_storage(*node);
     for (const int i : IndexRange(storage.output_items.items_num)) {
@@ -69,15 +69,14 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  auto *storage = MEM_new_for_free<NodeEvaluateClosure>(__func__);
+  auto *storage = MEM_new<NodeEvaluateClosure>(__func__);
   node->storage = storage;
 }
 
 static void node_copy_storage(bNodeTree * /*tree*/, bNode *dst_node, const bNode *src_node)
 {
   const NodeEvaluateClosure &src_storage = node_storage(*src_node);
-  auto *dst_storage = MEM_new_for_free<NodeEvaluateClosure>(__func__,
-                                                            dna::shallow_copy(src_storage));
+  auto *dst_storage = MEM_new<NodeEvaluateClosure>(__func__, dna::shallow_copy(src_storage));
   dst_node->storage = dst_storage;
 
   socket_items::copy_array<EvaluateClosureInputItemsAccessor>(*src_node, *dst_node);
@@ -88,7 +87,7 @@ static void node_free_storage(bNode *node)
 {
   socket_items::destruct_array<EvaluateClosureInputItemsAccessor>(*node);
   socket_items::destruct_array<EvaluateClosureOutputItemsAccessor>(*node);
-  MEM_freeN(node->storage);
+  MEM_delete(static_cast<NodeEvaluateClosure *>(node->storage));
 }
 
 static bool node_insert_link(bke::NodeInsertLinkParams &params)
@@ -243,7 +242,7 @@ StructRNA **EvaluateClosureInputItemsAccessor::item_srna = &RNA_NodeEvaluateClos
 
 void EvaluateClosureInputItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
-  BLO_write_string(writer, item.name);
+  writer->write_string(item.name);
 }
 
 void EvaluateClosureInputItemsAccessor::blend_read_data_item(BlendDataReader *reader, ItemT &item)
@@ -255,7 +254,7 @@ StructRNA **EvaluateClosureOutputItemsAccessor::item_srna = &RNA_NodeEvaluateClo
 
 void EvaluateClosureOutputItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
-  BLO_write_string(writer, item.name);
+  writer->write_string(item.name);
 }
 
 void EvaluateClosureOutputItemsAccessor::blend_read_data_item(BlendDataReader *reader, ItemT &item)

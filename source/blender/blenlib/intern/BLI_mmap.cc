@@ -371,7 +371,12 @@ BLI_mmap_file *BLI_mmap_open(int fd)
   static std::atomic_size_t id_counter = 0;
 
   void *memory, *handle = nullptr;
-  const size_t length = BLI_lseek(fd, 0, SEEK_END);
+  /* It's important not to use `BLI_lseek` here because in case we fail to use MMAP and returning
+   * nullptr, the calling function is not closing the file using the file descriptor means next
+   * time the file is read the file-pointer is still pointing to the end. This is not an issue for
+   * blender but it throws off the virtual file-system when blender is running on the
+   * render-network. See PR !155823 for details. */
+  const size_t length = BLI_file_descriptor_size(fd);
   if (UNLIKELY(length == size_t(-1))) {
     return nullptr;
   }
@@ -446,7 +451,7 @@ BLI_mmap_file *BLI_mmap_open(int fd)
 #endif /* WIN32 */
 
   /* Now that the mapping was successful, allocate memory and set up the #BLI_mmap_file. */
-  BLI_mmap_file *file = MEM_callocN<BLI_mmap_file>(__func__);
+  BLI_mmap_file *file = MEM_new_zeroed<BLI_mmap_file>(__func__);
   file->memory = static_cast<char *>(memory);
   file->handle = handle;
   file->length = length;
@@ -496,7 +501,7 @@ void BLI_mmap_free(BLI_mmap_file *file)
   CloseHandle(file->handle);
 #endif
 
-  MEM_freeN(file);
+  MEM_delete(file);
 }
 
 }  // namespace blender

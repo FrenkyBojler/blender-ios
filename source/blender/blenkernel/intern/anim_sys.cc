@@ -17,6 +17,7 @@
 #include "BLI_bit_vector.hh"
 #include "BLI_listbase.h"
 #include "BLI_listbase_wrapper.hh"
+#include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
@@ -40,6 +41,7 @@
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
+#include "BKE_armature.hh"
 #include "BKE_context.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_global.hh"
@@ -50,11 +52,13 @@
 #include "BKE_material.hh"
 #include "BKE_nla.hh"
 #include "BKE_node.hh"
+#include "BKE_object.hh"
 #include "BKE_texture.h"
 
 #include "ANIM_action.hh"
 #include "ANIM_action_legacy.hh"
 #include "ANIM_evaluation.hh"
+#include "ANIM_rna.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
@@ -140,7 +144,7 @@ KeyingSet *BKE_keyingset_add(ListBaseT<KeyingSet> *list,
   KeyingSet *ks;
 
   /* allocate new KeyingSet */
-  ks = MEM_new_for_free<KeyingSet>("KeyingSet");
+  ks = MEM_new<KeyingSet>("KeyingSet");
 
   STRNCPY_UTF8(ks->idname, (idname) ? idname : (name) ? name : DATA_("KeyingSet"));
   STRNCPY_UTF8(ks->name, (name) ? name : (idname) ? idname : DATA_("Keying Set"));
@@ -195,7 +199,7 @@ KS_Path *BKE_keyingset_add_path(KeyingSet *ks,
   }
 
   /* allocate a new KeyingSet Path */
-  ksp = MEM_new_for_free<KS_Path>("KeyingSet Path");
+  ksp = MEM_new<KS_Path>("KeyingSet Path");
 
   /* just store absolute info */
   ksp->id = id;
@@ -236,7 +240,7 @@ void BKE_keyingset_free_path(KeyingSet *ks, KS_Path *ksp)
 
   /* free RNA-path info */
   if (ksp->rna_path) {
-    MEM_freeN(ksp->rna_path);
+    MEM_delete(ksp->rna_path);
   }
 
   /* free path itself */
@@ -251,7 +255,7 @@ void BKE_keyingsets_copy(ListBaseT<KeyingSet> *newlist, const ListBaseT<KeyingSe
     BLI_duplicatelist(&ksn.paths, &ksn.paths);
 
     for (KS_Path &kspn : ksn.paths) {
-      kspn.rna_path = static_cast<char *>(MEM_dupallocN(kspn.rna_path));
+      kspn.rna_path = MEM_dupalloc(kspn.rna_path);
     }
   }
 }
@@ -314,7 +318,7 @@ void BKE_keyingsets_blend_write(BlendWriter *writer, ListBaseT<KeyingSet> *list)
       writer->write_struct(&ksp);
 
       if (ksp.rna_path) {
-        BLO_write_string(writer, ksp.rna_path);
+        writer->write_string(ksp.rna_path);
       }
     }
   }
@@ -574,7 +578,7 @@ static void animsys_write_orig_anim_rna(PointerRNA *ptr,
  * separate code should be used.
  */
 static void animsys_evaluate_fcurves(PointerRNA *ptr,
-                                     Span<FCurve *> fcurves,
+                                     const Span<FCurve *> fcurves,
                                      const AnimationEvalContext *anim_eval_context,
                                      bool flush_to_original)
 {
@@ -601,8 +605,9 @@ static void animsys_evaluate_fcurves(PointerRNA *ptr,
  * have to be in array_index order. If the quaternion is only partially keyed,
  * the result is normalized. If it is fully keyed, the result is returned as-is.
  */
-static void animsys_quaternion_evaluate_fcurves(PathResolvedRNA quat_rna,
-                                                Span<FCurve *> quat_fcurves,
+static void animsys_quaternion_evaluate_fcurves(PointerRNA &ptr,
+                                                PropertyRNA *prop,
+                                                const Span<FCurve *> quat_fcurves,
                                                 const AnimationEvalContext *anim_eval_context,
                                                 float r_quaternion[4])
 {
@@ -614,7 +619,9 @@ static void animsys_quaternion_evaluate_fcurves(PathResolvedRNA quat_rna,
   r_quaternion[1] = 0.0f;
   r_quaternion[2] = 0.0f;
   r_quaternion[3] = 0.0f;
-
+  PathResolvedRNA quat_rna;
+  quat_rna.ptr = ptr;
+  quat_rna.prop = prop;
   for (FCurve *quat_curve_fcu : quat_fcurves) {
     const int array_index = quat_curve_fcu->array_index;
     quat_rna.prop_index = array_index;
@@ -632,50 +639,234 @@ static void animsys_quaternion_evaluate_fcurves(PathResolvedRNA quat_rna,
  * This function assumes that the quaternion keys are sequential. They do not
  * have to be in array_index order.
  */
-static void animsys_blend_fcurves_quaternion(PathResolvedRNA *anim_rna,
-                                             Span<FCurve *> quaternion_fcurves,
+static void animsys_blend_fcurves_quaternion(PointerRNA &ptr,
+                                             PropertyRNA *prop,
+                                             const Span<FCurve *> quaternion_fcurves,
                                              const AnimationEvalContext *anim_eval_context,
                                              const float blend_factor)
 {
   BLI_assert(quaternion_fcurves.size() <= 4);
 
   float current_quat[4];
-  RNA_property_float_get_array(&anim_rna->ptr, anim_rna->prop, current_quat);
+  RNA_property_float_get_array(&ptr, prop, current_quat);
 
   float target_quat[4];
   animsys_quaternion_evaluate_fcurves(
-      *anim_rna, quaternion_fcurves, anim_eval_context, target_quat);
+      ptr, prop, quaternion_fcurves, anim_eval_context, target_quat);
 
   float blended_quat[4];
   interp_qt_qtqt(blended_quat, current_quat, target_quat, blend_factor);
 
-  RNA_property_float_set_array(&anim_rna->ptr, anim_rna->prop, blended_quat);
+  RNA_property_float_set_array(&ptr, prop, blended_quat);
+}
+
+/**
+ * LERP between current value (blend_factor=0.0) and the value from the FCurve (blend_factor=1.0).
+ */
+static float get_fcurve_blend_value(FCurve &fcu,
+                                    PathResolvedRNA &anim_rna,
+                                    const AnimationEvalContext *anim_eval_context,
+                                    const float blend_factor)
+{
+  const float fcurve_value = calculate_fcurve(&anim_rna, &fcu, anim_eval_context);
+
+  float current_value;
+  float value_to_write;
+  if (!BKE_animsys_read_from_rna_path(&anim_rna, &current_value)) {
+    /* Unable to read the current value for blending, so just apply the FCurve value instead. */
+    return fcurve_value;
+  }
+
+  value_to_write = (1 - blend_factor) * current_value + blend_factor * fcurve_value;
+
+  switch (RNA_property_type(anim_rna.prop)) {
+    case PROP_BOOLEAN: /* Without this, anything less than 1.0 is converted to 'False' by
+                        * ANIMSYS_FLOAT_AS_BOOL(). This is probably not desirable for blends,
+                        * where anything above a 50% blend should act more like the FCurve than
+                        * like the current value. */
+    case PROP_INT:
+    case PROP_ENUM:
+      value_to_write = roundf(value_to_write);
+      break;
+      /* All other types are just handled as float, and value_to_write is already correct. */
+    default:
+      break;
+  }
+  return value_to_write;
+}
+
+/**
+ * Apply the rotation fcurves to the `ptr` by converting them to a matrix first. This means the
+ * rotation can be applied regardless of rotation mode.
+ *
+ * \param blend_factor LERP between the current rotation value of the ptr and the value of the
+ * rotation_fcurves. A `1` means the rotation_fcurves will be applied at 100%.
+ */
+static void blend_rotation_with_conversion(PointerRNA &ptr,
+                                           const Span<FCurve *> rotation_fcurves,
+                                           const eRotationModes fcurve_rotation_mode,
+                                           const float eval_time,
+                                           const float blend_factor)
+{
+  /* The rotation data is 0 initialized for reasonable defaults in case some indices have no
+   * FCurves associated with them. */
+  float4 fcurve_rotation_values(0.0);
+  if (fcurve_rotation_mode == ROT_MODE_QUAT) {
+    /* Default W value for quaternions. */
+    fcurve_rotation_values[0] = 1.0;
+  }
+
+  for (FCurve *fcurve : rotation_fcurves) {
+    BLI_assert_msg(fcurve->array_index >= 0 && fcurve->array_index < 4,
+                   "Rotation properties have at most 4 components.");
+    fcurve_rotation_values[fcurve->array_index] = evaluate_fcurve(fcurve, eval_time);
+  }
+
+  /* Converting to quaternion simplifies blending below. */
+  float4 fcurve_quat;
+  switch (fcurve_rotation_mode) {
+    case ROT_MODE_QUAT: {
+      copy_qt_qt(fcurve_quat, fcurve_rotation_values);
+      break;
+    }
+    case ROT_MODE_EUL: {
+      /* TODO: determine the rotation order for euler angles. This has to be stored at the
+       * point of pose creation. */
+      eulO_to_quat(fcurve_quat, fcurve_rotation_values, ROT_MODE_XYZ);
+      break;
+    }
+    case ROT_MODE_AXISANGLE: {
+      axis_angle_to_quat(fcurve_quat, &fcurve_rotation_values[1], fcurve_rotation_values[0]);
+      break;
+    }
+    default: {
+      BLI_assert_unreachable();
+    }
+  }
+
+  float4 interp_quat;
+  if (ptr.type == RNA_PoseBone) {
+    bPoseChannel *pose_bone = static_cast<bPoseChannel *>(ptr.data);
+    const float4 quat = BKE_pchan_rot_to_quat(*pose_bone);
+    interp_qt_qtqt(interp_quat, quat, fcurve_quat, blend_factor);
+    BKE_pchan_quat_to_rot(*pose_bone, interp_quat);
+  }
+  else if (ptr.type == RNA_Object) {
+    Object *object = static_cast<Object *>(ptr.data);
+    const float4 quat = BKE_object_rot_to_quat(*object);
+    interp_qt_qtqt(interp_quat, quat, fcurve_quat, blend_factor);
+    BKE_object_quat_to_rot(*object, interp_quat);
+  }
+  else {
+    BLI_assert_unreachable();
+  }
+}
+
+static void blend_rotation(PointerRNA &ptr,
+                           PropertyRNA *prop,
+                           const Span<FCurve *> rotation_fcurves,
+                           const eRotationModes fcurve_rotation_mode,
+                           const AnimationEvalContext *anim_eval_context,
+                           const float blend_factor)
+{
+  if (fcurve_rotation_mode == ROT_MODE_QUAT) {
+    animsys_blend_fcurves_quaternion(ptr, prop, rotation_fcurves, anim_eval_context, blend_factor);
+    return;
+  }
+
+  PathResolvedRNA anim_rna;
+  anim_rna.ptr = ptr;
+  anim_rna.prop = prop;
+  for (FCurve *fcurve : rotation_fcurves) {
+    anim_rna.prop_index = fcurve->array_index;
+    const float value_to_write = get_fcurve_blend_value(
+        *fcurve, anim_rna, anim_eval_context, blend_factor);
+    BKE_animsys_write_to_rna_path(&anim_rna, value_to_write);
+  }
+}
+
+static bool rotation_mode_is_euler(const eRotationModes rotation_mode)
+{
+  return rotation_mode >= ROT_MODE_EUL;
 }
 
 /* LERP between current value (blend_factor=0.0) and the value from the FCurve (blend_factor=1.0)
  */
 static void animsys_blend_in_fcurves(PointerRNA *ptr,
-                                     Span<FCurve *> fcurves,
+                                     const Span<FCurve *> fcurves,
                                      const AnimationEvalContext *anim_eval_context,
                                      const float blend_factor)
 {
-  char *channel_to_skip = nullptr;
-  int num_channels_to_skip = 0;
-  for (int fcurve_index : fcurves.index_range()) {
-    FCurve *fcu = fcurves[fcurve_index];
+  /* Rotations are a special case since the rotation mode of the pose may not match with the
+   * current rotation mode of the `ptr`. Also quaternions need to be handled together. */
+  Map<StringRefNull, Vector<FCurve *>> rotation_fcurve_map;
+  for (FCurve *fcurve : fcurves) {
+    StringRefNull rna_path(fcurve->rna_path);
 
-    if (num_channels_to_skip) {
-      /* For skipping already-handled rotation channels. Rotation channels are handled per group,
-       * and not per individual channel. */
-      BLI_assert(channel_to_skip != nullptr);
-      if (STREQ(channel_to_skip, fcu->rna_path)) {
-        /* This is indeed the channel we want to skip. */
-        num_channels_to_skip--;
-        continue;
-      }
+    if (!is_fcurve_evaluatable(fcurve)) {
+      continue;
     }
 
+    if (!animrig::is_rotation_path(rna_path)) {
+      continue;
+    }
+
+    Vector<FCurve *> &rotation_fcurves = rotation_fcurve_map.lookup_or_add_default(rna_path);
+    rotation_fcurves.append(fcurve);
+  }
+
+  for (const auto &[rna_path, rotation_fcurves] : rotation_fcurve_map.items()) {
+    PointerRNA resolved_ptr;
+    PropertyRNA *resolved_prop;
+    if (!RNA_path_resolve_property(ptr, rna_path.data(), &resolved_ptr, &resolved_prop)) {
+      continue;
+    }
+
+    std::optional<eRotationModes> ptr_rotation_mode_opt =
+        animrig::get_rotation_mode_from_rna_pointer(resolved_ptr);
+    BLI_assert_msg(
+        ptr_rotation_mode_opt.has_value(),
+        "We have an FCurve on a rotation property, the RNA data should have a rotation order.");
+    const eRotationModes ptr_rotation_mode = ptr_rotation_mode_opt.value();
+
+    const std::optional<eRotationModes> fcurve_rotation_mode_opt =
+        animrig::get_rotation_mode_from_path(rna_path);
+    BLI_assert(fcurve_rotation_mode_opt.has_value());
+    const eRotationModes fcurve_rotation_mode = fcurve_rotation_mode_opt.value();
+
+    /* The check for Euler rotation mode means we will *not* do any conversion if both modes are
+     * euler. Since we *cannot* know the exact euler mode of the stored FCurves we have to assume
+     * they are the same as the ptr. */
+    if (fcurve_rotation_mode == ptr_rotation_mode ||
+        (rotation_mode_is_euler(fcurve_rotation_mode) &&
+         rotation_mode_is_euler(ptr_rotation_mode)))
+    {
+      /* Easy case, animation mode of fcurves and of `resolved_ptr` are matching. Data can just
+       * be applied. The reason to have this separate is because in this case euler angles > 180
+       * degrees are preserved. The other path uses a conversion to a quaternion which loses that
+       * information. */
+      blend_rotation(resolved_ptr,
+                     resolved_prop,
+                     rotation_fcurves,
+                     fcurve_rotation_mode,
+                     anim_eval_context,
+                     blend_factor);
+    }
+    else {
+      blend_rotation_with_conversion(resolved_ptr,
+                                     rotation_fcurves,
+                                     fcurve_rotation_mode,
+                                     anim_eval_context->eval_time,
+                                     blend_factor);
+    }
+  }
+
+  for (FCurve *fcu : fcurves) {
     if (!is_fcurve_evaluatable(fcu)) {
+      continue;
+    }
+
+    if (rotation_fcurve_map.contains(StringRefNull(fcu->rna_path))) {
       continue;
     }
 
@@ -684,55 +875,10 @@ static void animsys_blend_in_fcurves(PointerRNA *ptr,
       continue;
     }
 
-    if (STREQ(RNA_property_identifier(anim_rna.prop), "rotation_quaternion")) {
-      /* Construct a list of quaternion F-Curves so they can be treated as one unit. */
-      Vector<FCurve *> quat_fcurves = {fcu};
-      for (FCurve *quat_fcurve : fcurves.slice_safe(fcurve_index + 1, 3)) {
-        if (STREQ(quat_fcurve->rna_path, fcu->rna_path)) {
-          quat_fcurves.append(quat_fcurve);
-        }
-      }
-      animsys_blend_fcurves_quaternion(&anim_rna, quat_fcurves, anim_eval_context, blend_factor);
-
-      /* Skip the next up-to-three channels, because those have already been handled here. */
-      MEM_SAFE_FREE(channel_to_skip);
-      channel_to_skip = BLI_strdup(fcu->rna_path);
-      num_channels_to_skip = quat_fcurves.size() - 1;
-      continue;
-    }
-    /* TODO(Sybren): do something similar as above for Euler and Axis/Angle representations. */
-
-    const float fcurve_value = calculate_fcurve(&anim_rna, fcu, anim_eval_context);
-
-    float current_value;
-    float value_to_write;
-    if (BKE_animsys_read_from_rna_path(&anim_rna, &current_value)) {
-      value_to_write = (1 - blend_factor) * current_value + blend_factor * fcurve_value;
-
-      switch (RNA_property_type(anim_rna.prop)) {
-        case PROP_BOOLEAN: /* Without this, anything less than 1.0 is converted to 'False' by
-                            * ANIMSYS_FLOAT_AS_BOOL(). This is probably not desirable for blends,
-                            * where anything
-                            * above a 50% blend should act more like the FCurve than like the
-                            * current value. */
-        case PROP_INT:
-        case PROP_ENUM:
-          value_to_write = roundf(value_to_write);
-          break;
-          /* All other types are just handled as float, and value_to_write is already correct. */
-        default:
-          break;
-      }
-    }
-    else {
-      /* Unable to read the current value for blending, so just apply the FCurve value instead. */
-      value_to_write = fcurve_value;
-    }
-
+    const float value_to_write = get_fcurve_blend_value(
+        *fcu, anim_rna, anim_eval_context, blend_factor);
     BKE_animsys_write_to_rna_path(&anim_rna, value_to_write);
   }
-
-  MEM_SAFE_FREE(channel_to_skip);
 }
 
 /* ***************************************** */
@@ -840,7 +986,7 @@ void animsys_evaluate_action(PointerRNA *ptr,
   /* Note that this is _only_ for evaluation of actions linked by NLA strips. As in, legacy code
    * paths that I (Sybren) tried to keep as much intact as possible when adding support for slotted
    * Actions. This code will go away when we implement layered Actions. */
-  Span<FCurve *> fcurves = animrig::fcurves_for_action_slot(action, action_slot_handle);
+  const Span<FCurve *> fcurves = animrig::fcurves_for_action_slot(action, action_slot_handle);
   animsys_evaluate_fcurves(ptr, fcurves, anim_eval_context, flush_to_original);
 }
 
@@ -1057,7 +1203,7 @@ NlaEvalStrip *nlastrips_ctime_get_strip(ListBaseT<NlaEvalStrip> *list,
   }
 
   /* add to list of strips we need to evaluate */
-  nes = MEM_callocN<NlaEvalStrip>("NlaEvalStrip");
+  nes = MEM_new_zeroed<NlaEvalStrip>("NlaEvalStrip");
 
   nes->strip = estrip;
   nes->strip_mode = side;
@@ -1101,7 +1247,7 @@ static void nlavalidmask_init(NlaValidMask *mask, int bits)
 static void nlavalidmask_free(NlaValidMask *mask)
 {
   if (mask->ptr != mask->buffer) {
-    MEM_freeN(mask->ptr);
+    MEM_delete(mask->ptr);
   }
 }
 
@@ -1114,7 +1260,7 @@ static NlaEvalChannelSnapshot *nlaevalchan_snapshot_new(NlaEvalChannel *nec)
 
   size_t byte_size = sizeof(NlaEvalChannelSnapshot) + sizeof(float) * length;
   NlaEvalChannelSnapshot *nec_snapshot = static_cast<NlaEvalChannelSnapshot *>(
-      MEM_callocN(byte_size, "NlaEvalChannelSnapshot"));
+      MEM_new_zeroed(byte_size, "NlaEvalChannelSnapshot"));
 
   nec_snapshot->channel = nec;
   nec_snapshot->length = length;
@@ -1131,7 +1277,7 @@ static void nlaevalchan_snapshot_free(NlaEvalChannelSnapshot *nec_snapshot)
 
   nlavalidmask_free(&nec_snapshot->blend_domain);
   nlavalidmask_free(&nec_snapshot->remap_domain);
-  MEM_freeN(nec_snapshot);
+  MEM_delete(nec_snapshot);
 }
 
 /* Copy all data in the snapshot. */
@@ -1152,8 +1298,8 @@ static void nlaeval_snapshot_init(NlaEvalSnapshot *snapshot,
 {
   snapshot->base = base;
   snapshot->size = std::max(16, nlaeval->num_channels);
-  snapshot->channels = MEM_calloc_arrayN<NlaEvalChannelSnapshot *>(snapshot->size,
-                                                                   "NlaEvalSnapshot::channels");
+  snapshot->channels = MEM_new_array_zeroed<NlaEvalChannelSnapshot *>(snapshot->size,
+                                                                      "NlaEvalSnapshot::channels");
 }
 
 /* Retrieve the individual channel snapshot. */
@@ -1172,7 +1318,7 @@ static void nlaeval_snapshot_ensure_size(NlaEvalSnapshot *snapshot, int size)
 
     size_t byte_size = sizeof(*snapshot->channels) * snapshot->size;
     snapshot->channels = static_cast<NlaEvalChannelSnapshot **>(
-        MEM_recallocN_id(snapshot->channels, byte_size, "NlaEvalSnapshot::channels"));
+        MEM_realloc_zeroed_id(snapshot->channels, byte_size, "NlaEvalSnapshot::channels"));
   }
 }
 
@@ -1231,7 +1377,7 @@ static void nlaeval_snapshot_free_data(NlaEvalSnapshot *snapshot)
       }
     }
 
-    MEM_freeN(snapshot->channels);
+    MEM_delete(snapshot->channels);
   }
 
   snapshot->base = nullptr;
@@ -1260,7 +1406,7 @@ static void nlaeval_init(NlaEvalData *nlaeval)
 static void nlaeval_free(NlaEvalData *nlaeval)
 {
   /* Delete base snapshot - its channels are part of NlaEvalChannel and shouldn't be freed. */
-  MEM_SAFE_FREE(nlaeval->base_snapshot.channels);
+  MEM_SAFE_DELETE(nlaeval->base_snapshot.channels);
 
   /* Delete result snapshot. */
   nlaeval_snapshot_free_data(&nlaeval->eval_snapshot);
@@ -1340,20 +1486,20 @@ static void nlaevalchan_get_default_values(NlaEvalChannel *nec, float *r_values)
 
     switch (RNA_property_type(prop)) {
       case PROP_BOOLEAN:
-        tmp_bool = MEM_malloc_arrayN<bool>(size_t(length), __func__);
+        tmp_bool = MEM_new_array_uninitialized<bool>(size_t(length), __func__);
         RNA_property_boolean_get_default_array(ptr, prop, tmp_bool);
         for (int i = 0; i < length; i++) {
           r_values[i] = float(tmp_bool[i]);
         }
-        MEM_freeN(tmp_bool);
+        MEM_delete(tmp_bool);
         break;
       case PROP_INT:
-        tmp_int = MEM_malloc_arrayN<int>(size_t(length), __func__);
+        tmp_int = MEM_new_array_uninitialized<int>(size_t(length), __func__);
         RNA_property_int_get_default_array(ptr, prop, tmp_int);
         for (int i = 0; i < length; i++) {
           r_values[i] = float(tmp_int[i]);
         }
-        MEM_freeN(tmp_int);
+        MEM_delete(tmp_int);
         break;
       case PROP_FLOAT:
         RNA_property_float_get_default_array(ptr, prop, r_values);
@@ -1420,7 +1566,7 @@ static NlaEvalChannel *nlaevalchan_verify_key(NlaEvalData *nlaeval,
     int length = is_array ? RNA_property_array_length(&key->ptr, key->prop) : 1;
 
     NlaEvalChannel *nec = static_cast<NlaEvalChannel *>(
-        MEM_callocN(sizeof(NlaEvalChannel) + sizeof(float) * length, "NlaEvalChannel"));
+        MEM_new_zeroed(sizeof(NlaEvalChannel) + sizeof(float) * length, "NlaEvalChannel"));
 
     /* Initialize the channel. */
     nec->rna_path = path;
@@ -2881,7 +3027,7 @@ static void nlastrip_evaluate_meta(const int evaluation_mode,
                       flush_to_original);
 
     /* free temp eval-strip */
-    MEM_freeN(tmp_nes);
+    MEM_delete(tmp_nes);
   }
 
   /* unlink this strip's modifiers from the parent's modifiers again */
@@ -3646,7 +3792,7 @@ NlaKeyframingContext *BKE_animsys_get_nla_keyframing_context(
 
   if (ctx == nullptr) {
     /* Allocate and evaluate a new context. */
-    ctx = MEM_new_for_free<NlaKeyframingContext>("NlaKeyframingContext");
+    ctx = MEM_new<NlaKeyframingContext>("NlaKeyframingContext");
     ctx->adt = adt;
 
     nlaeval_init(&ctx->lower_eval_data);
@@ -3786,7 +3932,7 @@ void BKE_animsys_nla_remap_keyframe_values(NlaKeyframingContext *context,
 void BKE_animsys_free_nla_keyframing_context_cache(ListBaseT<NlaKeyframingContext> *cache)
 {
   for (NlaKeyframingContext &ctx : *cache) {
-    MEM_SAFE_FREE(ctx.eval_strip);
+    MEM_SAFE_DELETE(ctx.eval_strip);
     BLI_freelistN(&ctx.upper_estrips);
     nlaeval_free(&ctx.lower_eval_data);
   }
@@ -4073,7 +4219,8 @@ void BKE_animsys_update_driver_array(ID *id)
     BLI_assert(!adt->driver_array);
 
     int num_drivers = BLI_listbase_count(&adt->drivers);
-    adt->driver_array = MEM_malloc_arrayN<FCurve *>(size_t(num_drivers), "adt->driver_array");
+    adt->driver_array = MEM_new_array_uninitialized<FCurve *>(size_t(num_drivers),
+                                                              "adt->driver_array");
 
     int driver_index = 0;
     for (FCurve &fcu : adt->drivers) {
