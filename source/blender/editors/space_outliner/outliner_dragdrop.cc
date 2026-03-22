@@ -198,6 +198,25 @@ static bool is_collection_element(TreeElement *te)
   return outliner_is_collection_tree_element(te);
 }
 
+static bool outliner_is_tree_element_in_collection(TreeElement *te, ID *id)
+{
+  if (!(te && id && GS(id->name) == ID_GR)) {
+    return false;
+  }
+
+  TreeElement *collection_te = outliner_data_from_tree_element_and_parents(is_collection_element,
+                                                                           te);
+
+  while (collection_te && collection_te->parent != nullptr) {
+    Collection *parent_collection = outliner_collection_from_tree_element(collection_te->parent);
+    if (&parent_collection->id == id) {
+      return true;
+    }
+    collection_te = collection_te->parent;
+  }
+  return false;
+}
+
 static bool is_object_element(TreeElement *te)
 {
   TreeStoreElem *tselem = TREESTORE(te);
@@ -1159,6 +1178,11 @@ static bool collection_drop_init(bContext *C, wmDrag *drag, const int xy[2], Col
 
   ID *id = drag_id->id;
   if (!(id && ELEM(GS(id->name), ID_GR, ID_OB))) {
+    return false;
+  }
+
+  /* Check if the drag destination is inside the dragged collections. */
+  if (outliner_is_tree_element_in_collection(te, id)) {
     return false;
   }
 
