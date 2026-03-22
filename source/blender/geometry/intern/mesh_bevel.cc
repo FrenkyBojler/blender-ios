@@ -21,7 +21,6 @@
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
-#include "BLI_math_numbers.hh"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
 #include "BLI_multi_value_map.hh"
@@ -1084,7 +1083,7 @@ static float angle_between_edges(const int bv,
                       (face_prev != -1 ? mesh.face_normals()[face_prev] : mesh.vert_normals()[v]);
   if (math::dot(math::cross(dir1, dir2), normal) < 0.0f) {
     /* Angle is reflex. */
-    ang = 2 * math::numbers::pi - ang;
+    ang = 2 * std::numbers::pi - ang;
   }
   return ang;
 }
@@ -1105,10 +1104,10 @@ static bool nearly_parallel_normalized(const float3 d1, const float3 d2)
                                                    const BevelState &bs)
 {
   float ang = angle_between_edges(bv, e1_pos, e2_pos, bs);
-  if (math::abs(ang - math::numbers::pi) < bevel_epsilon_ang) {
+  if (math::abs(ang - std::numbers::pi) < bevel_epsilon_ang) {
     return AngleKind::Straight;
   }
-  else if (ang < math::numbers::pi) {
+  else if (ang < std::numbers::pi) {
     return AngleKind::Smaller;
   }
   return AngleKind::Larger;
@@ -1128,7 +1127,7 @@ static bool nearly_parallel_normalized(const float3 d1, const float3 d2)
   }
   const float3 &norm_prev = bs.mesh_info.mesh.face_normals()[face_prev];
   const float3 &norm_next = bs.mesh_info.mesh.face_normals()[face_next];
-  return math::numbers::pi - angle_normalized_v3v3(norm_prev, norm_next);
+  return std::numbers::pi - angle_normalized_v3v3(norm_prev, norm_next);
 }
 
 /** Find the center axis of the given bevel vert, for use in vertex beveling.
@@ -1199,11 +1198,11 @@ static bool point_between_edges(const int bv,
   float3 norm = math::cross(dir1, dir2);
   float3 face_norm = mesh.face_normals()[face];
   if (math::dot(norm, face_norm) < 0.0f) {
-    ang11 = float(math::numbers::pi * 2.0) - ang11;
+    ang11 = float(std::numbers::pi * 2.0) - ang11;
   }
   norm = math::cross(dir1, dirco);
   if (math::dot(norm, face_norm) < 0.0f) {
-    ang1co = float(math::numbers::pi * 2.0) - ang1co;
+    ang1co = float(std::numbers::pi * 2.0) - ang1co;
   }
   return (ang11 - ang1co > -bevel_epsilon_ang);
 }
@@ -1347,7 +1346,7 @@ static float3 offset_meet(const int bv,
     float d = math::max(e1_spec_r, e2_spec_l) / math::cos(ang / 2.0);
     return bevvert_pos + d * norm_perp1;
   }
-  if (math::abs(ang - math::numbers::pi) < bevel_epsilon_ang) {
+  if (math::abs(ang - std::numbers::pi) < bevel_epsilon_ang) {
     /* Special case: e1 and e2 are anti-parallel, so bevel is into a zero-area face.
      * Just make the offset point on the common line, at offset distance from v.
      */
@@ -1443,7 +1442,7 @@ static float3 offset_meet(const int bv,
         if (face != -1) {
           ang = angle_v3v3(fnext_norm, mesh.face_normals()[face]);
           if (math::abs(ang) < bevel_small_ang ||
-              math::abs(ang - math::numbers::pi) < bevel_small_ang)
+              math::abs(ang - std::numbers::pi) < bevel_small_ang)
           {
             continue;
           }
@@ -1489,7 +1488,7 @@ static bool try_offset_meet_edge(const int bv,
   if (r_angle) {
     *r_angle = ang;
   }
-  if (math::abs(ang) < good_angle || math::numbers::pi - ang < good_angle) {
+  if (math::abs(ang) < good_angle || std::numbers::pi - ang < good_angle) {
     return false;
   }
   if (r_co == nullptr) {
@@ -1695,7 +1694,7 @@ static double find_superellipse_chord_endpoint(double x0, double dtarget, float 
 
   /* For gradient between -1 and 1, xnew can only be in [x0 + sqrt(2)/2*dtarget, x0 + dtarget].
    */
-  double xmin = x0 + math::numbers::sqrt2 / 2.0 * dtarget;
+  double xmin = x0 + std::numbers::sqrt2 / 2.0 * dtarget;
   xmin = std::min(xmin, 1.0);
   double xmax = x0 + dtarget;
   xmax = std::min(xmax, 1.0);
@@ -1800,7 +1799,7 @@ static void find_even_superellipse_chords_general(int seg,
     /* For last distance, weight with 1/2 if seg_odd. */
     double davg;
     if (seg_odd) {
-      sum += math::numbers::sqrt2 / 2 * (yvals[imax] - xvals[imax]);
+      sum += std::numbers::sqrt2 / 2 * (yvals[imax] - xvals[imax]);
       davg = sum / (imax + 0.5);
     }
     else {
@@ -1891,7 +1890,7 @@ static void find_even_superellipse_chords(int n,
     }
     /* n is odd, so get one corner-cut chord. */
     else {
-      double temp = 1.0 / (n2 + math::numbers::sqrt2 / 2.0);
+      double temp = 1.0 / (n2 + std::numbers::sqrt2 / 2.0);
       for (int i = 0; i <= n2; i++) {
         xvals[i] = 0.0;
         yvals[i] = 1.0 - double(i) * temp;
@@ -1913,7 +1912,7 @@ static void find_even_superellipse_chords(int n,
     }
     /* n is odd, so get one corner-cut chord. */
     else {
-      double temp = 1.0 / (n2 + math::numbers::sqrt2 / 2);
+      double temp = 1.0 / (n2 + std::numbers::sqrt2 / 2);
       for (int i = 0; i <= n2; i++) {
         xvals[i] = double(i) * temp;
         yvals[i] = 1.0;
@@ -2015,7 +2014,7 @@ static bool make_unit_square_map(const float3 va,
     return false;
   }
 
-  if (math::abs(angle_v3v3(va_vmid, vb_vmid) - math::numbers::pi) <= geom::bevel_epsilon_ang) {
+  if (math::abs(angle_v3v3(va_vmid, vb_vmid) - std::numbers::pi) <= geom::bevel_epsilon_ang) {
     return false;
   }
 
@@ -2850,14 +2849,14 @@ static float sabin_gamma(int n)
   if (n == 6) {
     return 0.523423277f;
   }
-  const double k = cos(math::numbers::pi / double(n));
+  const double k = cos(std::numbers::pi / double(n));
   /* Need x, real root of x^3 + (4k^2 - 3)x - 2k = 0.
    * Answer calculated via Wolfram Alpha. */
   const double k2 = k * k;
   const double k4 = k2 * k2;
   const double k6 = k4 * k2;
   const double y = pow(
-      math::numbers::sqrt3 * math::sqrt(64.0 * k6 - 144.0 * k4 + 135.0 * k2 - 27.0) + 9.0 * k,
+                       std::numbers::sqrt3 * math::sqrt(64.0 * k6 - 144.0 * k4 + 135.0 * k2 - 27.0) + 9.0 * k,
       1.0 / 3.0);
   const double x = 0.480749856769136 * y - (0.231120424783545 * (12.0 * k2 - 9.0)) / y;
   return (k * x + 2.0 * k2 - 1.0) / (x * x * (k * x + 1.0));
@@ -5400,13 +5399,13 @@ BevelState::BevelState(const Mesh &src_mesh,
   IndexMask beveled_edges_mask;
   if (vertex_only) {
     bevverts_mask_ = index_mask::IndexMask::from_predicate(
-        selection, GrainSize(4096), this->memory_, [&](const int v) {
+        selection, this->memory_, [&](const int v) {
           return this->mesh_info.vert_edges()[v].size() >= 2;
         });
   }
   else {
     beveled_edges_mask = index_mask::IndexMask::from_predicate(
-        selection, GrainSize(4096), this->memory_, [&](const int e) {
+        selection, this->memory_, [&](const int e) {
           return this->mesh_info.edge_faces()[e].size() == 2;
         });
     Array<bool> bevel_involved_vert(src_mesh.verts_num, false);
@@ -6198,7 +6197,7 @@ static void remap_verts(const OffsetIndices<int> src_faces,
   threading::parallel_invoke(
       vert_mask.size() > 1024,
       [&]() {
-        face_mask.foreach_index(GrainSize(512), [&](const int64_t src_i, const int64_t dst_i) {
+        face_mask.foreach_index([&](const int64_t src_i, const int64_t dst_i) {
           const IndexRange src_face = src_faces[src_i];
           const IndexRange dst_face = dst_faces[dst_i];
           for (const int i : src_face.index_range()) {
@@ -6207,7 +6206,7 @@ static void remap_verts(const OffsetIndices<int> src_faces,
         });
       },
       [&]() {
-        edge_mask.foreach_index(GrainSize(512), [&](const int64_t src_i, const int64_t dst_i) {
+        edge_mask.foreach_index([&](const int64_t src_i, const int64_t dst_i) {
           dst_edges[dst_i][0] = map[src_edges[src_i][0]];
           dst_edges[dst_i][1] = map[src_edges[src_i][1]];
         });
@@ -6221,7 +6220,7 @@ static void remap_edges(const OffsetIndices<int> src_faces,
                         MutableSpan<int> dst_corner_edges,
                         Span<int> map)
 {
-  face_mask.foreach_index(GrainSize(512), [&](const int64_t src_i, const int64_t dst_i) {
+  face_mask.foreach_index([&](const int64_t src_i, const int64_t dst_i) {
     const IndexRange src_face = src_faces[src_i];
     const IndexRange dst_face = dst_faces[dst_i];
     for (const int i : src_face.index_range()) {
