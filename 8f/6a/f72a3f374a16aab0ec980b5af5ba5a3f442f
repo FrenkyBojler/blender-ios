@@ -1,2 +1,2 @@
 Referenced by issue #99891, Support custom NURBS knot vectors
-Referenced by issue #156062, 5.0.1 Completely Fails To Open My Blender File And Crashes
+Referenced by issue #156062, Curves With Stray Vertices Made In Previous Blender Versions Crash 5.0 When Opening The File
