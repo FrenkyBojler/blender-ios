@@ -25,13 +25,18 @@ from typing import (
     Any,
 )
 
+token = "PUT_YOUR_TOKEN_HERE"
+headers = {"Authorization": f"token {token}"}
+
+
 BASE_API_URL = "https://projects.blender.org/api/v1"
 
 
 def url_json_get(url: str, quiet: bool = False) -> dict[str, Any] | list[dict[str, Any]] | None:
+    request = urllib.request.Request(url, headers=headers)
     try:
         # Make the HTTP request and store the response in a 'response' object
-        response = urllib.request.urlopen(url)
+        response = urllib.request.urlopen(request)
     except urllib.error.URLError as ex:
         if not quiet:
             print(url)
