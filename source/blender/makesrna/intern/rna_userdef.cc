@@ -5147,6 +5147,21 @@ static void rna_def_userdef_view(BlenderRNA *brna)
   RNA_def_property_enum_default(prop, ROT_MODE_QUAT);
   RNA_def_property_update(prop, 0, "rna_userdef_update");
 
+  static const EnumPropertyItem armature_display_type_items[] = {
+      {OB_BOUNDBOX, "BOUNDS", 0, "Bounds", ""},
+      {OB_WIRE, "WIRE", 0, "Wire", ""},
+      {OB_SOLID, "SOLID", 0, "Solid", ""},
+      {OB_TEXTURE, "TEXTURED", 0, "Textured", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  prop = RNA_def_property(srna, "armature_new_display_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, armature_display_type_items);
+  RNA_def_property_ui_text(
+      prop, "Armature Display Type", "The default display type when new armatures are added.");
+  RNA_def_property_enum_default(prop, OB_TEXTURE);
+  RNA_def_property_update(prop, 0, "rna_userdef_update");
+
   /* Weight Paint */
   prop = RNA_def_property(srna, "use_weight_color_range", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", USER_CUSTOM_RANGE);

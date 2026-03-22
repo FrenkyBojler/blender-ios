@@ -1391,6 +1391,9 @@ static wmOperatorStatus object_armature_add_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
+  /* UserDef. */
+  obedit->dt = U.armature_new_display_type;
+
   /* Give the Armature its default bone collection. */
   bArmature *armature = id_cast<bArmature *>(obedit->data);
   BoneCollection *default_bonecoll = ANIM_armature_bonecoll_new(armature, "");

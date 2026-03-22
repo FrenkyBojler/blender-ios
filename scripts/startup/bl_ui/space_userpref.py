@@ -553,7 +553,7 @@ class USERPREF_PT_edit_rigging_armatures(EditingPanel, CenterAlignMixIn, Panel):
         layout.prop(view, "bone_new_rotation_mode")
 
         # Display Type
-        layout.label(text="Display Type Here (ENUM)")
+        layout.prop(view, "armature_new_display_type")
 
 
 class USERPREF_PT_edit_rigging_weight_paint(EditingPanel, CenterAlignMixIn, Panel):
