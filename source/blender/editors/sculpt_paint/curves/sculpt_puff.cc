@@ -292,7 +292,7 @@ struct PuffOperationExecutor {
             /* Find the nearest position on the surface. The curve will be aligned to the normal of
              * that point. */
             const std::optional<bke::bvh::ClosestPointResult> nearest =
-                surface_bvh_->closest_point(first_pos_cu);
+                surface_bvh_->closest_point(first_pos_su);
 
             const int3 &tri = surface_corner_tris_[nearest->index];
             const float3 closest_pos_su = nearest->position;

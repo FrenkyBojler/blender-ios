@@ -661,11 +661,6 @@ static void rna_Object_ray_cast(Object *ob,
     /* may fail if the mesh has no faces, in that case the ray-cast misses */
     if (mesh_eval->faces_num != 0) {
       const bke::bvh::Tree &bvh_tree = mesh_eval->bvh_tree();
-      BVHTreeRayHit hit;
-
-      hit.index = -1;
-      hit.dist = distance;
-
       if (const std::optional<bke::bvh::RayHit> hit = bvh_tree.ray_intersect(origin, direction)) {
         if (hit->distance <= distance) {
           *r_success = success = true;
@@ -702,28 +697,24 @@ static void rna_Object_closest_point_on_mesh(Object *ob,
     return;
   }
 
-  /* No need to managing allocation or freeing of the BVH data.
-   * this is generated and freed as needed. */
   Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob);
-  const bke::bvh::Tree &bvh_tree = mesh_eval->bvh_tree();
 
-  if (mesh_eval->faces_num == 0) {
-    return;
-  }
-  else {
-    BVHTreeNearest nearest;
-
-    nearest.index = -1;
-    nearest.dist_sq = distance * distance;
-
+  if (mesh_eval->faces_num != 0) {
     const bke::bvh::Tree &bvh_tree = mesh_eval->bvh_tree();
-    if (const std::optional<bke::bvh::ClosestPointResult> nearest = bvh_tree->closest_point(
+    if (const std::optional<bke::bvh::ClosestPointResult> nearest = bvh_tree.closest_point(
             origin, distance))
     {
       *r_success = true;
-
       copy_v3_v3(r_location, nearest->position);
-      copy_v3_v3(r_normal, nearest->normal);
+
+      const Span<float3> positions = mesh_eval->vert_positions();
+      const Span<int> corner_verts = mesh_eval->corner_verts();
+      const Span<int3> corner_tris = mesh_eval->corner_tris();
+      const float3 normal = math::normal_tri(
+          positions[corner_verts[corner_tris[nearest->index][0]]],
+          positions[corner_verts[corner_tris[nearest->index][1]]],
+          positions[corner_verts[corner_tris[nearest->index][2]]]);
+      copy_v3_v3(r_normal, normal);
       *r_index = mesh_corner_tri_to_face_index(mesh_eval, nearest->index);
     }
     else {

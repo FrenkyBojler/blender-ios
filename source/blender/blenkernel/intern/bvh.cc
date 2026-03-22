@@ -2,6 +2,8 @@
 
 #include "BKE_bvh.hh"
 
+#include "BLI_math_geom.h"
+#include "BLI_math_vector.hh"
 #include "DNA_mesh_types.h"
 
 #include "BLI_index_mask.hh"
@@ -75,17 +77,19 @@ static void add_triangles(const BvhBuildContext &ctx,
   RTCGeometry geom_id = rtcNewGeometry(ctx.device, RTC_GEOMETRY_TYPE_TRIANGLE);
   rtcSetGeometryBuildQuality(geom_id, ctx.build_quality);
 
-  int tris_num = 0;
-  face_mask.foreach_index_optimized<int>(
-      [&](const int i) { tris_num += mesh::face_triangles_num(faces[i].size()); });
-
-  uint3 *rtc_indices = static_cast<uint3 *>(rtcSetNewGeometryBuffer(
-      geom_id, RTC_BUFFER_TYPE_INDEX, 0, RTC_FORMAT_UINT3, sizeof(int3), tris_num));
   if (face_mask.size() == faces.size()) {
+    uint3 *rtc_indices = static_cast<uint3 *>(rtcSetNewGeometryBuffer(
+        geom_id, RTC_BUFFER_TYPE_INDEX, 0, RTC_FORMAT_UINT3, sizeof(int3), corner_tris.size()));
     mesh::vert_tris_from_corner_tris(
         corner_verts, corner_tris, MutableSpan(rtc_indices, corner_tris.size()).cast<int3>());
   }
   else {
+    int tris_num = 0;
+    face_mask.foreach_index_optimized<int>(
+        [&](const int i) { tris_num += mesh::face_triangles_num(faces[i].size()); });
+
+    uint3 *rtc_indices = static_cast<uint3 *>(rtcSetNewGeometryBuffer(
+        geom_id, RTC_BUFFER_TYPE_INDEX, 0, RTC_FORMAT_UINT3, sizeof(int3), tris_num));
     int pos = 0;
     face_mask.foreach_index_optimized<int>([&](const int face) {
       for (const int tri : mesh::face_triangles_range(faces, face)) {
@@ -114,14 +118,14 @@ static void add_triangles(const BvhBuildContext &ctx,
 Tree Tree::from_tris(const Mesh &mesh, const IndexMask &face_mask)
 {
   Tree tree;
-  tree.rtc_device = rtcNewDevice("verbose=0");
+  tree.rtc_device = rtcNewDevice("verbose=1");
 
   rtcSetDeviceErrorFunction(tree.rtc_device, rtc_error_func, nullptr);
   rtcSetDeviceMemoryMonitorFunction(tree.rtc_device, rtc_memory_monitor_func, nullptr);
 
   tree.rtc_scene = rtcNewScene(tree.rtc_device);
   const RTCSceneFlags scene_flags = RTCSceneFlags(RTC_SCENE_FLAG_ROBUST |
-                                                   RTC_SCENE_FLAG_FILTER_FUNCTION_IN_ARGUMENTS);
+                                                  RTC_SCENE_FLAG_FILTER_FUNCTION_IN_ARGUMENTS);
   rtcSetSceneFlags(tree.rtc_scene, scene_flags);
   RTCBuildQuality build_quality = RTC_BUILD_QUALITY_MEDIUM;
   rtcSetSceneBuildQuality(tree.rtc_scene, build_quality);
@@ -144,7 +148,7 @@ Tree Tree::from_tris(const Mesh &mesh, const IndexMask &face_mask)
 
 Tree Tree::from_single_mesh(const Mesh &mesh)
 {
-  return from_tris(mesh, mesh.corner_tris().index_range());
+  return from_tris(mesh, IndexRange(mesh.faces_num));
 }
 
 std::optional<RayHit> Tree::ray_intersect(const Ray &ray) const
@@ -233,6 +237,38 @@ void Tree::ray_intersect_all(const Ray &ray, FunctionRef<void(const RayHit &)> f
   rtcIntersect1(this->rtc_scene, &rtc_hit, &args);
 }
 
+struct ClosestPointUserData {
+  RTCScene rtc_scene;
+  ClosestPointResult &result;
+};
+
+static bool closest_point_fn(RTCPointQueryFunctionArguments *args)
+{
+  const auto &user_data = *static_cast<ClosestPointUserData *>(args->userPtr);
+  const RTCScene scene = user_data.rtc_scene;
+  RTCGeometry geom = rtcGetGeometry(scene, args->geomID);
+
+  const float3 *positions = static_cast<const float3 *>(
+      rtcGetGeometryBufferData(geom, RTC_BUFFER_TYPE_VERTEX, 0));
+  const uint3 *indices = static_cast<const uint3 *>(
+      rtcGetGeometryBufferData(geom, RTC_BUFFER_TYPE_INDEX, 0));
+  const uint3 tri = indices[args->primID];
+
+  float3 nearest_position;
+  closest_on_tri_to_point_v3(
+      nearest_position, &args->query->x, positions[tri[0]], positions[tri[1]], positions[tri[2]]);
+
+  const float distance = math::distance(float3(&args->query->x), nearest_position);
+  if (distance < args->query->radius) {
+    args->query->radius = distance;
+    user_data.result.position = nearest_position;
+    user_data.result.index = args->primID;
+    user_data.result.geomID = args->geomID;
+    return true;
+  }
+  return false;
+}
+
 std::optional<ClosestPointResult> Tree::closest_point(const float3 &point,
                                                       const float radius) const
 {
@@ -245,7 +281,8 @@ std::optional<ClosestPointResult> Tree::closest_point(const float3 &point,
   RTCPointQueryContext context{};
   rtcInitPointQueryContext(&context);
   ClosestPointResult result;
-  if (!rtcPointQuery(this->rtc_scene, &query, &context, nullptr, &result)) {
+  ClosestPointUserData user_data(this->rtc_scene, result);
+  if (!rtcPointQuery(this->rtc_scene, &query, &context, closest_point_fn, &user_data)) {
     return std::nullopt;
   }
   return result;

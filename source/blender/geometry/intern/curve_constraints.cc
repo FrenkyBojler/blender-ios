@@ -117,15 +117,14 @@ void solve_length_and_collision_constraints(const OffsetIndices<int> points_by_c
               bke::bvh::Ray ray{};
               ray.origin = start_pos_su;
               ray.direction = ray_direction_su;
-              ray.dist_min = 0.0f;
               ray.dist_max = max_ray_length_su + surface_collision_distance;
 
-              bke::bvh::RayHit hit;
-              if (!surface_bvh.ray_intersect1(ray, hit)) {
+              const std::optional<bke::bvh::RayHit> hit = surface_bvh.ray_intersect(ray);
+              if (!hit) {
                 break;
               }
-              const float3 hit_pos_su = hit.ray.origin + hit.ray.direction * hit.ray.dist_max;
-              const float3 hit_normal_su = hit.hit.normal;
+              const float3 hit_pos_su = ray.origin + ray.direction * hit->distance;
+              const float3 hit_normal_su = hit->normal;
               if (math::dot(hit_normal_su, ray_direction_su) > 0.0f) {
                 /* Moving from the inside to the outside is ok. */
                 break;

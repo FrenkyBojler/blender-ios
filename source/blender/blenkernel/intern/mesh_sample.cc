@@ -301,7 +301,7 @@ int sample_surface_points_spherical(RandomNumberGenerator &rng,
 int sample_surface_points_projected(
     RandomNumberGenerator &rng,
     const Mesh &mesh,
-    BVHTreeFromMesh &mesh_bvhtree,
+    const bke::bvh::Tree &mesh_bvhtree,
     const float2 &sample_pos_re,
     const float sample_radius_re,
     const FunctionRef<void(const float2 &pos_re, float3 &r_start, float3 &r_end)>
@@ -330,30 +330,21 @@ int sample_surface_points_projected(
     region_position_to_ray(pos_re, ray_start, ray_end);
     const float3 ray_direction = math::normalize(ray_end - ray_start);
 
-    BVHTreeRayHit ray_hit;
-    ray_hit.dist = FLT_MAX;
-    ray_hit.index = -1;
-    BLI_bvhtree_ray_cast(mesh_bvhtree.tree,
-                         ray_start,
-                         ray_direction,
-                         0.0f,
-                         &ray_hit,
-                         mesh_bvhtree.raycast_callback,
-                         &mesh_bvhtree);
-
-    if (ray_hit.index == -1) {
+    const std::optional<bke::bvh::RayHit> ray_hit = mesh_bvhtree.ray_intersect(ray_start,
+                                                                               ray_direction);
+    if (!ray_hit) {
       continue;
     }
 
     if (front_face_only) {
-      const float3 normal = ray_hit.no;
+      const float3 normal = math::normalize(ray_hit->normal);
       if (math::dot(ray_direction, normal) >= 0.0f) {
         continue;
       }
     }
 
-    const int tri_index = ray_hit.index;
-    const float3 pos = ray_hit.co;
+    const int tri_index = ray_hit->index;
+    const float3 pos = ray_hit->position;
 
     const float3 bary_coords = compute_bary_coord_in_triangle(
         positions, corner_verts, corner_tris[tri_index], pos);
