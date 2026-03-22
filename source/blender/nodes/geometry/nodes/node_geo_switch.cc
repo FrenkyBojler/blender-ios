@@ -153,6 +153,23 @@ class LazyFunctionForSwitchNode : public LazyFunction {
   void execute_impl(lf::Params &params, const lf::Context &context) const override
   {
     SocketValueVariant condition_variant = params.get_input<SocketValueVariant>(0);
+
+    if (condition_variant.is_single()) {
+      this->execute_single(condition_variant.get<bool>(), params);
+      return;
+    }
+
+    if (condition_variant.is_context_dependent_field()) {
+      if (can_be_field_) {
+        this->execute_field(condition_variant.get<Field<bool>>(), params);
+        return;
+      }
+
+      this->log_error(context, N_("Type cannot be switched by a field"));
+      this->execute_single(condition_variant.get<bool>(), params);
+      return;
+    }
+
     if (condition_variant.is_volume_grid()) {
       this->log_error(context, N_("Grid is not supported as switch condition"));
       this->execute_single(false, params);
@@ -165,18 +182,7 @@ class LazyFunctionForSwitchNode : public LazyFunction {
       return;
     }
 
-    if (!condition_variant.is_context_dependent_field()) {
-      this->execute_single(condition_variant.get<bool>(), params);
-      return;
-    }
-
-    if (can_be_field_) {
-      this->execute_field(condition_variant.get<Field<bool>>(), params);
-      return;
-    }
-
-    this->log_error(context, N_("Type cannot be switched by a field"));
-    this->execute_single(condition_variant.get<bool>(), params);
+    BLI_assert_unreachable();
   }
 
   static constexpr int false_input_index = 1;

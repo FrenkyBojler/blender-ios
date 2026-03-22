@@ -349,6 +349,23 @@ class LazyFunctionForMenuSwitchNode : public LazyFunction {
   void execute_impl(lf::Params &params, const lf::Context &context) const override
   {
     SocketValueVariant condition_variant = params.get_input<SocketValueVariant>(0);
+
+    if (condition_variant.is_single()) {
+      this->execute_single(condition_variant.get<MenuValue>(), params);
+      return;
+    }
+
+    if (condition_variant.is_context_dependent_field()) {
+      if (!can_be_field_) {
+        this->execute_field(condition_variant.get<Field<MenuValue>>(), params);
+        return;
+      }
+
+      this->log_error(context, N_("Type cannot be switched by a field"));
+      this->execute_single({}, params);
+      return;
+    }
+
     if (condition_variant.is_volume_grid()) {
       this->log_error(context, N_("Grid is not supported as switch index"));
       this->execute_single({}, params);
@@ -361,18 +378,7 @@ class LazyFunctionForMenuSwitchNode : public LazyFunction {
       return;
     }
 
-    if (!condition_variant.is_context_dependent_field()) {
-      this->execute_single(condition_variant.get<MenuValue>(), params);
-      ;
-    }
-
-    if (!can_be_field_) {
-      this->log_error(context, N_("Type cannot be switched by a field"));
-      this->execute_single({}, params);
-      return;
-    }
-
-    this->execute_field(condition_variant.get<Field<MenuValue>>(), params);
+    BLI_assert_unreachable();
   }
 
   void execute_single(const MenuValue condition, lf::Params &params) const

@@ -348,6 +348,23 @@ class LazyFunctionForIndexSwitchNode : public LazyFunction {
   void execute_impl(lf::Params &params, const lf::Context &context) const override
   {
     SocketValueVariant index_variant = params.get_input<SocketValueVariant>(0);
+
+    if (index_variant.is_single()) {
+      this->execute_single(index_variant.get<int>(), params);
+      return;
+    }
+
+    if (index_variant.is_context_dependent_field()) {
+      if (can_be_field_) {
+        this->execute_field(index_variant.get<Field<int>>(), params);
+        return;
+      }
+
+      this->log_error(context, N_("Type cannot be switched by a field"));
+      this->execute_single(index_variant.get<int>(), params);
+      return;
+    }
+
     if (index_variant.is_volume_grid()) {
       this->log_error(context, N_("Grid is not supported as switch index"));
       this->execute_single(index_variant.get<int>(), params);
@@ -362,15 +379,10 @@ class LazyFunctionForIndexSwitchNode : public LazyFunction {
 
     if (!index_variant.is_context_dependent_field()) {
       this->execute_single(index_variant.get<int>(), params);
-    }
-
-    if (!can_be_field_) {
-      this->log_error(context, N_("Type cannot be switched by a field"));
-      this->execute_single(index_variant.get<int>(), params);
       return;
     }
 
-    this->execute_field(index_variant.get<Field<int>>(), params);
+    BLI_assert_unreachable();
   }
 
   int values_num() const
