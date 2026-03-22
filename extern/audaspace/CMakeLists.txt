@@ -37,7 +37,6 @@ endif()
 # sources
 
 set(SRC
-	src/devices/CaptureDevice.cpp
 	src/devices/DeviceManager.cpp
 	src/devices/MixingThreadDevice.cpp
 	src/devices/NULLDevice.cpp
@@ -144,7 +143,6 @@ set(PRIVATE_HDR
 )
 
 set(PUBLIC_HDR
-	include/devices/CaptureDevice.h
 	include/devices/DeviceManager.h
 	include/devices/I3DDevice.h
 	include/devices/I3DHandle.h
@@ -963,9 +961,6 @@ set(LIB_DESTINATION "lib${LIB_SUFFIX}")
 # library
 
 add_library(audaspace ${LIBRARY_TYPE} ${SRC} ${HDR})
-if(WITH_OPENAL)
-	target_compile_definitions(audaspace PRIVATE WITH_OPENAL)
-endif()
 target_link_libraries(audaspace ${LIBRARIES})
 set_target_properties(audaspace PROPERTIES SOVERSION ${AUDASPACE_VERSION})
 
