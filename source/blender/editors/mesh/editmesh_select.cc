@@ -1845,6 +1845,75 @@ static wmOperatorStatus edbm_edge_ring_multiselect_exec(bContext *C, wmOperator 
   return OPERATOR_FINISHED;
 }
 
+static wmOperatorStatus edbm_boundary_loop_multiselect_exec(bContext *C, wmOperator *op)
+{
+  const bool extend = RNA_boolean_get(op->ptr, "extend");
+  const BMWDelimitFlag delimit = BMWDelimitFlag(RNA_enum_get(op->ptr, "delimit_edge_loop"));
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
+      scene, view_layer, CTX_wm_view3d(C));
+
+  for (Object *obedit : objects) {
+    BMEditMesh *em = BKE_editmesh_from_object(obedit);
+
+    if (em->bm->totedgesel == 0) {
+      continue;
+    }
+
+    BMEdge *eed;
+    int edindex;
+    BMIter iter;
+    int totedgesel = 0;
+
+    BM_ITER_MESH (eed, &iter, em->bm, BM_EDGES_OF_MESH) {
+      if (BM_elem_flag_test(eed, BM_ELEM_SELECT)) {
+        totedgesel++;
+      }
+    }
+
+    BMEdge **edarray = MEM_new_array_uninitialized<BMEdge *>(totedgesel, "edge array");
+    edindex = 0;
+
+    BM_ITER_MESH (eed, &iter, em->bm, BM_EDGES_OF_MESH) {
+      if (BM_elem_flag_test(eed, BM_ELEM_SELECT)) {
+        edarray[edindex] = eed;
+        edindex++;
+      }
+    }
+
+    bool changed = false;
+    for (edindex = 0; edindex < totedgesel; edindex += 1) {
+      eed = edarray[edindex];
+      const bool boundary = BM_edge_is_boundary(eed);
+      if (boundary) {
+        changed |= walker_select(
+            em, BMW_EDGELOOP_NONMANIFOLD, eed, true, BMW_FLAG_TEST_HIDDEN, delimit);
+      }
+      else if (extend == false) {
+        BM_edge_select_set_noflush(em->bm, eed, false);
+        changed = true;
+      }
+    }
+    if (changed) {
+      EDBM_selectmode_flush(em);
+      EDBM_uvselect_clear(em);
+    }
+
+    MEM_delete(edarray);
+
+    if (changed) {
+      DEG_id_tag_update(obedit->data, ID_RECALC_SELECT);
+      WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+    }
+    else {
+      BKE_report(op->reports, RPT_INFO, "Selection has not changed because no boundary edges were first selected");
+    }
+  }
+
+  return OPERATOR_FINISHED;
+}
+
 void MESH_OT_select_edge_loop_multi(wmOperatorType *ot)
 {
   /* Identifiers. */
@@ -1889,6 +1958,34 @@ void MESH_OT_select_edge_ring_multi(wmOperatorType *ot)
                     BMW_DELIMIT_EDGE_RING_NGONS,
                     "Edge Ring Delimit",
                     "Delimit edge ring selection");
+}
+
+void MESH_OT_select_boundary_loop_multi(wmOperatorType *ot)
+{
+  /* Identifiers. */
+  ot->name = "Multi Select Boundary Loops";
+  ot->idname = "MESH_OT_select_boundary_loop_multi";
+  ot->description = "Select entire boundary loop of each selected boundary edge";
+
+  /* API callbacks. */
+  ot->exec = edbm_boundary_loop_multiselect_exec;
+  ot->poll = ED_operator_editmesh;
+
+  /* Flags. */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  /* Properties. */
+  RNA_def_boolean(ot->srna,
+                  "extend",
+                  true,
+                  "Extend",
+                  "Extend the selection");
+  RNA_def_enum_flag(ot->srna,
+                    "delimit_edge_loop",
+                    rna_enum_mesh_walk_delimit_edge_loop_items,
+                    BMW_DELIMIT_EDGE_LOOP_OUTER_CORNERS | BMW_DELIMIT_EDGE_LOOP_NGONS,
+                    "Delimit",
+                    "Delimit edge loop selection");
 }
 /** \} */
 

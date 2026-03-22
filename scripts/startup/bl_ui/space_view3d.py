@@ -1898,6 +1898,7 @@ class VIEW3D_MT_edit_mesh_select_loops(Menu):
 
         layout.operator("mesh.select_edge_loop_multi", text="Edge Loops")
         layout.operator("mesh.select_edge_ring_multi", text="Edge Rings")
+        layout.operator("mesh.select_boundary_loop_multi", text="Boundary Loops")
 
         layout.separator()
 
