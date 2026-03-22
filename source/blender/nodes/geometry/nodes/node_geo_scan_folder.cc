@@ -14,13 +14,12 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::String>("Path")
       .subtype(PROP_FILEPATH)
       .path_filter("*.*")
-      .description("Path to Folder");
+      .description("Path to Folder")
+      .optional_label();
   b.add_input<decl::Bool>("Deep Search");
 
-  b.add_output<decl::String>("Files")
-  .structure_type(StructureType::List);
-  b.add_output<decl::String>("Folders")
-  .structure_type(StructureType::List);
+  b.add_output<decl::String>("Files").structure_type(StructureType::List);
+  b.add_output<decl::String>("Folders").structure_type(StructureType::List);
 }
 
 void append_path_to_string(std::string &target, const std::string &entry_path)
@@ -49,14 +48,13 @@ void bli_scan_folder(const StringRef path,
     direntry *entry = &filelist[i];
     const char *filename = entry->relname;
 
-    if (S_ISREG(entry->type))
-    {
-      //append_path_to_string(filepaths, path + entry->relname);
+    if (S_ISREG(entry->type)) {
+      // append_path_to_string(filepaths, path + entry->relname);
       filepaths.append(path + entry->relname);
     }
     else if (S_ISDIR(entry->type) && strcmp(filename, ".") != 0 && strcmp(filename, "..") != 0) {
       std::string sub_path = path + entry->relname + "/";
-      //append_path_to_string(folders, sub_path);
+      // append_path_to_string(folders, sub_path);
       folders.append(sub_path);
       if (deep) {
         bli_scan_folder(sub_path, deep, filepaths, folders);
@@ -76,10 +74,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   Vector<std::string> files;
   Vector<std::string> folders;
 
-  bli_scan_folder(*path,
-                       params.extract_input<bool>("Deep Search"),
-                       files,
-                       folders);
+  bli_scan_folder(*path, params.extract_input<bool>("Deep Search"), files, folders);
 
   params.set_output("Files", List::from_container(std::move(files)));
   params.set_output("Folders", List::from_container(std::move(folders)));
@@ -99,4 +94,4 @@ static void node_register()
 }
 NOD_REGISTER_NODE(node_register)
 
-}  // namespace blender::nodes::node_geo_search_in_folder_cc
+}  // namespace blender::nodes::node_geo_scan_folder_cc
