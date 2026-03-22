@@ -5145,7 +5145,6 @@ static void rna_def_userdef_view(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Bone Rotation Mode", "The default rotation mode when new bones are added.");
   RNA_def_property_enum_default(prop, ROT_MODE_QUAT);
-  // RNA_def_property_sdna(prop, nullptr, "bone_new_rotation_mode");
   RNA_def_property_update(prop, 0, "rna_userdef_update");
 
   /* Weight Paint */
