@@ -1,3 +1,4 @@
 Referenced by pull request #117912, Adds operator handlers to operators.
 Referenced by commit 9afe6f3b519c6ef1edd3aa68d67222b119db2e76, Fix #155928: Undo argument can no longer be passed to the operator
 Referenced by commit 177ce52e34cda53591adb4886b4dba93d8b99a76, Fix #155996: Crash calling operators with non-string keywords
+Referenced by pull request #156088, Refactor: move operator functions from bpy_operator into BPyOpFunction type
