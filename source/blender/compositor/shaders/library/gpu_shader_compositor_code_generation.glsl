@@ -484,6 +484,9 @@ void bool_to_int3(float value, float3 &output_value)
  * Internal Code Generation Functions.
  */
 
+#include "gpu_shader_math_matrix_construct_lib.glsl"
+#include "gpu_shader_math_rotation_conversion_lib.glsl"
+
 float float_from_float4(float4 value, float3 luminance_coefficients)
 {
   return color_to_float(value, luminance_coefficients);
@@ -542,4 +545,20 @@ float4 float4_from_float3(float3 value)
 float4 float4_from_float(float value)
 {
   return float_to_color(value);
+}
+
+float4 float4_from_float4x4(float4x4 mat)
+{
+  float3x3 mat_3x3 = float3x3(mat[0].xyz, mat[1].xyz, mat[2].xyz);
+  return to_quaternion(mat_3x3).as_float4();
+}
+
+float4x4 float4x4_from_float4(float4 value)
+{
+  Quaternion quat = Quaternion{value.x, value.y, value.z, value.w};
+  float3x3 mat_3x3 = from_rotation(quat);
+  return float4x4(float4(mat_3x3[0], 0.0f),
+                  float4(mat_3x3[1], 0.0f),
+                  float4(mat_3x3[2], 0.0f),
+                  float4(0.0f, 0.0f, 0.0f, 1.0f));
 }
