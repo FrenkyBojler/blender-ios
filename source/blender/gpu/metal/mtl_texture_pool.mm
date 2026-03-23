@@ -38,7 +38,7 @@ static bool check_texture_format_compatability(TextureFormat src_format, Texture
   if (bool(format_flag & GPU_FORMAT_COMPRESSED)) {
     return false;
   }
-  
+
   /* Metal docs say: All 8-, 16-, 32-, 64-, and 128-bit color formats are compatible
    * with other formats with the same bit length. */
   return to_bytesize(src_format) == to_bytesize(dst_format);
@@ -93,7 +93,7 @@ Texture *MTLTexturePool::acquire_texture(int2 extent,
     if (!exact_format_match && writable_texture) {
       continue;
     }
-    
+
     match_index = i;
     break;
   }
@@ -150,11 +150,10 @@ Texture *MTLTexturePool::acquire_texture(int2 extent,
     if (G.debug & G_DEBUG_GPU) {
       view_name_str = name ? name : texture_handle.texture->name_;
     }
-    
+
     /* Create texture view and add to handle. */
     texture_handle.view = unwrap(GPU_texture_create_view(
-        view_name_str.c_str(),
-        texture_handle.texture, format, 0, 1, 0, 1, false, false));
+        view_name_str.c_str(), texture_handle.texture, format, 0, 1, 0, 1, false, false));
   }
 
   acquired_.add(texture_handle);
