@@ -69,8 +69,8 @@
 
 #include "BLT_translation.hh"
 
+#include "NOD_dependencies.hh"
 #include "NOD_geometry_nodes_caller_ui.hh"
-#include "NOD_geometry_nodes_dependencies.hh"
 #include "NOD_geometry_nodes_execute.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
 
@@ -98,10 +98,8 @@ struct ErrorsForType {
   int duplicate_count = 0;
   bool is_builtin_operator = false;
   Vector<std::string> idname_validation_errors;
-  BLI_STRUCT_EQUALITY_OPERATORS_3(ErrorsForType,
-                                  duplicate_count,
-                                  is_builtin_operator,
-                                  idname_validation_errors);
+
+  friend bool operator==(const ErrorsForType &a, const ErrorsForType &b) = default;
 };
 using OperatorRegisterErrors = Map<std::string, ErrorsForType>;
 
@@ -458,15 +456,15 @@ static void store_attributes_to_shape_keys(const Mesh &mesh, Key &key)
     if (!attr) {
       continue;
     }
-    MEM_freeN(kb.data);
-    kb.data = MEM_malloc_arrayN(attr.size(), sizeof(float3), __func__);
+    MEM_delete(static_cast<float3 *>(kb.data));
+    kb.data = MEM_new_array_uninitialized<float3>(attr.size(), __func__);
     kb.totelem = attr.size();
     attr.materialize({static_cast<float3 *>(kb.data), attr.size()});
   }
   if (KeyBlock *kb = key.refkey) {
     const Span<float3> positions = mesh.vert_positions();
-    MEM_freeN(kb->data);
-    kb->data = MEM_malloc_arrayN(positions.size(), sizeof(float3), __func__);
+    MEM_delete(static_cast<float3 *>(kb->data));
+    kb->data = MEM_new_array_uninitialized<float3>(positions.size(), __func__);
     kb->totelem = positions.size();
     array_utils::copy(positions, MutableSpan(static_cast<float3 *>(kb->data), positions.size()));
   }
@@ -700,8 +698,8 @@ static void store_result_geometry(const bContext &C,
 static void gather_node_group_ids(const bNodeTree &node_tree, Set<ID *> &ids)
 {
   const int orig_size = ids.size();
-  BLI_assert(node_tree.runtime->geometry_nodes_eval_dependencies);
-  for (ID *id : node_tree.runtime->geometry_nodes_eval_dependencies->ids.values()) {
+  BLI_assert(node_tree.runtime->eval_dependencies);
+  for (ID *id : node_tree.runtime->eval_dependencies->ids.values()) {
     ids.add(id);
   }
   if (ids.size() != orig_size) {
@@ -728,6 +726,7 @@ static std::optional<ID_Type> socket_type_to_id_type(const eNodeSocketDatatype s
     case SOCK_CUSTOM:
     case SOCK_FLOAT:
     case SOCK_VECTOR:
+    case SOCK_INT_VECTOR:
     case SOCK_RGBA:
     case SOCK_SHADER:
     case SOCK_BOOLEAN:
@@ -1447,7 +1446,6 @@ static GeometryNodeAssetTraitFlag asset_flag_for_context(const ObjectType type,
     default:
       break;
   }
-  BLI_assert_unreachable();
   return GeometryNodeAssetTraitFlag(0);
 }
 

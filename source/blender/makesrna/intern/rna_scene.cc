@@ -61,6 +61,12 @@ const EnumPropertyItem rna_enum_exr_codec_items[] = {
      0,
      "DWAB (lossy)",
      "JPEG-like lossy compression on 256 row image blocks"},
+    {R_IMF_EXR_CODEC_HTJ2K,
+     "HTJ2K",
+     0,
+     "HTJ2K",
+     "Lossless compression based on high throughput JPEG 2000 encoding. It produces smaller "
+     "files, but it is new and not widely supported by other software yet."},
     {R_IMF_EXR_CODEC_ZIPS,
      "ZIPS",
      0,
@@ -346,6 +352,9 @@ static const EnumPropertyItem rna_enum_media_type_image_items[] = {
 #  define R_IMF_ENUM_WEBP
 #endif
 
+#define R_IMF_ENUM_AVIF \
+  {R_IMF_IMTYPE_AVIF, "AVIF", 0, "AVIF (.avif)", "Output image in AVIF format"},
+
 #ifdef WITH_FFMPEG
 #  define R_IMF_ENUM_FFMPEG {R_IMF_IMTYPE_FFMPEG, "FFMPEG", ICON_FILE_MOVIE, "FFmpeg Video", ""},
 #else
@@ -354,6 +363,7 @@ static const EnumPropertyItem rna_enum_media_type_image_items[] = {
 
 #define IMAGE_TYPE_ITEMS_IMAGE \
   /* DDS save not supported yet R_IMF_ENUM_DDS */ \
+  R_IMF_ENUM_AVIF \
   R_IMF_ENUM_JPEG \
   R_IMF_ENUM_EXR \
   R_IMF_ENUM_PNG \
@@ -782,6 +792,7 @@ static const EnumPropertyItem eevee_resolution_scale_items[] = {
 #  include "DEG_depsgraph_build.hh"
 #  include "DEG_depsgraph_query.hh"
 
+#  include "SEQ_iterator.hh"
 #  include "SEQ_relations.hh"
 #  include "SEQ_sequencer.hh"
 #  include "SEQ_sound.hh"
@@ -917,7 +928,7 @@ static void rna_all_grease_pencil_update(bContext *C, PointerRNA * /*ptr*/)
 static void rna_Scene_objects_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   Scene *scene = static_cast<Scene *>(ptr->data);
-  iter->internal.custom = MEM_callocN<BLI_Iterator>(__func__);
+  iter->internal.custom = MEM_new_zeroed<BLI_Iterator>(__func__);
 
   BKE_scene_objects_iterator_begin(static_cast<BLI_Iterator *>(iter->internal.custom),
                                    static_cast<void *>(scene));
@@ -933,7 +944,7 @@ static void rna_Scene_objects_next(CollectionPropertyIterator *iter)
 static void rna_Scene_objects_end(CollectionPropertyIterator *iter)
 {
   BKE_scene_objects_iterator_end(static_cast<BLI_Iterator *>(iter->internal.custom));
-  MEM_freeN(iter->internal.custom);
+  MEM_delete_void(iter->internal.custom);
 }
 
 static PointerRNA rna_Scene_objects_get(CollectionPropertyIterator *iter)
@@ -1310,6 +1321,22 @@ static std::optional<std::string> rna_BakeSettings_path(const PointerRNA * /*ptr
   return "render.bake";
 }
 
+Strip *rna_strip_find_by_colorspace_settings(
+    Editing *ed, const ColorManagedColorspaceSettings *colorspace_settings)
+{
+  Strip *found_strip = nullptr;
+
+  seq::foreach_strip(&ed->seqbase, [&](Strip *strip) -> bool {
+    if (strip->data && &strip->data->colorspace_settings == colorspace_settings) {
+      found_strip = strip;
+      return false;
+    }
+    return true;
+  });
+
+  return found_strip;
+}
+
 static std::optional<std::string> rna_ImageFormatSettings_path(
     const PointerRNA *ptr, FunctionRef<bool(ImageFormatData *)> match)
 {
@@ -1407,6 +1434,26 @@ std::optional<std::string> rna_ColorManagedInputColorspaceSettings_path(const Po
   if (path) {
     return *path + ".linear_colorspace_settings";
   }
+
+  /* Images and Movieclips have this directly. */
+  if (ELEM(GS(ptr->owner_id->name), ID_IM, ID_MC)) {
+    return "colorspace_settings";
+  }
+
+  /* Search VSE for ImageStrips/MovieStrips. */
+  if (GS(ptr->owner_id->name) == ID_SCE) {
+    Scene *scene = id_cast<Scene *>(ptr->owner_id);
+    if (scene->ed) {
+      Strip *strip = rna_strip_find_by_colorspace_settings(scene->ed, data);
+
+      if (strip) {
+        char name_esc[(sizeof(strip->name) - 2) * 2];
+        BLI_str_escape(name_esc, strip->name + 2, sizeof(name_esc));
+        return fmt::format("sequence_editor.strips_all[\"{}\"].colorspace_settings", name_esc);
+      }
+    }
+  }
+
   return std::nullopt;
 }
 
@@ -2433,7 +2480,7 @@ static std::optional<std::string> rna_View3DCursor_path(const PointerRNA * /*ptr
 
 static TimeMarker *rna_TimeLine_add(Scene *scene, const char name[], int frame)
 {
-  TimeMarker *marker = MEM_new_for_free<TimeMarker>("TimeMarker");
+  TimeMarker *marker = MEM_new<TimeMarker>("TimeMarker");
   marker->flag = SELECT;
   marker->frame = frame;
   STRNCPY_UTF8(marker->name, name);
@@ -2457,7 +2504,7 @@ static void rna_TimeLine_remove(Scene *scene, ReportList *reports, PointerRNA *m
     return;
   }
 
-  MEM_freeN(marker);
+  MEM_delete(marker);
   marker_ptr->invalidate();
 
   WM_main_add_notifier(NC_SCENE | ND_MARKERS, nullptr);
@@ -4014,7 +4061,7 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
   RNA_def_property_ui_text(
       prop, "Surface Offset", "Offset along the normal when drawing on surfaces");
-  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_range(prop, -FLT_MAX, FLT_MAX);
   RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.1f, 3);
   RNA_def_property_float_default(prop, 0.150f);
 
@@ -4162,7 +4209,7 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "autokey_mode", AUTOKEY_ON);
   RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
   RNA_def_property_ui_text(
-      prop, "Auto Keying", "Automatic keyframe insertion for objects, bones and masks");
+      prop, "Auto Keying", "Automatically insert keyframes on modified properties");
   RNA_def_property_ui_icon(prop, ICON_RECORD_OFF, 1);
   RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME_AUTO, nullptr);
 
@@ -4170,9 +4217,10 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_enum_bitflag_sdna(prop, nullptr, "autokey_mode");
   RNA_def_property_flag(prop, PROP_DEG_SYNC_ONLY);
   RNA_def_property_enum_items(prop, auto_key_items);
-  RNA_def_property_ui_text(prop,
-                           "Auto-Keying Mode",
-                           "Mode of automatic keyframe insertion for objects, bones and masks");
+  RNA_def_property_ui_text(
+      prop,
+      "Auto-Keying Mode",
+      "Can add additional constraints on when auto keying can insert keyframes");
 
   prop = RNA_def_property(srna, "use_record_with_nla", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "keying_flag", AUTOKEY_FLAG_LAYERED_RECORD);
@@ -4392,7 +4440,10 @@ static void rna_def_sequencer_tool_settings(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "snap_to_hold_offset", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "snap_mode", SEQ_SNAP_TO_STRIP_HOLD);
-  RNA_def_property_ui_text(prop, "Hold Offset", "Snap to strip hold offsets");
+  RNA_def_property_ui_text(prop,
+                           "Holds",
+                           "Snap to underlying strip content start and end in cases where the "
+                           "strip length extends beyond this range, producing holds");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr); /* header redraw */
 
   prop = RNA_def_property(srna, "snap_to_markers", PROP_BOOLEAN, PROP_NONE);
@@ -4438,6 +4489,13 @@ static void rna_def_sequencer_tool_settings(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "snap_flag", SEQ_SNAP_CURRENT_FRAME_TO_STRIPS);
   RNA_def_property_ui_text(
       prop, "Snap Current Frame to Strips", "Snap current frame to strip start or end");
+
+  prop = RNA_def_property(srna, "snap_to_all_channels", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "snap_flag", SEQ_SNAP_TO_ALL_CHANNEL_STRIPS);
+  RNA_def_property_ui_text(prop,
+                           "All Channels",
+                           "Allow snapping to any channel. If disabled, only snap to strips "
+                           "currently on the same channel as transformed strips");
 
   prop = RNA_def_property(srna, "snap_distance", PROP_INT, PROP_PIXEL);
   RNA_def_property_int_sdna(prop, nullptr, "snap_distance");
@@ -6873,6 +6931,31 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
+  static const EnumPropertyItem anisotropic_items[] = {
+      {1, "FILTER_0", 0, "Off", "Turn off anisotropic filtering"},
+      {2,
+       "FILTER_2",
+       0,
+       "2" BLI_STR_UTF8_MULTIPLICATION_SIGN,
+       "Use 2 samples for anisotropic filtering"},
+      {4,
+       "FILTER_4",
+       0,
+       "4" BLI_STR_UTF8_MULTIPLICATION_SIGN,
+       "Use 4 samples for anisotropic filtering"},
+      {8,
+       "FILTER_8",
+       0,
+       "8" BLI_STR_UTF8_MULTIPLICATION_SIGN,
+       "Use 8 samples for anisotropic filtering"},
+      {16,
+       "FILTER_16",
+       0,
+       "16" BLI_STR_UTF8_MULTIPLICATION_SIGN,
+       "Use 16 samples for anisotropic filtering"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
   static const EnumPropertyItem threads_mode_items[] = {
       {0,
        "AUTO",
@@ -7214,6 +7297,13 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
                            "Use high quality tangent space at the cost of lower performance");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_Scene_mesh_quality_update");
 
+  prop = RNA_def_property(srna, "anisotropic_filter", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "anisotropic_filter");
+  RNA_def_property_enum_items(prop, anisotropic_items);
+  RNA_def_property_ui_text(
+      prop, "Anisotropic Filtering", "Quality of anisotropic filtering in materials");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_Scene_render_update");
+
   /* border */
   prop = RNA_def_property(srna, "use_border", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "mode", R_BORDER);
@@ -7269,6 +7359,12 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
   prop = RNA_def_property(srna, "use_overwrite", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, nullptr, "mode", R_NO_OVERWRITE);
   RNA_def_property_ui_text(prop, "Overwrite", "Overwrite existing files while rendering");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
+  prop = RNA_def_property(srna, "save_output", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "mode", R_SAVE_OUTPUT);
+  RNA_def_property_ui_text(prop, "Save Output", "Write frames to disk for animation renders");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
   prop = RNA_def_property(srna, "use_compositing", PROP_BOOLEAN, PROP_NONE);
@@ -8258,6 +8354,24 @@ static void rna_def_scene_eevee(BlenderRNA *brna)
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
+  prop = RNA_def_property(srna, "direct_light_intensity", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_ui_text(
+      prop, "Direct Light Strength", "Scale the contribution of direct lighting");
+  RNA_def_property_range(prop, 0, FLT_MAX);
+  RNA_def_property_ui_range(prop, 0.0f, 3.0f, 1, 3);
+  RNA_def_property_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
+  prop = RNA_def_property(srna, "indirect_light_intensity", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_ui_text(
+      prop, "Indirect Light Strength", "Scale the contribution of indirect lighting");
+  RNA_def_property_range(prop, 0, FLT_MAX);
+  RNA_def_property_ui_range(prop, 0.0f, 3.0f, 1, 3);
+  RNA_def_property_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
   /* Volumetrics */
   prop = RNA_def_property(srna, "volumetric_start", PROP_FLOAT, PROP_DISTANCE);
   RNA_def_property_ui_text(prop, "Start", "Start distance of the volumetric effect");
@@ -8685,6 +8799,31 @@ void RNA_def_scene(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
+  static const EnumPropertyItem playback_loop_mode_items[] = {
+      {SCE_LOOP_MODE_INFINITE,
+       "INFINITE",
+       0,
+       "Infinite",
+       "After the last frame, jump back to the first and keep playing, inifinitely"},
+      {SCE_LOOP_MODE_STOP_END_FRAME,
+       "STOP_END_FRAME",
+       0,
+       "Stop at End Frame",
+       "Stop playback at the last frame, without looping"},
+      {SCE_LOOP_MODE_STOP_START_FRAME,
+       "STOP_START_FRAME",
+       0,
+       "Stop at Start Frame",
+       "After the last frame, jump back to the first and stop playback"},
+      {SCE_LOOP_MODE_RESTORE,
+       "RESTORE",
+       0,
+       "Restore Frame",
+       "After the last frame, stop at the frame the playback started from"},
+      {SCE_LOOP_MODE_BOUNCE, "BOUNCE", 0, "Bounce", "At the last frame, reverse playback"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
   static const EnumPropertyItem time_jump_unit_items[] = {
       {SCE_TIME_JUMP_FRAME, "FRAME", 0, "Frame", "Jump by frames"},
       {SCE_TIME_JUMP_SECOND, "SECOND", 0, "Second", "Jump by seconds"},
@@ -8827,6 +8966,13 @@ void RNA_def_scene(BlenderRNA *brna)
                            "Don't allow frame to be selected with mouse outside of frame range");
   RNA_def_property_update(prop, NC_SCENE | ND_FRAME, nullptr);
 
+  prop = RNA_def_property(srna, "allow_preroll", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "r.flag", SCER_ALLOW_PREROLL);
+  RNA_def_property_ui_text(
+      prop, "Allow Preroll", "Allows playing back frames before the playback start frame");
+  RNA_def_property_update(prop, NC_SCENE | ND_FRAME, nullptr);
+
   /* Preview Range (frame-range for UI playback) */
   prop = RNA_def_property(srna, "use_preview_range", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
@@ -8925,6 +9071,12 @@ void RNA_def_scene(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, sync_mode_items);
   RNA_def_property_enum_default(prop, AUDIO_SYNC);
   RNA_def_property_ui_text(prop, "Sync Mode", "How to sync playback");
+  RNA_def_property_update(prop, NC_SCENE, nullptr);
+
+  prop = RNA_def_property(srna, "playback_loop_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, playback_loop_mode_items);
+  RNA_def_property_enum_default(prop, SCE_LOOP_MODE_INFINITE);
+  RNA_def_property_ui_text(prop, "Loop Mode", "What to do when playback reaches the last frame");
   RNA_def_property_update(prop, NC_SCENE, nullptr);
 
   /* Nodes (Compositing) */

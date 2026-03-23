@@ -24,11 +24,9 @@
 
 #include "node_composite_util.hh"
 
-namespace blender {
+namespace blender::nodes::node_composite_displace_cc {
 
-namespace nodes::node_composite_displace_cc {
-
-static void cmp_node_displace_declare(NodeDeclarationBuilder &b)
+static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
@@ -44,7 +42,7 @@ static void cmp_node_displace_declare(NodeDeclarationBuilder &b)
       .default_value({0.0f, 0.0f})
       .structure_type(StructureType::Dynamic);
 
-  PanelDeclarationBuilder &sampling_panel = b.add_panel("Sampling").default_closed(true);
+  PanelDeclarationBuilder &sampling_panel = b.add_panel("Sampling"_ustr).default_closed(true);
   sampling_panel.add_input<decl::Menu>("Interpolation")
       .default_value(CMP_NODE_INTERPOLATION_BILINEAR)
       .static_items(rna_enum_node_compositor_interpolation_items)
@@ -62,10 +60,10 @@ static void cmp_node_displace_declare(NodeDeclarationBuilder &b)
       .optional_label();
 }
 
-static void cmp_node_init_displace(bNodeTree * /*ntree*/, bNode *node)
+static void node_init(bNodeTree * /*ntree*/, bNode *node)
 {
   /* Unused, kept for forward compatibility. */
-  NodeDisplaceData *data = MEM_new_for_free<NodeDisplaceData>(__func__);
+  NodeDisplaceData *data = MEM_new<NodeDisplaceData>(__func__);
   node->storage = data;
 }
 
@@ -212,12 +210,11 @@ class DisplaceOperation : public NodeOperation {
       const float2 upper_right_coordinates = this->compute_coordinates(
           upper_right_texel, size, displacement);
 
-      /* Compute the partial derivatives using finite difference. Divide by the input size since
-       * sample_ewa_zero assumes derivatives with respect to texel coordinates. */
-      const float2 lower_x_gradient = (lower_right_coordinates - lower_left_coordinates) / size.x;
-      const float2 left_y_gradient = (upper_left_coordinates - lower_left_coordinates) / size.y;
-      const float2 right_y_gradient = (upper_right_coordinates - lower_right_coordinates) / size.y;
-      const float2 upper_x_gradient = (upper_right_coordinates - upper_left_coordinates) / size.x;
+      /* Compute the partial derivatives using finite difference. */
+      const float2 lower_x_gradient = lower_right_coordinates - lower_left_coordinates;
+      const float2 left_y_gradient = upper_left_coordinates - lower_left_coordinates;
+      const float2 right_y_gradient = upper_right_coordinates - lower_right_coordinates;
+      const float2 upper_x_gradient = upper_right_coordinates - upper_left_coordinates;
 
       /* Computes one of the 2x2 pixels given its texel location, coordinates, and gradients. */
       auto compute_anisotropic_pixel = [&](const int2 &texel,
@@ -226,8 +223,13 @@ class DisplaceOperation : public NodeOperation {
                                            const float2 &y_gradient) {
         /* Sample the input using the displaced coordinates passing in the computed gradients in
          * order to utilize the anisotropic filtering capabilities of the sampler. */
+        const float2x2 jacobian = float2x2(x_gradient, y_gradient);
         output.store_pixel(texel,
-                           image.sample_ewa(coordinates, x_gradient, y_gradient, Extension::Clip));
+                           image.sample<Color>(coordinates,
+                                               Interpolation::Anisotropic,
+                                               Extension::Clip,
+                                               Extension::Clip,
+                                               jacobian));
       };
 
       compute_anisotropic_pixel(
@@ -326,12 +328,8 @@ static NodeOperation *get_compositor_operation(Context &context, const bNode &no
   return new DisplaceOperation(context, node);
 }
 
-}  // namespace nodes::node_composite_displace_cc
-
-static void register_node_type_cmp_displace()
+static void node_register()
 {
-  namespace file_ns = nodes::node_composite_displace_cc;
-
   static bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodeDisplace", CMP_NODE_DISPLACE);
@@ -339,14 +337,14 @@ static void register_node_type_cmp_displace()
   ntype.ui_description = "Displace pixel position using an offset vector";
   ntype.enum_name_legacy = "DISPLACE";
   ntype.nclass = NODE_CLASS_DISTORT;
-  ntype.declare = file_ns::cmp_node_displace_declare;
-  ntype.initfunc = file_ns::cmp_node_init_displace;
+  ntype.declare = node_declare;
+  ntype.initfunc = node_init;
   bke::node_type_storage(
       ntype, "NodeDisplaceData", node_free_standard_storage, node_copy_standard_storage);
-  ntype.get_compositor_operation = file_ns::get_compositor_operation;
+  ntype.get_compositor_operation = get_compositor_operation;
 
   bke::node_register_type(ntype);
 }
-NOD_REGISTER_NODE(register_node_type_cmp_displace)
+NOD_REGISTER_NODE(node_register)
 
-}  // namespace blender
+}  // namespace blender::nodes::node_composite_displace_cc

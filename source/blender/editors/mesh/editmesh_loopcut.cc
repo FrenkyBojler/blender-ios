@@ -107,7 +107,7 @@ static void edgering_select(RingSelOpData *lcd)
       Object *ob_iter = base->object;
       BMEditMesh *em = BKE_editmesh_from_object(ob_iter);
       EDBM_flag_disable_all(em, BM_ELEM_SELECT);
-      DEG_id_tag_update(static_cast<ID *>(ob_iter->data), ID_RECALC_SELECT);
+      DEG_id_tag_update(ob_iter->data, ID_RECALC_SELECT);
       WM_main_add_notifier(NC_GEOM | ND_SELECT, ob_iter->data);
     }
   }
@@ -123,7 +123,8 @@ static void edgering_select(RingSelOpData *lcd)
            BMW_MASK_NOP,
            BMW_MASK_NOP,
            BMW_FLAG_TEST_HIDDEN,
-           BMW_NIL_LAY);
+           BMW_NIL_LAY,
+           BMW_DELIMIT_EDGE_RING_NGONS);
 
   for (eed = static_cast<BMEdge *>(BMW_begin(&walker, eed_start)); eed;
        eed = static_cast<BMEdge *>(BMW_step(&walker)))
@@ -140,9 +141,9 @@ static void ringsel_find_edge(RingSelOpData *lcd, const int previewlines)
     if (gcache->is_init == false) {
       Scene *scene_eval = DEG_get_evaluated(lcd->vc.depsgraph, lcd->vc.scene);
       Object *ob_eval = DEG_get_evaluated(lcd->vc.depsgraph, lcd->ob);
-      BMEditMesh *em_eval = BKE_editmesh_from_object(ob_eval);
+      BMEditMesh *em = BKE_editmesh_from_object(lcd->ob);
       gcache->vert_positions = BKE_editmesh_vert_coords_when_deformed(
-          lcd->vc.depsgraph, em_eval, scene_eval, ob_eval, gcache->allocated_vert_positions);
+          lcd->vc.depsgraph, em, scene_eval, ob_eval, gcache->allocated_vert_positions);
       gcache->is_init = true;
     }
 
@@ -244,7 +245,7 @@ static void ringsel_finish(bContext *C, wmOperator *op)
 
       EDBM_selectmode_flush(lcd->em);
 
-      DEG_id_tag_update(static_cast<ID *>(lcd->ob->data), ID_RECALC_SELECT);
+      DEG_id_tag_update(lcd->ob->data, ID_RECALC_SELECT);
       WM_event_add_notifier(C, NC_GEOM | ND_SELECT, lcd->ob->data);
     }
 

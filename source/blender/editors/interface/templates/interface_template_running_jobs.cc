@@ -44,7 +44,7 @@ static std::string progress_tooltip_func(bContext * /*C*/, void *argN, const Str
 
   /* create tooltip text and associate it with the job */
   char elapsed_str[32];
-  char remaining_str[32] = "Unknown";
+  char remaining_str[32];
   const double elapsed = BLI_time_now_seconds() - WM_jobs_starttime(wm, owner);
   BLI_timecode_string_from_time_simple(elapsed_str, sizeof(elapsed_str), elapsed);
 
@@ -53,11 +53,10 @@ static std::string progress_tooltip_func(bContext * /*C*/, void *argN, const Str
     BLI_timecode_string_from_time_simple(remaining_str, sizeof(remaining_str), remaining);
   }
 
-  return fmt::format(
-      "Time Remaining: {}\n"
-      "Time Elapsed: {}",
-      remaining_str,
-      elapsed_str);
+  return fmt::format(fmt::runtime(TIP_("Time Remaining: {}\n"
+                                       "Time Elapsed: {}")),
+                     progress ? remaining_str : TIP_("Unknown"),
+                     elapsed_str);
 }
 
 static void cancel_all_scene_jobs(bContext &C)
@@ -260,7 +259,7 @@ void template_running_jobs(Layout *layout, bContext *C)
     block = row->block();
 
     {
-      ProgressTooltip_Store *tip_arg = MEM_mallocN<ProgressTooltip_Store>(__func__);
+      ProgressTooltip_Store *tip_arg = MEM_new_uninitialized<ProgressTooltip_Store>(__func__);
       tip_arg->wm = wm;
       tip_arg->owner = owner;
       ButtonProgress *but_progress = static_cast<ButtonProgress *>(
@@ -276,7 +275,7 @@ void template_running_jobs(Layout *layout, bContext *C)
                            nullptr));
 
       but_progress->progress_factor = progress;
-      button_func_tooltip_set(but_progress, progress_tooltip_func, tip_arg, MEM_freeN);
+      button_func_tooltip_set(but_progress, progress_tooltip_func, tip_arg, MEM_delete_void);
     }
 
     if (cancel_fn && !wm->runtime->is_interface_locked) {

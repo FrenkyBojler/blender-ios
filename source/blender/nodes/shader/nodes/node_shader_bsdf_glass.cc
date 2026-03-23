@@ -29,7 +29,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Vector>("Normal").hide_value();
   b.add_input<decl::Float>("Weight").available(false);
 
-  PanelDeclarationBuilder &film = b.add_panel("Thin Film").default_closed(true);
+  PanelDeclarationBuilder &film = b.add_panel("Thin Film"_ustr).default_closed(true);
   film.add_input<decl::Float>("Thin Film Thickness")
       .default_value(0.0)
       .min(0.0f)
@@ -117,6 +117,7 @@ void register_node_type_sh_bsdf_glass()
   ntype.enum_name_legacy = "BSDF_GLASS";
   ntype.nclass = NODE_CLASS_SHADER;
   ntype.declare = file_ns::node_declare;
+  ntype.gather_link_search_ops = search_link_ops_for_shader_bsdf_node;
   ntype.add_ui_poll = object_shader_nodes_poll;
   bke::node_type_size_preset(ntype, bke::eNodeSizePreset::Middle);
   ntype.draw_buttons = file_ns::node_shader_buts_glass;

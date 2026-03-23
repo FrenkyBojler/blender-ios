@@ -243,8 +243,9 @@ static bool image_from_context_has_data_poll(bContext *C)
   }
 
   void *lock;
-  ImBuf *ibuf = BKE_image_acquire_ibuf(ima, iuser, &lock);
-  const bool has_buffer = (ibuf && (ibuf->byte_buffer.data || ibuf->float_buffer.data));
+  ImBuf *ibuf = BKE_image_acquire_ibuf_gpu(ima, iuser, &lock);
+  const bool has_buffer = (ibuf && (ibuf->byte_buffer.data || ibuf->float_buffer.data ||
+                                    ibuf->gpu.texture));
   BKE_image_release_ibuf(ima, ibuf, lock);
   return has_buffer;
 }
@@ -383,7 +384,7 @@ static void image_view_pan_init(bContext *C, wmOperator *op, const wmEvent *even
   SpaceImage *sima = CTX_wm_space_image(C);
   ViewPanData *vpd;
 
-  op->customdata = vpd = MEM_callocN<ViewPanData>("ImageViewPanData");
+  op->customdata = vpd = MEM_new_zeroed<ViewPanData>("ImageViewPanData");
 
   /* Grab will be set when running from gizmo. */
   vpd->own_cursor = WM_cursor_modal_is_set_ok(win);
@@ -414,7 +415,7 @@ static void image_view_pan_exit(bContext *C, wmOperator *op, bool cancel)
   if (vpd->own_cursor) {
     WM_cursor_modal_restore(CTX_wm_window(C));
   }
-  MEM_freeN(vpd);
+  MEM_delete(vpd);
 }
 
 static wmOperatorStatus image_view_pan_exec(bContext *C, wmOperator *op)
@@ -523,6 +524,7 @@ struct ViewZoomData {
   float zoom;
   int launch_event;
   float location[2];
+  bool snap;
 
   /* needed for continuous zoom */
   wmTimer *timer;
@@ -544,7 +546,7 @@ static void image_view_zoom_init(bContext *C, wmOperator *op, const wmEvent *eve
   ARegion *region = CTX_wm_region(C);
   ViewZoomData *vpd;
 
-  op->customdata = vpd = MEM_callocN<ViewZoomData>("ImageViewZoomData");
+  op->customdata = vpd = MEM_new_zeroed<ViewZoomData>("ImageViewZoomData");
 
   /* Grab will be set when running from gizmo. */
   vpd->own_cursor = WM_cursor_modal_is_set_ok(win);
@@ -555,6 +557,7 @@ static void image_view_zoom_init(bContext *C, wmOperator *op, const wmEvent *eve
   vpd->origx = event->xy[0];
   vpd->origy = event->xy[1];
   vpd->zoom = sima->zoom;
+  vpd->snap = false;
   vpd->launch_event = WM_userdef_event_type_from_keymap_type(event->type);
 
   ui::view2d_region_to_view(
@@ -593,7 +596,7 @@ static void image_view_zoom_exit(bContext *C, wmOperator *op, bool cancel)
   if (vpd->own_cursor) {
     WM_cursor_modal_restore(CTX_wm_window(C));
   }
-  MEM_freeN(vpd);
+  MEM_delete(vpd);
 }
 
 static wmOperatorStatus image_view_zoom_exec(bContext *C, wmOperator *op)
@@ -720,10 +723,6 @@ static wmOperatorStatus image_view_zoom_modal(bContext *C, wmOperator *op, const
   short event_code = VIEW_PASS;
   wmOperatorStatus ret = OPERATOR_RUNNING_MODAL;
 
-  WorkspaceStatus status(C);
-  status.item_bool(IFACE_("Snap"), event->modifier & KM_CTRL, ICON_EVENT_CTRL);
-  status.item_bool(IFACE_("Precision"), event->modifier & KM_SHIFT, ICON_EVENT_SHIFT);
-
   /* Execute the events. */
   if (event->type == MOUSEMOVE) {
     event_code = VIEW_APPLY;
@@ -739,6 +738,11 @@ static wmOperatorStatus image_view_zoom_modal(bContext *C, wmOperator *op, const
       event_code = VIEW_CONFIRM;
     }
   }
+  else if (ELEM(event->type, EVT_LEFTCTRLKEY, EVT_RIGHTCTRLKEY)) {
+    /* Snapping should be off when the operator starts, regardless
+     * of ctrl key state. Only change with subsequent presses. */
+    vpd->snap = (event->val == KM_PRESS);
+  }
 
   switch (event_code) {
     case VIEW_APPLY: {
@@ -750,7 +754,7 @@ static wmOperatorStatus image_view_zoom_modal(bContext *C, wmOperator *op, const
                        U.viewzoom,
                        (U.uiflag & USER_ZOOM_INVERT) != 0,
                        (use_cursor_init && (U.uiflag & USER_ZOOM_TO_MOUSEPOS)),
-                       event->modifier & KM_CTRL,
+                       vpd->snap,
                        event->modifier & KM_SHIFT);
       break;
     }
@@ -759,6 +763,10 @@ static wmOperatorStatus image_view_zoom_modal(bContext *C, wmOperator *op, const
       break;
     }
   }
+
+  WorkspaceStatus status(C);
+  status.item_bool(IFACE_("Snap"), vpd->snap, ICON_EVENT_CTRL);
+  status.item_bool(IFACE_("Precision"), event->modifier & KM_SHIFT, ICON_EVENT_SHIFT);
 
   if ((ret & OPERATOR_RUNNING_MODAL) == 0) {
     image_view_zoom_exit(C, op, false);
@@ -942,7 +950,7 @@ void IMAGE_OT_view_cursor_center(wmOperatorType *ot)
 
   /* identifiers */
   ot->name = "Cursor To Center View";
-  ot->description = "Set 2D Cursor To Center View location";
+  ot->description = "Set 2D cursor to center view location";
   ot->idname = "IMAGE_OT_view_cursor_center";
 
   /* API callbacks. */
@@ -1016,7 +1024,7 @@ static wmOperatorStatus image_view_selected_exec(bContext *C, wmOperator * /*op*
     }
   }
   else if (ED_space_image_check_show_maskedit(sima, obedit)) {
-    if (!ED_mask_selected_minmax(C, min, max, false)) {
+    if (!ED_mask_selected_minmax(C, min, max, false, false)) {
       return OPERATOR_CANCELLED;
     }
     BKE_mask_coord_to_image(sima->image, &sima->iuser, min, min);
@@ -1798,7 +1806,7 @@ void IMAGE_OT_match_movie_length(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Match Movie Length";
-  ot->description = "Set image's user's length to the one of this video";
+  ot->description = "Set the image's frame range to match the video's duration";
   ot->idname = "IMAGE_OT_match_movie_length";
 
   /* API callbacks. */
@@ -1952,13 +1960,13 @@ static ImageSaveData *image_save_as_init(bContext *C, wmOperator *op)
   ImageUser *iuser = image_user_from_context(C);
   Scene *scene = CTX_data_scene(C);
 
-  ImageSaveData *isd = MEM_new_for_free<ImageSaveData>(__func__);
+  ImageSaveData *isd = MEM_new<ImageSaveData>(__func__);
   isd->image = image;
   isd->iuser = iuser;
 
   if (!BKE_image_save_options_init(&isd->opts, bmain, scene, image, iuser, true, false)) {
     BKE_image_save_options_free(&isd->opts);
-    MEM_freeN(isd);
+    MEM_delete(isd);
     return nullptr;
   }
 
@@ -1995,7 +2003,7 @@ static void image_save_as_free(wmOperator *op)
     ImageSaveData *isd = static_cast<ImageSaveData *>(op->customdata);
     BKE_image_save_options_free(&isd->opts);
 
-    MEM_freeN(isd);
+    MEM_delete(isd);
     op->customdata = nullptr;
   }
 }
@@ -2105,7 +2113,12 @@ static void image_save_as_draw(bContext *C, wmOperator *op)
     PointerRNA linear_settings_ptr = RNA_pointer_get(&imf_ptr, "linear_colorspace_settings");
     ui::Layout &col = layout.column(true);
     col.separator();
-    col.prop(&linear_settings_ptr, "name", UI_ITEM_NONE, IFACE_("Color Space"), ICON_NONE);
+    col.prop_with_menu(&linear_settings_ptr,
+                       "name",
+                       UI_ITEM_NONE,
+                       IFACE_("Color Space"),
+                       ICON_NONE,
+                       "UI_MT_color_space_select");
   }
 
   /* Multiview settings. */
@@ -2851,7 +2864,7 @@ static wmOperatorStatus image_flip_exec(bContext *C, wmOperator *op)
   if (ibuf->float_buffer.data) {
     float *float_pixels = ibuf->float_buffer.data;
 
-    float *orig_float_pixels = static_cast<float *>(MEM_dupallocN(float_pixels));
+    float *orig_float_pixels = MEM_dupalloc(float_pixels);
     for (int x = 0; x < size_x; x++) {
       const int source_pixel_x = use_flip_x ? size_x - x - 1 : x;
       for (int y = 0; y < size_y; y++) {
@@ -2864,7 +2877,7 @@ static wmOperatorStatus image_flip_exec(bContext *C, wmOperator *op)
         copy_v4_v4(target_pixel, source_pixel);
       }
     }
-    MEM_freeN(orig_float_pixels);
+    MEM_delete(orig_float_pixels);
 
     if (ibuf->byte_buffer.data) {
       IMB_byte_from_float(ibuf);
@@ -2872,7 +2885,7 @@ static wmOperatorStatus image_flip_exec(bContext *C, wmOperator *op)
   }
   else if (ibuf->byte_buffer.data) {
     uchar *char_pixels = ibuf->byte_buffer.data;
-    uchar *orig_char_pixels = static_cast<uchar *>(MEM_dupallocN(char_pixels));
+    uchar *orig_char_pixels = MEM_dupalloc(char_pixels);
     for (int x = 0; x < size_x; x++) {
       const int source_pixel_x = use_flip_x ? size_x - x - 1 : x;
       for (int y = 0; y < size_y; y++) {
@@ -2885,7 +2898,7 @@ static wmOperatorStatus image_flip_exec(bContext *C, wmOperator *op)
         copy_v4_v4_uchar(target_pixel, source_pixel);
       }
     }
-    MEM_freeN(orig_char_pixels);
+    MEM_delete(orig_char_pixels);
   }
   else {
     BKE_image_release_ibuf(ima, ibuf, nullptr);
@@ -3410,12 +3423,17 @@ static bool image_pack_test(Image *ima, const char **r_error_message)
   }
 
   if (!ID_IS_EDITABLE(&ima->id)) {
-    *r_error_message = "Image is not editable";
+    *r_error_message = N_("Image is not editable");
     return false;
   }
 
   if (ELEM(ima->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE)) {
-    *r_error_message = "Movies or image sequences do not support packing";
+    *r_error_message = N_("Movies or image sequences do not support packing");
+    return false;
+  }
+
+  if (ELEM(ima->type, IMA_TYPE_R_RESULT, IMA_TYPE_COMPOSITE)) {
+    *r_error_message = N_("Render Result and Viewer Nodes cannot be packed");
     return false;
   }
 
@@ -3604,7 +3622,7 @@ bool ED_space_image_get_position(SpaceImage *sima,
                                  float r_fpos[2])
 {
   void *lock;
-  ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock, 0);
+  ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock, 0, false);
 
   if (ibuf == nullptr) {
     ED_space_image_release_buffer(sima, ibuf, lock);
@@ -3631,7 +3649,7 @@ bool ED_space_image_color_sample(
   int tile = BKE_image_get_tile_from_pos(sima->image, uv, uv, nullptr);
 
   void *lock;
-  ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock, tile);
+  ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock, tile, true);
   bool ret = false;
 
   if (ibuf == nullptr) {
@@ -3717,7 +3735,7 @@ static wmOperatorStatus image_sample_line_exec(bContext *C, wmOperator *op)
   sub_v2_v2(uv2, ofs);
 
   void *lock;
-  ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock, tile);
+  ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock, tile, true);
   Histogram *hist = &sima->sample_line_hist;
 
   if (ibuf == nullptr) {
@@ -4229,8 +4247,11 @@ static wmOperatorStatus clear_render_border_exec(bContext *C, wmOperator * /*op*
 {
   Scene *scene = CTX_data_scene(C);
   scene->r.mode &= ~R_BORDER;
-  WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
   BLI_rctf_init(&scene->r.border, 0.0f, 1.0f, 0.0f, 1.0f);
+
+  WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+  DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
+
   return OPERATOR_FINISHED;
 }
 

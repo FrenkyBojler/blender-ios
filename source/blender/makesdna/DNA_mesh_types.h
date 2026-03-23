@@ -173,11 +173,11 @@ struct Mesh {
   int *face_offset_indices = nullptr;
 
   /**
-   * Vertex, edge, face, and corner generic attributes. Currently unused at runtime, but used for
-   * forward compatibility when reading files (see #122398).
+   * Vertex, edge, face, and corner generic attributes.
    */
   struct AttributeStorage attribute_storage;
 
+  /** Store for non-generic layer data on each domain. */
   CustomData vert_data;
   CustomData edge_data;
   CustomData face_data;
@@ -402,6 +402,8 @@ struct Mesh {
   StringRefNull active_uv_map_name() const;
   /** The name of the default UV map (e.g. for rendering) attribute, if any. */
   StringRefNull default_uv_map_name() const;
+  /** The active UV map name, falling back to the default if no active map is set. */
+  StringRefNull active_or_default_uv_map_name() const;
 
   void uv_maps_active_set(StringRef name);
   void uv_maps_default_set(StringRef name);

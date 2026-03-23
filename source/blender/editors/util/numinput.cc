@@ -6,6 +6,8 @@
  * \ingroup edutil
  */
 
+#include <algorithm>
+
 #include "MEM_guardedalloc.h"
 
 #include "BLI_math_rotation.h"
@@ -73,14 +75,14 @@ void initNumInput(NumInput *n)
 {
   n->idx_max = 0;
   n->unit_sys = USER_UNIT_NONE;
-  copy_vn_i(n->unit_type, NUM_MAX_ELEMENTS, B_UNIT_NONE);
+  std::fill_n(n->unit_type, NUM_MAX_ELEMENTS, B_UNIT_NONE);
   n->unit_use_radians = false;
 
   n->flag = 0;
-  copy_vn_short(n->val_flag, NUM_MAX_ELEMENTS, 0);
+  std::fill_n(n->val_flag, NUM_MAX_ELEMENTS, 0);
   zero_v3(n->val);
-  copy_vn_fl(n->val_org, NUM_MAX_ELEMENTS, 0.0f);
-  copy_vn_fl(n->val_inc, NUM_MAX_ELEMENTS, 1.0f);
+  std::fill_n(n->val_org, NUM_MAX_ELEMENTS, 0.0f);
+  std::fill_n(n->val_inc, NUM_MAX_ELEMENTS, 1.0f);
 
   n->idx = 0;
   n->str[0] = '\0';
@@ -523,7 +525,7 @@ bool handleNumInput(bContext *C, NumInput *n, const wmEvent *event)
         if (pbuf) {
           const bool success = editstr_insert_at_cursor(n, pbuf, pbuf_len);
 
-          MEM_freeN(pbuf);
+          MEM_delete(pbuf);
           if (!success) {
             return false;
           }
@@ -591,7 +593,7 @@ bool handleNumInput(bContext *C, NumInput *n, const wmEvent *event)
       printf("%s\n", error);
       BKE_report(reports, RPT_ERROR, error);
       BKE_report(reports, RPT_ERROR, "Numeric input evaluation");
-      MEM_freeN(error);
+      MEM_delete(error);
     }
 
     if (success) {

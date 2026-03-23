@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_array_utils.hh"
+
 #include "NOD_geometry_nodes_list.hh"
 #include "NOD_geometry_nodes_values.hh"
 #include "NOD_rna_define.hh"
@@ -17,26 +19,45 @@
 
 namespace blender::nodes::node_geo_list_get_item_cc {
 
+NODE_STORAGE_FUNCS(NodeGeometryListGetItem);
+
 static void node_declare(NodeDeclarationBuilder &b)
 {
   const bNode *node = b.node_or_null();
-
-  if (node != nullptr) {
-    const eNodeSocketDatatype type = eNodeSocketDatatype(node->custom1);
-    b.add_input(type, "List").structure_type(StructureType::List).hide_value();
+  if (!node) {
+    return;
   }
+
+  const NodeGeometryListGetItem &storage = node_storage(*node);
+  const auto type = eNodeSocketDatatype(storage.socket_type);
+
+  const auto structure_type = storage.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO ?
+                                  StructureType::Dynamic :
+                                  StructureType(storage.structure_type);
+
+  b.add_input(type, "List").structure_type(StructureType::List).hide_value();
 
   b.add_input<decl::Int>("Index").min(0).structure_type(StructureType::Dynamic);
 
-  if (node != nullptr) {
-    const eNodeSocketDatatype type = eNodeSocketDatatype(node->custom1);
-    b.add_output(type, "Value").dependent_field({1});
-  }
+  b.add_output(type, "Value").dependent_field({1}).structure_type(structure_type);
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout.prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "socket_type", UI_ITEM_NONE, "", ICON_NONE);
+}
+
+static void node_layout_ex(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
+{
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
+  layout.prop(ptr, "structure_type", UI_ITEM_NONE, IFACE_("Shape"), ICON_NONE);
+}
+
+static void node_init(bNodeTree * /*tree*/, bNode *node)
+{
+  auto *storage = MEM_new<NodeGeometryListGetItem>(__func__);
+  node->storage = storage;
 }
 
 class SocketSearchOp {
@@ -46,7 +67,7 @@ class SocketSearchOp {
   void operator()(LinkSearchOpParams &params)
   {
     bNode &node = params.add_node("GeometryNodeListGetItem");
-    node.custom1 = socket_type;
+    node_storage(node).socket_type = socket_type;
     params.update_and_connect_available_socket(node, socket_name);
   }
 };
@@ -83,15 +104,28 @@ class SampleIndexFunction : public mf::MultiFunction {
 
   void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
   {
-    const VArray<int> &indices = params.readonly_single_input<int>(0, "Index");
+    const VArraySpan<int> indices = params.readonly_single_input<int>(0, "Index");
     GMutableSpan dst = params.uninitialized_single_output(1, "Value");
+
+    IndexMaskMemory memory;
+    const IndexMask valid_indices = array_utils::indices_in_range(
+        mask, indices, IndexRange(list_->size()), memory);
+
+    if (valid_indices.size() != mask.size()) {
+      const IndexMask invalid_indices = valid_indices.complement(mask, memory);
+      list_->cpp_type().fill_construct_indices(
+          list_->cpp_type().default_value(), dst.data(), invalid_indices);
+    }
+
     const List::DataVariant &data = list_->data();
     if (const auto *array_data = std::get_if<nodes::List::ArrayData>(&data)) {
-      const GSpan span(list_->cpp_type(), array_data->data, list_->size());
-      bke::copy_with_checked_indices(GVArray::from_span(span), indices, mask, dst);
+      const GSpan src(list_->cpp_type(), array_data->data, list_->size());
+      valid_indices.foreach_index([&](const int i, const int mask) {
+        list_->cpp_type().copy_construct(src[indices[i]], dst[mask]);
+      });
     }
     else if (const auto *single_data = std::get_if<nodes::List::SingleData>(&data)) {
-      list_->cpp_type().fill_construct_indices(single_data->value, dst.data(), mask);
+      list_->cpp_type().fill_construct_indices(single_data->value, dst.data(), valid_indices);
     }
   }
 };
@@ -100,19 +134,82 @@ static void node_rna(StructRNA *srna)
 {
   RNA_def_node_enum(
       srna,
-      "data_type",
-      "Data Type",
-      "",
+      "socket_type",
+      "Socket Type",
+      "Value may be implicitly converted if the type does not match",
       rna_enum_node_socket_data_type_items,
-      NOD_inline_enum_accessors(custom1),
-      SOCK_GEOMETRY,
-      [](bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free) {
+      NOD_storage_enum_accessors(socket_type),
+      SOCK_FLOAT,
+      [](bContext * /*C*/, PointerRNA *ptr, PropertyRNA * /*prop*/, bool *r_free) {
         *r_free = true;
+        const bNodeTree &ntree = *reinterpret_cast<bNodeTree *>(ptr->owner_id);
+        bke::bNodeTreeType *ntree_type = ntree.typeinfo;
         return enum_items_filter(
-            rna_enum_node_socket_data_type_items, [](const EnumPropertyItem &item) -> bool {
-              return socket_type_supports_fields(eNodeSocketDatatype(item.value));
+            rna_enum_node_socket_data_type_items, [&](const EnumPropertyItem &item) -> bool {
+              bke::bNodeSocketType *socket_type = bke::node_socket_type_find_static(item.value);
+              return ntree_type->valid_socket_type(ntree_type, socket_type);
             });
       });
+  RNA_def_node_enum(srna,
+                    "structure_type",
+                    "Structure Type",
+                    "What kind of higher order types are expected to flow through this socket",
+                    rna_enum_node_socket_structure_type_items,
+                    NOD_storage_enum_accessors(structure_type));
+}
+
+/**
+ * Needed because #execute_multi_function_on_value_variant does not support types that can't be
+ * processed as fields.
+ */
+static bke::SocketValueVariant get_single_item(ListPtr &list,
+                                               const eNodeSocketDatatype socket_type,
+                                               const int64_t index)
+{
+  bke::SocketValueVariant value;
+  void *value_ptr = value.allocate_single(socket_type);
+  if (const auto *data = std::get_if<List::ArrayData>(&list->data())) {
+    if (list->is_mutable() && data->sharing_info->is_mutable()) {
+      GMutableSpan data_span(list->cpp_type(), const_cast<void *>(data->data), list->size());
+      list->cpp_type().move_construct(data_span[index], value_ptr);
+      return value;
+    }
+    const GSpan data_span(list->cpp_type(), data->data, list->size());
+    list->cpp_type().copy_construct(data_span[index], value_ptr);
+    return value;
+  }
+  if (const auto *data = std::get_if<List::SingleData>(&list->data())) {
+    if (list->is_mutable() && data->sharing_info->is_mutable()) {
+      list->cpp_type().move_construct(const_cast<void *>(data->value), value_ptr);
+      return value;
+    }
+    list->cpp_type().copy_construct(data->value, value_ptr);
+    return value;
+  }
+  BLI_assert_unreachable();
+  return {};
+}
+
+static bke::SocketValueVariant get_socket_value_item(ListPtr &list, const int64_t index)
+{
+  if (const auto *data = std::get_if<List::ArrayData>(&list->data())) {
+    if (list->is_mutable() && data->sharing_info->is_mutable()) {
+      MutableSpan data_span(static_cast<bke::SocketValueVariant *>(const_cast<void *>(data->data)),
+                            list->size());
+      return std::move(data_span[index]);
+    }
+    const Span data_span(static_cast<bke::SocketValueVariant *>(const_cast<void *>(data->data)),
+                         list->size());
+    return data_span[index];
+  }
+  if (const auto *data = std::get_if<List::SingleData>(&list->data())) {
+    if (list->is_mutable() && data->sharing_info->is_mutable()) {
+      return std::move(*static_cast<bke::SocketValueVariant *>(const_cast<void *>(data->value)));
+    }
+    return *static_cast<const bke::SocketValueVariant *>(data->value);
+  }
+  BLI_assert_unreachable();
+  return {};
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -121,6 +218,31 @@ static void node_geo_exec(GeoNodeExecParams params)
   ListPtr list = params.extract_input<ListPtr>("List");
   if (!list) {
     params.set_default_remaining_outputs();
+    return;
+  }
+  const CPPType &list_type = list->cpp_type();
+  const std::optional<eNodeSocketDatatype> socket_type =
+      bke::geo_nodes_base_cpp_type_to_socket_type(list_type);
+
+  if (list_type.is<bke::SocketValueVariant>() || !socket_type_supports_fields(*socket_type)) {
+    if (!index.is_single()) {
+      params.error_message_add(NodeWarningType::Error, "Index must be a single value");
+      params.set_default_remaining_outputs();
+      return;
+    }
+    index.convert_to_single();
+    const int index_int = index.get<int>();
+    if (!IndexRange(list->size()).contains(index_int)) {
+      params.error_message_add(NodeWarningType::Error, "Index out of range");
+      params.set_default_remaining_outputs();
+      return;
+    }
+    if (list->cpp_type().is<bke::SocketValueVariant>()) {
+      params.set_output("Value", get_socket_value_item(list, index_int));
+    }
+    else {
+      params.set_output("Value", get_single_item(list, *socket_type, index_int));
+    }
     return;
   }
 
@@ -151,7 +273,11 @@ static void node_register()
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.declare = node_declare;
+  ntype.draw_buttons_ex = node_layout_ex;
+  ntype.initfunc = node_init;
   ntype.gather_link_search_ops = node_gather_link_searches;
+  bke::node_type_storage(
+      ntype, "NodeGeometryListGetItem", node_free_standard_storage, node_copy_standard_storage);
   bke::node_register_type(ntype);
   node_rna(ntype.rna_ext.srna);
 }

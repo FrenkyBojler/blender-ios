@@ -282,7 +282,7 @@ void ED_armature_bone_rename(Main *bmain,
                             newname);
           /* Not renaming vertex group could cause bone to bind to other vertex group, in this case
            * deformation could change, so we tag this object for depsgraph update. */
-          DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
+          DEG_id_tag_update(ob->data, ID_RECALC_GEOMETRY);
         }
         else if (bDeformGroup *dg = BKE_object_defgroup_find_name(ob, oldname)) {
           STRNCPY_UTF8(dg->name, newname);
@@ -292,7 +292,7 @@ void ED_armature_bone_rename(Main *bmain,
             BKE_grease_pencil_vgroup_name_update(ob, oldname, dg->name);
           }
 
-          DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
+          DEG_id_tag_update(ob->data, ID_RECALC_GEOMETRY);
         }
       }
 
@@ -366,8 +366,7 @@ void ED_armature_bone_rename(Main *bmain,
     /* XXX: the ID here is for armatures,
      * but most bone drivers are actually on the object instead. */
     {
-
-      BKE_animdata_fix_paths_rename_all(&arm->id, "pose.bones", oldname, newname);
+      BKE_animdata_fix_paths_rename_all(&arm->id, "bones", oldname, newname);
     }
 
     /* correct view locking */
@@ -586,6 +585,10 @@ static wmOperatorStatus armature_autoside_names_exec(bContext *C, wmOperator *op
 
     /* Since we renamed stuff... */
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA | NA_RENAME, ob->data);
+
+    /* Update animation channels */
+    WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN, ob->data);
 
     /* NOTE: notifier might evolve. */
     WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);

@@ -1361,7 +1361,7 @@ static void rearrange_animchannel_add_to_islands(ListBaseT<tReorderChannelIsland
       (bool(island->flag & REORDER_ISLAND_HIDDEN) != is_hidden))
   {
     /* create a new island now */
-    island = MEM_callocN<tReorderChannelIsland>("tReorderChannelIsland");
+    island = MEM_new_zeroed<tReorderChannelIsland>("tReorderChannelIsland");
     BLI_addtail(islands, island);
 
     if (is_sel) {
@@ -2387,6 +2387,15 @@ static void animchannels_group_channels(bAnimContext *ac,
   ANIM_animdata_freelist(&anim_data);
 }
 
+static wmOperatorStatus animchannels_group_invoke(bContext *C,
+                                                  wmOperator *op,
+                                                  const wmEvent *event)
+{
+  /* Choose default name for new group. */
+  RNA_string_set(op->ptr, "name", DATA_("New Group"));
+  return WM_operator_props_popup(C, op, event);
+}
+
 static wmOperatorStatus animchannels_group_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
@@ -2433,7 +2442,7 @@ static void ANIM_OT_channels_group(wmOperatorType *ot)
   ot->description = "Add selected F-Curves to a new group";
 
   /* callbacks */
-  ot->invoke = WM_operator_props_popup;
+  ot->invoke = animchannels_group_invoke;
   ot->exec = animchannels_group_exec;
   ot->poll = animchannels_grouping_poll;
 
@@ -2443,7 +2452,7 @@ static void ANIM_OT_channels_group(wmOperatorType *ot)
   /* props */
   ot->prop = RNA_def_string(ot->srna,
                             "name",
-                            "New Group",
+                            nullptr,
                             sizeof(bActionGroup::name),
                             "Name",
                             "Name of newly created group");
@@ -4281,7 +4290,8 @@ static int click_select_channel_action_slot(bAnimContext *ac,
   return (ND_ANIMCHAN | NA_SELECTED);
 }
 
-static int click_select_channel_shapekey(bAnimContext *ac,
+static int click_select_channel_shapekey(bContext *C,
+                                         bAnimContext *ac,
                                          bAnimListElem *ale,
                                          const short /* eEditKeyframes_Select or -1 */ selectmode)
 {
@@ -4301,6 +4311,10 @@ static int click_select_channel_shapekey(bAnimContext *ac,
     ANIM_anim_channels_select_set(ac, ACHANNEL_SETFLAG_CLEAR);
     kb->flag |= KEYBLOCK_SEL;
   }
+
+  PointerRNA object_ptr = RNA_pointer_create_discrete(&ob.id, RNA_Object, &ob);
+  PropertyRNA *prop = RNA_struct_find_property(&object_ptr, "active_shape_key_index");
+  RNA_property_update(C, &object_ptr, prop);
 
   return (ND_ANIMCHAN | NA_SELECTED);
 }
@@ -4552,7 +4566,7 @@ static int mouse_anim_channels(bContext *C,
       notifierFlags |= click_select_channel_action_slot(ac, ale, selectmode);
       break;
     case ANIMTYPE_SHAPEKEY:
-      notifierFlags |= click_select_channel_shapekey(ac, ale, selectmode);
+      notifierFlags |= click_select_channel_shapekey(C, ac, ale, selectmode);
       break;
     case ANIMTYPE_NLACONTROLS:
       notifierFlags |= click_select_channel_nlacontrols(ale);

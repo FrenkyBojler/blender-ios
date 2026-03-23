@@ -177,12 +177,17 @@ void prepare_filter_asset_library(const FileList *filelist, FileListFilter *filt
 
 bool is_filtered_asset(FileListInternEntry *file, FileListFilter *filter)
 {
-  const AssetMetaData *asset_data = filelist_file_internal_get_asset_data(file);
+  asset_system::AssetRepresentation *asset = file->get_asset();
+  const AssetMetaData &asset_data = asset->get_metadata();
 
   /* Not used yet for the asset view template. */
   if (filter->asset_catalog_filter &&
-      !file_is_asset_visible_in_catalog_filter_settings(filter->asset_catalog_filter, asset_data))
+      !file_is_asset_visible_in_catalog_filter_settings(filter->asset_catalog_filter, &asset_data))
   {
+    return false;
+  }
+
+  if (((filter->flags & FLF_ASSETS_HIDE_ONLINE) != 0) && asset->is_online()) {
     return false;
   }
 
@@ -204,11 +209,6 @@ static bool is_filtered_lib_type(FileListInternEntry *file,
 bool is_filtered_lib(FileListInternEntry *file, const char *root, FileListFilter *filter)
 {
   return is_filtered_lib_type(file, root, filter) && is_filtered_file_relpath(file, filter);
-}
-
-bool is_filtered_main(FileListInternEntry *file, const char * /*dir*/, FileListFilter *filter)
-{
-  return !is_filtered_hidden(file->relpath, filter, file);
 }
 
 bool is_filtered_main_assets(FileListInternEntry *file,
@@ -247,10 +247,10 @@ static void filelist_filter_and_sort_assets(FileList *filelist,
   if (filter.filter_search[0] == '\0') {
     /* No search text, just copy over the pre-filtered list. */
     if (filelist->filelist_intern.filtered) {
-      MEM_freeN(filelist->filelist_intern.filtered);
+      MEM_delete(filelist->filelist_intern.filtered);
     }
-    filelist->filelist_intern.filtered = static_cast<FileListInternEntry **>(
-        MEM_mallocN(sizeof(*filelist->filelist_intern.filtered) * size_t(entries_num), __func__));
+    filelist->filelist_intern.filtered = static_cast<FileListInternEntry **>(MEM_new_uninitialized(
+        sizeof(*filelist->filelist_intern.filtered) * size_t(entries_num), __func__));
     memcpy(filelist->filelist_intern.filtered,
            entries_to_filter,
            sizeof(*filelist->filelist_intern.filtered) * size_t(entries_num));
@@ -288,12 +288,12 @@ static void filelist_filter_and_sort_assets(FileList *filelist,
   const Vector<FileListInternEntry *> results = search.query(search_str);
 
   if (filelist->filelist_intern.filtered) {
-    MEM_freeN(filelist->filelist_intern.filtered);
+    MEM_delete(filelist->filelist_intern.filtered);
   }
 
   const int num_filtered = results.size();
-  filelist->filelist_intern.filtered = static_cast<FileListInternEntry **>(
-      MEM_mallocN(sizeof(*filelist->filelist_intern.filtered) * size_t(num_filtered), __func__));
+  filelist->filelist_intern.filtered = static_cast<FileListInternEntry **>(MEM_new_uninitialized(
+      sizeof(*filelist->filelist_intern.filtered) * size_t(num_filtered), __func__));
   for (int i = 0; i < num_filtered; i++) {
     filelist->filelist_intern.filtered[i] = results[i];
   }
@@ -329,7 +329,7 @@ void filelist_filter(FileList *filelist)
     filelist->prepare_filter_fn(filelist, &filelist->filter_data);
   }
 
-  filtered_tmp = MEM_malloc_arrayN<FileListInternEntry *>(num_files, __func__);
+  filtered_tmp = MEM_new_array_uninitialized<FileListInternEntry *>(num_files, __func__);
 
   /* Filter remap & count how many files are left after filter in a single loop. */
   for (FileListInternEntry &file : filelist->filelist_intern.entries) {
@@ -343,10 +343,10 @@ void filelist_filter(FileList *filelist)
   }
   else {
     if (filelist->filelist_intern.filtered) {
-      MEM_freeN(filelist->filelist_intern.filtered);
+      MEM_delete(filelist->filelist_intern.filtered);
     }
-    filelist->filelist_intern.filtered = MEM_malloc_arrayN<FileListInternEntry *>(num_filtered,
-                                                                                  __func__);
+    filelist->filelist_intern.filtered = MEM_new_array_uninitialized<FileListInternEntry *>(
+        num_filtered, __func__);
     memcpy(filelist->filelist_intern.filtered,
            filtered_tmp,
            sizeof(*filelist->filelist_intern.filtered) * size_t(num_filtered));
@@ -358,7 +358,7 @@ void filelist_filter(FileList *filelist)
   filelist_cache_clear(filelist->filelist_cache, filelist->filelist_cache->size);
   filelist->flags &= ~FL_NEED_FILTERING;
 
-  MEM_freeN(filtered_tmp);
+  MEM_delete(filtered_tmp);
 }
 
 void filelist_setfilter_options(FileList *filelist,
@@ -368,6 +368,7 @@ void filelist_setfilter_options(FileList *filelist,
                                 const uint64_t filter,
                                 const uint64_t filter_id,
                                 const bool filter_assets_only,
+                                const bool filter_assets_hide_online,
                                 const char *filter_glob,
                                 const char *filter_search)
 {
@@ -387,6 +388,12 @@ void filelist_setfilter_options(FileList *filelist,
   }
   if (((filelist->filter_data.flags & FLF_ASSETS_ONLY) != 0) != (filter_assets_only != 0)) {
     filelist->filter_data.flags ^= FLF_ASSETS_ONLY;
+    update = true;
+  }
+  if (((filelist->filter_data.flags & FLF_ASSETS_HIDE_ONLINE) != 0) !=
+      (filter_assets_hide_online != 0))
+  {
+    filelist->filter_data.flags ^= FLF_ASSETS_HIDE_ONLINE;
     update = true;
   }
   if (filelist->filter_data.filter != filter) {

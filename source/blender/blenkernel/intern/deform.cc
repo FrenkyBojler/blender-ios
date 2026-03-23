@@ -6,6 +6,7 @@
  * \ingroup bke
  */
 
+#include <algorithm>
 #include <cctype>
 #include <cstddef>
 #include <cstdlib>
@@ -51,7 +52,7 @@ bDeformGroup *BKE_object_defgroup_new(Object *ob, const StringRef name)
 
   BLI_assert(OB_TYPE_SUPPORT_VGROUP(ob->type));
 
-  defgroup = MEM_new_for_free<bDeformGroup>(__func__);
+  defgroup = MEM_new<bDeformGroup>(__func__);
 
   name.copy_utf8_truncated(defgroup->name);
 
@@ -86,7 +87,7 @@ bDeformGroup *BKE_defgroup_duplicate(const bDeformGroup *ingroup)
     return nullptr;
   }
 
-  bDeformGroup *outgroup = MEM_new_for_free<bDeformGroup>(__func__);
+  bDeformGroup *outgroup = MEM_new<bDeformGroup>(__func__);
 
   /* For now, just copy everything over. */
   memcpy(outgroup, ingroup, sizeof(bDeformGroup));
@@ -133,11 +134,11 @@ void BKE_defvert_copy(MDeformVert *dvert_dst, const MDeformVert *dvert_src)
   }
   else {
     if (dvert_dst->dw) {
-      MEM_freeN(dvert_dst->dw);
+      MEM_delete(dvert_dst->dw);
     }
 
     if (dvert_src->totweight) {
-      dvert_dst->dw = static_cast<MDeformWeight *>(MEM_dupallocN(dvert_src->dw));
+      dvert_dst->dw = MEM_dupalloc(dvert_src->dw);
     }
     else {
       dvert_dst->dw = nullptr;
@@ -633,7 +634,7 @@ static int *object_defgroup_unlocked_flip_map_ex(const Object *ob,
   bDeformGroup *dg;
   char name_flip[sizeof(dg->name)];
   int i, flip_num;
-  int *map = MEM_malloc_arrayN<int>(size_t(defbase_num), __func__);
+  int *map = MEM_new_array_uninitialized<int>(size_t(defbase_num), __func__);
 
   for (i = 0; i < defbase_num; i++) {
     map[i] = -1;
@@ -691,7 +692,7 @@ int *BKE_object_defgroup_flip_map_single(const Object *ob,
   }
 
   char name_flip[sizeof(bDeformGroup::name)];
-  int i, flip_num, *map = MEM_malloc_arrayN<int>(size_t(defbase_num), __func__);
+  int i, flip_num, *map = MEM_new_array_uninitialized<int>(size_t(defbase_num), __func__);
 
   for (i = 0; i < defbase_num; i++) {
     map[i] = use_default ? i : -1;
@@ -837,10 +838,10 @@ MDeformWeight *BKE_defvert_ensure_index(MDeformVert *dvert, const int defgroup)
     return dw_new;
   }
 
-  dw_new = MEM_malloc_arrayN<MDeformWeight>(size_t(dvert->totweight + 1), __func__);
+  dw_new = MEM_new_array_uninitialized<MDeformWeight>(size_t(dvert->totweight + 1), __func__);
   if (dvert->dw) {
     memcpy(dw_new, dvert->dw, sizeof(MDeformWeight) * dvert->totweight);
-    MEM_freeN(dvert->dw);
+    MEM_delete(dvert->dw);
   }
   dvert->dw = dw_new;
   dw_new += dvert->totweight;
@@ -865,10 +866,10 @@ void BKE_defvert_add_index_notest(MDeformVert *dvert, const int defgroup, const 
     return;
   }
 
-  dw_new = MEM_calloc_arrayN<MDeformWeight>(size_t(dvert->totweight + 1), __func__);
+  dw_new = MEM_new_array_zeroed<MDeformWeight>(size_t(dvert->totweight + 1), __func__);
   if (dvert->dw) {
     memcpy(dw_new, dvert->dw, sizeof(MDeformWeight) * dvert->totweight);
-    MEM_freeN(dvert->dw);
+    MEM_delete(dvert->dw);
   }
   dvert->dw = dw_new;
   dw_new += dvert->totweight;
@@ -901,18 +902,18 @@ void BKE_defvert_remove_group(MDeformVert *dvert, MDeformWeight *dw)
     }
 
     dvert->dw = static_cast<MDeformWeight *>(
-        MEM_reallocN(dvert->dw, sizeof(MDeformWeight) * dvert->totweight));
+        MEM_realloc_uninitialized(dvert->dw, sizeof(MDeformWeight) * dvert->totweight));
   }
   else {
     /* If there are no other deform weights left then just remove this one. */
-    MEM_freeN(dvert->dw);
+    MEM_delete(dvert->dw);
     dvert->dw = nullptr;
   }
 }
 
 void BKE_defvert_clear(MDeformVert *dvert)
 {
-  MEM_SAFE_FREE(dvert->dw);
+  MEM_SAFE_DELETE(dvert->dw);
 
   dvert->totweight = 0;
 }
@@ -1047,7 +1048,7 @@ void BKE_defvert_array_copy(MDeformVert *dst, const MDeformVert *src, int totver
 
   for (int i = 0; i < totvert; i++) {
     if (src[i].dw) {
-      dst[i].dw = MEM_malloc_arrayN<MDeformWeight>(size_t(src[i].totweight), __func__);
+      dst[i].dw = MEM_new_array_uninitialized<MDeformWeight>(size_t(src[i].totweight), __func__);
       memcpy(dst[i].dw, src[i].dw, sizeof(MDeformWeight) * src[i].totweight);
     }
   }
@@ -1066,7 +1067,7 @@ void BKE_defvert_array_free_elems(MDeformVert *dvert, int totvert)
   /* Free any special data from the verts */
   for (int i = 0; i < totvert; i++) {
     if (dvert[i].dw) {
-      MEM_freeN(dvert[i].dw);
+      MEM_delete(dvert[i].dw);
     }
   }
 }
@@ -1083,7 +1084,7 @@ void BKE_defvert_array_free(MDeformVert *dvert, int totvert)
   /* Free any special data from the verts */
   BKE_defvert_array_free_elems(dvert, totvert);
 
-  MEM_freeN(dvert);
+  MEM_delete(dvert);
 }
 
 void BKE_defvert_extract_vgroup_to_vertweights(const MDeformVert *dvert,
@@ -1101,7 +1102,7 @@ void BKE_defvert_extract_vgroup_to_vertweights(const MDeformVert *dvert,
     }
   }
   else {
-    copy_vn_fl(r_weights, verts_num, invert_vgroup ? 1.0f : 0.0f);
+    std::fill_n(r_weights, verts_num, invert_vgroup ? 1.0f : 0.0f);
   }
 }
 
@@ -1113,12 +1114,12 @@ void BKE_defvert_extract_vgroup_to_edgeweights(const MDeformVert *dvert,
                                                float *r_weights)
 {
   if (UNLIKELY(!dvert || defgroup == -1)) {
-    copy_vn_fl(r_weights, edges.size(), 0.0f);
+    std::fill_n(r_weights, edges.size(), 0.0f);
     return;
   }
 
   int i = edges.size();
-  float *tmp_weights = MEM_malloc_arrayN<float>(size_t(verts_num), __func__);
+  float *tmp_weights = MEM_new_array_uninitialized<float>(size_t(verts_num), __func__);
 
   BKE_defvert_extract_vgroup_to_vertweights(
       dvert, defgroup, verts_num, invert_vgroup, tmp_weights);
@@ -1129,7 +1130,7 @@ void BKE_defvert_extract_vgroup_to_edgeweights(const MDeformVert *dvert,
     r_weights[i] = (tmp_weights[edge[0]] + tmp_weights[edge[1]]) * 0.5f;
   }
 
-  MEM_freeN(tmp_weights);
+  MEM_delete(tmp_weights);
 }
 
 void BKE_defvert_extract_vgroup_to_loopweights(const MDeformVert *dvert,
@@ -1140,12 +1141,12 @@ void BKE_defvert_extract_vgroup_to_loopweights(const MDeformVert *dvert,
                                                float *r_weights)
 {
   if (UNLIKELY(!dvert || defgroup == -1)) {
-    copy_vn_fl(r_weights, corner_verts.size(), 0.0f);
+    std::fill_n(r_weights, corner_verts.size(), 0.0f);
     return;
   }
 
   int i = corner_verts.size();
-  float *tmp_weights = MEM_malloc_arrayN<float>(size_t(verts_num), __func__);
+  float *tmp_weights = MEM_new_array_uninitialized<float>(size_t(verts_num), __func__);
 
   BKE_defvert_extract_vgroup_to_vertweights(
       dvert, defgroup, verts_num, invert_vgroup, tmp_weights);
@@ -1154,7 +1155,7 @@ void BKE_defvert_extract_vgroup_to_loopweights(const MDeformVert *dvert,
     r_weights[i] = tmp_weights[corner_verts[i]];
   }
 
-  MEM_freeN(tmp_weights);
+  MEM_delete(tmp_weights);
 }
 
 void BKE_defvert_extract_vgroup_to_faceweights(const MDeformVert *dvert,
@@ -1166,12 +1167,12 @@ void BKE_defvert_extract_vgroup_to_faceweights(const MDeformVert *dvert,
                                                float *r_weights)
 {
   if (UNLIKELY(!dvert || defgroup == -1)) {
-    copy_vn_fl(r_weights, faces.size(), 0.0f);
+    std::fill_n(r_weights, faces.size(), 0.0f);
     return;
   }
 
   int i = faces.size();
-  float *tmp_weights = MEM_malloc_arrayN<float>(size_t(verts_num), __func__);
+  float *tmp_weights = MEM_new_array_uninitialized<float>(size_t(verts_num), __func__);
 
   BKE_defvert_extract_vgroup_to_vertweights(
       dvert, defgroup, verts_num, invert_vgroup, tmp_weights);
@@ -1188,7 +1189,7 @@ void BKE_defvert_extract_vgroup_to_faceweights(const MDeformVert *dvert,
     r_weights[i] = w / float(face.size());
   }
 
-  MEM_freeN(tmp_weights);
+  MEM_delete(tmp_weights);
 }
 
 /** \} */
@@ -1538,7 +1539,7 @@ bool data_transfer_layersmapping_vgroups(Vector<CustomDataTransferLayerMap> *r_m
                                                                 num_src);
     }
 
-    MEM_SAFE_FREE(use_layers_src);
+    MEM_SAFE_DELETE(use_layers_src);
     return ret;
   }
 
@@ -1604,12 +1605,12 @@ void BKE_defvert_blend_write(BlendWriter *writer, int count, const MDeformVert *
   }
 
   /* Write the dvert list */
-  BLO_write_struct_array(writer, MDeformVert, count, dvlist);
+  writer->write_struct_array(count, dvlist);
 
   /* Write deformation data for each dvert */
   for (int i = 0; i < count; i++) {
     if (dvlist[i].dw) {
-      BLO_write_struct_array(writer, MDeformWeight, dvlist[i].totweight, dvlist[i].dw);
+      writer->write_struct_array(dvlist[i].totweight, dvlist[i].dw);
     }
   }
 }
@@ -1625,11 +1626,12 @@ void BKE_defvert_blend_read(BlendDataReader *reader, int count, MDeformVert *mdv
     MDeformWeight *dw = mdverts->dw;
     BLO_read_struct_array(reader, MDeformWeight, mdverts->totweight, &dw);
     if (dw) {
-      void *dw_tmp = MEM_malloc_arrayN<MDeformWeight>(size_t(mdverts->totweight), __func__);
+      void *dw_tmp = MEM_new_array_uninitialized<MDeformWeight>(size_t(mdverts->totweight),
+                                                                __func__);
       const size_t dw_len = sizeof(MDeformWeight) * mdverts->totweight;
       memcpy(dw_tmp, dw, dw_len);
       mdverts->dw = static_cast<MDeformWeight *>(dw_tmp);
-      MEM_freeN(dw);
+      MEM_delete(dw);
     }
     else {
       mdverts->dw = nullptr;
@@ -1770,7 +1772,7 @@ void gather_deform_verts(const Span<MDeformVert> src,
   threading::parallel_for(indices.index_range(), 512, [&](const IndexRange range) {
     for (const int dst_i : range) {
       const int src_i = indices[dst_i];
-      dst[dst_i].dw = static_cast<MDeformWeight *>(MEM_dupallocN(src[src_i].dw));
+      dst[dst_i].dw = MEM_dupalloc(src[src_i].dw);
       dst[dst_i].totweight = src[src_i].totweight;
       dst[dst_i].flag = src[src_i].flag;
     }
@@ -1780,11 +1782,13 @@ void gather_deform_verts(const Span<MDeformVert> src,
                          const IndexMask &indices,
                          MutableSpan<MDeformVert> dst)
 {
-  indices.foreach_index(GrainSize(512), [&](const int64_t src_i, const int64_t dst_i) {
-    dst[dst_i].dw = static_cast<MDeformWeight *>(MEM_dupallocN(src[src_i].dw));
-    dst[dst_i].totweight = src[src_i].totweight;
-    dst[dst_i].flag = src[src_i].flag;
-  });
+  indices.foreach_index(
+      [&](const int64_t src_i, const int64_t dst_i) {
+        dst[dst_i].dw = MEM_dupalloc(src[src_i].dw);
+        dst[dst_i].totweight = src[src_i].totweight;
+        dst[dst_i].flag = src[src_i].flag;
+      },
+      exec_mode::grain_size(512));
 }
 
 MDeformVert mix_deform_verts(const Span<MDeformVert> src,
@@ -1797,7 +1801,7 @@ MDeformVert mix_deform_verts(const Span<MDeformVert> src,
 
   if (indices.size() == 1) {
     const MDeformVert &src_dvert = src[indices.first()];
-    dst_dvert.dw = MEM_malloc_arrayN<MDeformWeight>(src_dvert.totweight, __func__);
+    dst_dvert.dw = MEM_new_array_uninitialized<MDeformWeight>(src_dvert.totweight, __func__);
     std::copy_n(src_dvert.dw, src_dvert.totweight, dst_dvert.dw);
     dst_dvert.totweight = src_dvert.totweight;
     return dst_dvert;
@@ -1819,7 +1823,7 @@ MDeformVert mix_deform_verts(const Span<MDeformVert> src,
             const_cast<MDeformWeight *>(dw_buffer.end()),
             [](const auto &a, const auto &b) { return a.def_nr < b.def_nr; });
 
-  dst_dvert.dw = MEM_malloc_arrayN<MDeformWeight>(dw_buffer.size(), __func__);
+  dst_dvert.dw = MEM_new_array_uninitialized<MDeformWeight>(dw_buffer.size(), __func__);
   dst_dvert.totweight = dw_buffer.size();
   std::copy(dw_buffer.begin(), dw_buffer.end(), dst_dvert.dw);
   return dst_dvert;

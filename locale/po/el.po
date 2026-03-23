@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'12e628ea43f8')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'ec8c60553753')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-12 15:09+0000\n"
+"POT-Creation-Date: 2026-03-23 09:55+0000\n"
 "PO-Revision-Date: 2025-07-23 15:19+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Greek <https://translate.blender.org/projects/blender-ui/ui/el/>\n"
@@ -185,14 +185,6 @@ msgstr "Γάμμα"
 
 msgid "View"
 msgstr "View"
-
-
-msgid "Mix"
-msgstr "Μείξη"
-
-
-msgid "Screen"
-msgstr "Οθόνη"
 
 
 msgid "Near"
@@ -519,24 +511,32 @@ msgid "Keyboard"
 msgstr "Πληκτρολόγιο"
 
 
-msgid "Metaball"
-msgstr "Μετα-σφαίρα"
+msgid "Mix"
+msgstr "Μείξη"
 
 
-msgid "Snap"
-msgstr "Προσκόλληση"
-
-
-msgid "Import"
-msgstr "Εισαγωγή"
+msgid "Screen"
+msgstr "Οθόνη"
 
 
 msgid "Mirror"
 msgstr "Καθρέφτισμα"
 
 
+msgid "Snap"
+msgstr "Προσκόλληση"
+
+
 msgid "Select Linked"
 msgstr "Επιλογή Συνδεδεμένων"
+
+
+msgid "Import"
+msgstr "Εισαγωγή"
+
+
+msgid "Metaball"
+msgstr "Μετα-σφαίρα"
 
 
 msgid "Light"
@@ -758,10 +758,6 @@ msgstr "Replace Image"
 msgctxt "Operator"
 msgid "Fill"
 msgstr "Συμπλήρωμα"
-
-
-msgid "Ring"
-msgstr "Ring"
 
 
 msgid "Merge selected vertices"

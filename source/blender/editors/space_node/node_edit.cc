@@ -71,6 +71,7 @@
 #include "GPU_capabilities.hh"
 #include "GPU_material.hh"
 
+#include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
 #include "NOD_composite.hh"
@@ -97,6 +98,7 @@ struct CompositorJob {
   Render *render;
   compositor::Profiler profiler;
   compositor::NodeGroupOutputTypes needed_outputs;
+  bool is_animation_playing;
 };
 
 static void compositor_job_init(void *compositor_job_data)
@@ -121,8 +123,7 @@ static void compositor_job_init(void *compositor_job_data)
     DEG_graph_tag_relations_update(compositor_runtime.preview_depsgraph);
   }
 
-  DEG_graph_build_for_compositor_preview(compositor_runtime.preview_depsgraph,
-                                         scene->compositing_node_group);
+  DEG_graph_build_for_compositor_preview(compositor_runtime.preview_depsgraph);
 
   /* NOTE: Don't update animation to preserve unkeyed changes, this means can not use
    * evaluate_on_framechange. */
@@ -134,6 +135,7 @@ static void compositor_job_init(void *compositor_job_data)
   compositor_job->render = RE_NewInteractiveCompositorRender(scene);
   if (scene->r.compositor_device == SCE_COMPOSITOR_DEVICE_GPU) {
     RE_display_ensure_gpu_context(compositor_job->render);
+    IMB_ensure_gpu_context();
   }
 }
 
@@ -141,9 +143,20 @@ static void compositor_job_start(void *compositor_job_data, wmJobWorkerStatus *w
 {
   CompositorJob *compositor_job = static_cast<CompositorJob *>(compositor_job_data);
 
-  RE_test_break_cb(compositor_job->render, &worker_status->stop, [](void *should_stop) -> bool {
-    return *static_cast<bool *>(should_stop) || G.is_break;
-  });
+  /* If animation is playing, do not respect the job worker stop status, because if the job for the
+   * current frame did not finish before the next frame's job is scheduled, it will be stopped in
+   * favor of the new frame, and this will likely happen for all future frame jobs so we will be
+   * essentially doing nothing. So we just prefer to finish the job at hand and ignore the future
+   * jobs. This will appear to be frame-dropping for the user. */
+  if (compositor_job->is_animation_playing) {
+    RE_test_break_cb(
+        compositor_job->render, nullptr, [](void * /*handle*/) -> bool { return G.is_break; });
+  }
+  else {
+    RE_test_break_cb(compositor_job->render, &worker_status->stop, [](void *should_stop) -> bool {
+      return *static_cast<bool *>(should_stop) || G.is_break;
+    });
+  }
 
   BKE_callback_exec_id(
       compositor_job->bmain, &compositor_job->scene->id, BKE_CB_EVT_COMPOSITE_PRE);
@@ -175,16 +188,6 @@ static void compositor_job_start(void *compositor_job_data, wmJobWorkerStatus *w
                             compositor_job->needed_outputs);
     }
   }
-
-  WM_main_add_notifier(NC_SCENE | ND_COMPO_RESULT, nullptr);
-}
-
-static void compositor_job_cancel(void *compositor_job_data)
-{
-  CompositorJob *compositor_job = static_cast<CompositorJob *>(compositor_job_data);
-
-  Scene *scene = compositor_job->scene;
-  BKE_callback_exec_id(compositor_job->bmain, &scene->id, BKE_CB_EVT_COMPOSITE_CANCEL);
 }
 
 static void compositor_job_complete(void *compositor_job_data)
@@ -198,6 +201,23 @@ static void compositor_job_complete(void *compositor_job_data)
       scene->compositing_node_group, compositor_job->evaluated_node_tree, true);
   scene->runtime->compositor.per_node_execution_time =
       compositor_job->profiler.get_nodes_evaluation_times();
+  WM_main_add_notifier(NC_SCENE | ND_COMPO_RESULT, nullptr);
+}
+
+static void compositor_job_cancel(void *compositor_job_data)
+{
+  CompositorJob *compositor_job = static_cast<CompositorJob *>(compositor_job_data);
+
+  /* If animation is playing, jobs can only be canceled by the user, that is, through G.is_break,
+   * so if we are not breaked, consider the job to be complete. See comment in compositor_job_start
+   * breaking callbacks. */
+  if (compositor_job->is_animation_playing && !G.is_break) {
+    compositor_job_complete(compositor_job);
+    return;
+  }
+
+  Scene *scene = compositor_job->scene;
+  BKE_callback_exec_id(compositor_job->bmain, &scene->id, BKE_CB_EVT_COMPOSITE_CANCEL);
 }
 
 static void compositor_job_free(void *compositor_job_data)
@@ -327,9 +347,10 @@ void ED_node_compositor_job(const bContext *C)
   compositor_job->scene = scene;
   compositor_job->view_layer = CTX_data_view_layer(C);
   compositor_job->needed_outputs = needed_outputs;
+  compositor_job->is_animation_playing = ED_window_animation_playing_no_scrub(CTX_wm_manager(C));
 
   WM_jobs_customdata_set(job, compositor_job, compositor_job_free);
-  WM_jobs_timer(job, 0.1, NC_SCENE | ND_COMPO_RESULT, NC_SCENE | ND_COMPO_RESULT);
+  WM_jobs_timer(job, 0.1, 0, 0);
   WM_jobs_callbacks_ex(job,
                        compositor_job_start,
                        compositor_job_init,
@@ -679,7 +700,7 @@ static void node_resize_init(
     bContext *C, wmOperator *op, const float2 &cursor, const bNode *node, NodeResizeDirection dir)
 {
   Scene *scene = CTX_data_scene(C);
-  NodeSizeWidget *nsw = MEM_callocN<NodeSizeWidget>(__func__);
+  NodeSizeWidget *nsw = MEM_new_zeroed<NodeSizeWidget>(__func__);
 
   op->customdata = nsw;
 
@@ -716,7 +737,7 @@ static void node_resize_exit(bContext *C, wmOperator *op, bool cancel)
     node->height = nsw->oldheight;
   }
 
-  MEM_freeN(nsw);
+  MEM_delete(nsw);
   op->customdata = nullptr;
 }
 
@@ -750,8 +771,7 @@ wmKeyMap *node_resize_modal_keymap(wmKeyConfig *keyconf)
   return keymap;
 }
 
-/* Compute the nearest 1D coordinate corresponding to the nearest grid in node editors. */
-static float nearest_node_grid_coord(float co)
+float nearest_node_grid_coord(float co)
 {
   /* Size and location of nodes are independent of UI scale, so grid size should be independent of
    * UI scale as well. */
@@ -1252,7 +1272,7 @@ static wmOperatorStatus node_duplicate_exec(bContext *C, wmOperator *op)
     if (link.tonode && (link.tonode->flag & NODE_SELECT) &&
         (keep_inputs || (link.fromnode && (link.fromnode->flag & NODE_SELECT))))
     {
-      bNodeLink *newlink = MEM_new_for_free<bNodeLink>("bNodeLink");
+      bNodeLink *newlink = MEM_new<bNodeLink>("bNodeLink");
       newlink->flag = link.flag;
       newlink->tonode = node_map.lookup(link.tonode);
       newlink->tosock = socket_map.lookup(link.tosock);
@@ -2188,7 +2208,7 @@ void NODE_OT_viewer_border(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Viewer Region";
-  ot->description = "Set the boundaries for viewer operations";
+  ot->description = "Set the boundaries for viewer operations (Not implemented)";
   ot->idname = "NODE_OT_viewer_border";
 
   /* API callbacks. */

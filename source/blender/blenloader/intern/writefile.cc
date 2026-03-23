@@ -108,7 +108,7 @@
 #include "BLI_threads.h"
 #include "BLI_time.h"
 
-#include "MEM_guardedalloc.h" /* MEM_freeN */
+#include "MEM_guardedalloc.h"
 
 #include "BKE_asset.hh"
 #include "BKE_blender_version.h"
@@ -273,11 +273,11 @@ struct ZstdWriteWrap::ZstdWriteBlockTask {
 void ZstdWriteWrap::write_task(ZstdWriteBlockTask *task)
 {
   size_t out_buf_len = ZSTD_compressBound(task->size);
-  void *out_buf = MEM_mallocN(out_buf_len, "Zstd out buffer");
+  void *out_buf = MEM_new_uninitialized(out_buf_len, "Zstd out buffer");
   size_t out_size = ZSTD_compress(
       out_buf, out_buf_len, task->data, task->size, ZSTD_COMPRESSION_LEVEL);
 
-  MEM_freeN(task->data);
+  MEM_delete_void(task->data);
 
   BLI_mutex_lock(&mutex);
 
@@ -290,7 +290,7 @@ void ZstdWriteWrap::write_task(ZstdWriteBlockTask *task)
   }
   else {
     if (base_wrap.write(out_buf, out_size)) {
-      ZstdFrame *frameinfo = MEM_mallocN<ZstdFrame>("zstd frameinfo");
+      ZstdFrame *frameinfo = MEM_new_uninitialized<ZstdFrame>("zstd frameinfo");
       frameinfo->uncompressed_size = task->size;
       frameinfo->compressed_size = out_size;
       BLI_addtail(&frames, frameinfo);
@@ -305,7 +305,7 @@ void ZstdWriteWrap::write_task(ZstdWriteBlockTask *task)
   BLI_mutex_unlock(&mutex);
   BLI_condition_notify_all(&condition);
 
-  MEM_freeN(out_buf);
+  MEM_delete_void(out_buf);
 }
 
 bool ZstdWriteWrap::open(const char *filepath)
@@ -384,8 +384,8 @@ bool ZstdWriteWrap::write(const void *buf, const size_t buf_len)
     return false;
   }
 
-  ZstdWriteBlockTask *task = MEM_mallocN<ZstdWriteBlockTask>(__func__);
-  task->data = MEM_mallocN(buf_len, __func__);
+  ZstdWriteBlockTask *task = MEM_new_uninitialized<ZstdWriteBlockTask>(__func__);
+  task->data = MEM_new_uninitialized(buf_len, __func__);
   memcpy(task->data, buf, buf_len);
   task->size = buf_len;
   task->frame_number = num_frames++;
@@ -407,7 +407,7 @@ bool ZstdWriteWrap::write(const void *buf, const size_t buf_len)
      * always be a free thread. */
     BLI_assert(first_task != task);
     BLI_remlink(&tasks, first_task);
-    MEM_freeN(first_task);
+    MEM_delete(first_task);
   }
   BLI_threadpool_insert(&threadpool, task);
 
@@ -440,7 +440,7 @@ static WriteData *writedata_new(WriteWrap *ww)
       wd->buffer.max_size = ZSTD_BUFFER_SIZE;
       wd->buffer.chunk_size = ZSTD_CHUNK_SIZE;
     }
-    wd->buffer.buf = MEM_malloc_arrayN<uchar>(wd->buffer.max_size, "wd->buffer.buf");
+    wd->buffer.buf = MEM_new_array_uninitialized<uchar>(wd->buffer.max_size, "wd->buffer.buf");
   }
 
   return wd;
@@ -475,7 +475,7 @@ static void writedata_do_write(WriteData *wd, const void *mem, const size_t meml
 static void writedata_free(WriteData *wd)
 {
   if (wd->buffer.buf) {
-    MEM_freeN(wd->buffer.buf);
+    MEM_delete(wd->buffer.buf);
   }
   MEM_delete(wd);
 }
@@ -1382,7 +1382,9 @@ static void write_libraries(WriteData *wd, Main *bmain)
         write_id(wd, id);
       }
       else {
-        if (!BKE_idtype_idcode_is_linkable(GS(id->name))) {
+        /* In undo case, all existing linked IDs get a placeholder, even the ones not directly
+         * linkable. */
+        if (!is_undo && !BKE_idtype_idcode_is_linkable(GS(id->name))) {
           CLOG_ERROR(&LOG,
                      "Data-block '%s' from lib '%s' is not linkable, but is flagged as "
                      "directly linked",
@@ -2051,7 +2053,11 @@ static bool BLO_write_file_impl(Main *mainvar,
           BKE_bpath_relative_rebase(mainvar, dir_src, dir_dst, nullptr);
           break;
         case BLO_WRITE_PATH_REMAP_RELATIVE_ALL:
-          /* Make all relative (when requested or unsaved). */
+          /* If saved, make relative paths relative to new location (if possible). */
+          if (relbase_valid && (BLI_path_cmp(dir_dst, dir_src) != 0)) {
+            BKE_bpath_relative_rebase(mainvar, dir_src, dir_dst, nullptr);
+          }
+          /* Make all absolute paths relative (when requested or unsaved). */
           BKE_bpath_relative_convert(mainvar, dir_dst, nullptr);
           break;
         case BLO_WRITE_PATH_REMAP_ABSOLUTE:
@@ -2152,11 +2158,6 @@ bool BLO_write_file_mem(Main *mainvar, MemFile *compare, MemFile *current, const
  * API to write chunks of data.
  */
 
-void BLO_write_raw(BlendWriter *writer, const size_t size_in_bytes, const void *data_ptr)
-{
-  writedata(writer->wd, BLO_CODE_DATA, size_in_bytes, data_ptr);
-}
-
 void BlendWriter::write_struct_by_name(const char *struct_name, const void *data)
 {
   this->write_struct_array_by_name(struct_name, 1, data);
@@ -2166,7 +2167,7 @@ void BlendWriter::write_struct_array_by_name(const char *struct_name,
                                              const int64_t array_size,
                                              const void *data)
 {
-  int struct_id = BLO_get_struct_id_by_name(this, struct_name);
+  int struct_id = this->struct_id_by_name(struct_name);
   if (UNLIKELY(struct_id == -1)) {
     CLOG_ERROR(&LOG, "Can't find SDNA code <%s>", struct_name);
     return;
@@ -2216,7 +2217,7 @@ void BlendWriter::write_struct_list_by_id(const int struct_id, const ListBase *l
 
 void BlendWriter::write_struct_list_by_name(const char *struct_name, ListBase *list)
 {
-  int struct_id = BLO_get_struct_id_by_name(this, struct_name);
+  int struct_id = this->struct_id_by_name(struct_name);
   if (UNLIKELY(struct_id == -1)) {
     CLOG_ERROR(&LOG, "Can't find SDNA code <%s>", struct_name);
     return;
@@ -2224,82 +2225,79 @@ void BlendWriter::write_struct_list_by_name(const char *struct_name, ListBase *l
   this->write_struct_list_by_id(struct_id, list);
 }
 
-void blo_write_id_struct(BlendWriter *writer,
-                         const int struct_id,
-                         const void *id_address,
-                         const ID *id)
+int BlendWriter::struct_id_by_name(const char *struct_name) const
 {
-  writestruct_at_address_nr(writer->wd, GS(id->name), struct_id, 1, id_address, id);
-}
-
-int BLO_get_struct_id_by_name(const BlendWriter *writer, const char *struct_name)
-{
-  int struct_id = DNA_struct_find_with_alias(writer->wd->sdna, struct_name);
+  int struct_id = DNA_struct_find_with_alias(this->wd->sdna, struct_name);
   return struct_id;
 }
 
-void BLO_write_char_array(BlendWriter *writer, const int64_t num, const char *data_ptr)
+void BlendWriter::write_raw(size_t size_in_bytes, const void *data)
 {
-  BLO_write_raw(writer, sizeof(char) * size_t(num), data_ptr);
+  writedata(this->wd, BLO_CODE_DATA, size_in_bytes, data);
 }
 
-void BLO_write_int8_array(BlendWriter *writer, const int64_t num, const int8_t *data_ptr)
+void BlendWriter::write_char_array(int64_t num, const char *data)
 {
-  BLO_write_raw(writer, sizeof(int8_t) * size_t(num), data_ptr);
+  this->write_raw(sizeof(char) * size_t(num), data);
 }
 
-void BLO_write_int16_array(BlendWriter *writer, const int64_t num, const int16_t *data_ptr)
+void BlendWriter::write_int8_array(int64_t num, const int8_t *data)
 {
-  BLO_write_raw(writer, sizeof(int16_t) * size_t(num), data_ptr);
+  this->write_raw(sizeof(int8_t) * size_t(num), data);
 }
 
-void BLO_write_uint8_array(BlendWriter *writer, const int64_t num, const uint8_t *data_ptr)
+void BlendWriter::write_int16_array(int64_t num, const int16_t *data)
 {
-  BLO_write_raw(writer, sizeof(uint8_t) * size_t(num), data_ptr);
+  this->write_raw(sizeof(int16_t) * size_t(num), data);
 }
 
-void BLO_write_int32_array(BlendWriter *writer, const int64_t num, const int32_t *data_ptr)
+void BlendWriter::write_uint8_array(int64_t num, const uint8_t *data)
 {
-  BLO_write_raw(writer, sizeof(int32_t) * size_t(num), data_ptr);
+  this->write_raw(sizeof(uint8_t) * size_t(num), data);
 }
 
-void BLO_write_uint32_array(BlendWriter *writer, const int64_t num, const uint32_t *data_ptr)
+void BlendWriter::write_int32_array(int64_t num, const int32_t *data)
 {
-  BLO_write_raw(writer, sizeof(uint32_t) * size_t(num), data_ptr);
+  this->write_raw(sizeof(int32_t) * size_t(num), data);
 }
 
-void BLO_write_float_array(BlendWriter *writer, const int64_t num, const float *data_ptr)
+void BlendWriter::write_uint32_array(int64_t num, const uint32_t *data)
 {
-  BLO_write_raw(writer, sizeof(float) * size_t(num), data_ptr);
+  this->write_raw(sizeof(uint32_t) * size_t(num), data);
 }
 
-void BLO_write_double_array(BlendWriter *writer, const int64_t num, const double *data_ptr)
+void BlendWriter::write_float_array(int64_t num, const float *data)
 {
-  BLO_write_raw(writer, sizeof(double) * size_t(num), data_ptr);
+  this->write_raw(sizeof(float) * size_t(num), data);
 }
 
-void BLO_write_pointer_array(BlendWriter *writer, const int64_t num, const void *data_ptr)
+void BlendWriter::write_double_array(int64_t num, const double *data)
+{
+  this->write_raw(sizeof(double) * size_t(num), data);
+}
+
+void BlendWriter::write_float3_array(int64_t num, const float *data)
+{
+  this->write_raw(sizeof(float[3]) * size_t(num), data);
+}
+
+void BlendWriter::write_pointer_array(int64_t num, const void *data_ptr)
 {
   /* Create a temporary copy of the pointer array, because all pointers need to be remapped to
    * their stable address ids. */
   Array<const void *, 32> data = Span<const void *>(
       reinterpret_cast<const void *const *>(data_ptr), num);
   for (const int64_t i : data.index_range()) {
-    data[i] = get_address_id(*writer->wd, data[i]);
+    data[i] = get_address_id(*this->wd, data[i]);
   }
 
-  writedata(writer->wd, BLO_CODE_DATA, data.data(), data.as_span().size_in_bytes(), data_ptr);
+  writedata(this->wd, BLO_CODE_DATA, data.data(), data.as_span().size_in_bytes(), data_ptr);
 }
 
-void BLO_write_float3_array(BlendWriter *writer, const int64_t num, const float *data_ptr)
+void BlendWriter::write_string(const char *data)
 {
-  BLO_write_raw(writer, sizeof(float[3]) * size_t(num), data_ptr);
-}
-
-void BLO_write_string(BlendWriter *writer, const char *data_ptr)
-{
-  if (data_ptr != nullptr) {
-    BLO_write_raw(writer, strlen(data_ptr) + 1, data_ptr);
+  if (data != nullptr) {
+    this->write_raw(strlen(data) + 1, data);
   }
 }
 

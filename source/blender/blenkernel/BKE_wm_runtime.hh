@@ -56,6 +56,9 @@ struct WindowManagerRuntime {
   /** Indicates whether interface is locked for user interaction. */
   bool is_interface_locked = false;
 
+  /** Indicates whether modified images should be saved when saving the blend file. */
+  char save_modified_images_when_file_is_saved = true;
+
   /** Information and error reports. */
   ReportList reports;
 
@@ -170,7 +173,7 @@ struct WindowRuntime {
   wmEvent *eventstate = nullptr;
 
   /**
-   * The time when the key is pressed in milliseconds (see #GHOST_GetEventTime).
+   * The time when the key is pressed in milliseconds (see #GHOST_IEvent::getTime).
    * Used to detect double-click events.
    */
   uint64_t eventstate_prev_press_time_ms = 0;

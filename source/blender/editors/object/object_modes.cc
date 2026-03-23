@@ -217,12 +217,12 @@ bool mode_set_ex(bContext *C, eObjectMode mode, bool use_undo, ReportList *repor
     /* Give more specific error messages for cases that are known to fail (like linked and packed
      * object-data). */
     if (ob->data && !ID_IS_EDITABLE(ob->data)) {
-      const ID &obdata_id = *static_cast<ID *>(ob->data);
+      const ID &obdata_id = *ob->data;
       char obdata_idtype_name_lower[MAX_ID_NAME];
       STRNCPY(obdata_idtype_name_lower, BKE_idtype_idcode_to_name(GS(obdata_id.name)));
       BLI_str_tolower_ascii(obdata_idtype_name_lower, strlen(obdata_idtype_name_lower));
 
-      if (ID_IS_PACKED(static_cast<ID *>(ob->data))) {
+      if (ID_IS_PACKED(ob->data)) {
         BKE_reportf(reports,
                     RPT_ERROR,
                     "The '%s' %s data-block is packed and not editable. Use \"Make Local\" to "
@@ -542,7 +542,7 @@ static wmOperatorStatus object_transfer_mode_invoke(bContext *C,
   Object *ob_src = CTX_data_active_object(C);
   const eObjectMode mode_src = eObjectMode(ob_src->mode);
 
-  Base *base_dst = ED_view3d_give_base_under_cursor(C, event->mval);
+  Base *base_dst = ED_view3d_give_base_under_cursor_skip_editmode(C, event->mval);
   if (!base_dst) {
     BKE_reportf(op->reports, RPT_ERROR, "No target object to transfer the mode to");
     return OPERATOR_CANCELLED;

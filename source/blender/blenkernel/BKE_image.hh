@@ -85,10 +85,6 @@ struct ImageRuntime {
 
   /* The image's current update count. See deg::set_id_update_count for more information. */
   uint64_t update_count = 0;
-
-  /* Compositor viewer might be translated, and that translation will be stored in this runtime
-   * vector by the compositor so that the editor draw code can draw the image translated. */
-  float backdrop_offset[2] = {};
 };
 
 }  // namespace bke
@@ -210,6 +206,13 @@ bool BKE_image_has_ibuf(Image *ima, ImageUser *iuser);
  * References the result, #BKE_image_release_ibuf should be used to de-reference.
  */
 ImBuf *BKE_image_acquire_ibuf(Image *ima, ImageUser *iuser, void **r_lock);
+
+/**
+ * Identical to BKE_image_acquire_ibuf but assumes the caller will use the GPU data of the image
+ * buffer if it exists without the need to make it available on the host. This essentially skips
+ * GPU data reading to the host and is thus more performant.
+ */
+ImBuf *BKE_image_acquire_ibuf_gpu(Image *ima, ImageUser *iuser, void **r_lock);
 
 /**
  * Return image buffer for given image, user, pass, and view.
@@ -422,6 +425,15 @@ void BKE_image_packfiles(ReportList *reports, Image *ima, const char *basepath);
 void BKE_image_packfiles_from_mem(ReportList *reports, Image *ima, char *data, size_t data_len);
 
 /**
+ * High-level pack function.
+ *
+ * Packs image data, handling dirty state and raw data input.
+ * Does nothing if image is already packed and not dirty (unless data is provided).
+ */
+void BKE_image_packfile_ensure(
+    Main *bmain, Image *image, ReportList *reports, const char *data, int data_len);
+
+/**
  * Prints memory statistics for images.
  */
 void BKE_image_print_memlist(Main *bmain);
@@ -629,6 +641,13 @@ gpu::Texture *BKE_image_get_gpu_texture(Image *image, ImageUser *iuser);
  * Like BKE_image_get_gpu_texture, but can also get render or compositing result.
  */
 gpu::Texture *BKE_image_get_gpu_viewer_texture(Image *image, ImageUser *iuser);
+
+/*
+ * Like BKE_image_get_gpu_viewer_texture, but the image buffer is provided explicitly.
+ */
+gpu::Texture *BKE_image_get_gpu_viewer_texture(Image *image,
+                                               ImageUser *iuser,
+                                               ImBuf *image_buffer);
 
 /*
  * Like BKE_image_get_gpu_texture, but can also return array and tile mapping texture for UDIM

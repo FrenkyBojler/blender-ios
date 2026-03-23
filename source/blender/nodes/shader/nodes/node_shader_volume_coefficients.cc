@@ -24,7 +24,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Float>("Weight").available(false);
 #define SOCK_WEIGHT_ID 0
 
-  PanelDeclarationBuilder &abs = b.add_panel("Absorption").default_closed(false);
+  PanelDeclarationBuilder &abs = b.add_panel("Absorption"_ustr).default_closed(false);
   abs.add_input<decl::Vector>("Absorption Coefficients")
       .default_value({1.0f, 1.0f, 1.0f})
       .min(0.0f)
@@ -33,7 +33,7 @@ static void node_declare(NodeDeclarationBuilder &b)
           "Probability density per color channel that light is absorbed per unit distance "
           "traveled in the medium");
 #define SOCK_ABSORPTION_COEFFICIENTS_ID 1
-  PanelDeclarationBuilder &sca = b.add_panel("Scatter").default_closed(false);
+  PanelDeclarationBuilder &sca = b.add_panel("Scatter"_ustr).default_closed(false);
   sca.add_layout([](ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr) {
     layout.prop(ptr, "phase", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
   });
@@ -52,31 +52,36 @@ static void node_declare(NodeDeclarationBuilder &b)
       .subtype(PROP_FACTOR)
       .description(
           "Directionality of the scattering. Zero is isotropic, negative is backward, "
-          "positive is forward");
+          "positive is forward")
+      .make_available([](bNode &node) { node.custom1 = SHD_PHASE_HENYEY_GREENSTEIN; });
 #define SOCK_SCATTER_ANISOTROPY_ID 3
   sca.add_input<decl::Float>("IOR")
       .default_value(1.33f)
       .min(1.0f)
       .max(2.0f)
       .subtype(PROP_FACTOR)
-      .description("Index Of Refraction of the scattering particles");
+      .description("Index Of Refraction of the scattering particles")
+      .make_available([](bNode &node) { node.custom1 = SHD_PHASE_FOURNIER_FORAND; });
 #define SOCK_SCATTER_IOR_ID 4
   sca.add_input<decl::Float>("Backscatter")
       .default_value(0.1f)
       .min(0.0f)
       .max(0.5f)
       .subtype(PROP_FACTOR)
-      .description("Fraction of light that is scattered backwards");
+      .description("Fraction of light that is scattered backwards")
+      .make_available([](bNode &node) { node.custom1 = SHD_PHASE_FOURNIER_FORAND; });
 #define SOCK_SCATTER_BACKSCATTER_ID 5
-  sca.add_input<decl::Float>("Alpha").default_value(0.5f).min(0.0f).max(500.0f);
+  sca.add_input<decl::Float>("Alpha").default_value(0.5f).min(0.0f).max(500.0f).make_available(
+      [](bNode &node) { node.custom1 = SHD_PHASE_DRAINE; });
 #define SOCK_SCATTER_ALPHA_ID 6
   sca.add_input<decl::Float>("Diameter")
       .default_value(20.0f)
       .min(0.0f)
       .max(50.0f)
-      .description("Diameter of the water droplets, in micrometers");
+      .description("Diameter of the water droplets, in micrometers")
+      .make_available([](bNode &node) { node.custom1 = SHD_PHASE_MIE; });
 #define SOCK_SCATTER_DIAMETER_ID 7
-  PanelDeclarationBuilder &emi = b.add_panel("Emission").default_closed(false);
+  PanelDeclarationBuilder &emi = b.add_panel("Emission"_ustr).default_closed(false);
   emi.add_input<decl::Vector>("Emission Coefficients")
       .default_value({0.0f, 0.0f, 0.0f})
       .min(0.0f)
@@ -152,6 +157,7 @@ void register_node_type_sh_volume_coefficients()
   ntype.enum_name_legacy = "VOLUME_COEFFICIENTS";
   ntype.nclass = NODE_CLASS_SHADER;
   ntype.declare = file_ns::node_declare;
+  ntype.gather_link_search_ops = search_link_ops_for_shader_bsdf_node;
   ntype.add_ui_poll = object_shader_nodes_poll;
   bke::node_type_size_preset(ntype, bke::eNodeSizePreset::Large);
   ntype.initfunc = file_ns::node_shader_init_coefficients;

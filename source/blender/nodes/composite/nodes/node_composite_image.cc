@@ -192,18 +192,18 @@ static void node_declare(NodeDeclarationBuilder &b)
     return;
   }
 
-  /* Avoid unnecessary updates, only changes to the Image/Image User data are of interest. */
-  if (!(node->runtime->update & NODE_UPDATE_ID)) {
-    declare_existing(b);
-    return;
-  }
-
   BLI_SCOPED_DEFER([&]() { declare_old_linked_outputs(b); });
 
   Image *image = reinterpret_cast<Image *>(node->id);
   const ImageUser *image_user = static_cast<ImageUser *>(node->storage);
   if (!image || !image_user) {
     declare_default(b);
+    return;
+  }
+
+  /* Avoid unnecessary updates, only changes to the Image/Image User data are of interest. */
+  if (!(node->runtime->update & NODE_UPDATE_ID)) {
+    declare_existing(b);
     return;
   }
 
@@ -221,7 +221,7 @@ static void node_init(bNodeTree * /*node_tree*/, bNode *node)
 {
   node->flag |= NODE_PREVIEW;
 
-  ImageUser *iuser = MEM_new_for_free<ImageUser>(__func__);
+  ImageUser *iuser = MEM_new<ImageUser>(__func__);
   node->storage = iuser;
   iuser->frames = 1;
   iuser->sfra = 1;
@@ -236,6 +236,11 @@ class ImageOperation : public NodeOperation {
 
   void execute() override
   {
+    if (!this->get_image() || !this->get_image_user()) {
+      this->allocate_default_remaining_outputs();
+      return;
+    }
+
     for (const bNodeSocket *output : this->node().output_sockets()) {
       if (!is_socket_available(output)) {
         continue;
@@ -249,11 +254,6 @@ class ImageOperation : public NodeOperation {
   {
     Result &result = this->get_result(identifier);
     if (!result.should_compute()) {
-      return;
-    }
-
-    if (!this->get_image() || !this->get_image_user()) {
-      result.allocate_invalid();
       return;
     }
 
@@ -327,7 +327,7 @@ static NodeOperation *get_compositor_operation(Context &context, const bNode &no
   return new ImageOperation(context, node);
 }
 
-static void register_node()
+static void node_register()
 {
   static bke::bNodeType ntype;
 
@@ -346,6 +346,6 @@ static void register_node()
 
   bke::node_register_type(ntype);
 }
-NOD_REGISTER_NODE(register_node)
+NOD_REGISTER_NODE(node_register)
 
 }  // namespace blender::nodes::node_composite_image_cc

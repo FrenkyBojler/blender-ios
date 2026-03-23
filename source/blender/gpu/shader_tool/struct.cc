@@ -31,7 +31,7 @@ void SourceProcessor::lower_classes(Parser &parser)
 void SourceProcessor::lint_constructors(Parser &parser)
 {
   parser().foreach_struct([&](Token, Scope, Token struct_name, Scope struct_scope) {
-    struct_scope.foreach_match("w(..)", [&](const Tokens &t) {
+    struct_scope.foreach_match("A(..)", [&](const Tokens &t) {
       if (t[0].scope() != struct_scope) {
         return;
       }
@@ -46,7 +46,7 @@ void SourceProcessor::lint_constructors(Parser &parser)
  * there is no pointers. */
 void SourceProcessor::lint_forward_declared_structs(Parser &parser)
 {
-  parser().foreach_match("sw;", [&](const Tokens &t) {
+  parser().foreach_match("sA;", [&](const Tokens &t) {
     if (t[0].scope().type() == ScopeType::Global) {
       report_error_(ERROR_TOK(t[0]), "Forward declaration of types are not supported.");
     }
@@ -73,7 +73,7 @@ void SourceProcessor::lower_default_constructors(Parser &parser)
     int decl_count = 0;
     string decl;
     body.foreach_declaration([&](Scope, Token, Token type, Scope, Token name, Scope array, Token) {
-      auto default_value = [&](const string &type) -> string {
+      auto default_value = [&](const string_view type) -> string {
         if (type == "float") {
           return "0.0f";
         }
@@ -86,29 +86,29 @@ void SourceProcessor::lower_default_constructors(Parser &parser)
         if (type == "bool") {
           return "false";
         }
-        if (builtin_types.find(type) != builtin_types.end()) {
-          return type + "(0)";
+        if (builtin_types.find(string(type)) != builtin_types.end()) {
+          return string(type) + "(0)";
         }
-        return type + "{}";
+        return string(type) + "{}";
       };
 
       if (array.is_valid()) {
         int array_len = static_array_size(array, 0);
         if (array_len == 0) {
-          decl += "for(int i=0;i < " + array.str_exclusive() + ";i++){";
-          decl += "r." + name.str() + "[i]=" + default_value(type.str()) + ";";
+          decl += "for(int i=0;i < " + string(array.str_exclusive()) + ";i++){";
+          decl += "r." + string(name.str()) + "[i]=" + default_value(type.str()) + ";";
           decl += "}";
         }
         else {
           for (int i = 0; i < array_len; i++) {
-            decl += "r." + name.str() + "[" + to_string(i) + "]";
+            decl += "r." + string(name.str()) + "[" + to_string(i) + "]";
             decl += "=" + default_value(type.str()) + ";";
           }
         }
       }
       else {
         /* Assigning members one by one as the foreach decl iterator can be out of order. */
-        decl += "r." + name.str() + "=" + default_value(type.str()) + ";";
+        decl += "r." + string(name.str()) + "=" + default_value(type.str()) + ";";
       }
       decl_count++;
     });
@@ -118,7 +118,8 @@ void SourceProcessor::lower_default_constructors(Parser &parser)
       decl += "r._pad=0;";
     }
 
-    decl = "static " + name.str() + " ctor_() {" + name.str() + " r;" + decl + "return r;}";
+    decl = "static " + string(name.str()) + " ctor_() {" + string(name.str()) + " r;" + decl +
+           "return r;}";
 
     parser.insert_after(body.front().str_index_last_no_whitespace(), decl);
   });
@@ -131,7 +132,7 @@ void SourceProcessor::lower_implicit_member(Parser &parser)
     vector<Token> members_tokens;
     vector<Token> methods_tokens;
 
-    auto is_class_token = [&](const vector<Token> &members, const string &token) {
+    auto is_class_token = [&](const vector<Token> &members, const string_view token) {
       for (const Token &member : members) {
         if (token == member.str()) {
           return true;
@@ -157,10 +158,10 @@ void SourceProcessor::lower_implicit_member(Parser &parser)
           if (is_static) {
             return;
           }
-          fn_args.foreach_match("ww", check_shadowing);
-          fn_args.foreach_match("&w", check_shadowing);
-          fn_body.foreach_match("ww", check_shadowing);
-          fn_body.foreach_match("&w", check_shadowing);
+          fn_args.foreach_match("AA", check_shadowing);
+          fn_args.foreach_match("&A", check_shadowing);
+          fn_body.foreach_match("AA", check_shadowing);
+          fn_body.foreach_match("&A", check_shadowing);
           methods_tokens.emplace_back(fn_name);
         });
 
@@ -169,7 +170,7 @@ void SourceProcessor::lower_implicit_member(Parser &parser)
         return;
       }
       fn_body.foreach_token(Word, [&](Token tok) {
-        if (tok.prev() != Deref && tok.prev() != Dot &&
+        if (!(tok.prev().prev() == '-' && tok.prev() == '>') && tok.prev() != Dot &&
             /* Reject namespace qualified symbols. */
             (tok.prev() != Colon || tok.prev().prev() != Colon))
         {
@@ -202,18 +203,18 @@ void SourceProcessor::lower_method_definitions(Parser &parser)
   /* `return *this;` -> `return this_;` */
   parser().foreach_match("*T;", [&](const Tokens &t) { parser.replace(t[0], t[1], "this_"); });
   /* `this->` -> `this_.` */
-  parser().foreach_match("TD", [&](const Tokens &t) { parser.replace(t[0], t[1], "this_."); });
+  parser().foreach_match("T->", [&](const Tokens &t) { parser.replace(t[0], t[2], "this_."); });
 
   parser.apply_mutations();
 
-  parser().foreach_match("sw:", [&](const Tokens &toks) {
+  parser().foreach_match("sA:", [&](const Tokens &toks) {
     if (toks[2] == ':') {
       report_error_(ERROR_TOK(toks[2]), "class inheritance is not supported");
       return;
     }
   });
 
-  parser().foreach_match("cww(..)c?{..}", [&](const Tokens &toks) {
+  parser().foreach_match("cAA(..)c?{..}", [&](const Tokens &toks) {
     if (toks[0].prev() == Const) {
       report_error_(ERROR_TOK(toks[0]),
                     "function return type is marked `const` but it makes no sense for values "
@@ -237,8 +238,8 @@ void SourceProcessor::lower_method_definitions(Parser &parser)
 
     struct_scope.foreach_function(
         [&](bool is_static, Token fn_type, Token fn_name, Scope fn_args, bool is_const, Scope) {
-          const Token static_tok = is_static ? fn_type.prev() : Token::invalid();
-          const Token const_tok = is_const ? fn_args.back().next() : Token::invalid();
+          const Token static_tok = is_static ? fn_type.prev() : Token(parser);
+          const Token const_tok = is_const ? fn_args.back().next() : Token(parser);
 
           if (fn_name.str()[0] == '_') {
             report_error_(ERROR_TOK(fn_name),
@@ -246,7 +247,8 @@ void SourceProcessor::lower_method_definitions(Parser &parser)
           }
 
           if (is_static) {
-            parser.replace(fn_name, struct_name.str() + namespace_separator + fn_name.str());
+            parser.replace(
+                fn_name, string(struct_name.str()) + namespace_separator + string(fn_name.str()));
             /* WORKAROUND: Erase the static keyword as it conflicts with the wrapper class
              * member accesses MSL. */
             parser.erase(static_tok);
@@ -262,11 +264,12 @@ void SourceProcessor::lower_method_definitions(Parser &parser)
             parser.erase(const_tok);
             if (is_const && !is_resource_table) {
               parser.insert_after(fn_args.front(),
-                                  prefix + "const " + struct_name.str() + " this_" + suffix);
+                                  prefix + "const " + string(struct_name.str()) + " this_" +
+                                      suffix);
             }
             else {
               parser.insert_after(fn_args.front(),
-                                  prefix + struct_name.str() + " &this_" + suffix);
+                                  prefix + string(struct_name.str()) + " &this_" + suffix);
             }
 
             if (fn_name.str().length() > 1 &&
@@ -334,7 +337,7 @@ void SourceProcessor::lower_method_calls(Parser &parser)
 {
   do {
     parser().foreach_scope(ScopeType::Function, [&](Scope scope) {
-      scope.foreach_match(".w(", [&](const vector<Token> &tokens) {
+      scope.foreach_match(".A(", [&](const vector<Token> &tokens) {
         const Token dot = tokens[0];
         const Token func = tokens[1];
         const Token par_open = tokens[2];
@@ -368,7 +371,7 @@ void SourceProcessor::lower_method_calls(Parser &parser)
           break;
         }
         string this_str = parser.substr_range_inclusive(start_of_this, end_of_this);
-        string func_str = method_call_prefix + func.str();
+        string func_str = method_call_prefix + string(func.str());
         const bool has_no_arg = par_open.next() == ')';
         /* `a.fn(b)` -> `_fn(a, b)` */
         parser.replace_try(
