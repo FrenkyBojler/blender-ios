@@ -11120,7 +11120,7 @@ static int handle_menu_event(bContext *C,
       }
 
       /* add menu scroll timer, if needed */
-      if (menu_scroll_test(block, my)) {
+      if ((U.uiflag2 & USER_UIFLAG2_MENU_AUTO_SCROLL) && menu_scroll_test(block, my)) {
         if (menu->scrolltimer == nullptr) {
           menu->scrolltimer = WM_event_timer_add(
               CTX_wm_manager(C), CTX_wm_window(C), TIMER, MENU_SCROLL_INTERVAL);

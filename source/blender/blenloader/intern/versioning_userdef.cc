@@ -1766,6 +1766,9 @@ void blo_do_versions_userdef(UserDef *userdef)
   if (!USER_VERSION_ATLEAST(502, 3)) {
     userdef->uiflag2 |= USER_UIFLAG2_SHOW_ONLINE_ASSETS;
   }
+  if (!USER_VERSION_ATLEAST(502, 13)) {
+    userdef->uiflag2 |= USER_UIFLAG2_MENU_AUTO_SCROLL;
+  }
 
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning

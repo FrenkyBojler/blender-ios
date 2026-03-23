@@ -368,6 +368,7 @@ class USERPREF_PT_interface_menus(InterfacePanel, CenterAlignMixIn, Panel):
         view = prefs.view
         col = layout.column()
         col.prop(view, "menu_close_leave")
+        col.prop(view, "use_menu_auto_scroll_handlers")
 
 
 class USERPREF_PT_interface_menus_mouse_over(InterfacePanel, CenterAlignMixIn, Panel):

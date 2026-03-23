@@ -5159,6 +5159,13 @@ static void rna_def_userdef_view(BlenderRNA *brna)
       "Open on Mouse Over",
       "Open menu buttons and pull-downs automatically when the mouse is hovering");
 
+  prop = RNA_def_property(srna, "use_menu_auto_scroll_handlers", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "uiflag2", USER_UIFLAG2_MENU_AUTO_SCROLL);
+  RNA_def_property_ui_text(
+      prop,
+      "Use Auto Scroll Menus Handlers",
+      "When the mouse is moved to the top/bottom of menus/popups they will auto scroll.");
+
   prop = RNA_def_property(srna, "menu_close_leave", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", USER_MENU_CLOSE_LEAVE);
   RNA_def_property_ui_text(
