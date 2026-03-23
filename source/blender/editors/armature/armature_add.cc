@@ -1455,7 +1455,7 @@ static wmOperatorStatus armature_symmetrize_exec(bContext *C, wmOperator *op)
              * So just use the same parent for both.
              */
 
-            if (ebone->head[axis] != 0.0f) {
+            if (blender::math::abs(ebone->head[axis]) > std::numeric_limits<float>::epsilon()) {
               /* The mirrored bone doesn't start on the mirror axis, so assume that this one
                * should not be connected to the old parent */
               ebone->flag &= ~BONE_CONNECTED;
