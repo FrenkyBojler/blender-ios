@@ -7630,7 +7630,7 @@ def km_3d_view_tool_edit_armature_bone_size(params):
         {"space_type": 'VIEW_3D', "region_type": 'WINDOW'},
         {"items": [
             ("transform.bbone_resize", {**params.tool_maybe_tweak_event, **params.tool_modifier},
-             {"properties": [("release_confirm", True)]}),            
+             {"properties": [("release_confirm", True)]}),
         ]},
     )
 
