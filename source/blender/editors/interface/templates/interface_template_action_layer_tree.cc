@@ -126,16 +126,22 @@ class ActionLayerDropTarget : public TreeViewItemDropTarget {
         drag_info.drag_data.poin);
 
     Layer &drag_layer = *drag_data->layer;
+    const int drag_index = action_.layers().first_index(&drag_layer);
     int drop_index = action_.layers().first_index(&layer_);
     switch (drag_info.drop_location) {
       case DropLocation::Before:
-        if (action_.layers().first_index(&drag_layer) < drop_index) {
-          // drop_index--;
+        if (drag_index > drop_index) {
+          BLI_assert(drop_index < action_.layer_array_num);
+          drop_index++;
         }
         action_.layer_move_reorder(drag_layer, drop_index);
         action_.layer_active_set(drag_layer);
         break;
       case DropLocation::After:
+        if (drag_index < drop_index) {
+          BLI_assert(drop_index > 0);
+          drop_index--;
+        }
         action_.layer_move_reorder(drag_layer, drop_index);
         action_.layer_active_set(drag_layer);
         break;
@@ -214,12 +220,6 @@ class ActionLayerItem : public AbstractTreeViewItem {
   StringRef get_rename_string() const override
   {
     return layer_.name;
-  }
-
-  void delete_item(bContext *C) override
-  {
-    action_.layer_remove(layer_);
-    ED_undo_push(C, "Delete Action Layer");
   }
 
   std::unique_ptr<AbstractViewItemDragController> create_drag_controller() const override
