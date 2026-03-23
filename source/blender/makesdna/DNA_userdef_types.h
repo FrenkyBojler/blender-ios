@@ -1254,11 +1254,11 @@ struct UserDef {
 
   UserDef_Experimental experimental;
 
-  char armature_new_display_type = USER_ARM_DISPLAY_TEXTURE; /* eUserpref_ArmatureDisplyType */
+  char armature_new_display_type = USER_ARM_DISPLAY_TEXTURE; /* eUserpref_ArmatureDisplayType */
   char _pad19[3] = {};
 
   char armature_data_new_display_type =
-      USER_ARM_DRAW_TYPE_OCTA; /* eUserpref_ArmatureDATADisplyType */
+      USER_ARM_DRAW_TYPE_OCTA; /* eUserpref_ArmatureDataDisplayType */
   char _pad20[3] = {};
 
   int bone_new_rotation_mode = USER_BONE_ROT_MODE_QUAT; /* eUserpref_BoneRotationMode */

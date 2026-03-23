@@ -542,7 +542,7 @@ class USERPREF_PT_edit_armatures(EditingPanel, CenterAlignMixIn, Panel):
 
         col = layout.column()
         col.prop(view, "armature_new_display_type", text="Object Display Type")
-        col.prop(view, "armature_data_new_display_type", text="Bone Display Type")
+        col.prop(view, "armature_data_new_display_type", text="Armature Display Type")
         col.prop(view, "bone_new_rotation_mode", text="Bone Rotation Mode")
 
 
