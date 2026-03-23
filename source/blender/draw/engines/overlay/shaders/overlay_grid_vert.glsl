@@ -134,11 +134,19 @@ void main()
   /* Apply per-level size, camera offset. */
   line.P = step_offs + step_size * line.P;
 
-  /* Compute clipping rectangle for SpaceImage view. */
+  /* Compute clipping rectangle for some parts. */
   float2 clip_min = float2(-FLT_MAX), clip_max = float2(FLT_MAX);
   if (flag_test(grid_flag, GRID_SIMA)) {
+    /* SpaceImage view has user-specified clipping rectangle */
     clip_min = float2(-1.0f);
     clip_max = grid_buf.clip_rect * 2.0f - 1.0f;
+  }
+  else if (flag_test(grid_flag, SHOW_AXES) && line.axis == 2) {
+    /* Z-axis is visible at extreme scales, and needs to be clipped/clamped. Clipping
+     * Clipping is applied to the X-axis; it is swapped to the Z-axis below. */
+    /* TODO(not_mark): this axis-shifting weirdness is cleaned up in the BSL port. */
+    clip_min = float2(step_offs.x - grid_buf.clip_rect.x, 0);
+    clip_max = float2(step_offs.x + grid_buf.clip_rect.x, 0);
   }
 
   /* Clip/clamp; lines entirely outside the rectangle get discarded; others get brought
