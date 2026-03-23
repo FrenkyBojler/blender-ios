@@ -279,7 +279,7 @@ static void rna_trackingTrack_name_set(PointerRNA *ptr, const char *value)
     BKE_tracking_get_rna_path_prefix_for_track(
         &clip->tracking, track, rna_path_prefix, sizeof(rna_path_prefix));
     BKE_animdata_fix_paths_rename(
-        &clip->id, adt, nullptr, rna_path_prefix, old_name, track->name, 0, 0, 1);
+        &clip->id, adt, nullptr, rna_path_prefix, old_name, track->name, 0, 0, 1, true);
   }
 }
 
@@ -367,7 +367,7 @@ static void rna_trackingPlaneTrack_name_set(PointerRNA *ptr, const char *value)
     BKE_tracking_get_rna_path_prefix_for_plane_track(
         &clip->tracking, plane_track, rna_path, sizeof(rna_path));
     BKE_animdata_fix_paths_rename(
-        &clip->id, adt, nullptr, rna_path, old_name, plane_track->name, 0, 0, 1);
+        &clip->id, adt, nullptr, rna_path, old_name, plane_track->name, 0, 0, 1, true);
   }
 }
 

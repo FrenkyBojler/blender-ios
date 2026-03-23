@@ -165,7 +165,8 @@ void BKE_animdata_fix_paths_rename(struct ID *owner_id,
                                    const char *newName,
                                    int oldSubscript,
                                    int newSubscript,
-                                   bool verify_paths);
+                                   bool verify_paths,
+                                   bool add_brackets);
 
 /**
  * Fix all RNA-Paths throughout the database (directly access the #Global.main version).
@@ -180,7 +181,8 @@ void BKE_animdata_fix_paths_rename_all_ex(struct Main *bmain,
                                           const char *newName,
                                           int oldSubscript,
                                           int newSubscript,
-                                          bool verify_paths);
+                                          bool verify_paths,
+                                          bool add_brackets);
 
 /** See #BKE_animdata_fix_paths_rename_all_ex */
 void BKE_animdata_fix_paths_rename_all(struct ID *ref_id,

@@ -2645,11 +2645,11 @@ static wmOperatorStatus texture_slot_move_exec(bContext *C, wmOperator *op)
         mtex_ar[act - 1] = mtexswap;
 
         BKE_animdata_fix_paths_rename(
-            id, adt, nullptr, "texture_slots", nullptr, nullptr, act - 1, -1, false);
+            id, adt, nullptr, "texture_slots", nullptr, nullptr, act - 1, -1, false, true);
         BKE_animdata_fix_paths_rename(
-            id, adt, nullptr, "texture_slots", nullptr, nullptr, act, act - 1, false);
+            id, adt, nullptr, "texture_slots", nullptr, nullptr, act, act - 1, false, true);
         BKE_animdata_fix_paths_rename(
-            id, adt, nullptr, "texture_slots", nullptr, nullptr, -1, act, false);
+            id, adt, nullptr, "texture_slots", nullptr, nullptr, -1, act, false, true);
 
         set_active_mtex(id, act - 1);
       }
@@ -2661,11 +2661,11 @@ static wmOperatorStatus texture_slot_move_exec(bContext *C, wmOperator *op)
         mtex_ar[act + 1] = mtexswap;
 
         BKE_animdata_fix_paths_rename(
-            id, adt, nullptr, "texture_slots", nullptr, nullptr, act + 1, -1, false);
+            id, adt, nullptr, "texture_slots", nullptr, nullptr, act + 1, -1, false, true);
         BKE_animdata_fix_paths_rename(
-            id, adt, nullptr, "texture_slots", nullptr, nullptr, act, act + 1, false);
+            id, adt, nullptr, "texture_slots", nullptr, nullptr, act, act + 1, false, true);
         BKE_animdata_fix_paths_rename(
-            id, adt, nullptr, "texture_slots", nullptr, nullptr, -1, act, false);
+            id, adt, nullptr, "texture_slots", nullptr, nullptr, -1, act, false, true);
 
         set_active_mtex(id, act + 1);
       }

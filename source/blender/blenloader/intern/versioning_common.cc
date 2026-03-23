@@ -450,8 +450,15 @@ void version_node_socket_index_animdata(Main *bmain,
         char *rna_path_prefix = BLI_sprintfN("nodes[\"%s\"].inputs", node_name_escaped);
 
         const int new_index = input_index + socket_index_offset;
-        BKE_animdata_fix_paths_rename_all_ex(
-            bmain, owner_id, rna_path_prefix, nullptr, nullptr, input_index, new_index, false);
+        BKE_animdata_fix_paths_rename_all_ex(bmain,
+                                             owner_id,
+                                             rna_path_prefix,
+                                             nullptr,
+                                             nullptr,
+                                             input_index,
+                                             new_index,
+                                             false,
+                                             true);
         MEM_delete(rna_path_prefix);
       }
     }

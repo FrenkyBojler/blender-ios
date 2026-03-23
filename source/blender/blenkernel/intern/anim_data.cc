@@ -1038,7 +1038,8 @@ void BKE_animdata_fix_paths_rename(ID *owner_id,
                                    const char *newName,
                                    int oldSubscript,
                                    int newSubscript,
-                                   bool verify_paths)
+                                   bool verify_paths,
+                                   bool add_brackets)
 {
   char *oldN, *newN;
   /* If no AnimData, no need to proceed. */
@@ -1048,18 +1049,24 @@ void BKE_animdata_fix_paths_rename(ID *owner_id,
   bool is_self_changed = false;
   /* Name sanitation logic - shared with BKE_action_fix_paths_rename(). */
   if ((oldName != nullptr) && (newName != nullptr)) {
-    /* Pad the names with [" "] so that only exact matches are made. */
-    const size_t name_old_len = strlen(oldName);
-    const size_t name_new_len = strlen(newName);
-    char *name_old_esc = static_cast<char *>(
-        BLI_array_alloca(name_old_esc, (name_old_len * 2) + 1));
-    char *name_new_esc = static_cast<char *>(
-        BLI_array_alloca(name_new_esc, (name_new_len * 2) + 1));
+    if (add_brackets) {
+      /* Pad the names with [" "] so that only exact matches are made. */
+      const size_t name_old_len = strlen(oldName);
+      const size_t name_new_len = strlen(newName);
+      char *name_old_esc = static_cast<char *>(
+          BLI_array_alloca(name_old_esc, (name_old_len * 2) + 1));
+      char *name_new_esc = static_cast<char *>(
+          BLI_array_alloca(name_new_esc, (name_new_len * 2) + 1));
 
-    BLI_str_escape(name_old_esc, oldName, (name_old_len * 2) + 1);
-    BLI_str_escape(name_new_esc, newName, (name_new_len * 2) + 1);
-    oldN = BLI_sprintfN("[\"%s\"]", name_old_esc);
-    newN = BLI_sprintfN("[\"%s\"]", name_new_esc);
+      BLI_str_escape(name_old_esc, oldName, (name_old_len * 2) + 1);
+      BLI_str_escape(name_new_esc, newName, (name_new_len * 2) + 1);
+      oldN = BLI_sprintfN("[\"%s\"]", name_old_esc);
+      newN = BLI_sprintfN("[\"%s\"]", name_new_esc);
+    }
+    else {
+      oldN = BLI_strdup(oldName);
+      newN = BLI_strdup(newName);
+    }
   }
   else {
     oldN = BLI_sprintfN("[%d]", oldSubscript);
