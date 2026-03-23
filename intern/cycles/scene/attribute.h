@@ -79,48 +79,48 @@ class Attribute {
   size_t element_size(Geometry *geom, AttributePrimitive prim) const;
   size_t buffer_size(Geometry *geom, AttributePrimitive prim) const;
 
-  char *data()
+  char *data_for_write()
   {
     return (!buffer.empty()) ? buffer.data() : nullptr;
   }
-  float2 *data_float2()
+  float2 *data_float2_for_write()
   {
     assert(data_sizeof() == sizeof(float2));
     return (float2 *)data();
   }
-  float3 *data_float3()
+  float3 *data_float3_for_write()
   {
     assert(data_sizeof() == sizeof(float3));
     return (float3 *)data();
   }
-  float4 *data_float4()
+  float4 *data_float4_for_write()
   {
     assert(data_sizeof() == sizeof(float4));
     return (float4 *)data();
   }
-  float *data_float()
+  float *data_float_for_write()
   {
     assert(data_sizeof() == sizeof(float));
     return (float *)data();
   }
-  uchar4 *data_uchar4()
+  uchar4 *data_uchar4_for_write()
   {
     assert(data_sizeof() == sizeof(uchar4));
     return (uchar4 *)data();
   }
-  packed_normal *data_normal()
+  packed_normal *data_normal_for_write()
   {
     assert(data_sizeof() == sizeof(packed_normal));
     return (packed_normal *)data();
   }
-  Transform *data_transform()
+  Transform *data_transform_for_write()
   {
     assert(data_sizeof() == sizeof(Transform));
     return (Transform *)data();
   }
 
   /* Attributes for voxels are images */
-  ImageHandle &data_voxel()
+  ImageHandle &data_voxel_for_write()
   {
     assert(data_sizeof() == sizeof(ImageHandle));
     return *(ImageHandle *)data();
@@ -149,6 +149,16 @@ class Attribute {
   {
     assert(data_sizeof() == sizeof(float));
     return (const float *)data();
+  }
+  const uchar4 *data_uchar4() const
+  {
+    assert(data_sizeof() == sizeof(uchar4));
+    return (uchar4 *)data();
+  }
+  const packed_normal *data_normal() const
+  {
+    assert(data_sizeof() == sizeof(packed_normal));
+    return (packed_normal *)data();
   }
   const Transform *data_transform() const
   {
