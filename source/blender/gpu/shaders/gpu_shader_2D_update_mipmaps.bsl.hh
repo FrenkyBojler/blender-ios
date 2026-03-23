@@ -6,6 +6,11 @@
 
 #include "gpu_shader_compat.hh"
 
+enum TextureFormat : uint32_t {
+  UNORM_8_8_8_8,
+  SFLOAT_16,
+};
+
 namespace builtin::mipmaps {
 
 /* Conversion functions. */
@@ -80,11 +85,6 @@ uint srgb_pack(float4 linear_color)
 #define TILE_SIZE 8
 #define MAX_SHARED_SAMPLES (TILE_SIZE + TILE_SIZE + 1)
 #define INPUT_LEVEL 0
-
-enum TextureFormat : uint32_t {
-  UNORM_8_8_8_8,
-  SFLOAT_16,
-};
 
 /** Shared storage that can store intermediate results in an SRGB encoded uint. */
 struct SharedSRGB {
@@ -368,12 +368,12 @@ template<enum TextureFormat format, typename SharedStorage, typename InnerType> 
         }
       }
 
-      InnerType sample = reduce_store_sample<false>(
+      InnerType result = reduce_store_sample<false>(
           src_coord, src_level, kernel_size, dst_image_size, dst_coord, dst_level);
 
       /* `reduce_store_sample` handles writing to the actual output; manually
        * cache into shared memory here. */
-      store_shared_sample(shared_coord, sample);
+      store_shared_sample(shared_coord, result);
       dst_coord += step;
       shared_coord += step;
     }
@@ -504,9 +504,9 @@ template float Resources<SFLOAT_16, SharedFloat, float>::reduce_store_sample<fal
 
 template<typename SRT>
 [[local_size(LOCAL_SIZE_X)]] [[compute]]
-void update_mipmaps(const uint3 global_id,
-                    const uint3 group_id,
-                    const uint local_index,
+void update_mipmaps([[global_invocation_id]] const uint3 global_id,
+                    [[work_group_id]] const uint3 group_id,
+                    [[local_invocation_id]] const uint3 local_index,
                     [[resource_table]] SRT &srt)
 {
   if (srt.num_levels == 1u) {
@@ -541,18 +541,18 @@ void update_mipmaps(const uint3 global_id,
     if (use_bounds_check) {
       /* Compute the tile in level inputLevel_ + 1 that's needed to
        * compute the above 8x8 tile. */
-      srt.fill_intermediate_tile(local_index, tile_index * 2 * int2(8, 8), true);
+      srt.fill_intermediate_tile(local_index.x, tile_index * 2 * int2(8, 8), true);
       barrier();
 
       /* Compute the inputLevel_ + 2 tile of size 8x8, loading
        * inputs from shared memory. */
-      srt.fill_last_tile(local_index, tile_index * int2(8, 8), true);
+      srt.fill_last_tile(local_index.x, tile_index * int2(8, 8), true);
     }
     else {
       /* Same but without bounds checking. */
-      srt.fill_intermediate_tile(local_index, tile_index * 2 * int2(8, 8), false);
+      srt.fill_intermediate_tile(local_index.x, tile_index * 2 * int2(8, 8), false);
       barrier();
-      srt.fill_last_tile(local_index, tile_index * int2(8, 8), false);
+      srt.fill_last_tile(local_index.x, tile_index * int2(8, 8), false);
     }
   }
 }
@@ -560,26 +560,20 @@ void update_mipmaps(const uint3 global_id,
 template void update_mipmaps<Resources<UNORM_8_8_8_8, SharedSRGB, float4>>(
     [[global_invocation_id]] const uint3 global_id,
     [[work_group_id]] const uint3 group_id,
-    [[local_invocation_index]] const uint local_index,
+    [[local_invocation_index]] const uint3 local_index,
     [[resource_table]] Resources<UNORM_8_8_8_8, SharedSRGB, float4> &srt);
 template void update_mipmaps<Resources<SFLOAT_16, SharedFloat, float>>(
     [[global_invocation_id]] const uint3 global_id,
     [[work_group_id]] const uint3 group_id,
-    [[local_invocation_index]] const uint local_index,
+    [[local_invocation_index]] const uint3 local_index,
     [[resource_table]] Resources<SFLOAT_16, SharedFloat, float> &srt);
 
 }  // namespace builtin::mipmaps
 
 PipelineCompute gpu_shader_2D_update_mipmaps_unorm_8_8_8_8(
-    builtin::mipmaps::update_mipmaps<builtin::mipmaps::Resources<builtin::mipmaps::UNORM_8_8_8_8,
-                                                                 builtin::mipmaps::SharedSRGB,
-                                                                 float4>>,
-    builtin::mipmaps::
-        Resources<builtin::mipmaps::UNORM_8_8_8_8, builtin::mipmaps::SharedSRGB, float4>{});
+    builtin::mipmaps::update_mipmaps<
+        builtin::mipmaps::Resources<UNORM_8_8_8_8, builtin::mipmaps::SharedSRGB, float4>>);
 
 PipelineCompute gpu_shader_2D_update_mipmaps_sfloat_16(
-    builtin::mipmaps::update_mipmaps<builtin::mipmaps::Resources<builtin::mipmaps::SFLOAT_16,
-                                                                 builtin::mipmaps::SharedFloat,
-                                                                 float>>,
-    builtin::mipmaps::
-        Resources<builtin::mipmaps::SFLOAT_16, builtin::mipmaps::SharedFloat, float>{});
+    builtin::mipmaps::update_mipmaps<
+        builtin::mipmaps::Resources<SFLOAT_16, builtin::mipmaps::SharedFloat, float>>);
