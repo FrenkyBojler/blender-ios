@@ -134,35 +134,20 @@ void main()
   /* Apply per-level size, camera offset. */
   line.P = step_offs + step_size * line.P;
 
-  /* Compute clipping rectangle. */
-  float2 clip_min, clip_max;
+  /* Compute clipping rectangle for SpaceImage view. */
+  float2 clip_min = float2(-FLT_MAX), clip_max = float2(FLT_MAX);
   if (flag_test(grid_flag, GRID_SIMA)) {
-    /* Clipping rectangle is [-1, 1]. */
     clip_min = float2(-1.0f);
     clip_max = grid_buf.clip_rect * 2.0f - 1.0f;
-  }
-  else if (flag_test(grid_flag, SHOW_GRID)) {
-    /* Clipping rectangle is simply forwarded. */
-    clip_min = grid_buf.offset - grid_buf.clip_rect;
-    clip_max = grid_buf.offset + grid_buf.clip_rect;
-  }
-  else { /* SHOW_AXES */
-    /* Clipping is applied to X-axis; line is moved to the correct axis below. */
-    float offset = grid::unpack_xy_to_axis(grid_buf.offset, grid_flag, line.axis);
-    float clip_rect = grid::unpack_xy_to_axis(grid_buf.clip_rect, grid_flag, line.axis);
-    clip_min = float2(offset - clip_rect, 0.0f);
-    clip_max = float2(offset + clip_rect, 0.0f);
   }
 
   /* Clip/clamp; lines entirely outside the rectangle get discarded; others get brought
    * inside the rectangle to avoid precision problems with large lines. Z-axis ignores this. */
-  if (line.axis != 2) {
-    bool line_outside_rect = all(lessThan(line.P, clip_min)) || all(greaterThan(line.P, clip_max));
-    if (line_outside_rect) {
-      return; /* Discard line. */
-    }
-    line.P = clamp(line.P, clip_min, clip_max);
+  bool line_outside_rect = all(lessThan(line.P, clip_min)) || all(greaterThan(line.P, clip_max));
+  if (line_outside_rect) {
+    return; /* Discard line. */
   }
+  line.P = clamp(line.P, clip_min, clip_max);
 
   /* Output world-space position. */
   vertex_out.pos = float3(0.0f);
