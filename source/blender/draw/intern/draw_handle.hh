@@ -41,9 +41,11 @@
 /* ObjectKey */
 #include "DEG_depsgraph_query.hh"
 
+namespace blender {
+
 struct DupliCacheManager;
 
-namespace blender::draw {
+namespace draw {
 
 /**
  * Index for getting a specific resource from the Draw Manager resource arrays.
@@ -57,7 +59,7 @@ struct ResourceIndex {
   uint32_t raw;
 
   ResourceIndex() = default;
-  ResourceIndex(uint raw_) : raw(raw_){};
+  ResourceIndex(uint raw_) : raw(raw_) {};
   ResourceIndex(uint index, bool inverted_handedness)
   {
     raw = index;
@@ -215,6 +217,9 @@ class ObjectRef {
   /** Object that created the dupli-list the current object is part of. */
   Object *const dupli_parent_ = nullptr;
 
+  /** List of (render-compatible) duplis when rendering a ranges. */
+  const VectorList<DupliObject *> *duplis_ = nullptr;
+
   /** Unique handle per object ref. */
   ResourceHandleRange handle_ = {};
   ResourceHandleRange sculpt_handle_ = {};
@@ -222,32 +227,52 @@ class ObjectRef {
  public:
   Object *const object;
 
-  ObjectRef(DEGObjectIterData &iter_data, Object *ob);
-  explicit ObjectRef(Object *ob);
+  explicit ObjectRef(Object *ob,
+                     Object *dupli_parent = nullptr,
+                     DupliObject *dupli_object = nullptr);
+  explicit ObjectRef(Object &ob, Object *dupli_parent, const VectorList<DupliObject *> &duplis);
 
   /* Is the object coming from a Dupli system. */
   bool is_dupli() const
   {
-    return dupli_object_ != nullptr;
+    return dupli_parent_ != nullptr;
   }
 
   bool is_active(const Object *active_object) const
   {
-    return (dupli_object_ ? dupli_parent_ : object) == active_object;
+    return (dupli_parent_ ? dupli_parent_ : object) == active_object;
   }
 
   float random() const
   {
-    if (dupli_object_ == nullptr) {
+    if (duplis_) {
+      /* NOTE: The random property is only used by EEVEE,
+       * which currently doesn't support instancing optimizations.
+       * However, ObjectInfos always call this function so the code
+       * is still reachable even if its result won't be used. */
+      // BLI_assert_unreachable();
+      /* TODO: This should fill a span instead. */
+      return 0.0;
+    }
+
+    if (dupli_parent_ == nullptr) {
       /* TODO(fclem): this is rather costly to do at draw time. Maybe we can
        * put it in ob->runtime and make depsgraph ensure it is up to date. */
-      return BLI_hash_int_2d(BLI_hash_string(object->id.name + 2), 0) * (1.0f / (float)0xFFFFFFFF);
+      return BLI_hash_int_2d(BLI_hash_string(object->id.name + 2), 0) * (1.0f / float(0xFFFFFFFF));
     }
-    return dupli_object_->random_id * (1.0f / (float)0xFFFFFFFF);
+    return dupli_object_->random_id * (1.0f / float(0xFFFFFFFF));
   }
 
   bool find_rgba_attribute(const GPUUniformAttr &attr, float r_value[4]) const
   {
+    if (duplis_) {
+      /* NOTE: This function is only called for EEVEE, which currently doesn't support instancing
+       * optimizations, so this code should be unreachable. */
+      BLI_assert_unreachable();
+      /* TODO: r_value should be a Span. */
+      return false;
+    }
+
     /* If requesting instance data, check the parent particle system and object. */
     if (attr.use_dupli) {
       return BKE_object_dupli_find_rgba_attribute(
@@ -258,14 +283,13 @@ class ObjectRef {
 
   LightLinking *light_linking() const
   {
-    /* TODO: Could this be handled directly by deg_iterator_duplis_step?  */
     return dupli_parent_ ? dupli_parent_->light_linking : object->light_linking;
   }
 
   int recalc_flags(uint64_t last_update) const
   {
     /* TODO: There should also be a way to get the min last_update for all objects in the range. */
-    auto get_flags = [&](const ObjectRuntimeHandle &runtime) {
+    auto get_flags = [&](const bke::ObjectRuntime &runtime) {
       int flags = 0;
       SET_FLAG_FROM_TEST(flags, runtime.last_update_transform > last_update, ID_RECALC_TRANSFORM);
       SET_FLAG_FROM_TEST(flags, runtime.last_update_geometry > last_update, ID_RECALC_GEOMETRY);
@@ -285,6 +309,14 @@ class ObjectRef {
    * systems need to be offset appropriately. */
   float4x4 particles_matrix() const
   {
+    if (duplis_) {
+      /* NOTE: Objects with particles don't support instancing optimizations yet, so this code
+       * should be unreachable. */
+      BLI_assert_unreachable();
+      /* TODO: This should fill a span instead. */
+      return float4x4::identity();
+    }
+
     /* TODO: Pass particle systems as a separate ObRef? */
     float4x4 dupli_mat = float4x4::identity();
     if (dupli_parent_ && dupli_object_) {
@@ -310,7 +342,7 @@ class ObjectRef {
     return -1;
   }
 
-  const blender::bke::GeometrySet *preview_base_geometry() const
+  const bke::GeometrySet *preview_base_geometry() const
   {
     if (dupli_object_) {
       return dupli_object_->preview_base_geometry;
@@ -334,7 +366,9 @@ class ObjectRef {
       return false;
     }
 
-    if (dupli_parent_->sculpt && (dupli_parent_->sculpt->mode_type == OB_MODE_SCULPT)) {
+    if (dupli_parent_->runtime->sculpt_session &&
+        (dupli_parent_->runtime->sculpt_session->mode_type == OB_MODE_SCULPT))
+    {
       return true;
     }
 
@@ -419,6 +453,15 @@ class ObjectKey {
     }
   }
 
+  /* Special handles that will have nullptr object.
+   * Used for inserting helper items inside the hash-maps without creating a dummy #Object. */
+  explicit ObjectKey(int key)
+  {
+    sub_key_ = key;
+    hash_value_ = get_default_hash(ob_);
+    hash_value_ = get_default_hash(hash_value_, get_default_hash(sub_key_));
+  }
+
   uint64_t hash() const
   {
     return hash_value_;
@@ -454,4 +497,6 @@ class ObjectKey {
 
 /** \} */
 
-};  // namespace blender::draw
+};  // namespace draw
+
+}  // namespace blender

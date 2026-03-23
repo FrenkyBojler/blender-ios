@@ -12,6 +12,8 @@
 
 #include <fmt/format.h>
 
+#include "CLG_log.h"
+
 #include "BLI_string.h"
 
 #include "BLT_translation.hh"
@@ -27,6 +29,7 @@
 #include "eevee_ambient_occlusion.hh"
 #include "eevee_camera.hh"
 #include "eevee_cryptomatte.hh"
+#include "eevee_debug_shared.hh"
 #include "eevee_depth_of_field.hh"
 #include "eevee_film.hh"
 #include "eevee_gbuffer.hh"
@@ -53,9 +56,11 @@
 
 namespace blender::eevee {
 
+using UniformDataBuf = draw::UniformBuffer<UniformData>;
+
 /* Combines data from several modules to avoid wasting binding slots. */
 struct UniformDataModule {
-  UniformDataBuf data;
+  UniformDataBuf data = {"UniformDataBuf"};
 
   void push_update()
   {
@@ -77,6 +82,7 @@ class Instance : public DrawEngine {
   friend MotionBlurModule;
 
   /** Debug scopes. */
+  static void *debug_scope_render_frame;
   static void *debug_scope_render_sample;
   static void *debug_scope_irradiance_setup;
   static void *debug_scope_irradiance_sample;
@@ -119,6 +125,8 @@ class Instance : public DrawEngine {
   VolumeProbeModule volume_probes;
   LightProbeModule light_probes;
   VolumeModule volume;
+
+  static CLG_LogRef log;
 
   /** Input data. */
   Depsgraph *depsgraph;
@@ -166,6 +174,8 @@ class Instance : public DrawEngine {
   bool use_curves = true;
   bool use_volumes = true;
 
+  GPUSamplerFiltering anisotropic_filtering = GPU_SAMPLER_FILTERING_DEFAULT;
+
   /** Debug mode from debug value. */
   eDebugMode debug_mode = eDebugMode::DEBUG_NONE;
 
@@ -198,10 +208,10 @@ class Instance : public DrawEngine {
         planar_probes(*this),
         volume_probes(*this),
         light_probes(*this),
-        volume(*this, uniform_data.data.volumes){};
-  ~Instance(){};
+        volume(*this, uniform_data.data.volumes) {};
+  ~Instance() {};
 
-  blender::StringRefNull name_get() final
+  StringRefNull name_get() final
   {
     return "EEVEE";
   }
@@ -271,8 +281,11 @@ class Instance : public DrawEngine {
   /* Append a new line to the info string. */
   template<typename... Args> void info_append(const char *msg, Args &&...args)
   {
-    info_ += fmt::format(fmt::runtime(msg), args...);
-    info_ += "\n";
+    std::string fmt_msg = fmt::format(fmt::runtime(msg), args...) + "\n";
+    /* Don't print the same error twice. */
+    if (info_ != fmt_msg && !BLI_str_endswith(info_.c_str(), fmt_msg.c_str())) {
+      info_ += fmt_msg;
+    }
   }
 
   /* The same as `info_append`, but `msg` will be translated.
@@ -299,6 +312,11 @@ class Instance : public DrawEngine {
   bool is_baking() const
   {
     return is_light_bake;
+  }
+
+  bool is_xr() const
+  {
+    return draw_ctx && draw_ctx->mode == DRWContext::VIEWPORT_XR;
   }
 
   bool overlays_enabled() const
@@ -341,7 +359,7 @@ class Instance : public DrawEngine {
     return ob_ref.recalc_flags(depsgraph_last_update_);
   }
 
-  int get_recalc_flags(const ::World &world)
+  int get_recalc_flags(const blender::World &world)
   {
     return world.last_update > depsgraph_last_update_ ? int(ID_RECALC_SHADING) : 0;
   }

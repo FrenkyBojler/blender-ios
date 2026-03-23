@@ -7,6 +7,8 @@
 #include "NOD_inverse_eval_params.hh"
 #include "NOD_value_elem_eval.hh"
 
+#include "GPU_material.hh"
+
 #include "node_function_util.hh"
 
 namespace blender::nodes::node_fn_matrix_multiply_cc {
@@ -47,11 +49,21 @@ static void node_eval_inverse(inverse_eval::InverseEvalParams &params)
   params.set_input("Matrix", first_input);
 }
 
+static int node_gpu_material(GPUMaterial *material,
+                             bNode *node,
+                             bNodeExecData * /*execdata*/,
+                             GPUNodeStack *inputs,
+                             GPUNodeStack *outputs)
+{
+  return GPU_stack_link(material, node, "node_function_matrix_multiply", inputs, outputs);
+}
+
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
-  fn_node_type_base(&ntype, "FunctionNodeMatrixMultiply", FN_NODE_MATRIX_MULTIPLY);
+  static bke::bNodeType ntype;
+  fn_cmp_node_type_base(&ntype, "FunctionNodeMatrixMultiply", FN_NODE_MATRIX_MULTIPLY);
   ntype.ui_name = "Multiply Matrices";
+  ntype.ui_description = "Perform a matrix multiplication on two input matrices";
   ntype.enum_name_legacy = "MATRIX_MULTIPLY";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
@@ -59,7 +71,8 @@ static void node_register()
   ntype.eval_elem = node_eval_elem;
   ntype.eval_inverse_elem = node_eval_inverse_elem;
   ntype.eval_inverse = node_eval_inverse;
-  blender::bke::node_register_type(ntype);
+  ntype.gpu_fn = node_gpu_material;
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

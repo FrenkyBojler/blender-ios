@@ -11,22 +11,17 @@
 #  pragma GCC diagnostic ignored "-Wuninitialized"
 #endif
 
-#include <cstring>
-
-#include "scene/colorspace.h"
 #include "scene/object.h"
 
+#include "util/colorspace.h"
 #include "util/log.h"
 #include "util/string.h"
+#include "util/types_image.h"
 
 #include "kernel/device/cpu/image.h"
 
-#include "kernel/osl/globals.h"
-#include "kernel/osl/services.h"
-#include "kernel/osl/services_shared.h"
-#include "kernel/osl/types.h"
-
 #include "kernel/integrator/state.h"
+#include "kernel/integrator/state_util.h"
 
 #include "kernel/geom/primitive.h"
 #include "kernel/geom/shader_data.h"
@@ -39,90 +34,17 @@
 #include "kernel/svm/bevel.h"
 
 #include "kernel/util/ies.h"
-#include "kernel/util/texture_3d.h"
+#include "kernel/util/image_3d.h"
+
+#include "kernel/osl/globals.h"
+#include "kernel/osl/services.h"
+#include "kernel/osl/services_shared.h"
+#include "kernel/osl/strings.h"
+#include "kernel/osl/types.h"
 
 CCL_NAMESPACE_BEGIN
 
 /* RenderServices implementation */
-
-static void copy_matrix(OSL::Matrix44 &m, const Transform &tfm)
-{
-  ProjectionTransform t = projection_transpose(ProjectionTransform(tfm));
-  memcpy((float *)&m, (const float *)&t, sizeof(m));
-}
-
-static void copy_matrix(OSL::Matrix44 &m, const ProjectionTransform &tfm)
-{
-  ProjectionTransform t = projection_transpose(tfm);
-  memcpy((float *)&m, (const float *)&t, sizeof(m));
-}
-
-/* static ustrings */
-ustring OSLRenderServices::u_distance("distance");
-ustring OSLRenderServices::u_index("index");
-ustring OSLRenderServices::u_world("world");
-ustring OSLRenderServices::u_camera("camera");
-ustring OSLRenderServices::u_screen("screen");
-ustring OSLRenderServices::u_raster("raster");
-ustring OSLRenderServices::u_ndc("NDC");
-ustring OSLRenderServices::u_object_location("object:location");
-ustring OSLRenderServices::u_object_color("object:color");
-ustring OSLRenderServices::u_object_alpha("object:alpha");
-ustring OSLRenderServices::u_object_index("object:index");
-ustring OSLRenderServices::u_object_is_light("object:is_light");
-ustring OSLRenderServices::u_bump_map_normal("geom:bump_map_normal");
-ustring OSLRenderServices::u_geom_dupli_generated("geom:dupli_generated");
-ustring OSLRenderServices::u_geom_dupli_uv("geom:dupli_uv");
-ustring OSLRenderServices::u_material_index("material:index");
-ustring OSLRenderServices::u_object_random("object:random");
-ustring OSLRenderServices::u_particle_index("particle:index");
-ustring OSLRenderServices::u_particle_random("particle:random");
-ustring OSLRenderServices::u_particle_age("particle:age");
-ustring OSLRenderServices::u_particle_lifetime("particle:lifetime");
-ustring OSLRenderServices::u_particle_location("particle:location");
-ustring OSLRenderServices::u_particle_rotation("particle:rotation");
-ustring OSLRenderServices::u_particle_size("particle:size");
-ustring OSLRenderServices::u_particle_velocity("particle:velocity");
-ustring OSLRenderServices::u_particle_angular_velocity("particle:angular_velocity");
-ustring OSLRenderServices::u_geom_numpolyvertices("geom:numpolyvertices");
-ustring OSLRenderServices::u_geom_trianglevertices("geom:trianglevertices");
-ustring OSLRenderServices::u_geom_polyvertices("geom:polyvertices");
-ustring OSLRenderServices::u_geom_name("geom:name");
-ustring OSLRenderServices::u_geom_undisplaced("geom:undisplaced");
-ustring OSLRenderServices::u_is_smooth("geom:is_smooth");
-ustring OSLRenderServices::u_is_curve("geom:is_curve");
-ustring OSLRenderServices::u_curve_thickness("geom:curve_thickness");
-ustring OSLRenderServices::u_curve_length("geom:curve_length");
-ustring OSLRenderServices::u_curve_tangent_normal("geom:curve_tangent_normal");
-ustring OSLRenderServices::u_curve_random("geom:curve_random");
-ustring OSLRenderServices::u_is_point("geom:is_point");
-ustring OSLRenderServices::u_point_radius("geom:point_radius");
-ustring OSLRenderServices::u_point_position("geom:point_position");
-ustring OSLRenderServices::u_point_random("geom:point_random");
-ustring OSLRenderServices::u_normal_map_normal("geom:normal_map_normal");
-ustring OSLRenderServices::u_path_ray_length("path:ray_length");
-ustring OSLRenderServices::u_path_ray_depth("path:ray_depth");
-ustring OSLRenderServices::u_path_diffuse_depth("path:diffuse_depth");
-ustring OSLRenderServices::u_path_glossy_depth("path:glossy_depth");
-ustring OSLRenderServices::u_path_transparent_depth("path:transparent_depth");
-ustring OSLRenderServices::u_path_transmission_depth("path:transmission_depth");
-ustring OSLRenderServices::u_trace("trace");
-ustring OSLRenderServices::u_hit("hit");
-ustring OSLRenderServices::u_hitdist("hitdist");
-ustring OSLRenderServices::u_N("N");
-ustring OSLRenderServices::u_Ng("Ng");
-ustring OSLRenderServices::u_P("P");
-ustring OSLRenderServices::u_I("I");
-ustring OSLRenderServices::u_u("u");
-ustring OSLRenderServices::u_v("v");
-ustring OSLRenderServices::u_empty;
-
-ustring OSLRenderServices::u_sensor_size("cam:sensor_size");
-ustring OSLRenderServices::u_image_resolution("cam:image_resolution");
-ustring OSLRenderServices::u_aperture_aspect_ratio("cam:aperture_aspect_ratio");
-ustring OSLRenderServices::u_aperture_size("cam:aperture_size");
-ustring OSLRenderServices::u_aperture_position("cam:aperture_position");
-ustring OSLRenderServices::u_focal_distance("cam:focal_distance");
 
 ImageManager *OSLRenderServices::image_manager = nullptr;
 
@@ -157,36 +79,11 @@ bool OSLRenderServices::get_matrix(OSL::ShaderGlobals *sg,
                                    const float time)
 {
   ShaderGlobals *globals = reinterpret_cast<ShaderGlobals *>(sg);
-
   if (globals == nullptr || globals->sd == nullptr) {
     return false;
   }
-
-  /* this is only used for shader and object space, we don't really have
-   * a concept of shader space, so we just use object space for both. */
-  const ShaderData *sd = globals->sd;
-  const ThreadKernelGlobalsCPU *kg = globals->kg;
-  const int object = sd->object;
-
-  if (object != OBJECT_NONE) {
-#ifdef __OBJECT_MOTION__
-    Transform tfm;
-
-    if (time == sd->time) {
-      tfm = object_get_transform(kg, sd);
-    }
-    else {
-      tfm = object_fetch_transform_motion_test(kg, object, time, nullptr);
-    }
-#else
-    const Transform tfm = object_get_transform(kg, sd);
-#endif
-    copy_matrix(result, tfm);
-
-    return true;
-  }
-
-  return false;
+  return osl_shared_get_object_matrix_motion(
+      globals->kg, globals->sd, reinterpret_cast<float *>(&result), time);
 }
 
 bool OSLRenderServices::get_inverse_matrix(OSL::ShaderGlobals *sg,
@@ -195,36 +92,11 @@ bool OSLRenderServices::get_inverse_matrix(OSL::ShaderGlobals *sg,
                                            const float time)
 {
   ShaderGlobals *globals = reinterpret_cast<ShaderGlobals *>(sg);
-
   if (globals == nullptr || globals->sd == nullptr) {
     return false;
   }
-
-  /* this is only used for shader and object space, we don't really have
-   * a concept of shader space, so we just use object space for both. */
-  const ShaderData *sd = globals->sd;
-  const ThreadKernelGlobalsCPU *kg = globals->kg;
-  const int object = sd->object;
-
-  if (object != OBJECT_NONE) {
-#ifdef __OBJECT_MOTION__
-    Transform itfm;
-
-    if (time == sd->time) {
-      itfm = object_get_inverse_transform(kg, sd);
-    }
-    else {
-      object_fetch_transform_motion_test(kg, object, time, &itfm);
-    }
-#else
-    const Transform itfm = object_get_inverse_transform(kg, sd);
-#endif
-    copy_matrix(result, itfm);
-
-    return true;
-  }
-
-  return false;
+  return osl_shared_get_object_inverse_matrix_motion(
+      globals->kg, globals->sd, reinterpret_cast<float *>(&result), time);
 }
 
 bool OSLRenderServices::get_matrix(OSL::ShaderGlobals *sg,
@@ -233,30 +105,7 @@ bool OSLRenderServices::get_matrix(OSL::ShaderGlobals *sg,
                                    const float /*time*/)
 {
   ShaderGlobals *globals = reinterpret_cast<ShaderGlobals *>(sg);
-  const ThreadKernelGlobalsCPU *kg = globals->kg;
-
-  if (from == u_ndc) {
-    copy_matrix(result, kernel_data.cam.ndctoworld);
-    return true;
-  }
-  if (from == u_raster) {
-    copy_matrix(result, kernel_data.cam.rastertoworld);
-    return true;
-  }
-  if (from == u_screen) {
-    copy_matrix(result, kernel_data.cam.screentoworld);
-    return true;
-  }
-  if (from == u_camera) {
-    copy_matrix(result, kernel_data.cam.cameratoworld);
-    return true;
-  }
-  if (from == u_world) {
-    result.makeIdentity();
-    return true;
-  }
-
-  return false;
+  return osl_shared_get_named_matrix(globals->kg, from, reinterpret_cast<float *>(&result));
 }
 
 bool OSLRenderServices::get_inverse_matrix(OSL::ShaderGlobals *sg,
@@ -265,30 +114,7 @@ bool OSLRenderServices::get_inverse_matrix(OSL::ShaderGlobals *sg,
                                            const float /*time*/)
 {
   ShaderGlobals *globals = reinterpret_cast<ShaderGlobals *>(sg);
-  const ThreadKernelGlobalsCPU *kg = globals->kg;
-
-  if (to == u_ndc) {
-    copy_matrix(result, kernel_data.cam.worldtondc);
-    return true;
-  }
-  if (to == u_raster) {
-    copy_matrix(result, kernel_data.cam.worldtoraster);
-    return true;
-  }
-  if (to == u_screen) {
-    copy_matrix(result, kernel_data.cam.worldtoscreen);
-    return true;
-  }
-  if (to == u_camera) {
-    copy_matrix(result, kernel_data.cam.worldtocamera);
-    return true;
-  }
-  if (to == u_world) {
-    result.makeIdentity();
-    return true;
-  }
-
-  return false;
+  return osl_shared_get_named_inverse_matrix(globals->kg, to, reinterpret_cast<float *>(&result));
 }
 
 bool OSLRenderServices::get_matrix(OSL::ShaderGlobals *sg,
@@ -296,25 +122,11 @@ bool OSLRenderServices::get_matrix(OSL::ShaderGlobals *sg,
                                    OSL::TransformationPtr /*xform*/)
 {
   ShaderGlobals *globals = reinterpret_cast<ShaderGlobals *>(sg);
-
   if (globals == nullptr || globals->sd == nullptr) {
     return false;
   }
-
-  /* this is only used for shader and object space, we don't really have
-   * a concept of shader space, so we just use object space for both. */
-  const ShaderData *sd = globals->sd;
-  const ThreadKernelGlobalsCPU *kg = globals->kg;
-  const int object = sd->object;
-
-  if (object != OBJECT_NONE) {
-    const Transform tfm = object_get_transform(kg, sd);
-    copy_matrix(result, tfm);
-
-    return true;
-  }
-
-  return false;
+  return osl_shared_get_object_matrix(
+      globals->kg, globals->sd, reinterpret_cast<float *>(&result));
 }
 
 bool OSLRenderServices::get_inverse_matrix(OSL::ShaderGlobals *sg,
@@ -322,25 +134,11 @@ bool OSLRenderServices::get_inverse_matrix(OSL::ShaderGlobals *sg,
                                            OSL::TransformationPtr /*xform*/)
 {
   ShaderGlobals *globals = reinterpret_cast<ShaderGlobals *>(sg);
-
   if (globals == nullptr || globals->sd == nullptr) {
     return false;
   }
-
-  /* this is only used for shader and object space, we don't really have
-   * a concept of shader space, so we just use object space for both. */
-  const ShaderData *sd = globals->sd;
-  const ThreadKernelGlobalsCPU *kg = globals->kg;
-  const int object = sd->object;
-
-  if (object != OBJECT_NONE) {
-    const Transform tfm = object_get_inverse_transform(kg, sd);
-    copy_matrix(result, tfm);
-
-    return true;
-  }
-
-  return false;
+  return osl_shared_get_object_inverse_matrix(
+      globals->kg, globals->sd, reinterpret_cast<float *>(&result));
 }
 
 bool OSLRenderServices::get_matrix(OSL::ShaderGlobals *sg,
@@ -348,26 +146,7 @@ bool OSLRenderServices::get_matrix(OSL::ShaderGlobals *sg,
                                    OSLUStringHash from)
 {
   ShaderGlobals *globals = reinterpret_cast<ShaderGlobals *>(sg);
-  const ThreadKernelGlobalsCPU *kg = globals->kg;
-
-  if (from == u_ndc) {
-    copy_matrix(result, kernel_data.cam.ndctoworld);
-    return true;
-  }
-  if (from == u_raster) {
-    copy_matrix(result, kernel_data.cam.rastertoworld);
-    return true;
-  }
-  if (from == u_screen) {
-    copy_matrix(result, kernel_data.cam.screentoworld);
-    return true;
-  }
-  if (from == u_camera) {
-    copy_matrix(result, kernel_data.cam.cameratoworld);
-    return true;
-  }
-
-  return false;
+  return osl_shared_get_named_matrix(globals->kg, from, reinterpret_cast<float *>(&result));
 }
 
 bool OSLRenderServices::get_inverse_matrix(OSL::ShaderGlobals *sg,
@@ -375,26 +154,7 @@ bool OSLRenderServices::get_inverse_matrix(OSL::ShaderGlobals *sg,
                                            OSLUStringHash to)
 {
   ShaderGlobals *globals = reinterpret_cast<ShaderGlobals *>(sg);
-  const ThreadKernelGlobalsCPU *kg = globals->kg;
-
-  if (to == u_ndc) {
-    copy_matrix(result, kernel_data.cam.worldtondc);
-    return true;
-  }
-  if (to == u_raster) {
-    copy_matrix(result, kernel_data.cam.worldtoraster);
-    return true;
-  }
-  if (to == u_screen) {
-    copy_matrix(result, kernel_data.cam.worldtoscreen);
-    return true;
-  }
-  if (to == u_camera) {
-    copy_matrix(result, kernel_data.cam.worldtocamera);
-    return true;
-  }
-
-  return false;
+  return osl_shared_get_named_inverse_matrix(globals->kg, to, reinterpret_cast<float *>(&result));
 }
 
 bool OSLRenderServices::get_array_attribute(OSL::ShaderGlobals * /*sg*/,
@@ -408,584 +168,32 @@ bool OSLRenderServices::get_array_attribute(OSL::ShaderGlobals * /*sg*/,
   return false;
 }
 
-template<typename T>
-inline bool set_attribute(
-    const T v, const T dx, const T dy, TypeDesc type, bool derivatives, void *val);
-
-inline void set_data_float(
-    const float v, const float dx, const float dy, bool derivatives, void *val)
+bool OSLRenderServices::get_object_standard_attribute(ShaderGlobals *globals,
+                                                      ShaderData *sd,
+                                                      OSLUStringHash name,
+                                                      const TypeDesc type,
+                                                      bool derivatives,
+                                                      void *val)
 {
-  float *fval = static_cast<float *>(val);
-  fval[0] = v;
-  if (derivatives) {
-    fval[1] = dx;
-    fval[2] = dy;
-  }
+  return osl_shared_get_object_standard_attribute(
+      globals->kg, globals, sd, name, type, derivatives, val);
 }
 
-inline void set_data_float3(
-    const float3 v, const float3 dx, const float3 dy, bool derivatives, void *val)
+bool OSLRenderServices::get_background_attribute(ShaderGlobals *globals,
+                                                 ShaderData *sd,
+                                                 OSLUStringHash name,
+                                                 const TypeDesc type,
+                                                 bool derivatives,
+                                                 void *val)
 {
-  float *fval = static_cast<float *>(val);
-  fval[0] = v.x;
-  fval[1] = v.y;
-  fval[2] = v.z;
-  if (derivatives) {
-    fval[3] = dx.x;
-    fval[4] = dx.y;
-    fval[5] = dx.z;
-    fval[6] = dy.x;
-    fval[7] = dy.y;
-    fval[8] = dy.z;
-  }
-}
-
-inline void set_data_float4(
-    const float4 v, const float4 dx, const float4 dy, bool derivatives, void *val)
-{
-  float *fval = static_cast<float *>(val);
-  fval[0] = v.x;
-  fval[1] = v.y;
-  fval[2] = v.z;
-  fval[3] = v.w;
-  if (derivatives) {
-    fval[4] = dx.x;
-    fval[5] = dx.y;
-    fval[6] = dx.z;
-    fval[7] = dx.w;
-    fval[8] = dy.x;
-    fval[9] = dy.y;
-    fval[10] = dy.z;
-    fval[11] = dy.w;
-  }
-}
-
-ccl_device_template_spec bool set_attribute(
-    const float v, const float dx, const float dy, TypeDesc type, bool derivatives, void *val)
-{
-  if (type == TypeFloatArray4) {
-    set_data_float4(make_float4(v, v, v, 1.0f),
-                    make_float4(dx, dx, dx, 0.0f),
-                    make_float4(dy, dy, dy, 0.0f),
-                    derivatives,
-                    val);
-    return true;
-  }
-  if (type == TypePoint || type == TypeVector || type == TypeNormal || type == TypeColor) {
-    set_data_float3(make_float3(v), make_float3(dx), make_float3(dy), derivatives, val);
-    return true;
-  }
-  if (type == TypeFloat) {
-    set_data_float(v, dx, dy, derivatives, val);
-    return true;
-  }
-
-  return false;
-}
-
-ccl_device_template_spec bool set_attribute(
-    const float2 v, const float2 dx, const float2 dy, TypeDesc type, bool derivatives, void *val)
-{
-  if (type == TypeFloatArray4) {
-    set_data_float4(make_float4(v.x, v.y, 0.0f, 1.0f),
-                    make_float4(dx.x, dx.y, 0.0f, 0.0f),
-                    make_float4(dy.x, dy.y, 0.0f, 0.0f),
-                    derivatives,
-                    val);
-    return true;
-  }
-  if (type == TypePoint || type == TypeVector || type == TypeNormal || type == TypeColor) {
-    set_data_float3(make_float3(v), make_float3(dx), make_float3(dy), derivatives, val);
-    return true;
-  }
-  if (type == TypeFloat) {
-    set_data_float(average(v), average(dx), average(dy), derivatives, val);
-    return true;
-  }
-
-  return false;
-}
-
-ccl_device_template_spec bool set_attribute(
-    const float3 v, const float3 dx, const float3 dy, TypeDesc type, bool derivatives, void *val)
-{
-  if (type == TypeFloatArray4) {
-    set_data_float4(
-        make_float4(v, 1.0f), make_float4(dx, 0.0f), make_float4(dy, 0.0f), derivatives, val);
-    return true;
-  }
-  if (type == TypePoint || type == TypeVector || type == TypeNormal || type == TypeColor) {
-    set_data_float3(v, dx, dy, derivatives, val);
-    return true;
-  }
-  if (type == TypeFloat) {
-    set_data_float(average(v), average(dx), average(dy), derivatives, val);
-    return true;
-  }
-
-  return false;
-}
-
-/* Attributes with the TypeRGBA type descriptor should be retrieved and stored
- * in a float array of size 4 (e.g. node_vertex_color.osl), this array have
- * a type descriptor TypeFloatArray4. If the storage is not a TypeFloatArray4,
- * we either store the first three components in a vector, store the average of
- * the components in a float, or fail the retrieval and do nothing. We allow
- * this for the correct operation of the Attribute node.
- */
-
-ccl_device_template_spec bool set_attribute(
-    const float4 v, const float4 dx, const float4 dy, TypeDesc type, bool derivatives, void *val)
-{
-  if (type == TypeFloatArray4) {
-    set_data_float4(v, dx, dy, derivatives, val);
-    return true;
-  }
-  if (type == TypePoint || type == TypeVector || type == TypeNormal || type == TypeColor) {
-    set_data_float3(make_float3(v), make_float3(dx), make_float3(dy), derivatives, val);
-    return true;
-  }
-  if (type == TypeFloat) {
-    set_data_float(average(make_float3(v)),
-                   average(make_float3(dx)),
-                   average(make_float3(dy)),
-                   derivatives,
-                   val);
-    return true;
-  }
-  return false;
-}
-
-template<typename T>
-ccl_device_inline bool set_attribute(const T f, const TypeDesc type, bool derivatives, void *val)
-{
-  return set_attribute(f, make_zero<T>(), make_zero<T>(), type, derivatives, val);
-}
-
-ccl_device_template_spec bool set_attribute(const int i,
-                                            const TypeDesc type,
-                                            bool derivatives,
-                                            void *val)
-{
-  if (type.basetype == TypeDesc::INT && type.aggregate == TypeDesc::SCALAR && type.arraylen == 0) {
-    int *ival = (int *)val;
-    ival[0] = i;
-
-    if (derivatives) {
-      ival[1] = 0;
-      ival[2] = 0;
-    }
-
-    return true;
-  }
-
-  return false;
-}
-
-ccl_device_template_spec bool set_attribute(ustring str,
-                                            const TypeDesc type,
-                                            bool derivatives,
-                                            void *val)
-{
-  if (type.basetype == TypeDesc::STRING && type.aggregate == TypeDesc::SCALAR &&
-      type.arraylen == 0)
-  {
-    ustring *sval = (ustring *)val;
-    sval[0] = str;
-
-    if (derivatives) {
-      sval[1] = OSLRenderServices::u_empty;
-      sval[2] = OSLRenderServices::u_empty;
-    }
-
-    return true;
-  }
-
-  return false;
-}
-
-static bool set_attribute_float3_3(const float3 P[3], TypeDesc type, bool derivatives, void *val)
-{
-  if (type.vecsemantics == TypeDesc::POINT && type.arraylen >= 3) {
-    float *fval = (float *)val;
-
-    fval[0] = P[0].x;
-    fval[1] = P[0].y;
-    fval[2] = P[0].z;
-
-    fval[3] = P[1].x;
-    fval[4] = P[1].y;
-    fval[5] = P[1].z;
-
-    fval[6] = P[2].x;
-    fval[7] = P[2].y;
-    fval[8] = P[2].z;
-
-    if (type.arraylen > 3) {
-      memset(fval + 3 * 3, 0, sizeof(float) * 3 * (type.arraylen - 3));
-    }
-    if (derivatives) {
-      memset(fval + type.arraylen * 3, 0, sizeof(float) * 2 * 3 * type.arraylen);
-    }
-
-    return true;
-  }
-
-  return false;
-}
-
-static bool set_attribute_matrix(const Transform &tfm, const TypeDesc type, void *val)
-{
-  if (type == TypeMatrix) {
-    copy_matrix(*(OSL::Matrix44 *)val, tfm);
-    return true;
-  }
-
-  return false;
-}
-
-template<typename T>
-inline bool get_object_attribute_impl(const ThreadKernelGlobalsCPU *kg,
-                                      ShaderData *sd,
-                                      const AttributeDescriptor &desc,
-                                      const TypeDesc &type,
-                                      bool derivatives,
-                                      void *val)
-{
-  T v;
-  T dx = make_zero<T>();
-  T dy = make_zero<T>();
-#ifdef __VOLUME__
-  if (primitive_is_volume_attribute(sd)) {
-    v = primitive_volume_attribute<T>(kg, sd, desc, true);
-  }
-  else
-#endif
-  {
-    v = primitive_surface_attribute<T>(
-        kg, sd, desc, derivatives ? &dx : nullptr, derivatives ? &dy : nullptr);
-  }
-  return set_attribute(v, dx, dy, type, derivatives, val);
-}
-
-static bool get_object_attribute(const ThreadKernelGlobalsCPU *kg,
-                                 ShaderData *sd,
-                                 const AttributeDescriptor &desc,
-                                 const TypeDesc &type,
-                                 bool derivatives,
-                                 void *val)
-{
-  if (desc.type == NODE_ATTR_FLOAT) {
-    return get_object_attribute_impl<float>(kg, sd, desc, type, derivatives, val);
-  }
-  if (desc.type == NODE_ATTR_FLOAT2) {
-    return get_object_attribute_impl<float2>(kg, sd, desc, type, derivatives, val);
-  }
-  if (desc.type == NODE_ATTR_FLOAT3) {
-    return get_object_attribute_impl<float3>(kg, sd, desc, type, derivatives, val);
-  }
-  if (desc.type == NODE_ATTR_FLOAT4 || desc.type == NODE_ATTR_RGBA) {
-    return get_object_attribute_impl<float4>(kg, sd, desc, type, derivatives, val);
-  }
-  if (desc.type == NODE_ATTR_MATRIX) {
-    const Transform tfm = primitive_attribute_matrix(kg, desc);
-    return set_attribute_matrix(tfm, type, val);
-  }
-  return false;
-}
-
-bool OSLRenderServices::get_object_standard_attribute(
-    ShaderGlobals *globals, OSLUStringHash name, const TypeDesc type, bool derivatives, void *val)
-{
-  ShaderData *sd = globals->sd;
-  const ThreadKernelGlobalsCPU *kg = globals->kg;
-  /* todo: turn this into hash table? */
-
-  /* Object Attributes */
-  if (name == u_object_location) {
-    const float3 f = object_location(kg, sd);
-    return set_attribute(f, type, derivatives, val);
-  }
-  if (name == u_object_color) {
-    const float3 f = object_color(kg, sd->object);
-    return set_attribute(f, type, derivatives, val);
-  }
-  if (name == u_object_alpha) {
-    const float f = object_alpha(kg, sd->object);
-    return set_attribute(f, type, derivatives, val);
-  }
-  if (name == u_object_index) {
-    const float f = object_pass_id(kg, sd->object);
-    return set_attribute(f, type, derivatives, val);
-  }
-  if (name == u_object_is_light) {
-    const float f = (sd->type & PRIMITIVE_LAMP) != 0;
-    return set_attribute(f, type, derivatives, val);
-  }
-  if (name == u_geom_dupli_generated) {
-    const float3 f = object_dupli_generated(kg, sd->object);
-    return set_attribute(f, type, derivatives, val);
-  }
-  if (name == u_geom_dupli_uv) {
-    const float3 f = object_dupli_uv(kg, sd->object);
-    return set_attribute(f, type, derivatives, val);
-  }
-  if (name == u_material_index) {
-    const float f = shader_pass_id(kg, sd);
-    return set_attribute(f, type, derivatives, val);
-  }
-  if (name == u_object_random) {
-    const float f = object_random_number(kg, sd->object);
-    return set_attribute(f, type, derivatives, val);
-  }
-
-  /* Particle Attributes */
-  if (name == u_particle_index) {
-    const int particle_id = object_particle_id(kg, sd->object);
-    const float f = particle_index(kg, particle_id);
-    return set_attribute(f, type, derivatives, val);
-  }
-  if (name == u_particle_random) {
-    const int particle_id = object_particle_id(kg, sd->object);
-    const float f = hash_uint2_to_float(particle_index(kg, particle_id), 0);
-    return set_attribute(f, type, derivatives, val);
-  }
-  if (name == u_particle_age) {
-    const int particle_id = object_particle_id(kg, sd->object);
-    const float f = particle_age(kg, particle_id);
-    return set_attribute(f, type, derivatives, val);
-  }
-  if (name == u_particle_lifetime) {
-    const int particle_id = object_particle_id(kg, sd->object);
-    const float f = particle_lifetime(kg, particle_id);
-    return set_attribute(f, type, derivatives, val);
-  }
-  if (name == u_particle_location) {
-    const int particle_id = object_particle_id(kg, sd->object);
-    const float3 f = particle_location(kg, particle_id);
-    return set_attribute(f, type, derivatives, val);
-  }
-#if 0 /* unsupported */
-  if (name == u_particle_rotation) {
-    int particle_id = object_particle_id(kg, sd->object);
-    float4 f = particle_rotation(kg, particle_id);
-    return set_attribute(f, type, derivatives, val);
-  }
-#endif
-  if (name == u_particle_size) {
-    const int particle_id = object_particle_id(kg, sd->object);
-    const float f = particle_size(kg, particle_id);
-    return set_attribute(f, type, derivatives, val);
-  }
-  if (name == u_particle_velocity) {
-    const int particle_id = object_particle_id(kg, sd->object);
-    const float3 f = particle_velocity(kg, particle_id);
-    return set_attribute(f, type, derivatives, val);
-  }
-  if (name == u_particle_angular_velocity) {
-    const int particle_id = object_particle_id(kg, sd->object);
-    const float3 f = particle_angular_velocity(kg, particle_id);
-    return set_attribute(f, type, derivatives, val);
-  }
-
-  /* Geometry Attributes */
-  if (name == u_geom_numpolyvertices) {
-    return set_attribute(3, type, derivatives, val);
-  }
-  if ((name == u_geom_trianglevertices || name == u_geom_polyvertices) &&
-      sd->type & PRIMITIVE_TRIANGLE)
-  {
-    float3 P[3];
-
-    if (sd->type & PRIMITIVE_MOTION) {
-      motion_triangle_vertices(kg, sd->object, sd->prim, sd->time, P);
-    }
-    else {
-      triangle_vertices(kg, sd->prim, P);
-    }
-
-    if (!(sd->object_flag & SD_OBJECT_TRANSFORM_APPLIED)) {
-      object_position_transform(kg, sd, &P[0]);
-      object_position_transform(kg, sd, &P[1]);
-      object_position_transform(kg, sd, &P[2]);
-    }
-
-    return set_attribute_float3_3(P, type, derivatives, val);
-  }
-  if (name == u_geom_name) {
-    const ustring object_name = kg->osl.globals->object_names[sd->object];
-    return set_attribute(object_name, type, derivatives, val);
-  }
-  if (name == u_is_smooth) {
-    const float f = ((sd->shader & SHADER_SMOOTH_NORMAL) != 0);
-    return set_attribute(f, type, derivatives, val);
-  }
-#ifdef __HAIR__
-  /* Hair Attributes */
-  if (name == u_is_curve) {
-    const float f = (sd->type & PRIMITIVE_CURVE) != 0;
-    return set_attribute(f, type, derivatives, val);
-  }
-  if (name == u_curve_thickness) {
-    const float f = curve_thickness(kg, sd);
-    return set_attribute(f, type, derivatives, val);
-  }
-  if (name == u_curve_tangent_normal) {
-    const float3 f = curve_tangent_normal(sd);
-    return set_attribute(f, type, derivatives, val);
-  }
-  if (name == u_curve_random) {
-    const float f = curve_random(kg, sd);
-    return set_attribute(f, type, derivatives, val);
-  }
-#endif
-#ifdef __POINTCLOUD__
-  /* point attributes */
-  if (name == u_is_point) {
-    const float f = (sd->type & PRIMITIVE_POINT) != 0;
-    return set_attribute(f, type, derivatives, val);
-  }
-  if (name == u_point_radius) {
-    const float f = point_radius(kg, sd);
-    return set_attribute(f, type, derivatives, val);
-  }
-  if (name == u_point_position) {
-    const float3 f = point_position(kg, sd);
-    return set_attribute(f, type, derivatives, val);
-  }
-  if (name == u_point_random) {
-    const float f = point_random(kg, sd);
-    return set_attribute(f, type, derivatives, val);
-  }
-#endif
-  if (name == u_normal_map_normal) {
-    if (sd->type & PRIMITIVE_TRIANGLE) {
-      const float3 f = triangle_smooth_normal_unnormalized(kg, sd, sd->Ng, sd->prim, sd->u, sd->v);
-      return set_attribute(f, type, derivatives, val);
-    }
-    return false;
-  }
-  if (name == u_bump_map_normal) {
-    float3 f[3];
-    if (!attribute_bump_map_normal(kg, sd, f)) {
-      return false;
-    }
-    return set_attribute(f[0], f[1], f[2], type, derivatives, val);
-  }
-  return get_background_attribute(globals, name, type, derivatives, val);
-}
-
-bool OSLRenderServices::get_background_attribute(
-    ShaderGlobals *globals, OSLUStringHash name, const TypeDesc type, bool derivatives, void *val)
-{
-  ShaderData *sd = globals->sd;
-  const ThreadKernelGlobalsCPU *kg = globals->kg;
-  const IntegratorStateCPU *state = globals->path_state;
-  const IntegratorShadowStateCPU *shadow_state = globals->shadow_path_state;
-  if (name == u_path_ray_length) {
-    /* Ray Length */
-    const float f = sd->ray_length;
-    return set_attribute(f, type, derivatives, val);
-  }
-
-#define READ_PATH_STATE(elem) \
-  ((state != nullptr)        ? state->path.elem : \
-   (shadow_state != nullptr) ? shadow_state->shadow_path.elem : \
-                               0)
-
-  if (name == u_path_ray_depth) {
-    /* Ray Depth */
-    int f = READ_PATH_STATE(bounce);
-
-    /* Read bounce from different locations depending on if this is a shadow path. For background,
-     * light emission and shadow evaluation from a surface or volume we are effectively one bounce
-     * further. */
-    if (globals->raytype & (PATH_RAY_SHADOW | PATH_RAY_EMISSION)) {
-      f += 1;
-    }
-
-    return set_attribute(f, type, derivatives, val);
-  }
-  if (name == u_path_diffuse_depth) {
-    /* Diffuse Ray Depth */
-    const int f = READ_PATH_STATE(diffuse_bounce);
-    return set_attribute(f, type, derivatives, val);
-  }
-  if (name == u_path_glossy_depth) {
-    /* Glossy Ray Depth */
-    const int f = READ_PATH_STATE(glossy_bounce);
-    return set_attribute(f, type, derivatives, val);
-  }
-  if (name == u_path_transmission_depth) {
-    /* Transmission Ray Depth */
-    const int f = READ_PATH_STATE(transmission_bounce);
-    return set_attribute(f, type, derivatives, val);
-  }
-  if (name == u_path_transparent_depth) {
-    /* Transparent Ray Depth */
-    const int f = READ_PATH_STATE(transparent_bounce);
-    return set_attribute(f, type, derivatives, val);
-  }
-#undef READ_PATH_STATE
-
-  if (name == u_ndc) {
-    /* NDC coordinates with special exception for orthographic projection. */
-    float3 ndc[3];
-
-    if ((globals->raytype & PATH_RAY_CAMERA) && sd->object == OBJECT_NONE &&
-        kernel_data.cam.type == CAMERA_ORTHOGRAPHIC)
-    {
-      ndc[0] = camera_world_to_ndc(kg, sd, sd->ray_P);
-
-      if (derivatives) {
-        ndc[1] = zero_float3();
-        ndc[2] = zero_float3();
-      }
-    }
-    else {
-      ndc[0] = camera_world_to_ndc(kg, sd, sd->P);
-
-      if (derivatives) {
-        const differential3 dP = differential_from_compact(sd->Ng, sd->dP);
-        ndc[1] = camera_world_to_ndc(kg, sd, sd->P + dP.dx) - ndc[0];
-        ndc[2] = camera_world_to_ndc(kg, sd, sd->P + dP.dy) - ndc[0];
-      }
-    }
-
-    return set_attribute(ndc[0], ndc[1], ndc[2], type, derivatives, val);
-  }
-
-  return false;
+  return osl_shared_get_background_attribute(
+      globals->kg, globals, sd, name, type, derivatives, val);
 }
 
 bool OSLRenderServices::get_camera_attribute(
     ShaderGlobals *globals, OSLUStringHash name, TypeDesc type, bool derivatives, void *val)
 {
-  const ThreadKernelGlobalsCPU *kg = globals->kg;
-  if (name == u_sensor_size) {
-    const float2 sensor = make_float2(kernel_data.cam.sensorwidth, kernel_data.cam.sensorheight);
-    return set_attribute(sensor, type, derivatives, val);
-  }
-  if (name == u_image_resolution) {
-    const float2 image = make_float2(kernel_data.cam.width, kernel_data.cam.height);
-    return set_attribute(image, type, derivatives, val);
-  }
-  if (name == u_aperture_aspect_ratio) {
-    return set_attribute(1.0f / kernel_data.cam.inv_aperture_ratio, type, derivatives, val);
-  }
-  if (name == u_aperture_size) {
-    return set_attribute(kernel_data.cam.aperturesize, type, derivatives, val);
-  }
-  if (name == u_aperture_position) {
-    /* The random numbers for aperture sampling are packed into N. */
-    const float2 rand_lens = make_float2(globals->N.x, globals->N.y);
-    const float2 pos = camera_sample_aperture(&kernel_data.cam, rand_lens);
-    return set_attribute(pos * kernel_data.cam.aperturesize, type, derivatives, val);
-  }
-  if (name == u_focal_distance) {
-    return set_attribute(kernel_data.cam.focaldistance, type, derivatives, val);
-  }
-  return false;
+  return osl_shared_get_camera_attribute(globals->kg, globals, name, type, derivatives, val);
 }
 
 bool OSLRenderServices::get_attribute(OSL::ShaderGlobals *sg,
@@ -1000,16 +208,31 @@ bool OSLRenderServices::get_attribute(OSL::ShaderGlobals *sg,
     return false;
   }
 
-  ShaderData *sd = globals->sd;
+  return get_attribute(globals, globals->sd, derivatives, object_name, type, name, val);
+}
+
+bool OSLRenderServices::get_attribute(ShaderGlobals *globals,
+                                      ShaderData *sd,
+                                      bool derivatives,
+                                      OSLUStringHash object_name,
+                                      const TypeDesc type,
+                                      OSLUStringHash name,
+                                      void *val)
+{
+
+  if (globals == nullptr) {
+    return false;
+  }
+
   const ThreadKernelGlobalsCPU *kg = globals->kg;
   if (sd == nullptr) {
     /* Camera shader. */
-    return get_camera_attribute(globals, name, type, derivatives, val);
+    return osl_shared_get_camera_attribute(kg, globals, name, type, derivatives, val);
   }
 
   /* lookup of attribute on another object */
   int object;
-  if (object_name != u_empty) {
+  if (object_name != DeviceStrings::u_empty) {
     const OSLGlobals::ObjectNameMap::iterator it = kg->osl.globals->object_name_map.find(
         object_name);
 
@@ -1026,11 +249,11 @@ bool OSLRenderServices::get_attribute(OSL::ShaderGlobals *sg,
   /* find attribute on object */
   const AttributeDescriptor desc = find_attribute(kg, object, sd->prim, name.hash());
   if (desc.offset != ATTR_STD_NOT_FOUND) {
-    return get_object_attribute(kg, sd, desc, type, derivatives, val);
+    return osl_shared_get_object_attribute(kg, sd, desc, type, derivatives, val);
   }
 
   /* not found in attribute, check standard object info */
-  return get_object_standard_attribute(globals, name, type, derivatives, val);
+  return osl_shared_get_object_standard_attribute(kg, globals, sd, name, type, derivatives, val);
 }
 
 bool OSLRenderServices::get_userdata(bool /*derivatives*/,
@@ -1092,14 +315,14 @@ OSL::TextureSystem::TextureHandle *OSLRenderServices::get_texture_handle(
           break;
         }
         return reinterpret_cast<OSL::TextureSystem::TextureHandle *>(OSL_TEXTURE_HANDLE_TYPE_SVM |
-                                                                     it->second.svm_slots[0].y);
+                                                                     it->second.id);
       case OSLTextureHandle::IES:
         if (!it->second.handle.empty() && it->second.handle.get_manager() != image_manager) {
           it.clear();
           break;
         }
         return reinterpret_cast<OSL::TextureSystem::TextureHandle *>(OSL_TEXTURE_HANDLE_TYPE_IES |
-                                                                     it->second.svm_slots[0].y);
+                                                                     it->second.id);
       case OSLTextureHandle::AO:
         return reinterpret_cast<OSL::TextureSystem::TextureHandle *>(
             OSL_TEXTURE_HANDLE_TYPE_AO_OR_BEVEL | 1);
@@ -1124,7 +347,7 @@ OSL::TextureSystem::TextureHandle *OSLRenderServices::get_texture_handle(
   }
 
   return reinterpret_cast<OSL::TextureSystem::TextureHandle *>(OSL_TEXTURE_HANDLE_TYPE_SVM |
-                                                               handle.svm_slot());
+                                                               handle.kernel_id());
 }
 
 bool OSLRenderServices::good(OSL::TextureSystem::TextureHandle *texture_handle)
@@ -1203,38 +426,8 @@ bool OSLRenderServices::texture(OSLUStringHash filename,
       break;
     }
     case OSLTextureHandle::SVM: {
-      int id = -1;
-      if (handle->svm_slots[0].w == -1) {
-        /* Packed single texture. */
-        id = handle->svm_slots[0].y;
-      }
-      else {
-        /* Packed tiled texture. */
-        const int tx = (int)s;
-        const int ty = (int)t;
-        const int tile = 1001 + 10 * ty + tx;
-        for (const int4 &tile_node : handle->svm_slots) {
-          if (tile_node.x == tile) {
-            id = tile_node.y;
-            break;
-          }
-          if (tile_node.z == tile) {
-            id = tile_node.w;
-            break;
-          }
-        }
-        s -= tx;
-        t -= ty;
-      }
-
-      float4 rgba;
-      if (id == -1) {
-        rgba = make_float4(
-            TEX_IMAGE_MISSING_R, TEX_IMAGE_MISSING_G, TEX_IMAGE_MISSING_B, TEX_IMAGE_MISSING_A);
-      }
-      else {
-        rgba = kernel_tex_image_interp(kernel_globals, id, s, 1.0f - t);
-      }
+      const float4 rgba = kernel_image_interp_with_udim(
+          kernel_globals, sd, handle->id, dual2(make_float2(s, 1.0f - t)));
 
       result[0] = rgba[0];
       if (nchannels > 1) {
@@ -1251,7 +444,7 @@ bool OSLRenderServices::texture(OSLUStringHash filename,
     }
     case OSLTextureHandle::IES: {
       /* IES light. */
-      result[0] = kernel_ies_interp(kernel_globals, handle->svm_slots[0].y, s, t);
+      result[0] = kernel_ies_interp(kernel_globals, handle->id, s, t);
       status = true;
       break;
     }
@@ -1306,15 +499,7 @@ bool OSLRenderServices::texture(OSLUStringHash filename,
   }
 
   if (!status) {
-    if (nchannels == 3 || nchannels == 4) {
-      result[0] = 1.0f;
-      result[1] = 0.0f;
-      result[2] = 1.0f;
-
-      if (nchannels == 4) {
-        result[3] = 1.0f;
-      }
-    }
+    rgba_to_nchannels(IMAGE_MISSING_RGBA, nchannels, result);
   }
 
   return status;
@@ -1345,10 +530,9 @@ bool OSLRenderServices::texture3d(OSLUStringHash filename,
   switch (texture_type) {
     case OSLTextureHandle::SVM: {
       /* Packed texture. */
-      const int slot = handle->svm_slots[0].y;
       const float3 P_float3 = make_float3(P.x, P.y, P.z);
-      float4 rgba = kernel_tex_image_interp_3d(
-          kernel_globals, slot, P_float3, INTERPOLATION_NONE, -1.0f);
+      float4 rgba = kernel_image_interp_3d(
+          kernel_globals, globals->sd, handle->id, P_float3, INTERPOLATION_NONE, false);
 
       result[0] = rgba[0];
       if (nchannels > 1) {
@@ -1418,15 +602,7 @@ bool OSLRenderServices::texture3d(OSLUStringHash filename,
   }
 
   if (!status) {
-    if (nchannels == 3 || nchannels == 4) {
-      result[0] = 1.0f;
-      result[1] = 0.0f;
-      result[2] = 1.0f;
-
-      if (nchannels == 4) {
-        result[3] = 1.0f;
-      }
-    }
+    rgba_to_nchannels(IMAGE_MISSING_RGBA, nchannels, result);
   }
 
   return status;
@@ -1473,15 +649,7 @@ bool OSLRenderServices::environment(OSLUStringHash filename,
   }
 
   if (!status) {
-    if (nchannels == 3 || nchannels == 4) {
-      result[0] = 1.0f;
-      result[1] = 0.0f;
-      result[2] = 1.0f;
-
-      if (nchannels == 4) {
-        result[3] = 1.0f;
-      }
-    }
+    rgba_to_nchannels(IMAGE_MISSING_RGBA, nchannels, result);
   }
   else if (handle && handle->processor) {
     ColorSpaceManager::to_scene_linear(handle->processor, result, nchannels);
@@ -1592,24 +760,20 @@ bool OSLRenderServices::trace(TraceOpt &options,
 
   ray.P = make_float3(P.x, P.y, P.z);
   ray.D = make_float3(R.x, R.y, R.z);
-  ray.tmin = 0.0f;
-  ray.tmax = (options.maxdist == 1.0e30f) ? FLT_MAX : options.maxdist - options.mindist;
+  ray.tmin = options.mindist;
+  ray.tmax = (options.maxdist == 1.0e30f) ? FLT_MAX : options.maxdist;
   ray.time = sd->time;
   ray.self.object = OBJECT_NONE;
   ray.self.prim = PRIM_NONE;
   ray.self.light_object = OBJECT_NONE;
   ray.self.light_prim = PRIM_NONE;
 
-  if (options.mindist == 0.0f) {
+  if (ray.tmin == 0.0f) {
     /* avoid self-intersections */
     if (ray.P == sd->P) {
       ray.self.object = sd->object;
       ray.self.prim = sd->prim;
     }
-  }
-  else {
-    /* offset for minimum distance */
-    ray.P += options.mindist * ray.D;
   }
 
   /* ray differentials */
@@ -1628,15 +792,30 @@ bool OSLRenderServices::trace(TraceOpt &options,
   tracedata->setup = false;
   tracedata->init = true;
   tracedata->hit = false;
+  tracedata->self_hit = false;
 
   /* Can't ray-trace from shaders like displacement, before BVH exists. */
   if (kernel_data.bvh.bvh_layout == BVH_LAYOUT_NONE) {
     return false;
   }
 
-  /* Ray-trace, leaving out shadow opaque to avoid early exit. */
-  const uint visibility = PATH_RAY_ALL_VISIBILITY - PATH_RAY_SHADOW_OPAQUE;
-  tracedata->hit = scene_intersect(kg, &ray, visibility, &tracedata->isect);
+  if (options.traceset == DeviceStrings::u_traceset_only_local) {
+    LocalIntersection local_isect;
+    scene_intersect_local(kg, &ray, &local_isect, sd->object, nullptr, 1);
+    if (local_isect.num_hits > 0) {
+      tracedata->isect = local_isect.hits[0];
+      tracedata->hit = true;
+      tracedata->self_hit = true;
+    }
+  }
+  else {
+    /* Ray-trace, leaving out shadow opaque to avoid early exit. */
+    const uint visibility = PATH_RAY_ALL_VISIBILITY - PATH_RAY_SHADOW_OPAQUE;
+    tracedata->hit = scene_intersect(kg, &ray, visibility, &tracedata->isect);
+    if (tracedata->hit) {
+      tracedata->self_hit = tracedata->isect.object == sd->object;
+    }
+  }
   return tracedata->hit;
 }
 
@@ -1651,12 +830,12 @@ bool OSLRenderServices::getmessage(OSL::ShaderGlobals *sg,
   const ThreadKernelGlobalsCPU *kg = globals->kg;
   OSLTraceData *tracedata = globals->tracedata;
 
-  if (source == u_trace && tracedata->init) {
-    if (name == u_hit) {
+  if (source == DeviceStrings::u_trace && tracedata->init) {
+    if (name == DeviceStrings::u_hit) {
       return set_attribute<int>(tracedata->hit, type, derivatives, val);
     }
     if (tracedata->hit) {
-      if (name == u_hitdist) {
+      if (name == DeviceStrings::u_hitdist) {
         return set_attribute(tracedata->isect.t, type, derivatives, val);
       }
 
@@ -1668,28 +847,31 @@ bool OSLRenderServices::getmessage(OSL::ShaderGlobals *sg,
         tracedata->setup = true;
       }
 
-      if (name == u_N) {
+      if (name == DeviceStrings::u_hitself) {
+        return set_attribute(float(tracedata->self_hit), type, derivatives, val);
+      }
+      if (name == DeviceStrings::u_N) {
         return set_attribute(sd->N, type, derivatives, val);
       }
-      if (name == u_Ng) {
+      if (name == DeviceStrings::u_Ng) {
         return set_attribute(sd->Ng, type, derivatives, val);
       }
-      if (name == u_P) {
+      if (name == DeviceStrings::u_P) {
         const differential3 dP = differential_from_compact(sd->Ng, sd->dP);
-        return set_attribute(sd->P, dP.dx, dP.dy, type, derivatives, val);
+        return set_attribute(dual3(sd->P, dP.dx, dP.dy), type, derivatives, val);
       }
-      if (name == u_I) {
+      if (name == DeviceStrings::u_I) {
         const differential3 dI = differential_from_compact(sd->wi, sd->dI);
-        return set_attribute(sd->wi, dI.dx, dI.dy, type, derivatives, val);
+        return set_attribute(dual3(sd->wi, dI.dx, dI.dy), type, derivatives, val);
       }
-      if (name == u_u) {
-        return set_attribute(sd->u, sd->du.dx, sd->du.dy, type, derivatives, val);
+      if (name == DeviceStrings::u_u) {
+        return set_attribute(dual1(sd->u, sd->du.dx, sd->du.dy), type, derivatives, val);
       }
-      if (name == u_v) {
-        return set_attribute(sd->v, sd->dv.dx, sd->dv.dy, type, derivatives, val);
+      if (name == DeviceStrings::u_v) {
+        return set_attribute(dual1(sd->v, sd->dv.dx, sd->dv.dy), type, derivatives, val);
       }
 
-      return get_attribute(sg, derivatives, u_empty, type, name, val);
+      return get_attribute(globals, sd, derivatives, DeviceStrings::u_empty, type, name, val);
     }
   }
 

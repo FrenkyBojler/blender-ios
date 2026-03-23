@@ -6,6 +6,7 @@ set(INC
   .
   ../asset
   ../include
+  ../../animrig
   ../../makesrna
   ../../python
   ../../../../intern/ghost
@@ -41,6 +42,7 @@ set(SRC
   interface_icons_event.cc
   interface_layout.cc
   interface_ops.cc
+  interface_ops_color.cc
   interface_panel.cc
   interface_query.cc
   regions/interface_region_color_picker.cc
@@ -74,6 +76,7 @@ set(SRC
   templates/interface_template_layers.cc
   templates/interface_template_light_linking.cc
   templates/interface_template_list.cc
+  templates/interface_template_matrix.cc
   templates/interface_template_modifiers.cc
   templates/interface_template_node_inputs.cc
   templates/interface_template_node_tree_interface.cc
@@ -87,6 +90,7 @@ set(SRC
   templates/interface_template_search_operator.cc
   templates/interface_template_shader_fx.cc
   templates/interface_template_status.cc
+  templates/interface_template_strip_modifiers.cc
   templates/interface_templates.cc
   interface_undo.cc
   interface_utils.cc
@@ -123,15 +127,17 @@ set(LIB
   PRIVATE bf::draw
   bf_editor_datafiles
   bf_editor_id_management
-  PRIVATE bf::extern::fmtlib
   PRIVATE bf::functions
   PRIVATE bf::gpu
   PRIVATE bf::imbuf
   PRIVATE bf::imbuf::movie
+  PRIVATE bf::imbuf::opencolorio
+  PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::animrig
   PRIVATE bf::nodes
   PRIVATE bf::render
+  PRIVATE bf::sequencer
   PRIVATE bf::windowmanager
 )
 

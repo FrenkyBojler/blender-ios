@@ -14,6 +14,7 @@
 #include "BLI_listbase.h"
 #include "BLI_set.hh"
 #include "BLI_string.h"
+#include "camera_delegate.hh"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -36,8 +37,11 @@ bool HydraSceneDelegate::ShadingSettings::operator==(const ShadingSettings &othe
 
 HydraSceneDelegate::HydraSceneDelegate(pxr::HdRenderIndex *parent_index,
                                        pxr::SdfPath const &delegate_id,
+                                       CameraDelegate *camera_delegate,
                                        const bool use_materialx)
-    : HdSceneDelegate(parent_index, delegate_id), use_materialx(use_materialx)
+    : HdSceneDelegate(parent_index, delegate_id),
+      use_materialx(use_materialx),
+      camera_delegate_(camera_delegate)
 {
   instancer_data_ = std::make_unique<InstancerData>(this, instancer_prim_id());
   world_data_ = std::make_unique<WorldData>(this, world_prim_id());
@@ -149,25 +153,28 @@ bool HydraSceneDelegate::GetVisible(pxr::SdfPath const &id)
   if (i_data) {
     return true;
   }
-  return object_data(id)->visible;
+  const ObjectData *o_data = object_data(id);
+  return o_data ? o_data->visible : false;
 }
 
 bool HydraSceneDelegate::GetDoubleSided(pxr::SdfPath const &id)
 {
   CLOG_DEBUG(LOG_HYDRA_SCENE, "%s", id.GetText());
-  return mesh_data(id)->double_sided(id);
+  const ObjectData *o_data = object_data(id);
+  return o_data ? o_data->double_sided(id) : true;
 }
 
 pxr::HdCullStyle HydraSceneDelegate::GetCullStyle(pxr::SdfPath const &id)
 {
   CLOG_DEBUG(LOG_HYDRA_SCENE, "%s", id.GetText());
-  return mesh_data(id)->cull_style(id);
+  const ObjectData *o_data = object_data(id);
+  return o_data ? o_data->cull_style(id) : pxr::HdCullStyle::HdCullStyleNothing;
 }
 
 pxr::SdfPath HydraSceneDelegate::GetInstancerId(pxr::SdfPath const &prim_id)
 {
   CLOG_DEBUG(LOG_HYDRA_SCENE, "%s", prim_id.GetText());
-  InstancerData *i_data = instancer_data(prim_id, true);
+  const InstancerData *i_data = instancer_data(prim_id, true);
   if (i_data && mesh_data(prim_id)) {
     return i_data->prim_id;
   }
@@ -177,31 +184,31 @@ pxr::SdfPath HydraSceneDelegate::GetInstancerId(pxr::SdfPath const &prim_id)
 pxr::SdfPathVector HydraSceneDelegate::GetInstancerPrototypes(pxr::SdfPath const &instancer_id)
 {
   CLOG_DEBUG(LOG_HYDRA_SCENE, "%s", instancer_id.GetText());
-  InstancerData *i_data = instancer_data(instancer_id);
-  return i_data->prototypes();
+  const InstancerData *i_data = instancer_data(instancer_id);
+  return i_data ? i_data->prototypes() : pxr::SdfPathVector();
 }
 
 pxr::VtIntArray HydraSceneDelegate::GetInstanceIndices(pxr::SdfPath const &instancer_id,
                                                        pxr::SdfPath const &prototype_id)
 {
   CLOG_DEBUG(LOG_HYDRA_SCENE, "%s, %s", instancer_id.GetText(), prototype_id.GetText());
-  InstancerData *i_data = instancer_data(instancer_id);
-  return i_data->indices(prototype_id);
+  const InstancerData *i_data = instancer_data(instancer_id);
+  return i_data ? i_data->indices(prototype_id) : pxr::VtIntArray();
 }
 
 pxr::GfMatrix4d HydraSceneDelegate::GetInstancerTransform(pxr::SdfPath const &instancer_id)
 {
   CLOG_DEBUG(LOG_HYDRA_SCENE, "%s", instancer_id.GetText());
-  InstancerData *i_data = instancer_data(instancer_id);
-  return i_data->transform(instancer_id);
+  const InstancerData *i_data = instancer_data(instancer_id);
+  return i_data ? i_data->transform(instancer_id) : pxr::GfMatrix4d(1.0);
 }
 
 pxr::HdVolumeFieldDescriptorVector HydraSceneDelegate::GetVolumeFieldDescriptors(
     pxr::SdfPath const &volume_id)
 {
   CLOG_DEBUG(LOG_HYDRA_SCENE, "%s", volume_id.GetText());
-  VolumeData *v_data = volume_data(volume_id);
-  return v_data->field_descriptors();
+  const VolumeData *v_data = volume_data(volume_id);
+  return v_data ? v_data->field_descriptors() : pxr::HdVolumeFieldDescriptorVector();
 }
 
 void HydraSceneDelegate::populate(Depsgraph *deps, View3D *v3d)
@@ -393,6 +400,10 @@ void HydraSceneDelegate::check_updates()
         }
         break;
       }
+      case ID_CA: {
+        camera_delegate_->update(id);
+        break;
+      }
       case ID_WO: {
         if (shading_settings.use_scene_world && id->recalc & ID_RECALC_SHADING) {
           do_update_world = true;
@@ -440,19 +451,19 @@ void HydraSceneDelegate::update_collection()
   instancer_data_->pre_update();
 
   auto update_psys = [this, &available_objects](Object *object) {
-    LISTBASE_FOREACH (ParticleSystem *, psys, &object->particlesystem) {
-      if (psys_in_edit_mode(depsgraph, psys)) {
+    for (ParticleSystem &psys : object->particlesystem) {
+      if (psys_in_edit_mode(depsgraph, &psys)) {
         continue;
       }
-      if (HairData::is_supported(psys) && HairData::is_visible(this, object, psys)) {
-        pxr::SdfPath id = hair_prim_id(object, psys);
+      if (HairData::is_supported(&psys) && HairData::is_visible(this, object, &psys)) {
+        pxr::SdfPath id = hair_prim_id(object, &psys);
         HairData *h_data = hair_data(id);
         if (h_data) {
           h_data->update();
         }
         else {
           h_data = dynamic_cast<HairData *>(
-              objects_.lookup_or_add(id, std::make_unique<HairData>(this, object, id, psys))
+              objects_.lookup_or_add(id, std::make_unique<HairData>(this, object, id, &psys))
                   .get());
           h_data->init();
           h_data->insert();

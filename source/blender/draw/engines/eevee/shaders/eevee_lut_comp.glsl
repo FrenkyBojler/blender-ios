@@ -7,7 +7,7 @@
  * the blender executable. This is only used for reference or to update them.
  */
 
-#include "infos/eevee_lut_info.hh"
+#include "infos/eevee_lut_infos.hh"
 
 COMPUTE_SHADER_CREATE_INFO(eevee_lut)
 
@@ -119,7 +119,8 @@ float4 ggx_bsdf_split_sum(float3 lut_coord)
     }
 
     /* Refraction. */
-    float3 T = bxdf_ggx_sample_refraction(Xi, V, roughness, ior, 0.0f, false).direction;
+    float3 T =
+        bxdf_ggx_sample_refraction(Xi, V, roughness, ior, Thickness::zero(), false).direction;
     float NT = T.z;
     /* In the case of TIR, `T == float3(0)`. */
     if (NT < 0.0f) {
@@ -128,7 +129,8 @@ float4 ggx_bsdf_split_sum(float3 lut_coord)
       /* Schlick's Fresnel. */
       float s = saturate(pow5f(1.0f - saturate(HL)));
 
-      float weight = bxdf_ggx_eval_refraction(N, T, V, roughness, ior, 0.0f, false).weight;
+      float weight =
+          bxdf_ggx_eval_refraction(N, T, V, roughness, ior, Thickness::zero(), false).weight;
       transmission_factor += (1.0f - s) * weight;
     }
   }
@@ -169,7 +171,8 @@ float4 ggx_btdf_gt_one(float3 lut_coord)
     float3 Xi = sample_cylinder(rand);
 
     /* Refraction. */
-    float3 L = bxdf_ggx_sample_refraction(Xi, V, roughness, ior, 0.0f, false).direction;
+    float3 L =
+        bxdf_ggx_sample_refraction(Xi, V, roughness, ior, Thickness::zero(), false).direction;
     float NL = L.z;
 
     if (NL < 0.0f) {
@@ -178,7 +181,8 @@ float4 ggx_btdf_gt_one(float3 lut_coord)
       /* Schlick's Fresnel. */
       float s = saturate(pow5f(1.0f - saturate(HV)));
 
-      float weight = bxdf_ggx_eval_refraction(N, L, V, roughness, ior, 0.0f, false).weight;
+      float weight =
+          bxdf_ggx_eval_refraction(N, L, V, roughness, ior, Thickness::zero(), false).weight;
       transmission_factor += (1.0f - s) * weight;
     }
   }

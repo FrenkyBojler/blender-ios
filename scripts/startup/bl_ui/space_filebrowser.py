@@ -211,7 +211,6 @@ class FILEBROWSER_UL_dir(UIList):
         # space = context.space_data
 
         row = layout.row(align=True)
-        row.enabled = direntry.is_valid
         # Non-editable entries would show grayed-out, which is bad in this specific case, so switch to mere label.
         if direntry.is_property_readonly("name"):
             row.label(text=direntry.name, icon_value=icon)
@@ -303,12 +302,14 @@ class FILEBROWSER_PT_bookmarks_favorites(FileBrowserPanel, Panel):
             row.template_list(
                 "FILEBROWSER_UL_dir", "bookmarks", space, "bookmarks",
                 space, "bookmarks_active", item_dyntip_propname="path",
-                rows=(2 if num_rows < 2 else 4), maxrows=10,
+                rows=(3 if num_rows < 2 else 5), maxrows=10,
             )
 
             col = row.column(align=True)
             col.operator("file.bookmark_add", icon='ADD', text="")
             col.operator("file.bookmark_delete", icon='REMOVE', text="")
+
+            col.separator()
             col.menu("FILEBROWSER_MT_bookmarks_context_menu", icon='DOWNARROW_HLT', text="")
 
             if num_rows > 1:
@@ -626,7 +627,9 @@ class ASSETBROWSER_PT_filter(asset_utils.AssetBrowserPanel, Panel):
         layout = self.layout
         space = context.space_data
         params = space.params
-        use_extended_browser = context.preferences.experimental.use_extended_asset_browser
+        experimental = context.preferences.experimental
+        use_extended_browser = experimental.use_extended_asset_browser
+        use_remote_asset_libraries = experimental.use_remote_asset_libraries
 
         if params.use_filter_blendid:
             col = layout.column(align=True)
@@ -640,6 +643,9 @@ class ASSETBROWSER_PT_filter(asset_utils.AssetBrowserPanel, Panel):
                     row = col.row()
                     row.label(icon=filter_id.bl_rna.properties[identifier].icon)
                     row.prop(filter_id, identifier, toggle=False)
+
+        if use_remote_asset_libraries:
+            layout.prop(params, "show_online_assets", text="Online Assets")
 
 
 class AssetBrowserMenu:
@@ -783,7 +789,7 @@ class ASSETBROWSER_PT_metadata(asset_utils.AssetBrowserPanel, Panel):
 
         row = layout.row(align=True)
         row.prop(wm, "asset_path_dummy", text="Source", icon='CURRENT_FILE' if is_local_asset else 'NONE')
-        row.operator("asset.open_containing_blend_file", text="", icon='TOOL_SETTINGS')
+        row.operator("asset.open_containing_blend_file", text="", icon='FILE_BLEND')
 
         metadata = asset.metadata
         self.metadata_prop(layout, metadata, "description")
@@ -859,8 +865,13 @@ class ASSETBROWSER_MT_context_menu(AssetBrowserMenu, Menu):
         layout = self.layout
         st = context.space_data
         params = st.params
+        asset = context.asset
 
-        layout.operator("asset.library_refresh")
+        if asset and asset.is_online:
+            layout.operator("asset.assets_download")
+            layout.separator()
+
+        layout.operator("asset.library_refresh", icon='FILE_REFRESH')
 
         layout.separator()
 
@@ -871,7 +882,7 @@ class ASSETBROWSER_MT_context_menu(AssetBrowserMenu, Menu):
 
         layout.separator()
 
-        layout.operator("asset.open_containing_blend_file")
+        layout.operator("asset.open_containing_blend_file", icon='FILE_BLEND')
 
         layout.separator()
 

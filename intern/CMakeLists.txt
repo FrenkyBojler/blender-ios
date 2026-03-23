@@ -2,7 +2,6 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# add_subdirectory(atomic)  # header only
 add_subdirectory(atomic)
 add_subdirectory(clog)
 add_subdirectory(ghost)
@@ -14,9 +13,7 @@ add_subdirectory(mikktspace)
 add_subdirectory(eigen)
 add_subdirectory(sky)
 
-if(WITH_AUDASPACE)
-  add_subdirectory(audaspace)
-endif()
+add_subdirectory(openvdb)
 
 if(WITH_MOD_REMESH)
   add_subdirectory(dualcon)
@@ -53,10 +50,6 @@ endif()
 
 if(WITH_UV_SLIM)
   add_subdirectory(slim)
-endif()
-
-if(WITH_OPENVDB)
-  add_subdirectory(openvdb)
 endif()
 
 if(WITH_QUADRIFLOW)

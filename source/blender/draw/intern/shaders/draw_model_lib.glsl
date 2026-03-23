@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "draw_view_info.hh"
+#include "draw_view_infos.hh"
 
 #include "draw_view_lib.glsl"
 
@@ -23,22 +23,14 @@ SHADER_LIBRARY_CREATE_INFO(draw_resource_id_varying)
 uint drw_resource_id_raw()
 {
 #if defined(GPU_VERTEX_SHADER)
-#  if defined(RESOURCE_ID_FALLBACK)
-#    ifdef WITH_CUSTOM_IDS
-  uint id = in_resource_id.x;
-#    else
-  uint id = in_resource_id;
-#    endif
-#  else
-#    ifdef WITH_CUSTOM_IDS
+#  ifdef WITH_CUSTOM_IDS
   uint id = resource_id_buf[gpu_BaseInstance + gl_InstanceID].x;
-#    else
+#  else
   uint id = resource_id_buf[gpu_BaseInstance + gl_InstanceID];
-#    endif
 #  endif
   return id;
 
-#elif defined(GPU_FRAGMENT_SHADER) || defined(GPU_LIBRARY_SHADER)
+#elif (defined(GPU_FRAGMENT_SHADER) || defined(GPU_LIBRARY_SHADER)) && defined(RESOURCE_ID_VARYING)
   return drw_ResourceID_iface.resource_index;
 #endif
   return 0;
@@ -53,12 +45,8 @@ uint drw_custom_id()
 {
 #ifdef WITH_CUSTOM_IDS
 #  if defined(GPU_VERTEX_SHADER)
-#    if defined(RESOURCE_ID_FALLBACK)
-  return in_resource_id.y;
-#    else
   uint inst_id = gpu_BaseInstance + gl_InstanceID;
   return resource_id_buf[gpu_BaseInstance + gl_InstanceID].y;
-#    endif
 #  endif
 #endif
   return 0;

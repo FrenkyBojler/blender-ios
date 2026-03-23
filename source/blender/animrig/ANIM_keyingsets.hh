@@ -12,6 +12,8 @@
 
 #include "RNA_types.hh"
 
+namespace blender {
+
 struct KeyingSet;
 struct ExtensionRNA;
 /* Forward declaration for this struct which is declared a bit later. */
@@ -53,7 +55,7 @@ struct KeyingSetInfo {
   /** identifier so that user can hook this up to a KeyingSet (used as label). */
   char name[/*MAX_NAME*/ 64];
   /** Short help/description. */
-  char description[1024]; /* #RNA_DYN_DESCR_MAX */
+  char description[/*RNA_DYN_DESCR_MAX*/ 1024];
   /** Keying settings. */
   short keyingflag;
 
@@ -75,7 +77,7 @@ struct KeyingSetInfo {
   ExtensionRNA rna_ext;
 };
 
-namespace blender::animrig {
+namespace animrig {
 
 /** Mode for modify_keyframes. */
 enum class ModifyKeyMode {
@@ -105,9 +107,7 @@ enum class ModifyKeyReturn {
  *
  * \note Passing sources as pointer because it can be a nullptr.
  */
-ModifyKeyReturn validate_keyingset(bContext *C,
-                                   blender::Vector<PointerRNA> *sources,
-                                   KeyingSet *keyingset);
+ModifyKeyReturn validate_keyingset(bContext *C, Vector<PointerRNA> *sources, KeyingSet *keyingset);
 
 /**
  * Use the specified #KeyingSet and context info (if required)
@@ -120,7 +120,7 @@ ModifyKeyReturn validate_keyingset(bContext *C,
  * an #ModifyKeyReturn error (always a negative number).
  */
 int apply_keyingset(bContext *C,
-                    blender::Vector<PointerRNA> *sources,
+                    Vector<PointerRNA> *sources,
                     KeyingSet *keyingset,
                     ModifyKeyMode mode,
                     float cfra);
@@ -180,12 +180,13 @@ void keyingset_infos_exit();
 /**
  * Add another data source for Relative Keying Sets to be evaluated with.
  */
-void relative_keyingset_add_source(blender::Vector<PointerRNA> &sources,
+void relative_keyingset_add_source(Vector<PointerRNA> &sources,
                                    ID *id,
                                    StructRNA *srna,
                                    void *data);
-void relative_keyingset_add_source(blender::Vector<PointerRNA> &sources, ID *id);
+void relative_keyingset_add_source(Vector<PointerRNA> &sources, ID *id);
 
 /** \} */
 
-}  // namespace blender::animrig
+}  // namespace animrig
+}  // namespace blender

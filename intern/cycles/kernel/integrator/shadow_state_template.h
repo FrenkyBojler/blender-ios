@@ -25,6 +25,8 @@ KERNEL_STRUCT_MEMBER(shadow_path, uint16_t, glossy_bounce, KERNEL_FEATURE_PATH_T
 KERNEL_STRUCT_MEMBER(shadow_path, uint16_t, transmission_bounce, KERNEL_FEATURE_PATH_TRACING)
 /* Current volume bounds ray bounce depth. */
 KERNEL_STRUCT_MEMBER(shadow_path, uint16_t, volume_bounds_bounce, KERNEL_FEATURE_PATH_TRACING)
+/* Current portal ray bounce depth. */
+KERNEL_STRUCT_MEMBER(shadow_path, uint16_t, portal_bounce, KERNEL_FEATURE_NODE_PORTAL)
 /* DeviceKernel bit indicating queued kernels. */
 KERNEL_STRUCT_MEMBER(shadow_path, uint16_t, queued_kernel, KERNEL_FEATURE_PATH_TRACING)
 /* enum PathRayFlag */
@@ -57,6 +59,12 @@ KERNEL_STRUCT_MEMBER(shadow_path,
 KERNEL_STRUCT_MEMBER(shadow_path, uint64_t, path_segment, KERNEL_FEATURE_PATH_GUIDING)
 #endif
 KERNEL_STRUCT_MEMBER(shadow_path, float, guiding_mis_weight, KERNEL_FEATURE_PATH_GUIDING)
+/* Only need when path tracing without the light tree. Stored as a single float to save
+ * space, as we do not expect to make it a big difference. */
+KERNEL_STRUCT_MEMBER(shadow_path,
+                     float,
+                     bsdf_eval_average,
+                     KernelFeatureRequest(KERNEL_FEATURE_PATH_TRACING, KERNEL_FEATURE_LIGHT_TREE))
 KERNEL_STRUCT_END(shadow_path)
 
 /********************************** Shadow Ray *******************************/

@@ -5,6 +5,8 @@
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
 
+#include "GEO_foreach_geometry.hh"
+
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_set_grease_pencil_softness_cc {
@@ -28,7 +30,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Field<bool> selection = params.extract_input<Field<bool>>("Selection");
   const Field<float> softness = params.extract_input<Field<float>>("Softness");
 
-  geometry_set.modify_geometry_sets([&](GeometrySet &geometry) {
+  geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry) {
     if (GreasePencil *grease_pencil = geometry.get_grease_pencil_for_write()) {
       using namespace bke::greasepencil;
       for (const int layer_index : grease_pencil->layers().index_range()) {
@@ -56,7 +58,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeSetGreasePencilSoftness");
   ntype.ui_name = "Set Grease Pencil Softness";
@@ -65,7 +67,7 @@ static void node_register()
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
   bke::node_type_size(ntype, 180, 120, NODE_DEFAULT_MAX_WIDTH);
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

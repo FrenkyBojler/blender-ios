@@ -6,14 +6,21 @@
  * \ingroup edasset
  */
 
+#include <algorithm>
+#include <iostream>
+
+#include <fmt/format.h>
+
 #include "AS_asset_library.hh"
 #include "AS_asset_representation.hh"
+#include "AS_remote_library.hh"
 
 #include "BKE_asset_edit.hh"
+#include "BKE_blendfile.hh"
 #include "BKE_bpath.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
-#include "BKE_icons.h"
+#include "BKE_icons.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_preferences.h"
@@ -25,6 +32,7 @@
 #include "BLI_path_utils.hh"
 #include "BLI_rect.h"
 #include "BLI_set.hh"
+#include "BLI_string.h"
 
 #include "ED_asset.hh"
 #include "ED_screen.hh"
@@ -92,12 +100,12 @@ static IDVecStats asset_operation_get_id_vec_stats_from_ids(const Span<PointerRN
 
 static const char *asset_operation_unsupported_type_msg(const bool is_single)
 {
-  const char *msg_single =
-      "Data-block does not support asset operations - must be "
-      "a " ED_ASSET_TYPE_IDS_NON_EXPERIMENTAL_UI_STRING;
-  const char *msg_multiple =
-      "No data-block selected that supports asset operations - select at least "
-      "one " ED_ASSET_TYPE_IDS_NON_EXPERIMENTAL_UI_STRING;
+  const char *msg_single = N_(
+      "Data-block does not support asset operations - must be a "
+      "Brush, Collection, Node Group, Object, Pose Action, Scene, or World");
+  const char *msg_multiple = N_(
+      "No data-block selected that supports asset operations - select at least one "
+      "Brush, Collection, Node Group, Object, Pose Action, Scene, or World");
   return is_single ? msg_single : msg_multiple;
 }
 
@@ -289,7 +297,9 @@ void AssetClearHelper::reportResults(const bContext *C, ReportList &reports) con
   if (!wasSuccessful()) {
     /* Dedicated error message for when there is an active asset detected, but it's not an ID local
      * to this file. Helps users better understanding what's going on. */
-    if (AssetRepresentationHandle *active_asset = CTX_wm_asset(C); !active_asset->is_local_id()) {
+    if (asset_system::AssetRepresentation *active_asset = CTX_wm_asset(C);
+        !active_asset->is_local_id())
+    {
       BKE_report(&reports,
                  RPT_ERROR,
                  "No asset data-blocks from the current file selected (assets must be stored in "
@@ -1003,7 +1013,8 @@ static inline void sort_points(int2 &p1, int2 &p2)
 /* Clamps the point to the window bounds. */
 static inline int2 clamp_point_to_window(const int2 &point, const wmWindow *window)
 {
-  return {clamp_i(point.x, 0, window->sizex - 1), clamp_i(point.y, 0, window->sizey - 1)};
+  const int2 win_size = WM_window_native_pixel_size(window);
+  return {clamp_i(point.x, 0, win_size.x - 1), clamp_i(point.y, 0, win_size.y - 1)};
 }
 
 /* Ensures that the x and y distance to from p1 to p2 is equal and the resulting square remains
@@ -1022,8 +1033,9 @@ static inline void square_points_clamp_to_window(const int2 &p1, int2 &p2, const
   int square_size = std::max(size_x, size_y);
 
   /* Compute maximum size that fits within window bounds in the drag direction. */
-  const int max_size_x = (dir_x > 0) ? window->sizex - p1.x - 1 : p1.x;
-  const int max_size_y = (dir_y > 0) ? window->sizey - p1.y - 1 : p1.y;
+  const int2 win_size = WM_window_native_pixel_size(window);
+  const int max_size_x = (dir_x > 0) ? win_size.x - p1.x - 1 : p1.x;
+  const int max_size_y = (dir_y > 0) ? win_size.y - p1.y - 1 : p1.y;
 
   /* Clamp the square size so it does not exceed window bounds. */
   square_size = std::min(square_size, std::min(max_size_x, max_size_y));
@@ -1073,7 +1085,8 @@ static void generate_previewimg_from_buffer(ID *id, const ImBuf *image_buffer)
 
     ImBuf *scaled_imbuf = IMB_scale_into_new(
         image_buffer, width, height, IMBScaleFilter::Nearest, false);
-    preview_image->rect[size_type] = (uint *)MEM_dupallocN(scaled_imbuf->byte_buffer.data);
+    preview_image->rect[size_type] = reinterpret_cast<uint *>(
+        MEM_dupalloc(scaled_imbuf->byte_buffer.data));
     preview_image->w[size_type] = width;
     preview_image->h[size_type] = height;
     preview_image->flag[size_type] |= PRV_USER_EDITED;
@@ -1100,7 +1113,7 @@ static ImBuf *take_screenshot_crop(bContext *C, const rcti &crop_rect)
 
   /* Validate rectangle. */
   if (!BLI_rcti_is_valid(&safe_rect)) {
-    MEM_freeN(dumprect);
+    MEM_delete(dumprect);
     return nullptr;
   }
 
@@ -1148,7 +1161,23 @@ static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
    * render to support transparency. Render settings are used as currently set up in the viewport
    * to comply with WYSIWYG as much as possible. One limitation is that GUI elements will not be
    * visible in the render. */
+  bool render_offscreen = false;
   if (area_p1 == area_p2 && area_p1 != nullptr && area_p1->spacetype == SPACE_VIEW3D) {
+    Scene *scene = CTX_data_scene(C);
+    View3D *v3d = static_cast<View3D *>(area_p1->spacedata.first);
+    /* For #ED_view3d_draw_offscreen_imbuf only EEVEE only produces a good result. See #141732. */
+    if (eDrawType(v3d->shading.type) == OB_RENDER) {
+      const char *engine_name = scene->r.engine;
+      render_offscreen = STR_ELEM(engine_name,
+                                  RE_engine_id_BLENDER_EEVEE,
+                                  RE_engine_id_BLENDER_EEVEE_NEXT,
+                                  RE_engine_id_BLENDER_WORKBENCH);
+    }
+    else {
+      render_offscreen = true;
+    }
+  }
+  if (render_offscreen) {
     View3D *v3d = static_cast<View3D *>(area_p1->spacedata.first);
     ARegion *region = BKE_area_find_region_type(area_p1, RGN_TYPE_WINDOW);
     if (!region) {
@@ -1170,6 +1199,7 @@ static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
                                                   false,
                                                   nullptr,
                                                   nullptr,
+                                                  false,
                                                   err_out);
 
     /* Convert crop rect into the space relative to the area. */
@@ -1188,7 +1218,7 @@ static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
     }
   }
 
-  const AssetRepresentationHandle *asset_handle = CTX_wm_asset(C);
+  const asset_system::AssetRepresentation *asset_handle = CTX_wm_asset(C);
   BLI_assert_msg(asset_handle != nullptr, "This is ensured by poll");
   AssetWeakReference asset_reference = asset_handle->make_weak_reference();
 
@@ -1241,20 +1271,21 @@ static void screenshot_preview_draw(const wmWindow *window, void *operator_data)
 
   /* Drawing a semi-transparent mask to highlight the area that will be captured. */
   float4 mask_color = {1, 1, 1, 0.25};
-  const rctf mask_rect_bottom = {0, float(window->sizex), 0, screenshot_rect.ymin};
-  UI_draw_roundbox_aa(&mask_rect_bottom, true, 0, mask_color);
-  const rctf mask_rect_top = {0, float(window->sizex), screenshot_rect.ymax, float(window->sizey)};
-  UI_draw_roundbox_aa(&mask_rect_top, true, 0, mask_color);
+  const int2 win_size = WM_window_native_pixel_size(window);
+  const rctf mask_rect_bottom = {0, float(win_size.x), 0, screenshot_rect.ymin};
+  ui::draw_roundbox_aa(&mask_rect_bottom, true, 0, mask_color);
+  const rctf mask_rect_top = {0, float(win_size.x), screenshot_rect.ymax, float(win_size.y)};
+  ui::draw_roundbox_aa(&mask_rect_top, true, 0, mask_color);
   const rctf mask_rect_left = {
       0, screenshot_rect.xmin, screenshot_rect.ymin, screenshot_rect.ymax};
-  UI_draw_roundbox_aa(&mask_rect_left, true, 0, mask_color);
+  ui::draw_roundbox_aa(&mask_rect_left, true, 0, mask_color);
   const rctf mask_rect_right = {
-      screenshot_rect.xmax, float(window->sizex), screenshot_rect.ymin, screenshot_rect.ymax};
-  UI_draw_roundbox_aa(&mask_rect_right, true, 0, mask_color);
+      screenshot_rect.xmax, float(win_size.x), screenshot_rect.ymin, screenshot_rect.ymax};
+  ui::draw_roundbox_aa(&mask_rect_right, true, 0, mask_color);
 
   float4 color;
-  UI_GetThemeColor4fv(TH_EDITOR_BORDER, color);
-  UI_draw_roundbox_aa(&screenshot_rect, false, 0, color);
+  ui::theme::get_color_4fv(TH_EDITOR_BORDER, color);
+  ui::draw_roundbox_aa(&screenshot_rect, false, 0, color);
 }
 
 static void screenshot_preview_exit(bContext *C, wmOperator *op)
@@ -1263,7 +1294,7 @@ static void screenshot_preview_exit(bContext *C, wmOperator *op)
   WM_cursor_modal_restore(win);
   ScreenshotOperatorData *data = static_cast<ScreenshotOperatorData *>(op->customdata);
   WM_draw_cb_exit(win, data->draw_handle);
-  MEM_freeN(data);
+  MEM_delete(data);
   ED_workspace_status_text(C, nullptr);
 }
 
@@ -1356,7 +1387,8 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
         const int2 new_p2 = data->p2 + delta;
 
         auto is_within_window = [win](const int2 &pt) -> bool {
-          return pt.x >= 0 && pt.x < win->sizex && pt.y >= 0 && pt.y < win->sizey;
+          const int2 win_size = WM_window_native_pixel_size(win);
+          return pt.x >= 0 && pt.x < win_size.x && pt.y >= 0 && pt.y < win_size.y;
         };
 
         /* Apply movement only if the entire rectangle stays within window bounds. */
@@ -1413,7 +1445,7 @@ static wmOperatorStatus screenshot_preview_invoke(bContext *C,
   wmWindow *win = CTX_wm_window(C);
   WM_cursor_modal_set(win, WM_CURSOR_CROSS);
 
-  op->customdata = MEM_callocN(sizeof(ScreenshotOperatorData), __func__);
+  op->customdata = MEM_new_zeroed<ScreenshotOperatorData>(__func__);
   ScreenshotOperatorData *data = static_cast<ScreenshotOperatorData *>(op->customdata);
   data->draw_handle = WM_draw_cb_activate(win, screenshot_preview_draw, data);
   data->is_mouse_down = false;
@@ -1430,40 +1462,26 @@ static wmOperatorStatus screenshot_preview_invoke(bContext *C,
   return OPERATOR_RUNNING_MODAL;
 }
 
-static ID *id_from_selected_asset(bContext *C)
-{
-  const AssetRepresentationHandle *asset_handle = CTX_wm_asset(C);
-  if (!asset_handle) {
-    return nullptr;
-  }
-
-  AssetWeakReference asset_reference = asset_handle->make_weak_reference();
-  Main *bmain = CTX_data_main(C);
-  return bke::asset_edit_id_from_weak_reference(
-      *bmain, asset_handle->get_id_type(), asset_reference);
-}
-
 static bool screenshot_preview_poll(bContext *C)
 {
   if (G.background) {
     return false;
   }
 
-  ID *id = id_from_selected_asset(C);
-  if (!id) {
+  const asset_system::AssetRepresentation *asset_handle = CTX_wm_asset(C);
+  if (!asset_handle) {
     CTX_wm_operator_poll_msg_set(C, "No selected asset");
     return false;
   }
-
-  if (!ID_IS_LINKED(id)) {
+  if (asset_handle->is_local_id()) {
     return WM_operator_winactive(C);
   }
-
-  if (!bke::asset_edit_id_is_editable(*id)) {
-    return false;
+  if (asset_handle->is_potentially_editable_asset_blend()) {
+    return true;
   }
 
-  return WM_operator_winactive(C);
+  CTX_wm_operator_poll_msg_set(C, "Asset cannot be modified from this file");
+  return false;
 }
 
 static void ASSET_OT_screenshot_preview(wmOperatorType *ot)
@@ -1508,6 +1526,91 @@ static void ASSET_OT_screenshot_preview(wmOperatorType *ot)
 
 /* -------------------------------------------------------------------- */
 
+static Vector<const asset_system::AssetRepresentation *> selected_or_active_assets(
+    const bContext *C)
+{
+  /* Convert RNA pointers to their data. */
+  Vector<PointerRNA> asset_pointers = CTX_data_collection_get(C, "selected_assets");
+  Vector<const asset_system::AssetRepresentation *> assets(asset_pointers.size());
+  for (int i : asset_pointers.index_range()) {
+    assets[i] = static_cast<asset_system::AssetRepresentation *>(asset_pointers[i].data);
+  }
+
+  if (!assets.is_empty()) {
+    /* There were selected assets, so return those. */
+    return assets;
+  }
+
+  /* No selected assets, so return the active asset.  */
+  if (const asset_system::AssetRepresentation *active_asset = CTX_wm_asset(C)) {
+    assets.append(active_asset);
+  }
+
+  return assets;
+}
+
+static bool assets_download_poll(bContext *C)
+{
+  if ((G.f & G_FLAG_INTERNET_ALLOW) == 0) {
+    CTX_wm_operator_poll_msg_set(
+        C, "Internet access is disabled (can be enabled in the Preferences, System tab)");
+    return false;
+  }
+
+#ifndef WITH_PYTHON
+  UNUSED_VARS(C);
+  CTX_wm_operator_poll_msg_set(C, "Asset downloading requires Python");
+  return false;
+#endif
+
+  const Vector<const asset_system::AssetRepresentation *> assets = selected_or_active_assets(C);
+  if (assets.is_empty()) {
+    CTX_wm_operator_poll_msg_set(C, "No asset selected or active");
+    return false;
+  }
+
+  const bool has_online_asset = [&]() {
+    for (const asset_system::AssetRepresentation *asset : assets) {
+      if (asset->is_online()) {
+        return true;
+      }
+    }
+    return false;
+  }();
+
+  if (!has_online_asset) {
+    CTX_wm_operator_poll_msg_set(C, "None of the selected assets requires downloading");
+    return false;
+  }
+
+  return true;
+}
+
+static wmOperatorStatus assets_download_exec(bContext *C, wmOperator *op)
+{
+  const Vector<const asset_system::AssetRepresentation *> assets = selected_or_active_assets(C);
+
+  for (const asset_system::AssetRepresentation *asset : assets) {
+    asset_system::remote_library_request_asset_download(*C, *asset, op->reports);
+  }
+
+  return OPERATOR_FINISHED;
+}
+
+static void ASSET_OT_assets_download(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Download Assets";
+  ot->description = "Download the selected asset(s)";
+  ot->idname = "ASSET_OT_assets_download";
+
+  /* API callbacks. */
+  ot->exec = assets_download_exec;
+  ot->poll = assets_download_poll;
+}
+
+/* -------------------------------------------------------------------- */
+
 void operatortypes_asset()
 {
   WM_operatortype_append(ASSET_OT_mark);
@@ -1526,6 +1629,8 @@ void operatortypes_asset()
   WM_operatortype_append(ASSET_OT_library_refresh);
 
   WM_operatortype_append(ASSET_OT_screenshot_preview);
+
+  WM_operatortype_append(ASSET_OT_assets_download);
 }
 
 }  // namespace blender::ed::asset

@@ -35,11 +35,19 @@ ccl_device void shader_setup_object_transforms(KernelGlobals kg,
 }
 
 /* TODO: break this up if it helps reduce register pressure to load data from
- * global memory as we write it to shader-data. */
-ccl_device_inline void shader_setup_from_ray(KernelGlobals kg,
-                                             ccl_private ShaderData *ccl_restrict sd,
-                                             const ccl_private Ray *ccl_restrict ray,
-                                             const ccl_private Intersection *ccl_restrict isect)
+ * global memory as we write it to shader-data.
+ *
+ * HIP on Linux currently needs noinline to sidestep a probable compiler bug. */
+#ifdef __KERNEL_HIP__
+ccl_device_noinline
+#else
+ccl_device_inline
+#endif
+    void
+    shader_setup_from_ray(KernelGlobals kg,
+                          ccl_private ShaderData *ccl_restrict sd,
+                          const ccl_private Ray *ccl_restrict ray,
+                          const ccl_private Intersection *ccl_restrict isect)
 {
   /* Read intersection data into shader globals.
    *
@@ -187,7 +195,8 @@ ccl_device_inline void shader_setup_from_sample(KernelGlobals kg,
     if (sd->type == PRIMITIVE_TRIANGLE) {
       /* smooth normal */
       if (sd->shader & SHADER_SMOOTH_NORMAL) {
-        sd->N = triangle_smooth_normal(kg, Ng, sd->prim, sd->u, sd->v);
+        sd->N = triangle_smooth_normal(
+            kg, Ng, sd->object, sd->object_flag, sd->prim, sd->u, sd->v);
 
         if (!(sd->object_flag & SD_OBJECT_TRANSFORM_APPLIED)) {
           object_normal_transform_auto(kg, sd, &sd->N);
@@ -325,9 +334,13 @@ ccl_device void shader_setup_from_curve(KernelGlobals kg,
   P_curve[3] = kernel_data_fetch(curve_keys, kb);
 
   /* Interpolate position and tangent. */
-  sd->P = make_float3(catmull_rom_basis_eval(P_curve, sd->u));
+  sd->P = (sd->type & PRIMITIVE_CURVE) == PRIMITIVE_CURVE_THICK_LINEAR ?
+              make_float3(linear_basis_eval(P_curve, sd->u)) :
+              make_float3(catmull_rom_basis_eval(P_curve, sd->u));
 #  ifdef __DPDU__
-  sd->dPdu = make_float3(catmull_rom_basis_derivative(P_curve, sd->u));
+  sd->dPdu = (sd->type & PRIMITIVE_CURVE) == PRIMITIVE_CURVE_THICK_LINEAR ?
+                 make_float3(linear_basis_derivative(P_curve, sd->u)) :
+                 make_float3(catmull_rom_basis_derivative(P_curve, sd->u));
 #  endif
 
   /* Transform into world space */
@@ -362,6 +375,7 @@ ccl_device_inline void shader_setup_from_background(KernelGlobals kg,
                                                     ccl_private ShaderData *ccl_restrict sd,
                                                     const float3 ray_P,
                                                     const float3 ray_D,
+                                                    const float ray_dD,
                                                     const float ray_time)
 {
   /* for NDC coordinates */
@@ -386,16 +400,17 @@ ccl_device_inline void shader_setup_from_background(KernelGlobals kg,
 
 #ifdef __DPDU__
   /* dPdu/dPdv */
-  sd->dPdu = zero_float3();
-  sd->dPdv = zero_float3();
+  /* Construct arbitrary local coordinate system. */
+  make_orthonormals(sd->Ng, &sd->dPdu, &sd->dPdv);
 #endif
 
 #ifdef __RAY_DIFFERENTIALS__
   /* differentials */
-  sd->dP = differential_zero_compact(); /* TODO: ray->dP */
-  sd->dI = differential_zero_compact();
-  sd->du = differential_zero();
-  sd->dv = differential_zero();
+  sd->dP = ray_dD;
+  sd->dI = differential_incoming_compact(ray_dD);
+  /* Make the uv coordinate system match the constructed local coordinate system. */
+  sd->du.dx = sd->dv.dy = sd->dP;
+  sd->du.dy = sd->dv.dx = 0.0f;
 #endif
 }
 

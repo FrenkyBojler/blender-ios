@@ -6,16 +6,13 @@
 #include "usd_hierarchy_iterator.hh"
 #include "usd_utils.hh"
 
-#include <pxr/base/gf/vec3f.h>
 #include <pxr/base/tf/pathUtils.h>
-#include <pxr/base/vt/array.h>
 #include <pxr/base/vt/value.h>
 #include <pxr/usd/usdVol/openVDBAsset.h>
 #include <pxr/usd/usdVol/volume.h>
 
 #include "DNA_scene_types.h"
 #include "DNA_volume_types.h"
-#include "DNA_windowmanager_types.h"
 
 #include "BKE_report.hh"
 #include "BKE_volume.hh"
@@ -52,13 +49,13 @@ USDVolumeWriter::USDVolumeWriter(const USDExporterContext &ctx) : USDAbstractWri
 
 bool USDVolumeWriter::check_is_animated(const HierarchyContext &context) const
 {
-  const Volume *volume = static_cast<Volume *>(context.object->data);
+  const Volume *volume = id_cast<Volume *>(context.object->data);
   return volume->is_sequence || has_varying_modifiers(context.object);
 }
 
 void USDVolumeWriter::do_write(HierarchyContext &context)
 {
-  Volume *volume = static_cast<Volume *>(context.object->data);
+  Volume *volume = id_cast<Volume *>(context.object->data);
   if (!BKE_volume_load(volume, usd_export_context_.bmain)) {
     return;
   }
@@ -214,8 +211,8 @@ std::optional<std::string> USDVolumeWriter::construct_vdb_relative_file_path(
   }
 
   /* Following code was written with an assumption that Blender's relative paths start with
-   * // characters as well as have OS dependent slashes. Inside of USD files those relative
-   * paths should start with either ./ or ../ characters and have always forward slashes (/)
+   * `//` characters as well as have OS dependent slashes. Inside of USD files those relative
+   * paths should start with either `./` or `../` characters and have always forward slashes (`/`)
    * separating directories. This is the convention used in USD documentation (and it seems
    * to be used in other DCC packages as well). */
   std::string relative_path_processed = pxr::TfNormPath(relative_path + 2);

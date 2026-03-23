@@ -6,6 +6,8 @@
  * \ingroup edutil
  */
 
+#include <algorithm>
+
 #include "MEM_guardedalloc.h"
 
 #include "BLI_math_rotation.h"
@@ -33,6 +35,8 @@
 #include "ED_numinput.hh"
 
 #include "UI_interface.hh"
+
+namespace blender {
 
 /* Numeric input which isn't allowing full numeric editing. */
 #define USE_FAKE_EDIT
@@ -71,14 +75,14 @@ void initNumInput(NumInput *n)
 {
   n->idx_max = 0;
   n->unit_sys = USER_UNIT_NONE;
-  copy_vn_i(n->unit_type, NUM_MAX_ELEMENTS, B_UNIT_NONE);
+  std::fill_n(n->unit_type, NUM_MAX_ELEMENTS, B_UNIT_NONE);
   n->unit_use_radians = false;
 
   n->flag = 0;
-  copy_vn_short(n->val_flag, NUM_MAX_ELEMENTS, 0);
+  std::fill_n(n->val_flag, NUM_MAX_ELEMENTS, 0);
   zero_v3(n->val);
-  copy_vn_fl(n->val_org, NUM_MAX_ELEMENTS, 0.0f);
-  copy_vn_fl(n->val_inc, NUM_MAX_ELEMENTS, 1.0f);
+  std::fill_n(n->val_org, NUM_MAX_ELEMENTS, 0.0f);
+  std::fill_n(n->val_inc, NUM_MAX_ELEMENTS, 1.0f);
 
   n->idx = 0;
   n->str[0] = '\0';
@@ -102,7 +106,7 @@ void outputNumInput(NumInput *n, char *str, const UnitSettings &unit_settings)
 
     if (n->val_flag[i] & NUM_EDITED) {
       /* Get the best precision, allows us to draw '10.0001' as '10' instead! */
-      prec = UI_calc_float_precision(prec, double(n->val[i]));
+      prec = ui::calc_float_precision(prec, double(n->val[i]));
       if (i == n->idx) {
         const char *heading_exp = "", *trailing_exp = "";
         char before_cursor[NUM_STR_REP_LEN];
@@ -120,7 +124,7 @@ void outputNumInput(NumInput *n, char *str, const UnitSettings &unit_settings)
 #endif
 
         if (n->val_flag[i] & NUM_INVALID) {
-          STRNCPY(val, RPT_("Invalid"));
+          STRNCPY_UTF8(val, RPT_("Invalid"));
         }
         else {
           BKE_unit_value_as_string_adaptive(val,
@@ -134,33 +138,33 @@ void outputNumInput(NumInput *n, char *str, const UnitSettings &unit_settings)
         }
 
         /* +1 because of trailing '\0' */
-        BLI_strncpy(before_cursor, n->str, n->str_cur + 1);
-        BLI_snprintf(&str[j * ln],
-                     ln,
-                     "[%s%s|%s%s] = %s",
-                     heading_exp,
-                     before_cursor,
-                     &n->str[n->str_cur],
-                     trailing_exp,
-                     val);
+        BLI_strncpy_utf8(before_cursor, n->str, n->str_cur + 1);
+        BLI_snprintf_utf8(&str[j * ln],
+                          ln,
+                          "[%s%s|%s%s] = %s",
+                          heading_exp,
+                          before_cursor,
+                          &n->str[n->str_cur],
+                          trailing_exp,
+                          val);
       }
       else {
         const char *cur = (i == n->idx) ? "|" : "";
         if (n->unit_use_radians && n->unit_type[i] == B_UNIT_ROTATION) {
           /* Radian exception... */
-          BLI_snprintf(&str[j * ln], ln, "%s%.6gr%s", cur, n->val[i], cur);
+          BLI_snprintf_utf8(&str[j * ln], ln, "%s%.6gr%s", cur, n->val[i], cur);
         }
         else {
           char tstr[NUM_STR_REP_LEN];
           BKE_unit_value_as_string_adaptive(
               tstr, ln, double(n->val[i]), prec, n->unit_sys, n->unit_type[i], true, false);
-          BLI_snprintf(&str[j * ln], ln, "%s%s%s", cur, tstr, cur);
+          BLI_snprintf_utf8(&str[j * ln], ln, "%s%s%s", cur, tstr, cur);
         }
       }
     }
     else {
       const char *cur = (i == n->idx) ? "|" : "";
-      BLI_snprintf(&str[j * ln], ln, "%sNONE%s", cur, cur);
+      BLI_snprintf_utf8(&str[j * ln], ln, "%sNONE%s", cur, cur);
     }
     /* We might have cut some multi-bytes UTF8 chars
      * (e.g. trailing degrees symbol values can become only 'A'). */
@@ -279,7 +283,7 @@ bool user_string_to_number(bContext *C,
   const double unit_scale = BKE_unit_value_scale(unit, type, 1.0);
   if (BKE_unit_string_contains_unit(str, type)) {
     char str_unit_convert[256];
-    STRNCPY(str_unit_convert, str);
+    STRNCPY_UTF8(str_unit_convert, str);
     BKE_unit_replace_string(
         str_unit_convert, sizeof(str_unit_convert), str, unit_scale, unit.system, type);
 
@@ -521,7 +525,7 @@ bool handleNumInput(bContext *C, NumInput *n, const wmEvent *event)
         if (pbuf) {
           const bool success = editstr_insert_at_cursor(n, pbuf, pbuf_len);
 
-          MEM_freeN(pbuf);
+          MEM_delete(pbuf);
           if (!success) {
             return false;
           }
@@ -589,7 +593,7 @@ bool handleNumInput(bContext *C, NumInput *n, const wmEvent *event)
       printf("%s\n", error);
       BKE_report(reports, RPT_ERROR, error);
       BKE_report(reports, RPT_ERROR, "Numeric input evaluation");
-      MEM_freeN(error);
+      MEM_delete(error);
     }
 
     if (success) {
@@ -628,3 +632,5 @@ bool handleNumInput(bContext *C, NumInput *n, const wmEvent *event)
   /* REDRAW SINCE NUMBERS HAVE CHANGED */
   return true;
 }
+
+}  // namespace blender

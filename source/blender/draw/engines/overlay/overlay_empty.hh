@@ -265,8 +265,8 @@ class Empties : Overlay {
                   EmptyInstanceBuf &empty_image_buf)
   {
     Object *ob = ob_ref.object;
-    GPUTexture *tex = nullptr;
-    ::Image *ima = static_cast<::Image *>(ob_ref.object->data);
+    gpu::Texture *tex = nullptr;
+    blender::Image *ima = id_cast<blender::Image *>(ob_ref.object->data);
     float4x4 mat;
 
     const bool show_frame = BKE_object_empty_image_frame_is_visible_in_view3d(ob, state.rv3d);
@@ -372,7 +372,7 @@ class Empties : Overlay {
     return sub;
   };
 
-  static void calc_image_aspect(::Image *ima, const int2 &size, float2 &r_image_aspect)
+  static void calc_image_aspect(blender::Image *ima, const int2 &size, float2 &r_image_aspect)
   {
     /* if no image, make it a 1x1 empty square, honor scale & offset */
     const float2 ima_dim = ima ? float2(size.x, size.y) : float2(1.0f);

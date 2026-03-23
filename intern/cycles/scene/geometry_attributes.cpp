@@ -72,7 +72,7 @@ AttributeRequestSet Geometry::needed_attributes()
 bool Geometry::has_voxel_attributes() const
 {
   for (const Attribute &attr : attributes.attributes) {
-    if (attr.element == ATTR_ELEMENT_VOXEL) {
+    if (attr.element & ATTR_ELEMENT_VOXEL) {
       return true;
     }
   }
@@ -143,6 +143,7 @@ void GeometryManager::update_svm_attributes(Device * /*unused*/,
 {
   /* for SVM, the attributes_map table is used to lookup the offset of an
    * attribute, based on a unique shader attribute id. */
+  const bool use_osl = scene->shader_manager->use_osl();
 
   /* compute array stride */
   size_t attr_map_size = 0;
@@ -151,21 +152,22 @@ void GeometryManager::update_svm_attributes(Device * /*unused*/,
     Geometry *geom = scene->geometry[i];
     geom->attr_map_offset = attr_map_size;
 
-#ifdef WITH_OSL
     size_t attr_count = 0;
-    for (const AttributeRequest &req : geom_attributes[i].requests) {
-      if (req.std != ATTR_STD_NONE &&
-          scene->shader_manager->get_attribute_id(req.std) != (uint64_t)req.std)
-      {
-        attr_count += 2;
-      }
-      else {
-        attr_count += 1;
+    if (use_osl) {
+      for (const AttributeRequest &req : geom_attributes[i].requests) {
+        if (req.std != ATTR_STD_NONE &&
+            scene->shader_manager->get_attribute_id(req.std) != (uint64_t)req.std)
+        {
+          attr_count += 2;
+        }
+        else {
+          attr_count += 1;
+        }
       }
     }
-#else
-    const size_t attr_count = geom_attributes[i].size();
-#endif
+    else {
+      attr_count = geom_attributes[i].size();
+    }
 
     attr_map_size += (attr_count + 1) * ATTR_PRIM_TYPES;
   }
@@ -187,7 +189,7 @@ void GeometryManager::update_svm_attributes(Device * /*unused*/,
     return;
   }
 
-  if (!dscene->attributes_map.need_realloc()) {
+  if ((attr_map_size == dscene->attributes_map.size()) && !dscene->attributes_map.need_realloc()) {
     return;
   }
 
@@ -214,14 +216,14 @@ void GeometryManager::update_svm_attributes(Device * /*unused*/,
       emit_attribute_mapping(attr_map, index, id, req);
       index += ATTR_PRIM_TYPES;
 
-#ifdef WITH_OSL
-      /* Some standard attributes are explicitly referenced via their standard ID, so add those
-       * again in case they were added under a different attribute ID. */
-      if (req.std != ATTR_STD_NONE && id != (uint64_t)req.std) {
-        emit_attribute_mapping(attr_map, index, (uint64_t)req.std, req);
-        index += ATTR_PRIM_TYPES;
+      if (use_osl) {
+        /* Some standard attributes are explicitly referenced via their standard ID, so add those
+         * again in case they were added under a different attribute ID. */
+        if (req.std != ATTR_STD_NONE && id != (uint64_t)req.std) {
+          emit_attribute_mapping(attr_map, index, (uint64_t)req.std, req);
+          index += ATTR_PRIM_TYPES;
+        }
       }
-#endif
     }
 
     emit_attribute_map_terminator(attr_map, index, false, 0);
@@ -294,7 +296,8 @@ class AttributeTableBuilder {
         attr_float2{dscene->attributes_float2, 0, 0},
         attr_float3{dscene->attributes_float3, 0, 0},
         attr_float4{dscene->attributes_float4, 0, 0},
-        attr_uchar4{dscene->attributes_uchar4, 0, 0}
+        attr_uchar4{dscene->attributes_uchar4, 0, 0},
+        attr_normal{dscene->attributes_normal, 0, 0}
   {
   }
 
@@ -303,6 +306,7 @@ class AttributeTableBuilder {
   AttributeTableEntry<packed_float3> attr_float3;
   AttributeTableEntry<float4> attr_float4;
   AttributeTableEntry<uchar4> attr_uchar4;
+  AttributeTableEntry<packed_normal> attr_normal;
 
   void add(Geometry *geom,
            Attribute *mattr,
@@ -327,13 +331,16 @@ class AttributeTableBuilder {
     const AttributeElement &element = desc.element;
     int &offset = desc.offset;
 
-    if (mattr->element == ATTR_ELEMENT_VOXEL) {
+    if (mattr->element & ATTR_ELEMENT_VOXEL) {
       /* store slot in offset value */
       const ImageHandle &handle = mattr->data_voxel();
-      offset = handle.svm_slot();
+      offset = handle.kernel_id();
     }
-    else if (mattr->element == ATTR_ELEMENT_CORNER_BYTE) {
+    else if (mattr->element & ATTR_ELEMENT_IS_BYTE) {
       offset = attr_uchar4.add(mattr->data_uchar4(), size, mattr->modified);
+    }
+    else if (mattr->element & ATTR_ELEMENT_IS_NORMAL) {
+      offset = attr_normal.add(mattr->data_normal(), size, mattr->modified);
     }
     else if (mattr->type == TypeFloat) {
       offset = attr_float.add(mattr->data_float(), size, mattr->modified);
@@ -355,36 +362,27 @@ class AttributeTableBuilder {
      * a correction for that in here */
     if (geom->is_mesh()) {
       Mesh *mesh = static_cast<Mesh *>(geom);
-      if (element == ATTR_ELEMENT_VERTEX) {
+      if (element & ATTR_ELEMENT_VERTEX) {
         offset -= mesh->vert_offset;
       }
-      else if (element == ATTR_ELEMENT_VERTEX_MOTION) {
-        offset -= mesh->vert_offset;
-      }
-      else if (element == ATTR_ELEMENT_FACE) {
+      else if (element & ATTR_ELEMENT_FACE) {
         offset -= mesh->prim_offset;
       }
-      else if (element == ATTR_ELEMENT_CORNER || element == ATTR_ELEMENT_CORNER_BYTE) {
+      else if (element & ATTR_ELEMENT_CORNER) {
         offset -= 3 * mesh->prim_offset;
       }
     }
     else if (geom->is_hair()) {
       Hair *hair = static_cast<Hair *>(geom);
-      if (element == ATTR_ELEMENT_CURVE) {
+      if (element & ATTR_ELEMENT_CURVE) {
         offset -= hair->prim_offset;
       }
-      else if (element == ATTR_ELEMENT_CURVE_KEY) {
-        offset -= hair->curve_key_offset;
-      }
-      else if (element == ATTR_ELEMENT_CURVE_KEY_MOTION) {
+      else if (element & ATTR_ELEMENT_CURVE_KEY) {
         offset -= hair->curve_key_offset;
       }
     }
     else if (geom->is_pointcloud()) {
-      if (element == ATTR_ELEMENT_VERTEX) {
-        offset -= geom->prim_offset;
-      }
-      else if (element == ATTR_ELEMENT_VERTEX_MOTION) {
+      if (element & ATTR_ELEMENT_VERTEX) {
         offset -= geom->prim_offset;
       }
     }
@@ -398,11 +396,14 @@ class AttributeTableBuilder {
 
     const size_t size = mattr->element_size(geom, prim);
 
-    if (mattr->element == ATTR_ELEMENT_VOXEL) {
+    if (mattr->element & ATTR_ELEMENT_VOXEL) {
       /* pass */
     }
-    else if (mattr->element == ATTR_ELEMENT_CORNER_BYTE) {
+    else if (mattr->element & ATTR_ELEMENT_IS_BYTE) {
       attr_uchar4.reserve(size);
+    }
+    else if (mattr->element & ATTR_ELEMENT_IS_NORMAL) {
+      attr_normal.reserve(size);
     }
     else if (mattr->type == TypeFloat) {
       attr_float.reserve(size);
@@ -428,6 +429,7 @@ class AttributeTableBuilder {
     attr_float3.alloc();
     attr_float4.alloc();
     attr_uchar4.alloc();
+    attr_normal.alloc();
   }
 
   void copy_to_device_if_modified()
@@ -437,6 +439,7 @@ class AttributeTableBuilder {
     attr_float3.data.copy_to_device_if_modified();
     attr_float4.data.copy_to_device_if_modified();
     attr_uchar4.data.copy_to_device_if_modified();
+    attr_normal.data.copy_to_device_if_modified();
   }
 };
 
@@ -451,20 +454,32 @@ void GeometryManager::device_update_attributes(Device *device,
    * shaders assigned, this merges the requested attributes that have
    * been set per shader by the shader manager */
   vector<AttributeRequestSet> geom_attributes(scene->geometry.size());
+  AttributeRequestSet global_attributes;
+  scene->need_global_attributes(global_attributes);
 
   for (size_t i = 0; i < scene->geometry.size(); i++) {
     Geometry *geom = scene->geometry[i];
 
     geom->index = i;
-    scene->need_global_attributes(geom_attributes[i]);
+    geom_attributes[i].add(global_attributes);
 
     for (Node *node : geom->get_used_shaders()) {
       Shader *shader = static_cast<Shader *>(node);
       geom_attributes[i].add(shader->attributes);
     }
 
-    if (geom->is_hair() && static_cast<Hair *>(geom)->need_shadow_transparency()) {
-      geom_attributes[i].add(ATTR_STD_SHADOW_TRANSPARENCY);
+    for (const Attribute &attr : geom->attributes.attributes) {
+      switch (attr.std) {
+        case ATTR_STD_VERTEX_NORMAL:
+        case ATTR_STD_MOTION_VERTEX_NORMAL:
+        case ATTR_STD_CORNER_NORMAL:
+        case ATTR_STD_MOTION_CORNER_NORMAL:
+        case ATTR_STD_SHADOW_TRANSPARENCY:
+          geom_attributes[i].add(attr.std);
+          break;
+        default:
+          break;
+      }
     }
   }
 
@@ -536,6 +551,7 @@ void GeometryManager::device_update_attributes(Device *device,
       dscene->attributes_float3.need_realloc(),
       dscene->attributes_float4.need_realloc(),
       dscene->attributes_uchar4.need_realloc(),
+      dscene->attributes_normal.need_realloc(),
   };
 
   /* Fill in attributes. */

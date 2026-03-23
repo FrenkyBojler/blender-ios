@@ -118,7 +118,7 @@ def new_bone(obj: ArmatureObject, bone_name: str):
         edit_bone.roll = 0
         return name
     else:
-        raise MetarigError("Can't add new bone '%s' outside of edit mode" % bone_name)
+        raise MetarigError("Cannot add new bone '%s' outside of edit mode" % bone_name)
 
 
 def copy_bone(obj: ArmatureObject, bone_name: str, assign_name='', *,
@@ -302,7 +302,7 @@ def put_bone(obj: ArmatureObject, bone_name: str, pos: Optional[Vector], *,
 
 def disable_bbones(obj: ArmatureObject, bone_names: Iterable[str]):
     """Disables B-Bone segments on the specified bones."""
-    assert(obj.mode != 'EDIT')
+    assert obj.mode != 'EDIT'
     for bone in bone_names:
         obj.data.bones[bone].bbone_segments = 1
 
@@ -665,7 +665,7 @@ def compute_chain_x_axis(obj: ArmatureObject, bone_names: list[str]):
     """
     eb = obj.data.edit_bones
 
-    assert(len(bone_names) > 1)
+    assert len(bone_names) > 1
     first_bone = eb[bone_names[0]]
     last_bone = eb[bone_names[-1]]
 
