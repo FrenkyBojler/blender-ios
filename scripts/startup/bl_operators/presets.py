@@ -71,10 +71,18 @@ def _is_path_readonly(path):
 # Main Preset Implementation
 
 class AddPresetBase:
-    """Base preset class, only for subclassing
-    subclasses must define
+    """
+    Base preset class, only for subclassing.
+    Subclasses must define:
      - preset_values
-     - preset_subdir """
+     - preset_subdir
+
+    Optionally:
+     - preset_defines
+     - preset_loop:
+        - takes a loop variable, item to loop over, source object,
+          and optionally a bind expression overriding the loop variable
+    """
     # bl_idname = "script.preset_base_add"
     # bl_label = "Add a Python Preset"
 
@@ -169,7 +177,8 @@ class AddPresetBase:
                     rna_xml.xml_file_write(context, filepath, preset_menu_class.preset_xml_map)
                 else:
 
-                    def rna_recursive_attr_expand(value, rna_path_step, level):
+                    def rna_recursive_attr_expand(value, rna_path_step, level, do_indent):
+                        indent = "    " if do_indent else ""
                         if isinstance(value, bpy.types.PropertyGroup):
                             # Avoid properties being handled multiple times.
                             # This happens when a class defines a property which is also defined by it's parent class.
@@ -186,12 +195,16 @@ class AddPresetBase:
                                     sub_value,
                                     "{:s}.{:s}".format(rna_path_step, sub_value_attr),
                                     level,
+                                    do_indent,
                                 )
                         elif type(value).__name__ == "bpy_prop_collection_idprop":  # could use nicer method
-                            file_preset.write("{:s}.clear()\n".format(rna_path_step))
+                            file_preset.write("{:s}{:s}.clear()\n".format(indent, rna_path_step))
                             for sub_value in value:
-                                file_preset.write("item_sub_{:d} = {:s}.add()\n".format(level, rna_path_step))
-                                rna_recursive_attr_expand(sub_value, "item_sub_{:d}".format(level), level + 1)
+                                file_preset.write(
+                                    "{:s}item_sub_{:d} = {:s}.add()\n".format(
+                                        indent, level, rna_path_step))
+                                rna_recursive_attr_expand(
+                                    sub_value, "item_sub_{:d}".format(level), level + 1, do_indent)
                         else:
                             # convert thin wrapped sequences
                             # to simple lists to repr()
@@ -200,7 +213,7 @@ class AddPresetBase:
                             except Exception:
                                 pass
 
-                            file_preset.write("{:s} = {!r}\n".format(rna_path_step, value))
+                            file_preset.write("{:s}{:s} = {!r}\n".format(indent, rna_path_step, value))
 
                     with open(filepath, "w", encoding="utf-8") as file_preset:
                         file_preset.write("import bpy\n")
@@ -214,9 +227,29 @@ class AddPresetBase:
                                 file_preset.write("{:s}\n".format(rna_path))
                             file_preset.write("\n")
 
+                        if hasattr(self, "preset_loop"):
+                            loop_var, collection_expr, source_expr = (
+                                self.preset_loop[0], self.preset_loop[1], self.preset_loop[2],
+                            )
+                            file_preset.write("for {:s} in {:s}:\n".format(loop_var, collection_expr))
+
+                            # If there's a bind expression, its variable name will be used for `preset_values`
+                            # rather than the loop variable's name.
+                            if len(self.preset_loop) > 3:
+                                bind_expr = self.preset_loop[3]
+                                bind_var = bind_expr.split("=", 1)[0].strip()
+                                exec("{:s} = {:s}".format(bind_var, source_expr),
+                                     namespace_globals, namespace_locals)
+                                file_preset.write("    {:s}\n".format(bind_expr))
+                                file_preset.write("    if {:s} is None:\n".format(bind_var))
+                                file_preset.write("        continue\n")
+                            else:
+                                exec("{:s} = {:s}".format(loop_var, source_expr),
+                                     namespace_globals, namespace_locals)
+
                         for rna_path in self.preset_values:
                             value = eval(rna_path, namespace_globals, namespace_locals)
-                            rna_recursive_attr_expand(value, rna_path, 1)
+                            rna_recursive_attr_expand(value, rna_path, 1, hasattr(self, "preset_loop"))
 
             preset_menu_class.bl_label = bpy.path.display_name(filename)
 
