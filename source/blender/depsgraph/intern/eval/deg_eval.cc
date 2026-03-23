@@ -200,6 +200,8 @@ bool is_metaball_object_operation(const OperationNode *operation_node)
 {
   const ComponentNode *component_node = operation_node->owner;
   const IDNode *id_node = component_node->owner;
+  /* This runs after the COPY_ON_EVAL stage which creates id_cow. */
+  BLI_assert(id_node->id_cow);
   if (GS(id_node->id_cow->name) != ID_OB) {
     return false;
   }
@@ -215,6 +217,8 @@ bool is_modifier_subframe_operation(const OperationNode *operation_node)
 {
   const ComponentNode *component_node = operation_node->owner;
   const IDNode *id_node = component_node->owner;
+  /* This runs after the COPY_ON_EVAL stage which creates id_cow. */
+  BLI_assert(id_node->id_cow);
   if (GS(id_node->id_cow->name) != ID_OB) {
     return false;
   }
