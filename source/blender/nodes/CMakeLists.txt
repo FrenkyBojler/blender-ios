@@ -32,7 +32,7 @@ function(add_node_discovery
       ${sources}
       ${extra_args}
     DEPENDS
-      ${SRC}
+      ${sources}
       ${DISCOVER_NODES_PATH}
   )
   set_source_files_properties(${output_file} PROPERTIES GENERATED TRUE)
@@ -55,6 +55,8 @@ set(INC
   texture
   geometry/include
   ../animrig
+  ../compositor
+  ../compositor/cached_resources
   ../editors/include
   ../depsgraph
   ../makesrna
@@ -68,11 +70,12 @@ set(INC_SYS
 )
 
 set(SRC
+  intern/compositor_gizmos.cc
+  intern/dependencies.cc
   intern/geometry_nodes_bundle.cc
   intern/geometry_nodes_caller_ui.cc
   intern/geometry_nodes_closure.cc
   intern/geometry_nodes_closure_zone.cc
-  intern/geometry_nodes_dependencies.cc
   intern/geometry_nodes_execute.cc
   intern/geometry_nodes_foreach_geometry_element_zone.cc
   intern/geometry_nodes_gizmos.cc
@@ -107,7 +110,9 @@ set(SRC
 
   NOD_common.hh
   NOD_composite.hh
+  NOD_compositor_gizmos.hh
   NOD_defaults.hh
+  NOD_dependencies.hh
   NOD_geometry.hh
   NOD_geometry_exec.hh
   NOD_geometry_nodes_bundle.hh
@@ -119,7 +124,6 @@ set(SRC
   NOD_geometry_nodes_closure_fwd.hh
   NOD_geometry_nodes_closure_location.hh
   NOD_geometry_nodes_closure_signature.hh
-  NOD_geometry_nodes_dependencies.hh
   NOD_geometry_nodes_execute.hh
   NOD_geometry_nodes_gizmos.hh
   NOD_geometry_nodes_lazy_function.hh
@@ -192,14 +196,6 @@ set(LIB
   PRIVATE bf::dependencies::optional::bullet
 )
 
-if(WITH_TBB)
-  if(WIN32)
-    # TBB includes Windows.h which will define min/max macros
-    # that will collide with the STL versions.
-    add_definitions(-DNOMINMAX)
-  endif()
-endif()
-
 if(WITH_IMAGE_OPENEXR)
   add_definitions(-DWITH_IMAGE_OPENEXR)
 endif()
@@ -226,7 +222,8 @@ if(WITH_GTESTS)
     intern/node_iterator_tests.cc
   )
   set(TEST_LIB
+    ${LIB}
     bf_nodes
   )
-  blender_add_test_suite_lib(nodes "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${LIB}")
+  blender_add_test_suite_lib(nodes "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${TEST_LIB}")
 endif()

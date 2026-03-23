@@ -848,9 +848,9 @@ void InstancesTreeViewItem::on_activate(bContext &C)
 
   SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(&C);
 
-  MEM_SAFE_FREE(sspreadsheet.geometry_id.instance_ids);
-  sspreadsheet.geometry_id.instance_ids = MEM_new_array_for_free<SpreadsheetInstanceID>(
-      instance_ids.size(), __func__);
+  MEM_SAFE_DELETE(sspreadsheet.geometry_id.instance_ids);
+  sspreadsheet.geometry_id.instance_ids = MEM_new_array<SpreadsheetInstanceID>(instance_ids.size(),
+                                                                               __func__);
   sspreadsheet.geometry_id.instance_ids_num = instance_ids.size();
   initialized_copy_n(
       instance_ids.data(), instance_ids.size(), sspreadsheet.geometry_id.instance_ids);
@@ -1221,7 +1221,8 @@ struct ViewerDataPath {
   int viewer_item;
   Vector<StringRef> bundles;
   SpreadsheetClosureInputOutput closure_input_output = SPREADSHEET_CLOSURE_NONE;
-  BLI_STRUCT_EQUALITY_OPERATORS_3(ViewerDataPath, viewer_item, bundles, closure_input_output);
+
+  friend bool operator==(const ViewerDataPath &a, const ViewerDataPath &b) = default;
 
   ViewerDataPath() = default;
   explicit ViewerDataPath(const SpreadsheetTableIDGeometry &table_id)

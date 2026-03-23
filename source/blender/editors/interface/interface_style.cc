@@ -60,9 +60,9 @@ static void fontstyle_set_ex(const uiFontStyle *fs, const float dpi_fac);
 
 /* ********************************************** */
 
-static uiStyle *ui_style_new(ListBaseT<uiStyle> *styles, const char *name, short uifont_id)
+static uiStyle *style_new(ListBaseT<uiStyle> *styles, const char *name, short uifont_id)
 {
-  uiStyle *style = MEM_callocN<uiStyle>(__func__);
+  uiStyle *style = MEM_new_zeroed<uiStyle>(__func__);
 
   BLI_addtail(styles, style);
   STRNCPY_UTF8(style->name, name);
@@ -488,7 +488,7 @@ void style_init()
 
   /* default builtin */
   if (font_first == nullptr) {
-    font_first = MEM_callocN<uiFont>(__func__);
+    font_first = MEM_new_zeroed<uiFont>(__func__);
     BLI_addtail(&U.uifonts, font_first);
   }
 
@@ -524,7 +524,7 @@ void style_init()
   }
 
   if (style == nullptr) {
-    style = ui_style_new(&U.uistyles, "Default Style", UIFONT_DEFAULT);
+    style = style_new(&U.uistyles, "Default Style", UIFONT_DEFAULT);
   }
 
   BLF_cache_flush_set_fn(widgetbase_draw_cache_flush);

@@ -101,7 +101,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 static void node_init(bNodeTree * /*ntree*/, bNode *node)
 {
   /* Unused, kept for forward compatibility. */
-  NodeDenoise *ndg = MEM_new_for_free<NodeDenoise>(__func__);
+  NodeDenoise *ndg = MEM_new<NodeDenoise>(__func__);
   node->storage = ndg;
 }
 
@@ -259,12 +259,7 @@ class DenoiseOperation : public NodeOperation {
         }
       }
 
-      /* Float3 results might be stored in 4-component textures due to hardware limitations, so we
-       * need to use the pixel stride of the texture. */
-      const int normal_channels_count = this->context().use_gpu() ?
-                                            GPU_texture_component_len(
-                                                GPU_texture_format(input_normal)) :
-                                            input_normal.channels_count();
+      const int normal_channels_count = input_normal.channels_count();
       int normal_pixel_stride = sizeof(float) * normal_channels_count;
 
       const int64_t normal_buffer_size = int64_t(width) * height * normal_channels_count;
@@ -296,7 +291,7 @@ class DenoiseOperation : public NodeOperation {
     }
 
     for (float *buffer : temporary_buffers_to_free) {
-      MEM_freeN(buffer);
+      MEM_delete(buffer);
     }
 #endif
   }

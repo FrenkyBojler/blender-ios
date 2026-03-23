@@ -292,7 +292,7 @@ class MTLTexture : public Texture {
 
   void generate_mipmap() override;
   void copy_to(Texture *dst) override;
-  void clear(eGPUDataFormat format, const void *data) override;
+  void clear(const double4 data) override;
   void swizzle_set(const char swizzle_mask[4]) override;
   void mip_range_set(int min, int max) override;
   void *read(int mip, eGPUDataFormat type) override;
@@ -301,7 +301,7 @@ class MTLTexture : public Texture {
   bool texture_is_baked();
   const char *get_name()
   {
-    return name_;
+    return name_.c_str();
   }
 
   bool has_custom_swizzle()
