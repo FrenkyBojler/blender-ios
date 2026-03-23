@@ -6,6 +6,8 @@
 
 #include "gpu_shader_compat.hh"
 
+/* enums should be defined in the root namespace, as they will not be fully qualified. */
+/* TODO: We should use a common TextureFormat enum. */
 enum TextureFormat : uint32_t {
   UNORM_8_8_8_8,
   SFLOAT_16,
