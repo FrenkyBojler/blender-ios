@@ -129,11 +129,17 @@ static void userpref_main_region_init(wmWindowManager *wm, ARegion *region)
 
 const char *ED_userpref_search_string_get(SpaceUserPref *spref)
 {
+  if (ELEM(U.space_data.section_active, USER_SECTION_EXTENSIONS, USER_SECTION_ADDONS)) {
+    return "";
+  }
   return spref->runtime->search_string.c_str();
 }
 
 int ED_userpref_search_string_length(SpaceUserPref *spref)
 {
+  if (ELEM(U.space_data.section_active, USER_SECTION_EXTENSIONS, USER_SECTION_ADDONS)) {
+    return 0;
+  }
   return spref->runtime->search_string.size();
 }
 
