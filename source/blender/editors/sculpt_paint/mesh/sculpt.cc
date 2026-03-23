@@ -26,6 +26,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_rotation.h"
+#include "BLI_math_vector.hh"
 #include "BLI_rect.h"
 #include "BLI_set.hh"
 #include "BLI_span.hh"
@@ -2496,6 +2497,69 @@ bool node_in_cylinder(const DistRayAABB_Precalc &ray_dist_precalc,
   return dist_sq < radius_sq || true;
 }
 
+/** Calculates whether node intersects the [-1,1] x [-1,1] x [-1,1] volume in local space.*/
+bool node_in_box(const bke::pbvh::Node &node, const float4x4 &mat, const bool original)
+{
+  const Bounds<float3> &bounds = original ? node.bounds_orig() : node.bounds();
+
+  const float3 brush_center = float3(0.0f, 0.0f, 0.0f);
+  const float3 node_center = math::transform_point(mat, (bounds.max + bounds.min) * 0.5f);
+  const float3 center_diff = brush_center - node_center;
+
+  const float3 brush_half_lengths = float3(1.0f, 1.0f, 1.0f);
+  const float3 node_half_lengths = (bounds.max - bounds.min) * 0.5f;
+
+  const float3 &node_x_axis = mat.x_axis();
+  const float3 &node_y_axis = mat.y_axis();
+  const float3 &node_z_axis = mat.z_axis();
+
+  auto axis_separates_boxes = [&](const float3 &axis) {
+    const float radius1 = math::dot(math::abs(axis), brush_half_lengths);
+    const float radius2 = math::abs(math::dot(axis, node_x_axis)) * node_half_lengths.x +
+                          math::abs(math::dot(axis, node_y_axis)) * node_half_lengths.y +
+                          math::abs(math::dot(axis, node_z_axis)) * node_half_lengths.z;
+
+    const float projection = math::abs(math::dot(center_diff, axis));
+    return projection > radius1 + radius2;
+  };
+
+  const std::array<float3, 3> brush_axes = {
+      float3{1.0f, 0.0f, 0.0f}, float3{0.0f, 1.0f, 0.0f}, float3{0.0f, 0.0f, 1.0f}};
+  const std::array<float3, 3> node_axes = {node_x_axis, node_y_axis, node_z_axis};
+
+  /**
+   * Intersection is tested using the Separating Axis Theorem.
+   * Two boxes (not necessarily axis-aligned) intersect if and only if there does not exist an axis
+   * that separates them. In particular, it is necessary and sufficient to:
+   */
+
+  /* 1. Test axes aligned with the region affected by the brush. */
+  for (const float3 &axis : brush_axes) {
+    if (axis_separates_boxes(axis)) {
+      return false;
+    }
+  }
+
+  /* 2. Test axes aligned with the node bounds. */
+  for (const float3 &axis : node_axes) {
+    if (axis_separates_boxes(axis)) {
+      return false;
+    }
+  }
+
+  /* 3. Test all their cross products. */
+  for (const float3 &brush_axis : brush_axes) {
+    for (const float3 &node_axis : node_axes) {
+      if (axis_separates_boxes(math::cross(brush_axis, node_axis))) {
+        return false;
+      }
+    }
+  }
+
+  /* None of the axes separates the boxes: they intersect. */
+  return true;
+}
+
 static IndexMask pbvh_gather_cursor_update(Object &ob, bool use_original, IndexMaskMemory &memory)
 {
   SculptSession &ss = *ob.runtime->sculpt_session;
@@ -2542,6 +2606,32 @@ static IndexMask pbvh_gather_generic(Object &ob,
   }
 
   return {};
+}
+
+static IndexMask pbvh_gather_generic_cube(Object &ob,
+                                          const Brush &brush,
+                                          const bool use_original,
+                                          IndexMaskMemory &memory)
+{
+  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
+  SculptSession &ss = *ob.runtime->sculpt_session;
+  StrokeCache &cache = *ss.cache;
+
+  const float4x4 &mat = cache.brush_local_mat;
+  /* In anchored mode, the local matrix is zero at the beginning, leading to NaN values. */
+  if (!is_zero_m4(mat.ptr())) {
+    const bool ignore_ineffective = brush.sculpt_brush_type != SCULPT_BRUSH_TYPE_MASK;
+    const IndexMask cube_mask = bke::pbvh::search_nodes(
+        pbvh, memory, [&](const bke::pbvh::Node &node) {
+          if (ignore_ineffective && node_fully_masked_or_hidden(node)) {
+            return false;
+          }
+          return node_in_box(node, mat, use_original);
+        });
+    return cube_mask;
+  }
+
+  return pbvh_gather_generic(ob, brush, use_original, 2.0, memory);
 }
 
 IndexMask gather_nodes(const bke::pbvh::Tree &pbvh,
@@ -3191,16 +3281,16 @@ static brushes::CursorSampleResult calc_brush_node_mask(const Depsgraph &depsgra
   }
 
   float radius_scale = 1.0f;
-  /* Corners of square brushes can go outside the brush radius. */
-  if (BKE_brush_has_cube_tip(&brush, PaintMode::Sculpt)) {
-    radius_scale = 2.0;
-  }
 
   /* With these options enabled not all required nodes are inside the original brush radius, so
    * the brush can produce artifacts in some situations. */
   if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_DRAW && brush.flag & BRUSH_ORIGINAL_NORMAL) {
     radius_scale = 2.0f;
   }
+  else if (BKE_brush_has_cube_tip(&brush, PaintMode::Sculpt)) {
+    return {pbvh_gather_generic_cube(ob, brush, use_original, memory), std::nullopt, std::nullopt};
+  }
+
   return {pbvh_gather_generic(ob, brush, use_original, radius_scale, memory),
           std::nullopt,
           std::nullopt};
@@ -3263,6 +3353,12 @@ static void do_brush_action(const Depsgraph &depsgraph,
     }
   }
 
+  if (BKE_brush_has_cube_tip(&brush, PaintMode::Sculpt)) {
+    /* Cube brush needs the local mat to be updated before calculating the node mask to work
+     * properly. */
+    update_brush_local_mat(sd, ob);
+  }
+
   const brushes::CursorSampleResult cursor_sample_result = calc_brush_node_mask(
       depsgraph, ob, brush, memory);
   const IndexMask node_mask = cursor_sample_result.node_mask;
@@ -3300,7 +3396,9 @@ static void do_brush_action(const Depsgraph &depsgraph,
     update_sculpt_normal(depsgraph, sd, ob, cursor_sample_result);
   }
 
-  update_brush_local_mat(sd, ob);
+  if (!BKE_brush_has_cube_tip(&brush, PaintMode::Sculpt)) {
+    update_brush_local_mat(sd, ob);
+  }
 
   if (brush.deform_target == BRUSH_DEFORM_TARGET_CLOTH_SIM) {
     if (!ss.cache->cloth_sim) {
