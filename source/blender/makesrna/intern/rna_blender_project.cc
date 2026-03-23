@@ -38,23 +38,6 @@ namespace blender {
 
 using namespace bke;
 
-/* TODO: these are copied from rna_action.cc.  Should move them to a shared place. */
-template<typename T>
-static void rna_iterator_array_begin(CollectionPropertyIterator *iter,
-                                     PointerRNA *ptr,
-                                     Span<T *> items)
-{
-  rna_iterator_array_begin(iter, ptr, (void *)items.data(), sizeof(T *), items.size(), 0, nullptr);
-}
-
-template<typename T>
-static void rna_iterator_array_begin(CollectionPropertyIterator *iter,
-                                     PointerRNA *ptr,
-                                     MutableSpan<T *> items)
-{
-  rna_iterator_array_begin(iter, ptr, (void *)items.data(), sizeof(T *), items.size(), 0, nullptr);
-}
-
 /* --------------------------------------------------------- */
 
 static void project_mark_dirty()
@@ -230,11 +213,10 @@ static void rna_iterator_BlenderProject_variables_begin(CollectionPropertyIterat
 {
   bke::BlenderProject *project_data = static_cast<bke::BlenderProject *>(ptr->data);
 
-  // rna_iterator_array_begin(iter, ptr, project_data->variables.as_span());
   rna_iterator_array_begin(iter,
                            ptr,
                            (void *)project_data->variables.begin(),
-                           sizeof(ProjectVariable *),
+                           sizeof(std::unique_ptr<ProjectVariable>),
                            project_data->variables.size(),
                            0,
                            nullptr);
@@ -244,6 +226,20 @@ static int rna_iterator_BlenderProject_variables_length(PointerRNA *ptr)
 {
   const bke::BlenderProject *project_data = static_cast<bke::BlenderProject *>(ptr->data);
   return project_data->variables.size();
+}
+
+static PointerRNA rna_iterator_BlenderProject_variables_get(CollectionPropertyIterator *iter)
+{
+  BLI_assert(iter->valid);
+
+  ArrayIterator *internal = &iter->internal.array;
+
+  std::unique_ptr<ProjectVariable> *var_ptr_ptr =
+      reinterpret_cast<std::unique_ptr<ProjectVariable> *>(internal->ptr);
+
+  ProjectVariable *var_ptr = var_ptr_ptr->get();
+
+  return RNA_pointer_create_with_parent(iter->parent, RNA_ProjectVariable, var_ptr);
 }
 
 static ProjectVariable *rna_ProjectVariables_new(bke::BlenderProject *project_data,
@@ -426,7 +422,7 @@ static void rna_def_blender_project(BlenderRNA *brna)
                                     "rna_iterator_BlenderProject_variables_begin",
                                     "rna_iterator_array_next",
                                     "rna_iterator_array_end",
-                                    "rna_iterator_array_dereference_get",
+                                    "rna_iterator_BlenderProject_variables_get",
                                     "rna_iterator_BlenderProject_variables_length",
                                     nullptr,
                                     nullptr,
