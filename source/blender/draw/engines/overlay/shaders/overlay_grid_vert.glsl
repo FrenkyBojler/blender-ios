@@ -114,6 +114,7 @@ void main()
 
   /* Compute per-level size, camera offset for lines. Offset is rounded to the nearest
    * level-dependent line position for grid, while axes simply move with the camera. */
+  /* TODO(not_mark): remove weird axis-shifting in BSL port. */
   float step_size = grid_buf.steps[level][line.axis];
   float2 step_offs = flag_test(grid_flag, SHOW_GRID) ?
                          round(grid_buf.offset / step_size) * step_size :
@@ -134,7 +135,7 @@ void main()
   /* Apply per-level size, camera offset. */
   line.P = step_offs + step_size * line.P;
 
-  /* Compute clipping rectangle for some parts. */
+  /* Compute clipping rectangle. */
   float2 clip_min = float2(-FLT_MAX), clip_max = float2(FLT_MAX);
   if (flag_test(grid_flag, GRID_SIMA)) {
     /* SpaceImage view has user-specified clipping rectangle */
@@ -144,13 +145,13 @@ void main()
   else if (flag_test(grid_flag, SHOW_AXES) && line.axis == 2) {
     /* Z-axis is visible at extreme scales, and needs to be clipped/clamped. Clipping
      * Clipping is applied to the X-axis; it is swapped to the Z-axis below. */
-    /* TODO(not_mark): this axis-shifting weirdness is cleaned up in the BSL port. */
+    /* TODO(not_mark): remove weird axis-shifting in BSL port. */
     clip_min = float2(step_offs.x - grid_buf.clip_rect.x, 0);
     clip_max = float2(step_offs.x + grid_buf.clip_rect.x, 0);
   }
 
-  /* Clip/clamp; lines entirely outside the rectangle get discarded; others get brought
-   * inside the rectangle to avoid precision problems with large lines. Z-axis ignores this. */
+  /* Clip/clamp; lines entirely outside the rectangle get discarded;
+   * others are brought inside the rectangle. */
   bool line_outside_rect = all(lessThan(line.P, clip_min)) || all(greaterThan(line.P, clip_max));
   if (line_outside_rect) {
     return; /* Discard line. */
