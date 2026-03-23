@@ -873,8 +873,8 @@ void WM_xr_session_state_viewfinder_reset(wmXrSessionState *state)
     if (ibuf) {
       state->viewfinder.backside_logo_texture = IMB_create_gpu_texture(
           "viewfinder_backside_logo", ibuf, false, true);
+      IMB_freeImBuf(ibuf);
     }
-    IMB_freeImBuf(ibuf);
   }
 
   /* Capture settings. */
@@ -884,7 +884,7 @@ void WM_xr_session_state_viewfinder_reset(wmXrSessionState *state)
   state->viewfinder.capture_dof_distance = 10.0f;
 
   /* Playback settings. */
-  state->viewfinder.playback_show_active_capture_in_space_enabled = false;
+  state->viewfinder.playback_show_active_capture_in_space_enabled = true;
 
   /* Active modes. */
   state->viewfinder.active_mode = XR_VIEWFINDER_MODE_LIVE;
