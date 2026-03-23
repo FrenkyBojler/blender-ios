@@ -11104,7 +11104,7 @@ static int handle_menu_event(bContext *C,
   }
   else if (event->type == TIMER && event->customdata == menu->scrolltimer) {
     if (!menu_scroll_test(block, my)) {
-      WM_event_timer_remove(CTX_wm_manager(C), CTX_wm_window(C), menu->scrolltimer);
+      WM_event_timer_remove(CTX_wm_manager(C), win, menu->scrolltimer);
       menu->scrolltimer = nullptr;
     }
     /* Don't auto-scroll while panning. */
