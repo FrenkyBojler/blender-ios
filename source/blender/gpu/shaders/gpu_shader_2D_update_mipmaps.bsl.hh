@@ -27,8 +27,12 @@ template<> void convert<float, float4>(float &dst_value, const float4 src_value)
 {
   dst_value = src_value.x;
 }
+template<> void convert<float4, float4>(float4 &dst_value, const float4 src_value)
+{
+  dst_value = src_value;
+}
 
-/* TODO: These encoders/decoders are a slightly off from our color management lib. Might fix some
+/* TODO: These encoders/decoders are a slightly off from our own implementation. Might fix some
  * specific issues, which we need to test. */
 /**  Convert float (0-1) sRGB red/green/blue component value to linear. */
 float linear_from_srgb_component(float srgb)
@@ -111,14 +115,14 @@ struct SharedFloat {
    */
   [[shared]] float intermediate_level[MAX_SHARED_SAMPLES][MAX_SHARED_SAMPLES];
 
-  void store_sample(int2 dst_coord, float4 color)
+  void store_sample(int2 dst_coord, float color)
   {
-    intermediate_level[dst_coord.y][dst_coord.x] = color.x;
+    intermediate_level[dst_coord.y][dst_coord.x] = color;
   }
 
-  float4 load_sample(int2 src_coord)
+  float load_sample(int2 src_coord)
   {
-    return float4(intermediate_level[src_coord.y][src_coord.x]);
+    return intermediate_level[src_coord.y][src_coord.x];
   }
 };
 
@@ -149,31 +153,35 @@ template<enum TextureFormat format, typename SharedStorage, typename InnerType> 
   [[resource_table]] srt_t<SharedStorage> shared_storage;
 
   /** Store sample result into an output mip image. */
-  void store_sample(int2 dst_coord, int dst_level, float4 color)
+  void store_sample(int2 dst_coord, int dst_level, InnerType color)
   {
+    float4 color_out;
+    convert<float4, InnerType>(color_out, color);
+
     if (dst_level == 1) {
-      imageStore(mip_out1, dst_coord, color);
+      imageStore(mip_out1, dst_coord, color_out);
     }
     else if (dst_level == 2) {
-      imageStore(mip_out2, dst_coord, color);
+      imageStore(mip_out2, dst_coord, color_out);
     }
   }
 
-  void store_shared_sample(int2 dst_coord, float4 color)
+  void store_shared_sample(int2 dst_coord, InnerType color)
   {
     SharedStorage &storage = shared_storage;
     storage.store_sample(dst_coord, color);
   }
 
-  float4 load_sample(int2 src_coord, bool load_from_shared)
+  InnerType load_sample(int2 src_coord, bool load_from_shared)
   {
-    float4 color;
+    InnerType color;
     if (load_from_shared) {
       SharedStorage &storage = shared_storage;
       color = storage.load_sample(src_coord);
     }
     else {
-      color = imageLoad(mip_in, src_coord);
+      float4 loaded_color = imageLoad(mip_in, src_coord);
+      convert<InnerType, float4>(color, loaded_color);
     }
     return color;
   }
@@ -196,13 +204,13 @@ template<enum TextureFormat format, typename SharedStorage, typename InnerType> 
    * specified destination mip level, and returned. The destination
    * image size is needed to compute the kernel weights.
    */
-  template<typename T, bool load_from_shared>
-  float4 reduce_store_sample(int2 src_coord,
-                             int src_level,
-                             int2 kernel_size,
-                             int2 dst_image_size,
-                             int2 dst_coord,
-                             int dst_level)
+  template<bool load_from_shared>
+  InnerType reduce_store_sample(int2 src_coord,
+                                int src_level,
+                                int2 kernel_size,
+                                int2 dst_image_size,
+                                int2 dst_coord,
+                                int dst_level)
   {
     float num_dst_pixels = dst_image_size.y;
     float rcp = 1.0f / (2 * num_dst_pixels + 1);
@@ -210,9 +218,9 @@ template<enum TextureFormat format, typename SharedStorage, typename InnerType> 
     float w1 = rcp * num_dst_pixels;
     float w2 = 1.0f - w0 - w1;
 
-    float4 v0, v1, v2, h0, h1, h2, out_pixel;
+    InnerType v0, v1, v2, h0, h1, h2, out_pixel;
 
-    // Reduce vertically up to 3 times (depending on kernel horizontal size)
+    /* Reduce vertically up to 3 times (depending on kernel horizontal size) */
     switch (kernel_size.x) {
       case 3:
         switch (kernel_size.y) {
@@ -287,7 +295,7 @@ template<enum TextureFormat format, typename SharedStorage, typename InnerType> 
         }
     }
 
-    // Reduce up to 3 samples horizontally.
+    /* Reduce up to 3 samples horizontally. */
     switch (kernel_size.x) {
       case 3:
         num_dst_pixels = dst_image_size.x;
@@ -304,7 +312,7 @@ template<enum TextureFormat format, typename SharedStorage, typename InnerType> 
         out_pixel = h0;
     }
 
-    // Write out sample.
+    /* Write out sample. */
     store_sample(dst_coord, dst_level, out_pixel);
     return out_pixel;
   }
@@ -338,7 +346,6 @@ template<enum TextureFormat format, typename SharedStorage, typename InnerType> 
     for (int i_ = 0; i_ < iterations; ++i_) {
       int2 src_coord = dst_coord * 2;
 
-      // Optional bounds check.
       if (use_bounds_check) {
         if (uint(dst_coord.x) >= uint(dst_image_size.x)) {
           continue;
@@ -348,11 +355,11 @@ template<enum TextureFormat format, typename SharedStorage, typename InnerType> 
         }
       }
 
-      float4 sample = reduce_store_sample<float4, false>(
+      InnerType sample = reduce_store_sample<false>(
           src_coord, src_level, kernel_size, dst_image_size, dst_coord, dst_level);
 
-      // Above function handles writing to the actual output; manually
-      // cache into shared memory here.
+      /* `reduce_store_sample` handles writing to the actual output; manually
+       * cache into shared memory here. */
       store_shared_sample(shared_coord, sample);
       dst_coord += step;
       shared_coord += step;
@@ -360,7 +367,7 @@ template<enum TextureFormat format, typename SharedStorage, typename InnerType> 
   }
 
   /**
-   *Function for the workgroup that handles filling the intermediate level
+   * Function for the workgroup that handles filling the intermediate level
    * (caching it in shared memory as well).
    *
    * We need somewhere from 16x16 to 17x17 samples, depending
@@ -380,14 +387,14 @@ template<enum TextureFormat format, typename SharedStorage, typename InnerType> 
 
     if (future_kernel_size.x == 3) {
       if (future_kernel_size.y == 3) {
-        // Fill in 2 17x7 steps and 1 17x3 step (9 idle threads)
+        /* Fill in 2 17x7 steps and 1 17x3 step (9 idle threads) */
         init_thread_offset = int2(local_index % 17u, local_index / 17u);
         step = int2(0, 7);
         iterations = local_index >= 7 * 17 ? 0 : local_index < 3 * 17 ? 3 : 2;
       }
-      else  // Future 3x[2,1] kernel
-      {
-        // Fill in 2 8x16 steps and 1 1x16 step
+      else {
+        /* Future 3x[2,1] kernel
+         * Fill in 2 8x16 steps and 1 1x16 step */
         init_thread_offset = int2(local_index / 16u, local_index % 16u);
         step = int2(8, 0);
         iterations = local_index < 1 * 16 ? 3 : 2;
@@ -395,13 +402,13 @@ template<enum TextureFormat format, typename SharedStorage, typename InnerType> 
     }
     else {
       if (future_kernel_size.y == 3) {
-        // Fill in 2 16x8 steps and 1 16x1 step
+        /* Fill in 2 16x8 steps and 1 16x1 step */
         init_thread_offset = int2(local_index % 16u, local_index / 16u);
         step = int2(0, 8);
         iterations = local_index < 1 * 16 ? 3 : 2;
       }
       else {
-        // Fill in 2 16x8 steps
+        /* Fill in 2 16x8 steps */
         init_thread_offset = int2(local_index % 16u, local_index / 16u);
         step = int2(0, 8);
         iterations = 2;
@@ -443,7 +450,7 @@ template<enum TextureFormat format, typename SharedStorage, typename InnerType> 
                         (uint(dst_coord.y) < uint(dst_image_size.y));
       }
       if (within_bounds) {
-        reduce_store_sample<float4, true>(
+        reduce_store_sample<true>(
             src_shared_coord, 0, kernel_size, dst_image_size, dst_coord, dst_level);
       }
     }
@@ -453,28 +460,28 @@ template<enum TextureFormat format, typename SharedStorage, typename InnerType> 
 template struct Resources<UNORM_8_8_8_8, SharedSRGB, float4>;
 template struct Resources<SFLOAT_16, SharedFloat, float>;
 
-template float4 Resources<UNORM_8_8_8_8, SharedSRGB, float4>::reduce_store_sample<float4, true>(
+template float4 Resources<UNORM_8_8_8_8, SharedSRGB, float4>::reduce_store_sample<true>(
     int2 src_coord,
     int src_level,
     int2 kernel_size,
     int2 dst_image_size,
     int2 dst_coord,
     int dst_level);
-template float4 Resources<UNORM_8_8_8_8, SharedSRGB, float4>::reduce_store_sample<float4, false>(
+template float4 Resources<UNORM_8_8_8_8, SharedSRGB, float4>::reduce_store_sample<false>(
     int2 src_coord,
     int src_level,
     int2 kernel_size,
     int2 dst_image_size,
     int2 dst_coord,
     int dst_level);
-template float4 Resources<SFLOAT_16, SharedFloat, float>::reduce_store_sample<float4, true>(
+template float Resources<SFLOAT_16, SharedFloat, float>::reduce_store_sample<true>(
     int2 src_coord,
     int src_level,
     int2 kernel_size,
     int2 dst_image_size,
     int2 dst_coord,
     int dst_level);
-template float4 Resources<SFLOAT_16, SharedFloat, float>::reduce_store_sample<float4, false>(
+template float Resources<SFLOAT_16, SharedFloat, float>::reduce_store_sample<false>(
     int2 src_coord,
     int src_level,
     int2 kernel_size,
@@ -497,13 +504,13 @@ void update_mipmaps(const uint3 global_id,
     int2 src_coord = dst_coord * 2;
 
     if (dst_coord.y < dst_image_size.y) {
-      srt.template reduce_store_sample<float4, false>(
+      srt.template reduce_store_sample<false>(
           src_coord, INPUT_LEVEL, kernel_size, dst_image_size, dst_coord, INPUT_LEVEL + 1);
     }
   }
-  else  // Handling two levels.
-  {
-    // Assign a 8x8 tile of mip level inputLevel_ + 2 to this workgroup.
+  else {
+    /* Handling two levels.
+     * Assign a 8x8 tile of mip level inputLevel_ + 2 to this workgroup. */
     int level2 = INPUT_LEVEL + 2;
     int2 level2_size = srt.level_size(level2);
     int2 tile_count;
@@ -511,25 +518,25 @@ void update_mipmaps(const uint3 global_id,
     tile_count.y = int(uint(level2_size.y + 7) / 8u);
     int2 tile_index = int2(group_id.x % uint(tile_count.x), group_id.x / uint(tile_count.x));
 
-    // Determine if bounds checking is needed; this is only the case
-    // for tiles at the right or bottom fringe that might be cut off
-    // by the image border. Note that later, I use if statements rather
-    // than passing use_bounds_check directly to convince the compiler
-    // to inline everything.
+    /* Determine if bounds checking is needed; this is only the case
+     * for tiles at the right or bottom fringe that might be cut off
+     * by the image border. Note that later, I use if statements rather
+     * than passing use_bounds_check directly to convince the compiler
+     * to inline everything. */
     bool use_bounds_check = tile_index.x >= tile_count.x - 1 || tile_index.y >= tile_count.y - 1;
 
     if (use_bounds_check) {
-      // Compute the tile in level inputLevel_ + 1 that's needed to
-      // compute the above 8x8 tile.
+      /* Compute the tile in level inputLevel_ + 1 that's needed to
+       * compute the above 8x8 tile. */
       srt.fill_intermediate_tile(local_index, tile_index * 2 * int2(8, 8), true);
       barrier();
 
-      // Compute the inputLevel_ + 2 tile of size 8x8, loading
-      // inupts from shared memory.
+      /* Compute the inputLevel_ + 2 tile of size 8x8, loading
+       * inputs from shared memory. */
       srt.fill_last_tile(local_index, tile_index * int2(8, 8), true);
     }
     else {
-      // Same with no bounds checking.
+      /* Same but without bounds checking. */
       srt.fill_intermediate_tile(local_index, tile_index * 2 * int2(8, 8), false);
       barrier();
       srt.fill_last_tile(local_index, tile_index * int2(8, 8), false);
