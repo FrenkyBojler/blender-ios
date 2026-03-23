@@ -23,6 +23,7 @@
 
 #  include "DNA_windowmanager_types.h"
 
+#  include "BKE_blender_project.hh"
 #  include "BKE_global.hh"
 #  include "BKE_main.hh"
 #  include "BKE_mesh.hh"
@@ -139,6 +140,15 @@ static bool rna_MainColorspace_is_missing_opencolorio_config_get(PointerRNA *ptr
   MainColorspace *colorspace = ptr->data_as<MainColorspace>();
   return colorspace->is_missing_opencolorio_config;
 }
+
+#  ifdef WITH_BLENDER_PROJECTS
+static PointerRNA rna_Main_blender_project_get(PointerRNA *ptr)
+{
+  Main *bmain = reinterpret_cast<Main *>(ptr->data);
+  bke::BlenderProject *project = bmain->project ? &*bmain->project : nullptr;
+  return RNA_pointer_create_discrete(nullptr, RNA_BlenderProject, project);
+}
+#  endif
 
 #  define RNA_MAIN_LISTBASE_FUNCS_DEF(_listbase_name) \
     static void rna_Main_##_listbase_name##_begin(CollectionPropertyIterator *iter, \
@@ -587,6 +597,14 @@ void RNA_def_main(BlenderRNA *brna)
       prop,
       "Color Space",
       "Information about the color space used for data-blocks in a blend file");
+
+#  ifdef WITH_BLENDER_PROJECTS
+  prop = RNA_def_property(srna, "project", PROP_POINTER, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_struct_type(prop, "BlenderProject");
+  RNA_def_property_pointer_funcs(prop, "rna_Main_blender_project_get", nullptr, nullptr, nullptr);
+  RNA_def_property_ui_text(prop, "Project", "The currently active Blender project, if any");
+#  endif
 
   RNA_api_main(srna);
 

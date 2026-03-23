@@ -133,6 +133,8 @@ static void rna_Main_ID_remove(Main *bmain,
     id_ptr->invalidate();
     /* Force full redraw, mandatory to avoid crashes when running this from UI... */
     WM_main_add_notifier(NC_WINDOW, nullptr);
+    WM_main_add_notifier(NC_SCENE | ND_OB_ACTIVE, nullptr);
+    WM_main_add_notifier(NC_SCENE | ND_LAYER_CONTENT, nullptr);
   }
   else if (ID_REAL_USERS(id) <= 0) {
     const int flag = (do_id_user ? 0 : LIB_ID_FREE_NO_USER_REFCOUNT) |
@@ -173,6 +175,32 @@ static ID *rna_Main_pack_linked_ids_hierarchy(struct BlendData *blenddata,
 
   return packed_root_id;
 }
+
+#  ifdef WITH_BLENDER_PROJECTS
+static void rna_Main_blender_project_init(PointerRNA /* ptr */,
+                                          ReportList *reports,
+                                          const char *name,
+                                          const char *project_root)
+{
+  if (!BKE_blender_project_init(name, project_root)) {
+    BKE_reportf(reports,
+                RPT_ERROR,
+                "Failed to initialize project. Ensure that both the name and project_root "
+                "parameters are non-empty.");
+  }
+
+  /* Force full redraw of all windows. */
+  WM_main_add_notifier(NC_WINDOW, nullptr);
+}
+
+static void rna_Main_blender_project_clear(PointerRNA /* ptr */)
+{
+  BKE_blender_project_clear();
+
+  /* Force full redraw of all windows. */
+  WM_main_add_notifier(NC_WINDOW, nullptr);
+}
+#  endif
 
 static Camera *rna_Main_cameras_new(Main *bmain, const char *name)
 {
@@ -903,6 +931,19 @@ void RNA_api_main(StructRNA *srna)
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_pointer(func, "packed_id", "ID", "", "The packed ID matching the given root ID");
   RNA_def_function_return(func, parm);
+
+#  ifdef WITH_BLENDER_PROJECTS
+  func = RNA_def_function(srna, "project_init", "rna_Main_blender_project_init");
+  RNA_def_function_flag(func, FUNC_SELF_AS_RNA | FUNC_USE_REPORTS);
+  parm = RNA_def_string(func, "name", nullptr, 0, nullptr, "The project's name");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_string(
+      func, "project_root", nullptr, 0, nullptr, "The filepath of the project's root folder");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+
+  func = RNA_def_function(srna, "project_clear", "rna_Main_blender_project_clear");
+  RNA_def_function_flag(func, FUNC_SELF_AS_RNA);
+#  endif
 }
 
 void RNA_def_main_cameras(BlenderRNA *brna, PropertyRNA *cprop)

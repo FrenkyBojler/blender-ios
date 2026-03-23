@@ -100,15 +100,16 @@ static void joined_armature_fix_links_constraints(Main *bmain,
       BKE_constraint_targets_flush(&con, &targets, false);
     }
 
-    /* action constraint? (pose constraints only) */
-    if (con.type == CONSTRAINT_TYPE_ACTION) {
+    /* If it's an action constraint on the source object that's being joined,
+     * also remap the channels in the action. (Pose constraints only.) */
+    if (con.type == CONSTRAINT_TYPE_ACTION && ob == srcArm) {
       bActionConstraint *data = static_cast<bActionConstraint *>(con.data);
 
       if (data->act) {
         BKE_action_fix_paths_rename(&tarArm->id,
                                     data->act,
                                     data->action_slot_handle,
-                                    "pose.bones[",
+                                    "pose.bones",
                                     pchan->name,
                                     curbone->name,
                                     0,
@@ -224,6 +225,14 @@ static void joined_armature_fix_links(
   Object *ob;
   bPose *pose;
 
+  /* Important: Ensure that no hierarchy cycles are created with this operation. See #154651. */
+  Set<Object *> skip_reparenting;
+  Object *ob_iter = tarArm;
+  while (ob_iter) {
+    skip_reparenting.add(ob_iter);
+    ob_iter = ob_iter->parent;
+  }
+
   /* let's go through all objects in database */
   for (ob = static_cast<Object *>(bmain->objects.first); ob;
        ob = static_cast<Object *>(ob->id.next))
@@ -254,7 +263,9 @@ static void joined_armature_fix_links(
       }
 
       /* make tar armature be new parent */
-      ob->parent = tarArm;
+      if (!skip_reparenting.contains(ob)) {
+        ob->parent = tarArm;
+      }
 
       DEG_id_tag_update_ex(bmain, &ob->id, ID_RECALC_SYNC_TO_EVAL);
     }
@@ -786,7 +797,7 @@ static wmOperatorStatus separate_armature_exec(bContext *C, wmOperator *op)
     ok = true;
 
     /* NOTE: notifier might evolve. */
-    WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob_old);
+    WM_event_add_notifier(C, NC_OBJECT | ND_ARMATURE_STRUCTURE, ob_old);
   }
 
   /* Recalculate/redraw + cleanup */

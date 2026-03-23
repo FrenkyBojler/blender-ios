@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2025 Blender Authors
+/* SPDX-FileCopyrightText: 2026 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -15,7 +15,9 @@
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
-namespace blender::bke {
+namespace blender {
+
+namespace bke {
 
 enum class ProjectVarType {
   INTEGER = 0,
@@ -39,31 +41,23 @@ struct ProjectVariable {
 };
 
 /**
- * The actual data of a project.
+ * A Blender project.
  *
- * Effectively, this is the actual project, and `BlenderProject` below is a
- * container that allows this to either exist or not depending on whether a
- * project is loaded or not.
+ * There is at most one active project at a time in Blender.
  */
-class BlenderProjectData {
- public:
-  BlenderProjectData() = default;
-  ~BlenderProjectData();
-
-  /* For now, disallow copying. */
-  BlenderProjectData(const BlenderProjectData &other) = delete;
-  BlenderProjectData &operator=(const BlenderProjectData &other) = delete;
-
-  /* But do allow moving. */
-  BlenderProjectData(BlenderProjectData &&other) = default;
-  BlenderProjectData &operator=(BlenderProjectData &&other) = default;
+class BlenderProject {
+  /* Whether the project has been modified since the last time it was saved. */
 
   /* The name and root path should never be empty. */
   std::string name_;
   std::string root_path_;
 
-  Vector<ProjectVariable *> variables;
+ public:
+  Vector<std::unique_ptr<ProjectVariable>> variables;
   int active_variable = 0;
+
+  /* Whether the project has unsaved changes. */
+  bool is_dirty = false;
 
   /**
    * Set the project's name.
@@ -89,40 +83,27 @@ class BlenderProjectData {
   bool remove_variable(ProjectVariable *var);
 };
 
+}  // namespace bke
+
 /**
- * Container for `BlenderProjectData` that always exists.
+ * Initialize a new active Blender Project.
  *
- * Also contains metadata about the state of project data, such as whether it's
- * dirty or not.
+ * If either `name` or `root_path` are empty (which is invalid), the current
+ * project (if any) will remain as-is and false is returned.  Otherwise the
+ * existing project (if any) is cleared, the project is initialized with the
+ * given values, and true is returned.
+ *
+ * NOTE: the active Blender Project (which this operates on) lives in the global
+ * Main (a.k.a. `G_MAIN`).
  */
-class BlenderProject {
- public:
-  /* Actual project data. When this is null, it means there is currently no
-   * project. */
-  std::optional<BlenderProjectData> data = std::nullopt;
-
-  /* Whether the project has unsaved changes. */
-  bool is_dirty = false;
-
-  /**
-   * Initialize a new Blender Project.
-   *
-   * If either `name` or `root_path` are empty (which is invalid), the current
-   * project (if any) will remain as-is and false is returned.  Otherwise the
-   * existing project (if any) is cleared, the project is initialized with the
-   * given values, and true is returned.
-   */
-  bool init(blender::StringRef name, blender::StringRef root_path);
-
-  /**
-   * Clear the current Blender Project.
-   */
-  void clear();
-};
-
-}  // namespace blender::bke
+bool BKE_blender_project_init(blender::StringRef name, blender::StringRef root_path);
 
 /**
- * Fetch the current Blender Project.
+ * Clears and unloads the current active project, if any.
+ *
+ * NOTE: the active Blender Project (which this operates on) lives in the global
+ * Main (a.k.a. `G_MAIN`).
  */
-blender::bke::BlenderProject &BKE_blender_project();
+void BKE_blender_project_clear();
+
+}  // namespace blender

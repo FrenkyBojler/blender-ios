@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2025 Blender Authors
+# SPDX-FileCopyrightText: 2026 Blender Authors
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -99,13 +99,14 @@ class PROJECT_PT_save_project(Panel):
         layout.menu("PROJECT_MT_save_load", text="", icon='COLLAPSEMENU')
 
         # Save button.
-        if not context.preferences.use_project_auto_save and context.project.data is not None:
+        if not context.preferences.use_project_auto_save and bpy.data.project is not None:
             # Show '*' to let users know the project has been modified.
             # It is shown to the left so that it is visible when the sidebar is narrow,
             # and for consistency with unsaved files in the title bar.
+            project_is_dirty = bpy.data.project is not None and bpy.data.project.is_dirty
             layout.operator(
                 "project.save_project",
-                text=("* " if context.project.is_dirty else "") + pgettext_iface("Save Project"),
+                text=("* " if project_is_dirty else "") + pgettext_iface("Save Project"),
                 icon='FILE_TICK',
                 translate=False,
             )
@@ -135,7 +136,7 @@ class PROJECT_PT_navigation_bar(Panel):
 
         col = layout.column()
 
-        if context.project.data is None:
+        if bpy.data.project is None:
             # If there's no project, we need to make sure the UI for creating a
             # new project is visible. That UI is in the main section, so we
             # ensure it's the active section.
@@ -158,7 +159,7 @@ class PROJECT_PT_main(Panel, CenterAlignMixIn):
 
     @classmethod
     def poll(cls, context):
-        return context.project and context.project.data
+        return bpy.data.project is not None
 
     def centered_operator(self, layout, op_name, text=None, icon=None):
         col_flow = layout.column_flow(columns=3)
@@ -170,11 +171,11 @@ class PROJECT_PT_main(Panel, CenterAlignMixIn):
         if not bpy.context.preferences.experimental.use_blender_projects:
             return
 
-        project = context.project
+        project = bpy.data.project
 
         col = layout.column()
-        col.prop(project.data, "name")
-        col.prop(project.data, "root_path")
+        col.prop(project, "name")
+        col.prop(project, "root_path")
 
 
 class PROJECT_PT_main_unset(Panel, CenterAlignMixIn):
@@ -274,22 +275,22 @@ class PROJECT_PT_variables(Panel, CenterAlignMixIn):
 
     @classmethod
     def poll(cls, context):
-        return context.project and context.project.data
+        return bpy.data.project is not None
 
     def draw_centered(self, context, layout):
         if not bpy.context.preferences.experimental.use_blender_projects:
             return
 
-        project = context.project
+        project = bpy.data.project
 
         row = layout.row()
 
         row.template_list(
             listtype_name="PROJECT_UL_variables",
             list_id="Variables",
-            dataptr=project.data,
+            dataptr=project,
             propname="variables",
-            active_dataptr=project.data,
+            active_dataptr=project,
             active_propname="active_variable",
         )
 

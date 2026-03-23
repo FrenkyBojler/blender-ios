@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'bd8d088b2702')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'45d5533d8e66')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-26 11:28+0000\n"
+"POT-Creation-Date: 2026-03-16 11:01+0000\n"
 "PO-Revision-Date: 2025-07-23 15:32+0000\n"
 "Last-Translator: Leevi Oksanen <laavi.oksanen@gmail.com>\n"
 "Language-Team: Finnish <https://translate.blender.org/projects/blender-ui/ui/fi/>\n"
@@ -3641,18 +3641,6 @@ msgid "View"
 msgstr "Näkymä"
 
 
-msgid "Mix"
-msgstr "Sekoita"
-
-
-msgid "Screen"
-msgstr "Näyttö"
-
-
-msgid "Divide"
-msgstr "Jaa"
-
-
 msgid "Brightness"
 msgstr "Kirkkaus"
 
@@ -5368,6 +5356,10 @@ msgid "Roughness"
 msgstr "Karheus"
 
 
+msgid "Sigma"
+msgstr "Sigma"
+
+
 msgid "Step Size"
 msgstr "Askelkoko"
 
@@ -5860,6 +5852,10 @@ msgstr "Toista"
 
 msgid "Use Masks"
 msgstr "Käytä maskeja"
+
+
+msgid "Divide"
+msgstr "Jaa"
 
 
 msgid "Active Grease Pencil layer"
@@ -7240,40 +7236,20 @@ msgid "Direction"
 msgstr "Suunta"
 
 
+msgid "Mix"
+msgstr "Sekoita"
+
+
+msgid "Screen"
+msgstr "Näyttö"
+
+
 msgid "ID Type"
 msgstr "ID-tyyppi"
 
 
-msgid "Read"
-msgstr "Lue"
-
-
-msgid "Write"
-msgstr "Kirjoita"
-
-
 msgid "Show/Hide"
 msgstr "Näytä/Piilota"
-
-
-msgid "Instances"
-msgstr "Instanssit"
-
-
-msgid "Names"
-msgstr "Nimet"
-
-
-msgid "Import"
-msgstr "Tuo"
-
-
-msgid "Metaball"
-msgstr "Metapallo"
-
-
-msgid "Utilities"
-msgstr "Työkalut"
 
 
 msgid "Math"
@@ -7284,32 +7260,40 @@ msgid "UV"
 msgstr "UV"
 
 
-msgid "Mesh Select Mode"
-msgstr "Muodon valintatila"
+msgid "Read"
+msgstr "Lue"
 
 
-msgid "Random Mask"
-msgstr "Satunnainen maski"
+msgid "Write"
+msgstr "Kirjoita"
 
 
 msgid "Hooks"
 msgstr "Koukut"
 
 
-msgid "Track"
-msgstr "Raide"
+msgid "Random Mask"
+msgstr "Satunnainen maski"
 
 
-msgid "Add Image"
-msgstr "Lisää kuva"
+msgid "Names"
+msgstr "Nimet"
 
 
-msgid "Light Probe"
-msgstr "Valoluotain"
+msgid "Mesh Select Mode"
+msgstr "Muodon valintatila"
 
 
-msgid "Light"
-msgstr "Valo"
+msgid "Metaball"
+msgstr "Metapallo"
+
+
+msgid "Utilities"
+msgstr "Työkalut"
+
+
+msgid "UV Mapping"
+msgstr "UV-kartoittaminen"
 
 
 msgid "Select More/Less"
@@ -7328,8 +7312,28 @@ msgid "Select Loops"
 msgstr "Valitse silmukat"
 
 
-msgid "UV Mapping"
-msgstr "UV-kartoittaminen"
+msgid "Light"
+msgstr "Valo"
+
+
+msgid "Light Probe"
+msgstr "Valoluotain"
+
+
+msgid "Instances"
+msgstr "Instanssit"
+
+
+msgid "Add Image"
+msgstr "Lisää kuva"
+
+
+msgid "Import"
+msgstr "Tuo"
+
+
+msgid "Track"
+msgstr "Raide"
 
 
 msgid "Basic"
@@ -7730,10 +7734,6 @@ msgstr "V-akseli"
 
 msgid "UV Center"
 msgstr "UV-keskus"
-
-
-msgid "Use Channel"
-msgstr "Käytä kanavaa"
 
 
 msgid "Wave Modifier"
@@ -9782,10 +9782,6 @@ msgid "Side"
 msgstr "Sivu"
 
 
-msgid "Sigma"
-msgstr "Sigma"
-
-
 msgid "The start frame"
 msgstr "Aloituskehys"
 
@@ -10032,6 +10028,11 @@ msgstr "Tallenna renderinä"
 msgctxt "Operator"
 msgid "Save Sequence"
 msgstr "Tallenna sekvenssi"
+
+
+msgctxt "Mesh"
+msgid "Angle"
+msgstr "Kulma"
 
 
 msgid "Expand"
@@ -10919,11 +10920,6 @@ msgid "Dynamic Grid Size"
 msgstr "Dynaaminen Ruudukon Koko"
 
 
-msgctxt "Mesh"
-msgid "Angle"
-msgstr "Kulma"
-
-
 msgid "Dynamic grid"
 msgstr "Dynaaminen ruudukko"
 
@@ -11033,6 +11029,31 @@ msgid "Pan"
 msgstr "Panoroi"
 
 
+msgctxt "Sequence"
+msgid "Brightness/Contrast"
+msgstr "Kirkkaus/Kontrasti"
+
+
+msgctxt "Sequence"
+msgid "Color Balance"
+msgstr "Väritasapaino"
+
+
+msgctxt "Sequence"
+msgid "Curves"
+msgstr "Käyrät"
+
+
+msgctxt "Sequence"
+msgid "Hue Correct"
+msgstr "Sävykorjaus"
+
+
+msgctxt "Sequence"
+msgid "White Balance"
+msgstr "Valkotasapaino"
+
+
 msgid "Move along X axis"
 msgstr "Liiku X-akselin mukaisesti"
 
@@ -11091,22 +11112,6 @@ msgstr "Z-Kartoittaminen"
 
 msgid "Text Box"
 msgstr "Tekstilaatikko"
-
-
-msgid "Textbox Height"
-msgstr "Tekstilaatikon Korkeus"
-
-
-msgid "Textbox Width"
-msgstr "Tekstilaatikon Leveys"
-
-
-msgid "Textbox X Offset"
-msgstr "Tekstilaatikon X-Siirros"
-
-
-msgid "Textbox Y Offset"
-msgstr "Tekstilaatikon Y-Siirros"
 
 
 msgid "Random Angle"
@@ -13260,6 +13265,11 @@ msgstr "Uusi"
 
 
 msgctxt "Operator"
+msgid "Save Copy..."
+msgstr "Tallenna kopio..."
+
+
+msgctxt "Operator"
 msgid "Quit"
 msgstr "Poistu"
 
@@ -13292,11 +13302,6 @@ msgstr "Toista historia..."
 msgctxt "Operator"
 msgid "Preferences..."
 msgstr "Mieltymykset..."
-
-
-msgctxt "Operator"
-msgid "Save Copy..."
-msgstr "Tallenna kopio..."
 
 
 msgid "More..."
@@ -13726,10 +13731,6 @@ msgid "Eyes"
 msgstr "Silmät"
 
 
-msgid "Pupils"
-msgstr "Pupillit"
-
-
 msgid "Nothing selected"
 msgstr "Mitään ei ole valittu"
 
@@ -13868,10 +13869,6 @@ msgstr "Kylläisyys:"
 
 msgid "Lightness:"
 msgstr "Valoisuus:"
-
-
-msgid "Value:"
-msgstr "Arvo:"
 
 
 msgid "Alpha:"
@@ -14497,10 +14494,6 @@ msgid "Trace"
 msgstr "Jäljitä"
 
 
-msgid "PaintCurve"
-msgstr "Maalikäyrä"
-
-
 msgid " UVs,"
 msgstr " UV:t,"
 
@@ -14517,8 +14510,8 @@ msgid "No active camera set"
 msgstr "Ei aktiivista kamerasarjaa"
 
 
-msgid "Attribute Data Detected"
-msgstr "Attribuutti-data havaittu"
+msgid "PaintCurve"
+msgstr "Maalikäyrä"
 
 
 msgid "Active F-Curve"
@@ -14609,14 +14602,6 @@ msgid "File path"
 msgstr "Tiedostopolku"
 
 
-msgid "seconds"
-msgstr "sekunnit"
-
-
-msgid "bytes"
-msgstr "tavut"
-
-
 msgid "Create new directory?"
 msgstr "Luo uusi luettelo?"
 
@@ -14695,6 +14680,10 @@ msgstr "Avainkehys"
 
 msgid "Driver Value:"
 msgstr "Ajuriarvo:"
+
+
+msgid "Value:"
+msgstr "Arvo:"
 
 
 msgid "Driver:"
@@ -14915,6 +14904,10 @@ msgstr "Luokka"
 
 msgid "(Geometry)"
 msgstr "(Geometria)"
+
+
+msgid "bytes"
+msgstr "tavut"
 
 
 msgid "Data Set"
@@ -16545,33 +16538,8 @@ msgstr "Kaikki renderöintitasot on poistettu käytöstä"
 
 
 msgctxt "Sequence"
-msgid "Brightness/Contrast"
-msgstr "Kirkkaus/Kontrasti"
-
-
-msgctxt "Sequence"
-msgid "Color Balance"
-msgstr "Väritasapaino"
-
-
-msgctxt "Sequence"
-msgid "Curves"
-msgstr "Käyrät"
-
-
-msgctxt "Sequence"
-msgid "Hue Correct"
-msgstr "Sävykorjaus"
-
-
-msgctxt "Sequence"
 msgid "Tonemap"
 msgstr "Sävykartta"
-
-
-msgctxt "Sequence"
-msgid "White Balance"
-msgstr "Valkotasapaino"
 
 
 msgctxt "Sequence"

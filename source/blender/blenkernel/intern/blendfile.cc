@@ -976,6 +976,11 @@ static void setup_app_data(bContext *C,
     clean_paths(bfd->main);
   }
 
+  /* Only move the active project over when loading for real (not undo). */
+  if (mode != LOAD_UNDO) {
+    bfd->main->project = std::move(bmain->project);
+  }
+
   BLI_assert(BKE_main_namemap_validate(*bfd->main));
 
   /* Temporary data to handle swapping around IDs between old and new mains,

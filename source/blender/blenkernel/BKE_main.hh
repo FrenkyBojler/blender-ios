@@ -32,7 +32,9 @@
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector_set.hh"
 
+#include "BKE_blender_project.hh"
 #include "BKE_lib_query.hh" /* For LibraryForeachIDCallbackFlag. */
+
 struct MainLock;
 namespace blender {
 
@@ -140,7 +142,7 @@ struct MainIDRelationsEntryItem {
     /** For `from_ids` list, a user of the hashed ID. */
     ID *from;
     /** For `to_ids` list, an ID used by the hashed ID. */
-    ID **to;
+    ID *to;
   } id_pointer;
   /** Session uid of the `id_pointer`. */
   uint session_uid;
@@ -337,6 +339,11 @@ struct Main : NonCopyable, NonMovable {
   bool is_action_slot_to_id_map_dirty = false;
 
   /**
+   * Set when reading a file from undo with incomplete preview, to trigger restart of preview jobs.
+   */
+  bool need_preview_render_restart = false;
+
+  /**
    * The blend-file thumbnail. If set, it will show as image preview of the blend-file in the
    * system's file-browser.
    */
@@ -356,6 +363,24 @@ struct Main : NonCopyable, NonMovable {
    * Color-space information for this file.
    */
   MainColorspace colorspace;
+
+  /**
+   * The currently active project (if any).
+   *
+   * NOTE: despite being in Main, this is not actually part of blend file data,
+   * and is neither read from nor written to any blend file. Projects are
+   * defined outside of individual blend files. Blend files (optionally) belong
+   * to a project, not the other way around.
+   *
+   * Nevertheless, Main is a convenient place to store the active project at
+   * runtime, and doing so avoids creating a separate global variable, hence why
+   * it's here.
+   *
+   * Importantly, there should only be a single active project globally, and
+   * therefore this should only be set on the global Main (a.k.a. `G_MAIN`,
+   * where `is_global_main == true`).
+   */
+  std::optional<bke::BlenderProject> project = std::nullopt;
 
   /* List bases for all ID types, containing all IDs for the current #Main. */
 
