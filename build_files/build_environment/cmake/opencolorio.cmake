@@ -127,7 +127,9 @@ if(WIN32)
       COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${LIBDIR}/opencolorio/lib/site-packages
         ${HARVEST_TARGET}/opencolorio/lib/site-packages-debug
-
+      COMMAND ${CMAKE_COMMAND} -E copy
+        ${LIBDIR}/opencolorio/lib/cmake/OpenColorIO/OpenColorIOTargets-debug.cmake
+        ${HARVEST_TARGET}/opencolorio/lib/cmake/OpenColorIO/OpenColorIOTargets-debug.cmake
       DEPENDEES install
     )
   endif()
