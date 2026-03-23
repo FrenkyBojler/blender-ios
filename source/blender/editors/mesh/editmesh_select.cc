@@ -1943,7 +1943,9 @@ static void mouse_mesh_loop_edge(BMEditMesh *em,
     }
   }
   /* Cycle between using delimits and skipping them. */
-  else if (non_manifold == false) {
+  else if (not non_manifold and
+    (delimit & BMW_DELIMIT_EDGE_MARK_SEAM or delimit & BMW_DELIMIT_EDGE_MARK_SHARP))
+  {
     int count_by_select[2];
 
     /* If up to the delimits is selected toggle the whole loop. */
