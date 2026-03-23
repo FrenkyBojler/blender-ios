@@ -1661,47 +1661,99 @@ class XpbdSolverStep {
         const VArray<float> edge_compliances = *geo_data.attributes.lookup_or_default<float>(
             this->prop_attr_name(constraint.path, "compliance"), AttrDomain::Edge, 0.0f);
 
+        /* Don't use triangulated mesh because the triangulation depends on vertex positions which
+         * change during the simulation which introduces instability. */
         const Span<int2> edges = mesh.edges();
-        const Span<int3> corner_tris = mesh.corner_tris();
         const Span<int> corner_verts = mesh.corner_verts();
+        const OffsetIndices<int> faces = mesh.faces();
 
-        // TODO: needs stable triangles
-        MultiValueMap<OrderedEdge, int> tris_by_edge;
-        for (const int tri_i : corner_tris.index_range()) {
-          const int3 &tri = corner_tris[tri_i];
-          const int v0 = corner_verts[tri[0]];
-          const int v1 = corner_verts[tri[1]];
-          const int v2 = corner_verts[tri[2]];
-          tris_by_edge.add(OrderedEdge{v0, v1}, tri_i);
-          tris_by_edge.add(OrderedEdge{v1, v2}, tri_i);
-          tris_by_edge.add(OrderedEdge{v2, v0}, tri_i);
+        MultiValueMap<OrderedEdge, int> faces_by_edge;
+        for (const int face_i : faces.index_range()) {
+          const IndexRange corners = faces[face_i];
+          for (const int corner0_i : corners.index_range()) {
+            const int corner1_i = corner0_i == corners.size() - 1 ? 0 : corner0_i + 1;
+            const int v0 = corner_verts[corners[corner0_i]];
+            const int v1 = corner_verts[corners[corner1_i]];
+            faces_by_edge.add(OrderedEdge{v0, v1}, face_i);
+          }
         }
 
         Vector<int2> &cross_edges = constraint_usage.cross_edge_points;
         Vector<float> &cross_edge_rest_lengths = constraint_usage.distances;
         Vector<float> &cross_edge_compliances = constraint_usage.compliances;
 
+        const auto add_cross_edge = [&](const float compliance, const int v0, const int v1) {
+          const float3 &rest_position0 = rest_positions[v0];
+          const float3 &rest_position1 = rest_positions[v1];
+          const float rest_length = math::distance(rest_position0, rest_position1);
+          cross_edges.append({v0, v1});
+          cross_edge_rest_lengths.append(rest_length);
+          cross_edge_compliances.append(compliance);
+        };
+
         for (const int edge_i : edges.index_range()) {
           const int2 &edge = edges[edge_i];
-          const Span<int> incident_tris = tris_by_edge.lookup(OrderedEdge(edge));
-          if (incident_tris.size() <= 1) {
+          const int edge_v0 = edge[0];
+          const int edge_v1 = edge[1];
+          const Span<int> incident_faces = faces_by_edge.lookup(OrderedEdge(edge));
+          if (incident_faces.size() != 2) {
             continue;
           }
           const float compliance = edge_compliances[edge_i];
-          for (const int tri_a : incident_tris.index_range()) {
-            for (const int tri_b : incident_tris.index_range().drop_front(tri_a + 1)) {
-              const int3 &tri_a_corners = corner_tris[incident_tris[tri_a]];
-              const int3 &tri_b_corners = corner_tris[incident_tris[tri_b]];
-              const int point_a = edge[0] ^ edge[1] ^ corner_verts[tri_a_corners[0]] ^
-                                  corner_verts[tri_a_corners[1]] ^ corner_verts[tri_a_corners[2]];
-              const int point_b = edge[0] ^ edge[1] ^ corner_verts[tri_b_corners[0]] ^
-                                  corner_verts[tri_b_corners[1]] ^ corner_verts[tri_b_corners[2]];
-              const float3 &rest_position_a = rest_positions[point_a];
-              const float3 &rest_position_b = rest_positions[point_b];
-              const float rest_length = math::distance(rest_position_a, rest_position_b);
-              cross_edges.append({point_a, point_b});
-              cross_edge_rest_lengths.append(rest_length);
-              cross_edge_compliances.append(compliance);
+          int face0 = incident_faces[0];
+          int face1 = incident_faces[1];
+          if (faces[face0].size() > faces[face1].size()) {
+            std::swap(face0, face1);
+          }
+          const IndexRange face0_corners = faces[face0];
+          const IndexRange face1_corners = faces[face1];
+          const int face0_size = face0_corners.size();
+          const int face1_size = face1_corners.size();
+          if (face0_size == 3 && face1_size == 3) {
+            const int face0_v0 = corner_verts[face0_corners[0]];
+            const int face0_v1 = corner_verts[face0_corners[1]];
+            const int face0_v2 = corner_verts[face0_corners[2]];
+
+            const int face1_v0 = corner_verts[face1_corners[0]];
+            const int face1_v1 = corner_verts[face1_corners[1]];
+            const int face1_v2 = corner_verts[face1_corners[2]];
+
+            /* Create a cross edge between opposite corners of the two faces. */
+            const int cross_edge_v0 = edge_v0 ^ edge_v1 ^ face0_v0 ^ face0_v1 ^ face0_v2;
+            const int cross_edge_v1 = edge_v0 ^ edge_v1 ^ face1_v0 ^ face1_v1 ^ face1_v2;
+            add_cross_edge(compliance, cross_edge_v0, cross_edge_v1);
+          }
+          else if (face0_size == 3 && face1_size == 4) {
+            const int face0_v0 = corner_verts[face0_corners[0]];
+            const int face0_v1 = corner_verts[face0_corners[1]];
+            const int face0_v2 = corner_verts[face0_corners[2]];
+
+            /* Create two cross edges between the triangle and quad. */
+            const int cross_edge_v0 = edge_v0 ^ edge_v1 ^ face0_v0 ^ face0_v1 ^ face0_v2;
+            for (const int face1_corner : face1_corners) {
+              const int face1_v = corner_verts[face1_corner];
+              if (!ELEM(face1_v, edge_v0, edge_v1)) {
+                add_cross_edge(compliance, cross_edge_v0, face1_v);
+              }
+            }
+          }
+          else {
+            /* Create cross edges between "diagonal" corners. */
+            const Span<int> face0_verts = corner_verts.slice(face0_corners);
+            const Span<int> face1_verts = corner_verts.slice(face1_corners);
+            const int face0_i0 = face0_verts.first_index(edge_v0);
+            const int face0_dir = face0_verts[(face0_i0 + 1) % face0_size] == edge_v1 ? 1 : -1;
+            const int face1_i1 = face1_verts.first_index(edge_v1);
+            const int face1_dir = face1_verts[(face1_i1 + 1) % face1_size] == edge_v0 ? 1 : -1;
+            /* Some corners may be ignored if they if both faces have a different number of
+             * corners. */
+            const int cross_edge_num = std::max(face0_size, face1_size) - 2;
+            for (const int i : IndexRange(cross_edge_num)) {
+              const int cross_edge_v0 =
+                  face0_verts[mod_i(face0_i0 - face0_dir * (i + 1), face0_size)];
+              const int cross_edge_v1 =
+                  face1_verts[mod_i(face1_i1 - face1_dir * (i + 1), face1_size)];
+              add_cross_edge(compliance, cross_edge_v0, cross_edge_v1);
             }
           }
         }
