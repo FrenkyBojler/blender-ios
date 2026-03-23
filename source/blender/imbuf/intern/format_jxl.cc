@@ -40,10 +40,22 @@ bool imb_save_jxl(ImBuf *ibuf, const char *filepath, int flags)
   TypeDesc data_format = TypeDesc::UINT8;
   int bits_per_sample = 8;
 
-  if (ibuf->foptions.flag & JXL_10BIT) { data_format = TypeDesc::UINT16; bits_per_sample = 10; }
-  else if (ibuf->foptions.flag & JXL_12BIT) { data_format = TypeDesc::UINT16; bits_per_sample = 12; }
-  else if (ibuf->foptions.flag & JXL_16BIT) { data_format = TypeDesc::UINT16; bits_per_sample = 16; }
-  else if (ibuf->foptions.flag & JXL_32BIT) { data_format = TypeDesc::FLOAT; bits_per_sample = 32; }
+  if (ibuf->foptions.flag & JXL_10BIT) {
+    data_format = TypeDesc::UINT16;
+    bits_per_sample = 10;
+  }
+  else if (ibuf->foptions.flag & JXL_12BIT) {
+    data_format = TypeDesc::UINT16;
+    bits_per_sample = 12;
+  }
+  else if (ibuf->foptions.flag & JXL_16BIT) {
+    data_format = TypeDesc::UINT16;
+    bits_per_sample = 16;
+  }
+  else if (ibuf->foptions.flag & JXL_32BIT) {
+    data_format = TypeDesc::FLOAT;
+    bits_per_sample = 32;
+  }
 
   WriteContext ctx = imb_create_write_context("jxl", ibuf, flags);
   if (!ctx.out) {
@@ -58,4 +70,4 @@ bool imb_save_jxl(ImBuf *ibuf, const char *filepath, int flags)
   return imb_oiio_write(ctx, filepath, file_spec);
 }
 
-} // namespace blender
+}  // namespace blender

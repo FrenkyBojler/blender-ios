@@ -420,7 +420,8 @@ char BKE_imtype_valid_depths(const char imtype)
     case R_IMF_IMTYPE_AVIF:
       return R_IMF_CHAN_DEPTH_8 | R_IMF_CHAN_DEPTH_10 | R_IMF_CHAN_DEPTH_12;
     case R_IMF_IMTYPE_JXL:
-      return R_IMF_CHAN_DEPTH_8 | R_IMF_CHAN_DEPTH_10 | R_IMF_CHAN_DEPTH_12 | R_IMF_CHAN_DEPTH_16 | R_IMF_CHAN_DEPTH_32;
+      return R_IMF_CHAN_DEPTH_8 | R_IMF_CHAN_DEPTH_10 | R_IMF_CHAN_DEPTH_12 | R_IMF_CHAN_DEPTH_16 |
+             R_IMF_CHAN_DEPTH_32;
     /* Most formats are 8bit only. */
     default:
       return R_IMF_CHAN_DEPTH_8;
@@ -610,11 +611,11 @@ static int image_path_ext_from_imformat_impl(const char imtype,
     r_ext[ext_num++] = ".webp";
   }
 #endif
-else if (imtype == R_IMF_IMTYPE_AVIF) {
-  r_ext[ext_num++] = ".avif";
+  else if (imtype == R_IMF_IMTYPE_AVIF) {
+    r_ext[ext_num++] = ".avif";
   }
-else if (imtype == R_IMF_IMTYPE_JXL) {
-  r_ext[ext_num++] = ".jxl";
+  else if (imtype == R_IMF_IMTYPE_JXL) {
+    r_ext[ext_num++] = ".jxl";
   }
   else {
     /* Handles: #R_IMF_IMTYPE_JPEG90 etc. */
