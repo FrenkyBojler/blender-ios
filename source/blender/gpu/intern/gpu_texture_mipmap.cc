@@ -33,6 +33,8 @@ static Shader *get_update_mipmap_shader(TextureFormat texture_format)
       return GPU_shader_get_builtin_shader(GPU_SHADER_2D_UPDATE_MIPMAPS_UNORM_8_8_8_8);
     case TextureFormat::SFLOAT_16:
       return GPU_shader_get_builtin_shader(GPU_SHADER_2D_UPDATE_MIPMAPS_SFLOAT_16);
+    case TextureFormat::SFLOAT_16_16_16_16:
+      return GPU_shader_get_builtin_shader(GPU_SHADER_2D_UPDATE_MIPMAPS_SFLOAT_16_16_16_16);
 
     default:
       break;

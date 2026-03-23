@@ -11,6 +11,7 @@
 enum TextureFormat : uint32_t {
   UNORM_8_8_8_8,
   SFLOAT_16,
+  SFLOAT_16_16_16_16,
 };
 
 namespace builtin::mipmaps {
@@ -123,6 +124,26 @@ struct SharedFloat {
   }
 
   float load_sample(int2 src_coord)
+  {
+    return intermediate_level[src_coord.y][src_coord.x];
+  }
+};
+
+/** Shared storage that can store intermediate results in a float4. */
+struct SharedFloat4 {
+  /**
+   * When generating 2 levels, the results of generating the intermediate *level(first level
+   * generated) are cached here; this is the input tile *needed to generate the 8x8 tile of the
+   * second level generated.
+   */
+  [[shared]] float4 intermediate_level[MAX_SHARED_SAMPLES][MAX_SHARED_SAMPLES];
+
+  void store_sample(int2 dst_coord, float4 color)
+  {
+    intermediate_level[dst_coord.y][dst_coord.x] = color;
+  }
+
+  float4 load_sample(int2 src_coord)
   {
     return intermediate_level[src_coord.y][src_coord.x];
   }
@@ -472,38 +493,6 @@ template<enum TextureFormat format, typename SharedStorage, typename InnerType> 
   }
 };
 
-template struct Resources<UNORM_8_8_8_8, SharedSRGB, float4>;
-template struct Resources<SFLOAT_16, SharedFloat, float>;
-
-template float4 Resources<UNORM_8_8_8_8, SharedSRGB, float4>::reduce_store_sample<true>(
-    int2 src_coord,
-    int src_level,
-    int2 kernel_size,
-    int2 dst_image_size,
-    int2 dst_coord,
-    int dst_level);
-template float4 Resources<UNORM_8_8_8_8, SharedSRGB, float4>::reduce_store_sample<false>(
-    int2 src_coord,
-    int src_level,
-    int2 kernel_size,
-    int2 dst_image_size,
-    int2 dst_coord,
-    int dst_level);
-template float Resources<SFLOAT_16, SharedFloat, float>::reduce_store_sample<true>(
-    int2 src_coord,
-    int src_level,
-    int2 kernel_size,
-    int2 dst_image_size,
-    int2 dst_coord,
-    int dst_level);
-template float Resources<SFLOAT_16, SharedFloat, float>::reduce_store_sample<false>(
-    int2 src_coord,
-    int src_level,
-    int2 kernel_size,
-    int2 dst_image_size,
-    int2 dst_coord,
-    int dst_level);
-
 template<typename SRT>
 [[local_size(LOCAL_SIZE_X)]] [[compute]]
 void update_mipmaps([[global_invocation_id]] const uint3 global_id,
@@ -559,6 +548,53 @@ void update_mipmaps([[global_invocation_id]] const uint3 global_id,
   }
 }
 
+template struct Resources<UNORM_8_8_8_8, SharedSRGB, float4>;
+template struct Resources<SFLOAT_16, SharedFloat, float>;
+template struct Resources<SFLOAT_16_16_16_16, SharedFloat4, float4>;
+
+template float4 Resources<UNORM_8_8_8_8, SharedSRGB, float4>::reduce_store_sample<true>(
+    int2 src_coord,
+    int src_level,
+    int2 kernel_size,
+    int2 dst_image_size,
+    int2 dst_coord,
+    int dst_level);
+template float4 Resources<UNORM_8_8_8_8, SharedSRGB, float4>::reduce_store_sample<false>(
+    int2 src_coord,
+    int src_level,
+    int2 kernel_size,
+    int2 dst_image_size,
+    int2 dst_coord,
+    int dst_level);
+template float Resources<SFLOAT_16, SharedFloat, float>::reduce_store_sample<true>(
+    int2 src_coord,
+    int src_level,
+    int2 kernel_size,
+    int2 dst_image_size,
+    int2 dst_coord,
+    int dst_level);
+template float Resources<SFLOAT_16, SharedFloat, float>::reduce_store_sample<false>(
+    int2 src_coord,
+    int src_level,
+    int2 kernel_size,
+    int2 dst_image_size,
+    int2 dst_coord,
+    int dst_level);
+template float4 Resources<SFLOAT_16_16_16_16, SharedFloat4, float4>::reduce_store_sample<true>(
+    int2 src_coord,
+    int src_level,
+    int2 kernel_size,
+    int2 dst_image_size,
+    int2 dst_coord,
+    int dst_level);
+template float4 Resources<SFLOAT_16_16_16_16, SharedFloat4, float4>::reduce_store_sample<false>(
+    int2 src_coord,
+    int src_level,
+    int2 kernel_size,
+    int2 dst_image_size,
+    int2 dst_coord,
+    int dst_level);
+
 template void update_mipmaps<Resources<UNORM_8_8_8_8, SharedSRGB, float4>>(
     [[global_invocation_id]] const uint3 global_id,
     [[work_group_id]] const uint3 group_id,
@@ -569,13 +605,20 @@ template void update_mipmaps<Resources<SFLOAT_16, SharedFloat, float>>(
     [[work_group_id]] const uint3 group_id,
     [[local_invocation_index]] const uint3 local_index,
     [[resource_table]] Resources<SFLOAT_16, SharedFloat, float> &srt);
+template void update_mipmaps<Resources<SFLOAT_16_16_16_16, SharedFloat4, float4>>(
+    [[global_invocation_id]] const uint3 global_id,
+    [[work_group_id]] const uint3 group_id,
+    [[local_invocation_index]] const uint3 local_index,
+    [[resource_table]] Resources<SFLOAT_16_16_16_16, SharedFloat4, float4> &srt);
 
 }  // namespace builtin::mipmaps
 
 PipelineCompute gpu_shader_2D_update_mipmaps_unorm_8_8_8_8(
     builtin::mipmaps::update_mipmaps<
         builtin::mipmaps::Resources<UNORM_8_8_8_8, builtin::mipmaps::SharedSRGB, float4>>);
-
 PipelineCompute gpu_shader_2D_update_mipmaps_sfloat_16(
     builtin::mipmaps::update_mipmaps<
         builtin::mipmaps::Resources<SFLOAT_16, builtin::mipmaps::SharedFloat, float>>);
+PipelineCompute gpu_shader_2D_update_mipmaps_sfloat_16_16_16_16(
+    builtin::mipmaps::update_mipmaps<
+        builtin::mipmaps::Resources<SFLOAT_16_16_16_16, builtin::mipmaps::SharedFloat4, float4>>);
