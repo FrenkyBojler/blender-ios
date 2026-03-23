@@ -72,6 +72,12 @@ void ED_armature_ebone_copy(EditBone *dest, const EditBone *source);
 bArmature *ED_armature_context(const bContext *C);
 
 /**
+ * Whether B-bone width scaling should be offered in the UI for this armature object
+ * (armature display type is B-Bone, or the active bone's effective display type is B-Bone).
+ */
+bool ED_armature_bbone_scale_display_visible(bArmature *arm, Object *ob);
+
+/**
  * Adjust bone roll to align Z axis with vector `align_axis` is in local space and is normalized.
  */
 float ED_armature_ebone_roll_to_vector(const EditBone *bone,

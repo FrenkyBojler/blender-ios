@@ -1359,7 +1359,8 @@ class VIEW3D_MT_transform_armature(VIEW3D_MT_transform_base, Menu):
         # armature specific extensions follow...
         obj = context.object
         if obj.type == 'ARMATURE' and obj.mode in {'EDIT', 'POSE'}:
-            if obj.data.display_type == 'BBONE':
+            # Visibility matches C: `ED_armature_bbone_scale_display_visible` (RNA on Object).
+            if obj.armature_bbone_scale_display_visible:
                 layout.separator()
 
                 layout.operator("transform.transform", text="Scale BBone").mode = 'BONE_SIZE'
