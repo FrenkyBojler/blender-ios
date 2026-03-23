@@ -478,7 +478,6 @@ endif()
 add_bundled_libraries(openimageio/lib)
 
 find_package_wrapper(OpenColorIO 2.0.0 REQUIRED)
-set(OPENCOLORIO_DEFINITIONS "")
 add_bundled_libraries(opencolorio/lib)
 
 if(WITH_CYCLES AND WITH_CYCLES_EMBREE)
