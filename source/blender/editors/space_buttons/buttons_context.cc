@@ -1302,6 +1302,11 @@ void ED_space_properties_context_path_draw(ui::Layout *layout, const bContext *C
       continue;
     }
 
+    /* Add a pin icon before the first segment when the editor is pinned. */
+    if (first && (sbuts->flag & SB_PIN_CONTEXT)) {
+      row.label("", ICON_PINNED);
+    }
+
     /* Add > triangle. */
     if (!first) {
       row.label("", ICON_RIGHTARROW);

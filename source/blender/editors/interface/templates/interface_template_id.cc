@@ -28,6 +28,8 @@
 
 #include "DNA_collection_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_space_enums.h"
+#include "DNA_space_types.h"
 #include "DNA_workspace_types.h"
 
 #include "ED_id_management.hh"
@@ -1050,6 +1052,12 @@ static Button *template_id_def_new_but(Block *block,
   return but;
 }
 
+static bool template_id_is_properties_pinned(const bContext *C)
+{
+  const SpaceProperties *sbuts = CTX_wm_space_properties(C);
+  return sbuts && (sbuts->flag & SB_PIN_CONTEXT);
+}
+
 static void template_ID(const bContext *C,
                         Layout &layout,
                         TemplateID &template_ui,
@@ -1087,6 +1095,9 @@ static void template_ID(const bContext *C,
   }
 
   if (flag & UI_ID_BROWSE) {
+    if (template_id_is_properties_pinned(C)) {
+      layout.label("", ICON_PINNED);
+    }
     template_add_button_search_menu(C,
                                     layout,
                                     block,
