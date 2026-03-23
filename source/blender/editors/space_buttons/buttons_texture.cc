@@ -489,7 +489,7 @@ static void template_texture_user_menu(bContext *C, ui::Layout *layout, void * /
   ButsContextTexture *ct = static_cast<ButsContextTexture *>(sbuts->texuser);
   ui::Block *block = layout->block();
   const char *last_category = nullptr;
-  layout->alignment_set(ui::LayoutAlign::Left);
+
   for (ButsTextureUser &user : ct->users) {
     char name[UI_MAX_NAME_STR];
 
