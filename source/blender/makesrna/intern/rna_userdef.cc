@@ -5134,10 +5134,9 @@ static void rna_def_userdef_view(BlenderRNA *brna)
   };
   prop = RNA_def_property(srna, "armature_new_display_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, armature_display_type_items);
-  RNA_def_property_ui_text(
-      prop,
-      "Armature Object Display Type",
-      "The default display type for armature objects when added. (Object Display Type)");
+  RNA_def_property_ui_text(prop,
+                           "Armature Object Display Type",
+                           "The display type for new armature objects when added.");
   RNA_def_property_enum_default(prop, OB_TEXTURE);
   RNA_def_property_update(prop, 0, "rna_userdef_update");
 
@@ -5165,9 +5164,7 @@ static void rna_def_userdef_view(BlenderRNA *brna)
   prop = RNA_def_property(srna, "armature_data_new_display_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, armature_data_display_type_items);
   RNA_def_property_ui_text(
-      prop,
-      "Bone Display Type",
-      "The default display type for the armature data when added. (Bone Display Type)");
+      prop, "Bone Draw Type", "The draw type for the data when new armature objects are added.");
   RNA_def_property_enum_default(prop, ARM_DRAW_TYPE_OCTA);
   RNA_def_property_update(prop, 0, "rna_userdef_update");
 
@@ -5190,7 +5187,7 @@ static void rna_def_userdef_view(BlenderRNA *brna)
   prop = RNA_def_property(srna, "bone_new_rotation_mode", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, bone_rotation_mode_items);
   RNA_def_property_ui_text(
-      prop, "Bone Rotation Mode", "The default rotation mode when new bones are added.");
+      prop, "Bone Rotation Mode", "The rotation mode of new bones when added.");
   RNA_def_property_enum_default(prop, ROT_MODE_QUAT);
   RNA_def_property_update(prop, 0, "rna_userdef_update");
 
