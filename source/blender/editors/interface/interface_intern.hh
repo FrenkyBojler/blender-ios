@@ -203,6 +203,9 @@ struct Button : NonMovable {
 
   /** When non-zero, this is the key used to activate a menu items (`a-z` always lower case). */
   uchar menu_key = 0;
+  /** When there is a menu_key, this is the string position to underline. Note that the
+   * hotkey might not actually be part of the display string for some languages. */
+  uchar menu_key_index = 0;
 
   short retval = 0, strwidth = 0, alignnr = 0;
   int ofs = 0, pos = 0, selsta = 0, selend = 0;

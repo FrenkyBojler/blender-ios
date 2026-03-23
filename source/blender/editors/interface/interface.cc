@@ -47,6 +47,7 @@
 
 #include "BLF_api.hh"
 #include "BLT_translation.hh"
+#include "BLT_lang.hh"
 
 #include "UI_abstract_view.hh"
 #include "UI_interface.hh"
@@ -1333,17 +1334,28 @@ static void menu_block_set_keyaccels(Block *block)
 
       if (menu_key) {
         but.menu_key = menu_key;
+        but.menu_key_index = str_pt - but.str.c_str();
       }
       else {
-        /* Check romanization. */
-        size_t index = 0;
-        const char32_t charcode = BLI_str_utf8_as_unicode_step_safe(
-            but.str.c_str(), but.str.size(), &index);
-        char key = mandarin_pinyin_initial(charcode);
-        if (key != '?' && !(menu_key_mask & 1 << (key - 'a'))) {
-          menu_key = key;
-          but.menu_key = key;
-          menu_key_mask |= 1 << (key - 'a');
+        /* Check romanization. Iterate over all UTF-8 code points until one matches. */
+        const char *language = BLT_lang_get();
+        const char *s = but.str.c_str();
+        size_t s_len = but.str.size();
+        size_t idx = 0;
+        while (idx < s_len) {
+          const size_t char_start = idx;
+          const char32_t charcode = BLI_str_utf8_as_unicode_step_safe(s, s_len, &idx);
+          char key = romanization::shortcut(charcode, language);
+          if (key != '?' && (key >= 'a' && key <= 'z')) {
+            const uint bit = 1u << (key - 'a');
+            if (!(menu_key_mask & bit)) {
+              menu_key = uchar(key);
+              but.menu_key = menu_key;
+              but.menu_key_index = int(char_start);
+              menu_key_mask |= bit;
+              break;
+            }
+          }
         }
       }
 

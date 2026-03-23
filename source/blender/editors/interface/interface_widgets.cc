@@ -2279,39 +2279,18 @@ static void widget_draw_text(const uiFontStyle *fstyle,
 
       if (but->menu_key != '\0') {
         const char *drawstr_ofs = drawstr + but->ofs;
-        int ul_index = -1;
-
+        rcti bounds;
+        if (BLF_str_offset_to_glyph_bounds(fstyle->uifont_id, drawstr_ofs, but->menu_key_index, &bounds) &&
+            !BLI_rcti_is_empty(&bounds))
         {
-          /* Find upper case, fall back to lower case. */
-          const char *drawstr_end = drawstr_ofs + drawlen;
-          const char keys[] = {char(but->menu_key - 32), but->menu_key};
-          for (int i = 0; i < ARRAY_SIZE(keys); i++) {
-            const char *drawstr_menu = strchr(drawstr_ofs, keys[i]);
-            if (drawstr_menu != nullptr && drawstr_menu < drawstr_end) {
-              ul_index = int(drawstr_menu - drawstr_ofs);
-              break;
-            }
-          }
-        }
-
-        if (ul_index == -1) {
-          ul_index = 0;
-        }
-
-        if (ul_index != -1) {
-          rcti bounds;
-          if (BLF_str_offset_to_glyph_bounds(fstyle->uifont_id, drawstr_ofs, ul_index, &bounds) &&
-              !BLI_rcti_is_empty(&bounds))
-          {
-            int ul_width = round_fl_to_int(BLF_width(fstyle->uifont_id, "_", 2));
-            int pos_x = rect->xmin + font_xofs + bounds.xmin +
-                        (bounds.xmax - bounds.xmin - ul_width) / 2;
-            int pos_y = rect->ymin + font_yofs + bounds.ymin - U.pixelsize - U.pixelsize;
-            /* Use text output because direct drawing doesn't always work. See #89246. */
-            BLF_position(fstyle->uifont_id, float(pos_x), pos_y, 0.0f);
-            BLF_color4ubv(fstyle->uifont_id, wcol->text);
-            BLF_draw(fstyle->uifont_id, "_", 2);
-          }
+          int ul_width = round_fl_to_int(BLF_width(fstyle->uifont_id, "_", 2));
+          int pos_x = rect->xmin + font_xofs + bounds.xmin +
+                      (bounds.xmax - bounds.xmin - ul_width) / 2;
+          int pos_y = rect->ymin + font_yofs + bounds.ymin - U.pixelsize - U.pixelsize;
+          /* Use text output because direct drawing doesn't always work. See #89246. */
+          BLF_position(fstyle->uifont_id, float(pos_x), pos_y, 0.0f);
+          BLF_color4ubv(fstyle->uifont_id, wcol->text);
+          BLF_draw(fstyle->uifont_id, "_", 2);
         }
       }
     }

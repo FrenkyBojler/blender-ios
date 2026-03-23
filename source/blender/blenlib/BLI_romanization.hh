@@ -10,8 +10,8 @@
  * Romanization functions.
  */
 
-namespace blender {
+namespace blender::romanization {
 
-char mandarin_pinyin_initial(char32_t character);
+char shortcut(char32_t character, const char *language);
 
-}  // namespace blender
+}  // namespace blender::romanization
