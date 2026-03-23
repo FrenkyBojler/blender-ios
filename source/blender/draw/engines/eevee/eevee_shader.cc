@@ -593,6 +593,7 @@ class SlotAllocator {
   bool vertex_id_overflow_ = false;
 
  public:
+  /** WATCH: Recursive. */
   void reserve_slots(const gpu::shader::ShaderCreateInfo &info)
   {
     using namespace blender::gpu::shader;
@@ -613,6 +614,13 @@ class SlotAllocator {
       if (res.bind_type == ShaderCreateInfo::Resource::SAMPLER) {
         available_samplers_ &= ~(uint64_t(1) << res.slot);
       }
+    }
+
+    for (const auto &[info_name, _] : info.additional_infos_) {
+      const ShaderCreateInfo *info = reinterpret_cast<const ShaderCreateInfo *>(
+          GPU_shader_create_info_get(info_name.c_str()));
+      /** WATCH: Recursive. */
+      reserve_slots(*info);
     }
   }
 
@@ -760,26 +768,17 @@ static SlotAllocator add_pipeline_create_info(gpu::shader::ShaderCreateInfo &inf
       break;
   }
 
-  SlotAllocator available_slots;
-
   if (!pipeline_info_name.is_empty()) {
     info.additional_info(pipeline_info_name);
-    const ShaderCreateInfo *info = reinterpret_cast<const ShaderCreateInfo *>(
-        GPU_shader_create_info_get(pipeline_info_name.c_str()));
-    available_slots.reserve_slots(*info);
   }
   if (!additional_info_name.is_empty()) {
     info.additional_info(additional_info_name);
-    const ShaderCreateInfo *info = reinterpret_cast<const ShaderCreateInfo *>(
-        GPU_shader_create_info_get(additional_info_name.c_str()));
-    available_slots.reserve_slots(*info);
   }
   if (!geometry_info_name.is_empty()) {
     info.additional_info(geometry_info_name);
-    const ShaderCreateInfo *info = reinterpret_cast<const ShaderCreateInfo *>(
-        GPU_shader_create_info_get(geometry_info_name.c_str()));
-    available_slots.reserve_slots(*info);
   }
+  SlotAllocator available_slots;
+  available_slots.reserve_slots(info);
   return available_slots;
 }
 
