@@ -3,10 +3,8 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
-#pragma create_info
 
 #include "gpu_shader_compat.hh"
-#include "gpu_shader_create_info.hh"
 
 namespace builtin::mipmaps {
 
@@ -32,9 +30,11 @@ template<> void convert<float4, float4>(float4 &dst_value, const float4 src_valu
   dst_value = src_value;
 }
 
-/* TODO: These encoders/decoders are a slightly off from our own implementation. Might fix some
- * specific issues, which we need to test. */
-/**  Convert float (0-1) sRGB red/green/blue component value to linear. */
+/**
+ * Convert float (0-1) sRGB red/green/blue component value to linear.
+ *
+ * These encoders/decoders are a slightly off from our own implementation. Might fix some
+ * specific issues, which we need to validate. */
 float linear_from_srgb_component(float srgb)
 {
   return srgb <= 0.04045 ? srgb * (25 / 323.) : pow((200 * srgb + 11) * (1 / 211.), 2.4);
@@ -126,25 +126,27 @@ struct SharedFloat {
   }
 };
 
-template<typename T> T pyramid_reduce(float a0, T v0, float a1, T v1, float a2, T v2)
-{
-  return a0 * v0 + a1 * v1 + a2 * v2;
-}
-template float4 pyramid_reduce<float4>(
-    float a0, float4 v0, float a1, float4 v1, float a2, float4 v2);
-
-template<typename T> T pyramid_reduce2(T v0, T v1)
-{
-  return 0.5 * (v0 + v1);
-}
-template float4 pyramid_reduce2<float4>(float4 v0, float4 v1);
-
 int2 kernel_size_from_input_size(int2 input_size)
 {
   return int2(input_size.x == 1 ? 1 : (2 | (input_size.x & 1)),
               input_size.y == 1 ? 1 : (2 | (input_size.y & 1)));
 }
 
+/**
+ * \brief Templated struct for bindings and performing the mipmap generation.
+ *
+ * The mipmap generation is based on the general algorithm of
+ * https://github.com/nvpro-samples/vk_compute_mipmaps/tree/main/nvpro_pyramid
+ * It can generate 2 mipmap levels per dispatch.
+ *
+ * \param format is the texture for mat of the mipmap images.
+ *
+ * \param SharedStorage is the storage class to store intermediate levels. Depending on the texture
+ * format an optimal storage class can be selected.
+ *
+ * \param InnerType the type to use for computation. Depending on the number of samples that a
+ * texture format has a more memory efficient type can be used.
+ */
 template<enum TextureFormat format, typename SharedStorage, typename InnerType> struct Resources {
   [[push_constant]] const int num_levels;
   [[image(0, read, format)]] image2D mip_in;
@@ -193,6 +195,17 @@ template<enum TextureFormat format, typename SharedStorage, typename InnerType> 
     return mip_size;
   }
 
+  InnerType pyramid_reduce_3(
+      float a0, InnerType v0, float a1, InnerType v1, float a2, InnerType v2)
+  {
+    return a0 * v0 + a1 * v1 + a2 * v2;
+  }
+
+  InnerType pyramid_reduce_2(InnerType v0, InnerType v1)
+  {
+    return 0.5 * (v0 + v1);
+  }
+
   /**
    * Handle loading and reducing a rectangle of size kernel_size
    * with the given upper-left coordinate src_coord. Samples read from
@@ -236,10 +249,10 @@ template<enum TextureFormat format, typename SharedStorage, typename InnerType> 
         }
         switch (kernel_size.y) {
           case 3:
-            h2 = pyramid_reduce(w0, v0, w1, v1, w2, v2);
+            h2 = pyramid_reduce_3(w0, v0, w1, v1, w2, v2);
             break;
           case 2:
-            h2 = pyramid_reduce2(v0, v1);
+            h2 = pyramid_reduce_2(v0, v1);
             break;
           case 1:
             h2 = v0;
@@ -260,10 +273,10 @@ template<enum TextureFormat format, typename SharedStorage, typename InnerType> 
         }
         switch (kernel_size.y) {
           case 3:
-            h1 = pyramid_reduce(w0, v0, w1, v1, w2, v2);
+            h1 = pyramid_reduce_3(w0, v0, w1, v1, w2, v2);
             break;
           case 2:
-            h1 = pyramid_reduce2(v0, v1);
+            h1 = pyramid_reduce_2(v0, v1);
             break;
           case 1:
             h1 = v0;
@@ -284,10 +297,10 @@ template<enum TextureFormat format, typename SharedStorage, typename InnerType> 
         }
         switch (kernel_size.y) {
           case 3:
-            h0 = pyramid_reduce(w0, v0, w1, v1, w2, v2);
+            h0 = pyramid_reduce_3(w0, v0, w1, v1, w2, v2);
             break;
           case 2:
-            h0 = pyramid_reduce2(v0, v1);
+            h0 = pyramid_reduce_2(v0, v1);
             break;
           case 1:
             h0 = v0;
@@ -303,10 +316,10 @@ template<enum TextureFormat format, typename SharedStorage, typename InnerType> 
         w0 = rcp * (num_dst_pixels - dst_coord.x);
         w1 = rcp * num_dst_pixels;
         w2 = 1.0f - w0 - w1;
-        out_pixel = pyramid_reduce(w0, h0, w1, h1, w2, h2);
+        out_pixel = pyramid_reduce_3(w0, h0, w1, h1, w2, h2);
         break;
       case 2:
-        out_pixel = pyramid_reduce2(h0, h1);
+        out_pixel = pyramid_reduce_2(h0, h1);
         break;
       case 1:
         out_pixel = h0;
