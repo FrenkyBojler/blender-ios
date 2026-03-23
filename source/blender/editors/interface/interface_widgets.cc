@@ -108,13 +108,13 @@ enum class WidgetStyle {
   IconLabel,
   PreviewTile,
   Swatch,
-  RgbPicker,
+  RGBPicker,
   Unitvec,
   Box,
   Scroll,
-  Listitem,
+  ListItem,
   Progress,
-  Nodesocket,
+  NodeSocket,
   ViewItem,
 };
 
@@ -4938,7 +4938,7 @@ static WidgetType *widget_type(WidgetStyle type)
       wt.wcol_theme = &btheme->tui.wcol_box;
       break;
 
-    case WidgetStyle::RgbPicker:
+    case WidgetStyle::RGBPicker:
       break;
 
     case WidgetStyle::Unitvec:
@@ -4951,7 +4951,7 @@ static WidgetType *widget_type(WidgetStyle type)
       wt.custom = widget_scroll;
       break;
 
-    case WidgetStyle::Listitem:
+    case WidgetStyle::ListItem:
     case WidgetStyle::ViewItem:
       wt.wcol_theme = &btheme->tui.wcol_list_item;
       wt.custom = widget_list_itembut;
@@ -4962,7 +4962,7 @@ static WidgetType *widget_type(WidgetStyle type)
       wt.custom = widget_progress_indicator;
       break;
 
-    case WidgetStyle::Nodesocket:
+    case WidgetStyle::NodeSocket:
       wt.custom = widget_nodesocket;
       break;
 
@@ -5120,7 +5120,7 @@ void draw_button(const bContext *C, ARegion *region, uiStyle *style, Button *but
         }
         break;
       case ButtonType::NodeSocket:
-        wt = widget_type(WidgetStyle::Nodesocket);
+        wt = widget_type(WidgetStyle::NodeSocket);
         break;
       default:
         wt = widget_type(WidgetStyle::Icon);
@@ -5190,7 +5190,7 @@ void draw_button(const bContext *C, ARegion *region, uiStyle *style, Button *but
         break;
 
       case ButtonType::ListRow:
-        wt = widget_type(WidgetStyle::Listitem);
+        wt = widget_type(WidgetStyle::ListItem);
         break;
 
       case ButtonType::Text:
@@ -5347,7 +5347,7 @@ void draw_button(const bContext *C, ARegion *region, uiStyle *style, Button *but
         break;
 
       case ButtonType::NodeSocket:
-        wt = widget_type(WidgetStyle::Nodesocket);
+        wt = widget_type(WidgetStyle::NodeSocket);
         break;
 
       default:
