@@ -695,14 +695,15 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
     GPUAttachmentState attachment_state = attachment_states_[GPU_FB_DEPTH_ATTACHMENT];
     VkImageView depth_image_view = VK_NULL_HANDLE;
     if (attachment_state == GPU_ATTACHMENT_WRITE) {
-      VKImageViewInfo image_view_info = {eImageViewUsage::Attachment,
-                                         IndexRange(max_ii(attachment.layer, 0), 1),
-                                         IndexRange(attachment.mip, 1),
-                                         {{'r', 'g', 'b', 'a'}},
-                                         VKImageViewArrayed::DONT_CARE,
-                                         to_vk_format(depth_texture.device_format_get()),
-                                         is_stencil_attachment ? VK_IMAGE_ASPECT_STENCIL_BIT :
-                                                                 VK_IMAGE_ASPECT_DEPTH_BIT};
+      VKImageViewInfo image_view_info = {
+          eImageViewUsage::Attachment,
+          IndexRange(max_ii(attachment.layer, 0), 1),
+          IndexRange(attachment.mip, 1),
+          {{'r', 'g', 'b', 'a'}},
+          VKImageViewArrayed::DONT_CARE,
+          to_vk_format(depth_texture.device_format_get()),
+          is_stencil_attachment ? static_cast<VkImageAspectFlags>(VK_IMAGE_ASPECT_STENCIL_BIT) :
+                                  static_cast<VkImageAspectFlags>(VK_IMAGE_ASPECT_DEPTH_BIT)};
       depth_image_view = depth_texture.image_view_get(image_view_info).vk_handle();
     }
     VkFormat vk_format = (!extensions.dynamic_rendering_unused_attachments &&
