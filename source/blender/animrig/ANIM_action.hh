@@ -144,6 +144,10 @@ class Action : public bAction {
    * Return the active layer or a nullptr if there is none.
    */
   Layer *layer_active_get();
+  /**
+   * Reorders the layer array by moving the given layer to the given index.
+   */
+  void layer_move_reorder(Layer &layer, int to_index);
 
   /**
    * Ensure that there is at least one layer with the infinite keyframe strip.

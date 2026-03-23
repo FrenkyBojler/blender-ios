@@ -8,6 +8,8 @@
 
 #include "BKE_context.hh"
 
+#include "BLT_translation.hh"
+
 #include "ANIM_action.hh"
 
 #include "UI_interface.hh"
@@ -22,6 +24,11 @@ namespace blender::ui {
 
 namespace action_layer {
 using namespace blender::animrig;
+
+struct ActionAndLayer {
+  Action *action;
+  Layer *layer;
+};
 
 class ActionLayerTreeView : public AbstractTreeView {
  protected:
@@ -48,7 +55,10 @@ class ActionLayerDragController : public AbstractViewItemDragController {
 
   void *create_drag_data() const override
   {
-    return &layer_;
+    ActionAndLayer *drag_data = MEM_new_zeroed<ActionAndLayer>(__func__);
+    drag_data->action = &action_;
+    drag_data->layer = &layer_;
+    return drag_data;
   };
 
   void on_drag_start(bContext &C, AbstractViewItem &item) override
@@ -59,6 +69,81 @@ class ActionLayerDragController : public AbstractViewItemDragController {
   std::optional<eWM_DragDataType> get_drag_type() const
   {
     return WM_DRAG_ACTION_LAYER;
+  }
+};
+
+class ActionLayerDropTarget : public TreeViewItemDropTarget {
+ private:
+  Action &action_;
+  Layer &layer_;
+
+ public:
+  ActionLayerDropTarget(AbstractTreeViewItem &item, DropBehavior behavior, ActionAndLayer &data)
+      : TreeViewItemDropTarget(item, behavior), action_(*data.action), layer_(*data.layer)
+  {
+  }
+
+  bool can_drop(const wmDrag &drag, const char **r_disabled_hint) const override
+  {
+    if (drag.type != WM_DRAG_ACTION_LAYER) {
+      return false;
+    }
+
+    const ActionAndLayer *drag_data = static_cast<const ActionAndLayer *>(drag.poin);
+
+    if (&action_ != drag_data->action) {
+      *r_disabled_hint = "Cannot drag & drop layer between actions";
+      return false;
+    }
+    if (&layer_ == drag_data->layer) {
+      return false;
+    }
+
+    return true;
+  }
+
+  std::string drop_tooltip(const DragInfo &drag_info) const override
+  {
+    const ActionAndLayer *drag_data = static_cast<const ActionAndLayer *>(
+        drag_info.drag_data.poin);
+
+    const StringRef drag_name(drag_data->layer->name);
+    const StringRef drop_name(layer_.name);
+    switch (drag_info.drop_location) {
+      case DropLocation::Into:
+        return "Not implemented";
+      case DropLocation::Before:
+        return fmt::format(fmt::runtime(TIP_("Move {} above {}")), drag_name, drop_name);
+      case DropLocation::After:
+        return fmt::format(fmt::runtime(TIP_("Move {} below {}")), drag_name, drop_name);
+    }
+    return "";
+  }
+
+  bool on_drop(bContext *C, const DragInfo &drag_info) const override
+  {
+    const ActionAndLayer *drag_data = static_cast<const ActionAndLayer *>(
+        drag_info.drag_data.poin);
+
+    Layer &drag_layer = *drag_data->layer;
+    int drop_index = action_.layers().first_index(&layer_);
+    switch (drag_info.drop_location) {
+      case DropLocation::Before:
+        if (action_.layers().first_index(&drag_layer) < drop_index) {
+          // drop_index--;
+        }
+        action_.layer_move_reorder(drag_layer, drop_index);
+        action_.layer_active_set(drag_layer);
+        break;
+      case DropLocation::After:
+        action_.layer_move_reorder(drag_layer, drop_index);
+        action_.layer_active_set(drag_layer);
+        break;
+      case DropLocation::Into:
+        /* Not implemented yet. Could be a merge action. */
+        return false;
+    }
+    return true;
   }
 };
 
@@ -131,10 +216,24 @@ class ActionLayerItem : public AbstractTreeViewItem {
     return layer_.name;
   }
 
+  void delete_item(bContext *C) override
+  {
+    action_.layer_remove(layer_);
+    ED_undo_push(C, "Delete Action Layer");
+  }
+
   std::unique_ptr<AbstractViewItemDragController> create_drag_controller() const override
   {
     ActionLayerTreeView &tree_view = static_cast<ActionLayerTreeView &>(get_tree_view());
     return std::make_unique<ActionLayerDragController>(tree_view, action_, layer_);
+  }
+
+  std::unique_ptr<TreeViewItemDropTarget> create_drop_target() override
+  {
+    ActionAndLayer action_layer;
+    action_layer.action = &action_;
+    action_layer.layer = &layer_;
+    return std::make_unique<ActionLayerDropTarget>(*this, DropBehavior::Reorder, action_layer);
   }
 };
 

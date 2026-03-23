@@ -306,6 +306,17 @@ Layer *Action::layer_active_get()
   return this->layer(this->layer_active_index);
 }
 
+void Action::layer_move_reorder(Layer &layer, const int to_index)
+{
+  const int from_index = this->layers().first_index_try(&layer);
+  if (from_index == -1) {
+    /* Layer should be part of the action. */
+    BLI_assert_unreachable();
+    return;
+  }
+  dna::array::move_index(this->layer_array, this->layer_array_num, from_index, to_index);
+}
+
 void Action::layer_keystrip_ensure()
 {
   /* Ensure a layer. */
