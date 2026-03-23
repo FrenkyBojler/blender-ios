@@ -585,7 +585,7 @@ static void rna_GreasePencilLayer_radius_offset_set(PointerRNA *ptr, const float
 
   if (bke::SpanAttributeWriter<float> radius_offsets =
           grease_pencil.attributes_for_write().lookup_or_add_for_write_span<float>(
-              "radius_offset", bke::AttrDomain::Layer, bke::AttributeInitVArray(0.0f)))
+              "radius_offset", bke::AttrDomain::Layer, bke::AttributeInitValue(0.0f)))
   {
     radius_offsets.span[layer_idx] = value;
     radius_offsets.finish();
