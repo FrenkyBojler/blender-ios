@@ -118,7 +118,6 @@ class Attribute {
     assert(data_sizeof() == sizeof(Transform));
     return (Transform *)data();
   }
-
   /* Attributes for voxels are images */
   ImageHandle &data_voxel_for_write()
   {
