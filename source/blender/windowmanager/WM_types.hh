@@ -1270,6 +1270,7 @@ enum eWM_DragDataType : int8_t {
   WM_DRAG_NODE_TREE_INTERFACE,
   WM_DRAG_BONE_COLLECTION,
   WM_DRAG_SHAPE_KEY,
+  WM_DRAG_ACTION_LAYER,
 };
 
 enum eWM_DragFlags {

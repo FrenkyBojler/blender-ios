@@ -30,7 +30,36 @@ class ActionLayerTreeView : public AbstractTreeView {
  public:
   explicit ActionLayerTreeView(bAction &action);
   void build_tree() override;
-  bool listen(const wmNotifier &notifier) const override;
+
+  bool listen(const wmNotifier &notifier) const override
+  {
+    return notifier.data == ND_ANIMCHAN;
+  }
+};
+
+class ActionLayerDragController : public AbstractViewItemDragController {
+ private:
+  Action &action_;
+  Layer &layer_;
+
+ public:
+  ActionLayerDragController(ActionLayerTreeView &tree_view, Action &action, Layer &layer)
+      : AbstractViewItemDragController(tree_view), action_(action), layer_(layer){};
+
+  void *create_drag_data() const override
+  {
+    return &layer_;
+  };
+
+  void on_drag_start(bContext &C, AbstractViewItem &item) override
+  {
+    action_.layer_active_set(layer_);
+  };
+
+  std::optional<eWM_DragDataType> get_drag_type() const
+  {
+    return WM_DRAG_ACTION_LAYER;
+  }
 };
 
 class ActionLayerItem : public AbstractTreeViewItem {
@@ -101,6 +130,12 @@ class ActionLayerItem : public AbstractTreeViewItem {
   {
     return layer_.name;
   }
+
+  std::unique_ptr<AbstractViewItemDragController> create_drag_controller() const override
+  {
+    ActionLayerTreeView &tree_view = static_cast<ActionLayerTreeView &>(get_tree_view());
+    return std::make_unique<ActionLayerDragController>(tree_view, action_, layer_);
+  }
 };
 
 ActionLayerTreeView::ActionLayerTreeView(bAction &action) : action_(action.wrap()) {}
@@ -115,11 +150,6 @@ void ActionLayerTreeView::build_tree()
     }
     add_tree_item<ActionLayerItem>(action_, i);
   }
-}
-
-bool ActionLayerTreeView::listen(const wmNotifier &notifier) const
-{
-  return notifier.data == ND_ANIMCHAN;
 }
 
 }  // namespace action_layer
