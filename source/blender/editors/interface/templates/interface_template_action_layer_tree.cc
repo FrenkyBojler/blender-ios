@@ -10,12 +10,16 @@
 
 #include "BLT_translation.hh"
 
-#include "ANIM_action.hh"
+#include "WM_api.hh"
+
+#include "DEG_depsgraph.hh"
 
 #include "UI_interface.hh"
 #include "UI_tree_view.hh"
 
 #include "ED_undo.hh"
+
+#include "ANIM_action.hh"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
@@ -61,7 +65,7 @@ class ActionLayerDragController : public AbstractViewItemDragController {
     return drag_data;
   };
 
-  void on_drag_start(bContext &C, AbstractViewItem &item) override
+  void on_drag_start(bContext & /* C */, AbstractViewItem & /* item */) override
   {
     action_.layer_active_set(layer_);
   };
@@ -135,7 +139,6 @@ class ActionLayerDropTarget : public TreeViewItemDropTarget {
           drop_index++;
         }
         action_.layer_move_reorder(drag_layer, drop_index);
-        action_.layer_active_set(drag_layer);
         break;
       case DropLocation::After:
         if (drag_index < drop_index) {
@@ -143,12 +146,16 @@ class ActionLayerDropTarget : public TreeViewItemDropTarget {
           drop_index--;
         }
         action_.layer_move_reorder(drag_layer, drop_index);
-        action_.layer_active_set(drag_layer);
         break;
       case DropLocation::Into:
         /* Not implemented yet. Could be a merge action. */
         return false;
     }
+
+    action_.layer_active_set(drag_layer);
+    WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, &action_.id);
+    DEG_id_tag_update(&action_.id, ID_RECALC_ANIMATION);
+    ED_undo_push(C, "Reorder Action Layer");
     return true;
   }
 };

@@ -722,7 +722,7 @@ class ANIM_PT_action_layers_panel(Panel):
         if not context.preferences.experimental.use_action_layers:
             return
         row = layout.row()
-        row.template_action_layer_list(action)
+        row.template_action_layer_tree(action)
         col = row.column(align=True)
         col.operator("action.layer_add", text="", icon="ADD")
         col.operator("action.layer_remove", text="", icon="REMOVE")
