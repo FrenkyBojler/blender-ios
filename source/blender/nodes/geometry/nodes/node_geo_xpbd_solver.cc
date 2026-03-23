@@ -11,6 +11,7 @@
 #include "BKE_mesh.h"
 #include "BKE_mesh_sample.hh"
 
+#include "BLI_ordered_edge.hh"
 #include "BLI_stack.hh"
 #include "BLI_virtual_array_range_spans.hh"
 
@@ -67,6 +68,7 @@ static NestedBundleTypePtr make_world_type()
   types.append(ForceBundle::get_bundle_type());
   types.append(TorqueBundle::get_bundle_type());
   types.append(EdgeLengthConstraintBundle::get_bundle_type());
+  types.append(CrossEdgeLengthConstraintBundle::get_bundle_type());
 
   NestedBundleTypePtr world_type = std::make_shared<const NestedBundleType>(
       "Blender.XPBDSolverWorld", std::move(types));
@@ -192,7 +194,7 @@ struct PinRotationConstraint {
 };
 struct PinRotationConstraintUsage {
   /** Index of corresponding #PinRotationConstraint. */
-  const int constraint_i;
+  int constraint_i;
 
   Span<int> points;
   Span<math::Quaternion> begin_rotations;
@@ -213,10 +215,25 @@ struct EdgeLengthConstraint {
 };
 struct EdgeLengthConstraintUsage {
   /** Index of corresponding #EdgeLengthConstraint. */
-  const int constraint_i;
+  int constraint_i;
 
   VArraySpan<float> rest_lengths;
   VArraySpan<float> compliances;
+  MutableSpan<float> lambdas;
+
+  xpbd::ConstraintColoring coloring;
+};
+
+struct CrossEdgeLengthConstraint {
+  std::string path;
+};
+struct CrossEdgeLengthConstraintUsage {
+  /** Index of the corresponding #CrossEdgeLengthConstraint. */
+  int constraint_i;
+
+  Vector<int2> cross_edge_points;
+  Vector<float> distances;
+  Vector<float> compliances;
   MutableSpan<float> lambdas;
 
   xpbd::ConstraintColoring coloring;
@@ -315,6 +332,7 @@ struct GeometryData {
   Vector<PinPositionConstraintUsage> pin_position_constraints;
   Vector<PinRotationConstraintUsage> pin_rotation_constraints;
   Vector<EdgeLengthConstraintUsage> edge_length_constraints;
+  Vector<CrossEdgeLengthConstraintUsage> cross_edge_length_constraints;
   Vector<InfinitePlaneColliderUsage> infinite_plane_colliders;
   Vector<MeshColliderUsage> mesh_colliders;
   Vector<RodStretchShearConstraintUsage> rod_stretch_shear_constraints;
@@ -454,6 +472,7 @@ struct ConstraintsInfo {
   Vector<PinPositionConstraint> pin_position_constraints;
   Vector<PinRotationConstraint> pin_rotation_constraints;
   Vector<EdgeLengthConstraint> edge_length_constraints;
+  Vector<CrossEdgeLengthConstraint> cross_edge_length_constraints;
 };
 
 class XpbdSolverStep {
@@ -529,6 +548,7 @@ class XpbdSolverStep {
     this->gather_from_world__stretch_shear_constraints();
     this->gather_from_world__bend_twist_constraints();
     this->gather_from_world__edge_length_constraints();
+    this->gather_from_world__cross_edge_length_constraints();
     this->gather_from_world__damping();
     this->gather_from_world__pin_positions();
     this->gather_from_world__pin_rotations();
@@ -1596,6 +1616,103 @@ class XpbdSolverStep {
             edges,
             constraint_usage.rest_lengths,
             constraint_usage.compliances,
+            constraint_usage.lambdas);
+        xpbd::ConstraintColoring coloring = constraint_set.color_constraints(tls.mask_memory);
+        geo_data.static_constraints.append({&constraint_set, std::move(coloring)});
+      }
+    }
+  }
+
+  void gather_from_world__cross_edge_length_constraints()
+  {
+    TLS &tls = tls_.local();
+    const Span<std::string> paths = nested_bundle_paths_.lookup_as(
+        CrossEdgeLengthConstraintBundle::name);
+    for (const StringRef path : paths) {
+      const Bundle &bundle = **world_.lookup_path_ptr<BundlePtr>(path);
+      const int constraint_i = constraints_.cross_edge_length_constraints.append_and_get_index(
+          {path});
+      for (const int data_key_i : geometries_.data.index_range()) {
+        const DataKey &data_key = geometries_.data_keys[data_key_i];
+        GeometryData &geo_data = geometries_.data[data_key_i];
+        if (data_key.type != GeometryComponent::Type::Mesh) {
+          continue;
+        }
+        if (this->effector_applies_to_geometry(path, bundle, data_key_i)) {
+          geo_data.cross_edge_length_constraints.append({constraint_i});
+        }
+      }
+    }
+
+    for (const int data_key_i : geometries_.data_keys.index_range()) {
+      const DataKey &data_key = geometries_.data_keys[data_key_i];
+      GeometryData &geo_data = geometries_.data[data_key_i];
+      for (CrossEdgeLengthConstraintUsage &constraint_usage :
+           geo_data.cross_edge_length_constraints)
+      {
+        const CrossEdgeLengthConstraint &constraint =
+            constraints_.cross_edge_length_constraints[constraint_usage.constraint_i];
+        const Mesh &mesh = *geometries_.geometry_sets[data_key.geo_bundle_i].geometry.get_mesh();
+        const VArraySpan<float3> rest_positions = *geo_data.attributes.lookup<float3>(
+            this->prop_attr_name(constraint.path, "rest_position"), AttrDomain::Point);
+        if (rest_positions.is_empty()) {
+          continue;
+        }
+        const VArray<float> edge_compliances = *geo_data.attributes.lookup_or_default<float>(
+            this->prop_attr_name(constraint.path, "compliance"), AttrDomain::Edge, 0.0f);
+
+        const Span<int2> edges = mesh.edges();
+        const Span<int3> corner_tris = mesh.corner_tris();
+        const Span<int> corner_verts = mesh.corner_verts();
+
+        // TODO: needs stable triangles
+        MultiValueMap<OrderedEdge, int> tris_by_edge;
+        for (const int tri_i : corner_tris.index_range()) {
+          const int3 &tri = corner_tris[tri_i];
+          const int v0 = corner_verts[tri[0]];
+          const int v1 = corner_verts[tri[1]];
+          const int v2 = corner_verts[tri[2]];
+          tris_by_edge.add(OrderedEdge{v0, v1}, tri_i);
+          tris_by_edge.add(OrderedEdge{v1, v2}, tri_i);
+          tris_by_edge.add(OrderedEdge{v2, v0}, tri_i);
+        }
+
+        Vector<int2> &cross_edges = constraint_usage.cross_edge_points;
+        Vector<float> &cross_edge_rest_lengths = constraint_usage.distances;
+        Vector<float> &cross_edge_compliances = constraint_usage.compliances;
+
+        for (const int edge_i : edges.index_range()) {
+          const int2 &edge = edges[edge_i];
+          const Span<int> incident_tris = tris_by_edge.lookup(OrderedEdge(edge));
+          if (incident_tris.size() <= 1) {
+            continue;
+          }
+          const float compliance = edge_compliances[edge_i];
+          for (const int tri_a : incident_tris.index_range()) {
+            for (const int tri_b : incident_tris.index_range().drop_front(tri_a + 1)) {
+              const int3 &tri_a_corners = corner_tris[incident_tris[tri_a]];
+              const int3 &tri_b_corners = corner_tris[incident_tris[tri_b]];
+              const int point_a = edge[0] ^ edge[1] ^ corner_verts[tri_a_corners[0]] ^
+                                  corner_verts[tri_a_corners[1]] ^ corner_verts[tri_a_corners[2]];
+              const int point_b = edge[0] ^ edge[1] ^ corner_verts[tri_b_corners[0]] ^
+                                  corner_verts[tri_b_corners[1]] ^ corner_verts[tri_b_corners[2]];
+              const float3 &rest_position_a = rest_positions[point_a];
+              const float3 &rest_position_b = rest_positions[point_b];
+              const float rest_length = math::distance(rest_position_a, rest_position_b);
+              cross_edges.append({point_a, point_b});
+              cross_edge_rest_lengths.append(rest_length);
+              cross_edge_compliances.append(compliance);
+            }
+          }
+        }
+
+        constraint_usage.lambdas = tls.allocator.allocate_array<float>(cross_edges.size());
+
+        auto &constraint_set = tls.scope.construct<xpbd::DistanceConstraintSet>(
+            data_key_i,
+            cross_edges,
+            cross_edge_rest_lengths,
+            cross_edge_compliances,
             constraint_usage.lambdas);
         xpbd::ConstraintColoring coloring = constraint_set.color_constraints(tls.mask_memory);
         geo_data.static_constraints.append({&constraint_set, std::move(coloring)});

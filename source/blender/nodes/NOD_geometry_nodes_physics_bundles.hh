@@ -76,4 +76,10 @@ class EdgeLengthConstraintBundle {
   static const FlatBundleTypePtr &get_bundle_type();
 };
 
+class CrossEdgeLengthConstraintBundle {
+ public:
+  static constexpr StringRefNull name = "Blender.CrossEdgeLengthConstraint";
+  static const FlatBundleTypePtr &get_bundle_type();
+};
+
 }  // namespace blender::nodes::physics_bundles

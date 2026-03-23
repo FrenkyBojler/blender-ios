@@ -180,4 +180,18 @@ const FlatBundleTypePtr &EdgeLengthConstraintBundle::get_bundle_type()
   return bundle_type;
 }
 
+const FlatBundleTypePtr &CrossEdgeLengthConstraintBundle::get_bundle_type()
+{
+  static const FlatBundleTypePtr bundle_type = []() {
+    FlatBundleTypeBuilder b(CrossEdgeLengthConstraintBundle::name);
+    add_filter(b);
+    b.add<decl::Vector>("rest_position").supports_field();
+    b.add<decl::Float>("compliance").default_value(1e-4f).min(0.0f);
+    const FlatBundleTypePtr bundle_type = b.build();
+    BundleTypeRegistry::register_type(bundle_type);
+    return bundle_type;
+  }();
+  return bundle_type;
+}
+
 }  // namespace blender::nodes::physics_bundles
