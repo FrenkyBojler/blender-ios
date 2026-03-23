@@ -6,3 +6,4 @@ Referenced by pull request #155876, Fix #155851: Cycles crash with background sc
 Referenced by commit 6d3a322c21d253554cdc93649a9cdc8697050b34, Fix #155851: Cycles crash with background scene
 Referenced by issue #155897, Crash when rendering specific object in Cycles (viewport and final render)
 Referenced by pull request #156029, Fix #155897: Cycles crash with object level materials
+Referenced by commit ce360dd480c8284f98149e6524fc322104cbdb65, Fix #155897: Cycles crash with object level materials
