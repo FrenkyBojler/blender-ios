@@ -630,30 +630,7 @@ if(WITH_LLVM)
 
 endif()
 
-windows_find_package(OpenColorIO)
-if(NOT OpenColorIO_FOUND)
-  set(OPENCOLORIO ${LIBDIR}/OpenColorIO)
-  set(OPENCOLORIO_INCLUDE_DIRS ${OPENCOLORIO}/include)
-  set(OPENCOLORIO_LIBPATH ${OPENCOLORIO}/lib)
-  if(EXISTS ${OPENCOLORIO_LIBPATH}/libexpatMD.lib) # 3.4
-    set(OPENCOLORIO_LIBRARIES
-      optimized ${OPENCOLORIO_LIBPATH}/OpenColorIO.lib
-      optimized ${OPENCOLORIO_LIBPATH}/libexpatMD.lib
-      optimized ${OPENCOLORIO_LIBPATH}/pystring.lib
-      optimized ${OPENCOLORIO_LIBPATH}/libyaml-cpp.lib
-      debug ${OPENCOLORIO_LIBPATH}/OpencolorIO_d.lib
-      debug ${OPENCOLORIO_LIBPATH}/libexpatdMD.lib
-      debug ${OPENCOLORIO_LIBPATH}/pystring_d.lib
-      debug ${OPENCOLORIO_LIBPATH}/libyaml-cpp_d.lib
-    )
-    set(OPENCOLORIO_DEFINITIONS "-DOpenColorIO_SKIP_IMPORTS")
-  else()
-    set(OPENCOLORIO_LIBRARIES
-      optimized ${OPENCOLORIO_LIBPATH}/OpenColorIO.lib
-      debug ${OPENCOLORIO_LIBPATH}/OpencolorIO_d.lib
-    )
-  endif()
-endif()
+find_package(OpenColorIO REQUIRED CONFIG)
 
 if(WITH_OPENVDB)
   windows_find_package(OpenVDB)
