@@ -555,8 +555,8 @@ float4 float4_from_float4x4(float4x4 mat)
 
 float4x4 float4x4_from_float4(float4 value)
 {
-  Quaternion quat = Quaternion{value.x, value.y, value.z, value.w};
-  float3x3 mat_3x3 = from_rotation(quat);
+  Quaternion quaternion = Quaternion{value.x, value.y, value.z, value.w};
+  float3x3 mat_3x3 = from_rotation(quaternion);
   return float4x4(float4(mat_3x3[0], 0.0f),
                   float4(mat_3x3[1], 0.0f),
                   float4(mat_3x3[2], 0.0f),
