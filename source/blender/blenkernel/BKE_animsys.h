@@ -154,6 +154,9 @@ void BKE_action_fix_paths_rename(struct ID *owner_id,
 /**
  * Fix all the paths for the given ID+AnimData
  *
+ * \param suffix_is_name If true, old_suffix and new_suffix are treated as names and padded with
+ * [""] so that only exact matches are made
+ *
  * \note it is assumed that the structure we're replacing is `<prefix><["><name><"]>`
  * i.e. `pose.bones["Bone"]`.
  */
@@ -161,15 +164,18 @@ void BKE_animdata_fix_paths_rename(struct ID *owner_id,
                                    struct AnimData *adt,
                                    struct ID *ref_id,
                                    const char *prefix,
-                                   const char *oldName,
-                                   const char *newName,
+                                   const char *old_suffix,
+                                   const char *new_suffix,
                                    int oldSubscript,
                                    int newSubscript,
                                    bool verify_paths,
-                                   bool add_brackets);
+                                   bool suffix_is_name);
 
 /**
  * Fix all RNA-Paths throughout the database (directly access the #Global.main version).
+ *
+ * \param suffix_is_name If true, old_suffix and new_suffix are treated as names and padded with
+ * [""] so that only exact matches are made
  *
  * \note it is assumed that the structure we're replacing is `<prefix><["><name><"]>`
  * i.e. `pose.bones["Bone"]`
@@ -177,12 +183,12 @@ void BKE_animdata_fix_paths_rename(struct ID *owner_id,
 void BKE_animdata_fix_paths_rename_all_ex(struct Main *bmain,
                                           struct ID *ref_id,
                                           const char *prefix,
-                                          const char *oldName,
-                                          const char *newName,
+                                          const char *old_suffix,
+                                          const char *new_suffix,
                                           int oldSubscript,
                                           int newSubscript,
                                           bool verify_paths,
-                                          bool add_brackets);
+                                          bool suffix_is_name);
 
 /** See #BKE_animdata_fix_paths_rename_all_ex */
 void BKE_animdata_fix_paths_rename_all(struct ID *ref_id,
