@@ -1908,10 +1908,35 @@ static void mouse_mesh_loop_face(
 static void mouse_mesh_loop_edge_ring(
     BMEditMesh *em, BMEdge *eed, bool select, bool select_clear, BMWDelimitFlag delimit)
 {
+  bool full_loop = false;
+
+  /* Cycle between using delimits and skipping them. */
+  if (delimit & BMW_DELIMIT_EDGE_MARK_SEAM or delimit & BMW_DELIMIT_EDGE_MARK_SHARP)
+  {
+    int count_by_select[2];
+
+    /* If up to the delimits is selected toggle the whole loop. */
+    walker_select_count(em, BMW_EDGERING, eed, count_by_select, BMW_FLAG_TEST_HIDDEN, delimit);
+    if (count_by_select[!select] == 0) {
+      full_loop = true;
+
+      /* If the whole loop is selected, toggle back to delimits. */
+      walker_select_count(
+          em, BMW_EDGERING, eed, count_by_select, BMW_FLAG_TEST_HIDDEN, BMW_DELIMIT_NONE);
+      if (count_by_select[!select] == 0) {
+        full_loop = false;
+      }
+    }
+  }
   if (select_clear) {
     EDBM_flag_disable_all(em, BM_ELEM_SELECT);
   }
-  walker_select(em, BMW_EDGERING, eed, select, BMW_FLAG_TEST_HIDDEN, delimit);
+  if (full_loop) {
+    walker_select(em, BMW_EDGERING, eed, select, BMW_FLAG_TEST_HIDDEN, BMW_DELIMIT_NONE);
+  }
+  else {
+    walker_select(em, BMW_EDGERING, eed, select, BMW_FLAG_TEST_HIDDEN, delimit);
+  }
 }
 
 static void mouse_mesh_loop_edge(BMEditMesh *em,
