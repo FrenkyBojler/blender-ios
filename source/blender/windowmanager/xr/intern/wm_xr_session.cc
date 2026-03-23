@@ -866,8 +866,8 @@ void WM_xr_session_state_viewfinder_reset(wmXrSessionState *state)
     if (ibuf) {
       state->viewfinder.backside_logo_texture = IMB_create_gpu_texture(
           "viewfinder_backside_logo", ibuf, false, true);
+      IMB_freeImBuf(ibuf);
     }
-    IMB_freeImBuf(ibuf);
   }
 
   /* Capture settings. */
