@@ -11717,7 +11717,7 @@ static int handle_menu_event(bContext *C,
   if (!inside) {
     return retval;
   }
-  if (!but && event->val == KM_PRESS && event->type == LEFTMOUSE) {
+  if (retval == WM_UI_HANDLER_CONTINUE && event->val == KM_PRESS && event->type == LEFTMOUSE) {
     for (Block &block : menu->region->runtime->uiblocks) {
       if (block.panel) {
         int mx = event->xy[0];
