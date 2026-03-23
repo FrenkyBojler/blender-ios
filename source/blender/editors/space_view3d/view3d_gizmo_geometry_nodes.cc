@@ -702,15 +702,17 @@ class TransformGizmos : public NodeGizmos {
       wmGizmo *gizmo = scale_gizmos_[axis_i];
       if (gizmo_is_interacting(*gizmo)) {
         const float current_scale = edit_data_.current_scale[axis_i];
+        const float current_scale_draw = safe_divide(current_scale, gizmo->scale_final);
 
-        /* During interaction, visually scale the arrow stem to reflect the current
-         * scale value, instead of sliding. The Z column scales the stem length,
-         * the W column compensates the position so the base stays fixed. */
-        float4x4 mat_offset = float4x4::identity();
-        mat_offset[3][2] = -current_scale;
-        mat_offset[2][2] = 1.0f + current_scale;
+        const float base_length = (any_translation_visible_ || any_rotation_visible_) ? 0.775f :
+                                                                                        1.0f;
+        /* The arrow's target "offset" normally translates its basis in world units. The scale
+         * gizmo keeps that visual offset at zero in value_get_fn below so the pivot stays fixed.
+         * Only the RNA length changes here; it is local draw geometry, so convert the world-space
+         * drag delta by scale_final to make the stem stretch by the full amount. */
+        unit_m4(gizmo->matrix_offset);
+        RNA_float_set(gizmo->ptr, "length", base_length + current_scale_draw);
 
-        copy_m4_m4(gizmo->matrix_offset, mat_offset.ptr());
         continue;
       }
 
@@ -762,9 +764,10 @@ class TransformGizmos : public NodeGizmos {
         });
       };
       params.value_get_fn = [](const wmGizmo *gz, wmGizmoProperty *gz_prop, void *value_ptr) {
-        TransformGizmos &self = *static_cast<TransformGizmos *>(gz_prop->custom_func.user_data);
-        const int axis_i = Span(self.scale_gizmos_).first_index(const_cast<wmGizmo *>(gz));
-        *static_cast<float *>(value_ptr) = self.edit_data_.current_scale[axis_i];
+        UNUSED_VARS(gz, gz_prop);
+        /* Keep the arrow gizmo's own visual offset at zero. The dragged value is stored by
+         * value_set_fn and drawn by changing the local length instead. */
+        *static_cast<float *>(value_ptr) = 0.0f;
       };
       WM_gizmo_target_property_def_func(gizmo, "offset", &params);
     }
