@@ -57,10 +57,8 @@ bool imb_save_jxl(ImBuf *ibuf, const char *filepath, int flags)
     bits_per_sample = 32;
   }
 
-  WriteContext ctx = imb_create_write_context("jxl", ibuf, flags);
-  if (!ctx.out) {
-    return false;
-  }
+  const bool use_float = (bits_per_sample > 8);
+  WriteContext ctx = imb_create_write_context("jxl", ibuf, flags, use_float);
 
   ImageSpec file_spec = imb_create_write_spec(ctx, file_channels, data_format);
 
