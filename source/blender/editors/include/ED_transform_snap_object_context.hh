@@ -80,6 +80,8 @@ struct SnapObjectParams {
    * See #148788.
    */
   bool ignore_editmode_filtering : 1;
+
+  bool snapping_cursor : 1;
 };
 
 struct SnapObjectContext;

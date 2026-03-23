@@ -496,15 +496,21 @@ static eSnapMode iter_snap_objects(SnapObjectContext *sctx, IterSnapObjsCallback
   BKE_view_layer_synced_ensure(scene, view_layer);
   Base *base_act = BKE_view_layer_active_base_get(view_layer);
 
-  /*Evaluate 3D cursor as pseudo-entity if the 3D cursor isn't moving*/
+  /*Evaluate 3D cursor as pseudo-entity*/
   const float3 cursor_loc = scene->cursor.location;
+  const float3 cursor_rot = scene->cursor.rotation_axis;
   float4x4 cursor_mat = float4x4::identity();
   cursor_mat.location() = cursor_loc;
+  cursor_mat.x_axis() = cursor_rot;
+  cursor_mat.y_axis() = cursor_rot;
+  cursor_mat.z_axis() = cursor_rot;
   const bool is_cursor_active = (base_act != nullptr);
-  if ((tmp = sob_callback(sctx, nullptr, nullptr, cursor_mat, is_cursor_active, false)) !=
-      SCE_SNAP_TO_NONE)
-  {
-    ret = tmp;
+  if (!sctx->runtime.params.snapping_cursor) {
+    if ((tmp = sob_callback(sctx, nullptr, nullptr, cursor_mat, is_cursor_active, false)) !=
+        SCE_SNAP_TO_NONE)
+    {
+      ret = tmp;
+    }
   }
 
   DupliList duplilist;
