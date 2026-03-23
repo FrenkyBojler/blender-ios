@@ -1,1 +1,2 @@
 Referenced by commit 612e3065984, Attributes: Add identity default value to quaternion type
+Referenced by pull request #155852, Fix #147793: Quaternion slerp implementation for large mix factors
