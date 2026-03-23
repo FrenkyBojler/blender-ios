@@ -246,6 +246,11 @@ enum NodeMappingType {
   NODE_MAPPING_TYPE_NORMAL
 };
 
+enum NodeRaycastMode {
+  NODE_RAYCAST_MODE_WORLD,
+  NODE_RAYCAST_MODE_OFFSET,
+};
+
 enum NodeVectorRotateType {
   NODE_VECTOR_ROTATE_TYPE_AXIS,
   NODE_VECTOR_ROTATE_TYPE_AXIS_X,

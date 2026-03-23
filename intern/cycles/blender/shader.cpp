@@ -1116,6 +1116,7 @@ static ShaderNode *add_node(Scene *scene,
   else if (b_node.is_type("ShaderNodeRaycast")) {
     RaycastNode *raycast = graph->create_node<RaycastNode>();
     raycast->set_only_local(b_node.custom1);
+    raycast->set_mode(NodeRaycastMode(b_node.custom2));
     node = raycast;
   }
 

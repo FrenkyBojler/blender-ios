@@ -8134,6 +8134,7 @@ NODE_DEFINE(RaycastNode)
 
   SOCKET_IN_POINT(position, "Position", zero_float3(), SocketType::LINK_POSITION);
   SOCKET_IN_NORMAL(direction, "Direction", zero_float3(), SocketType::LINK_NORMAL);
+  SOCKET_IN_VECTOR(offset, "Offset", zero_float3());
   SOCKET_IN_FLOAT(length, "Length", 1.0f);
 
   SOCKET_OUT_FLOAT(is_hit, "Is Hit");
@@ -8144,6 +8145,11 @@ NODE_DEFINE(RaycastNode)
 
   SOCKET_BOOLEAN(only_local, "Only Local", false);
 
+  static NodeEnum mode_enum;
+  mode_enum.insert("world", NODE_RAYCAST_MODE_WORLD);
+  mode_enum.insert("offset", NODE_RAYCAST_MODE_OFFSET);
+  SOCKET_ENUM(mode, "Mode", mode_enum, NODE_RAYCAST_MODE_WORLD);
+
   return type;
 }
 
@@ -8153,6 +8159,7 @@ void RaycastNode::compile(SVMCompiler &compiler)
 {
   ShaderInput *position_in = input("Position");
   ShaderInput *direction_in = input("Direction");
+  ShaderInput *offset_in = input("Offset");
   ShaderInput *length_in = input("Length");
   ShaderOutput *is_hit_out = output("Is Hit");
   ShaderOutput *is_self_hit_out = output("Self Hit");
@@ -8160,22 +8167,24 @@ void RaycastNode::compile(SVMCompiler &compiler)
   ShaderOutput *hit_position_out = output("Hit Position");
   ShaderOutput *hit_normal_out = output("Hit Normal");
 
-  compiler.add_node(this,
-                    compiler.encode_uchar4(compiler.stack_assign(position_in),
-                                           compiler.stack_assign(direction_in),
-                                           compiler.stack_assign(length_in),
-                                           compiler.stack_assign(is_hit_out)),
-                    compiler.encode_uchar4(compiler.stack_assign(is_self_hit_out),
-                                           compiler.stack_assign(hit_distance_out),
-                                           compiler.stack_assign(hit_position_out),
-                                           compiler.stack_assign(hit_normal_out)),
-                    only_local);
+  compiler.add_node(
+      this,
+      compiler.encode_uchar4(compiler.stack_assign(position_in),
+                             compiler.stack_assign(direction_in),
+                             compiler.stack_assign(offset_in),
+                             compiler.stack_assign(length_in)),
+      compiler.encode_uchar4(compiler.stack_assign(is_hit_out),
+                             compiler.stack_assign(is_self_hit_out),
+                             compiler.stack_assign(hit_distance_out),
+                             compiler.stack_assign(hit_position_out)),
+      compiler.encode_uchar4(compiler.stack_assign(hit_normal_out), only_local, mode));
   compiler.add_node(__float_as_uint((bump == SHADER_BUMP_CENTER) ? 0.0f : bump_filter_width));
 }
 
 void RaycastNode::compile(OSLCompiler &compiler)
 {
   compiler.parameter(this, "only_local");
+  compiler.parameter(this, "mode");
   compiler.parameter("bump_filter_width", (bump == SHADER_BUMP_CENTER) ? 0.0f : bump_filter_width);
   compiler.add(this, "node_raycast");
 }

@@ -1856,9 +1856,11 @@ class RaycastNode : public ShaderNode {
 
   NODE_SOCKET_API(float3, position)
   NODE_SOCKET_API(float3, direction)
+  NODE_SOCKET_API(float3, offset)
   NODE_SOCKET_API(float, length)
 
   NODE_SOCKET_API(bool, only_local)
+  NODE_SOCKET_API(NodeRaycastMode, mode)
 };
 
 CCL_NAMESPACE_END

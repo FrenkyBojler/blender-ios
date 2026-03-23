@@ -31,8 +31,10 @@ ccl_device RaycastResult svm_raycast(KernelGlobals kg,
                                      ccl_private ShaderData *sd,
                                      float3 position,
                                      float3 direction,
+                                     float3 offset,
                                      float distance,
                                      bool only_local,
+                                     NodeRaycastMode mode,
                                      float bump_filter_width)
 {
   RaycastResult result;
@@ -48,6 +50,18 @@ ccl_device RaycastResult svm_raycast(KernelGlobals kg,
   /* Can't ray-trace from shaders like displacement, before BVH exists. */
   if (kernel_data.bvh.bvh_layout == BVH_LAYOUT_NONE) {
     return result;
+  }
+
+  if (mode == NODE_RAYCAST_MODE_OFFSET) {
+    float3 I = shading_incoming<float3>(sd);
+    position = sd->P + I * sd->ray_length;
+    distance += sd->ray_length;
+    float3 camera_up = normalize(
+        transform_direction_transposed(&kernel_data.cam.worldtocamera, make_float3(0, 1, 0)));
+    float3 ray_tangent = normalize(cross(-I, camera_up));
+    float3 ray_bitangent = normalize(cross(I, ray_tangent));
+    float3 target = sd->P + (ray_tangent * offset.x) + (ray_bitangent * offset.y);
+    direction = normalize(target - position);
   }
 
   float tmin = 0.0f;
@@ -120,17 +134,22 @@ ccl_device_noinline
 {
   uint position_offset;
   uint direction_offset;
+  uint offset_offset;
   uint distance_offset;
-  uint is_hit_offset;
   svm_unpack_node_uchar4(
-      node.y, &position_offset, &direction_offset, &distance_offset, &is_hit_offset);
+      node.y, &position_offset, &direction_offset, &offset_offset, &distance_offset);
 
+  uint is_hit_offset;
   uint is_self_hit_offset;
   uint hit_distance_offset;
   uint hit_position_offset;
-  uint hit_normal_offset;
   svm_unpack_node_uchar4(
-      node.z, &is_self_hit_offset, &hit_distance_offset, &hit_position_offset, &hit_normal_offset);
+      node.z, &is_hit_offset, &is_self_hit_offset, &hit_distance_offset, &hit_position_offset);
+
+  uint hit_normal_offset;
+  uint only_local;
+  uint mode;
+  svm_unpack_node_uchar3(node.w, &hit_normal_offset, &only_local, &mode);
 
   float distance = stack_load_float_default(stack, distance_offset, 0.0f);
 
@@ -144,13 +163,21 @@ ccl_device_noinline
 
   IF_KERNEL_NODES_FEATURE(RAYTRACE)
   {
-    const uint only_local = node.w;
     const float bump_filter_width = __uint_as_float(data_node.x);
 
     float3 position = stack_load_float3(stack, position_offset);
     float3 direction = stack_load_float3(stack, direction_offset);
-    RaycastResult result = svm_raycast(
-        kg, state, sd, position, direction, distance, only_local, bump_filter_width);
+    float3 offset = stack_load_float3(stack, offset_offset);
+    RaycastResult result = svm_raycast(kg,
+                                       state,
+                                       sd,
+                                       position,
+                                       direction,
+                                       offset,
+                                       distance,
+                                       only_local,
+                                       NodeRaycastMode(mode),
+                                       bump_filter_width);
 
     if (result.distance >= 0.0f) {
       is_hit = 1.0f;
