@@ -1,1 +1,1 @@
-Referenced by issue #113930, Updating Custom Properties (or properties defined via bpy.props) via code are not considered an ID change (do not trigger depsgraph_update_pre callbacks)
+Referenced by issue #113930, Updating Custom Properties do not trigger update of dependency graph or render engine
