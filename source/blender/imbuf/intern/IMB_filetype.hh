@@ -180,18 +180,6 @@ ImBuf *imb_thumbnail_jpeg(const char *filepath,
 
 /** \} */
 
-/** \name Format: JPEG XL (#IMB_FTYPE_JXL)
- * \{ */
-  
-bool imb_is_a_jxl(const unsigned char *mem, size_t size);
-ImBuf *imb_load_jxl(const unsigned char *mem,
-                    size_t size,
-                    int flags,
-                    ImFileColorSpace &r_colorspace);
-bool imb_save_jxl(ImBuf *ibuf, const char *filepath, int flags);
-  
-/** \} */
-
 /* -------------------------------------------------------------------- */
 /** \name Format: BMP (#IMB_FTYPE_BMP)
  * \{ */
@@ -356,6 +344,21 @@ ImBuf *imb_load_avif(const unsigned char *mem,
                      int flags,
                      ImFileColorSpace &r_colorspace);
 bool imb_save_avif(ImBuf *ibuf, const char *filepath, int flags);
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Format: JPEG XL (#IMB_FTYPE_JXL)
+ * \{ */
+
+extern const char *imb_file_extensions_jxl[];
+
+bool imb_is_a_jxl(const unsigned char *mem, size_t size);
+ImBuf *imb_load_jxl(const unsigned char *mem,
+                    size_t size,
+                    int flags,
+                    ImFileColorSpace &r_colorspace);
+bool imb_save_jxl(ImBuf *ibuf, const char *filepath, int flags);
 
 /** \} */
 

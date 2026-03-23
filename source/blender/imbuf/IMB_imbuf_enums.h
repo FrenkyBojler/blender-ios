@@ -39,7 +39,7 @@ enum eImbFileType {
   IMB_FTYPE_WEBP = 14,
 #endif
   IMB_FTYPE_AVIF = 15,
-  IMB_FTPYE_JXL = 16,
+  IMB_FTYPE_JXL = 16,
 };
 #define IMB_FTYPE_LAST IMB_FTYPE_JXL
 

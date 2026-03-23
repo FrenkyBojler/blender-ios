@@ -230,14 +230,14 @@ int BKE_imtype_to_ftype(const char imtype, ImbFormatOptions *r_options)
     return IMB_FTYPE_WEBP;
   }
 #endif
-<<<<<<< HEAD
-  if (imtype == R_IMF_IMTYPE_JXL) {
-    return IMB_FTYPE_JXL;
-=======
+
   if (imtype == R_IMF_IMTYPE_AVIF) {
     r_options->quality = 90;
     return IMB_FTYPE_AVIF;
->>>>>>> origin/main
+  }
+
+  if (imtype == R_IMF_IMTYPE_JXL) {
+    return IMB_FTYPE_JXL;
   }
 
   return IMB_FTYPE_JPG;
@@ -294,13 +294,11 @@ char BKE_ftype_to_imtype(const int ftype, const ImbFormatOptions *options)
     return R_IMF_IMTYPE_WEBP;
   }
 #endif
-<<<<<<< HEAD
-  if (ftype == IMB_FTYPE_JXL) {
-    return R_IMF_IMTYPE_JXL;
-=======
   if (ftype == IMB_FTYPE_AVIF) {
     return R_IMF_IMTYPE_AVIF;
->>>>>>> origin/main
+  }
+  if (ftype == IMB_FTYPE_JXL) {
+    return R_IMF_IMTYPE_JXL;
   }
 
   return R_IMF_IMTYPE_JPEG90;
@@ -336,11 +334,8 @@ bool BKE_imtype_supports_quality(const char imtype)
     case R_IMF_IMTYPE_JPEG90:
     case R_IMF_IMTYPE_JP2:
     case R_IMF_IMTYPE_WEBP:
-<<<<<<< HEAD
-    case R_IMF_IMTYPE_JXL:
-=======
     case R_IMF_IMTYPE_AVIF:
->>>>>>> origin/main
+    case R_IMF_IMTYPE_JXL:
       return true;
   }
   return false;
@@ -378,11 +373,8 @@ char BKE_imtype_valid_channels(const char imtype)
     case R_IMF_IMTYPE_JP2:
     case R_IMF_IMTYPE_DPX:
     case R_IMF_IMTYPE_WEBP:
-<<<<<<< HEAD
-    case R_IMF_IMTYPE_JXL:
-=======
     case R_IMF_IMTYPE_AVIF:
->>>>>>> origin/main
+    case R_IMF_IMTYPE_JXL:
       chan_flag |= IMA_CHAN_FLAG_RGBA;
       break;
   }
@@ -425,13 +417,10 @@ char BKE_imtype_valid_depths(const char imtype)
       return R_IMF_CHAN_DEPTH_8 | R_IMF_CHAN_DEPTH_12 | R_IMF_CHAN_DEPTH_16;
     case R_IMF_IMTYPE_PNG:
       return R_IMF_CHAN_DEPTH_8 | R_IMF_CHAN_DEPTH_16;
-<<<<<<< HEAD
-    case R_IMF_IMTYPE_JXL:
-      return R_IMF_CHAN_DEPTH_8 | R_IMF_CHAN_DEPTH_10 | R_IMF_CHAN_DEPTH_12 | R_IMF_CHAN_DEPTH_16 | R_IMF_CHAN_DEPTH_32;
-=======
     case R_IMF_IMTYPE_AVIF:
       return R_IMF_CHAN_DEPTH_8 | R_IMF_CHAN_DEPTH_10 | R_IMF_CHAN_DEPTH_12;
->>>>>>> origin/main
+    case R_IMF_IMTYPE_JXL:
+      return R_IMF_CHAN_DEPTH_8 | R_IMF_CHAN_DEPTH_10 | R_IMF_CHAN_DEPTH_12 | R_IMF_CHAN_DEPTH_16 | R_IMF_CHAN_DEPTH_32;
     /* Most formats are 8bit only. */
     default:
       return R_IMF_CHAN_DEPTH_8;
@@ -621,13 +610,11 @@ static int image_path_ext_from_imformat_impl(const char imtype,
     r_ext[ext_num++] = ".webp";
   }
 #endif
-<<<<<<< HEAD
-  else if (imtype == R_IMF_IMTYPE_JXL) {
-    r_ext[ext_num++] = ".jxl";
-=======
-  else if (imtype == R_IMF_IMTYPE_AVIF) {
-    r_ext[ext_num++] = ".avif";
->>>>>>> origin/main
+else if (imtype == R_IMF_IMTYPE_AVIF) {
+  r_ext[ext_num++] = ".avif";
+  }
+else if (imtype == R_IMF_IMTYPE_JXL) {
+  r_ext[ext_num++] = ".jxl";
   }
   else {
     /* Handles: #R_IMF_IMTYPE_JPEG90 etc. */
@@ -928,11 +915,6 @@ void BKE_image_format_to_imbuf(ImBuf *ibuf, const ImageFormatData *imf)
     ibuf->foptions.quality = quality;
   }
 #endif
-<<<<<<< HEAD
-  else if (imtype == R_IMF_IMTYPE_JXL) {
-    ibuf->ftype = IMB_FTYPE_JXL;
-    ibuf->foptions.quality = quality;
-=======
   else if (imtype == R_IMF_IMTYPE_AVIF) {
     ibuf->ftype = IMB_FTYPE_AVIF;
     ibuf->foptions.quality = quality;
@@ -943,7 +925,23 @@ void BKE_image_format_to_imbuf(ImBuf *ibuf, const ImageFormatData *imf)
     else if (imf->depth == R_IMF_CHAN_DEPTH_12) {
       ibuf->foptions.flag |= AVIF_12BIT;
     }
->>>>>>> origin/main
+  }
+  else if (imtype == R_IMF_IMTYPE_JXL) {
+    ibuf->ftype = IMB_FTYPE_JXL;
+    ibuf->foptions.quality = quality;
+
+    if (imf->depth == R_IMF_CHAN_DEPTH_10) {
+      ibuf->foptions.flag |= JXL_10BIT;
+    }
+    else if (imf->depth == R_IMF_CHAN_DEPTH_12) {
+      ibuf->foptions.flag |= JXL_12BIT;
+    }
+    else if (imf->depth == R_IMF_CHAN_DEPTH_16) {
+      ibuf->foptions.flag |= JXL_16BIT;
+    }
+    else if (imf->depth == R_IMF_CHAN_DEPTH_32) {
+      ibuf->foptions.flag |= JXL_32BIT;
+    }
   }
   else {
     /* #R_IMF_IMTYPE_JPEG90, etc. default to JPEG. */
@@ -1127,12 +1125,6 @@ void BKE_image_format_from_imbuf(ImageFormatData *im_format, const ImBuf *imbuf)
     im_format->quality = quality;
   }
 #endif
-<<<<<<< HEAD
-  else if (ftype == IMB_FTYPE_JXL) {
-    im_format->imtype = R_IMF_IMTYPE_JXL;
-    im_format->quality = quality;
-=======
-
   else if (ftype == IMB_FTYPE_AVIF) {
     im_format->imtype = R_IMF_IMTYPE_AVIF;
     im_format->quality = quality;
@@ -1145,7 +1137,27 @@ void BKE_image_format_from_imbuf(ImageFormatData *im_format, const ImBuf *imbuf)
       im_format->depth = R_IMF_CHAN_DEPTH_12;
       is_depth_set = true;
     }
->>>>>>> origin/main
+  }
+  else if (ftype == IMB_FTYPE_JXL) {
+    im_format->imtype = R_IMF_IMTYPE_JXL;
+    im_format->quality = quality;
+
+    if (custom_flags & JXL_10BIT) {
+      im_format->depth = R_IMF_CHAN_DEPTH_10;
+      is_depth_set = true;
+    }
+    else if (custom_flags & JXL_12BIT) {
+      im_format->depth = R_IMF_CHAN_DEPTH_12;
+      is_depth_set = true;
+    }
+    else if (custom_flags & JXL_16BIT) {
+      im_format->depth = R_IMF_CHAN_DEPTH_16;
+      is_depth_set = true;
+    }
+    else if (custom_flags & JXL_32BIT) {
+      im_format->depth = R_IMF_CHAN_DEPTH_32;
+      is_depth_set = true;
+    }
   }
   else {
     im_format->imtype = R_IMF_IMTYPE_JPEG90;

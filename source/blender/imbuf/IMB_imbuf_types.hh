@@ -78,6 +78,11 @@ using ColorSpace = ocio::ColorSpace;
 #define AVIF_10BIT (1 << 8)
 #define AVIF_12BIT (1 << 9)
 
+#define JXL_10BIT (1 << 1)
+#define JXL_12BIT (1 << 2)
+#define JXL_16BIT (1 << 3)
+#define JXL_32BIT (1 << 4)
+
 struct ImbFormatOptions {
   short flag = 0;
   /** Quality for JPEG, WebP, AVIF. */
