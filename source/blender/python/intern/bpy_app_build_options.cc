@@ -271,11 +271,8 @@ static PyObject *make_builtopts_info()
   SetObjIncref(Py_False);
 #endif
 
-#ifdef WITH_OPENCOLORIO
+  /* OpenColorIO */
   SetObjIncref(Py_True);
-#else
-  SetObjIncref(Py_False);
-#endif
 
 #ifdef _OPENMP
   SetObjIncref(Py_True);

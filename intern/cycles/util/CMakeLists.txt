@@ -43,7 +43,7 @@ set(LIB
   PUBLIC bf::dependencies::optional::embree
   PUBLIC bf::dependencies::optional::openpgl
   PUBLIC bf::dependencies::optional::openvdb
-  PRIVATE bf::dependencies::optional::opencolorio
+  PRIVATE bf::dependencies::opencolorio
   PRIVATE bf::dependencies::zstd
   PRIVATE bf::dependencies::optional::openexr
   # Used by OpenImageIO headers, which fallback to a bundled version. But we
@@ -165,7 +165,7 @@ if(WITH_OPENVDB AND MSVC_CLANG)
   set_source_files_properties(openvdb.cpp PROPERTIES COMPILE_FLAGS -fno-delayed-template-parsing)
 endif()
 
-if(WITH_OPENCOLORIO AND WIN32 AND NOT USD_OVERRIDE_OPENCOLORIO)
+if(WIN32 AND NOT USD_OVERRIDE_OPENCOLORIO)
   add_definitions(-DOpenColorIO_SKIP_IMPORTS)
 endif()
 

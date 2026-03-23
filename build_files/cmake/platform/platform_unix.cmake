@@ -477,12 +477,8 @@ if(DEFINED OpenImageIO_DIR)
 endif()
 add_bundled_libraries(openimageio/lib)
 
-if(WITH_OPENCOLORIO)
-  find_package_wrapper(OpenColorIO 2.0.0)
-
-  set(OPENCOLORIO_DEFINITIONS "")
-  set_and_warn_library_found("OpenColorIO" OPENCOLORIO_FOUND WITH_OPENCOLORIO)
-endif()
+find_package_wrapper(OpenColorIO 2.0.0 REQUIRED)
+set(OPENCOLORIO_DEFINITIONS "")
 add_bundled_libraries(opencolorio/lib)
 
 if(WITH_CYCLES AND WITH_CYCLES_EMBREE)
@@ -1019,16 +1015,6 @@ unset(_IS_LINKER_DEFAULT)
 # use the same libraries as Blender with a different version or build options.
 set(PLATFORM_SYMBOLS_MAP ${CMAKE_SOURCE_DIR}/source/creator/symbols_unix.map)
 set(PLATFORM_LINKFLAGS_SYMBOL_HIDING "-Wl,--version-script='${PLATFORM_SYMBOLS_MAP}'")
-
-# We do not ensure transitive dependencies of dynamic libraries are available at
-# link time. This allows that for classic ld, which is more strict than gold, lld
-# or mold. The ideal solution would be to switch all dependencies to CMake configs
-# that fully specify transitive dependencies.
-if(NOT WITH_PYTHON_MODULE)
-  set(PLATFORM_LINKFLAGS
-    "${PLATFORM_LINKFLAGS} -Wl,--allow-shlib-undefined -Wl,--unresolved-symbols=ignore-in-shared-libs"
-  )
-endif()
 
 # Don't use position independent executable for portable install since file
 # browsers can't properly detect blender as an executable then. Still enabled

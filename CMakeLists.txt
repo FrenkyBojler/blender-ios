@@ -306,7 +306,6 @@ Use the systems bullet library (currently unsupported due to missing features in
   OFF
 )
 mark_as_advanced(WITH_SYSTEM_BULLET)
-option(WITH_OPENCOLORIO "Enable OpenColorIO color management" ON)
 
 option(WITH_XR_OPENXR "Enable VR features through the OpenXR specification" ON)
 
@@ -2528,7 +2527,6 @@ if(FIRST_RUN)
   info_cfg_option(WITH_INPUT_IME)
   info_cfg_option(WITH_INTERNATIONAL)
   info_cfg_option(WITH_MANIFOLD)
-  info_cfg_option(WITH_OPENCOLORIO)
   info_cfg_option(WITH_OPENIMAGEDENOISE)
   info_cfg_option(WITH_OPENSUBDIV)
   info_cfg_option(WITH_OPENVDB)
