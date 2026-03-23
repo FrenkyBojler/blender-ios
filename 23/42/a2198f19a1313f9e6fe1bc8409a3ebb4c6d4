@@ -6,3 +6,4 @@ Referenced by issue #155894, Geometry node modifier does not list vertex groups
 Referenced by pull request #156014, Cleanup: Use attribute dedicated lookup_int for Float4
 Referenced by commit 25cebfa62445de5e7d10bd9d23407068e078ca86, Cleanup: Use attribute dedicated lookup_int for Float4
 Referenced by commit b81d8cb88d619cb5de1f312642d3b692b2fcda8c, Fix #155858: accessing UV vectors in Python is extremely slow
+Referenced by pull request #156133, Fix #156087: Wrong lookup_int for legacy uv loop layer "data"
