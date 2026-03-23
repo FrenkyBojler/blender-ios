@@ -1,1 +1,1 @@
-Referenced by issue #156177, Regression: Overlays: When edge loop terminates in a triangle, the gizmo can loop to the start sometimes
+Referenced by issue #156177, Regression, Modeling: When edge loop terminates in a triangle, the gizmo can loop to the start sometimes
