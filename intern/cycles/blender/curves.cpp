@@ -810,14 +810,14 @@ static void attr_create_generic(Scene *scene,
 
         if (const std::optional<BlenderT> single_value = src_varray.get_if_single()) {
           Attribute *attr = attributes.add(name, Converter::type_desc, ATTR_ELEMENT_MESH);
-          CyclesT *data = reinterpret_cast<CyclesT *>(attr->data());
+          CyclesT *data = reinterpret_cast<CyclesT *>(attr->data_for_write());
           *data = Converter::convert(*single_value);
           return;
         }
 
         const AttributeElement element = blender_domain_to_attr_element(b_attr.domain);
         Attribute *attr = attributes.add(name, Converter::type_desc, element);
-        CyclesT *data = reinterpret_cast<CyclesT *>(attr->data());
+        CyclesT *data = reinterpret_cast<CyclesT *>(attr->data_for_write());
 
         const blender::VArraySpan src = src_varray;
         for (const int i : src.index_range()) {

@@ -179,7 +179,7 @@ static void attr_create_generic(Scene *scene,
           if (is_render_color) {
             attr->std = ATTR_STD_VERTEX_COLOR;
           }
-          CyclesT *data = reinterpret_cast<CyclesT *>(attr->data());
+          CyclesT *data = reinterpret_cast<CyclesT *>(attr->data_for_write());
           *data = Converter::convert(*single_value);
           return;
         }
@@ -190,7 +190,7 @@ static void attr_create_generic(Scene *scene,
           attr->std = ATTR_STD_VERTEX_COLOR;
         }
 
-        CyclesT *data = reinterpret_cast<CyclesT *>(attr->data());
+        CyclesT *data = reinterpret_cast<CyclesT *>(attr->data_for_write());
 
         const blender::VArraySpan src = b_attr.varray.typed<BlenderT>();
         switch (b_attr.domain) {
