@@ -539,11 +539,6 @@ static void wm_init_userdef(Main *bmain)
     SET_FLAG_FROM_TEST(G.f, U.flag & USER_INTERNET_ALLOW, G_FLAG_INTERNET_ALLOW);
   }
 
-  /* Reset image saving behavior to "Ask Every Time" if "Auto-Save" was disabled. */
-  if (!(U.flag & USER_AUTOSAVE)) {
-    U.save_modified_images = USER_SAVE_MODIFIED_IMAGES_ASK;
-  }
-
   const int64_t cache_limit = int64_t(U.memcachelimit) * 1024 * 1024;
   MEM_CacheLimiter_set_maximum(cache_limit);
   memory_cache::set_approximate_size_limit(cache_limit);
