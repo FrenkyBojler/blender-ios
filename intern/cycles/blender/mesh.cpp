@@ -888,21 +888,19 @@ static void create_subd_mesh(Scene *scene,
 
 void BlenderSync::sync_mesh(BObjectInfo &b_ob_info, Mesh *mesh)
 {
-  const size_t oldnum_verts = mesh->get_verts().size();
-  const size_t oldnum_triangles = mesh->num_triangles();
-  const size_t oldnum_subd_faces = mesh->get_num_subd_faces();
-  const size_t oldnum_subd_face_corners = mesh->get_subd_face_corners().size();
+  array<float3> verts_pre;
+  verts_pre.steal_data(mesh->get_verts_pre());
 
-  Attribute *attr_mP = mesh->attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
-  vector<char> attr_mP_data;
-  if (attr_mP) {
-    attr_mP_data = std::move(attr_mP->buffer);
-  }
+  /* make a copy of the shaders as the caller in the main thread still need them for syncing the
+   * attributes */
+  array<Node *> used_shaders = mesh->get_used_shaders();
 
-  mesh->clear(true);
+  Mesh new_mesh;
+  new_mesh.set_used_shaders(used_shaders);
 
   if (view_layer.use_surfaces) {
-    object_subdivision_to_mesh(*b_ob_info.real_object, *mesh, preview, use_adaptive_subdivision);
+    object_subdivision_to_mesh(
+        *b_ob_info.real_object, new_mesh, preview, use_adaptive_subdivision);
     const blender::Mesh *b_mesh = object_to_mesh(b_ob_info);
 
     if (b_mesh) {
@@ -914,39 +912,60 @@ void BlenderSync::sync_mesh(BObjectInfo &b_ob_info, Mesh *mesh)
                                      0.0f;
 
       /* Sync mesh itself. */
-      if (mesh->get_subdivision_type() != Mesh::SUBDIVISION_NONE) {
+      if (new_mesh.get_subdivision_type() != Mesh::SUBDIVISION_NONE) {
         create_subd_mesh(scene,
-                         mesh,
+                         &new_mesh,
                          b_ob_info,
                          *b_mesh,
-                         mesh->get_used_shaders(),
+                         new_mesh.get_used_shaders(),
                          need_motion,
                          motion_scale,
                          dicing_rate,
                          max_subdivisions);
       }
       else {
-        create_mesh(
-            scene, mesh, *b_mesh, mesh->get_used_shaders(), need_motion, motion_scale, false);
+        create_mesh(scene,
+                    &new_mesh,
+                    *b_mesh,
+                    new_mesh.get_used_shaders(),
+                    need_motion,
+                    motion_scale,
+                    false);
       }
 
       free_object_to_mesh(b_ob_info, const_cast<blender::Mesh &>(*b_mesh));
     }
   }
 
+  /* update original sockets */
+
+  mesh->clear_non_sockets();
+
+  for (const SocketType &socket : new_mesh.type->inputs) {
+    /* Those sockets are updated in sync_object, so do not modify them. */
+    if (socket.name == "use_motion_blur" || socket.name == "used_shaders") {
+      continue;
+    }
+    mesh->set_value(socket, new_mesh, socket);
+  }
+
+  mesh->attributes.update(std::move(new_mesh.attributes));
+  mesh->subd_attributes.update(std::move(new_mesh.subd_attributes));
+
+  mesh->set_num_subd_faces(new_mesh.get_num_subd_faces());
+
+  if (mesh->get_verts().size() == verts_pre.size()) {
+    mesh->set_verts_pre(verts_pre);
+  }
+
   /* tag update */
-  const bool rebuild = (oldnum_verts != mesh->get_verts().size()) ||
-                       (oldnum_triangles != mesh->num_triangles()) ||
-                       (oldnum_subd_faces != mesh->get_num_subd_faces()) ||
-                       (oldnum_subd_face_corners != mesh->get_subd_face_corners().size());
+  const bool rebuild = (mesh->triangles_is_modified()) || (mesh->subd_num_corners_is_modified()) ||
+                       (mesh->subd_shader_is_modified()) || (mesh->subd_smooth_is_modified()) ||
+                       (mesh->subd_ptex_offset_is_modified()) ||
+                       (mesh->subd_start_corner_is_modified()) ||
+                       (mesh->subd_face_corners_is_modified());
 
   mesh->tag_update(scene, rebuild);
-
-  if (attr_mP && !rebuild) {
-    /* Restore previous vertex positions. */
-    attr_mP = mesh->attributes.add(ATTR_STD_MOTION_VERTEX_POSITION);
-    attr_mP->buffer = std::move(attr_mP_data);
-  }
 }
 
 void BlenderSync::sync_mesh_motion(BObjectInfo &b_ob_info, Mesh *mesh, const int motion_step)

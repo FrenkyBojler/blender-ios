@@ -586,14 +586,14 @@ void BlenderSync::sync_objects(blender::Depsgraph &b_depsgraph,
   }
 }
 
-void BlenderSync::sync_motion(blender::RenderData &b_render,
-                              blender::Depsgraph &b_depsgraph,
-                              blender::bScreen *b_screen,
-                              blender::View3D *b_v3d,
-                              blender::RegionView3D *b_rv3d,
-                              const int width,
-                              const int height,
-                              void **python_thread_state)
+void BlenderSync::sync_objects_and_motion(blender::RenderData &b_render,
+                                          blender::Depsgraph &b_depsgraph,
+                                          blender::bScreen *b_screen,
+                                          blender::View3D *b_v3d,
+                                          blender::RegionView3D *b_rv3d,
+                                          const int width,
+                                          const int height,
+                                          void **python_thread_state)
 {
   /* get camera object here to deal with camera switch */
   blender::Object *b_cam = get_camera_object(b_v3d, b_rv3d);

@@ -269,6 +269,7 @@ NODE_DEFINE(Mesh)
 
   SOCKET_INT_ARRAY(triangles, "Triangles", array<int>());
   SOCKET_POINT_ARRAY(verts, "Vertices", array<float3>());
+  SOCKET_POINT_ARRAY(verts_pre, "Previous Vertices", array<float3>());
   SOCKET_INT_ARRAY(shader, "Shader", array<int>());
   SOCKET_BOOLEAN_ARRAY(smooth, "Smooth", array<bool>());
 
@@ -397,6 +398,7 @@ void Mesh::clear(bool preserve_shaders, bool preserve_voxel_data)
 
   /* clear all verts and triangles */
   verts.clear();
+  verts_pre.clear();
   triangles.clear();
   shader.clear();
   smooth.clear();
@@ -766,6 +768,20 @@ void Mesh::add_undisplaced(Scene *scene)
   }
 }
 
+void Mesh::update_motion(Scene *scene)
+{
+  if (need_attribute(scene, ATTR_STD_MOTION_VERTEX_POSITION) && has_motion()) {
+    if (motion_steps == 0) {
+      motion_steps = 3;
+    }
+
+    Attribute *attr_mP = attributes.add(ATTR_STD_MOTION_VERTEX_POSITION);
+    attr_mP->modified = true;
+    std::copy_n(verts_pre.data(), verts_pre.size(), attr_mP->data_float3());
+    std::copy_n(verts.data(), verts.size(), attr_mP->data_float3() + verts_pre.size());
+  }
+}
+
 void Mesh::update_generated(Scene *scene)
 {
   if (!num_triangles()) {
@@ -888,11 +904,20 @@ void Mesh::pack_verts(packed_float3 *tri_verts, packed_uint3 *tri_vindex)
   }
 }
 
+bool Mesh::has_motion() const
+{
+  if (verts_pre.size() == verts.size() && verts_pre != verts) {
+    return true;
+  }
+
+  return attributes.find(ATTR_STD_MOTION_VERTEX_POSITION) ||
+         (get_subdivision_type() != Mesh::SUBDIVISION_NONE &&
+          subd_attributes.find(ATTR_STD_MOTION_VERTEX_POSITION));
+}
+
 bool Mesh::has_motion_blur() const
 {
-  return use_motion_blur && (attributes.find(ATTR_STD_MOTION_VERTEX_POSITION) ||
-                             (get_subdivision_type() != Mesh::SUBDIVISION_NONE &&
-                              subd_attributes.find(ATTR_STD_MOTION_VERTEX_POSITION)));
+  return use_motion_blur && has_motion();
 }
 
 PrimitiveType Mesh::primitive_type() const

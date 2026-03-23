@@ -376,7 +376,7 @@ void Camera::update(Scene *scene)
       }
     }
     else {
-      if (have_motion || fov != fov_pre || fov != fov_post || viewplane != viewplane_pre) {
+      if (have_motion || fov != fov_pre || fov != fov_post) {
         /* Note the values for perspective_pre/perspective_post calculated for MOTION_PASS are
          * different to those calculated for MOTION_BLUR below, so the code has not been combined.
          */
@@ -518,9 +518,8 @@ void Camera::update_motion_pre()
     set_motion(motion);
   }
 
-  if (fov != fov_pre || viewplane != viewplane_pre) {
+  if (fov != fov_pre) {
     fov_pre = fov;
-    viewplane_pre = viewplane;
 
     tag_modified();
   }

@@ -147,6 +147,7 @@ class Mesh : public Geometry {
   /* Mesh Data */
   NODE_SOCKET_API_ARRAY(array<int>, triangles)
   NODE_SOCKET_API_ARRAY(array<float3>, verts)
+  NODE_SOCKET_API_ARRAY(array<float3>, verts_pre)
   NODE_SOCKET_API_ARRAY(array<int>, shader)
   NODE_SOCKET_API_ARRAY(array<bool>, smooth)
 
@@ -211,6 +212,7 @@ class Mesh : public Geometry {
   void apply_transform(const Transform &tfm, const bool apply_to_motion) override;
   void add_vertex_normals();
   void add_undisplaced(Scene *scene);
+  void update_motion(Scene *scene);
   void update_generated(Scene *scene);
   void update_tangents(Scene *scene, bool undisplaced);
 
@@ -219,6 +221,7 @@ class Mesh : public Geometry {
   void pack_shaders(Scene *scene, uint *shader);
   void pack_verts(packed_float3 *tri_verts, packed_uint3 *tri_vindex);
 
+  bool has_motion() const;
   bool has_motion_blur() const override;
   PrimitiveType primitive_type() const override;
 

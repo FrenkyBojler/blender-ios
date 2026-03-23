@@ -142,6 +142,13 @@ void Object::update_motion()
         motion.clear();
         return;
       }
+
+      if (have_motion && i == (motion.size() - 1)) {
+        /* Remove last motion when it is not actually set. */
+        motion.resize(motion.size() - 1);
+        return;
+      }
+
       /* Otherwise just copy center motion. */
       motion[i] = tfm;
     }
@@ -495,8 +502,7 @@ void ObjectManager::update_motion_pre(Scene *scene)
 {
   bool update = false;
 
-  static const int OBJECTS_PER_TASK = 32;
-  parallel_for(blocked_range<size_t>(0, scene->objects.size(), OBJECTS_PER_TASK),
+  parallel_for(blocked_range<size_t>(0, scene->objects.size(), 32),
                [&](const blocked_range<size_t> &r) {
                  for (size_t i = r.begin(); i != r.end(); i++) {
                    Object *ob = scene->objects[i];
@@ -505,6 +511,8 @@ void ObjectManager::update_motion_pre(Scene *scene)
 
                    array<Transform> motion = ob->get_motion();
                    if (motion.empty()) {
+                     /* Can always store current matrix in motion array with a single element,
+                      * since that still causes 'use_motion()' to return false. */
                      motion.resize(1);
                    }
                    motion[0] = ob->tfm;
@@ -605,10 +613,7 @@ void ObjectManager::device_update_object_transform(UpdateObjectTransformState *s
   }
   else if (geom->is_mesh()) {
     Mesh *mesh = static_cast<Mesh *>(geom);
-    if (mesh->attributes.find(ATTR_STD_MOTION_VERTEX_POSITION) ||
-        (mesh->get_subdivision_type() != Mesh::SUBDIVISION_NONE &&
-         mesh->subd_attributes.find(ATTR_STD_MOTION_VERTEX_POSITION)))
-    {
+    if (mesh->has_motion()) {
       flag |= SD_OBJECT_HAS_VERTEX_MOTION;
     }
     else if (mesh->attributes.find(ATTR_STD_CORNER_NORMAL)) {

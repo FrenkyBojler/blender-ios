@@ -177,35 +177,23 @@ void GeometryManager::update_motion_pre(Scene *scene)
 {
   bool update = false;
 
-  for (Geometry *geom : scene->geometry) {
-    if (geom->is_mesh() || geom->is_volume()) {
-      Mesh *mesh = static_cast<Mesh *>(geom);
+  parallel_for(blocked_range<size_t>(0, scene->geometry.size(), 32),
+               [&](const blocked_range<size_t> &r) {
+                 for (size_t i = r.begin(); i != r.end(); i++) {
+                   Geometry *geom = scene->geometry[i];
 
-      if (mesh->motion_steps == 0) {
-        mesh->motion_steps = 2;
-      }
+                   if (geom->is_mesh()) {
+                     Mesh *mesh = static_cast<Mesh *>(geom);
 
-      Attribute *attr_mP = mesh->attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
-      if (attr_mP) {
-        if (memcmp(attr_mP->data_float3(),
-                   mesh->verts.data(),
-                   mesh->verts.size() * sizeof(float3)) != 0)
-        {
-          update = true;
-          attr_mP->modified = true;
-        }
-        else {
-          continue;
-        }
-      }
-      else {
-        update = true;
-        attr_mP = mesh->attributes.add(ATTR_STD_MOTION_VERTEX_POSITION);
-      }
+                     if (mesh->verts != mesh->verts_pre) {
+                       mesh->verts_pre = mesh->verts;
+                       mesh->tag_verts_pre_modified();
 
-      mesh->copy_center_to_motion_step(0);
-    }
-  }
+                       update = true;
+                     }
+                   }
+                 }
+               });
 
   if (update) {
     tag_update(scene, TRANSFORM_MODIFIED);
@@ -872,6 +860,7 @@ void GeometryManager::device_update(Device *device,
       mesh->tessellate(subd_params);
     }
 
+    mesh->update_motion(scene);
     /* Apply generated attribute if needed or remove if not needed */
     mesh->update_generated(scene);
     /* Apply tangents for generated and UVs (if any need them) or remove if not needed */
