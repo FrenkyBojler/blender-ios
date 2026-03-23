@@ -6,7 +6,10 @@
  * \ingroup bke
  */
 
+#include "BLI_assert.h"
 #include "BLI_fileops.h"
+#include "BLI_ghash.h"
+#include "BLI_memory_utils.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
@@ -23,6 +26,7 @@
 #include "BKE_global.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_lib_query.hh"
 #include "BKE_lib_remap.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
@@ -419,15 +423,41 @@ ID *asset_edit_id_ensure_local(Main &global_main, ID &id)
     return local_id;
   }
 
-  /* Make local and create weak library reference for reuse. */
-  BKE_lib_id_make_local(&global_main,
-                        &id,
-                        LIB_ID_MAKELOCAL_FORCE_COPY | LIB_ID_MAKELOCAL_INDIRECT |
-                            LIB_ID_MAKELOCAL_ASSET_DATA_CLEAR);
-  BLI_assert(id.newid != nullptr);
-  BKE_main_library_weak_reference_add(id.newid, id.lib->filepath, id.name);
+  /* Recursively make local (creating copies of the given ID and its dependencies) and create weak
+   * library reference for reuse. */
 
-  return id.newid;
+  {
+    /* Recurse to collect IDs to make local. */
+
+    BKE_main_id_tag_all(&global_main, ID_TAG_PRE_EXISTING, true);
+    id.tag &= ~ID_TAG_PRE_EXISTING;
+    BKE_library_foreach_ID_link(
+        &global_main,
+        &id,
+        [&](LibraryIDLinkCallbackData *cb_data) {
+          if (*cb_data->id_pointer) {
+            (*cb_data->id_pointer)->tag &= ~ID_TAG_PRE_EXISTING;
+          }
+          return IDWALK_RET_NOP;
+        },
+        nullptr,
+        IDWALK_RECURSE);
+  }
+
+  GHash *old_to_new_id = BLI_ghash_ptr_new_ex(__func__, 4);
+  BLI_SCOPED_DEFER([&] { BLI_ghash_free(old_to_new_id, nullptr, nullptr); });
+
+  BKE_library_make_local(&global_main, nullptr, old_to_new_id, true, false, true);
+
+  ID **newid = reinterpret_cast<ID **>(BLI_ghash_lookup_p(old_to_new_id, &id));
+  if (!newid) {
+    BLI_assert_unreachable();
+    return nullptr;
+  }
+
+  BKE_main_library_weak_reference_add(*newid, id.lib->filepath, id.name);
+
+  return *newid;
 }
 
 }  // namespace blender::bke
