@@ -44,6 +44,8 @@ static void image_sequence_get_frame_ranges(StringRefNull root_path,
   char base_head[FILE_MAX], base_tail[FILE_MAX];
 
   RNA_string_get(op->ptr, "directory", dir);
+  /* Operators using `ED_image_filesel_detect_sequences` should have a `relative_path` option. */
+  BLI_assert(RNA_struct_find_property(op->ptr, "relative_path"));
   if (RNA_boolean_get(op->ptr, "relative_path")) {
     BLI_path_rel(dir, root_path.c_str());
   }
