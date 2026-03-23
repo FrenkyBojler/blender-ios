@@ -1130,7 +1130,9 @@ static void remove_points_with_low_opacity(bke::CurvesGeometry &curves,
 {
   const VArray<bool> point_was_modified = *curves.attributes().lookup<bool>(
       "_eraser_opacity_modified", bke::AttrDomain::Point);
-  BLI_assert(point_was_modified);
+  if (!point_was_modified) {
+    return;
+  }
 
   IndexMaskMemory memory;
   const IndexMask points_to_remove_and_split = IndexMask::from_predicate(
