@@ -255,18 +255,12 @@ static void node_update_glare_label(const bNodeTree *ntree,
                                     char *label,
                                     int maxlen)
 {
-  const bNodeSocket *type_input = bke::node_find_socket(*node, SOCK_IN, "Type");
-  if (type_input == nullptr) {
+  ntree->ensure_topology_cache();
+  const bNodeSocket *type_input = node->input_by_identifier("Type");
+
+  if (type_input->is_logically_linked()) {
     BLI_strncpy(label, IFACE_("Glare"), maxlen);
     return;
-  }
-
-  if (ntree != nullptr) {
-    ntree->ensure_topology_cache();
-    if (type_input->is_logically_linked()) {
-      BLI_strncpy(label, IFACE_("Glare"), maxlen);
-      return;
-    }
   }
 
   const int type_value = type_input->default_value_typed<bNodeSocketValueMenu>()->value;
