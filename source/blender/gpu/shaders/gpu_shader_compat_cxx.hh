@@ -26,6 +26,13 @@
 
 #pragma once
 
+#ifdef _MSC_VER
+/* Equivalent to "-Wno-unused-parameter".
+ * Must be declared here since the setup from compile_sources_as_cpp seems to be
+ * overridden otherwise. */
+#  pragma warning(disable : 4100)
+#endif
+
 #include <cstdio>  // IWYU pragma: export printf
 
 #include "gpu_shader_cxx_builtin.hh"  // IWYU pragma: export
@@ -52,6 +59,25 @@
 /* -------------------------------------------------------------------- */
 /** \name Compatibility
  * \{ */
+
+/**
+ * Member hiding type.
+ * Wrapper type for members of unions in host shared structure.
+ * This is needed to force the accessor syntax in the shader code.
+ */
+template<typename T> struct union_t {
+  char bytes[sizeof(T)];
+
+  const T &operator()() const
+  {
+    return *reinterpret_cast<const T *>(&bytes);
+  }
+
+  T &operator()()
+  {
+    return *reinterpret_cast<T *>(&bytes);
+  }
+};
 
 /* Array syntax compatibility. */
 /* clang-format off */
@@ -185,23 +211,6 @@ template<typename T> struct srt_t {
   }
 };
 
-/**
- * Member hiding type.
- * Wrapper type for members of unions in host shared structure.
- * This is needed to force the accessor syntax in the shader code.
- */
-template<typename T> struct union_t {
-  const T &operator()() const
-  {
-    return *reinterpret_cast<const T *>(this);
-  }
-
-  T &operator()()
-  {
-    return *reinterpret_cast<T *>(this);
-  }
-};
-
 struct ShaderCreateInfo {};
 
 struct NoConstants {};
@@ -209,8 +218,8 @@ struct NoConstants {};
 template<typename VertFn,
          typename FragFn,
          typename ConstT1 = NoConstants,
-         typename ConstT2 = ConstT1,
-         typename ConstT3 = ConstT2>
+         typename ConstT2 = NoConstants,
+         typename ConstT3 = NoConstants>
 struct PipelineGraphic {
   VertFn vert;
   FragFn frag;
@@ -247,8 +256,8 @@ struct PipelineGraphic {
 
 template<typename CompFn,
          typename ConstT1 = NoConstants,
-         typename ConstT2 = ConstT1,
-         typename ConstT3 = ConstT2>
+         typename ConstT2 = NoConstants,
+         typename ConstT3 = NoConstants>
 struct PipelineCompute {
   CompFn comp;
   /* Constant values. */

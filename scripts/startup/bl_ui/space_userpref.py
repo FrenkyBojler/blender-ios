@@ -2757,7 +2757,9 @@ class USERPREF_PT_assets(AssetsPanel, Panel):
         row.operator("extensions.userpref_allow_online", text="Allow Online Access", icon='CHECKMARK')
 
 
-class USERPREF_PT_assets_asset_libraries(AssetsPanel, Panel):
+# The panel is not located in the file paths section anymore and should be renamed. The old name is only kept for
+# compatibility (add-ons extend it). Planned for removal in 6.0, see #153901.
+class USERPREF_PT_file_paths_asset_libraries(AssetsPanel, Panel):
     bl_label = "Asset Libraries"
 
     def draw(self, context):
@@ -3066,6 +3068,7 @@ class USERPREF_PT_experimental_new_features(ExperimentalPanel, Panel):
                 ({"property": "use_geometry_nodes_lists"}, ("blender/blender/issues/140918", "#140918")),
                 ({"property": "use_geometry_bundle"}, ("blender/blender/issues/150574", "#150574")),
                 ({"property": "use_remote_asset_libraries"}, ("blender/blender/issues/134495", "#134495")),
+                ({"property": "use_collection_importer"}, ("blender/blender/issues/132171", "#132171")),
             ),
         )
 
@@ -3199,7 +3202,7 @@ classes = (
     USERPREF_PT_addons,
 
     USERPREF_PT_assets,
-    USERPREF_PT_assets_asset_libraries,
+    USERPREF_PT_file_paths_asset_libraries,
 
     USERPREF_MT_extensions_active_repo,
     USERPREF_MT_extensions_active_repo_remove,
