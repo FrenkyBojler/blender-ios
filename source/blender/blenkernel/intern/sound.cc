@@ -11,6 +11,7 @@
 #include <condition_variable>
 #include <cstdlib>
 #include <cstring>
+#include <fftw3.h>
 #include <mutex>
 #include <optional>
 #include <thread>
@@ -2099,9 +2100,9 @@ SoundSampler::SoundSampler(const bSound &sound, const SampleSoundKey &key)
   buckets_.reinitialize(std::ceil(info.length * info.specs.samplerate / samples_per_bucket_));
 }
 
-Array<float, 0> sound_compute_fft(const bSound &sound,
-                                  const SampleSoundKey &key,
-                                  const int start_sample)
+std::optional<Array<float>> sound_compute_fft(const bSound &sound,
+                                              const SampleSoundKey &key,
+                                              const int start_sample)
 {
   AUD_Sound sound_handle = sound.runtime->handle;
   std::shared_ptr<aud::IReader> reader = sound_handle->createReader();
@@ -2114,11 +2115,11 @@ Array<float, 0> sound_compute_fft(const bSound &sound,
   reader->seek(start_sample);
   reader->read(length, is_end_of_stream, read_buffer.data());
 
-  Array<float, 0> buffer(key.fft_size, 0.0f);
+  Array<float> buffer(key.fft_size, 0.0f);
   if (key.channel.has_value()) {
     const int channel = std::clamp(*key.channel, 0, channels_num - 1);
     if (channel < 0 || channel >= channels_num) {
-      return buffer;
+      return std::nullopt;
     }
     for (const int i : IndexRange(length)) {
       buffer[i] = read_buffer[i * channels_num + channel];
@@ -2133,7 +2134,26 @@ Array<float, 0> sound_compute_fft(const bSound &sound,
     }
   }
 
-  return buffer;
+  const int frequencies_num = key.fft_size / 2;
+
+  fftwf_complex *fftwf_buffer = static_cast<fftwf_complex *>(
+      fftwf_malloc(sizeof(fftwf_complex) * (frequencies_num + 1)));
+  fftwf_plan plan = fftwf_plan_dft_r2c_1d(
+      key.fft_size, buffer.data(), fftwf_buffer, FFTW_ESTIMATE);
+  BLI_SCOPED_DEFER([&]() {
+    fftwf_destroy_plan(plan);
+    fftwf_free(fftwf_buffer);
+  });
+
+  fftwf_execute(plan);
+
+  Array<float> frequency_amplitudes(frequencies_num);
+  for (const int i : IndexRange(frequencies_num)) {
+    const fftwf_complex &c = fftwf_buffer[i];
+    frequency_amplitudes[i] = sqrt(pow2f(c[0]) + pow2f(c[1]));
+  }
+
+  return frequency_amplitudes;
 }
 
 }  // namespace bke

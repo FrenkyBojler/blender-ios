@@ -277,15 +277,15 @@ struct SampleSoundKey {
   std::optional<int> channel;
 };
 
-Array<float, 0> sound_compute_fft(const bSound &sound,
-                                  const SampleSoundKey &key,
-                                  const int start_sample);
+std::optional<Array<float>> sound_compute_fft(const bSound &sound,
+                                              const SampleSoundKey &key,
+                                              const int start_sample);
 
 class SoundSampler {
  private:
   struct Bucket {
     mutable CacheMutex mutex;
-    mutable Array<float, 0> accumulated_amplitudes;
+    mutable std::optional<Array<float, 0>> cumulative_amplitudes;
   };
 
   const bSound &sound_;
@@ -309,14 +309,19 @@ class SoundSampler {
     if (next_bucket_i >= buckets_.size()) {
       return 0.0f;
     }
-    const Span<float> prev_bucket = this->ensure_bucket(prev_bucket_i);
-    const Span<float> next_bucket = this->ensure_bucket(next_bucket_i);
+    const std::optional<Span<float>> prev_bucket_opt = this->ensure_bucket(prev_bucket_i);
+    const std::optional<Span<float>> next_bucket_opt = this->ensure_bucket(next_bucket_i);
+    if (!prev_bucket_opt.has_value() || !next_bucket_opt.has_value()) {
+      return 0.0f;
+    }
+    const Span<float> prev_bucket = *prev_bucket_opt;
+    const Span<float> next_bucket = *next_bucket_opt;
+
     const int bucket_size = prev_bucket.size();
     const int max_bucket_i = bucket_size - 1;
 
     const float low_i_float = std::max(low, 0.0f) * key_.fft_size / samples_per_second_;
-    // const float high_i_float = std::max(high, 0.0f) * key_.fft_size / samples_per_second_;
-    const float high_i_float = key_.fft_size - 1;
+    const float high_i_float = std::max(high, 0.0f) * key_.fft_size / samples_per_second_;
 
     const int prev_low_i = std::min(int(floorf(low_i_float)), max_bucket_i);
     const int next_low_i = std::min(prev_low_i + 1, max_bucket_i);
@@ -342,22 +347,26 @@ class SoundSampler {
     return amplitude;
   }
 
-  Span<float> ensure_bucket(const int bucket_i) const
+  std::optional<Span<float>> ensure_bucket(const int bucket_i) const
   {
     const Bucket &bucket = buckets_[bucket_i];
     bucket.mutex.ensure([&]() {
-      bucket.accumulated_amplitudes = sound_compute_fft(
+      std::optional<Array<float>> fft_array = sound_compute_fft(
           sound_, key_, bucket_i * samples_per_bucket_);
-      float accumulated = 0.0f;
-      for (const int i : bucket.accumulated_amplitudes.index_range()) {
-        /* TODO: Increase size by 1? */
-        const float value = std::abs(bucket.accumulated_amplitudes[i]);
-        bucket.accumulated_amplitudes[i] = accumulated;
-        accumulated += value;
+      if (!fft_array.has_value()) {
+        return;
       }
-      std::cout << "Accumulated: " << bucket_i << " " << accumulated << std::endl;
+      const Span<float> fft_values = fft_array->as_span();
+      bucket.cumulative_amplitudes.emplace(fft_values.size() + 1);
+      float sum = 0.0f;
+      for (const int i : fft_array->index_range()) {
+        const float value = std::abs(fft_values[i]);
+        (*bucket.cumulative_amplitudes)[i] = sum;
+        sum += value;
+      }
+      bucket.cumulative_amplitudes->last() = sum;
     });
-    return bucket.accumulated_amplitudes;
+    return bucket.cumulative_amplitudes;
   }
 };
 
