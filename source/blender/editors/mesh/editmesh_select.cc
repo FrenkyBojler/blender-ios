@@ -1911,8 +1911,7 @@ static void mouse_mesh_loop_edge_ring(
   bool full_loop = false;
 
   /* Cycle between using delimits and skipping them. */
-  if (delimit & BMW_DELIMIT_EDGE_MARK_SEAM or delimit & BMW_DELIMIT_EDGE_MARK_SHARP)
-  {
+  if ((delimit & BMW_DELIMIT_EDGE_MARK_SEAM) || (delimit & BMW_DELIMIT_EDGE_MARK_SHARP)) {
     int count_by_select[2];
 
     /* If up to the delimits is selected toggle the whole loop. */
@@ -1968,8 +1967,8 @@ static void mouse_mesh_loop_edge(BMEditMesh *em,
     }
   }
   /* Cycle between using delimits and skipping them. */
-  else if (not non_manifold and
-    (delimit & BMW_DELIMIT_EDGE_MARK_SEAM or delimit & BMW_DELIMIT_EDGE_MARK_SHARP))
+  else if (!non_manifold &&
+           ((delimit & BMW_DELIMIT_EDGE_MARK_SEAM) || (delimit & BMW_DELIMIT_EDGE_MARK_SHARP)))
   {
     int count_by_select[2];
 
