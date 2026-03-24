@@ -221,9 +221,20 @@ void PaintStroke::add_roll_point(const float2 &mouse_in,
   constexpr int buf_cap = PAINT_MAX_INPUT_SAMPLES;
 
   if (need_roll_mapping_) {
-    /* Budget: total knots (virtual + real) capped at roll_max_points() + initial
-     * backward extension count. Virtual knots are dropped first from the oldest
-     * end; only after all virtual knots are consumed does the ring buffer wrap. */
+    /* Budget: total knots (virtual backward + real) capped at
+     * roll_max_points() + initial_backward_ext_count_.  When the budget is
+     * exceeded we drop the oldest knot:
+     *
+     *  Phase 1 — Virtual knots still remain: drop the farthest backward
+     *            extension point.  No real data is lost.
+     *  Phase 2 — All virtual knots consumed: the ring buffer wraps, dropping
+     *            the oldest real point.
+     *
+     * In both cases we accumulate the removed segment's arc length into
+     * stroke_distance_world_ (raw) and stroke_distance_normalized_ (pressure-
+     * weighted, for the pressure-scale feature).  These offsets are subtracted
+     * in spline_uv() so the texture V coordinate stays continuous despite the
+     * shrinking polyline. */
     const int budget = roll_max_points() + initial_backward_ext_count_;
     const int total_knots = int(backward_ext_2d_.size()) + num_points_;
     bool wrap_ring = false;
@@ -549,7 +560,12 @@ void PaintStroke::make_roll_spline(bContext * /*C*/)
       n_virtual_poly_points_ - 1 < int(roll_spline_.lengths_3d.size()))
   {
     roll_virtual_length_ = roll_spline_.lengths_3d[n_virtual_poly_points_ - 1];
-    /* Compute normalized virtual length for pressure-scaled V offset. */
+    /* Compute normalized virtual length for pressure-scaled V offset.
+     * This is the pressure-weighted equivalent of roll_virtual_length_:
+     * sum of seg_len / (R * p_avg) over the virtual extension.
+     * It must use the same midpoint-pressure formula as the grid V coords
+     * and as stroke_distance_normalized_ in add_roll_point(), so the
+     * subtraction in spline_uv() cancels exactly. */
     if (roll_initial_radius_ > 0.0f) {
       const Span<float> pres = roll_spline_.pressures.as_span();
       float accum = 0.0f;
@@ -686,15 +702,22 @@ void PaintStroke::finish_roll_stroke(bContext *C,
     }
   }
 
-  /* 4. Flush deferred dabs: advance look_back from its current position
-   *    to the newest recorded point, placing a dab at each step. */
+  /* 4. Flush deferred dabs forward to the stroke endpoint.
+   *
+   * During normal painting, dabs lag behind the mouse by `half` points so
+   * the spline has enough future context for smooth UV mapping.  At
+   * mouse-up we flush all remaining deferred dabs from the last painted
+   * position to the newest recorded point.
+   *
+   * flush_start comes from one of three cases:
+   *  (a) last_painted_roll_idx_ exists — continue from there.
+   *  (b) Very short stroke (num_points <= half) — start from oldest point.
+   *  (c) Normal stroke, no dabs placed yet — start from the deferred
+   *      position (cur_point_ - half). */
   constexpr int buf_cap = PAINT_MAX_INPUT_SAMPLES;
   const int half = roll_half_points();
   const int oldest_idx = (cur_point_ - num_points_ + buf_cap) % buf_cap;
 
-  /* Where the last placed dab was. Use the explicitly tracked index
-   * rather than recalculating, since space_stroke() and add_roll_point()
-   * in steps 1-2 above may have advanced cur_point_. */
   int flush_start;
   if (last_painted_roll_idx_ >= 0) {
     flush_start = last_painted_roll_idx_;
@@ -945,6 +968,9 @@ void PaintStroke::compute_roll_center(StrokeCache &cache)
         }
       }
       cache.roll_binormals[k] = B;
+      /* Per-vertex strip half-width: R * pressure when pressure-scale is on,
+       * constant R otherwise.  This makes the strip narrow where the pen is
+       * light and wide where it's heavy, matching the dab size. */
       const float Rk = (use_pressure_width && vi < int(roll_spline_.pressures.size())) ?
                             std::max(R * roll_spline_.pressures[vi], R * 0.01f) :
                             R;
@@ -1084,10 +1110,23 @@ void PaintStroke::compute_roll_center(StrokeCache &cache)
       Vector<float3> grid_pos(init_rows * init_cols);
       Vector<float2> grid_uv(init_rows * init_cols);
 
-      /* Precompute V coordinates.  When pressure-scale is active, V is
-       * accumulated as seg_len / (R * p_avg) so that narrow sections tile
-       * the texture faster, preserving the aspect ratio.  This is baked
-       * per-vertex so all dabs evaluating the same vertex see the same V. */
+      /* Precompute V (along-stroke) texture coordinates.
+       *
+       * Without pressure-scale: V = raw arc length.  sculpt_apply_texture()
+       * later divides by initial_radius to normalize.
+       *
+       * With pressure-scale: V = sum of (seg_len / (R * p_avg)).  Dividing
+       * each segment by its local pressure-scaled radius makes narrow
+       * sections advance the texture faster, so the texture tiles at the
+       * same density relative to the strip width — preserving its aspect
+       * ratio regardless of pressure.  This is baked per-vertex so that
+       * overlapping dabs at different pressures see the same V for the
+       * same mesh vertex (no blurriness).
+       *
+       * The matching offset (stroke_distance_normalized_) is accumulated
+       * in add_roll_point() using the same (p0+p1)/2 averaging, and
+       * applied in spline_uv() to keep the texture continuous as the
+       * polyline shrinks. */
       const Span<float> pressures = roll_spline_.pressures.as_span();
       const bool have_pressures = use_pressure_width &&
                                   int(pressures.size()) >= count;
@@ -1351,7 +1390,20 @@ void PaintStroke::compute_roll_center(StrokeCache &cache)
 
         auto cross2d = [](float2 a, float2 b) { return a.x * b.y - a.y * b.x; };
 
-        /* Rasterize each eval-range quad into the LUT. */
+        /* Rasterize each eval-range quad into the LUT via bilinear inverse.
+         *
+         * For each quad (P00, P10, P01, P11), and for each pixel in its
+         * bounding box, we solve: "given a 2D point Q, find (u,v) such that
+         * Q = (1-u)(1-v)P00 + u(1-v)P10 + (1-u)v*P01 + uv*P11."
+         *
+         * Rearranging gives a quadratic in v (A*v^2 + B*v + C = 0) using
+         * cross-products of the quad's edge vectors.  Once v is found, u
+         * follows from a linear solve.  If (u,v) is inside [0,1]^2 the pixel
+         * is inside the quad, and we bilinearly interpolate the UV + tangent.
+         *
+         * When multiple quads overlap (at self-intersection collapses), the
+         * quad whose bilinear solution is closest to the pixel center wins
+         * (roll_lut_dist_sq comparison). */
         for (int r = el; r <= eh; r++) {
           for (int c = 0; c < cur_cols - 1; c++) {
             const float2 P00 = grid_pos_2d[r * cur_cols + c];
@@ -1367,9 +1419,10 @@ void PaintStroke::compute_roll_center(StrokeCache &cache)
             int py_lo = std::max(0, int((qmin.y - bb_min.y) * inv_ext.y));
             int py_hi = std::min(RES - 1, int((qmax.y - bb_min.y) * inv_ext.y) + 1);
 
+            /* Bilinear basis vectors for the quadratic solve. */
             const float2 a = P10 - P00;
             const float2 b = P01 - P00;
-            const float2 tw = P11 - P10 - P01 + P00;
+            const float2 tw = P11 - P10 - P01 + P00; /* twist term */
             const float A_coeff = cross2d(b, tw);
 
             for (int py = py_lo; py <= py_hi; py++) {
