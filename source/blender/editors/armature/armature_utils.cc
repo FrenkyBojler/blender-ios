@@ -1007,44 +1007,4 @@ void ED_armature_ebone_select_set(EditBone *ebone, bool select)
 
 /** \} */
 
-/* -------------------------------------------------------------------- */
-/** \name B-Bone display (UI)
- * \{ */
-
-bool ED_armature_bbone_scale_display_visible(bArmature *arm, Object *ob)
-{
-  BLI_assert(ob != nullptr);
-  BLI_assert(ob->type == OB_ARMATURE);
-  BLI_assert(ob->data == arm);
-
-  if (arm->drawtype == ARM_DRAW_TYPE_B_BONE) {
-    return true;
-  }
-
-  const bool in_edit = (ob->mode & OB_MODE_EDIT) && (arm->edbo != nullptr);
-  const bool in_pose = (ob->mode & OB_MODE_POSE) && (ob->pose != nullptr);
-
-  if (in_edit) {
-    EditBone *ebone = arm->act_edbone;
-    if (ebone) {
-      const int dt = (ebone->drawtype == ARM_DRAW_TYPE_ARMATURE_DEFINED) ? int(arm->drawtype) :
-                                                                            int(ebone->drawtype);
-      return dt == ARM_DRAW_TYPE_B_BONE;
-    }
-  }
-  else if (in_pose) {
-    bPoseChannel *pchan = BKE_pose_channel_active_if_bonecoll_visible(ob);
-    if (pchan && pchan->bone) {
-      const int dt = (pchan->bone->drawtype == ARM_DRAW_TYPE_ARMATURE_DEFINED) ?
-                         int(arm->drawtype) :
-                         int(pchan->bone->drawtype);
-      return dt == ARM_DRAW_TYPE_B_BONE;
-    }
-  }
-
-  return false;
-}
-
-/** \} */
-
 }  // namespace blender

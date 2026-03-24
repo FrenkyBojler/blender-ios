@@ -336,7 +336,6 @@ const EnumPropertyItem rna_enum_object_axis_flip_items[] = {
 #  include "DEG_depsgraph.hh"
 #  include "DEG_depsgraph_build.hh"
 
-#  include "ED_armature.hh"
 #  include "ED_curve.hh"
 #  include "ED_lattice.hh"
 #  include "ED_mesh.hh"
@@ -2068,19 +2067,6 @@ bool rna_Object_use_dynamic_topology_sculpting_get(PointerRNA *ptr)
   return BKE_object_sculpt_use_dyntopo(reinterpret_cast<Object *>(ptr->owner_id));
 }
 
-static bool rna_Object_armature_bbone_scale_display_visible_get(PointerRNA *ptr)
-{
-  Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
-  if (ob->type != OB_ARMATURE) {
-    return false;
-  }
-  bArmature *arm = id_cast<bArmature *>(ob->data);
-  if (arm == nullptr) {
-    return false;
-  }
-  return ED_armature_bbone_scale_display_visible(arm, ob);
-}
-
 static void rna_object_lineart_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
   DEG_id_tag_update(ptr->owner_id, ID_RECALC_GEOMETRY);
@@ -3020,15 +3006,6 @@ static void rna_def_object(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, rna_enum_object_mode_items);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop, "Mode", "Object interaction mode");
-
-  prop = RNA_def_property(srna, "armature_bbone_scale_display_visible", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_funcs(
-      prop, "rna_Object_armature_bbone_scale_display_visible_get", nullptr);
-  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-  RNA_def_property_ui_text(
-      prop,
-      "Armature B-Bone Scale Display Visible",
-      "Whether B-bone width scaling applies for the current armature and active bone display");
 
   /* for data access */
   prop = RNA_def_property(srna, "bound_box", PROP_FLOAT, PROP_NONE);

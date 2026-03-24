@@ -1359,12 +1359,16 @@ class VIEW3D_MT_transform_armature(VIEW3D_MT_transform_base, Menu):
         # armature specific extensions follow...
         obj = context.object
         if obj.type == 'ARMATURE' and obj.mode in {'EDIT', 'POSE'}:
-            # Visibility matches C: `ED_armature_bbone_scale_display_visible` (RNA on Object).
-            if obj.armature_bbone_scale_display_visible:
+            if obj.mode == 'POSE':
+               pose_bone = context.active_pose_bone
+               bone = pose_bone.bone if pose_bone else None
+            else:
+               bone = context.active_bone            
+            if bone and bone.display_type_effective == 'BBONE':
                 layout.separator()
 
                 layout.operator("transform.transform", text="Scale BBone").mode = 'BONE_SIZE'
-            elif obj.data.display_type == 'ENVELOPE':
+            elif bone and bone.display_type_effective == 'ENVELOPE':
                 layout.separator()
 
                 layout.operator("transform.transform", text="Scale Envelope Distance").mode = 'BONE_SIZE'
