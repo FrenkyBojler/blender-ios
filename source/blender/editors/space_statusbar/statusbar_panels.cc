@@ -73,8 +73,8 @@ static void version_update_draw_body(VersionUpdateInfo &update, ui::Layout &layo
   row.emboss_set(ui::EmbossType::None);
   row.alignment_set(ui::LayoutAlign::Expand);
   row.label(update.description, ICON_NONE);
-  layout.alignment_set(ui::LayoutAlign::Left);
-  layout.link(update.release_notes_url, "Whats new", ICON_NONE);
+
+  layout.separator(0.0f);
 
   ui::Layout &buttons_row = layout.row(true);
 
@@ -112,11 +112,19 @@ static void panel_blender_updates_draw(const bContext *C, Panel *panel)
     return;
   }
   if (available_updates.size() == 1) {
+    VersionUpdateInfo &update = available_updates[0];
     ui::Layout &header = layout.row(true);
-    header.label(
-        fmt::format(fmt::runtime(IFACE_("Update Blender from {} to {}?")), "5.1.2", "5.2.2 LTS"),
-        ICON_NONE);
-    version_update_draw_body(available_updates[0], layout.column(false));
+    const char *release_text = update.version.ends_with(".0") ?
+                                   "New release available {}{}" :
+                                   "New bugfix release available: {}{}";
+    header.label(fmt::format(fmt::runtime(IFACE_(release_text)),
+                             update.version,
+                             update.is_lts ? " LTS" : ""),
+                 ICON_NONE);
+    ui::Layout &sub = header.row(false);
+    sub.alignment_set(ui::LayoutAlign::Right);
+    sub.link(update.release_notes_url, "Whats new", ICON_NONE);
+    version_update_draw_body(update, layout.column(false));
     return;
   }
 
@@ -143,6 +151,9 @@ static void panel_blender_updates_draw(const bContext *C, Panel *panel)
     ui::PanelLayout panel_layout = layout.panel(C, "Update_" + update.version, false);
     panel_layout.header->label(update.version, ICON_NONE);
     ui::Layout *body = panel_layout.body;
+    ui::Layout &sub = panel_layout.header->row(false);
+    sub.alignment_set(ui::LayoutAlign::Right);
+    sub.link(update.release_notes_url, "Whats new", ICON_NONE);
     if (!body) {
       continue;
     }
