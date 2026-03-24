@@ -1347,19 +1347,24 @@ void ShadowModule::set_view(View &view, int2 extent)
       GPU_uniformbuf_clear_to_zero(shadow_multi_view_.matrices_ubo_get());
 
       inst_.manager->submit(tilemap_setup_ps_, view);
+      bool propagate_update = false;
       if (assign_if_different(update_casters_, false)) {
         /* Run caster update only once. */
         /* TODO(fclem): There is an optimization opportunity here where we can
          * test casters only against the static tile-maps instead of all of them. */
         GPU_framebuffer_bind(update_tag_fb_);
         inst_.manager->submit(caster_update_ps_, view);
+        propagate_update = true;
       }
       if (loop_count == 0) {
         GPU_framebuffer_bind(update_tag_fb_);
         inst_.manager->submit(jittered_transparent_caster_update_ps_, view);
+        propagate_update = true;
+      }
+      if (propagate_update) {
+      inst_.manager->submit(update_propagate_ps_, view);
       }
       GPU_framebuffer_bind(prev_fb);
-      inst_.manager->submit(update_propagate_ps_, view);
       inst_.manager->submit(tilemap_usage_ps_, view);
       inst_.manager->submit(tilemap_update_ps_, view);
 
