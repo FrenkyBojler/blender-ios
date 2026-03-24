@@ -45,7 +45,6 @@
 #include "BKE_idtype.hh"
 #include "BKE_main.hh"
 #include "BKE_preferences.h"
-#include "BKE_recents.hh"
 
 #include "BLO_userdef_default.h"
 
@@ -100,7 +99,7 @@ static void fileselect_initialize_params_common(SpaceFile *sfile, FileSelectPara
 
 static void fileselect_ensure_updated_asset_params(SpaceFile *sfile)
 {
-  recents::Section recents = recents::section("asset_browser");
+  UserDef U_default = {};
 
   BLI_assert(sfile->browse_mode == FILE_BROWSE_MODE_ASSETS);
   BLI_assert(sfile->op == nullptr);
@@ -109,7 +108,7 @@ static void fileselect_ensure_updated_asset_params(SpaceFile *sfile)
 
   if (!asset_params) {
     asset_params = sfile->asset_params = MEM_new<FileAssetSelectParams>("FileAssetSelectParams");
-    asset_params->base_params.details_flags = recents["details_flags"];
+    asset_params->base_params.details_flags = U_default.file_space_data.details_flags;
     asset_params->asset_library_ref.type = ASSET_LIBRARY_ALL;
     asset_params->asset_library_ref.custom_library_index = -1;
     asset_params->import_method = FILE_ASSET_IMPORT_FOLLOW_PREFS;
@@ -119,21 +118,21 @@ static void fileselect_ensure_updated_asset_params(SpaceFile *sfile)
   FileSelectParams *base_params = &asset_params->base_params;
   base_params->file[0] = '\0';
   base_params->filter_glob[0] = '\0';
-  base_params->flag |= int16_t(recents["flag"]) | FILE_ASSETS_ONLY | FILE_FILTER;
+  base_params->flag |= U_default.file_space_data.flag | FILE_ASSETS_ONLY | FILE_FILTER;
   base_params->flag &= ~FILE_DIRSEL_ONLY;
   base_params->filter |= FILE_TYPE_BLENDERLIB;
   base_params->filter_id = FILTER_ID_ALL;
-  base_params->display = recents["display_type"];
+  base_params->display = FILE_IMGDISPLAY;
   base_params->sort = FILE_SORT_ASSET_CATALOG;
   /* No details columns supported for assets (wouldn't contain anything), disable them all. */
-  base_params->details_flags = recents["details_flags"];
+  base_params->details_flags = 0;
   /* Asset libraries include all sub-directories, so enable maximal recursion. */
   base_params->recursion_level = FILE_SELECT_MAX_RECURSIONS;
   /* 'SMALL' size by default. More reasonable since this is typically used as regular editor,
    * space is more of an issue here. */
-  base_params->thumbnail_size = recents["thumbnail_size"];
-  base_params->list_thumbnail_size = recents["list_thumbnail_size"];
-  base_params->list_column_size = recents["list_column_size"];
+  base_params->thumbnail_size = 96;
+  base_params->list_thumbnail_size = 32;
+  base_params->list_column_size = 220;
 
   fileselect_initialize_params_common(sfile, base_params);
 }
@@ -146,7 +145,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
 {
   BLI_assert(sfile->browse_mode == FILE_BROWSE_MODE_FILES);
 
-  recents::Section recents = recents::section("file_browser");
+  UserDef U_default = {};
   FileSelectParams *params;
   wmOperator *op = sfile->op;
 
@@ -162,9 +161,9 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
                             sfile->params->file,
                             sizeof(sfile->params->file));
     sfile->params->filter_glob[0] = '\0';
-    sfile->params->thumbnail_size = recents["thumbnail_size"];
-    sfile->params->details_flags = recents["details_flags"];
-    sfile->params->filter_id = recents["filter_id"];
+    sfile->params->thumbnail_size = U_default.file_space_data.thumbnail_size;
+    sfile->params->details_flags = U_default.file_space_data.details_flags;
+    sfile->params->filter_id = U_default.file_space_data.filter_id;
     sfile->params->list_thumbnail_size = 16;
     sfile->params->list_column_size = 500;
   }
@@ -327,7 +326,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
     }
 
     if (params->display == FILE_DEFAULTDISPLAY) {
-      params->display = recents["display_type"];
+      params->display = U_default.file_space_data.display_type;
     }
 
     if ((prop = RNA_struct_find_property(op->ptr, "sort_method"))) {
@@ -335,7 +334,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
     }
 
     if (params->sort == FILE_SORT_DEFAULT) {
-      params->sort = recents["sort_type"];
+      params->sort = U_default.file_space_data.sort_type;
     }
 
     if (is_relative_path) {
@@ -349,7 +348,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
   else {
     /* default values, if no operator */
     params->type = FILE_UNIX;
-    params->flag |= int16_t(recents["flag"]);
+    params->flag |= U_default.file_space_data.flag;
     params->flag &= ~FILE_DIRSEL_ONLY;
     params->display = FILE_VERTICALDISPLAY;
     params->sort = FILE_SORT_ALPHA;
@@ -669,7 +668,7 @@ static bool file_select_use_default_sort_type(const SpaceFile *sfile)
 void ED_fileselect_set_params_from_userdef(SpaceFile *sfile)
 {
   wmOperator *op = sfile->op;
-  recents::Section recents = recents::section("file_browser");
+  UserDef_FileSpaceData *sfile_udata = &U.file_space_data;
 
   sfile->browse_mode = FILE_BROWSE_MODE_FILES;
 
@@ -678,50 +677,55 @@ void ED_fileselect_set_params_from_userdef(SpaceFile *sfile)
     return;
   }
 
-  params->thumbnail_size = recents["thumbnail_size"];
-  params->details_flags = recents["details_flags"];
-  params->filter_id = recents["filter_id"];
+  if (sfile_udata->thumbnail_size == 0) {
+    /* Saved params are invalid so continue with defaults. */
+    return;
+  }
+
+  params->thumbnail_size = sfile_udata->thumbnail_size;
+  params->details_flags = sfile_udata->details_flags;
+  params->filter_id = sfile_udata->filter_id;
 
   /* Combine flags we take from params with the flags we take from userdef. */
   params->flag = (params->flag & ~PARAMS_FLAGS_REMEMBERED) |
-                 (uint16_t(recents["flag"]) & PARAMS_FLAGS_REMEMBERED);
+                 (sfile_udata->flag & PARAMS_FLAGS_REMEMBERED);
   if (file_select_use_default_display_type(sfile)) {
-    params->display = recents["display_type"];
+    params->display = sfile_udata->display_type;
   }
   if (file_select_use_default_sort_type(sfile)) {
-    params->sort = recents["sort_type"];
+    params->sort = sfile_udata->sort_type;
     /* For the default sorting, also take invert flag from userdef. */
-    params->flag = (params->flag & ~FILE_SORT_INVERT) |
-                   (int16_t(recents["flag"]) & FILE_SORT_INVERT);
+    params->flag = (params->flag & ~FILE_SORT_INVERT) | (sfile_udata->flag & FILE_SORT_INVERT);
   }
 }
 
-void ED_fileselect_params_save(SpaceFile *sfile)
+void ED_fileselect_params_to_userdef(SpaceFile *sfile)
 {
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
-  recents::Section recents = recents::section(
-      sfile->browse_mode == FILE_BROWSE_MODE_ASSETS ? "asset_browser" : "file_browser");
-  recents["thumbnail_size"] = params->thumbnail_size;
-  recents["details_flags"] = params->details_flags;
-  recents["flag"] = params->flag & PARAMS_FLAGS_REMEMBERED;
-  recents["filter_id"] = params->filter_id;
+  UserDef_FileSpaceData *sfile_udata_new = &U.file_space_data;
+  UserDef_FileSpaceData sfile_udata_old = U.file_space_data;
+
+  sfile_udata_new->thumbnail_size = params->thumbnail_size;
+  sfile_udata_new->details_flags = params->details_flags;
+  sfile_udata_new->flag = params->flag & PARAMS_FLAGS_REMEMBERED;
+  sfile_udata_new->filter_id = params->filter_id;
 
   /* In some rare cases, operators ask for a specific display or sort type (e.g. chronological
    * sorting for "Recover Auto Save"). So the settings are optimized for a specific operation.
    * Don't let that change the userdef memory for more general cases. */
   if (file_select_use_default_display_type(sfile)) {
-    recents["display_type"] = params->display;
+    sfile_udata_new->display_type = params->display;
   }
   if (file_select_use_default_sort_type(sfile)) {
-    recents["sort_type"] = params->sort;
+    sfile_udata_new->sort_type = params->sort;
     /* In this case also remember the invert flag. */
-    recents["flag"] = (int16_t(recents["flag"]) & ~FILE_SORT_INVERT) |
-                      (params->flag & FILE_SORT_INVERT);
+    sfile_udata_new->flag = (sfile_udata_new->flag & ~FILE_SORT_INVERT) |
+                            (params->flag & FILE_SORT_INVERT);
   }
 
-  if (sfile->browse_mode == FILE_BROWSE_MODE_ASSETS) {
-    recents["list_thumbnail_size"] = params->list_thumbnail_size;
-    recents["list_column_size"] = params->list_column_size;
+  /* Tag preferences as dirty if something has changed. */
+  if (memcmp(sfile_udata_new, &sfile_udata_old, sizeof(sfile_udata_old)) != 0) {
+    U.runtime.is_dirty = true;
   }
 }
 
@@ -1331,9 +1335,8 @@ void ED_fileselect_exit(wmWindowManager *wm, SpaceFile *sfile)
     return;
   }
 
-  ED_fileselect_params_save(sfile);
-
   if (sfile->op) {
+    ED_fileselect_params_to_userdef(sfile);
     WM_event_fileselect_event(wm, sfile->op, EVT_FILESELECT_EXTERNAL_CANCEL);
     sfile->op = nullptr;
   }

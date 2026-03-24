@@ -129,7 +129,7 @@ void ED_fileselect_set_params_from_userdef(SpaceFile *sfile);
  * \param temp_win_size: If the browser was opened in a temporary window,
  * pass its size here so we can store that in the preferences. Otherwise NULL.
  */
-void ED_fileselect_params_save(SpaceFile *sfile);
+void ED_fileselect_params_to_userdef(SpaceFile *sfile);
 
 void ED_fileselect_init_layout(SpaceFile *sfile, ARegion *region);
 

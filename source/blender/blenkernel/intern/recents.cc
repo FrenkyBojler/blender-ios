@@ -325,24 +325,6 @@ const StringRef &recents_defaults()
 title = "Saved UI State Settings"
 name = "Blender"
 
-["file_browser"]
-details_flags = 3
-thumbnail_size = 96
-filter_id = 0
-display_type = 1
-sort_type = 1
-flag = 0
-
-["asset_browser"]
-details_flags = 0
-thumbnail_size = 64
-list_thumbnail_size = 32
-list_column_size = 220
-filter_id = 0
-display_type = 3
-sort_type = 1
-flag = 0
-
 ["temp.window.dimensions"]
 _default = [100.0, 900.0, 200.0, 800.0]
 PREFERENCES = [100.0, 940.0, 350.0, 900.0]
@@ -356,15 +338,6 @@ OUTLINER = [100.0, 550.0, 350.0, 800.0]
 _default = -1
 
 ["panel.open"]
-_default = true
-
-[show.dialog.info]
-_default = true
-
-[show.dialog.warnings]
-_default = true
-
-[show.dialog.confirmations]
 _default = true
 
 )_delim_";

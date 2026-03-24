@@ -765,7 +765,10 @@ struct UserDef_SpaceData {
   char _pad0[6] = {};
 };
 
-/* Deprecated: Leave in until 6.0. */
+/**
+ * Storage for UI data that to keep it even after the window was closed. (Similar to
+ * #UserDef_SpaceData.)
+ */
 struct UserDef_FileSpaceData {
   int display_type = FILE_VERTICALDISPLAY; /* FileSelectParams.display */
   int thumbnail_size = 96;                 /* FileSelectParams.thumbnail_size */
@@ -777,7 +780,6 @@ struct UserDef_FileSpaceData {
   uint64_t filter_id = FILTER_ID_ALL; /* FileSelectParams.filter_id */
 };
 
-/* Deprecated: Leave in until 6.0. */
 struct UserDef_TempWinBounds {
   rctf file = {100.0f, 1160.0f, 350.0f, 950.0f};
   rctf userpref = {100.0f, 940.0f, 350.0f, 900.0f};
