@@ -57,21 +57,19 @@ float4 get_color(float2 uv, float2 dx, float2 dy)
   float4 col;
   if (flag_test(gp_interp_flat.mat_flag, GP_STROKE_TEXTURE_USE)) {
     bool premul = flag_test(gp_interp_flat.mat_flag, GP_STROKE_TEXTURE_PREMUL);
-    if (flag_test(gp_interp_flat.mat_flag, GP_STROKE_ALIGNMENT)) {
-      col = textureGrad(gp_stroke_tx, uv, dx, dy);
-      if (premul && !(col.a == 0.0f || col.a == 1.0f)) {
-        col.rgb = col.rgb / col.a;
-      }
-    }
-    else {
-      col = texture_read_as_linearrgb(gp_stroke_tx, premul, uv);
+    col = textureGrad(gp_stroke_tx, uv, dx, dy);
+    if (premul && !(col.a == 0.0f || col.a == 1.0f)) {
+      col.rgb = col.rgb / col.a;
     }
   }
   else if (flag_test(gp_interp_flat.mat_flag, GP_FILL_TEXTURE_USE)) {
     bool use_clip = flag_test(gp_interp_flat.mat_flag, GP_FILL_TEXTURE_CLIP);
     float2 uvs = (use_clip) ? clamp(uv, 0.0f, 1.0f) : uv;
     bool premul = flag_test(gp_interp_flat.mat_flag, GP_FILL_TEXTURE_PREMUL);
-    col = texture_read_as_linearrgb(gp_fill_tx, premul, uvs);
+    col = textureGrad(gp_fill_tx, uvs, dx, dy);
+    if (premul && !(col.a == 0.0f || col.a == 1.0f)) {
+      col.rgb = col.rgb / col.a;
+    }
   }
   else if (flag_test(gp_interp_flat.mat_flag, GP_FILL_GRADIENT_USE)) {
     bool radial = flag_test(gp_interp_flat.mat_flag, GP_FILL_GRADIENT_RADIAL);
@@ -103,12 +101,6 @@ float4 get_color(float2 uv, float2 dx, float2 dy)
   }
 
   return col;
-}
-
-/* Only use for fills and lines. */
-float4 get_color(float2 uv)
-{
-  return get_color(uv, float2(0.0f), float2(0.0f));
 }
 
 float2x2 calculate_rotation_matrix(float2 x_axis)
@@ -325,7 +317,10 @@ void main()
 
   if (flag_test(gp_interp_flat.mat_flag, GP_FILL))  // fill
   {
-    frag_color = get_color(gp_interp.uv);
+    float2 dx = gpu_dfdx(gp_interp.uv);
+    float2 dy = gpu_dfdy(gp_interp.uv);
+
+    frag_color = get_color(gp_interp.uv, dx, dy);
   }
   else {
     if (flag_test(gp_interp_flat.mat_flag, GP_STROKE_ALIGNMENT))  // dot and squares
@@ -398,7 +393,10 @@ void main()
       }
     }
     else {  // line
-      frag_color = get_color(gp_interp.uv);
+      float2 dx = gpu_dfdx(gp_interp.uv);
+      float2 dy = gpu_dfdy(gp_interp.uv);
+
+      frag_color = get_color(gp_interp.uv, dx, dy);
       frag_color *= gpencil_stroke_mask(gp_interp_flat.sspos_1.xy,
                                         gp_interp_flat.sspos_2.xy,
                                         gp_interp_flat.sspos_0,
