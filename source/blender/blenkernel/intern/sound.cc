@@ -2156,6 +2156,86 @@ std::optional<Array<float>> sound_compute_fft(const bSound &sound,
   return frequency_amplitudes;
 }
 
+float SoundSampler::sample_single(const float time, const float low, const float high) const
+{
+  const std::optional<BinPair> bin_pair = this->get_buckets_for_time(time);
+  if (!bin_pair.has_value()) {
+    return 0.0f;
+  }
+
+  const float prev_cumulative_low = this->sample_cumulative_frequency(bin_pair->prev, low);
+  const float prev_cumulative_high = this->sample_cumulative_frequency(bin_pair->prev, high);
+  const float prev_amplitude = prev_cumulative_high - prev_cumulative_low;
+
+  const float next_cumulative_low = this->sample_cumulative_frequency(bin_pair->next, low);
+  const float next_cumulative_high = this->sample_cumulative_frequency(bin_pair->next, high);
+  const float next_amplitude = next_cumulative_high - next_cumulative_low;
+
+  const float amplitude = math::interpolate(prev_amplitude, next_amplitude, bin_pair->fraction);
+  return amplitude;
+}
+
+float SoundSampler::sample_cumulative_frequency(const Span<float> bucket_values,
+                                                const float frequency) const
+{
+  const int bucket_size = bucket_values.size();
+  const int max_i = bucket_size - 1;
+
+  const float i_float = frequency * key_.fft_size / samples_per_second_;
+  int i = std::floor(i_float);
+  const float fraction = i_float - i;
+
+  i = std::clamp(i, 0, max_i);
+  const int i_next = std::min(i + 1, max_i);
+
+  const float value_0 = bucket_values[i];
+  const float value_1 = bucket_values[i_next];
+  const float value = math::interpolate(value_0, value_1, fraction);
+  return value;
+}
+
+std::optional<SoundSampler::BinPair> SoundSampler::get_buckets_for_time(const float time) const
+{
+  const float bucket_i_float = time * samples_per_second_ / samples_per_bucket_;
+  const int prev_bucket_i = floorf(bucket_i_float);
+  const int next_bucket_i = prev_bucket_i + 1;
+  const float bucket_fraction = bucket_i_float - prev_bucket_i;
+  if (prev_bucket_i < 0) {
+    return std::nullopt;
+  }
+  if (next_bucket_i >= buckets_.size()) {
+    return std::nullopt;
+  }
+  const std::optional<Span<float>> prev_bucket_opt = this->ensure_bucket(prev_bucket_i);
+  const std::optional<Span<float>> next_bucket_opt = this->ensure_bucket(next_bucket_i);
+  if (!prev_bucket_opt.has_value() || !next_bucket_opt.has_value()) {
+    return std::nullopt;
+  }
+  return BinPair{*prev_bucket_opt, *next_bucket_opt, bucket_fraction};
+}
+
+std::optional<Span<float>> SoundSampler::ensure_bucket(const int bucket_i) const
+{
+  const Bin &bucket = buckets_[bucket_i];
+  bucket.mutex.ensure([&]() {
+    std::optional<Array<float>> fft_array = sound_compute_fft(
+        sound_, key_, bucket_i * samples_per_bucket_);
+    if (!fft_array.has_value()) {
+      return;
+    }
+    const Span<float> fft_values = fft_array->as_span();
+    bucket.cumulative_amplitudes.emplace(fft_values.size() + 1);
+    float sum = 0.0f;
+    for (const int i : fft_array->index_range()) {
+      const float value = std::abs(fft_values[i]);
+      (*bucket.cumulative_amplitudes)[i] = sum;
+      sum += value;
+    }
+    bucket.cumulative_amplitudes->last() = sum;
+  });
+  return bucket.cumulative_amplitudes;
+}
+
 }  // namespace bke
 
 }  // namespace blender
