@@ -681,7 +681,7 @@ static bool editmode_load_free_ex(Main *bmain,
         /* Don't keep unused pose channels created by duplicating bones
          * which may have been deleted/undone, see: #87631. */
         if (obedit->pose != nullptr) {
-          BKE_pose_channels_clear_with_null_bone(obedit->pose, true);
+          BKE_pose_channels_clear_with_null_bone(obedit, true);
         }
       }
     }
@@ -2273,9 +2273,10 @@ static wmOperatorStatus move_to_collection_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  if (!ID_IS_EDITABLE(collection) || ID_IS_OVERRIDE_LIBRARY(collection)) {
-    BKE_report(
-        op->reports, RPT_ERROR, "Cannot add objects to a library override or linked collection");
+  std::string reason;
+  if (!BKE_collection_is_content_editable(collection, &reason)) {
+    BKE_reportf(
+        op->reports, RPT_ERROR, "Cannot add objects to the collection. %s", reason.c_str());
     return OPERATOR_CANCELLED;
   }
 

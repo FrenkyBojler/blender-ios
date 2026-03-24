@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Beta (b'fd269015ba63')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'ec8c60553753')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-02 13:27+0000\n"
+"POT-Creation-Date: 2026-03-23 09:55+0000\n"
 "PO-Revision-Date: 2025-12-23 20:36+0000\n"
 "Last-Translator: \"Adriel Y.\" <mixnblend@users.noreply.translate.blender.org>\n"
 "Language-Team: Indonesian <https://translate.blender.org/projects/blender-ui/ui/id/>\n"
@@ -1420,6 +1420,10 @@ msgstr "Default"
 
 msgid "Annotation Stroke"
 msgstr "Anotasi Guratan"
+
+
+msgid "Display Mode"
+msgstr "Mode Layar"
 
 
 msgid "Stroke Points"
@@ -10251,10 +10255,6 @@ msgid "Medium"
 msgstr "Sedang"
 
 
-msgid "Display Mode"
-msgstr "Mode Layar"
-
-
 msgid "Vertical List"
 msgstr "Daftar Vertikal"
 
@@ -12167,6 +12167,10 @@ msgstr "Skala/Translasi"
 
 msgid "Topology"
 msgstr "Topologi"
+
+
+msgid "Plane Normal"
+msgstr "Bidang Normal"
 
 
 msgid "Rate"
@@ -15679,56 +15683,48 @@ msgid "Use Material Mask"
 msgstr "Gunakan Masker Bahan"
 
 
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Metaball"
-msgstr "Metabola"
-
-
-msgid "Sample"
-msgstr "Sampel"
-
-
-msgid "Names"
-msgstr "Nama"
+msgid "Mirror"
+msgstr "Cermin"
 
 
 msgid "Snap"
 msgstr "Jepret"
 
 
-msgid "Mirror"
-msgstr "Cermin"
+msgid "Sample"
+msgstr "Sampel"
 
 
 msgid "Navigation"
 msgstr "Navigasi"
 
 
-msgid "Layout"
-msgstr "Tata Letak"
-
-
 msgid "Select Linked"
 msgstr "Seleksi yang Terhubung"
+
+
+msgid "Gizmo"
+msgstr "Gizmo"
+
+
+msgid "Instances"
+msgstr "Contoh-contoh"
 
 
 msgid "Assign Material"
 msgstr "Tugaskan Bahan"
 
 
-msgid "Tracking"
-msgstr "Pelacakan"
+msgid "Import"
+msgstr "Impor"
 
 
 msgid "Utilities"
 msgstr "Utilitas"
 
 
-msgid "Math"
-msgstr "Matematika"
+msgid "Metaball"
+msgstr "Metabola"
 
 
 msgid "Light"
@@ -15737,6 +15733,14 @@ msgstr "Cahaya"
 
 msgid "Light Probe"
 msgstr "Probe Cahaya"
+
+
+msgid "Math"
+msgstr "Matematika"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Add Image"
@@ -15759,20 +15763,20 @@ msgid "Hooks"
 msgstr "Kait"
 
 
-msgid "Gizmo"
-msgstr "Gizmo"
+msgid "Names"
+msgstr "Nama"
 
 
-msgid "Instances"
-msgstr "Contoh-contoh"
-
-
-msgid "Import"
-msgstr "Impor"
+msgid "Layout"
+msgstr "Tata Letak"
 
 
 msgid "Merge"
 msgstr "Menggabungkan"
+
+
+msgid "Tracking"
+msgstr "Pelacakan"
 
 
 msgid "Animals"
@@ -17843,14 +17847,6 @@ msgid "Custom color of the node body"
 msgstr "Warna kustom badan simpul"
 
 
-msgid "Absolute bounding box dimensions of the node"
-msgstr "Dimensi box terbatas absolut simpul"
-
-
-msgid "Height of the node"
-msgstr "Tinggi node"
-
-
 msgid "Internal Links"
 msgstr "Tautan Internal"
 
@@ -17873,10 +17869,6 @@ msgstr "Pengenal simpul unik"
 
 msgid "Outputs"
 msgstr "Keluaran"
-
-
-msgid "Parent this node is attached to"
-msgstr "Induk simpul ini terikat ke"
 
 
 msgid "Node selection state"
@@ -21293,10 +21285,6 @@ msgstr "Batas sudut"
 
 msgid "Clear Inner"
 msgstr "Bebaskan bagian dalam"
-
-
-msgid "Plane Normal"
-msgstr "Bidang Normal"
 
 
 msgid "Interpolation method"
@@ -27181,6 +27169,10 @@ msgid "Edit animation/keyframes displayed as 2D curves"
 msgstr "Mengedit animasi/bingkai kunci ditampilkan sebagai kurva 2D"
 
 
+msgid "Context sensitive gizmo for the active node"
+msgstr "Gizmo yang peka terhadap konteks untuk node aktif"
+
+
 msgid "Show Mask Editor"
 msgstr "Penyunting Grafik"
 
@@ -27215,10 +27207,6 @@ msgstr "Edit node shader dari Dunia"
 
 msgid "Edit shader nodes from Line Style"
 msgstr "Edit node shader dari Gaya Garis"
-
-
-msgid "Context sensitive gizmo for the active node"
-msgstr "Gizmo yang peka terhadap konteks untuk node aktif"
 
 
 msgid "Texture Node Editor"
