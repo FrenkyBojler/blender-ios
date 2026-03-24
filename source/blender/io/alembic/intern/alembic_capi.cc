@@ -1011,8 +1011,8 @@ void ABC_geo_and_trans(Main *bmain,
     const char *err_str = nullptr;
     bke::GeometrySet geometry_set;
 
-    IObject iobject = reader->iobject();
-    const ObjectHeader &header = iobject.getHeader();
+    IObject reader_iobject = reader->iobject();
+    const ObjectHeader &header = reader_iobject.getHeader();
 
     if (Alembic::AbcGeom::IPolyMesh::matches(header)) {
       geometry_set.replace_mesh(BKE_mesh_new_nomain(0, 0, 0, 0));

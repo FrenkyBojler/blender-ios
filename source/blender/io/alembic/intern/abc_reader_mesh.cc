@@ -719,7 +719,7 @@ void AbcMeshReader::read_geometry(bke::GeometrySet &geometry_set,
   if (mesh == nullptr) {
     return;
   }
-  
+
   Mesh *new_mesh = read_mesh(
       mesh, sample_sel, read_flag, velocity_name, velocity_scale, r_err_str);
 
