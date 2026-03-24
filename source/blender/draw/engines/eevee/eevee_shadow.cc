@@ -1362,7 +1362,7 @@ void ShadowModule::set_view(View &view, int2 extent)
         propagate_update = true;
       }
       if (propagate_update) {
-      inst_.manager->submit(update_propagate_ps_, view);
+        inst_.manager->submit(update_propagate_ps_, view);
       }
       GPU_framebuffer_bind(prev_fb);
       inst_.manager->submit(tilemap_usage_ps_, view);
