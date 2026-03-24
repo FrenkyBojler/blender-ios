@@ -2175,8 +2175,9 @@ bSoundFrequencySampler::bSoundFrequencySampler(const bSound &sound, const Key &k
   const SoundInfo info = bke::sound_info_get(sound_handle);
   samples_per_second_ = info.specs.samplerate;
   /* TODO: Try different values. */
-  bin_offset_stride_ = std::min(4096, key_.fft_size / 2);
-  buckets_.reinitialize(std::ceil(info.length * info.specs.samplerate / bin_offset_stride_));
+  window_cache_stride_ = std::min(4096, key_.fft_size / 2);
+  window_caches_.reinitialize(
+      std::ceil(info.length * info.specs.samplerate / window_cache_stride_));
 }
 
 std::optional<Array<float>> bSoundFrequencySampler::compute_fft(const int start_sample) const
@@ -2253,28 +2254,27 @@ std::optional<Array<float>> bSoundFrequencySampler::compute_fft(const int start_
 
 float bSoundFrequencySampler::sample(const float time, const float low, const float high) const
 {
-  const std::optional<BinPair> bin_pair = this->get_buckets_for_time(time);
-  if (!bin_pair.has_value()) {
+  const std::optional<WindowCachePair> window_pair = this->get_window_caches_for_time(time);
+  if (!window_pair.has_value()) {
     return 0.0f;
   }
 
-  const float prev_cumulative_low = this->sample_cumulative_frequency(bin_pair->prev, low);
-  const float prev_cumulative_high = this->sample_cumulative_frequency(bin_pair->prev, high);
+  const float prev_cumulative_low = this->sample_cumulative_frequency(window_pair->prev, low);
+  const float prev_cumulative_high = this->sample_cumulative_frequency(window_pair->prev, high);
   const float prev_amplitude = prev_cumulative_high - prev_cumulative_low;
 
-  const float next_cumulative_low = this->sample_cumulative_frequency(bin_pair->next, low);
-  const float next_cumulative_high = this->sample_cumulative_frequency(bin_pair->next, high);
+  const float next_cumulative_low = this->sample_cumulative_frequency(window_pair->next, low);
+  const float next_cumulative_high = this->sample_cumulative_frequency(window_pair->next, high);
   const float next_amplitude = next_cumulative_high - next_cumulative_low;
 
-  const float amplitude = math::interpolate(prev_amplitude, next_amplitude, bin_pair->fraction);
+  const float amplitude = math::interpolate(prev_amplitude, next_amplitude, window_pair->fraction);
   return amplitude;
 }
 
-float bSoundFrequencySampler::sample_cumulative_frequency(const Span<float> bucket_values,
+float bSoundFrequencySampler::sample_cumulative_frequency(const Span<float> window_values,
                                                           const float frequency) const
 {
-  const int bucket_size = bucket_values.size();
-  const int max_i = bucket_size - 1;
+  const int max_i = window_values.size() - 1;
 
   const float i_float = frequency * key_.fft_size / samples_per_second_;
   int i = std::floor(i_float);
@@ -2283,52 +2283,52 @@ float bSoundFrequencySampler::sample_cumulative_frequency(const Span<float> buck
   i = std::clamp(i, 0, max_i);
   const int i_next = std::min(i + 1, max_i);
 
-  const float value_0 = bucket_values[i];
-  const float value_1 = bucket_values[i_next];
+  const float value_0 = window_values[i];
+  const float value_1 = window_values[i_next];
   const float value = math::interpolate(value_0, value_1, fraction);
   return value;
 }
 
-std::optional<bSoundFrequencySampler::BinPair> bSoundFrequencySampler::get_buckets_for_time(
-    const float time) const
+std::optional<bSoundFrequencySampler::WindowCachePair> bSoundFrequencySampler::
+    get_window_caches_for_time(const float time) const
 {
-  const float bucket_i_float = time * samples_per_second_ / bin_offset_stride_;
-  const int prev_bucket_i = floorf(bucket_i_float);
-  const int next_bucket_i = prev_bucket_i + 1;
-  const float bucket_fraction = bucket_i_float - prev_bucket_i;
-  if (prev_bucket_i < 0) {
+  const float window_i_float = time * samples_per_second_ / window_cache_stride_;
+  const int prev_window_i = floorf(window_i_float);
+  const int next_window_i = prev_window_i + 1;
+  const float window_fraction = window_i_float - prev_window_i;
+  if (prev_window_i < 0) {
     return std::nullopt;
   }
-  if (next_bucket_i >= buckets_.size()) {
+  if (next_window_i >= window_caches_.size()) {
     return std::nullopt;
   }
-  const std::optional<Span<float>> prev_bucket_opt = this->ensure_bucket(prev_bucket_i);
-  const std::optional<Span<float>> next_bucket_opt = this->ensure_bucket(next_bucket_i);
-  if (!prev_bucket_opt.has_value() || !next_bucket_opt.has_value()) {
+  const std::optional<Span<float>> prev_window_opt = this->ensure_window_cache(prev_window_i);
+  const std::optional<Span<float>> next_window_opt = this->ensure_window_cache(next_window_i);
+  if (!prev_window_opt.has_value() || !next_window_opt.has_value()) {
     return std::nullopt;
   }
-  return BinPair{*prev_bucket_opt, *next_bucket_opt, bucket_fraction};
+  return WindowCachePair{*prev_window_opt, *next_window_opt, window_fraction};
 }
 
-std::optional<Span<float>> bSoundFrequencySampler::ensure_bucket(const int bucket_i) const
+std::optional<Span<float>> bSoundFrequencySampler::ensure_window_cache(const int window_i) const
 {
-  const Bin &bucket = buckets_[bucket_i];
-  bucket.mutex.ensure([&]() {
-    std::optional<Array<float>> fft_array = this->compute_fft(bucket_i * bin_offset_stride_);
+  const WindowCache &window = window_caches_[window_i];
+  window.mutex.ensure([&]() {
+    std::optional<Array<float>> fft_array = this->compute_fft(window_i * window_cache_stride_);
     if (!fft_array.has_value()) {
       return;
     }
     const Span<float> fft_values = fft_array->as_span();
-    bucket.cumulative_amplitudes.emplace(fft_values.size() + 1);
+    window.cumulative_amplitudes.emplace(fft_values.size() + 1);
     float sum = 0.0f;
     for (const int i : fft_array->index_range()) {
       const float value = std::abs(fft_values[i]);
-      (*bucket.cumulative_amplitudes)[i] = sum;
+      (*window.cumulative_amplitudes)[i] = sum;
       sum += value;
     }
-    bucket.cumulative_amplitudes->last() = sum;
+    window.cumulative_amplitudes->last() = sum;
   });
-  return bucket.cumulative_amplitudes;
+  return window.cumulative_amplitudes;
 }
 
 }  // namespace bke

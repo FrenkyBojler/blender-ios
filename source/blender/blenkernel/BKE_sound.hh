@@ -299,12 +299,12 @@ class bSoundFrequencySampler {
   };
 
  private:
-  struct Bin {
+  struct WindowCache {
     mutable CacheMutex mutex;
     mutable std::optional<Array<float, 0>> cumulative_amplitudes;
   };
 
-  struct BinPair {
+  struct WindowCachePair {
     Span<float> prev;
     Span<float> next;
     float fraction;
@@ -313,8 +313,8 @@ class bSoundFrequencySampler {
   const bSound &sound_;
   Key key_;
   int samples_per_second_;
-  int bin_offset_stride_;
-  Array<Bin> buckets_;
+  int window_cache_stride_;
+  Array<WindowCache> window_caches_;
   const WindowWeights &window_weights_;
 
  public:
@@ -325,9 +325,9 @@ class bSoundFrequencySampler {
   float sample(const float time, const float low, const float high) const;
 
  private:
-  float sample_cumulative_frequency(const Span<float> bucket_values, const float frequency) const;
-  std::optional<BinPair> get_buckets_for_time(const float time) const;
-  std::optional<Span<float>> ensure_bucket(const int bucket_i) const;
+  float sample_cumulative_frequency(const Span<float> window_values, const float frequency) const;
+  std::optional<WindowCachePair> get_window_caches_for_time(const float time) const;
+  std::optional<Span<float>> ensure_window_cache(const int window_i) const;
   std::optional<Array<float>> compute_fft(int start_sample) const;
 };
 
