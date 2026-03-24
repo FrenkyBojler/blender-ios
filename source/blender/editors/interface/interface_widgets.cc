@@ -2280,17 +2280,30 @@ static void widget_draw_text(const uiFontStyle *fstyle,
       if (but->menu_key != '\0') {
         const char *drawstr_ofs = drawstr + but->ofs;
         rcti bounds;
-        if (BLF_str_offset_to_glyph_bounds(fstyle->uifont_id, drawstr_ofs, but->menu_key_index, &bounds) &&
+        if (BLF_str_offset_to_glyph_bounds(
+                fstyle->uifont_id, drawstr_ofs, but->menu_key_index, &bounds) &&
             !BLI_rcti_is_empty(&bounds))
         {
-          int ul_width = round_fl_to_int(BLF_width(fstyle->uifont_id, "_", 2));
-          int pos_x = rect->xmin + font_xofs + bounds.xmin +
-                      (bounds.xmax - bounds.xmin - ul_width) / 2;
-          int pos_y = rect->ymin + font_yofs + bounds.ymin - U.pixelsize - U.pixelsize;
           /* Use text output because direct drawing doesn't always work. See #89246. */
+          size_t i = but->menu_key_index;
+          const int uchar = BLI_str_utf8_as_unicode_step_safe(drawstr_ofs, drawlen, &i);
+          const bool is_cjk = (uchar >= 0x4E00 && uchar <= 0x9FFF);
+          const char *ul_char = is_cjk ? "\xEF\xBC\xBF" : "_";
+          int pos_x;
+          int pos_y;
+          if (is_cjk) {
+            pos_x = rect->xmin + font_xofs + bounds.xmin;
+            pos_y = rect->ymin + font_yofs + bounds.ymin - U.pixelsize - U.pixelsize;
+          }
+          else {
+            int ul_width = round_fl_to_int(BLF_width(fstyle->uifont_id, ul_char, 4));
+            pos_x = rect->xmin + font_xofs + bounds.xmin +
+                    (bounds.xmax - bounds.xmin - ul_width) / 2;
+            pos_y = rect->ymin + font_yofs + bounds.ymin - U.pixelsize;
+          }
           BLF_position(fstyle->uifont_id, float(pos_x), pos_y, 0.0f);
           BLF_color4ubv(fstyle->uifont_id, wcol->text);
-          BLF_draw(fstyle->uifont_id, "_", 2);
+          BLF_draw(fstyle->uifont_id, ul_char, 4);
         }
       }
     }

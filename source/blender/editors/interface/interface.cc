@@ -46,8 +46,8 @@
 #include "GPU_state.hh"
 
 #include "BLF_api.hh"
-#include "BLT_translation.hh"
 #include "BLT_lang.hh"
+#include "BLT_translation.hh"
 
 #include "UI_abstract_view.hh"
 #include "UI_interface.hh"
