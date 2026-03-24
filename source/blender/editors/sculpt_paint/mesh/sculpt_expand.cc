@@ -707,6 +707,7 @@ std::array<int, PAINT_SYMM_AREAS> find_all_symm_verts_mesh(const Depsgraph &deps
   const bool use_original = false;
 
   std::array<int, PAINT_SYMM_AREAS> symm_verts;
+  symm_verts.fill(-1);
   symm_verts[0] = original_vert;
 
   const Mesh &mesh = *id_cast<const Mesh *>(object.data);
@@ -740,6 +741,7 @@ std::array<int, PAINT_SYMM_AREAS> find_all_symm_verts_grids(const Object &object
   const bool use_original = false;
 
   std::array<int, PAINT_SYMM_AREAS> symm_verts;
+  symm_verts.fill(-1);
   symm_verts[0] = original_vert;
 
   const SculptSession &ss = *object.runtime->sculpt_session;
@@ -772,6 +774,7 @@ std::array<int, PAINT_SYMM_AREAS> find_all_symm_verts_bmesh(const Object &object
   const bool use_original = false;
 
   std::array<int, PAINT_SYMM_AREAS> symm_verts;
+  symm_verts.fill(-1);
   symm_verts[0] = original_vert;
 
   const SculptSession &ss = *object.runtime->sculpt_session;
