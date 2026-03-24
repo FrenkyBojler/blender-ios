@@ -69,6 +69,35 @@ static void declare_existing(NodeDeclarationBuilder &b)
 /* Declares an output that matches the type of the given pass. */
 static void declare_pass(NodeDeclarationBuilder &b, const RenderPass &pass)
 {
+  /* Check if pass exists already. */
+  for (const SocketDeclaration *output_declaration : b.declaration().sockets(SOCK_OUT)) {
+    if (output_declaration->identifier == pass.name) {
+      if (pass.channels == 1 && output_declaration->socket_type == SOCK_FLOAT) {
+        return;
+      }
+      else if (pass.channels == 2 && output_declaration->socket_type == SOCK_VECTOR) {
+        return;
+      }
+      else if (pass.channels == 3) {
+        if (STR_ELEM(pass.chan_id, "RGB", "rgb") && output_declaration->socket_type == SOCK_RGBA) {
+          return;
+        }
+        else if (output_declaration->socket_type == SOCK_VECTOR) {
+          return;
+        }
+      }
+      else if (pass.channels == 4) {
+        if (STR_ELEM(pass.chan_id, "RGBA", "rgba") && output_declaration->socket_type == SOCK_RGBA)
+        {
+          return;
+        }
+        if (output_declaration->socket_type == SOCK_VECTOR) {
+          return;
+        }
+      }
+    }
+  }
+
   switch (pass.channels) {
     case 1:
       b.add_output<decl::Float>(pass.name).structure_type(StructureType::Dynamic);
