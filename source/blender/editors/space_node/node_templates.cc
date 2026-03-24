@@ -628,7 +628,6 @@ static void ui_template_node_link_menu(bContext *C, ui::Layout *layout, void *bu
 
   if (sock->link) {
     column->label(IFACE_("Link"), ICON_NONE);
-    ui::block_layout_set_current(block, column);
 
     ui::Button *but = uiDefBut(block,
                                ui::ButtonType::But,
