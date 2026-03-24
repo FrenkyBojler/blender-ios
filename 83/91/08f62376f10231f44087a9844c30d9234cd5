@@ -9,3 +9,4 @@ Referenced by issue #136873, Crash while using knife + GN setup
 Referenced by issue #137098, Crash when saving file in edit mode from python `load_post` handler
 Referenced by issue #138200, Regression: UV doesn't appear in UV editor
 Referenced by pull request #155330, Mesh: Avoid name copy at the end of modifier stack
+Referenced by commit 5e1e4de9d95ddaf5e090195d82ad991268014363, Mesh: Avoid name copy at the end of modifier stack
