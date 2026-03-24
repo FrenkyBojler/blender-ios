@@ -111,7 +111,9 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("Upper bound of the sampled frequency range");
 
   {
-    auto &p = b.add_panel("FFT"_ustr).default_closed(true);
+    auto &p = b.add_panel("FFT"_ustr)
+                  .default_closed(true)
+                  .description("Configure details of the fourier transformation");
     p.add_input<decl::Menu>("FFT Size")
         .static_items(fft_size_items)
         .default_value(FFTSize::_4096)
@@ -335,7 +337,7 @@ static void node_register()
   geo_node_type_base(&ntype, "GeometryNodeSampleSound");
   ntype.ui_name = "Sample Sound";
   ntype.ui_description = "";
-  ntype.nclass = NODE_CLASS_CONVERTER;
+  ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   bke::node_register_type(ntype);
