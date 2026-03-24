@@ -6230,7 +6230,11 @@ void button_poin_menu_argN_set(Button *but,
                                ButtonArgNFree func_argN_free_fn,
                                ButtonArgNCopy func_argN_copy_fn)
 {
+  BLI_assert(but->type == ButtonType::Menu);
   but->poin = reinterpret_cast<char *>(poin);
+  if (but->func_argN) {
+    but->func_argN_free_fn(but->func_argN);
+  }
   but->func_argN = argN;
   but->func_argN_free_fn = func_argN_free_fn;
   but->func_argN_copy_fn = func_argN_copy_fn;
