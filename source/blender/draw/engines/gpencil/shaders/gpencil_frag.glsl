@@ -119,7 +119,7 @@ float2x2 calculate_rotation_matrix(float2 x_axis)
   return transpose(float2x2(x_axis, y_axis));
 }
 
-float4 get_dot_color(float2 uv, int i, float radius)
+float4 get_dot_color(float2 uv, int i, float2 dx, float2 dy)
 {
   uint matid = gp_interp_flat.mat_flag >> GPENCIl_MATID_SHIFT;
   gpMaterial gp_mat = gp_materials[matid];
@@ -141,7 +141,10 @@ float4 get_dot_color(float2 uv, int i, float radius)
     rand *= random_rotation;
 
     uv -= 0.5f;
-    uv = rotate_uv(uv, float2(cos(rand), sin(rand)));
+    float2x2 mat = calculate_rotation_matrix(float2(cos(rand), sin(rand)));
+    uv = mat * uv;
+    dx = mat * dx;
+    dy = mat * dy;
     uv += 0.5f;
   }
 
@@ -153,10 +156,12 @@ float4 get_dot_color(float2 uv, int i, float radius)
 
     uv -= 0.5f;
     uv /= rand;
+    dx /= rand;
+    dy /= rand;
     uv += 0.5f;
   }
 
-  float4 col = get_color(uv, radius);
+  float4 col = get_color(uv, dx, dy);
   if (random_hue > 0.0f || random_saturation > 0.0f || random_value > 0.0f) {
     float4 col_hsva;
     rgb_to_hsv(col, col_hsva);
@@ -442,12 +447,14 @@ void main()
           float4 pos = to_cam(P1 + (P2 - P1) * t);
 
           float2 uv = (view_coord - pos.xy) / pos.w;
+          float2 dx = pre_dx / pos.w;
+          float2 dy = pre_dy / pos.w;
 
           uv = uv * 0.5f + 0.5f;
           dx = dx * 0.5f;
           dy = dy * 0.5f;
 
-          frag_color = alpha_over(get_dot_color(uv, dx, dy), frag_color);
+          frag_color = alpha_over(get_dot_color(uv, i, dx, dy), frag_color);
 
           /* Break early if full opacity. */
           if (frag_color.w > 0.999f) {
@@ -456,10 +463,11 @@ void main()
         }
       }
       else {
+        int i = int(gp_interp_flat.point_length.x);
         float2 dx = gpu_dfdx(gp_interp.uv);
         float2 dy = gpu_dfdy(gp_interp.uv);
 
-        frag_color = get_dot_color(gp_interp.uv, dx, dy);
+        frag_color = get_dot_color(gp_interp.uv, i, dx, dy);
       }
     }
     else {  // line
