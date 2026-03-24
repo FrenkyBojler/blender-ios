@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import tomllib
 import logging
+from enum import Enum
 
 import cattrs
 from attrs import define
@@ -24,9 +25,31 @@ PROJECT_CONFIG = "project.toml"
 # -------------------------------------------------------------
 # Types that define the schema for reading/writing project config TOML files.
 
+class VariableType(Enum):
+    INTEGER = 'INTEGER'
+    FLOAT = 'FLOAT'
+    STRING = 'STRING'
+    FILEPATH = 'FILEPATH'
+
+@define
+class ProjectVariable:
+    name: str
+    type: VariableType
+    value: int | str | float
+
 @define
 class ProjectConfig:
     name: str
+    variables: list[ProjectVariable] | None = None
+
+def structure_int_float_str(obj: int | float | str, cl: type) -> int | float | str:
+    if isinstance(obj, int) or isinstance(obj, float) or isinstance(obj, str):
+        return obj
+    else:
+        raise ValueError(f"Cannot structure {obj!r} as int | float | str")
+
+converter = cattrs.Converter()
+converter.register_structure_hook(int | float | str, structure_int_float_str)
 
 
 # -------------------------------------------------------------
@@ -166,6 +189,21 @@ def find_and_load_project_for_blend_path(context, blend_path, report=None):
     # Load project.
     config = read_project_toml_config(root_path, report)
     bpy.data.project_init(config.name, str(root_path))
+    if config.variables is not None:
+        for config_var in config.variables:
+            var = bpy.data.project.variables.new()
+            var.name = config_var.name
+            var.type = config_var.type.value
+            match config_var.type:
+                case VariableType.INTEGER:
+                    var.value_int = config_var.value
+                case VariableType.FLOAT:
+                    var.value_float = config_var.value
+                case VariableType.STRING:
+                    var.value_string = config_var.value
+                case VariableType.FILEPATH:
+                    var.value_string = config_var.value
+
     bpy.data.project.is_dirty = False
 
 
@@ -211,7 +249,6 @@ def read_project_toml_config(root_path, report=None) -> ProjectConfig:
         raise ProjectLoadException
 
     # Validate schema and covert to ProjectConfig class.
-    converter = cattrs.Converter()
     project_config = converter.structure(config_dict, ProjectConfig)
 
     # Other validation not handled by the schema.
@@ -219,6 +256,8 @@ def read_project_toml_config(root_path, report=None) -> ProjectConfig:
         if report:
             report({'ERROR'}, "Invalid project: project name is empty.")
         raise ProjectLoadException
+
+    # TODO: make sure variable values match the variable type.
 
     return project_config
 
