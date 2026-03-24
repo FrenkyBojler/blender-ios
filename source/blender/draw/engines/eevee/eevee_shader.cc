@@ -592,10 +592,16 @@ class SlotAllocator {
   bool sampler_overflow_ = false;
   bool vertex_id_overflow_ = false;
 
+  Set<std::string> visited_infos;
+
  public:
   /** WATCH: Recursive. */
   void reserve_slots(const gpu::shader::ShaderCreateInfo &info)
   {
+    if (!visited_infos.add_overwrite(info.name_)) {
+      /* Avoid infinite recursion or visiting an info more than once. */
+      return;
+    }
     using namespace blender::gpu::shader;
     for (const ShaderCreateInfo::VertIn &vert_in : info.vertex_inputs_) {
       available_vertex_id_ &= ~(uint32_t(1) << vert_in.index);
@@ -854,6 +860,12 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
     info.additional_info("eevee_previous_layer_radiance");
   }
 
+  /* Only deferred material allow use of cryptomatte and render passes. */
+  if (pipeline_type == MAT_PIPE_DEFERRED) {
+    info.additional_info("eevee_render_pass_out");
+    info.additional_info("eevee_cryptomatte_out");
+  }
+
   SlotAllocator slots = add_pipeline_create_info(
       info, pipeline_type, geometry_type, use_shader_to_rgba);
 
@@ -861,12 +873,6 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
     if (resource.bind_type == ShaderCreateInfo::Resource::BindType::SAMPLER) {
       resource.slot = slots.get_next_sampler();
     }
-  }
-
-  /* Only deferred material allow use of cryptomatte and render passes. */
-  if (pipeline_type == MAT_PIPE_DEFERRED) {
-    info.additional_info("eevee_render_pass_out");
-    info.additional_info("eevee_cryptomatte_out");
   }
 
   if (GPU_material_flag_get(gpumat, GPU_MATFLAG_SHADER_TO_RGBA)) {
