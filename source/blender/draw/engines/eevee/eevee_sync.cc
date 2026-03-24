@@ -59,11 +59,8 @@ static inline void geometry_volume_call(PassMain::Sub *pass,
                                         ResourceHandleRange res_handle)
 {
   BLI_assert(res_handle.index_range().size() == 1);
+  BLI_assert(ob->type != OB_VOLUME);
   if (pass != nullptr) {
-    /** WARNING:
-     * drw_volume_object_mesh_init doesn't rely on per-object data,
-     * but volume_object_grids_init does!
-     * We're fine while Volume objects dont support handle ranges. */
     PassMain::Sub *object_pass = volume_sub_pass(*pass, scene, ob, gpumat);
     if (object_pass != nullptr) {
       object_pass->draw(geom, res_handle);
