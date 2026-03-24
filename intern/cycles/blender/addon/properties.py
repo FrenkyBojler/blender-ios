@@ -227,7 +227,6 @@ enum_view3d_shading_render_pass = (
 
     ('POSITION', "Position", "Show the Position render pass"),
     ('NORMAL', "Normal", "Show the Normal render pass"),
-    ('MOTION', "Vector", "Show the Vector render pass"),
     ('UV', "UV", "Show the UV render pass"),
     ('MIST', "Mist", "Show the Mist render pass"),
     ('DENOISING_ALBEDO', "Denoising Albedo", "Albedo pass used by denoiser"),
@@ -236,6 +235,8 @@ enum_view3d_shading_render_pass = (
 )
 
 enum_view3d_debug_render_pass = (
+    ('MOTION', "Vector", "Show the Motion render pass"),
+
     ('VOLUME_SCATTER', "Volume Scatter", "Show the contribution of scattered ray in volume"),
     ('VOLUME_TRANSMIT', "Volume Transmit", "Show the contribution of transmitted ray in volume"),
     ('VOLUME_MAJORANT', "Volume Majorant", "Show the majorant transmittance of the volume")

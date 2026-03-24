@@ -518,11 +518,7 @@ void Camera::update_motion_pre()
     set_motion(motion);
   }
 
-  if (fov != fov_pre) {
-    fov_pre = fov;
-
-    tag_modified();
-  }
+  set_fov_pre(fov);
 }
 
 void Camera::device_update(Device * /*device*/, DeviceScene *dscene, Scene *scene)

@@ -395,6 +395,13 @@ void Scene::device_update(Device *device_, Progress &progress)
 
   device->optimize_for_scene(this);
 
+  if (!params.background) {
+    /* Swap current camera/object/vertex positions to previous positions for next frame. */
+    camera->update_motion_pre();
+    object_manager->update_motion_pre(this);
+    geometry_manager->update_motion_pre(this);
+  }
+
   if (print_stats) {
     const size_t mem_used = util_guarded_get_mem_used();
     const size_t mem_peak = util_guarded_get_mem_peak();
