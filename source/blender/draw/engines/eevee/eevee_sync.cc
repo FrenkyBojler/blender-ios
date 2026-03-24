@@ -96,6 +96,7 @@ void SyncModule::sync_volume_passes(const ObjectHandle &ob_handle,
   blender::Material *blender_mat = GPU_material_get_material(material.volume_material.gpumat);
 
   for (int instance : IndexRange(ob_handle.instances_count())) {
+    /* TODO(fclem): This is against design. Sync shouldn't depend on view properties (camera). */
     VolumeLayer *layer = inst_.pipelines.volume.register_and_get_layer(
         VolumeObjectBounds(inst_.camera, ob_handle, instance));
 
