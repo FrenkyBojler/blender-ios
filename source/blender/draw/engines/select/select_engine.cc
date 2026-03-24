@@ -131,8 +131,8 @@ struct Instance : public DrawEngine {
       state |= DRW_STATE_CLIP_PLANES;
     }
 
-    if (draw_ctx->v3d->shading.flag & V3D_SHADING_BACKFACE_CULLING && draw_ctx->v3d->shading.type == OB_SOLID)
-    {
+    if (draw_ctx->v3d->shading.flag & V3D_SHADING_BACKFACE_CULLING &&
+        draw_ctx->v3d->shading.type == OB_SOLID) {
       state |= DRW_STATE_CULL_BACK;
     }
 
