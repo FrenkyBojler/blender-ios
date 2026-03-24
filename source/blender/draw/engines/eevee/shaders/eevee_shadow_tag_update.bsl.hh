@@ -62,6 +62,16 @@ void tag_update_vert([[resource_table]] TagUpdate &srt,
 
   ShadowTileMapData tilemap = tilemaps.tilemaps_buf[v_out.tilemap_index];
 
+  if (is_local_light(tilemap.light_type)) {
+    /* Coarse culling to avoid objects beyond the far plane to appear in the flattened projection.
+     * This can result in a lot of false positive for small lights. */
+    float vs_center_z = transform_point(tilemap.viewmat, bounds.bounding_sphere.xyz).z;
+    if (vs_center_z + bounds.bounding_sphere.w < -tilemap.clip_far) {
+      out_position = float4(NAN_FLT);
+      return;
+    }
+  }
+
   const float3 ls_N = v_in.pos;
   /* Convert from -1..1 box shape to 0..1 box. */
   const float3 ls_P = max(float3(0), v_in.pos);
