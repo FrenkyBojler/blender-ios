@@ -180,6 +180,7 @@ std::optional<RayHit> Tree::ray_intersect(const Ray &ray) const
   hit.normal = float3(rtc_hit.hit.Ng_x, rtc_hit.hit.Ng_y, rtc_hit.hit.Ng_z);
   hit.bary_coord = float2(rtc_hit.hit.u, rtc_hit.hit.v);
   hit.index = rtc_hit.hit.primID;
+  hit.distance = rtc_hit.ray.tfar;
   return hit;
 }
 
