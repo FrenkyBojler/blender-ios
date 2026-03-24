@@ -154,12 +154,12 @@ class SampleSoundFunction : public mf::MultiFunction {
     const bool constant_channel = all_channels_value == true ||
                                   (all_channels_value.has_value() && channel_value.has_value());
 
+    /* Optimize the case when all indices sample the same channel. */
     if (constant_channel) {
       bke::SampleSoundKey key;
       key.window = window_function_;
       key.fft_size = fft_size_;
       key.channel = *all_channels_value ? std::nullopt : channel_value;
-
       const bke::SoundSampler *sampler = bke::sound_sampler_get(sound_, key);
       if (!sampler) {
         index_mask::masked_fill(amplitudes, 0.0f, mask);
@@ -175,26 +175,61 @@ class SampleSoundFunction : public mf::MultiFunction {
       return;
     }
 
+    /* Sort indices by channel, optimizing for the common case that the channel number is typically
+     * very low. */
+    constexpr int channel_array_size = 6;
+    std::array<Vector<int>, channel_array_size> indices_by_channel;
+    MultiValueMap<int, int> indices_with_different_channel;
+    Vector<int> indices_with_all_channels;
     mask.foreach_index([&](const int i) {
-      const float time = times[i];
       const bool all_channels = all_channels_varray[i];
-      const int channel = channels[i];
-      const float low = lows[i];
-      const float high = highs[i];
+      if (all_channels) {
+        indices_with_all_channels.append(i);
+      }
+      else {
+        const int channel = channels[i];
+        if (channel >= 0 && channel < channel_array_size) {
+          indices_by_channel[channel].append(i);
+        }
+        else {
+          indices_with_different_channel.add(channel, i);
+        }
+      }
+    });
 
+    /* Actually sample the indices by channel. */
+    auto sample_indices_in_channel = [&](const Span<int> indices,
+                                         const std::optional<int> channel) {
+      if (indices.is_empty()) {
+        return;
+      }
       bke::SampleSoundKey key;
       key.window = window_function_;
       key.fft_size = fft_size_;
-      key.channel = all_channels ? std::nullopt : std::make_optional(channel);
-
+      key.channel = channel;
       const bke::SoundSampler *sampler = bke::sound_sampler_get(sound_, key);
       if (!sampler) {
-        amplitudes[i] = 0.0f;
+        for (const int i : indices) {
+          amplitudes[i] = 0.0f;
+        }
         return;
       }
-      const float amplitude = sampler->sample_single(time, low, high);
-      amplitudes[i] = amplitude;
-    });
+      for (const int i : indices) {
+        const float time = times[i];
+        const float low = lows[i];
+        const float high = highs[i];
+        const float amplitude = sampler->sample_single(time, low, high);
+        amplitudes[i] = amplitude;
+      }
+    };
+
+    sample_indices_in_channel(indices_with_all_channels, std::nullopt);
+    for (const int channel : IndexRange(channel_array_size)) {
+      sample_indices_in_channel(indices_by_channel[channel], channel);
+    }
+    for (const auto item : indices_with_different_channel.items()) {
+      sample_indices_in_channel(item.value, item.key);
+    }
   }
 };
 

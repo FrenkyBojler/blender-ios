@@ -2100,6 +2100,13 @@ const SoundSampler *sound_sampler_get(const bSound &sound, const SampleSoundKey 
   }
   SoundSamplerMap::MutableAccessor accessor;
   if (sound.runtime->samplers.add(accessor, key)) {
+    if (key.channel.has_value()) {
+      const SoundInfo info = sound_info_get(sound.runtime->handle);
+      const int channel = *key.channel;
+      if (channel < 0 || channel >= info.specs.channels) {
+        return nullptr;
+      }
+    }
     accessor->second = std::make_shared<SoundSampler>(sound, key);
   }
   return accessor->second.get();
