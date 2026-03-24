@@ -3321,11 +3321,6 @@ static void do_brush_action(const Depsgraph &depsgraph,
                                     std::numeric_limits<float>::max());
   }
 
-  bool invert = ss.cache->pen_flip || ss.cache->invert;
-  if (brush.flag & BRUSH_DIR_IN) {
-    invert = !invert;
-  }
-
   /* Apply one type of brush action. */
   switch (brush.sculpt_brush_type) {
     case SCULPT_BRUSH_TYPE_DRAW: {
@@ -4072,8 +4067,6 @@ static void init_scene_project_brush_targets(const Depsgraph &depsgraph,
     cache.project_targets.append(std::move(project_target));
   }
 }
-
-/* Initialize the stroke cache invariants from operator properties. */
 
 static float brush_dynamic_size_get(const Brush &brush,
                                     const StrokeCache &cache,
@@ -6035,7 +6028,16 @@ static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
   {
     return OPERATOR_CANCELLED;
   }
-  if (brush_type_is_mask(brush.sculpt_brush_type)) {
+  /* Currently, we only switch the brush as part of StrokeCache initialization, which does not
+   * happen until the brush goes over the mesh. Instead, check the #BrushSwitchMode which will
+   * tell if the brush will toggled at that point.
+   *
+   * Temporary mitigation to avoid backporting larger refactor for 5.1 backport.
+   *
+   * TODO: Remove this workaround, create `StrokeCache` here with "immutable" toggle values.
+   */
+  const BrushSwitchMode mode = BrushSwitchMode(RNA_enum_get(op->ptr, "brush_toggle"));
+  if (brush_type_is_mask(brush.sculpt_brush_type) || mode == BrushSwitchMode::Mask) {
     MultiresModifierData *mmd = BKE_sculpt_multires_active(&scene, &ob);
     BKE_sculpt_mask_layers_ensure(CTX_data_depsgraph_pointer(C), CTX_data_main(C), &ob, mmd);
 
