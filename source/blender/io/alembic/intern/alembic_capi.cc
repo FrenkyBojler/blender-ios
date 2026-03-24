@@ -1008,8 +1008,6 @@ void ABC_geo_and_trans(Main *bmain,
 
     const char *err_str = nullptr;
     bke::GeometrySet geometry_set;
-    Mesh *mesh = BKE_mesh_new_nomain(0, 0, 0, 0);
-    geometry_set.replace_mesh(mesh);
 
     reader->read_geometry(geometry_set,
                           sample_sel,

@@ -566,6 +566,10 @@ void AbcCurveReader::read_geometry(bke::GeometrySet &geometry_set,
                                    const float /*velocity_scale*/,
                                    const char ** /*r_err_str*/)
 {
+  if (!geometry_set.has_curves()) {
+    geometry_set.replace_curves(bke::curves_new_nomain(0, 0));
+  }
+
   Curves *curves = geometry_set.get_curves_for_write();
 
   bool use_interpolation = read_flag & MOD_MESHSEQ_INTERPOLATE_VERTICES;
