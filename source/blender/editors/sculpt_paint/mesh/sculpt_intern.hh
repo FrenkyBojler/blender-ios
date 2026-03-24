@@ -179,7 +179,6 @@ struct ImageData : NonCopyable {
 struct StrokeToggleSettings {
   /**
    * Whether the modifier key that controls inverting brush behavior is active currently.
-   * Generally signals a change in behavior for brushes.
    *
    * \see BrushStrokeMode::Invert.
    */
@@ -187,7 +186,6 @@ struct StrokeToggleSettings {
 
   /**
    * Whether the modifier key that controls smoothing is active currently.
-   * Generally signals a change in behavior for different brushes.
    *
    * \see BrushSwitchMode::Smooth.
    */
