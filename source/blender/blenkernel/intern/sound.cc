@@ -2294,7 +2294,10 @@ float bSoundFrequencySampler::sample_cumulative_frequency(const Span<float> wind
 std::optional<bSoundFrequencySampler::WindowCachePair> bSoundFrequencySampler::
     get_window_caches_for_time(const float time) const
 {
-  const float window_i_float = time * samples_per_second_ / window_cache_stride_;
+  /* The time should be at the middle of the window (the different window functions have their peak
+   * there). */
+  const float window_i_float = std::max(
+      0.0f, (time * samples_per_second_ - key_.fft_size / 2) / window_cache_stride_);
   const int prev_window_i = floorf(window_i_float);
   const int next_window_i = prev_window_i + 1;
   const float window_fraction = window_i_float - prev_window_i;
