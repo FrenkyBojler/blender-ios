@@ -165,7 +165,7 @@ bool VelocityModule::step_object_sync(const ObjectHandle &ob_handle,
     has_deform = data.has_data();
   }
 
-  bool any_have_motion = false;
+  bool any_instance_has_motion = false;
   for (int i : IndexRange(ob_handle.instances_count())) {
     /* Object motion. */
     /* FIXME(fclem) As we are using original objects pointers, there is a chance the previous
@@ -203,17 +203,16 @@ bool VelocityModule::step_object_sync(const ObjectHandle &ob_handle,
       const float4x4 &obmat_curr = (*object_steps[STEP_CURRENT])[vel.obj.ofs[STEP_CURRENT]];
       const float4x4 &obmat_prev = (*object_steps[STEP_PREVIOUS])[vel.obj.ofs[STEP_PREVIOUS]];
       if (inst_.is_viewport()) {
-        any_have_motion = any_have_motion || (obmat_curr != obmat_prev);
+        any_instance_has_motion |= obmat_curr != obmat_prev;
       }
       else {
         const float4x4 &obmat_next = (*object_steps[STEP_NEXT])[vel.obj.ofs[STEP_NEXT]];
-        any_have_motion = any_have_motion ||
-                          (obmat_curr != obmat_prev || obmat_curr != obmat_next);
+        any_instance_has_motion |= (obmat_curr != obmat_prev) || (obmat_curr != obmat_next);
       }
     }
   }
 
-  return has_deform || any_have_motion;
+  return has_deform || any_instance_has_motion;
 }
 
 void VelocityModule::geometry_steps_fill()
