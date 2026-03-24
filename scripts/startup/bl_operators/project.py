@@ -37,6 +37,7 @@ class ProjectVariable:
     name: str
     type: VariableType
     value: int | str | float
+    description: str | None = None
 
 
 @define
@@ -156,6 +157,8 @@ def save_project(project, report=None):
             for var in project.variables:
                 f.write("[[variables]]\n")
                 f.write(f"name = \"{escape_string(var.name)}\"\n")
+                if var.description != "":
+                    f.write("description = \"{}\"\n".format(escape_string(var.description)))
                 f.write(f"type = \"{var.type}\"\n")
                 match var.type:
                     case 'INTEGER':
@@ -223,6 +226,8 @@ def find_and_load_project_for_blend_path(context, blend_path, report=None):
                     var.value_string = config_var.value
                 case VariableType.FILEPATH:
                     var.value_string = config_var.value
+            if config_var.description is not None:
+                var.description = config_var.description
 
     bpy.data.project.is_dirty = False
 

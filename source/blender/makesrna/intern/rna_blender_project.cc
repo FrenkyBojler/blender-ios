@@ -102,6 +102,28 @@ static void rna_ProjectVariable_name_set(PointerRNA *ptr, const char *value)
   var->name.append(value);
 }
 
+static void rna_ProjectVariable_description_get(PointerRNA *ptr, char *value)
+{
+  const ProjectVariable *var = static_cast<ProjectVariable *>(ptr->data);
+
+  strcpy(value, var->description.c_str());
+}
+
+static int rna_ProjectVariable_description_length(PointerRNA *ptr)
+{
+  const ProjectVariable *var = static_cast<ProjectVariable *>(ptr->data);
+
+  return var->description.size();
+}
+
+static void rna_ProjectVariable_description_set(PointerRNA *ptr, const char *value)
+{
+  ProjectVariable *var = static_cast<ProjectVariable *>(ptr->data);
+
+  var->description.clear();
+  var->description.append(value);
+}
+
 static int rna_ProjectVariable_value_int_get(PointerRNA *ptr)
 {
   const ProjectVariable *var = static_cast<ProjectVariable *>(ptr->data);
@@ -254,6 +276,7 @@ static ProjectVariable *rna_ProjectVariables_new(bke::BlenderProject *project_da
 
   ProjectVariable *new_var = project_data->new_variable();
   new_var->name = std::string(name);
+  new_var->description = std::string();
   new_var->type = bke::ProjectVarType(type);
   new_var->value_int = 0;
   new_var->value_float = 0.0;
@@ -313,6 +336,15 @@ void rna_def_project_variable(BlenderRNA *brna)
                                 "rna_ProjectVariable_name_get",
                                 "rna_ProjectVariable_name_length",
                                 "rna_ProjectVariable_name_set");
+  RNA_def_property_update(prop, 0, "rna_BlenderProject_update");
+
+  prop = RNA_def_property(srna, "description", PROP_STRING, PROP_NONE);
+  RNA_def_property_ui_text(
+      prop, "Description", "Description of the variable (e.g. purpose, semantics, etc.)");
+  RNA_def_property_string_funcs(prop,
+                                "rna_ProjectVariable_description_get",
+                                "rna_ProjectVariable_description_length",
+                                "rna_ProjectVariable_description_set");
   RNA_def_property_update(prop, 0, "rna_BlenderProject_update");
 
   prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);

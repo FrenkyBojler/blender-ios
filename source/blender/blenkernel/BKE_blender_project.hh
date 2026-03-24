@@ -28,6 +28,7 @@ enum class ProjectVarType {
 
 struct ProjectVariable {
   std::string name;
+  std::string description;
   ProjectVarType type;
 
   /* For INTEGER type. */

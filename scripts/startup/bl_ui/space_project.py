@@ -261,6 +261,9 @@ class PROJECT_UL_variables(bpy.types.UIList):
                     col.prop(item, "value_string")
                 case 'FILEPATH':
                     col.prop(item, "value_string")
+
+            col = layout.column()
+            col.prop(item, "description")
         # 'GRID' layout type should be as compact as possible (typically a single icon!).
         elif self.layout_type in {'GRID'}:
             # TODO
