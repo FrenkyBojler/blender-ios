@@ -534,7 +534,9 @@ GSpanAttributeWriter MutableAttributeAccessor::lookup_or_add_for_write_only_span
   return {};
 }
 
-bool MutableAttributeAccessor::rename(const StringRef old_name, const StringRef new_name)
+bool MutableAttributeAccessor::rename(const StringRef old_name,
+                                      const StringRef new_name,
+                                      const bool overwrite)
 {
   if (new_name.is_empty()) {
     return false;
@@ -543,7 +545,10 @@ bool MutableAttributeAccessor::rename(const StringRef old_name, const StringRef 
     return true;
   }
   if (this->contains(new_name)) {
-    return false;
+    if (!overwrite) {
+      return false;
+    }
+    this->remove(new_name);
   }
   const GAttributeReader old_attribute = this->lookup(old_name);
   if (!old_attribute) {

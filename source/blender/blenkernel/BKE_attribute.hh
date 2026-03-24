@@ -809,7 +809,7 @@ class MutableAttributeAccessor : public AttributeAccessor {
   /**
    * Replace the existing attribute with a new one with a different name.
    */
-  bool rename(StringRef old_name, StringRef new_name);
+  bool rename(StringRef old_name, StringRef new_name, bool overwrite = false);
 
   /**
    * Create a new attribute.
