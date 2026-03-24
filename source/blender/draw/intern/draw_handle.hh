@@ -183,6 +183,9 @@ class ResourceHandleRange {
     return index_;
   }
 
+  /* Returns a single handle within this range.
+   * May be required for passes that require per-instance setups,
+   * so their drawing can't be batched into a single draw call. */
   ResourceHandle sub_handle(int index) const
   {
     BLI_assert(index < index_.count);
