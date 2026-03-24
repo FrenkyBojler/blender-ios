@@ -2116,8 +2116,8 @@ const bSoundFrequencySampler *bSoundFrequencySampler::get_cached(const bSound &s
   return accessor->second.get();
 }
 
-static WindowFunctionWeights compute_window_function_weights(const SampleSoundWindow window,
-                                                             const int size)
+static bSoundFrequencySampler::WindowWeights compute_window_function_weights(
+    const SampleSoundWindow window, const int size)
 {
   Array<float> weights(size);
   switch (window) {
@@ -2149,24 +2149,27 @@ static WindowFunctionWeights compute_window_function_weights(const SampleSoundWi
   for (const float weight : weights) {
     sum += weight;
   }
-  return WindowFunctionWeights{std::move(weights), sum};
+  return bSoundFrequencySampler::WindowWeights{std::move(weights), sum};
 }
 
-static const WindowFunctionWeights &get_window_function_weights(const SampleSoundWindow window,
-                                                                const int size)
+static const bSoundFrequencySampler::WindowWeights &get_window_function_weights(
+    const SampleSoundWindow window, const int size)
 {
   static Mutex mutex;
-  static Map<std::pair<SampleSoundWindow, int>, std::unique_ptr<WindowFunctionWeights>> map;
+  static Map<std::pair<SampleSoundWindow, int>,
+             std::unique_ptr<bSoundFrequencySampler::WindowWeights>>
+      map;
   std::lock_guard lock{mutex};
   return *map.lookup_or_add_cb({window, size}, [&]() {
-    return std::make_unique<WindowFunctionWeights>(compute_window_function_weights(window, size));
+    return std::make_unique<bSoundFrequencySampler::WindowWeights>(
+        compute_window_function_weights(window, size));
   });
 }
 
 bSoundFrequencySampler::bSoundFrequencySampler(const bSound &sound, const Key &key)
     : sound_(sound),
       key_(key),
-      window_function_weights_(get_window_function_weights(key.window, key.fft_size))
+      window_weights_(get_window_function_weights(key.window, key.fft_size))
 {
   AUD_Sound sound_handle = sound.runtime->handle;
   const SoundInfo info = bke::sound_info_get(sound_handle);
@@ -2213,7 +2216,7 @@ std::optional<Array<float>> bSoundFrequencySampler::compute_fft(const int start_
 
   /* Apply window function which avoids spectral leakage (depending on the function). */
   for (const int i : IndexRange(length)) {
-    buffer[i] *= window_function_weights_.weights[i];
+    buffer[i] *= window_weights_.weights[i];
   }
 
   /* Since the result of the dft algorithm is symmetric in this case, only the first half is
@@ -2237,7 +2240,7 @@ std::optional<Array<float>> bSoundFrequencySampler::compute_fft(const int start_
   Array<float> frequency_amplitudes(frequencies_num);
   /* The scaling factor is applied so that changing the fft size or window function does not affect
    * the magnitude of the result. */
-  const float scaling_factor = 1.0f / window_function_weights_.weights_sum;
+  const float scaling_factor = 1.0f / window_weights_.weights_sum;
   for (const int i : IndexRange(frequencies_num)) {
     const fftwf_complex &c = fftwf_buffer[i];
     /* Take real and imaginary parts into account which correspond to the sin and cos component of

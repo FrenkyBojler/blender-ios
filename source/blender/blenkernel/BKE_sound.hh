@@ -275,11 +275,6 @@ enum class SampleSoundWindow {
   Rectangular,
 };
 
-struct WindowFunctionWeights {
-  Array<float> weights;
-  float weights_sum;
-};
-
 class bSoundFrequencySampler {
  public:
   struct Key {
@@ -293,6 +288,10 @@ class bSoundFrequencySampler {
     }
 
     friend bool operator==(const Key &a, const Key &b) = default;
+  };
+  struct WindowWeights {
+    Array<float> weights;
+    float weights_sum;
   };
 
  private:
@@ -312,7 +311,7 @@ class bSoundFrequencySampler {
   int samples_per_second_;
   int bin_offset_stride_;
   Array<Bin> buckets_;
-  const WindowFunctionWeights &window_function_weights_;
+  const WindowWeights &window_weights_;
 
  public:
   static const bSoundFrequencySampler *get_cached(const bSound &sound, const Key &key);
