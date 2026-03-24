@@ -280,26 +280,21 @@ struct WindowFunctionWeights {
   float weights_sum;
 };
 
-struct bSoundFrequencySamplerKey {
-  SampleSoundWindow window;
-  int fft_size;
-  std::optional<int> channel;
-
-  uint64_t hash() const
-  {
-    return get_default_hash(this->window, this->fft_size, this->channel.value_or(-1));
-  }
-
-  friend bool operator==(const bSoundFrequencySamplerKey &a,
-                         const bSoundFrequencySamplerKey &b) = default;
-};
-
-std::optional<Array<float>> sound_compute_fft(const bSound &sound,
-                                              const bSoundFrequencySamplerKey &key,
-                                              const int start_sample,
-                                              const WindowFunctionWeights &weights);
-
 class bSoundFrequencySampler {
+ public:
+  struct Key {
+    SampleSoundWindow window;
+    int fft_size;
+    std::optional<int> channel;
+
+    uint64_t hash() const
+    {
+      return get_default_hash(this->window, this->fft_size, this->channel.value_or(-1));
+    }
+
+    friend bool operator==(const Key &a, const Key &b) = default;
+  };
+
  private:
   struct Bin {
     mutable CacheMutex mutex;
@@ -313,14 +308,16 @@ class bSoundFrequencySampler {
   };
 
   const bSound &sound_;
-  bSoundFrequencySamplerKey key_;
+  Key key_;
   int samples_per_second_;
   int bin_offset_stride_;
   Array<Bin> buckets_;
   const WindowFunctionWeights &window_function_weights_;
 
  public:
-  bSoundFrequencySampler(const bSound &sound, const bSoundFrequencySamplerKey &key);
+  static const bSoundFrequencySampler *get_cached(const bSound &sound, const Key &key);
+
+  bSoundFrequencySampler(const bSound &sound, const Key &key);
 
   float sample_single(const float time, const float low, const float high) const;
 
@@ -330,8 +327,10 @@ class bSoundFrequencySampler {
   std::optional<Span<float>> ensure_bucket(const int bucket_i) const;
 };
 
-const bSoundFrequencySampler *sound_sampler_get(const bSound &sound,
-                                                const bSoundFrequencySamplerKey &key);
+std::optional<Array<float>> sound_compute_fft(const bSound &sound,
+                                              const bSoundFrequencySampler::Key &key,
+                                              const int start_sample,
+                                              const WindowFunctionWeights &weights);
 
 }  // namespace bke
 

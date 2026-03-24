@@ -112,7 +112,7 @@ enum class SoundTags {
 ENUM_OPERATORS(SoundTags);
 
 using SoundSamplerMap =
-    ConcurrentMap<bSoundFrequencySamplerKey, std::shared_ptr<bSoundFrequencySampler>>;
+    ConcurrentMap<bSoundFrequencySampler::Key, std::shared_ptr<bSoundFrequencySampler>>;
 
 struct SoundRuntime {
   AUD_Sound handle;
@@ -2091,8 +2091,8 @@ const Vector<float> *BKE_sound_runtime_get_waveform(const bSound *sound)
 
 namespace bke {
 
-const bSoundFrequencySampler *sound_sampler_get(const bSound &sound,
-                                                const bSoundFrequencySamplerKey &key)
+const bSoundFrequencySampler *bSoundFrequencySampler::get_cached(const bSound &sound,
+                                                                 const Key &key)
 {
   {
     SoundSamplerMap::ConstAccessor accessor;
@@ -2161,8 +2161,7 @@ static const WindowFunctionWeights &get_window_function_weights(const SampleSoun
   });
 }
 
-bSoundFrequencySampler::bSoundFrequencySampler(const bSound &sound,
-                                               const bSoundFrequencySamplerKey &key)
+bSoundFrequencySampler::bSoundFrequencySampler(const bSound &sound, const Key &key)
     : sound_(sound),
       key_(key),
       window_function_weights_(get_window_function_weights(key.window, key.fft_size))
@@ -2176,7 +2175,7 @@ bSoundFrequencySampler::bSoundFrequencySampler(const bSound &sound,
 }
 
 std::optional<Array<float>> sound_compute_fft(const bSound &sound,
-                                              const bSoundFrequencySamplerKey &key,
+                                              const bSoundFrequencySampler::Key &key,
                                               const int start_sample,
                                               const WindowFunctionWeights &weights)
 {
