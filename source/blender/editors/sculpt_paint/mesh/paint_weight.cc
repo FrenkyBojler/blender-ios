@@ -62,11 +62,11 @@
 
 #include "RNA_define.hh"
 
-#include "vw_paint_intern.hh" /* own include */
 #include "../paint_intern.hh" /* own include */
 #include "mesh_brush_common.hh"
 #include "sculpt_automask.hh"
 #include "sculpt_intern.hh"
+#include "vw_paint_intern.hh" /* own include */
 
 namespace blender {
 
@@ -1830,7 +1830,7 @@ static void wpaint_do_symmetrical_brush_actions(
   cache.is_last_valid = true;
 }
 
-void WeightPaintStroke::update_step(wmOperator */*op*/, PointerRNA *itemptr)
+void WeightPaintStroke::update_step(wmOperator * /*op*/, PointerRNA *itemptr)
 {
   VPaint &wp = *weight_paint_;
   const ToolSettings &ts = *tool_settings_;

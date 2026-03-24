@@ -689,5 +689,4 @@ void paint_init_pivot(Object *ob, Scene *scene, Paint *paint);
 /* paint curve defines */
 #define PAINT_CURVE_NUM_SEGMENTS 40
 
-
 }  // namespace blender

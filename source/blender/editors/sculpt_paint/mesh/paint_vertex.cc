@@ -67,12 +67,12 @@
 
 #include "bmesh.hh"
 
-#include "vw_paint_intern.hh" /* own include */
 #include "../paint_intern.hh" /* own include */
 #include "mesh_brush_common.hh"
 #include "sculpt_automask.hh"
 #include "sculpt_intern.hh"
 #include "sculpt_pose.hh"
+#include "vw_paint_intern.hh" /* own include */
 
 namespace blender {
 

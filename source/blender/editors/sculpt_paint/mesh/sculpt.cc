@@ -611,8 +611,7 @@ static void sculpt_project_v3_normal_align(const StrokeCache &cache,
   float len_view_scale;
   {
     float view_aligned_normal[3];
-    project_plane_v3_v3v3(
-        view_aligned_normal, cache.sculpt_normal_symm, cache.view_normal_symm);
+    project_plane_v3_v3v3(view_aligned_normal, cache.sculpt_normal_symm, cache.view_normal_symm);
     len_view_scale = fabsf(dot_v3v3(view_aligned_normal, cache.sculpt_normal_symm));
     len_view_scale = (len_view_scale > FLT_EPSILON) ? 1.0f / len_view_scale : 1.0f;
   }
@@ -622,7 +621,8 @@ static void sculpt_project_v3_normal_align(const StrokeCache &cache,
       grab_delta, cache.sculpt_normal_symm, (len_signed * normal_weight) * len_view_scale);
 }
 
-float3 grab_delta_get(const Brush &brush, const StrokeCache &cache) {
+float3 grab_delta_get(const Brush &brush, const StrokeCache &cache)
+{
   float3 grab_delta = cache.grab_delta_symm;
 
   const float normal_weight = bke::brush::normal_weight_get(brush, cache.toggle_settings.invert);
@@ -633,8 +633,7 @@ float3 grab_delta_get(const Brush &brush, const StrokeCache &cache) {
   return grab_delta;
 }
 
-}
-
+}  // namespace ed::sculpt_paint
 
 namespace ed::sculpt_paint {
 
@@ -859,7 +858,8 @@ static int sculpt_brush_needs_normal(const SculptSession &ss, const Brush &brush
 {
   using namespace blender::ed::sculpt_paint;
   const MTex *mask_tex = BKE_brush_mask_texture_get(&brush, OB_MODE_SCULPT);
-  return ((bke::brush::supports_normal_weight(brush) && (bke::brush::normal_weight_get(brush, ss.cache->toggle_settings.invert) > 0.0f)) ||
+  return ((bke::brush::supports_normal_weight(brush) &&
+           (bke::brush::normal_weight_get(brush, ss.cache->toggle_settings.invert) > 0.0f)) ||
           ELEM(brush.sculpt_brush_type,
                SCULPT_BRUSH_TYPE_BLOB,
                SCULPT_BRUSH_TYPE_CREASE,
@@ -2658,7 +2658,8 @@ static void update_sculpt_normal(const Depsgraph &depsgraph,
                                !(brush.stroke_method == BRUSH_STROKE_ANCHORED)) &&
                              !(brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_ELASTIC_DEFORM) &&
                              !(brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_SNAKE_HOOK &&
-                               bke::brush::normal_weight_get(brush, cache.toggle_settings.invert) > 0.0f);
+                               bke::brush::normal_weight_get(brush, cache.toggle_settings.invert) >
+                                   0.0f);
 
   if (cache.mirror_symmetry_pass == 0 && cache.radial_symmetry_pass == 0 &&
       (SCULPT_stroke_is_first_brush_step_of_symmetry_pass(cache) || update_normal))
@@ -3944,7 +3945,9 @@ static void sculpt_init_mirror_clipping(const Object &ob, const SculptSession &s
   ss.cache->mirror_modifier_clip.mat_inv = math::invert(ss.cache->mirror_modifier_clip.mat);
 }
 
-static void smooth_brush_toggle_on(Main *bmain, Paint *paint, StrokeToggleSettings &toggle_settings)
+static void smooth_brush_toggle_on(Main *bmain,
+                                   Paint *paint,
+                                   StrokeToggleSettings &toggle_settings)
 {
   Brush *cur_brush = BKE_paint_brush(paint);
 
@@ -5584,9 +5587,7 @@ static void stroke_undo_end(PaintModeSettings &paint_mode_settings, Object &obje
 namespace ed::sculpt_paint {
 
 /** Creates stroke-level toggle settings, modifies the current active brush if needed */
-static StrokeToggleSettings create_toggle_settings(const wmOperator &op,
-                                                   Main &bmain,
-                                                   Paint &paint)
+static StrokeToggleSettings create_toggle_settings(const wmOperator &op, Main &bmain, Paint &paint)
 {
   const BrushStrokeMode stroke_mode = BrushStrokeMode(RNA_enum_get(op.ptr, "mode"));
   const BrushSwitchMode brush_switch_mode = BrushSwitchMode(RNA_enum_get(op.ptr, "brush_toggle"));

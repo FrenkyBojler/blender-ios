@@ -1,5 +1,5 @@
 /* SPDX-FileCopyrightText: 2026 Blender Authors
-*
+ *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
@@ -48,7 +48,8 @@ void get_brush_alpha_data(const SculptSession &ss,
                           float *r_brush_alpha_value,
                           float *r_brush_alpha_pressure);
 
-void init_stroke(const wmOperator &op, Main& bmain, Paint &paint, Depsgraph &depsgraph, Object &ob);
+void init_stroke(
+    const wmOperator &op, Main &bmain, Paint &paint, Depsgraph &depsgraph, Object &ob);
 StrokeToggleSettings create_toggle_settings(const wmOperator &op, Main &bmain, Paint &paint);
 
 IndexMask pbvh_gather_generic(const Depsgraph &depsgraph,
@@ -71,4 +72,4 @@ void update_cache_variants(const Depsgraph &depsgraph, VPaint &vp, Object &ob, P
 /** Initialize the stroke cache invariants from operator properties. */
 void update_cache_invariants(VPaint &vp, SculptSession &ss, wmOperator *op, const float mval[2]);
 void last_stroke_update(const float location[3], Paint &paint);
-}  // namespace ed::sculpt_paint::vwpaint
+}  // namespace blender::ed::sculpt_paint::vwpaint

@@ -1732,7 +1732,7 @@ float normal_weight_get(const Brush &brush, const bool invert)
 
   return brush.normal_weight == 0.0f;
 }
-}
+}  // namespace bke::brush
 
 /* -------------------------------------------------------------------- */
 /** \name Brush Capabilities
