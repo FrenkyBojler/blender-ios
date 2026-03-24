@@ -262,7 +262,6 @@ struct StrokeCache {
    * \see #brush_strength for Sculpt Mode.
    */
   float bstrength = 0.0f;
-  float normal_weight = 0.0f; /* from brush (with optional override) */
   float2 tilt = float2(0);
 
   /**
@@ -620,14 +619,9 @@ bool SCULPT_stroke_is_first_brush_step(const ed::sculpt_paint::StrokeCache &cach
 bool SCULPT_stroke_is_first_brush_step_of_symmetry_pass(
     const ed::sculpt_paint::StrokeCache &cache);
 
-/**
- * Align the grab delta to the brush normal.
- *
- * \param grab_delta: Typically from `ss.cache->grab_delta_symmetry`.
- */
-void sculpt_project_v3_normal_align(const SculptSession &ss,
-                                    float normal_weight,
-                                    float grab_delta[3]);
+namespace ed::sculpt_paint {
+float3 grab_delta_get(const Brush &brush, const StrokeCache &cache);
+}
 
 /** \} */
 

@@ -592,12 +592,19 @@ bool SCULPT_check_vertex_pivot_symmetry(const float vco[3], const float pco[3], 
   return is_in_symmetry_area;
 }
 
-void sculpt_project_v3_normal_align(const SculptSession &ss,
-                                    const float normal_weight,
-                                    float grab_delta[3])
+namespace ed::sculpt_paint {
+
+/**
+ * Align the grab delta to the brush normal.
+ *
+ * \param grab_delta: Typically from `ss.cache->grab_delta_symmetry`.
+ */
+static void sculpt_project_v3_normal_align(const StrokeCache &cache,
+                                           const float normal_weight,
+                                           float grab_delta[3])
 {
   /* Signed to support grabbing in (to make a hole) as well as out. */
-  const float len_signed = dot_v3v3(ss.cache->sculpt_normal_symm, grab_delta);
+  const float len_signed = dot_v3v3(cache.sculpt_normal_symm, grab_delta);
 
   /* This scale effectively projects the offset so dragging follows the cursor,
    * as the normal points towards the view, the scale increases. */
@@ -605,15 +612,29 @@ void sculpt_project_v3_normal_align(const SculptSession &ss,
   {
     float view_aligned_normal[3];
     project_plane_v3_v3v3(
-        view_aligned_normal, ss.cache->sculpt_normal_symm, ss.cache->view_normal_symm);
-    len_view_scale = fabsf(dot_v3v3(view_aligned_normal, ss.cache->sculpt_normal_symm));
+        view_aligned_normal, cache.sculpt_normal_symm, cache.view_normal_symm);
+    len_view_scale = fabsf(dot_v3v3(view_aligned_normal, cache.sculpt_normal_symm));
     len_view_scale = (len_view_scale > FLT_EPSILON) ? 1.0f / len_view_scale : 1.0f;
   }
 
   mul_v3_fl(grab_delta, 1.0f - normal_weight);
   madd_v3_v3fl(
-      grab_delta, ss.cache->sculpt_normal_symm, (len_signed * normal_weight) * len_view_scale);
+      grab_delta, cache.sculpt_normal_symm, (len_signed * normal_weight) * len_view_scale);
 }
+
+float3 grab_delta_get(const Brush &brush, const StrokeCache &cache) {
+  float3 grab_delta = cache.grab_delta_symm;
+
+  const float normal_weight = bke::brush::normal_weight_get(brush, cache.toggle_settings.invert);
+  if (normal_weight > 0.0f) {
+    sculpt_project_v3_normal_align(cache, normal_weight, grab_delta);
+  }
+
+  return grab_delta;
+}
+
+}
+
 
 namespace ed::sculpt_paint {
 
@@ -838,7 +859,7 @@ static int sculpt_brush_needs_normal(const SculptSession &ss, const Brush &brush
 {
   using namespace blender::ed::sculpt_paint;
   const MTex *mask_tex = BKE_brush_mask_texture_get(&brush, OB_MODE_SCULPT);
-  return ((bke::brush::supports_normal_weight(brush) && (ss.cache->normal_weight > 0.0f)) ||
+  return ((bke::brush::supports_normal_weight(brush) && (bke::brush::normal_weight_get(brush, ss.cache->toggle_settings.invert) > 0.0f)) ||
           ELEM(brush.sculpt_brush_type,
                SCULPT_BRUSH_TYPE_BLOB,
                SCULPT_BRUSH_TYPE_CREASE,
@@ -2220,7 +2241,7 @@ static float brush_flip(const Brush &brush, const ed::sculpt_paint::StrokeCache 
   const float dir = (brush.flag & BRUSH_DIR_IN) ? -1.0f : 1.0f;
   const float invert = cache.toggle_settings.invert ? -1.0f : 1.0f;
 
-  return dir * pen_flip * invert;
+  return dir * invert;
 }
 
 /**
@@ -2637,7 +2658,7 @@ static void update_sculpt_normal(const Depsgraph &depsgraph,
                                !(brush.stroke_method == BRUSH_STROKE_ANCHORED)) &&
                              !(brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_ELASTIC_DEFORM) &&
                              !(brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_SNAKE_HOOK &&
-                               cache.normal_weight > 0.0f);
+                               bke::brush::normal_weight_get(brush, cache.toggle_settings.invert) > 0.0f);
 
   if (cache.mirror_symmetry_pass == 0 && cache.radial_symmetry_pass == 0 &&
       (SCULPT_stroke_is_first_brush_step_of_symmetry_pass(cache) || update_normal))
@@ -5636,17 +5657,6 @@ void SculptPaintStroke::stroke_cache_init(const float mval[2])
 
   cache->initial_normal_symm = ss.cursor_sampled_normal.value_or(ss.cursor_normal);
   cache->initial_normal = ss.cursor_sampled_normal.value_or(ss.cursor_normal);
-
-  cache->normal_weight = brush->normal_weight;
-
-  /* Interpret invert as following normal, for grab brushes. */
-  if (bke::brush::supports_normal_weight(*brush)) {
-    if (cache->toggle_settings.invert) {
-      /* TODO: Handle this *inside* the grab brushes */
-      cache->toggle_settings.invert = false;
-      cache->normal_weight = (cache->normal_weight == 0.0f);
-    }
-  }
 
   /* Not very nice, but with current events system implementation
    * we can't handle brush appearance inversion hotkey separately (sergey). */

@@ -2100,7 +2100,7 @@ static wmOperatorStatus vpaint_invoke(bContext *C, wmOperator *op, const wmEvent
   VertexPaintStroke *stroke = MEM_new<VertexPaintStroke>(__func__, C, op, event->type);
   op->customdata = stroke;
 
-  vwpaint::init_stroke(*stroke->depsgraph, *stroke->object);
+  vwpaint::init_stroke(*op, *stroke->bmain_, *stroke->paint, *stroke->depsgraph, *stroke->object);
   StrokeCache &cache = *stroke->object->runtime->sculpt_session->cache;
   cache.toggle_settings = vwpaint::create_toggle_settings(*op, *CTX_data_main(C), *stroke->paint);
 

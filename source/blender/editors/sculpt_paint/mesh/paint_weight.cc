@@ -929,7 +929,6 @@ bool WeightPaintStroke::test_start(wmOperator *op, const float mouse[2])
   bool *defbase_sel;
   SculptSession &ss = *ob.runtime->sculpt_session;
   VPaint &wp = *weight_paint_;
-  Depsgraph &depsgraph = *this->depsgraph;
 
   if (ED_wpaint_ensure_data(
           this->evil_C, bmain_, this->object, op->reports, WPAINT_ENSURE_MIRROR, &vgroup_index) ==
@@ -1831,7 +1830,7 @@ static void wpaint_do_symmetrical_brush_actions(
   cache.is_last_valid = true;
 }
 
-void WeightPaintStroke::update_step(wmOperator *op, PointerRNA *itemptr)
+void WeightPaintStroke::update_step(wmOperator */*op*/, PointerRNA *itemptr)
 {
   VPaint &wp = *weight_paint_;
   const ToolSettings &ts = *tool_settings_;
@@ -1881,7 +1880,7 @@ void WeightPaintStroke::update_step(wmOperator *op, PointerRNA *itemptr)
   wpi.vgroup_validmap = wpd->vgroup_validmap;
   wpi.vgroup_locked = wpd->vgroup_locked;
   wpi.vgroup_unlocked = wpd->vgroup_unlocked;
-  wpi.do_flip = RNA_boolean_get(op->ptr, "pen_flip") || ss.cache->toggle_settings.invert;
+  wpi.do_flip = ss.cache->toggle_settings.invert;
   wpi.do_multipaint = wpd->do_multipaint;
   wpi.do_auto_normalize = ((ts.auto_normalize != 0) && (wpi.vgroup_validmap != nullptr) &&
                            (wpi.do_multipaint || wpi.vgroup_validmap[wpi.active.index]));
