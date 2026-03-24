@@ -1046,6 +1046,7 @@ void EraseOperation::on_stroke_begin(const bContext &C, const InputSample & /*st
   Paint *paint = BKE_paint_get_active_from_context(&C);
   Brush *brush = BKE_paint_brush(paint);
 
+  eraser_brush_ = brush;
   radius_ = BKE_brush_radius_get(paint, brush);
 
   /* If we're using the draw tool to erase (e.g. while holding ctrl), then we should use the
@@ -1062,12 +1063,10 @@ void EraseOperation::on_stroke_begin(const bContext &C, const InputSample & /*st
     std::optional<AssetWeakReference> asset_reference =
         WM_toolsystem_last_brush_asset_from_brush_type(
             scene, GPAINT_BRUSH_TYPE_ERASE, PaintMode::GPencil);
-    BLI_assert(asset_reference.has_value());
-    eraser_brush_ = reinterpret_cast<Brush *>(
-        bke::asset_edit_id_from_weak_reference(*bmain, ID_BR, *asset_reference));
-  }
-  else {
-    eraser_brush_ = brush;
+    if (asset_reference) {
+      eraser_brush_ = reinterpret_cast<Brush *>(
+          bke::asset_edit_id_from_weak_reference(*bmain, ID_BR, *asset_reference));
+    }
   }
 
   if (eraser_brush_->gpencil_settings == nullptr) {
