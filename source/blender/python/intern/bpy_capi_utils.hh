@@ -10,6 +10,8 @@
 
 #include <Python.h>
 
+#include "BLI_compiler_attrs.h"
+
 namespace blender {
 
 #if PY_VERSION_HEX < 0x030d0000
@@ -48,11 +50,21 @@ bool BPy_errors_to_report(struct ReportList *reports);
 struct bContext *BPY_context_get();
 
 /**
- * Set the global `bpy.context` for Python and make the GIL and environment ready to call into
- * Python.
- * \param C: The context to set. In rare cases C can be null.
+ * Set the global `bpy.context` for Python and make the GIL and environment ready
+ * to call into Python.
  */
-extern void bpy_context_set(struct bContext *C, PyGILState_STATE *gilstate);
+extern void bpy_context_set(struct bContext *C, PyGILState_STATE *gilstate) ATTR_NONNULL(1);
+/**
+ * A version of #bpy_context_set that allows `C` to be null.
+ * Use this in rare cases where the context may not be available
+ * (e.g. when calling from `BPY_run_string` functions).
+ *
+ * WARNING: Using this is risky and should be avoided if at all possible
+ * it risks the context's `rna_disallow_writes` not be being set for e.g.
+ *
+ * Callers should note why they are not able to use `bpy_context_set`.
+ */
+extern void bpy_context_set_allow_null(struct bContext *C, PyGILState_STATE *gilstate);
 /**
  * Context should be used but not now because it causes some bugs.
  */
