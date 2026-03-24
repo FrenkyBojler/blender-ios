@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include "gpu_color"
 #include "gpu_shader_compat.hh"
 
 namespace builtin::mipmaps {
@@ -99,9 +100,9 @@ struct SharedSRGB {
 
   /**
    * Convert float (0-1) sRGB red/green/blue component value to linear.
-   *
-   * These encoders/decoders are a slightly off from our own implementation. Might fix some
-   * specific issues, which we need to validate. */
+   */
+  /* TODO: move to gpu_shader_colorspace_lib.glsl. This will be done in a separate change as it
+   * impacts other areas. */
   float linear_from_srgb_component(float srgb)
   {
     return srgb <= 0.04045f ? srgb * (25.0f / 323.0f) :
