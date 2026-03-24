@@ -11,7 +11,6 @@
  */
 
 #pragma once
-#pragma create_info
 
 #include "gpu_shader_compat.hh"
 #include "gpu_shader_fullscreen_lib.glsl"
@@ -83,7 +82,7 @@ struct FragOut {
 
   TexelData data = srt.sample_texel(v_in.uv);
 
-  /* Merge infront depth. */
+  /* Merge in-front depth. */
   if (data_in_front.depth != 1.0f) {
     data.depth = 0.0f;
   }
