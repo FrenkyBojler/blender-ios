@@ -120,6 +120,12 @@ struct RollSpline {
   float total_length_3d() const;
   void update_lengths();
 
+  /** Length of segment `seg_idx` (difference of consecutive cumulative lengths). */
+  float segment_length_3d(int seg_idx) const
+  {
+    return lengths_3d[seg_idx] - (seg_idx > 0 ? lengths_3d[seg_idx - 1] : 0.0f);
+  }
+
   float3 evaluate_3d(float s) const;
   float2 tangent_2d_at_index(int poly_idx) const;
 
@@ -373,6 +379,7 @@ struct PaintStroke : NonCopyable, NonMovable {
   void stroke_done(bContext *C, wmOperator *op, bool is_cancel);
 
   int roll_max_points() const;
+  int roll_half_points() const { return (roll_max_points() * 3) / 5 + 2; }
   void add_roll_point(const float2 &mouse_in,
                       const float2 &mouse_out,
                       const float3 &loc,

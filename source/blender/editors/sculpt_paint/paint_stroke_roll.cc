@@ -49,6 +49,33 @@
 
 namespace blender::ed::sculpt_paint {
 
+/* Shared tuning constants for roll texture mapping. */
+static constexpr float MIN_ROLL_PRESSURE = 0.05f;
+static constexpr float PRESSURE_RATIO_MIN = 0.5f;
+static constexpr float PRESSURE_RATIO_MAX = 2.0f;
+static constexpr int VIRTUAL_EXTENSION_POINTS = 6;
+static constexpr int EVAL_ROW_MARGIN = 3;
+
+/**
+ * Extrapolate pen pressure geometrically for virtual extension points.
+ * \param base_p: pressure at the anchor (real) point.
+ * \param ratio: per-step multiplier (clamped from neighboring real points).
+ * \param n_points: number of virtual points to generate.
+ * \param farthest_first: if true, step count decreases with index (backward ext).
+ * \param r_pressures: output vector to append to.
+ */
+static void extrapolate_pressures(float base_p,
+                                  float ratio,
+                                  int n_points,
+                                  bool farthest_first,
+                                  Vector<float> &r_pressures)
+{
+  for (int i = 0; i < n_points; i++) {
+    const int steps = farthest_first ? (n_points - i) : (i + 1);
+    r_pressures.append(std::clamp(base_p * powf(ratio, float(steps)), 0.01f, 1.0f));
+  }
+}
+
 /* -------------------------------------------------------------------- */
 /** \name RollSpline — polyline-based arc-length parameterized spline
  * \{ */
@@ -209,7 +236,7 @@ void PaintStroke::add_roll_point(const float2 &mouse_in,
          * stroke_distance_world_ compensates and the texture stays put. */
         float seg_len = 0.0f;
         if (!roll_spline_.lengths_3d.is_empty()) {
-          seg_len = roll_spline_.lengths_3d[0];
+          seg_len = roll_spline_.segment_length_3d(0);
         }
         else if (backward_ext_3d_.size() >= 2) {
           seg_len = math::distance(backward_ext_3d_[0], backward_ext_3d_[1]);
@@ -257,7 +284,7 @@ void PaintStroke::add_roll_point(const float2 &mouse_in,
     point->location = loc;
     /* Clamp pressure — pen touch-down and lift-off report near-zero values
      * that would create an extreme width spike in the roll strip. */
-    point->pressure = std::max(pressure, 0.05f);
+    point->pressure = std::max(pressure, MIN_ROLL_PRESSURE);
 
     cur_point_ = (cur_point_ + 1) % buf_cap;
     if (!wrap_ring) {
@@ -428,7 +455,7 @@ void PaintStroke::prepend_virtual_roll_points()
   const float r_world = paint_calc_object_space_radius(vc, p_start, base_pixel_r);
   const float r_screen = base_pixel_r;
 
-  constexpr int n_backward = 6;
+  const int n_backward = VIRTUAL_EXTENSION_POINTS;
   const float step_3d = (r_world * 1.5f) / float(n_backward);
   const float step_2d = (r_screen * 1.5f) / float(n_backward);
 
@@ -498,26 +525,16 @@ void PaintStroke::make_roll_spline(bContext * /*C*/)
       const float p1 = points_[i1].pressure;
       const float p2 = points_[i2].pressure;
       if (p2 > 0.01f) {
-        ratio = std::clamp(p1 / p2, 0.5f, 2.0f);
+        ratio = std::clamp(p1 / p2, PRESSURE_RATIO_MIN, PRESSURE_RATIO_MAX);
       }
     }
-    /* Points are ordered farthest→nearest.  Index 0 is the farthest
-     * virtual point (most steps from the oldest real point). */
-    for (int i = 0; i < n_back; i++) {
-      const int steps = n_back - i; /* distance from oldest real point */
-      roll_spline_.pressures.append(
-          std::clamp(base_p * powf(ratio, float(steps)), 0.01f, 1.0f));
-    }
+    extrapolate_pressures(base_p, ratio, n_back, true, roll_spline_.pressures);
   }
   for (int i = 0; i < num_points_; i++) {
     const int idx = (oldest + i) % buf_cap;
     roll_spline_.poly_2d.append(points_[idx].mouse_out);
     roll_spline_.poly_3d.append(points_[idx].location);
     roll_spline_.pressures.append(points_[idx].pressure);
-  }
-
-  if (int(roll_spline_.poly_3d.size()) < 2) {
-    return;
   }
 
   n_virtual_poly_points_ = int(backward_ext_2d_.size());
@@ -540,8 +557,7 @@ void PaintStroke::make_roll_spline(bContext * /*C*/)
                        i < int(roll_spline_.lengths_3d.size());
            i++)
       {
-        const float seg = roll_spline_.lengths_3d[i] -
-                          ((i > 1) ? roll_spline_.lengths_3d[i - 1] : 0.0f);
+        const float seg = roll_spline_.segment_length_3d(i);
         const float p = (i < int(pres.size()) && i - 1 >= 0) ?
                             std::max((pres[i] + pres[i - 1]) * 0.5f, 0.01f) :
                             1.0f;
@@ -563,7 +579,7 @@ void PaintStroke::finish_roll_stroke(bContext *C,
 
   /* Clamp pen lift-off pressure (same minimum as add_roll_point) to avoid
    * near-zero spacing that would create thousands of expensive roll dabs. */
-  pressure = std::max(pressure, 0.05f);
+  pressure = std::max(pressure, MIN_ROLL_PRESSURE);
 
   const PaintMode mode = BKE_paintmode_get_active_from_context(C);
   const Brush &brush = *BKE_paint_brush_for_read(this->paint);
@@ -627,7 +643,7 @@ void PaintStroke::finish_roll_stroke(bContext *C,
       const float r_world = paint_calc_object_space_radius(vc, p_end, base_pixel_r);
       const float r_screen = base_pixel_r;
 
-      constexpr int n_forward = 6;
+      const int n_forward = VIRTUAL_EXTENSION_POINTS;
       const float step_3d = (r_world * 1.5f) / float(n_forward);
       const float step_2d = (r_screen * 1.5f) / float(n_forward);
 
@@ -655,19 +671,15 @@ void PaintStroke::finish_roll_stroke(bContext *C,
                                  +1.0f,
                                  roll_spline_.poly_2d,
                                  roll_spline_.poly_3d);
-      /* Extrapolate pressure trend for forward virtual extension.
-       * Derive ratio from the last two real points and project forward. */
+      /* Extrapolate pressure trend for forward virtual extension. */
       {
         const float p_new = points_[newest].pressure;
         const float p_prev = points_[prev_newest].pressure;
         float ratio = 1.0f;
         if (p_prev > 0.01f) {
-          ratio = std::clamp(p_new / p_prev, 0.5f, 2.0f);
+          ratio = std::clamp(p_new / p_prev, PRESSURE_RATIO_MIN, PRESSURE_RATIO_MAX);
         }
-        for (int i = 0; i < n_forward; i++) {
-          roll_spline_.pressures.append(
-              std::clamp(p_new * powf(ratio, float(i + 1)), 0.01f, 1.0f));
-        }
+        extrapolate_pressures(p_new, ratio, n_forward, false, roll_spline_.pressures);
       }
 
       roll_spline_.update_lengths();
@@ -677,7 +689,7 @@ void PaintStroke::finish_roll_stroke(bContext *C,
   /* 4. Flush deferred dabs: advance look_back from its current position
    *    to the newest recorded point, placing a dab at each step. */
   constexpr int buf_cap = PAINT_MAX_INPUT_SAMPLES;
-  const int half = (roll_max_points() * 3) / 5 + 2;
+  const int half = roll_half_points();
   const int oldest_idx = (cur_point_ - num_points_ + buf_cap) % buf_cap;
 
   /* Where the last placed dab was. Use the explicitly tracked index
@@ -1083,7 +1095,7 @@ void PaintStroke::compute_roll_center(StrokeCache &cache)
       v_coords[0] = 0.0f;
       for (int k = 1; k < init_rows; k++) {
         const int vi = grid_lo + k;
-        const float seg_len = lengths[vi - 1] - ((vi > 1) ? lengths[vi - 2] : 0.0f);
+        const float seg_len = roll_spline_.segment_length_3d(vi - 1);
         if (have_pressures) {
           const float p_avg = std::max((pressures[vi] + pressures[vi - 1]) * 0.5f, 0.01f);
           v_coords[k] = v_coords[k - 1] + seg_len / (R * p_avg);
@@ -1297,8 +1309,8 @@ void PaintStroke::compute_roll_center(StrokeCache &cache)
           }
         }
         /* Small margin for quads that straddle the boundary. */
-        cache.roll_eval_row_lo = std::max(0, eval_lo - 3);
-        cache.roll_eval_row_hi = std::min(cur_rows - 2, eval_hi + 3);
+        cache.roll_eval_row_lo = std::max(0, eval_lo - EVAL_ROW_MARGIN);
+        cache.roll_eval_row_hi = std::min(cur_rows - 2, eval_hi + EVAL_ROW_MARGIN);
       }
 
       cache.roll_subdiv_rows = cur_rows;
@@ -1738,7 +1750,7 @@ void PaintStroke::draw_roll_preview(bContext *C) const
   /* Determine which polyline index corresponds to the last-painted dab.
    * Points from painted_poly onward are "unflushed" and shown as preview. */
   constexpr int buf_cap = PAINT_MAX_INPUT_SAMPLES;
-  const int half = (roll_max_points() * 3) / 5 + 2;
+  const int half = roll_half_points();
 
   int painted_poly;
   if (last_painted_roll_idx_ < 0 || num_points_ < half) {
