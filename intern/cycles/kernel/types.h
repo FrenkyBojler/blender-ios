@@ -338,10 +338,11 @@ enum PassType {
   PASS_TRANSMISSION_COLOR,
   /* No Scatter color since it's tricky to define what it would even mean. */
   PASS_MIST,
-  PASS_DENOISING_NORMAL,
   PASS_DENOISING_ALBEDO,
+  PASS_DENOISING_SPECULAR_ALBEDO,
+  PASS_DENOISING_NORMAL,
+  PASS_DENOISING_ROUGHNESS,
   PASS_DENOISING_DEPTH,
-  PASS_DENOISING_PREVIOUS,
   PASS_RENDER_TIME,
 
   /* PASS_SHADOW_CATCHER accumulates contribution of shadow catcher object which is not affected by
@@ -376,6 +377,8 @@ enum PassType {
   PASS_BAKE_SEED,
   PASS_BAKE_DIFFERENTIAL,
   PASS_CATEGORY_BAKE_END = 95,
+
+  PASS_DENOISING_PREVIOUS,
 
   PASS_NUM,
 };
@@ -412,7 +415,6 @@ enum FilterClosures {
 enum ShaderFlag {
   SHADER_SMOOTH_NORMAL = (1 << 31),
   SHADER_CAST_SHADOW = (1 << 30),
-  SHADER_AREA_LIGHT = (1 << 29),
   SHADER_USE_MIS = (1 << 28),
   SHADER_EXCLUDE_DIFFUSE = (1 << 27),
   SHADER_EXCLUDE_GLOSSY = (1 << 26),
@@ -424,8 +426,7 @@ enum ShaderFlag {
                         SHADER_EXCLUDE_CAMERA | SHADER_EXCLUDE_SCATTER |
                         SHADER_EXCLUDE_SHADOW_CATCHER),
 
-  SHADER_MASK = ~(SHADER_SMOOTH_NORMAL | SHADER_CAST_SHADOW | SHADER_AREA_LIGHT | SHADER_USE_MIS |
-                  SHADER_EXCLUDE_ANY)
+  SHADER_MASK = ~(SHADER_SMOOTH_NORMAL | SHADER_CAST_SHADOW | SHADER_USE_MIS | SHADER_EXCLUDE_ANY)
 };
 
 enum EmissionSampling {
@@ -442,7 +443,7 @@ enum EmissionSampling {
 
 enum LightType {
   LIGHT_POINT,
-  LIGHT_DISTANT,
+  LIGHT_SUN,
   LIGHT_BACKGROUND,
   LIGHT_AREA,
   LIGHT_SPOT,
@@ -670,23 +671,46 @@ enum AttributePrimitive {
 };
 
 enum AttributeElement {
+  /* Elements for regular domains. */
   ATTR_ELEMENT_NONE = 0,
   ATTR_ELEMENT_OBJECT = (1 << 0),
   ATTR_ELEMENT_MESH = (1 << 1),
   ATTR_ELEMENT_FACE = (1 << 2),
   ATTR_ELEMENT_VERTEX = (1 << 3),
-  ATTR_ELEMENT_VERTEX_MOTION = (1 << 4),
-  ATTR_ELEMENT_CORNER = (1 << 5),
-  ATTR_ELEMENT_CORNER_BYTE = (1 << 6),
-  ATTR_ELEMENT_CURVE = (1 << 7),
-  ATTR_ELEMENT_CURVE_KEY = (1 << 8),
-  ATTR_ELEMENT_CURVE_KEY_MOTION = (1 << 9),
-  ATTR_ELEMENT_VOXEL = (1 << 10)
+  ATTR_ELEMENT_CORNER = (1 << 4),
+  ATTR_ELEMENT_CURVE = (1 << 5),
+  ATTR_ELEMENT_CURVE_KEY = (1 << 6),
+  ATTR_ELEMENT_VOXEL = (1 << 7),
+
+  /* Elements with special encoding where the data type for storage does not
+   * match the data type returned when reading the attribute and needs a
+   * conversion or interpolation when reading. */
+  ATTR_ELEMENT_IS_MOTION = (1 << 8),
+  ATTR_ELEMENT_IS_NORMAL = (1 << 9),
+  ATTR_ELEMENT_IS_BYTE = (1 << 10),
+
+  /* Only these combinations are supported by the kernel and can be
+   * created on geometry. */
+  ATTR_ELEMENT_VERTEX_MOTION = ATTR_ELEMENT_VERTEX | ATTR_ELEMENT_IS_MOTION,
+  ATTR_ELEMENT_VERTEX_NORMAL = ATTR_ELEMENT_VERTEX | ATTR_ELEMENT_IS_NORMAL,
+  ATTR_ELEMENT_VERTEX_NORMAL_MOTION = ATTR_ELEMENT_VERTEX | ATTR_ELEMENT_IS_NORMAL |
+                                      ATTR_ELEMENT_IS_MOTION,
+
+  ATTR_ELEMENT_CORNER_BYTE = ATTR_ELEMENT_CORNER | ATTR_ELEMENT_IS_BYTE,
+  ATTR_ELEMENT_CORNER_NORMAL = ATTR_ELEMENT_CORNER | ATTR_ELEMENT_IS_NORMAL,
+  ATTR_ELEMENT_CORNER_NORMAL_MOTION = ATTR_ELEMENT_CORNER | ATTR_ELEMENT_IS_NORMAL |
+                                      ATTR_ELEMENT_IS_MOTION,
+
+  ATTR_ELEMENT_CURVE_KEY_MOTION = ATTR_ELEMENT_CURVE_KEY | ATTR_ELEMENT_IS_MOTION,
+  ATTR_ELEMENT_CURVE_KEY_NORMAL = ATTR_ELEMENT_CURVE_KEY | ATTR_ELEMENT_IS_NORMAL,
+  ATTR_ELEMENT_CURVE_KEY_NORMAL_MOTION = ATTR_ELEMENT_CURVE_KEY | ATTR_ELEMENT_IS_NORMAL |
+                                         ATTR_ELEMENT_IS_MOTION,
 };
 
 enum AttributeStandard {
   ATTR_STD_NONE = 0,
   ATTR_STD_VERTEX_NORMAL,
+  ATTR_STD_CORNER_NORMAL,
   ATTR_STD_UV,
   ATTR_STD_UV_TANGENT,
   ATTR_STD_UV_TANGENT_SIGN,
@@ -700,6 +724,7 @@ enum AttributeStandard {
   ATTR_STD_NORMAL_UNDISPLACED,
   ATTR_STD_MOTION_VERTEX_POSITION,
   ATTR_STD_MOTION_VERTEX_NORMAL,
+  ATTR_STD_MOTION_CORNER_NORMAL,
   ATTR_STD_PARTICLE,
   ATTR_STD_CURVE_INTERCEPT,
   ATTR_STD_CURVE_LENGTH,
@@ -923,6 +948,8 @@ enum ShaderDataObjectFlag : uint {
   SD_OBJECT_CAUSTICS_RECEIVER = (1u << 10),
   /* object has attribute for volume motion */
   SD_OBJECT_HAS_VOLUME_MOTION = (1u << 11),
+  /* Geometry has per-corner normals instead of per-vertex. */
+  SD_OBJECT_HAS_CORNER_NORMALS = (1u << 12),
 
   /* object is using caustics */
   SD_OBJECT_CAUSTICS = (SD_OBJECT_CAUSTICS_CASTER | SD_OBJECT_CAUSTICS_RECEIVER),
@@ -931,7 +958,7 @@ enum ShaderDataObjectFlag : uint {
                      SD_OBJECT_NEGATIVE_SCALE | SD_OBJECT_HAS_VOLUME |
                      SD_OBJECT_INTERSECTS_VOLUME | SD_OBJECT_SHADOW_CATCHER |
                      SD_OBJECT_HAS_VOLUME_ATTRIBUTES | SD_OBJECT_CAUSTICS |
-                     SD_OBJECT_HAS_VOLUME_MOTION)
+                     SD_OBJECT_HAS_VOLUME_MOTION | SD_OBJECT_HAS_CORNER_NORMALS)
 };
 
 struct ccl_align(16) ShaderData {
@@ -1067,7 +1094,7 @@ struct VolumeStack {
 /* Struct to gather multiple nearby intersections. */
 struct LocalIntersection {
   int num_hits;
-  struct Intersection hits[LOCAL_MAX_HITS];
+  Intersection hits[LOCAL_MAX_HITS];
   float3 Ng[LOCAL_MAX_HITS];
 };
 
@@ -1293,9 +1320,9 @@ struct ccl_align(16) KernelData {
   /* Device specific BVH. */
 #ifdef __KERNEL_OPTIX__
   OptixTraversableHandle device_bvh;
-#elif defined __METALRT__
+#elif defined __KERNEL_METALRT__
   metalrt_as_type device_bvh;
-#elif defined(__HIPRT__)
+#elif defined(__KERNEL_HIPRT__)
   void *device_bvh;
 #else
 #  ifdef __EMBREE__
@@ -1331,13 +1358,14 @@ struct KernelObject {
   float dupli_generated[3];
   float dupli_uv[2];
 
-  int numkeys;
-  int num_geom_steps;
-  int num_tfm_steps;
+  uint16_t num_geom_steps;
+  uint16_t num_tfm_steps;
   int numverts;
+  int numprims;
 
   uint attribute_map_offset;
   uint motion_offset;
+  int normal_attr_offset;
 
   float cryptomatte_object;
   float cryptomatte_asset;
@@ -1405,7 +1433,7 @@ struct KernelAreaLight {
   float pad[2];
 };
 
-struct KernelDistantLight {
+struct KernelSunLight {
   float angle;
   float one_minus_cosangle;
   float half_inv_sin_half_angle;
@@ -1426,7 +1454,7 @@ struct KernelLight {
   union {
     KernelSpotLight spot;
     KernelAreaLight area;
-    KernelDistantLight distant;
+    KernelSunLight sun;
   };
 };
 static_assert_align(KernelLight, 16);
@@ -1434,7 +1462,7 @@ static_assert_align(KernelLight, 16);
 struct KernelLightDistribution {
   float totarea;
   int prim;
-  int shader_flag;
+  int visibility_flag;
   int object_id;
 };
 static_assert_align(KernelLightDistribution, 16);
@@ -1545,7 +1573,7 @@ struct KernelLightTreeEmitter {
 
   /* Object and shader. */
   int object_id;
-  int shader_flag;
+  int visibility_flag;
 
   /* Bit trail from root node to leaf node containing emitter. */
   int bit_trail;
@@ -1646,7 +1674,8 @@ enum DeviceKernel : int {
   DEVICE_KERNEL_INTEGRATOR_INTERSECT_VOLUME_STACK,
   DEVICE_KERNEL_INTEGRATOR_INTERSECT_DEDICATED_LIGHT,
   DEVICE_KERNEL_INTEGRATOR_SHADE_BACKGROUND,
-  DEVICE_KERNEL_INTEGRATOR_SHADE_LIGHT,
+  DEVICE_KERNEL_INTEGRATOR_SHADE_LIGHT_NEE,
+  DEVICE_KERNEL_INTEGRATOR_SHADE_LIGHT_FORWARD,
   DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE,
   DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_RAYTRACE,
   DEVICE_KERNEL_INTEGRATOR_SHADE_SURFACE_MNEE,

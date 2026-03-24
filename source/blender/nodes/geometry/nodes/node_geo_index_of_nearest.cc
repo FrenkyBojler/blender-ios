@@ -47,9 +47,11 @@ static void find_neighbors(const KDTree_3d &tree,
                            const IndexMask &mask,
                            MutableSpan<int> r_indices)
 {
-  mask.foreach_index(GrainSize(1024), [&](const int index) {
-    r_indices[index] = find_nearest_non_self(tree, positions[index], index);
-  });
+  mask.foreach_index(
+      [&](const int index) {
+        r_indices[index] = find_nearest_non_self(tree, positions[index], index);
+      },
+      exec_mode::grain_size(1024));
 }
 
 class IndexOfNearestFieldInput final : public bke::GeometryFieldInput {
@@ -242,7 +244,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeIndexOfNearest", GEO_NODE_INDEX_OF_NEAREST);
   ntype.ui_name = "Index of Nearest";
@@ -252,7 +254,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

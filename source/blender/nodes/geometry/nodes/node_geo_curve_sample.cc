@@ -81,7 +81,7 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryCurveSample *data = MEM_new_for_free<NodeGeometryCurveSample>(__func__);
+  NodeGeometryCurveSample *data = MEM_new<NodeGeometryCurveSample>(__func__);
   data->mode = GEO_NODE_CURVE_SAMPLE_FACTOR;
   data->use_all_curves = false;
   data->data_type = CD_PROP_FLOAT;
@@ -310,10 +310,8 @@ class SampleCurveFunction : public mf::MultiFunction {
         index_mask::masked_fill(sampled_normals, float3(0), mask);
       }
       if (!sampled_values.is_empty()) {
-        bke::attribute_math::convert_to_static_type(source_data_->type(), [&](auto dummy) {
-          using T = decltype(dummy);
-          index_mask::masked_fill<T>(sampled_values.typed<T>(), {}, mask);
-        });
+        sampled_values.type().fill_construct_indices(
+            sampled_values.type().default_value(), sampled_values.data(), mask);
       }
     };
 
@@ -333,11 +331,9 @@ class SampleCurveFunction : public mf::MultiFunction {
               sampled_normals, evaluated_normals[evaluated_points.first()], mask);
         }
         if (!sampled_values.is_empty()) {
-          bke::attribute_math::convert_to_static_type(source_data_->type(), [&](auto dummy) {
-            using T = decltype(dummy);
-            const T &value = source_data_->typed<T>()[points_by_curve[curve_i].first()];
-            index_mask::masked_fill<T>(sampled_values.typed<T>(), value, mask);
-          });
+          BUFFER_FOR_CPP_TYPE_VALUE(source_data_->type(), value);
+          source_data_->get(points_by_curve[curve_i].first(), value);
+          source_data_->type().fill_construct_indices(value, sampled_values.data(), mask);
         }
         return;
       }
@@ -383,12 +379,13 @@ class SampleCurveFunction : public mf::MultiFunction {
         source_data_->materialize_compressed_to_uninitialized(points, src_original_values.data());
         src_evaluated_values.reinitialize(evaluated_points.size());
         curves.interpolate_to_evaluated(curve_i, src_original_values, src_evaluated_values);
-        bke::attribute_math::convert_to_static_type(source_data_->type(), [&](auto dummy) {
-          using T = decltype(dummy);
-          const Span<T> src_evaluated_values_typed = src_evaluated_values.as_span().typed<T>();
-          MutableSpan<T> sampled_values_typed = sampled_values.typed<T>();
-          length_parameterize::interpolate_to_masked<T>(
-              src_evaluated_values_typed, indices, factors, mask, sampled_values_typed);
+        bke::attribute_math::to_static_type(source_data_->type(), [&]<typename T>() {
+          if constexpr (!std::is_same_v<T, std::string>) {
+            const Span<T> src_evaluated_values_typed = src_evaluated_values.as_span().typed<T>();
+            MutableSpan<T> sampled_values_typed = sampled_values.typed<T>();
+            length_parameterize::interpolate_to_masked<T>(
+                src_evaluated_values_typed, indices, factors, mask, sampled_values_typed);
+          }
         });
       }
     };
@@ -564,7 +561,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeSampleCurve", GEO_NODE_SAMPLE_CURVE);
   ntype.ui_name = "Sample Curve";
@@ -575,11 +572,11 @@ static void node_register()
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
-  blender::bke::node_type_storage(
+  bke::node_type_storage(
       ntype, "NodeGeometryCurveSample", node_free_standard_storage, node_copy_standard_storage);
   ntype.draw_buttons = node_layout;
   ntype.gather_link_search_ops = node_gather_link_searches;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

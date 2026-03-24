@@ -7,6 +7,7 @@
 #include "BLI_math_matrix.hh"
 
 #include "BKE_attribute_math.hh"
+#include "BKE_node_runtime.hh"
 #include "BKE_volume_grid.hh"
 #include "BKE_volume_openvdb.hh"
 
@@ -114,9 +115,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   const std::shared_ptr<const openvdb::GridBase> vdb_grid = grid->grid_ptr(tree_token);
   params.set_output("Transform", BKE_volume_transform_to_blender(vdb_grid->transform()));
 
-  bke::attribute_math::convert_to_static_type(
-      *bke::socket_type_to_geo_nodes_base_cpp_type(data_type), [&](auto type_tag) {
-        using ValueT = decltype(type_tag);
+  bke::attribute_math::to_static_type(
+      *bke::socket_type_to_geo_nodes_base_cpp_type(data_type), [&]<typename ValueT>() {
         using type_traits = typename bke::VolumeGridTraits<ValueT>;
         using TreeType = typename type_traits::TreeType;
         using GridType = openvdb::Grid<TreeType>;
@@ -152,7 +152,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeGridInfo");
   ntype.ui_name = "Grid Info";
@@ -163,7 +163,7 @@ static void node_register()
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.declare = node_declare;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }
