@@ -1089,8 +1089,7 @@ static void do_vpaint_brush_blur_loops(const Depsgraph &depsgraph,
                             0;
   const bool use_face_sel = (mesh.editflag & ME_EDIT_PAINT_FACE_SEL) != 0;
 
-  const float *sculpt_normal_frontface = SCULPT_brush_frontface_normal_from_falloff_shape(
-      ss, brush.falloff_shape);
+  const float3 view_normal = ss.cache->view_normal_symm;
 
   GMutableSpan g_previous_color = vpd.prev_colors;
 
@@ -1142,7 +1141,7 @@ static void do_vpaint_brush_blur_loops(const Depsgraph &depsgraph,
 
           float brush_strength = cache.bstrength;
           const float angle_cos = use_normal ?
-                                      dot_v3v3(sculpt_normal_frontface, vert_normals[vert]) :
+                                      dot_v3v3(view_normal, vert_normals[vert]) :
                                       1.0f;
           if (!vwpaint::test_brush_angle_falloff(
                   brush, vpd.normal_angle_precalc, angle_cos, &brush_strength))
@@ -1250,8 +1249,7 @@ static void do_vpaint_brush_blur_verts(const Depsgraph &depsgraph,
                             0;
   const bool use_face_sel = (mesh.editflag & ME_EDIT_PAINT_FACE_SEL) != 0;
 
-  const float *sculpt_normal_frontface = SCULPT_brush_frontface_normal_from_falloff_shape(
-      ss, brush.falloff_shape);
+  const float3 view_normal = ss.cache->view_normal_symm;
 
   GMutableSpan g_previous_color = vpd.prev_colors;
 
@@ -1303,7 +1301,7 @@ static void do_vpaint_brush_blur_verts(const Depsgraph &depsgraph,
 
           float brush_strength = cache.bstrength;
           const float angle_cos = use_normal ?
-                                      dot_v3v3(sculpt_normal_frontface, vert_normals[vert]) :
+                                      dot_v3v3(view_normal, vert_normals[vert]) :
                                       1.0f;
           if (!vwpaint::test_brush_angle_falloff(
                   brush, vpd.normal_angle_precalc, angle_cos, &brush_strength))
@@ -1412,8 +1410,7 @@ static void do_vpaint_brush_smear(const Depsgraph &depsgraph,
     return;
   }
 
-  const float *sculpt_normal_frontface = SCULPT_brush_frontface_normal_from_falloff_shape(
-      ss, brush.falloff_shape);
+  const float3 view_normal = ss.cache->view_normal_symm;
 
   const Span<float3> vert_positions = bke::pbvh::vert_positions_eval(depsgraph, ob);
   const OffsetIndices faces = mesh.faces();
@@ -1465,7 +1462,7 @@ static void do_vpaint_brush_smear(const Depsgraph &depsgraph,
            * (ie splash prevention factor), and only paint front facing verts. */
           float brush_strength = cache.bstrength;
           const float angle_cos = use_normal ?
-                                      dot_v3v3(sculpt_normal_frontface, vert_normals[vert]) :
+                                      dot_v3v3(view_normal, vert_normals[vert]) :
                                       1.0f;
           if (!vwpaint::test_brush_angle_falloff(
                   brush, vpd.normal_angle_precalc, angle_cos, &brush_strength))
@@ -1746,8 +1743,7 @@ static void vpaint_do_draw(const Depsgraph &depsgraph,
                             0;
   const bool use_face_sel = (mesh.editflag & ME_EDIT_PAINT_FACE_SEL) != 0;
 
-  const float *sculpt_normal_frontface = SCULPT_brush_frontface_normal_from_falloff_shape(
-      ss, brush.falloff_shape);
+  const float3 view_normal = ss.cache->view_normal_symm;
 
   GMutableSpan g_previous_color = vpd.prev_colors;
   GMutableSpan g_stroke_buffer = vpd.stroke_buffer;
@@ -1804,7 +1800,7 @@ static void vpaint_do_draw(const Depsgraph &depsgraph,
            * (ie splash prevention factor), and only paint front facing verts. */
           float brush_strength = cache.bstrength;
           const float angle_cos = use_normal ?
-                                      dot_v3v3(sculpt_normal_frontface, vert_normals[vert]) :
+                                      dot_v3v3(view_normal, vert_normals[vert]) :
                                       1.0f;
           if (!vwpaint::test_brush_angle_falloff(
                   brush, vpd.normal_angle_precalc, angle_cos, &brush_strength))
