@@ -5057,20 +5057,52 @@ static void brush_init_tex(const Sculpt &sd, SculptSession &ss)
   }
 }
 
-static void brush_stroke_init(bContext *C)
+namespace ed::sculpt_paint {
+
+/** Creates stroke-level toggle settings, modifies the current active brush if needed */
+static StrokeToggleSettings create_toggle_settings(const wmOperator &op, Main &bmain, Paint &paint)
+{
+  const BrushStrokeMode stroke_mode = BrushStrokeMode(RNA_enum_get(op.ptr, "mode"));
+  const BrushSwitchMode brush_switch_mode = BrushSwitchMode(RNA_enum_get(op.ptr, "brush_toggle"));
+  const bool pen_flip = RNA_boolean_get(op.ptr, "pen_flip");
+
+  StrokeToggleSettings toggle_settings;
+
+  toggle_settings.invert = stroke_mode == BrushStrokeMode::Invert || pen_flip;
+  toggle_settings.alt_smooth = brush_switch_mode == BrushSwitchMode::Smooth;
+  toggle_settings.alt_mask = brush_switch_mode == BrushSwitchMode::Mask;
+
+  /* Alt-Smooth. */
+  if (toggle_settings.alt_smooth) {
+    smooth_brush_toggle_on(&bmain, &paint, toggle_settings);
+  }
+  /* Alt-Mask. */
+  if (toggle_settings.alt_mask) {
+    mask_brush_toggle_on(&bmain, &paint, toggle_settings);
+  }
+  return toggle_settings;
+}
+
+static void brush_stroke_init(bContext *C, const wmOperator *op)
 {
   Object &ob = *CTX_data_active_object(C);
   ToolSettings *tool_settings = CTX_data_tool_settings(C);
-  const Sculpt &sd = *tool_settings->sculpt;
+  Sculpt &sd = *tool_settings->sculpt;
   SculptSession &ss = *CTX_data_active_object(C)->runtime->sculpt_session;
   const Brush *brush = BKE_paint_brush_for_read(&sd.paint);
 
   if (!G.background) {
     view3d_operator_needs_gpu(C);
   }
+
+  if (!ss.cache) {
+    ss.cache = MEM_new<StrokeCache>(__func__);
+    ss.cache->toggle_settings = create_toggle_settings(*op, *CTX_data_main(C), sd.paint);
+  }
+
   brush_init_tex(sd, ss);
 
-  const bool needs_colors = ed::sculpt_paint::brush_type_is_paint(brush->sculpt_brush_type) &&
+  const bool needs_colors = brush_type_is_paint(brush->sculpt_brush_type) &&
                             !SCULPT_use_image_paint_brush(tool_settings->paint_mode, ob);
 
   if (needs_colors) {
@@ -5080,10 +5112,10 @@ static void brush_stroke_init(bContext *C)
   /* CTX_data_ensure_evaluated_depsgraph should be used at the end to include the updates of
    * earlier steps modifying the data. */
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  BKE_sculpt_update_object_for_edit(
-      depsgraph, &ob, ed::sculpt_paint::brush_type_is_paint(brush->sculpt_brush_type));
+  BKE_sculpt_update_object_for_edit(depsgraph, &ob, brush_type_is_paint(brush->sculpt_brush_type));
 
   ED_paint_brush_type_update_sticky_shading_color(C, &ob);
+}
 }
 
 static void restore_from_undo_step_if_necessary(const Depsgraph &depsgraph,
@@ -5578,29 +5610,6 @@ static void stroke_undo_end(PaintModeSettings &paint_mode_settings, Object &obje
 
 namespace ed::sculpt_paint {
 
-/** Creates stroke-level toggle settings, modifies the current active brush if needed */
-static StrokeToggleSettings create_toggle_settings(const wmOperator &op, Main &bmain, Paint &paint)
-{
-  const BrushStrokeMode stroke_mode = BrushStrokeMode(RNA_enum_get(op.ptr, "mode"));
-  const BrushSwitchMode brush_switch_mode = BrushSwitchMode(RNA_enum_get(op.ptr, "brush_toggle"));
-  const bool pen_flip = RNA_boolean_get(op.ptr, "pen_flip");
-
-  StrokeToggleSettings toggle_settings;
-
-  toggle_settings.invert = stroke_mode == BrushStrokeMode::Invert || pen_flip;
-  toggle_settings.alt_smooth = brush_switch_mode == BrushSwitchMode::Smooth;
-  toggle_settings.alt_mask = brush_switch_mode == BrushSwitchMode::Mask;
-
-  /* Alt-Smooth. */
-  if (toggle_settings.alt_smooth) {
-    smooth_brush_toggle_on(&bmain, &paint, toggle_settings);
-  }
-  /* Alt-Mask. */
-  if (toggle_settings.alt_mask) {
-    mask_brush_toggle_on(&bmain, &paint, toggle_settings);
-  }
-  return toggle_settings;
-}
 
 bool color_supported_check(const Scene &scene, Object &object, ReportList *reports)
 {
@@ -6028,7 +6037,8 @@ static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
     return OPERATOR_CANCELLED;
   }
 
-  brush_stroke_init(C);
+  stroke = MEM_new<SculptPaintStroke>(__func__, C, op, event->type);
+  brush_stroke_init(C, op);
 
   Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
   Brush &brush = *BKE_paint_brush(&sd.paint);
@@ -6036,10 +6046,14 @@ static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
   if (brush_type_is_paint(brush.sculpt_brush_type) &&
       !color_supported_check(scene, ob, op->reports))
   {
+    stroke->free(C, op);
+    MEM_delete(stroke);
     return OPERATOR_CANCELLED;
   }
   if (!brush_type_is_attribute_only(brush.sculpt_brush_type) && !shape_key_check(ob, op->reports))
   {
+    stroke->free(C, op);
+    MEM_delete(stroke);
     return OPERATOR_CANCELLED;
   }
   if (ELEM(brush.sculpt_brush_type,
@@ -6049,15 +6063,11 @@ static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
     const bke::pbvh::Tree *pbvh = bke::object::pbvh_get(ob);
     if (!pbvh || pbvh->type() != bke::pbvh::Type::Grids) {
       BKE_report(op->reports, RPT_ERROR, "Only supported in multiresolution mode");
+      stroke->free(C, op);
+      MEM_delete(stroke);
       return OPERATOR_CANCELLED;
     }
   }
-
-  stroke = MEM_new<SculptPaintStroke>(__func__, C, op, event->type);
-  StrokeCache *cache = MEM_new<StrokeCache>(__func__);
-  cache->toggle_settings = create_toggle_settings(*op, *CTX_data_main(C), sd.paint);
-  SculptSession &ss = *ob.runtime->sculpt_session;
-  ss.cache = cache;
 
   if (brush_type_is_mask(brush.sculpt_brush_type)) {
     MultiresModifierData *mmd = BKE_sculpt_multires_active(&scene, &ob);
@@ -6101,7 +6111,7 @@ static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
 
 static wmOperatorStatus sculpt_brush_stroke_exec(bContext *C, wmOperator *op)
 {
-  brush_stroke_init(C);
+  brush_stroke_init(C, op);
 
   SculptPaintStroke *stroke = MEM_new<SculptPaintStroke>(__func__, C, op, 0);
   op->customdata = stroke;
