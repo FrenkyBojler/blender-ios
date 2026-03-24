@@ -1971,6 +1971,8 @@ static wmOperatorStatus wpaint_exec(bContext *C, wmOperator *op)
   WeightPaintStroke *stroke = MEM_new<WeightPaintStroke>(__func__, C, op, 0);
   op->customdata = stroke;
 
+  vwpaint::init_stroke(*op, *stroke->bmain_, *stroke->paint, *stroke->depsgraph, *stroke->object);
+
   stroke->exec(C, op);
 
   MEM_delete(stroke);
