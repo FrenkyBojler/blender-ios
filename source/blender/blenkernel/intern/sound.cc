@@ -2087,6 +2087,28 @@ SoundSampler *sound_sampler_get(const bSound &sound, const SampleSoundKey &key)
 {
   return new SoundSampler(sound, key);
 }
+
+Array<float, 0> sound_compute_fft(const bSound &sound,
+                                  const SampleSoundKey &key,
+                                  const int start_sample)
+{
+  AUD_Sound sound_handle = sound.runtime->handle;
+  aud::DeviceSpecs device_specs;
+  device_specs.format = aud::FORMAT_FLOAT32;
+  device_specs.rate = aud::RATE_INVALID;
+  device_specs.channels = aud::CHANNELS_MONO;
+  std::shared_ptr<aud::IReader> reader =
+      aud::ChannelMapper(sound_handle, device_specs).createReader();
+  // std::shared_ptr<aud::IReader> reader = sound_handle->createReader();
+  const aud::Specs specs = reader->getSpecs();
+  reader->seek(start_sample);
+  Array<float, 0> result(key.fft_size, 0.0f);
+  bool is_end_of_stream = false;
+  int length = key.fft_size;
+  reader->read(length, is_end_of_stream, result.data());
+  return result;
+}
+
 }  // namespace bke
 
 }  // namespace blender

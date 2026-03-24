@@ -276,6 +276,10 @@ struct SampleSoundKey {
   std::optional<int> channel;
 };
 
+Array<float, 0> sound_compute_fft(const bSound &sound,
+                                  const SampleSoundKey &key,
+                                  const int start_sample);
+
 class SoundSampler {
  private:
   struct Bucket {
@@ -346,10 +350,14 @@ class SoundSampler {
   {
     const Bucket &bucket = buckets_[bucket_i];
     bucket.mutex.ensure([&]() {
-      bucket.accumulated_amplitudes.reinitialize(key_.fft_size);
-      /* TODO */
-      for (const int i : IndexRange(key_.fft_size)) {
-        bucket.accumulated_amplitudes[i] = i;
+      bucket.accumulated_amplitudes = sound_compute_fft(
+          sound_, key_, bucket_i * samples_per_bucket_);
+      float accumulated = 0.0f;
+      for (const int i : bucket.accumulated_amplitudes.index_range()) {
+        /* TODO: Increase size by 1? */
+        const float value = std::abs(bucket.accumulated_amplitudes[i]);
+        bucket.accumulated_amplitudes[i] = accumulated;
+        accumulated += value;
       }
     });
     return bucket.accumulated_amplitudes;
