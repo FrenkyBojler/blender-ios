@@ -889,13 +889,11 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
   const int max_visible_index = visible_row_count ? first_visible_index + *visible_row_count - 1 :
                                                     std::numeric_limits<int>::max();
   int index = 0;
-  bool is_active_visible = false;
   tree_view.foreach_item(
       [&, this](AbstractTreeViewItem &item) {
         if ((index >= first_visible_index) && (index <= max_visible_index)) {
           if (item.is_filtered_visible()) {
             this->build_row(item);
-            is_active_visible |= item.is_active_;
           }
         }
         index++;
