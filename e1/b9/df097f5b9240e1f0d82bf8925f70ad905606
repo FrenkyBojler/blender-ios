@@ -1,2 +1,3 @@
 Referenced by issue #156118, Lineart modifer vertex weight transfer does not function in 5.1
 Referenced by pull request #156189, Fix #156118: LineArt: Copy defgroup names before generating curves
+Referenced by commit 77e23cb97e552939fc64a487882c442ba6a2a65b, Fix #156118: LineArt: Copy defgroup names before generating curves
