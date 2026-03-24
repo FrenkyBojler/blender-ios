@@ -34,7 +34,7 @@ class StripColorTagPicker:
         return context.active_strip is not None
 
 
-class STRIP_PT_text_style_presets(PresetPanel, Panel):
+class STRIP_PT_effect_text_style_presets(PresetPanel, Panel):
     bl_label = "Text Style Presets"
     preset_subdir = "sequencer/text_style"
     preset_operator = "script.execute_preset"
@@ -168,8 +168,9 @@ class STRIP_PT_effect(StripButtonsPanel, Panel):
 
     def draw_header_preset(self, context):
         strip = context.active_strip
+
         if strip.type == 'TEXT':
-            STRIP_PT_text_style_presets.draw_panel_header(self.layout)
+            STRIP_PT_effect_text_style_presets.draw_panel_header(self.layout)
 
     def draw(self, context):
         layout = self.layout
@@ -1043,7 +1044,6 @@ class STRIP_PT_custom_props(StripButtonsPanel, PropertyPanel, Panel):
 
 
 classes = (
-    STRIP_PT_text_style_presets,
     STRIP_PT_color_tag_picker,
 
     STRIP_PT_strip,
@@ -1052,6 +1052,7 @@ classes = (
     STRIP_PT_scene_sound,
     STRIP_PT_mask,
     STRIP_PT_effect_text_style,
+    STRIP_PT_effect_text_style_presets,
     STRIP_PT_effect_text_outline,
     STRIP_PT_effect_text_shadow,
     STRIP_PT_effect_text_box,

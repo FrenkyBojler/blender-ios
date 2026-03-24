@@ -320,7 +320,7 @@ class AddPresetTextStripStyle(AddPresetBase, Operator):
     """Add or remove a text strip style and layout preset"""
     bl_idname = "sequencer.text_strip_style_preset_add"
     bl_label = "Add Text Strip Style Preset"
-    preset_menu = "STRIP_PT_text_style_presets"
+    preset_menu = "STRIP_PT_effect_text_style_presets"
 
     preset_defines = [
         "strip = bpy.context.active_strip",
