@@ -2117,7 +2117,7 @@ std::optional<Array<float>> sound_compute_fft(const bSound &sound,
 
   Array<float> buffer(key.fft_size, 0.0f);
   if (key.channel.has_value()) {
-    const int channel = std::clamp(*key.channel, 0, channels_num - 1);
+    const int channel = *key.channel;
     if (channel < 0 || channel >= channels_num) {
       return std::nullopt;
     }
