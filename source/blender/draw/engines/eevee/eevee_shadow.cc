@@ -932,6 +932,7 @@ void ShadowModule::end_sync()
       /* Mark for update all shadow pages touching an updated shadow caster. */
       PassSimple &pass = caster_update_ps_;
       pass.init();
+      pass.framebuffer_set(&update_tag_fb_);
       pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_CULL_FRONT);
       pass.shader_set(inst_.shaders.static_shader_get(SHADOW_TILEMAP_TAG_UPDATE));
       pass.bind_ssbo("tilemaps_buf", tilemap_pool.tilemaps_data);
@@ -957,6 +958,7 @@ void ShadowModule::end_sync()
       PassSimple &pass = jittered_transparent_caster_update_ps_;
       pass.init();
       if (jittered_transparent_casters_.size() > 0) {
+        pass.framebuffer_set(&update_tag_fb_);
         pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_CULL_FRONT);
         pass.shader_set(inst_.shaders.static_shader_get(SHADOW_TILEMAP_TAG_UPDATE));
         pass.push_constant("tilemap_count", int(tilemap_pool.tilemaps_data.size()));
@@ -1347,21 +1349,14 @@ void ShadowModule::set_view(View &view, int2 extent)
       GPU_uniformbuf_clear_to_zero(shadow_multi_view_.matrices_ubo_get());
 
       inst_.manager->submit(tilemap_setup_ps_, view);
-      bool propagate_update = false;
-      if (assign_if_different(update_casters_, false)) {
-        /* Run caster update only once. */
-        /* TODO(fclem): There is an optimization opportunity here where we can
-         * test casters only against the static tile-maps instead of all of them. */
-        GPU_framebuffer_bind(update_tag_fb_);
-        inst_.manager->submit(caster_update_ps_, view);
-        propagate_update = true;
-      }
       if (loop_count == 0) {
-        GPU_framebuffer_bind(update_tag_fb_);
+        if (assign_if_different(update_casters_, false)) {
+          /* Run caster update only once. */
+          /* TODO(fclem): There is an optimization opportunity here where we can
+           * test casters only against the static tile-maps instead of all of them. */
+          inst_.manager->submit(caster_update_ps_, view);
+        }
         inst_.manager->submit(jittered_transparent_caster_update_ps_, view);
-        propagate_update = true;
-      }
-      if (propagate_update) {
         inst_.manager->submit(update_propagate_ps_, view);
       }
       inst_.manager->submit(tilemap_usage_ps_, view);
