@@ -707,6 +707,7 @@ class NODE_MT_gn_utilities_base(node_add_menu.NodeMenu):
         if context.preferences.experimental.use_geometry_nodes_lists:
             self.draw_menu(layout, path="Utilities/List")
         self.draw_menu(layout, path="Utilities/Matrix")
+        self.draw_menu(layout, path="Utilities/Object")
         self.draw_menu(layout, path="Utilities/Rotation")
         layout.separator()
         self.node_operator(layout, "NodeImplicitConversion")
@@ -731,6 +732,17 @@ class NODE_MT_gn_utilities_deprecated_base(node_add_menu.NodeMenu):
         layout = self.layout
         self.node_operator(layout, "FunctionNodeAlignEulerToVector")
         self.node_operator(layout, "FunctionNodeRotateEuler")
+
+        self.draw_assets_for_catalog(layout, self.menu_path)
+
+
+class NODE_MT_gn_utilities_object_base(node_add_menu.NodeMenu):
+    bl_label = "Object"
+    menu_path = "Utilities/Object"
+
+    def draw(self, _context):
+        layout = self.layout
+        self.node_operator(layout, "GeometryNodeObjectParent")
 
         self.draw_assets_for_catalog(layout, self.menu_path)
 
@@ -1098,6 +1110,7 @@ add_menus = {
     "NODE_MT_category_GEO_UTILITIES_ROTATION": NODE_MT_gn_utilities_rotation_base,
     "NODE_MT_category_utilities_list": NODE_MT_gn_utilities_list_base,
     "NODE_MT_category_utilities_matrix": NODE_MT_gn_utilities_matrix_base,
+    "NODE_MT_category_utilities_object": NODE_MT_gn_utilities_object_base,
     "NODE_MT_category_GEO_UTILITIES_DEPRECATED": NODE_MT_gn_utilities_deprecated_base,
     "NODE_MT_geometry_node_add_all": NODE_MT_gn_all_base,
 }
@@ -1164,6 +1177,7 @@ swap_menus = {
     "NODE_MT_gn_utilities_rotation_swap": NODE_MT_gn_utilities_rotation_base,
     "NODE_MT_gn_utilities_list_swap": NODE_MT_gn_utilities_list_base,
     "NODE_MT_gn_utilities_matrix_swap": NODE_MT_gn_utilities_matrix_base,
+    "NODE_MT_gn_utilities_object_swap": NODE_MT_gn_utilities_object_base,
     "NODE_MT_gn_utilities_deprecated_swap": NODE_MT_gn_utilities_deprecated_base,
     "NODE_MT_geometry_node_swap_all": NODE_MT_gn_all_base,
 }

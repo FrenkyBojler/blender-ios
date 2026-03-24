@@ -191,13 +191,6 @@ static void add_own_transform_dependencies(const bNodeTree &tree, EvalDependenci
     needs_own_transform |= storage.transform_space == GEO_NODE_TRANSFORM_SPACE_RELATIVE;
   }
 
-  for (const bNode *node : tree.nodes_by_type("GeometryNodeBoneInfo")) {
-    if (node->is_muted()) {
-      continue;
-    }
-    needs_own_transform |= node->custom1 == GEO_NODE_TRANSFORM_SPACE_RELATIVE;
-  }
-
   deps.needs_own_transform |= needs_own_transform;
 }
 
@@ -228,15 +221,7 @@ static void gather_geometry_nodes_eval_dependencies(
   deps.needs_scene_render_params |= needs_scene_render_params(ntree);
   deps.time_dependent |= has_enabled_nodes_of_type(ntree, "GeometryNodeSimulationInput") ||
                          has_enabled_nodes_of_type(ntree, "GeometryNodeInputSceneTime");
-  deps.needs_parent_object |= has_enabled_nodes_of_type(ntree, "GeometryNodeBoneInfo");
-
-  for (const bNode *node : ntree.nodes_by_type("GeometryNodeObjectInfo")) {
-    if (node->is_muted()) {
-      continue;
-    }
-    const bNodeSocket &parent_socket = *node->output_by_identifier("Parent");
-    deps.needs_parent_object |= parent_socket.is_logically_linked();
-  }
+  deps.needs_parent_object |= has_enabled_nodes_of_type(ntree, "GeometryNodeObjectParent");
 
   add_eval_dependencies_from_node_data(ntree, deps);
   add_own_transform_dependencies(ntree, deps);

@@ -37,6 +37,7 @@
 
 #include "BKE_bake_data_block_map.hh"
 #include "BKE_bake_geometry_nodes_modifier.hh"
+#include "BKE_collection.hh"
 #include "BKE_compute_context_cache.hh"
 #include "BKE_compute_contexts.hh"
 #include "BKE_customdata.hh"
@@ -233,10 +234,13 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
     DEG_add_depends_on_transform_relation(ctx->node, "Nodes Modifier");
   }
   if (eval_deps.needs_parent_object) {
-    /* When the Parent socket of Object Info or Bone Info nodes are used, the parent of any
-     * referenced object may be needed. Walk parent chains for all objects in the dependency
-     * set (and the modifier object itself) so that any parent change triggers re-evaluation.
-     * Armature parents additionally get a pose dependency. */
+    /* When the Object Parent node is used, the parent of any referenced object may be needed.
+     * Walk the full parent chain for all objects in the dependency set (and the modifier object
+     * itself) so that any change to a parent triggers re-evaluation. For each parent we add
+     * a transform dependency and, depending on the parent type, geometry, pose, or parameter
+     * dependencies as well.
+     * Objects from referenced collections (e.g. via the Collection Children node) are also
+     * included, since they may be piped into an Object Parent node at runtime. */
     auto add_parent_deps = [&](Object *object) {
       for (Object *parent = object->parent; parent; parent = parent->parent) {
         DEG_add_object_relation(
@@ -246,11 +250,13 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
               ctx->node, parent, DEG_OB_COMP_EVAL_POSE, "Nodes Modifier");
         }
         if (DEG_object_has_geometry_component(parent)) {
-          DEG_add_object_relation(ctx->node, parent, DEG_OB_COMP_GEOMETRY, "Nodes Modifier");
+          DEG_add_object_relation(
+              ctx->node, parent, DEG_OB_COMP_GEOMETRY, "Nodes Modifier");
           DEG_add_customdata_mask(ctx->node, parent, &dependency_data_mask);
         }
         if (parent->type == OB_CAMERA) {
-          DEG_add_object_relation(ctx->node, parent, DEG_OB_COMP_PARAMETERS, "Nodes Modifier");
+          DEG_add_object_relation(
+              ctx->node, parent, DEG_OB_COMP_PARAMETERS, "Nodes Modifier");
         }
       }
     };
@@ -258,6 +264,13 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
     for (ID *id : eval_deps.ids.values()) {
       if (GS(id->name) == ID_OB) {
         add_parent_deps(reinterpret_cast<Object *>(id));
+      }
+      else if (GS(id->name) == ID_GR) {
+        Collection *collection = reinterpret_cast<Collection *>(id);
+        FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (collection, ob) {
+          add_parent_deps(ob);
+        }
+        FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
       }
     }
   }

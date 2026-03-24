@@ -40,10 +40,6 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Vector>("Location");
   b.add_output<decl::Rotation>("Rotation");
   b.add_output<decl::Vector>("Scale");
-  b.add_output<decl::Object>("Parent").description(
-      "The parent of the input object, if one exists");
-  b.add_output<decl::Bool>("Parent Exists").description(
-      "Whether the input object has a parent");
   b.add_output<decl::Geometry>("Geometry");
 }
 
@@ -102,8 +98,6 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Rotation", rotation);
   params.set_output("Scale", scale);
   params.set_output("Transform", output_transform);
-  params.set_output("Parent Exists", object->parent != nullptr);
-  params.set_output("Parent", object->parent);
 
   if (!params.output_is_required("Geometry")) {
     return;
