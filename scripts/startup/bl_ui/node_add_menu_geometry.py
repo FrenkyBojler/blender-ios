@@ -493,6 +493,7 @@ class NODE_MT_gn_mesh_read_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeInputEdgeSmooth")
         self.node_operator(layout, "GeometryNodeInputMeshIsland")
         self.node_operator(layout, "GeometryNodeInputShortestEdgePaths")
+        self.node_operator(layout, "GeometryNodeInputMaximumFlow")
         self.node_operator(layout, "GeometryNodeInputMeshVertexNeighbors")
 
         self.draw_assets_for_catalog(layout, self.menu_path)
