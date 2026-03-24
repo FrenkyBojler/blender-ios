@@ -114,6 +114,7 @@ void main()
 
   /* Compute per-level size, camera offset for lines. Offset is rounded to the nearest
    * level-dependent line position for grid, while axes simply move with the camera. */
+  /* TODO(not_mark): remove all this horrible axis-swapping BS in BSL port. */
   float step_size = grid_buf.steps[level][line.axis];
   float2 step_offs = flag_test(grid_flag, SHOW_GRID) ?
                          round(grid_buf.offset / step_size) * step_size :
@@ -167,6 +168,7 @@ void main()
   line.P = clamp(line.P, clip_min, clip_max);
 
   /* Output world-space position. */
+  /* TODO(not_mark): remove all this horrible axis-swapping BS in BSL port. */
   vertex_out.pos = float3(0.0f);
   if (flag_test(grid_flag, SHOW_GRID)) {
     /* Position is placed on the correct plane. */
