@@ -56,7 +56,7 @@ void tag_update_vert([[resource_table]] TagUpdate &srt,
 
   ObjectBounds bounds = srt.bounds_buf[resource_id];
   if (!drw_bounds_are_valid(bounds)) {
-    out_position = float4(1.0f);
+    out_position = float4(NAN_FLT);
     return;
   }
 
@@ -89,7 +89,7 @@ void tag_update_vert([[resource_table]] TagUpdate &srt,
   const float ndc_pixel_size = 2.0f / float(SHADOW_TILEMAP_RES);
   out_position.xy += sign(expand_dir) * (ndc_pixel_size * out_position.w);
 
-  /* Make sure to bring most of the geometry.
+  /* Make sure to bring all the geometry inside the view frustum.
    * Mimics an infinite projection matrix. */
   out_position.z *= 1e-5f;
 }
