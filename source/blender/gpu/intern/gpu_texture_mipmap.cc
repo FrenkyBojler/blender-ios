@@ -80,7 +80,7 @@ static void update_mipmaps(Texture &texture, Shader &shader, int layer)
     texture.mip_size_get(mip_start + num_levels, mip_size);
 
     if (num_levels == 1U) {
-      // Each thread writes one sample.
+      /* Each thread writes one sample. */
       constexpr uint32_t warps = 4;
       const uint32_t samples = mip_size.x * mip_size.y;
       const uint32_t threads = warps * 32U;
@@ -88,7 +88,7 @@ static void update_mipmaps(Texture &texture, Shader &shader, int layer)
       GPU_compute_dispatch(&shader, group_len, 1, 1);
     }
     else {
-      // Each workgroup handles a tile.
+      /* Each workgroup handles a tile. */
       constexpr uint32_t TileWidth = 8;
       constexpr uint32_t TileHeight = 8;
       const uint32_t horizontalTiles = divide_ceil_u(mip_size.x, TileWidth);

@@ -6,7 +6,9 @@
 
 #include "gpu_shader_compat.hh"
 
-/* enums should be defined in the root namespace, as they will not be fully qualified. */
+/* Enums should be defined in the root namespace when used directly in the pipeline, as they will
+ * not be fully qualified when generating the template name substitution. Defining in the root
+ * works around this limitation */
 /* TODO: We should use a common TextureFormat enum. */
 enum TextureFormat : uint32_t {
   UNORM_8_8_8_8,
