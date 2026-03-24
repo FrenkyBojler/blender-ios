@@ -51,12 +51,12 @@ static inline void geometry_call(PassMain::Sub *sub_pass,
   }
 }
 
-static inline void volume_call(PassMain::Sub *pass,
-                               GPUMaterial *gpumat,
-                               Scene *scene,
-                               Object *ob,
-                               gpu::Batch *geom,
-                               ResourceHandleRange res_handle)
+static inline void geometry_volume_call(PassMain::Sub *pass,
+                                        GPUMaterial *gpumat,
+                                        Scene *scene,
+                                        Object *ob,
+                                        gpu::Batch *geom,
+                                        ResourceHandleRange res_handle)
 {
   BLI_assert(res_handle.index_range().size() == 1);
   if (pass != nullptr) {
@@ -230,12 +230,12 @@ void SyncModule::sync_mesh(const ObjectRef &ob_ref)
 
     if (material.has_volume) {
       sync_volume_passes(ob_handle, material, [&](const MaterialPass &pass, int instance) {
-        volume_call(pass.sub_pass,
-                    pass.gpumat,
-                    inst_.scene,
-                    ob_handle.object,
-                    geom,
-                    ob_handle.res_handle.sub_handle(instance));
+        geometry_volume_call(pass.sub_pass,
+                             pass.gpumat,
+                             inst_.scene,
+                             ob_handle.object,
+                             geom,
+                             ob_handle.res_handle.sub_handle(instance));
       });
 
       /* Do not render surface if we are rendering a volume object
@@ -289,12 +289,12 @@ bool SyncModule::sync_sculpt(const ObjectRef &ob_ref)
 
     if (material.has_volume) {
       sync_volume_passes(ob_handle, material, [&](const MaterialPass &pass, int instance) {
-        volume_call(pass.sub_pass,
-                    pass.gpumat,
-                    inst_.scene,
-                    ob_handle.object,
-                    geom,
-                    ob_handle.res_handle.sub_handle(instance));
+        geometry_volume_call(pass.sub_pass,
+                             pass.gpumat,
+                             inst_.scene,
+                             ob_handle.object,
+                             geom,
+                             ob_handle.res_handle.sub_handle(instance));
       });
 
       /* Do not render surface if we are rendering a volume object
@@ -421,6 +421,8 @@ void SyncModule::sync_volume(const ObjectRef &ob_ref)
     if (pass.sub_pass == nullptr) {
       return;
     }
+    BLI_assert_msg(!ob_handle.is_range(),
+                   "volume_object_grids_init pass setup is object/instance specific.");
     PassMain::Sub *object_pass = volume_sub_pass(
         *pass.sub_pass, inst_.scene, ob_handle.object, pass.gpumat);
     if (object_pass != nullptr) {
