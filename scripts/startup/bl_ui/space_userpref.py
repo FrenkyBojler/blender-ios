@@ -442,6 +442,21 @@ class USERPREF_PT_edit_objects_new(EditingPanel, CenterAlignMixIn, Panel):
         flow.prop(edit, "collection_instance_empty_size", text="Instance Empty Size")
 
 
+class USERPREF_PT_edit_objects_new_armatures(EditingPanel, CenterAlignMixIn, Panel):
+    bl_label = "Armatures"
+    bl_parent_id = "USERPREF_PT_edit_objects_new"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw_centered(self, context, layout):
+        prefs = context.preferences
+        view = prefs.view
+
+        col = layout.column()
+        col.prop(view, "armature_new_display_type", text="Object Display Type")
+        col.prop(view, "armature_data_new_display_type", text="Armature Display Type")
+        col.prop(view, "bone_new_rotation_mode", text="Bone Rotation Mode")
+
+
 class USERPREF_PT_edit_objects_duplicate_data(EditingPanel, CenterAlignMixIn, Panel):
     bl_label = "Copy on Duplicate"
     bl_parent_id = "USERPREF_PT_edit_objects"
@@ -530,20 +545,6 @@ class USERPREF_PT_edit_annotations(EditingPanel, CenterAlignMixIn, Panel):
         col = layout.column()
         col.prop(edit, "grease_pencil_default_color", text="Default Color")
         col.prop(edit, "grease_pencil_eraser_radius", text="Eraser Radius")
-
-
-class USERPREF_PT_edit_armatures(EditingPanel, CenterAlignMixIn, Panel):
-    bl_label = "Armatures"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    def draw_centered(self, context, layout):
-        prefs = context.preferences
-        view = prefs.view
-
-        col = layout.column()
-        col.prop(view, "armature_new_display_type", text="Object Display Type")
-        col.prop(view, "armature_data_new_display_type", text="Armature Display Type")
-        col.prop(view, "bone_new_rotation_mode", text="Bone Rotation Mode")
 
 
 class USERPREF_PT_edit_weight_paint(EditingPanel, CenterAlignMixIn, Panel):
@@ -3149,10 +3150,10 @@ classes = (
 
     USERPREF_PT_edit_objects,
     USERPREF_PT_edit_objects_new,
+    USERPREF_PT_edit_objects_new_armatures,
     USERPREF_PT_edit_objects_duplicate_data,
     USERPREF_PT_edit_cursor,
     USERPREF_PT_edit_annotations,
-    USERPREF_PT_edit_armatures,
     USERPREF_PT_edit_weight_paint,
     USERPREF_PT_edit_gpencil,
     USERPREF_PT_edit_text_editor,
