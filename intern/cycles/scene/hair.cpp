@@ -386,7 +386,7 @@ void Hair::compute_bounds()
       const size_t steps_size = curve_keys.size() * (motion_steps - 1);
       // Attribute data is stored as a float4 and is not
       // interchangeable with float3
-      float4 *key_steps = curve_attr->data_float4();
+      const float4 *key_steps = curve_attr->data_float4();
 
       for (size_t i = 0; i < steps_size; i++) {
         bnds.grow(make_float3(key_steps[i]));
@@ -405,7 +405,7 @@ void Hair::compute_bounds()
         const size_t steps_size = curve_keys.size() * (motion_steps - 1);
         // Attribute data is stored as a float4 which is not
         // interchangeable with float4
-        float4 *key_steps = curve_attr->data_float4();
+        const float4 *key_steps = curve_attr->data_float4();
 
         for (size_t i = 0; i < steps_size; i++) {
           bnds.grow_safe(make_float3(key_steps[i]));
@@ -580,6 +580,10 @@ bool Hair::need_shadow_transparency() const
 
 bool Hair::need_update_shadow_transparency() const
 {
+  if (attributes.find(ATTR_STD_SHADOW_TRANSPARENCY) == nullptr) {
+    return true;
+  }
+
   for (const Node *node : used_shaders) {
     const Shader *shader = static_cast<const Shader *>(node);
     if (shader->need_update_shadow_transparency) {
