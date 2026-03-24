@@ -290,8 +290,8 @@ ccl_device int bssrdf_setup(ccl_private ShaderData *sd,
                             const uint32_t path_flag,
                             ClosureType type)
 {
-  /* Clamps protecting against bad/extreme and non physical values. */
-  bssrdf->anisotropy = clamp(bssrdf->anisotropy, 0.0f, 0.9f);
+  /* Clamp anisotropy to avoid delta function. */
+  bssrdf->anisotropy = clamp(bssrdf->anisotropy, -0.99f, 0.99f);
   bssrdf->ior = clamp(bssrdf->ior, 1.01f, 3.8f);
 
   int flag = 0;

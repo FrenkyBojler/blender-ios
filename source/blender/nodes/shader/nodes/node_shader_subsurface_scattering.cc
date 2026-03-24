@@ -33,9 +33,14 @@ static void node_declare(NodeDeclarationBuilder &b)
       .subtype(PROP_FACTOR);
   b.add_input<decl::Float>("Anisotropy")
       .default_value(0.0f)
-      .min(0.0f)
+      .min(-1.0f)
       .max(1.0f)
-      .subtype(PROP_FACTOR);
+      .subtype(PROP_FACTOR)
+      .description(
+          "Directionality of volume scattering within the subsurface medium. "
+          "Zero scatters uniformly in all directions, positive values scatter more in the forward "
+          "direction, and negative values scatter more backwards. "
+          "For example, skin has been measured to have an anisotropy of 0.8");
   b.add_input<decl::Vector>("Normal").hide_value();
   b.add_input<decl::Float>("Weight").available(false);
   b.add_output<decl::Shader>("BSSRDF");
