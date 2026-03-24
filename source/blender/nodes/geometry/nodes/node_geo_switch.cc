@@ -5,6 +5,7 @@
 #include "node_geometry_util.hh"
 
 #include "BKE_node_tree_reference_lifetimes.hh"
+#include "BKE_volume_grid.hh"
 
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
@@ -16,6 +17,8 @@
 #include "RNA_enum_types.hh"
 
 #include "FN_multi_function_builder.hh"
+
+#include "volume_grid_function_eval.hh"
 
 namespace blender {
 
@@ -141,26 +144,25 @@ class LazyFunctionForSwitchNode : public LazyFunction {
   void execute_impl(lf::Params &params, const lf::Context &context) const override
   {
     SocketValueVariant condition_variant = params.get_input<SocketValueVariant>(0);
-    if (!condition_variant.is_context_dependent_field()) {
+    if (condition_variant.is_single()) {
       this->execute_single(condition_variant.get<bool>(), params);
-      return;
-    }
-
-    if (can_be_field_) {
-      this->execute_field(condition_variant.get<Field<bool>>(), params);
       return;
     }
 
     auto &user_data = *static_cast<GeoNodesUserData *>(context.user_data);
     auto &local_user_data = *static_cast<GeoNodesLocalUserData *>(context.local_user_data);
-    if (geo_eval_log::GeoTreeLogger *tree_logger = local_user_data.try_get_tree_logger(user_data))
-    {
-      tree_logger->node_warnings.append(
-          *tree_logger->allocator,
-          {node_id_, {NodeWarningType::Error, N_("Type cannot be switched by a field")}});
-    }
+    std::string error_message;
+    this->execute_multi_function(condition_variant, params, user_data, error_message);
 
-    this->execute_single(condition_variant.get<bool>(), params);
+    if (!error_message.empty()) {
+      if (geo_eval_log::GeoTreeLogger *tree_logger = local_user_data.try_get_tree_logger(
+              user_data))
+      {
+        tree_logger->node_warnings.append(
+            *tree_logger->allocator,
+            {node_id_, {NodeWarningType::Error, N_("Type cannot be switched by a field")}});
+      }
+    }
   }
 
   static constexpr int false_input_index = 1;
@@ -184,9 +186,12 @@ class LazyFunctionForSwitchNode : public LazyFunction {
     params.output_set(0);
   }
 
-  void execute_field(Field<bool> condition, lf::Params &params) const
+  void execute_multi_function(SocketValueVariant condition_variant,
+                              lf::Params &params,
+                              GeoNodesUserData &user_data,
+                              std::string &r_error_message) const
   {
-    /* When the condition is a non-constant field, we need both inputs. */
+    /* When the condition is a grid, we need both inputs. */
     auto *false_value_variant = params.try_get_input_data_ptr_or_request<SocketValueVariant>(
         false_input_index);
     auto *true_value_variant = params.try_get_input_data_ptr_or_request<SocketValueVariant>(
@@ -198,15 +203,20 @@ class LazyFunctionForSwitchNode : public LazyFunction {
 
     const MultiFunction &switch_multi_function = this->get_switch_multi_function();
 
-    GField false_field = false_value_variant->extract<GField>();
-    GField true_field = true_value_variant->extract<GField>();
+    bke::SocketValueVariant output_value_variant;
+    if (!execute_multi_function_on_value_variant(
+            switch_multi_function,
+            {&condition_variant, false_value_variant, true_value_variant},
+            {&output_value_variant},
+            &user_data,
+            r_error_message))
+    {
+      return;
+    }
 
-    GField output_field{FieldOperation::from(
-        switch_multi_function,
-        {std::move(condition), std::move(false_field), std::move(true_field)})};
-
+    const CPPType &type = *outputs_[0].type;
     void *output_ptr = params.get_output_data_ptr(0);
-    SocketValueVariant::ConstructIn(output_ptr, std::move(output_field));
+    type.move_construct(&output_value_variant, output_ptr);
     params.output_set(0);
   }
 
