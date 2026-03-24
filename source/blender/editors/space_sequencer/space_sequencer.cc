@@ -110,7 +110,7 @@ static SpaceLink *sequencer_create(const ScrArea * /*area*/, const Scene *scene)
   region->regiontype = RGN_TYPE_FOOTER;
   region->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_TOP : RGN_ALIGN_BOTTOM;
 
-  /* Scurbbing */
+  /* Scrubbing */
   region = BKE_area_region_new();
   BLI_addtail(&sseq->regionbase, static_cast<void *>(region));
   region->regiontype = RGN_TYPE_PREVIEW_SCRUBBING;
@@ -1149,9 +1149,11 @@ static void sequencer_scrubbing_region_listener(const wmRegionListenerParams *pa
       switch (wmn->data) {
         case ND_FRAME:
         case ND_SEQUENCER:
+        case ND_RENDER_OPTIONS:
           ED_region_tag_redraw(region);
           break;
       }
+      break;
     case NC_SPACE:
       if (wmn->data == ND_SPACE_SEQUENCER) {
         ED_region_tag_redraw(region);
@@ -1287,7 +1289,7 @@ void ED_spacetype_sequencer()
   art->poll = sequencer_footer_region_poll;
   BLI_addhead(&st->regiontypes, art);
 
-  /* regions: Preview Scurbbing */
+  /* regions: Preview Scrubbing */
   art = MEM_new_zeroed<ARegionType>("spacetype sequencer region");
   art->regionid = RGN_TYPE_PREVIEW_SCRUBBING;
   art->prefsizey = HEADERY;
