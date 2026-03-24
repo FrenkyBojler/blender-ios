@@ -714,12 +714,12 @@ void AbcMeshReader::read_geometry(bke::GeometrySet &geometry_set,
                                   const float velocity_scale,
                                   const char **r_err_str)
 {
-  if (!geometry_set.has_mesh()) {
-    geometry_set.replace_mesh(BKE_mesh_new_nomain(0, 0, 0, 0));
-  }
-
   Mesh *mesh = geometry_set.get_mesh_for_write();
 
+  if (mesh == nullptr) {
+    return;
+  }
+  
   Mesh *new_mesh = read_mesh(
       mesh, sample_sel, read_flag, velocity_name, velocity_scale, r_err_str);
 

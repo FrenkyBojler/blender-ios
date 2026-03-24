@@ -203,9 +203,7 @@ void AbcPointsReader::read_geometry(bke::GeometrySet &geometry_set,
                                     const float velocity_scale,
                                     const char **r_err_str)
 {
-  if (!geometry_set.has_pointcloud()) {
-    geometry_set.replace_pointcloud(BKE_pointcloud_new_nomain(0));
-  }
+  BLI_assert(geometry_set.has_pointcloud());
 
   IPointsSchema::Sample sample;
   try {

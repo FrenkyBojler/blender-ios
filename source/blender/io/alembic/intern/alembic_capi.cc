@@ -61,8 +61,10 @@
 
 #include "CLG_log.h"
 
+#include "BKE_curves.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_mesh.h"
+#include "BKE_pointcloud.hh"
 
 namespace blender {
 
@@ -1008,6 +1010,19 @@ void ABC_geo_and_trans(Main *bmain,
 
     const char *err_str = nullptr;
     bke::GeometrySet geometry_set;
+
+    IObject iobject = reader->iobject();
+    const ObjectHeader &header = iobject.getHeader();
+
+    if (Alembic::AbcGeom::IPolyMesh::matches(header)) {
+      geometry_set.replace_mesh(BKE_mesh_new_nomain(0, 0, 0, 0));
+    }
+    else if (Alembic::AbcGeom::IPoints::matches(header)) {
+      geometry_set.replace_pointcloud(BKE_pointcloud_new_nomain(0));
+    }
+    else if (Alembic::AbcGeom::ICurves::matches(header)) {
+      geometry_set.replace_curves(bke::curves_new_nomain(0, 0));
+    };
 
     reader->read_geometry(geometry_set,
                           sample_sel,
