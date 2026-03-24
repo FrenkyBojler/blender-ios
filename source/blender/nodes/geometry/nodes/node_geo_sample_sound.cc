@@ -22,6 +22,13 @@ enum class FFTSize {
   _32768 = 32768,
 };
 
+enum class WindowFunction {
+  Hann = 0,
+  Hamming = 1,
+  Blackman = 2,
+  Rectangular = 3,
+};
+
 static const EnumPropertyItem fft_size_items[] = {
     {int(FFTSize::_128), "128", 0, "128", ""},
     {int(FFTSize::_256), "256", 0, "256", ""},
@@ -32,6 +39,14 @@ static const EnumPropertyItem fft_size_items[] = {
     {int(FFTSize::_8192), "8192", 0, "8192", ""},
     {int(FFTSize::_16384), "16384", 0, "16384", ""},
     {int(FFTSize::_32768), "32768", 0, "32768", ""},
+    {},
+};
+
+static const EnumPropertyItem window_function_items[] = {
+    {int(WindowFunction::Hann), "Hann", 0, "Hann", ""},
+    {int(WindowFunction::Hamming), "Hamming", 0, "Hamming", ""},
+    {int(WindowFunction::Blackman), "Blackman", 0, "Blackman", ""},
+    {int(WindowFunction::Rectangular), "Rectangular", 0, "Rectangular", ""},
     {},
 };
 
@@ -87,6 +102,10 @@ static void node_declare(NodeDeclarationBuilder &b)
         .static_items(fft_size_items)
         .default_value(FFTSize::_4096)
         .optional_label();
+    p.add_input<decl::Menu>("Window Function")
+        .static_items(window_function_items)
+        .default_value(WindowFunction::Hann)
+        .optional_label();
   }
 }
 
@@ -94,10 +113,13 @@ class SampleSoundFunction : public mf::MultiFunction {
  private:
   const bSound &sound_;
   const int fft_size_;
+  const bke::SampleSoundWindow window_function_;
 
  public:
-  SampleSoundFunction(bSound &sound, const FFTSize fft_size)
-      : sound_(sound), fft_size_(to_fft_size_int(fft_size))
+  SampleSoundFunction(bSound &sound,
+                      const int fft_size,
+                      const bke::SampleSoundWindow window_function)
+      : sound_(sound), fft_size_(fft_size), window_function_(window_function)
   {
     static const mf::Signature signature = []() {
       mf::Signature signature;
@@ -112,31 +134,6 @@ class SampleSoundFunction : public mf::MultiFunction {
     }();
     this->set_signature(&signature);
     BLI_assert(is_power_of_2(fft_size_));
-  }
-
-  static int to_fft_size_int(const FFTSize fft_size)
-  {
-    switch (fft_size) {
-      case FFTSize::_128:
-        return 128;
-      case FFTSize::_256:
-        return 256;
-      case FFTSize::_512:
-        return 512;
-      case FFTSize::_1024:
-        return 1024;
-      case FFTSize::_2048:
-        return 2048;
-      case FFTSize::_4096:
-        return 4096;
-      case FFTSize::_8192:
-        return 8192;
-      case FFTSize::_16384:
-        return 16384;
-      case FFTSize::_32768:
-        return 32768;
-    }
-    return 4096;
   }
 
   void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
@@ -154,11 +151,9 @@ class SampleSoundFunction : public mf::MultiFunction {
     const bool constant_channel = all_channels_value == true ||
                                   (all_channels_value.has_value() && channel_value.has_value());
 
-    const bke::SampleSoundWindow window = bke::SampleSoundWindow::Rectangular;
-
     if (constant_channel) {
       bke::SampleSoundKey key;
-      key.window = window;
+      key.window = window_function_;
       key.fft_size = fft_size_;
       key.channel = *all_channels_value ? std::nullopt : channel_value;
 
@@ -185,7 +180,7 @@ class SampleSoundFunction : public mf::MultiFunction {
       const float high = highs[i];
 
       bke::SampleSoundKey key;
-      key.window = window;
+      key.window = window_function_;
       key.fft_size = fft_size_;
       key.channel = all_channels ? std::nullopt : std::make_optional(channel);
 
@@ -200,6 +195,46 @@ class SampleSoundFunction : public mf::MultiFunction {
   }
 };
 
+static int to_fft_size_int(const FFTSize fft_size)
+{
+  switch (fft_size) {
+    case FFTSize::_128:
+      return 128;
+    case FFTSize::_256:
+      return 256;
+    case FFTSize::_512:
+      return 512;
+    case FFTSize::_1024:
+      return 1024;
+    case FFTSize::_2048:
+      return 2048;
+    case FFTSize::_4096:
+      return 4096;
+    case FFTSize::_8192:
+      return 8192;
+    case FFTSize::_16384:
+      return 16384;
+    case FFTSize::_32768:
+      return 32768;
+  }
+  return 4096;
+}
+
+static bke::SampleSoundWindow to_window_function(const WindowFunction window_function)
+{
+  switch (window_function) {
+    case WindowFunction::Hann:
+      return bke::SampleSoundWindow::Hann;
+    case WindowFunction::Hamming:
+      return bke::SampleSoundWindow::Hamming;
+    case WindowFunction::Blackman:
+      return bke::SampleSoundWindow::Blackman;
+    case WindowFunction::Rectangular:
+      return bke::SampleSoundWindow::Rectangular;
+  }
+  return bke::SampleSoundWindow::Hann;
+}
+
 static void node_geo_exec(GeoNodeExecParams params)
 {
   bSound *sound = params.extract_input<bSound *>("Sound");
@@ -209,13 +244,16 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   const FFTSize fft_size = params.extract_input<FFTSize>("FFT Size");
+  const WindowFunction window_function = params.extract_input<WindowFunction>("Window Function");
+
   SocketValueVariant times = params.extract_input<SocketValueVariant>("Time");
   SocketValueVariant all_channels = params.extract_input<SocketValueVariant>("All Channels");
   SocketValueVariant channels = params.extract_input<SocketValueVariant>("Channel");
   SocketValueVariant lows = params.extract_input<SocketValueVariant>("Low");
   SocketValueVariant highs = params.extract_input<SocketValueVariant>("High");
 
-  auto sample_fn = std::make_shared<SampleSoundFunction>(*sound, fft_size);
+  auto sample_fn = std::make_shared<SampleSoundFunction>(
+      *sound, to_fft_size_int(fft_size), to_window_function(window_function));
 
   SocketValueVariant amplitudes;
   std::string error_message;

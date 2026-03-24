@@ -2105,8 +2105,57 @@ const SoundSampler *sound_sampler_get(const bSound &sound, const SampleSoundKey 
   return accessor->second.get();
 }
 
+static WindowFunctionWeights compute_window_function_weights(const SampleSoundWindow window,
+                                                             const int size)
+{
+  Array<float> weights(size);
+  switch (window) {
+    case SampleSoundWindow::Hann: {
+      for (const int i : IndexRange(size)) {
+        weights[i] = 0.5 - 0.5 * math::cos((2.0f * std::numbers::pi * i) / (size - 1));
+      }
+      break;
+    }
+    case SampleSoundWindow::Hamming: {
+      for (const int i : IndexRange(size)) {
+        weights[i] = 0.54 - 0.46 * math::cos((2.0f * std::numbers::pi * i) / (size - 1));
+      }
+      break;
+    }
+    case SampleSoundWindow::Blackman: {
+      for (const int i : IndexRange(size)) {
+        weights[i] = 0.42 - 0.5 * math::cos((2.0f * std::numbers::pi * i) / (size - 1)) +
+                     0.08 * math::cos((4.0f * std::numbers::pi * i) / (size - 1));
+      }
+      break;
+    }
+    case SampleSoundWindow::Rectangular: {
+      weights.fill(1.0f);
+      break;
+    }
+  }
+  float sum = 0.0f;
+  for (const float weight : weights) {
+    sum += weight;
+  }
+  return WindowFunctionWeights{std::move(weights), sum};
+}
+
+static const WindowFunctionWeights &get_window_function_weights(const SampleSoundWindow window,
+                                                                const int size)
+{
+  static Mutex mutex;
+  static Map<std::pair<SampleSoundWindow, int>, std::unique_ptr<WindowFunctionWeights>> map;
+  std::lock_guard lock{mutex};
+  return *map.lookup_or_add_cb({window, size}, [&]() {
+    return std::make_unique<WindowFunctionWeights>(compute_window_function_weights(window, size));
+  });
+}
+
 SoundSampler::SoundSampler(const bSound &sound, const SampleSoundKey &key)
-    : sound_(sound), key_(key)
+    : sound_(sound),
+      key_(key),
+      window_function_weights_(get_window_function_weights(key.window, key.fft_size))
 {
   AUD_Sound sound_handle = sound.runtime->handle;
   const SoundInfo info = bke::sound_info_get(sound_handle);
@@ -2118,7 +2167,8 @@ SoundSampler::SoundSampler(const bSound &sound, const SampleSoundKey &key)
 
 std::optional<Array<float>> sound_compute_fft(const bSound &sound,
                                               const SampleSoundKey &key,
-                                              const int start_sample)
+                                              const int start_sample,
+                                              const WindowFunctionWeights &weights)
 {
   AUD_Sound sound_handle = sound.runtime->handle;
   std::shared_ptr<aud::IReader> reader = sound_handle->createReader();
@@ -2150,6 +2200,10 @@ std::optional<Array<float>> sound_compute_fft(const bSound &sound,
     }
   }
 
+  for (const int i : IndexRange(length)) {
+    buffer[i] *= weights.weights[i];
+  }
+
   const int frequencies_num = key.fft_size / 2;
 
   fftwf_complex *fftwf_buffer = static_cast<fftwf_complex *>(
@@ -2164,7 +2218,7 @@ std::optional<Array<float>> sound_compute_fft(const bSound &sound,
   fftwf_execute(plan);
 
   Array<float> frequency_amplitudes(frequencies_num);
-  const float scaling_factor = 1.0f / key.fft_size;  // TODO: take window function into account
+  const float scaling_factor = 1.0f / weights.weights_sum;
   for (const int i : IndexRange(frequencies_num)) {
     const fftwf_complex &c = fftwf_buffer[i];
     frequency_amplitudes[i] = sqrt(pow2f(c[0]) + pow2f(c[1])) * scaling_factor;
@@ -2236,7 +2290,7 @@ std::optional<Span<float>> SoundSampler::ensure_bucket(const int bucket_i) const
   const Bin &bucket = buckets_[bucket_i];
   bucket.mutex.ensure([&]() {
     std::optional<Array<float>> fft_array = sound_compute_fft(
-        sound_, key_, bucket_i * bin_offset_stride_);
+        sound_, key_, bucket_i * bin_offset_stride_, window_function_weights_);
     if (!fft_array.has_value()) {
       return;
     }

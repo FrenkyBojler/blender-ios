@@ -269,7 +269,15 @@ bool sound_mixdown(AUD_Sequence sequence,
 namespace bke {
 
 enum class SampleSoundWindow {
-  Rectangular = 0,
+  Hann,
+  Hamming,
+  Blackman,
+  Rectangular,
+};
+
+struct WindowFunctionWeights {
+  Array<float> weights;
+  float weights_sum;
 };
 
 struct SampleSoundKey {
@@ -287,7 +295,8 @@ struct SampleSoundKey {
 
 std::optional<Array<float>> sound_compute_fft(const bSound &sound,
                                               const SampleSoundKey &key,
-                                              const int start_sample);
+                                              const int start_sample,
+                                              const WindowFunctionWeights &weights);
 
 class SoundSampler {
  private:
@@ -307,6 +316,7 @@ class SoundSampler {
   int samples_per_second_;
   int bin_offset_stride_;
   Array<Bin> buckets_;
+  const WindowFunctionWeights &window_function_weights_;
 
  public:
   SoundSampler(const bSound &sound, const SampleSoundKey &key);
