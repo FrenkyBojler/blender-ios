@@ -184,7 +184,6 @@ struct StrokeToggleSettings {
    * \see BrushStrokeMode::Invert.
    */
   bool invert = false;
-  bool pen_flip = false;
 
   /**
    * Whether the modifier key that controls smoothing is active currently.

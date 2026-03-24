@@ -62,6 +62,7 @@
 
 #include "RNA_define.hh"
 
+#include "vw_paint_intern.hh" /* own include */
 #include "../paint_intern.hh" /* own include */
 #include "mesh_brush_common.hh"
 #include "sculpt_automask.hh"
@@ -1055,8 +1056,7 @@ bool WeightPaintStroke::test_start(wmOperator *op, const float mouse[2])
   }
 
   /* If not previously created, create vertex/weight paint mode session data */
-  vwpaint::init_stroke(depsgraph, ob);
-  vwpaint::update_cache_invariants(bmain_, wp, ss, op, mouse);
+  vwpaint::update_cache_invariants(wp, ss, op, mouse);
   init_session_data(wp, ob, *wpd);
 
   /* Brush may have changed after initialization. */
@@ -1949,6 +1949,7 @@ static wmOperatorStatus wpaint_invoke(bContext *C, wmOperator *op, const wmEvent
 
   WeightPaintStroke *stroke = MEM_new<WeightPaintStroke>(__func__, C, op, event->type);
   op->customdata = stroke;
+  vwpaint::init_stroke(*op, *stroke->bmain_, *stroke->paint, *stroke->depsgraph, *stroke->object);
 
   const wmOperatorStatus retval = op->type->modal(C, op, event);
   OPERATOR_RETVAL_CHECK(retval);

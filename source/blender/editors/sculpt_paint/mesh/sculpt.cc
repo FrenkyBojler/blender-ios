@@ -2218,7 +2218,6 @@ void calc_area_normal_and_center(const Depsgraph &depsgraph,
 static float brush_flip(const Brush &brush, const ed::sculpt_paint::StrokeCache &cache)
 {
   const float dir = (brush.flag & BRUSH_DIR_IN) ? -1.0f : 1.0f;
-  const float pen_flip = cache.toggle_settings.pen_flip ? -1.0f : 1.0f;
   const float invert = cache.toggle_settings.invert ? -1.0f : 1.0f;
 
   return dir * pen_flip * invert;
@@ -3322,7 +3321,7 @@ static void do_brush_action(const Depsgraph &depsgraph,
                                     std::numeric_limits<float>::max());
   }
 
-  bool invert = ss.cache->toggle_settings.pen_flip || ss.cache->toggle_settings.invert;
+  bool invert = ss.cache->toggle_settings.invert;
   if (brush.flag & BRUSH_DIR_IN) {
     invert = !invert;
   }
@@ -5574,8 +5573,7 @@ static StrokeToggleSettings create_toggle_settings(const wmOperator &op,
 
   StrokeToggleSettings toggle_settings;
 
-  toggle_settings.pen_flip = pen_flip;
-  toggle_settings.invert = stroke_mode == BrushStrokeMode::Invert;
+  toggle_settings.invert = stroke_mode == BrushStrokeMode::Invert || pen_flip;
   toggle_settings.alt_smooth = brush_switch_mode == BrushSwitchMode::Smooth;
   toggle_settings.alt_mask = brush_switch_mode == BrushSwitchMode::Mask;
 
