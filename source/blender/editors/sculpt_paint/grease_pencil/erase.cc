@@ -1057,16 +1057,18 @@ void EraseOperation::on_stroke_begin(const bContext &C, const InputSample & /*st
     Object *object = CTX_data_active_object(&C);
     GreasePencil *grease_pencil = id_cast<GreasePencil *>(object->data);
 
-    grease_pencil->runtime->temp_eraser_radius = radius_;
-    grease_pencil->runtime->temp_use_eraser = true;
-
     std::optional<AssetWeakReference> asset_reference =
         WM_toolsystem_last_brush_asset_from_brush_type(
             scene, GPAINT_BRUSH_TYPE_ERASE, PaintMode::GPencil);
+    /* This should only fail in the case where the essential assets are not found. */
     if (asset_reference) {
       eraser_brush_ = reinterpret_cast<Brush *>(
           bke::asset_edit_id_from_weak_reference(*bmain, ID_BR, *asset_reference));
+      radius_ = BKE_brush_radius_get(paint, eraser_brush_);
     }
+
+    grease_pencil->runtime->temp_eraser_radius = radius_;
+    grease_pencil->runtime->temp_use_eraser = true;
   }
 
   if (eraser_brush_->gpencil_settings == nullptr) {
