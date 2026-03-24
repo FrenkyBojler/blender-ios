@@ -423,21 +423,32 @@ ID *asset_edit_id_ensure_local(Main &global_main, ID &id)
     return local_id;
   }
 
+  /* Keep a copy in case the ID gets made local in-place and the library data cleared. */
+  std::string filepath = id.lib->filepath;
+
   /* Recursively make local (creating copies of the given ID and its dependencies) and create weak
    * library reference for reuse. */
 
   {
     /* Recurse to collect IDs to make local. */
 
+    /* #BKE_library_make_local() only processes IDs not tagged with #ID_TAG_PRE_EXISTING (for
+     * historic reasons). */
     BKE_main_id_tag_all(&global_main, ID_TAG_PRE_EXISTING, true);
+
+    /* Mark this ID for processing. */
     id.tag &= ~ID_TAG_PRE_EXISTING;
     BKE_library_foreach_ID_link(
         &global_main,
         &id,
-        [&](LibraryIDLinkCallbackData *cb_data) {
-          if (*cb_data->id_pointer) {
-            (*cb_data->id_pointer)->tag &= ~ID_TAG_PRE_EXISTING;
+        [&](const LibraryIDLinkCallbackData *cb_data) {
+          /* A direct or indirect dependency of #id. */
+          ID *dependency_id = *cb_data->id_pointer;
+          if (!dependency_id || !ID_TYPE_SUPPORTS_ASSET_EDITABLE(GS(dependency_id->name))) {
+            return IDWALK_RET_STOP_RECURSION;
           }
+          /* Mark this ID for processing. */
+          dependency_id->tag &= ~ID_TAG_PRE_EXISTING;
           return IDWALK_RET_NOP;
         },
         nullptr,
@@ -449,15 +460,42 @@ ID *asset_edit_id_ensure_local(Main &global_main, ID &id)
 
   BKE_library_make_local(&global_main, nullptr, old_to_new_id, true, false, true);
 
-  ID **newid = reinterpret_cast<ID **>(BLI_ghash_lookup_p(old_to_new_id, &id));
+  /* #ID_TAG_PRE_EXISTING should be reset after use. */
+  BKE_main_id_tag_all(&global_main, ID_TAG_PRE_EXISTING, false);
+
+  /* If any of the processed IDs are still using linked IDs (probably because they are not covered
+   * by #ID_TYPE_SUPPORTS_ASSET_EDITABLE()), clear that usage so the IDs are definitely only using
+   * local data. */
+  {
+    GHashIterator gh_iter;
+    GHASH_ITER (gh_iter, old_to_new_id) {
+      ID *now_local_id = static_cast<ID *>(BLI_ghashIterator_getValue(&gh_iter));
+      BKE_library_foreach_ID_link(
+          &global_main,
+          now_local_id,
+          [&](const LibraryIDLinkCallbackData *cb_data) {
+            if (*cb_data->id_pointer && ID_IS_LINKED(*cb_data->id_pointer)) {
+              *cb_data->id_pointer = nullptr;
+            }
+            return IDWALK_RET_NOP;
+          },
+          nullptr,
+          IDWALK_NOP);
+    }
+  }
+
+  ID *newid =
+      /* #BKE_library_foreach_ID_link() may modify IDs in-place. Can be recognized by the fact that
+       * the library pointer is null now. */
+      (id.lib == nullptr) ? &id : reinterpret_cast<ID *>(BLI_ghash_lookup(old_to_new_id, &id));
   if (!newid) {
     BLI_assert_unreachable();
     return nullptr;
   }
 
-  BKE_main_library_weak_reference_add(*newid, id.lib->filepath, id.name);
+  BKE_main_library_weak_reference_add(newid, filepath.c_str(), id.name);
 
-  return *newid;
+  return newid;
 }
 
 }  // namespace blender::bke
