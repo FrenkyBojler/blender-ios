@@ -5235,6 +5235,7 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
                                      const uchar intersection_mask,
                                      const float thickness,
                                      const float opacity,
+                                     const bool fill_strokes,
                                      const uchar shadow_selection,
                                      const uchar silhouette_mode,
                                      const char *source_vgname,
@@ -5548,6 +5549,12 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
   point_radii.finish();
   point_opacities.finish();
   stroke_materials.finish();
+
+  if (fill_strokes) {
+    AttributeWriter<int> fill_ids = attributes.lookup_or_add_for_write<int>(
+        "fill_id", AttrDomain::Curve, AttributeInitValue(1));
+    fill_ids.finish();
+  }
 
   Curves *original_curves = bke::curves_new_nomain(drawing.strokes());
   Curves *created_curves = bke::curves_new_nomain(std::move(new_curves));
