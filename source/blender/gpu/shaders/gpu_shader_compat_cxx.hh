@@ -286,12 +286,12 @@ struct PipelineCompute {
  * \{ */
 
 /**
- * Texture format.
+ * TextureWriteFormat.
  *
- * We should not include GPU_TEXTURE_FORMAT_EXPAND as other parts are included that will intervene
- * with the compatibility defines. Incompatible 3 channel formats have been removed.
+ * We can not use GPU_TEXTURE_WRITE_FORMAT_EXPAND as other parts are included that will intervene
+ * with the compatibility defines.
  */
-enum TextureFormat : uint32_t {
+enum TextureWriteFormat : uint32_t {
   SNORM_8,
   SNORM_8_8,
   SNORM_8_8_8_8,
@@ -344,20 +344,6 @@ enum TextureFormat : uint32_t {
   UINT_10_10_10_2,
 
   UFLOAT_11_11_10,
-  UFLOAT_9_9_9_EXP_5,
-
-  UNORM_16_DEPTH,
-  SFLOAT_32_DEPTH,
-  SFLOAT_32_DEPTH_UINT_8,
-
-  SRGBA_8_8_8_8,
-
-  SNORM_DXT1,
-  SNORM_DXT3,
-  SNORM_DXT5,
-  SRGB_DXT1,
-  SRGB_DXT3,
-  SRGB_DXT5_,
 };
 
 /** \} */
