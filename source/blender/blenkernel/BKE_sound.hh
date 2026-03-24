@@ -9,6 +9,7 @@
  */
 
 #include <cmath>
+#include <iostream>
 #include <optional>
 #include <string>
 
@@ -294,13 +295,7 @@ class SoundSampler {
   Array<Bucket> buckets_;
 
  public:
-  SoundSampler(const bSound &sound, const SampleSoundKey &key) : sound_(sound), key_(key)
-  {
-    // TODO
-    samples_per_second_ = 48000;
-    samples_per_bucket_ = 500;
-    buckets_.reinitialize(1000);
-  }
+  SoundSampler(const bSound &sound, const SampleSoundKey &key);
 
   float sample_single(const float time, const float low, const float high) const
   {
@@ -320,7 +315,8 @@ class SoundSampler {
     const int max_bucket_i = bucket_size - 1;
 
     const float low_i_float = std::max(low, 0.0f) * key_.fft_size / samples_per_second_;
-    const float high_i_float = std::max(high, 0.0f) * key_.fft_size / samples_per_second_;
+    // const float high_i_float = std::max(high, 0.0f) * key_.fft_size / samples_per_second_;
+    const float high_i_float = key_.fft_size - 1;
 
     const int prev_low_i = std::min(int(floorf(low_i_float)), max_bucket_i);
     const int next_low_i = std::min(prev_low_i + 1, max_bucket_i);
@@ -359,6 +355,7 @@ class SoundSampler {
         bucket.accumulated_amplitudes[i] = accumulated;
         accumulated += value;
       }
+      std::cout << "Accumulated: " << bucket_i << " " << accumulated << std::endl;
     });
     return bucket.accumulated_amplitudes;
   }

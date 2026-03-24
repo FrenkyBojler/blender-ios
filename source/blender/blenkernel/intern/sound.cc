@@ -2088,25 +2088,52 @@ SoundSampler *sound_sampler_get(const bSound &sound, const SampleSoundKey &key)
   return new SoundSampler(sound, key);
 }
 
+SoundSampler::SoundSampler(const bSound &sound, const SampleSoundKey &key)
+    : sound_(sound), key_(key)
+{
+  AUD_Sound sound_handle = sound.runtime->handle;
+  const SoundInfo info = bke::sound_info_get(sound_handle);
+  samples_per_second_ = info.specs.samplerate;
+  /* TODO: Try different values. */
+  samples_per_bucket_ = key_.fft_size / 3;
+  buckets_.reinitialize(std::ceil(info.length * info.specs.samplerate / samples_per_bucket_));
+}
+
 Array<float, 0> sound_compute_fft(const bSound &sound,
                                   const SampleSoundKey &key,
                                   const int start_sample)
 {
   AUD_Sound sound_handle = sound.runtime->handle;
-  aud::DeviceSpecs device_specs;
-  device_specs.format = aud::FORMAT_FLOAT32;
-  device_specs.rate = aud::RATE_INVALID;
-  device_specs.channels = aud::CHANNELS_MONO;
-  std::shared_ptr<aud::IReader> reader =
-      aud::ChannelMapper(sound_handle, device_specs).createReader();
-  // std::shared_ptr<aud::IReader> reader = sound_handle->createReader();
+  std::shared_ptr<aud::IReader> reader = sound_handle->createReader();
   const aud::Specs specs = reader->getSpecs();
-  reader->seek(start_sample);
-  Array<float, 0> result(key.fft_size, 0.0f);
+  const int channels_num = specs.channels;
+
+  Array<float> read_buffer(key.fft_size * channels_num);
   bool is_end_of_stream = false;
   int length = key.fft_size;
-  reader->read(length, is_end_of_stream, result.data());
-  return result;
+  reader->seek(start_sample);
+  reader->read(length, is_end_of_stream, read_buffer.data());
+
+  Array<float, 0> buffer(key.fft_size, 0.0f);
+  if (key.channel.has_value()) {
+    const int channel = std::clamp(*key.channel, 0, channels_num - 1);
+    if (channel < 0 || channel >= channels_num) {
+      return buffer;
+    }
+    for (const int i : IndexRange(length)) {
+      buffer[i] = read_buffer[i * channels_num + channel];
+    }
+  }
+  else {
+    for (const int i : IndexRange(length)) {
+      for (const int c : IndexRange(channels_num)) {
+        buffer[i] += read_buffer[i * channels_num + c];
+      }
+      buffer[i] /= channels_num;
+    }
+  }
+
+  return buffer;
 }
 
 }  // namespace bke
