@@ -35,6 +35,12 @@ if(CMAKE_C_COMPILER_ID MATCHES "Clang")
       "try running from the visual studio developer prompt."
     )
   endif()
+  # if set, leave CUDA_HOST_COMPILER alone, if not set default it with
+  # the path to cl.exe since otherwise it will try to use clang-cl and
+  # the cuda build will fail due to a non-supported compiler.
+  if(NOT DEFINED CUDA_HOST_COMPILER)
+    find_program(CUDA_HOST_COMPILER cl.exe)
+  endif()
 else()
   if(WITH_BLENDER)
     if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19.44.35216) # MSVC 2022 17.14.14
@@ -72,18 +78,22 @@ if(WITH_BLENDER AND NOT WITH_PYTHON_MODULE)
   set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT blender)
 endif()
 
-macro(warn_hardcoded_paths package_name)
+function(warn_hardcoded_paths package_name)
   if(WITH_WINDOWS_FIND_MODULES)
     message(WARNING "Using HARDCODED ${package_name} locations")
   endif()
-endmacro()
+endfunction()
 
+# NOTE: must be a macro, forwards to `find_package()`
+# whose result variables must be visible in the caller's scope.
 macro(windows_find_package package_name)
   if(WITH_WINDOWS_FIND_MODULES)
     find_package(${package_name})
   endif()
 endmacro()
 
+# NOTE: must be a macro, forwards `${ARGV}` to `find_package()`
+# whose result variables must be visible in the caller's scope.
 macro(find_package_wrapper)
   if(WITH_WINDOWS_FIND_MODULES)
     find_package(${ARGV})
@@ -121,6 +131,7 @@ add_definitions(
   -D_CONSOLE
   -D_LIB
   -D_USE_MATH_DEFINES
+  -DWIN32_LEAN_AND_MEAN
   -DNOMINMAX
 )
 
@@ -132,7 +143,7 @@ add_definitions(-D_ALLOW_KEYWORD_MACROS)
 # to remove for individual files that want to disable it
 # using the /GR- flag without generating a build warning
 # that both /GR and /GR- are specified.
-remove_cc_flag("/GR")
+remove_c_and_cxx_flag("/GR")
 
 # Make the Windows 8.1 API available for use.
 add_definitions(-D_WIN32_WINNT=0x603)
@@ -153,7 +164,7 @@ if(WITH_WINDOWS_BUNDLE_CRT)
   # ucrtbase(d).dll cannot be in the manifest, due to the way windows 10 handles
   # redirects for this dll, for details see #88813.
   foreach(lib ${CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS})
-    string(FIND ${lib} "ucrtbase" pos)
+    string(FIND "${lib}" "ucrtbase" pos)
     if(NOT pos EQUAL -1)
       list(REMOVE_ITEM CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS ${lib})
       install(FILES ${lib} DESTINATION . COMPONENT Libraries)
@@ -180,7 +191,7 @@ configure_file(
   @ONLY
 )
 
-remove_cc_flag(
+remove_c_and_cxx_flag(
   "/MDd"
   "/MD"
   "/Zi"

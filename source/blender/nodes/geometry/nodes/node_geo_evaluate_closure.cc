@@ -33,7 +33,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Closure>("Closure");
 
   const bNode *node = b.node_or_null();
-  auto &panel = b.add_panel("Interface");
+  auto &panel = b.add_panel("Interface"_ustr);
   if (node) {
     const auto &storage = node_storage(*node);
     for (const int i : IndexRange(storage.output_items.items_num)) {
@@ -242,7 +242,7 @@ StructRNA **EvaluateClosureInputItemsAccessor::item_srna = &RNA_NodeEvaluateClos
 
 void EvaluateClosureInputItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
-  BLO_write_string(writer, item.name);
+  writer->write_string(item.name);
 }
 
 void EvaluateClosureInputItemsAccessor::blend_read_data_item(BlendDataReader *reader, ItemT &item)
@@ -254,7 +254,7 @@ StructRNA **EvaluateClosureOutputItemsAccessor::item_srna = &RNA_NodeEvaluateClo
 
 void EvaluateClosureOutputItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
-  BLO_write_string(writer, item.name);
+  writer->write_string(item.name);
 }
 
 void EvaluateClosureOutputItemsAccessor::blend_read_data_item(BlendDataReader *reader, ItemT &item)
