@@ -126,8 +126,8 @@ ccl_device_forceinline void integrate_surface_emission(KernelGlobals kg,
   const uint32_t path_flag = INTEGRATOR_STATE(state, path, flag);
 
 #ifdef __LIGHT_LINKING__
-  if (!light_link_object_match(kg, light_link_receiver_forward(kg, state), sd->object) &&
-      !(path_flag & PATH_RAY_CAMERA))
+  if (!(path_flag & PATH_RAY_CAMERA) &&
+      !light_link_object_match(kg, light_link_receiver_forward(kg, state), sd->object))
   {
     return;
   }
@@ -836,6 +836,10 @@ ccl_device int integrate_surface(KernelGlobals kg,
     if (integrate_surface_terminate(state, path_flag)) {
       return LABEL_NONE;
     }
+
+#  ifdef __DENOISING_FEATURES__
+    film_write_denoising_features_surface_volume(kg, state, &sd, render_buffer);
+#  endif
 
     PROFILING_EVENT(PROFILING_SHADE_SURFACE_INDIRECT_LIGHT);
     continue_path_label = integrate_surface_volume_only_bounce(state, &sd);

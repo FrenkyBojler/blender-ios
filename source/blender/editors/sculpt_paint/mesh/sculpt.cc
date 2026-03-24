@@ -42,6 +42,7 @@
 
 #include "BKE_attribute.hh"
 #include "BKE_brush.hh"
+#include "BKE_bvhutils.hh"
 #include "BKE_ccg.hh"
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"
@@ -70,6 +71,7 @@
 #include "NOD_texture.h"
 
 #include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_query.hh"
 
 #include "WM_api.hh"
 #include "WM_toolsystem.hh"
@@ -122,7 +124,7 @@ float object_space_radius_get(const ViewContext &vc,
   return BKE_brush_unprojected_radius_get(&paint, &brush) * scale_factor;
 }
 
-bool report_if_shape_key_is_locked(const Object &ob, ReportList *reports)
+bool shape_key_check(const Object &ob, ReportList *reports)
 {
   SculptSession &ss = *ob.runtime->sculpt_session;
 
@@ -130,10 +132,16 @@ bool report_if_shape_key_is_locked(const Object &ob, ReportList *reports)
     if (reports) {
       BKE_reportf(reports, RPT_ERROR, "The active shape key of %s is locked", ob.id.name + 2);
     }
-    return true;
+    return false;
+  }
+  if (ss.shapekey_active && (ss.shapekey_active->flag & KEYBLOCK_MUTE) != 0) {
+    if (reports) {
+      BKE_reportf(reports, RPT_ERROR, "The active shape key of %s is muted", ob.id.name + 2);
+    }
+    return false;
   }
 
-  return false;
+  return true;
 }
 
 void vert_random_access_ensure(Object &object)
@@ -842,6 +850,8 @@ static int sculpt_brush_needs_normal(const SculptSession &ss, const Brush &brush
                SCULPT_BRUSH_TYPE_ROTATE,
                SCULPT_BRUSH_TYPE_ELASTIC_DEFORM,
                SCULPT_BRUSH_TYPE_THUMB) ||
+          (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_SCENE_PROJECT &&
+           brush.project_ray_direction_type == BRUSH_PROJECT_RAY_DIRECTION_PLANE_NORMAL) ||
           (mask_tex->tex && mask_tex->brush_map_mode == MTEX_MAP_MODE_AREA)) ||
          brush_uses_topology_rake(ss, brush) || BKE_brush_has_cube_tip(&brush, PaintMode::Sculpt);
 }
@@ -904,16 +914,18 @@ static void restore_mask_from_undo_step(Object &object)
       bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
       bke::SpanAttributeWriter<float> mask = attributes.lookup_or_add_for_write_span<float>(
           ".sculpt_mask", bke::AttrDomain::Point);
-      node_mask.foreach_index(GrainSize(1), [&](const int i) {
-        if (const std::optional<Span<float>> orig_data = orig_mask_data_lookup_mesh(object,
-                                                                                    nodes[i]))
-        {
-          const Span<int> verts = nodes[i].verts();
-          scatter_data_mesh(*orig_data, verts, mask.span);
-          bke::pbvh::node_update_mask_mesh(mask.span, nodes[i]);
-          node_changed[i] = true;
-        }
-      });
+      node_mask.foreach_index(
+          [&](const int i) {
+            if (const std::optional<Span<float>> orig_data = orig_mask_data_lookup_mesh(object,
+                                                                                        nodes[i]))
+            {
+              const Span<int> verts = nodes[i].verts();
+              scatter_data_mesh(*orig_data, verts, mask.span);
+              bke::pbvh::node_update_mask_mesh(mask.span, nodes[i]);
+              node_changed[i] = true;
+            }
+          },
+          exec_mode::grain_size(1));
       mask.finish();
       break;
     }
@@ -921,15 +933,17 @@ static void restore_mask_from_undo_step(Object &object)
       MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
       const int offset = CustomData_get_offset_named(&ss.bm->vdata, CD_PROP_FLOAT, ".sculpt_mask");
       if (offset != -1) {
-        node_mask.foreach_index(GrainSize(1), [&](const int i) {
-          for (BMVert *vert : BKE_pbvh_bmesh_node_unique_verts(&nodes[i])) {
-            if (const float *orig_mask = BM_log_find_original_vert_mask(ss.bm_log, vert)) {
-              BM_ELEM_CD_SET_FLOAT(vert, offset, *orig_mask);
-              bke::pbvh::node_update_mask_bmesh(offset, nodes[i]);
-              node_changed[i] = true;
-            }
-          }
-        });
+        node_mask.foreach_index(
+            [&](const int i) {
+              for (BMVert *vert : BKE_pbvh_bmesh_node_unique_verts(&nodes[i])) {
+                if (const float *orig_mask = BM_log_find_original_vert_mask(ss.bm_log, vert)) {
+                  BM_ELEM_CD_SET_FLOAT(vert, offset, *orig_mask);
+                  bke::pbvh::node_update_mask_bmesh(offset, nodes[i]);
+                  node_changed[i] = true;
+                }
+              }
+            },
+            exec_mode::grain_size(1));
       }
       break;
     }
@@ -939,24 +953,26 @@ static void restore_mask_from_undo_step(Object &object)
       const BitGroupVector<> grid_hidden = subdiv_ccg.grid_hidden;
       const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
       MutableSpan<float> masks = subdiv_ccg.masks;
-      node_mask.foreach_index(GrainSize(1), [&](const int i) {
-        if (const std::optional<Span<float>> orig_data = orig_mask_data_lookup_grids(object,
-                                                                                     nodes[i]))
-        {
-          int index = 0;
-          for (const int grid : nodes[i].grids()) {
-            const IndexRange grid_range = bke::ccg::grid_range(key, grid);
-            for (const int i : IndexRange(key.grid_area)) {
-              if (grid_hidden.is_empty() || !grid_hidden[grid][i]) {
-                masks[grid_range[i]] = (*orig_data)[index];
+      node_mask.foreach_index(
+          [&](const int i) {
+            if (const std::optional<Span<float>> orig_data = orig_mask_data_lookup_grids(object,
+                                                                                         nodes[i]))
+            {
+              int index = 0;
+              for (const int grid : nodes[i].grids()) {
+                const IndexRange grid_range = bke::ccg::grid_range(key, grid);
+                for (const int i : IndexRange(key.grid_area)) {
+                  if (grid_hidden.is_empty() || !grid_hidden[grid][i]) {
+                    masks[grid_range[i]] = (*orig_data)[index];
+                  }
+                  index++;
+                }
               }
-              index++;
+              bke::pbvh::node_update_mask_grids(key, masks, nodes[i]);
+              node_changed[i] = true;
             }
-          }
-          bke::pbvh::node_update_mask_grids(key, masks, nodes[i]);
-          node_changed[i] = true;
-        }
-      });
+          },
+          exec_mode::grain_size(1));
       break;
     }
   }
@@ -969,9 +985,10 @@ static void restore_color_from_undo_step(Object &object)
   MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
   IndexMaskMemory memory;
   const IndexMask node_mask = IndexMask::from_predicate(
-      nodes.index_range(), GrainSize(64), memory, [&](const int i) {
-        return orig_color_data_lookup_mesh(object, nodes[i]).has_value();
-      });
+      nodes.index_range(),
+      memory,
+      [&](const int i) { return orig_color_data_lookup_mesh(object, nodes[i]).has_value(); },
+      exec_mode::grain_size(64));
 
   BLI_assert(pbvh.type() == bke::pbvh::Type::Mesh);
   Mesh &mesh = *id_cast<Mesh *>(object.data);
@@ -979,19 +996,21 @@ static void restore_color_from_undo_step(Object &object)
   const Span<int> corner_verts = mesh.corner_verts();
   const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
   bke::GSpanAttributeWriter color_attribute = color::active_color_attribute_for_write(mesh);
-  node_mask.foreach_index(GrainSize(1), [&](const int i) {
-    const Span<float4> orig_data = *orig_color_data_lookup_mesh(object, nodes[i]);
-    const Span<int> verts = nodes[i].verts();
-    for (const int i : verts.index_range()) {
-      color::color_vert_set(faces,
-                            corner_verts,
-                            vert_to_face_map,
-                            color_attribute.domain,
-                            verts[i],
-                            orig_data[i],
-                            color_attribute.span);
-    }
-  });
+  node_mask.foreach_index(
+      [&](const int i) {
+        const Span<float4> orig_data = *orig_color_data_lookup_mesh(object, nodes[i]);
+        const Span<int> verts = nodes[i].verts();
+        for (const int i : verts.index_range()) {
+          color::color_vert_set(faces,
+                                corner_verts,
+                                vert_to_face_map,
+                                color_attribute.domain,
+                                verts[i],
+                                orig_data[i],
+                                color_attribute.span);
+        }
+      },
+      exec_mode::grain_size(1));
   pbvh.tag_attribute_changed(node_mask, mesh.active_color_attribute);
   color_attribute.finish();
 }
@@ -1010,14 +1029,16 @@ static void restore_face_set_from_undo_step(Object &object)
       MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
       bke::SpanAttributeWriter<int> attribute = face_set::ensure_face_sets_mesh(
           *id_cast<Mesh *>(object.data));
-      node_mask.foreach_index(GrainSize(1), [&](const int i) {
-        if (const std::optional<Span<int>> orig_data = orig_face_set_data_lookup_mesh(object,
-                                                                                      nodes[i]))
-        {
-          scatter_data_mesh(*orig_data, nodes[i].faces(), attribute.span);
-          node_changed[i] = true;
-        }
-      });
+      node_mask.foreach_index(
+          [&](const int i) {
+            if (const std::optional<Span<int>> orig_data = orig_face_set_data_lookup_mesh(
+                    object, nodes[i]))
+            {
+              scatter_data_mesh(*orig_data, nodes[i].faces(), attribute.span);
+              node_changed[i] = true;
+            }
+          },
+          exec_mode::grain_size(1));
       attribute.finish();
       break;
     }
@@ -1027,17 +1048,19 @@ static void restore_face_set_from_undo_step(Object &object)
       bke::SpanAttributeWriter<int> attribute = face_set::ensure_face_sets_mesh(
           *id_cast<Mesh *>(object.data));
       threading::EnumerableThreadSpecific<Vector<int>> all_tls;
-      node_mask.foreach_index(GrainSize(1), [&](const int i) {
-        Vector<int> &tls = all_tls.local();
-        if (const std::optional<Span<int>> orig_data = orig_face_set_data_lookup_grids(object,
-                                                                                       nodes[i]))
-        {
-          const Span<int> faces = bke::pbvh::node_face_indices_calc_grids(
-              subdiv_ccg, nodes[i], tls);
-          scatter_data_mesh(*orig_data, faces, attribute.span);
-          node_changed[i] = true;
-        }
-      });
+      node_mask.foreach_index(
+          [&](const int i) {
+            Vector<int> &tls = all_tls.local();
+            if (const std::optional<Span<int>> orig_data = orig_face_set_data_lookup_grids(
+                    object, nodes[i]))
+            {
+              const Span<int> faces = bke::pbvh::node_face_indices_calc_grids(
+                  subdiv_ccg, nodes[i], tls);
+              scatter_data_mesh(*orig_data, faces, attribute.span);
+              node_changed[i] = true;
+            }
+          },
+          exec_mode::grain_size(1));
       attribute.finish();
       break;
     }
@@ -1062,9 +1085,12 @@ void restore_position_from_undo_step(const Depsgraph &depsgraph, Object &object)
       MutableSpan positions_orig = mesh.vert_positions_for_write();
 
       const IndexMask node_mask = IndexMask::from_predicate(
-          nodes.index_range(), GrainSize(64), memory, [&](const int i) {
+          nodes.index_range(),
+          memory,
+          [&](const int i) {
             return orig_position_data_lookup_mesh(object, nodes[i]).has_value();
-          });
+          },
+          exec_mode::grain_size(64));
 
       struct LocalData {
         Vector<float3> translations;
@@ -1074,46 +1100,48 @@ void restore_position_from_undo_step(const Depsgraph &depsgraph, Object &object)
       const bool need_translations = !ss.deform_imats.is_empty() || shape_key_data.has_value();
 
       threading::EnumerableThreadSpecific<LocalData> all_tls;
-      node_mask.foreach_index(GrainSize(1), [&](const int i) {
-        threading::isolate_task([&] {
-          LocalData &tls = all_tls.local();
-          const OrigPositionData orig_data = *orig_position_data_lookup_mesh(object, nodes[i]);
-          const Span<int> verts = nodes[i].verts();
-          const Span<float3> undo_positions = orig_data.positions;
-          if (need_translations) {
-            /* Calculate translations from evaluated positions before they are changed. */
-            tls.translations.resize(verts.size());
-            translations_from_new_positions(
-                undo_positions, verts, positions_eval, tls.translations);
-          }
+      node_mask.foreach_index(
+          [&](const int i) {
+            threading::isolate_task([&] {
+              LocalData &tls = all_tls.local();
+              const OrigPositionData orig_data = *orig_position_data_lookup_mesh(object, nodes[i]);
+              const Span<int> verts = nodes[i].verts();
+              const Span<float3> undo_positions = orig_data.positions;
+              if (need_translations) {
+                /* Calculate translations from evaluated positions before they are changed. */
+                tls.translations.resize(verts.size());
+                translations_from_new_positions(
+                    undo_positions, verts, positions_eval, tls.translations);
+              }
 
-          scatter_data_mesh(undo_positions, verts, positions_eval);
+              scatter_data_mesh(undo_positions, verts, positions_eval);
 
-          if (positions_eval.data() == positions_orig.data()) {
-            return;
-          }
+              if (positions_eval.data() == positions_orig.data()) {
+                return;
+              }
 
-          const MutableSpan<float3> translations = tls.translations;
-          if (!ss.deform_imats.is_empty()) {
-            apply_crazyspace_to_translations(ss.deform_imats, verts, translations);
-          }
+              const MutableSpan<float3> translations = tls.translations;
+              if (!ss.deform_imats.is_empty()) {
+                apply_crazyspace_to_translations(ss.deform_imats, verts, translations);
+              }
 
-          if (shape_key_data) {
-            for (MutableSpan<float3> data : shape_key_data->dependent_keys) {
-              apply_translations(translations, verts, data);
-            }
+              if (shape_key_data) {
+                for (MutableSpan<float3> data : shape_key_data->dependent_keys) {
+                  apply_translations(translations, verts, data);
+                }
 
-            if (shape_key_data->basis_key_active) {
-              /* The basis key positions and the mesh positions are always kept in sync. */
-              apply_translations(translations, verts, positions_orig);
-            }
-            apply_translations(translations, verts, shape_key_data->active_key_data);
-          }
-          else {
-            apply_translations(translations, verts, positions_orig);
-          }
-        });
-      });
+                if (shape_key_data->basis_key_active) {
+                  /* The basis key positions and the mesh positions are always kept in sync. */
+                  apply_translations(translations, verts, positions_orig);
+                }
+                apply_translations(translations, verts, shape_key_data->active_key_data);
+              }
+              else {
+                apply_translations(translations, verts, positions_orig);
+              }
+            });
+          },
+          exec_mode::grain_size(1));
       pbvh.tag_positions_changed(node_mask);
       break;
     }
@@ -1123,13 +1151,15 @@ void restore_position_from_undo_step(const Depsgraph &depsgraph, Object &object)
         return;
       }
       const IndexMask node_mask = bke::pbvh::all_leaf_nodes(pbvh, memory);
-      node_mask.foreach_index(GrainSize(1), [&](const int i) {
-        for (BMVert *vert : BKE_pbvh_bmesh_node_unique_verts(&nodes[i])) {
-          if (const float *orig_co = BM_log_find_original_vert_co(ss.bm_log, vert)) {
-            copy_v3_v3(vert->co, orig_co);
-          }
-        }
-      });
+      node_mask.foreach_index(
+          [&](const int i) {
+            for (BMVert *vert : BKE_pbvh_bmesh_node_unique_verts(&nodes[i])) {
+              if (const float *orig_co = BM_log_find_original_vert_co(ss.bm_log, vert)) {
+                copy_v3_v3(vert->co, orig_co);
+              }
+            }
+          },
+          exec_mode::grain_size(1));
       pbvh.tag_positions_changed(node_mask);
       break;
     }
@@ -1137,27 +1167,32 @@ void restore_position_from_undo_step(const Depsgraph &depsgraph, Object &object)
       const Span<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
 
       const IndexMask node_mask = IndexMask::from_predicate(
-          nodes.index_range(), GrainSize(64), memory, [&](const int i) {
+          nodes.index_range(),
+          memory,
+          [&](const int i) {
             return orig_position_data_lookup_grids(object, nodes[i]).has_value();
-          });
+          },
+          exec_mode::grain_size(64));
 
       SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
       const BitGroupVector<> grid_hidden = subdiv_ccg.grid_hidden;
       const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
       MutableSpan<float3> positions = subdiv_ccg.positions;
-      node_mask.foreach_index(GrainSize(1), [&](const int i) {
-        const OrigPositionData orig_data = *orig_position_data_lookup_grids(object, nodes[i]);
-        int index = 0;
-        for (const int grid : nodes[i].grids()) {
-          const IndexRange grid_range = bke::ccg::grid_range(key, grid);
-          for (const int i : IndexRange(key.grid_area)) {
-            if (grid_hidden.is_empty() || !grid_hidden[grid][i]) {
-              positions[grid_range[i]] = orig_data.positions[index];
+      node_mask.foreach_index(
+          [&](const int i) {
+            const OrigPositionData orig_data = *orig_position_data_lookup_grids(object, nodes[i]);
+            int index = 0;
+            for (const int grid : nodes[i].grids()) {
+              const IndexRange grid_range = bke::ccg::grid_range(key, grid);
+              for (const int i : IndexRange(key.grid_area)) {
+                if (grid_hidden.is_empty() || !grid_hidden[grid][i]) {
+                  positions[grid_range[i]] = orig_data.positions[index];
+                }
+                index++;
+              }
             }
-            index++;
-          }
-        }
-      });
+          },
+          exec_mode::grain_size(1));
       pbvh.tag_positions_changed(node_mask);
       break;
     }
@@ -1248,6 +1283,7 @@ static float calc_radial_symmetry_feather(const Mesh &mesh,
 }
 
 static float calc_symmetry_feather(const Sculpt &sd,
+                                   const ePaintSymmetryFlags symm,
                                    const Mesh &mesh,
                                    const ed::sculpt_paint::StrokeCache &cache)
 {
@@ -1255,7 +1291,6 @@ static float calc_symmetry_feather(const Sculpt &sd,
     return 1.0f;
   }
   float overlap;
-  const int symm = cache.symmetry;
 
   overlap = 0.0f;
   for (int i = 0; i <= symm; i++) {
@@ -2336,6 +2371,8 @@ static float brush_strength(const Sculpt &sd,
       /* The Dyntopo Density brush does not use a normal brush workflow to calculate the effect,
        * and this strength value is unused. */
       return 0.0f;
+    case SCULPT_BRUSH_TYPE_SCENE_PROJECT:
+      return flip * alpha * pressure * overlap * feather;
   }
   BLI_assert_unreachable();
   return 0.0f;
@@ -2346,7 +2383,7 @@ void sculpt_apply_texture(const SculptSession &ss,
                           const float brush_point[3],
                           const int thread_id,
                           float *r_value,
-                          float r_rgba[4])
+                          float4 &r_rgba)
 {
   const ed::sculpt_paint::StrokeCache &cache = *ss.cache;
   const MTex *mtex = BKE_brush_mask_texture_get(&brush, OB_MODE_SCULPT);
@@ -2761,34 +2798,27 @@ static void update_brush_local_mat(const Sculpt &sd, Object &ob)
 /** \name Texture painting
  * \{ */
 
-static bool sculpt_needs_pbvh_pixels(PaintModeSettings &paint_mode_settings,
-                                     const Brush &brush,
-                                     Object &ob)
+static bool sculpt_needs_pbvh_pixels(const Brush &brush, const Object &ob)
 {
   if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_PAINT &&
       USER_EXPERIMENTAL_TEST(&U, use_sculpt_texture_paint))
   {
-    Image *image;
-    ImageUser *image_user;
-    return SCULPT_paint_image_canvas_get(paint_mode_settings, ob, &image, &image_user);
+    return ob.runtime->sculpt_session->cache->image_data.get();
   }
 
   return false;
 }
 
-static void sculpt_pbvh_update_pixels(const Depsgraph &depsgraph,
-                                      PaintModeSettings &paint_mode_settings,
-                                      Object &ob)
+static void sculpt_pbvh_update_pixels(const Depsgraph &depsgraph, Object &ob)
 {
   BLI_assert(ob.type == OB_MESH);
 
-  Image *image;
-  ImageUser *image_user;
-  if (!SCULPT_paint_image_canvas_get(paint_mode_settings, ob, &image, &image_user)) {
+  ed::sculpt_paint::StrokeCache &cache = *ob.runtime->sculpt_session->cache;
+  if (!cache.image_data) {
     return;
   }
 
-  bke::pbvh::build_pixels(depsgraph, ob, *image, *image_user);
+  bke::pbvh::build_pixels(depsgraph, ob, *cache.image_data->image, *cache.image_data->image_user);
 }
 
 /** \} */
@@ -3075,9 +3105,9 @@ static void dynamic_topology_update(const Depsgraph &depsgraph,
   pbvh.tag_positions_changed(node_mask);
   pbvh.tag_topology_changed(node_mask);
   node_mask.foreach_index([&](const int i) { BKE_pbvh_node_mark_topology_update(nodes[i]); });
-  node_mask.foreach_index(GrainSize(1), [&](const int i) {
-    BKE_pbvh_bmesh_node_save_orig(ss.bm, ss.bm_log, &nodes[i], false);
-  });
+  node_mask.foreach_index(
+      [&](const int i) { BKE_pbvh_bmesh_node_save_orig(ss.bm, ss.bm_log, &nodes[i], false); },
+      exec_mode::grain_size(1));
 
   float max_edge_len;
   if (sd.flags & (SCULPT_DYNTOPO_DETAIL_CONSTANT | SCULPT_DYNTOPO_DETAIL_MANUAL)) {
@@ -3226,10 +3256,10 @@ static void do_brush_action(const Depsgraph &depsgraph,
 
   const bool use_original = brush_type_needs_original(brush.sculpt_brush_type) ? true :
                                                                                  !ss.cache->accum;
-  const bool use_pixels = sculpt_needs_pbvh_pixels(paint_mode_settings, brush, ob);
+  const bool use_pixels = sculpt_needs_pbvh_pixels(brush, ob);
 
-  if (sculpt_needs_pbvh_pixels(paint_mode_settings, brush, ob)) {
-    sculpt_pbvh_update_pixels(depsgraph, paint_mode_settings, ob);
+  if (sculpt_needs_pbvh_pixels(brush, ob)) {
+    sculpt_pbvh_update_pixels(depsgraph, ob);
 
     texnode_mask = pbvh_gather_texpaint(ob, brush, use_original, 1.0f, memory);
 
@@ -3289,11 +3319,6 @@ static void do_brush_action(const Depsgraph &depsgraph,
                                     *ss.cache->cloth_sim,
                                     ss.cache->location_symm,
                                     std::numeric_limits<float>::max());
-  }
-
-  bool invert = ss.cache->pen_flip || ss.cache->invert;
-  if (brush.flag & BRUSH_DIR_IN) {
-    invert = !invert;
   }
 
   /* Apply one type of brush action. */
@@ -3439,6 +3464,9 @@ static void do_brush_action(const Depsgraph &depsgraph,
     case SCULPT_BRUSH_TYPE_BLUR:
       color::do_blur_brush(depsgraph, sd, ob, node_mask);
       break;
+    case SCULPT_BRUSH_TYPE_SCENE_PROJECT:
+      brushes::do_scene_project_brush(depsgraph, sd, ob, node_mask);
+      break;
   }
 
   if (!ELEM(brush.sculpt_brush_type, SCULPT_BRUSH_TYPE_SMOOTH, SCULPT_BRUSH_TYPE_MASK) &&
@@ -3493,6 +3521,7 @@ void SCULPT_cache_calc_brushdata_symm(ed::sculpt_paint::StrokeCache &cache,
   cache.last_location_symm = ed::sculpt_paint::symmetry_flip(cache.last_location, symm);
   cache.grab_delta_symm = ed::sculpt_paint::symmetry_flip(cache.grab_delta, symm);
   cache.view_normal_symm = ed::sculpt_paint::symmetry_flip(cache.view_normal, symm);
+  cache.view_origin_symm = ed::sculpt_paint::symmetry_flip(cache.view_origin, symm);
 
   cache.initial_location_symm = ed::sculpt_paint::symmetry_flip(cache.initial_location, symm);
   cache.initial_normal_symm = ed::sculpt_paint::symmetry_flip(cache.initial_normal, symm);
@@ -3664,12 +3693,11 @@ static void do_symmetrical_brush_actions(const Depsgraph &depsgraph,
   const Mesh &mesh = *id_cast<Mesh *>(ob.data);
   SculptSession &ss = *ob.runtime->sculpt_session;
   StrokeCache &cache = *ss.cache;
-  const char symm = SCULPT_mesh_symmetry_xyz_get(ob);
+  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(ob);
 
-  float feather = calc_symmetry_feather(sd, mesh, *ss.cache);
+  float feather = calc_symmetry_feather(sd, symm, mesh, *ss.cache);
 
   cache.bstrength = brush_strength(sd, cache, feather, paint_mode_settings);
-  cache.symmetry = symm;
 
   /* `symm` is a bit combination of XYZ -
    * 1 is mirror X; 2 is Y; 3 is XY; 4 is Z; 5 is XZ; 6 is YZ; 7 is XYZ */
@@ -3823,6 +3851,8 @@ static const char *sculpt_brush_type_name(const Brush &brush)
       return "Plane Brush";
     case SCULPT_BRUSH_TYPE_BLUR:
       return "Blur Brush";
+    case SCULPT_BRUSH_TYPE_SCENE_PROJECT:
+      return "Scene Project Brush";
   }
 
   return "Sculpting";
@@ -4006,7 +4036,37 @@ static void mask_brush_toggle_off(Paint *paint, StrokeCache *cache)
   cache->saved_active_brush = nullptr;
 }
 
-/* Initialize the stroke cache invariants from operator properties. */
+static void init_scene_project_brush_targets(const Depsgraph &depsgraph,
+                                             ViewLayer &view_layer,
+                                             const View3D &v3d,
+                                             const Object &active_object,
+                                             StrokeCache &cache)
+{
+  cache.project_targets.clear();
+
+  for (Base &base : *BKE_view_layer_object_bases_get(&view_layer)) {
+    const bool is_active_object = base.object == &active_object;
+    const bool is_hidden = !BKE_base_is_visible(&v3d, &base);
+    Object *object = DEG_get_evaluated(&depsgraph, base.object);
+
+    if (is_active_object || object->type != OB_MESH || is_hidden) {
+      continue;
+    }
+
+    const Mesh &mesh = *id_cast<const Mesh *>(object->data);
+    bke::BVHTreeFromMesh tree_data = mesh.bvh_corner_tris();
+
+    if (tree_data.tree == nullptr) {
+      continue;
+    }
+
+    const float4x4 active_to_target_matrix = object->world_to_object() *
+                                             active_object.object_to_world();
+
+    ProjectBrushTarget project_target{std::move(tree_data), active_to_target_matrix};
+    cache.project_targets.append(std::move(project_target));
+  }
+}
 
 static float brush_dynamic_size_get(const Brush &brush,
                                     const StrokeCache &cache,
@@ -4306,6 +4366,7 @@ void SCULPT_stroke_modifiers_check(
   if (ss.shapekey_active || ss.deform_modifiers_active ||
       (!BKE_sculptsession_use_pbvh_draw(&ob, rv3d) && need_pmap))
   {
+    BLI_assert(ss.pbvh->type() == bke::pbvh::Type::Mesh);
     BKE_sculpt_update_object_for_edit(
         &depsgraph, &ob, brush_type_is_paint(brush->sculpt_brush_type));
   }
@@ -4602,18 +4663,19 @@ bool cursor_geometry_info_update(bContext *C,
   ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
   const Base *base = CTX_data_active_base(C);
 
-  return cursor_geometry_info_update(*depsgraph, sd, vc, base, out, mval, use_sampled_normal);
+  return cursor_geometry_info_update(
+      *depsgraph, sd.paint, &sd, vc, base, out, mval, use_sampled_normal);
 }
 
 bool cursor_geometry_info_update(Depsgraph &depsgraph,
-                                 const Sculpt &sd,
+                                 const Paint &paint,
+                                 const Sculpt *sd,
                                  ViewContext &vc,
                                  const Base *base,
                                  CursorGeometryInfo *out,
                                  const float2 &mval,
                                  const bool use_sampled_normal)
 {
-  const Paint &paint = sd.paint;
   const Brush &brush = *BKE_paint_brush_for_read(&paint);
   bool original = false;
 
@@ -4634,7 +4696,9 @@ bool cursor_geometry_info_update(Depsgraph &depsgraph,
   float3 ray_end;
   float3 ray_normal;
   float depth = raycast_init(&vc, mval, ray_start, ray_end, ray_normal, original);
-  SCULPT_stroke_modifiers_check(depsgraph, vc.rv3d, sd, ob, &brush);
+  if (sd) {
+    SCULPT_stroke_modifiers_check(depsgraph, vc.rv3d, *sd, ob, &brush);
+  }
 
   RaycastData srd{};
   srd.use_original = original;
@@ -5367,6 +5431,8 @@ void store_mesh_from_eval(const wmOperator &op,
         /* Use lower level API to add the position attribute to avoid copying the array and to
          * allow using #tag_positions_changed_no_normals instead of #tag_positions_changed (which
          * would be called by the attribute API). */
+        position.sharing_info->add_user();
+
         bke::Attribute::ArrayData data{};
         data.data = const_cast<float3 *>(position.varray.get_internal_span().data());
         data.size = position.varray.size();
@@ -5599,6 +5665,8 @@ void SculptPaintStroke::stroke_cache_init(const BrushStrokeMode stroke_mode,
   ob.runtime->world_to_object = math::invert(ob.object_to_world());
   cache->view_normal = math::normalize(math::transform_direction(
       ob.world_to_object() * float4x4(cache->vc->rv3d->viewinv), z_axis));
+  cache->view_origin = math::transform_point(ob.world_to_object(),
+                                             float3(cache->vc->rv3d->viewinv[3]));
 
   cache->supports_gravity = bke::brush::supports_gravity(*brush) && sculpt_->gravity_factor > 0.0f;
   /* Get gravity vector in world space. */
@@ -5644,6 +5712,9 @@ void SculptPaintStroke::stroke_cache_init(const BrushStrokeMode stroke_mode,
       SCULPT_use_image_paint_brush(*paint_mode_settings_, ob))
   {
     cache->accum = true;
+
+    cache->image_data = paint::image::ImageData::init_active_image(
+        ob, this->scene->toolsettings->paint_mode);
   }
 
   if (BKE_brush_color_jitter_get_settings(this->paint, brush)) {
@@ -5660,13 +5731,8 @@ void SculptPaintStroke::stroke_cache_init(const BrushStrokeMode stroke_mode,
 
 bool SculptPaintStroke::test_start(wmOperator *op, const float mval[2])
 {
-  /* Don't start the stroke until `mval` goes over the mesh.
-   * NOTE: `mval` will only be null when re-executing the saved stroke.
-   * We have exception for 'exec' strokes since they may not set `mval`,
-   * only 'location', see: #52195. */
-  if (((op->flag & OP_IS_INVOKE) == 0) || (mval == nullptr) ||
-      over_mesh(*this->depsgraph, this->vc, *sculpt_, this->brush, op, mval))
-  {
+  /* Don't start the stroke until `mval` goes over the mesh. */
+  if (over_mesh(*this->depsgraph, this->vc, *sculpt_, this->brush, op, mval)) {
     Object &ob = *this->object;
     Brush *brush = this->brush;
 
@@ -5694,7 +5760,8 @@ bool SculptPaintStroke::test_start(wmOperator *op, const float mval[2])
     }
 
     CursorGeometryInfo cgi;
-    cursor_geometry_info_update(*this->depsgraph, *sculpt_, this->vc, base_, &cgi, mval, false);
+    cursor_geometry_info_update(
+        *this->depsgraph, *paint, sculpt_, this->vc, base_, &cgi, mval, false);
 
     stroke_undo_begin(*this->scene, this->brush, *this->paint_mode_settings_, *this->object, op);
 
@@ -5724,6 +5791,11 @@ void SculptPaintStroke::stroke_cache_update(PointerRNA *ptr)
 
   RNA_float_get_array(ptr, "mouse", cache.mouse);
   RNA_float_get_array(ptr, "mouse_event", cache.mouse_event);
+
+  if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_SCENE_PROJECT) {
+    init_scene_project_brush_targets(
+        *this->depsgraph, *this->vc.view_layer, *this->vc.v3d, *this->object, cache);
+  }
 
   /* XXX: Use pressure value from first brush step for brushes which don't support strokes (grab,
    * thumb). They depends on initial state and brush coord/pressure/etc.
@@ -5956,7 +6028,16 @@ static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
   {
     return OPERATOR_CANCELLED;
   }
-  if (brush_type_is_mask(brush.sculpt_brush_type)) {
+  /* Currently, we only switch the brush as part of StrokeCache initialization, which does not
+   * happen until the brush goes over the mesh. Instead, check the #BrushSwitchMode which will
+   * tell if the brush will toggled at that point.
+   *
+   * Temporary mitigation to avoid backporting larger refactor for 5.1 backport.
+   *
+   * TODO: Remove this workaround, create `StrokeCache` here with "immutable" toggle values.
+   */
+  const BrushSwitchMode mode = BrushSwitchMode(RNA_enum_get(op->ptr, "brush_toggle"));
+  if (brush_type_is_mask(brush.sculpt_brush_type) || mode == BrushSwitchMode::Mask) {
     MultiresModifierData *mmd = BKE_sculpt_multires_active(&scene, &ob);
     BKE_sculpt_mask_layers_ensure(CTX_data_depsgraph_pointer(C), CTX_data_main(C), &ob, mmd);
 
@@ -5965,8 +6046,7 @@ static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
   if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_DRAW_FACE_SETS) {
     ed::sculpt_paint::face_set_overlay_check(*C, *op);
   }
-  if (!brush_type_is_attribute_only(brush.sculpt_brush_type) &&
-      report_if_shape_key_is_locked(ob, op->reports))
+  if (!brush_type_is_attribute_only(brush.sculpt_brush_type) && !shape_key_check(ob, op->reports))
   {
     return OPERATOR_CANCELLED;
   }
@@ -5989,8 +6069,8 @@ static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
   ignore_background_click = RNA_boolean_get(op->ptr, "ignore_background_click");
   const float mval[2] = {float(event->mval[0]), float(event->mval[1])};
   if (ignore_background_click && !over_mesh(C, op, mval)) {
-    MEM_delete(stroke);
     stroke->free(C, op);
+    MEM_delete(stroke);
     return OPERATOR_PASS_THROUGH;
   }
 
@@ -6000,8 +6080,8 @@ static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
   if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
     SculptPaintStroke *stroke = static_cast<SculptPaintStroke *>(op->customdata);
     if (stroke) {
-      MEM_delete(stroke);
       stroke->free(C, op);
+      MEM_delete(stroke);
     }
     return retval;
   }
@@ -6503,12 +6583,14 @@ static SculptTopologyIslandCache calc_topology_islands_mesh(const Mesh &mesh)
                                           faces.index_range(), hide_poly, memory);
 
   AtomicDisjointSet disjoint_set(mesh.verts_num);
-  visible_faces.foreach_index(GrainSize(1024), [&](const int face) {
-    const Span<int> face_verts = corner_verts.slice(faces[face]);
-    for (const int i : face_verts.index_range().drop_front(1)) {
-      disjoint_set.join(face_verts.first(), face_verts[i]);
-    }
-  });
+  visible_faces.foreach_index(
+      [&](const int face) {
+        const Span<int> face_verts = corner_verts.slice(faces[face]);
+        for (const int i : face_verts.index_range().drop_front(1)) {
+          disjoint_set.join(face_verts.first(), face_verts[i]);
+        }
+      },
+      exec_mode::grain_size(1024));
   return vert_disjoint_set_to_islands(disjoint_set, mesh.verts_num);
 }
 
@@ -6551,19 +6633,21 @@ static SculptTopologyIslandCache calc_topology_islands_bmesh(const Object &objec
   IndexMaskMemory memory;
   const IndexMask node_mask = bke::pbvh::all_leaf_nodes(pbvh, memory);
   AtomicDisjointSet disjoint_set(bm.totvert);
-  node_mask.foreach_index(GrainSize(1), [&](const int i) {
-    for (const BMFace *face :
-         BKE_pbvh_bmesh_node_faces(&const_cast<bke::pbvh::BMeshNode &>(nodes[i])))
-    {
-      if (BM_elem_flag_test(face, BM_ELEM_HIDDEN)) {
-        continue;
-      }
-      disjoint_set.join(BM_elem_index_get(face->l_first->v),
-                        BM_elem_index_get(face->l_first->next->v));
-      disjoint_set.join(BM_elem_index_get(face->l_first->v),
-                        BM_elem_index_get(face->l_first->next->next->v));
-    }
-  });
+  node_mask.foreach_index(
+      [&](const int i) {
+        for (const BMFace *face :
+             BKE_pbvh_bmesh_node_faces(&const_cast<bke::pbvh::BMeshNode &>(nodes[i])))
+        {
+          if (BM_elem_flag_test(face, BM_ELEM_HIDDEN)) {
+            continue;
+          }
+          disjoint_set.join(BM_elem_index_get(face->l_first->v),
+                            BM_elem_index_get(face->l_first->next->v));
+          disjoint_set.join(BM_elem_index_get(face->l_first->v),
+                            BM_elem_index_get(face->l_first->next->next->v));
+        }
+      },
+      exec_mode::grain_size(1));
 
   return vert_disjoint_set_to_islands(disjoint_set, bm.totvert);
 }
@@ -6660,16 +6744,6 @@ void gather_bmesh_normals(const Set<BMVert *, 0> &verts, const MutableSpan<float
 }
 
 template<typename T>
-void gather_data_mesh(const Span<T> src, const Span<int> indices, const MutableSpan<T> dst)
-{
-  BLI_assert(indices.size() == dst.size());
-
-  for (const int i : indices.index_range()) {
-    dst[i] = src[indices[i]];
-  }
-}
-
-template<typename T>
 void gather_data_grids(const SubdivCCG &subdiv_ccg,
                        const Span<T> src,
                        const Span<int> grids,
@@ -6696,16 +6770,6 @@ void gather_data_bmesh(const Span<T> src,
   for (const BMVert *vert : verts) {
     node_data[i] = src[BM_elem_index_get(vert)];
     i++;
-  }
-}
-
-template<typename T>
-void scatter_data_mesh(const Span<T> src, const Span<int> indices, const MutableSpan<T> dst)
-{
-  BLI_assert(indices.size() == src.size());
-
-  for (const int i : indices.index_range()) {
-    dst[indices[i]] = src[i];
   }
 }
 
@@ -6739,11 +6803,6 @@ void scatter_data_bmesh(const Span<T> node_data,
   }
 }
 
-template void gather_data_mesh<bool>(Span<bool>, Span<int>, MutableSpan<bool>);
-template void gather_data_mesh<int>(Span<int>, Span<int>, MutableSpan<int>);
-template void gather_data_mesh<float>(Span<float>, Span<int>, MutableSpan<float>);
-template void gather_data_mesh<float3>(Span<float3>, Span<int>, MutableSpan<float3>);
-template void gather_data_mesh<float4>(Span<float4>, Span<int>, MutableSpan<float4>);
 template void gather_data_grids<int>(const SubdivCCG &, Span<int>, Span<int>, MutableSpan<int>);
 template void gather_data_grids<float>(const SubdivCCG &,
                                        Span<float>,
@@ -6759,11 +6818,6 @@ template void gather_data_bmesh<float3>(Span<float3>,
                                         const Set<BMVert *, 0> &,
                                         MutableSpan<float3>);
 
-template void scatter_data_mesh<bool>(Span<bool>, Span<int>, MutableSpan<bool>);
-template void scatter_data_mesh<int>(Span<int>, Span<int>, MutableSpan<int>);
-template void scatter_data_mesh<float>(Span<float>, Span<int>, MutableSpan<float>);
-template void scatter_data_mesh<float3>(Span<float3>, Span<int>, MutableSpan<float3>);
-template void scatter_data_mesh<float4>(Span<float4>, Span<int>, MutableSpan<float4>);
 template void scatter_data_grids<float>(const SubdivCCG &,
                                         Span<float>,
                                         Span<int>,
@@ -7757,6 +7811,15 @@ void PositionDeformData::deform(MutableSpan<float3> translations, const Span<int
   }
   else {
     apply_translations(translations, verts, orig_);
+  }
+}
+
+void filter_translations(const MutableSpan<float3> translations, const Span<float> factors)
+{
+  for (const int i : translations.index_range()) {
+    if (factors[i] == 0.0f) {
+      translations[i] = float3(0.0f);
+    }
   }
 }
 

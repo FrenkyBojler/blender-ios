@@ -126,7 +126,7 @@ static void read_shader_output(const Scene *scene,
         mesh_verts[t.v[j]] += off;
         if (attr_mP != nullptr) {
           for (int step = 0; step < num_motion_steps - 1; step++) {
-            float3 *mP = attr_mP->data_float3() + step * num_verts;
+            float3 *mP = attr_mP->data_float3_for_write() + step * num_verts;
             mP[t.v[j]] += off;
           }
         }
@@ -142,15 +142,29 @@ bool GeometryManager::displace(Device *device, Scene *scene, Mesh *mesh, Progres
     return false;
   }
 
-  /* Add undisplaced attributes right before doing displacement. */
-  mesh->add_undisplaced(scene);
-
   const size_t num_verts = mesh->verts.size();
   const size_t num_triangles = mesh->num_triangles();
 
   if (num_triangles == 0) {
     return false;
   }
+
+  /* Corner normals can't be preserved through displacement, replace with vertex normals. */
+  bool need_recompute_vertex_normals = false;
+  bool need_recompute_all_vertex_normals = false;
+
+  if (mesh->attributes.find(ATTR_STD_CORNER_NORMAL) ||
+      mesh->attributes.find(ATTR_STD_MOTION_CORNER_NORMAL))
+  {
+    mesh->attributes.remove(ATTR_STD_CORNER_NORMAL);
+    mesh->attributes.remove(ATTR_STD_MOTION_CORNER_NORMAL);
+    need_recompute_vertex_normals = true;
+    need_recompute_all_vertex_normals = true;
+    mesh->add_vertex_normals();
+  }
+
+  /* Add undisplaced attributes right before doing displacement. */
+  mesh->add_undisplaced(scene);
 
   const string msg = string_printf("Computing Displacement %s", mesh->name.c_str());
   progress.set_status("Updating Mesh", msg);
@@ -184,23 +198,6 @@ bool GeometryManager::displace(Device *device, Scene *scene, Mesh *mesh, Progres
   /* For displacement method both, we don't need to recompute the vertex normals
    * as bump mapping in the shader will already alter the vertex normal, so we start
    * from the non-displaced vertex normals to avoid applying the perturbation twice. */
-  bool need_recompute_vertex_normals = false;
-  bool need_recompute_all_vertex_normals = false;
-
-  /* Corner normals can't be preserved through displacement. */
-  if (mesh->attributes.find(ATTR_STD_CORNER_NORMAL)) {
-    mesh->attributes.remove(ATTR_STD_CORNER_NORMAL);
-    mesh->attributes.add(ATTR_STD_VERTEX_NORMAL);
-    need_recompute_vertex_normals = true;
-    need_recompute_all_vertex_normals = true;
-  }
-  if (mesh->attributes.find(ATTR_STD_MOTION_CORNER_NORMAL)) {
-    mesh->attributes.remove(ATTR_STD_MOTION_CORNER_NORMAL);
-    mesh->attributes.add(ATTR_STD_MOTION_VERTEX_NORMAL);
-    need_recompute_vertex_normals = true;
-    need_recompute_all_vertex_normals = true;
-  }
-
   for (Node *node : mesh->get_used_shaders()) {
     Shader *shader = static_cast<Shader *>(node);
     if (shader->has_displacement && shader->get_displacement_method() == DISPLACE_TRUE) {
@@ -258,7 +255,7 @@ bool GeometryManager::displace(Device *device, Scene *scene, Mesh *mesh, Progres
     }
 
     /* normalize vertex normals */
-    packed_normal *vN = attr_vN->data_normal();
+    packed_normal *vN = attr_vN->data_normal_for_write();
     vector<bool> done(num_verts, false);
 
     for (size_t i = 0; i < num_triangles; i++) {
@@ -288,8 +285,8 @@ bool GeometryManager::displace(Device *device, Scene *scene, Mesh *mesh, Progres
 
     if (mesh->has_motion_blur() && attr_mP && attr_mN) {
       for (int step = 0; step < mesh->motion_steps - 1; step++) {
-        float3 *mP = attr_mP->data_float3() + step * mesh->verts.size();
-        packed_normal *mN = attr_mN->data_normal() + step * mesh->verts.size();
+        const float3 *mP = attr_mP->data_float3() + step * mesh->verts.size();
+        packed_normal *mN = attr_mN->data_normal_for_write() + step * mesh->verts.size();
 
         /* compute */
         vector<float3> mN_float(num_verts, zero_float3());

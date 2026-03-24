@@ -292,14 +292,13 @@ struct PaintStroke : NonCopyable, NonMovable {
   bool curve_end(bContext *C, wmOperator *op);
 };
 
-void paint_stroke_jitter_pos(Paint *paint,
-                             PaintMode mode,
-                             const Brush &brush,
-                             float pressure,
-                             BrushStrokeMode stroke_mode,
-                             float zoom_2d,
-                             const float mval[2],
-                             float r_mouse_out[2]);
+float2 paint_stroke_jitter_pos(Paint *paint,
+                               PaintMode mode,
+                               const Brush &brush,
+                               float pressure,
+                               BrushStrokeMode stroke_mode,
+                               float zoom_2d,
+                               const float2 &mval);
 
 /**
  * Returns zero if the stroke dots should not be spaced, non-zero otherwise.
@@ -589,9 +588,6 @@ bool paint_get_tex_pixel(const MTex *mtex,
                          float r_rgba[4]);
 
 void paint_stroke_operator_properties(wmOperatorType *ot);
-
-void BRUSH_OT_curve_preset(wmOperatorType *ot);
-void BRUSH_OT_sculpt_curves_falloff_preset(wmOperatorType *ot);
 
 void PAINT_OT_face_select_linked(wmOperatorType *ot);
 void PAINT_OT_face_select_linked_pick(wmOperatorType *ot);

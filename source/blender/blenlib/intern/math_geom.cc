@@ -1640,6 +1640,52 @@ bool isect_line_segment_tri_v3(const float p1[3],
   return true;
 }
 
+bool isect_line_tri_v3(const float p1[3],
+                       const float p2[3],
+                       const float v0[3],
+                       const float v1[3],
+                       const float v2[3],
+                       float *r_lambda,
+                       float r_uv[2])
+{
+  float p[3], s[3], d[3], e1[3], e2[3], q[3];
+  float a, f, u, v;
+
+  sub_v3_v3v3(e1, v1, v0);
+  sub_v3_v3v3(e2, v2, v0);
+  sub_v3_v3v3(d, p2, p1);
+
+  cross_v3_v3v3(p, d, e2);
+  a = dot_v3v3(e1, p);
+  if (a == 0.0f) {
+    return false;
+  }
+  f = 1.0f / a;
+
+  sub_v3_v3v3(s, p1, v0);
+
+  u = f * dot_v3v3(s, p);
+  if ((u < 0.0f) || (u > 1.0f)) {
+    return false;
+  }
+
+  cross_v3_v3v3(q, s, e1);
+
+  v = f * dot_v3v3(d, q);
+  if ((v < 0.0f) || ((u + v) > 1.0f)) {
+    return false;
+  }
+
+  *r_lambda = f * dot_v3v3(e2, q);
+
+  if (r_uv) {
+    r_uv[0] = u;
+    r_uv[1] = v;
+  }
+
+  return true;
+}
+
 bool isect_line_segment_tri_epsilon_v3(const float p1[3],
                                        const float p2[3],
                                        const float v0[3],
@@ -5559,7 +5605,7 @@ float geodesic_distance_propagate_across_triangle(
     }
   }
 
-  /* Fall back to Dijsktra approximation in trivial case, or if no valid source
+  /* Fall back to Dijkstra approximation in trivial case, or if no valid source
    * point found that connects to v0 across the triangle. */
   return min_ff(dist1 + len_v3(v10), dist2 + len_v3v3(v0, v2));
 }

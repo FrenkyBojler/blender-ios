@@ -584,7 +584,7 @@ static void merge_scalar_grids_for_velocity(const Scene *scene, Volume *volume)
   Attribute *attr = volume->attributes.add(ATTR_STD_VOLUME_VELOCITY);
   unique_ptr<ImageLoader> loader = make_unique<VDBImageLoader>(vecgrid, "merged_velocity");
   const ImageParams params;
-  attr->data_voxel() = scene->image_manager->add_image(std::move(loader), params);
+  attr->data_voxel_for_write() = scene->image_manager->add_image(std::move(loader), params);
 }
 #endif /* defined(WITH_OPENVDB) && defined(WITH_NANOVDB) */
 
@@ -638,14 +638,14 @@ void GeometryManager::create_volume_mesh(const Scene *scene, Volume *volume, Pro
       continue;
     }
 
-    ImageHandle &handle = attr.data_voxel();
+    ImageHandle &handle = attr.data_voxel_for_write();
 
     if (handle.empty()) {
       continue;
     }
 
     /* Create NanoVDB grid handle from image memory. */
-    device_image *image = handle.image_memory();
+    device_image *image = handle.vdb_image_memory();
     if (image == nullptr || image->host_pointer == nullptr ||
         image->info.data_type == IMAGE_DATA_TYPE_NANOVDB_EMPTY ||
         !is_nanovdb_type(image->info.data_type))
@@ -679,17 +679,14 @@ void GeometryManager::create_volume_mesh(const Scene *scene, Volume *volume, Pro
   const bool ray_marching = scene->integrator->get_volume_ray_marching();
   builder.create_mesh(vertices, indices, ray_marching);
 
-  volume->reserve_mesh(vertices.size(), indices.size() / 3);
+  volume->resize_mesh(vertices.size(), indices.size() / 3);
   volume->used_shaders.clear();
   volume->used_shaders.push_back_slow(volume_shader);
 
-  for (size_t i = 0; i < vertices.size(); ++i) {
-    volume->add_vertex(vertices[i]);
-  }
-
-  for (size_t i = 0; i < indices.size(); i += 3) {
-    volume->add_triangle(indices[i], indices[i + 1], indices[i + 2], 0, false);
-  }
+  std::ranges::copy(vertices, volume->get_verts().data());
+  std::ranges::copy(indices, volume->triangles.data());
+  std::ranges::fill(volume->get_shader(), 0);
+  std::ranges::fill(volume->get_smooth(), false);
 
   /* Print stats. */
   LOG_DEBUG << "Memory usage volume mesh: "
@@ -951,7 +948,7 @@ void VolumeManager::initialize_octree(const Scene *scene, Progress &progress)
       if (object_octrees_.find({object, shader}) == object_octrees_.end()) {
         if (geom->is_light()) {
           const Light *light = static_cast<const Light *>(geom);
-          if (light->get_light_type() == LIGHT_BACKGROUND) {
+          if (light->is_background_light()) {
             /* World volume is unbounded, use some practical large number instead. */
             const float3 size = make_float3(10000.0f);
             object_octrees_[{object, shader}] = std::make_shared<Octree>(BoundBox(-size, size));
@@ -1181,7 +1178,7 @@ std::string VolumeManager::visualize_octree(const char *filename) const
   return filename_full;
 }
 
-void VolumeManager::update_step_size(const Scene *scene, DeviceScene *dscene)
+void VolumeManager::update_step_size(const Scene *scene, DeviceScene *dscene, Progress &progress)
 {
   assert(scene->integrator->get_volume_ray_marching());
 
@@ -1204,7 +1201,7 @@ void VolumeManager::update_step_size(const Scene *scene, DeviceScene *dscene)
     }
 
     volume_step_size[object->index] = scene->integrator->get_volume_step_rate() *
-                                      object->compute_volume_step_size();
+                                      object->compute_volume_step_size(progress);
   }
 
   dscene->volume_step_size.copy_to_device();
@@ -1224,7 +1221,7 @@ void VolumeManager::device_update(Device *device,
       dscene->volume_tree_roots.free();
       dscene->volume_tree_root_ids.free();
     }
-    update_step_size(scene, dscene);
+    update_step_size(scene, dscene, progress);
     algorithm_modified_ = false;
     return;
   }

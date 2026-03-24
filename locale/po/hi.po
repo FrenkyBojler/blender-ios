@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'1ece094312b3')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'ec8c60553753')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-02 14:51+0000\n"
+"POT-Creation-Date: 2026-03-23 09:55+0000\n"
 "PO-Revision-Date: 2025-12-04 22:18+0000\n"
 "Last-Translator: Jackson Zheng <business.jackson.zheng@gmail.com>\n"
 "Language-Team: Hindi <https://translate.blender.org/projects/blender-ui/ui/hi/>\n"
@@ -298,6 +298,10 @@ msgstr "सूचना"
 
 msgid "Default"
 msgstr "मूलभूत"
+
+
+msgid "Display Mode"
+msgstr "प्रदर्शित रूप"
 
 
 msgid "Coordinates"
@@ -838,18 +842,6 @@ msgid "View"
 msgstr "दृश्य"
 
 
-msgid "Blend Type"
-msgstr "मिश्रण प्रकार"
-
-
-msgid "Mix"
-msgstr "मिश्रण"
-
-
-msgid "Screen"
-msgstr "चित्रपट"
-
-
 msgid "RGB"
 msgstr "ला.ह.नी."
 
@@ -1324,6 +1316,10 @@ msgid "Sine"
 msgstr "ज्या"
 
 
+msgid "Blend Type"
+msgstr "मिश्रण प्रकार"
+
+
 msgid "Phase"
 msgstr "चरण"
 
@@ -1418,10 +1414,6 @@ msgstr "निर्देशिका"
 
 msgid "Directory displayed in the file browser"
 msgstr "निर्देशिका संचिका विचरक में प्रदर्शित"
-
-
-msgid "Display Mode"
-msgstr "प्रदर्शित रूप"
 
 
 msgid "File Name"
@@ -1638,14 +1630,6 @@ msgstr "परतें"
 
 msgid "Rest Position"
 msgstr "शेष स्थिति"
-
-
-msgid "Erase Alpha"
-msgstr "पारदर्शिता को मिटाएँ"
-
-
-msgid "Add Alpha"
-msgstr "पारदर्शिता जोड़ें"
 
 
 msgid "Box"
@@ -2066,10 +2050,6 @@ msgstr "कड़ियाँ"
 
 msgid "Nodes"
 msgstr "ग्रन्थि्"
-
-
-msgid "Use boundaries for viewer nodes and composite backdrop"
-msgstr "दर्शक नोड्स और मिश्रित पृष्ठभूमि के लिए सीमाओं का उपयोग करें"
 
 
 msgid "Edit"
@@ -2549,12 +2529,20 @@ msgid "Point selected"
 msgstr "बिंदु चयनित"
 
 
+msgid "Mix"
+msgstr "मिश्रण"
+
+
 msgid "Min Angle"
 msgstr "न्यूनतम् कोण"
 
 
 msgid "Change alpha transparency based on a material attribute"
 msgstr "पदार्थ"
+
+
+msgid "Screen"
+msgstr "चित्रपट"
 
 
 msgid "Circles"
@@ -2585,40 +2573,28 @@ msgid "Dots"
 msgstr "बिन्दु्"
 
 
-msgid "Math"
-msgstr "गणित"
-
-
-msgid "UV"
-msgstr "यूवी"
-
-
-msgid "Show/Hide"
-msgstr "छुपाएँ / दिखाएँ"
-
-
-msgid "Names"
-msgstr "नाम"
-
-
-msgid "Bone Roll"
-msgstr "हड्डी पंजी"
+msgid "Mirror"
+msgstr "दर्पण"
 
 
 msgid "Snap"
 msgstr "स्नैप"
 
 
-msgid "Mirror"
-msgstr "दर्पण"
-
-
-msgid "Keying"
-msgstr "कुंजीयन"
+msgid "Import"
+msgstr "आयात करें"
 
 
 msgid "Light"
 msgstr "प्रकाश"
+
+
+msgid "Math"
+msgstr "गणित"
+
+
+msgid "UV"
+msgstr "यूवी"
 
 
 msgid "Rigid Body"
@@ -2637,12 +2613,20 @@ msgid "Quick Effects"
 msgstr "त्वरित प्रभाव"
 
 
+msgid "Show/Hide"
+msgstr "छुपाएँ / दिखाएँ"
+
+
 msgid "Make Single User"
 msgstr "एकल प्रयोक्ता बनाएँ"
 
 
 msgid "Hooks"
 msgstr "खूँटी"
+
+
+msgid "Names"
+msgstr "नाम"
 
 
 msgid "Toggle Bone Options"
@@ -2653,12 +2637,16 @@ msgid "Enable Bone Options"
 msgstr "हड्डी विकल्प को सक्षम करें"
 
 
-msgid "Import"
-msgstr "आयात करें"
-
-
 msgid "Merge"
 msgstr "विलय करें"
+
+
+msgid "Keying"
+msgstr "कुंजीयन"
+
+
+msgid "Bone Roll"
+msgstr "हड्डी पंजी"
 
 
 msgid "Basic"
@@ -3034,10 +3022,6 @@ msgid "NLA Track is locked"
 msgstr "अरैखिक अनुप्राणन ट्रैक अवरोधित है"
 
 
-msgid "Height of the node"
-msgstr "ग्रन्थि की ऊंचाई"
-
-
 msgid "To"
 msgstr "करने के लिए"
 
@@ -3092,6 +3076,10 @@ msgstr "प्रतिबिंबक सामग्री"
 
 msgid "Layer Weight"
 msgstr "परत भार"
+
+
+msgid "Base"
+msgstr "आधार"
 
 
 msgid "Cycles"
@@ -3841,14 +3829,6 @@ msgid "Exit"
 msgstr "निर्गम"
 
 
-msgid "Current"
-msgstr "वर्तमान"
-
-
-msgid "Set the boundaries for viewer operations"
-msgstr "दर्शक संचालन के लिए सीमाएँ सेट करें"
-
-
 msgctxt "Operator"
 msgid "Bake"
 msgstr "भर्जन"
@@ -3954,10 +3934,6 @@ msgstr "कारण"
 
 msgctxt "Operator"
 msgid "Bake All Physics"
-msgstr "सभी भौतिकी भर्जन"
-
-
-msgid "Bake all physics"
 msgstr "सभी भौतिकी भर्जन"
 
 
@@ -4592,10 +4568,6 @@ msgid "Language"
 msgstr "भाषा"
 
 
-msgid "Base"
-msgstr "आधार"
-
-
 msgid "Case"
 msgstr "प्रकरण"
 
@@ -4808,6 +4780,10 @@ msgstr "कुंजी-बंधन"
 
 msgid "Filter based on key bindings"
 msgstr "प्रमुख बाइंडिंग पर आधारित फ़िल्टर करें"
+
+
+msgid "Current"
+msgstr "वर्तमान"
 
 
 msgid "Find Text"
@@ -5887,10 +5863,6 @@ msgid "%d items"
 msgstr "%d वस्तु"
 
 
-msgid "Value:"
-msgstr "मान:"
-
-
 msgid "Hex"
 msgstr "हेक्स"
 
@@ -6284,6 +6256,10 @@ msgstr "संचिका पथ"
 
 msgid "File name"
 msgstr "संचिका का नाम"
+
+
+msgid "Value:"
+msgstr "मान:"
 
 
 msgid "Unsupported audio format"

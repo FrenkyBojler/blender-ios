@@ -82,11 +82,6 @@ if(WITH_TBB)
   endif()
 endif()
 
-if(WIN32)
-  # Windows.h will define min/max macros that will collide with the STL versions.
-  add_definitions(-DNOMINMAX)
-endif()
-
 if(WITH_USD)
   # USD links libMaterialX, when using pre-compiled libraries
   # ensures `usd_ms` can find `MaterialXRender` and friends.
@@ -293,7 +288,7 @@ if(WITH_BUILDINFO)
   add_dependencies(buildinfoobj buildinfo)
 endif()
 
-add_cc_flags_custom_test(blender)
+add_c_and_cxx_flags_custom_test(blender)
 
 # message(STATUS "Configuring blender")
 if(WITH_PYTHON_MODULE)
@@ -696,7 +691,8 @@ endif()
 unset(_install_cmd)
 
 # macro to help install files without dragging in unnecessary data.
-macro(install_dir from to)
+# Install a directory, excluding common junk files.
+function(install_dir from to)
   install(
     DIRECTORY ${from}
     DESTINATION ${to}
@@ -723,7 +719,7 @@ macro(install_dir from to)
     PATTERN "turtle.py" EXCLUDE                 # ./turtle.py
     PATTERN "wininst*.exe" EXCLUDE              # from distutils, avoid malware false positive
   )
-endmacro()
+endfunction()
 
 # -----------------------------------------------------------------------------
 # Install Targets (Platform Specific)
@@ -1933,10 +1929,7 @@ unset(LIB)
 
 setup_platform_linker_flags(blender)
 setup_platform_linker_libs(blender)
-
-if(DEFINED PLATFORM_SYMBOLS_MAP)
-  set_target_properties(blender PROPERTIES LINK_DEPENDS ${PLATFORM_SYMBOLS_MAP})
-endif()
+setup_platform_linker_symbol_hiding(blender)
 
 blender_target_include_dirs(blender ${INC})
 
@@ -2034,12 +2027,15 @@ endif()
 
 if(WIN32)
   if(WITH_CYCLES_DEVICE_HIPRT)
-    if(EXISTS ${LIBDIR}/hiprt/bin/hiprt64.dll)
-      windows_install_shared_manifest(
-        FILES ${LIBDIR}/hiprt/bin/hiprt64.dll
-        ALL
-      )
-    endif()
+    # Cycles does `find_package(HIPRT)` for its compilation purposes, and the variables defined by
+    # the FindHIPRT.cmake are only available in Cycles. In order to access HIPRT_VERSION need to
+    # find the package from here as well.
+    # For the strict compilation rely on Cycles to take care of set_and_warn_library_found().
+    find_package(HIPRT)
+    windows_install_shared_manifest(
+      FILES ${LIBDIR}/hiprt/bin/hiprt${HIPRT_VERSION}64.dll
+      ALL
+    )
   endif()
 endif()
 
