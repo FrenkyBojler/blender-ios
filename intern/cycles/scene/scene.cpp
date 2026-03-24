@@ -395,7 +395,7 @@ void Scene::device_update(Device *device_, Progress &progress)
 
   device->optimize_for_scene(this);
 
-  if (!params.background) {
+  if (!params.background && need_motion() != MOTION_NONE) {
     /* Swap current camera/object/vertex positions to previous positions for next frame. */
     camera->update_motion_pre();
     object_manager->update_motion_pre(this);
