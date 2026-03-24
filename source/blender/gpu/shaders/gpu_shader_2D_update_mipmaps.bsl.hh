@@ -137,7 +137,8 @@ int2 kernel_size_from_input_size(int2 input_size)
  * \param InnerType the type to use for computation. Depending on the number of samples that a
  * texture format has a more memory efficient type can be used.
  */
-template<enum TextureFormat format, typename SharedStorage, typename InnerType> struct Resources {
+template<enum TextureWriteFormat format, typename SharedStorage, typename InnerType>
+struct Resources {
   [[push_constant]] const int num_levels;
   [[image(0, read, format)]] image2D mip_in;
   [[image(1, write, format)]] image2D mip_out1;
