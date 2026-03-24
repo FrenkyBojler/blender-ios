@@ -10,6 +10,31 @@
 
 namespace blender::nodes::node_geo_sample_sound_cc {
 
+enum class FFTSize {
+  _128 = 128,
+  _256 = 256,
+  _512 = 512,
+  _1024 = 1024,
+  _2048 = 2048,
+  _4096 = 4096,
+  _8192 = 8192,
+  _16384 = 16384,
+  _32768 = 32768,
+};
+
+static const EnumPropertyItem fft_size_items[] = {
+    {int(FFTSize::_128), "128", 0, "128", ""},
+    {int(FFTSize::_256), "256", 0, "256", ""},
+    {int(FFTSize::_512), "512", 0, "512", ""},
+    {int(FFTSize::_1024), "1024", 0, "1024", ""},
+    {int(FFTSize::_2048), "2048", 0, "2048", ""},
+    {int(FFTSize::_4096), "4096", 0, "4096", ""},
+    {int(FFTSize::_8192), "8192", 0, "8192", ""},
+    {int(FFTSize::_16384), "16384", 0, "16384", ""},
+    {int(FFTSize::_32768), "32768", 0, "32768", ""},
+    {},
+};
+
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Sound>("Sound").optional_label();
@@ -55,14 +80,24 @@ static void node_declare(NodeDeclarationBuilder &b)
       .supports_field()
       .structure_type(StructureType::Dynamic);
   b.add_output<decl::Float>("Amplitude").reference_pass_all();
+
+  {
+    auto &p = b.add_panel("FFT"_ustr).default_closed(true);
+    p.add_input<decl::Menu>("FFT Size")
+        .static_items(fft_size_items)
+        .default_value(FFTSize::_4096)
+        .optional_label();
+  }
 }
 
 class SampleSoundFunction : public mf::MultiFunction {
  private:
   const bSound &sound_;
+  const int fft_size_;
 
  public:
-  SampleSoundFunction(bSound &sound) : sound_(sound)
+  SampleSoundFunction(bSound &sound, const FFTSize fft_size)
+      : sound_(sound), fft_size_(to_fft_size_int(fft_size))
   {
     static const mf::Signature signature = []() {
       mf::Signature signature;
@@ -76,6 +111,32 @@ class SampleSoundFunction : public mf::MultiFunction {
       return signature;
     }();
     this->set_signature(&signature);
+    BLI_assert(is_power_of_2(fft_size_));
+  }
+
+  static int to_fft_size_int(const FFTSize fft_size)
+  {
+    switch (fft_size) {
+      case FFTSize::_128:
+        return 128;
+      case FFTSize::_256:
+        return 256;
+      case FFTSize::_512:
+        return 512;
+      case FFTSize::_1024:
+        return 1024;
+      case FFTSize::_2048:
+        return 2048;
+      case FFTSize::_4096:
+        return 4096;
+      case FFTSize::_8192:
+        return 8192;
+      case FFTSize::_16384:
+        return 16384;
+      case FFTSize::_32768:
+        return 32768;
+    }
+    return 4096;
   }
 
   void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
@@ -94,12 +155,11 @@ class SampleSoundFunction : public mf::MultiFunction {
                                   (all_channels_value.has_value() && channel_value.has_value());
 
     const bke::SampleSoundWindow window = bke::SampleSoundWindow::Rectangular;
-    const int fft_size = 4096;
 
     if (constant_channel) {
       bke::SampleSoundKey key;
       key.window = window;
-      key.fft_size = fft_size;
+      key.fft_size = fft_size_;
       key.channel = *all_channels_value ? std::nullopt : channel_value;
 
       const bke::SoundSampler *sampler = bke::sound_sampler_get(sound_, key);
@@ -126,7 +186,7 @@ class SampleSoundFunction : public mf::MultiFunction {
 
       bke::SampleSoundKey key;
       key.window = window;
-      key.fft_size = fft_size;
+      key.fft_size = fft_size_;
       key.channel = all_channels ? std::nullopt : std::make_optional(channel);
 
       const bke::SoundSampler *sampler = bke::sound_sampler_get(sound_, key);
@@ -148,13 +208,14 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
+  const FFTSize fft_size = params.extract_input<FFTSize>("FFT Size");
   SocketValueVariant times = params.extract_input<SocketValueVariant>("Time");
   SocketValueVariant all_channels = params.extract_input<SocketValueVariant>("All Channels");
   SocketValueVariant channels = params.extract_input<SocketValueVariant>("Channel");
   SocketValueVariant lows = params.extract_input<SocketValueVariant>("Low");
   SocketValueVariant highs = params.extract_input<SocketValueVariant>("High");
 
-  auto sample_fn = std::make_shared<SampleSoundFunction>(*sound);
+  auto sample_fn = std::make_shared<SampleSoundFunction>(*sound, fft_size);
 
   SocketValueVariant amplitudes;
   std::string error_message;

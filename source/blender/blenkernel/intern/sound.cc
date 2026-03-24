@@ -2112,8 +2112,8 @@ SoundSampler::SoundSampler(const bSound &sound, const SampleSoundKey &key)
   const SoundInfo info = bke::sound_info_get(sound_handle);
   samples_per_second_ = info.specs.samplerate;
   /* TODO: Try different values. */
-  samples_per_bucket_ = key_.fft_size / 3;
-  buckets_.reinitialize(std::ceil(info.length * info.specs.samplerate / samples_per_bucket_));
+  bin_offset_stride_ = std::min(4096, key_.fft_size / 2);
+  buckets_.reinitialize(std::ceil(info.length * info.specs.samplerate / bin_offset_stride_));
 }
 
 std::optional<Array<float>> sound_compute_fft(const bSound &sound,
@@ -2164,9 +2164,10 @@ std::optional<Array<float>> sound_compute_fft(const bSound &sound,
   fftwf_execute(plan);
 
   Array<float> frequency_amplitudes(frequencies_num);
+  const float scaling_factor = 1.0f / key.fft_size;  // TODO: take window function into account
   for (const int i : IndexRange(frequencies_num)) {
     const fftwf_complex &c = fftwf_buffer[i];
-    frequency_amplitudes[i] = sqrt(pow2f(c[0]) + pow2f(c[1]));
+    frequency_amplitudes[i] = sqrt(pow2f(c[0]) + pow2f(c[1])) * scaling_factor;
   }
 
   return frequency_amplitudes;
@@ -2212,7 +2213,7 @@ float SoundSampler::sample_cumulative_frequency(const Span<float> bucket_values,
 
 std::optional<SoundSampler::BinPair> SoundSampler::get_buckets_for_time(const float time) const
 {
-  const float bucket_i_float = time * samples_per_second_ / samples_per_bucket_;
+  const float bucket_i_float = time * samples_per_second_ / bin_offset_stride_;
   const int prev_bucket_i = floorf(bucket_i_float);
   const int next_bucket_i = prev_bucket_i + 1;
   const float bucket_fraction = bucket_i_float - prev_bucket_i;
@@ -2235,7 +2236,7 @@ std::optional<Span<float>> SoundSampler::ensure_bucket(const int bucket_i) const
   const Bin &bucket = buckets_[bucket_i];
   bucket.mutex.ensure([&]() {
     std::optional<Array<float>> fft_array = sound_compute_fft(
-        sound_, key_, bucket_i * samples_per_bucket_);
+        sound_, key_, bucket_i * bin_offset_stride_);
     if (!fft_array.has_value()) {
       return;
     }

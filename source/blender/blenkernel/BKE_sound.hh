@@ -305,7 +305,7 @@ class SoundSampler {
   const bSound &sound_;
   SampleSoundKey key_;
   int samples_per_second_;
-  int samples_per_bucket_;
+  int bin_offset_stride_;
   Array<Bin> buckets_;
 
  public:
