@@ -39,43 +39,6 @@ template<> void convert<float4, float4>(float4 &dst_value, const float4 src_valu
 }
 
 /**
- * Convert float (0-1) sRGB red/green/blue component value to linear.
- *
- * These encoders/decoders are a slightly off from our own implementation. Might fix some
- * specific issues, which we need to validate. */
-float linear_from_srgb_component(float srgb)
-{
-  return srgb <= 0.04045 ? srgb * (25 / 323.) : pow((200 * srgb + 11) * (1 / 211.), 2.4);
-}
-
-/** Convert linear red/green/blue component to float (0-1) sRGB */
-float srgb_component_from_linear(float linear)
-{
-  return linear <= 0.0031308 ? (323 / 25.) * linear : 1.055 * pow(linear, 1 / 2.4) - 0.055;
-}
-
-float4 srgb_unpack(uint srgb_packed)
-{
-  float4 srgba = unpackUnorm4x8(srgb_packed);
-  float4 linear_color;
-  linear_color.r = linear_from_srgb_component(srgba.r);
-  linear_color.g = linear_from_srgb_component(srgba.g);
-  linear_color.b = linear_from_srgb_component(srgba.b);
-  linear_color.a = srgba.a;
-  return linear_color;
-}
-
-uint srgb_pack(float4 linear_color)
-{
-  float4 srgba;
-  srgba.r = srgb_component_from_linear(linear_color.r);
-  srgba.g = srgb_component_from_linear(linear_color.g);
-  srgba.b = srgb_component_from_linear(linear_color.b);
-  srgba.a = linear_color.a;
-  return packUnorm4x8(srgba);
-}
-
-/**
  * General-case shader for generating 1 or 2 levels of the mip pyramid.
  * When generating 1 level, each workgroup handles up to 128 samples of the
  * output mip level. When generating 2 levels, each workgroup handles
@@ -89,6 +52,26 @@ uint srgb_pack(float4 linear_color)
 #define MAX_SHARED_SAMPLES (TILE_SIZE + TILE_SIZE + 1)
 #define INPUT_LEVEL 0
 
+/** Shared storage that can store intermediate results using without encoding. */
+template<typename T> struct Shared {
+  /**
+   * When generating 2 levels, the results of generating the intermediate *level(first level
+   * generated) are cached here; this is the input tile *needed to generate the 8x8 tile of the
+   * second level generated.
+   */
+  [[shared]] T intermediate_level[MAX_SHARED_SAMPLES][MAX_SHARED_SAMPLES];
+
+  void store_sample(int2 dst_coord, T color)
+  {
+    intermediate_level[dst_coord.y][dst_coord.x] = color;
+  }
+
+  T load_sample(int2 src_coord)
+  {
+    return intermediate_level[src_coord.y][src_coord.x];
+  }
+};
+
 /** Shared storage that can store intermediate results in an SRGB encoded uint. */
 struct SharedSRGB {
   /**
@@ -100,52 +83,41 @@ struct SharedSRGB {
 
   void store_sample(int2 dst_coord, float4 color)
   {
-    intermediate_level[dst_coord.y][dst_coord.x] = srgb_pack(color);
+    float4 srgba;
+    srgba.r = srgb_component_from_linear(color.r);
+    srgba.g = srgb_component_from_linear(color.g);
+    srgba.b = srgb_component_from_linear(color.b);
+    srgba.a = color.a;
+    uint srgb_packed = packUnorm4x8(srgba);
+    intermediate_level[dst_coord.y][dst_coord.x] = srgb_packed;
   }
 
   float4 load_sample(int2 src_coord)
   {
-    return srgb_unpack(intermediate_level[src_coord.y][src_coord.x]);
+    uint srgb_packed = intermediate_level[src_coord.y][src_coord.x];
+    float4 srgba = unpackUnorm4x8(srgb_packed);
+    float4 linear_color;
+    linear_color.r = linear_from_srgb_component(srgba.r);
+    linear_color.g = linear_from_srgb_component(srgba.g);
+    linear_color.b = linear_from_srgb_component(srgba.b);
+    linear_color.a = srgba.a;
+    return linear_color;
   }
-};
 
-/** Shared storage that can store intermediate results in a single float. */
-struct SharedFloat {
   /**
-   * When generating 2 levels, the results of generating the intermediate *level(first level
-   * generated) are cached here; this is the input tile *needed to generate the 8x8 tile of the
-   * second level generated.
-   */
-  [[shared]] float intermediate_level[MAX_SHARED_SAMPLES][MAX_SHARED_SAMPLES];
-
-  void store_sample(int2 dst_coord, float color)
+   * Convert float (0-1) sRGB red/green/blue component value to linear.
+   *
+   * These encoders/decoders are a slightly off from our own implementation. Might fix some
+   * specific issues, which we need to validate. */
+  float linear_from_srgb_component(float srgb)
   {
-    intermediate_level[dst_coord.y][dst_coord.x] = color;
+    return srgb <= 0.04045 ? srgb * (25 / 323.) : pow((200 * srgb + 11) * (1 / 211.), 2.4);
   }
 
-  float load_sample(int2 src_coord)
+  /** Convert linear red/green/blue component to float (0-1) sRGB */
+  float srgb_component_from_linear(float linear)
   {
-    return intermediate_level[src_coord.y][src_coord.x];
-  }
-};
-
-/** Shared storage that can store intermediate results in a float4. */
-struct SharedFloat4 {
-  /**
-   * When generating 2 levels, the results of generating the intermediate *level(first level
-   * generated) are cached here; this is the input tile *needed to generate the 8x8 tile of the
-   * second level generated.
-   */
-  [[shared]] float4 intermediate_level[MAX_SHARED_SAMPLES][MAX_SHARED_SAMPLES];
-
-  void store_sample(int2 dst_coord, float4 color)
-  {
-    intermediate_level[dst_coord.y][dst_coord.x] = color;
-  }
-
-  float4 load_sample(int2 src_coord)
-  {
-    return intermediate_level[src_coord.y][src_coord.x];
+    return linear <= 0.0031308 ? (323 / 25.) * linear : 1.055 * pow(linear, 1 / 2.4) - 0.055;
   }
 };
 
@@ -548,9 +520,12 @@ void update_mipmaps([[global_invocation_id]] const uint3 global_id,
   }
 }
 
+template struct Shared<float>;
+template struct Shared<float4>;
+
 template struct Resources<UNORM_8_8_8_8, SharedSRGB, float4>;
-template struct Resources<SFLOAT_16, SharedFloat, float>;
-template struct Resources<SFLOAT_16_16_16_16, SharedFloat4, float4>;
+template struct Resources<SFLOAT_16, Shared<float>, float>;
+template struct Resources<SFLOAT_16_16_16_16, Shared<float4>, float4>;
 
 template float4 Resources<UNORM_8_8_8_8, SharedSRGB, float4>::reduce_store_sample<true>(
     int2 src_coord,
@@ -566,28 +541,28 @@ template float4 Resources<UNORM_8_8_8_8, SharedSRGB, float4>::reduce_store_sampl
     int2 dst_image_size,
     int2 dst_coord,
     int dst_level);
-template float Resources<SFLOAT_16, SharedFloat, float>::reduce_store_sample<true>(
+template float Resources<SFLOAT_16, Shared<float>, float>::reduce_store_sample<true>(
     int2 src_coord,
     int src_level,
     int2 kernel_size,
     int2 dst_image_size,
     int2 dst_coord,
     int dst_level);
-template float Resources<SFLOAT_16, SharedFloat, float>::reduce_store_sample<false>(
+template float Resources<SFLOAT_16, Shared<float>, float>::reduce_store_sample<false>(
     int2 src_coord,
     int src_level,
     int2 kernel_size,
     int2 dst_image_size,
     int2 dst_coord,
     int dst_level);
-template float4 Resources<SFLOAT_16_16_16_16, SharedFloat4, float4>::reduce_store_sample<true>(
+template float4 Resources<SFLOAT_16_16_16_16, Shared<float4>, float4>::reduce_store_sample<true>(
     int2 src_coord,
     int src_level,
     int2 kernel_size,
     int2 dst_image_size,
     int2 dst_coord,
     int dst_level);
-template float4 Resources<SFLOAT_16_16_16_16, SharedFloat4, float4>::reduce_store_sample<false>(
+template float4 Resources<SFLOAT_16_16_16_16, Shared<float4>, float4>::reduce_store_sample<false>(
     int2 src_coord,
     int src_level,
     int2 kernel_size,
@@ -600,16 +575,16 @@ template void update_mipmaps<Resources<UNORM_8_8_8_8, SharedSRGB, float4>>(
     [[work_group_id]] const uint3 group_id,
     [[local_invocation_index]] const uint3 local_index,
     [[resource_table]] Resources<UNORM_8_8_8_8, SharedSRGB, float4> &srt);
-template void update_mipmaps<Resources<SFLOAT_16, SharedFloat, float>>(
+template void update_mipmaps<Resources<SFLOAT_16, Shared<float>, float>>(
     [[global_invocation_id]] const uint3 global_id,
     [[work_group_id]] const uint3 group_id,
     [[local_invocation_index]] const uint3 local_index,
-    [[resource_table]] Resources<SFLOAT_16, SharedFloat, float> &srt);
-template void update_mipmaps<Resources<SFLOAT_16_16_16_16, SharedFloat4, float4>>(
+    [[resource_table]] Resources<SFLOAT_16, Shared<float>, float> &srt);
+template void update_mipmaps<Resources<SFLOAT_16_16_16_16, Shared<float4>, float4>>(
     [[global_invocation_id]] const uint3 global_id,
     [[work_group_id]] const uint3 group_id,
     [[local_invocation_index]] const uint3 local_index,
-    [[resource_table]] Resources<SFLOAT_16_16_16_16, SharedFloat4, float4> &srt);
+    [[resource_table]] Resources<SFLOAT_16_16_16_16, Shared<float4>, float4> &srt);
 
 }  // namespace builtin::mipmaps
 
@@ -618,7 +593,8 @@ PipelineCompute gpu_shader_2D_update_mipmaps_unorm_8_8_8_8(
         builtin::mipmaps::Resources<UNORM_8_8_8_8, builtin::mipmaps::SharedSRGB, float4>>);
 PipelineCompute gpu_shader_2D_update_mipmaps_sfloat_16(
     builtin::mipmaps::update_mipmaps<
-        builtin::mipmaps::Resources<SFLOAT_16, builtin::mipmaps::SharedFloat, float>>);
+        builtin::mipmaps::Resources<SFLOAT_16, builtin::mipmaps::Shared<float>, float>>);
 PipelineCompute gpu_shader_2D_update_mipmaps_sfloat_16_16_16_16(
-    builtin::mipmaps::update_mipmaps<
-        builtin::mipmaps::Resources<SFLOAT_16_16_16_16, builtin::mipmaps::SharedFloat4, float4>>);
+    builtin::mipmaps::update_mipmaps<builtin::mipmaps::Resources<SFLOAT_16_16_16_16,
+                                                                 builtin::mipmaps::Shared<float4>,
+                                                                 float4>>);
