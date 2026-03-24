@@ -28,6 +28,7 @@ set(SRC
   nodes/node_composite_alpha_over.cc
   nodes/node_composite_anti_aliasing.cc
   nodes/node_composite_bilateral_blur.cc
+  nodes/node_composite_blank_image.cc
   nodes/node_composite_blur.cc
   nodes/node_composite_bokeh_blur.cc
   nodes/node_composite_bokeh_image.cc
@@ -41,7 +42,6 @@ set(SRC
   nodes/node_composite_color_key.cc
   nodes/node_composite_color_spill.cc
   nodes/node_composite_combine_color.cc
-  nodes/node_composite_constant_image.cc
   nodes/node_composite_convert_color_space.cc
   nodes/node_composite_convert_to_display.cc
   nodes/node_composite_convolve.cc

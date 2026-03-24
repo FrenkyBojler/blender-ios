@@ -7,7 +7,7 @@
 
 #include "node_composite_util.hh"
 
-namespace blender::nodes::node_composite_constant_image_cc {
+namespace blender::nodes::node_composite_blank_image_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -28,7 +28,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 using namespace blender::compositor;
 
-class ConstantImageOperation : public NodeOperation {
+class BlankImageOperation : public NodeOperation {
  public:
   using NodeOperation::NodeOperation;
 
@@ -52,15 +52,15 @@ class ConstantImageOperation : public NodeOperation {
 
 static NodeOperation *get_compositor_operation(Context &context, const bNode &node)
 {
-  return new ConstantImageOperation(context, node);
+  return new BlankImageOperation(context, node);
 }
 
 static void node_register()
 {
   static bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, "CompositorNodeConstantImage");
-  ntype.ui_name = "Constant Image";
+  cmp_node_type_base(&ntype, "CompositorNodeBlankImage");
+  ntype.ui_name = "Blank Image";
   ntype.ui_description = "Returns an image with the given size and constant color";
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;
@@ -70,4 +70,4 @@ static void node_register()
 }
 NOD_REGISTER_NODE(node_register)
 
-}  // namespace blender::nodes::node_composite_constant_image_cc
+}  // namespace blender::nodes::node_composite_blank_image_cc
