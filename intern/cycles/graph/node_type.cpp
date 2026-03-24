@@ -205,14 +205,45 @@ const SocketType *NodeType::find_output(ustring name) const
   return nullptr;
 }
 
-/* Node Type Registry */
+/* Node Type Registry
+ *
+ * We want to be able to find and enumerate types without the need for a centralized
+ * function for all node types. Due to static initialization order issues and guarded
+ * allocators, there are some subtle implementation choices.
+ *
+ * Only the init functions are gathered on static initialization, as registering the
+ * node type itself could otherwise happen in the wrong order for base and derived
+ * types, and Blender's guarded allocator may not have been initialized yet.
+ *
+ * The initialization functions are stored in std::vector without guarded allocation
+ * as that may not been properly initialized yet. */
 
-thread_mutex NodeType::types_mutex_;
+thread_mutex types_mutex_;
 
-unordered_map<ustring, NodeType> &NodeType::types()
+static unordered_map<ustring, NodeType> &types()
 {
   static unordered_map<ustring, NodeType> _types;
   return _types;
+}
+
+std::vector<const NodeType *(*)()> &types_on_init()
+{
+  static std::vector<const NodeType *(*)()> _types_on_init;
+  return _types_on_init;
+}
+
+static void ensure_types_initialized()
+{
+  for (const auto &init_func : types_on_init()) {
+    init_func();
+  }
+  types_on_init().clear();
+}
+
+bool NodeType::register_on_init(const NodeType *(*init_func)())
+{
+  types_on_init().push_back(init_func);
+  return true;
 }
 
 NodeType *NodeType::add(const char *name_, CreateFunc create_, Type type_, const NodeType *base_)
@@ -239,8 +270,22 @@ NodeType *NodeType::add(const char *name_, CreateFunc create_, Type type_, const
 const NodeType *NodeType::find(ustring name)
 {
   thread_scoped_lock lock(types_mutex_);
+  ensure_types_initialized();
   const unordered_map<ustring, NodeType>::iterator it = types().find(name);
   return (it == types().end()) ? nullptr : &it->second;
+}
+
+vector<ustring> NodeType::type_names()
+{
+  thread_scoped_lock lock(types_mutex_);
+  ensure_types_initialized();
+
+  vector<ustring> names;
+  for (const auto &pair : types()) {
+    names.push_back(pair.first);
+  }
+
+  return names;
 }
 
 CCL_NAMESPACE_END
