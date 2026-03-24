@@ -3068,10 +3068,10 @@ void Layout::decorator(PointerRNA *ptr, const std::optional<StringRefNull> propn
   this->decorator(ptr, prop, index);
 }
 
-void Layout::popover(const bContext *C,
-                     PanelType *pt,
-                     const std::optional<StringRef> name_opt,
-                     int icon)
+Button *Layout::popover(const bContext *C,
+                        PanelType *pt,
+                        const std::optional<StringRef> name_opt,
+                        int icon)
 {
   Layout *layout = this;
   const StringRef name = name_opt.value_or(CTX_IFACE_(pt->translation_context, pt->label));
@@ -3110,22 +3110,23 @@ void Layout::popover(const bContext *C,
   if (!ok) {
     but->flag |= BUT_DISABLED;
   }
+  return but;
 }
 
-void Layout::popover(const bContext *C,
-                     const StringRef panel_type,
-                     std::optional<StringRef> name_opt,
-                     int icon,
-                     PopupAttachDirection direction)
+Button *Layout::popover(const bContext *C,
+                        const StringRef panel_type,
+                        std::optional<StringRef> name_opt,
+                        int icon,
+                        PopupAttachDirection direction)
 {
   PanelType *pt = WM_paneltype_find(panel_type, true);
   if (pt == nullptr) {
     RNA_warning_bare("UILayout.popover(): Panel type not found '%s'",
                      std::string(panel_type).c_str());
-    return;
+    return nullptr;
   }
   pt->popup_draw_direction = direction;
-  this->popover(C, pt, name_opt, icon);
+  return this->popover(C, pt, name_opt, icon);
 }
 
 void Layout::popover_group(

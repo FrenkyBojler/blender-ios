@@ -3741,9 +3741,11 @@ static void widget_menubut(uiWidgetColors *wcol,
   const float rad = widget_radius_from_zoom(zoom, wcol);
   round_box_edges(&wtb, roundboxalign, rect, rad);
 
-  /* decoration */
-  shape_preset_trias_from_rect_menu(&wtb.tria1, rect);
-  /* copy size and center to 2nd tria */
+  if (!(state->but_flag & BUT_UPDATE_AVAILABLE)) {
+    /* decoration */
+    shape_preset_trias_from_rect_menu(&wtb.tria1, rect);
+    /* copy size and center to 2nd tria */
+  }
   wtb.tria2 = wtb.tria1;
 
   if (ELEM(state->emboss, EmbossType::NoneOrStatus, EmbossType::None)) {
@@ -3751,11 +3753,17 @@ static void widget_menubut(uiWidgetColors *wcol,
     wtb.draw_outline = false;
     wtb.draw_emboss = false;
   }
+  if (state->but_flag & BUT_UPDATE_AVAILABLE) {
+    theme::get_color_4ubv(TH_UPDATE_AVAILABLE, wcol->inner);
+    wcol->outline[3] = 0.0f;
+  }
 
   widgetbase_draw(&wtb, wcol);
 
-  /* text space, arrows are about 0.6 height of button */
-  rect->xmax -= (6 * BLI_rcti_size_y(rect)) / 10;
+  if (!(state->but_flag & BUT_UPDATE_AVAILABLE)) {
+    /* text space, arrows are about 0.6 height of button */
+    rect->xmax -= (6 * BLI_rcti_size_y(rect)) / 10;
+  }
 }
 
 /**

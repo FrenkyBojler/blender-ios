@@ -1863,6 +1863,11 @@ static void rna_def_userdef_theme_ui_wcol_state(BlenderRNA *brna)
   prop = RNA_def_property(srna, "blend", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_ui_text(prop, "Blend", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
+  prop = RNA_def_property(srna, "update_available", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_array(prop, 4);
+  RNA_def_property_ui_text(prop, "Update Avaiable", "Color for the update notifier button");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 }
 
 static const EnumPropertyItem rna_enum_userdef_theme_background_types_items[] = {

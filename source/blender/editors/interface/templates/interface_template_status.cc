@@ -548,7 +548,13 @@ void uiTemplateStatusInfo(Layout *layout, bContext *C)
           row.label("|", ICON_NONE);
           row.separator(-0.5f);
         }
-        row.popover(C, "STATUS_PT_blender_updates", IFACE_("Updates Available"), ICON_IMPORT);
+        ui::Layout &sub = row.row(false);
+        sub.emboss_set(ui::EmbossType::Emboss);
+        Button *button = sub.popover(
+            C, "STATUS_PT_blender_updates", IFACE_("Updates Available"), ICON_IMPORT);
+        /* Remove extra space for menu arrow. */
+        button->rect.xmax -= UI_UNIT_X * 0.55f;
+        ui::button_flag_enable(button, ui::BUT_UPDATE_AVAILABLE);
         has_status_info = true;
       }
     }

@@ -50,6 +50,7 @@ enum ThemeColorID {
   TH_INFO,
   TH_SUCCESS,
   TH_LINK,
+  TH_UPDATE_AVAILABLE,
 
   TH_THEMEUI,
   /* Common colors among spaces. */

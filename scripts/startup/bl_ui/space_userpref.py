@@ -1226,6 +1226,9 @@ class USERPREF_PT_theme_interface_state(ThemePanel, CenterAlignMixIn, Panel):
         col.prop(ui_state, "inner_changed_sel", text="Selected")
 
         col = flow.column(align=True)
+        col.prop(ui_state, "update_available", text="Update Available")
+
+        col = flow.column(align=True)
         col.prop(ui_state, "blend")
 
 

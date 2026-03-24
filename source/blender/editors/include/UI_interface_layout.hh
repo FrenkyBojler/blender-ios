@@ -579,12 +579,12 @@ struct Layout : public Item, NonCopyable, NonMovable {
             std::optional<StringRef> name,
             int icon);
 
-  void popover(const bContext *C, PanelType *pt, std::optional<StringRef> name_opt, int icon);
-  void popover(const bContext *C,
-               StringRef panel_type,
-               std::optional<StringRef> name_opt,
-               int icon,
-               PopupAttachDirection direction = PopupAttachDirection::Vertical);
+  Button *popover(const bContext *C, PanelType *pt, std::optional<StringRef> name_opt, int icon);
+  Button *popover(const bContext *C,
+                  StringRef panel_type,
+                  std::optional<StringRef> name_opt,
+                  int icon,
+                  PopupAttachDirection direction = PopupAttachDirection::Vertical);
   void popover_group(
       bContext *C, int space_id, int region_id, const char *context, const char *category);
 
