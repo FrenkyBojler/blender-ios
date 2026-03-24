@@ -1,6 +1,9 @@
-/* SPDX-FileCopyrightText: 2026 Blender Authors
+/* SPDX-FileCopyrightText: 2021 NVIDIA Corporation
+ * SPDX-FileCopyrightText: 2026 Blender Foundation
  *
- * SPDX-License-Identifier: GPL-2.0-or-later */
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * Adapted code from NVIDIA Corporation. */
 
 #pragma once
 
