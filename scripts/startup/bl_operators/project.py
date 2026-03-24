@@ -31,22 +31,26 @@ class VariableType(Enum):
     STRING = 'STRING'
     FILEPATH = 'FILEPATH'
 
+
 @define
 class ProjectVariable:
     name: str
     type: VariableType
     value: int | str | float
 
+
 @define
 class ProjectConfig:
     name: str
     variables: list[ProjectVariable] | None = None
+
 
 def structure_int_float_str(obj: int | float | str, cl: type) -> int | float | str:
     if isinstance(obj, int) or isinstance(obj, float) or isinstance(obj, str):
         return obj
     else:
         raise ValueError(f"Cannot structure {obj!r} as int | float | str")
+
 
 converter = cattrs.Converter()
 converter.register_structure_hook(int | float | str, structure_int_float_str)
@@ -147,7 +151,23 @@ def save_project(project, report=None):
     try:
         with config_path.open(mode='w', encoding='utf-8') as f:
             # The actual project file writing.
-            f.write("name = \"{}\"\n".format(escape_string(project.name)))
+            f.write("name = \"{}\"\n\n".format(escape_string(project.name)))
+
+            for var in project.variables:
+                f.write("[[variables]]\n")
+                f.write(f"name = \"{escape_string(var.name)}\"\n")
+                f.write(f"type = \"{var.type}\"\n")
+                match var.type:
+                    case 'INTEGER':
+                        f.write(f"value = {var.value_int}\n")
+                    case 'FLOAT':
+                        f.write(f"value = {var.value_float}\n")
+                    case 'STRING':
+                        f.write(f"value = \"{escape_string(var.value_string)}\"\n")
+                    case 'FILEPATH':
+                        f.write(f"value = \"{escape_string(var.value_string)}\"\n")
+                f.write("\n")
+
     except PermissionError:
         if report:
             report({'ERROR'}, rpt_("Cannot write to '{}' due to filesystem permissions.").format(PROJECT_CONFIG))
