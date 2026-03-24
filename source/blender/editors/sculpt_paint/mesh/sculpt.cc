@@ -1283,6 +1283,7 @@ static float calc_radial_symmetry_feather(const Mesh &mesh,
 }
 
 static float calc_symmetry_feather(const Sculpt &sd,
+                                   const ePaintSymmetryFlags symm,
                                    const Mesh &mesh,
                                    const ed::sculpt_paint::StrokeCache &cache)
 {
@@ -1290,7 +1291,6 @@ static float calc_symmetry_feather(const Sculpt &sd,
     return 1.0f;
   }
   float overlap;
-  const int symm = cache.symmetry;
 
   overlap = 0.0f;
   for (int i = 0; i <= symm; i++) {
@@ -2798,34 +2798,27 @@ static void update_brush_local_mat(const Sculpt &sd, Object &ob)
 /** \name Texture painting
  * \{ */
 
-static bool sculpt_needs_pbvh_pixels(PaintModeSettings &paint_mode_settings,
-                                     const Brush &brush,
-                                     Object &ob)
+static bool sculpt_needs_pbvh_pixels(const Brush &brush, const Object &ob)
 {
   if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_PAINT &&
       USER_EXPERIMENTAL_TEST(&U, use_sculpt_texture_paint))
   {
-    Image *image;
-    ImageUser *image_user;
-    return SCULPT_paint_image_canvas_get(paint_mode_settings, ob, &image, &image_user);
+    return ob.runtime->sculpt_session->cache->image_data.get();
   }
 
   return false;
 }
 
-static void sculpt_pbvh_update_pixels(const Depsgraph &depsgraph,
-                                      PaintModeSettings &paint_mode_settings,
-                                      Object &ob)
+static void sculpt_pbvh_update_pixels(const Depsgraph &depsgraph, Object &ob)
 {
   BLI_assert(ob.type == OB_MESH);
 
-  Image *image;
-  ImageUser *image_user;
-  if (!SCULPT_paint_image_canvas_get(paint_mode_settings, ob, &image, &image_user)) {
+  ed::sculpt_paint::StrokeCache &cache = *ob.runtime->sculpt_session->cache;
+  if (!cache.image_data) {
     return;
   }
 
-  bke::pbvh::build_pixels(depsgraph, ob, *image, *image_user);
+  bke::pbvh::build_pixels(depsgraph, ob, *cache.image_data->image, *cache.image_data->image_user);
 }
 
 /** \} */
@@ -3263,10 +3256,10 @@ static void do_brush_action(const Depsgraph &depsgraph,
 
   const bool use_original = brush_type_needs_original(brush.sculpt_brush_type) ? true :
                                                                                  !ss.cache->accum;
-  const bool use_pixels = sculpt_needs_pbvh_pixels(paint_mode_settings, brush, ob);
+  const bool use_pixels = sculpt_needs_pbvh_pixels(brush, ob);
 
-  if (sculpt_needs_pbvh_pixels(paint_mode_settings, brush, ob)) {
-    sculpt_pbvh_update_pixels(depsgraph, paint_mode_settings, ob);
+  if (sculpt_needs_pbvh_pixels(brush, ob)) {
+    sculpt_pbvh_update_pixels(depsgraph, ob);
 
     texnode_mask = pbvh_gather_texpaint(ob, brush, use_original, 1.0f, memory);
 
@@ -3326,11 +3319,6 @@ static void do_brush_action(const Depsgraph &depsgraph,
                                     *ss.cache->cloth_sim,
                                     ss.cache->location_symm,
                                     std::numeric_limits<float>::max());
-  }
-
-  bool invert = ss.cache->pen_flip || ss.cache->invert;
-  if (brush.flag & BRUSH_DIR_IN) {
-    invert = !invert;
   }
 
   /* Apply one type of brush action. */
@@ -3705,12 +3693,11 @@ static void do_symmetrical_brush_actions(const Depsgraph &depsgraph,
   const Mesh &mesh = *id_cast<Mesh *>(ob.data);
   SculptSession &ss = *ob.runtime->sculpt_session;
   StrokeCache &cache = *ss.cache;
-  const char symm = SCULPT_mesh_symmetry_xyz_get(ob);
+  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(ob);
 
-  float feather = calc_symmetry_feather(sd, mesh, *ss.cache);
+  float feather = calc_symmetry_feather(sd, symm, mesh, *ss.cache);
 
   cache.bstrength = brush_strength(sd, cache, feather, paint_mode_settings);
-  cache.symmetry = symm;
 
   /* `symm` is a bit combination of XYZ -
    * 1 is mirror X; 2 is Y; 3 is XY; 4 is Z; 5 is XZ; 6 is YZ; 7 is XYZ */
@@ -4080,8 +4067,6 @@ static void init_scene_project_brush_targets(const Depsgraph &depsgraph,
     cache.project_targets.append(std::move(project_target));
   }
 }
-
-/* Initialize the stroke cache invariants from operator properties. */
 
 static float brush_dynamic_size_get(const Brush &brush,
                                     const StrokeCache &cache,
@@ -5446,6 +5431,8 @@ void store_mesh_from_eval(const wmOperator &op,
         /* Use lower level API to add the position attribute to avoid copying the array and to
          * allow using #tag_positions_changed_no_normals instead of #tag_positions_changed (which
          * would be called by the attribute API). */
+        position.sharing_info->add_user();
+
         bke::Attribute::ArrayData data{};
         data.data = const_cast<float3 *>(position.varray.get_internal_span().data());
         data.size = position.varray.size();
@@ -5725,6 +5712,9 @@ void SculptPaintStroke::stroke_cache_init(const BrushStrokeMode stroke_mode,
       SCULPT_use_image_paint_brush(*paint_mode_settings_, ob))
   {
     cache->accum = true;
+
+    cache->image_data = paint::image::ImageData::init_active_image(
+        ob, this->scene->toolsettings->paint_mode);
   }
 
   if (BKE_brush_color_jitter_get_settings(this->paint, brush)) {
@@ -6038,7 +6028,16 @@ static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
   {
     return OPERATOR_CANCELLED;
   }
-  if (brush_type_is_mask(brush.sculpt_brush_type)) {
+  /* Currently, we only switch the brush as part of StrokeCache initialization, which does not
+   * happen until the brush goes over the mesh. Instead, check the #BrushSwitchMode which will
+   * tell if the brush will toggled at that point.
+   *
+   * Temporary mitigation to avoid backporting larger refactor for 5.1 backport.
+   *
+   * TODO: Remove this workaround, create `StrokeCache` here with "immutable" toggle values.
+   */
+  const BrushSwitchMode mode = BrushSwitchMode(RNA_enum_get(op->ptr, "brush_toggle"));
+  if (brush_type_is_mask(brush.sculpt_brush_type) || mode == BrushSwitchMode::Mask) {
     MultiresModifierData *mmd = BKE_sculpt_multires_active(&scene, &ob);
     BKE_sculpt_mask_layers_ensure(CTX_data_depsgraph_pointer(C), CTX_data_main(C), &ob, mmd);
 

@@ -1008,11 +1008,6 @@ static PointerRNA rna_MeshUVLoopLayer_pin_ensure(PointerRNA ptr)
   return bool_layer_ensure(&ptr, BKE_uv_map_pin_name_get);
 }
 
-static void rna_MeshUVLoopLayer_uv_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
-{
-  rna_Attribute_data_begin(iter, ptr);
-}
-
 static bool rna_MeshUVLoopLayer_active_render_get(PointerRNA *ptr)
 {
   return rna_Attribute_name_get(*ptr) == rna_mesh(ptr)->default_uv_map_name();
@@ -2336,7 +2331,7 @@ static void rna_def_mloopuv(BlenderRNA *brna)
                                     "rna_iterator_array_end",
                                     "rna_iterator_array_get",
                                     "rna_Attribute_data_length",
-                                    nullptr,
+                                    "rna_Attribute_data_lookup_int",
                                     nullptr,
                                     nullptr);
 
@@ -2374,12 +2369,12 @@ static void rna_def_mloopuv(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "UV", "UV coordinates on face corners");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_IGNORE);
   RNA_def_property_collection_funcs(prop,
-                                    "rna_MeshUVLoopLayer_uv_begin",
+                                    "rna_Attribute_data_begin",
                                     "rna_iterator_array_next",
                                     "rna_iterator_array_end",
                                     "rna_iterator_array_get",
                                     "rna_Attribute_data_length",
-                                    nullptr,
+                                    "rna_Attribute_data_lookup_int",
                                     nullptr,
                                     nullptr);
 
@@ -2394,7 +2389,7 @@ static void rna_def_mloopuv(BlenderRNA *brna)
                                     "rna_iterator_array_end",
                                     "rna_iterator_array_get",
                                     "rna_MeshUVLoopLayer_pin_length",
-                                    nullptr,
+                                    "rna_Attribute_data_lookup_int",
                                     nullptr,
                                     nullptr);
 

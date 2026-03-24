@@ -1014,7 +1014,7 @@ static void mesh_tessface_calc(Mesh &mesh)
   const VArray sharp_faces = *attributes.lookup_or_default<bool>(
       "sharp_face", bke::AttrDomain::Face, false);
 
-  /* Allocate the length of `totfaces`, avoid many small reallocation's,
+  /* Allocate the length of `totfaces`, avoid many small reallocations,
    * if all faces are triangles it will be correct, `quads == 2x` allocations. */
   /* Take care since memory is _not_ zeroed so be sure to initialize each field. */
   mface_to_poly_map = MEM_new_array_uninitialized<int>(size_t(corner_tris_num), __func__);
@@ -2436,8 +2436,13 @@ void mesh_freestyle_marks_to_generic(Mesh &mesh)
     if (data != nullptr) {
       static_assert(sizeof(FreestyleEdge) == sizeof(bool));
       static_assert(char(FREESTYLE_EDGE_MARK) == char(true));
-      CustomData_add_layer_named_with_data(
-          &mesh.edge_data, CD_PROP_BOOL, data, mesh.edges_num, "freestyle_edge", sharing_info);
+      Attribute::ArrayData array_data{};
+      array_data.data = data;
+      array_data.size = mesh.edges_num;
+      sharing_info->add_user();
+      array_data.sharing_info = ImplicitSharingPtr<>(sharing_info);
+      mesh.attribute_storage.wrap().add(
+          "freestyle_edge", bke::AttrDomain::Edge, bke::AttrType::Bool, std::move(array_data));
     }
     if (sharing_info != nullptr) {
       sharing_info->remove_user_and_delete_if_last();
@@ -2460,8 +2465,13 @@ void mesh_freestyle_marks_to_generic(Mesh &mesh)
     if (data != nullptr) {
       static_assert(sizeof(FreestyleFace) == sizeof(bool));
       static_assert(char(FREESTYLE_FACE_MARK) == char(true));
-      CustomData_add_layer_named_with_data(
-          &mesh.face_data, CD_PROP_BOOL, data, mesh.faces_num, "freestyle_face", sharing_info);
+      Attribute::ArrayData array_data{};
+      array_data.data = data;
+      array_data.size = mesh.edges_num;
+      sharing_info->add_user();
+      array_data.sharing_info = ImplicitSharingPtr<>(sharing_info);
+      mesh.attribute_storage.wrap().add(
+          "freestyle_face", bke::AttrDomain::Face, bke::AttrType::Bool, std::move(array_data));
     }
     if (sharing_info != nullptr) {
       sharing_info->remove_user_and_delete_if_last();
