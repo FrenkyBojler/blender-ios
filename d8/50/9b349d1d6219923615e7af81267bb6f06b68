@@ -1,3 +1,3 @@
 Referenced by issue #117066, Enable PBVH node filtering with projected brush falloff
-Referenced by issue #75518, Weight paint brush: front faces only not working.
+Referenced by issue #75518, Weight/Vertex paint brush: "Front Faces Only" not working with spherical falloff
 Referenced by issue #53079, Blender Crash to Desktop Rendering with HDRI (EXR) Maybe others not tested
