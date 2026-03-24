@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Beta (b'5a04f1d246f1')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'ec8c60553753')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-11 11:01+0000\n"
+"POT-Creation-Date: 2026-03-23 09:55+0000\n"
 "PO-Revision-Date: 2025-07-23 15:32+0000\n"
 "Last-Translator: Leevi Oksanen <laavi.oksanen@gmail.com>\n"
 "Language-Team: Finnish <https://translate.blender.org/projects/blender-ui/ui/fi/>\n"
@@ -7248,16 +7248,8 @@ msgid "ID Type"
 msgstr "ID-tyyppi"
 
 
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Metaball"
-msgstr "Metapallo"
-
-
-msgid "Show/Hide"
-msgstr "Näytä/Piilota"
+msgid "UV Mapping"
+msgstr "UV-kartoittaminen"
 
 
 msgid "Read"
@@ -7266,14 +7258,6 @@ msgstr "Lue"
 
 msgid "Write"
 msgstr "Kirjoita"
-
-
-msgid "Names"
-msgstr "Nimet"
-
-
-msgid "UV Mapping"
-msgstr "UV-kartoittaminen"
 
 
 msgid "Select More/Less"
@@ -7292,12 +7276,20 @@ msgid "Select Loops"
 msgstr "Valitse silmukat"
 
 
+msgid "Instances"
+msgstr "Instanssit"
+
+
+msgid "Import"
+msgstr "Tuo"
+
+
 msgid "Utilities"
 msgstr "Työkalut"
 
 
-msgid "Math"
-msgstr "Matematiikka"
+msgid "Metaball"
+msgstr "Metapallo"
 
 
 msgid "Light"
@@ -7308,12 +7300,24 @@ msgid "Light Probe"
 msgstr "Valoluotain"
 
 
+msgid "Math"
+msgstr "Matematiikka"
+
+
+msgid "UV"
+msgstr "UV"
+
+
 msgid "Add Image"
 msgstr "Lisää kuva"
 
 
 msgid "Track"
 msgstr "Raide"
+
+
+msgid "Show/Hide"
+msgstr "Näytä/Piilota"
 
 
 msgid "Hooks"
@@ -7324,16 +7328,12 @@ msgid "Random Mask"
 msgstr "Satunnainen maski"
 
 
+msgid "Names"
+msgstr "Nimet"
+
+
 msgid "Mesh Select Mode"
 msgstr "Muodon valintatila"
-
-
-msgid "Instances"
-msgstr "Instanssit"
-
-
-msgid "Import"
-msgstr "Tuo"
 
 
 msgid "Basic"
@@ -13265,6 +13265,11 @@ msgstr "Uusi"
 
 
 msgctxt "Operator"
+msgid "Save Copy..."
+msgstr "Tallenna kopio..."
+
+
+msgctxt "Operator"
 msgid "Quit"
 msgstr "Poistu"
 
@@ -13297,11 +13302,6 @@ msgstr "Toista historia..."
 msgctxt "Operator"
 msgid "Preferences..."
 msgstr "Mieltymykset..."
-
-
-msgctxt "Operator"
-msgid "Save Copy..."
-msgstr "Tallenna kopio..."
 
 
 msgid "More..."
@@ -14508,10 +14508,6 @@ msgstr "Kuvaa ei kyetty löytämään"
 
 msgid "No active camera set"
 msgstr "Ei aktiivista kamerasarjaa"
-
-
-msgid "Attribute Data Detected"
-msgstr "Attribuutti-data havaittu"
 
 
 msgid "PaintCurve"
