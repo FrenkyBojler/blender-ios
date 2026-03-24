@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_lib_id.hh"
+
 #include "DNA_collection_types.h"
 #include "DNA_material_types.h"
 #include "DNA_sound_types.h"
@@ -83,7 +85,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  params.set_output<std::string>("Name", id->name + 2);
+  params.set_output<std::string>("Name", BKE_id_name(*id));
 
   if (!params.output_is_required("Library Name")) {
     params.set_default_remaining_outputs();
@@ -96,7 +98,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  params.set_output<std::string>("Library Name", lib->id.name + 2);
+  params.set_output<std::string>("Library Name", BKE_id_name(lib->id));
 }
 
 static void node_rna(StructRNA *srna)
