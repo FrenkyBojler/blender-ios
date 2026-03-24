@@ -280,7 +280,7 @@ struct WindowFunctionWeights {
   float weights_sum;
 };
 
-struct SampleSoundKey {
+struct bSoundFrequencySamplerKey {
   SampleSoundWindow window;
   int fft_size;
   std::optional<int> channel;
@@ -290,15 +290,16 @@ struct SampleSoundKey {
     return get_default_hash(this->window, this->fft_size, this->channel.value_or(-1));
   }
 
-  friend bool operator==(const SampleSoundKey &a, const SampleSoundKey &b) = default;
+  friend bool operator==(const bSoundFrequencySamplerKey &a,
+                         const bSoundFrequencySamplerKey &b) = default;
 };
 
 std::optional<Array<float>> sound_compute_fft(const bSound &sound,
-                                              const SampleSoundKey &key,
+                                              const bSoundFrequencySamplerKey &key,
                                               const int start_sample,
                                               const WindowFunctionWeights &weights);
 
-class SoundSampler {
+class bSoundFrequencySampler {
  private:
   struct Bin {
     mutable CacheMutex mutex;
@@ -312,14 +313,14 @@ class SoundSampler {
   };
 
   const bSound &sound_;
-  SampleSoundKey key_;
+  bSoundFrequencySamplerKey key_;
   int samples_per_second_;
   int bin_offset_stride_;
   Array<Bin> buckets_;
   const WindowFunctionWeights &window_function_weights_;
 
  public:
-  SoundSampler(const bSound &sound, const SampleSoundKey &key);
+  bSoundFrequencySampler(const bSound &sound, const bSoundFrequencySamplerKey &key);
 
   float sample_single(const float time, const float low, const float high) const;
 
@@ -329,7 +330,8 @@ class SoundSampler {
   std::optional<Span<float>> ensure_bucket(const int bucket_i) const;
 };
 
-const SoundSampler *sound_sampler_get(const bSound &sound, const SampleSoundKey &key);
+const bSoundFrequencySampler *sound_sampler_get(const bSound &sound,
+                                                const bSoundFrequencySamplerKey &key);
 
 }  // namespace bke
 

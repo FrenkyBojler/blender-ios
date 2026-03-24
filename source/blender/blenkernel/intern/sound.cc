@@ -111,7 +111,8 @@ enum class SoundTags {
 };
 ENUM_OPERATORS(SoundTags);
 
-using SoundSamplerMap = ConcurrentMap<SampleSoundKey, std::shared_ptr<SoundSampler>>;
+using SoundSamplerMap =
+    ConcurrentMap<bSoundFrequencySamplerKey, std::shared_ptr<bSoundFrequencySampler>>;
 
 struct SoundRuntime {
   AUD_Sound handle;
@@ -2090,7 +2091,8 @@ const Vector<float> *BKE_sound_runtime_get_waveform(const bSound *sound)
 
 namespace bke {
 
-const SoundSampler *sound_sampler_get(const bSound &sound, const SampleSoundKey &key)
+const bSoundFrequencySampler *sound_sampler_get(const bSound &sound,
+                                                const bSoundFrequencySamplerKey &key)
 {
   {
     SoundSamplerMap::ConstAccessor accessor;
@@ -2107,7 +2109,7 @@ const SoundSampler *sound_sampler_get(const bSound &sound, const SampleSoundKey 
         return nullptr;
       }
     }
-    accessor->second = std::make_shared<SoundSampler>(sound, key);
+    accessor->second = std::make_shared<bSoundFrequencySampler>(sound, key);
   }
   return accessor->second.get();
 }
@@ -2159,7 +2161,8 @@ static const WindowFunctionWeights &get_window_function_weights(const SampleSoun
   });
 }
 
-SoundSampler::SoundSampler(const bSound &sound, const SampleSoundKey &key)
+bSoundFrequencySampler::bSoundFrequencySampler(const bSound &sound,
+                                               const bSoundFrequencySamplerKey &key)
     : sound_(sound),
       key_(key),
       window_function_weights_(get_window_function_weights(key.window, key.fft_size))
@@ -2173,7 +2176,7 @@ SoundSampler::SoundSampler(const bSound &sound, const SampleSoundKey &key)
 }
 
 std::optional<Array<float>> sound_compute_fft(const bSound &sound,
-                                              const SampleSoundKey &key,
+                                              const bSoundFrequencySamplerKey &key,
                                               const int start_sample,
                                               const WindowFunctionWeights &weights)
 {
@@ -2234,7 +2237,9 @@ std::optional<Array<float>> sound_compute_fft(const bSound &sound,
   return frequency_amplitudes;
 }
 
-float SoundSampler::sample_single(const float time, const float low, const float high) const
+float bSoundFrequencySampler::sample_single(const float time,
+                                            const float low,
+                                            const float high) const
 {
   const std::optional<BinPair> bin_pair = this->get_buckets_for_time(time);
   if (!bin_pair.has_value()) {
@@ -2253,8 +2258,8 @@ float SoundSampler::sample_single(const float time, const float low, const float
   return amplitude;
 }
 
-float SoundSampler::sample_cumulative_frequency(const Span<float> bucket_values,
-                                                const float frequency) const
+float bSoundFrequencySampler::sample_cumulative_frequency(const Span<float> bucket_values,
+                                                          const float frequency) const
 {
   const int bucket_size = bucket_values.size();
   const int max_i = bucket_size - 1;
@@ -2272,7 +2277,8 @@ float SoundSampler::sample_cumulative_frequency(const Span<float> bucket_values,
   return value;
 }
 
-std::optional<SoundSampler::BinPair> SoundSampler::get_buckets_for_time(const float time) const
+std::optional<bSoundFrequencySampler::BinPair> bSoundFrequencySampler::get_buckets_for_time(
+    const float time) const
 {
   const float bucket_i_float = time * samples_per_second_ / bin_offset_stride_;
   const int prev_bucket_i = floorf(bucket_i_float);
@@ -2292,7 +2298,7 @@ std::optional<SoundSampler::BinPair> SoundSampler::get_buckets_for_time(const fl
   return BinPair{*prev_bucket_opt, *next_bucket_opt, bucket_fraction};
 }
 
-std::optional<Span<float>> SoundSampler::ensure_bucket(const int bucket_i) const
+std::optional<Span<float>> bSoundFrequencySampler::ensure_bucket(const int bucket_i) const
 {
   const Bin &bucket = buckets_[bucket_i];
   bucket.mutex.ensure([&]() {

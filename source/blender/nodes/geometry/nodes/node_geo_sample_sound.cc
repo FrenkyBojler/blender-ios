@@ -156,11 +156,11 @@ class SampleSoundFunction : public mf::MultiFunction {
 
     /* Optimize the case when all indices sample the same channel. */
     if (constant_channel) {
-      bke::SampleSoundKey key;
+      bke::bSoundFrequencySamplerKey key;
       key.window = window_function_;
       key.fft_size = fft_size_;
       key.channel = *all_channels_value ? std::nullopt : channel_value;
-      const bke::SoundSampler *sampler = bke::sound_sampler_get(sound_, key);
+      const bke::bSoundFrequencySampler *sampler = bke::sound_sampler_get(sound_, key);
       if (!sampler) {
         index_mask::masked_fill(amplitudes, 0.0f, mask);
         return;
@@ -203,11 +203,11 @@ class SampleSoundFunction : public mf::MultiFunction {
       if (indices.is_empty()) {
         return;
       }
-      bke::SampleSoundKey key;
+      bke::bSoundFrequencySamplerKey key;
       key.window = window_function_;
       key.fft_size = fft_size_;
       key.channel = channel;
-      const bke::SoundSampler *sampler = bke::sound_sampler_get(sound_, key);
+      const bke::bSoundFrequencySampler *sampler = bke::sound_sampler_get(sound_, key);
       if (!sampler) {
         for (const int i : indices) {
           amplitudes[i] = 0.0f;
