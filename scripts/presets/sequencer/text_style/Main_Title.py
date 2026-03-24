@@ -19,5 +19,3 @@ strip.location = (0.5, 0.5)
 strip.alignment_x = 'CENTER'
 strip.anchor_x = 'CENTER'
 strip.anchor_y = 'CENTER'
-strip.transform.offset_x = 0
-strip.transform.offset_y = 0
