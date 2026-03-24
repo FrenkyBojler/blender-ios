@@ -108,16 +108,22 @@ static void update_mipmaps(Texture &texture, Shader &shader)
 
   Context &context = *Context::get();
   Shader *prev_shader = context.shader;
-  /* TODO: Currently no API to allocate or read resources from the state manager, this should be
-   * added (or we should be allowed to create a statemanager via the backend) */
-  StateManager *prev_state_manager = context.state_manager;
 
   for (int layer : IndexRange(texture.layer_count())) {
     update_mipmaps(texture, shader, layer);
   }
 
+  /* Clear all bound images.
+   *
+   * Current OpenGL API doesn't have a way to rebind the previous state as it only keeps track of
+   * handles. Using a temporary state manager doesn't fit with Metal as the state is stored in
+   * multiple places.
+   *
+   * To not over complicate the implementation for something that is not likely to happen it was
+   * decided to unbind all images. When artifacts happen the calling code must be fixed. */
+  context.state_manager->image_unbind_all();
+
   /* Reset original state. */
-  context.state_manager = prev_state_manager;
   if (prev_shader) {
     GPU_shader_bind(prev_shader);
   }
@@ -140,11 +146,9 @@ void GPU_texture_update_mipmap_chain(Texture *tex)
   const TextureFormat texture_format = tex->format_get();
   Shader *shader = get_update_mipmap_shader(texture_format);
   if (shader) {
-    GPU_debug_capture_begin(__func__);
     GPU_debug_group_begin("Update Mipmaps");
     update_mipmaps(*tex, *shader);
     GPU_debug_group_end();
-    GPU_debug_capture_end();
   }
   else {
     /* No mipmap shader exists for this texture format. Fallback to backend implementation. */
@@ -152,8 +156,6 @@ void GPU_texture_update_mipmap_chain(Texture *tex)
               "No shader exists for updating mipmaps (format=%s). Fallback to backend "
               "implementation, this could lead to different results between platforms.",
               GPU_texture_format_name(texture_format));
-    /* XXX: currently we assert when here to find all the common cases.*/
-    BLI_assert(tex->format_flag_get() & gpu::GPU_FORMAT_SRGB);
     tex->generate_mipmap();
   }
 }
