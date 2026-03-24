@@ -46,7 +46,11 @@ static const EnumPropertyItem window_function_items[] = {
     {int(WindowFunction::Hann), "Hann", 0, "Hann", ""},
     {int(WindowFunction::Hamming), "Hamming", 0, "Hamming", ""},
     {int(WindowFunction::Blackman), "Blackman", 0, "Blackman", ""},
-    {int(WindowFunction::Rectangular), "Rectangular", 0, "Rectangular", ""},
+    {int(WindowFunction::Rectangular),
+     "Rectangular",
+     0,
+     "Rectangular",
+     "Equivalent to having no window function"},
     {},
 };
 
@@ -55,16 +59,20 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
   b.allow_any_socket_order();
 
-  b.add_output<decl::Float>("Amplitude").reference_pass_all();
-  b.add_input<decl::Sound>("Sound").optional_label();
+  b.add_output<decl::Float>("Amplitude")
+      .reference_pass_all()
+      .description("Sum of amplitudes of the frequencies in the given range");
+  b.add_input<decl::Sound>("Sound").optional_label().description("Sound to sample");
   b.add_input<decl::Float>("Time")
       .subtype(PROP_TIME_ABSOLUTE)
       .supports_field()
-      .structure_type(StructureType::Dynamic);
+      .structure_type(StructureType::Dynamic)
+      .description("Time in seconds of the sound to sample at");
   b.add_input<decl::Bool>("All Channels")
       .default_value(true)
       .supports_field()
-      .structure_type(StructureType::Dynamic);
+      .structure_type(StructureType::Dynamic)
+      .description("Mix all channels before sampling the sound (e.g. stereo to mono)");
   b.add_input<decl::Int>("Channel")
       .min(0)
       .usage_inference(
@@ -85,30 +93,39 @@ static void node_declare(NodeDeclarationBuilder &b)
             return !*all_channels;
           })
       .supports_field()
-      .structure_type(StructureType::Dynamic);
+      .structure_type(StructureType::Dynamic)
+      .description("The channel to sample unless 'All Channels' is checked");
   b.add_input<decl::Float>("Low")
       .subtype(PROP_FREQUENCY)
       .default_value(0.0f)
       .min(0.0f)
       .supports_field()
-      .structure_type(StructureType::Dynamic);
+      .structure_type(StructureType::Dynamic)
+      .description("Lower bound of the sampled frequency range");
   b.add_input<decl::Float>("High")
       .subtype(PROP_FREQUENCY)
       .default_value(10'000.0f)
       .min(0.0f)
       .supports_field()
-      .structure_type(StructureType::Dynamic);
+      .structure_type(StructureType::Dynamic)
+      .description("Upper bound of the sampled frequency range");
 
   {
     auto &p = b.add_panel("FFT"_ustr).default_closed(true);
     p.add_input<decl::Menu>("FFT Size")
         .static_items(fft_size_items)
         .default_value(FFTSize::_4096)
-        .optional_label();
+        .optional_label()
+        .description(
+            "Number of samples to process in the discrete fourier transformation at once. Higher "
+            "values have better frequency but worse time resolution and vice versa");
     p.add_input<decl::Menu>("Window Function")
         .static_items(window_function_items)
         .default_value(WindowFunction::Hann)
-        .optional_label();
+        .optional_label()
+        .description(
+            "Applies a tapering function to the windowed samples to minimize discontinuities at "
+            "the edges, improving frequency resolution and reducing artifacts");
   }
 }
 

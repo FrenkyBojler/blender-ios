@@ -111,7 +111,7 @@ enum class SoundTags {
 };
 ENUM_OPERATORS(SoundTags);
 
-using SoundSamplerMap =
+using bSoundFrequencySamplerMap =
     ConcurrentMap<bSoundFrequencySampler::Key, std::shared_ptr<bSoundFrequencySampler>>;
 
 struct SoundRuntime {
@@ -128,7 +128,8 @@ struct SoundRuntime {
   Vector<float> *waveform = nullptr;
   SoundTags tags = SoundTags::None;
 
-  SoundSamplerMap samplers;
+  /** Caches frequency samplers for this sound. */
+  bSoundFrequencySamplerMap samplers;
 };
 
 }  // namespace bke
@@ -2096,13 +2097,13 @@ const bSoundFrequencySampler *bSoundFrequencySampler::get_cached(const bSound &s
 {
   {
     /* Fast common case when the sampler has been created already. */
-    SoundSamplerMap::ConstAccessor accessor;
+    bSoundFrequencySamplerMap::ConstAccessor accessor;
     if (sound.runtime->samplers.lookup(accessor, key)) {
       return accessor->second.get();
     }
   }
   /* Slower case when the sampler is newly created. */
-  SoundSamplerMap::MutableAccessor accessor;
+  bSoundFrequencySamplerMap::MutableAccessor accessor;
   if (sound.runtime->samplers.add(accessor, key)) {
     if (key.channel.has_value()) {
       const SoundInfo info = sound_info_get(sound.runtime->handle);
@@ -2152,6 +2153,7 @@ static bSoundFrequencySampler::WindowWeights compute_window_function_weights(
   return bSoundFrequencySampler::WindowWeights{std::move(weights), sum};
 }
 
+/** Caches the window function weights so that each combination is only computed once. */
 static const bSoundFrequencySampler::WindowWeights &get_window_function_weights(
     const bSoundFrequencySampler::WindowFunction window, const int size)
 {
@@ -2317,11 +2319,13 @@ std::optional<bSoundFrequencySampler::WindowCachePair> bSoundFrequencySampler::
 std::optional<Span<float>> bSoundFrequencySampler::ensure_window_cache(const int window_i) const
 {
   const WindowCache &window = window_caches_[window_i];
+  /* Compute the FFT of that window if that wasn't done already. */
   window.mutex.ensure([&]() {
     std::optional<Array<float>> fft_array = this->compute_fft(window_i * window_cache_stride_);
     if (!fft_array.has_value()) {
       return;
     }
+    /* Compute prefix some for the fft values. */
     const Span<float> fft_values = fft_array->as_span();
     window.cumulative_amplitudes.emplace(fft_values.size() + 1);
     float sum = 0.0f;

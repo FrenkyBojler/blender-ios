@@ -8,8 +8,6 @@
  * \ingroup bke
  */
 
-#include <cmath>
-#include <iostream>
 #include <optional>
 #include <string>
 
@@ -18,7 +16,6 @@
 #include "BLI_array.hh"
 #include "BLI_cache_mutex.hh"
 #include "BLI_hash.hh"
-#include "BLI_math_base.hh"
 #include "BLI_vector.hh"
 
 #if defined(WITH_AUDASPACE)
@@ -275,15 +272,23 @@ namespace bke {
  */
 class bSoundFrequencySampler {
  public:
+  /**
+   * Window function that is applied before computing the FFT. It avoids spectral leakage and
+   * generally leads to better results. Using #Rectangular mode is the same as not using any window
+   * function.
+   */
   enum class WindowFunction {
     Hann,
     Hamming,
     Blackman,
     Rectangular,
   };
+
   struct Key {
     WindowFunction window_function;
+    /** This has to be a power of two. */
     int fft_size;
+    /** If nullopt, the all channels are mixed. */
     std::optional<int> channel;
 
     uint64_t hash() const
@@ -293,14 +298,21 @@ class bSoundFrequencySampler {
 
     friend bool operator==(const Key &a, const Key &b) = default;
   };
+
+  /** Precomputed weights for a specific window function and FFT size. */
   struct WindowWeights {
     Array<float> weights;
     float weights_sum;
   };
 
  private:
+  /** Cache for a single window. The frequencies are computed lazily when necessary. */
   struct WindowCache {
     mutable CacheMutex mutex;
+    /**
+     * Stores the amplitudes of the individual frequencies in this window using a prefix-sum. This
+     * allows constant time lookup for a range of frequencies.
+     */
     mutable std::optional<Array<float, 0>> cumulative_amplitudes;
   };
 
@@ -312,22 +324,34 @@ class bSoundFrequencySampler {
 
   const bSound &sound_;
   Key key_;
+  /** Derived from the sound. */
   int samples_per_second_;
+  /**
+   * Determines the offset of one window to the next in samples.
+   *
+   * The larger the value, the fewer FFTs have to be computed resulting in faster playback at the
+   * cost of resolution on the time domain. Small values also increase the memory usage.
+   */
   int window_cache_stride_;
   Array<WindowCache> window_caches_;
+
+  /** Cached weights of the selected window function. */
   const WindowWeights &window_weights_;
 
  public:
-  static const bSoundFrequencySampler *get_cached(const bSound &sound, const Key &key);
-
+  /** Construct a new sampler, prefer using #get_cached instead. */
   bSoundFrequencySampler(const bSound &sound, const Key &key);
 
-  float sample(const float time, const float low, const float high) const;
+  /** Access a reusable frequency sampler for the given sound.  */
+  static const bSoundFrequencySampler *get_cached(const bSound &sound, const Key &key);
+
+  /** Sample the amplitude a the given time and frequency range. */
+  float sample(float time, float low, float high) const;
 
  private:
-  float sample_cumulative_frequency(const Span<float> window_values, const float frequency) const;
-  std::optional<WindowCachePair> get_window_caches_for_time(const float time) const;
-  std::optional<Span<float>> ensure_window_cache(const int window_i) const;
+  float sample_cumulative_frequency(Span<float> window_values, float frequency) const;
+  std::optional<WindowCachePair> get_window_caches_for_time(float time) const;
+  std::optional<Span<float>> ensure_window_cache(int window_i) const;
   std::optional<Array<float>> compute_fft(int start_sample) const;
 };
 
