@@ -689,6 +689,7 @@ void ED_fileselect_set_params_from_userdef(SpaceFile *sfile)
   /* Combine flags we take from params with the flags we take from userdef. */
   params->flag = (params->flag & ~PARAMS_FLAGS_REMEMBERED) |
                  (sfile_udata->flag & PARAMS_FLAGS_REMEMBERED);
+
   if (file_select_use_default_display_type(sfile)) {
     params->display = sfile_udata->display_type;
   }
@@ -1334,7 +1335,6 @@ void ED_fileselect_exit(wmWindowManager *wm, SpaceFile *sfile)
   if (!sfile) {
     return;
   }
-
   if (sfile->op) {
     ED_fileselect_params_to_userdef(sfile);
     WM_event_fileselect_event(wm, sfile->op, EVT_FILESELECT_EXTERNAL_CANCEL);
