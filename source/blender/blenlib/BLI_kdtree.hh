@@ -113,7 +113,7 @@ static uint kdtree_balance(MutableSpan<KDTreeNode<CoordT>> nodes, const uint ofs
                    nodes.end(),
                    [&](const KDTreeNode<CoordT> &a, const KDTreeNode<CoordT> &b) {
                      if (a.co[Axis] != b.co[Axis]) {
-                      return a.co[Axis] < b.co[Axis];
+                       return a.co[Axis] < b.co[Axis];
                      }
 
                      constexpr int next_axis = (Axis + 1) % KDTreeNode<CoordT>::DimsNum;
@@ -129,8 +129,10 @@ static uint kdtree_balance(MutableSpan<KDTreeNode<CoordT>> nodes, const uint ofs
   KDTreeNode<CoordT> &node = nodes[median];
   node.d = Axis;
 
-  node.left = kdtree_balance<CoordT, (Axis + 1) % KDTreeNode<CoordT>::DimsNum>(nodes.take_front(median), ofs);
-  node.right = kdtree_balance<CoordT, (Axis + 1) % KDTreeNode<CoordT>::DimsNum>(nodes.drop_front(median + 1), (median + 1) + ofs);
+  node.left = kdtree_balance<CoordT, (Axis + 1) % KDTreeNode<CoordT>::DimsNum>(
+      nodes.take_front(median), ofs);
+  node.right = kdtree_balance<CoordT, (Axis + 1) % KDTreeNode<CoordT>::DimsNum>(
+      nodes.drop_front(median + 1), (median + 1) + ofs);
 
   return median + ofs;
 }
