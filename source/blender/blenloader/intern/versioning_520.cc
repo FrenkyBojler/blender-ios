@@ -138,6 +138,17 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     }
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 12)) {
+    for (Object &object : bmain->objects) {
+      if (object.type != OB_ARMATURE || !object.data) {
+        continue;
+      }
+      for (bPoseChannel &pose_bone: object.pose->chanbase) {
+        pose_bone.ikstretchxz = 1.0f;
+      }
+    }
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.

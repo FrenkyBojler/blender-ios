@@ -832,6 +832,7 @@ struct bPoseChannel {
   /** DOF stiffness. */
   float stiffness[3] = {};
   float ikstretch = 0;
+  float ikstretchxz = 1;
   /** Weight of joint rotation constraint. */
   float ikrotweight = 0;
   /** Weight of joint stretch constraint. */
@@ -851,6 +852,8 @@ struct bPoseChannel {
   DNA_DEPRECATED float scale_out_z = 0;
   float scale_in[3] = {1.0f, 1.0f, 1.0f};
   float scale_out[3] = {1.0f, 1.0f, 1.0f};
+
+  char _pad1[4] = {};
 
   /** B-Bone custom handles; set on read file or rebuild pose based on pchan->bone data. */
   struct bPoseChannel *bbone_prev = nullptr;

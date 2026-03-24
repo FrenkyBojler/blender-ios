@@ -454,6 +454,10 @@ class BONE_PT_inverse_kinematics(BoneButtonsPanel, Panel):
         col.prop(pchan, "ik_stretch", slider=True)
         col.active = active
 
+        col = layout.column()
+        col.prop(pchan, "ik_stretch_xz")
+        col.active = pchan.ik_stretch > 0 and active
+
         layout.separator()
 
         col = layout.column(align=True)

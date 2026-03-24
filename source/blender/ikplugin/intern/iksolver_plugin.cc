@@ -294,7 +294,7 @@ static void execute_posetree(Depsgraph *depsgraph, Scene *scene, Object *ob, Pos
   float goal[4][4], goalinv[4][4];
   float irest_basis[3][3], full_basis[3][3];
   float end_pose[4][4], world_pose[4][4];
-  float basis[3][3], rest_basis[3][3], start[3], *ikstretch = nullptr;
+  float basis[3][3], rest_basis[3][3], start[3], *ikstretch = nullptr, *ikstretchxz = nullptr;
   float resultinf = 0.0f;
   int a, flag, hasstretch = 0, resultblend = 0;
   bPoseChannel *pchan;
@@ -530,17 +530,16 @@ static void execute_posetree(Depsgraph *depsgraph, Scene *scene, Object *ob, Pos
                                                                 "ik basis change");
   if (hasstretch) {
     ikstretch = MEM_new_array_uninitialized<float>(size_t(tree->totchannel), "ik stretch");
+    ikstretchxz = MEM_new_array_uninitialized<float>(size_t(tree->totchannel), "ik stretch xz");
   }
 
   for (a = 0; a < tree->totchannel; a++) {
     IK_GetBasisChange(iktree[a], tree->basis_change[a]);
 
     if (hasstretch) {
-      /* have to compensate for scaling received from parent */
-      float parentstretch, stretch;
-
       pchan = tree->pchan[a];
-      parentstretch = (tree->parent[a] >= 0) ? ikstretch[tree->parent[a]] : 1.0f;
+      float stretch, stretchxz, parentstretch, parentstretchxz;
+      ikstretch[a] = ikstretchxz[a] = stretch = stretchxz = parentstretch = parentstretchxz = 1.0f;
 
       if (tree->stretch && (pchan->ikstretch > 0.0f)) {
         float trans[3], length;
@@ -549,16 +548,23 @@ static void execute_posetree(Depsgraph *depsgraph, Scene *scene, Object *ob, Pos
         length = pchan->bone->length * len_v3(pchan->pose_mat[1]);
 
         ikstretch[a] = (length == 0.0f) ? 1.0f : (trans[1] + length) / length;
-      }
-      else {
-        ikstretch[a] = 1.0;
+        ikstretchxz[a] = powf(ikstretch[a], pchan->ikstretchxz);
       }
 
-      stretch = (parentstretch == 0.0f) ? 1.0f : ikstretch[a] / parentstretch;
+      /* have to compensate for scaling received from parent */
+      if (tree->parent[a] >= 0) {
+        parentstretch = ikstretch[tree->parent[a]];
+        parentstretchxz = ikstretchxz[tree->parent[a]];
+      }
 
-      mul_v3_fl(tree->basis_change[a][0], stretch);
+      if (parentstretch != 0.0f) {
+        stretch = ikstretch[a] / parentstretch;
+        stretchxz = ikstretchxz[a] / parentstretchxz;
+      }
+
+      mul_v3_fl(tree->basis_change[a][0], stretchxz);
       mul_v3_fl(tree->basis_change[a][1], stretch);
-      mul_v3_fl(tree->basis_change[a][2], stretch);
+      mul_v3_fl(tree->basis_change[a][2], stretchxz);
     }
 
     if (resultblend && resultinf != 1.0f) {
@@ -572,6 +578,9 @@ static void execute_posetree(Depsgraph *depsgraph, Scene *scene, Object *ob, Pos
   MEM_delete(iktree);
   if (ikstretch) {
     MEM_delete(ikstretch);
+  }
+  if (ikstretchxz) {
+    MEM_delete(ikstretchxz);
   }
 }
 

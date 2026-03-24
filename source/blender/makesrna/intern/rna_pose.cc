@@ -1151,6 +1151,14 @@ static void rna_def_pose_channel(BlenderRNA *brna)
   RNA_def_property_editable_func(prop, "rna_PoseChannel_proxy_editable");
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_IK_update");
 
+  prop = RNA_def_property(srna, "ik_stretch_xz", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "ikstretchxz");
+  RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 1, 3);
+  RNA_def_property_ui_text(prop, "XZ Stretch Power",
+      "Raise X and Z scale by this power of the Y scale from IK Stretch");
+  RNA_def_property_editable_func(prop, "rna_PoseChannel_proxy_editable");
+  RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_IK_update");
+
   prop = RNA_def_property(srna, "ik_rotation_weight", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_float_sdna(prop, nullptr, "ikrotweight");
   RNA_def_property_range(prop, 0.0f, 1.0f);
