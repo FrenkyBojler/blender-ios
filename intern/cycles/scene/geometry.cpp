@@ -182,7 +182,7 @@ void GeometryManager::update_motion_pre(Scene *scene)
                  for (size_t i = r.begin(); i != r.end(); i++) {
                    Geometry *geom = scene->geometry[i];
 
-                   if (geom->is_mesh()) {
+                   if (geom->is_mesh() && !geom->has_true_displacement()) {
                      Mesh *mesh = static_cast<Mesh *>(geom);
 
                      if (mesh->verts != mesh->verts_pre) {
