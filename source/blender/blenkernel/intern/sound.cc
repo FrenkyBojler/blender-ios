@@ -2174,8 +2174,10 @@ bSoundFrequencySampler::bSoundFrequencySampler(const bSound &sound, const Key &k
   AUD_Sound sound_handle = sound.runtime->handle;
   const SoundInfo info = bke::sound_info_get(sound_handle);
   samples_per_second_ = info.specs.samplerate;
-  /* TODO: Try different values. */
-  window_cache_stride_ = std::min(4096, key_.fft_size / 2);
+  /* This could be a parameter but a single fixed value seems fine for now and makes caching much
+   * simpler. */
+  const float window_stride_in_seconds = 0.05f;
+  window_cache_stride_ = info.specs.samplerate * window_stride_in_seconds;
   window_caches_.reinitialize(
       std::ceil(info.length * info.specs.samplerate / window_cache_stride_));
 }
