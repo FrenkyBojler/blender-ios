@@ -5116,7 +5116,7 @@ static void brush_stroke_init(bContext *C, const wmOperator *op)
 
   ED_paint_brush_type_update_sticky_shading_color(C, &ob);
 }
-}
+}  // namespace ed::sculpt_paint
 
 static void restore_from_undo_step_if_necessary(const Depsgraph &depsgraph,
                                                 const Sculpt &sd,
@@ -5609,7 +5609,6 @@ static void stroke_undo_end(PaintModeSettings &paint_mode_settings, Object &obje
 }
 
 namespace ed::sculpt_paint {
-
 
 bool color_supported_check(const Scene &scene, Object &object, ReportList *reports)
 {
