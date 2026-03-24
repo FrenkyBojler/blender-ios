@@ -9,16 +9,6 @@
 
 #include "gpu_shader_compat.hh"
 
-/* Enums should be defined in the root namespace when used directly in the pipeline, as they will
- * not be fully qualified when generating the template name substitution. Defining in the root
- * works around this limitation */
-/* TODO: We should use a common TextureFormat enum. */
-enum TextureFormat : uint32_t {
-  UNORM_8_8_8_8,
-  SFLOAT_16,
-  SFLOAT_16_16_16_16,
-};
-
 namespace builtin::mipmaps {
 
 /* Conversion functions. */
@@ -60,9 +50,8 @@ template<> void convert<float4, float4>(float4 &dst_value, const float4 src_valu
 /** Shared storage that can store intermediate results using without encoding. */
 template<typename T> struct Shared {
   /**
-   * When generating 2 levels, the results of generating the intermediate *level(first level
-   * generated) are cached here; this is the input tile *needed to generate the 8x8 tile of the
-   * second level generated.
+   * When generating 2 levels, the results the first level are cached here; this is the input tile
+   * needed to generate the 8x8 tile of the second level.
    */
   [[shared]] T intermediate_level[MAX_SHARED_SAMPLES][MAX_SHARED_SAMPLES];
 
@@ -80,9 +69,8 @@ template<typename T> struct Shared {
 /** Shared storage that can store intermediate results in an SRGB encoded uint. */
 struct SharedSRGB {
   /**
-   * When generating 2 levels, the results of generating the intermediate *level(first level
-   * generated) are cached here; this is the input tile *needed to generate the 8x8 tile of the
-   * second level generated.
+   * When generating 2 levels, the results the first level are cached here; this is the input tile
+   * needed to generate the 8x8 tile of the second level.
    */
   [[shared]] uint intermediate_level[MAX_SHARED_SAMPLES][MAX_SHARED_SAMPLES];
 
@@ -116,13 +104,15 @@ struct SharedSRGB {
    * specific issues, which we need to validate. */
   float linear_from_srgb_component(float srgb)
   {
-    return srgb <= 0.04045 ? srgb * (25 / 323.) : pow((200 * srgb + 11) * (1 / 211.), 2.4);
+    return srgb <= 0.04045f ? srgb * (25.0f / 323.0f) :
+                              pow((200.0f * srgb + 11.0f) * (1.0f / 211.0f), 2.4f);
   }
 
   /** Convert linear red/green/blue component to float (0-1) sRGB */
   float srgb_component_from_linear(float linear)
   {
-    return linear <= 0.0031308 ? (323 / 25.) * linear : 1.055 * pow(linear, 1 / 2.4) - 0.055;
+    return linear <= 0.0031308f ? (323.0f / 25.0f) * linear :
+                                  1.055f * pow(linear, 1.0f / 2.4f) - 0.055f;
   }
 };
 
@@ -576,20 +566,20 @@ template float4 Resources<SFLOAT_16_16_16_16, Shared<float4>, float4>::reduce_st
     int dst_level);
 
 template void update_mipmaps<Resources<UNORM_8_8_8_8, SharedSRGB, float4>>(
-    [[global_invocation_id]] const uint3 global_id,
-    [[work_group_id]] const uint3 group_id,
-    [[local_invocation_index]] const uint3 local_index,
-    [[resource_table]] Resources<UNORM_8_8_8_8, SharedSRGB, float4> &srt);
+    const uint3 global_id,
+    const uint3 group_id,
+    const uint3 local_index,
+    Resources<UNORM_8_8_8_8, SharedSRGB, float4> &srt);
 template void update_mipmaps<Resources<SFLOAT_16, Shared<float>, float>>(
-    [[global_invocation_id]] const uint3 global_id,
-    [[work_group_id]] const uint3 group_id,
-    [[local_invocation_index]] const uint3 local_index,
-    [[resource_table]] Resources<SFLOAT_16, Shared<float>, float> &srt);
+    const uint3 global_id,
+    const uint3 group_id,
+    const uint3 local_index,
+    Resources<SFLOAT_16, Shared<float>, float> &srt);
 template void update_mipmaps<Resources<SFLOAT_16_16_16_16, Shared<float4>, float4>>(
-    [[global_invocation_id]] const uint3 global_id,
-    [[work_group_id]] const uint3 group_id,
-    [[local_invocation_index]] const uint3 local_index,
-    [[resource_table]] Resources<SFLOAT_16_16_16_16, Shared<float4>, float4> &srt);
+    const uint3 global_id,
+    const uint3 group_id,
+    const uint3 local_index,
+    Resources<SFLOAT_16_16_16_16, Shared<float4>, float4> &srt);
 
 }  // namespace builtin::mipmaps
 
