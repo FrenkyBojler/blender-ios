@@ -1,2 +1,2 @@
 Referenced by issue #155107, `read_homefile()` inside python file drop handler causes Blender to crash
-Referenced by issue #155816, Geonodes Modifier Input doesn`t show existing attributes
+Referenced by issue #155816, Geometry Nodes Modifier Input doesn't show existing attributes
