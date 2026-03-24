@@ -14,6 +14,7 @@
 
 #include "BKE_blender_project.hh"
 #include "BKE_global.hh"
+#include "BKE_path_templates.hh"
 #include "BLI_string_ref.hh"
 
 #include "BLT_translation.hh"
@@ -98,8 +99,10 @@ static void rna_ProjectVariable_name_set(PointerRNA *ptr, const char *value)
 {
   ProjectVariable *var = static_cast<ProjectVariable *>(ptr->data);
 
-  var->name.clear();
-  var->name.append(value);
+  std::string new_name(value);
+  BKE_ensure_valid_variable_name(new_name);
+
+  var->name = new_name;
 }
 
 static void rna_ProjectVariable_description_get(PointerRNA *ptr, char *value)

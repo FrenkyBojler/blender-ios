@@ -436,4 +436,14 @@ std::optional<std::string> BKE_path_template_format_float(StringRef format_speci
 /** Same as #BKE_path_template_format_float but for formatting an integer value. */
 std::optional<std::string> BKE_path_template_format_int(StringRef format_specifier, int64_t value);
 
+/**
+ * Ensure the given variable name is valid by substituting disallowed
+ * characters.
+ *
+ * Modifies the passed string in-place.
+ *
+ * Returns true if any changes were made, false otherwise.
+ */
+bool BKE_ensure_valid_variable_name(std::string &name);
+
 }  // namespace blender

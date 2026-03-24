@@ -1082,4 +1082,23 @@ std::optional<std::string> BKE_path_template_format_int(const StringRef format_s
   return buffer;
 }
 
+bool BKE_ensure_valid_variable_name(std::string &name)
+{
+  bool made_change = false;
+
+  for (int i = 0; i < name.size(); i++) {
+    switch (name[i]) {
+      case '{':
+      case '}':
+      case ':': {
+        name[i] = '_';
+        made_change = true;
+        break;
+      }
+    }
+  }
+
+  return made_change;
+}
+
 }  // namespace blender
