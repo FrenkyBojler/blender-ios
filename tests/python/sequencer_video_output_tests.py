@@ -84,7 +84,11 @@ scene.render.resolution_y = 1080
 scene.render.resolution_percentage = 25
 ed = scene.sequence_editor_create()
 strip = ed.strips.new_movie(name='input', filepath='{video_file}', channel=1, frame_start=1)
+# use raw pixel data, without interpreting input color space
 strip.colorspace_settings.name = 'Non-Color'
+# make it convert into sequencer color space by having a non-1 but really close
+# multiply factor
+strip.color_multiply = 1.0001
 """)
 
         command = (
