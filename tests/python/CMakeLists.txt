@@ -354,6 +354,16 @@ add_blender_test(
 )
 
 add_blender_test(
+  operator_function_py_api
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_operator_function_py_api.py
+)
+
+add_blender_test(
+  operator_wrap_py_api
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_operator_wrap_py_api.py
+)
+
+add_blender_test(
   script_pyapi_grease_pencil
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_grease_pencil.py
 )
@@ -841,7 +851,7 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
   endif()
 
   if(WITH_OPENIMAGEDENOISE)
-    list(APPEND render_tests denoise)
+    list(APPEND render_tests denoise denoise_animation)
   endif()
 
   # Disabled until new OpenPGL version with deterministic results.
