@@ -10,13 +10,17 @@
 
 #include "DNA_ID.h"
 #include "DNA_brush_types.h"
+#include "DNA_screen_types.h"
 
 #include "BLI_listbase_iterator.hh"
 #include "BLI_sys_types.h"
 
 #include "BKE_main.hh"
+#include "BKE_mesh_legacy_convert.hh"
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
+
+#include "SEQ_sequencer.hh"
 
 #include "readfile.hh"
 
@@ -28,7 +32,7 @@ namespace blender {
 
 // static CLG_LogRef LOG = {"blend.doversion"};
 
-/* Saving file extension is now a property of the the File Output node. So inherit this
+/* Saving file extension is now a property of the File Output node. So inherit this
  * setting from the active scene to restore the old behavior.
  * Note: One limitation is that node groups containing file outputs that are not part of any
  * scene are not affected by versioning. */
@@ -95,6 +99,60 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     }
     FOREACH_NODETREE_END;
   }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 6)) {
+    for (Scene &scene : bmain->scenes) {
+      SequencerToolSettings *sequencer_tool_settings = seq::tool_settings_ensure(&scene);
+      sequencer_tool_settings->snap_flag |= SEQ_SNAP_TO_ALL_CHANNEL_STRIPS;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 7)) {
+    for (Scene &scene : bmain->scenes) {
+      scene.r.anisotropic_filter = 2;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 9)) {
+    for (Mesh &mesh : bmain->meshes) {
+      bke::mesh_freestyle_marks_to_generic(mesh);
+    }
+  }
+
+  /* Convert H.264 codec value for older files (2.79), see #155775. */
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 10)) {
+    for (Scene &scene : bmain->scenes) {
+      if (scene.r.ffcodecdata.codec == 28) {
+        scene.r.ffcodecdata.codec = 27;
+      }
+    }
+  }
+
+  /* Disable "unified" flags for Grease Pencil Draw mode. */
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 11)) {
+    for (Scene &scene : bmain->scenes) {
+      if (scene.toolsettings->gp_paint) {
+        UnifiedPaintSettings &settings =
+            scene.toolsettings->gp_paint->paint.unified_paint_settings;
+        settings.flag &= ~(UNIFIED_PAINT_SIZE | UNIFIED_PAINT_ALPHA | UNIFIED_PAINT_COLOR);
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 12)) {
+    for (bScreen &screen : bmain->screens) {
+      for (ScrArea &area : screen.areabase) {
+        for (SpaceLink &space : area.spacedata) {
+          if (space.spacetype == SPACE_NODE) {
+            SpaceNode *space_node = reinterpret_cast<SpaceNode *>(&space);
+            space_node->overlay.flag |= SN_OVERLAY_SHOW_RENDER_REGION;
+            space_node->overlay.passepartout_alpha = 0.5f;
+          }
+        }
+      }
+    }
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.

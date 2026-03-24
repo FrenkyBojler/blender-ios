@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Beta (b'57dd016d99c8')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'ec8c60553753')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-23 10:33+0000\n"
+"POT-Creation-Date: 2026-03-23 09:55+0000\n"
 "PO-Revision-Date: 2025-07-23 15:10+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Serbian <https://translate.blender.org/projects/blender-ui/ui/sr/>\n"
@@ -5026,6 +5026,10 @@ msgid "Deformation"
 msgstr "Деформација"
 
 
+msgid "Plane Normal"
+msgstr "Нормала плоче"
+
+
 msgid "Rake"
 msgstr "Грабуље"
 
@@ -7046,6 +7050,10 @@ msgid "All Keying Sets"
 msgstr "Све збирке кључева"
 
 
+msgid "Restore Frame"
+msgstr "Поврати кадар"
+
+
 msgid "Render Data"
 msgstr "Демон рендеринга"
 
@@ -8477,8 +8485,56 @@ msgid "Material slot name"
 msgstr "Назив слота материјала"
 
 
+msgid "Mirror"
+msgstr "Огледало"
+
+
+msgid "Snap"
+msgstr "Лепљење"
+
+
+msgid "UV Mapping"
+msgstr "UV Мапирање"
+
+
+msgid "Local View"
+msgstr "Локални поглед"
+
+
+msgid "Navigation"
+msgstr "Навигација"
+
+
+msgid "Align View"
+msgstr "Поравнај поглед"
+
+
+msgid "Select Linked"
+msgstr "Изабери повезано"
+
+
+msgid "Import"
+msgstr "Увоз"
+
+
+msgid "Metaball"
+msgstr "Мета лопта"
+
+
+msgid "Light"
+msgstr "Светлост"
+
+
+msgid "Math"
+msgstr "Математика"
+
+
 msgid "UV"
 msgstr "UV"
+
+
+msgid "Relations"
+msgstr "Односи"
 
 
 msgid "Rigid Body"
@@ -8541,68 +8597,20 @@ msgid "Merge"
 msgstr "Сједини"
 
 
-msgid "Special Characters"
-msgstr "Специјални знаци"
-
-
-msgid "Metaball"
-msgstr "Мета лопта"
-
-
 msgid "Keying"
 msgstr "Збирка тастера"
 
 
-msgid "Bone Roll"
-msgstr "Ролна костију"
+msgid "Special Characters"
+msgstr "Специјални знаци"
 
 
 msgid "Tracking"
 msgstr "Праћење"
 
 
-msgid "Math"
-msgstr "Математика"
-
-
-msgid "Snap"
-msgstr "Лепљење"
-
-
-msgid "Mirror"
-msgstr "Огледало"
-
-
-msgid "UV Mapping"
-msgstr "UV Мапирање"
-
-
-msgid "Local View"
-msgstr "Локални поглед"
-
-
-msgid "Navigation"
-msgstr "Навигација"
-
-
-msgid "Align View"
-msgstr "Поравнај поглед"
-
-
-msgid "Select Linked"
-msgstr "Изабери повезано"
-
-
-msgid "Import"
-msgstr "Увоз"
-
-
-msgid "Light"
-msgstr "Светлост"
-
-
-msgid "Relations"
-msgstr "Односи"
+msgid "Bone Roll"
+msgstr "Ролна костију"
 
 
 msgid "Basic"
@@ -10875,6 +10883,10 @@ msgstr "Опсег мапе"
 
 msgid "Mix Shader"
 msgstr "Мешање сенчења"
+
+
+msgid "Base"
+msgstr "Основа"
 
 
 msgid "Space of the input normal"
@@ -14427,10 +14439,6 @@ msgid "Clear Outer"
 msgstr "Очисти спољашње"
 
 
-msgid "Plane Normal"
-msgstr "Нормала плоче"
-
-
 msgid "Axis Threshold"
 msgstr "Праг оса"
 
@@ -17143,10 +17151,6 @@ msgstr "Прекини анимацију"
 
 msgid "Cancel animation, returning to the original frame"
 msgstr "Прекида анимацију и враћа се на почетни кадар"
-
-
-msgid "Restore Frame"
-msgstr "Поврати кадар"
 
 
 msgctxt "Operator"
@@ -20297,10 +20301,6 @@ msgid "Translate Tooltips"
 msgstr "Преводи описе"
 
 
-msgid "Base"
-msgstr "Основа"
-
-
 msgid "Case"
 msgstr "Велика/мала слова"
 
@@ -22866,11 +22866,6 @@ msgid "Force Field"
 msgstr "Поље утицаја"
 
 
-msgctxt "Operator"
-msgid "Bake All Dynamics"
-msgstr "Испеци сву физику"
-
-
 msgid "Cache is disabled until the file is saved"
 msgstr "Остава је онемогућена док не сачувате датотеку"
 
@@ -23298,6 +23293,11 @@ msgstr "Дуплирај маркер на сцену..."
 
 
 msgctxt "Operator"
+msgid "Save Copy..."
+msgstr "Сачувај умножак..."
+
+
+msgctxt "Operator"
 msgid "Quit"
 msgstr "Излаз"
 
@@ -23310,11 +23310,6 @@ msgstr "Рендеруј анимацију"
 msgctxt "Operator"
 msgid "Back to Previous"
 msgstr "Назад на претходно"
-
-
-msgctxt "Operator"
-msgid "Save Copy..."
-msgstr "Сачувај умножак..."
 
 
 msgctxt "Operator"

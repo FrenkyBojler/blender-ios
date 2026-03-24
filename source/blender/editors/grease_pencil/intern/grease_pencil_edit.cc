@@ -1192,9 +1192,7 @@ static wmOperatorStatus grease_pencil_set_uniform_opacity_exec(bContext *C, wmOp
     bke::curves::fill_points<float>(points_by_curve, strokes, opacity_stroke, opacities);
 
     if (SpanAttributeWriter<float> fill_opacities = attributes.lookup_or_add_for_write_span<float>(
-            "fill_opacity",
-            AttrDomain::Curve,
-            bke::AttributeInitVArray(VArray<float>::from_single(1.0f, curves.curves_num()))))
+            "fill_opacity", AttrDomain::Curve, bke::AttributeInitValue(1.0f)))
     {
       index_mask::masked_fill(fill_opacities.span, opacity_fill, strokes);
       fill_opacities.finish();
@@ -4992,8 +4990,7 @@ static wmOperatorStatus grease_pencil_set_corner_type_exec(bContext *C, wmOperat
             attributes.lookup_or_add_for_write_span<float>(
                 "miter_angle",
                 bke::AttrDomain::Point,
-                bke::AttributeInitVArray(
-                    VArray<float>::from_single(GP_STROKE_MITER_ANGLE_ROUND, curves.points_num()))))
+                bke::AttributeInitValue(GP_STROKE_MITER_ANGLE_ROUND)))
     {
       index_mask::masked_fill(miter_angles.span, miter_angle, selection);
       miter_angles.finish();
@@ -5127,6 +5124,30 @@ static wmOperatorStatus grease_pencil_set_stroke_type_exec(bContext *C, wmOperat
 
     hide_stroke.finish();
     fill_ids.finish();
+
+    if (type == StrokeType::Stroke) {
+      if (std::all_of(fill_ids.span.begin(), fill_ids.span.end(), [&](const int64_t i) {
+            return fill_ids.span[i] == 0;
+          }))
+      {
+        /* Remove #fill_id attribute if there are no fills left. */
+        attributes.remove("fill_id");
+      }
+    }
+
+    if (ELEM(type, StrokeType::Stroke, StrokeType::Both)) {
+      const array_utils::BooleanMix hide_strokes_mix = array_utils::booleans_mix_calc(
+          hide_stroke.span.varray());
+      if (hide_strokes_mix == array_utils::BooleanMix::AllFalse) {
+        /* Remove #hide_stroke attribute if all strokes are visible. */
+        attributes.remove("hide_stroke");
+      }
+      else {
+        /* If some strokes got unhidden, make sure that we create the radius attribute if it
+         * doesn't exist already. */
+        attributes.add<float>("radius", bke::AttrDomain::Point, bke::AttributeInitValue(0.005f));
+      }
+    }
 
     info.drawing.tag_topology_changed();
     changed.store(true, std::memory_order_relaxed);

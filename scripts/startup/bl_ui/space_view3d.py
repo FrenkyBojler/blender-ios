@@ -2988,7 +2988,7 @@ class VIEW3D_MT_object_context_menu(Menu):
 
             layout.separator()
 
-            layout.operator("object.transform_axis_target", text="Look At Target")
+            layout.operator("object.transform_axis_target")
 
             layout.separator()
 
@@ -3083,7 +3083,7 @@ class VIEW3D_MT_object_context_menu(Menu):
 
             layout.separator()
 
-            layout.operator("object.transform_axis_target", text="Look At Target")
+            layout.operator("object.transform_axis_target")
 
             layout.separator()
 
@@ -3743,6 +3743,10 @@ class VIEW3D_MT_sculpt(Menu):
 
         layout.separator()
 
+        props = layout.operator("sculpt.color_filter", text="Set Vertex Color")
+        props.type = 'FILL'
+        props.strength = 1.0
+        props.use_immediate = True
         layout.operator("paint.sample_color", text="Sample Color")
 
         layout.separator()

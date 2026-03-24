@@ -339,9 +339,10 @@ enum PassType {
   /* No Scatter color since it's tricky to define what it would even mean. */
   PASS_MIST,
   PASS_DENOISING_ALBEDO,
+  PASS_DENOISING_SPECULAR_ALBEDO,
   PASS_DENOISING_NORMAL,
+  PASS_DENOISING_ROUGHNESS,
   PASS_DENOISING_DEPTH,
-  PASS_DENOISING_PREVIOUS,
   PASS_RENDER_TIME,
 
   /* PASS_SHADOW_CATCHER accumulates contribution of shadow catcher object which is not affected by
@@ -376,6 +377,8 @@ enum PassType {
   PASS_BAKE_SEED,
   PASS_BAKE_DIFFERENTIAL,
   PASS_CATEGORY_BAKE_END = 95,
+
+  PASS_DENOISING_PREVIOUS,
 
   PASS_NUM,
 };
@@ -412,7 +415,6 @@ enum FilterClosures {
 enum ShaderFlag {
   SHADER_SMOOTH_NORMAL = (1 << 31),
   SHADER_CAST_SHADOW = (1 << 30),
-  SHADER_AREA_LIGHT = (1 << 29),
   SHADER_USE_MIS = (1 << 28),
   SHADER_EXCLUDE_DIFFUSE = (1 << 27),
   SHADER_EXCLUDE_GLOSSY = (1 << 26),
@@ -424,8 +426,7 @@ enum ShaderFlag {
                         SHADER_EXCLUDE_CAMERA | SHADER_EXCLUDE_SCATTER |
                         SHADER_EXCLUDE_SHADOW_CATCHER),
 
-  SHADER_MASK = ~(SHADER_SMOOTH_NORMAL | SHADER_CAST_SHADOW | SHADER_AREA_LIGHT | SHADER_USE_MIS |
-                  SHADER_EXCLUDE_ANY)
+  SHADER_MASK = ~(SHADER_SMOOTH_NORMAL | SHADER_CAST_SHADOW | SHADER_USE_MIS | SHADER_EXCLUDE_ANY)
 };
 
 enum EmissionSampling {
@@ -442,7 +443,7 @@ enum EmissionSampling {
 
 enum LightType {
   LIGHT_POINT,
-  LIGHT_DISTANT,
+  LIGHT_SUN,
   LIGHT_BACKGROUND,
   LIGHT_AREA,
   LIGHT_SPOT,
@@ -1432,7 +1433,7 @@ struct KernelAreaLight {
   float pad[2];
 };
 
-struct KernelDistantLight {
+struct KernelSunLight {
   float angle;
   float one_minus_cosangle;
   float half_inv_sin_half_angle;
@@ -1453,7 +1454,7 @@ struct KernelLight {
   union {
     KernelSpotLight spot;
     KernelAreaLight area;
-    KernelDistantLight distant;
+    KernelSunLight sun;
   };
 };
 static_assert_align(KernelLight, 16);
@@ -1461,7 +1462,7 @@ static_assert_align(KernelLight, 16);
 struct KernelLightDistribution {
   float totarea;
   int prim;
-  int shader_flag;
+  int visibility_flag;
   int object_id;
 };
 static_assert_align(KernelLightDistribution, 16);
@@ -1572,7 +1573,7 @@ struct KernelLightTreeEmitter {
 
   /* Object and shader. */
   int object_id;
-  int shader_flag;
+  int visibility_flag;
 
   /* Bit trail from root node to leaf node containing emitter. */
   int bit_trail;
