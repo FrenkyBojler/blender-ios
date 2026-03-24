@@ -52,6 +52,10 @@ static const EnumPropertyItem window_function_items[] = {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+
+  b.add_output<decl::Float>("Amplitude").reference_pass_all();
   b.add_input<decl::Sound>("Sound").optional_label();
   b.add_input<decl::Float>("Time")
       .subtype(PROP_TIME_ABSOLUTE)
@@ -94,7 +98,6 @@ static void node_declare(NodeDeclarationBuilder &b)
       .min(0.0f)
       .supports_field()
       .structure_type(StructureType::Dynamic);
-  b.add_output<decl::Float>("Amplitude").reference_pass_all();
 
   {
     auto &p = b.add_panel("FFT"_ustr).default_closed(true);
