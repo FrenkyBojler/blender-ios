@@ -444,7 +444,7 @@ PassMain::Sub *ForwardPipeline::material_opaque_add(const Object *ob,
                  "Forward Transparent should be registered directly without calling "
                  "PipelineModule::material_add()");
   has_holdout_ |= GPU_material_flag_get(gpumat, GPU_MATFLAG_HOLDOUT) ||
-                  ob->visibility_flag & OB_HOLDOUT;
+                  (ob->base_flag & BASE_HOLDOUT) || (ob->visibility_flag & OB_HOLDOUT);
   PassMain::Sub *pass = (blender_mat->blend_flag & MA_BL_CULL_BACKFACE) ? opaque_single_sided_ps_ :
                                                                           opaque_double_sided_ps_;
   has_opaque_ = true;
@@ -473,7 +473,7 @@ void ForwardPipeline::transparent_add(const Object *ob,
   has_colored_transparency_ |= GPU_material_flag_get(gpumat,
                                                      GPU_MATFLAG_TRANSPARENT_MAYBE_COLORED);
   has_holdout_ |= GPU_material_flag_get(gpumat, GPU_MATFLAG_HOLDOUT) ||
-                  ob->visibility_flag & OB_HOLDOUT;
+                  (ob->base_flag & BASE_HOLDOUT) || (ob->visibility_flag & OB_HOLDOUT);
   /* Must be checked here too,
    * since this function is not called from PipelineModule::material_add. */
   inst_.pipelines.has_raycast |= GPU_material_flag_get(gpumat, GPU_MATFLAG_RAYCAST);
