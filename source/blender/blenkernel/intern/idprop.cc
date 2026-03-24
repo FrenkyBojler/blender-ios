@@ -2208,8 +2208,8 @@ void IDP_TryConvertProperty(IDProperty *src,
   if (src->type == IDP_ID) {
     src->data.pointer = nullptr;
   }
-  else if (src->data.pointer) {
-    MEM_delete_void(src->data.pointer);
+  else {
+    MEM_SAFE_DELETE_VOID(src->data.pointer);
   }
 
   const int array_len = [&]() -> int {
