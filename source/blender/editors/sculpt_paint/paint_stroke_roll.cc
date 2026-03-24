@@ -1450,85 +1450,56 @@ void PaintStroke::spline_uv(const StrokeCache &cache,
                              float r_out[3],
                              float r_tan[3]) const
 {
-  float3 tan;
-  float3 p;
-  bool used_lut = false;
+  /* LUT-based UV lookup (O(1) per vertex).
+   *
+   * The grid's bilinear inverse is pre-rasterized into a 2D lookup table
+   * once per dab.  Per-vertex evaluation is a simple 2D projection +
+   * bilinear sample of the LUT — no per-quad search needed.
+   * compute_roll_center() guarantees the LUT is ready before any dab. */
 
-  if (cache.roll_surface_ready && cache.roll_lut_ready) {
-    /* --- LUT-based UV lookup (O(1) per vertex) ---
-     *
-     * The grid's bilinear inverse is pre-rasterized into a 2D lookup table
-     * once per dab.  Per-vertex evaluation is a simple 2D projection +
-     * bilinear sample of the LUT — no per-quad search needed. */
+  constexpr int RES = StrokeCache::ROLL_LUT_RES;
+  const float2 query = float2(math::dot(float3(co), cache.roll_view_x),
+                              math::dot(float3(co), cache.roll_view_y));
 
-    constexpr int RES = StrokeCache::ROLL_LUT_RES;
-    const float2 query = float2(math::dot(float3(co), cache.roll_view_x),
-                                math::dot(float3(co), cache.roll_view_y));
-
-    /* Map query to LUT coordinates.  Guard against NaN (from degenerate
-     * grids where inv_extent is very large and query == min, giving 0*inf). */
-    const float2 fc = (query - cache.roll_lut_min) * cache.roll_lut_inv_extent;
-    if (LIKELY(std::isfinite(fc.x) && std::isfinite(fc.y))) {
-      const float fx = std::clamp(fc.x - 0.5f, 0.0f, float(RES - 2));
-      const float fy = std::clamp(fc.y - 0.5f, 0.0f, float(RES - 2));
-      const int ix = std::min(int(fx), RES - 2);
-      const int iy = std::min(int(fy), RES - 2);
-      const float tx = fx - float(ix);
-      const float ty = fy - float(iy);
-
-      /* Bilinear interpolation of UV from 4 nearest LUT cells. */
-      const float2 &uv00 = cache.roll_lut_uv[iy * RES + ix];
-      const float2 &uv10 = cache.roll_lut_uv[iy * RES + ix + 1];
-      const float2 &uv01 = cache.roll_lut_uv[(iy + 1) * RES + ix];
-      const float2 &uv11 = cache.roll_lut_uv[(iy + 1) * RES + ix + 1];
-      const float2 uv_result = (1 - tx) * (1 - ty) * uv00 + tx * (1 - ty) * uv10 +
-                                (1 - tx) * ty * uv01 + tx * ty * uv11;
-
-      r_out[0] = -uv_result.x;
-      r_out[1] = uv_result.y;
-
-      /* Bilinear interpolation of tangent. */
-      const float3 &t00 = cache.roll_lut_tan[iy * RES + ix];
-      const float3 &t10 = cache.roll_lut_tan[iy * RES + ix + 1];
-      const float3 &t01 = cache.roll_lut_tan[(iy + 1) * RES + ix];
-      const float3 &t11 = cache.roll_lut_tan[(iy + 1) * RES + ix + 1];
-      tan = math::normalize((1 - tx) * (1 - ty) * t00 + tx * (1 - ty) * t10 +
-                            (1 - tx) * ty * t01 + tx * ty * t11);
-      p = float3(co); /* Not used for texture mapping in this path. */
-      used_lut = true;
-    }
+  const float2 fc = (query - cache.roll_lut_min) * cache.roll_lut_inv_extent;
+  if (UNLIKELY(!std::isfinite(fc.x) || !std::isfinite(fc.y))) {
+    r_out[0] = r_out[1] = r_out[2] = 0.0f;
+    zero_v3(r_tan);
+    return;
   }
 
-  const bool use_norm_v = brush && brush->mtex.roll_pressure_scale &&
-                          BKE_brush_use_size_pressure(brush);
+  const float fx = std::clamp(fc.x - 0.5f, 0.0f, float(RES - 2));
+  const float fy = std::clamp(fc.y - 0.5f, 0.0f, float(RES - 2));
+  const int ix = std::min(int(fx), RES - 2);
+  const int iy = std::min(int(fy), RES - 2);
+  const float tx = fx - float(ix);
+  const float ty = fy - float(iy);
 
-  if (!used_lut) {
-    /* Fallback: full closest-point search (used before surface grid is ready). */
-    roll_spline_.closest_point_3d(float3(co), r_out[1], tan, r_out[0]);
-    p = roll_spline_.evaluate_3d(r_out[1]);
+  /* Bilinear interpolation of UV from 4 nearest LUT cells. */
+  const float2 &uv00 = cache.roll_lut_uv[iy * RES + ix];
+  const float2 &uv10 = cache.roll_lut_uv[iy * RES + ix + 1];
+  const float2 &uv01 = cache.roll_lut_uv[(iy + 1) * RES + ix];
+  const float2 &uv11 = cache.roll_lut_uv[(iy + 1) * RES + ix + 1];
+  const float2 uv_result = (1 - tx) * (1 - ty) * uv00 + tx * (1 - ty) * uv10 +
+                            (1 - tx) * ty * uv01 + tx * ty * uv11;
 
-    /* Sign the perpendicular distance (left/right of stroke). */
-    const float3 diff = p - float3(co);
-    float3 cross_vec;
-    cross_v3_v3v3(cross_vec, diff, tan);
-    if (math::dot(cross_vec, cache.view_normal) < 0.0f) {
-      r_out[0] = -r_out[0];
-    }
-    /* Normalize U to match the LUT path which stores ±1 at borders. */
-    if (cache.initial_radius > 0.0f) {
-      r_out[0] /= cache.initial_radius;
-      /* Normalize V for fallback path to match the grid's normalized space. */
-      if (use_norm_v) {
-        r_out[1] /= cache.initial_radius;
-      }
-    }
-  }
-
-  copy_v3_v3(r_tan, tan);
+  r_out[0] = -uv_result.x;
+  r_out[1] = uv_result.y;
   r_out[2] = 0.0f;
+
+  /* Bilinear interpolation of tangent. */
+  const float3 &t00 = cache.roll_lut_tan[iy * RES + ix];
+  const float3 &t10 = cache.roll_lut_tan[iy * RES + ix + 1];
+  const float3 &t01 = cache.roll_lut_tan[(iy + 1) * RES + ix];
+  const float3 &t11 = cache.roll_lut_tan[(iy + 1) * RES + ix + 1];
+  const float3 tan = math::normalize((1 - tx) * (1 - ty) * t00 + tx * (1 - ty) * t10 +
+                                     (1 - tx) * ty * t01 + tx * ty * t11);
+  copy_v3_v3(r_tan, tan);
 
   /* Apply V offset to keep texture continuous as virtual knots are consumed.
    * Use normalized offset when pressure-scaled V is baked into the grid. */
+  const bool use_norm_v = brush && brush->mtex.roll_pressure_scale &&
+                          BKE_brush_use_size_pressure(brush);
   if (use_norm_v) {
     r_out[1] += stroke_distance_normalized_ - roll_virtual_length_normalized_;
   }
