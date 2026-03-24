@@ -111,6 +111,8 @@ struct RollSpline {
   Vector<float> lengths_3d;
   /** Smooth tangents at each polyline vertex (central-difference). */
   Vector<float3> tangents_3d;
+  /** Per-vertex pen pressure (0..1). Used to compute variable strip width. */
+  Vector<float> pressures;
 
   void clear();
   bool is_empty() const;
@@ -193,6 +195,9 @@ struct PaintStroke : NonCopyable, NonMovable {
   bool roll_virtual_prepended_ = false;     /* true after virtual backward segments are prepended */
   int n_virtual_poly_points_ = 0;          /* polyline points in virtual backward extension */
   float roll_virtual_length_ = 0.0f;       /* arc length of virtual extension (subtracted from V) */
+  float roll_initial_radius_ = 0.0f;       /* cache.initial_radius, captured on first dab */
+  float stroke_distance_normalized_ = 0.0f; /* pressure-normalized V offset for consumed knots */
+  float roll_virtual_length_normalized_ = 0.0f; /* normalized arc length of virtual extension */
   int initial_backward_ext_count_ = 0;     /* backward_ext knot count at creation, for budget */
   void *roll_cursor_ = nullptr;           /* always-on preview of unflushed spline portion */
   void *debug_cursor_ = nullptr;
@@ -305,7 +310,7 @@ struct PaintStroke : NonCopyable, NonMovable {
    * brush center. Call this once per dab (single-threaded) before the per-vertex
    * parallel loop. Stores results into StrokeCache for use by spline_uv().
    */
-  void compute_roll_center(StrokeCache &cache) const;
+  void compute_roll_center(StrokeCache &cache);
 
   /** Debug: draw the roll spline overlay in the viewport. */
   void draw_debug_roll(bContext *C) const;

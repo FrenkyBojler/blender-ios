@@ -1216,6 +1216,13 @@ static void rna_def_brush_texture_slot(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_update(prop, 0, "rna_TextureSlot_update");
 
+  prop = RNA_def_property(srna, "use_roll_pressure_scale", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "roll_pressure_scale", 1);
+  RNA_def_property_ui_text(
+      prop, "Pressure Scale", "Scale roll texture with pressure-driven brush radius");
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+  RNA_def_property_update(prop, 0, "rna_TextureSlot_update");
+
   TEXTURE_CAPABILITY(has_texture_angle_source, "Has Texture Angle Source");
   TEXTURE_CAPABILITY(has_random_texture_angle, "Has Random Texture Angle");
   TEXTURE_CAPABILITY(has_texture_angle, "Has Texture Angle Source");

@@ -2469,7 +2469,12 @@ void sculpt_apply_texture(const SculptSession &ss,
         }
       }
 
-      mul_v3_fl(point_3d, 1.0f / cache.initial_radius);
+      /* U is already normalized to ±1 at the strip borders.
+       * V is pre-normalized in the grid when pressure-scale is active,
+       * otherwise divide by initial_radius for standard tiling. */
+      if (!(mtex->roll_pressure_scale && BKE_brush_use_size_pressure(&brush))) {
+        point_3d[1] /= cache.initial_radius;
+      }
       float angle = mtex->rot;
 
       float3 final_pt;

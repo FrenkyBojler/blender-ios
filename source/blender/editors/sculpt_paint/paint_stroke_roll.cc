@@ -60,6 +60,7 @@ void RollSpline::clear()
   lengths_2d.clear();
   lengths_3d.clear();
   tangents_3d.clear();
+  pressures.clear();
 }
 
 bool RollSpline::is_empty() const
@@ -206,11 +207,23 @@ void PaintStroke::add_roll_point(const float2 &mouse_in,
          * no real stroke data is lost yet.
          * Accumulate the arc-length of the removed span so that
          * stroke_distance_world_ compensates and the texture stays put. */
+        float seg_len = 0.0f;
         if (!roll_spline_.lengths_3d.is_empty()) {
-          stroke_distance_world_ += roll_spline_.lengths_3d[0];
+          seg_len = roll_spline_.lengths_3d[0];
         }
         else if (backward_ext_3d_.size() >= 2) {
-          stroke_distance_world_ += math::distance(backward_ext_3d_[0], backward_ext_3d_[1]);
+          seg_len = math::distance(backward_ext_3d_[0], backward_ext_3d_[1]);
+        }
+        stroke_distance_world_ += seg_len;
+        /* Normalized distance: use the average pressure of the consumed
+         * segment's two endpoints, matching the grid V computation. */
+        if (roll_initial_radius_ > 0.0f) {
+          const float p0 = (!roll_spline_.pressures.is_empty()) ?
+                               roll_spline_.pressures[0] : 1.0f;
+          const float p1 = (roll_spline_.pressures.size() > 1) ?
+                               roll_spline_.pressures[1] : p0;
+          const float p_avg = std::max((p0 + p1) * 0.5f, 0.01f);
+          stroke_distance_normalized_ += seg_len / (roll_initial_radius_ * p_avg);
         }
         backward_ext_2d_.remove(0);
         backward_ext_3d_.remove(0);
@@ -219,10 +232,16 @@ void PaintStroke::add_roll_point(const float2 &mouse_in,
         /* All virtual knots consumed — ring buffer wraps, oldest real point
          * is abandoned. Accumulate its distance so stroke_distance_world_
          * stays correct. */
-        const int oldest = (cur_point_ - num_points_ + buf_cap) % buf_cap;
-        const int next = (oldest + 1) % buf_cap;
-        stroke_distance_world_ += math::distance(points_[oldest].location,
-                                                 points_[next].location);
+        const int oldest_idx = (cur_point_ - num_points_ + buf_cap) % buf_cap;
+        const int next_idx = (oldest_idx + 1) % buf_cap;
+        const float seg_len = math::distance(points_[oldest_idx].location,
+                                             points_[next_idx].location);
+        stroke_distance_world_ += seg_len;
+        if (roll_initial_radius_ > 0.0f) {
+          const float p_avg = std::max(
+              (points_[oldest_idx].pressure + points_[next_idx].pressure) * 0.5f, 0.01f);
+          stroke_distance_normalized_ += seg_len / (roll_initial_radius_ * p_avg);
+        }
         wrap_ring = true;
       }
     }
@@ -236,7 +255,9 @@ void PaintStroke::add_roll_point(const float2 &mouse_in,
     point->pen_flip = pen_flip;
 
     point->location = loc;
-    point->pressure = pressure;
+    /* Clamp pressure — pen touch-down and lift-off report near-zero values
+     * that would create an extreme width spike in the roll strip. */
+    point->pressure = std::max(pressure, 0.05f);
 
     cur_point_ = (cur_point_ + 1) % buf_cap;
     if (!wrap_ring) {
@@ -401,8 +422,11 @@ void PaintStroke::prepend_virtual_roll_points()
   dir3 /= len3;
   dir2 /= len2;
 
-  const float r_world = paint_calc_object_space_radius(vc, p_start, points_[oldest].size);
-  const float r_screen = points_[oldest].size;
+  /* Use the full (unpressured) brush radius for step sizes so the virtual
+   * extension isn't compressed when the initial pen touch has low pressure. */
+  const float base_pixel_r = (paint && brush) ? BKE_brush_radius_get(paint, brush) : 50.0f;
+  const float r_world = paint_calc_object_space_radius(vc, p_start, base_pixel_r);
+  const float r_screen = base_pixel_r;
 
   constexpr int n_backward = 6;
   const float step_3d = (r_world * 1.5f) / float(n_backward);
@@ -460,10 +484,36 @@ void PaintStroke::make_roll_spline(bContext * /*C*/)
   roll_spline_.clear();
   roll_spline_.poly_2d.extend(backward_ext_2d_);
   roll_spline_.poly_3d.extend(backward_ext_3d_);
+  /* Extrapolate pressure trend for backward virtual extension.
+   * Derive a geometric ratio from the 2nd/3rd real points (skipping the
+   * 1st which may have an unreliable initial-touch pressure), then
+   * multiply backward so the strip width transitions smoothly. */
+  {
+    const int n_back = int(backward_ext_2d_.size());
+    float base_p = (num_points_ > 0) ? points_[oldest].pressure : 1.0f;
+    float ratio = 1.0f;
+    if (num_points_ >= 3) {
+      const int i1 = (oldest + 1) % buf_cap;
+      const int i2 = (oldest + 2) % buf_cap;
+      const float p1 = points_[i1].pressure;
+      const float p2 = points_[i2].pressure;
+      if (p2 > 0.01f) {
+        ratio = std::clamp(p1 / p2, 0.5f, 2.0f);
+      }
+    }
+    /* Points are ordered farthest→nearest.  Index 0 is the farthest
+     * virtual point (most steps from the oldest real point). */
+    for (int i = 0; i < n_back; i++) {
+      const int steps = n_back - i; /* distance from oldest real point */
+      roll_spline_.pressures.append(
+          std::clamp(base_p * powf(ratio, float(steps)), 0.01f, 1.0f));
+    }
+  }
   for (int i = 0; i < num_points_; i++) {
     const int idx = (oldest + i) % buf_cap;
     roll_spline_.poly_2d.append(points_[idx].mouse_out);
     roll_spline_.poly_3d.append(points_[idx].location);
+    roll_spline_.pressures.append(points_[idx].pressure);
   }
 
   if (int(roll_spline_.poly_3d.size()) < 2) {
@@ -482,6 +532,23 @@ void PaintStroke::make_roll_spline(bContext * /*C*/)
       n_virtual_poly_points_ - 1 < int(roll_spline_.lengths_3d.size()))
   {
     roll_virtual_length_ = roll_spline_.lengths_3d[n_virtual_poly_points_ - 1];
+    /* Compute normalized virtual length for pressure-scaled V offset. */
+    if (roll_initial_radius_ > 0.0f) {
+      const Span<float> pres = roll_spline_.pressures.as_span();
+      float accum = 0.0f;
+      for (int i = 1; i <= n_virtual_poly_points_ - 1 &&
+                       i < int(roll_spline_.lengths_3d.size());
+           i++)
+      {
+        const float seg = roll_spline_.lengths_3d[i] -
+                          ((i > 1) ? roll_spline_.lengths_3d[i - 1] : 0.0f);
+        const float p = (i < int(pres.size()) && i - 1 >= 0) ?
+                            std::max((pres[i] + pres[i - 1]) * 0.5f, 0.01f) :
+                            1.0f;
+        accum += seg / (roll_initial_radius_ * p);
+      }
+      roll_virtual_length_normalized_ = accum;
+    }
   }
 }
 
@@ -493,6 +560,10 @@ void PaintStroke::finish_roll_stroke(bContext *C,
   if (!need_roll_mapping_ || num_points_ < 4) {
     return;
   }
+
+  /* Clamp pen lift-off pressure (same minimum as add_roll_point) to avoid
+   * near-zero spacing that would create thousands of expensive roll dabs. */
+  pressure = std::max(pressure, 0.05f);
 
   const PaintMode mode = BKE_paintmode_get_active_from_context(C);
   const Brush &brush = *BKE_paint_brush_for_read(this->paint);
@@ -552,8 +623,9 @@ void PaintStroke::finish_roll_stroke(bContext *C,
       dir3 /= len3;
       dir2 /= len2;
 
-      const float r_world = paint_calc_object_space_radius(vc, p_end, points_[newest].size);
-      const float r_screen = points_[newest].size;
+      const float base_pixel_r = paint ? BKE_brush_radius_get(paint, &brush) : 50.0f;
+      const float r_world = paint_calc_object_space_radius(vc, p_end, base_pixel_r);
+      const float r_screen = base_pixel_r;
 
       constexpr int n_forward = 6;
       const float step_3d = (r_world * 1.5f) / float(n_forward);
@@ -583,6 +655,20 @@ void PaintStroke::finish_roll_stroke(bContext *C,
                                  +1.0f,
                                  roll_spline_.poly_2d,
                                  roll_spline_.poly_3d);
+      /* Extrapolate pressure trend for forward virtual extension.
+       * Derive ratio from the last two real points and project forward. */
+      {
+        const float p_new = points_[newest].pressure;
+        const float p_prev = points_[prev_newest].pressure;
+        float ratio = 1.0f;
+        if (p_prev > 0.01f) {
+          ratio = std::clamp(p_new / p_prev, 0.5f, 2.0f);
+        }
+        for (int i = 0; i < n_forward; i++) {
+          roll_spline_.pressures.append(
+              std::clamp(p_new * powf(ratio, float(i + 1)), 0.01f, 1.0f));
+        }
+      }
 
       roll_spline_.update_lengths();
     }
@@ -762,7 +848,7 @@ static void catmull_clark_subdivide_grid(Vector<float3> &grid_pos,
   cols = nC;
 }
 
-void PaintStroke::compute_roll_center(StrokeCache &cache) const
+void PaintStroke::compute_roll_center(StrokeCache &cache)
 {
   if (roll_spline_.is_empty()) {
     cache.roll_center_s = -1.0f;
@@ -807,7 +893,14 @@ void PaintStroke::compute_roll_center(StrokeCache &cache) const
      * in spline_uv() is limited to rows near the dab for performance. */
     const int lo = 0;
     const int count = int(poly.size());
+    const bool use_pressure_width = brush && brush->mtex.roll_pressure_scale &&
+                                    BKE_brush_use_size_pressure(brush);
     const float R = cache.initial_radius;
+
+    /* Capture initial_radius for normalized distance tracking. */
+    if (roll_initial_radius_ == 0.0f && R > 0.0f) {
+      roll_initial_radius_ = R;
+    }
 
     /* Use the mesh surface normal (sculpt_normal) for binormal computation
      * and 2D projection. This aligns the poly-strip to the mesh surface
@@ -840,8 +933,11 @@ void PaintStroke::compute_roll_center(StrokeCache &cache) const
         }
       }
       cache.roll_binormals[k] = B;
-      cache.roll_border_left[k] = poly[vi] + B * R;
-      cache.roll_border_right[k] = poly[vi] - B * R;
+      const float Rk = (use_pressure_width && vi < int(roll_spline_.pressures.size())) ?
+                            std::max(R * roll_spline_.pressures[vi], R * 0.01f) :
+                            R;
+      cache.roll_border_left[k] = poly[vi] + B * Rk;
+      cache.roll_border_right[k] = poly[vi] - B * Rk;
     }
 
     /* Fix inner-border self-intersections at sharp turns.
@@ -976,17 +1072,37 @@ void PaintStroke::compute_roll_center(StrokeCache &cache) const
       Vector<float3> grid_pos(init_rows * init_cols);
       Vector<float2> grid_uv(init_rows * init_cols);
 
+      /* Precompute V coordinates.  When pressure-scale is active, V is
+       * accumulated as seg_len / (R * p_avg) so that narrow sections tile
+       * the texture faster, preserving the aspect ratio.  This is baked
+       * per-vertex so all dabs evaluating the same vertex see the same V. */
+      const Span<float> pressures = roll_spline_.pressures.as_span();
+      const bool have_pressures = use_pressure_width &&
+                                  int(pressures.size()) >= count;
+      Vector<float> v_coords(init_rows);
+      v_coords[0] = 0.0f;
+      for (int k = 1; k < init_rows; k++) {
+        const int vi = grid_lo + k;
+        const float seg_len = lengths[vi - 1] - ((vi > 1) ? lengths[vi - 2] : 0.0f);
+        if (have_pressures) {
+          const float p_avg = std::max((pressures[vi] + pressures[vi - 1]) * 0.5f, 0.01f);
+          v_coords[k] = v_coords[k - 1] + seg_len / (R * p_avg);
+        }
+        else {
+          v_coords[k] = v_coords[k - 1] + seg_len;
+        }
+      }
+
       for (int k = 0; k < init_rows; k++) {
         const int bi = grid_lo + k; /* index into border arrays */
         const int vi = bi;          /* polyline vertex index (lo=0) */
-        const float v_len = (vi > 0) ? lengths[vi - 1] : 0.0f;
         /* Col 0 = right border, col 1 = center, col 2 = left border. */
         grid_pos[k * 3 + 0] = cache.roll_border_right[bi];
         grid_pos[k * 3 + 1] = poly[vi];
         grid_pos[k * 3 + 2] = cache.roll_border_left[bi];
-        grid_uv[k * 3 + 0] = float2(-R, v_len);
-        grid_uv[k * 3 + 1] = float2(0.0f, v_len);
-        grid_uv[k * 3 + 2] = float2(R, v_len);
+        grid_uv[k * 3 + 0] = float2(-1.0f, v_coords[k]);
+        grid_uv[k * 3 + 1] = float2(0.0f, v_coords[k]);
+        grid_uv[k * 3 + 2] = float2(1.0f, v_coords[k]);
       }
 
       /* Catmull-Clark subdivision: N rows × 3 cols → (2N-1) rows × 5 cols.
@@ -1383,6 +1499,9 @@ void PaintStroke::spline_uv(const StrokeCache &cache,
     }
   }
 
+  const bool use_norm_v = brush && brush->mtex.roll_pressure_scale &&
+                          BKE_brush_use_size_pressure(brush);
+
   if (!used_lut) {
     /* Fallback: full closest-point search (used before surface grid is ready). */
     roll_spline_.closest_point_3d(float3(co), r_out[1], tan, r_out[0]);
@@ -1395,12 +1514,27 @@ void PaintStroke::spline_uv(const StrokeCache &cache,
     if (math::dot(cross_vec, cache.view_normal) < 0.0f) {
       r_out[0] = -r_out[0];
     }
+    /* Normalize U to match the LUT path which stores ±1 at borders. */
+    if (cache.initial_radius > 0.0f) {
+      r_out[0] /= cache.initial_radius;
+      /* Normalize V for fallback path to match the grid's normalized space. */
+      if (use_norm_v) {
+        r_out[1] /= cache.initial_radius;
+      }
+    }
   }
 
   copy_v3_v3(r_tan, tan);
   r_out[2] = 0.0f;
 
-  r_out[1] += stroke_distance_world_ - roll_virtual_length_;
+  /* Apply V offset to keep texture continuous as virtual knots are consumed.
+   * Use normalized offset when pressure-scaled V is baked into the grid. */
+  if (use_norm_v) {
+    r_out[1] += stroke_distance_normalized_ - roll_virtual_length_normalized_;
+  }
+  else {
+    r_out[1] += stroke_distance_world_ - roll_virtual_length_;
+  }
 }
 
 float PaintStroke::spline_length() const

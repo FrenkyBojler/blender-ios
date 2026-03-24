@@ -308,6 +308,8 @@ struct MTex {
 
   char projx = PROJ_X, projy = PROJ_Y, projz = PROJ_Z, mapping = MTEX_FLAT;
   char brush_map_mode = MTEX_MAP_MODE_VIEW, brush_angle_mode = 0;
+  /** When set, roll-mapped texture scales with pressure-driven dab radius. */
+  char roll_pressure_scale = 1, _pad_roll[7] = {};
 
   /**
    * Match against the texture node (#TEX_NODE_OUTPUT, #bNode::custom1 value).
