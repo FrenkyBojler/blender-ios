@@ -132,7 +132,8 @@ struct Instance : public DrawEngine {
     }
 
     if (draw_ctx->v3d->shading.flag & V3D_SHADING_BACKFACE_CULLING &&
-        draw_ctx->v3d->shading.type == OB_SOLID) {
+        draw_ctx->v3d->shading.type == OB_SOLID)
+    {
       state |= DRW_STATE_CULL_BACK;
     }
 
