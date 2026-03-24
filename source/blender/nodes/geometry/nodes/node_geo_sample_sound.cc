@@ -116,12 +116,12 @@ class SampleSoundFunction : public mf::MultiFunction {
  private:
   const bSound &sound_;
   const int fft_size_;
-  const bke::bSoundFrequencySampler::Window window_function_;
+  const bke::bSoundFrequencySampler::WindowFunction window_function_;
 
  public:
   SampleSoundFunction(bSound &sound,
                       const int fft_size,
-                      const bke::bSoundFrequencySampler::Window window_function)
+                      const bke::bSoundFrequencySampler::WindowFunction window_function)
       : sound_(sound), fft_size_(fft_size), window_function_(window_function)
   {
     static const mf::Signature signature = []() {
@@ -157,7 +157,7 @@ class SampleSoundFunction : public mf::MultiFunction {
     /* Optimize the case when all indices sample the same channel. */
     if (constant_channel) {
       bke::bSoundFrequencySampler::Key key;
-      key.window = window_function_;
+      key.window_function = window_function_;
       key.fft_size = fft_size_;
       key.channel = *all_channels_value ? std::nullopt : channel_value;
       const bke::bSoundFrequencySampler *sampler = bke::bSoundFrequencySampler::get_cached(sound_,
@@ -205,7 +205,7 @@ class SampleSoundFunction : public mf::MultiFunction {
         return;
       }
       bke::bSoundFrequencySampler::Key key;
-      key.window = window_function_;
+      key.window_function = window_function_;
       key.fft_size = fft_size_;
       key.channel = channel;
       const bke::bSoundFrequencySampler *sampler = bke::bSoundFrequencySampler::get_cached(sound_,
@@ -260,19 +260,20 @@ static int to_fft_size_int(const FFTSize fft_size)
   return 4096;
 }
 
-static bke::bSoundFrequencySampler::Window to_window_function(const WindowFunction window_function)
+static bke::bSoundFrequencySampler::WindowFunction to_window_function(
+    const WindowFunction window_function)
 {
   switch (window_function) {
     case WindowFunction::Hann:
-      return bke::bSoundFrequencySampler::Window::Hann;
+      return bke::bSoundFrequencySampler::WindowFunction::Hann;
     case WindowFunction::Hamming:
-      return bke::bSoundFrequencySampler::Window::Hamming;
+      return bke::bSoundFrequencySampler::WindowFunction::Hamming;
     case WindowFunction::Blackman:
-      return bke::bSoundFrequencySampler::Window::Blackman;
+      return bke::bSoundFrequencySampler::WindowFunction::Blackman;
     case WindowFunction::Rectangular:
-      return bke::bSoundFrequencySampler::Window::Rectangular;
+      return bke::bSoundFrequencySampler::WindowFunction::Rectangular;
   }
-  return bke::bSoundFrequencySampler::Window::Hann;
+  return bke::bSoundFrequencySampler::WindowFunction::Hann;
 }
 
 static void node_geo_exec(GeoNodeExecParams params)

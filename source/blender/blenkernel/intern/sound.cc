@@ -2117,30 +2117,30 @@ const bSoundFrequencySampler *bSoundFrequencySampler::get_cached(const bSound &s
 }
 
 static bSoundFrequencySampler::WindowWeights compute_window_function_weights(
-    const bSoundFrequencySampler::Window window, const int size)
+    const bSoundFrequencySampler::WindowFunction window, const int size)
 {
   Array<float> weights(size);
   switch (window) {
-    case bSoundFrequencySampler::Window::Hann: {
+    case bSoundFrequencySampler::WindowFunction::Hann: {
       for (const int i : IndexRange(size)) {
         weights[i] = 0.5 - 0.5 * math::cos((2.0f * std::numbers::pi * i) / (size - 1));
       }
       break;
     }
-    case bSoundFrequencySampler::Window::Hamming: {
+    case bSoundFrequencySampler::WindowFunction::Hamming: {
       for (const int i : IndexRange(size)) {
         weights[i] = 0.54 - 0.46 * math::cos((2.0f * std::numbers::pi * i) / (size - 1));
       }
       break;
     }
-    case bSoundFrequencySampler::Window::Blackman: {
+    case bSoundFrequencySampler::WindowFunction::Blackman: {
       for (const int i : IndexRange(size)) {
         weights[i] = 0.42 - 0.5 * math::cos((2.0f * std::numbers::pi * i) / (size - 1)) +
                      0.08 * math::cos((4.0f * std::numbers::pi * i) / (size - 1));
       }
       break;
     }
-    case bSoundFrequencySampler::Window::Rectangular: {
+    case bSoundFrequencySampler::WindowFunction::Rectangular: {
       weights.fill(1.0f);
       break;
     }
@@ -2153,10 +2153,10 @@ static bSoundFrequencySampler::WindowWeights compute_window_function_weights(
 }
 
 static const bSoundFrequencySampler::WindowWeights &get_window_function_weights(
-    const bSoundFrequencySampler::Window window, const int size)
+    const bSoundFrequencySampler::WindowFunction window, const int size)
 {
   static Mutex mutex;
-  static Map<std::pair<bSoundFrequencySampler::Window, int>,
+  static Map<std::pair<bSoundFrequencySampler::WindowFunction, int>,
              std::unique_ptr<bSoundFrequencySampler::WindowWeights>>
       map;
   std::lock_guard lock{mutex};
@@ -2169,7 +2169,7 @@ static const bSoundFrequencySampler::WindowWeights &get_window_function_weights(
 bSoundFrequencySampler::bSoundFrequencySampler(const bSound &sound, const Key &key)
     : sound_(sound),
       key_(key),
-      window_weights_(get_window_function_weights(key.window, key.fft_size))
+      window_weights_(get_window_function_weights(key.window_function, key.fft_size))
 {
   AUD_Sound sound_handle = sound.runtime->handle;
   const SoundInfo info = bke::sound_info_get(sound_handle);

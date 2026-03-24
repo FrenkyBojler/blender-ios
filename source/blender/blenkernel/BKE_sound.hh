@@ -275,20 +275,20 @@ namespace bke {
  */
 class bSoundFrequencySampler {
  public:
-  enum class Window {
+  enum class WindowFunction {
     Hann,
     Hamming,
     Blackman,
     Rectangular,
   };
   struct Key {
-    Window window;
+    WindowFunction window_function;
     int fft_size;
     std::optional<int> channel;
 
     uint64_t hash() const
     {
-      return get_default_hash(this->window, this->fft_size, this->channel.value_or(-1));
+      return get_default_hash(this->window_function, this->fft_size, this->channel.value_or(-1));
     }
 
     friend bool operator==(const Key &a, const Key &b) = default;
