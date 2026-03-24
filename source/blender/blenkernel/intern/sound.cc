@@ -2081,4 +2081,12 @@ const Vector<float> *BKE_sound_runtime_get_waveform(const bSound *sound)
   return sound->runtime->waveform;
 }
 
+namespace bke {
+
+SoundSampler *sound_sampler_get(const bSound &sound, const SampleSoundKey &key)
+{
+  return new SoundSampler(sound, key);
+}
+}  // namespace bke
+
 }  // namespace blender

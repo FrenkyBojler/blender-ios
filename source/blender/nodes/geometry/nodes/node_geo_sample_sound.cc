@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_sound.hh"
+
 #include "NOD_socket_usage_inference.hh"
 
 #include "node_geometry_util.hh"
@@ -35,9 +37,90 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Float>("Amplitude").reference_pass_all();
 }
 
+class SampleSoundFunction : public mf::MultiFunction {
+ private:
+  const bSound &sound_;
+
+ public:
+  SampleSoundFunction(bSound &sound) : sound_(sound)
+  {
+    static const mf::Signature signature = []() {
+      mf::Signature signature;
+      mf::SignatureBuilder builder("Sample Sound", signature);
+      builder.single_input<float>("Time");
+      builder.single_input<bool>("All Channels");
+      builder.single_input<int>("Channel");
+      builder.single_input<float>("Low");
+      builder.single_input<float>("High");
+      builder.single_output<float>("Amplitude");
+      return signature;
+    }();
+    this->set_signature(&signature);
+  }
+
+  void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
+  {
+    const VArray<float> &times = params.readonly_single_input<float>(0, "Time");
+    const VArray<bool> &all_channels_varray = params.readonly_single_input<bool>(1,
+                                                                                 "All Channels");
+    const VArray<int> &channels = params.readonly_single_input<int>(2, "Channel");
+    const VArray<float> &lows = params.readonly_single_input<float>(3, "Low");
+    const VArray<float> &highs = params.readonly_single_input<float>(4, "High");
+    MutableSpan<float> amplitudes = params.uninitialized_single_output<float>(5, "Amplitude");
+
+    mask.foreach_index([&](const int i) {
+      const float time = times[i];
+      const bool all_channels = all_channels_varray[i];
+      const int channel = channels[i];
+      const float low = lows[i];
+      const float high = highs[i];
+
+      bke::SampleSoundKey key;
+      key.window = bke::SampleSoundWindow::Rectangular;
+      key.fft_size = 2048;
+      key.channel = all_channels ? std::nullopt : std::make_optional(channel);
+
+      bke::SoundSampler *sampler = bke::sound_sampler_get(sound_, key);
+      if (!sampler) {
+        amplitudes[i] = 0.0f;
+        return;
+      }
+      const float amplitude = sampler->sample_single(time, low, high);
+      amplitudes[i] = amplitude;
+    });
+  }
+};
+
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  params.set_default_remaining_outputs();
+  bSound *sound = params.extract_input<bSound *>("Sound");
+  if (!sound) {
+    params.set_default_remaining_outputs();
+    return;
+  }
+
+  SocketValueVariant times = params.extract_input<SocketValueVariant>("Time");
+  SocketValueVariant all_channels = params.extract_input<SocketValueVariant>("All Channels");
+  SocketValueVariant channels = params.extract_input<SocketValueVariant>("Channel");
+  SocketValueVariant lows = params.extract_input<SocketValueVariant>("Low");
+  SocketValueVariant highs = params.extract_input<SocketValueVariant>("High");
+
+  auto sample_fn = std::make_shared<SampleSoundFunction>(*sound);
+
+  SocketValueVariant amplitudes;
+  std::string error_message;
+  if (!execute_multi_function_on_value_variant(std::move(sample_fn),
+                                               {&times, &all_channels, &channels, &lows, &highs},
+                                               {&amplitudes},
+                                               params.user_data(),
+                                               error_message))
+  {
+    params.set_default_remaining_outputs();
+    params.error_message_add(NodeWarningType::Error, std::move(error_message));
+    return;
+  }
+
+  params.set_output("Amplitude", std::move(amplitudes));
 }
 
 static void node_register()

@@ -8,10 +8,15 @@
  * \ingroup bke
  */
 
+#include <cmath>
+#include <optional>
 #include <string>
 
 #include "BKE_sound_types.hh"
 
+#include "BLI_array.hh"
+#include "BLI_cache_mutex.hh"
+#include "BLI_math_base.hh"
 #include "BLI_vector.hh"
 
 #if defined(WITH_AUDASPACE)
@@ -258,5 +263,101 @@ bool sound_mixdown(AUD_Sequence sequence,
 
 }  // namespace bke
 #endif  // #if defined(WITH_AUDASPACE)
+
+namespace bke {
+
+enum class SampleSoundWindow {
+  Rectangular = 0,
+};
+
+struct SampleSoundKey {
+  SampleSoundWindow window;
+  int fft_size;
+  std::optional<int> channel;
+};
+
+class SoundSampler {
+ private:
+  struct Bucket {
+    mutable CacheMutex mutex;
+    mutable Array<float, 0> accumulated_amplitudes;
+  };
+
+  const bSound &sound_;
+  SampleSoundKey key_;
+  int samples_per_second_;
+  int samples_per_bucket_;
+  Array<Bucket> buckets_;
+
+ public:
+  SoundSampler(const bSound &sound, const SampleSoundKey &key) : sound_(sound), key_(key)
+  {
+    // TODO
+    samples_per_second_ = 48000;
+    samples_per_bucket_ = 500;
+    buckets_.reinitialize(1000);
+  }
+
+  float sample_single(const float time, const float low, const float high) const
+  {
+    const float bucket_i_float = time * samples_per_second_ / samples_per_bucket_;
+    const int prev_bucket_i = floorf(bucket_i_float);
+    const int next_bucket_i = prev_bucket_i + 1;
+    const float bucket_fraction = bucket_i_float - prev_bucket_i;
+    if (prev_bucket_i < 0) {
+      return 0.0f;
+    }
+    if (next_bucket_i >= buckets_.size()) {
+      return 0.0f;
+    }
+    const Span<float> prev_bucket = this->ensure_bucket(prev_bucket_i);
+    const Span<float> next_bucket = this->ensure_bucket(next_bucket_i);
+    const int bucket_size = prev_bucket.size();
+    const int max_bucket_i = bucket_size - 1;
+
+    const float low_i_float = std::max(low, 0.0f) * key_.fft_size / samples_per_second_;
+    const float high_i_float = std::max(high, 0.0f) * key_.fft_size / samples_per_second_;
+
+    const int prev_low_i = std::min(int(floorf(low_i_float)), max_bucket_i);
+    const int next_low_i = std::min(prev_low_i + 1, max_bucket_i);
+    const float low_fraction = low_i_float - prev_low_i;
+
+    const int prev_high_i = std::min(int(floorf(high_i_float)), max_bucket_i);
+    const int next_high_i = std::min(prev_high_i + 1, max_bucket_i);
+    const float high_fraction = high_i_float - prev_high_i;
+
+    const float prev_low_amplitude_accum = math::interpolate(
+        prev_bucket[prev_low_i], prev_bucket[next_low_i], low_fraction);
+    const float prev_high_amplitude_accum = math::interpolate(
+        prev_bucket[prev_high_i], prev_bucket[next_high_i], high_fraction);
+    const float prev_amplitude = prev_high_amplitude_accum - prev_low_amplitude_accum;
+
+    const float next_low_amplitude_accum = math::interpolate(
+        next_bucket[prev_low_i], next_bucket[next_low_i], low_fraction);
+    const float next_high_amplitude_accum = math::interpolate(
+        next_bucket[prev_high_i], next_bucket[next_high_i], high_fraction);
+    const float next_amplitude = next_high_amplitude_accum - next_low_amplitude_accum;
+
+    const float amplitude = math::interpolate(prev_amplitude, next_amplitude, bucket_fraction);
+    return amplitude;
+  }
+
+  Span<float> ensure_bucket(const int bucket_i) const
+  {
+    const Bucket &bucket = buckets_[bucket_i];
+    bucket.mutex.ensure([&]() {
+      bucket.accumulated_amplitudes.reinitialize(key_.fft_size);
+      /* TODO */
+      for (const int i : IndexRange(key_.fft_size)) {
+        bucket.accumulated_amplitudes[i] = i;
+      }
+    });
+    return bucket.accumulated_amplitudes;
+  }
+};
+
+SoundSampler *sound_sampler_get(const bSound &sound, const SampleSoundKey &key);
+
+}  // namespace bke
 
 }  // namespace blender
