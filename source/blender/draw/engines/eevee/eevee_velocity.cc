@@ -210,6 +210,18 @@ bool VelocityModule::step_object_sync(const ObjectHandle &ob_handle,
         any_instance_has_motion |= (obmat_curr != obmat_prev) || (obmat_curr != obmat_next);
       }
     }
+
+#if 0
+    if (!has_motion && !has_deform) {
+      printf("Detected no motion on %s (%d)\n", ob_handle.object->id.name, i);
+    }
+    if (has_deform) {
+      printf("Geometry Motion on %s (%d)\n", ob_handle.object->id.name, i);
+    }
+    if (has_motion) {
+      printf("Object Motion on %s (%d)\n", ob_handle.object->id.name, i);
+    }
+#endif
   }
 
   return has_deform || any_instance_has_motion;
