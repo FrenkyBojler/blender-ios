@@ -1,2 +1,3 @@
 Referenced by issue #156199, Compositor: Stereo multilayer OpenEXR images loaded incorrectly
 Referenced by pull request #156213, Fix #156199: Compositor: Stereo multilayer OpenEXR images loaded wrong
+Referenced by pull request #156226, Fix #156199: Multi-view images have duplicate passes
