@@ -207,7 +207,7 @@ void update_mask_mesh(const Depsgraph &depsgraph,
   const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
   bke::SpanAttributeWriter<float> mask = attributes.lookup_or_add_for_write_span<float>(
       ".sculpt_mask", bke::AttrDomain::Point);
-  std::vector<float> init_mask(mask.span.begin(), mask.span.end());
+  Vector<float> init_mask(mask.span.begin(), mask.span.end());
   if (!mask) {
     return;
   }
@@ -223,7 +223,8 @@ void update_mask_mesh(const Depsgraph &depsgraph,
   node_mask.foreach_index(
       [&](const int i) {
         LocalData &tls = all_tls.local();
-        const Span<int> verts = nodes[i].all_verts();
+        const Span<int> verts = hide::node_visible_all_verts(
+            nodes[i], hide_vert, tls.visible_verts);
         tls.mask.resize(verts.size());
         gather_data_mesh(mask.span.as_span(), verts, tls.mask.as_mutable_span());
         update_fn(tls.mask, verts);
@@ -231,7 +232,8 @@ void update_mask_mesh(const Depsgraph &depsgraph,
           return;
         }
         undo::push_node(depsgraph, object, &nodes[i], undo::Type::Mask);
-        scatter_data_mesh(tls.mask.as_span(), verts, mask.span);
+        scatter_data_mesh(
+            tls.mask.as_span().slice(0, nodes[i].unique_verts_num_), verts, mask.span);
         bke::pbvh::node_update_mask_mesh(mask.span, nodes[i]);
         node_changed[i] = true;
       },
