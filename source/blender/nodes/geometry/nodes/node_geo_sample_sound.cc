@@ -170,7 +170,7 @@ class SampleSoundFunction : public mf::MultiFunction {
         const float time = times[i];
         const float low = lows[i];
         const float high = highs[i];
-        const float amplitude = sampler->sample_single(time, low, high);
+        const float amplitude = sampler->sample(time, low, high);
         amplitudes[i] = amplitude;
       });
       return;
@@ -220,7 +220,7 @@ class SampleSoundFunction : public mf::MultiFunction {
         const float time = times[i];
         const float low = lows[i];
         const float high = highs[i];
-        const float amplitude = sampler->sample_single(time, low, high);
+        const float amplitude = sampler->sample(time, low, high);
         amplitudes[i] = amplitude;
       }
     };

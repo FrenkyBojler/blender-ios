@@ -319,18 +319,14 @@ class bSoundFrequencySampler {
 
   bSoundFrequencySampler(const bSound &sound, const Key &key);
 
-  float sample_single(const float time, const float low, const float high) const;
+  float sample(const float time, const float low, const float high) const;
 
  private:
   float sample_cumulative_frequency(const Span<float> bucket_values, const float frequency) const;
   std::optional<BinPair> get_buckets_for_time(const float time) const;
   std::optional<Span<float>> ensure_bucket(const int bucket_i) const;
+  std::optional<Array<float>> compute_fft(int start_sample) const;
 };
-
-std::optional<Array<float>> sound_compute_fft(const bSound &sound,
-                                              const bSoundFrequencySampler::Key &key,
-                                              const int start_sample,
-                                              const WindowFunctionWeights &weights);
 
 }  // namespace bke
 

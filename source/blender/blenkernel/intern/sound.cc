@@ -2095,11 +2095,13 @@ const bSoundFrequencySampler *bSoundFrequencySampler::get_cached(const bSound &s
                                                                  const Key &key)
 {
   {
+    /* Fast common case when the sampler has been created already. */
     SoundSamplerMap::ConstAccessor accessor;
     if (sound.runtime->samplers.lookup(accessor, key)) {
       return accessor->second.get();
     }
   }
+  /* Slower case when the sampler is newly created. */
   SoundSamplerMap::MutableAccessor accessor;
   if (sound.runtime->samplers.add(accessor, key)) {
     if (key.channel.has_value()) {
@@ -2174,25 +2176,25 @@ bSoundFrequencySampler::bSoundFrequencySampler(const bSound &sound, const Key &k
   buckets_.reinitialize(std::ceil(info.length * info.specs.samplerate / bin_offset_stride_));
 }
 
-std::optional<Array<float>> sound_compute_fft(const bSound &sound,
-                                              const bSoundFrequencySampler::Key &key,
-                                              const int start_sample,
-                                              const WindowFunctionWeights &weights)
+std::optional<Array<float>> bSoundFrequencySampler::compute_fft(const int start_sample) const
 {
-  AUD_Sound sound_handle = sound.runtime->handle;
+  /* Prepare the reader. */
+  AUD_Sound sound_handle = sound_.runtime->handle;
   std::shared_ptr<aud::IReader> reader = sound_handle->createReader();
   const aud::Specs specs = reader->getSpecs();
   const int channels_num = specs.channels;
 
-  Array<float> read_buffer(key.fft_size * channels_num);
+  /* Read the raw samples from the audio stream. */
+  Array<float> read_buffer(key_.fft_size * channels_num);
   bool is_end_of_stream = false;
-  int length = key.fft_size;
+  int length = key_.fft_size;
   reader->seek(start_sample);
   reader->read(length, is_end_of_stream, read_buffer.data());
 
-  Array<float> buffer(key.fft_size, 0.0f);
-  if (key.channel.has_value()) {
-    const int channel = *key.channel;
+  /* Pull out the samples for the requested channel(s). */
+  Array<float> buffer(key_.fft_size, 0.0f);
+  if (key_.channel.has_value()) {
+    const int channel = *key_.channel;
     if (channel < 0 || channel >= channels_num) {
       return std::nullopt;
     }
@@ -2209,36 +2211,44 @@ std::optional<Array<float>> sound_compute_fft(const bSound &sound,
     }
   }
 
+  /* Apply window function which avoids spectral leakage (depending on the function). */
   for (const int i : IndexRange(length)) {
-    buffer[i] *= weights.weights[i];
+    buffer[i] *= window_function_weights_.weights[i];
   }
 
-  const int frequencies_num = key.fft_size / 2;
+  /* Since the result of the dft algorithm is symmetric in this case, only the first half is
+   * computed. */
+  const int frequencies_num = key_.fft_size / 2;
 
+  /* Setup the fftw plan. */
   fftwf_complex *fftwf_buffer = static_cast<fftwf_complex *>(
       fftwf_malloc(sizeof(fftwf_complex) * (frequencies_num + 1)));
   fftwf_plan plan = fftwf_plan_dft_r2c_1d(
-      key.fft_size, buffer.data(), fftwf_buffer, FFTW_ESTIMATE);
+      key_.fft_size, buffer.data(), fftwf_buffer, FFTW_ESTIMATE);
   BLI_SCOPED_DEFER([&]() {
     fftwf_destroy_plan(plan);
     fftwf_free(fftwf_buffer);
   });
 
+  /* Actually perform the fourier transform. */
   fftwf_execute(plan);
 
+  /* Compute the amplitudes of the frequencies. */
   Array<float> frequency_amplitudes(frequencies_num);
-  const float scaling_factor = 1.0f / weights.weights_sum;
+  /* The scaling factor is applied so that changing the fft size or window function does not affect
+   * the magnitude of the result. */
+  const float scaling_factor = 1.0f / window_function_weights_.weights_sum;
   for (const int i : IndexRange(frequencies_num)) {
     const fftwf_complex &c = fftwf_buffer[i];
+    /* Take real and imaginary parts into account which correspond to the sin and cos component of
+     * the frequency. */
     frequency_amplitudes[i] = sqrt(pow2f(c[0]) + pow2f(c[1])) * scaling_factor;
   }
 
   return frequency_amplitudes;
 }
 
-float bSoundFrequencySampler::sample_single(const float time,
-                                            const float low,
-                                            const float high) const
+float bSoundFrequencySampler::sample(const float time, const float low, const float high) const
 {
   const std::optional<BinPair> bin_pair = this->get_buckets_for_time(time);
   if (!bin_pair.has_value()) {
@@ -2301,8 +2311,7 @@ std::optional<Span<float>> bSoundFrequencySampler::ensure_bucket(const int bucke
 {
   const Bin &bucket = buckets_[bucket_i];
   bucket.mutex.ensure([&]() {
-    std::optional<Array<float>> fft_array = sound_compute_fft(
-        sound_, key_, bucket_i * bin_offset_stride_, window_function_weights_);
+    std::optional<Array<float>> fft_array = this->compute_fft(bucket_i * bin_offset_stride_);
     if (!fft_array.has_value()) {
       return;
     }
