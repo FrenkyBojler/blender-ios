@@ -679,17 +679,14 @@ void GeometryManager::create_volume_mesh(const Scene *scene, Volume *volume, Pro
   const bool ray_marching = scene->integrator->get_volume_ray_marching();
   builder.create_mesh(vertices, indices, ray_marching);
 
-  volume->reserve_mesh(vertices.size(), indices.size() / 3);
+  volume->resize_mesh(vertices.size(), indices.size() / 3);
   volume->used_shaders.clear();
   volume->used_shaders.push_back_slow(volume_shader);
 
-  for (size_t i = 0; i < vertices.size(); ++i) {
-    volume->add_vertex(vertices[i]);
-  }
-
-  for (size_t i = 0; i < indices.size(); i += 3) {
-    volume->add_triangle(indices[i], indices[i + 1], indices[i + 2], 0, false);
-  }
+  std::ranges::copy(vertices, volume->get_verts().data());
+  std::ranges::copy(indices, volume->triangles.data());
+  std::ranges::fill(volume->get_shader(), 0);
+  std::ranges::fill(volume->get_smooth(), false);
 
   /* Print stats. */
   LOG_DEBUG << "Memory usage volume mesh: "
@@ -951,7 +948,7 @@ void VolumeManager::initialize_octree(const Scene *scene, Progress &progress)
       if (object_octrees_.find({object, shader}) == object_octrees_.end()) {
         if (geom->is_light()) {
           const Light *light = static_cast<const Light *>(geom);
-          if (light->get_light_type() == LIGHT_BACKGROUND) {
+          if (light->is_background_light()) {
             /* World volume is unbounded, use some practical large number instead. */
             const float3 size = make_float3(10000.0f);
             object_octrees_[{object, shader}] = std::make_shared<Octree>(BoundBox(-size, size));

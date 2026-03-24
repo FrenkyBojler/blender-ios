@@ -110,6 +110,9 @@ if(DEFINED LIBDIR)
 endif()
 
 # Wrapper to prefer static libraries
+#
+# NOTE: must be a macro, forwards `${ARGV}` to `find_package()`/`find_package_static()`
+# whose result variables must be visible in the caller's scope.
 macro(find_package_wrapper)
   if(WITH_STATIC_LIBS)
     find_package_static(${ARGV})
@@ -508,7 +511,6 @@ endif()
 if(WITH_OPENSUBDIV)
   find_package(OpenSubdiv)
 
-  set(OPENSUBDIV_LIBRARIES ${OPENSUBDIV_LIBRARIES})
   set(OPENSUBDIV_LIBPATH "")  # TODO, remove and reference the absolute path everywhere
 
   set_and_warn_library_found("OpenSubdiv" OPENSUBDIV_FOUND WITH_OPENSUBDIV)
@@ -1018,9 +1020,11 @@ set(PLATFORM_LINKFLAGS_SYMBOL_HIDING "-Wl,--version-script='${PLATFORM_SYMBOLS_M
 # link time. This allows that for classic ld, which is more strict than gold, lld
 # or mold. The ideal solution would be to switch all dependencies to CMake configs
 # that fully specify transitive dependencies.
-set(PLATFORM_LINKFLAGS
-  "${PLATFORM_LINKFLAGS} -Wl,--allow-shlib-undefined -Wl,--unresolved-symbols=ignore-in-shared-libs"
-)
+if(NOT WITH_PYTHON_MODULE)
+  set(PLATFORM_LINKFLAGS
+    "${PLATFORM_LINKFLAGS} -Wl,--allow-shlib-undefined -Wl,--unresolved-symbols=ignore-in-shared-libs"
+  )
+endif()
 
 # Don't use position independent executable for portable install since file
 # browsers can't properly detect blender as an executable then. Still enabled

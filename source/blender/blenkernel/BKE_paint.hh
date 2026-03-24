@@ -183,6 +183,8 @@ Paint *BKE_paint_get_active(Scene *sce, ViewLayer *view_layer);
 Paint *BKE_paint_get_active_from_context(const bContext *C);
 PaintMode BKE_paintmode_get_active_from_context(const bContext *C);
 PaintMode BKE_paintmode_get_from_tool(const bToolRef *tref);
+bool BKE_paint_use_unified_size(const Paint *paint);
+bool BKE_paint_use_unified_strength(const Paint *paint);
 bool BKE_paint_use_unified_color(const Paint *paint);
 
 /* Paint brush retrieval and assignment. */
@@ -299,6 +301,11 @@ float paint_grid_paint_mask(const GridPaintMask *gpm, uint level, uint x, uint y
 void BKE_paint_face_set_overlay_color_get(int face_set, int seed, uchar r_color[4]);
 
 /* Stroke related. */
+
+namespace bke::paint {
+bool supports_scene_size(PaintMode paint_mode);
+bool supports_symmetry_tiling(PaintMode paint_mode);
+}  // namespace bke::paint
 
 /* Random values are generated on each new stroke so each stroke
  * gets a different starting point in the perlin noise. */
