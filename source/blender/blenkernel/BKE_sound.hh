@@ -268,17 +268,21 @@ bool sound_mixdown(AUD_Sequence sequence,
 
 namespace bke {
 
-enum class SampleSoundWindow {
-  Hann,
-  Hamming,
-  Blackman,
-  Rectangular,
-};
-
+/**
+ * Used by the Sample Sound node in Geometry Nodes. It allows efficiently sampling the an arbitrary
+ * frequency range at an arbitrary point in time. This is achieved by caching the result of the
+ * fourier transform for various windows and interpolating between the cached values.
+ */
 class bSoundFrequencySampler {
  public:
+  enum class Window {
+    Hann,
+    Hamming,
+    Blackman,
+    Rectangular,
+  };
   struct Key {
-    SampleSoundWindow window;
+    Window window;
     int fft_size;
     std::optional<int> channel;
 

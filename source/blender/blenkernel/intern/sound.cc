@@ -2117,30 +2117,30 @@ const bSoundFrequencySampler *bSoundFrequencySampler::get_cached(const bSound &s
 }
 
 static bSoundFrequencySampler::WindowWeights compute_window_function_weights(
-    const SampleSoundWindow window, const int size)
+    const bSoundFrequencySampler::Window window, const int size)
 {
   Array<float> weights(size);
   switch (window) {
-    case SampleSoundWindow::Hann: {
+    case bSoundFrequencySampler::Window::Hann: {
       for (const int i : IndexRange(size)) {
         weights[i] = 0.5 - 0.5 * math::cos((2.0f * std::numbers::pi * i) / (size - 1));
       }
       break;
     }
-    case SampleSoundWindow::Hamming: {
+    case bSoundFrequencySampler::Window::Hamming: {
       for (const int i : IndexRange(size)) {
         weights[i] = 0.54 - 0.46 * math::cos((2.0f * std::numbers::pi * i) / (size - 1));
       }
       break;
     }
-    case SampleSoundWindow::Blackman: {
+    case bSoundFrequencySampler::Window::Blackman: {
       for (const int i : IndexRange(size)) {
         weights[i] = 0.42 - 0.5 * math::cos((2.0f * std::numbers::pi * i) / (size - 1)) +
                      0.08 * math::cos((4.0f * std::numbers::pi * i) / (size - 1));
       }
       break;
     }
-    case SampleSoundWindow::Rectangular: {
+    case bSoundFrequencySampler::Window::Rectangular: {
       weights.fill(1.0f);
       break;
     }
@@ -2153,10 +2153,10 @@ static bSoundFrequencySampler::WindowWeights compute_window_function_weights(
 }
 
 static const bSoundFrequencySampler::WindowWeights &get_window_function_weights(
-    const SampleSoundWindow window, const int size)
+    const bSoundFrequencySampler::Window window, const int size)
 {
   static Mutex mutex;
-  static Map<std::pair<SampleSoundWindow, int>,
+  static Map<std::pair<bSoundFrequencySampler::Window, int>,
              std::unique_ptr<bSoundFrequencySampler::WindowWeights>>
       map;
   std::lock_guard lock{mutex};
