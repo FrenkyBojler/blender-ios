@@ -35,7 +35,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Float>("Mask").structure_type(StructureType::Dynamic);
 
   b.add_layout([](ui::Layout &layout, bContext *C, PointerRNA *ptr) {
-    template_id(&layout, C, ptr, "mask", nullptr, nullptr, nullptr);
+    template_id(&layout, C, ptr, "mask", "mask.new", nullptr, nullptr);
   });
 
   b.add_input<decl::Menu>("Size Source")
@@ -93,9 +93,8 @@ class MaskOperation : public NodeOperation {
 
   void execute() override
   {
-    Result &output_mask = this->get_result("Mask");
     if (!this->get_mask()) {
-      output_mask.allocate_invalid();
+      this->allocate_default_remaining_outputs();
       return;
     }
 
@@ -109,6 +108,7 @@ class MaskOperation : public NodeOperation {
         this->get_motion_blur_samples(),
         this->get_motion_blur_shutter());
 
+    Result &output_mask = this->get_result("Mask");
     output_mask.wrap_external(cached_mask);
   }
 

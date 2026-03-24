@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Beta (b'21cc928ee21e')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'ec8c60553753')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-09 08:57+0000\n"
+"POT-Creation-Date: 2026-03-23 09:55+0000\n"
 "PO-Revision-Date: 2025-12-02 20:06+0000\n"
 "Last-Translator: Bastitron <bastitronhd@gmail.com>\n"
 "Language-Team: German <https://translate.blender.org/projects/blender-ui/ui/de/>\n"
@@ -978,6 +978,10 @@ msgstr "Aktiver Knoten"
 
 msgid "Default"
 msgstr "Vorgabe"
+
+
+msgid "Display Mode"
+msgstr "Anzeigemodus"
 
 
 msgid "Stroke Points"
@@ -9707,10 +9711,6 @@ msgid "Medium"
 msgstr "Mittel"
 
 
-msgid "Display Mode"
-msgstr "Anzeigemodus"
-
-
 msgid "Display mode for the file list"
 msgstr "Anzeigemodus für die Dateiliste"
 
@@ -11859,6 +11859,10 @@ msgstr "Topologie"
 
 msgid "Smooth Iterations"
 msgstr "Weiche Wiederholungen"
+
+
+msgid "Plane Normal"
+msgstr "Flächennormale"
 
 
 msgid "Rake"
@@ -18690,76 +18694,36 @@ msgid "Material slot name"
 msgstr "Materialsteckplatzname"
 
 
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Metaball"
-msgstr "Metaball"
-
-
-msgid "Show/Hide"
-msgstr "Zeigen/Verbergen"
-
-
-msgid "Read"
-msgstr "Lesen"
-
-
-msgid "Write"
-msgstr "Schreiben"
-
-
-msgid "Sample"
-msgstr "Beispiel"
-
-
-msgid "Names"
-msgstr "Namen"
-
-
-msgid "Primitives"
-msgstr "Grundkörper"
-
-
-msgid "Clean Up"
-msgstr "Aufräumen"
-
-
-msgid "Pivot Point"
-msgstr "Drehpunkt"
+msgid "Mirror"
+msgstr "Spiegeln"
 
 
 msgid "Snap"
 msgstr "Einrasten"
 
 
-msgid "Proportional Editing Falloff"
-msgstr "Proportionaler Bearbeitungsabfall"
-
-
-msgid "Mask Edit"
-msgstr "Maskenbearbeitung"
-
-
-msgid "Vertex Group Locks"
-msgstr "Punktgruppen sperren"
-
-
-msgid "Mirror"
-msgstr "Spiegeln"
-
-
 msgid "Local View"
 msgstr "Lokale Ansicht"
+
+
+msgid "Read"
+msgstr "Lesen"
 
 
 msgid "Viewpoint"
 msgstr "Ansicht"
 
 
+msgid "Sample"
+msgstr "Beispiel"
+
+
 msgid "Navigation"
 msgstr "Navigation"
+
+
+msgid "Write"
+msgstr "Schreiben"
 
 
 msgid "Align View"
@@ -18770,16 +18734,16 @@ msgid "Align View to Active"
 msgstr "Ansicht auf Aktiv ausrichten"
 
 
+msgid "Primitives"
+msgstr "Grundkörper"
+
+
 msgid "View Regions"
 msgstr "Vierfenster Ansicht"
 
 
 msgid "Select More/Less"
 msgstr "Mehr/weniger anzeigen"
-
-
-msgid "Layout"
-msgstr "Layout"
 
 
 msgid "Select Similar"
@@ -18798,20 +18762,20 @@ msgid "Select Loops"
 msgstr "Schleifen auswählen"
 
 
+msgid "Instances"
+msgstr "Instanzen"
+
+
 msgid "Assign Material"
 msgstr "Material zuweisen"
 
 
-msgid "Keying"
-msgstr "Schlüsselbilder"
+msgid "Import"
+msgstr "Importieren"
 
 
-msgid "Tracking"
-msgstr "Verfolgen"
-
-
-msgid "Math"
-msgstr "Mathematisch"
+msgid "Metaball"
+msgstr "Metaball"
 
 
 msgid "Light"
@@ -18820,6 +18784,14 @@ msgstr "Licht"
 
 msgid "Light Probe"
 msgstr "Lichtsonde"
+
+
+msgid "Math"
+msgstr "Mathematisch"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Add Image"
@@ -18846,6 +18818,14 @@ msgid "Quick Effects"
 msgstr "Schnelle Effekte"
 
 
+msgid "Show/Hide"
+msgstr "Zeigen/Verbergen"
+
+
+msgid "Clean Up"
+msgstr "Aufräumen"
+
+
 msgid "Asset"
 msgstr "Asset"
 
@@ -18862,6 +18842,10 @@ msgid "Hooks"
 msgstr "Haken"
 
 
+msgid "Vertex Group Locks"
+msgstr "Punktgruppen sperren"
+
+
 msgid "Random Mask"
 msgstr "Zufällige Maske"
 
@@ -18872,6 +18856,10 @@ msgstr "Transformation löschen"
 
 msgid "In-Betweens"
 msgstr "Dazwischen"
+
+
+msgid "Names"
+msgstr "Namen"
 
 
 msgid "Toggle Bone Options"
@@ -18894,16 +18882,16 @@ msgid "Face Data"
 msgstr "Flächendaten"
 
 
-msgid "Instances"
-msgstr "Instanzen"
-
-
-msgid "Import"
-msgstr "Importieren"
+msgid "Layout"
+msgstr "Layout"
 
 
 msgid "Merge"
 msgstr "Zusammenführen"
+
+
+msgid "Keying"
+msgstr "Schlüsselbilder"
 
 
 msgid "Special Characters"
@@ -18912,6 +18900,22 @@ msgstr "Sonderzeichen"
 
 msgid "Kerning"
 msgstr "Kerning"
+
+
+msgid "Tracking"
+msgstr "Verfolgen"
+
+
+msgid "Pivot Point"
+msgstr "Drehpunkt"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "Proportionaler Bearbeitungsabfall"
+
+
+msgid "Mask Edit"
+msgstr "Maskenbearbeitung"
 
 
 msgid "Assets"
@@ -22812,14 +22816,6 @@ msgid "Static Type"
 msgstr "Statischer Typ"
 
 
-msgid "Absolute bounding box dimensions of the node"
-msgstr "Absolute Begrenzungsrahmenabmessungen des Knotens"
-
-
-msgid "Height of the node"
-msgstr "Höhe der Box"
-
-
 msgid "Collapse"
 msgstr "Zusammenbruch"
 
@@ -22834,10 +22830,6 @@ msgstr "Eindeutiger Knotenbezeichnung"
 
 msgid "Outputs"
 msgstr "Ausgaben"
-
-
-msgid "Parent this node is attached to"
-msgstr "Elternteil, dem dieser Knoten zugehörig ist"
 
 
 msgid "Node selection state"
@@ -30607,10 +30599,6 @@ msgid "Clear Outer"
 msgstr "Äußeres löschen"
 
 
-msgid "Plane Normal"
-msgstr "Flächennormale"
-
-
 msgctxt "Operator"
 msgid "Blend from Shape"
 msgstr "Mischung aus Form"
@@ -34847,10 +34835,6 @@ msgid "Bake All Physics"
 msgstr "Jede Physik backen"
 
 
-msgid "Bake all physics"
-msgstr "Backen aller Physiken"
-
-
 msgctxt "Operator"
 msgid "Bake from Cache"
 msgstr "Backe vom Puffer"
@@ -35460,6 +35444,10 @@ msgstr "Einstellungen öffnen..."
 
 msgid "Editing"
 msgstr "Bearbeitung"
+
+
+msgid "Asset Libraries"
+msgstr "Asset-Bibliotheken"
 
 
 msgid "Keymap"
@@ -38795,14 +38783,6 @@ msgid "Active Palette Color"
 msgstr "Aktive Farbpalette"
 
 
-msgid "Active Tool"
-msgstr "Aktives Werkzeug"
-
-
-msgid "View Lock"
-msgstr "Ansicht sperren"
-
-
 msgid "Shadow Settings"
 msgstr "Schatteneinstellungen"
 
@@ -38873,6 +38853,14 @@ msgstr "Automatisches Maskieren"
 
 msgid "VR"
 msgstr "VR"
+
+
+msgid "Active Tool"
+msgstr "Aktives Werkzeug"
+
+
+msgid "View Lock"
+msgstr "Ansicht sperren"
 
 
 msgid "Chain Scaling"
@@ -39468,10 +39456,6 @@ msgstr "Erweiterungen"
 
 msgid "Applications"
 msgstr "Anwendungen"
-
-
-msgid "Asset Libraries"
-msgstr "Asset-Bibliotheken"
 
 
 msgid "Development"
@@ -43961,10 +43945,6 @@ msgstr "Quelle anzeigen"
 
 msgid "Show Color Tags"
 msgstr "Zeige Farb-Tags"
-
-
-msgid "Show Thumbnails"
-msgstr "Vorschaubilder anzeigen"
 
 
 msgid "Waveform Display"
@@ -49069,6 +49049,10 @@ msgid "Rotation"
 msgstr "Rotation"
 
 
+msgid "Frame Range Start"
+msgstr "Einzelbildbereich Start"
+
+
 msgctxt "Operator"
 msgid "Update All Paths"
 msgstr "Alle Pfade aktualisieren"
@@ -49106,10 +49090,6 @@ msgstr "Berechne..."
 
 msgid "Before"
 msgstr "Davor"
-
-
-msgid "Frame Range Start"
-msgstr "Einzelbildbereich Start"
 
 
 msgid "Collection Mask"
@@ -49955,11 +49935,6 @@ msgstr "Backen (Festplattencache obligatorisch)"
 msgctxt "Operator"
 msgid "Calculate to Frame"
 msgstr "Berechne auf Einzelbild"
-
-
-msgctxt "Operator"
-msgid "Bake All Dynamics"
-msgstr "Alle Dynamiken backen"
 
 
 msgctxt "Operator"
@@ -51687,6 +51662,11 @@ msgstr "Installiere Applikationstemplate..."
 
 
 msgctxt "Operator"
+msgid "Save Copy..."
+msgstr "Kopie speichern..."
+
+
+msgctxt "Operator"
 msgid "Quit"
 msgstr "Beenden"
 
@@ -51764,11 +51744,6 @@ msgstr "Nächster Arbeitsplatz"
 msgctxt "Operator"
 msgid "Back to Previous"
 msgstr "Zurück zum vorherigen"
-
-
-msgctxt "Operator"
-msgid "Save Copy..."
-msgstr "Kopie speichern..."
 
 
 msgctxt "Operator"
@@ -52830,6 +52805,10 @@ msgid "Origins"
 msgstr "Ursprünge"
 
 
+msgid "Marker Names"
+msgstr "Filzstift Namen"
+
+
 msgctxt "Plural"
 msgid "Sharp"
 msgstr "Scharf"
@@ -53132,12 +53111,12 @@ msgid "To 3D Cursor"
 msgstr "Zum 3D-Cursor"
 
 
+msgid "Screen Space"
+msgstr "Zwischenraum"
+
+
 msgid "Fade Inactive Geometry"
 msgstr "Inaktive Geometrie ausblenden"
-
-
-msgid "Marker Names"
-msgstr "Filzstift Namen"
 
 
 msgid "Fade Geometry"
@@ -53229,10 +53208,6 @@ msgstr "Oberflächen überbrücken"
 msgctxt "Operator"
 msgid "Delete Faces"
 msgstr "Oberfläche löschen"
-
-
-msgid "Screen Space"
-msgstr "Zwischenraum"
 
 
 msgid "Include Edited"

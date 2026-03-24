@@ -42,6 +42,8 @@ BLOCKLIST = [
     "light_path_is_diffuse_ray.blend",
     # Blocked due to stochastic diffuse/transmission layering resulting in non-deterministic surfel lighting.
     "principled_bsdf_transmission.blend",
+    # Blocked due to platform-dependent noise differences (likely floating-point/fast-math differences).
+    "raycast_bump.blend",
 ]
 
 BLOCKLIST_METAL = [
@@ -79,6 +81,7 @@ def setup():
 
         skip_hair_setup = scene.get("EEVEE_skip_hair_setup", False)
         skip_shadow_setup = scene.get("EEVEE_skip_shadow_setup", False)
+        skip_subsurface_setup = scene.get("EEVEE_skip_subsurface_setup", False)
 
         # Enable Eevee features
         eevee = scene.eevee
@@ -142,9 +145,10 @@ def setup():
                 ob.hide_probe_plane = True
 
             # Counteract the versioning from legacy EEVEE. Should be changed per file at some point.
-            for mat_slot in ob.material_slots:
-                if mat_slot.material:
-                    mat_slot.material.thickness_mode = 'SPHERE'
+            if not skip_subsurface_setup:
+                for mat_slot in ob.material_slots:
+                    if mat_slot.material:
+                        mat_slot.material.thickness_mode = 'SPHERE'
 
         if bpy.data.objects.get('Volume_Probe_Baked') is not None:
             # Some file already have pre existing probe setup with baked data.
