@@ -577,7 +577,8 @@ void GHOST_XrControllerModel::load(XrSession session)
     CHECK_XR(g_xrCreateRenderModelEXT(session, &render_model_create_info, &render_model),
              "Failed to create interaction render model handle.");
 
-    // TODO: This is kind of abusing the API as we should instead load all model and choose which one to return on getData, but oh well.
+    // TODO: This is kind of abusing the API as we should instead load all model and choose which
+    //       one to return on getData, but this will for now.
     /* Check if this model matches our target subaction path. */
     XrInteractionRenderModelTopLevelUserPathGetInfoEXT path_info = {
         XR_TYPE_INTERACTION_RENDER_MODEL_TOP_LEVEL_USER_PATH_GET_INFO_EXT};
@@ -863,7 +864,8 @@ void GHOST_XrControllerModel::getData(GHOST_XrControllerModelData &r_data)
     r_data.indices = {};
     r_data.components = {};
     r_data.textures = {};
-    r_data.base_pose = {.is_active=false, .position={0, 0, 0}, .orientation_quat={1, 0, 0, 0}};
+    r_data.base_pose = {
+        .is_active = false, .position = {0, 0, 0}, .orientation_quat = {1, 0, 0, 0}};
   }
 }
 

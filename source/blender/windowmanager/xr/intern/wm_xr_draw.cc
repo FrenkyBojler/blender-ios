@@ -384,7 +384,7 @@ static void wm_xr_controller_model_draw(const XrSessionSettings *settings,
       GPU_matrix_push();
       GPU_matrix_mul(controller.model_mat);
 
-      for (const GHOST_XrControllerModelComponent &component: model_data.components) {
+      for (const GHOST_XrControllerModelComponent &component : model_data.components) {
         /* Check if this component has a texture. */
         gpu::Texture *texture = nullptr;
         if (component.texture_index >= 0 &&
