@@ -413,21 +413,12 @@ StrokeToggleSettings create_toggle_settings(const wmOperator &op, Main &bmain, P
 void update_cache_invariants(VPaint &vp, SculptSession &ss, wmOperator *op, const float mval[2])
 {
   PaintStroke *stroke = static_cast<PaintStroke *>(op->customdata);
-  StrokeCache *cache;
+  StrokeCache *cache = ss.cache;
   bke::PaintRuntime &paint_runtime = *vp.paint.runtime;
   ViewContext *vc = &stroke->vc;
   Object &ob = *stroke->object;
   float mat[3][3];
   float view_dir[3] = {0.0f, 0.0f, 1.0f};
-
-  /* VW paint needs to allocate stroke cache before update is called. */
-  if (!ss.cache) {
-    cache = MEM_new<StrokeCache>(__func__);
-    ss.cache = cache;
-  }
-  else {
-    cache = ss.cache;
-  }
 
   /* Initial mouse location */
   if (mval) {
@@ -437,11 +428,6 @@ void update_cache_invariants(VPaint &vp, SculptSession &ss, wmOperator *op, cons
     zero_v2(cache->initial_mouse);
   }
 
-  const auto mode = BrushStrokeMode(RNA_enum_get(op->ptr, "mode"));
-  cache->toggle_settings.invert = mode == BrushStrokeMode::Invert;
-
-  const auto brush_switch_mode = BrushSwitchMode(RNA_enum_get(op->ptr, "brush_toggle"));
-  cache->toggle_settings.alt_smooth = brush_switch_mode == BrushSwitchMode::Smooth;
   /* not very nice, but with current events system implementation
    * we can't handle brush appearance inversion hotkey separately (sergey) */
   if (cache->toggle_settings.invert) {
@@ -2099,8 +2085,6 @@ static wmOperatorStatus vpaint_invoke(bContext *C, wmOperator *op, const wmEvent
   op->customdata = stroke;
 
   vwpaint::init_stroke(*op, *stroke->bmain_, *stroke->paint, *stroke->depsgraph, *stroke->object);
-  StrokeCache &cache = *stroke->object->runtime->sculpt_session->cache;
-  cache.toggle_settings = vwpaint::create_toggle_settings(*op, *CTX_data_main(C), *stroke->paint);
 
   const wmOperatorStatus retval = op->type->modal(C, op, event);
   OPERATOR_RETVAL_CHECK(retval);
