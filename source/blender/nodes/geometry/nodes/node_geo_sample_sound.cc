@@ -102,7 +102,7 @@ class SampleSoundFunction : public mf::MultiFunction {
       key.fft_size = fft_size;
       key.channel = *all_channels_value ? std::nullopt : channel_value;
 
-      bke::SoundSampler *sampler = bke::sound_sampler_get(sound_, key);
+      const bke::SoundSampler *sampler = bke::sound_sampler_get(sound_, key);
       if (!sampler) {
         index_mask::masked_fill(amplitudes, 0.0f, mask);
         return;
@@ -114,7 +114,6 @@ class SampleSoundFunction : public mf::MultiFunction {
         const float amplitude = sampler->sample_single(time, low, high);
         amplitudes[i] = amplitude;
       });
-      delete sampler;
       return;
     }
 
@@ -130,14 +129,13 @@ class SampleSoundFunction : public mf::MultiFunction {
       key.fft_size = fft_size;
       key.channel = all_channels ? std::nullopt : std::make_optional(channel);
 
-      bke::SoundSampler *sampler = bke::sound_sampler_get(sound_, key);
+      const bke::SoundSampler *sampler = bke::sound_sampler_get(sound_, key);
       if (!sampler) {
         amplitudes[i] = 0.0f;
         return;
       }
       const float amplitude = sampler->sample_single(time, low, high);
       amplitudes[i] = amplitude;
-      delete sampler;
     });
   }
 };

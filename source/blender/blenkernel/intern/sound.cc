@@ -94,6 +94,8 @@
 #include "SEQ_sequencer.hh"
 #include "SEQ_sound.hh"
 
+#include "BLI_concurrent_map.hh"
+
 #include "CLG_log.h"
 
 namespace blender {
@@ -109,6 +111,8 @@ enum class SoundTags {
 };
 ENUM_OPERATORS(SoundTags);
 
+using SoundSamplerMap = ConcurrentMap<SampleSoundKey, std::shared_ptr<SoundSampler>>;
+
 struct SoundRuntime {
   AUD_Sound handle;
   AUD_Sound cache;
@@ -122,6 +126,8 @@ struct SoundRuntime {
    * save/restore a pointer. */
   Vector<float> *waveform = nullptr;
   SoundTags tags = SoundTags::None;
+
+  SoundSamplerMap samplers;
 };
 
 }  // namespace bke
@@ -2084,9 +2090,19 @@ const Vector<float> *BKE_sound_runtime_get_waveform(const bSound *sound)
 
 namespace bke {
 
-SoundSampler *sound_sampler_get(const bSound &sound, const SampleSoundKey &key)
+const SoundSampler *sound_sampler_get(const bSound &sound, const SampleSoundKey &key)
 {
-  return new SoundSampler(sound, key);
+  {
+    SoundSamplerMap::ConstAccessor accessor;
+    if (sound.runtime->samplers.lookup(accessor, key)) {
+      return accessor->second.get();
+    }
+  }
+  SoundSamplerMap::MutableAccessor accessor;
+  if (sound.runtime->samplers.add(accessor, key)) {
+    accessor->second = std::make_shared<SoundSampler>(sound, key);
+  }
+  return accessor->second.get();
 }
 
 SoundSampler::SoundSampler(const bSound &sound, const SampleSoundKey &key)

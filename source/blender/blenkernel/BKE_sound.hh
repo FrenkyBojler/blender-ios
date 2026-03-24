@@ -17,6 +17,7 @@
 
 #include "BLI_array.hh"
 #include "BLI_cache_mutex.hh"
+#include "BLI_hash.hh"
 #include "BLI_math_base.hh"
 #include "BLI_vector.hh"
 
@@ -275,6 +276,13 @@ struct SampleSoundKey {
   SampleSoundWindow window;
   int fft_size;
   std::optional<int> channel;
+
+  uint64_t hash() const
+  {
+    return get_default_hash(this->window, this->fft_size, this->channel.value_or(-1));
+  }
+
+  friend bool operator==(const SampleSoundKey &a, const SampleSoundKey &b) = default;
 };
 
 std::optional<Array<float>> sound_compute_fft(const bSound &sound,
@@ -311,7 +319,7 @@ class SoundSampler {
   std::optional<Span<float>> ensure_bucket(const int bucket_i) const;
 };
 
-SoundSampler *sound_sampler_get(const bSound &sound, const SampleSoundKey &key);
+const SoundSampler *sound_sampler_get(const bSound &sound, const SampleSoundKey &key);
 
 }  // namespace bke
 
