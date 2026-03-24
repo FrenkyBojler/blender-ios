@@ -2176,8 +2176,7 @@ bSoundFrequencySampler::bSoundFrequencySampler(const bSound &sound, const Key &k
   samples_per_second_ = info.specs.samplerate;
   /* This could be a parameter but a single fixed value seems fine for now and makes caching much
    * simpler. */
-  const float window_stride_in_seconds = 0.05f;
-  window_cache_stride_ = info.specs.samplerate * window_stride_in_seconds;
+  window_cache_stride_ = key.fft_size / 8;
   window_caches_.reinitialize(
       std::ceil(info.length * info.specs.samplerate / window_cache_stride_));
 }
