@@ -10,6 +10,7 @@
 #include <memory>
 
 #include "BKE_paint.hh"
+
 #include "BLI_array.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_set.hh"
