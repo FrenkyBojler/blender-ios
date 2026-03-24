@@ -92,10 +92,14 @@ class SampleSoundFunction : public mf::MultiFunction {
     const std::optional<float> channel_value = channels.get_if_single();
     const bool constant_channel = all_channels_value == true ||
                                   (all_channels_value.has_value() && channel_value.has_value());
+
+    const bke::SampleSoundWindow window = bke::SampleSoundWindow::Rectangular;
+    const int fft_size = 4096;
+
     if (constant_channel) {
       bke::SampleSoundKey key;
-      key.window = bke::SampleSoundWindow::Rectangular;
-      key.fft_size = 2048;
+      key.window = window;
+      key.fft_size = fft_size;
       key.channel = *all_channels_value ? std::nullopt : channel_value;
 
       bke::SoundSampler *sampler = bke::sound_sampler_get(sound_, key);
@@ -122,8 +126,8 @@ class SampleSoundFunction : public mf::MultiFunction {
       const float high = highs[i];
 
       bke::SampleSoundKey key;
-      key.window = bke::SampleSoundWindow::Rectangular;
-      key.fft_size = 2048;
+      key.window = window;
+      key.fft_size = fft_size;
       key.channel = all_channels ? std::nullopt : std::make_optional(channel);
 
       bke::SoundSampler *sampler = bke::sound_sampler_get(sound_, key);

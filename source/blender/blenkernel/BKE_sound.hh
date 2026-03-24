@@ -283,73 +283,87 @@ std::optional<Array<float>> sound_compute_fft(const bSound &sound,
 
 class SoundSampler {
  private:
-  struct Bucket {
+  struct Bin {
     mutable CacheMutex mutex;
     mutable std::optional<Array<float, 0>> cumulative_amplitudes;
+  };
+
+  struct BinPair {
+    Span<float> prev;
+    Span<float> next;
+    float fraction;
   };
 
   const bSound &sound_;
   SampleSoundKey key_;
   int samples_per_second_;
   int samples_per_bucket_;
-  Array<Bucket> buckets_;
+  Array<Bin> buckets_;
 
  public:
   SoundSampler(const bSound &sound, const SampleSoundKey &key);
 
   float sample_single(const float time, const float low, const float high) const
   {
+    const std::optional<BinPair> bin_pair = this->get_buckets_for_time(time);
+    if (!bin_pair.has_value()) {
+      return 0.0f;
+    }
+
+    const float prev_cumulative_low = this->sample_cumulative_frequency(bin_pair->prev, low);
+    const float prev_cumulative_high = this->sample_cumulative_frequency(bin_pair->prev, high);
+    const float prev_amplitude = prev_cumulative_high - prev_cumulative_low;
+
+    const float next_cumulative_low = this->sample_cumulative_frequency(bin_pair->next, low);
+    const float next_cumulative_high = this->sample_cumulative_frequency(bin_pair->next, high);
+    const float next_amplitude = next_cumulative_high - next_cumulative_low;
+
+    const float amplitude = math::interpolate(prev_amplitude, next_amplitude, bin_pair->fraction);
+    return amplitude;
+  }
+
+  float sample_cumulative_frequency(const Span<float> bucket_values, const float frequency) const
+  {
+    const int bucket_size = bucket_values.size();
+    const int max_i = bucket_size - 1;
+
+    // TODO: Double check whether this may need to be divided by two or so.
+    const float i_float = frequency * key_.fft_size / samples_per_second_;
+    int i = std::floor(i_float);
+    const float fraction = i_float - i;
+
+    i = std::clamp(i, 0, max_i);
+    const int i_next = std::min(i + 1, max_i);
+
+    const float value_0 = bucket_values[i];
+    const float value_1 = bucket_values[i_next];
+    const float value = math::interpolate(value_0, value_1, fraction);
+    return value;
+  }
+
+  std::optional<BinPair> get_buckets_for_time(const float time) const
+  {
     const float bucket_i_float = time * samples_per_second_ / samples_per_bucket_;
     const int prev_bucket_i = floorf(bucket_i_float);
     const int next_bucket_i = prev_bucket_i + 1;
     const float bucket_fraction = bucket_i_float - prev_bucket_i;
     if (prev_bucket_i < 0) {
-      return 0.0f;
+      return std::nullopt;
     }
     if (next_bucket_i >= buckets_.size()) {
-      return 0.0f;
+      return std::nullopt;
     }
     const std::optional<Span<float>> prev_bucket_opt = this->ensure_bucket(prev_bucket_i);
     const std::optional<Span<float>> next_bucket_opt = this->ensure_bucket(next_bucket_i);
     if (!prev_bucket_opt.has_value() || !next_bucket_opt.has_value()) {
-      return 0.0f;
+      return std::nullopt;
     }
-    const Span<float> prev_bucket = *prev_bucket_opt;
-    const Span<float> next_bucket = *next_bucket_opt;
-
-    const int bucket_size = prev_bucket.size();
-    const int max_bucket_i = bucket_size - 1;
-
-    const float low_i_float = std::max(low, 0.0f) * key_.fft_size / samples_per_second_;
-    const float high_i_float = std::max(high, 0.0f) * key_.fft_size / samples_per_second_;
-
-    const int prev_low_i = std::min(int(floorf(low_i_float)), max_bucket_i);
-    const int next_low_i = std::min(prev_low_i + 1, max_bucket_i);
-    const float low_fraction = low_i_float - prev_low_i;
-
-    const int prev_high_i = std::min(int(floorf(high_i_float)), max_bucket_i);
-    const int next_high_i = std::min(prev_high_i + 1, max_bucket_i);
-    const float high_fraction = high_i_float - prev_high_i;
-
-    const float prev_low_amplitude_accum = math::interpolate(
-        prev_bucket[prev_low_i], prev_bucket[next_low_i], low_fraction);
-    const float prev_high_amplitude_accum = math::interpolate(
-        prev_bucket[prev_high_i], prev_bucket[next_high_i], high_fraction);
-    const float prev_amplitude = prev_high_amplitude_accum - prev_low_amplitude_accum;
-
-    const float next_low_amplitude_accum = math::interpolate(
-        next_bucket[prev_low_i], next_bucket[next_low_i], low_fraction);
-    const float next_high_amplitude_accum = math::interpolate(
-        next_bucket[prev_high_i], next_bucket[next_high_i], high_fraction);
-    const float next_amplitude = next_high_amplitude_accum - next_low_amplitude_accum;
-
-    const float amplitude = math::interpolate(prev_amplitude, next_amplitude, bucket_fraction);
-    return amplitude;
+    return BinPair{*prev_bucket_opt, *next_bucket_opt, bucket_fraction};
   }
 
   std::optional<Span<float>> ensure_bucket(const int bucket_i) const
   {
-    const Bucket &bucket = buckets_[bucket_i];
+    const Bin &bucket = buckets_[bucket_i];
     bucket.mutex.ensure([&]() {
       std::optional<Array<float>> fft_array = sound_compute_fft(
           sound_, key_, bucket_i * samples_per_bucket_);
