@@ -146,8 +146,8 @@ class LazyFunctionForSwitchNode : public LazyFunction {
     if (tree_logger == nullptr) {
       return;
     }
-    tree_logger->node_warnings.append(*tree_logger->allocator,
-                                      {node_.identifier, {NodeWarningType::Error, error}});
+    tree_logger->node_warnings.append(
+        *tree_logger->allocator, {node_.identifier, {NodeWarningType::Error, std::move(error)}});
   }
 
   void execute_impl(lf::Params &params, const lf::Context &context) const override
