@@ -110,34 +110,31 @@ def add_closure_zone(layout, label):
     props.use_transform = True
     return props
 
+def set_socket_default_value(settings, socket_identifier, socket_default_value):
+    prop = settings.add()
+    prop.name = "inputs[\"{:s}\"].default_value".format(socket_identifier)
+    prop.value = socket_default_value
+    return prop
 
 def color_mix_node_defaults(enum_identifier, props):
     if enum_identifier == 'MIX':
-        prop = props.settings.add()
-        prop.name = "inputs[\"Factor\"].default_value"
-        prop.value = "0.5"
-
+        set_socket_default_value(props.settings, "Factor", "0.5")
 
 def set_math_node_default_props(enum_identifier, props):
-    def add_set_prop(settings, socket_identifier, socket_default_value):
-        prop = settings.add()
-        prop.name = "inputs[\"{:s}\"].default_value".format(socket_identifier)
-        prop.value = socket_default_value
-        return prop
 
     if enum_identifier in ('MULTIPLY', 'POWER', 'MODULO', 'FLOORED_MODULO', 'ARCTAN2'):
-        add_set_prop(props.settings, "Value", "1.0")
-        add_set_prop(props.settings, "Value_001", "1.0")
+        set_socket_default_value(props.settings, "Value", "1.0")
+        set_socket_default_value(props.settings, "Value_001", "1.0")
     elif enum_identifier == 'ADD':
-        add_set_prop(props.settings, "Value", "0.0")
-        add_set_prop(props.settings, "Value_001", "0.0")
+        set_socket_default_value(props.settings, "Value", "0.0")
+        set_socket_default_value(props.settings, "Value_001", "0.0")
     elif enum_identifier == 'SUBTRACT':
         # 1 - x operations are common for subtraction.
-        add_set_prop(props.settings, "Value", "1.0")
-        add_set_prop(props.settings, "Value_001", "0.0")
+        set_socket_default_value(props.settings, "Value", "1.0")
+        set_socket_default_value(props.settings, "Value_001", "0.0")
     elif enum_identifier == 'MULTIPLY_ADD':
-        add_set_prop(props.settings, "Value_001", "1.0")
-        add_set_prop(props.settings, "Value_002", "0.0")
+        set_socket_default_value(props.settings, "Value_001", "1.0")
+        set_socket_default_value(props.settings, "Value_002", "0.0")
 
 
 class NodeMenu(Menu):
