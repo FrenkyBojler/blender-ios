@@ -4825,12 +4825,26 @@ static void screen_area_touch_menu_create(bContext *C, ScrArea *area)
   ui::PopupMenu *pup = ui::popup_menu_begin(C, "Area Options", ICON_NONE);
   ui::Layout &layout = *ui::popup_menu_layout(pup);
   layout.operator_context_set(wm::OpCallContext::InvokeDefault);
+  PointerRNA ptr;
 
-  PointerRNA ptr = layout.op("SCREEN_OT_area_split",
-                             IFACE_("Horizontal Split"),
-                             ICON_SPLIT_HORIZONTAL,
-                             wm::OpCallContext::ExecDefault,
-                             UI_ITEM_NONE);
+  const bool multi_spaces = (area && !ELEM(area->spacetype, SPACE_TOPBAR, SPACE_STATUSBAR) &&
+                             BLI_listbase_count_at_most(&area->spacedata, 2) > 1);
+
+  if (multi_spaces) {
+    ptr = layout.op("SCREEN_OT_area_space_cycle", IFACE_("Back"), ICON_PLAY_REVERSE);
+    RNA_enum_set(&ptr, "direction", 0);
+
+    ptr = layout.op("SCREEN_OT_area_space_cycle", IFACE_("Forward"), ICON_PLAY);
+    RNA_enum_set(&ptr, "direction", 1);
+
+    layout.separator();
+  }
+
+  ptr = layout.op("SCREEN_OT_area_split",
+                  IFACE_("Horizontal Split"),
+                  ICON_SPLIT_HORIZONTAL,
+                  wm::OpCallContext::ExecDefault,
+                  UI_ITEM_NONE);
   RNA_enum_set(&ptr, "direction", SCREEN_AXIS_H);
   RNA_float_set(&ptr, "factor", 0.49999f);
   int2 pos = {area->totrct.xmin + area->winx / 2, area->totrct.ymin + area->winy / 2};
@@ -5742,11 +5756,25 @@ static void screen_area_menu_items(ScrArea *area, ui::Layout &layout)
     return;
   }
 
-  PointerRNA ptr = layout.op("SCREEN_OT_area_join",
-                             IFACE_("Move/Split Area"),
-                             ICON_AREA_DOCK,
-                             wm::OpCallContext::InvokeDefault,
-                             UI_ITEM_NONE);
+  PointerRNA ptr;
+  const bool multi_spaces = (area && !ELEM(area->spacetype, SPACE_TOPBAR, SPACE_STATUSBAR) &&
+                             BLI_listbase_count_at_most(&area->spacedata, 2) > 1);
+
+  if (multi_spaces) {
+    ptr = layout.op("SCREEN_OT_area_space_cycle", IFACE_("Back"), ICON_PLAY_REVERSE);
+    RNA_enum_set(&ptr, "direction", 0);
+
+    ptr = layout.op("SCREEN_OT_area_space_cycle", IFACE_("Forward"), ICON_PLAY);
+    RNA_enum_set(&ptr, "direction", 1);
+
+    layout.separator();
+  }
+
+  ptr = layout.op("SCREEN_OT_area_join",
+                  IFACE_("Move/Split Area"),
+                  ICON_AREA_DOCK,
+                  wm::OpCallContext::InvokeDefault,
+                  UI_ITEM_NONE);
 
   layout.separator();
 
@@ -7155,6 +7183,94 @@ static void SCREEN_OT_space_type_set_or_cycle(wmOperatorType *ot)
 }
 
 /** \} */
+/* -------------------------------------------------------------------- */
+/** \name Area Space Cycle
+ * \{ */
+
+static const EnumPropertyItem area_space_cycle_direction[] = {
+    {0, "BACK", 0, "Back", ""},
+    {1, "FORWARD", 0, "Forward", ""},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+static bool area_space_cycle_poll(bContext *C)
+{
+  ScrArea *area = CTX_wm_area(C);
+  return (area && !ELEM(area->spacetype, SPACE_TOPBAR, SPACE_STATUSBAR) &&
+          BLI_listbase_count_at_most(&area->spacedata, 2) > 1);
+}
+
+static wmOperatorStatus area_space_cycle_exec(bContext *C, wmOperator *op)
+{
+  const eScreenCycle direction = eScreenCycle(RNA_enum_get(op->ptr, "direction"));
+  ScrArea *area = CTX_wm_area(C);
+  wmWindow *win = CTX_wm_window(C);
+  SpaceLink *slold = static_cast<SpaceLink *>(area->spacedata.first);
+  SpaceLink *slnew;
+  /* XXX: No attempt to deal with header alignment. */
+  bool skip_region_exit = true;
+  void (*area_exit)(wmWindowManager *, ScrArea *) = area->type ? area->type->exit : nullptr;
+  if (skip_region_exit && area->type) {
+    area->type->exit = nullptr;
+  }
+  ED_area_exit(C, area);
+  if (skip_region_exit && area->type) {
+    area->type->exit = area_exit;
+  }
+  if (direction == SPACE_CONTEXT_CYCLE_PREV) {
+    BLI_remlink(&area->spacedata, slold);
+    BLI_addtail(&area->spacedata, slold);
+    slnew = static_cast<SpaceLink *>(area->spacedata.first);
+  }
+  else {
+    slnew = static_cast<SpaceLink *>(area->spacedata.last);
+    BLI_remlink(&area->spacedata, slnew);
+    BLI_addhead(&area->spacedata, slnew);
+  }
+  area->spacetype = slnew->spacetype;
+  /* swap regions */
+  slold->regionbase = area->regionbase;
+  area->regionbase = slnew->regionbase;
+  BLI_listbase_clear(&slnew->regionbase);
+  /* SPACE_FLAG_TYPE_WAS_ACTIVE is only used to go back to a previously active space that is
+   * overlapped by temporary ones. It's now properly activated, so the flag should be cleared
+   * at this point. */
+  slnew->link_flag &= ~SPACE_FLAG_TYPE_WAS_ACTIVE;
+  ED_area_init(C, win, area);
+  /* tell WM to refresh, cursor types etc */
+  WM_event_add_mousemove(win);
+  /* send space change notifier */
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_CHANGED, area);
+  ED_area_tag_refresh(area);
+  ED_area_tag_redraw(area);
+
+  if (!G.background && !(U.uiflag & USER_REDUCE_MOTION)) {
+    screen_area_animate_out(
+        C, area, direction == SPACE_CONTEXT_CYCLE_PREV ? SCREEN_DIR_E : SCREEN_DIR_W, 0.25f);
+  }
+
+  return OPERATOR_FINISHED;
+}
+
+static void SCREEN_OT_area_space_cycle(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Cycle Area Editors";
+  ot->description = "Cycle through an area's editors";
+  ot->idname = "SCREEN_OT_area_space_cycle";
+  /* api callbacks */
+  ot->exec = area_space_cycle_exec;
+  ot->poll = area_space_cycle_poll;
+  ot->flag = 0;
+  RNA_def_enum(ot->srna,
+               "direction",
+               area_space_cycle_direction,
+               0,
+               "Direction",
+               "Direction to cycle through");
+}
+
+/** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Space Context Cycle Operator
@@ -7349,6 +7465,7 @@ void ED_operatortypes_screen()
   WM_operatortype_append(SCREEN_OT_space_type_set_or_cycle);
   WM_operatortype_append(SCREEN_OT_space_context_cycle);
   WM_operatortype_append(SCREEN_OT_workspace_cycle);
+  WM_operatortype_append(SCREEN_OT_area_space_cycle);
 
   /* Frame changes. */
   WM_operatortype_append(SCREEN_OT_frame_offset);
