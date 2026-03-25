@@ -1038,6 +1038,50 @@ static AttributeAccessorFunctions get_mesh_accessor_functions()
     }
     return true;
   };
+  fn.rename = [](void *owner, StringRef old_name, StringRef new_name, bool overwrite) -> bool {
+    Mesh &mesh = *static_cast<Mesh *>(owner);
+    AttributeStorage &storage = mesh.attribute_storage.wrap();
+    const AttrBuiltinInfo &old_builtin_info = builtin_attributes().lookup(old_name);
+    const AttrBuiltinInfo &new_builtin_info = builtin_attributes().lookup(new_name);
+    if (!old_builtin_info.deletable) {
+      return false;
+    }
+    Attribute *attr = storage.lookup(old_name);
+    if (!attr) {
+      return false;
+    }
+    if (new_builtin_info.domain != attr->domain()) {
+      return false;
+    }
+    if (new_builtin_info.type != attr->data_type()) {
+      return false;
+    }
+    storage.rename(*attr, new_name, overwrite);
+    return true;
+  };
+  fn.rename_multiple = [](void *owner, const Map<StringRef, StringRef> &map, bool overwrite) {
+    Mesh &mesh = *static_cast<Mesh *>(owner);
+    AttributeStorage &storage = mesh.attribute_storage.wrap();
+    for (const auto &[old_name, new_name] : map.items()) {
+      const AttrBuiltinInfo &old_builtin_info = builtin_attributes().lookup(old_name);
+      const AttrBuiltinInfo &new_builtin_info = builtin_attributes().lookup(new_name);
+      if (!old_builtin_info.deletable) {
+        return false;
+      }
+      Attribute *attr = storage.lookup(old_name);
+      if (!attr) {
+        return false;
+      }
+      if (new_builtin_info.domain != attr->domain()) {
+        return false;
+      }
+      if (new_builtin_info.type != attr->data_type()) {
+        return false;
+      }
+    }
+    storage.rename(map, overwrite);
+    return true;
+  };
   fn.assign_data = [](void *owner, StringRef name, const AttributeInit &initializer) {
     Mesh &mesh = *static_cast<Mesh *>(owner);
     AttributeStorage &storage = mesh.attribute_storage.wrap();

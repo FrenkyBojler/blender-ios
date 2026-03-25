@@ -314,16 +314,50 @@ std::string AttributeStorage::unique_name_calc(const StringRef name) const
       name_final);
 }
 
-void AttributeStorage::rename(const StringRef old_name, std::string new_name)
+void AttributeStorage::rename(Attribute &attr, std::string new_name, const bool overwrite)
 {
   BLI_assert(!new_name.empty());
   /* The VectorSet must be rebuilt from scratch because the data used to create the hash is
    * changed. */
-  const int index = this->runtime->attributes.index_of_try_as(old_name);
   Vector<std::unique_ptr<Attribute>> old_vector = this->runtime->attributes.extract_vector();
-  old_vector[index]->name_ = std::move(new_name);
+  attr.name_ = std::move(new_name);
   this->runtime->attributes.reserve(old_vector.size());
   for (std::unique_ptr<Attribute> &attribute : old_vector) {
+    this->runtime->attributes.add_new(std::move(attribute));
+  }
+}
+
+void AttributeStorage::rename(const StringRef old_name, std::string new_name, const bool overwrite)
+{
+  BLI_assert(this->contains(old_name));
+  this->rename(*this->lookup(old_name), std::move(new_name), overwrite);
+}
+
+void AttributeStorage::rename(const Map<Attribute *, StringRef> &renames, const bool overwrite)
+{
+  if (std::none_of(renames.keys().begin(), renames.keys().end(), [&](const auto name) {
+        return bool(this->lookup(name));
+      }))
+  {
+    return;
+  }
+  Vector<std::unique_ptr<Attribute>, 16> renamed;
+  renamed.reserve(this->runtime->attributes.size());
+  Set<StringRef, 16> used_names;
+  while (!this->runtime->attributes.is_empty()) {
+    std::unique_ptr<Attribute> attr = this->runtime->attributes.pop();
+    if (used_names.contains(attr->name())) {
+      continue;
+    }
+    if (const std::optional<StringRef> name = renames.lookup_try(attr->name())) {
+      attr->name_ = *name;
+      if (overwrite) {
+        used_names.add_new(*name);
+      }
+    }
+    renamed.append(std::move(attr));
+  }
+  for (std::unique_ptr<Attribute> &attribute : renamed) {
     this->runtime->attributes.add_new(std::move(attribute));
   }
 }

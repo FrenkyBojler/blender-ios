@@ -8,6 +8,7 @@
 
 #include "BLI_function_ref.hh"
 #include "BLI_implicit_sharing_ptr.hh"
+#include "BLI_map.hh"
 #include "BLI_memory_counter_fwd.hh"
 #include "BLI_random_access_iterator_mixin.hh"
 #include "BLI_string_ref.hh"
@@ -175,7 +176,9 @@ class AttributeStorage : public blender::AttributeStorage {
   std::string unique_name_calc(StringRef name) const;
 
   /** Change the name of a single existing attribute. */
-  void rename(StringRef old_name, std::string new_name);
+  void rename(StringRef old_name, std::string new_name, bool overwrite);
+  void rename(Attribute &attr, std::string new_name, bool overwrite);
+  void rename(const Map<StringRef, StringRef> &renames, bool overwrite);
 
   /**
    * Resize the data for a given domain. New values will be default initialized (meaning no zero
