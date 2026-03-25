@@ -1,1 +1,1 @@
-Referenced by issue #156097, Crash during texture painting while all UV maps are disabled
+Referenced by issue #156097, Crash during texture painting while all UV maps are disabled (caused by applying certain modifiers)
