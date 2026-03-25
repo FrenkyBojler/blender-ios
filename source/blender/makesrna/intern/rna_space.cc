@@ -855,7 +855,9 @@ static void rna_Space_bool_from_region_flag_update_by_type(bContext *C,
   if (region) {
     if (region_flag == RGN_FLAG_HIDDEN) {
       /* Only support animation when the area is in the current context. */
-      if (region->overlap && (area == CTX_wm_area(C)) && !(U.uiflag & USER_REDUCE_MOTION)) {
+      if (region->overlap && (area == CTX_wm_area(C)) && !(U.uiflag & USER_REDUCE_MOTION) &&
+          !(region->alignment & (RGN_SPLIT_SCALE_PREV | RGN_ALIGN_HIDE_WITH_PREV)))
+      {
         ED_region_visibility_change_update_animated(C, area, region);
       }
       else {
@@ -904,6 +906,7 @@ static void rna_Space_show_region_header_set(PointerRNA *ptr, bool value)
 static void rna_Space_show_region_header_update(bContext *C, PointerRNA *ptr)
 {
   rna_Space_bool_from_region_flag_update_by_type(C, ptr, RGN_TYPE_HEADER, RGN_FLAG_HIDDEN);
+  rna_Space_bool_from_region_flag_update_by_type(C, ptr, RGN_TYPE_TOOL_HEADER, RGN_FLAG_HIDDEN);
 }
 
 /* Footer Region. */
@@ -1033,6 +1036,8 @@ static bool rna_Space_show_region_asset_shelf_get(PointerRNA *ptr)
 static void rna_Space_show_region_asset_shelf_set(PointerRNA *ptr, bool value)
 {
   rna_Space_bool_from_region_flag_set_by_type(ptr, RGN_TYPE_ASSET_SHELF, RGN_FLAG_HIDDEN, !value);
+  rna_Space_bool_from_region_flag_set_by_type(
+      ptr, RGN_TYPE_ASSET_SHELF_HEADER, RGN_FLAG_HIDDEN, !value);
 }
 static int rna_Space_show_region_asset_shelf_editable(const PointerRNA *ptr, const char **r_info)
 {
@@ -1058,6 +1063,8 @@ static int rna_Space_show_region_asset_shelf_editable(const PointerRNA *ptr, con
 static void rna_Space_show_region_asset_shelf_update(bContext *C, PointerRNA *ptr)
 {
   rna_Space_bool_from_region_flag_update_by_type(C, ptr, RGN_TYPE_ASSET_SHELF, RGN_FLAG_HIDDEN);
+  rna_Space_bool_from_region_flag_update_by_type(
+      C, ptr, RGN_TYPE_ASSET_SHELF_HEADER, RGN_FLAG_HIDDEN);
 }
 
 /** \} */
@@ -1997,7 +2004,7 @@ static const EnumPropertyItem *rna_SpaceImageEditor_display_channels_itemf(bCont
   void *lock;
   int totitem = 0;
 
-  ibuf = ED_space_image_acquire_buffer(sima, &lock, 0);
+  ibuf = ED_space_image_acquire_buffer(sima, &lock, 0, false);
   int mask = ED_space_image_get_display_channel_mask(ibuf);
   ED_space_image_release_buffer(sima, ibuf, lock);
 
@@ -2033,7 +2040,7 @@ static int rna_SpaceImageEditor_display_channels_get(PointerRNA *ptr)
   ImBuf *ibuf;
   void *lock;
 
-  ibuf = ED_space_image_acquire_buffer(sima, &lock, 0);
+  ibuf = ED_space_image_acquire_buffer(sima, &lock, 0, false);
   int mask = ED_space_image_get_display_channel_mask(ibuf);
   ED_space_image_release_buffer(sima, ibuf, lock);
 
@@ -2125,7 +2132,7 @@ static void rna_SpaceImageEditor_scopes_update(bContext *C, PointerRNA *ptr)
   void *lock;
 
   /* TODO(lukas): Support tiles in scopes? */
-  ibuf = ED_space_image_acquire_buffer(sima, &lock, 0);
+  ibuf = ED_space_image_acquire_buffer(sima, &lock, 0, true);
   if (ibuf) {
     ED_space_image_scopes_update(C, sima, ibuf, true);
     WM_main_add_notifier(NC_IMAGE, sima->image);
@@ -6373,6 +6380,11 @@ static void rna_def_space_image(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Navigate Gizmo", "Viewport navigation gizmo");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, nullptr);
 
+  prop = RNA_def_property(srna, "show_gizmo_active_node", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(prop, nullptr, "gizmo_flag", SI_GIZMO_HIDE_ACTIVE_NODE);
+  RNA_def_property_ui_text(prop, "Active Node", "Context sensitive gizmo for the active node");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, nullptr);
+
   /* Overlays */
   prop = RNA_def_property(srna, "overlay", PROP_POINTER, PROP_NONE);
   RNA_def_property_flag(prop, PROP_NEVER_NULL);
@@ -8243,6 +8255,19 @@ static void rna_def_space_node_overlay(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, preview_shapes);
   RNA_def_property_enum_default(prop, SN_OVERLAY_PREVIEW_FLAT);
   RNA_def_property_ui_text(prop, "Preview Shape", "Preview shape used by the node previews");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_NODE, nullptr);
+
+  prop = RNA_def_property(srna, "show_render_size", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "overlay.flag", SN_OVERLAY_SHOW_RENDER_REGION);
+  RNA_def_property_boolean_default(prop, true);
+  RNA_def_property_ui_text(prop, "Render Region", "Display the region of the final render");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_NODE, nullptr);
+
+  prop = RNA_def_property(srna, "passepartout_alpha", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_float_sdna(prop, nullptr, "overlay.passepartout_alpha");
+  RNA_def_property_float_default(prop, 0.5f);
+  RNA_def_property_ui_text(
+      prop, "Passepartout Alpha", "Opacity of the darkened overlay outside the render region");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_NODE, nullptr);
 }
 

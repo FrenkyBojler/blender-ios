@@ -25,14 +25,13 @@ set(SRC
   filelist/filelist.cc
   filelist/filelist_filter.cc
   filelist/filelist_readjob.cc
+  filelist/filelist_readjob_asset_library_all.cc
   filelist/filelist_readjob_asset_library_current_file.cc
   filelist/filelist_readjob_asset_library_on_disk.cc
-  filelist/filelist_readjob_asset_library_all.cc
   filelist/filelist_readjob_asset_library_remote.cc
   filelist/filelist_readjob_common.cc
   filelist/filelist_readjob_directories.cc
   filelist/filelist_readjob_library.cc
-  filelist/filelist_readjob_main.cc
 
   filelist/filelist_sort.cc
   filesel.cc

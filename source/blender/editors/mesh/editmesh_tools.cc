@@ -1350,7 +1350,10 @@ static bool bm_vert_is_select_history_open(BMesh *bm)
   return false;
 }
 
-static bool bm_vert_connect_pair(BMesh *bm, BMVert *v_a, BMVert *v_b)
+static bool bm_vert_connect_pair(BMesh *bm,
+                                 BMVert *v_a,
+                                 BMVert *v_b,
+                                 const bool skip_normals = false)
 {
   BMOperator bmop;
   BMVert **verts;
@@ -1362,8 +1365,11 @@ static bool bm_vert_connect_pair(BMesh *bm, BMVert *v_a, BMVert *v_b)
   verts[0] = v_a;
   verts[1] = v_b;
 
-  BM_vert_normal_update(verts[0]);
-  BM_vert_normal_update(verts[1]);
+  /* Note that normals may be overridden when connecting more than 2 vertices. */
+  if (!skip_normals) {
+    BM_vert_normal_update(verts[0]);
+    BM_vert_normal_update(verts[1]);
+  }
 
   BMO_op_exec(bm, &bmop);
   BMO_slot_buffer_hflag_enable(bm, bmop.slots_out, "edges.out", BM_EDGE, BM_ELEM_SELECT, true);
@@ -1403,6 +1409,21 @@ static bool bm_vert_connect_select_history(BMesh *bm)
       /* all verts have faces , connect verts via faces! */
       if (tot == bm->totvertsel) {
         BMEditSelection *ese_last;
+        Map<BMVert *, float3> orig_normals;
+
+        /* Connecting more than 2 vertices can change the mesh normal state, which can break
+         * symmetry in cases where it is expected so we store the original normals to restore
+         * later before connecting. See #154197 */
+        const bool is_multi_cut = (bm->totvertsel > 2);
+        if (is_multi_cut) {
+          for (ese_last = static_cast<BMEditSelection *>(bm->selected.first); ese_last;
+               ese_last = ese_last->next)
+          {
+            BMVert *v = reinterpret_cast<BMVert *>(ese_last->ele);
+            BM_vert_normal_update(v);
+            orig_normals.add(v, v->no);
+          }
+        }
         ese_last = static_cast<BMEditSelection *>(bm->selected.first);
         ese = ese_last->next;
 
@@ -1414,9 +1435,16 @@ static bool bm_vert_connect_select_history(BMesh *bm)
             /* pass, edge exists (and will be selected) */
           }
           else {
-            changed |= bm_vert_connect_pair(bm,
-                                            reinterpret_cast<BMVert *>(ese_last->ele),
-                                            reinterpret_cast<BMVert *>(ese->ele));
+            BMVert *v_last = reinterpret_cast<BMVert *>(ese_last->ele);
+            BMVert *v_curr = reinterpret_cast<BMVert *>(ese->ele);
+
+            if (is_multi_cut) {
+              BLI_assert(orig_normals.contains(v_last));
+              BLI_assert(orig_normals.contains(v_curr));
+              copy_v3_v3(v_last->no, orig_normals.lookup(v_last));
+              copy_v3_v3(v_curr->no, orig_normals.lookup(v_curr));
+            }
+            changed |= bm_vert_connect_pair(bm, v_last, v_curr, is_multi_cut);
           }
         } while ((void)(ese_last = ese), (ese = ese->next));
 
@@ -5939,6 +5967,18 @@ static void edbm_dissolve_prop__use_angle_threshold(wmOperatorType *ot, int flag
     RNA_def_property_flag(prop, PropertyFlag(flag));
   }
 }
+static void edbm_dissolve_prop__use_preserve_quads(wmOperatorType *ot, bool value, int flag)
+{
+  PropertyRNA *prop = RNA_def_boolean(
+      ot->srna,
+      "use_preserve_quads",
+      value,
+      "Preserve Quads",
+      "When dissolving the edge between two triangles, don't dissolve vertices");
+  if (flag) {
+    RNA_def_property_flag(prop, PropertyFlag(flag));
+  }
+}
 
 static wmOperatorStatus edbm_dissolve_verts_exec(bContext *C, wmOperator *op)
 {
@@ -6010,6 +6050,7 @@ static wmOperatorStatus edbm_dissolve_edges_exec(bContext *C, wmOperator *op)
   const bool use_verts = RNA_boolean_get(op->ptr, "use_verts");
   const bool use_face_split = RNA_boolean_get(op->ptr, "use_face_split");
   const float angle_threshold = RNA_float_get(op->ptr, "angle_threshold");
+  const bool use_preserve_quads = RNA_boolean_get(op->ptr, "use_preserve_quads");
 
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -6024,14 +6065,15 @@ static wmOperatorStatus edbm_dissolve_edges_exec(bContext *C, wmOperator *op)
 
     BM_custom_loop_normals_to_vector_layer(em->bm);
 
-    if (!EDBM_op_callf(
-            em,
-            op,
-            "dissolve_edges edges=%he use_verts=%b use_face_split=%b angle_threshold=%f",
-            BM_ELEM_SELECT,
-            use_verts,
-            use_face_split,
-            angle_threshold))
+    if (!EDBM_op_callf(em,
+                       op,
+                       "dissolve_edges edges=%he use_verts=%b use_face_split=%b "
+                       "angle_threshold=%f use_preserve_quads=%b",
+                       BM_ELEM_SELECT,
+                       use_verts,
+                       use_face_split,
+                       angle_threshold,
+                       use_preserve_quads))
     {
       continue;
     }
@@ -6065,6 +6107,7 @@ void MESH_OT_dissolve_edges(wmOperatorType *ot)
   edbm_dissolve_prop__use_verts(ot, true, 0);
   edbm_dissolve_prop__use_angle_threshold(ot, 0);
   edbm_dissolve_prop__use_face_split(ot);
+  edbm_dissolve_prop__use_preserve_quads(ot, true, 0);
 }
 
 /** \} */
@@ -6180,6 +6223,10 @@ static bool dissolve_mode_poll_property(const bContext *C, wmOperator *op, const
     if (STREQ(prop_id, "angle_threshold")) {
       return false;
     }
+    /* Preserve Quads is only used in edge select mode. */
+    if (STREQ(prop_id, "use_preserve_quads")) {
+      return false;
+    }
   }
   return true;
 }
@@ -6201,6 +6248,7 @@ void MESH_OT_dissolve_mode(wmOperatorType *ot)
 
   edbm_dissolve_prop__use_verts(ot, false, PROP_SKIP_SAVE);
   edbm_dissolve_prop__use_angle_threshold(ot, PROP_SKIP_SAVE);
+  edbm_dissolve_prop__use_preserve_quads(ot, true, PROP_SKIP_SAVE);
   edbm_dissolve_prop__use_face_split(ot);
   edbm_dissolve_prop__use_boundary_tear(ot);
 }
@@ -7915,11 +7963,10 @@ static wmOperatorStatus mesh_symmetry_snap_exec(bContext *C, wmOperator *op)
 {
   const float eps = 0.00001f;
   const float eps_sq = eps * eps;
-  const bool use_topology = false;
-
   const float thresh = RNA_float_get(op->ptr, "threshold");
   const float fac = RNA_float_get(op->ptr, "factor");
   const bool use_center = RNA_boolean_get(op->ptr, "use_center");
+  const bool use_topology = RNA_boolean_get(op->ptr, "use_topology");
   const int axis_dir = RNA_enum_get(op->ptr, "direction");
 
   /* Vertices stats (total over all selected objects). */
@@ -8083,6 +8130,11 @@ void MESH_OT_symmetry_snap(wmOperatorType *ot)
                 1.0f);
   RNA_def_boolean(
       ot->srna, "use_center", true, "Center", "Snap middle vertices to the axis center");
+  RNA_def_boolean(ot->srna,
+                  "use_topology",
+                  false,
+                  "Topology Mirror",
+                  "Use topology to find mirrored vertices instead of spatial proximity");
 }
 
 /** \} */

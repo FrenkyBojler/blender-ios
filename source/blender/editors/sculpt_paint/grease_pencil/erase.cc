@@ -46,7 +46,7 @@ class EraseOperation : public GreasePencilStrokeOperation {
   bool temp_eraser_ = false;
 
   bool keep_caps_ = false;
-  float radius_ = 50.0f;
+  float radius_ = 0.0f;
   float strength_ = 0.1f;
   eGP_BrushEraserMode eraser_mode_ = GP_BRUSH_ERASER_HARD;
   bool active_layer_only_ = false;
@@ -816,13 +816,23 @@ struct EraseOperationExecutor {
             dst_attributes.lookup_or_add_for_write_span<float>(opacity_attr,
                                                                bke::AttrDomain::Point))
     {
+      SpanAttributeWriter<bool> opacity_modified =
+          dst_attributes.lookup_or_add_for_write_span<bool>(
+              "_eraser_opacity_modified", bke::AttrDomain::Point, bke::AttributeInitValue(false));
+      BLI_assert(opacity_modified);
+
       threading::parallel_for(dst.points_range(), 4096, [&](const IndexRange dst_points_range) {
         for (const int dst_point_index : dst_points_range) {
           const ed::greasepencil::PointTransferData &dst_point = dst_points[dst_point_index];
           dst_opacity.span[dst_point_index] = dst_point.opacity;
+
+          if (!dst_point.is_src_point || dst_point.opacity != src_opacity[dst_point.src_point]) {
+            opacity_modified.span[dst_point_index] = true;
+          }
         }
       });
       dst_opacity.finish();
+      opacity_modified.finish();
     }
 
     SpanAttributeWriter<bool> dst_inserted = dst_attributes.lookup_or_add_for_write_span<bool>(
@@ -863,7 +873,7 @@ struct EraseOperationExecutor {
     const VArray<int> &stroke_materials = *src.attributes().lookup_or_default<int>(
         "material_index", bke::AttrDomain::Curve, 0);
     const IndexMask strokes_to_keep = IndexMask::from_predicate(
-        src.curves_range(), GrainSize(256), memory, [&](const int src_curve) {
+        src.curves_range(), memory, [&](const int src_curve) {
           const MaterialGPencilStyle *mat = BKE_gpencil_material_settings(
               &ob, stroke_materials[src_curve] + 1);
           /* Keep strokes with locked material. */
@@ -1040,20 +1050,18 @@ void EraseOperation::on_stroke_begin(const bContext &C, const InputSample & /*st
   Paint *paint = BKE_paint_get_active_from_context(&C);
   Brush *brush = BKE_paint_brush(paint);
 
+  radius_ = BKE_brush_radius_get(paint, brush);
+
   /* If we're using the draw tool to erase (e.g. while holding ctrl), then we should use the
    * eraser brush instead. */
   if (temp_eraser_) {
     Object *object = CTX_data_active_object(&C);
     GreasePencil *grease_pencil = id_cast<GreasePencil *>(object->data);
 
-    radius_ = paint->eraser_brush->size / 2.0f;
-    grease_pencil->runtime->temp_eraser_size = radius_;
+    grease_pencil->runtime->temp_eraser_radius = radius_;
     grease_pencil->runtime->temp_use_eraser = true;
 
     brush = BKE_paint_eraser_brush(paint);
-  }
-  else {
-    radius_ = brush->size / 2.0f;
   }
 
   if (brush->gpencil_settings == nullptr) {
@@ -1120,10 +1128,16 @@ static void remove_points_with_low_opacity(bke::CurvesGeometry &curves,
                                            const VArray<float> &opacities,
                                            const float epsilon)
 {
+  const VArray<bool> point_was_modified = *curves.attributes().lookup<bool>(
+      "_eraser_opacity_modified", bke::AttrDomain::Point);
+  if (!point_was_modified) {
+    return;
+  }
+
   IndexMaskMemory memory;
   const IndexMask points_to_remove_and_split = IndexMask::from_predicate(
-      curves.points_range(), GrainSize(4096), memory, [&](const int64_t point) {
-        return opacities[point] < epsilon;
+      curves.points_range(), memory, [&](const int64_t point) {
+        return opacities[point] < epsilon && point_was_modified[point];
       });
   curves = geometry::remove_points_and_split(curves, points_to_remove_and_split);
 }
@@ -1136,7 +1150,7 @@ void EraseOperation::on_stroke_done(const bContext &C)
     /* If we're using the draw tool to temporarily erase, then we need to reset the
      * `temp_use_eraser` flag here. */
     grease_pencil.runtime->temp_use_eraser = false;
-    grease_pencil.runtime->temp_eraser_size = 0.0f;
+    grease_pencil.runtime->temp_eraser_radius = 0.0f;
   }
 
   for (GreasePencilDrawing *drawing_ : affected_drawings_) {
@@ -1145,7 +1159,11 @@ void EraseOperation::on_stroke_done(const bContext &C)
     if (drawing.strokes().attributes().contains("_eraser_inserted")) {
       simplify_opacities(drawing.strokes_for_write(), drawing.opacities(), 0.01f);
     }
-    remove_points_with_low_opacity(drawing.strokes_for_write(), drawing.opacities(), 0.0001f);
+
+    if (this->eraser_mode_ == GP_BRUSH_ERASER_SOFT) {
+      remove_points_with_low_opacity(drawing.strokes_for_write(), drawing.opacities(), 0.0001f);
+      drawing.strokes_for_write().attributes_for_write().remove("_eraser_opacity_modified");
+    }
 
     drawing.strokes_for_write().attributes_for_write().remove("_eraser_inserted");
     drawing.tag_topology_changed();

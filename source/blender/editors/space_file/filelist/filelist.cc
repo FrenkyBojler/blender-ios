@@ -8,6 +8,7 @@
 
 /* global includes */
 
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
@@ -787,7 +788,7 @@ FileListEntryCache::FileListEntryCache() : size(FILELIST_ENTRYCACHESIZE_DEFAULT)
 
   this->misc_entries.reserve(this->size);
   this->misc_entries_indices = MEM_new_array_uninitialized<int>(this->size, __func__);
-  copy_vn_i(this->misc_entries_indices, this->size, -1);
+  std::fill_n(this->misc_entries_indices, this->size, -1);
 
   this->uids.reserve(this->size * 2);
 }
@@ -821,7 +822,7 @@ void filelist_cache_clear(FileListEntryCache *cache, size_t new_size)
     cache->misc_entries_indices = static_cast<int *>(MEM_realloc_uninitialized(
         cache->misc_entries_indices, sizeof(*cache->misc_entries_indices) * new_size));
   }
-  copy_vn_i(cache->misc_entries_indices, new_size, -1);
+  std::fill_n(cache->misc_entries_indices, new_size, -1);
 
   cache->uids.clear();
   cache->uids.reserve(new_size * 2);
@@ -864,9 +865,6 @@ void filelist_settype(FileList *filelist, short type)
   filelist->filter_fn = nullptr;
 
   switch (filelist->type) {
-    case FILE_MAIN:
-      filelist_set_readjob_main(filelist);
-      break;
     case FILE_LOADLIB:
       filelist_set_readjob_library(filelist);
       break;
@@ -1829,8 +1827,18 @@ int ED_path_extension_type(const char *path)
   if (BLI_path_extension_check(path, ".zip")) {
     return FILE_TYPE_ARCHIVE;
   }
-  if (BLI_path_extension_check_n(
-          path, ".obj", ".mtl", ".3ds", ".fbx", ".glb", ".gltf", ".svg", ".ply", ".stl", nullptr))
+  if (BLI_path_extension_check_n(path,
+                                 ".obj",
+                                 ".mtl",
+                                 ".3ds",
+                                 ".fbx",
+                                 ".glb",
+                                 ".gltf",
+                                 ".svg",
+                                 ".pdf",
+                                 ".ply",
+                                 ".stl",
+                                 nullptr))
   {
     return FILE_TYPE_OBJECT_IO;
   }
