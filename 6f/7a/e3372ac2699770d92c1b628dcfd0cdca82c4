@@ -3,3 +3,4 @@ Referenced by issue #155858, Blender 5.1 performance regression when accessing U
 Referenced by pull request #155867, Fix #155858: accessing UV vectors in Python is extremely slow
 Referenced by commit b81d8cb88d619cb5de1f312642d3b692b2fcda8c, Fix #155858: accessing UV vectors in Python is extremely slow
 Referenced by pull request #156133, Fix #156087: Wrong lookup_int for legacy uv loop layer "data"
+Referenced by commit 3002daa8b07fb1cbffd340fdd23890b0692bc7f7, Fix #156087: Wrong lookup_int for legacy uv loop layer "data"
