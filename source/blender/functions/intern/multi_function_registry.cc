@@ -20,10 +20,11 @@ static Registry &get_registry()
   return registry;
 }
 
-void register_function(const UString id, const MultiFunction &fn)
+void add_new(const MultiFunction &fn)
 {
   Registry &registry = get_registry();
   RegistryMap::MutableAccessor accessor;
+  const UString id = UString(fn.name());
   if (registry.map.add(accessor, id)) {
     accessor->second = &fn;
   }

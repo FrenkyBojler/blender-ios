@@ -10,7 +10,7 @@
 
 namespace blender::fn::multi_function::registry {
 
-void register_function(UString id, const MultiFunction &fn);
+void add_new(const MultiFunction &fn);
 
 const MultiFunction &lookup(UString id);
 

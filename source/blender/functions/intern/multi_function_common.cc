@@ -10,8 +10,9 @@ namespace blender::fn::multi_function {
 
 void register_common_functions()
 {
-  static auto sine_fn = build::SI1_SO<float, float>("Sine", [](const float a) { return sinf(a); });
-  registry::register_function("sin(float)"_ustr, sine_fn);
+  static auto sine_fn = build::SI1_SO<float, float>("sin(float)",
+                                                    [](const float a) { return sinf(a); });
+  registry::add_new(sine_fn);
 }
 
 }  // namespace blender::fn::multi_function
