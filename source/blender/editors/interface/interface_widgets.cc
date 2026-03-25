@@ -3729,6 +3729,24 @@ static void widget_numbut(Button *but,
   widget_numbut_draw(but, wcol, rect, zoom, state, roundboxalign, false);
 }
 
+static void widget_update_menubut(uiWidgetColors *wcol,
+                                  rcti *rect,
+                                  [[maybe_unused]] const WidgetStateInfo *state,
+                                  int roundboxalign,
+                                  const float zoom)
+{
+  WidgetBase wtb;
+  widget_init(&wtb);
+
+  const float rad = widget_radius_from_zoom(zoom, wcol);
+  round_box_edges(&wtb, roundboxalign, rect, rad);
+  BLI_assert(bool(state->but_flag & BUT_UPDATE_AVAILABLE));
+  theme::get_color_4ubv(TH_UPDATE_AVAILABLE, wcol->inner);
+  wcol->outline[3] = 0.0f;
+
+  widgetbase_draw(&wtb, wcol);
+}
+
 static void widget_menubut(uiWidgetColors *wcol,
                            rcti *rect,
                            const WidgetStateInfo *state,
@@ -3741,11 +3759,9 @@ static void widget_menubut(uiWidgetColors *wcol,
   const float rad = widget_radius_from_zoom(zoom, wcol);
   round_box_edges(&wtb, roundboxalign, rect, rad);
 
-  if (!(state->but_flag & BUT_UPDATE_AVAILABLE)) {
-    /* decoration */
-    shape_preset_trias_from_rect_menu(&wtb.tria1, rect);
-    /* copy size and center to 2nd tria */
-  }
+  /* decoration */
+  shape_preset_trias_from_rect_menu(&wtb.tria1, rect);
+  /* copy size and center to 2nd tria */
   wtb.tria2 = wtb.tria1;
 
   if (ELEM(state->emboss, EmbossType::NoneOrStatus, EmbossType::None)) {
@@ -3753,17 +3769,11 @@ static void widget_menubut(uiWidgetColors *wcol,
     wtb.draw_outline = false;
     wtb.draw_emboss = false;
   }
-  if (state->but_flag & BUT_UPDATE_AVAILABLE) {
-    theme::get_color_4ubv(TH_UPDATE_AVAILABLE, wcol->inner);
-    wcol->outline[3] = 0.0f;
-  }
 
   widgetbase_draw(&wtb, wcol);
 
-  if (!(state->but_flag & BUT_UPDATE_AVAILABLE)) {
-    /* text space, arrows are about 0.6 height of button */
-    rect->xmax -= (6 * BLI_rcti_size_y(rect)) / 10;
-  }
+  /* text space, arrows are about 0.6 height of button */
+  rect->xmax -= (6 * BLI_rcti_size_y(rect)) / 10;
 }
 
 /**
@@ -5065,7 +5075,11 @@ static WidgetType *popover_widget_type(Button *but, rcti *rect)
   }
 
   /* With menu arrows. */
-  return widget_type(WidgetStyle::MenuRadio);
+  WidgetType *widget = widget_type(WidgetStyle::MenuRadio);
+  if (but->flag & BUT_UPDATE_AVAILABLE) {
+    widget->draw = widget_update_menubut;
+  }
+  return widget;
 }
 
 /** \} */
