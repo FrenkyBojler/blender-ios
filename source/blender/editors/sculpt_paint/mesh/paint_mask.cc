@@ -420,8 +420,8 @@ static void fill_mask_mesh(const Depsgraph &depsgraph,
       [&](const int i) {
         Vector<int> &index_data = all_index_data.local();
         const Span<int> verts = hide::node_visible_verts(nodes[i], hide_vert, index_data);
-        if (std::all_of(
-                verts.begin(), verts.end(), [&](int i) { return mask.span[i] == value; })) {
+        if (std::all_of(verts.begin(), verts.end(), [&](int i) { return mask.span[i] == value; }))
+        {
           return;
         }
         undo::push_node(depsgraph, object, &nodes[i], undo::Type::Mask);
@@ -471,15 +471,12 @@ static void fill_mask_grids(Main &bmain,
   node_mask.foreach_index(
       [&](const int i) {
         const Span<int> grid_indices = nodes[i].grids();
-        if (std::all_of(
-                grid_indices.begin(),
-                grid_indices.end(),
-                [&](const int grid) {
-                  const Span<float> grid_masks = masks.slice(bke::ccg::grid_range(key, grid));
-                  return std::all_of(grid_masks.begin(), grid_masks.end(), [&](const float mask) {
-                    return mask == value;
-                  });
-                }))
+        if (std::all_of(grid_indices.begin(), grid_indices.end(), [&](const int grid) {
+              const Span<float> grid_masks = masks.slice(bke::ccg::grid_range(key, grid));
+              return std::all_of(grid_masks.begin(), grid_masks.end(), [&](const float mask) {
+                return mask == value;
+              });
+            }))
         {
           return;
         }
