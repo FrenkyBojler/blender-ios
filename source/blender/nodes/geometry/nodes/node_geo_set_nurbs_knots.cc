@@ -29,7 +29,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 /**
  * Used to check the knot sequence of each curve without executing `count_nonzero_knot_spans()`
- * everytime. The array tells how many breakpoints exist ahead of a specified knot.
+ * every time. The array tells how many breakpoints exist ahead of a specified knot.
  * If greater than zero at the degree-th knot (or first knot for cyclic curve), the curve knot
  * sequence is valid.
  */
@@ -51,6 +51,7 @@ static void set_curves_knots(bke::CurvesGeometry &curves,
                              const fn::FieldContext &field_context,
                              const Field<bool> &selection_field,
                              const VArray<float> &new_knot_sequence,
+                             std::atomic<bool> &has_selected_curve,
                              std::atomic<bool> &has_nurbs,
                              std::atomic<bool> &any_affected,
                              const Array<int> &knot_validator)
@@ -60,7 +61,6 @@ static void set_curves_knots(bke::CurvesGeometry &curves,
   }
   has_nurbs = true;
 
-  /* Evaluates selection */
   fn::FieldEvaluator selection_evaluator{field_context, curves.curves_num()};
   selection_evaluator.add(selection_field);
   selection_evaluator.evaluate();
@@ -68,13 +68,13 @@ static void set_curves_knots(bke::CurvesGeometry &curves,
   if (selection.is_empty()) {
     return;
   }
+  has_selected_curve = true;
 
   /* Sets knot mode for every matching curve. */
   const VArray<int8_t> curve_types = curves.curve_types();
   const OffsetIndices points_by_curve = curves.points_by_curve();
   const VArray<int8_t> nurbs_orders = curves.nurbs_orders();
   const VArray<bool> cyclic = curves.cyclic();
-  MutableSpan<int8_t> knot_mode = curves.nurbs_knots_modes_for_write();
   IndexMaskMemory memory;
 
   const IndexMask curves_to_write = IndexMask::from_predicate(
@@ -92,21 +92,24 @@ static void set_curves_knots(bke::CurvesGeometry &curves,
       },
       exec_mode::grain_size(2048));
 
-  curves_to_write.foreach_index([&](const int i_curve) {
-    knot_mode[i_curve] = NURBS_KNOT_MODE_CUSTOM;
-    any_affected = true;
-  });
+  if (curves_to_write.is_empty()) {
+    return;
+  }
+  index_mask::masked_fill(
+      curves.nurbs_knots_modes_for_write(), int8_t(NURBS_KNOT_MODE_CUSTOM), curves_to_write);
+  any_affected = true;
 
-  /* Updates custom knot array size. */
   curves.nurbs_custom_knots_update_size();
 
   /* Writes new knots. */
   const OffsetIndices custom_knots_by_curve = curves.nurbs_custom_knots_by_curve();
   MutableSpan<float> custom_knots = curves.nurbs_custom_knots_for_write();
-  curves_to_write.foreach_index([&](const int i_curve) {
-    const IndexRange dst = custom_knots_by_curve[i_curve];
-    new_knot_sequence.materialize(custom_knots.slice(dst));
-  });
+  curves_to_write.foreach_index(
+      [&](const int i_curve) {
+        const IndexRange dst = custom_knots_by_curve[i_curve];
+        new_knot_sequence.materialize(custom_knots.slice(dst));
+      },
+      exec_mode::grain_size(1024));
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -115,7 +118,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
   const ListPtr input_knot = params.extract_input<ListPtr>("Knot");
 
-  std::atomic<bool> has_curves = false;
+  std::atomic<bool> has_selected_curve = false;
   std::atomic<bool> has_nurbs = false;
   std::atomic<bool> any_affected = false;
 
@@ -138,12 +141,12 @@ static void node_geo_exec(GeoNodeExecParams params)
   geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     if (Curves *curves_id = geometry_set.get_curves_for_write()) {
       bke::CurvesGeometry &curves = curves_id->geometry.wrap();
-      has_curves = true;
       const bke::CurvesFieldContext field_context{*curves_id, AttrDomain::Curve};
       set_curves_knots(curves,
                        field_context,
                        selection_field,
                        input_knot_span,
+                       has_selected_curve,
                        has_nurbs,
                        any_affected,
                        knot_validator);
@@ -156,13 +159,13 @@ static void node_geo_exec(GeoNodeExecParams params)
           continue;
         }
         bke::CurvesGeometry &curves = drawing->strokes_for_write();
-        has_curves = true;
         const bke::GreasePencilLayerFieldContext field_context{
             *grease_pencil, AttrDomain::Curve, layer_index};
         set_curves_knots(curves,
                          field_context,
                          selection_field,
                          input_knot_span,
+                         has_selected_curve,
                          has_nurbs,
                          any_affected,
                          knot_validator);
@@ -170,7 +173,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   });
 
-  if (has_curves) {
+  if (has_selected_curve) {
     if (!has_nurbs) {
       params.error_message_add(NodeWarningType::Info, TIP_("Input curves do not have NURBS type"));
     }
@@ -190,7 +193,7 @@ static void node_register()
   geo_node_type_base(&ntype, "GeometryNodeSetNURBSKnots");
   ntype.ui_name = "Set NURBS Knots";
   ntype.ui_description =
-      "Controls the spreading of NURBS curve points by assigning it a \"knot vector\"";
+      "Control the spreading of NURBS curve points by assigning them a \"knot vector\"";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
