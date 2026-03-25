@@ -131,7 +131,7 @@ struct Mesh {
   float3 world_pos = drw_point_object_to_world(v_in.pos);
   out_position = drw_point_world_to_homogenous(world_pos);
 
-  if (mesh.use_clipping) {
+  if (mesh.use_clipping) [[static_branch]] {
     view_clipping_distances(world_pos);
   }
 
@@ -192,7 +192,7 @@ struct Curves {
     nor = hair_random_normal(pt.curve_T, pt.curve_B, pt.curve_N, hair_rand);
   }
 
-  if (curves.use_clipping) {
+  if (curves.use_clipping) [[static_branch]] {
     view_clipping_distances(world_pos);
   }
 
@@ -244,7 +244,7 @@ struct PointCloud {
 
   out_position = drw_point_world_to_homogenous(pt.P);
 
-  if (point_cloud.use_clipping) {
+  if (point_cloud.use_clipping) [[static_branch]] {
     view_clipping_distances(pt.P);
   }
 
