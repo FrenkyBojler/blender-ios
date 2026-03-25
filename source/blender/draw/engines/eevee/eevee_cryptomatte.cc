@@ -59,7 +59,6 @@ void Cryptomatte::sync_object(const ObjectHandle &ob_handle)
     return;
   }
 
-  uint32_t resource_id = ob_handle.res_handle.sub_handle(0).resource_index();
   float2 object_hashes(0.0f, 0.0f);
 
   if (enabled_passes & EEVEE_RENDER_PASS_CRYPTOMATTE_OBJECT) {
@@ -73,7 +72,10 @@ void Cryptomatte::sync_object(const ObjectHandle &ob_handle)
     }
     object_hashes[1] = register_id(EEVEE_RENDER_PASS_CRYPTOMATTE_ASSET, asset->id);
   }
-  cryptomatte_object_buf.get_or_resize(resource_id) = object_hashes;
+
+  for (ResourceIndex resource_index : ob_handle.res_handle.index_range()) {
+    cryptomatte_object_buf.get_or_resize(resource_index.resource_index()) = object_hashes;
+  }
 }
 
 void Cryptomatte::sync_material(const blender::Material *material)
