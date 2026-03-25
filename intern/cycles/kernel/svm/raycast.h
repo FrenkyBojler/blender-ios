@@ -27,7 +27,7 @@ struct RaycastResult {
 };
 
 ccl_device RaycastResult svm_raycast(KernelGlobals kg,
-                                     ConstIntegratorState /*state*/,
+                                     ConstIntegratorState state,
                                      ccl_private ShaderData *sd,
                                      float3 position,
                                      float3 direction,
@@ -35,7 +35,8 @@ ccl_device RaycastResult svm_raycast(KernelGlobals kg,
                                      float distance,
                                      bool only_local,
                                      NodeRaycastMode mode,
-                                     float bump_filter_width)
+                                     float bump_filter_width,
+                                     uint32_t path_flag)
 {
   RaycastResult result;
   result.distance = -1.0f;
@@ -52,19 +53,43 @@ ccl_device RaycastResult svm_raycast(KernelGlobals kg,
     return result;
   }
 
+  float tmin = 0.0f;
+
   if (mode == NODE_RAYCAST_MODE_OFFSET) {
     float3 I = shading_incoming<float3>(sd);
     position = sd->P + I * sd->ray_length;
     distance += sd->ray_length;
+
     float3 camera_up = normalize(
         transform_direction_transposed(&kernel_data.cam.worldtocamera, make_float3(0, 1, 0)));
-    float3 ray_tangent = normalize(cross(-I, camera_up));
-    float3 ray_bitangent = normalize(cross(I, ray_tangent));
-    float3 target = sd->P + (ray_tangent * offset.x) + (ray_bitangent * offset.y);
+    float3 camera_right = normalize(
+        transform_direction_transposed(&kernel_data.cam.worldtocamera, make_float3(1, 0, 0)));
+
+    float3 t;
+    float3 b;
+    if (path_flag & PATH_RAY_CAMERA) {
+      t = camera_right;
+      b = camera_up;
+
+      if (kernel_data.cam.type == CAMERA_ORTHOGRAPHIC) {
+        position += (t * offset.x) + (b * offset.y);
+      }
+    }
+    else {
+      t = normalize(camera_right - I * dot(I, camera_right));
+      if (len_squared(t) < 1e-6f) {
+        t = normalize(camera_up - I * dot(I, camera_up));
+      }
+      b = cross(I, t);
+    }
+
+    float3 target = sd->P + (t * offset.x) + (b * offset.y);
     direction = normalize(target - position);
+
+    tmin = state->ray.tmin;  // TODO: This is always 0. Can we get current ray object/prim?
+    tmin = len(target - position) * 0.1f;
   }
 
-  float tmin = 0.0f;
   bool avoid_self_intersection = false;
   if (bump_filter_width > 0.0f) {
     /* If evaluating for bump mapping at a shifted position, increase min
@@ -130,7 +155,8 @@ ccl_device_noinline
                      ccl_private ShaderData *sd,
                      ccl_private float *stack,
                      const uint4 node,
-                     int offset)
+                     int offset,
+                     uint32_t path_flag)
 {
   uint position_offset;
   uint direction_offset;
@@ -177,7 +203,8 @@ ccl_device_noinline
                                        distance,
                                        only_local,
                                        NodeRaycastMode(mode),
-                                       bump_filter_width);
+                                       bump_filter_width,
+                                       path_flag);
 
     if (result.distance >= 0.0f) {
       is_hit = 1.0f;
