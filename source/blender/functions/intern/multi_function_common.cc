@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_math_base_safe.h"
+#include "BLI_math_vector.hh"
+
 #include "FN_init.hh"
 #include "FN_multi_function_builder.hh"
 #include "FN_multi_function_registry.hh"
@@ -87,7 +89,6 @@ void register_common_functions()
   registry::add_new_cb([] {
     return build::SI1_SO<float, float>("atan(float)", [](const float a) { return atanf(a); });
   });
-
   registry::add_new_cb([] {
     return build::SI2_SO<float, float, float>(
         "float + float", [](const float a, const float b) { return a + b; }, exec_fast);
@@ -164,7 +165,6 @@ void register_common_functions()
         [](const float a, const float b) { return pingpongf(a, b); },
         exec_fast);
   });
-
   registry::add_new_cb([] {
     return build::SI3_SO<float, float, float, float>(
         "float * float + float",
@@ -196,6 +196,155 @@ void register_common_functions()
         "wrap(float, float, float)",
         [](const float a, const float b, const float c) { return wrapf(a, b, c); },
         exec_fast);
+  });
+  registry::add_new_cb([] {
+    return build::SI2_SO<float3, float3, float3>(
+        "float3 + float3", [](const float3 &a, const float3 &b) { return a + b; }, exec_fast);
+  });
+  registry::add_new_cb([] {
+    return build::SI2_SO<float3, float3, float3>(
+        "float3 - float3", [](const float3 &a, const float3 &b) { return a - b; }, exec_fast);
+  });
+  registry::add_new_cb([] {
+    return build::SI2_SO<float3, float3, float3>(
+        "float3 * float3", [](const float3 &a, const float3 &b) { return a * b; }, exec_fast);
+  });
+  registry::add_new_cb([] {
+    return build::SI2_SO<float3, float3, float3>(
+        "float3 / float3",
+        [](const float3 &a, const float3 &b) { return math::safe_divide(a, b); },
+        exec_fast);
+  });
+  registry::add_new_cb([] {
+    return build::SI2_SO<float3, float3, float3>(
+        "cross_product(float3, float3)",
+        [](const float3 &a, const float3 &b) { return math::cross_high_precision(a, b); },
+        exec_fast);
+  });
+  registry::add_new_cb([] {
+    return build::SI2_SO<float3, float3, float3>(
+        "project(float3, float3)",
+        [](const float3 &a, const float3 &b) { return math::project(a, b); },
+        exec_fast);
+  });
+  registry::add_new_cb([] {
+    return build::SI2_SO<float3, float3, float3>(
+        "reflect(float3, float3)",
+        [](const float3 &a, const float3 &b) { return math::reflect(a, b); },
+        exec_fast);
+  });
+  registry::add_new_cb([] {
+    return build::SI2_SO<float3, float3, float3>(
+        "snap(float3, float3)",
+        [](const float3 &a, const float3 &b) { return math::floor(math::safe_divide(a, b)) * b; },
+        exec_fast);
+  });
+  registry::add_new_cb([] {
+    return build::SI2_SO<float3, float3, float3>(
+        "float3 % float3", [](const float3 &a, const float3 &b) { return math::safe_mod(a, b); });
+  });
+  registry::add_new_cb([] {
+    return build::SI2_SO<float3, float3, float3>(
+        "min(float3, float3)",
+        [](const float3 &a, const float3 &b) { return math::min(a, b); },
+        exec_fast);
+  });
+  registry::add_new_cb([] {
+    return build::SI2_SO<float3, float3, float3>(
+        "max(float3, float3)",
+        [](const float3 &a, const float3 &b) { return math::max(a, b); },
+        exec_fast);
+  });
+  registry::add_new_cb([] {
+    return build::SI2_SO<float3, float3, float3>("float3 ^ float3", [](float3 a, float3 b) {
+      return float3(safe_powf(a.x, b.x), safe_powf(a.y, b.y), safe_powf(a.z, b.z));
+    });
+  });
+  registry::add_new_cb([] {
+    return build::SI2_SO<float3, float3, float>(
+        "dot_product(float3, float3)",
+        [](const float3 &a, const float3 &b) { return math::dot(a, b); },
+        exec_fast);
+  });
+  registry::add_new_cb([] {
+    return build::SI2_SO<float3, float3, float>(
+        "distance(float3, float3)",
+        [](const float3 &a, const float3 &b) { return math::distance(a, b); },
+        exec_fast);
+  });
+  registry::add_new_cb([] {
+    return build::SI3_SO<float3, float3, float3, float3>(
+        "float3 * float3 + float3",
+        [](const float3 &a, const float3 &b, const float3 &c) { return a * b + c; },
+        exec_fast);
+  });
+  registry::add_new_cb([] {
+    return build::SI3_SO<float3, float3, float3, float3>(
+        "wrap(float3, float3, float3)", [](const float3 &a, const float3 &b, const float3 &c) {
+          return float3(wrapf(a.x, b.x, c.x), wrapf(a.y, b.y, c.y), wrapf(a.z, b.z, c.z));
+        });
+  });
+  registry::add_new_cb([] {
+    return build::SI3_SO<float3, float3, float3, float3>(
+        "faceforward(float3, float3, float3)",
+        [](const float3 &a, const float3 &b, const float3 &c) {
+          return math::faceforward(a, b, c);
+        },
+        exec_fast);
+  });
+  registry::add_new_cb([] {
+    return build::SI3_SO<float3, float3, float, float3>(
+        "refract(float3, float3, float)", [](const float3 &a, const float3 &b, float c) {
+          return math::refract(a, math::normalize(b), c);
+        });
+  });
+  registry::add_new_cb([] {
+    return build::SI1_SO<float3, float>(
+        "length(float3)", [](const float3 &a) { return math::length(a); }, exec_fast);
+  });
+  registry::add_new_cb([] {
+    return build::SI2_SO<float3, float, float3>(
+        "float3 * float", [](const float3 &a, float b) { return a * b; }, exec_fast);
+  });
+  registry::add_new_cb([] {
+    return build::SI1_SO<float3, float3>(
+        "normalize(float3)", [](const float3 &a) { return math::normalize(a); }, exec_fast);
+  });
+  registry::add_new_cb([] {
+    return build::SI1_SO<float3, float3>(
+        "round(float3)", [](const float3 &a) { return math::floor(a + 0.5f); }, exec_fast);
+  });
+  registry::add_new_cb([] {
+    return build::SI1_SO<float3, float3>("floor(float3)",
+                                         [](const float3 &a) { return math::floor(a); });
+  });
+  registry::add_new_cb([] {
+    return build::SI1_SO<float3, float3>("ceil(float3)",
+                                         [](const float3 &a) { return math::ceil(a); });
+  });
+  registry::add_new_cb([] {
+    return build::SI1_SO<float3, float3>(
+        "frac(float3)", [](const float3 &a) { return math::fract(a); }, exec_fast);
+  });
+  registry::add_new_cb([] {
+    return build::SI1_SO<float3, float3>(
+        "abs(float3)", [](const float3 &a) { return math::abs(a); }, exec_fast);
+  });
+  registry::add_new_cb([] {
+    return build::SI1_SO<float3, float3>(
+        "sign(float3)", [](const float3 &a) { return math::sign(a); }, exec_fast);
+  });
+  registry::add_new_cb([] {
+    return build::SI1_SO<float3, float3>(
+        "sin(float3)", [](const float3 &a) { return float3(sinf(a.x), sinf(a.y), sinf(a.z)); });
+  });
+  registry::add_new_cb([] {
+    return build::SI1_SO<float3, float3>(
+        "cos(float3)", [](const float3 &a) { return float3(cosf(a.x), cosf(a.y), cosf(a.z)); });
+  });
+  registry::add_new_cb([] {
+    return build::SI1_SO<float3, float3>(
+        "tan(float3)", [](const float3 &a) { return float3(tanf(a.x), tanf(a.y), tanf(a.z)); });
   });
 }
 

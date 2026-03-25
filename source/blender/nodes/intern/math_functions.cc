@@ -192,74 +192,78 @@ const FloatMathOperationInfo *get_float_compare_operation_info(const int operati
 const FloatMathOperationInfo *get_float3_math_operation_info(const int operation)
 {
 
-#define RETURN_OPERATION_INFO(title_case_name, shader_name) \
+#define RETURN_OPERATION_INFO(title_case_name, shader_name, multi_function_name) \
   { \
-    static const FloatMathOperationInfo info{title_case_name, shader_name}; \
+    static const FloatMathOperationInfo info{title_case_name, shader_name, multi_function_name}; \
     return &info; \
   } \
   ((void)0)
 
   switch (operation) {
     case NODE_VECTOR_MATH_ADD:
-      RETURN_OPERATION_INFO("Add", "vector_math_add");
+      RETURN_OPERATION_INFO("Add", "vector_math_add", "float3 + float3"_ustr);
     case NODE_VECTOR_MATH_SUBTRACT:
-      RETURN_OPERATION_INFO("Subtract", "vector_math_subtract");
+      RETURN_OPERATION_INFO("Subtract", "vector_math_subtract", "float3 - float3"_ustr);
     case NODE_VECTOR_MATH_MULTIPLY:
-      RETURN_OPERATION_INFO("Multiply", "vector_math_multiply");
+      RETURN_OPERATION_INFO("Multiply", "vector_math_multiply", "float3 * float3"_ustr);
     case NODE_VECTOR_MATH_DIVIDE:
-      RETURN_OPERATION_INFO("Divide", "vector_math_divide");
+      RETURN_OPERATION_INFO("Divide", "vector_math_divide", "float3 / float3"_ustr);
     case NODE_VECTOR_MATH_CROSS_PRODUCT:
-      RETURN_OPERATION_INFO("Cross Product", "vector_math_cross");
+      RETURN_OPERATION_INFO(
+          "Cross Product", "vector_math_cross", "cross_product(float3, float3)"_ustr);
     case NODE_VECTOR_MATH_PROJECT:
-      RETURN_OPERATION_INFO("Project", "vector_math_project");
+      RETURN_OPERATION_INFO("Project", "vector_math_project", "project(float3, float3)"_ustr);
     case NODE_VECTOR_MATH_REFLECT:
-      RETURN_OPERATION_INFO("Reflect", "vector_math_reflect");
+      RETURN_OPERATION_INFO("Reflect", "vector_math_reflect", "reflect(float3, float3)"_ustr);
     case NODE_VECTOR_MATH_DOT_PRODUCT:
-      RETURN_OPERATION_INFO("Dot Product", "vector_math_dot");
+      RETURN_OPERATION_INFO("Dot Product", "vector_math_dot", "dot_product(float3, float3)"_ustr);
     case NODE_VECTOR_MATH_DISTANCE:
-      RETURN_OPERATION_INFO("Distance", "vector_math_distance");
+      RETURN_OPERATION_INFO("Distance", "vector_math_distance", "distance(float3, float3)"_ustr);
     case NODE_VECTOR_MATH_LENGTH:
-      RETURN_OPERATION_INFO("Length", "vector_math_length");
+      RETURN_OPERATION_INFO("Length", "vector_math_length", "length(float3)"_ustr);
     case NODE_VECTOR_MATH_SCALE:
-      RETURN_OPERATION_INFO("Scale", "vector_math_scale");
+      RETURN_OPERATION_INFO("Scale", "vector_math_scale", "float3 * float"_ustr);
     case NODE_VECTOR_MATH_NORMALIZE:
-      RETURN_OPERATION_INFO("Normalize", "vector_math_normalize");
+      RETURN_OPERATION_INFO("Normalize", "vector_math_normalize", "normalize(float3)"_ustr);
     case NODE_VECTOR_MATH_SNAP:
-      RETURN_OPERATION_INFO("Snap", "vector_math_snap");
+      RETURN_OPERATION_INFO("Snap", "vector_math_snap", "snap(float3, float3)"_ustr);
     case NODE_VECTOR_MATH_ROUND:
-      RETURN_OPERATION_INFO("Round", "vector_math_round");
+      RETURN_OPERATION_INFO("Round", "vector_math_round", "round(float3)"_ustr);
     case NODE_VECTOR_MATH_FLOOR:
-      RETURN_OPERATION_INFO("Floor", "vector_math_floor");
+      RETURN_OPERATION_INFO("Floor", "vector_math_floor", "floor(float3)"_ustr);
     case NODE_VECTOR_MATH_CEIL:
-      RETURN_OPERATION_INFO("Ceiling", "vector_math_ceil");
+      RETURN_OPERATION_INFO("Ceiling", "vector_math_ceil", "ceil(float3)"_ustr);
     case NODE_VECTOR_MATH_MODULO:
-      RETURN_OPERATION_INFO("Modulo", "vector_math_modulo");
+      RETURN_OPERATION_INFO("Modulo", "vector_math_modulo", "float3 % float3"_ustr);
     case NODE_VECTOR_MATH_FRACTION:
-      RETURN_OPERATION_INFO("Fraction", "vector_math_fraction");
+      RETURN_OPERATION_INFO("Fraction", "vector_math_fraction", "frac(float3)"_ustr);
     case NODE_VECTOR_MATH_ABSOLUTE:
-      RETURN_OPERATION_INFO("Absolute", "vector_math_absolute");
+      RETURN_OPERATION_INFO("Absolute", "vector_math_absolute", "abs(float3)"_ustr);
     case NODE_VECTOR_MATH_MINIMUM:
-      RETURN_OPERATION_INFO("Minimum", "vector_math_minimum");
+      RETURN_OPERATION_INFO("Minimum", "vector_math_minimum", "min(float3, float3)"_ustr);
     case NODE_VECTOR_MATH_MAXIMUM:
-      RETURN_OPERATION_INFO("Maximum", "vector_math_maximum");
+      RETURN_OPERATION_INFO("Maximum", "vector_math_maximum", "max(float3, float3)"_ustr);
     case NODE_VECTOR_MATH_WRAP:
-      RETURN_OPERATION_INFO("Wrap", "vector_math_wrap");
+      RETURN_OPERATION_INFO("Wrap", "vector_math_wrap", "wrap(float3, float3, float3)"_ustr);
     case NODE_VECTOR_MATH_SINE:
-      RETURN_OPERATION_INFO("Sine", "vector_math_sine");
+      RETURN_OPERATION_INFO("Sine", "vector_math_sine", "sin(float3)"_ustr);
     case NODE_VECTOR_MATH_COSINE:
-      RETURN_OPERATION_INFO("Cosine", "vector_math_cosine");
+      RETURN_OPERATION_INFO("Cosine", "vector_math_cosine", "cos(float3)"_ustr);
     case NODE_VECTOR_MATH_TANGENT:
-      RETURN_OPERATION_INFO("Tangent", "vector_math_tangent");
+      RETURN_OPERATION_INFO("Tangent", "vector_math_tangent", "tan(float3)"_ustr);
     case NODE_VECTOR_MATH_REFRACT:
-      RETURN_OPERATION_INFO("Refract", "vector_math_refract");
+      RETURN_OPERATION_INFO(
+          "Refract", "vector_math_refract", "refract(float3, float3, float)"_ustr);
     case NODE_VECTOR_MATH_FACEFORWARD:
-      RETURN_OPERATION_INFO("Faceforward", "vector_math_faceforward");
+      RETURN_OPERATION_INFO(
+          "Faceforward", "vector_math_faceforward", "faceforward(float3, float3, float3)"_ustr);
     case NODE_VECTOR_MATH_MULTIPLY_ADD:
-      RETURN_OPERATION_INFO("Multiply Add", "vector_math_multiply_add");
+      RETURN_OPERATION_INFO(
+          "Multiply Add", "vector_math_multiply_add", "float3 * float3 + float3"_ustr);
     case NODE_VECTOR_MATH_POWER:
-      RETURN_OPERATION_INFO("Power", "vector_math_power");
+      RETURN_OPERATION_INFO("Power", "vector_math_power", "float3 ^ float3"_ustr);
     case NODE_VECTOR_MATH_SIGN:
-      RETURN_OPERATION_INFO("Sign", "vector_math_sign");
+      RETURN_OPERATION_INFO("Sign", "vector_math_sign", "sign(float3)"_ustr);
   }
 
 #undef RETURN_OPERATION_INFO
