@@ -8,10 +8,6 @@
  * Interactive editmesh knife tool.
  */
 
-#ifdef _MSC_VER
-#  define _USE_MATH_DEFINES
-#endif
-
 #include <fmt/format.h>
 
 #include "MEM_guardedalloc.h"
@@ -1091,13 +1087,15 @@ static void knife_update_header(bContext *C, wmOperator *op, KnifeTool_OpData *k
           kcd->angle_snapping_increment :
           KNIFE_DEFAULT_ANGLE_SNAPPING_INCREMENT,
       kcd->angle_snapping ?
-          ((kcd->angle_snapping_mode == KNF_CONSTRAIN_ANGLE_MODE_SCREEN) ? "Screen" : "Relative") :
-          "OFF", /* TODO: Can this be simplified? */
+          ((kcd->angle_snapping_mode == KNF_CONSTRAIN_ANGLE_MODE_SCREEN) ? IFACE_("Screen") :
+                                                                           IFACE_("Relative")) :
+          IFACE_("Off"), /* TODO: Can this be simplified? */
       (kcd->angle_snapping_mode == KNF_CONSTRAIN_ANGLE_MODE_RELATIVE) ? " - " : "",
       (kcd->angle_snapping_mode == KNF_CONSTRAIN_ANGLE_MODE_RELATIVE) ?
           get_modal_key_str(KNF_MODAL_CYCLE_ANGLE_SNAP_EDGE) :
           "",
-      (kcd->angle_snapping_mode == KNF_CONSTRAIN_ANGLE_MODE_RELATIVE) ? ": Cycle Edge" : "");
+      (kcd->angle_snapping_mode == KNF_CONSTRAIN_ANGLE_MODE_RELATIVE) ? IFACE_(": Cycle Edge") :
+                                                                        "");
 
   status.opmodal(angle, op->type, KNF_MODAL_ANGLE_SNAP_TOGGLE);
 }
@@ -1861,7 +1859,7 @@ static void prepare_linehits_for_cut(KnifeTool_OpData *kcd)
     return;
   }
 
-  std::sort(kcd->linehits.begin(), kcd->linehits.end(), linehit_compare);
+  std::ranges::sort(kcd->linehits, linehit_compare);
 
   /* Remove any edge hits that are preceded or followed
    * by a vertex hit that is very near. Mark such edge hits using
@@ -4675,12 +4673,14 @@ void MESH_OT_knife_tool(wmOperatorType *ot)
   RNA_def_boolean(ot->srna, "only_selected", false, "Only Selected", "Only cut selected geometry");
   RNA_def_boolean(ot->srna, "xray", true, "X-Ray", "Show cuts hidden by geometry");
 
-  RNA_def_enum(ot->srna,
-               "visible_measurements",
-               visible_measurements_items,
-               KNF_MEASUREMENT_NONE,
-               "Measurements",
-               "Visible distance and angle measurements");
+  prop = RNA_def_enum(ot->srna,
+                      "visible_measurements",
+                      visible_measurements_items,
+                      KNF_MEASUREMENT_NONE,
+                      "Measurements",
+                      "Visible distance and angle measurements");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_MESH);
+
   prop = RNA_def_enum(ot->srna,
                       "angle_snapping",
                       angle_snapping_items,

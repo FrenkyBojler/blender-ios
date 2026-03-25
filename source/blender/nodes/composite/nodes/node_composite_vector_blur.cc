@@ -40,8 +40,10 @@ static void node_declare(NodeDeclarationBuilder &b)
       .max(1.0f)
       .subtype(PROP_VELOCITY)
       .structure_type(StructureType::Dynamic);
-  b.add_input<decl::Float>("Z").default_value(0.0f).min(0.0f).structure_type(
-      StructureType::Dynamic);
+  b.add_input<decl::Float>("Depth", "Z")
+      .default_value(0.0f)
+      .min(0.0f)
+      .structure_type(StructureType::Dynamic);
   b.add_input<decl::Int>("Samples").default_value(32).min(1).max(256).description(
       "The number of samples used to approximate the motion blur");
   b.add_input<decl::Float>("Shutter").default_value(0.5f).min(0.0f).description(
@@ -168,7 +170,7 @@ static bool is_inside_motion_line(const int2 &tile, const MotionLine &motion_lin
   float distance_to_line = math::dot(motion_line.normal, motion_line.origin - float2(tile));
   /* In order to be conservative and for simplicity, we use the tiles bounding circles.
    * Consider that both the tile and the line have bounding radius of M_SQRT1_2. */
-  return math::abs(distance_to_line) < math::numbers::sqrt2_v<float>;
+  return math::abs(distance_to_line) < std::numbers::sqrt2_v<float>;
 }
 
 /* The max tile velocity image computes the maximum within 32x32 blocks, while the velocity can
