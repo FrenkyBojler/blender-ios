@@ -11553,7 +11553,7 @@ static int handle_menu_event(bContext *C,
         }
 
         if (ELEM(event->type, LEFTMOUSE, MIDDLEMOUSE, RIGHTMOUSE)) {
-          if (ELEM(event->val, KM_PRESS, KM_DBL_CLICK)) {
+          if (ELEM(event->val, KM_PRESS, KM_RELEASE, KM_DBL_CLICK)) {
             if ((is_parent_menu == false) && (U.uiflag & USER_MENUOPENAUTO) == 0) {
               /* for root menus, allow clicking to close */
               if (block->flag & BLOCK_OUT_1) {
