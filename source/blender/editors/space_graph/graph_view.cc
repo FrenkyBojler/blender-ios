@@ -662,7 +662,7 @@ static uint16_t find_free_localview_bit(const Main *bmain)
 
 static bool local_view_enter(bContext *C,
                              SpaceGraph &sipo,
-                             ARegion &region,
+                             const ARegion &region,
                              ListBaseT<bAnimListElem> &anim_data,
                              bool frame_selected)
 {
@@ -763,7 +763,7 @@ static wmOperatorStatus graphview_fcurves_isolate_exec(bContext *C, wmOperator *
 static bool graph_isolate_poll(bContext *C)
 {
   if (ED_operator_graphedit_active(C)) {
-    SpaceGraph *sipo = CTX_wm_space_graph(C);
+    const SpaceGraph *sipo = CTX_wm_space_graph(C);
     /* Operator is not supported yet in driver editor. */
     return sipo->mode != SIPO_MODE_DRIVERS;
   }

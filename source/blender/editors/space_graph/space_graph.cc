@@ -444,7 +444,6 @@ static void graph_channel_region_draw(const bContext *C, ARegion *region)
                                     ANIMFILTER_LIST_CHANNELS | ANIMFILTER_FCURVESONLY);
   const size_t item_count = ANIM_animdata_filter(
       &ac, &anim_data, filter, ac.data, eAnimCont_Types(ac.datatype));
-
   set_v2d_height(v2d, item_count);
   ui::view2d_view_ortho(v2d);
 
