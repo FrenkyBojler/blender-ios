@@ -1902,7 +1902,7 @@ volume_direct_sample_method(KernelGlobals kg,
     return VOLUME_SAMPLE_NONE;
   }
 
-  /* Sample the scatter position with distance sampling for distant/background light. */
+  /* Sample the scatter position with distance sampling for distant light. */
   const bool has_equiangular_sample = (ls->t != FLT_MAX);
   return has_equiangular_sample ? volume_stack_sample_method(kg, state) : VOLUME_SAMPLE_DISTANCE;
 }
@@ -2441,7 +2441,7 @@ ccl_device_forceinline void integrate_volume_direct_light(
       return;
     }
   }
-  /* For non-constant light shader, probablistic termination happens in
+  /* For non-constant light shader, probabilistic termination happens in
    * SHADE_LIGHT_NEE when the full contribution is known. */
   else if (bsdf_eval_is_zero(&phase_eval)) {
     return;

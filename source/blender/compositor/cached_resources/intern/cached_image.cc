@@ -40,21 +40,23 @@ namespace blender::compositor {
  * Cached Image Key.
  */
 
-CachedImageKey::CachedImageKey(ImageUser image_user, std::string pass_name)
-    : image_user(image_user), pass_name(pass_name)
+CachedImageKey::CachedImageKey(const int layer_index,
+                               const std::string pass_name,
+                               const std::string view_name,
+                               const int frame)
+    : layer_index(layer_index), pass_name(pass_name), view_name(view_name), frame(frame)
 {
 }
 
 uint64_t CachedImageKey::hash() const
 {
-  return get_default_hash(image_user.framenr, image_user.layer, image_user.view, pass_name);
+  return get_default_hash(this->layer_index, this->view_name, this->pass_name, this->frame);
 }
 
 bool operator==(const CachedImageKey &a, const CachedImageKey &b)
 {
-  return a.image_user.framenr == b.image_user.framenr &&
-         a.image_user.layer == b.image_user.layer && a.image_user.view == b.image_user.view &&
-         a.pass_name == b.pass_name;
+  return a.layer_index == b.layer_index && a.pass_name == b.pass_name &&
+         a.view_name == b.view_name && a.frame == b.frame;
 }
 
 /* --------------------------------------------------------------------
@@ -354,18 +356,11 @@ CachedImage::CachedImage(Context &context,
       });
     }
     else {
-      result.get_cpp_type().to_static_type_tag<float, float2, float3, float4, Color>(
-          [&](auto type_tag) {
-            using T = typename decltype(type_tag)::type;
-            if constexpr (std::is_same_v<T, void>) {
-              /* Unsupported type. */
-              BLI_assert_unreachable();
-            }
-            else {
-              parallel_for(result.domain().data_size, [&](const int2 texel) {
-                result.store_pixel(texel, buffer_result.load_pixel<T>(texel));
-              });
-            }
+      result.get_cpp_type().to_static_type<float, float2, float3, float4, Color>(
+          [&]<typename T>() {
+            parallel_for(result.domain().data_size, [&](const int2 texel) {
+              result.store_pixel(texel, buffer_result.load_pixel<T>(texel));
+            });
           });
     }
   }
@@ -492,7 +487,14 @@ Result CachedImageContainer::get(Context &context,
   ImageUser image_user_for_frame = *image_user;
   BKE_image_user_frame_calc(image, &image_user_for_frame, context.get_frame_number());
 
-  const CachedImageKey key(image_user_for_frame, pass_name);
+  /* A view of 0 is a special value that means the current view being rendered so use the context
+   * view name. For other values, just convert the view index into a string and use it as the name,
+   * while this is not correct it works as the cache key and is very fast compared to reading the
+   * views from file and finding out their name. */
+  const std::string view_name = image_user->view == 0 ? std::string(context.get_view_name()) :
+                                                        std::to_string(image_user->view);
+
+  const CachedImageKey key(image_user->layer, pass_name, view_name, image_user_for_frame.framenr);
 
   const std::string library_key = image->id.lib ? image->id.lib->id.name : "";
   const std::string id_key = std::string(image->id.name) + library_key;

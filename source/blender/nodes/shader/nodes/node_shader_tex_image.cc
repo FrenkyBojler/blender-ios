@@ -27,7 +27,7 @@ static void sh_node_tex_image_declare(NodeDeclarationBuilder &b)
 
 static void node_shader_init_tex_image(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeTexImage *tex = MEM_new_for_free<NodeTexImage>(__func__);
+  NodeTexImage *tex = MEM_new<NodeTexImage>(__func__);
   BKE_texture_mapping_default(&tex->base.tex_mapping, TEXMAP_TYPE_POINT);
   BKE_texture_colormapping_default(&tex->base.color_mapping);
   BKE_imageuser_default(&tex->iuser);
@@ -87,8 +87,11 @@ static int node_shader_gpu_tex_image(GPUMaterial *mat,
 
   if (tex->interpolation != SHD_INTERP_CLOSEST) {
     /* TODO(fclem): For now assume mipmap is always enabled. */
-    sampler_state.filtering = GPU_SAMPLER_FILTERING_ANISOTROPIC | GPU_SAMPLER_FILTERING_LINEAR |
-                              GPU_SAMPLER_FILTERING_MIPMAP;
+    /* Setting the GPU_SAMPLER_FILTERING_ANISOTROPIC_ENABLE enables anisotropic filtering. The
+     * exact number of samples are being determined at bind time by the engine.
+     * See #blender::draw::PassBase<T>::material_set */
+    sampler_state.filtering = GPU_SAMPLER_FILTERING_ANISOTROPIC_ENABLE |
+                              GPU_SAMPLER_FILTERING_LINEAR | GPU_SAMPLER_FILTERING_MIPMAP;
   }
   const bool use_cubic = ELEM(tex->interpolation, SHD_INTERP_CUBIC, SHD_INTERP_SMART);
 

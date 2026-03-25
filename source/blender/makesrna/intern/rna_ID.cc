@@ -1298,8 +1298,8 @@ static void rna_ImagePreview_size_set(PointerRNA *ptr, const int *values, enum e
   BKE_previewimg_clear_single(prv_img, size);
 
   if (values[0] && values[1]) {
-    prv_img->rect[size] = MEM_calloc_arrayN<uint>(size_t(values[0]) * size_t(values[1]),
-                                                  "prv_rect");
+    prv_img->rect[size] = MEM_new_array_zeroed<uint>(size_t(values[0]) * size_t(values[1]),
+                                                     "prv_rect");
 
     prv_img->w[size] = values[0];
     prv_img->h[size] = values[1];
@@ -2659,7 +2659,7 @@ static void rna_def_ID(BlenderRNA *brna)
   RNA_def_function_flag(func, FUNC_USE_MAIN);
   RNA_def_function_ui_description(
       func, "Create animation data to this ID, note that not all ID types support this");
-  parm = RNA_def_pointer(func, "anim_data", "AnimData", "", "New animation data or nullptr");
+  parm = RNA_def_pointer(func, "anim_data", "AnimData", "", "New animation data or None");
   RNA_def_function_return(func, parm);
 
   func = RNA_def_function(srna, "animation_data_clear", "rna_ID_animation_data_free");

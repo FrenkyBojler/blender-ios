@@ -46,7 +46,8 @@ struct AttributeSearchData {
   char socket_identifier[MAX_NAME];
 };
 
-/* This class must not have a destructor, since it is used by buttons and freed with #MEM_freeN. */
+/* This class must not have a destructor, since it is used by buttons and freed with
+ * #MEM_delete_void. */
 BLI_STATIC_ASSERT(std::is_trivially_destructible_v<AttributeSearchData>, "");
 
 static Vector<const GeometryAttributeInfo *> get_attribute_info_from_context(
@@ -162,6 +163,7 @@ static eCustomDataType data_type_in_attribute_input_node(const eCustomDataType t
       /* Unsupported currently. */
       return CD_PROP_FLOAT;
     case CD_PROP_FLOAT2:
+    case CD_PROP_FLOAT4:
     case CD_PROP_INT16_2D:
     case CD_PROP_INT32_2D:
       /* No 2D vector sockets currently. */
@@ -249,7 +251,7 @@ void node_geometry_add_attribute_search_button(const bContext & /*C*/,
   button_placeholder_set(but, placeholder);
 
   const bNodeSocket &socket = *static_cast<const bNodeSocket *>(socket_ptr.data);
-  AttributeSearchData *data = MEM_callocN<AttributeSearchData>(__func__);
+  AttributeSearchData *data = MEM_new_zeroed<AttributeSearchData>(__func__);
   data->node_id = node.identifier;
   STRNCPY_UTF8(data->socket_identifier, socket.identifier);
 

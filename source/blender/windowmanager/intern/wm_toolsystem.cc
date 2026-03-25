@@ -128,7 +128,7 @@ bool WM_toolsystem_ref_ensure(WorkSpace *workspace, const bToolKey *tkey, bToolR
     *r_tref = tref;
     return false;
   }
-  tref = MEM_new_for_free<bToolRef>(__func__);
+  tref = MEM_new<bToolRef>(__func__);
   BLI_addhead(&workspace->tools, tref);
   tref->space_type = tkey->space_type;
   tref->mode = tkey->mode;
@@ -224,8 +224,7 @@ static const char *brush_type_identifier_get(const int brush_type, const PaintMo
 static bool brush_type_matches_active_tool(bContext *C, const int brush_type)
 {
   const bToolRef *active_tool = toolsystem_active_tool_from_context_or_view3d(C);
-
-  if (active_tool->runtime == nullptr) {
+  if (active_tool == nullptr || active_tool->runtime == nullptr) {
     /* Should only ever be null in background mode. */
     BLI_assert(G.background);
     return false;
@@ -288,7 +287,7 @@ static void toolsystem_brush_type_binding_update(Paint *paint,
   }
   /* Add new reference. */
   else {
-    NamedBrushAssetReference *new_brush_ref = MEM_new_for_free<NamedBrushAssetReference>(__func__);
+    NamedBrushAssetReference *new_brush_ref = MEM_new<NamedBrushAssetReference>(__func__);
 
     new_brush_ref->name = BLI_strdup(brush_type_name);
     new_brush_ref->brush_asset_reference = MEM_new<AssetWeakReference>(
@@ -626,7 +625,7 @@ void WM_toolsystem_ref_set_from_runtime(bContext *C,
   tref->idname_pending[0] = '\0';
 
   if (tref->runtime == nullptr) {
-    tref->runtime = MEM_new_for_free<bToolRef_Runtime>(__func__);
+    tref->runtime = MEM_new<bToolRef_Runtime>(__func__);
   }
 
   if (tref_rt != tref->runtime) {
@@ -716,7 +715,7 @@ void WM_toolsystem_init(const bContext *C)
 
   for (WorkSpace &workspace : bmain->workspaces) {
     for (bToolRef &tref : workspace.tools) {
-      MEM_SAFE_FREE(tref.runtime);
+      MEM_SAFE_DELETE(tref.runtime);
     }
   }
 

@@ -588,9 +588,15 @@ static void createTransPose(bContext * /*C*/, TransInfo *t)
     /* Set flags. */
     transform_convert_pose_transflags_update(ob, t->mode, t->around);
 
-    /* Now count, and check if we have autoIK or have to switch from translate to rotate. */
+    /* Check if we're doing auto-IK or switching from translate to rotate.
+     * Also collect needed information (such as bone count)
+     * and clear flags from previous runs that can interfere. */
     for (bPoseChannel &pchan : ob->pose->chanbase) {
       Bone *bone = pchan.bone;
+
+      /* Clear the MIRROR flag from previous runs. */
+      bone->flag &= ~BONE_TRANSFORM_MIRROR;
+
       if (!(pchan.runtime.flag & POSE_RUNTIME_TRANSFORM)) {
         continue;
       }
@@ -638,9 +644,6 @@ static void createTransPose(bContext * /*C*/, TransInfo *t)
     if (mirror) {
       int total_mirrored = 0;
       for (bPoseChannel &pchan : ob->pose->chanbase) {
-        /* Clear the MIRROR flag from previous runs. */
-        pchan.bone->flag &= ~BONE_TRANSFORM_MIRROR;
-
         if ((pchan.runtime.flag & POSE_RUNTIME_TRANSFORM) &&
             BKE_pose_channel_get_mirrored(ob->pose, pchan.name))
         {
@@ -648,8 +651,8 @@ static void createTransPose(bContext * /*C*/, TransInfo *t)
         }
       }
 
-      PoseInitData_Mirror *pid = MEM_malloc_arrayN<PoseInitData_Mirror>((total_mirrored + 1),
-                                                                        "PoseInitData_Mirror");
+      PoseInitData_Mirror *pid = MEM_new_array_uninitialized<PoseInitData_Mirror>(
+          (total_mirrored + 1), "PoseInitData_Mirror");
 
       /* Trick to terminate iteration. */
       pid[total_mirrored].pchan = nullptr;
@@ -682,8 +685,9 @@ static void createTransPose(bContext * /*C*/, TransInfo *t)
     tc->poseobj = ob;
 
     /* Initialize trans data. */
-    td = tc->data = MEM_calloc_arrayN<TransData>(tc->data_len, "TransPoseBone");
-    tdx = tc->data_ext = MEM_calloc_arrayN<TransDataExtension>(tc->data_len, "TransPoseBoneExt");
+    td = tc->data = MEM_new_array_zeroed<TransData>(tc->data_len, "TransPoseBone");
+    tdx = tc->data_ext = MEM_new_array_zeroed<TransDataExtension>(tc->data_len,
+                                                                  "TransPoseBoneExt");
 
     if (mirror) {
       for (bPoseChannel &pchan : pose->chanbase) {
@@ -787,7 +791,8 @@ static void createTransArmatureVerts(bContext * /*C*/, TransInfo *t)
     }
 
     if (mirror) {
-      BoneInitData *bid = MEM_malloc_arrayN<BoneInitData>((total_mirrored + 1), "BoneInitData");
+      BoneInitData *bid = MEM_new_array_uninitialized<BoneInitData>((total_mirrored + 1),
+                                                                    "BoneInitData");
 
       /* Trick to terminate iteration. */
       bid[total_mirrored].bone = nullptr;
@@ -816,7 +821,7 @@ static void createTransArmatureVerts(bContext * /*C*/, TransInfo *t)
     copy_m3_m4(mtx, tc->obedit->object_to_world().ptr());
     pseudoinverse_m3_m3(smtx, mtx, PSEUDOINVERSE_EPSILON);
 
-    td = tc->data = MEM_calloc_arrayN<TransData>(tc->data_len, "TransEditBone");
+    td = tc->data = MEM_new_array_zeroed<TransData>(tc->data_len, "TransEditBone");
     int i = 0;
 
     for (EditBone &ebo : *edbo) {
@@ -1162,6 +1167,14 @@ static void pose_transform_mirror_update(TransInfo *t, TransDataContainer *tc, O
   for (int i = tc->data_len; i--; td++) {
     bPoseChannel *pchan_orig = static_cast<bPoseChannel *>(td->extra);
     BLI_assert(pchan_orig->runtime.flag & POSE_RUNTIME_TRANSFORM);
+    if (pchan_orig->bone->flag & BONE_TRANSFORM_MIRROR) {
+      /* If the bone already has the flag set it was already visited by its mirror bone which may
+       * also be selected. To avoid double transformations, ignore in this case. See #95396.  */
+      if (pid) {
+        pid++;
+      }
+      continue;
+    }
     /* No layer check, correct mirror is more important. */
     bPoseChannel *pchan = BKE_pose_channel_get_mirrored(pose, pchan_orig->name);
     if (pchan == nullptr) {
@@ -1612,8 +1625,8 @@ static void pose_grab_with_ik_clear(Main *bmain, Object *ob)
           BIK_clear_data(ob->pose);
 
           BLI_remlink(&pchan.constraints, con);
-          MEM_freeN(con->data);
-          MEM_freeN(con);
+          MEM_delete(static_cast<bKinematicConstraint *>(con->data));
+          MEM_delete(con);
           continue;
         }
         pchan.constflag |= PCHAN_HAS_IK;

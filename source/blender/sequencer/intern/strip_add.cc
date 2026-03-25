@@ -168,12 +168,13 @@ Strip *add_effect_strip(Scene *scene, ListBaseT<Strip> *seqbase, LoadData *load_
   strip->flag |= SEQ_USE_EFFECT_DEFAULT_FADE;
   effect_ensure_initialized(strip);
 
-  if (effect_get_num_inputs(strip->type) != 0) {
+  const int min_inputs = effect_type_get_min_num_inputs(load_data->effect.type);
+  if (min_inputs != 0 || load_data->effect.type == STRIP_TYPE_COMPOSITOR) {
     strip->input1 = load_data->effect.input1;
     strip->input2 = load_data->effect.input2;
   }
 
-  if (effect_get_num_inputs(strip->type) == 1) {
+  if (min_inputs == 1) {
     strip->blend_mode = strip->input1->blend_mode;
     strip->blend_opacity = strip->input1->blend_opacity;
   }
@@ -238,7 +239,7 @@ Strip *add_image_strip(Main *bmain, Scene *scene, ListBaseT<Strip> *seqbase, Loa
       seqbase, load_data->start_frame, load_data->channel, STRIP_TYPE_IMAGE);
   strip->len = load_data->image.count;
   StripData *data = strip->data;
-  data->stripdata = MEM_new_array_for_free<StripElem>(load_data->image.count, "stripelem");
+  data->stripdata = MEM_new_array<StripElem>(load_data->image.count, "stripelem");
 
   if (strip->len == 1) {
     strip->flag |= SEQ_SINGLE_FRAME_CONTENT;
@@ -250,7 +251,7 @@ Strip *add_image_strip(Main *bmain, Scene *scene, ListBaseT<Strip> *seqbase, Loa
     strip->views_format = load_data->views_format;
   }
   if (load_data->stereo3d_format) {
-    strip->stereo3d_format = MEM_new_for_free<Stereo3dFormat>("strip stereo3d format");
+    strip->stereo3d_format = MEM_new<Stereo3dFormat>("strip stereo3d format");
     *strip->stereo3d_format = *load_data->stereo3d_format;
   }
 
@@ -335,7 +336,7 @@ Strip *add_sound_strip(Main *bmain, Scene *scene, ListBaseT<Strip> *seqbase, Loa
 
   StripData *data = strip->data;
   /* We only need 1 element to store the filename. */
-  StripElem *se = data->stripdata = MEM_new_for_free<StripElem>("stripelem");
+  StripElem *se = data->stripdata = MEM_new<StripElem>("stripelem");
   BLI_path_split_dir_file(
       load_data->path, data->dirpath, sizeof(data->dirpath), se->filename, sizeof(se->filename));
 
@@ -478,7 +479,7 @@ Strip *add_movie_strip(Main *bmain, Scene *scene, ListBaseT<Strip> *seqbase, Loa
     strip->views_format = load_data->views_format;
   }
   if (load_data->stereo3d_format) {
-    strip->stereo3d_format = MEM_new_for_free<Stereo3dFormat>("strip stereo3d format");
+    strip->stereo3d_format = MEM_new<Stereo3dFormat>("strip stereo3d format");
     *strip->stereo3d_format = *load_data->stereo3d_format;
   }
 
@@ -523,7 +524,7 @@ Strip *add_movie_strip(Main *bmain, Scene *scene, ListBaseT<Strip> *seqbase, Loa
   StripData *data = strip->data;
   /* We only need 1 element for MOVIE strips. */
   StripElem *se;
-  data->stripdata = se = MEM_new_for_free<StripElem>("stripelem");
+  data->stripdata = se = MEM_new<StripElem>("stripelem");
   data->stripdata->orig_width = orig_width;
   data->stripdata->orig_height = orig_height;
   data->stripdata->orig_fps = video_fps;

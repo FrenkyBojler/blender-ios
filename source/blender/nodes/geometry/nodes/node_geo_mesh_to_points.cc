@@ -9,7 +9,6 @@
 #include "DNA_pointcloud_types.h"
 
 #include "BKE_attribute_math.hh"
-#include "BKE_customdata.hh"
 #include "BKE_pointcloud.hh"
 
 #include "NOD_rna_define.hh"
@@ -49,7 +48,7 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryMeshToPoints *data = MEM_new_for_free<NodeGeometryMeshToPoints>(__func__);
+  NodeGeometryMeshToPoints *data = MEM_new<NodeGeometryMeshToPoints>(__func__);
   data->mode = GEO_NODE_MESH_TO_POINTS_VERTICES;
   node->storage = data;
 }
@@ -104,34 +103,49 @@ static void geometry_set_mesh_to_points(GeometrySet &geometry_set,
   }
 
   MutableAttributeAccessor dst_attributes = pointcloud->attributes_for_write();
-  SpanAttributeWriter radius = dst_attributes.lookup_or_add_for_write_only_span<float>(
-      "radius", AttrDomain::Point);
-  array_utils::gather(evaluator.get_evaluated(1), selection, radius.span);
-  radius.finish();
-
-  bke::GeometrySet::GatheredAttributes attributes;
-  geometry_set.gather_attributes_for_propagation({GeometryComponent::Type::Mesh},
-                                                 GeometryComponent::Type::PointCloud,
-                                                 false,
-                                                 attribute_filter,
-                                                 attributes);
-
-  for (const int i : attributes.names.index_range()) {
-    if (ELEM(attributes.names[i], "position", "radius", ".select_edge", ".select_poly")) {
-      continue;
+  {
+    const VArray<float> radii = evaluator.get_evaluated<float>(1);
+    if (const std::optional<float> radius = radii.get_if_single()) {
+      dst_attributes.add<float>("radius", AttrDomain::Point, bke::AttributeInitValue(*radius));
     }
-    const StringRef src_name = attributes.names[i];
-    const bke::AttrType data_type = attributes.kinds[i].data_type;
-    const bke::GAttributeReader src = src_attributes.lookup(src_name, domain, data_type);
+    else {
+      SpanAttributeWriter attr = dst_attributes.lookup_or_add_for_write_only_span<float>(
+          "radius", AttrDomain::Point);
+      array_utils::gather(radii, selection, attr.span);
+      attr.finish();
+    }
+  }
+
+  src_attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
+    const StringRef src_name = iter.name;
+    if (iter.is_builtin && !dst_attributes.is_builtin(src_name)) {
+      return;
+    }
+    if (ELEM(src_name, "position", "radius", ".select_edge", ".select_poly")) {
+      return;
+    }
+    if (attribute_filter.allow_skip(src_name)) {
+      return;
+    }
+    const bke::AttrType data_type = iter.data_type;
+    const bke::GAttributeReader src = iter.get(domain);
     if (!src) {
       /* Domain interpolation can fail if the source domain is empty. */
-      continue;
+      return;
+    }
+    const StringRef dst_name = src_name == ".select_vert" ? ".selection" : src_name;
+    const CommonVArrayInfo info = src.varray.common_info();
+    if (info.type == CommonVArrayInfo::Type::Single) {
+      const CPPType &type = src.varray.type();
+      const bke::AttributeInitValue init(GPointer(type, info.data));
+      dst_attributes.add(dst_name, AttrDomain::Point, data_type, init);
+      return;
     }
 
-    const StringRef dst_name = src_name == ".select_vert" ? ".selection" : src_name;
-    if (share_arrays && src.domain == domain && src.sharing_info && src.varray.is_span()) {
-      const bke::AttributeInitShared init(src.varray.get_internal_span().data(),
-                                          *src.sharing_info);
+    if (share_arrays && src.domain == domain && src.sharing_info &&
+        info.type == CommonVArrayInfo::Type::Span)
+    {
+      const bke::AttributeInitShared init(info.data, *src.sharing_info);
       dst_attributes.add(dst_name, AttrDomain::Point, data_type, init);
     }
     else {
@@ -140,7 +154,7 @@ static void geometry_set_mesh_to_points(GeometrySet &geometry_set,
       array_utils::gather(src.varray, selection, dst.span);
       dst.finish();
     }
-  }
+  });
 
   geometry_set.replace_pointcloud(pointcloud);
   geometry_set.keep_only({GeometryComponent::Type::PointCloud, GeometryComponent::Type::Edit});

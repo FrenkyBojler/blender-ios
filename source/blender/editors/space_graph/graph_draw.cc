@@ -128,7 +128,7 @@ static void draw_fcurve_modifier_controls_envelope(FModifier *fcm,
     /* set size of vertices (non-adjustable for now) */
     GPU_point_size(2.0f);
 
-    immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+    immBindBuiltinProgram(GPU_SHADER_3D_POINT_UNIFORM_COLOR);
 
     /* for now, point color is fixed, and is white */
     immUniformColor3f(1.0f, 1.0f, 1.0f);
@@ -859,7 +859,8 @@ static void add_bezt_vertices(BezTriple *bezt,
   float prev_key[2], prev_handle[2], bez_handle[2], bez_key[2];
   /* Allocation needs +1 on resolution because BKE_curve_forward_diff_bezier uses it to iterate
    * inclusively. */
-  float *bezier_diff_points = MEM_malloc_arrayN<float>(((resolution + 1) * 2), "Draw bezt data");
+  float *bezier_diff_points = MEM_new_array_uninitialized<float>(((resolution + 1) * 2),
+                                                                 "Draw bezt data");
 
   prev_key[0] = prevbezt->vec[1][0];
   prev_key[1] = prevbezt->vec[1][1];
@@ -893,7 +894,7 @@ static void add_bezt_vertices(BezTriple *bezt,
     const float y = *(fp + 1);
     curve_vertices.append({x, y});
   }
-  MEM_freeN(bezier_diff_points);
+  MEM_delete(bezier_diff_points);
 }
 
 static void add_extrapolation_point_left(const FCurve *fcu,

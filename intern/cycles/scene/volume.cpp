@@ -5,6 +5,7 @@
 #include "scene/volume.h"
 #include "scene/attribute.h"
 #include "scene/background.h"
+#include "scene/geometry.h"
 #include "scene/image_vdb.h"
 #include "scene/integrator.h"
 #include "scene/light.h"
@@ -156,18 +157,13 @@ class VolumeMeshBuilder {
 
   void add_padding(const int pad_size);
 
-  void create_mesh(vector<float3> &vertices,
-                   vector<int> &indices,
-                   const float face_overlap_avoidance,
-                   const bool ray_marching);
+  void create_mesh(vector<float3> &vertices, vector<int> &indices, const bool ray_marching);
 
   void generate_vertices_and_quads(vector<int3> &vertices_is,
                                    vector<QuadData> &quads,
                                    const bool ray_marching);
 
-  void convert_object_space(const vector<int3> &vertices,
-                            vector<float3> &out_vertices,
-                            const float face_overlap_avoidance);
+  void convert_object_space(const vector<int3> &vertices, vector<float3> &out_vertices);
 
   void convert_quads_to_tris(const vector<QuadData> &quads, vector<int> &tris);
 
@@ -212,7 +208,6 @@ void VolumeMeshBuilder::add_padding(const int pad_size)
 
 void VolumeMeshBuilder::create_mesh(vector<float3> &vertices,
                                     vector<int> &indices,
-                                    const float face_overlap_avoidance,
                                     const bool ray_marching)
 {
   /* We create vertices in index space (is), and only convert them to object
@@ -222,7 +217,7 @@ void VolumeMeshBuilder::create_mesh(vector<float3> &vertices,
 
   generate_vertices_and_quads(vertices_is, quads, ray_marching);
 
-  convert_object_space(vertices_is, vertices, face_overlap_avoidance);
+  convert_object_space(vertices_is, vertices);
 
   convert_quads_to_tris(quads, indices);
 }
@@ -335,22 +330,15 @@ void VolumeMeshBuilder::generate_vertices_and_quads(vector<ccl::int3> &vertices_
 }
 
 void VolumeMeshBuilder::convert_object_space(const vector<int3> &vertices,
-                                             vector<float3> &out_vertices,
-                                             const float face_overlap_avoidance)
+                                             vector<float3> &out_vertices)
 {
-  /* compute the offset for the face overlap avoidance */
-  openvdb::Coord dim = bbox.dim();
-
-  const float3 cell_size = make_float3(1.0f / dim.x(), 1.0f / dim.y(), 1.0f / dim.z());
-  const float3 point_offset = cell_size * face_overlap_avoidance;
-
   out_vertices.reserve(vertices.size());
 
   for (size_t i = 0; i < vertices.size(); ++i) {
     openvdb::math::Vec3d p = topology_grid->indexToWorld(
         openvdb::math::Vec3d(vertices[i].x, vertices[i].y, vertices[i].z));
     const float3 vertex = make_float3((float)p.x(), (float)p.y(), (float)p.z());
-    out_vertices.push_back(vertex + point_offset);
+    out_vertices.push_back(vertex);
   }
 }
 
@@ -597,7 +585,7 @@ static void merge_scalar_grids_for_velocity(const Scene *scene, Volume *volume)
   Attribute *attr = volume->attributes.add(ATTR_STD_VOLUME_VELOCITY);
   unique_ptr<ImageLoader> loader = make_unique<VDBImageLoader>(vecgrid, "merged_velocity");
   const ImageParams params;
-  attr->data_voxel() = scene->image_manager->add_image(std::move(loader), params);
+  attr->data_voxel_for_write() = scene->image_manager->add_image(std::move(loader), params);
 }
 #endif /* defined(WITH_OPENVDB) && defined(WITH_NANOVDB) */
 
@@ -651,14 +639,14 @@ void GeometryManager::create_volume_mesh(const Scene *scene, Volume *volume, Pro
       continue;
     }
 
-    ImageHandle &handle = attr.data_voxel();
+    ImageHandle &handle = attr.data_voxel_for_write();
 
     if (handle.empty()) {
       continue;
     }
 
     /* Create NanoVDB grid handle from image memory. */
-    device_image *image = handle.image_memory();
+    device_image *image = handle.vdb_image_memory();
     if (image == nullptr || image->host_pointer == nullptr ||
         image->info.data_type == IMAGE_DATA_TYPE_NANOVDB_EMPTY ||
         !is_nanovdb_type(image->info.data_type))
@@ -686,30 +674,20 @@ void GeometryManager::create_volume_mesh(const Scene *scene, Volume *volume, Pro
 
   builder.add_padding(pad_size);
 
-  /* Slightly offset vertex coordinates to avoid overlapping faces with other
-   * volumes or meshes. The proper solution would be to improve intersection in
-   * the kernel to support robust handling of multiple overlapping faces or use
-   * an all-hit intersection similar to shadows. */
-  const float face_overlap_avoidance = 0.1f *
-                                       hash_uint_to_float(hash_string(volume->name.c_str()));
-
   /* Create mesh. */
   vector<float3> vertices;
   vector<int> indices;
   const bool ray_marching = scene->integrator->get_volume_ray_marching();
-  builder.create_mesh(vertices, indices, face_overlap_avoidance, ray_marching);
+  builder.create_mesh(vertices, indices, ray_marching);
 
-  volume->reserve_mesh(vertices.size(), indices.size() / 3);
+  volume->resize_mesh(vertices.size(), indices.size() / 3);
   volume->used_shaders.clear();
   volume->used_shaders.push_back_slow(volume_shader);
 
-  for (size_t i = 0; i < vertices.size(); ++i) {
-    volume->add_vertex(vertices[i]);
-  }
-
-  for (size_t i = 0; i < indices.size(); i += 3) {
-    volume->add_triangle(indices[i], indices[i + 1], indices[i + 2], 0, false);
-  }
+  std::ranges::copy(vertices, volume->get_verts().data());
+  std::ranges::copy(indices, volume->triangles.data());
+  std::ranges::fill(volume->get_shader(), 0);
+  std::ranges::fill(volume->get_smooth(), false);
 
   /* Print stats. */
   LOG_DEBUG << "Memory usage volume mesh: "
@@ -741,30 +719,40 @@ void VolumeManager::tag_update()
   need_rebuild_ = true;
 }
 
-/* Remove changed object from the list of octrees and tag for rebuild. */
-void VolumeManager::tag_update(const Object *object, uint32_t flag)
+/* Remove changed objects from the list of octrees and tag for rebuild. */
+void VolumeManager::tag_update(const set<Object *> &objects, uint32_t flag)
 {
   if (object_octrees_.empty()) {
     /* Volume object is not in the octree, can happen when using ray marching. */
     return;
   }
 
-  if (flag & ObjectManager::VISIBILITY_MODIFIED) {
-    tag_update();
-  }
+  bool volume_object_updated = false;
+  for (const Object *object : objects) {
+    if (!object->get_geometry()->has_volume) {
+      continue;
+    }
 
-  for (const Node *node : object->get_geometry()->get_used_shaders()) {
-    const Shader *shader = static_cast<const Shader *>(node);
-    if (shader->has_volume_spatial_varying || (flag & ObjectManager::OBJECT_REMOVED)) {
-      /* TODO(weizhen): no need to update if the spatial variation is not in world space. */
-      tag_update();
-      object_octrees_.erase({object, shader});
+    volume_object_updated = true;
+
+    for (const Node *node : object->get_geometry()->get_used_shaders()) {
+      const Shader *shader = static_cast<const Shader *>(node);
+      if (shader->has_volume_spatial_varying || (flag & ObjectManager::OBJECT_REMOVED)) {
+        /* TODO(weizhen): no need to update if the spatial variation is not in world space. */
+        tag_update();
+        object_octrees_.erase({object, shader});
+      }
     }
   }
 
-  if (!need_rebuild_ && (flag & ObjectManager::TRANSFORM_MODIFIED)) {
-    /* Octree is not tagged for rebuild, but the transformation changed, so a redraw is needed. */
-    update_visualization_ = true;
+  if (volume_object_updated) {
+    if (flag & ObjectManager::VISIBILITY_MODIFIED) {
+      tag_update();
+    }
+    if (!need_rebuild_ && (flag & ObjectManager::TRANSFORM_MODIFIED)) {
+      /* Octree is not tagged for rebuild but the transformation changed, so a redraw is needed. */
+      update_visualization_ = true;
+    }
   }
 }
 
@@ -782,14 +770,25 @@ void VolumeManager::tag_update(const Shader *shader)
   }
 }
 
-/* Remove object with changed geometry from the list of octrees and tag for rebuild. */
-void VolumeManager::tag_update(const Geometry *geometry)
+/* Remove objects with changed geometry from the list of octrees and tag for rebuild. */
+void VolumeManager::tag_update(const set<Geometry *> &geometry)
 {
+  bool volume_geometry_updated = false;
+  for (Geometry *geometry : geometry) {
+    if (geometry->has_volume) {
+      volume_geometry_updated = true;
+    }
+  }
+
+  if (!volume_geometry_updated) {
+    return;
+  }
+
   tag_update();
   /* Tag Octree for update. */
   for (auto it = object_octrees_.begin(); it != object_octrees_.end();) {
     const Object *object = it->first.first;
-    if (object->get_geometry() == geometry) {
+    if (geometry.contains(object->get_geometry())) {
       it = object_octrees_.erase(it);
     }
     else {
@@ -800,7 +799,7 @@ void VolumeManager::tag_update(const Geometry *geometry)
 #ifdef WITH_OPENVDB
   /* Tag VDB map for update. */
   for (auto it = vdb_map_.begin(); it != vdb_map_.end();) {
-    if (it->first.first == geometry) {
+    if (geometry.contains(const_cast<Geometry *>(it->first.first))) {
       it = vdb_map_.erase(it);
     }
     else {
@@ -813,6 +812,12 @@ void VolumeManager::tag_update(const Geometry *geometry)
 void VolumeManager::tag_update_indices()
 {
   update_root_indices_ = true;
+}
+
+void VolumeManager::tag_update_algorithm()
+{
+  need_rebuild_ = true;
+  algorithm_modified_ = true;
 }
 
 bool VolumeManager::is_homogeneous_volume(const Object *object, const Shader *shader)
@@ -965,7 +970,7 @@ void VolumeManager::initialize_octree(const Scene *scene, Progress &progress)
       if (object_octrees_.find({object, shader}) == object_octrees_.end()) {
         if (geom->is_light()) {
           const Light *light = static_cast<const Light *>(geom);
-          if (light->get_light_type() == LIGHT_BACKGROUND) {
+          if (light->is_background_light()) {
             /* World volume is unbounded, use some practical large number instead. */
             const float3 size = make_float3(10000.0f);
             object_octrees_[{object, shader}] = std::make_shared<Octree>(BoundBox(-size, size));
@@ -1195,12 +1200,12 @@ std::string VolumeManager::visualize_octree(const char *filename) const
   return filename_full;
 }
 
-void VolumeManager::update_step_size(const Scene *scene, DeviceScene *dscene)
+void VolumeManager::update_step_size(const Scene *scene, DeviceScene *dscene, Progress &progress)
 {
   assert(scene->integrator->get_volume_ray_marching());
 
   if (!need_update_step_size && !dscene->volume_step_size.is_modified() &&
-      !scene->integrator->volume_step_rate_is_modified() && last_algorithm == RAY_MARCHING)
+      !scene->integrator->volume_step_rate_is_modified() && !algorithm_modified_)
   {
     return;
   }
@@ -1218,7 +1223,7 @@ void VolumeManager::update_step_size(const Scene *scene, DeviceScene *dscene)
     }
 
     volume_step_size[object->index] = scene->integrator->get_volume_step_rate() *
-                                      object->compute_volume_step_size();
+                                      object->compute_volume_step_size(progress);
   }
 
   dscene->volume_step_size.copy_to_device();
@@ -1233,17 +1238,17 @@ void VolumeManager::device_update(Device *device,
 {
   if (scene->integrator->get_volume_ray_marching()) {
     /* No need to update octree for ray marching. */
-    if (last_algorithm == NULL_SCATTERING) {
+    if (algorithm_modified_) {
       dscene->volume_tree_nodes.free();
       dscene->volume_tree_roots.free();
       dscene->volume_tree_root_ids.free();
     }
-    update_step_size(scene, dscene);
-    last_algorithm = RAY_MARCHING;
+    update_step_size(scene, dscene, progress);
+    algorithm_modified_ = false;
     return;
   }
 
-  if (need_rebuild_ || last_algorithm == RAY_MARCHING) {
+  if (need_rebuild_) {
     /* Data needed for volume shader evaluation. */
     device->const_copy_to("data", &dscene->data, sizeof(dscene->data));
 
@@ -1269,10 +1274,10 @@ void VolumeManager::device_update(Device *device,
     update_visualization_ = false;
   }
 
-  if (last_algorithm == RAY_MARCHING) {
+  if (algorithm_modified_) {
     dscene->volume_step_size.free();
+    algorithm_modified_ = false;
   }
-  last_algorithm = NULL_SCATTERING;
 }
 
 void VolumeManager::device_free(DeviceScene *dscene)

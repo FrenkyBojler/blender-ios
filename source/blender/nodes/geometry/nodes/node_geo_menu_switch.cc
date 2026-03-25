@@ -87,6 +87,9 @@ static void node_declare(nodes::NodeDeclarationBuilder &b)
   if (supports_fields) {
     menu.supports_field();
   }
+  menu.default_value(MenuValue(storage.enum_definition.items().is_empty() ?
+                                   0 :
+                                   storage.enum_definition.items().first().identifier));
   menu.structure_type(menu_structure_type);
   menu.optional_label();
 
@@ -138,7 +141,7 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree *tree, bNode *node)
 {
-  NodeMenuSwitch *data = MEM_new_for_free<NodeMenuSwitch>(__func__);
+  NodeMenuSwitch *data = MEM_new<NodeMenuSwitch>(__func__);
   data->data_type = tree->type == NTREE_GEOMETRY ? SOCK_GEOMETRY : SOCK_RGBA;
   data->enum_definition.next_identifier = 0;
   data->enum_definition.items_array = nullptr;
@@ -152,14 +155,13 @@ static void node_init(bNodeTree *tree, bNode *node)
 static void node_free_storage(bNode *node)
 {
   socket_items::destruct_array<MenuSwitchItemsAccessor>(*node);
-  MEM_freeN(reinterpret_cast<NodeMenuSwitch *>(node->storage));
+  MEM_delete(reinterpret_cast<NodeMenuSwitch *>(node->storage));
 }
 
 static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const bNode *src_node)
 {
   const NodeMenuSwitch &src_storage = node_storage(*src_node);
-  NodeMenuSwitch *dst_storage = MEM_new_for_free<NodeMenuSwitch>(__func__,
-                                                                 dna::shallow_copy(src_storage));
+  NodeMenuSwitch *dst_storage = MEM_new<NodeMenuSwitch>(__func__, dna::shallow_copy(src_storage));
   dst_node->storage = dst_storage;
 
   socket_items::copy_array<MenuSwitchItemsAccessor>(*src_node, *dst_node);
@@ -616,8 +618,8 @@ StructRNA **MenuSwitchItemsAccessor::item_srna = &RNA_NodeEnumItem;
 
 void MenuSwitchItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
-  BLO_write_string(writer, item.name);
-  BLO_write_string(writer, item.description);
+  writer->write_string(item.name);
+  writer->write_string(item.description);
 }
 
 void MenuSwitchItemsAccessor::blend_read_data_item(BlendDataReader *reader, ItemT &item)

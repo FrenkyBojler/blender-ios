@@ -1076,10 +1076,10 @@ class LazyFunctionForBakeInputsUsage : public LazyFunction {
   }
 };
 
-bool should_log_socket_values_for_context(const GeoNodesUserData &user_data,
-                                          const ComputeContextHash hash)
+bool should_log_verbose_in_context(const GeoNodesUserData &user_data,
+                                   const ComputeContextHash hash)
 {
-  if (const Set<ComputeContextHash> *contexts = user_data.call_data->socket_log_contexts) {
+  if (const Set<ComputeContextHash> *contexts = user_data.call_data->verbose_log_contexts) {
     return contexts->contains(hash);
   }
   if (user_data.call_data->operator_data) {
@@ -1159,8 +1159,8 @@ class LazyFunctionForGroupNode : public LazyFunction {
 
     GeoNodesUserData group_user_data = *user_data;
     group_user_data.compute_context = &compute_context;
-    group_user_data.log_socket_values = should_log_socket_values_for_context(
-        *user_data, compute_context.hash());
+    group_user_data.verbose_log = should_log_verbose_in_context(*user_data,
+                                                                compute_context.hash());
 
     GeoNodesLocalUserData group_local_user_data{group_user_data};
     lf::Context group_context{storage->group_storage, &group_user_data, &group_local_user_data};
@@ -1539,8 +1539,7 @@ class LazyFunctionForSimulationZone : public LazyFunction {
 
     GeoNodesUserData zone_user_data = user_data;
     zone_user_data.compute_context = &compute_context;
-    zone_user_data.log_socket_values = should_log_socket_values_for_context(
-        user_data, compute_context.hash());
+    zone_user_data.verbose_log = should_log_verbose_in_context(user_data, compute_context.hash());
 
     GeoNodesLocalUserData zone_local_user_data{zone_user_data};
     lf::Context zone_context{context.storage, &zone_user_data, &zone_local_user_data};
@@ -1768,7 +1767,7 @@ class GeometryNodesLazyFunctionLogger : public lf::GraphExecutor::Logger {
                         const lf::Context &context) const override
   {
     auto &user_data = *static_cast<GeoNodesUserData *>(context.user_data);
-    if (!user_data.log_socket_values) {
+    if (!user_data.verbose_log) {
       return;
     }
     auto &local_user_data = *static_cast<GeoNodesLocalUserData *>(context.local_user_data);
@@ -2044,10 +2043,9 @@ struct GeometryNodesLazyFunctionBuilder {
     /* Build nested zones first. */
     Array<int> zone_build_order(tree_zones_->zones.size());
     array_utils::fill_index_range<int>(zone_build_order);
-    std::sort(
-        zone_build_order.begin(), zone_build_order.end(), [&](const int zone_a, const int zone_b) {
-          return tree_zones_->zones[zone_a]->depth > tree_zones_->zones[zone_b]->depth;
-        });
+    std::ranges::sort(zone_build_order, [&](const int zone_a, const int zone_b) {
+      return tree_zones_->zones[zone_a]->depth > tree_zones_->zones[zone_b]->depth;
+    });
     return zone_build_order;
   }
 
@@ -2652,7 +2650,7 @@ struct GeometryNodesLazyFunctionBuilder {
       zone_by_output.add(zone->output_node(), zone);
     }
     /* Insert nodes from right to left so that usage sockets can be build in the same pass. */
-    std::sort(nodes_to_insert.begin(), nodes_to_insert.end(), [](const bNode *a, const bNode *b) {
+    std::ranges::sort(nodes_to_insert, [](const bNode *a, const bNode *b) {
       return a->runtime->toposort_right_to_left_index < b->runtime->toposort_right_to_left_index;
     });
 
@@ -2733,7 +2731,7 @@ struct GeometryNodesLazyFunctionBuilder {
     }
 
     Vector<lf::OutputSocket *, 16> key = lf_reference_set_sockets;
-    std::sort(key.begin(), key.end());
+    std::ranges::sort(key);
     return cache.lookup_or_add_cb(key, [&]() {
       const auto &lazy_function = LazyFunctionForJoinReferenceSets::get_cached(
           lf_reference_set_sockets.size(), scope_);
@@ -3968,7 +3966,7 @@ struct GeometryNodesLazyFunctionBuilder {
 
     /* Sort usages to produce a deterministic key for the same set of sockets. */
     Vector<lf::OutputSocket *> usages_sorted(usages);
-    std::sort(usages_sorted.begin(), usages_sorted.end());
+    std::ranges::sort(usages_sorted);
     return graph_params.socket_usages_combination_cache.lookup_or_add_cb(
         std::move(usages_sorted), [&]() {
           auto &logical_or_fn = scope_.construct<LazyFunctionForLogicalOr>(usages.size());

@@ -285,13 +285,13 @@ void Barrier::execute() const
 void Clear::execute() const
 {
   gpu::FrameBuffer *fb = GPU_framebuffer_active_get();
-  GPU_framebuffer_clear(fb, GPUFrameBufferBits(clear_channels), color, depth, stencil);
+  GPU_framebuffer_clear(fb, GPUFrameBufferBits(clear_channels), double4(color), depth, stencil);
 }
 
 void ClearMulti::execute() const
 {
   gpu::FrameBuffer *fb = GPU_framebuffer_active_get();
-  GPU_framebuffer_multi_clear(fb, reinterpret_cast<const float (*)[4]>(colors));
+  GPU_framebuffer_multi_clear(fb, Span<double4>(colors, colors_len));
 }
 
 void StateSet::execute(RecordingState &recording_state) const
@@ -569,11 +569,9 @@ std::string DrawMulti::serialize(const std::string &line_prefix) const
                                         multi_draw_buf->prototype_count_);
 
   /* This emulates the GPU sorting but without the unstable draw order. */
-  std::sort(
-      prototypes.begin(), prototypes.end(), [](const DrawPrototype &a, const DrawPrototype &b) {
-        return (a.group_id < b.group_id) ||
-               (a.group_id == b.group_id && a.res_index > b.res_index);
-      });
+  std::ranges::sort(prototypes, [](const DrawPrototype &a, const DrawPrototype &b) {
+    return (a.group_id < b.group_id) || (a.group_id == b.group_id && a.res_index > b.res_index);
+  });
 
   /* Compute prefix sum to have correct offsets. */
   uint prefix_sum = 0u;
@@ -672,7 +670,7 @@ std::string Clear::serialize() const
 std::string ClearMulti::serialize() const
 {
   std::stringstream ss;
-  for (float4 color : Span<float4>(colors, colors_len)) {
+  for (double4 color : Span<double4>(colors, colors_len)) {
     ss << color << ", ";
   }
   return std::string(".clear_multi(colors={") + ss.str() + "})";

@@ -9,6 +9,7 @@
  * \brief display list (or rather multi purpose list) stuff.
  */
 
+#include "DNA_curve_enums.h"
 #include "DNA_listBase.h"
 
 namespace blender {
@@ -39,6 +40,15 @@ enum {
 
   DL_FRONT_CURVE = (1 << 2),
   DL_BACK_CURVE = (1 << 3),
+
+  /**
+   * Marks geometry generated from hole contours (nested inside other contours).
+   * Hole contours have their winding reversed during bevel list generation
+   * to produce correct outward-facing normals on extruded surfaces.
+   *
+   * Needed to check if the winding has been flipped (CDT filling).
+   */
+  DL_HOLE = (1 << 4),
 };
 
 /* prototypes */
@@ -80,11 +90,15 @@ bool BKE_displist_surfindex_get(
  * Pass this along if known since it saves time calculating the normal.
  * This is also used to initialize #DispList.nors (one normal per display list).
  * \param flip_normal: Flip the normal (same as passing \a normal_proj negated).
+ * \param fill_solver: Triangulation solver (#CU_FILL_SOLVER_SWEEP_LINE, etc.).
+ * \param fill_rule: Fill rule for CDT solver (#CU_FILL_RULE_EVEN_ODD, etc.).
  */
 void BKE_displist_fill(const ListBaseT<DispList> *dispbase,
                        ListBaseT<DispList> *to,
                        const float normal_proj[3],
-                       bool flip_normal);
+                       bool flip_normal,
+                       CurveFillSolverType fill_solver,
+                       CurveFillRuleType fill_rule);
 
 float BKE_displist_calc_taper(struct Depsgraph *depsgraph,
                               const struct Scene *scene,

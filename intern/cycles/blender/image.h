@@ -6,8 +6,10 @@
 
 #include "DNA_image_types.h"
 
-#include "scene/image.h"
+#include "scene/image_loader.h"
 #include "scene/image_vdb.h"
+
+#include "util/types.h"
 
 struct Image;
 struct ImageUser;
@@ -32,6 +34,7 @@ class BlenderImageLoader : public ImageLoader {
   blender::Image *b_image;
   blender::ImageUser b_iuser;
   bool free_cache;
+  uint64_t cached_update_count;
 };
 
 CCL_NAMESPACE_END
