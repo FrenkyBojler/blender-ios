@@ -112,21 +112,26 @@ def add_closure_zone(layout, label):
 
 
 def set_math_node_default_props(enum_identifier, props):
-    prop_1 = props.settings.add()
-    prop_1.name = "inputs[\"Value\"].default_value"
-    prop_2 = props.settings.add()
-    prop_2.name = "inputs[\"Value_001\"].default_value"
+    def add_set_prop(settings, socket_identifier, socket_default_value):
+        prop = settings.add()
+        prop.name = "inputs[\"{:s}\"].default_value".format(socket_identifier)
+        prop.value = socket_default_value
+        return prop
 
     if enum_identifier in ('MULTIPLY', 'POWER', 'MODULO', 'FLOORED_MODULO', 'ARCTAN2'):
-        prop_1.value = "1.0"
-        prop_2.value = "1.0"
+        add_set_prop(props.settings, "Value", "1.0")
+        add_set_prop(props.settings, "Value_001", "1.0")
     elif enum_identifier == 'ADD':
-        prop_1.value = "0.0"
-        prop_2.value = "0.0"
+        add_set_prop(props.settings, "Value", "0.0")
+        add_set_prop(props.settings, "Value_001", "0.0")
     elif enum_identifier == 'SUBTRACT':
         # 1 - x operations are common for subtraction.
-        prop_1.value = "1.0"
-        prop_2.value = "0.0"
+        add_set_prop(props.settings, "Value", "1.0")
+        add_set_prop(props.settings, "Value_001", "0.0")
+    elif enum_identifier == 'MULTIPLY_ADD':
+        add_set_prop(props.settings, "Value_001", "1.0")
+        add_set_prop(props.settings, "Value_002", "0.0")
+
 
 
 class NodeMenu(Menu):
