@@ -14,7 +14,7 @@
 
 namespace blender::romanization {
 
-const char pinyin_initials[] =
+const char mandarin_pinyin_initials[] =
     "ydkqsxhwzssxjbymgcczqpssqbycdscdqldylybsgjgyqzjjfgcclzzbwdwzjljpfyynwjjtmyyzwzhflyppqhgccyyym"
     "jqyxxgjxhsdsjnjjsmhmlzrxyfsngsyczqzggllyjlmyzssecykyyhqwjssggyxyqyjtwkdjhychmyxjtlxjyqbyxdldw"
     "rrjjwysrldzjpcbzjjbrcfslbczstzfxxthtrqggbdlyccscymmrfcyqzpwwjjyfcrwfdfzqpyddwyxkyjawjffxjpdft"
@@ -245,10 +245,10 @@ const char pinyin_initials[] =
     "zkycqwlpgpyllgkdldlgkgqbgychjxy????z?w???z????s?????l???????sl??z????lgtm????gd??????????????"
     "???????atn??hbltdzlatmmbj?lx";
 
-static char pinyin_initial(char32_t character)
+static char mandarin_pinyin_initial(char32_t character)
 {
   if (character >= 0x4E00 && character <= 0x9FFF) {
-    return pinyin_initials[character - 0x4E00];
+    return mandarin_pinyin_initials[character - 0x4E00];
   }
   return '?';
 }
@@ -360,54 +360,13 @@ static char cyrillic_initial(char32_t ch)
   }
 }
 
-static char kana_initial(char32_t ch)
-{
-  if ((ch >= 0x3040 && ch <= 0x309F) || (ch >= 0x30A0 && ch <= 0x30FF)) {
-    if (ch == 0x3093 || ch == 0x30F3) {
-      return 'n';
-    }
-    if (ch == 0x3042 || ch == 0x30A2)
-      return 'a';
-    if (ch == 0x3044 || ch == 0x30A4)
-      return 'i';
-    if (ch == 0x3046 || ch == 0x30A6)
-      return 'u';
-    if (ch == 0x3048 || ch == 0x30A8)
-      return 'e';
-    if (ch == 0x304A || ch == 0x30AA)
-      return 'o';
-    if ((ch >= 0x304B && ch <= 0x3053) || (ch >= 0x30AB && ch <= 0x30B3))
-      return 'k';
-    if ((ch >= 0x3055 && ch <= 0x305D) || (ch >= 0x30B5 && ch <= 0x30BD))
-      return 's';
-    if ((ch >= 0x305F && ch <= 0x3068) || (ch >= 0x30BF && ch <= 0x30C8))
-      return 't';
-    if ((ch >= 0x306A && ch <= 0x306E) || (ch >= 0x30CA && ch <= 0x30CE))
-      return 'n';
-    if ((ch >= 0x306F && ch <= 0x307B) || (ch >= 0x30CF && ch <= 0x30DB))
-      return 'h';
-    if ((ch >= 0x307E && ch <= 0x3082) || (ch >= 0x30DE && ch <= 0x30E2))
-      return 'm';
-    if ((ch >= 0x3089 && ch <= 0x308D) || (ch >= 0x30E9 && ch <= 0x30ED))
-      return 'r';
-    if ((ch == 0x3084) || (ch == 0x30E4))
-      return 'y';
-    if ((ch == 0x308F) || (ch == 0x30EF))
-      return 'w';
-  }
-  return '?';
-}
-
 char shortcut(char32_t character, const char *language)
 {
   if (language == nullptr || language[0] == '\0') {
     return '?';
   }
-  if (strcmp(language, "zh_HANS") == 0 || strcmp(language, "zh_HANT") == 0) {
-    return pinyin_initial(character);
-  }
-  if (strcmp(language, "ja_JP") == 0) {
-    return kana_initial(character);
+  if (strcmp(language, "zh_HANS") == 0) {
+    return mandarin_pinyin_initial(character);
   }
   if (strcmp(language, "ru") == 0 || strcmp(language, "ru_RU") == 0) {
     return cyrillic_initial(character);
