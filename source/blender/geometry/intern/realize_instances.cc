@@ -1882,7 +1882,7 @@ static std::optional<int> calc_single_value_material_index(const AllMeshesInfo &
   const Span<MeshRealizeInfo> infos = all_meshes_info.realize_info;
   const std::optional<int> first_opt = infos[0].material_indices.get_if_single();
   if (!first_opt) {
-    return false;
+    return std::nullopt;
   }
   const int first = get_mapped_material_index(infos[0], *first_opt);
   const bool all_equal = threading::parallel_reduce(
@@ -1899,7 +1899,7 @@ static std::optional<int> calc_single_value_material_index(const AllMeshesInfo &
           if (!value) {
             return false;
           }
-          if (get_mapped_material_index(infos[0], *value) != first) {
+          if (get_mapped_material_index(info, *value) != first) {
             return false;
           }
         }
