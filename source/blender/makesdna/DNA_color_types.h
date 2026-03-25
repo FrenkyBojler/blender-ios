@@ -11,6 +11,8 @@
 #include "DNA_defs.h"
 #include "DNA_vec_types.h"
 
+namespace blender {
+
 /* general defines for kernel functions */
 #define CM_RESOL 32
 #define CM_TABLE 256
@@ -32,6 +34,8 @@ enum {
   CUMA_HANDLE_AUTO_ANIM = (1 << 2),
   /** Temporary tag for point deletion. */
   CUMA_REMOVE = (1 << 3),
+  /** Active point in selection. */
+  CUMA_ACTIVE = (1 << 4),
 };
 
 /** #CurveMapping.flag */
@@ -238,3 +242,5 @@ struct ColorManagedDisplaySettings {
 struct ColorManagedColorspaceSettings {
   char name[/*MAX_COLORSPACE_NAME*/ 64] = "";
 };
+
+}  // namespace blender

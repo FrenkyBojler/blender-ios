@@ -13,7 +13,6 @@
 
 #include "ANIM_action.hh"
 #include "ANIM_action_iterators.hh"
-#include "ANIM_action_legacy.hh"
 #include "ANIM_animdata.hh"
 #include "ANIM_fcurve.hh"
 #include "ANIM_keyframing.hh"
@@ -34,6 +33,7 @@
 #include "BLI_bit_vector.hh"
 #include "BLI_dynstr.h"
 #include "BLI_math_base.h"
+#include "BLI_task.hh"
 #include "BLI_utildefines.h"
 #include "BLT_translation.hh"
 
@@ -198,18 +198,18 @@ void CombinedKeyingResult::generate_reports(ReportList *reports, const eReportTy
 std::optional<StringRefNull> default_channel_group_for_path(const PointerRNA *animated_struct,
                                                             const StringRef prop_rna_path)
 {
-  if (animated_struct->type == &RNA_PoseBone) {
+  if (animated_struct->type == RNA_PoseBone) {
     bPoseChannel *pose_channel = static_cast<bPoseChannel *>(animated_struct->data);
     return pose_channel->name;
   }
 
-  if (animated_struct->type == &RNA_Object) {
+  if (animated_struct->type == RNA_Object) {
     if (prop_rna_path.find("location") != StringRef::not_found ||
         prop_rna_path.find("rotation") != StringRef::not_found ||
         prop_rna_path.find("scale") != StringRef::not_found)
     {
       /* NOTE: Keep this label in sync with the "ID" case in
-       * keyingsets_utils.py :: get_transform_generators_base_info()
+       * _keyingsets_utils.py :: get_transform_generators_base_info()
        */
       return "Object Transforms";
     }
@@ -272,13 +272,25 @@ static bool assigned_action_has_keyframe_at(AnimData &adt, const float frame)
     return false;
   }
 
-  for (FCurve *fcu : blender::animrig::legacy::fcurves_for_assigned_action(&adt)) {
-    if (fcurve_frame_has_keyframe(fcu, frame)) {
-      return true;
-    }
-  }
-
-  return false;
+  const Span<FCurve *> fcurves = animrig::fcurves_for_assigned_action(&adt);
+  /* 1024 is a common value for memory bandwidth limited tasks. The number isn't critical: 512
+   * works fine here, but 128 and 4096 seem to work equally well in testing. */
+  return threading::parallel_reduce<bool>(
+      fcurves.index_range(),
+      512,
+      false,
+      [&](const IndexRange range, const bool is_found) {
+        if (is_found) {
+          return true;
+        }
+        for (FCurve *fcu : fcurves.slice(range)) {
+          if (fcurve_frame_has_keyframe(fcu, frame)) {
+            return true;
+          }
+        }
+        return false;
+      },
+      std::logical_or<bool>());
 }
 
 /* Checks whether an Object has a keyframe for a given frame. */
@@ -314,7 +326,7 @@ bool id_frame_has_keyframe(ID *id, float frame)
   /* Perform special checks for 'macro' types. */
   switch (GS(id->name)) {
     case ID_OB:
-      return object_frame_has_keyframe((Object *)id, frame);
+      return object_frame_has_keyframe(id_cast<Object *>(id), frame);
 
     default: {
       AnimData *adt = BKE_animdata_from_id(id);
@@ -382,7 +394,7 @@ static void get_keyframe_values_create_reports(ReportList *reports,
               RNA_property_ui_name(prop),
               str_failed_indices);
 
-  MEM_freeN(str_failed_indices);
+  MEM_delete(str_failed_indices);
 }
 
 static Vector<float> get_keyframe_values(PointerRNA *ptr, PropertyRNA *prop, const bool visual_key)
@@ -424,7 +436,7 @@ static float nla_time_remap(float time,
                             PointerRNA *id_ptr,
                             AnimData *adt,
                             bAction *act,
-                            ListBase *nla_cache,
+                            ListBaseT<NlaKeyframingContext> *nla_cache,
                             NlaKeyframingContext **r_nla_context)
 {
   if (adt && adt->action == act) {
@@ -443,7 +455,7 @@ static float nla_time_remap(float time,
 static SingleKeyingResult insert_keyframe_value(
     FCurve *fcu, float cfra, float curval, eBezTriple_KeyframeType keytype, eInsertKeyFlags flag)
 {
-  if (!BKE_fcurve_is_keyframable(fcu)) {
+  if (!fcu || !BKE_fcurve_is_keyframable(*fcu)) {
     return SingleKeyingResult::FCURVE_NOT_KEYFRAMEABLE;
   }
 
@@ -670,7 +682,7 @@ int clear_keyframe(Main *bmain, ReportList *reports, ID *id, const RNAPath &rna_
 
   if (adt->slot_handle) {
     Vector<FCurve *> fcurves;
-    foreach_fcurve_in_action_slot(action, adt->slot_handle, [&](FCurve &fcurve) {
+    foreach_fcurve_in_action_slot_editable(action, adt->slot_handle, [&](FCurve &fcurve) {
       if (rna_path.index.has_value() && rna_path.index.value() != fcurve.array_index) {
         return;
       }
@@ -838,7 +850,7 @@ CombinedKeyingResult insert_keyframes(Main *bmain,
   key_settings.keyframe_type = key_type;
 
   /* NOTE: keyframing functions can deal with the nla_context being a nullptr. */
-  ListBase nla_cache = {nullptr, nullptr};
+  ListBaseT<NlaKeyframingContext> nla_cache = {nullptr, nullptr};
   NlaKeyframingContext *nla_context = nullptr;
   const float nla_frame = nla_time_remap(scene_frame.value_or(anim_eval_context.eval_time),
                                          &anim_eval_context,

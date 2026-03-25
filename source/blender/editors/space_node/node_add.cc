@@ -223,18 +223,18 @@ static wmOperatorStatus add_reroute_exec(bContext *C, wmOperator *op)
 
   int intersection_count = 0;
 
-  LISTBASE_FOREACH (bNodeLink *, link, &ntree.links) {
+  for (bNodeLink &link : ntree.links) {
 
-    if (node_link_is_hidden_or_dimmed(region.v2d, *link)) {
+    if (node_link_is_hidden_or_dimmed(region.v2d, link)) {
       continue;
     }
-    const std::optional<float2> cut = link_path_intersection(*link, path);
+    const std::optional<float2> cut = link_path_intersection(link, path);
     if (!cut) {
       continue;
     }
-    RerouteCutsForSocket &from_cuts = cuts_per_socket.lookup_or_add_default(link->fromsock);
-    from_cuts.from_node = link->fromnode;
-    from_cuts.links.add(link, *cut);
+    RerouteCutsForSocket &from_cuts = cuts_per_socket.lookup_or_add_default(link.fromsock);
+    from_cuts.from_node = link.fromnode;
+    from_cuts.links.add(&link, *cut);
     intersection_count++;
   }
 
@@ -299,7 +299,7 @@ void NODE_OT_add_reroute(wmOperatorType *ot)
 
   /* properties */
   PropertyRNA *prop;
-  prop = RNA_def_collection_runtime(ot->srna, "path", &RNA_OperatorMousePath, "Path", "");
+  prop = RNA_def_collection_runtime(ot->srna, "path", RNA_OperatorMousePath, "Path", "");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
   /* internal */
   RNA_def_int(ot->srna, "cursor", WM_CURSOR_CROSS, 0, INT_MAX, "Cursor", "", 0, INT_MAX);
@@ -705,7 +705,7 @@ static wmOperatorStatus node_add_object_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  bNodeSocketValueObject *socket_data = (bNodeSocketValueObject *)sock->default_value;
+  bNodeSocketValueObject *socket_data = static_cast<bNodeSocketValueObject *>(sock->default_value);
   socket_data->value = object;
   id_us_plus(&object->id);
   BKE_ntree_update_tag_socket_property(ntree, sock);
@@ -792,7 +792,8 @@ static wmOperatorStatus node_add_collection_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  bNodeSocketValueCollection *socket_data = (bNodeSocketValueCollection *)sock->default_value;
+  bNodeSocketValueCollection *socket_data = static_cast<bNodeSocketValueCollection *>(
+      sock->default_value);
   socket_data->value = collection;
   id_us_plus(&collection->id);
   BKE_ntree_update_tag_socket_property(&ntree, sock);
@@ -898,7 +899,7 @@ static wmOperatorStatus node_add_nodes_modal(bContext *C, wmOperator *op, const 
   for (bNode *node : data->nodes) {
     node->location[1] -= stack_offset;
     stack_offset += (node->runtime->draw_bounds.ymax - node->runtime->draw_bounds.ymin) *
-                    delta_factor;
+                    delta_factor / UI_SCALE_FAC;
     redraw = true;
   }
 
@@ -943,7 +944,7 @@ static wmOperatorStatus node_add_image_exec(bContext *C, wmOperator *op)
   const Vector<std::string> paths = ed::io::paths_from_operator_properties(op->ptr);
   for (const std::string &path : paths) {
     RNA_string_set(op->ptr, "filepath", path.c_str());
-    Image *image = (Image *)WM_operator_drop_load_path(C, op, ID_IM);
+    Image *image = id_cast<Image *>(WM_operator_drop_load_path(C, op, ID_IM));
     if (!image) {
       BKE_report(op->reports, RPT_WARNING, fmt::format("Could not load {}", path).c_str());
       continue;
@@ -957,7 +958,7 @@ static wmOperatorStatus node_add_image_exec(bContext *C, wmOperator *op)
 
   /* If not path is provided, try to get a ID Image from operator. */
   if (paths.is_empty()) {
-    Image *image = (Image *)WM_operator_drop_load_path(C, op, ID_IM);
+    Image *image = id_cast<Image *>(WM_operator_drop_load_path(C, op, ID_IM));
     if (image) {
       images.append(image);
     }
@@ -974,14 +975,15 @@ static wmOperatorStatus node_add_image_exec(bContext *C, wmOperator *op)
       continue;
     }
     if (type == GEO_NODE_IMAGE_TEXTURE) {
-      bNodeSocket *image_socket = (bNodeSocket *)node->inputs.first;
-      bNodeSocketValueImage *socket_value = (bNodeSocketValueImage *)image_socket->default_value;
+      bNodeSocket *image_socket = static_cast<bNodeSocket *>(node->inputs.first);
+      bNodeSocketValueImage *socket_value = static_cast<bNodeSocketValueImage *>(
+          image_socket->default_value);
       socket_value->value = image;
       BKE_ntree_update_tag_socket_property(&node_tree, image_socket);
     }
     else {
-      node->id = (ID *)image;
-      blender::bke::node_tag_update_id(*node);
+      node->id = id_cast<ID *>(image);
+      bke::node_tag_update_id(*node);
     }
     BKE_ntree_update_tag_node_property(&node_tree, node);
     nodes.append(node);
@@ -1325,7 +1327,7 @@ void NODE_OT_add_import_node(wmOperatorType *ot)
       ot->srna, "directory", nullptr, FILE_MAX, "Directory", "Directory of the file");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
-  prop = RNA_def_collection_runtime(ot->srna, "files", &RNA_OperatorFileListElement, "Files", "");
+  prop = RNA_def_collection_runtime(ot->srna, "files", RNA_OperatorFileListElement, "Files", "");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
@@ -1400,16 +1402,16 @@ static wmOperatorStatus node_add_group_input_node_exec(bContext *C, wmOperator *
 
   if (single_socket) {
     /* Hide all other sockets in the new node, to only display the selected one. */
-    LISTBASE_FOREACH (bNodeSocket *, socket, &group_input_node->outputs) {
-      if (!STREQ(socket->identifier, socket_identifier)) {
-        socket->flag |= SOCK_HIDDEN;
+    for (bNodeSocket &socket : group_input_node->outputs) {
+      if (!STREQ(socket.identifier, socket_identifier)) {
+        socket.flag |= SOCK_HIDDEN;
       }
     }
   }
   if (single_panel) {
     /* Initially hide all sockets. */
-    LISTBASE_FOREACH (bNodeSocket *, socket, &group_input_node->outputs) {
-      socket->flag |= SOCK_HIDDEN;
+    for (bNodeSocket &socket : group_input_node->outputs) {
+      socket.flag |= SOCK_HIDDEN;
     }
     /* Show only sockets contained in the dragged panel. */
     for (bNodeTreeInterfaceSocket *iface_socket : ntree->interface_inputs()) {
@@ -1727,7 +1729,7 @@ static wmOperatorStatus new_compositing_node_group_exec(bContext *C, wmOperator 
   RNA_string_get(op->ptr, "name", tree_name);
 
   bNodeTree *ntree = new_node_tree_impl(C, tree_name, "CompositorNodeTree");
-  blender::nodes::node_tree_composit_default_init(C, ntree);
+  nodes::node_tree_composit_default_init(C, ntree);
 
   WM_event_add_notifier(C, NC_NODE | NA_ADDED, nullptr);
   BKE_ntree_update_after_single_tree_change(*bmain, *ntree);
@@ -1848,52 +1850,73 @@ void NODE_OT_duplicate_compositing_modifier_node_group(wmOperatorType *ot)
 /** \name New Compositor Sequencer Node Group Operator
  * \{ */
 
-static void initialize_compositor_sequencer_node_group(const bContext *C, bNodeTree &ntree)
+static void initialize_compositor_sequencer_node_group(const bContext *C,
+                                                       bNodeTree &ntree,
+                                                       bool for_effect,
+                                                       int effect_input_count)
 {
   BLI_assert(ntree.type == NTREE_COMPOSIT);
   BLI_assert(BLI_listbase_count(&ntree.nodes) == 0);
 
-  ntree.tree_interface.add_socket(
-      "Image", "", "NodeSocketColor", NODE_INTERFACE_SOCKET_INPUT, nullptr);
-  ntree.tree_interface.add_socket(
-      "Mask", "", "NodeSocketColor", NODE_INTERFACE_SOCKET_INPUT, nullptr);
+  if (for_effect) {
+    /* Effect: Input 1, Input 2, Fader depending on input count. */
+    if (effect_input_count == 2) {
+      ntree.tree_interface.add_socket(
+          "Input 1", "", "NodeSocketColor", NODE_INTERFACE_SOCKET_INPUT, nullptr);
+      ntree.tree_interface.add_socket(
+          "Input 2", "", "NodeSocketColor", NODE_INTERFACE_SOCKET_INPUT, nullptr);
+    }
+    else if (effect_input_count == 1) {
+      ntree.tree_interface.add_socket(
+          "Input", "", "NodeSocketColor", NODE_INTERFACE_SOCKET_INPUT, nullptr);
+    }
+    ntree.tree_interface.add_socket(
+        "Effect Fader", "", "NodeSocketFloat", NODE_INTERFACE_SOCKET_INPUT, nullptr);
+  }
+  else {
+    /* Modifier: Image, Mask. */
+    ntree.tree_interface.add_socket(
+        "Image", "", "NodeSocketColor", NODE_INTERFACE_SOCKET_INPUT, nullptr);
+    ntree.tree_interface.add_socket(
+        "Mask", "", "NodeSocketColor", NODE_INTERFACE_SOCKET_INPUT, nullptr);
+  }
   ntree.tree_interface.add_socket(
       "Image", "", "NodeSocketColor", NODE_INTERFACE_SOCKET_OUTPUT, nullptr);
 
-  bNode *output_node = blender::bke::node_add_node(C, ntree, "NodeGroupOutput");
+  bNode *output_node = bke::node_add_node(C, ntree, "NodeGroupOutput");
   output_node->location[0] = 200.0f;
   output_node->location[1] = 0.0f;
 
-  bNode *input_node = blender::bke::node_add_node(C, ntree, "NodeGroupInput");
+  bNode *input_node = bke::node_add_node(C, ntree, "NodeGroupInput");
   input_node->location[0] = -150.0f - input_node->width;
   input_node->location[1] = 0.0f;
-  blender::bke::node_set_active(ntree, *input_node);
+  bke::node_set_active(ntree, *input_node);
 
-  bNode *reroute = blender::bke::node_add_static_node(C, ntree, NODE_REROUTE);
+  bNode *reroute = bke::node_add_static_node(C, ntree, NODE_REROUTE);
   reroute->location[0] = 100.0f;
   reroute->location[1] = -35.0f;
 
-  bNode *viewer = blender::bke::node_add_static_node(C, ntree, CMP_NODE_VIEWER);
+  bNode *viewer = bke::node_add_static_node(C, ntree, CMP_NODE_VIEWER);
   viewer->location[0] = 200.0f;
   viewer->location[1] = -80.0f;
 
-  blender::bke::node_add_link(ntree,
-                              *input_node,
-                              *static_cast<bNodeSocket *>(input_node->outputs.first),
-                              *reroute,
-                              *static_cast<bNodeSocket *>(reroute->inputs.first));
+  bke::node_add_link(ntree,
+                     *input_node,
+                     *static_cast<bNodeSocket *>(input_node->outputs.first),
+                     *reroute,
+                     *static_cast<bNodeSocket *>(reroute->inputs.first));
 
-  blender::bke::node_add_link(ntree,
-                              *reroute,
-                              *static_cast<bNodeSocket *>(reroute->outputs.first),
-                              *output_node,
-                              *static_cast<bNodeSocket *>(output_node->inputs.first));
+  bke::node_add_link(ntree,
+                     *reroute,
+                     *static_cast<bNodeSocket *>(reroute->outputs.first),
+                     *output_node,
+                     *static_cast<bNodeSocket *>(output_node->inputs.first));
 
-  blender::bke::node_add_link(ntree,
-                              *reroute,
-                              *static_cast<bNodeSocket *>(reroute->outputs.first),
-                              *viewer,
-                              *static_cast<bNodeSocket *>(viewer->inputs.first));
+  bke::node_add_link(ntree,
+                     *reroute,
+                     *static_cast<bNodeSocket *>(reroute->outputs.first),
+                     *viewer,
+                     *static_cast<bNodeSocket *>(viewer->inputs.first));
 
   BKE_ntree_update_after_single_tree_change(*CTX_data_main(C), ntree);
 }
@@ -1906,23 +1929,42 @@ static wmOperatorStatus new_compositor_sequencer_node_group_exec(bContext *C, wm
   char tree_name[MAX_ID_NAME - 2];
   RNA_string_get(op->ptr, "name", tree_name);
 
-  bNodeTree *ntree = new_node_tree_impl(C, tree_name, "CompositorNodeTree");
-  initialize_compositor_sequencer_node_group(C, *ntree);
-
   Strip *strip = seq::select_active_get(scene);
+  const bool is_effect_active = strip != nullptr && strip->type == STRIP_TYPE_COMPOSITOR;
+  int effect_input_count = 0;
+  if (is_effect_active) {
+    effect_input_count = (strip->input1 && strip->input2) ? 2 : (strip->input1 ? 1 : 0);
+  }
 
-  /* Add modifier and assign node tree when the strip has no active compositor modifier. */
+  bNodeTree *ntree = new_node_tree_impl(C, tree_name, "CompositorNodeTree");
+  initialize_compositor_sequencer_node_group(C, *ntree, is_effect_active, effect_input_count);
+
   if (strip != nullptr && strip->type != STRIP_TYPE_SOUND) {
+    bool assigned_node_tree = false;
+
+    /* If strip is a compositor effect: assign the node tree. */
+    if (strip->type == STRIP_TYPE_COMPOSITOR && strip->effectdata) {
+      CompositorEffectVars *comp_data = static_cast<CompositorEffectVars *>(strip->effectdata);
+      comp_data->node_group = ntree;
+      assigned_node_tree = true;
+    }
+
+    /* Otherwise, if there's no active compositor modifier: create one and assign the node tree. */
     StripModifierData *active_smd = seq::modifier_get_active(strip);
-    if (!active_smd || active_smd->type != eSeqModifierType_Compositor) {
+    if (!assigned_node_tree && (!active_smd || active_smd->type != eSeqModifierType_Compositor)) {
       StripModifierData *smd = seq::modifier_new(strip, nullptr, eSeqModifierType_Compositor);
       seq::modifier_persistent_uid_init(*strip, *smd);
 
       SequencerCompositorModifierData *modifier_data =
           reinterpret_cast<SequencerCompositorModifierData *>(smd);
       modifier_data->node_group = ntree;
-      seq::relations_invalidate_cache(scene, strip);
+      assigned_node_tree = true;
+    }
 
+    if (assigned_node_tree) {
+      /* Which strips are used by which node trees has changed. */
+      seq::strip_lookup_invalidate(scene->ed);
+      seq::relations_invalidate_cache(scene, strip);
       /* Tag depsgraph relations for an update since the modifier should now be referencing a
        * different node tree. */
       DEG_relations_tag_update(bmain);

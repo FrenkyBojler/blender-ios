@@ -29,9 +29,11 @@
 
 #include "node_intern.hh"
 
-namespace geo_log = blender::nodes::geo_eval_log;
+namespace blender {
 
-namespace blender::ed::space_node {
+namespace geo_log = nodes::geo_eval_log;
+
+namespace ed::space_node {
 
 class SocketTooltipBuilder {
  private:
@@ -225,7 +227,10 @@ class SocketTooltipBuilder {
       return;
     }
     const nodes::SocketDeclaration *socket_decl = socket_.runtime->declaration;
-    if (socket_decl && socket_decl->input_field_type == nodes::InputSocketFieldType::Implicit) {
+    if (socket_decl &&
+        socket_decl->default_input_type != NodeDefaultInputType::NODE_DEFAULT_INPUT_VALUE)
+    {
+      BLI_assert(socket_decl->input_field_type == nodes::InputSocketFieldType::Implicit);
       this->start_block(TooltipBlockType::Value);
       build_tooltip_value_implicit_default(socket_decl->default_input_type);
       return;
@@ -560,7 +565,7 @@ class SocketTooltipBuilder {
     if (base_type.is<float>()) {
       return TIP_("Float Field");
     }
-    if (base_type.is<blender::float3>()) {
+    if (base_type.is<float3>()) {
       return TIP_("3D Float Vector Field");
     }
     if (base_type.is<bool>()) {
@@ -569,13 +574,13 @@ class SocketTooltipBuilder {
     if (base_type.is<std::string>()) {
       return TIP_("String Field");
     }
-    if (base_type.is<blender::ColorGeometry4f>()) {
+    if (base_type.is<ColorGeometry4f>()) {
       return TIP_("Color Field");
     }
     if (base_type.is<math::Quaternion>()) {
       return TIP_("Rotation Field");
     }
-    if (base_type.is<blender::float4x4>()) {
+    if (base_type.is<float4x4>()) {
       return TIP_("Matrix Field");
     }
     BLI_assert_unreachable();
@@ -597,7 +602,7 @@ class SocketTooltipBuilder {
 
     for (const std::string &input_tooltip : input_tooltips) {
       this->add_space();
-      this->add_text_field_mono(fmt::format(" \u2022 {}", input_tooltip));
+      this->add_text_field_mono(fmt::format(" \u2022 {}", TIP_(input_tooltip)));
     }
 
     this->add_space();
@@ -704,7 +709,7 @@ class SocketTooltipBuilder {
     else {
       this->add_text_field_mono(TIP_("Values:"));
       Vector<geo_log::BundleValueLog::Item> sorted_items = bundle_log.items;
-      std::sort(sorted_items.begin(), sorted_items.end(), [](const auto &a, const auto &b) {
+      std::ranges::sort(sorted_items, [](const auto &a, const auto &b) {
         return BLI_strcasecmp_natural(a.key.c_str(), b.key.c_str()) < 0;
       });
       for (const geo_log::BundleValueLog::Item &item : sorted_items) {
@@ -719,8 +724,7 @@ class SocketTooltipBuilder {
         {
           type_name = *internal_type_name;
         }
-        this->add_text_field_mono(
-            fmt::format(fmt::runtime("\u2022 \"{}\" ({})\n"), item.key, type_name));
+        this->add_text_field_mono(fmt::format("\u2022 \"{}\" ({})\n", item.key, type_name));
       }
     }
     this->add_space();
@@ -738,8 +742,7 @@ class SocketTooltipBuilder {
         for (const geo_log::ClosureValueLog::Item &item : closure_log.inputs) {
           this->add_space();
           const std::string type_name = TIP_(item.type->label);
-          this->add_text_field_mono(
-              fmt::format(fmt::runtime("\u2022 \"{}\" ({})\n"), item.key, type_name));
+          this->add_text_field_mono(fmt::format("\u2022 \"{}\" ({})\n", item.key, type_name));
         }
       }
       if (!closure_log.outputs.is_empty()) {
@@ -748,8 +751,7 @@ class SocketTooltipBuilder {
         for (const geo_log::ClosureValueLog::Item &item : closure_log.outputs) {
           this->add_space();
           const std::string type_name = TIP_(item.type->label);
-          this->add_text_field_mono(
-              fmt::format(fmt::runtime("\u2022 \"{}\" ({})\n"), item.key, type_name));
+          this->add_text_field_mono(fmt::format("\u2022 \"{}\" ({})\n", item.key, type_name));
         }
       }
     }
@@ -910,4 +912,6 @@ void build_socket_tooltip(ui::TooltipData &tip_data,
   builder.build();
 }
 
-}  // namespace blender::ed::space_node
+}  // namespace ed::space_node
+
+}  // namespace blender

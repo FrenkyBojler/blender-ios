@@ -15,6 +15,7 @@ class NODE_MT_compositor_node_input_base(node_add_menu.NodeMenu):
         layout = self.layout
         self.draw_menu(layout, path="Input/Constant")
         layout.separator()
+        self.node_operator(layout, "CompositorNodeBlankImage")
         self.node_operator(layout, "CompositorNodeBokehImage")
         self.node_operator(layout, "NodeGroupInput")
         self.node_operator(layout, "CompositorNodeImage")
@@ -33,13 +34,20 @@ class NODE_MT_compositor_node_input_base(node_add_menu.NodeMenu):
 
 class NODE_MT_compositor_node_input_constant_base(node_add_menu.NodeMenu):
     bl_label = "Constant"
+    bl_translation_context = i18n_contexts.id_nodetree
     menu_path = "Input/Constant"
 
     def draw(self, _context):
         layout = self.layout
+        self.node_operator(layout, "FunctionNodeInputBool")
         self.node_operator(layout, "CompositorNodeRGB")
+        self.node_operator(layout, "FunctionNodeInputInt")
+        self.node_operator(layout, "FunctionNodeInputIntVector")
+        self.node_operator(layout, "FunctionNodeInputMenu")
         self.node_operator(layout, "CompositorNodeNormal")
+        self.node_operator(layout, "GeometryNodeInputObject")
         self.node_operator(layout, "ShaderNodeValue")
+        self.node_operator(layout, "FunctionNodeInputVector")
 
         self.draw_assets_for_catalog(layout, self.menu_path)
 
@@ -50,6 +58,8 @@ class NODE_MT_compositor_node_input_scene_base(node_add_menu.NodeMenu):
 
     def draw(self, context):
         layout = self.layout
+        self.node_operator(layout, "GeometryNodeInputActiveCamera")
+        self.node_operator(layout, "GeometryNodeCameraInfo")
         if context.space_data.node_tree_sub_type == 'SCENE':
             self.node_operator(layout, "CompositorNodeRLayers")
         self.node_operator_with_outputs(context, layout, "CompositorNodeSceneTime", ["Frame", "Seconds"])
@@ -144,6 +154,7 @@ class NODE_MT_compositor_node_filter_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "CompositorNodeDespeckle")
         layout.separator()
         self.node_operator(layout, "CompositorNodeDilateErode")
+        self.node_operator(layout, "CompositorNodeMaskToSDF")
         self.node_operator(layout, "CompositorNodeInpaint")
         layout.separator()
         self.node_operator_with_searchable_enum_socket(
@@ -274,10 +285,12 @@ class NODE_MT_compositor_node_utilities_base(node_add_menu.NodeMenu):
         layout = self.layout
         self.draw_menu(layout, path="Utilities/Math")
         self.draw_menu(layout, path="Utilities/Vector")
+        self.draw_menu(layout, path="Utilities/Matrix")
         layout.separator()
         self.node_operator(layout, "CompositorNodeLevels")
         self.node_operator(layout, "CompositorNodeNormalize")
         layout.separator()
+        self.node_operator(layout, "NodeImplicitConversion")
         self.node_operator(layout, "CompositorNodeSplit")
         self.node_operator(layout, "CompositorNodeSwitch")
         self.node_operator(layout, "GeometryNodeIndexSwitch")
@@ -328,6 +341,25 @@ class NODE_MT_compositor_node_math_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "ShaderNodeMapRange")
         self.node_operator_with_searchable_enum(context, layout, "ShaderNodeMath", "operation")
         self.node_operator(layout, "ShaderNodeMix")
+
+        self.draw_assets_for_catalog(layout, self.menu_path)
+
+
+class NODE_MT_compositor_utilities_matrix_base(node_add_menu.NodeMenu):
+    bl_label = "Matrix"
+    menu_path = "Utilities/Matrix"
+
+    def draw(self, _context):
+        layout = self.layout
+        self.node_operator(layout, "FunctionNodeCombineMatrix")
+        self.node_operator(layout, "FunctionNodeMatrixDeterminant", label="Determinant")
+        self.node_operator(layout, "FunctionNodeInvertMatrix")
+        self.node_operator(layout, "FunctionNodeMatrixMultiply")
+        self.node_operator(layout, "FunctionNodeProjectPoint")
+        self.node_operator(layout, "FunctionNodeSeparateMatrix")
+        self.node_operator(layout, "FunctionNodeTransformDirection")
+        self.node_operator(layout, "FunctionNodeTransformPoint")
+        self.node_operator(layout, "FunctionNodeTransposeMatrix")
 
         self.draw_assets_for_catalog(layout, self.menu_path)
 
@@ -396,6 +428,7 @@ add_menus = {
     "NODE_MT_category_compositor_utilities": NODE_MT_compositor_node_utilities_base,
     "NODE_MT_category_compositor_vector": NODE_MT_compositor_node_vector_base,
     "NODE_MT_category_compositor_math": NODE_MT_compositor_node_math_base,
+    "NODE_MT_category_compositor_matrix": NODE_MT_compositor_utilities_matrix_base,
     "NODE_MT_compositor_node_add_all": NODE_MT_compositor_node_all_base,
 }
 add_menus = node_add_menu.generate_menus(
@@ -424,6 +457,7 @@ swap_menus = {
     "NODE_MT_compositor_node_utilities_swap": NODE_MT_compositor_node_utilities_base,
     "NODE_MT_compositor_node_vector_swap": NODE_MT_compositor_node_vector_base,
     "NODE_MT_compositor_node_math_swap": NODE_MT_compositor_node_math_base,
+    "NODE_MT_compositor_node_matrix_swap": NODE_MT_compositor_utilities_matrix_base,
     "NODE_MT_compositor_node_swap_all": NODE_MT_compositor_node_all_base,
 }
 swap_menus = node_add_menu.generate_menus(
