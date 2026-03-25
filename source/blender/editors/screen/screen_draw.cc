@@ -14,6 +14,8 @@
 #include "GPU_platform.hh"
 #include "GPU_state.hh"
 
+#include "BIF_glutil.hh"
+
 #include "BKE_global.hh"
 #include "BKE_screen.hh"
 
@@ -26,6 +28,8 @@
 #include "BLI_time.h"
 
 #include "BLT_translation.hh"
+
+#include "IMB_imbuf.hh"
 
 #include "WM_api.hh"
 
@@ -748,6 +752,93 @@ void screen_animate_area_highlight(wmWindow *win,
   data->start_time = BLI_time_now_seconds();
   data->end_time = data->start_time + seconds;
   data->draw_callback = WM_draw_cb_activate(win, area_animate_highlight_cb, data);
+}
+
+struct SpaceOutData {
+  wmWindow *win;
+  bScreen *screen;
+  rcti rect;
+  eScreenDir dir;
+  double start_time;
+  double end_time;
+  ImBuf *ibuf;
+  void *draw_callback;
+};
+
+static void space_out_cb(const wmWindow * /*win*/, void *userdata)
+{
+  const SpaceOutData *data = static_cast<const SpaceOutData *>(userdata);
+  double now = BLI_time_now_seconds();
+  if (now > data->end_time) {
+    IMB_freeImBuf(data->ibuf);
+    WM_draw_cb_exit(data->win, data->draw_callback);
+    MEM_delete(const_cast<SpaceOutData *>(data));
+    data = nullptr;
+    return;
+  }
+  const float total = data->end_time - data->start_time;
+  const float progress = now - data->start_time;
+  const float factor = pow(progress / total, 2);
+  float color[4] = {1.0f, 1.0f, 1.0f, 1.0f - factor};
+  GPU_blend(GPU_BLEND_ALPHA);
+  GPU_scissor(data->rect.xmin,
+              data->rect.ymin,
+              BLI_rcti_size_x(&data->rect) + 1,
+              BLI_rcti_size_y(&data->rect) + 1);
+  GPU_scissor_test(true);
+
+  float x = data->rect.xmin;
+  float y = data->rect.ymin;
+
+  if (data->dir == SCREEN_DIR_S) {
+    y = data->rect.ymin - (data->rect.ymax - data->rect.ymin) * factor;
+  }
+  else if (data->dir == SCREEN_DIR_N) {
+    y = data->rect.ymin + (data->rect.ymax - data->rect.ymin) * factor;
+  }
+  else if (data->dir == SCREEN_DIR_E) {
+    x = data->rect.xmin + (data->rect.xmax - data->rect.xmin) * factor;
+  }
+  else if (data->dir == SCREEN_DIR_W) {
+    x = data->rect.xmin - (data->rect.xmax - data->rect.xmin) * factor;
+  }
+
+  IMMDrawPixelsTexState state = immDrawPixelsTexSetup(GPU_SHADER_3D_IMAGE_COLOR);
+  immDrawPixelsTexScaledFullSize(&state,
+                                 x,
+                                 y,
+                                 data->ibuf->x,
+                                 data->ibuf->y,
+                                 blender::gpu::TextureFormat::UNORM_8_8_8_8,
+                                 false,
+                                 data->ibuf->byte_buffer.data,
+                                 1.0f,
+                                 1.0f,
+                                 1.0f,
+                                 1.0f,
+                                 color);
+  GPU_blend(GPU_BLEND_NONE);
+  GPU_scissor_test(false);
+  data->screen->do_refresh = true;
+}
+
+void screen_area_animate_out(bContext *C, ScrArea *area, eScreenDir dir, float duration)
+{
+  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindow *win = CTX_wm_window(C);
+  int win_size[2];
+  if (uint8_t *buffer = WM_window_pixels_read_from_frontbuffer(wm, win, win_size)) {
+    SpaceOutData *data = MEM_new<SpaceOutData>("ED_area_newspace");
+    data->win = win;
+    data->screen = CTX_wm_screen(C);
+    data->rect = area->totrct;
+    data->dir = dir;
+    data->start_time = BLI_time_now_seconds();
+    data->end_time = data->start_time + duration;
+    data->ibuf = IMB_allocFromBufferOwn(buffer, nullptr, win_size[0], win_size[1], 24);
+    IMB_rect_crop(data->ibuf, &data->rect);
+    data->draw_callback = WM_draw_cb_activate(win, space_out_cb, data);
+  }
 }
 
 }  // namespace blender
