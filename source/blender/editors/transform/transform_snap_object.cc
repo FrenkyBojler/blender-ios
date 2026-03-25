@@ -507,13 +507,9 @@ static eSnapMode iter_snap_objects(SnapObjectContext *sctx, IterSnapObjsCallback
   Base *base_act = BKE_view_layer_active_base_get(view_layer);
 
   /*Evaluate 3D cursor as pseudo-entity*/
-  const float3 cursor_loc = scene->cursor.location;
-  const float3 cursor_rot = scene->cursor.rotation_axis;
-  float4x4 cursor_mat = float4x4::identity();
-  cursor_mat.location() = cursor_loc;
-  cursor_mat.x_axis() = cursor_rot;
-  cursor_mat.y_axis() = cursor_rot;
-  cursor_mat.z_axis() = cursor_rot;
+  math::Quaternion rotation = scene->cursor.rotation();
+  float4x4 cursor_mat = math::from_rotation<float4x4>(rotation);
+  cursor_mat.location() = scene->cursor.location;
   const bool is_cursor_active = (base_act != nullptr);
   if (!sctx->runtime.params.snapping_cursor) {
     if ((tmp = sob_callback(sctx, nullptr, nullptr, cursor_mat, is_cursor_active, false)) !=
