@@ -1,2 +1,3 @@
 Referenced by issue #155533, 5.1: Candidates for corrective releases
 Referenced by pull request #156133, Fix #156087: Wrong lookup_int for legacy uv loop layer "data"
+Referenced by commit 3002daa8b07fb1cbffd340fdd23890b0692bc7f7, Fix #156087: Wrong lookup_int for legacy uv loop layer "data"
