@@ -141,6 +141,20 @@ bool imb_save_ktx(ImBuf *ibuf, const char *filepath, int /*flags*/)
     return false;
   }
 
+  if (use_uastc && ibuf->foptions.compress > 0) {
+    /* Apply Zstandard supercompression on top of UASTC.
+     * foptions.compress is a percentage [0, 100]: 0 disables Zstd,
+     * 1-100 maps to Zstd levels [1, 22]. */
+    const ktx_uint32_t zstd_level = ktx_uint32_t(
+        std::clamp(int(float(ibuf->foptions.compress) / 100.0f * 22.0f + 0.5f), 1, 22));
+    result = ktxTexture2_DeflateZstd(texture, zstd_level);
+    if (result != KTX_SUCCESS) {
+      CLOG_ERROR(&LOG, "Failed to apply Zstandard compression: %s", ktxErrorString(result));
+      ktxTexture_Destroy(ktxTexture(texture));
+      return false;
+    }
+  }
+
   result = ktxTexture_WriteToNamedFile(ktxTexture(texture), filepath);
   ktxTexture_Destroy(ktxTexture(texture));
 

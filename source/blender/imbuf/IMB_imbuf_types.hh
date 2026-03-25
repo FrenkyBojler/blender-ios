@@ -80,6 +80,8 @@ using ColorSpace = ocio::ColorSpace;
 
 /** Use UASTC compression for KTX2 (default is ETC1S). */
 #define KTX2_UASTC (1 << 0)
+/* For KTX2 with UASTC: foptions.compress [0, 100] controls Zstandard supercompression.
+ * 0 disables Zstandard. 1-100 maps to Zstd levels [1, 22]. Default (15) ≈ level 3. */
 
 struct ImbFormatOptions {
   short flag = 0;
