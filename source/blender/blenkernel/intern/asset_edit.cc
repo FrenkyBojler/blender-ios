@@ -463,6 +463,12 @@ ID *asset_edit_id_ensure_local(Main &global_main, ID &id)
   /* #ID_TAG_PRE_EXISTING should be reset after use. */
   BKE_main_id_tag_all(&global_main, ID_TAG_PRE_EXISTING, false);
 
+  /* #BKE_library_foreach_ID_link() may modify IDs in-place and doesn't add it to the hash
+   * table then. Can be recognized by the fact that the library pointer is null now. */
+  if (id.lib == nullptr) {
+    BLI_ghash_insert(old_to_new_id, &id, &id);
+  }
+
   /* If any of the processed IDs are still using linked IDs (probably because they are not covered
    * by #ID_TYPE_SUPPORTS_ASSET_EDITABLE()), clear that usage so the IDs are definitely only using
    * local data. */
@@ -484,10 +490,7 @@ ID *asset_edit_id_ensure_local(Main &global_main, ID &id)
     }
   }
 
-  ID *newid =
-      /* #BKE_library_foreach_ID_link() may modify IDs in-place. Can be recognized by the fact that
-       * the library pointer is null now. */
-      (id.lib == nullptr) ? &id : reinterpret_cast<ID *>(BLI_ghash_lookup(old_to_new_id, &id));
+  ID *newid = reinterpret_cast<ID *>(BLI_ghash_lookup(old_to_new_id, &id));
   if (!newid) {
     BLI_assert_unreachable();
     return nullptr;
