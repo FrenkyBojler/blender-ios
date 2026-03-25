@@ -663,7 +663,8 @@ static uint16_t find_free_localview_bit(const Main *bmain)
 static bool local_view_enter(bContext *C,
                              SpaceGraph &sipo,
                              ARegion &region,
-                             ListBaseT<bAnimListElem> &anim_data)
+                             ListBaseT<bAnimListElem> &anim_data,
+                             bool frame_selected)
 {
   bool is_selected = false;
   /* Find a free bit and set local view for graph editor in current context. */
@@ -685,7 +686,9 @@ static bool local_view_enter(bContext *C,
     /* Only enter local view when Fcurve is selected. */
     sipo.local_view_bit = free_bit;
     sipo.local_view_visible_region_before = region.v2d.cur;
-    graphkeys_viewall(C, false, true, 200);
+    if (frame_selected) {
+      graphkeys_viewall(C, false, true, 200);
+    }
   }
 
   return is_selected;
@@ -694,7 +697,8 @@ static bool local_view_enter(bContext *C,
 static bool local_view_exit(bContext *C,
                             SpaceGraph &sipo,
                             ARegion &region,
-                            ListBaseT<bAnimListElem> &anim_data)
+                            ListBaseT<bAnimListElem> &anim_data,
+                            bool frame_selected)
 {
   bool changed = false;
   for (bAnimListElem &ale : anim_data) {
@@ -705,18 +709,22 @@ static bool local_view_exit(bContext *C,
     fcu->local_view_bits &= ~sipo.local_view_bit;
     changed = true;
   }
-  /* Restore view. */
-  ui::view2d_smooth_view(C, &region, &sipo.local_view_visible_region_before, 200);
+
   sipo.local_view_bit = 0;
+  if (frame_selected) {
+    /* Restore view. */
+    ui::view2d_smooth_view(C, &region, &sipo.local_view_visible_region_before, 200);
+  }
 
   return changed;
 }
 
-static wmOperatorStatus graphview_fcurves_isolate_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus graphview_fcurves_isolate_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   SpaceGraph *sipo = CTX_wm_space_graph(C);
+  const bool frame_selected = RNA_boolean_get(op->ptr, "frame_selected");
   const bool enter_local_view = (sipo->local_view_bit == 0);
 
   if (ANIM_animdata_get_context(C, &ac) == 0) {
@@ -738,8 +746,9 @@ static wmOperatorStatus graphview_fcurves_isolate_exec(bContext *C, wmOperator *
                                     ANIMFILTER_NODUPLIS | ANIMFILTER_FCURVESONLY);
   ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
 
-  const bool changed = enter_local_view ? local_view_enter(C, *sipo, *ac.region, anim_data) :
-                                          local_view_exit(C, *sipo, *ac.region, anim_data);
+  const bool changed = enter_local_view ?
+                           local_view_enter(C, *sipo, *ac.region, anim_data, frame_selected) :
+                           local_view_exit(C, *sipo, *ac.region, anim_data, frame_selected);
 
   ANIM_animdata_freelist(&anim_data);
 
@@ -774,6 +783,15 @@ void GRAPH_OT_isolate(wmOperatorType *ot)
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  /* Props */
+  PropertyRNA *prop = RNA_def_boolean(
+      ot->srna,
+      "frame_selected",
+      true,
+      "Frame selected",
+      "Zoom current view to draw selected fcurves in visible range");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 /** \} */
