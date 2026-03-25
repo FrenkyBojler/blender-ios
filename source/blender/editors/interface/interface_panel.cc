@@ -59,7 +59,7 @@ namespace blender::ui {
 /** \name Defines & Structs
  * \{ */
 
-#define ANIMATION_TIME 0.25
+#define ANIMATION_TIME 0.1
 #define ANIMATION_INTERVAL 0.02
 
 enum PanelRuntimeFlag {
