@@ -1147,11 +1147,15 @@ void ED_file_read_bookmarks()
 
   const char *blendfile_path = BKE_main_blendfile_path_from_global();
   if (blendfile_path && blendfile_path[0]) {
+    /* Folder containing the currently-loaded Blend file. */
     char dir[FILE_MAX];
     BLI_path_split_dir_part(blendfile_path, dir, sizeof(dir));
-    FSMenuCategory category = FS_CATEGORY_SYSTEM_BOOKMARKS;
-    fsmenu_insert_entry(
-        fsmenu, category, dir, IFACE_("Current File"), ICON_FILE_BLEND, FS_INSERT_FIRST);
+    fsmenu_insert_entry(fsmenu,
+                        FS_CATEGORY_SYSTEM_BOOKMARKS,
+                        dir,
+                        IFACE_("Current File"),
+                        ICON_CURRENT_FILE,
+                        FS_INSERT_FIRST);
   }
 
   fsmenu_read_system(fsmenu, true);
