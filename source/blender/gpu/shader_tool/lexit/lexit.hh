@@ -25,6 +25,9 @@
 // #define LEXIT_DEBUG
 
 #ifdef LEXIT_DEBUG
+/* Make it a warning to avoid shipping with it. */
+#  warning "Lexit debug mode enabled"
+
 #  include <vector>
 #endif
 
