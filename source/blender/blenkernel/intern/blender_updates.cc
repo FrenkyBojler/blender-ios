@@ -1,0 +1,288 @@
+
+#include "BLI_serialize.hh"
+#include "BLI_string_ref.hh"
+
+#include "BKE_blender_updates.hh"
+#include "BKE_blender_version.h"
+#include "BKE_idprop.hh"
+
+#include <chrono>
+
+#ifdef WITH_PYTHON
+#  include "BPY_extern_run.hh"
+#endif
+
+namespace blender::bke {
+
+struct BlenderUpdates {
+  std::optional<VersionUpdate> latest;
+  std::optional<VersionUpdate> latest_lts;
+  std::optional<VersionUpdate> current_release;
+};
+
+struct BlenderVersion {
+  int version;
+  int patch;
+  bool operator<(const BlenderVersion &other) const
+  {
+    return this->version < other.version ||
+           (this->version == other.version && this->patch < other.patch);
+  }
+};
+
+struct IgnoredBlenderVersions {
+  BlenderVersion latest;
+  BlenderVersion latest_lts;
+  BlenderVersion current_release;
+};
+
+static IgnoredBlenderVersions &ignored_versions_updates()
+{
+  /* Ignore any update prior the current version. */
+  static IgnoredBlenderVersions ignored_blender_versions{
+      {BLENDER_VERSION, BLENDER_VERSION_PATCH},
+      {BLENDER_VERSION, BLENDER_VERSION_PATCH},
+      {BLENDER_VERSION, BLENDER_VERSION_PATCH},
+  };
+  return ignored_blender_versions;
+}
+
+static BlenderUpdates &available_blender_updates()
+{
+  static BlenderUpdates available_blender_updates{};
+  return available_blender_updates;
+}
+
+std::optional<BlenderVersion> blender_version_from_version_str(StringRefNull str)
+{
+  std::stringstream ss(str);
+  int major;
+  ss >> major;
+  if (ss.fail()) {
+    return {};
+  }
+  char sep = '.';
+  ss >> sep;
+  if (ss.fail() || sep != '.') {
+    return {};
+  }
+  int minor;
+  ss >> minor;
+  if (ss.fail()) {
+    return {};
+  }
+  ss >> sep;
+  if (ss.fail() || sep != '.') {
+    return {};
+  }
+  int patch;
+  ss >> patch;
+  if (ss.fail() || !ss.eof()) {
+    return {};
+  }
+  return BlenderVersion{major * 100 + minor, patch};
+}
+
+static void register_blender_update(VersionUpdate update)
+{
+  std::optional<BlenderVersion> version = blender_version_from_version_str(update.version);
+  if (!version) {
+    return;
+  }
+  IgnoredBlenderVersions &ignored_updates = ignored_versions_updates();
+  BlenderUpdates &updates = available_blender_updates();
+  auto version_from_optional_version_update = [](std::optional<VersionUpdate> version_update) {
+    return version_update ? blender_version_from_version_str(version_update->version) :
+                            std::nullopt;
+  };
+  if (version->version == BLENDER_VERSION) {
+    std::optional<BlenderVersion> current_version = version_from_optional_version_update(
+        updates.current_release);
+    if (ignored_updates.current_release.patch < version->patch &&
+        (!current_version || *current_version < version))
+    {
+      updates.current_release = update;
+    }
+    return;
+  }
+  if (update.is_lts && ignored_updates.latest_lts < *version) {
+    std::optional<BlenderVersion> latest_lts_version = version_from_optional_version_update(
+        updates.latest_lts);
+    if ((!latest_lts_version || *latest_lts_version < version)) {
+      updates.latest_lts = update;
+    }
+    return;
+  }
+  if (ignored_updates.latest < version) {
+    std::optional<BlenderVersion> latest_version = version_from_optional_version_update(
+        updates.latest);
+    if ((!latest_version || *latest_version < version)) {
+      updates.latest_lts = update;
+    }
+  }
+}
+
+static std::string download_updates_info(bContext &C)
+{
+  constexpr const char *expr =
+      R"(
+with open('/home/guishe/Documents/updates-info.json', 'r') as file:
+    _result = file.read()
+)";
+  std::unique_ptr locals = bke::idprop::create_group("locals");
+  std::optional<blender::IDProperty *> updates_ptr = BPY_run_string_exec_with_locals_return_idprop(
+      &C, expr, *locals, "_result");
+  if (!updates_ptr) {
+    return "";
+  }
+  IDProperty *updates_idprop = *updates_ptr;
+
+  /* Check the returned value. */
+  if (updates_idprop == nullptr || updates_idprop->type != IDP_STRING) {
+    IDP_FreeProperty(updates_idprop);
+    return "";
+  }
+  std::string updates_str = IDP_string_get(updates_idprop);
+  IDP_FreeProperty(updates_idprop);
+
+  using namespace io::serialize;
+
+  std::istringstream updates_stream(updates_str);
+
+  JsonFormatter json;
+  std::unique_ptr<Value> updates_json = json.deserialize(updates_stream);
+
+  if (!updates_json) {
+    return "";
+  }
+  if (updates_json->type() != eValueType::Array) {
+    return "";
+  }
+  for (const std::shared_ptr<Value> &entry : updates_json->as_array_value()->elements()) {
+    if (!entry || entry->type() != eValueType::Dictionary) {
+      continue;
+    }
+    const DictionaryValue &dict = *entry->as_dictionary_value();
+    std::optional<int64_t> build_size = dict.lookup_int("build_size");
+    std::optional<StringRefNull> checksum_hash = dict.lookup_str("checksum_hash");
+    std::optional<StringRefNull> commit_hash = dict.lookup_str("commit_hash");
+    std::optional<StringRefNull> description = dict.lookup_str("description");
+    std::optional<StringRefNull> download_url = dict.lookup_str("download_url");
+    std::optional<StringRefNull> cycle = dict.lookup_str("cycle");
+    const std::shared_ptr<blender::io::serialize::Value> *is_lts = dict.lookup("is_lts");
+    std::optional<StringRefNull> platform = dict.lookup_str("platform");
+    std::optional<StringRefNull> release_notes_url = dict.lookup_str("release_notes_url");
+    std::optional<StringRefNull> timestamp = dict.lookup_str("timestamp");
+    std::optional<StringRefNull> version = dict.lookup_str("version");
+    if (!(build_size && checksum_hash && commit_hash && description && download_url &&
+          download_url && cycle && platform && release_notes_url && timestamp && version))
+    {
+      continue;
+    }
+    if (!is_lts || is_lts->get()->type() != eValueType::Boolean) {
+      continue;
+    }
+    register_blender_update(VersionUpdate{.build_size = *build_size,
+                                          .checksum_hash = *checksum_hash,
+                                          .commit_hash = *commit_hash,
+                                          .description = *description,
+                                          .download_url = *download_url,
+                                          .cycle = *cycle,
+                                          .is_lts = is_lts->get()->as_boolean_value()->value(),
+                                          .platform = *platform,
+                                          .release_notes_url = *release_notes_url,
+                                          .timestamp = *timestamp,
+                                          .version = *version});
+  }
+
+  return "";
+}
+
+bool check_for_available_updates(bContext &C, bool use_cache)
+{
+  static std::chrono::utc_clock::time_point last_time_check;
+  if (use_cache && std::chrono::duration_cast<std::chrono::days>(
+                       (std::chrono::utc_clock::now() - last_time_check))
+                           .count() > 1)
+  {
+    download_updates_info(C);
+    last_time_check = std::chrono::utc_clock::now();
+  }
+  BlenderUpdates &updates = available_blender_updates();
+  return updates.current_release || updates.latest || updates.latest_lts;
+}
+
+Vector<const VersionUpdate *> available_updates()
+{
+  BlenderUpdates &updates = available_blender_updates();
+  Vector<const VersionUpdate *> tmp;
+  if (updates.latest) {
+    tmp.append(&(*updates.latest));
+  }
+  if (updates.latest_lts) {
+    tmp.append(&(*updates.latest_lts));
+  }
+  if (updates.current_release) {
+    tmp.append(&(*updates.current_release));
+  }
+  return tmp;
+}
+
+void ignore_update_version(const VersionUpdate &version_info)
+{
+  std::optional<BlenderVersion> version = blender_version_from_version_str(version_info.version);
+  BLI_assert(version);
+  IgnoredBlenderVersions &ignored_updates = ignored_versions_updates();
+
+  if (version->version == BLENDER_VERSION &&
+      version->patch > ignored_updates.current_release.patch)
+  {
+    ignored_updates.current_release = {version->version, version->patch};
+  }
+
+  if (version_info.is_lts && ignored_updates.latest_lts.version < version->version &&
+      ignored_updates.latest_lts.patch < version->patch)
+  {
+    ignored_updates.latest_lts = {version->version, version->patch};
+  }
+
+  if (!version_info.is_lts && ignored_updates.latest.version < version->version &&
+      ignored_updates.latest.patch < version->patch)
+  {
+    ignored_updates.latest = {version->version, version->patch};
+  }
+}
+
+void ignore_update(const VersionUpdate *version_info)
+{
+  ignore_update_version(*version_info);
+
+  BlenderUpdates updates = available_blender_updates();
+  available_blender_updates() = {};
+  if (updates.latest && version_info != &*updates.latest) {
+    register_blender_update(*updates.latest);
+  }
+  if (updates.latest_lts && version_info != &*updates.latest_lts) {
+    register_blender_update(*updates.latest_lts);
+  }
+  if (updates.current_release && version_info != &*updates.current_release) {
+    register_blender_update(*updates.current_release);
+  }
+}
+
+void ignore_all_updates()
+{
+  BlenderUpdates updates = available_blender_updates();
+
+  if (updates.latest) {
+    ignore_update(&(*updates.latest));
+  }
+  if (updates.latest_lts) {
+    ignore_update(&(*updates.latest_lts));
+  }
+  if (updates.current_release) {
+    ignore_update(&(*updates.current_release));
+  }
+}
+
+}  // namespace blender::bke

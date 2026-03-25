@@ -34,6 +34,7 @@
 
 #include "WM_api.hh"
 
+#include "BKE_blender_updates.hh"
 #include "UI_interface_layout.hh"
 #include "interface_intern.hh"
 
@@ -540,8 +541,9 @@ void uiTemplateStatusInfo(Layout *layout, bContext *C)
         has_status_info = true;
       }
       else if (U.flag &
-               (USER_BLENDER_UPDATE_LATEST_RELEASE | USER_BLENDER_UPDATE_LATEST_LTS_RELEASE |
-                USER_BLENDER_UPDATE_CURRENT_RELEASE))
+                   (USER_BLENDER_UPDATE_LATEST_RELEASE | USER_BLENDER_UPDATE_LATEST_LTS_RELEASE |
+                    USER_BLENDER_UPDATE_CURRENT_RELEASE) &&
+               bke::check_for_available_updates(*C))
       {
         if (has_status_info) {
           row.separator(-0.5f);
@@ -550,8 +552,17 @@ void uiTemplateStatusInfo(Layout *layout, bContext *C)
         }
         ui::Layout &sub = row.row(false);
         sub.emboss_set(ui::EmbossType::Emboss);
-        Button *button = sub.popover(
-            C, "STATUS_PT_blender_updates", IFACE_("Updates Available"), ICON_IMPORT);
+        Vector<const bke::VersionUpdate *> updates = bke::available_updates();
+        std::string update_text;
+        if (updates.size() == 1) {
+          update_text = fmt::format(fmt::runtime(IFACE_("Update to {}")),
+                                    updates[0]->version + (updates[0]->is_lts ? "LTS" : ""));
+        }
+        else {
+          update_text = IFACE_("Updates Available");
+        }
+        sub.popover(C, "STATUS_PT_blender_updates", update_text, ICON_IMPORT);
+        Button *button = layout->block()->buttons_ptrs.last().get();
         /* Remove extra space for menu arrow. */
         button->rect.xmax -= UI_UNIT_X * 0.55f;
         ui::button_flag_enable(button, ui::BUT_UPDATE_AVAILABLE);

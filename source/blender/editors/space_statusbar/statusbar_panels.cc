@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_blender_updates.hh"
 #include "BKE_idprop.hh"
 #include "BKE_screen.hh"
 
@@ -27,47 +28,7 @@
 
 namespace blender {
 
-struct VersionUpdateInfo {
-  std::string commit_hash;
-  std::string version;
-  bool is_lts;
-  std::string description;
-  std::string release_notes_url;
-  std::string download_url;
-};
-
-static Vector<VersionUpdateInfo> &blender_available_updates()
-{
-  static Vector<VersionUpdateInfo> updates = {
-      {
-          .commit_hash = "3cfed7c6ecab",
-          .version = "5.0.1",
-          .is_lts = false,
-          .description = "Over 100 bug fixes, it is highly recomended to update.",
-          .release_notes_url = "https://www.blender.org/download/releases/5-0/",
-          .download_url = "https://www.blender.org/download/",
-      },
-      {
-          .commit_hash = "2cfed7c6ecab",
-          .version = "5.1.1",
-          .is_lts = false,
-          .description = "Over 45 bug fixes, it is highly recomended to update.",
-          .release_notes_url = "https://www.blender.org/download/releases/5-0/",
-          .download_url = "https://www.blender.org/download/",
-      },
-      {
-          .commit_hash = "1cfed7c6ecab",
-          .version = "5.2.0",
-          .is_lts = true,
-          .description = "New LTS major release is available.",
-          .release_notes_url = "https://www.blender.org/download/releases/5-0/",
-          .download_url = "https://www.blender.org/download/",
-      },
-  };
-  return updates;
-}
-
-static void version_update_draw_body(VersionUpdateInfo &update, ui::Layout &layout)
+static void version_update_draw_body(const bke::VersionUpdate &update, ui::Layout &layout)
 {
   ui::Layout &row = layout.row(true);
   row.emboss_set(ui::EmbossType::None);
@@ -91,9 +52,8 @@ static void version_update_draw_body(VersionUpdateInfo &update, ui::Layout &layo
                                 0,
                                 0,
                                 "");
-  ui::button_func_set(button, [commit_hash = update.commit_hash](blender::bContext & /*C*/) {
-    blender_available_updates().remove_if(
-        [&](const VersionUpdateInfo &update) { return update.commit_hash == commit_hash; });
+  ui::button_func_set(button, [update_info = &update](blender::bContext & /*C*/) {
+    bke::ignore_update(update_info);
   });
   ui::Layout &right_row = buttons_row.row(false);
   right_row.alignment_set(ui::LayoutAlign::Right);
@@ -105,14 +65,14 @@ static void panel_blender_updates_draw(const bContext *C, Panel *panel)
 {
   ui::Layout &layout = *panel->layout;
 
-  Vector<VersionUpdateInfo> &available_updates = blender_available_updates();
+  Vector<const bke::VersionUpdate *> available_updates = bke::available_updates();
   if (available_updates.is_empty()) {
     ui::Layout &header = layout.row(true);
     header.label(IFACE_("No updates available"), ICON_NONE);
     return;
   }
   if (available_updates.size() == 1) {
-    VersionUpdateInfo &update = available_updates[0];
+    const bke::VersionUpdate &update = *available_updates[0];
     ui::Layout &header = layout.row(true);
     const char *release_text = update.version.ends_with(".0") ?
                                    "New release available {}{}" :
@@ -144,27 +104,26 @@ static void panel_blender_updates_draw(const bContext *C, Panel *panel)
                                 0,
                                 0,
                                 "");
-  ui::button_func_set(button,
-                      [](blender::bContext & /*C*/) { blender_available_updates().clear(); });
+  ui::button_func_set(button, [](blender::bContext & /*C*/) { bke::ignore_all_updates(); });
   ui::button_drawflag_disable(button, ui::BUT_TEXT_RIGHT);
-  for (VersionUpdateInfo &update : available_updates) {
-    ui::PanelLayout panel_layout = layout.panel(C, "Update_" + update.version, false);
-    panel_layout.header->label(update.version, ICON_NONE);
+  for (const bke::VersionUpdate *update : available_updates) {
+    ui::PanelLayout panel_layout = layout.panel(C, "Update_" + update->version, false);
+    panel_layout.header->label(update->version, ICON_NONE);
     ui::Layout *body = panel_layout.body;
     ui::Layout &sub = panel_layout.header->row(false);
     sub.alignment_set(ui::LayoutAlign::Right);
-    sub.link(update.release_notes_url, "Whats new", ICON_NONE);
+    sub.link(update->release_notes_url, "Whats new", ICON_NONE);
     if (!body) {
       continue;
     }
-    version_update_draw_body(update, body->column(false));
+    version_update_draw_body(*update, body->column(false));
   }
 }
 
 static bool panel_blender_updates_poll(const blender::bContext * /*C*/,
                                        blender::PanelType * /*pt*/)
 {
-  return !blender_available_updates().is_empty();
+  return !bke::available_updates().is_empty();
 }
 
 void panel_blender_updates_register(ARegionType *region_type)
