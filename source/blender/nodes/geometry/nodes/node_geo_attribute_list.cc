@@ -86,9 +86,10 @@ static void node_geo_exec(GeoNodeExecParams params)
   const AttributeAccessor attributes = *component->attributes();
   Vector<std::string> names;
 
+  const bke::AttrType type_filter = *bke::custom_data_type_to_attr_type(data_type);
   attributes.foreach_attribute([&](const AttributeIter &iter) {
     if (data_type != CD_ALL) {
-      if (iter.data_type != bke::custom_data_type_to_attr_type(data_type)) {
+      if (iter.data_type != type_filter) {
         return;
       }
     }

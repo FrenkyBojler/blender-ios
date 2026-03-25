@@ -23,7 +23,6 @@ std::optional<AttrType> custom_data_type_to_attr_type(const eCustomDataType data
   switch (data_type) {
     /* These types are not used for actual #CustomData layers. */
     case CD_NUMTYPES:
-    case CD_ALL:
     case CD_AUTO_FROM_NAME:
     case CD_TANGENT:
       BLI_assert_unreachable();
