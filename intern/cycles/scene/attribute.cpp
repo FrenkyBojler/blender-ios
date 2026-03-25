@@ -53,6 +53,9 @@ Attribute::Attribute(ustring name,
 {
   assert((element & ATTR_ELEMENT_VOXEL) == 0);
   this->buffer = data;
+  /* Implicit sharing function pointers should be set if shared attribtues are created. */
+  assert(g_implicit_sharing_user_add_fn);
+  assert(g_implicit_sharing_user_remove_fn);
   g_implicit_sharing_user_add_fn(sharing_info);
   this->sharing_info = sharing_info;
 }
