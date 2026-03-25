@@ -337,7 +337,7 @@ static void node_register()
   static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeSampleSound");
   ntype.ui_name = "Sample Sound";
-  ntype.ui_description = "";
+  ntype.ui_description = "Retrieve the amplitude from a sound data-block at a given time";
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
