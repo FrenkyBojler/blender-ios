@@ -424,8 +424,9 @@ static void do_paint_brush_task(const Depsgraph &depsgraph,
     }
   }
 
-  float3 brush_color_rgb = ss.cache->invert ? BKE_brush_secondary_color_get(&paint, &brush) :
-                                              BKE_brush_color_get(&paint, &brush);
+  float3 brush_color_rgb = ss.cache->toggle_settings.invert ?
+                               BKE_brush_secondary_color_get(&paint, &brush) :
+                               BKE_brush_color_get(&paint, &brush);
 
   const std::optional<BrushColorJitterSettings> color_jitter_settings =
       BKE_brush_color_jitter_get_settings(&paint, &brush);
@@ -563,7 +564,7 @@ void do_paint_brush(const Depsgraph &depsgraph,
                     const IndexMask &texnode_mask)
 {
   if (SCULPT_use_image_paint_brush(paint_mode_settings, ob)) {
-    SCULPT_do_paint_brush_image(depsgraph, paint_mode_settings, sd, ob, texnode_mask);
+    SCULPT_do_paint_brush_image(depsgraph, sd, ob, texnode_mask);
     return;
   }
 

@@ -349,6 +349,21 @@ add_blender_test(
 )
 
 add_blender_test(
+  imbuf_py_api
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_imbuf_py_api.py
+)
+
+add_blender_test(
+  operator_function_py_api
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_operator_function_py_api.py
+)
+
+add_blender_test(
+  operator_wrap_py_api
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_operator_wrap_py_api.py
+)
+
+add_blender_test(
   script_pyapi_grease_pencil
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_grease_pencil.py
 )
@@ -818,25 +833,45 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
     texture
   )
 
+  set(workbench_tests
+    workbench
+    camera
+    colorspace
+    hair
+    image_colorspace
+    image_data_types
+    image_mapping
+    image_texture_limit
+    mesh
+    pointcloud
+    texture
+  )
+
   if(WITH_OPENSUBDIV)
     list(APPEND render_tests displacement)
   endif()
 
   if(WITH_FREESTYLE)
     list(APPEND render_tests render_layer)
-  endif()
-
-  if(WITH_MOD_FLUID)
+    list(APPEND workbench_tests render_layer)
+    endif()
+    
+    if(WITH_MOD_FLUID)
     list(APPEND render_tests motion_blur reports volume)
-  endif()
-
-  if(WITH_OPENVDB AND WITH_MOD_FLUID)
+    list(APPEND workbench_tests volume)
+    endif()
+    
+    if(WITH_OPENVDB AND WITH_MOD_FLUID)
     # Some tests in the OpenVDB folder make use of fluid simulations to generate smoke
     list(APPEND render_tests openvdb)
+    list(APPEND workbench_tests openvdb)
+    # Some tests in the instancing folder make use of OpenVDB volumes
+    list(APPEND render_tests instancing)
+    list(APPEND workbench_tests instancing)
   endif()
 
   if(WITH_OPENIMAGEDENOISE)
-    list(APPEND render_tests denoise)
+    list(APPEND render_tests denoise denoise_animation)
   endif()
 
   # Disabled until new OpenPGL version with deterministic results.
@@ -846,9 +881,11 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
 
   if(WITH_GPU_RENDER_TESTS)
     list(APPEND render_tests grease_pencil)
+    list(APPEND workbench_tests grease_pencil)
   endif()
 
   list(SORT render_tests)
+  list(SORT workbench_tests)
 
   # Cycles
   if(WITH_CYCLES)
@@ -944,7 +981,7 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
         endforeach()
       endif()
 
-      if(WITH_VULKAN_BACKEND AND (name STREQUAL "overlay" OR WITH_GPU_RENDER_TESTS_VULKAN)
+      if(WITH_VULKAN_BACKEND AND WITH_GPU_RENDER_TESTS_VULKAN
           AND (NOT (name STREQUAL "storm_hydra" OR name STREQUAL "storm_usd") OR WITH_STORM_TESTS_VULKAN))
         foreach(render_test ${render_tests})
           add_render_test(
@@ -960,10 +997,9 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
     endfunction()
 
     add_gpu_render_tests(eevee "eevee_render_tests.py" "${gpu_render_tests}")
-    add_gpu_render_tests(workbench "workbench_render_tests.py" "${gpu_render_tests}")
+    add_gpu_render_tests(workbench "workbench_render_tests.py" "${workbench_tests}")
     if(WITH_GPU_RENDER_TESTS_HEADED)
-      # Temporarilly disabled until 154533 is merged to avoid errors on the builder.
-      # add_gpu_render_tests(overlay "overlay_render_tests.py" "${gpu_render_tests}")
+      add_gpu_render_tests(overlay "overlay_render_tests.py" "overlay")
     endif()
     if(WITH_HYDRA)
       add_gpu_render_tests(storm_hydra "storm_render_tests.py" "${gpu_render_tests}" --export_method "HYDRA")

@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
-#pragma create_info
 
 #include "eevee_shadow_shared.hh"
 
@@ -13,6 +12,10 @@ namespace eevee::shadow {
 
 struct TileMaps {
   [[storage(0, read_write)]] ShadowTileMapData (&tilemaps_buf)[];
+};
+
+struct Tiles {
+  [[storage(1, read_write)]] uint (&tiles_buf)[];
 };
 
 struct Statistics {

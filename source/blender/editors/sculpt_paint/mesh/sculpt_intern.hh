@@ -12,6 +12,7 @@
 
 #include "BKE_brush.hh"
 #include "BKE_bvhutils.hh"
+#include "BKE_image_wrappers.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_subdiv_ccg.hh"
@@ -160,6 +161,49 @@ struct ProjectBrushTarget {
   float4x4 active_to_target_matrix;
 };
 
+namespace paint::image {
+struct ImageData : NonCopyable {
+  Image *image = nullptr;
+  ImageUser *image_user = nullptr;
+
+  Map<bke::image::TileNumber, ImBuf *> buffers = {};
+
+  ~ImageData();
+
+  static std::unique_ptr<ImageData> init_active_image(Object &ob,
+                                                      PaintModeSettings &paint_mode_settings);
+};
+
+}  // namespace paint::image
+
+struct StrokeToggleSettings {
+  /**
+   * Whether the modifier key that controls inverting brush behavior is active currently.
+   *
+   * \see BrushStrokeMode::Invert.
+   */
+  bool invert = false;
+
+  /**
+   * Whether the modifier key that controls smoothing is active currently.
+   *
+   * \see BrushSwitchMode::Smooth.
+   */
+  bool alt_smooth = false;
+
+  /**
+   * Whether the modifier key that controls masking is active currently.
+   * Switches the active brush to the mask brush during the stroke.
+   *
+   * \see BrushSwitchMode::Mask.
+   */
+  bool alt_mask = false;
+
+  Brush *original_active_brush = nullptr;
+  BrushMaskTool original_brush_mask_tool = BRUSH_MASK_DRAW;
+  int original_brush_size = 0;
+};
+
 /**
  * This structure contains all the temporary data
  * needed for individual brush strokes.
@@ -185,6 +229,8 @@ struct StrokeCache {
    */
   bool initial_direction_flipped = false;
 
+  StrokeToggleSettings toggle_settings = {};
+
   /* Variants */
   float radius = 0.0f;
   float radius_squared = 0.0f;
@@ -205,15 +251,6 @@ struct StrokeCache {
 
   bool is_last_valid = false;
 
-  bool pen_flip = false;
-
-  /**
-   * Whether the modifier key that controls inverting brush behavior is active currently.
-   * Generally signals a change in behavior for brushes.
-   *
-   * \see BrushStrokeMode::Invert.
-   */
-  bool invert = false;
   float pressure = 0.0f;
   float hardness = 0.0f;
   /**
@@ -223,7 +260,6 @@ struct StrokeCache {
    * \see #brush_strength for Sculpt Mode.
    */
   float bstrength = 0.0f;
-  float normal_weight = 0.0f; /* from brush (with optional override) */
   float2 tilt = float2(0);
 
   /**
@@ -269,12 +305,6 @@ struct StrokeCache {
   /* The face set being painted. */
   int paint_face_set = face_set_none_id;
 
-  /**
-   * Symmetry index between 0 and 7 bit combo.
-   *
-   * 0 is Brush only; 1 is X mirror; 2 is Y mirror; 3 is XY; 4 is Z; 5 is XZ; 6 is YZ; 7 is XYZ.
-   */
-  int symmetry = 0;
   /* The symmetry pass we are currently on between 0 and 7. */
   ePaintSymmetryFlags mirror_symmetry_pass = ePaintSymmetryFlags(0);
   float3 view_normal = float3(0);
@@ -399,27 +429,6 @@ struct StrokeCache {
   float vertex_rotation = 0.0f;
   Dial *dial = nullptr;
 
-  Brush *saved_active_brush = nullptr;
-  char saved_mask_brush_tool = 0;
-  /* Smooth tool copies the size of the current tool. */
-  int saved_smooth_size = 0;
-
-  /**
-   * Whether the modifier key that controls smoothing is active currently.
-   * Generally signals a change in behavior for different brushes.
-   *
-   * \see BrushSwitchMode::Smooth.
-   */
-  bool alt_smooth = false;
-
-  /**
-   * Whether the modifier key that controls masking is active currently.
-   * Switches the active brush to the mask brush during the stroke.
-   *
-   * \see BrushSwitchMode::Mask.
-   */
-  bool alt_mask = false;
-
   float plane_trim_squared = 0.0f;
 
   bool supports_gravity = false;
@@ -430,6 +439,8 @@ struct StrokeCache {
 
   float4x4 stroke_local_mat = float4x4::identity();
   float multiplane_scrape_angle = 0.0f;
+
+  std::unique_ptr<paint::image::ImageData> image_data;
 
   StrokeCache();
   ~StrokeCache();
@@ -600,14 +611,9 @@ bool SCULPT_stroke_is_first_brush_step(const ed::sculpt_paint::StrokeCache &cach
 bool SCULPT_stroke_is_first_brush_step_of_symmetry_pass(
     const ed::sculpt_paint::StrokeCache &cache);
 
-/**
- * Align the grab delta to the brush normal.
- *
- * \param grab_delta: Typically from `ss.cache->grab_delta_symmetry`.
- */
-void sculpt_project_v3_normal_align(const SculptSession &ss,
-                                    float normal_weight,
-                                    float grab_delta[3]);
+namespace ed::sculpt_paint {
+float3 grab_delta_get(const Brush &brush, const StrokeCache &cache);
+}
 
 /** \} */
 
@@ -931,19 +937,7 @@ float object_space_radius_get(const ViewContext &vc,
 /** \name 3D Texture Paint (Experimental)
  * \{ */
 
-/**
- * \brief Get the image canvas for painting on the given object.
- *
- * \return #true if an image is found. The #r_image and #r_image_user fields are filled with
- * the image and image user. Returns false when the image isn't found. In the later case the
- * r_image and r_image_user are set to NULL.
- */
-bool SCULPT_paint_image_canvas_get(PaintModeSettings &paint_mode_settings,
-                                   Object &ob,
-                                   Image **r_image,
-                                   ImageUser **r_image_user) ATTR_NONNULL();
 void SCULPT_do_paint_brush_image(const Depsgraph &depsgraph,
-                                 PaintModeSettings &paint_mode_settings,
                                  const Sculpt &sd,
                                  Object &ob,
                                  const IndexMask &node_mask);
