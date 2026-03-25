@@ -1,1 +1,1 @@
-Referenced by issue #155844, Orbit inverted in the 3d-viewport using touchpad (Windows)
+Referenced by issue #155844, Orbit direction in the 3d-viewport using touchpad is sensitive to factors like compiler, CPU architecture, and trackpad model
