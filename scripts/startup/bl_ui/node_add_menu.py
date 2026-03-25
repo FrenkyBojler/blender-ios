@@ -110,15 +110,18 @@ def add_closure_zone(layout, label):
     props.use_transform = True
     return props
 
+
 def set_socket_default_value(settings, socket_identifier, socket_default_value):
     prop = settings.add()
     prop.name = "inputs[\"{:s}\"].default_value".format(socket_identifier)
     prop.value = socket_default_value
     return prop
 
+
 def color_mix_node_defaults(enum_identifier, props):
     if enum_identifier == 'MIX':
         set_socket_default_value(props.settings, "Factor", "0.5")
+
 
 def set_math_node_default_props(enum_identifier, props):
 
