@@ -13,7 +13,7 @@ __all__ = (
     "add_repeat_zone",
     "add_simulation_zone",
     "draw_node_group_add_menu",
-    "nodes_math_defaults_cb"
+    "set_math_node_default_props"
 )
 
 import bpy
@@ -111,7 +111,7 @@ def add_closure_zone(layout, label):
     return props
 
 
-def nodes_math_defaults_cb(enum_identifier, props):
+def set_math_node_default_props(enum_identifier, props):
     prop_1 = props.settings.add()
     prop_1.name = "inputs[\"Value\"].default_value"
     prop_2 = props.settings.add()
