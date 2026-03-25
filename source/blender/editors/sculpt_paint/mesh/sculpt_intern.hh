@@ -745,6 +745,11 @@ Vector<int> find_symm_verts(const Depsgraph &depsgraph,
                             int original_vert,
                             float max_distance = std::numeric_limits<float>::max());
 
+/**
+ * Similar to `find_symm_verts`, but returns an unsorted set of all vertex indices.
+ *
+ * \note If a symmetry pass is invalid, the corresponding vertex index is set to -1
+ */
 std::array<int, PAINT_SYMM_AREAS> find_all_symm_verts_mesh(
     const Depsgraph &depsgraph,
     const Object &object,
