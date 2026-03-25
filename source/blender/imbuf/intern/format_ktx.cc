@@ -102,6 +102,20 @@ bool imb_save_ktx(ImBuf *ibuf, const char *filepath, int /*flags*/)
     pixel_data = packed_rgb.data();
   }
 
+  /* glTF compliance: flip vertically (Blender = bottom-left, KTX2/glTF = top-left "rd"). */
+  const bool gltf_compat = (ibuf->foptions.flag & KTX2_ORIENTATION_RD) != 0;
+  std::vector<uint8_t> flipped;
+  if (gltf_compat) {
+    const int row_size = ibuf->x * channels;
+    flipped.resize(ktx_size_t(ibuf->x) * ktx_size_t(ibuf->y) * channels);
+    for (int y = 0; y < ibuf->y; y++) {
+      memcpy(flipped.data() + y * row_size,
+             pixel_data + (ibuf->y - 1 - y) * row_size,
+             row_size);
+    }
+    pixel_data = flipped.data();
+  }
+
   ktxTextureCreateInfo create_info = {};
   create_info.vkFormat = vk_format;
   create_info.baseWidth = uint32_t(ibuf->x);
@@ -121,6 +135,11 @@ bool imb_save_ktx(ImBuf *ibuf, const char *filepath, int /*flags*/)
   if (result != KTX_SUCCESS) {
     CLOG_ERROR(&LOG, "Failed to create KTX2 texture: %s", ktxErrorString(result));
     return false;
+  }
+
+  /* Write KTXorientation=rd for glTF compliance (top-left origin). */
+  if (gltf_compat) {
+    ktxHashList_AddKVPair(&texture->kvDataHead, KTX_ORIENTATION_KEY, sizeof("rd"), "rd");
   }
 
   const ktx_size_t image_size = ktx_size_t(ibuf->x) * ktx_size_t(ibuf->y) * channels;

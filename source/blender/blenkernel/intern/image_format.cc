@@ -937,6 +937,9 @@ void BKE_image_format_to_imbuf(ImBuf *ibuf, const ImageFormatData *imf)
     if (imf->ktx2_codec == R_IMF_KTX2_CODEC_UASTC) {
       ibuf->foptions.flag |= KTX2_UASTC;
     }
+    if (imf->ktx2_flag & R_IMF_KTX2_ORIENTATION_RD) {
+      ibuf->foptions.flag |= KTX2_ORIENTATION_RD;
+    }
   }
 #endif
   else {

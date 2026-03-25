@@ -1063,6 +1063,7 @@ void uiTemplateImageSettings(ui::Layout *layout,
     if (imf->ktx2_codec == R_IMF_KTX2_CODEC_UASTC) {
       col.prop(imfptr, "compression", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     }
+    col.prop(imfptr, "use_ktx2_rd_orientation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
   /* Override color management */

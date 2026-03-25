@@ -450,6 +450,12 @@ enum {
   R_IMF_KTX2_CODEC_UASTC = 1,
 };
 
+/** #ImageFormatData::ktx2_flag */
+enum {
+  /** Flip pixels vertically and set KTXorientation=rd - used for glTF compliance. */
+  R_IMF_KTX2_ORIENTATION_RD = (1 << 0),
+};
+
 /** #ImageFormatData::tiff_codec */
 enum {
   R_IMF_TIFF_CODEC_DEFLATE = 0,
@@ -510,10 +516,11 @@ struct ImageFormatData {
 
   /** KTX2. */
   char ktx2_codec = 0;
+  char ktx2_flag = 0;
 
   /** CINEON. */
   char cineon_flag = 0;
-  char _pad[2] = {};
+  char _pad[1] = {};
   short cineon_white = 0, cineon_black = 0;
   float cineon_gamma = 0;
 

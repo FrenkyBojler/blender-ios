@@ -6532,6 +6532,15 @@ static void rna_def_scene_image_format_data(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, ktx2_codec_items);
   RNA_def_property_ui_text(prop, "Codec", "Compression codec for KTX2");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
+  prop = RNA_def_property(srna, "use_ktx2_rd_orientation", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "ktx2_flag", R_IMF_KTX2_ORIENTATION_RD);
+  RNA_def_property_ui_text(prop,
+                           "Use top-left (RD) Orientation",
+                           "Flip image vertically for glTF compliance (top-left origin, "
+                           "KTXorientation=rd)"
+                           "Needed for glTF compatibilty of textures");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 #  endif
 
   /* Cineon and DPX */
