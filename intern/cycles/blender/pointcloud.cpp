@@ -94,8 +94,12 @@ static void copy_attributes(PointCloud *pointcloud,
 
         if constexpr (Converter::layout_compatible) {
           if (info.type == blender::CommonVArrayInfo::Type::Span && b_attr.sharing_info) {
-            attributes.add_shared(
-                name, Converter::type_desc, ATTR_ELEMENT_VERTEX, info.data, b_attr.sharing_info);
+            attributes.add_shared(name,
+                                  Converter::type_desc,
+                                  ATTR_ELEMENT_VERTEX,
+                                  info.data,
+                                  src_varray.size(),
+                                  b_attr.sharing_info);
             return;
           }
         }

@@ -41,8 +41,15 @@ Attribute::Attribute(ustring name,
                      const TypeDesc type,
                      AttributeElement element,
                      const void *data,
+                     const int size,
                      const void *sharing_info)
-    : name(name), std(ATTR_STD_NONE), type(type), element(element), flags(0), modified(true)
+    : name(name),
+      std(ATTR_STD_NONE),
+      type(type),
+      size(size),
+      element(element),
+      flags(0),
+      modified(true)
 {
   assert((element & ATTR_ELEMENT_VOXEL) == 0);
   this->buffer = data;
@@ -468,6 +475,7 @@ Attribute *AttributeSet::add_shared(ustring name,
                                     const TypeDesc type,
                                     AttributeElement element,
                                     const void *data,
+                                    const int size,
                                     const void *sharing_info)
 {
   Attribute *attr = find(name);
@@ -482,7 +490,7 @@ Attribute *AttributeSet::add_shared(ustring name,
     remove(name);
   }
 
-  attributes.emplace_back(name, type, element, data, sharing_info);
+  attributes.emplace_back(name, type, element, data, size, sharing_info);
   tag_modified(attributes.back());
   return &attributes.back();
 }
@@ -774,6 +782,7 @@ Attribute *AttributeSet::add(AttributeStandard std, ustring name)
 Attribute *AttributeSet::add_shared(AttributeStandard std,
                                     ustring name,
                                     const void *data,
+                                    const int size,
                                     const void *sharing_info)
 {
   Attribute *attr = nullptr;
@@ -786,6 +795,7 @@ Attribute *AttributeSet::add_shared(AttributeStandard std,
                     find_type_from_geometry_std(geometry, std),
                     find_element_from_geometry_std(geometry, std),
                     data,
+                    size,
                     sharing_info);
 
   attr->std = std;

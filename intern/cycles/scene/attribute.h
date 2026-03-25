@@ -77,6 +77,7 @@ class Attribute {
             const TypeDesc type,
             AttributeElement element,
             const void *data,
+            int size,
             const void *sharing_info);
   Attribute(Attribute &&other) = delete;
   Attribute &operator=(Attribute &&other) = delete;
@@ -172,11 +173,6 @@ class Attribute {
     assert(data_sizeof() == sizeof(packed_normal));
     return reinterpret_cast<const packed_normal *>(this->data());
   }
-  const packed_normal *data_normal() const
-  {
-    assert(data_sizeof() == sizeof(packed_normal));
-    return (const packed_normal *)data();
-  }
   const Transform *data_transform() const
   {
     assert(data_sizeof() == sizeof(Transform));
@@ -222,15 +218,14 @@ class AttributeSet {
                         const TypeDesc type,
                         AttributeElement element,
                         const void *data,
+                        int size,
                         const void *sharing_info);
   Attribute *find(ustring name) const;
   void remove(ustring name);
 
   Attribute *add(AttributeStandard std, ustring name = ustring());
-  Attribute *add_shared(AttributeStandard std,
-                        ustring name,
-                        const void *data,
-                        const void *sharing_info);
+  Attribute *add_shared(
+      AttributeStandard std, ustring name, const void *data, int size, const void *sharing_info);
   Attribute *find(AttributeStandard std) const;
   void remove(AttributeStandard std);
 

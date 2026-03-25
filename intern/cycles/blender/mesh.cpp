@@ -190,8 +190,12 @@ static void attr_create_generic(Scene *scene,
         if constexpr (Converter::layout_compatible) {
           if (Attribute::element_size(mesh, element, attributes.prim) == src_varray.size()) {
             if (info.type == blender::CommonVArrayInfo::Type::Span && b_attr.sharing_info) {
-              Attribute *attr = attributes.add_shared(
-                  name, Converter::type_desc, element, info.data, b_attr.sharing_info);
+              Attribute *attr = attributes.add_shared(name,
+                                                      Converter::type_desc,
+                                                      element,
+                                                      info.data,
+                                                      src_varray.size(),
+                                                      b_attr.sharing_info);
               if (is_render_color) {
                 attr->std = ATTR_STD_VERTEX_COLOR;
               }
@@ -350,11 +354,15 @@ static void attr_create_subd_uv_map(Scene *scene,
     if (b_uv_map.sharing_info && info.type == blender::CommonVArrayInfo::Type::Span) {
       if (active_render) {
         uv_attr = mesh->subd_attributes.add_shared(
-            uv_std, uv_name, info.data, b_uv_map.sharing_info);
+            uv_std, uv_name, info.data, b_uv_map.varray.size(), b_uv_map.sharing_info);
       }
       else {
-        uv_attr = mesh->subd_attributes.add_shared(
-            uv_name, TypeFloat2, ATTR_ELEMENT_CORNER, info.data, b_uv_map.sharing_info);
+        uv_attr = mesh->subd_attributes.add_shared(uv_name,
+                                                   TypeFloat2,
+                                                   ATTR_ELEMENT_CORNER,
+                                                   info.data,
+                                                   b_uv_map.varray.size(),
+                                                   b_uv_map.sharing_info);
       }
     }
     else {

@@ -820,8 +820,12 @@ static void attr_create_generic(Scene *scene,
         const AttributeElement element = blender_domain_to_attr_element(b_attr.domain);
         if constexpr (Converter::layout_compatible) {
           if (src_varray.is_span() && b_attr.sharing_info) {
-            attributes.add_shared(
-                name, Converter::type_desc, element, info.data, b_attr.sharing_info);
+            attributes.add_shared(name,
+                                  Converter::type_desc,
+                                  element,
+                                  info.data,
+                                  src_varray.size(),
+                                  b_attr.sharing_info);
             return;
           }
         }
