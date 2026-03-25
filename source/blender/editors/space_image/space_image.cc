@@ -582,7 +582,7 @@ static void IMAGE_GGT_compositor_glare(wmGizmoGroupType *gzgt)
 
 static void IMAGE_GGT_compositor_corner_pin(wmGizmoGroupType *gzgt)
 {
-  gzgt->name = "Glare Node Widget";
+  gzgt->name = "Corner Pin Node Widget";
   gzgt->idname = "IMAGE_GGT_compositor_corner_pin";
 
   gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT | WM_GIZMOGROUPTYPE_DRAW_MODAL_ALL;
@@ -610,7 +610,7 @@ static void IMAGE_GGT_compositor_ellipse_mask(wmGizmoGroupType *gzgt)
 
 static void IMAGE_GGT_compositor_split(wmGizmoGroupType *gzgt)
 {
-  gzgt->name = "Ellipse Mask Node Widget";
+  gzgt->name = "Split Node Widget";
   gzgt->idname = "IMAGE_GGT_compositor_split";
 
   gzgt->flag |= WM_GIZMOGROUPTYPE_PERSISTENT | WM_GIZMOGROUPTYPE_DRAW_MODAL_ALL;
@@ -796,7 +796,7 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
         &render_region, center_x, render_size_x + center_x, center_y, render_size_y + center_y);
     ui::view2d_view_to_region(&region->v2d, 0.0f, 0.0f, &x, &y);
 
-    ED_region_image_render_region_draw(
+    ED_region_render_region_draw(
         x, y, &render_region, zoomx, zoomy, sima->overlay.passepartout_alpha);
   }
 

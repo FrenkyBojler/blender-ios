@@ -2841,6 +2841,19 @@ void do_versions_after_linking_500(FileData *fd, Main *bmain)
     }
   }
 
+  /* Menus were converted into inputs, so the input indices were changed, see the same subversion
+   * in blo_do_versions_500. */
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 66)) {
+    version_node_socket_index_animdata(bmain, NTREE_COMPOSIT, CMP_NODE_GLARE, 1, 2, 22);
+    version_node_socket_index_animdata(bmain, NTREE_COMPOSIT, CMP_NODE_MASK, 0, 1, 7);
+    version_node_socket_index_animdata(bmain, NTREE_COMPOSIT, CMP_NODE_SCALE, 1, 1, 8);
+    version_node_socket_index_animdata(bmain, NTREE_COMPOSIT, CMP_NODE_KEYING, 13, 1, 16);
+    version_node_socket_index_animdata(bmain, NTREE_COMPOSIT, CMP_NODE_KUWAHARA, 2, 1, 7);
+    version_node_socket_index_animdata(bmain, NTREE_COMPOSIT, CMP_NODE_LENSDIST, 1, 1, 6);
+    version_node_socket_index_animdata(bmain, NTREE_COMPOSIT, CMP_NODE_BLUR, 2, 1, 5);
+    version_node_socket_index_animdata(bmain, NTREE_COMPOSIT, CMP_NODE_TONEMAP, 1, 1, 9);
+  }
+
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 97)) {
     for (Scene &scene : bmain->scenes) {
       if (scene.ed != nullptr) {
@@ -2948,7 +2961,7 @@ static void remove_in_and_out_node_panel_recursive(bNodeTreeInterfacePanel &pane
 }
 
 /**
- * Fix node interface sockest that could become both inputs and outputs before the current design
+ * Fix node interface sockets that could become both inputs and outputs before the current design
  * was settled on.
  */
 static void remove_in_and_out_node_interface(bNodeTree &node_tree)
@@ -3818,6 +3831,22 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 56)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type != NTREE_SHADER) {
+        continue;
+      }
+
+      for (bNode &node : node_tree->nodes) {
+        if (node.type_legacy == SH_NODE_NORMAL_MAP) {
+          NodeShaderNormalMap *normal_map = static_cast<NodeShaderNormalMap *>(node.storage);
+          normal_map->base = SHD_NORMAL_MAP_BASE_DISPLACED;
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 58)) {
     for (Object &object : bmain->objects) {
       for (ModifierData &modifier : object.modifiers) {
@@ -4468,12 +4497,6 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
    *
    * \note Keep this message at the bottom of the function.
    */
-
-  /* Keep this versioning always enabled at the bottom of the function; it can only be moved
-   * behind a subversion bump when the file format is changed. */
-  for (Mesh &mesh : bmain->meshes) {
-    bke::mesh_freestyle_marks_to_generic(mesh);
-  }
 
   /* TODO: Can be moved to subversion bump. */
   AS_asset_library_import_method_ensure_valid(*bmain);

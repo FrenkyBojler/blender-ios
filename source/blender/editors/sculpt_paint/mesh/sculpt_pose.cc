@@ -1521,7 +1521,7 @@ static std::unique_ptr<IKChain> ik_chain_init_face_sets_bmesh(Object &object,
 
     if (!next_segment_data) {
       /* It is possible that when traversing neighbors that we no longer have any vertices that
-       * have not been assigned to a face set when trying to find the next segement's starting
+       * have not been assigned to a face set when trying to find the next segment's starting
        * point. All further segments are invalid in this case. */
       break;
     }
@@ -2057,7 +2057,7 @@ static void calc_rotate_deform(SculptSession &ss, const Brush &brush)
 
 static void calc_rotate_twist_deform(SculptSession &ss, const Brush &brush)
 {
-  if (ss.cache->invert) {
+  if (ss.cache->toggle_settings.invert) {
     calc_twist_deform(ss, brush);
   }
   else {
@@ -2067,7 +2067,7 @@ static void calc_rotate_twist_deform(SculptSession &ss, const Brush &brush)
 
 static void calc_scale_translate_deform(SculptSession &ss, const Brush &brush)
 {
-  if (ss.cache->invert) {
+  if (ss.cache->toggle_settings.invert) {
     sculpt_pose_do_translate_deform(ss, brush);
   }
   else {
