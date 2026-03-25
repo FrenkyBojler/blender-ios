@@ -1058,6 +1058,13 @@ void uiTemplateImageSettings(ui::Layout *layout,
     col.prop(imfptr, "tiff_codec", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
+  if (imf->imtype == R_IMF_IMTYPE_KTX2) {
+    col.row(true).prop(imfptr, "ktx2_codec", ui::ITEM_R_EXPAND, IFACE_("Codec"), ICON_NONE);
+    if (imf->ktx2_codec == R_IMF_KTX2_CODEC_UASTC) {
+      col.prop(imfptr, "compression", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    }
+  }
+
   /* Override color management */
   if (color_management) {
     StringRef idname = panel_idname ? panel_idname : "settings_color_management";

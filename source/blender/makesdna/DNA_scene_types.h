@@ -444,6 +444,12 @@ enum {
   R_IMF_CINEON_FLAG_LOG = 1 << 0, /* Was `R_CINEON_LOG`. */
 };
 
+/** #ImageFormatData::ktx2_codec */
+enum {
+  R_IMF_KTX2_CODEC_ETC1S = 0,
+  R_IMF_KTX2_CODEC_UASTC = 1,
+};
+
 /** #ImageFormatData::tiff_codec */
 enum {
   R_IMF_TIFF_CODEC_DEFLATE = 0,
@@ -502,9 +508,12 @@ struct ImageFormatData {
   /** TIFF. */
   char tiff_codec = 0;
 
+  /** KTX2. */
+  char ktx2_codec = 0;
+
   /** CINEON. */
   char cineon_flag = 0;
-  char _pad[3] = {};
+  char _pad[2] = {};
   short cineon_white = 0, cineon_black = 0;
   float cineon_gamma = 0;
 

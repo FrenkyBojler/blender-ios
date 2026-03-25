@@ -6375,6 +6375,14 @@ static void rna_def_scene_image_format_data(BlenderRNA *brna)
   };
 #  endif
 
+#  ifdef WITH_IMAGE_KTX
+  static const EnumPropertyItem ktx2_codec_items[] = {
+      {R_IMF_KTX2_CODEC_ETC1S, "ETC1S", 0, "ETC1S", "ETC1S compression (smaller files)"},
+      {R_IMF_KTX2_CODEC_UASTC, "UASTC", 0, "UASTC", "UASTC compression (higher quality)"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+#  endif
+
   static const EnumPropertyItem tiff_codec_items[] = {
       {R_IMF_TIFF_CODEC_NONE, "NONE", 0, "None", ""},
       {R_IMF_TIFF_CODEC_DEFLATE, "DEFLATE", 0, "Deflate", ""},
@@ -6516,6 +6524,15 @@ static void rna_def_scene_image_format_data(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, tiff_codec_items);
   RNA_def_property_ui_text(prop, "Compression", "Compression mode for TIFF");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
+  /* KTX2 */
+#  ifdef WITH_IMAGE_KTX
+  prop = RNA_def_property(srna, "ktx2_codec", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "ktx2_codec");
+  RNA_def_property_enum_items(prop, ktx2_codec_items);
+  RNA_def_property_ui_text(prop, "Codec", "Compression codec for KTX2");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+#  endif
 
   /* Cineon and DPX */
 

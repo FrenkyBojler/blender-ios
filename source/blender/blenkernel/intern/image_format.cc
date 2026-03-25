@@ -929,6 +929,16 @@ void BKE_image_format_to_imbuf(ImBuf *ibuf, const ImageFormatData *imf)
       ibuf->foptions.flag |= AVIF_12BIT;
     }
   }
+#ifdef WITH_IMAGE_KTX
+  else if (imtype == R_IMF_IMTYPE_KTX2) {
+    ibuf->ftype = IMB_FTYPE_KTX;
+    ibuf->foptions.quality = quality;
+    ibuf->foptions.compress = imf->compress;
+    if (imf->ktx2_codec == R_IMF_KTX2_CODEC_UASTC) {
+      ibuf->foptions.flag |= KTX2_UASTC;
+    }
+  }
+#endif
   else {
     /* #R_IMF_IMTYPE_JPEG90, etc. default to JPEG. */
     if (quality < 10) {
