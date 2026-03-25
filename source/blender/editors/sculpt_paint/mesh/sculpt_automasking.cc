@@ -1682,6 +1682,7 @@ std::unique_ptr<Cache> cache_init(const Depsgraph &depsgraph,
       if (!is_symmetry_iteration_valid(symm_it, symm)) {
         continue;
       }
+      BLI_assert(symm_verts[symm_it] != -1);
       automasking->settings.initial_island_nr[symm_it] = islands::vert_id_get(ss,
                                                                               symm_verts[symm_it]);
     }
