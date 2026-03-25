@@ -2257,6 +2257,9 @@ std::optional<Array<float>> bSoundFrequencySampler::compute_fft(const int start_
 
 float bSoundFrequencySampler::sample(const float time, const float low, const float high) const
 {
+  if (low >= high) {
+    return 0.0f;
+  }
   const std::optional<WindowCachePair> window_pair = this->get_window_caches_for_time(time);
   if (!window_pair.has_value()) {
     return 0.0f;
