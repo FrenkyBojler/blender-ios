@@ -9,6 +9,7 @@
 #include <cstdlib>
 
 #include "BLI_math_constants.h"
+#include "BLI_assert.h"
 #include "BLI_string_utf8_symbols.h"
 
 #include "BLT_translation.hh"
@@ -748,9 +749,7 @@ static int rna_Bone_display_type_effective_get(PointerRNA *ptr)
 {
   bArmature *arm = id_cast<bArmature *>(ptr->owner_id);
   Bone *bone = static_cast<Bone *>(ptr->data);
-  if (arm == nullptr || bone == nullptr) {
-    return ARM_DRAW_TYPE_OCTA;
-  }
+  BLI_assert(arm != nullptr && bone != nullptr);
   return (bone->drawtype == ARM_DRAW_TYPE_ARMATURE_DEFINED) ? arm->drawtype : bone->drawtype;
 }
 
@@ -758,9 +757,7 @@ static int rna_EditBone_display_type_effective_get(PointerRNA *ptr)
 {
   bArmature *arm = id_cast<bArmature *>(ptr->owner_id);
   EditBone *ebone = static_cast<EditBone *>(ptr->data);
-  if (arm == nullptr || ebone == nullptr) {
-    return ARM_DRAW_TYPE_OCTA;
-  }
+  BLI_assert(arm != nullptr && ebone != nullptr);
   return (ebone->drawtype == ARM_DRAW_TYPE_ARMATURE_DEFINED) ? arm->drawtype : ebone->drawtype;
 }
 

@@ -18,7 +18,6 @@
 #include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 
-#include "BKE_action.hh"
 #include "BKE_armature.hh"
 #include "BKE_global.hh"
 #include "BKE_idprop.hh"
