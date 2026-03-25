@@ -127,6 +127,19 @@ if(WITH_IMAGE_WEBP)
   )
 endif()
 
+if(WITH_IMAGE_KTX)
+  list(APPEND SRC
+    intern/format_ktx.cc
+  )
+  list(APPEND INC_SYS
+    ${CMAKE_SOURCE_DIR}/extern/ktx/ktx/src/include
+  )
+  list(APPEND LIB
+    ktx
+  )
+  add_definitions(-DWITH_IMAGE_KTX)
+endif()
+
 if(WIN32)
   list(APPEND INC
     ../../../intern/utfconv

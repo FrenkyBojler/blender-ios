@@ -306,6 +306,25 @@ bool imb_save_avif(ImBuf *ibuf, const char *filepath, int flags);
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Format: KTX (#IMB_FTYPE_KTX)
+ * \{ */
+
+#ifdef WITH_IMAGE_KTX
+
+extern const char *imb_file_extensions_ktx[];
+
+bool imb_is_a_ktx(const unsigned char *mem, size_t size);
+ImBuf *imb_load_ktx(const unsigned char *mem,
+                    size_t size,
+                    int flags,
+                    ImFileColorSpace &r_colorspace);
+bool imb_save_ktx(ImBuf *ibuf, const char *filepath, int flags);
+
+#endif
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Format: SVG - Only for thumbnails.
  * \{ */
 

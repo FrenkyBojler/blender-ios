@@ -212,6 +212,20 @@ const ImFileType IMB_FILE_TYPES[] = {
         /*filetype*/ IMB_FTYPE_AVIF,
         /*default_save_role*/ COLOR_ROLE_DEFAULT_BYTE,
     },
+#ifdef WITH_IMAGE_KTX
+    {
+        /*init*/ nullptr,
+        /*exit*/ nullptr,
+        /*is_a*/ imb_is_a_ktx,
+        /*load*/ imb_load_ktx,
+        /*load_filepath*/ nullptr,
+        /*load_filepath_thumbnail*/ nullptr,
+        /*save*/ imb_save_ktx,
+        /*flag*/ 0,
+        /*filetype*/ IMB_FTYPE_KTX,
+        /*default_save_role*/ COLOR_ROLE_DEFAULT_BYTE,
+    },
+#endif
     {
         /* Only implementing thumbnailing for SVG file type to support specialized importers.
          * General file loading, if wanted, would require a better library and would have to
