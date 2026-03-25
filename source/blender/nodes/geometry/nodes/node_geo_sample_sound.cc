@@ -231,9 +231,7 @@ class SampleSoundFunction : public mf::MultiFunction {
       const bke::bSoundFrequencySampler *sampler = bke::bSoundFrequencySampler::get_cached(sound_,
                                                                                            key);
       if (!sampler) {
-        for (const int i : indices) {
-          amplitudes[i] = 0.0f;
-        }
+        amplitudes.fill_indices(indices, 0.0f);
         return;
       }
       for (const int i : indices) {
