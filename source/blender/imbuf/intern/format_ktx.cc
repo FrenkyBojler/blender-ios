@@ -87,6 +87,10 @@ bool imb_save_ktx(ImBuf *ibuf, const char *filepath, int /*flags*/)
   const int channels = ibuf->planes >> 3;
   const bool is_data = (ibuf->colormanage_flag & IMB_COLORMANAGE_IS_DATA) != 0;
 
+  /* TODO: R and RG channel formats (VK_FORMAT_R8_UNORM, VK_FORMAT_R8G8_UNORM) are not
+   * implemented. In the glTF pipeline, single-channel data (occlusion, roughness, metallic)
+   * is always packed into RGB textures (ORM) by the exporter, so R/RG are not needed. */
+
   /* Select VkFormat based on channel count and colorspace.
    * Blender byte_buffer is always RGBA, so RGB requires packing. */
   uint32_t vk_format;
