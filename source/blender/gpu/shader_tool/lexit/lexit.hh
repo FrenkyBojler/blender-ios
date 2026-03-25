@@ -25,6 +25,9 @@
 // #define LEXIT_DEBUG
 
 #ifdef LEXIT_DEBUG
+/* Make it a warning to avoid shipping with it. */
+#  warning "Lexit debug mode enabled"
+
 #  include <vector>
 #endif
 
@@ -52,7 +55,7 @@ struct Token {
   Token(const TokenBuffer *buf, int32_t index);
 
   /* Invalid token that can still be compared with other tokens. */
-  static Token invalid(TokenBuffer *buf);
+  static Token invalid(const TokenBuffer *buf);
 
   explicit operator int32_t() const
   {
@@ -62,6 +65,10 @@ struct Token {
   bool is_valid() const
   {
     return type() != EndOfFile;
+  }
+  bool is_invalid() const
+  {
+    return type() == EndOfFile;
   }
 
   const TokenType &type() const;
@@ -184,7 +191,7 @@ struct TokenBuffer {
   void tokenize(const CharClass char_class_table[128]);
 
   /**
-   * @brief Merge complex literals such as floats and strings.
+   * @brief Merge complex literals such as floats, strings and comments.
    */
   void merge_complex_literals();
 
@@ -336,7 +343,7 @@ inline Token::Token(const TokenBuffer *buf, int32_t index) : buf_(buf)
 #endif
 }
 
-inline Token Token::invalid(TokenBuffer *buf)
+inline Token Token::invalid(const TokenBuffer *buf)
 {
   return Token(buf, buf->size_);
 }
