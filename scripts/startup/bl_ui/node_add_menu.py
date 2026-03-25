@@ -111,6 +111,13 @@ def add_closure_zone(layout, label):
     return props
 
 
+def color_mix_node_defaults(enum_identifier, props):
+    if enum_identifier == 'MIX':
+        prop = props.settings.add()
+        prop.name = "inputs[\"Factor\"].default_value"
+        prop.value = "0.5"
+
+
 def set_math_node_default_props(enum_identifier, props):
     def add_set_prop(settings, socket_identifier, socket_default_value):
         prop = settings.add()
@@ -131,7 +138,6 @@ def set_math_node_default_props(enum_identifier, props):
     elif enum_identifier == 'MULTIPLY_ADD':
         add_set_prop(props.settings, "Value_001", "1.0")
         add_set_prop(props.settings, "Value_002", "0.0")
-
 
 
 class NodeMenu(Menu):
@@ -309,6 +315,7 @@ class NodeMenu(Menu):
                 prop = props.settings.add()
                 prop.name = "blend_type"
                 prop.value = repr(item.identifier)
+                color_mix_node_defaults(item.identifier, props)
                 operators.append(props)
 
         for props in operators:
