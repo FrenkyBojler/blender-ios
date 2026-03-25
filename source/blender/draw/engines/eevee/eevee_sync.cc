@@ -56,9 +56,8 @@ static inline void geometry_volume_call(PassMain::Sub *pass,
                                         Scene *scene,
                                         Object *ob,
                                         gpu::Batch *geom,
-                                        ResourceHandleRange res_handle)
+                                        ResourceHandle res_handle)
 {
-  BLI_assert(res_handle.index_range().size() == 1);
   BLI_assert(ob->type != OB_VOLUME);
   if (pass != nullptr) {
     PassMain::Sub *object_pass = volume_sub_pass(*pass, scene, ob, gpumat);

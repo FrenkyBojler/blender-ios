@@ -178,7 +178,7 @@ struct ShadowTileMapPool {
 
 /* Can be either a shadow caster or a shadow receiver. */
 struct ShadowObject {
-  ResourceIndex resource_handle = {0};
+  ResourceHandle resource_handle;
   bool used = true;
 };
 

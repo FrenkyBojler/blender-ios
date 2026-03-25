@@ -401,13 +401,13 @@ class Instance : public DrawEngine {
 
   void hair_sync(Manager &manager,
                  ObjectRef &ob_ref,
-                 ResourceHandleRange emitter_handle,
+                 ResourceHandle emitter_handle,
                  const ObjectState &object_state,
                  ParticleSystem *psys,
                  ModifierData *md)
   {
-    ResourceHandleRange handle = manager.resource_handle_for_psys(
-        ob_ref, ob_ref.object->object_to_world());
+    ResourceHandle handle = manager.resource_handle_for_psys(ob_ref,
+                                                             ob_ref.object->object_to_world());
 
     Material mat = this->get_material(ob_ref, object_state.color_type, psys->part->omat - 1);
     MaterialTexture texture;

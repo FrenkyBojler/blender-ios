@@ -109,9 +109,8 @@ struct ResourceIndexRange {
  * Safety wrapper around ResourceIndex, meant to be used by engine code.
  * Valid handles can only be created by the Draw Manager.
  *
- * NOTE: This class is deprecated.
- * Some Draw Manager functions can't work with ranged synchronization and returns ResourceHandles
- * for clarity, but engine code should always use ResourceHandleRange.
+ * Generally, ResourceHandleRange is preferred over this class.
+ * ResourceHandle should only be used in paths where handling objects in batches is not possible.
  */
 class ResourceHandle {
   friend class Manager;
@@ -135,12 +134,17 @@ class ResourceHandle {
     return index_.has_inverted_handedness();
   }
 
+  uint32_t raw() const
+  {
+    return index_.raw;
+  }
+
   uint resource_index() const
   {
     return index_.resource_index();
   }
 
-  operator ResourceIndex() const
+  operator ResourceIndexRange() const
   {
     BLI_assert(is_valid());
     return index_;
@@ -153,6 +157,7 @@ class ResourceHandle {
  */
 class ResourceHandleRange {
   friend class Manager;
+  friend class ResourceHandle;
 
   ResourceIndexRange index_ = {};
 
@@ -160,7 +165,7 @@ class ResourceHandleRange {
 
  public:
   ResourceHandleRange() = default;
-  ResourceHandleRange(ResourceHandle handle) : index_(handle.index_) {}
+  ResourceHandleRange(ResourceHandle handle) : index_(handle.index_, 1) {}
 
   bool is_valid() const
   {
@@ -193,25 +198,10 @@ class ResourceHandleRange {
                           index_.first.has_inverted_handedness());
   }
 
-  /* These functions are to keep existing engine code to work.
-   * Should be used only for objects and code paths that don't support ranged synchronization. */
-
   operator ResourceHandle() const
   {
     BLI_assert(index_.count == 1);
     return ResourceHandle(index_.first.raw);
-  }
-
-  uint32_t raw() const
-  {
-    BLI_assert(index_.count == 1);
-    return index_.first.raw;
-  }
-
-  uint resource_index() const
-  {
-    BLI_assert(index_.count == 1);
-    return index_.first.resource_index();
   }
 };
 

@@ -765,25 +765,25 @@ void ShadowModule::sync_object(const ObjectHandle &ob_handle,
   for (int i : IndexRange(ob_handle.instances_count())) {
     ShadowObject &shadow_ob = objects_.lookup_or_add_default(ObjectKey(ob_handle, i));
     shadow_ob.used = true;
-    const bool is_initialized = shadow_ob.resource_handle.raw != 0;
+    const bool is_initialized = shadow_ob.resource_handle.is_valid();
     const bool has_jittered_transparency = has_transparent_shadows && data_.use_jitter;
-    ResourceIndex resource_index = ob_handle.res_handle.sub_handle(i);
+    ResourceHandle instance_handle = ob_handle.res_handle.sub_handle(i);
     if (is_shadow_caster && (ob_handle.recalc || !is_initialized || has_jittered_transparency)) {
       if (ob_handle.recalc && is_initialized) {
-        past_casters_updated_.append(shadow_ob.resource_handle.raw);
+        past_casters_updated_.append(shadow_ob.resource_handle.raw());
       }
 
       if (has_jittered_transparency) {
-        jittered_transparent_casters_.append(resource_index.raw);
+        jittered_transparent_casters_.append(instance_handle.raw());
       }
       else {
-        curr_casters_updated_.append(resource_index.raw);
+        curr_casters_updated_.append(instance_handle.raw());
       }
     }
-    shadow_ob.resource_handle = resource_index;
+    shadow_ob.resource_handle = instance_handle;
 
     if (is_shadow_caster) {
-      curr_casters_.append(resource_index.raw);
+      curr_casters_.append(instance_handle.raw());
     }
   }
 
@@ -833,7 +833,7 @@ void ShadowModule::end_sync()
     /* Do not discard casters in baking mode. See WORKAROUND in `surfels_create`. */
     if (!shadow_ob.used && !inst_.is_baking()) {
       /* May not be a caster, but it does not matter, be conservative. */
-      past_casters_updated_.append(shadow_ob.resource_handle.raw);
+      past_casters_updated_.append(shadow_ob.resource_handle.raw());
       objects_.remove(it);
     }
     else {
