@@ -246,6 +246,8 @@ void VolumeMeshBuilder::generate_vertices_and_quads(vector<ccl::int3> &vertices_
      * for low-resolution grids with large voxel sizes. */
     openvdb::CoordBBox active_bbox;
     tree.evalActiveVoxelBoundingBox(active_bbox);
+    /* +1 to convert from inclusive to exclusive bounds. */
+    active_bbox.max() = active_bbox.max().offsetBy(1);
 
     VertHashMap used_verts;
     for (auto iter = tree.cbeginLeaf(); iter; ++iter) {
