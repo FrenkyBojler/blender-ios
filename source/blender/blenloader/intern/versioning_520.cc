@@ -89,17 +89,20 @@ static void do_version_geometry_node_primitive_uvmaps(bNodeTree *node_tree)
     }
 
     if (link.fromnode->type_legacy == GEO_NODE_MESH_PRIMITIVE_UV_SPHERE) {
-      /* Multiply node. */
+      /* Multiply Add node. */
       bNode *multiply_node = bke::node_add_node(nullptr, *node_tree, "ShaderNodeVectorMath");
       multiply_node->parent = link.fromnode->parent;
       multiply_node->location[0] = link.fromnode->location[0] + link.fromnode->width + 20.0f;
       multiply_node->location[1] = link.fromnode->location[1];
-      multiply_node->custom1 = NODE_VECTOR_MATH_MULTIPLY;
+      multiply_node->custom1 = NODE_VECTOR_MATH_MULTIPLY_ADD;
       bNodeSocket *multiply_a_input = bke::node_find_socket(*multiply_node, SOCK_IN, "Vector");
       bNodeSocket *multiply_b_input = bke::node_find_socket(*multiply_node, SOCK_IN, "Vector_001");
+      bNodeSocket *multiply_c_input = bke::node_find_socket(*multiply_node, SOCK_IN, "Vector_002");
       bNodeSocket *multiply_output = bke::node_find_socket(*multiply_node, SOCK_OUT, "Vector");
       copy_v3_v3(static_cast<bNodeSocketValueVector *>(multiply_b_input->default_value)->value,
                  float3(1.0f, -1.0f, 0.0f));
+      copy_v3_v3(static_cast<bNodeSocketValueVector *>(multiply_c_input->default_value)->value,
+                 float3(0.0f, 1.0f, 0.0f));
       version_node_add_link(
           *node_tree, *link.fromnode, *link.fromsock, *multiply_node, *multiply_a_input);
 
