@@ -193,7 +193,7 @@ static void node_register()
   geo_node_type_base(&ntype, "GeometryNodeSetNURBSKnots");
   ntype.ui_name = "Set NURBS Knots";
   ntype.ui_description =
-      "Control the spreading of NURBS curve points by assigning them a \"knot vector\"";
+      "Control the spreading of NURBS curves points by assigning a \"knot vector\"";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
