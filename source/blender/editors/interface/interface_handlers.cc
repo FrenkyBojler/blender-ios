@@ -10667,16 +10667,24 @@ static bool mouse_motion_keynav_test(KeyNavLock *keynav, const wmEvent *event)
 /** \name Menu Scroll
  * \{ */
 
-static char menu_scroll_test(Block *block, int my)
+static char menu_scroll_test(Block *block, int2 xy)
 {
+  float shadow_width = theme::get_menu_shadow_width() / block->aspect;
+  if (xy[0] < block->rect.xmin - shadow_width || xy[0] > block->rect.xmax + shadow_width) {
+    return 0;
+  }
   if (block->flag & (BLOCK_CLIPTOP | BLOCK_CLIPBOTTOM)) {
     if (block->flag & BLOCK_CLIPTOP) {
-      if (my > block->rect.ymax - UI_MENU_SCROLL_MOUSE / block->aspect) {
+      if ((xy[1] > (block->rect.ymax - UI_MENU_SCROLL_MOUSE / block->aspect)) &&
+          (xy[1] < (block->rect.ymax + shadow_width)))
+      {
         return 't';
       }
     }
     if (block->flag & BLOCK_CLIPBOTTOM) {
-      if (my < block->rect.ymin + UI_MENU_SCROLL_MOUSE / block->aspect) {
+      if ((xy[1] < (block->rect.ymin + UI_MENU_SCROLL_MOUSE / block->aspect)) &&
+          (xy[1] > (block->rect.ymin - shadow_width)))
+      {
         return 'b';
       }
     }
@@ -10732,7 +10740,9 @@ static bool menu_scroll_to_but(ARegion *region, Block *block, Button *but_target
 /** Scroll to y location (in block space, see #window_to_block). */
 static bool menu_scroll_to_y(ARegion *region, Block *block, int y)
 {
-  const char test = menu_scroll_test(block, y);
+  const char test = menu_scroll_test(block,
+                                     {int(BLI_rctf_cent_x(&block->rect)),
+                                      std::clamp<int>(y, block->rect.ymin, block->rect.ymax)});
   float dy = 0.0f;
   if (test == 't') {
     dy = -UI_UNIT_Y / block->aspect; /* scroll to the top */
@@ -11103,7 +11113,7 @@ static int handle_menu_event(bContext *C,
     }
   }
   else if (event->type == TIMER && event->customdata == menu->scrolltimer) {
-    if (!menu_scroll_test(block, my)) {
+    if (!menu_scroll_test(block, {mx, my})) {
       WM_event_timer_remove(CTX_wm_manager(C), win, menu->scrolltimer);
       menu->scrolltimer = nullptr;
     }
@@ -11120,7 +11130,7 @@ static int handle_menu_event(bContext *C,
       }
 
       /* add menu scroll timer, if needed */
-      if (menu_scroll_test(block, my)) {
+      if (menu_scroll_test(block, {mx, my})) {
         if (menu->scrolltimer == nullptr) {
           menu->scrolltimer = WM_event_timer_add(
               CTX_wm_manager(C), CTX_wm_window(C), TIMER, MENU_SCROLL_INTERVAL);
