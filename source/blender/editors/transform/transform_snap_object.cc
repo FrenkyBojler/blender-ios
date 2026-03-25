@@ -1007,9 +1007,9 @@ static eSnapMode snap_obj_fn(SnapObjectContext *sctx,
       }
       break;
     case OB_CAMERA:
-      retval = snapCamera(sctx, ob_eval, obmat, sctx->runtime.snap_to_flag);
+      retval = snapCamera(sctx, ob_eval, obmat);
       break;
-      /* TODO: Add remaining object types (lattice, grease pencil, ...) */
+      /* TODO: Add remaining specific handling objects (lattice, grease pencil, ...) */
   }
 
   if (retval == SCE_SNAP_TO_NONE) {
