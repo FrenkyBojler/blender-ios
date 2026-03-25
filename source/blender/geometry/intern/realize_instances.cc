@@ -1854,6 +1854,10 @@ static int get_mapped_material_index(const MeshRealizeInfo &info, const int inde
   return valid ? info.material_index_map[index] : 0;
 }
 
+/**
+ * If the max material index can be easily fetched from the inputs from the inputs without much
+ * work, return the common maximum.
+ */
 static std::optional<int> calc_material_index_max_hint(const Span<MeshRealizeInfo> infos)
 {
   int final_max = std::numeric_limits<int>::min();
@@ -1912,7 +1916,7 @@ static void join_mesh_material_indices(const AllMeshesInfo &all_meshes_info,
                                        const Span<RealizeMeshTask> tasks,
                                        Mesh &dst_mesh)
 {
-  if (all_meshes_info.materials.is_empty()) {
+  if (all_meshes_info.materials.size() <= 1) {
     dst_mesh.runtime->max_material_index.ensure([&](std::optional<int> &data) { data = 0; });
     return;
   }
@@ -1922,6 +1926,7 @@ static void join_mesh_material_indices(const AllMeshesInfo &all_meshes_info,
       return;
     }
   }
+
   bke::MutableAttributeAccessor dst_attributes = dst_mesh.attributes_for_write();
   if (const std::optional<int> single = calc_single_value_material_index(all_meshes_info)) {
     dst_attributes.add<int>(
@@ -2134,9 +2139,6 @@ static void execute_realize_mesh_tasks(const RealizeInstancesOptions &options,
   }
   if (all_meshes_info.no_overlapping_hint) {
     dst_mesh->tag_overlapping_none();
-  }
-  if (const std::optional<int> max = calc_material_index_max_hint(all_meshes_info.realize_info)) {
-    dst_mesh->runtime->max_material_index.ensure([&](std::optional<int> &data) { data = max; });
   }
 }
 
