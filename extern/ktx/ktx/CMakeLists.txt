@@ -11,6 +11,7 @@ set(INC
   src/include
   src/external
   src/external/dfdutils
+  src/external/basisu/encoder
   src/other_include
   ${ZSTD_INCLUDE_DIRS}
 )
@@ -34,6 +35,38 @@ set(SRC
   src/external/basisu/transcoder/basisu_transcoder.cpp
   src/external/basisu/transcoder/basisu_transcoder.h
   src/external/basisu/transcoder/basisu.h
+  src/external/basisu/encoder/basisu_backend.cpp
+  src/external/basisu/encoder/basisu_backend.h
+  src/external/basisu/encoder/basisu_basis_file.cpp
+  src/external/basisu/encoder/basisu_basis_file.h
+  src/external/basisu/encoder/basisu_bc7enc.cpp
+  src/external/basisu/encoder/basisu_bc7enc.h
+  src/external/basisu/encoder/basisu_comp.cpp
+  src/external/basisu/encoder/basisu_comp.h
+  src/external/basisu/encoder/basisu_enc.cpp
+  src/external/basisu/encoder/basisu_enc.h
+  src/external/basisu/encoder/basisu_etc.cpp
+  src/external/basisu/encoder/basisu_etc.h
+  src/external/basisu/encoder/basisu_frontend.cpp
+  src/external/basisu/encoder/basisu_frontend.h
+  src/external/basisu/encoder/basisu_gpu_texture.cpp
+  src/external/basisu/encoder/basisu_gpu_texture.h
+  src/external/basisu/encoder/basisu_kernels_sse.cpp
+  src/external/basisu/encoder/basisu_opencl.cpp
+  src/external/basisu/encoder/basisu_opencl.h
+  src/external/basisu/encoder/basisu_pvrtc1_4.cpp
+  src/external/basisu/encoder/basisu_pvrtc1_4.h
+  src/external/basisu/encoder/basisu_resample_filters.cpp
+  src/external/basisu/encoder/basisu_resampler.cpp
+  src/external/basisu/encoder/basisu_resampler.h
+  src/external/basisu/encoder/basisu_ssim.cpp
+  src/external/basisu/encoder/basisu_ssim.h
+  src/external/basisu/encoder/basisu_uastc_enc.cpp
+  src/external/basisu/encoder/basisu_uastc_enc.h
+  src/external/basisu/encoder/jpgd.cpp
+  src/external/basisu/encoder/jpgd.h
+  src/external/basisu/encoder/pvpngreader.cpp
+  src/external/basisu/encoder/pvpngreader.h
   src/lib/astc_codec.cpp
   src/lib/basis_encode.cpp
   src/lib/basis_sgd.h
@@ -91,4 +124,4 @@ set(SRC
 
 blender_add_lib(ktx "${SRC}" "${INC}" "" "${LIB}")
 
-target_compile_definitions(ktx PRIVATE BASISU_SUPPORT_OPENCL=1 LIBKTX)
+target_compile_definitions(ktx PRIVATE BASISU_SUPPORT_OPENCL=0 KTX_FEATURE_WRITE=1 LIBKTX)
