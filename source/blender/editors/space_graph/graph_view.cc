@@ -637,7 +637,7 @@ void GRAPH_OT_ghost_curves_clear(wmOperatorType *ot)
 static uint16_t find_free_localview_bit(const Main *bmain)
 {
   uint16_t local_view_bits = 0;
-  static_assert(std::is_same_v<decltype(SpaceGraph::local_view_bits), decltype(local_view_bits)>);
+  static_assert(std::is_same_v<decltype(SpaceGraph::local_view_bit), decltype(local_view_bits)>);
 
   /* Check all areas to see which local view bits are already in use. */
   for (const bScreen &screen : bmain->screens) {
@@ -645,13 +645,13 @@ static uint16_t find_free_localview_bit(const Main *bmain)
       for (const SpaceLink &sl : area.spacedata) {
         if (sl.spacetype == SPACE_GRAPH) {
           const SpaceGraph *sipo = reinterpret_cast<const SpaceGraph *>(&sl);
-          local_view_bits |= sipo->local_view_bits;
+          local_view_bits |= sipo->local_view_bit;
         }
       }
     }
   }
 
-  for (int i = 0; i < sizeof(SpaceGraph::local_view_bits); i++) {
+  for (int i = 0; i < sizeof(SpaceGraph::local_view_bit); i++) {
     if ((local_view_bits & (1 << i)) == 0) {
       return (1 << i);
     }
@@ -679,14 +679,12 @@ static bool local_view_enter(bContext *C,
       fcu->local_view_bits |= free_bit;
       is_selected = true;
     }
-    else {
-      fcu->local_view_bits &= ~free_bit;
-    }
   }
+
   if (is_selected) {
     /* Only enter local view when Fcurve is selected. */
-    sipo.local_view_bits = free_bit;
-    sipo.cur = region.v2d.cur;
+    sipo.local_view_bit = free_bit;
+    sipo.local_view_visible_region_before = region.v2d.cur;
     graphkeys_viewall(C, false, true, 200);
   }
 
@@ -704,12 +702,12 @@ static bool local_view_exit(bContext *C,
     if (ale.type != ANIMTYPE_FCURVE) {
       continue;
     }
-    fcu->local_view_bits &= ~sipo.local_view_bits;
+    fcu->local_view_bits &= ~sipo.local_view_bit;
     changed = true;
   }
   /* Restore view. */
-  ui::view2d_smooth_view(C, &region, &sipo.cur, 200);
-  sipo.local_view_bits = 0;
+  ui::view2d_smooth_view(C, &region, &sipo.local_view_visible_region_before, 200);
+  sipo.local_view_bit = 0;
 
   return changed;
 }
@@ -719,7 +717,7 @@ static wmOperatorStatus graphview_fcurves_isolate_exec(bContext *C, wmOperator *
   bAnimContext ac;
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   SpaceGraph *sipo = CTX_wm_space_graph(C);
-  const bool enter_local_view = (sipo->local_view_bits == 0);
+  const bool enter_local_view = (sipo->local_view_bit == 0);
 
   if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;

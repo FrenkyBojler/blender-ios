@@ -346,7 +346,7 @@ static void graph_main_region_draw(const bContext *C, ARegion *region)
   /* reset view matrix */
   ui::view2d_view_restore(C);
 
-  if (sipo->local_view_bits) {
+  if (sipo->local_view_bit) {
     const float x = 80.0f;
     const float y = region->winy - UI_TIME_SCRUB_MARGIN_Y - 50.0f;
     std::string name = "Local View";
@@ -441,16 +441,8 @@ static void graph_channel_region_draw(const bContext *C, ARegion *region)
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   const eAnimFilter_Flags filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
                                     ANIMFILTER_LIST_CHANNELS | ANIMFILTER_FCURVESONLY);
-  size_t item_count = ANIM_animdata_filter(
+  const size_t item_count = ANIM_animdata_filter(
       &ac, &anim_data, filter, ac.data, eAnimCont_Types(ac.datatype));
-
-  SpaceGraph *sipo = CTX_wm_space_graph(C);
-  if (sipo->local_view_bits && (item_count == 0)) {
-    /* Exit local view when no fcurve channel exists. */
-    sipo->local_view_bits = 0;
-    item_count = ANIM_animdata_filter(
-        &ac, &anim_data, filter, ac.data, eAnimCont_Types(ac.datatype));
-  }
 
   set_v2d_height(v2d, item_count);
   ui::view2d_view_ortho(v2d);
@@ -858,6 +850,22 @@ static void graph_refresh(const bContext *C, ScrArea *area)
 
   /* init/adjust F-Curve colors */
   graph_refresh_fcurve_colors(C);
+
+  if (sipo->local_view_bit) {
+    /* Exit local view when no fcurve channel exists. */
+    bAnimContext ac;
+    if (ANIM_animdata_get_context(C, &ac)) {
+      ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
+      const eAnimFilter_Flags filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
+                                        ANIMFILTER_LIST_CHANNELS | ANIMFILTER_FCURVESONLY);
+      const size_t item_count = ANIM_animdata_filter(
+          &ac, &anim_data, filter, ac.data, ac.datatype);
+      if (item_count == 0) {
+        sipo->local_view_bit = 0;
+      }
+      ANIM_animdata_freelist(&anim_data);
+    }
+  }
 }
 
 static void graph_id_remap(ScrArea * /*area*/,
