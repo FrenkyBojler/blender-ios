@@ -177,7 +177,6 @@ set(SRC_GLSL_LIB
   eevee_reverse_z_lib.glsl
   eevee_sampling_lib.glsl
   eevee_shadow_lib.glsl
-  eevee_shadow_tag_usage_lib.glsl
   eevee_shadow_tilemap_lib.glsl
   eevee_shadow_tracing_lib.glsl
   eevee_spherical_harmonics_lib.glsl

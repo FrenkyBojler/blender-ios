@@ -524,7 +524,6 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_shadow_tag_update.bsl.hh
   engines/eevee/shaders/eevee_shadow_tag_usage.bsl.hh
   engines/eevee/shaders/eevee_shadow_tag_usage_transparent.bsl.hh
-  engines/eevee/shaders/eevee_shadow_tag_usage_lib.glsl
   engines/eevee/shaders/eevee_shadow_tilemap_amend_comp.glsl
   engines/eevee/shaders/eevee_shadow_tilemap_bounds_comp.glsl
   engines/eevee/shaders/eevee_shadow_tilemap_finalize_comp.glsl
