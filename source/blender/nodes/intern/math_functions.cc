@@ -4,6 +4,8 @@
 
 #include "NOD_math_functions.hh"
 
+#include "FN_multi_function_registry.hh"
+
 namespace blender::nodes {
 
 static const mf::MultiFunction *get_base_multi_function(const bNode &node)
@@ -13,9 +15,14 @@ static const mf::MultiFunction *get_base_multi_function(const bNode &node)
 
   try_dispatch_float_math_fl_to_fl(
       mode, [&](auto devi_fn, auto function, const FloatMathOperationInfo &info) {
-        static auto fn = mf::build::SI1_SO<float, float>(
-            info.title_case_name.c_str(), function, devi_fn);
-        base_fn = &fn;
+        if (info.multi_function_name.is_empty()) {
+          static auto fn = mf::build::SI1_SO<float, float>(
+              info.title_case_name.c_str(), function, devi_fn);
+          base_fn = &fn;
+        }
+        else {
+          base_fn = &mf::registry::lookup(info.multi_function_name);
+        }
       });
   if (base_fn != nullptr) {
     return base_fn;
@@ -92,6 +99,12 @@ const FloatMathOperationInfo *get_float_math_operation_info(const int operation)
     return &info; \
   } \
   ((void)0)
+#define RETURN_OPERATION_INFO_2(title_case_name, shader_name, multi_function_name) \
+  { \
+    static const FloatMathOperationInfo info{title_case_name, shader_name, multi_function_name}; \
+    return &info; \
+  } \
+  ((void)0)
 
   switch (operation) {
     case NODE_MATH_ADD:
@@ -103,7 +116,7 @@ const FloatMathOperationInfo *get_float_math_operation_info(const int operation)
     case NODE_MATH_DIVIDE:
       RETURN_OPERATION_INFO("Divide", "math_divide");
     case NODE_MATH_SINE:
-      RETURN_OPERATION_INFO("Sine", "math_sine");
+      RETURN_OPERATION_INFO_2("Sine", "math_sine", "sin(float)"_ustr);
     case NODE_MATH_COSINE:
       RETURN_OPERATION_INFO("Cosine", "math_cosine");
     case NODE_MATH_TANGENT:
