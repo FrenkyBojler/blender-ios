@@ -23,6 +23,8 @@
 #include "WM_api.hh"
 #include "wm_window.hh"
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name Render
  * \{ */
@@ -34,6 +36,9 @@ BaseRender::~BaseRender()
   }
 
   render_result_free(result);
+
+  /* Free GPU context after engine, which may need context for cleanup. */
+  display.reset();
 
   BLI_rw_mutex_end(&resultmutex);
   BLI_mutex_end(&engine_draw_mutex);
@@ -47,8 +52,6 @@ Render::Render()
 Render::~Render()
 {
   RE_compositor_free(*this);
-
-  display.reset();
 
   BKE_curvemapping_free_data(&r.mblur_shutter_curve);
 
@@ -72,6 +75,18 @@ bool Render::prepare_viewlayer(ViewLayer *view_layer, Depsgraph *depsgraph)
 
 RenderDisplay::~RenderDisplay()
 {
+  free_gpu_context();
+
+  display_update_cb = nullptr;
+  current_scene_update_cb = nullptr;
+  stats_draw_cb = nullptr;
+  progress_cb = nullptr;
+  draw_lock_cb = nullptr;
+  test_break_cb = nullptr;
+}
+
+void RenderDisplay::free_gpu_context()
+{
   if (blender_gpu_context) {
     WM_system_gpu_context_activate(system_gpu_context);
     GPU_context_active_set(static_cast<GPUContext *>(blender_gpu_context));
@@ -88,13 +103,6 @@ RenderDisplay::~RenderDisplay()
       wm_window_reset_drawable();
     }
   }
-
-  display_update_cb = nullptr;
-  current_scene_update_cb = nullptr;
-  stats_draw_cb = nullptr;
-  progress_cb = nullptr;
-  draw_lock_cb = nullptr;
-  test_break_cb = nullptr;
 }
 
 void RenderDisplay::ensure_system_gpu_context()
@@ -173,3 +181,5 @@ bool RenderDisplay::test_break()
 }
 
 /** \} */
+
+}  // namespace blender

@@ -9,7 +9,7 @@
 #include "BLI_array.hh"
 #include "BLI_bit_vector.hh"
 #include "BLI_index_mask.hh"
-#include "BLI_kdtree.h"
+#include "BLI_kdtree.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_offset_indices.hh"
@@ -1449,31 +1449,6 @@ static void copy_first_from_src(const Span<T> src,
   }
 }
 
-static void mix_src_indices(const GSpan src_attr,
-                            const GroupedSpan<int> dst_to_src,
-                            GMutableSpan dst_attr)
-{
-  bke::attribute_math::convert_to_static_type(src_attr.type(), [&](auto dummy) {
-    using T = decltype(dummy);
-    const Span<T> src = src_attr.typed<T>();
-    MutableSpan<T> dst = dst_attr.typed<T>();
-    threading::parallel_for(dst.index_range(), 2048, [&](const IndexRange range) {
-      for (const int dst_index : range) {
-        const Span<int> src_indices = dst_to_src[dst_index];
-        if (src_indices.size() == 1) {
-          dst[dst_index] = src[src_indices.first()];
-          continue;
-        }
-        bke::attribute_math::DefaultMixer<T> mixer({&dst[dst_index], 1});
-        for (const int src_index : src_indices) {
-          mixer.mix_in(0, src[src_index]);
-        }
-        mixer.finalize();
-      }
-    });
-  });
-}
-
 static void mix_attributes(const bke::AttributeAccessor src_attributes,
                            const GroupedSpan<int> dst_to_src,
                            const bke::AttrDomain domain,
@@ -1487,10 +1462,20 @@ static void mix_attributes(const bke::AttributeAccessor src_attributes,
     if (skip_names.contains(iter.name)) {
       return;
     }
-    const GVArraySpan src_attr = *iter.get();
+    if (iter.data_type == bke::AttrType::String) {
+      return;
+    }
+    const GVArray src_attr = *iter.get();
+    const CommonVArrayInfo info = src_attr.common_info();
+    if (info.type == CommonVArrayInfo::Type::Single) {
+      const bke::AttributeInitValue init(GPointer(src_attr.type(), info.data));
+      if (dst_attributes.add(iter.name, iter.domain, iter.data_type, init)) {
+        return;
+      }
+    }
     bke::GSpanAttributeWriter dst_attr = dst_attributes.lookup_or_add_for_write_only_span(
         iter.name, iter.domain, iter.data_type);
-    mix_src_indices(src_attr, dst_to_src, dst_attr.span);
+    bke::attribute_math::mix_groups(GVArraySpan(src_attr), dst_to_src, dst_attr.span);
     dst_attr.finish();
   });
 }
@@ -1515,8 +1500,8 @@ static void mix_vertex_groups(const Mesh &mesh_src,
 static Set<StringRef> get_vertex_group_names(const Mesh &mesh)
 {
   Set<StringRef> names;
-  LISTBASE_FOREACH (bDeformGroup *, group, &mesh.vertex_group_names) {
-    names.add(group->name);
+  for (bDeformGroup &group : mesh.vertex_group_names) {
+    names.add(group.name);
   }
   return names;
 }
@@ -1649,8 +1634,10 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
 
   int r_i = 0;
   int loop_cur = 0;
-  Array<bool> dst_face_unaffected(result_nfaces - weld_mesh.wpoly_new_len);
-  Array<int> dst_to_src_faces(result_nfaces - weld_mesh.wpoly_new_len);
+  Vector<bool> dst_face_unaffected;
+  dst_face_unaffected.reserve(result_nfaces);
+  Vector<int> dst_to_src_faces;
+  dst_to_src_faces.reserve(result_nfaces);
   Array<int, 64> group_buffer(weld_mesh.max_face_len);
   for (const int i : src_faces.index_range()) {
     const int loop_start = loop_cur;
@@ -1661,7 +1648,7 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
         corner_src_index_data.append(loop_orig);
         loop_cur++;
       }
-      dst_face_unaffected[r_i] = true;
+      dst_face_unaffected.append_unchecked(true);
     }
     else {
       const WeldPoly &wp = weld_mesh.wpoly[poly_ctx];
@@ -1680,7 +1667,7 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
       if (wp.poly_dst != OUT_OF_CONTEXT) {
         continue;
       }
-      dst_face_unaffected[r_i] = false;
+      dst_face_unaffected.append_unchecked(false);
       do {
         corner_src_index_offset_data.append_unchecked(corner_src_index_data.size());
         corner_src_index_data.extend(Span(group_buffer.data(), iter.group_len));
@@ -1690,12 +1677,13 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
       } while (weld_iter_loop_of_poly_next(iter));
     }
 
-    dst_to_src_faces[r_i] = i;
+    dst_to_src_faces.append_unchecked(i);
     dst_face_offsets[r_i] = loop_start;
     r_i++;
   }
 
-  /* New Polygons. */
+  /* New Polygons.
+   * NOTE: The number of "src" and "new" faces might not match `wpoly_new_len`. */
   for (const int i : weld_mesh.wpoly.index_range().take_back(weld_mesh.wpoly_new_len)) {
     const WeldPoly &wp = weld_mesh.wpoly[i];
     const int loop_start = loop_cur;
@@ -1726,6 +1714,9 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
     r_i++;
   }
 
+  BLI_assert(int(r_i) == result_nfaces);
+  BLI_assert(loop_cur == result_nloops);
+
   corner_src_index_offset_data.append_unchecked(corner_src_index_data.size());
 
   const GroupedSpan<int> dst_to_src_corners(OffsetIndices<int>(corner_src_index_offset_data),
@@ -1738,14 +1729,20 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
       return;
     }
     const GVArray src_attr = *iter.get();
+    const CommonVArrayInfo info = src_attr.common_info();
+    if (info.type == CommonVArrayInfo::Type::Single) {
+      const bke::AttributeInitValue init(GPointer(src_attr.type(), info.data));
+      if (dst_attributes.add(iter.name, iter.domain, iter.data_type, init)) {
+        return;
+      }
+    }
     const CPPType &type = src_attr.type();
     bke::GSpanAttributeWriter dst_attr = dst_attributes.lookup_or_add_for_write_only_span(
         iter.name, iter.domain, iter.data_type);
     bke::attribute_math::gather(
-        src_attr, dst_to_src_faces, dst_attr.span.drop_back(weld_mesh.wpoly_new_len));
-    type.fill_assign_n(type.default_value(),
-                       dst_attr.span.take_back(weld_mesh.wpoly_new_len).data(),
-                       weld_mesh.wpoly_new_len);
+        src_attr, dst_to_src_faces, dst_attr.span.take_front(dst_to_src_faces.size()));
+    GMutableSpan default_data = dst_attr.span.drop_front(dst_to_src_faces.size());
+    type.fill_assign_n(type.default_value(), default_data.data(), default_data.size());
     dst_attr.finish();
   });
 
@@ -1755,30 +1752,29 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
     MutableSpan dst(static_cast<int *>(CustomData_add_layer(
                         &result->face_data, CD_ORIGINDEX, CD_CONSTRUCT, result->faces_num)),
                     result->faces_num);
-    bke::attribute_math::gather(src, dst_to_src_faces, dst.drop_back(weld_mesh.wpoly_new_len));
-    dst.take_back(weld_mesh.wpoly_new_len).fill(ORIGINDEX_NONE);
+    bke::attribute_math::gather(src, dst_to_src_faces, dst.take_front(dst_to_src_faces.size()));
+    dst.drop_front(dst_to_src_faces.size()).fill(ORIGINDEX_NONE);
   }
 
   IndexMaskMemory memory;
   const IndexMask out_of_context_faces = IndexMask::from_bools(dst_face_unaffected, memory);
 
-  out_of_context_faces.foreach_index(GrainSize(1024), [&](const int dst_face_index) {
-    const IndexRange src_face = src_faces[dst_to_src_faces[dst_face_index]];
-    const IndexRange dst_face = dst_faces[dst_face_index];
-    for (const int i : src_face.index_range()) {
-      dst_corner_verts[dst_face[i]] = vert_final_map[src_corner_verts[src_face[i]]];
-      dst_corner_edges[dst_face[i]] = edge_final_map[src_corner_edges[src_face[i]]];
-    }
-  });
+  out_of_context_faces.foreach_index(
+      [&](const int dst_face_index) {
+        const IndexRange src_face = src_faces[dst_to_src_faces[dst_face_index]];
+        const IndexRange dst_face = dst_faces[dst_face_index];
+        for (const int i : src_face.index_range()) {
+          dst_corner_verts[dst_face[i]] = vert_final_map[src_corner_verts[src_face[i]]];
+          dst_corner_edges[dst_face[i]] = edge_final_map[src_corner_edges[src_face[i]]];
+        }
+      },
+      exec_mode::grain_size(1024));
 
   mix_attributes(src_attributes,
                  dst_to_src_corners,
                  bke::AttrDomain::Corner,
                  {".corner_vert", ".corner_edge"},
                  dst_attributes);
-
-  BLI_assert(int(r_i) == result_nfaces);
-  BLI_assert(loop_cur == result_nloops);
 
   debug_randomize_mesh_order(result);
 
@@ -1797,15 +1793,15 @@ std::optional<Mesh *> mesh_merge_by_distance_all(const Mesh &mesh,
 {
   Array<int> vert_dest_map(mesh.verts_num, OUT_OF_CONTEXT);
 
-  KDTree_3d *tree = BLI_kdtree_3d_new(selection.size());
+  KDTree_3d *tree = kdtree_3d_new(selection.size());
 
   const Span<float3> positions = mesh.vert_positions();
-  selection.foreach_index([&](const int64_t i) { BLI_kdtree_3d_insert(tree, i, positions[i]); });
+  selection.foreach_index([&](const int64_t i) { kdtree_3d_insert(tree, i, positions[i]); });
 
-  BLI_kdtree_3d_balance(tree);
-  const int vert_kill_len = BLI_kdtree_3d_calc_duplicates_fast(
+  kdtree_3d_balance(tree);
+  const int vert_kill_len = kdtree_3d_calc_duplicates_fast(
       tree, merge_distance, true, vert_dest_map.data());
-  BLI_kdtree_3d_free(tree);
+  kdtree_3d_free(tree);
 
   if (vert_kill_len == 0) {
     return std::nullopt;

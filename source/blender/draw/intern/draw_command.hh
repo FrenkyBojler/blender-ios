@@ -24,13 +24,15 @@
 #include "draw_state.hh"
 #include "draw_view.hh"
 
+namespace blender {
+
 /* Forward declarations. */
-namespace blender::draw::detail {
+namespace draw::detail {
 template<typename T, int64_t block_size> class SubPassVector;
 template<typename DrawCommandBufType> class PassBase;
-}  // namespace blender::draw::detail
+}  // namespace draw::detail
 
-namespace blender::draw::command {
+namespace draw::command {
 
 class DrawCommandBuf;
 class DrawMultiBuf;
@@ -363,9 +365,9 @@ struct SpecializeConstant {
 
 struct Draw {
   gpu::Batch *batch;
-  uint16_t instance_len;
-  uint8_t expand_prim_type; /* #GPUPrimType */
-  uint8_t expand_prim_len;
+  uint32_t instance_len : 24;
+  uint32_t expand_prim_type : 4; /* #GPUPrimType */
+  uint32_t expand_prim_len : 4;
   uint32_t vertex_first;
   uint32_t vertex_len;
   ResourceIndex res_index;
@@ -381,9 +383,11 @@ struct Draw {
        ResourceIndex res_index)
   {
     BLI_assert(batch != nullptr);
+    BLI_assert(expanded_prim_type <= 15);
+    BLI_assert(expanded_prim_len <= 15);
     this->batch = batch;
     this->res_index = res_index;
-    this->instance_len = uint16_t(min_uu(instance_len, USHRT_MAX));
+    this->instance_len = min_uu(instance_len, (1 << 24) - 1);
     this->vertex_len = vertex_len;
     this->vertex_first = vertex_first;
     this->expand_prim_type = expanded_prim_type;
@@ -460,7 +464,7 @@ struct Clear {
 
 struct ClearMulti {
   /** \note This should be a Span<float4> but we need have to only have trivial types here. */
-  const float4 *colors;
+  const double4 *colors;
   int colors_len;
 
   void execute() const;
@@ -684,7 +688,7 @@ class DrawMultiBuf {
     if (headers.is_empty() || headers.last().type != Type::DrawMulti) {
       uint index = commands.append_and_get_index({});
       headers.append({Type::DrawMulti, index});
-      commands[index].draw_multi = {batch, this, (uint)-1, header_id_counter_++};
+      commands[index].draw_multi = {batch, this, uint(-1), header_id_counter_++};
     }
 
     DrawMulti &cmd = commands.last().draw_multi;
@@ -756,4 +760,6 @@ class DrawMultiBuf {
 
 /** \} */
 
-};  // namespace blender::draw::command
+};  // namespace draw::command
+
+}  // namespace blender

@@ -29,6 +29,7 @@ set(SRC_GLSL_VERT
   eevee_display_lightprobe_planar_vert.glsl
   eevee_display_lightprobe_sphere_vert.glsl
   eevee_display_lightprobe_volume_vert.glsl
+  eevee_fullscreen_vert.glsl
   eevee_geom_curves_vert.glsl
   eevee_geom_mesh_vert.glsl
   eevee_geom_pointcloud_vert.glsl
@@ -57,7 +58,6 @@ set(SRC_GLSL_FRAG
   eevee_film_copy_frag.glsl
   eevee_film_frag.glsl
   eevee_hiz_debug_frag.glsl
-  eevee_light_culling_debug_frag.glsl
   eevee_lookdev_display_frag.glsl
   eevee_occupancy_convert_frag.glsl
   eevee_renderpass_clear_frag.glsl
@@ -73,11 +73,11 @@ set(SRC_GLSL_FRAG
   eevee_surf_shadow_frag.glsl
   eevee_surf_volume_frag.glsl
   eevee_surf_world_frag.glsl
+  eevee_transparency_resolve_frag.glsl
   eevee_volume_resolve_frag.glsl
 )
 
 set(SRC_GLSL_COMP
-  eevee_ambient_occlusion_pass_comp.glsl
   eevee_depth_of_field_bokeh_lut_comp.glsl
   eevee_depth_of_field_downsample_comp.glsl
   eevee_depth_of_field_filter_comp.glsl
@@ -93,15 +93,6 @@ set(SRC_GLSL_COMP
   eevee_film_cryptomatte_post_comp.glsl
   eevee_film_pass_convert_comp.glsl
   eevee_hiz_update_comp.glsl
-  eevee_horizon_denoise_comp.glsl
-  eevee_horizon_resolve_comp.glsl
-  eevee_horizon_scan_comp.glsl
-  eevee_horizon_setup_comp.glsl
-  eevee_light_culling_select_comp.glsl
-  eevee_light_culling_sort_comp.glsl
-  eevee_light_culling_tile_comp.glsl
-  eevee_light_culling_zbin_comp.glsl
-  eevee_light_shadow_setup_comp.glsl
   eevee_lightprobe_sphere_convolve_comp.glsl
   eevee_lightprobe_sphere_irradiance_comp.glsl
   eevee_lightprobe_sphere_remap_comp.glsl
@@ -127,11 +118,7 @@ set(SRC_GLSL_COMP
   eevee_ray_trace_planar_comp.glsl
   eevee_ray_trace_screen_comp.glsl
   eevee_shadow_clipmap_clear_comp.glsl
-  eevee_shadow_page_allocate_comp.glsl
   eevee_shadow_page_clear_comp.glsl
-  eevee_shadow_page_defrag_comp.glsl
-  eevee_shadow_page_free_comp.glsl
-  eevee_shadow_page_mask_comp.glsl
   eevee_shadow_tag_update_comp.glsl
   eevee_shadow_tag_usage_comp.glsl
   eevee_shadow_tag_usage_surfels_comp.glsl
@@ -142,8 +129,6 @@ set(SRC_GLSL_COMP
   eevee_shadow_tilemap_init_comp.glsl
   eevee_shadow_tilemap_rendermap_comp.glsl
   eevee_shadow_visibility_comp.glsl
-  eevee_subsurface_convolve_comp.glsl
-  eevee_subsurface_setup_comp.glsl
   eevee_surfel_cluster_build_comp.glsl
   eevee_surfel_light_comp.glsl
   eevee_surfel_list_build_comp.glsl
@@ -177,8 +162,6 @@ set(SRC_GLSL_LIB
   eevee_filter_lib.glsl
   # eevee_forward_lib.glsl
   eevee_gbuffer_lib.glsl
-  eevee_horizon_scan_eval_lib.glsl
-  eevee_horizon_scan_lib.glsl
   eevee_light_eval_lib.glsl
   eevee_light_iter_lib.glsl
   eevee_light_lib.glsl
@@ -200,7 +183,6 @@ set(SRC_GLSL_LIB
   eevee_reverse_z_lib.glsl
   eevee_sampling_lib.glsl
   eevee_shadow_lib.glsl
-  eevee_shadow_page_ops_lib.glsl
   eevee_shadow_tag_usage_lib.glsl
   eevee_shadow_tilemap_lib.glsl
   eevee_shadow_tracing_lib.glsl
@@ -214,15 +196,19 @@ set(SRC_GLSL_LIB
   eevee_volume_lib.glsl
 )
 
+set(SRC_BSL
+  bsl_shader_linting.cc
+)
+
 # Compile shaders with shader code.
 if(WITH_GPU_SHADER_CPP_COMPILATION)
-  with_shader_cpp_compilation_config()
   # TODO Remove
   add_definitions(-DUSE_GPU_SHADER_CREATE_INFO)
 
   compile_sources_as_cpp(eevee_cpp_shaders_vert "${SRC_GLSL_VERT}" "GPU_VERTEX_SHADER")
   compile_sources_as_cpp(eevee_cpp_shaders_frag "${SRC_GLSL_FRAG}" "GPU_FRAGMENT_SHADER")
   compile_sources_as_cpp(eevee_cpp_shaders_comp "${SRC_GLSL_COMP}" "GPU_COMPUTE_SHADER")
+  compile_sources_as_cpp(eevee_cpp_shaders_bsl  "${SRC_BSL}" "")
   # Only enable to make sure they compile on their own.
   # Otherwise it creates a warning about `pragma once`.
   # compile_sources_as_cpp(eevee_cpp_shaders_lib "${SRC_GLSL_LIB}" "GPU_LIBRARY_SHADER")

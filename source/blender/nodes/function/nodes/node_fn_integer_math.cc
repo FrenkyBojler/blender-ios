@@ -55,9 +55,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Int>("Value");
 };
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "operation", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "operation", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_update(bNodeTree *ntree, bNode *node)
@@ -312,7 +312,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   fn_node_type_base(&ntype, "FunctionNodeIntegerMath", FN_NODE_INTEGER_MATH);
   ntype.ui_name = "Integer Math";
@@ -329,7 +329,7 @@ static void node_register()
   ntype.eval_inverse_elem = node_eval_inverse_elem;
   ntype.eval_inverse = node_eval_inverse;
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }
