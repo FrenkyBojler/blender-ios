@@ -598,7 +598,7 @@ static void merge_scalar_grids_for_velocity(const Scene *scene, Volume *volume)
   Attribute *attr = volume->attributes.add(ATTR_STD_VOLUME_VELOCITY);
   unique_ptr<ImageLoader> loader = make_unique<VDBImageLoader>(vecgrid, "merged_velocity");
   const ImageParams params;
-  attr->data_voxel() = scene->image_manager->add_image(std::move(loader), params);
+  attr->data_voxel_for_write() = scene->image_manager->add_image(std::move(loader), params);
 }
 #endif /* defined(WITH_OPENVDB) && defined(WITH_NANOVDB) */
 
@@ -652,7 +652,7 @@ void GeometryManager::create_volume_mesh(const Scene *scene, Volume *volume, Pro
       continue;
     }
 
-    ImageHandle &handle = attr.data_voxel();
+    ImageHandle &handle = attr.data_voxel_for_write();
 
     if (handle.empty()) {
       continue;
@@ -693,17 +693,14 @@ void GeometryManager::create_volume_mesh(const Scene *scene, Volume *volume, Pro
   const bool ray_marching = scene->integrator->get_volume_ray_marching();
   builder.create_mesh(vertices, indices, ray_marching);
 
-  volume->reserve_mesh(vertices.size(), indices.size() / 3);
+  volume->resize_mesh(vertices.size(), indices.size() / 3);
   volume->used_shaders.clear();
   volume->used_shaders.push_back_slow(volume_shader);
 
-  for (size_t i = 0; i < vertices.size(); ++i) {
-    volume->add_vertex(vertices[i]);
-  }
-
-  for (size_t i = 0; i < indices.size(); i += 3) {
-    volume->add_triangle(indices[i], indices[i + 1], indices[i + 2], 0, false);
-  }
+  std::ranges::copy(vertices, volume->get_verts().data());
+  std::ranges::copy(indices, volume->triangles.data());
+  std::ranges::fill(volume->get_shader(), 0);
+  std::ranges::fill(volume->get_smooth(), false);
 
   /* Print stats. */
   LOG_DEBUG << "Memory usage volume mesh: "
