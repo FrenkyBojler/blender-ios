@@ -1,3 +1,4 @@
 Referenced by pull request #155794, Cycles: Add inlining hint back on shader_setup_from_ray
 Referenced by commit c3c4dbf6a06da0cf235c638e9fafbe1c07634aba, Cycles: Add inlining hint back on shader_setup_from_ray
 Referenced by issue #156268, Render crash with certain nodegroup  [Blender 5.2.0 Alpha]
+Referenced by pull request #156304, Fix #156268: Cycles crash with vector math node after differentials
