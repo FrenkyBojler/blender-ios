@@ -35,6 +35,36 @@ const FloatMathOperationInfo *get_float3_math_operation_info(int operation);
 const FloatMathOperationInfo *get_float_compare_operation_info(int operation);
 
 /**
+ * A version of #safe_powf that handles a few common special cases directly.
+ */
+inline float safe_powf_with_special_cases(const float a, const float b)
+{
+  /* Using powf is very slow, so optimize for some common cases.*/
+  const int b_int = int(b);
+  if (float(b_int) == b) {
+    switch (b_int) {
+      case -2:
+        return safe_divide(1.0f, a * a);
+      case -1:
+        return safe_divide(1.0f, a);
+      case 0:
+        return 1.0f;
+      case 1:
+        return a;
+      case 2:
+        return a * a;
+      case 3:
+        return a * a * a;
+      case 4:
+        return a * a * a * a;
+      case 5:
+        return a * a * a * a * a;
+    }
+  }
+  return safe_powf(a, b);
+}
+
+/**
  * This calls the `callback` with two arguments:
  * 1. The math function that takes a float as input and outputs a new float.
  * 2. A #FloatMathOperationInfo struct reference.
@@ -143,7 +173,8 @@ inline bool try_dispatch_float_math_fl_fl_to_fl(const int operation, Callback &&
     case NODE_MATH_DIVIDE:
       return dispatch(exec_preset_fast, [](float a, float b) { return safe_divide(a, b); });
     case NODE_MATH_POWER:
-      return dispatch(exec_preset_slow, [](float a, float b) { return safe_powf(a, b); });
+      return dispatch(exec_preset_slow,
+                      [](float a, float b) { return safe_powf_with_special_cases(a, b); });
     case NODE_MATH_LOGARITHM:
       return dispatch(exec_preset_slow, [](float a, float b) { return safe_logf(a, b); });
     case NODE_MATH_MINIMUM:
@@ -259,7 +290,9 @@ inline bool try_dispatch_float_math_fl3_fl3_to_fl3(const NodeVectorMathOperation
       return dispatch(exec_preset_fast, [](float3 a, float3 b) { return max(a, b); });
     case NODE_VECTOR_MATH_POWER:
       return dispatch(exec_preset_slow, [](float3 a, float3 b) {
-        return float3(safe_powf(a.x, b.x), safe_powf(a.y, b.y), safe_powf(a.z, b.z));
+        return float3(safe_powf_with_special_cases(a.x, b.x),
+                      safe_powf_with_special_cases(a.y, b.y),
+                      safe_powf_with_special_cases(a.z, b.z));
       });
     default:
       return false;
