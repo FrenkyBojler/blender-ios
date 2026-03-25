@@ -61,7 +61,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   b.add_output<decl::Float>("Amplitude")
       .reference_pass_all()
-      .description("Sum of amplitudes of the frequencies in the given range");
+      .description("Sum of amplitudes of the frequencies in the given range")
+      .structure_type(StructureType::Dynamic);
   b.add_input<decl::Sound>("Sound").optional_label().description("Sound to sample");
   b.add_input<decl::Float>("Time")
       .subtype(PROP_TIME_ABSOLUTE)
