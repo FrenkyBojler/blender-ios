@@ -6,7 +6,6 @@
  * \ingroup edarmature
  */
 
-#include "DNA_action_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_object_types.h"
 
