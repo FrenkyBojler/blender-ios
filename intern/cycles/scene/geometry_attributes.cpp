@@ -511,7 +511,7 @@ void GeometryManager::device_update_attributes(Device *device,
 
         Attribute *attr = values.add(param.name(), param.type(), ATTR_ELEMENT_OBJECT);
         assert(param.nvalues() == attr->size);
-        memcpy(attr->data(), param.data(), param.datasize());
+        memcpy(attr->data_for_write(), param.data(), param.datasize());
       }
     }
   }
