@@ -535,21 +535,29 @@ static void update_duplicate_action_constraint_settings(
     animrig::Action &action = act->wrap();
     animrig::Channelbag *cbag = animrig::channelbag_for_action_slot(action,
                                                                     act_con->action_slot_handle);
-
-    /* Create a copy and mirror the animation */
-    auto bone_name_filter = [&](const FCurve &fcurve) -> bool {
-      return animrig::fcurve_matches_collection_path(fcurve, "pose.bones[", orig_bone->name);
-    };
-    Vector<FCurve *> fcurves = animrig::fcurves_in_action_slot_filtered(
-        act, act_con->action_slot_handle, bone_name_filter);
-    for (const FCurve *old_curve : fcurves) {
-      FCurve *new_curve = BKE_fcurve_copy(old_curve);
-      char *old_path = new_curve->rna_path;
-
-      new_curve->rna_path = BLI_string_replaceN(old_path, orig_bone->name, dup_bone->name);
-      MEM_delete(old_path);
-
-      /* FIXME: deal with the case where this F-Curve already exists. */
+    Span<FCurve *> fcurves = {};
+    if (cbag) {
+      fcurves = cbag->fcurves();
+    }
+    for (const FCurve *old_fcurve : fcurves) {
+      if (!animrig::fcurve_matches_collection_path(*old_fcurve, "pose.bones[", orig_bone->name)) {
+        continue;
+      }
+      const char *old_path = old_fcurve->rna_path;
+      char *new_path = BLI_string_replaceN(old_path, orig_bone->name, dup_bone->name);
+      FCurve *new_curve = cbag->fcurve_find({new_path, old_fcurve->array_index});
+      if (new_curve) {
+        MEM_delete(new_curve->bezt);
+        new_curve->bezt = MEM_dupalloc(old_fcurve->bezt);
+      }
+      else {
+        new_curve = BKE_fcurve_copy(old_fcurve);
+        MEM_delete(new_curve->rna_path);
+        new_curve->rna_path = new_path;
+        bActionGroup &agrp = cbag->channel_group_ensure(dup_bone->name);
+        cbag->fcurve_append(*new_curve);
+        cbag->fcurve_assign_to_channel_group(*new_curve, agrp);
+      }
 
       /* Flip the animation */
       int i;
@@ -584,10 +592,6 @@ static void update_duplicate_action_constraint_settings(
           bezt->vec[2][1] *= -1;
         }
       }
-      BLI_assert_msg(cbag, "If there are F-Curves for this slot, there should be a channelbag");
-      bActionGroup &agrp = cbag->channel_group_ensure(dup_bone->name);
-      cbag->fcurve_append(*new_curve);
-      cbag->fcurve_assign_to_channel_group(*new_curve, agrp);
     }
   }
 
