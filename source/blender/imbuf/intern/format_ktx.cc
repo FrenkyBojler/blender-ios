@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cstring>
 #include <thread>
+#include <vector>
 
 #include "BLI_utildefines.h"
 
@@ -34,6 +35,8 @@ const char *imb_file_extensions_ktx[] = {".ktx2", nullptr};
 
 /* VkFormat values used here (from Vulkan spec).
  * Not including vulkan headers to avoid dependency. */
+#define VK_FORMAT_R8G8B8_UNORM 23
+#define VK_FORMAT_R8G8B8_SRGB 29
 #define VK_FORMAT_R8G8B8A8_UNORM 37
 #define VK_FORMAT_R8G8B8A8_SRGB 43
 
@@ -69,14 +72,37 @@ bool imb_save_ktx(ImBuf *ibuf, const char *filepath, int /*flags*/)
     }
   }
 
-  /* Linear data textures (normal maps, roughness, etc.) use UNORM.
-   * Color textures use SRGB. */
-  const uint32_t vk_format = (ibuf->colormanage_flag & IMB_COLORMANAGE_IS_DATA) ?
-                                  VK_FORMAT_R8G8B8A8_UNORM :
-                                  VK_FORMAT_R8G8B8A8_SRGB;
+  /* Determine channel count from planes (24 = RGB, 32 = RGBA). */
+  const int channels = ibuf->planes >> 3;
+  const bool is_data = (ibuf->colormanage_flag & IMB_COLORMANAGE_IS_DATA) != 0;
+
+  /* Select VkFormat based on channel count and colorspace.
+   * Blender byte_buffer is always RGBA, so RGB requires packing. */
+  uint32_t vk_format;
+  if (channels == 3) {
+    vk_format = is_data ? VK_FORMAT_R8G8B8_UNORM : VK_FORMAT_R8G8B8_SRGB;
+  }
+  else {
+    vk_format = is_data ? VK_FORMAT_R8G8B8A8_UNORM : VK_FORMAT_R8G8B8A8_SRGB;
+  }
+
+  /* Pack RGB if needed: Blender always stores 4 bytes per pixel, strip alpha. */
+  std::vector<uint8_t> packed_rgb;
+  const uint8_t *pixel_data = ibuf->byte_buffer.data;
+  if (channels == 3) {
+    const int pixel_count = ibuf->x * ibuf->y;
+    packed_rgb.resize(pixel_count * 3);
+    const uint8_t *src = ibuf->byte_buffer.data;
+    uint8_t *dst = packed_rgb.data();
+    for (int i = 0; i < pixel_count; i++, src += 4, dst += 3) {
+      dst[0] = src[0];
+      dst[1] = src[1];
+      dst[2] = src[2];
+    }
+    pixel_data = packed_rgb.data();
+  }
 
   ktxTextureCreateInfo create_info = {};
-  create_info.glInternalformat = 0; // Ignored as we'll create a KTX2 texture
   create_info.vkFormat = vk_format;
   create_info.baseWidth = uint32_t(ibuf->x);
   create_info.baseHeight = uint32_t(ibuf->y);
@@ -97,12 +123,12 @@ bool imb_save_ktx(ImBuf *ibuf, const char *filepath, int /*flags*/)
     return false;
   }
 
-  const ktx_size_t image_size = ktx_size_t(ibuf->x) * ktx_size_t(ibuf->y) * 4;
+  const ktx_size_t image_size = ktx_size_t(ibuf->x) * ktx_size_t(ibuf->y) * channels;
   result = ktxTexture_SetImageFromMemory(ktxTexture(texture),
                                         /*level*/ 0,
                                         /*layer*/ 0,
                                         /*faceSlice*/ 0,
-                                        ibuf->byte_buffer.data,
+                                        pixel_data,
                                         image_size);
   if (result != KTX_SUCCESS) {
     CLOG_ERROR(&LOG, "Failed to set KTX2 image data: %s", ktxErrorString(result));
