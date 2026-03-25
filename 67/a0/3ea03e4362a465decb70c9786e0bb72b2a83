@@ -4,3 +4,4 @@ Referenced by issue #151113, Sequencer rotation center "gizmo" is bigger
 Referenced by issue #151700, crash on python shader compile
 Referenced by issue #151764, python builtin shader `POLYLINE_UNIFORM_COLOR` problem
 Referenced by issue #156031, Bones Display in Scene Overlaying Each Other after Update to v5
+Referenced by pull request #156274, Fix #155865: Metal: Workbench performance regression
