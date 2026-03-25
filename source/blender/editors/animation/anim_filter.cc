@@ -1447,7 +1447,6 @@ static size_t animfilter_fcurves_span(bAnimContext *ac,
       continue;
     }
     if (ac->spacetype == SPACE_GRAPH) {
-
       const SpaceGraph *sipo = reinterpret_cast<SpaceGraph *>(ac->sl);
       if ((sipo->local_view_bits) && (fcu->local_view_bits & sipo->local_view_bits) == 0) {
         continue;

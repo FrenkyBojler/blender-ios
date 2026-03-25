@@ -338,8 +338,8 @@ static wmOperatorStatus graphkeys_viewall(bContext *C,
   }
 
   if (ac.regiontype != RGN_TYPE_WINDOW) {
-    /* It is possible that operator is invoked from other regions like channel. Main region is
-     * required here for smooth view function. */
+    /* It is possible that operator is invoked from other regions like the Graph Editor's channel
+     * list. Main region is required here for smooth view function. */
     for (ARegion &region : ac.area->regionbase) {
       if (region.regiontype == RGN_TYPE_WINDOW) {
         ac.region = &region;
@@ -633,25 +633,25 @@ void GRAPH_OT_ghost_curves_clear(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static uint find_free_localview_bit(Main *bmain)
+/* Returns the free bit */
+static uint16_t find_free_localview_bit(const Main *bmain)
 {
-  ushort local_view_bits = 0;
+  uint16_t local_view_bits = 0;
+  static_assert(std::is_same_v<decltype(SpaceGraph::local_view_bits), decltype(local_view_bits)>);
 
-  /* Sometimes we lose a local-view: when an area is closed.
-   * Check all areas: which local-views are in use? */
-  for (bScreen &screen : bmain->screens) {
-    for (ScrArea &area : screen.areabase) {
-      SpaceLink *sl = static_cast<SpaceLink *>(area.spacedata.first);
-      for (; sl; sl = sl->next) {
-        if (sl->spacetype == SPACE_GRAPH) {
-          SpaceGraph *sipo = reinterpret_cast<SpaceGraph *>(sl);
+  /* Check all areas to see which local view bits are already in use. */
+  for (const bScreen &screen : bmain->screens) {
+    for (const ScrArea &area : screen.areabase) {
+      for (const SpaceLink &sl : area.spacedata) {
+        if (sl.spacetype == SPACE_GRAPH) {
+          const SpaceGraph *sipo = reinterpret_cast<const SpaceGraph *>(&sl);
           local_view_bits |= sipo->local_view_bits;
         }
       }
     }
   }
 
-  for (int i = 0; i < 16; i++) {
+  for (int i = 0; i < sizeof(SpaceGraph::local_view_bits); i++) {
     if ((local_view_bits & (1 << i)) == 0) {
       return (1 << i);
     }
@@ -660,21 +660,74 @@ static uint find_free_localview_bit(Main *bmain)
   return 0;
 }
 
+static bool local_view_enter(bContext *C,
+                             SpaceGraph &sipo,
+                             ARegion &region,
+                             ListBaseT<bAnimListElem> &anim_data)
+{
+  bool is_selected = false;
+  /* Find a free bit and set local view for graph editor in current context. */
+  const uint16_t free_bit = find_free_localview_bit(CTX_data_main(C));
+
+  for (bAnimListElem &ale : anim_data) {
+    FCurve *fcu = static_cast<FCurve *>(ale.key_data);
+    if (ale.type != ANIMTYPE_FCURVE) {
+      continue;
+    }
+    if (ale.flag & FCURVE_SELECTED) {
+      /* Set bit for selected Fcurves to draw them in local view. */
+      fcu->local_view_bits |= free_bit;
+      is_selected = true;
+    }
+    else {
+      fcu->local_view_bits &= ~free_bit;
+    }
+  }
+  if (is_selected) {
+    /* Only enter local view when Fcurve is selected. */
+    sipo.local_view_bits = free_bit;
+    sipo.cur = region.v2d.cur;
+    graphkeys_viewall(C, false, true, 200);
+  }
+
+  return is_selected;
+}
+
+static bool local_view_exit(bContext *C,
+                            SpaceGraph &sipo,
+                            ARegion &region,
+                            ListBaseT<bAnimListElem> &anim_data)
+{
+  bool changed = false;
+  for (bAnimListElem &ale : anim_data) {
+    FCurve *fcu = static_cast<FCurve *>(ale.key_data);
+    if (ale.type != ANIMTYPE_FCURVE) {
+      continue;
+    }
+    fcu->local_view_bits &= ~sipo.local_view_bits;
+    changed = true;
+  }
+  /* Restore view. */
+  ui::view2d_smooth_view(C, &region, &sipo.cur, 200);
+  sipo.local_view_bits = 0;
+
+  return changed;
+}
+
 static wmOperatorStatus graphview_fcurves_isolate_exec(bContext *C, wmOperator * /*op*/)
 {
   bAnimContext ac;
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   SpaceGraph *sipo = CTX_wm_space_graph(C);
   const bool enter_local_view = (sipo->local_view_bits == 0);
-  bool changed = false;
 
   if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
   if (ac.regiontype != RGN_TYPE_WINDOW) {
-    /* It is possible that operator is invoked from other regions like channel. Main region is
-     * required here for current bounds and smooth view function. */
+    /* It is possible that operator is invoked from other regions like the Graph Editor's channel
+     * list. Main region is required here for current bounds and smooth view function. */
     for (ARegion &region : ac.area->regionbase) {
       if (region.regiontype == RGN_TYPE_WINDOW) {
         ac.region = &region;
@@ -683,53 +736,17 @@ static wmOperatorStatus graphview_fcurves_isolate_exec(bContext *C, wmOperator *
     }
   }
 
-  const int filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_CHANNELS | ANIMFILTER_NODUPLIS |
-                      ANIMFILTER_FCURVESONLY);
-  ANIM_animdata_filter(
-      &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
+  const eAnimFilter_Flags filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_CHANNELS |
+                                    ANIMFILTER_NODUPLIS | ANIMFILTER_FCURVESONLY);
+  ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
 
-  if (enter_local_view) {
-    /* Find a bit and set local view for graph editor in current context */
-    sipo->local_view_bits = find_free_localview_bit(CTX_data_main(C));
-    sipo->cur = ac.region->v2d.cur;
-  }
+  const bool changed = enter_local_view ? local_view_enter(C, *sipo, *ac.region, anim_data) :
+                                          local_view_exit(C, *sipo, *ac.region, anim_data);
 
-  for (bAnimListElem &ale : anim_data) {
-    FCurve *fcu = static_cast<FCurve *>(ale.key_data);
-    if (ale.type != ANIMTYPE_FCURVE) {
-      continue;
-    }
-
-    if (!enter_local_view) {
-      fcu->local_view_bits &= ~sipo->local_view_bits;
-      changed = true;
-      continue;
-    }
-    else {
-      if (ale.flag & FCURVE_SELECTED) {
-        /* Set bit for selected Fcurves to draw them in local view. */
-        fcu->local_view_bits |= sipo->local_view_bits;
-        changed = true;
-      }
-      else {
-        fcu->local_view_bits &= ~sipo->local_view_bits;
-      }
-    }
-  }
   ANIM_animdata_freelist(&anim_data);
 
   if (!changed) {
-    sipo->local_view_bits = 0;
     return OPERATOR_CANCELLED;
-  }
-
-  if (enter_local_view) {
-    graphkeys_viewall(C, false, true, 200);
-  }
-  else {
-    /* Restore view. */
-    ui::view2d_smooth_view(C, ac.region, &sipo->cur, 200);
-    sipo->local_view_bits = 0;
   }
 
   WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);

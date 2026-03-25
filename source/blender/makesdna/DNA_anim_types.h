@@ -407,8 +407,8 @@ struct FCurve {
   float color[3] = {};
 
   float prev_norm_factor = 0, prev_offset = 0;
-  int local_view_bits = 0;
-  char _pad2[4] = {};
+  uint16_t local_view_bits = 0;
+  char _pad2[6] = {};
 };
 
 /* ************************************************ */
