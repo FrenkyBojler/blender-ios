@@ -265,7 +265,7 @@ def list_render_passes(scene, srl):
         yield ("Combined_%s" % lightgroup.name, "RGB", 'COLOR')
 
     # Path guiding debug passes.
-    if _cycles.with_debug:
+    if _cycles.with_debug and scene.cycles.use_guiding:
         yield ("Guiding Color", "RGB", 'COLOR')
         yield ("Guiding Probability", "X", 'VALUE')
         yield ("Guiding Average Roughness", "X", 'VALUE')
