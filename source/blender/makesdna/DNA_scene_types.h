@@ -454,6 +454,8 @@ enum {
 enum {
   /** Flip pixels vertically and set KTXorientation=rd - used for glTF compliance. */
   R_IMF_KTX2_ORIENTATION_RD = (1 << 0),
+  /** Reject save if dimensions are not multiples of 4 (required by KHR_texture_basisu). */
+  R_IMF_KTX2_STRICT_DIM = (1 << 1),
 };
 
 /** #ImageFormatData::tiff_codec */

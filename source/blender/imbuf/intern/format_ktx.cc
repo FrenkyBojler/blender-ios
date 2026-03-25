@@ -72,6 +72,17 @@ bool imb_save_ktx(ImBuf *ibuf, const char *filepath, int /*flags*/)
     }
   }
 
+  /* Strict dimension check: KHR_texture_basisu requires multiples of 4 for glTF compliance. */
+  if ((ibuf->foptions.flag & KTX2_STRICT_DIM) &&
+      ((ibuf->x % 4 != 0) || (ibuf->y % 4 != 0)))
+  {
+    CLOG_ERROR(&LOG,
+               "KTX2: dimensions must be multiples of 4 for glTF compliance (%dx%d)",
+               ibuf->x,
+               ibuf->y);
+    return false;
+  }
+
   /* Determine channel count from planes (24 = RGB, 32 = RGBA). */
   const int channels = ibuf->planes >> 3;
   const bool is_data = (ibuf->colormanage_flag & IMB_COLORMANAGE_IS_DATA) != 0;

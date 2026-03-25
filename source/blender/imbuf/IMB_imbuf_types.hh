@@ -84,6 +84,8 @@ using ColorSpace = ocio::ColorSpace;
  * 0 disables Zstandard. 1-100 maps to Zstd levels [1, 22]. Default (15) ≈ level 3. */
 /** Flip pixels vertically and write KTXorientation=rd - used for glTF compliance. */
 #define KTX2_ORIENTATION_RD (1 << 1)
+/** Reject save if dimensions are not multiples of 4 (KHR_texture_basisu requirement). */
+#define KTX2_STRICT_DIM (1 << 2)
 
 struct ImbFormatOptions {
   short flag = 0;

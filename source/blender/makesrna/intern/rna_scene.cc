@@ -6541,6 +6541,14 @@ static void rna_def_scene_image_format_data(BlenderRNA *brna)
                            "KTXorientation=rd)"
                            "Needed for glTF compatibilty of textures");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
+  prop = RNA_def_property(srna, "use_ktx2_strict_dim", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "ktx2_flag", R_IMF_KTX2_STRICT_DIM);
+  RNA_def_property_ui_text(prop,
+                           "Strict Dimensions",
+                           "Reject save if image dimensions are not multiples of 4, "
+                           "as required by KHR_texture_basisu for glTF");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 #  endif
 
   /* Cineon and DPX */

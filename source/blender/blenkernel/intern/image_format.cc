@@ -940,6 +940,9 @@ void BKE_image_format_to_imbuf(ImBuf *ibuf, const ImageFormatData *imf)
     if (imf->ktx2_flag & R_IMF_KTX2_ORIENTATION_RD) {
       ibuf->foptions.flag |= KTX2_ORIENTATION_RD;
     }
+    if (imf->ktx2_flag & R_IMF_KTX2_STRICT_DIM) {
+      ibuf->foptions.flag |= KTX2_STRICT_DIM;
+    }
   }
 #endif
   else {
