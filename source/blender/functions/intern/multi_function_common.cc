@@ -230,7 +230,7 @@ void register_common_functions()
   registry::add_new_cb([] {
     return build::SI2_SO<float3, float3, float3>(
         "reflect(float3, float3)",
-        [](const float3 &a, const float3 &b) { return math::reflect(a, b); },
+        [](const float3 &a, const float3 &b) { return math::reflect(a, math::normalize(b)); },
         exec_fast);
   });
   registry::add_new_cb([] {
