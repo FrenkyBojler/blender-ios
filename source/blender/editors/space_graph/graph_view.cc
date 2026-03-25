@@ -782,7 +782,7 @@ void GRAPH_OT_isolate(wmOperatorType *ot)
   ot->poll = graph_isolate_poll;
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  ot->flag = OPTYPE_UNDO;
 
   /* Props */
   PropertyRNA *prop = RNA_def_boolean(
