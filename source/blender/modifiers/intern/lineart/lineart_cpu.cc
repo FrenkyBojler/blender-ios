@@ -31,6 +31,7 @@
 #include "BKE_geometry_set.hh"
 #include "BKE_global.hh"
 #include "BKE_grease_pencil.hh"
+#include "BKE_grease_pencil_fills.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_material.hh"
 #include "BKE_mesh.hh"
@@ -5551,8 +5552,9 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
   stroke_materials.finish();
 
   if (fill_strokes) {
-    AttributeWriter<int> fill_ids = attributes.lookup_or_add_for_write<int>(
-        "fill_id", AttrDomain::Curve, AttributeInitValue(1));
+    SpanAttributeWriter<int> fill_ids = attributes.lookup_or_add_for_write_span<int>(
+        "fill_id", AttrDomain::Curve);
+    bke::greasepencil::gather_next_available_fill_ids({}, fill_ids.span);
     fill_ids.finish();
   }
 
