@@ -1674,7 +1674,7 @@ std::unique_ptr<Cache> cache_init(const Depsgraph &depsgraph,
   if (mode & BRUSH_AUTOMASKING_TOPOLOGY && ss.active_vert_index() != -1) {
     islands::ensure_cache(ob);
 
-    std::array<int, PAINT_SYMM_AREAS> sym_verts = find_all_symm_verts(
+    std::array<int, PAINT_SYMM_AREAS> symm_verts = find_all_symm_verts(
         depsgraph, ob, ss.active_vert_index(), std::numeric_limits<float>::max());
     const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(ob);
 
@@ -1683,7 +1683,7 @@ std::unique_ptr<Cache> cache_init(const Depsgraph &depsgraph,
         continue;
       }
       automasking->settings.initial_island_nr[symm_it] = islands::vert_id_get(ss,
-                                                                              sym_verts[symm_it]);
+                                                                              symm_verts[symm_it]);
     }
   }
 
