@@ -531,7 +531,7 @@ static void update_duplicate_action_constraint_settings(
 
   /* See if there is any channels that uses this bone */
   bAction *act = static_cast<bAction *>(act_con->act);
-  if (act) {
+  if (act && false) {
     animrig::Action &action = act->wrap();
     animrig::Channelbag *cbag = animrig::channelbag_for_action_slot(action,
                                                                     act_con->action_slot_handle);
@@ -549,6 +549,7 @@ static void update_duplicate_action_constraint_settings(
       if (new_curve) {
         MEM_delete(new_curve->bezt);
         new_curve->bezt = MEM_dupalloc(old_fcurve->bezt);
+        MEM_delete(new_path);
       }
       else {
         new_curve = BKE_fcurve_copy(old_fcurve);
