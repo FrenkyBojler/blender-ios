@@ -11,15 +11,15 @@ namespace blender::nodes::node_composite_blank_image_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.add_input<decl::Color>("Color")
+      .default_value({0.0f, 0.0f, 0.0f, 1.0f})
+      .description("The color of all pixels in the image");
   b.add_input<decl::IntVector>("Size")
       .dimensions(2)
       .default_value(int2(1920, 1080))
       .subtype(PROP_UNSIGNED)
       .min(1)
       .description("The size of the image");
-  b.add_input<decl::Color>("Color")
-      .default_value({0.0f, 0.0f, 0.0f, 1.0f})
-      .description("The color of all pixels in the image");
 
   b.add_output<decl::Color>("Image")
       .structure_type(StructureType::Dynamic)
