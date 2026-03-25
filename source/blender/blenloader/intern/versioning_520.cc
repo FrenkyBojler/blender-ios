@@ -60,9 +60,12 @@ static void do_version_geometry_node_primitive_uvmaps(bNodeTree *node_tree)
 {
   using bke::AttrDomain;
 
+  /* Stores a mapping between an output and the final link of the versioning node tree that was
+   * added for it, in order to share the same versioning node tree with potentially multiple
+   * outgoing links from that same output. */
   Map<bNodeSocket *, bNodeLink *> links_done;
 
-  for (bNodeLink &link : node_tree->links) {
+  for (bNodeLink &link : node_tree->links.items_reversed_mutable()) {
     if (!ELEM(link.fromnode->type_legacy,
               GEO_NODE_MESH_PRIMITIVE_UV_SPHERE,
               GEO_NODE_MESH_PRIMITIVE_CYLINDER))
@@ -72,12 +75,19 @@ static void do_version_geometry_node_primitive_uvmaps(bNodeTree *node_tree)
     if (!STREQ(link.fromsock->identifier, "UV Map")) {
       continue;
     }
-    /* TODO: actually reuse existing link */
+
+    /* If that output was versioned before, just connect the existing link. */
     bNodeLink *existing_link = links_done.lookup_default(link.fromsock, nullptr);
     if (existing_link != nullptr) {
+      version_node_add_link(*node_tree,
+                            *existing_link->fromnode,
+                            *existing_link->fromsock,
+                            *link.tonode,
+                            *link.tosock);
+      bke::node_remove_link(node_tree, link);
       continue;
     }
-    /* TODO: split up in two functions? */
+
     if (link.fromnode->type_legacy == GEO_NODE_MESH_PRIMITIVE_UV_SPHERE) {
       /* Multiply node. */
       bNode *multiply_node = bke::node_add_node(nullptr, *node_tree, "ShaderNodeVectorMath");
@@ -100,6 +110,7 @@ static void do_version_geometry_node_primitive_uvmaps(bNodeTree *node_tree)
       /* Add the new link to the cache. */
       links_done.add_new(link.fromsock, new_link);
 
+      /* Remove the old link. */
       bke::node_remove_link(node_tree, link);
     }
     else if (link.fromnode->type_legacy == GEO_NODE_MESH_PRIMITIVE_CYLINDER) {
@@ -195,17 +206,8 @@ static void do_version_geometry_node_primitive_uvmaps(bNodeTree *node_tree)
       /* Add the new link to the cache. */
       links_done.add_new(link.fromsock, new_link);
 
+      /* Remove the old link. */
       bke::node_remove_link(node_tree, link);
-    }
-  }
-
-  /* Recurse into nodegroups. */
-  for (bNode &node : node_tree->nodes) {
-    if (node.type_legacy == NODE_GROUP) {
-      bNodeTree *ngroup = id_cast<bNodeTree *>(node.id);
-      if (ngroup) {
-        do_version_geometry_node_primitive_uvmaps(ngroup);
-      }
     }
   }
 }
