@@ -103,6 +103,12 @@ void Attribute::set_data_from(Attribute &&other)
   this->flags = other.flags;
 
   const auto take_data = [&]() {
+    if (this->sharing_info) {
+      g_implicit_sharing_user_remove_fn(this->sharing_info);
+    }
+    else {
+      delete[] static_cast<const char *>(this->buffer);
+    }
     this->buffer = other.buffer;
     this->sharing_info = other.sharing_info;
     this->size = other.size;
