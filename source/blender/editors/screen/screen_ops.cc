@@ -3633,6 +3633,7 @@ static wmOperatorStatus frame_jump_exec(bContext *C, wmOperator *op)
     else {
       sad->nextfra = PSFRA;
     }
+    sad->next_subframe = 0.0f;
   }
   else {
     if (RNA_boolean_get(op->ptr, "end")) {
@@ -3641,6 +3642,7 @@ static wmOperatorStatus frame_jump_exec(bContext *C, wmOperator *op)
     else {
       scene->r.cfra = PSFRA;
     }
+    scene->r.subframe = 0.0f;
 
     ED_areas_do_frame_follow(C, true);
 
@@ -6244,6 +6246,7 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
   /* next frame overridden by user action (pressed jump to first/last frame) */
   if (sad->flag & ANIMPLAY_FLAG_USE_NEXT_FRAME) {
     scene->r.cfra = sad->nextfra;
+    scene->r.subframe = sad->next_subframe;
     sad->flag &= ~ANIMPLAY_FLAG_USE_NEXT_FRAME;
     sad->flag |= ANIMPLAY_FLAG_JUMPED;
   }
