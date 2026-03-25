@@ -2808,23 +2808,24 @@ static void view3d_panel_curve_data(const bContext *C, Panel *panel)
                         return but;
                       });
 
-    add_labeled_field(
-        IFACE_("Start Cap"),
-        status.start_cap.value_max * status.curve_count == status.start_cap.value_sum,
-        [&]() {
-          ui::Button *but = uiDefMenuBut(block,
-                                         grease_pencil_cap_menu,
-                                         &modified.start_cap,
-                                         IFACE_(enum_grease_pencil_cap_items[modified.start_cap].name),
-                                         0,
-                                         0,
-                                         butw,
-                                         buth,
-                                         "");
-          button_type_set_menu_from_pulldown(but);
-          button_func_set(but, handle_curves_start_cap, nullptr, nullptr);
-          return but;
-        });
+    add_labeled_field(IFACE_("Start Cap"),
+                      status.start_cap.value_max * status.curve_count ==
+                          status.start_cap.value_sum,
+                      [&]() {
+                        ui::Button *but = uiDefMenuBut(
+                            block,
+                            grease_pencil_cap_menu,
+                            &modified.start_cap,
+                            IFACE_(enum_grease_pencil_cap_items[modified.start_cap].name),
+                            0,
+                            0,
+                            butw,
+                            buth,
+                            "");
+                        button_type_set_menu_from_pulldown(but);
+                        button_func_set(but, handle_curves_start_cap, nullptr, nullptr);
+                        return but;
+                      });
 
     add_labeled_field(IFACE_("End Cap"),
                       status.end_cap.value_max * status.curve_count == status.end_cap.value_sum,
