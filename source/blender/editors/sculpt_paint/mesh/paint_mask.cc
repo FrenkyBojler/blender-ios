@@ -238,6 +238,7 @@ void update_mask_mesh(const Depsgraph &depsgraph,
         node_changed[i] = true;
       },
       exec_mode::grain_size(1));
+
   IndexMaskMemory memory;
   pbvh.tag_masks_changed(IndexMask::from_bools(node_changed, memory));
 
