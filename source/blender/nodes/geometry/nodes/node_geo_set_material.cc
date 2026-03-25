@@ -2,7 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_mesh_types.hh"
 #include "node_geometry_util.hh"
 
 #include "DNA_curves_types.h"
@@ -13,6 +12,7 @@
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_material.hh"
+#include "BKE_mesh_types.hh"
 
 #include "GEO_foreach_geometry.hh"
 
