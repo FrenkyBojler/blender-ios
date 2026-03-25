@@ -11,44 +11,11 @@ namespace blender::nodes {
 static const mf::MultiFunction *get_base_multi_function(const bNode &node)
 {
   const int mode = node.custom1;
-  const mf::MultiFunction *base_fn = nullptr;
-
-  try_dispatch_float_math_fl_to_fl(
-      mode, [&](auto devi_fn, auto function, const FloatMathOperationInfo &info) {
-        if (info.multi_function_name.is_empty()) {
-          static auto fn = mf::build::SI1_SO<float, float>(
-              info.title_case_name.c_str(), function, devi_fn);
-          base_fn = &fn;
-        }
-        else {
-          base_fn = &mf::registry::lookup(info.multi_function_name);
-        }
-      });
-  if (base_fn != nullptr) {
-    return base_fn;
+  const FloatMathOperationInfo *info = get_float_math_operation_info(mode);
+  if (!info) {
+    return nullptr;
   }
-
-  try_dispatch_float_math_fl_fl_to_fl(
-      mode, [&](auto devi_fn, auto function, const FloatMathOperationInfo &info) {
-        static auto fn = mf::build::SI2_SO<float, float, float>(
-            info.title_case_name.c_str(), function, devi_fn);
-        base_fn = &fn;
-      });
-  if (base_fn != nullptr) {
-    return base_fn;
-  }
-
-  try_dispatch_float_math_fl_fl_fl_to_fl(
-      mode, [&](auto devi_fn, auto function, const FloatMathOperationInfo &info) {
-        static auto fn = mf::build::SI3_SO<float, float, float, float>(
-            info.title_case_name.c_str(), function, devi_fn);
-        base_fn = &fn;
-      });
-  if (base_fn != nullptr) {
-    return base_fn;
-  }
-
-  return nullptr;
+  return &fn::multi_function::registry::lookup(info->multi_function_name);
 }
 
 class ClampWrapperFunction : public mf::MultiFunction {
@@ -92,14 +59,7 @@ void node_math_build_multi_function(NodeMultiFunctionBuilder &builder)
 
 const FloatMathOperationInfo *get_float_math_operation_info(const int operation)
 {
-
-#define RETURN_OPERATION_INFO(title_case_name, shader_name) \
-  { \
-    static const FloatMathOperationInfo info{title_case_name, shader_name}; \
-    return &info; \
-  } \
-  ((void)0)
-#define RETURN_OPERATION_INFO_2(title_case_name, shader_name, multi_function_name) \
+#define RETURN_OPERATION_INFO(title_case_name, shader_name, multi_function_name) \
   { \
     static const FloatMathOperationInfo info{title_case_name, shader_name, multi_function_name}; \
     return &info; \
@@ -108,87 +68,90 @@ const FloatMathOperationInfo *get_float_math_operation_info(const int operation)
 
   switch (operation) {
     case NODE_MATH_ADD:
-      RETURN_OPERATION_INFO("Add", "math_add");
+      RETURN_OPERATION_INFO("Add", "math_add", "float + float"_ustr);
     case NODE_MATH_SUBTRACT:
-      RETURN_OPERATION_INFO("Subtract", "math_subtract");
+      RETURN_OPERATION_INFO("Subtract", "math_subtract", "float - float"_ustr);
     case NODE_MATH_MULTIPLY:
-      RETURN_OPERATION_INFO("Multiply", "math_multiply");
+      RETURN_OPERATION_INFO("Multiply", "math_multiply", "float * float"_ustr);
     case NODE_MATH_DIVIDE:
-      RETURN_OPERATION_INFO("Divide", "math_divide");
+      RETURN_OPERATION_INFO("Divide", "math_divide", "float / float"_ustr);
     case NODE_MATH_SINE:
-      RETURN_OPERATION_INFO_2("Sine", "math_sine", "sin(float)"_ustr);
+      RETURN_OPERATION_INFO("Sine", "math_sine", "sin(float)"_ustr);
     case NODE_MATH_COSINE:
-      RETURN_OPERATION_INFO("Cosine", "math_cosine");
+      RETURN_OPERATION_INFO("Cosine", "math_cosine", "cos(float)"_ustr);
     case NODE_MATH_TANGENT:
-      RETURN_OPERATION_INFO("Tangent", "math_tangent");
+      RETURN_OPERATION_INFO("Tangent", "math_tangent", "tan(float)"_ustr);
     case NODE_MATH_ARCSINE:
-      RETURN_OPERATION_INFO("Arc Sine", "math_arcsine");
+      RETURN_OPERATION_INFO("Arc Sine", "math_arcsine", "asin(float)"_ustr);
     case NODE_MATH_ARCCOSINE:
-      RETURN_OPERATION_INFO("Arc Cosine", "math_arccosine");
+      RETURN_OPERATION_INFO("Arc Cosine", "math_arccosine", "acos(float)"_ustr);
     case NODE_MATH_ARCTANGENT:
-      RETURN_OPERATION_INFO("Arc Tangent", "math_arctangent");
+      RETURN_OPERATION_INFO("Arc Tangent", "math_arctangent", "atan(float)"_ustr);
     case NODE_MATH_POWER:
-      RETURN_OPERATION_INFO("Power", "math_power");
+      RETURN_OPERATION_INFO("Power", "math_power", "float ^ float"_ustr);
     case NODE_MATH_LOGARITHM:
-      RETURN_OPERATION_INFO("Logarithm", "math_logarithm");
+      RETURN_OPERATION_INFO("Logarithm", "math_logarithm", "log(float, float)"_ustr);
     case NODE_MATH_MINIMUM:
-      RETURN_OPERATION_INFO("Minimum", "math_minimum");
+      RETURN_OPERATION_INFO("Minimum", "math_minimum", "min(float, float)"_ustr);
     case NODE_MATH_MAXIMUM:
-      RETURN_OPERATION_INFO("Maximum", "math_maximum");
+      RETURN_OPERATION_INFO("Maximum", "math_maximum", "max(float, float)"_ustr);
     case NODE_MATH_ROUND:
-      RETURN_OPERATION_INFO("Round", "math_round");
+      RETURN_OPERATION_INFO("Round", "math_round", "round(float)"_ustr);
     case NODE_MATH_LESS_THAN:
-      RETURN_OPERATION_INFO("Less Than", "math_less_than");
+      RETURN_OPERATION_INFO("Less Than", "math_less_than", "float < float"_ustr);
     case NODE_MATH_GREATER_THAN:
-      RETURN_OPERATION_INFO("Greater Than", "math_greater_than");
+      RETURN_OPERATION_INFO("Greater Than", "math_greater_than", "float > float"_ustr);
     case NODE_MATH_MODULO:
-      RETURN_OPERATION_INFO("Modulo", "math_modulo");
+      RETURN_OPERATION_INFO("Modulo", "math_modulo", "float % float"_ustr);
     case NODE_MATH_FLOORED_MODULO:
-      RETURN_OPERATION_INFO("Floored Modulo", "math_floored_modulo");
+      RETURN_OPERATION_INFO(
+          "Floored Modulo", "math_floored_modulo", "floor_mod(float, float)"_ustr);
     case NODE_MATH_ABSOLUTE:
-      RETURN_OPERATION_INFO("Absolute", "math_absolute");
+      RETURN_OPERATION_INFO("Absolute", "math_absolute", "abs(float)"_ustr);
     case NODE_MATH_ARCTAN2:
-      RETURN_OPERATION_INFO("Arc Tangent 2", "math_arctan2");
+      RETURN_OPERATION_INFO("Arc Tangent 2", "math_arctan2", "atan2(float, float)"_ustr);
     case NODE_MATH_FLOOR:
-      RETURN_OPERATION_INFO("Floor", "math_floor");
+      RETURN_OPERATION_INFO("Floor", "math_floor", "floor(float)"_ustr);
     case NODE_MATH_CEIL:
-      RETURN_OPERATION_INFO("Ceil", "math_ceil");
+      RETURN_OPERATION_INFO("Ceil", "math_ceil", "ceil(float)"_ustr);
     case NODE_MATH_FRACTION:
-      RETURN_OPERATION_INFO("Fraction", "math_fraction");
+      RETURN_OPERATION_INFO("Fraction", "math_fraction", "frac(float)"_ustr);
     case NODE_MATH_SQRT:
-      RETURN_OPERATION_INFO("Sqrt", "math_sqrt");
+      RETURN_OPERATION_INFO("Sqrt", "math_sqrt", "sqrt(float)"_ustr);
     case NODE_MATH_INV_SQRT:
-      RETURN_OPERATION_INFO("Inverse Sqrt", "math_inversesqrt");
+      RETURN_OPERATION_INFO("Inverse Sqrt", "math_inversesqrt", "inverse_sqrt(float)"_ustr);
     case NODE_MATH_SIGN:
-      RETURN_OPERATION_INFO("Sign", "math_sign");
+      RETURN_OPERATION_INFO("Sign", "math_sign", "sign(float)"_ustr);
     case NODE_MATH_EXPONENT:
-      RETURN_OPERATION_INFO("Exponent", "math_exponent");
+      RETURN_OPERATION_INFO("Exponent", "math_exponent", "exp(float)"_ustr);
     case NODE_MATH_RADIANS:
-      RETURN_OPERATION_INFO("Radians", "math_radians");
+      RETURN_OPERATION_INFO("Radians", "math_radians", "radians(float)"_ustr);
     case NODE_MATH_DEGREES:
-      RETURN_OPERATION_INFO("Degrees", "math_degrees");
+      RETURN_OPERATION_INFO("Degrees", "math_degrees", "degrees(float)"_ustr);
     case NODE_MATH_SINH:
-      RETURN_OPERATION_INFO("Hyperbolic Sine", "math_sinh");
+      RETURN_OPERATION_INFO("Hyperbolic Sine", "math_sinh", "sinh(float)"_ustr);
     case NODE_MATH_COSH:
-      RETURN_OPERATION_INFO("Hyperbolic Cosine", "math_cosh");
+      RETURN_OPERATION_INFO("Hyperbolic Cosine", "math_cosh", "cosh(float)"_ustr);
     case NODE_MATH_TANH:
-      RETURN_OPERATION_INFO("Hyperbolic Tangent", "math_tanh");
+      RETURN_OPERATION_INFO("Hyperbolic Tangent", "math_tanh", "tanh(float)"_ustr);
     case NODE_MATH_TRUNC:
-      RETURN_OPERATION_INFO("Truncate", "math_trunc");
+      RETURN_OPERATION_INFO("Truncate", "math_trunc", "trunc(float)"_ustr);
     case NODE_MATH_SNAP:
-      RETURN_OPERATION_INFO("Snap", "math_snap");
+      RETURN_OPERATION_INFO("Snap", "math_snap", "snap(float, float)"_ustr);
     case NODE_MATH_WRAP:
-      RETURN_OPERATION_INFO("Wrap", "math_wrap");
+      RETURN_OPERATION_INFO("Wrap", "math_wrap", "wrap(float, float, float)"_ustr);
     case NODE_MATH_COMPARE:
-      RETURN_OPERATION_INFO("Compare", "math_compare");
+      RETURN_OPERATION_INFO("Compare", "math_compare", "compare(float, float, float)"_ustr);
     case NODE_MATH_MULTIPLY_ADD:
-      RETURN_OPERATION_INFO("Multiply Add", "math_multiply_add");
+      RETURN_OPERATION_INFO("Multiply Add", "math_multiply_add", "float * float + float"_ustr);
     case NODE_MATH_PINGPONG:
-      RETURN_OPERATION_INFO("Ping Pong", "math_pingpong");
+      RETURN_OPERATION_INFO("Ping Pong", "math_pingpong", "pingpong(float, float)"_ustr);
     case NODE_MATH_SMOOTH_MIN:
-      RETURN_OPERATION_INFO("Smooth Min", "math_smoothmin");
+      RETURN_OPERATION_INFO(
+          "Smooth Min", "math_smoothmin", "smooth_min(float, float, float)"_ustr);
     case NODE_MATH_SMOOTH_MAX:
-      RETURN_OPERATION_INFO("Smooth Max", "math_smoothmax");
+      RETURN_OPERATION_INFO(
+          "Smooth Max", "math_smoothmax", "smooth_max(float, float, float)"_ustr);
   }
 
 #undef RETURN_OPERATION_INFO
