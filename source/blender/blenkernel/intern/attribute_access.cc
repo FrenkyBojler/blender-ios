@@ -534,6 +534,21 @@ GSpanAttributeWriter MutableAttributeAccessor::lookup_or_add_for_write_only_span
   return {};
 }
 
+bool MutableAttributeAccessor::rename(const StringRef old_name,
+                                      const StringRef new_name,
+                                      const bool overwrite)
+{
+  Map<StringRef, StringRef> map;
+  map.add_new(old_name, new_name);
+  return fn_->rename(owner_, map, overwrite).is_empty();
+}
+
+Set<StringRef> MutableAttributeAccessor::rename(const Map<StringRef, StringRef> &map,
+                                                const bool overwrite)
+{
+  return fn_->rename(owner_, map, overwrite);
+}
+
 fn::GField AttributeValidator::validate_field_if_necessary(const fn::GField &field) const
 {
   if (function) {

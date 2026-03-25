@@ -4,6 +4,9 @@
 
 #include "BKE_attribute.hh"
 #include "BKE_attribute_storage.hh"
+#include "BKE_deform.hh"
+#include "BLI_listbase.h"
+#include "DNA_object_types.h"
 
 #include "attribute_storage_access.hh"
 
@@ -219,6 +222,109 @@ GMutableSpan get_mutable_attribute(AttributeStorage &storage,
   auto &array_data = std::get<bke::Attribute::ArrayData>(attr.data_for_write());
   BLI_assert(array_data.size == domain_size);
   return GMutableSpan(cpp_type, array_data.data, domain_size);
+}
+
+bool try_delete_vertex_group(ListBaseT<bDeformGroup> &vertex_groups,
+                             const StringRef name,
+                             FunctionRef<MutableSpan<MDeformVert>()> get_mutable_dverts)
+{
+  int index;
+  bDeformGroup *group;
+  if (!BKE_defgroup_listbase_name_find(&vertex_groups, name, &index, &group)) {
+    return false;
+  }
+  BLI_remlink(&vertex_groups, group);
+  MEM_delete(group);
+  MutableSpan<MDeformVert> dverts = get_mutable_dverts();
+  if (dverts.is_empty()) {
+    return true;
+  }
+  remove_defgroup_index(dverts, index);
+  return true;
+}
+
+static bool try_renaming_vertex_group(ListBaseT<bDeformGroup> &vertex_groups,
+                                      const StringRef old_name,
+                                      const StringRef new_name,
+                                      const bool overwrite,
+                                      FunctionRef<MutableSpan<MDeformVert>()> get_mutable_dverts)
+{
+  if (overwrite) {
+    try_delete_vertex_group(vertex_groups, new_name, get_mutable_dverts);
+  }
+  for (bDeformGroup &group : vertex_groups) {
+    if (group.name == old_name) {
+      new_name.copy_utf8_truncated(group.name);
+      return true;
+    }
+  }
+  return false;
+}
+
+Set<StringRef> rename_attributes(AttributeStorage &storage,
+                                 const Map<StringRef, StringRef> &name_map,
+                                 const bool overwrite,
+                                 const Map<StringRef, AttrBuiltinInfo> &builtin_attributes,
+                                 std::optional<ListBaseT<bDeformGroup> *> vertex_groups,
+                                 FunctionRef<MutableSpan<MDeformVert>()> get_mutable_dverts)
+{
+  Set<StringRef> names_to_remove;
+  Set<StringRef> failed;
+  Map<Attribute *, StringRef> map;
+  map.reserve(name_map.size());
+  for (const auto &[old_name, new_name] : name_map.items()) {
+    if (new_name.is_empty()) {
+      failed.add_new(old_name);
+      continue;
+    }
+    const AttrBuiltinInfo &old_builtin_info = builtin_attributes.lookup(old_name);
+    const AttrBuiltinInfo &new_builtin_info = builtin_attributes.lookup(new_name);
+    if (!old_builtin_info.deletable) {
+      failed.add_new(old_name);
+      continue;
+    }
+    Attribute *attr = storage.lookup(old_name);
+    if (!attr) {
+      failed.add_new(old_name);
+      continue;
+    }
+    if (new_builtin_info.domain != attr->domain()) {
+      failed.add_new(old_name);
+      continue;
+    }
+    if (new_builtin_info.type != attr->data_type()) {
+      failed.add_new(old_name);
+      continue;
+    }
+    if (overwrite) {
+      /* If we can replace existing attributes, make sure it's removed first. */
+      names_to_remove.add_new(new_name);
+    }
+    else {
+      /* If we can't replace existing attributes, skip this rename. */
+      if (storage.lookup(new_name)) {
+        failed.add_new(old_name);
+        continue;
+      }
+    }
+    map.add_new(attr, new_name);
+  }
+
+  if (vertex_groups) {
+    for (const StringRef name : failed) {
+      if (try_renaming_vertex_group(
+              **vertex_groups, name, name_map.lookup(name), overwrite, get_mutable_dverts))
+      {
+        failed.remove_contained(name);
+      }
+    }
+  }
+
+  if (!names_to_remove.is_empty()) {
+    storage.remove(names_to_remove);
+  }
+  storage.rename(map);
+  return failed;
 }
 
 }  // namespace blender::bke
