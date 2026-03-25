@@ -48,13 +48,86 @@ bool imb_is_a_ktx(const unsigned char *mem, size_t size)
   return memcmp(mem, ktx2_magic, sizeof(ktx2_magic)) == 0;
 }
 
-ImBuf *imb_load_ktx(const unsigned char * /*mem*/,
-                    size_t /*size*/,
-                    int /*flags*/,
-                    ImFileColorSpace & /*r_colorspace*/)
+ImBuf *imb_load_ktx(const unsigned char *mem,
+                    size_t size,
+                    int flags,
+                    ImFileColorSpace &r_colorspace)
 {
-  /* TODO: implement KTX loading */
-  return nullptr;
+  ktxTexture2 *texture = nullptr;
+  KTX_error_code result = ktxTexture2_CreateFromMemory(
+      mem, size, KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT, &texture);
+  if (result != KTX_SUCCESS) {
+    CLOG_ERROR(&LOG, "Failed to load KTX2 texture: %s", ktxErrorString(result));
+    return nullptr;
+  }
+
+  if (texture->numDimensions != 2) {
+    CLOG_ERROR(&LOG, "KTX2: only 2D textures are supported (got %uD)", texture->numDimensions);
+    ktxTexture_Destroy(ktxTexture(texture));
+    return nullptr;
+  }
+
+  const int width = int(texture->baseWidth);
+  const int height = int(texture->baseHeight);
+
+  /* Save VkFormat before transcoding — it may change after TranscodeBasis. */
+  const uint32_t vk_format = texture->vkFormat;
+  const bool is_srgb = (vk_format == VK_FORMAT_R8G8B8_SRGB ||
+                        vk_format == VK_FORMAT_R8G8B8A8_SRGB);
+
+  /* Transcode Basis Universal to RGBA32 (uncompressed, 4 bytes/pixel). */
+  if (ktxTexture_NeedsTranscoding(ktxTexture(texture))) {
+    result = ktxTexture2_TranscodeBasis(texture, KTX_TTF_RGBA32, 0);
+    if (result != KTX_SUCCESS) {
+      CLOG_ERROR(&LOG, "Failed to transcode KTX2 texture: %s", ktxErrorString(result));
+      ktxTexture_Destroy(ktxTexture(texture));
+      return nullptr;
+    }
+  }
+
+  ImBuf *ibuf = IMB_allocImBuf(width, height, 32, IB_byte_data);
+  if (ibuf == nullptr) {
+    CLOG_ERROR(&LOG, "Failed to allocate ImBuf (%dx%d)", width, height);
+    ktxTexture_Destroy(ktxTexture(texture));
+    return nullptr;
+  }
+
+  if (flags & IB_test) {
+    /* Metadata-only load — dimensions are set, no pixel copy needed. */
+    ktxTexture_Destroy(ktxTexture(texture));
+    return ibuf;
+  }
+
+  /* Copy level 0 pixels into the ImBuf byte buffer. */
+  ktx_size_t offset = 0;
+  ktxTexture_GetImageOffset(ktxTexture(texture), 0, 0, 0, &offset);
+  memcpy(ibuf->byte_buffer.data, texture->pData + offset, size_t(width) * height * 4);
+
+  /* KTXorientation=rd means top-left origin — flip to Blender's bottom-left convention. */
+  ktx_uint32_t orientation_len = 0;
+  void *orientation_val = nullptr;
+  if (ktxHashList_FindValue(&texture->kvDataHead,
+                            KTX_ORIENTATION_KEY,
+                            &orientation_len,
+                            &orientation_val) == KTX_SUCCESS)
+  {
+    if (orientation_val && strncmp(static_cast<const char *>(orientation_val), "rd", 2) == 0) {
+      IMB_flipy(ibuf);
+    }
+  }
+
+  /* Set colorspace: sRGB formats are standard color, UNORM formats are linear data. */
+  if (!is_srgb) {
+    ibuf->colormanage_flag |= IMB_COLORMANAGE_IS_DATA;
+  }
+
+  ibuf->ftype = IMB_FTYPE_KTX;
+  ibuf->planes = 32;
+
+  r_colorspace.is_hdr_float = false;
+
+  ktxTexture_Destroy(ktxTexture(texture));
+  return ibuf;
 }
 
 bool imb_save_ktx(ImBuf *ibuf, const char *filepath, int /*flags*/)
