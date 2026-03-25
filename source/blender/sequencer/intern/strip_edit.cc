@@ -34,6 +34,7 @@
 #include "SEQ_render.hh"
 #include "SEQ_sequencer.hh"
 #include "SEQ_time.hh"
+#include "SEQ_captions.hh"
 #include "SEQ_transform.hh"
 #include "SEQ_utils.hh"
 
@@ -188,9 +189,8 @@ void edit_remove_flagged_strips(Scene *scene, ListBaseT<Strip> *seqbase)
         edit_remove_flagged_strips(scene, &strip.seqbase);
         
         /* Handle captions removal*/
-        // TODO: GD;; Convert to specific-type later one
       } else if(strip.type == STRIP_TYPE_TEXT && strip.channel == ed->captions_act_channel->index) {
-        ed->captions_act_channel->captions_data->cache_dirty = true;
+        seq::captions_cache_mark_dirty(scene);
       }
 
       free_animdata(scene, &strip);

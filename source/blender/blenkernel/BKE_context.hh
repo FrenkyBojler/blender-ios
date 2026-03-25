@@ -61,7 +61,6 @@ struct SpaceProperties;
 struct SpaceSeq;
 struct SpaceSpreadsheet;
 struct SpaceText;
-struct SpaceCaptions;
 struct SpaceTopBar;
 struct SpaceUserPref;
 struct StructRNA;

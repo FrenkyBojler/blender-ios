@@ -42,7 +42,6 @@
 #include "BLO_read_write.hh"
 
 
-// TODO: GD;; Arrange and separate between wrappers and core methods.
 namespace blender {
 
 namespace ed::vse {
@@ -50,26 +49,11 @@ namespace ed::vse {
 
 namespace seq {
 
-/* Core Methods - most aren't exposed in header */
 
-CaptionsChannelData *captions_active_get(Editing *ed) {
-  if(ed == nullptr){
-    return nullptr;
-  }
-
-  SeqTimelineChannel *channel = ed->captions_act_channel;
-  if(channel == nullptr) {
-    return nullptr;
-  }
-
-  return channel->captions_data;
-}
-
-static void captions_init_default_style(CaptionsChannelData *captions_data)
+static void captions_init_default_style(SeqTimelineChannel *channel)
 {
-  // TODO: GD;; Rename data
     TextVars *data = MEM_new<TextVars>("textvars");
-    captions_data->style = data;
+    channel->captions_style = data;
 
     data->flag |= SEQ_TEXT_OUTLINE;
     data->flag |= SEQ_TEXT_SHADOW;
@@ -100,21 +84,32 @@ static void captions_init_default_style(CaptionsChannelData *captions_data)
     data->wrap_width = 1.0f;
 }
 
-void captions_apply_style_single(CaptionsChannelData *captions_data, Scene *scene, Caption *caption) {
-  TextVars *leader_vars = captions_data->style;
+static TextVars *captions_active_style_get(Scene *scene){
+  Editing *ed = seq::editing_get(scene);
+  if(ed == nullptr){
+    return nullptr;
+  }
+
+  return ed->captions_act_channel->captions_style;
+}
+
+void captions_apply_style_single(Scene *scene, SeqTimelineChannel *channel, Strip *strip)
+{
+  TextVars *leader_vars = channel->captions_style;
   if(leader_vars == nullptr) {
       return;
   }
   
-  if(caption->use_custom_style == true) {
-    return;
-  }
-
-  Strip *strip = caption->strip;
   TextVars *vars = (TextVars *)strip->effectdata;
   if(vars == nullptr) {
     return;
   }
+
+  if(vars->captions_use_custom_style) {
+    return;
+  }
+
+
         /* Font and size */
         vars->text_font = leader_vars->text_font;
         vars->text_size = leader_vars->text_size;
@@ -150,80 +145,112 @@ void captions_apply_style_single(CaptionsChannelData *captions_data, Scene *scen
         }
 }
 
-static void captions_apply_style(CaptionsChannelData *captions_data, Scene *scene)
-{   
-    for (Caption &caption : captions_data->captions) {
-      captions_apply_style_single(captions_data, scene, &caption);
+void captions_apply_style_active(Scene *scene)
+{ 
+    Editing *ed = seq::editing_get(scene);
+    if(ed == nullptr){
+      return;
+    }
+
+    for (Strip *strip : captions_cache_query(scene)) {
+      captions_apply_style_single(scene, ed->captions_act_channel, strip);
     }
 }
 
-static CaptionsChannelData *captions_data_ensure(SeqTimelineChannel *channel) {
+void captions_active_channel_set(Editing *ed, SeqTimelineChannel *channel) {
+  if(ed == nullptr) {
+    return;
+  }
+  
   if(channel == nullptr){
-    return nullptr;
+    channel = seq::channel_get_by_index(&ed->channels, 1);
   }
 
-  CaptionsChannelData *captions_data = channel->captions_data;
-  if(captions_data == nullptr){
-    /* Maybe should call in a cleaner method? */
-    captions_data = MEM_new<CaptionsChannelData>("captionsdata");
+  if(channel->captions_style == nullptr) {
+    captions_init_default_style(channel);
   }
 
-  /* Still need that check in case there actually was a captions_data, and then the style could be already existing */
-  if(captions_data->style == nullptr) {
-      captions_init_default_style(captions_data);
-  }
-
-  channel->captions_data = captions_data;
-
-  return captions_data;
+  ed->captions_act_channel = channel;
 }
 
-void captions_set_active_channel(Editing *ed, SeqTimelineChannel *channel) {
-  if(ed != nullptr) {
-    if(channel == nullptr){
-      channel = seq::channel_get_by_index(&ed->channels, 1);
-    }
-    ed->captions_act_channel = channel;
-//    captions_update_active(scene); -> Maybe make it update here? buggy
+/* Captions Cache Methods */
+void captions_cache_mark_dirty(Scene *scene){
+  Editing *ed = seq::editing_get(scene);
+  if(ed == nullptr){
+    return;
   }
+
+  ed->runtime->captions_cache_dirty = true;
 }
 
-static int compare_strips_start(const void *a, const void *b)
+const Vector<Strip *> captions_cache_query(Scene *scene) {
+  Editing *ed = seq::editing_get(scene);
+  if(ed == nullptr){
+    return {};
+  }
+
+  return ed->runtime->captions_cache;
+}
+
+Strip *captions_cache_query_index(Scene *scene, int index) {
+  if(scene == nullptr || index < 0) {
+      return nullptr;
+  }
+
+  int i = 0;
+  for (Strip *strip : captions_cache_query(scene)) {
+      if(i == index) {
+          return strip;
+      }
+      i++;
+  }
+  return nullptr;
+}
+
+void captions_cache_rebuild(Scene *scene)
 {
-    const Caption *caption_a = (Caption *) a;
-    const Caption *caption_b = (Caption *) b;
-
-    if (!caption_a->strip || !caption_b->strip) {
-        return (!caption_a->strip) - (!caption_b->strip);
-    }
-    
-    return (caption_a->strip->start > caption_b->strip->start) - 
-           (caption_a->strip->start < caption_b->strip->start);
-}
-
-static ListBaseT<struct Caption> captions_build(Editing *ed, CaptionsChannelData *captions_data, int channel_index)
-{
-  // TODO: GD;; Make them update the existing ones, and not rebuild them
-
-  ListBaseT<Caption> result = {nullptr, nullptr};
-  if(ed == nullptr || captions_data == nullptr){
-    return result;
+  Editing *ed = seq::editing_get(scene);
+  if(ed == nullptr){
+    return;
   }
 
+  if (ed->captions_act_channel == nullptr) {
+    captions_active_channel_set(ed, nullptr);
+  }
+
+  ed->runtime->captions_cache.clear();
+  
   for (Strip &strip : ed->seqbase) {
-    if (strip.channel == channel_index) {
+    if (strip.channel == ed->captions_act_channel->index) {
       if (strip.type == STRIP_TYPE_TEXT) {
-        Caption *caption = (Caption *)MEM_new_zeroed(sizeof(Caption), "strip ref");
-        caption->strip = &strip;
-        BLI_addtail(&result, caption);
+        ed->runtime->captions_cache.append(&strip);
       }
     }
   }
+
+  ed->runtime->captions_cache_dirty = false;
   
-  return result;
+  //BLI_listbase_sort(&->captions, compare_strips_start);
+  std::sort(ed->runtime->captions_cache.begin(), 
+  ed->runtime->captions_cache.end(), 
+  [](const Strip *a, const Strip *b) {
+      if (!a || !b) {
+          return a != nullptr; 
+      }
+
+      return a->start < b->start;
+  });
 }
 
-static void captions_free(CaptionsChannelData *captions_data)
+void captions_update_active(Scene *scene){
+  captions_cache_rebuild(scene);
+  
+  if(scene != nullptr){
+    captions_apply_style_active(scene);
+  }
+}
+
+/*static void captions_free(CaptionsChannelData *captions_data)
 {
   if(captions_data == nullptr){
     return;
@@ -233,110 +260,13 @@ static void captions_free(CaptionsChannelData *captions_data)
     MEM_delete(&caption);
   }
   BLI_listbase_clear(&captions_data->captions);
-}
+}*/ 
 
-void captions_update(CaptionsChannelData *captions_data, Scene *scene, int channel_index) 
-{
-  if (captions_data != nullptr) {
-    
-    /* Free old references */
-    captions_free(captions_data);
-
-    captions_data->captions = captions_build(seq::editing_get(scene), captions_data, channel_index);
-    
-    captions_data->cache_dirty = false;
-
-    BLI_listbase_sort(&captions_data->captions, compare_strips_start);
-
-    if(scene != nullptr){
-      captions_apply_style(captions_data, scene);
+void captions_set_style_custom(Strip *strip, bool use_custom) {
+    if(strip != nullptr) {
+      TextVars *vars = (TextVars *)strip->effectdata;
+      vars->captions_use_custom_style = use_custom ? 1 : 0;
     }
-  }
-}
-
-// Wrapper Methods
-void captions_apply_style_active(Scene *scene){
-  Editing *ed = seq::editing_get(scene);
-  if(ed == nullptr){
-    return;
-  }
-
-  CaptionsChannelData *captions_data = captions_active_get(ed);
-  captions_apply_style(captions_data, scene);
-}
-
-// TODO: GD;;  Make it call on RNA active change, adn find the right way to do that for the first one (maybe on versioning?)
-CaptionsChannelData *captions_active_ensure(Editing *ed) {
-  if(ed == nullptr){
-    return nullptr;
-  }
-
-  if (ed->captions_act_channel == nullptr) {
-    captions_set_active_channel(ed, nullptr);
-  }
-
-  return captions_data_ensure(ed->captions_act_channel);
-}
-
-Caption *captions_get_single_by_index(CaptionsChannelData *captions_data, int index){
-    if(captions_data == nullptr || index < 0) {
-        return nullptr;
-    }
-
-    int i = 0;
-    for (Caption &caption : captions_data->captions) {
-        if(i == index) {
-            return &caption;
-        }
-        i++;
-    }
-    return nullptr;
-}
-
-Caption *captions_get_single_by_strip(CaptionsChannelData *captions_data, struct Strip *strip) {
-  if(captions_data == nullptr || strip == nullptr) {
-    return nullptr;
-  }
-  
-  for (Caption &caption : captions_data->captions) {
-        if (caption.strip == strip) {
-            return &caption;
-        }
-        }
-    return nullptr;
-}
-
-void captions_mark_caption_style_custom(Caption *caption, bool use_custom) {
-    if(caption != nullptr) {
-      caption->use_custom_style = use_custom ? 1 : 0;
-    }
-}
-
-void captions_update_active(Scene *scene) {
-  Editing *ed = blender::seq::editing_get(scene);
-  
-  if (ed == nullptr) {
-    return;
-  }
-  
-  if (ed->captions_act_channel == nullptr) {
-    captions_set_active_channel(ed, nullptr);
-  }
-
-  if (ed->captions_act_channel != nullptr) {
-      CaptionsChannelData *captions_data = captions_active_ensure(ed);
-      captions_update(captions_data, scene, ed->captions_act_channel->index);
-  }
-}
-
-/* Can be used without scene just for redraw without update */ //!NOT WORKING AS OF NOW!
-void captions_tag_redraw(ARegion *region, Scene *scene)
-{
-  if(scene != nullptr) {
-    captions_update_active(scene);
-  }
-
-  ED_region_tag_redraw(region);
 }
 
 }  // namespace seq

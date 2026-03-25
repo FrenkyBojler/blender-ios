@@ -102,7 +102,6 @@
 #include "RNA_access.hh"
 
 #include "SEQ_iterator.hh"
-#include "SEQ_captions.hh"
 #include "SEQ_sequencer.hh"
 
 #include "BLO_read_write.hh"
@@ -350,10 +349,6 @@ static void scene_copy_data(Main *bmain,
                                      flag_subdata);
     BLI_duplicatelist(&scene_dst->ed->channels, &scene_src->ed->channels);
 
-    /* Handle Captions */
-    // TODO: GD;; Add here also captiosnchanneldata's copy? Maybe the line above handle this already
-    //scene_dst->ed->captions_style = scene_src->ed->captions_style;
-    //seq::captions_style_ensure(scene_dst->ed);
   }
 
   if ((flag & LIB_ID_COPY_NO_PREVIEW) == 0) {

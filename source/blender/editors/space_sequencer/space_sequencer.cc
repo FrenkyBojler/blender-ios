@@ -283,6 +283,10 @@ static void handle_captions_listener(const wmSpaceTypeListenerParams *params)
 
   /* Only care about scene + sequencer notifications */
   if (wmn->category == NC_SCENE && wmn->data == ND_SEQUENCER) {
+    if(wmn->action == NA_SELECTED) {
+      return;
+    }
+
     Scene *scene = static_cast<Scene *>(wmn->reference);
     if(scene == nullptr){
       return;
@@ -293,86 +297,9 @@ static void handle_captions_listener(const wmSpaceTypeListenerParams *params)
       return;
     }
 
-    CaptionsChannelData *captions_data = ed->captions_act_channel->captions_data;
-    if(captions_data->cache_dirty ){
+    if(ed->runtime->captions_cache_dirty){
       seq::captions_update_active(scene);
     }
-    /*switch (wmn->action) {
-
-      case NA_ADDED:
-      case NA_REMOVED:
-      case NA_EDITED: {
-        Scene *scene = static_cast<Scene *>(wmn->reference);
-        if (scene == nullptr) {
-       ///   tag_redraw(region, nullptr);
-          return;
-        }
-
-        Editing *ed = seq::editing_get(scene);
-        if (ed == nullptr) {
-       //   tag_redraw(region, scene);
-          return;
-        }
-
-        Strip *active_strip = seq::select_active_get(scene);
-        CaptionsChannelData *captions_data = seq::captions_active_get(ed);
-
-        const bool is_added   = (wmn->action == NA_ADDED);
-        const bool is_removed = (wmn->action == NA_REMOVED);
-        const bool is_edited  = (wmn->action == NA_EDITED);
-
-        /* Have to be here in case the strip is removed... */
-        /*bool changed = false;
-
-        if (active_strip != nullptr) {
-          if (ed->captions_act_channel == nullptr) {
-            seq::captions_set_active_channel(ed);
-          }
-          
-          const bool in_active_channel =
-          (ed->captions_act_channel != nullptr &&
-            active_strip->channel == ed->captions_act_channel->index);
-          
-          /* The whole thing is pretty much pointless the way it works now and not that effective, have to fix that */
-          /*if (in_active_channel) {
-
-            if (active_strip->type == STRIP_TYPE_TEXT) {
-              captions_data->cache_dirty = true;
-              changed = true;
-            }
-
-            if (is_added) {
-              seq::captions_apply_style_active(scene);
-              captions_data->cache_dirty = true;
-              changed = true;
-            }
-          }
-          else if (is_edited) {
-            /* Strip may have moved out of active channel */
-          /*  captions_data->cache_dirty = true;
-            changed = true;
-          }
-        }
-        else if (is_removed) {
-          captions_data->cache_dirty = true;
-          changed = true;
-        }
-
-        if(changed) {
-          if (captions_data->cache_dirty == true) {
-            /* That's the simplest way to update the cache, will be moved to on draw or RNA later. Also, maybe trying to figure out which strips are changed and update just them is a good idea, but might be more complex and heavier than simply update them all. */
-            //seq::captions_update_active(scene);
-        /*  }
-        }
-
-       // tag_redraw(region, scene);
-        break;
-      }*/
-
-    //  default:
-       // tag_redraw(region, nullptr);
-      //  break;
-    //}
   }
 }
 

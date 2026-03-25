@@ -46,6 +46,7 @@
 #include "SEQ_render.hh"
 #include "SEQ_sequencer.hh"
 #include "SEQ_time.hh"
+#include "SEQ_captions.hh"
 #include "SEQ_transform.hh"
 #include "SEQ_utils.hh"
 
@@ -188,12 +189,10 @@ Strip *add_effect_strip(Scene *scene, ListBaseT<Strip> *seqbase, LoadData *load_
   strip_add_set_name(scene, strip, load_data);
   strip_add_generic_update(scene, strip);
 
-  // TODO: GD;; Convert to specific-type later on
-  // TODO: GD;; Style update is also needed, maybe if making proper adding-removing system it'd be easier by return type
   /* Handle captions removal*/
   SeqTimelineChannel *captions_channel = seq::editing_get(scene)->captions_act_channel;
   if(strip->type == STRIP_TYPE_TEXT && strip->channel == captions_channel->index) {
-    captions_channel->captions_data->cache_dirty = true;
+    seq::captions_cache_mark_dirty(scene);
   }
 
   return strip;

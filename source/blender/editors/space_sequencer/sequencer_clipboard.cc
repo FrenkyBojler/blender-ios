@@ -46,7 +46,6 @@
 #include "SEQ_sequencer.hh"
 #include "SEQ_time.hh"
 #include "SEQ_transform.hh"
-#include "SEQ_captions.hh"
 #include "SEQ_utils.hh"
 
 #include "DEG_depsgraph.hh"
@@ -172,11 +171,6 @@ static bool sequencer_write_copy_paste_file(Main *bmain_src,
                                    0);
 
   BLI_duplicatelist(&scene_dst->ed->channels, &scene_src->ed->channels);
-
-  /* Handle Captions */
-  // TODO: GD;; Add here also caption data copy? Maybe the line above handle this already
-  //scene_dst->ed->captions_style = scene_src->ed->captions_style;
-  //seq::captions_style_ensure(scene_dst->ed);
 
   /* Save current frame and active strip. */
   scene_dst->r.cfra = scene_src->r.cfra;
@@ -562,7 +556,6 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
 
   BKE_reportf(op->reports, RPT_INFO, "%d strips pasted", num_strips_to_paste);
 
-  //captions_data->cache_dirty = true;
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER | NA_ADDED, CTX_data_sequencer_scene(C));
 
   return OPERATOR_FINISHED;

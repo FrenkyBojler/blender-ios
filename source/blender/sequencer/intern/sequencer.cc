@@ -308,9 +308,6 @@ Editing *editing_ensure(Scene *scene)
     ed->cache_flag = (SEQ_CACHE_PREFETCH_ENABLE | SEQ_CACHE_STORE_FINAL_OUT | SEQ_CACHE_STORE_RAW);
     ed->show_missing_media_flag = SEQ_EDIT_SHOW_MISSING_MEDIA;
     channels_ensure(&ed->channels);
-
-    /* Making sure that Captions data is exists */
-    captions_active_ensure(ed);
   }
 
   return scene->ed;
@@ -763,12 +760,10 @@ static Strip *strip_duplicate(StripDuplicateContext &ctx,
     /* Handle Captions update */
     if(strip->type == STRIP_TYPE_TEXT) {      
       Editing *ed = seq::editing_get(ctx.scene_dst);
-      CaptionsChannelData *captions_data = seq::captions_active_get(ed);
-  
+
       if(ed->captions_act_channel != nullptr){
         if(strip->channel == ed->captions_act_channel->index){
-          // TODO: GD;; Make specific-type later on
-          captions_data->cache_dirty = true;
+          seq::captions_cache_mark_dirty(ctx.scene_dst);
         }
       }
     }

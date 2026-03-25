@@ -2079,9 +2079,9 @@ class SEQUENCER_PT_captions_style(bpy.types.Panel):
         # TODO: Add style options for captions here
         space = context.space_data
         scene = context.scene
-        editor = scene.sequence_editor
-        channel = editor.channels[editor.captions_active_channel_index]
-        captions = channel.captions
+        ed = scene.sequence_editor
+        channel = ed.channels[ed.captions_active_channel_index]
+        strips = ed.caption_strips
         
         style = channel.captions_style
         if(style is None):
@@ -2089,7 +2089,7 @@ class SEQUENCER_PT_captions_style(bpy.types.Panel):
         
         layout = self.layout
         
-        # Draw the style as a strip properties, works becuase they're both using TextVars data, but it's hacky.
+        # Draw the style as a strip properties, works becuase they're both using TextVars data, but it's abit hacky.
         from bpy.types import (
             STRIP_PT_effect_text_style,
             STRIP_PT_effect_text_outline,
@@ -2132,8 +2132,7 @@ class SEQUENCER_PT_captions_editor(bpy.types.Panel):
     bl_category = "Captions"
     bl_order = 0
 
-    def draw_caption(self, layout, item, index, draw_ops=True):
-        strip = item.strip
+    def draw_caption(self, layout, strip, index, draw_ops=True):
         
         cell = layout.column(align=True)
         
@@ -2150,7 +2149,7 @@ class SEQUENCER_PT_captions_editor(bpy.types.Panel):
         if(draw_ops):
             ops_row = cell.row(align=True)
             
-            ops_row.prop(item, "use_custom_style", icon_only=True)
+            ops_row.prop(strip, "captions_use_custom_style", icon_only=True)
             
             op = ops_row.operator("sequencer.caption_remove", text="Remove", icon="REMOVE")
             op.index = index
@@ -2162,12 +2161,12 @@ class SEQUENCER_PT_captions_editor(bpy.types.Panel):
         layout = self.layout
         space = context.space_data
         ed = context.scene.sequence_editor
-        captions = ed.channels[ed.captions_active_channel_index].captions
+        strips = ed.caption_strips
         layout.prop(ed, "captions_active_channel_index", text="Active Channel")
         
-        for index, caption in enumerate(captions):
-            if caption:
-                self.draw_caption(layout, caption, index)
+        for index, strip in enumerate(strips):
+            if strip:
+                self.draw_caption(layout, strip, index)
         
         layout.operator("sequencer.caption_add", text="Add", icon='ADD')
         

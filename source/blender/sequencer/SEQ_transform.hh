@@ -66,7 +66,7 @@ void transform_handle_overlap(Scene *scene,
 /**
  * Set strip channel. This value is clamped to valid values.
  */
-void strip_channel_set(Strip *strip, int channel, Editing *ed=nullptr);
+void strip_channel_set(Strip *strip, int channel, Scene *scene=nullptr);
 /**
  * Move strips and markers (if not locked) that start after timeline_frame by delta frames
  *

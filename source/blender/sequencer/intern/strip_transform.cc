@@ -29,6 +29,7 @@
 #include "SEQ_relations.hh"
 #include "SEQ_sequencer.hh"
 #include "SEQ_time.hh"
+#include "SEQ_captions.hh"
 #include "SEQ_transform.hh"
 
 #include "effects/effects.hh"
@@ -108,7 +109,7 @@ bool transform_seqbase_shuffle_ex(ListBaseT<Strip> *seqbasep,
   const int orig_channel = test->channel;
   BLI_assert(ELEM(channel_delta, -1, 1));
 
-  strip_channel_set(test, test->channel + channel_delta, nullptr);
+  strip_channel_set(test, test->channel + channel_delta, evil_scene);
 
   const ListBaseT<SeqTimelineChannel> *channels = channels_displayed_get(editing_get(evil_scene));
   SeqTimelineChannel *channel = channel_get_by_index(channels, test->channel);
@@ -125,7 +126,7 @@ bool transform_seqbase_shuffle_ex(ListBaseT<Strip> *seqbasep,
       break;
     }
 
-    strip_channel_set(test, test->channel + channel_delta, nullptr);
+    strip_channel_set(test, test->channel + channel_delta, evil_scene);
     channel = channel_get_by_index(channels, test->channel);
   }
 
@@ -139,7 +140,7 @@ bool transform_seqbase_shuffle_ex(ListBaseT<Strip> *seqbasep,
       }
     }
 
-    strip_channel_set(test, orig_channel, nullptr);
+    strip_channel_set(test, orig_channel, evil_scene);
 
     new_frame = new_frame + (test->start - test->left_handle()); /* adjust by the startdisp */
     transform_translate_strip(evil_scene, test, new_frame - test->start);
@@ -563,18 +564,18 @@ void transform_offset_after_frame(Scene *scene,
   }
 }
 
-void strip_channel_set(Strip *strip, int channel, Editing *ed)
+void strip_channel_set(Strip *strip, int channel, Scene *scene)
 {
   if(strip-> channel == channel){
     return;
   }
 
-  // TODO: GD;; Maybe not best place? Make more accurate, maybe add scene and default with nullptr
   /* Handle Captions */
-  if(ed != nullptr){
-  if (strip->type == STRIP_TYPE_TEXT && (strip->channel == ed->captions_act_channel->index || channel == ed->captions_act_channel->index)) {
-    ed->captions_act_channel->captions_data->cache_dirty = true;
-  }
+  if(scene != nullptr) {
+    Editing *ed = seq::editing_get(scene);
+    if ((strip->type == STRIP_TYPE_TEXT) && (strip->channel == ed->captions_act_channel->index || channel == ed->captions_act_channel->index)) {
+      seq::captions_cache_mark_dirty(scene);
+    }
   } 
 
   strip->channel = math::clamp(channel, 1, MAX_CHANNELS);

@@ -2520,9 +2520,6 @@ static wmOperatorStatus sequencer_delete_exec(bContext *C, wmOperator *op)
     }
   }
 
-  // TODO: GD;; Can be properly removed as single from captions here
-
-
   seq::edit_remove_flagged_strips(scene, seqbasep);
 
   vse::sync_active_scene_and_time_with_scene_strip(*C);
@@ -2880,6 +2877,10 @@ static wmOperatorStatus sequencer_meta_make_exec(bContext *C, wmOperator * /*op*
 
   seq::strip_lookup_invalidate(ed);
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
+
+  /* Update captions because one of the changed strips can be caption */
+  seq::captions_cache_mark_dirty(scene);
+
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
 
   return OPERATOR_FINISHED;
@@ -4299,11 +4300,10 @@ void SEQUENCER_OT_scene_frame_range_update(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-    static int get_extend_right(int start_frame, int channel, ListBaseT<struct Caption> *captions, int max_extend) {
+    static int get_extend_right(int start_frame, int channel, const Vector<Strip *> strips, int max_extend) {
         
         int next_strip_start = start_frame + max_extend;
-        for (Caption &caption : *captions) {
-            Strip *strip = caption.strip;
+        for (Strip *strip : strips) {
 
             /* Only check strips on the same channel */
             if (strip->channel != channel) {
@@ -4332,7 +4332,6 @@ static wmOperatorStatus captions_add_exec(bContext *C, wmOperator *op)
     memset(&load_data, 0, sizeof(load_data));
     Scene *scene = CTX_data_sequencer_scene(C);
     Editing *ed = seq::editing_ensure(scene);
-    CaptionsChannelData *captions_data = seq::captions_active_get(ed);
 
     int start_frame = scene->r.cfra;
     int channel = ed->captions_act_channel->index;
@@ -4348,7 +4347,7 @@ static wmOperatorStatus captions_add_exec(bContext *C, wmOperator *op)
         length = RNA_int_get(op->ptr, "length");
     }
     }
-    length = get_extend_right(start_frame, channel, &captions_data->captions, length);
+    length = get_extend_right(start_frame, channel, seq::captions_cache_query(scene), length);
     if(length == 0) {
       BKE_report(op->reports, RPT_ERROR, "A strip already exists at that frame");
       return OPERATOR_CANCELLED;
@@ -4374,15 +4373,8 @@ static bool captions_add_poll(bContext *C)
       return false;
     }
     const int cfra = scene->r.cfra;
-
-    Editing *ed = seq::editing_get(scene);
-    if(ed == nullptr){
-      return false;
-    }
     
-    CaptionsChannelData *captions_data = seq::captions_active_get(ed);
-    for (Caption &caption : captions_data->captions) {
-        Strip *strip = caption.strip;
+    for (Strip *strip : seq::captions_cache_query(scene)) {
         if (strip->intersects_frame(scene, cfra)) {
             return false;
         }
@@ -4430,7 +4422,6 @@ void SEQUENCER_OT_caption_add(wmOperatorType *ot)
       memset(&load_data, 0, sizeof(load_data));
       Scene *scene = CTX_data_sequencer_scene(C);
       Editing *ed = seq::editing_ensure(scene);
-      CaptionsChannelData *captions_data = seq::captions_active_get(ed);
   
       int channel = ed->captions_act_channel->index;
   
@@ -4453,7 +4444,7 @@ void SEQUENCER_OT_caption_add(wmOperatorType *ot)
             length = RNA_int_get(op->ptr, "length");
         }
       }
-      length = get_extend_right(start_frame, channel, &captions_data->captions, length);
+      length = get_extend_right(start_frame, channel, seq::captions_cache_query(scene), length);
       if(length == 0) {
         BKE_report(op->reports, RPT_ERROR, "A strip already exists at that frame");
         return OPERATOR_CANCELLED;
@@ -4539,12 +4530,11 @@ void SEQUENCER_OT_caption_add(wmOperatorType *ot)
   
     seq::prefetch_stop(scene);
   
-    Caption *caption = seq::captions_get_single_by_index(seq::captions_active_get(ed), index);
-    if(caption == nullptr){
+    Strip *strip = seq::captions_cache_query_index(scene, index);
+
+    if(strip == nullptr){
       return OPERATOR_CANCELLED;
     }
-
-    Strip *strip = caption->strip;
 
     seq::edit_flag_for_removal(scene, seqbasep, strip);
     seq::edit_remove_flagged_strips(scene, seqbasep);
@@ -4555,8 +4545,6 @@ void SEQUENCER_OT_caption_add(wmOperatorType *ot)
       DEG_id_tag_update(&scene->adt->action->id, ID_RECALC_ANIMATION_NO_FLUSH);
     }
     DEG_relations_tag_update(bmain);
-
-    // TODO: GD;; Currently the ref is deleted in the update that happens right after this, not ideal
 
     WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER | NA_REMOVED, scene);
     WM_event_add_notifier(C, NC_SCENE | ND_ANIMCHAN, scene);

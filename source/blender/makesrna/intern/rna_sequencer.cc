@@ -270,13 +270,11 @@ static void rna_Strip_text_update(bContext *C, PointerRNA *ptr)
   /* If there's no strip, it means it's from the captions editor */
   ///* Currently that's the only way to edit text properties in the sequencer space, so this check works. */
   
-  CaptionsChannelData *captions_data = seq::captions_active_get(ed);
-  Caption *caption = seq::captions_get_single_by_strip(captions_data ,strip);
   if(!strip){
     /* Technically it's possible to modify this method to work without caption data and save the iteration to find it with caption_get_by_strip, but we'll have to check for custom style anyways... */
     seq::captions_apply_style_active(scene);
   } else {
-    seq::captions_mark_caption_style_custom(caption, true);
+    seq::captions_set_style_custom(strip, true);
   }
 }
 
@@ -336,10 +334,55 @@ static void add_strips_from_seqbase(const ListBaseT<Strip> *seqbase, Vector<Stri
   }
 }
 
-struct StripsAllIterator {
+struct StripsIterator {
   Vector<Strip *> strips;
   int index;
+
+  static void begin(CollectionPropertyIterator *iter, Vector<Strip *> strips) {
+    StripsIterator *strip_iter = MEM_new<StripsIterator>(__func__);
+    strip_iter->index = 0;
+    strip_iter->strips = std::move(strips);
+  
+    BLI_Iterator *bli_iter = MEM_new_zeroed<BLI_Iterator>(__func__);
+    iter->internal.custom = bli_iter;
+    bli_iter->data = strip_iter;
+  
+    Strip **strip_arr = strip_iter->strips.begin();
+    bli_iter->current = *strip_arr;
+    iter->valid = bli_iter->current != nullptr;
+  }
+
+  static void next(CollectionPropertyIterator *iter) {
+    BLI_Iterator *bli_iter = static_cast<BLI_Iterator *>(iter->internal.custom);
+    StripsIterator *strip_iter = static_cast<StripsIterator *>(bli_iter->data);
+    
+    strip_iter->index++;
+    Strip **strip_arr = strip_iter->strips.begin();
+    bli_iter->current = *(strip_arr + strip_iter->index);
+    
+    iter->valid = bli_iter->current != nullptr && strip_iter->index < strip_iter->strips.size();
+
+  }
+
+  static PointerRNA get(CollectionPropertyIterator *iter){
+    Strip *strip = static_cast<Strip *>(
+      (static_cast<BLI_Iterator *>(iter->internal.custom))->current);
+    return RNA_pointer_create_with_parent(iter->parent, RNA_Strip, strip);
+  }
+
+  static void end(CollectionPropertyIterator *iter) {
+    BLI_Iterator *bli_iter = static_cast<BLI_Iterator *>(iter->internal.custom);
+    StripsIterator *strip_iter = static_cast<StripsIterator *>(bli_iter->data);
+  
+    MEM_delete(strip_iter);
+    MEM_delete(bli_iter);
+  }
 };
+
+/* Free Iterator Methods */
+static void rna_strips_next(CollectionPropertyIterator *iter)  { StripsIterator::next(iter); }
+static PointerRNA rna_strips_get(CollectionPropertyIterator *iter)  { return StripsIterator::get(iter); }
+static void  rna_strips_end(CollectionPropertyIterator *iter)  { StripsIterator::end(iter); }
 
 static std::optional<std::string> rna_SequenceEditor_path(const PointerRNA * /*ptr*/)
 {
@@ -351,45 +394,9 @@ static void rna_SequenceEditor_strips_all_begin(CollectionPropertyIterator *iter
   Scene *scene = id_cast<Scene *>(ptr->owner_id);
   Editing *ed = seq::editing_get(scene);
 
-  StripsAllIterator *strip_iter = MEM_new<StripsAllIterator>(__func__);
-  strip_iter->index = 0;
-  add_strips_from_seqbase(&ed->seqbase, strip_iter->strips);
-
-  BLI_Iterator *bli_iter = MEM_new_zeroed<BLI_Iterator>(__func__);
-  iter->internal.custom = bli_iter;
-  bli_iter->data = strip_iter;
-
-  Strip **strip_arr = strip_iter->strips.begin();
-  bli_iter->current = *strip_arr;
-  iter->valid = bli_iter->current != nullptr;
-}
-
-static void rna_SequenceEditor_strips_all_next(CollectionPropertyIterator *iter)
-{
-  BLI_Iterator *bli_iter = static_cast<BLI_Iterator *>(iter->internal.custom);
-  StripsAllIterator *strip_iter = static_cast<StripsAllIterator *>(bli_iter->data);
-
-  strip_iter->index++;
-  Strip **strip_arr = strip_iter->strips.begin();
-  bli_iter->current = *(strip_arr + strip_iter->index);
-
-  iter->valid = bli_iter->current != nullptr && strip_iter->index < strip_iter->strips.size();
-}
-
-static PointerRNA rna_SequenceEditor_strips_all_get(CollectionPropertyIterator *iter)
-{
-  Strip *strip = static_cast<Strip *>(
-      (static_cast<BLI_Iterator *>(iter->internal.custom))->current);
-  return RNA_pointer_create_with_parent(iter->parent, RNA_Strip, strip);
-}
-
-static void rna_SequenceEditor_strips_all_end(CollectionPropertyIterator *iter)
-{
-  BLI_Iterator *bli_iter = static_cast<BLI_Iterator *>(iter->internal.custom);
-  StripsAllIterator *strip_iter = static_cast<StripsAllIterator *>(bli_iter->data);
-
-  MEM_delete(strip_iter);
-  MEM_delete(bli_iter);
+  Vector <Strip *> strips;
+  add_strips_from_seqbase(&ed->seqbase, strips);
+  StripsIterator::begin(iter, strips);
 }
 
 static bool rna_SequenceEditor_strips_all_lookup_string(PointerRNA *ptr,
@@ -1519,31 +1526,24 @@ static void rna_SequenceEditor_display_stack(ID *id,
 }
 
 
-static void rna_SequenceEditor_captions_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+static void rna_SequenceEditor_caption_strips_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
-  SeqTimelineChannel *channel = (SeqTimelineChannel *)ptr->data;
-  
-//  if(channel->captions_data == nullptr){
-  //  return;
-  //  } 
-   // TODO: For some reason, handling cache update here makes the fancy UI Animations disapper, also it's currently not working and should be here, BTW is it the right place for that at all?
-  //if (ed->captions_cache_dirty) {
-   // blender::update_current_strips(ed->seq_scene); //TODO: FIND THE RIGHT WAY TO GET SCENE
-   rna_iterator_listbase_begin(iter, ptr, &channel->captions_data->captions, nullptr);
-  
+  Editing *ed = (Editing *)ptr->data;
+  printf("DEBUG begin\n");
+  StripsIterator::begin(iter, ed->runtime->captions_cache);
 }
 
-static PointerRNA rna_SequenceEditor_captions_get(CollectionPropertyIterator *iter)
+/*static PointerRNA rna_SequenceEditor_caption_strips_get(CollectionPropertyIterator *iter)
 {
-    Caption *caption = (Caption *)rna_iterator_listbase_get(iter);
-    if (caption == nullptr || caption->strip == nullptr) {
+    Strip *strip = (Strip *)rna_iterator_listbase_get(iter);
+    if (strip == nullptr) {
         return PointerRNA_NULL;
     }
 
-    return RNA_pointer_create_discrete(iter->parent.owner_id, RNA_Caption, caption);
-}
+    return RNA_pointer_create_discrete(iter->parent.owner_id, RNA_Strip, strip);
+}*/
 
-static void rna_SequenceEditor_captions_strips_update(Main * /*bmain*/, Scene * scene, PointerRNA * ptr)
+static void rna_SequenceEditor_caption_strips_update(Main * /*bmain*/, Scene * scene, PointerRNA * ptr)
 {
   /* Should use relations_invalidate_cache to make the system redraw the cache, but first we need to figure out how to get the right strip... */
   ///blender::seq::relations_invalidate_cache(scene, (Strip *)ptr->data);
@@ -1556,10 +1556,10 @@ static int rna_SequenceEditor_captions_channel_get(PointerRNA *ptr) {
 static void rna_SequenceEditor_captions_channel_set(PointerRNA *ptr, int value)
 {
     Editing *ed = (Editing *)ptr->data;
-    Scene *scene = (Scene *)ptr->owner_id; // TODO: GD;; Maybe better to do that with notifier, think it out later
+    Scene *scene = (Scene *)ptr->owner_id;
 
     SeqTimelineChannel *channel = seq::channel_get_by_index(&ed->channels, value);
-    seq::captions_set_active_channel(ed, channel);
+    seq::captions_active_channel_set(ed, channel);
     seq::captions_update_active(scene);
    // seq::captions_update_active() -> Should pass Scene here somehow, what about simply toggle cache flag?
     // Maybe make it update here? buggy
@@ -1567,9 +1567,10 @@ static void rna_SequenceEditor_captions_channel_set(PointerRNA *ptr, int value)
 
 static void rna_Caption_use_custom_style_update(Main * /*bmain*/, Scene * scene, PointerRNA * ptr) {
   //TODO: Should allow updating style of single strips, as of now update the whole list
-  Caption *caption = (Caption *) ptr->data;
-  CaptionsChannelData *captions_data = seq::channel_get_by_index(&seq::editing_get(scene)->channels, caption->strip->channel)->captions_data;
-  seq::captions_apply_style_single(captions_data, scene, caption);
+  Strip *strip = (Strip *) ptr->data;
+  Editing *ed = seq::editing_get(scene);
+  SeqTimelineChannel *channel = seq::channel_get_by_index(&ed->channels, strip->channel);
+  seq::captions_apply_style_single(scene, channel, strip);
 }
 
 
@@ -2875,32 +2876,10 @@ static void rna_def_channel(BlenderRNA *brna)
   RNA_def_property_update(
       prop, NC_SCENE | ND_SEQUENCER, "rna_SequenceTimelineChannel_mute_update");
 
-  /* Captions props */
-  prop = RNA_def_property(srna, "captions", PROP_COLLECTION, PROP_NONE);
-  RNA_def_property_collection_sdna(prop, nullptr, "captions_data.captions", nullptr);
-  RNA_def_property_struct_type(prop, "Caption");
-  RNA_def_property_ui_text(
-      prop, "Captions", "Current captions in the channel");
-  RNA_def_property_collection_funcs(prop,
-                                    "rna_SequenceEditor_captions_begin",
-                                    nullptr,
-                                    nullptr,
-                                    "rna_SequenceEditor_captions_get",
-                                    nullptr,
-                                    nullptr,
-                                    nullptr,
-                                    nullptr);
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER | NA_EDITED, "rna_SequenceEditor_captions_strips_update");
-  
   prop = RNA_def_property(srna, "captions_style", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "CaptionsStyle");
-  RNA_def_property_pointer_sdna(prop, nullptr, "captions_data->style");
-  RNA_def_property_ui_text(prop, "Captions Style", "Default text styling properties for captions");
-  
-  prop = RNA_def_property(srna, "captions_cache_dirty", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "captions_data->cache_dirty", 0);
-  RNA_def_property_ui_text(prop, "Is Captions Cache Dirty", "Indicates whether the captions cache is dirty");
-
+  RNA_def_property_pointer_sdna(prop, nullptr, "captions_style");
+  RNA_def_property_ui_text(prop, "Captions Style", "Default text styling properties for captions in this channel");
 }
 
 static void rna_def_strips_top_level(BlenderRNA *brna)
@@ -2915,32 +2894,11 @@ static void rna_def_strips_top_level(BlenderRNA *brna)
 }
 
 static void rna_def_text(StructRNA *srna); /* forward declaration */
-static void rna_def_captions(BlenderRNA *brna){
+static void rna_def_captions_style(BlenderRNA *brna){
   StructRNA *srna = RNA_def_struct(brna, "CaptionsStyle", nullptr);
   RNA_def_struct_ui_text(srna, "Captions Style", "Text styling properties for captions");
   RNA_def_struct_sdna(srna, "TextVars");
   rna_def_text(srna);
-
-  srna = RNA_def_struct(brna, "Caption", nullptr);
-  RNA_def_struct_ui_text(srna, "Caption", "A single caption");
-  RNA_def_struct_sdna(srna, "Caption");
-
-  PropertyRNA *prop = RNA_def_property(srna, "strip", PROP_POINTER, PROP_NONE);
-  RNA_def_property_pointer_sdna(prop, nullptr, "strip");
-  RNA_def_property_flag(prop, PROP_EDITABLE);
-  RNA_def_property_ui_text(prop, "Caption Strip", "The strip this caption points to");
-
-  prop = RNA_def_boolean(srna,
-    "use_custom_style",
-    false,
-    "Use Custom Style",
-    "When enabled, use a custom style for this caption");
-  RNA_def_property_boolean_sdna(prop, nullptr, "use_custom_style", 1);
-  RNA_def_property_ui_icon(prop, ICON_FONT_DATA, false);
-  RNA_def_property_flag(prop, PROP_EDITABLE);
-    RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Caption_use_custom_style_update");
-
-
 }
 
 static void rna_def_editor(BlenderRNA *brna)
@@ -2980,9 +2938,9 @@ static void rna_def_editor(BlenderRNA *brna)
       prop, "All Strips", "All strips, recursively including those inside metastrips");
   RNA_def_property_collection_funcs(prop,
                                     "rna_SequenceEditor_strips_all_begin",
-                                    "rna_SequenceEditor_strips_all_next",
-                                    "rna_SequenceEditor_strips_all_end",
-                                    "rna_SequenceEditor_strips_all_get",
+                                    "rna_strips_next",
+                                    "rna_strips_end",
+                                    "rna_strips_get",
                                     nullptr,
                                     nullptr,
                                     "rna_SequenceEditor_strips_all_lookup_string",
@@ -3094,19 +3052,36 @@ static void rna_def_editor(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Final Cache Size", "Size of final rendered images cache in megabytes");
 
+  /* Captions props */
+  prop = RNA_def_property(srna, "caption_strips", PROP_COLLECTION, PROP_NONE);
+ //RNA_def_property_collection_sdna(prop, nullptr, "runtime->captions_cache", nullptr);
+  RNA_def_property_struct_type(prop, "Strip");
+  RNA_def_property_ui_text(
+      prop, "Caption Strips", "Current caption strips stored in cache");
+  RNA_def_property_collection_funcs(prop,
+                                    "rna_SequenceEditor_caption_strips_begin",
+                                    "rna_strips_next",
+                                    "rna_strips_end",
+                                    "rna_strips_get",
+                                    nullptr,
+                                    nullptr,
+                                    nullptr,
+                                    nullptr);
+  //RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER | NA_EDITED, "rna_SequenceEditor_caption_strips_update");
+  
   prop = RNA_def_int(srna,
-    "captions_active_channel_index",
-    1,
-    1,
-    seq::MAX_CHANNELS,
-    "Captions Active Channel Index",
-    "Active Channel Index for Captions Editing",
-    1,
-    seq::MAX_CHANNELS);
-    RNA_def_property_int_funcs(prop,
-      "rna_SequenceEditor_captions_channel_get",
-      "rna_SequenceEditor_captions_channel_set",
-      NULL
+  "captions_active_channel_index",
+  1,
+  1,
+  seq::MAX_CHANNELS,
+  "Captions Active Channel Index",
+  "Active Channel Index for Captions Editing",
+  1,
+  seq::MAX_CHANNELS);
+  RNA_def_property_int_funcs(prop,
+    "rna_SequenceEditor_captions_channel_get",
+    "rna_SequenceEditor_captions_channel_set",
+    NULL
   );
 
   /* functions */
@@ -4113,6 +4088,18 @@ void rna_def_text(StructRNA *srna)
     RNA_def_property_ui_text(prop, "Italic", "Display text as italic");
     RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
     RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_text_update");
+  
+    /* Captions Data */
+    prop = RNA_def_boolean(srna,
+      "captions_use_custom_style",
+      false,
+      "Use Custom Style",
+      "When enabled, use a custom style for the text caption");
+    RNA_def_property_boolean_sdna(prop, nullptr, "captions_use_custom_style", 1);
+    RNA_def_property_ui_icon(prop, ICON_FONT_DATA, false);
+    RNA_def_property_flag(prop, PROP_EDITABLE);
+      RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Caption_use_custom_style_update");
+  
   }
 
 static void rna_def_color_mix(StructRNA *srna)
@@ -4736,7 +4723,7 @@ void RNA_def_sequencer(BlenderRNA *brna)
   rna_def_strip_transform(brna);
 
   rna_def_strip(brna);
-  rna_def_captions(brna);
+  rna_def_captions_style(brna);
   rna_def_editor(brna);
   rna_def_channel(brna);
 

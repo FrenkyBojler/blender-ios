@@ -118,7 +118,7 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     for (Scene &scene : bmain->scenes) {
       Editing *ed = seq::editing_get(&scene);
       if(ed != nullptr) {
-        seq::captions_active_ensure(ed);
+        seq::captions_active_channel_set(ed, nullptr);
       }
     }
   }

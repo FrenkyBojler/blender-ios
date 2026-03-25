@@ -541,29 +541,14 @@ struct MetaStack {
   int disp_range[2] = {};
 };
 
-struct Caption {
-  struct Caption *next, *prev;
-  Strip *strip = nullptr;
-
-  char use_custom_style = 0;
-  char _pad[7];
-};
-
-struct CaptionsChannelData {
-  ListBaseT<Caption> captions = {nullptr, nullptr};
-  struct TextVars *style = nullptr;
-
-  char cache_dirty = 0;
-  char _pad[7];
-};
 
 struct SeqTimelineChannel {
   struct SeqTimelineChannel *next = nullptr, *prev = nullptr;
   char name[64] = "";
   int index = 0;
   int flag = 0; /* eSeqChannelFlag */
-
-  CaptionsChannelData *captions_data;
+  
+  struct TextVars *captions_style = nullptr;
 };
 
 struct StripConnection {
@@ -832,8 +817,12 @@ struct TextVars {
 
   char anchor_x = 0; /* eEffectTextAlignX */
   char anchor_y = 0; /* eEffectTextAlignY */
-  char _pad1 = {};
+  
+  char captions_use_custom_style = false;
   seq::TextVarsRuntime *runtime = nullptr;
+
+  /* Captions Data */
+  /* If captions variable count grow bigger, it's possible move data to a new struct */
 
   /* Fixed size text buffer, only exists for forward/backward compatibility.
    * #TextVars::text_ptr and #TextVars::text_len_bytes are used for full text. */
