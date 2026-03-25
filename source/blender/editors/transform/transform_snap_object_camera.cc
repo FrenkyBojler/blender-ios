@@ -20,10 +20,7 @@
 
 namespace blender::ed::transform {
 
-eSnapMode snapCamera(SnapObjectContext *sctx,
-                     const Object *object,
-                     const float4x4 &obmat,
-                     eSnapMode snap_to_flag)
+eSnapMode snapCamera(SnapObjectContext *sctx, const Object *object, const float4x4 &obmat)
 {
   eSnapMode retval = SCE_SNAP_TO_NONE;
 
