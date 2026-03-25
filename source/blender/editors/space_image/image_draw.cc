@@ -9,6 +9,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
+#include <optional>
 
 #include "DNA_mask_types.h"
 #include "DNA_scene_types.h"
@@ -435,6 +436,46 @@ void draw_image_sample_line(SpaceImage *sima)
   }
 }
 
+std::optional<rctf> render_border_get(const Scene *scene)
+{
+  if (!(scene->r.mode & R_BORDER)) {
+    return std::nullopt;
+  }
+  return scene->r.border;
+}
+
+static void draw_render_border(const ARegion *region, const Scene *scene)
+{
+  const std::optional<rctf> border = render_border_get(scene);
+  if (!border) {
+    return;
+  }
+
+  const uint shdr_pos = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
+
+  GPU_line_width(1.0f);
+
+  immBindBuiltinProgram(GPU_SHADER_3D_LINE_DASHED_UNIFORM_COLOR);
+
+  float viewport_size[4];
+  GPU_viewport_size_get_f(viewport_size);
+  immUniform2f("viewport_size", viewport_size[2] / UI_SCALE_FAC, viewport_size[3] / UI_SCALE_FAC);
+
+  immUniform1i("colors_len", 0); /* "simple" mode */
+  immUniform4f("color", 1.0f, 0.25f, 0.25f, 1.0f);
+  immUniform1f("dash_width", 6.0f);
+  immUniform1f("udash_factor", 0.5f);
+
+  rcti region_rect;
+  ui::view2d_view_to_region_rcti(&region->v2d, &(*border), &region_rect);
+
+  imm_draw_box_wire_2d(
+      shdr_pos, region_rect.xmin, region_rect.ymin, region_rect.xmax, region_rect.ymax);
+
+  immUnbindProgram();
+}
+
 void draw_image_main_helpers(const bContext *C, ARegion *region)
 {
   SpaceImage *sima = CTX_wm_space_image(C);
@@ -446,6 +487,7 @@ void draw_image_main_helpers(const bContext *C, ARegion *region)
     float zoomx, zoomy;
     ED_space_image_get_zoom(sima, region, &zoomx, &zoomy);
     draw_render_info(C, sima->iuser.scene, ima, region, zoomx, zoomy);
+    draw_render_border(region, sima->iuser.scene);
   }
 
   if (sima->mode == SI_MODE_UV) {

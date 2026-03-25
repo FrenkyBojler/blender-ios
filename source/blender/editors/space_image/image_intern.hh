@@ -8,12 +8,17 @@
 
 #pragma once
 
+#include <optional>
+
+#include "BLI_rect.h"
+
 namespace blender {
 
 /* internal exports only */
 struct ARegion;
 struct ARegionType;
 struct ImageUser;
+struct Scene;
 struct SpaceImage;
 struct bContext;
 struct bNodeTree;
@@ -27,6 +32,12 @@ extern const char *image_context_dir[]; /* doc access */
 }
 
 /* `image_draw.cc` */
+
+/**
+ * Returns the active render border for \a scene in image-space (0..1) coordinates,
+ * or `std::nullopt` if no render border is set.
+ */
+std::optional<rctf> render_border_get(const Scene *scene);
 
 void draw_image_main_helpers(const bContext *C, ARegion *region);
 void draw_image_cache(const bContext *C, ARegion *region);
