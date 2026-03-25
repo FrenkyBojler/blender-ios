@@ -85,9 +85,7 @@ enum class eSpace {
 };
 
 /** Template class to store RGBA values with different precision, space, and alpha association. */
-template<typename ChannelStorageType, eSpace Space, eAlpha Alpha>
-class alignas(std::is_same_v<ChannelStorageType, float> ? 16 : alignof(ChannelStorageType))
-    ColorRGBA {
+template<typename ChannelStorageType, eSpace Space, eAlpha Alpha> class ColorRGBA {
  public:
   ChannelStorageType r, g, b, a;
   constexpr ColorRGBA() = default;
