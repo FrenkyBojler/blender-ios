@@ -347,8 +347,9 @@ static void graph_main_region_draw(const bContext *C, ARegion *region)
   ui::view2d_view_restore(C);
 
   if (sipo->local_view_bit) {
-    const float x = 80.0f;
-    const float y = region->winy - UI_TIME_SCRUB_MARGIN_Y - 50.0f;
+    const float offset = 25 * UI_SCALE_FAC;
+    const float x = offset;
+    const float y = region->winy - UI_TIME_SCRUB_MARGIN_Y - offset;
     std::string name = "Local View";
     BLF_draw_default(x, y, 0.0f, name.c_str(), name.length() + 1);
   }
