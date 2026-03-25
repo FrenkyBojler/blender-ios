@@ -52,6 +52,10 @@ const char *imb_ext_image[] = {
     ".tx",
     /* #IMB_FTYPE_AVIF */
     ".avif",
+#ifdef WITH_IMAGE_KTX
+    /* #IMB_FTYPE_KTX */
+    ".ktx2",
+#endif
 #ifdef WITH_IMAGE_OPENJPEG
     /* #IMB_FTYPE_JP2 */
     ".jp2",

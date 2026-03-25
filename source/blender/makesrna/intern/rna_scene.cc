@@ -355,6 +355,17 @@ static const EnumPropertyItem rna_enum_media_type_image_items[] = {
 #define R_IMF_ENUM_AVIF \
   {R_IMF_IMTYPE_AVIF, "AVIF", 0, "AVIF (.avif)", "Output image in AVIF format"},
 
+#ifdef WITH_IMAGE_KTX
+#  define R_IMF_ENUM_KTX2 \
+    {R_IMF_IMTYPE_KTX2, \
+     "KTX2", \
+     0, \
+     "KTX2 (.ktx2)", \
+     "Output image in KTX2 format with Basis Universal compression (ETC1S or UASTC)"},
+#else
+#  define R_IMF_ENUM_KTX2
+#endif
+
 #ifdef WITH_FFMPEG
 #  define R_IMF_ENUM_FFMPEG {R_IMF_IMTYPE_FFMPEG, "FFMPEG", ICON_FILE_MOVIE, "FFmpeg Video", ""},
 #else
@@ -364,6 +375,7 @@ static const EnumPropertyItem rna_enum_media_type_image_items[] = {
 #define IMAGE_TYPE_ITEMS_IMAGE \
   /* DDS save not supported yet R_IMF_ENUM_DDS */ \
   R_IMF_ENUM_AVIF \
+  R_IMF_ENUM_KTX2 \
   R_IMF_ENUM_JPEG \
   R_IMF_ENUM_EXR \
   R_IMF_ENUM_PNG \

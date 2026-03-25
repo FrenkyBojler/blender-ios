@@ -234,6 +234,12 @@ int BKE_imtype_to_ftype(const char imtype, ImbFormatOptions *r_options)
     r_options->quality = 90;
     return IMB_FTYPE_AVIF;
   }
+#ifdef WITH_IMAGE_KTX
+  if (imtype == R_IMF_IMTYPE_KTX2) {
+    r_options->quality = 90;
+    return IMB_FTYPE_KTX;
+  }
+#endif
 
   return IMB_FTYPE_JPG;
 }
@@ -292,6 +298,11 @@ char BKE_ftype_to_imtype(const int ftype, const ImbFormatOptions *options)
   if (ftype == IMB_FTYPE_AVIF) {
     return R_IMF_IMTYPE_AVIF;
   }
+#ifdef WITH_IMAGE_KTX
+  if (ftype == IMB_FTYPE_KTX) {
+    return R_IMF_IMTYPE_KTX2;
+  }
+#endif
 
   return R_IMF_IMTYPE_JPEG90;
 }
@@ -327,6 +338,7 @@ bool BKE_imtype_supports_quality(const char imtype)
     case R_IMF_IMTYPE_JP2:
     case R_IMF_IMTYPE_WEBP:
     case R_IMF_IMTYPE_AVIF:
+    case R_IMF_IMTYPE_KTX2:
       return true;
   }
   return false;
@@ -364,6 +376,7 @@ char BKE_imtype_valid_channels(const char imtype)
     case R_IMF_IMTYPE_DPX:
     case R_IMF_IMTYPE_WEBP:
     case R_IMF_IMTYPE_AVIF:
+    case R_IMF_IMTYPE_KTX2:
       chan_flag |= IMA_CHAN_FLAG_RGBA;
       break;
   }
@@ -516,6 +529,11 @@ char BKE_imtype_from_arg(const char *imtype_arg)
   if (STREQ(imtype_arg, "AVIF")) {
     return R_IMF_IMTYPE_AVIF;
   }
+#ifdef WITH_IMAGE_KTX
+  if (STREQ(imtype_arg, "KTX2")) {
+    return R_IMF_IMTYPE_KTX2;
+  }
+#endif
 
   return R_IMF_IMTYPE_INVALID;
 }
@@ -596,6 +614,11 @@ static int image_path_ext_from_imformat_impl(const char imtype,
   else if (imtype == R_IMF_IMTYPE_AVIF) {
     r_ext[ext_num++] = ".avif";
   }
+#ifdef WITH_IMAGE_KTX
+  else if (imtype == R_IMF_IMTYPE_KTX2) {
+    r_ext[ext_num++] = ".ktx2";
+  }
+#endif
   else {
     /* Handles: #R_IMF_IMTYPE_JPEG90 etc. */
     r_ext[ext_num++] = ".jpg";

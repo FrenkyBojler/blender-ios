@@ -78,6 +78,9 @@ using ColorSpace = ocio::ColorSpace;
 #define AVIF_10BIT (1 << 8)
 #define AVIF_12BIT (1 << 9)
 
+/** Use UASTC compression for KTX2 (default is ETC1S). */
+#define KTX2_UASTC (1 << 0)
+
 struct ImbFormatOptions {
   short flag = 0;
   /** Quality for JPEG, WebP, AVIF. */

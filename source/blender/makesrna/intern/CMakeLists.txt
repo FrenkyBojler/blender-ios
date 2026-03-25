@@ -302,6 +302,10 @@ if(WITH_IMAGE_WEBP)
   add_definitions(-DWITH_IMAGE_WEBP)
 endif()
 
+if(WITH_IMAGE_KTX)
+  add_definitions(-DWITH_IMAGE_KTX)
+endif()
+
 if(WITH_CODEC_FFMPEG)
   add_definitions(-DWITH_FFMPEG)
 endif()

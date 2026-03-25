@@ -32,9 +32,6 @@ static CLG_LogRef LOG = {"image.ktx"};
 
 const char *imb_file_extensions_ktx[] = {".ktx2", nullptr};
 
-/* foptions.flag bits specific to KTX2. */
-#define KTX2_UASTC (1 << 0)
-
 /* VkFormat values used here (from Vulkan spec).
  * Not including vulkan headers to avoid dependency. */
 #define VK_FORMAT_R8G8B8A8_UNORM 37
@@ -79,6 +76,7 @@ bool imb_save_ktx(ImBuf *ibuf, const char *filepath, int /*flags*/)
                                   VK_FORMAT_R8G8B8A8_SRGB;
 
   ktxTextureCreateInfo create_info = {};
+  create_info.glInternalformat = 0; // Ignored as we'll create a KTX2 texture
   create_info.vkFormat = vk_format;
   create_info.baseWidth = uint32_t(ibuf->x);
   create_info.baseHeight = uint32_t(ibuf->y);
