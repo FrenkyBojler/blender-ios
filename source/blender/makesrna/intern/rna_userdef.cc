@@ -6103,7 +6103,7 @@ static void rna_def_userdef_system(BlenderRNA *brna)
                            "Geometry Nodes Stack Limit",
                            "Approximate maximum size of the call stack used by Geometry Nodes. "
                            "For example, this corresponds to the number of allowed nested node "
-                           "groups. Setting this too high, can result in crashes caused by "
+                           "groups. Setting this too high can result in crashes caused by "
                            "running out of stack memory.");
   RNA_def_property_update(prop, 0, "rna_userdef_update");
 
