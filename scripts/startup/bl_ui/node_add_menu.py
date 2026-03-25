@@ -123,7 +123,7 @@ def set_math_node_default_props(enum_identifier, props):
     elif enum_identifier == 'ADD':
         prop_1.value = "0.0"
         prop_2.value = "0.0"
-    elif enum_identifier in ('MULTIPLY_ADD', 'SUBTRACT'):
+    elif enum_identifier == 'SUBTRACT':
         # 1 - x operations are common for subtraction.
         prop_1.value = "1.0"
         prop_2.value = "0.0"
