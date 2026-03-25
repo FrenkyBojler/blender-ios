@@ -188,9 +188,17 @@ class SocketValueInferencerImpl {
         this->value_task__output__boolean_math(socket);
         return;
       }
+      case GEO_NODE_WARNING: {
+        this->value_task__output__warning(socket);
+        return;
+      }
       default: {
         if (node->is_type("NodeEnableOutput")) {
           this->value_task__output__enable_output(socket);
+          return;
+        }
+        if (node->is_type("NodeImplicitConversion")) {
+          this->value_task__output__implicit_conversion_node(socket);
           return;
         }
         if (node->typeinfo->build_multi_function) {
@@ -262,6 +270,17 @@ class SocketValueInferencerImpl {
   }
 
   void value_task__output__reroute_node(const SocketInContext &socket)
+  {
+    const SocketInContext input_socket = socket.owner_node().input_socket(0);
+    const std::optional<InferenceValue> value = all_socket_values_.lookup_try(input_socket);
+    if (!value.has_value()) {
+      this->push_value_task(input_socket);
+      return;
+    }
+    all_socket_values_.add_new(socket, *value);
+  }
+
+  void value_task__output__implicit_conversion_node(const SocketInContext &socket)
   {
     const SocketInContext input_socket = socket.owner_node().input_socket(0);
     const std::optional<InferenceValue> value = all_socket_values_.lookup_try(input_socket);
@@ -490,6 +509,18 @@ class SocketValueInferencerImpl {
         break;
       }
     }
+  }
+
+  void value_task__output__warning(const SocketInContext &socket)
+  {
+    const NodeInContext node = socket.owner_node();
+    const SocketInContext show_input_socket = node.input_socket(0);
+    const std::optional<InferenceValue> value = all_socket_values_.lookup_try(show_input_socket);
+    if (!value.has_value()) {
+      this->push_value_task(show_input_socket);
+      return;
+    }
+    all_socket_values_.add_new(socket, *value);
   }
 
   void value_task__output__enable_output(const SocketInContext &socket)
@@ -843,8 +874,8 @@ class SocketValueInferencerImpl {
           });
     }
     /* Gather all inputs controlled by drivers. */
-    LISTBASE_FOREACH (const FCurve *, driver, &tree.adt->drivers) {
-      handle_rna_path(driver->rna_path);
+    for (const FCurve &driver : tree.adt->drivers) {
+      handle_rna_path(driver.rna_path);
     }
 
     /* Actually find the #bNodeSocket for each controlled input. */

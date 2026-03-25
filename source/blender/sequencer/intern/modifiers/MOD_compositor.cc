@@ -6,16 +6,18 @@
  * \ingroup sequencer
  */
 
-#include "BLI_math_base.h"
-#include "BLI_rect.h"
-
 #include "BLT_translation.hh"
 
-#include "COM_context.hh"
 #include "COM_domain.hh"
-#include "COM_evaluator.hh"
+#include "COM_realize_on_domain_operation.hh"
+#include "COM_result.hh"
 
+#include "DNA_node_types.h"
 #include "DNA_sequence_types.h"
+
+#include "BKE_context.hh"
+#include "BKE_node.hh"
+#include "BKE_node_runtime.hh"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -23,105 +25,121 @@
 
 #include "SEQ_modifier.hh"
 #include "SEQ_modifiertypes.hh"
-#include "SEQ_render.hh"
+#include "SEQ_select.hh"
+#include "SEQ_sequencer.hh"
+#include "SEQ_transform.hh"
 
 #include "UI_interface.hh"
 #include "UI_interface_layout.hh"
 
 #include "RNA_access.hh"
 
+#include "cache/compositor_cache.hh"
+#include "compositor.hh"
 #include "modifier.hh"
 #include "render.hh"
 
 namespace blender::seq {
 
-class CompositorContext : public compositor::Context {
+class CompositorModifierContext : public CompositorContext {
  private:
-  const RenderData &render_data_;
   const SequencerCompositorModifierData *modifier_data_;
 
   ImBuf *image_buffer_;
   ImBuf *mask_buffer_;
+  float3x3 xform_;
 
  public:
-  CompositorContext(const RenderData &render_data,
-                    const SequencerCompositorModifierData *modifier_data,
-                    ImBuf *image_buffer,
-                    ImBuf *mask_buffer)
-      : compositor::Context(),
-        render_data_(render_data),
+  CompositorModifierContext(compositor::StaticCacheManager &cache_manager,
+                            const RenderData &render_data,
+                            const SequencerCompositorModifierData *modifier_data,
+                            ImBuf *image_buffer,
+                            ImBuf *mask_buffer,
+                            const Strip &strip)
+      : CompositorContext(cache_manager, render_data, strip),
         modifier_data_(modifier_data),
         image_buffer_(image_buffer),
-        mask_buffer_(mask_buffer)
+        mask_buffer_(mask_buffer),
+        xform_(float3x3::identity())
   {
-  }
-
-  const Scene &get_scene() const override
-  {
-    return *render_data_.scene;
-  }
-
-  const bNodeTree &get_node_tree() const override
-  {
-    return *DEG_get_evaluated<bNodeTree>(render_data_.depsgraph, modifier_data_->node_group);
-  }
-
-  compositor::OutputTypes needed_outputs() const override
-  {
-    compositor::OutputTypes needed_outputs = compositor::OutputTypes::Composite;
-    if (!render_data_.for_render) {
-      needed_outputs |= compositor::OutputTypes::Viewer;
+    if (mask_buffer) {
+      /* Note: do not use passed transform matrix since compositor coordinate
+       * space is not from the image corner, but rather centered on the image. */
+      xform_ = math::invert(image_transform_matrix_get(render_data.scene, &strip));
     }
-    return needed_outputs;
   }
 
-  bool treat_viewer_as_compositor_output() const override
+  compositor::Domain get_compositing_domain() const override
   {
-    return true;
+    return compositor::Domain(int2(image_buffer_->x, image_buffer_->y));
   }
 
-  Bounds<int2> get_compositing_region() const override
+  void write_viewer(compositor::Result &viewer_result) override
   {
-    return Bounds<int2>(int2(0), int2(image_buffer_->x, image_buffer_->y));
-  }
+    using namespace compositor;
 
-  compositor::Result get_output() override
-  {
-    compositor::Result result = this->create_result(compositor::ResultType::Color);
-    result.wrap_external(image_buffer_->float_buffer.data,
-                         int2(image_buffer_->x, image_buffer_->y));
-    return result;
-  }
+    /* Realize the transforms if needed. */
+    const InputDescriptor input_descriptor = {ResultType::Color,
+                                              InputRealizationMode::OperationDomain};
+    SimpleOperation *realization_operation = RealizeOnDomainOperation::construct_if_needed(
+        *this, viewer_result, input_descriptor, viewer_result.domain());
 
-  compositor::Result get_viewer_output(compositor::Domain /*domain*/,
-                                       bool /*is_data*/,
-                                       compositor::ResultPrecision /*precision*/) override
-  {
-    compositor::Result result = this->create_result(compositor::ResultType::Color);
-    result.wrap_external(image_buffer_->float_buffer.data,
-                         int2(image_buffer_->x, image_buffer_->y));
-    return result;
-  }
+    if (realization_operation) {
+      Result realize_input = this->create_result(ResultType::Color, viewer_result.precision());
+      realize_input.wrap_external(viewer_result);
+      realization_operation->map_input_to_result(&realize_input);
+      realization_operation->evaluate();
 
-  compositor::Result get_input(StringRef name) override
-  {
-    compositor::Result result = this->create_result(compositor::ResultType::Color);
-
-    if (name == "Image") {
-      result.wrap_external(image_buffer_->float_buffer.data,
-                           int2(image_buffer_->x, image_buffer_->y));
-    }
-    else if (name == "Mask" && mask_buffer_) {
-      result.wrap_external(mask_buffer_->float_buffer.data,
-                           int2(mask_buffer_->x, mask_buffer_->y));
+      Result &realized_viewer_result = realization_operation->get_result();
+      this->write_output(realized_viewer_result, *image_buffer_);
+      realized_viewer_result.release();
+      viewer_was_written_ = true;
+      delete realization_operation;
+      return;
     }
 
-    return result;
+    this->write_output(viewer_result, *image_buffer_);
+    viewer_was_written_ = true;
   }
 
-  bool use_gpu() const override
+  void evaluate()
   {
-    return false;
+    using namespace compositor;
+    const bNodeTree &node_group = *DEG_get_evaluated<bNodeTree>(render_data_.depsgraph,
+                                                                modifier_data_->node_group);
+    NodeGroupOperation node_group_operation(*this,
+                                            node_group,
+                                            this->needed_outputs(),
+                                            nullptr,
+                                            node_group.active_viewer_key,
+                                            bke::NODE_INSTANCE_KEY_BASE);
+    set_output_refcount(node_group, node_group_operation);
+
+    /* Map the inputs to the operation. */
+    Vector<std::unique_ptr<Result>> inputs;
+    for (const bNodeTreeInterfaceSocket *input_socket : node_group.interface_inputs()) {
+      Result *input_result = new Result(
+          this->create_result(ResultType::Color, ResultPrecision::Full));
+      if (input_socket == node_group.interface_inputs()[0]) {
+        /* First socket is the image input. */
+        create_result_from_input(*input_result, *image_buffer_);
+      }
+      else if (mask_buffer_ && input_socket == node_group.interface_inputs()[1]) {
+        /* Second socket is the mask input. */
+        create_result_from_input(*input_result, *mask_buffer_);
+        input_result->set_transformation(xform_);
+      }
+      else {
+        /* The rest of the sockets are not supported. */
+        input_result->allocate_invalid();
+      }
+
+      node_group_operation.map_input_to_result(input_socket->identifier, input_result);
+      inputs.append(std::unique_ptr<Result>(input_result));
+    }
+
+    node_group_operation.evaluate();
+    this->write_outputs(node_group, node_group_operation, *this->image_buffer_);
   }
 };
 
@@ -130,12 +148,6 @@ static void compositor_modifier_init_data(StripModifierData *strip_modifier_data
   SequencerCompositorModifierData *modifier_data =
       reinterpret_cast<SequencerCompositorModifierData *>(strip_modifier_data);
   modifier_data->node_group = nullptr;
-}
-
-static bool is_linear_float_buffer(ImBuf *image_buffer)
-{
-  return image_buffer->float_buffer.data &&
-         IMB_colormanagement_space_is_scene_linear(image_buffer->float_buffer.colorspace);
 }
 
 static bool ensure_linear_float_buffer(ImBuf *ibuf)
@@ -168,10 +180,8 @@ static bool ensure_linear_float_buffer(ImBuf *ibuf)
   return false;
 }
 
-static void compositor_modifier_apply(const RenderData *render_data,
-                                      const StripScreenQuad & /*quad*/,
+static void compositor_modifier_apply(ModifierApplyContext &context,
                                       StripModifierData *strip_modifier_data,
-                                      ImBuf *image_buffer,
                                       ImBuf *mask)
 {
   const SequencerCompositorModifierData *modifier_data =
@@ -186,12 +196,31 @@ static void compositor_modifier_apply(const RenderData *render_data,
     ensure_linear_float_buffer(linear_mask);
   }
 
-  const bool was_float_linear = ensure_linear_float_buffer(image_buffer);
-  const bool was_byte = image_buffer->float_buffer.data == nullptr;
+  const bool was_float_linear = ensure_linear_float_buffer(context.image);
+  const bool was_byte = context.image->float_buffer.data == nullptr;
 
-  CompositorContext context(*render_data, modifier_data, image_buffer, linear_mask);
-  compositor::Evaluator evaluator(context);
-  evaluator.evaluate();
+  CompositorCache &com_cache = context.render_data.scene->ed->runtime->ensure_compositor_cache();
+  CompositorModifierContext com_mod_context(com_cache.get_cache_manager(),
+                                            context.render_data,
+                                            modifier_data,
+                                            context.image,
+                                            linear_mask,
+                                            context.strip);
+
+  const bool use_gpu = com_mod_context.use_gpu();
+  if (use_gpu) {
+    render_begin_gpu(context.render_data);
+  }
+
+  com_cache.recreate_if_needed(
+      com_mod_context.use_gpu(), com_mod_context.get_precision(), context.render_data.gpu_context);
+  com_mod_context.evaluate();
+  com_mod_context.cache_manager().reset();
+  if (use_gpu) {
+    render_end_gpu(context.render_data);
+  }
+
+  context.result_translation += com_mod_context.get_result_translation();
 
   if (mask != linear_mask) {
     IMB_freeImBuf(linear_mask);
@@ -202,33 +231,57 @@ static void compositor_modifier_apply(const RenderData *render_data,
   }
 
   if (was_byte) {
-    IMB_byte_from_float(image_buffer);
-    IMB_free_float_pixels(image_buffer);
+    IMB_byte_from_float(context.image);
+    IMB_free_float_pixels(context.image);
   }
   else {
-    seq_imbuf_to_sequencer_space(render_data->scene, image_buffer, true);
+    seq_imbuf_to_sequencer_space(context.render_data.scene, context.image, true);
   }
 }
 
 static void compositor_modifier_panel_draw(const bContext *C, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
-  PointerRNA *ptr = UI_panel_custom_data_get(panel);
+  ui::Layout &layout = *panel->layout;
+  PointerRNA *ptr = ui::panel_custom_data_get(panel);
 
-  layout->use_property_split_set(true);
+  layout.use_property_split_set(true);
 
-  uiTemplateID(layout,
-               C,
-               ptr,
-               "node_group",
-               "NODE_OT_new_compositor_sequencer_node_group",
-               nullptr,
-               nullptr);
+  Scene *scene = CTX_data_sequencer_scene(C);
+  Strip *strip = seq::select_active_get(scene);
+  bool has_existing_group = false;
+  if (strip != nullptr) {
+    StripModifierData *smd = seq::modifier_get_active(strip);
 
-  if (uiLayout *mask_input_layout = layout->panel_prop(
+    if (smd && smd->type == eSeqModifierType_Compositor) {
+      SequencerCompositorModifierData *nmd = reinterpret_cast<SequencerCompositorModifierData *>(
+          smd);
+      if (nmd->node_group != nullptr) {
+        template_id(&layout,
+                    C,
+                    ptr,
+                    "node_group",
+                    "NODE_OT_duplicate_compositing_modifier_node_group",
+                    nullptr,
+                    nullptr);
+        has_existing_group = true;
+      }
+    }
+  }
+
+  if (!has_existing_group) {
+    template_id(&layout,
+                C,
+                ptr,
+                "node_group",
+                "NODE_OT_new_compositor_sequencer_node_group",
+                nullptr,
+                nullptr);
+  }
+
+  if (ui::Layout *mask_input_layout = layout.panel_prop(
           C, ptr, "open_mask_input_panel", IFACE_("Mask Input")))
   {
-    draw_mask_input_type_settings(C, mask_input_layout, ptr);
+    draw_mask_input_type_settings(C, *mask_input_layout, ptr);
   }
 }
 

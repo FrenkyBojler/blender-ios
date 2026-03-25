@@ -22,6 +22,7 @@
 
 #pragma once
 
+#include "BLI_enum_flags.hh"
 #include "BLI_map.hh"
 #include "BLI_mutex.hh"
 #include "BLI_vector.hh"
@@ -66,7 +67,7 @@ struct ResourceWithStamp {
  * Enum containing the different resource types that are being tracked.
  */
 enum class VKResourceType { NONE = (0 << 0), IMAGE = (1 << 0), BUFFER = (1 << 1) };
-ENUM_OPERATORS(VKResourceType, VKResourceType::BUFFER);
+ENUM_OPERATORS(VKResourceType);
 
 /**
  * State being tracked for a resource.
@@ -135,7 +136,7 @@ class VKResourceStateTracker {
     VKResourceBarrierState barrier_state = {};
 
 #ifndef NDEBUG
-    const char *name = nullptr;
+    std::string name;
 #endif
 
     /**
@@ -157,7 +158,7 @@ class VKResourceStateTracker {
     }
   };
 
-  Map<ResourceHandle, Resource> resources_;
+  Vector<Resource> resources_;
   Vector<ResourceHandle> unused_handles_;
   Map<VkImage, ResourceHandle> image_resources_;
   Map<VkBuffer, ResourceHandle> buffer_resources_;
@@ -188,6 +189,29 @@ class VKResourceStateTracker {
    * the resource state can be tracked during its lifetime.
    */
   void add_image(VkImage vk_image, bool use_subresource_tracking, const char *name = nullptr);
+
+  /**
+   * \brief Register an image resource that can have aliased memory.
+   *
+   * The aliased memory can still be in use and requires the image to wait for all commands to be
+   * completed, before it can start writing to the aliased memory.
+   */
+  void add_aliased_image(VkImage vk_image,
+                         bool use_subresource_tracking,
+                         const char *name = nullptr);
+  void add_swapchain_image(VkImage vk_image, const char *name = nullptr);
+
+  /**
+   * \brief Update the layout of an image that has been externally modified.
+   *
+   * 'vkTransitionImageLayout' changes the image layout. When used the image layout needs to be
+   * updated to match the current layout, ensuring correct generation of pipeline barriers.
+   *
+   * \name vk_image:        VkImage handle to update the image layout for.
+   * \name vk_image_layout: The layout the resource state tracker should now be using, matching the
+   *                        current layout of the image.
+   */
+  void update_image_layout(VkImage vk_image, VkImageLayout vk_image_layout);
 
   /**
    * Remove an registered image.
@@ -249,17 +273,16 @@ class VKResourceStateTracker {
    */
   ResourceWithStamp get_image(VkImage vk_image) const;
 
-  /** Get the resource type for the given handle. */
-  VKResourceType resource_type_get(ResourceHandle resource_handle) const
-  {
-    return resources_.lookup(resource_handle).type;
-  }
-
   bool use_dynamic_rendering_local_read = true;
 
   void debug_print() const;
 
  private:
+  void add_image(VkImage vk_image,
+                 bool use_subresource_tracking,
+                 VKResourceBarrierState barrier_state,
+                 const char *name = nullptr);
+
   /**
    * Get the current stamp of the resource.
    */
@@ -271,6 +294,37 @@ class VKResourceStateTracker {
   static ResourceWithStamp get_and_increase_stamp(ResourceHandle handle, Resource &resource);
 
   ResourceHandle create_resource_slot();
+
+  /**
+   * Get the ref to an image resource state.
+   *
+   * NOTE: Can only be called when the mutex has been locked in the same thread.
+   */
+  inline Resource &get_image_resource(ResourceHandle resource_handle)
+  {
+    BLI_assert(resources_[resource_handle].type == VKResourceType::IMAGE);
+    return resources_[resource_handle];
+  }
+  inline const Resource &get_image_resource(ResourceHandle resource_handle) const
+  {
+    BLI_assert(resources_[resource_handle].type == VKResourceType::IMAGE);
+    return resources_[resource_handle];
+  }
+  /**
+   * Get the ref to an image resource state.
+   *
+   * NOTE: Can only be called when the mutex has been locked in the same thread.
+   */
+  inline Resource &get_buffer_resource(ResourceHandle resource_handle)
+  {
+    BLI_assert(resources_[resource_handle].type == VKResourceType::BUFFER);
+    return resources_[resource_handle];
+  }
+  inline const Resource &get_buffer_resource(ResourceHandle resource_handle) const
+  {
+    BLI_assert(resources_[resource_handle].type == VKResourceType::BUFFER);
+    return resources_[resource_handle];
+  }
 
 #ifdef VK_RESOURCE_STATE_TRACKER_VALIDATION
   void validate() const;

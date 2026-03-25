@@ -74,6 +74,7 @@ set(SRC_GLSL_VERT
   overlay_extra_vert.glsl
   overlay_extra_wire_vert.glsl
   overlay_facing_vert.glsl
+  overlay_fullscreen_vert.glsl
   overlay_grid_vert.glsl
   overlay_image_vert.glsl
   overlay_motion_path_line_vert.glsl
@@ -104,7 +105,7 @@ set(SRC_GLSL_VERT
 )
 
 set(SRC_GLSL_FRAG
-  overlay_antialiasing_frag.glsl
+  overlay_antialiasing.bsl.hh
   overlay_armature_dof_solid_frag.glsl
   overlay_armature_envelope_solid_frag.glsl
   overlay_armature_shape_solid_frag.glsl
@@ -124,7 +125,6 @@ set(SRC_GLSL_FRAG
   overlay_extra_loose_point_frag.glsl
   overlay_extra_wire_frag.glsl
   overlay_facing_frag.glsl
-  overlay_grid_background_frag.glsl
   overlay_grid_frag.glsl
   overlay_image_frag.glsl
   overlay_motion_path_line_frag.glsl
@@ -144,7 +144,7 @@ set(SRC_GLSL_FRAG
   overlay_varying_color.glsl
   overlay_viewer_attribute_frag.glsl
   overlay_wireframe_frag.glsl
-  overlay_xray_fade_frag.glsl
+  overlay_xray_fade.bsl.hh
 )
 
 
@@ -154,12 +154,12 @@ set(SRC_GLSL_COMP
 set(SRC_GLSL_LIB
   overlay_common_lib.glsl
   overlay_edit_mesh_common_lib.glsl
+  overlay_grid_common_lib.glsl
   # overlay_edit_mesh_lib.glsl # TODO(fclem) Contains reference from the shader interface.
 )
 
 # Compile shaders with shader code.
 if(WITH_GPU_SHADER_CPP_COMPILATION)
-  with_shader_cpp_compilation_config()
   # TODO Remove
   add_definitions(-DUSE_GPU_SHADER_CREATE_INFO)
 

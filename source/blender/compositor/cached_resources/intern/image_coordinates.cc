@@ -42,7 +42,8 @@ bool operator==(const ImageCoordinatesKey &a, const ImageCoordinatesKey &b)
  */
 
 ImageCoordinates::ImageCoordinates(Context &context, const int2 &size, const CoordinatesType type)
-    : result(context.create_result(ResultType::Float2))
+    : result(context.create_result(type == CoordinatesType::Pixel ? ResultType::Int2 :
+                                                                    ResultType::Float2))
 {
   this->result.allocate_texture(Domain(size), false);
 
@@ -81,7 +82,7 @@ void ImageCoordinates::compute_gpu(Context &context, const CoordinatesType type)
 
   this->result.bind_as_image(shader, "output_img");
 
-  compute_dispatch_threads_at_least(shader, this->result.domain().size);
+  compute_dispatch_threads_at_least(shader, this->result.domain().data_size);
 
   this->result.unbind_as_image();
   GPU_shader_unbind();
@@ -91,7 +92,7 @@ void ImageCoordinates::compute_cpu(const CoordinatesType type)
 {
   switch (type) {
     case CoordinatesType::Uniform: {
-      const int2 size = this->result.domain().size;
+      const int2 size = this->result.domain().data_size;
       const int max_size = math::max(size.x, size.y);
       parallel_for(size, [&](const int2 texel) {
         float2 centered_coordinates = (float2(texel) + 0.5f) - float2(size) / 2.0f;
@@ -101,7 +102,7 @@ void ImageCoordinates::compute_cpu(const CoordinatesType type)
       break;
     }
     case CoordinatesType::Normalized: {
-      const int2 size = this->result.domain().size;
+      const int2 size = this->result.domain().data_size;
       parallel_for(size, [&](const int2 texel) {
         float2 normalized_coordinates = (float2(texel) + 0.5f) / float2(size);
         this->result.store_pixel(texel, normalized_coordinates);
@@ -109,8 +110,8 @@ void ImageCoordinates::compute_cpu(const CoordinatesType type)
       break;
     }
     case CoordinatesType::Pixel: {
-      parallel_for(this->result.domain().size,
-                   [&](const int2 texel) { this->result.store_pixel(texel, float2(texel)); });
+      parallel_for(this->result.domain().data_size,
+                   [&](const int2 texel) { this->result.store_pixel(texel, texel); });
       break;
     }
   }
