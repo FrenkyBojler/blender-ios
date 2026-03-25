@@ -1505,10 +1505,10 @@ set(CERES_HOMEPAGE http://ceres-solver.org/)
 set(CERES_LICENSE SPDX:BSD-3-Clause)
 set(CERES_COPYRIGHT "Copyright 2023 Google Inc. All rights reserved.")
 
-set(TRACY_VERSION v0.12.0)
+set(TRACY_VERSION v0.13.1)
 set(TRACY_URI https://github.com/wolfpld/tracy/archive/${TRACY_VERSION}.tar.gz)
-set(TRACY_HASH 9f5442594a629c3f8ceec215338f28d9)
-set(TRACY_GIT_REF 87924acd)
+set(TRACY_HASH ae70dcc8e5b0d84a8dfe0b5acd4e2f2e)
+set(TRACY_GIT_REF 87924acd) # Used by tracy_profiler during build, see: patches/tracy_profiler_git_ref.diff
 set(TRACY_HASH_TYPE MD5)
 set(TRACY_FILE tracy-${TRACY_VERSION}.tar.gz)
 set(TRACY_HOMEPAGE https://github.com/wolfpld/tracy)
