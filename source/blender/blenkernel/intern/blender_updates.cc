@@ -4,7 +4,10 @@
 
 #include "BKE_blender_updates.hh"
 #include "BKE_blender_version.h"
+#include "BKE_global.hh"
 #include "BKE_idprop.hh"
+
+#include "DNA_userdef_types.h"
 
 #include <chrono>
 
@@ -85,30 +88,31 @@ std::optional<BlenderVersion> blender_version_from_version_str(StringRefNull str
 
 static void register_blender_update(VersionUpdate update)
 {
-  std::optional<BlenderVersion> version = blender_version_from_version_str(update.version);
-  if (!version) {
+  std::optional<BlenderVersion> version_opt = blender_version_from_version_str(update.version);
+  if (!version_opt) {
     return;
   }
+  BlenderVersion version = *version_opt;
   IgnoredBlenderVersions &ignored_updates = ignored_versions_updates();
   BlenderUpdates &updates = available_blender_updates();
   auto version_from_optional_version_update = [](std::optional<VersionUpdate> version_update) {
     return version_update ? blender_version_from_version_str(version_update->version) :
                             std::nullopt;
   };
-  if (version->version == BLENDER_VERSION) {
+  if (version.version == BLENDER_VERSION) {
     std::optional<BlenderVersion> current_version = version_from_optional_version_update(
         updates.current_release);
-    if (ignored_updates.current_release.patch < version->patch &&
+    if (ignored_updates.current_release.patch < version.patch &&
         (!current_version || *current_version < version))
     {
       updates.current_release = update;
     }
     return;
   }
-  if (update.is_lts && ignored_updates.latest_lts < *version) {
+  if (update.is_lts && ignored_updates.latest_lts < version) {
     std::optional<BlenderVersion> latest_lts_version = version_from_optional_version_update(
         updates.latest_lts);
-    if ((!latest_lts_version || *latest_lts_version < version)) {
+    if (!latest_lts_version || *latest_lts_version < version) {
       updates.latest_lts = update;
     }
     return;
@@ -116,8 +120,8 @@ static void register_blender_update(VersionUpdate update)
   if (ignored_updates.latest < version) {
     std::optional<BlenderVersion> latest_version = version_from_optional_version_update(
         updates.latest);
-    if ((!latest_version || *latest_version < version)) {
-      updates.latest_lts = update;
+    if (!latest_version || *latest_version < version) {
+      updates.latest = update;
     }
   }
 }
@@ -200,31 +204,42 @@ with open('/home/guishe/Documents/updates-info.json', 'r') as file:
 
 bool check_for_available_updates(bContext &C, bool use_cache)
 {
+  if (!(G.f & G_FLAG_INTERNET_ALLOW &&
+        (U.flag & (USER_BLENDER_UPDATE_LATEST_RELEASE | USER_BLENDER_UPDATE_LATEST_LTS_RELEASE |
+                   USER_BLENDER_UPDATE_CURRENT_RELEASE))))
+  {
+    return false;
+  }
+
   static std::chrono::utc_clock::time_point last_time_check;
-  if (use_cache && std::chrono::duration_cast<std::chrono::days>(
-                       (std::chrono::utc_clock::now() - last_time_check))
-                           .count() > 1)
+  if (!use_cache || std::chrono::duration_cast<std::chrono::days>(
+                        (std::chrono::utc_clock::now() - last_time_check))
+                            .count() > 1)
   {
     download_updates_info(C);
     last_time_check = std::chrono::utc_clock::now();
   }
-  BlenderUpdates &updates = available_blender_updates();
-  return updates.current_release || updates.latest || updates.latest_lts;
+  return !available_updates().is_empty();
 }
 
 Vector<const VersionUpdate *> available_updates()
 {
   BlenderUpdates &updates = available_blender_updates();
   Vector<const VersionUpdate *> tmp;
-  if (updates.latest) {
+  if (U.flag & USER_BLENDER_UPDATE_LATEST_RELEASE && updates.latest) {
     tmp.append(&(*updates.latest));
   }
-  if (updates.latest_lts) {
+  if (U.flag & USER_BLENDER_UPDATE_LATEST_LTS_RELEASE && updates.latest_lts) {
     tmp.append(&(*updates.latest_lts));
   }
-  if (updates.current_release) {
+  if (U.flag & USER_BLENDER_UPDATE_CURRENT_RELEASE && updates.current_release) {
     tmp.append(&(*updates.current_release));
   }
+  std::ranges::sort(tmp, [](const VersionUpdate *a, const VersionUpdate *b) {
+    return (blender_version_from_version_str(a->version)) <
+           blender_version_from_version_str(b->version);
+  });
+  std::ranges::reverse(tmp);
   return tmp;
 }
 
@@ -240,15 +255,11 @@ void ignore_update_version(const VersionUpdate &version_info)
     ignored_updates.current_release = {version->version, version->patch};
   }
 
-  if (version_info.is_lts && ignored_updates.latest_lts.version < version->version &&
-      ignored_updates.latest_lts.patch < version->patch)
-  {
+  if (version_info.is_lts && ignored_updates.latest_lts < version) {
     ignored_updates.latest_lts = {version->version, version->patch};
   }
 
-  if (!version_info.is_lts && ignored_updates.latest.version < version->version &&
-      ignored_updates.latest.patch < version->patch)
-  {
+  if (!version_info.is_lts && ignored_updates.latest < version) {
     ignored_updates.latest = {version->version, version->patch};
   }
 }

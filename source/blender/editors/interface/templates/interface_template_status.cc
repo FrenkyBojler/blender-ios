@@ -556,7 +556,7 @@ void uiTemplateStatusInfo(Layout *layout, bContext *C)
         std::string update_text;
         if (updates.size() == 1) {
           update_text = fmt::format(fmt::runtime(IFACE_("Update to {}")),
-                                    updates[0]->version + (updates[0]->is_lts ? "LTS" : ""));
+                                    updates[0]->version + (updates[0]->is_lts ? " LTS" : ""));
         }
         else {
           update_text = IFACE_("Updates Available");

@@ -121,6 +121,8 @@ void wm_autosave_delete();
 void WM_OT_splash(wmOperatorType *ot);
 void WM_OT_splash_about(wmOperatorType *ot);
 
+void WM_OT_check_for_updates(wmOperatorType *ot);
+
 /* `wm_stereo.cc` */
 
 void wm_stereo3d_draw_sidebyside(wmWindow *win, int view);

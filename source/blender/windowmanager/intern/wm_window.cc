@@ -47,6 +47,7 @@
 
 #include "BLT_translation.hh"
 
+#include "BKE_blender_updates.hh"
 #include "BKE_blender_version.h"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
@@ -3517,5 +3518,28 @@ void WM_ghost_show_message_box(const char *title,
 }
 
 /** \} */
+
+static bool check_for_updates_poll(blender::bContext * /*C*/)
+{
+  return G.f & G_FLAG_INTERNET_ALLOW &&
+         (U.flag & (USER_BLENDER_UPDATE_LATEST_RELEASE | USER_BLENDER_UPDATE_LATEST_LTS_RELEASE |
+                    USER_BLENDER_UPDATE_CURRENT_RELEASE));
+}
+
+static wmOperatorStatus check_for_updates_exec(bContext *C, wmOperator * /*op*/)
+{
+  bke::check_for_available_updates(*C, false);
+  return OPERATOR_FINISHED;
+}
+
+void WM_OT_check_for_updates(wmOperatorType *ot)
+{
+  ot->name = "Check for Updates";
+  ot->idname = "WM_OT_check_for_updates";
+  ot->description = "Check for available Blender updates";
+
+  ot->exec = check_for_updates_exec;
+  ot->poll = check_for_updates_poll;
+}
 
 }  // namespace blender

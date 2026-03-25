@@ -9,5 +9,6 @@ namespace blender {
 struct ARegionType;
 
 void panel_blender_updates_register(ARegionType *region_type);
+void operator_check_for_updates(wmOperatorType *ot);
 
 }  // namespace blender
