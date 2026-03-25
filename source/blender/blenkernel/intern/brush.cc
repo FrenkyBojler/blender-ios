@@ -53,7 +53,7 @@
 
 namespace blender {
 
-static void brush_init_data(ID *id)
+static void brush_init_data(Main * /*bmain*/, ID *id)
 {
   Brush *brush = reinterpret_cast<Brush *>(id);
   INIT_DEFAULT_STRUCT_AFTER(brush, id);

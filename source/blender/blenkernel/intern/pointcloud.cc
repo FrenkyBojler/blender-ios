@@ -49,7 +49,7 @@ namespace blender {
 
 constexpr StringRef ATTR_POSITION = "position";
 
-static void pointcloud_init_data(ID *id)
+static void pointcloud_init_data(Main * /*bmain*/, ID *id)
 {
   PointCloud *pointcloud = id_cast<PointCloud *>(id);
   INIT_DEFAULT_STRUCT_AFTER(pointcloud, id);
@@ -223,7 +223,7 @@ PointCloud *BKE_pointcloud_new_nomain(const int totpoint)
   PointCloud *pointcloud = static_cast<PointCloud *>(BKE_libblock_alloc(
       nullptr, ID_PT, BKE_idtype_idcode_to_name(ID_PT), LIB_ID_CREATE_LOCALIZE));
 
-  BKE_libblock_init_empty(&pointcloud->id);
+  BKE_libblock_init_empty(nullptr, &pointcloud->id);
 
   pointcloud->totpoint = totpoint;
 

@@ -26,7 +26,7 @@
 
 namespace blender {
 
-static void lightprobe_init_data(ID *id)
+static void lightprobe_init_data(Main * /*bmain*/, ID *id)
 {
   LightProbe *probe = id_cast<LightProbe *>(id);
   INIT_DEFAULT_STRUCT_AFTER(probe, id);

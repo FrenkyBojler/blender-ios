@@ -51,7 +51,7 @@ namespace blender {
 
 static void cachefile_handle_free(CacheFile *cache_file);
 
-static void cache_file_init_data(ID *id)
+static void cache_file_init_data(Main * /*bmain*/, ID *id)
 {
   CacheFile *cache_file = id_cast<CacheFile *>(id);
 

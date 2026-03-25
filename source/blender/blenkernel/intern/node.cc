@@ -141,7 +141,7 @@ static void node_socket_copy(bNodeSocket *sock_dst, const bNodeSocket *sock_src,
 static void free_localized_node_groups(bNodeTree *ntree);
 static bool socket_id_user_decrement(bNodeSocket *sock);
 
-static void ntree_init_data(ID *id)
+static void ntree_init_data(Main * /*bmain*/, ID *id)
 {
   bNodeTree *ntree = reinterpret_cast<bNodeTree *>(id);
   ntree->tree_interface.init_data();
@@ -4508,7 +4508,7 @@ static bNodeTree *node_tree_add_tree_do(Main *bmain,
                  "Embedded NTrees should never have a defined owner library here");
   bNodeTree *ntree = reinterpret_cast<bNodeTree *>(
       BKE_libblock_alloc_in_lib(bmain, owner_library, ID_NT, std::string(name).c_str(), flag));
-  BKE_libblock_init_empty(&ntree->id);
+  BKE_libblock_init_empty(bmain, &ntree->id);
   if (is_embedded) {
     BLI_assert(owner_id != nullptr);
     ntree->id.flag |= ID_FLAG_EMBEDDED_DATA;

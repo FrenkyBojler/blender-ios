@@ -45,7 +45,7 @@
 
 namespace blender {
 
-static void lattice_init_data(ID *id)
+static void lattice_init_data(Main * /*bmain*/, ID *id)
 {
   Lattice *lattice = id_cast<Lattice *>(id);
 

@@ -43,7 +43,7 @@
 
 namespace blender {
 
-static void light_init_data(ID *id)
+static void light_init_data(Main * /*bmain*/, ID *id)
 {
   Light *la = id_cast<Light *>(id);
   INIT_DEFAULT_STRUCT_AFTER(la, id);

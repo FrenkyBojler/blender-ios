@@ -85,7 +85,7 @@ static void movie_clip_runtime_reset(MovieClip *clip)
   clip->runtime.last_update = 0;
 }
 
-static void movie_clip_init_data(ID *id)
+static void movie_clip_init_data(Main * /*bmain*/, ID *id)
 {
   MovieClip *movie_clip = id_cast<MovieClip *>(id);
   INIT_DEFAULT_STRUCT_AFTER(movie_clip, id);

@@ -126,7 +126,7 @@ void BKE_volumes_init()
 
 /* Volume datablock */
 
-static void volume_init_data(ID *id)
+static void volume_init_data(Main * /*bmain*/, ID *id)
 {
   Volume *volume = id_cast<Volume *>(id);
 

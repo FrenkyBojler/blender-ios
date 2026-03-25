@@ -44,7 +44,7 @@ namespace blender {
 
 /* -------------------------------------------------------------------- */
 
-static void workspace_init_data(ID *id)
+static void workspace_init_data(Main * /*bmain*/, ID *id)
 {
   WorkSpace *workspace = id_cast<WorkSpace *>(id);
 

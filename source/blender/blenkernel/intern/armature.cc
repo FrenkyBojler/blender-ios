@@ -83,7 +83,7 @@ static void copy_bonechildren_custom_handles(Bone *bone_dst, bArmature *arm_dst)
 /** \name Armature Data-block
  * \{ */
 
-static void armature_init_data(ID *id)
+static void armature_init_data(Main * /*bmain*/, ID *id)
 {
   bArmature *armature = id_cast<bArmature *>(id);
   INIT_DEFAULT_STRUCT_AFTER(armature, id);

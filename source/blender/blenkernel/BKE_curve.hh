@@ -99,7 +99,7 @@ enum eNurbHandleTest_Mode {
  * Frees edit-curve entirely.
  */
 void BKE_curve_editfont_free(Curve *cu);
-void BKE_curve_init(Curve *cu, short curve_type);
+void BKE_curve_init(Main *bmain, Curve *cu, short curve_type);
 Curve *BKE_curve_add(Main *bmain, const char *name, int type);
 void BKE_curve_type_test(Object *ob, bool dimension_update);
 void BKE_curve_dimension_update(Curve *cu);
