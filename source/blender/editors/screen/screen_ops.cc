@@ -4831,10 +4831,10 @@ static void screen_area_touch_menu_create(bContext *C, ScrArea *area)
                              BLI_listbase_count_at_most(&area->spacedata, 2) > 1);
 
   if (multi_spaces) {
-    ptr = layout.op("SCREEN_OT_area_space_cycle", IFACE_("Back"), ICON_PLAY_REVERSE);
+    ptr = layout.op("SCREEN_OT_area_space_cycle", IFACE_("Previous"), ICON_PLAY_REVERSE);
     RNA_enum_set(&ptr, "direction", 0);
 
-    ptr = layout.op("SCREEN_OT_area_space_cycle", IFACE_("Forward"), ICON_PLAY);
+    ptr = layout.op("SCREEN_OT_area_space_cycle", IFACE_("Next"), ICON_PLAY);
     RNA_enum_set(&ptr, "direction", 1);
 
     layout.separator();
@@ -5761,10 +5761,10 @@ static void screen_area_menu_items(ScrArea *area, ui::Layout &layout)
                              BLI_listbase_count_at_most(&area->spacedata, 2) > 1);
 
   if (multi_spaces) {
-    ptr = layout.op("SCREEN_OT_area_space_cycle", IFACE_("Back"), ICON_PLAY_REVERSE);
+    ptr = layout.op("SCREEN_OT_area_space_cycle", IFACE_("Previous"), ICON_PLAY_REVERSE);
     RNA_enum_set(&ptr, "direction", 0);
 
-    ptr = layout.op("SCREEN_OT_area_space_cycle", IFACE_("Forward"), ICON_PLAY);
+    ptr = layout.op("SCREEN_OT_area_space_cycle", IFACE_("Next"), ICON_PLAY);
     RNA_enum_set(&ptr, "direction", 1);
 
     layout.separator();
@@ -7188,8 +7188,8 @@ static void SCREEN_OT_space_type_set_or_cycle(wmOperatorType *ot)
  * \{ */
 
 static const EnumPropertyItem area_space_cycle_direction[] = {
-    {0, "BACK", 0, "Back", ""},
-    {1, "FORWARD", 0, "Forward", ""},
+    {0, "PREVIOUS", 0, "Previous", ""},
+    {1, "NEXT", 0, "Next", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -7252,12 +7252,22 @@ static wmOperatorStatus area_space_cycle_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
+static std::string area_space_cycle_get_name(wmOperatorType * /*ot*/, PointerRNA *ptr)
+{
+  const eScreenCycle direction = eScreenCycle(RNA_enum_get(ptr, "direction"));
+  if (direction == 0) {
+    return IFACE_("Previous Editor");
+  }
+  return IFACE_("Next Editor");
+}
+
 static void SCREEN_OT_area_space_cycle(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Cycle Area Editors";
   ot->description = "Cycle through an area's editors";
   ot->idname = "SCREEN_OT_area_space_cycle";
+  ot->get_name = area_space_cycle_get_name;
   /* api callbacks */
   ot->exec = area_space_cycle_exec;
   ot->poll = area_space_cycle_poll;
