@@ -157,7 +157,9 @@ void Attribute::set_data_from(Attribute &&other)
   else if (this->sharing_info != other.sharing_info) {
     take_data();
   }
-  else if (memcmp(this->buffer, other.buffer, this->data_sizeof() * this->size) != 0) {
+  else if (this->size > 0 &&
+           memcmp(this->buffer, other.buffer, this->data_sizeof() * this->size) != 0)
+  {
     take_data();
   }
 }
