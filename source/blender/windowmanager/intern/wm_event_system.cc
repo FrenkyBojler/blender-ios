@@ -345,6 +345,11 @@ bool wmNotifierEqForQueue::operator()(const wmNotifier *a, const wmNotifier *b) 
 }
 }  // namespace bke
 
+void WM_event_handling_break(const bContext &C)
+{
+  CTX_wm_manager(&C)->runtime->break_events_handling = true;
+}
+
 static void wm_event_add_notifier_intern(wmWindowManager *wm,
                                          const wmWindow *win,
                                          uint type,
@@ -4435,6 +4440,10 @@ void wm_event_do_handlers(bContext *C)
       /* Un-link and free here, Blender-quit then frees all. */
       BLI_remlink(&win.runtime->event_queue, event);
       wm_event_free_last_handled(&win, event);
+
+      if (wm->runtime->break_events_handling) {
+        break;
+      }
     }
 
     /* Only add mouse-move when the event queue was read entirely. */
@@ -4451,7 +4460,13 @@ void wm_event_do_handlers(bContext *C)
     }
 
     CTX_wm_window_set(C, nullptr);
+
+    if (wm->runtime->break_events_handling) {
+      break;
+    }
   }
+
+  wm->runtime->break_events_handling = false;
 
   /* Update key configuration after handling events. */
   WM_keyconfig_update(wm);
