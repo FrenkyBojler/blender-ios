@@ -173,16 +173,6 @@ void captions_active_channel_set(Editing *ed, SeqTimelineChannel *channel) {
   ed->captions_act_channel = channel;
 }
 
-/* Captions Cache Methods */
-void captions_cache_mark_dirty(Scene *scene){
-  Editing *ed = seq::editing_get(scene);
-  if(ed == nullptr){
-    return;
-  }
-
-  ed->runtime->captions_cache_dirty = true;
-}
-
 const Vector<Strip *> captions_cache_query(Scene *scene) {
   Editing *ed = seq::editing_get(scene);
   if(ed == nullptr){
@@ -207,6 +197,33 @@ Strip *captions_cache_query_index(Scene *scene, int index) {
   return nullptr;
 }
 
+void captions_cache_sort(Scene *scene){
+  Editing *ed = seq::editing_get(scene);
+  std::sort(ed->runtime->captions_cache.begin(), 
+  ed->runtime->captions_cache.end(), 
+  [](const Strip *a, const Strip *b) {
+      if (!a || !b) {
+          return a != nullptr; 
+      }
+
+      return a->start < b->start;
+  });
+}
+
+void captions_cache_append(Scene *scene, Strip *strip){
+  Editing *ed = seq::editing_get(scene);
+  ed->runtime->captions_cache.append(strip);
+  captions_cache_sort(scene);
+}
+
+void captions_cache_remove(Scene *scene, Strip *strip){
+  Editing *ed = seq::editing_get(scene);
+
+  Vector<Strip *> &cache = ed->runtime->captions_cache;
+  const int64_t index = cache.first_index_of(strip);
+  cache.remove(index);
+}
+
 void captions_cache_rebuild(Scene *scene)
 {
   Editing *ed = seq::editing_get(scene);
@@ -228,18 +245,7 @@ void captions_cache_rebuild(Scene *scene)
     }
   }
 
-  ed->runtime->captions_cache_dirty = false;
-  
-  //BLI_listbase_sort(&->captions, compare_strips_start);
-  std::sort(ed->runtime->captions_cache.begin(), 
-  ed->runtime->captions_cache.end(), 
-  [](const Strip *a, const Strip *b) {
-      if (!a || !b) {
-          return a != nullptr; 
-      }
-
-      return a->start < b->start;
-  });
+  captions_cache_sort(scene);
 }
 
 void captions_update_active(Scene *scene){

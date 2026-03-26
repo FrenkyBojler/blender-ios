@@ -20,7 +20,6 @@ namespace blender {
 
 namespace seq {
     
-void captions_cache_rebuild(struct Scene *scene);
 void captions_apply_style_single(Scene *scene, SeqTimelineChannel *channel, Strip *strip);
 void captions_apply_style_active(Scene *scene);
 void captions_update_active(Scene *scene);
@@ -28,8 +27,11 @@ void captions_set_style_custom(Strip *strip, bool use_custom);
 const Vector<Strip *> captions_cache_query(Scene *scene);
 Strip *captions_cache_query_index(Scene *scene, int index);
 
-// TODO: GD;; Convert all cache dirty setter to this method
-void captions_cache_mark_dirty(Scene *scene);
+// TODO: GD;; Maybe move the whole cache system into the sequencer_intern header?
+void captions_cache_sort(Scene *scene);
+void captions_cache_append(Scene *scene, Strip *strip);
+void captions_cache_remove(Scene *scene, Strip *strip);
+void captions_cache_rebuild(struct Scene *scene);
 
 /** Pass nullptr as default, which will default to the first channel */
 void captions_active_channel_set(Editing *ed, SeqTimelineChannel *channel=nullptr);

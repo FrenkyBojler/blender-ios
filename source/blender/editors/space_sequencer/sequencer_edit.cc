@@ -2853,6 +2853,13 @@ static wmOperatorStatus sequencer_meta_make_exec(bContext *C, wmOperator * /*op*
     channel_min = min_ii(strip->channel, channel_min);
     meta_start_frame = min_ii(strip->left_handle(), meta_start_frame);
     meta_end_frame = max_ii(strip->right_handle(scene), meta_end_frame);
+
+    /* Update captions because one of the changed strips can be caption */
+    if(strip->type == STRIP_TYPE_TEXT) {
+      if(strip->channel == ed->captions_act_channel->index){
+        seq::captions_cache_remove(scene, strip);
+      }
+    }
   }
 
   ListBaseT<SeqTimelineChannel> *channels_cur = seq::channels_displayed_get(ed);
@@ -2877,9 +2884,6 @@ static wmOperatorStatus sequencer_meta_make_exec(bContext *C, wmOperator * /*op*
 
   seq::strip_lookup_invalidate(ed);
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
-
-  /* Update captions because one of the changed strips can be caption */
-  seq::captions_cache_mark_dirty(scene);
 
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
 

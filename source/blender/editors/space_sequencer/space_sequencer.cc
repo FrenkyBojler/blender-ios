@@ -297,9 +297,9 @@ static void handle_captions_listener(const wmSpaceTypeListenerParams *params)
       return;
     }
 
-    if(ed->runtime->captions_cache_dirty){
+/*    if(ed->runtime->captions_cache_dirty){
       seq::captions_update_active(scene);
-    }
+    }*/
   }
 }
 
@@ -308,7 +308,7 @@ static void sequencer_listener(const wmSpaceTypeListenerParams *params)
   ScrArea *area = params->area;
   const wmNotifier *wmn = params->notifier;
 
-  handle_captions_listener(params);
+  //handle_captions_listener(params);
   /* Context changes. */
   switch (wmn->category) {
     case NC_SCENE:

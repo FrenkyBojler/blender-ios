@@ -99,6 +99,10 @@ void transform_translate_strip(Scene *evil_scene, Strip *strip, int delta)
   Span<Strip *> effects = SEQ_lookup_effects_by_strip(evil_scene->ed, strip);
   strip_time_update_effects_strip_range(evil_scene, effects);
   time_update_meta_strip_range(evil_scene, lookup_meta_by_strip(evil_scene->ed, strip));
+
+  if(strip->type == STRIP_TYPE_TEXT && strip->channel == evil_scene->ed->captions_act_channel->index){
+    seq::captions_cache_sort(evil_scene);
+  }
 }
 
 bool transform_seqbase_shuffle_ex(ListBaseT<Strip> *seqbasep,
@@ -564,6 +568,7 @@ void transform_offset_after_frame(Scene *scene,
   }
 }
 
+
 void strip_channel_set(Strip *strip, int channel, Scene *scene)
 {
   if(strip-> channel == channel){
@@ -573,8 +578,12 @@ void strip_channel_set(Strip *strip, int channel, Scene *scene)
   /* Handle Captions */
   if(scene != nullptr) {
     Editing *ed = seq::editing_get(scene);
-    if ((strip->type == STRIP_TYPE_TEXT) && (strip->channel == ed->captions_act_channel->index || channel == ed->captions_act_channel->index)) {
-      seq::captions_cache_mark_dirty(scene);
+    if (strip->type == STRIP_TYPE_TEXT) {
+      if(strip->channel == ed->captions_act_channel->index) { /* When the strip is moved out of the active channel, it's removed from the captions cache */
+        seq::captions_cache_remove(scene, strip);
+      } else if(channel == ed->captions_act_channel->index) { /* When the strip is moved into the active channel, it's added to the captions cache */
+        seq::captions_cache_append(scene, strip);
+      }
     }
   } 
 
