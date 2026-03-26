@@ -1792,6 +1792,7 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
 {
   Object *obedit = CTX_data_edit_object(C);
 
+  invert_m4_m4(obedit->runtime->world_to_object.ptr(), obedit->object_to_world().ptr());
   const float3x3 imat = float3x3(obedit->world_to_object());
 
   float3x3 bone_orient_mat = float3x3::zero();
@@ -1860,9 +1861,8 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
   char name[MAXBONENAME];
   RNA_string_get(op->ptr, "name", name);
 
-  const float3 curs_worldspace = CTX_data_scene(C)->cursor.location;
   /* Get inverse point for head and orientation for tail. */
-  invert_m4_m4(obedit->runtime->world_to_object.ptr(), obedit->object_to_world().ptr());
+  const float3 curs_worldspace = CTX_data_scene(C)->cursor.location;
   const float3 curs_objectspace =
       (obedit->world_to_object() * float4(curs_worldspace, 1.0f)).xyz();
 
