@@ -146,7 +146,7 @@ class ImageBufferByte4 {
 
   const char *get_colorspace_name(ImBuf *image_buffer)
   {
-    return IMB_colormanagement_get_rect_colorspace(image_buffer);
+    return IMB_colormanagement_get_byte_colorspace(image_buffer);
   }
 };
 
@@ -304,8 +304,8 @@ static void do_paint_pixels(const Depsgraph &depsgraph,
   brush_color[2] = float((hash >> 16) & 255) / 255.0f;
 #else
   copy_v3_v3(brush_color,
-             ss.cache->invert ? BKE_brush_secondary_color_get(&paint, &brush) :
-                                BKE_brush_color_get(&paint, &brush));
+             ss.cache->toggle_settings.invert ? BKE_brush_secondary_color_get(&paint, &brush) :
+                                                BKE_brush_color_get(&paint, &brush));
 #endif
 
   brush_color[3] = 1.0f;
