@@ -1119,7 +1119,7 @@ static void do_versions_nodetree_customnodes(bNodeTree *ntree, int /*is_group*/)
       }
     }
     for (bNodeSocket &sock : ntree->inputs_legacy) {
-      version_node_socket_identifier_set(sock, sock.name);
+      STRNCPY_UTF8(sock.identifier, sock.name);
       BLI_uniquename(&ntree->inputs_legacy,
                      &sock,
                      "socket",
@@ -1128,7 +1128,7 @@ static void do_versions_nodetree_customnodes(bNodeTree *ntree, int /*is_group*/)
                      sizeof(sock.identifier));
     }
     for (bNodeSocket &sock : ntree->outputs_legacy) {
-      version_node_socket_identifier_set(sock, sock.name);
+      STRNCPY_UTF8(sock.identifier, sock.name);
       BLI_uniquename(&ntree->outputs_legacy,
                      &sock,
                      "socket",
