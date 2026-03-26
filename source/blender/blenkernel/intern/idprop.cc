@@ -66,8 +66,6 @@ static size_t idp_size_table[] = {
 
 #define GETPROP(prop, i) &(IDP_property_array_get(prop)[i])
 
-#define DEFAULT_ARRAY_LENGTH 3
-
 IDProperty *IDP_NewIDPArray(const StringRef name)
 {
   IDProperty *prop = MEM_new<IDProperty>("IDProperty prop array");
@@ -1799,7 +1797,7 @@ IDPropertyUIData *IDP_TryConvertUIData(IDProperty *src_prop,
   /* When property converted to array type, use this boolean to correctly resize and assign values
    * to default_array. */
   const bool is_array = src_prop->type == IDP_ARRAY;
-  const int default_array_len = is_array ? src_prop->len : 3;
+  const int default_array_len = src_prop->len;
   switch (src_type) {
     case IDP_UI_DATA_TYPE_STRING: {
       switch (dst_type) {
@@ -2148,6 +2146,7 @@ void IDP_TryConvertProperty(IDProperty *src,
                             const char sub_type)
 {
   if ((src->type == type) && (src->subtype == sub_type)) {
+    /* Return early when source and destination type is same. */
     return;
   }
 
@@ -2212,12 +2211,7 @@ void IDP_TryConvertProperty(IDProperty *src,
     MEM_SAFE_DELETE_VOID(src->data.pointer);
   }
 
-  const int array_len = [&]() -> int {
-    if (src->type == IDP_STRING) {
-      return std::min(DEFAULT_ARRAY_LENGTH, src->len);
-    }
-    return src->len > 1 ? src->len : DEFAULT_ARRAY_LENGTH;
-  }();
+  const int array_len = ((src->len > 1) && (src->type != IDP_STRING)) ? src->len : 3;
 
   /* Change property type and reset array length. */
   src->type = type;

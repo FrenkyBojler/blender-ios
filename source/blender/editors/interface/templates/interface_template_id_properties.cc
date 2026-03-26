@@ -99,7 +99,7 @@ class IDPropertyDropTarget : public ui::TreeViewItemDropTarget {
       return false;
     }
 
-    DragDropData *drag_data = static_cast<DragDropData *>(drag.poin);
+    const DragDropData *drag_data = static_cast<DragDropData *>(drag.poin);
     return drag_data->user_properties_ == drop_data_.user_properties_;
   }
 
@@ -128,7 +128,11 @@ class IDPropertyDropTarget : public ui::TreeViewItemDropTarget {
   bool on_drop(bContext *C, const ui::DragInfo &drag_info) const override
   {
     DragDropData *drag_data = static_cast<DragDropData *>(drag_info.drag_data.poin);
-    BLI_remlink(&drag_data->user_properties_->data.group, drag_data->prop_);
+    ListBaseT<IDProperty> &idprop_list =  drag_data->user_properties_->data.group;
+    IDProperty *drag_idprop = drag_data->prop_;
+    IDProperty *drop_target = drop_data_.prop_;
+
+    BLI_remlink(&idprop_list, drag_idprop);
 
     switch (drag_info.drop_location) {
       case ui::DropLocation::Into:
@@ -136,11 +140,11 @@ class IDPropertyDropTarget : public ui::TreeViewItemDropTarget {
         break;
       case ui::DropLocation::Before:
         BLI_insertlinkafter(
-            &drag_data->user_properties_->data.group, drop_data_.prop_->prev, drag_data->prop_);
+            &idprop_list, drop_target->prev, drag_idprop);
         break;
       case ui::DropLocation::After:
         BLI_insertlinkbefore(
-            &drag_data->user_properties_->data.group, drop_data_.prop_->next, drag_data->prop_);
+            &idprop_list, drop_target->next, drag_idprop);
         break;
       default:
         BLI_assert_unreachable();
@@ -149,7 +153,7 @@ class IDPropertyDropTarget : public ui::TreeViewItemDropTarget {
 
     /* Change active index after drop. */
     drag_data->user_properties_->idprop_active_index = BLI_findindex(
-        &drag_data->user_properties_->data.group, drag_data->prop_);
+        &idprop_list, drag_idprop);
     WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, nullptr);
     ED_undo_push(C, "Drop Active IDProperty");
     return true;
@@ -221,7 +225,7 @@ class IDPropertyItem : public AbstractTreeViewItem {
     sub.emboss_set(emboss);
     sub.alignment_set(LayoutAlign::Right);
 
-    std::string prop_name = "[\"" + std::string(property_->name) + "\"]";
+    const std::string prop_name = "[\"" + std::string(property_->name) + "\"]";
 
     if ((property_->type == IDP_ARRAY) || !IDP_ui_data_supported(property_)) {
       /* Use edit value operator to tweak array and python properties. */
