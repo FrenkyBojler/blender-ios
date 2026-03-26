@@ -179,14 +179,13 @@ PACKAGES_FOR_BLENDER=(
     libXxf86vm-devel
 )
 
-dnf -y install -y ${PACKAGES_FOR_LIBS[@]} ${PACKAGES_FOR_BLENDER[@]}
+dnf -y install ${PACKAGES_FOR_LIBS[@]} ${PACKAGES_FOR_BLENDER[@]}
 
 # Dependencies for pip (needed for `buildbot-worker`), uses Python3.6.
 dnf -y install python3 python3-pip python3-devel
 
 # Dependencies for asound.
-dnf -y install -y  \
-    alsa-lib-devel pulseaudio-libs-devel
+dnf -y install alsa-lib-devel pulseaudio-libs-devel
 
 # Required by Blender build option: `WITH_JACK`.
 dnf -y install jack-audio-connection-kit-devel
