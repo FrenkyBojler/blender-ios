@@ -275,6 +275,9 @@ class bNodeSocketRuntime : NonCopyable, NonMovable {
    */
   const nodes::SocketDeclaration *declaration = nullptr;
 
+  /** This is set eagerly when the socket identifier is set. */
+  UString identifier_ustr;
+
   /** #eNodeTreeChangedFlag. */
   uint32_t changed_flag = 0;
 
@@ -1006,6 +1009,11 @@ inline int bNodeSocket::index_in_all_outputs() const
   BLI_assert(bke::node_tree_runtime::topology_cache_is_available(*this));
   BLI_assert(this->is_output());
   return this->runtime->index_in_inout_sockets;
+}
+
+inline UString bNodeSocket::identifier_ustr() const
+{
+  return this->runtime->identifier_ustr;
 }
 
 inline bool bNodeSocket::is_user_hidden() const
