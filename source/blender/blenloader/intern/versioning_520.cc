@@ -119,31 +119,23 @@ static void do_version_geometry_node_primitive_uvmaps(bNodeTree *node_tree)
     else if (link.fromnode->type_legacy == GEO_NODE_MESH_PRIMITIVE_CYLINDER) {
 
       /* Primitive node. */
-      bNodeSocket *cylinder_geometry = bke::node_find_socket(*link.fromnode, SOCK_OUT, "Mesh");
       bNodeSocket *cylinder_side = bke::node_find_socket(*link.fromnode, SOCK_OUT, "Side");
       bNodeSocket *cylinder_uv = bke::node_find_socket(*link.fromnode, SOCK_OUT, "UV Map");
 
-      /* Attribute Statistic node. */
-      bNode *statistics_node = bke::node_add_node(
-          nullptr, *node_tree, "GeometryNodeAttributeStatistic");
-      statistics_node->parent = link.fromnode->parent;
-      statistics_node->location[0] = link.fromnode->location[0] + link.fromnode->width + 20.0f;
-      statistics_node->location[1] = link.fromnode->location[1];
-      statistics_node->custom1 = CD_PROP_FLOAT3;
-      statistics_node->custom2 = int16_t(AttrDomain::Corner);
-      bNodeSocket *statistics_geometry = bke::node_find_socket(
-          *statistics_node, SOCK_IN, "Geometry");
-      bNodeSocket *statistics_selection = bke::node_find_socket(
-          *statistics_node, SOCK_IN, "Selection");
-      bNodeSocket *statistics_attribute = bke::node_find_socket(
-          *statistics_node, SOCK_IN, "Attribute");
-      bNodeSocket *statistics_mean = bke::node_find_socket(*statistics_node, SOCK_OUT, "Mean");
+      /* Field Average node. */
+      bNode *average_node = bke::node_add_node(nullptr, *node_tree, "GeometryNodeFieldAverage");
+      average_node->parent = link.fromnode->parent;
+      average_node->location[0] = link.fromnode->location[0] + link.fromnode->width + 20.0f;
+      average_node->location[1] = link.fromnode->location[1];
+      average_node->custom1 = CD_PROP_FLOAT3;
+      average_node->custom2 = int16_t(AttrDomain::Corner);
+      bNodeSocket *average_value = bke::node_find_socket(*average_node, SOCK_IN, "Value");
+      bNodeSocket *average_group = bke::node_find_socket(*average_node, SOCK_IN, "Group Index");
+      bNodeSocket *average_mean = bke::node_find_socket(*average_node, SOCK_OUT, "Mean");
       version_node_add_link(
-          *node_tree, *link.fromnode, *cylinder_geometry, *statistics_node, *statistics_geometry);
+          *node_tree, *link.fromnode, *cylinder_side, *average_node, *average_group);
       version_node_add_link(
-          *node_tree, *link.fromnode, *cylinder_side, *statistics_node, *statistics_selection);
-      version_node_add_link(
-          *node_tree, *link.fromnode, *cylinder_uv, *statistics_node, *statistics_attribute);
+          *node_tree, *link.fromnode, *cylinder_uv, *average_node, *average_value);
 
       /* Subtract node. */
       bNode *subtract_node = bke::node_add_node(nullptr, *node_tree, "ShaderNodeVectorMath");
@@ -157,7 +149,7 @@ static void do_version_geometry_node_primitive_uvmaps(bNodeTree *node_tree)
       version_node_add_link(
           *node_tree, *link.fromnode, *cylinder_uv, *subtract_node, *subtract_a_input);
       version_node_add_link(
-          *node_tree, *statistics_node, *statistics_mean, *subtract_node, *subtract_b_input);
+          *node_tree, *average_node, *average_mean, *subtract_node, *subtract_b_input);
 
       /* Multiply node. */
       bNode *multiply_node = bke::node_add_node(nullptr, *node_tree, "ShaderNodeVectorMath");
@@ -182,8 +174,7 @@ static void do_version_geometry_node_primitive_uvmaps(bNodeTree *node_tree)
       bNodeSocket *add_a_input = bke::node_find_socket(*add_node, SOCK_IN, "Vector");
       bNodeSocket *add_b_input = bke::node_find_socket(*add_node, SOCK_IN, "Vector_001");
       bNodeSocket *add_output = bke::node_find_socket(*add_node, SOCK_OUT, "Vector");
-      version_node_add_link(
-          *node_tree, *statistics_node, *statistics_mean, *add_node, *add_a_input);
+      version_node_add_link(*node_tree, *average_node, *average_mean, *add_node, *add_a_input);
       version_node_add_link(*node_tree, *multiply_node, *multiply_output, *add_node, *add_b_input);
 
       /* Switch node. */
