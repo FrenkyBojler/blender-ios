@@ -17,6 +17,7 @@
 #include "DNA_vec_types.h" /* for #rctf */
 
 #include "BLI_enum_flags.hh"
+#include "BLI_ustring.hh"
 
 /** Workaround to forward-declare C++ type in C header. */
 #include "BLI_vector.hh"
@@ -1701,6 +1702,9 @@ struct bNode {
   bool is_group_input() const;
   bool is_group_output() const;
   bool is_undefined() const;
+
+  /** The cached #UString that matches the socket identifier. */
+  UString identifier_ustr() const;
 
   /**
    * Check if the node has the given idname.

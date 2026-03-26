@@ -15,6 +15,7 @@
 #include "BLI_multi_value_map.hh"
 #include "BLI_mutex.hh"
 #include "BLI_set.hh"
+#include "BLI_ustring.hh"
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
 #include "BLI_vector_set.hh"
@@ -273,6 +274,9 @@ class bNodeSocketRuntime : NonCopyable, NonMovable {
    * #AllowUsingOutdatedInfo.
    */
   const nodes::SocketDeclaration *declaration = nullptr;
+
+  /** This is set eagerly when the socket identifier is set. */
+  UString identifier_ustr;
 
   /** #eNodeTreeChangedFlag. */
   uint32_t changed_flag = 0;
