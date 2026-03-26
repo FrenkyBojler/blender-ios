@@ -1011,6 +1011,11 @@ inline int bNodeSocket::index_in_all_outputs() const
   return this->runtime->index_in_inout_sockets;
 }
 
+inline UString bNodeSocket::identifier_ustr() const
+{
+  return this->runtime->identifier_ustr;
+}
+
 inline bool bNodeSocket::is_user_hidden() const
 {
   return (this->flag & SOCK_HIDDEN) != 0;

@@ -1463,6 +1463,9 @@ struct bNodeSocket {
   bke::bNodeSocketRuntime *runtime = nullptr;
 
 #ifdef __cplusplus
+  /** The cached #UString that matches the socket identifier. */
+  UString identifier_ustr() const;
+
   /**
    * Whether the socket is hidden in a way that the user can control.
    *
@@ -1702,9 +1705,6 @@ struct bNode {
   bool is_group_input() const;
   bool is_group_output() const;
   bool is_undefined() const;
-
-  /** The cached #UString that matches the socket identifier. */
-  UString identifier_ustr() const;
 
   /**
    * Check if the node has the given idname.
