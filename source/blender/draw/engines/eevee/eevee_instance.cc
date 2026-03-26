@@ -84,7 +84,7 @@ void Instance::init()
     }
 
     if (camera) {
-      if (scene->r.mode & R_BORDER) {
+      if (!draw_ctx->is_viewport_image_render() && scene->r.mode & R_BORDER) {
         rctf viewborder;
         /* TODO(fclem) Might be better to get it from DRW. */
         ED_view3d_calc_camera_border(scene, depsgraph, region, v3d, rv3d, false, &viewborder);
