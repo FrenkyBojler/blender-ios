@@ -10,6 +10,8 @@
 
 #include "GPU_compute.hh"
 #include "GPU_debug.hh"
+#include "GPU_platform.hh"
+#include "GPU_platform_backend_enum.h"
 #include "GPU_shader.hh"
 #include "GPU_shader_builtin.hh"
 #include "GPU_state.hh"
@@ -145,21 +147,25 @@ void GPU_texture_update_mipmap_chain(Texture *tex)
     return;
   }
 
-  const TextureFormat texture_format = tex->format_get();
-  Shader *shader = get_update_mipmap_shader(texture_format);
-  if (shader) {
-    GPU_debug_group_begin("Update Mipmaps");
-    update_mipmaps(*tex, *shader);
-    GPU_debug_group_end();
-  }
-  else {
-    /* No mipmap shader exists for this texture format. Fallback to backend implementation. */
+  /* Currently only enabled for Vulkan. OpenGL and Metal have render issues that needs to be
+   * inspected. */
+  if (GPU_type_matches_ex(GPU_DEVICE_ANY, GPU_OS_ANY, GPU_DRIVER_ANY, GPU_BACKEND_VULKAN)) {
+    const TextureFormat texture_format = tex->format_get();
+    Shader *shader = get_update_mipmap_shader(texture_format);
+    if (shader) {
+      GPU_debug_group_begin("Update Mipmaps");
+      update_mipmaps(*tex, *shader);
+      GPU_debug_group_end();
+      return;
+    }
     CLOG_INFO(&LOG,
               "No shader exists for updating mipmaps (format=%s). Fallback to backend "
               "implementation, this could lead to different results between platforms.",
               GPU_texture_format_name(texture_format));
-    tex->generate_mipmap();
   }
+
+  /* No mipmap shader exists for this texture format. Fallback to backend implementation. */
+  tex->generate_mipmap();
 }
 
 }  // namespace blender
