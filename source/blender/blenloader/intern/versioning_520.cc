@@ -10,6 +10,7 @@
 
 #include "DNA_ID.h"
 #include "DNA_brush_types.h"
+#include "DNA_screen_types.h"
 
 #include "BLI_listbase_iterator.hh"
 #include "BLI_sys_types.h"
@@ -19,6 +20,7 @@
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
 
+#include "SEQ_iterator.hh"
 #include "SEQ_sequencer.hh"
 
 #include "readfile.hh"
@@ -48,6 +50,20 @@ static void do_version_file_output_use_file_extension_recursive(bNodeTree &node_
       if (ngroup) {
         do_version_file_output_use_file_extension_recursive(*ngroup, scene);
       }
+    }
+  }
+}
+
+static void version_clear_strip_linear_modifier_flag(Main &bmain)
+{
+  for (Scene &scene : bmain.scenes) {
+    Editing *ed = seq::editing_get(&scene);
+    if (ed != nullptr) {
+      seq::foreach_strip(&ed->seqbase, [&](Strip *strip) {
+        constexpr int flag_linear_modifiers = 1 << 23;
+        strip->flag &= ~flag_linear_modifiers;
+        return true;
+      });
     }
   }
 }
@@ -136,6 +152,24 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         settings.flag &= ~(UNIFIED_PAINT_SIZE | UNIFIED_PAINT_ALPHA | UNIFIED_PAINT_COLOR);
       }
     }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 12)) {
+    for (bScreen &screen : bmain->screens) {
+      for (ScrArea &area : screen.areabase) {
+        for (SpaceLink &space : area.spacedata) {
+          if (space.spacetype == SPACE_NODE) {
+            SpaceNode *space_node = reinterpret_cast<SpaceNode *>(&space);
+            space_node->overlay.flag |= SN_OVERLAY_SHOW_RENDER_REGION;
+            space_node->overlay.passepartout_alpha = 0.5f;
+          }
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 13)) {
+    version_clear_strip_linear_modifier_flag(*bmain);
   }
 
   /**
