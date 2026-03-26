@@ -4018,7 +4018,7 @@ static void init_scene_project_brush_targets(const Depsgraph &depsgraph,
       continue;
     }
 
-    Mesh *mesh_eval = BKE_object_get_evaluated_mesh(object);
+    const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(object);
     if (!mesh_eval) {
       continue;
     }
