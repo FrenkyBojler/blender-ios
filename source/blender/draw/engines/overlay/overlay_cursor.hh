@@ -196,7 +196,7 @@ class Cursor : Overlay {
         return false;
         break;
       case SI_MODE_PAINT:
-        return false;
+        return true;
         break;
       case SI_MODE_MASK:
         break;
