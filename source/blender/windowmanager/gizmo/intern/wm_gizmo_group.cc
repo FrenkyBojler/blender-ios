@@ -13,6 +13,8 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <sstream>
+#include <string>
 
 #include "MEM_guardedalloc.h"
 
@@ -38,8 +40,9 @@
 #include "wm_event_system.hh"
 
 #include "ED_screen.hh"
-#include "UI_interface.hh"
 #include "ED_undo.hh"
+
+#include "UI_interface.hh"
 
 /* Own includes. */
 #include "wm_gizmo_intern.hh"
@@ -409,9 +412,7 @@ struct GizmoTweakData {
 
 static void wm_gizmo_tweak_status_text_update(bContext *C, wmGizmo *gz)
 {
-  char status_str[UI_MAX_DRAW_STR] = "";
-  char *status_ptr = status_str;
-  int remaining_len = sizeof(status_str);
+  std::stringstream status_ss;
 
   auto format_prop_fn = [&](PointerRNA &ptr, PropertyRNA *prop, int index) {
     if (prop == nullptr) {
@@ -419,42 +420,73 @@ static void wm_gizmo_tweak_status_text_update(bContext *C, wmGizmo *gz)
     }
 
     const char *prop_name = RNA_property_ui_name(prop);
-    char value_str[64];
+    
+    /* Loop Optimization: These values are identical for all array elements. */
+    const PropertyType prop_type = RNA_property_type(prop);
+    const int subtype = RNA_property_subtype(prop);
+    const int unit_type = RNA_SUBTYPE_UNIT_VALUE(subtype);
 
-    /* Format value based on type and unit. */
-    int type = RNA_property_type(prop);
-    if (type == PROP_FLOAT) {
-      float val = (index != -1) ? RNA_property_float_get_index(&ptr, prop, index) :
-                                  RNA_property_float_get(&ptr, prop);
-      int subtype = RNA_property_subtype(prop);
-      int unit_type = RNA_SUBTYPE_UNIT_VALUE(subtype);
-      if (unit_type != B_UNIT_NONE) {
-        Scene *scene = CTX_data_scene(C);
-        BKE_unit_value_as_string_scaled(
-            value_str, sizeof(value_str), double(val), 4, unit_type, scene->unit, false);
-      }
-      else {
-        BLI_snprintf(value_str, sizeof(value_str), "%.3f", double(val));
-      }
-    }
-    else if (type == PROP_INT) {
-      int val = (index != -1) ? RNA_property_int_get_index(&ptr, prop, index) :
-                                RNA_property_int_get(&ptr, prop);
-      BLI_snprintf(value_str, sizeof(value_str), "%d", val);
-    }
-    else {
-      value_str[0] = '\0';
-    }
+    /* Safely check for array and determine length. */
+    const bool is_array = RNA_property_array_check(prop);
+    const int array_len = is_array ? RNA_property_array_length(&ptr, prop) : 0;
 
-    if (value_str[0] != '\0') {
-      int written = BLI_snprintf(status_ptr,
-                                 remaining_len,
-                                 "%s%s: %s",
-                                 (status_ptr == status_str) ? "" : ", ",
-                                 prop_name,
-                                 value_str);
-      status_ptr += written;
-      remaining_len -= written;
+    /* Determine loop parameters cleanly. */
+    const int loop_start = (index == -1) ? 0 : index;
+    const int loop_len = (index == -1 && is_array) ? array_len : 1;
+    const IndexRange prop_index_range(loop_start, loop_len);
+
+    for (const int i : prop_index_range) {
+      char value_str[64] = "";
+
+      /* Format value based on type and unit. */
+      if (prop_type == PROP_FLOAT) {
+        float val = is_array ? RNA_property_float_get_index(&ptr, prop, i) :
+                               RNA_property_float_get(&ptr, prop);
+                               
+        float softmin, softmax, step, precision;
+        RNA_property_float_ui_range(&ptr, prop, &softmin, &softmax, &step, &precision);
+
+        /* Clamp precision to prevent negative values breaking the formatter. */
+        const int ui_precision = std::max(0, int(precision));
+
+        if (unit_type != B_UNIT_NONE) {
+          Scene *scene = CTX_data_scene(C);
+          BKE_unit_value_as_string_scaled(
+              value_str, sizeof(value_str), double(val), ui_precision, unit_type, scene->unit, false);
+        }
+        else {
+          BLI_snprintf(value_str, sizeof(value_str), "%.*f", ui_precision, double(val));
+        }
+      }
+      else if (prop_type == PROP_INT) {
+        int val = is_array ? RNA_property_int_get_index(&ptr, prop, i) :
+                             RNA_property_int_get(&ptr, prop);
+                             
+        /* Ints inherently do not have decimal precision.
+           We simply use 0 as the precision if it has a unit. */
+        if (unit_type != B_UNIT_NONE) {
+          Scene *scene = CTX_data_scene(C);
+          BKE_unit_value_as_string_scaled(
+              value_str, sizeof(value_str), double(val), 0, unit_type, scene->unit, false);
+        }
+        else {
+          BLI_snprintf(value_str, sizeof(value_str), "%d", val);
+        }
+      }
+
+      /* Append to the stringstream. */
+      if (value_str[0] != '\0') {
+        if (status_ss.tellp() > 0) {
+          status_ss << ", ";
+        }
+
+        if (i == prop_index_range.first()) {
+          status_ss << prop_name << ": " << value_str;
+        }
+        else {
+          status_ss << value_str;
+        }
+      }
     }
   };
 
@@ -465,14 +497,12 @@ static void wm_gizmo_tweak_status_text_update(bContext *C, wmGizmo *gz)
     else if (gz_prop.custom_func.foreach_rna_prop_fn != nullptr) {
       gz_prop.custom_func.foreach_rna_prop_fn(&gz_prop, format_prop_fn);
     }
-
-    if (remaining_len <= 0) {
-      break;
-    }
   }
 
-  if (status_str[0] != '\0') {
-    ED_area_status_text(CTX_wm_area(C), status_str);
+  /* Output the final stringstream to the UI. */
+  std::string final_status = status_ss.str();
+  if (!final_status.empty()) {
+    ED_area_status_text(CTX_wm_area(C), final_status.c_str());
   }
 }
 
