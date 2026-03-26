@@ -81,7 +81,9 @@ static VkImage create_and_bind_vk_image(const VKImageInfo &info, const std::stri
   BLI_assert(bind_result == VK_SUCCESS);
 
   /* Register VkImage handle as resource for synchronization. */
-  device.resources.add_aliased_image(image, false, name_str.c_str());
+  bool use_subresource_tracking = info.create_info.arrayLayers > 1 ||
+                                  info.create_info.mipLevels > 1;
+  device.resources.add_aliased_image(image, use_subresource_tracking, name_str.c_str());
 
   return image;
 }
@@ -139,11 +141,6 @@ VkImage VKImageCache::get_or_create(const VKImageInfo &info)
   /* Otherwise, create VkImage handle and insert into cache. */
   VkImage image = create_and_bind_vk_image(info, name_str);
   cache_.add_new(info, {.image = image});
-
-  /* Register VkImage as resource for synchronization. */
-  bool use_subresource_tracking = info.create_info.arrayLayers > 1 ||
-                                  info.create_info.mipLevels > 1;
-  device.resources.add_aliased_image(image, use_subresource_tracking, name_str.c_str());
 
   return image;
 }
