@@ -111,24 +111,42 @@ struct BvhBuildContext {
   RTCBuildQuality build_quality;
 };
 
+static bool all_faces_are_triangles(const Mesh &mesh)
+{
+  return mesh.corners_num == mesh.faces_num * 3;
+}
+
 static void add_triangles(const BvhBuildContext &ctx,
                           const int id,
-                          const Span<float3> positions,
-                          const OffsetIndices<int> faces,
-                          const Span<int> corner_verts,
-                          const Span<int3> corner_tris,
+                          const Mesh &mesh,
                           const IndexMask &face_mask)
 {
   RTCGeometry geom_id = rtcNewGeometry(ctx.device, RTC_GEOMETRY_TYPE_TRIANGLE);
   rtcSetGeometryBuildQuality(geom_id, ctx.build_quality);
 
-  if (face_mask.size() == faces.size()) {
-    uint3 *rtc_indices = static_cast<uint3 *>(rtcSetNewGeometryBuffer(
-        geom_id, RTC_BUFFER_TYPE_INDEX, 0, RTC_FORMAT_UINT3, sizeof(int3), corner_tris.size()));
-    mesh::vert_tris_from_corner_tris(
-        corner_verts, corner_tris, MutableSpan(rtc_indices, corner_tris.size()).cast<int3>());
+  const Span<int> corner_verts = mesh.corner_verts();
+  if (face_mask.size() == mesh.faces_num) {
+    if (all_faces_are_triangles(mesh)) {
+      rtcSetSharedGeometryBuffer(geom_id,
+                                 RTC_BUFFER_TYPE_INDEX,
+                                 0,
+                                 RTC_FORMAT_UINT3,
+                                 corner_verts.data(),
+                                 0,
+                                 sizeof(int3),
+                                 corner_verts.cast<int3>().size());
+    }
+    else {
+      const Span<int3> corner_tris = mesh.corner_tris();
+      uint3 *rtc_indices = static_cast<uint3 *>(rtcSetNewGeometryBuffer(
+          geom_id, RTC_BUFFER_TYPE_INDEX, 0, RTC_FORMAT_UINT3, sizeof(int3), corner_tris.size()));
+      mesh::vert_tris_from_corner_tris(
+          corner_verts, corner_tris, MutableSpan(rtc_indices, corner_tris.size()).cast<int3>());
+    }
   }
   else {
+    const OffsetIndices faces = mesh.faces();
+    const Span<int3> corner_tris = mesh.corner_tris();
     int tris_num = 0;
     face_mask.foreach_index_optimized<int>(
         [&](const int i) { tris_num += mesh::face_triangles_num(faces[i].size()); });
@@ -146,6 +164,7 @@ static void add_triangles(const BvhBuildContext &ctx,
     });
   }
 
+  const Span<float3> positions = mesh.vert_positions();
   rtcSetSharedGeometryBuffer(geom_id,
                              RTC_BUFFER_TYPE_VERTEX,
                              0,
@@ -177,13 +196,7 @@ Tree Tree::from_tris(const Mesh &mesh, const IndexMask &face_mask)
 
   BvhBuildContext ctx{tree.rtc_device, tree.rtc_scene, build_quality};
 
-  add_triangles(ctx,
-                0,
-                mesh.vert_positions(),
-                mesh.faces(),
-                mesh.corner_verts(),
-                mesh.corner_tris(),
-                face_mask);
+  add_triangles(ctx, 0, mesh, face_mask);
 
   rtcSetSceneProgressMonitorFunction(tree.rtc_scene, rtc_progress_func, nullptr);
   rtcCommitScene(tree.rtc_scene);
