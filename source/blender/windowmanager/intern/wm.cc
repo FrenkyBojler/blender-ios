@@ -601,8 +601,6 @@ void WM_main(bContext *C)
   wm_event_do_refresh_wm_and_depsgraph(C);
 
   while (true) {
-    BLI_profile_frame_mark_start("Main event loop");
-
     /* Get events from ghost, handle window events, add to window queues. */
     wm_window_events_process(C);
 
@@ -615,7 +613,9 @@ void WM_main(bContext *C)
     /* Execute cached changes draw. */
     wm_draw_update(C);
 
-    BLI_profile_frame_mark_end("Main event loop");
+    /* Use main event loop as the continuous Tracy base "Frame" reference as window frame drawing
+     * is discoutinuous and separately tracked (see frame markers in #wm_draw_update). */
+    BLI_profile_frame_mark;
   }
 }
 

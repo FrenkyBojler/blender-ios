@@ -1317,6 +1317,8 @@ static void wm_draw_window(bContext *C, wmWindow *win)
  */
 static void wm_draw_surface(bContext *C, wmSurface *surface)
 {
+  const char *surface_profile_frame_name = "Surface drawing"; /* Ensure string pooling. */
+  BLI_profile_frame_mark_start(surface_profile_frame_name);
   wm_window_clear_drawable(CTX_wm_manager(C));
   wm_surface_make_drawable(surface);
 
@@ -1328,6 +1330,7 @@ static void wm_draw_surface(bContext *C, wmSurface *surface)
 
   /* Avoid interference with window drawable. */
   wm_surface_clear_drawable();
+  BLI_profile_frame_mark_end(surface_profile_frame_name);
 }
 
 /** \} */
@@ -1666,6 +1669,8 @@ void wm_draw_update(bContext *C)
     CTX_wm_window_set(C, &win);
 
     if (wm_draw_update_test_window(bmain, C, &win)) {
+      const char *win_profile_frame_name = "Window drawing"; /* Ensure string pooling. */
+      BLI_profile_frame_mark_start(win_profile_frame_name);
       /* Sets context window+screen. */
       wm_window_make_drawable(wm, &win);
       wm_window_swap_buffer_acquire(&win);
@@ -1677,8 +1682,7 @@ void wm_draw_update(bContext *C)
       wm_draw_update_clear_window(C, &win);
 
       wm_window_swap_buffer_release(&win);
-
-      BLI_profile_frame_mark;
+      BLI_profile_frame_mark_end(win_profile_frame_name);
     }
   }
 
