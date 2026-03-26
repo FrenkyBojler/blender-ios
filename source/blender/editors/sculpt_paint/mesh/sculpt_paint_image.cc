@@ -68,7 +68,9 @@ std::unique_ptr<ImageData> ImageData::init_active_image(Object &ob,
   return image_data;
 }
 
-static void fetch_image_buffers(ImageData &image_data, bke::pbvh::Node & /*node*/, PixelNode &pixel_node)
+static void fetch_image_buffers(ImageData &image_data,
+                                bke::pbvh::Node & /*node*/,
+                                PixelNode &pixel_node)
 {
   for (const UDIMTilePixels &tile : pixel_node.tiles) {
     image_data.buffers.lookup_or_add_cb(tile.tile_number, [&]() {
@@ -423,7 +425,9 @@ static void push_undo(const PixelNode &node_data,
   }
 }
 
-static void do_push_undo_tile(ImageData &image_data, bke::pbvh::Node & /*node*/, PixelNode &pixel_node)
+static void do_push_undo_tile(ImageData &image_data,
+                              bke::pbvh::Node & /*node*/,
+                              PixelNode &pixel_node)
 {
   ImBuf *tmpibuf = nullptr;
   for (const UDIMTilePixels &tile : pixel_node.tiles) {
@@ -432,8 +436,12 @@ static void do_push_undo_tile(ImageData &image_data, bke::pbvh::Node & /*node*/,
       continue;
     }
 
-    push_undo(
-        pixel_node, *image_data.image, *image_data.image_user, tile.tile_number, *buffer, &tmpibuf);
+    push_undo(pixel_node,
+              *image_data.image,
+              *image_data.image_user,
+              tile.tile_number,
+              *buffer,
+              &tmpibuf);
   }
   if (tmpibuf) {
     IMB_freeImBuf(tmpibuf);
@@ -511,19 +519,24 @@ void SCULPT_do_paint_brush_image(const Depsgraph &depsgraph,
   MutableSpan<PixelNode> pixel_nodes = pixel_data.nodes;
 
   /* Explicitly marked as serial due to image buffer fetching being non-threadsafe */
-  node_mask.foreach_index([&](const int i) { fetch_image_buffers(image_data, nodes[i], pixel_nodes[i]); },
-                          exec_mode::serial);
-  node_mask.foreach_index([&](const int i) { do_push_undo_tile(image_data, nodes[i], pixel_nodes[i]); },
-                          exec_mode::grain_size(1));
   node_mask.foreach_index(
-      [&](const int i) { do_paint_pixels(depsgraph, ob, sd.paint, *brush, image_data, nodes[i], pixel_nodes[i]); },
+      [&](const int i) { fetch_image_buffers(image_data, nodes[i], pixel_nodes[i]); },
+      exec_mode::serial);
+  node_mask.foreach_index(
+      [&](const int i) { do_push_undo_tile(image_data, nodes[i], pixel_nodes[i]); },
+      exec_mode::grain_size(1));
+  node_mask.foreach_index(
+      [&](const int i) {
+        do_paint_pixels(depsgraph, ob, sd.paint, *brush, image_data, nodes[i], pixel_nodes[i]);
+      },
       exec_mode::grain_size(1));
 
   fix_non_manifold_seam_bleeding(ob, image_data, nodes, pixel_nodes, node_mask);
 
   node_mask.foreach_index(
       [&](const int i) {
-        bke::pbvh::pixels::mark_image_dirty(nodes[i], pixel_nodes[i], *image_data.image, image_data.buffers);
+        bke::pbvh::pixels::mark_image_dirty(
+            nodes[i], pixel_nodes[i], *image_data.image, image_data.buffers);
       },
       exec_mode::grain_size(1));
 }
