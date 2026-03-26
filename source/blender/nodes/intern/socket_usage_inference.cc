@@ -454,7 +454,7 @@ class SocketUsageInferencerImpl {
   {
     const NodeInContext node = socket.owner_node();
     this->usage_task__with_dependent_sockets(
-        socket, {node->output_by_identifier(UString(socket->identifier))}, {}, socket.context);
+        socket, {node->output_by_identifier(socket->identifier_ustr())}, {}, socket.context);
   }
 
   void usage_task__input__capture_attribute_node(const SocketInContext &socket)
@@ -567,7 +567,7 @@ class SocketUsageInferencerImpl {
     }
     Vector<const bNodeSocket *, 16> dependent_sockets;
     if (StringRef(socket->identifier).startswith("Input_")) {
-      dependent_sockets.append(node->output_by_identifier(UString(socket->identifier)));
+      dependent_sockets.append(node->output_by_identifier(socket->identifier_ustr()));
     }
     else {
       /* The geometry and selection inputs are used whenever any of the zone outputs is used. */

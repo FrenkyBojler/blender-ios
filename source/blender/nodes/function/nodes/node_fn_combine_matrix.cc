@@ -160,7 +160,7 @@ static void node_eval_elem(value_elem::ElemEvalParams &params)
   for (const int col : IndexRange(4)) {
     for (const int row : IndexRange(4)) {
       const bNodeSocket &socket = params.node.input_socket(col * 4 + row);
-      input_elems[col][row] = params.get_input_elem<FloatElem>(UString(socket.identifier));
+      input_elems[col][row] = params.get_input_elem<FloatElem>(socket.identifier_ustr());
     }
   }
 
@@ -217,7 +217,7 @@ static void node_eval_inverse_elem(value_elem::InverseElemEvalParams &params)
   for (const int col : IndexRange(4)) {
     for (const int row : IndexRange(4)) {
       const bNodeSocket &socket = params.node.input_socket(col * 4 + row);
-      params.set_input_elem(UString(socket.identifier), input_elems[col][row]);
+      params.set_input_elem(socket.identifier_ustr(), input_elems[col][row]);
     }
   }
 }
@@ -228,7 +228,7 @@ static void node_eval_inverse(inverse_eval::InverseEvalParams &params)
   for (const int col : IndexRange(4)) {
     for (const int row : IndexRange(4)) {
       const bNodeSocket &socket = params.node.input_socket(col * 4 + row);
-      params.set_input(UString(socket.identifier), matrix[col][row]);
+      params.set_input(socket.identifier_ustr(), matrix[col][row]);
     }
   }
 }

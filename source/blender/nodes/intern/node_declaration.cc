@@ -850,7 +850,7 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::usage_by_single_menu
         return std::nullopt;
       }
     }
-    return params.menu_input_may_be(UString(socket.identifier), menu_value);
+    return params.menu_input_may_be(socket.identifier_ustr(), menu_value);
   });
   return *this;
 }
