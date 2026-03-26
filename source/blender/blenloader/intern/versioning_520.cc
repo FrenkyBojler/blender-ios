@@ -69,6 +69,24 @@ static void version_clear_strip_linear_modifier_flag(Main &bmain)
   }
 }
 
+static void fix_single_point_curves_custom_knots(Main *bmain)
+{
+  /* Fix corrupted flagu/flagv values created by older versions of the Curve Pen tool.
+   * The tool could create loose vertices with invalid flag values (e.g. -2), where
+   * CU_NURB_CUSTOM was set alongside other flags and knotsu/knotsv was left null,
+   * causing a crash when opening these files in newer versions. */
+  for (Curve &cu : bmain->curves) {
+    for (Nurb *nu = static_cast<Nurb *>(cu.nurb.first); nu != nullptr; nu = nu->next) {
+      if (nu->knotsu == nullptr && (nu->flagu & CU_NURB_CUSTOM)) {
+        nu->flagu &= (CU_NURB_CYCLIC | CU_NURB_BEZIER | CU_NURB_ENDPOINT);
+      }
+      if (nu->knotsv == nullptr && (nu->flagv & CU_NURB_CUSTOM)) {
+        nu->flagv &= (CU_NURB_CYCLIC | CU_NURB_BEZIER | CU_NURB_ENDPOINT);
+      }
+    }
+  }
+}
+
 void do_versions_after_linking_520(FileData * /*fd*/, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 2)) {
@@ -174,20 +192,7 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 14)) {
-    /* Fix corrupted flagu/flagv values created by older versions of the Curve Pen tool.
-     * The tool could create loose vertices with invalid flag values (e.g. -2), where
-     * CU_NURB_CUSTOM was set alongside other flags and knotsu/knotsv was left null,
-     * causing a crash when opening these files in newer versions. */
-    for (Curve &cu : bmain->curves) {
-      for (Nurb *nu = static_cast<Nurb *>(cu.nurb.first); nu != nullptr; nu = nu->next) {
-        if (nu->knotsu == nullptr && (nu->flagu & CU_NURB_CUSTOM)) {
-          nu->flagu &= (CU_NURB_CYCLIC | CU_NURB_BEZIER | CU_NURB_ENDPOINT);
-        }
-        if (nu->knotsv == nullptr && (nu->flagv & CU_NURB_CUSTOM)) {
-          nu->flagv &= (CU_NURB_CYCLIC | CU_NURB_BEZIER | CU_NURB_ENDPOINT);
-        }
-      }
-    }
+    fix_single_point_curves_custom_knots(bmain);
   }
 
   /**
