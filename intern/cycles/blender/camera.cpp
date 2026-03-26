@@ -200,6 +200,7 @@ static bool is_viewport_stereo3d_active(const blender::RenderData &b_render,
       {
         return false;
       }
+      return true;
 
     case blender::STEREO_LEFT_ID:
     case blender::STEREO_RIGHT_ID:
