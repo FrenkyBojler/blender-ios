@@ -1,1 +1,2 @@
 Referenced by issue #154262, Loop cut is giving unusual cut options
+Referenced by commit cfb15880a17bd6172351c93b75f894ea43e2cc6a, Fix #156177: Regression with loop cut showing an extra edge
