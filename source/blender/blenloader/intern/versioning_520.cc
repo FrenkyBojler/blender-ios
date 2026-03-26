@@ -23,6 +23,7 @@
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
 
+#include "SEQ_iterator.hh"
 #include "SEQ_sequencer.hh"
 
 #include "readfile.hh"
@@ -206,6 +207,20 @@ static void do_version_geometry_node_primitive_uvmaps(bNodeTree *node_tree)
   }
 }
 
+static void version_clear_strip_linear_modifier_flag(Main &bmain)
+{
+  for (Scene &scene : bmain.scenes) {
+    Editing *ed = seq::editing_get(&scene);
+    if (ed != nullptr) {
+      seq::foreach_strip(&ed->seqbase, [&](Strip *strip) {
+        constexpr int flag_linear_modifiers = 1 << 23;
+        strip->flag &= ~flag_linear_modifiers;
+        return true;
+      });
+    }
+  }
+}
+
 void do_versions_after_linking_520(FileData * /*fd*/, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 2)) {
@@ -219,7 +234,7 @@ void do_versions_after_linking_520(FileData * /*fd*/, Main *bmain)
   }
 
   /* Restore old "UV Map" behavior of geometry nodes Cylinder and UV Sphere primitives. */
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 13)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 14)) {
     FOREACH_NODETREE_BEGIN (bmain, node_tree, id_owner) {
       if (node_tree->type == NTREE_GEOMETRY) {
         do_version_geometry_node_primitive_uvmaps(node_tree);
@@ -315,6 +330,10 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         }
       }
     }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 13)) {
+    version_clear_strip_linear_modifier_flag(*bmain);
   }
 
   /**
