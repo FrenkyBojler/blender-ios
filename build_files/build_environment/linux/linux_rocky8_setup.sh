@@ -13,6 +13,9 @@ if [ `id -u` -ne 0 ]; then
   exit 1
 fi
 
+# Current architecture
+ARCH=$(uname -i)
+
 # Required by: config manager command below to enable powertools.
 dnf -y install 'dnf-command(config-manager)'
 
@@ -33,16 +36,13 @@ dnf -y install scl-utils-build
 # Currently this is defined by the VFX platform (CY2023), see: https://vfxplatform.com
 dnf -y install gcc-toolset-14
 
-# Repository for CUDA (`nvcc`).
-ARCH=$(uname -i)
-
 # For RHEL8 there is no aarch64 repo, instead use sbsa which works for device binaries.
 # For RHEL9 there is an aarch64 repo, and this fallback will no longer be needed.
 if [ "$ARCH" = "aarch64" ]; then
     CUDA_ARCH="sbsa"
 fi
-
-dnf config-manager --add-repo http://developer.download.nvidia.com/compute/cuda/repos/rhel8/$CUDA_ARCH/cuda-rhel8.repo
+# Repository for CUDA (`nvcc`).
+dnf config-manager --add-repo http://developer.download.nvidia.com/compute/cuda/repos/rhel8/${CUDA_ARCH-x86_64}/cuda-rhel8.repo
 
 # Install packages needed for Blender's dependencies.
 PACKAGES_FOR_LIBS=(
