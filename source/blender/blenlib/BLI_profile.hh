@@ -16,15 +16,26 @@
 #  include <tracy/tracy/Tracy.hpp>
 #endif
 
-/* Scoped zones. Create a profiling zone lasting until end of current scope. */
+/* Scoped zones, create a profiling zone lasting until end of current scope. */
 #ifdef WITH_TRACY_CLIENT
 #  define BLI_profile_zone_scoped ZoneScoped
 #  define BLI_profile_zone_scoped_n(name) ZoneScopedN(name)
-#  define BLI_profile_zone_named(varname, active) ZoneNamed(varname, active)
 #else
 #  define BLI_profile_zone_scoped
 #  define BLI_profile_zone_scoped_n(name)
-#  define BLI_profile_zone_named(varname, active)
+#endif
+
+/* Set dynamic zone name, text. TODO: Add color / value. */
+#ifdef WITH_TRACY_CLIENT
+#  define BLI_profile_zone_set_name(text, size) ZoneName(text, size)
+#  define BLI_profile_zone_set_name_fmt(fmt, ...) ZoneNameF(fmt, ##__VA_ARGS__)
+#  define BLI_profile_zone_set_text(text, size) ZoneText(text, size)
+#  define BLI_profile_zone_set_text_fmt(fmt, ...) ZoneTextF(fmt, ##__VA_ARGS__)
+#else
+#  define BLI_profile_zone_set_name(text, size)
+#  define BLI_profile_zone_set_name_fmt(fmt, ...)
+#  define BLI_profile_zone_set_text(text, size)
+#  define BLI_profile_zone_set_text_fmt(fmt, ...)
 #endif
 
 /* Frame markers to delimit profiler frames. */
