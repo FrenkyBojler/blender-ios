@@ -23,11 +23,6 @@ dnf config-manager --set-enabled powertools
 # Required by: epel-release has the patchelf and rubygem-asciidoctor packages
 dnf -y install epel-release
 
-# `yum-config-manager` does not come in the default minimal install,
-# so make sure it is installed and available.
-dnf -y update
-dnf -y install yum-utils
-
 # Install all the packages needed for a new tool-chain.
 #
 # NOTE: Keep this separate from the packages install, since otherwise
