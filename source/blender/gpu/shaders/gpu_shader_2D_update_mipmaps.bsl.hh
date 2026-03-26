@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include "gpu_color"
 #include "gpu_shader_compat.hh"
 
 namespace builtin::mipmaps {
@@ -32,6 +31,26 @@ template<> void convert<float, float4>(float &dst_value, const float4 src_value)
 template<> void convert<float4, float4>(float4 &dst_value, const float4 src_value)
 {
   dst_value = src_value;
+}
+
+/* Color transfer functions */
+/* TODO: should be moved to a library */
+float srgb_to_linearrgb(float c)
+{
+  if (c < 0.04045f) {
+    return (c < 0.0f) ? 0.0f : c * (1.0f / 12.92f);
+  }
+
+  return pow((c + 0.055f) * (1.0f / 1.055f), 2.4f);
+}
+
+float linearrgb_to_srgb(float c)
+{
+  if (c < 0.0031308f) {
+    return (c < 0.0f) ? 0.0f : c * 12.92f;
+  }
+
+  return 1.055f * pow(c, 1.0f / 2.4f) - 0.055f;
 }
 
 /**
@@ -78,9 +97,9 @@ struct SharedSRGB {
   void store_sample(int2 dst_coord, float4 color)
   {
     float4 srgba;
-    srgba.r = srgb_component_from_linear(color.r);
-    srgba.g = srgb_component_from_linear(color.g);
-    srgba.b = srgb_component_from_linear(color.b);
+    srgba.r = linearrgb_to_srgb(color.r);
+    srgba.g = linearrgb_to_srgb(color.g);
+    srgba.b = linearrgb_to_srgb(color.b);
     srgba.a = color.a;
     uint srgb_packed = packUnorm4x8(srgba);
     intermediate_level[dst_coord.y][dst_coord.x] = srgb_packed;
@@ -91,29 +110,11 @@ struct SharedSRGB {
     uint srgb_packed = intermediate_level[src_coord.y][src_coord.x];
     float4 srgba = unpackUnorm4x8(srgb_packed);
     float4 linear_color;
-    linear_color.r = linear_from_srgb_component(srgba.r);
-    linear_color.g = linear_from_srgb_component(srgba.g);
-    linear_color.b = linear_from_srgb_component(srgba.b);
+    linear_color.r = srgb_to_linearrgb(srgba.r);
+    linear_color.g = srgb_to_linearrgb(srgba.g);
+    linear_color.b = srgb_to_linearrgb(srgba.b);
     linear_color.a = srgba.a;
     return linear_color;
-  }
-
-  /**
-   * Convert float (0-1) sRGB red/green/blue component value to linear.
-   */
-  /* TODO: move to gpu_shader_colorspace_lib.glsl. This will be done in a separate change as it
-   * impacts other areas. */
-  float linear_from_srgb_component(float srgb)
-  {
-    return srgb <= 0.04045f ? srgb * (25.0f / 323.0f) :
-                              pow((200.0f * srgb + 11.0f) * (1.0f / 211.0f), 2.4f);
-  }
-
-  /** Convert linear red/green/blue component to float (0-1) sRGB */
-  float srgb_component_from_linear(float linear)
-  {
-    return linear <= 0.0031308f ? (323.0f / 25.0f) * linear :
-                                  1.055f * pow(linear, 1.0f / 2.4f) - 0.055f;
   }
 };
 
