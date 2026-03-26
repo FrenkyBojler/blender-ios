@@ -163,7 +163,7 @@ static void add_triangles(const BvhBuildContext &ctx,
 Tree Tree::from_tris(const Mesh &mesh, const IndexMask &face_mask)
 {
   Tree tree;
-  tree.rtc_device = rtcNewDevice("verbose=1");
+  tree.rtc_device = rtcNewDevice("verbose=0");
 
   rtcSetDeviceErrorFunction(tree.rtc_device, rtc_error_func, nullptr);
   rtcSetDeviceMemoryMonitorFunction(tree.rtc_device, rtc_memory_monitor_func, nullptr);
