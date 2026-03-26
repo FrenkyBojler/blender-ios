@@ -52,6 +52,7 @@ class VKCopyImageNode : public VKNodeInfo<VKNodeType::COPY_IMAGE,
   template<typename Node, typename Storage>
   static void set_node_data(Node &node, Storage &storage, const CreateInfo &create_info)
   {
+    BLI_assert(create_info.node_data.mip_levels > 0);
     node.storage_index = storage.copy_image.append_and_get_index(create_info.node_data);
   }
 
