@@ -1677,6 +1677,8 @@ void wm_draw_update(bContext *C)
       wm_draw_update_clear_window(C, &win);
 
       wm_window_swap_buffer_release(&win);
+
+      BLI_profile_frame_mark;
     }
   }
 
