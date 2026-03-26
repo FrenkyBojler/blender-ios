@@ -2,3 +2,4 @@ Referenced by issue #124452, Blender LTS: Maintenance Task 4.2
 Referenced by issue #149784, 5.0: Candidates for corrective releases
 Referenced by issue #141871, Blender LTS: Maintenance Task 4.5
 Referenced by issue #156273, Normalize in graph editor no longer centers flat curves
+Referenced by pull request #156343, Fix #156273: Normalization in Graph Editor error with flat curves
