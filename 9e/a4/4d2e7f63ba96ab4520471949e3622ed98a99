@@ -2,3 +2,4 @@ Referenced by pull request #155500, Fix #154739: Crash When Editing Mesh with Ge
 Referenced by issue #155533, 5.1: Candidates for corrective releases
 Referenced by issue #154938, Performance regression in 2.90 splash screen scene
 Referenced by issue #155963, Odd entries in the Keymap dropdown
+Referenced by issue #156381, Crash when Axes to Rotation node has equal axes input
