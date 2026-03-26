@@ -588,6 +588,7 @@ def view3d_texture_paint_complex():
 
     yield from ui.call_operator(e, "Undo History")
     yield e.o()                         # Undo everything to Original step.
+    yield datetime.timedelta(seconds=0.05)
     t.assertEqual(window.view_layer.objects.active.mode, 'OBJECT')
 
 
