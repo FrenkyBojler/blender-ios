@@ -1712,6 +1712,34 @@ static bool update_mask_grids(const SculptSession &ss,
   return any_changed;
 }
 
+static float calc_new_mask_bmesh(const SculptSession &ss,
+                                 const Cache &expand_cache,
+                                 const Span<float> old_mask,
+                                 const BitSpan enabled_verts,
+                                 BMVert *vert)
+{
+  const int vert_index = BM_elem_index_get(vert);
+  if (expand_cache.check_islands && !is_vert_in_active_component(ss, expand_cache, vert_index)) {
+    return old_mask[vert_index];
+  }
+  float new_mask;
+  if (enabled_verts[vert_index]) {
+    new_mask = gradient_value_get(ss, expand_cache, vert->co, vert_index);
+  }
+  else {
+    new_mask = 0.0f;
+  }
+  if (expand_cache.preserve) {
+    if (expand_cache.invert) {
+      new_mask = min_ff(new_mask, expand_cache.original_mask[vert_index]);
+    }
+    else {
+      new_mask = max_ff(new_mask, expand_cache.original_mask[vert_index]);
+    }
+  }
+  return clamp_f(new_mask, 0.0f, 1.0f);
+}
+
 static bool update_mask_bmesh(SculptSession &ss,
                               const BitSpan enabled_verts,
                               const int mask_offset,
@@ -1721,31 +1749,8 @@ static bool update_mask_bmesh(SculptSession &ss,
   const Cache &expand_cache = *ss.expand_cache;
 
   bool any_changed = false;
-  auto compute_new_mask = [&](BMVert *vert) -> float {
-    const int vert_index = BM_elem_index_get(vert);
-    if (expand_cache.check_islands && !is_vert_in_active_component(ss, expand_cache, vert_index)) {
-      return old_mask[vert_index];
-    }
-    float new_mask;
-    if (enabled_verts[vert_index]) {
-      new_mask = gradient_value_get(ss, expand_cache, vert->co, vert_index);
-    }
-    else {
-      new_mask = 0.0f;
-    }
-    if (expand_cache.preserve) {
-      if (expand_cache.invert) {
-        new_mask = min_ff(new_mask, expand_cache.original_mask[vert_index]);
-      }
-      else {
-        new_mask = max_ff(new_mask, expand_cache.original_mask[vert_index]);
-      }
-    }
-    return clamp_f(new_mask, 0.0f, 1.0f);
-  };
-
   for (BMVert *vert : BKE_pbvh_bmesh_node_unique_verts(node)) {
-    float new_mask = compute_new_mask(vert);
+    float new_mask = calc_new_mask_bmesh(ss, expand_cache, old_mask, enabled_verts, vert);
     if (new_mask != old_mask[BM_elem_index_get(vert)]) {
       any_changed = true;
     }
@@ -1753,7 +1758,9 @@ static bool update_mask_bmesh(SculptSession &ss,
   }
   if (!any_changed) {
     for (BMVert *vert : BKE_pbvh_bmesh_node_other_verts(node)) {
-      if (compute_new_mask(vert) != old_mask[BM_elem_index_get(vert)]) {
+      if (calc_new_mask_bmesh(ss, expand_cache, old_mask, enabled_verts, vert) !=
+          old_mask[BM_elem_index_get(vert)])
+      {
         any_changed = true;
         break;
       }
