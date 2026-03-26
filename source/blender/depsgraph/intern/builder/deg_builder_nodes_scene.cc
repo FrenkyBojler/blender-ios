@@ -69,7 +69,9 @@ void DepsgraphNodeBuilder::build_scene_parameters(Scene *scene)
    * Would be nice to find some reliable way of ignoring compositor here, but it's already pulled
    * in when building scene from view layer, so this particular case does not make things
    * marginally worse. */
-  build_scene_compositor(scene);
+  if (scene == this->scene_) {
+    build_scene_compositor(scene);
+  }
 
   for (TimeMarker &marker : scene->markers) {
     build_idproperties(marker.prop);
@@ -84,6 +86,7 @@ void DepsgraphNodeBuilder::build_scene_compositor(Scene *scene)
   if (scene->compositing_node_group == nullptr) {
     return;
   }
+
   build_nodetree(scene->compositing_node_group);
 }
 
