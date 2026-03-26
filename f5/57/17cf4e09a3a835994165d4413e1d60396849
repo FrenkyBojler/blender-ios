@@ -1,2 +1,2 @@
 Referenced by issue #155963, Odd entries in the Keymap dropdown
-Referenced by issue #156370, Offscreen.draw_view3d() does not match the actual viewport.
+Referenced by issue #156370, Broken render in Offscreen.draw_view3d()
