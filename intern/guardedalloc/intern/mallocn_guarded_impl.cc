@@ -28,6 +28,8 @@
 /* to ensure strict conversions */
 #include "../../source/blender/blenlib/BLI_strict_flags.h"
 
+#include "../../source/blender/blenlib/BLI_profile.hh"
+
 #include "atomic_ops.h"
 #include "mallocn_intern.hh"
 #include "mallocn_intern_function_pointers.hh"
@@ -565,6 +567,7 @@ void *MEM_guarded_mallocN(size_t len, const char *str)
     }
     memh->_count = _mallocn_count++;
 #endif
+    BLI_profile_memory_alloc(memh + 1, len);
     return (++memh);
   }
   print_error("Malloc returns null: len=" SIZET_FORMAT " in %s, total " SIZET_FORMAT "\n",
@@ -656,6 +659,7 @@ void *MEM_guarded_mallocN_aligned(size_t len,
     }
     memh->_count = _mallocn_count++;
 #endif
+    BLI_profile_memory_alloc(memh + 1, len);
     return (++memh);
   }
   print_error("aligned_malloc returns null: len=" SIZET_FORMAT " in %s, total " SIZET_FORMAT "\n",
@@ -681,6 +685,7 @@ void *MEM_guarded_callocN(size_t len, const char *str)
     }
     memh->_count = _mallocn_count++;
 #endif
+    BLI_profile_memory_alloc(memh + 1, len);
     return (++memh);
   }
   print_error("Calloc returns null: len=" SIZET_FORMAT " in %s, total " SIZET_FORMAT "\n",
@@ -1063,6 +1068,8 @@ void MEM_guarded_freeN(void *vmemh, const DestructorType destructor_type)
       return;
     }
   }
+
+  BLI_profile_memory_free(vmemh);
 
   memh--;
 

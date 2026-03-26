@@ -25,6 +25,8 @@
 /* to ensure strict conversions */
 #include "../../source/blender/blenlib/BLI_strict_flags.h"
 
+#include "../../source/blender/blenlib/BLI_profile.hh"
+
 #include "atomic_ops.h"
 #include "mallocn_intern.hh"
 #include "mallocn_intern_function_pointers.hh"
@@ -153,6 +155,8 @@ void MEM_lockfree_freeN(void *vmemh, DestructorType destructor_type)
     report_error_on_address(vmemh, "Attempt to free nullptr pointer\n");
     return;
   }
+
+  BLI_profile_memory_free(vmemh);
 
   MemHead *memh = MEMHEAD_FROM_PTR(vmemh);
   size_t len = MEMHEAD_LEN(memh);
@@ -308,6 +312,7 @@ void *MEM_lockfree_callocN(size_t len, const char *str)
     memh->len = len;
     memory_usage_block_alloc(len);
 
+    BLI_profile_memory_alloc(PTR_FROM_MEMHEAD(memh), len);
     return PTR_FROM_MEMHEAD(memh);
   }
   print_error("Calloc returns null: len=" SIZET_FORMAT " in %s, total " SIZET_FORMAT "\n",
@@ -365,6 +370,7 @@ void *MEM_lockfree_mallocN(size_t len, const char *str)
     memh->len = len;
     memory_usage_block_alloc(len);
 
+    BLI_profile_memory_alloc(PTR_FROM_MEMHEAD(memh), len);
     return PTR_FROM_MEMHEAD(memh);
   }
   print_error("Malloc returns null: len=" SIZET_FORMAT " in %s, total " SIZET_FORMAT "\n",
@@ -453,6 +459,7 @@ void *MEM_lockfree_mallocN_aligned(size_t len,
     memh->alignment = short(alignment);
     memory_usage_block_alloc(len);
 
+    BLI_profile_memory_alloc(PTR_FROM_MEMHEAD(memh), len);
     return PTR_FROM_MEMHEAD(memh);
   }
   print_error("Malloc returns null: len=" SIZET_FORMAT " in %s, total " SIZET_FORMAT "\n",

@@ -37,3 +37,16 @@
 #  define BLI_profile_frame_mark_start(name)
 #  define BLI_profile_frame_mark_end(name)
 #endif
+
+/* Memory allocation profiling. */
+#ifdef WITH_TRACY_CLIENT
+#  define BLI_profile_memory_alloc(ptr, size) TracyAlloc(ptr, size)
+#  define BLI_profile_memory_alloc_n(ptr, size, name) TracyAllocN(ptr, size, name)
+#  define BLI_profile_memory_free(ptr) TracyFree(ptr)
+#  define BLI_profile_memory_free_n(ptr, name) TracyFreeN(ptr, name)
+#else
+#  define BLI_profile_memory_alloc(ptr, size)
+#  define BLI_profile_memory_alloc_n(ptr, size, name)
+#  define BLI_profile_memory_free(ptr, size)
+#  define BLI_profile_memory_free_n(ptr, size, name)
+#endif
