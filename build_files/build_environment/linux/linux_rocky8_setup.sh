@@ -40,11 +40,11 @@ yum -y install scl-utils-build
 yum -y install gcc-toolset-14
 
 # Repository for CUDA (`nvcc`).
-CUDA_ARCH=$(uname -i)
+ARCH=$(uname -i)
 
 # For RHEL8 there is no aarch64 repo, instead use sbsa which works for device binaries.
 # For RHEL9 there is an aarch64 repo, and this fallback will no longer be needed.
-if [ "$CUDA_ARCH" = "aarch64" ]; then
+if [ "$ARCH" = "aarch64" ]; then
     CUDA_ARCH="sbsa"
 fi
 
@@ -199,18 +199,22 @@ yum -y install jack-audio-connection-kit-devel
 # Ensure that sudo is installed (e.g., when using docker)
 yum -y install sudo
 
-# AMD's ROCM
-# Based on instructions from:
-# https://rocm.docs.amd.com/projects/install-on-linux/en/latest/how-to/native-install/rhel.html
-# NOTE: the following steps have intentionally been skipped as they aren't needed:
-# - "Register kernel-mode driver".
-# - "Install kernel driver".
+# For ROCm there is no aarch64 repo
+if [ "$ARCH" != "aarch64" ]; then
+    # AMD's ROCM
+    # Based on instructions from:
+    # https://rocm.docs.amd.com/projects/install-on-linux/en/latest/how-to/native-install/rhel.html
+    # NOTE: the following steps have intentionally been skipped as they aren't needed:
+    # - "Register kernel-mode driver".
+    # - "Install kernel driver".
 
-# Register ROCm packages
-sudo rpm --import https://repo.radeon.com/rocm/rocm.gpg.key
-rm -f /etc/yum.repos.d/amdgpu-6.4.3.repo
-rm -f /etc/yum.repos.d/rocm-6.4.3.repo
-tee --append /etc/yum.repos.d/amdgpu-6.4.3.repo <<EOF
+    # Register ROCm packages
+    sudo rpm --import https://repo.radeon.com/rocm/rocm.gpg.key
+
+    sudo rm -f /etc/yum.repos.d/amdgpu-6.4.3.repo
+    sudo rm -f /etc/yum.repos.d/rocm-6.4.3.repo
+
+    sudo tee /etc/yum.repos.d/amdgpu-6.4.3.repo > /dev/null <<EOF
 [amdgpu-6.4.3]
 name=amdgpu-6.4.3
 baseurl=https://repo.radeon.com/amdgpu/6.4.3/el/8.10/main/x86_64/
@@ -219,7 +223,8 @@ priority=50
 gpgcheck=1
 gpgkey=https://repo.radeon.com/rocm/rocm.gpg.key
 EOF
-tee --append /etc/yum.repos.d/rocm-6.4.3.repo <<EOF
+
+    sudo tee /etc/yum.repos.d/rocm-6.4.3.repo > /dev/null <<EOF
 [ROCm-6.4.3]
 name=ROCm-6.4.3
 baseurl=https://repo.radeon.com/rocm/el8/6.4.3/main
@@ -228,6 +233,8 @@ gpgcheck=1
 exclude=rock-dkms
 gpgkey=https://repo.radeon.com/rocm/rocm.gpg.key
 EOF
-yum -y update
-sudo yum install -y hipcc6.4.3 hip-devel6.4.3 rocm-llvm6.4.3 rocm-core6.4.3 rocm-device-libs6.4.3
-sudo update-alternatives --set rocm /opt/rocm-6.4.3
+
+    sudo yum -y update
+    sudo yum install -y hipcc6.4.3 hip-devel6.4.3 rocm-llvm6.4.3 rocm-core6.4.3 rocm-device-libs6.4.3
+    sudo update-alternatives --set rocm /opt/rocm-6.4.3
+fi
