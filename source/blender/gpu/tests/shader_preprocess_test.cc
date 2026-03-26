@@ -795,6 +795,14 @@ template void func(float a);
     EXPECT_EQ(output, expect);
     EXPECT_EQ(error, "");
   }
+  {
+    string input = R"(A<B<1, 2>, C<1, D<T, -1>>> a;)";
+    string expect = R"(ATBT1T2TCT1TDTTT_1 a;)";
+    string error;
+    string output = process_test_local(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
 }
 GPU_TEST(preprocess_template);
 
@@ -1513,6 +1521,32 @@ static void test_preprocess_namespace()
   using namespace shader;
   using namespace std;
 
+  {
+    string input = R"(
+namespace A {
+int func(int a) { return 0; }
+int func2(int a)
+{
+  int func = func();
+  return func;
+}
+}
+)";
+    string expect = R"(
+
+int A_func(int a) { return 0; }
+int A_func2(int a)
+{
+  int func = A_func();
+  return func;
+}
+
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
   {
     string input = R"(
 namespace A {
@@ -2467,7 +2501,7 @@ struct VertOut {
 
 struct FragOut {
   [[frag_color(0)]] float3 color;
-  [[frag_color(1), index(2)]] uint test;
+  [[frag_color(1), index(1)]] uint test;
 };
 
 template<typename T>
@@ -2641,7 +2675,7 @@ GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(ns_FragOut)
 FRAGMENT_OUT(0, float3, ns_FragOut_color)
-FRAGMENT_OUT_DUAL(1, uint, ns_FragOut_test, 2)
+FRAGMENT_OUT_DUAL(1, uint, ns_FragOut_test, SRC_1)
 GPU_SHADER_CREATE_END()
 
 
@@ -2793,8 +2827,8 @@ void fn() {
     string expect = R"(
 T fn1() { return _ctor(T) 1, 2 _rotc() ; }
 T fn2() { return _ctor(T) 1, 2   _rotc() ; }
-T fn3() { {T _tmp ;    _tmp.a=1;  _tmp.b=2;   return T_tmp;}; }
-T fn4() { {T _tmp ;    _tmp.a=1;  _tmp.b=2  ;   return T_tmp;}; }
+T fn3() { {T _tmp ;    _tmp.a=1;  _tmp.b=2;   return _tmp;}; }
+T fn4() { {T _tmp ;    _tmp.a=1;  _tmp.b=2  ;   return _tmp;}; }
 T fn5() { return _ctor(T) 1, 2 _rotc() ; }
 T fn6() { return _ctor(T) 1, 2   _rotc() ; }
 T fn7() { {T _tmp ;    _tmp.a=1;  _tmp.b=2;   return _tmp;}; }
