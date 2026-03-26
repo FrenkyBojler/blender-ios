@@ -15,7 +15,7 @@
 
 #include "BLI_function_ref.hh"
 #include "BLI_gsqueue.h"
-#include "BLI_profile_tracy.hh"
+#include "BLI_profile.hh"
 #include "BLI_task.h"
 #include "BLI_time.h"
 
@@ -88,7 +88,7 @@ struct DepsgraphEvalState {
 
 void evaluate_node(const DepsgraphEvalState *state, OperationNode *operation_node)
 {
-  ZoneNamed(evaluate_node, true);  // XXX: Name the zone somehow?
+  BLI_profile_zone_named(evaluate_node, true);  // XXX: Name the zone somehow?
 
   blender::Depsgraph *depsgraph = reinterpret_cast<blender::Depsgraph *>(state->graph);
 

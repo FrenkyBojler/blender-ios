@@ -349,7 +349,7 @@ set(SRC
   BLI_polyfill_2d_beautify.h
   BLI_pool.hh
   BLI_probing_strategies.hh
-  BLI_profile_tracy.hh
+  BLI_profile.hh
   BLI_quadric.h
   BLI_radial_tiling.hh
   BLI_rand.h
