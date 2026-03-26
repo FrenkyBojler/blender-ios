@@ -23,7 +23,7 @@ struct CurveMapping;
 struct ColorManagedColorspaceSettings;
 struct ColorManagedDisplaySettings;
 struct ColorManagedViewSettings;
-struct ColormanageProcessor;
+class ColormanageProcessor;
 struct ID;
 struct EnumPropertyItem;
 struct ImBuf;
