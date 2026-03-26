@@ -19,6 +19,7 @@
 
 #include "BLI_assert.h"
 #include "BLI_mempool.h"
+#include "BLI_profile.hh"
 #include "BLI_task.h"
 #include "BLI_threads.h"
 #include "BLI_vector.hh"
@@ -117,6 +118,7 @@ class Task {
 /* Execute task. */
 void Task::operator()() const
 {
+  BLI_profile_set_thread_name("BLI Task thread");
   run(pool, taskdata);
 }
 

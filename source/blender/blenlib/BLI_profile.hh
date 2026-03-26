@@ -27,7 +27,7 @@
 #  define BLI_profile_zone_named(varname, active)
 #endif
 
-/* Frame marks. Delimit profiler frames. */
+/* Frame markers to delimit profiler frames. */
 #ifdef WITH_TRACY_CLIENT
 #  define BLI_profile_frame_mark FrameMark
 #  define BLI_profile_frame_mark_start(name) FrameMarkStart(name)
@@ -49,4 +49,13 @@
 #  define BLI_profile_memory_alloc_n(ptr, size, name)
 #  define BLI_profile_memory_free(ptr, size)
 #  define BLI_profile_memory_free_n(ptr, size, name)
+#endif
+
+/* Thread naming for identify threads in the profiler UI. */
+#ifdef WITH_TRACY_CLIENT
+#  define BLI_profile_set_thread_name(name) tracy::SetThreadName(name)
+#  define BLI_profile_set_thread_name_with_hint(name, hint) tracy::SetThreadNameWithHint(name, hint)
+#else
+#  define BLI_profile_set_thread_name(name)
+#  define BLI_profile_set_thread_name_with_hint(name, hint)
 #endif
