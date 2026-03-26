@@ -931,13 +931,13 @@ static void rna_EditBone_parent_set(PointerRNA *ptr, PointerRNA value, ReportLis
 static void rna_EditBone_matrix_get(PointerRNA *ptr, float *values)
 {
   EditBone *ebone = static_cast<EditBone *>(ptr->data);
-  ED_armature_ebone_to_mat4(ebone, reinterpret_cast<float(*)[4]>(values));
+  ED_armature_ebone_to_mat4(ebone, reinterpret_cast<float (*)[4]>(values));
 }
 
 static void rna_EditBone_matrix_set(PointerRNA *ptr, const float *values)
 {
   EditBone *ebone = static_cast<EditBone *>(ptr->data);
-  ED_armature_ebone_from_mat4(ebone, reinterpret_cast<float(*)[4]>(const_cast<float *>(values)));
+  ED_armature_ebone_from_mat4(ebone, reinterpret_cast<float (*)[4]>(const_cast<float *>(values)));
 }
 
 static float rna_EditBone_length_get(PointerRNA *ptr)
@@ -1124,7 +1124,7 @@ static bool rna_Armature_is_editmode_get(PointerRNA *ptr)
 
 static void rna_Armature_transform(bArmature *arm, const float mat[16])
 {
-  ED_armature_transform(arm, reinterpret_cast<const float(*)[4]>(mat), true);
+  ED_armature_transform(arm, reinterpret_cast<const float (*)[4]>(mat), true);
 }
 
 static int rna_Armature_relation_line_position_get(PointerRNA *ptr)
