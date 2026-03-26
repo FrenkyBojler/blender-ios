@@ -2752,9 +2752,13 @@ static void rna_SpaceSequencer_scope_type_set(PointerRNA *ptr, int value)
       for (int i = 0; i < sseq->scope_order_len; i++) {
         if (sseq->scope_order[i] != 0) {
           sseq->scope_order[write_index++] = sseq->scope_order[i];
-          sseq->scope_order[i] = 0;
         }
       }
+
+      for (int i = write_index; i < sseq->scope_order_len; i++) {
+        sseq->scope_order[i] = 0;
+      }
+
       sseq->scope_order_len -= count_bits_i(removed);
     }
 
