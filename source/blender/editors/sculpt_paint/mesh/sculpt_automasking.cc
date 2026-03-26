@@ -1112,7 +1112,7 @@ static void fill_topology_automasking_factors_mesh(const Depsgraph &depsgraph,
   flood.add_initial(find_symm_verts_mesh(depsgraph, ob, active_vert, radius));
 
   const bool use_radius = ss.cache && is_constrained_by_radius(brush);
-  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(ob);
+  const ePaintSymmetryFlags symm = mesh_symmetry_xyz_get(ob);
 
   float3 location = vert_positions[active_vert];
 
@@ -1120,8 +1120,7 @@ static void fill_topology_automasking_factors_mesh(const Depsgraph &depsgraph,
     flood.execute(ob, vert_to_face_map, [&](int from_v, int to_v) {
       factors[from_v] = 1.0f;
       factors[to_v] = 1.0f;
-      return SCULPT_is_vertex_inside_brush_radius_symm(
-          vert_positions[to_v], location, radius, symm);
+      return is_vertex_inside_brush_radius_symm(vert_positions[to_v], location, radius, symm);
     });
   }
   else {
@@ -1153,7 +1152,7 @@ static void fill_topology_automasking_factors_grids(const Sculpt &sd,
   flood.add_initial(key, find_symm_verts_grids(ob, active_vert, radius));
 
   const bool use_radius = ss.cache && is_constrained_by_radius(brush);
-  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(ob);
+  const ePaintSymmetryFlags symm = mesh_symmetry_xyz_get(ob);
 
   float3 location = positions[active_vert];
 
@@ -1162,7 +1161,7 @@ static void fill_topology_automasking_factors_grids(const Sculpt &sd,
         ob, subdiv_ccg, [&](SubdivCCGCoord from_v, SubdivCCGCoord to_v, bool /*is_duplicate*/) {
           factors[from_v.to_index(key)] = 1.0f;
           factors[to_v.to_index(key)] = 1.0f;
-          return SCULPT_is_vertex_inside_brush_radius_symm(
+          return is_vertex_inside_brush_radius_symm(
               positions[to_v.to_index(key)], location, radius, symm);
         });
   }
@@ -1192,7 +1191,7 @@ static void fill_topology_automasking_factors_bmesh(const Sculpt &sd,
   flood.add_initial(*ss.bm, find_symm_verts_bmesh(ob, BM_elem_index_get(active_vert), radius));
 
   const bool use_radius = ss.cache && is_constrained_by_radius(brush);
-  const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(ob);
+  const ePaintSymmetryFlags symm = mesh_symmetry_xyz_get(ob);
 
   float3 location = active_vert->co;
 
@@ -1200,7 +1199,7 @@ static void fill_topology_automasking_factors_bmesh(const Sculpt &sd,
     flood.execute(ob, [&](BMVert *from_v, BMVert *to_v) {
       factors[BM_elem_index_get(from_v)] = 1.0f;
       factors[BM_elem_index_get(to_v)] = 1.0f;
-      return SCULPT_is_vertex_inside_brush_radius_symm(to_v->co, location, radius, symm);
+      return is_vertex_inside_brush_radius_symm(to_v->co, location, radius, symm);
     });
   }
   else {
@@ -1580,7 +1579,7 @@ static void normal_occlusion_automasking_fill(const Depsgraph &depsgraph,
                                               eAutomasking_flag mode,
                                               MutableSpan<float> factors)
 {
-  const int totvert = SCULPT_vertex_count_get(ob);
+  const int totvert = vertex_count_get(ob);
   /* No need to build original data since this is only called at the beginning of strokes. */
   switch (bke::object::pbvh_get(ob)->type()) {
     case bke::pbvh::Type::Mesh: {
@@ -1672,7 +1671,7 @@ std::unique_ptr<Cache> cache_init(const Depsgraph &depsgraph,
     automasking->settings.initial_island_nr = islands::vert_id_get(ss, ss.active_vert_index());
   }
 
-  const int verts_num = SCULPT_vertex_count_get(ob);
+  const int verts_num = vertex_count_get(ob);
 
   if ((mode & BRUSH_AUTOMASKING_VIEW_OCCLUSION) && (mode & BRUSH_AUTOMASKING_VIEW_NORMAL)) {
     automasking->occlusion = Array<Cache::OcclusionValue>(verts_num,
