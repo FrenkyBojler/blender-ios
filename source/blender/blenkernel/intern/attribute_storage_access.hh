@@ -101,7 +101,7 @@ Set<StringRef> rename_attributes(AttributeStorage &storage,
                                  const Map<StringRef, StringRef> &name_map,
                                  bool overwrite,
                                  const Map<StringRef, AttrBuiltinInfo> &builtin_attributes,
-                                 std::optional<ListBaseT<bDeformGroup>> vertex_groups,
+                                 std::optional<ListBaseT<bDeformGroup> *> vertex_groups,
                                  FunctionRef<MutableSpan<MDeformVert>()> get_mutable_dverts);
 
 }  // namespace blender::bke

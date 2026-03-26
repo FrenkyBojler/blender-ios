@@ -342,16 +342,16 @@ void AttributeStorage::rename(Attribute &attr, std::string new_name)
 
 void AttributeStorage::rename(const StringRef old_name, std::string new_name)
 {
-  BLI_assert(this->contains(old_name));
+  BLI_assert(this->lookup(old_name) != nullptr);
   this->rename(*this->lookup(old_name), std::move(new_name));
 }
 
 void AttributeStorage::rename(const Map<Attribute *, StringRef> &renames)
 {
   BLI_assert(std::all_of(renames.keys().begin(), renames.keys().end(), [&](const Attribute *attr) {
-    std::any_of(this->runtime->attributes.begin(),
-                this->runtime->attributes.end(),
-                [&](const std::unique_ptr<Attribute> &a) { return a.get() == attr; });
+    return std::any_of(this->runtime->attributes.begin(),
+                       this->runtime->attributes.end(),
+                       [&](const std::unique_ptr<Attribute> &a) { return a.get() == attr; });
   }));
   Vector<std::unique_ptr<Attribute>, 16> renamed;
   renamed.reserve(this->runtime->attributes.size());

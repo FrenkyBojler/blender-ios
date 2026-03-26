@@ -1023,7 +1023,7 @@ static AttributeAccessorFunctions get_mesh_accessor_functions()
                              name_map,
                              overwrite,
                              builtin_attributes(),
-                             mesh.vertex_group_names,
+                             &mesh.vertex_group_names,
                              [&]() { return mesh.deform_verts_for_write(); });
   };
   fn.assign_data = [](void *owner, StringRef name, const AttributeInit &initializer) {

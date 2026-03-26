@@ -39,7 +39,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   b.add_input<decl::Menu>("Mode").static_items(rename_mode_items).optional_label();
 
-  b.add_input<decl::String>("Old").optional_label();
+  b.add_input<decl::String>("Old").optional_label().is_attribute_name();
   b.add_input<decl::String>("New").optional_label();
   b.add_input<decl::Bool>("Overwrite").default_value(false);
 }
@@ -58,7 +58,6 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   std::atomic<bool> not_found = false;
-  std::atomic<bool> rename_failed = false;
   Mutex failures_lock;
   Map<std::string, std::string> failures;
   geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry) {
@@ -119,13 +118,10 @@ static void node_geo_exec(GeoNodeExecParams params)
     params.error_message_add(NodeWarningType::Warning,
                              fmt::format("{}: '{}'", TIP_("Attribute not found"), old_name));
   }
-  if (rename_failed) {
-    for (const auto &[old_name, new_name] : failures.items()) {
-      params.error_message_add(
-          NodeWarningType::Warning,
-          fmt::format(
-              fmt::runtime("Failed to rename attribute: '{}' to '{}'"), old_name, new_name));
-    }
+  for (const auto &[old_name, new_name] : failures.items()) {
+    params.error_message_add(
+        NodeWarningType::Warning,
+        fmt::format(fmt::runtime("Failed to rename attribute: '{}' to '{}'"), old_name, new_name));
   }
 
   params.set_output("Geometry", std::move(geometry_set));

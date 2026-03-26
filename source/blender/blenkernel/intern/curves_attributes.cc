@@ -433,7 +433,7 @@ static AttributeAccessorFunctions get_curves_accessor_functions()
                              name_map,
                              overwrite,
                              builtin_attributes(),
-                             curves.vertex_group_names,
+                             &curves.vertex_group_names,
                              [&]() { return curves.deform_verts_for_write(); });
   };
   fn.assign_data = [](void *owner, StringRef name, const AttributeInit &initializer) {
