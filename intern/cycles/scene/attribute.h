@@ -188,6 +188,8 @@ class Attribute {
 
   void set_data_from(Attribute &&other);
 
+  void free_data();
+
   static bool same_storage(const TypeDesc a, const TypeDesc b);
   static const char *standard_name(AttributeStandard std);
   static AttributeStandard name_standard(const char *name);

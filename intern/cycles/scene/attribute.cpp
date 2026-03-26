@@ -63,7 +63,7 @@ Attribute::Attribute(ustring name,
   this->sharing_info = sharing_info;
 }
 
-Attribute::~Attribute()
+void Attribute::free_data()
 {
   /* For voxel data, we need to free the image handle. */
   if (element & ATTR_ELEMENT_VOXEL) {
@@ -76,6 +76,11 @@ Attribute::~Attribute()
     GuardedAllocator<char>().deallocate(static_cast<char *>(const_cast<void *>(buffer)),
                                         size * this->data_sizeof());
   }
+}
+
+Attribute::~Attribute()
+{
+  this->free_data();
 }
 
 void Attribute::resize(Geometry *geom, AttributePrimitive prim)
@@ -99,9 +104,7 @@ void Attribute::resize(const size_t num_elements)
              this->buffer,
              std::min(num_elements, size_t(this->size)) * this->data_sizeof());
     }
-    if (this->sharing_info) {
-      g_implicit_sharing_user_remove_fn(this->sharing_info);
-    }
+    this->free_data();
     this->buffer = new_data;
     this->size = new_size;
     this->sharing_info = nullptr;
@@ -117,13 +120,7 @@ void Attribute::set_data_from(Attribute &&other)
   this->flags = other.flags;
 
   const auto take_data = [&]() {
-    if (this->sharing_info) {
-      g_implicit_sharing_user_remove_fn(this->sharing_info);
-    }
-    else {
-      GuardedAllocator<char>().deallocate(static_cast<char *>(const_cast<void *>(buffer)),
-                                          size * this->data_sizeof());
-    }
+    this->free_data();
     this->buffer = other.buffer;
     this->sharing_info = other.sharing_info;
     this->size = other.size;
