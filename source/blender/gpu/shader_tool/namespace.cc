@@ -124,8 +124,30 @@ static void lower_namespace(string ns_prefix,
     if (token.prev() == '.') {
       return;
     }
+    Token next = token.next();
     /* Only process the end token of a namespace qualified identifier. */
-    if (token.next() == ':') {
+    if (next == ':') {
+      return;
+    }
+
+    bool is_pipeline_arg = false;
+    if (token.scope().type() == ScopeType::FunctionArg) {
+      std::string_view type = token.scope().scope().front().prev(2).str();
+      is_pipeline_arg = (type == "PipelineGraphic" || type == "PipelineCompute");
+    }
+
+    if (is_pipeline_arg) {
+      /* Special case for pipelines. We need to match the function names but they are arguments. */
+    }
+    /* Only process function calls or types. */
+    else if (next != '<' &&  /* Templated type or function. */
+             next != '{' &&  /* Type definition. */
+             next != '&' &&  /* Reference definition. */
+             next != Word && /* Variable definition. */
+             token.scope().type() != parser::ScopeType::TemplateArg && /* Template argument. */
+             next != '(' /* Function call or reference definition. */
+    )
+    {
       return;
     }
 
@@ -274,7 +296,7 @@ void SourceProcessor::lower_scope_resolution_operators(Parser &parser)
       return;
     }
     Token prev = tokens[0].prev();
-    if (prev != Word && (prev != '>' && prev.followed_by_whitespace() == false)) {
+    if (prev != Word && !(prev == '>' && prev.followed_by_whitespace() == false)) {
       /* Global namespace reference. */
       parser.erase(tokens.front(), tokens.back());
     }
