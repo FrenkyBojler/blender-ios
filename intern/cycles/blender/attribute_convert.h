@@ -107,7 +107,8 @@ template<> struct AttributeConverter<int8_t> {
 template<> struct AttributeConverter<blender::math::Quaternion> {
   using CyclesT = float4;
   static constexpr auto type_desc = TypeFloat4;
-  static constexpr bool layout_compatible = true;
+  /* Allocation alignment is not compatible with Cycles */
+  static constexpr bool layout_compatible = false;
   static CyclesT convert(const blender::math::Quaternion &value)
   {
     return make_float4(value.w, value.x, value.y, value.z);
