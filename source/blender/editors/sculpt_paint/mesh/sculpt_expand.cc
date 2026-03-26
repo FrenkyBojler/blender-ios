@@ -1716,7 +1716,7 @@ static float calc_new_mask_bmesh(const SculptSession &ss,
                                  const Cache &expand_cache,
                                  const Span<float> old_mask,
                                  const BitSpan enabled_verts,
-                                 BMVert *vert)
+                                 const BMVert *vert)
 {
   const int vert_index = BM_elem_index_get(vert);
   if (expand_cache.check_islands && !is_vert_in_active_component(ss, expand_cache, vert_index)) {
