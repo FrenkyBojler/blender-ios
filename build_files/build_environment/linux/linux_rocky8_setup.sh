@@ -27,7 +27,6 @@ dnf -y install epel-release
 #
 # NOTE: Keep this separate from the packages install, since otherwise
 # older tool-chain will be installed.
-dnf -y update
 dnf -y install scl-utils
 dnf -y install scl-utils-build
 
