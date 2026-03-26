@@ -1,2 +1,3 @@
 Referenced by commit febd162bb114750849910662fc43daf9c4d182e7, Fix (Hopefully) PY API docs building after changes in py templates paths.
 Referenced by pull request #155998, Fix #155963: Odd entries in the Keymap dropdown
+Referenced by commit ae0b4cdff9e6b817aab376a54cf8a3ffd2874c09, Fix #155963: Odd entries in the Keymap dropdown
