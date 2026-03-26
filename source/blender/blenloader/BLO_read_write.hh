@@ -56,20 +56,13 @@ struct BlendWriter {
 
   void write_struct_by_name(const char *struct_name, const void *data);
   void write_struct_by_id(int struct_id, const void *data);
-  void write_struct_by_id_enforce_stable_addresses_on_undo(int struct_id, const void *data);
   void write_struct_at_address_by_id(int struct_id, const void *address, const void *data);
   void write_struct_at_address_by_id_with_filecode(int filecode,
                                                    int struct_id,
                                                    const void *address,
                                                    const void *data);
   void write_struct_array_by_name(const char *struct_name, int64_t array_size, const void *data);
-  void write_struct_array_by_name_enforce_stable_addresses_on_undo(const char *struct_name,
-                                                                   int64_t array_size,
-                                                                   const void *data);
   void write_struct_array_by_id(int struct_id, int64_t array_size, const void *data);
-  void write_struct_array_by_id_enforce_stable_addresses_on_undo(int struct_id,
-                                                                 int64_t array_size,
-                                                                 const void *data);
   void write_struct_array_at_address_by_id(int struct_id,
                                            int64_t array_size,
                                            const void *address,
@@ -113,11 +106,6 @@ struct BlendWriter {
   template<typename T> void write_struct(const T *data)
   {
     this->write_struct_by_id(dna::sdna_struct_id_get<T>(), data);
-  }
-
-  template<typename T> void write_struct_enforce_stable_addresses_on_undo(const T *data)
-  {
-    this->write_struct_by_id_enforce_stable_addresses_on_undo(dna::sdna_struct_id_get<T>(), data);
   }
 
   template<typename T> void write_struct_cast(const void *data)
@@ -257,13 +245,13 @@ void BLO_write_shared(BlendWriter *writer,
 
 /**
  * Needs to be called for all pointers that _need_ to be 'stabilized' when writing undo steps,
- * _before_ any of these pointers are actually written (so typically at the very start of a wrtie
+ * _before_ any of these pointers are actually written (so typically at the very start of a write
  * function)..
  *
  * Typically required for data dynamically generated as part of the write process, see e.g.
  * AttributeStorage::dna_attributes.
  */
-void BLO_write_stable_for_undo_tag(BlendWriter *writer, const void *data);
+void BLO_write_generated_pointer_tag(BlendWriter *writer, const void *data);
 
 /**
  * Sometimes different data is written depending on whether the file is saved to disk or used for

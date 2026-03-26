@@ -386,7 +386,7 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
   const bke::MeshRuntime *mesh_runtime = mesh->runtime;
   mesh->runtime = nullptr;
 
-  BLO_write_stable_for_undo_tag(writer, mesh->attribute_storage.dna_attributes);
+  BLO_write_generated_pointer_tag(writer, mesh->attribute_storage.dna_attributes);
 
   writer->write_id_struct(id_address, mesh);
   BKE_id_blend_write(writer, &mesh->id);

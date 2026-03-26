@@ -643,7 +643,7 @@ void attribute_storage_blend_write_prepare(AttributeStorage &data,
     }
 
     write_data.attributes.append(attribute_dna);
-    BLO_write_stable_for_undo_tag(write_data.writer, attribute_dna.data);
+    BLO_write_generated_pointer_tag(write_data.writer, attribute_dna.data);
   }
   data.runtime = nullptr;
 }

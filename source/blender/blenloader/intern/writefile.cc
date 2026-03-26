@@ -626,7 +626,8 @@ static uint64_t get_stable_pointer_hint_for_id(const ID &id, const bool is_undo)
      * However, to leave enough 'address space' for all the sub-data pointers, its value is shifted
      * into higher significant bits of the returned value (only shift by 20 bits here, since
      * #stable_id_from_hint also shifts further the generated values by 4, and some of the most
-     * significant bits are also reserved for flags, like the #undo_address_id_flag one). */
+     * significant bits are also reserved for flags, like the #generated_address_id_on_undo_flag
+     * one). */
     return uint64_t(id.session_uid) << 20;
   }
 
@@ -704,15 +705,15 @@ static void mywrite_id_end(WriteData *wd, ID * /*id*/)
      *   - Other addresses (private ID data) should never be shared accross IDs.
      *
      * So we can clear the stable address ids after each ID writing. This makes the mapping even
-     * smaller, and ensure that data dynamically generated on write (which may re-use the same
+     * smaller, and ensures that data dynamically generated on write (which may re-use the same
      * addresses between different IDs) do not trigger the assert in
-     * `BLO_write_stable_for_undo_tag`.
+     * `BLO_write_generated_pointer_tag`.
      *
      * Note that `WriteDataStableAddressIDs::used_ids` and
      * `WriteDataStableAddressIDs::next_id_hint` are kept, to ensure generated address ids are
      * never re-used in another ID (not strictly necessary, but can helps with debugging etc.).
      */
-    wd->stable_address_ids.pointer_map.clear_and_keep_capacity();
+    wd->stable_address_ids.pointer_map.clear();
   }
 
   wd->validation_data.per_id_addresses_set.clear();
@@ -793,9 +794,9 @@ static void write_bhead(WriteData *wd, const BHead &bhead)
 /**
  * This bit is used to mark address ids that are generated for pointers during undo (when writing
  * undo steps, most addresses are used as-is). */
-constexpr uint64_t undo_address_id_flag = uint64_t(1) << 63;
+constexpr uint64_t generated_address_id_on_undo_flag = uint64_t(1) << 63;
 /** Mask to remove bits form the generated hash values used as stable addresses. */
-constexpr uint64_t undo_address_id_mask = undo_address_id_flag;
+constexpr uint64_t generated_address_id_mask = generated_address_id_on_undo_flag;
 
 static uint64_t stable_id_from_hint(const uint64_t hint)
 {
@@ -806,9 +807,9 @@ static uint64_t stable_id_from_hint(const uint64_t hint)
     /* Null values are reserved for nullptr. */
     stable_id = (1 << 4);
   }
-  /* Remove the first bits which are reserved for undo pointers (implicit sharing and regular
-   * ones). */
-  stable_id &= ~undo_address_id_mask;
+  /* Remove the first bits, which are reserved for certain types of generated values (like
+   * actual stable ids used in some cases when writing undo steps). */
+  stable_id &= ~generated_address_id_mask;
   return stable_id;
 }
 
@@ -832,7 +833,7 @@ static uint64_t get_address_id_int(WriteData &wd, const void *address)
     return 0;
   }
   /* In undo case, addresses are kept as-is, unless they have been tagged by specific functions
-   * like BLO_write_stable_for_undo_tag`, in which case their value will already be in the
+   * like BLO_write_generated_pointer_tag`, in which case their value will already be in the
    * `pointer_map`. */
   if (wd.use_memfile) {
     return wd.stable_address_ids.pointer_map.lookup_default_as(
@@ -851,7 +852,7 @@ static const void *get_address_id(WriteData &wd, const void *address)
 
 /**
  * When writing an undo step, most pointers do not use generated stable addresses, since by
- * definition if a pointer address changes, it owning data is also changed, and getting astable
+ * definition if a pointer address changes, it owning data is also changed, and getting a stable
  * value here might actually lead to _preventing_ proper change detection.
  *
  * However, there are a few pointers, used for data generated at runtime as part of the writefile
@@ -860,7 +861,8 @@ static const void *get_address_id(WriteData &wd, const void *address)
  */
 static uint64_t get_address_id_for_undo(WriteData &wd)
 {
-  return get_next_stable_address_id(wd, wd.stable_address_ids.next_id_hint) | undo_address_id_flag;
+  return get_next_stable_address_id(wd, wd.stable_address_ids.next_id_hint) |
+         generated_address_id_on_undo_flag;
 }
 
 static void writestruct_at_address_nr(WriteData *wd,
@@ -868,13 +870,9 @@ static void writestruct_at_address_nr(WriteData *wd,
                                       const int struct_nr,
                                       const int64_t nr,
                                       const void *adr,
-                                      const void *data,
-                                      const bool skip_stable_addresses_on_undo = false)
+                                      const void *data)
 {
   BLI_assert(struct_nr > 0 && struct_nr <= dna::sdna_struct_id_get_max());
-
-  const bool is_undo = wd->use_memfile;
-  const bool use_stable_addresses = !is_undo || !skip_stable_addresses_on_undo;
 
   if (adr == nullptr || data == nullptr || nr == 0) {
     return;
@@ -899,34 +897,29 @@ static void writestruct_at_address_nr(WriteData *wd,
 
   const void *data_to_write;
   DynamicStackBuffer<16 * 1024> buffer_owner(len_in_bytes, 64);
-  if (use_stable_addresses) {
-    const dna::pointers::StructInfo &struct_info =
-        wd->stable_address_ids.sdna_pointers->get_for_struct(struct_nr);
-    const bool can_write_raw_runtime_data = struct_info.pointers.is_empty();
+  const dna::pointers::StructInfo &struct_info =
+      wd->stable_address_ids.sdna_pointers->get_for_struct(struct_nr);
+  const bool can_write_raw_runtime_data = struct_info.pointers.is_empty();
 
-    if (can_write_raw_runtime_data) {
-      /* The passed in data contains no pointers, so it can be written without an additional copy.
-       */
-      data_to_write = data;
-    }
-    else {
-      void *buffer = buffer_owner.buffer();
-      data_to_write = buffer;
-      memcpy(buffer, data, len_in_bytes);
-
-      /* Overwrite pointers with their corresponding address identifiers. */
-      for (const int i : IndexRange(nr)) {
-        for (const dna::pointers::PointerInfo &pointer_info : struct_info.pointers) {
-          const int offset = i * struct_info.size_in_bytes + pointer_info.offset;
-          const void **p_ptr = reinterpret_cast<const void **>(POINTER_OFFSET(buffer, offset));
-          const void *p_ptr_address_id = get_address_id(*wd, *p_ptr);
-          *p_ptr = p_ptr_address_id;
-        }
-      }
-    }
+  if (can_write_raw_runtime_data) {
+    /* The passed in data contains no pointers, so it can be written without an additional copy.
+     */
+    data_to_write = data;
   }
   else {
-    data_to_write = data;
+    void *buffer = buffer_owner.buffer();
+    data_to_write = buffer;
+    memcpy(buffer, data, len_in_bytes);
+
+    /* Overwrite pointers with their corresponding address identifiers. */
+    for (const int i : IndexRange(nr)) {
+      for (const dna::pointers::PointerInfo &pointer_info : struct_info.pointers) {
+        const int offset = i * struct_info.size_in_bytes + pointer_info.offset;
+        const void **p_ptr = reinterpret_cast<const void **>(POINTER_OFFSET(buffer, offset));
+        const void *p_ptr_address_id = get_address_id(*wd, *p_ptr);
+        *p_ptr = p_ptr_address_id;
+      }
+    }
   }
 
   BHead bh;
@@ -949,14 +942,10 @@ static void writestruct_at_address_nr(WriteData *wd,
   mywrite(wd, data_to_write, size_t(bh.len));
 }
 
-static void writestruct_nr(WriteData *wd,
-                           const int filecode,
-                           const int struct_nr,
-                           const int64_t nr,
-                           const void *adr,
-                           const bool force_stable_addresses_on_undo = false)
+static void writestruct_nr(
+    WriteData *wd, const int filecode, const int struct_nr, const int64_t nr, const void *adr)
 {
-  writestruct_at_address_nr(wd, filecode, struct_nr, nr, adr, adr, force_stable_addresses_on_undo);
+  writestruct_at_address_nr(wd, filecode, struct_nr, nr, adr, adr);
 }
 
 static void write_raw_data_in_debug_file(WriteData *wd,
@@ -2188,26 +2177,9 @@ void BlendWriter::write_struct_array_by_name(const char *struct_name,
   this->write_struct_array_by_id(struct_id, array_size, data);
 }
 
-void BlendWriter::write_struct_array_by_name_enforce_stable_addresses_on_undo(
-    const char *struct_name, const int64_t array_size, const void *data)
-{
-  int struct_id = this->struct_id_by_name(struct_name);
-  if (UNLIKELY(struct_id == -1)) {
-    CLOG_ERROR(&LOG, "Can't find SDNA code <%s>", struct_name);
-    return;
-  }
-  this->write_struct_array_by_id_enforce_stable_addresses_on_undo(struct_id, array_size, data);
-}
-
 void BlendWriter::write_struct_by_id(const int struct_id, const void *data)
 {
   writestruct_nr(this->wd, BLO_CODE_DATA, struct_id, 1, data);
-}
-
-void BlendWriter::write_struct_by_id_enforce_stable_addresses_on_undo(const int struct_id,
-                                                                      const void *data)
-{
-  writestruct_nr(this->wd, BLO_CODE_DATA, struct_id, 1, data, true);
 }
 
 void BlendWriter::write_struct_at_address_by_id(const int struct_id,
@@ -2230,12 +2202,6 @@ void BlendWriter::write_struct_array_by_id(const int struct_id,
                                            const void *data)
 {
   writestruct_nr(this->wd, BLO_CODE_DATA, struct_id, array_size, data);
-}
-
-void BlendWriter::write_struct_array_by_id_enforce_stable_addresses_on_undo(
-    const int struct_id, const int64_t array_size, const void *data)
-{
-  writestruct_nr(this->wd, BLO_CODE_DATA, struct_id, array_size, data, true);
 }
 
 void BlendWriter::write_struct_array_at_address_by_id(const int struct_id,
@@ -2337,7 +2303,7 @@ void BlendWriter::write_string(const char *data)
   }
 }
 
-void BLO_write_stable_for_undo_tag(BlendWriter *writer, const void *data)
+void BLO_write_generated_pointer_tag(BlendWriter *writer, const void *data)
 {
   if (!data) {
     return;
