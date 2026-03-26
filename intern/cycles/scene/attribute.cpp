@@ -74,7 +74,7 @@ void Attribute::free_data()
   }
   else {
     GuardedAllocator<char>().deallocate(static_cast<char *>(const_cast<void *>(buffer)),
-                                        size * this->data_sizeof());
+                                        this->data_sizeof() * size);
   }
 }
 
