@@ -14,7 +14,7 @@
 
 #include "BKE_curves.hh"
 
-#include "FN_multi_function_builder.hh"
+#include "FN_multi_function_registry.hh"
 
 #include "GEO_randomize.hh"
 
@@ -499,21 +499,15 @@ static void interpolate_curve_attributes(bke::CurvesGeometry &child_curves,
           const Span<T> src = src_generic.typed<T>();
           MutableSpan<T> dst = dst_generic.span.typed<T>();
 
-          bke::attribute_math::DefaultMixer<T> mixer(dst);
           threading::parallel_for(child_curves.curves_range(), 256, [&](const IndexRange range) {
             for (const int child_curve_i : range) {
               const int neighbor_count = all_neighbor_counts[child_curve_i];
               const IndexRange neighbors_range{child_curve_i * max_neighbors, neighbor_count};
-              const Span<float> neighbor_weights = all_neighbor_weights.slice(neighbors_range);
-              const Span<int> neighbor_indices = all_neighbor_indices.slice(neighbors_range);
-
-              for (const int neighbor_i : IndexRange(neighbor_count)) {
-                const int neighbor_index = neighbor_indices[neighbor_i];
-                const float neighbor_weight = neighbor_weights[neighbor_i];
-                mixer.mix_in(child_curve_i, src[neighbor_index], neighbor_weight);
-              }
+              dst[child_curve_i] = bke::attribute_math::mix_indices(
+                  src,
+                  all_neighbor_indices.slice(neighbors_range),
+                  all_neighbor_weights.slice(neighbors_range));
             }
-            mixer.finalize(range);
           });
         }
       });
@@ -819,10 +813,8 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   const int max_neighbors = std::max<int>(1, params.extract_input<int>("Max Neighbors"));
 
-  static auto normalize_fn = mf::build::SI1_SO<float3, float3>(
-      "Normalize",
-      [](const float3 &v) { return math::normalize(v); },
-      mf::build::exec_presets::AllSpanOrSingle());
+  static const mf::MultiFunction &normalize_fn = fn::multi_function::registry::lookup(
+      "normalize(float3)"_ustr);
 
   /* Normalize up fields so that is done as part of field evaluation. */
   Field<float3> guides_up_field(

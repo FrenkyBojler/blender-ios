@@ -1221,7 +1221,7 @@ void do_versions_after_linking_300(FileData * /*fd*/, Main *bmain)
           continue;
         }
         NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(&md);
-        if (nmd->node_group == nullptr) {
+        if (nmd->node_group == nullptr || ID_MISSING(nmd->node_group)) {
           continue;
         }
 
@@ -1706,7 +1706,7 @@ static void version_geometry_nodes_set_position_node_offset(bNodeTree *ntree)
       return;
     }
     /* Change identifier of old socket, so that there is no name collision. */
-    STRNCPY_UTF8(old_offset_socket->identifier, "Offset_old");
+    version_node_socket_identifier_set(*old_offset_socket, "Offset_old");
     bke::node_add_static_socket(
         *ntree, node, SOCK_IN, SOCK_VECTOR, PROP_TRANSLATION, "Offset", "Offset");
   }
@@ -3903,7 +3903,7 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
           bNodeSocket *curve_socket = bke::node_find_socket(node, SOCK_IN, "Curve");
           BLI_assert(curve_socket != nullptr);
           STRNCPY_UTF8(curve_socket->name, "Curves");
-          STRNCPY_UTF8(curve_socket->identifier, "Curves");
+          version_node_socket_identifier_set(*curve_socket, "Curves");
         }
       }
     }

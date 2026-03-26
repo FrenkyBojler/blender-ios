@@ -705,6 +705,9 @@ enum {
   /** Use preview range. */
   SCER_PRV_RANGE = 1 << 0,
   SCER_LOCK_FRAME_SELECTION = 1 << 1,
+  /* If set, allows frames before the playback start frame to be played instead of snapping to the
+     start frame. */
+  SCER_ALLOW_PREROLL = 1 << 2,
   /** Show/use sub-frames (for checking motion blur). */
   SCER_SHOW_SUBFRAME = 1 << 3,
 };
@@ -998,10 +1001,10 @@ struct RenderData {
 
   /** Render engine. */
   char engine[32] = "";
-  char _pad2[2] = {};
 
   /** Performance Options. */
   short perf_flag = 0;
+  short anisotropic_filter = 2;
 
   /** Baking. */
   struct BakeData bake;
@@ -1191,10 +1194,6 @@ struct Paint {
    * file load.
    */
   struct AssetWeakReference *brush_asset_reference = nullptr;
-
-  /** Default eraser brush and associated weak reference. */
-  struct Brush *eraser_brush = nullptr;
-  struct AssetWeakReference *eraser_brush_asset_reference = nullptr;
 
   ToolSystemBrushBindings tool_brush_bindings;
 
@@ -1779,6 +1778,7 @@ enum eSequencerSnapFlag {
   SEQ_SNAP_IGNORE_MUTED = 1 << 0,
   SEQ_SNAP_IGNORE_SOUND = 1 << 1,
   SEQ_SNAP_CURRENT_FRAME_TO_STRIPS = 1 << 2,
+  SEQ_SNAP_TO_ALL_CHANNEL_STRIPS = 1 << 3,
 };
 
 struct SequencerToolSettings {
@@ -2712,6 +2712,15 @@ enum {
   SCE_CUSTOM_SIMULATION_RANGE = 1 << 6,
 };
 
+/** #Scene::playback_loop_mode */
+enum eScenePlaybackLoopMode {
+  SCE_LOOP_MODE_INFINITE = 0,
+  SCE_LOOP_MODE_STOP_END_FRAME = 1,
+  SCE_LOOP_MODE_STOP_START_FRAME = 2,
+  SCE_LOOP_MODE_RESTORE = 3,
+  SCE_LOOP_MODE_BOUNCE = 4,
+};
+
 /* Return flag BKE_scene_base_iter_next functions. */
 enum {
   // F_ERROR = -1, /* UNUSED. */
@@ -2781,7 +2790,9 @@ struct Scene {
 
   /** None of the dependency graph vars is mean to be saved. */
   SceneDepsgraphsMap *depsgraph_hash = nullptr;
-  char _pad7[4] = {};
+
+  uint8_t playback_loop_mode = SCE_LOOP_MODE_INFINITE;
+  char _pad7[3] = {};
 
   /* User-Defined KeyingSets. */
   /**
