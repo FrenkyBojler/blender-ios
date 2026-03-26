@@ -486,11 +486,6 @@ Attribute *AttributeSet::add_shared(ustring name,
   Attribute *attr = find(name);
 
   if (attr) {
-    /* return if same already exists */
-    if (attr->type == type && attr->element == element) {
-      return attr;
-    }
-
     /* overwrite attribute with same name but different type/element */
     remove(name);
   }
