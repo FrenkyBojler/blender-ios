@@ -1,2 +1,3 @@
 Referenced by issue #156177, Regression, Modeling: When edge loop terminates in a triangle, the yellow line can loop to the start sometimes
 Referenced by issue #156290, Adaptive subdivision breaks link between geometry nodes store named attributes and shader editor
+Referenced by issue #156370, Offscreen.draw_view3d() does not match the actual viewport.
