@@ -98,8 +98,8 @@ PACKAGES_FOR_LIBS=(
     # Commands from:
     # https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#environment-setup
     # Can be added to `~/.bash_profile`.
-    # `export LD_LIBRARY_PATH=/usr/local/cuda-12.5/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}`
-    # `export PATH=/usr/local/cuda-12.5/bin${PATH:+:${PATH}}`
+    # `export LD_LIBRARY_PATH=/usr/local/cuda-12-8/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}`
+    # `export PATH=/usr/local/cuda-12-8/bin${PATH:+:${PATH}}`
     # Required by `external_openimagedenoise` (`nvcc` command)
     cuda-toolkit-12-8
 
