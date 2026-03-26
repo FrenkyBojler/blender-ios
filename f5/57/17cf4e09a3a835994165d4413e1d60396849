@@ -1,2 +1,3 @@
 Referenced by issue #155963, Odd entries in the Keymap dropdown
 Referenced by issue #156370, Broken render in Offscreen.draw_view3d()
+Referenced by issue #156381, Crash when Axes to Rotation node has equal axes input
