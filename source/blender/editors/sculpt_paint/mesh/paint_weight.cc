@@ -1226,9 +1226,7 @@ static void do_wpaint_brush_blur(const Depsgraph &depsgraph,
         }
 
         float brush_strength = cache.bstrength;
-        const float angle_cos = use_normal ?
-                                    dot_v3v3(view_normal, vert_normals[vert]) :
-                                    1.0f;
+        const float angle_cos = use_normal ? dot_v3v3(view_normal, vert_normals[vert]) : 1.0f;
         if (!vwpaint::test_brush_angle_falloff(
                 brush, wpd.normal_angle_precalc, angle_cos, &brush_strength))
         {
@@ -1328,9 +1326,7 @@ static void do_wpaint_brush_smear(const Depsgraph &depsgraph,
         }
 
         float brush_strength = cache.bstrength;
-        const float angle_cos = use_normal ?
-                                    dot_v3v3(view_normal, vert_normals[vert]) :
-                                    1.0f;
+        const float angle_cos = use_normal ? dot_v3v3(view_normal, vert_normals[vert]) : 1.0f;
         if (!vwpaint::test_brush_angle_falloff(
                 brush, wpd.normal_angle_precalc, angle_cos, &brush_strength))
         {
@@ -1442,9 +1438,7 @@ static void do_wpaint_brush_draw(const Depsgraph &depsgraph,
           continue;
         }
         float brush_strength = cache.bstrength;
-        const float angle_cos = use_normal ?
-                                    dot_v3v3(view_normal, vert_normals[vert]) :
-                                    1.0f;
+        const float angle_cos = use_normal ? dot_v3v3(view_normal, vert_normals[vert]) : 1.0f;
         if (!vwpaint::test_brush_angle_falloff(
                 brush, wpd.normal_angle_precalc, angle_cos, &brush_strength))
         {
@@ -1527,9 +1521,7 @@ static float calculate_average_weight(const Depsgraph &depsgraph,
             if (factors[i] == 0.0f) {
               continue;
             }
-            const float angle_cos = use_normal ?
-                                        dot_v3v3(view_normal, vert_normals[vert]) :
-                                        1.0f;
+            const float angle_cos = use_normal ? dot_v3v3(view_normal, vert_normals[vert]) : 1.0f;
             if (angle_cos <= 0.0f) {
               continue;
             }
