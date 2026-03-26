@@ -1864,7 +1864,7 @@ void ED_view3d_draw_offscreen(Depsgraph *depsgraph,
     /* #View3D */
     eDrawType v3d_shading_type;
     Object *v3d_camera;
-    float v3d_lens;
+    short v3d_flag;
 
     /* #Region */
     int region_winx, region_winy;
@@ -1880,7 +1880,7 @@ void ED_view3d_draw_offscreen(Depsgraph *depsgraph,
   } orig{};
   orig.v3d_shading_type = eDrawType(v3d->shading.type);
   orig.v3d_camera = v3d->camera;
-  orig.v3d_lens = v3d->lens;
+  orig.v3d_flag = v3d->flag;
   orig.region_winx = region->winx;
   orig.region_winy = region->winy;
   orig.region_winrct = region->winrct;
@@ -1912,13 +1912,11 @@ void ED_view3d_draw_offscreen(Depsgraph *depsgraph,
   }
 
   if (viewmat) {
-    /* WORKAROUND: Disable camera view to avoid EEVEE being confused and try to
-     * get the projection matrix from the camera.
-     * Set the `lens` parameter to 0 to make EEVEE prefer the `winmat` from the rv3d instead of
-     * trying to rederive it. Note that this produces incorrect result with over-scan. */
-    rv3d->persp = (winmat[3][3] == 0.0f) ? RV3D_PERSP : RV3D_ORTHO;
     v3d->camera = nullptr;
-    v3d->lens = 0.0f;
+  }
+  if (winmat) {
+    v3d->flag |= V3D_CUSTOM_MATRIX;
+    rv3d->persp = (winmat[3][3] == 0.0f) ? RV3D_PERSP : RV3D_ORTHO;
   }
 
   GPU_matrix_push_projection();
@@ -1971,7 +1969,7 @@ void ED_view3d_draw_offscreen(Depsgraph *depsgraph,
 
   v3d->shading.type = orig.v3d_shading_type;
   v3d->camera = orig.v3d_camera;
-  v3d->lens = orig.v3d_lens;
+  v3d->flag = orig.v3d_flag;
 
   G.f &= ~G_FLAG_RENDER_VIEWPORT;
 }
