@@ -98,9 +98,9 @@ const FloatMathOperationInfo *get_float_math_operation_info(const int operation)
     case NODE_MATH_ROUND:
       RETURN_OPERATION_INFO("Round", "math_round", "round(float)"_ustr);
     case NODE_MATH_LESS_THAN:
-      RETURN_OPERATION_INFO("Less Than", "math_less_than", "float < float"_ustr);
+      RETURN_OPERATION_INFO("Less Than", "math_less_than", "float(float < float)"_ustr);
     case NODE_MATH_GREATER_THAN:
-      RETURN_OPERATION_INFO("Greater Than", "math_greater_than", "float > float"_ustr);
+      RETURN_OPERATION_INFO("Greater Than", "math_greater_than", "float(float > float)"_ustr);
     case NODE_MATH_MODULO:
       RETURN_OPERATION_INFO("Modulo", "math_modulo", "float % float"_ustr);
     case NODE_MATH_FLOORED_MODULO:

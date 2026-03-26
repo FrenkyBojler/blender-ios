@@ -131,11 +131,15 @@ void register_common_functions()
   });
   registry::add_new_cb([] {
     return build::SI2_SO<float, float, float>(
-        "float < float", [](const float a, const float b) { return float(a < b); }, exec_fast);
+        "float(float < float)",
+        [](const float a, const float b) { return float(a < b); },
+        exec_fast);
   });
   registry::add_new_cb([] {
     return build::SI2_SO<float, float, float>(
-        "float > float", [](const float a, const float b) { return float(a > b); }, exec_fast);
+        "float(float > float)",
+        [](const float a, const float b) { return float(a > b); },
+        exec_fast);
   });
   registry::add_new_cb([] {
     return build::SI2_SO<float, float, float>(
