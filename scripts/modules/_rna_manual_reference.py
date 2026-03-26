@@ -2023,6 +2023,7 @@ url_manual_mapping = (
     ("bpy.types.spotlight.shadow_soft_size*", "render/lights/light_object.html#bpy-types-spotlight-shadow-soft-size"),
     ("bpy.types.spotlight.use_soft_falloff*", "render/lights/light_object.html#bpy-types-spotlight-use-soft-falloff"),
     ("bpy.types.strip.frame_final_duration*", "video_editing/edit/montage/strips/strip_properties.html#bpy-types-strip-frame-final-duration"),
+    ("bpy.types.strip.use_linear_modifiers*", "video_editing/edit/montage/strip_modifiers.html#bpy-types-strip-use-linear-modifiers"),
     ("bpy.types.textcurve.small_caps_scale*", "modeling/texts/properties.html#bpy-types-textcurve-small-caps-scale"),
     ("bpy.types.toolsettings.keyframe_type*", "animation/animation_editors.html#bpy-types-toolsettings-keyframe-type"),
     ("bpy.types.toolsettings.use_snap_anim*", "editors/graph_editor/introduction.html#bpy-types-toolsettings-use-snap-anim"),
