@@ -1173,7 +1173,8 @@ void BlenderSync::sync_view(blender::View3D *b_v3d,
   blender::Object *b_ob = RNA_pointer_get(&cscene, "dicing_camera").data_as<blender::Object>();
   if (b_ob) {
     blender::float4x4 b_ob_matrix;
-    blender_camera_from_object(&bcam, *b_engine, b_render_settings, b_v3d, b_rv3d, *b_ob, *b_data);
+    blender_camera_from_object(
+        &bcam, *b_engine, b_render_settings, nullptr, nullptr, *b_ob, *b_data);
     RE_engine_get_camera_model_matrix(
         b_engine, b_ob, bcam.use_spherical_stereo, b_ob_matrix.base_ptr());
     bcam.matrix = get_transform(b_ob_matrix);
