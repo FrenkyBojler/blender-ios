@@ -25,19 +25,19 @@ dnf -y install epel-release
 
 # `yum-config-manager` does not come in the default minimal install,
 # so make sure it is installed and available.
-yum -y update
-yum -y install yum-utils
+dnf -y update
+dnf -y install yum-utils
 
 # Install all the packages needed for a new tool-chain.
 #
 # NOTE: Keep this separate from the packages install, since otherwise
 # older tool-chain will be installed.
-yum -y update
-yum -y install scl-utils
-yum -y install scl-utils-build
+dnf -y update
+dnf -y install scl-utils
+dnf -y install scl-utils-build
 
 # Currently this is defined by the VFX platform (CY2023), see: https://vfxplatform.com
-yum -y install gcc-toolset-14
+dnf -y install gcc-toolset-14
 
 # Repository for CUDA (`nvcc`).
 ARCH=$(uname -i)
@@ -184,20 +184,17 @@ PACKAGES_FOR_BLENDER=(
     libXxf86vm-devel
 )
 
-yum -y install -y ${PACKAGES_FOR_LIBS[@]} ${PACKAGES_FOR_BLENDER[@]}
+dnf -y install -y ${PACKAGES_FOR_LIBS[@]} ${PACKAGES_FOR_BLENDER[@]}
 
 # Dependencies for pip (needed for `buildbot-worker`), uses Python3.6.
-yum -y install python3 python3-pip python3-devel
+dnf -y install python3 python3-pip python3-devel
 
 # Dependencies for asound.
-yum -y install -y  \
+dnf -y install -y  \
     alsa-lib-devel pulseaudio-libs-devel
 
 # Required by Blender build option: `WITH_JACK`.
-yum -y install jack-audio-connection-kit-devel
-
-# Ensure that sudo is installed (e.g., when using docker)
-yum -y install sudo
+dnf -y install jack-audio-connection-kit-devel
 
 # For ROCm there is no aarch64 repo
 if [ "$ARCH" != "aarch64" ]; then
@@ -209,12 +206,12 @@ if [ "$ARCH" != "aarch64" ]; then
     # - "Install kernel driver".
 
     # Register ROCm packages
-    sudo rpm --import https://repo.radeon.com/rocm/rocm.gpg.key
+    rpm --import https://repo.radeon.com/rocm/rocm.gpg.key
 
-    sudo rm -f /etc/yum.repos.d/amdgpu-6.4.3.repo
-    sudo rm -f /etc/yum.repos.d/rocm-6.4.3.repo
+    rm -f /etc/yum.repos.d/amdgpu-6.4.3.repo
+    rm -f /etc/yum.repos.d/rocm-6.4.3.repo
 
-    sudo tee /etc/yum.repos.d/amdgpu-6.4.3.repo > /dev/null <<EOF
+    tee /etc/yum.repos.d/amdgpu-6.4.3.repo > /dev/null <<EOF
 [amdgpu-6.4.3]
 name=amdgpu-6.4.3
 baseurl=https://repo.radeon.com/amdgpu/6.4.3/el/8.10/main/x86_64/
@@ -224,7 +221,7 @@ gpgcheck=1
 gpgkey=https://repo.radeon.com/rocm/rocm.gpg.key
 EOF
 
-    sudo tee /etc/yum.repos.d/rocm-6.4.3.repo > /dev/null <<EOF
+    tee /etc/yum.repos.d/rocm-6.4.3.repo > /dev/null <<EOF
 [ROCm-6.4.3]
 name=ROCm-6.4.3
 baseurl=https://repo.radeon.com/rocm/el8/6.4.3/main
@@ -234,7 +231,7 @@ exclude=rock-dkms
 gpgkey=https://repo.radeon.com/rocm/rocm.gpg.key
 EOF
 
-    sudo yum -y update
-    sudo yum install -y hipcc6.4.3 hip-devel6.4.3 rocm-llvm6.4.3 rocm-core6.4.3 rocm-device-libs6.4.3
-    sudo update-alternatives --set rocm /opt/rocm-6.4.3
+    dnf -y update
+    dnf -y install hipcc6.4.3 hip-devel6.4.3 rocm-llvm6.4.3 rocm-core6.4.3 rocm-device-libs6.4.3
+    update-alternatives --set rocm /opt/rocm-6.4.3
 fi
