@@ -64,6 +64,13 @@ BLOCKLIST_VULKAN = [
     "image.blend",
 ]
 
+BLOCKLIST_OPENGL = [
+    # Runs fine, except when used inside ctest. Started to happen since #155463.
+    # Might be related to memory barriers. However when both are rendered, only the first will fail. Threading?
+    "image_half3.blend",
+    "image_half4.blend",
+]
+
 BLOCKLIST_INTEL = [
 ]
 
@@ -237,6 +244,8 @@ def main():
         blocklist += BLOCKLIST_METAL
     elif args.gpu_backend == "vulkan":
         blocklist += BLOCKLIST_VULKAN
+    elif args.gpu_backend == "opengl":
+        blocklist += BLOCKLIST_OPENGL
 
     if os.getenv("BLENDER_TEST_IGNORE_VENDOR_BLOCKLIST") is None:
         gpu_vendor = render_report.get_gpu_device_vendor(args.blender)

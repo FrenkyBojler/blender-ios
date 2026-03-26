@@ -12,6 +12,7 @@
 #include "GPU_debug.hh"
 #include "GPU_shader.hh"
 #include "GPU_shader_builtin.hh"
+#include "GPU_state.hh"
 #include "GPU_texture.hh"
 
 #include "gpu_context_private.hh"
@@ -57,7 +58,6 @@ static TextureFormat get_view_format(TextureFormat texture_format)
 
 static void update_mipmaps(Texture &texture, Shader &shader, int layer)
 {
-
   const int num_mipmaps = texture.mip_count();
   const TextureFormat view_format = get_view_format(texture.format_get());
   Vector<Texture *, 16> views;
@@ -69,6 +69,7 @@ static void update_mipmaps(Texture &texture, Shader &shader, int layer)
   constexpr int max_levels_per_dispatch = 2;
 
   for (int mip_start = 0; mip_start < num_mipmaps - 1; mip_start += max_levels_per_dispatch) {
+    GPU_memory_barrier(GPU_BARRIER_SHADER_IMAGE_ACCESS);
     GPU_texture_image_bind(views[mip_start], 0);
     for (int mip_offset = 1; mip_offset <= max_levels_per_dispatch; mip_offset++) {
       GPU_texture_image_bind(views[min_ii(mip_start + mip_offset, views.size() - 1)], mip_offset);
@@ -76,7 +77,7 @@ static void update_mipmaps(Texture &texture, Shader &shader, int layer)
     int num_levels = min_ii(views.size() - mip_start - 1, max_levels_per_dispatch);
     GPU_shader_uniform_1i(&shader, "num_levels", num_levels);
 
-    int3 mip_size;
+    int3 mip_size(1, 1, 1);
     texture.mip_size_get(mip_start + num_levels, mip_size);
 
     if (num_levels == 1U) {
@@ -101,6 +102,7 @@ static void update_mipmaps(Texture &texture, Shader &shader, int layer)
   for (Texture *view : views) {
     GPU_texture_free(view);
   }
+  GPU_memory_barrier(GPU_BARRIER_TEXTURE_FETCH | GPU_BARRIER_SHADER_IMAGE_ACCESS);
 }
 
 static void update_mipmaps(Texture &texture, Shader &shader)
