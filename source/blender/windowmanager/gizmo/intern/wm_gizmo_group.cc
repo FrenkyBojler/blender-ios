@@ -24,9 +24,13 @@
 #include "BKE_context.hh"
 #include "BKE_main.hh"
 #include "BKE_screen.hh"
+#include "BKE_unit.hh"
 #include "BKE_workspace.hh"
 
+#include "DNA_scene_types.h"
+
 #include "RNA_access.hh"
+#include "RNA_types.hh"
 
 #include "WM_api.hh"
 #include "WM_keymap.hh"
@@ -34,6 +38,7 @@
 #include "wm_event_system.hh"
 
 #include "ED_screen.hh"
+#include "UI_interface.hh"
 #include "ED_undo.hh"
 
 /* Own includes. */
@@ -402,6 +407,75 @@ struct GizmoTweakData {
   int flag;       /* Tweak flags. */
 };
 
+static void wm_gizmo_tweak_status_text_update(bContext *C, wmGizmo *gz)
+{
+  char status_str[UI_MAX_DRAW_STR] = "";
+  char *status_ptr = status_str;
+  int remaining_len = sizeof(status_str);
+
+  auto format_prop_fn = [&](PointerRNA &ptr, PropertyRNA *prop, int index) {
+    if (prop == nullptr) {
+      return;
+    }
+
+    const char *prop_name = RNA_property_ui_name(prop);
+    char value_str[64];
+
+    /* Format value based on type and unit. */
+    int type = RNA_property_type(prop);
+    if (type == PROP_FLOAT) {
+      float val = (index != -1) ? RNA_property_float_get_index(&ptr, prop, index) :
+                                  RNA_property_float_get(&ptr, prop);
+      int subtype = RNA_property_subtype(prop);
+      int unit_type = RNA_SUBTYPE_UNIT_VALUE(subtype);
+      if (unit_type != B_UNIT_NONE) {
+        Scene *scene = CTX_data_scene(C);
+        BKE_unit_value_as_string_scaled(
+            value_str, sizeof(value_str), double(val), 4, unit_type, scene->unit, false);
+      }
+      else {
+        BLI_snprintf(value_str, sizeof(value_str), "%.3f", double(val));
+      }
+    }
+    else if (type == PROP_INT) {
+      int val = (index != -1) ? RNA_property_int_get_index(&ptr, prop, index) :
+                                RNA_property_int_get(&ptr, prop);
+      BLI_snprintf(value_str, sizeof(value_str), "%d", val);
+    }
+    else {
+      value_str[0] = '\0';
+    }
+
+    if (value_str[0] != '\0') {
+      int written = BLI_snprintf(status_ptr,
+                                 remaining_len,
+                                 "%s%s: %s",
+                                 (status_ptr == status_str) ? "" : ", ",
+                                 prop_name,
+                                 value_str);
+      status_ptr += written;
+      remaining_len -= written;
+    }
+  };
+
+  for (wmGizmoProperty &gz_prop : gz->target_properties) {
+    if (gz_prop.prop != nullptr) {
+      format_prop_fn(gz_prop.ptr, gz_prop.prop, gz_prop.index);
+    }
+    else if (gz_prop.custom_func.foreach_rna_prop_fn != nullptr) {
+      gz_prop.custom_func.foreach_rna_prop_fn(&gz_prop, format_prop_fn);
+    }
+
+    if (remaining_len <= 0) {
+      break;
+    }
+  }
+
+  if (status_str[0] != '\0') {
+    ED_area_status_text(CTX_wm_area(C), status_str);
+  }
+}
+
 static bool gizmo_tweak_start(bContext *C, wmGizmoMap *gzmap, wmGizmo *gz, const wmEvent *event)
 {
   /* Activate highlighted gizmo. */
@@ -457,6 +531,10 @@ static bool gizmo_tweak_start_and_finish(
 static void gizmo_tweak_finish(bContext *C, wmOperator *op, const bool cancel, bool clear_modal)
 {
   GizmoTweakData *mtweak = static_cast<GizmoTweakData *>(op->customdata);
+
+  /* Clear status text. */
+  ED_area_status_text(CTX_wm_area(C), nullptr);
+
   if (mtweak->gz_modal->type->exit) {
     mtweak->gz_modal->type->exit(C, mtweak->gz_modal, cancel);
   }
@@ -540,6 +618,10 @@ static wmOperatorStatus gizmo_tweak_modal(bContext *C, wmOperator *op, const wmE
 
     const wmOperatorStatus modal_retval = modal_fn(C, gz, event, eWM_GizmoFlagTweak(mtweak->flag));
     OPERATOR_RETVAL_CHECK(modal_retval);
+
+    if (modal_retval & OPERATOR_RUNNING_MODAL) {
+      wm_gizmo_tweak_status_text_update(C, gz);
+    }
 
     if (event_modal_val != 0) {
       evil_event->type = EVT_MODAL_MAP;
