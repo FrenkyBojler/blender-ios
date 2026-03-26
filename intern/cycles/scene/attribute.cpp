@@ -8,6 +8,7 @@
 #include "scene/mesh.h"
 #include "scene/pointcloud.h"
 
+#include "util/guarded_allocator.h"
 #include "util/log.h"
 #include "util/transform.h"
 
@@ -28,7 +29,9 @@ Attribute::Attribute(ustring name,
          type == TypeRGBA);
 
   if (element & ATTR_ELEMENT_VOXEL) {
-    this->buffer = new ImageHandle();
+    auto *data = GuardedAllocator<ImageHandle>().allocate(1);
+    new (data) ImageHandle();
+    this->buffer = data;
     this->size = Attribute::element_size(geom, element, prim);
     this->sharing_info = nullptr;
   }
@@ -70,7 +73,8 @@ Attribute::~Attribute()
     g_implicit_sharing_user_remove_fn(sharing_info);
   }
   else {
-    delete[] static_cast<const char *>(buffer);
+    GuardedAllocator<char>().deallocate(static_cast<char *>(const_cast<void *>(buffer)),
+                                        size * this->data_sizeof());
   }
 }
 
@@ -88,7 +92,7 @@ void Attribute::resize(const size_t num_elements)
     if (new_size == this->size) {
       return;
     }
-    char *new_data = new char[new_size * this->data_sizeof()];
+    auto *new_data = GuardedAllocator<char>().allocate(new_size * this->data_sizeof());
     if (this->buffer) {
       assert(this->size > 0);
       memcpy(new_data,
@@ -117,7 +121,8 @@ void Attribute::set_data_from(Attribute &&other)
       g_implicit_sharing_user_remove_fn(this->sharing_info);
     }
     else {
-      delete[] static_cast<const char *>(this->buffer);
+      GuardedAllocator<char>().deallocate(static_cast<char *>(const_cast<void *>(buffer)),
+                                          size * this->data_sizeof());
     }
     this->buffer = other.buffer;
     this->sharing_info = other.sharing_info;
