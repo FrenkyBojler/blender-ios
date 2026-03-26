@@ -179,6 +179,34 @@ struct ImageData : NonCopyable {
 
 }  // namespace paint::image
 
+struct StrokeToggleSettings {
+  /**
+   * Whether the modifier key that controls inverting brush behavior is active currently.
+   *
+   * \see BrushStrokeMode::Invert.
+   */
+  bool invert = false;
+
+  /**
+   * Whether the modifier key that controls smoothing is active currently.
+   *
+   * \see BrushSwitchMode::Smooth.
+   */
+  bool alt_smooth = false;
+
+  /**
+   * Whether the modifier key that controls masking is active currently.
+   * Switches the active brush to the mask brush during the stroke.
+   *
+   * \see BrushSwitchMode::Mask.
+   */
+  bool alt_mask = false;
+
+  Brush *original_active_brush = nullptr;
+  BrushMaskTool original_brush_mask_tool = BRUSH_MASK_DRAW;
+  int original_brush_size = 0;
+};
+
 /**
  * This structure contains all the temporary data
  * needed for individual brush strokes.
@@ -204,6 +232,8 @@ struct StrokeCache {
    */
   bool initial_direction_flipped = false;
 
+  StrokeToggleSettings toggle_settings = {};
+
   /* Variants */
   float radius = 0.0f;
   float radius_squared = 0.0f;
@@ -224,15 +254,6 @@ struct StrokeCache {
 
   bool is_last_valid = false;
 
-  bool pen_flip = false;
-
-  /**
-   * Whether the modifier key that controls inverting brush behavior is active currently.
-   * Generally signals a change in behavior for brushes.
-   *
-   * \see BrushStrokeMode::Invert.
-   */
-  bool invert = false;
   float pressure = 0.0f;
   float hardness = 0.0f;
   /**
@@ -242,7 +263,6 @@ struct StrokeCache {
    * \see #brush_strength for Sculpt Mode.
    */
   float bstrength = 0.0f;
-  float normal_weight = 0.0f; /* from brush (with optional override) */
   float2 tilt = float2(0);
 
   /**
@@ -411,27 +431,6 @@ struct StrokeCache {
   /* Amount to rotate the vertices when using rotate brush. */
   float vertex_rotation = 0.0f;
   Dial *dial = nullptr;
-
-  Brush *saved_active_brush = nullptr;
-  char saved_mask_brush_tool = 0;
-  /* Smooth tool copies the size of the current tool. */
-  int saved_smooth_size = 0;
-
-  /**
-   * Whether the modifier key that controls smoothing is active currently.
-   * Generally signals a change in behavior for different brushes.
-   *
-   * \see BrushSwitchMode::Smooth.
-   */
-  bool alt_smooth = false;
-
-  /**
-   * Whether the modifier key that controls masking is active currently.
-   * Switches the active brush to the mask brush during the stroke.
-   *
-   * \see BrushSwitchMode::Mask.
-   */
-  bool alt_mask = false;
 
   float plane_trim_squared = 0.0f;
 
@@ -615,14 +614,9 @@ bool SCULPT_stroke_is_first_brush_step(const ed::sculpt_paint::StrokeCache &cach
 bool SCULPT_stroke_is_first_brush_step_of_symmetry_pass(
     const ed::sculpt_paint::StrokeCache &cache);
 
-/**
- * Align the grab delta to the brush normal.
- *
- * \param grab_delta: Typically from `ss.cache->grab_delta_symmetry`.
- */
-void sculpt_project_v3_normal_align(const SculptSession &ss,
-                                    float normal_weight,
-                                    float grab_delta[3]);
+namespace ed::sculpt_paint {
+float3 grab_delta_get(const Brush &brush, const StrokeCache &cache);
+}
 
 /** \} */
 
@@ -771,6 +765,30 @@ Vector<int> find_symm_verts(const Depsgraph &depsgraph,
                             const Object &object,
                             int original_vert,
                             float max_distance = std::numeric_limits<float>::max());
+
+/**
+ * Similar to `find_symm_verts`, but returns an unsorted set of all vertex indices.
+ *
+ * \note If a symmetry pass is invalid, the corresponding vertex index is set to -1
+ */
+std::array<int, PAINT_SYMM_AREAS> find_all_symm_verts_mesh(
+    const Depsgraph &depsgraph,
+    const Object &object,
+    int original_vert,
+    float max_distance = std::numeric_limits<float>::max());
+std::array<int, PAINT_SYMM_AREAS> find_all_symm_verts_grids(
+    const Object &object,
+    int original_vert,
+    float max_distance = std::numeric_limits<float>::max());
+std::array<int, PAINT_SYMM_AREAS> find_all_symm_verts_bmesh(
+    const Object &object,
+    int original_vert,
+    float max_distance = std::numeric_limits<float>::max());
+std::array<int, PAINT_SYMM_AREAS> find_all_symm_verts(
+    const Depsgraph &depsgraph,
+    const Object &object,
+    int original_vert,
+    float max_distance = std::numeric_limits<float>::max());
 
 bool node_fully_masked_or_hidden(const bke::pbvh::Node &node);
 bool node_in_sphere(const bke::pbvh::Node &node,
