@@ -178,9 +178,7 @@ struct PixelNode {
     tiles.clear();
     uv_primitives.tri_indices.clear();
     uv_primitives.delta_barycentric_coords.clear();
-
-    /* TODO: Clear undo regions too? */
-    /* undo_regions.clear(); */
+    undo_regions.clear();
   }
 };
 
