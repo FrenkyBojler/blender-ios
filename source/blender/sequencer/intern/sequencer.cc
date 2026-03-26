@@ -1338,4 +1338,10 @@ int Strip::effect_num_inputs_get() const
   return blender::seq::effect_type_get_min_num_inputs(StripType(this->type));
 }
 
+bool StripModifierData::is_type_sound() const
+{
+  return ELEM(
+      this->type, eSeqModifierType_SoundEqualizer, eSeqModifierType_Echo, eSeqModifierType_Pitch);
+}
+
 }  // namespace blender

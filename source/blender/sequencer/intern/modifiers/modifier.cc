@@ -167,7 +167,7 @@ static void modifier_panel_header(const bContext * /*C*/, Panel *panel)
   int buttons_number = 0;
   ui::Layout &name_row = row.row(true);
 
-  if (smd->type != eSeqModifierType_SoundEqualizer) {
+  if (!smd->is_type_sound()) {
     sub = &row.row(true);
     sub->prop(ptr, "show_preview", UI_ITEM_NONE, "", ICON_NONE);
     buttons_number++;

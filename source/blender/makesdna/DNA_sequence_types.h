@@ -898,6 +898,10 @@ struct StripModifierData {
   uint16_t ui_expand_flag = 0;
 
   blender::seq::StripModifierDataRuntime *runtime = nullptr;
+
+#ifdef __cplusplus
+  bool is_type_sound() const;
+#endif
 };
 
 struct ColorBalanceModifierData {
