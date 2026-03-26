@@ -29,6 +29,7 @@ GHOST_TSuccess GHOST_XrEventsHandle(GHOST_IXrContext *xr_contexthandle)
 
   GHOST_XrContext &xr_context = *static_cast<GHOST_XrContext *>(xr_contexthandle);
   XrEventDataBuffer event_buffer; /* Structure big enough to hold all possible events. */
+  bool any_event_handled = false;
 
   while (GHOST_XrEventPollNext(xr_context.getInstance(), event_buffer)) {
     XrEventDataBaseHeader *event = (XrEventDataBaseHeader *)&event_buffer;
@@ -36,7 +37,8 @@ GHOST_TSuccess GHOST_XrEventsHandle(GHOST_IXrContext *xr_contexthandle)
     switch (event->type) {
       case XR_TYPE_EVENT_DATA_SESSION_STATE_CHANGED:
         xr_context.handleSessionStateChange((XrEventDataSessionStateChanged &)*event);
-        return GHOST_kSuccess;
+        any_event_handled = true;
+        break;
       case XR_TYPE_EVENT_DATA_INSTANCE_LOSS_PENDING:
         GHOST_XrContextDestroy(xr_contexthandle);
         return GHOST_kSuccess;
@@ -44,9 +46,9 @@ GHOST_TSuccess GHOST_XrEventsHandle(GHOST_IXrContext *xr_contexthandle)
         if (xr_context.isDebugMode()) {
           printf("Unhandled event: %i\n", event->type);
         }
-        return GHOST_kFailure;
+        break;
     }
   }
 
-  return GHOST_kFailure;
+  return any_event_handled ? GHOST_kSuccess : GHOST_kFailure;
 }
