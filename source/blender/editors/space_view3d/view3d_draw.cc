@@ -1911,7 +1911,7 @@ void ED_view3d_draw_offscreen(Depsgraph *depsgraph,
     BKE_image_free_anim_gputextures(G.main);
   }
 
-  if (viewmat) {
+  if (viewmat || winmat) {
     v3d->camera = nullptr;
   }
   if (winmat) {
