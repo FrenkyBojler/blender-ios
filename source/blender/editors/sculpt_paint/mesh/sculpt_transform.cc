@@ -1008,7 +1008,7 @@ void SCULPT_OT_set_pivot_position(wmOperatorType *ot)
 
   ot->invoke = set_pivot_position_invoke;
   ot->exec = set_pivot_position_exec;
-  ot->poll = mode_poll;
+  ot->poll = sculpt_mode_poll;
   ot->depends_on_cursor = set_pivot_depends_on_cursor;
   ot->poll_property = set_pivot_position_poll_property;
 

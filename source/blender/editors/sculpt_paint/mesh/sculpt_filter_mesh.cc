@@ -2652,7 +2652,7 @@ void SCULPT_OT_mesh_filter(wmOperatorType *ot)
 
   ot->invoke = sculpt_mesh_filter_invoke;
   ot->modal = sculpt_mesh_filter_modal;
-  ot->poll = mode_poll;
+  ot->poll = sculpt_mode_poll;
   ot->exec = sculpt_mesh_filter_exec;
   ot->ui = sculpt_mesh_ui_exec;
 

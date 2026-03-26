@@ -446,12 +446,12 @@ struct StrokeCache {
 /** \name Sculpt Poll Functions
  * \{ */
 
-bool mode_poll(bContext *C);
-bool mode_poll_view3d(bContext *C);
+bool sculpt_mode_poll(bContext *C);
+bool sculpt_mode_poll_view3d(bContext *C);
 /**
  * Checks for a brush, not just sculpt mode.
  */
-bool mode_and_brush_poll(bContext *C);
+bool sculpt_mode_and_brush_poll(bContext *C);
 
 /**
  * Determines whether or not the brush cursor should be shown in the viewport

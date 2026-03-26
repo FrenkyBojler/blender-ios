@@ -1091,7 +1091,7 @@ void SCULPT_OT_mask_filter(wmOperatorType *ot)
   ot->description = "Applies a filter to modify the current mask";
 
   ot->exec = sculpt_mask_filter_exec;
-  ot->poll = mode_poll;
+  ot->poll = sculpt_mode_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 

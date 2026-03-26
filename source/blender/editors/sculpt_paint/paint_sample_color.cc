@@ -562,8 +562,8 @@ static wmOperatorStatus sample_color_modal(bContext *C, wmOperator *op, const wm
 
 static bool sample_color_poll(bContext *C)
 {
-  return (image_paint_poll_ignore_tool(C) || vertex_paint_poll_ignore_tool(C) || mode_poll(C) ||
-          ed::greasepencil::grease_pencil_painting_poll(C) ||
+  return (image_paint_poll_ignore_tool(C) || vertex_paint_poll_ignore_tool(C) ||
+          sculpt_mode_poll(C) || ed::greasepencil::grease_pencil_painting_poll(C) ||
           ed::greasepencil::grease_pencil_vertex_painting_poll(C));
 }
 

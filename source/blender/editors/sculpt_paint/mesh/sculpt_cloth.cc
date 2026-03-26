@@ -2510,7 +2510,7 @@ void SCULPT_OT_cloth_filter(wmOperatorType *ot)
 
   ot->invoke = sculpt_cloth_filter_invoke;
   ot->modal = sculpt_cloth_filter_modal;
-  ot->poll = mode_poll;
+  ot->poll = sculpt_mode_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 

@@ -290,7 +290,7 @@ void SCULPT_OT_mask_init(wmOperatorType *ot)
   ot->idname = "SCULPT_OT_mask_init";
 
   ot->exec = sculpt_mask_init_exec;
-  ot->poll = mode_poll;
+  ot->poll = sculpt_mode_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 

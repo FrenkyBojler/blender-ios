@@ -2964,7 +2964,7 @@ void SCULPT_OT_expand(wmOperatorType *ot)
   ot->invoke = sculpt_expand_invoke;
   ot->modal = sculpt_expand_modal;
   ot->cancel = sculpt_expand_cancel;
-  ot->poll = mode_poll;
+  ot->poll = sculpt_mode_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_DEPENDS_ON_CURSOR;
 

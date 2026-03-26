@@ -151,7 +151,7 @@ static void SCULPT_OT_set_persistent_base(wmOperatorType *ot)
   ot->description = "Reset the copy of the mesh that is being sculpted on";
 
   ot->exec = set_persistent_base_exec;
-  ot->poll = mode_poll;
+  ot->poll = sculpt_mode_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
@@ -185,7 +185,7 @@ static void SCULPT_OT_optimize(wmOperatorType *ot)
   ot->description = "Recalculate the sculpt BVH to improve performance";
 
   ot->exec = optimize_exec;
-  ot->poll = mode_poll;
+  ot->poll = sculpt_mode_poll;
 
   ot->flag = OPTYPE_REGISTER;
 }
@@ -206,7 +206,7 @@ static bool no_multires_poll(bContext *C)
     return false;
   }
   const bke::pbvh::Tree *pbvh = bke::object::pbvh_get(*ob);
-  if (mode_poll(C) && ob->runtime->sculpt_session && pbvh) {
+  if (sculpt_mode_poll(C) && ob->runtime->sculpt_session && pbvh) {
     return pbvh->type() != bke::pbvh::Type::Grids;
   }
   return false;
@@ -813,7 +813,7 @@ static void SCULPT_OT_mask_by_color(wmOperatorType *ot)
 
   ot->invoke = mask_by_color_invoke;
   ot->exec = mask_by_color_exec;
-  ot->poll = mode_poll;
+  ot->poll = sculpt_mode_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_DEPENDS_ON_CURSOR;
 
@@ -1272,7 +1272,7 @@ static void SCULPT_OT_mask_from_cavity(wmOperatorType *ot)
 
   ot->ui = mask_from_cavity_ui;
   ot->exec = mask_from_cavity_exec;
-  ot->poll = mode_poll;
+  ot->poll = sculpt_mode_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
@@ -1447,7 +1447,7 @@ static void SCULPT_OT_mask_from_boundary(wmOperatorType *ot)
 
   ot->ui = mask_from_boundary_ui;
   ot->exec = mask_from_boundary_exec;
-  ot->poll = mode_poll;
+  ot->poll = sculpt_mode_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 

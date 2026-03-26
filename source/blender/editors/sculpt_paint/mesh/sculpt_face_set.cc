@@ -573,7 +573,7 @@ void SCULPT_OT_face_sets_create(wmOperatorType *ot)
   ot->description = "Create a new face set";
 
   ot->exec = create_op_exec;
-  ot->poll = mode_poll;
+  ot->poll = sculpt_mode_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
@@ -838,7 +838,7 @@ void SCULPT_OT_face_sets_init(wmOperatorType *ot)
   ot->description = "Initializes all face sets in the mesh";
 
   ot->exec = init_op_exec;
-  ot->poll = mode_poll;
+  ot->poll = sculpt_mode_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
@@ -1133,7 +1133,7 @@ void SCULPT_OT_face_set_change_visibility(wmOperatorType *ot)
 
   ot->exec = change_visibility_exec;
   ot->invoke = change_visibility_invoke;
-  ot->poll = mode_poll;
+  ot->poll = sculpt_mode_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_DEPENDS_ON_CURSOR;
 
@@ -1210,7 +1210,7 @@ void SCULPT_OT_face_sets_randomize_colors(wmOperatorType *ot)
   ot->description = "Generates a new set of random colors to render the face sets in the viewport";
 
   ot->exec = randomize_colors_exec;
-  ot->poll = mode_poll;
+  ot->poll = sculpt_mode_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
@@ -1611,7 +1611,7 @@ void SCULPT_OT_face_sets_edit(wmOperatorType *ot)
 
   ot->invoke = edit_op_invoke;
   ot->exec = edit_op_exec;
-  ot->poll = mode_poll;
+  ot->poll = sculpt_mode_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_DEPENDS_ON_CURSOR;
 
@@ -2110,7 +2110,7 @@ void SCULPT_OT_face_set_polyline_gesture(wmOperatorType *ot)
   ot->modal = WM_gesture_polyline_modal;
   ot->exec = gesture_polyline_exec;
 
-  ot->poll = mode_poll_view3d;
+  ot->poll = sculpt_mode_poll_view3d;
 
   ot->flag = OPTYPE_DEPENDS_ON_CURSOR;
 
@@ -2128,7 +2128,7 @@ void SCULPT_OT_face_set_box_gesture(wmOperatorType *ot)
   ot->modal = WM_gesture_box_modal;
   ot->exec = gesture_box_exec;
 
-  ot->poll = mode_poll_view3d;
+  ot->poll = sculpt_mode_poll_view3d;
 
   ot->flag = OPTYPE_REGISTER;
 
@@ -2146,7 +2146,7 @@ void SCULPT_OT_face_set_lasso_gesture(wmOperatorType *ot)
   ot->modal = WM_gesture_lasso_modal;
   ot->exec = gesture_lasso_exec;
 
-  ot->poll = mode_poll_view3d;
+  ot->poll = sculpt_mode_poll_view3d;
 
   ot->flag = OPTYPE_DEPENDS_ON_CURSOR;
 
@@ -2164,7 +2164,7 @@ void SCULPT_OT_face_set_line_gesture(wmOperatorType *ot)
   ot->modal = WM_gesture_straightline_oneshot_modal;
   ot->exec = gesture_line_exec;
 
-  ot->poll = mode_poll_view3d;
+  ot->poll = sculpt_mode_poll_view3d;
 
   ot->flag = OPTYPE_REGISTER;
 

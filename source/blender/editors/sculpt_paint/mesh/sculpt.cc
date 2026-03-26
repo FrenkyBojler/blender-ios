@@ -3691,20 +3691,20 @@ static void do_symmetrical_brush_actions(const Depsgraph &depsgraph,
   }
 }
 
-bool mode_poll(bContext *C)
+bool sculpt_mode_poll(bContext *C)
 {
   Object *ob = CTX_data_active_object(C);
   return ob && ob->mode & OB_MODE_SCULPT;
 }
 
-bool mode_poll_view3d(bContext *C)
+bool sculpt_mode_poll_view3d(bContext *C)
 {
-  return (mode_poll(C) && CTX_wm_region_view3d(C));
+  return (sculpt_mode_poll(C) && CTX_wm_region_view3d(C));
 }
 
-bool mode_and_brush_poll(bContext *C)
+bool sculpt_mode_and_brush_poll(bContext *C)
 {
-  return mode_poll(C) && paint_brush_tool_poll(C);
+  return sculpt_mode_poll(C) && paint_brush_tool_poll(C);
 }
 
 /**
@@ -3748,7 +3748,7 @@ static bool is_brush_related_tool(bContext *C)
 
 bool brush_cursor_poll(bContext *C)
 {
-  return mode_poll(C) && (paint_brush_cursor_poll(C) || is_brush_related_tool(C));
+  return sculpt_mode_poll(C) && (paint_brush_cursor_poll(C) || is_brush_related_tool(C));
 }
 
 static const char *sculpt_brush_type_name(const Brush &brush)
@@ -6086,7 +6086,7 @@ void SCULPT_OT_brush_stroke(wmOperatorType *ot)
   ot->invoke = sculpt_brush_stroke_invoke;
   ot->modal = brush_stroke_modal;
   ot->exec = sculpt_brush_stroke_exec;
-  ot->poll = mode_and_brush_poll;
+  ot->poll = sculpt_mode_and_brush_poll;
   ot->cancel = sculpt_brush_stroke_cancel;
   ot->ui = redo_empty_ui;
 
