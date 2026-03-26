@@ -128,7 +128,7 @@ class IDPropertyDropTarget : public ui::TreeViewItemDropTarget {
   bool on_drop(bContext *C, const ui::DragInfo &drag_info) const override
   {
     DragDropData *drag_data = static_cast<DragDropData *>(drag_info.drag_data.poin);
-    ListBaseT<IDProperty> &idprop_list =  drag_data->user_properties_->data.group;
+    ListBaseT<IDProperty> &idprop_list = drag_data->user_properties_->data.group;
     IDProperty *drag_idprop = drag_data->prop_;
     IDProperty *drop_target = drop_data_.prop_;
 
@@ -139,12 +139,10 @@ class IDPropertyDropTarget : public ui::TreeViewItemDropTarget {
         BLI_assert_unreachable();
         break;
       case ui::DropLocation::Before:
-        BLI_insertlinkafter(
-            &idprop_list, drop_target->prev, drag_idprop);
+        BLI_insertlinkafter(&idprop_list, drop_target->prev, drag_idprop);
         break;
       case ui::DropLocation::After:
-        BLI_insertlinkbefore(
-            &idprop_list, drop_target->next, drag_idprop);
+        BLI_insertlinkbefore(&idprop_list, drop_target->next, drag_idprop);
         break;
       default:
         BLI_assert_unreachable();
@@ -152,8 +150,7 @@ class IDPropertyDropTarget : public ui::TreeViewItemDropTarget {
     }
 
     /* Change active index after drop. */
-    drag_data->user_properties_->idprop_active_index = BLI_findindex(
-        &idprop_list, drag_idprop);
+    drag_data->user_properties_->idprop_active_index = BLI_findindex(&idprop_list, drag_idprop);
     WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, nullptr);
     ED_undo_push(C, "Drop Active IDProperty");
     return true;
