@@ -8,7 +8,7 @@
 
 #include "kernel/types.h"
 
-#include "util/implicit_sharing.h"  // IWYU pragma: export
+#include "util/implicit_sharing.h"
 #include "util/list.h"
 #include "util/param.h"
 #include "util/set.h"
@@ -60,7 +60,7 @@ class Attribute {
    * Optionally used to share ownership of #buffer, see implicit_sharing.h.
    * If this is null, #buffer is wholly owned by this Attribute.
    */
-  const void *sharing_info = nullptr;
+  ImplicitSharingInfo sharing_info = nullptr;
   const void *buffer = nullptr;
   int size = 0;
   AttributeElement element;
@@ -78,7 +78,7 @@ class Attribute {
             AttributeElement element,
             const void *data,
             int size,
-            const void *sharing_info);
+            ImplicitSharingInfo sharing_info);
   Attribute(Attribute &&other) = delete;
   Attribute &operator=(Attribute &&other) = delete;
   Attribute(const Attribute &other) = delete;
@@ -218,13 +218,16 @@ class AttributeSet {
                         AttributeElement element,
                         const void *data,
                         int size,
-                        const void *sharing_info);
+                        ImplicitSharingInfo sharing_info);
   Attribute *find(ustring name) const;
   void remove(ustring name);
 
   Attribute *add(AttributeStandard std, ustring name = ustring());
-  Attribute *add_shared(
-      AttributeStandard std, ustring name, const void *data, int size, const void *sharing_info);
+  Attribute *add_shared(AttributeStandard std,
+                        ustring name,
+                        const void *data,
+                        int size,
+                        ImplicitSharingInfo sharing_info);
   Attribute *find(AttributeStandard std) const;
   void remove(AttributeStandard std);
 

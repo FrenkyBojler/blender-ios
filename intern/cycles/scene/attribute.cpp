@@ -45,7 +45,7 @@ Attribute::Attribute(ustring name,
                      AttributeElement element,
                      const void *data,
                      const int size,
-                     const void *sharing_info)
+                     ImplicitSharingInfo sharing_info)
     : name(name),
       std(ATTR_STD_NONE),
       type(type),
@@ -500,7 +500,7 @@ Attribute *AttributeSet::add_shared(ustring name,
                                     AttributeElement element,
                                     const void *data,
                                     const int size,
-                                    const void *sharing_info)
+                                    ImplicitSharingInfo sharing_info)
 {
   Attribute *attr = find(name);
 
@@ -802,7 +802,7 @@ Attribute *AttributeSet::add_shared(AttributeStandard std,
                                     ustring name,
                                     const void *data,
                                     const int size,
-                                    const void *sharing_info)
+                                    ImplicitSharingInfo sharing_info)
 {
   Attribute *attr = nullptr;
 

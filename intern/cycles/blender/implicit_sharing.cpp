@@ -11,11 +11,11 @@
 void CCL_implicit_sharing_init()
 {
   ccl::implicit_sharing_init(
-      [](const void *data) {
+      [](ccl::ImplicitSharingInfo data) {
         const auto *info = static_cast<const blender::ImplicitSharingInfo *>(data);
         info->add_user();
       },
-      [](const void *data) {
+      [](ccl::ImplicitSharingInfo data) {
         const auto *info = static_cast<const blender::ImplicitSharingInfo *>(data);
         info->remove_user_and_delete_if_last();
       });
