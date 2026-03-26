@@ -93,10 +93,7 @@ class Attribute {
   static size_t element_size(Geometry *geom, AttributeElement element, AttributePrimitive prim);
   size_t buffer_size(Geometry *geom, AttributePrimitive prim) const;
 
-  char *data_for_write()
-  {
-    return static_cast<char *>(const_cast<void *>(buffer));
-  }
+  char *data_for_write();
   float2 *data_float2_for_write()
   {
     assert(data_sizeof() == sizeof(float2));

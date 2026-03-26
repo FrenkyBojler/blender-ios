@@ -111,6 +111,25 @@ void Attribute::resize(const size_t num_elements)
   }
 }
 
+char *Attribute::data_for_write()
+{
+  if (!this->buffer) {
+    assert(this->size == 0);
+    return nullptr;
+  }
+  if (this->sharing_info) {
+    /* Here we assume that the sharing info is not mutable. With the addition of another sharing
+     * info callback function pointer we could check the user count to avoid unnecessary copies.
+     * For now that isn't expected to happen in practice though. */
+    auto *new_data = GuardedAllocator<char>().allocate(this->data_sizeof() * this->size);
+    memcpy(new_data, this->buffer, this->data_sizeof() * this->size);
+    g_implicit_sharing_user_remove_fn(this->sharing_info);
+    this->sharing_info = nullptr;
+    this->buffer = new_data;
+  }
+  return const_cast<char *>(reinterpret_cast<const char *>(this->buffer));
+}
+
 void Attribute::set_data_from(Attribute &&other)
 {
   assert(other.std == std);
