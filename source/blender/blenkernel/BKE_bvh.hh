@@ -39,7 +39,7 @@ struct RayHit {
   float distance;
 };
 
-struct alignas(16) ClosestPointResult {
+struct ClosestPointResult {
   float3 position;
   uint32_t index;
   /* Currently unused. */

@@ -17,6 +17,7 @@
 #include "BLI_math_rotation.h"
 #include "BLI_ordered_edge.hh"
 
+#include "BKE_bvh.hh"
 #include "BKE_bvhutils.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_editmesh_bvh.hh"

@@ -2,9 +2,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_bvh.hh"
 #include "DNA_mesh_types.h"
 
+#include "BKE_bvh.hh"
 #include "BKE_bvhutils.hh"
 #include "BKE_geometry_fields.hh"
 #include "BKE_mesh_sample.hh"
