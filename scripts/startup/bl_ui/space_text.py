@@ -290,7 +290,7 @@ class TEXT_MT_templates_py(Menu):
             props_default={"internal": True},
             filter_ext=lambda ext: (ext.lower() == ".py"),
             translate=False,
-            include_subdir=True,
+            recursive_paths=True,
         )
 
 
