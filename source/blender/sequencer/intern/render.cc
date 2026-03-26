@@ -182,21 +182,6 @@ void ensure_ibuf_is_linear_space(ImBuf *ibuf, bool make_float)
   ensure_ibuf_is_color_space(ibuf, make_float, to_colorspace);
 }
 
-void render_pixel_from_sequencer_space_v4(const Scene *scene, float pixel[4])
-{
-  const char *from_colorspace = scene->sequencer_colorspace_settings.name;
-  const char *to_colorspace = IMB_colormanagement_role_colorspace_name_get(
-      COLOR_ROLE_SCENE_LINEAR);
-
-  if (to_colorspace && to_colorspace[0] != '\0') {
-    IMB_colormanagement_transform_v4(pixel, from_colorspace, to_colorspace);
-  }
-  else {
-    /* if no color management enables fallback to legacy conversion */
-    srgb_to_linearrgb_v4(pixel, pixel);
-  }
-}
-
 /** \} */
 
 /* -------------------------------------------------------------------- */

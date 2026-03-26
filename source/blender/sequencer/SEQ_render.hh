@@ -80,7 +80,6 @@ StripElem *render_give_stripelem(const Scene *scene, const Strip *strip, int tim
  * Note: if make_float is false and input image contains byte pixels, it is *NOT* modified. */
 void ensure_ibuf_is_linear_space(ImBuf *ibuf, bool make_float);
 
-void render_pixel_from_sequencer_space_v4(const Scene *scene, float pixel[4]);
 /**
  * Check if `strip` is muted for rendering.
  * This function also checks `SeqTimelineChannel` flag.
