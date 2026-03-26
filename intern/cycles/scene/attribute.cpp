@@ -67,7 +67,8 @@ void Attribute::free_data()
 {
   /* For voxel data, we need to free the image handle. */
   if (element & ATTR_ELEMENT_VOXEL) {
-    delete &data_voxel();
+    GuardedAllocator<ImageHandle>().deallocate(
+        static_cast<ImageHandle *>(const_cast<void *>(this->buffer)), 1);
   }
   else if (sharing_info) {
     g_implicit_sharing_user_remove_fn(sharing_info);
