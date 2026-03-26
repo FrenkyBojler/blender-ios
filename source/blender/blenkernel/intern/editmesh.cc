@@ -188,10 +188,12 @@ Span<float3> BKE_editmesh_vert_coords_when_deformed(
   const Mesh *mesh_cage = BKE_object_get_editmesh_eval_cage(ob);
 
   Span<float3> vert_positions;
-  if (mesh_cage && mesh_cage->runtime->deformed_only) {
-    BLI_assert(BKE_mesh_wrapper_vert_len(mesh_cage) == em->bm->totvert);
-    /* Deformed, and we have deformed coords already. */
-    vert_positions = BKE_mesh_wrapper_vert_coords(mesh_cage);
+  if (mesh_cage) {
+    if (mesh_cage->runtime->deformed_only) {
+      BLI_assert(BKE_mesh_wrapper_vert_len(mesh_cage) == em->bm->totvert);
+      /* Deformed, and we have deformed coords already. */
+      vert_positions = BKE_mesh_wrapper_vert_coords(mesh_cage);
+    }
   }
   else if ((editmesh_eval_final != nullptr) &&
            (editmesh_eval_final->runtime->wrapper_type == ME_WRAPPER_TYPE_BMESH))
