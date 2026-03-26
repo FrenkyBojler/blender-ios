@@ -69,7 +69,7 @@ Texture *MTLTexturePool::acquire_texture_impl(int3 extent,
   for (uint64_t i : pool_.index_range()) {
     const AllocationHandle &handle = pool_[i];
     /* Do dimensions match? */
-    if (int3(handle.texture->w_, handle.texture->h_, handle_texture->d_) != extent) {
+    if (int3(handle.texture->w_, handle.texture->h_, handle.texture->d_) != extent) {
       /* TODO(not_mark): sub-view on `texture->d_`. */
       continue;
     }
@@ -127,20 +127,18 @@ Texture *MTLTexturePool::acquire_texture_impl(int3 extent,
     switch (type) {
       case GPU_TEXTURE_1D:
       case GPU_TEXTURE_1D_ARRAY:
-        texture_result = texture->init_1D(extent.x, extent.y, mip_len, compatible_format);
+        texture_result = texture->init_1D(extent.x, extent.y, mip_len, format);
         break;
       case GPU_TEXTURE_2D:
       case GPU_TEXTURE_2D_ARRAY:
-        texture_result = texture->init_2D(
-            extent.x, extent.y, extent.z, mip_len, compatible_format);
+        texture_result = texture->init_2D(extent.x, extent.y, extent.z, mip_len, format);
         break;
       case GPU_TEXTURE_3D:
-        texture_result = texture->init_3D(
-            extent.x, extent.y, extent.z, mip_len, compatible_format);
+        texture_result = texture->init_3D(extent.x, extent.y, extent.z, mip_len, format);
         break;
       case GPU_TEXTURE_CUBE:
       case GPU_TEXTURE_CUBE_ARRAY:
-        texture_result = texture->init_cubemap(extent.x, extent.y, mip_len, compatible_format);
+        texture_result = texture->init_cubemap(extent.x, extent.y, mip_len, format);
         break;
       default:
         BLI_assert_unreachable();
