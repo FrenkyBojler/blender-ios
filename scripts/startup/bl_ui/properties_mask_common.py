@@ -120,7 +120,6 @@ class MASK_PT_layers:
             layout.prop(active_layer, "falloff")
 
             col = layout.column()
-            col.prop(active_layer, "use_fill_overlap", text="Overlap")
             col.prop(active_layer, "use_fill_holes", text="Holes")
 
 

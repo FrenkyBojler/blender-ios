@@ -88,7 +88,7 @@ enum MaskLayerFlag {
 
   /* no holes */
   MASK_LAYERFLAG_FILL_DISCRETE = (1 << 6),
-  MASK_LAYERFLAG_FILL_OVERLAP = (1 << 7),
+  // MASK_LAYERFLAG_UNUSED_7 = (1 << 7), /* Dirty. */
 };
 
 /* masklay_shape->flag */

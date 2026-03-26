@@ -48,7 +48,8 @@
  * BLI_mempool for triangles and converting to a contiguous array afterwards.
  */
 
-#include <algorithm> /* For `min/max`. */
+#include <algorithm>
+#include <numeric> /* For `std::iota`. */
 
 #include "CLG_log.h"
 
@@ -58,11 +59,14 @@
 #include "DNA_scene_types.h"
 #include "DNA_vec_types.h"
 
+#include "BLI_array.hh"
+#include "BLI_delaunay_2d.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.h"
+#include "BLI_math_vector_types.hh"
 #include "BLI_memarena.h"
-#include "BLI_scanfill.h"
 #include "BLI_utildefines.h"
+#include "BLI_vector.hh"
 
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
@@ -75,19 +79,12 @@
 
 namespace blender {
 
-/* this is rather and annoying hack, use define to isolate it.
- * problem is caused by scanfill removing edges on us. */
-#define USE_SCANFILL_EDGE_WORKAROUND
-
 #define SPLINE_RESOL_CAP_PER_PIXEL 2
 #define SPLINE_RESOL_CAP_MIN 8
 #define SPLINE_RESOL_CAP_MAX 64
 
 /* found this gives best performance for high detail masks, values between 2 and 8 work best */
 #define BUCKET_PIXELS_PER_CELL 4
-
-#define SF_EDGE_IS_BOUNDARY 0xff
-#define SF_KEYINDEX_TEMP_ID uint(-1)
 
 #define TRI_TERMINATOR_ID uint(-1)
 #define TRI_VERT uint(-1)
@@ -108,6 +105,16 @@ namespace blender {
 /* do nothing */
 #  define FACE_ASSERT(face, vert_max)
 #endif
+
+/** Range of CDT input vertices belonging to one filled spline that has feather. */
+struct FeatherRange {
+  /** First CDT input vert index for this spline. */
+  int vert_start;
+  /** Number of verts in this spline. */
+  int vert_count;
+  /** Index into feather_coords for this spline's feather. */
+  int feather_offset;
+};
 
 static CLG_LogRef LOG = {"mask.rasterize"};
 
@@ -134,14 +141,6 @@ static void rotate_point_v2(
 BLI_INLINE uint clampis_uint(const uint v, const uint min, const uint max)
 {
   return v < min ? min : (v > max ? max : v);
-}
-
-static ScanFillVert *scanfill_vert_add_v2_with_depth(ScanFillContext *sf_ctx,
-                                                     const float co_xy[2],
-                                                     const float co_z)
-{
-  const float co[3] = {co_xy[0], co_xy[1], co_z};
-  return BLI_scanfill_vert_add(sf_ctx, co);
 }
 
 /* --------------------------------------------------------------------- */
@@ -576,16 +575,12 @@ void BKE_maskrasterize_handle_init(MaskRasterHandle *mr_handle,
       (do_aspect_correct && width > height) ? float(height) / float(width) : 1.0f,
       (do_aspect_correct && width < height) ? float(width) / float(height) : 1.0f};
 
-  const float zvec[3] = {0.0f, 0.0f, -1.0f};
   MaskLayer *masklay;
   uint masklay_index;
-  MemArena *sf_arena;
 
   mr_handle->layers_tot = uint(BLI_listbase_count(&mask->masklayers));
   mr_handle->layers = MEM_new_array<MaskRasterLayer>(mr_handle->layers_tot, "MaskRasterLayer");
   BLI_rctf_init_minmax(&mr_handle->bounds);
-
-  sf_arena = BLI_memarena_new(BLI_SCANFILL_ARENA_SIZE, __func__);
 
   for (masklay = static_cast<MaskLayer *>(mask->masklayers.first), masklay_index = 0; masklay;
        masklay = masklay->next, masklay_index++)
@@ -595,19 +590,7 @@ void BKE_maskrasterize_handle_init(MaskRasterHandle *mr_handle,
     MaskRasterSplineInfo *open_spline_ranges;
     uint open_spline_index = 0;
 
-    /* scanfill */
-    ScanFillContext sf_ctx;
-    ScanFillVert *sf_vert = nullptr;
-    ScanFillVert *sf_vert_next = nullptr;
-    ScanFillFace *sf_tri;
-
-    uint sf_vert_tot = 0;
     uint tot_feather_quads = 0;
-
-#ifdef USE_SCANFILL_EDGE_WORKAROUND
-    uint tot_boundary_used = 0;
-    uint tot_boundary_found = 0;
-#endif
 
     if (masklay->visibility_flag & MASK_HIDE_RENDER) {
       /* skip the layer */
@@ -619,7 +602,16 @@ void BKE_maskrasterize_handle_init(MaskRasterHandle *mr_handle,
     tot_splines = uint(BLI_listbase_count(&masklay->splines));
     open_spline_ranges = MEM_new_array<MaskRasterSplineInfo>(tot_splines, __func__);
 
-    BLI_scanfill_begin_arena(&sf_ctx, sf_arena);
+    /* CDT input buffers. */
+    Vector<double2> cdt_verts;
+    Vector<Vector<int>> cdt_faces;
+    Vector<float2> feather_coords;
+    Vector<FeatherRange> feather_ranges;
+
+    /* Open-spline vert buffer (body + feather_a + feather_b interleaved, plus caps). */
+    Vector<float3> open_spline_verts;
+
+    /* First: collect CDT input + open-spline verts. */
 
     for (MaskSpline &spline : masklay->splines) {
       const bool is_cyclic = (spline.flag & MASK_SPLINE_CYCLIC) != 0;
@@ -649,10 +641,7 @@ void BKE_maskrasterize_handle_init(MaskRasterHandle *mr_handle,
       }
 
       if (tot_diff_point > 3) {
-        ScanFillVert *sf_vert_prev;
         uint j;
-
-        sf_ctx.poly_nr++;
 
         if (do_aspect_correct) {
           if (width != height) {
@@ -707,50 +696,26 @@ void BKE_maskrasterize_handle_init(MaskRasterHandle *mr_handle,
                 &spline, diff_feather_points, tot_diff_feather_points);
           }
 
-          sf_vert_prev = scanfill_vert_add_v2_with_depth(&sf_ctx, diff_points[0], 0.0f);
-          sf_vert_prev->tmp.u = sf_vert_tot;
-
-          /* Absolute index of feather vert. */
-          sf_vert_prev->keyindex = sf_vert_tot + tot_diff_point;
-
-          sf_vert_tot++;
-
-          for (j = 1; j < tot_diff_point; j++) {
-            sf_vert = scanfill_vert_add_v2_with_depth(&sf_ctx, diff_points[j], 0.0f);
-            sf_vert->tmp.u = sf_vert_tot;
-            sf_vert->keyindex = sf_vert_tot + tot_diff_point; /* absolute index of feather vert */
-            sf_vert_tot++;
-          }
-
-          sf_vert = sf_vert_prev;
-          sf_vert_prev = static_cast<ScanFillVert *>(sf_ctx.fillvertbase.last);
-
+          /* Append body verts to CDT input. */
+          int spline_vert_start = int(cdt_verts.size());
           for (j = 0; j < tot_diff_point; j++) {
-            ScanFillEdge *sf_edge = BLI_scanfill_edge_add(&sf_ctx, sf_vert_prev, sf_vert);
-
-#ifdef USE_SCANFILL_EDGE_WORKAROUND
-            if (diff_feather_points) {
-              sf_edge->tmp.c = SF_EDGE_IS_BOUNDARY;
-              tot_boundary_used++;
-            }
-#else
-            (void)sf_edge;
-#endif
-            sf_vert_prev = sf_vert;
-            sf_vert = sf_vert->next;
+            cdt_verts.append(double2(diff_points[j][0], diff_points[j][1]));
           }
 
+          /* Polygon for CDT. */
+          const int poly_num = int(tot_diff_point);
+          Vector<int> poly(poly_num);
+          std::iota(poly.begin(), poly.end(), spline_vert_start);
+          cdt_faces.append(std::move(poly));
+
+          /* Feather: only when feather points exist. */
           if (diff_feather_points) {
             BLI_assert(tot_diff_feather_points == tot_diff_point);
-
-            /* NOTE: only added for convenience, we don't in fact use these to scan-fill,
-             * only to create feather faces after scan-fill. */
+            int feather_offset = int(feather_coords.size());
             for (j = 0; j < tot_diff_feather_points; j++) {
-              sf_vert = scanfill_vert_add_v2_with_depth(&sf_ctx, diff_feather_points[j], 1.0f);
-              sf_vert->keyindex = SF_KEYINDEX_TEMP_ID;
-              sf_vert_tot++;
+              feather_coords.append(float2(diff_feather_points[j][0], diff_feather_points[j][1]));
             }
-
+            feather_ranges.append({spline_vert_start, int(tot_diff_point), feather_offset});
             tot_feather_quads += tot_diff_point;
           }
         }
@@ -777,39 +742,29 @@ void BKE_maskrasterize_handle_init(MaskRasterHandle *mr_handle,
               diff_feather_points_flip = nullptr;
             }
 
-            open_spline_ranges[open_spline_index].vertex_offset = sf_vert_tot;
+            uint open_spline_vert_start = uint(open_spline_verts.size());
+            open_spline_ranges[open_spline_index].vertex_offset = open_spline_vert_start;
             open_spline_ranges[open_spline_index].vertex_total = tot_diff_point;
 
-            /* TODO: an alternate functions so we can avoid double vector copy! */
             for (j = 0; j < tot_diff_point; j++) {
-
               /* center vert */
-              sf_vert = scanfill_vert_add_v2_with_depth(&sf_ctx, diff_points[j], 0.0f);
-              sf_vert->tmp.u = sf_vert_tot;
-              sf_vert->keyindex = SF_KEYINDEX_TEMP_ID;
-              sf_vert_tot++;
+              open_spline_verts.append(float3(diff_points[j][0], diff_points[j][1], 0.0f));
 
               /* feather vert A */
-              sf_vert = scanfill_vert_add_v2_with_depth(&sf_ctx, diff_feather_points[j], 1.0f);
-              sf_vert->tmp.u = sf_vert_tot;
-              sf_vert->keyindex = SF_KEYINDEX_TEMP_ID;
-              sf_vert_tot++;
+              open_spline_verts.append(
+                  float3(diff_feather_points[j][0], diff_feather_points[j][1], 1.0f));
 
               /* feather vert B */
               if (diff_feather_points_flip) {
-                sf_vert = scanfill_vert_add_v2_with_depth(
-                    &sf_ctx, diff_feather_points_flip[j], 1.0f);
+                open_spline_verts.append(
+                    float3(diff_feather_points_flip[j][0], diff_feather_points_flip[j][1], 1.0f));
               }
               else {
                 float co_diff[2];
                 sub_v2_v2v2(co_diff, diff_points[j], diff_feather_points[j]);
                 add_v2_v2v2(co_diff, diff_points[j], co_diff);
-                sf_vert = scanfill_vert_add_v2_with_depth(&sf_ctx, co_diff, 1.0f);
+                open_spline_verts.append(float3(co_diff[0], co_diff[1], 1.0f));
               }
-
-              sf_vert->tmp.u = sf_vert_tot;
-              sf_vert->keyindex = SF_KEYINDEX_TEMP_ID;
-              sf_vert_tot++;
 
               tot_feather_quads += 2;
             }
@@ -851,10 +806,7 @@ void BKE_maskrasterize_handle_init(MaskRasterHandle *mr_handle,
                   float co_feather[2];
                   rotate_point_v2(co_feather, fp_turn, fp_cent, angle, asp_xy);
 
-                  sf_vert = scanfill_vert_add_v2_with_depth(&sf_ctx, co_feather, 1.0f);
-                  sf_vert->tmp.u = sf_vert_tot;
-                  sf_vert->keyindex = SF_KEYINDEX_TEMP_ID;
-                  sf_vert_tot++;
+                  open_spline_verts.append(float3(co_feather[0], co_feather[1], 1.0f));
                 }
                 tot_feather_quads += vertex_total_cap;
 
@@ -872,10 +824,7 @@ void BKE_maskrasterize_handle_init(MaskRasterHandle *mr_handle,
                   float co_feather[2];
                   rotate_point_v2(co_feather, fp_turn, fp_cent, -angle, asp_xy);
 
-                  sf_vert = scanfill_vert_add_v2_with_depth(&sf_ctx, co_feather, 1.0f);
-                  sf_vert->tmp.u = sf_vert_tot;
-                  sf_vert->keyindex = SF_KEYINDEX_TEMP_ID;
-                  sf_vert_tot++;
+                  open_spline_verts.append(float3(co_feather[0], co_feather[1], 1.0f));
                 }
                 tot_feather_quads += vertex_total_cap;
 
@@ -901,166 +850,128 @@ void BKE_maskrasterize_handle_init(MaskRasterHandle *mr_handle,
       }
     }
 
-    {
-      uint(*face_array)[4], *face;   /* access coords */
-      float (*face_coords)[3], *cos; /* xy, z 0-1 (1.0 == filled) */
-      uint sf_tri_tot;
+    /* CDT filling call (if there is anything to fill). */
+
+    uint cdt_tri_num = 0;
+    const uint feather_vert_num = uint(feather_coords.size());
+    const uint open_spline_vert_num = uint(open_spline_verts.size());
+    uint cdt_vert_num = 0;
+
+    meshintersect::CDT_result<double> result;
+
+    if (!cdt_faces.is_empty()) {
+      const bool has_feather = !feather_ranges.is_empty();
+
+      meshintersect::CDT_input<double> cdt_in;
+      cdt_in.vert = Array<double2>(cdt_verts.as_span());
+      cdt_in.face = Array<Vector<int>>(cdt_faces.as_span());
+      cdt_in.epsilon = 1e-8;
+      cdt_in.need_ids = has_feather;
+
+      CDT_output_type cdt_type = (masklay->flag & MASK_LAYERFLAG_FILL_DISCRETE) ?
+                                     CDT_INSIDE :
+                                     CDT_INSIDE_WITH_HOLES_NONZERO;
+
+      result = meshintersect::delaunay_2d_calc(cdt_in, cdt_type);
+      cdt_vert_num = uint(result.vert.size());
+      cdt_tri_num = uint(result.face.size());
+    }
+
+    /* Second: build face_coords + face_array. */
+
+    const uint face_num = cdt_tri_num + tot_feather_quads;
+    const uint vert_num = cdt_vert_num + feather_vert_num + open_spline_vert_num;
+
+    MaskRasterLayer *layer = &mr_handle->layers[masklay_index];
+
+    if (face_num == 0) {
+      MEM_delete(open_spline_ranges);
+      layer_bucket_init_dummy(layer);
+    }
+    else {
+      uint(*face_array)[4], *face;
+      float (*face_coords)[3];
       rctf bounds;
       uint face_index;
-      int scanfill_flag = 0;
 
-      bool is_isect = false;
-      ListBaseT<ScanFillVert> isect_remvertbase = {nullptr, nullptr};
-      ListBaseT<ScanFillEdge> isect_remedgebase = {nullptr, nullptr};
+      face_coords = MEM_new_array_zeroed<float[3]>(vert_num, "maskrast_face_coords");
 
-      /* now we have all the splines */
-      face_coords = MEM_new_array_zeroed<float[3]>(sf_vert_tot, "maskrast_face_coords");
+      /* CDT output verts `[0 .. cdt_vert_num - 1]`, all Z=0. */
+      for (uint i = 0; i < cdt_vert_num; i++) {
+        copy_v3_v3(face_coords[i],
+                   float3(float(result.vert[int(i)][0]), float(result.vert[int(i)][1]), 0.0f));
+      }
 
-      /* init bounds */
+      /* Feather verts `[cdt_vert_num .. cdt_vert_num + feather_vert_num - 1]`, all Z=1. */
+      for (uint k = 0; k < feather_vert_num; k++) {
+        copy_v3_v3(face_coords[cdt_vert_num + k],
+                   float3(feather_coords[int(k)][0], feather_coords[int(k)][1], 1.0f));
+      }
+
+      /* Open-spline verts `[cdt_vert_num + feather_vert_num .. vert_num - 1]`. */
+      for (uint i = 0; i < open_spline_vert_num; i++) {
+        copy_v3_v3(face_coords[cdt_vert_num + feather_vert_num + i], open_spline_verts[int(i)]);
+      }
+
+      /* Adjust open-spline offsets. */
+      for (uint i = 0; i < open_spline_index; i++) {
+        open_spline_ranges[i].vertex_offset += (cdt_vert_num + feather_vert_num);
+      }
+
+      /* Bounds. */
       BLI_rctf_init_minmax(&bounds);
-
-      /* coords */
-      cos = reinterpret_cast<float *>(face_coords);
-      for (sf_vert = static_cast<ScanFillVert *>(sf_ctx.fillvertbase.first); sf_vert;
-           sf_vert = sf_vert_next)
-      {
-        sf_vert_next = sf_vert->next;
-        copy_v3_v3(cos, sf_vert->co);
-
-        /* remove so as not to interfere with fill (called after) */
-        if (sf_vert->keyindex == SF_KEYINDEX_TEMP_ID) {
-          BLI_remlink(&sf_ctx.fillvertbase, sf_vert);
-        }
-
-        /* bounds */
-        BLI_rctf_do_minmax_v(&bounds, cos);
-
-        cos += 3;
+      for (uint i = 0; i < vert_num; i++) {
+        BLI_rctf_do_minmax_v(&bounds, face_coords[i]);
       }
 
-      /* --- inefficient self-intersect case --- */
-      /* if self intersections are found, its too tricky to attempt to map vertices
-       * so just realloc and add entirely new vertices - the result of the self-intersect check.
-       */
-      if ((masklay->flag & MASK_LAYERFLAG_FILL_OVERLAP) &&
-          (is_isect = BLI_scanfill_calc_self_isect(
-               &sf_ctx, &isect_remvertbase, &isect_remedgebase)))
-      {
-        uint sf_vert_tot_isect = uint(BLI_listbase_count(&sf_ctx.fillvertbase));
-        uint i = sf_vert_tot;
-
-        face_coords = static_cast<float (*)[3]>(MEM_realloc_uninitialized(
-            face_coords, sizeof(float[3]) * (sf_vert_tot + sf_vert_tot_isect)));
-
-        cos = (&face_coords[sf_vert_tot][0]);
-
-        for (sf_vert = static_cast<ScanFillVert *>(sf_ctx.fillvertbase.first); sf_vert;
-             sf_vert = sf_vert->next)
-        {
-          copy_v3_v3(cos, sf_vert->co);
-          sf_vert->tmp.u = i++;
-          cos += 3;
-        }
-
-        sf_vert_tot += sf_vert_tot_isect;
-
-        /* we need to calc polys after self intersect */
-        scanfill_flag |= BLI_SCANFILL_CALC_POLYS;
-      }
-      /* --- end inefficient code --- */
-
-      /* main scan-fill */
-      if ((masklay->flag & MASK_LAYERFLAG_FILL_DISCRETE) == 0) {
-        scanfill_flag |= BLI_SCANFILL_CALC_HOLES;
-      }
-
-      /* Store an array of edges from `sf_ctx.filledgebase`
-       * because filling may remove edges, see: #127692. */
-      ScanFillEdge **sf_edge_array = nullptr;
-      uint sf_edge_array_num = 0;
-      if (tot_feather_quads) {
-        const ListBaseT<ScanFillEdge> *lb_array[] = {&sf_ctx.filledgebase, &isect_remedgebase};
-        for (int pass = 0; pass < 2; pass++) {
-          for (ScanFillEdge &sf_edge : *lb_array[pass]) {
-            if (sf_edge.tmp.c == SF_EDGE_IS_BOUNDARY) {
-              sf_edge_array_num += 1;
-            }
-          }
-        }
-
-        if (sf_edge_array_num > 0) {
-          sf_edge_array = MEM_new_array_uninitialized<ScanFillEdge *>(size_t(sf_edge_array_num),
-                                                                      __func__);
-          uint edge_index = 0;
-          for (int pass = 0; pass < 2; pass++) {
-            for (ScanFillEdge &sf_edge : *lb_array[pass]) {
-              if (sf_edge.tmp.c == SF_EDGE_IS_BOUNDARY) {
-                sf_edge_array[edge_index++] = &sf_edge;
-              }
-            }
-          }
-          BLI_assert(edge_index == sf_edge_array_num);
-        }
-      }
-
-      sf_tri_tot = uint(BLI_scanfill_calc_ex(&sf_ctx, scanfill_flag, zvec));
-
-      if (is_isect) {
-        /* add removed data back, we only need edges for feather,
-         * but add verts back so they get freed along with others */
-        BLI_movelisttolist(&sf_ctx.fillvertbase, &isect_remvertbase);
-        BLI_movelisttolist(&sf_ctx.filledgebase, &isect_remedgebase);
-      }
-
-      face_array = MEM_new_array_uninitialized<uint[4]>(
-          size_t(sf_tri_tot) + size_t(tot_feather_quads), "maskrast_face_index");
+      /* Allocate face array. */
+      face_array = MEM_new_array_uninitialized<uint[4]>(size_t(face_num), "maskrast_face_index");
       face_index = 0;
-
-      /* faces */
       face = reinterpret_cast<uint *>(face_array);
-      for (sf_tri = static_cast<ScanFillFace *>(sf_ctx.fillfacebase.first); sf_tri;
-           sf_tri = sf_tri->next)
-      {
-        *(face++) = sf_tri->v3->tmp.u;
-        *(face++) = sf_tri->v2->tmp.u;
-        *(face++) = sf_tri->v1->tmp.u;
+
+      /* CDT triangles (CCW output, used directly without reversal). */
+      for (uint i = 0; i < cdt_tri_num; i++) {
+        const Vector<int> &tri = result.face[int(i)];
+        BLI_assert(tri.size() == 3);
+        *(face++) = uint(tri[0]);
+        *(face++) = uint(tri[1]);
+        *(face++) = uint(tri[2]);
         *(face++) = TRI_VERT;
         face_index++;
-        FACE_ASSERT(face - 4, sf_vert_tot);
+        FACE_ASSERT(face - 4, vert_num);
       }
 
-      /* start of feather faces... if we have this set,
-       * 'face_index' is kept from loop above */
-
-      BLI_assert(face_index == sf_tri_tot);
-      UNUSED_VARS_NDEBUG(face_index);
-
-      if (sf_edge_array) {
-        BLI_assert(tot_feather_quads);
-        for (uint i = 0; i < sf_edge_array_num; i++) {
-          ScanFillEdge *sf_edge = sf_edge_array[i];
-          BLI_assert(sf_edge->tmp.c == SF_EDGE_IS_BOUNDARY);
-          *(face++) = sf_edge->v1->tmp.u;
-          *(face++) = sf_edge->v2->tmp.u;
-          *(face++) = sf_edge->v2->keyindex;
-          *(face++) = sf_edge->v1->keyindex;
-          face_index++;
-          FACE_ASSERT(face - 4, sf_vert_tot);
-
-#ifdef USE_SCANFILL_EDGE_WORKAROUND
-          tot_boundary_found++;
-#endif
+      /* Feather quads from feather_ranges. */
+      if (!feather_ranges.is_empty()) {
+        /* Build input-to-output vert map. */
+        Array<int> input_to_output(int(cdt_verts.size()), -1);
+        for (int i = 0; i < int(result.vert.size()); i++) {
+          for (uint32_t orig : result.vert_orig[i]) {
+            if (orig < uint32_t(cdt_verts.size())) {
+              input_to_output[int(orig)] = i;
+            }
+          }
         }
-        MEM_delete(sf_edge_array);
+
+        for (const FeatherRange &range : feather_ranges) {
+          for (int j = 0; j < range.vert_count; j++) {
+            int j_next = (j + 1) % range.vert_count;
+            int out_a = input_to_output[range.vert_start + j];
+            int out_b = input_to_output[range.vert_start + j_next];
+
+            BLI_assert(out_a != -1 && out_b != -1);
+
+            *(face++) = uint(out_a);
+            *(face++) = uint(out_b);
+            *(face++) = cdt_vert_num + uint(range.feather_offset + j_next);
+            *(face++) = cdt_vert_num + uint(range.feather_offset + j);
+            face_index++;
+            FACE_ASSERT(face - 4, vert_num);
+          }
+        }
       }
 
-#ifdef USE_SCANFILL_EDGE_WORKAROUND
-      if (tot_boundary_found != tot_boundary_used) {
-        BLI_assert(tot_boundary_found < tot_boundary_used);
-      }
-#endif
-
-      /* feather only splines */
+      /* Open-spline feather quads + caps. */
       while (open_spline_index > 0) {
         const uint vertex_offset = open_spline_ranges[--open_spline_index].vertex_offset;
         uint vertex_total = open_spline_ranges[open_spline_index].vertex_total;
@@ -1080,14 +991,14 @@ void BKE_maskrasterize_handle_init(MaskRasterHandle *mr_handle,
           *(face++) = j + 1;                 /* z 0 */
           *(face++) = j + 4; /* next span */ /* z 0 */
           face_index++;
-          FACE_ASSERT(face - 4, sf_vert_tot);
+          FACE_ASSERT(face - 4, vert_num);
 
           *(face++) = j + 0;                 /* z 1 */
           *(face++) = j + 3; /* next span */ /* z 1 */
           *(face++) = j + 5; /* next span */ /* z 0 */
           *(face++) = j + 2;                 /* z 0 */
           face_index++;
-          FACE_ASSERT(face - 4, sf_vert_tot);
+          FACE_ASSERT(face - 4, vert_num);
         }
 
         if (open_spline_ranges[open_spline_index].is_cyclic) {
@@ -1096,14 +1007,14 @@ void BKE_maskrasterize_handle_init(MaskRasterHandle *mr_handle,
           *(face++) = j + 1;                             /* z 0 */
           *(face++) = vertex_offset + 1; /* next span */ /* z 0 */
           face_index++;
-          FACE_ASSERT(face - 4, sf_vert_tot);
+          FACE_ASSERT(face - 4, vert_num);
 
           *(face++) = j + 0;                             /* z 1 */
           *(face++) = vertex_offset + 0; /* next span */ /* z 1 */
           *(face++) = vertex_offset + 2; /* next span */ /* z 0 */
           *(face++) = j + 2;                             /* z 0 */
           face_index++;
-          FACE_ASSERT(face - 4, sf_vert_tot);
+          FACE_ASSERT(face - 4, vert_num);
         }
         else {
           uint midvidx = vertex_offset;
@@ -1118,7 +1029,7 @@ void BKE_maskrasterize_handle_init(MaskRasterHandle *mr_handle,
             *(face++) = j + 0;       /* z 0 */
             *(face++) = j + 1;       /* z 0 */
             face_index++;
-            FACE_ASSERT(face - 4, sf_vert_tot);
+            FACE_ASSERT(face - 4, vert_num);
           }
 
           j = vertex_offset + (vertex_total * 3);
@@ -1129,14 +1040,14 @@ void BKE_maskrasterize_handle_init(MaskRasterHandle *mr_handle,
           *(face++) = midvidx + 1; /* z 0 */
           *(face++) = j + 0;       /* z 0 */
           face_index++;
-          FACE_ASSERT(face - 4, sf_vert_tot);
+          FACE_ASSERT(face - 4, vert_num);
 
           *(face++) = midvidx + 0;                   /* z 1 */
           *(face++) = midvidx + 0;                   /* z 1 */
           *(face++) = j + vertex_total_cap_head - 2; /* z 0 */
           *(face++) = midvidx + 2;                   /* z 0 */
           face_index++;
-          FACE_ASSERT(face - 4, sf_vert_tot);
+          FACE_ASSERT(face - 4, vert_num);
 
           /***************
            * cap end 'b' */
@@ -1152,7 +1063,7 @@ void BKE_maskrasterize_handle_init(MaskRasterHandle *mr_handle,
             *(face++) = j + 1;   /* z 0 */
             *(face++) = j + 0;   /* z 0 */
             face_index++;
-            FACE_ASSERT(face - 4, sf_vert_tot);
+            FACE_ASSERT(face - 4, vert_num);
           }
 
           j = vertex_offset + (vertex_total * 3) + (vertex_total_cap_head - 1);
@@ -1163,75 +1074,45 @@ void BKE_maskrasterize_handle_init(MaskRasterHandle *mr_handle,
           *(face++) = j + 0;       /* z 0 */
           *(face++) = midvidx + 1; /* z 0 */
           face_index++;
-          FACE_ASSERT(face - 4, sf_vert_tot);
+          FACE_ASSERT(face - 4, vert_num);
 
           *(face++) = midvidx + 0;                   /* z 1 */
           *(face++) = midvidx + 0;                   /* z 1 */
           *(face++) = midvidx + 2;                   /* z 0 */
           *(face++) = j + vertex_total_cap_tail - 2; /* z 0 */
           face_index++;
-          FACE_ASSERT(face - 4, sf_vert_tot);
+          FACE_ASSERT(face - 4, vert_num);
         }
       }
 
       MEM_delete(open_spline_ranges);
 
-#if 0
-      fprintf(stderr,
-              "%u %u (%u %u), %u\n",
-              face_index,
-              sf_tri_tot + tot_feather_quads,
-              sf_tri_tot,
-              tot_feather_quads,
-              tot_boundary_used - tot_boundary_found);
-#endif
+      BLI_assert(face_index == face_num);
 
-#ifdef USE_SCANFILL_EDGE_WORKAROUND
-      BLI_assert(face_index + (tot_boundary_used - tot_boundary_found) ==
-                 sf_tri_tot + tot_feather_quads);
-#else
-      BLI_assert(face_index == sf_tri_tot + tot_feather_quads);
-#endif
-      {
-        MaskRasterLayer *layer = &mr_handle->layers[masklay_index];
+      if (BLI_rctf_isect(&default_bounds, &bounds, &bounds)) {
+        layer->face_tot = face_num;
+        layer->face_coords = face_coords;
+        layer->face_array = face_array;
+        layer->bounds = bounds;
 
-        if (BLI_rctf_isect(&default_bounds, &bounds, &bounds)) {
-#ifdef USE_SCANFILL_EDGE_WORKAROUND
-          layer->face_tot = (sf_tri_tot + tot_feather_quads) -
-                            (tot_boundary_used - tot_boundary_found);
-#else
-          layer->face_tot = (sf_tri_tot + tot_feather_quads);
-#endif
-          layer->face_coords = face_coords;
-          layer->face_array = face_array;
-          layer->bounds = bounds;
+        layer_bucket_init(layer, pixel_size);
 
-          layer_bucket_init(layer, pixel_size);
-
-          BLI_rctf_union(&mr_handle->bounds, &bounds);
-        }
-        else {
-          MEM_delete(face_coords);
-          MEM_delete(face_array);
-
-          layer_bucket_init_dummy(layer);
-        }
-
-        /* copy as-is */
-        layer->alpha = masklay->alpha;
-        layer->blend = masklay->blend;
-        layer->blend_flag = masklay->blend_flag;
-        layer->falloff = masklay->falloff;
+        BLI_rctf_union(&mr_handle->bounds, &bounds);
       }
+      else {
+        MEM_delete(face_coords);
+        MEM_delete(face_array);
 
-      // printf("tris %d, feather tris %d\n", sf_tri_tot, tot_feather_quads);
+        layer_bucket_init_dummy(layer);
+      }
     }
 
-    /* Add triangles. */
-    BLI_scanfill_end_arena(&sf_ctx, sf_arena);
+    /* copy as-is */
+    layer->alpha = masklay->alpha;
+    layer->blend = masklay->blend;
+    layer->blend_flag = masklay->blend_flag;
+    layer->falloff = masklay->falloff;
   }
-
-  BLI_memarena_free(sf_arena);
 }
 
 /* --------------------------------------------------------------------- */
