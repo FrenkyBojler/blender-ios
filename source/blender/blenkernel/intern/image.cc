@@ -137,7 +137,7 @@ static void image_runtime_free_data(Image *image)
   BKE_image_partial_update_register_free(image);
 }
 
-static void image_init_data(Main * /*bmain*/, ID *id)
+static void image_init_data(ID *id)
 {
   Image *image = id_cast<Image *>(id);
 

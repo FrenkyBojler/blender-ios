@@ -172,7 +172,7 @@ static_assert(sizeof(blender::bke::ObjectRuntime::contained_geometry_types) * 8 
 
 static void copy_object_pose(Object *obn, const Object *ob, const int flag);
 
-static void object_init_data(Main * /*bmain*/, ID *id)
+static void object_init_data(ID *id)
 {
   Object *ob = id_cast<Object *>(id);
   INIT_DEFAULT_STRUCT_AFTER(ob, id);
@@ -2028,9 +2028,9 @@ static const char *get_obdata_defname(int type)
   }
 }
 
-static void object_init(Main *bmain, Object *ob, const short ob_type)
+static void object_init(Object *ob, const short ob_type)
 {
-  object_init_data(bmain, &ob->id);
+  object_init_data(&ob->id);
 
   ob->type = ob_type;
 
@@ -2148,7 +2148,7 @@ Object *BKE_object_add_only_object(Main *bmain, int type, const char *name)
   id_us_min(&ob->id);
 
   /* default object vars */
-  object_init(bmain, ob, type);
+  object_init(ob, type);
 
   return ob;
 }

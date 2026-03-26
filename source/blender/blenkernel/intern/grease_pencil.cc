@@ -97,7 +97,7 @@ static void free_drawing_array(GreasePencil &grease_pencil);
 static void read_layer_tree(GreasePencil &grease_pencil, BlendDataReader *reader);
 static void write_layer_tree(GreasePencil &grease_pencil, BlendWriter *writer);
 
-static void grease_pencil_init_data(Main * /*bmain*/, ID *id)
+static void grease_pencil_init_data(ID *id)
 {
   using namespace blender::bke;
 

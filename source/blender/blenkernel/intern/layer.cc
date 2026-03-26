@@ -190,6 +190,9 @@ ViewLayer *BKE_view_layer_add(const Main *bmain,
                               ViewLayer *view_layer_source,
                               const int type)
 {
+  BLI_assert_msg(bmain || type != VIEWLAYER_ADD_EMPTY,
+                 "A valid Main is required with `VIEWLAYER_ADD_EMPTY` type of prcoess");
+
   ViewLayer *view_layer_new;
 
   if (view_layer_source) {
@@ -203,6 +206,9 @@ ViewLayer *BKE_view_layer_add(const Main *bmain,
       BLI_addtail(&scene->view_layers, view_layer_new);
       if (bmain) {
         BKE_layer_collection_sync(*bmain, scene, view_layer_new);
+      }
+      else {
+        BKE_view_layer_need_resync_tag(view_layer_new);
       }
       break;
     }
@@ -221,16 +227,12 @@ ViewLayer *BKE_view_layer_add(const Main *bmain,
       BLI_addtail(&scene->view_layers, view_layer_new);
 
       /* Initialize layer-collections. */
-      if (bmain) {
-        BKE_layer_collection_sync(*bmain, scene, view_layer_new);
-      }
+      BKE_layer_collection_sync(*bmain, scene, view_layer_new);
       layer_collection_exclude_all(
           static_cast<LayerCollection *>(view_layer_new->layer_collections.first));
 
       /* Update collections after changing visibility */
-      if (bmain) {
-        BKE_layer_collection_sync(*bmain, scene, view_layer_new);
-      }
+      BKE_layer_collection_sync(*bmain, scene, view_layer_new);
       break;
     }
   }

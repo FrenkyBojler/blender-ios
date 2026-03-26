@@ -156,7 +156,7 @@ CurveMapping *BKE_paint_default_curve()
   return cumap;
 }
 
-static void scene_init_data(Main *bmain, ID *id)
+static void scene_init_data(ID *id)
 {
   Scene *scene = id_cast<Scene *>(id);
   const char *colorspace_name;
@@ -256,7 +256,7 @@ static void scene_init_data(Main *bmain, ID *id)
   /* Master Collection */
   scene->master_collection = BKE_collection_master_add(scene);
 
-  BKE_view_layer_add(bmain, scene, DATA_("ViewLayer"), nullptr, VIEWLAYER_ADD_NEW);
+  BKE_view_layer_add(nullptr, scene, DATA_("ViewLayer"), nullptr, VIEWLAYER_ADD_NEW);
 
   scene->runtime = MEM_new<SceneRuntime>(__func__);
 }

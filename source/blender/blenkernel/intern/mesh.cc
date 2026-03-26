@@ -87,7 +87,7 @@ static CLG_LogRef LOG = {"geom.mesh"};
 
 static void mesh_tessface_clear_intern(Mesh *mesh, int free_customdata);
 
-static void mesh_init_data(Main * /*bmain*/, ID *id)
+static void mesh_init_data(ID *id)
 {
   Mesh *mesh = reinterpret_cast<Mesh *>(id);
   INIT_DEFAULT_STRUCT_AFTER(mesh, id);

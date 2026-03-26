@@ -59,7 +59,7 @@ static void library_runtime_reset(Library *lib)
   BKE_main_namemap_destroy(&lib->runtime->name_map);
 }
 
-static void library_init_data(Main * /*bmain*/, ID *id)
+static void library_init_data(ID *id)
 {
   Library *library = reinterpret_cast<Library *>(id);
   library->runtime = MEM_new<LibraryRuntime>(__func__);

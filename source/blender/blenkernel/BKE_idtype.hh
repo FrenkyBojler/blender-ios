@@ -87,7 +87,7 @@ bool BKE_idtype_cache_key_cmp(const void *key_a_v, const void *key_b_v);
 
 /* ********** Prototypes for #IDTypeInfo callbacks. ********** */
 
-using IDTypeInitDataFunction = void (*)(Main *bmain, ID *id);
+using IDTypeInitDataFunction = void (*)(ID *id);
 
 /** \param flag: Copying options (see BKE_lib_id.hh's LIB_ID_COPY_... flags for more). */
 using IDTypeCopyDataFunction = void (*)(

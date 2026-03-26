@@ -88,7 +88,7 @@ namespace blender {
 
 static void fluid_free_settings(SPHFluidSettings *fluid);
 
-static void particle_settings_init(Main * /*bmain*/, ID *id)
+static void particle_settings_init(ID *id)
 {
   ParticleSettings *particle_settings = id_cast<ParticleSettings *>(id);
   INIT_DEFAULT_STRUCT_AFTER(particle_settings, id);

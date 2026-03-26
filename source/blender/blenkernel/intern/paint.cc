@@ -84,7 +84,7 @@ namespace blender {
 
 using bke::AttrDomain;
 
-static void palette_init_data(Main * /*bmain*/, ID *id)
+static void palette_init_data(ID *id)
 {
   Palette *palette = id_cast<Palette *>(id);
 

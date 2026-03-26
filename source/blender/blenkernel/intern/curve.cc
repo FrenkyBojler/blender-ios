@@ -70,7 +70,7 @@ enum class NURBSValidationStatus {
   MorePointsForBezierRequired
 };
 
-static void curve_init_data(Main * /*bmain*/, ID *id)
+static void curve_init_data(ID *id)
 {
   Curve *curve = id_cast<Curve *>(id);
 
@@ -361,9 +361,9 @@ void BKE_curve_editNurb_free(Curve *cu)
   }
 }
 
-void BKE_curve_init(Main *bmain, Curve *cu, const short curve_type)
+void BKE_curve_init(Curve *cu, const short curve_type)
 {
-  curve_init_data(bmain, &cu->id);
+  curve_init_data(&cu->id);
 
   cu->ob_type = curve_type;
 
@@ -409,7 +409,7 @@ Curve *BKE_curve_add(Main *bmain, const char *name, int type)
   /* We cannot use #BKE_id_new here as we need some custom initialization code. */
   cu = static_cast<Curve *>(BKE_libblock_alloc(bmain, ID_CU_LEGACY, name, 0));
 
-  BKE_curve_init(bmain, cu, type);
+  BKE_curve_init(cu, type);
 
   return cu;
 }

@@ -62,7 +62,7 @@ static PackedFile *packedfile_new_from_builtin();
 const void *builtin_font_data = nullptr;
 int builtin_font_size = 0;
 
-static void vfont_init_data(Main * /*bmain*/, ID *id)
+static void vfont_init_data(ID *id)
 {
   VFont *vfont = id_cast<VFont *>(id);
   PackedFile *pf = packedfile_new_from_builtin();

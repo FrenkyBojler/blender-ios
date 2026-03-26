@@ -66,7 +66,7 @@ static CLG_LogRef LOG_BLEND_DOVERSION = {"blend.doversion"};
 /** \name ID Type Implementation
  * \{ */
 
-static void screen_init_data(Main * /*bmain*/, ID *id)
+static void screen_init_data(ID *id)
 {
   bScreen *screen = id_cast<bScreen *>(id);
 

@@ -141,7 +141,7 @@ static void node_socket_copy(bNodeSocket *sock_dst, const bNodeSocket *sock_src,
 static void free_localized_node_groups(bNodeTree *ntree);
 static bool socket_id_user_decrement(bNodeSocket *sock);
 
-static void ntree_init_data(Main * /*bmain*/, ID *id)
+static void ntree_init_data(ID *id)
 {
   bNodeTree *ntree = reinterpret_cast<bNodeTree *>(id);
   ntree->tree_interface.init_data();

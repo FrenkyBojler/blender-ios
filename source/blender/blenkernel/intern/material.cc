@@ -82,7 +82,7 @@ namespace blender {
 
 static CLG_LogRef LOG = {"material"};
 
-static void material_init_data(Main * /*bmain*/, ID *id)
+static void material_init_data(ID *id)
 {
   Material *material = id_cast<Material *>(id);
   INIT_DEFAULT_STRUCT_AFTER(material, id);

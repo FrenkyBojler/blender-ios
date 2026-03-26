@@ -124,7 +124,7 @@ static void collection_exporter_copy(Collection *collection, CollectionExport *d
 /** \name Collection Data-Block
  * \{ */
 
-static void collection_init_data(Main * /*bmain*/, ID *id)
+static void collection_init_data(ID *id)
 {
   Collection *collection = id_cast<Collection *>(id);
   INIT_DEFAULT_STRUCT_AFTER(collection, id);

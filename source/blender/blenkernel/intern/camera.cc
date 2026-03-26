@@ -53,7 +53,7 @@ namespace blender {
 /** \name Camera Data-Block
  * \{ */
 
-static void camera_init_data(Main * /*bmain*/, ID *id)
+static void camera_init_data(ID *id)
 {
   Camera *cam = id_cast<Camera *>(id);
   INIT_DEFAULT_STRUCT_AFTER(cam, id);

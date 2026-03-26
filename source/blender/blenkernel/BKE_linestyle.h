@@ -26,7 +26,7 @@ struct Main;
 struct ViewLayer;
 struct bContext;
 
-void BKE_linestyle_init(Main *bmain, struct FreestyleLineStyle *linestyle);
+void BKE_linestyle_init(struct FreestyleLineStyle *linestyle);
 FreestyleLineStyle *BKE_linestyle_new(struct Main *bmain, const char *name);
 
 FreestyleLineStyle *BKE_linestyle_active_from_view_layer(struct ViewLayer *view_layer);

@@ -64,7 +64,7 @@ static void world_free_data(ID *id)
   MEM_SAFE_DELETE(wrld->lightgroup);
 }
 
-static void world_init_data(Main * /*bmain*/, ID *id)
+static void world_init_data(ID *id)
 {
   World *wrld = id_cast<World *>(id);
   INIT_DEFAULT_STRUCT_AFTER(wrld, id);

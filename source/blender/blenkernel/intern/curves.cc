@@ -47,7 +47,7 @@ namespace blender {
 
 static const char *ATTR_POSITION = "position";
 
-static void curves_init_data(Main * /*bmain*/, ID *id)
+static void curves_init_data(ID *id)
 {
   Curves *curves = id_cast<Curves *>(id);
   INIT_DEFAULT_STRUCT_AFTER(curves, id);

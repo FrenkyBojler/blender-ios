@@ -24,7 +24,7 @@
 
 namespace blender {
 
-static void speaker_init_data(Main * /*bmain*/, ID *id)
+static void speaker_init_data(ID *id)
 {
   Speaker *speaker = id_cast<Speaker *>(id);
 

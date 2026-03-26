@@ -59,7 +59,7 @@
 
 namespace blender {
 
-static void metaball_init_data(Main * /*bmain*/, ID *id)
+static void metaball_init_data(ID *id)
 {
   MetaBall *metaball = id_cast<MetaBall *>(id);
   INIT_DEFAULT_STRUCT_AFTER(metaball, id);

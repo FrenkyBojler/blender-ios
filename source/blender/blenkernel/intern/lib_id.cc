@@ -1470,7 +1470,7 @@ void BKE_libblock_init_empty(Main *bmain, ID *id)
 
   if (idtype_info != nullptr) {
     if (idtype_info->init_data != nullptr) {
-      idtype_info->init_data(bmain, id);
+      idtype_info->init_data(id);
     }
     return;
   }

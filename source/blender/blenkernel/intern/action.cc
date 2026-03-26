@@ -96,7 +96,7 @@ static CLG_LogRef LOG = {"anim.action"};
 /*********************** Armature Datablock ***********************/
 namespace bke {
 
-static void action_init_data(Main * /*bmain*/, ID *action_id)
+static void action_init_data(ID *action_id)
 {
   BLI_assert(GS(action_id->name) == ID_AC);
   bAction *action = reinterpret_cast<bAction *>(action_id);

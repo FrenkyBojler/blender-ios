@@ -61,7 +61,7 @@ static TextLine *txt_line_malloc() ATTR_MALLOC ATTR_WARN_UNUSED_RESULT;
 /** \name Text Data-Block
  * \{ */
 
-static void text_init_data(Main * /*bmain*/, ID *id)
+static void text_init_data(ID *id)
 {
   Text *text = id_cast<Text *>(id);
 

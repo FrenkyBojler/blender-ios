@@ -49,7 +49,7 @@ namespace blender {
 
 using dna::sdna_struct_id_get;
 
-static void linestyle_init_data(Main * /*bmain*/, ID *id)
+static void linestyle_init_data(ID *id)
 {
   FreestyleLineStyle *linestyle = id_cast<FreestyleLineStyle *>(id);
   INIT_DEFAULT_STRUCT_AFTER(linestyle, id);
@@ -731,9 +731,9 @@ static const char *modifier_name[LS_MODIFIER_NUM] = {
     "Noise",         "Crease Angle",    "Simplification",       "Curvature 3D",
 };
 
-void BKE_linestyle_init(Main *bmain, FreestyleLineStyle *linestyle)
+void BKE_linestyle_init(FreestyleLineStyle *linestyle)
 {
-  linestyle_init_data(bmain, &linestyle->id);
+  linestyle_init_data(&linestyle->id);
 }
 
 FreestyleLineStyle *BKE_linestyle_new(Main *bmain, const char *name)
@@ -742,7 +742,7 @@ FreestyleLineStyle *BKE_linestyle_new(Main *bmain, const char *name)
 
   linestyle = static_cast<FreestyleLineStyle *>(BKE_libblock_alloc(bmain, ID_LS, name, 0));
 
-  BKE_linestyle_init(bmain, linestyle);
+  BKE_linestyle_init(linestyle);
 
   return linestyle;
 }

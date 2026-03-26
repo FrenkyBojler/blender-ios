@@ -49,7 +49,7 @@ namespace blender {
 
 constexpr StringRef ATTR_POSITION = "position";
 
-static void pointcloud_init_data(Main * /*bmain*/, ID *id)
+static void pointcloud_init_data(ID *id)
 {
   PointCloud *pointcloud = id_cast<PointCloud *>(id);
   INIT_DEFAULT_STRUCT_AFTER(pointcloud, id);
