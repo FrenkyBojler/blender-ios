@@ -26,11 +26,7 @@ struct BlenderUpdates {
 struct BlenderVersion {
   int version;
   int patch;
-  bool operator<(const BlenderVersion &other) const
-  {
-    return this->version < other.version ||
-           (this->version == other.version && this->patch < other.patch);
-  }
+  friend auto operator<=>(const BlenderVersion &a, const BlenderVersion &b) = default;
 };
 
 struct IgnoredBlenderVersions {
@@ -115,7 +111,6 @@ static void register_blender_update(VersionUpdate update)
     if (!latest_lts_version || *latest_lts_version < version) {
       updates.latest_lts = update;
     }
-    return;
   }
   if (ignored_updates.latest < version) {
     std::optional<BlenderVersion> latest_version = version_from_optional_version_update(
@@ -226,10 +221,13 @@ Vector<const VersionUpdate *> available_updates()
 {
   BlenderUpdates &updates = available_blender_updates();
   Vector<const VersionUpdate *> tmp;
-  if (U.flag & USER_BLENDER_UPDATE_LATEST_RELEASE && updates.latest) {
-    tmp.append(&(*updates.latest));
-  }
   if (U.flag & USER_BLENDER_UPDATE_LATEST_LTS_RELEASE && updates.latest_lts) {
+    tmp.append(&(*updates.latest_lts));
+  }
+  if (U.flag & USER_BLENDER_UPDATE_LATEST_RELEASE && updates.latest &&
+      (!updates.latest_lts || (*blender_version_from_version_str(updates.latest_lts->version) <
+                               *blender_version_from_version_str(updates.latest->version))))
+  {
     tmp.append(&(*updates.latest_lts));
   }
   if (U.flag & USER_BLENDER_UPDATE_CURRENT_RELEASE && updates.current_release) {
@@ -249,50 +247,49 @@ void ignore_update_version(const VersionUpdate &version_info)
   BLI_assert(version);
   IgnoredBlenderVersions &ignored_updates = ignored_versions_updates();
 
+  BlenderUpdates &updates = available_blender_updates();
+
   if (version->version == BLENDER_VERSION &&
       version->patch > ignored_updates.current_release.patch)
   {
-    ignored_updates.current_release = {version->version, version->patch};
+    ignored_updates.current_release = *version;
   }
 
-  if (version_info.is_lts && ignored_updates.latest_lts < version) {
-    ignored_updates.latest_lts = {version->version, version->patch};
+  if (version_info.is_lts && ignored_updates.latest_lts < *version) {
+    ignored_updates.latest_lts = *version;
   }
 
-  if (!version_info.is_lts && ignored_updates.latest < version) {
-    ignored_updates.latest = {version->version, version->patch};
+  if (ignored_updates.latest < *version) {
+    ignored_updates.latest = *version;
+  }
+
+  if (updates.latest && version_info == *updates.latest) {
+    updates.latest = {};
+  }
+  if (updates.latest_lts && version_info == *updates.latest_lts) {
+    updates.latest_lts = {};
+  }
+  if (updates.current_release && version_info == *updates.current_release) {
+    updates.current_release = {};
   }
 }
 
 void ignore_update(const VersionUpdate *version_info)
 {
   ignore_update_version(*version_info);
-
-  BlenderUpdates updates = available_blender_updates();
-  available_blender_updates() = {};
-  if (updates.latest && version_info != &*updates.latest) {
-    register_blender_update(*updates.latest);
-  }
-  if (updates.latest_lts && version_info != &*updates.latest_lts) {
-    register_blender_update(*updates.latest_lts);
-  }
-  if (updates.current_release && version_info != &*updates.current_release) {
-    register_blender_update(*updates.current_release);
-  }
 }
 
 void ignore_all_updates()
 {
-  BlenderUpdates updates = available_blender_updates();
-
+  BlenderUpdates &updates = available_blender_updates();
   if (updates.latest) {
-    ignore_update(&(*updates.latest));
+    ignore_update_version(*updates.latest);
   }
   if (updates.latest_lts) {
-    ignore_update(&(*updates.latest_lts));
+    ignore_update_version(*updates.latest_lts);
   }
   if (updates.current_release) {
-    ignore_update(&(*updates.current_release));
+    ignore_update_version(*updates.current_release);
   }
 }
 

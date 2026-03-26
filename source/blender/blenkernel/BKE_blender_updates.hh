@@ -29,6 +29,8 @@ struct VersionUpdate {
   std::string release_notes_url;
   std::string timestamp;
   std::string version;
+
+  friend auto operator<=>(const VersionUpdate &a, const VersionUpdate &b) = default;
 };
 
 bool check_for_available_updates(bContext &C, bool use_cache = true);
