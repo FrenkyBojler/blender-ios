@@ -818,7 +818,8 @@ struct UserDef_Experimental {
   char use_geometry_nodes_lists = 0;
   char use_geometry_bundle = 0;
   char use_remote_asset_libraries = 0;
-  char _pad[3] = {};
+  char use_collection_importer = 0;
+  char _pad[2] = {};
 };
 
 #define USER_EXPERIMENTAL_TEST(userdef, member) (((userdef)->experimental).member)
@@ -1049,11 +1050,11 @@ struct UserDef {
   short vbotimeout = 120, vbocollectrate = 60;
   short textimeout = 120, texcollectrate = 60;
   int memcachelimit = 4096;
+  int geometry_nodes_stack_limit = 100;
   /** Unused. */
   int prefetchframes = 0;
   /** Control the rotation step of the view when PAD2, PAD4, PAD6&PAD8 is use. */
   float pad_rot_angle = 15;
-  char _pad12[4] = {};
   /** Rotating view icon size. */
   short rvisize = 25;
   /** Rotating view icon brightness. */

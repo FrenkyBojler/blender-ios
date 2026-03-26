@@ -110,6 +110,9 @@ if(DEFINED LIBDIR)
 endif()
 
 # Wrapper to prefer static libraries
+#
+# NOTE: must be a macro, forwards `${ARGV}` to `find_package()`/`find_package_static()`
+# whose result variables must be visible in the caller's scope.
 macro(find_package_wrapper)
   if(WITH_STATIC_LIBS)
     find_package_static(${ARGV})
@@ -508,7 +511,6 @@ endif()
 if(WITH_OPENSUBDIV)
   find_package(OpenSubdiv)
 
-  set(OPENSUBDIV_LIBRARIES ${OPENSUBDIV_LIBRARIES})
   set(OPENSUBDIV_LIBPATH "")  # TODO, remove and reference the absolute path everywhere
 
   set_and_warn_library_found("OpenSubdiv" OPENSUBDIV_FOUND WITH_OPENSUBDIV)

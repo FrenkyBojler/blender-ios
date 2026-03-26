@@ -521,10 +521,6 @@ void modifier_apply_stack(ModifierApplyContext &context, int timeline_frame)
     return;
   }
 
-  if (context.strip.flag & SEQ_USE_LINEAR_MODIFIERS) {
-    render_imbuf_from_sequencer_space(context.render_data.scene, context.image);
-  }
-
   for (StripModifierData &smd : context.strip.modifiers) {
     const StripModifierTypeInfo *smti = modifier_type_info_get(smd.type);
 
@@ -541,10 +537,6 @@ void modifier_apply_stack(ModifierApplyContext &context, int timeline_frame)
     if (smti->apply && !skip_modifier(context.render_data.scene, &smd, timeline_frame)) {
       smti->apply(context, &smd, timeline_frame);
     }
-  }
-
-  if (context.strip.flag & SEQ_USE_LINEAR_MODIFIERS) {
-    seq_imbuf_to_sequencer_space(context.render_data.scene, context.image, false);
   }
 }
 
