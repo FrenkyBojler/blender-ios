@@ -115,11 +115,14 @@ template<> struct DefaultHash<UString> {
 template<FixedString FStr> inline UString operator""_ustr()
 {
   /* This is a more optimized variant of just doing this:
+   *   ```
    *   static UString ustr(FStr.data);
+   *   return ustr
+   *   ```
    *
    * The goal of the actual implementation is to improve upon performance and binary size compared
    * to the above. This is possible here we have two pieces of information the compiler can't have:
-   *  - One initialized, the pointer in the #UString is never null. Thus null can be used to
+   *  - Once initialized, the pointer in the #UString is never null. Thus null can be used to
    *    indicate that it has not been initialized yet. No separate guard variable is needed.
    *  - It is valid to initialize the static variable more than once and the result will still be
    *    the same because the string does not change. So a double checked lock is not needed.
