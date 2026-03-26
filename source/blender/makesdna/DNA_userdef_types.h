@@ -12,11 +12,13 @@
 
 #include "DNA_ID.h"
 #include "DNA_anim_enums.h"
+#include "DNA_armature_types.h"
 #include "DNA_asset_types.h"
 #include "DNA_colorband_types.h"
 #include "DNA_curve_enums.h"
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
+#include "DNA_object_enums.h"
 #include "DNA_space_enums.h"
 #include "DNA_theme_types.h" /* IWYU pragma: export */
 #include "DNA_userdef_enums.h"
@@ -487,34 +489,6 @@ enum eUserpref_VirtualPixel {
 enum eUserpref_FactorDisplay {
   USER_FACTOR_AS_FACTOR = 0,
   USER_FACTOR_AS_PERCENTAGE = 1,
-};
-
-/** #UserDef.armature_display_type */
-enum eUserpref_ArmatureDisplayType {
-  USER_ARM_DISPLAY_BOUNDBOX = 1,
-  USER_ARM_DISPLAY_WIRE = 2,
-  USER_ARM_DISPLAY_SOLID = 3,
-  USER_ARM_DISPLAY_TEXTURE = 4,
-};
-
-/** #UserDef.armature_data_display_type */
-enum eUserpref_ArmatureDataDisplayType {
-  USER_ARM_DRAW_TYPE_OCTA = 0,
-  USER_ARM_DRAW_TYPE_STICK,
-  USER_ARM_DRAW_TYPE_ENVELOPE,
-  USER_ARM_DRAW_TYPE_WIRE,
-};
-
-/** #UserDef.bone_rotation_mode */
-enum eUserpref_BoneRotationMode {
-  USER_BONE_ROT_MODE_QUAT = 0,
-  USER_BONE_ROT_MODE_XYZ,
-  USER_BONE_ROT_MODE_XZY,
-  USER_BONE_ROT_MODE_YXZ,
-  USER_BONE_ROT_MODE_YZX,
-  USER_BONE_ROT_MODE_ZXY,
-  USER_BONE_ROT_MODE_ZYX,
-  USER_BONE_ROT_MODE_AXISANGLE,
 };
 
 /** #UserDef.xr_navigation_flag */
@@ -1243,6 +1217,12 @@ struct UserDef {
   char statusbar_flag = STATUSBAR_SHOW_VERSION |
                         STATUSBAR_SHOW_EXTENSIONS_UPDATES; /* eUserpref_StatusBar_Flag */
 
+  char armature_new_display_type = OB_TEXTURE;
+  char armature_data_new_display_type = ARM_DRAW_TYPE_OCTA;
+  char _pad19[2] = {};
+  int bone_new_rotation_mode = 0; /* ROT_MODE_QUAT, can't include DNA_action_types.h because that
+                                     would be a circular import. */
+
   struct WalkNavigation walk_navigation;
   struct XrNavigation xr_navigation;
 
@@ -1253,16 +1233,6 @@ struct UserDef {
   UserDef_TempWinBounds stored_bounds;
 
   UserDef_Experimental experimental;
-
-  char armature_new_display_type = USER_ARM_DISPLAY_TEXTURE; /* eUserpref_ArmatureDisplayType */
-  char _pad19[3] = {};
-
-  char armature_data_new_display_type =
-      USER_ARM_DRAW_TYPE_OCTA; /* eUserpref_ArmatureDataDisplayType */
-  char _pad20[3] = {};
-
-  int bone_new_rotation_mode = USER_BONE_ROT_MODE_QUAT; /* eUserpref_BoneRotationMode */
-  char _pad21[4] = {};
 
   /** Runtime data (keep last). */
   UserDef_Runtime runtime;

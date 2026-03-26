@@ -13,7 +13,9 @@
 
 #include "BLT_translation.hh"
 
+#include "RNA_access.hh"
 #include "RNA_define.hh"
+#include "RNA_enum_types.hh"
 
 #include "rna_internal.hh"
 
@@ -25,6 +27,31 @@
 #include "WM_types.hh"
 
 namespace blender {
+
+const EnumPropertyItem rna_enum_armature_drawtype_items[] = {
+    {ARM_DRAW_TYPE_OCTA,
+     "OCTAHEDRAL",
+     0,
+     "Octahedral",
+     "Display bones as octahedral shape (default)"},
+    {ARM_DRAW_TYPE_STICK, "STICK", 0, "Stick", "Display bones as simple 2D lines with dots"},
+    {ARM_DRAW_TYPE_B_BONE,
+     "BBONE",
+     0,
+     "B-Bone",
+     "Display bones as boxes, showing subdivision and B-Splines"},
+    {ARM_DRAW_TYPE_ENVELOPE,
+     "ENVELOPE",
+     0,
+     "Envelope",
+     "Display bones as extruded spheres, showing deformation influence volume"},
+    {ARM_DRAW_TYPE_WIRE,
+     "WIRE",
+     0,
+     "Wire",
+     "Display bones as thin wires, showing subdivision and B-Splines"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
 
 /* Bone Collection Color Sets */
 const EnumPropertyItem rna_enum_color_palettes_items[] = {
@@ -904,13 +931,13 @@ static void rna_EditBone_parent_set(PointerRNA *ptr, PointerRNA value, ReportLis
 static void rna_EditBone_matrix_get(PointerRNA *ptr, float *values)
 {
   EditBone *ebone = static_cast<EditBone *>(ptr->data);
-  ED_armature_ebone_to_mat4(ebone, reinterpret_cast<float (*)[4]>(values));
+  ED_armature_ebone_to_mat4(ebone, reinterpret_cast<float(*)[4]>(values));
 }
 
 static void rna_EditBone_matrix_set(PointerRNA *ptr, const float *values)
 {
   EditBone *ebone = static_cast<EditBone *>(ptr->data);
-  ED_armature_ebone_from_mat4(ebone, reinterpret_cast<float (*)[4]>(const_cast<float *>(values)));
+  ED_armature_ebone_from_mat4(ebone, reinterpret_cast<float(*)[4]>(const_cast<float *>(values)));
 }
 
 static float rna_EditBone_length_get(PointerRNA *ptr)
@@ -1097,7 +1124,7 @@ static bool rna_Armature_is_editmode_get(PointerRNA *ptr)
 
 static void rna_Armature_transform(bArmature *arm, const float mat[16])
 {
-  ED_armature_transform(arm, reinterpret_cast<const float (*)[4]>(mat), true);
+  ED_armature_transform(arm, reinterpret_cast<const float(*)[4]>(mat), true);
 }
 
 static int rna_Armature_relation_line_position_get(PointerRNA *ptr)
@@ -2132,31 +2159,6 @@ static void rna_def_armature(BlenderRNA *brna)
   FunctionRNA *func;
   PropertyRNA *parm;
 
-  static const EnumPropertyItem prop_drawtype_items[] = {
-      {ARM_DRAW_TYPE_OCTA,
-       "OCTAHEDRAL",
-       0,
-       "Octahedral",
-       "Display bones as octahedral shape (default)"},
-      {ARM_DRAW_TYPE_STICK, "STICK", 0, "Stick", "Display bones as simple 2D lines with dots"},
-      {ARM_DRAW_TYPE_B_BONE,
-       "BBONE",
-       0,
-       "B-Bone",
-       "Display bones as boxes, showing subdivision and B-Splines"},
-      {ARM_DRAW_TYPE_ENVELOPE,
-       "ENVELOPE",
-       0,
-       "Envelope",
-       "Display bones as extruded spheres, showing deformation influence volume"},
-      {ARM_DRAW_TYPE_WIRE,
-       "WIRE",
-       0,
-       "Wire",
-       "Display bones as thin wires, showing subdivision and B-Splines"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
   static const EnumPropertyItem prop_pose_position_items[] = {
       {0, "POSE", 0, "Pose Position", "Show armature in posed state"},
       {ARM_RESTPOS,
@@ -2265,7 +2267,7 @@ static void rna_def_armature(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "display_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "drawtype");
-  RNA_def_property_enum_items(prop, prop_drawtype_items);
+  RNA_def_property_enum_items(prop, rna_enum_armature_drawtype_items);
   RNA_def_property_ui_text(prop, "Display Type", "");
   RNA_def_property_update(prop, 0, "rna_Armature_redraw_data");
   RNA_def_property_flag(prop, PROP_LIB_EXCEPTION);

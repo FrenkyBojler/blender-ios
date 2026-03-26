@@ -16,6 +16,7 @@ DEF_ENUM(rna_enum_dummy_DEFAULT_items)
 
 DEF_ENUM(rna_enum_id_type_items)
 
+DEF_ENUM(rna_enum_object_drawtype_items)
 DEF_ENUM(rna_enum_object_mode_items)
 DEF_ENUM(rna_enum_workspace_object_mode_items)
 DEF_ENUM(rna_enum_object_empty_drawtype_items)
@@ -289,6 +290,8 @@ DEF_ENUM(rna_enum_asset_library_type_items)
 
 /* Defined in source/blender/python/intern/bpy_rna_id_collection.cc */
 DEF_ENUM(rna_enum_file_path_foreach_flag_items)
+
+DEF_ENUM(rna_enum_armature_drawtype_items)
 
 #endif
 

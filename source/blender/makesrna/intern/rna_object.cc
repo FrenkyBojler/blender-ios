@@ -33,6 +33,22 @@
 
 namespace blender {
 
+const EnumPropertyItem rna_enum_object_drawtype_items[] = {
+    {OB_BOUNDBOX, "BOUNDS", 0, "Bounds", "Display the bounds of the object"},
+    {OB_WIRE, "WIRE", 0, "Wire", "Display the object as a wireframe"},
+    {OB_SOLID,
+     "SOLID",
+     0,
+     "Solid",
+     "Display the object as a solid (if solid drawing is enabled in the viewport)"},
+    {OB_TEXTURE,
+     "TEXTURED",
+     0,
+     "Textured",
+     "Display the object with textures (if textures are enabled in the viewport)"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 const EnumPropertyItem rna_enum_object_mode_items[] = {
     {OB_MODE_OBJECT, "OBJECT", ICON_OBJECT_DATAMODE, "Object Mode", ""},
     {OB_MODE_EDIT, "EDIT", ICON_EDITMODE_HLT, "Edit Mode", ""},
@@ -2941,22 +2957,6 @@ static void rna_def_object(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  static const EnumPropertyItem drawtype_items[] = {
-      {OB_BOUNDBOX, "BOUNDS", 0, "Bounds", "Display the bounds of the object"},
-      {OB_WIRE, "WIRE", 0, "Wire", "Display the object as a wireframe"},
-      {OB_SOLID,
-       "SOLID",
-       0,
-       "Solid",
-       "Display the object as a solid (if solid drawing is enabled in the viewport)"},
-      {OB_TEXTURE,
-       "TEXTURED",
-       0,
-       "Textured",
-       "Display the object with textures (if textures are enabled in the viewport)"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
   static const EnumPropertyItem boundtype_items[] = {
       {OB_BOUND_BOX, "BOX", 0, "Box", "Display bounds as box"},
       {OB_BOUND_SPHERE, "SPHERE", 0, "Sphere", "Display bounds as sphere"},
@@ -3560,7 +3560,7 @@ static void rna_def_object(BlenderRNA *brna)
   /* drawing */
   prop = RNA_def_property(srna, "display_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "dt");
-  RNA_def_property_enum_items(prop, drawtype_items);
+  RNA_def_property_enum_items(prop, rna_enum_object_drawtype_items);
   RNA_def_property_ui_text(prop, "Display As", "How to display object in viewport");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_internal_update");
 
