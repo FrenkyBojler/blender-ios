@@ -1791,7 +1791,6 @@ enum class BoneSpace { OBJECT = 0, WORLD = 1 };
 static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator *op)
 {
   Object *obedit = CTX_data_edit_object(C);
-  EditBone *bone;
 
   const float3x3 imat = float3x3(obedit->world_to_object());
 
@@ -1814,7 +1813,6 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
       const float3x3 view_mat = float3x3(float4x4(rv3d->viewinv));
       bone_orient_mat = imat * view_mat;
       roll_vector = bone_orient_mat.z_axis();
-
       break;
     }
 
@@ -1828,30 +1826,33 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
     }
 
     case BoneAlign::AXES: {
-      if (space == BoneSpace::WORLD) {
-        bone_orient_mat = imat;
-        roll_vector = imat.z_axis();
-      }
-      else { /* Object Space.  Assumes Z is Up.*/
-        bone_orient_mat = float3x3({1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f});
+      switch (space) {
+        case BoneSpace::WORLD:
+          bone_orient_mat = imat;
+          roll_vector = imat.z_axis();
+          break;
+        case BoneSpace::OBJECT:
+          /* Assumes Z=up for objects and Y=up for bones. */
+          bone_orient_mat = float3x3({1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}, {0.0f, 1.0f, 0.0f});
+          break;
       }
       break;
     }
 
     case BoneAlign::UP: {
-      if (space == BoneSpace::WORLD) {
-        /* Construct a matrix that points Y up, Z Forward and X left-right. */
-        bone_orient_mat = float3x3({1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, -1.0f, 0.0f});
+      switch (space) {
+        case BoneSpace::WORLD:
+          /* Construct a matrix that points Y up, Z Forward and X left-right. */
+          bone_orient_mat = imat *
+                            float3x3({1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, -1.0f, 0.0f});
 
-        bone_orient_mat = imat * bone_orient_mat;
-
-        /* Set roll reference for ED_armature_ebone_roll_to_vector. */
-        roll_vector = -imat.y_axis();
+          /* Set roll reference for ED_armature_ebone_roll_to_vector. */
+          roll_vector = -imat.y_axis();
+          break;
+        case BoneSpace::OBJECT:
+          bone_orient_mat = float3x3::identity();
+          break;
       }
-      else { /* Object Space. */
-        bone_orient_mat = float3x3::identity();
-      }
-
       break;
     }
   }
@@ -1859,15 +1860,16 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
   char name[MAXBONENAME];
   RNA_string_get(op->ptr, "name", name);
 
-  float3 curs = CTX_data_scene(C)->cursor.location;
+  const float3 curs_worldspace = CTX_data_scene(C)->cursor.location;
   /* Get inverse point for head and orientation for tail. */
   invert_m4_m4(obedit->runtime->world_to_object.ptr(), obedit->object_to_world().ptr());
-  curs = (obedit->world_to_object() * float4(curs, 1.0f)).xyz();
+  const float3 curs_objectspace =
+      (obedit->world_to_object() * float4(curs_worldspace, 1.0f)).xyz();
 
   ED_armature_edit_deselect_all(obedit);
 
   /* Create a bone. */
-  bone = ED_armature_ebone_add(id_cast<bArmature *>(obedit->data), name);
+  EditBone *bone = ED_armature_ebone_add(id_cast<bArmature *>(obedit->data), name);
   ANIM_armature_bonecoll_assign_active(id_cast<bArmature *>(obedit->data), bone);
 
   /* Scale B-Bone display width and Bone Envelope based on length. */
@@ -1899,9 +1901,9 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
   }
 
   /* Bone head to cursor position. */
-  copy_v3_v3(bone->head, curs);
+  copy_v3_v3(bone->head, curs_objectspace);
 
-  const float3 tail_vector = bone_orient_mat * float3(0.0f, 0.0f, 1.0f) * length;
+  const float3 tail_vector = bone_orient_mat * float3(0.0f, 0.0f, length);
   add_v3_v3v3(bone->tail, bone->head, tail_vector);
 
   const bool needs_bone_roll = (ELEM(align, BoneAlign::CURSOR_3D, BoneAlign::VIEW_3D) ||
