@@ -58,6 +58,7 @@ static void version_update_draw_body(const bke::VersionUpdate &update, ui::Layou
   });
   ui::Layout &right_row = buttons_row.row(false);
   right_row.alignment_set(ui::LayoutAlign::Right);
+  right_row.active_default_set(true);
   PointerRNA op_ptr = right_row.op("WM_OT_url_open", "Download", ICON_IMPORT);
   RNA_string_set(&op_ptr, "url", update.download_url.c_str());
 };
