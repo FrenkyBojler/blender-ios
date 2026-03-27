@@ -76,11 +76,11 @@ static void panel_blender_updates_draw(const bContext *C, Panel *panel)
     const bke::VersionUpdate &update = *available_updates[0];
     ui::Layout &header = layout.row(true);
     const char *release_text = update.version.ends_with(".0") ?
-                                   "New release available {}{}" :
-                                   "New bugfix release available: {}{}";
+                                   "New release available {} - {}" :
+                                   "New bugfix release available: {} - {}";
     header.label(fmt::format(fmt::runtime(IFACE_(release_text)),
-                             update.version,
-                             update.is_lts ? " LTS" : ""),
+                             update.version + (update.is_lts ? " LTS" : ""),
+                             update.date()),
                  ICON_NONE);
     ui::Layout &sub = header.row(false);
     sub.alignment_set(ui::LayoutAlign::Right);
@@ -109,7 +109,8 @@ static void panel_blender_updates_draw(const bContext *C, Panel *panel)
   ui::button_drawflag_disable(button, ui::BUT_TEXT_RIGHT);
   for (const bke::VersionUpdate *update : available_updates) {
     ui::PanelLayout panel_layout = layout.panel(C, "Update_" + update->version, false);
-    panel_layout.header->label(update->version, ICON_NONE);
+    panel_layout.header->label(
+        fmt::format("Blender {} {} - {}", update->version, "", update->date()), ICON_NONE);
     ui::Layout *body = panel_layout.body;
     ui::Layout &sub = panel_layout.header->row(false);
     sub.alignment_set(ui::LayoutAlign::Right);
@@ -139,7 +140,7 @@ void panel_blender_updates_register(ARegionType *region_type)
   pt->poll = panel_blender_updates_poll;
   pt->region_type = RGN_TYPE_HEADER;
   pt->space_type = SPACE_INFO;
-  pt->ui_units_x = 16;
+  pt->ui_units_x = 20;
   BLI_addtail(&region_type->paneltypes, pt);
   WM_paneltype_add(pt);
 }

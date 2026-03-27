@@ -8,6 +8,7 @@
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
+#include <chrono>
 #include <string>
 
 namespace blender {
@@ -29,6 +30,9 @@ struct VersionUpdate {
   std::string release_notes_url;
   std::string timestamp;
   std::string version;
+  std::time_t time;
+
+  std::string date() const;
 
   friend auto operator<=>(const VersionUpdate &a, const VersionUpdate &b) = default;
 };

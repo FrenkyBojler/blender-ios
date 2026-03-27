@@ -1,4 +1,5 @@
 
+#include "BLI_fileops.h"
 #include "BLI_serialize.hh"
 #include "BLI_string_ref.hh"
 
@@ -34,6 +35,18 @@ struct IgnoredBlenderVersions {
   BlenderVersion latest_lts;
   BlenderVersion current_release;
 };
+
+std::string VersionUpdate::date() const
+{
+  char time[8];
+  char date[16];
+  bool is_today;
+  bool is_yesterday;
+
+  BLI_filelist_entry_datetime_to_string(
+      nullptr, int64_t(this->time), false, time, date, &is_today, &is_yesterday);
+  return date;
+}
 
 static IgnoredBlenderVersions &ignored_versions_updates()
 {
@@ -181,6 +194,12 @@ with open('/home/guishe/Documents/updates-info.json', 'r') as file:
     if (!is_lts || is_lts->get()->type() != eValueType::Boolean) {
       continue;
     }
+    std::string timestamp_value = *timestamp;
+    std::istringstream is(timestamp_value);
+    std::chrono::sys_seconds time;
+    if (!(is >> std::chrono::parse("%Y-%m-%dT%H:%M:%SZ", time))) {
+      continue;
+    }
     register_blender_update(VersionUpdate{.build_size = *build_size,
                                           .checksum_hash = *checksum_hash,
                                           .commit_hash = *commit_hash,
@@ -191,7 +210,8 @@ with open('/home/guishe/Documents/updates-info.json', 'r') as file:
                                           .platform = *platform,
                                           .release_notes_url = *release_notes_url,
                                           .timestamp = *timestamp,
-                                          .version = *version});
+                                          .version = *version,
+                                          .time = std::chrono::system_clock::to_time_t(time)});
   }
 
   return "";
