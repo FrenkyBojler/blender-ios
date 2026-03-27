@@ -444,10 +444,11 @@ enum {
 /** Total width of Toolbar showing one icon column. */
 #define UI_TOOLBAR_WIDTH UI_TOOLBAR_MARGIN + UI_TOOLBAR_COLUMN
 
-#define UI_PANEL_CATEGORY_MARGIN_WIDTH (U.widget_unit * 1.0f)
+#define UI_PANEL_CATEGORY_MARGIN_WIDTH \
+  (((U.uiflag2 & USER_UIFLAG2_PANEL_TAB_ICONS) ? 1.3f : 1.0f) * U.widget_unit)
 
 /* Minimum width for a panel showing only category tabs. */
-#define UI_PANEL_CATEGORY_MIN_WIDTH 26.0f
+#define UI_PANEL_CATEGORY_MIN_WIDTH ((U.uiflag2 & USER_UIFLAG2_PANEL_TAB_ICONS) ? 30.0f : 26.0f)
 /* Minimum width for a panel showing content and category tabs. */
 #define UI_PANEL_CATEGORY_MIN_SNAP_WIDTH 90.0f
 
@@ -3065,6 +3066,8 @@ ARegion *tooltip_create_from_button_or_extra_icon(bContext *C,
                                                   ButtonExtraOpIcon *extra_icon,
                                                   bool is_quick_tip);
 ARegion *tooltip_create_from_gizmo(bContext *C, wmGizmo *gz);
+ARegion *tooltip_create_from_panel_category(bContext *C, const std::string &category_name);
+
 void tooltip_free(bContext *C, bScreen *screen, ARegion *region);
 
 /**

@@ -1427,6 +1427,7 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
                        (BLI_rcti_size_y(&region->v2d.mask) + 1);
   const float zoom = 1.0f / aspect;
   const int px = U.pixelsize;
+  const bool show_icons = U.uiflag2 & USER_UIFLAG2_PANEL_TAB_ICONS;
   const int category_tabs_width = round_fl_to_int(UI_PANEL_CATEGORY_MARGIN_WIDTH * zoom);
   const float dpi_fac = UI_SCALE_FAC;
   /* Padding of tabs around text. */
@@ -1472,8 +1473,11 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
 
   is_alpha = (region->overlap && (theme_col_back[3] != 255));
 
-  BLF_enable(fontid, BLF_ROTATION);
-  BLF_rotation(fontid, is_left ? M_PI_2 : -M_PI_2);
+  if (!show_icons) {
+    BLF_enable(fontid, BLF_ROTATION);
+    BLF_rotation(fontid, is_left ? M_PI_2 : -M_PI_2);
+  }
+
   fontscale(&fstyle_points, aspect);
   BLF_size(fontid, fstyle_points * UI_SCALE_FAC);
 
@@ -1489,8 +1493,8 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
     const char *category_id = pc_dyn.idname;
     const char *category_id_draw = IFACE_(category_id);
     const int category_width = round_fl_to_int(
-        pc_dyn.icon ? 8 * UI_SCALE_FAC * zoom :
-                      BLF_width(fontid, category_id_draw, BLF_DRAW_STR_DUMMY_MAX));
+        show_icons ? 9.5 * UI_SCALE_FAC * zoom :
+                     BLF_width(fontid, category_id_draw, BLF_DRAW_STR_DUMMY_MAX));
 
     rct->xmin = rct_xmin;
     rct->xmax = rct_xmax;
@@ -1620,23 +1624,33 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
     /* Tab titles. */
     BLF_color3ubv(fontid, is_active ? theme_col_tab_text_sel : theme_col_tab_text);
 
-    if (pc_dyn.icon != ICON_NONE) {
-      const float icon_size = 16.0f * UI_SCALE_FAC * zoom;
-      const float ofs_x = float(rct_xmax - rct_xmin - icon_size) / 2.0f;
-      const float ofs_y = float(rct->ymax - rct->ymin - icon_size) / 2.0f;
-      BLF_disable(fontid, BLF_ROTATION);
-      icon_draw_ex(float(rct_xmin) + ofs_x,
-                   float(rct->ymin) + ofs_y,
-                   pc_dyn.icon,
-                   aspect / UI_SCALE_FAC,
-                   1.0f,
-                   0.0f,
-                   nullptr,
-                   false,
-                   nullptr,
-                   false);
-      BLF_size(fontid, fstyle_points * UI_SCALE_FAC);
-      BLF_enable(fontid, BLF_ROTATION);
+    if (show_icons) {
+      if (pc_dyn.icon != ICON_NONE) {
+        const float icon_size = 16.0f * UI_SCALE_FAC * zoom;
+        const float ofs_x = float(rct_xmax - rct_xmin - icon_size) / 2.0f;
+        const float ofs_y = float(rct->ymax - rct->ymin - icon_size) / 2.0f;
+        icon_draw_ex(float(rct_xmin) + ofs_x,
+                     float(rct->ymin) + ofs_y,
+                     pc_dyn.icon,
+                     aspect / UI_SCALE_FAC,
+                     1.0f,
+                     0.0f,
+                     nullptr,
+                     false,
+                     nullptr,
+                     false);
+        BLF_size(fontid, fstyle_points * UI_SCALE_FAC);
+      }
+      else {
+        float r_width;
+        size_t len = BLF_width_to_strlen(
+            fontid, category_id_draw, category_draw_len, 14.0f * UI_SCALE_FAC * zoom, &r_width);
+        const float ofs_x = float(rct_xmax - rct_xmin - r_width) / 2.0f;
+        const float ofs_y = float(rct->ymax - rct->ymin) * 0.3f;
+
+        BLF_position(fontid, rct->xmin + ofs_x, rct->ymin + ofs_y, 0.0f);
+        BLF_draw(fontid, category_id_draw, len);
+      }
     }
     else {
       /* Offset toward the middle of the rect. */
@@ -2582,6 +2596,12 @@ static int handle_panel_category_cycling(const wmEvent *event,
   return WM_UI_HANDLER_CONTINUE;
 }
 
+static ARegion *WM_panel_category_tooltip_init(
+    bContext *C, ARegion *region, int * /*r_pass*/, double * /*pass_delay*/, bool *r_exit_on_event)
+{
+  return ui::tooltip_create_from_panel_category(C, region->runtime->category_tip_name);
+}
+
 static void panel_region_width_set(ARegion *region, const float aspect, int unscaled_size)
 {
   const float size_new = unscaled_size / aspect;
@@ -2606,16 +2626,6 @@ int handler_panel_region(bContext *C,
                          ARegion *region,
                          const Button *active_but)
 {
-  /* Mouse-move events are handled by separate handlers for dragging and drag collapsing. */
-  if (ISMOUSE_MOTION(event->type)) {
-    return WM_UI_HANDLER_CONTINUE;
-  }
-
-  /* We only use KM_PRESS events in this function, so it's simpler to return early. */
-  if (event->val != KM_PRESS) {
-    return WM_UI_HANDLER_CONTINUE;
-  }
-
   /* Scroll-bars can overlap panels now, they have handling priority. */
   if (view2d_mouse_in_scrollers(region, &region->v2d, event->xy)) {
     return WM_UI_HANDLER_CONTINUE;
@@ -2625,7 +2635,9 @@ int handler_panel_region(bContext *C,
 
   /* Handle category tabs. */
   if (panel_category_tabs_is_visible(region)) {
-    if (event->type == LEFTMOUSE) {
+    if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
+      WM_tooltip_clear(C, CTX_wm_window(C));
+
       PanelCategoryDyn *pc_dyn = panel_categories_find_mouse_over(region, event);
       if (pc_dyn) {
         const bool already_active = STREQ(pc_dyn->idname,
@@ -2665,10 +2677,20 @@ int handler_panel_region(bContext *C,
              ELEM(event->type, WHEELUPMOUSE, WHEELDOWNMOUSE))
     {
       /* Cycle tabs. */
+      WM_tooltip_clear(C, CTX_wm_window(C));
       retval = handle_panel_category_cycling(event, region, active_but);
     }
-    if (event->type == EVT_PADPERIOD) {
+    if (event->type == EVT_PADPERIOD && event->val == KM_PRESS) {
+      WM_tooltip_clear(C, CTX_wm_window(C));
       retval = panel_category_show_active_tab(region, event->xy);
+    }
+    else if (event->type == MOUSEMOVE) {
+      PanelCategoryDyn *pc_dyn = panel_categories_find_mouse_over(region, event);
+      if (pc_dyn && (U.flag & USER_TOOLTIPS)) {
+        region->runtime->category_tip_name = pc_dyn->idname;
+        WM_tooltip_timer_init(
+            C, CTX_wm_window(C), CTX_wm_area(C), region, WM_panel_category_tooltip_init);
+      }
     }
   }
 

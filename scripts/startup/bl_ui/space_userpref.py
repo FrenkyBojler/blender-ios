@@ -312,6 +312,7 @@ class USERPREF_PT_interface_editors(InterfacePanel, CenterAlignMixIn, Panel):
         system = prefs.system
 
         col = layout.column()
+        col.prop(system, "show_panel_tab_icons")
         col.prop(system, "use_region_overlap")
 
         col = layout.column(heading="Show", align=True)
