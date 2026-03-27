@@ -32,6 +32,24 @@ struct LUT {
 /** \name Integration models
  * \{ */
 
+template<typename F, uint SAMPLES_COUNT> float4 integrate(float3 params)
+{
+  auto f = F::init(params);
+
+  /* Measure F using N samples. */
+  float4 measure = float4(0.0f);
+  for (uint i = 1u; i <= SAMPLES_COUNT; i++) {
+    /* Warp sequence to a random point on the unit cylinder. */
+    float2 rand = hammersley_2d(i, N);
+    float2 Xi = sample_cylinder(rand);
+
+    /* Take sample and add to incremental measure. */
+    measure += (f.eval(Xi) - measure) / float(i);
+  }
+
+  return measure;
+}
+
 /**
  * Generate 2D GGX BRDF LUT
  * follwing the split sum approximation used in [Real shading in unreal engine 4]
@@ -52,6 +70,12 @@ class GGX_BRDF_Splitsum {
   float3 V;
 
  public:
+  static float4 integrate(float3 params)
+  {
+    constexpr uint sample_count = 512u * 512u;
+    return integrate<GGX_BRDF_Splitsum, sample_count>(params);
+  }
+
   static GGX_BRDF_Splitsum init(float3 params)
   {
     /* We use squared roughness for approximate perceptual linearity
@@ -120,6 +144,12 @@ class GGX_BSDF_Splitsum {
   float3 V;
 
  public:
+  static float4 integrate(float3 params)
+  {
+    constexpr uint sample_count = 512u * 512u;
+    return integrate<GGX_BRDF_Splitsum, sample_count>(params);
+  }
+
   static GGX_BRDF_Splitsum init(float3 params)
   {
     /* We use squared roughness for approximate perceptual linearity
@@ -211,6 +241,12 @@ class GGX_BTDF_GT_one {
   float3 V;
 
  public:
+  static float4 integrate(float3 params)
+  {
+    constexpr uint sample_count = 512u * 512u;
+    return integrate<GGX_BRDF_Splitsum, sample_count>(params);
+  }
+
   static GGX_BTDF_GT_one init(float3 params)
   {
     /* We use squared roughness for approximate perceptual linearity
@@ -226,12 +262,13 @@ class GGX_BTDF_GT_one {
     V = float3(sqrt(1.0f - square(NV)), 0.0f, NV);
   }
 
-  float4 eval(float2 Xi) {
+  float4 eval(float2 Xi)
+  {
     constexpr float3 N = float3(0.0f, 0.0f, 1.0f);
-    
+
     /* Return value. */
     float transmission_factor = 0.0f;
-    
+
     /* Refraction, restricted to negative hemisphere. */
     float3 L =
         bxdf_ggx_sample_refraction(Xi, V, roughness, ior, Thickness::zero(), false).direction;
@@ -253,35 +290,50 @@ class GGX_BTDF_GT_one {
   }
 };
 
-float4 burley_sss_translucency(float3 lut_coord)
+float4 burley_sss_translucency(float3 params)
 {
-  /* profile is float3 */
-  // return float4(profile, 0.0f);
-  return float4(0);
+  /* Note that we only store the 1st (radius == 1) component.
+   * The others are here for debugging overall appearance. */
+  float3 radii = float3(1.0f, 0.2f, 0.1f);
+  float thickness = params.x * SSS_TRANSMIT_LUT_RADIUS;
+  float3 r = thickness / radii;
+
+  /* Manual fit based on cycles render of a backlit slab of varying thickness.
+   * Mean Error: 0.003
+   * Max Error: 0.015 */
+  float3 exponential = exp(-3.6f * pow(r, float3(1.11f)));
+  float3 gaussian = exp(-pow(3.4f * r, float3(1.6f)));
+  float3 fac = square(saturate(0.5f + r / 0.6f));
+  float3 profile = saturate(mix(gaussian, exponential, fac));
+
+  /* Mask off the end progressively to 0. */
+  profile *= saturate(1.0f - pow5f(params.x));
+
+  return float4(profile, 0.0f);
 }
 
-float4 random_walk_sss_translucency(float3 lut_coord)
+float4 random_walk_sss_translucency(float3 params)
 {
-  // return float4(profile, 0.0f);
-  return float4(0);
-}
+  /* Note that we only store the 1st (radius == 1) component.
+   * The others are here for debugging overall appearance. */
+  float3 radii = float3(1.0f, 0.2f, 0.1f);
+  float thickness = params.x * SSS_TRANSMIT_LUT_RADIUS;
+  float3 r = thickness / radii;
 
-template<typename F, uint SAMPLES_COUNT> float4 integrate(float3 params)
-{
-  auto f = F::init(params);
+  /* Manual fit based on cycles render of a backlit slab of varying thickness.
+   * Mean Error: 0.003
+   * Max Error: 0.016 */
+  float3 scale = float3(0.31f, 0.47f, 0.32f);
+  float3 exponent = float3(-22.0f, -5.8f, -0.5f);
+  float3 profile = float3(dot(scale, exp(exponent * r.r)),
+                          dot(scale, exp(exponent * r.g)),
+                          dot(scale, exp(exponent * r.b)));
+  profile = saturate(profile - 0.1f);
 
-  /* Measure F using N samples. */
-  float4 measure = float4(0.0f);
-  for (uint i = 1u; i <= SAMPLES_COUNT; i++) {
-    /* Warp sequence to a random point on the unit cylinder. */
-    float2 rand = hammersley_2d(i, N);
-    float2 Xi = sample_cylinder(rand);
+  /* Mask off the end progressively to 0. */
+  profile *= saturate(1.0f - pow5f(params.x));
 
-    /* Take sample and add to incremental measure. */
-    measure += (f.eval(Xi) - measure) / float(i);
-  }
-
-  return measure;
+  return float4(profile, 0.0f);
 }
 
 /** \} */
@@ -289,7 +341,31 @@ template<typename F, uint SAMPLES_COUNT> float4 integrate(float3 params)
 [[compute]] [[local_size(LUT_WORKGROUP_SIZE, LUT_WORKGROUP_SIZE)]]
 void comp_main([[global_invocation_id]] const uint3 global_id, [[resource_table]] LUT &lut)
 {
-  float4 v = integrate<GGX_BRDF_Splitsum, 256>();
+  /* Make sure coordinates are covering the whole [0..1] range at texel center. */
+  float3 lut_normalized_coordinate = float3(global_id) / float3(lut.extent - 1);
+
+  /* Make sure missing cases are noticeable. */
+  float4 result = float4(-1);
+
+  switch (lut.type) {
+    case LUT_GGX_BRDF_SPLIT_SUM:
+      result = GGX_BRDF_Splitsum::integrate(lut_normalized_coordinate);
+      break;
+    case LUT_GGX_BSDF_SPLIT_SUM:
+      result = GGX_BSDF_Splitsum::integrate(lut_normalized_coordinate);
+      break;
+    case LUT_GGX_BTDF_IOR_GT_ONE:
+      result = GGX_BTDF_GT_one::integrate(lut_normalized_coordinate);
+      break;
+    case LUT_BURLEY_SSS_PROFILE:
+      result = burley_sss_translucency(lut_normalized_coordinate);
+      break;
+    case LUT_RANDOM_WALK_SSS_PROFILE:
+      result = random_walk_sss_translucency(lut_normalized_coordinate);
+      break;
+  }
+  
+  imageStore(lut.image, int3(global_id), result);
 }
 
 PipelineCompute lut_comp_pass(comp_main);
