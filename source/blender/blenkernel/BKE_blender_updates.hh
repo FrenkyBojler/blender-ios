@@ -33,7 +33,9 @@ struct VersionUpdate {
   friend auto operator<=>(const VersionUpdate &a, const VersionUpdate &b) = default;
 };
 
-bool check_for_available_updates(bContext &C, bool use_cache = true);
+bool check_for_available_updates(bContext &C,
+                                 bool use_cache = true,
+                                 bool ignore_skipped_versions = false);
 Vector<const VersionUpdate *> available_updates();
 
 void ignore_update(const VersionUpdate *update_info);

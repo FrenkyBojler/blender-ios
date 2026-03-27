@@ -197,7 +197,7 @@ with open('/home/guishe/Documents/updates-info.json', 'r') as file:
   return "";
 }
 
-bool check_for_available_updates(bContext &C, bool use_cache)
+bool check_for_available_updates(bContext &C, bool use_cache, bool ignore_skipped_versions)
 {
   if (!(G.f & G_FLAG_INTERNET_ALLOW &&
         (U.flag & (USER_BLENDER_UPDATE_LATEST_RELEASE | USER_BLENDER_UPDATE_LATEST_LTS_RELEASE |
@@ -205,7 +205,13 @@ bool check_for_available_updates(bContext &C, bool use_cache)
   {
     return false;
   }
-
+  if (ignore_skipped_versions) {
+    ignored_versions_updates() = {
+        {BLENDER_VERSION, BLENDER_VERSION_PATCH},
+        {BLENDER_VERSION, BLENDER_VERSION_PATCH},
+        {BLENDER_VERSION, BLENDER_VERSION_PATCH},
+    };
+  }
   static std::chrono::utc_clock::time_point last_time_check;
   if (!use_cache || std::chrono::duration_cast<std::chrono::days>(
                         (std::chrono::utc_clock::now() - last_time_check))
