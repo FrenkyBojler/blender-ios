@@ -23,10 +23,12 @@ else()
     endif()
 
     # Choose the best suitable libraries.
+    file(GLOB LIBDIR_RESULT ${LIBDIR_GLIBC228_ABI}/*)
+    list(LENGTH LIBDIR_RESULT LIBDIR_LEN)
     if(EXISTS ${LIBDIR_NATIVE_ABI})
       set(LIBDIR ${LIBDIR_NATIVE_ABI})
       set(WITH_LIBC_MALLOC_HOOK_WORKAROUND TRUE)
-    elseif(EXISTS "${LIBDIR_GLIBC228_ABI}/.git")
+    elseif(NOT LIBDIR_LEN EQUAL 0)
       set(LIBDIR ${LIBDIR_GLIBC228_ABI})
       if(WITH_TBB_MALLOC_PROXY)
         # TBB MALLOC proxy provides malloc hooks.
