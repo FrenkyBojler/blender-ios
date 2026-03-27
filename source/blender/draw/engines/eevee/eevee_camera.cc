@@ -138,7 +138,7 @@ void Camera::sync()
     data.viewmat = inst_.drw_view->viewmat();
     data.viewinv = inst_.drw_view->viewinv();
 
-    if (!inst_.is_custom_matrix()) {
+    if (inst_.is_custom_matrix()) {
       /* If using a custom matrix (XR and some offscreen render paths)
        * we need to use the v3d winmat as-is. */
       data.winmat = inst_.drw_view->winmat();
