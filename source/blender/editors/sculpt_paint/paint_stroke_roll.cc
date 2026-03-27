@@ -1330,16 +1330,36 @@ void PaintStroke::compute_roll_center(StrokeCache &cache)
         }
       }
 
-      /* Compute eval row range: only rows within 2R of the dab center
-       * are searched per-vertex in spline_uv().  The full grid is still
-       * stored for debug draw and correct self-intersection handling. */
+      /* Compute eval row range: intersect arc-length window with spatial
+       * distance.  The arc-length constraint prevents old segments on the
+       * far side of a self-crossing stroke from polluting the LUT.  The
+       * spatial check ensures coverage on sharp curves where arc-length
+       * alone might be too tight.  Forward range is more generous to
+       * include the trailing segment and its self-intersection merges.
+       *
+       * After two CC subdivision passes, original polyline vertex `vi`
+       * maps to grid row `4 * vi`. */
       {
+        const float eval_s_lo = std::max(0.0f, raw_s - R * 2.0f);
+        const float eval_s_hi = std::min(lengths.last(), raw_s + R * 3.0f);
+
+        int eval_seg_lo, eval_seg_hi;
+        float fac_unused;
+        length_parameterize::sample_at_length(lengths, eval_s_lo, eval_seg_lo, fac_unused);
+        length_parameterize::sample_at_length(lengths, eval_s_hi, eval_seg_hi, fac_unused);
+
+        const int arc_row_lo = std::max(0, eval_seg_lo * 4 - EVAL_ROW_MARGIN);
+        const int arc_row_hi = std::min(cur_rows - 1,
+                                        (eval_seg_hi + 1) * 4 + EVAL_ROW_MARGIN);
+
+        /* Within the arc-length window, keep rows spatially near the dab. */
         const float2 dab_2d = float2(math::dot(cache.location, view_x),
                                      math::dot(cache.location, view_y));
         const float eval_r_sq = (R * 2.0f) * (R * 2.0f);
         const int center_c = cur_cols / 2;
+
         int eval_lo = cur_rows - 1, eval_hi = 0;
-        for (int r = 0; r < cur_rows; r++) {
+        for (int r = arc_row_lo; r <= arc_row_hi; r++) {
           if (math::distance_squared(dab_2d, grid_pos_2d[r * cur_cols + center_c]) <=
               eval_r_sq)
           {
@@ -1347,7 +1367,6 @@ void PaintStroke::compute_roll_center(StrokeCache &cache)
             eval_hi = std::max(eval_hi, r);
           }
         }
-        /* Small margin for quads that straddle the boundary. */
         cache.roll_eval_row_lo = std::max(0, eval_lo - EVAL_ROW_MARGIN);
         cache.roll_eval_row_hi = std::min(cur_rows - 2, eval_hi + EVAL_ROW_MARGIN);
       }
