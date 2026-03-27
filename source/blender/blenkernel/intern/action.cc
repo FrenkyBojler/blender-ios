@@ -908,7 +908,7 @@ bPoseChannel *BKE_pose_channel_ensure(bPose *pose, const char *name)
   if (pose->chanhash) {
     BLI_ghash_insert(pose->chanhash, chan->name, chan);
   }
-  /* Add the user pref for PoseBone rotation mode*/
+
   chan->rotmode = U.bone_new_rotation_mode;
 
   return chan;
