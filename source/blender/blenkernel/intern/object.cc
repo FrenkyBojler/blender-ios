@@ -622,26 +622,12 @@ static void object_foreach_path(ID *id, BPathForeachPathData *bpath_data)
         for (NodesModifierBake &bake : MutableSpan(nmd.bakes, nmd.bakes_num)) {
           if (bake.flag & NODES_MODIFIER_BAKE_CUSTOM_PATH) {
             if (bake.directory && bake.directory[0]) {
-              /* The path is stored as an allocated pointer, copy it to temporary buffer so it can
-               * be extended by the callback. */
-              char tmp[FILE_MAX];
-              STRNCPY(tmp, bake.directory);
-              if (BKE_bpath_foreach_path_fixed_process(bpath_data, tmp, sizeof(tmp))) {
-                MEM_delete(bake.directory);
-                bake.directory = BLI_strdup(tmp);
-              }
+              BKE_bpath_foreach_path_allocated_process(bpath_data, &bake.directory);
             }
           }
           else {
             if (nmd.bake_directory && nmd.bake_directory[0]) {
-              /* The path is stored as an allocated pointer, copy it to temporary buffer so it can
-               * be extended by the callback. */
-              char tmp[FILE_MAX];
-              STRNCPY(tmp, nmd.bake_directory);
-              if (BKE_bpath_foreach_path_fixed_process(bpath_data, tmp, sizeof(tmp))) {
-                MEM_delete(nmd.bake_directory);
-                nmd.bake_directory = BLI_strdup(tmp);
-              }
+              BKE_bpath_foreach_path_allocated_process(bpath_data, &nmd.bake_directory);
             }
           }
         }
