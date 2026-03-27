@@ -2229,7 +2229,7 @@ void panel_drag_collapse_handler_add(const bContext *C, const bool was_open)
                           eWM_EventHandlerFlag(0));
 }
 
-bool layout_panel_toggle_open(const bContext *C, LayoutPanelHeader *header)
+bool layout_panel_toggle_open(const bContext *C, Panel *panel, LayoutPanelHeader *header)
 {
   const bool is_open = RNA_boolean_get(&header->open_owner_ptr, header->open_prop_name.c_str());
   RNA_boolean_set(&header->open_owner_ptr, header->open_prop_name.c_str(), !is_open);
@@ -2237,6 +2237,18 @@ bool layout_panel_toggle_open(const bContext *C, LayoutPanelHeader *header)
       const_cast<bContext *>(C),
       &header->open_owner_ptr,
       RNA_struct_find_property(&header->open_owner_ptr, header->open_prop_name.c_str()));
+  if (!is_open && header->is_carrousel) {
+    for (LayoutPanelHeader &collapse_other : panel->runtime->layout_panels.headers) {
+      if (&collapse_other == header) {
+        continue;
+      }
+      if (!collapse_other.is_carrousel) {
+        continue;
+      }
+      RNA_boolean_set(
+          &collapse_other.open_owner_ptr, collapse_other.open_prop_name.c_str(), false);
+    }
+  }
   return !is_open;
 }
 
@@ -2250,7 +2262,7 @@ static void handle_layout_panel_header(
   if (header == nullptr) {
     return;
   }
-  const bool new_state = layout_panel_toggle_open(C, header);
+  const bool new_state = layout_panel_toggle_open(C, panel, header);
   ED_region_tag_redraw(CTX_wm_region(C));
   WM_tooltip_clear(C, CTX_wm_window(C));
 

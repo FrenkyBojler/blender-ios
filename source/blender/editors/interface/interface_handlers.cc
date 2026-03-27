@@ -12162,7 +12162,7 @@ static int handle_menus_recursive(bContext *C,
           ARegion *prev_region_popup = CTX_wm_region_popup(C);
           /* Set the current context popup region so the handler context can access to it. */
           CTX_wm_region_popup_set(C, menu->region);
-          panel_drag_collapse_handler_add(C, !layout_panel_toggle_open(C, header));
+          panel_drag_collapse_handler_add(C, !layout_panel_toggle_open(C, block.panel, header));
           /* Restore previous popup region. */
           CTX_wm_region_popup_set(C, prev_region_popup);
           retval = WM_UI_HANDLER_BREAK;

@@ -66,7 +66,7 @@ static void version_update_draw_body(const bke::VersionUpdate &update, ui::Layou
 static void panel_blender_updates_draw(const bContext *C, Panel *panel)
 {
   ui::Layout &layout = *panel->layout;
-
+  layout.use_layout_panels_carroussels_set(true);
   Vector<const bke::VersionUpdate *> available_updates = bke::available_updates();
   if (available_updates.is_empty()) {
     ui::Layout &header = layout.row(true);

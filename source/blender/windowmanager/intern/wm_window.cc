@@ -3547,7 +3547,7 @@ static wmOperatorStatus check_for_updates_invoke(bContext *C,
                                                  wmOperator *op,
                                                  const blender::wmEvent * /*event*/)
 {
-  return WM_operator_props_dialog_popup(C, op, 300);
+  return WM_operator_props_dialog_popup(C, op, 400);
 }
 
 void WM_OT_check_for_updates(wmOperatorType *ot)
@@ -3565,7 +3565,7 @@ void WM_OT_check_for_updates(wmOperatorType *ot)
       ot->srna,
       "ignore_skipped_versions",
       false,
-      "Ignore Skipped Versions",
+      "TESTING: Ignore Skipped Versions",
       "Ignores the previosly skipped versions, so they can listed again for update.");
 }
 
