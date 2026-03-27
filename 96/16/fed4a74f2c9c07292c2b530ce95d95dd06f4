@@ -1,3 +1,4 @@
 Referenced by commit 3cd4430832768996ba081d86a4d7502976eb84e0, Fix: Mask ignored in array_utils::gather function after refactor
 Referenced by pull request #155321, Fix #155318: Assert in array_utils::gather after recent refactor
 Referenced by commit 731aca0f41d60f47495eeec6375b4bd7bb82e483, Fix #155318: Assert in array_utils::gather after recent refactor
+Referenced by issue #155318, Geonodes: Crash on assert in evaluation, when opening 4.2 splashscreen blendfile
