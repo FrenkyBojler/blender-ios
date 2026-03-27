@@ -10,6 +10,7 @@ from bpy.types import (
 from bpy.props import (
     BoolProperty,
     EnumProperty,
+    StringProperty,
 )
 
 bl_file_extensions_image_and_movie = ";".join((
@@ -303,6 +304,50 @@ class VIEW3D_FH_vdb_volume(FileHandler):
     def poll_drop(cls, context):
         return context.space_data and context.space_data.type == 'VIEW_3D'
 
+class VIEW3D_OT_object_type_visibility(Operator):
+    bl_label = "Object Type visibility"
+    bl_idname = "view3d.object_type_visibility"
+    attribute_type : StringProperty(
+        name="attribute",
+        default="",
+        description="attribute name",
+    )
+    attribute_suffix : StringProperty(
+        name="suffix",
+        default="",
+        description="attribute suffix",
+    )
+
+    @classmethod
+    def poll(cls, context):
+        area = context.area
+        return area and (area.type == 'VIEW_3D')
+
+    def invoke(cls, context, event):
+        space_data = context.space_data
+        clicked_attribute = cls.attribute_type + cls.attribute_suffix
+
+        if not event.ctrl:
+            value = getattr(space_data, clicked_attribute, False)
+            setattr(space_data, clicked_attribute, not value)
+            return {'FINISHED'}
+
+        suffix_list = ("mesh", "curve", "surf", "meta", "font", "curves", "pointcloud", "volume","grease_pencil", "armature", "lattice", "empty", "light", "light_probe", "camera", "speaker",)
+
+        any_enabled = False
+        for suffix in suffix_list:
+            attribute = cls.attribute_type + suffix
+            if attribute != clicked_attribute:
+                any_enabled |= getattr(space_data, attribute, False)
+
+        do_isolate = not any_enabled
+        for suffix in suffix_list:
+            attribute = cls.attribute_type + suffix
+            if attribute != clicked_attribute:
+                setattr(space_data, attribute, do_isolate)
+
+        return {'FINISHED'}
+
 
 classes = (
     VIEW3D_OT_edit_mesh_extrude_individual_move,
@@ -313,4 +358,5 @@ classes = (
     VIEW3D_FH_camera_background_image,
     VIEW3D_FH_empty_image,
     VIEW3D_FH_vdb_volume,
+    VIEW3D_OT_object_type_visibility,
 )
