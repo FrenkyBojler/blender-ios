@@ -19,6 +19,16 @@ from imbuf.types import ImBuf
 
 DEFAULT_SIZE = 32, 32
 
+
+def rgba_bytes_from_packed_int(value):
+    return (
+        (value >> 24) & 0xFF,
+        (value >> 16) & 0xFF,
+        (value >> 8) & 0xFF,
+        value & 0xFF,
+    )
+
+
 # Test color in linear float, sRGB byte, and the expected conversions between them.
 COLOR_FLOAT = (1.0, 0.5, 0.25, 1.0)
 COLOR_BYTE = (255, 128, 196, 255)
@@ -114,6 +124,15 @@ class TestImBufProperties(unittest.TestCase):
             self.ibuf.ppm = (0.0, 0.0)
         with self.assertRaises(ValueError):
             self.ibuf.ppm = (-1.0, 100.0)
+
+    def test_file_type(self):
+        self.assertEqual(self.ibuf.file_type, 'PNG')
+        self.ibuf.file_type = 'PNG'
+        self.assertEqual(self.ibuf.file_type, 'PNG')
+        with self.assertRaises(ValueError):
+            self.ibuf.file_type = 'INVALID'
+        with self.assertRaises(ValueError):
+            self.ibuf.file_type = ""
 
     def test_quality(self):
         self.assertEqual(self.ibuf.quality, 90)
@@ -414,6 +433,40 @@ class TestImBufPlanes(unittest.TestCase):
             with self.assertRaises(ValueError):
                 imbuf.new((2, 2), planes=p)
 
+    def test_planes_roundtrip(self):
+        file_type = 'IRIS'
+        file_ext = imbuf.file_types[file_type].file_extensions[0]
+        # Per-plane pixel data (2x2 = 4 pixels, packed as 0xRRGGBBAA).
+        # 8: gray-scale (R=G=B, A ignored on save, becomes 0xFF on load).
+        # 16: gray-scale + alpha (R=G=B, A preserved).
+        # 24: RGB (A ignored on save, becomes 0xFF on load).
+        # 32: RGBA (all channels preserved).
+        pixel_data = {
+            8: (0x404040FF, 0x808080FF, 0xC0C0C0FF, 0xFFFFFFFF),
+            16: (0x404040C0, 0x808080FF, 0xC0C0C080, 0xFFFFFF40),
+            24: (0xFF0000FF, 0x00FF00FF, 0x0000FFFF, 0xAABBCCFF),
+            32: (0xFF000080, 0x00FF00C0, 0x0000FF40, 0xAABBCCDD),
+        }
+        with tempfile.TemporaryDirectory() as tempdir:
+            for pixel_planes, pixels in pixel_data.items():
+                with self.subTest(planes=pixel_planes):
+                    ibuf = imbuf.new((2, 2), planes=pixel_planes)
+                    ibuf.file_type = file_type
+                    with ibuf.with_buffer('BYTE', write=True) as buf:
+                        for i, pixel in enumerate(pixels):
+                            buf[i * 4:(i + 1) * 4] = bytes(rgba_bytes_from_packed_int(pixel))
+                    filepath = os.path.join(tempdir, "test_{:d}{:s}".format(pixel_planes, file_ext))
+                    imbuf.write(ibuf, filepath=filepath)
+                    ibuf.free()
+
+                    ibuf_loaded = imbuf.load(filepath)
+                    self.assertEqual(ibuf_loaded.planes, pixel_planes)
+                    with ibuf_loaded.with_buffer('BYTE') as buf:
+                        for i, expected in enumerate(pixels):
+                            actual = tuple(buf[i * 4:(i + 1) * 4])
+                            self.assertEqual(actual, rgba_bytes_from_packed_int(expected))
+                    ibuf_loaded.free()
+
 
 class TestImBufPixelsBytes(unittest.TestCase):
 
@@ -532,15 +585,20 @@ class TestImBufPixelsRegion(unittest.TestCase):
             self.assertEqual(buf.ndim, 1)
 
     def test_zero_area_region(self):
+        # Fully outside image bounds.
         with self.ibuf.with_buffer('BYTE', region=((100, 100), (200, 200))) as buf:
             self.assertEqual(buf.ndim, 2)
             self.assertEqual(buf.shape[0] * buf.shape[1], 0)
 
-        with self.ibuf.with_buffer('BYTE', region=((5, 5), (2, 2))) as buf:
-            self.assertEqual(buf.shape[0] * buf.shape[1], 0)
-
+        # Start == end (zero-size).
         with self.ibuf.with_buffer('BYTE', region=((3, 3), (3, 3))) as buf:
             self.assertEqual(buf.shape[0] * buf.shape[1], 0)
+
+    def test_inverted_region_sanitized(self):
+        # Inverted region is sanitized (min/max swapped), not treated as empty.
+        with self.ibuf.with_buffer('BYTE', region=((5, 5), (2, 2))) as buf:
+            self.assertEqual(buf.ndim, 2)
+            self.assertEqual(buf.shape, (3, 12))
 
     def test_region_write_does_not_corrupt_neighbors(self):
         with self.ibuf.with_buffer('BYTE', write=True, region=((1, 1), (3, 3))) as buf:
@@ -692,6 +750,78 @@ class TestImBufExitSync(unittest.TestCase):
             for i, expected in enumerate(COLOR_FLOAT):
                 self.assertAlmostEqual(buf[i], expected, places=3)
         ibuf.free()
+
+
+class TestImBufFileTypes(unittest.TestCase):
+
+    def test_file_types_have_id_and_extensions(self):
+        for type_id, file_type in imbuf.file_types.items():
+            with self.subTest(type_id=type_id):
+                self.assertEqual(file_type.id, type_id)
+                self.assertIsInstance(file_type.file_extensions, tuple)
+                if type_id != 'NONE':
+                    self.assertGreater(len(file_type.file_extensions), 0)
+
+    def test_none_file_type(self):
+        # NONE is accessible in the file_types dict.
+        self.assertIn('NONE', imbuf.file_types)
+        none_type = imbuf.file_types['NONE']
+        self.assertEqual(none_type.id, 'NONE')
+        self.assertEqual(none_type.file_extensions, ())
+        self.assertFalse(none_type.has_write_file)
+        self.assertFalse(none_type.has_write_memory)
+
+        # Can set file_type to NONE and read it back.
+        ibuf = imbuf.new(DEFAULT_SIZE)
+        ibuf.file_type = 'NONE'
+        self.assertEqual(ibuf.file_type, 'NONE')
+
+        # Writing as NONE fails for both file and memory.
+        with tempfile.TemporaryDirectory() as tempdir:
+            filepath = os.path.join(tempdir, 'test.bin')
+            with self.assertRaises(ValueError):
+                imbuf.write(ibuf, filepath=filepath)
+        with self.assertRaises(ValueError):
+            imbuf.write_to_buffer(ibuf, io.BytesIO())
+
+        ibuf.free()
+
+    def test_write_and_detect_all_types(self):
+        size = (32, 32)
+        with tempfile.TemporaryDirectory() as tempdir:
+            for type_id, file_type in imbuf.file_types.items():
+                if not (file_type.has_write_file or file_type.has_write_memory):
+                    continue
+                ext = file_type.file_extensions[0]
+                with self.subTest(type_id=type_id):
+                    ibuf = imbuf.new(size)
+                    ibuf.file_type = type_id
+
+                    image_data = []
+
+                    if file_type.has_write_file:
+                        filepath = os.path.join(tempdir, "test" + ext)
+                        imbuf.write(ibuf, filepath=filepath)
+                        with open(filepath, "rb") as fh:
+                            image_data.append(("file", fh.read()))
+
+                    if file_type.has_write_memory:
+                        buf = io.BytesIO()
+                        imbuf.write_to_buffer(ibuf, buf)
+                        image_data.append(("memory", buf.getvalue()))
+
+                    ibuf.free()
+
+                    for kind, data in image_data:
+                        msg = "{:s} ({:s})".format(type_id, kind)
+                        detected = imbuf.file_type_from_buffer(data)
+                        self.assertIsNotNone(detected, msg=msg)
+                        self.assertEqual(detected.id, type_id, msg=msg)
+
+                        ibuf_loaded = imbuf.load_from_buffer(data)
+                        self.assertEqual(ibuf_loaded.size, size, msg=msg)
+                        self.assertEqual(ibuf_loaded.file_type, type_id, msg=msg)
+                        ibuf_loaded.free()
 
 
 def main():
