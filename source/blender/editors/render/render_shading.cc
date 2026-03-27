@@ -2654,8 +2654,16 @@ static wmOperatorStatus texture_slot_move_exec(bContext *C, wmOperator *op)
                                       -1,
                                       /*verify_paths=*/false,
                                       /*infix_is_name=*/true);
-        BKE_animdata_fix_paths_rename(
-            id, adt, nullptr, "texture_slots", nullptr, nullptr, act, act - 1, false, true);
+        BKE_animdata_fix_paths_rename(id,
+                                      adt,
+                                      nullptr,
+                                      "texture_slots",
+                                      nullptr,
+                                      nullptr,
+                                      act,
+                                      act - 1,
+                                      /*verify_paths=*/false,
+                                      /*infix_is_name=*/true);
         BKE_animdata_fix_paths_rename(id,
                                       adt,
                                       nullptr,
