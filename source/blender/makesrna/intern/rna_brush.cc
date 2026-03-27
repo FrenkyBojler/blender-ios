@@ -1380,9 +1380,21 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
 
   /* modes */
   static const EnumPropertyItem gppaint_mode_types_items[] = {
-      {GPPAINT_MODE_STROKE, "STROKE", 0, "Stroke", "Vertex Color affects to Stroke only"},
-      {GPPAINT_MODE_FILL, "FILL", 0, "Fill", "Vertex Color affects to Fill only"},
-      {GPPAINT_MODE_BOTH, "BOTH", 0, "Stroke & Fill", "Vertex Color affects to Stroke and Fill"},
+      {GPPAINT_MODE_STROKE,
+       "STROKE",
+       ICON_GP_DRAW_STROKE,
+       "Stroke",
+       "Painting affects only strokes, not fills"},
+      {GPPAINT_MODE_FILL,
+       "FILL",
+       ICON_GP_DRAW_FILL,
+       "Fill",
+       "Painting affects only fills, not strokes"},
+      {GPPAINT_MODE_BOTH,
+       "BOTH",
+       ICON_GP_DRAW_BOTH,
+       "Both",
+       "Painting affects both strokes and fills"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -1720,7 +1732,8 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
   /* Factor to extend stroke extremes in Fill brush. */
   prop = RNA_def_property(srna, "extend_stroke_factor", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, nullptr, "fill_extend_fac");
-  RNA_def_property_range(prop, 0.0f, 10.0f);
+  RNA_def_property_range(prop, 0.0f, FLT_MAX);
+  RNA_def_property_ui_range(prop, 0.0, 10.0f, 0.1, 2);
   RNA_def_property_float_default(prop, 0.0f);
   RNA_def_property_ui_text(
       prop, "Closure Size", "Strokes end extension for closing gaps, use zero to disable");
@@ -3237,7 +3250,7 @@ static void rna_def_brush(BlenderRNA *brna)
                            "and a value of 1 corresponds to using the initial center.");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
-  prop = RNA_def_property(srna, "texture_sample_bias", PROP_FLOAT, PROP_DISTANCE);
+  prop = RNA_def_property(srna, "texture_sample_bias", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_float_sdna(prop, nullptr, "texture_sample_bias");
   RNA_def_property_float_default(prop, 0);
   RNA_def_property_range(prop, -1, 1);

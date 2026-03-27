@@ -1856,6 +1856,11 @@ enum eWM_JobType {
   WM_JOB_TYPE_OBJECT_BAKE,
   WM_JOB_TYPE_FILESEL_READDIR,
   WM_JOB_TYPE_ASSET_LIBRARY_LOAD,
+  /** For the global asset list storage (#ED_asset_list.hh). Use a different job type from
+   * #WM_JOB_TYPE_ASSET_LIBRARY_LOAD (used by the asset browser) so the global storage loading can
+   * happen independently of the asset browser loading. They would block each other if the type was
+   * the same. */
+  WM_JOB_TYPE_ASSET_LIBRARY_GLOBAL_LISTING_LOAD,
   WM_JOB_TYPE_CLIP_BUILD_PROXY,
   WM_JOB_TYPE_CLIP_TRACK_MARKERS,
   WM_JOB_TYPE_CLIP_SOLVE_CAMERA,
@@ -2248,7 +2253,10 @@ bool WM_xr_session_exists(const wmXrData *xr);
  */
 bool WM_xr_session_is_ready(const wmXrData *xr);
 wmXrSessionState *WM_xr_session_state_handle_get(const wmXrData *xr);
-ScrArea *WM_xr_session_area_get(const wmXrData *xr);
+
+bContext *WM_xr_session_context_get(const wmXrData *xr);
+bContext *WM_xr_session_context_ensure(wmXrData *xr, const wmWindowManager *wm);
+
 void WM_xr_session_base_pose_reset(wmXrData *xr);
 bool WM_xr_session_state_viewer_pose_location_get(const wmXrData *xr, float r_location[3]);
 bool WM_xr_session_state_viewer_pose_rotation_get(const wmXrData *xr, float r_rotation[4]);
@@ -2273,6 +2281,7 @@ bool WM_xr_session_state_nav_rotation_get(const wmXrData *xr, float r_rotation[4
 void WM_xr_session_state_nav_rotation_set(wmXrData *xr, const float rotation[4]);
 bool WM_xr_session_state_nav_scale_get(const wmXrData *xr, float *r_scale);
 void WM_xr_session_state_nav_scale_set(wmXrData *xr, float scale);
+bool WM_xr_session_state_viewer_scale_get(const wmXrData *xr, float *r_scale);
 void WM_xr_session_state_navigation_reset(wmXrSessionState *state);
 void WM_xr_session_state_vignette_activate(wmXrData *xr);
 void WM_xr_session_state_vignette_update(wmXrSessionState *state);

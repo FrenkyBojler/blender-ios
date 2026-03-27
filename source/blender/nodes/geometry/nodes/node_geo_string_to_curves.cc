@@ -134,7 +134,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   b.add_output<decl::Geometry>("Curve Instances");
   b.add_output<decl::String>("Remainder")
-      .usage_by_menu("Overflow", GEO_NODE_STRING_TO_CURVES_MODE_TRUNCATE);
+      .usage_by_menu("Overflow"_ustr, GEO_NODE_STRING_TO_CURVES_MODE_TRUNCATE);
   b.add_output<decl::Int>("Line").field_on_all().translation_context(BLT_I18NCONTEXT_ID_TEXT);
   b.add_output<decl::Int>("Word").field_on_all().translation_context(BLT_I18NCONTEXT_ID_TEXT);
   b.add_output<decl::Vector>("Pivot Point").field_on_all();
@@ -146,7 +146,7 @@ static void node_declare(NodeDeclarationBuilder &b)
           [](const bNode & /*node*/) { return id_cast<ID *>(BKE_vfont_builtin_ensure()); })
       .optional_label();
   {
-    auto &p = b.add_panel("Alignment").default_closed(true);
+    auto &p = b.add_panel("Alignment"_ustr).default_closed(true);
     p.add_input<decl::Menu>("Align X")
         .static_items(rna_node_geometry_string_to_curves_align_x_items)
         .optional_label();
@@ -157,13 +157,13 @@ static void node_declare(NodeDeclarationBuilder &b)
         .static_items(rna_node_geometry_string_to_curves_pivot_mode);
   }
   {
-    auto &p = b.add_panel("Spacing").default_closed(true);
+    auto &p = b.add_panel("Spacing"_ustr).default_closed(true);
     p.add_input<decl::Float>("Character Spacing").default_value(1.0f).min(0.0f);
     p.add_input<decl::Float>("Word Spacing").default_value(1.0f).min(0.0f);
     p.add_input<decl::Float>("Line Spacing").default_value(1.0f).min(0.0f);
   }
   {
-    auto &p = b.add_panel("Text Box").default_closed(true);
+    auto &p = b.add_panel("Text Box"_ustr).default_closed(true);
     p.add_input<decl::Menu>("Overflow")
         .static_items(rna_node_geometry_string_to_curves_overflow_items)
         .optional_label();
@@ -175,7 +175,7 @@ static void node_declare(NodeDeclarationBuilder &b)
         .default_value(0.0f)
         .min(0.0f)
         .subtype(PROP_DISTANCE)
-        .usage_by_menu("Overflow", GEO_NODE_STRING_TO_CURVES_MODE_SCALE_TO_FIT);
+        .usage_by_menu("Overflow"_ustr, GEO_NODE_STRING_TO_CURVES_MODE_SCALE_TO_FIT);
   }
 }
 

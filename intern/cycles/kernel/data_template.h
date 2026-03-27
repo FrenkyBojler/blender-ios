@@ -129,7 +129,9 @@ KERNEL_STRUCT_MEMBER(film, float, mist_inv_depth)
 KERNEL_STRUCT_MEMBER(film, float, mist_falloff)
 /* Denoising. */
 KERNEL_STRUCT_MEMBER(film, int, pass_denoising_albedo)
+KERNEL_STRUCT_MEMBER(film, int, pass_denoising_specular_albedo)
 KERNEL_STRUCT_MEMBER(film, int, pass_denoising_normal)
+KERNEL_STRUCT_MEMBER(film, int, pass_denoising_roughness)
 KERNEL_STRUCT_MEMBER(film, int, pass_denoising_depth)
 /* AOVs. */
 KERNEL_STRUCT_MEMBER(film, int, pass_aov_color)
@@ -236,6 +238,9 @@ KERNEL_STRUCT_END(KernelIntegrator)
 
 KERNEL_STRUCT_BEGIN(KernelSVMUsage, svm_usage)
 #define SHADER_NODE_TYPE(type) KERNEL_STRUCT_MEMBER(svm_usage, int, type)
+#define SHADER_NODE_TYPE_DERIVATIVE(type) \
+  SHADER_NODE_TYPE(type) \
+  SHADER_NODE_TYPE(type##_DERIVATIVE)
 #include "kernel/svm/node_types_template.h"
 KERNEL_STRUCT_END(KernelSVMUsage)
 

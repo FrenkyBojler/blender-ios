@@ -3,13 +3,13 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #pragma once
-#pragma create_info
 
 #include "gpu_shader_compat.hh"
 
 #include "draw_object_infos_infos.hh"
 
 SHADER_LIBRARY_CREATE_INFO(draw_mesh)
+SHADER_LIBRARY_CREATE_INFO(draw_resource_id_varying)
 
 #include "draw_model_lib.glsl"
 #include "draw_object_infos_lib.glsl"

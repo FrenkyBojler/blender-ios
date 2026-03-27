@@ -139,7 +139,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
     bke::SocketValueVariant value = params.extract_input<bke::SocketValueVariant>(
         node.input_socket(i).identifier);
-    bundle.add(name, BundleItemSocketValue{stype, std::move(value)});
+    bundle.add(UString(name), BundleItemSocketValue{stype, std::move(value)});
   }
 
   params.set_output("Bundle", std::move(bundle_ptr));
@@ -216,7 +216,7 @@ StructRNA **CombineBundleItemsAccessor::item_srna = &RNA_NodeCombineBundleItem;
 
 void CombineBundleItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
-  BLO_write_string(writer, item.name);
+  writer->write_string(item.name);
 }
 
 void CombineBundleItemsAccessor::blend_read_data_item(BlendDataReader *reader, ItemT &item)

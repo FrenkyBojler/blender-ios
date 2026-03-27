@@ -203,7 +203,7 @@ static const bNodeSocket *node_internally_linked_input(const bNodeTree & /*tree*
                                                        const bNode &node,
                                                        const bNodeSocket &output_socket)
 {
-  return node.input_by_identifier(output_socket.identifier);
+  return node.input_by_identifier(output_socket.identifier_ustr());
 }
 
 static void node_register()
@@ -238,7 +238,7 @@ StructRNA **FieldToListItemsAccessor::item_srna = &RNA_GeometryNodeFieldToListIt
 
 void FieldToListItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
-  BLO_write_string(writer, item.name);
+  writer->write_string(item.name);
 }
 
 void FieldToListItemsAccessor::blend_read_data_item(BlendDataReader *reader, ItemT &item)

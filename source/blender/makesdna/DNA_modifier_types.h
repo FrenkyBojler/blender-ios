@@ -3230,6 +3230,8 @@ struct GreasePencilLineartModifierData {
   unsigned char material_mask_bits = 0;
   unsigned char intersection_mask = 0;
   unsigned char intersection_filter_mode = 0;
+  unsigned char fill_strokes = 0;
+  char _pad[7] = {};
 
   /** `0..1` range for cosine angle */
   float crease_threshold = DEG2RAD(140.0f);
