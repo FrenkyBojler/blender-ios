@@ -1867,7 +1867,7 @@ static wmOperatorStatus edbm_boundary_loop_multiselect_exec(bContext *C, wmOpera
     int totedgesel = 0;
 
     BM_ITER_MESH (eed, &iter, em->bm, BM_EDGES_OF_MESH) {
-      if (BM_elem_flag_test(eed, BM_ELEM_SELECT)) {
+      if (BM_elem_flag_test(eed, BM_ELEM_SELECT) && (extend || BM_edge_is_boundary(eed))) {
         totedgesel++;
       }
     }
@@ -1876,23 +1876,29 @@ static wmOperatorStatus edbm_boundary_loop_multiselect_exec(bContext *C, wmOpera
     edindex = 0;
 
     BM_ITER_MESH (eed, &iter, em->bm, BM_EDGES_OF_MESH) {
-      if (BM_elem_flag_test(eed, BM_ELEM_SELECT)) {
+      if (BM_elem_flag_test(eed, BM_ELEM_SELECT) && (extend || BM_edge_is_boundary(eed))) {
         edarray[edindex] = eed;
         edindex++;
       }
     }
 
     bool changed = false;
-    for (edindex = 0; edindex < totedgesel; edindex += 1) {
-      eed = edarray[edindex];
-      const bool boundary = BM_edge_is_boundary(eed);
-      if (boundary) {
+    if (extend) {
+      for (edindex = 0; edindex < totedgesel; edindex += 1) {
         changed |= walker_select(
             em, BMW_EDGELOOP_NONMANIFOLD, eed, true, BMW_FLAG_TEST_HIDDEN, delimit);
       }
-      else if (extend == false) {
-        BM_edge_select_set_noflush(em->bm, eed, false);
-        changed = true;
+    }
+    else {
+      for (edindex = 0; edindex < totedgesel; edindex += 1) {
+        if (BM_edge_is_boundary(eed)) {
+          changed |= walker_select(
+              em, BMW_EDGELOOP_NONMANIFOLD, eed, true, BMW_FLAG_TEST_HIDDEN, delimit);
+        }
+        else {
+          BM_edge_select_set_noflush(em->bm, eed, false);
+          changed = true;
+        }
       }
     }
     if (changed) {
