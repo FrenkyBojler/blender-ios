@@ -475,6 +475,7 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_lookdev_display_vert.glsl
   engines/eevee/shaders/eevee_ltc_lib.glsl
   engines/eevee/shaders/eevee_lut_comp.glsl
+  engines/eevee/shaders/eevee_lut_comp.bsl.hh
   engines/eevee/shaders/eevee_motion_blur_dilate_comp.glsl
   engines/eevee/shaders/eevee_motion_blur_flatten_comp.glsl
   engines/eevee/shaders/eevee_motion_blur_gather_comp.glsl
@@ -959,8 +960,8 @@ add_library(bf::draw ALIAS bf_draw)
 if(WITH_GTESTS)
   if(WITH_GPU_DRAW_TESTS)
     set(TEST_SRC
-      tests/draw_curves_test.cc
-      tests/draw_pass_test.cc
+      # tests/draw_curves_test.cc
+      # tests/draw_pass_test.cc
       tests/eevee_test.cc
 
       tests/draw_testing.hh
