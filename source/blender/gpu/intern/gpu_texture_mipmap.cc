@@ -106,8 +106,8 @@ static void update_mipmaps(Texture &texture, Shader &shader)
   int mip_count = texture.mip_count();
   const bool is_srgb = texture.format_flag_get() & GPU_FORMAT_SRGB;
   const bool is_layered = texture.type_get() & GPU_TEXTURE_ARRAY;
-  /* SRGB textures cannot be used with image load/store. We copy the mip0 to a non-srgb texture and
-   * perform. */
+  /* SRGB textures cannot be used with image load/store. Create a temp texture with mip0 in an
+   * non-srgb texture. */
   if (is_srgb) {
     if (is_layered) {
       texture_ptr = GPU_texture_create_2d_array(__func__,
@@ -138,6 +138,7 @@ static void update_mipmaps(Texture &texture, Shader &shader)
   }
 
   if (is_srgb) {
+    /* Copy result (mip1 and higher) to original texture and free temporary resources. */
     texture_ptr->copy_to(&texture, IndexRange::from_begin_end(1, mip_count));
     GPU_texture_free(texture_ptr);
     texture_ptr = nullptr;
