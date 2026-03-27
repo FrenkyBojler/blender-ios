@@ -42,11 +42,14 @@ typedef HMODULE DynamicLibrary;
 #  define dynamic_library_close(lib)         FreeLibrary(lib)
 #  define dynamic_library_find(lib, symbol)  GetProcAddress(lib, symbol)
 #else
+#  ifndef _GNU_SOURCE
+#    define _GNU_SOURCE
+#  endif
 #  include <dlfcn.h>
 
 typedef void* DynamicLibrary;
 
-#  define dynamic_library_open(path)         dlopen(path, RTLD_NOW)
+#  define dynamic_library_open(path)         dlmopen(LM_ID_NEWLM, path, RTLD_NOW)
 #  define dynamic_library_close(lib)         dlclose(lib)
 #  define dynamic_library_find(lib, symbol)  dlsym(lib, symbol)
 #endif
