@@ -154,10 +154,10 @@ void BKE_action_fix_paths_rename(struct ID *owner_id,
 /**
  * Fix all the paths for the given ID+AnimData
  *
- * \param old_suffix,new_suffix Depending on `suffix_is_name`, this is either the name to replace
- * and the new name, or just the old and new final parts of the path.
+ * \param old_infix,new_infix The path secion immediately following the `prefix`. If
+ * `infix_is_name` is true, this is processed as a name..
  *
- * \param suffix_is_name If true, old_suffix and new_suffix are treated as names and padded with
+ * \param infix_is_name If true, old_infix and new_infix are treated as names and padded with
  * [""] so that only exact matches are made. For example, the structure we're replacing is
  * `<prefix><["><name><"]>` i.e. `pose.bones["Bone"]`.
  */
@@ -165,32 +165,32 @@ void BKE_animdata_fix_paths_rename(struct ID *owner_id,
                                    struct AnimData *adt,
                                    struct ID *ref_id,
                                    const char *prefix,
-                                   const char *old_suffix,
-                                   const char *new_suffix,
+                                   const char *old_infix,
+                                   const char *new_infix,
                                    int oldSubscript,
                                    int newSubscript,
                                    bool verify_paths,
-                                   bool suffix_is_name);
+                                   bool infix_is_name);
 
 /**
  * Fix all RNA-Paths throughout the database (directly access the #Global.main version).
  *
- * \param old_suffix,new_suffix Depending on `suffix_is_name`, this is either the name to replace
- * and the new name, or just the old and new final parts of the path.
+ * \param old_infix,new_infix The path secion immediately following the `prefix`. If
+ * `infix_is_name` is true, this is processed as a name..
  *
- * \param suffix_is_name If true, old_suffix and new_suffix are treated as names and padded with
+ * \param infix_is_name If true, old_infix and new_infix are treated as names and padded with
  * [""] so that only exact matches are made. For example, the structure we're replacing is
  * `<prefix><["><name><"]>` i.e. `pose.bones["Bone"]`
  */
 void BKE_animdata_fix_paths_rename_all_ex(struct Main *bmain,
                                           struct ID *ref_id,
                                           const char *prefix,
-                                          const char *old_suffix,
-                                          const char *new_suffix,
+                                          const char *old_infix,
+                                          const char *new_infix,
                                           int oldSubscript,
                                           int newSubscript,
                                           bool verify_paths,
-                                          bool suffix_is_name);
+                                          bool infix_is_name);
 
 /** See #BKE_animdata_fix_paths_rename_all_ex */
 void BKE_animdata_fix_paths_rename_all(struct ID *ref_id,

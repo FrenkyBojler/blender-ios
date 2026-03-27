@@ -2653,7 +2653,7 @@ static wmOperatorStatus texture_slot_move_exec(bContext *C, wmOperator *op)
                                       act - 1,
                                       -1,
                                       /*verify_paths=*/false,
-                                      /*suffix_is_name=*/true);
+                                      /*infix_is_name=*/true);
         BKE_animdata_fix_paths_rename(
             id, adt, nullptr, "texture_slots", nullptr, nullptr, act, act - 1, false, true);
         BKE_animdata_fix_paths_rename(id,
@@ -2665,7 +2665,7 @@ static wmOperatorStatus texture_slot_move_exec(bContext *C, wmOperator *op)
                                       -1,
                                       act,
                                       /*verify_paths=*/false,
-                                      /*suffix_is_name=*/true);
+                                      /*infix_is_name=*/true);
 
         set_active_mtex(id, act - 1);
       }
@@ -2685,7 +2685,7 @@ static wmOperatorStatus texture_slot_move_exec(bContext *C, wmOperator *op)
                                       act + 1,
                                       -1,
                                       /*verify_paths=*/false,
-                                      /*suffix_is_name=*/true);
+                                      /*infix_is_name=*/true);
         BKE_animdata_fix_paths_rename(id,
                                       adt,
                                       nullptr,
@@ -2695,9 +2695,17 @@ static wmOperatorStatus texture_slot_move_exec(bContext *C, wmOperator *op)
                                       act,
                                       act + 1,
                                       /*verify_paths=*/false,
-                                      /*suffix_is_name=*/true);
-        BKE_animdata_fix_paths_rename(
-            id, adt, nullptr, "texture_slots", nullptr, nullptr, -1, act, false, true);
+                                      /*infix_is_name=*/true);
+        BKE_animdata_fix_paths_rename(id,
+                                      adt,
+                                      nullptr,
+                                      "texture_slots",
+                                      nullptr,
+                                      nullptr,
+                                      -1,
+                                      act,
+                                      /*verify_paths=*/false,
+                                      /*infix_is_name=*/true);
 
         set_active_mtex(id, act + 1);
       }

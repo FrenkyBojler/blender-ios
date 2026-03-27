@@ -507,7 +507,7 @@ void ensure_unique_name(Strip *strip, Scene *scene)
                                 0,
                                 0,
                                 /*verify_paths=*/false,
-                                /*suffix_is_name=*/true);
+                                /*infix_is_name=*/true);
 
   if (strip->type == STRIP_TYPE_META) {
     for (Strip &strip_child : strip->seqbase) {

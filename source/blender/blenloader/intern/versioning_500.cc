@@ -1332,7 +1332,7 @@ static void do_version_convert_to_generic_nodes_after_linking(Main *bmain,
                                              0,
                                              1,
                                              /*verify_paths=*/false,
-                                             /*suffix_is_name=*/true);
+                                             /*infix_is_name=*/true);
         break;
       }
       /* Notice that we use the shader type because the node is already converted in versioning
@@ -1348,7 +1348,7 @@ static void do_version_convert_to_generic_nodes_after_linking(Main *bmain,
                                              1,
                                              6,
                                              /*verify_paths=*/false,
-                                             /*suffix_is_name=*/true);
+                                             /*infix_is_name=*/true);
         BKE_animdata_fix_paths_rename_all_ex(bmain,
                                              id,
                                              rna_path_prefix.c_str(),
@@ -1357,7 +1357,7 @@ static void do_version_convert_to_generic_nodes_after_linking(Main *bmain,
                                              2,
                                              7,
                                              /*verify_paths=*/false,
-                                             /*suffix_is_name=*/true);
+                                             /*infix_is_name=*/true);
         break;
       }
       default:

@@ -148,7 +148,7 @@ void BKE_animdata_fix_paths_rename_all(ID *ref_id,
                                        0,
                                        0,
                                        /*verify_paths=*/true,
-                                       /*suffix_is_name=*/true);
+                                       /*infix_is_name=*/true);
 }
 
 void BKE_animdata_fix_paths_rename_all_ex(Main *bmain,

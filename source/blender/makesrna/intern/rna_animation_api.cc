@@ -72,7 +72,7 @@ void rna_id_animdata_fix_paths_rename_all(ID *id,
                                        0,
                                        0,
                                        /*verify_paths=*/true,
-                                       /*suffix_is_name=*/true);
+                                       /*infix_is_name=*/true);
 }
 
 }  // namespace blender

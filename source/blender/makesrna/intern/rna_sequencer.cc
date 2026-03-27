@@ -917,7 +917,7 @@ static void rna_Strip_name_set(PointerRNA *ptr, const char *value)
                                   0,
                                   0,
                                   /*verify_paths=*/true,
-                                  /*suffix_is_name=*/true);
+                                  /*infix_is_name=*/true);
   }
 }
 
@@ -1600,7 +1600,7 @@ static void rna_StripModifier_name_set(PointerRNA *ptr, const char *value)
                                   0,
                                   0,
                                   /*verify_paths=*/true,
-                                  /*suffix_is_name=*/true);
+                                  /*infix_is_name=*/true);
   }
 }
 
