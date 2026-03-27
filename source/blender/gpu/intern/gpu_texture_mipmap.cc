@@ -186,11 +186,9 @@ void GPU_texture_update_mipmap_chain(Texture *tex)
     const TextureFormat texture_format = tex->format_get();
     Shader *shader = get_update_mipmap_shader(texture_format);
     if (shader) {
-      GPU_debug_capture_begin(__func__);
       GPU_debug_group_begin("Update Mipmaps");
       update_mipmaps(*tex, *shader);
       GPU_debug_group_end();
-      GPU_debug_capture_end();
       return;
     }
     CLOG_INFO(&LOG,

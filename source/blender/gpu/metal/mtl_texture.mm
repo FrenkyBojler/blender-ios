@@ -1346,7 +1346,8 @@ void gpu::MTLTexture::copy_to(Texture *dst, IndexRange mip_levels)
                      extent[1],
                      extent[2]);
         }
-      } break;
+        break;
+      }
     }
   }
 }
