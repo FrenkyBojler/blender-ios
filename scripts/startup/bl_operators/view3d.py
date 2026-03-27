@@ -309,11 +309,11 @@ class VIEW3D_OT_object_type_visibility(Operator):
     bl_label = "Object Type visibility"
     bl_idname = "view3d.object_type_visibility"
 
-    attribute_type: StringProperty(
-        name="attribute type"
+    prop_type: StringProperty(
+        name="Property Type"
     )
-    attribute_suffix: StringProperty(
-        name="attribute suffix"
+    prop_suffix: StringProperty(
+        name="Property Suffix"
     )
 
     @classmethod
@@ -323,11 +323,12 @@ class VIEW3D_OT_object_type_visibility(Operator):
 
     def invoke(cls, context, event):
         space_data = context.space_data
-        clicked_attribute = cls.attribute_type + cls.attribute_suffix
+        clicked_property = cls.prop_type + cls.prop_suffix
+
+        value = True if event.ctrl else not getattr(space_data, clicked_property, False)
+        setattr(space_data, clicked_property, value)
 
         if not event.ctrl:
-            value = getattr(space_data, clicked_attribute, False)
-            setattr(space_data, clicked_attribute, not value)
             return {'FINISHED'}
 
         suffix_list = (
@@ -351,14 +352,14 @@ class VIEW3D_OT_object_type_visibility(Operator):
 
         any_enabled = False
         for suffix in suffix_list:
-            attribute = cls.attribute_type + suffix
-            if attribute != clicked_attribute:
+            attribute = cls.prop_type + suffix
+            if attribute != clicked_property:
                 any_enabled |= getattr(space_data, attribute, False)
 
         do_isolate = not any_enabled
         for suffix in suffix_list:
-            attribute = cls.attribute_type + suffix
-            if attribute != clicked_attribute:
+            attribute = cls.prop_type + suffix
+            if attribute != clicked_property:
                 setattr(space_data, attribute, do_isolate)
 
         return {'FINISHED'}
