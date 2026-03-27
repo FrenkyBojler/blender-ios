@@ -256,7 +256,7 @@ static void node_update_glare_label(const bNodeTree *ntree,
                                     int maxlen)
 {
   ntree->ensure_topology_cache();
-  const bNodeSocket *type_input = node->input_by_identifier("Type");
+  const bNodeSocket *type_input = node->input_by_identifier("Type"_ustr);
 
   if (type_input->is_logically_linked()) {
     BLI_strncpy(label, IFACE_("Glare"), maxlen);
