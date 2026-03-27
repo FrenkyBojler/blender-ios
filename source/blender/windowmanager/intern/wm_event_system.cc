@@ -4219,6 +4219,12 @@ void wm_event_do_handlers(bContext *C)
   WM_gizmoconfig_update(CTX_data_main(C));
 
   for (wmWindow &win : wm->windows) {
+    /* Do the check at the start of the next iteration, to avoid by-passing it in case the
+     * previous iteration has been early-terminated (using `continue;` e.g.). */
+    if (wm->runtime->break_events_handling) {
+      break;
+    }
+
     bScreen *screen = WM_window_get_active_screen(&win);
 
     /* Some safety checks - these should always be set! */
@@ -4232,6 +4238,12 @@ void wm_event_do_handlers(bContext *C)
 
     wmEvent *event;
     while ((event = static_cast<wmEvent *>(win.runtime->event_queue.first))) {
+      /* Do the check at the start of the next iteration, to avoid by-passing it in case the
+       * previous iteration has been early-terminated (using `continue;` e.g.). */
+      if (wm->runtime->break_events_handling) {
+        break;
+      }
+
       eHandlerActionFlag action = WM_HANDLER_CONTINUE;
 
       /* Force handling drag if a key is pressed even if the drag threshold has not been met.
@@ -4442,10 +4454,6 @@ void wm_event_do_handlers(bContext *C)
       /* Un-link and free here, Blender-quit then frees all. */
       BLI_remlink(&win.runtime->event_queue, event);
       wm_event_free_last_handled(&win, event);
-
-      if (wm->runtime->break_events_handling) {
-        break;
-      }
     }
 
     /* Only add mouse-move when the event queue was read entirely. */
@@ -4462,10 +4470,6 @@ void wm_event_do_handlers(bContext *C)
     }
 
     CTX_wm_window_set(C, nullptr);
-
-    if (wm->runtime->break_events_handling) {
-      break;
-    }
   }
 
   /* Update key configuration after handling events. */
