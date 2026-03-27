@@ -3299,6 +3299,8 @@ static brushes::CursorSampleResult calc_brush_node_mask(const Depsgraph &depsgra
   if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_DRAW && brush.flag & BRUSH_ORIGINAL_NORMAL) {
     radius_scale = 2.0f;
   }
+  /* TODO: Test if gather_generic_cube is good enough for the case above. If true, move the
+   * following above radius_scale definition. */
   else if (BKE_brush_has_cube_tip(&brush, PaintMode::Sculpt)) {
     return {pbvh_gather_generic_cube(ob, brush, use_original, memory), std::nullopt, std::nullopt};
   }
@@ -3365,11 +3367,7 @@ static void do_brush_action(const Depsgraph &depsgraph,
     }
   }
 
-  if (BKE_brush_has_cube_tip(&brush, PaintMode::Sculpt)) {
-    /* Cube brush needs the local mat to be updated before calculating the node mask to work
-     * properly. */
-    update_brush_local_mat(sd, ob);
-  }
+  update_brush_local_mat(sd, ob);
 
   const brushes::CursorSampleResult cursor_sample_result = calc_brush_node_mask(
       depsgraph, ob, brush, memory);
@@ -3406,10 +3404,6 @@ static void do_brush_action(const Depsgraph &depsgraph,
   }
   if (sculpt_brush_needs_normal(ss, brush)) {
     update_sculpt_normal(depsgraph, sd, ob, cursor_sample_result);
-  }
-
-  if (!BKE_brush_has_cube_tip(&brush, PaintMode::Sculpt)) {
-    update_brush_local_mat(sd, ob);
   }
 
   if (brush.deform_target == BRUSH_DEFORM_TARGET_CLOTH_SIM) {
@@ -6881,19 +6875,19 @@ template void scatter_data_bmesh<float3>(Span<float3>,
                                          const Set<BMVert *, 0> &,
                                          MutableSpan<float3>);
 
-void calc_local_positions(const float4x4 &mat,
+void calc_local_positions(const Span<float3> vert_positions,
                           const Span<int> verts,
-                          const Span<float3> positions,
+                          const float4x4 &mat,
                           const MutableSpan<float3> local_positions)
 {
   BLI_assert(local_positions.size() == verts.size());
   for (const int i : verts.index_range()) {
-    local_positions[i] = math::transform_point(mat, positions[verts[i]]);
+    local_positions[i] = math::transform_point(mat, vert_positions[verts[i]]);
   }
 }
 
-void calc_local_positions(const float4x4 &mat,
-                          const Span<float3> positions,
+void calc_local_positions(const Span<float3> positions,
+                          const float4x4 &mat,
                           const MutableSpan<float3> local_positions)
 {
   BLI_assert(local_positions.size() == positions.size());
@@ -6902,9 +6896,9 @@ void calc_local_positions(const float4x4 &mat,
   }
 }
 
-void calc_local_positions(const float4x4 &mat,
+void calc_local_positions(const Span<float3> vert_positions,
                           const Span<int> verts,
-                          const Span<float3> vert_positions,
+                          const float4x4 &mat,
                           const MutableSpan<float2> xy_positions,
                           const MutableSpan<float> z_positions)
 {
@@ -6919,8 +6913,8 @@ void calc_local_positions(const float4x4 &mat,
   }
 }
 
-void calc_local_positions(const float4x4 &mat,
-                          const Span<float3> positions,
+void calc_local_positions(const Span<float3> positions,
+                          const float4x4 &mat,
                           const MutableSpan<float2> xy_positions,
                           const MutableSpan<float> z_positions)
 {
@@ -7079,7 +7073,7 @@ void calc_cube_tip_factors_common_mesh_indexed(const Depsgraph &depsgraph,
   /* Calculate local positions. */
   Vector<float3> local_positions_storage(verts.size());
   MutableSpan<float3> local_positions = local_positions_storage;
-  calc_local_positions(mat, verts, vert_positions, local_positions);
+  calc_local_positions(vert_positions, verts, mat, local_positions);
 
   /* Find the cube distance. */
   calc_brush_cube_distances<float3>(brush, local_positions, distances);
@@ -7161,7 +7155,7 @@ void calc_cube_tip_factors_common_grids(const Depsgraph &depsgraph,
   /* Calculate local positions. */
   Vector<float3> local_positions_storage(positions.size());
   MutableSpan<float3> local_positions = local_positions_storage;
-  calc_local_positions(mat, positions, local_positions);
+  calc_local_positions(positions, mat, local_positions);
 
   /* Find the cube distance. */
   r_distances.resize(positions.size());
@@ -7241,7 +7235,7 @@ void calc_cube_tip_factors_common_bmesh(const Depsgraph &depsgraph,
   /* Calculate local positions. */
   Vector<float3> local_positions_storage(verts.size());
   MutableSpan<float3> local_positions = local_positions_storage;
-  calc_local_positions(mat, positions, local_positions);
+  calc_local_positions(positions, mat, local_positions);
 
   /* Find the cube distance. */
   r_distances.resize(verts.size());

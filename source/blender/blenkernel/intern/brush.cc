@@ -1700,7 +1700,6 @@ ImBuf *BKE_brush_gen_radial_control_imbuf(Brush *br, bool secondary, bool displa
 
 bool BKE_brush_has_cube_tip(const Brush *brush, PaintMode paint_mode)
 {
-
   switch (paint_mode) {
     case PaintMode::Sculpt: {
       if (brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_MULTIPLANE_SCRAPE) {

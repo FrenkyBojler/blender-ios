@@ -377,7 +377,7 @@ static void do_paint_brush_task(const Depsgraph &depsgraph,
     tls.z_positions.resize(verts.size());
     MutableSpan<float2> xy_positions = tls.xy_positions;
     MutableSpan<float> z_positions = tls.z_positions;
-    calc_local_positions(mat, verts, vert_positions, tls.xy_positions, tls.z_positions);
+    calc_local_positions(vert_positions, verts, mat, tls.xy_positions, tls.z_positions);
     calc_brush_cube_distances<float2>(brush, tls.xy_positions, distances);
     radius = 1.0f;
   }

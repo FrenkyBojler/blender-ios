@@ -561,13 +561,13 @@ void filter_above_plane_factors(Span<float3> positions,
                                 MutableSpan<float> factors);
 
 /* Transforms positions from object space positions to brush-local space. */
-void calc_local_positions(const float4x4 &mat,
+void calc_local_positions(const Span<float3> vert_positions,
                           const Span<int> verts,
-                          const Span<float3> positions,
+                          const float4x4 &mat,
                           const MutableSpan<float3> local_positions);
 
-void calc_local_positions(const float4x4 &mat,
-                          const Span<float3> positions,
+void calc_local_positions(const Span<float3> positions,
+                          const float4x4 &mat,
                           const MutableSpan<float3> local_positions);
 
 /**
@@ -575,14 +575,14 @@ void calc_local_positions(const float4x4 &mat,
  * components gives slightly better performance. Used by some brushes that only need the XY
  * components for certain calculations.
  */
-void calc_local_positions(const float4x4 &mat,
+void calc_local_positions(const Span<float3> vert_positions,
                           const Span<int> verts,
-                          const Span<float3> positions,
+                          const float4x4 &mat,
                           const MutableSpan<float2> xy_positions,
                           const MutableSpan<float> z_positions);
 
-void calc_local_positions(const float4x4 &mat,
-                          const Span<float3> positions,
+void calc_local_positions(const Span<float3> positions,
+                          const float4x4 &mat,
                           const MutableSpan<float2> xy_positions,
                           const MutableSpan<float> z_positions);
 
