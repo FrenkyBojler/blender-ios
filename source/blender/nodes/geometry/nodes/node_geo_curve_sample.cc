@@ -310,9 +310,8 @@ class SampleCurveFunction : public mf::MultiFunction {
         index_mask::masked_fill(sampled_normals, float3(0), mask);
       }
       if (!sampled_values.is_empty()) {
-        bke::attribute_math::to_static_type(source_data_->type(), [&]<typename T>() {
-          index_mask::masked_fill<T>(sampled_values.typed<T>(), {}, mask);
-        });
+        sampled_values.type().fill_construct_indices(
+            sampled_values.type().default_value(), sampled_values.data(), mask);
       }
     };
 
@@ -332,10 +331,9 @@ class SampleCurveFunction : public mf::MultiFunction {
               sampled_normals, evaluated_normals[evaluated_points.first()], mask);
         }
         if (!sampled_values.is_empty()) {
-          bke::attribute_math::to_static_type(source_data_->type(), [&]<typename T>() {
-            const T &value = source_data_->typed<T>()[points_by_curve[curve_i].first()];
-            index_mask::masked_fill<T>(sampled_values.typed<T>(), value, mask);
-          });
+          BUFFER_FOR_CPP_TYPE_VALUE(source_data_->type(), value);
+          source_data_->get(points_by_curve[curve_i].first(), value);
+          source_data_->type().fill_construct_indices(value, sampled_values.data(), mask);
         }
         return;
       }
@@ -382,10 +380,12 @@ class SampleCurveFunction : public mf::MultiFunction {
         src_evaluated_values.reinitialize(evaluated_points.size());
         curves.interpolate_to_evaluated(curve_i, src_original_values, src_evaluated_values);
         bke::attribute_math::to_static_type(source_data_->type(), [&]<typename T>() {
-          const Span<T> src_evaluated_values_typed = src_evaluated_values.as_span().typed<T>();
-          MutableSpan<T> sampled_values_typed = sampled_values.typed<T>();
-          length_parameterize::interpolate_to_masked<T>(
-              src_evaluated_values_typed, indices, factors, mask, sampled_values_typed);
+          if constexpr (!std::is_same_v<T, std::string>) {
+            const Span<T> src_evaluated_values_typed = src_evaluated_values.as_span().typed<T>();
+            MutableSpan<T> sampled_values_typed = sampled_values.typed<T>();
+            length_parameterize::interpolate_to_masked<T>(
+                src_evaluated_values_typed, indices, factors, mask, sampled_values_typed);
+          }
         });
       }
     };
@@ -462,7 +462,7 @@ static Array<float> curve_accumulated_lengths(const bke::CurvesGeometry &curves)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  GeometrySet geometry_set = params.extract_input<GeometrySet>("Curves");
+  GeometrySet geometry_set = params.extract_input<GeometrySet>("Curves"_ustr);
   if (!geometry_set.has_curves()) {
     params.set_default_remaining_outputs();
     return;
@@ -480,10 +480,11 @@ static void node_geo_exec(GeoNodeExecParams params)
   const NodeGeometryCurveSample &storage = node_storage(params.node());
   const GeometryNodeCurveSampleMode mode = GeometryNodeCurveSampleMode(storage.mode);
 
-  const StringRef length_input_name = mode == GEO_NODE_CURVE_SAMPLE_FACTOR ? "Factor" : "Length";
+  const UString length_input_name = mode == GEO_NODE_CURVE_SAMPLE_FACTOR ? "Factor"_ustr :
+                                                                           "Length"_ustr;
   auto sample_length = params.extract_input<bke::SocketValueVariant>(length_input_name);
 
-  GField src_values_field = params.extract_input<GField>("Value");
+  GField src_values_field = params.extract_input<GField>("Value"_ustr);
 
   std::string error_message;
 
@@ -537,7 +538,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       }
     }
     else {
-      auto curve_index = params.extract_input<bke::SocketValueVariant>("Curve Index");
+      auto curve_index = params.extract_input<bke::SocketValueVariant>("Curve Index"_ustr);
       if (!execute_multi_function_on_value_variant(
               std::make_shared<SampleCurveFunction>(
                   std::move(geometry_set), mode, std::move(src_values_field)),
@@ -553,10 +554,10 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   }
 
-  params.set_output("Position", std::move(position));
-  params.set_output("Tangent", std::move(tangent));
-  params.set_output("Normal", std::move(normal));
-  params.set_output("Value", std::move(value));
+  params.set_output("Position"_ustr, std::move(position));
+  params.set_output("Tangent"_ustr, std::move(tangent));
+  params.set_output("Normal"_ustr, std::move(normal));
+  params.set_output("Value"_ustr, std::move(value));
 }
 
 static void node_register()

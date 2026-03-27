@@ -122,7 +122,28 @@ static void node_declare_multi_layer(NodeDeclarationBuilder &b,
     }
   }
 
+  /* The special 0 view in the image user denotes the view currently being composited, but since
+   * this is not known at declaration time, we add all passes regardless of their view. */
+  const bool should_add_all_views = image_user->view == 0;
+  /* If the special 0 value is not chosen, the selected view will be the image user view minus 1,
+   * to offset for the special value. */
+  const int selected_view = image_user->view - 1;
+
+  Set<StringRef> added_passes;
   for (RenderPass &pass : render_layer->passes) {
+    if (should_add_all_views) {
+      /* Pass already added from another view. */
+      if (added_passes.contains(pass.name)) {
+        continue;
+      }
+      added_passes.add_new(pass.name);
+    }
+    else {
+      if (pass.view_id != selected_view) {
+        continue;
+      }
+    }
+
     declare_pass(b, pass);
 
     /* If the image does not have an alpha pass add an extra alpha pass that is generated based on
@@ -236,6 +257,11 @@ class ImageOperation : public NodeOperation {
 
   void execute() override
   {
+    if (!this->get_image() || !this->get_image_user()) {
+      this->allocate_default_remaining_outputs();
+      return;
+    }
+
     for (const bNodeSocket *output : this->node().output_sockets()) {
       if (!is_socket_available(output)) {
         continue;
@@ -249,11 +275,6 @@ class ImageOperation : public NodeOperation {
   {
     Result &result = this->get_result(identifier);
     if (!result.should_compute()) {
-      return;
-    }
-
-    if (!this->get_image() || !this->get_image_user()) {
-      result.allocate_invalid();
       return;
     }
 

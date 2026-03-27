@@ -720,7 +720,7 @@ static void report_invalid_mode(const bke::pbvh::Type pbvh_type, ReportList &rep
     BKE_report(&reports, RPT_ERROR, "Not supported in dynamic topology mode");
   }
   else if (pbvh_type == bke::pbvh::Type::Grids) {
-    BKE_report(&reports, RPT_ERROR, "Not supported in multiresolution mode");
+    BKE_report(&reports, RPT_ERROR, "Not supported in multi-resolution mode");
   }
   else {
     BLI_assert_unreachable();
@@ -901,7 +901,7 @@ void SCULPT_OT_trim_lasso_gesture(wmOperatorType *ot)
   ot->modal = WM_gesture_lasso_modal;
   ot->exec = gesture_lasso_exec;
 
-  ot->poll = SCULPT_mode_poll_view3d;
+  ot->poll = sculpt_mode_poll_view3d;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_DEPENDS_ON_CURSOR;
 
@@ -923,7 +923,7 @@ void SCULPT_OT_trim_box_gesture(wmOperatorType *ot)
   ot->modal = WM_gesture_box_modal;
   ot->exec = gesture_box_exec;
 
-  ot->poll = SCULPT_mode_poll_view3d;
+  ot->poll = sculpt_mode_poll_view3d;
 
   ot->flag = OPTYPE_REGISTER;
 
@@ -944,7 +944,7 @@ void SCULPT_OT_trim_line_gesture(wmOperatorType *ot)
   ot->modal = WM_gesture_straightline_oneshot_modal;
   ot->exec = gesture_line_exec;
 
-  ot->poll = SCULPT_mode_poll_view3d;
+  ot->poll = sculpt_mode_poll_view3d;
 
   ot->flag = OPTYPE_REGISTER;
 
@@ -966,7 +966,7 @@ void SCULPT_OT_trim_polyline_gesture(wmOperatorType *ot)
   ot->modal = WM_gesture_polyline_modal;
   ot->exec = gesture_polyline_exec;
 
-  ot->poll = SCULPT_mode_poll_view3d;
+  ot->poll = sculpt_mode_poll_view3d;
 
   ot->flag = OPTYPE_REGISTER;
 

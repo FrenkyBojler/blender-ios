@@ -102,9 +102,9 @@ void VKTexture::copy_to(VKTexture &dst_texture, VkImageAspectFlags vk_image_aspe
   dst_texture.has_data_ = true;
 }
 
-void VKTexture::copy_to(Texture *tex)
+void VKTexture::copy_to(Texture *texture)
 {
-  VKTexture *dst = unwrap(tex);
+  VKTexture *dst = unwrap(texture);
   VKTexture *src = this;
   BLI_assert(dst);
   BLI_assert(src->w_ == dst->w_ && src->h_ == dst->h_ && src->d_ == dst->d_);
@@ -115,42 +115,18 @@ void VKTexture::copy_to(Texture *tex)
   copy_to(*dst, to_vk_image_aspect_flag_bits(device_format_));
 }
 
-void VKTexture::clear(eGPUDataFormat format, const void *data)
+void VKTexture::clear(const double4 data)
 {
+  eGPUDataFormat data_format = to_texture_data_format(format_);
+
   /* Relay depth/stencil clearing to clear_depth_stencil. This branch can be used by pyGPU. */
-  if (bool(format_flag_ & (GPU_FORMAT_DEPTH | GPU_FORMAT_STENCIL))) {
-    float clear_depth = 1.0f;
-    switch (format) {
-      case GPU_DATA_FLOAT:
-        clear_depth = *static_cast<const float *>(data);
-        break;
-
-      case GPU_DATA_UINT_24_8_DEPRECATED:
-        convert_host_to_device(&clear_depth,
-                               data,
-                               1,
-                               format,
-                               TextureFormat::SFLOAT_32_DEPTH_UINT_8,
-                               TextureFormat::SFLOAT_32_DEPTH_UINT_8);
-        break;
-
-      case GPU_DATA_HALF_FLOAT:
-      case GPU_DATA_INT:
-      case GPU_DATA_UINT:
-      case GPU_DATA_UBYTE:
-      case GPU_DATA_10_11_11_REV:
-      case GPU_DATA_2_10_10_10_REV:
-        /* Can only clear depth/stencil textures with float/uin24_8 data format. Texture will be
-         * cleared to 1.0 depth. */
-        BLI_assert_unreachable();
-        break;
-    }
-    clear_depth_stencil(GPU_DEPTH_BIT | GPU_STENCIL_BIT, clear_depth, 0u, std::nullopt);
+  if (format_flag_ & GPU_FORMAT_DEPTH) {
+    clear_depth_stencil(GPU_DEPTH_BIT, data.x, 0u, std::nullopt);
     return;
   }
 
   render_graph::VKClearColorImageNode::CreateInfo clear_color_image = {};
-  clear_color_image.vk_clear_color_value = to_vk_clear_color_value(format, data);
+  clear_color_image.vk_clear_color_value = to_vk_clear_color_value(data_format, data);
   clear_color_image.vk_image = vk_image_handle();
   clear_color_image.vk_image_subresource_range.aspectMask = to_vk_image_aspect_flag_bits(
       device_format_);
@@ -425,7 +401,7 @@ void VKTexture::update_sub(int mip,
 
   VKDevice &device = VKBackend::get().device;
 
-  const bool is_sequential_packed = ELEM(unpack_row_length, 0, extent.x);
+  const bool is_sequential_packed = ELEM(unpack_row_length, 0u, uint(extent.x));
   /* Do conversion on CPU side. Allocating a staging buffer for these cases is less effective as
    * it has overhead of the render graph, pipeline barriers and layout transitions.  Staging
    * buffers are optimized for sequential access which adds overhead when using multi-threading. */
@@ -797,10 +773,8 @@ IndexRange VKTexture::layer_range() const
   if (is_texture_view()) {
     return IndexRange(layer_offset_, layer_count());
   }
-  else {
-    return IndexRange(
-        0, ELEM(type_, GPU_TEXTURE_CUBE, GPU_TEXTURE_CUBE_ARRAY) ? d_ : VK_REMAINING_ARRAY_LAYERS);
-  }
+  return IndexRange(
+      0, ELEM(type_, GPU_TEXTURE_CUBE, GPU_TEXTURE_CUBE_ARRAY) ? d_ : VK_REMAINING_ARRAY_LAYERS);
 }
 
 int VKTexture::vk_layer_count(int non_layered_value) const

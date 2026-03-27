@@ -10,13 +10,20 @@
 
 #include "DNA_ID.h"
 #include "DNA_brush_types.h"
+#include "DNA_curve_types.h"
+#include "DNA_scene_types.h"
+#include "DNA_screen_types.h"
 
 #include "BLI_listbase_iterator.hh"
 #include "BLI_sys_types.h"
 
 #include "BKE_main.hh"
+#include "BKE_mesh_legacy_convert.hh"
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
+
+#include "SEQ_iterator.hh"
+#include "SEQ_sequencer.hh"
 
 #include "readfile.hh"
 
@@ -28,7 +35,7 @@ namespace blender {
 
 // static CLG_LogRef LOG = {"blend.doversion"};
 
-/* Saving file extension is now a property of the the File Output node. So inherit this
+/* Saving file extension is now a property of the File Output node. So inherit this
  * setting from the active scene to restore the old behavior.
  * Note: One limitation is that node groups containing file outputs that are not part of any
  * scene are not affected by versioning. */
@@ -44,6 +51,38 @@ static void do_version_file_output_use_file_extension_recursive(bNodeTree &node_
       bNodeTree *ngroup = id_cast<bNodeTree *>(node.id);
       if (ngroup) {
         do_version_file_output_use_file_extension_recursive(*ngroup, scene);
+      }
+    }
+  }
+}
+
+static void version_clear_strip_linear_modifier_flag(Main &bmain)
+{
+  for (Scene &scene : bmain.scenes) {
+    Editing *ed = seq::editing_get(&scene);
+    if (ed != nullptr) {
+      seq::foreach_strip(&ed->seqbase, [&](Strip *strip) {
+        constexpr int flag_linear_modifiers = 1 << 23;
+        strip->flag &= ~flag_linear_modifiers;
+        return true;
+      });
+    }
+  }
+}
+
+static void fix_single_point_curves_custom_knots(Main *bmain)
+{
+  /* Fix corrupted flagu/flagv values created by older versions of the Curve Pen tool.
+   * The tool could create loose vertices with invalid flag values (e.g. -2), where
+   * CU_NURB_CUSTOM was set alongside other flags and knotsu/knotsv was left null,
+   * causing a crash when opening these files in newer versions. */
+  for (Curve &cu : bmain->curves) {
+    for (Nurb *nu = static_cast<Nurb *>(cu.nurb.first); nu != nullptr; nu = nu->next) {
+      if (nu->knotsu == nullptr && (nu->flagu & CU_NURB_CUSTOM)) {
+        nu->flagu &= (CU_NURB_CYCLIC | CU_NURB_BEZIER | CU_NURB_ENDPOINT);
+      }
+      if (nu->knotsv == nullptr && (nu->flagv & CU_NURB_CUSTOM)) {
+        nu->flagv &= (CU_NURB_CYCLIC | CU_NURB_BEZIER | CU_NURB_ENDPOINT);
       }
     }
   }
@@ -81,6 +120,85 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       if (brush.gpencil_settings != nullptr) {
         brush.blend = 0;
       }
+    }
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 5)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id_owner) {
+      for (bNode &node : node_tree->nodes) {
+        if (node.type_legacy == FN_NODE_INPUT_VECTOR) {
+          auto &data = *static_cast<NodeInputVector *>(node.storage);
+          data.vector[3] = 0.0f;
+          data.dimensions = 3;
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 6)) {
+    for (Scene &scene : bmain->scenes) {
+      SequencerToolSettings *sequencer_tool_settings = seq::tool_settings_ensure(&scene);
+      sequencer_tool_settings->snap_flag |= SEQ_SNAP_TO_ALL_CHANNEL_STRIPS;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 7)) {
+    for (Scene &scene : bmain->scenes) {
+      scene.r.anisotropic_filter = 2;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 9)) {
+    for (Mesh &mesh : bmain->meshes) {
+      bke::mesh_freestyle_marks_to_generic(mesh);
+    }
+  }
+
+  /* Convert H.264 codec value for older files (2.79), see #155775. */
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 10)) {
+    for (Scene &scene : bmain->scenes) {
+      if (scene.r.ffcodecdata.codec == 28) {
+        scene.r.ffcodecdata.codec = 27;
+      }
+    }
+  }
+
+  /* Disable "unified" flags for Grease Pencil Draw mode. */
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 11)) {
+    for (Scene &scene : bmain->scenes) {
+      if (scene.toolsettings->gp_paint) {
+        UnifiedPaintSettings &settings =
+            scene.toolsettings->gp_paint->paint.unified_paint_settings;
+        settings.flag &= ~(UNIFIED_PAINT_SIZE | UNIFIED_PAINT_ALPHA | UNIFIED_PAINT_COLOR);
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 12)) {
+    for (bScreen &screen : bmain->screens) {
+      for (ScrArea &area : screen.areabase) {
+        for (SpaceLink &space : area.spacedata) {
+          if (space.spacetype == SPACE_NODE) {
+            SpaceNode *space_node = reinterpret_cast<SpaceNode *>(&space);
+            space_node->overlay.flag |= SN_OVERLAY_SHOW_RENDER_REGION;
+            space_node->overlay.passepartout_alpha = 0.5f;
+          }
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 13)) {
+    version_clear_strip_linear_modifier_flag(*bmain);
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 14)) {
+    fix_single_point_curves_custom_knots(bmain);
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 15)) {
+    for (Scene &scene : bmain->scenes) {
+      scene.r.scemode |= R_USE_TEXTURE_CACHE;
     }
   }
   /**

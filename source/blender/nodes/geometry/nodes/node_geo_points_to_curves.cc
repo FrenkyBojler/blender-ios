@@ -64,14 +64,10 @@ static void find_points_by_group_index(const Span<int> indices_of_curves,
                                        MutableSpan<int> r_offsets,
                                        MutableSpan<int> r_indices)
 {
-  offset_indices::build_reverse_offsets(indices_of_curves, r_offsets);
-  Array<int> counts(r_offsets.size(), 0);
-
-  for (const int64_t index : indices_of_curves.index_range()) {
-    const int curve_index = indices_of_curves[index];
-    r_indices[r_offsets[curve_index] + counts[curve_index]] = int(index);
-    counts[curve_index]++;
-  }
+  const OffsetIndices offsets = offset_indices::build_reverse_offsets(indices_of_curves,
+                                                                      r_offsets);
+  /* Sorting is implemented by the caller. */
+  offset_indices::reverse_indices_in_groups(indices_of_curves, offsets, r_indices, false);
 }
 
 static int identifiers_to_indices(MutableSpan<int> r_identifiers_to_indices)
@@ -170,11 +166,11 @@ static Curves *curves_from_points(const PointCloud &points,
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  GeometrySet geometry_set = params.extract_input<GeometrySet>("Points");
-  const Field<int> group_id_field = params.extract_input<Field<int>>("Curve Group ID");
-  const Field<float> weight_field = params.extract_input<Field<float>>("Weight");
+  GeometrySet geometry_set = params.extract_input<GeometrySet>("Points"_ustr);
+  const Field<int> group_id_field = params.extract_input<Field<int>>("Curve Group ID"_ustr);
+  const Field<float> weight_field = params.extract_input<Field<float>>("Weight"_ustr);
 
-  const NodeAttributeFilter attribute_filter = params.get_attribute_filter("Curves");
+  const NodeAttributeFilter attribute_filter = params.get_attribute_filter("Curves"_ustr);
   geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     geometry_set.replace_curves(nullptr);
     if (const PointCloud *points = geometry_set.get_pointcloud()) {
@@ -185,7 +181,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     geometry_set.keep_only({GeometryComponent::Type::Curve, GeometryComponent::Type::Edit});
   });
 
-  params.set_output("Curves", std::move(geometry_set));
+  params.set_output("Curves"_ustr, std::move(geometry_set));
 }
 
 static void node_register()

@@ -179,7 +179,7 @@ static bool do_write_image_or_movie(Render *re,
                                     Scene *scene,
                                     const int totvideos,
                                     const char *filepath_override,
-                                    const bool write_anim);
+                                    const bool write_anim_or_still);
 
 /* default callbacks, set in each new render */
 static void result_rcti_nothing(void * /*arg*/, RenderResult * /*rr*/, rcti * /*rect*/) {}
@@ -1367,47 +1367,10 @@ static bool seq_result_needs_float(const ImageFormatData &im_format)
   return ELEM(im_format.depth, R_IMF_CHAN_DEPTH_10, R_IMF_CHAN_DEPTH_12);
 }
 
-static ImBuf *seq_process_render_image(ImBuf *src,
-                                       const ImageFormatData &im_format,
-                                       const Scene *scene)
-{
-  if (src == nullptr) {
-    return nullptr;
-  }
-
-  ImBuf *dst = nullptr;
-  if (seq_result_needs_float(im_format) && src->float_buffer.data == nullptr) {
-    /* If render output needs >8-BPP input and we only have 8-BPP, convert to float. */
-    dst = IMB_allocImBuf(src->x, src->y, src->planes, 0);
-    IMB_alloc_float_pixels(dst, src->channels, false);
-    /* Transform from sequencer space to scene linear. */
-    const char *from_colorspace = IMB_colormanagement_get_rect_colorspace(src);
-    const char *to_colorspace = IMB_colormanagement_role_colorspace_name_get(
-        COLOR_ROLE_SCENE_LINEAR);
-    IMB_colormanagement_transform_byte_to_float(dst->float_buffer.data,
-                                                src->byte_buffer.data,
-                                                src->x,
-                                                src->y,
-                                                src->channels,
-                                                from_colorspace,
-                                                to_colorspace);
-  }
-  else {
-    /* Duplicate sequencer output and ensure it is in needed color space. */
-    dst = IMB_dupImBuf(src);
-    seq::render_imbuf_from_sequencer_space(scene, dst);
-  }
-  IMB_metadata_copy(dst, src);
-  IMB_freeImBuf(src);
-
-  return dst;
-}
-
 /* Render sequencer strips into render result. */
 static void do_render_sequencer(Render *re)
 {
   static int recurs_depth = 0;
-  ImBuf *out;
   RenderResult *rr; /* don't assign re->result here as it might change during give_ibuf_seq */
   int cfra = re->r.cfra;
   seq::RenderData context;
@@ -1448,8 +1411,13 @@ static void do_render_sequencer(Render *re)
 
   for (view_id = 0; view_id < tot_views; view_id++) {
     context.view_id = view_id;
-    out = render_give_ibuf(&context, cfra, 0);
-    ibuf_arr[view_id] = seq_process_render_image(out, re->r.im_format, re->pipeline_scene_eval);
+    ImBuf *out = render_give_ibuf(&context, cfra, 0);
+    if (out != nullptr) {
+      bool make_float = seq_result_needs_float(re->r.im_format);
+      out = IMB_makeSingleUser(out);
+      seq::ensure_ibuf_is_linear_space(out, make_float);
+      ibuf_arr[view_id] = out;
+    }
   }
 
   rr = re->result;
@@ -1977,7 +1945,7 @@ void RE_RenderFrame(Render *re,
             nullptr);
 
         if (errors.is_empty()) {
-          do_write_image_or_movie(re, bmain, scene, 0, filepath_override, false);
+          do_write_image_or_movie(re, bmain, scene, 0, filepath_override, write_still);
         }
         else {
           BKE_report_path_template_errors(re->reports, RPT_ERROR, rd.pic, errors);
@@ -2175,7 +2143,7 @@ static bool do_write_image_or_movie(Render *re,
                                     Scene *scene,
                                     const int totvideos,
                                     const char *filepath_override,
-                                    const bool write_anim)
+                                    const bool write_anim_or_still)
 {
   char filepath[FILE_MAX];
   RenderResult rres;
@@ -2186,7 +2154,7 @@ static bool do_write_image_or_movie(Render *re,
   /* Only disable file writing if postprocessing is also disabled. */
   const bool do_write_file = (!(re_type->flag & RE_USE_NO_IMAGE_SAVE) ||
                               (re_type->flag & RE_USE_POSTPROCESS)) &&
-                             write_anim;
+                             write_anim_or_still;
 
   if (do_write_file) {
     RE_AcquireResultImageViews(re, &rres);
@@ -2367,7 +2335,8 @@ void RE_RenderAnim(Render *re,
     bool is_error = false;
     re->movie_writers.reserve(totvideos);
     for (int i = 0; i < totvideos; i++) {
-      const char *suffix = BKE_scene_multiview_view_id_suffix_get(&re->r, i);
+      const char *suffix = is_multiview_name ? BKE_scene_multiview_view_id_suffix_get(&re->r, i) :
+                                               "";
       MovieWriter *writer = MOV_write_begin(re->pipeline_scene_eval,
                                             &re->r,
                                             &image_format,
