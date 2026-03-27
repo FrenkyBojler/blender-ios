@@ -87,7 +87,7 @@ static void node_declare(NodeDeclarationBuilder &b)
               return std::nullopt;
             }
             const std::optional<bool> all_channels =
-                params.get_input("All Channels").get_if_primitive<bool>();
+                params.get_input("All Channels"_ustr).get_if_primitive<bool>();
             if (!all_channels.has_value()) {
               return true;
             }
@@ -296,20 +296,21 @@ static bke::bSoundFrequencySampler::WindowFunction to_window_function(
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  bSound *sound = params.extract_input<bSound *>("Sound");
+  bSound *sound = params.extract_input<bSound *>("Sound"_ustr);
   if (!sound) {
     params.set_default_remaining_outputs();
     return;
   }
 
-  const FFTSize fft_size = params.extract_input<FFTSize>("FFT Size");
-  const WindowFunction window_function = params.extract_input<WindowFunction>("Window Function");
+  const FFTSize fft_size = params.extract_input<FFTSize>("FFT Size"_ustr);
+  const WindowFunction window_function = params.extract_input<WindowFunction>(
+      "Window Function"_ustr);
 
-  SocketValueVariant times = params.extract_input<SocketValueVariant>("Time");
-  SocketValueVariant all_channels = params.extract_input<SocketValueVariant>("All Channels");
-  SocketValueVariant channels = params.extract_input<SocketValueVariant>("Channel");
-  SocketValueVariant lows = params.extract_input<SocketValueVariant>("Low");
-  SocketValueVariant highs = params.extract_input<SocketValueVariant>("High");
+  SocketValueVariant times = params.extract_input<SocketValueVariant>("Time"_ustr);
+  SocketValueVariant all_channels = params.extract_input<SocketValueVariant>("All Channels"_ustr);
+  SocketValueVariant channels = params.extract_input<SocketValueVariant>("Channel"_ustr);
+  SocketValueVariant lows = params.extract_input<SocketValueVariant>("Low"_ustr);
+  SocketValueVariant highs = params.extract_input<SocketValueVariant>("High"_ustr);
 
   auto sample_fn = std::make_shared<SampleSoundFunction>(
       *sound, to_fft_size_int(fft_size), to_window_function(window_function));
@@ -327,7 +328,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  params.set_output("Amplitude", std::move(amplitudes));
+  params.set_output("Amplitude"_ustr, std::move(amplitudes));
 }
 
 static void node_register()
