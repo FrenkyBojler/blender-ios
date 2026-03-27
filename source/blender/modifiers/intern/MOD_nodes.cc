@@ -85,7 +85,7 @@
 #include "ED_undo.hh"
 #include "ED_viewer_path.hh"
 
-#include "NOD_geometry_nodes_dependencies.hh"
+#include "NOD_dependencies.hh"
 #include "NOD_geometry_nodes_execute.hh"
 #include "NOD_geometry_nodes_gizmos.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
@@ -109,7 +109,7 @@ static void init_data(ModifierData *md)
 }
 
 static void find_dependencies_from_settings(const NodesModifierSettings &settings,
-                                            nodes::GeometryNodesEvalDependencies &deps)
+                                            nodes::EvalDependencies &deps)
 {
   IDP_foreach_property(settings.properties, IDP_TYPE_FILTER_ID, [&](IDProperty *property) {
     if (ID *id = IDP_ID_get(property)) {
@@ -132,10 +132,9 @@ static void add_collection_relation(const ModifierUpdateDepsgraphContext *ctx,
   DEG_add_collection_geometry_customdata_mask(ctx->node, &collection, &dependency_data_mask);
 }
 
-static void add_object_relation(
-    const ModifierUpdateDepsgraphContext *ctx,
-    Object &object,
-    const nodes::GeometryNodesEvalDependencies::ObjectDependencyInfo &info)
+static void add_object_relation(const ModifierUpdateDepsgraphContext *ctx,
+                                Object &object,
+                                const nodes::EvalDependencies::ObjectDependencyInfo &info)
 {
   if (info.transform) {
     DEG_add_object_relation(ctx->node, &object, DEG_OB_COMP_TRANSFORM, "Nodes Modifier");
@@ -176,8 +175,7 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
 
   DEG_add_node_tree_output_relation(ctx->node, nmd->node_group, "Nodes Modifier");
 
-  nodes::GeometryNodesEvalDependencies eval_deps =
-      nodes::gather_geometry_nodes_eval_dependencies_recursive(*nmd->node_group);
+  nodes::EvalDependencies eval_deps = nodes::gather_eval_dependencies_recursive(*nmd->node_group);
 
   /* Create dependencies to data-blocks referenced by the settings in the modifier. */
   find_dependencies_from_settings(nmd->settings, eval_deps);
@@ -258,8 +256,7 @@ static bool depends_on_time(Scene * /*scene*/, ModifierData *md)
       return true;
     }
   }
-  nodes::GeometryNodesEvalDependencies eval_deps =
-      nodes::gather_geometry_nodes_eval_dependencies_recursive(*nmd->node_group);
+  nodes::EvalDependencies eval_deps = nodes::gather_eval_dependencies_recursive(*nmd->node_group);
   return eval_deps.time_dependent;
 }
 
@@ -816,7 +813,7 @@ static void find_side_effect_nodes_for_active_gizmos(
     const ModifierEvalContext &ctx,
     const wmWindowManager &wm,
     nodes::GeoNodesSideEffectNodes &r_side_effect_nodes,
-    Set<ComputeContextHash> &r_socket_log_contexts)
+    Set<ComputeContextHash> &r_verbose_log_contexts)
 {
   Object *object_orig = DEG_get_original(ctx.object);
   const NodesModifierData &nmd_orig = *reinterpret_cast<const NodesModifierData *>(
@@ -832,13 +829,13 @@ static void find_side_effect_nodes_for_active_gizmos(
           const bNodeSocket &gizmo_socket) {
         try_add_side_effect_node(
             ctx, compute_context, gizmo_node.identifier, nmd, r_side_effect_nodes);
-        r_socket_log_contexts.add(compute_context.hash());
+        r_verbose_log_contexts.add(compute_context.hash());
 
         nodes::gizmos::foreach_compute_context_on_gizmo_path(
             compute_context, gizmo_node, gizmo_socket, [&](const ComputeContext &node_context) {
               /* Make sure that all intermediate sockets are logged. This is necessary to be able
                * to evaluate the nodes in reverse for the gizmo. */
-              r_socket_log_contexts.add(node_context.hash());
+              r_verbose_log_contexts.add(node_context.hash());
             });
       });
 }
@@ -846,7 +843,7 @@ static void find_side_effect_nodes_for_active_gizmos(
 static void find_side_effect_nodes(const NodesModifierData &nmd,
                                    const ModifierEvalContext &ctx,
                                    nodes::GeoNodesSideEffectNodes &r_side_effect_nodes,
-                                   Set<ComputeContextHash> &r_socket_log_contexts)
+                                   Set<ComputeContextHash> &r_verbose_log_contexts)
 {
   Main *bmain = DEG_get_bmain(ctx.depsgraph);
   wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
@@ -873,12 +870,12 @@ static void find_side_effect_nodes(const NodesModifierData &nmd,
 
   find_side_effect_nodes_for_baking(nmd, ctx, r_side_effect_nodes);
   find_side_effect_nodes_for_active_gizmos(
-      nmd, ctx, *wm, r_side_effect_nodes, r_socket_log_contexts);
+      nmd, ctx, *wm, r_side_effect_nodes, r_verbose_log_contexts);
 }
 
-static void find_socket_log_contexts(const NodesModifierData &nmd,
-                                     const ModifierEvalContext &ctx,
-                                     Set<ComputeContextHash> &r_socket_log_contexts)
+static void find_verbose_log_contexts(const NodesModifierData &nmd,
+                                      const ModifierEvalContext &ctx,
+                                      Set<ComputeContextHash> &r_socket_log_contexts)
 {
   Main *bmain = DEG_get_bmain(ctx.depsgraph);
   wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
@@ -1892,16 +1889,16 @@ static void modifyGeometry(ModifierData *md,
   NodesModifierBakeParams bake_params{*nmd, *ctx};
   call_data.bake_params = &bake_params;
 
-  Set<ComputeContextHash> socket_log_contexts;
+  Set<ComputeContextHash> verbose_log_contexts;
   if (logging_enabled(ctx)) {
     call_data.eval_log = eval_log.get();
 
-    find_socket_log_contexts(*nmd, *ctx, socket_log_contexts);
-    call_data.socket_log_contexts = &socket_log_contexts;
+    find_verbose_log_contexts(*nmd, *ctx, verbose_log_contexts);
+    call_data.verbose_log_contexts = &verbose_log_contexts;
   }
 
   nodes::GeoNodesSideEffectNodes side_effect_nodes;
-  find_side_effect_nodes(*nmd, *ctx, side_effect_nodes, socket_log_contexts);
+  find_side_effect_nodes(*nmd, *ctx, side_effect_nodes, verbose_log_contexts);
   call_data.side_effect_nodes = &side_effect_nodes;
 
   bke::DataBlockComputeContext data_block_compute_context{nullptr, ctx->object->id};
@@ -2038,7 +2035,7 @@ static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const Modi
 
   writer->write_struct(nmd);
 
-  BLO_write_string(writer, nmd->bake_directory);
+  writer->write_string(nmd->bake_directory);
 
   Map<IDProperty *, IDPropertyUIDataBool *> boolean_props;
   if (nmd->settings.properties != nullptr) {
@@ -2063,19 +2060,19 @@ static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const Modi
 
   writer->write_struct_array(nmd->bakes_num, nmd->bakes);
   for (const NodesModifierBake &bake : Span(nmd->bakes, nmd->bakes_num)) {
-    BLO_write_string(writer, bake.directory);
+    writer->write_string(bake.directory);
 
     writer->write_struct_array(bake.data_blocks_num, bake.data_blocks);
     for (const NodesModifierDataBlock &item : Span(bake.data_blocks, bake.data_blocks_num)) {
-      BLO_write_string(writer, item.id_name);
-      BLO_write_string(writer, item.lib_name);
+      writer->write_string(item.id_name);
+      writer->write_string(item.lib_name);
     }
     if (bake.packed) {
       writer->write_struct(bake.packed);
       writer->write_struct_array(bake.packed->meta_files_num, bake.packed->meta_files);
       writer->write_struct_array(bake.packed->blob_files_num, bake.packed->blob_files);
       const auto write_bake_file = [&](const NodesModifierBakeFile &bake_file) {
-        BLO_write_string(writer, bake_file.name);
+        writer->write_string(bake_file.name);
         if (bake_file.packed_file) {
           BKE_packedfile_blend_write(writer, bake_file.packed_file);
         }

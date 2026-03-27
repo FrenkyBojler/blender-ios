@@ -125,7 +125,7 @@ static void node_operators()
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  nodes::BundlePtr bundle = params.extract_input<nodes::BundlePtr>("Bundle");
+  nodes::BundlePtr bundle = params.extract_input<nodes::BundlePtr>("Bundle"_ustr);
   if (!bundle) {
     params.set_default_remaining_outputs();
     return;
@@ -146,7 +146,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     if (!stype || !stype->geometry_nodes_default_value) {
       continue;
     }
-    const BundleItemValue *value = bundle->lookup(name);
+    const BundleItemValue *value = bundle->lookup(UString(name));
     if (!value) {
       params.error_message_add(
           NodeWarningType::Error,
@@ -263,7 +263,7 @@ StructRNA **SeparateBundleItemsAccessor::item_srna = &RNA_NodeSeparateBundleItem
 
 void SeparateBundleItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
-  BLO_write_string(writer, item.name);
+  writer->write_string(item.name);
 }
 
 void SeparateBundleItemsAccessor::blend_read_data_item(BlendDataReader *reader, ItemT &item)

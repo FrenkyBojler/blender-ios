@@ -35,7 +35,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Float>("Mask").structure_type(StructureType::Dynamic);
 
   b.add_layout([](ui::Layout &layout, bContext *C, PointerRNA *ptr) {
-    template_id(&layout, C, ptr, "mask", nullptr, nullptr, nullptr);
+    template_id(&layout, C, ptr, "mask", "mask.new", nullptr, nullptr);
   });
 
   b.add_input<decl::Menu>("Size Source")
@@ -46,19 +46,20 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Int>("Size X")
       .default_value(256)
       .min(1)
-      .usage_by_menu("Size Source",
+      .usage_by_menu("Size Source"_ustr,
                      {CMP_NODE_MASK_FLAG_SIZE_FIXED, CMP_NODE_MASK_FLAG_SIZE_FIXED_SCENE})
       .description("The resolution of the mask along the X direction");
   b.add_input<decl::Int>("Size Y")
       .default_value(256)
       .min(1)
-      .usage_by_menu("Size Source",
+      .usage_by_menu("Size Source"_ustr,
                      {CMP_NODE_MASK_FLAG_SIZE_FIXED, CMP_NODE_MASK_FLAG_SIZE_FIXED_SCENE})
       .description("The resolution of the mask along the Y direction");
   b.add_input<decl::Bool>("Feather").default_value(true).description(
       "Use feather information from the mask");
 
-  PanelDeclarationBuilder &motion_blur_panel = b.add_panel("Motion Blur").default_closed(true);
+  PanelDeclarationBuilder &motion_blur_panel =
+      b.add_panel("Motion Blur"_ustr).default_closed(true);
   motion_blur_panel.add_input<decl::Bool>("Motion Blur")
       .default_value(false)
       .panel_toggle()
@@ -92,9 +93,8 @@ class MaskOperation : public NodeOperation {
 
   void execute() override
   {
-    Result &output_mask = this->get_result("Mask");
     if (!this->get_mask()) {
-      output_mask.allocate_invalid();
+      this->allocate_default_remaining_outputs();
       return;
     }
 
@@ -108,6 +108,7 @@ class MaskOperation : public NodeOperation {
         this->get_motion_blur_samples(),
         this->get_motion_blur_shutter());
 
+    Result &output_mask = this->get_result("Mask");
     output_mask.wrap_external(cached_mask);
   }
 

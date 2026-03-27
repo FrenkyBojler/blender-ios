@@ -11,6 +11,7 @@
 #include "BLI_array.hh"
 #include "BLI_map.hh"
 #include "BLI_string_ref.hh"
+#include "BLI_ustring.hh"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
@@ -455,14 +456,14 @@ class BaseSocketDeclarationBuilder {
    * Utility method for the case when this socket is only used when the menu input of the given
    * identifier has a specific value.
    */
-  BaseSocketDeclarationBuilder &usage_by_menu(const StringRef menu_input_identifier,
+  BaseSocketDeclarationBuilder &usage_by_menu(const UString menu_input_identifier,
                                               const int menu_value);
 
   /**
    * Utility method for the case when this socket is only used when the menu input of the given
    * identifier has one of the specifies values.
    */
-  BaseSocketDeclarationBuilder &usage_by_menu(const StringRef menu_input_identifier,
+  BaseSocketDeclarationBuilder &usage_by_menu(const UString menu_input_identifier,
                                               const Array<int> menu_values);
 
   /**
@@ -535,7 +536,7 @@ class LayoutDeclaration : public ItemDeclaration {
 class PanelDeclaration : public ItemDeclaration {
  public:
   int identifier;
-  std::string name;
+  UString name;
   std::string description;
   std::optional<std::string> translation_context;
   bool default_collapsed = false;
@@ -600,7 +601,7 @@ class DeclarationListBuilder {
                                            StringRef name,
                                            StringRef identifier = "");
 
-  PanelDeclarationBuilder &add_panel(StringRef name, int identifier = -1);
+  PanelDeclarationBuilder &add_panel(UString name, int identifier = -1);
 
   void add_separator();
   void add_default_layout();

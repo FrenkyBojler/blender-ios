@@ -299,6 +299,17 @@ static BaseSocketDeclarationBuilder &build_interface_socket_declaration(
                     .max(value.max);
         break;
       }
+      case SOCK_INT_VECTOR: {
+        const auto &value = node_interface::get_socket_data_as<bNodeSocketValueIntVector>(
+            io_socket);
+        decl = &b.add_socket<decl::IntVector>(name, identifier, in_out)
+                    .subtype(PropertySubType(value.subtype))
+                    .default_value(int3(value.value))
+                    .dimensions(value.dimensions)
+                    .min(value.min)
+                    .max(value.max);
+        break;
+      }
       case SOCK_RGBA: {
         const auto &value = node_interface::get_socket_data_as<bNodeSocketValueRGBA>(io_socket);
         decl = &b.add_socket<decl::Color>(name, identifier, in_out).default_value(value.value);
@@ -472,7 +483,7 @@ static void node_group_declare_panel_recursive(
       case NODE_INTERFACE_PANEL: {
         add_layout_if_needed();
         const auto &io_panel = node_interface::get_item_as<bNodeTreeInterfacePanel>(*item);
-        auto &panel_b = b.add_panel(StringRef(io_panel.name), io_panel.identifier)
+        auto &panel_b = b.add_panel(UString(io_panel.name), io_panel.identifier)
                             .description(StringRef(io_panel.description))
                             .default_closed(io_panel.flag & NODE_INTERFACE_PANEL_DEFAULT_CLOSED);
         node_group_declare_panel_recursive(
@@ -908,8 +919,8 @@ static bool node_implicit_conversion_poll_instance(const bNode *node,
 
 static void node_implicit_conversion_geo_exec(nodes::GeoNodeExecParams params)
 {
-  auto input_value = params.extract_input<bke::SocketValueVariant>("Value");
-  params.set_output("Value", std::move(input_value));
+  auto input_value = params.extract_input<bke::SocketValueVariant>("Value"_ustr);
+  params.set_output("Value"_ustr, std::move(input_value));
 }
 
 class ImplicitConversionOperation : public compositor::NodeOperation {
@@ -1038,13 +1049,20 @@ static bool group_input_insert_link(bke::NodeInsertLinkParams &params)
     /* Don't connect to other "extend" sockets. */
     return false;
   }
-  const bNodeTreeInterfaceSocket *io_socket = node_interface::add_interface_socket_from_node(
+  bNodeTreeInterfaceSocket *io_socket = node_interface::add_interface_socket_from_node(
       params.ntree, *params.link.tonode, *params.link.tosock);
   if (!io_socket) {
     return false;
   }
   update_node_declaration_and_sockets(params.ntree, params.node);
   params.link.fromsock = node_group_input_find_socket(&params.node, io_socket->identifier);
+
+  params.ntree.tree_interface.foreach_item([&](bNodeTreeInterfaceItem &item) {
+    item.set_selected(false);
+    return true;
+  });
+  params.ntree.tree_interface.active_item_set(&io_socket->item);
+
   return true;
 }
 
@@ -1059,13 +1077,20 @@ static bool group_output_insert_link(bke::NodeInsertLinkParams &params)
     /* Don't connect to other "extend" sockets. */
     return false;
   }
-  const bNodeTreeInterfaceSocket *io_socket = node_interface::add_interface_socket_from_node(
+  bNodeTreeInterfaceSocket *io_socket = node_interface::add_interface_socket_from_node(
       params.ntree, *params.link.fromnode, *params.link.fromsock);
   if (!io_socket) {
     return false;
   }
   update_node_declaration_and_sockets(params.ntree, params.node);
   params.link.tosock = node_group_output_find_socket(&params.node, io_socket->identifier);
+
+  params.ntree.tree_interface.foreach_item([&](bNodeTreeInterfaceItem &item) {
+    item.set_selected(false);
+    return true;
+  });
+  params.ntree.tree_interface.active_item_set(&io_socket->item);
+
   return true;
 }
 

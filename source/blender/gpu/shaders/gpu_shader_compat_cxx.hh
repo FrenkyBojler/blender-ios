@@ -26,6 +26,13 @@
 
 #pragma once
 
+#ifdef _MSC_VER
+/* Equivalent to "-Wno-unused-parameter".
+ * Must be declared here since the setup from compile_sources_as_cpp seems to be
+ * overridden otherwise. */
+#  pragma warning(disable : 4100)
+#endif
+
 #include <cstdio>  // IWYU pragma: export printf
 
 #include "gpu_shader_cxx_builtin.hh"  // IWYU pragma: export
@@ -52,6 +59,25 @@
 /* -------------------------------------------------------------------- */
 /** \name Compatibility
  * \{ */
+
+/**
+ * Member hiding type.
+ * Wrapper type for members of unions in host shared structure.
+ * This is needed to force the accessor syntax in the shader code.
+ */
+template<typename T> struct union_t {
+  char bytes[sizeof(T)];
+
+  const T &operator()() const
+  {
+    return *reinterpret_cast<const T *>(&bytes);
+  }
+
+  T &operator()()
+  {
+    return *reinterpret_cast<T *>(&bytes);
+  }
+};
 
 /* Array syntax compatibility. */
 /* clang-format off */
@@ -185,23 +211,6 @@ template<typename T> struct srt_t {
   }
 };
 
-/**
- * Member hiding type.
- * Wrapper type for members of unions in host shared structure.
- * This is needed to force the accessor syntax in the shader code.
- */
-template<typename T> struct union_t {
-  const T &operator()() const
-  {
-    return *reinterpret_cast<const T *>(this);
-  }
-
-  T &operator()()
-  {
-    return *reinterpret_cast<T *>(this);
-  }
-};
-
 struct ShaderCreateInfo {};
 
 struct NoConstants {};
@@ -209,8 +218,8 @@ struct NoConstants {};
 template<typename VertFn,
          typename FragFn,
          typename ConstT1 = NoConstants,
-         typename ConstT2 = ConstT1,
-         typename ConstT3 = ConstT2>
+         typename ConstT2 = NoConstants,
+         typename ConstT3 = NoConstants>
 struct PipelineGraphic {
   VertFn vert;
   FragFn frag;
@@ -247,8 +256,8 @@ struct PipelineGraphic {
 
 template<typename CompFn,
          typename ConstT1 = NoConstants,
-         typename ConstT2 = ConstT1,
-         typename ConstT3 = ConstT2>
+         typename ConstT2 = NoConstants,
+         typename ConstT3 = NoConstants>
 struct PipelineCompute {
   CompFn comp;
   /* Constant values. */
@@ -266,3 +275,75 @@ struct PipelineCompute {
 };
 
 #include "GPU_shader_shared_utils.hh"
+
+/* -------------------------------------------------------------------- */
+/** \name Enums
+ *
+ * Enums should be defined in the root namespace when used directly in the pipeline, as they will
+ * not be fully qualified when generating the template name substitution. Defining in the root
+ * works around this limitation
+ *
+ * \{ */
+
+/**
+ * TextureWriteFormat.
+ *
+ * We can not use GPU_TEXTURE_WRITE_FORMAT_EXPAND as other parts are included that will intervene
+ * with the compatibility defines.
+ */
+enum TextureWriteFormat : uint32_t {
+  SNORM_8,
+  SNORM_8_8,
+  SNORM_8_8_8_8,
+
+  SNORM_16,
+  SNORM_16_16,
+  SNORM_16_16_16_16,
+
+  UNORM_8,
+  UNORM_8_8,
+  UNORM_8_8_8_8,
+
+  UNORM_16,
+  UNORM_16_16,
+  UNORM_16_16_16_16,
+
+  SINT_8,
+  SINT_8_8,
+  SINT_8_8_8_8,
+
+  SINT_16,
+  SINT_16_16,
+  SINT_16_16_16_16,
+
+  SINT_32,
+  SINT_32_32,
+  SINT_32_32_32_32,
+
+  UINT_8,
+  UINT_8_8,
+  UINT_8_8_8_8,
+
+  UINT_16,
+  UINT_16_16,
+  UINT_16_16_16_16,
+
+  UINT_32,
+  UINT_32_32,
+  UINT_32_32_32_32,
+
+  SFLOAT_16,
+  SFLOAT_16_16,
+  SFLOAT_16_16_16_16,
+
+  SFLOAT_32,
+  SFLOAT_32_32,
+  SFLOAT_32_32_32_32,
+
+  UNORM_10_10_10_2,
+  UINT_10_10_10_2,
+
+  UFLOAT_11_11_10,
+};
+
+/** \} */
