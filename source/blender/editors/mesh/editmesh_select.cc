@@ -1854,6 +1854,9 @@ static wmOperatorStatus edbm_boundary_loop_multiselect_exec(bContext *C, wmOpera
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
 
+  bool changed_multi = false;
+  bool has_selected_boundary_multi = false;
+
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
 
@@ -1866,8 +1869,12 @@ static wmOperatorStatus edbm_boundary_loop_multiselect_exec(bContext *C, wmOpera
     Vector<BMEdge *> source_edges;
     source_edges.reserve(em->bm->totedgesel);
     BM_ITER_MESH (eed, &iter, em->bm, BM_EDGES_OF_MESH) {
-      if (BM_elem_flag_test(eed, BM_ELEM_SELECT) && (!extend || BM_edge_is_boundary(eed))) {
+      bool is_boundary = BM_edge_is_boundary(eed);
+      if (BM_elem_flag_test(eed, BM_ELEM_SELECT) && (!extend || is_boundary)) {
         source_edges.append(eed);
+        if (is_boundary) {
+          has_selected_boundary_multi = true;
+        }
       }
     }
 
@@ -1897,12 +1904,19 @@ static wmOperatorStatus edbm_boundary_loop_multiselect_exec(bContext *C, wmOpera
       EDBM_uvselect_clear(em);
       DEG_id_tag_update(obedit->data, ID_RECALC_SELECT);
       WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
-    }
-    else {
-      BKE_report(op->reports, RPT_INFO, "Selection has not changed because no boundary edges were first selected");
+      changed_multi = true;
     }
   }
 
+  /* If there are any boundary edges selected,
+  * always return finished so the user can modify the delimiter property in the "redo" panel. */
+  if (!has_selected_boundary_multi) {
+    BKE_report(op->reports, RPT_INFO, "Selection has not changed because no boundary edges were first selected");
+    return OPERATOR_CANCELLED;
+  }
+  if (!changed_multi) {
+    BKE_report(op->reports, RPT_INFO, "Selection has not changed because no boundary edges were first selected");
+  }
   return OPERATOR_FINISHED;
 }
 
