@@ -308,28 +308,34 @@ class AttributeTransferer {
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  GeometrySet target_geo = params.extract_input<GeometrySet>("Target");
-  GeometrySet source_geo = params.extract_input<GeometrySet>("Source");
-  const ListPtr attribute_patterns_list = params.extract_input<ListPtr>("Names");
-  const bool ignore_names = params.extract_input<bool>("Ignore Names");
+  GeometrySet target_geo = params.extract_input<GeometrySet>("Target"_ustr);
+  GeometrySet source_geo = params.extract_input<GeometrySet>("Source"_ustr);
+  const ListPtr attribute_patterns_list = params.extract_input<ListPtr>("Names"_ustr);
+  const bool ignore_names = params.extract_input<bool>("Ignore Names"_ustr);
 
   Map<bke::AttrDomain, Field<int>> dst_id_fields;
-  dst_id_fields.add_new(AttrDomain::Point, params.extract_input<Field<int>>("Target Point ID"));
-  dst_id_fields.add_new(AttrDomain::Edge, params.extract_input<Field<int>>("Target Edge ID"));
-  dst_id_fields.add_new(AttrDomain::Face, params.extract_input<Field<int>>("Target Face ID"));
-  dst_id_fields.add_new(AttrDomain::Corner, params.extract_input<Field<int>>("Target Corner ID"));
-  dst_id_fields.add_new(AttrDomain::Curve, params.extract_input<Field<int>>("Target Curve ID"));
+  dst_id_fields.add_new(AttrDomain::Point,
+                        params.extract_input<Field<int>>("Target Point ID"_ustr));
+  dst_id_fields.add_new(AttrDomain::Edge, params.extract_input<Field<int>>("Target Edge ID"_ustr));
+  dst_id_fields.add_new(AttrDomain::Face, params.extract_input<Field<int>>("Target Face ID"_ustr));
+  dst_id_fields.add_new(AttrDomain::Corner,
+                        params.extract_input<Field<int>>("Target Corner ID"_ustr));
+  dst_id_fields.add_new(AttrDomain::Curve,
+                        params.extract_input<Field<int>>("Target Curve ID"_ustr));
   dst_id_fields.add_new(AttrDomain::Instance,
-                        params.extract_input<Field<int>>("Target Instance ID"));
+                        params.extract_input<Field<int>>("Target Instance ID"_ustr));
 
   Map<bke::AttrDomain, Field<int>> src_id_fields;
-  src_id_fields.add_new(AttrDomain::Point, params.extract_input<Field<int>>("Source Point ID"));
-  src_id_fields.add_new(AttrDomain::Edge, params.extract_input<Field<int>>("Source Edge ID"));
-  src_id_fields.add_new(AttrDomain::Face, params.extract_input<Field<int>>("Source Face ID"));
-  src_id_fields.add_new(AttrDomain::Corner, params.extract_input<Field<int>>("Source Corner ID"));
-  src_id_fields.add_new(AttrDomain::Curve, params.extract_input<Field<int>>("Source Curve ID"));
+  src_id_fields.add_new(AttrDomain::Point,
+                        params.extract_input<Field<int>>("Source Point ID"_ustr));
+  src_id_fields.add_new(AttrDomain::Edge, params.extract_input<Field<int>>("Source Edge ID"_ustr));
+  src_id_fields.add_new(AttrDomain::Face, params.extract_input<Field<int>>("Source Face ID"_ustr));
+  src_id_fields.add_new(AttrDomain::Corner,
+                        params.extract_input<Field<int>>("Source Corner ID"_ustr));
+  src_id_fields.add_new(AttrDomain::Curve,
+                        params.extract_input<Field<int>>("Source Curve ID"_ustr));
   src_id_fields.add_new(AttrDomain::Instance,
-                        params.extract_input<Field<int>>("Source Instance ID"));
+                        params.extract_input<Field<int>>("Source Instance ID"_ustr));
 
   VectorSet<std::string> attribute_patterns;
   if (attribute_patterns_list) {
@@ -346,8 +352,8 @@ static void node_geo_exec(GeoNodeExecParams params)
         target_geo, source_geo, attribute_patterns, dst_id_fields, src_id_fields, ignore_names);
     success = transferer.do_transfer();
   }
-  params.set_output("Target", std::move(target_geo));
-  params.set_output("Success", success);
+  params.set_output("Target"_ustr, std::move(target_geo));
+  params.set_output("Success"_ustr, success);
 }
 
 static void node_register()

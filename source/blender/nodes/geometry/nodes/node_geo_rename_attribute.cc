@@ -44,14 +44,14 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
-  const RenameMode mode = params.extract_input<RenameMode>("Mode");
-  const std::string old_name = params.extract_input<std::string>("Old");
-  const std::string new_name = params.extract_input<std::string>("New");
-  const bool overwrite = params.extract_input<bool>("Overwrite");
+  GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry"_ustr);
+  const RenameMode mode = params.extract_input<RenameMode>("Mode"_ustr);
+  const std::string old_name = params.extract_input<std::string>("Old"_ustr);
+  const std::string new_name = params.extract_input<std::string>("New"_ustr);
+  const bool overwrite = params.extract_input<bool>("Overwrite"_ustr);
 
   if (old_name.empty() || new_name.empty()) {
-    params.set_output("Geometry", std::move(geometry_set));
+    params.set_output("Geometry"_ustr, std::move(geometry_set));
     return;
   }
 
@@ -114,7 +114,7 @@ static void node_geo_exec(GeoNodeExecParams params)
         fmt::format("{}: '{}' to '{}'", TIP_("Failed to rename attribute"), old_name, new_name));
   }
 
-  params.set_output("Geometry", std::move(geometry_set));
+  params.set_output("Geometry"_ustr, std::move(geometry_set));
 }
 
 static void node_register()

@@ -317,6 +317,11 @@ std::string Bundle::combine_path(const Span<StringRef> path)
   return fmt::format("{}", fmt::join(path, "/"));
 }
 
+std::string Bundle::combine_path(const Span<UString> path)
+{
+  return fmt::format("{}", fmt::join(path, "/"));
+}
+
 void Bundle::delete_self()
 {
   MEM_delete(this);
@@ -437,8 +442,8 @@ std::optional<BundleSignature> LinkedBundleSignatures::get_merged_signature() co
 
 static void foreach_nested_bundle_item_recursive(
     const Bundle &bundle,
-    const FunctionRef<void(Span<StringRef>, const BundleItemValue &value)> fn,
-    Vector<StringRef> &path)
+    const FunctionRef<void(Span<UString>, const BundleItemValue &value)> fn,
+    Vector<UString> &path)
 {
   for (const auto &child_item : bundle.items()) {
     path.append(child_item.key);
@@ -458,10 +463,9 @@ static void foreach_nested_bundle_item_recursive(
 }
 
 void foreach_nested_bundle_item(
-    const Bundle &bundle,
-    const FunctionRef<void(Span<StringRef>, const BundleItemValue &value)> fn)
+    const Bundle &bundle, const FunctionRef<void(Span<UString>, const BundleItemValue &value)> fn)
 {
-  Vector<StringRef> path;
+  Vector<UString> path;
   foreach_nested_bundle_item_recursive(bundle, fn, path);
 }
 
@@ -472,16 +476,15 @@ Vector<std::string> gather_bundle_paths_by_bundle_type(const Bundle &bundle,
   if (type_filter.is_empty()) {
     return paths;
   }
-  foreach_nested_bundle_item(
-      bundle, [&](const Span<StringRef> path, const BundleItemValue &value) {
-        if (const BundlePtr *child_bundle_ptr = value.as_pointer<BundlePtr>()) {
-          if (*child_bundle_ptr) {
-            if ((*child_bundle_ptr)->type() == type_filter) {
-              paths.append(Bundle::combine_path(path));
-            }
-          }
+  foreach_nested_bundle_item(bundle, [&](const Span<UString> path, const BundleItemValue &value) {
+    if (const BundlePtr *child_bundle_ptr = value.as_pointer<BundlePtr>()) {
+      if (*child_bundle_ptr) {
+        if ((*child_bundle_ptr)->type() == type_filter) {
+          paths.append(Bundle::combine_path(path));
         }
-      });
+      }
+    }
+  });
   return paths;
 }
 
@@ -489,14 +492,13 @@ Vector<std::string> gather_bundle_paths_by_data_type(const Bundle &bundle,
                                                      const eNodeSocketDatatype data_type)
 {
   Vector<std::string> paths;
-  foreach_nested_bundle_item(
-      bundle, [&](const Span<StringRef> path, const BundleItemValue &value) {
-        if (const auto *socket_value = std::get_if<BundleItemSocketValue>(&value.value)) {
-          if (socket_value->type->type == data_type) {
-            paths.append(Bundle::combine_path(path));
-          }
-        }
-      });
+  foreach_nested_bundle_item(bundle, [&](const Span<UString> path, const BundleItemValue &value) {
+    if (const auto *socket_value = std::get_if<BundleItemSocketValue>(&value.value)) {
+      if (socket_value->type->type == data_type) {
+        paths.append(Bundle::combine_path(path));
+      }
+    }
+  });
   return paths;
 }
 

@@ -40,7 +40,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Menu>("Mode").static_items(mode_items).optional_label();
   b.add_input<decl::String>("Bundle Type")
       .optional_label()
-      .usage_by_menu("Mode", int(Mode::BundleType));
+      .usage_by_menu("Mode"_ustr, int(Mode::BundleType));
   b.add_input<decl::Menu>("Data Type")
       .static_items(rna_enum_node_socket_data_type_items,
                     [](const EnumPropertyItem &item) {
@@ -48,14 +48,14 @@ static void node_declare(NodeDeclarationBuilder &b)
                                                              NTREE_GEOMETRY);
                     })
       .optional_label()
-      .usage_by_menu("Mode", int(Mode::DataType));
+      .usage_by_menu("Mode"_ustr, int(Mode::DataType));
   b.add_output<decl::String>("Paths").structure_type(StructureType::List);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  BundlePtr bundle_ptr = params.extract_input<BundlePtr>("Bundle");
-  const Mode mode = params.extract_input<Mode>("Mode");
+  BundlePtr bundle_ptr = params.extract_input<BundlePtr>("Bundle"_ustr);
+  const Mode mode = params.extract_input<Mode>("Mode"_ustr);
   if (!bundle_ptr) {
     params.set_default_remaining_outputs();
     return;
@@ -65,21 +65,22 @@ static void node_geo_exec(GeoNodeExecParams params)
   Vector<std::string> paths;
   switch (mode) {
     case Mode::All: {
-      foreach_nested_bundle_item(
-          bundle, [&](const Span<StringRef> path, const BundleItemValue & /*value*/) {
-            paths.append(Bundle::combine_path(path));
-          });
+      foreach_nested_bundle_item(bundle,
+                                 [&](const Span<UString> path, const BundleItemValue & /*value*/) {
+                                   paths.append(Bundle::combine_path(path));
+                                 });
       break;
     }
     case Mode::BundleType: {
-      const std::string bundle_type = params.extract_input<std::string>("Bundle Type");
+      const std::string bundle_type = params.extract_input<std::string>("Bundle Type"_ustr);
       if (!bundle_type.empty()) {
         paths = gather_bundle_paths_by_bundle_type(bundle, bundle_type);
       }
       break;
     }
     case Mode::DataType:
-      const eNodeSocketDatatype data_type = params.extract_input<eNodeSocketDatatype>("Data Type");
+      const eNodeSocketDatatype data_type = params.extract_input<eNodeSocketDatatype>(
+          "Data Type"_ustr);
       paths = gather_bundle_paths_by_data_type(bundle, data_type);
       break;
   }
@@ -87,7 +88,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   /* Make sure the order is deterministic and doesn't depend on hash tables in the bundle. */
   std::ranges::sort(paths);
 
-  params.set_output("Paths", List::from_container(std::move(paths)));
+  params.set_output("Paths"_ustr, List::from_container(std::move(paths)));
 }
 
 static void node_register()

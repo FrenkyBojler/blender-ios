@@ -106,14 +106,14 @@ static void output_empty_lists(GeoNodeExecParams &params)
     const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
     const CPPType &cpp_type = *bke::socket_type_to_geo_nodes_base_cpp_type(socket_type);
     const std::string identifier = AttributeToListItemsAccessor::socket_identifier_for_item(item);
-    params.set_output(identifier, List::from_garray(GArray(cpp_type)));
+    params.set_output(UString(identifier), List::from_garray(GArray(cpp_type)));
   }
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  const GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
-  const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
+  const GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry"_ustr);
+  const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection"_ustr);
 
   const NodeGeometryAttributeToList &storage = node_storage(params.node());
   const AttrDomain domain = AttrDomain(storage.domain);
@@ -203,7 +203,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   for (const int item_i : IndexRange(storage.items_num)) {
     const NodeGeometryAttributeToListItem &item = storage.items[item_i];
     const std::string identifier = AttributeToListItemsAccessor::socket_identifier_for_item(item);
-    input_fields[item_i] = params.extract_input<GField>(identifier);
+    input_fields[item_i] = params.extract_input<GField>(UString(identifier));
   }
 
   for (fn::FieldEvaluator *field_evaluator : field_evaluators) {
@@ -245,7 +245,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       }
     }
     const std::string identifier = AttributeToListItemsAccessor::socket_identifier_for_item(item);
-    params.set_output(identifier, List::from_garray(std::move(values)));
+    params.set_output(UString(identifier), List::from_garray(std::move(values)));
   }
 }
 

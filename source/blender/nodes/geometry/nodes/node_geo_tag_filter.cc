@@ -17,8 +17,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  SocketValueVariant tags_variant = params.extract_input<SocketValueVariant>("Tags");
-  const std::string tag_filter = params.extract_input<std::string>("Tag Filter");
+  SocketValueVariant tags_variant = params.extract_input<SocketValueVariant>("Tags"_ustr);
+  const std::string tag_filter = params.extract_input<std::string>("Tag Filter"_ustr);
 
   Set<std::string> tags;
   if (tags_variant.is_list()) {
@@ -31,7 +31,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   }
   const bool match = tag_filter_matches(tag_filter, tags);
-  params.set_output("Match", match);
+  params.set_output("Match"_ustr, match);
 }
 
 static void node_register()

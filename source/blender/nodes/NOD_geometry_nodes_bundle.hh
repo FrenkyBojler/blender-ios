@@ -68,7 +68,7 @@ class Bundle : public ImplicitSharingMixin {
   BundleItemMap items_;
 
  public:
-  static constexpr StringRefNull type_item_name = "Type";
+  static inline UString type_item_name = "Type"_ustr;
   static BundlePtr create();
 
   bool add(UString key, const BundleItemValue &value);
@@ -135,6 +135,7 @@ class Bundle : public ImplicitSharingMixin {
 
   /** Create the combined path by inserting '/' between each element. */
   static std::string combine_path(const Span<StringRef> path);
+  static std::string combine_path(const Span<UString> path);
 
   /* Disallow certain characters so that we can use them to e.g. build a bundle path or
    * expressions referencing multiple bundle items. We might not need all of them in the future,
@@ -157,8 +158,7 @@ Vector<std::string> gather_bundle_paths_by_data_type(const Bundle &bundle,
                                                      const eNodeSocketDatatype data_type);
 
 void foreach_nested_bundle_item(
-    const Bundle &bundle,
-    FunctionRef<void(Span<StringRef> path, const BundleItemValue &value)> fn);
+    const Bundle &bundle, FunctionRef<void(Span<UString> path, const BundleItemValue &value)> fn);
 
 template<typename T>
 inline std::optional<T> BundleItemValue::as_socket_value(

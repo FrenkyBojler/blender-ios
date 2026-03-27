@@ -580,7 +580,7 @@ class XpbdSolverStep {
   void gather_nested_bundle_paths()
   {
     foreach_nested_bundle_item(world_,
-                               [&](const Span<StringRef> path, const BundleItemValue &value) {
+                               [&](const Span<UString> path, const BundleItemValue &value) {
                                  const BundlePtr *bundle_ptr = value.as_pointer<BundlePtr>();
                                  if (!bundle_ptr || !*bundle_ptr) {
                                    return;
@@ -721,18 +721,19 @@ class XpbdSolverStep {
       const Bundle *previous_bundle = this->get_previous_bundle(bundle);
 
       /* Retrieve collision plane in world space. */
-      const std::optional<float3> position_wo = bundle.lookup<float3>("position");
-      const std::optional<float3> normal_wo = bundle.lookup<float3>("normal");
-      const float friction = bundle.lookup<float>("friction").value_or(0.0f);
+      const std::optional<float3> position_wo = bundle.lookup<float3>("position"_ustr);
+      const std::optional<float3> normal_wo = bundle.lookup<float3>("normal"_ustr);
+      const float friction = bundle.lookup<float>("friction"_ustr).value_or(0.0f);
       if (!position_wo || !normal_wo) {
         continue;
       }
       const float3 prev_position_wo =
-          previous_bundle ? previous_bundle->lookup<float3>("position").value_or(*position_wo) :
-                            *position_wo;
-      float3 prev_normal_wo = previous_bundle ?
-                                  previous_bundle->lookup<float3>("normal").value_or(*normal_wo) :
-                                  *normal_wo;
+          previous_bundle ?
+              previous_bundle->lookup<float3>("position"_ustr).value_or(*position_wo) :
+              *position_wo;
+      float3 prev_normal_wo =
+          previous_bundle ? previous_bundle->lookup<float3>("normal"_ustr).value_or(*normal_wo) :
+                            *normal_wo;
       if (math::is_zero(prev_normal_wo)) {
         prev_normal_wo = *normal_wo;
       }
@@ -821,13 +822,13 @@ class XpbdSolverStep {
       }
       const Bundle &bundle = **bundle_ptr;
       const Bundle *previous_bundle = this->get_previous_bundle(bundle);
-      const bke::GeometrySet *geometry = bundle.lookup_ptr<bke::GeometrySet>("geometry");
-      const float friction = bundle.lookup<float>("friction").value_or(0.0f);
-      const float compliance = bundle.lookup<float>("compliance").value_or(0.0f);
-      const bool deforming = bundle.lookup<bool>("deforming").value_or(false);
+      const bke::GeometrySet *geometry = bundle.lookup_ptr<bke::GeometrySet>("geometry"_ustr);
+      const float friction = bundle.lookup<float>("friction"_ustr).value_or(0.0f);
+      const float compliance = bundle.lookup<float>("compliance"_ustr).value_or(0.0f);
+      const bool deforming = bundle.lookup<bool>("deforming"_ustr).value_or(false);
       const bke::GeometrySet *prev_geometry = previous_bundle ?
                                                   previous_bundle->lookup_ptr<bke::GeometrySet>(
-                                                      "geometry") :
+                                                      "geometry"_ustr) :
                                                   nullptr;
       if (!geometry) {
         continue;
@@ -1409,9 +1410,9 @@ class XpbdSolverStep {
       RodStretchShearConstraint constraint;
       constraint.path = path;
       constraint.lambda_pos_attr =
-          bundle.lookup<std::string>("lambda_position_attribute").value_or("");
+          bundle.lookup<std::string>("lambda_position_attribute"_ustr).value_or("");
       constraint.lambda_rot_attr =
-          bundle.lookup<std::string>("lambda_rotation_attribute").value_or("");
+          bundle.lookup<std::string>("lambda_rotation_attribute"_ustr).value_or("");
 
       const int constraint_i = constraints_.rod_stretch_shear_constraints.append_and_get_index(
           std::move(constraint));
@@ -1847,7 +1848,7 @@ class XpbdSolverStep {
       const Bundle &bundle = **world_.lookup_path_ptr<BundlePtr>(path);
       PinPositionConstraint constraint;
       constraint.path = path;
-      constraint.lambda_attr = bundle.lookup<std::string>("lambda_attribute").value_or("");
+      constraint.lambda_attr = bundle.lookup<std::string>("lambda_attribute"_ustr).value_or("");
       const int constraint_i = constraints_.pin_position_constraints.append_and_get_index(
           std::move(constraint));
 
@@ -2578,7 +2579,7 @@ class XpbdSolverStep {
 
   const Bundle *get_previous_bundle(const Bundle &bundle) const
   {
-    const BundlePtr *previous_bundle_ptr = bundle.lookup_ptr<BundlePtr>("previous");
+    const BundlePtr *previous_bundle_ptr = bundle.lookup_ptr<BundlePtr>("previous"_ustr);
     if (!previous_bundle_ptr || !*previous_bundle_ptr) {
       return nullptr;
     }
@@ -2593,7 +2594,7 @@ class XpbdSolverStep {
     const GeometrySetData &geo_set_data = geometries_.geometry_sets[data_key.geo_bundle_i];
     const StringRef geo_bundle_path = geo_set_data.path;
 
-    const bool filter_local = effector.lookup<bool>("filter_local").value_or(false);
+    const bool filter_local = effector.lookup<bool>("filter_local"_ustr).value_or(false);
     if (filter_local) {
       const int pos = effector_path.rfind('/');
       if (pos == StringRef::not_found) {
@@ -2606,7 +2607,7 @@ class XpbdSolverStep {
       }
       return false;
     }
-    const std::string filter = effector.lookup<std::string>("filter").value_or("");
+    const std::string filter = effector.lookup<std::string>("filter"_ustr).value_or("");
     const bool match = tag_filter_matches(filter, geo_set_data.tags);
     return match;
   }
@@ -2653,23 +2654,23 @@ class XpbdSolverStep {
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  BundlePtr world_ptr = params.get_input<BundlePtr>("World");
+  BundlePtr world_ptr = params.get_input<BundlePtr>("World"_ustr);
   if (!world_ptr) {
     params.set_default_remaining_outputs();
     return;
   }
-  const int substeps = params.get_input<int>("Substeps");
+  const int substeps = params.get_input<int>("Substeps"_ustr);
   if (substeps <= 0) {
-    params.set_output("World", std::move(world_ptr));
+    params.set_output("World"_ustr, std::move(world_ptr));
     return;
   }
-  const int constraint_iterations = params.get_input<int>("Constraint Iterations");
-  const float delta_time = std::max(0.0f, params.get_input<float>("Delta Time"));
+  const int constraint_iterations = params.get_input<int>("Constraint Iterations"_ustr);
+  const float delta_time = std::max(0.0f, params.get_input<float>("Delta Time"_ustr));
   Bundle &world = world_ptr.ensure_mutable_inplace();
-  const std::string geometry_tag_filter = params.extract_input<std::string>("Filter");
-  const float4x4 simulation_to_world = params.extract_input<float4x4>("Simulation to World");
-  const float interpolation_begin = params.extract_input<float>("Begin");
-  const float interpolation_end = params.extract_input<float>("End");
+  const std::string geometry_tag_filter = params.extract_input<std::string>("Filter"_ustr);
+  const float4x4 simulation_to_world = params.extract_input<float4x4>("Simulation to World"_ustr);
+  const float interpolation_begin = params.extract_input<float>("Begin"_ustr);
+  const float interpolation_end = params.extract_input<float>("End"_ustr);
 
   XpbdSolverStep step(world,
                       delta_time,
@@ -2685,7 +2686,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     params.error_message_add(NodeWarningType::Warning, warning);
   }
 
-  params.set_output("World", std::move(world_ptr));
+  params.set_output("World"_ustr, std::move(world_ptr));
 }
 
 static void node_register()
