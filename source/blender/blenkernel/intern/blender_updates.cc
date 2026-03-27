@@ -65,7 +65,7 @@ static BlenderUpdates &available_blender_updates()
   return available_blender_updates;
 }
 
-std::optional<BlenderVersion> blender_version_from_version_str(StringRefNull str)
+static std::optional<BlenderVersion> blender_version_from_version_str(StringRefNull str)
 {
   std::stringstream ss(str);
   int major;
@@ -134,7 +134,7 @@ static void register_blender_update(VersionUpdate update)
   }
 }
 
-static std::string download_updates_info(bContext &C)
+static bool download_updates_log(bContext &C)
 {
   constexpr const char *expr =
       R"(
@@ -157,14 +157,14 @@ with tempfile.TemporaryDirectory() as temp_dir:
   std::optional<blender::IDProperty *> updates_ptr = BPY_run_string_exec_with_locals_return_idprop(
       &C, expr, *locals, "_result");
   if (!updates_ptr) {
-    return "";
+    return false;
   }
   IDProperty *updates_idprop = *updates_ptr;
 
   /* Check the returned value. */
   if (updates_idprop == nullptr || updates_idprop->type != IDP_STRING) {
     IDP_FreeProperty(updates_idprop);
-    return "";
+    return false;
   }
   std::string updates_str = IDP_string_get(updates_idprop);
   IDP_FreeProperty(updates_idprop);
@@ -177,10 +177,10 @@ with tempfile.TemporaryDirectory() as temp_dir:
   std::unique_ptr<Value> updates_json = json.deserialize(updates_stream);
 
   if (!updates_json) {
-    return "";
+    return false;
   }
   if (updates_json->type() != eValueType::Array) {
-    return "";
+    return false;
   }
   for (const std::shared_ptr<Value> &entry : updates_json->as_array_value()->elements()) {
     if (!entry || entry->type() != eValueType::Dictionary) {
@@ -226,7 +226,7 @@ with tempfile.TemporaryDirectory() as temp_dir:
                                           .time = std::chrono::system_clock::to_time_t(time)});
   }
 
-  return "";
+  return false;
 }
 
 bool check_for_available_updates(bContext &C, bool use_cache, bool ignore_skipped_versions)
@@ -249,7 +249,7 @@ bool check_for_available_updates(bContext &C, bool use_cache, bool ignore_skippe
                         (std::chrono::utc_clock::now() - last_time_check))
                             .count() > 1)
   {
-    download_updates_info(C);
+    download_updates_log(C);
     last_time_check = std::chrono::utc_clock::now();
   }
   return !available_updates().is_empty();
@@ -279,9 +279,9 @@ Vector<const VersionUpdate *> available_updates()
   return tmp;
 }
 
-void ignore_update_version(const VersionUpdate &version_info)
+static void ignore_update(const VersionUpdate &version_update)
 {
-  std::optional<BlenderVersion> version = blender_version_from_version_str(version_info.version);
+  std::optional<BlenderVersion> version = blender_version_from_version_str(version_update.version);
   BLI_assert(version);
   IgnoredBlenderVersions &ignored_updates = ignored_versions_updates();
 
@@ -293,7 +293,7 @@ void ignore_update_version(const VersionUpdate &version_info)
     ignored_updates.current_release = *version;
   }
 
-  if (version_info.is_lts && ignored_updates.latest_lts < *version) {
+  if (version_update.is_lts && ignored_updates.latest_lts < *version) {
     ignored_updates.latest_lts = *version;
   }
 
@@ -301,33 +301,33 @@ void ignore_update_version(const VersionUpdate &version_info)
     ignored_updates.latest = *version;
   }
 
-  if (updates.latest && version_info == *updates.latest) {
+  if (updates.latest && version_update == *updates.latest) {
     updates.latest = {};
   }
-  if (updates.latest_lts && version_info == *updates.latest_lts) {
+  if (updates.latest_lts && version_update == *updates.latest_lts) {
     updates.latest_lts = {};
   }
-  if (updates.current_release && version_info == *updates.current_release) {
+  if (updates.current_release && version_update == *updates.current_release) {
     updates.current_release = {};
   }
 }
 
-void ignore_update(const VersionUpdate *version_info)
+void ignore_update(const VersionUpdate *version)
 {
-  ignore_update_version(*version_info);
+  ignore_update(*version);
 }
 
 void ignore_all_updates()
 {
   BlenderUpdates &updates = available_blender_updates();
   if (updates.latest) {
-    ignore_update_version(*updates.latest);
+    ignore_update(*updates.latest);
   }
   if (updates.latest_lts) {
-    ignore_update_version(*updates.latest_lts);
+    ignore_update(*updates.latest_lts);
   }
   if (updates.current_release) {
-    ignore_update_version(*updates.current_release);
+    ignore_update(*updates.current_release);
   }
 }
 
