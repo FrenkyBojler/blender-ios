@@ -21,6 +21,8 @@
 
 #include "BLT_translation.hh"
 
+#include "COM_node_operation.hh"
+
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_object_info_cc {
@@ -29,23 +31,28 @@ NODE_STORAGE_FUNCS(NodeGeometryObjectInfo)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  const bool is_geometry = b.tree_or_null() ? b.tree_or_null()->type == NTREE_GEOMETRY : true;
   b.add_input<decl::Object>("Object").optional_label();
   b.add_input<decl::Bool>("As Instance")
       .description(
           "Output the entire object as single instance. "
-          "This allows instancing non-geometry object types");
+          "This allows instancing non-geometry object types")
+      .available(is_geometry);
   b.add_output<decl::Matrix>("Transform")
       .description(
           "Transformation matrix containing the location, rotation and scale of the object");
   b.add_output<decl::Vector>("Location");
-  b.add_output<decl::Rotation>("Rotation");
+  b.add_output<decl::Rotation>("Rotation").available(is_geometry);
   b.add_output<decl::Vector>("Scale");
-  b.add_output<decl::Geometry>("Geometry");
+  b.add_output<decl::Geometry>("Geometry").available(is_geometry);
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout.prop(ptr, "transform_space", ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  const bNodeTree &node_tree = *reinterpret_cast<bNodeTree *>(ptr->owner_id);
+  if (node_tree.type == NTREE_GEOMETRY) {
+    layout.prop(ptr, "transform_space", ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  }
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -159,6 +166,51 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("Geometry", geometry_set);
 }
 
+using namespace blender::compositor;
+
+class ObjectInfoOperation : public NodeOperation {
+ public:
+  using NodeOperation::NodeOperation;
+
+  void execute() override
+  {
+    const Object *object = this->get_input("Object").get_single_value<Object *>();
+    if (!object) {
+      this->allocate_default_remaining_outputs();
+      return;
+    }
+
+    const float4x4 transform = object->object_to_world();
+
+    float3 location, scale;
+    math::Quaternion rotation;
+    math::to_loc_rot_scale_safe<true>(transform, location, rotation, scale);
+
+    Result &transform_result = this->get_result("Transform");
+    if (transform_result.should_compute()) {
+      transform_result.allocate_single_value();
+      transform_result.set_single_value(transform);
+    }
+
+    Result &location_result = this->get_result("Location");
+    if (location_result.should_compute()) {
+      location_result.allocate_single_value();
+      location_result.set_single_value(location);
+    }
+
+    Result &scale_result = this->get_result("Scale");
+    if (scale_result.should_compute()) {
+      scale_result.allocate_single_value();
+      scale_result.set_single_value(scale);
+    }
+  }
+};
+
+static NodeOperation *get_compositor_operation(Context &context, const bNode &node)
+{
+  return new ObjectInfoOperation(context, node);
+}
+
 static void node_node_init(bNodeTree * /*tree*/, bNode *node)
 {
   NodeGeometryObjectInfo *data = MEM_new<NodeGeometryObjectInfo>(__func__);
@@ -199,7 +251,7 @@ static void node_register()
 {
   static bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeObjectInfo", GEO_NODE_OBJECT_INFO);
+  geo_cmp_node_type_base(&ntype, "GeometryNodeObjectInfo", GEO_NODE_OBJECT_INFO);
   ntype.ui_name = "Object Info";
   ntype.ui_description = "Retrieve information from an object";
   ntype.enum_name_legacy = "OBJECT_INFO";
@@ -210,6 +262,7 @@ static void node_register()
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.declare = node_declare;
+  ntype.get_compositor_operation = get_compositor_operation;
   bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
