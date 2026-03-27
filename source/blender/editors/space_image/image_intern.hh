@@ -8,15 +8,12 @@
 
 #pragma once
 
-#include "BLI_rect.h"
-
 namespace blender {
 
 /* internal exports only */
 struct ARegion;
 struct ARegionType;
 struct ImageUser;
-struct Scene;
 struct SpaceImage;
 struct bContext;
 struct bNodeTree;
