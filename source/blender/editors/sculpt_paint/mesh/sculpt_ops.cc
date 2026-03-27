@@ -27,6 +27,7 @@
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
 #include "BKE_main.hh"
+#include "BKE_material.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mirror.hh"
 #include "BKE_multires.hh"
@@ -407,6 +408,26 @@ void object_sculpt_mode_enter(Main &bmain,
   }
   else if (is_negative_m4(ob.object_to_world().ptr())) {
     BKE_report(reports, RPT_WARNING, "Object has negative scale, sculpting may be unpredictable");
+  }
+
+  BKE_texpaint_slots_refresh_object(&scene, &ob);
+
+  const PaintModeSettings paint_settings = scene.toolsettings->paint_mode;
+  Image *ima = nullptr;
+
+  if (paint_settings.canvas_source == PAINT_CANVAS_SOURCE_MATERIAL) {
+    Material *mat = BKE_object_material_get(&ob, ob.actcol);
+
+    if (mat && mat->texpaintslot) {
+      ima = mat->texpaintslot[mat->paint_active_slot].ima;
+    }
+  }
+  else if (paint_settings.canvas_source == PAINT_CANVAS_SOURCE_IMAGE) {
+    ima = paint_settings.canvas_image;
+  }
+
+  if (ima) {
+    ED_space_image_sync(&bmain, ima, false);
   }
 
   Paint *paint = BKE_paint_get_active_from_paintmode(&scene, PaintMode::Sculpt);
