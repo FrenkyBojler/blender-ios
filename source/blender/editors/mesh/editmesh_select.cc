@@ -1883,7 +1883,7 @@ static wmOperatorStatus edbm_boundary_loop_multiselect_exec(bContext *C, wmOpera
       for (BMEdge *e : source_edges) {
         if (BM_edge_is_boundary(e)) {
           changed |= walker_select(
-              em, BMW_EDGELOOP_NONMANIFOLD, e, true, BMW_FLAG_TEST_HIDDEN, delimit);
+              em, BMW_EDGELOOP, e, true, BMW_FLAG_TEST_HIDDEN, delimit);
         }
       }
     }
@@ -1891,7 +1891,7 @@ static wmOperatorStatus edbm_boundary_loop_multiselect_exec(bContext *C, wmOpera
       for (BMEdge *e : source_edges) {
         if (BM_edge_is_boundary(e)) {
           changed |= walker_select(
-              em, BMW_EDGELOOP_NONMANIFOLD, e, true, BMW_FLAG_TEST_HIDDEN, delimit);
+              em, BMW_EDGELOOP, e, true, BMW_FLAG_TEST_HIDDEN, delimit);
         }
         else {
           BM_edge_select_set_noflush(em->bm, e, false);
