@@ -10000,7 +10000,7 @@ static int handle_button_event(bContext *C, const wmEvent *event, Button *but)
           WM_event_timer_remove(data->wm, data->window, data->autoopentimer);
           data->autoopentimer = nullptr;
           /* Do not open sub-menus while using an auto-scroll handler. */
-          if ((!block->handle || !block->handle->scrolltimer) &&
+          if ((block_is_pie_menu(block) || !block->handle || !block->handle->scrolltimer) &&
               (button_contains_point_px(but, region, event->xy) || but->active))
           {
             button_activate_state(C, but, BUTTON_STATE_MENU_OPEN);
@@ -10688,32 +10688,11 @@ static void menu_scroll_apply_offset_y(ARegion *region, Block *block, float dy)
 {
   BLI_assert(dy != 0.0f);
 
-  const float scroll_pad = (block_is_menu(block) ? UI_MENU_SCROLL_PAD : UI_UNIT_Y * 0.5f) /
-                           block->aspect;
-
-  if (dy < 0.0f) {
-    /* Stop at top item, extra 0.5 UI_UNIT_Y makes it snap nicer. */
-    float ymax = -FLT_MAX;
-    for (Button &bt : block->buttons()) {
-      ymax = max_ff(ymax, bt.rect.ymax);
-    }
-    if (ymax + dy - (UI_UNIT_Y * 0.5f) / block->aspect < block->rect.ymax - scroll_pad) {
-      dy = block->rect.ymax - ymax - scroll_pad;
-    }
-  }
-  else {
-    /* Stop at bottom item, extra 0.5 UI_UNIT_Y makes it snap nicer. */
-    float ymin = FLT_MAX;
-    for (Button &bt : block->buttons()) {
-      ymin = min_ff(ymin, bt.rect.ymin);
-    }
-    if (ymin + dy + (UI_UNIT_Y * 0.5f) / block->aspect > block->rect.ymin + scroll_pad) {
-      dy = block->rect.ymin - ymin + scroll_pad;
-    }
-  }
-
   /* remember scroll offset for refreshes */
-  block->handle->scrolloffset += dy;
+  const float prev_scroll = block->handle->scrolloffset;
+  block->handle->scrolloffset = std::clamp(
+      block->handle->scrolloffset + dy, block->handle->scrollmin, block->handle->scrollmax);
+  dy = block->handle->scrolloffset - prev_scroll;
   /* Apply popup scroll delta to layout panels too. */
   layout_panel_popup_scroll_apply(block->panel, dy);
 
@@ -11123,9 +11102,13 @@ static int handle_menu_event(bContext *C,
       mouse_motion_towards_reinit(menu, event->xy);
     }
   }
-  /* Don't auto-scroll while panning. */
-  else if (event->type == TIMER && !menu->mmb_panning && !menu->keep_open_timer) {
-    if (event->customdata == menu->scrolltimer) {
+  else if (event->type == TIMER && event->customdata == menu->scrolltimer) {
+    if (!menu_scroll_test(block, my)) {
+      WM_event_timer_remove(CTX_wm_manager(C), win, menu->scrolltimer);
+      menu->scrolltimer = nullptr;
+    }
+    /* Don't auto-scroll while panning. */
+    else if (!menu->mmb_panning && !menu->keep_open_timer) {
       menu_scroll_to_y(region, block, my);
     }
   }

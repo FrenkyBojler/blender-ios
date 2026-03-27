@@ -62,7 +62,6 @@ namespace ui {
 
 /* ****************** general defines ************** */
 
-#define RNA_NO_INDEX -1
 #define RNA_ENUM_VALUE -2
 
 #define UI_MENU_PADDING (int)(0.2f * UI_UNIT_Y)
@@ -984,6 +983,8 @@ struct PopupBlockHandle {
 
   wmTimer *scrolltimer = nullptr;
   float scrolloffset = 0.0f;
+  float scrollmin = 0.0f;
+  float scrollmax = 0.0f;
 
   KeyNavLock keynav_state;
 
