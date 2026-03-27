@@ -299,9 +299,8 @@ class MenuSwitchFn : public mf::MultiFunction {
 class LazyFunctionForMenuSwitchNode : public LazyFunction {
  private:
   const bNode &node_;
-  bool can_be_field_ = false;
   const NodeEnumDefinition &enum_def_;
-  const CPPType *field_base_type_;
+  const CPPType *base_cpp_type_;
 
  public:
   LazyFunctionForMenuSwitchNode(const bNode &node,
@@ -310,10 +309,9 @@ class LazyFunctionForMenuSwitchNode : public LazyFunction {
   {
     const NodeMenuSwitch &storage = node_storage(node);
     const eNodeSocketDatatype data_type = eNodeSocketDatatype(storage.data_type);
-    can_be_field_ = socket_type_supports_fields(data_type);
     const bke::bNodeSocketType *socket_type = bke::node_socket_type_find_static(data_type);
     BLI_assert(socket_type != nullptr);
-    field_base_type_ = socket_type->base_cpp_type;
+    base_cpp_type_ = socket_type->base_cpp_type;
 
     MutableSpan<int> lf_index_by_bsocket = lf_graph_info.mapping.lf_index_by_bsocket;
     debug_name_ = node.name;
@@ -334,14 +332,26 @@ class LazyFunctionForMenuSwitchNode : public LazyFunction {
     }
   }
 
-  void execute_impl(lf::Params &params, const lf::Context & /*context*/) const override
+  void execute_impl(lf::Params &params, const lf::Context &context) const override
   {
     SocketValueVariant condition_variant = params.get_input<SocketValueVariant>(0);
-    if (condition_variant.is_context_dependent_field() && can_be_field_) {
-      this->execute_field(condition_variant.get<Field<MenuValue>>(), params);
-    }
-    else {
+    if (condition_variant.is_single()) {
       this->execute_single(condition_variant.get<MenuValue>(), params);
+      return;
+    }
+
+    auto &user_data = *static_cast<GeoNodesUserData *>(context.user_data);
+    auto &local_user_data = *static_cast<GeoNodesLocalUserData *>(context.local_user_data);
+    std::string error_message;
+    this->execute_multi_function(condition_variant, params, user_data, error_message);
+
+    if (!error_message.empty()) {
+      if (geo_eval_log::GeoTreeLogger *tree_logger = local_user_data.try_get_tree_logger(
+              user_data))
+      {
+        tree_logger->node_warnings.append(
+            *tree_logger->allocator, {node_.identifier, {NodeWarningType::Error, error_message}});
+      }
     }
   }
 
@@ -373,34 +383,40 @@ class LazyFunctionForMenuSwitchNode : public LazyFunction {
     set_default_remaining_node_outputs(params, node_);
   }
 
-  void execute_field(Field<MenuValue> condition, lf::Params &params) const
+  void execute_multi_function(SocketValueVariant condition_variant,
+                              lf::Params &params,
+                              GeoNodesUserData &user_data,
+                              std::string &r_error_message) const
   {
     /* When the condition is a non-constant field, we need all inputs. */
     const int values_num = this->enum_def_.items_num;
-    Array<SocketValueVariant *, 8> input_values(values_num);
+    Array<SocketValueVariant *, 8> input_values(values_num + 1);
+    input_values[0] = &condition_variant;
     for (const int i : IndexRange(values_num)) {
       const int input_index = i + 1;
-      input_values[i] = params.try_get_input_data_ptr_or_request<SocketValueVariant>(input_index);
+      input_values[i + 1] = params.try_get_input_data_ptr_or_request<SocketValueVariant>(
+          input_index);
     }
     if (input_values.as_span().contains(nullptr)) {
       /* Try again when inputs are available. */
       return;
     }
 
-    Vector<GField> item_fields(enum_def_.items_num + 1);
-    item_fields[0] = std::move(condition);
-    for (const int i : IndexRange(enum_def_.items_num)) {
-      item_fields[i + 1] = input_values[i]->extract<GField>();
-    }
     std::unique_ptr<MultiFunction> multi_function = std::make_unique<MenuSwitchFn>(
-        enum_def_, *field_base_type_);
-    std::shared_ptr<fn::FieldOperation> operation = FieldOperation::from(std::move(multi_function),
-                                                                         std::move(item_fields));
+        enum_def_, *base_cpp_type_);
 
-    params.set_output(0, SocketValueVariant::From(GField(operation, 0)));
-    for (const int item_i : IndexRange(enum_def_.items_num)) {
-      params.set_output(item_i + 1, SocketValueVariant::From(GField(operation, item_i + 1)));
+    bke::SocketValueVariant output_value_variant;
+    if (!execute_multi_function_on_value_variant(
+            *multi_function, input_values, {&output_value_variant}, &user_data, r_error_message))
+    {
+      set_default_remaining_node_outputs(params, node_);
+      return;
     }
+
+    const CPPType &type = *outputs_[0].type;
+    void *output_ptr = params.get_output_data_ptr(0);
+    type.move_construct(&output_value_variant, output_ptr);
+    params.output_set(0);
   }
 };
 

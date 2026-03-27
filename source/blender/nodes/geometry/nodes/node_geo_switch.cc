@@ -5,7 +5,6 @@
 #include "node_geometry_util.hh"
 
 #include "BKE_node_tree_reference_lifetimes.hh"
-#include "BKE_volume_grid.hh"
 
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
@@ -17,8 +16,6 @@
 #include "RNA_enum_types.hh"
 
 #include "FN_multi_function_builder.hh"
-
-#include "volume_grid_function_eval.hh"
 
 namespace blender {
 
@@ -112,16 +109,14 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 
 class LazyFunctionForSwitchNode : public LazyFunction {
  private:
-  int32_t node_id_;
-  bool can_be_field_ = false;
+  const bNode &node_;
   const CPPType *base_type_;
 
  public:
-  LazyFunctionForSwitchNode(const bNode &node) : node_id_(node.identifier)
+  LazyFunctionForSwitchNode(const bNode &node) : node_(node)
   {
     const NodeSwitch &storage = node_storage(node);
     const eNodeSocketDatatype data_type = eNodeSocketDatatype(storage.input_type);
-    can_be_field_ = socket_type_supports_fields(data_type);
 
     const bke::bNodeSocketType *socket_type = nullptr;
     for (const bNodeSocket *socket : node.output_sockets()) {
@@ -159,8 +154,7 @@ class LazyFunctionForSwitchNode : public LazyFunction {
               user_data))
       {
         tree_logger->node_warnings.append(
-            *tree_logger->allocator,
-            {node_id_, {NodeWarningType::Error, N_("Type cannot be switched by a field")}});
+            *tree_logger->allocator, {node_.identifier, {NodeWarningType::Error, error_message}});
       }
     }
   }
@@ -211,6 +205,7 @@ class LazyFunctionForSwitchNode : public LazyFunction {
             &user_data,
             r_error_message))
     {
+      set_default_remaining_node_outputs(params, node_);
       return;
     }
 

@@ -33,15 +33,6 @@ namespace grid = bke::volume_grid;
 
 #ifdef WITH_OPENVDB
 
-static std::optional<VolumeGridType> cpp_type_to_grid_type(const CPPType &cpp_type)
-{
-  const std::optional<eCustomDataType> cd_type = bke::cpp_type_to_custom_data_type(cpp_type);
-  if (!cd_type) {
-    return std::nullopt;
-  }
-  return bke::custom_data_type_to_volume_grid_type(*cd_type);
-}
-
 /**
  * Call the multi-function in a batch on all active voxels in a leaf node.
  *
@@ -541,7 +532,7 @@ bool execute_multi_function_on_value_variant__volume_grid(
     const int param_index = input_values.size() + i;
     const mf::ParamType param_type = fn.param_type(param_index);
     const CPPType &cpp_type = param_type.data_type().single_type();
-    const std::optional<VolumeGridType> grid_type = cpp_type_to_grid_type(cpp_type);
+    const std::optional<VolumeGridType> grid_type = bke::cpp_type_to_volume_grid_type(cpp_type);
     if (!grid_type) {
       r_error_message = TIP_("Grid type not supported");
       return false;

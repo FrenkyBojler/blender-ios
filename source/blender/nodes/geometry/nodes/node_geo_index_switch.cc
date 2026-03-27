@@ -301,8 +301,7 @@ class IndexSwitchFunction : public mf::MultiFunction {
 class LazyFunctionForIndexSwitchNode : public LazyFunction {
  private:
   const bNode &node_;
-  bool can_be_field_ = false;
-  const CPPType *field_base_type_;
+  const CPPType *base_cpp_type_;
 
  public:
   LazyFunctionForIndexSwitchNode(const bNode &node,
@@ -310,14 +309,12 @@ class LazyFunctionForIndexSwitchNode : public LazyFunction {
       : node_(node)
   {
     const NodeIndexSwitch &storage = node_storage(node);
-    const eNodeSocketDatatype data_type = eNodeSocketDatatype(storage.data_type);
     const bNodeSocket &index_socket = node.input_socket(0);
     const bNodeSocket &output_socket = node.output_socket(0);
     const CPPType &cpp_type = CPPType::get<SocketValueVariant>();
 
     debug_name_ = node.name;
-    can_be_field_ = socket_type_supports_fields(data_type);
-    field_base_type_ = output_socket.typeinfo->base_cpp_type;
+    base_cpp_type_ = output_socket.typeinfo->base_cpp_type;
 
     MutableSpan<int> lf_index_by_bsocket = lf_graph_info.mapping.lf_index_by_bsocket;
 
@@ -333,14 +330,26 @@ class LazyFunctionForIndexSwitchNode : public LazyFunction {
     }
   }
 
-  void execute_impl(lf::Params &params, const lf::Context & /*context*/) const override
+  void execute_impl(lf::Params &params, const lf::Context &context) const override
   {
     SocketValueVariant index_variant = params.get_input<SocketValueVariant>(0);
-    if (index_variant.is_context_dependent_field() && can_be_field_) {
-      this->execute_field(index_variant.get<Field<int>>(), params);
-    }
-    else {
+    if (index_variant.is_single()) {
       this->execute_single(index_variant.get<int>(), params);
+      return;
+    }
+
+    auto &user_data = *static_cast<GeoNodesUserData *>(context.user_data);
+    auto &local_user_data = *static_cast<GeoNodesLocalUserData *>(context.local_user_data);
+    std::string error_message;
+    this->execute_multi_function(index_variant, params, user_data, error_message);
+
+    if (!error_message.empty()) {
+      if (geo_eval_log::GeoTreeLogger *tree_logger = local_user_data.try_get_tree_logger(
+              user_data))
+      {
+        tree_logger->node_warnings.append(
+            *tree_logger->allocator, {node_.identifier, {NodeWarningType::Error, error_message}});
+      }
     }
   }
 
@@ -376,12 +385,16 @@ class LazyFunctionForIndexSwitchNode : public LazyFunction {
     params.output_set(0);
   }
 
-  void execute_field(Field<int> index, lf::Params &params) const
+  void execute_multi_function(SocketValueVariant index_variant,
+                              lf::Params &params,
+                              GeoNodesUserData &user_data,
+                              std::string &r_error_message) const
   {
     const int values_num = this->values_num();
-    Array<SocketValueVariant *, 8> input_values(values_num);
+    Array<SocketValueVariant *, 8> input_values(values_num + 1);
+    input_values[0] = &index_variant;
     for (const int i : IndexRange(values_num)) {
-      input_values[i] = params.try_get_input_data_ptr_or_request<SocketValueVariant>(
+      input_values[i + 1] = params.try_get_input_data_ptr_or_request<SocketValueVariant>(
           value_inputs_start + i);
     }
     if (input_values.as_span().contains(nullptr)) {
@@ -389,17 +402,20 @@ class LazyFunctionForIndexSwitchNode : public LazyFunction {
       return;
     }
 
-    Vector<GField> input_fields({std::move(index)});
-    for (const int i : IndexRange(values_num)) {
-      input_fields.append(input_values[i]->extract<GField>());
+    std::unique_ptr<mf::MultiFunction> switch_fn = std::make_unique<IndexSwitchFunction>(
+        *base_cpp_type_, values_num);
+
+    bke::SocketValueVariant output_value_variant;
+    if (!execute_multi_function_on_value_variant(
+            *switch_fn, input_values, {&output_value_variant}, &user_data, r_error_message))
+    {
+      set_default_remaining_node_outputs(params, node_);
+      return;
     }
 
-    std::unique_ptr<mf::MultiFunction> switch_fn = std::make_unique<IndexSwitchFunction>(
-        *field_base_type_, values_num);
-    GField output_field(FieldOperation::from(std::move(switch_fn), std::move(input_fields)));
-
+    const CPPType &type = *outputs_[0].type;
     void *output_ptr = params.get_output_data_ptr(0);
-    SocketValueVariant::ConstructIn(output_ptr, std::move(output_field));
+    type.move_construct(&output_value_variant, output_ptr);
     params.output_set(0);
   }
 };
