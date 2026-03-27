@@ -116,10 +116,10 @@ static bool all_faces_are_triangles(const Mesh &mesh)
   return mesh.corners_num == mesh.faces_num * 3;
 }
 
-static void add_triangles(const BvhBuildContext &ctx,
-                          const int id,
-                          const Mesh &mesh,
-                          const IndexMask &face_mask)
+static void add_mesh_faces(const BvhBuildContext &ctx,
+                           const int id,
+                           const Mesh &mesh,
+                           const IndexMask &face_mask)
 {
   RTCGeometry geom_id = rtcNewGeometry(ctx.device, RTC_GEOMETRY_TYPE_TRIANGLE);
   rtcSetGeometryBuildQuality(geom_id, ctx.build_quality);
@@ -196,7 +196,7 @@ Tree Tree::from_tris(const Mesh &mesh, const IndexMask &face_mask)
 
   BvhBuildContext ctx{tree.rtc_device, tree.rtc_scene, build_quality};
 
-  add_triangles(ctx, 0, mesh, face_mask);
+  add_mesh_faces(ctx, 0, mesh, face_mask);
 
   rtcSetSceneProgressMonitorFunction(tree.rtc_scene, rtc_progress_func, nullptr);
   rtcCommitScene(tree.rtc_scene);

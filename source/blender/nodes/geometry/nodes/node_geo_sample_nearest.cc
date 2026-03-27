@@ -167,12 +167,16 @@ static void get_closest_mesh_faces(const Mesh &mesh,
 {
   BLI_assert(mesh.faces_num > 0);
 
-  Array<int> tri_indices(positions.size());
-  get_closest_mesh_tris(mesh, positions, mask, tri_indices, r_distances_sq, r_positions);
-
-  const Span<int> tri_faces = mesh.corner_tri_faces();
-
-  mask.foreach_index([&](const int i) { r_face_indices[i] = tri_faces[tri_indices[i]]; });
+  const bool mesh_is_triangles = mesh.corners_num == mesh.faces_num * 3;
+  if (mesh_is_triangles) {
+    get_closest_mesh_tris(mesh, positions, mask, r_face_indices, r_distances_sq, r_positions);
+  }
+  else {
+    Array<int> tri_indices(positions.size());
+    get_closest_mesh_tris(mesh, positions, mask, tri_indices, r_distances_sq, r_positions);
+    const Span<int> tri_faces = mesh.corner_tri_faces();
+    mask.foreach_index([&](const int i) { r_face_indices[i] = tri_faces[tri_indices[i]]; });
+  }
 }
 
 /* The closest corner is defined to be the closest corner on the closest face. */
