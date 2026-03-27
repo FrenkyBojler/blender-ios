@@ -1862,41 +1862,32 @@ static wmOperatorStatus edbm_boundary_loop_multiselect_exec(bContext *C, wmOpera
     }
 
     BMEdge *eed;
-    int edindex;
     BMIter iter;
-    int totedgesel = 0;
-
+    Vector<BMEdge *> source_edges;
+    source_edges.reserve(em->bm->totedgesel);
     BM_ITER_MESH (eed, &iter, em->bm, BM_EDGES_OF_MESH) {
-      if (BM_elem_flag_test(eed, BM_ELEM_SELECT) && (extend || BM_edge_is_boundary(eed))) {
-        totedgesel++;
-      }
-    }
-
-    BMEdge **edarray = MEM_new_array_uninitialized<BMEdge *>(totedgesel, "edge array");
-    edindex = 0;
-
-    BM_ITER_MESH (eed, &iter, em->bm, BM_EDGES_OF_MESH) {
-      if (BM_elem_flag_test(eed, BM_ELEM_SELECT) && (extend || BM_edge_is_boundary(eed))) {
-        edarray[edindex] = eed;
-        edindex++;
+      if (BM_elem_flag_test(eed, BM_ELEM_SELECT) && (!extend || BM_edge_is_boundary(eed))) {
+        source_edges.append(eed);
       }
     }
 
     bool changed = false;
     if (extend) {
-      for (edindex = 0; edindex < totedgesel; edindex += 1) {
-        changed |= walker_select(
-            em, BMW_EDGELOOP_NONMANIFOLD, eed, true, BMW_FLAG_TEST_HIDDEN, delimit);
+      for (BMEdge *e : source_edges) {
+        if (BM_edge_is_boundary(e)) {
+          changed |= walker_select(
+              em, BMW_EDGELOOP_NONMANIFOLD, e, true, BMW_FLAG_TEST_HIDDEN, delimit);
+        }
       }
     }
     else {
-      for (edindex = 0; edindex < totedgesel; edindex += 1) {
-        if (BM_edge_is_boundary(eed)) {
+      for (BMEdge *e : source_edges) {
+        if (BM_edge_is_boundary(e)) {
           changed |= walker_select(
-              em, BMW_EDGELOOP_NONMANIFOLD, eed, true, BMW_FLAG_TEST_HIDDEN, delimit);
+              em, BMW_EDGELOOP_NONMANIFOLD, e, true, BMW_FLAG_TEST_HIDDEN, delimit);
         }
         else {
-          BM_edge_select_set_noflush(em->bm, eed, false);
+          BM_edge_select_set_noflush(em->bm, e, false);
           changed = true;
         }
       }
@@ -1904,11 +1895,6 @@ static wmOperatorStatus edbm_boundary_loop_multiselect_exec(bContext *C, wmOpera
     if (changed) {
       EDBM_selectmode_flush(em);
       EDBM_uvselect_clear(em);
-    }
-
-    MEM_delete(edarray);
-
-    if (changed) {
       DEG_id_tag_update(obedit->data, ID_RECALC_SELECT);
       WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
     }
