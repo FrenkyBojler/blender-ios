@@ -1508,24 +1508,29 @@ static wmOperatorStatus ed_marker_select_exec(bContext *C, wmOperator *op)
 {
   const bool extend = RNA_boolean_get(op->ptr, "extend");
   const bool wait_to_deselect_others = RNA_boolean_get(op->ptr, "wait_to_deselect_others");
-  bool camera = false;
-  camera = RNA_boolean_get(op->ptr, "camera");
-  if (camera) {
-    /* Supporting mode switching from this operator doesn't seem so useful.
-     * So only allow setting the active camera in object-mode. */
-    if (CTX_data_mode_enum(C) != CTX_MODE_OBJECT) {
-      BKE_report(op->reports,
-                 RPT_WARNING,
-                 "Automatic selection of the camera bound to this marker is only supported in "
-                 "object mode");
-    }
-  }
+
   int mval[2];
   mval[0] = RNA_int_get(op->ptr, "mouse_x");
   mval[1] = RNA_int_get(op->ptr, "mouse_y");
   const View2D *v2d = ui::view2d_fromcontext(C);
+
+  const float marker_frame = ui::view2d_region_to_view_x(v2d, mval[0]);
   ListBaseT<TimeMarker> *markers = ED_context_get_markers(C);
+  TimeMarker *marker = ED_markers_find_nearest_marker(markers, marker_frame);
   const bool is_over_marker = region_position_is_over_marker(v2d, markers, mval[0]);
+
+  bool camera = false;
+  camera = RNA_boolean_get(op->ptr, "camera");
+
+  if (camera && marker->camera && CTX_data_mode_enum(C) != CTX_MODE_OBJECT) {
+    /* Supporting mode switching from this operator doesn't seem so useful.
+     * So only select the camera in object-mode. */
+    BKE_report(op->reports,
+               RPT_WARNING,
+               "Automatic selection of the camera bound to this marker is only supported in "
+               "object mode");
+  }
+
   if (camera && !is_over_marker) {
     /* Activating a camera can only work if the marker is clicked. Exit early if not on a marker to
      * let the MARKER_OT_select_leftright operator work. */
