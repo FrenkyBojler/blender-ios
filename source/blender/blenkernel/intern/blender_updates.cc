@@ -138,8 +138,20 @@ static std::string download_updates_info(bContext &C)
 {
   constexpr const char *expr =
       R"(
-with open('/home/guishe/Documents/updates-info.json', 'r') as file:
-    _result = file.read()
+import tempfile
+with tempfile.TemporaryDirectory() as temp_dir:
+    from pathlib import Path
+    output_dir = Path(temp_dir)
+    
+    from _bpy_internal.http import downloader as http_dl
+    metadata_provider = http_dl.MetadataProviderFilesystem(cache_location= output_dir / "http_metadata")
+    
+    downloader = http_dl.ConditionalDownloader(metadata_provider=metadata_provider)
+    downloader.download_to_file("http://localhost:8000/updates.json", Path(output_dir / "blender-updates.json"))
+    
+    import os
+    with open(os.path.join(temp_dir,  "blender-updates.json"), 'r') as file:
+        _result = file.read()
 )";
   std::unique_ptr locals = bke::idprop::create_group("locals");
   std::optional<blender::IDProperty *> updates_ptr = BPY_run_string_exec_with_locals_return_idprop(
