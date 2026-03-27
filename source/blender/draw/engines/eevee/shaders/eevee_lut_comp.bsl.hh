@@ -21,34 +21,9 @@
 
 namespace eevee {
 
-struct LUT {
-  [[image(0, read_write, SFLOAT_32_32_32_32)]] image3D image;
-
-  [[push_constant]] const int type;
-  [[push_constant]] const int3 extent;
-};
-
 /* -------------------------------------------------------------------- */
-/** \name Integration models
+/** \name LUT models
  * \{ */
-
-template<typename F, uint SAMPLES_COUNT> float4 integrate(float3 params)
-{
-  auto f = F::init(params);
-
-  /* Measure F using N samples. */
-  float4 measure = float4(0.0f);
-  for (uint i = 1u; i <= SAMPLES_COUNT; i++) {
-    /* Warp sequence to a random point on the unit cylinder. */
-    float2 rand = hammersley_2d(i, N);
-    float2 Xi = sample_cylinder(rand);
-
-    /* Take sample and add to incremental measure. */
-    measure += (f.eval(Xi) - measure) / float(i);
-  }
-
-  return measure;
-}
 
 /**
  * Generate 2D GGX BRDF LUT
@@ -70,12 +45,6 @@ class GGX_BRDF_Splitsum {
   float3 V;
 
  public:
-  static float4 integrate(float3 params)
-  {
-    constexpr uint sample_count = 512u * 512u;
-    return integrate<GGX_BRDF_Splitsum, sample_count>(params);
-  }
-
   static GGX_BRDF_Splitsum init(float3 params)
   {
     /* We use squared roughness for approximate perceptual linearity
@@ -87,10 +56,10 @@ class GGX_BRDF_Splitsum {
     float NV = clamp(1.0f - square(params.y), 1e-4f, 0.9999f);
     float3 V = float3(sqrt(1.0f - square(NV)), 0.0f, NV);
 
-    return {roughness, N, V};
+    return {roughness, V};
   }
 
-  float4 eval(float2 Xi)
+  float4 eval(float3 Xi) const
   {
     constexpr float3 N = float3(0.0f, 0.0f, 1.0f);
 
@@ -109,14 +78,15 @@ class GGX_BRDF_Splitsum {
       float weight = bxdf_ggx_eval_reflection(N, L, V, roughness, false).weight;
       float VH = saturate(dot(V, H));
 
-      /* Schlick's Fresnel approximation. */
+      /* Schlick's Fresnel. */
       float s = saturate(pow5f(1.0f - VH));
-      scale += (1.0f - s) * weight;
-      bias += s * weight;
 
       /* F82 tint effect. */
       float b = VH * saturate(pow6f(1.0f - VH));
-      metal_bias += b * weight;
+
+      scale = (1.0f - s) * weight;
+      bias = s * weight;
+      metal_bias = b * weight;
     }
 
     return float4(scale, bias, metal_bias, 0.0f);
@@ -144,37 +114,33 @@ class GGX_BSDF_Splitsum {
   float3 V;
 
  public:
-  static float4 integrate(float3 params)
-  {
-    constexpr uint sample_count = 512u * 512u;
-    return integrate<GGX_BRDF_Splitsum, sample_count>(params);
-  }
-
-  static GGX_BRDF_Splitsum init(float3 params)
+  static GGX_BSDF_Splitsum init(float3 params)
   {
     /* We use squared roughness for approximate perceptual linearity
      * following [Physically Based Shading at Disney]
      * (https://media.disneyanimation.com/uploads/production/publication_asset/48/asset/s2012_pbs_disney_brdf_notes_v3.pdf)
      * Section 5.4. */
-    roughness = square(params.z);
+    float roughness = square(params.z);
 
     /* ior is sin of critical angle. */
-    ior = clamp(sqrt(params.x), 1e-4f, 0.9999f);
+    float ior = clamp(sqrt(params.x), 1e-4f, 0.9999f);
     float critical_cos = sqrt(1.0f - saturate(square(ior)));
 
     /* Modify y-param. */
     /* Maximize texture usage on both sides of the critical angle. */
-    params.y = param.y * 2.0f - 1.0f;
+    params.y = params.y * 2.0f - 1.0f;
     params.y *= (params.y > 0.0f) ? (1.0f - critical_cos) : critical_cos;
     /* Center LUT around critical angle to avoid strange interpolation issues when the critical
      * angle is changing. */
     params.y += critical_cos;
 
-    float NV = clamp(1.0f - square(params.y), 1e-4f, 0.9999f);
+    float NV = clamp(params.y, 1e-4f, 0.9999f);
     float3 V = float3(sqrt(1.0f - square(NV)), 0.0f, NV);
+
+    return {roughness, ior, V};
   }
 
-  float4 eval(float2 Xi)
+  float4 eval(float3 Xi) const
   {
     constexpr float3 N = float3(0.0f, 0.0f, 1.0f);
 
@@ -196,8 +162,8 @@ class GGX_BSDF_Splitsum {
       float s = saturate(pow5f(1.0f - saturate(HL)));
 
       float weight = bxdf_ggx_eval_reflection(N, R, V, roughness, false).weight;
-      scale += (1.0f - s) * weight;
-      bias += s * weight;
+      scale = (1.0f - s) * weight;
+      bias = s * weight;
     }
 
     /* Refraction, restricted to negative hemisphere. */
@@ -215,7 +181,7 @@ class GGX_BSDF_Splitsum {
 
       float weight =
           bxdf_ggx_eval_refraction(N, T, V, roughness, ior, Thickness::zero(), false).weight;
-      transmission_factor += (1.0f - s) * weight;
+      transmission_factor = (1.0f - s) * weight;
     }
 
     return float4(scale, bias, transmission_factor, 0.0f);
@@ -223,7 +189,7 @@ class GGX_BSDF_Splitsum {
 };
 
 /**
- * Generate 3D GGX BTDF LUT
+ * Generate 3D GGX BTDF LUT for IOR > 1
  * using Schlick's approximation. Only the transmittance is needed because scale and
  * bias do not depend on the IOR, and can be obtained independently from the BRDF LUT.
  *
@@ -241,12 +207,6 @@ class GGX_BTDF_GT_one {
   float3 V;
 
  public:
-  static float4 integrate(float3 params)
-  {
-    constexpr uint sample_count = 512u * 512u;
-    return integrate<GGX_BRDF_Splitsum, sample_count>(params);
-  }
-
   static GGX_BTDF_GT_one init(float3 params)
   {
     /* We use squared roughness for approximate perceptual linearity
@@ -256,13 +216,15 @@ class GGX_BTDF_GT_one {
     float roughness = square(params.z);
 
     float f0 = clamp(square(params.x), 1e-4f, 0.9999f);
-    ior = (1.0f + f0) / (1.0f - f0);
+    float ior = (1.0f + f0) / (1.0f - f0);
 
-    float NV = clamp(1.0f - square(lut_coord.y), 1e-4f, 0.9999f);
-    V = float3(sqrt(1.0f - square(NV)), 0.0f, NV);
+    float NV = clamp(1.0f - square(params.y), 1e-4f, 0.9999f);
+    float3 V = float3(sqrt(1.0f - square(NV)), 0.0f, NV);
+
+    return {roughness, ior, V};
   }
 
-  float4 eval(float2 Xi)
+  float4 eval(float3 Xi) const
   {
     constexpr float3 N = float3(0.0f, 0.0f, 1.0f);
 
@@ -283,7 +245,7 @@ class GGX_BTDF_GT_one {
 
       float weight =
           bxdf_ggx_eval_refraction(N, L, V, roughness, ior, Thickness::zero(), false).weight;
-      transmission_factor += (1.0f - s) * weight;
+      transmission_factor = (1.0f - s) * weight;
     }
 
     return float4(transmission_factor, 0.0f, 0.0f, 0.0f);
@@ -338,6 +300,64 @@ float4 random_walk_sss_translucency(float3 params)
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
+/** \name LUT computation, integration
+ * \{ */
+
+template<typename F> float4 integrate(const F &f)
+{
+  constexpr uint sample_count = 512u * 512u;
+
+  /* TODO(not_mark): Remove workaround for BSL-spec #4. */
+  /* F f = F::init(params); */
+
+  /* Measure f using N samples. */
+  float4 measure = float4(0.0f);
+  for (uint i = 1u; i <= sample_count; i++) {
+    /* Warp sequence to a random point on the unit cylinder. */
+    float2 rand = hammersley_2d(i, sample_count);
+    float3 Xi = sample_cylinder(rand);
+
+    /* Add sample to measure. */
+    measure += f.eval(Xi);
+  }
+  return measure / float(sample_count);
+}
+template float4 integrate<GGX_BRDF_Splitsum>(const GGX_BRDF_Splitsum &);
+template float4 integrate<GGX_BSDF_Splitsum>(const GGX_BSDF_Splitsum &);
+template float4 integrate<GGX_BTDF_GT_one>(const GGX_BTDF_GT_one &);
+
+// template<typename F> float4 integrate_incremental(const F &f)
+// {
+//   constexpr uint sample_count = 512u * 512u;
+
+//   /* TODO(not_mark): Remove workaround for BSL-spec #4. */
+//   /* F f = F::init(params); */
+
+//   /* Measure f using N samples. */
+//   float4 measure = float4(0.0f);
+//   for (uint i = 1u; i <= sample_count; i++) {
+//     /* Warp sequence to a random point on the unit cylinder. */
+//     float2 rand = hammersley_2d(i, sample_count);
+//     float3 Xi = sample_cylinder(rand);
+
+//     /* Add sample to incremental measure. */
+//     measure = (measure * (float(i) / float(i + 1))) + (f.eval(Xi / float(i + 1)))
+//     measure += (f.eval(Xi) - measure) / float(i);
+//   }
+
+//   return measure;
+// }
+// template float4 integrate_incremental<GGX_BRDF_Splitsum>(const GGX_BRDF_Splitsum &);
+// template float4 integrate_incremental<GGX_BSDF_Splitsum>(const GGX_BSDF_Splitsum &);
+// template float4 integrate_incremental<GGX_BTDF_GT_one>(const GGX_BTDF_GT_one &);
+
+struct LUT {
+  [[image(0, read_write, SFLOAT_32_32_32_32)]] image3D image;
+  [[push_constant]] const int type;
+  [[push_constant]] const int3 extent;
+};
+
 [[compute]] [[local_size(LUT_WORKGROUP_SIZE, LUT_WORKGROUP_SIZE)]]
 void comp_main([[global_invocation_id]] const uint3 global_id, [[resource_table]] LUT &lut)
 {
@@ -346,17 +366,22 @@ void comp_main([[global_invocation_id]] const uint3 global_id, [[resource_table]
 
   /* Make sure missing cases are noticeable. */
   float4 result = float4(-1);
-
-  switch (lut.type) {
-    case LUT_GGX_BRDF_SPLIT_SUM:
-      result = GGX_BRDF_Splitsum::integrate(lut_normalized_coordinate);
-      break;
-    case LUT_GGX_BSDF_SPLIT_SUM:
-      result = GGX_BSDF_Splitsum::integrate(lut_normalized_coordinate);
-      break;
-    case LUT_GGX_BTDF_IOR_GT_ONE:
-      result = GGX_BTDF_GT_one::integrate(lut_normalized_coordinate);
-      break;
+  switch (uint(lut.type)) {
+    case LUT_GGX_BRDF_SPLIT_SUM: {
+      /* TODO(not_mark): Remove workaround for BSL-spec #4. */
+      GGX_BRDF_Splitsum f = GGX_BRDF_Splitsum::init(lut_normalized_coordinate);
+      result = integrate<GGX_BRDF_Splitsum>(f);
+    } break;
+    case LUT_GGX_BSDF_SPLIT_SUM: {
+      /* TODO(not_mark): Remove workaround for BSL-spec #4. */
+      GGX_BSDF_Splitsum f = GGX_BSDF_Splitsum::init(lut_normalized_coordinate);
+      result = integrate<GGX_BSDF_Splitsum>(f);
+    } break;
+    case LUT_GGX_BTDF_IOR_GT_ONE: {
+      /* TODO(not_mark): Remove workaround for BSL-spec #4. */
+      GGX_BTDF_GT_one f = GGX_BTDF_GT_one::init(lut_normalized_coordinate);
+      result = integrate<GGX_BTDF_GT_one>(f);
+    } break;
     case LUT_BURLEY_SSS_PROFILE:
       result = burley_sss_translucency(lut_normalized_coordinate);
       break;
@@ -364,9 +389,11 @@ void comp_main([[global_invocation_id]] const uint3 global_id, [[resource_table]
       result = random_walk_sss_translucency(lut_normalized_coordinate);
       break;
   }
-  
+
   imageStore(lut.image, int3(global_id), result);
 }
+
+/** \} */
 
 PipelineCompute lut_comp_pass(comp_main);
 
