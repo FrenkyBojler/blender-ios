@@ -195,9 +195,17 @@ class Cursor : Overlay {
       case SI_MODE_VIEW:
         return false;
         break;
-      case SI_MODE_PAINT:
+      case SI_MODE_PAINT: {
+        /* Show the 2D cursor when using the Curve stroke method, as it is used for
+         * transforming paint curve points. */
+        const Paint *paint = BKE_paint_get_active(const_cast<Scene *>(state.scene),
+                                                  const_cast<ViewLayer *>(state.view_layer));
+        const Brush *brush = (paint) ? BKE_paint_brush_for_read(paint) : nullptr;
+        if (brush && brush->stroke_method == BRUSH_STROKE_CURVE) {
+          break;
+        }
         return false;
-        break;
+      }
       case SI_MODE_MASK:
         break;
       case SI_MODE_UV:

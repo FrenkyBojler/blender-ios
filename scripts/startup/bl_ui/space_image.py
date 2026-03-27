@@ -1567,7 +1567,18 @@ class IMAGE_PT_uv_cursor(Panel):
     def poll(cls, context):
         sima = context.space_data
 
-        return (sima and (sima.show_uvedit or sima.show_maskedit))
+        if not sima:
+            return False
+
+        if sima.show_uvedit or sima.show_maskedit:
+            return True
+
+        if sima.mode == 'PAINT':
+            settings = getattr(context.tool_settings, "image_paint", None)
+            brush = getattr(settings, "brush", None) if settings else None
+            return brush is not None and brush.stroke_method == 'CURVE'
+
+        return False
 
     def draw(self, context):
         layout = self.layout
