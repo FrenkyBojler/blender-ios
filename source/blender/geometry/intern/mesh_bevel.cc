@@ -14,7 +14,6 @@
 #include "BLI_array_utils.hh"
 #include "BLI_atomic_disjoint_set.hh"
 #include "BLI_index_mask.hh"
-#include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_math_base.h"
 #include "BLI_math_base.hh"
@@ -31,7 +30,6 @@
 
 #include "BKE_attribute.hh"
 #include "BKE_curveprofile.h"
-#include "BKE_deform.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
 
@@ -131,7 +129,7 @@ class MeshPattern {
                                                                const int first_e) const;
 
   /** Assuming \a v is a vert on the outer boundary, return the boundary vert that is \a delta away
-   * in the ccw direction along the boundary.
+   * in the ccw direction along the boundry.
    * Assume \a v is offset from 0 by \a first_v, and return a similarly offset answer.
    */
   int next_boundary_vert(const int v, const int ccw_delta, const int first_v) const;
@@ -1107,7 +1105,7 @@ static bool nearly_parallel_normalized(const float3 d1, const float3 d2)
   if (math::abs(ang - std::numbers::pi) < bevel_epsilon_ang) {
     return AngleKind::Straight;
   }
-  else if (ang < std::numbers::pi) {
+  if (ang < std::numbers::pi) {
     return AngleKind::Smaller;
   }
   return AngleKind::Larger;
@@ -1560,7 +1558,7 @@ static bool try_offset_on_edge_between(const int bv,
     mid_v3_v3v3(*r_co, meet1, meet2);
     return true;
   }
-  else if (ok1 && !ok2) {
+  if (ok1 && !ok2) {
     *r_co = meet1;
   }
   else if (!ok1 && ok2) {
@@ -2121,7 +2119,7 @@ static void set_profile_spacing(BevelState *bs, ProfileSpacing *pro_spacing, boo
       /* Make sure the curve profile widget's sample table is full of the segments_power_2
        * samples.
        */
-      BKE_curveprofile_init((CurveProfile *)bs->params.custom_profile, short(segments_power_2));
+      BKE_curveprofile_init(bs->params.custom_profile, short(segments_power_2));
 
       /* Copy segment locations into the profile spacing struct. */
       for (const int i : IndexRange(segments_power_2 + 1)) {
@@ -2143,7 +2141,7 @@ static void set_profile_spacing(BevelState *bs, ProfileSpacing *pro_spacing, boo
     if (bs->params.custom_profile->segments_len != segments ||
         !bs->params.custom_profile->segments)
     {
-      BKE_curveprofile_init((CurveProfile *)bs->params.custom_profile, short(segments));
+      BKE_curveprofile_init(bs->params.custom_profile, short(segments));
     }
 
     /* Copy segment locations into the profile spacing struct. */
@@ -2274,7 +2272,7 @@ static void calculate_profiles(const int bv, AnchorProfiles &profiles, const Bev
                                  profile.prof_co_2.as_mutable_span());
     }
     else {
-      std::copy(profile.prof_co.begin(), profile.prof_co.end(), profile.prof_co_2.begin());
+      std::ranges::copy(profile.prof_co, profile.prof_co_2.begin());
     }
   }
 }
@@ -2552,11 +2550,9 @@ static int e_num_edges(int nv, int ns)
 static int face_ring(int f, int nv, int ns)
 {
   if (odd(ns)) {
-    return f < 1 ? 0 : int(((nv + math::sqrt(nv * nv + 4 * nv * (f - 1))) / (2 * nv)));
+    return f < 1 ? 0 : ((nv + math::sqrt(nv * nv + 4 * nv * (f - 1))) / (2 * nv));
   }
-  else {
-    return f < 0 ? 0 : int(math::sqrt(f / nv));
-  }
+  return f < 0 ? 0 : int(math::sqrt(f / nv));
 }
 
 static int vertex_ring(int v, int nv, int ns)
@@ -2564,9 +2560,7 @@ static int vertex_ring(int v, int nv, int ns)
   if (odd(ns)) {
     return v < 0 ? 0 : int(math::sqrt(v / nv));
   }
-  else {
-    return v < 1 ? 0 : int(((nv + math::sqrt(nv * nv + 4 * nv * (v - 1))) / (2 * nv)));
-  }
+  return v < 1 ? 0 : ((nv + math::sqrt(nv * nv + 4 * nv * (v - 1))) / (2 * nv));
 }
 
 static inline int v_anchor_div(int r, int nv, int ns)
@@ -2769,7 +2763,7 @@ struct AdjVerts {
 
   /** Given an anchor index and an offset from that anchor to a verterx on the outer ring,
    * return the pattern vertex index for that identified vertex. */
-  const int anchor_offset_to_outer_ring_vert(const int anchor, const int offset) const;
+  int anchor_offset_to_outer_ring_vert(const int anchor, const int offset) const;
 
   /** Return the 3d position of the vertex given by an anchor and an offset from that anchor, in
    * the outer ring. */
@@ -2784,7 +2778,7 @@ struct AdjVerts {
     return verts[anchor_offset_to_outer_ring_vert(anchor, offset)];
   }
 
-  const int ring_anchor_offset_to_vert(const int ring, const int anchor, const int offset) const;
+  int ring_anchor_offset_to_vert(const int ring, const int anchor, const int offset) const;
 
   const float3 &vert(const int ring, const int anchor, const int offset) const
   {
@@ -2799,7 +2793,7 @@ struct AdjVerts {
 
 /** Given an anchor index and an offset from that anchor to a verterx on the outer ring,
  * return the pattern vertex index for that identified vertex. */
-const int AdjVerts::anchor_offset_to_outer_ring_vert(const int anchor, const int offset) const
+int AdjVerts::anchor_offset_to_outer_ring_vert(const int anchor, const int offset) const
 {
   const int ring = v_num_rings(this->segments) - 1;
   return rao_to_vert(ring, anchor, offset, this->anchors, this->segments);
@@ -2807,9 +2801,7 @@ const int AdjVerts::anchor_offset_to_outer_ring_vert(const int anchor, const int
 
 /** Given a ring, an anchor index, and an offset from that anchor, return the vertex pattern index
  * for the corresponding vertex. */
-const int AdjVerts::ring_anchor_offset_to_vert(const int ring,
-                                               const int anchor,
-                                               const int offset) const
+int AdjVerts::ring_anchor_offset_to_vert(const int ring, const int anchor, const int offset) const
 {
   return rao_to_vert(ring, anchor, offset, this->anchors, this->segments);
 }
@@ -2856,7 +2848,7 @@ static float sabin_gamma(int n)
   const double k4 = k2 * k2;
   const double k6 = k4 * k2;
   const double y = pow(
-                       std::numbers::sqrt3 * math::sqrt(64.0 * k6 - 144.0 * k4 + 135.0 * k2 - 27.0) + 9.0 * k,
+      std::numbers::sqrt3 * math::sqrt(64.0 * k6 - 144.0 * k4 + 135.0 * k2 - 27.0) + 9.0 * k,
       1.0 / 3.0);
   const double x = 0.480749856769136 * y - (0.231120424783545 * (12.0 * k2 - 9.0)) / y;
   return (k * x + 2.0 * k2 - 1.0) / (x * x * (k * x + 1.0));
@@ -3123,7 +3115,7 @@ static void interp_adj(AdjVerts &adjverts,
       for (const int a : IndexRange(na)) {
         const int anext = a == na - 1 ? 0 : a + 1;
         i_breaks[0] = 0.0f;
-        for (const int o : IndexRange().from_begin_end(1, iside + 1)) {
+        for (const int o : blender::IndexRange::from_begin_end(1, iside + 1)) {
           i_breaks[o] = i_breaks[o - 1] + math::length(adjverts_in.vert(r_in, a, o) -
                                                        adjverts_in.vert(r_in, a, o - 1));
         }
@@ -3200,10 +3192,9 @@ static int choose_face_rep(Span<int> faces, const BevelState &bs)
     values[i][value_index++] = center[1];
     BLI_assert(value_index == value_len);
   }
-  auto it = std::min_element(
-      values.begin(), values.end(), [](const ValueVec &a, const ValueVec &b) {
-        return std::lexicographical_compare(a.begin(), a.end(), b.begin(), b.end());
-      });
+  auto *it = std::ranges::min_element(values, [](const ValueVec &a, const ValueVec &b) {
+    return std::ranges::lexicographical_compare(a, b);
+  });
   if (it != values.end()) {
     return faces[std::distance(values.begin(), it)];
   }
@@ -3400,7 +3391,9 @@ namespace uv {
 /** Return an array of the faces that go between the first and last edges at anchors[0]
  * and also for anchor[1], as long as each is not -1. If both are -1, return all the faces
  * around bv. */
-static SmallIntArray mesh_faces_for_anchors(const int bv, const int2 anchors, const BevelState &bs)
+[[maybe_unused]] static SmallIntArray mesh_faces_for_anchors(const int bv,
+                                                             const int2 anchors,
+                                                             const BevelState &bs)
 {
   const MeshPattern &pat = bs.bevvert_meshpatterns()[bv];
   Vector<int, 20> faces;
@@ -3536,13 +3529,13 @@ static Array<UVGapKind, 20> bevvert_bevedge_uv_gaps(const int bv,
  * TODO: fix this. projection can equally intersect edge of adjacent face.
  * The real test should be to find which face between the posible anchors for the vert it is over.
  */
-static void find_over_faces(const float3 &pos,
-                            const Span<int> mesh_faces,
-                            const BevelState &bs,
-                            int *r_over_face,
-                            float3 *r_over_pos,
-                            int *r_alt_face,
-                            float3 *r_alt_pos)
+[[maybe_unused]] static void find_over_faces(const float3 &pos,
+                                             const Span<int> mesh_faces,
+                                             const BevelState &bs,
+                                             int *r_over_face,
+                                             float3 *r_over_pos,
+                                             int *r_alt_face,
+                                             float3 *r_alt_pos)
 {
   const Mesh &mesh = bs.mesh_info.mesh;
   BLI_assert(r_over_face && r_alt_face && r_over_pos && r_alt_pos);
@@ -3751,15 +3744,14 @@ static void calculate_adj_face_uvs(const int f,
 {
   const IndexRange newfaces = bs.bevvert_newfaces()[bv];
   const int newface = newfaces[f];
-  const IndexRange newface_corners_range = bs.newface_faces_face()[newfaces[f]];
   const MeshPattern &pat = bs.bevvert_meshpatterns()[bv];
   SmallIntArray anchor_freps(pat.num_anchors);
   for (const int a : anchor_freps.index_range()) {
     anchor_freps[a] = facerep::anchor_rep_face(bv, a, nullptr, bs);
   }
   bool odd = (pat.num_segs % 2) == 1;
-  const bool any_wide_gap = std::any_of(
-      gaps.begin(), gaps.end(), [](const UVGapKind g) { return g == UVGapKind::WideGap; });
+  const bool any_wide_gap = std::ranges::any_of(
+      gaps, [](const UVGapKind g) { return g == UVGapKind::WideGap; });
   if (f == 0 && odd) {
     /* Center ngon case. */
     if (any_wide_gap) {
@@ -3906,7 +3898,7 @@ void UVMapInfo::find_components(const MeshInfo &mesh_info)
         corner_uvs[i] = {values_[corners[i]], corners[i]};
       }
 
-      std::sort(corner_uvs.begin(), corner_uvs.end(), [](const CornerUV &a, const CornerUV &b) {
+      std::ranges::sort(corner_uvs, [](const CornerUV &a, const CornerUV &b) {
         if (a.uv[0] != b.uv[0]) {
           return a.uv[0] < b.uv[0];
         }
@@ -4024,6 +4016,7 @@ int MeshPattern::vert_to_anchor(const int v) const
       break;
     case MeshKind::Cutoff:
       /* TODO */
+      ans = -1;
       BLI_assert(false);
       break;
     default:
@@ -4266,7 +4259,6 @@ SmallIntArray MeshPattern::verts_for_centerline(const int first_anchor) const
   if (kind != MeshKind::Adj || ((num_segs % 2) == 1)) {
     return SmallIntArray(0);
   }
-  const int n2 = num_segs / 2;
   const int num_vert_rings = adj::v_num_rings(num_segs);
   SmallIntArray ans(num_vert_rings - 1);
   for (int r = 1; r < num_vert_rings; r++) {
@@ -4307,8 +4299,6 @@ SmallIntArray MeshPattern::corners_for_vert(const int vert) const
     const int vr = v_rao[0];
     const int va = v_rao[1];
     const int vo = v_rao[2];
-    const int va_next = (va + 1) % num_anchors;
-    const int vdiv = adj::v_anchor_div(vr, num_anchors, num_segs);
     /* fr_i and fr_o are the face rings insd and outside of v, -1 if none. */
     const int fr_i = odd ? vr : vr - 1;
     const int outer_face_r = adj::f_num_rings(num_segs) - 1;
@@ -4422,19 +4412,17 @@ AdjVertKind MeshPattern::adj_vert_kind(const int v, const int anchor) const
     }
     return a == anchor ? AdjVertKind::CenterLineNear : AdjVertKind::PrevCenterLineNear;
   }
-  else {
-    if (ring == 0) {
-      return AdjVertKind::Center;
-    }
-    const int ceil_n2 = (num_segs + 1) / 2;
-    if (v < floor_n2 || v > ceil_n2) {
-      return AdjVertKind::Interior;
-    }
-    if (v == floor_n2) {
-      return a == anchor ? AdjVertKind::CenterLineNear : AdjVertKind::PrevCenterLineNear;
-    }
-    return a == anchor ? AdjVertKind::CenterLineFar : AdjVertKind::PrevCenterLineFar;
+  if (ring == 0) {
+    return AdjVertKind::Center;
   }
+  const int ceil_n2 = (num_segs + 1) / 2;
+  if (v < floor_n2 || v > ceil_n2) {
+    return AdjVertKind::Interior;
+  }
+  if (v == floor_n2) {
+    return a == anchor ? AdjVertKind::CenterLineNear : AdjVertKind::PrevCenterLineNear;
+  }
+  return a == anchor ? AdjVertKind::CenterLineFar : AdjVertKind::PrevCenterLineFar;
 }
 
 /** Return the anchor or anchors that owns (is nearest to) \a f  (in pattern space).
@@ -4730,8 +4718,7 @@ static void general_edge_order(MutableSpan<int> edges, const BevelState &bs)
      * The loop always adds at least first_e to ordered_edges, so will not loop forever.
      * Start by finding the first index #i of an edge that has not yet been placed.
      */
-    int first_i = std::find_if(placed.begin(), placed.end(), [](bool b) { return !b; }) -
-                  placed.begin();
+    int first_i = std::ranges::find_if(placed, [](bool b) { return !b; }) - placed.begin();
     BLI_assert(first_i < n);
     int first_e = edges[first_i];
     placed[first_i] = true;
@@ -4779,7 +4766,7 @@ static void general_edge_order(MutableSpan<int> edges, const BevelState &bs)
     ordered_edges.extend(chain_ccw);
   }
   BLI_assert(ordered_edges.size() == n);
-  std::copy(ordered_edges.begin(), ordered_edges.end(), edges.begin());
+  std::ranges::copy(ordered_edges, edges.begin());
 }
 
 /** See if the "all manifold" strategy for ordering edges applies, and if it does
@@ -4787,9 +4774,8 @@ static void general_edge_order(MutableSpan<int> edges, const BevelState &bs)
  */
 static bool try_all_manifold_order(MutableSpan<int> edges, const BevelState &bs)
 {
-  bool edges_all_manifold = std::all_of(edges.begin(), edges.end(), [&](const int e) {
-    return bs.mesh_info.edge_faces()[e].size() == 2;
-  });
+  bool edges_all_manifold = std::ranges::all_of(
+      edges, [&](const int e) { return bs.mesh_info.edge_faces()[e].size() == 2; });
   if (!edges_all_manifold) {
     return false;
   }
@@ -4889,12 +4875,12 @@ static void bevvert_order_edges(BevelState &bs, MutableSpan<int> bevedges, Mutab
   }
   /* If we are edge beveling, we need to rotate so that a beveled edge is first. */
   if (bs.params.affect_type == BevelAffect::Edges) {
-    auto first_beveled_edge_iter = std::find_if(edges.begin(), edges.end(), [&](int e) {
+    auto *first_beveled_edge_iter = std::ranges::find_if(edges, [&](int e) {
       int be = bs.edge_bevedges()[e];
       return bs.bevedge_is_beveled(be);
     });
     BLI_assert(first_beveled_edge_iter != edges.end());
-    std::rotate(edges.begin(), first_beveled_edge_iter, edges.end());
+    std::ranges::rotate(edges, first_beveled_edge_iter);
   }
   /* Convert the ordered edges to bevedges and copy the new order to bevedges argument.
    * Also set the shared face between bevedges, if any.
@@ -5578,7 +5564,7 @@ int2 BevelState::anchor_bevedge_positions(const int bv, const int anchor) const
 void BevelState::initialize_profile_data()
 {
   /* Convert the input profile shape parameter to the actual exponent of a superellipse. */
-  const float psr = -std::log(2.0) /
+  const float psr = -std::numbers::ln2 /
                     std::log(math::sqrt(this->params.shape > 0 ? this->params.shape : 1e-20f));
   this->pro_super_r = psr;
 
@@ -6476,7 +6462,7 @@ std::optional<Mesh *> mesh_bevel(const Mesh &src_mesh,
                                  const bke::AttributeFilter &attribute_filter)
 {
   auto all_zero = [](const Array<float> &o) {
-    return std::all_of(o.begin(), o.end(), [](float f) { return f == 0.0; });
+    return std::ranges::all_of(o, [](float f) { return f == 0.0; });
   };
   if (all_zero(params.offsets[0]) && all_zero(params.offsets[1]) && all_zero(params.offsets[2]) &&
       all_zero(params.offsets[3]))
