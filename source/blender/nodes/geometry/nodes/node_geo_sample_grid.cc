@@ -218,14 +218,15 @@ class SampleGridFunction : public mf::MultiFunction {
 static void node_geo_exec(GeoNodeExecParams params)
 {
 #ifdef WITH_OPENVDB
-  bke::GVolumeGrid grid = params.extract_input<bke::GVolumeGrid>("Grid");
+  bke::GVolumeGrid grid = params.extract_input<bke::GVolumeGrid>("Grid"_ustr);
   if (!grid) {
     params.set_default_remaining_outputs();
     return;
   }
 
-  const auto interpolation = params.get_input<InterpolationMode>("Interpolation");
-  bke::SocketValueVariant position = params.extract_input<bke::SocketValueVariant>("Position");
+  const auto interpolation = params.get_input<InterpolationMode>("Interpolation"_ustr);
+  bke::SocketValueVariant position = params.extract_input<bke::SocketValueVariant>(
+      "Position"_ustr);
 
   std::string error_message;
   bke::SocketValueVariant output_value;
@@ -241,7 +242,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  params.set_output("Value", std::move(output_value));
+  params.set_output("Value"_ustr, std::move(output_value));
 #else
   node_geo_exec_with_missing_openvdb(params);
 #endif
