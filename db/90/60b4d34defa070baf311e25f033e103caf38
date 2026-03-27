@@ -1,1 +1,2 @@
 Referenced by issue #140281, Cycles: OSL: corrupted texture values
+Referenced by issue #135003, Open Shading Language Image Texture node Alpha mode except "None" does not render images without an Alpha channel
