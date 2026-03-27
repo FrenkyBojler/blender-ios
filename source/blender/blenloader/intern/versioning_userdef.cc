@@ -1768,6 +1768,10 @@ void blo_do_versions_userdef(UserDef *userdef)
   }
 
   if (!USER_VERSION_ATLEAST(502, 13)) {
+    userdef->geometry_nodes_stack_limit = 100;
+  }
+
+  if (!USER_VERSION_ATLEAST(502, 15)) {
     STRNCPY(userdef->texture_cachedir, "blender_tx");
   }
 

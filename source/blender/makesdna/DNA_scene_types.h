@@ -1197,10 +1197,6 @@ struct Paint {
    */
   struct AssetWeakReference *brush_asset_reference = nullptr;
 
-  /** Default eraser brush and associated weak reference. */
-  struct Brush *eraser_brush = nullptr;
-  struct AssetWeakReference *eraser_brush_asset_reference = nullptr;
-
   ToolSystemBrushBindings tool_brush_bindings;
 
   struct Palette *palette = nullptr;
