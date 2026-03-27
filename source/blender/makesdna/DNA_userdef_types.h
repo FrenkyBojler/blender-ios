@@ -9,7 +9,6 @@
 #pragma once
 
 #include "BLI_math_constants.h"
-
 #include "DNA_ID.h"
 #include "DNA_anim_enums.h"
 #include "DNA_armature_types.h"
@@ -1219,9 +1218,8 @@ struct UserDef {
 
   char armature_new_display_type = OB_TEXTURE;
   char armature_data_new_display_type = ARM_DRAW_TYPE_OCTA;
-  char _pad19[2] = {};
-  int bone_new_rotation_mode = 0; /* ROT_MODE_QUAT, can't include DNA_action_types.h because that
-                                     would be a circular import. */
+  char _pad19[5] = {};
+  int8_t bone_new_rotation_mode = 0; /* 0 = ROT_MODE_QUAT. */
 
   struct WalkNavigation walk_navigation;
   struct XrNavigation xr_navigation;
