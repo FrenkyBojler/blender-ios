@@ -26,19 +26,18 @@ namespace eevee {
  * \{ */
 
 /**
- * Generate 2D GGX BRDF LUT
- * follwing the split sum approximation used in [Real shading in unreal engine 4]
+ * Generate 2D GGX BRDF LUT.
+ * 
+ * Follows the split sum approximation used in [Real shading in unreal engine 4]
  * (https://cdn2.unrealengine.com/Resources/files/2013SiggraphPresentationsNotes-26915738.pdf).
  *
  * The 2D LUT is parameterized on:
- * : `x = roughness`,
- * : `y = sqrt(1 - cos(theta))`,
- *
+ * - `x = roughness`,
+ * - `y = sqrt(1 - cos(theta))`,
  * and the result is interpreted as:
- * : `integral = F0 * scale + F90 * bias - F82_tint * metal_bias`,
- *
+ * - `integral = F0 * scale + F90 * bias - F82_tint * metal_bias`,
  * where:
- * : `F82_tint = mix(F0, float3(1), pow5f(6/7) * 7 / pow6f(6/7)) * (1 - F82)`.
+ * - `F82_tint = mix(F0, float3(1), pow5f(6/7) * 7 / pow6f(6/7)) * (1 - F82)`.
  */
 class GGX_BRDF_Splitsum {
   float roughness;
@@ -94,19 +93,19 @@ class GGX_BRDF_Splitsum {
 };
 
 /**
- * Generate 3D GGX BSDF LUT
- * follwing the split sum approximation used in [Real shading in unreal engine 4]
+ * Generate 3D GGX BSDF LUT.
+ * 
+ * Follows the split sum approximation used in [Real shading in unreal engine 4]
  * (https://cdn2.unrealengine.com/Resources/files/2013SiggraphPresentationsNotes-26915738.pdf).
- * and using Schlick's approximation to weight R, T components.
- *
+ * and uses Schlick's approximation to weight R, T components.
+ * 
  * The 3D LUT is parameterized on:
- * : `x = sqrt((ior - 1) / (ior + 1))`,
- * : `y = sqrt(1 - cos(theta))`,
- * : `z = roughness`,
- *
+ * - `x = sqrt((ior - 1) / (ior + 1))`,
+ * - `y = sqrt(1 - cos(theta))`,
+ * - `z = roughness`,
  * and output is interpreted as:
- * : `reflectance = F0 * sclae + F90 * bias`,
- * : `transmittance = (1 - F0) * transmission_factor`.
+ * - `reflectance = F0 * sclae + F90 * bias`,
+ * - `transmittance = (1 - F0) * transmission_factor`.
  */
 class GGX_BSDF_Splitsum {
   float roughness;
@@ -189,15 +188,15 @@ class GGX_BSDF_Splitsum {
 };
 
 /**
- * Generate 3D GGX BTDF LUT for IOR > 1
- * using Schlick's approximation. Only the transmittance is needed because scale and
+ * Generate 3D GGX BTDF LUT, for IOR > 1.
+ * 
+ * Using Schlick's approximation; only the transmittance is needed because scale and
  * bias do not depend on the IOR, and can be obtained independently from the BRDF LUT.
  *
  * The 3D LUT is parameterized on:
  * : `x = sqrt((ior - 1) / (ior + 1))` for higher precision in the range `1 < IOR < 2`
  * : `y = sqrt(1.0f - cos(theta))`
  * : `z = roughness`
- *
  * and output is interpreted as:
  * : `transmittance = (1 - F0) * transmission_factor`.
  */
@@ -252,6 +251,11 @@ class GGX_BTDF_GT_one {
   }
 };
 
+/**
+ * Generate Christensen-Bursley (Disney SSS) translucency profile.
+ * 
+ * TODO(not_mark): Source and document.
+ */
 float4 burley_sss_translucency(float3 params)
 {
   /* Note that we only store the 1st (radius == 1) component.
@@ -274,6 +278,9 @@ float4 burley_sss_translucency(float3 params)
   return float4(profile, 0.0f);
 }
 
+/**
+ * TODO(not_mark): Wait, is this even used?
+ */
 float4 random_walk_sss_translucency(float3 params)
 {
   /* Note that we only store the 1st (radius == 1) component.
@@ -326,31 +333,6 @@ template<typename F> float4 integrate(const F &f)
 template float4 integrate<GGX_BRDF_Splitsum>(const GGX_BRDF_Splitsum &);
 template float4 integrate<GGX_BSDF_Splitsum>(const GGX_BSDF_Splitsum &);
 template float4 integrate<GGX_BTDF_GT_one>(const GGX_BTDF_GT_one &);
-
-// template<typename F> float4 integrate_incremental(const F &f)
-// {
-//   constexpr uint sample_count = 512u * 512u;
-
-//   /* TODO(not_mark): Remove workaround for BSL-spec #4. */
-//   /* F f = F::init(params); */
-
-//   /* Measure f using N samples. */
-//   float4 measure = float4(0.0f);
-//   for (uint i = 1u; i <= sample_count; i++) {
-//     /* Warp sequence to a random point on the unit cylinder. */
-//     float2 rand = hammersley_2d(i, sample_count);
-//     float3 Xi = sample_cylinder(rand);
-
-//     /* Add sample to incremental measure. */
-//     measure = (measure * (float(i) / float(i + 1))) + (f.eval(Xi / float(i + 1)))
-//     measure += (f.eval(Xi) - measure) / float(i);
-//   }
-
-//   return measure;
-// }
-// template float4 integrate_incremental<GGX_BRDF_Splitsum>(const GGX_BRDF_Splitsum &);
-// template float4 integrate_incremental<GGX_BSDF_Splitsum>(const GGX_BSDF_Splitsum &);
-// template float4 integrate_incremental<GGX_BTDF_GT_one>(const GGX_BTDF_GT_one &);
 
 struct LUT {
   [[image(0, read_write, SFLOAT_32_32_32_32)]] image3D image;
