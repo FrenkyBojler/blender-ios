@@ -157,6 +157,11 @@ float point_i_to_local_t(float i, float4 p1, float4 p2)
       l = a * (exp_b + 1.0f) / (exp_b - 1.0f);
     }
 
+    /* Avoid division by zero. */
+    if (r1 <= 0.0f || l <= 0.0f || l == a) {
+      return 0.0f;
+    }
+
     float E = (l + a) / (l - a);
     float E_i = pow(E, (i / point_density - i_start) / 2.0f);
 
@@ -191,6 +196,11 @@ float local_t_to_point_i(float t, float4 p1, float4 p2)
       float b = 2.0f * log(a / r1 + 1.0f) / i_delta;
       float exp_b = exp(b);
       l = a * (exp_b + 1.0f) / (exp_b - 1.0f);
+    }
+
+    /* Avoid division by zero. */
+    if (r1 <= 0.0f || l <= 0.0f || l == a) {
+      return 0.0f;
     }
 
     float E = (l + a) / (l - a);
