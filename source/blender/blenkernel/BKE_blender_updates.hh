@@ -41,7 +41,6 @@ struct VersionUpdate {
 
   std::string date() const;
 
-  friend auto operator<=>(const VersionUpdate &a, const VersionUpdate &b) = default;
 };
 
 bool check_for_available_updates(bContext &C,
