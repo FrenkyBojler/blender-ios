@@ -353,15 +353,15 @@ class VIEW3D_OT_object_type_visibility(Operator):
         # Isolate clicked property
         any_enabled = False
         for suffix in suffix_list:
-            attribute = cls.prop_type + suffix
-            if attribute != clicked_property:
-                any_enabled |= getattr(space_data, attribute, False)
+            prop = cls.prop_type + suffix
+            if prop != clicked_property:
+                any_enabled |= getattr(space_data, prop, False)
 
         do_isolate = not any_enabled
         for suffix in suffix_list:
-            attribute = cls.prop_type + suffix
-            if attribute != clicked_property:
-                setattr(space_data, attribute, do_isolate)
+            prop = cls.prop_type + suffix
+            if prop != clicked_property:
+                setattr(space_data, prop, do_isolate)
 
         return {'FINISHED'}
 
