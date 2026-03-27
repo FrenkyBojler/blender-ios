@@ -2427,8 +2427,10 @@ static void move_to_collection_menu_draw(Menu *menu, Collection *collection, int
   RNA_boolean_set(&op_ptr, "is_new", true);
   layout.separator();
 
-  op_ptr = layout.op(ot, BKE_collection_ui_name_get(collection), icon);
-  RNA_int_set(&op_ptr, "collection_uid", collection->id.session_uid);
+  if (collection->flag & COLLECTION_IS_MASTER) {
+    op_ptr = layout.op(ot, BKE_collection_ui_name_get(collection), icon);
+    RNA_int_set(&op_ptr, "collection_uid", collection->id.session_uid);
+  }
 
   for (CollectionChild &child : collection->children) {
     collection = child.collection;
