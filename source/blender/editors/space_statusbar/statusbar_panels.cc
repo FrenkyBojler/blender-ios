@@ -44,7 +44,7 @@ static void version_update_draw_body(const bke::VersionUpdate &update, ui::Layou
   left_row.alignment_set(ui::LayoutAlign::Left);
   ui::Button *button = uiDefBut(layout.block(),
                                 ui::ButtonType::But,
-                                "Skip " + update.version,
+                                "Skip " + update.version_str,
                                 0,
                                 0,
                                 5.0f * UI_UNIT_X,
@@ -76,11 +76,10 @@ static void panel_blender_updates_draw(const bContext *C, Panel *panel)
   if (available_updates.size() == 1) {
     const bke::VersionUpdate &update = *available_updates[0];
     ui::Layout &header = layout.row(true);
-    const char *release_text = update.version.ends_with(".0") ?
-                                   "New release available {} - {}" :
-                                   "New bugfix release available: {} - {}";
+    const char *release_text = update.version.patch == 0 ? "New release available {} - {}" :
+                                                           "New bugfix release available: {} - {}";
     header.label(fmt::format(fmt::runtime(IFACE_(release_text)),
-                             update.version + (update.is_lts ? " LTS" : ""),
+                             update.version_str + (update.is_lts ? " LTS" : ""),
                              update.date()),
                  ICON_NONE);
     ui::Layout &sub = header.row(false);
@@ -109,9 +108,9 @@ static void panel_blender_updates_draw(const bContext *C, Panel *panel)
   ui::button_func_set(button, [](blender::bContext & /*C*/) { bke::ignore_all_updates(); });
   ui::button_drawflag_disable(button, ui::BUT_TEXT_RIGHT);
   for (const bke::VersionUpdate *update : available_updates) {
-    ui::PanelLayout panel_layout = layout.panel(C, "Update_" + update->version, false);
+    ui::PanelLayout panel_layout = layout.panel(C, "Update_" + update->version_str, false);
     panel_layout.header->label(
-        fmt::format("Blender {} {} - {}", update->version, "", update->date()), ICON_NONE);
+        fmt::format("Blender {} {} - {}", update->version_str, "", update->date()), ICON_NONE);
     ui::Layout *body = panel_layout.body;
     ui::Layout &sub = panel_layout.header->row(false);
     sub.alignment_set(ui::LayoutAlign::Right);

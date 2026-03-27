@@ -18,6 +18,11 @@ struct bContext;
 namespace blender::bke {
 struct Layout;
 
+struct BlenderVersion {
+  int version;
+  int patch;
+  friend auto operator<=>(const BlenderVersion &a, const BlenderVersion &b) = default;
+};
 struct VersionUpdate {
   int64_t build_size;
   std::string checksum_hash;
@@ -29,8 +34,10 @@ struct VersionUpdate {
   std::string platform;
   std::string release_notes_url;
   std::string timestamp;
-  std::string version;
+  std::string version_str;
   std::time_t time;
+
+  BlenderVersion version;
 
   std::string date() const;
 

@@ -24,12 +24,6 @@ struct BlenderUpdates {
   std::optional<VersionUpdate> current_release;
 };
 
-struct BlenderVersion {
-  int version;
-  int patch;
-  friend auto operator<=>(const BlenderVersion &a, const BlenderVersion &b) = default;
-};
-
 struct IgnoredBlenderVersions {
   BlenderVersion latest;
   BlenderVersion latest_lts;
@@ -97,38 +91,27 @@ static std::optional<BlenderVersion> blender_version_from_version_str(StringRefN
 
 static void register_blender_update(VersionUpdate update)
 {
-  std::optional<BlenderVersion> version_opt = blender_version_from_version_str(update.version);
-  if (!version_opt) {
-    return;
-  }
-  BlenderVersion version = *version_opt;
+  BLI_assert(blender_version_from_version_str(update.version_str) &&
+             update.version == blender_version_from_version_str(update.version_str));
+
   IgnoredBlenderVersions &ignored_updates = ignored_versions_updates();
   BlenderUpdates &updates = available_blender_updates();
-  auto version_from_optional_version_update = [](std::optional<VersionUpdate> version_update) {
-    return version_update ? blender_version_from_version_str(version_update->version) :
-                            std::nullopt;
-  };
-  if (version.version == BLENDER_VERSION) {
-    std::optional<BlenderVersion> current_version = version_from_optional_version_update(
-        updates.current_release);
-    if (ignored_updates.current_release.patch < version.patch &&
-        (!current_version || *current_version < version))
+
+  if (update.version.version == BLENDER_VERSION) {
+    if (ignored_updates.current_release.patch < update.version.patch &&
+        (!updates.current_release || updates.current_release->version < update.version))
     {
       updates.current_release = update;
     }
     return;
   }
-  if (update.is_lts && ignored_updates.latest_lts < version) {
-    std::optional<BlenderVersion> latest_lts_version = version_from_optional_version_update(
-        updates.latest_lts);
-    if (!latest_lts_version || *latest_lts_version < version) {
+  if (update.is_lts && ignored_updates.latest_lts < update.version) {
+    if (!updates.latest_lts || updates.latest_lts->version < update.version) {
       updates.latest_lts = update;
     }
   }
-  if (ignored_updates.latest < version) {
-    std::optional<BlenderVersion> latest_version = version_from_optional_version_update(
-        updates.latest);
-    if (!latest_version || *latest_version < version) {
+  if (ignored_updates.latest < update.version) {
+    if (!updates.latest || updates.latest->version < update.version) {
       updates.latest = update;
     }
   }
@@ -197,13 +180,17 @@ with tempfile.TemporaryDirectory() as temp_dir:
     std::optional<StringRefNull> platform = dict.lookup_str("platform");
     std::optional<StringRefNull> release_notes_url = dict.lookup_str("release_notes_url");
     std::optional<StringRefNull> timestamp = dict.lookup_str("timestamp");
-    std::optional<StringRefNull> version = dict.lookup_str("version");
+    std::optional<StringRefNull> version_str = dict.lookup_str("version");
     if (!(build_size && checksum_hash && commit_hash && description && download_url &&
-          download_url && cycle && platform && release_notes_url && timestamp && version))
+          download_url && cycle && platform && release_notes_url && timestamp && version_str))
     {
       continue;
     }
     if (!is_lts || is_lts->get()->type() != eValueType::Boolean) {
+      continue;
+    }
+    std::optional<BlenderVersion> version = blender_version_from_version_str(*version_str);
+    if (!version) {
       continue;
     }
     std::string timestamp_value = *timestamp;
@@ -212,18 +199,21 @@ with tempfile.TemporaryDirectory() as temp_dir:
     if (!(is >> std::chrono::parse("%Y-%m-%dT%H:%M:%SZ", time))) {
       continue;
     }
-    register_blender_update(VersionUpdate{.build_size = *build_size,
-                                          .checksum_hash = *checksum_hash,
-                                          .commit_hash = *commit_hash,
-                                          .description = *description,
-                                          .download_url = *download_url,
-                                          .cycle = *cycle,
-                                          .is_lts = is_lts->get()->as_boolean_value()->value(),
-                                          .platform = *platform,
-                                          .release_notes_url = *release_notes_url,
-                                          .timestamp = *timestamp,
-                                          .version = *version,
-                                          .time = std::chrono::system_clock::to_time_t(time)});
+    register_blender_update(VersionUpdate{
+        .build_size = *build_size,
+        .checksum_hash = *checksum_hash,
+        .commit_hash = *commit_hash,
+        .description = *description,
+        .download_url = *download_url,
+        .cycle = *cycle,
+        .is_lts = is_lts->get()->as_boolean_value()->value(),
+        .platform = *platform,
+        .release_notes_url = *release_notes_url,
+        .timestamp = *timestamp,
+        .version_str = *version_str,
+        .time = std::chrono::system_clock::to_time_t(time),
+        .version = *version,
+    });
   }
 
   return false;
@@ -263,58 +253,53 @@ Vector<const VersionUpdate *> available_updates()
     tmp.append(&(*updates.latest_lts));
   }
   if (U.flag & USER_BLENDER_UPDATE_LATEST_RELEASE && updates.latest &&
-      (!updates.latest_lts || (*blender_version_from_version_str(updates.latest_lts->version) <
-                               *blender_version_from_version_str(updates.latest->version))))
+      (!updates.latest_lts || (updates.latest_lts->version) < updates.latest->version))
   {
     tmp.append(&(*updates.latest_lts));
   }
   if (U.flag & USER_BLENDER_UPDATE_CURRENT_RELEASE && updates.current_release) {
     tmp.append(&(*updates.current_release));
   }
-  std::ranges::sort(tmp, [](const VersionUpdate *a, const VersionUpdate *b) {
-    return (blender_version_from_version_str(a->version)) <
-           blender_version_from_version_str(b->version);
-  });
+  std::ranges::sort(
+      tmp, [](const VersionUpdate *a, const VersionUpdate *b) { return a->version < b->version; });
   std::ranges::reverse(tmp);
   return tmp;
 }
 
-static void ignore_update(const VersionUpdate &version_update)
+static void ignore_update(const VersionUpdate &update)
 {
-  std::optional<BlenderVersion> version = blender_version_from_version_str(version_update.version);
-  BLI_assert(version);
   IgnoredBlenderVersions &ignored_updates = ignored_versions_updates();
 
   BlenderUpdates &updates = available_blender_updates();
 
-  if (version->version == BLENDER_VERSION &&
-      version->patch > ignored_updates.current_release.patch)
+  if (update.version.version == BLENDER_VERSION &&
+      update.version.patch > ignored_updates.current_release.patch)
   {
-    ignored_updates.current_release = *version;
+    ignored_updates.current_release = update.version;
   }
 
-  if (version_update.is_lts && ignored_updates.latest_lts < *version) {
-    ignored_updates.latest_lts = *version;
+  if (update.is_lts && ignored_updates.latest_lts < update.version) {
+    ignored_updates.latest_lts = update.version;
   }
 
-  if (ignored_updates.latest < *version) {
-    ignored_updates.latest = *version;
+  if (ignored_updates.latest < update.version) {
+    ignored_updates.latest = update.version;
   }
 
-  if (updates.latest && version_update == *updates.latest) {
+  if (updates.latest && update == *updates.latest) {
     updates.latest = {};
   }
-  if (updates.latest_lts && version_update == *updates.latest_lts) {
+  if (updates.latest_lts && update == *updates.latest_lts) {
     updates.latest_lts = {};
   }
-  if (updates.current_release && version_update == *updates.current_release) {
+  if (updates.current_release && update == *updates.current_release) {
     updates.current_release = {};
   }
 }
 
-void ignore_update(const VersionUpdate *version)
+void ignore_update(const VersionUpdate *update)
 {
-  ignore_update(*version);
+  ignore_update(*update);
 }
 
 void ignore_all_updates()
