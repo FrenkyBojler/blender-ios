@@ -515,8 +515,8 @@ void IMB_partial_display_buffer_update_delayed(
 
 class ColormanageProcessor : NonCopyable {
  public:
-  ColormanageProcessor(ColormanageProcessor &&other) = default;
-  ColormanageProcessor &operator=(ColormanageProcessor &&other) = default;
+  ColormanageProcessor(ColormanageProcessor &&other) noexcept;
+  ColormanageProcessor &operator=(ColormanageProcessor &&other) noexcept;
   ~ColormanageProcessor();
 
  private:

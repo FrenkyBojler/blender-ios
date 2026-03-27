@@ -4178,6 +4178,35 @@ void IMB_partial_display_buffer_update_delayed(ImBuf *ibuf, int xmin, int ymin, 
 /** \name Pixel Processor Functions
  * \{ */
 
+ColormanageProcessor::ColormanageProcessor(ColormanageProcessor &&other) noexcept
+{
+  cpu_processor_ = std::move(other.cpu_processor_);
+  curve_mapping_ = other.curve_mapping_;
+  is_data_result_ = other.is_data_result_;
+
+  other.cpu_processor_ = nullptr;
+  other.curve_mapping_ = nullptr;
+}
+ColormanageProcessor &ColormanageProcessor::operator=(ColormanageProcessor &&other) noexcept
+{
+  if (this == &other) {
+    return *this;
+  }
+
+  if (curve_mapping_) {
+    BKE_curvemapping_free(curve_mapping_);
+  }
+
+  cpu_processor_ = std::move(other.cpu_processor_);
+  curve_mapping_ = other.curve_mapping_;
+  is_data_result_ = other.is_data_result_;
+
+  other.cpu_processor_ = nullptr;
+  other.curve_mapping_ = nullptr;
+
+  return *this;
+}
+
 ColormanageProcessor::~ColormanageProcessor()
 {
   if (curve_mapping_) {
