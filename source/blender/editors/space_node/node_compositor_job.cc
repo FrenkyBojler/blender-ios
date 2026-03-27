@@ -26,6 +26,7 @@
 #include "RE_compositor.hh"
 
 #include "ED_image.hh"
+#include "ED_node.hh"
 #include "ED_screen.hh"
 
 #include "COM_node_group_operation.hh"
