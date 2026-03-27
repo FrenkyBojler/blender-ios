@@ -6583,12 +6583,10 @@ class VIEW3D_PT_object_type_visibility(Panel):
 
                 rowsub = row.row(align=True)
                 rowsub.active = getattr(view, attr_v)
-                # rowsub.prop(view, attr_s, text="", icon=icon_s, emboss=False)
                 prop = rowsub.operator("view3d.object_type_visibility", emboss=False, text="", icon=icon_s)
                 prop.prop_type = "show_object_select_"
                 prop.prop_suffix = attr
 
-            # row.prop(view, attr_v, text="", icon=icon_v, emboss=False)
             prop = row.operator("view3d.object_type_visibility", emboss=False, text="", icon=icon_v)
             prop.prop_type = "show_object_viewport_"
             prop.prop_suffix = attr

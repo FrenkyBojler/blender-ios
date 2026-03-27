@@ -350,6 +350,7 @@ class VIEW3D_OT_object_type_visibility(Operator):
             "speaker",
         )
 
+        # Isolate clicked property
         any_enabled = False
         for suffix in suffix_list:
             attribute = cls.prop_type + suffix
