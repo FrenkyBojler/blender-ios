@@ -435,7 +435,7 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(tui.link);
   }
 
-  if (!USER_VERSION_ATLEAST(502, 13)) {
+  if (!USER_VERSION_ATLEAST(502, 16)) {
     FROM_DEFAULT_V4_UCHAR(tui.wcol_state.update_available);
   }
 
@@ -1769,6 +1769,10 @@ void blo_do_versions_userdef(UserDef *userdef)
 
   if (!USER_VERSION_ATLEAST(502, 3)) {
     userdef->uiflag2 |= USER_UIFLAG2_SHOW_ONLINE_ASSETS;
+  }
+
+  if (!USER_VERSION_ATLEAST(502, 13)) {
+    userdef->geometry_nodes_stack_limit = 100;
   }
 
   /**
