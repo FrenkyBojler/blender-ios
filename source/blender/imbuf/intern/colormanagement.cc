@@ -3863,7 +3863,7 @@ static void partial_buffer_update_rect(ImBuf *ibuf,
                                        int linear_stride,
                                        int linear_offset_x,
                                        int linear_offset_y,
-                                       std::optional<ColormanageProcessor> &cm_processor,
+                                       const std::optional<ColormanageProcessor> &cm_processor,
                                        const int xmin,
                                        const int ymin,
                                        const int xmax,
@@ -4186,6 +4186,7 @@ ColormanageProcessor::ColormanageProcessor(ColormanageProcessor &&other) noexcep
 
   other.cpu_processor_ = nullptr;
   other.curve_mapping_ = nullptr;
+  other.is_data_result_ = false;
 }
 ColormanageProcessor &ColormanageProcessor::operator=(ColormanageProcessor &&other) noexcept
 {
@@ -4203,6 +4204,7 @@ ColormanageProcessor &ColormanageProcessor::operator=(ColormanageProcessor &&oth
 
   other.cpu_processor_ = nullptr;
   other.curve_mapping_ = nullptr;
+  other.is_data_result_ = false;
 
   return *this;
 }

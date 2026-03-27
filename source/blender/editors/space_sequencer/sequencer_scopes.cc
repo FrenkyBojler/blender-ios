@@ -29,7 +29,7 @@ void SeqScopes::cleanup()
   last_timeline_frame = 0;
 }
 
-static void rgba_float_to_display_space(ColormanageProcessor &processor,
+static void rgba_float_to_display_space(const ColormanageProcessor &processor,
                                         const ColorSpace *src_colorspace,
                                         MutableSpan<float4> pixels)
 {
@@ -38,7 +38,7 @@ static void rgba_float_to_display_space(ColormanageProcessor &processor,
   processor.apply(&pixels.data()->x, pixels.size(), 1, 4, false);
 }
 
-static Array<float4> pixels_to_display_space(ColormanageProcessor &processor,
+static Array<float4> pixels_to_display_space(const ColormanageProcessor &processor,
                                              const ColorSpace *src_colorspace,
                                              int64_t num,
                                              const float *src,
@@ -53,7 +53,7 @@ static Array<float4> pixels_to_display_space(ColormanageProcessor &processor,
   return result;
 }
 
-static Array<float4> pixels_to_display_space(ColormanageProcessor &processor,
+static Array<float4> pixels_to_display_space(const ColormanageProcessor &processor,
                                              const ColorSpace *src_colorspace,
                                              int64_t num,
                                              const uchar *src,
