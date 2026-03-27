@@ -176,44 +176,6 @@ BUILD_MANDATORY_SUBPACKAGES = (
                                   DISTRO_ID_ARCH: "cmake",
                                   },
             ),
-)
-
-
-# Fairly common additional tools useful to build Blender.
-BUILD_OPTIONAL_SUBPACKAGES = (
-    Package(name="Ninja Builder",
-            distro_package_names={DISTRO_ID_DEBIAN: "ninja-build",
-                                  DISTRO_ID_FEDORA: "ninja-build",
-                                  DISTRO_ID_SUSE: "ninja",
-                                  DISTRO_ID_ARCH: "ninja",
-                                  },
-            ),
-    Package(name="CMake commandline GUI",
-            distro_package_names={DISTRO_ID_DEBIAN: "cmake-curses-gui",
-                                  DISTRO_ID_FEDORA: None,
-                                  DISTRO_ID_SUSE: None,
-                                  DISTRO_ID_ARCH: None,
-                                  },
-            ),
-    Package(name="CMake GUI",
-            distro_package_names={DISTRO_ID_DEBIAN: "cmake-gui",
-                                  DISTRO_ID_FEDORA: "cmake-gui",
-                                  DISTRO_ID_SUSE: "cmake-gui",
-                                  DISTRO_ID_ARCH: None,
-                                  },
-            ),
-    Package(name="Patch",
-            distro_package_names={DISTRO_ID_DEBIAN: "patch",
-                                  DISTRO_ID_FEDORA: "patch",
-                                  DISTRO_ID_SUSE: "patch",
-                                  DISTRO_ID_ARCH: "patch",
-                                  },
-            ),
-)
-
-
-# Library dependencies that are not provided by precompiled libraries.
-DEPS_CRITICAL_SUBPACKAGES = (
     Package(name="X11 library",
             distro_package_names={DISTRO_ID_DEBIAN: "libx11-dev",
                                   DISTRO_ID_FEDORA: "libX11-devel",
@@ -308,8 +270,37 @@ DEPS_CRITICAL_SUBPACKAGES = (
 )
 
 
-# Basic optional set of common sound libraries to build Blender with. Not bundled as pre-compiled libraries.
-DEPS_OPTIONAL_SUBPACKAGES = (
+# Fairly common additional tools useful to build Blender.
+BUILD_OPTIONAL_SUBPACKAGES = (
+    Package(name="Ninja Builder",
+            distro_package_names={DISTRO_ID_DEBIAN: "ninja-build",
+                                  DISTRO_ID_FEDORA: "ninja-build",
+                                  DISTRO_ID_SUSE: "ninja",
+                                  DISTRO_ID_ARCH: "ninja",
+                                  },
+            ),
+    Package(name="CMake commandline GUI",
+            distro_package_names={DISTRO_ID_DEBIAN: "cmake-curses-gui",
+                                  DISTRO_ID_FEDORA: None,
+                                  DISTRO_ID_SUSE: None,
+                                  DISTRO_ID_ARCH: None,
+                                  },
+            ),
+    Package(name="CMake GUI",
+            distro_package_names={DISTRO_ID_DEBIAN: "cmake-gui",
+                                  DISTRO_ID_FEDORA: "cmake-gui",
+                                  DISTRO_ID_SUSE: "cmake-gui",
+                                  DISTRO_ID_ARCH: None,
+                                  },
+            ),
+    Package(name="Patch",
+            distro_package_names={DISTRO_ID_DEBIAN: "patch",
+                                  DISTRO_ID_FEDORA: "patch",
+                                  DISTRO_ID_SUSE: "patch",
+                                  DISTRO_ID_ARCH: "patch",
+                                  },
+            ),
+    # Basic optional set of common sound libraries to build Blender with. Not bundled as pre-compiled libraries.
     Package(name="Jack2 Library",
             distro_package_names={DISTRO_ID_DEBIAN: "libjack-jackd2-dev",
                                   DISTRO_ID_FEDORA: "jack-audio-connection-kit-devel",
@@ -335,20 +326,9 @@ DEPS_OPTIONAL_SUBPACKAGES = (
 
 
 # Packages required to build Blender, which are not included in the precompiled libraries.
-PACKAGES_BASICS_BUILD = (
-    Package(name="Basics Mandatory Build", is_group=True, is_mandatory=True, sub_packages=BUILD_MANDATORY_SUBPACKAGES),
-    Package(name="Basics Optional Build", is_group=True, is_mandatory=False, sub_packages=BUILD_OPTIONAL_SUBPACKAGES),
-    Package(name="Basic Critical Deps", is_group=True, is_mandatory=True, sub_packages=DEPS_CRITICAL_SUBPACKAGES),
-)
-
-
-# All packages, required or 'nice to have', to build Blender.
-# Also covers (as best as possible) the dependencies provided by the precompiled libraries.
-PACKAGES_ALL = (
-    Package(name="Basics Mandatory Build", is_group=True, is_mandatory=True, sub_packages=BUILD_MANDATORY_SUBPACKAGES),
-    Package(name="Basics Optional Build", is_group=True, is_mandatory=False, sub_packages=BUILD_OPTIONAL_SUBPACKAGES),
-    Package(name="Basic Critical Deps", is_group=True, is_mandatory=True, sub_packages=DEPS_CRITICAL_SUBPACKAGES),
-    Package(name="Basic Optional Deps", is_group=True, is_mandatory=False, sub_packages=DEPS_OPTIONAL_SUBPACKAGES),
+PACKAGES_BUILD = (
+    Package(name="Mandatory Build", is_group=True, is_mandatory=True, sub_packages=BUILD_MANDATORY_SUBPACKAGES),
+    Package(name="Optional Build", is_group=True, is_mandatory=False, sub_packages=BUILD_OPTIONAL_SUBPACKAGES),
 )
 
 
@@ -1162,14 +1142,6 @@ def argparse_create():
         ),
     )
     parser.add_argument(
-        "--all",
-        dest="all",
-        action='store_true',
-        deprecated=True,
-        help="Install all dependencies from the distribution packages, including these also provided as "
-             "precompiled libraries. Deprecated, will be removed in a future Blender version.",
-    )
-    parser.add_argument(
         "--distro-id",
         dest="distro_id",
         default=...,
@@ -1205,10 +1177,7 @@ def main():
                                 else get_distro_package_installer(settings))
     distro_package_installer.packages_database_update()
 
-    if settings.all:
-        distro_package_installer.packages_install(PACKAGES_ALL)
-    else:
-        distro_package_installer.packages_install(PACKAGES_BASICS_BUILD)
+    distro_package_installer.packages_install(PACKAGES_BUILD)
 
 
 if __name__ == "__main__":
