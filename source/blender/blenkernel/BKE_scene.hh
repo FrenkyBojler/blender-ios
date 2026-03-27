@@ -158,7 +158,7 @@ Scene *BKE_scene_find_replacement(
 bool BKE_scene_has_view_layer(const Scene *scene, const ViewLayer *layer);
 Scene *BKE_scene_find_from_collection(const Main *bmain, const Collection *collection);
 
-Object *BKE_scene_camera_switch_find(Scene *scene);
+Object *BKE_scene_camera_switch_find(const Scene *scene, const int time);
 bool BKE_scene_camera_switch_update(Scene *scene);
 
 const char *BKE_scene_find_marker_name(const Scene *scene, int frame);
@@ -194,6 +194,15 @@ float BKE_scene_frame_get(const Scene *scene);
  * Set current frame and sub-frame based on a fractional frame.
  */
 void BKE_scene_frame_set(Scene *scene, float frame);
+
+/**
+ * Returns the current playback range, which is either the scene range or the playback range.
+ */
+int2 BKE_scene_get_playback_range(const Scene *scene);
+/**
+ * Clamps the current frame to be between the playback bounds which can be the preview range.
+ */
+void BKE_scene_frame_clamp_for_playback(Scene *scene, bool is_playing_forward);
 
 TransformOrientationSlot *BKE_scene_orientation_slot_get_from_flag(Scene *scene, int flag);
 TransformOrientationSlot *BKE_scene_orientation_slot_get(Scene *scene, int slot_index);

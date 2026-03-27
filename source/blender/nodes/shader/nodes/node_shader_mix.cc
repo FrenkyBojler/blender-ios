@@ -43,7 +43,7 @@ static void sh_node_mix_declare(NodeDeclarationBuilder &b)
    * Input socket indices must be kept in sync with ntree_shader_disconnect_inactive_mix_branches
    */
   b.add_input<decl::Float>("Factor", "Factor_Float")
-      .default_value(0.5f)
+      .default_value(1.0f)
       .min(0.0f)
       .max(1.0f)
       .subtype(PROP_FACTOR)
@@ -141,9 +141,9 @@ static void sh_node_mix_label(const bNodeTree * /*ntree*/,
     const char *name;
     bool enum_label = RNA_enum_name(rna_enum_ramp_blend_items, storage.blend_type, &name);
     if (!enum_label) {
-      name = N_("Unknown");
+      name = CTX_N_(BLT_I18NCONTEXT_COLOR, "Unknown");
     }
-    BLI_strncpy_utf8(label, IFACE_(name), label_maxncpy);
+    BLI_strncpy_utf8(label, CTX_IFACE_(BLT_I18NCONTEXT_COLOR, name), label_maxncpy);
     return;
   }
   BLI_strncpy_utf8(label, IFACE_("Mix"), label_maxncpy);
@@ -223,7 +223,8 @@ static void node_mix_gather_link_searches(GatherLinkSearchOpParams &params)
       return;
   }
 
-  int weight = 0;
+  /* Ensure color math operations have higher priority than vector or float math operations. */
+  int weight = type == SOCK_RGBA ? 4 : 0;
   if (params.in_out() == SOCK_OUT) {
     params.add_item(IFACE_("Result"), [type](LinkSearchOpParams &params) {
       bNode &node = params.add_node("ShaderNodeMix");
@@ -294,7 +295,7 @@ static void node_mix_gather_link_searches(GatherLinkSearchOpParams &params)
 
 static void node_mix_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeShaderMix *data = MEM_new_for_free<NodeShaderMix>(__func__);
+  NodeShaderMix *data = MEM_new<NodeShaderMix>(__func__);
   data->data_type = SOCK_FLOAT;
   data->factor_mode = NODE_MIX_MODE_UNIFORM;
   data->clamp_factor = 1;

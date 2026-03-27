@@ -9,6 +9,8 @@
 #include "node_shader_util.hh"
 #include "node_util.hh"
 
+#include "BKE_node.hh"
+
 #include "NOD_inverse_eval_params.hh"
 #include "NOD_math_functions.hh"
 #include "NOD_socket_search_link.hh"
@@ -85,6 +87,40 @@ static void sh_node_math_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Float>("Value");
 }
 
+static void math_input_defaults(bNode &node, const NodeMathOperation mode)
+{
+  bNodeSocket *socket_2 = bke::node_find_socket(node, SOCK_IN, "Value_001");
+  BLI_assert(socket_2 != nullptr);
+  float &value_2 = socket_2->default_value_typed<bNodeSocketValueFloat>()->value;
+
+  bNodeSocket *socket_3 = bke::node_find_socket(node, SOCK_IN, "Value_002");
+  BLI_assert(socket_3 != nullptr);
+  float &value_3 = socket_3->default_value_typed<bNodeSocketValueFloat>()->value;
+
+  switch (mode) {
+    case NODE_MATH_MULTIPLY:
+    case NODE_MATH_DIVIDE:
+    case NODE_MATH_POWER:
+    case NODE_MATH_FLOORED_MODULO:
+    case NODE_MATH_MODULO:
+    case NODE_MATH_ARCTAN2:
+      value_2 = 1.0f;
+      break;
+    case NODE_MATH_ADD:
+    case NODE_MATH_SUBTRACT:
+      value_2 = 0.0f;
+      break;
+    case NODE_MATH_MULTIPLY_ADD:
+      value_2 = 1.0f;
+      value_3 = 0.0f;
+      break;
+
+    default:
+      /* Use the default defined in the node declaration otherwise. */
+      break;
+  }
+}
+
 class SocketSearchOp {
  public:
   std::string socket_name;
@@ -93,6 +129,7 @@ class SocketSearchOp {
   {
     bNode &node = params.add_node("ShaderNodeMath");
     node.custom1 = mode;
+    math_input_defaults(node, mode);
     params.update_and_connect_available_socket(node, socket_name);
   }
 };
@@ -167,9 +204,9 @@ static void node_eval_elem(value_elem::ElemEvalParams &params)
     case NODE_MATH_SUBTRACT:
     case NODE_MATH_MULTIPLY:
     case NODE_MATH_DIVIDE: {
-      FloatElem output_elem = params.get_input_elem<FloatElem>("Value");
-      output_elem.merge(params.get_input_elem<FloatElem>("Value_001"));
-      params.set_output_elem("Value", output_elem);
+      FloatElem output_elem = params.get_input_elem<FloatElem>("Value"_ustr);
+      output_elem.merge(params.get_input_elem<FloatElem>("Value_001"_ustr));
+      params.set_output_elem("Value"_ustr, output_elem);
       break;
     }
     default:
@@ -185,7 +222,8 @@ static void node_eval_inverse_elem(value_elem::InverseElemEvalParams &params)
     case NODE_MATH_SUBTRACT:
     case NODE_MATH_MULTIPLY:
     case NODE_MATH_DIVIDE: {
-      params.set_input_elem("Value", params.get_output_elem<value_elem::FloatElem>("Value"));
+      params.set_input_elem("Value"_ustr,
+                            params.get_output_elem<value_elem::FloatElem>("Value"_ustr));
       break;
     }
     default:
@@ -196,9 +234,9 @@ static void node_eval_inverse_elem(value_elem::InverseElemEvalParams &params)
 static void node_eval_inverse(inverse_eval::InverseEvalParams &params)
 {
   const NodeMathOperation op = NodeMathOperation(params.node.custom1);
-  const StringRef first_input_id = "Value";
-  const StringRef second_input_id = "Value_001";
-  const StringRef output_id = "Value";
+  const UString first_input_id = "Value"_ustr;
+  const UString second_input_id = "Value_001"_ustr;
+  const UString output_id = "Value"_ustr;
   switch (op) {
     case NODE_MATH_ADD: {
       params.set_input(first_input_id,

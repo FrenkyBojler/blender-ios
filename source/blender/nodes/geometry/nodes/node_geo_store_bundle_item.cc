@@ -32,6 +32,13 @@ static void node_declare(NodeDeclarationBuilder &b)
     const NodeStoreBundleItem &storage = node_storage(*node);
     const eNodeSocketDatatype socket_type = eNodeSocketDatatype(storage.socket_type);
     auto &decl = b.add_input(socket_type, "Item");
+    if (ELEM(storage.structure_type,
+             NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_DYNAMIC,
+             NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_FIELD,
+             NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO))
+    {
+      decl.supports_field();
+    }
     if (storage.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO) {
       decl.structure_type(StructureType::Dynamic);
     }
@@ -57,7 +64,7 @@ static void node_layout_ex(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  auto *storage = MEM_new_for_free<NodeStoreBundleItem>(__func__);
+  auto *storage = MEM_new<NodeStoreBundleItem>(__func__);
   storage->socket_type = SOCK_FLOAT;
   node->storage = storage;
 }
@@ -83,7 +90,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   bke::SocketValueVariant value = params.extract_input<bke::SocketValueVariant>("Item");
-  const bNodeSocket *item_sock = bnode.input_by_identifier("Item");
+  const bNodeSocket *item_sock = bnode.input_by_identifier("Item"_ustr);
   if (!item_sock) {
     params.set_output("Bundle", std::move(bundle_ptr));
     return;

@@ -618,7 +618,7 @@ static void chains_find_tips(ListBaseT<EditBone> *edbo, ListBaseT<LinkData> *lis
     }
 
     /* add current bone to a new chain */
-    ld = MEM_callocN<LinkData>("BoneChain");
+    ld = MEM_new_zeroed<LinkData>("BoneChain");
     ld->data = &curBone;
     BLI_addtail(list, ld);
   }
@@ -666,7 +666,7 @@ static void fill_add_joint(EditBone *ebo, short eb_tail, ListBaseT<EditBonePoint
 
   /* allocate a new point if no existing point was related */
   if (found == 0) {
-    ebp = MEM_callocN<EditBonePoint>("EditBonePoint");
+    ebp = MEM_new_zeroed<EditBonePoint>("EditBonePoint");
 
     if (eb_tail) {
       copy_v3_v3(ebp->vec, ebo->tail);
@@ -756,6 +756,14 @@ static wmOperatorStatus armature_fill_bones_exec(bContext *C, wmOperator *op)
 
     /* Create a bone */
     newbone = add_points_bone(obedit, ebp->vec, curs);
+
+    /* Copy bone collection membership. */
+    if (ebp->head_owner) {
+      ANIM_armature_bonecoll_assign_from_other_editbone(newbone, ebp->head_owner);
+    }
+    else {
+      ANIM_armature_bonecoll_assign_from_other_editbone(newbone, ebp->tail_owner);
+    }
   }
   else if (count == 2) {
     EditBonePoint *ebp_a, *ebp_b;
@@ -845,6 +853,20 @@ static wmOperatorStatus armature_fill_bones_exec(bContext *C, wmOperator *op)
       if (ebp_a->tail_owner || ebp_b->tail_owner) {
         newbone->flag |= BONE_CONNECTED;
       }
+
+      /* Copy bone collection membership. */
+      if (ebp_a->head_owner) {
+        ANIM_armature_bonecoll_assign_from_other_editbone(newbone, ebp_a->head_owner);
+      }
+      else {
+        ANIM_armature_bonecoll_assign_from_other_editbone(newbone, ebp_a->tail_owner);
+      }
+      if (ebp_b->head_owner) {
+        ANIM_armature_bonecoll_assign_from_other_editbone(newbone, ebp_b->head_owner);
+      }
+      else {
+        ANIM_armature_bonecoll_assign_from_other_editbone(newbone, ebp_b->tail_owner);
+      }
     }
   }
   else {
@@ -860,7 +882,7 @@ static wmOperatorStatus armature_fill_bones_exec(bContext *C, wmOperator *op)
   }
 
   /* updates */
-  WM_event_add_notifier(C, NC_OBJECT | ND_POSE, obedit);
+  WM_event_add_notifier(C, NC_OBJECT | ND_ARMATURE_STRUCTURE, obedit);
   DEG_id_tag_update(&arm->id, ID_RECALC_SYNC_TO_EVAL);
 
   /* free points */

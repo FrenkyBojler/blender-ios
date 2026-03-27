@@ -39,7 +39,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   auto &input_value = b.add_input(data_type, "Value").hide_value();
   auto &output_value = b.add_output(data_type, "Value").align_with_previous();
 
-  if (nodes::socket_type_supports_fields(data_type)) {
+  if (socket_type_supports_attributes(data_type)) {
     input_value.supports_field();
     output_value.dependent_field().reference_pass_all();
   }
@@ -182,7 +182,7 @@ static const bNodeSocket *node_internally_linked_input(const bNodeTree & /*tree*
                                                        const bNodeSocket &output_socket)
 {
   /* Internal links should always map corresponding input and output sockets. */
-  return node.input_by_identifier(output_socket.identifier);
+  return node.input_by_identifier(output_socket.identifier_ustr());
 }
 
 static void node_register()

@@ -23,6 +23,7 @@
 
 #include "DEG_depsgraph.hh"
 
+#include "DEG_depsgraph_build.hh"
 #include "DNA_key_types.h"
 
 #include "WM_api.hh"
@@ -78,11 +79,10 @@ class ShapeKeyDragController : public ui::AbstractViewItemDragController {
     }();
 
     /* Allocate one extra element, to use it as null-delimiter. */
-    KeyBlock **selected_keys_ = MEM_calloc_arrayN<KeyBlock *>(selected_count + 1,
-                                                              "Selected Key Blocks");
+    KeyBlock **selected_keys_ = MEM_new_array_zeroed<KeyBlock *>(selected_count + 1,
+                                                                 "Selected Key Blocks");
 
     selected_count = 0;
-
     for (const auto [index, kb] : drag_key_.key->block.enumerate()) {
       if (index == 0) {
         /* Prevent basis shape key from dragging. */
@@ -158,29 +158,32 @@ class ShapeKeyDropTarget : public ui::TreeViewItemDropTarget {
     Key *key = BKE_key_from_object(ob);
     const KeyBlock **drag_shapekey = static_cast<const KeyBlock **>(drag_info.drag_data.poin);
 
+    const int first_drag_index = BLI_findindex(&key->block, drag_shapekey[0]);
+    int drop_index = BLI_findindex(&key->block, &drop_kb_);
+    switch (drag_info.drop_location) {
+      case ui::DropLocation::Into:
+        BLI_assert_unreachable();
+        break;
+      case ui::DropLocation::Before:
+        if (drop_index == 0) {
+          return false;
+        }
+        drop_index -= int(first_drag_index < drop_index);
+        break;
+      case ui::DropLocation::After:
+        drop_index += int(first_drag_index > drop_index);
+        break;
+    }
+
     for (int8_t i = 0; drag_shapekey[i] != nullptr; i++) {
       const int drag_index = BLI_findindex(&key->block, drag_shapekey[i]);
-      int drop_index = BLI_findindex(&key->block, &drop_kb_);
-
       if (drag_index == -1) {
         continue;
       }
-
-      switch (drag_info.drop_location) {
-        case ui::DropLocation::Into:
-          BLI_assert_unreachable();
-          break;
-        case ui::DropLocation::Before:
-          if (drop_index == 0) {
-            return false;
-          }
-          drop_index -= int(drag_index < drop_index);
-          break;
-        case ui::DropLocation::After:
-          drop_index += int(drag_index > drop_index) + i;
-          break;
+      if (i > 0) {
+        /* Place subsequent items directly after the previously moved item. */
+        drop_index += int(drag_index > drop_index);
       }
-
       BKE_keyblock_move(ob, drag_index, drop_index);
     }
 
@@ -281,6 +284,7 @@ class ShapeKeyItem : public ui::AbstractTreeViewItem {
     Main *bmain = CTX_data_main(C);
     BKE_object_shapekey_remove(bmain, shape_key_.object, shape_key_.kb);
     DEG_id_tag_update(&shape_key_.object->id, ID_RECALC_GEOMETRY);
+    DEG_relations_tag_update(CTX_data_main(C));
     WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, nullptr);
     ED_undo_grouped_push(C, "Delete Shape Key");
   }

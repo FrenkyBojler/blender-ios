@@ -11,6 +11,7 @@
 #include <cstring>
 
 #include "DNA_layer_types.h"
+#include "DNA_modifier_types.h"
 #include "DNA_node_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
@@ -139,7 +140,7 @@ static void change_node_socket_name(ListBaseT<bNodeSocket> *sockets,
       STRNCPY_UTF8(socket.name, new_name);
     }
     if (STREQ(socket.identifier, old_name)) {
-      STRNCPY_UTF8(socket.identifier, new_name);
+      version_node_socket_identifier_set(socket, new_name);
     }
   }
 }
@@ -168,7 +169,14 @@ void version_node_socket_id_delim(bNodeSocket *socket)
 
   if (id_number.startswith(".")) {
     socket->identifier[name.size()] = '_';
+    socket->runtime->identifier_ustr = UString(socket->identifier);
   }
+}
+
+void version_node_socket_identifier_set(bNodeSocket &socket, const StringRefNull identifier)
+{
+  STRNCPY_UTF8(socket.identifier, identifier.c_str());
+  socket.runtime->identifier_ustr = UString(socket.identifier);
 }
 
 void version_node_socket_name(bNodeTree *ntree,
@@ -240,7 +248,7 @@ bNode &version_node_add_empty(bNodeTree &ntree, const char *idname)
 {
   bke::bNodeType *ntype = bke::node_type_find(idname);
 
-  bNode *node = MEM_new_for_free<bNode>(__func__);
+  bNode *node = MEM_new<bNode>(__func__);
   node->runtime = MEM_new<bke::bNodeRuntime>(__func__);
   BLI_addtail(&ntree.nodes, node);
   bke::node_unique_id(ntree, *node);
@@ -289,7 +297,7 @@ bNode &version_node_add_unknown(bNodeTree &ntree,
   ntype.no_muting = no_muting;
   ntype.ui_name = ui_name;
 
-  bNode *node = MEM_new_for_free<bNode>(__func__);
+  bNode *node = MEM_new<bNode>(__func__);
   node->runtime = MEM_new<bNodeRuntime>(__func__);
   BLI_addtail(&ntree.nodes, node);
   node_unique_id(ntree, *node);
@@ -326,8 +334,9 @@ bNodeSocket &version_node_add_socket(bNodeTree &ntree,
                                      const char *identifier)
 {
   bke::bNodeSocketType *stype = bke::node_socket_type_find(idname);
+  BLI_assert(stype != nullptr);
 
-  bNodeSocket *socket = MEM_new_for_free<bNodeSocket>(__func__);
+  bNodeSocket *socket = MEM_new<bNodeSocket>(__func__);
   socket->runtime = MEM_new<bke::bNodeSocketRuntime>(__func__);
   socket->in_out = in_out;
   socket->limit = (in_out == SOCK_IN ? 1 : 0xFFF);
@@ -335,6 +344,7 @@ bNodeSocket &version_node_add_socket(bNodeTree &ntree,
 
   STRNCPY_UTF8(socket->idname, idname);
   STRNCPY_UTF8(socket->identifier, identifier);
+  socket->runtime->identifier_ustr = UString(socket->identifier);
   STRNCPY_UTF8(socket->name, identifier);
 
   if (in_out == SOCK_IN) {
@@ -362,7 +372,7 @@ bNodeLink &version_node_add_link(
   bNode &node_to = node_b;
   bNodeSocket &socket_to = socket_b;
 
-  bNodeLink *link = MEM_new_for_free<bNodeLink>(__func__);
+  bNodeLink *link = MEM_new<bNodeLink>(__func__);
   link->fromnode = &node_from;
   link->fromsock = &socket_from;
   link->tonode = &node_to;
@@ -372,6 +382,19 @@ bNodeLink &version_node_add_link(
 
   BKE_ntree_update_tag_link_added(&ntree, link);
   return *link;
+}
+
+bool version_node_ensure_storage_or_invalidate(bNode &node)
+{
+  /* Accept node if storage is valid. */
+  if (node.storage != nullptr) {
+    return true;
+  }
+
+  /* Invalidate the type identifiers to prevent invalid access where storage data is expected
+   * (#154086). */
+  bke::node_set_undefined_type(node);
+  return false;
 }
 
 bNodeSocket *version_node_add_socket_if_not_exist(bNodeTree *ntree,
@@ -437,7 +460,7 @@ void version_node_socket_index_animdata(Main *bmain,
         const int new_index = input_index + socket_index_offset;
         BKE_animdata_fix_paths_rename_all_ex(
             bmain, owner_id, rna_path_prefix, nullptr, nullptr, input_index, new_index, false);
-        MEM_freeN(rna_path_prefix);
+        MEM_delete(rna_path_prefix);
       }
     }
     FOREACH_NODETREE_END;
@@ -827,6 +850,25 @@ void do_versions_after_setup(Main *new_bmain,
 
       /* NOTE: The user count remains zero at this point. It will get automatically updated after
        * blend file reading is done. */
+    }
+  }
+
+  if (!blendfile_or_libraries_versions_atleast(new_bmain, 501, 29)) {
+    /* Clear modifier node trees if the tree type is undefined.
+     * This can happen to generated auto-smooth node groups for unknown reasons (#152810). */
+    for (Object &object : new_bmain->objects) {
+      for (ModifierData &md : object.modifiers) {
+        if (md.type != eModifierType_Nodes) {
+          continue;
+        }
+        NodesModifierData &nmd = *reinterpret_cast<NodesModifierData *>(&md);
+        if (nmd.node_group && !ID_MISSING(nmd.node_group) &&
+            !STREQ(nmd.node_group->idname, "GeometryNodeTree"))
+        {
+          id_us_min(&nmd.node_group->id);
+          nmd.node_group = nullptr;
+        }
+      }
     }
   }
 }

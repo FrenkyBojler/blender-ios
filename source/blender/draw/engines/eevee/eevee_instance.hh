@@ -174,6 +174,8 @@ class Instance : public DrawEngine {
   bool use_curves = true;
   bool use_volumes = true;
 
+  GPUSamplerFiltering anisotropic_filtering = GPU_SAMPLER_FILTERING_DEFAULT;
+
   /** Debug mode from debug value. */
   eDebugMode debug_mode = eDebugMode::DEBUG_NONE;
 
@@ -310,6 +312,11 @@ class Instance : public DrawEngine {
   bool is_baking() const
   {
     return is_light_bake;
+  }
+
+  bool is_xr() const
+  {
+    return draw_ctx && draw_ctx->mode == DRWContext::VIEWPORT_XR;
   }
 
   bool overlays_enabled() const

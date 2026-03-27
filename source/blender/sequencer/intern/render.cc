@@ -16,6 +16,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_space_types.h"
+#include "DNA_world_types.h"
 
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
@@ -42,6 +43,10 @@
 #include "DEG_depsgraph_debug.hh"
 #include "DEG_depsgraph_query.hh"
 
+#include "DRW_engine.hh"
+
+#include "GPU_context.hh"
+
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
@@ -63,6 +68,8 @@
 #include "SEQ_time.hh"
 #include "SEQ_transform.hh"
 #include "SEQ_utils.hh"
+
+#include "WM_api.hh"
 
 #include "cache/final_image_cache.hh"
 #include "cache/intra_frame_cache.hh"
@@ -120,7 +127,7 @@ void seq_imbuf_to_sequencer_space(const Scene *scene, ImBuf *ibuf, bool make_flo
     /* We are not requested to give float buffer and byte buffer is already
      * in thee required colorspace. Can skip doing anything here.
      */
-    const char *from_colorspace = IMB_colormanagement_get_rect_colorspace(ibuf);
+    const char *from_colorspace = IMB_colormanagement_get_byte_colorspace(ibuf);
     if (!make_float && STREQ(from_colorspace, to_colorspace)) {
       return;
     }
@@ -711,9 +718,8 @@ static ImBuf *seq_render_preprocess_ibuf(const RenderData *context,
   }
 
   /* Proxies and non-generator effect strips are not stored in cache. */
-  const bool is_effect_with_inputs = strip->is_effect() &&
-                                     (effect_get_num_inputs(strip->type) != 0 ||
-                                      (strip->type == STRIP_TYPE_ADJUSTMENT));
+  const bool is_effect_with_inputs = strip->is_effect_with_inputs() ||
+                                     strip->type == STRIP_TYPE_ADJUSTMENT;
   if (!is_proxy_image && !is_effect_with_inputs) {
     Scene *orig_scene = prefetch_get_original_scene(context);
     if (orig_scene->ed->cache_flag & SEQ_CACHE_STORE_RAW) {
@@ -783,7 +789,7 @@ static ImBuf *seq_render_effect_strip_impl(const RenderData *context,
         }
       }
 
-      if (ibuf[0] && (ibuf[1] || effect_get_num_inputs(strip->type) == 1)) {
+      if (ibuf[0] && (ibuf[1] || strip->effect_num_inputs_get() == 1)) {
         out = sh.execute(context, state, strip, timeline_frame, fac, ibuf[0], ibuf[1]);
       }
       break;
@@ -824,7 +830,8 @@ void convert_multilayer_ibuf(ImBuf *ibuf)
   /* Combined layer might be non-4 channels, however the rest
    * of sequencer assumes RGBA everywhere. Convert to 4 channel if needed. */
   if (ibuf->float_buffer.data != nullptr && ibuf->channels != 4) {
-    float *dst = MEM_malloc_arrayN<float>(4 * size_t(ibuf->x) * size_t(ibuf->y), __func__);
+    float *dst = MEM_new_array_uninitialized<float>(4 * size_t(ibuf->x) * size_t(ibuf->y),
+                                                    __func__);
     IMB_buffer_float_from_float_threaded(dst,
                                          ibuf->float_buffer.data,
                                          ibuf->channels,
@@ -1270,7 +1277,7 @@ ImBuf *seq_render_mask(Depsgraph *depsgraph,
       depsgraph, mask->sfra + frame_index);
   BKE_animsys_evaluate_animdata(&mask_temp->id, adt, &anim_eval_context, ADT_RECALC_ANIM, false);
 
-  maskbuf = MEM_malloc_arrayN<float>(size_t(width) * size_t(height), __func__);
+  maskbuf = MEM_new_array_uninitialized<float>(size_t(width) * size_t(height), __func__);
 
   mr_handle = BKE_maskrasterize_handle_new();
 
@@ -1319,7 +1326,7 @@ ImBuf *seq_render_mask(Depsgraph *depsgraph,
     }
   }
 
-  MEM_freeN(maskbuf);
+  MEM_delete(maskbuf);
 
   return ibuf;
 }
@@ -1438,11 +1445,27 @@ static ImBuf *seq_render_scene_strip_ex(const RenderData *context,
     BKE_render_resolution(&scene->r, false, &width, &height);
     const char *viewname = BKE_scene_multiview_render_view_name_get(&scene->r, context->view_id);
 
+    const bool use_scene_settings = (context->scene->r.seq_flag & R_SEQ_OVERRIDE_SCENE_SETTINGS) !=
+                                    0;
+
     uint draw_flags = V3D_OFSDRAW_NONE;
     draw_flags |= (use_gpencil) ? V3D_OFSDRAW_SHOW_ANNOTATION : 0;
-    draw_flags |= (context->scene->r.seq_flag & R_SEQ_OVERRIDE_SCENE_SETTINGS) ?
-                      V3D_OFSDRAW_OVERRIDE_SCENE_SETTINGS :
-                      0;
+    draw_flags |= (use_scene_settings) ? (V3D_OFSDRAW_OVERRIDE_SCENE_SETTINGS |
+                                          V3D_OFSDRAW_NO_WORLD_BACKGROUND_OVERRIDE) :
+                                         0;
+
+    View3DShading scene_shading = context->scene->display.shading;
+
+    if (use_scene_settings) {
+      /* Allow to render with the scene world color. */
+      if (context->scene->world != nullptr) {
+        copy_v3_v3(&scene_shading.background_color[0], &context->scene->world->horr);
+      }
+      else {
+        copy_v3_fl(&scene_shading.background_color[0], 0.0f);
+      }
+      scene_shading.background_type = V3D_SHADING_BACKGROUND_VIEWPORT;
+    }
 
     /* for old scene this can be uninitialized,
      * should probably be added to do_versions at some point if the functionality stays */
@@ -1458,7 +1481,7 @@ static ImBuf *seq_render_scene_strip_ex(const RenderData *context,
         /* set for OpenGL render (nullptr when scrubbing) */
         depsgraph,
         scene_eval,
-        &context->scene->display.shading,
+        &scene_shading,
         eDrawType(context->scene->r.seq_prev_type),
         camera_eval,
         width,
@@ -2069,6 +2092,51 @@ float get_render_scale_factor(eSpaceSeq_Proxy_RenderSize render_size, short scen
 float get_render_scale_factor(const RenderData &context)
 {
   return get_render_scale_factor(context.preview_render_size, context.scene->r.size);
+}
+
+void render_begin_gpu(const RenderData &rd)
+{
+  if (rd.gpu_context.ghost_context != nullptr) {
+    /* Use GPU context from VSE render data. */
+    gpu::GPU_activate_secondary_context(rd.gpu_context);
+    GPU_render_begin();
+  }
+  else if (BLI_thread_is_main()) {
+    /* Use main GPU context. */
+    DRW_gpu_context_enable();
+  }
+  else {
+    /* Use GPU context from Render. */
+    BLI_assert(rd.render != nullptr);
+    GHOST_IContext *render_ghost_context = RE_system_gpu_context_get(rd.render);
+    BLI_assert(render_ghost_context != nullptr);
+    WM_system_gpu_context_activate(render_ghost_context);
+    void *render_gpu_context = RE_blender_gpu_context_ensure(rd.render);
+    GPU_render_begin();
+    GPU_context_active_set(static_cast<GPUContext *>(render_gpu_context));
+  }
+}
+
+void render_end_gpu(const RenderData &rd)
+{
+  if (rd.gpu_context.ghost_context != nullptr) {
+    /* Use GPU context from VSE render data. */
+    GPU_render_end();
+    gpu::GPU_deactivate_secondary_context(rd.gpu_context);
+  }
+  else if (BLI_thread_is_main()) {
+    /* Use main GPU context. */
+    DRW_gpu_context_disable();
+  }
+  else {
+    /* Use GPU context from Render. */
+    BLI_assert(rd.render != nullptr);
+    GHOST_IContext *render_ghost_context = RE_system_gpu_context_get(rd.render);
+    BLI_assert(render_ghost_context != nullptr);
+    GPU_context_active_set(nullptr);
+    GPU_render_end();
+    WM_system_gpu_context_release(render_ghost_context);
+  }
 }
 
 }  // namespace blender::seq

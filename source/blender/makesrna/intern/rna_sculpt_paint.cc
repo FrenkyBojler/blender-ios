@@ -289,32 +289,6 @@ static bool rna_Paint_brush_poll(PointerRNA *ptr, PointerRNA value)
   return (brush == nullptr) || (paint->runtime->ob_mode & brush->ob_mode) != 0;
 }
 
-static PointerRNA rna_Paint_eraser_brush_get(PointerRNA *ptr)
-{
-  Paint *paint = static_cast<Paint *>(ptr->data);
-  Brush *brush = BKE_paint_eraser_brush(paint);
-  if (!brush) {
-    return PointerRNA_NULL;
-  }
-  return RNA_id_pointer_create(&brush->id);
-}
-
-static void rna_Paint_eraser_brush_set(PointerRNA *ptr, PointerRNA value, ReportList * /*reports*/)
-{
-  Paint *paint = static_cast<Paint *>(ptr->data);
-  Brush *brush = static_cast<Brush *>(value.data);
-  BKE_paint_eraser_brush_set(paint, brush);
-  BKE_paint_invalidate_overlay_all();
-}
-
-static bool rna_Paint_eraser_brush_poll(PointerRNA *ptr, PointerRNA value)
-{
-  const Paint *paint = static_cast<Paint *>(ptr->data);
-  const Brush *brush = static_cast<Brush *>(value.data);
-
-  return (brush == nullptr) || (paint->runtime->ob_mode & brush->ob_mode) != 0;
-}
-
 static void rna_Sculpt_update(bContext *C, PointerRNA * /*ptr*/)
 {
   Scene *scene = CTX_data_scene(C);
@@ -438,12 +412,6 @@ static void rna_ImaPaint_stencil_update(bContext *C, PointerRNA * /*ptr*/)
   }
 }
 
-static bool rna_ImaPaint_imagetype_poll(PointerRNA * /*ptr*/, PointerRNA value)
-{
-  Image *image = id_cast<Image *>(value.owner_id);
-  return image->type != IMA_TYPE_R_RESULT && image->type != IMA_TYPE_COMPOSITE;
-}
-
 static void rna_ImaPaint_canvas_update(bContext *C, PointerRNA * /*ptr*/)
 {
   Main *bmain = CTX_data_main(C);
@@ -475,12 +443,6 @@ static void rna_UvSculpt_curve_preset_set(PointerRNA *ptr, int value)
 
 /** \name Paint mode settings
  * \{ */
-
-static bool rna_PaintModeSettings_canvas_image_poll(PointerRNA * /*ptr*/, PointerRNA value)
-{
-  Image *image = id_cast<Image *>(value.owner_id);
-  return !ELEM(image->type, IMA_TYPE_COMPOSITE, IMA_TYPE_R_RESULT);
-}
 
 static void rna_PaintModeSettings_canvas_source_update(bContext *C, PointerRNA * /*ptr*/)
 {
@@ -688,27 +650,6 @@ static void rna_def_paint(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop,
                            "Brush Asset Reference",
-                           "A weak reference to the matching brush asset, used e.g. to restore "
-                           "the last used brush on file load");
-
-  prop = RNA_def_property(srna, "eraser_brush", PROP_POINTER, PROP_NONE);
-  RNA_def_property_flag(prop, PROP_EDITABLE | PROP_NEVER_UNLINK);
-  RNA_def_property_clear_flag(prop, PROP_ID_REFCOUNT);
-  RNA_def_property_struct_type(prop, "Brush");
-  RNA_def_property_pointer_funcs(prop,
-                                 "rna_Paint_eraser_brush_get",
-                                 "rna_Paint_eraser_brush_set",
-                                 nullptr,
-                                 "rna_Paint_eraser_brush_poll");
-  RNA_def_property_ui_text(prop,
-                           "Default Eraser Brush",
-                           "Default eraser brush for quickly alternating with the main brush");
-  RNA_def_property_update(prop, NC_BRUSH | NA_SELECTED, nullptr);
-
-  prop = RNA_def_property(srna, "eraser_brush_asset_reference", PROP_POINTER, PROP_NONE);
-  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-  RNA_def_property_ui_text(prop,
-                           "Eraser Brush Asset Reference",
                            "A weak reference to the matching brush asset, used e.g. to restore "
                            "the last used brush on file load");
 
@@ -1407,7 +1348,7 @@ static void rna_def_paint_mode(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "canvas_image", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_funcs(
-      prop, nullptr, nullptr, nullptr, "rna_PaintModeSettings_canvas_image_poll");
+      prop, nullptr, nullptr, nullptr, "rna_Image_no_renderresult_or_viewer_poll");
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_CONTEXT_UPDATE);
   RNA_def_property_ui_text(prop, "Texture", "Image used as painting target");
 }
@@ -1487,20 +1428,23 @@ static void rna_def_image_paint(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_CONTEXT_UPDATE);
   RNA_def_property_ui_text(prop, "Stencil Image", "Image used as stencil");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, "rna_ImaPaint_stencil_update");
-  RNA_def_property_pointer_funcs(prop, nullptr, nullptr, nullptr, "rna_ImaPaint_imagetype_poll");
+  RNA_def_property_pointer_funcs(
+      prop, nullptr, nullptr, nullptr, "rna_Image_no_renderresult_or_viewer_poll");
 
   prop = RNA_def_property(srna, "canvas", PROP_POINTER, PROP_NONE);
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_CONTEXT_UPDATE);
   RNA_def_property_ui_text(prop, "Canvas", "Image used as canvas");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, "rna_ImaPaint_canvas_update");
-  RNA_def_property_pointer_funcs(prop, nullptr, nullptr, nullptr, "rna_ImaPaint_imagetype_poll");
+  RNA_def_property_pointer_funcs(
+      prop, nullptr, nullptr, nullptr, "rna_Image_no_renderresult_or_viewer_poll");
 
   prop = RNA_def_property(srna, "clone_image", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "clone");
   RNA_def_property_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop, "Clone Image", "Image used as clone source");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
-  RNA_def_property_pointer_funcs(prop, nullptr, nullptr, nullptr, "rna_ImaPaint_imagetype_poll");
+  RNA_def_property_pointer_funcs(
+      prop, nullptr, nullptr, nullptr, "rna_Image_no_renderresult_or_viewer_poll");
 
   prop = RNA_def_property(srna, "stencil_color", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_range(prop, 0.0, 1.0);

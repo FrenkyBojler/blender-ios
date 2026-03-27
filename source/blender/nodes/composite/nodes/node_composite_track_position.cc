@@ -63,7 +63,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       .static_items(mode_items)
       .optional_label();
   b.add_input<decl::Int>("Frame").usage_by_menu(
-      "Mode", {CMP_NODE_TRACK_POSITION_RELATIVE_FRAME, CMP_NODE_TRACK_POSITION_ABSOLUTE_FRAME});
+      "Mode"_ustr,
+      {CMP_NODE_TRACK_POSITION_RELATIVE_FRAME, CMP_NODE_TRACK_POSITION_ABSOLUTE_FRAME});
 
   b.add_output<decl::Float>("X");
   b.add_output<decl::Float>("Y");
@@ -74,7 +75,7 @@ static void node_init(const bContext *C, PointerRNA *ptr)
 {
   bNode *node = static_cast<bNode *>(ptr->data);
 
-  NodeTrackPosData *data = MEM_new_for_free<NodeTrackPosData>(__func__);
+  NodeTrackPosData *data = MEM_new<NodeTrackPosData>(__func__);
   node->storage = data;
 
   const Scene *scene = CTX_data_scene(C);

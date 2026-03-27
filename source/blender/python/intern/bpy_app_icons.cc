@@ -29,11 +29,11 @@ PyDoc_STRVAR(
     "\n"
     "   Create a new icon from triangle geometry.\n"
     "\n"
-    "   :arg range: Pair of ints.\n"
+    "   :param range: Pair of ints.\n"
     "   :type range: tuple[int, int]\n"
-    "   :arg coords: Sequence of bytes (6 floats for one triangle) for (X, Y) coordinates.\n"
+    "   :param coords: Sequence of bytes (6 floats for one triangle) for (X, Y) coordinates.\n"
     "   :type coords: bytes\n"
-    "   :arg colors: Sequence of bytes (12 for one triangles) for RGBA.\n"
+    "   :param colors: Sequence of bytes (12 for one triangle) for RGBA.\n"
     "   :type colors: bytes\n"
     "   :return: Unique icon value (pass to interface ``icon_value`` argument).\n"
     "   :rtype: int\n");
@@ -45,7 +45,6 @@ static PyObject *bpy_app_icons_new_triangles(PyObject * /*self*/, PyObject *args
 
   static const char *_keywords[] = {"range", "coords", "colors", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "(BB)" /* `range` */
       "S"    /* `coords` */
       "S"    /* `colors` */
@@ -71,13 +70,13 @@ static PyObject *bpy_app_icons_new_triangles(PyObject * /*self*/, PyObject *args
   }
 
   const size_t items_num = size_t(tris_len) * 3;
-  uchar(*coords)[2] = MEM_malloc_arrayN<uchar[2]>(items_num, __func__);
-  uchar(*colors)[4] = MEM_malloc_arrayN<uchar[4]>(items_num, __func__);
+  uchar(*coords)[2] = MEM_new_array_uninitialized<uchar[2]>(items_num, __func__);
+  uchar(*colors)[4] = MEM_new_array_uninitialized<uchar[4]>(items_num, __func__);
 
   memcpy(coords, PyBytes_AS_STRING(py_coords), sizeof(*coords) * items_num);
   memcpy(colors, PyBytes_AS_STRING(py_colors), sizeof(*colors) * items_num);
 
-  Icon_Geom *geom = MEM_mallocN<Icon_Geom>(__func__);
+  Icon_Geom *geom = MEM_new_uninitialized<Icon_Geom>(__func__);
   geom->coords_len = tris_len;
   geom->coords_range[0] = coords_range[0];
   geom->coords_range[1] = coords_range[1];
@@ -95,8 +94,8 @@ PyDoc_STRVAR(
     "\n"
     "   Create a new icon from triangle geometry.\n"
     "\n"
-    "   :arg filepath: File path.\n"
-    "   :type filepath: str | bytes.\n"
+    "   :param filepath: File path.\n"
+    "   :type filepath: str | bytes\n"
     "   :return: Unique icon value (pass to interface ``icon_value`` argument).\n"
     "   :rtype: int\n");
 static PyObject *bpy_app_icons_new_triangles_from_file(PyObject * /*self*/,
@@ -107,7 +106,6 @@ static PyObject *bpy_app_icons_new_triangles_from_file(PyObject * /*self*/,
 
   static const char *_keywords[] = {"filepath", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O&" /* `filepath` */
       ":new_triangles_from_file",
       _keywords,
@@ -135,13 +133,15 @@ PyDoc_STRVAR(
     bpy_app_icons_release_doc,
     ".. function:: release(icon_id)\n"
     "\n"
-    "   Release the icon.\n");
+    "   Release the icon.\n"
+    "\n"
+    "   :param icon_id: The icon id to release.\n"
+    "   :type icon_id: int\n");
 static PyObject *bpy_app_icons_release(PyObject * /*self*/, PyObject *args, PyObject *kw)
 {
   int icon_id;
   static const char *_keywords[] = {"icon_id", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "i" /* `icon_id` */
       ":release",
       _keywords,
@@ -210,7 +210,7 @@ PyObject *BPY_app_icons_module()
 
   PyObject *mod = PyModule_Create(&M_AppIcons_module_def);
 
-  PyDict_SetItem(sys_modules, PyModule_GetNameObject(mod), mod);
+  PyC_Module_AddToSysModules(sys_modules, mod);
 
   return mod;
 }

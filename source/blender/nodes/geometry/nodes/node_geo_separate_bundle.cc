@@ -31,7 +31,7 @@ NODE_STORAGE_FUNCS(NodeSeparateBundle);
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Bundle>("Bundle");
+  b.add_input<decl::Bundle>("Bundle").structure_type(StructureType::Single);
   const bNodeTree *tree = b.tree_or_null();
   const bNode *node = b.node_or_null();
   if (tree && node) {
@@ -59,15 +59,14 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  auto *storage = MEM_new_for_free<NodeSeparateBundle>(__func__);
+  auto *storage = MEM_new<NodeSeparateBundle>(__func__);
   node->storage = storage;
 }
 
 static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const bNode *src_node)
 {
   const NodeSeparateBundle &src_storage = node_storage(*src_node);
-  auto *dst_storage = MEM_new_for_free<NodeSeparateBundle>(__func__,
-                                                           dna::shallow_copy(src_storage));
+  auto *dst_storage = MEM_new<NodeSeparateBundle>(__func__, dna::shallow_copy(src_storage));
   dst_node->storage = dst_storage;
 
   socket_items::copy_array<SeparateBundleItemsAccessor>(*src_node, *dst_node);
@@ -76,7 +75,7 @@ static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const b
 static void node_free_storage(bNode *node)
 {
   socket_items::destruct_array<SeparateBundleItemsAccessor>(*node);
-  MEM_freeN(node->storage);
+  MEM_delete(static_cast<NodeSeparateBundle *>(node->storage));
 }
 
 static bool node_insert_link(bke::NodeInsertLinkParams &params)
@@ -147,7 +146,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     if (!stype || !stype->geometry_nodes_default_value) {
       continue;
     }
-    const BundleItemValue *value = bundle->lookup(name);
+    const BundleItemValue *value = bundle->lookup(UString(name));
     if (!value) {
       params.error_message_add(
           NodeWarningType::Error,
@@ -264,7 +263,7 @@ StructRNA **SeparateBundleItemsAccessor::item_srna = &RNA_NodeSeparateBundleItem
 
 void SeparateBundleItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
-  BLO_write_string(writer, item.name);
+  writer->write_string(item.name);
 }
 
 void SeparateBundleItemsAccessor::blend_read_data_item(BlendDataReader *reader, ItemT &item)

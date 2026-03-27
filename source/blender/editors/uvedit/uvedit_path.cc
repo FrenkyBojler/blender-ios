@@ -848,7 +848,7 @@ static wmOperatorStatus uv_shortest_path_select_exec(bContext *C, wmOperator *op
         ele_src = ele_array[0];
         ele_dst = ele_array[1];
       }
-      MEM_freeN(ele_array);
+      MEM_delete(ele_array);
     }
 
     if (ele_src && ele_dst) {
@@ -876,7 +876,7 @@ void UV_OT_shortest_path_select(wmOperatorType *ot)
   /* identifiers */
   ot->name = "Select Shortest Path";
   ot->idname = "UV_OT_shortest_path_select";
-  ot->description = "Selected shortest path between two vertices/edges/faces";
+  ot->description = "Select shortest path between two vertices/edges/faces";
 
   /* API callbacks. */
   ot->exec = uv_shortest_path_select_exec;

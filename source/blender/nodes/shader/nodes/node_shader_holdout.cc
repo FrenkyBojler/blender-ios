@@ -20,6 +20,7 @@ static int gpu_shader_rgb(GPUMaterial *mat,
                           GPUNodeStack *in,
                           GPUNodeStack *out)
 {
+  GPU_material_flag_set(mat, GPU_MATFLAG_HOLDOUT);
   return GPU_stack_link(mat, node, "node_holdout", in, out);
 }
 
@@ -42,6 +43,7 @@ void register_node_type_sh_holdout()
   ntype.nclass = NODE_CLASS_SHADER;
   ntype.add_ui_poll = object_shader_nodes_poll;
   ntype.declare = file_ns::node_declare;
+  ntype.gather_link_search_ops = search_link_ops_for_shader_bsdf_node;
   ntype.gpu_fn = file_ns::gpu_shader_rgb;
 
   bke::node_register_type(ntype);

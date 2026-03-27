@@ -102,9 +102,10 @@ static void node_declare(NodeDeclarationBuilder &b)
 static void node_init(const bContext *C, PointerRNA *node_pointer)
 {
   bNode *node = node_pointer->data_as<bNode>();
-  NodeCompositorFileOutput *data = MEM_new_for_free<NodeCompositorFileOutput>(__func__);
+  NodeCompositorFileOutput *data = MEM_new<NodeCompositorFileOutput>(__func__);
   node->storage = data;
   data->save_as_render = true;
+  data->use_file_extension = true;
   data->file_name = BLI_strdup("file_name");
 
   BKE_image_format_init(&data->format);
@@ -124,8 +125,8 @@ static void node_free_storage(bNode *node)
   socket_items::destruct_array<FileOutputItemsAccessor>(*node);
   NodeCompositorFileOutput &data = node_storage(*node);
   BKE_image_format_free(&data.format);
-  MEM_SAFE_FREE(data.file_name);
-  MEM_freeN(&data);
+  MEM_SAFE_DELETE(data.file_name);
+  MEM_delete(&data);
 }
 
 static void node_copy_storage(bNodeTree * /*destination_node_tree*/,
@@ -133,7 +134,7 @@ static void node_copy_storage(bNodeTree * /*destination_node_tree*/,
                               const bNode *source_node)
 {
   const NodeCompositorFileOutput &source_storage = node_storage(*source_node);
-  NodeCompositorFileOutput *destination_storage = MEM_new_for_free<NodeCompositorFileOutput>(
+  NodeCompositorFileOutput *destination_storage = MEM_new<NodeCompositorFileOutput>(
       __func__, dna::shallow_copy(source_storage));
   destination_storage->file_name = BLI_strdup_null(source_storage.file_name);
   BKE_image_format_copy(&destination_storage->format, &source_storage.format);
@@ -189,7 +190,7 @@ static Vector<bke::path_templates::Error> compute_image_path(const StringRefNull
                                       &template_variables,
                                       frame_number,
                                       &format,
-                                      scene.r.scemode & R_EXTENSION,
+                                      bool(node_storage(node).use_file_extension),
                                       is_animation_render,
                                       BKE_scene_multiview_view_suffix_get(&scene.r, view));
 }
@@ -352,6 +353,9 @@ static void node_draw_buttons_extended(ui::Layout &layout,
     const bNode &node = *node_pointer->data_as<bNode>();
     const ImageFormatData &node_format = *format_pointer.data_as<ImageFormatData>();
 
+    panel->prop(
+        node_pointer, "use_file_extension", ui::ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+
     if (is_multi_layer) {
       output_paths_layout(*panel, context, "", node, node_format);
     }
@@ -369,7 +373,7 @@ static void node_draw_buttons_extended(ui::Layout &layout,
 static void node_blend_write(const bNodeTree & /*tree*/, const bNode &node, BlendWriter &writer)
 {
   const NodeCompositorFileOutput &data = node_storage(node);
-  BLO_write_string(&writer, data.file_name);
+  writer.write_string(data.file_name);
   BKE_image_format_blend_write(&writer, const_cast<ImageFormatData *>(&data.format));
   socket_items::blend_write<FileOutputItemsAccessor>(&writer, node);
 }
@@ -594,7 +598,7 @@ class FileOutputOperation : public NodeOperation {
       }
       else {
         /* Copy the result into a new buffer. */
-        buffer = static_cast<float *>(MEM_dupallocN(result.cpu_data().data()));
+        buffer = MEM_dupalloc(static_cast<const float *>(result.cpu_data().data()));
       }
     }
 
@@ -632,10 +636,18 @@ class FileOutputOperation : public NodeOperation {
         file_output.add_pass(pass_name, view_name, "XY", buffer);
         break;
       case ResultType::Int2:
+      case ResultType::Int3:
       case ResultType::Int:
       case ResultType::Bool:
+      case ResultType::Float4x4:
       case ResultType::Menu:
       case ResultType::String:
+      case ResultType::Object:
+      case ResultType::Image:
+      case ResultType::Font:
+      case ResultType::Scene:
+      case ResultType::Text:
+      case ResultType::Mask:
         /* Not supported. */
         BLI_assert_unreachable();
         break;
@@ -649,8 +661,9 @@ class FileOutputOperation : public NodeOperation {
     BLI_assert(result.is_single_value());
 
     const int64_t length = int64_t(size.x) * size.y;
-    const int64_t buffer_size = length * result.channels_count();
-    float *buffer = MEM_malloc_arrayN<float>(buffer_size, "File Output Inflated Buffer.");
+    const int64_t buffer_size = length * (result.get_cpp_type().size / sizeof(float));
+    float *buffer = MEM_new_array_uninitialized<float>(buffer_size,
+                                                       "File Output Inflated Buffer.");
 
     switch (result.type()) {
       case ResultType::Float:
@@ -664,9 +677,17 @@ class FileOutputOperation : public NodeOperation {
       }
       case ResultType::Int:
       case ResultType::Int2:
+      case ResultType::Int3:
       case ResultType::Bool:
+      case ResultType::Float4x4:
       case ResultType::Menu:
       case ResultType::String:
+      case ResultType::Object:
+      case ResultType::Image:
+      case ResultType::Font:
+      case ResultType::Scene:
+      case ResultType::Text:
+      case ResultType::Mask:
         /* Not supported. */
         BLI_assert_unreachable();
         return nullptr;
@@ -688,7 +709,7 @@ class FileOutputOperation : public NodeOperation {
     }
     else {
       /* Copy the result into a new buffer. */
-      buffer = static_cast<float *>(MEM_dupallocN(result.cpu_data().data()));
+      buffer = MEM_dupalloc(static_cast<const float *>(result.cpu_data().data()));
     }
 
     const int2 size = result.domain().data_size;
@@ -717,9 +738,17 @@ class FileOutputOperation : public NodeOperation {
       case ResultType::Float2:
       case ResultType::Int2:
       case ResultType::Int:
+      case ResultType::Int3:
       case ResultType::Bool:
+      case ResultType::Float4x4:
       case ResultType::Menu:
       case ResultType::String:
+      case ResultType::Object:
+      case ResultType::Image:
+      case ResultType::Font:
+      case ResultType::Scene:
+      case ResultType::Text:
+      case ResultType::Mask:
         /* Not supported. */
         BLI_assert_unreachable();
         break;
@@ -730,8 +759,8 @@ class FileOutputOperation : public NodeOperation {
    * input image is freed. */
   float *float4_to_float3_image(int2 size, float *float4_image)
   {
-    float *float3_image = MEM_malloc_arrayN<float>(3 * size_t(size.x) * size_t(size.y),
-                                                   "File Output Vector Buffer.");
+    float *float3_image = MEM_new_array_uninitialized<float>(3 * size_t(size.x) * size_t(size.y),
+                                                             "File Output Vector Buffer.");
 
     parallel_for(size, [&](const int2 texel) {
       for (int i = 0; i < 3; i++) {
@@ -740,7 +769,7 @@ class FileOutputOperation : public NodeOperation {
       }
     });
 
-    MEM_freeN(float4_image);
+    MEM_delete(float4_image);
     return float3_image;
   }
 
@@ -896,7 +925,7 @@ StructRNA **FileOutputItemsAccessor::item_srna = &RNA_NodeCompositorFileOutputIt
 
 void FileOutputItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
-  BLO_write_string(writer, item.name);
+  writer->write_string(item.name);
   BKE_image_format_blend_write(writer, const_cast<ImageFormatData *>(&item.format));
 }
 

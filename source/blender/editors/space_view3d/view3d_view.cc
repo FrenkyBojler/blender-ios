@@ -494,6 +494,7 @@ struct DrawSelectLoopUserData {
   uint hits;
   GPUSelectBuffer *buffer;
   const rcti *rect;
+  int radius;
   GPUSelectMode gpu_select_mode;
 };
 
@@ -502,7 +503,8 @@ static bool drw_select_loop_pass(eDRWSelectStage stage, void *user_data)
   bool continue_pass = false;
   DrawSelectLoopUserData *data = static_cast<DrawSelectLoopUserData *>(user_data);
   if (stage == DRW_SELECT_PASS_PRE) {
-    GPU_select_begin_next(data->buffer, data->rect, data->gpu_select_mode, data->hits);
+    GPU_select_begin_next(
+        data->buffer, data->rect, data->radius, data->gpu_select_mode, data->hits);
     /* always run POST after PRE. */
     continue_pass = true;
   }
@@ -540,6 +542,13 @@ static bool drw_select_filter_object_mode_lock(Object *ob, void *user_data)
   return BKE_object_is_mode_compat(ob, eObjectMode(obact->mode));
 }
 
+/** Implement #VIEW3D_SELECT_FILTER_OBJECT_MODE_LOCK_SAME_TYPE. */
+static bool drw_select_filter_object_mode_lock_same_type(Object *ob, void *user_data)
+{
+  const Object *obact = static_cast<const Object *>(user_data);
+  return (obact->type == ob->type) && BKE_object_is_mode_compat(ob, eObjectMode(obact->mode));
+}
+
 /**
  * Implement #VIEW3D_SELECT_FILTER_WPAINT_POSE_MODE_LOCK for special case when
  * we want to select pose bones (this doesn't switch modes).
@@ -555,6 +564,7 @@ int view3d_gpu_select_ex(const ViewContext *vc,
                          const rcti *input,
                          eV3DSelectMode select_mode,
                          eV3DSelectObjectFilter select_filter,
+                         const eV3DSelectShape select_shape,
                          const bool do_material_slot_selection)
 {
   ui::theme::bThemeState theme_state;
@@ -602,8 +612,10 @@ int view3d_gpu_select_ex(const ViewContext *vc,
 
   /* Re-use cache (rect must be smaller than the cached)
    * other context is assumed to be unchanged */
+  const int select_radius = select_shape == eV3DSelectShape::CIRCLE ? BLI_rcti_size_x(input) / 2 :
+                                                                      0;
   if (GPU_select_is_cached()) {
-    GPU_select_begin_next(buffer, &rect, gpu_select_mode, 0);
+    GPU_select_begin_next(buffer, &rect, select_radius, gpu_select_mode, 0);
     GPU_select_cache_load_id();
     hits = GPU_select_end();
     return hits;
@@ -614,6 +626,14 @@ int view3d_gpu_select_ex(const ViewContext *vc,
       Object *obact = vc->obact;
       if (obact && obact->mode != OB_MODE_OBJECT) {
         object_filter.fn = drw_select_filter_object_mode_lock;
+        object_filter.user_data = obact;
+      }
+      break;
+    }
+    case VIEW3D_SELECT_FILTER_OBJECT_MODE_LOCK_SAME_TYPE: {
+      Object *obact = vc->obact;
+      if (obact && obact->mode != OB_MODE_OBJECT) {
+        object_filter.fn = drw_select_filter_object_mode_lock_same_type;
         object_filter.user_data = obact;
       }
       break;
@@ -676,6 +696,7 @@ int view3d_gpu_select_ex(const ViewContext *vc,
     drw_select_loop_user_data.hits = 0;
     drw_select_loop_user_data.buffer = buffer;
     drw_select_loop_user_data.rect = &rect;
+    drw_select_loop_user_data.radius = select_radius;
     drw_select_loop_user_data.gpu_select_mode = gpu_select_mode;
 
     draw_surface = false;
@@ -705,6 +726,7 @@ int view3d_gpu_select_ex(const ViewContext *vc,
     drw_select_loop_user_data.hits = 0;
     drw_select_loop_user_data.buffer = buffer;
     drw_select_loop_user_data.rect = &rect;
+    drw_select_loop_user_data.radius = select_radius;
     drw_select_loop_user_data.gpu_select_mode = gpu_select_mode;
 
     /* If are not in wireframe mode, we need to use the mesh surfaces to check for hits */
@@ -743,9 +765,10 @@ int view3d_gpu_select(const ViewContext *vc,
                       GPUSelectBuffer *buffer,
                       const rcti *input,
                       eV3DSelectMode select_mode,
-                      eV3DSelectObjectFilter select_filter)
+                      eV3DSelectObjectFilter select_filter,
+                      const eV3DSelectShape select_shape)
 {
-  return view3d_gpu_select_ex(vc, buffer, input, select_mode, select_filter, false);
+  return view3d_gpu_select_ex(vc, buffer, input, select_mode, select_filter, select_shape, false);
 }
 
 int view3d_gpu_select_with_id_filter(const ViewContext *vc,
@@ -756,7 +779,8 @@ int view3d_gpu_select_with_id_filter(const ViewContext *vc,
                                      uint select_id)
 {
   const int64_t start = buffer->storage.size();
-  int hits = view3d_gpu_select(vc, buffer, input, select_mode, select_filter);
+  int hits = view3d_gpu_select(
+      vc, buffer, input, select_mode, select_filter, eV3DSelectShape::BOX);
 
   /* Selection sometimes uses -1 for an invalid selection ID, remove these as they
    * interfere with detection of actual number of hits in the selection. */
@@ -885,7 +909,7 @@ static bool view3d_localview_init(const Depsgraph *depsgraph,
     }
   }
 
-  v3d->localvd = MEM_new_for_free<View3D>("localview");
+  v3d->localvd = MEM_new<View3D>("localview");
   *v3d->localvd = dna::shallow_copy(*v3d);
   v3d->local_view_uid = local_view_bit;
 
@@ -898,7 +922,7 @@ static bool view3d_localview_init(const Depsgraph *depsgraph,
       Object *camera_old = nullptr;
       float dist_new, ofs_new[3];
 
-      rv3d->localvd = MEM_new_for_free<RegionView3D>("localview region", dna::shallow_copy(*rv3d));
+      rv3d->localvd = MEM_new<RegionView3D>("localview region", dna::shallow_copy(*rv3d));
 
       if (frame_selected) {
         float mid[3];
@@ -987,7 +1011,7 @@ static bool view3d_localview_exit(const Depsgraph *depsgraph,
   v3d->local_view_uid = 0;
   v3d->camera = v3d->localvd->camera;
 
-  MEM_freeN(v3d->localvd);
+  MEM_delete(v3d->localvd);
   v3d->localvd = nullptr;
   ED_view3d_local_stats_free(v3d);
 
@@ -1023,7 +1047,7 @@ static bool view3d_localview_exit(const Depsgraph *depsgraph,
             depsgraph, wm, win, area, v3d, &region, smooth_viewtx, &sview_params);
       }
 
-      MEM_freeN(rv3d->localvd);
+      MEM_delete(rv3d->localvd);
       rv3d->localvd = nullptr;
       changed = true;
     }

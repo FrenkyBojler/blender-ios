@@ -455,6 +455,13 @@ GeometrySet GeometrySet::from_instances(Instances *instances, GeometryOwnershipT
   return geometry_set;
 }
 
+GeometrySet GeometrySet::from_instances(std::unique_ptr<Instances> instances)
+{
+  GeometrySet geometry_set;
+  geometry_set.replace_instances(instances.release(), GeometryOwnershipType::Owned);
+  return geometry_set;
+}
+
 GeometrySet GeometrySet::from_grease_pencil(GreasePencil *grease_pencil,
                                             GeometryOwnershipType ownership)
 {
@@ -709,44 +716,6 @@ void GeometrySet::GatheredAttributes::add(const StringRef name, const AttributeD
     this->kinds[index].data_type = bke::attribute_data_type_highest_complexity(
         {this->kinds[index].data_type, kind.data_type});
   }
-}
-
-void GeometrySet::gather_attributes_for_propagation(
-    const Span<GeometryComponent::Type> component_types,
-    const GeometryComponent::Type dst_component_type,
-    bool include_instances,
-    const AttributeFilter &attribute_filter,
-    GatheredAttributes &r_attributes) const
-{
-  this->attribute_foreach(
-      component_types,
-      include_instances,
-      [&](const StringRef attribute_id,
-          const AttributeMetaData &meta_data,
-          const GeometryComponent &component) {
-        if (component.attributes()->is_builtin(attribute_id)) {
-          if (!attribute_is_builtin_on_component_type(dst_component_type, attribute_id)) {
-            /* Don't propagate built-in attributes that are not built-in on the destination
-             * component. */
-            return;
-          }
-        }
-        if (meta_data.data_type == AttrType::String) {
-          /* Propagating string attributes is not supported yet. */
-          return;
-        }
-        if (attribute_filter.allow_skip(attribute_id)) {
-          return;
-        }
-
-        AttrDomain domain = meta_data.domain;
-        if (dst_component_type != GeometryComponent::Type::Instance &&
-            domain == AttrDomain::Instance) {
-          domain = AttrDomain::Point;
-        }
-
-        r_attributes.add(attribute_id, AttributeDomainAndType{domain, meta_data.data_type});
-      });
 }
 
 static void gather_component_types_recursive(const GeometrySet &geometry_set,
