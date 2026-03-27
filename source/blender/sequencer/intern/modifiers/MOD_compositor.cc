@@ -161,11 +161,7 @@ class CompositorModifierContext : public CompositorContext {
       this->mask_buffer_ = seq_render_strip(
           &context.render_data, &context.render_state, smd.mask_strip, timeline_frame);
       if (this->mask_buffer_ != nullptr) {
-        ImBuf *linear_mask = make_linear_float_buffer(this->mask_buffer_);
-        if (this->mask_buffer_ != linear_mask) {
-          IMB_freeImBuf(this->mask_buffer_);
-          this->mask_buffer_ = linear_mask;
-        }
+        ensure_ibuf_is_linear_space(this->mask_buffer_, true);
         this->create_result_from_input(this->mask_, *this->mask_buffer_);
       }
     }
@@ -249,36 +245,6 @@ static void compositor_modifier_init_data(StripModifierData *strip_modifier_data
   modifier_data->node_group = nullptr;
 }
 
-static bool ensure_linear_float_buffer(ImBuf *ibuf)
-{
-  if (!ibuf) {
-    return false;
-  }
-
-  /* Already have scene linear float pixels, nothing to do. */
-  if (is_linear_float_buffer(ibuf)) {
-    return true;
-  }
-
-  if (ibuf->float_buffer.data == nullptr) {
-    IMB_float_from_byte(ibuf);
-  }
-  else {
-    const char *from_colorspace = IMB_colormanagement_get_float_colorspace(ibuf);
-    const char *to_colorspace = IMB_colormanagement_role_colorspace_name_get(
-        COLOR_ROLE_SCENE_LINEAR);
-    IMB_colormanagement_transform_float(ibuf->float_buffer.data,
-                                        ibuf->x,
-                                        ibuf->y,
-                                        ibuf->channels,
-                                        from_colorspace,
-                                        to_colorspace,
-                                        true);
-    IMB_colormanagement_assign_float_colorspace(ibuf, to_colorspace);
-  }
-  return false;
-}
-
 static void compositor_modifier_apply(ModifierApplyContext &context,
                                       StripModifierData *strip_modifier_data,
                                       int timeline_frame)
@@ -289,9 +255,8 @@ static void compositor_modifier_apply(ModifierApplyContext &context,
     return;
   }
 
-  const bool was_float_linear = ensure_linear_float_buffer(context.image);
-  const bool was_byte = context.image->float_buffer.data == nullptr;
-
+  /* Note: compositor always operates in linear space, float pixels. */
+  ensure_ibuf_is_linear_space(context.image, true);
   CompositorCache &com_cache = context.render_data.scene->ed->runtime->ensure_compositor_cache();
   CompositorModifierContext com_mod_context(
       context, timeline_frame, com_cache.get_cache_manager(), modifier_data);
@@ -310,18 +275,6 @@ static void compositor_modifier_apply(ModifierApplyContext &context,
   }
 
   context.result_translation += com_mod_context.get_result_translation();
-
-  if (was_float_linear) {
-    return;
-  }
-
-  if (was_byte) {
-    IMB_byte_from_float(context.image);
-    IMB_free_float_pixels(context.image);
-  }
-  else {
-    seq_imbuf_to_sequencer_space(context.render_data.scene, context.image, true);
-  }
 }
 
 static void compositor_modifier_panel_draw(const bContext *C, Panel *panel)

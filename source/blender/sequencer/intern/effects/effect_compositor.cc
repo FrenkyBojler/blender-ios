@@ -22,7 +22,6 @@
 #include "cache/compositor_cache.hh"
 #include "compositor.hh"
 #include "effects.hh"
-#include "render.hh"
 
 namespace blender::seq {
 
@@ -137,18 +136,16 @@ static ImBuf *do_compositor_effect(const RenderData *context,
     IMB_rectfill(out, float4(0, 0, 0, 1));
   }
   else {
-    ImBuf *linear_src1 = make_linear_float_buffer(src1);
-    ImBuf *linear_src2 = make_linear_float_buffer(src2);
+    if (src1) {
+      ensure_ibuf_is_linear_space(src1, true);
+    }
+    if (src2) {
+      ensure_ibuf_is_linear_space(src2, true);
+    }
 
     CompositorCache &com_cache = context->scene->ed->runtime->ensure_compositor_cache();
-    CompositorEffectContext com_context(com_cache.get_cache_manager(),
-                                        *context,
-                                        data->node_group,
-                                        linear_src1,
-                                        linear_src2,
-                                        out,
-                                        fac,
-                                        *strip);
+    CompositorEffectContext com_context(
+        com_cache.get_cache_manager(), *context, data->node_group, src1, src2, out, fac, *strip);
 
     const bool use_gpu = com_context.use_gpu();
     if (use_gpu) {
@@ -161,14 +158,6 @@ static ImBuf *do_compositor_effect(const RenderData *context,
     if (use_gpu) {
       render_end_gpu(*context);
     }
-
-    if (linear_src1 != src1) {
-      IMB_freeImBuf(linear_src1);
-    }
-    if (linear_src2 != src2) {
-      IMB_freeImBuf(linear_src2);
-    }
-    seq_imbuf_to_sequencer_space(context->scene, out, true);
   }
   return out;
 }

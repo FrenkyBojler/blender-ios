@@ -13,6 +13,7 @@
 #include "DNA_sequence_types.h"
 
 #include "SEQ_modifier.hh"
+#include "SEQ_render.hh"
 
 #include "UI_interface.hh"
 #include "UI_interface_layout.hh"
@@ -20,6 +21,7 @@
 #include "RNA_access.hh"
 
 #include "modifier.hh"
+#include "render.hh"
 
 namespace blender::seq {
 
@@ -257,7 +259,9 @@ static void colorBalance_apply(ModifierApplyContext &context,
                                StripModifierData *smd,
                                int timeline_frame)
 {
+  ensure_ibuf_is_sequencer_space(context.render_data.scene, context.image, false);
   ImBuf *mask = modifier_render_mask_input(context, *smd, timeline_frame);
+
   const ColorBalanceModifierData *cbmd = reinterpret_cast<const ColorBalanceModifierData *>(smd);
 
   ColorBalanceApplyOp op;
