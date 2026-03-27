@@ -207,7 +207,6 @@ void update_mask_mesh(const Depsgraph &depsgraph,
   const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
   bke::SpanAttributeWriter<float> mask = attributes.lookup_or_add_for_write_span<float>(
       ".sculpt_mask", bke::AttrDomain::Point);
-  Vector<float> init_mask(mask.span.begin(), mask.span.end());
   if (!mask) {
     return;
   }
@@ -220,15 +219,26 @@ void update_mask_mesh(const Depsgraph &depsgraph,
   Array<bool> node_changed(node_mask.min_array_size(), false);
 
   threading::EnumerableThreadSpecific<LocalData> all_tls;
+  Array<Vector<float>> old_masks(node_mask.min_array_size());
+  node_mask.foreach_index(
+      [&](const int i) {
+        LocalData &tls = all_tls.local();
+        const Span<int> verts = hide::node_visible_all_verts(
+            nodes[i], hide_vert, tls.visible_verts);
+        old_masks[i].resize(verts.size());
+        gather_data_mesh(mask.span.as_span(), verts, old_masks[i].as_mutable_span());
+      },
+      exec_mode::grain_size(1));
+
   node_mask.foreach_index(
       [&](const int i) {
         LocalData &tls = all_tls.local();
         const Span<int> verts = hide::node_visible_all_verts(
             nodes[i], hide_vert, tls.visible_verts);
         tls.mask.resize(verts.size());
-        gather_data_mesh(mask.span.as_span(), verts, tls.mask.as_mutable_span());
+        tls.mask.as_mutable_span().copy_from(old_masks[i].as_span());
         update_fn(tls.mask, verts);
-        if (array_utils::indexed_data_equal<float>(init_mask, verts, tls.mask)) {
+        if (old_masks[i].as_span() == tls.mask.as_span()) {
           return;
         }
         undo::push_node(depsgraph, object, &nodes[i], undo::Type::Mask);
