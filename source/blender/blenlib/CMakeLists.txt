@@ -127,6 +127,7 @@ set(SRC
   intern/rct.cc
   intern/resource_scope.cc
   intern/scanfill.cc
+  intern/scanfill_utils.cc
   intern/serialize.cc
   intern/session_uid.cc
   intern/smaa_textures.cc
