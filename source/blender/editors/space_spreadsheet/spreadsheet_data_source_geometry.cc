@@ -1301,11 +1301,9 @@ static std::unique_ptr<DataSource> data_source_from_geometry(
                                                   layer_index);
     }
     case SPREADSHEET_GEOMETRY_ITEM_TYPE_BUNDLE: {
-      const nodes::BundlePtr *bundle_ptr = geometry.bundle_ptr();
-      bke::SocketValueVariant value = bundle_ptr ?
-                                          lookup_bundle_path(*bundle_ptr,
-                                                             geometry_id.geometry_bundle_path) :
-                                          bke::SocketValueVariant{};
+      const nodes::BundlePtr &bundle_ptr = geometry.bundle_ptr();
+      bke::SocketValueVariant value = lookup_bundle_path(bundle_ptr,
+                                                         geometry_id.geometry_bundle_path);
       return data_source_from_socket_value(
           value,
           SpreadsheetClosureInputOutput(geometry_id.geometry_bundle_path.closure_input_output));
