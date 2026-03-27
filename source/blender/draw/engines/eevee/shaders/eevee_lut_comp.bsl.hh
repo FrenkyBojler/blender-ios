@@ -39,11 +39,10 @@ namespace eevee {
  * where:
  * - `F82_tint = mix(F0, float3(1), pow5f(6/7) * 7 / pow6f(6/7)) * (1 - F82)`.
  */
-class GGX_BRDF_Splitsum {
+struct GGX_BRDF_Splitsum {
   float roughness;
   float3 V;
 
- public:
   static GGX_BRDF_Splitsum init(float3 params)
   {
     /* We use squared roughness for approximate perceptual linearity
@@ -107,12 +106,11 @@ class GGX_BRDF_Splitsum {
  * - `reflectance = F0 * sclae + F90 * bias`,
  * - `transmittance = (1 - F0) * transmission_factor`.
  */
-class GGX_BSDF_Splitsum {
+struct GGX_BSDF_Splitsum {
   float roughness;
   float ior;
   float3 V;
 
- public:
   static GGX_BSDF_Splitsum init(float3 params)
   {
     /* We use squared roughness for approximate perceptual linearity
@@ -125,12 +123,11 @@ class GGX_BSDF_Splitsum {
     float ior = clamp(sqrt(params.x), 1e-4f, 0.9999f);
     float critical_cos = sqrt(1.0f - saturate(square(ior)));
 
-    /* Modify y-param. */
     /* Maximize texture usage on both sides of the critical angle. */
     params.y = params.y * 2.0f - 1.0f;
     params.y *= (params.y > 0.0f) ? (1.0f - critical_cos) : critical_cos;
-    /* Center LUT around critical angle to avoid strange interpolation issues when the critical
-     * angle is changing. */
+    /* Center LUT around critical angle to avoid strange interpolation 
+     * issues when the critical angle is changing. */
     params.y += critical_cos;
 
     float NV = clamp(params.y, 1e-4f, 0.9999f);
@@ -200,12 +197,11 @@ class GGX_BSDF_Splitsum {
  * and output is interpreted as:
  * : `transmittance = (1 - F0) * transmission_factor`.
  */
-class GGX_BTDF_GT_one {
+struct GGX_BTDF_GT_one {
   float roughness;
   float ior;
   float3 V;
 
- public:
   static GGX_BTDF_GT_one init(float3 params)
   {
     /* We use squared roughness for approximate perceptual linearity
@@ -256,6 +252,11 @@ class GGX_BTDF_GT_one {
  * 
  * TODO(not_mark): Source and document.
  */
+/* Generate SSS translucency profile.
+ * We precompute the exit radiance for a slab of homogenous material backface-lit by a directional
+ * light. We only integrate for a single color primary since the profile will be applied to each
+ * primary independently.
+ * For each distance `d` we compute the radiance incoming from an hypothetical parallel plane. */
 float4 burley_sss_translucency(float3 params)
 {
   /* Note that we only store the 1st (radius == 1) component.
@@ -279,7 +280,8 @@ float4 burley_sss_translucency(float3 params)
 }
 
 /**
- * TODO(not_mark): Wait, is this even used?
+ * TODO(not_mark): Wait, is this even used? And what exactly is it doing? Seems to just
+ * generate a blob.
  */
 float4 random_walk_sss_translucency(float3 params)
 {
