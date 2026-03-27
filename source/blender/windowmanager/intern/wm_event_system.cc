@@ -4209,6 +4209,8 @@ void wm_event_do_handlers(bContext *C)
   wmWindowManager *wm = CTX_wm_manager(C);
   BLI_assert(ED_undo_is_state_valid(C));
 
+  wm->runtime->break_events_handling = false;
+
   /* Begin GPU render boundary - Certain event handlers require GPU usage. */
   GPU_render_begin();
 
@@ -4465,8 +4467,6 @@ void wm_event_do_handlers(bContext *C)
       break;
     }
   }
-
-  wm->runtime->break_events_handling = false;
 
   /* Update key configuration after handling events. */
   WM_keyconfig_update(wm);

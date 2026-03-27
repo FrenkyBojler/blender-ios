@@ -7,8 +7,6 @@ This file does not run anything, its methods are accessed for tests by ``run_ble
 """
 import modules.ui_test_utils as ui
 
-import datetime
-
 # FIXME: Since 2.8 or so, there is a problem with simulated events
 # where a popup needs the main-loop to cycle once before new events
 # are handled. This isn't great but seems not to be a problem for users?
@@ -87,20 +85,6 @@ def _bmesh_from_object(ob):
     return bmesh.from_edit_mesh(ob.data)
 
 
-# Now that undo/redo events are 'breaking' (they force WM_main event loop to break its events
-# handling, and do a complete redraw etc. before handling next events), this code needs to
-# ensure an extra delay to give enough time for the whole queue of undo events to be fully
-# consumed.
-def _gen_undo_events(e, num_undo=1):
-    yield e.ctrl.z(num_undo)
-    yield datetime.timedelta(seconds=0.05 * num_undo)
-
-
-def _gen_redo_events(e, num_redo=1):
-    yield e.ctrl.shift.z(num_redo)
-    yield datetime.timedelta(seconds=0.05 * num_redo)
-
-
 # -----------------------------------------------------------------------------
 # Text Editor
 
@@ -132,7 +116,7 @@ def text_editor_simple():
     t.assertEqual(text.as_string(), "World\nHello")
     yield e.ctrl.a().tab()
     t.assertEqual(text.as_string(), "    World\n    Hello")
-    yield from _gen_undo_events(e, 5)
+    yield e.ctrl.z(5)
     t.assertEqual(text.as_string(), "Hello\nWorld")
 
 
@@ -192,20 +176,20 @@ def text_editor_edit_mode_mix():
     t.assertEqual(len(_bmesh_from_object(window.view_layer.objects.active).verts), 8 * 4)
 
     # Undo and check the state is valid.
-    yield from _gen_undo_events(e, 4)
+    yield e.ctrl.z(4)
     t.assertEqual(len(_bmesh_from_object(window.view_layer.objects.active).verts), 8 * 3)
     t.assertEqual(text.as_string(), "AABB")
 
-    yield from _gen_undo_events(e, 4)
+    yield e.ctrl.z(4)
     t.assertEqual(len(_bmesh_from_object(window.view_layer.objects.active).verts), 8 * 2)
     t.assertEqual(text.as_string(), "AA")
 
-    yield from _gen_undo_events(e, 4)
+    yield e.ctrl.z(4)
     t.assertEqual(len(_bmesh_from_object(window.view_layer.objects.active).verts), 8)
     t.assertEqual(text.as_string(), "")
 
     # Finally redo all.
-    yield from _gen_redo_events(e, 4 * 3)
+    yield e.ctrl.shift.z(4 * 3)
     t.assertEqual(len(_bmesh_from_object(window.view_layer.objects.active).verts), 8 * 4)
     t.assertEqual(text.as_string(), "AABBCC")
 
@@ -238,9 +222,9 @@ def compositor_make_group():
     t.assertEqual(len(window.scene.compositing_node_group.nodes), 2)
     yield e.ctrl.g()  # Make group.
     t.assertEqual(len(window.scene.compositing_node_group.nodes), 1)
-    yield from _gen_undo_events(e, 1)
+    yield e.ctrl.z()
     t.assertEqual(len(window.scene.compositing_node_group.nodes), 2)
-    yield from _gen_undo_events(e, 5)
+    yield e.ctrl.z(5)  # Revert to original state
 
 
 # -----------------------------------------------------------------------------
@@ -305,9 +289,9 @@ def view3d_simple():
     yield from ui.call_menu(e, "Edge -> Subdivide")
     yield e.tab()                       # Object mode.
     t.assertEqual(len(window.view_layer.objects.active.data.polygons), 16)
-    yield from _gen_undo_events(e, 12)  # Undo until start.
+    yield e.ctrl.z(12)                  # Undo until start.
     t.assertEqual(len(window.view_layer.objects), 0)
-    yield from _gen_redo_events(e, 12)  # Redo until end.
+    yield e.ctrl.shift.z(12)            # Redo until end.
     t.assertEqual(len(window.view_layer.objects.active.data.polygons), 16)
 
 
@@ -355,25 +339,25 @@ def view3d_sculpt_with_memfile_step():
     t.assertNotEqual(mesh_verts_cos_sculpt_stroke1, mesh_verts_cos_sculpt_stroke2)
 
     # Undo to first sculpt stroke.
-    yield from _gen_undo_events(e, 1)
+    yield e.ctrl.z()
     mesh_verts_cos = extract_mesh_cos(window)
     t.assertEqual(mesh_verts_cos, mesh_verts_cos_sculpt_stroke1)
 
     # Undo to memfile step (add constraint), fine here (T82532),
     # but would fail if we had added a Multires modifier instead (T82851).
-    yield from _gen_undo_events(e, 1)
+    yield e.ctrl.z()
     mesh_verts_cos = extract_mesh_cos(window)
     t.assertEqual(mesh_verts_cos, mesh_verts_cos_before_sculpt)
 
     # Redo first sculpt stroke, would now be undone (in Multires case, T82851),
     # or not redone (in constraint case, T82532).
-    yield from _gen_redo_events(e, 1)
+    yield e.ctrl.shift.z()
     mesh_verts_cos = extract_mesh_cos(window)
     t.assertEqual(mesh_verts_cos, mesh_verts_cos_sculpt_stroke1)
 
     # Redo second sculpt stroke, would redo properly,
     # as well as part of the first one that affects the same nodes (T82851, T82532).
-    yield from _gen_redo_events(e, 1)
+    yield e.ctrl.shift.z()
     mesh_verts_cos = extract_mesh_cos(window)
     t.assertEqual(mesh_verts_cos, mesh_verts_cos_sculpt_stroke2)
 
@@ -396,9 +380,9 @@ def view3d_sculpt_dyntopo_simple():
     yield from ui.call_operator(e, "Symmetrize")
     yield e.ctrl.tab().o()              # Object mode.
     t.assertEqual(len(window.view_layer.objects.active.data.polygons), 1258)
-    yield e.delete()                    # Delete the object.
-    yield from _gen_undo_events(e, 1)   # Undo...
-    yield from _gen_undo_events(e, 1)   # Undo used to crash here: T60974
+    yield e.delete()                   # Delete the object.
+    yield e.ctrl.z()                    # Undo...
+    yield e.ctrl.z()                    # Undo used to crash here: T60974
     t.assertEqual(len(window.view_layer.objects.active.data.polygons), 1258)
     t.assertEqual(window.view_layer.objects.active.mode, 'SCULPT')
 
@@ -418,8 +402,8 @@ def view3d_sculpt_dyntopo_and_edit():
     yield from e.leftmouse.cursor_motion(ui.cursor_motion_data_x(window))
     yield e.tab()                       # Edit mode.
     yield e.tab()                       # Object mode.
-    yield from _gen_undo_events(e, 3)   # Undo
-    # yield from _gen_undo_events(e, 1)   # Undo asserts (nested undo call from dyntopo)
+    yield e.ctrl.z(3)                   # Undo
+    # yield e.ctrl.z()                    # Undo asserts (nested undo call from dyntopo)
 
 
 def view3d_sculpt_trim():
@@ -451,11 +435,11 @@ def view3d_sculpt_trim():
     after_trim_positions = extract_mesh_positions(window)
     t.assertNotEqual(beginning_positions, after_trim_positions)
 
-    yield from _gen_undo_events(e, 1)                                       # Undo Trim
+    yield e.ctrl.z()                                                        # Undo Trim
     after_undo_positions = extract_mesh_positions(window)
     t.assertEqual(beginning_positions, after_undo_positions)
 
-    yield from _gen_redo_events(e, 1)                                       # Redo Trim
+    yield e.ctrl.shift.z()                                                  # Redo Trim
     after_redo_positions = extract_mesh_positions(window)
     t.assertEqual(after_trim_positions, after_redo_positions)
 
@@ -492,23 +476,23 @@ def view3d_sculpt_dyntopo_stroke_toggle():
     after_normal_stroke = extract_mesh_positions(window)
     t.assertNotEqual(after_toggle_off, after_normal_stroke)
 
-    yield from _gen_undo_events(e, 1)         # Undo Stroke
+    yield e.ctrl.z()                          # Undo Stroke
     after_first_undo = extract_mesh_positions(window)
     t.assertEqual(after_first_undo, after_toggle_off)
 
-    yield from _gen_undo_events(e, 1)         # Undo Toggle Off
-    yield from _gen_undo_events(e, 1)         # Undo Dyntopo Stroke
-    yield from _gen_undo_events(e, 1)         # Undo Toggle On
+    yield e.ctrl.z()                          # Undo Toggle Off
+    yield e.ctrl.z()                          # Undo Dyntopo Stroke
+    yield e.ctrl.z()                          # Undo Toggle On
     after_full_undo = extract_mesh_positions(window)
     t.assertEqual(after_full_undo, original_positions)
 
-    yield from _gen_redo_events(e, 1)         # Redo Toggle On
-    yield from _gen_redo_events(e, 1)         # Redo Dyntopo Stroke
-    yield from _gen_redo_events(e, 1)         # Redo Toggle Off
+    yield e.ctrl.shift.z()                    # Redo Toggle On
+    yield e.ctrl.shift.z()                    # Redo Dyntopo Stroke
+    yield e.ctrl.shift.z()                    # Redo Toggle Off
     after_toggle_off_redo = extract_mesh_positions(window)
     t.assertEqual(after_toggle_off_redo, after_toggle_off)
 
-    yield from _gen_redo_events(e, 1)         # Redo Normal Stroke
+    yield e.ctrl.shift.z()                    # Redo Normal Stroke
     after_normal_stroke_redo = extract_mesh_positions(window)
     t.assertEqual(after_normal_stroke, after_normal_stroke_redo)
 
@@ -524,14 +508,14 @@ def view3d_texture_paint_simple():
     yield e.ret()                       # Accept popup.
 
     yield from e.leftmouse.cursor_motion(ui.cursor_motion_data_x(window))
-    yield from _gen_undo_events(e, 2)   # Undo: initial texture paint.
+    yield e.ctrl.z(2)                   # Undo: initial texture paint.
     t.assertEqual(window.view_layer.objects.active.mode, 'TEXTURE_PAINT')
-    yield from _gen_undo_events(e, 1)   # Undo: object mode.
+    yield e.ctrl.z()                    # Undo: object mode.
     t.assertEqual(window.view_layer.objects.active.mode, 'OBJECT')
-    yield from _gen_redo_events(e, 2)   # Redo: initial blank canvas.
+    yield e.ctrl.shift.z(2)             # Redo: initial blank canvas.
     t.assertEqual(window.view_layer.objects.active.mode, 'TEXTURE_PAINT')
     yield from e.leftmouse.cursor_motion(ui.cursor_motion_data_x(window))
-    yield from _gen_undo_events(e, 1)   # Used to crash T61172.
+    yield e.ctrl.z()                    # Used to crash T61172.
 
 
 def view3d_texture_paint_complex():
@@ -568,19 +552,19 @@ def view3d_texture_paint_complex():
     yield from e.leftmouse.cursor_motion(ui.cursor_motion_data_x(window))
     yield from e.leftmouse.cursor_motion(ui.cursor_motion_data_y(window))
 
-    yield from _gen_undo_events(e, 6)   # Undo: second slot added.
+    yield e.ctrl.z(6)                   # Undo: second slot added.
     t.assertEqual(len(bpy.context.active_object.modifiers), 0, "No modifiers should exist")
 
     after_undo = tuple(bpy.data.images['Suzanne Base Color'].pixels)
     t.assertTrue(all([orig == new for (orig, new) in zip(initial_data, after_undo)]),
                  "All pixels should be the same as their original state")
 
-    yield from _gen_undo_events(e, 1)   # Undo: initial texture paint.
+    yield e.ctrl.z(1)                   # Undo: initial texture paint.
     t.assertEqual(window.view_layer.objects.active.mode, 'TEXTURE_PAINT')
-    yield from _gen_undo_events(e, 1)   # Undo: object mode.
+    yield e.ctrl.z()                    # Undo: object mode.
     t.assertEqual(window.view_layer.objects.active.mode, 'OBJECT')
 
-    yield from _gen_redo_events(e, 2)   # Redo: initial blank canvas.
+    yield e.ctrl.shift.z(2)             # Redo: initial blank canvas.
     t.assertEqual(window.view_layer.objects.active.mode, 'TEXTURE_PAINT')
 
     yield from e.leftmouse.cursor_motion(ui.cursor_motion_data_x(window))
@@ -588,7 +572,6 @@ def view3d_texture_paint_complex():
 
     yield from ui.call_operator(e, "Undo History")
     yield e.o()                         # Undo everything to Original step.
-    yield datetime.timedelta(seconds=0.05)
     t.assertEqual(window.view_layer.objects.active.mode, 'OBJECT')
 
 
@@ -603,7 +586,7 @@ def view3d_mesh_edit_separate():
     yield e.x().text("3").ret()         # Move X-3.
     yield e.p().s()                     # Separate selection.
     t.assertEqual(len(window.view_layer.objects), 2)
-    yield from _gen_undo_events(e, 1)   # Undo.
+    yield e.ctrl.z()                    # Undo.
     t.assertEqual(len(window.view_layer.objects), 1)
     yield e.tab()                       # Object mode.
     t.assertEqual(len(window.view_layer.objects.active.data.polygons), 12)
@@ -612,9 +595,9 @@ def view3d_mesh_edit_separate():
     yield e.p().s()                     # Separate selection.
     yield e.tab()                       # Object mode.
     t.assertEqual([len(ob.data.polygons) for ob in window.view_layer.objects], [6, 6])
-    yield from _gen_undo_events(e, 8)   # Undo until start.
+    yield e.ctrl.z(8)                   # Undo until start.
     t.assertEqual(len(window.view_layer.objects), 0)
-    yield from _gen_redo_events(e, 8)   # Redo until end.
+    yield e.ctrl.shift.z(8)             # Redo until end.
     t.assertEqual([len(ob.data.polygons) for ob in window.view_layer.objects], [6, 6])
 
 
@@ -634,9 +617,9 @@ def view3d_mesh_particle_edit_mode_simple():
     yield from e.leftmouse.cursor_motion(ui.cursor_motion_data_x(window))
 
     # Undo and redo.
-    yield from _gen_undo_events(e, 5)
+    yield e.ctrl.z(5)
     t.assertEqual(window.view_layer.objects.active.mode, 'OBJECT')
-    yield from _gen_redo_events(e, 5)
+    yield e.shift.ctrl.z(5)
 
     t.assertEqual(window.view_layer.objects.active.mode, 'SCULPT_CURVES')
 
@@ -644,9 +627,9 @@ def view3d_mesh_particle_edit_mode_simple():
     yield from e.leftmouse.cursor_motion(ui.cursor_motion_data_y(window))
     yield from e.leftmouse.cursor_motion(ui.cursor_motion_data_x(window))
 
-    yield from _gen_undo_events(e, 7)
+    yield e.ctrl.z(7)
     t.assertEqual(window.view_layer.objects.active.mode, 'OBJECT')
-    yield from _gen_redo_events(e, 7)
+    yield e.shift.ctrl.z(7)
 
 
 def view3d_font_edit_mode_simple():
@@ -668,9 +651,9 @@ def view3d_font_edit_mode_simple():
     yield e.tab()                       # Object mode.
     t.assertEqual(window.view_layer.objects.active.data.body, 'Hello')
 
-    yield from _gen_undo_events(e, 3)
+    yield e.ctrl.z(3)
     t.assertEqual(window.view_layer.objects.active.data.body, 'Hello\nWorld')
-    yield from _gen_redo_events(e, 3)
+    yield e.shift.ctrl.z(3)
     t.assertEqual(window.view_layer.objects.active.data.body, 'Hello')
 
 
@@ -713,7 +696,7 @@ def view3d_multi_mode_select():
 
     for ob_name in reversed(object_names):
         t.assertEqual(ob_name, window.view_layer.objects.active.name)
-        yield from _gen_undo_events(e, 1)
+        yield e.ctrl.z()
 
 
 def view3d_multi_mode_multi_window():
@@ -828,7 +811,7 @@ def view3d_multi_mode_multi_window():
 
     undo_delta = undo_state_final - undo_state_empty
 
-    yield from _gen_undo_events(e_a, undo_delta)
+    yield e_a.ctrl.z(undo_delta)
     undo_current -= undo_delta
 
     # Ensure scene is empty.
@@ -836,7 +819,7 @@ def view3d_multi_mode_multi_window():
     t.assertEqual(len(window_b.view_layer.objects), 0)
 
     undo_delta = undo_state_final - undo_state_empty
-    yield from _gen_redo_events(e_a, undo_delta)
+    yield e_a.ctrl.shift.z(undo_delta)
     undo_current += undo_delta
 
     t.assertEqual(window_a.view_layer.objects.active.mode, 'OBJECT')
@@ -846,14 +829,14 @@ def view3d_multi_mode_multi_window():
     t.assertEqual(len(window_b.view_layer.objects.active.data.vertices), vert_count_b_end)
 
     undo_delta = undo_state_final - undo_state_wpaint
-    yield from _gen_undo_events(e_a, undo_delta)
+    yield e_a.ctrl.z(undo_delta)
     undo_current -= undo_delta
 
     t.assertEqual(window_a.view_layer.objects.active.mode, 'WEIGHT_PAINT')
     t.assertEqual(window_b.view_layer.objects.active.mode, 'WEIGHT_PAINT')
 
     undo_delta = undo_state_non_empty_start - undo_state_wpaint
-    yield from _gen_redo_events(e_a, undo_delta)
+    yield e_a.ctrl.shift.z(undo_delta)
     undo_current += undo_delta
 
     t.assertEqual(len(window_a.view_layer.objects.active.data.vertices), vert_count_a_start)
@@ -934,14 +917,14 @@ def view3d_edit_mode_multi_window():
 
     # Finished with edits, assert undo is working as expected.
 
-    yield from _gen_undo_events(e_a, undo_current - undo_state_edit_mode)
+    yield e_a.ctrl.z(undo_current - undo_state_edit_mode)
 
     t.assertEqual(len(_bmesh_from_object(window_a.view_layer.objects.active).verts), vert_count_a_start)
     t.assertEqual(len(_bmesh_from_object(window_b.view_layer.objects.active).verts), vert_count_b_start)
     t.assertEqual(window_a.view_layer.objects.active.mode, 'EDIT')
     t.assertEqual(window_b.view_layer.objects.active.mode, 'EDIT')
 
-    yield from _gen_redo_events(e_a, undo_current - undo_state_edit_mode)
+    yield e_a.ctrl.shift.z(undo_current - undo_state_edit_mode)
 
     t.assertEqual(len(window_a.view_layer.objects.active.data.vertices), vert_count_a_end)
     t.assertEqual(len(window_b.view_layer.objects.active.data.vertices), vert_count_b_end)
@@ -953,13 +936,13 @@ def view3d_edit_mode_multi_window():
     yield e_b.delete()
     undo_current += 2
 
-    yield from _gen_undo_events(e_b, undo_current)
+    yield e_b.ctrl.z(undo_current)
 
     # Ensure scene is empty.
     t.assertEqual(len(window_a.view_layer.objects), 0)
     t.assertEqual(len(window_b.view_layer.objects), 0)
 
-    yield from _gen_redo_events(e_b, undo_current - 2)
+    yield e_b.ctrl.shift.z(undo_current - 2)
     undo_current -= 2
 
     t.assertEqual(len(window_a.view_layer.objects.active.data.vertices), vert_count_a_end)
@@ -984,14 +967,18 @@ def view3d_edit_mode_multi_window():
     for e in (e_a, e_b):
         yield from _setup_window_areas_from_ui_types(e, ui_types)
 
-    yield from _gen_undo_events(e_b, undo_current - undo_state_edit_mode)
+    # Ensure each undo step redraws.
+    for _ in range(undo_current - undo_state_edit_mode):
+        yield e_b.ctrl.z()
 
     t.assertEqual(len(_bmesh_from_object(window_a.view_layer.objects.active).verts), vert_count_a_start)
     t.assertEqual(len(_bmesh_from_object(window_b.view_layer.objects.active).verts), vert_count_b_start)
     t.assertEqual(window_a.view_layer.objects.active.mode, 'EDIT')
     t.assertEqual(window_b.view_layer.objects.active.mode, 'EDIT')
 
-    yield from _gen_redo_events(e_b, undo_current - undo_state_edit_mode)
+    # Ensure each undo step redraws.
+    for _ in range(undo_current - undo_state_edit_mode):
+        yield e_b.ctrl.shift.z()
 
     t.assertEqual(len(window_a.view_layer.objects.active.data.vertices), vert_count_a_end)
     t.assertEqual(len(window_b.view_layer.objects.active.data.vertices), vert_count_b_end)
