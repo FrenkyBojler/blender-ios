@@ -9,7 +9,6 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
-#include <optional>
 
 #include "DNA_mask_types.h"
 #include "DNA_scene_types.h"
@@ -436,20 +435,12 @@ void draw_image_sample_line(SpaceImage *sima)
   }
 }
 
-std::optional<rctf> render_border_get(const Scene *scene)
-{
-  if (!(scene->r.mode & R_BORDER)) {
-    return std::nullopt;
-  }
-  return scene->r.border;
-}
-
 static void draw_render_border(const ARegion *region, const Scene *scene)
 {
-  const std::optional<rctf> border = render_border_get(scene);
-  if (!border) {
+  if (!(scene->r.mode & R_BORDER)) {
     return;
   }
+  const rctf &border = scene->r.border;
 
   const uint shdr_pos = GPU_vertformat_attr_add(
       immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
@@ -468,7 +459,7 @@ static void draw_render_border(const ARegion *region, const Scene *scene)
   immUniform1f("udash_factor", 0.5f);
 
   rcti region_rect;
-  ui::view2d_view_to_region_rcti(&region->v2d, &(*border), &region_rect);
+  ui::view2d_view_to_region_rcti(&region->v2d, &border, &region_rect);
 
   imm_draw_box_wire_2d(
       shdr_pos, region_rect.xmin, region_rect.ymin, region_rect.xmax, region_rect.ymax);
