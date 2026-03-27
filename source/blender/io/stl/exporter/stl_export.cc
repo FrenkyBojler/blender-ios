@@ -165,9 +165,10 @@ void exporter_main(const bContext *C, const STLExportParams &export_params)
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  Depsgraph *depsgraph = DEG_graph_new(bmain, scene, view_layer, DAG_EVAL_RENDER);
 
   ED_editors_flush_edits(bmain);
+
+  Depsgraph *depsgraph = DEG_graph_new(bmain, scene, view_layer, DAG_EVAL_RENDER);
 
   if (export_params.collection[0]) {
     Collection *collection = reinterpret_cast<Collection *>(
