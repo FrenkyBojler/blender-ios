@@ -1911,14 +1911,6 @@ void ED_view3d_draw_offscreen(Depsgraph *depsgraph,
     BKE_image_free_anim_gputextures(G.main);
   }
 
-  if (viewmat || winmat) {
-    v3d->camera = nullptr;
-  }
-  if (winmat) {
-    v3d->flag |= V3D_CUSTOM_MATRIX;
-    rv3d->persp = (winmat[3][3] == 0.0f) ? RV3D_PERSP : RV3D_ORTHO;
-  }
-
   GPU_matrix_push_projection();
   GPU_matrix_identity_set();
   GPU_matrix_push();
@@ -1931,6 +1923,15 @@ void ED_view3d_draw_offscreen(Depsgraph *depsgraph,
   }
   else {
     view3d_main_region_setup_offscreen(depsgraph, scene, v3d, region, viewmat, winmat);
+  }
+
+  if (viewmat || winmat) {
+    /* Now that rv3d data has been updated taking into account viewmat and winmat,
+     * we can remove the camera and flag the view as using custom matrices,
+     * to ensure engines don't recompute them. */
+    v3d->camera = nullptr;
+    v3d->flag |= V3D_CUSTOM_MATRIX;
+    rv3d->persp = (winmat[3][3] == 0.0f) ? RV3D_PERSP : RV3D_ORTHO;
   }
 
   if (viewport) {
