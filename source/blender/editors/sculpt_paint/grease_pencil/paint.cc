@@ -448,8 +448,7 @@ struct PaintOperationExecutor {
       /* Set new fill id to zero, because it will have uninitialized memory otherwise. Then get the
        * varray of all fill ids to compute a new one. */
       fill_id.span[active_curve] = 0;
-      const VArray<int> &current_fill_ids = fill_id.span.varray();
-      const int new_fill_id = bke::greasepencil::get_next_available_fill_id(current_fill_ids);
+      const int new_fill_id = bke::greasepencil::get_next_available_fill_id(fill_id.span);
       fill_id.span[active_curve] = new_fill_id;
       curve_attributes_to_skip.add("fill_id");
       fill_id.finish();
