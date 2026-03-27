@@ -386,10 +386,11 @@ static IndexMask grease_pencil_get_editable_selected_nurbs_curves(
       ed::greasepencil::retrieve_editable_and_selected_strokes(
           object, drawing, layer_index, memory);
 
-  const VArray<int8_t> types = curves.curve_types();
-  return IndexMask::from_predicate(selected_editable_strokes, memory, [&](const int64_t curve_i) {
-    return types[curve_i] == CURVE_TYPE_NURBS;
-  });
+  return bke::curves::indices_for_type(curves.curve_types(),
+                                       curves.curve_type_counts(),
+                                       CURVE_TYPE_NURBS,
+                                       selected_editable_strokes,
+                                       memory);
 }
 
 static IndexMask grease_pencil_get_visible_nurbs_curves(Object &object,
@@ -406,10 +407,11 @@ static IndexMask grease_pencil_get_visible_nurbs_curves(Object &object,
   const IndexMask selected_editable_strokes = ed::greasepencil::retrieve_editable_strokes(
       object, drawing, layer_index, memory);
 
-  const VArray<int8_t> types = curves.curve_types();
-  return IndexMask::from_predicate(selected_editable_strokes, memory, [&](const int64_t curve_i) {
-    return types[curve_i] == CURVE_TYPE_NURBS;
-  });
+  return bke::curves::indices_for_type(curves.curve_types(),
+                                       curves.curve_type_counts(),
+                                       CURVE_TYPE_NURBS,
+                                       selected_editable_strokes,
+                                       memory);
 }
 
 static void grease_pencil_cache_add_nurbs(const bke::greasepencil::Drawing &drawing,
