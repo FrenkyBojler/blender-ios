@@ -1749,15 +1749,15 @@ static bool update_mask_bmesh(SculptSession &ss,
   const Cache &expand_cache = *ss.expand_cache;
 
   bool any_changed = false;
-  int i = 0;
   for (BMVert *vert : BKE_pbvh_bmesh_node_unique_verts(node)) {
-    float new_mask = calc_new_mask_bmesh(ss, expand_cache, old_mask[i], enabled_verts, vert);
-    if (new_mask != old_mask[i]) {
+    const float initial_mask = BM_ELEM_CD_GET_FLOAT(vert, mask_offset);
+    float new_mask = calc_new_mask_bmesh(ss, expand_cache, initial_mask, enabled_verts, vert);
+    if (new_mask != initial_mask) {
       any_changed = true;
     }
     BM_ELEM_CD_SET_FLOAT(vert, mask_offset, new_mask);
-    i++;
   }
+  int i = 0;
   if (!any_changed) {
     for (BMVert *vert : BKE_pbvh_bmesh_node_other_verts(node)) {
       if (calc_new_mask_bmesh(ss, expand_cache, old_mask[i], enabled_verts, vert) != old_mask[i]) {
@@ -1991,14 +1991,9 @@ static void update_for_vert(bContext *C, Object &ob, const std::optional<int> ve
           Array<Vector<float>> old_masks(node_mask.min_array_size());
           node_mask.foreach_index(
               [&](const int i) {
-                const Set<BMVert *, 0> &unique = BKE_pbvh_bmesh_node_unique_verts(&nodes[i]);
                 const Set<BMVert *, 0> &other = BKE_pbvh_bmesh_node_other_verts(&nodes[i]);
-                old_masks[i].resize(unique.size() + other.size());
+                old_masks[i].resize(other.size());
                 int j = 0;
-                for (BMVert *vert : unique) {
-                  old_masks[i][j] = BM_ELEM_CD_GET_FLOAT(vert, mask_offset);
-                  j++;
-                }
                 for (BMVert *vert : other) {
                   old_masks[i][j] = BM_ELEM_CD_GET_FLOAT(vert, mask_offset);
                   j++;

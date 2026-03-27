@@ -225,8 +225,10 @@ void update_mask_mesh(const Depsgraph &depsgraph,
         LocalData &tls = all_tls.local();
         const Span<int> verts = hide::node_visible_all_verts(
             nodes[i], hide_vert, tls.visible_verts);
-        old_masks[i].resize(verts.size());
-        gather_data_mesh(mask.span.as_span(), verts, old_masks[i].as_mutable_span());
+        old_masks[i].resize(verts.size() - nodes[i].unique_verts_num_);
+        gather_data_mesh(mask.span.as_span(),
+                         verts.slice(nodes[i].unique_verts_num_, verts.size()),
+                         old_masks[i].as_mutable_span());
       },
       exec_mode::grain_size(1));
 
@@ -236,9 +238,13 @@ void update_mask_mesh(const Depsgraph &depsgraph,
         const Span<int> verts = hide::node_visible_all_verts(
             nodes[i], hide_vert, tls.visible_verts);
         tls.mask.resize(verts.size());
-        tls.mask.as_mutable_span().copy_from(old_masks[i].as_span());
+        gather_data_mesh(mask.span.as_span(), verts, tls.mask.as_mutable_span());
         update_fn(tls.mask, verts);
-        if (old_masks[i].as_span() == tls.mask.as_span()) {
+        if (array_utils::indexed_data_equal<float>(
+                mask.span, verts, tls.mask.as_span().slice(0, nodes[i].unique_verts_num_)) &&
+            old_masks[i].as_span() ==
+                tls.mask.as_span().slice(nodes[i].unique_verts_num_, tls.mask.size()))
+        {
           return;
         }
         undo::push_node(depsgraph, object, &nodes[i], undo::Type::Mask);
