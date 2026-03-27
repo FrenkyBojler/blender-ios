@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_blender_updates.hh"
+#include "BKE_blender_version.h"
 #include "BKE_global.hh"
 #include "BKE_idprop.hh"
 #include "BKE_screen.hh"
@@ -109,8 +110,14 @@ static void panel_blender_updates_draw(const bContext *C, Panel *panel)
   ui::button_drawflag_disable(button, ui::BUT_TEXT_RIGHT);
   for (const bke::VersionUpdate *update : available_updates) {
     ui::PanelLayout panel_layout = layout.panel(C, "Update_" + update->version_str, false);
-    panel_layout.header->label(
-        fmt::format("Blender {} {} - {}", update->version_str, "", update->date()), ICON_NONE);
+    panel_layout.header->label(fmt::format("Blender {} ({}) - {}",
+                                           update->version_str,
+                                           update->version.version == BLENDER_VERSION ?
+                                               "current release" :
+                                           update->is_lts ? "latest LTS" :
+                                                            "latest",
+                                           update->date()),
+                               ICON_NONE);
     ui::Layout *body = panel_layout.body;
     ui::Layout &sub = panel_layout.header->row(false);
     sub.alignment_set(ui::LayoutAlign::Right);
