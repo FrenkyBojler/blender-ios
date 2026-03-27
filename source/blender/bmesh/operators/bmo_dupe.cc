@@ -625,7 +625,7 @@ void bmo_spin_exec(BMesh *bm, BMOperator *op)
       BMO_op_exec(bm, &extop);
       if ((use_merge && (a == steps - 1)) == false) {
         /* For extrude mode, rotate the extruded geometry to the current step position.
-         * Use rmat which is computed fresh each step from the origin angle to avoid
+         * Use `rmat` which is computed fresh each step from the origin angle to avoid
          * floating-point error accumulation. */
         BMO_op_callf(bm,
                      op->flag,
