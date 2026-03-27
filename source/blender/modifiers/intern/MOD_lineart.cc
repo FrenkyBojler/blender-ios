@@ -575,6 +575,52 @@ static void face_mark_panel_draw(const bContext * /*C*/, Panel *panel)
   layout.prop(ptr, "use_face_mark_keep_contour", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
+static void vertex_group_filter_panel_draw_header(const bContext * /*C*/, Panel *panel)
+{
+  ui::Layout &layout = *panel->layout;
+  PointerRNA ob_ptr;
+  PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
+
+  const bool is_baked = RNA_boolean_get(ptr, "is_baked");
+  const bool use_cache = RNA_boolean_get(ptr, "use_cache");
+  const bool is_first = is_first_lineart(
+      *static_cast<const GreasePencilLineartModifierData *>(ptr->data));
+
+  if (!use_cache || is_first) {
+    layout.enabled_set(!is_baked);
+    layout.prop(ptr,
+                "use_vertex_group_filtering",
+                UI_ITEM_NONE,
+                IFACE_("Vertex Group Filtering"),
+                ICON_NONE);
+  }
+}
+
+static void vertex_group_filter_panel_draw(const bContext * /*C*/, Panel *panel)
+{
+  ui::Layout &layout = *panel->layout;
+  PointerRNA ob_ptr;
+  PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
+
+  const bool is_baked = RNA_boolean_get(ptr, "is_baked");
+  const bool use_mark = RNA_boolean_get(ptr, "use_vertex_group_filtering");
+  const bool use_cache = RNA_boolean_get(ptr, "use_cache");
+  const bool is_first = is_first_lineart(
+      *static_cast<const GreasePencilLineartModifierData *>(ptr->data));
+
+  layout.enabled_set(!is_baked);
+
+  if (use_cache && !is_first) {
+    layout.label(TIP_("Cached from the first Line Art modifier"), ICON_INFO);
+    return;
+  }
+
+  layout.use_property_split_set(true);
+  layout.active_set(use_mark);
+  layout.prop(ptr, "filter_vertex_group", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "use_vertex_group_filtering_touching", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+}
+
 static void chaining_panel_draw(const bContext * /*C*/, Panel *panel)
 {
   PointerRNA ob_ptr;
@@ -730,6 +776,12 @@ static void panel_register(ARegionType *region_type)
                              occlusion_panel);
   modifier_subpanel_register(
       region_type, "intersection", "Intersection", nullptr, intersection_panel_draw, panel_type);
+  modifier_subpanel_register(region_type,
+                             "vertex_group_filtering",
+                             "",
+                             vertex_group_filter_panel_draw_header,
+                             vertex_group_filter_panel_draw,
+                             panel_type);
   modifier_subpanel_register(
       region_type, "face_mark", "", face_mark_panel_draw_header, face_mark_panel_draw, panel_type);
   modifier_subpanel_register(

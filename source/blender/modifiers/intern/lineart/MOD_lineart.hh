@@ -393,6 +393,10 @@ struct LineartData {
     bool filter_face_mark_boundaries;
     bool filter_face_mark_keep_contour;
 
+    bool filter_vertex_group;
+    bool filter_vertex_group_touching;
+    const char *filter_vertex_group_name;
+
     bool force_crease;
     bool sharp_as_crease;
 

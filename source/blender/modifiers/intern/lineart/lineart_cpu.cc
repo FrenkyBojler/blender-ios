@@ -1701,12 +1701,35 @@ static void lineart_identify_corner_tri_feature_edges(void *__restrict userdata,
     }
   }
 
+  const char *filter_vgname = e_feat_data->ld->conf.filter_vertex_group_name;
+  const bool enable_vertex_group = e_feat_data->ld->conf.filter_vertex_group &&
+                                   filter_vgname != nullptr && filter_vgname[0] != '\0';
+  const bool filter_touching = e_feat_data->ld->conf.filter_vertex_group_touching;
+
+  AttributeReader<float> vgreader;
+  if (enable_vertex_group) {
+    vgreader = e_feat_data->mesh->attributes().lookup_or_default<float>(
+        filter_vgname, AttrDomain::Point, 0.0f);
+  }
+
   const int3 real_edges = corner_tri_get_real_edges(e_feat_data->edges,
                                                     e_feat_data->corner_verts,
                                                     e_feat_data->corner_edges,
                                                     corner_tris[i / 3]);
 
   if (real_edges[i % 3] >= 0) {
+
+    if (!vgreader.varray.is_empty()) {
+      const int v1 = e_feat_data->edges[real_edges[i % 3]][0];
+      const int v2 = e_feat_data->edges[real_edges[i % 3]][1];
+      const bool filtered = filter_touching ?
+                                (vgreader.varray[v1] > 0 || vgreader.varray[v2] > 0) :
+                                (vgreader.varray[v1] > 0 && vgreader.varray[v2] > 0);
+      if (filtered) {
+        edge_flag_result = 0;
+      }
+    }
+
     if (ld->conf.use_crease && ld->conf.sharp_as_crease &&
         e_feat_data->sharp_edges[real_edges[i % 3]])
     {
@@ -3718,6 +3741,10 @@ static LineartData *lineart_create_render_buffer_v3(Scene *scene,
                                           MOD_LINEART_FILTER_FACE_MARK_BOUNDARIES) != 0;
   ld->conf.filter_face_mark_keep_contour = (lmd->calculation_flags &
                                             MOD_LINEART_FILTER_FACE_MARK_KEEP_CONTOUR) != 0;
+  ld->conf.filter_vertex_group = (lmd->calculation_flags & MOD_LINEART_FILTER_VERTEX_GROUP) != 0;
+  ld->conf.filter_vertex_group_touching = (lmd->calculation_flags &
+                                           MOD_LINEART_FILTER_VERTEX_GROUP_TOUCHING) != 0;
+  ld->conf.filter_vertex_group_name = lmd->filter_vgname;
 
   ld->chain_data_pool = &lc->chain_data_pool;
 

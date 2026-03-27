@@ -3200,6 +3200,9 @@ struct GreasePencilLineartModifierData {
   char source_vertex_group[64] = "";
   char vgname[64] = "";
 
+  /* Vertex group used to filter feature lines. */
+  char filter_vgname[64] = "";
+
   /* Camera focal length is divided by (1 + over-scan), before calculation, which give a wider FOV,
    * this doesn't change coordinates range internally (-1, 1), but makes the calculated frame
    * bigger than actual output. This is for the easier shifting calculation. A value of 0.5 means
