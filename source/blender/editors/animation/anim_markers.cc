@@ -1516,11 +1516,10 @@ static wmOperatorStatus ed_marker_select_exec(bContext *C, wmOperator *op)
 
   const float marker_frame = ui::view2d_region_to_view_x(v2d, mval[0]);
   ListBaseT<TimeMarker> *markers = ED_context_get_markers(C);
-  TimeMarker *marker = ED_markers_find_nearest_marker(markers, marker_frame);
+  const TimeMarker *marker = ED_markers_find_nearest_marker(markers, marker_frame);
   const bool is_over_marker = region_position_is_over_marker(v2d, markers, mval[0]);
 
-  bool camera = false;
-  camera = RNA_boolean_get(op->ptr, "camera");
+  bool camera = RNA_boolean_get(op->ptr, "camera");
 
   if (camera && marker->camera && CTX_data_mode_enum(C) != CTX_MODE_OBJECT) {
     /* Supporting mode switching from this operator doesn't seem so useful.
