@@ -1289,7 +1289,7 @@ void gpu::MTLTexture::generate_mipmap()
   }
 }
 
-void gpu::MTLTexture::copy_to(Texture *dst)
+void gpu::MTLTexture::copy_to(Texture *dst, IndexRange mip_levels)
 {
   /* Safety Checks. */
   gpu::MTLTexture *mt_src = this;
@@ -1313,14 +1313,6 @@ void gpu::MTLTexture::copy_to(Texture *dst)
     id<MTLBlitCommandEncoder> blit_encoder = ctx->main_command_buffer.ensure_begin_blit_encoder();
     BLI_assert(blit_encoder != nil);
 
-    /* TODO(Metal): Consider supporting multiple mip levels IF the GL implementation
-     * follows, currently it does not. */
-    int mip = 0;
-
-    /* NOTE: mip_size_get() won't override any dimension that is equal to 0. */
-    int extent[3] = {1, 1, 1};
-    this->mip_size_get(mip, extent);
-
     switch (mt_dst->type_) {
       case GPU_TEXTURE_2D_ARRAY:
       case GPU_TEXTURE_CUBE_ARRAY:
@@ -1332,22 +1324,28 @@ void gpu::MTLTexture::copy_to(Texture *dst)
         [blit_encoder optimizeContentsForGPUAccess:mt_dst->get_metal_handle_base()];
       } break;
       default: {
-        int slice = 0;
-        this->blit(blit_encoder,
-                   0,
-                   0,
-                   0,
-                   slice,
-                   mip,
-                   mt_dst,
-                   0,
-                   0,
-                   0,
-                   slice,
-                   mip,
-                   extent[0],
-                   extent[1],
-                   extent[2]);
+        for (int mip : mip_levels) {
+          /* NOTE: mip_size_get() won't override any dimension that is equal to 0. */
+          int extent[3] = {1, 1, 1};
+          this->mip_size_get(mip, extent);
+
+          int slice = 0;
+          this->blit(blit_encoder,
+                     0,
+                     0,
+                     0,
+                     slice,
+                     mip,
+                     mt_dst,
+                     0,
+                     0,
+                     0,
+                     slice,
+                     mip,
+                     extent[0],
+                     extent[1],
+                     extent[2]);
+        }
       } break;
     }
   }
