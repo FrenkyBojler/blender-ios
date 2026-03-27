@@ -27,7 +27,7 @@ namespace eevee {
 
 /**
  * Generate 2D GGX BRDF LUT.
- * 
+ *
  * Follows the split sum approximation used in [Real shading in unreal engine 4]
  * (https://cdn2.unrealengine.com/Resources/files/2013SiggraphPresentationsNotes-26915738.pdf).
  *
@@ -93,11 +93,11 @@ struct GGX_BRDF_Splitsum {
 
 /**
  * Generate 3D GGX BSDF LUT.
- * 
+ *
  * Follows the split sum approximation used in [Real shading in unreal engine 4]
  * (https://cdn2.unrealengine.com/Resources/files/2013SiggraphPresentationsNotes-26915738.pdf).
  * and uses Schlick's approximation to weight R, T components.
- * 
+ *
  * The 3D LUT is parameterized on:
  * - `x = sqrt((ior - 1) / (ior + 1))`,
  * - `y = sqrt(1 - cos(theta))`,
@@ -126,7 +126,7 @@ struct GGX_BSDF_Splitsum {
     /* Maximize texture usage on both sides of the critical angle. */
     params.y = params.y * 2.0f - 1.0f;
     params.y *= (params.y > 0.0f) ? (1.0f - critical_cos) : critical_cos;
-    /* Center LUT around critical angle to avoid strange interpolation 
+    /* Center LUT around critical angle to avoid strange interpolation
      * issues when the critical angle is changing. */
     params.y += critical_cos;
 
@@ -186,7 +186,7 @@ struct GGX_BSDF_Splitsum {
 
 /**
  * Generate 3D GGX BTDF LUT, for IOR > 1.
- * 
+ *
  * Using Schlick's approximation; only the transmittance is needed because scale and
  * bias do not depend on the IOR, and can be obtained independently from the BRDF LUT.
  *
@@ -249,7 +249,7 @@ struct GGX_BTDF_GT_one {
 
 /**
  * Generate Christensen-Bursley (Disney SSS) translucency profile.
- * 
+ *
  * TODO(not_mark): Source and document.
  */
 /* Generate SSS translucency profile.
@@ -379,6 +379,6 @@ void comp_main([[global_invocation_id]] const uint3 global_id, [[resource_table]
 
 /** \} */
 
-PipelineCompute lut_comp_pass(comp_main);
+PipelineCompute lut_comp(comp_main);
 
 }  // namespace eevee
