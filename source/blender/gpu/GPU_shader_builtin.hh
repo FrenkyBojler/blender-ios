@@ -101,6 +101,7 @@ enum GPUBuiltinShader {
   GPU_SHADER_2D_UPDATE_MIPMAPS_UNORM_8_8_8_8,
   GPU_SHADER_2D_UPDATE_MIPMAPS_SFLOAT_16,
   GPU_SHADER_2D_UPDATE_MIPMAPS_SFLOAT_16_16_16_16,
+  GPU_SHADER_2D_UPDATE_MIPMAPS_SRGBA_8_8_8_8,
 
   /**
    * ----------------------- Shaders exposed through pyGPU module -----------------------

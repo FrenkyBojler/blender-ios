@@ -90,6 +90,8 @@ class VKCopyImageNode : public VKNodeInfo<VKNodeType::COPY_IMAGE,
       regions[index].extent.width = std::max(src_region.extent.width >> index, 1u);
       regions[index].extent.height = std::max(src_region.extent.height >> index, 1u);
       regions[index].extent.depth = std::max(src_region.extent.depth >> index, 1u);
+      regions[index].srcSubresource.mipLevel = src_region.srcSubresource.mipLevel + index;
+      regions[index].dstSubresource.mipLevel = src_region.dstSubresource.mipLevel + index;
     }
 
     command_buffer.copy_image(data.src_image,

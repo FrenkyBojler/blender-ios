@@ -446,7 +446,7 @@ void GLTexture::clear(const double4 data)
   GPU_framebuffer_bind(prev_fb);
 }
 
-void GLTexture::copy_to(Texture *dst_)
+void GLTexture::copy_to(Texture *dst_, IndexRange mip_levels)
 {
   GLTexture *dst = static_cast<GLTexture *>(dst_);
   GLTexture *src = this;
@@ -455,12 +455,13 @@ void GLTexture::copy_to(Texture *dst_)
   BLI_assert(dst->format_ == src->format_);
   BLI_assert(dst->type_ == src->type_);
 
-  int mip = 0;
-  /* NOTE: mip_size_get() won't override any dimension that is equal to 0. */
-  int extent[3] = {1, 1, 1};
-  this->mip_size_get(mip, extent);
-  glCopyImageSubData(
-      src->tex_id_, target_, mip, 0, 0, 0, dst->tex_id_, target_, mip, 0, 0, 0, UNPACK3(extent));
+  for (int mip : mip_levels) {
+    /* NOTE: mip_size_get() won't override any dimension that is equal to 0. */
+    int extent[3] = {1, 1, 1};
+    this->mip_size_get(mip, extent);
+    glCopyImageSubData(
+        src->tex_id_, target_, mip, 0, 0, 0, dst->tex_id_, target_, mip, 0, 0, 0, UNPACK3(extent));
+  }
 
   has_pixels_ = true;
 }
