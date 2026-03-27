@@ -6586,12 +6586,12 @@ class VIEW3D_PT_object_type_visibility(Panel):
                 # rowsub.prop(view, attr_s, text="", icon=icon_s, emboss=False)
                 prop = rowsub.operator("view3d.object_type_visibility", emboss=False, text="", icon=icon_s)
                 prop.attribute_type = "show_object_select_"
-                prop.attribute_suffix =  attr
+                prop.attribute_suffix = attr
 
             # row.prop(view, attr_v, text="", icon=icon_v, emboss=False)
             prop = row.operator("view3d.object_type_visibility", emboss=False, text="", icon=icon_v)
             prop.attribute_type = "show_object_viewport_"
-            prop.attribute_suffix =  attr
+            prop.attribute_suffix = attr
 
     def draw(self, context):
         view = context.space_data

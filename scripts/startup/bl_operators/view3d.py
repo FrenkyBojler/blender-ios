@@ -304,18 +304,16 @@ class VIEW3D_FH_vdb_volume(FileHandler):
     def poll_drop(cls, context):
         return context.space_data and context.space_data.type == 'VIEW_3D'
 
+
 class VIEW3D_OT_object_type_visibility(Operator):
     bl_label = "Object Type visibility"
     bl_idname = "view3d.object_type_visibility"
-    attribute_type : StringProperty(
-        name="attribute",
-        default="",
-        description="attribute name",
+
+    attribute_type: StringProperty(
+        name="attribute type"
     )
-    attribute_suffix : StringProperty(
-        name="suffix",
-        default="",
-        description="attribute suffix",
+    attribute_suffix: StringProperty(
+        name="attribute suffix"
     )
 
     @classmethod
@@ -332,7 +330,24 @@ class VIEW3D_OT_object_type_visibility(Operator):
             setattr(space_data, clicked_attribute, not value)
             return {'FINISHED'}
 
-        suffix_list = ("mesh", "curve", "surf", "meta", "font", "curves", "pointcloud", "volume","grease_pencil", "armature", "lattice", "empty", "light", "light_probe", "camera", "speaker",)
+        suffix_list = (
+            "mesh",
+            "curve",
+            "surf",
+            "meta",
+            "font",
+            "curves",
+            "pointcloud",
+            "volume",
+            "grease_pencil",
+            "armature",
+            "lattice",
+            "empty",
+            "light",
+            "light_probe",
+            "camera",
+            "speaker",
+        )
 
         any_enabled = False
         for suffix in suffix_list:
