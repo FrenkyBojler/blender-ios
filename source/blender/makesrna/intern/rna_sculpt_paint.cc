@@ -474,14 +474,13 @@ static std::optional<std::string> rna_GPencilSculptGuide_path(const PointerRNA *
   return "tool_settings.gpencil_sculpt.guide";
 }
 
-static const MeshAutomaskingSettings *rna_MeshAutomaskingSettings_address_get(
-    const Paint *paint)
+static const MeshAutomaskingSettings *rna_MeshAutomaskingSettings_address_get(const Paint *paint)
 {
   if (!paint) {
     return nullptr;
   }
 
-  return &paint->mesh_automasking_settings;
+  return paint->mesh_automasking_settings;
 }
 
 static std::optional<std::string> rna_MeshAutomaskingSettings_path(const PointerRNA *ptr)
@@ -491,8 +490,8 @@ static std::optional<std::string> rna_MeshAutomaskingSettings_path(const Pointer
   if (tool_settings == nullptr) {
     return std::nullopt;
   }
-  if (rna_MeshAutomaskingSettings_address_get(
-          reinterpret_cast<Paint *>(tool_settings->sculpt)) == ptr->data)
+  if (rna_MeshAutomaskingSettings_address_get(reinterpret_cast<Paint *>(tool_settings->sculpt)) ==
+      ptr->data)
   {
     return "tool_settings.sculpt.automasking_settings";
   }

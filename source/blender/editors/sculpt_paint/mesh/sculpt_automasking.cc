@@ -54,7 +54,7 @@ const Cache *active_cache_get(const SculptSession &ss)
 
 bool mode_enabled(const Paint &paint, const Brush *br, const eAutomasking_flag mode)
 {
-  int automasking = paint.mesh_automasking_settings.flags;
+  int automasking = paint.mesh_automasking_settings->flags;
 
   if (br) {
     automasking |= br->automasking_flags;
@@ -96,7 +96,7 @@ bool is_enabled(const Paint &paint, const Object &object, const Brush *br)
 static int calc_effective_bits(const Paint &paint, const Brush *brush)
 {
   if (brush) {
-    int flags = paint.mesh_automasking_settings.flags | brush->automasking_flags;
+    int flags = paint.mesh_automasking_settings->flags | brush->automasking_flags;
 
     /* Check if we are using brush cavity settings. */
     if (brush->automasking_flags & BRUSH_AUTOMASKING_CAVITY_ALL) {
@@ -104,15 +104,15 @@ static int calc_effective_bits(const Paint &paint, const Brush *brush)
                  BRUSH_AUTOMASKING_CAVITY_NORMAL);
       flags |= brush->automasking_flags;
     }
-    else if (paint.mesh_automasking_settings.flags & BRUSH_AUTOMASKING_CAVITY_ALL) {
+    else if (paint.mesh_automasking_settings->flags & BRUSH_AUTOMASKING_CAVITY_ALL) {
       flags &= ~(BRUSH_AUTOMASKING_CAVITY_ALL | BRUSH_AUTOMASKING_CAVITY_USE_CURVE |
                  BRUSH_AUTOMASKING_CAVITY_NORMAL);
-      flags |= paint.mesh_automasking_settings.flags;
+      flags |= paint.mesh_automasking_settings->flags;
     }
 
     return flags;
   }
-  return paint.mesh_automasking_settings.flags;
+  return paint.mesh_automasking_settings->flags;
 }
 
 static float normal_calc(const float3 &compare_normal,
@@ -167,7 +167,7 @@ static int boundary_propagation_steps(const Paint &paint, const Brush *brush)
   return brush && brush->automasking_flags &
                       (BRUSH_AUTOMASKING_BOUNDARY_EDGES | BRUSH_AUTOMASKING_BOUNDARY_FACE_SETS) ?
              brush->automasking_boundary_edges_propagation_steps :
-             paint.mesh_automasking_settings.boundary_edges_propagation_steps;
+             paint.mesh_automasking_settings->boundary_edges_propagation_steps;
 }
 
 /* Determine if the given automasking settings require values to be precomputed and cached. */
@@ -1564,8 +1564,9 @@ static void cache_settings_update(Cache &automasking,
     automasking.settings.view_normal_falloff = brush->automasking_view_normal_falloff;
   }
   else {
-    automasking.settings.view_normal_limit = paint.mesh_automasking_settings.view_normal_limit;
-    automasking.settings.view_normal_falloff = paint.mesh_automasking_settings.view_normal_falloff;
+    automasking.settings.view_normal_limit = paint.mesh_automasking_settings->view_normal_limit;
+    automasking.settings.view_normal_falloff =
+        paint.mesh_automasking_settings->view_normal_falloff;
   }
 
   if (brush && (brush->automasking_flags & BRUSH_AUTOMASKING_BRUSH_NORMAL)) {
@@ -1573,8 +1574,9 @@ static void cache_settings_update(Cache &automasking,
     automasking.settings.start_normal_falloff = brush->automasking_start_normal_falloff;
   }
   else {
-    automasking.settings.start_normal_limit = paint.mesh_automasking_settings.start_normal_limit;
-    automasking.settings.start_normal_falloff = paint.mesh_automasking_settings.start_normal_falloff;
+    automasking.settings.start_normal_limit = paint.mesh_automasking_settings->start_normal_limit;
+    automasking.settings.start_normal_falloff =
+        paint.mesh_automasking_settings->start_normal_falloff;
   }
 
   if (brush && (brush->automasking_flags & BRUSH_AUTOMASKING_CAVITY_ALL)) {
@@ -1583,9 +1585,9 @@ static void cache_settings_update(Cache &automasking,
     automasking.settings.cavity_blur_steps = brush->automasking_cavity_blur_steps;
   }
   else {
-    automasking.settings.cavity_curve = paint.mesh_automasking_settings.cavity_curve;
-    automasking.settings.cavity_factor = paint.mesh_automasking_settings.cavity_factor;
-    automasking.settings.cavity_blur_steps = paint.mesh_automasking_settings.cavity_blur_steps;
+    automasking.settings.cavity_curve = paint.mesh_automasking_settings->cavity_curve;
+    automasking.settings.cavity_factor = paint.mesh_automasking_settings->cavity_factor;
+    automasking.settings.cavity_blur_steps = paint.mesh_automasking_settings->cavity_blur_steps;
   }
 }
 
@@ -1712,7 +1714,7 @@ std::unique_ptr<Cache> cache_init(const Depsgraph &depsgraph,
         BKE_curvemapping_init(brush->automasking_cavity_curve);
       }
 
-      BKE_curvemapping_init(paint.mesh_automasking_settings.cavity_curve);
+      BKE_curvemapping_init(paint.mesh_automasking_settings->cavity_curve);
     }
     automasking->cavity_factor = Array<float>(verts_num, -1.0f);
   }

@@ -8,6 +8,7 @@
 
 #define DNA_DEPRECATED_ALLOW
 
+#include "BKE_colortools.hh"
 #include "DNA_ID.h"
 #include "DNA_brush_types.h"
 #include "DNA_curve_types.h"
@@ -199,6 +200,27 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 15)) {
     for (Scene &scene : bmain->scenes) {
       scene.r.scemode |= R_USE_TEXTURE_CACHE;
+    }
+  }
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 16)) {
+    for (Scene &scene : bmain->scenes) {
+      if (scene.toolsettings->sculpt) {
+        Sculpt &sculpt = *scene.toolsettings->sculpt;
+        MeshAutomaskingSettings *settings = MEM_new<MeshAutomaskingSettings>(__func__);
+        settings->flags = sculpt.automasking_flags;
+        settings->boundary_edges_propagation_steps =
+            sculpt.automasking_boundary_edges_propagation_steps;
+        settings->cavity_blur_steps = sculpt.automasking_cavity_blur_steps;
+        settings->cavity_factor = sculpt.automasking_cavity_factor;
+        settings->start_normal_limit = sculpt.automasking_start_normal_limit;
+        settings->start_normal_falloff = sculpt.automasking_start_normal_falloff;
+        settings->view_normal_limit = sculpt.automasking_view_normal_limit;
+        settings->view_normal_falloff = sculpt.automasking_view_normal_falloff;
+        settings->cavity_curve = BKE_curvemapping_copy(sculpt.automasking_cavity_curve);
+        settings->cavity_curve_op = BKE_curvemapping_copy(sculpt.automasking_cavity_curve_op);
+
+        scene.toolsettings->sculpt->paint.mesh_automasking_settings = settings;
+      }
     }
   }
   /**

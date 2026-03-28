@@ -1181,6 +1181,8 @@ enum ePaintCanvasSource {
 };
 
 struct MeshAutomaskingSettings {
+  DNA_DEFINE_CXX_METHODS(MeshAutomaskingSettings)
+
   int flags = 0;
 
   int boundary_edges_propagation_steps = 1;
@@ -1241,7 +1243,7 @@ struct Paint {
 
   float tile_offset[3] = {1.0f, 1.0f, 1.0f};
   struct UnifiedPaintSettings unified_paint_settings;
-  struct MeshAutomaskingSettings mesh_automasking_settings;
+  struct MeshAutomaskingSettings *mesh_automasking_settings = nullptr;
 
   bke::PaintRuntime *runtime = nullptr;
 };

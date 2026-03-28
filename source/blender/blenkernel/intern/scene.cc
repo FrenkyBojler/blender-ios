@@ -1404,7 +1404,8 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
         BKE_curvemapping_init(sce->toolsettings->sculpt->automasking_cavity_curve_op);
       }
 
-      BKE_sculpt_cavity_curves_ensure(sce->toolsettings->sculpt);
+      // TODO: This might need to be moved into mode enter
+      // BKE_sculpt_cavity_curves_ensure(sce->toolsettings->sculpt);
     }
 
     /* Relink grease pencil interpolation curves. */
