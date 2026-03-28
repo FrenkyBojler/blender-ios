@@ -117,6 +117,12 @@ static void register_blender_update(VersionUpdate update)
     return;
   }
   if (ignored_updates.latest < update.version) {
+    /* Ignore Latest releases prior to Latest LTS releases.  */
+    if ((updates.latest_lts && updates.latest_lts->version >= update.version) ||
+        ignored_updates.latest_lts >= update.version)
+    {
+      return;
+    }
     if (!updates.latest || updates.latest->version < update.version) {
       updates.latest = update;
     }

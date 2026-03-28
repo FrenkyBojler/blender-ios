@@ -43,24 +43,25 @@ static void version_update_draw_body(const bke::VersionUpdate &update, ui::Layou
 
   ui::Layout &left_row = buttons_row.row(false);
   left_row.alignment_set(ui::LayoutAlign::Left);
-  ui::Button *button = uiDefBut(layout.block(),
-                                ui::ButtonType::But,
-                                "Skip " + update.version_str,
-                                0,
-                                0,
-                                5.0f * UI_UNIT_X,
-                                UI_UNIT_Y,
-                                nullptr,
-                                0,
-                                0,
-                                "");
+  ui::Button *button = uiDefBut(
+      layout.block(),
+      ui::ButtonType::But,
+      fmt::format(fmt::runtime(IFACE_("Skip {}")), update.version_str).c_str(),
+      0,
+      0,
+      5.0f * UI_UNIT_X,
+      UI_UNIT_Y,
+      nullptr,
+      0,
+      0,
+      "");
   ui::button_func_set(button, [update_info = &update](blender::bContext & /*C*/) {
     bke::ignore_update(update_info);
   });
   ui::Layout &right_row = buttons_row.row(false);
   right_row.alignment_set(ui::LayoutAlign::Right);
   right_row.active_default_set(true);
-  PointerRNA op_ptr = right_row.op("WM_OT_url_open", "Download", ICON_IMPORT);
+  PointerRNA op_ptr = right_row.op("WM_OT_url_open", IFACE_("Download"), ICON_IMPORT);
   RNA_string_set(&op_ptr, "url", update.download_url.c_str());
 };
 
@@ -85,7 +86,7 @@ static void panel_blender_updates_draw(const bContext *C, Panel *panel)
                  ICON_NONE);
     ui::Layout &sub = header.row(false);
     sub.alignment_set(ui::LayoutAlign::Right);
-    sub.link(update.release_notes_url, "Whats new", ICON_NONE);
+    sub.link(update.release_notes_url, IFACE_("Whats new"), ICON_NONE);
     version_update_draw_body(update, layout.column(false));
     return;
   }
@@ -97,7 +98,7 @@ static void panel_blender_updates_draw(const bContext *C, Panel *panel)
   skip_all_row.alignment_set(ui::LayoutAlign::Right);
   ui::Button *button = uiDefBut(layout.block(),
                                 ui::ButtonType::But,
-                                "Skip All",
+                                IFACE_("Skip All"),
                                 0,
                                 0,
                                 5 * UI_UNIT_X,
@@ -110,18 +111,21 @@ static void panel_blender_updates_draw(const bContext *C, Panel *panel)
   ui::button_drawflag_disable(button, ui::BUT_TEXT_RIGHT);
   for (const bke::VersionUpdate *update : available_updates) {
     ui::PanelLayout panel_layout = layout.panel(C, "Update_" + update->version_str, false);
-    panel_layout.header->label(fmt::format("Blender {} ({}) - {}",
-                                           update->version_str,
-                                           update->version.version == BLENDER_VERSION ?
-                                               "current release" :
-                                           update->is_lts ? "latest LTS" :
-                                                            "latest",
-                                           update->date()),
-                               ICON_NONE);
+    std::string version_type = update->version.version == BLENDER_VERSION ? "current release" :
+                               update->is_lts                             ? "latest LTS" :
+                                                                            "latest";
+    panel_layout.header->label(
+        fmt::format(
+            "Blender {} ({}) - {}", update->version_str, IFACE_(version_type), update->date()),
+        ICON_NONE);
     ui::Layout *body = panel_layout.body;
     ui::Layout &sub = panel_layout.header->row(false);
     sub.alignment_set(ui::LayoutAlign::Right);
-    sub.link(update->release_notes_url, "Whats new", ICON_NONE);
+    sub.link(update->release_notes_url, IFACE_("Whats new"), ICON_NONE);
+    /* Avoid default layout panels spacing, to prevent last panel not matching popover bounds. */
+    if (update != available_updates.last()) {
+      layout.separator(0.5f);
+    }
     if (!body) {
       continue;
     }

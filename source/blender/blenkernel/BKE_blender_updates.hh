@@ -40,7 +40,6 @@ struct VersionUpdate {
   BlenderVersion version;
 
   std::string date() const;
-
 };
 
 bool check_for_available_updates(bContext &C,
