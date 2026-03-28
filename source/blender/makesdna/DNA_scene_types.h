@@ -1180,6 +1180,23 @@ enum ePaintCanvasSource {
   PAINT_CANVAS_SOURCE_COLOR_ATTRIBUTE = 2,
 };
 
+struct MeshPaintAutomaskingSettings {
+  int flags = 0;
+
+  int boundary_edges_propagation_steps = 1;
+  int cavity_blur_steps = 0;
+  float cavity_factor = 0;
+
+  float start_normal_limit = 0.34906585f; /* 20 / 180 * pi. */
+  float start_normal_falloff = 0.25f;
+  float view_normal_limit = 1.570796; /* 0.5 * pi. */
+  float view_normal_falloff = 0.25f;
+
+  struct CurveMapping *cavity_curve = nullptr;
+  /** For use by operators. */
+  struct CurveMapping *cavity_curve_op = nullptr;
+};
+
 /** Paint Tool Base. */
 struct Paint {
   DNA_DEFINE_CXX_METHODS(Paint)
@@ -1224,6 +1241,7 @@ struct Paint {
 
   float tile_offset[3] = {1.0f, 1.0f, 1.0f};
   struct UnifiedPaintSettings unified_paint_settings;
+  struct MeshPaintAutomaskingSettings automasking_settings;
 
   bke::PaintRuntime *runtime = nullptr;
 };
