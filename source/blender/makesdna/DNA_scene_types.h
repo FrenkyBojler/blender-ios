@@ -1180,7 +1180,7 @@ enum ePaintCanvasSource {
   PAINT_CANVAS_SOURCE_COLOR_ATTRIBUTE = 2,
 };
 
-struct MeshPaintAutomaskingSettings {
+struct MeshAutomaskingSettings {
   int flags = 0;
 
   int boundary_edges_propagation_steps = 1;
@@ -1241,7 +1241,7 @@ struct Paint {
 
   float tile_offset[3] = {1.0f, 1.0f, 1.0f};
   struct UnifiedPaintSettings unified_paint_settings;
-  struct MeshPaintAutomaskingSettings automasking_settings;
+  struct MeshAutomaskingSettings mesh_automasking_settings;
 
   bke::PaintRuntime *runtime = nullptr;
 };
