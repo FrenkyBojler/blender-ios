@@ -16,6 +16,7 @@
 #include "DNA_grease_pencil_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_light_types.h"
+#include "DNA_camera_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meta_types.h"
 #include "DNA_object_types.h"
@@ -955,17 +956,22 @@ static wmOperatorStatus apply_objects_internal(bContext *C,
       pointcloud.tag_positions_changed();
     }
     else if (ob->type == OB_CAMERA) {
-      MovieClip *clip = BKE_object_movieclip_get(scene, ob, false);
-
-      /* applying scale on camera actually scales clip's reconstruction.
-       * of there's clip assigned to camera nothing to do actually.
-       */
-      if (!clip) {
-        continue;
-      }
-
       if (apply_scale) {
-        BKE_tracking_reconstruction_scale(&clip->tracking, ob->scale);
+        /* applying scale on camera actually scales clip's reconstruction. */
+        MovieClip *clip = BKE_object_movieclip_get(scene, ob, false);
+        if (clip) {
+          BKE_tracking_reconstruction_scale(&clip->tracking, ob->scale);
+        }
+
+        /* Uses same assumptions about scale as empties. */
+        Camera *cam = id_cast<Camera *>(ob->data);
+        float max_scale = max_fff(fabsf(ob->scale[0]), fabsf(ob->scale[1]), fabsf(ob->scale[2]));
+        cam->drawsize *= max_scale;
+
+        /* Explicit tagging is required for Camera ID because, unlike Geometry IDs like Mesh,
+        * it is not covered by the `ID_RECALC_GEOMETRY` flag applied to the object at the end
+        * of this loop. */
+        DEG_id_tag_update(&cam->id, ID_RECALC_PARAMETERS);
       }
     }
     else if (ob->type == OB_EMPTY) {
