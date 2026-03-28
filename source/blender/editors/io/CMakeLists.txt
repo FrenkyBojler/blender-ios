@@ -12,6 +12,7 @@ set(INC
   ../../io/stl
   ../../io/usd
   ../../io/wavefront_obj
+  ../../io/otio
   ../../makesrna
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
@@ -62,6 +63,12 @@ if(WITH_IO_WAVEFRONT_OBJ)
     bf_io_wavefront_obj
   )
   add_definitions(-DWITH_IO_WAVEFRONT_OBJ)
+endif()
+if(WITH_OPENTIMELINEIO)
+  list(APPEND LIB
+    bf_io_otio
+  )
+  add_definitions(-DWITH_OPENTIMELINEIO)
 endif()
 
 if(WITH_IO_PLY)

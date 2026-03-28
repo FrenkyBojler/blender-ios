@@ -147,5 +147,12 @@ endif()
 blender_add_lib(bf_sequencer "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 add_library(bf::sequencer ALIAS bf_sequencer)
 
+if(WITH_OPENTIMELINEIO)
+  # The CMake config shipped by OTIO exports the target as OTIO::opentimelineio.
+  # It has INTERFACE_INCLUDE_DIRECTORIES and transitively links OTIO::opentime + Imath::Imath.
+  target_link_libraries(bf_sequencer PRIVATE OTIO::opentimelineio)
+  target_compile_definitions(bf_sequencer PRIVATE WITH_OPENTIMELINEIO)
+endif()
+
 # RNA_prototypes.hh
 add_dependencies(bf_sequencer bf_rna)

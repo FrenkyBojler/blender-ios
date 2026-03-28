@@ -606,6 +606,33 @@ endif()
 
 add_bundled_libraries(hiprt/lib)
 
+if(WITH_OPENTIMELINEIO)
+  # Use CONFIG mode explicitly so CMake loads OpenTimelineIOConfig.cmake,
+  # which creates the imported target OTIO::opentimelineio.
+  # Module mode (FindOpenTimelineIO.cmake) only sets variables — it does NOT
+  # create the imported target, so linking against OTIO::opentimelineio fails.
+  if(DEFINED LIBDIR AND EXISTS "${LIBDIR}/opentimelineio")
+    # Production: precompiled LIBDIR layout.
+    set(OpenTimelineIO_DIR ${LIBDIR}/opentimelineio/share/opentimelineio)
+    set(OpenTime_DIR ${LIBDIR}/opentimelineio/share/opentime)
+  elseif(NOT DEFINED OpenTimelineIO_DIR)
+    # Prototype: local install at /usr/local.
+    set(OpenTimelineIO_DIR /usr/local/share/opentimelineio)
+    set(OpenTime_DIR /usr/local/share/opentime)
+  endif()
+  find_package(OpenTimelineIO CONFIG)
+  mark_as_advanced(OpenTimelineIO_DIR OpenTime_DIR)
+  if(OpenTimelineIO_FOUND)
+    set(OPENTIMELINEIO_FOUND TRUE)
+  endif()
+  set_and_warn_library_found("OpenTimelineIO" OPENTIMELINEIO_FOUND WITH_OPENTIMELINEIO)
+  # Only bundle libs when OTIO is in the precompiled LIBDIR layout.
+  if(DEFINED LIBDIR AND EXISTS "${LIBDIR}/opentimelineio")
+    add_bundled_libraries(opentimelineio/lib)
+    add_bundled_libraries(opentime/lib)
+  endif()
+endif()
+
 # ----------------------------------------------------------------------------
 # Build and Link Flags
 
