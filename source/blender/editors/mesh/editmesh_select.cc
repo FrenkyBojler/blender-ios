@@ -1882,16 +1882,14 @@ static wmOperatorStatus edbm_boundary_loop_multiselect_exec(bContext *C, wmOpera
     if (extend) {
       for (BMEdge *e : source_edges) {
         if (BM_edge_is_boundary(e)) {
-          changed |= walker_select(
-              em, BMW_EDGELOOP, e, true, BMW_FLAG_TEST_HIDDEN, delimit);
+          changed |= walker_select(em, BMW_EDGELOOP, e, true, BMW_FLAG_TEST_HIDDEN, delimit);
         }
       }
     }
     else {
       for (BMEdge *e : source_edges) {
         if (BM_edge_is_boundary(e)) {
-          changed |= walker_select(
-              em, BMW_EDGELOOP, e, true, BMW_FLAG_TEST_HIDDEN, delimit);
+          changed |= walker_select(em, BMW_EDGELOOP, e, true, BMW_FLAG_TEST_HIDDEN, delimit);
         }
         else {
           BM_edge_select_set_noflush(em->bm, e, false);
@@ -1908,14 +1906,18 @@ static wmOperatorStatus edbm_boundary_loop_multiselect_exec(bContext *C, wmOpera
     }
   }
 
-  /* If there are any boundary edges selected,
-  * always return finished so the user can modify the delimiter property in the "redo" panel. */
   if (!has_selected_boundary_multi) {
-    BKE_report(op->reports, RPT_INFO, "Selection has not changed because no boundary edges were first selected");
+    BKE_report(op->reports,
+               RPT_ERROR,
+               "At least one boundary edge is needed to make a boundary loop selection");
     return OPERATOR_CANCELLED;
   }
+  /* If there are any boundary edges selected,
+   * always return finished so the user can modify the delimiter property in the "redo" panel. */
   if (!changed_multi) {
-    BKE_report(op->reports, RPT_INFO, "Selection has not changed because no boundary edges were first selected");
+    BKE_report(op->reports,
+               RPT_INFO,
+               "The selection has not changed. The full delimited loop was already selected");
   }
   return OPERATOR_FINISHED;
 }
@@ -1981,11 +1983,7 @@ void MESH_OT_select_boundary_loop_multi(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* Properties. */
-  RNA_def_boolean(ot->srna,
-                  "extend",
-                  true,
-                  "Extend",
-                  "Extend the selection");
+  RNA_def_boolean(ot->srna, "extend", true, "Extend", "Extend the selection");
   RNA_def_enum_flag(ot->srna,
                     "delimit_edge_loop",
                     rna_enum_mesh_walk_delimit_edge_loop_items,
