@@ -92,7 +92,7 @@ const EnumPropertyItem rna_enum_brush_curve_preset_items[] = {
 
 /* NOTE: we don't actually turn these into a single enum bit-mask property,
  * instead we construct individual boolean properties. */
-const EnumPropertyItem rna_enum_brush_automasking_flag_items[] = {
+const EnumPropertyItem rna_enum_shared_automasking_flag_items[] = {
     {BRUSH_AUTOMASKING_TOPOLOGY,
      "use_automasking_topology",
      0,
@@ -3572,7 +3572,7 @@ static void rna_def_brush(BlenderRNA *brna)
       "When locked keep using the plane origin of surface where stroke was initiated");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
-  const EnumPropertyItem *entry = rna_enum_brush_automasking_flag_items;
+  const EnumPropertyItem *entry = rna_enum_shared_automasking_flag_items;
   do {
     prop = RNA_def_property(srna, entry->identifier, PROP_BOOLEAN, PROP_NONE);
     RNA_def_property_boolean_sdna(prop, nullptr, "automasking_flags", entry->value);

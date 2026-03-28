@@ -962,6 +962,124 @@ static void rna_def_unified_paint_settings(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_UnifiedPaintSettings_update");
 }
 
+static void rna_def_mesh_paint_automasking_settings(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  srna = RNA_def_struct(brna, "MeshPaintAutomaskingSettings", nullptr);
+  RNA_def_struct_path_func(srna, "rna_MeshPaintAutomaskingSettings_path");
+  RNA_def_struct_ui_text(srna, "Automasking Settings", "Automasking settings for mesh painting & sculpting.");
+  RNA_def_struct_clear_flag(srna, STRUCT_UNDO);
+
+  const EnumPropertyItem *entry = rna_enum_shared_automasking_flag_items;
+  do {
+    prop = RNA_def_property(srna, entry->identifier, PROP_BOOLEAN, PROP_NONE);
+    RNA_def_property_boolean_sdna(prop, nullptr, "automasking_flags", entry->value);
+    RNA_def_property_ui_text(prop, entry->name, entry->description);
+
+    if (entry->value == BRUSH_AUTOMASKING_CAVITY_NORMAL) {
+      RNA_def_property_boolean_funcs(prop, nullptr, "rna_Sculpt_automasking_cavity_set");
+    }
+    else if (entry->value == BRUSH_AUTOMASKING_CAVITY_INVERTED) {
+      RNA_def_property_boolean_funcs(prop, nullptr, "rna_Sculpt_automasking_invert_cavity_set");
+    }
+
+    RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
+  } while ((++entry)->identifier);
+
+  prop = RNA_def_property(
+      srna, "automasking_boundary_edges_propagation_steps", PROP_INT, PROP_UNSIGNED);
+  RNA_def_property_int_sdna(prop, nullptr, "automasking_boundary_edges_propagation_steps");
+  RNA_def_property_range(prop, 1, AUTOMASKING_BOUNDARY_EDGES_MAX_PROPAGATION_STEPS);
+  RNA_def_property_ui_range(prop, 1, AUTOMASKING_BOUNDARY_EDGES_MAX_PROPAGATION_STEPS, 1, -1);
+  RNA_def_property_ui_text(prop,
+                           "Propagation Steps",
+                           "Distance where boundary edge automasking is going to protect vertices "
+                           "from the fully masked edge");
+  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
+
+  prop = RNA_def_property(srna, "automasking_cavity_factor", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_float_sdna(prop, nullptr, "automasking_cavity_factor");
+  RNA_def_property_ui_text(prop, "Cavity Factor", "The contrast of the cavity mask");
+  RNA_def_property_float_default(prop, 1.0f);
+  RNA_def_property_range(prop, 0.0f, 5.0f);
+  RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.1, 3);
+  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
+
+  prop = RNA_def_property(srna, "automasking_cavity_blur_steps", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "automasking_cavity_blur_steps");
+  RNA_def_property_ui_text(prop, "Blur Steps", "The number of times the cavity mask is blurred");
+  RNA_def_property_int_default(prop, 0);
+  RNA_def_property_range(prop, 0, 25);
+  RNA_def_property_ui_range(prop, 0, 10, 1, 1);
+  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
+
+  prop = RNA_def_property(srna, "automasking_cavity_curve", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, nullptr, "automasking_cavity_curve");
+  RNA_def_property_struct_type(prop, "CurveMapping");
+  RNA_def_property_ui_text(prop, "Cavity Curve", "Curve used for the sensitivity");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
+
+  prop = RNA_def_property(srna, "automasking_cavity_curve_op", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, nullptr, "automasking_cavity_curve_op");
+  RNA_def_property_struct_type(prop, "CurveMapping");
+  RNA_def_property_ui_text(prop, "Cavity Curve", "Curve used for the sensitivity");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
+
+  prop = RNA_def_property(srna, "use_automasking_start_normal", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "automasking_flags", BRUSH_AUTOMASKING_BRUSH_NORMAL);
+  RNA_def_property_ui_text(
+      prop,
+      "Area Normal",
+      "Affect only vertices with a similar normal to where the stroke starts");
+  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
+
+  prop = RNA_def_property(srna, "use_automasking_view_normal", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "automasking_flags", BRUSH_AUTOMASKING_VIEW_NORMAL);
+  RNA_def_property_ui_text(
+      prop, "View Normal", "Affect only vertices with a normal that faces the viewer");
+  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
+
+  prop = RNA_def_property(srna, "use_automasking_view_occlusion", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "automasking_flags", BRUSH_AUTOMASKING_VIEW_OCCLUSION);
+  RNA_def_property_ui_text(
+      prop,
+      "Occlusion",
+      "Only affect vertices that are not occluded by other faces (slower performance)");
+  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
+
+  prop = RNA_def_property(srna, "automasking_start_normal_limit", PROP_FLOAT, PROP_ANGLE);
+  RNA_def_property_float_sdna(prop, nullptr, "automasking_start_normal_limit");
+  RNA_def_property_range(prop, 0.0001f, M_PI);
+  RNA_def_property_ui_text(prop, "Area Normal Limit", "The range of angles that will be affected");
+  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
+
+  prop = RNA_def_property(srna, "automasking_start_normal_falloff", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_float_sdna(prop, nullptr, "automasking_start_normal_falloff");
+  RNA_def_property_range(prop, 0.0001f, 1.0f);
+  RNA_def_property_ui_text(
+      prop, "Area Normal Falloff", "Extend the angular range with a falloff gradient");
+  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
+
+  prop = RNA_def_property(srna, "automasking_view_normal_limit", PROP_FLOAT, PROP_ANGLE);
+  RNA_def_property_float_sdna(prop, nullptr, "automasking_view_normal_limit");
+  RNA_def_property_range(prop, 0.0001f, M_PI);
+  RNA_def_property_ui_text(prop, "View Normal Limit", "The range of angles that will be affected");
+  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
+
+  prop = RNA_def_property(srna, "automasking_view_normal_falloff", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_float_sdna(prop, nullptr, "automasking_view_normal_falloff");
+  RNA_def_property_range(prop, 0.0001f, 1.0f);
+  RNA_def_property_ui_text(
+      prop, "View Normal Falloff", "Extend the angular range with a falloff gradient");
+  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
+}
+
 static void rna_def_sculpt(BlenderRNA *brna)
 {
   static const EnumPropertyItem detail_refine_items[] = {
@@ -1078,113 +1196,6 @@ static void rna_def_sculpt(BlenderRNA *brna)
                            "Resolution",
                            "Maximum edge length for dynamic topology sculpting (as divisor "
                            "of Blender unit - higher value means smaller edge length)");
-  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
-
-  const EnumPropertyItem *entry = rna_enum_brush_automasking_flag_items;
-  do {
-    prop = RNA_def_property(srna, entry->identifier, PROP_BOOLEAN, PROP_NONE);
-    RNA_def_property_boolean_sdna(prop, nullptr, "automasking_flags", entry->value);
-    RNA_def_property_ui_text(prop, entry->name, entry->description);
-
-    if (entry->value == BRUSH_AUTOMASKING_CAVITY_NORMAL) {
-      RNA_def_property_boolean_funcs(prop, nullptr, "rna_Sculpt_automasking_cavity_set");
-    }
-    else if (entry->value == BRUSH_AUTOMASKING_CAVITY_INVERTED) {
-      RNA_def_property_boolean_funcs(prop, nullptr, "rna_Sculpt_automasking_invert_cavity_set");
-    }
-
-    RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
-  } while ((++entry)->identifier);
-
-  prop = RNA_def_property(
-      srna, "automasking_boundary_edges_propagation_steps", PROP_INT, PROP_UNSIGNED);
-  RNA_def_property_int_sdna(prop, nullptr, "automasking_boundary_edges_propagation_steps");
-  RNA_def_property_range(prop, 1, AUTOMASKING_BOUNDARY_EDGES_MAX_PROPAGATION_STEPS);
-  RNA_def_property_ui_range(prop, 1, AUTOMASKING_BOUNDARY_EDGES_MAX_PROPAGATION_STEPS, 1, -1);
-  RNA_def_property_ui_text(prop,
-                           "Propagation Steps",
-                           "Distance where boundary edge automasking is going to protect vertices "
-                           "from the fully masked edge");
-  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
-
-  prop = RNA_def_property(srna, "automasking_cavity_factor", PROP_FLOAT, PROP_FACTOR);
-  RNA_def_property_float_sdna(prop, nullptr, "automasking_cavity_factor");
-  RNA_def_property_ui_text(prop, "Cavity Factor", "The contrast of the cavity mask");
-  RNA_def_property_float_default(prop, 1.0f);
-  RNA_def_property_range(prop, 0.0f, 5.0f);
-  RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.1, 3);
-  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
-
-  prop = RNA_def_property(srna, "automasking_cavity_blur_steps", PROP_INT, PROP_NONE);
-  RNA_def_property_int_sdna(prop, nullptr, "automasking_cavity_blur_steps");
-  RNA_def_property_ui_text(prop, "Blur Steps", "The number of times the cavity mask is blurred");
-  RNA_def_property_int_default(prop, 0);
-  RNA_def_property_range(prop, 0, 25);
-  RNA_def_property_ui_range(prop, 0, 10, 1, 1);
-  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
-
-  prop = RNA_def_property(srna, "automasking_cavity_curve", PROP_POINTER, PROP_NONE);
-  RNA_def_property_pointer_sdna(prop, nullptr, "automasking_cavity_curve");
-  RNA_def_property_struct_type(prop, "CurveMapping");
-  RNA_def_property_ui_text(prop, "Cavity Curve", "Curve used for the sensitivity");
-  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
-
-  prop = RNA_def_property(srna, "automasking_cavity_curve_op", PROP_POINTER, PROP_NONE);
-  RNA_def_property_pointer_sdna(prop, nullptr, "automasking_cavity_curve_op");
-  RNA_def_property_struct_type(prop, "CurveMapping");
-  RNA_def_property_ui_text(prop, "Cavity Curve", "Curve used for the sensitivity");
-  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
-
-  prop = RNA_def_property(srna, "use_automasking_start_normal", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(
-      prop, nullptr, "automasking_flags", BRUSH_AUTOMASKING_BRUSH_NORMAL);
-  RNA_def_property_ui_text(
-      prop,
-      "Area Normal",
-      "Affect only vertices with a similar normal to where the stroke starts");
-  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
-
-  prop = RNA_def_property(srna, "use_automasking_view_normal", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "automasking_flags", BRUSH_AUTOMASKING_VIEW_NORMAL);
-  RNA_def_property_ui_text(
-      prop, "View Normal", "Affect only vertices with a normal that faces the viewer");
-  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
-
-  prop = RNA_def_property(srna, "use_automasking_view_occlusion", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(
-      prop, nullptr, "automasking_flags", BRUSH_AUTOMASKING_VIEW_OCCLUSION);
-  RNA_def_property_ui_text(
-      prop,
-      "Occlusion",
-      "Only affect vertices that are not occluded by other faces (slower performance)");
-  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
-
-  prop = RNA_def_property(srna, "automasking_start_normal_limit", PROP_FLOAT, PROP_ANGLE);
-  RNA_def_property_float_sdna(prop, nullptr, "automasking_start_normal_limit");
-  RNA_def_property_range(prop, 0.0001f, M_PI);
-  RNA_def_property_ui_text(prop, "Area Normal Limit", "The range of angles that will be affected");
-  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
-
-  prop = RNA_def_property(srna, "automasking_start_normal_falloff", PROP_FLOAT, PROP_FACTOR);
-  RNA_def_property_float_sdna(prop, nullptr, "automasking_start_normal_falloff");
-  RNA_def_property_range(prop, 0.0001f, 1.0f);
-  RNA_def_property_ui_text(
-      prop, "Area Normal Falloff", "Extend the angular range with a falloff gradient");
-  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
-
-  prop = RNA_def_property(srna, "automasking_view_normal_limit", PROP_FLOAT, PROP_ANGLE);
-  RNA_def_property_float_sdna(prop, nullptr, "automasking_view_normal_limit");
-  RNA_def_property_range(prop, 0.0001f, M_PI);
-  RNA_def_property_ui_text(prop, "View Normal Limit", "The range of angles that will be affected");
-  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
-
-  prop = RNA_def_property(srna, "automasking_view_normal_falloff", PROP_FLOAT, PROP_FACTOR);
-  RNA_def_property_float_sdna(prop, nullptr, "automasking_view_normal_falloff");
-  RNA_def_property_range(prop, 0.0001f, 1.0f);
-  RNA_def_property_ui_text(
-      prop, "View Normal Falloff", "Extend the angular range with a falloff gradient");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
 
   prop = RNA_def_property(srna, "symmetrize_direction", PROP_ENUM, PROP_NONE);
