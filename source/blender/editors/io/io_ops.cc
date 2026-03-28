@@ -25,6 +25,12 @@
 #include "io_ply_ops.hh"
 #include "io_stl_ops.hh"
 
+#ifdef WITH_OPENTIMELINEIO
+#  include "IO_otio.hh"
+#endif
+
+
+
 namespace blender {
 
 void ED_operatortypes_io()
@@ -82,6 +88,12 @@ void ED_operatortypes_io()
 
   WM_operatortype_append(WM_OT_drop_import_file);
   ED_dropbox_drop_import_file();
+  
+#ifdef WITH_OPENTIMELINEIO
+  WM_operatortype_append(blender::io::otio::OTIO_OT_export);
+#endif
 }
+
+
 
 }  // namespace blender

@@ -1122,6 +1122,9 @@ class SEQUENCER_MT_strip(Menu):
 
         strip = context.active_strip
 
+        layout.operator("sequencer.otio_export", text="Export OTIO", icon='EXPORT')
+        layout.separator()
+
         if has_preview:
             layout.menu("SEQUENCER_MT_strip_mirror")
             layout.separator()
