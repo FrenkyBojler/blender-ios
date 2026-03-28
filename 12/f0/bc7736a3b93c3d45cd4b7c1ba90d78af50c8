@@ -5,3 +5,4 @@ Referenced by issue #85736, Incorrect volume rendering when enabling NanoVDB.
 Referenced by issue #156294, Missing denoise panel for Temporal Animation operator
 Referenced by issue #156318, Smoke simulation volume offset from emitter object when viewed in Cycles
 Referenced by pull request #156360, Fix #156318: Cycles smoke volume wrong with offset domains
+Referenced by commit ecd82131dcd243f4d99870f71a9aa99ce35b25ce, Fix #156318: Cycles smoke volume wrong with offset domains
