@@ -1,14 +1,19 @@
-
-#include "BLI_fileops.h"
-#include "BLI_path_utils.hh"
-#include "BLI_serialize.hh"
-#include "BLI_string_ref.hh"
+/* SPDX-FileCopyrightText: 2026 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_appdir.hh"
 #include "BKE_blender_updates.hh"
 #include "BKE_blender_version.h"
 #include "BKE_global.hh"
 #include "BKE_idprop.hh"
+
+#include "BLI_fileops.h"
+#include "BLI_path_utils.hh"
+#include "BLI_serialize.hh"
+#include "BLI_string_ref.hh"
+
+#include "CLG_log.h"
 
 #include "DNA_userdef_types.h"
 
@@ -20,6 +25,8 @@
 #endif
 
 namespace blender::bke {
+
+static CLG_LogRef LOG = {"blender.updates_notifications"};
 
 struct BlenderUpdates {
   std::optional<VersionUpdate> latest;
@@ -45,15 +52,15 @@ std::string VersionUpdate::date() const
   return date;
 }
 
-static IgnoredBlenderVersions &ignored_versions_updates()
+static IgnoredBlenderVersions &ignored_blender_updates()
 {
   /* Ignore any update prior the current version. */
-  static IgnoredBlenderVersions ignored_blender_versions{
+  static IgnoredBlenderVersions ignored_blender_updates{
       {BLENDER_VERSION, BLENDER_VERSION_PATCH},
       {BLENDER_VERSION, BLENDER_VERSION_PATCH},
       {BLENDER_VERSION, BLENDER_VERSION_PATCH},
   };
-  return ignored_blender_versions;
+  return ignored_blender_updates;
 }
 
 static BlenderUpdates &available_blender_updates()
@@ -68,7 +75,9 @@ static std::chrono::utc_clock::time_point &last_time_version_update_check()
   return last_time_version_update_check;
 }
 
-static std::optional<std::chrono::sys_seconds> parse_timestamp_sys_seconds(StringRefNull timestamp)
+/** Parses `%Y-%m-%dT%H:%M:%SZ`formatted string timestamps as #std::chrono::sys_seconds. */
+static std::optional<std::chrono::sys_seconds> parse_timestamp_to_sys_seconds(
+    StringRefNull timestamp)
 {
   std::istringstream is(timestamp);
   std::chrono::sys_seconds time;
@@ -78,6 +87,7 @@ static std::optional<std::chrono::sys_seconds> parse_timestamp_sys_seconds(Strin
   return time;
 }
 
+/** Parses blender version str into blender version and patch revision.  */
 static std::optional<BlenderVersion> blender_version_from_version_str(std::string str)
 {
   std::stringstream ss(str);
@@ -108,33 +118,40 @@ static std::optional<BlenderVersion> blender_version_from_version_str(std::strin
   return BlenderVersion{major * 100 + minor, patch};
 }
 
-static void register_blender_update(VersionUpdate update)
+/**
+ * Registers a new blender update notification.
+ */
+static void register_blender_update(VersionUpdate &&update)
 {
   BLI_assert(blender_version_from_version_str(update.version_str) &&
              update.version == blender_version_from_version_str(update.version_str));
 
-  IgnoredBlenderVersions &ignored_updates = ignored_versions_updates();
+  IgnoredBlenderVersions &ignored_updates = ignored_blender_updates();
   BlenderUpdates &updates = available_blender_updates();
 
+  /* If the update version matches current version add as current release notification. */
   if (update.version.version == BLENDER_VERSION) {
     if (ignored_updates.current_release.patch < update.version.patch &&
         (!updates.current_release || updates.current_release->version < update.version))
     {
-      updates.current_release = update;
+      updates.current_release = std::move(update);
     }
     return;
   }
+  /* If the update version is an LTS version add as #BlenderUpdates::latest_lst notification. */
   if (update.is_lts) {
     if (ignored_updates.latest_lts < update.version) {
       if (!updates.latest_lts || updates.latest_lts->version < update.version) {
-        updates.latest_lts = update;
+        updates.latest_lts = std::move(update);
       }
+      /* Discard #BlenderUpdates::latest when the latest LTS release is newer. */
       if (updates.latest && updates.latest->version < update.version) {
         updates.latest = std::nullopt;
       }
     }
     return;
   }
+  /* Add the version as #BlenderUpdates::latest release. */
   if (ignored_updates.latest < update.version) {
     /* Ignore Latest releases prior to Latest LTS releases.  */
     if ((updates.latest_lts && updates.latest_lts->version >= update.version) ||
@@ -143,10 +160,16 @@ static void register_blender_update(VersionUpdate update)
       return;
     }
     if (!updates.latest || updates.latest->version < update.version) {
-      updates.latest = update;
+      updates.latest = std::move(update);
     }
   }
 }
+
+#define TEST_JSON_ENTRY(value, name) \
+  if (!value) { \
+    CLOG_WARN(&LOG, "missing or corrupt version update entry: `" #name "`"); \
+    return std::nullopt; \
+  }
 
 std::optional<VersionUpdate> read_version_update(io::serialize::Value *entry)
 {
@@ -166,22 +189,35 @@ std::optional<VersionUpdate> read_version_update(io::serialize::Value *entry)
   std::optional<StringRefNull> release_notes_url = dict.lookup_str("release_notes_url");
   std::optional<StringRefNull> timestamp = dict.lookup_str("timestamp");
   std::optional<StringRefNull> version_str = dict.lookup_str("version");
-  if (!(build_size && checksum_hash && commit_hash && description && download_url &&
-        download_url && cycle && platform && release_notes_url && timestamp && version_str))
-  {
-    return std::nullopt;
-  }
+
+  TEST_JSON_ENTRY(build_size, build_size);
+  TEST_JSON_ENTRY(checksum_hash, checksum_hash);
+  TEST_JSON_ENTRY(commit_hash, commit_hash);
+  TEST_JSON_ENTRY(description, description);
+  TEST_JSON_ENTRY(download_url, download_url);
+  TEST_JSON_ENTRY(cycle, cycle);
+  TEST_JSON_ENTRY(platform, platform);
+  TEST_JSON_ENTRY(release_notes_url, release_notes_url);
+  TEST_JSON_ENTRY(timestamp, timestamp);
+  TEST_JSON_ENTRY(version_str, version);
+
   if (!is_lts || is_lts->get()->type() != eValueType::Boolean) {
+    CLOG_WARN(&LOG, "missing or corrupt version update entry: `is_lts`");
     return std::nullopt;
   }
+
   std::optional<BlenderVersion> version = blender_version_from_version_str(*version_str);
   if (!version) {
+    CLOG_WARN(&LOG, "wrong blender version format");
     return std::nullopt;
   }
-  std::optional<std::chrono::sys_seconds> time = parse_timestamp_sys_seconds(*timestamp);
+
+  std::optional<std::chrono::sys_seconds> time = parse_timestamp_to_sys_seconds(*timestamp);
   if (!time) {
+    CLOG_WARN(&LOG, "corrupt version update entry: `time`");
     return std::nullopt;
   }
+
   return VersionUpdate{
       .build_size = *build_size,
       .checksum_hash = *checksum_hash,
@@ -252,15 +288,17 @@ with tempfile.TemporaryDirectory() as temp_dir:
     if (!update) {
       continue;
     }
-    register_blender_update(*update);
+    register_blender_update(std::move(*update));
   }
 
   return false;
 }
 
+#undef TEST_JSON_ENTRY
+
 #define BLENDER_AVAILABLE_UPDATES_FILE "available_updates.json"
 
-void read_blender_updates_cache_file()
+static void read_blender_updates_cache_file()
 {
   std::optional<std::string> datafiles_path = BKE_appdir_folder_id(BLENDER_USER_CONFIG, "");
   if (!datafiles_path) {
@@ -274,6 +312,7 @@ void read_blender_updates_cache_file()
   if (!json_text || size == 0) {
     return;
   }
+
   std::istringstream available_updates_stream(json_text.get());
 
   using namespace io::serialize;
@@ -281,15 +320,14 @@ void read_blender_updates_cache_file()
   JsonFormatter json;
   std::unique_ptr<Value> file_json = json.deserialize(available_updates_stream);
 
-  if (!file_json) {
-    return;
-  }
-  if (file_json->type() != eValueType::Dictionary) {
+  if (!file_json || file_json->type() != eValueType::Dictionary) {
+    CLOG_WARN(&LOG, "corrupt `available_updates.json` file.");
     return;
   }
   const DictionaryValue *file_dict = file_json->as_dictionary_value();
   const DictionaryValue *ignored_versions_dict = file_dict->lookup_dict("ignored_versions");
   if (!ignored_versions_dict) {
+    CLOG_WARN(&LOG, "missing `ignored_versions` entry.");
     return;
   }
   std::optional<StringRefNull> latest_lts_ignored_str = ignored_versions_dict->lookup_str(
@@ -297,7 +335,17 @@ void read_blender_updates_cache_file()
   std::optional<StringRefNull> latest_ignored_str = ignored_versions_dict->lookup_str("latest");
   std::optional<StringRefNull> current_release_ignored_str = ignored_versions_dict->lookup_str(
       "current_release");
-  if (!latest_lts_ignored_str || !latest_ignored_str || !current_release_ignored_str) {
+
+  if (!latest_lts_ignored_str) {
+    CLOG_WARN(&LOG, "missing `ignored_versions::latest_lts` entry.");
+    return;
+  }
+  if (!latest_ignored_str) {
+    CLOG_WARN(&LOG, "missing `ignored_versions::latest` entry.");
+    return;
+  }
+  if (!current_release_ignored_str) {
+    CLOG_WARN(&LOG, "missing `ignored_versions::current_release` entry.");
     return;
   }
   std::optional<BlenderVersion> latest_lts_ignored = blender_version_from_version_str(
@@ -307,10 +355,19 @@ void read_blender_updates_cache_file()
   std::optional<BlenderVersion> current_release_ignored = blender_version_from_version_str(
       *current_release_ignored_str);
 
-  if (!latest_lts_ignored || !latest_ignored || !current_release_ignored) {
+  if (!latest_lts_ignored) {
+    CLOG_WARN(&LOG, "`ignored_versions::latest_lts` have a wrong blender version format.");
     return;
   }
-  IgnoredBlenderVersions &ignored_updates = ignored_versions_updates();
+  if (!latest_ignored) {
+    CLOG_WARN(&LOG, "`ignored_versions::latest` have a wrong blender version format.");
+    return;
+  }
+  if (!current_release_ignored) {
+    CLOG_WARN(&LOG, "`ignored_versions::current_release` have a wrong blender version format.");
+    return;
+  }
+  IgnoredBlenderVersions &ignored_updates = ignored_blender_updates();
   if (ignored_updates.latest_lts < *latest_lts_ignored) {
     ignored_updates.latest_lts = *latest_lts_ignored;
   }
@@ -322,6 +379,7 @@ void read_blender_updates_cache_file()
   }
   const ArrayValue *updates = file_dict->lookup_array("blender_updates");
   if (!updates) {
+    CLOG_WARN(&LOG, "corrupt or missing `blender_updates` entry.");
     return;
   }
   for (const std::shared_ptr<Value> &entry : updates->as_array_value()->elements()) {
@@ -329,21 +387,23 @@ void read_blender_updates_cache_file()
     if (!update) {
       continue;
     }
-    register_blender_update(*update);
+    register_blender_update(std::move(*update));
   }
   std::optional<StringRefNull> last_time_check_str = file_dict->lookup_str("last_time_check");
   if (!last_time_check_str) {
+    CLOG_WARN(&LOG, "missing `last_time_check` entry.");
     return;
   }
-  std::optional<std::chrono::sys_seconds> last_time_check = parse_timestamp_sys_seconds(
+  std::optional<std::chrono::sys_seconds> last_time_check = parse_timestamp_to_sys_seconds(
       *last_time_check_str);
   if (!last_time_check) {
+    CLOG_WARN(&LOG, "corrupt entry :`last_time_check`.");
     return;
   }
   last_time_version_update_check() = std::chrono::utc_clock::from_sys(*last_time_check);
 }
 
-void write_blender_updates_cache_file()
+static void write_blender_updates_cache_file()
 {
   std::optional<std::string> datafiles_path = BKE_appdir_folder_id(BLENDER_USER_CONFIG, "");
   if (!datafiles_path) {
@@ -356,7 +416,7 @@ void write_blender_updates_cache_file()
   auto version_to_str = [](const BlenderVersion &version) {
     return fmt::format("{}.{}.{}", version.version / 100, version.version % 100, version.patch);
   };
-  const IgnoredBlenderVersions &ignored_versions = ignored_versions_updates();
+  const IgnoredBlenderVersions &ignored_versions = ignored_blender_updates();
   std::shared_ptr<DictionaryValue> ignored_versions_dict = dict->append_dict("ignored_versions");
   ignored_versions_dict->append_str("current_release",
                                     version_to_str(ignored_versions.current_release));
@@ -385,12 +445,14 @@ void write_blender_updates_cache_file()
   dict->append_str("last_time_check", std::format("{:%FT%TZ}", time_seconds));
   io::serialize::write_json_file(available_updates_file, *dict);
 }
+
 bool check_for_available_updates(bContext &C, bool use_cache, bool ignore_skipped_versions)
 {
   [[maybe_unused]] static int i = []() -> int {
     read_blender_updates_cache_file();
     return 0;
   }();
+
   if (!(G.f & G_FLAG_INTERNET_ALLOW &&
         (U.flag & (USER_BLENDER_UPDATE_LATEST_RELEASE | USER_BLENDER_UPDATE_LATEST_LTS_RELEASE |
                    USER_BLENDER_UPDATE_CURRENT_RELEASE))))
@@ -398,16 +460,17 @@ bool check_for_available_updates(bContext &C, bool use_cache, bool ignore_skippe
     return false;
   }
   if (ignore_skipped_versions) {
-    ignored_versions_updates() = {
+    ignored_blender_updates() = {
         {BLENDER_VERSION, BLENDER_VERSION_PATCH},
         {BLENDER_VERSION, BLENDER_VERSION_PATCH},
         {BLENDER_VERSION, BLENDER_VERSION_PATCH},
     };
   }
-  if (!use_cache || std::chrono::duration_cast<std::chrono::days>(
-                        (std::chrono::utc_clock::now() - last_time_version_update_check()))
-                            .count() > 1)
-  {
+  const int64_t days_since_last_check = std::chrono::duration_cast<std::chrono::days>(
+                                            (std::chrono::utc_clock::now() -
+                                             last_time_version_update_check()))
+                                            .count();
+  if (!use_cache || days_since_last_check >= 1) {
     download_updates_log(C);
     last_time_version_update_check() = std::chrono::utc_clock::now();
     write_blender_updates_cache_file();
@@ -436,9 +499,9 @@ Vector<const VersionUpdate *> available_updates()
   return tmp;
 }
 
-void ignore_update_impl(const VersionUpdate *update)
+static void ignore_update_impl(const VersionUpdate *update)
 {
-  IgnoredBlenderVersions &ignored_updates = ignored_versions_updates();
+  IgnoredBlenderVersions &ignored_updates = ignored_blender_updates();
 
   BlenderUpdates &updates = available_blender_updates();
 
@@ -477,13 +540,13 @@ void ignore_all_updates()
 {
   BlenderUpdates &updates = available_blender_updates();
   if (updates.latest) {
-    ignore_update(&*updates.latest);
+    ignore_update_impl(&*updates.latest);
   }
   if (updates.latest_lts) {
-    ignore_update(&*updates.latest_lts);
+    ignore_update_impl(&*updates.latest_lts);
   }
   if (updates.current_release) {
-    ignore_update(&*updates.current_release);
+    ignore_update_impl(&*updates.current_release);
   }
   write_blender_updates_cache_file();
 }
