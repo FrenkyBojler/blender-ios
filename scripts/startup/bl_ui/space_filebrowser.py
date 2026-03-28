@@ -42,10 +42,17 @@ class FILEBROWSER_HT_header(Header):
         sub.ui_units_x = 8
         sub.prop(params, "filter_search", text="", icon='VIEWZOOM')
 
+        params = space_data.params
+        filter_id = params.filter_asset_id
+        has_filters = any(
+            getattr(filter_id, identifier)
+            for identifier in dir(filter_id)
+            if identifier.startswith("filter_")
+        )
         layout.popover(
             panel="ASSETBROWSER_PT_filter",
             text="",
-            icon='FILTER',
+            icon='FILTER_FILLED' if has_filters else 'FILTER',
         )
 
         layout.operator(

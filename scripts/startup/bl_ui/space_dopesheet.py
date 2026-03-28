@@ -266,10 +266,18 @@ class DOPESHEET_HT_editor_buttons:
             row.prop(st.dopesheet, "show_only_selected", text="")
             row.prop(st.dopesheet, "show_hidden", text="")
 
+        dopesheet = st.dopesheet
+        has_filters = (
+            dopesheet.show_only_selected or
+            dopesheet.show_hidden or
+            dopesheet.show_only_errors or
+            dopesheet.filter_fcurve_name != "" or
+            dopesheet.filter_text != ""
+        )
         layout.popover(
             panel="DOPESHEET_PT_filters",
             text="",
-            icon='FILTER',
+            icon='FILTER_FILLED' if has_filters else 'FILTER',
         )
 
         tool_settings = context.tool_settings

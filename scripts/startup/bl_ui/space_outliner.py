@@ -59,10 +59,15 @@ class OUTLINER_HT_header(Header):
 
         row = layout.row(align=True)
         if display_mode in {'SCENES', 'VIEW_LAYER', 'LIBRARY_OVERRIDES'}:
+            has_filters = (
+                space.use_filter_complete or
+                space.use_filter_case_sensitive or
+                space.filter_text != ""
+            )
             row.popover(
                 panel="OUTLINER_PT_filter",
                 text="",
-                icon='FILTER',
+                icon='FILTER_FILLED' if has_filters else 'FILTER',
             )
 
         if display_mode in {'LIBRARIES', 'ORPHAN_DATA'}:

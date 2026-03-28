@@ -26,10 +26,17 @@ class NLA_HT_header(Header):
 
         dopesheet_filter(layout, context)
 
+        dopesheet = context.space_data.dopesheet
+        has_filters = (
+            dopesheet.show_only_selected or
+            dopesheet.show_hidden or
+            dopesheet.show_missing_nla or
+            dopesheet.filter_text != ""
+        )
         layout.popover(
             panel="NLA_PT_filters",
             text="",
-            icon='FILTER',
+            icon='FILTER_FILLED' if has_filters else 'FILTER',
         )
 
         row = layout.row(align=True)
