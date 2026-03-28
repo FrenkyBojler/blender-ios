@@ -3834,10 +3834,66 @@ static void calculate_edge_mesh_uvs(const int bevedge,
                                     Vector<Array<float2>> &uv_attributes,
                                     const BevelState &bs)
 {
-  // TODO: Implement me.
-  fmt::println("calculate_edge_mesh_face_uvs not implemented, bevedge={}, uv_map_index={}",
-               bevedge,
-               uv_map_index);
+  if (!bs.bevedge_is_beveled(bevedge)) {
+    return;
+  }
+  const int segments = bs.params.segments;
+  const int2 bvs = bs.bevedge_bevverts(bevedge);
+  int bv = bvs[0];
+  if (bv == -1) {
+    bv = bvs[1];
+  }
+  if (bv == -1) {
+    return;
+  }
+  const int pos = bs.bevedge_pos(bevedge, bv);
+  int f_prev = bs.face_prev(bv, pos);
+  int f_next = bs.face_next(bv, pos);
+  if (f_prev == -1) {
+    f_prev = f_next;
+  }
+  if (f_next == -1) {
+    f_next = f_prev;
+  }
+  if (f_prev == -1) {
+    return;
+  }
+
+  bool gap = false;
+  if (f_prev != f_next) {
+    std::pair<bool, bool> contig = uv_contiguousness(bv, pos, uv_map_index, bs);
+    gap = !contig.first || !contig.second;
+  }
+
+  const IndexRange edge_newfaces = bs.bevedge_newfaces()[bevedge];
+  for (const int i : IndexRange(segments)) {
+    const int newface = edge_newfaces[i];
+    SmallIntArray freps(4, f_prev);
+
+    if (segments == 1) {
+      if (!gap) {
+        freps[2] = f_next;
+        freps[3] = f_next;
+      }
+    }
+    else if (segments % 2 == 0) {
+      if (i >= segments / 2) {
+        freps.fill(f_next);
+      }
+    }
+    else {
+      const int mid = (segments - 1) / 2;
+      if (i > mid) {
+        freps.fill(f_next);
+      }
+      else if (i == mid && !gap) {
+        freps[2] = f_next;
+        freps[3] = f_next;
+      }
+    }
+
+    create_ngon_uvs(newface, freps.as_span(), true, uv_map_index, uv_attributes, bs);
+  }
 }
 
 static void calculate_face_mesh_uvs(const int bevface,
