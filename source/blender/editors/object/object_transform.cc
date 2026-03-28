@@ -781,6 +781,19 @@ static wmOperatorStatus apply_objects_internal(bContext *C,
         }
       }
     }
+
+    if (ob->type == OB_CAMERA) {
+      Camera *cam = id_cast<Camera *>(ob->data);
+      MovieClip *clip = BKE_object_movieclip_get(scene, ob, false);
+      if (cam->type == CAM_ORTHO && !clip) {
+        BKE_reportf(
+            reports,
+            RPT_ERROR,
+            "Orthographic cameras cannot have scale applied unless they have tracking data: \"%s\"",
+            ob->id.name + 2);
+        changed = false;
+      }
+    }
   }
   CTX_DATA_END;
 
@@ -967,9 +980,9 @@ static wmOperatorStatus apply_objects_internal(bContext *C,
         Camera *cam = id_cast<Camera *>(ob->data);
         float max_scale = max_fff(fabsf(ob->scale[0]), fabsf(ob->scale[1]), fabsf(ob->scale[2]));
         if (cam->type == CAM_ORTHO) {
-          /* Allows the operator to return FINISHED. Although no other properties are changed, the
-           * scale is. */
-          changed = true;
+          /* Orthographic cameras do not visually change with scale, so applying causes a mismatch
+           */
+          continue;
         }
         else {
           cam->drawsize *= max_scale;
