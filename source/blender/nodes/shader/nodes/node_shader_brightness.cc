@@ -13,7 +13,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Color>("Color"_ustr)
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
       .description("Color input on which correction will be applied");
-  b.add_input<decl::Float>("Brightness"_ustr, "Bright")
+  b.add_input<decl::Float>("Brightness"_ustr, "Bright"_ustr)
       .default_value(0.0f)
       .min(-100.0f)
       .max(100.0f)
