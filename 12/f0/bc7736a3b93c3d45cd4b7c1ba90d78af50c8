@@ -4,4 +4,4 @@ Referenced by issue #149299, Geometry Nodes: White dots inside SDF due to math n
 Referenced by issue #85736, Incorrect volume rendering when enabling NanoVDB.
 Referenced by issue #156294, Missing denoise panel for Temporal Animation operator
 Referenced by issue #156318, Smoke simulation volume offset from emitter object when viewed in Cycles
-Referenced by pull request #156360, Fix #156318: Cycles smoke volume offset with non-square domains
+Referenced by pull request #156360, Fix #156318: Cycles smoke volume offset with offset domains
