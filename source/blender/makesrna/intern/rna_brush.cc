@@ -1380,9 +1380,21 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
 
   /* modes */
   static const EnumPropertyItem gppaint_mode_types_items[] = {
-      {GPPAINT_MODE_STROKE, "STROKE", 0, "Stroke", "Vertex Color affects to Stroke only"},
-      {GPPAINT_MODE_FILL, "FILL", 0, "Fill", "Vertex Color affects to Fill only"},
-      {GPPAINT_MODE_BOTH, "BOTH", 0, "Stroke & Fill", "Vertex Color affects to Stroke and Fill"},
+      {GPPAINT_MODE_STROKE,
+       "STROKE",
+       ICON_GP_DRAW_STROKE,
+       "Stroke",
+       "Painting affects only strokes, not fills"},
+      {GPPAINT_MODE_FILL,
+       "FILL",
+       ICON_GP_DRAW_FILL,
+       "Fill",
+       "Painting affects only fills, not strokes"},
+      {GPPAINT_MODE_BOTH,
+       "BOTH",
+       ICON_GP_DRAW_BOTH,
+       "Both",
+       "Painting affects both strokes and fills"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -3821,7 +3833,7 @@ static void rna_def_brush(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "flag2", BRUSH_PROJECT_USE_BIDIRECTIONAL);
   RNA_def_property_ui_text(prop,
                            "Bidirectional",
-                           "Project vertices both along along the projection direction and its "
+                           "Project vertices both along the projection direction and its "
                            "inverse, choosing the closest intersection.");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
