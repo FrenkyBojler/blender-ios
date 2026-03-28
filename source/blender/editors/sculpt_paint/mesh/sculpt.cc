@@ -2498,15 +2498,14 @@ bool node_in_cylinder(const DistRayAABB_Precalc &ray_dist_precalc,
 }
 
 /** Calculates whether node intersects the [-1,1] x [-1,1] x [-1,1] volume in local space.*/
-bool node_in_box(const bke::pbvh::Node &node, const float4x4 &mat, const bool original)
+bool node_in_box(const float4x4 &mat,
+                 const Bounds<float3> &bounds,
+                 const float3 brush_center,
+                 const float3 brush_half_lengths)
 {
-  const Bounds<float3> &bounds = original ? node.bounds_orig() : node.bounds();
-
-  const float3 brush_center = float3(0.0f, 0.0f, 0.0f);
   const float3 node_center = math::transform_point(mat, (bounds.max + bounds.min) * 0.5f);
   const float3 center_diff = brush_center - node_center;
 
-  const float3 brush_half_lengths = float3(1.0f, 1.0f, 1.0f);
   const float3 node_half_lengths = (bounds.max - bounds.min) * 0.5f;
 
   const float3 &node_x_axis = mat.x_axis();
@@ -2558,6 +2557,18 @@ bool node_in_box(const bke::pbvh::Node &node, const float4x4 &mat, const bool or
 
   /* None of the axes separates the boxes: they intersect. */
   return true;
+}
+
+/**
+ * Checks whether the node's bounding box overlaps with the region affected by the brush.
+ * Clay Strips affects only vertices below the brush plane. The brush-local coordinate
+ * system is oriented so that vertices below the plane have positive local z-coordinates.
+ * Therefore, we only need to check if the node intersects the [-1,1] x [-1,1] x [0,1] volume in
+ * local space.
+ */
+bool node_in_box_positive_z(const Bounds<float3> &bounds, const float4x4 &mat)
+{
+  return node_in_box(mat, bounds, float3(0.0f, 0.0f, 0.5f), float3(1.0f, 1.0f, 0.5f));
 }
 
 static IndexMask pbvh_gather_cursor_update(Object &ob, bool use_original, IndexMaskMemory &memory)
@@ -2626,7 +2637,8 @@ static IndexMask pbvh_gather_generic_cube(Object &ob,
           if (ignore_ineffective && node_fully_masked_or_hidden(node)) {
             return false;
           }
-          return node_in_box(node, mat, use_original);
+          const Bounds<float3> &bounds = use_original ? node.bounds_orig() : node.bounds();
+          return node_in_box(mat, bounds);
         });
     return cube_mask;
   }
