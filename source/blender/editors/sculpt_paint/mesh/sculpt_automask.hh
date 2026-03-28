@@ -37,7 +37,7 @@ namespace ed::sculpt_paint::auto_mask {
 struct Settings {
   /* eAutomasking_flag. */
   int flags;
-  int initial_face_set;
+  std::array<int, PAINT_SYMM_AREAS> initial_face_set = { 0, 0, 0, 0, 0, 0, 0, 0 };
   std::array<int, PAINT_SYMM_AREAS> initial_island_nr = {-1, -1, -1, -1, -1, -1, -1, -1};
 
   float cavity_factor;
