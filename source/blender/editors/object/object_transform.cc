@@ -965,11 +965,15 @@ static wmOperatorStatus apply_objects_internal(bContext *C,
 
         /* Uses same assumptions about scale as empties. */
         Camera *cam = id_cast<Camera *>(ob->data);
-        if (cam->type == CAM_ORTHO) {
-          continue;
-        }
         float max_scale = max_fff(fabsf(ob->scale[0]), fabsf(ob->scale[1]), fabsf(ob->scale[2]));
-        cam->drawsize *= max_scale;
+        if (cam->type == CAM_ORTHO) {
+          /* Allows the operator to return FINISHED. Although no other properties are changed, the
+           * scale is. */
+          changed = true;
+        }
+        else {
+          cam->drawsize *= max_scale;
+        }
 
         /* Explicit tagging is required for Camera ID because, unlike Geometry IDs like Mesh,
          * it is not covered by the `ID_RECALC_GEOMETRY` flag applied to the object at the end
