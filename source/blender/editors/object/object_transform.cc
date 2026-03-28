@@ -973,12 +973,11 @@ static wmOperatorStatus apply_objects_internal(bContext *C,
         }
         else {
           cam->drawsize *= max_scale;
+          /* Explicit tagging is required for Camera ID because, unlike Geometry IDs like Mesh,
+           * it is not covered by the `ID_RECALC_GEOMETRY` flag applied to the object at the end
+           * of this loop. */
+          DEG_id_tag_update(&cam->id, ID_RECALC_PARAMETERS);
         }
-
-        /* Explicit tagging is required for Camera ID because, unlike Geometry IDs like Mesh,
-         * it is not covered by the `ID_RECALC_GEOMETRY` flag applied to the object at the end
-         * of this loop. */
-        DEG_id_tag_update(&cam->id, ID_RECALC_PARAMETERS);
       }
     }
     else if (ob->type == OB_EMPTY) {
