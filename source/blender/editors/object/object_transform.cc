@@ -965,6 +965,9 @@ static wmOperatorStatus apply_objects_internal(bContext *C,
 
         /* Uses same assumptions about scale as empties. */
         Camera *cam = id_cast<Camera *>(ob->data);
+        if (cam->type == CAM_ORTHO) {
+          continue;
+        }
         float max_scale = max_fff(fabsf(ob->scale[0]), fabsf(ob->scale[1]), fabsf(ob->scale[2]));
         cam->drawsize *= max_scale;
 
