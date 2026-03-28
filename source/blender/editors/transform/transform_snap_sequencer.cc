@@ -59,14 +59,20 @@ static constexpr int all_channels = 0;
 
 static float snap_distance_view_threshold_get(const TransInfo *t)
 {
-  const int snap_distance = seq::tool_settings_snap_distance_get(t->scene);
   const View2D *v2d = &t->region->v2d;
-  return ui::view2d_region_to_view_x(v2d, snap_distance) - ui::view2d_region_to_view_x(v2d, 0);
+
+  const int snap_distance = seq::tool_settings_snap_distance_preview_get(t->scene);
+  const float view_per_pixel = BLI_rctf_size_x(&v2d->cur) / float(BLI_rcti_size_x(&v2d->mask) + 1);
+  return snap_distance * view_per_pixel;
 }
 
 static int snap_distance_frame_threshold_get(const TransInfo *t)
 {
-  return round_fl_to_int(snap_distance_view_threshold_get(t));
+  const View2D *v2d = &t->region->v2d;
+
+  const int snap_distance = seq::tool_settings_snap_distance_get(t->scene);
+  const float view_per_pixel = BLI_rctf_size_x(&v2d->cur) / float(BLI_rcti_size_x(&v2d->mask) + 1);
+  return round_fl_to_int(snap_distance * view_per_pixel);
 }
 
 /** \} */
