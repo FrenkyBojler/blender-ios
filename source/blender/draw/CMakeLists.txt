@@ -611,6 +611,7 @@ set(GLSL_SRC
   engines/workbench/shaders/workbench_overlay_depth_frag.glsl
   engines/workbench/shaders/workbench_prepass.bsl.hh
   engines/workbench/shaders/workbench_shadow.bsl.hh
+  engines/workbench/shaders/workbench_shadow_visibility.bsl.hh
   engines/workbench/shaders/workbench_transparent_accum_frag.glsl
   engines/workbench/shaders/workbench_transparent_resolve_frag.glsl
   engines/workbench/shaders/workbench_volume.bsl.hh
