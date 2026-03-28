@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include "draw_intersect_lib.glsl"
 #include "draw_view_infos.hh"
 #include "gpu_index_load_infos.hh"
 
@@ -52,12 +53,6 @@ struct GeomOut {
   float4 gpu_position;
 };
 
-/* WORKAROUND Split constants because of BSL limitations. */
-struct Constants {
-  [[compilation_constant]] const bool double_manifold;
-  [[compilation_constant]] const bool shadow_pass; /* shadow_fail if false. */
-};
-
 struct Resources {
   [[legacy_info]] ShaderCreateInfo gpu_index_buffer_load;
   [[legacy_info]] ShaderCreateInfo draw_view;
@@ -68,6 +63,9 @@ struct Resources {
 
   [[storage(3, read), frequency(GEOMETRY)]] const float (&pos)[];
   [[uniform(1)]] const ShadowPassData &pass_data;
+
+  [[compilation_constant]] const bool double_manifold;
+  [[compilation_constant]] const bool shadow_pass; /* shadow_fail if false. */
 
   VertIn input_assembly(uint in_vertex_id) const
   {
@@ -184,7 +182,6 @@ struct GeometryShaderEmulator {
   }
 
   void geometry_main([[resource_table]] const Resources &srt,
-                     [[resource_table]] const Constants &constants,
                      VertOut geom_in[4],
                      uint out_vertex_id,
                      uint out_primitive_id,
@@ -219,7 +216,7 @@ struct GeometryShaderEmulator {
     bool is_manifold = any(notEqual(geom_in[0].lP, geom_in[3].lP));
 
 #ifdef DEGENERATE_TRIS_WORKAROUND
-    if (constants.double_manifold == false) [[static_branch]] {
+    if (srt.double_manifold == false) [[static_branch]] {
       /* If the mesh is known to be manifold and we don't use double count,
        * only create an quad if the we encounter a facing geom. */
       if ((degen_faces.x && backface.y) || (degen_faces.y && backface.x)) {
@@ -238,7 +235,7 @@ struct GeometryShaderEmulator {
       return;
     }
 
-    if (constants.double_manifold) [[static_branch]] {
+    if (srt.double_manifold) [[static_branch]] {
       if (out_invocation_id != 0u && !is_manifold) {
         /* Only Increment/Decrement twice for manifold edges. */
         return;
@@ -249,7 +246,6 @@ struct GeometryShaderEmulator {
   }
 
   void geometry_main_caps([[resource_table]] const Resources &srt,
-                          [[resource_table]] const Constants &constants,
                           VertOut geom_in[3],
                           uint out_vertex_id,
                           uint out_invocation_id)
@@ -268,7 +264,7 @@ struct GeometryShaderEmulator {
 
     bool invert = false;
     bool is_manifold = true;
-    if (constants.double_manifold) [[static_branch]] {
+    if (srt.double_manifold) [[static_branch]] {
       /* In case of non manifold geom, we only increase/decrease
        * the stencil buffer by one but do every faces as they were facing the light. */
       invert = backface;
@@ -284,7 +280,6 @@ struct GeometryShaderEmulator {
 
 [[vertex]]
 void vert_main([[resource_table]] const Resources &srt,
-               [[resource_table]] const Constants &constants,
                [[vertex_id]] const int vert_id,
                [[position]] float4 &out_position)
 {
@@ -295,7 +290,7 @@ void vert_main([[resource_table]] const Resources &srt,
   constexpr uint output_primitive_count = 2u;
 
   uint output_invocation_count = 1u;
-  if (constants.double_manifold) [[static_branch]] {
+  if (srt.double_manifold) [[static_branch]] {
     output_invocation_count = 2u;
   }
 
@@ -327,13 +322,12 @@ void vert_main([[resource_table]] const Resources &srt,
   GeometryShaderEmulator gs;
   /* Discard by default. */
   gs.out_pos = float4(NAN_FLT);
-  gs.geometry_main(srt, constants, vert_out, out_vertex_id, out_primitive_id, out_invocation_id);
+  gs.geometry_main(srt, vert_out, out_vertex_id, out_primitive_id, out_invocation_id);
   out_position = gs.out_pos;
 }
 
 [[vertex]]
 void vert_main_caps([[resource_table]] const Resources &srt,
-                    [[resource_table]] const Constants &constants,
                     [[vertex_id]] const int vert_id,
                     [[position]] float4 &out_position)
 {
@@ -369,7 +363,7 @@ void vert_main_caps([[resource_table]] const Resources &srt,
   GeometryShaderEmulator gs;
   /* Discard by default. */
   gs.out_pos = float4(NAN_FLT);
-  gs.geometry_main_caps(srt, constants, vert_out, out_vertex_id, out_invocation_id);
+  gs.geometry_main_caps(srt, vert_out, out_vertex_id, out_invocation_id);
   out_position = gs.out_pos;
 }
 
@@ -386,13 +380,12 @@ struct FragOut {
 
 [[fragment]]
 void frag_debug([[resource_table]] const Resources &srt,
-                [[resource_table]] const Constants &constants,
                 [[front_facing]] const bool front_facing,
                 [[out]] FragOut &frag_out)
 {
   constexpr float a = 0.1f;
 
-  if (constants.shadow_pass) [[static_branch]] {
+  if (srt.shadow_pass) [[static_branch]] {
     frag_out.color.rgb = front_facing ? float3(a, -a, 0.0f) : float3(-a, a, 0.0f);
   }
   else {
@@ -401,19 +394,148 @@ void frag_debug([[resource_table]] const Resources &srt,
   frag_out.color.a = a;
 }
 
+#ifndef GLSL_CPP_STUBS
 /* clang-format off */
-PipelineGraphic pass_manifold_no_caps(         vert_main,      frag_main, Constants{.shadow_pass = true, .double_manifold = false});
-PipelineGraphic pass_no_manifold_no_caps(      vert_main,      frag_main, Constants{.shadow_pass = true, .double_manifold = true});
-PipelineGraphic fail_manifold_caps(            vert_main_caps, frag_main, Constants{.shadow_pass = false, .double_manifold = false});
-PipelineGraphic fail_manifold_no_caps(         vert_main,      frag_main, Constants{.shadow_pass = false, .double_manifold = false});
-PipelineGraphic fail_no_manifold_caps(         vert_main_caps, frag_main, Constants{.shadow_pass = false, .double_manifold = true});
-PipelineGraphic fail_no_manifold_no_caps(      vert_main,      frag_main, Constants{.shadow_pass = false, .double_manifold = true});
-PipelineGraphic pass_manifold_no_caps_debug(   vert_main,      frag_debug, Constants{.shadow_pass = true, .double_manifold = false});
-PipelineGraphic pass_no_manifold_no_caps_debug(vert_main,      frag_debug, Constants{.shadow_pass = true, .double_manifold = true});
-PipelineGraphic fail_manifold_caps_debug(      vert_main_caps, frag_debug, Constants{.shadow_pass = false, .double_manifold = false});
-PipelineGraphic fail_manifold_no_caps_debug(   vert_main,      frag_debug, Constants{.shadow_pass = false, .double_manifold = false});
-PipelineGraphic fail_no_manifold_caps_debug(   vert_main_caps, frag_debug, Constants{.shadow_pass = false, .double_manifold = true});
-PipelineGraphic fail_no_manifold_no_caps_debug(vert_main,      frag_debug, Constants{.shadow_pass = false, .double_manifold = true});
+PipelineGraphic pass_manifold_no_caps(         vert_main,      frag_main, Resources{.shadow_pass = true, .double_manifold = false});
+PipelineGraphic pass_no_manifold_no_caps(      vert_main,      frag_main, Resources{.shadow_pass = true, .double_manifold = true});
+PipelineGraphic fail_manifold_caps(            vert_main_caps, frag_main, Resources{.shadow_pass = false, .double_manifold = false});
+PipelineGraphic fail_manifold_no_caps(         vert_main,      frag_main, Resources{.shadow_pass = false, .double_manifold = false});
+PipelineGraphic fail_no_manifold_caps(         vert_main_caps, frag_main, Resources{.shadow_pass = false, .double_manifold = true});
+PipelineGraphic fail_no_manifold_no_caps(      vert_main,      frag_main, Resources{.shadow_pass = false, .double_manifold = true});
+PipelineGraphic pass_manifold_no_caps_debug(   vert_main,      frag_debug, Resources{.shadow_pass = true, .double_manifold = false});
+PipelineGraphic pass_no_manifold_no_caps_debug(vert_main,      frag_debug, Resources{.shadow_pass = true, .double_manifold = true});
+PipelineGraphic fail_manifold_caps_debug(      vert_main_caps, frag_debug, Resources{.shadow_pass = false, .double_manifold = false});
+PipelineGraphic fail_manifold_no_caps_debug(   vert_main,      frag_debug, Resources{.shadow_pass = false, .double_manifold = false});
+PipelineGraphic fail_no_manifold_caps_debug(   vert_main_caps, frag_debug, Resources{.shadow_pass = false, .double_manifold = true});
+PipelineGraphic fail_no_manifold_no_caps_debug(vert_main,      frag_debug, Resources{.shadow_pass = false, .double_manifold = true});
 /* clang-format on */
+#endif
+
+namespace visibility {
+
+struct Resources {
+  [[compilation_constant]] const bool dynamic_pass_selection;
+
+  [[legacy_info]] ShaderCreateInfo draw_view;
+  [[legacy_info]] ShaderCreateInfo draw_view_culling;
+  [[storage(0, read)]] const ObjectBounds (&bounds_buf)[];
+
+  [[push_constant]] const int resource_len;
+  [[push_constant]] const int view_len;
+
+  [[push_constant]] const bool force_fail_method;
+  [[push_constant]] const float3 shadow_direction;
+
+  [[uniform(2)]] const ExtrudedFrustum &extruded_frustum;
+
+  [[storage(1, read_write), condition(!dynamic_pass_selection)]] uint (&visibility_buf)[];
+
+  [[storage(1, read_write), condition(dynamic_pass_selection)]] uint (&pass_visibility_buf)[];
+  [[storage(2, read_write), condition(dynamic_pass_selection)]] uint (&fail_visibility_buf)[];
+
+  bool is_visible(IsectBox box)
+  {
+    for (int i_plane = 0; i_plane < extruded_frustum.planes_count; i_plane++) {
+      float4 plane = extruded_frustum.planes[i_plane];
+      bool separating_axis = true;
+      for (int i_corner = 0; i_corner < 8; i_corner++) {
+        float signed_distance = dot(box.corners[i_corner], plane.xyz) - plane.w;
+        if (signed_distance <= 0) {
+          separating_axis = false;
+          break;
+        }
+      }
+      if (separating_axis) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  bool intersects_near_plane(IsectBox box)
+  {
+    float4 near_plane = drw_view_culling().frustum_planes.planes[4];
+    bool on_positive_side = false;
+    bool on_negative_side = false;
+
+    for (int i_corner = 0; i_corner < 8; i_corner++) {
+      for (int i_displace = 0; i_displace < 2; i_displace++) {
+        float3 corner = box.corners[i_corner] + (shadow_direction * 1e5f * i_displace);
+        float signed_distance = dot(corner, -near_plane.xyz) - near_plane.w;
+        if (signed_distance <= 0) {
+          on_negative_side = true;
+        }
+        else {
+          on_positive_side = true;
+        }
+        if (on_negative_side && on_positive_side) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  void set_visibility(bool pass, bool fail, uint instance_id)
+  {
+    if (dynamic_pass_selection) [[static_branch]] {
+      if (!pass) {
+        atomicAnd(pass_visibility_buf[instance_id / 32u], ~(1u << (instance_id & 31u)));
+      }
+      if (!fail) {
+        atomicAnd(fail_visibility_buf[instance_id / 32u], ~(1u << (instance_id & 31u)));
+      }
+    }
+  }
+
+  void set_visibility(bool visibility, uint instance_id)
+  {
+    if (dynamic_pass_selection == false) [[static_branch]] {
+      if (!visibility) {
+        atomicAnd(visibility_buf[instance_id / 32u], ~(1u << (instance_id & 31u)));
+      }
+    }
+  }
+};
+
+[[compute, local_size(DRW_VISIBILITY_GROUP_SIZE)]]
+void culling_main([[resource_table]] Resources &srt,
+                  [[global_invocation_id]] const uint3 global_id)
+{
+  if (int(global_id.x) >= srt.resource_len) {
+    return;
+  }
+
+  ObjectBounds bounds = srt.bounds_buf[global_id.x];
+  if (!drw_bounds_are_valid(bounds)) {
+    /* Invalid bounding box. */
+    return;
+  }
+  IsectBox box = isect_box_setup(bounds.bounding_corners[0].xyz,
+                                 bounds.bounding_corners[1].xyz,
+                                 bounds.bounding_corners[2].xyz,
+                                 bounds.bounding_corners[3].xyz);
+
+  if (srt.dynamic_pass_selection) [[static_branch]] {
+    if (srt.is_visible(box)) {
+      bool use_fail_pass = srt.force_fail_method || srt.intersects_near_plane(box);
+      srt.set_visibility(!use_fail_pass, use_fail_pass, global_id.x);
+    }
+    else {
+      srt.set_visibility(false, false, global_id.x);
+    }
+  }
+  else {
+    srt.set_visibility(srt.is_visible(box), global_id.x);
+  }
+}
+
+#ifndef GLSL_CPP_STUBS
+PipelineCompute compute_dynamic_pass_type(culling_main, Resources{.dynamic_pass_selection = true});
+PipelineCompute compute_static_pass_type(culling_main, Resources{.dynamic_pass_selection = false});
+#endif
+
+}  // namespace visibility
 
 }  // namespace workbench::shadow
