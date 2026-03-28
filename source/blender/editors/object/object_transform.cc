@@ -12,11 +12,11 @@
 
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
+#include "DNA_camera_types.h"
 #include "DNA_collection_types.h"
 #include "DNA_grease_pencil_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_light_types.h"
-#include "DNA_camera_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meta_types.h"
 #include "DNA_object_types.h"
@@ -972,8 +972,8 @@ static wmOperatorStatus apply_objects_internal(bContext *C,
         cam->drawsize *= max_scale;
 
         /* Explicit tagging is required for Camera ID because, unlike Geometry IDs like Mesh,
-        * it is not covered by the `ID_RECALC_GEOMETRY` flag applied to the object at the end
-        * of this loop. */
+         * it is not covered by the `ID_RECALC_GEOMETRY` flag applied to the object at the end
+         * of this loop. */
         DEG_id_tag_update(&cam->id, ID_RECALC_PARAMETERS);
       }
     }
