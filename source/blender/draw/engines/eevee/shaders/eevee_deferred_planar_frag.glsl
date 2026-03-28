@@ -131,7 +131,7 @@ void main()
   float3 radiance_refract = stack.cl[1].light_shadowed;
 
   /* Indirect light. */
-  SphericalHarmonicL1 sh = lightprobe_volume_sample(P, V, Ng);
+  SphericalHarmonicL1<float4> sh = lightprobe_volume_sample(P, V, Ng);
   LightProbeSample samp = lightprobe_load(gl_FragCoord.xy, P, Ng, V);
 
   radiance_front += sh.evaluate_lambert(Ng).rgb;

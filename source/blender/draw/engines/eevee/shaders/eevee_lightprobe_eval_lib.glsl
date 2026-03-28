@@ -18,7 +18,7 @@
 #ifdef SPHERE_PROBE
 
 struct LightProbeSample {
-  SphericalHarmonicL1 volume_irradiance;
+  SphericalHarmonicL1<float4> volume_irradiance;
   int spherical_id;
 };
 

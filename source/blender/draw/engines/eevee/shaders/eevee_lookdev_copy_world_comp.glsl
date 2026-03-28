@@ -35,7 +35,7 @@ void main()
   float3x3 rotation_mat = to_float3x3(lookdev_rotation);
   if (all(equal(gl_GlobalInvocationID.xy, uint2(0)))) {
     {
-      SphericalHarmonicL1 sh;
+      SphericalHarmonicL1<float4> sh;
       sh.L0.M0 = in_sh.L0_M0;
       sh.L1.M0 = in_sh.L1_M0;
       sh.L1.Mn1 = in_sh.L1_Mn1;

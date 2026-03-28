@@ -29,7 +29,7 @@ void main()
   IrradianceBrick brick = irradiance_brick_unpack(bricks_infos_buf[brick_index]);
   int2 output_coord = int2(brick.atlas_coord);
 
-  SphericalHarmonicL1 sh;
+  SphericalHarmonicL1<float4> sh;
   sh.L0.M0 = harmonic_buf.L0_M0;
   sh.L1.Mn1 = harmonic_buf.L1_Mn1;
   sh.L1.M0 = harmonic_buf.L1_M0;

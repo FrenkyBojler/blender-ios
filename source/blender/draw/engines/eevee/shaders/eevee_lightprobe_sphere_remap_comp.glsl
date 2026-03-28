@@ -202,7 +202,7 @@ void main()
           sphere_probe_texel_to_direction(float2(max_group_texel), write_coord, sample_coord));
       float3 L = normalize(min_direction + max_direction);
       /* Convert radiance to spherical harmonics. */
-      SphericalHarmonicL1 sh = {};
+      SphericalHarmonicL1<float4> sh = {};
       sh.encode_signal_sample(L, local_radiance[0]);
       /* Outputs one SH for each thread-group. */
       out_sh[work_group_index].L0_M0 = sh.L0.M0;

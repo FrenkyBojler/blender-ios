@@ -35,7 +35,7 @@ float4 lightprobe_spheres_sample(float3 L, float lod, SphereProbeUvArea uv_area)
 }
 #endif
 
-ReflectionProbeLowFreqLight lightprobe_spheres_extract_low_freq(SphericalHarmonicL1 sh)
+ReflectionProbeLowFreqLight lightprobe_spheres_extract_low_freq(SphericalHarmonicL1<float4> sh)
 {
   /* To avoid color shift and negative values, we reduce saturation and directionality. */
   ReflectionProbeLowFreqLight result;

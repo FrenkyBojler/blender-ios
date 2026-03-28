@@ -31,11 +31,11 @@ void atlas_store(float4 sh_coefficient, int2 atlas_coord, int layer)
              sh_coefficient);
 }
 
-SphericalHarmonicL1 irradiance_load(int3 input_coord)
+SphericalHarmonicL1<float4> irradiance_load(int3 input_coord)
 {
   input_coord = clamp(input_coord, int3(0), textureSize(irradiance_a_tx, 0) - 1);
 
-  SphericalHarmonicL1 sh;
+  SphericalHarmonicL1<float4> sh;
   sh.L0.M0 = texelFetch(irradiance_a_tx, input_coord, 0);
   sh.L1.Mn1 = texelFetch(irradiance_b_tx, input_coord, 0);
   sh.L1.M0 = texelFetch(irradiance_c_tx, input_coord, 0);
@@ -70,7 +70,7 @@ void main()
   IrradianceBrick brick = irradiance_brick_unpack(bricks_infos_buf[brick_index]);
   int2 output_coord = int2(brick.atlas_coord);
 
-  SphericalHarmonicL1 sh_local;
+  SphericalHarmonicL1<float4> sh_local;
 
   float validity = texelFetch(validity_tx, input_coord, 0).r;
   if (validity > dilation_threshold) {
@@ -116,7 +116,7 @@ void main()
       to_float3x3(grids_infos_buf[grid_index].world_to_grid_transposed));
   sh_local = spherical_harmonics::rotate(grid_to_world_rot, sh_local);
 
-  SphericalHarmonicL1 sh_visibility;
+  SphericalHarmonicL1<float4> sh_visibility;
   sh_visibility.L0.M0 = sh_local.L0.M0.aaaa;
   sh_visibility.L1.Mn1 = sh_local.L1.Mn1.aaaa;
   sh_visibility.L1.M0 = sh_local.L1.M0.aaaa;
@@ -124,7 +124,7 @@ void main()
 
   float3 P = lightprobe_volume_grid_sample_position(grid_local_to_world, grid_size, input_coord);
 
-  SphericalHarmonicL1 sh_distant = lightprobe_volume_sample(P);
+  SphericalHarmonicL1<float4> sh_distant = lightprobe_volume_sample(P);
 
   if (is_padding_voxel) {
     /* Padding voxels just contain the distant lighting. */

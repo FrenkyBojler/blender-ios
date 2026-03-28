@@ -25,7 +25,7 @@ void main()
     return;
   }
 
-  SphericalHarmonicL1 sh;
+  SphericalHarmonicL1<float4> sh;
   if (idx == lightprobe_sphere_count - 1) {
     sh = lightprobe_volume_world();
   }

@@ -59,7 +59,7 @@ template<typename T> float3 sample_normal(sampler2D screen_normal_tx, float2 uv)
 {
   return float3(0.0f);
 }
-template<typename T> T select_result(float occlusion, SphericalHarmonicL1 sh)
+template<typename T> T select_result(float occlusion, SphericalHarmonicL1<float4> sh)
 {
   return T(0.0f);
 }
@@ -67,22 +67,24 @@ template<typename T> T select_result(float occlusion, SphericalHarmonicL1 sh)
 /* AO only implementation. */
 template float3 sample_radiance<float>(sampler2D screen_radiance_tx, float2 uv);
 template float3 sample_normal<float>(sampler2D screen_normal_tx, float2 uv);
-template<> float select_result<float>(float occlusion, SphericalHarmonicL1 sh)
+template<> float select_result<float>(float occlusion, SphericalHarmonicL1<float4> sh)
 {
   return occlusion;
 }
 
 /* GI implementation. */
-template<> float3 sample_radiance<SphericalHarmonicL1>(sampler2D screen_radiance_tx, float2 uv)
+template<>
+float3 sample_radiance<SphericalHarmonicL1<float4>>(sampler2D screen_radiance_tx, float2 uv)
 {
   return texture(screen_radiance_tx, uv).rgb;
 }
-template<> float3 sample_normal<SphericalHarmonicL1>(sampler2D screen_normal_tx, float2 uv)
+template<> float3 sample_normal<SphericalHarmonicL1<float4>>(sampler2D screen_normal_tx, float2 uv)
 {
   return texture(screen_normal_tx, uv).rgb * 2.0f - 1.0f;
 }
 template<>
-SphericalHarmonicL1 select_result<SphericalHarmonicL1>(float occlusion, SphericalHarmonicL1 sh)
+SphericalHarmonicL1<float4> select_result<SphericalHarmonicL1<float4>>(
+    float occlusion, SphericalHarmonicL1<float4> sh)
 {
   return sh;
 }
@@ -125,7 +127,7 @@ ResultT eval(sampler2D hiz_tx,
 
   float weight_accum = 0.0f;
   float occlusion_accum = 0.0f;
-  SphericalHarmonicL1 sh_accum = {};
+  SphericalHarmonicL1<float4> sh_accum = {};
 
 #if defined(GPU_METAL)
 /* NOTE: Full loop unroll hint increases performance on Apple Silicon. */
@@ -153,7 +155,7 @@ ResultT eval(sampler2D hiz_tx,
 
     vN_angle += (noise.z - 0.5f) * (M_PI / 32.0f) * angle_bias;
 
-    SphericalHarmonicL1 sh_slice = {};
+    SphericalHarmonicL1<float4> sh_slice = {};
 
     /* For both sides of the view vector. */
     for (int side = 0; side < 2; side++) {
@@ -270,21 +272,22 @@ template float eval<float>(sampler2D hiz_tx,
                            int,
                            bool,
                            bool);
-template SphericalHarmonicL1 eval<SphericalHarmonicL1>(sampler2D hiz_tx,
-                                                       sampler2D screen_radiance_tx,
-                                                       sampler2D screen_normal_tx,
-                                                       float3,
-                                                       float3,
-                                                       float4,
-                                                       float2,
-                                                       float,
-                                                       float,
-                                                       float,
-                                                       float,
-                                                       int,
-                                                       int,
-                                                       bool,
-                                                       bool);
+template SphericalHarmonicL1<float4> eval<SphericalHarmonicL1<float4>>(
+    sampler2D hiz_tx,
+    sampler2D screen_radiance_tx,
+    sampler2D screen_normal_tx,
+    float3,
+    float3,
+    float4,
+    float2,
+    float,
+    float,
+    float,
+    float,
+    int,
+    int,
+    bool,
+    bool);
 
 /** \} */
 
@@ -373,9 +376,9 @@ struct SampleInput {
     return max(epsilon_weight, depth_weight * normal_weight);
   }
 
-  SphericalHarmonicL1 load_sh(int2 texel) const
+  SphericalHarmonicL1<float4> load_sh(int2 texel) const
   {
-    SphericalHarmonicL1 sh;
+    SphericalHarmonicL1<float4> sh;
     sh.L0.M0 = texelFetch(horizon_radiance_0_tx, texel, 0);
     sh.L1.Mn1 = texelFetch(horizon_radiance_1_tx, texel, 0);
     sh.L1.M0 = texelFetch(horizon_radiance_2_tx, texel, 0);
@@ -384,7 +387,7 @@ struct SampleInput {
     return sh;
   }
 
-  SphericalHarmonicL1 load_sh(int2 texel, bool valid) const
+  SphericalHarmonicL1<float4> load_sh(int2 texel, bool valid) const
   {
     if (!valid) {
       /* We need to avoid sampling if there no weight as the texture values could be undefined
@@ -401,7 +404,7 @@ struct SampleOutput {
   [[image(4, write, UNORM_8_8_8_8)]] image2D sh_2_img;
   [[image(5, write, UNORM_8_8_8_8)]] image2D sh_3_img;
 
-  void write(int2 texel, SphericalHarmonicL1 result)
+  void write(int2 texel, SphericalHarmonicL1<float4> result)
   {
     result = spherical_harmonics::compress(result);
     imageStore(sh_0_img, texel, result.L0.M0);
@@ -542,12 +545,12 @@ void scan([[work_group_id]] const uint3 group_id,
   float2 uv = (float2(texel_fullres) + 0.5f) * uniform_buf.raytrace.full_resolution_inv;
   float depth = texelFetch(hiz_tx, texel_fullres, 0).r;
   float3 vP = drw_point_screen_to_view(float3(uv, depth));
-  float3 vN = eevee::horizon::sample_normal<SphericalHarmonicL1>(srt.screen_normal_tx, uv);
+  float3 vN = eevee::horizon::sample_normal<SphericalHarmonicL1<float4>>(srt.screen_normal_tx, uv);
 
   float4 noise = utility_tx_fetch(utility_tx, float2(texel), UTIL_BLUE_NOISE_LAYER);
   noise = fract(noise + sampling_rng_3D_get(SAMPLING_AO_U).xyzx);
 
-  SphericalHarmonicL1 result = eevee::horizon::eval<SphericalHarmonicL1>(
+  SphericalHarmonicL1<float4> result = eevee::horizon::eval<SphericalHarmonicL1<float4>>(
       hiz_tx,
       srt.screen_radiance_tx,
       srt.screen_normal_tx,
@@ -612,7 +615,7 @@ void denoise([[work_group_id]] const uint3 group_id,
     return;
   }
 
-  SphericalHarmonicL1 accum_sh = {};
+  SphericalHarmonicL1<float4> accum_sh = {};
   float accum_weight = 0.0f;
   /* 3x3 filter. */
   for (int y = -1; y <= 1; y++) {
@@ -625,7 +628,7 @@ void denoise([[work_group_id]] const uint3 group_id,
       /* We need to avoid sampling if there no weight as the texture values could be undefined
        * (is_valid is false). */
       if (sample_weight > 0.0f) {
-        SphericalHarmonicL1 sample_sh = sh_in.load_sh(sample_texel);
+        SphericalHarmonicL1<float4> sample_sh = sh_in.load_sh(sample_texel);
         accum_sh = spherical_harmonics::madd(sample_sh, sample_weight, accum_sh);
         accum_weight += sample_weight;
       }
@@ -684,7 +687,7 @@ void resolve([[work_group_id]] const uint3 group_id,
   float3 center_P = drw_point_screen_to_world(float3(center_uv, center_depth));
   float3 center_N = gbuf.surface_N();
 
-  SphericalHarmonicL1 accum_sh;
+  SphericalHarmonicL1<float4> accum_sh;
   if (uniform_buf.raytrace.horizon_resolution_scale == 1) {
     accum_sh = sh_in.load_sh(texel, true);
   }
@@ -703,10 +706,10 @@ void resolve([[work_group_id]] const uint3 group_id,
 
     float4 weights = bilateral_weights * bilinear_weight;
 
-    SphericalHarmonicL1 sh_00 = sh_in.load_sh(texel + int2(0, 0), weights.x > 0.0f);
-    SphericalHarmonicL1 sh_10 = sh_in.load_sh(texel + int2(1, 0), weights.y > 0.0f);
-    SphericalHarmonicL1 sh_01 = sh_in.load_sh(texel + int2(0, 1), weights.z > 0.0f);
-    SphericalHarmonicL1 sh_11 = sh_in.load_sh(texel + int2(1, 1), weights.w > 0.0f);
+    SphericalHarmonicL1<float4> sh_00 = sh_in.load_sh(texel + int2(0, 0), weights.x > 0.0f);
+    SphericalHarmonicL1<float4> sh_10 = sh_in.load_sh(texel + int2(1, 0), weights.y > 0.0f);
+    SphericalHarmonicL1<float4> sh_01 = sh_in.load_sh(texel + int2(0, 1), weights.z > 0.0f);
+    SphericalHarmonicL1<float4> sh_11 = sh_in.load_sh(texel + int2(1, 1), weights.w > 0.0f);
 
     /* Avoid another division at the end. Normalize the weights upfront. */
     weights *= safe_rcp(reduce_add(weights));

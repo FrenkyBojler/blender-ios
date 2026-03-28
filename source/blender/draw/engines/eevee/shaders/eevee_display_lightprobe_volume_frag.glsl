@@ -20,7 +20,7 @@ void main()
     return;
   }
 
-  SphericalHarmonicL1 sh;
+  SphericalHarmonicL1<float4> sh;
   sh.L0.M0 = texelFetch(irradiance_a_tx, cell, 0);
   sh.L1.Mn1 = texelFetch(irradiance_b_tx, cell, 0);
   sh.L1.M0 = texelFetch(irradiance_c_tx, cell, 0);

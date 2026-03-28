@@ -204,23 +204,23 @@ template struct BandL1<float4>;
 
 }  // namespace spherical_harmonics
 
-struct SphericalHarmonicL1 {
-  spherical_harmonics::BandL0<float4> L0;
-  spherical_harmonics::BandL1<float4> L1;
+template<typename T> struct SphericalHarmonicL1 {
+  spherical_harmonics::BandL0<T> L0;
+  spherical_harmonics::BandL1<T> L1;
 
   /* Decompose an input signal into spherical harmonic coefficients.
    * Note that `amplitude` need to be scaled by solid angle. */
-  void encode_signal_sample(float3 direction, float4 amplitude)
+  void encode_signal_sample(float3 direction, T amplitude)
   {
     L0.encode_signal_sample(direction, amplitude);
     L1.encode_signal_sample(direction, amplitude);
   }
 
   /* Evaluate an encoded signal in a given unit vector direction. */
-  float4 evaluate(float3 direction) const
+  T evaluate(float3 direction) const
   {
-    float4 eval = L0.evaluate(direction) + L1.evaluate(direction);
-    return max(float4(0.0f), eval);
+    T eval = L0.evaluate(direction) + L1.evaluate(direction);
+    return max(T(0.0f), eval);
   }
 
   /**
@@ -229,10 +229,10 @@ struct SphericalHarmonicL1 {
    * 2/3 and 1/4. See this reference for more explanation:
    * https://seblagarde.wordpress.com/2012/01/08/pi-or-not-to-pi-in-game-lighting-equation/
    */
-  float4 evaluate_lambert(float3 N) const
+  T evaluate_lambert(float3 N) const
   {
-    float4 radiance = L0.evaluate(N) + L1.evaluate(N) * (2.0f / 3.0f);
-    return max(float4(0.0f), radiance);
+    T radiance = L0.evaluate(N) + L1.evaluate(N) * (2.0f / 3.0f);
+    return max(T(0.0f), radiance);
   }
 
 #if 0 /* Not used. */
@@ -249,7 +249,6 @@ struct SphericalHarmonicL1 {
     /* Return lambertian radiance. So divide by PI. */
     return radiance / M_PI;
   }
-#endif
 
  private:
   /**
@@ -272,7 +271,11 @@ struct SphericalHarmonicL1 {
 
     return R0 * (a + (1.0f - a) * (p + 1.0f) * pow(q, p));
   }
+#endif
 };
+
+template struct SphericalHarmonicL1<float>;
+template struct SphericalHarmonicL1<float4>;
 
 /** \} */
 
@@ -284,9 +287,12 @@ namespace spherical_harmonics {
  * This section define the compression scheme of spherical harmonic data.
  * \{ */
 
-SphericalHarmonicL1 unpack(float4 L0_L1_a, float4 L0_L1_b, float4 L0_L1_c, float4 L0_L1_vis)
+SphericalHarmonicL1<float4> unpack(float4 L0_L1_a,
+                                   float4 L0_L1_b,
+                                   float4 L0_L1_c,
+                                   float4 L0_L1_vis)
 {
-  SphericalHarmonicL1 sh;
+  SphericalHarmonicL1<float4> sh;
   sh.L0.M0.xyz = L0_L1_a.xyz;
   sh.L1.Mn1.xyz = L0_L1_b.xyz;
   sh.L1.M0.xyz = L0_L1_c.xyz;
@@ -298,8 +304,11 @@ SphericalHarmonicL1 unpack(float4 L0_L1_a, float4 L0_L1_b, float4 L0_L1_c, float
   return sh;
 }
 
-void pack(
-    SphericalHarmonicL1 sh, float4 &L0_L1_a, float4 &L0_L1_b, float4 &L0_L1_c, float4 &L0_L1_vis)
+void pack(SphericalHarmonicL1<float4> sh,
+          float4 &L0_L1_a,
+          float4 &L0_L1_b,
+          float4 &L0_L1_c,
+          float4 &L0_L1_vis)
 {
   L0_L1_a.xyz = sh.L0.M0.xyz;
   L0_L1_b.xyz = sh.L1.Mn1.xyz;
@@ -316,13 +325,14 @@ void pack(
 /** \name Triple Product
  * \{ */
 
-SphericalHarmonicL1 triple_product(SphericalHarmonicL1 a, SphericalHarmonicL1 b)
+SphericalHarmonicL1<float4> triple_product(SphericalHarmonicL1<float4> a,
+                                           SphericalHarmonicL1<float4> b)
 {
   /* Adapted from:
    * "Code Generation and Factoring for Fast Evaluation of Low-order Spherical Harmonic Products
    * and Squares" Function "SH_product_3". */
   constexpr float L0_M0_coef = 0.282094792f;
-  SphericalHarmonicL1 sh;
+  SphericalHarmonicL1<float4> sh;
   sh.L0.M0 = a.L0.M0 * b.L0.M0;
   sh.L0.M0 += a.L1.Mn1 * b.L1.Mn1;
   sh.L0.M0 += a.L1.M0 * b.L1.M0;
@@ -341,31 +351,33 @@ SphericalHarmonicL1 triple_product(SphericalHarmonicL1 a, SphericalHarmonicL1 b)
 /** \name Operations
  * \{ */
 
-SphericalHarmonicL1 madd(SphericalHarmonicL1 a, float b, SphericalHarmonicL1 c)
+SphericalHarmonicL1<float4> madd(SphericalHarmonicL1<float4> a,
+                                 float b,
+                                 SphericalHarmonicL1<float4> c)
 {
-  SphericalHarmonicL1 result;
+  SphericalHarmonicL1<float4> result;
   result.L0 = BandL0<float4>::madd(a.L0, b, c.L0);
   result.L1 = BandL1<float4>::madd(a.L1, b, c.L1);
   return result;
 }
 
-SphericalHarmonicL1 mul(SphericalHarmonicL1 a, float b)
+SphericalHarmonicL1<float4> mul(SphericalHarmonicL1<float4> a, float b)
 {
-  SphericalHarmonicL1 result;
+  SphericalHarmonicL1<float4> result;
   result.L0 = BandL0<float4>::mul(a.L0, b);
   result.L1 = BandL1<float4>::mul(a.L1, b);
   return result;
 }
 
-SphericalHarmonicL1 add(SphericalHarmonicL1 a, SphericalHarmonicL1 b)
+SphericalHarmonicL1<float4> add(SphericalHarmonicL1<float4> a, SphericalHarmonicL1<float4> b)
 {
-  SphericalHarmonicL1 result;
+  SphericalHarmonicL1<float4> result;
   result.L0 = BandL0<float4>::add(a.L0, b.L0);
   result.L1 = BandL1<float4>::add(a.L1, b.L1);
   return result;
 }
 
-SphericalHarmonicL1 rotate(float3x3 rotation, SphericalHarmonicL1 sh)
+SphericalHarmonicL1<float4> rotate(float3x3 rotation, SphericalHarmonicL1<float4> sh)
 {
   /* Convert L1 coefficients to per channel column.
    * Note the component shuffle to match blender coordinate system. */
@@ -392,7 +404,7 @@ SphericalHarmonicL1 rotate(float3x3 rotation, SphericalHarmonicL1 sh)
 /** \name Dot
  * \{ */
 
-float4 dot(SphericalHarmonicL1 a, SphericalHarmonicL1 b)
+float4 dot(SphericalHarmonicL1<float4> a, SphericalHarmonicL1<float4> b)
 {
   /* Convert coefficients to per channel column. */
   float4x4 a_mat = transpose(float4x4(a.L0.M0, a.L1.Mn1, a.L1.M0, a.L1.Mp1));
@@ -413,9 +425,9 @@ float4 dot(SphericalHarmonicL1 a, SphericalHarmonicL1 b)
  * Described by Josh Hobson in "The indirect Lighting Pipeline of God of War" p. 120
  * \{ */
 
-SphericalHarmonicL1 compress(SphericalHarmonicL1 sh)
+SphericalHarmonicL1<float4> compress(SphericalHarmonicL1<float4> sh)
 {
-  SphericalHarmonicL1 result;
+  SphericalHarmonicL1<float4> result;
   result.L0 = sh.L0;
   float4 fac = safe_rcp(sh.L0.M0 * M_SQRT3);
   result.L1.Mn1 = (sh.L1.Mn1 * fac) * 0.5f + 0.5f;
@@ -424,9 +436,9 @@ SphericalHarmonicL1 compress(SphericalHarmonicL1 sh)
   return result;
 }
 
-SphericalHarmonicL1 decompress(SphericalHarmonicL1 sh)
+SphericalHarmonicL1<float4> decompress(SphericalHarmonicL1<float4> sh)
 {
-  SphericalHarmonicL1 result;
+  SphericalHarmonicL1<float4> result;
   result.L0 = sh.L0;
   float4 fac = sh.L0.M0 * M_SQRT3;
   result.L1.Mn1 = (sh.L1.Mn1 * 2.0f - 1.0f) * fac;
@@ -443,7 +455,7 @@ SphericalHarmonicL1 decompress(SphericalHarmonicL1 sh)
  * Change the encoded data to avoid negative value during evaluation.
  * \{ */
 
-SphericalHarmonicL1 dering(SphericalHarmonicL1 sh)
+SphericalHarmonicL1<float4> dering(SphericalHarmonicL1<float4> sh)
 {
   float L0_weight = 0.282094792f;
   float L1_weight = 0.488602512f;
@@ -480,7 +492,7 @@ SphericalHarmonicL1 dering(SphericalHarmonicL1 sh)
  * Clamp the total power of the SH function.
  * \{ */
 
-SphericalHarmonicL1 clamp_energy(SphericalHarmonicL1 sh, float clamp_value)
+SphericalHarmonicL1<float4> clamp_energy(SphericalHarmonicL1<float4> sh, float clamp_value)
 {
   /* Convert coefficients to per channel column. */
   float4x4 per_channel = transpose(float4x4(sh.L0.M0, sh.L1.Mn1, sh.L1.M0, sh.L1.Mp1));
