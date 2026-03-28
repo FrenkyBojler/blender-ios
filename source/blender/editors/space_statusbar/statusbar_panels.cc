@@ -124,7 +124,7 @@ static void panel_blender_updates_draw(const bContext *C, Panel *panel)
     sub.link(update->release_notes_url, IFACE_("Whats new"), ICON_NONE);
     /* Avoid default layout panels spacing, to prevent last panel not matching popover bounds. */
     if (update != available_updates.last()) {
-      layout.separator(0.5f);
+      layout.separator(0.25f);
     }
     if (!body) {
       continue;
