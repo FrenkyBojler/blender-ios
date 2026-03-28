@@ -31,6 +31,7 @@
 #include "BKE_geometry_set.hh"
 #include "BKE_global.hh"
 #include "BKE_grease_pencil.hh"
+#include "BKE_grease_pencil_fills.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_material.hh"
 #include "BKE_mesh.hh"
@@ -2547,8 +2548,16 @@ void lineart_main_load_geometries(Depsgraph *depsgraph,
       lineart_matrix_perspective_44d(proj, fov, asp, cam->clip_start, cam->clip_end);
     }
     else if (cam->type == CAM_ORTHO) {
-      const double w = cam->ortho_scale / 2;
-      lineart_matrix_ortho_44d(proj, -w, w, -w / asp, w / asp, cam->clip_start, cam->clip_end);
+      double horizontal = cam->ortho_scale / 2;
+      double vertical = horizontal;
+      if (fit == CAMERA_SENSOR_FIT_VERT) {
+        horizontal *= asp;
+      }
+      else {
+        vertical /= asp;
+      }
+      lineart_matrix_ortho_44d(
+          proj, -horizontal, horizontal, -vertical, vertical, cam->clip_start, cam->clip_end);
     }
     else {
       BLI_assert(!"Unsupported camera type in lineart_main_load_geometries");
@@ -5227,6 +5236,7 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
                                      const uchar intersection_mask,
                                      const float thickness,
                                      const float opacity,
+                                     const bool fill_strokes,
                                      const uchar shadow_selection,
                                      const uchar silhouette_mode,
                                      const char *source_vgname,
@@ -5402,6 +5412,8 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
   bke::CurvesGeometry new_curves(total_point_count, stroke_count);
   new_curves.fill_curve_types(CURVE_TYPE_POLY);
 
+  BKE_defgroup_copy_list(&new_curves.vertex_group_names, &drawing.geometry.vertex_group_names);
+
   MutableAttributeAccessor attributes = new_curves.attributes_for_write();
   MutableSpan<float3> point_positions = new_curves.positions_for_write();
 
@@ -5540,6 +5552,13 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
   point_radii.finish();
   point_opacities.finish();
   stroke_materials.finish();
+
+  if (fill_strokes) {
+    SpanAttributeWriter<int> fill_ids = attributes.lookup_or_add_for_write_span<int>(
+        "fill_id", AttrDomain::Curve);
+    bke::greasepencil::gather_next_available_fill_ids({}, fill_ids.span);
+    fill_ids.finish();
+  }
 
   Curves *original_curves = bke::curves_new_nomain(drawing.strokes());
   Curves *created_curves = bke::curves_new_nomain(std::move(new_curves));
