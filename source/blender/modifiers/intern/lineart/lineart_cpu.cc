@@ -2565,7 +2565,7 @@ static bool lineart_collection_contains_lineart_instance(Collection &collection,
   }
 
   if (!child_visible) {
-    if (BKE_collection_has_object(&collection, instance.object)) {
+    if (BKE_collection_has_object_recursive_instanced(&collection, instance.object)) {
       child_visible = true;
     }
   }
@@ -5469,8 +5469,6 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
       }
     }
     if (ec.type & MOD_LINEART_EDGE_FLAG_INTERSECTION) {
-
-#if 0
       if (mask_switches & MOD_LINEART_INTERSECTION_MATCH) {
         if (ec.intersection_mask != intersection_mask) {
           continue;
@@ -5481,7 +5479,6 @@ void MOD_lineart_gpencil_generate_v3(const LineartCache *cache,
           continue;
         }
       }
-#endif
     }
     if (shadow_selection) {
       if (ec.shadow_mask_bits != LRT_SHADOW_MASK_UNDEFINED) {

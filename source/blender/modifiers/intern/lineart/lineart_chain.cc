@@ -55,8 +55,8 @@ static LineartEdge *lineart_line_get_connected(LineartBoundingArea *ba,
     }
 
     if (n_e->flags & MOD_LINEART_EDGE_FLAG_INTERSECTION) {
-      if ((n_e->instance_ref != isec_object1 && n_e->instance_ref2 != isec_object1) &&
-          (n_e->instance_ref != isec_object2 && n_e->instance_ref2 != isec_object2))
+      if (!((n_e->instance_ref == isec_object1 && n_e->instance_ref2 == isec_object2) ||
+            (n_e->instance_ref == isec_object2 && n_e->instance_ref2 == isec_object1)))
       {
         continue;
       }
@@ -216,6 +216,7 @@ void MOD_lineart_chain_feature_lines(LineartData *ld)
     /* One chain can only have one instance_ref and intersection_mask,
      * so we assign them based on the first segment we found. */
     ec->instance_ref = e->instance_ref;
+    ec->instance_ref2 = e->instance_ref2;
     ec->intersection_mask = e->intersection_mask;
 
     LineartEdge *new_e;
@@ -858,7 +859,11 @@ static LineartChainRegisterEntry *lineart_chain_get_closest_cre(LineartData *ld,
   /* Keep using for loop because `cre` could be removed from the iteration before getting to the
    * next one. */
   for (LineartChainRegisterEntry &cre : ba->linked_chains.items_mutable()) {
-    if (cre.ec->instance_ref != ec->instance_ref) {
+    if (!((cre.ec->instance_ref == ec->instance_ref &&
+           cre.ec->instance_ref2 == ec->instance_ref2) ||
+          (cre.ec->instance_ref == ec->instance_ref2 &&
+           cre.ec->instance_ref2 == ec->instance_ref)))
+    {
       if (!ld->conf.fuzzy_everything) {
         if (ld->conf.fuzzy_intersections) {
           /* If none of those are intersection lines... */
@@ -1104,7 +1109,8 @@ void MOD_lineart_chain_clear_picked_flag(LineartCache *lc)
   }
 }
 
-LineartElementLinkNode *lineart_find_matching_eln_obj(ListBaseT<LineartElementLinkNode> *elns, void *instance)
+LineartElementLinkNode *lineart_find_matching_eln_obj(ListBaseT<LineartElementLinkNode> *elns,
+                                                      void *instance)
 {
   for (LineartElementLinkNode &eln : *elns) {
     if (eln.instance_ref == instance) {
