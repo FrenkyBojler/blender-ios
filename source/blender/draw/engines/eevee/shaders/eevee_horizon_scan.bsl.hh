@@ -36,7 +36,7 @@ VERTEX_SHADER_CREATE_INFO(draw_view)
 #include "eevee_ray_types_lib.glsl"
 #include "eevee_reverse_z_lib.glsl"
 #include "eevee_sampling_lib.glsl"
-#include "eevee_spherical_harmonics_lib.glsl"
+#include "eevee_spherical_harmonics.bsl.hh"
 #include "eevee_utility_tx_lib.glsl"
 #include "gpu_shader_math_matrix_transform_lib.glsl"
 #include "gpu_shader_math_vector_compare_lib.glsl"
@@ -125,7 +125,7 @@ ResultT eval(sampler2D hiz_tx,
 
   float weight_accum = 0.0f;
   float occlusion_accum = 0.0f;
-  SphericalHarmonicL1 sh_accum = spherical_harmonics_L1_new();
+  SphericalHarmonicL1 sh_accum = {};
 
 #if defined(GPU_METAL)
 /* NOTE: Full loop unroll hint increases performance on Apple Silicon. */
@@ -153,7 +153,7 @@ ResultT eval(sampler2D hiz_tx,
 
     vN_angle += (noise.z - 0.5f) * (M_PI / 32.0f) * angle_bias;
 
-    SphericalHarmonicL1 sh_slice = spherical_harmonics_L1_new();
+    SphericalHarmonicL1 sh_slice = {};
 
     /* For both sides of the view vector. */
     for (int side = 0; side < 2; side++) {
@@ -228,8 +228,7 @@ ResultT eval(sampler2D hiz_tx,
         float weight_bitmask = bitmask_to_visibility_uniform(sample_bitmask & ~slice_bitmask);
 
         radiance *= facing_weight * weight_bitmask;
-        spherical_harmonics_encode_signal_sample(
-            vL_front, float4(radiance, weight_bitmask), sh_slice);
+        sh_slice.encode_signal_sample(vL_front, float4(radiance, weight_bitmask));
 
         slice_bitmask |= sample_bitmask;
       }
@@ -240,7 +239,7 @@ ResultT eval(sampler2D hiz_tx,
     occlusion_accum += occlusion_slice * vN_length;
 
     /* Use uniform visibility since this is what we use for near field lighting. */
-    sh_accum = spherical_harmonics_madd(sh_slice, vN_length, sh_accum);
+    sh_accum = spherical_harmonics::madd(sh_slice, vN_length, sh_accum);
 
     weight_accum += vN_length;
 
@@ -251,7 +250,7 @@ ResultT eval(sampler2D hiz_tx,
   float weight_rcp = safe_rcp(weight_accum);
 
   /* Weight by area of the sphere. This is expected for correct SH evaluation. */
-  sh_accum = spherical_harmonics_mul(sh_accum, weight_rcp * 4.0f * M_PI);
+  sh_accum = spherical_harmonics::mul(sh_accum, weight_rcp * 4.0f * M_PI);
   occlusion_accum *= weight_rcp;
   return select_result<ResultT>(occlusion_accum, sh_accum);
 }
@@ -381,7 +380,7 @@ struct SampleInput {
     sh.L1.Mn1 = texelFetch(horizon_radiance_1_tx, texel, 0);
     sh.L1.M0 = texelFetch(horizon_radiance_2_tx, texel, 0);
     sh.L1.Mp1 = texelFetch(horizon_radiance_3_tx, texel, 0);
-    sh = spherical_harmonics_decompress(sh);
+    sh = spherical_harmonics::decompress(sh);
     return sh;
   }
 
@@ -390,7 +389,7 @@ struct SampleInput {
     if (!valid) {
       /* We need to avoid sampling if there no weight as the texture values could be undefined
        * (is_valid is false). */
-      return spherical_harmonics_L1_new();
+      return {};
     }
     return load_sh(texel);
   }
@@ -404,7 +403,7 @@ struct SampleOutput {
 
   void write(int2 texel, SphericalHarmonicL1 result)
   {
-    result = spherical_harmonics_compress(result);
+    result = spherical_harmonics::compress(result);
     imageStore(sh_0_img, texel, result.L0.M0);
     imageStore(sh_1_img, texel, result.L1.Mn1);
     imageStore(sh_2_img, texel, result.L1.M0);
@@ -613,7 +612,7 @@ void denoise([[work_group_id]] const uint3 group_id,
     return;
   }
 
-  SphericalHarmonicL1 accum_sh = spherical_harmonics_L1_new();
+  SphericalHarmonicL1 accum_sh = {};
   float accum_weight = 0.0f;
   /* 3x3 filter. */
   for (int y = -1; y <= 1; y++) {
@@ -627,12 +626,12 @@ void denoise([[work_group_id]] const uint3 group_id,
        * (is_valid is false). */
       if (sample_weight > 0.0f) {
         SphericalHarmonicL1 sample_sh = sh_in.load_sh(sample_texel);
-        accum_sh = spherical_harmonics_madd(sample_sh, sample_weight, accum_sh);
+        accum_sh = spherical_harmonics::madd(sample_sh, sample_weight, accum_sh);
         accum_weight += sample_weight;
       }
     }
   }
-  accum_sh = spherical_harmonics_mul(accum_sh, safe_rcp(accum_weight));
+  accum_sh = spherical_harmonics::mul(accum_sh, safe_rcp(accum_weight));
   sh_out.write(texel, accum_sh);
 }
 
@@ -712,10 +711,10 @@ void resolve([[work_group_id]] const uint3 group_id,
     /* Avoid another division at the end. Normalize the weights upfront. */
     weights *= safe_rcp(reduce_add(weights));
 
-    accum_sh = spherical_harmonics_mul(sh_00, weights.x);
-    accum_sh = spherical_harmonics_madd(sh_10, weights.y, accum_sh);
-    accum_sh = spherical_harmonics_madd(sh_01, weights.z, accum_sh);
-    accum_sh = spherical_harmonics_madd(sh_11, weights.w, accum_sh);
+    accum_sh = spherical_harmonics::mul(sh_00, weights.x);
+    accum_sh = spherical_harmonics::madd(sh_10, weights.y, accum_sh);
+    accum_sh = spherical_harmonics::madd(sh_01, weights.z, accum_sh);
+    accum_sh = spherical_harmonics::madd(sh_11, weights.w, accum_sh);
   }
 
   float3 P = center_P;
@@ -725,7 +724,8 @@ void resolve([[work_group_id]] const uint3 group_id,
   LightProbeSample samp = lightprobe_load(float2(texel_fullres), P, Ng, V);
 
   float clamp_indirect = uniform_buf.clamp.surface_indirect;
-  samp.volume_irradiance = spherical_harmonics_clamp(samp.volume_irradiance, clamp_indirect);
+  samp.volume_irradiance = spherical_harmonics::clamp_energy(samp.volume_irradiance,
+                                                             clamp_indirect);
 
   const uchar closure_count = gbuf.header.closure_len();
   const uint3 bin_indices = gbuf.header.bin_index_per_layer();
@@ -751,11 +751,10 @@ void resolve([[work_group_id]] const uint3 group_id,
     float3 vL = drw_normal_world_to_view(L);
 
     /* Evaluate lighting from horizon scan. */
-    float3 radiance = spherical_harmonics_evaluate_lambert(vL, accum_sh);
+    float3 radiance = accum_sh.evaluate_lambert(vL).rgb;
 
     /* Evaluate visibility from horizon scan. */
-    SphericalHarmonicL1 sh_visibility = spherical_harmonics_swizzle_wwww(accum_sh);
-    float occlusion = spherical_harmonics_evaluate_lambert(vL, sh_visibility).x;
+    float occlusion = accum_sh.evaluate_lambert(vL).a;
     /* FIXME(fclem): Tried to match the old occlusion look. I don't know why it's needed. */
     occlusion *= 0.5f;
     /* TODO(fclem): Ideally, we should just combine both local and distant irradiance and evaluate
@@ -764,7 +763,7 @@ void resolve([[work_group_id]] const uint3 group_id,
     float visibility = saturate(1.0f - occlusion);
 
     /* Apply missing distant lighting. */
-    float3 radiance_probe = spherical_harmonics_evaluate_lambert(L, samp.volume_irradiance);
+    float3 radiance_probe = samp.volume_irradiance.evaluate_lambert(L).rgb;
     radiance += visibility * radiance_probe;
 
     uchar layer_index = bin_indices[i];

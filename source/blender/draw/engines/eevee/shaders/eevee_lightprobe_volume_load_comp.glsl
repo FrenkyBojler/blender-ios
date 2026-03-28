@@ -18,7 +18,7 @@
 COMPUTE_SHADER_CREATE_INFO(eevee_lightprobe_volume_load)
 
 #include "eevee_lightprobe_volume_eval_lib.glsl"
-#include "eevee_spherical_harmonics_lib.glsl"
+#include "eevee_spherical_harmonics.bsl.hh"
 #include "gpu_shader_math_base_lib.glsl"
 
 #include "gpu_shader_math_matrix_normalize_lib.glsl"
@@ -82,7 +82,7 @@ void main()
     /* NOTE: Still load the center sample and give it low weight in case there is not valid sample
      * in the neighborhood. */
     float weight_accum = 1e-8f;
-    sh_local = spherical_harmonics_mul(irradiance_load(input_coord), weight_accum);
+    sh_local = spherical_harmonics::mul(irradiance_load(input_coord), weight_accum);
     int radius = int(dilation_radius);
     for (int x = -radius; x <= radius; x++) {
       for (int y = -radius; y <= radius; y++) {
@@ -102,19 +102,19 @@ void main()
             continue;
           }
           float weight = 1.0f / dist_sqr;
-          sh_local = spherical_harmonics_madd(irradiance_load(neighbor_coord), weight, sh_local);
+          sh_local = spherical_harmonics::madd(irradiance_load(neighbor_coord), weight, sh_local);
           weight_accum += weight;
         }
       }
     }
     float inv_weight_accum = safe_rcp(weight_accum);
-    sh_local = spherical_harmonics_mul(sh_local, inv_weight_accum);
+    sh_local = spherical_harmonics::mul(sh_local, inv_weight_accum);
   }
 
   /* Rotate Spherical Harmonic into world space. */
   float3x3 grid_to_world_rot = normalize(
       to_float3x3(grids_infos_buf[grid_index].world_to_grid_transposed));
-  sh_local = spherical_harmonics_rotate(grid_to_world_rot, sh_local);
+  sh_local = spherical_harmonics::rotate(grid_to_world_rot, sh_local);
 
   SphericalHarmonicL1 sh_visibility;
   sh_visibility.L0.M0 = sh_local.L0.M0.aaaa;
@@ -132,14 +132,14 @@ void main()
   }
   else {
     /* Mask distant lighting by local visibility. */
-    sh_distant = spherical_harmonics_triple_product(sh_visibility, sh_distant);
+    sh_distant = spherical_harmonics::triple_product(sh_visibility, sh_distant);
     /* Apply intensity scaling. */
-    sh_local = spherical_harmonics_mul(sh_local, grid_intensity_factor);
+    sh_local = spherical_harmonics::mul(sh_local, grid_intensity_factor);
     /* Add local lighting to distant lighting. */
-    sh_local = spherical_harmonics_add(sh_local, sh_distant);
+    sh_local = spherical_harmonics::add(sh_local, sh_distant);
   }
 
-  sh_local = spherical_harmonics_dering(sh_local);
+  sh_local = spherical_harmonics::dering(sh_local);
 
   atlas_store(sh_local.L0.M0, output_coord, 0);
   atlas_store(sh_local.L1.Mn1, output_coord, 1);

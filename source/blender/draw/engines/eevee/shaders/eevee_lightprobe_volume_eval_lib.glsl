@@ -16,7 +16,7 @@
 
 #include "eevee_lightprobe_lib.glsl"
 #include "eevee_sampling_lib.glsl"
-#include "eevee_spherical_harmonics_lib.glsl"
+#include "eevee_spherical_harmonics.bsl.hh"
 #include "gpu_shader_math_base_lib.glsl"
 
 /**

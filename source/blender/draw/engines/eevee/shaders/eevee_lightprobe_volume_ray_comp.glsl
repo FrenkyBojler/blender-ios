@@ -16,7 +16,7 @@ COMPUTE_SHADER_CREATE_INFO(eevee_lightprobe_volume_ray)
 
 #include "eevee_lightprobe_lib.glsl"
 #include "eevee_lightprobe_sphere_lib.glsl"
-#include "eevee_spherical_harmonics_lib.glsl"
+#include "eevee_spherical_harmonics.bsl.hh"
 #include "eevee_surfel_list_lib.glsl"
 #include "gpu_shader_math_base_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
@@ -29,7 +29,7 @@ void irradiance_capture(float3 L, float3 irradiance, float visibility, Spherical
   irradiance *= 4.0f * M_PI;
   visibility *= 4.0f * M_PI;
 
-  spherical_harmonics_encode_signal_sample(lL, float4(irradiance, visibility), sh);
+  sh.encode_signal_sample(lL, float4(irradiance, visibility));
 }
 
 void irradiance_capture_surfel(Surfel surfel, float3 P, SphericalHarmonicL1 &sh)

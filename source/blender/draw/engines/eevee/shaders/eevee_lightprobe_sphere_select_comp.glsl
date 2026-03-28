@@ -35,7 +35,7 @@ void main()
   }
 
   float clamp_indirect_sh = uniform_buf.clamp.surface_indirect;
-  sh = spherical_harmonics_clamp(sh, clamp_indirect_sh);
+  sh = spherical_harmonics::clamp_energy(sh, clamp_indirect_sh);
 
   lightprobe_sphere_buf[idx].low_freq_light = lightprobe_spheres_extract_low_freq(sh);
 }
