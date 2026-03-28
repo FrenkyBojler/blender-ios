@@ -1,3 +1,6 @@
+"""
+**Accessing Evaluated Geometry**
+"""
 import bpy
 
 # The GeometrySet can only be retrieved from an evaluated object. So one always
