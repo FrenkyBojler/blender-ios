@@ -1003,6 +1003,137 @@ static void grease_pencil_fill_extension_lines_from_circles(
                       keep_circle_indices.as_span(),
                       extension_data.circles.radii.as_mutable_span());
 }
+/* Connect remaining unmatched endpoints after circle pass.
+ * After the circle overlap pass, extension_data.circles contains only
+ * endpoints that were not connected. This pass connects nearby endpoints
+ * using a derived threshold in view space.
+ */
+static void grease_pencil_fill_extension_lines_from_unmatched_endpoints(
+    const bContext &C,
+    const GreasePencilFillOpData &op_data,
+    ed::greasepencil::ExtensionData &extension_data)
+{
+  using namespace blender;
+
+  const IndexRange circles_range = extension_data.circles.centers.index_range();
+  if (circles_range.size() < 2) {
+    return;
+  }
+
+  /* Derived threshold from existing extension length (tunable constant). */
+  constexpr float endpoint_connect_scale = 2.0f;
+  const float threshold_world = op_data.extension_length * endpoint_connect_scale;
+
+  if (!(threshold_world > 0.0f) || !std::isfinite(threshold_world)) {
+    return;
+  }
+
+  const RegionView3D *rv3d = CTX_wm_region_view3d(&C);
+  if (rv3d == nullptr) {
+    return;
+  }
+
+  /* MUST match circle pass: world → view */
+  const float4x4 view_matrix = float4x4(rv3d->viewmat);
+
+  const float view_scale = math::average(math::to_scale(view_matrix));
+
+  if (!(view_scale > 0.0f) || !std::isfinite(view_scale)) {
+    return;
+  }
+
+  /* Convert threshold to view space */
+  const float threshold_view = view_scale * threshold_world;
+
+  if (!(threshold_view > 0.0f) || !std::isfinite(threshold_view)) {
+    return;
+  }
+
+  const float threshold_view_sq = threshold_view * threshold_view;
+
+  if (!std::isfinite(threshold_view_sq)) {
+    return;
+  }
+
+  const int tot = circles_range.size();
+
+  Array<float2> centers_2d(tot);
+
+  KDTree_2d *kdtree = kdtree_2d_new(tot);
+  BLI_assert(kdtree != nullptr);
+
+  /* Build KD-tree in view space */
+  for (const int i : circles_range.index_range()) {
+    const float2 center =
+        math::transform_point(view_matrix, extension_data.circles.centers[i]).xy();
+
+    centers_2d[i] = center;
+    kdtree_2d_insert(kdtree, i, center);
+  }
+
+  kdtree_2d_balance(kdtree);
+
+  /* Track which endpoints are already paired */
+  Array<bool> used(tot, false);
+
+  /* Absolute epsilon for degeneracy */
+  const float min_dist_sq = 1e-12f;
+
+  /* Pair endpoints greedily.
+   *
+   * TODO: This uses a simple nearest-neighbor greedy pairing which may produce
+   * crossing connections in dense cases. A future improvement could implement
+   * a global pairing strategy (e.g. sorting candidate pairs by distance) to
+   * reduce crossings and improve visual consistency.
+   */
+  for (const int i : circles_range.index_range()) {
+    if (used[i]) {
+      continue;
+    }
+
+    int best_j = -1;
+    float best_dist_sq = threshold_view_sq;
+
+    /* Find nearest unused endpoint within threshold */
+    kdtree_range_search_cb_cpp<float2>(
+        kdtree,
+        centers_2d[i],
+        threshold_view,
+        [&](const int other_i, const float2 & /*co*/, const float dist_sq) {
+          if (other_i == i || used[other_i]) {
+            return true;
+          }
+
+          /* Avoid duplicate pairing */
+          if (other_i < i) {
+            return true;
+          }
+
+          /* Skip degenerate candidates */
+          if (dist_sq < min_dist_sq) {
+            return true;
+          }
+
+          if (dist_sq < best_dist_sq) {
+            best_dist_sq = dist_sq;
+            best_j = other_i;
+          }
+
+          return true;
+        });
+
+    if (best_j != -1) {
+      extension_data.lines.starts.append(extension_data.circles.centers[i]);
+      extension_data.lines.ends.append(extension_data.circles.centers[best_j]);
+
+      used[i] = true;
+      used[best_j] = true;
+    }
+  }
+
+  kdtree_2d_free(kdtree);
+}
+
 
 static ed::greasepencil::ExtensionData grease_pencil_fill_get_extension_data(
     const bContext &C, const GreasePencilFillOpData &op_data)
@@ -1085,6 +1216,8 @@ static ed::greasepencil::ExtensionData grease_pencil_fill_get_extension_data(
     case GP_FILL_EMODE_RADIUS:
       grease_pencil_fill_extension_lines_from_circles(
           C, extension_data, origin_drawings, origin_points);
+      /* Connect remaining unmatched endpoints after circle pass */
+      grease_pencil_fill_extension_lines_from_unmatched_endpoints(C, op_data, extension_data);
       break;
   }
 
