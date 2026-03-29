@@ -268,9 +268,10 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
   NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(md);
   walk(user_data, ob, reinterpret_cast<ID **>(&nmd->node_group), IDWALK_CB_USER);
 
-  IDP_foreach_property(nmd->settings.properties, IDP_TYPE_FILTER_ID, [&](IDProperty *id_prop) {
-    walk(user_data, ob, reinterpret_cast<ID **>(&id_prop->data.pointer), IDWALK_CB_USER);
-  });
+  IDP_foreach_property(
+      nmd->modifier.system_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *id_prop) {
+        walk(user_data, ob, reinterpret_cast<ID **>(&id_prop->data.pointer), IDWALK_CB_USER);
+      });
 
   for (NodesModifierBake &bake : MutableSpan(nmd->bakes, nmd->bakes_num)) {
     for (NodesModifierDataBlock &data_block : MutableSpan(bake.data_blocks, bake.data_blocks_num))
