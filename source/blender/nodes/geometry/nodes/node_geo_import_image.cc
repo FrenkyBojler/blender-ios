@@ -3,15 +3,10 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_image.hh"
+
 #include "BLI_fileops.h"
-#include "BLI_generic_key_string.hh"
-#include "BLI_memory_cache_file_load.hh"
-#include "BLI_memory_counter.hh"
-#include "BLI_string_utf8.h"
 
 #include "node_geometry_util.hh"
-
-#include "fmt/core.h"
 
 namespace blender::nodes::node_geo_import_image {
 
@@ -20,23 +15,12 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::String>("Path")
       .subtype(PROP_FILEPATH)
       .path_filter(
-          "*.bmp;*.png;*.exr;*.hdr;*.tga;*.tif;*.jpg;*.jp2;*.j2c;*.dpx;*.cin;*.webp;*.avif;*.psd")
+          "*.bmp;*.png;*.exr;*.hdr;*.tga;*.tif;*.jpg;*.jp2;*.j2c;*.dpx;*.cin;*.webp;*.avif;*.psd") //todo movies
       .optional_label()
       .description("Path to a image file");
 
   b.add_output<decl::Image>("Image");
 }
-
-class LoadTextCache : public memory_cache::CachedValue {
- public:
-  std::string text;
-  Vector<geo_eval_log::NodeWarning> warnings;
-
-  void count_memory(MemoryCounter &counter) const override
-  {
-    counter.add(this->text.size());
-  }
-};
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
@@ -55,34 +39,6 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  /*
-    std::shared_ptr<const LoadTextCache> cached_value = memory_cache::get_loaded<LoadTextCache>(
-        GenericStringKey{"import_image_node"}, {StringRefNull(*path)}, [&]() {
-          auto cached_value = std::make_unique<LoadTextCache>();
-
-          size_t buffer_len;
-          char *buffer = BLI_file_read_text_as_mem(path->c_str(), 0, &buffer_len);
-          if (!buffer) {
-            const std::string message = fmt::format(fmt::runtime(TIP_("Cannot open file: {}")),
-                                                    *path);
-            cached_value->warnings.append({NodeWarningType::Error, message});
-            return cached_value;
-          }
-          BLI_SCOPED_DEFER([&]() { MEM_delete(buffer); });
-          if (BLI_str_utf8_invalid_byte(buffer, buffer_len) != -1) {
-            cached_value->warnings.append(
-                {NodeWarningType::Error, TIP_("File contains invalid UTF-8 characters")});
-            return cached_value;
-          }
-          cached_value->text = std::string(buffer, buffer_len);
-          return cached_value;
-        });
-
-    for (const geo_eval_log::NodeWarning &warning : cached_value->warnings) {
-      params.error_message_add(warning.type, warning.message);
-    }
-
-    //params.set_output("String"_ustr, cached_value->text);*/
   params.set_output("Image"_ustr, reinterpret_cast<Image *>(image));
   printf("output");
 }
