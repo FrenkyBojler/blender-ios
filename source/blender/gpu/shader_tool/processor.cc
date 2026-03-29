@@ -102,6 +102,7 @@ SourceProcessor::Result SourceProcessor::convert(vector<Symbol> symbols_set)
       lint_constructors(parser);
       lint_forward_declared_structs(parser);
 
+      lower_maybe_unused(parser);
       /* Lint and remove C++ accessor templates before lowering template. */
       lower_srt_accessor_templates(parser);
       lower_union_accessor_templates(parser);
