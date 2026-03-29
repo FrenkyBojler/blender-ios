@@ -332,7 +332,7 @@ static void layer_bucket_init(MaskRasterLayer *layer, const float pixel_size)
 
   const float bucket_dim_x = BLI_rctf_size_x(&layer->bounds);
   const float bucket_dim_y = BLI_rctf_size_y(&layer->bounds);
-  
+
   /* Bucket size in pixels: smaller values are more granular (less work for raster loop),
    * but more memory and more work in single threaded initialization time. Found that 8
    * seems to be optimal for both simple (150 faces) & complex (16000 faces) masks at
