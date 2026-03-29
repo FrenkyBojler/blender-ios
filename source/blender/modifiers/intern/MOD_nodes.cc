@@ -2181,11 +2181,6 @@ void nodes_modifier_bake_destruct(NodesModifierBake *bake, const bool do_id_user
 static void free_data(ModifierData *md)
 {
   NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(md);
-  if (nmd->settings.properties != nullptr) {
-    IDP_FreeProperty_ex(nmd->settings.properties, false);
-    nmd->settings.properties = nullptr;
-  }
-
   for (NodesModifierBake &bake : MutableSpan(nmd->bakes, nmd->bakes_num)) {
     nodes_modifier_bake_destruct(&bake, false);
   }
