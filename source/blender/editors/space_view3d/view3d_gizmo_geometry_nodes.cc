@@ -741,7 +741,7 @@ class TransformGizmos : public NodeGizmos {
           for (int i = 0; i < 3; i++) {
             const float3 col = float3(value[i]);
             const float len_sq = math::length_squared(col);
-            if (len_sq > 1e-12f) {
+            if (len_sq > math::square(1e-6f)) {
               const float len = math::sqrt(len_sq);
               value[i] = float4(col * (math::length(float3(scaled[i])) / len), 0.0f);
             }
