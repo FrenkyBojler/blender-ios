@@ -169,6 +169,7 @@ class SourceProcessor {
 
   /* --- Lowering --- */
 
+  void lower_namesless_parameters(Parser &parser);
   /**
    * Given our code-style, we don't need the disambiguation.
    * Example: `x.template foo<int>()` > `x.foo<int>()`
