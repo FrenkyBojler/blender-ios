@@ -1,0 +1,1 @@
+Referenced by issue #156509, When the scene units are set to millimeters, the XYZ transform values displayed during object movement no longer snap to whole numbers.
