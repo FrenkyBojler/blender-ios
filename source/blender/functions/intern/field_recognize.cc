@@ -25,6 +25,7 @@ std::optional<Polynom<int>> field_as_polynom_try(const Field<int> &entry_field)
   static const mf::MultiFunction &minus_func = multi_function::registry::lookup("-int"_ustr);
   static const mf::MultiFunction &add_func = multi_function::registry::lookup("int + int"_ustr);
   static const mf::MultiFunction &sub_func = multi_function::registry::lookup("int - int"_ustr);
+  /* TODO: Support integer division. */
   static const mf::MultiFunction &mul_func = multi_function::registry::lookup("int * int"_ustr);
   static const mf::MultiFunction &mul_add_func = multi_function::registry::lookup(
       "int * int + int"_ustr);
@@ -37,8 +38,7 @@ std::optional<Polynom<int>> field_as_polynom_try(const Field<int> &entry_field)
   while (!fields_to_check.is_empty()) {
     const GFieldRef field = fields_to_check.pop();
     if (const Polynom<int> *value = known_fields.lookup_ptr(field)) {
-      if (value->size() > 1) {
-        /* TODO: Support integer division. */
+      if (value->size() > 120) {
         return std::nullopt;
       }
       continue;
@@ -100,6 +100,10 @@ std::optional<Polynom<int>> field_as_polynom_try(const Field<int> &entry_field)
     if (&node_function == &sub_func) {
       known_fields.add(field, first_arg - second_arg);
       continue;
+    }
+
+    if (first_arg.size() + second_arg.size() > 120) {
+      return std::nullopt;
     }
 
     if (&node_function == &mul_func) {

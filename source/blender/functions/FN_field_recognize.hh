@@ -8,6 +8,7 @@
  * \ingroup fn
  */
 
+#include "BLI_array.hh"
 #include "BLI_math_base.hh"
 
 #include "FN_field.hh"
@@ -15,12 +16,12 @@
 namespace blender::fn {
 
 template<typename T> struct Polynom {
-  Vector<T> factors;
+  Array<T> factors;
 
   static Polynom<T> from_degree_variable(const int degree, T value)
   {
     BLI_assert(degree >= 0);
-    Vector<T> factors(degree + 1, T(0));
+    Array<T> factors(degree + 1, T(0));
     factors[degree] = value;
     return {std::move(factors)};
   }
@@ -48,7 +49,7 @@ template<typename T> struct Polynom {
 
   bool is_const() const
   {
-    return this->factors.size() == 1;
+    return this->size() == 1;
   }
 
   int as_const() const
@@ -59,7 +60,7 @@ template<typename T> struct Polynom {
 
   bool is_unit_line() const
   {
-    if (this->factors.size() != 2) {
+    if (this->size() != 2) {
       return false;
     }
 
@@ -74,10 +75,8 @@ template<typename T> struct Polynom {
 
   friend Polynom<T> operator+(const Polynom<T> &a, const Polynom<T> &b)
   {
-    Vector<T> factors(std::max(a.factors.size(), b.factors.size()), T(0));
-    for (const int i : a.factors.index_range()) {
-      factors[i] = a.factors[i];
-    }
+    Array<T> factors(std::max(a.size(), b.size()), T(0));
+    factors.as_mutable_span().take_front(a.size()).copy_from(a.factors.as_span());
     for (const int i : b.factors.index_range()) {
       factors[i] += b.factors[i];
     }
@@ -86,10 +85,8 @@ template<typename T> struct Polynom {
 
   friend Polynom<T> operator-(const Polynom<T> &a, const Polynom<T> &b)
   {
-    Vector<T> factors(std::max(a.factors.size(), b.factors.size()), T(0));
-    for (const int i : a.factors.index_range()) {
-      factors[i] = a.factors[i];
-    }
+    Array<T> factors(std::max(a.size(), b.size()), T(0));
+    factors.as_mutable_span().take_front(a.size()).copy_from(a.factors.as_span());
     for (const int i : b.factors.index_range()) {
       factors[i] -= b.factors[i];
     }
@@ -98,7 +95,7 @@ template<typename T> struct Polynom {
 
   friend Polynom<T> operator-(const Polynom<T> &value)
   {
-    Vector<T> factors = value.factors;
+    Array<T> factors = value.factors;
     for (const int i : factors.index_range()) {
       factors[i] = -factors[i];
     }
@@ -107,11 +104,11 @@ template<typename T> struct Polynom {
 
   friend Polynom<T> operator*(const Polynom<T> &a, const Polynom<T> &b)
   {
-    Vector<T> factors(a.factors.size() + b.factors.size(), T(0));
+    Array<T> factors(a.size() + b.size(), T(0));
 
     for (const int result_degree : factors.index_range()) {
       for (const int i : a.factors.index_range()) {
-        if (b.factors.size() <= result_degree - i) {
+        if (b.size() <= result_degree - i) {
           continue;
         }
         if (result_degree < i) {
