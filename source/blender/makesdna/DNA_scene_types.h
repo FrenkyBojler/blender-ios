@@ -1781,6 +1781,7 @@ enum eSequencerSnapFlag {
   SEQ_SNAP_IGNORE_SOUND = 1 << 1,
   SEQ_SNAP_CURRENT_FRAME_TO_STRIPS = 1 << 2,
   SEQ_SNAP_TO_ALL_CHANNEL_STRIPS = 1 << 3,
+  SEQ_SNAP_TO_MOUSE_CURSOR = 1 << 4,
 };
 
 struct SequencerToolSettings {

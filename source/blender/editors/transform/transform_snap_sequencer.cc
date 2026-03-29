@@ -502,24 +502,37 @@ static bool snap_calc_timeline(TransInfo *t, const TransSeqSnapData *snap_data)
 
   const short snap_flag = seq::tool_settings_snap_flag_get(t->scene);
   const bool ignore_other_channels = !(snap_flag & SEQ_SNAP_TO_ALL_CHANNEL_STRIPS);
+  const bool snap_to_mouse_cursor = (snap_flag & SEQ_SNAP_TO_MOUSE_CURSOR);
 
   int best_dist = MAXFRAME;
   float2 best_target(0.0f);
   float2 best_source(0.0f);
 
+  const View2D *v2d = static_cast<View2D *>(t->view);
+  float2 mval_view(0.0f);
+  if (v2d && snap_to_mouse_cursor) {
+    ui::view2d_region_to_view(v2d, t->mval[0], t->mval[1], &mval_view[0], &mval_view[1]);
+  }
+
   for (const float2 source : snap_data->sources) {
     for (const float2 target : snap_data->targets) {
-      if (ignore_other_channels && target[1] != all_channels &&
-          (source[1] + round_fl_to_int(t->values[1])) != target[1])
-      {
+      float2 point = snap_to_mouse_cursor ? mval_view : source + t->values;
+      if (ignore_other_channels && target[1] != all_channels && point[1] != target[1]) {
         continue;
       }
 
-      int source_frame = source[0];
-      int target_frame = target[0];
-      int dist = abs(target_frame - (source_frame + round_fl_to_int(t->values[0])));
+      int dist = abs(target[0] - point[0]);
       if (dist > best_dist) {
         continue;
+      }
+
+      /* When mouse is to the right of the target, place strip on the right
+       * (prefer smaller source). When to the left, place on the left. */
+      if (snap_to_mouse_cursor && dist == best_dist) {
+        bool mouse_right = point[0] > target[0];
+        if (mouse_right ? (source[0] > best_source[0]) : (source[0] < best_source[0])) {
+          continue;
+        }
       }
 
       best_dist = dist;
@@ -575,18 +588,37 @@ static bool snap_calc_preview_origin(TransInfo *t, const TransSeqSnapData *snap_
 
 static bool snap_calc_preview_image(TransInfo *t, const TransSeqSnapData *snap_data)
 {
+  const short snap_flag = seq::tool_settings_snap_flag_get(t->scene);
+  const bool snap_to_mouse_cursor = (snap_flag & SEQ_SNAP_TO_MOUSE_CURSOR);
+
   /* Store best snap candidates in x and y directions separately. */
   float2 best_dist(std::numeric_limits<float>::max());
   float2 best_target(0.0f);
   float2 best_source(0.0f);
 
+  const View2D *v2d = static_cast<View2D *>(t->view);
+  float2 mval_view(0.0f);
+  if (v2d && snap_to_mouse_cursor) {
+    ui::view2d_region_to_view(v2d, t->mval[0], t->mval[1], &mval_view[0], &mval_view[1]);
+  }
+
   for (const float2 source : snap_data->sources) {
     for (const float2 target : snap_data->targets) {
+      const float2 point = snap_to_mouse_cursor ? mval_view : source + t->values;
       /* First update snaps in x direction, then y direction. */
       for (int i = 0; i < 2; i++) {
-        int dist = abs(target[i] - (source[i] + t->values[i]));
+        int dist = abs(target[i] - point[i]);
         if (dist > best_dist[i]) {
           continue;
+        }
+
+        /* When mouse is past the target, place strip on that side
+         * (prefer smaller source). When before, place on the other side. */
+        if (snap_to_mouse_cursor && dist == best_dist[i]) {
+          bool mouse_past = point[i] > target[i];
+          if (mouse_past ? (source[i] > best_source[i]) : (source[i] < best_source[i])) {
+            continue;
+          }
         }
 
         best_dist[i] = dist;

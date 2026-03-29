@@ -4510,6 +4510,11 @@ static void rna_def_sequencer_tool_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Preview Snap Distance", "Maximum pixel distance within which a preview snap occurs");
 
+  prop = RNA_def_property(srna, "snap_to_mouse_cursor", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "snap_flag", SEQ_SNAP_TO_MOUSE_CURSOR);
+  RNA_def_property_ui_text(
+      prop, "Snap to Mouse Cursor", "Use mouse cursor as the source for snaps");
+
   /* Transform overlap handling. */
   prop = RNA_def_property(srna, "overlap_mode", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, scale_overlap_modes);

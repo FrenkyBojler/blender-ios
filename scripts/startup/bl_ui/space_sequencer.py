@@ -119,6 +119,9 @@ class SEQUENCER_HT_header(Header):
             row = layout.row(align=True)
             row.prop(sequencer_tool_settings, "snap_distance_preview")
 
+        if sequencer_tool_settings:
+            layout.prop(sequencer_tool_settings, "snap_to_mouse_cursor")
+
         layout.separator_spacer()
 
         if st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'}:
