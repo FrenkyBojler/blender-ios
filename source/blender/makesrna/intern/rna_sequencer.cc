@@ -260,8 +260,6 @@ static void rna_Strip_text_update(bContext *C, PointerRNA *ptr)
     strip = static_cast<Strip *>(ptr->data);
   }
 
-  Editing *ed = seq::editing_get(scene);
-
   if(scene->ed && strip){
     seq::relations_invalidate_cache_raw(scene, strip);
   }
@@ -1530,7 +1528,7 @@ static void rna_SequenceEditor_caption_strips_begin(CollectionPropertyIterator *
 {
   Editing *ed = (Editing *)ptr->data;
   printf("DEBUG begin\n");
-  StripsIterator::begin(iter, ed->runtime->captions_cache);
+  StripsIterator::begin(iter, ed->runtime->caption_strips);
 }
 
 /*static PointerRNA rna_SequenceEditor_caption_strips_get(CollectionPropertyIterator *iter)
@@ -3054,7 +3052,7 @@ static void rna_def_editor(BlenderRNA *brna)
 
   /* Captions props */
   prop = RNA_def_property(srna, "caption_strips", PROP_COLLECTION, PROP_NONE);
- //RNA_def_property_collection_sdna(prop, nullptr, "runtime->captions_cache", nullptr);
+ //RNA_def_property_collection_sdna(prop, nullptr, "runtime->caption_strips", nullptr);
   RNA_def_property_struct_type(prop, "Strip");
   RNA_def_property_ui_text(
       prop, "Caption Strips", "Current caption strips stored in cache");

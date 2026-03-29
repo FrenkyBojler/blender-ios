@@ -152,7 +152,7 @@ void captions_apply_style_active(Scene *scene)
       return;
     }
 
-    for (Strip *strip : captions_cache_query(scene)) {
+    for (Strip *strip : caption_strips_query(scene)) {
       captions_apply_style_single(scene, ed->captions_act_channel, strip);
     }
 }
@@ -173,22 +173,22 @@ void captions_active_channel_set(Editing *ed, SeqTimelineChannel *channel) {
   ed->captions_act_channel = channel;
 }
 
-const Vector<Strip *> captions_cache_query(Scene *scene) {
+const Vector<Strip *> caption_strips_query(Scene *scene) {
   Editing *ed = seq::editing_get(scene);
   if(ed == nullptr){
     return {};
   }
 
-  return ed->runtime->captions_cache;
+  return ed->runtime->caption_strips;
 }
 
-Strip *captions_cache_query_index(Scene *scene, int index) {
+Strip *caption_strips_query_index(Scene *scene, int index) {
   if(scene == nullptr || index < 0) {
       return nullptr;
   }
 
   int i = 0;
-  for (Strip *strip : captions_cache_query(scene)) {
+  for (Strip *strip : caption_strips_query(scene)) {
       if(i == index) {
           return strip;
       }
@@ -197,10 +197,10 @@ Strip *captions_cache_query_index(Scene *scene, int index) {
   return nullptr;
 }
 
-void captions_cache_sort(Scene *scene){
+void caption_strips_sort(Scene *scene){
   Editing *ed = seq::editing_get(scene);
-  std::sort(ed->runtime->captions_cache.begin(), 
-  ed->runtime->captions_cache.end(), 
+  std::sort(ed->runtime->caption_strips.begin(), 
+  ed->runtime->caption_strips.end(), 
   [](const Strip *a, const Strip *b) {
       if (!a || !b) {
           return a != nullptr; 
@@ -210,21 +210,21 @@ void captions_cache_sort(Scene *scene){
   });
 }
 
-void captions_cache_append(Scene *scene, Strip *strip){
+void caption_strips_append(Scene *scene, Strip *strip){
   Editing *ed = seq::editing_get(scene);
-  ed->runtime->captions_cache.append(strip);
-  captions_cache_sort(scene);
+  ed->runtime->caption_strips.append(strip);
+  caption_strips_sort(scene);
 }
 
-void captions_cache_remove(Scene *scene, Strip *strip){
+void caption_strips_remove(Scene *scene, Strip *strip){
   Editing *ed = seq::editing_get(scene);
 
-  Vector<Strip *> &cache = ed->runtime->captions_cache;
+  Vector<Strip *> &cache = ed->runtime->caption_strips;
   const int64_t index = cache.first_index_of(strip);
   cache.remove(index);
 }
 
-void captions_cache_rebuild(Scene *scene)
+void caption_strips_rebuild(Scene *scene)
 {
   Editing *ed = seq::editing_get(scene);
   if(ed == nullptr){
@@ -235,21 +235,21 @@ void captions_cache_rebuild(Scene *scene)
     captions_active_channel_set(ed, nullptr);
   }
 
-  ed->runtime->captions_cache.clear();
+  ed->runtime->caption_strips.clear();
   
   for (Strip &strip : ed->seqbase) {
     if (strip.channel == ed->captions_act_channel->index) {
       if (strip.type == STRIP_TYPE_TEXT) {
-        ed->runtime->captions_cache.append(&strip);
+        ed->runtime->caption_strips.append(&strip);
       }
     }
   }
 
-  captions_cache_sort(scene);
+  caption_strips_sort(scene);
 }
 
 void captions_update_active(Scene *scene){
-  captions_cache_rebuild(scene);
+  caption_strips_rebuild(scene);
   
   if(scene != nullptr){
     captions_apply_style_active(scene);

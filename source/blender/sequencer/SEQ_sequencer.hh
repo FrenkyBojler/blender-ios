@@ -117,9 +117,8 @@ struct EditingRuntime {
   PrefetchJob *prefetch_job = nullptr;
   CompositorCache *compositor_cache = nullptr;
 
-  /* Captions Cache */
   // TODO: GD;; Made in simple Vector instead of it's own struct in order to keep it simple, maybe should be a strut to fit the pattern?
-  Vector<Strip *> captions_cache = {};
+  Vector<Strip *> caption_strips = {};
 
   /** Used for rendering a different frame using sequencer_draw_get_transform_preview from the box
    * blade tool. */

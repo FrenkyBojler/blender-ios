@@ -2857,7 +2857,7 @@ static wmOperatorStatus sequencer_meta_make_exec(bContext *C, wmOperator * /*op*
     /* Update captions because one of the changed strips can be caption */
     if(strip->type == STRIP_TYPE_TEXT) {
       if(strip->channel == ed->captions_act_channel->index){
-        seq::captions_cache_remove(scene, strip);
+        seq::caption_strips_remove(scene, strip);
       }
     }
   }
@@ -4351,7 +4351,7 @@ static wmOperatorStatus captions_add_exec(bContext *C, wmOperator *op)
         length = RNA_int_get(op->ptr, "length");
     }
     }
-    length = get_extend_right(start_frame, channel, seq::captions_cache_query(scene), length);
+    length = get_extend_right(start_frame, channel, seq::caption_strips_query(scene), length);
     if(length == 0) {
       BKE_report(op->reports, RPT_ERROR, "A strip already exists at that frame");
       return OPERATOR_CANCELLED;
@@ -4359,7 +4359,7 @@ static wmOperatorStatus captions_add_exec(bContext *C, wmOperator *op)
 
     load_data.effect.length = length;
 
-    Strip *strip = seq::add_effect_strip(scene, &ed->seqbase, &load_data);
+    seq::add_effect_strip(scene, &ed->seqbase, &load_data);
 
     DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
 
@@ -4378,7 +4378,7 @@ static bool captions_add_poll(bContext *C)
     }
     const int cfra = scene->r.cfra;
     
-    for (Strip *strip : seq::captions_cache_query(scene)) {
+    for (Strip *strip : seq::caption_strips_query(scene)) {
         if (strip->intersects_frame(scene, cfra)) {
             return false;
         }
@@ -4448,7 +4448,7 @@ void SEQUENCER_OT_caption_add(wmOperatorType *ot)
             length = RNA_int_get(op->ptr, "length");
         }
       }
-      length = get_extend_right(start_frame, channel, seq::captions_cache_query(scene), length);
+      length = get_extend_right(start_frame, channel, seq::caption_strips_query(scene), length);
       if(length == 0) {
         BKE_report(op->reports, RPT_ERROR, "A strip already exists at that frame");
         return OPERATOR_CANCELLED;
@@ -4456,7 +4456,7 @@ void SEQUENCER_OT_caption_add(wmOperatorType *ot)
 
       load_data.effect.length = length;
   
-      Strip *strip = seq::add_effect_strip(scene, &ed->seqbase, &load_data);
+      seq::add_effect_strip(scene, &ed->seqbase, &load_data);
   
       DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
       WM_main_add_notifier(NC_SCENE | ND_SEQUENCER | NA_ADDED, CTX_data_sequencer_scene(C));
@@ -4534,7 +4534,7 @@ void SEQUENCER_OT_caption_add(wmOperatorType *ot)
   
     seq::prefetch_stop(scene);
   
-    Strip *strip = seq::captions_cache_query_index(scene, index);
+    Strip *strip = seq::caption_strips_query_index(scene, index);
 
     if(strip == nullptr){
       return OPERATOR_CANCELLED;

@@ -308,7 +308,7 @@ Editing *editing_ensure(Scene *scene)
     ed->cache_flag = (SEQ_CACHE_PREFETCH_ENABLE | SEQ_CACHE_STORE_FINAL_OUT | SEQ_CACHE_STORE_RAW);
     ed->show_missing_media_flag = SEQ_EDIT_SHOW_MISSING_MEDIA;
     channels_ensure(&ed->channels);
-    seq::captions_cache_rebuild(scene);
+    seq::caption_strips_rebuild(scene);
   }
 
   return scene->ed;
@@ -764,7 +764,7 @@ static Strip *strip_duplicate(StripDuplicateContext &ctx,
 
       if(ed->captions_act_channel != nullptr){
         if(strip->channel == ed->captions_act_channel->index){
-          seq::captions_cache_append(ctx.scene_dst, strip);
+          seq::caption_strips_append(ctx.scene_dst, strip);
         }
       }
     }

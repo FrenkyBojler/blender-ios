@@ -24,14 +24,14 @@ void captions_apply_style_single(Scene *scene, SeqTimelineChannel *channel, Stri
 void captions_apply_style_active(Scene *scene);
 void captions_update_active(Scene *scene);
 void captions_set_style_custom(Strip *strip, bool use_custom);
-const Vector<Strip *> captions_cache_query(Scene *scene);
-Strip *captions_cache_query_index(Scene *scene, int index);
+const Vector<Strip *> caption_strips_query(Scene *scene);
+Strip *caption_strips_query_index(Scene *scene, int index);
 
 // TODO: GD;; Maybe move the whole cache system into the sequencer_intern header?
-void captions_cache_sort(Scene *scene);
-void captions_cache_append(Scene *scene, Strip *strip);
-void captions_cache_remove(Scene *scene, Strip *strip);
-void captions_cache_rebuild(struct Scene *scene);
+void caption_strips_sort(Scene *scene);
+void caption_strips_append(Scene *scene, Strip *strip);
+void caption_strips_remove(Scene *scene, Strip *strip);
+void caption_strips_rebuild(struct Scene *scene);
 
 /** Pass nullptr as default, which will default to the first channel */
 void captions_active_channel_set(Editing *ed, SeqTimelineChannel *channel=nullptr);

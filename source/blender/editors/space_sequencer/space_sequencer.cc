@@ -278,7 +278,6 @@ static SpaceLink *sequencer_duplicate(SpaceLink *sl)
 
 static void handle_captions_listener(const wmSpaceTypeListenerParams *params)
 {
-  ScrArea *area = params->area;
   const wmNotifier *wmn = params->notifier;
 
   /* Only care about scene + sequencer notifications */
@@ -297,7 +296,7 @@ static void handle_captions_listener(const wmSpaceTypeListenerParams *params)
       return;
     }
 
-/*    if(ed->runtime->captions_cache_dirty){
+/*    if(ed->runtime->caption_strips_dirty){
       seq::captions_update_active(scene);
     }*/
   }

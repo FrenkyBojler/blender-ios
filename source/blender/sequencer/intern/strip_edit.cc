@@ -190,7 +190,7 @@ void edit_remove_flagged_strips(Scene *scene, ListBaseT<Strip> *seqbase)
         
         /* Handle captions removal*/
       } else if(strip.type == STRIP_TYPE_TEXT && strip.channel == ed->captions_act_channel->index) {
-        seq::captions_cache_remove(scene, &strip);
+        seq::caption_strips_remove(scene, &strip);
       }
 
       free_animdata(scene, &strip);
