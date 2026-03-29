@@ -19,3 +19,4 @@ Referenced by issue #119907, Active curve vertex/spline not visualizing properly
 Referenced by issue #112742, Color Space override in file output node does not override scene colors
 Referenced by issue #135175, Curve object bounds don't match geometry nodes output
 Referenced by issue #149895, blender bake crash
+Referenced by issue #156527, Creating New Material Crash
