@@ -2,16 +2,12 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_array_utils.hh"
-#include "BLI_set.hh"
+#include "BLI_map.hh"
 #include "BLI_stack.hh"
 
 #include "FN_field.hh"
 #include "FN_field_recognize.hh"
-#include "FN_multi_function.hh"
 #include "FN_multi_function_registry.hh"
-
-#include "DNA_node_types.h"
 
 namespace blender::fn {
 

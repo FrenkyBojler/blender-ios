@@ -7,8 +7,6 @@
 #include "BLI_cpp_type.hh"
 #include "FN_field.hh"
 #include "FN_field_recognize.hh"
-#include "FN_multi_function_builder.hh"
-#include "FN_multi_function_test_common.hh"
 
 namespace blender::fn::tests {
 

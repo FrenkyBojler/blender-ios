@@ -8,8 +8,6 @@
  * \ingroup fn
  */
 
-#include <concepts>
-
 #include "BLI_math_base.hh"
 
 #include "FN_field.hh"
