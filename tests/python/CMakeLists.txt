@@ -865,6 +865,9 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
     # Some tests in the OpenVDB folder make use of fluid simulations to generate smoke
     list(APPEND render_tests openvdb)
     list(APPEND workbench_tests openvdb)
+    # Some tests in the instancing folder make use of OpenVDB volumes
+    list(APPEND render_tests instancing)
+    list(APPEND workbench_tests instancing)
   endif()
 
   if(WITH_OPENIMAGEDENOISE)
@@ -894,7 +897,7 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
             "Supported devices are: ${_cycles_all_test_devices}")
       endif()
       string(TOLOWER "${_cycles_device}" _cycles_device_lower)
-      set(_cycles_render_tests bake;${render_tests};osl)
+      set(_cycles_render_tests bake;${render_tests};osl;image_mipmap)
 
       set(_cycles_osl_test_type none)
       if(WITH_CYCLES_OSL)

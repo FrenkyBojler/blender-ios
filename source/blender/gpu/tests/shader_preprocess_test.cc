@@ -1524,6 +1524,32 @@ static void test_preprocess_namespace()
   {
     string input = R"(
 namespace A {
+int func(int a) { return 0; }
+int func2(int a)
+{
+  int func = func();
+  return func;
+}
+}
+)";
+    string expect = R"(
+
+int A_func(int a) { return 0; }
+int A_func2(int a)
+{
+  int func = A_func();
+  return func;
+}
+
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(
+namespace A {
 struct S {};
 int func(int a)
 {
@@ -2024,7 +2050,7 @@ static void test_preprocess_resource_guard()
   {
     string input = R"(
 void my_func() {
-  interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_index;
+  interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_id;
 }
 )";
     string expect = R"(
@@ -2032,7 +2058,7 @@ void my_func() {
 
 #if defined(CREATE_INFO_draw_resource_id_varying)
 #line 3
-  interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_index;
+  interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_id;
 
 #endif
 #line 4
@@ -2047,7 +2073,7 @@ void my_func() {
     string input = R"(
 uint my_func() {
   uint i = 0;
-  i += interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_index;
+  i += interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_id;
   return i;
 }
 )";
@@ -2057,7 +2083,7 @@ uint my_func() {
 #if defined(CREATE_INFO_draw_resource_id_varying)
 #line 3
   uint i = 0;
-  i += interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_index;
+  i += interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_id;
   return i;
 
 #else
@@ -2077,7 +2103,7 @@ uint my_func() {
 uint my_func() {
   uint i = 0;
   {
-    i += interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_index;
+    i += interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_id;
   }
   return i;
 }
@@ -2089,7 +2115,7 @@ uint my_func() {
 
 #if defined(CREATE_INFO_draw_resource_id_varying)
 #line 5
-    i += interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_index;
+    i += interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_id;
 
 #endif
 #line 6
@@ -2107,7 +2133,7 @@ uint my_func() {
 uint my_func() {
   uint i = 0;
   {
-    i += interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_index;
+    i += interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_id;
     i += buffer_get(draw_resource_id, resource_id_buf)[0];
   }
   return i;
@@ -2123,7 +2149,7 @@ uint my_func() {
 
 #if defined(CREATE_INFO_draw_resource_id)
 #line 5
-    i += interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_index;
+    i += interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_id;
     i += buffer_get(draw_resource_id, resource_id_buf)[0];
 
 #endif
