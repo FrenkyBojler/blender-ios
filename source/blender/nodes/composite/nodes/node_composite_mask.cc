@@ -35,7 +35,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Float>("Mask").structure_type(StructureType::Dynamic);
 
   b.add_layout([](ui::Layout &layout, bContext *C, PointerRNA *ptr) {
-    template_id(&layout, C, ptr, "mask", nullptr, nullptr, nullptr);
+    template_id(&layout, C, ptr, "mask", "mask.new", nullptr, nullptr);
   });
 
   b.add_input<decl::Menu>("Size Source")
@@ -46,13 +46,13 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Int>("Size X")
       .default_value(256)
       .min(1)
-      .usage_by_menu("Size Source",
+      .usage_by_menu("Size Source"_ustr,
                      {CMP_NODE_MASK_FLAG_SIZE_FIXED, CMP_NODE_MASK_FLAG_SIZE_FIXED_SCENE})
       .description("The resolution of the mask along the X direction");
   b.add_input<decl::Int>("Size Y")
       .default_value(256)
       .min(1)
-      .usage_by_menu("Size Source",
+      .usage_by_menu("Size Source"_ustr,
                      {CMP_NODE_MASK_FLAG_SIZE_FIXED, CMP_NODE_MASK_FLAG_SIZE_FIXED_SCENE})
       .description("The resolution of the mask along the Y direction");
   b.add_input<decl::Bool>("Feather").default_value(true).description(

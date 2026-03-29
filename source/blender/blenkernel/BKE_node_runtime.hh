@@ -15,6 +15,7 @@
 #include "BLI_multi_value_map.hh"
 #include "BLI_mutex.hh"
 #include "BLI_set.hh"
+#include "BLI_ustring.hh"
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
 #include "BLI_vector_set.hh"
@@ -34,7 +35,7 @@ struct bNodeTree;
 
 namespace nodes {
 struct FieldInferencingInterface;
-struct GeometryNodesEvalDependencies;
+struct EvalDependencies;
 class NodeDeclaration;
 struct GeometryNodesLazyFunctionGraphInfo;
 struct StructureTypeInterface;
@@ -235,9 +236,9 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
    * Cache of dependencies used by the node tree itself. Does not account for data that's passed
    * into the node tree from the outside.
    * NOTE: The node tree may reference additional data-blocks besides the ones included here. But
-   * those are not used when the node tree is evaluated by Geometry Nodes.
+   * those are not used when the node tree is evaluated.
    */
-  std::unique_ptr<nodes::GeometryNodesEvalDependencies> geometry_nodes_eval_dependencies;
+  std::unique_ptr<nodes::EvalDependencies> eval_dependencies;
 
   /**
    * Node previews for the compositor.
@@ -273,6 +274,9 @@ class bNodeSocketRuntime : NonCopyable, NonMovable {
    * #AllowUsingOutdatedInfo.
    */
   const nodes::SocketDeclaration *declaration = nullptr;
+
+  /** This is set eagerly when the socket identifier is set. */
+  UString identifier_ustr;
 
   /** #eNodeTreeChangedFlag. */
   uint32_t changed_flag = 0;
@@ -401,8 +405,8 @@ class bNodeRuntime : NonCopyable, NonMovable {
   /** Only valid if #topology_cache_is_dirty is false. */
   Vector<bNodeSocket *> inputs;
   Vector<bNodeSocket *> outputs;
-  Map<StringRefNull, bNodeSocket *> inputs_by_identifier;
-  Map<StringRefNull, bNodeSocket *> outputs_by_identifier;
+  Map<UString, bNodeSocket *> inputs_by_identifier;
+  Map<UString, bNodeSocket *> outputs_by_identifier;
   bool has_available_linked_inputs = false;
   bool has_available_linked_outputs = false;
   Vector<bNode *> direct_children_in_frame;
@@ -832,25 +836,25 @@ inline const bNodeSocket &bNode::output_socket(int index) const
   return *this->runtime->outputs[index];
 }
 
-inline const bNodeSocket *bNode::input_by_identifier(StringRef identifier) const
+inline const bNodeSocket *bNode::input_by_identifier(UString identifier) const
 {
   BLI_assert(bke::node_tree_runtime::topology_cache_is_available(*this));
   return this->runtime->inputs_by_identifier.lookup_default_as(identifier, nullptr);
 }
 
-inline const bNodeSocket *bNode::output_by_identifier(StringRef identifier) const
+inline const bNodeSocket *bNode::output_by_identifier(UString identifier) const
 {
   BLI_assert(bke::node_tree_runtime::topology_cache_is_available(*this));
   return this->runtime->outputs_by_identifier.lookup_default_as(identifier, nullptr);
 }
 
-inline bNodeSocket *bNode::input_by_identifier(StringRef identifier)
+inline bNodeSocket *bNode::input_by_identifier(UString identifier)
 {
   BLI_assert(bke::node_tree_runtime::topology_cache_is_available(*this));
   return this->runtime->inputs_by_identifier.lookup_default_as(identifier, nullptr);
 }
 
-inline bNodeSocket *bNode::output_by_identifier(StringRef identifier)
+inline bNodeSocket *bNode::output_by_identifier(UString identifier)
 {
   BLI_assert(bke::node_tree_runtime::topology_cache_is_available(*this));
   return this->runtime->outputs_by_identifier.lookup_default_as(identifier, nullptr);
@@ -1005,6 +1009,11 @@ inline int bNodeSocket::index_in_all_outputs() const
   BLI_assert(bke::node_tree_runtime::topology_cache_is_available(*this));
   BLI_assert(this->is_output());
   return this->runtime->index_in_inout_sockets;
+}
+
+inline UString bNodeSocket::identifier_ustr() const
+{
+  return this->runtime->identifier_ustr;
 }
 
 inline bool bNodeSocket::is_user_hidden() const

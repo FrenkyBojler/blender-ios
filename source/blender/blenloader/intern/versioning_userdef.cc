@@ -431,7 +431,11 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(space_view3d.gp_wire_edit);
   }
 
-  if (!USER_VERSION_ATLEAST(502, 7)) {
+  if (!USER_VERSION_ATLEAST(502, 8)) {
+    FROM_DEFAULT_V4_UCHAR(tui.link);
+  }
+
+  if (!USER_VERSION_ATLEAST(502, 15)) {
     copy_v4_v4_uchar(btheme->tui.xaxis_rot, U_theme_default.tui.xaxis);
     copy_v4_v4_uchar(btheme->tui.xaxis_scale, U_theme_default.tui.xaxis);
     copy_v4_v4_uchar(btheme->tui.yaxis_rot, U_theme_default.tui.yaxis);
@@ -1770,6 +1774,10 @@ void blo_do_versions_userdef(UserDef *userdef)
 
   if (!USER_VERSION_ATLEAST(502, 3)) {
     userdef->uiflag2 |= USER_UIFLAG2_SHOW_ONLINE_ASSETS;
+  }
+
+  if (!USER_VERSION_ATLEAST(502, 13)) {
+    userdef->geometry_nodes_stack_limit = 100;
   }
 
   /**

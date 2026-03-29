@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Beta (b'5a04f1d246f1')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'ec8c60553753')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-11 11:01+0000\n"
+"POT-Creation-Date: 2026-03-23 09:55+0000\n"
 "PO-Revision-Date: 2025-12-01 09:17+0000\n"
 "Last-Translator: Matt Mitacek <mattmitacek@gmail.com>\n"
 "Language-Team: Czech <https://translate.blender.org/projects/blender-ui/ui/cs/>\n"
@@ -1093,6 +1093,10 @@ msgstr "Tloušťka"
 
 msgid "Default"
 msgstr "Základní"
+
+
+msgid "Display Mode"
+msgstr "Režim Zobrazení"
 
 
 msgid "Stroke Points"
@@ -7495,10 +7499,6 @@ msgid "Medium"
 msgstr "Střední"
 
 
-msgid "Display Mode"
-msgstr "Režim Zobrazení"
-
-
 msgid "Thumbnails"
 msgstr "Miniatury"
 
@@ -11413,6 +11413,10 @@ msgid "All Keying Sets"
 msgstr "Klíčovací sestava"
 
 
+msgid "Restore Frame"
+msgstr "Pozpátku"
+
+
 msgid "Render Data"
 msgstr "Vykreslení dat"
 
@@ -13822,40 +13826,12 @@ msgid "Material slot name"
 msgstr "Název okénka materiálu"
 
 
-msgid "Metaball"
-msgstr "Meta objekt"
-
-
-msgid "Show/Hide"
-msgstr "Zobrazit/skrýt"
-
-
-msgid "Names"
-msgstr "Názvy"
-
-
-msgid "Bone Roll"
-msgstr "Kost"
-
-
-msgid "Clean Up"
-msgstr "Vyčistit"
-
-
-msgid "Pivot Point"
-msgstr "Bod pro pivot"
+msgid "Mirror"
+msgstr "Zrcadlit"
 
 
 msgid "Snap"
 msgstr "Přichytit"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Způsob útlumu"
-
-
-msgid "Mirror"
-msgstr "Zrcadlit"
 
 
 msgid "UV Mapping"
@@ -13874,36 +13850,36 @@ msgid "Align View"
 msgstr "Zarovnat pohled"
 
 
-msgid "Layout"
-msgstr "Rozložení"
-
-
 msgid "Select Linked"
 msgstr "Vybrat Propojené"
+
+
+msgid "Instances"
+msgstr "Instance"
 
 
 msgid "Assign Material"
 msgstr "Přiřadit Materiál"
 
 
-msgid "Keying"
-msgstr "Klíčovací sestava"
-
-
-msgid "Tracking"
-msgstr "Sledování"
+msgid "Import"
+msgstr "Importovat"
 
 
 msgid "Utilities"
 msgstr "Nástroje"
 
 
-msgid "Math"
-msgstr "Matematika"
+msgid "Metaball"
+msgstr "Meta objekt"
 
 
 msgid "Light"
 msgstr "Světlo"
+
+
+msgid "Math"
+msgstr "Matematika"
 
 
 msgid "Relations"
@@ -13926,6 +13902,14 @@ msgid "Quick Effects"
 msgstr "Rychlé Efekty"
 
 
+msgid "Show/Hide"
+msgstr "Zobrazit/skrýt"
+
+
+msgid "Clean Up"
+msgstr "Vyčistit"
+
+
 msgid "Make Single User"
 msgstr "Přivlastnit"
 
@@ -13942,6 +13926,10 @@ msgid "Propagate"
 msgstr "Vložit"
 
 
+msgid "Names"
+msgstr "Názvy"
+
+
 msgid "Mesh Select Mode"
 msgstr "Síťový mód výběru"
 
@@ -13950,20 +13938,36 @@ msgid "Face Data"
 msgstr "Data Ploch"
 
 
-msgid "Instances"
-msgstr "Instance"
-
-
-msgid "Import"
-msgstr "Importovat"
+msgid "Layout"
+msgstr "Rozložení"
 
 
 msgid "Merge"
 msgstr "Sloučit"
 
 
+msgid "Keying"
+msgstr "Klíčovací sestava"
+
+
 msgid "Special Characters"
 msgstr "Speciální Znaky"
+
+
+msgid "Tracking"
+msgstr "Sledování"
+
+
+msgid "Bone Roll"
+msgstr "Kost"
+
+
+msgid "Pivot Point"
+msgstr "Bod pro pivot"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "Způsob útlumu"
 
 
 msgid "Basic"
@@ -16717,10 +16721,6 @@ msgstr "Kompoziční uzly"
 
 msgid "Custom color of the node body"
 msgstr "Vlastní barva těla uzlu"
-
-
-msgid "Height of the node"
-msgstr "Šířka a výška nového obrázku"
 
 
 msgid "Collapse"
@@ -26979,10 +26979,6 @@ msgid "Bake All Physics"
 msgstr "Bake Všechnu Fyziku"
 
 
-msgid "Bake all physics"
-msgstr "Bake všechnu fyziku"
-
-
 msgctxt "Operator"
 msgid "Bake from Cache"
 msgstr "Bake z Mezipaměti"
@@ -27236,10 +27232,6 @@ msgstr "Jméno modifikátoru"
 msgctxt "Operator"
 msgid "Cancel Animation"
 msgstr "Zrušit Animaci"
-
-
-msgid "Restore Frame"
-msgstr "Pozpátku"
 
 
 msgctxt "Operator"
@@ -30385,14 +30377,6 @@ msgid "Restrict"
 msgstr "Omezit"
 
 
-msgid "Active Tool"
-msgstr "Aktivní nástroj"
-
-
-msgid "View Lock"
-msgstr "Zámek zobrazení"
-
-
 msgid "Shadow Settings"
 msgstr "Nastavení Stínů"
 
@@ -30439,6 +30423,14 @@ msgstr "Stereoskopie"
 
 msgid "Auto-Masking"
 msgstr "Auto-Maska"
+
+
+msgid "Active Tool"
+msgstr "Aktivní nástroj"
+
+
+msgid "View Lock"
+msgstr "Zámek zobrazení"
 
 
 msgid "Chain Scaling"
@@ -37872,11 +37864,6 @@ msgid "Calculate to Frame"
 msgstr "Vypočítat na Snímek"
 
 
-msgctxt "Operator"
-msgid "Bake All Dynamics"
-msgstr "Bake Veškerou Dynamiku"
-
-
 msgid "Cache is disabled until the file is saved"
 msgstr "Mezipaměť je zakázaná dokud soubor není uložen"
 
@@ -39054,6 +39041,11 @@ msgstr "Přidat kouli k síti interaktivně"
 
 
 msgctxt "Operator"
+msgid "Save Copy..."
+msgstr "Uložit kopii..."
+
+
+msgctxt "Operator"
 msgid "Quit"
 msgstr "Konec"
 
@@ -39126,11 +39118,6 @@ msgstr "Další pracovní prostor"
 msgctxt "Operator"
 msgid "Back to Previous"
 msgstr "Zpět na přechozí"
-
-
-msgctxt "Operator"
-msgid "Save Copy..."
-msgstr "Uložit kopii..."
 
 
 msgctxt "Operator"
@@ -39874,6 +39861,10 @@ msgid "Origins (All)"
 msgstr "Původy (Všech)"
 
 
+msgid "Marker Names"
+msgstr "Názvy značek"
+
+
 msgctxt "Plural"
 msgid "Sharp"
 msgstr "Ostré"
@@ -40075,8 +40066,12 @@ msgid "Duplicate Active Keyframe (Active Layer)"
 msgstr "Duplikovat Aktivní Klíčový snímek (Aktivní vrstva)"
 
 
-msgid "Marker Names"
-msgstr "Názvy značek"
+msgid "Valley"
+msgstr "Údolí"
+
+
+msgid "Screen Space"
+msgstr "Místo na obrazovce"
 
 
 msgid "Reference Point"
@@ -40138,14 +40133,6 @@ msgstr "Odstranit hrany"
 msgctxt "Operator"
 msgid "Delete Faces"
 msgstr "Odstranit plochy"
-
-
-msgid "Valley"
-msgstr "Údolí"
-
-
-msgid "Screen Space"
-msgstr "Místo na obrazovce"
 
 
 msgid "Custom Location"
