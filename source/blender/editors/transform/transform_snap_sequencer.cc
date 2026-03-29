@@ -517,7 +517,9 @@ static bool snap_calc_timeline(TransInfo *t, const TransSeqSnapData *snap_data)
   for (const float2 source : snap_data->sources) {
     for (const float2 target : snap_data->targets) {
       float2 point = snap_to_mouse_cursor ? mval_view : source + t->values;
-      if (ignore_other_channels && target[1] != all_channels && point[1] != target[1]) {
+      if (ignore_other_channels && target[1] != all_channels &&
+          round_fl_to_int(point[1]) != target[1])
+      {
         continue;
       }
 
