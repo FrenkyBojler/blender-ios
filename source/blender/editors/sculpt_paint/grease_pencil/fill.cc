@@ -4,9 +4,11 @@
 
 #include "BLI_bounds.hh"
 #include "BLI_color.hh"
+#include "BLI_delaunay_2d.hh"
 #include "BLI_enum_flags.hh"
 #include "BLI_index_mask.hh"
 #include "BLI_math_base.hh"
+#include "BLI_math_geom.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_offset_indices.hh"
@@ -1086,6 +1088,14 @@ static Image *render_strokes(const ViewContext &view_context,
   return image_render::image_render_end(*view_context.bmain, offscreen_buffer);
 }
 
+static std::pair<int, int> order_edge(const std::pair<int, int> &edge)
+{
+  if (edge.first > edge.second) {
+    return std::pair<int, int>(edge.second, edge.first);
+  }
+  return edge;
+}
+
 bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
                                  const Brush &brush,
                                  const Scene &scene,
@@ -1108,63 +1118,419 @@ bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
   BLI_assert(object.type == OB_GREASE_PENCIL);
   const Object &object_eval = *DEG_get_evaluated(&depsgraph, &object);
 
-  /* Zoom and offset based on bounds, to fit all strokes within the render. */
-  const bool uniform_zoom = true;
-  const float max_zoom_factor = 5.0f;
-  const float2 margin = float2(20);
-  /* Pixel scale (aka. "fill_factor, aka. "Precision") to reduce image size. */
-  const float pixel_scale = brush.gpencil_settings->fill_factor;
-  const auto [zoom, offset, image_size, image_to_region] = fit_strokes_to_view(view_context,
-                                                                               boundary_layers,
-                                                                               src_drawings,
-                                                                               fit_method,
-                                                                               fill_point,
-                                                                               uniform_zoom,
-                                                                               max_zoom_factor,
-                                                                               margin,
-                                                                               pixel_scale);
+  meshintersect::CDT_input<double> input;
+  input.need_ids = true;
 
-  ed::greasepencil::DrawingPlacement placement(scene, region, view3d, object_eval, &layer);
-  if (placement.use_project_to_surface() || placement.use_project_to_stroke()) {
-    placement.cache_viewport_depths(&depsgraph, &region, &view3d);
+  const DrawingInfo &info = src_drawings.last();
+  // const Layer &layer_1 = *grease_pencil.layers()[info.layer_index];
+
+  const bke::CurvesGeometry &strokes = info.drawing.strokes();
+  const VArray<bool> cyclic = strokes.cyclic();
+  const int num_cyclic = array_utils::count_booleans(cyclic);
+
+  input.vert.reinitialize(strokes.points_num());
+
+  const Span<float3> strokes_pos = strokes.positions();
+
+  for (const int i : strokes.points_range()) {
+    const float3 pos = strokes_pos[i];
+    input.vert[i] = double2(pos.x, pos.z);
   }
 
-  Image *ima = render_strokes(view_context,
-                              brush,
-                              scene,
-                              layer,
-                              boundary_layers,
-                              src_drawings,
-                              image_size,
-                              alpha_threshold,
-                              fill_point,
-                              extensions,
-                              placement,
-                              zoom,
-                              offset);
-  if (!ima) {
-    return {};
+  input.edge.reinitialize(strokes.points_num() - strokes.curves_num() + num_cyclic);
+
+  int idx = 0;
+
+  for (const int curve_i : strokes.curves_range()) {
+    const IndexRange points = strokes.points_by_curve()[curve_i];
+    const bool is_cyclic = cyclic[curve_i];
+    for (const int point_i : points.drop_back(is_cyclic ? 0 : 1)) {
+      const int point_next = (point_i - points.first() + 1) % points.size() + points.first();
+      input.edge[idx++] = order_edge(std::pair<int, int>(point_i, point_next));
+    }
   }
 
-  /* TODO should use the same hardness as the paint brush. */
-  const float stroke_hardness = 1.0f;
+  // Set<std::pair<int, int>> source_edges = Set<std::pair<int, int>>(input.edge);
 
-  bke::CurvesGeometry fill_curves = process_image(*ima,
-                                                  scene,
-                                                  view_context,
-                                                  brush,
-                                                  placement,
-                                                  image_to_region,
-                                                  stroke_material_index,
-                                                  stroke_hardness,
-                                                  invert,
-                                                  keep_images);
+  // meshintersect::CDT_result<double> result = delaunay_2d_calc(input, CDT_CONSTRAINTS);
+  meshintersect::CDT_result<double> result = delaunay_2d_calc(input, CDT_FULL);
 
-  if (!keep_images) {
-    BKE_id_free(view_context.bmain, ima);
+  /**/
+
+  constexpr int NULL_INDEX = -1;
+
+  Map<std::pair<int, int>, int> edge_to_index;
+  for (const int edge_index : result.edge.index_range()) {
+    const std::pair<int, int> &edge = result.edge[edge_index];
+    edge_to_index.add_new(order_edge(edge), edge_index);
   }
 
-  return fill_curves;
+  Array<int> tri_edges_0(result.face.size(), NULL_INDEX);
+  Array<int> tri_edges_1(result.face.size(), NULL_INDEX);
+  Array<int> tri_edges_2(result.face.size(), NULL_INDEX);
+
+  for (const int tri_index : result.face.index_range()) {
+    const Vector<int> &face = result.face[tri_index];
+
+    const std::pair<int, int> edge1 = order_edge(std::pair<int, int>(face[0], face[1]));
+    const std::pair<int, int> edge2 = order_edge(std::pair<int, int>(face[1], face[2]));
+    const std::pair<int, int> edge3 = order_edge(std::pair<int, int>(face[2], face[0]));
+
+    tri_edges_0[tri_index] = edge_to_index.lookup(edge1);
+    tri_edges_1[tri_index] = edge_to_index.lookup(edge2);
+    tri_edges_2[tri_index] = edge_to_index.lookup(edge3);
+  }
+
+  /**/
+
+  Array<bool> is_source_edge(result.edge.size(), false);
+
+  for (const int edge_i : is_source_edge.index_range()) {
+    for (const uint32_t orig_id : result.edge_orig[edge_i]) {
+      if (orig_id < result.face_edge_offset) {
+        is_source_edge[edge_i] = true;
+      }
+    }
+  }
+
+  /**/
+
+  Array<std::pair<int, int>> edge_to_tris(result.edge.size(),
+                                          std::pair<int, int>(NULL_INDEX, NULL_INDEX));
+
+  for (const int tri_index : result.face.index_range()) {
+    const int edge_0 = tri_edges_0[tri_index];
+    const int edge_1 = tri_edges_1[tri_index];
+    const int edge_2 = tri_edges_2[tri_index];
+
+    BLI_assert(edge_0 != NULL_INDEX);
+    BLI_assert(edge_1 != NULL_INDEX);
+    BLI_assert(edge_2 != NULL_INDEX);
+
+    if (edge_to_tris[edge_0].first == NULL_INDEX) {
+      edge_to_tris[edge_0].first = tri_index;
+    }
+    else {
+      edge_to_tris[edge_0].second = tri_index;
+    }
+
+    if (edge_to_tris[edge_1].first == NULL_INDEX) {
+      edge_to_tris[edge_1].first = tri_index;
+    }
+    else {
+      edge_to_tris[edge_1].second = tri_index;
+    }
+
+    if (edge_to_tris[edge_2].first == NULL_INDEX) {
+      edge_to_tris[edge_2].first = tri_index;
+    }
+    else {
+      edge_to_tris[edge_2].second = tri_index;
+    }
+  }
+
+  /**/
+
+  Array<std::pair<int, int>> tri_adjacency_0(result.face.size(),
+                                             std::pair<int, int>(NULL_INDEX, NULL_INDEX));
+  Array<std::pair<int, int>> tri_adjacency_1(result.face.size(),
+                                             std::pair<int, int>(NULL_INDEX, NULL_INDEX));
+  Array<std::pair<int, int>> tri_adjacency_2(result.face.size(),
+                                             std::pair<int, int>(NULL_INDEX, NULL_INDEX));
+
+  for (const int tri_index : result.face.index_range()) {
+    const int edge_0 = tri_edges_0[tri_index];
+    const int edge_1 = tri_edges_1[tri_index];
+    const int edge_2 = tri_edges_2[tri_index];
+
+    if (!is_source_edge[edge_0]) {
+      const int index_0 = edge_to_tris[edge_0].first;
+      if (index_0 != tri_index && index_0 != NULL_INDEX) {
+        tri_adjacency_0[tri_index] = std::pair<int, int>(index_0, edge_0);
+      }
+
+      const int index_1 = edge_to_tris[edge_0].second;
+      if (index_1 != tri_index && index_1 != NULL_INDEX) {
+        tri_adjacency_0[tri_index] = std::pair<int, int>(index_1, edge_0);
+      }
+    }
+
+    if (!is_source_edge[edge_1]) {
+      const int index_0 = edge_to_tris[edge_1].first;
+      if (index_0 != tri_index && index_0 != NULL_INDEX) {
+        tri_adjacency_1[tri_index] = std::pair<int, int>(index_0, edge_1);
+      }
+
+      const int index_1 = edge_to_tris[edge_1].second;
+      if (index_1 != tri_index && index_1 != NULL_INDEX) {
+        tri_adjacency_1[tri_index] = std::pair<int, int>(index_1, edge_1);
+      }
+    }
+
+    if (!is_source_edge[edge_2]) {
+      const int index_0 = edge_to_tris[edge_2].first;
+      if (index_0 != tri_index && index_0 != NULL_INDEX) {
+        tri_adjacency_2[tri_index] = std::pair<int, int>(index_0, edge_2);
+      }
+
+      const int index_1 = edge_to_tris[edge_2].second;
+      if (index_1 != tri_index && index_1 != NULL_INDEX) {
+        tri_adjacency_2[tri_index] = std::pair<int, int>(index_1, edge_2);
+      }
+    }
+  }
+
+  /**/
+
+  Array<float> edge_weights(result.edge.size());
+
+  for (const int edge_i : result.edge.index_range()) {
+    const std::pair<int, int> &edge = result.edge[edge_i];
+    const double2 &v1 = result.vert[edge.first];
+    const double2 &v2 = result.vert[edge.second];
+    edge_weights[edge_i] = math::distance(v1, v2);
+  }
+
+  /**/
+
+  auto get_tri_for_point = [&](const float2 &v) {
+    for (const int tri_index : result.face.index_range()) {
+      const Vector<int> &tri = result.face[tri_index];
+      if (isect_point_tri_v2(v,
+                             float2(result.vert[tri[0]]),
+                             float2(result.vert[tri[1]]),
+                             float2(result.vert[tri[2]])) != 0)
+      {
+        return tri_index;
+      }
+    }
+
+    BLI_assert_unreachable();
+    return NULL_INDEX;
+  };
+
+  Vector<Vector<int>> geometry;
+
+  // {
+  //   const int tri_index = get_tri_for_point(float2(0.0f, 0.0f));
+  //   const Vector<int> &tri = result.face[tri_index];
+
+  //   geometry.append(Vector<int>());
+
+  //   for (const int i : tri.index_range()) {
+  //     geometry[0].append(tri[i]);
+  //   }
+  // }
+
+  // if (false)
+  {
+    // fill_tris = set()
+
+    // for j in range(len(pos_hint)):
+    //     v = pos_hint[j]
+    //     tri = get_tri_for_point(v)
+    //     assert tri is not None
+    //     fill_tris.add(tri)
+
+    // fill_tris = list(fill_tris)
+
+    const int first_tri = get_tri_for_point(float2(0.0f, 0.0f));
+
+    VectorSet<int> fill_tris;
+    Vector<int> tris_to_check;
+
+    fill_tris.add(first_tri);
+    tris_to_check.append(first_tri);
+
+    int tep_ = 0;
+    // for (const int tep_ : IndexRange(1000)) {
+    while (!tris_to_check.is_empty()) {
+      tep_++;
+      BLI_assert(tep_ < 1000);
+      Vector<int> new_tris_to_check;
+      for (const int fill_i : tris_to_check.index_range()) {
+        const int next_tri = tris_to_check[fill_i];
+
+        {
+          auto [index, edge_index] = tri_adjacency_0[next_tri];
+          if (index != NULL_INDEX) {
+            if (!is_source_edge[edge_index]) {
+              if (!fill_tris.contains(index)) {
+                fill_tris.add(index);
+                new_tris_to_check.append(index);
+              }
+            }
+          }
+        }
+        {
+          auto [index, edge_index] = tri_adjacency_1[next_tri];
+          if (index != NULL_INDEX) {
+            if (!is_source_edge[edge_index]) {
+              if (!fill_tris.contains(index)) {
+                fill_tris.add(index);
+                new_tris_to_check.append(index);
+              }
+            }
+          }
+        }
+        {
+          auto [index, edge_index] = tri_adjacency_2[next_tri];
+          if (index != NULL_INDEX) {
+            if (!is_source_edge[edge_index]) {
+              if (!fill_tris.contains(index)) {
+                fill_tris.add(index);
+                new_tris_to_check.append(index);
+              }
+            }
+          }
+        }
+      }
+
+      tris_to_check = new_tris_to_check;
+    }
+
+    for (const int fill_index : fill_tris.index_range()) {
+      const int tri_index = fill_tris[fill_index];
+      const Vector<int> &tri = result.face[tri_index];
+
+      geometry.append(Vector<int>());
+      for (const int i : tri.index_range()) {
+        geometry.last().append(tri[i]);
+      }
+    }
+
+    // VectorSet<int> new_verts;
+    // for (const int fill_index : fill_tris.index_range()) {
+    //   const int tri_index = fill_tris[fill_index];
+    //   const Vector<int> &tri = result.face[tri_index];
+
+    //   for (const int i : tri.index_range()) {
+    //     new_verts.add(tri[i]);
+    //   }
+    // }
+
+    // /* TODO. */
+    // geometry.append(Vector<int>());
+    // for (const int i : new_verts.index_range()) {
+    //   geometry.last().append(new_verts[i]);
+    // }
+  }
+
+  // {
+
+  //   for (const int edge_i : result.edge.index_range()) {
+  //     const std::pair<int, int> &edge = result.edge[edge_i];
+
+  //     if (!is_source_edge[edge_i]) {
+  //       continue;
+  //     }
+
+  //     geometry.append(Vector<int>());
+  //     geometry.last().append(edge.first);
+  //     geometry.last().append(edge.second);
+  //   }
+  // }
+
+  /**/
+
+  const int curve_num = geometry.size();
+  int point_num = 0;
+
+  for (const int curve_i : geometry.index_range()) {
+    point_num += geometry[curve_i].size();
+  }
+
+  bke::CurvesGeometry curves(point_num, curve_num);
+
+  MutableSpan<int> offsets = curves.offsets_for_write();
+  MutableSpan<float3> positions = curves.positions_for_write();
+
+  bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+
+  bke::SpanAttributeWriter<int> fill_ids = attributes.lookup_or_add_for_write_span<int>(
+      "fill_id", bke::AttrDomain::Curve);
+  bke::SpanAttributeWriter<float> fill_opacities = attributes.lookup_or_add_for_write_span<float>(
+      "fill_opacity", bke::AttrDomain::Curve);
+
+  int i = 0;
+  for (const int curve_i : geometry.index_range()) {
+    fill_ids.span[curve_i] = curve_i + 1;
+    Span<int> geometry_i = geometry[curve_i];
+    offsets[curve_i] = geometry_i.size();
+
+    for (const int geom_i : geometry_i.index_range()) {
+      positions[i++] = float3(
+          result.vert[geometry_i[geom_i]].x, 0.0f, result.vert[geometry_i[geom_i]].y);
+    }
+  }
+
+  offset_indices::accumulate_counts_to_offsets(offsets);
+
+  curves.fill_curve_types(CURVE_TYPE_POLY);
+  curves.tag_topology_changed();
+
+  fill_ids.finish();
+  fill_opacities.span.fill(0.2);
+  curves.cyclic_for_write().fill(true);
+  fill_opacities.finish();
+
+  // /* Zoom and offset based on bounds, to fit all strokes within the render. */
+  // const bool uniform_zoom = true;
+  // const float max_zoom_factor = 5.0f;
+  // const float2 margin = float2(20);
+  // /* Pixel scale (aka. "fill_factor, aka. "Precision") to reduce image size. */
+  // const float pixel_scale = brush.gpencil_settings->fill_factor;
+  // const auto [zoom, offset, image_size, image_to_region] = fit_strokes_to_view(view_context,
+  //                                                                              boundary_layers,
+  //                                                                              src_drawings,
+  //                                                                              fit_method,
+  //                                                                              fill_point,
+  //                                                                              uniform_zoom,
+  //                                                                              max_zoom_factor,
+  //                                                                              margin,
+  //                                                                              pixel_scale);
+
+  // ed::greasepencil::DrawingPlacement placement(scene, region, view3d, object_eval, &layer);
+  // if (placement.use_project_to_surface() || placement.use_project_to_stroke()) {
+  //   placement.cache_viewport_depths(&depsgraph, &region, &view3d);
+  // }
+
+  // Image *ima = render_strokes(view_context,
+  //                             brush,
+  //                             scene,
+  //                             layer,
+  //                             boundary_layers,
+  //                             src_drawings,
+  //                             image_size,
+  //                             alpha_threshold,
+  //                             fill_point,
+  //                             extensions,
+  //                             placement,
+  //                             zoom,
+  //                             offset);
+  // if (!ima) {
+  //   return {};
+  // }
+
+  // /* TODO should use the same hardness as the paint brush. */
+  // const float stroke_hardness = 1.0f;
+
+  // bke::CurvesGeometry fill_curves = process_image(*ima,
+  //                                                 scene,
+  //                                                 view_context,
+  //                                                 brush,
+  //                                                 placement,
+  //                                                 image_to_region,
+  //                                                 stroke_material_index,
+  //                                                 stroke_hardness,
+  //                                                 invert,
+  //                                                 keep_images);
+
+  // if (!keep_images) {
+  //   BKE_id_free(view_context.bmain, ima);
+  // }
+
+  return curves;
 }
 
 }  // namespace blender::ed::greasepencil

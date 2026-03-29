@@ -1450,16 +1450,16 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
     }
 
     /* Combine the strokes into a single fill with the same fill ID. */
-    bke::SpanAttributeWriter<int> fill_ids =
-        fill_curves.attributes_for_write().lookup_or_add_for_write_span<int>(
-            "fill_id", bke::AttrDomain::Curve, bke::AttributeInitValue(1));
-    fill_ids.finish();
+    // bke::SpanAttributeWriter<int> fill_ids =
+    //     fill_curves.attributes_for_write().lookup_or_add_for_write_span<int>(
+    //         "fill_id", bke::AttrDomain::Curve, bke::AttributeInitValue(1));
+    // fill_ids.finish();
 
-    smooth_fill_strokes(fill_curves, fill_curves.curves_range());
+    // smooth_fill_strokes(fill_curves, fill_curves.curves_range());
 
-    if (simplify_levels > 0) {
-      fill_curves = simplify_fixed(fill_curves, brush.gpencil_settings->fill_simplylvl);
-    }
+    // if (simplify_levels > 0) {
+    //   fill_curves = simplify_fixed(fill_curves, brush.gpencil_settings->fill_simplylvl);
+    // }
 
     bke::CurvesGeometry &dst_curves = info.target.drawing.strokes_for_write();
     if (auto_remove_fill_guides) {
