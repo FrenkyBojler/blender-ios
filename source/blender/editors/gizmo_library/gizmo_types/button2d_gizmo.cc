@@ -82,10 +82,13 @@ void ED_gizmo_button2d_group_background(const bContext *C, wmGizmoGroup *gzgroup
   /* A bit of padding above and below. */
   BLI_rctf_pad(&draw_rect, 0.0f, rad * 0.2f);
   ui::draw_roundbox_corner_set(ui::CNR_ALL);
-
-  float bg_color[4] = {0.0f, 0.0f, 0.0f, 0.3f};
-  float outline_color[4] = {0.0f, 0.0f, 0.0f, 0.4f};
-  ui::draw_roundbox_4fv_ex(&draw_rect, bg_color, nullptr, 1.0f, outline_color, U.pixelsize, rad);
+  ui::draw_roundbox_4fv_ex(&draw_rect,
+                           gzgroup->type->background_color,
+                           nullptr,
+                           1.0f,
+                           gzgroup->type->outline_color,
+                           U.pixelsize,
+                           rad);
 }
 
 /* -------------------------------------------------------------------- */
@@ -338,7 +341,7 @@ static void button2d_draw_intern(const bContext *C,
                        alpha,
                        0.0f,
                        icon_color,
-                       highlight,
+                       false,
                        UI_NO_ICON_OVERLAY_TEXT);
 
       GPU_polygon_smooth(true);
