@@ -769,7 +769,35 @@ template void func(float a);
 )";
     string error;
     string output = process_test_string(input, error);
-    EXPECT_EQ(error, "Template instantiation unsupported syntax");
+    EXPECT_EQ(error,
+              "Template instantiation and specialization require explicit template arguments");
+  }
+  {
+    string input = R"(
+template A<f> fn(A<f> a);
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error,
+              "Template instantiation and specialization require explicit template arguments");
+  }
+  {
+    string input = R"(
+template<> A fn(A a) {}
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error,
+              "Template instantiation and specialization require explicit template arguments");
+  }
+  {
+    string input = R"(
+template<> A<f> fn(A<f> a) {}
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error,
+              "Template instantiation and specialization require explicit template arguments");
   }
   {
     string input = R"(func<float, 1>(a);)";
