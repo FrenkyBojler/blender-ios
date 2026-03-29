@@ -111,7 +111,7 @@ void OBJMesh::clear()
   normal_coords_ = {};
   face_order_ = {};
   if (face_smooth_groups_) {
-    MEM_freeN(face_smooth_groups_);
+    MEM_delete(face_smooth_groups_);
     face_smooth_groups_ = nullptr;
   }
 }
@@ -245,7 +245,7 @@ void OBJMesh::calc_face_order()
   /* Sort faces by their material index. */
   face_order_.reinitialize(material_indices_span.size());
   array_utils::fill_index_range(face_order_.as_mutable_span());
-  blender::parallel_sort(face_order_.begin(), face_order_.end(), [&](int a, int b) {
+  parallel_sort(face_order_.begin(), face_order_.end(), [&](int a, int b) {
     int mat_a = material_indices_span[a];
     int mat_b = material_indices_span[b];
     if (mat_a != mat_b) {

@@ -30,26 +30,26 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
-  const bool use_radius = params.extract_input<bool>("Use Radius");
+  GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry"_ustr);
+  const bool use_radius = params.extract_input<bool>("Use Radius"_ustr);
 
   /* Compute the min and max of all realized geometry for the two
    * vector outputs, which are only meant to consider real geometry. */
   const std::optional<Bounds<float3>> bounds = geometry_set.compute_boundbox_without_instances(
       use_radius);
   if (!bounds) {
-    params.set_output("Min", float3(0));
-    params.set_output("Max", float3(0));
+    params.set_output("Min"_ustr, float3(0));
+    params.set_output("Max"_ustr, float3(0));
   }
   else {
-    params.set_output("Min", bounds->min);
-    params.set_output("Max", bounds->max);
+    params.set_output("Min"_ustr, bounds->min);
+    params.set_output("Max"_ustr, bounds->max);
   }
 
   /* Generate the bounding box meshes inside each unique geometry set (including individually for
    * every instance). Because geometry components are reference counted anyway, we can just
    * repurpose the original geometry sets for the output. */
-  if (params.output_is_required("Bounding Box")) {
+  if (params.output_is_required("Bounding Box"_ustr)) {
     geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &sub_geometry) {
       std::optional<Bounds<float3>> sub_bounds;
 
@@ -74,13 +74,13 @@ static void node_geo_exec(GeoNodeExecParams params)
       }
     });
 
-    params.set_output("Bounding Box", std::move(geometry_set));
+    params.set_output("Bounding Box"_ustr, std::move(geometry_set));
   }
 }
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeBoundBox", GEO_NODE_BOUNDING_BOX);
   ntype.ui_name = "Bounding Box";
   ntype.ui_description =
@@ -90,7 +90,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

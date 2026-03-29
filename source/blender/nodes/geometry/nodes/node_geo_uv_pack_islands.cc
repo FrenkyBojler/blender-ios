@@ -140,7 +140,7 @@ static VArray<float3> construct_uv_gvarray(const Mesh &mesh,
   });
   geometry::uv_parametrizer_construct_end(handle, true, true, nullptr);
 
-  blender::geometry::UVPackIsland_Params params;
+  geometry::UVPackIsland_Params params;
   params.shape_method = shape_method;
   params.rotate_method = rotate ? ED_UVPACK_ROTATION_ANY : ED_UVPACK_ROTATION_NONE;
   params.margin = margin;
@@ -210,23 +210,23 @@ class PackIslandsFieldInput final : public bke::MeshFieldInput {
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  const ShapeMethod local_shape_method = params.get_input<ShapeMethod>("Method");
+  const ShapeMethod local_shape_method = params.get_input<ShapeMethod>("Method"_ustr);
   const eUVPackIsland_ShapeMethod shape_method = convert_shape_method(local_shape_method);
 
-  const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
-  const Field<float3> uv_field = params.extract_input<Field<float3>>("UV");
-  const bool rotate = params.extract_input<bool>("Rotate");
-  const float margin = params.extract_input<float>("Margin");
-  const float3 bottom = params.extract_input<float3>("Bottom Left");
-  const float3 top = params.extract_input<float3>("Top Right");
-  params.set_output("UV",
+  const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection"_ustr);
+  const Field<float3> uv_field = params.extract_input<Field<float3>>("UV"_ustr);
+  const bool rotate = params.extract_input<bool>("Rotate"_ustr);
+  const float margin = params.extract_input<float>("Margin"_ustr);
+  const float3 bottom = params.extract_input<float3>("Bottom Left"_ustr);
+  const float3 top = params.extract_input<float3>("Top Right"_ustr);
+  params.set_output("UV"_ustr,
                     Field<float3>(std::make_shared<PackIslandsFieldInput>(
                         selection_field, uv_field, rotate, margin, shape_method, bottom, top)));
 }
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeUVPackIslands", GEO_NODE_UV_PACK_ISLANDS);
   ntype.ui_name = "Pack UV Islands";
@@ -236,7 +236,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

@@ -10,6 +10,7 @@
 #include "DEG_depsgraph_query.hh"
 
 #include "NOD_rna_define.hh"
+#include "NOD_socket_search_link.hh"
 
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
@@ -43,6 +44,52 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
   layout.prop(ptr, "transform_space", ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 }
 
+static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
+{
+  const eNodeSocketDatatype other_type = eNodeSocketDatatype(params.other_socket().type);
+
+  if (params.in_out() == SOCK_OUT) {
+    if (ELEM(other_type, SOCK_MATRIX, SOCK_ROTATION)) {
+      params.add_item(IFACE_("Pose"), [](LinkSearchOpParams &params) {
+        bNode &node = params.add_node("GeometryNodeBoneInfo");
+        params.update_and_connect_available_socket(node, "Pose");
+      });
+      params.add_item(IFACE_("Local Pose"), [](LinkSearchOpParams &params) {
+        bNode &node = params.add_node("GeometryNodeBoneInfo");
+        params.update_and_connect_available_socket(node, "Local Pose");
+      });
+      params.add_item(IFACE_("Transform Pose"), [](LinkSearchOpParams &params) {
+        bNode &node = params.add_node("GeometryNodeBoneInfo");
+        params.update_and_connect_available_socket(node, "Transform Pose");
+      });
+      params.add_item(IFACE_("Rest Pose"), [](LinkSearchOpParams &params) {
+        bNode &node = params.add_node("GeometryNodeBoneInfo");
+        params.update_and_connect_available_socket(node, "Rest Pose");
+      });
+    }
+    if (params.node_tree().typeinfo->validate_link(other_type, SOCK_FLOAT)) {
+      params.add_item(IFACE_("Rest Length"), [](LinkSearchOpParams &params) {
+        bNode &node = params.add_node("GeometryNodeBoneInfo");
+        params.update_and_connect_available_socket(node, "Rest Length");
+      });
+    }
+  }
+  else {
+    if (other_type == SOCK_STRING) {
+      params.add_item(IFACE_("Bone Name"), [](LinkSearchOpParams &params) {
+        bNode &node = params.add_node("GeometryNodeBoneInfo");
+        params.update_and_connect_available_socket(node, "Bone Name");
+      });
+    }
+    if (other_type == SOCK_OBJECT) {
+      params.add_item(IFACE_("Armature"), [](LinkSearchOpParams &params) {
+        bNode &node = params.add_node("GeometryNodeBoneInfo");
+        params.update_and_connect_available_socket(node, "Armature");
+      });
+    }
+  }
+}
+
 static void node_node_init(bNodeTree * /*tree*/, bNode *node)
 {
   node->custom1 = GEO_NODE_TRANSFORM_SPACE_ORIGINAL;
@@ -50,7 +97,7 @@ static void node_node_init(bNodeTree * /*tree*/, bNode *node)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  Object *object = params.extract_input<Object *>("Armature");
+  Object *object = params.extract_input<Object *>("Armature"_ustr);
   if (!object) {
     params.set_default_remaining_outputs();
     return;
@@ -60,7 +107,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     params.error_message_add(NodeWarningType::Error, TIP_("Object is not an armature"));
     return;
   }
-  const std::string bone_name = params.extract_input<std::string>("Bone Name");
+  const std::string bone_name = params.extract_input<std::string>("Bone Name"_ustr);
   if (bone_name.empty()) {
     params.set_default_remaining_outputs();
     return;
@@ -109,11 +156,11 @@ static void node_geo_exec(GeoNodeExecParams params)
   float4x4 transform_pose;
   BKE_pchan_to_mat4(pchan, transform_pose.ptr());
 
-  params.set_output("Pose", pose);
-  params.set_output("Local Pose", local_pose);
-  params.set_output("Transform Pose", transform_pose);
-  params.set_output("Rest Pose", rest_pose);
-  params.set_output("Rest Length", bone->length);
+  params.set_output("Pose"_ustr, pose);
+  params.set_output("Local Pose"_ustr, local_pose);
+  params.set_output("Transform Pose"_ustr, transform_pose);
+  params.set_output("Rest Pose"_ustr, rest_pose);
+  params.set_output("Rest Length"_ustr, bone->length);
 }
 
 static void node_rna(StructRNA *srna)
@@ -144,7 +191,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeBoneInfo");
   ntype.ui_name = "Bone Info";
   ntype.ui_description = "Retrieve information of armature bones";
@@ -153,7 +200,8 @@ static void node_register()
   ntype.initfunc = node_node_init;
   ntype.draw_buttons = node_layout;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(ntype);
+  ntype.gather_link_search_ops = node_gather_link_search_ops;
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

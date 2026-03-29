@@ -322,7 +322,7 @@ class DOPESHEET_HT_editor_buttons:
         row.template_action(animated_id, new="action.new", unlink="action.unlink")
 
         adt = animated_id and animated_id.animation_data
-        if not adt or not adt.action or not adt.action.is_action_layered:
+        if not adt or not adt.action:
             return
 
         # Store the animated ID in the context, so that the new/unlink operators
@@ -641,6 +641,8 @@ class DOPESHEET_MT_action(Menu):
         layout = self.layout
         layout.operator("anim.merge_animation")
         layout.operator("anim.separate_slots")
+        layout.operator("anim.replace_action")
+        layout.operator("anim.replace_action_new")
 
         layout.separator()
         layout.operator("anim.slot_channels_move_to_new_action")
@@ -1058,7 +1060,7 @@ class DOPESHEET_PT_overlay(Panel):
     bl_space_type = 'DOPESHEET_EDITOR'
     bl_region_type = 'HEADER'
     bl_label = "Overlays"
-    bl_ui_units_x = 13
+    bl_ui_units_x = 10
 
     def draw(self, _context):
         pass
@@ -1069,6 +1071,7 @@ class DOPESHEET_PT_dopesheet_overlay(Panel):
     bl_region_type = 'HEADER'
     bl_parent_id = "DOPESHEET_PT_overlay"
     bl_label = "Dope Sheet Overlays"
+    bl_options = {'HIDE_HEADER'}
 
     def draw(self, context):
         st = context.space_data

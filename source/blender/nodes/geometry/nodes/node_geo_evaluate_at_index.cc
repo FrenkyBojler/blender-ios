@@ -43,7 +43,7 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
-  const blender::bke::bNodeType &node_type = params.node_type();
+  const bke::bNodeType &node_type = params.node_type();
   const std::optional<eCustomDataType> type = bke::socket_type_to_custom_data_type(
       eNodeSocketDatatype(params.other_socket().type));
   if (type && *type != CD_PROP_STRING) {
@@ -52,14 +52,16 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
       node.custom2 = *type;
       params.update_and_connect_available_socket(node, "Value");
     });
-    params.add_item(
-        IFACE_("Index"),
-        [node_type, type](LinkSearchOpParams &params) {
-          bNode &node = params.add_node(node_type);
-          node.custom2 = *type;
-          params.update_and_connect_available_socket(node, "Index");
-        },
-        -1);
+    if (params.in_out() == SOCK_IN) {
+      params.add_item(
+          IFACE_("Index"),
+          [node_type, type](LinkSearchOpParams &params) {
+            bNode &node = params.add_node(node_type);
+            node.custom2 = *type;
+            params.update_and_connect_available_socket(node, "Index");
+          },
+          -1);
+    }
   }
 }
 
@@ -68,9 +70,11 @@ static void node_geo_exec(GeoNodeExecParams params)
   const bNode &node = params.node();
   const AttrDomain domain = AttrDomain(node.custom1);
 
-  GField output_field{std::make_shared<bke::EvaluateAtIndexInput>(
-      params.extract_input<Field<int>>("Index"), params.extract_input<GField>("Value"), domain)};
-  params.set_output<GField>("Value", std::move(output_field));
+  GField output_field{
+      std::make_shared<bke::EvaluateAtIndexInput>(params.extract_input<Field<int>>("Index"_ustr),
+                                                  params.extract_input<GField>("Value"_ustr),
+                                                  domain)};
+  params.set_output<GField>("Value"_ustr, std::move(output_field));
 }
 
 static void node_rna(StructRNA *srna)
@@ -95,7 +99,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeFieldAtIndex", GEO_NODE_EVALUATE_AT_INDEX);
   ntype.ui_name = "Evaluate at Index";
@@ -107,7 +111,7 @@ static void node_register()
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.gather_link_search_ops = node_gather_link_searches;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

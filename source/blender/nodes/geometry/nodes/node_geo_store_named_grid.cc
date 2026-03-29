@@ -80,9 +80,9 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 
 static void try_store_grid(GeoNodeExecParams params, Volume &volume)
 {
-  const std::string grid_name = params.extract_input<std::string>("Name");
+  const std::string grid_name = params.extract_input<std::string>("Name"_ustr);
 
-  bke::GVolumeGrid grid = params.extract_input<bke::GVolumeGrid>("Grid");
+  bke::GVolumeGrid grid = params.extract_input<bke::GVolumeGrid>("Grid"_ustr);
   if (!grid) {
     return;
   }
@@ -97,7 +97,7 @@ static void try_store_grid(GeoNodeExecParams params, Volume &volume)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  GeometrySet geometry_set = params.extract_input<GeometrySet>("Volume");
+  GeometrySet geometry_set = params.extract_input<GeometrySet>("Volume"_ustr);
   Volume *volume = geometry_set.get_volume_for_write();
   if (!volume) {
     volume = BKE_id_new_nomain<Volume>("Store Named Grid Output");
@@ -106,7 +106,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   try_store_grid(params, *volume);
 
-  params.set_output("Volume", geometry_set);
+  params.set_output("Volume"_ustr, geometry_set);
 }
 
 #else /* WITH_OPENVDB */
@@ -132,7 +132,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeStoreNamedGrid", GEO_NODE_STORE_NAMED_GRID);
   ntype.ui_name = "Store Named Grid";
@@ -144,7 +144,7 @@ static void node_register()
   ntype.draw_buttons = node_layout;
   ntype.initfunc = node_init;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

@@ -90,16 +90,16 @@ class CornerIndexInFaceInput final : public bke::MeshFieldInput {
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  const Field<int> corner_index = params.extract_input<Field<int>>("Corner Index");
-  if (params.output_is_required("Face Index")) {
-    params.set_output("Face Index",
+  const Field<int> corner_index = params.extract_input<Field<int>>("Corner Index"_ustr);
+  if (params.output_is_required("Face Index"_ustr)) {
+    params.set_output("Face Index"_ustr,
                       Field<int>(std::make_shared<bke::EvaluateAtIndexInput>(
                           corner_index,
                           Field<int>(std::make_shared<CornerFaceIndexInput>()),
                           AttrDomain::Corner)));
   }
-  if (params.output_is_required("Index in Face")) {
-    params.set_output("Index in Face",
+  if (params.output_is_required("Index in Face"_ustr)) {
+    params.set_output("Index in Face"_ustr,
                       Field<int>(std::make_shared<bke::EvaluateAtIndexInput>(
                           corner_index,
                           Field<int>(std::make_shared<CornerIndexInFaceInput>()),
@@ -109,7 +109,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeFaceOfCorner", GEO_NODE_MESH_TOPOLOGY_FACE_OF_CORNER);
   ntype.ui_name = "Face of Corner";
   ntype.ui_description = "Retrieve the face each face corner is part of";
@@ -117,7 +117,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

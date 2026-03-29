@@ -6,6 +6,7 @@
 #include "node_geometry_util.hh"
 
 #include <fmt/format.h>
+#include <fmt/ranges.h>
 
 namespace blender::nodes::node_geo_remove_attribute_cc {
 
@@ -120,14 +121,14 @@ static void remove_attributes_recursive(GeometrySet &geometry_set, RemoveAttribu
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
-  const std::string pattern = params.extract_input<std::string>("Name");
+  GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry"_ustr);
+  const std::string pattern = params.extract_input<std::string>("Name"_ustr);
   if (pattern.empty()) {
-    params.set_output("Geometry", std::move(geometry_set));
+    params.set_output("Geometry"_ustr, std::move(geometry_set));
     return;
   }
 
-  PatternMode pattern_mode = params.get_input<PatternMode>("Pattern Mode");
+  PatternMode pattern_mode = params.get_input<PatternMode>("Pattern Mode"_ustr);
   if (pattern_mode == PatternMode::Wildcard) {
     const int wildcard_count = Span(pattern.c_str(), pattern.size()).count('*');
     if (wildcard_count == 0) {
@@ -136,7 +137,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     else if (wildcard_count >= 2) {
       params.error_message_add(NodeWarningType::Info,
                                TIP_("Only one * is supported in the pattern"));
-      params.set_output("Geometry", std::move(geometry_set));
+      params.set_output("Geometry"_ustr, std::move(geometry_set));
       return;
     }
   }
@@ -172,12 +173,12 @@ static void node_geo_exec(GeoNodeExecParams params)
     params.error_message_add(NodeWarningType::Warning, message);
   }
 
-  params.set_output("Geometry", std::move(geometry_set));
+  params.set_output("Geometry"_ustr, std::move(geometry_set));
 }
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeRemoveAttribute", GEO_NODE_REMOVE_ATTRIBUTE);
   ntype.ui_name = "Remove Named Attribute";
@@ -189,7 +190,7 @@ static void node_register()
   ntype.declare = node_declare;
   bke::node_type_size(ntype, 170, 100, 700);
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

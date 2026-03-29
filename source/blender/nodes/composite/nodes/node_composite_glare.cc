@@ -2,10 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/** \file
- * \ingroup cmpnodes
- */
-
 #include <array>
 #include <cmath>
 #include <complex>
@@ -19,7 +15,6 @@
 #endif
 
 #include "BLI_array.hh"
-#include "BLI_assert.h"
 #include "BLI_fftw.hh"
 #include "BLI_index_range.hh"
 #include "BLI_math_angle_types.hh"
@@ -29,6 +24,8 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_noise.hh"
 #include "BLI_task.hh"
+
+#include "BKE_node_runtime.hh"
 
 #include "DNA_node_types.h"
 #include "DNA_scene_types.h"
@@ -87,7 +84,7 @@ static const EnumPropertyItem kernel_data_type_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
+static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
@@ -117,7 +114,7 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
       .static_items(quality_items)
       .optional_label();
 
-  PanelDeclarationBuilder &highlights_panel = b.add_panel("Highlights").default_closed(true);
+  PanelDeclarationBuilder &highlights_panel = b.add_panel("Highlights"_ustr).default_closed(true);
   highlights_panel.add_input<decl::Float>("Threshold", "Highlights Threshold")
       .default_value(1.0f)
       .min(0.0f)
@@ -132,7 +129,7 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
       .description("The smoothness of the extracted highlights");
 
   PanelDeclarationBuilder &supress_highlights_panel =
-      highlights_panel.add_panel("Clamp").default_closed(true);
+      highlights_panel.add_panel("Clamp"_ustr).default_closed(true);
   supress_highlights_panel.add_input<decl::Bool>("Clamp", "Clamp Highlights")
       .default_value(false)
       .panel_toggle()
@@ -143,7 +140,7 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
       .description(
           "Clamp bright highlights such that their brightness are not larger than this value");
 
-  PanelDeclarationBuilder &mix_panel = b.add_panel("Adjust");
+  PanelDeclarationBuilder &mix_panel = b.add_panel("Adjust"_ustr);
   mix_panel.add_input<decl::Float>("Strength")
       .default_value(1.0f)
       .min(0.0f)
@@ -160,13 +157,13 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
       .description("Tints the glare. Consider desaturating the glare to more accurate tinting");
 
-  PanelDeclarationBuilder &glare_panel = b.add_panel("Glare");
+  PanelDeclarationBuilder &glare_panel = b.add_panel("Glare"_ustr);
   glare_panel.add_input<decl::Float>("Size")
       .default_value(0.5f)
       .min(0.0f)
       .max(1.0f)
       .subtype(PROP_FACTOR)
-      .usage_by_menu("Type",
+      .usage_by_menu("Type"_ustr,
                      {CMP_NODE_GLARE_FOG_GLOW, CMP_NODE_GLARE_BLOOM, CMP_NODE_GLARE_SUN_BEAMS})
       .description(
           "The size of the glare relative to the image. 1 means the glare covers the entire "
@@ -175,18 +172,18 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
       .default_value(4)
       .min(1)
       .max(16)
-      .usage_by_menu("Type", CMP_NODE_GLARE_STREAKS)
+      .usage_by_menu("Type"_ustr, CMP_NODE_GLARE_STREAKS)
       .description("The number of streaks");
   glare_panel.add_input<decl::Float>("Streaks Angle")
       .default_value(0.0f)
       .subtype(PROP_ANGLE)
-      .usage_by_menu("Type", CMP_NODE_GLARE_STREAKS)
+      .usage_by_menu("Type"_ustr, CMP_NODE_GLARE_STREAKS)
       .description("The angle that the first streak makes with the horizontal axis");
   glare_panel.add_input<decl::Int>("Iterations")
       .default_value(3)
       .min(2)
       .max(5)
-      .usage_by_menu("Type",
+      .usage_by_menu("Type"_ustr,
                      {CMP_NODE_GLARE_SIMPLE_STAR, CMP_NODE_GLARE_GHOST, CMP_NODE_GLARE_STREAKS})
       .description(
           "The number of ghosts for Ghost glare or the quality and spread of Glare for Streaks "
@@ -196,18 +193,18 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
       .min(0.75f)
       .max(1.0f)
       .subtype(PROP_FACTOR)
-      .usage_by_menu("Type", {CMP_NODE_GLARE_SIMPLE_STAR, CMP_NODE_GLARE_STREAKS})
+      .usage_by_menu("Type"_ustr, {CMP_NODE_GLARE_SIMPLE_STAR, CMP_NODE_GLARE_STREAKS})
       .description("Streak fade-out factor");
   glare_panel.add_input<decl::Float>("Color Modulation")
       .default_value(0.25)
       .min(0.0f)
       .max(1.0f)
       .subtype(PROP_FACTOR)
-      .usage_by_menu("Type", {CMP_NODE_GLARE_GHOST, CMP_NODE_GLARE_STREAKS})
+      .usage_by_menu("Type"_ustr, {CMP_NODE_GLARE_GHOST, CMP_NODE_GLARE_STREAKS})
       .description("Modulates colors of streaks and ghosts for a spectral dispersion effect");
   glare_panel.add_input<decl::Bool>("Diagonal", "Diagonal Star")
       .default_value(true)
-      .usage_by_menu("Type", CMP_NODE_GLARE_SIMPLE_STAR)
+      .usage_by_menu("Type"_ustr, CMP_NODE_GLARE_SIMPLE_STAR)
       .description("Align the star diagonally");
   glare_panel.add_input<decl::Vector>("Sun Position")
       .subtype(PROP_FACTOR)
@@ -215,7 +212,7 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
       .default_value({0.5f, 0.5f})
       .min(0.0f)
       .max(1.0f)
-      .usage_by_menu("Type", CMP_NODE_GLARE_SUN_BEAMS)
+      .usage_by_menu("Type"_ustr, CMP_NODE_GLARE_SUN_BEAMS)
       .description(
           "The position of the source of the rays in normalized coordinates. 0 means lower left "
           "corner and 1 means upper right corner");
@@ -224,31 +221,31 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
       .min(0.0f)
       .max(1.0)
       .subtype(PROP_FACTOR)
-      .usage_by_menu("Type", CMP_NODE_GLARE_SUN_BEAMS)
+      .usage_by_menu("Type"_ustr, CMP_NODE_GLARE_SUN_BEAMS)
       .description(
           "The amount of jitter to introduce while computing rays, higher jitter can be faster "
           "but can produce grainy or noisy results");
   glare_panel.add_input<decl::Menu>("Kernel Data Type")
       .default_value(KernelDataType::Float)
       .static_items(kernel_data_type_items)
-      .usage_by_menu("Type", CMP_NODE_GLARE_KERNEL)
+      .usage_by_menu("Type"_ustr, CMP_NODE_GLARE_KERNEL)
       .optional_label();
   glare_panel.add_input<decl::Float>("Kernel", "Float Kernel")
       .hide_value()
       .structure_type(StructureType::Dynamic)
-      .usage_by_menu("Kernel Data Type", int(KernelDataType::Float))
+      .usage_by_menu("Kernel Data Type"_ustr, int(KernelDataType::Float))
       .compositor_realization_mode(CompositorInputRealizationMode::Transforms);
   glare_panel.add_input<decl::Color>("Kernel", "Color Kernel")
       .hide_value()
       .structure_type(StructureType::Dynamic)
-      .usage_by_menu("Kernel Data Type", int(KernelDataType::Color))
+      .usage_by_menu("Kernel Data Type"_ustr, int(KernelDataType::Color))
       .compositor_realization_mode(CompositorInputRealizationMode::Transforms);
 }
 
-static void node_composit_init_glare(bNodeTree * /*ntree*/, bNode *node)
+static void node_init(bNodeTree * /*ntree*/, bNode *node)
 {
   /* Unused, but kept for forward compatibility. */
-  NodeGlare *ndg = MEM_new_for_free<NodeGlare>(__func__);
+  NodeGlare *ndg = MEM_new<NodeGlare>(__func__);
   node->storage = ndg;
 }
 
@@ -258,7 +255,7 @@ class SocketSearchOp {
   void operator()(LinkSearchOpParams &params)
   {
     bNode &node = params.add_node("CompositorNodeGlare");
-    bNodeSocket &type_socket = *blender::bke::node_find_socket(node, SOCK_IN, "Type");
+    bNodeSocket &type_socket = *bke::node_find_socket(node, SOCK_IN, "Type");
     type_socket.default_value_typed<bNodeSocketValueMenu>()->value = this->type;
     params.update_and_connect_available_socket(node, "Image");
   }
@@ -289,26 +286,19 @@ class GlareOperation : public NodeOperation {
   void execute() override
   {
     const Result &image_input = this->get_input("Image");
-    Result &glare_output = this->get_result("Glare");
-    Result &highlights_output = this->get_result("Highlights");
-
     if (image_input.is_single_value()) {
       Result &image_output = this->get_result("Image");
       if (image_output.should_compute()) {
         image_output.share_data(image_input);
       }
-      if (glare_output.should_compute()) {
-        glare_output.allocate_invalid();
-      }
-      if (highlights_output.should_compute()) {
-        highlights_output.allocate_invalid();
-      }
+      this->allocate_default_remaining_outputs();
       return;
     }
 
     Result highlights = this->compute_highlights();
     Result glare = this->compute_glare(highlights);
 
+    Result &highlights_output = this->get_result("Highlights");
     if (highlights_output.should_compute()) {
       if (highlights.domain().data_size != image_input.domain().data_size) {
         /* The highlights were computed on a fraction of the image size, see the get_quality_factor
@@ -325,6 +315,7 @@ class GlareOperation : public NodeOperation {
     /* Combine the original input and the generated glare. */
     execute_mix(glare);
 
+    Result &glare_output = this->get_result("Glare");
     if (glare_output.should_compute()) {
       this->write_glare_output(glare);
     }
@@ -1551,11 +1542,14 @@ class GlareOperation : public NodeOperation {
                              highlights,
                              small_ghost_result,
                              float2(get_small_ghost_radius()),
-                             R_FILTER_GAUSS);
+                             math::FilterKernel::Gauss);
 
     Result big_ghost_result = context().create_result(ResultType::Color);
-    symmetric_separable_blur(
-        context(), highlights, big_ghost_result, float2(get_big_ghost_radius()), R_FILTER_GAUSS);
+    symmetric_separable_blur(context(),
+                             highlights,
+                             big_ghost_result,
+                             float2(get_big_ghost_radius()),
+                             math::FilterKernel::Gauss);
 
     Result base_ghost_result = context().create_result(ResultType::Color);
     if (this->context().use_gpu()) {
@@ -2218,7 +2212,7 @@ class GlareOperation : public NodeOperation {
     if (this->context().use_gpu()) {
       GPU_texture_update(fog_glow_result, GPU_DATA_FLOAT, output);
       /* CPU writes to the output directly, so no need to free it. */
-      MEM_freeN(output);
+      MEM_delete(output);
     }
 
     fftwf_destroy_plan(forward_plan);
@@ -2685,7 +2679,7 @@ class GlareOperation : public NodeOperation {
   /* The computed glare might need to be normalized to be energy conserving or be in a reasonable
    * range, instead of doing that in a separate step as part of the glare computation, we delay the
    * normalization until the mixing step as an optimization, since we multiply by the tint and
-   * strength anyways. */
+   * strength anyway. */
   float get_normalization_scale()
   {
     switch (this->get_type()) {
@@ -2789,31 +2783,29 @@ class GlareOperation : public NodeOperation {
   }
 };
 
-static NodeOperation *get_compositor_operation(Context &context, DNode node)
+static NodeOperation *get_compositor_operation(Context &context, const bNode &node)
 {
   return new GlareOperation(context, node);
 }
 
-}  // namespace blender::nodes::node_composite_glare_cc
-
-static void register_node_type_cmp_glare()
+static void node_register()
 {
-  namespace file_ns = blender::nodes::node_composite_glare_cc;
-
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodeGlare", CMP_NODE_GLARE);
   ntype.ui_name = "Glare";
   ntype.ui_description = "Add lens flares, fog and glows around bright parts of the image";
   ntype.enum_name_legacy = "GLARE";
   ntype.nclass = NODE_CLASS_OP_FILTER;
-  ntype.declare = file_ns::cmp_node_glare_declare;
-  ntype.initfunc = file_ns::node_composit_init_glare;
-  ntype.gather_link_search_ops = file_ns::gather_link_searches;
-  blender::bke::node_type_storage(
+  ntype.declare = node_declare;
+  ntype.initfunc = node_init;
+  ntype.gather_link_search_ops = gather_link_searches;
+  bke::node_type_storage(
       ntype, "NodeGlare", node_free_standard_storage, node_copy_standard_storage);
-  ntype.get_compositor_operation = file_ns::get_compositor_operation;
+  ntype.get_compositor_operation = get_compositor_operation;
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
-NOD_REGISTER_NODE(register_node_type_cmp_glare)
+NOD_REGISTER_NODE(node_register)
+
+}  // namespace blender::nodes::node_composite_glare_cc

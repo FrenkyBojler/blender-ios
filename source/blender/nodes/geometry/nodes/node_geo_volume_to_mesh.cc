@@ -72,7 +72,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   /* Still used for forward compatibility. */
-  node->storage = MEM_new_for_free<NodeGeometryVolumeToMesh>(__func__);
+  node->storage = MEM_new<NodeGeometryVolumeToMesh>(__func__);
 }
 
 #ifdef WITH_OPENVDB
@@ -80,12 +80,13 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 static bke::VolumeToMeshResolution get_resolution_param(const GeoNodeExecParams &params)
 {
   bke::VolumeToMeshResolution resolution;
-  resolution.mode = params.get_input<VolumeToMeshResolutionMode>("Resolution Mode");
+  resolution.mode = params.get_input<VolumeToMeshResolutionMode>("Resolution Mode"_ustr);
   if (resolution.mode == VOLUME_TO_MESH_RESOLUTION_MODE_VOXEL_AMOUNT) {
-    resolution.settings.voxel_amount = std::max(params.get_input<float>("Voxel Amount"), 0.0f);
+    resolution.settings.voxel_amount = std::max(params.get_input<float>("Voxel Amount"_ustr),
+                                                0.0f);
   }
   else if (resolution.mode == VOLUME_TO_MESH_RESOLUTION_MODE_VOXEL_SIZE) {
-    resolution.settings.voxel_size = std::max(params.get_input<float>("Voxel Size"), 0.0f);
+    resolution.settings.voxel_size = std::max(params.get_input<float>("Voxel Size"_ustr), 0.0f);
   }
 
   return resolution;
@@ -187,8 +188,8 @@ static Mesh *create_mesh_from_volume(GeometrySet &geometry_set, GeoNodeExecParam
 
   return create_mesh_from_volume_grids(grids,
                                        params,
-                                       params.get_input<float>("Threshold"),
-                                       params.get_input<float>("Adaptivity"),
+                                       params.get_input<float>("Threshold"_ustr),
+                                       params.get_input<float>("Adaptivity"_ustr),
                                        resolution);
 }
 
@@ -197,13 +198,13 @@ static Mesh *create_mesh_from_volume(GeometrySet &geometry_set, GeoNodeExecParam
 static void node_geo_exec(GeoNodeExecParams params)
 {
 #ifdef WITH_OPENVDB
-  GeometrySet geometry_set = params.extract_input<GeometrySet>("Volume");
+  GeometrySet geometry_set = params.extract_input<GeometrySet>("Volume"_ustr);
   geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     Mesh *mesh = create_mesh_from_volume(geometry_set, params);
     geometry_set.replace_mesh(mesh);
     geometry_set.keep_only({GeometryComponent::Type::Mesh, GeometryComponent::Type::Edit});
   });
-  params.set_output("Mesh", std::move(geometry_set));
+  params.set_output("Mesh"_ustr, std::move(geometry_set));
 #else
   node_geo_exec_with_missing_openvdb(params);
 #endif
@@ -211,7 +212,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeVolumeToMesh", GEO_NODE_VOLUME_TO_MESH);
   ntype.ui_name = "Volume to Mesh";
@@ -219,12 +220,12 @@ static void node_register()
   ntype.enum_name_legacy = "VOLUME_TO_MESH";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
-  blender::bke::node_type_storage(
+  bke::node_type_storage(
       ntype, "NodeGeometryVolumeToMesh", node_free_standard_storage, node_copy_standard_storage);
-  blender::bke::node_type_size(ntype, 170, 120, 700);
+  bke::node_type_size(ntype, 170, 120, 700);
   ntype.initfunc = node_init;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

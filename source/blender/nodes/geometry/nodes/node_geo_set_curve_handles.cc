@@ -56,8 +56,8 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometrySetCurveHandlePositions *data =
-      MEM_new_for_free<NodeGeometrySetCurveHandlePositions>(__func__);
+  NodeGeometrySetCurveHandlePositions *data = MEM_new<NodeGeometrySetCurveHandlePositions>(
+      __func__);
 
   data->mode = GEO_NODE_CURVE_HANDLE_LEFT;
   node->storage = data;
@@ -147,16 +147,18 @@ static void set_position_in_component(Curves &curves_id,
       },
       std::logical_or<>());
 
-  selection.foreach_segment(GrainSize(2048), [&](const IndexMaskSegment segment) {
-    for (const int i : segment) {
-      bke::curves::bezier::set_handle_position(positions[i],
-                                               HandleType(handle_types[i]),
-                                               HandleType(handle_types_other[i]),
-                                               new_positions[i] + new_offsets[i],
-                                               handle_positions[i],
-                                               handle_positions_other[i]);
-    }
-  });
+  selection.foreach_segment(
+      [&](const IndexMaskSegment segment) {
+        for (const int i : segment) {
+          bke::curves::bezier::set_handle_position(positions[i],
+                                                   HandleType(handle_types[i]),
+                                                   HandleType(handle_types_other[i]),
+                                                   new_positions[i] + new_offsets[i],
+                                                   handle_positions[i],
+                                                   handle_positions_other[i]);
+        }
+      },
+      exec_mode::grain_size(2048));
 
   if (types_changed) {
     curves.tag_topology_changed();
@@ -168,12 +170,12 @@ static void set_position_in_component(Curves &curves_id,
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const NodeGeometrySetCurveHandlePositions &storage = node_storage(params.node());
-  const GeometryNodeCurveHandleMode mode = (GeometryNodeCurveHandleMode)storage.mode;
+  const GeometryNodeCurveHandleMode mode = GeometryNodeCurveHandleMode(storage.mode);
 
-  GeometrySet geometry_set = params.extract_input<GeometrySet>("Curve");
-  Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
-  Field<float3> position_field = params.extract_input<Field<float3>>("Position");
-  Field<float3> offset_field = params.extract_input<Field<float3>>("Offset");
+  GeometrySet geometry_set = params.extract_input<GeometrySet>("Curve"_ustr);
+  Field<bool> selection_field = params.extract_input<Field<bool>>("Selection"_ustr);
+  Field<float3> position_field = params.extract_input<Field<float3>>("Position"_ustr);
+  Field<float3> offset_field = params.extract_input<Field<float3>>("Offset"_ustr);
 
   std::atomic<bool> has_curves = false;
   std::atomic<bool> has_bezier = false;
@@ -196,7 +198,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     params.error_message_add(NodeWarningType::Info, TIP_("Input curves do not have Bézier type"));
   }
 
-  params.set_output("Curve", std::move(geometry_set));
+  params.set_output("Curve"_ustr, std::move(geometry_set));
 }
 
 static void node_rna(StructRNA *srna)
@@ -212,7 +214,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeSetCurveHandlePositions", GEO_NODE_SET_CURVE_HANDLES);
   ntype.ui_name = "Set Handle Positions";
@@ -223,12 +225,12 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.minwidth = 100.0f;
   ntype.initfunc = node_init;
-  blender::bke::node_type_storage(ntype,
-                                  "NodeGeometrySetCurveHandlePositions",
-                                  node_free_standard_storage,
-                                  node_copy_standard_storage);
+  bke::node_type_storage(ntype,
+                         "NodeGeometrySetCurveHandlePositions",
+                         node_free_standard_storage,
+                         node_copy_standard_storage);
   ntype.draw_buttons = node_layout;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

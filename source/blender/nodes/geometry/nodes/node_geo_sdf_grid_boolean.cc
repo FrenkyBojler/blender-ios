@@ -86,7 +86,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 #ifdef WITH_OPENVDB
   const Operation operation = Operation(params.node().custom1);
 
-  auto grids = params.extract_input<GeoNodesMultiInput<bke::VolumeGrid<float>>>("Grid 2");
+  auto grids = params.extract_input<GeoNodesMultiInput<bke::VolumeGrid<float>>>("Grid 2"_ustr);
   Vector<bke::VolumeGrid<float>> operands;
   switch (operation) {
     case Operation::Intersect:
@@ -94,7 +94,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       operands.extend(grids.values);
       break;
     case Operation::Difference:
-      if (auto grid = params.extract_input<bke::VolumeGrid<float>>("Grid 1")) {
+      if (auto grid = params.extract_input<bke::VolumeGrid<float>>("Grid 1"_ustr)) {
         operands.append(std::move(grid));
       }
       operands.extend(grids.values);
@@ -137,7 +137,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
   operands.first()->tag_tree_modified();
 
-  params.set_output("Grid", std::move(operands.first()));
+  params.set_output("Grid"_ustr, std::move(operands.first()));
 #else
   node_geo_exec_with_missing_openvdb(params);
 #endif
@@ -171,7 +171,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeSDFGridBoolean", GEO_NODE_SDF_GRID_BOOLEAN);
   ntype.ui_name = "SDF Grid Boolean";
   ntype.ui_description = "Cut, subtract, or join multiple SDF volume grid inputs";
@@ -181,7 +181,7 @@ static void node_register()
   ntype.initfunc = node_init;
   ntype.draw_buttons = node_layout;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
   node_rna(ntype.rna_ext.srna);
 }
 NOD_REGISTER_NODE(node_register)

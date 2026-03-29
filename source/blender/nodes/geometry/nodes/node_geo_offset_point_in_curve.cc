@@ -63,20 +63,23 @@ class ControlPointNeighborFieldInput final : public bke::GeometryFieldInput {
     const VArray<int> offsets = evaluator.get_evaluated<int>(1);
 
     Array<int> output(mask.min_array_size());
-    mask.foreach_index([&](const int i_selection) {
-      const int point = std::clamp(indices[i_selection], 0, curves.points_num() - 1);
-      const int curve = parent_curves[point];
-      const IndexRange curve_points = points_by_curve[curve];
-      const int shifted_point = point + offsets[i_selection];
+    mask.foreach_index(
+        [&](const int i_selection) {
+          const int point = std::clamp(indices[i_selection], 0, curves.points_num() - 1);
+          const int curve = parent_curves[point];
+          const IndexRange curve_points = points_by_curve[curve];
+          const int shifted_point = point + offsets[i_selection];
 
-      if (cyclic[curve]) {
-        const int point_index_in_curve = shifted_point - curve_points.start();
-        output[i_selection] = curve_points.start() +
-                              math::mod_periodic<int>(point_index_in_curve, curve_points.size());
-        return;
-      }
-      output[i_selection] = std::clamp(shifted_point, 0, curves.points_num() - 1);
-    });
+          if (cyclic[curve]) {
+            const int point_index_in_curve = shifted_point - curve_points.start();
+            output[i_selection] = curve_points.start() +
+                                  math::mod_periodic<int>(point_index_in_curve,
+                                                          curve_points.size());
+            return;
+          }
+          output[i_selection] = std::clamp(shifted_point, 0, curves.points_num() - 1);
+        },
+        exec_mode::grain_size(512));
 
     return VArray<int>::from_container(std::move(output));
   }
@@ -123,21 +126,23 @@ class OffsetValidFieldInput final : public bke::GeometryFieldInput {
     const VArray<int> offsets = evaluator.get_evaluated<int>(1);
 
     Array<bool> output(mask.min_array_size());
-    mask.foreach_index([&](const int i_selection) {
-      const int i_point = indices[i_selection];
-      if (!curves.points_range().contains(i_point)) {
-        output[i_selection] = false;
-        return;
-      }
+    mask.foreach_index(
+        [&](const int i_selection) {
+          const int i_point = indices[i_selection];
+          if (!curves.points_range().contains(i_point)) {
+            output[i_selection] = false;
+            return;
+          }
 
-      const int i_curve = parent_curves[i_point];
-      const IndexRange curve_points = points_by_curve[i_curve];
-      if (cyclic[i_curve]) {
-        output[i_selection] = true;
-        return;
-      }
-      output[i_selection] = curve_points.contains(i_point + offsets[i_selection]);
-    });
+          const int i_curve = parent_curves[i_point];
+          const IndexRange curve_points = points_by_curve[i_curve];
+          if (cyclic[i_curve]) {
+            output[i_selection] = true;
+            return;
+          }
+          output[i_selection] = curve_points.contains(i_point + offsets[i_selection]);
+        },
+        exec_mode::grain_size(512));
     return VArray<bool>::from_container(std::move(output));
   }
 
@@ -150,22 +155,22 @@ class OffsetValidFieldInput final : public bke::GeometryFieldInput {
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  Field<int> index = params.extract_input<Field<int>>("Point Index");
-  Field<int> offset = params.extract_input<Field<int>>("Offset");
+  Field<int> index = params.extract_input<Field<int>>("Point Index"_ustr);
+  Field<int> offset = params.extract_input<Field<int>>("Offset"_ustr);
 
-  if (params.output_is_required("Point Index")) {
+  if (params.output_is_required("Point Index"_ustr)) {
     Field<int> curve_point_field{std::make_shared<ControlPointNeighborFieldInput>(index, offset)};
-    params.set_output("Point Index", std::move(curve_point_field));
+    params.set_output("Point Index"_ustr, std::move(curve_point_field));
   }
-  if (params.output_is_required("Is Valid Offset")) {
+  if (params.output_is_required("Is Valid Offset"_ustr)) {
     Field<bool> valid_field{std::make_shared<OffsetValidFieldInput>(index, offset)};
-    params.set_output("Is Valid Offset", std::move(valid_field));
+    params.set_output("Is Valid Offset"_ustr, std::move(valid_field));
   }
 }
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeOffsetPointInCurve", GEO_NODE_OFFSET_POINT_IN_CURVE);
   ntype.ui_name = "Offset Point in Curve";
   ntype.ui_description = "Offset a control point index within its curve";
@@ -173,7 +178,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

@@ -62,8 +62,7 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryCurvePrimitiveLine *data = MEM_new_for_free<NodeGeometryCurvePrimitiveLine>(
-      __func__);
+  NodeGeometryCurvePrimitiveLine *data = MEM_new<NodeGeometryCurvePrimitiveLine>(__func__);
 
   data->mode = GEO_NODE_CURVE_PRIMITIVE_LINE_MODE_POINTS;
   node->storage = data;
@@ -96,20 +95,20 @@ static Curves *create_direction_line_curve(const float3 start,
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const NodeGeometryCurvePrimitiveLine &storage = node_storage(params.node());
-  const GeometryNodeCurvePrimitiveLineMode mode = (GeometryNodeCurvePrimitiveLineMode)storage.mode;
+  const GeometryNodeCurvePrimitiveLineMode mode = GeometryNodeCurvePrimitiveLineMode(storage.mode);
 
   Curves *curves = nullptr;
   if (mode == GEO_NODE_CURVE_PRIMITIVE_LINE_MODE_POINTS) {
-    curves = create_point_line_curve(params.extract_input<float3>("Start"),
-                                     params.extract_input<float3>("End"));
+    curves = create_point_line_curve(params.extract_input<float3>("Start"_ustr),
+                                     params.extract_input<float3>("End"_ustr));
   }
   else if (mode == GEO_NODE_CURVE_PRIMITIVE_LINE_MODE_DIRECTION) {
-    curves = create_direction_line_curve(params.extract_input<float3>("Start"),
-                                         params.extract_input<float3>("Direction"),
-                                         params.extract_input<float>("Length"));
+    curves = create_direction_line_curve(params.extract_input<float3>("Start"_ustr),
+                                         params.extract_input<float3>("Direction"_ustr),
+                                         params.extract_input<float>("Length"_ustr));
   }
 
-  params.set_output("Curve", GeometrySet::from_curves(curves));
+  params.set_output("Curve"_ustr, GeometrySet::from_curves(curves));
 }
 
 static void node_rna(StructRNA *srna)
@@ -139,21 +138,21 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeCurvePrimitiveLine", GEO_NODE_CURVE_PRIMITIVE_LINE);
   ntype.ui_name = "Curve Line";
   ntype.ui_description = "Generate a poly spline line with two points";
   ntype.enum_name_legacy = "CURVE_PRIMITIVE_LINE";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.initfunc = node_init;
-  blender::bke::node_type_storage(ntype,
-                                  "NodeGeometryCurvePrimitiveLine",
-                                  node_free_standard_storage,
-                                  node_copy_standard_storage);
+  bke::node_type_storage(ntype,
+                         "NodeGeometryCurvePrimitiveLine",
+                         node_free_standard_storage,
+                         node_copy_standard_storage);
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

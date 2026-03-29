@@ -23,9 +23,11 @@
 #include "UI_abstract_view.hh"
 #include "UI_resources.hh"
 
+namespace blender {
+
 struct bContext;
 
-namespace blender::ui {
+namespace ui {
 
 class AbstractTreeView;
 class AbstractTreeViewItem;
@@ -97,6 +99,7 @@ class TreeViewItemContainer {
  protected:
   void foreach_item_recursive(ItemIterFn iter_fn, IterOptions options = IterOptions::None) const;
   void foreach_parent(ItemIterFn iter_fn) const;
+  void sort_alpha();
 };
 
 ENUM_OPERATORS(TreeViewItemContainer::IterOptions);
@@ -136,6 +139,11 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
    * reconstruction that can be passed to buttons. */
   std::shared_ptr<char[]> search_string_{new char[256 /*UI_MAX_NAME_STR*/]{}};
 
+  /**
+   * When true, sort elements alphabetically.
+   */
+  std::shared_ptr<char> sort_alpha_ = std::make_shared<char>(0);
+
   friend class AbstractTreeViewItem;
   friend class TreeViewBuilder;
   friend class TreeViewLayoutBuilder;
@@ -151,11 +159,6 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
 
   bool is_fully_visible() const override;
   void scroll(ViewScrollDirection direction) override;
-
-  /**
-   * \param xy: The mouse coordinates in window space.
-   */
-  AbstractTreeViewItem *find_hovered(const ARegion &region, const int2 &xy);
 
   /** Visual feature: Define a number of item rows the view will show by default. If there
    * are fewer items, empty dummy items will be added. These contribute to the view bounds, so the
@@ -288,6 +291,7 @@ class AbstractTreeViewItem : public AbstractViewItem, public TreeViewItemContain
   int count_parents() const;
 
   void on_filter() override;
+  StringRefNull label() const;
 
  protected:
   /** See AbstractViewItem::get_rename_string(). */
@@ -464,4 +468,5 @@ template<class ViewType> ViewType &TreeViewItemDropTarget::get_view() const
   return dynamic_cast<ViewType &>(view_item_.get_tree_view());
 }
 
-}  // namespace blender::ui
+}  // namespace ui
+}  // namespace blender

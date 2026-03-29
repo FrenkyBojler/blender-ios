@@ -45,7 +45,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   /* Still used for forward compatibility. */
-  node->storage = MEM_new_for_free<NodeGeometryMergeByDistance>(__func__);
+  node->storage = MEM_new<NodeGeometryMergeByDistance>(__func__);
 }
 
 static PointCloud *pointcloud_merge_by_distance(const PointCloud &src_points,
@@ -99,15 +99,15 @@ static std::optional<Mesh *> mesh_merge_by_distance_all(const Mesh &mesh,
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
-  const auto mode = params.get_input<GeometryNodeMergeByDistanceMode>("Mode");
-  const Field<bool> selection = params.extract_input<Field<bool>>("Selection");
-  const float merge_distance = params.extract_input<float>("Distance");
+  GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry"_ustr);
+  const auto mode = params.get_input<GeometryNodeMergeByDistanceMode>("Mode"_ustr);
+  const Field<bool> selection = params.extract_input<Field<bool>>("Selection"_ustr);
+  const float merge_distance = params.extract_input<float>("Distance"_ustr);
 
   geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     if (const PointCloud *pointcloud = geometry_set.get_pointcloud()) {
       PointCloud *result = pointcloud_merge_by_distance(
-          *pointcloud, merge_distance, selection, params.get_attribute_filter("Geometry"));
+          *pointcloud, merge_distance, selection, params.get_attribute_filter("Geometry"_ustr));
       if (result) {
         geometry_set.replace_pointcloud(result);
       }
@@ -130,12 +130,12 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   });
 
-  params.set_output("Geometry", std::move(geometry_set));
+  params.set_output("Geometry"_ustr, std::move(geometry_set));
 }
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeMergeByDistance", GEO_NODE_MERGE_BY_DISTANCE);
   ntype.ui_name = "Merge by Distance";
@@ -143,13 +143,13 @@ static void node_register()
   ntype.enum_name_legacy = "MERGE_BY_DISTANCE";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.initfunc = node_init;
-  blender::bke::node_type_storage(ntype,
-                                  "NodeGeometryMergeByDistance",
-                                  node_free_standard_storage,
-                                  node_copy_standard_storage);
+  bke::node_type_storage(ntype,
+                         "NodeGeometryMergeByDistance",
+                         node_free_standard_storage,
+                         node_copy_standard_storage);
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

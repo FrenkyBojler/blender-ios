@@ -83,11 +83,11 @@ static void subdivide_grease_pencil_curves(GreasePencil &grease_pencil,
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  GeometrySet geometry_set = params.extract_input<GeometrySet>("Curve");
-  Field<int> cuts_field = params.extract_input<Field<int>>("Cuts");
+  GeometrySet geometry_set = params.extract_input<GeometrySet>("Curve"_ustr);
+  Field<int> cuts_field = params.extract_input<Field<int>>("Cuts"_ustr);
 
   GeometryComponentEditData::remember_deformed_positions_if_necessary(geometry_set);
-  const NodeAttributeFilter &attribute_filter = params.get_attribute_filter("Curve");
+  const NodeAttributeFilter &attribute_filter = params.get_attribute_filter("Curve"_ustr);
 
   geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     if (geometry_set.has_curves()) {
@@ -102,12 +102,12 @@ static void node_geo_exec(GeoNodeExecParams params)
       subdivide_grease_pencil_curves(grease_pencil, cuts_field, attribute_filter);
     }
   });
-  params.set_output("Curve", geometry_set);
+  params.set_output("Curve"_ustr, geometry_set);
 }
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeSubdivideCurve", GEO_NODE_SUBDIVIDE_CURVE);
   ntype.ui_name = "Subdivide Curve";
   ntype.ui_description = "Dividing each curve segment into a specified number of pieces";
@@ -115,7 +115,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

@@ -245,7 +245,6 @@ class IMAGE_MT_image(Menu):
             layout.operator("image.resize", text="Resize")
             layout.menu("IMAGE_MT_image_transform")
 
-        if ima and not show_render:
             if ima.packed_file:
                 if ima.filepath:
                     layout.separator()
@@ -617,10 +616,10 @@ class IMAGE_MT_pivot_pie(Menu):
 
         sima = context.space_data
 
-        pie.prop_enum(sima, "pivot_point", value='CENTER')
+        pie.prop_enum(sima, "pivot_point", value='BOUNDING_BOX_CENTER')
         pie.prop_enum(sima, "pivot_point", value='CURSOR')
         pie.prop_enum(sima, "pivot_point", value='INDIVIDUAL_ORIGINS')
-        pie.prop_enum(sima, "pivot_point", value='MEDIAN')
+        pie.prop_enum(sima, "pivot_point", value='MEDIAN_POINT')
 
 
 class IMAGE_MT_uvs_snap_pie(Menu):
@@ -1600,6 +1599,13 @@ class IMAGE_PT_gizmo_display(Panel):
         col.active = view.show_gizmo
         colsub = col.column()
         colsub.prop(view, "show_gizmo_navigate", text="Navigate")
+
+        image = view.image
+        show_compositor_gizmos = (image is not None and image.type == 'COMPOSITING' and
+                                  view.ui_mode in ('VIEW', 'MASK'))
+        if show_compositor_gizmos:
+            colsub = col.column()
+            colsub.prop(view, "show_gizmo_active_node")
 
 
 class IMAGE_PT_overlay(Panel):

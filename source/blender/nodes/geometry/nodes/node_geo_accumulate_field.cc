@@ -77,7 +77,7 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeAccumulateField *data = MEM_new_for_free<NodeAccumulateField>(__func__);
+  NodeAccumulateField *data = MEM_new<NodeAccumulateField>(__func__);
   data->data_type = CD_PROP_FLOAT;
   data->domain = int16_t(AttrDomain::Point);
   node->storage = data;
@@ -211,49 +211,46 @@ class AccumulateFieldInput final : public bke::GeometryFieldInput {
 
     GVArray g_output;
 
-    bke::attribute_math::convert_to_static_type(g_values.type(), [&](auto dummy) {
-      using T = decltype(dummy);
-      if constexpr (is_same_any_v<T, int, float, float3, float4x4>) {
-        Array<T> outputs(domain_size);
-        const VArray<T> values = g_values.typed<T>();
+    g_values.type().to_static_type<int, float, float3, float4x4>([&]<typename T>() {
+      Array<T> outputs(domain_size);
+      const VArray<T> values = g_values.typed<T>();
 
-        if (group_indices.is_single()) {
-          T accumulation = AccumulationInfo<T>::initial_value;
-          if (accumulation_mode_ == AccumulationMode::Leading) {
-            for (const int i : values.index_range()) {
-              accumulation = AccumulationInfo<T>::accumulate(accumulation, values[i]);
-              outputs[i] = accumulation;
-            }
-          }
-          else {
-            for (const int i : values.index_range()) {
-              outputs[i] = accumulation;
-              accumulation = AccumulationInfo<T>::accumulate(accumulation, values[i]);
-            }
+      if (group_indices.is_single()) {
+        T accumulation = AccumulationInfo<T>::initial_value;
+        if (accumulation_mode_ == AccumulationMode::Leading) {
+          for (const int i : values.index_range()) {
+            accumulation = AccumulationInfo<T>::accumulate(accumulation, values[i]);
+            outputs[i] = accumulation;
           }
         }
         else {
-          Map<int, T> accumulations;
-          if (accumulation_mode_ == AccumulationMode::Leading) {
-            for (const int i : values.index_range()) {
-              T &accumulation_value = accumulations.lookup_or_add(
-                  group_indices[i], AccumulationInfo<T>::initial_value);
-              accumulation_value = AccumulationInfo<T>::accumulate(accumulation_value, values[i]);
-              outputs[i] = accumulation_value;
-            }
-          }
-          else {
-            for (const int i : values.index_range()) {
-              T &accumulation_value = accumulations.lookup_or_add(
-                  group_indices[i], AccumulationInfo<T>::initial_value);
-              outputs[i] = accumulation_value;
-              accumulation_value = AccumulationInfo<T>::accumulate(accumulation_value, values[i]);
-            }
+          for (const int i : values.index_range()) {
+            outputs[i] = accumulation;
+            accumulation = AccumulationInfo<T>::accumulate(accumulation, values[i]);
           }
         }
-
-        g_output = VArray<T>::from_container(std::move(outputs));
       }
+      else {
+        Map<int, T> accumulations;
+        if (accumulation_mode_ == AccumulationMode::Leading) {
+          for (const int i : values.index_range()) {
+            T &accumulation_value = accumulations.lookup_or_add(
+                group_indices[i], AccumulationInfo<T>::initial_value);
+            accumulation_value = AccumulationInfo<T>::accumulate(accumulation_value, values[i]);
+            outputs[i] = accumulation_value;
+          }
+        }
+        else {
+          for (const int i : values.index_range()) {
+            T &accumulation_value = accumulations.lookup_or_add(
+                group_indices[i], AccumulationInfo<T>::initial_value);
+            outputs[i] = accumulation_value;
+            accumulation_value = AccumulationInfo<T>::accumulate(accumulation_value, values[i]);
+          }
+        }
+      }
+
+      g_output = VArray<T>::from_container(std::move(outputs));
     });
 
     return attributes.adapt_domain(std::move(g_output), source_domain_, context.domain());
@@ -324,30 +321,27 @@ class TotalFieldInput final : public bke::GeometryFieldInput {
 
     GVArray g_outputs;
 
-    bke::attribute_math::convert_to_static_type(g_values.type(), [&](auto dummy) {
-      using T = decltype(dummy);
-      if constexpr (is_same_any_v<T, int, float, float3, float4x4>) {
-        const VArray<T> values = g_values.typed<T>();
-        if (group_indices.is_single()) {
-          T accumulation = AccumulationInfo<T>::initial_value;
-          for (const int i : values.index_range()) {
-            accumulation = AccumulationInfo<T>::accumulate(accumulation, values[i]);
-          }
-          g_outputs = VArray<T>::from_single(accumulation, domain_size);
+    g_values.type().to_static_type<int, float, float3, float4x4>([&]<typename T>() {
+      const VArray<T> values = g_values.typed<T>();
+      if (group_indices.is_single()) {
+        T accumulation = AccumulationInfo<T>::initial_value;
+        for (const int i : values.index_range()) {
+          accumulation = AccumulationInfo<T>::accumulate(accumulation, values[i]);
         }
-        else {
-          Map<int, T> accumulations;
-          for (const int i : values.index_range()) {
-            T &value = accumulations.lookup_or_add(group_indices[i],
-                                                   AccumulationInfo<T>::initial_value);
-            value = AccumulationInfo<T>::accumulate(value, values[i]);
-          }
-          Array<T> outputs(domain_size);
-          for (const int i : values.index_range()) {
-            outputs[i] = accumulations.lookup(group_indices[i]);
-          }
-          g_outputs = VArray<T>::from_container(std::move(outputs));
+        g_outputs = VArray<T>::from_single(accumulation, domain_size);
+      }
+      else {
+        Map<int, T> accumulations;
+        for (const int i : values.index_range()) {
+          T &value = accumulations.lookup_or_add(group_indices[i],
+                                                 AccumulationInfo<T>::initial_value);
+          value = AccumulationInfo<T>::accumulate(value, values[i]);
         }
+        Array<T> outputs(domain_size);
+        for (const int i : values.index_range()) {
+          outputs[i] = accumulations.lookup(group_indices[i]);
+        }
+        g_outputs = VArray<T>::from_container(std::move(outputs));
       }
     });
 
@@ -386,23 +380,23 @@ static void node_geo_exec(GeoNodeExecParams params)
   const NodeAccumulateField &storage = node_storage(params.node());
   const AttrDomain source_domain = AttrDomain(storage.domain);
 
-  const Field<int> group_index_field = params.extract_input<Field<int>>("Group Index");
-  const GField input_field = params.extract_input<GField>("Value");
-  if (params.output_is_required("Leading")) {
+  const Field<int> group_index_field = params.extract_input<Field<int>>("Group Index"_ustr);
+  const GField input_field = params.extract_input<GField>("Value"_ustr);
+  if (params.output_is_required("Leading"_ustr)) {
     params.set_output<GField>(
-        "Leading",
+        "Leading"_ustr,
         GField{std::make_shared<AccumulateFieldInput>(
             source_domain, input_field, group_index_field, AccumulationMode::Leading)});
   }
-  if (params.output_is_required("Trailing")) {
+  if (params.output_is_required("Trailing"_ustr)) {
     params.set_output<GField>(
-        "Trailing",
+        "Trailing"_ustr,
         GField{std::make_shared<AccumulateFieldInput>(
             source_domain, input_field, group_index_field, AccumulationMode::Trailing)});
   }
-  if (params.output_is_required("Total")) {
+  if (params.output_is_required("Total"_ustr)) {
     params.set_output<GField>(
-        "Total",
+        "Total"_ustr,
         GField{std::make_shared<TotalFieldInput>(source_domain, input_field, group_index_field)});
   }
 }
@@ -442,7 +436,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeAccumulateField", GEO_NODE_ACCUMULATE_FIELD);
   ntype.ui_name = "Accumulate Field";
   ntype.ui_description =
@@ -455,9 +449,9 @@ static void node_register()
   ntype.draw_buttons = node_layout;
   ntype.declare = node_declare;
   ntype.gather_link_search_ops = node_gather_link_searches;
-  blender::bke::node_type_storage(
+  bke::node_type_storage(
       ntype, "NodeAccumulateField", node_free_standard_storage, node_copy_standard_storage);
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

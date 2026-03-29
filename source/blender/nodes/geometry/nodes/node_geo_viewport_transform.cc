@@ -27,14 +27,14 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Object &self_object = *params.self_object();
   const GeoNodesOperatorData &data = *params.user_data()->call_data->operator_data;
 
-  params.set_output("Projection", data.viewport_winmat);
-  params.set_output("View", data.viewport_viewmat * self_object.object_to_world());
-  params.set_output("Is Orthographic", !data.viewport_is_perspective);
+  params.set_output("Projection"_ustr, data.viewport_winmat);
+  params.set_output("View"_ustr, data.viewport_viewmat * self_object.object_to_world());
+  params.set_output("Is Orthographic"_ustr, !data.viewport_is_perspective);
 }
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeViewportTransform", GEO_NODE_TOOL_VIEWPORT_TRANSFORM);
   ntype.ui_name = "Viewport Transform";
   ntype.ui_description = "Retrieve the view direction and location of the 3D viewport";
@@ -43,7 +43,7 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.gather_link_search_ops = search_link_ops_for_tool_node;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

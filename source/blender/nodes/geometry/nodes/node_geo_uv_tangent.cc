@@ -224,15 +224,15 @@ class TangentFieldInput final : public bke::MeshFieldInput {
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  const Method method = params.extract_input<Method>("Method");
-  Field<float3> uv_field = params.extract_input<Field<float3>>("UV");
-  params.set_output("Tangent",
+  const Method method = params.extract_input<Method>("Method"_ustr);
+  Field<float3> uv_field = params.extract_input<Field<float3>>("UV"_ustr);
+  params.set_output("Tangent"_ustr,
                     Field<float3>(std::make_shared<TangentFieldInput>(method, uv_field)));
 }
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeUVTangent");
   ntype.ui_name = "UV Tangent";
@@ -240,7 +240,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

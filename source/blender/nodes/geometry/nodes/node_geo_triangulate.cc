@@ -80,12 +80,13 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  GeometrySet geometry_set = params.extract_input<GeometrySet>("Mesh");
-  Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
-  const AttributeFilter &attribute_filter = params.get_attribute_filter("Mesh");
+  GeometrySet geometry_set = params.extract_input<GeometrySet>("Mesh"_ustr);
+  Field<bool> selection_field = params.extract_input<Field<bool>>("Selection"_ustr);
+  const AttributeFilter &attribute_filter = params.get_attribute_filter("Mesh"_ustr);
 
-  const auto ngon_method = params.extract_input<geometry::TriangulateNGonMode>("N-gon Method");
-  const auto quad_method = params.extract_input<geometry::TriangulateQuadMode>("Quad Method");
+  const auto ngon_method = params.extract_input<geometry::TriangulateNGonMode>(
+      "N-gon Method"_ustr);
+  const auto quad_method = params.extract_input<geometry::TriangulateQuadMode>("Quad Method"_ustr);
 
   geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     const Mesh *src_mesh = geometry_set.get_mesh();
@@ -123,12 +124,12 @@ static void node_geo_exec(GeoNodeExecParams params)
     geometry_set.replace_mesh(*mesh);
   });
 
-  params.set_output("Mesh", std::move(geometry_set));
+  params.set_output("Mesh"_ustr, std::move(geometry_set));
 }
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeTriangulate", GEO_NODE_TRIANGULATE);
   ntype.ui_name = "Triangulate";
@@ -137,7 +138,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

@@ -30,15 +30,15 @@ static void node_geo_exec(GeoNodeExecParams params)
    * disable this node when building against older versions. */
 #ifdef WITH_OPENVDB
 #  if OPENVDB_ABI_VERSION_NUMBER >= 12
-  auto grid = params.extract_input<bke::VolumeGrid<float>>("Grid");
+  auto grid = params.extract_input<bke::VolumeGrid<float>>("Grid"_ustr);
   if (!grid) {
     params.set_default_remaining_outputs();
     return;
   }
 
-  const int iterations = params.extract_input<int>("Iterations");
+  const int iterations = params.extract_input<int>("Iterations"_ustr);
   if (iterations <= 0) {
-    params.set_output("Grid", std::move(grid));
+    params.set_output("Grid"_ustr, std::move(grid));
     return;
   }
 
@@ -56,7 +56,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  params.set_output("Grid", std::move(grid));
+  params.set_output("Grid"_ustr, std::move(grid));
 #  else
   node_geo_exec_with_too_old_openvdb(params);
 #  endif
@@ -67,7 +67,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeSDFGridFillet");
   ntype.ui_name = "SDF Grid Fillet";
   ntype.ui_description =
@@ -76,7 +76,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

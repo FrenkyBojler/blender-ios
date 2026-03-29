@@ -122,19 +122,19 @@ static Mesh *create_ico_sphere_mesh(const int subdivisions,
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  const int subdivisions = std::min(params.extract_input<int>("Subdivisions"), 10);
-  const float radius = params.extract_input<float>("Radius");
+  const int subdivisions = std::min(params.extract_input<int>("Subdivisions"_ustr), 10);
+  const float radius = params.extract_input<float>("Radius"_ustr);
 
   std::optional<std::string> uv_map_id = params.get_output_anonymous_attribute_id_if_needed(
-      "UV Map");
+      "UV Map"_ustr);
 
   Mesh *mesh = create_ico_sphere_mesh(subdivisions, radius, uv_map_id);
-  params.set_output("Mesh", GeometrySet::from_mesh(mesh));
+  params.set_output("Mesh"_ustr, GeometrySet::from_mesh(mesh));
 }
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeMeshIcoSphere", GEO_NODE_MESH_PRIMITIVE_ICO_SPHERE);
   ntype.ui_name = "Ico Sphere";
@@ -143,7 +143,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

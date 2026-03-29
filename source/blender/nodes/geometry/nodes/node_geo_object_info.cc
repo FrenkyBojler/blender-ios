@@ -54,7 +54,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const bool transform_space_relative = (storage.transform_space ==
                                          GEO_NODE_TRANSFORM_SPACE_RELATIVE);
 
-  Object *object = params.extract_input<Object *>("Object");
+  Object *object = params.extract_input<Object *>("Object"_ustr);
 
   const Object *self_object = params.self_object();
   if (object == nullptr) {
@@ -94,12 +94,12 @@ static void node_geo_exec(GeoNodeExecParams params)
   math::Quaternion rotation;
   math::to_loc_rot_scale_safe<true>(output_transform, location, rotation, scale);
 
-  params.set_output("Location", location);
-  params.set_output("Rotation", rotation);
-  params.set_output("Scale", scale);
-  params.set_output("Transform", output_transform);
+  params.set_output("Location"_ustr, location);
+  params.set_output("Rotation"_ustr, rotation);
+  params.set_output("Scale"_ustr, scale);
+  params.set_output("Transform"_ustr, output_transform);
 
-  if (!params.output_is_required("Geometry")) {
+  if (!params.output_is_required("Geometry"_ustr)) {
     return;
   }
   /* Compare by `orig_id` because objects may be copied into separate depsgraphs. */
@@ -137,16 +137,16 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   GeometrySet geometry_set;
-  if (params.extract_input<bool>("As Instance")) {
-    std::unique_ptr<bke::Instances> instances = std::make_unique<bke::Instances>();
-    const int handle = instances->add_reference(*object);
+  if (params.extract_input<bool>("As Instance"_ustr)) {
+    auto instances = std::make_unique<bke::Instances>(1);
+    instances->reference_handles_for_write().first() = instances->add_reference(*object);
     if (transform_space_relative) {
-      instances->add_instance(handle, *geometry_transform);
+      instances->transforms_for_write().first() = *geometry_transform;
     }
     else {
-      instances->add_instance(handle, float4x4::identity());
+      instances->transforms_for_write().first() = float4x4::identity();
     }
-    geometry_set = GeometrySet::from_instances(instances.release());
+    geometry_set = GeometrySet::from_instances(std::move(instances));
   }
   else {
     geometry_set = bke::object_get_evaluated_geometry_set(*object);
@@ -156,12 +156,12 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   geometry_set.name = object->id.name + 2;
-  params.set_output("Geometry", geometry_set);
+  params.set_output("Geometry"_ustr, geometry_set);
 }
 
 static void node_node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryObjectInfo *data = MEM_new_for_free<NodeGeometryObjectInfo>(__func__);
+  NodeGeometryObjectInfo *data = MEM_new<NodeGeometryObjectInfo>(__func__);
   data->transform_space = GEO_NODE_TRANSFORM_SPACE_ORIGINAL;
   node->storage = data;
 }
@@ -197,7 +197,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeObjectInfo", GEO_NODE_OBJECT_INFO);
   ntype.ui_name = "Object Info";
@@ -205,12 +205,12 @@ static void node_register()
   ntype.enum_name_legacy = "OBJECT_INFO";
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.initfunc = node_node_init;
-  blender::bke::node_type_storage(
+  bke::node_type_storage(
       ntype, "NodeGeometryObjectInfo", node_free_standard_storage, node_copy_standard_storage);
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.declare = node_declare;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

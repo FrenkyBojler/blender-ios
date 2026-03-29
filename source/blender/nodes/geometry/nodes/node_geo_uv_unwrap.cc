@@ -66,7 +66,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   /* Still used for forward compatibility. */
-  node->storage = MEM_new_for_free<NodeGeometryUVUnwrap>(__func__);
+  node->storage = MEM_new<NodeGeometryUVUnwrap>(__func__);
 }
 
 static VArray<float3> construct_uv_gvarray(const Mesh &mesh,
@@ -134,7 +134,7 @@ static VArray<float3> construct_uv_gvarray(const Mesh &mesh,
     geometry::uv_parametrizer_edge_set_seam(handle, vkeys);
   });
 
-  blender::geometry::UVPackIsland_Params params;
+  geometry::UVPackIsland_Params params;
   params.margin = margin;
   params.rotate_method = ED_UVPACK_ROTATION_ANY;
 
@@ -216,26 +216,26 @@ class UnwrapFieldInput final : public bke::MeshFieldInput {
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  const auto method = params.get_input<GeometryNodeUVUnwrapMethod>("Method");
-  const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
-  const Field<bool> seam_field = params.extract_input<Field<bool>>("Seam");
-  const bool fill_holes = params.extract_input<bool>("Fill Holes");
-  const float margin = params.extract_input<float>("Margin");
+  const auto method = params.get_input<GeometryNodeUVUnwrapMethod>("Method"_ustr);
+  const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection"_ustr);
+  const Field<bool> seam_field = params.extract_input<Field<bool>>("Seam"_ustr);
+  const bool fill_holes = params.extract_input<bool>("Fill Holes"_ustr);
+  const float margin = params.extract_input<float>("Margin"_ustr);
   int iterations = 0;
   bool no_flip = false;
   if ((GeometryNodeUVUnwrapMethod)method == GEO_NODE_UV_UNWRAP_METHOD_MINIMUM_STRETCH) {
-    iterations = params.extract_input<int>("Iterations");
-    no_flip = params.extract_input<bool>("No Flip");
+    iterations = params.extract_input<int>("Iterations"_ustr);
+    no_flip = params.extract_input<bool>("No Flip"_ustr);
   }
   params.set_output(
-      "UV",
+      "UV"_ustr,
       Field<float3>(std::make_shared<UnwrapFieldInput>(
           selection_field, seam_field, fill_holes, margin, method, iterations, no_flip)));
 }
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeUVUnwrap", GEO_NODE_UV_UNWRAP);
   ntype.ui_name = "UV Unwrap";
@@ -243,11 +243,11 @@ static void node_register()
   ntype.enum_name_legacy = "UV_UNWRAP";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.initfunc = node_init;
-  blender::bke::node_type_storage(
+  bke::node_type_storage(
       ntype, "NodeGeometryUVUnwrap", node_free_standard_storage, node_copy_standard_storage);
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

@@ -69,8 +69,8 @@
 
 #include "BLT_translation.hh"
 
+#include "NOD_dependencies.hh"
 #include "NOD_geometry_nodes_caller_ui.hh"
-#include "NOD_geometry_nodes_dependencies.hh"
 #include "NOD_geometry_nodes_execute.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
 
@@ -86,9 +86,11 @@
 
 #include <fmt/format.h>
 
-namespace geo_log = blender::nodes::geo_eval_log;
+namespace blender {
 
-namespace blender::ed::geometry {
+namespace geo_log = nodes::geo_eval_log;
+
+namespace ed::geometry {
 
 using asset_system::AssetRepresentation;
 
@@ -96,10 +98,8 @@ struct ErrorsForType {
   int duplicate_count = 0;
   bool is_builtin_operator = false;
   Vector<std::string> idname_validation_errors;
-  BLI_STRUCT_EQUALITY_OPERATORS_3(ErrorsForType,
-                                  duplicate_count,
-                                  is_builtin_operator,
-                                  idname_validation_errors);
+
+  friend bool operator==(const ErrorsForType &a, const ErrorsForType &b) = default;
 };
 using OperatorRegisterErrors = Map<std::string, ErrorsForType>;
 
@@ -182,8 +182,8 @@ static std::optional<std::string> operator_idname_get(const StringRefNull custom
   if (!WM_operator_idname_ok_or_report(&reports, custom_idname.c_str())) {
     if (errors) {
       ErrorsForType &errors_for_type = errors->lookup_or_add_default_as(custom_idname);
-      LISTBASE_FOREACH (Report *, report, &reports.list) {
-        errors_for_type.idname_validation_errors.append_as(report->message);
+      for (Report &report : reports.list) {
+        errors_for_type.idname_validation_errors.append_as(report.message);
       }
     }
     return std::nullopt;
@@ -349,17 +349,17 @@ const GeoOperatorLog &node_group_operator_static_eval_log()
 }
 
 /** Find all the visible node editors to log values for. */
-static void find_socket_log_contexts(const Main &bmain,
-                                     Set<ComputeContextHash> &r_socket_log_contexts)
+static void find_verbose_log_contexts(const Main &bmain,
+                                      Set<ComputeContextHash> &r_verbose_log_contexts)
 {
   wmWindowManager *wm = static_cast<wmWindowManager *>(bmain.wm.first);
   if (wm == nullptr) {
     return;
   }
-  LISTBASE_FOREACH (const wmWindow *, window, &wm->windows) {
-    const bScreen *screen = BKE_workspace_active_screen_get(window->workspace_hook);
-    LISTBASE_FOREACH (const ScrArea *, area, &screen->areabase) {
-      const SpaceLink *sl = static_cast<SpaceLink *>(area->spacedata.first);
+  for (const wmWindow &window : wm->windows) {
+    const bScreen *screen = BKE_workspace_active_screen_get(window.workspace_hook);
+    for (const ScrArea &area : screen->areabase) {
+      const SpaceLink *sl = static_cast<SpaceLink *>(area.spacedata.first);
       if (sl->spacetype == SPACE_NODE) {
         const SpaceNode &snode = *reinterpret_cast<const SpaceNode *>(sl);
         if (snode.edittree == nullptr) {
@@ -373,7 +373,7 @@ static void find_socket_log_contexts(const Main &bmain,
             geo_log::GeoNodesLog::get_context_hash_by_zone_for_node_editor(snode,
                                                                            compute_context_cache);
         for (const ComputeContextHash &hash : hash_by_zone.values()) {
-          r_socket_log_contexts.add(hash);
+          r_verbose_log_contexts.add(hash);
         }
       }
     }
@@ -434,13 +434,13 @@ static std::string shape_key_attribute_name(const KeyBlock &kb)
 static void add_shape_keys_as_attributes(Mesh &mesh, const Key &key)
 {
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
-  LISTBASE_FOREACH (const KeyBlock *, kb, &key.block) {
-    if (kb == key.refkey) {
+  for (const KeyBlock &kb : key.block) {
+    if (&kb == key.refkey) {
       /* The basis key will just receive values from the mesh positions. */
       continue;
     }
-    const Span<float3> key_data(static_cast<float3 *>(kb->data), kb->totelem);
-    attributes.add<float3>(shape_key_attribute_name(*kb),
+    const Span<float3> key_data(static_cast<float3 *>(kb.data), kb.totelem);
+    attributes.add<float3>(shape_key_attribute_name(kb),
                            bke::AttrDomain::Point,
                            bke::AttributeInitVArray(VArray<float3>::from_span(key_data)));
   }
@@ -450,21 +450,21 @@ static void add_shape_keys_as_attributes(Mesh &mesh, const Key &key)
 static void store_attributes_to_shape_keys(const Mesh &mesh, Key &key)
 {
   const bke::AttributeAccessor attributes = mesh.attributes();
-  LISTBASE_FOREACH (KeyBlock *, kb, &key.block) {
-    const VArray attr = *attributes.lookup<float3>(shape_key_attribute_name(*kb),
+  for (KeyBlock &kb : key.block) {
+    const VArray attr = *attributes.lookup<float3>(shape_key_attribute_name(kb),
                                                    bke::AttrDomain::Point);
     if (!attr) {
       continue;
     }
-    MEM_freeN(kb->data);
-    kb->data = MEM_malloc_arrayN(attr.size(), sizeof(float3), __func__);
-    kb->totelem = attr.size();
-    attr.materialize({static_cast<float3 *>(kb->data), attr.size()});
+    MEM_delete(static_cast<float3 *>(kb.data));
+    kb.data = MEM_new_array_uninitialized<float3>(attr.size(), __func__);
+    kb.totelem = attr.size();
+    attr.materialize({static_cast<float3 *>(kb.data), attr.size()});
   }
   if (KeyBlock *kb = key.refkey) {
     const Span<float3> positions = mesh.vert_positions();
-    MEM_freeN(kb->data);
-    kb->data = MEM_malloc_arrayN(positions.size(), sizeof(float3), __func__);
+    MEM_delete(static_cast<float3 *>(kb->data));
+    kb->data = MEM_new_array_uninitialized<float3>(positions.size(), __func__);
     kb->totelem = positions.size();
     array_utils::copy(positions, MutableSpan(static_cast<float3 *>(kb->data), positions.size()));
   }
@@ -473,8 +473,8 @@ static void store_attributes_to_shape_keys(const Mesh &mesh, Key &key)
 static void remove_shape_key_attributes(Mesh &mesh, const Key &key)
 {
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
-  LISTBASE_FOREACH (KeyBlock *, kb, &key.block) {
-    attributes.remove(shape_key_attribute_name(*kb));
+  for (KeyBlock &kb : key.block) {
+    attributes.remove(shape_key_attribute_name(kb));
   }
 }
 
@@ -491,16 +491,15 @@ static bke::GeometrySet get_original_geometry_eval_copy(Depsgraph &depsgraph,
 {
   switch (object.type) {
     case OB_CURVES: {
-      Curves *curves = BKE_curves_copy_for_eval(static_cast<const Curves *>(object.data));
+      Curves *curves = BKE_curves_copy_for_eval(id_cast<const Curves *>(object.data));
       return bke::GeometrySet::from_curves(curves);
     }
     case OB_POINTCLOUD: {
-      PointCloud *points = BKE_pointcloud_copy_for_eval(
-          static_cast<const PointCloud *>(object.data));
+      PointCloud *points = BKE_pointcloud_copy_for_eval(id_cast<const PointCloud *>(object.data));
       return bke::GeometrySet::from_pointcloud(points);
     }
     case OB_MESH: {
-      Mesh *mesh = static_cast<Mesh *>(object.data);
+      Mesh *mesh = id_cast<Mesh *>(object.data);
 
       if (std::shared_ptr<BMEditMesh> &em = mesh->runtime->edit_mesh) {
         operator_data.active_point_index = BM_mesh_active_vert_index_get(em->bm);
@@ -530,7 +529,7 @@ static bke::GeometrySet get_original_geometry_eval_copy(Depsgraph &depsgraph,
       return bke::GeometrySet::from_mesh(mesh_copy);
     }
     case OB_GREASE_PENCIL: {
-      const GreasePencil *grease_pencil = static_cast<const GreasePencil *>(object.data);
+      const GreasePencil *grease_pencil = id_cast<const GreasePencil *>(object.data);
       if (const bke::greasepencil::Layer *active_layer = grease_pencil->get_active_layer()) {
         operator_data.active_layer_index = *grease_pencil->get_layer_index(*active_layer);
       }
@@ -555,7 +554,7 @@ static void store_result_geometry(const bContext &C,
   geometry.ensure_owns_direct_data();
   switch (object.type) {
     case OB_CURVES: {
-      Curves &curves = *static_cast<Curves *>(object.data);
+      Curves &curves = *id_cast<Curves *>(object.data);
       Curves *new_curves = geometry.get_curves_for_write();
       if (!new_curves) {
         curves.geometry.wrap() = {};
@@ -571,7 +570,7 @@ static void store_result_geometry(const bContext &C,
       break;
     }
     case OB_POINTCLOUD: {
-      PointCloud &points = *static_cast<PointCloud *>(object.data);
+      PointCloud &points = *id_cast<PointCloud *>(object.data);
       PointCloud *new_points =
           geometry.get_component_for_write<bke::PointCloudComponent>().release();
       if (!new_points) {
@@ -589,7 +588,7 @@ static void store_result_geometry(const bContext &C,
       break;
     }
     case OB_MESH: {
-      Mesh &mesh = *static_cast<Mesh *>(object.data);
+      Mesh &mesh = *id_cast<Mesh *>(object.data);
 
       Mesh *new_mesh = geometry.get_component_for_write<bke::MeshComponent>().release();
       if (new_mesh) {
@@ -638,7 +637,7 @@ static void store_result_geometry(const bContext &C,
     case OB_GREASE_PENCIL: {
       const int eval_frame = int(DEG_get_ctime(&depsgraph));
 
-      GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
+      GreasePencil &grease_pencil = *id_cast<GreasePencil *>(object.data);
       Vector<int> editable_layer_indices;
       for (const int layer_i : grease_pencil.layers().index_range()) {
         const bke::greasepencil::Layer &layer = grease_pencil.layer(layer_i);
@@ -699,8 +698,8 @@ static void store_result_geometry(const bContext &C,
 static void gather_node_group_ids(const bNodeTree &node_tree, Set<ID *> &ids)
 {
   const int orig_size = ids.size();
-  BLI_assert(node_tree.runtime->geometry_nodes_eval_dependencies);
-  for (ID *id : node_tree.runtime->geometry_nodes_eval_dependencies->ids.values()) {
+  BLI_assert(node_tree.runtime->eval_dependencies);
+  for (ID *id : node_tree.runtime->eval_dependencies->ids.values()) {
     ids.add(id);
   }
   if (ids.size() != orig_size) {
@@ -727,6 +726,7 @@ static std::optional<ID_Type> socket_type_to_id_type(const eNodeSocketDatatype s
     case SOCK_CUSTOM:
     case SOCK_FLOAT:
     case SOCK_VECTOR:
+    case SOCK_INT_VECTOR:
     case SOCK_RGBA:
     case SOCK_SHADER:
     case SOCK_BOOLEAN:
@@ -951,11 +951,11 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
   }
 
   bke::OperatorComputeContext compute_context;
-  Set<ComputeContextHash> socket_log_contexts;
+  Set<ComputeContextHash> verbose_log_contexts;
   GeoOperatorLog &eval_log = get_static_eval_log();
   eval_log.log = std::make_unique<geo_log::GeoNodesLog>();
   eval_log.node_group_name = node_tree->id.name + 2;
-  find_socket_log_contexts(*bmain, socket_log_contexts);
+  find_verbose_log_contexts(*bmain, verbose_log_contexts);
 
   /* May be null if operator called from outside 3D view context. */
   const RegionView3D *rv3d = CTX_wm_region_view3d(C);
@@ -983,7 +983,7 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
     call_data.eval_log = eval_log.log.get();
     if (object == active_object) {
       /* Only log values from the active object. */
-      call_data.socket_log_contexts = &socket_log_contexts;
+      call_data.verbose_log_contexts = &verbose_log_contexts;
     }
 
     bke::GeometrySet geometry_orig = get_original_geometry_eval_copy(
@@ -1231,17 +1231,17 @@ static Vector<std::unique_ptr<OperatorTypeData>> get_node_tools_type_data(
     const bContext &C, Main &bmain, OperatorRegisterErrors &errors)
 {
   Vector<std::unique_ptr<OperatorTypeData>> all_types;
-  LISTBASE_FOREACH (bNodeTree *, ntree, &bmain.nodetrees) {
-    if (ID_IS_ASSET(&ntree->id)) {
+  for (bNodeTree &ntree : bmain.nodetrees) {
+    if (ID_IS_ASSET(&ntree.id)) {
       continue;
     }
-    if (!ntree->geometry_node_asset_traits) {
+    if (!ntree.geometry_node_asset_traits) {
       continue;
     }
-    if ((ntree->geometry_node_asset_traits->flag & GEO_NODE_ASSET_TOOL) == 0) {
+    if ((ntree.geometry_node_asset_traits->flag & GEO_NODE_ASSET_TOOL) == 0) {
       continue;
     }
-    std::optional<OperatorTypeData> type_data = OperatorTypeData::from_group(*ntree, errors);
+    std::optional<OperatorTypeData> type_data = OperatorTypeData::from_group(ntree, errors);
     if (!type_data) {
       continue;
     }
@@ -1446,7 +1446,6 @@ static GeometryNodeAssetTraitFlag asset_flag_for_context(const ObjectType type,
     default:
       break;
   }
-  BLI_assert_unreachable();
   return GeometryNodeAssetTraitFlag(0);
 }
 
@@ -1768,13 +1767,13 @@ static bool unassigned_local_poll(const bContext &C)
     return false;
   }
   const GeometryNodeAssetTraitFlag flag = asset_flag_for_context(*active_object);
-  LISTBASE_FOREACH (const bNodeTree *, group, &bmain.nodetrees) {
+  for (const bNodeTree &group : bmain.nodetrees) {
     /* Assets are displayed in other menus, and non-local data-blocks aren't added to this menu. */
-    if (group->id.library_weak_reference || group->id.asset_data) {
+    if (group.id.library_weak_reference || group.id.asset_data) {
       continue;
     }
-    if (!group->geometry_node_asset_traits ||
-        (group->geometry_node_asset_traits->flag & flag) != flag)
+    if (!group.geometry_node_asset_traits ||
+        (group.geometry_node_asset_traits->flag & flag) != flag)
     {
       continue;
     }
@@ -1812,19 +1811,19 @@ static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
   bool first = true;
   bool add_separator = !tree->unassigned_assets.is_empty();
   Main &bmain = *CTX_data_main(C);
-  LISTBASE_FOREACH (const bNodeTree *, group, &bmain.nodetrees) {
+  for (const bNodeTree &group : bmain.nodetrees) {
     /* Assets are displayed in other menus, and non-local data-blocks aren't added to this menu. */
-    if (group->id.library_weak_reference || group->id.asset_data) {
+    if (group.id.library_weak_reference || group.id.asset_data) {
       continue;
     }
-    if (!group->geometry_node_asset_traits ||
-        (group->geometry_node_asset_traits->flag & flag) != flag)
+    if (!group.geometry_node_asset_traits ||
+        (group.geometry_node_asset_traits->flag & flag) != flag)
     {
       continue;
     }
-    const std::optional<std::string> operator_idname = operator_idname_for_group(*group);
+    const std::optional<std::string> operator_idname = operator_idname_for_group(group);
     if (!operator_idname) {
-      missing_tool_idname_error(layout, BKE_id_name(group->id));
+      missing_tool_idname_error(layout, BKE_id_name(group.id));
       continue;
     }
     if (add_separator) {
@@ -1836,7 +1835,7 @@ static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
       first = false;
     }
     layout.op(*operator_idname,
-              BKE_id_name(group->id),
+              BKE_id_name(group.id),
               ICON_NONE,
               wm::OpCallContext::InvokeRegionWin,
               UI_ITEM_NONE);
@@ -1914,4 +1913,5 @@ void ui_template_node_operator_asset_root_items(ui::Layout &layout, const bConte
 
 /** \} */
 
-}  // namespace blender::ed::geometry
+}  // namespace ed::geometry
+}  // namespace blender

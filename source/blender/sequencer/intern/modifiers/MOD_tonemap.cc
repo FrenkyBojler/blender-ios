@@ -15,6 +15,7 @@
 #include "IMB_colormanagement.hh"
 
 #include "SEQ_modifier.hh"
+#include "SEQ_render.hh"
 
 #include "UI_interface.hh"
 #include "UI_interface_layout.hh"
@@ -22,6 +23,7 @@
 #include "RNA_access.hh"
 
 #include "modifier.hh"
+#include "render.hh"
 
 namespace blender::seq {
 
@@ -36,7 +38,7 @@ struct AvgLogLum {
 
 static void tonemapmodifier_init_data(StripModifierData *smd)
 {
-  SequencerTonemapModifierData *tmmd = (SequencerTonemapModifierData *)smd;
+  SequencerTonemapModifierData *tmmd = reinterpret_cast<SequencerTonemapModifierData *>(smd);
   /* Same as tone-map compositor node. */
   tmmd->type = SEQ_TONEMAP_RD_PHOTORECEPTOR;
   tmmd->key = 0.18f;
@@ -54,7 +56,7 @@ static void pixels_to_scene_linear_float(const ColorSpace *colorspace,
                                          int64_t count)
 {
   IMB_colormanagement_colorspace_to_scene_linear(
-      (float *)(pixels), int(count), 1, 4, colorspace, false);
+      reinterpret_cast<float *>(pixels), int(count), 1, 4, colorspace, false);
 }
 
 /* Convert chunk of byte image pixels to scene linear space, into a destination array. */
@@ -71,14 +73,14 @@ static void pixels_to_scene_linear_byte(const ColorSpace *colorspace,
     dst_ptr++;
   }
   IMB_colormanagement_colorspace_to_scene_linear(
-      (float *)dst, int(count), 1, 4, colorspace, false);
+      reinterpret_cast<float *>(dst), int(count), 1, 4, colorspace, false);
 }
 
 static void scene_linear_to_image_chunk_byte(float4 *src, ImBuf *ibuf, IndexRange range)
 {
   const ColorSpace *colorspace = ibuf->byte_buffer.colorspace;
   IMB_colormanagement_scene_linear_to_colorspace(
-      (float *)src, int(range.size()), 1, 4, colorspace);
+      reinterpret_cast<float *>(src), int(range.size()), 1, 4, colorspace);
   const float4 *src_ptr = src;
   uchar *bptr = ibuf->byte_buffer.data;
   for (const int64_t idx : range) {
@@ -101,7 +103,7 @@ static void scene_linear_to_image_chunk_float(ImBuf *ibuf, IndexRange range)
   const ColorSpace *colorspace = ibuf->float_buffer.colorspace;
   float4 *fptr = reinterpret_cast<float4 *>(ibuf->float_buffer.data);
   IMB_colormanagement_scene_linear_to_colorspace(
-      (float *)(fptr + range.first()), int(range.size()), 1, 4, colorspace);
+      reinterpret_cast<float *>(fptr + range.first()), int(range.size()), 1, 4, colorspace);
 }
 
 template<typename MaskSampler>
@@ -284,7 +286,10 @@ static void tonemapmodifier_apply(ModifierApplyContext &context,
                                   StripModifierData *smd,
                                   ImBuf *mask)
 {
-  const SequencerTonemapModifierData *tmmd = (const SequencerTonemapModifierData *)smd;
+  ensure_ibuf_is_sequencer_space(context.render_data.scene, context.image, false);
+
+  const SequencerTonemapModifierData *tmmd =
+      reinterpret_cast<const SequencerTonemapModifierData *>(smd);
 
   TonemapApplyOp op;
   op.type = eModTonemapType(tmmd->type);
@@ -313,7 +318,7 @@ static void tonemapmodifier_apply(ModifierApplyContext &context,
 static void tonemapmodifier_panel_draw(const bContext *C, Panel *panel)
 {
   ui::Layout &layout = *panel->layout;
-  PointerRNA *ptr = blender::ui::panel_custom_data_get(panel);
+  PointerRNA *ptr = ui::panel_custom_data_get(panel);
 
   const int tonemap_type = RNA_enum_get(ptr, "tonemap_type");
 

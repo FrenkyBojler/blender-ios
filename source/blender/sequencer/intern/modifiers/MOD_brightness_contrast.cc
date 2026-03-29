@@ -16,11 +16,13 @@
 #include "DNA_sequence_types.h"
 
 #include "SEQ_modifier.hh"
+#include "SEQ_render.hh"
 
 #include "UI_interface.hh"
 #include "UI_interface_layout.hh"
 
 #include "modifier.hh"
+#include "render.hh"
 
 namespace blender::seq {
 
@@ -55,7 +57,9 @@ static void brightcontrast_apply(ModifierApplyContext &context,
                                  StripModifierData *smd,
                                  ImBuf *mask)
 {
-  const BrightContrastModifierData *bcmd = (BrightContrastModifierData *)smd;
+  ensure_ibuf_is_sequencer_space(context.render_data.scene, context.image, false);
+
+  const BrightContrastModifierData *bcmd = reinterpret_cast<BrightContrastModifierData *>(smd);
 
   BrightContrastApplyOp op;
 
@@ -83,7 +87,7 @@ static void brightcontrast_apply(ModifierApplyContext &context,
 static void brightcontrast_panel_draw(const bContext *C, Panel *panel)
 {
   ui::Layout &layout = *panel->layout;
-  PointerRNA *ptr = blender::ui::panel_custom_data_get(panel);
+  PointerRNA *ptr = ui::panel_custom_data_get(panel);
 
   layout.use_property_split_set(true);
 

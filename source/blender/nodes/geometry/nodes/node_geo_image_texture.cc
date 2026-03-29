@@ -39,7 +39,7 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryImageTexture *tex = MEM_new_for_free<NodeGeometryImageTexture>(__func__);
+  NodeGeometryImageTexture *tex = MEM_new<NodeGeometryImageTexture>(__func__);
   tex->interpolation = SHD_INTERP_LINEAR;
   tex->extension = SHD_IMAGE_EXTENSION_REPEAT;
   node->storage = tex;
@@ -370,20 +370,20 @@ class ImageFieldsFunction : public mf::MultiFunction {
       }
       case IMA_ALPHA_IGNORE: {
         /* The image should be treated as being opaque. */
-        mask.foreach_index([&](const int64_t i) { color_data[i].w = 1.0f; });
+        mask.foreach_index_optimized<int64_t>([&](const int64_t i) { color_data[i].w = 1.0f; });
         break;
       }
     }
 
     if (!r_alpha.is_empty()) {
-      mask.foreach_index([&](const int64_t i) { r_alpha[i] = r_color[i].a; });
+      mask.foreach_index_optimized<int64_t>([&](const int64_t i) { r_alpha[i] = r_color[i].a; });
     }
   }
 };
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  Image *image = params.extract_input<Image *>("Image");
+  Image *image = params.extract_input<Image *>("Image"_ustr);
   if (image == nullptr) {
     params.set_default_remaining_outputs();
     return;
@@ -396,7 +396,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   image_user.cycl = false;
   image_user.frames = INT_MAX;
   image_user.sfra = 1;
-  image_user.framenr = BKE_image_is_animated(image) ? params.extract_input<int>("Frame") : 0;
+  image_user.framenr = BKE_image_is_animated(image) ? params.extract_input<int>("Frame"_ustr) : 0;
 
   std::unique_ptr<ImageFieldsFunction> image_fn;
   try {
@@ -408,7 +408,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  auto sample_uv = params.extract_input<bke::SocketValueVariant>("Vector");
+  auto sample_uv = params.extract_input<bke::SocketValueVariant>("Vector"_ustr);
 
   std::string error_message;
   bke::SocketValueVariant color;
@@ -421,13 +421,13 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  params.set_output("Color", std::move(color));
-  params.set_output("Alpha", std::move(alpha));
+  params.set_output("Color"_ustr, std::move(color));
+  params.set_output("Alpha"_ustr, std::move(alpha));
 }
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeImageTexture", GEO_NODE_IMAGE_TEXTURE);
   ntype.ui_name = "Image Texture";
@@ -437,12 +437,12 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;
   ntype.initfunc = node_init;
-  blender::bke::node_type_storage(
+  bke::node_type_storage(
       ntype, "NodeGeometryImageTexture", node_free_standard_storage, node_copy_standard_storage);
-  blender::bke::node_type_size_preset(ntype, blender::bke::eNodeSizePreset::Large);
+  bke::node_type_size_preset(ntype, bke::eNodeSizePreset::Large);
   ntype.geometry_node_execute = node_geo_exec;
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

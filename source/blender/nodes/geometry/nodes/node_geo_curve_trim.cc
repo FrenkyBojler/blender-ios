@@ -83,7 +83,7 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryCurveTrim *data = MEM_new_for_free<NodeGeometryCurveTrim>(__func__);
+  NodeGeometryCurveTrim *data = MEM_new<NodeGeometryCurveTrim>(__func__);
 
   data->mode = GEO_NODE_CURVE_SAMPLE_FACTOR;
   node->storage = data;
@@ -209,32 +209,32 @@ static void geometry_set_curve_trim(GeometrySet &geometry_set,
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const NodeGeometryCurveTrim &storage = node_storage(params.node());
-  const GeometryNodeCurveSampleMode mode = (GeometryNodeCurveSampleMode)storage.mode;
+  const GeometryNodeCurveSampleMode mode = GeometryNodeCurveSampleMode(storage.mode);
 
-  GeometrySet geometry_set = params.extract_input<GeometrySet>("Curve");
+  GeometrySet geometry_set = params.extract_input<GeometrySet>("Curve"_ustr);
   GeometryComponentEditData::remember_deformed_positions_if_necessary(geometry_set);
 
-  const NodeAttributeFilter &attribute_filter = params.get_attribute_filter("Curve");
+  const NodeAttributeFilter &attribute_filter = params.get_attribute_filter("Curve"_ustr);
 
-  Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
+  Field<bool> selection_field = params.extract_input<Field<bool>>("Selection"_ustr);
   if (mode == GEO_NODE_CURVE_SAMPLE_FACTOR) {
-    Field<float> start_field = params.extract_input<Field<float>>("Start");
-    Field<float> end_field = params.extract_input<Field<float>>("End");
+    Field<float> start_field = params.extract_input<Field<float>>("Start"_ustr);
+    Field<float> end_field = params.extract_input<Field<float>>("End"_ustr);
     geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
       geometry_set_curve_trim(
           geometry_set, mode, selection_field, start_field, end_field, attribute_filter);
     });
   }
   else if (mode == GEO_NODE_CURVE_SAMPLE_LENGTH) {
-    Field<float> start_field = params.extract_input<Field<float>>("Start_001");
-    Field<float> end_field = params.extract_input<Field<float>>("End_001");
+    Field<float> start_field = params.extract_input<Field<float>>("Start_001"_ustr);
+    Field<float> end_field = params.extract_input<Field<float>>("End_001"_ustr);
     geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
       geometry_set_curve_trim(
           geometry_set, mode, selection_field, start_field, end_field, attribute_filter);
     });
   }
 
-  params.set_output("Curve", std::move(geometry_set));
+  params.set_output("Curve"_ustr, std::move(geometry_set));
 }
 
 static void node_rna(StructRNA *srna)
@@ -263,7 +263,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeTrimCurve", GEO_NODE_TRIM_CURVE);
   ntype.ui_name = "Trim Curve";
   ntype.ui_description = "Shorten curves by removing portions at the start or end";
@@ -272,11 +272,11 @@ static void node_register()
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.declare = node_declare;
-  blender::bke::node_type_storage(
+  bke::node_type_storage(
       ntype, "NodeGeometryCurveTrim", node_free_standard_storage, node_copy_standard_storage);
   ntype.initfunc = node_init;
   ntype.gather_link_search_ops = node_gather_link_searches;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

@@ -19,6 +19,7 @@
 #include "GPU_platform.hh"
 #include "GPU_state.hh"
 
+#include "MEM_guardedalloc.h"
 #include "mtl_backend.hh"
 #include "mtl_common.hh"
 #include "mtl_context.hh"
@@ -26,8 +27,6 @@
 #include "mtl_storage_buffer.hh"
 #include "mtl_texture.hh"
 #include "mtl_vertex_buffer.hh"
-
-#include "GHOST_C-api.h"
 
 namespace blender::gpu {
 
@@ -438,7 +437,7 @@ gpu::FrameBuffer *gpu::MTLTexture::get_blit_framebuffer(int dst_slice, uint dst_
   /* Check if layer has changed. */
   bool update_attachments = false;
   if (!blit_fb_) {
-    std::string fb_name = StringRefNull(this->name_) + "_blit_fb";
+    std::string fb_name = this->name_ + "_blit_fb";
     blit_fb_ = GPU_framebuffer_create(fb_name.c_str());
     update_attachments = true;
   }
@@ -511,7 +510,7 @@ void gpu::MTLTexture::update_sub(int mip,
   const bool do_texture_unpack = !ELEM(unpack_row_length, 0, extent[0]);
 
   /* Unpack `data` if `unpack_row_length` is set. */
-  std::unique_ptr<uint8_t, MEM_freeN_smart_ptr_deleter> unpack_buffer = nullptr;
+  std::unique_ptr<uint8_t, MEM_smart_ptr_deleter<uint8_t>> unpack_buffer = nullptr;
   if (do_texture_unpack) {
     BLI_assert_msg(!(format_flag_ & GPU_FORMAT_COMPRESSED),
                    "Compressed data with unpack_row_length != 0 is not supported.");
@@ -523,7 +522,7 @@ void gpu::MTLTexture::update_sub(int mip,
     size_t dst_total_count = dst_row_stride * max_ii(extent[1], 1) * max_ii(extent[2], 1);
 
     /* Allocate buffer to size necessary for gather */
-    unpack_buffer.reset((uint8_t *)MEM_mallocN_aligned(dst_total_count, 128, __func__));
+    unpack_buffer.reset((uint8_t *)MEM_new_uninitialized_aligned(dst_total_count, 128, __func__));
 
     /* Strided loop; we advance source and destination pointers separately during a gather. */
     const uint8_t *src_ptr = static_cast<const uint8_t *>(data);
@@ -539,14 +538,14 @@ void gpu::MTLTexture::update_sub(int mip,
     data = unpack_buffer.get();
   }
 
-  std::unique_ptr<uint16_t, MEM_freeN_smart_ptr_deleter> clamped_half_buffer = nullptr;
+  std::unique_ptr<uint16_t, MEM_smart_ptr_deleter<uint16_t>> clamped_half_buffer = nullptr;
 
   if (data != nullptr && type == GPU_DATA_FLOAT && is_half_float(format_)) {
     size_t pixel_count = max_ii(extent[0], 1) * max_ii(extent[1], 1) * max_ii(extent[2], 1);
     size_t total_component_count = to_component_len(format_) * pixel_count;
 
-    clamped_half_buffer.reset(
-        (uint16_t *)MEM_mallocN_aligned(sizeof(uint16_t) * total_component_count, 128, __func__));
+    clamped_half_buffer.reset(static_cast<uint16_t *>(
+        MEM_new_uninitialized_aligned(sizeof(uint16_t) * total_component_count, 128, __func__)));
 
     Span<float> src(static_cast<const float *>(data), total_component_count);
     MutableSpan<uint16_t> dst(static_cast<uint16_t *>(clamped_half_buffer.get()),
@@ -671,7 +670,7 @@ void gpu::MTLTexture::update_sub(int mip,
       MTL_LOG_WARNING(
           "SRGB data upload does not work correctly using compute upload. "
           "texname '%s'",
-          name_);
+          name_.c_str());
     }
 
     /* Safety Checks. */
@@ -1354,37 +1353,39 @@ void gpu::MTLTexture::copy_to(Texture *dst)
   }
 }
 
-void gpu::MTLTexture::clear(eGPUDataFormat data_format, const void *data)
+void gpu::MTLTexture::clear(const double4 data)
 {
+  if (ELEM(type_, GPU_TEXTURE_1D, GPU_TEXTURE_1D_ARRAY)) {
+    MTL_LOG_ERROR("Clearing 1D texture is not supported");
+    /* Avoid Metal error in release. */
+    return;
+  }
+
   /* Ensure texture is baked. */
   this->ensure_baked();
 
-  /* If render-pass clear is not supported, use compute-based clear. */
-  bool do_render_pass_clear = true;
-  if (ELEM(type_, GPU_TEXTURE_1D, GPU_TEXTURE_1D_ARRAY)) {
-    do_render_pass_clear = false;
-  }
   /* If texture is buffer-backed, clear directly on buffer.
-   * NOTE: This us currently only true for fallback atomic textures. */
+   * NOTE: This is currently only true for fallback atomic textures. */
   if (backing_buffer_ != nullptr) {
-    uint channel_len = to_component_len(format_);
-    uint channel_size = to_bytesize(data_format);
-    bool fast_buf_clear = true;
-    const uchar *val = reinterpret_cast<const uchar *>(data);
-    for (int i = 1; i < channel_size * channel_len; i++) {
-      fast_buf_clear = fast_buf_clear && (val[i] == val[0]);
+    /* Assume data is INT32 or UINT32. */
+    uint4 u32 = uint4(data);
+    /* Rotate the vector and the bytes to check equality with neighbor. */
+    bool fast_buf_clear = (u32 == ((u32 << 8) | (u32 >> 24)));
+    for (int i = to_component_len(format_get()) - 1; i > 0; --i) {
+      fast_buf_clear &= u32[i] == u32[0];
     }
+
     if (fast_buf_clear) {
       /* Fetch active context. */
       MTLContext *ctx = MTLContext::get();
       BLI_assert(ctx);
 
-      /* Begin compute encoder. */
+      /* Begin blit encoder. */
       id<MTLBlitCommandEncoder> blit_encoder =
           ctx->main_command_buffer.ensure_begin_blit_encoder();
       [blit_encoder fillBuffer:backing_buffer_->get_metal_buffer()
                          range:NSMakeRange(0, backing_buffer_->get_size())
-                         value:val[0]];
+                         value:u32[0]];
     }
     else {
       BLI_assert_msg(false,
@@ -1392,88 +1393,28 @@ void gpu::MTLTexture::clear(eGPUDataFormat data_format, const void *data)
     }
     return;
   }
-
-  if (do_render_pass_clear) {
-    /* Create clear frame-buffer for fast clear. */
-    gpu::FrameBuffer *prev_fb = GPU_framebuffer_active_get();
-    FrameBuffer *fb = this->get_blit_framebuffer(-1, 0);
-    fb->bind(true);
-    fb->clear_attachment(this->attachment_type(0), data_format, data);
-    GPU_framebuffer_bind(prev_fb);
-  }
-  else {
-    /** Perform compute-based clear. */
-    /* Prepare specialization struct (For texture clear routine). */
-    int num_channels = to_component_len(format_);
-    TextureUpdateRoutineSpecialisation compute_specialization_kernel = {
-        tex_data_format_to_msl_type_str(data_format),              /* INPUT DATA FORMAT */
-        tex_data_format_to_msl_texture_template_type(data_format), /* TEXTURE DATA FORMAT */
-        num_channels,
-        num_channels,
-        true /* Operation is a clear. */
-    };
-
-    /* Determine size of source data clear. */
-    uint clear_data_size = to_bytesize(format_, data_format);
-
-    /* Fetch active context. */
-    MTLContext *ctx = MTLContext::get();
-    BLI_assert(ctx);
-
-    /* Determine writeable texture handle. */
-    id<MTLTexture> texture_handle = texture_;
-
-    /* Begin compute encoder. */
-    id<MTLComputeCommandEncoder> compute_encoder =
-        ctx->main_command_buffer.ensure_begin_compute_encoder();
-
-    /* Perform clear operation based on texture type. */
-    switch (type_) {
-      case GPU_TEXTURE_1D: {
-        id<MTLComputePipelineState> pso = texture_update_1d_get_kernel(
-            compute_specialization_kernel);
-        TextureUpdateParams params = {0, {w_, 1, 1}, {0, 0, 0}, w_};
-
-        /* Bind resources via compute state for optimal state caching performance. */
-        MTLComputeState &cs = ctx->main_command_buffer.get_compute_state();
-        cs.bind_pso(pso);
-        cs.bind_compute_bytes(&params, sizeof(params), 0);
-        cs.bind_compute_bytes(data, clear_data_size, 1);
-        cs.bind_compute_texture(texture_handle, 0);
-        [compute_encoder dispatchThreads:MTLSizeMake(w_, 1, 1) /* Width, Height, Layer */
-                   threadsPerThreadgroup:MTLSizeMake(64, 1, 1)];
-      } break;
-      case GPU_TEXTURE_1D_ARRAY: {
-        id<MTLComputePipelineState> pso = texture_update_1d_array_get_kernel(
-            compute_specialization_kernel);
-        TextureUpdateParams params = {0, {w_, h_, 1}, {0, 0, 0}, w_};
-
-        /* Bind resources via compute state for optimal state caching performance. */
-        MTLComputeState &cs = ctx->main_command_buffer.get_compute_state();
-        cs.bind_pso(pso);
-        cs.bind_compute_bytes(&params, sizeof(params), 0);
-        cs.bind_compute_bytes(data, clear_data_size, 1);
-        cs.bind_compute_texture(texture_handle, 0);
-        [compute_encoder dispatchThreads:MTLSizeMake(w_, h_, 1) /* Width, layers, nil */
-                   threadsPerThreadgroup:MTLSizeMake(8, 8, 1)];
-      } break;
-      default: {
-        MTL_LOG_ERROR(
-            "gpu::MTLTexture::clear requires compute pass for texture"
-            "type: %d, but this is not yet supported",
-            (int)type_);
-      } break;
+  /* For texture views, the actual Metal handle used for rendering is mip_swizzle_view_,
+   * not texture_ (which holds the parent's Metal handle). Metal strips
+   * MTLTextureUsageRenderTarget from cross-format views, so delegate the clear
+   * to the parent texture which retains full usage flags. */
+  else if (resource_mode_ == MTL_TEXTURE_MODE_TEXTURE_VIEW && source_texture_) {
+    id<MTLTexture> clear_texture = (mip_swizzle_view_ != nil) ? mip_swizzle_view_ : texture_;
+    if (!(clear_texture.usage & MTLTextureUsageRenderTarget)) {
+      gpu::MTLTexture *source_texture = const_cast<gpu::MTLTexture *>(
+          static_cast<const gpu::MTLTexture *>(source_texture_));
+      source_texture->clear(data);
+      return;
     }
-
-    /* Textures which use MTLStorageModeManaged need to have updated contents
-     * synced back to CPU to avoid an automatic flush overwriting contents. */
-    id<MTLBlitCommandEncoder> blit_encoder = ctx->main_command_buffer.ensure_begin_blit_encoder();
-    if (texture_.storageMode == MTLStorageModeManaged) {
-      [blit_encoder synchronizeResource:texture_];
-    }
-    [blit_encoder optimizeContentsForGPUAccess:texture_];
   }
+
+  /* Create clear frame-buffer for fast clear. */
+  gpu::FrameBuffer *prev_fb = GPU_framebuffer_active_get();
+  FrameBuffer *fb = this->get_blit_framebuffer(-1, 0);
+  fb->bind(true);
+  fb->clear_attachment(this->attachment_type(0), data);
+  GPU_framebuffer_bind(prev_fb);
 }
+
 static MTLTextureSwizzle swizzle_to_mtl(const char swizzle)
 {
   switch (swizzle) {
@@ -1563,7 +1504,7 @@ void *gpu::MTLTexture::read(int mip, eGPUDataFormat type)
   size_t texture_size = sample_len * sample_size;
   int num_channels = to_component_len(format_);
 
-  void *data = MEM_mallocN(texture_size + 8, "GPU_texture_read");
+  void *data = MEM_new_uninitialized(texture_size + 8, "GPU_texture_read");
 
   /* Ensure texture is baked. */
   if (is_baked_) {

@@ -22,7 +22,9 @@
 
 #include "node_geometry_util.hh"
 
-namespace blender::nodes::node_geo_attribute_capture_cc {
+namespace blender {
+
+namespace nodes::node_geo_attribute_capture_cc {
 
 NODE_STORAGE_FUNCS(NodeGeometryAttributeCapture)
 
@@ -52,7 +54,7 @@ static void node_declare(NodeDeclarationBuilder &b)
           CaptureAttributeItemsAccessor::output_socket_identifier_for_item(item);
       b.add_input(data_type, item.name, input_identifier)
           .field_on_all()
-          .socket_name_ptr(&tree->id, CaptureAttributeItemsAccessor::item_srna, &item, "name");
+          .socket_name_ptr(&tree->id, *CaptureAttributeItemsAccessor::item_srna, &item, "name");
       b.add_output(data_type, item.name, output_identifier).field_on_all().align_with_previous();
     }
   }
@@ -71,7 +73,7 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryAttributeCapture *data = MEM_new_for_free<NodeGeometryAttributeCapture>(__func__);
+  NodeGeometryAttributeCapture *data = MEM_new<NodeGeometryAttributeCapture>(__func__);
   data->domain = int8_t(AttrDomain::Point);
   node->storage = data;
 }
@@ -132,9 +134,9 @@ static void clean_unused_attributes(const AttributeFilter &attribute_filter,
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
+  GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry"_ustr);
 
-  if (!params.output_is_required("Geometry")) {
+  if (!params.output_is_required("Geometry"_ustr)) {
     params.error_message_add(
         NodeWarningType::Info,
         TIP_("The attribute output cannot be used without the geometry output"));
@@ -157,18 +159,18 @@ static void node_geo_exec(GeoNodeExecParams params)
     const std::string output_identifier =
         CaptureAttributeItemsAccessor::output_socket_identifier_for_item(item);
     std::optional<std::string> attribute_id = params.get_output_anonymous_attribute_id_if_needed(
-        output_identifier);
+        UString(output_identifier));
     if (!attribute_id) {
       continue;
     }
     used_attribute_ids_set.add(*attribute_id);
-    fields.append(params.extract_input<GField>(input_identifier));
+    fields.append(params.extract_input<GField>(UString(input_identifier)));
     attribute_id_ptrs.append(std::move(*attribute_id));
     used_items.append(&item);
   }
 
   if (fields.is_empty()) {
-    params.set_output("Geometry", geometry_set);
+    params.set_output("Geometry"_ustr, geometry_set);
     params.set_default_remaining_outputs();
     return;
   }
@@ -183,7 +185,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     /* Changing of the anonymous attributes may require removing attributes that are no longer
      * needed. */
     clean_unused_attributes(
-        params.get_attribute_filter("Geometry"), used_attribute_ids_set, component);
+        params.get_attribute_filter("Geometry"_ustr), used_attribute_ids_set, component);
   };
 
   /* Run on the instances component separately to only affect the top level of instances. */
@@ -207,7 +209,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     });
   }
 
-  params.set_output("Geometry", geometry_set);
+  params.set_output("Geometry"_ustr, geometry_set);
 }
 
 static bool node_insert_link(bke::NodeInsertLinkParams &params)
@@ -219,14 +221,14 @@ static bool node_insert_link(bke::NodeInsertLinkParams &params)
 static void node_free_storage(bNode *node)
 {
   socket_items::destruct_array<CaptureAttributeItemsAccessor>(*node);
-  MEM_freeN(reinterpret_cast<NodeGeometryAttributeCapture *>(node->storage));
+  MEM_delete(reinterpret_cast<NodeGeometryAttributeCapture *>(node->storage));
 }
 
 static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const bNode *src_node)
 {
   const NodeGeometryAttributeCapture &src_storage = node_storage(*src_node);
-  NodeGeometryAttributeCapture *dst_storage = MEM_new_for_free<NodeGeometryAttributeCapture>(
-      __func__, blender::dna::shallow_copy(src_storage));
+  NodeGeometryAttributeCapture *dst_storage = MEM_new<NodeGeometryAttributeCapture>(
+      __func__, dna::shallow_copy(src_storage));
   dst_node->storage = dst_storage;
 
   socket_items::copy_array<CaptureAttributeItemsAccessor>(*src_node, *dst_node);
@@ -272,7 +274,7 @@ static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeCaptureAttribute", GEO_NODE_CAPTURE_ATTRIBUTE);
   ntype.ui_name = "Capture Attribute";
   ntype.ui_description =
@@ -281,7 +283,7 @@ static void node_register()
       "deformation";
   ntype.enum_name_legacy = "CAPTURE_ATTRIBUTE";
   ntype.nclass = NODE_CLASS_ATTRIBUTE;
-  blender::bke::node_type_storage(
+  bke::node_type_storage(
       ntype, "NodeGeometryAttributeCapture", node_free_storage, node_copy_storage);
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
@@ -294,19 +296,19 @@ static void node_register()
   ntype.internally_linked_input = node_internally_linked_input;
   ntype.blend_write_storage_content = node_blend_write;
   ntype.blend_data_read_storage_content = node_blend_read;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 
-}  // namespace blender::nodes::node_geo_attribute_capture_cc
+}  // namespace nodes::node_geo_attribute_capture_cc
 
-namespace blender::nodes {
+namespace nodes {
 
-StructRNA *CaptureAttributeItemsAccessor::item_srna = &RNA_NodeGeometryCaptureAttributeItem;
+StructRNA **CaptureAttributeItemsAccessor::item_srna = &RNA_NodeGeometryCaptureAttributeItem;
 
 void CaptureAttributeItemsAccessor::blend_write_item(BlendWriter *writer, const ItemT &item)
 {
-  BLO_write_string(writer, item.name);
+  writer->write_string(item.name);
 }
 
 void CaptureAttributeItemsAccessor::blend_read_data_item(BlendDataReader *reader, ItemT &item)
@@ -314,4 +316,5 @@ void CaptureAttributeItemsAccessor::blend_read_data_item(BlendDataReader *reader
   BLO_read_string(reader, &item.name);
 }
 
-}  // namespace blender::nodes
+}  // namespace nodes
+}  // namespace blender

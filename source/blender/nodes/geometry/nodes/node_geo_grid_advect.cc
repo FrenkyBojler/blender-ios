@@ -231,22 +231,23 @@ static typename GridType::Ptr advect_grid(const GridType &grid,
 static void node_geo_exec(GeoNodeExecParams params)
 {
 #ifdef WITH_OPENVDB
-  bke::GVolumeGrid grid = params.extract_input<bke::GVolumeGrid>("Grid");
+  bke::GVolumeGrid grid = params.extract_input<bke::GVolumeGrid>("Grid"_ustr);
   if (!grid) {
     params.set_default_remaining_outputs();
     return;
   }
 
   const bke::VolumeGrid<float3> velocity_grid = params.extract_input<bke::VolumeGrid<float3>>(
-      "Velocity");
+      "Velocity"_ustr);
   if (!velocity_grid) {
-    params.set_output("Grid", std::move(grid));
+    params.set_output("Grid"_ustr, std::move(grid));
     return;
   }
 
-  const float time_step = params.extract_input<float>("Time Step");
-  const IntegrationScheme scheme = params.extract_input<IntegrationScheme>("Integration Scheme");
-  const LimiterType limiter = params.extract_input<LimiterType>("Limiter");
+  const float time_step = params.extract_input<float>("Time Step"_ustr);
+  const IntegrationScheme scheme = params.extract_input<IntegrationScheme>(
+      "Integration Scheme"_ustr);
+  const LimiterType limiter = params.extract_input<LimiterType>("Limiter"_ustr);
 
   bke::VolumeTreeAccessToken tree_token;
   bke::VolumeTreeAccessToken velocity_token;
@@ -259,31 +260,31 @@ static void node_geo_exec(GeoNodeExecParams params)
     params.error_message_add(
         NodeWarningType::Error,
         TIP_("The input grid must have a uniform voxel scale to be advected."));
-    params.set_output("Grid", std::move(grid));
+    params.set_output("Grid"_ustr, std::move(grid));
     return;
   }
 
   const VolumeGridType grid_type = grid->grid_type();
 
-  BKE_volume_grid_type_to_static_type(grid_type, [&](auto grid_type_tag) {
-    using GridType = typename decltype(grid_type_tag)::type;
-    if constexpr (std::is_same_v<GridType, openvdb::FloatGrid> ||
-                  std::is_same_v<GridType, openvdb::Int32Grid> ||
-                  std::is_same_v<GridType, openvdb::Vec3fGrid>)
-    {
-      typename GridType::Ptr result = advect_grid(
-          static_cast<const GridType &>(grid->grid(tree_token)),
-          velocity_vdb_grid,
-          time_step,
-          scheme,
-          limiter);
-      params.set_output("Grid", bke::GVolumeGrid(std::move(result)));
-    }
-    else {
-      params.error_message_add(NodeWarningType::Error, "Unsupported grid type for advection");
-      params.set_default_remaining_outputs();
-    }
-  });
+  BKE_volume_grid_type_to_static_type(
+      grid_type, [&]<std::derived_from<openvdb::GridBase> GridType>() {
+        if constexpr (std::is_same_v<GridType, openvdb::FloatGrid> ||
+                      std::is_same_v<GridType, openvdb::Int32Grid> ||
+                      std::is_same_v<GridType, openvdb::Vec3fGrid>)
+        {
+          typename GridType::Ptr result = advect_grid(
+              static_cast<const GridType &>(grid->grid(tree_token)),
+              velocity_vdb_grid,
+              time_step,
+              scheme,
+              limiter);
+          params.set_output("Grid"_ustr, bke::GVolumeGrid(std::move(result)));
+        }
+        else {
+          params.error_message_add(NodeWarningType::Error, "Unsupported grid type for advection");
+          params.set_default_remaining_outputs();
+        }
+      });
 #else
   node_geo_exec_with_missing_openvdb(params);
 #endif
@@ -324,12 +325,12 @@ static const bNodeSocket *node_internally_linked_input(const bNodeTree & /*tree*
                                                        const bNode &node,
                                                        const bNodeSocket &output_socket)
 {
-  return node.input_by_identifier(output_socket.identifier);
+  return node.input_by_identifier(output_socket.identifier_ustr());
 }
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeGridAdvect");
   ntype.ui_name = "Advect Grid";
   ntype.ui_description =
@@ -342,7 +343,7 @@ static void node_register()
   ntype.gather_link_search_ops = node_gather_link_search_ops;
   ntype.internally_linked_input = node_internally_linked_input;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
   node_rna(ntype.rna_ext.srna);
 }
 NOD_REGISTER_NODE(node_register)

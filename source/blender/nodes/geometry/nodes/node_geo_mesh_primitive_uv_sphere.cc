@@ -30,8 +30,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  const int segments_num = params.extract_input<int>("Segments");
-  const int rings_num = params.extract_input<int>("Rings");
+  const int segments_num = params.extract_input<int>("Segments"_ustr);
+  const int rings_num = params.extract_input<int>("Rings"_ustr);
   if (segments_num < 3 || rings_num < 2) {
     if (segments_num < 3) {
       params.error_message_add(NodeWarningType::Info, TIP_("Segments must be at least 3"));
@@ -43,19 +43,19 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  const float radius = params.extract_input<float>("Radius");
+  const float radius = params.extract_input<float>("Radius"_ustr);
 
   std::optional<std::string> uv_map_id = params.get_output_anonymous_attribute_id_if_needed(
-      "UV Map");
+      "UV Map"_ustr);
 
   Mesh *mesh = geometry::create_uv_sphere_mesh(radius, segments_num, rings_num, uv_map_id);
   BKE_id_material_eval_ensure_default_slot(reinterpret_cast<ID *>(mesh));
-  params.set_output("Mesh", GeometrySet::from_mesh(mesh));
+  params.set_output("Mesh"_ustr, GeometrySet::from_mesh(mesh));
 }
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeMeshUVSphere", GEO_NODE_MESH_PRIMITIVE_UV_SPHERE);
   ntype.ui_name = "UV Sphere";
@@ -65,7 +65,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

@@ -70,7 +70,7 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
 static void node_geo_exec(GeoNodeExecParams params)
 {
 #ifdef WITH_OPENVDB
-  bke::GVolumeGrid grid = params.extract_input<bke::GVolumeGrid>("Grid");
+  bke::GVolumeGrid grid = params.extract_input<bke::GVolumeGrid>("Grid"_ustr);
   if (!grid) {
     params.set_default_remaining_outputs();
     return;
@@ -79,7 +79,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   openvdb::GridBase &vdb_grid = grid.get_for_write().grid_for_write(tree_token);
   bke::volume_grid::to_typed_grid(vdb_grid,
                                   [&](auto &grid) { grid.tree().voxelizeActiveTiles(); });
-  params.set_output("Grid", std::move(grid));
+  params.set_output("Grid"_ustr, std::move(grid));
 #else
   node_geo_exec_with_missing_openvdb(params);
 #endif
@@ -104,7 +104,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeGridVoxelize");
   ntype.ui_name = "Voxelize Grid";
   ntype.ui_description =
@@ -115,7 +115,7 @@ static void node_register()
   ntype.initfunc = node_init;
   ntype.gather_link_search_ops = node_gather_link_search_ops;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
   node_rna(ntype.rna_ext.srna);
 }
 NOD_REGISTER_NODE(node_register)

@@ -124,12 +124,12 @@ class TangentFieldInput final : public bke::CurvesFieldInput {
 static void node_geo_exec(GeoNodeExecParams params)
 {
   Field<float3> tangent_field{std::make_shared<TangentFieldInput>()};
-  params.set_output("Tangent", std::move(tangent_field));
+  params.set_output("Tangent"_ustr, std::move(tangent_field));
 }
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeInputTangent", GEO_NODE_INPUT_TANGENT);
   ntype.ui_name = "Curve Tangent";
@@ -138,7 +138,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

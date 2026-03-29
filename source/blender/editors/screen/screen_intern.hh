@@ -10,6 +10,8 @@
 
 #include "DNA_space_types.h"
 
+namespace blender {
+
 struct ARegion;
 struct AZone;
 struct ReportList;
@@ -172,8 +174,11 @@ eScreenDir area_getorientation(ScrArea *sa_a, ScrArea *sa_b);
 void area_getoffsets(ScrArea *sa_a, ScrArea *sa_b, eScreenDir dir, int *r_offset1, int *r_offset2);
 /**
  * Close a screen area, allowing most-aligned neighbor to take its place.
+ * not_area is optional area to NOT join into.
  */
-bool screen_area_close(bContext *C, ReportList *reports, bScreen *screen, ScrArea *area);
+bool screen_area_close(
+    bContext *C, ReportList *reports, bScreen *screen, ScrArea *area, ScrArea *not_area = nullptr);
+
 void screen_area_spacelink_add(const Scene *scene, ScrArea *area, eSpace_Type space_type);
 AZone *ED_area_actionzone_find_xy(ScrArea *area, const int xy[2]);
 
@@ -244,3 +249,5 @@ void SCREEN_OT_screenshot_area(wmOperatorType *ot);
 /* `workspace_layout_edit.cc` */
 
 bool workspace_layout_set_poll(const WorkSpaceLayout *layout);
+
+}  // namespace blender
