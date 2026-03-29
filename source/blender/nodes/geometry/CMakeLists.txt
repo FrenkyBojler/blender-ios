@@ -120,6 +120,7 @@ set(SRC
   nodes/node_geo_image_info.cc
   nodes/node_geo_image_texture.cc
   nodes/node_geo_import_csv.cc
+  nodes/node_geo_import_image.cc
   nodes/node_geo_import_obj.cc
   nodes/node_geo_import_ply.cc
   nodes/node_geo_import_stl.cc
