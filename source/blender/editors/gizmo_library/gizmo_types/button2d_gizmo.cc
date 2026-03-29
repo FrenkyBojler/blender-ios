@@ -45,7 +45,6 @@
 
 #include "UI_interface.hh"
 #include "UI_interface_icons.hh"
-#include "interface_intern.hh"
 
 /* own includes */
 #include "../gizmo_library_intern.hh"
