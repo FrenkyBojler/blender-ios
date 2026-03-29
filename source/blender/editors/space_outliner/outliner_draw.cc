@@ -2212,7 +2212,7 @@ static void outliner_buttons(const bContext *C,
                 "");
   button_retval_set(bt, OL_NAMEBUTTON);
   /* Handle undo through the #template_id_cb set below. Default undo handling from the button
-   * code (see #ui_apply_but_undo) would not work here, as the new name is not yet applied to the
+   * code (see #apply_but_undo) would not work here, as the new name is not yet applied to the
    * ID. */
   button_flag_disable(bt, ui::BUT_UNDO);
   button_func_rename_set(bt, namebutton_fn, tselem);
@@ -3463,6 +3463,12 @@ static void outliner_draw_tree_element(ui::Block *block,
 
       if (tselem->type == TSE_LAYER_COLLECTION) {
         const Collection *collection = id_cast<Collection *>(tselem->id);
+        if (collection->importer) {
+          ui::icon_draw_alpha(
+              float(startx) + offsx + 2 * ufac, float(*starty) + 2 * ufac, ICON_IMPORT, alpha_fac);
+          offsx += UI_UNIT_X + 4 * ufac;
+        }
+
         if (!BLI_listbase_is_empty(&collection->exporters)) {
           ui::icon_draw_alpha(
               float(startx) + offsx + 2 * ufac, float(*starty) + 2 * ufac, ICON_EXPORT, alpha_fac);
