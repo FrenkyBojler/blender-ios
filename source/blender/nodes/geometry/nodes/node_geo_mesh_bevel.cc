@@ -75,20 +75,20 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  GeometrySet geometry_set = params.extract_input<GeometrySet>("Mesh");
-  Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
-  const AttributeFilter &attribute_filter = params.get_attribute_filter("Mesh");
-  int segments = params.extract_input<int>("Segments");
+  GeometrySet geometry_set = params.extract_input<GeometrySet>("Mesh"_ustr);
+  Field<bool> selection_field = params.extract_input<Field<bool>>("Selection"_ustr);
+  const AttributeFilter &attribute_filter = params.get_attribute_filter("Mesh"_ustr);
+  int segments = params.extract_input<int>("Segments"_ustr);
   geometry::BevelAffect affect = params.extract_input<blender::geometry::BevelAffect>(
-      "Affect Kind");
+      "Affect Kind"_ustr);
 
-  Field<float> offset0_field = params.extract_input<Field<float>>("Offset0");
-  Field<float> offset1_field = params.extract_input<Field<float>>("Offset1");
-  Field<float> offset2_field = params.extract_input<Field<float>>("Offset2");
-  Field<float> offset3_field = params.extract_input<Field<float>>("Offset3");
+  Field<float> offset0_field = params.extract_input<Field<float>>("Offset0"_ustr);
+  Field<float> offset1_field = params.extract_input<Field<float>>("Offset1"_ustr);
+  Field<float> offset2_field = params.extract_input<Field<float>>("Offset2"_ustr);
+  Field<float> offset3_field = params.extract_input<Field<float>>("Offset3"_ustr);
 
-  Field<bool> miter_field = params.extract_input<Field<bool>>("Miter");
-  Field<float> spread_field = params.extract_input<Field<float>>("Spread");
+  Field<bool> miter_field = params.extract_input<Field<bool>>("Miter"_ustr);
+  Field<float> spread_field = params.extract_input<Field<float>>("Spread"_ustr);
 
   geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     const Mesh *src_mesh = geometry_set.get_mesh();
@@ -125,13 +125,13 @@ static void node_geo_exec(GeoNodeExecParams params)
     corner_evaluator.evaluate();
 
     bevel_params.attribute_outputs.vertex_face_id =
-        params.get_output_anonymous_attribute_id_if_needed("Vertex Face");
+        params.get_output_anonymous_attribute_id_if_needed("Vertex Face"_ustr);
     bevel_params.attribute_outputs.edge_face_id =
-        params.get_output_anonymous_attribute_id_if_needed("Edge Face");
+        params.get_output_anonymous_attribute_id_if_needed("Edge Face"_ustr);
     bevel_params.attribute_outputs.outer_edge_id =
-        params.get_output_anonymous_attribute_id_if_needed("Outer Edge");
+        params.get_output_anonymous_attribute_id_if_needed("Outer Edge"_ustr);
     bevel_params.attribute_outputs.mid_edge_id =
-        params.get_output_anonymous_attribute_id_if_needed("Vertex Face");
+        params.get_output_anonymous_attribute_id_if_needed("Vertex Face"_ustr);
 
     std::optional<Mesh *> mesh = geometry::mesh_bevel(
         *src_mesh, selection, bevel_params, attribute_filter);
@@ -142,7 +142,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     geometry_set.replace_mesh(*mesh);
   });
 
-  params.set_output("Mesh", std::move(geometry_set));
+  params.set_output("Mesh"_ustr, std::move(geometry_set));
 }
 
 static void node_register()
