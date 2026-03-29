@@ -11,7 +11,6 @@ from itertools import chain
 
 from ..utils.nodes import (
     nw_check,
-    nw_check_active,
     nw_check_selected,
 )
 
