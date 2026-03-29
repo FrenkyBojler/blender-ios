@@ -19,7 +19,7 @@
 
 #include "BLT_translation.hh"
 
-#include "NOD_function.hh"
+#include "FN_field_recognize.hh"
 
 #include <fmt/format.h>
 
@@ -619,15 +619,17 @@ static IndexRange to_range(const Bounds<int64_t> bounds)
   return IndexRange::from_begin_end(bounds.min, bounds.max);
 }
 
-static GVArray copy_with_transform(const nodes::IndexTransform &transform,
+static GVArray copy_with_transform(const std::pair<int, bool> transform,
                                    const GVArray &src,
                                    const IndexMask &mask)
 {
+  const auto [shift, index_is_reversed] = transform;
+  
   /* If range is reversed then .start() is end so must add one to make it .last() */
-  const int first_index_offset = transform.shift + int(transform.index_is_reversed);
+  const int first_index_offset = shift + int(index_is_reversed);
 
   const Bounds<int64_t> input_dst_bounds = to_bounds(mask.bounds());
-  const Bounds<int64_t> input_src_bounds = (transform.index_is_reversed ?
+  const Bounds<int64_t> input_src_bounds = (index_is_reversed ?
                                                 bounds::rotate<int64_t>(input_dst_bounds, 0) :
                                                 input_dst_bounds) +
                                            first_index_offset;
@@ -638,7 +640,7 @@ static GVArray copy_with_transform(const nodes::IndexTransform &transform,
     return {};
   }
 
-  const Bounds<int64_t> dst_bounds = transform.index_is_reversed ?
+  const Bounds<int64_t> dst_bounds = index_is_reversed ?
                                          bounds::rotate(*src_bounds - first_index_offset, 0) :
                                          (*src_bounds - first_index_offset);
 
@@ -652,7 +654,7 @@ static GVArray copy_with_transform(const nodes::IndexTransform &transform,
   IndexMaskMemory memory;
   GArray<> dst_array(src.type(), mask.min_array_size());
 
-  if (transform.index_is_reversed) {
+  if (index_is_reversed) {
     reverse_copy(src.slice(src_range),
                  valid_mask.shift(-dst_range.first(), memory),
                  dst_array.as_mutable_span().slice(dst_range));
@@ -682,15 +684,32 @@ GVArray EvaluateAtIndexInput::get_varray_for_context(const bke::GeometryFieldCon
   value_evaluator.add(value_field_);
   value_evaluator.evaluate();
   const GVArray &values = value_evaluator.get_evaluated(0);
+  const CPPType &type = values.type();
 
-  const std::variant<std::monostate, int, nodes::IndexTransform> bounds_transform =
-      nodes::field_as_index_transform(index_field_);
-  if (std::holds_alternative<nodes::IndexTransform>(bounds_transform)) {
-    return copy_with_transform(
-        *std::get_if<nodes::IndexTransform>(&bounds_transform), values, mask);
+
+  const std::shared_ptr<const fn::FieldInputs> &dependencys = index_field_.node().field_inputs();
+  if (dependencys) {
+    if (dependencys->deduplicated_nodes.size() == 1) {
+      if (dynamic_cast<const fn::IndexFieldInput *>(&dependencys->deduplicated_nodes.as_span().first().get()) != nullptr) {
+        const std::optional<fn::Polynom<int>> bounds_transform = fn::field_as_polynom_try(index_field_);
+        if (bounds_transform.has_value()) {
+          if (bounds_transform->is_const()) {
+            BUFFER_FOR_CPP_TYPE_VALUE(type, value);
+            BLI_SCOPED_DEFER([&]() { type.destruct(value); });
+            const int index = bounds_transform->as_const();
+            values.get_to_uninitialized(index, value);
+            return GVArray::from_single(type, mask.min_array_size(), value);
+          }
+
+          if (bounds_transform->is_unit_line()) {
+            return copy_with_transform(bounds_transform->as_unit_line(), values, mask);
+          }
+        }
+      }
+    }
   }
 
-  GArray<> dst_array(values.type(), mask.min_array_size());
+  GArray<> dst_array(type, mask.min_array_size());
 
   fn::FieldEvaluator index_evaluator{context, &mask};
   index_evaluator.add(index_field_);
@@ -702,7 +721,7 @@ GVArray EvaluateAtIndexInput::get_varray_for_context(const bke::GeometryFieldCon
       mask, indices, values.index_range(), memory);
 
   bke::attribute_math::gather(values, indices, valid_mask, dst_array);
-  dst_array.type().value_initialize_indices(dst_array.data(), valid_mask.complement(mask, memory));
+  type.value_initialize_indices(dst_array.data(), valid_mask.complement(mask, memory));
   return GVArray::from_garray(std::move(dst_array));
 }
 

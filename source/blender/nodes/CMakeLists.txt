@@ -72,7 +72,6 @@ set(INC_SYS
 set(SRC
   intern/compositor_gizmos.cc
   intern/dependencies.cc
-  intern/function.cc
   intern/geometry_nodes_bundle.cc
   intern/geometry_nodes_caller_ui.cc
   intern/geometry_nodes_closure.cc
@@ -114,7 +113,6 @@ set(SRC
   NOD_compositor_gizmos.hh
   NOD_defaults.hh
   NOD_dependencies.hh
-  NOD_function.hh
   NOD_geometry.hh
   NOD_geometry_exec.hh
   NOD_geometry_nodes_bundle.hh

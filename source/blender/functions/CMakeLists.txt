@@ -11,6 +11,7 @@ set(INC_SYS
 
 set(SRC
   intern/field.cc
+  intern/field_recognize.cc
   intern/lazy_function.cc
   intern/lazy_function_execute.cc
   intern/lazy_function_graph.cc
@@ -28,6 +29,7 @@ set(SRC
   intern/user_data.cc
 
   FN_field.hh
+  FN_field_recognize.hh
   FN_init.hh
   FN_lazy_function.hh
   FN_lazy_function_execute.hh
@@ -62,6 +64,7 @@ if(WITH_GTESTS)
   set(TEST_INC
   )
   set(TEST_SRC
+    tests/FN_field_recognize_test.cc
     tests/FN_field_test.cc
     tests/FN_lazy_function_test.cc
     tests/FN_multi_function_procedure_test.cc
