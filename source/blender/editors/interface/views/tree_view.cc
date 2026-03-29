@@ -103,7 +103,9 @@ void TreeViewItemContainer::sort_alpha()
   std::ranges::sort(children_,
                     [](const std::unique_ptr<AbstractTreeViewItem> &a,
                        const std::unique_ptr<AbstractTreeViewItem> &b) {
-                      return a.get()->debug_name() < b.get()->debug_name();
+                      StringRefNull a_name = a.get()->label();
+                      StringRefNull b_name = b.get()->label();
+                      return BLI_strcasecmp_natural(a_name.c_str(), b_name.c_str()) < 0;
                     });
 
   for (std::unique_ptr<AbstractTreeViewItem> &item : children_) {
@@ -130,25 +132,6 @@ void AbstractTreeView::foreach_root_item(ItemIterFn iter_fn) const
   for (const auto &child : children_) {
     iter_fn(*child);
   }
-}
-
-AbstractTreeViewItem *AbstractTreeView::find_hovered(const ARegion &region, const int2 &xy)
-{
-  AbstractTreeViewItem *hovered_item = nullptr;
-  this->foreach_item_recursive(
-      [&](AbstractTreeViewItem &item) {
-        if (hovered_item) {
-          return;
-        }
-
-        std::optional<rctf> win_rect = item.get_win_rect(region);
-        if (win_rect && BLI_rctf_isect_y(&*win_rect, xy[1])) {
-          hovered_item = &item;
-        }
-      },
-      IterOptions::SkipCollapsed | IterOptions::SkipFiltered);
-
-  return hovered_item;
 }
 
 void AbstractTreeView::set_default_rows(int default_rows)
@@ -279,11 +262,11 @@ void AbstractTreeView::get_hierarchy_lines(const ARegion &region,
 
 static ButtonViewItem *find_first_view_item_but(const Block &block, const AbstractTreeView &view)
 {
-  for (const std::unique_ptr<Button> &but : block.buttons) {
-    if (but->type != ButtonType::ViewItem) {
+  for (Button &but : block.buttons()) {
+    if (but.type != ButtonType::ViewItem) {
       continue;
     }
-    auto *view_item_but = static_cast<ButtonViewItem *>(but.get());
+    auto *view_item_but = static_cast<ButtonViewItem *>(&but);
     if (&view_item_but->view_item->get_view() == &view) {
       return view_item_but;
     }
@@ -438,7 +421,10 @@ void AbstractTreeView::scroll_active_into_view()
     foreach_item(
         [&, this](AbstractTreeViewItem &item) {
           if (item.is_active_) {
-            *scroll_value_ = std::max(0, index - *visible_row_count + 1);
+            /* Don't scroll the list when active item is already in view. */
+            if ((index < *scroll_value_) || (index >= *scroll_value_ + *visible_row_count)) {
+              *scroll_value_ = std::max(0, index - *visible_row_count + 1);
+            }
             return;
           }
           index++;
@@ -836,6 +822,11 @@ void AbstractTreeViewItem::on_filter()
   }
 }
 
+StringRefNull AbstractTreeViewItem::label() const
+{
+  return label_;
+}
+
 /* ---------------------------------------------------------------------- */
 
 class TreeViewLayoutBuilder {
@@ -890,29 +881,24 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
         *tree_view.scroll_value_, 0, tot_items - *visible_row_count);
   }
 
+  if (tree_view.scroll_active_into_view_on_draw_) {
+    tree_view.scroll_active_into_view();
+  }
+
   const int first_visible_index = tree_view.scroll_value_ ? *tree_view.scroll_value_ : 0;
   const int max_visible_index = visible_row_count ? first_visible_index + *visible_row_count - 1 :
                                                     std::numeric_limits<int>::max();
   int index = 0;
-  bool is_active_visible = false;
   tree_view.foreach_item(
       [&, this](AbstractTreeViewItem &item) {
         if ((index >= first_visible_index) && (index <= max_visible_index)) {
           if (item.is_filtered_visible()) {
             this->build_row(item);
-            is_active_visible |= item.is_active_;
           }
         }
         index++;
       },
       AbstractTreeView::IterOptions::SkipCollapsed | AbstractTreeView::IterOptions::SkipFiltered);
-
-  if (tree_view.scroll_active_into_view_on_draw_) {
-    if (!is_active_visible) {
-      /* Don't scroll the list when active item is already in view. */
-      tree_view.scroll_active_into_view();
-    }
-  }
 
   if (tree_view.custom_height_) {
 

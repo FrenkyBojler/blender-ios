@@ -224,6 +224,7 @@ static void refresh_node_socket(bNodeTree &ntree,
       if (new_socket == old_socket_with_same_identifier) {
         /* The existing socket has been updated, set the correct identifier again. */
         STRNCPY_UTF8(new_socket->identifier, socket_decl.identifier.c_str());
+        new_socket->runtime->identifier_ustr = UString(new_socket->identifier);
       }
       else {
         /* Move links to new socket with same identifier. */
@@ -389,6 +390,7 @@ static void do_forward_compat_versioning(bNode &node, const NodeDeclaration &nod
               node, socket, node_decl.inputs))
       {
         STRNCPY_UTF8(socket.identifier, new_identifier);
+        socket.runtime->identifier_ustr = UString(socket.identifier);
       }
     }
   }
@@ -398,6 +400,7 @@ static void do_forward_compat_versioning(bNode &node, const NodeDeclaration &nod
               node, socket, node_decl.outputs))
       {
         STRNCPY_UTF8(socket.identifier, new_identifier);
+        socket.runtime->identifier_ustr = UString(socket.identifier);
       }
     }
   }
@@ -537,6 +540,19 @@ bool socket_type_supports_fields(const eNodeSocketDatatype socket_type)
               SOCK_INT,
               SOCK_ROTATION,
               SOCK_MENU,
+              SOCK_MATRIX,
+              SOCK_STRING);
+}
+
+bool socket_type_supports_attributes(const eNodeSocketDatatype socket_type)
+{
+  return ELEM(socket_type,
+              SOCK_FLOAT,
+              SOCK_VECTOR,
+              SOCK_RGBA,
+              SOCK_BOOLEAN,
+              SOCK_INT,
+              SOCK_ROTATION,
               SOCK_MATRIX);
 }
 
@@ -620,6 +636,19 @@ void node_socket_init_default_value_data(eNodeSocketDatatype datatype, int subty
       copy_v3_v3(dval->value, default_value);
       dval->min = -FLT_MAX;
       dval->max = FLT_MAX;
+
+      *data = dval;
+      break;
+    }
+    case SOCK_INT_VECTOR: {
+      static int default_value[] = {0, 0, 0};
+      bNodeSocketValueIntVector *dval = MEM_new<bNodeSocketValueIntVector>(
+          "node socket value integer vector");
+      dval->subtype = subtype;
+      dval->dimensions = 3;
+      copy_v3_v3_int(dval->value, default_value);
+      dval->min = INT_MIN;
+      dval->max = INT_MAX;
 
       *data = dval;
       break;
@@ -756,6 +785,13 @@ void node_socket_copy_default_value_data(eNodeSocketDatatype datatype, void *to,
     case SOCK_VECTOR: {
       bNodeSocketValueVector *toval = static_cast<bNodeSocketValueVector *>(to);
       bNodeSocketValueVector *fromval = static_cast<bNodeSocketValueVector *>(
+          const_cast<void *>(from));
+      *toval = *fromval;
+      break;
+    }
+    case SOCK_INT_VECTOR: {
+      bNodeSocketValueIntVector *toval = static_cast<bNodeSocketValueIntVector *>(to);
+      bNodeSocketValueIntVector *fromval = static_cast<bNodeSocketValueIntVector *>(
           const_cast<void *>(from));
       *toval = *fromval;
       break;
@@ -1156,6 +1192,12 @@ static bke::bNodeSocketType *make_socket_type_vector(PropertySubType subtype, co
   return socktype;
 }
 
+static bke::bNodeSocketType *make_socket_type_int_vector(PropertySubType subtype,
+                                                         const int dimensions)
+{
+  return make_standard_socket_type(SOCK_INT_VECTOR, subtype, dimensions);
+}
+
 static bke::bNodeSocketType *make_socket_type_rgba()
 {
   bke::bNodeSocketType *socktype = make_standard_socket_type(SOCK_RGBA, PROP_NONE);
@@ -1455,6 +1497,16 @@ void register_standard_node_socket_types()
   bke::node_register_socket_type(*make_socket_type_vector(PROP_ACCELERATION, 4));
   bke::node_register_socket_type(*make_socket_type_vector(PROP_EULER, 4));
   bke::node_register_socket_type(*make_socket_type_vector(PROP_XYZ, 4));
+
+  bke::node_register_socket_type(*make_socket_type_int_vector(PROP_NONE, 2));
+  bke::node_register_socket_type(*make_socket_type_int_vector(PROP_UNSIGNED, 2));
+  bke::node_register_socket_type(*make_socket_type_int_vector(PROP_FACTOR, 2));
+  bke::node_register_socket_type(*make_socket_type_int_vector(PROP_PERCENTAGE, 2));
+
+  bke::node_register_socket_type(*make_socket_type_int_vector(PROP_NONE, 3));
+  bke::node_register_socket_type(*make_socket_type_int_vector(PROP_UNSIGNED, 3));
+  bke::node_register_socket_type(*make_socket_type_int_vector(PROP_FACTOR, 3));
+  bke::node_register_socket_type(*make_socket_type_int_vector(PROP_PERCENTAGE, 3));
 
   bke::node_register_socket_type(*make_socket_type_rgba());
   bke::node_register_socket_type(*make_socket_type_rotation());

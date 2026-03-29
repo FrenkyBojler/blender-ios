@@ -1840,6 +1840,7 @@ void ED_view3d_draw_offscreen(Depsgraph *depsgraph,
                               eDrawType drawtype,
                               View3D *v3d,
                               ARegion *region,
+                              bContext *context,
                               int winx,
                               int winy,
                               const float viewmat[4][4],
@@ -1943,6 +1944,7 @@ void ED_view3d_draw_offscreen(Depsgraph *depsgraph,
                                  engine_type,
                                  region,
                                  v3d,
+                                 context,
                                  is_image_render,
                                  draw_background,
                                  do_color_management,
@@ -1977,6 +1979,7 @@ void ED_view3d_draw_offscreen(Depsgraph *depsgraph,
 void ED_view3d_draw_offscreen_simple(Depsgraph *depsgraph,
                                      Scene *scene,
                                      View3DShading *shading_override,
+                                     bContext *context,
                                      eDrawType drawtype,
                                      int object_type_exclude_viewport_override,
                                      int object_type_exclude_select_override,
@@ -2081,6 +2084,7 @@ void ED_view3d_draw_offscreen_simple(Depsgraph *depsgraph,
                            drawtype,
                            &v3d,
                            &region,
+                           context,
                            winx,
                            winy,
                            viewmat,
@@ -2222,6 +2226,7 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(Depsgraph *depsgraph,
                            drawtype,
                            v3d,
                            region,
+                           nullptr,
                            sizex,
                            sizey,
                            nullptr,
@@ -2336,7 +2341,9 @@ ImBuf *ED_view3d_draw_offscreen_imbuf_simple(Depsgraph *depsgraph,
     v3d.gridflag |= V3D_SHOW_FLOOR | V3D_SHOW_X | V3D_SHOW_Y;
   }
 
-  v3d.shading.background_type = V3D_SHADING_BACKGROUND_WORLD;
+  if ((draw_flags & V3D_OFSDRAW_NO_WORLD_BACKGROUND_OVERRIDE) == 0) {
+    v3d.shading.background_type = V3D_SHADING_BACKGROUND_WORLD;
+  }
 
   rv3d.persp = RV3D_CAMOB;
 

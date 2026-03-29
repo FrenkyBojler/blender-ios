@@ -111,8 +111,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   bool use_self = false;
   bool hole_tolerant = false;
   if (solver == geometry::boolean::Solver::MeshArr) {
-    use_self = params.extract_input<bool>("Self Intersection");
-    hole_tolerant = params.extract_input<bool>("Hole Tolerant");
+    use_self = params.extract_input<bool>("Self Intersection"_ustr);
+    hole_tolerant = params.extract_input<bool>("Hole Tolerant"_ustr);
   }
 
   Vector<const Mesh *> meshes;
@@ -122,7 +122,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   GeometrySet set_a;
   if (operation == geometry::boolean::Operation::Difference) {
-    set_a = params.extract_input<GeometrySet>("Mesh 1");
+    set_a = params.extract_input<GeometrySet>("Mesh 1"_ustr);
     /* Note that it technically wouldn't be necessary to realize the instances for the first
      * geometry input, but the boolean code expects the first shape for the difference operation
      * to be a single mesh. */
@@ -141,7 +141,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   GeoNodesMultiInput<GeometrySet> geometry_sets =
-      params.extract_input<GeoNodesMultiInput<GeometrySet>>("Mesh 2");
+      params.extract_input<GeoNodesMultiInput<GeometrySet>>("Mesh 2"_ustr);
 
   for (const GeometrySet &geometry : geometry_sets.values) {
     if (const Mesh *mesh = geometry.get_mesh()) {
@@ -190,7 +190,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   AttributeOutputs attribute_outputs;
   if (ELEM(solver, geometry::boolean::Solver::MeshArr, geometry::boolean::Solver::Manifold)) {
     attribute_outputs.intersecting_edges_id = params.get_output_anonymous_attribute_id_if_needed(
-        "Intersecting Edges");
+        "Intersecting Edges"_ustr);
   }
 
   Vector<int> intersecting_edges;
@@ -199,7 +199,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   op_params.no_self_intersections = !use_self;
   op_params.watertight = !hole_tolerant;
   op_params.no_nested_components = true; /* TODO: make this configurable. */
-  geometry::boolean::BooleanError error = geometry::boolean::BooleanError::NoError;
+  geometry::boolean::BooleanError error;
   Mesh *result = geometry::boolean::mesh_boolean(
       meshes,
       transforms,
@@ -208,18 +208,27 @@ static void node_geo_exec(GeoNodeExecParams params)
       solver,
       attribute_outputs.intersecting_edges_id ? &intersecting_edges : nullptr,
       &error);
-  if (error == geometry::boolean::BooleanError::NonManifold) {
-    params.error_message_add(NodeWarningType::Error, TIP_("An input was not manifold"));
+  if (error.type == geometry::boolean::BooleanErrorType::NonManifold) {
+    if (!error.non_manifold_mesh_indices.is_empty()) {
+      for (const auto index : error.non_manifold_mesh_indices) {
+        params.error_message_add(
+            NodeWarningType::Error,
+            fmt::format(fmt::runtime(TIP_("Input {} was not manifold")), index));
+      }
+    }
+    else {
+      params.error_message_add(NodeWarningType::Error, TIP_("An input was not manifold"));
+    }
   }
-  else if (error == geometry::boolean::BooleanError::ResultTooBig) {
+  else if (error.type == geometry::boolean::BooleanErrorType::ResultTooBig) {
     params.error_message_add(NodeWarningType::Error,
                              TIP_("Boolean result is too big for solver to handle"));
   }
-  else if (error == geometry::boolean::BooleanError::SolverNotAvailable) {
+  else if (error.type == geometry::boolean::BooleanErrorType::SolverNotAvailable) {
     params.error_message_add(NodeWarningType::Error,
                              TIP_("Boolean solver not available (compiled without it)"));
   }
-  else if (error == geometry::boolean::BooleanError::UnknownError) {
+  else if (error.type == geometry::boolean::BooleanErrorType::UnknownError) {
     params.error_message_add(NodeWarningType::Error, TIP_("Unknown Boolean error"));
   }
   if (!result) {
@@ -259,7 +268,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     result_geometry.merge_bundle_from(geometry);
   }
 
-  params.set_output("Mesh", std::move(result_geometry));
+  params.set_output("Mesh"_ustr, std::move(result_geometry));
 }
 
 static void node_rna(StructRNA *srna)

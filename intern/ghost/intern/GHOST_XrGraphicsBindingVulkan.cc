@@ -156,7 +156,7 @@ bool GHOST_XrGraphicsBindingVulkan::checkVersionRequirements(GHOST_Context &ghos
     if (vk_version > xr_graphics_requirements.maxApiVersionSupported) {
       CLOG_INFO(&LOG,
                 "OpenXR platform vulkan version requirements do not match with Blender. "
-                "This is known to happen when using Occulus/Meta Quest. A workaround for this is "
+                "This is known to happen when using Oculus/Meta Quest. A workaround for this is "
                 "already enabled by enabling extensions that are known to be in core vulkan. "
                 "(minimum vulkan version=%d.%d, maximum vulkan version=%d.%d).",
                 XR_VERSION_MAJOR(xr_graphics_requirements.minApiVersionSupported),
@@ -187,7 +187,7 @@ bool GHOST_XrGraphicsBindingVulkan::checkVersionRequirements(GHOST_Context &ghos
     if (vk_version > xr_graphics_requirements2.maxApiVersionSupported) {
       CLOG_INFO(&LOG,
                 "OpenXR platform vulkan version requirements do not match with Blender. "
-                "This is known to happen when using Occulus/Meta Quest. A workaround for this is "
+                "This is known to happen when using Oculus/Meta Quest. A workaround for this is "
                 "already enabled by enabling extensions that are known to be in core vulkan. "
                 "(minimum vulkan version=%d.%d, maximum vulkan version=%d.%d).",
                 XR_VERSION_MAJOR(xr_graphics_requirements2.minApiVersionSupported),
@@ -768,13 +768,15 @@ void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageCpu(
 void GHOST_XrGraphicsBindingVulkan::submitToSwapchainImageRenderGraph(
     XrSwapchainImageVulkan2KHR &swapchain_image, const GHOST_XrDrawViewInfo &draw_info)
 {
+  const bool is_last_view = draw_info.view_idx == image_cache_.size() - 1;
+
   GHOST_VulkanSwapChainData swap_chain_data = {};
   swap_chain_data.image = swapchain_image.image;
   swap_chain_data.extent = {uint32_t(draw_info.width), uint32_t(draw_info.height)};
   swap_chain_data.surface_format.format = VkFormat(draw_info.gpu_swapchain_format);
   swap_chain_data.surface_format.colorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR;
 
-  ghost_ctx_.swap_buffer_draw_callback_(&swap_chain_data);
+  ghost_ctx_.swap_buffer_draw_callback_(&swap_chain_data, is_last_view);
 }
 
 /** \} */

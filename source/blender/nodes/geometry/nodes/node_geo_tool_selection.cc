@@ -127,13 +127,15 @@ class SculptSelectionFieldInput final : public bke::GeometryFieldInput {
           case bke::AttrType::Bool: {
             Array<bool> selection(mask.min_array_size());
             mask.foreach_index_optimized<int>(
-                GrainSize(4096), [&](const int i) { selection[i] = attribute[i] < 1.0f; });
+                [&](const int i) { selection[i] = attribute[i] < 1.0f; },
+                exec_mode::grain_size(4096));
             return VArray<bool>::from_container(std::move(selection));
           }
           case bke::AttrType::Float: {
             Array<float> selection(mask.min_array_size());
             mask.foreach_index_optimized<int>(
-                GrainSize(4096), [&](const int i) { selection[i] = 1.0f - attribute[i]; });
+                [&](const int i) { selection[i] = 1.0f - attribute[i]; },
+                exec_mode::grain_size(4096));
             return VArray<float>::from_container(std::move(selection));
           }
           default: {
@@ -175,8 +177,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
   const eObjectMode mode = params.user_data()->call_data->operator_data->mode;
-  params.set_output("Selection", get_selection_field(mode, bke::AttrType::Bool));
-  params.set_output("Float", get_selection_field(mode, bke::AttrType::Float));
+  params.set_output("Selection"_ustr, get_selection_field(mode, bke::AttrType::Bool));
+  params.set_output("Float"_ustr, get_selection_field(mode, bke::AttrType::Float));
 }
 
 static void node_register()

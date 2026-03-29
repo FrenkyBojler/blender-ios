@@ -564,10 +564,12 @@ static SpaceLink *node_create(const ScrArea * /*area*/, const Scene * /*scene*/)
 
   snode->flag = SNODE_SHOW_GPENCIL | SNODE_USE_ALPHA;
   snode->overlay.flag = (SN_OVERLAY_SHOW_OVERLAYS | SN_OVERLAY_SHOW_WIRE_COLORS |
-                         SN_OVERLAY_SHOW_PATH | SN_OVERLAY_SHOW_PREVIEWS);
+                         SN_OVERLAY_SHOW_PATH | SN_OVERLAY_SHOW_PREVIEWS |
+                         SN_OVERLAY_SHOW_RENDER_REGION);
 
   /* backdrop */
   snode->zoom = 1.0f;
+  snode->overlay.passepartout_alpha = 0.5f;
 
   /* select the first tree type for valid type */
   for (const bke::bNodeTreeType *treetype : bke::node_tree_types_get()) {
@@ -784,6 +786,7 @@ static void node_area_listener(const wmSpaceTypeListenerParams *params)
     case NC_SCREEN:
       switch (wmn->data) {
         case ND_ANIMPLAY:
+        case ND_ANIMATION_PLAYBACK:
           node_area_tag_tree_recalc(snode, area);
           break;
       }
@@ -1467,7 +1470,17 @@ static int /*eContextResult*/ node_context(const bContext *C,
     }
     return CTX_RESULT_OK;
   }
-
+  if (CTX_data_equals(member, "edit_image")) {
+    if (snode->edittree != nullptr) {
+      if (bNode *node = bke::node_get_active(*snode->edittree)) {
+        if (ELEM(node->type_legacy, SH_NODE_TEX_IMAGE, SH_NODE_TEX_ENVIRONMENT)) {
+          Image *image = id_cast<Image *>(node->id);
+          CTX_data_id_pointer_set(result, &image->id);
+          return CTX_RESULT_OK;
+        }
+      }
+    }
+  }
   return CTX_RESULT_MEMBER_NOT_FOUND;
 }
 

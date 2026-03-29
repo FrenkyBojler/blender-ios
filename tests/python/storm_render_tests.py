@@ -31,6 +31,7 @@ BLOCKLIST_HYDRA = [
     "image.*_float.*.blend",
     # Differences between devices/drivers causing this to fail
     "image.blend",
+    "normal_map_transform.blend",
     # VDB rendering is incorrect on Metal
     "overlapping_octrees.blend",
     # No number of sample support, so will not converge to gray as expected
@@ -41,6 +42,8 @@ BLOCKLIST_USD = [
     # Corrupted output around borders
     "image.*_half.*.blend",
     "image.*_float.*.blend",
+    # Differences between devices/drivers causing this to fail
+    "normal_map_transform.blend",
     # Nondeterministic exporting of lights in the scene
     "light_tree_node_subtended_angle.blend",
     # VDB rendering is incorrect on Metal
@@ -88,6 +91,8 @@ BLOCKLIST_OPENGL_INTEL_LINUX = [
     "hair_transmission.blend",
     "principled_bsdf_emission.blend",
     "principled_bsdf_sheen.blend",
+    # Rasterization differences in hair and point clouds.
+    "instance_types.blend",
 ]
 
 # Some Vulkan tests are broken for all vendors.

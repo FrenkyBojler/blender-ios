@@ -65,6 +65,9 @@ std::string ParsedResource::serialize() const
     ss << ", Frequency::" << res_frequency;
     ss << res_condition_lambda << ")";
   }
+  else if (res_type == "shared") {
+    ss << "GROUP_SHARED(" << var_type << ", " << var_name << var_array << ")";
+  }
   else if (res_type == "push_constant") {
     if (!var_array.empty()) {
       ss << "PUSH_CONSTANT_ARRAY(" << var_type << ", " << var_name << ", "
@@ -118,7 +121,7 @@ std::string ParsedFragOuput::serialize() const
   std::stringstream ss;
   if (!dual_source.empty()) {
     ss << "FRAGMENT_OUT_DUAL(" << slot << ", " << var_type << ", " << var_name << ", "
-       << dual_source << ")";
+       << "SRC_" << dual_source << ")";
   }
   else if (!raster_order_group.empty()) {
     ss << "FRAGMENT_OUT_ROG(" << slot << ", " << var_type << ", " << var_name << ", "

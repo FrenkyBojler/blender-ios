@@ -31,10 +31,10 @@ static void scale_instances(GeoNodeExecParams &params, bke::Instances &instances
 {
   const bke::InstancesFieldContext context{instances};
   fn::FieldEvaluator evaluator{context, instances.instances_num()};
-  evaluator.set_selection(params.extract_input<Field<bool>>("Selection"));
-  evaluator.add(params.extract_input<Field<float3>>("Scale"));
-  evaluator.add(params.extract_input<Field<float3>>("Center"));
-  evaluator.add(params.extract_input<Field<bool>>("Local Space"));
+  evaluator.set_selection(params.extract_input<Field<bool>>("Selection"_ustr));
+  evaluator.add(params.extract_input<Field<float3>>("Scale"_ustr));
+  evaluator.add(params.extract_input<Field<float3>>("Center"_ustr));
+  evaluator.add(params.extract_input<Field<bool>>("Local Space"_ustr));
   evaluator.evaluate();
 
   const IndexMask selection = evaluator.get_evaluated_selection_as_mask();
@@ -44,32 +44,34 @@ static void scale_instances(GeoNodeExecParams &params, bke::Instances &instances
 
   MutableSpan<float4x4> transforms = instances.transforms_for_write();
 
-  selection.foreach_index(GrainSize(512), [&](const int64_t i) {
-    const float3 pivot = pivots[i];
-    float4x4 &instance_transform = transforms[i];
+  selection.foreach_index(
+      [&](const int64_t i) {
+        const float3 pivot = pivots[i];
+        float4x4 &instance_transform = transforms[i];
 
-    if (local_spaces[i]) {
-      instance_transform *= math::from_location<float4x4>(pivot);
-      rescale_m4(instance_transform.ptr(), scales[i]);
-      instance_transform *= math::from_location<float4x4>(-pivot);
-    }
-    else {
-      const float4x4 original_transform = instance_transform;
-      instance_transform = math::from_location<float4x4>(pivot);
-      rescale_m4(instance_transform.ptr(), scales[i]);
-      instance_transform *= math::from_location<float4x4>(-pivot);
-      instance_transform *= original_transform;
-    }
-  });
+        if (local_spaces[i]) {
+          instance_transform *= math::from_location<float4x4>(pivot);
+          rescale_m4(instance_transform.ptr(), scales[i]);
+          instance_transform *= math::from_location<float4x4>(-pivot);
+        }
+        else {
+          const float4x4 original_transform = instance_transform;
+          instance_transform = math::from_location<float4x4>(pivot);
+          rescale_m4(instance_transform.ptr(), scales[i]);
+          instance_transform *= math::from_location<float4x4>(-pivot);
+          instance_transform *= original_transform;
+        }
+      },
+      exec_mode::grain_size(512));
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  GeometrySet geometry_set = params.extract_input<GeometrySet>("Instances");
+  GeometrySet geometry_set = params.extract_input<GeometrySet>("Instances"_ustr);
   if (bke::Instances *instances = geometry_set.get_instances_for_write()) {
     scale_instances(params, *instances);
   }
-  params.set_output("Instances", std::move(geometry_set));
+  params.set_output("Instances"_ustr, std::move(geometry_set));
 }
 
 static void node_register()

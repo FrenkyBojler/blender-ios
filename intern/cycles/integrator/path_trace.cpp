@@ -20,6 +20,7 @@
 
 #include "util/log.h"
 #include "util/progress.h"
+#include "util/scoped_defer.h"
 #include "util/tbb.h"
 #include "util/time.h"
 
@@ -189,6 +190,7 @@ void PathTrace::render_pipeline(RenderWork render_work)
                                                   0);
 
   render_init_kernel_execution();
+  SCOPED_DEFER(render_deinit_kernel_execution());
 
   render_scheduler_.report_work_begin(render_work);
 
@@ -257,6 +259,13 @@ void PathTrace::render_init_kernel_execution()
 {
   for (auto &&path_trace_work : path_trace_works_) {
     path_trace_work->init_execution();
+  }
+}
+
+void PathTrace::render_deinit_kernel_execution()
+{
+  for (auto &&path_trace_work : path_trace_works_) {
+    path_trace_work->deinit_execution();
   }
 }
 
@@ -652,7 +661,7 @@ void PathTrace::denoise(const RenderWork &render_work)
 void PathTrace::denoise_volume_guiding_buffers(const RenderWork &render_work,
                                                const bool has_volume)
 {
-  if (!has_volume || !render_scheduler_.volume_guiding_need_denoise()) {
+  if (!has_volume || !render_work.volume_guiding_denoise) {
     return;
   }
 

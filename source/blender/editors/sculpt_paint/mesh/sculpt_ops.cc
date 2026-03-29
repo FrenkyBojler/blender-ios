@@ -151,7 +151,7 @@ static void SCULPT_OT_set_persistent_base(wmOperatorType *ot)
   ot->description = "Reset the copy of the mesh that is being sculpted on";
 
   ot->exec = set_persistent_base_exec;
-  ot->poll = SCULPT_mode_poll;
+  ot->poll = sculpt_mode_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
@@ -185,7 +185,7 @@ static void SCULPT_OT_optimize(wmOperatorType *ot)
   ot->description = "Recalculate the sculpt BVH to improve performance";
 
   ot->exec = optimize_exec;
-  ot->poll = SCULPT_mode_poll;
+  ot->poll = sculpt_mode_poll;
 
   ot->flag = OPTYPE_REGISTER;
 }
@@ -206,7 +206,7 @@ static bool no_multires_poll(bContext *C)
     return false;
   }
   const bke::pbvh::Tree *pbvh = bke::object::pbvh_get(*ob);
-  if (SCULPT_mode_poll(C) && ob->runtime->sculpt_session && pbvh) {
+  if (sculpt_mode_poll(C) && ob->runtime->sculpt_session && pbvh) {
     return pbvh->type() != bke::pbvh::Type::Grids;
   }
   return false;
@@ -412,7 +412,7 @@ void object_sculpt_mode_enter(Main &bmain,
   Paint *paint = BKE_paint_get_active_from_paintmode(&scene, PaintMode::Sculpt);
   BKE_paint_init(&bmain, &scene, PaintMode::Sculpt);
 
-  ED_paint_cursor_start(paint, SCULPT_brush_cursor_poll);
+  ED_paint_cursor_start(paint, brush_cursor_poll);
 
   /* Check dynamic-topology flag; re-enter dynamic-topology mode when changing modes,
    * As long as no data was added that is not supported. */
@@ -432,7 +432,9 @@ void object_sculpt_mode_enter(Main &bmain,
         /* pass */
       }
       else if (flag & dyntopo::ATTRIBUTES) {
-        message_unsupported = RPT_("attributes");
+        BKE_report(reports,
+                   RPT_WARNING,
+                   "Dyntopo will not preserve face sets, colors, UVs, or other attributes");
       }
       else if (flag & dyntopo::MODIFIER) {
         message_unsupported = RPT_("constructive modifier");
@@ -811,7 +813,7 @@ static void SCULPT_OT_mask_by_color(wmOperatorType *ot)
 
   ot->invoke = mask_by_color_invoke;
   ot->exec = mask_by_color_exec;
-  ot->poll = SCULPT_mode_poll;
+  ot->poll = sculpt_mode_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_DEPENDS_ON_CURSOR;
 
@@ -1052,20 +1054,22 @@ static void apply_mask_from_settings(const Depsgraph &depsgraph,
           ".sculpt_mask", bke::AttrDomain::Point);
       const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", bke::AttrDomain::Point);
       MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
-      node_mask.foreach_index(GrainSize(1), [&](const int i) {
-        LocalData &tls = all_tls.local();
-        apply_mask_mesh(depsgraph,
-                        object,
-                        hide_vert,
-                        automasking,
-                        mode,
-                        factor,
-                        invert_automask,
-                        nodes[i],
-                        tls,
-                        mask.span);
-        bke::pbvh::node_update_mask_mesh(mask.span, nodes[i]);
-      });
+      node_mask.foreach_index(
+          [&](const int i) {
+            LocalData &tls = all_tls.local();
+            apply_mask_mesh(depsgraph,
+                            object,
+                            hide_vert,
+                            automasking,
+                            mode,
+                            factor,
+                            invert_automask,
+                            nodes[i],
+                            tls,
+                            mask.span);
+            bke::pbvh::node_update_mask_mesh(mask.span, nodes[i]);
+          },
+          exec_mode::grain_size(1));
       mask.finish();
       break;
     }
@@ -1074,24 +1078,28 @@ static void apply_mask_from_settings(const Depsgraph &depsgraph,
       const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
       MutableSpan<float> masks = subdiv_ccg.masks;
       MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
-      node_mask.foreach_index(GrainSize(1), [&](const int i) {
-        LocalData &tls = all_tls.local();
-        apply_mask_grids(
-            depsgraph, object, automasking, mode, factor, invert_automask, nodes[i], tls);
-        bke::pbvh::node_update_mask_grids(key, masks, nodes[i]);
-      });
+      node_mask.foreach_index(
+          [&](const int i) {
+            LocalData &tls = all_tls.local();
+            apply_mask_grids(
+                depsgraph, object, automasking, mode, factor, invert_automask, nodes[i], tls);
+            bke::pbvh::node_update_mask_grids(key, masks, nodes[i]);
+          },
+          exec_mode::grain_size(1));
       break;
     }
     case bke::pbvh::Type::BMesh: {
       const int mask_offset = CustomData_get_offset_named(
           &object.runtime->sculpt_session->bm->vdata, CD_PROP_FLOAT, ".sculpt_mask");
       MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
-      node_mask.foreach_index(GrainSize(1), [&](const int i) {
-        LocalData &tls = all_tls.local();
-        apply_mask_bmesh(
-            depsgraph, object, automasking, mode, factor, invert_automask, nodes[i], tls);
-        bke::pbvh::node_update_mask_bmesh(mask_offset, nodes[i]);
-      });
+      node_mask.foreach_index(
+          [&](const int i) {
+            LocalData &tls = all_tls.local();
+            apply_mask_bmesh(
+                depsgraph, object, automasking, mode, factor, invert_automask, nodes[i], tls);
+            bke::pbvh::node_update_mask_bmesh(mask_offset, nodes[i]);
+          },
+          exec_mode::grain_size(1));
       break;
     }
   }
@@ -1205,7 +1213,7 @@ static wmOperatorStatus mask_from_cavity_exec(bContext *C, wmOperator *op)
 
   pbvh.tag_masks_changed(node_mask);
   flush_update_done(C, ob, UpdateType::Mask);
-  SCULPT_tag_update_overlays(C);
+  tag_update_overlays(C);
 
   return OPERATOR_FINISHED;
 }
@@ -1264,7 +1272,7 @@ static void SCULPT_OT_mask_from_cavity(wmOperatorType *ot)
 
   ot->ui = mask_from_cavity_ui;
   ot->exec = mask_from_cavity_exec;
-  ot->poll = SCULPT_mode_poll;
+  ot->poll = sculpt_mode_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
@@ -1396,7 +1404,7 @@ static wmOperatorStatus mask_from_boundary_exec(bContext *C, wmOperator *op)
 
   pbvh.tag_masks_changed(node_mask);
   flush_update_done(C, ob, UpdateType::Mask);
-  SCULPT_tag_update_overlays(C);
+  tag_update_overlays(C);
 
   return OPERATOR_FINISHED;
 }
@@ -1439,7 +1447,7 @@ static void SCULPT_OT_mask_from_boundary(wmOperatorType *ot)
 
   ot->ui = mask_from_boundary_ui;
   ot->exec = mask_from_boundary_exec;
-  ot->poll = SCULPT_mode_poll;
+  ot->poll = sculpt_mode_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 

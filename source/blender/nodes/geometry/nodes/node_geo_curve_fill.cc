@@ -120,15 +120,17 @@ static meshintersect::CDT_result<double> do_cdt_with_mask(const bke::CurvesGeome
       points_by_curve, mask, offsets_data);
 
   Array<double2> positions_2d(points_by_curve_masked.total_size());
-  mask.foreach_index(GrainSize(1024), [&](const int src_curve, const int dst_curve) {
-    const IndexRange src_points = points_by_curve[src_curve];
-    const IndexRange dst_points = points_by_curve_masked[dst_curve];
-    for (const int i : src_points.index_range()) {
-      const int src = src_points[i];
-      const int dst = dst_points[i];
-      positions_2d[dst] = double2(positions[src].x, positions[src].y);
-    }
-  });
+  mask.foreach_index(
+      [&](const int src_curve, const int dst_curve) {
+        const IndexRange src_points = points_by_curve[src_curve];
+        const IndexRange dst_points = points_by_curve_masked[dst_curve];
+        for (const int i : src_points.index_range()) {
+          const int src = src_points[i];
+          const int dst = dst_points[i];
+          positions_2d[dst] = double2(positions[src].x, positions[src].y);
+        }
+      },
+      exec_mode::grain_size(1024));
 
   Array<Vector<int>> faces(points_by_curve_masked.size());
   fill_curve_vert_indices(points_by_curve_masked, faces);
@@ -358,16 +360,17 @@ static void curve_fill_calculate(GeometrySet &geometry_set,
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  GeometrySet geometry_set = params.extract_input<GeometrySet>("Curve");
-  Field<int> group_index = params.extract_input<Field<int>>("Group ID");
-  const GeometryNodeCurveFillMode mode = params.extract_input<GeometryNodeCurveFillMode>("Mode");
-  const auto fill_rule = params.extract_input<GeometryNodeCurveFillRule>("Fill Rule");
+  GeometrySet geometry_set = params.extract_input<GeometrySet>("Curve"_ustr);
+  Field<int> group_index = params.extract_input<Field<int>>("Group ID"_ustr);
+  const GeometryNodeCurveFillMode mode = params.extract_input<GeometryNodeCurveFillMode>(
+      "Mode"_ustr);
+  const auto fill_rule = params.extract_input<GeometryNodeCurveFillRule>("Fill Rule"_ustr);
 
   geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry) {
     curve_fill_calculate(geometry, mode, fill_rule, group_index);
   });
 
-  params.set_output("Mesh", std::move(geometry_set));
+  params.set_output("Mesh"_ustr, std::move(geometry_set));
 }
 
 static void node_register()

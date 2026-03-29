@@ -44,7 +44,7 @@ namespace nodes {
 
 bool socket_type_has_attribute_toggle(const eNodeSocketDatatype type)
 {
-  return socket_type_supports_fields(type);
+  return socket_type_supports_attributes(type);
 }
 
 bool input_has_attribute_toggle(const bNodeTree &node_tree, const int socket_index)
@@ -305,6 +305,7 @@ std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter> id_property_create_f
     case SOCK_SHADER:
     case SOCK_BUNDLE:
     case SOCK_CLOSURE:
+    case SOCK_INT_VECTOR:
       return nullptr;
   }
   return nullptr;
@@ -499,6 +500,7 @@ static bool old_id_property_type_matches_socket_convert_to_new(
     case SOCK_SHADER:
     case SOCK_BUNDLE:
     case SOCK_CLOSURE:
+    case SOCK_INT_VECTOR:
       return false;
   }
   BLI_assert_unreachable();
@@ -929,6 +931,8 @@ bke::GeometrySet execute_geometry_nodes_on_geometry(const bNodeTree &btree,
   param_output_usages.as_mutable_span()
       .slice(function.outputs.input_usages)
       .fill(lf::ValueUsage::Unused);
+
+  call_data.call_depth_limit = U.geometry_nodes_stack_limit;
 
   GeoNodesUserData user_data;
   user_data.call_data = &call_data;

@@ -73,50 +73,52 @@ class CornersOfEdgeInput final : public bke::MeshFieldInput {
     const bool use_sorting = !all_sort_weights.is_single();
 
     Array<int> corner_of_edge(mask.min_array_size());
-    mask.foreach_segment(GrainSize(1024), [&](const IndexMaskSegment segment) {
-      /* Reuse arrays to avoid allocation. */
-      Array<int64_t> corner_indices;
-      Array<float> sort_weights;
-      Array<int> sort_indices;
+    mask.foreach_segment(
+        [&](const IndexMaskSegment segment) {
+          /* Reuse arrays to avoid allocation. */
+          Array<int64_t> corner_indices;
+          Array<float> sort_weights;
+          Array<int> sort_indices;
 
-      for (const int selection_i : segment) {
-        const int edge_i = edge_indices[selection_i];
-        const int index_in_sort = indices_in_sort[selection_i];
-        if (!edge_range.contains(edge_i)) {
-          corner_of_edge[selection_i] = 0;
-          continue;
-        }
+          for (const int selection_i : segment) {
+            const int edge_i = edge_indices[selection_i];
+            const int index_in_sort = indices_in_sort[selection_i];
+            if (!edge_range.contains(edge_i)) {
+              corner_of_edge[selection_i] = 0;
+              continue;
+            }
 
-        const Span<int> corners = edge_to_corner_map[edge_i];
-        if (corners.is_empty()) {
-          corner_of_edge[selection_i] = 0;
-          continue;
-        }
+            const Span<int> corners = edge_to_corner_map[edge_i];
+            if (corners.is_empty()) {
+              corner_of_edge[selection_i] = 0;
+              continue;
+            }
 
-        const int index_in_sort_wrapped = mod_i(index_in_sort, corners.size());
-        if (use_sorting) {
-          /* Retrieve a compressed array of weights for each edge. */
-          sort_weights.reinitialize(corners.size());
-          IndexMaskMemory memory;
-          all_sort_weights.materialize_compressed(IndexMask::from_indices<int>(corners, memory),
-                                                  sort_weights.as_mutable_span());
+            const int index_in_sort_wrapped = mod_i(index_in_sort, corners.size());
+            if (use_sorting) {
+              /* Retrieve a compressed array of weights for each edge. */
+              sort_weights.reinitialize(corners.size());
+              IndexMaskMemory memory;
+              all_sort_weights.materialize_compressed(
+                  IndexMask::from_indices<int>(corners, memory), sort_weights.as_mutable_span());
 
-          /* Sort a separate array of compressed indices corresponding to the compressed weights.
-           * This allows using `materialize_compressed` to avoid virtual function call overhead
-           * when accessing values in the sort weights. However, it means a separate array of
-           * indices within the compressed array is necessary for sorting. */
-          sort_indices.reinitialize(corners.size());
-          array_utils::fill_index_range<int>(sort_indices);
-          std::stable_sort(sort_indices.begin(), sort_indices.end(), [&](int a, int b) {
-            return sort_weights[a] < sort_weights[b];
-          });
-          corner_of_edge[selection_i] = corners[sort_indices[index_in_sort_wrapped]];
-        }
-        else {
-          corner_of_edge[selection_i] = corners[index_in_sort_wrapped];
-        }
-      }
-    });
+              /* Sort a separate array of compressed indices corresponding to the compressed
+               * weights. This allows using `materialize_compressed` to avoid virtual function call
+               * overhead when accessing values in the sort weights. However, it means a separate
+               * array of indices within the compressed array is necessary for sorting. */
+              sort_indices.reinitialize(corners.size());
+              array_utils::fill_index_range<int>(sort_indices);
+              std::stable_sort(sort_indices.begin(), sort_indices.end(), [&](int a, int b) {
+                return sort_weights[a] < sort_weights[b];
+              });
+              corner_of_edge[selection_i] = corners[sort_indices[index_in_sort_wrapped]];
+            }
+            else {
+              corner_of_edge[selection_i] = corners[index_in_sort_wrapped];
+            }
+          }
+        },
+        exec_mode::grain_size(1024));
 
     return VArray<int>::from_container(std::move(corner_of_edge));
   }
@@ -171,20 +173,20 @@ class CornersOfEdgeCountInput final : public bke::MeshFieldInput {
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  const Field<int> edge_index = params.extract_input<Field<int>>("Edge Index");
-  if (params.output_is_required("Total")) {
-    params.set_output("Total",
+  const Field<int> edge_index = params.extract_input<Field<int>>("Edge Index"_ustr);
+  if (params.output_is_required("Total"_ustr)) {
+    params.set_output("Total"_ustr,
                       Field<int>(std::make_shared<bke::EvaluateAtIndexInput>(
                           edge_index,
                           Field<int>(std::make_shared<CornersOfEdgeCountInput>()),
                           AttrDomain::Edge)));
   }
-  if (params.output_is_required("Corner Index")) {
-    params.set_output("Corner Index",
+  if (params.output_is_required("Corner Index"_ustr)) {
+    params.set_output("Corner Index"_ustr,
                       Field<int>(std::make_shared<CornersOfEdgeInput>(
                           edge_index,
-                          params.extract_input<Field<int>>("Sort Index"),
-                          params.extract_input<Field<float>>("Weights"))));
+                          params.extract_input<Field<int>>("Sort Index"_ustr),
+                          params.extract_input<Field<float>>("Weights"_ustr))));
   }
 }
 

@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_array_utils.hh"
+
 #include "NOD_geometry_nodes_list.hh"
 #include "NOD_geometry_nodes_values.hh"
 #include "NOD_rna_define.hh"
@@ -102,26 +104,12 @@ class SampleIndexFunction : public mf::MultiFunction {
 
   void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
   {
-    const VArray<int> &indices = params.readonly_single_input<int>(0, "Index");
+    const VArraySpan<int> indices = params.readonly_single_input<int>(0, "Index");
     GMutableSpan dst = params.uninitialized_single_output(1, "Value");
 
-    const IndexRange list_range(list_->size());
-
     IndexMaskMemory memory;
-    const IndexMask valid_indices = [&]() {
-      if (const std::optional<int> index = indices.get_if_single()) {
-        return list_range.contains(*index) ? mask : IndexMask{};
-      }
-      if (indices.is_span()) {
-        const Span<int> indices_span = indices.get_internal_span();
-        return IndexMask::from_predicate(mask, GrainSize(4096), memory, [&](const int i) {
-          return list_range.contains(indices_span[i]);
-        });
-      }
-      return IndexMask::from_predicate(mask, GrainSize(4096), memory, [&](const int i) {
-        return list_range.contains(indices[i]);
-      });
-    }();
+    const IndexMask valid_indices = array_utils::indices_in_range(
+        mask, indices, IndexRange(list_->size()), memory);
 
     if (valid_indices.size() != mask.size()) {
       const IndexMask invalid_indices = valid_indices.complement(mask, memory);
@@ -226,8 +214,8 @@ static bke::SocketValueVariant get_socket_value_item(ListPtr &list, const int64_
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  bke::SocketValueVariant index = params.extract_input<bke::SocketValueVariant>("Index");
-  ListPtr list = params.extract_input<ListPtr>("List");
+  bke::SocketValueVariant index = params.extract_input<bke::SocketValueVariant>("Index"_ustr);
+  ListPtr list = params.extract_input<ListPtr>("List"_ustr);
   if (!list) {
     params.set_default_remaining_outputs();
     return;
@@ -250,10 +238,10 @@ static void node_geo_exec(GeoNodeExecParams params)
       return;
     }
     if (list->cpp_type().is<bke::SocketValueVariant>()) {
-      params.set_output("Value", get_socket_value_item(list, index_int));
+      params.set_output("Value"_ustr, get_socket_value_item(list, index_int));
     }
     else {
-      params.set_output("Value", get_single_item(list, *socket_type, index_int));
+      params.set_output("Value"_ustr, get_single_item(list, *socket_type, index_int));
     }
     return;
   }
@@ -272,7 +260,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  params.set_output("Value", std::move(output_value));
+  params.set_output("Value"_ustr, std::move(output_value));
 }
 
 static void node_register()

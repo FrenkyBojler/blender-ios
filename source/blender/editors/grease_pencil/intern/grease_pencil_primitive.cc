@@ -643,11 +643,8 @@ static void grease_pencil_primitive_init_curves(PrimitiveToolOperation &ptd)
   }
 
   if (ptd.use_fill && (ptd.fill_opacity < 1.0f || attributes.contains("fill_opacity"))) {
-    if (bke::SpanAttributeWriter<float> fill_opacities =
-            attributes.lookup_or_add_for_write_span<float>(
-                "fill_opacity",
-                bke::AttrDomain::Curve,
-                bke::AttributeInitVArray(VArray<float>::from_single(1.0f, curves.curves_num()))))
+    if (bke::SpanAttributeWriter fill_opacities = attributes.lookup_or_add_for_write_span<float>(
+            "fill_opacity", bke::AttrDomain::Curve, bke::AttributeInitValue(1.0f)))
     {
       fill_opacities.span[target_curve_index] = ptd.fill_opacity;
       fill_opacities.finish();
@@ -831,12 +828,11 @@ static wmOperatorStatus grease_pencil_primitive_invoke(bContext *C,
     ColorGeometry4f color_base;
     copy_v3_v3(color_base, ptd.brush->color);
     color_base.a = ptd.settings->vertex_factor;
-    ptd.vertex_color = ELEM(ptd.settings->vertex_mode, GPPAINT_MODE_STROKE, GPPAINT_MODE_BOTH) ?
+
+    ptd.vertex_color = (ptd.settings->flag2 & GP_BRUSH_USE_STROKE) ?
                            std::make_optional(color_base) :
                            std::nullopt;
-    ptd.fill_color = ELEM(ptd.settings->vertex_mode, GPPAINT_MODE_FILL, GPPAINT_MODE_BOTH) ?
-                         std::make_optional(color_base) :
-                         std::nullopt;
+    ptd.fill_color = ptd.use_fill ? std::make_optional(color_base) : std::nullopt;
   }
   else {
     ptd.vertex_color = std::nullopt;

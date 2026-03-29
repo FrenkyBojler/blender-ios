@@ -46,7 +46,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       "A point for each active voxel or tile in the grid");
   b.add_output(data_type, "Value").field_on_all().description("The grid's value at each voxel");
 
-  auto &panel = b.add_panel("Voxel Index").default_closed(true);
+  auto &panel = b.add_panel("Voxel Index"_ustr).default_closed(true);
   panel.add_output<decl::Int>("X").field_on_all().description(
       "X coordinate of the voxel in index space, or the minimum X coordinate of a tile");
   panel.add_output<decl::Int>("Y").field_on_all().description(
@@ -135,7 +135,7 @@ static void process_leaf_node(const LeafNodeT &leaf_node,
                               MutableSpan<int> r_coord_z,
                               MutableSpan<typename LeafNodeT::ValueType> r_value)
 {
-  using MaskT = LeafNodeT::NodeMaskType;
+  using MaskT = typename LeafNodeT::NodeMaskType;
 
   r_is_tile.fill(false);
   r_extent.fill(1);
@@ -174,8 +174,8 @@ static void process_internal_node(const InternalNodeT &internal_node,
                                   MutableSpan<int> r_coord_z,
                                   MutableSpan<typename InternalNodeT::ValueType> r_value)
 {
-  using MaskT = InternalNodeT::NodeMaskType;
-  using UnionT = InternalNodeT::UnionType;
+  using MaskT = typename InternalNodeT::NodeMaskType;
+  using UnionT = typename InternalNodeT::UnionType;
 
   r_is_tile.fill(true);
   r_extent.fill(InternalNodeT::ChildNodeType::DIM);
@@ -215,9 +215,9 @@ static void process_tree(const TreeT &tree,
                          std::optional<Array<int>> &r_coord_z,
                          std::optional<GArray<>> &r_value)
 {
-  using ValueT = TreeT::ValueType;
-  using RootNodeT = TreeT::RootNodeType;
-  using LeafNodeT = TreeT::LeafNodeType;
+  using ValueT = typename TreeT::ValueType;
+  using RootNodeT = typename TreeT::RootNodeType;
+  using LeafNodeT = typename TreeT::LeafNodeType;
 
   openvdb::tree::NodeManager<const TreeT> node_manager(tree);
 
@@ -229,7 +229,7 @@ static void process_tree(const TreeT &tree,
   node_manager.foreachTopDown(
       [&]<typename NodeT>(const NodeT &node) {
         if constexpr (!std::is_same_v<NodeT, RootNodeT>) {
-          using MaskT = NodeT::NodeMaskType;
+          using MaskT = typename NodeT::NodeMaskType;
           const MaskT &value_mask = node.getValueMask();
           const int values_num = value_mask.countOn();
           slice_by_node.add_new(&node, IndexRange(current_offset, values_num));
@@ -323,7 +323,7 @@ static void process_tree(const TreeT &tree,
 static void node_geo_exec(GeoNodeExecParams params)
 {
 #ifdef WITH_OPENVDB
-  const bke::GVolumeGrid grid = params.extract_input<bke::GVolumeGrid>("Grid");
+  const bke::GVolumeGrid grid = params.extract_input<bke::GVolumeGrid>("Grid"_ustr);
   if (!grid) {
     params.set_default_remaining_outputs();
     return;
@@ -341,15 +341,18 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   const float4x4 grid_transform = BKE_volume_transform_to_blender(grid_base.transform());
 
-  std::optional<std::string> coord_x_id = params.get_output_anonymous_attribute_id_if_needed("X");
-  std::optional<std::string> coord_y_id = params.get_output_anonymous_attribute_id_if_needed("Y");
-  std::optional<std::string> coord_z_id = params.get_output_anonymous_attribute_id_if_needed("Z");
+  std::optional<std::string> coord_x_id = params.get_output_anonymous_attribute_id_if_needed(
+      "X"_ustr);
+  std::optional<std::string> coord_y_id = params.get_output_anonymous_attribute_id_if_needed(
+      "Y"_ustr);
+  std::optional<std::string> coord_z_id = params.get_output_anonymous_attribute_id_if_needed(
+      "Z"_ustr);
   std::optional<std::string> is_tile_id = params.get_output_anonymous_attribute_id_if_needed(
-      "Is Tile");
+      "Is Tile"_ustr);
   std::optional<std::string> extent_id = params.get_output_anonymous_attribute_id_if_needed(
-      "Extent");
+      "Extent"_ustr);
   std::optional<std::string> value_id = params.get_output_anonymous_attribute_id_if_needed(
-      "Value");
+      "Value"_ustr);
 
   Array<float3> position_array;
   std::optional<Array<bool>> is_tile_array;
@@ -460,7 +463,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   geometry::debug_randomize_point_order(pointcloud);
-  params.set_output("Points", GeometrySet::from_pointcloud(pointcloud));
+  params.set_output("Points"_ustr, GeometrySet::from_pointcloud(pointcloud));
 
 #else
   node_geo_exec_with_missing_openvdb(params);

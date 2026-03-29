@@ -100,6 +100,7 @@ set(SRC
   intern/gpu_storage_buffer.cc
   intern/gpu_texture.cc
   intern/gpu_texture_pool.cc
+  intern/gpu_texture_mipmap.cc
   intern/gpu_uniform_buffer.cc
   intern/gpu_vertex_buffer.cc
   intern/gpu_vertex_format.cc
@@ -111,6 +112,7 @@ set(SRC
   shader_tool/enum.cc
   shader_tool/flow_control.cc
   shader_tool/function.cc
+  shader_tool/grammar.cc
   shader_tool/intermediate.cc
   shader_tool/metadata.cc
   shader_tool/namespace.cc
@@ -185,8 +187,8 @@ set(SRC
   intern/gpu_shader_private.hh
   intern/gpu_state_private.hh
   intern/gpu_storage_buffer_private.hh
-  intern/gpu_texture_private.hh
   intern/gpu_texture_pool_private.hh
+  intern/gpu_texture_private.hh
   intern/gpu_uniform_buffer_private.hh
   intern/gpu_vertex_format_private.hh
 
@@ -391,6 +393,7 @@ set(METAL_SRC
   metal/mtl_state.mm
   metal/mtl_storage_buffer.mm
   metal/mtl_texture.mm
+  metal/mtl_texture_pool.mm
   metal/mtl_texture_util.mm
   metal/mtl_uniform_buffer.mm
   metal/mtl_vertex_buffer.mm
@@ -544,6 +547,7 @@ set(GLSL_SRC
   shaders/gpu_shader_3D_smooth_color_vert.glsl
   shaders/gpu_shader_3D_smooth_color_frag.glsl
   shaders/gpu_shader_3D_clipped_uniform_color_vert.glsl
+  shaders/gpu_shader_2D_update_mipmaps.bsl.hh
 
   shaders/gpu_shader_point_uniform_color_aa_frag.glsl
   shaders/gpu_shader_point_uniform_color_outline_aa_frag.glsl
@@ -620,6 +624,7 @@ set(GLSL_SRC
   shaders/common/gpu_shader_shared_exponent_lib.glsl
   shaders/common/gpu_shader_smaa_lib.glsl
   shaders/common/gpu_shader_test_lib.glsl
+  shaders/common/gpu_shader_tiled_image_lookup_lib.glsl
   shaders/common/gpu_shader_utildefines_lib.glsl
 
   shaders/material/gpu_shader_material_add_shader.glsl
@@ -933,6 +938,7 @@ if(WITH_GTESTS)
       tests/state_blend_test.cc
       tests/storage_buffer_test.cc
       tests/texture_test.cc
+      tests/texture_view_test.cc
       tests/vertex_buffer_test.cc
     )
   endif()
