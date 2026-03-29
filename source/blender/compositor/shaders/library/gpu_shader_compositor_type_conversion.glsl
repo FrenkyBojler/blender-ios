@@ -430,6 +430,11 @@ float4 float4x4_to_quaternion(float4x4 mat)
  * Quaternion to other.
  */
 
+float2 quaternion_to_float2(float4 value)
+{
+  return quaternion_to_float3(value).xy();
+}
+
 float3 quaternion_to_float3(float4 value)
 {
   Quaternion quat = Quaternion{value.x, value.y, value.z, value.w};

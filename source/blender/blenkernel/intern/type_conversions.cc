@@ -605,6 +605,10 @@ static math::Quaternion float4x4_to_quaternion(const float4x4 &a)
   return math::normalized_to_quaternion_safe(math::normalize(float3x3(a)));
 }
 
+static float2 quaternion_to_float2(const math::Quaternion &a)
+{
+  return float2(math::to_euler(a).xyz().xy());
+}
 static float3 quaternion_to_float3(const math::Quaternion &a)
 {
   return float3(math::to_euler(a).xyz());
@@ -772,6 +776,7 @@ static DataTypeConversions create_implicit_conversions()
 
   add_implicit_conversion<float4x4, math::Quaternion, float4x4_to_quaternion>(conversions);
 
+  add_implicit_conversion<math::Quaternion, float2, quaternion_to_float2>(conversions);
   add_implicit_conversion<math::Quaternion, float3, quaternion_to_float3>(conversions);
   add_implicit_conversion<math::Quaternion, float4, quaternion_to_float4>(conversions);
   add_implicit_conversion<math::Quaternion, float4x4, quaternion_to_float4x4>(conversions);

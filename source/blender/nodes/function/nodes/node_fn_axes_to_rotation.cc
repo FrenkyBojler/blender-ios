@@ -11,7 +11,6 @@
 #include "NOD_rna_define.hh"
 
 #include "node_function_util.hh"
-#include "node_shader_util.hh"
 
 namespace blender::nodes::node_fn_axes_to_rotation_cc {
 
@@ -57,12 +56,13 @@ class AxesToRotationFunction : public mf::MultiFunction {
   AxesToRotationFunction(const math::Axis primary_axis, const math::Axis secondary_axis)
       : primary_axis_(primary_axis), secondary_axis_(secondary_axis)
   {
-    if (primary_axis_ != secondary_axis_) {
-      /* Through cancellation this will set the last axis to be the one that's neither the primary
-       * nor secondary axis. The equal axes case is handled in call(). */
-      tertiary_axis_ = math::Axis::from_int((0 + 1 + 2) - primary_axis.as_int() -
-                                            secondary_axis.as_int());
-    }
+    BLI_assert(primary_axis_ != secondary_axis_);
+
+    /* Through cancellation this will set the last axis to be the one that's neither the primary
+     * nor secondary axis. */
+    tertiary_axis_ = math::Axis::from_int((0 + 1 + 2) - primary_axis.as_int() -
+                                          secondary_axis.as_int());
+
     static const mf::Signature signature = []() {
       mf::Signature signature;
       mf::SignatureBuilder builder{"Axes to Rotation", signature};
@@ -76,15 +76,9 @@ class AxesToRotationFunction : public mf::MultiFunction {
 
   void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
   {
-    MutableSpan r_rotations = params.uninitialized_single_output<math::Quaternion>(2, "Rotation");
-
-    if (primary_axis_ == secondary_axis_) {
-      mask.foreach_index([&](const int64_t i) { r_rotations[i] = math::Quaternion::identity(); });
-      return;
-    }
-
     const VArray<float3> primaries = params.readonly_single_input<float3>(0, "Primary");
     const VArray<float3> secondaries = params.readonly_single_input<float3>(1, "Secondary");
+    MutableSpan r_rotations = params.uninitialized_single_output<math::Quaternion>(2, "Rotation");
 
     /* Might have to invert the axis to make sure that the created matrix has determinant 1. */
     const bool invert_tertiary = (secondary_axis_.as_int() + 1) % 3 == primary_axis_.as_int();
@@ -136,6 +130,9 @@ class AxesToRotationFunction : public mf::MultiFunction {
 static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 {
   const bNode &node = builder.node();
+  if (node.custom1 == node.custom2) {
+    return;
+  }
   builder.construct_and_set_matching_fn<AxesToRotationFunction>(
       math::Axis::from_int(node.custom1), math::Axis::from_int(node.custom2));
 }
@@ -150,23 +147,23 @@ static int gpu_shader_axes_to_rotation(GPUMaterial *mat,
     return GPU_stack_link(mat, node, "node_axes_to_rotation_identity", in, out);
   }
 
-  const float primary_arr[1] = {(float)node->custom1};
-  const float secondary_arr[1] = {(float)node->custom2};
+  const float primary = {(float)node->custom1};
+  const float secondary = {(float)node->custom2};
   const int tertiary_axis = (0 + 1 + 2) - node->custom1 - node->custom2;
-  const float tertiary_arr[1] = {(float)tertiary_axis};
+  const float tertiary = {(float)tertiary_axis};
 
   const bool invert_tertiary = (node->custom2 + 1) % 3 == node->custom1;
-  const float factor_arr[1] = {invert_tertiary ? -1.0f : 1.0f};
+  const float factor = {invert_tertiary ? -1.0f : 1.0f};
 
   return GPU_stack_link(mat,
                         node,
                         "node_axes_to_rotation",
                         in,
                         out,
-                        GPU_constant(primary_arr),
-                        GPU_constant(secondary_arr),
-                        GPU_constant(tertiary_arr),
-                        GPU_constant(factor_arr));
+                        GPU_constant(&primary_arr),
+                        GPU_constant(&secondary_arr),
+                        GPU_constant(&tertiary_arr),
+                        GPU_constant(&factor_arr));
 }
 
 static void node_extra_info(NodeExtraInfoParams &params)

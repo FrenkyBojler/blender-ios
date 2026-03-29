@@ -750,6 +750,15 @@ void convert_float4x4_to_quaternion()
  * Quaternion to other.
  */
 
+void convert_quaternion_to_float2()
+{
+  auto &sampler_in = sampler_get(compositor_convert_quaternion_to_float2, input_tx);
+  auto &image_out = image_get(compositor_convert_quaternion_to_float2, output_img);
+  int2 texel = int2(gl_GlobalInvocationID.xy);
+  float4 value = texture_load(sampler_in, texel);
+  imageStore(image_out, texel, float4(quaternion_to_float2(value), 0.0f, 0.0f));
+}
+
 void convert_quaternion_to_float3()
 {
   auto &sampler_in = sampler_get(compositor_convert_quaternion_to_float3, input_tx);
