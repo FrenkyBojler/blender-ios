@@ -1316,7 +1316,6 @@ bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
       }
     }
 
-    BLI_assert_unreachable();
     return NULL_INDEX;
   };
 
@@ -1333,8 +1332,7 @@ bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
   //   }
   // }
 
-  // if (false)
-  {
+  if (false) {
     // fill_tris = set()
 
     // for j in range(len(pos_hint)):
@@ -1346,6 +1344,7 @@ bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
     // fill_tris = list(fill_tris)
 
     const int first_tri = get_tri_for_point(fill_point);
+    BLI_assert(first_tri != NULL_INDEX);
 
     VectorSet<int> fill_tris;
     Vector<int> tris_to_check;
@@ -1410,6 +1409,7 @@ bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
       }
     }
 
+    // /* TODO. */
     // VectorSet<int> new_verts;
     // for (const int fill_index : fill_tris.index_range()) {
     //   const int tri_index = fill_tris[fill_index];
@@ -1420,11 +1420,106 @@ bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
     //   }
     // }
 
-    // /* TODO. */
     // geometry.append(Vector<int>());
     // for (const int i : new_verts.index_range()) {
     //   geometry.last().append(new_verts[i]);
     // }
+  }
+
+  {
+    Array<int> tri_hint_index(result.face.size(), NULL_INDEX);
+    Array<float> tri_weight(result.face.size(), 0.0f);
+
+    Array<float2> pos_hint(2);
+    pos_hint[0] = float2(0.0f, 0.0f);
+    pos_hint[1] = fill_point;
+
+    for (const int hint_index : pos_hint.index_range()) {
+      const float2 hint_pos = pos_hint[hint_index];
+
+      Set<int> checked_tris;
+
+      int tri_index = get_tri_for_point(hint_pos);
+      if (tri_index == NULL_INDEX) {
+        tri_index = 0;
+      }
+
+      tri_hint_index[tri_index] = hint_index;
+      tri_weight[tri_index] = 1000000.0f;
+
+      Vector<int> tris_to_check;
+      tris_to_check.append(tri_index);
+
+      int temp = 0;
+
+      while (!tris_to_check.is_empty()) {
+        temp++;
+        BLI_assert(temp < 1000);
+
+        Vector<int> new_tris_to_check;
+
+        for (const int i : tris_to_check.index_range()) {
+          const int tri_index = tris_to_check[i];
+
+          checked_tris.add(tri_index);
+
+          for (const int j : IndexRange(3)) {
+            int next_tri = NULL_INDEX;
+            int edge_index = NULL_INDEX;
+
+            if (j == 0) {
+              next_tri = tri_adjacency_0[tri_index].first;
+              edge_index = tri_adjacency_0[tri_index].second;
+            }
+            if (j == 1) {
+              next_tri = tri_adjacency_1[tri_index].first;
+              edge_index = tri_adjacency_1[tri_index].second;
+            }
+            if (j == 2) {
+              next_tri = tri_adjacency_2[tri_index].first;
+              edge_index = tri_adjacency_2[tri_index].second;
+            }
+
+            if (next_tri == NULL_INDEX) {
+              continue;
+            }
+            if (is_source_edge[edge_index]) {
+              continue;
+            }
+            if (checked_tris.contains(next_tri)) {
+              continue;
+            }
+
+            const float weight = std::min(edge_weights[edge_index], tri_weight[tri_index]);
+            if (tri_weight[next_tri] == NULL_INDEX) {
+              new_tris_to_check.append(next_tri);
+              tri_hint_index[next_tri] = hint_index;
+              tri_weight[next_tri] = weight;
+              continue;
+            }
+
+            if (tri_weight[next_tri] < weight) {
+              new_tris_to_check.append(next_tri);
+              tri_hint_index[next_tri] = hint_index;
+              tri_weight[next_tri] = weight;
+            }
+          }
+        }
+
+        tris_to_check = new_tris_to_check;
+      }
+    }
+
+    for (const int tri_index : result.face.index_range()) {
+      if (tri_hint_index[tri_index] == 1) {
+        const Vector<int> &tri = result.face[tri_index];
+
+        geometry.append(Vector<int>());
+        for (const int i : tri.index_range()) {
+          geometry.last().append(tri[i]);
+        }
+      }
+    }
   }
 
   // {
