@@ -83,9 +83,6 @@ namespace blender {
 #define SPLINE_RESOL_CAP_MIN 8
 #define SPLINE_RESOL_CAP_MAX 64
 
-/* found this gives best performance for high detail masks, values between 2 and 8 work best */
-#define BUCKET_PIXELS_PER_CELL 4
-
 #define SF_EDGE_IS_BOUNDARY 0xff
 #define SF_KEYINDEX_TEMP_ID uint(-1)
 
@@ -312,77 +309,6 @@ static void maskrasterize_spline_differentiate_point_outset(float (*diff_feather
   }
 }
 
-/* this function is not exact, sometimes it returns false positives,
- * the main point of it is to clear out _almost_ all bucket/face non-intersections,
- * returning true in corner cases is ok but missing an intersection is NOT.
- *
- * method used
- * - check if the center of the buckets bounding box is intersecting the face
- * - if not get the max radius to a corner of the bucket and see how close we
- *   are to any of the triangle edges.
- */
-static bool layer_bucket_isect_test(const MaskRasterLayer *layer,
-                                    uint face_index,
-                                    const uint bucket_x,
-                                    const uint bucket_y,
-                                    const float bucket_size_x,
-                                    const float bucket_size_y,
-                                    const float bucket_max_rad_squared)
-{
-  uint *face = layer->face_array[face_index];
-  float (*cos)[3] = layer->face_coords;
-
-  const float xmin = layer->bounds.xmin + (bucket_size_x * float(bucket_x));
-  const float ymin = layer->bounds.ymin + (bucket_size_y * float(bucket_y));
-  const float xmax = xmin + bucket_size_x;
-  const float ymax = ymin + bucket_size_y;
-
-  const float cent[2] = {(xmin + xmax) * 0.5f, (ymin + ymax) * 0.5f};
-
-  if (face[3] == TRI_VERT) {
-    const float *v1 = cos[face[0]];
-    const float *v2 = cos[face[1]];
-    const float *v3 = cos[face[2]];
-
-    if (isect_point_tri_v2(cent, v1, v2, v3)) {
-      return true;
-    }
-
-    if ((dist_squared_to_line_segment_v2(cent, v1, v2) < bucket_max_rad_squared) ||
-        (dist_squared_to_line_segment_v2(cent, v2, v3) < bucket_max_rad_squared) ||
-        (dist_squared_to_line_segment_v2(cent, v3, v1) < bucket_max_rad_squared))
-    {
-      return true;
-    }
-
-    // printf("skip tri\n");
-    return false;
-  }
-
-  const float *v1 = cos[face[0]];
-  const float *v2 = cos[face[1]];
-  const float *v3 = cos[face[2]];
-  const float *v4 = cos[face[3]];
-
-  if (isect_point_tri_v2(cent, v1, v2, v3)) {
-    return true;
-  }
-  if (isect_point_tri_v2(cent, v1, v3, v4)) {
-    return true;
-  }
-
-  if ((dist_squared_to_line_segment_v2(cent, v1, v2) < bucket_max_rad_squared) ||
-      (dist_squared_to_line_segment_v2(cent, v2, v3) < bucket_max_rad_squared) ||
-      (dist_squared_to_line_segment_v2(cent, v3, v4) < bucket_max_rad_squared) ||
-      (dist_squared_to_line_segment_v2(cent, v4, v1) < bucket_max_rad_squared))
-  {
-    return true;
-  }
-
-  // printf("skip quad\n");
-  return false;
-}
-
 static void layer_bucket_init_dummy(MaskRasterLayer *layer)
 {
   layer->face_tot = 0;
@@ -406,9 +332,15 @@ static void layer_bucket_init(MaskRasterLayer *layer, const float pixel_size)
 
   const float bucket_dim_x = BLI_rctf_size_x(&layer->bounds);
   const float bucket_dim_y = BLI_rctf_size_y(&layer->bounds);
+  
+  /* Bucket size in pixels: smaller values are more granular (less work for raster loop),
+   * but more memory and more work in single threaded initialization time. Found that 8
+   * seems to be optimal for both simple (150 faces) & complex (16000 faces) masks at
+   * HD / 4K resolutions. */
+  constexpr int bucket_pixels_per_cell = 8;
 
-  layer->buckets_x = uint((bucket_dim_x / pixel_size) / float(BUCKET_PIXELS_PER_CELL));
-  layer->buckets_y = uint((bucket_dim_y / pixel_size) / float(BUCKET_PIXELS_PER_CELL));
+  layer->buckets_x = uint((bucket_dim_x / pixel_size) / float(bucket_pixels_per_cell));
+  layer->buckets_y = uint((bucket_dim_y / pixel_size) / float(bucket_pixels_per_cell));
 
   //      printf("bucket size %ux%u\n", layer->buckets_x, layer->buckets_y);
 
@@ -495,32 +427,17 @@ static void layer_bucket_init(MaskRasterLayer *layer, const float pixel_size)
             yi_max = layer->buckets_y - 1;
           }
 
+          /* Add face to all buckets within the face bounding box. */
           for (yi = yi_min; yi <= yi_max; yi++) {
             uint bucket_index = (layer->buckets_x * yi) + xi_min;
             for (xi = xi_min; xi <= xi_max; xi++, bucket_index++) {
-              /* correct but do in outer loop */
-              // uint bucket_index = (layer->buckets_x * yi) + xi;
 
               BLI_assert(xi < layer->buckets_x);
               BLI_assert(yi < layer->buckets_y);
               BLI_assert(bucket_index < bucket_tot);
 
-              /* Check if the bucket intersects with the face. */
-              /* NOTE: there is a trade off here since checking box/tri intersections isn't as
-               * optimal as it could be, but checking pixels against faces they will never
-               * intersect with is likely the greater slowdown here -
-               * so check if the cell intersects the face. */
-              if (layer_bucket_isect_test(layer,
-                                          face_index,
-                                          xi,
-                                          yi,
-                                          bucket_size_x,
-                                          bucket_size_y,
-                                          bucket_max_rad_squared))
-              {
-                BLI_linklist_prepend_arena(&bucketstore[bucket_index], face_index_void, arena);
-                bucketstore_tot[bucket_index]++;
-              }
+              BLI_linklist_prepend_arena(&bucketstore[bucket_index], face_index_void, arena);
+              bucketstore_tot[bucket_index]++;
             }
           }
         }
