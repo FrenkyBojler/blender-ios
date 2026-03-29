@@ -2022,7 +2022,8 @@ static void blend_read(BlendDataReader *reader, ModifierData *md)
 {
   NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(md);
   BLO_read_string(reader, &nmd->bake_directory);
-  if (nmd->node_group == nullptr) {
+  if (nmd->node_group == nullptr || nmd->modifier.system_properties) {
+    /* Don't bother reading old settings when modifier system properties are available. */
     nmd->settings.properties = nullptr;
   }
   else {
