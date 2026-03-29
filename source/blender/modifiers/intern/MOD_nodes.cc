@@ -113,11 +113,6 @@ static void init_data(ModifierData *md)
 static void find_dependencies_from_settings(const NodesModifierData &nmd,
                                             nodes::EvalDependencies &deps)
 {
-  IDP_foreach_property(nmd.settings.properties, IDP_TYPE_FILTER_ID, [&](IDProperty *property) {
-    if (ID *id = IDP_ID_get(property)) {
-      deps.add_generic_id_full(id);
-    }
-  });
   IDP_foreach_property(
       nmd.modifier.system_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *property) {
         if (ID *id = IDP_ID_get(property)) {
