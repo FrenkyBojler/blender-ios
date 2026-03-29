@@ -1132,9 +1132,20 @@ bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
 
   const Span<float3> strokes_pos = strokes.positions();
 
+  const float4x4 local_transform = float4x4::identity();
+
+  const float4x4 &projection = ED_view3d_ob_project_mat_get(view_context.rv3d, view_context.obact);
+
+  ed::greasepencil::DrawingPlacement placement(scene, region, view3d, object_eval, &layer);
+  if (placement.use_project_to_surface() || placement.use_project_to_stroke()) {
+    placement.cache_viewport_depths(&depsgraph, &region, &view3d);
+  }
+
   for (const int i : strokes.points_range()) {
     const float3 pos = strokes_pos[i];
-    input.vert[i] = double2(pos.x, pos.z);
+
+    input.vert[i] = double2(ED_view3d_project_float_v2_m4(
+        &region, math::transform_point(local_transform, pos), projection));
   }
 
   input.edge.reinitialize(strokes.points_num() - strokes.curves_num() + num_cyclic);
@@ -1334,7 +1345,7 @@ bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
 
     // fill_tris = list(fill_tris)
 
-    const int first_tri = get_tri_for_point(float2(0.0f, 0.0f));
+    const int first_tri = get_tri_for_point(fill_point);
 
     VectorSet<int> fill_tris;
     Vector<int> tris_to_check;
@@ -1459,8 +1470,8 @@ bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
     offsets[curve_i] = geometry_i.size();
 
     for (const int geom_i : geometry_i.index_range()) {
-      positions[i++] = float3(
-          result.vert[geometry_i[geom_i]].x, 0.0f, result.vert[geometry_i[geom_i]].y);
+      const float2 pos_2d = float2(result.vert[geometry_i[geom_i]]);
+      positions[i++] = placement.project(pos_2d);
     }
   }
 
