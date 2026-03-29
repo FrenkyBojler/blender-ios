@@ -1607,8 +1607,8 @@ class SEQUENCER_MT_color_tag_picker(SequencerColorTagPicker, Menu):
 
 
 class SEQUENCER_PT_voiceover(SequencerButtonsPanel, Panel):
-    bl_label = "Voiceover"
-    bl_category = "Voiceover"
+    bl_label = "Record"
+    bl_category = "Record"
 
     @classmethod
     def poll(cls, context):
@@ -1674,7 +1674,10 @@ class SEQUENCER_PT_voiceover_output(SequencerButtonsPanel, Panel):
         layout.prop(ed, "voiceover_audio_codec")
         layout.prop(ed, "voiceover_audio_channels")
         layout.prop(ed, "voiceover_sample_rate")
-        layout.prop(ed, "voiceover_bitrate")
+        row = layout.row()
+        row.enabled = ed.voiceover_audio_codec not in {'WAV_PCM', 'FLAC'}
+        row.prop(ed, "voiceover_bitrate")
+        layout.operator("sequencer.voiceover_purge_unused", icon='TRASH')
 
 
 class SEQUENCER_PT_cache_settings(SequencerButtonsPanel, Panel):

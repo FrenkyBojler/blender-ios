@@ -121,6 +121,7 @@ void sequencer_operatortypes()
 
   /* `sequencer_voiceover.cc` */
   WM_operatortype_append(SEQUENCER_OT_voiceover_record);
+  WM_operatortype_append(SEQUENCER_OT_voiceover_purge_unused);
 
   /* sequencer_modifiers.c */
   WM_operatortype_append(SEQUENCER_OT_strip_modifier_add);

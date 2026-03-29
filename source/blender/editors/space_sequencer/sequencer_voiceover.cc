@@ -2,10 +2,14 @@
 #include <climits>
 #include <cmath>
 #include <ctime>
+#include <string>
+#include <unordered_set>
+#include <vector>
 
 #include "MEM_guardedalloc.h"
 
 #include "BLI_fileops.h"
+#include "BLI_listbase.h"
 #include "BLI_math_base.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
@@ -13,6 +17,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
+#include "DNA_sound_types.h"
 
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
@@ -36,6 +41,9 @@
 
 #include "ED_screen.hh"
 #include "ED_sequencer.hh"
+
+#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #include "sequencer_intern.hh"
 
@@ -523,6 +531,211 @@ static wmOperatorStatus sequencer_voiceover_record_modal(bContext *C,
   return OPERATOR_PASS_THROUGH;
 }
 
+struct VoiceoverPurgePreview {
+  int total_candidates = 0;
+  int unused_count = 0;
+  char directory[FILE_MAXDIR] = "";
+  char prefix[256] = "";
+};
+
+static void voiceover_purge_preview_free(wmOperator *op)
+{
+  if (op->customdata != nullptr) {
+    MEM_delete(static_cast<VoiceoverPurgePreview *>(op->customdata));
+    op->customdata = nullptr;
+  }
+}
+
+static bool voiceover_purge_settings_resolve(bContext *C,
+                                             ReportList *reports,
+                                             char r_directory[FILE_MAXDIR],
+                                             char r_prefix[256])
+{
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
+  Editing *ed = seq::editing_get(scene);
+  VoiceoverResolvedSettings settings{};
+  voiceover_resolve_settings(ed, &settings);
+
+  if (BLI_path_is_rel(settings.directory) && BKE_main_blendfile_path(bmain)[0] == '\0') {
+    BKE_report(reports,
+               RPT_ERROR,
+               "Save the .blend file before using a relative Voiceover output directory");
+    return false;
+  }
+
+  BLI_strncpy(r_directory, settings.directory, FILE_MAXDIR);
+  BLI_path_abs(r_directory, ID_BLEND_PATH(bmain, &scene->id));
+
+  if (!BLI_is_dir(r_directory)) {
+    BKE_reportf(reports, RPT_ERROR, "Voiceover directory does not exist: %s", r_directory);
+    return false;
+  }
+
+  BLI_strncpy(r_prefix, settings.filename, 256);
+  return true;
+}
+
+static void voiceover_purge_collect_candidate_files(const char *directory,
+                                                    const char *prefix,
+                                                    std::vector<std::string> &r_paths)
+{
+  direntry *entries = nullptr;
+  const int entries_num = int(BLI_filelist_dir_contents(directory, &entries));
+  for (int i = 0; i < entries_num; i++) {
+    const direntry &entry = entries[i];
+    if (FILENAME_IS_CURRPAR(entry.relname) || (entry.type & S_IFREG) == 0) {
+      continue;
+    }
+    if (!STRPREFIX(entry.relname, prefix)) {
+      continue;
+    }
+    r_paths.emplace_back(entry.path);
+  }
+  BLI_filelist_free(entries, entries_num);
+}
+
+static void voiceover_purge_collect_used_sound_paths(const ListBaseT<Strip> *seqbase,
+                                                     std::unordered_set<std::string> &r_paths)
+{
+  for (const Strip &strip : *seqbase) {
+    if (strip.type == STRIP_TYPE_META) {
+      voiceover_purge_collect_used_sound_paths(&strip.seqbase, r_paths);
+      continue;
+    }
+    if (strip.type != STRIP_TYPE_SOUND || strip.sound == nullptr) {
+      continue;
+    }
+
+    char filepath[FILE_MAX];
+    STRNCPY(filepath, strip.sound->filepath);
+    BLI_path_abs(filepath, ID_BLEND_PATH_FROM_GLOBAL(&strip.sound->id));
+    r_paths.insert(filepath);
+  }
+}
+
+static bool voiceover_purge_compute_unused_paths(bContext *C,
+                                                 ReportList *reports,
+                                                 VoiceoverPurgePreview *r_preview,
+                                                 std::vector<std::string> *r_unused_paths)
+{
+  Main *bmain = CTX_data_main(C);
+
+  if (!voiceover_purge_settings_resolve(C, reports, r_preview->directory, r_preview->prefix)) {
+    return false;
+  }
+
+  std::vector<std::string> candidate_paths;
+  voiceover_purge_collect_candidate_files(
+      r_preview->directory, r_preview->prefix, candidate_paths);
+  r_preview->total_candidates = int(candidate_paths.size());
+
+  std::unordered_set<std::string> used_paths;
+  for (Scene *scene_iter = static_cast<Scene *>(bmain->scenes.first); scene_iter != nullptr;
+       scene_iter = static_cast<Scene *>(scene_iter->id.next))
+  {
+    if (scene_iter->ed == nullptr) {
+      continue;
+    }
+    voiceover_purge_collect_used_sound_paths(&scene_iter->ed->seqbase, used_paths);
+  }
+
+  if (r_unused_paths != nullptr) {
+    r_unused_paths->clear();
+  }
+  int unused_count = 0;
+  for (const std::string &candidate_path : candidate_paths) {
+    if (used_paths.find(candidate_path) != used_paths.end()) {
+      continue;
+    }
+    unused_count++;
+    if (r_unused_paths != nullptr) {
+      r_unused_paths->push_back(candidate_path);
+    }
+  }
+  r_preview->unused_count = unused_count;
+  return true;
+}
+
+static void sequencer_voiceover_purge_unused_ui(bContext * /*C*/, wmOperator *op)
+{
+  ui::Layout &layout = *op->layout;
+  const VoiceoverPurgePreview *preview = static_cast<const VoiceoverPurgePreview *>(
+      op->customdata);
+  if (preview == nullptr) {
+    return;
+  }
+
+  char message[FILE_MAX + 320];
+  SNPRINTF(message,
+           "%d unused files in %s with prefix %s",
+           preview->unused_count,
+           preview->directory,
+           preview->prefix);
+  layout.label(message, ICON_NONE);
+}
+
+static wmOperatorStatus sequencer_voiceover_purge_unused_invoke(bContext *C,
+                                                                wmOperator *op,
+                                                                const wmEvent * /*event*/)
+{
+  voiceover_purge_preview_free(op);
+
+  VoiceoverPurgePreview *preview = MEM_new<VoiceoverPurgePreview>(__func__);
+  if (!voiceover_purge_compute_unused_paths(C, op->reports, preview, nullptr)) {
+    MEM_delete(preview);
+    return OPERATOR_CANCELLED;
+  }
+
+  op->customdata = preview;
+  return WM_operator_props_dialog_popup(C, op, 420, "Purge Unused Voiceover Files", "Delete");
+}
+
+static wmOperatorStatus sequencer_voiceover_purge_unused_exec(bContext *C, wmOperator *op)
+{
+  VoiceoverPurgePreview preview{};
+  std::vector<std::string> unused_paths;
+  if (!voiceover_purge_compute_unused_paths(C, op->reports, &preview, &unused_paths)) {
+    voiceover_purge_preview_free(op);
+    return OPERATOR_CANCELLED;
+  }
+
+  if (unused_paths.empty()) {
+    BKE_report(op->reports, RPT_INFO, "No unused voiceover files to purge");
+    voiceover_purge_preview_free(op);
+    return OPERATOR_CANCELLED;
+  }
+
+  int deleted_count = 0;
+  int failed_count = 0;
+  for (const std::string &filepath : unused_paths) {
+    if (BLI_delete(filepath.c_str(), false, false) == 0) {
+      deleted_count++;
+    }
+    else {
+      failed_count++;
+    }
+  }
+
+  if (failed_count == 0) {
+    BKE_reportf(op->reports, RPT_INFO, "Deleted %d unused voiceover file(s)", deleted_count);
+  }
+  else {
+    BKE_reportf(op->reports,
+                RPT_WARNING,
+                "Deleted %d unused voiceover file(s), failed to delete %d file(s)",
+                deleted_count,
+                failed_count);
+  }
+  voiceover_purge_preview_free(op);
+  return (deleted_count > 0) ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
+}
+
+static void sequencer_voiceover_purge_unused_cancel(bContext * /*C*/, wmOperator *op)
+{
+  voiceover_purge_preview_free(op);
+}
+
 static wmOperatorStatus sequencer_voiceover_record_invoke(bContext *C,
                                                           wmOperator *op,
                                                           const wmEvent * /*event*/)
@@ -588,6 +801,23 @@ void SEQUENCER_OT_voiceover_record(wmOperatorType *ot)
   ot->poll = ED_operator_sequencer_active_editable;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+void SEQUENCER_OT_voiceover_purge_unused(wmOperatorType *ot)
+{
+  ot->name = "Purge Unused Voiceover Files";
+  ot->description =
+      "Delete files in the voiceover output directory that match the file-name prefix and are not "
+      "used by sound strips";
+  ot->idname = "SEQUENCER_OT_voiceover_purge_unused";
+
+  ot->invoke = sequencer_voiceover_purge_unused_invoke;
+  ot->exec = sequencer_voiceover_purge_unused_exec;
+  ot->cancel = sequencer_voiceover_purge_unused_cancel;
+  ot->poll = sequencer_edit_poll;
+  ot->ui = sequencer_voiceover_purge_unused_ui;
+
+  ot->flag = OPTYPE_UNDO;
 }
 
 }  // namespace blender::ed::vse
