@@ -231,6 +231,7 @@ static void refresh_node_socket(bNodeTree &ntree,
       if (new_socket == old_socket_with_same_identifier) {
         /* The existing socket has been updated, set the correct identifier again. */
         STRNCPY_UTF8(new_socket->identifier, socket_decl.identifier.c_str());
+        new_socket->runtime->identifier_ustr = UString(new_socket->identifier);
       }
       else {
         /* Move links to new socket with same identifier. */
@@ -396,6 +397,7 @@ static void do_forward_compat_versioning(bNode &node, const NodeDeclaration &nod
               node, socket, node_decl.inputs))
       {
         STRNCPY_UTF8(socket.identifier, new_identifier);
+        socket.runtime->identifier_ustr = UString(socket.identifier);
       }
     }
   }
@@ -405,6 +407,7 @@ static void do_forward_compat_versioning(bNode &node, const NodeDeclaration &nod
               node, socket, node_decl.outputs))
       {
         STRNCPY_UTF8(socket.identifier, new_identifier);
+        socket.runtime->identifier_ustr = UString(socket.identifier);
       }
     }
   }

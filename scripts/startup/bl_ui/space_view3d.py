@@ -2291,6 +2291,12 @@ class VIEW3D_MT_select_paint_mask(Menu):
 
         layout.operator("paint.face_select_linked")
 
+        layout.separator()
+        layout.operator("paint.face_vert_reveal", text="Reveal Hidden")
+        layout.operator("paint.face_select_hide", text="Hide Selected")
+        props = layout.operator("paint.face_select_hide", text="Hide Unselected")
+        props.unselected = True
+
 
 class VIEW3D_MT_select_paint_mask_vertex(Menu):
     bl_label = "Select"
@@ -2320,6 +2326,12 @@ class VIEW3D_MT_select_paint_mask_vertex(Menu):
         layout.separator()
 
         layout.operator("paint.vert_select_ungrouped", text="Ungrouped Vertices")
+
+        layout.separator()
+        layout.operator("paint.face_vert_reveal", text="Reveal Hidden")
+        layout.operator("paint.vert_select_hide", text="Hide Selected")
+        props = layout.operator("paint.vert_select_hide", text="Hide Unselected")
+        props.unselected = True
 
 
 class VIEW3D_MT_select_edit_pointcloud(Menu):
@@ -3868,7 +3880,7 @@ class VIEW3D_MT_add_object(Menu):
         props.name = "builtin.primitive_uv_sphere_add"
         props.space_type = 'VIEW_3D'
 
-        props = layout.operator("wm.tool_set_by_id", text="Add Ico Cube")
+        props = layout.operator("wm.tool_set_by_id", text="Add Ico Sphere")
         props.name = "builtin.primitive_ico_sphere_add"
         props.space_type = 'VIEW_3D'
 
