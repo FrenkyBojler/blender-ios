@@ -33,12 +33,10 @@ class VertexCountFieldInput final : public bke::MeshFieldInput {
                                  const AttrDomain domain,
                                  const IndexMask & /*mask*/) const final
   {
-    if (domain != AttrDomain::Point) {
-      return {};
-    }
     Array<int> counts(mesh.verts_num, 0);
     array_utils::count_indices(mesh.edges().cast<int>(), counts);
-    return VArray<int>::from_container(std::move(counts));
+    return mesh.attributes().adapt_domain<int>(
+        VArray<int>::from_container(std::move(counts)), AttrDomain::Point, domain);
   }
 
   uint64_t hash() const override
@@ -69,12 +67,10 @@ class VertexFaceCountFieldInput final : public bke::MeshFieldInput {
                                  const AttrDomain domain,
                                  const IndexMask & /*mask*/) const final
   {
-    if (domain != AttrDomain::Point) {
-      return {};
-    }
     Array<int> counts(mesh.verts_num, 0);
     array_utils::count_indices(mesh.corner_verts(), counts);
-    return VArray<int>::from_container(std::move(counts));
+    return mesh.attributes().adapt_domain<int>(
+        VArray<int>::from_container(std::move(counts)), AttrDomain::Point, domain);
   }
 
   uint64_t hash() const override
