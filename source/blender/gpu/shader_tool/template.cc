@@ -117,6 +117,8 @@ static void lower_template_instantiation(
     report_error(ERROR_TOK(toks[3]), "Invalid amount of argument in template instantiation.");
   }
 
+  const bool is_struct = (fn_name.prev() == Struct);
+
   /* Specialize template content. */
   SourceProcessor::Parser instance_parser(fn_decl, report_error);
 
@@ -127,9 +129,15 @@ static void lower_template_instantiation(
         instance_parser.replace(word, arg_name_value.second, true);
       }
     }
+    if (is_struct && word.next() != AngleOpen && token_str == fn_name.str()) {
+      /* Append template args after unspecified struct typename references.
+       * `A func(A<T> b) {}` > `A<T> func(A<T> b) {}`. */
+      instance_parser.insert_after(word.str_index_last_no_whitespace(),
+                                   SourceProcessor::template_arguments_mangle(inst_args));
+    }
   });
 
-  if (!all_template_args_in_function_signature) {
+  if (!is_struct && !all_template_args_in_function_signature) {
     /* Append template args after function name.
      * `void func() {}` > `void func<a, 1>() {}`. */
     size_t pos = fn_decl.find(" " + string(fn_name.str()));

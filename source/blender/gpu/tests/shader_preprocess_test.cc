@@ -842,6 +842,43 @@ static void test_preprocess_template_struct()
   {
     string input = R"(
 template<typename T>
+struct A {
+  T a;
+  A method(T b) const 
+  {
+    return A<T>{b};
+  }
+};
+template struct A<float>;
+)";
+    string expect = R"(
+#line 3
+struct ATfloat {
+  float a;
+#line 9
+};
+
+#ifndef GPU_METAL
+ATfloat ATfloat_ctor_();
+ATfloat _method(const ATfloat this_, float b);
+#endif
+#line 3
+                       ATfloat ATfloat_ctor_() {ATfloat r;r.a=0.0f;return r;}
+#line 5
+  ATfloat _method(const ATfloat this_, float b)
+  {
+    return _ctor(ATfloat) b _rotc() ;
+  }
+#line 11
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(
+template<typename T>
 struct A { T a; };
 template struct A<float>;
 )";
