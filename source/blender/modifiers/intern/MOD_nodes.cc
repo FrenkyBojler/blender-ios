@@ -2145,10 +2145,6 @@ static void copy_data(const ModifierData *md, ModifierData *target, const int fl
     /* Clear the bake path when duplicating. */
     tnmd->bake_directory = nullptr;
   }
-
-  if (nmd->settings.properties != nullptr) {
-    tnmd->settings.properties = IDP_CopyProperty_ex(nmd->settings.properties, flag);
-  }
 }
 
 void nodes_modifier_packed_bake_free(NodesModifierPackedBake *packed_bake)
