@@ -1262,11 +1262,18 @@ bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
       if (index_0 != tri_index && index_0 != NULL_INDEX) {
         tri_adjacency_0[tri_index] = std::pair<int, int>(index_0, edge_0);
       }
-
-      const int index_1 = edge_to_tris[edge_0].second;
-      if (index_1 != tri_index && index_1 != NULL_INDEX) {
-        tri_adjacency_0[tri_index] = std::pair<int, int>(index_1, edge_0);
+      else {
+        const int index_1 = edge_to_tris[edge_0].second;
+        if (index_1 != tri_index && index_1 != NULL_INDEX) {
+          tri_adjacency_0[tri_index] = std::pair<int, int>(index_1, edge_0);
+        }
+        else {
+          tri_adjacency_0[tri_index] = std::pair<int, int>(NULL_INDEX, edge_0);
+        }
       }
+    }
+    else {
+      tri_adjacency_0[tri_index] = std::pair<int, int>(NULL_INDEX, edge_0);
     }
 
     if (!is_source_edge[edge_1]) {
@@ -1274,11 +1281,18 @@ bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
       if (index_0 != tri_index && index_0 != NULL_INDEX) {
         tri_adjacency_1[tri_index] = std::pair<int, int>(index_0, edge_1);
       }
-
-      const int index_1 = edge_to_tris[edge_1].second;
-      if (index_1 != tri_index && index_1 != NULL_INDEX) {
-        tri_adjacency_1[tri_index] = std::pair<int, int>(index_1, edge_1);
+      else {
+        const int index_1 = edge_to_tris[edge_1].second;
+        if (index_1 != tri_index && index_1 != NULL_INDEX) {
+          tri_adjacency_1[tri_index] = std::pair<int, int>(index_1, edge_1);
+        }
+        else {
+          tri_adjacency_1[tri_index] = std::pair<int, int>(NULL_INDEX, edge_1);
+        }
       }
+    }
+    else {
+      tri_adjacency_1[tri_index] = std::pair<int, int>(NULL_INDEX, edge_1);
     }
 
     if (!is_source_edge[edge_2]) {
@@ -1286,11 +1300,18 @@ bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
       if (index_0 != tri_index && index_0 != NULL_INDEX) {
         tri_adjacency_2[tri_index] = std::pair<int, int>(index_0, edge_2);
       }
-
-      const int index_1 = edge_to_tris[edge_2].second;
-      if (index_1 != tri_index && index_1 != NULL_INDEX) {
-        tri_adjacency_2[tri_index] = std::pair<int, int>(index_1, edge_2);
+      else {
+        const int index_1 = edge_to_tris[edge_2].second;
+        if (index_1 != tri_index && index_1 != NULL_INDEX) {
+          tri_adjacency_2[tri_index] = std::pair<int, int>(index_1, edge_2);
+        }
+        else {
+          tri_adjacency_2[tri_index] = std::pair<int, int>(NULL_INDEX, edge_2);
+        }
       }
+    }
+    else {
+      tri_adjacency_2[tri_index] = std::pair<int, int>(NULL_INDEX, edge_2);
     }
   }
 
@@ -1411,22 +1432,6 @@ bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
         geometry.last().append(tri[i]);
       }
     }
-
-    // /* TODO. */
-    // VectorSet<int> new_verts;
-    // for (const int fill_index : fill_tris.index_range()) {
-    //   const int tri_index = fill_tris[fill_index];
-    //   const Vector<int> &tri = result.face[tri_index];
-
-    //   for (const int i : tri.index_range()) {
-    //     new_verts.add(tri[i]);
-    //   }
-    // }
-
-    // geometry.append(Vector<int>());
-    // for (const int i : new_verts.index_range()) {
-    //   geometry.last().append(new_verts[i]);
-    // }
   }
 
   {
@@ -1513,14 +1518,67 @@ bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
       }
     }
 
-    for (const int tri_index : result.face.index_range()) {
-      if (tri_hint_index[tri_index] == 1) {
-        const Vector<int> &tri = result.face[tri_index];
+    const int fill_hint_index = 1;
+
+    if (false) {
+      for (const int tri_index : result.face.index_range()) {
+        if (tri_hint_index[tri_index] == fill_hint_index) {
+          const Vector<int> &tri = result.face[tri_index];
+
+          geometry.append(Vector<int>());
+          for (const int i : tri.index_range()) {
+            geometry.last().append(tri[i]);
+          }
+        }
+      }
+    }
+
+    {
+      VectorSet<int> boundary_edges;
+
+      for (const int tri_index : result.face.index_range()) {
+        if (tri_hint_index[tri_index] != fill_hint_index) {
+          continue;
+        }
+
+        for (const int j : IndexRange(3)) {
+          int next_tri = NULL_INDEX;
+          int edge_index = NULL_INDEX;
+
+          if (j == 0) {
+            next_tri = tri_adjacency_0[tri_index].first;
+            edge_index = tri_adjacency_0[tri_index].second;
+          }
+          if (j == 1) {
+            next_tri = tri_adjacency_1[tri_index].first;
+            edge_index = tri_adjacency_1[tri_index].second;
+          }
+          if (j == 2) {
+            next_tri = tri_adjacency_2[tri_index].first;
+            edge_index = tri_adjacency_2[tri_index].second;
+          }
+
+          if (next_tri == NULL_INDEX) {
+            boundary_edges.add(edge_index);
+          }
+          else {
+            if (tri_hint_index[next_tri] == fill_hint_index) {
+              continue;
+            }
+            else {
+              boundary_edges.add(edge_index);
+            }
+          }
+        }
+      }
+
+      for (const int boundary_index : boundary_edges.index_range()) {
+        const int edge_index = boundary_edges[boundary_index];
+        const std::pair<int, int> edge = result.edge[edge_index];
 
         geometry.append(Vector<int>());
-        for (const int i : tri.index_range()) {
-          geometry.last().append(tri[i]);
-        }
+        geometry.last().append(edge.first);
+        geometry.last().append(edge.second);
       }
     }
   }
@@ -1547,6 +1605,10 @@ bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
 
   for (const int curve_i : geometry.index_range()) {
     point_num += geometry[curve_i].size();
+  }
+
+  if (point_num == 0) {
+    return bke::CurvesGeometry();
   }
 
   bke::CurvesGeometry curves(point_num, curve_num);
