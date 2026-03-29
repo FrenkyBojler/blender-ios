@@ -81,7 +81,7 @@ float bitmask_to_occlusion_cosine(uint bitmask)
 #endif
 }
 
-float bsdf_eval(float3 N, float3 L, float3 V)
+float bsdf_eval(float3 N, float3 L, float3 /*V*/)
 {
   return dot(N, L);
 }

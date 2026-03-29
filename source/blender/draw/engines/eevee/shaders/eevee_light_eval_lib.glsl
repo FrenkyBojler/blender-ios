@@ -110,7 +110,7 @@ void light_eval_single_closure(LightData light,
                                float3 V,
                                float attenuation,
                                float shadow,
-                               const bool is_transmission)
+                               const bool /*is_transmission*/)
 {
   attenuation *= light_power_get(light, cl.type);
   if (attenuation < 1e-30f) {
@@ -209,7 +209,7 @@ void light_eval_transmission(ClosureLightStack &stack,
                              float3 P,
                              float3 Ng,
                              float3 V,
-                             float vPz,
+                             [[maybe_unused]] float vPz,
                              Thickness thickness,
                              uchar receiver_light_set,
                              float terminator_normal_offset,
@@ -254,7 +254,7 @@ void light_eval_reflection(ClosureLightStack &stack,
                            float3 P,
                            float3 Ng,
                            float3 V,
-                           float vPz,
+                           [[maybe_unused]] float vPz,
                            uchar receiver_light_set,
                            float terminator_normal_offset,
                            float terminator_geometry_offset)

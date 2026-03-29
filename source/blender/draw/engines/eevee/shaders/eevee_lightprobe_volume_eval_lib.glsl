@@ -32,7 +32,7 @@ int3 lightprobe_volume_grid_brick_coord(float3 lP)
 /**
  * Return the local coordinated of the shading point inside the brick in unnormalized coordinate.
  */
-float3 lightprobe_volume_grid_brick_local_coord(VolumeProbeData grid_data,
+float3 lightprobe_volume_grid_brick_local_coord(VolumeProbeData /*grid_data*/,
                                                 float3 lP,
                                                 int3 brick_coord)
 {

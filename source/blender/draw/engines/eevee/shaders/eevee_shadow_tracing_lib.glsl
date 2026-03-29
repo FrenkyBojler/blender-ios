@@ -150,7 +150,7 @@ struct ShadowRayDirectional {
 
 /* `lP` is supposed to be in light rotated space. But not translated. */
 ShadowRayDirectional shadow_ray_generate_directional(
-    LightData light, float2 random_2d, float3 lP, float3 lNg, float texel_radius)
+    LightData light, float2 random_2d, float3 lP, float3 /*lNg*/, float texel_radius)
 {
   float clip_near = orderedIntBitsToFloat(light.clip_near);
   /* Assumed to be non-null. */
@@ -221,7 +221,7 @@ struct ShadowRayPunctual {
 ShadowRayPunctual shadow_ray_generate_punctual(LightData light,
                                                float2 random_2d,
                                                float3 lP,
-                                               float3 lNg)
+                                               float3 /*lNg*/)
 {
   if (light.type == LIGHT_RECT) {
     random_2d = random_2d * 2.0f - 1.0f;

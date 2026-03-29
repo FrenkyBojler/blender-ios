@@ -231,7 +231,7 @@ float2 gpencil_project_to_screenspace(float4 v, float4 viewport_res)
   return ((v.xy / v.w) * 0.5f + 0.5f) * viewport_res.xy;
 }
 
-float gpencil_stroke_thickness_modulate(float thickness, float4 ndc_pos, float4 viewport_res)
+float gpencil_stroke_thickness_modulate(float thickness, float4 /*ndc_pos*/, float4 viewport_res)
 {
   /* Modify stroke thickness by object scale. */
   thickness = length(to_float3x3(drw_modelmat()) * float3(thickness * M_SQRT1_3));

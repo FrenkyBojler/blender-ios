@@ -25,7 +25,7 @@
  * \{ */
 
 /* L0 Band. */
-float spherical_harmonics_L0_M0(float3 v)
+float spherical_harmonics_L0_M0(float3 /*v*/)
 {
   return 0.282094792f;
 }
@@ -317,7 +317,7 @@ float3 spherical_harmonics_evaluate(float3 direction, SphericalHarmonicL2 sh)
 /** \name Rotation
  * \{ */
 
-SphericalHarmonicBandL0 spherical_harmonics_L0_rotate(float3x3 rotation,
+SphericalHarmonicBandL0 spherical_harmonics_L0_rotate(float3x3 /*rotation*/,
                                                       SphericalHarmonicBandL0 L0)
 {
   /* L0 band being a constant function (i.e: there is no directionality) there is nothing to

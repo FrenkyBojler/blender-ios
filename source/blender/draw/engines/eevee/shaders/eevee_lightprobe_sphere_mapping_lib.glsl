@@ -33,7 +33,7 @@ SphereProbeUvArea reinterpret_as_atlas_coord(int4 packed_coord)
  * Returned vector is not normalized. */
 float3 sphere_probe_texel_to_direction(float2 local_texel,
                                        SphereProbePixelArea texel_area,
-                                       SphereProbeUvArea uv_area,
+                                       SphereProbeUvArea /*uv_area*/,
                                        float2 &sampling_uv)
 {
   /* UV in sampling area. No half pixel bias to texel as the octahedral map edges area lined up
