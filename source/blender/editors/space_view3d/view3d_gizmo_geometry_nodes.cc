@@ -737,11 +737,12 @@ class TransformGizmos : public NodeGizmos {
                                   value.view<3, 3>();
 
           /* Apply only the new column lengths to the original directions to avoid
-           * rotation drift when repeatedly applying the scale transform. */
+           * rotation drift when repeatedly applying the scale transform, see #155866. */
           for (int i = 0; i < 3; i++) {
             const float3 col = float3(value[i]);
-            const float len = math::length(col);
-            if (len > 1e-6f) {
+            const float len_sq = math::length_squared(col);
+            if (len_sq > 1e-12f) {
+              const float len = math::sqrt(len_sq);
               value[i] = float4(col * (math::length(float3(scaled[i])) / len), 0.0f);
             }
           }
