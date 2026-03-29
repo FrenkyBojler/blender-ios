@@ -1257,7 +1257,7 @@ bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
     const int edge_1 = tri_edges_1[tri_index];
     const int edge_2 = tri_edges_2[tri_index];
 
-    if (!is_source_edge[edge_0]) {
+    {
       const int index_0 = edge_to_tris[edge_0].first;
       if (index_0 != tri_index && index_0 != NULL_INDEX) {
         tri_adjacency_0[tri_index] = std::pair<int, int>(index_0, edge_0);
@@ -1272,11 +1272,8 @@ bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
         }
       }
     }
-    else {
-      tri_adjacency_0[tri_index] = std::pair<int, int>(NULL_INDEX, edge_0);
-    }
 
-    if (!is_source_edge[edge_1]) {
+    {
       const int index_0 = edge_to_tris[edge_1].first;
       if (index_0 != tri_index && index_0 != NULL_INDEX) {
         tri_adjacency_1[tri_index] = std::pair<int, int>(index_0, edge_1);
@@ -1291,11 +1288,8 @@ bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
         }
       }
     }
-    else {
-      tri_adjacency_1[tri_index] = std::pair<int, int>(NULL_INDEX, edge_1);
-    }
 
-    if (!is_source_edge[edge_2]) {
+    {
       const int index_0 = edge_to_tris[edge_2].first;
       if (index_0 != tri_index && index_0 != NULL_INDEX) {
         tri_adjacency_2[tri_index] = std::pair<int, int>(index_0, edge_2);
@@ -1309,9 +1303,6 @@ bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
           tri_adjacency_2[tri_index] = std::pair<int, int>(NULL_INDEX, edge_2);
         }
       }
-    }
-    else {
-      tri_adjacency_2[tri_index] = std::pair<int, int>(NULL_INDEX, edge_2);
     }
   }
 
