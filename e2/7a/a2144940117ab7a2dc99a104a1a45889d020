@@ -1,0 +1,1 @@
+Referenced by issue #156514, Blender 5.1 crashes when running bpy.ops.preferences.keymap_restore(all=True)
