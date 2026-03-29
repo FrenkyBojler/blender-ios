@@ -16,8 +16,7 @@
 
 namespace blender::fn {
 
-template<typename T>
-struct Polynom {
+template<typename T> struct Polynom {
   Vector<T> factors;
 
   static Polynom<T> from_degree_variable(const int degree, T value)
@@ -65,7 +64,7 @@ struct Polynom {
     if (this->factors.size() != 2) {
       return false;
     }
-    
+
     return math::abs(this->factors[1]) == 1;
   }
 
@@ -75,7 +74,7 @@ struct Polynom {
     return {this->factors[0], this->factors[1] < 0};
   }
 
-  friend Polynom<T> operator +(const Polynom<T> &a, const Polynom<T> &b)
+  friend Polynom<T> operator+(const Polynom<T> &a, const Polynom<T> &b)
   {
     Vector<T> factors(std::max(a.factors.size(), b.factors.size()), T(0));
     for (const int i : a.factors.index_range()) {
@@ -87,7 +86,7 @@ struct Polynom {
     return {std::move(factors)};
   }
 
-  friend Polynom<T> operator -(const Polynom<T> &a, const Polynom<T> &b)
+  friend Polynom<T> operator-(const Polynom<T> &a, const Polynom<T> &b)
   {
     Vector<T> factors(std::max(a.factors.size(), b.factors.size()), T(0));
     for (const int i : a.factors.index_range()) {
@@ -99,7 +98,7 @@ struct Polynom {
     return {std::move(factors)};
   }
 
-  friend Polynom<T> operator -(const Polynom<T> &value)
+  friend Polynom<T> operator-(const Polynom<T> &value)
   {
     Vector<T> factors = value.factors;
     for (const int i : factors.index_range()) {
@@ -108,7 +107,7 @@ struct Polynom {
     return {std::move(factors)};
   }
 
-  friend Polynom<T> operator *(const Polynom<T> &a, const Polynom<T> &b)
+  friend Polynom<T> operator*(const Polynom<T> &a, const Polynom<T> &b)
   {
     Vector<T> factors(a.factors.size() + b.factors.size(), T(0));
 

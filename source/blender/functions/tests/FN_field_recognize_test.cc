@@ -16,7 +16,7 @@ TEST(field, PolynomConst)
 {
   EXPECT_TRUE(Polynom<int>::from_const(555).is_const());
   EXPECT_EQ(Polynom<int>::from_const(555).size(), 1);
-  
+
   EXPECT_EQ(Polynom<int>::from_degree_variable(1, 1).is_const(), false);
   EXPECT_EQ(Polynom<int>::from_degree_variable(1, 1).size(), 2);
 }
@@ -26,7 +26,7 @@ TEST(field, PolynomValue)
   EXPECT_EQ(Polynom<int>::from_const(555).value_at(0), 555);
   EXPECT_EQ(Polynom<int>::from_const(555).value_at(std::numeric_limits<int>::min()), 555);
   EXPECT_EQ(Polynom<int>::from_const(555).value_at(std::numeric_limits<int>::max()), 555);
-  
+
   EXPECT_EQ(Polynom<int>::from_degree_variable(1, 2).value_at(-10), -20);
   EXPECT_EQ(Polynom<int>::from_degree_variable(1, 2).value_at(10), 20);
 
@@ -43,8 +43,12 @@ TEST(field, PolynomLine)
   EXPECT_EQ(Polynom<int>::from_degree_variable(1, 1).as_unit_line(), std::make_pair(0, false));
   EXPECT_EQ(Polynom<int>::from_degree_variable(1, -1).as_unit_line(), std::make_pair(0, true));
 
-  EXPECT_EQ((Polynom<int>::from_const(3) + Polynom<int>::from_degree_variable(1, 1)).as_unit_line(), std::make_pair(3, false));
-  EXPECT_EQ((Polynom<int>::from_const(3) + Polynom<int>::from_degree_variable(1, -1)).as_unit_line(), std::make_pair(3, true));
+  EXPECT_EQ(
+      (Polynom<int>::from_const(3) + Polynom<int>::from_degree_variable(1, 1)).as_unit_line(),
+      std::make_pair(3, false));
+  EXPECT_EQ(
+      (Polynom<int>::from_const(3) + Polynom<int>::from_degree_variable(1, -1)).as_unit_line(),
+      std::make_pair(3, true));
 
   EXPECT_FALSE(Polynom<int>::from_degree_variable(0, 1).is_unit_line());
   EXPECT_FALSE(Polynom<int>::from_degree_variable(2, 1).is_unit_line());

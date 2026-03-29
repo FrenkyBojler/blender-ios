@@ -624,7 +624,7 @@ static GVArray copy_with_transform(const std::pair<int, bool> transform,
                                    const IndexMask &mask)
 {
   const auto [shift, index_is_reversed] = transform;
-  
+
   /* If range is reversed then .start() is end so must add one to make it .last() */
   const int first_index_offset = shift + int(index_is_reversed);
 
@@ -686,12 +686,14 @@ GVArray EvaluateAtIndexInput::get_varray_for_context(const bke::GeometryFieldCon
   const GVArray &values = value_evaluator.get_evaluated(0);
   const CPPType &type = values.type();
 
-
   const std::shared_ptr<const fn::FieldInputs> &dependencys = index_field_.node().field_inputs();
   if (dependencys) {
     if (dependencys->deduplicated_nodes.size() == 1) {
-      if (dynamic_cast<const fn::IndexFieldInput *>(&dependencys->deduplicated_nodes.as_span().first().get()) != nullptr) {
-        const std::optional<fn::Polynom<int>> bounds_transform = fn::field_as_polynom_try(index_field_);
+      if (dynamic_cast<const fn::IndexFieldInput *>(
+              &dependencys->deduplicated_nodes.as_span().first().get()) != nullptr)
+      {
+        const std::optional<fn::Polynom<int>> bounds_transform = fn::field_as_polynom_try(
+            index_field_);
         if (bounds_transform.has_value()) {
           if (bounds_transform->is_const()) {
             BUFFER_FOR_CPP_TYPE_VALUE(type, value);

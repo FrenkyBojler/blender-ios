@@ -31,7 +31,8 @@ std::optional<Polynom<int>> field_as_polynom_try(const Field<int> &entry_field)
   static const mf::MultiFunction &sub_func = multi_function::registry::lookup("int - int"_ustr);
   static const mf::MultiFunction &mul_func = multi_function::registry::lookup("int * int"_ustr);
   /* TODO: Support integer division. */
-  static const mf::MultiFunction &mul_add_func = multi_function::registry::lookup("int * int + int"_ustr);
+  static const mf::MultiFunction &mul_add_func = multi_function::registry::lookup(
+      "int * int + int"_ustr);
 
   Map<GFieldRef, Polynom<int>> known_fields;
 
