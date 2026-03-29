@@ -108,6 +108,7 @@ void ACTION_OT_snap(wmOperatorType *ot);
 void ACTION_OT_mirror(wmOperatorType *ot);
 
 void ACTION_OT_new(wmOperatorType *ot);
+void ACTION_OT_new_copy(wmOperatorType *ot); 
 void ACTION_OT_unlink(wmOperatorType *ot);
 
 void ACTION_OT_push_down(wmOperatorType *ot);

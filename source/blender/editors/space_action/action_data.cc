@@ -259,7 +259,66 @@ static wmOperatorStatus action_new_exec(bContext *C, wmOperator * /*op*/)
 
   return OPERATOR_FINISHED;
 }
+static wmOperatorStatus action_copy_exec(bContext *C, wmOperator * /*op*/)
+{
+  PointerRNA ptr;
+  PropertyRNA *prop;
 
+  bAction *oldact = nullptr;
+  AnimData *adt = nullptr;
+  ID *adt_id_owner = nullptr;
+  
+  /* hook into UI */
+  ui::context_active_but_prop_get_templateID(C, &ptr, &prop);
+
+  if (prop) {
+    PointerRNA oldptr = RNA_property_pointer_get(&ptr, prop);
+    oldact = id_cast<bAction *>(oldptr.owner_id);
+
+    if (ptr.type == RNA_AnimData) {
+      adt = static_cast<AnimData *>(ptr.data);
+      adt_id_owner = ptr.owner_id;
+    }
+    else if (ptr.type == RNA_SpaceDopeSheetEditor) {
+      adt = ED_actedit_animdata_from_context(C, &adt_id_owner);
+    }
+  }
+  else {
+    adt = ED_actedit_animdata_from_context(C, &adt_id_owner);
+    oldact = adt->action;
+  }
+  
+  if (!oldact) {
+    return OPERATOR_CANCELLED; /* Only run if there is an action to copy */
+  }
+
+  {
+    bAction *action = nullptr;
+
+    /* Perform stashing operation */
+    if (adt) {
+      BLI_assert(adt_id_owner != nullptr);
+      BKE_nla_action_stash({*adt_id_owner, *adt}, ID_IS_OVERRIDE_LIBRARY(adt_id_owner));
+    }
+
+    /* Force duplicate existing action */
+    action = id_cast<bAction *>(BKE_id_copy(CTX_data_main(C), &oldact->id));
+    BLI_assert(action->id.us == 1);
+    id_us_min(&action->id);
+
+    if (prop) {
+      /* set this new action */
+      PointerRNA idptr = RNA_id_pointer_create(&action->id);
+      RNA_property_pointer_set(&ptr, prop, idptr, nullptr);
+      RNA_property_update(C, &ptr, prop);
+    }
+  }
+
+  /* set notifier that keyframes have changed */
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, nullptr);
+
+  return OPERATOR_FINISHED;
+}
 void ACTION_OT_new(wmOperatorType *ot)
 {
   /* identifiers */
@@ -274,7 +333,20 @@ void ACTION_OT_new(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
+void ACTION_OT_new_copy(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Duplicate Action";
+  ot->idname = "ACTION_OT_new_copy";
+  ot->description = "Create a new action by duplicating the current one";
 
+  /* API callbacks. */
+  ot->exec = action_copy_exec;
+  ot->poll = action_new_poll; /* We can reuse the same poll logic */
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
 /** \} */
 
 /* -------------------------------------------------------------------- */

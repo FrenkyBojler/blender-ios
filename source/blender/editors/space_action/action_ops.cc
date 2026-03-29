@@ -57,6 +57,7 @@ void action_operatortypes()
   WM_operatortype_append(ACTION_OT_paste);
 
   WM_operatortype_append(ACTION_OT_new);
+  WM_operatortype_append(ACTION_OT_new_copy); 
   WM_operatortype_append(ACTION_OT_unlink);
 
   WM_operatortype_append(ACTION_OT_push_down);

@@ -1008,11 +1008,17 @@ static Button *template_id_def_new_but(Block *block,
   if (!id) {
     w = std::max(fontstyle_string_width(fstyle, button_text) + int(UI_UNIT_X * 1.5f), w);
   }
-
   if (newop) {
+    const char *final_op = newop;
+
+    /* Swap to the copy operator if an item already exists in the slot */
+    if (id && STREQ(newop, "action.new")) {
+      final_op = "action.new_copy";
+    }
+
     but = uiDefIconTextButO(block,
                             but_type,
-                            newop,
+                            final_op,
                             wm::OpCallContext::InvokeDefault,
                             icon,
                             button_text,
