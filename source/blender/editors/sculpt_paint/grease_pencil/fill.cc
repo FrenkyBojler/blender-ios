@@ -1117,6 +1117,13 @@ bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
 
   BLI_assert(object.type == OB_GREASE_PENCIL);
   const Object &object_eval = *DEG_get_evaluated(&depsgraph, &object);
+  const float4x4 local_transform = float4x4::identity();
+  const float4x4 &projection = ED_view3d_ob_project_mat_get(view_context.rv3d, view_context.obact);
+
+  ed::greasepencil::DrawingPlacement placement(scene, region, view3d, object_eval, &layer);
+  if (placement.use_project_to_surface() || placement.use_project_to_stroke()) {
+    placement.cache_viewport_depths(&depsgraph, &region, &view3d);
+  }
 
   meshintersect::CDT_input<double> input;
   input.need_ids = true;
@@ -1128,23 +1135,19 @@ bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
   const VArray<bool> cyclic = strokes.cyclic();
   const int num_cyclic = array_utils::count_booleans(cyclic);
 
-  input.vert.reinitialize(strokes.points_num());
+  input.vert.reinitialize(4 + strokes.points_num());
+
+  input.vert[0] = double2(0.0f, 0.0f);
+  input.vert[1] = double2(0.0f, region.winy);
+  input.vert[2] = double2(region.winx, region.winy);
+  input.vert[3] = double2(region.winx, 0.0f);
 
   const Span<float3> strokes_pos = strokes.positions();
-
-  const float4x4 local_transform = float4x4::identity();
-
-  const float4x4 &projection = ED_view3d_ob_project_mat_get(view_context.rv3d, view_context.obact);
-
-  ed::greasepencil::DrawingPlacement placement(scene, region, view3d, object_eval, &layer);
-  if (placement.use_project_to_surface() || placement.use_project_to_stroke()) {
-    placement.cache_viewport_depths(&depsgraph, &region, &view3d);
-  }
 
   for (const int i : strokes.points_range()) {
     const float3 pos = strokes_pos[i];
 
-    input.vert[i] = double2(ED_view3d_project_float_v2_m4(
+    input.vert[i + 4] = double2(ED_view3d_project_float_v2_m4(
         &region, math::transform_point(local_transform, pos), projection));
   }
 
@@ -1157,7 +1160,7 @@ bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
     const bool is_cyclic = cyclic[curve_i];
     for (const int point_i : points.drop_back(is_cyclic ? 0 : 1)) {
       const int point_next = (point_i - points.first() + 1) % points.size() + points.first();
-      input.edge[idx++] = order_edge(std::pair<int, int>(point_i, point_next));
+      input.edge[idx++] = order_edge(std::pair<int, int>(point_i + 4, point_next + 4));
     }
   }
 
@@ -1431,7 +1434,7 @@ bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
     Array<float> tri_weight(result.face.size(), 0.0f);
 
     Array<float2> pos_hint(2);
-    pos_hint[0] = float2(0.0f, 0.0f);
+    pos_hint[0] = float2(1.0f, 1.0f);
     pos_hint[1] = fill_point;
 
     for (const int hint_index : pos_hint.index_range()) {
