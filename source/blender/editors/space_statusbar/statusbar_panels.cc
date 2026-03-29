@@ -15,6 +15,8 @@
 
 #include "BLT_translation.hh"
 
+#include "ED_screen.hh"
+
 #include "UI_interface.hh"
 #include "UI_interface_c.hh"
 #include "UI_interface_layout.hh"
@@ -55,8 +57,9 @@ static void version_update_draw_body(const bke::VersionUpdate &update, ui::Layou
       0,
       0,
       "");
-  ui::button_func_set(button, [update_info = &update](blender::bContext & /*C*/) {
+  ui::button_func_set(button, [update_info = &update](blender::bContext &C) {
     bke::ignore_update(update_info);
+    ED_area_tag_redraw(WM_window_status_area_find(CTX_wm_window(&C), CTX_wm_screen(&C)));
   });
   ui::Layout &right_row = buttons_row.row(false);
   right_row.alignment_set(ui::LayoutAlign::Right);
@@ -107,7 +110,10 @@ static void panel_blender_updates_draw(const bContext *C, Panel *panel)
                                 0,
                                 0,
                                 "");
-  ui::button_func_set(button, [](blender::bContext & /*C*/) { bke::ignore_all_updates(); });
+  ui::button_func_set(button, [](blender::bContext &C) {
+    bke::ignore_all_updates();
+    ED_area_tag_redraw(WM_window_status_area_find(CTX_wm_window(&C), CTX_wm_screen(&C)));
+  });
   ui::button_drawflag_disable(button, ui::BUT_TEXT_RIGHT);
   for (const bke::VersionUpdate *update : available_updates) {
     ui::PanelLayout panel_layout = layout.panel(C, "Update_" + update->version_str, false);
