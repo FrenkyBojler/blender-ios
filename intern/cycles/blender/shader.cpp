@@ -361,9 +361,10 @@ static ShaderNode *add_node(Scene *scene,
     node = color;
   }
   else if (b_node.is_type("FunctionNodeInputVector")) {
-    ColorNode *color = graph->create_node<ColorNode>();
-    color->set_value(get_node_output_vector(b_node, "Vector"));
-    node = color;
+    ColorNode *value = graph->create_node<ColorNode>();
+    auto &storage = *static_cast<NodeInputVector *>(node->storage);
+    value->set_value(storage.vector);
+    node = value;
   }
   else if (b_node.is_type("ShaderNodeValue")) {
     ValueNode *value = graph->create_node<ValueNode>();
@@ -372,12 +373,14 @@ static ShaderNode *add_node(Scene *scene,
   }
   else if (b_node.is_type("FunctionNodeInputBool")) {
     ValueNode *value = graph->create_node<ValueNode>();
-    value->set_value(get_node_output_value(b_node, "Boolean"));
+    auto &storage = *static_cast<NodeInputBool *>(node->storage);
+    value->set_value(bool(storage.boolean));
     node = value;
   }
   else if (b_node.is_type("FunctionNodeInputInt")) {
     ValueNode *value = graph->create_node<ValueNode>();
-    value->set_value(get_node_output_value(b_node, "Integer"));
+    auto &storage = *static_cast<NodeInputInt *>(node->storage);
+    value->set_value(storage.integer);
     node = value;
   }
   else if (b_node.is_type("ShaderNodeCameraData")) {
