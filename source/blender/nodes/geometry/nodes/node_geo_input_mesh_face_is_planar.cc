@@ -100,14 +100,14 @@ class PlanarFieldInput final : public bke::MeshFieldInput {
 
 static void geo_node_exec(GeoNodeExecParams params)
 {
-  Field<float> threshold = params.extract_input<Field<float>>("Threshold");
+  Field<float> threshold = params.extract_input<Field<float>>("Threshold"_ustr);
   Field<bool> planar_field{std::make_shared<PlanarFieldInput>(threshold)};
-  params.set_output("Planar", std::move(planar_field));
+  params.set_output("Planar"_ustr, std::move(planar_field));
 }
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(
       &ntype, "GeometryNodeInputMeshFaceIsPlanar", GEO_NODE_INPUT_MESH_FACE_IS_PLANAR);
@@ -119,7 +119,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.geometry_node_execute = geo_node_exec;
   ntype.declare = node_declare;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

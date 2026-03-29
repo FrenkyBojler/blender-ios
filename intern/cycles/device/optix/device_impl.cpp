@@ -17,6 +17,7 @@
 #  include "scene/pointcloud.h"
 #  include "scene/scene.h"
 
+#  include "util/algorithm.h"
 #  include "util/debug.h"
 #  include "util/log.h"
 #  include "util/path.h"
@@ -63,7 +64,6 @@ OptiXDevice::OptiXDevice(const DeviceInfo &info, Stats &stats, Profiler &profile
 
   /* Create OptiX context for this device. */
   OptixDeviceContextOptions options = {};
-#  ifdef WITH_CYCLES_LOGGING
   options.logCallbackLevel = 4; /* Fatal = 1, Error = 2, Warning = 3, Print = 4. */
   options.logCallbackFunction = [](unsigned int level, const char *, const char *message, void *) {
     switch (level) {
@@ -77,22 +77,19 @@ OptiXDevice::OptiXDevice(const DeviceInfo &info, Stats &stats, Profiler &profile
         LOG_WARNING << message;
         break;
       case 4:
-        LOG_INFO << message;
+        LOG_DEBUG << message;
         break;
       default:
         break;
     }
   };
-#  endif
   if (DebugFlags().optix.use_debug) {
     LOG_INFO << "Using OptiX debug mode.";
     options.validationMode = OPTIX_DEVICE_CONTEXT_VALIDATION_MODE_ALL;
   }
   optix_assert(optixDeviceContextCreate(cuContext, &options, &context));
-#  ifdef WITH_CYCLES_LOGGING
   optix_assert(optixDeviceContextSetLogCallback(
       context, options.logCallbackFunction, options.logCallbackData, options.logCallbackLevel));
-#  endif
 
   /* Fix weird compiler bug that assigns wrong size. */
   launch_params.data_elements = sizeof(KernelParamsOptiX);
@@ -109,7 +106,7 @@ OptiXDevice::~OptiXDevice()
   free_bvh_memory_delayed();
 
   sbt_data.free();
-  texture_info.free();
+  image_info.free();
   launch_params.free();
 
   /* Unload modules. */
@@ -349,16 +346,11 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
   pipeline_options.pipelineLaunchParamsVariableName = "kernel_params"; /* See globals.h */
 
   pipeline_options.usesPrimitiveTypeFlags = OPTIX_PRIMITIVE_TYPE_FLAGS_TRIANGLE;
-  if (kernel_features & KERNEL_FEATURE_HAIR) {
-    if (kernel_features & KERNEL_FEATURE_HAIR_THICK) {
-      pipeline_options.usesPrimitiveTypeFlags |= OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_LINEAR |
-                                                 OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_CATMULLROM;
-    }
-    else {
-      pipeline_options.usesPrimitiveTypeFlags |= OPTIX_PRIMITIVE_TYPE_FLAGS_CUSTOM;
-    }
+  if (kernel_features & KERNEL_FEATURE_HAIR_THICK) {
+    pipeline_options.usesPrimitiveTypeFlags |= OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_LINEAR |
+                                               OPTIX_PRIMITIVE_TYPE_FLAGS_ROUND_CATMULLROM;
   }
-  if (kernel_features & KERNEL_FEATURE_POINTCLOUD) {
+  if (kernel_features & (KERNEL_FEATURE_HAIR_RIBBON | KERNEL_FEATURE_POINTCLOUD)) {
     pipeline_options.usesPrimitiveTypeFlags |= OPTIX_PRIMITIVE_TYPE_FLAGS_CUSTOM;
   }
 
@@ -376,7 +368,7 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
     string ptx_data;
     if (use_adaptive_compilation() || path_file_size(ptx_filename) == -1) {
       string cflags = compile_kernel_get_common_cflags(kernel_features);
-      ptx_filename = compile_kernel(cflags, ("kernel" + suffix).c_str(), "optix", true);
+      ptx_filename = compile_kernel(cflags, ("kernel" + suffix).c_str(), true);
     }
     if (ptx_filename.empty() || !path_read_compressed_text(ptx_filename, ptx_data)) {
       set_error(string_printf("Failed to load OptiX kernel from '%s'", ptx_filename.c_str()));
@@ -435,67 +427,83 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
   group_descs[PG_HITV].hitgroup.moduleAH = optix_module;
   group_descs[PG_HITV].hitgroup.entryFunctionNameAH = "__anyhit__kernel_optix_volume_test";
 
-  if (kernel_features & KERNEL_FEATURE_HAIR) {
-    if (kernel_features & KERNEL_FEATURE_HAIR_THICK) {
-      /* Built-in thick curve intersection. */
-      OptixBuiltinISOptions builtin_options = {};
-      builtin_options.builtinISModuleType = OPTIX_PRIMITIVE_TYPE_ROUND_CATMULLROM;
-      builtin_options.buildFlags = OPTIX_BUILD_FLAG_PREFER_FAST_TRACE |
-                                   OPTIX_BUILD_FLAG_ALLOW_COMPACTION |
-                                   OPTIX_BUILD_FLAG_ALLOW_UPDATE;
-      builtin_options.curveEndcapFlags = OPTIX_CURVE_ENDCAP_DEFAULT; /* Disable end-caps. */
-      builtin_options.usesMotionBlur = false;
+  OptixProgramGroupDesc ignore_desc = {};
+  ignore_desc.kind = OPTIX_PROGRAM_GROUP_KIND_HITGROUP;
+  ignore_desc.hitgroup.moduleCH = optix_module;
+  ignore_desc.hitgroup.entryFunctionNameCH = "__closesthit__kernel_optix_ignore";
+  ignore_desc.hitgroup.moduleAH = optix_module;
+  ignore_desc.hitgroup.entryFunctionNameAH = "__anyhit__kernel_optix_ignore";
+
+  if (kernel_features & KERNEL_FEATURE_HAIR_THICK) {
+    /* Built-in thick curve intersection. */
+    OptixBuiltinISOptions builtin_options = {};
+    builtin_options.builtinISModuleType = OPTIX_PRIMITIVE_TYPE_ROUND_CATMULLROM;
+    builtin_options.buildFlags = OPTIX_BUILD_FLAG_PREFER_FAST_TRACE |
+                                 OPTIX_BUILD_FLAG_ALLOW_COMPACTION | OPTIX_BUILD_FLAG_ALLOW_UPDATE;
+    builtin_options.curveEndcapFlags = OPTIX_CURVE_ENDCAP_DEFAULT; /* Disable end-caps. */
+    builtin_options.usesMotionBlur = false;
+
+    optix_assert(optixBuiltinISModuleGet(
+        context, &module_options, &pipeline_options, &builtin_options, &builtin_modules[0]));
+
+    group_descs[PG_HITD].hitgroup.moduleIS = builtin_modules[0];
+    group_descs[PG_HITD].hitgroup.entryFunctionNameIS = nullptr;
+    group_descs[PG_HITS].hitgroup.moduleIS = builtin_modules[0];
+    group_descs[PG_HITS].hitgroup.entryFunctionNameIS = nullptr;
+
+    if (pipeline_options.usesMotionBlur) {
+      builtin_options.usesMotionBlur = true;
 
       optix_assert(optixBuiltinISModuleGet(
-          context, &module_options, &pipeline_options, &builtin_options, &builtin_modules[0]));
+          context, &module_options, &pipeline_options, &builtin_options, &builtin_modules[1]));
 
-      group_descs[PG_HITD].hitgroup.moduleIS = builtin_modules[0];
-      group_descs[PG_HITD].hitgroup.entryFunctionNameIS = nullptr;
-      group_descs[PG_HITS].hitgroup.moduleIS = builtin_modules[0];
-      group_descs[PG_HITS].hitgroup.entryFunctionNameIS = nullptr;
+      group_descs[PG_HITD_MOTION] = group_descs[PG_HITD];
+      group_descs[PG_HITD_MOTION].hitgroup.moduleIS = builtin_modules[1];
+      group_descs[PG_HITS_MOTION] = group_descs[PG_HITS];
+      group_descs[PG_HITS_MOTION].hitgroup.moduleIS = builtin_modules[1];
+    }
 
-      if (pipeline_options.usesMotionBlur) {
-        builtin_options.usesMotionBlur = true;
+    builtin_options.builtinISModuleType = OPTIX_PRIMITIVE_TYPE_ROUND_LINEAR;
+    builtin_options.usesMotionBlur = false;
 
-        optix_assert(optixBuiltinISModuleGet(
-            context, &module_options, &pipeline_options, &builtin_options, &builtin_modules[1]));
+    optix_assert(optixBuiltinISModuleGet(
+        context, &module_options, &pipeline_options, &builtin_options, &builtin_modules[2]));
 
-        group_descs[PG_HITD_MOTION] = group_descs[PG_HITD];
-        group_descs[PG_HITD_MOTION].hitgroup.moduleIS = builtin_modules[1];
-        group_descs[PG_HITS_MOTION] = group_descs[PG_HITS];
-        group_descs[PG_HITS_MOTION].hitgroup.moduleIS = builtin_modules[1];
-      }
+    group_descs[PG_HITD_CURVE_LINEAR] = group_descs[PG_HITD];
+    group_descs[PG_HITD_CURVE_LINEAR].hitgroup.moduleIS = builtin_modules[2];
+    group_descs[PG_HITS_CURVE_LINEAR] = group_descs[PG_HITS];
+    group_descs[PG_HITS_CURVE_LINEAR].hitgroup.moduleIS = builtin_modules[2];
+    group_descs[PG_HITV_CURVE_LINEAR] = ignore_desc;
+    group_descs[PG_HITL_CURVE_LINEAR] = ignore_desc;
 
-      builtin_options.builtinISModuleType = OPTIX_PRIMITIVE_TYPE_ROUND_LINEAR;
-      builtin_options.usesMotionBlur = false;
+    if (pipeline_options.usesMotionBlur) {
+      builtin_options.usesMotionBlur = true;
 
       optix_assert(optixBuiltinISModuleGet(
-          context, &module_options, &pipeline_options, &builtin_options, &builtin_modules[2]));
+          context, &module_options, &pipeline_options, &builtin_options, &builtin_modules[3]));
 
-      group_descs[PG_HITD_CURVE_LINEAR] = group_descs[PG_HITD];
-      group_descs[PG_HITD_CURVE_LINEAR].hitgroup.moduleIS = builtin_modules[2];
-      group_descs[PG_HITS_CURVE_LINEAR] = group_descs[PG_HITS];
-      group_descs[PG_HITS_CURVE_LINEAR].hitgroup.moduleIS = builtin_modules[2];
-
-      if (pipeline_options.usesMotionBlur) {
-        builtin_options.usesMotionBlur = true;
-
-        optix_assert(optixBuiltinISModuleGet(
-            context, &module_options, &pipeline_options, &builtin_options, &builtin_modules[3]));
-
-        group_descs[PG_HITD_CURVE_LINEAR_MOTION] = group_descs[PG_HITD_CURVE_LINEAR];
-        group_descs[PG_HITD_CURVE_LINEAR_MOTION].hitgroup.moduleIS = builtin_modules[3];
-        group_descs[PG_HITS_CURVE_LINEAR_MOTION] = group_descs[PG_HITS_CURVE_LINEAR];
-        group_descs[PG_HITS_CURVE_LINEAR_MOTION].hitgroup.moduleIS = builtin_modules[3];
-      }
+      group_descs[PG_HITD_CURVE_LINEAR_MOTION] = group_descs[PG_HITD_CURVE_LINEAR];
+      group_descs[PG_HITD_CURVE_LINEAR_MOTION].hitgroup.moduleIS = builtin_modules[3];
+      group_descs[PG_HITS_CURVE_LINEAR_MOTION] = group_descs[PG_HITS_CURVE_LINEAR];
+      group_descs[PG_HITS_CURVE_LINEAR_MOTION].hitgroup.moduleIS = builtin_modules[3];
+      group_descs[PG_HITV_CURVE_LINEAR_MOTION] = ignore_desc;
+      group_descs[PG_HITL_CURVE_LINEAR_MOTION] = ignore_desc;
     }
-    else {
-      /* Custom ribbon intersection. */
-      group_descs[PG_HITD].hitgroup.moduleIS = optix_module;
-      group_descs[PG_HITS].hitgroup.moduleIS = optix_module;
-      group_descs[PG_HITD].hitgroup.entryFunctionNameIS = "__intersection__curve_ribbon";
-      group_descs[PG_HITS].hitgroup.entryFunctionNameIS = "__intersection__curve_ribbon";
-    }
+  }
+  if (kernel_features & KERNEL_FEATURE_HAIR_RIBBON) {
+    /* Custom ribbon intersection. */
+    group_descs[PG_HITD_CURVE_RIBBON] = group_descs[PG_HITD];
+    group_descs[PG_HITD_CURVE_RIBBON].kind = OPTIX_PROGRAM_GROUP_KIND_HITGROUP;
+    group_descs[PG_HITD_CURVE_RIBBON].hitgroup.moduleIS = optix_module;
+    group_descs[PG_HITD_CURVE_RIBBON].hitgroup.entryFunctionNameIS =
+        "__intersection__curve_ribbon";
+    group_descs[PG_HITS_CURVE_RIBBON] = group_descs[PG_HITS];
+    group_descs[PG_HITS_CURVE_RIBBON].kind = OPTIX_PROGRAM_GROUP_KIND_HITGROUP;
+    group_descs[PG_HITS_CURVE_RIBBON].hitgroup.moduleIS = optix_module;
+    group_descs[PG_HITS_CURVE_RIBBON].hitgroup.entryFunctionNameIS =
+        "__intersection__curve_ribbon";
+    group_descs[PG_HITV_CURVE_RIBBON] = ignore_desc;
+    group_descs[PG_HITL_CURVE_RIBBON] = ignore_desc;
   }
 
   if (kernel_features & KERNEL_FEATURE_POINTCLOUD) {
@@ -507,6 +515,8 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
     group_descs[PG_HITS_POINTCLOUD].kind = OPTIX_PROGRAM_GROUP_KIND_HITGROUP;
     group_descs[PG_HITS_POINTCLOUD].hitgroup.moduleIS = optix_module;
     group_descs[PG_HITS_POINTCLOUD].hitgroup.entryFunctionNameIS = "__intersection__point";
+    group_descs[PG_HITV_POINTCLOUD] = ignore_desc;
+    group_descs[PG_HITL_POINTCLOUD] = ignore_desc;
   }
 
   /* Add hit group for local intersections. */
@@ -549,10 +559,14 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
     group_descs[PG_RGEN_SHADE_BACKGROUND].raygen.module = optix_module;
     group_descs[PG_RGEN_SHADE_BACKGROUND].raygen.entryFunctionName =
         "__raygen__kernel_optix_integrator_shade_background";
-    group_descs[PG_RGEN_SHADE_LIGHT].kind = OPTIX_PROGRAM_GROUP_KIND_RAYGEN;
-    group_descs[PG_RGEN_SHADE_LIGHT].raygen.module = optix_module;
-    group_descs[PG_RGEN_SHADE_LIGHT].raygen.entryFunctionName =
-        "__raygen__kernel_optix_integrator_shade_light";
+    group_descs[PG_RGEN_SHADE_LIGHT_NEE].kind = OPTIX_PROGRAM_GROUP_KIND_RAYGEN;
+    group_descs[PG_RGEN_SHADE_LIGHT_NEE].raygen.module = optix_module;
+    group_descs[PG_RGEN_SHADE_LIGHT_NEE].raygen.entryFunctionName =
+        "__raygen__kernel_optix_integrator_shade_light_nee";
+    group_descs[PG_RGEN_SHADE_LIGHT_FORWARD].kind = OPTIX_PROGRAM_GROUP_KIND_RAYGEN;
+    group_descs[PG_RGEN_SHADE_LIGHT_FORWARD].raygen.module = optix_module;
+    group_descs[PG_RGEN_SHADE_LIGHT_FORWARD].raygen.entryFunctionName =
+        "__raygen__kernel_optix_integrator_shade_light_forward";
     group_descs[PG_RGEN_SHADE_SURFACE].kind = OPTIX_PROGRAM_GROUP_KIND_RAYGEN;
     group_descs[PG_RGEN_SHADE_SURFACE].raygen.module = optix_module;
     group_descs[PG_RGEN_SHADE_SURFACE].raygen.entryFunctionName =
@@ -561,6 +575,10 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
     group_descs[PG_RGEN_SHADE_VOLUME].raygen.module = optix_module;
     group_descs[PG_RGEN_SHADE_VOLUME].raygen.entryFunctionName =
         "__raygen__kernel_optix_integrator_shade_volume";
+    group_descs[PG_RGEN_SHADE_VOLUME_RAY_MARCHING].kind = OPTIX_PROGRAM_GROUP_KIND_RAYGEN;
+    group_descs[PG_RGEN_SHADE_VOLUME_RAY_MARCHING].raygen.module = optix_module;
+    group_descs[PG_RGEN_SHADE_VOLUME_RAY_MARCHING].raygen.entryFunctionName =
+        "__raygen__kernel_optix_integrator_shade_volume_ray_marching";
     group_descs[PG_RGEN_SHADE_SHADOW].kind = OPTIX_PROGRAM_GROUP_KIND_RAYGEN;
     group_descs[PG_RGEN_SHADE_SHADOW].raygen.module = optix_module;
     group_descs[PG_RGEN_SHADE_SHADOW].raygen.entryFunctionName =
@@ -581,6 +599,10 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
     group_descs[PG_RGEN_EVAL_CURVE_SHADOW_TRANSPARENCY].raygen.module = optix_module;
     group_descs[PG_RGEN_EVAL_CURVE_SHADOW_TRANSPARENCY].raygen.entryFunctionName =
         "__raygen__kernel_optix_shader_eval_curve_shadow_transparency";
+    group_descs[PG_RGEN_EVAL_VOLUME_DENSITY].kind = OPTIX_PROGRAM_GROUP_KIND_RAYGEN;
+    group_descs[PG_RGEN_EVAL_VOLUME_DENSITY].raygen.module = optix_module;
+    group_descs[PG_RGEN_EVAL_VOLUME_DENSITY].raygen.entryFunctionName =
+        "__raygen__kernel_optix_shader_eval_volume_density";
   }
 
 #  ifdef WITH_OSL
@@ -616,41 +638,56 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
       context, group_descs, NUM_PROGRAM_GROUPS, &group_options, nullptr, nullptr, groups));
 
   /* Get program stack sizes. */
-  OptixStackSizes stack_size[NUM_PROGRAM_GROUPS] = {};
+  auto get_pipeline_stack_size = [&](OptixPipeline pipeline, unsigned int &trace_css) {
+    vector<OptixStackSizes> stack_size(NUM_PROGRAM_GROUPS);
+    for (int i = 0; i < NUM_PROGRAM_GROUPS; ++i) {
+      optix_assert(optixProgramGroupGetStackSize(groups[i], &stack_size[i], pipeline));
+    }
+
+    /* Calculate maximum trace continuation stack size. */
+    trace_css = stack_size[PG_HITD].cssCH;
+    /* This is based on the maximum of closest-hit and any-hit/intersection programs. */
+    trace_css = std::max(trace_css, stack_size[PG_HITD].cssIS + stack_size[PG_HITD].cssAH);
+    trace_css = std::max(trace_css, stack_size[PG_HITS].cssIS + stack_size[PG_HITS].cssAH);
+    trace_css = std::max(trace_css, stack_size[PG_HITL].cssIS + stack_size[PG_HITL].cssAH);
+    trace_css = std::max(trace_css, stack_size[PG_HITV].cssIS + stack_size[PG_HITV].cssAH);
+    trace_css = std::max(trace_css,
+                         stack_size[PG_HITD_MOTION].cssIS + stack_size[PG_HITD_MOTION].cssAH);
+    trace_css = std::max(trace_css,
+                         stack_size[PG_HITS_MOTION].cssIS + stack_size[PG_HITS_MOTION].cssAH);
+    trace_css = std::max(trace_css,
+                         stack_size[PG_HITD_CURVE_LINEAR].cssIS +
+                             stack_size[PG_HITD_CURVE_LINEAR].cssAH);
+    trace_css = std::max(trace_css,
+                         stack_size[PG_HITS_CURVE_LINEAR].cssIS +
+                             stack_size[PG_HITS_CURVE_LINEAR].cssAH);
+    trace_css = std::max(trace_css,
+                         stack_size[PG_HITD_CURVE_LINEAR_MOTION].cssIS +
+                             stack_size[PG_HITD_CURVE_LINEAR_MOTION].cssAH);
+    trace_css = std::max(trace_css,
+                         stack_size[PG_HITS_CURVE_LINEAR_MOTION].cssIS +
+                             stack_size[PG_HITS_CURVE_LINEAR_MOTION].cssAH);
+    trace_css = std::max(trace_css,
+                         stack_size[PG_HITD_CURVE_RIBBON].cssIS +
+                             stack_size[PG_HITD_CURVE_RIBBON].cssAH);
+    trace_css = std::max(trace_css,
+                         stack_size[PG_HITS_CURVE_RIBBON].cssIS +
+                             stack_size[PG_HITS_CURVE_RIBBON].cssAH);
+    trace_css = std::max(
+        trace_css, stack_size[PG_HITD_POINTCLOUD].cssIS + stack_size[PG_HITD_POINTCLOUD].cssAH);
+    trace_css = std::max(
+        trace_css, stack_size[PG_HITS_POINTCLOUD].cssIS + stack_size[PG_HITS_POINTCLOUD].cssAH);
+
+    return stack_size;
+  };
+
   /* Set up SBT, which in this case is used only to select between different programs. */
   sbt_data.alloc(NUM_PROGRAM_GROUPS);
   memset(sbt_data.host_pointer, 0, sizeof(SbtRecord) * NUM_PROGRAM_GROUPS);
   for (int i = 0; i < NUM_PROGRAM_GROUPS; ++i) {
     optix_assert(optixSbtRecordPackHeader(groups[i], &sbt_data[i]));
-    optix_assert(optixProgramGroupGetStackSize(groups[i], &stack_size[i], nullptr));
   }
   sbt_data.copy_to_device(); /* Upload SBT to device. */
-
-  /* Calculate maximum trace continuation stack size. */
-  unsigned int trace_css = stack_size[PG_HITD].cssCH;
-  /* This is based on the maximum of closest-hit and any-hit/intersection programs. */
-  trace_css = std::max(trace_css, stack_size[PG_HITD].cssIS + stack_size[PG_HITD].cssAH);
-  trace_css = std::max(trace_css, stack_size[PG_HITS].cssIS + stack_size[PG_HITS].cssAH);
-  trace_css = std::max(trace_css, stack_size[PG_HITL].cssIS + stack_size[PG_HITL].cssAH);
-  trace_css = std::max(trace_css, stack_size[PG_HITV].cssIS + stack_size[PG_HITV].cssAH);
-  trace_css = std::max(trace_css,
-                       stack_size[PG_HITD_MOTION].cssIS + stack_size[PG_HITD_MOTION].cssAH);
-  trace_css = std::max(trace_css,
-                       stack_size[PG_HITS_MOTION].cssIS + stack_size[PG_HITS_MOTION].cssAH);
-  trace_css = std::max(
-      trace_css, stack_size[PG_HITD_CURVE_LINEAR].cssIS + stack_size[PG_HITD_CURVE_LINEAR].cssAH);
-  trace_css = std::max(
-      trace_css, stack_size[PG_HITS_CURVE_LINEAR].cssIS + stack_size[PG_HITS_CURVE_LINEAR].cssAH);
-  trace_css = std::max(trace_css,
-                       stack_size[PG_HITD_CURVE_LINEAR_MOTION].cssIS +
-                           stack_size[PG_HITD_CURVE_LINEAR_MOTION].cssAH);
-  trace_css = std::max(trace_css,
-                       stack_size[PG_HITS_CURVE_LINEAR_MOTION].cssIS +
-                           stack_size[PG_HITS_CURVE_LINEAR_MOTION].cssAH);
-  trace_css = std::max(
-      trace_css, stack_size[PG_HITD_POINTCLOUD].cssIS + stack_size[PG_HITD_POINTCLOUD].cssAH);
-  trace_css = std::max(
-      trace_css, stack_size[PG_HITS_POINTCLOUD].cssIS + stack_size[PG_HITS_POINTCLOUD].cssAH);
 
   OptixPipelineLinkOptions link_options = {};
   link_options.maxTraceDepth = 1;
@@ -678,18 +715,32 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
     if (pipeline_options.usesMotionBlur) {
       pipeline_groups.push_back(groups[PG_HITD_MOTION]);
       pipeline_groups.push_back(groups[PG_HITS_MOTION]);
+      pipeline_groups.push_back(groups[PG_HITV_MOTION]);
+      pipeline_groups.push_back(groups[PG_HITL_MOTION]);
     }
     if (kernel_features & KERNEL_FEATURE_HAIR_THICK) {
       pipeline_groups.push_back(groups[PG_HITD_CURVE_LINEAR]);
       pipeline_groups.push_back(groups[PG_HITS_CURVE_LINEAR]);
+      pipeline_groups.push_back(groups[PG_HITV_CURVE_LINEAR]);
+      pipeline_groups.push_back(groups[PG_HITL_CURVE_LINEAR]);
       if (pipeline_options.usesMotionBlur) {
         pipeline_groups.push_back(groups[PG_HITD_CURVE_LINEAR_MOTION]);
         pipeline_groups.push_back(groups[PG_HITS_CURVE_LINEAR_MOTION]);
+        pipeline_groups.push_back(groups[PG_HITV_CURVE_LINEAR_MOTION]);
+        pipeline_groups.push_back(groups[PG_HITL_CURVE_LINEAR_MOTION]);
       }
+    }
+    if (kernel_features & KERNEL_FEATURE_HAIR_RIBBON) {
+      pipeline_groups.push_back(groups[PG_HITD_CURVE_RIBBON]);
+      pipeline_groups.push_back(groups[PG_HITS_CURVE_RIBBON]);
+      pipeline_groups.push_back(groups[PG_HITV_CURVE_RIBBON]);
+      pipeline_groups.push_back(groups[PG_HITL_CURVE_RIBBON]);
     }
     if (kernel_features & KERNEL_FEATURE_POINTCLOUD) {
       pipeline_groups.push_back(groups[PG_HITD_POINTCLOUD]);
       pipeline_groups.push_back(groups[PG_HITS_POINTCLOUD]);
+      pipeline_groups.push_back(groups[PG_HITV_POINTCLOUD]);
+      pipeline_groups.push_back(groups[PG_HITL_POINTCLOUD]);
     }
 
     optix_assert(optixPipelineCreate(context,
@@ -700,6 +751,9 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
                                      nullptr,
                                      nullptr,
                                      &pipelines[PIP_SHADE]));
+
+    unsigned int trace_css;
+    vector<OptixStackSizes> stack_size = get_pipeline_stack_size(pipelines[PIP_SHADE], trace_css);
 
     /* Combine ray generation and trace continuation stack size. */
     const unsigned int css = std::max(stack_size[PG_RGEN_SHADE_SURFACE_RAYTRACE].cssRG,
@@ -738,6 +792,10 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
         pipeline_groups.push_back(groups[PG_HITS_CURVE_LINEAR_MOTION]);
       }
     }
+    if (kernel_features & KERNEL_FEATURE_HAIR_RIBBON) {
+      pipeline_groups.push_back(groups[PG_HITD_CURVE_RIBBON]);
+      pipeline_groups.push_back(groups[PG_HITS_CURVE_RIBBON]);
+    }
     if (kernel_features & KERNEL_FEATURE_POINTCLOUD) {
       pipeline_groups.push_back(groups[PG_HITD_POINTCLOUD]);
       pipeline_groups.push_back(groups[PG_HITS_POINTCLOUD]);
@@ -751,6 +809,10 @@ bool OptiXDevice::load_kernels(const uint kernel_features)
                                      nullptr,
                                      nullptr,
                                      &pipelines[PIP_INTERSECT]));
+
+    unsigned int trace_css;
+    vector<OptixStackSizes> stack_size = get_pipeline_stack_size(pipelines[PIP_INTERSECT],
+                                                                 trace_css);
 
     /* Calculate continuation stack size based on the maximum of all ray generation stack sizes. */
     const unsigned int css =
@@ -776,14 +838,23 @@ bool OptiXDevice::load_osl_kernels()
 
   struct OSLKernel {
     string ptx;
-    string fused_entry;
+    ustring fused_entry;
   };
 
   auto get_osl_kernel = [&](const OSL::ShaderGroupRef &group) {
     if (!group) {
       return OSLKernel{};
     }
-    string osl_ptx, fused_name;
+    /* Other attribute access crashes when there are no layers. */
+    int num_layers = 0;
+    osl_globals.ss->getattribute(group.get(), "num_layers", num_layers);
+    if (num_layers == 0) {
+      return OSLKernel{};
+    }
+
+    string osl_ptx;
+    ustring fused_name;
+
     osl_globals.ss->getattribute(group.get(), "group_fused_name", fused_name);
     osl_globals.ss->getattribute(
         group.get(), "ptx_compiled_version", OSL::TypeDesc::PTR, &osl_ptx);
@@ -986,7 +1057,8 @@ bool OptiXDevice::load_osl_kernels()
     vector<OptixProgramGroup> pipeline_groups;
     pipeline_groups.reserve(NUM_PROGRAM_GROUPS);
     pipeline_groups.push_back(groups[PG_RGEN_SHADE_BACKGROUND]);
-    pipeline_groups.push_back(groups[PG_RGEN_SHADE_LIGHT]);
+    pipeline_groups.push_back(groups[PG_RGEN_SHADE_LIGHT_NEE]);
+    pipeline_groups.push_back(groups[PG_RGEN_SHADE_LIGHT_FORWARD]);
     pipeline_groups.push_back(groups[PG_RGEN_SHADE_SURFACE]);
     pipeline_groups.push_back(groups[PG_RGEN_SHADE_SURFACE_RAYTRACE]);
     pipeline_groups.push_back(groups[PG_CALL_SVM_AO]);
@@ -999,6 +1071,7 @@ bool OptiXDevice::load_osl_kernels()
     pipeline_groups.push_back(groups[PG_RGEN_EVAL_BACKGROUND]);
     pipeline_groups.push_back(groups[PG_RGEN_EVAL_CURVE_SHADOW_TRANSPARENCY]);
     pipeline_groups.push_back(groups[PG_RGEN_INIT_FROM_CAMERA]);
+    pipeline_groups.push_back(groups[PG_RGEN_EVAL_VOLUME_DENSITY]);
 
     for (const OptixProgramGroup &group : osl_groups) {
       if (group != nullptr) {
@@ -1020,7 +1093,7 @@ bool OptiXDevice::load_osl_kernels()
     vector<OptixStackSizes> osl_stack_size(osl_groups.size());
 
     for (int i = 0; i < NUM_PROGRAM_GROUPS; ++i) {
-      optix_assert(optixProgramGroupGetStackSize(groups[i], &stack_size[i], nullptr));
+      optix_assert(optixProgramGroupGetStackSize(groups[i], &stack_size[i], pipelines[PIP_SHADE]));
     }
     for (size_t i = 0; i < osl_groups.size(); ++i) {
       if (osl_groups[i] != nullptr) {
@@ -1469,7 +1542,10 @@ void OptiXDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
           verts = motion_keys->data_float3() + (step > center_step ? step - 1 : step) * num_verts;
         }
 
-        memcpy(vertex_data.data() + num_verts * step, verts, num_verts * sizeof(float3));
+        /* Direct copy from Cycles padded float3, needs to match float4 size. */
+        static_assert(sizeof(float3) == sizeof(float4));
+        std::copy_n(
+            verts, num_verts, reinterpret_cast<float3 *>(vertex_data.data() + num_verts * step));
       }
 
       /* Upload triangle data to GPU. */
@@ -1671,17 +1747,22 @@ void OptiXDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
         instance.visibilityMask = 0xFF;
       }
 
-      if (ob->get_geometry()->is_hair() &&
-          static_cast<const Hair *>(ob->get_geometry())->curve_shape != CURVE_RIBBON)
-      {
-        if (static_cast<const Hair *>(ob->get_geometry())->curve_shape == CURVE_THICK_LINEAR) {
+      if (ob->get_geometry()->is_hair()) {
+        const Hair *hair = static_cast<const Hair *>(ob->get_geometry());
+        if (hair->curve_shape == CURVE_RIBBON) {
+          instance.sbtOffset = PG_HITD_CURVE_RIBBON - PG_HITD;
+
+          /* Also skip curve ribbons in local trace calls. */
+          instance.visibilityMask |= 4;
+        }
+        else if (hair->curve_shape == CURVE_THICK_LINEAR) {
           instance.sbtOffset = PG_HITD_CURVE_LINEAR - PG_HITD;
-          if (pipeline_options.usesMotionBlur && ob->get_geometry()->has_motion_blur()) {
+          if (pipeline_options.usesMotionBlur && hair->has_motion_blur()) {
             instance.sbtOffset = PG_HITD_CURVE_LINEAR_MOTION - PG_HITD;
           }
         }
         else {
-          if (pipeline_options.usesMotionBlur && ob->get_geometry()->has_motion_blur()) {
+          if (pipeline_options.usesMotionBlur && hair->has_motion_blur()) {
             /* Select between motion blur and non-motion blur built-in intersection module. */
             instance.sbtOffset = PG_HITD_MOTION - PG_HITD;
           }

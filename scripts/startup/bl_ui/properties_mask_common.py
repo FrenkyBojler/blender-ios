@@ -172,8 +172,10 @@ class MASK_PT_point:
 
         if mask and sc.mode == 'MASK':
             mask_layer_active = mask.layers.active
-            return (mask_layer_active and
-                    mask_layer_active.splines.active_point)
+            return (
+                mask_layer_active and
+                mask_layer_active.splines.active_point
+            )
 
         return False
 
@@ -377,6 +379,26 @@ class MASK_MT_add(Menu):
         layout.operator("mask.primitive_square_add", text="Square", icon='MESH_PLANE')
 
 
+class MASK_MT_move_to_layer(Menu):
+    bl_label = "Move to Layer"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.operator_context = 'INVOKE_REGION_WIN'
+        mask = context.space_data.mask
+
+        layout.operator("mask.move_to_layer", text="New Layer", icon='ADD').add_new_layer = True
+
+        if not mask.layers:
+            return
+
+        layout.separator()
+
+        for layer in mask.layers:
+            icon = 'NONE'
+            layout.operator("mask.move_to_layer", text=layer.name, icon=icon).target_layer_name = layer.name
+
+
 class MASK_MT_visibility(Menu):
     bl_label = "Show/Hide"
 
@@ -449,6 +471,7 @@ classes = (
     MASK_UL_layers,
     MASK_MT_mask,
     MASK_MT_add,
+    MASK_MT_move_to_layer,
     MASK_MT_visibility,
     MASK_MT_transform,
     MASK_MT_animation,

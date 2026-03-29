@@ -1,18 +1,18 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'720cc7d08c9c')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'ec8c60553753')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-08-04 09:08+0000\n"
-"PO-Revision-Date: 2025-07-23 15:31+0000\n"
-"Last-Translator: Balázs Füvesi <fuvesib@gmail.com>\n"
+"POT-Creation-Date: 2026-03-23 09:55+0000\n"
+"PO-Revision-Date: 2026-03-19 19:12+0000\n"
+"Last-Translator: Tamás Máté <royalpython132@gmail.com>\n"
 "Language-Team: Hungarian <https://translate.blender.org/projects/blender-ui/ui/hu/>\n"
 "Language: hu\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 5.12.1\n"
+"X-Generator: Weblate 5.16.2\n"
 "X-Poedit-Basepath: .\n"
 "X-Poedit-SearchPath-0: E:\\PROJEKTEK\\Blender\\FORDITAS\\osszefuzes"
 
@@ -43,10 +43,6 @@ msgstr "Érték"
 
 msgid "F-Curves"
 msgstr "F-Görbék"
-
-
-msgid "Action F-Curves"
-msgstr "Akció F-Görbék"
 
 
 msgid "Action Group"
@@ -391,12 +387,20 @@ msgid "Always"
 msgstr "Mindig"
 
 
+msgid "Never"
+msgstr "Soha"
+
+
 msgid "Center"
 msgstr "Közép"
 
 
 msgid "Bottom"
 msgstr "Alulnézet"
+
+
+msgid "Show Hotkey List"
+msgstr "Gyorsbillentyűk listája mutatása"
 
 
 msgid "Action"
@@ -421,6 +425,10 @@ msgstr "Különbség"
 
 msgid "Multiply"
 msgstr "Többszörözés"
+
+
+msgid "Nothing"
+msgstr "Semmi"
 
 
 msgid "Motion Paths"
@@ -519,8 +527,16 @@ msgid "Display Paths of poses within specified range"
 msgstr "Pózok útvonalának megjelenítése a megadott tartományban"
 
 
+msgid "Frame Number"
+msgstr "Képkocka száma"
+
+
 msgid "Strokes"
 msgstr "Vonalak"
+
+
+msgid "Hide"
+msgstr "Elrejt"
 
 
 msgid "Opacity"
@@ -553,6 +569,10 @@ msgstr "Alapértelmezett"
 
 msgid "Coordinates"
 msgstr "Koordináták"
+
+
+msgid "Any Type"
+msgstr "Akármilyen típus"
 
 
 msgid "Height"
@@ -615,12 +635,28 @@ msgid "File Browser"
 msgstr "Fájl böngésző"
 
 
+msgid "Spreadsheet"
+msgstr "Táblázat"
+
+
 msgid "Preferences"
 msgstr "Preferenciák"
 
 
 msgid "Width"
 msgstr "Szélesség"
+
+
+msgid "Area width"
+msgstr "Terület szélessége"
+
+
+msgid "X Position"
+msgstr "X pozíció"
+
+
+msgid "Y Position"
+msgstr "Y pozíció"
 
 
 msgid "Active Tag"
@@ -656,6 +692,78 @@ msgid "Custom"
 msgstr "Egyéni"
 
 
+msgid "Actions"
+msgstr "Akciók"
+
+
+msgid "Armatures"
+msgstr "Csontvázak"
+
+
+msgid "Cache Files"
+msgstr "Gyorsítótár fájlok"
+
+
+msgid "Cameras"
+msgstr "Kamerák"
+
+
+msgid "Hair Curves"
+msgstr "Haj görbék"
+
+
+msgid "Fonts"
+msgstr "Betűkészletek"
+
+
+msgid "Grease Pencil"
+msgstr "Zsírkréta"
+
+
+msgid "Collections"
+msgstr "Kollekciók"
+
+
+msgid "Images"
+msgstr "Képek"
+
+
+msgid "Lattices"
+msgstr "Ketrecek"
+
+
+msgid "Meshes"
+msgstr "Térhálók"
+
+
+msgid "Metaballs"
+msgstr "Meta testek"
+
+
+msgid "Scenes"
+msgstr "Jelenetek"
+
+
+msgid "Sounds"
+msgstr "Hangok"
+
+
+msgid "Speakers"
+msgstr "Hangszórók"
+
+
+msgid "Texts"
+msgstr "Szövegek"
+
+
+msgid "Textures"
+msgstr "Textúrák"
+
+
+msgid "Worlds"
+msgstr "Világok"
+
+
 msgid "Show Names"
 msgstr "Nevek megjelenítése"
 
@@ -684,6 +792,10 @@ msgid "32-bit integer"
 msgstr "32 bites egész szám"
 
 
+msgid "Boolean"
+msgstr "Logikai"
+
+
 msgid "Vector"
 msgstr "Vektor"
 
@@ -696,20 +808,16 @@ msgid "RGBA color with 32-bit floating-point values"
 msgstr "RGBA szín 32 bites lebegőpontos számokkal"
 
 
+msgid "Quaternion"
+msgstr "Kvaternió"
+
+
 msgid "Text string"
 msgstr "Szövegkarakterlánc"
 
 
-msgid "Boolean"
-msgstr "Logikai"
-
-
 msgid "2D Vector"
 msgstr "2D Vektor"
-
-
-msgid "Quaternion"
-msgstr "Kvaternió"
 
 
 msgid "Point"
@@ -740,10 +848,6 @@ msgid "Name of the Attribute"
 msgstr "Az attribútum neve"
 
 
-msgid "Array"
-msgstr "Sorozat"
-
-
 msgid "8-bit Integer Attribute"
 msgstr "8-bites egész szám attribútum"
 
@@ -770,6 +874,14 @@ msgstr "Aktív szín index"
 
 msgid "Default Color Attribute"
 msgstr "Alapértelmezett színattribútum"
+
+
+msgid "Object"
+msgstr "Objektum"
+
+
+msgid "Tangent"
+msgstr "Tangens"
 
 
 msgid "File Path"
@@ -816,16 +928,8 @@ msgid "Choose normal space for baking"
 msgstr "Normális terének kiválasztása a sütéshez"
 
 
-msgid "Object"
-msgstr "Objektum"
-
-
 msgid "Bake the normals in object space"
 msgstr "Nörmálisok kisütése objektum-térben"
-
-
-msgid "Tangent"
-msgstr "Tangens"
 
 
 msgid "Bake the normals in tangent space"
@@ -868,12 +972,52 @@ msgid "Target"
 msgstr "Cél"
 
 
+msgid "Choose shading information to bake into the image"
+msgstr "Árnyékolási információk kiválasztása a képbe való sütésükhöz"
+
+
+msgid "Normals"
+msgstr "Normálisok"
+
+
+msgid "Bake normals"
+msgstr "Normálisok kisütése"
+
+
+msgid "Displacement"
+msgstr "Elmozdítás"
+
+
+msgid "Bake displacement"
+msgstr "Elmozdítások kisütése"
+
+
 msgid "Automatic Name"
 msgstr "Automatikus név"
 
 
 msgid "Clear"
 msgstr "Törlés"
+
+
+msgid "Low Resolution Mesh"
+msgstr "Alacsony felbontású térháló"
+
+
+msgid "Calculate heights against unsubdivided low resolution mesh"
+msgstr "Magasságok számítása a felosztatlan, alacsony felbontású térhálók ellen"
+
+
+msgid "Bake from Multires"
+msgstr "Sütés Multi-felbontásból"
+
+
+msgid "Bake directly from multires object"
+msgstr "Sütés közvetlenül a multi-felbontásos objektumokból"
+
+
+msgid "Emission"
+msgstr "Emisszió"
 
 
 msgid "Selected to Active"
@@ -908,28 +1052,12 @@ msgid "Weight"
 msgstr "Súly"
 
 
-msgid "Actions"
-msgstr "Akciók"
-
-
-msgid "Armatures"
-msgstr "Csontvázak"
-
-
-msgid "Cache Files"
-msgstr "Gyorsítótár fájlok"
-
-
-msgid "Cameras"
-msgstr "Kamerák"
-
-
-msgid "Collections"
-msgstr "Kollekciók"
-
-
 msgid "Collection data-blocks"
 msgstr "Kollekció adatblokkok"
+
+
+msgid "Color Space"
+msgstr "Színtér"
 
 
 msgid "Curve data-blocks"
@@ -944,32 +1072,16 @@ msgid "Path to the .blend file"
 msgstr "Útvonal a .blend fájlhoz"
 
 
-msgid "Grease Pencil"
-msgstr "Zsírkréta"
-
-
 msgid "Grease Pencil data-blocks"
 msgstr "Zsírkréta adatblokkok"
-
-
-msgid "Hair Curves"
-msgstr "Haj görbék"
 
 
 msgid "Hair curve data-blocks"
 msgstr "Haj görbe adatblokkok"
 
 
-msgid "Images"
-msgstr "Képek"
-
-
 msgid "Image data-blocks"
 msgstr "Kép adatblokkok"
-
-
-msgid "Lattices"
-msgstr "Ketrecek"
 
 
 msgid "Light data-blocks"
@@ -980,44 +1092,16 @@ msgid "Material data-blocks"
 msgstr "Anyag adatblokkok"
 
 
-msgid "Meshes"
-msgstr "Térhálók"
-
-
 msgid "Mesh data-blocks"
 msgstr "Térháló adatblokkok"
-
-
-msgid "Metaballs"
-msgstr "Meta testek"
 
 
 msgid "Particles"
 msgstr "Részecskék"
 
 
-msgid "Scenes"
-msgstr "Jelenetek"
-
-
 msgid "Shape Keys"
 msgstr "Formakulcsok"
-
-
-msgid "Sounds"
-msgstr "Hangok"
-
-
-msgid "Speakers"
-msgstr "Hangszórók"
-
-
-msgid "Texts"
-msgstr "Szövegek"
-
-
-msgid "Textures"
-msgstr "Textúrák"
 
 
 msgid "Version"
@@ -1030,10 +1114,6 @@ msgstr "Ablakkezelők"
 
 msgid "Window manager data-blocks"
 msgstr "Ablakkezelő adatblokkok"
-
-
-msgid "Worlds"
-msgstr "Világok"
 
 
 msgid "Main Grease Pencils"
@@ -1278,20 +1358,12 @@ msgid "Enabled"
 msgstr "Engedélyezett"
 
 
-msgid "Display Device"
+msgid "Display"
 msgstr "Kijelző"
-
-
-msgid "Display device name"
-msgstr "Kijelző eszköz neve"
 
 
 msgid "Input Color Space"
 msgstr "Bemeneti színtér"
-
-
-msgid "Color Space"
-msgstr "Színtér"
 
 
 msgid "Color space that the sequencer operates in"
@@ -1322,40 +1394,8 @@ msgid "Use RGB curved for pre-display transformation"
 msgstr "RGB görbék használata az előzetes-megjelenítés taranszformációhoz"
 
 
-msgid "Mix"
-msgstr "Keverés"
-
-
-msgid "Darken"
-msgstr "Sötétítés"
-
-
-msgid "Lighten"
-msgstr "Világosítás"
-
-
-msgid "Screen"
-msgstr "Képernyő"
-
-
-msgid "Overlay"
-msgstr "Rávetítés"
-
-
-msgid "Soft Light"
-msgstr "Lágy fény"
-
-
-msgid "Linear Light"
-msgstr "Lineáris fény"
-
-
-msgid "Difference"
-msgstr "Különbség"
-
-
-msgid "Divide"
-msgstr "Osztás"
+msgid "View"
+msgstr "Nézet"
 
 
 msgid "Brightness"
@@ -2919,10 +2959,6 @@ msgid "Plane"
 msgstr "Síklap"
 
 
-msgid "View"
-msgstr "Nézet"
-
-
 msgid "Radius"
 msgstr "Sugár"
 
@@ -3017,10 +3053,6 @@ msgstr "Forgatási mód"
 
 msgid "Factor"
 msgstr "Faktor"
-
-
-msgid "Displacement"
-msgstr "Elmozdítás"
 
 
 msgid "File Format"
@@ -3381,10 +3413,6 @@ msgid "Size"
 msgstr "Méret"
 
 
-msgid "Fonts"
-msgstr "Betűkészletek"
-
-
 msgid "Save"
 msgstr "Mentés"
 
@@ -3603,6 +3631,22 @@ msgstr "Normális"
 
 msgid "Menu"
 msgstr "Menü"
+
+
+msgid "Font"
+msgstr "Betűkészlet"
+
+
+msgid "Text"
+msgstr "Szöveg"
+
+
+msgid "Mask"
+msgstr "Maszk"
+
+
+msgid "Sound"
+msgstr "Hang"
 
 
 msgid "Freestyle Line Set"
@@ -3997,6 +4041,10 @@ msgid "Blend Mode"
 msgstr "Keverési mód"
 
 
+msgid "Divide"
+msgstr "Osztás"
+
+
 msgid "Layer Opacity"
 msgstr "Réteg átlátszatlansága"
 
@@ -4037,24 +4085,8 @@ msgid "Frame Range"
 msgstr "Képkockasor"
 
 
-msgid "Groups"
-msgstr "Csoportok"
-
-
 msgid "Layers"
 msgstr "Rétegek"
-
-
-msgid "Exclusion"
-msgstr "Kizárás"
-
-
-msgid "Erase Alpha"
-msgstr "Átlátszóság törlése"
-
-
-msgid "Add Alpha"
-msgstr "Átlátszóság hozzáadása"
 
 
 msgid "Box"
@@ -4079,6 +4111,10 @@ msgstr "Globális"
 
 msgid "Dynamic"
 msgstr "Dinamikus"
+
+
+msgid "Falloff Curve"
+msgstr "Elenyészési görbe"
 
 
 msgctxt "Curve"
@@ -4109,10 +4145,6 @@ msgstr "Lineáris"
 msgctxt "Curve"
 msgid "Constant"
 msgstr "Konstans"
-
-
-msgid "Direction"
-msgstr "Irány"
 
 
 msgid "Draw"
@@ -4151,10 +4183,6 @@ msgid "Interval between paints for Airbrush"
 msgstr "A festékszóró festési lépései közötti intervallum"
 
 
-msgid "Radius of the brush in pixels"
-msgstr "Az ecset mérete képpontokban mérve"
-
-
 msgid "Laplacian"
 msgstr "Laplace"
 
@@ -4165,10 +4193,6 @@ msgstr "Az ecsetnyomok közötti kihagyás az ecset átmérőjének arányában"
 
 msgid "How powerful the effect of the brush is when applied"
 msgstr "Az ecset hatásának erőssége használat közben"
-
-
-msgid "Airbrush"
-msgstr "Festékszóró"
 
 
 msgid "Use this brush in texture paint mode"
@@ -4267,10 +4291,6 @@ msgid "Path"
 msgstr "Útvonal"
 
 
-msgid "Font"
-msgstr "Betűkészlet"
-
-
 msgid "Text Selected"
 msgstr "Kijelölt szöveg"
 
@@ -4285,10 +4305,6 @@ msgstr "Betűméret"
 
 msgid "Spacing between words"
 msgstr "Szavak közti távolság"
-
-
-msgid "Normals"
-msgstr "Normálisok"
 
 
 msgid "Freestyle Line Style"
@@ -4675,36 +4691,20 @@ msgid "Display Aspect for this image, does not affect rendering"
 msgstr "A jelenlegi kép megjelenítési aránya, a renderelésre nincsen hatással"
 
 
-msgid "Output image in bitmap format"
-msgstr "Kimeneti kép bittérképes formátumbn"
+msgid "Output image in JPEG format"
+msgstr "Kimeneti kép JPEG formátumban"
+
+
+msgid "Output image in OpenEXR format"
+msgstr "Kimeneti kép OpenEXR formátumban"
 
 
 msgid "Output image in PNG format"
 msgstr "Kimeneti kép PNG formátumban"
 
 
-msgid "Output image in JPEG format"
-msgstr "Kimeneti kép JPEG formátumban"
-
-
-msgid "Targa"
-msgstr "Targa"
-
-
-msgid "Output image in Targa format"
-msgstr "Kimeneti kép Targa formátumban"
-
-
-msgid "Targa Raw"
-msgstr "Targa Raw (nyers)"
-
-
-msgid "Output image in uncompressed Targa format"
-msgstr "Kimeneti kép tömörítetlen Targa formátumban"
-
-
-msgid "Cineon"
-msgstr "Cineon"
+msgid "Output image in bitmap format"
+msgstr "Kimeneti kép bittérképes formátumbn"
 
 
 msgid "Output image in Cineon format"
@@ -4715,24 +4715,20 @@ msgid "Output image in DPX format"
 msgstr "Kimeneti kép DPX formátumban"
 
 
-msgid "Output image in OpenEXR format"
-msgstr "Kimeneti kép OpenEXR formátumban"
-
-
-msgid "Radiance HDR"
-msgstr "Radiance HDR"
-
-
 msgid "Output image in Radiance HDR format"
 msgstr "Kimeneti kép Radiancia HDR formátumban"
 
 
+msgid "Output image in Targa format"
+msgstr "Kimeneti kép Targa formátumban"
+
+
+msgid "Output image in uncompressed Targa format"
+msgstr "Kimeneti kép tömörítetlen Targa formátumban"
+
+
 msgid "Output image in TIFF format"
 msgstr "Kimeneti kép TIFF formátumban"
-
-
-msgid "OpenEXR MultiLayer"
-msgstr "OpenEXR MultiLayer"
 
 
 msgid "Output image in multilayer OpenEXR format"
@@ -5248,10 +5244,6 @@ msgid "Simple"
 msgstr "Egyszerű"
 
 
-msgid "Display"
-msgstr "Kijelző"
-
-
 msgid "Steps"
 msgstr "Lépések"
 
@@ -5278,10 +5270,6 @@ msgstr "Módosító sor használata"
 
 msgid "Active Movie Clip"
 msgstr "Aktív Filmklip"
-
-
-msgid "Mirror Object"
-msgstr "Tükröző objektum"
 
 
 msgid "Distance Model"
@@ -5458,10 +5446,6 @@ msgstr "Bal felső 3D szerkesztő"
 
 msgid "Attenuation"
 msgstr "Gyengítés"
-
-
-msgid "Sound"
-msgstr "Hang"
 
 
 msgid "Memory"
@@ -5670,6 +5654,10 @@ msgstr "Ctrl"
 
 msgid "Control key pressed"
 msgstr "Control billentyű lenyomása"
+
+
+msgid "Direction"
+msgstr "Irány"
 
 
 msgid "North"
@@ -5984,6 +5972,10 @@ msgid "Keying Sets"
 msgstr "Kulcsozókészletek"
 
 
+msgid "Groups"
+msgstr "Csoportok"
+
+
 msgid "Active Object"
 msgstr "Aktív objektum"
 
@@ -6010,6 +6002,14 @@ msgstr "Az alfa átlátszóság megváltoztatása a vonal mentén"
 
 msgid "Specify how the modifier value is blended into the base value"
 msgstr "A módosító érték alapértékbe való keverésének meghatározása"
+
+
+msgid "Mix"
+msgstr "Keverés"
+
+
+msgid "Difference"
+msgstr "Különbség"
 
 
 msgid "True if the modifier tab is expanded"
@@ -6118,6 +6118,34 @@ msgstr "Csillogás keménysége"
 
 msgid "Change line color along stroke"
 msgstr "Vonalszín megváltoztatása a vonal mentén"
+
+
+msgid "Darken"
+msgstr "Sötétítés"
+
+
+msgid "Lighten"
+msgstr "Világosítás"
+
+
+msgid "Screen"
+msgstr "Képernyő"
+
+
+msgid "Overlay"
+msgstr "Rávetítés"
+
+
+msgid "Soft Light"
+msgstr "Lágy fény"
+
+
+msgid "Linear Light"
+msgstr "Lineáris fény"
+
+
+msgid "Exclusion"
+msgstr "Kizárás"
 
 
 msgid "Line Style Geometry Modifier"
@@ -6577,10 +6605,6 @@ msgid "Use Material Mask"
 msgstr "Anyagmaszk használata"
 
 
-msgid "Mask"
-msgstr "Maszk"
-
-
 msgid "Mirror"
 msgstr "Tükrözés"
 
@@ -6597,12 +6621,20 @@ msgid "Align View"
 msgstr "Nézet igazítása"
 
 
+msgid "Import"
+msgstr "Importálás"
+
+
 msgid "Metaball"
 msgstr "Meta test"
 
 
 msgid "Light"
 msgstr "Fényforrás"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Relations"
@@ -6633,8 +6665,12 @@ msgid "Merge"
 msgstr "Összefésülés"
 
 
-msgid "Text"
-msgstr "Szöveg"
+msgid "Keying"
+msgstr "Kulcsozás"
+
+
+msgid "Tracking"
+msgstr "Követés"
 
 
 msgctxt "MovieClip"
@@ -6667,20 +6703,8 @@ msgid "Smooth"
 msgstr "Simítás"
 
 
-msgid "UV"
-msgstr "UV"
-
-
 msgid "Strip"
 msgstr "Sáv"
-
-
-msgid "Keying"
-msgstr "Kulcsozás"
-
-
-msgid "Import"
-msgstr "Importálás"
 
 
 msgid "Add Modifier"
@@ -6742,6 +6766,11 @@ msgstr "Mentés & Betöltés"
 msgctxt "Operator"
 msgid "Parent"
 msgstr "Szülő"
+
+
+msgctxt "Operator"
+msgid "Lattice"
+msgstr "Ketrec"
 
 
 msgid "Operator Presets"
@@ -6834,6 +6863,10 @@ msgstr "Két csúcspot-csoport súlyainak keverése"
 
 msgid "Time Offset"
 msgstr "Idő eltolás"
+
+
+msgid "Array"
+msgstr "Sorozat"
 
 
 msgid "Bevel"
@@ -7647,6 +7680,10 @@ msgid "Step"
 msgstr "Lépés"
 
 
+msgid "Light Object"
+msgstr "fény objektum"
+
+
 msgid "Grease Pencil layer to which assign the generated strokes"
 msgstr "Zsírkréta réteg, amelyhez hozzárendeli a generált vonásokat"
 
@@ -7749,10 +7786,6 @@ msgstr "Legalacsonyabb"
 
 msgid "Hook modifier to modify the location of vertices"
 msgstr "Kampó módosító a csúcspontok helyzetének módosításához"
-
-
-msgid "Falloff Curve"
-msgstr "Elenyészési görbe"
 
 
 msgid "Laplacian Deform Modifier"
@@ -7933,6 +7966,10 @@ msgstr "Tükrözés módosító"
 
 msgid "Mirroring modifier"
 msgstr "Tükrözés módosító"
+
+
+msgid "Mirror Object"
+msgstr "Tükröző objektum"
 
 
 msgid "Object to use as mirror"
@@ -9162,20 +9199,12 @@ msgid "Units"
 msgstr "Egységek"
 
 
-msgid "Markers"
-msgstr "Markerek"
-
-
 msgid "Starting"
 msgstr "Induló"
 
 
 msgid "Blending"
 msgstr "Keverés"
-
-
-msgid "Height of the node"
-msgstr "Csomópont/node magassága"
 
 
 msgid "Collapse"
@@ -9202,10 +9231,6 @@ msgid "To"
 msgstr "Eddig"
 
 
-msgid "Interpolation method"
-msgstr "Interpoláció módja"
-
-
 msgid "Use Material layer"
 msgstr "Anyagréteg használata"
 
@@ -9218,20 +9243,8 @@ msgid "Distance Key"
 msgstr "Távolság kulcs"
 
 
-msgid "Soften"
-msgstr "Elmosás"
-
-
-msgid "Shadow"
-msgstr "Árnyék"
-
-
 msgid "Keying Screen"
 msgstr "Képernyő/háttér kulcsozás"
-
-
-msgid "Combined"
-msgstr "Kombinált"
 
 
 msgid "File Output"
@@ -9322,10 +9335,6 @@ msgid "Min Max"
 msgstr "Min Max"
 
 
-msgid "Emission"
-msgstr "Emisszió"
-
-
 msgid "Map Range"
 msgstr "Leképezés hatásköre"
 
@@ -9380,6 +9389,10 @@ msgstr "Helyi súgó"
 
 msgid "Object Constraints"
 msgstr "Objektum kényszerítők"
+
+
+msgid "Shadow"
+msgstr "Árnyék"
 
 
 msgctxt "Operator"
@@ -9749,20 +9762,6 @@ msgstr "Hosszú lista"
 
 msgid "Display files as a detailed list"
 msgstr "Fájlok megjelenítése részletes listaként"
-
-
-msgid "Set brush shape"
-msgstr "Ecsetforma beállítása"
-
-
-msgctxt "Curve"
-msgid "Mode"
-msgstr "Mód"
-
-
-msgctxt "Curve"
-msgid "Line"
-msgstr "Vonal"
 
 
 msgctxt "Operator"
@@ -10460,13 +10459,13 @@ msgstr "Zsírkréta rajz"
 
 
 msgctxt "Operator"
-msgid "Invert"
-msgstr "Invertálás"
+msgid "Erase"
+msgstr "Törlés"
 
 
 msgctxt "Operator"
-msgid "Erase"
-msgstr "Törlés"
+msgid "Invert"
+msgstr "Invertálás"
 
 
 msgid "Flat"
@@ -10633,10 +10632,6 @@ msgid "Scale FPS"
 msgstr "FPS skálázása"
 
 
-msgid "Scale the framerate from the BVH to the current scenes, otherwise each BVH frame maps directly to a Blender frame"
-msgstr "A BVH képkockasebességnek a skálázása az aktuális jelenethez, másként minden BVH képkocka közvetlenül egy Blender képkockákra képeződik le"
-
-
 msgid "Image Search"
 msgstr "Kép keresése"
 
@@ -10701,6 +10696,10 @@ msgstr "Új anyag"
 
 msgid "Add a new material"
 msgstr "Új anyag hozzáadása"
+
+
+msgid "Interpolation method"
+msgstr "Interpoláció módja"
 
 
 msgid "Remove from the selection"
@@ -10830,6 +10829,10 @@ msgstr "Sütés"
 
 msgid "Bake image textures of selected objects"
 msgstr "A kijelölt objektumok kép textúráinak kisütése"
+
+
+msgid "Combined"
+msgstr "Kombinált"
 
 
 msgid "UV Layer"
@@ -10963,10 +10966,6 @@ msgstr "Térháló deformálció kötés"
 
 msgid "Bind mesh to cage in mesh deform modifier"
 msgstr "Térháló kötése a ketrechez a térháló deformálás módosítóban"
-
-
-msgid "Add an metaball object to the scene"
-msgstr "Meta test hozzáadása a jelenethez"
 
 
 msgctxt "Operator"
@@ -11476,10 +11475,6 @@ msgid "Bake All Physics"
 msgstr "Minden fizikai szimuláció kisütése"
 
 
-msgid "Bake all physics"
-msgstr "Minden fizikai szimuláció kisütése"
-
-
 msgid "Bake from cache"
 msgstr "Sütés a gyorsítótárból"
 
@@ -11498,8 +11493,14 @@ msgid "Render"
 msgstr "Render"
 
 
-msgid "Render active scene"
-msgstr "Aktív jelenet renderelése"
+msgctxt "Curve"
+msgid "Mode"
+msgstr "Mód"
+
+
+msgctxt "Curve"
+msgid "Line"
+msgstr "Vonal"
 
 
 msgctxt "Operator"
@@ -11950,6 +11951,14 @@ msgid "Custom Curve"
 msgstr "Egyéni görbe"
 
 
+msgid "Channel to place this strip into"
+msgstr "Csatorna, amiben a sáv el lesz helyezve"
+
+
+msgid "Replace Selection"
+msgstr "Kijelölés lecserélése"
+
+
 msgctxt "Sequence"
 msgid "Type"
 msgstr "Típus"
@@ -11991,11 +12000,6 @@ msgstr "Ragyogás"
 
 
 msgctxt "Sequence"
-msgid "Transform"
-msgstr "Átalakít"
-
-
-msgctxt "Sequence"
 msgid "Color"
 msgstr "Szín"
 
@@ -12017,18 +12021,6 @@ msgstr "Másolás"
 
 msgid "Add an effect to the sequencer, most are applied on top of existing strips"
 msgstr "Effekt hozzáadása a szekvenciához, többségük a létező sávok fölé kerül"
-
-
-msgid "Channel to place this strip into"
-msgstr "Csatorna, amiben a sáv el lesz helyezve"
-
-
-msgid "Start frame of the sequence strip"
-msgstr "A szekvenciasáv kezdő képkockája"
-
-
-msgid "Replace Selection"
-msgstr "Kijelölés lecserélése"
 
 
 msgid "Add an image or image sequence to the sequencer"
@@ -12159,30 +12151,6 @@ msgstr "Audió animáció gyorsítótár frissítése"
 msgctxt "Operator"
 msgid "Mixdown"
 msgstr "Lekeverés"
-
-
-msgid "Construct a Nurbs surface Circle"
-msgstr "Nurbs felület kör létrehozása"
-
-
-msgid "Construct a Nurbs surface Curve"
-msgstr "Nurbs felület görbe létrehozása"
-
-
-msgid "Construct a Nurbs surface Cylinder"
-msgstr "Nurbs henger létrehozása"
-
-
-msgid "Construct a Nurbs surface Sphere"
-msgstr "Nurbs gömb létrehozása"
-
-
-msgid "Construct a Nurbs surface Patch"
-msgstr "Nurbs felület darabka létrehozása"
-
-
-msgid "Construct a Nurbs surface Torus"
-msgstr "Nurbs tórusz létrehozása"
 
 
 msgid "Add a new texture"
@@ -12881,6 +12849,10 @@ msgid "Texture Space"
 msgstr "Textúratér"
 
 
+msgid "Shape Key"
+msgstr "Formakulcs"
+
+
 msgid "Bookmarks"
 msgstr "Könyvjelzők"
 
@@ -13022,6 +12994,10 @@ msgstr "Oldallap jelölés"
 
 msgid "Splitting"
 msgstr "Szétválasztás"
+
+
+msgid "Radius of the brush in pixels"
+msgstr "Az ecset mérete képpontokban mérve"
 
 
 msgid "Child Particles"
@@ -13358,10 +13334,6 @@ msgstr "Az egér alatti mélység használata a pásztázás/forgatás/zoomolás
 
 msgid "Emulate 3 Button Mouse"
 msgstr "3 gombos egér emulálása"
-
-
-msgid "Use selection as the pivot point"
-msgstr "Kijelölés használata a nézetforgatás középpontjaként"
 
 
 msgid "Zoom in towards the mouse pointer's position in the 3D view, rather than the 2D window center"
@@ -13860,26 +13832,6 @@ msgid "Render Strands in this Layer"
 msgstr "Szálak renderelése ezen a rétegen"
 
 
-msgid "Bias"
-msgstr "Eltérés"
-
-
-msgid "Number of samples used for ambient occlusion baking from multires"
-msgstr "Mintavételek száma a multi-felbontásos objektumokból kisütött környezeti elnyelődésnél"
-
-
-msgid "Choose shading information to bake into the image"
-msgstr "Árnyékolási információk kiválasztása a képbe való sütésükhöz"
-
-
-msgid "Bake normals"
-msgstr "Normálisok kisütése"
-
-
-msgid "Bake displacement"
-msgstr "Elmozdítások kisütése"
-
-
 msgid "Dither Intensity"
 msgstr "Szórás intenzitás"
 
@@ -14010,26 +13962,6 @@ msgstr "A szálak számának automatikus meghatározása, a CPU-n alapulva"
 
 msgid "Manually determine the number of threads"
 msgstr "A szálak számának manuális meghatározása"
-
-
-msgid "Clear Images before baking"
-msgstr "Képek tisztára törlése sütés előtt"
-
-
-msgid "Low Resolution Mesh"
-msgstr "Alacsony felbontású térháló"
-
-
-msgid "Calculate heights against unsubdivided low resolution mesh"
-msgstr "Magasságok számítása a felosztatlan, alacsony felbontású térhálók ellen"
-
-
-msgid "Bake from Multires"
-msgstr "Sütés Multi-felbontásból"
-
-
-msgid "Bake directly from multires object"
-msgstr "Sütés közvetlenül a multi-felbontásos objektumokból"
 
 
 msgid "Add the file format extensions to the rendered file name (eg: filename + .jpg)"
@@ -14172,6 +14104,10 @@ msgid "Reduce extra velocity that can build up when objects collide (lowers simu
 msgstr "Extra sebesség csökkentése, ami termelődhet az objektumok ütözésekor (alacsonyabb szimulációs stabilitás, csak akkor ajánlott, ha feltétlenül szükséges)"
 
 
+msgid "Bias"
+msgstr "Eltérés"
+
+
 msgid "Show Cache"
 msgstr "Gyorsítótár megjelenítése"
 
@@ -14180,8 +14116,8 @@ msgid "Show Source"
 msgstr "Forrás megjelenítése"
 
 
-msgid "Shape Key"
-msgstr "Formakulcs"
+msgid "Markers"
+msgstr "Markerek"
 
 
 msgid "Shape key in a shape keys data-block"
@@ -14453,18 +14389,6 @@ msgid "Show lattices"
 msgstr "Rácsok mutatása"
 
 
-msgid "Cross"
-msgstr "Keresztezés"
-
-
-msgid "Alpha Under"
-msgstr "Alfa takarás"
-
-
-msgid "Gamma Cross"
-msgstr "Gamma keresztezés"
-
-
 msgid "The length of the contents of this strip after the handles are applied"
 msgstr "A sáv hossza (a széleken lévő manipulátor fogantyúk alkalmazása után)"
 
@@ -14519,6 +14443,11 @@ msgid "Outline Width"
 msgstr "Körvonal vastagsága"
 
 
+msgctxt "Sequence"
+msgid "Curves"
+msgstr "Görbék"
+
+
 msgid "Translate X"
 msgstr "Áthelyezés X (irányba)"
 
@@ -14563,22 +14492,6 @@ msgid "Color of disabled marker"
 msgstr "Letiltott marker színe"
 
 
-msgid "Align Handle"
-msgstr "Markolat igazítása"
-
-
-msgid "Handle Vertex"
-msgstr "Fogantyú csúcspont"
-
-
-msgid "Handle Vertex Select"
-msgstr "Kijelölt fogantyú csúcspont"
-
-
-msgid "Handle Vertex Size"
-msgstr "Fogantyú csúcspont mérete"
-
-
 msgid "Locked Marker"
 msgstr "Zárolt marker"
 
@@ -14619,24 +14532,12 @@ msgid "Color of selected marker"
 msgstr "Kijelölt marker színe"
 
 
-msgid "Theme Dope Sheet"
-msgstr "Kulcstábla témája"
-
-
-msgid "Active Channel Group"
-msgstr "Aktív csatorna csoport"
-
-
 msgid "Channel Group"
 msgstr "Csatorna csoport"
 
 
-msgid "Channels Selected"
-msgstr "Kijelölt csatornák"
-
-
-msgid "Dope Sheet Channel"
-msgstr "Kulcstábla csatorna"
+msgid "Active Channel Group"
+msgstr "Aktív csatorna csoport"
 
 
 msgid "Keyframe Selected"
@@ -14651,16 +14552,28 @@ msgid "Long Key Selected"
 msgstr "Kijelölt hosszú kulcs"
 
 
+msgid "Align Handle"
+msgstr "Markolat igazítása"
+
+
+msgid "Handle Vertex"
+msgstr "Fogantyú csúcspont"
+
+
+msgid "Handle Vertex Select"
+msgstr "Kijelölt fogantyú csúcspont"
+
+
+msgid "Handle Vertex Size"
+msgstr "Fogantyú csúcspont mérete"
+
+
+msgid "Theme Dope Sheet"
+msgstr "Kulcstábla témája"
+
+
 msgid "Summary"
 msgstr "Összegzés"
-
-
-msgid "Value Sliders"
-msgstr "Érték csúszkák"
-
-
-msgid "View Sliders"
-msgstr "Nézet csúszkák"
 
 
 msgid "Shadow Size"
@@ -14707,10 +14620,6 @@ msgid "Theme Graph Editor"
 msgstr "Gráfszerkesztő témája"
 
 
-msgid "Channels Region"
-msgstr "Csatornák területe"
-
-
 msgid "Vertex Select"
 msgstr "Kijelölt csúcspont"
 
@@ -14719,24 +14628,12 @@ msgid "Vertex Size"
 msgstr "Csúcspont mérete"
 
 
-msgid "Window Sliders"
-msgstr "Ablak csúszkák"
-
-
 msgid "Edge Select"
 msgstr "Kijelölt él"
 
 
-msgid "Face Dot Selected"
-msgstr "Kijelölt oldallap pont"
-
-
 msgid "Face Dot Size"
 msgstr "Oldallap pontjának mérete"
-
-
-msgid "Freestyle Face Mark"
-msgstr "Freestyle Oldallap jelölés"
 
 
 msgid "Active Action"
@@ -14761,30 +14658,6 @@ msgstr "Fejléc kiemelt szöveg"
 
 msgid "Text Highlight"
 msgstr "Kiemelt szöveg"
-
-
-msgid "Theme Space List Settings"
-msgstr "Terület témájának listabeállításai"
-
-
-msgid "Source List"
-msgstr "Forráslista"
-
-
-msgid "Source List Text"
-msgstr "Forráslista szöveg"
-
-
-msgid "Source List Text Highlight"
-msgstr "Forráslista kiemelt szöveg"
-
-
-msgid "Source List Title"
-msgstr "Forráslista cím"
-
-
-msgid "Region Background"
-msgstr "Terület háttér"
 
 
 msgid "Syntax Special"
@@ -14817,18 +14690,6 @@ msgstr "Csont tömör"
 
 msgid "Camera Path"
 msgstr "Kamera útvonal"
-
-
-msgid "Edge UV Face Select"
-msgstr "UV Oldallap kiválasztás élei"
-
-
-msgid "Edge Seam"
-msgstr "Él illesztés"
-
-
-msgid "Edge Sharp"
-msgstr "Él kiemelés"
 
 
 msgid "Edge Length Text"
@@ -15338,10 +15199,6 @@ msgid "Import PO..."
 msgstr "Importálás PO..."
 
 
-msgid "Tracking"
-msgstr "Követés"
-
-
 msgid "3D View"
 msgstr "3D Nézet"
 
@@ -15492,11 +15349,6 @@ msgid "Delete All Groups"
 msgstr "Minden csoport törlése"
 
 
-msgctxt "Operator"
-msgid "Mirror Shape Key (Topology)"
-msgstr "Formakulcs tükrözése (Topológia)"
-
-
 msgid "Base Transparency"
 msgstr "Alap átlátszóság"
 
@@ -15558,11 +15410,6 @@ msgstr "Erőtér"
 
 
 msgctxt "Operator"
-msgid "Bake All Dynamics"
-msgstr "Minden dinamikus kisütése"
-
-
-msgctxt "Operator"
 msgid "Add Brush"
 msgstr "Ecset hozzáadás"
 
@@ -15588,12 +15435,20 @@ msgid "Export to File"
 msgstr "Exportálás fájlba"
 
 
+msgid "Unpack"
+msgstr "Kicsomagolás"
+
+
 msgid "Match"
 msgstr "Összehangolás"
 
 
 msgid "Merge:"
 msgstr "Összefésülés:"
+
+
+msgid "Aspect Ratio"
+msgstr "Oldalarány"
 
 
 msgctxt "Operator"
@@ -15665,6 +15520,10 @@ msgid "Cleanup"
 msgstr "Tisztítás"
 
 
+msgid "Source List"
+msgstr "Forráslista"
+
+
 msgctxt "Operator"
 msgid "Back"
 msgstr "Hátulnézet"
@@ -15720,14 +15579,6 @@ msgid "Face"
 msgstr "Oldallap"
 
 
-msgid "Image*"
-msgstr "Kép*"
-
-
-msgid "Aspect Ratio"
-msgstr "Oldalarány"
-
-
 msgctxt "Operator"
 msgid "Replace..."
 msgstr "Csere..."
@@ -15768,8 +15619,13 @@ msgstr "Létrehozás"
 
 
 msgctxt "Operator"
-msgid "Movie"
-msgstr "Videó"
+msgid "Delete Keyframes..."
+msgstr "Kulcs-képkockák törlése..."
+
+
+msgctxt "Operator"
+msgid "Clear Keyframes..."
+msgstr "Kulcsképkockák tisztítása..."
 
 
 msgctxt "Operator"
@@ -15793,11 +15649,6 @@ msgstr "Szöveg"
 
 
 msgctxt "Operator"
-msgid "Scene..."
-msgstr "Jelenet..."
-
-
-msgctxt "Operator"
 msgid "Wipe"
 msgstr "Átúsztatás"
 
@@ -15815,10 +15666,6 @@ msgstr "Ragyogás"
 msgctxt "Operator"
 msgid "Reload Strips and Adjust Length"
 msgstr "Sáv(ok) újratöltése és hossz beállítása"
-
-
-msgid "Unpack"
-msgstr "Kicsomagolás"
 
 
 msgctxt "Text"
@@ -15867,6 +15714,11 @@ msgstr "Jelző másolása a jelenetbe"
 
 
 msgctxt "Operator"
+msgid "Save Copy..."
+msgstr "Másolat mentése..."
+
+
+msgctxt "Operator"
 msgid "Quit"
 msgstr "Kilépés"
 
@@ -15884,11 +15736,6 @@ msgstr "Render - Animáció"
 msgctxt "Operator"
 msgid "Repeat History..."
 msgstr "Ismétlési előzmények..."
-
-
-msgctxt "Operator"
-msgid "Save Copy..."
-msgstr "Másolat mentése..."
 
 
 msgctxt "Operator"
@@ -16095,16 +15942,6 @@ msgstr "Hangszóró"
 
 
 msgctxt "Operator"
-msgid "Delete Keyframes..."
-msgstr "Kulcs-képkockák törlése..."
-
-
-msgctxt "Operator"
-msgid "Clear Keyframes..."
-msgstr "Kulcsképkockák tisztítása..."
-
-
-msgctxt "Operator"
 msgid "Change Shape"
 msgstr "Forma változtatása"
 
@@ -16177,11 +16014,6 @@ msgstr "Kijelölt mutatása"
 msgctxt "Plural"
 msgid "Sharp"
 msgstr "Éles"
-
-
-msgctxt "Operator"
-msgid "Lattice"
-msgstr "Ketrec"
 
 
 msgctxt "Operator"
@@ -16371,10 +16203,6 @@ msgid "Choose active color stop"
 msgstr "Aktív színjelölő kiválasztása"
 
 
-msgid "Use Clipping"
-msgstr "Vágás használata"
-
-
 msgid "Min X:"
 msgstr "Min X:"
 
@@ -16415,16 +16243,8 @@ msgid "Zoom out"
 msgstr "Kicsinyítés"
 
 
-msgid "Clipping Options"
-msgstr "Vágás opciók"
-
-
 msgid "Delete points"
 msgstr "Pontok törlése"
-
-
-msgid "Reset Black/White point and curves"
-msgstr "Fekete/Fehér pont és a görbék alaphelyzetbe állítása"
 
 
 msgid "ID-Block:"
@@ -16761,6 +16581,10 @@ msgid "Steel"
 msgstr "Acél"
 
 
+msgid "Render active scene"
+msgstr "Aktív jelenet renderelése"
+
+
 msgid "3D Local View "
 msgstr "3D-s helyi nézet "
 
@@ -16799,10 +16623,6 @@ msgstr " Anyagok,"
 
 msgid "No active camera set"
 msgstr "Nincs beállítva aktív kamera"
-
-
-msgid "Warning!"
-msgstr "Figyelmeztetés!"
 
 
 msgid "Fields"
@@ -16871,10 +16691,6 @@ msgstr "Réteg kijelölése"
 
 msgid "Hard coded Non-Linear, Gamma:1.7"
 msgstr "Fizikailag kódolt Nem-lineáris, Gamma:1.7"
-
-
-msgid "Can't Load Image"
-msgstr "Nem tölthető be kép"
 
 
 msgid "unsupported image format"
@@ -17058,24 +16874,16 @@ msgid "Crease Edges"
 msgstr "Élek domborítása"
 
 
-msgid "Bright"
-msgstr "Fényerő"
-
-
-msgid "Color Space:"
-msgstr "Színtér:"
-
-
-msgid "Prefilter:"
-msgstr "Előszűrő:"
-
-
 msgid "Image 1"
 msgstr "Kép 1"
 
 
 msgid "Image 2"
 msgstr "Kép 2"
+
+
+msgid "Soften"
+msgstr "Elmosás"
 
 
 msgid "Mesh 1"
@@ -17132,11 +16940,6 @@ msgstr "Nem lehet renderelni, nincs kamera"
 
 msgid "No border area selected"
 msgstr "Nincs téglalap-kijelölés"
-
-
-msgctxt "Sequence"
-msgid "Curves"
-msgstr "Görbék"
 
 
 msgid "Glow"

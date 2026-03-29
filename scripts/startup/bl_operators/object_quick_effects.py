@@ -27,6 +27,7 @@ def object_ensure_material(obj, mat_name):
             break
     if mat is None:
         mat = bpy.data.materials.new(mat_name)
+        mat.node_tree.nodes.clear()
         if mat_slot:
             mat_slot.material = mat
         else:
@@ -107,7 +108,7 @@ class QuickFur(ObjectModeOperator, Operator):
         asset_library_filepath = os.path.join(
             bpy.utils.system_resource('DATAFILES'),
             "assets",
-            "geometry_nodes",
+            "nodes",
             "procedural_hair_node_assets.blend",
         )
 
@@ -127,10 +128,9 @@ class QuickFur(ObjectModeOperator, Operator):
 
         with bpy.data.libraries.load(
                 asset_library_filepath,
-                link=False,
-                clear_asset_data=True,
-                reuse_local_id=True,
-                recursive=True,
+                link=True,
+                pack=True,
+                set_fake=False,
         ) as (data_src, data_dst):
             # The values are assumed to exist, no inspection of the source is needed.
             del data_src
@@ -326,20 +326,17 @@ class QuickExplode(ObjectModeOperator, Operator):
 
                 mat = object_ensure_material(obj, data_("Explode Fade"))
                 mat.surface_render_method = 'DITHERED'
-                if not mat.use_nodes:
-                    mat.use_nodes = True
 
                 nodes = mat.node_tree.nodes
-                for node in nodes:
-                    if node.type == 'OUTPUT_MATERIAL':
-                        node_out_mat = node
-                        break
-
-                node_surface = node_out_mat.inputs["Surface"].links[0].from_node
+                node_out_mat = nodes.new("ShaderNodeOutputMaterial")
+                node_surface = nodes.new("ShaderNodeBsdfPrincipled")
+                nodes.active = node_out_mat
 
                 node_x = node_surface.location[0]
                 node_y = node_surface.location[1] - 400
                 offset_x = 200
+
+                node_out_mat.location[0] = node_x + node_surface.width + offset_x
 
                 node_mix = nodes.new('ShaderNodeMixShader')
                 node_mix.location = (node_x - offset_x, node_y)
@@ -465,20 +462,17 @@ class QuickSmoke(ObjectModeOperator, Operator):
             return {'CANCELLED'}
 
         for obj in mesh_objects:
-            context_override["object"] = obj
-            # make each selected object a smoke flow
-            with context.temp_override(**context_override):
-                bpy.ops.object.modifier_add(type='FLUID')
-            obj.modifiers[-1].fluid_type = 'FLOW'
+            fluid = obj.modifiers.new(name=data_("FLUID"), type='FLUID')
+            fluid.fluid_type = 'FLOW'
 
             # set type
-            obj.modifiers[-1].flow_settings.flow_type = self.style
+            fluid.flow_settings.flow_type = self.style
 
             # set flow behavior
-            obj.modifiers[-1].flow_settings.flow_behavior = 'INFLOW'
+            fluid.flow_settings.flow_behavior = 'INFLOW'
 
             # use some surface distance for smoke emission
-            obj.modifiers[-1].flow_settings.surface_distance = 1.0
+            fluid.flow_settings.surface_distance = 1.0
 
             if not self.show_flows:
                 obj.display_type = 'WIRE'
@@ -496,16 +490,16 @@ class QuickSmoke(ObjectModeOperator, Operator):
         obj.scale = 0.5 * (max_co - min_co) + Vector((1.0, 1.0, 2.0))
 
         # setup smoke domain
-        bpy.ops.object.modifier_add(type='FLUID')
-        obj.modifiers[-1].fluid_type = 'DOMAIN'
+        fluid = obj.modifiers.new(name=data_("FLUID"), type='FLUID')
+        fluid.fluid_type = 'DOMAIN'
         # The default value leads to unstable simulations (see #126924).
-        obj.modifiers[-1].domain_settings.cfl_condition = 4.0
+        fluid.domain_settings.cfl_condition = 4.0
         if self.style == {'FIRE', 'BOTH'}:
-            obj.modifiers[-1].domain_settings.use_noise = True
+            fluid.domain_settings.use_noise = True
 
         # ensure correct cache file format for smoke
         if bpy.app.build_options.openvdb:
-            obj.modifiers[-1].domain_settings.cache_data_format = 'OPENVDB'
+            fluid.domain_settings.cache_data_format = 'OPENVDB'
 
         # Setup material
 
@@ -514,9 +508,6 @@ class QuickSmoke(ObjectModeOperator, Operator):
 
         mat = bpy.data.materials.new(data_("Smoke Domain Material"))
         obj.material_slots[0].material = mat
-
-        # Make sure we use nodes
-        mat.use_nodes = True
 
         # Set node variables and clear the default nodes
         tree = mat.node_tree
@@ -581,20 +572,17 @@ class QuickLiquid(Operator):
                         space.shading.type = 'WIREFRAME'
 
         for obj in mesh_objects:
-            context_override["object"] = obj
-            # make each selected object a liquid flow
-            with context.temp_override(**context_override):
-                bpy.ops.object.modifier_add(type='FLUID')
-            obj.modifiers[-1].fluid_type = 'FLOW'
+            fluid = obj.modifiers.new(name=data_("FLUID"), type='FLUID')
+            fluid.fluid_type = 'FLOW'
 
             # set type
-            obj.modifiers[-1].flow_settings.flow_type = 'LIQUID'
+            fluid.flow_settings.flow_type = 'LIQUID'
 
             # set flow behavior
-            obj.modifiers[-1].flow_settings.flow_behavior = 'GEOMETRY'
+            fluid.flow_settings.flow_behavior = 'GEOMETRY'
 
             # use some surface distance for smoke emission
-            obj.modifiers[-1].flow_settings.surface_distance = 0.0
+            fluid.flow_settings.surface_distance = 0.0
 
             if not self.show_flows:
                 obj.display_type = 'WIRE'
@@ -612,34 +600,32 @@ class QuickLiquid(Operator):
         obj.scale = 0.5 * (max_co - min_co) + Vector((1.0, 1.0, 2.0))
 
         # setup liquid domain
-        bpy.ops.object.modifier_add(type='FLUID')
-        obj.modifiers[-1].fluid_type = 'DOMAIN'
+        fluid = obj.modifiers.new(name=data_("FLUID"), type='FLUID')
+        fluid.fluid_type = 'DOMAIN'
         # set all domain borders to obstacle
-        obj.modifiers[-1].domain_settings.use_collision_border_front = True
-        obj.modifiers[-1].domain_settings.use_collision_border_back = True
-        obj.modifiers[-1].domain_settings.use_collision_border_right = True
-        obj.modifiers[-1].domain_settings.use_collision_border_left = True
-        obj.modifiers[-1].domain_settings.use_collision_border_top = True
-        obj.modifiers[-1].domain_settings.use_collision_border_bottom = True
+        fluid.domain_settings.use_collision_border_front = True
+        fluid.domain_settings.use_collision_border_back = True
+        fluid.domain_settings.use_collision_border_right = True
+        fluid.domain_settings.use_collision_border_left = True
+        fluid.domain_settings.use_collision_border_top = True
+        fluid.domain_settings.use_collision_border_bottom = True
 
         # ensure correct cache file formats for liquid
         if bpy.app.build_options.openvdb:
-            obj.modifiers[-1].domain_settings.cache_data_format = 'OPENVDB'
-        obj.modifiers[-1].domain_settings.cache_mesh_format = 'BOBJECT'
+            fluid.domain_settings.cache_data_format = 'OPENVDB'
+        fluid.domain_settings.cache_mesh_format = 'BOBJECT'
 
         # change domain type, will also allocate and show particle system for FLIP
-        obj.modifiers[-1].domain_settings.domain_type = 'LIQUID'
-
-        liquid_domain = obj.modifiers[-2]
+        fluid.domain_settings.domain_type = 'LIQUID'
 
         # set color mapping field to show phi grid for liquid
-        liquid_domain.domain_settings.color_ramp_field = 'PHI'
+        fluid.domain_settings.color_ramp_field = 'PHI'
 
         # perform a single slice of the domain
-        liquid_domain.domain_settings.use_slice = True
+        fluid.domain_settings.use_slice = True
 
         # set display thickness to a lower value for more detailed display of phi grids
-        liquid_domain.domain_settings.display_thickness = 0.02
+        fluid.domain_settings.display_thickness = 0.02
 
         # make the domain smooth so it renders nicely
         bpy.ops.object.shade_smooth()
@@ -649,9 +635,6 @@ class QuickLiquid(Operator):
 
         mat = bpy.data.materials.new(data_("Liquid Domain Material"))
         obj.material_slots[0].material = mat
-
-        # Make sure we use nodes
-        mat.use_nodes = True
 
         # Set node variables and clear the default nodes
         tree = mat.node_tree

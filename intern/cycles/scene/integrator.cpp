@@ -15,6 +15,7 @@
 #include "scene/shader.h"
 #include "scene/stats.h"
 #include "scene/tabulated_sobol.h"
+#include "scene/volume.h"
 
 #include "kernel/types.h"
 
@@ -57,6 +58,7 @@ NODE_DEFINE(Integrator)
   SOCKET_FLOAT(ao_distance, "AO Distance", FLT_MAX);
   SOCKET_FLOAT(ao_additive_factor, "AO Additive Factor", 0.0f);
 
+  SOCKET_BOOLEAN(volume_ray_marching, "Biased", false);
   SOCKET_INT(volume_max_steps, "Volume Max Steps", 1024);
   SOCKET_FLOAT(volume_step_rate, "Volume Step Rate", 1.0f);
 
@@ -153,7 +155,11 @@ NODE_DEFINE(Integrator)
   SOCKET_ENUM(denoiser_type, "Denoiser Type", denoiser_type_enum, DENOISER_OPENIMAGEDENOISE);
   SOCKET_INT(denoise_start_sample, "Start Sample to Denoise", 0);
   SOCKET_BOOLEAN(use_denoise_pass_albedo, "Use Albedo Pass for Denoiser", true);
+  SOCKET_BOOLEAN(use_denoise_pass_specular_albedo, "Use Specular Albedo Pass for Denoiser", false);
   SOCKET_BOOLEAN(use_denoise_pass_normal, "Use Normal Pass for Denoiser", true);
+  SOCKET_BOOLEAN(use_denoise_pass_roughness, "Use Roughness Pass for Denoiser", false);
+  SOCKET_BOOLEAN(use_denoise_pass_depth, "Use Depth Pass for Denoiser", false);
+  SOCKET_BOOLEAN(use_denoise_pass_motion, "Use Motion Pass for Denoiser", false);
   SOCKET_ENUM(denoiser_prefilter,
               "Denoiser Prefilter",
               denoiser_prefilter_enum,
@@ -218,6 +224,9 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
    * to improve performance a bit. */
   kintegrator->transparent_shadows = false;
   for (Shader *shader : scene->shaders) {
+    if (shader->reference_count() == 0) {
+      continue;
+    }
     /* keep this in sync with SD_HAS_TRANSPARENT_SHADOW in shader.cpp */
     if ((shader->has_surface_transparent && shader->get_use_transparent_shadow()) ||
         shader->has_volume)
@@ -227,8 +236,8 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
     }
   }
 
+  kintegrator->volume_ray_marching = volume_ray_marching;
   kintegrator->volume_max_steps = volume_max_steps;
-  kintegrator->volume_step_rate = volume_step_rate;
 
   kintegrator->caustics_reflective = caustics_reflective;
   kintegrator->caustics_refractive = caustics_refractive;
@@ -353,9 +362,20 @@ void Integrator::device_free(Device * /*unused*/, DeviceScene *dscene, bool forc
   dscene->sample_pattern_lut.free_if_need_realloc(force_free);
 }
 
+bool Integrator::is_modified() const
+{
+  return Node::is_modified() || shadow_catcher_needs_recalc_;
+}
+
+void Integrator::clear_modified()
+{
+  Node::clear_modified();
+  shadow_catcher_needs_recalc_ = false;
+}
+
 void Integrator::tag_update(Scene *scene, const uint32_t flag)
 {
-  if (flag & UPDATE_ALL) {
+  if (flag == UPDATE_ALL) {
     tag_modified();
   }
 
@@ -365,9 +385,18 @@ void Integrator::tag_update(Scene *scene, const uint32_t flag)
     tag_ao_bounces_modified();
   }
 
+  if (flag & OBJECT_MANAGER) {
+    shadow_catcher_needs_recalc_ = true;
+  }
+
   if (motion_blur_is_modified()) {
     scene->object_manager->tag_update(scene, ObjectManager::MOTION_BLUR_MODIFIED);
     scene->camera->tag_modified();
+  }
+
+  if (volume_ray_marching_is_modified()) {
+    scene->volume_manager->tag_update_algorithm();
+    scene->geometry_manager->tag_update(scene, GeometryManager::VOLUME_MODIFIED);
   }
 }
 
@@ -452,7 +481,11 @@ DenoiseParams Integrator::get_denoise_params() const
   denoise_params.start_sample = denoise_start_sample;
 
   denoise_params.use_pass_albedo = use_denoise_pass_albedo;
+  denoise_params.use_pass_specular_albedo = use_denoise_pass_specular_albedo;
   denoise_params.use_pass_normal = use_denoise_pass_normal;
+  denoise_params.use_pass_roughness = use_denoise_pass_roughness;
+  denoise_params.use_pass_depth = use_denoise_pass_depth;
+  denoise_params.temporally_stable = use_denoise_pass_motion;
 
   denoise_params.prefilter = denoiser_prefilter;
   denoise_params.quality = denoiser_quality;

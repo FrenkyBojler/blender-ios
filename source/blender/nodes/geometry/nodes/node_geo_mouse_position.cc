@@ -23,15 +23,15 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
   const int2 mouse = params.user_data()->call_data->operator_data->mouse_position;
   const int2 size = params.user_data()->call_data->operator_data->region_size;
-  params.set_output("Mouse X", mouse.x);
-  params.set_output("Mouse Y", mouse.y);
-  params.set_output("Region Width", size.x);
-  params.set_output("Region Height", size.y);
+  params.set_output("Mouse X"_ustr, mouse.x);
+  params.set_output("Mouse Y"_ustr, mouse.y);
+  params.set_output("Region Width"_ustr, size.x);
+  params.set_output("Region Height"_ustr, size.y);
 }
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeToolMousePosition", GEO_NODE_TOOL_MOUSE_POSITION);
   ntype.ui_name = "Mouse Position";
   ntype.ui_description = "Retrieve the position of the mouse cursor";
@@ -40,7 +40,7 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.gather_link_search_ops = search_link_ops_for_tool_node;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

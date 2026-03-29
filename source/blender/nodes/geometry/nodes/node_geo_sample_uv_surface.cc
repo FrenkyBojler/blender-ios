@@ -52,9 +52,9 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("Whether the node could find a single face to sample at the UV coordinate");
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -149,7 +149,7 @@ class ReverseUVSampleFunction : public mf::MultiFunction {
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  GeometrySet geometry = params.extract_input<GeometrySet>("Mesh");
+  GeometrySet geometry = params.extract_input<GeometrySet>("Mesh"_ustr);
   const Mesh *mesh = geometry.get_mesh();
   if (mesh == nullptr) {
     params.set_default_remaining_outputs();
@@ -165,22 +165,33 @@ static void node_geo_exec(GeoNodeExecParams params)
   const bke::DataTypeConversions &conversions = bke::get_implicit_type_conversions();
   const CPPType &float2_type = CPPType::get<float2>();
   Field<float2> source_uv_map = conversions.try_convert(
-      params.extract_input<Field<float3>>("Source UV Map"), float2_type);
-  Field<float2> sample_uvs = conversions.try_convert(
-      params.extract_input<Field<float3>>("Sample UV"), float2_type);
+      params.extract_input<Field<float3>>("Source UV Map"_ustr), float2_type);
+
+  auto sample_uv_value = params.extract_input<bke::SocketValueVariant>("Sample UV"_ustr);
+  if (sample_uv_value.is_list()) {
+    params.error_message_add(NodeWarningType::Error,
+                             "Lists are not supported for \"Sample UV\" input");
+  }
+  if (sample_uv_value.is_volume_grid()) {
+    params.error_message_add(NodeWarningType::Error,
+                             "Volume grids are not supported for \"Sample UV\" input");
+  }
+  Field<float2> sample_uvs = conversions.try_convert(sample_uv_value.extract<Field<float3>>(),
+                                                     float2_type);
+
   auto uv_op = FieldOperation::from(
       std::make_shared<ReverseUVSampleFunction>(geometry, std::move(source_uv_map)),
       {std::move(sample_uvs)});
-  params.set_output("Is Valid", Field<bool>(uv_op, 0));
+  params.set_output("Is Valid"_ustr, Field<bool>(uv_op, 0));
 
   /* Use the output of the UV sampling to interpolate the mesh attribute. */
-  GField field = params.extract_input<GField>("Value");
+  GField field = params.extract_input<GField>("Value"_ustr);
 
   auto sample_op = FieldOperation::from(
       std::make_shared<bke::mesh_surface_sample::BaryWeightSampleFn>(std::move(geometry),
                                                                      std::move(field)),
       {Field<int>(uv_op, 1), Field<float3>(uv_op, 2)});
-  params.set_output("Value", GField(sample_op, 0));
+  params.set_output("Value"_ustr, GField(sample_op, 0));
 }
 
 static void node_rna(StructRNA *srna)
@@ -197,7 +208,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeSampleUVSurface", GEO_NODE_SAMPLE_UV_SURFACE);
   ntype.ui_name = "Sample UV Surface";
@@ -210,7 +221,7 @@ static void node_register()
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.gather_link_search_ops = node_gather_link_searches;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

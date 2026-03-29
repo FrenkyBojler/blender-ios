@@ -117,14 +117,14 @@ class BoundaryFieldInput final : public bke::MeshFieldInput {
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  const Field<int> face_set_field = params.extract_input<Field<int>>("Face Set");
+  const Field<int> face_set_field = params.extract_input<Field<int>>("Face Set"_ustr);
   Field<bool> face_set_boundaries{std::make_shared<BoundaryFieldInput>(face_set_field)};
-  params.set_output("Boundary Edges", std::move(face_set_boundaries));
+  params.set_output("Boundary Edges"_ustr, std::move(face_set_boundaries));
 }
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(
       &ntype, "GeometryNodeMeshFaceSetBoundaries", GEO_NODE_MESH_FACE_GROUP_BOUNDARIES);
   ntype.ui_name = "Face Group Boundaries";
@@ -135,7 +135,7 @@ static void node_register()
   bke::node_type_size_preset(ntype, bke::eNodeSizePreset::Middle);
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

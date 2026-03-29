@@ -10,7 +10,6 @@
 
 #ifdef WITH_INPUT_IME
 
-#  define WIN32_LEAN_AND_MEAN
 #  include <windows.h>
 
 #  include <string>
@@ -36,7 +35,7 @@ class GHOST_EventIME : public GHOST_Event {
                  const void *customdata)
       : GHOST_Event(msec, type, window)
   {
-    this->m_data = customdata;
+    this->data_ = customdata;
   }
 };
 

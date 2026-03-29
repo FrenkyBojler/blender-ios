@@ -98,8 +98,7 @@ void LinkSearchOpParams::connect_socket(bNode &new_node, bNodeSocket &new_socket
 
 bNode &LinkSearchOpParams::add_node(StringRef idname)
 {
-  std::string idname_str = idname;
-  bNode *node = bke::node_add_node(&C, node_tree, idname_str.c_str());
+  bNode *node = bke::node_add_node(&C, node_tree, idname);
   BLI_assert(node != nullptr);
   added_nodes_.append(node);
   return *node;
@@ -173,6 +172,25 @@ void search_link_ops_for_basic_node(GatherLinkSearchOpParams &params)
   }
   const NodeDeclaration &declaration = *node_type.static_declaration;
   search_link_ops_for_declarations(params, declaration.sockets(params.in_out()));
+}
+
+void search_filtered_link_ops_for_basic_node(GatherLinkSearchOpParams &params,
+                                             const Set<std::string> &skip_socket_identifiers)
+{
+  const bke::bNodeType &node_type = params.node_type();
+  if (!node_type.static_declaration) {
+    return;
+  }
+  const NodeDeclaration &declaration = *node_type.static_declaration;
+  Vector<SocketDeclaration *> socket_declarations;
+  socket_declarations.reserve(declaration.sockets(params.in_out()).size());
+  for (SocketDeclaration *socket_decl : declaration.sockets(params.in_out())) {
+    if (skip_socket_identifiers.contains(socket_decl->identifier)) {
+      continue;
+    }
+    socket_declarations.append_unchecked(socket_decl);
+  }
+  search_link_ops_for_declarations(params, socket_declarations);
 }
 
 }  // namespace blender::nodes

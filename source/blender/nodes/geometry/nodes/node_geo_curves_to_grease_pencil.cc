@@ -53,7 +53,7 @@ static GreasePencil *curves_to_grease_pencil_with_one_layer(
   /* Transfer materials. */
   const int materials_num = curves_id.totcol;
   grease_pencil->material_array_num = materials_num;
-  grease_pencil->material_array = MEM_calloc_arrayN<Material *>(materials_num, __func__);
+  grease_pencil->material_array = MEM_new_array_zeroed<Material *>(materials_num, __func__);
   initialized_copy_n(curves_id.mat, materials_num, grease_pencil->material_array);
 
   return grease_pencil;
@@ -124,7 +124,7 @@ static GreasePencil *curve_instances_to_grease_pencil_layers(
   });
 
   grease_pencil->material_array_num = all_materials.size();
-  grease_pencil->material_array = MEM_calloc_arrayN<Material *>(all_materials.size(), __func__);
+  grease_pencil->material_array = MEM_new_array_zeroed<Material *>(all_materials.size(), __func__);
   initialized_copy_n(all_materials.data(), all_materials.size(), grease_pencil->material_array);
 
   const bke::AttributeAccessor instances_attributes = instances.attributes();
@@ -181,10 +181,10 @@ static GreasePencil *curve_instances_to_grease_pencil_layers(
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  GeometrySet curves_geometry = params.extract_input<GeometrySet>("Curves");
-  const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
-  const bool instances_as_layers = params.extract_input<bool>("Instances as Layers");
-  const NodeAttributeFilter &attribute_filter = params.get_attribute_filter("Grease Pencil");
+  GeometrySet curves_geometry = params.extract_input<GeometrySet>("Curves"_ustr);
+  const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection"_ustr);
+  const bool instances_as_layers = params.extract_input<bool>("Instances as Layers"_ustr);
+  const NodeAttributeFilter &attribute_filter = params.get_attribute_filter("Grease Pencil"_ustr);
 
   GreasePencil *grease_pencil = nullptr;
   if (instances_as_layers) {
@@ -214,7 +214,8 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   GeometrySet grease_pencil_geometry = GeometrySet::from_grease_pencil(grease_pencil);
   grease_pencil_geometry.name = std::move(curves_geometry.name);
-  params.set_output("Grease Pencil", std::move(grease_pencil_geometry));
+  grease_pencil_geometry.copy_bundle_from(curves_geometry);
+  params.set_output("Grease Pencil"_ustr, std::move(grease_pencil_geometry));
 }
 
 static void node_register()

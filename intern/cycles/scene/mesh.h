@@ -135,6 +135,11 @@ class Mesh : public Geometry {
     SUBDIVISION_FVAR_LINEAR_ALL,
   };
 
+  enum SubdivisionAdaptiveSpace {
+    SUBDIVISION_ADAPTIVE_SPACE_PIXEL,
+    SUBDIVISION_ADAPTIVE_SPACE_OBJECT,
+  };
+
   NODE_SOCKET_API(SubdivisionType, subdivision_type)
   NODE_SOCKET_API(SubdivisionBoundaryInterpolation, subdivision_boundary_interpolation)
   NODE_SOCKET_API(SubdivisionFVarInterpolation, subdivision_fvar_interpolation)
@@ -161,6 +166,7 @@ class Mesh : public Geometry {
   NODE_SOCKET_API_ARRAY(array<float>, subd_vert_creases_weight)
 
   /* Subdivisions parameters */
+  NODE_SOCKET_API(SubdivisionAdaptiveSpace, subd_adaptive_space)
   NODE_SOCKET_API(float, subd_dicing_rate)
   NODE_SOCKET_API(int, subd_max_level)
   NODE_SOCKET_API(Transform, subd_objecttoworld)
@@ -192,16 +198,10 @@ class Mesh : public Geometry {
   Mesh();
 
   void resize_mesh(const int numverts, const int numtris);
-  void reserve_mesh(const int numverts, const int numtris);
   void resize_subd_faces(const int numfaces, const int numcorners);
-  void reserve_subd_faces(const int numfaces, const int numcorners);
   void reserve_subd_creases(const size_t num_creases);
   void clear_non_sockets();
   void clear(bool preserve_shaders = false) override;
-  void add_vertex(const float3 P);
-  void add_vertex_slow(const float3 P);
-  void add_triangle(const int v0, const int v1, const int v2, const int shader, bool smooth);
-  void add_subd_face(const int *corners, const int num_corners, const int shader_, bool smooth_);
   void add_edge_crease(const int v0, const int v1, const float weight);
   void add_vertex_crease(const int v, const float weight);
 
@@ -212,12 +212,11 @@ class Mesh : public Geometry {
   void add_vertex_normals();
   void add_undisplaced(Scene *scene);
   void update_generated(Scene *scene);
-  void update_tangents(Scene *scene);
+  void update_tangents(Scene *scene, bool undisplaced);
 
   void get_uv_tiles(ustring map, unordered_set<int> &tiles) override;
 
   void pack_shaders(Scene *scene, uint *shader);
-  void pack_normals(packed_float3 *vnormal);
   void pack_verts(packed_float3 *tri_verts, packed_uint3 *tri_vindex);
 
   bool has_motion_blur() const override;

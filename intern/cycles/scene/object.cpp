@@ -5,6 +5,7 @@
 #include "scene/object.h"
 
 #include "device/device.h"
+#include "kernel/types.h"
 #include "scene/camera.h"
 #include "scene/curves.h"
 #include "scene/hair.h"
@@ -14,9 +15,11 @@
 #include "scene/particles.h"
 #include "scene/pointcloud.h"
 #include "scene/scene.h"
+#include "scene/shader.h"
 #include "scene/stats.h"
 #include "scene/volume.h"
 
+#include "util/hash.h"
 #include "util/log.h"
 #include "util/map.h"
 #include "util/murmurhash.h"
@@ -24,6 +27,8 @@
 #include "util/set.h"
 #include "util/tbb.h"
 #include "util/vector.h"
+
+#include "kernel/geom/attribute.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -51,7 +56,6 @@ struct UpdateObjectTransformState {
   KernelObject *objects;
   Transform *object_motion_pass;
   DecomposedTransform *object_motion;
-  float *object_volume_step;
 
   /* Flags which will be synchronized to Integrator. */
   bool have_motion;
@@ -227,6 +231,9 @@ void Object::tag_update(Scene *scene)
   if (geometry) {
     if (tfm_is_modified() || motion_is_modified()) {
       flag |= ObjectManager::TRANSFORM_MODIFIED;
+      if (geometry->has_volume) {
+        scene->volume_manager->tag_update({this}, flag);
+      }
     }
 
     if (visibility_is_modified()) {
@@ -287,9 +294,22 @@ uint Object::visibility_for_tracing() const
   return SHADOW_CATCHER_OBJECT_VISIBILITY(is_shadow_catcher, visibility & PATH_RAY_ALL_VISIBILITY);
 }
 
-float Object::compute_volume_step_size() const
+float Object::compute_volume_step_size(Progress &progress) const
 {
-  if (geometry->geometry_type != Geometry::MESH && geometry->geometry_type != Geometry::VOLUME) {
+  if (geometry->is_light()) {
+    /* World volume. */
+    assert(static_cast<const Light *>(geometry)->is_background_light());
+    for (const Node *node : geometry->get_used_shaders()) {
+      const Shader *shader = static_cast<const Shader *>(node);
+      if (shader->has_volume) {
+        return shader->get_volume_step_rate();
+      }
+    }
+    assert(false);
+    return FLT_MAX;
+  }
+
+  if (!geometry->is_mesh() && !geometry->is_volume()) {
     return FLT_MAX;
   }
 
@@ -305,9 +325,7 @@ float Object::compute_volume_step_size() const
   for (Node *node : mesh->get_used_shaders()) {
     Shader *shader = static_cast<Shader *>(node);
     if (shader->has_volume) {
-      if ((shader->get_heterogeneous_volume() && shader->has_volume_spatial_varying) ||
-          (shader->has_volume_attribute_dependency))
-      {
+      if (shader->has_volume_spatial_varying || shader->has_volume_attribute_dependency) {
         step_rate = fminf(shader->get_volume_step_rate(), step_rate);
       }
     }
@@ -325,9 +343,9 @@ float Object::compute_volume_step_size() const
 
     for (Attribute &attr : volume->attributes.attributes) {
       if (attr.element == ATTR_ELEMENT_VOXEL) {
-        ImageHandle &handle = attr.data_voxel();
-        const ImageMetaData &metadata = handle.metadata();
-        if (metadata.byte_size == 0) {
+        ImageHandle &handle = attr.data_voxel_for_write();
+        const ImageMetaData &metadata = handle.metadata(progress);
+        if (metadata.nanovdb_byte_size == 0) {
           continue;
         }
 
@@ -428,6 +446,46 @@ bool Object::has_shadow_linking() const
   return false;
 }
 
+void Object::adjust_volume_tfm(Transform &tfm)
+{
+  if (geometry) {
+    if (geometry->is_volume()) {
+      /* Slightly offset vertex coordinates to avoid overlapping faces with other volumes or
+       * meshes. The proper solution would be to improve intersection in the kernel to support
+       * robust handling of multiple overlapping faces or use an all-hit intersection similar to
+       * shadows. */
+      const uint name_hash = hash_string(name.c_str());
+      const float3 offset = transform_direction(&tfm,
+                                                make_float3(hash_uint2_to_float(name_hash, 0),
+                                                            hash_uint2_to_float(name_hash, 1),
+                                                            hash_uint2_to_float(name_hash, 2)) *
+                                                    0.001f);
+      transform_translate(tfm, offset);
+    }
+  }
+}
+
+void Object::set_tfm(Transform tfm)
+{
+  adjust_volume_tfm(tfm);
+  const SocketType *socket = get_tfm_socket();
+  set(*socket, tfm);
+}
+
+bool Object::tfm_equals(Transform tfm)
+{
+  adjust_volume_tfm(tfm);
+  return tfm == get_tfm();
+}
+
+void Object::set_motion_tfm(Transform tfm, const int step_index)
+{
+  adjust_volume_tfm(tfm);
+  array<Transform> motion = get_motion();
+  motion[step_index] = tfm;
+  set_motion(motion);
+}
+
 /* Object Manager */
 
 ObjectManager::ObjectManager()
@@ -492,6 +550,7 @@ void ObjectManager::device_update_object_transform(UpdateObjectTransformState *s
   kobject.random_number = random_number;
   kobject.particle_index = particle_index;
   kobject.motion_offset = 0;
+  kobject.normal_attr_offset = ATTR_STD_NOT_FOUND;
   kobject.ao_distance = ob->ao_distance;
   kobject.receiver_light_set = ob->receiver_light_set >= LIGHT_LINK_SET_MAX ?
                                    0 :
@@ -523,6 +582,9 @@ void ObjectManager::device_update_object_transform(UpdateObjectTransformState *s
          mesh->subd_attributes.find(ATTR_STD_MOTION_VERTEX_POSITION)))
     {
       flag |= SD_OBJECT_HAS_VERTEX_MOTION;
+    }
+    else if (mesh->attributes.find(ATTR_STD_CORNER_NORMAL)) {
+      flag |= SD_OBJECT_HAS_CORNER_NORMALS;
     }
   }
   else if (geom->is_volume()) {
@@ -586,6 +648,9 @@ void ObjectManager::device_update_object_transform(UpdateObjectTransformState *s
   kobject.num_geom_steps = (geom->get_motion_steps() - 1) / 2;
   kobject.num_tfm_steps = ob->motion.size();
   kobject.numverts = object_num_motion_verts(geom);
+  kobject.numprims = (geom->is_mesh() || geom->is_volume()) ?
+                         static_cast<Mesh *>(geom)->num_triangles() :
+                         0;
   kobject.attribute_map_offset = 0;
 
   if (ob->asset_name_is_modified() || update_all) {
@@ -616,7 +681,6 @@ void ObjectManager::device_update_object_transform(UpdateObjectTransformState *s
     flag |= SD_OBJECT_HOLDOUT_MASK;
   }
   state->object_flag[ob->index] = flag;
-  state->object_volume_step[ob->index] = FLT_MAX;
 
   /* Have curves. */
   if (geom->is_hair()) {
@@ -685,7 +749,6 @@ void ObjectManager::device_update_transforms(DeviceScene *dscene, Scene *scene, 
 
   state.objects = dscene->objects.alloc(scene->objects.size());
   state.object_flag = dscene->object_flag.alloc(scene->objects.size());
-  state.object_volume_step = dscene->object_volume_step.alloc(scene->objects.size());
   state.object_motion = nullptr;
   state.object_motion_pass = nullptr;
 
@@ -769,7 +832,11 @@ void ObjectManager::device_update(Device *device,
     dscene->object_motion_pass.tag_realloc();
     dscene->object_motion.tag_realloc();
     dscene->object_flag.tag_realloc();
-    dscene->object_volume_step.tag_realloc();
+    dscene->volume_step_size.tag_realloc();
+
+    /* If objects are added to the scene or deleted, the object indices might change, so we need to
+     * update the root indices of the volume octrees. */
+    scene->volume_manager->tag_update_indices();
   }
 
   if (update_flags & HOLDOUT_MODIFIED) {
@@ -807,7 +874,17 @@ void ObjectManager::device_update(Device *device,
         dscene->object_motion_pass.tag_modified();
         dscene->object_motion.tag_modified();
         dscene->object_flag.tag_modified();
-        dscene->object_volume_step.tag_modified();
+        dscene->volume_step_size.tag_modified();
+      }
+
+      /* Update world object index. */
+      if (!object->get_geometry()->is_light()) {
+        continue;
+      }
+
+      const Light *light = static_cast<const Light *>(object->get_geometry());
+      if (light->is_background_light()) {
+        dscene->data.background.object_index = object->index;
       }
     }
   }
@@ -862,7 +939,6 @@ void ObjectManager::device_update_flags(Device * /*unused*/,
 
   /* Object info flag. */
   uint *object_flag = dscene->object_flag.data();
-  float *object_volume_step = dscene->object_volume_step.data();
 
   /* Object volume intersection. */
   vector<Object *> volume_objects;
@@ -874,15 +950,8 @@ void ObjectManager::device_update_flags(Device * /*unused*/,
        * step size until the final bounds are known. */
       if (bounds_valid) {
         volume_objects.push_back(object);
-        object_volume_step[object->index] = object->compute_volume_step_size();
-      }
-      else {
-        object_volume_step[object->index] = FLT_MAX;
       }
       has_volume_objects = true;
-    }
-    else {
-      object_volume_step[object->index] = FLT_MAX;
     }
   }
 
@@ -908,6 +977,14 @@ void ObjectManager::device_update_flags(Device * /*unused*/,
       object_flag[object->index] &= ~SD_OBJECT_SHADOW_CATCHER;
     }
 
+    /* Corner normals might get removed by subdivision and displacement. */
+    if (object->geometry->attributes.find(ATTR_STD_CORNER_NORMAL)) {
+      object_flag[object->index] |= SD_OBJECT_HAS_CORNER_NORMALS;
+    }
+    else {
+      object_flag[object->index] &= ~SD_OBJECT_HAS_CORNER_NORMALS;
+    }
+
     if (bounds_valid) {
       object->intersects_volume = false;
       for (Object *volume_object : volume_objects) {
@@ -931,10 +1008,7 @@ void ObjectManager::device_update_flags(Device * /*unused*/,
 
   /* Copy object flag. */
   dscene->object_flag.copy_to_device();
-  dscene->object_volume_step.copy_to_device();
-
   dscene->object_flag.clear_modified();
-  dscene->object_volume_step.clear_modified();
 }
 
 void ObjectManager::device_update_geom_offsets(Device * /*unused*/,
@@ -952,17 +1026,39 @@ void ObjectManager::device_update_geom_offsets(Device * /*unused*/,
   for (Object *object : scene->objects) {
     Geometry *geom = object->geometry;
 
-    size_t attr_map_offset = object->attr_map_offset;
+    KernelObject &kobject = kobjects[object->index];
 
     /* An object attribute map cannot have a zero offset because mesh maps come first. */
+    size_t attr_map_offset = object->attr_map_offset;
     if (attr_map_offset == 0) {
       attr_map_offset = geom->attr_map_offset;
     }
 
-    KernelObject &kobject = kobjects[object->index];
-
     if (kobject.attribute_map_offset != attr_map_offset) {
       kobject.attribute_map_offset = attr_map_offset;
+      update = true;
+    }
+
+    /* Cached normal offset for quick lookup. */
+    int normal_attr_offset = ATTR_STD_NOT_FOUND;
+    if (geom->is_mesh()) {
+      normal_attr_offset = find_attribute(dscene->attributes_map.data(),
+                                          attr_map_offset,
+                                          PRIMITIVE_TRIANGLE,
+                                          ATTR_STD_CORNER_NORMAL)
+                               .offset;
+      if (normal_attr_offset == ATTR_STD_NOT_FOUND) {
+        normal_attr_offset = find_attribute(dscene->attributes_map.data(),
+                                            attr_map_offset,
+                                            PRIMITIVE_TRIANGLE,
+                                            ATTR_STD_VERTEX_NORMAL)
+                                 .offset;
+      }
+      assert(normal_attr_offset != ATTR_STD_NOT_FOUND ||
+             static_cast<Mesh *>(geom)->num_triangles() == 0);
+    }
+    if (kobject.normal_attr_offset != normal_attr_offset) {
+      kobject.normal_attr_offset = normal_attr_offset;
       update = true;
     }
 
@@ -984,7 +1080,6 @@ void ObjectManager::device_free(Device * /*unused*/, DeviceScene *dscene, bool f
   dscene->object_motion_pass.free_if_need_realloc(force_free);
   dscene->object_motion.free_if_need_realloc(force_free);
   dscene->object_flag.free_if_need_realloc(force_free);
-  dscene->object_volume_step.free_if_need_realloc(force_free);
   dscene->object_prim_offset.free_if_need_realloc(force_free);
 }
 

@@ -13,6 +13,7 @@
 
 #include "DNA_sequence_types.h"
 #include "DNA_space_types.h"
+#include "DNA_workspace_types.h"
 
 #include "SEQ_sequencer.hh"
 
@@ -28,16 +29,20 @@ TreeDisplaySequencer::TreeDisplaySequencer(SpaceOutliner &space_outliner)
 {
 }
 
-ListBase TreeDisplaySequencer::build_tree(const TreeSourceData &source_data)
+ListBaseT<TreeElement> TreeDisplaySequencer::build_tree(const TreeSourceData &source_data)
 {
-  ListBase tree = {nullptr};
+  ListBaseT<TreeElement> tree = {nullptr};
+  Scene *sequencer_scene = source_data.workspace->sequencer_scene;
+  if (!sequencer_scene) {
+    return tree;
+  }
 
-  Editing *ed = seq::editing_get(source_data.scene);
+  Editing *ed = seq::editing_get(sequencer_scene);
   if (ed == nullptr) {
     return tree;
   }
 
-  for (Strip *strip : List<Strip>(ed->seqbasep)) {
+  for (Strip *strip : List<Strip>(ed->current_strips())) {
     StripAddOp op = need_add_strip_dup(strip);
     if (op == StripAddOp::None) {
       add_element(&tree, nullptr, strip, nullptr, TSE_STRIP, 0);
@@ -100,7 +105,7 @@ void TreeDisplaySequencer::add_strip_dup(Strip *strip, TreeElement *te, short in
     }
 
     if (STREQ(p->data->stripdata->filename, strip->data->stripdata->filename)) {
-      add_element(&te->subtree, nullptr, (void *)p, te, TSE_STRIP, index);
+      add_element(&te->subtree, nullptr, static_cast<void *>(p), te, TSE_STRIP, index);
     }
     p = p->next;
   }

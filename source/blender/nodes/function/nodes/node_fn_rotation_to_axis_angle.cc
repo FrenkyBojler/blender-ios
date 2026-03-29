@@ -55,27 +55,27 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 static void node_eval_elem(value_elem::ElemEvalParams &params)
 {
   using namespace value_elem;
-  const RotationElem rotation_elem = params.get_input_elem<RotationElem>("Rotation");
-  params.set_output_elem("Axis", rotation_elem.axis);
-  params.set_output_elem("Angle", rotation_elem.angle);
+  const RotationElem rotation_elem = params.get_input_elem<RotationElem>("Rotation"_ustr);
+  params.set_output_elem("Axis"_ustr, rotation_elem.axis);
+  params.set_output_elem("Angle"_ustr, rotation_elem.angle);
 }
 
 static void node_eval_inverse_elem(value_elem::InverseElemEvalParams &params)
 {
   using namespace value_elem;
   RotationElem rotation_elem;
-  rotation_elem.axis = params.get_output_elem<VectorElem>("Axis");
-  rotation_elem.angle = params.get_output_elem<FloatElem>("Angle");
+  rotation_elem.axis = params.get_output_elem<VectorElem>("Axis"_ustr);
+  rotation_elem.angle = params.get_output_elem<FloatElem>("Angle"_ustr);
   if (rotation_elem) {
     rotation_elem.euler = VectorElem::all();
   }
-  params.set_input_elem("Rotation", rotation_elem);
+  params.set_input_elem("Rotation"_ustr, rotation_elem);
 }
 
 static void node_eval_inverse(inverse_eval::InverseEvalParams &params)
 {
-  const float3 axis = params.get_output<float3>("Axis");
-  const float angle = params.get_output<float>("Angle");
+  const float3 axis = params.get_output<float3>("Axis"_ustr);
+  const float angle = params.get_output<float>("Angle"_ustr);
   math::Quaternion rotation;
   if (math::is_zero(axis)) {
     rotation = math::Quaternion::identity();
@@ -83,14 +83,15 @@ static void node_eval_inverse(inverse_eval::InverseEvalParams &params)
   else {
     rotation = math::to_quaternion(math::AxisAngle(math::normalize(axis), angle));
   }
-  params.set_input("Rotation", rotation);
+  params.set_input("Rotation"_ustr, rotation);
 }
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   fn_node_type_base(&ntype, "FunctionNodeRotationToAxisAngle", FN_NODE_ROTATION_TO_AXIS_ANGLE);
   ntype.ui_name = "Rotation to Axis Angle";
+  ntype.ui_description = "Convert a rotation to axis angle components";
   ntype.enum_name_legacy = "ROTATION_TO_AXIS_ANGLE";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
@@ -98,7 +99,7 @@ static void node_register()
   ntype.eval_elem = node_eval_elem;
   ntype.eval_inverse_elem = node_eval_inverse_elem;
   ntype.eval_inverse = node_eval_inverse;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

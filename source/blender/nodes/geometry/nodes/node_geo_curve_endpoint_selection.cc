@@ -111,15 +111,15 @@ class EndpointFieldInput final : public bke::GeometryFieldInput {
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  Field<int> start_size = params.extract_input<Field<int>>("Start Size");
-  Field<int> end_size = params.extract_input<Field<int>>("End Size");
+  Field<int> start_size = params.extract_input<Field<int>>("Start Size"_ustr);
+  Field<int> end_size = params.extract_input<Field<int>>("End Size"_ustr);
   Field<bool> selection_field{std::make_shared<EndpointFieldInput>(start_size, end_size)};
-  params.set_output("Selection", std::move(selection_field));
+  params.set_output("Selection"_ustr, std::move(selection_field));
 }
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(
       &ntype, "GeometryNodeCurveEndpointSelection", GEO_NODE_CURVE_ENDPOINT_SELECTION);
   ntype.ui_name = "Endpoint Selection";
@@ -129,7 +129,7 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

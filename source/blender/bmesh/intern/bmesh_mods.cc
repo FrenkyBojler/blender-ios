@@ -17,7 +17,7 @@
 #include "bmesh.hh"
 #include "intern/bmesh_private.hh"
 
-using blender::Vector;
+namespace blender {
 
 bool BM_vert_dissolve(BMesh *bm, BMVert *v)
 {
@@ -374,7 +374,7 @@ BMEdge *BM_vert_collapse_faces(BMesh *bm,
 
         src[0] = kvloop->head.data;
         src[1] = tvloop->head.data;
-        CustomData_bmesh_interp(&bm->ldata, src, w, nullptr, 2, kvloop->head.data);
+        CustomData_bmesh_interp(&bm->ldata, src, w, 2, kvloop->head.data);
       }
     } while ((l_iter = l_iter->radial_next) != e_kill->l);
   }
@@ -887,3 +887,5 @@ BMVert *BM_face_loop_separate_multi(BMesh *bm, BMLoop **larr, int larr_len)
 {
   return bmesh_kernel_unglue_region_make_vert_multi(bm, larr, larr_len);
 }
+
+}  // namespace blender

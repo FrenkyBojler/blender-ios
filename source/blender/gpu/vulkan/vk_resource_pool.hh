@@ -79,6 +79,7 @@ class VKDiscardPool {
   friend class VKBackend;
 
  private:
+  TimelineResources<VkImage> swapchain_images_;
   TimelineResources<std::pair<VkImage, VmaAllocation>> images_;
   TimelineResources<std::pair<VkBuffer, VmaAllocation>> buffers_;
   TimelineResources<VkImageView> image_views_;
@@ -86,9 +87,7 @@ class VKDiscardPool {
   TimelineResources<VkShaderModule> shader_modules_;
   TimelineResources<VkPipeline> pipelines_;
   TimelineResources<VkPipelineLayout> pipeline_layouts_;
-  TimelineResources<VkRenderPass> render_passes_;
-  TimelineResources<VkFramebuffer> framebuffers_;
-  TimelineResources<VkDescriptorPool> descriptor_pools_;
+  TimelineResources<std::pair<VkDescriptorPool, VKDescriptorPools *>> descriptor_pools_;
 
   Mutex mutex_;
 
@@ -97,6 +96,7 @@ class VKDiscardPool {
  public:
   void deinit(VKDevice &device);
 
+  void discard_swapchain_image(VkImage vk_image);
   void discard_image(VkImage vk_image, VmaAllocation vma_allocation);
   void discard_image_view(VkImageView vk_image_view);
   void discard_buffer(VkBuffer vk_buffer, VmaAllocation vma_allocation);
@@ -104,16 +104,15 @@ class VKDiscardPool {
   void discard_shader_module(VkShaderModule vk_shader_module);
   void discard_pipeline(VkPipeline vk_pipeline);
   void discard_pipeline_layout(VkPipelineLayout vk_pipeline_layout);
-  void discard_framebuffer(VkFramebuffer vk_framebuffer);
-  void discard_render_pass(VkRenderPass vk_render_pass);
-  void discard_descriptor_pool(VkDescriptorPool vk_descriptor_pool);
+  void discard_descriptor_pool_for_reuse(VkDescriptorPool vk_descriptor_pool,
+                                         VKDescriptorPools *descriptor_pools);
 
   /**
    * Move discarded resources from src_pool into this.
    *
    * GPU resources that are discarded from the dependency graph are stored in the device orphaned
-   * data. When a swap chain context list is made active the orphaned data can be merged into a
-   * swap chain discard pool.
+   * data. When a swap-chain context list is made active the orphaned data can be merged into a
+   * swap-chain discard pool.
    *
    * All moved items will receive a new timeline.
    *
@@ -131,7 +130,7 @@ class VKDiscardPool {
   {
     return mutex_;
   }
-  void destroy_discarded_resources(VKDevice &device, bool force = false);
+  void destroy_discarded_resources(VKDevice &device, TimelineValue current_timeline);
 
   /**
    * Returns the discard pool for the current thread.
@@ -140,14 +139,8 @@ class VKDiscardPool {
    * Otherwise a device discard pool is used.
    */
   static VKDiscardPool &discard_pool_get();
+
+  friend std::ostream &operator<<(std::ostream &os, const VKDiscardPool &discard_pool);
 };
 
-class VKResourcePool {
-
- public:
-  VKDescriptorPools descriptor_pools;
-  VKDescriptorSetTracker descriptor_set;
-
-  void init(VKDevice &device);
-};
 }  // namespace blender::gpu

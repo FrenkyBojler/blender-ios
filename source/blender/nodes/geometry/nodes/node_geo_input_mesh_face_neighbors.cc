@@ -148,13 +148,13 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
   Field<int> vertex_count_field{std::make_shared<FaceVertexCountFieldInput>()};
   Field<int> neighbor_count_field{std::make_shared<FaceNeighborCountFieldInput>()};
-  params.set_output("Vertex Count", std::move(vertex_count_field));
-  params.set_output("Face Count", std::move(neighbor_count_field));
+  params.set_output("Vertex Count"_ustr, std::move(vertex_count_field));
+  params.set_output("Face Count"_ustr, std::move(neighbor_count_field));
 }
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(
       &ntype, "GeometryNodeInputMeshFaceNeighbors", GEO_NODE_INPUT_MESH_FACE_NEIGHBORS);
   ntype.ui_name = "Face Neighbors";
@@ -163,7 +163,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

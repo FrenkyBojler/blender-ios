@@ -28,7 +28,7 @@ float closure_apparent_roughness_get(ClosureUndetermined cl)
   return 0.0f;
 }
 
-float closure_evaluate_pdf(ClosureUndetermined cl, float3 L, float3 V, float thickness)
+float closure_evaluate_pdf(ClosureUndetermined cl, float3 L, float3 V, Thickness thickness)
 {
   switch (cl.type) {
     case CLOSURE_BSDF_TRANSLUCENT_ID:
@@ -51,11 +51,11 @@ float closure_evaluate_pdf(ClosureUndetermined cl, float3 L, float3 V, float thi
     case CLOSURE_NONE_ID:
       break;
   }
-  assert(0);
+  assert(false);
   return 0.0f;
 }
 
-LightProbeRay bxdf_lightprobe_ray(ClosureUndetermined cl, float3 P, float3 V, float thickness)
+LightProbeRay bxdf_lightprobe_ray(ClosureUndetermined cl, float3 P, float3 V, Thickness thickness)
 {
   switch (cl.type) {
     case CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID:
@@ -67,7 +67,7 @@ LightProbeRay bxdf_lightprobe_ray(ClosureUndetermined cl, float3 P, float3 V, fl
     case CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID:
       break;
     case CLOSURE_NONE_ID:
-      assert(0);
+      assert(false);
       break;
   }
 
@@ -82,7 +82,7 @@ LightProbeRay bxdf_lightprobe_ray(ClosureUndetermined cl, float3 P, float3 V, fl
     case CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID:
       return bxdf_ggx_lightprobe_transmission(to_closure_refraction(cl), V, thickness);
     case CLOSURE_NONE_ID:
-      assert(0);
+      assert(false);
       break;
   }
 
@@ -90,11 +90,9 @@ LightProbeRay bxdf_lightprobe_ray(ClosureUndetermined cl, float3 P, float3 V, fl
   return ray;
 }
 
-#ifdef EEVEE_UTILITY_TX
-
 ClosureLight closure_light_new_ex(ClosureUndetermined cl,
                                   float3 V,
-                                  float thickness,
+                                  Thickness thickness,
                                   const bool is_transmission)
 {
   ClosureLight cl_light;
@@ -105,7 +103,7 @@ ClosureLight closure_light_new_ex(ClosureUndetermined cl,
         /* If the `thickness / sss_radius` ratio is near 0, this transmission term should converge
          * to a uniform term like the translucent BSDF. But we need to find what to do in other
          * cases. For now, approximate the transmission term as just back-facing. */
-        cl_light = bxdf_translucent_light(cl, V, 0.0f);
+        cl_light = bxdf_translucent_light(cl, V, Thickness::zero());
         break;
       case CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID:
         cl_light = bxdf_ggx_light_transmission(to_closure_refraction(cl), V, thickness);
@@ -140,14 +138,12 @@ ClosureLight closure_light_new_ex(ClosureUndetermined cl,
   return cl_light;
 }
 
-ClosureLight closure_light_new(ClosureUndetermined cl, float3 V, float thickness)
+ClosureLight closure_light_new(ClosureUndetermined cl, float3 V, Thickness thickness)
 {
   return closure_light_new_ex(cl, V, thickness, true);
 }
 
 ClosureLight closure_light_new(ClosureUndetermined cl, float3 V)
 {
-  return closure_light_new_ex(cl, V, 0.0f, false);
+  return closure_light_new_ex(cl, V, Thickness::zero(), false);
 }
-
-#endif

@@ -19,12 +19,12 @@ static void node_geo_exec(GeoNodeExecParams params)
   const eEvaluationMode mode = DEG_get_mode(depsgraph);
   const bool is_viewport = mode == DAG_EVAL_VIEWPORT;
 
-  params.set_output("Is Viewport", is_viewport);
+  params.set_output("Is Viewport"_ustr, is_viewport);
 }
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeIsViewport", GEO_NODE_IS_VIEWPORT);
   ntype.ui_name = "Is Viewport";
@@ -35,7 +35,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

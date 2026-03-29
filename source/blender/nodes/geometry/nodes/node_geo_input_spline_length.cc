@@ -71,13 +71,13 @@ static void node_geo_exec(GeoNodeExecParams params)
   Field<float> spline_length_field{std::make_shared<bke::CurveLengthFieldInput>()};
   Field<int> spline_count_field{std::make_shared<SplineCountFieldInput>()};
 
-  params.set_output("Length", std::move(spline_length_field));
-  params.set_output("Point Count", std::move(spline_count_field));
+  params.set_output("Length"_ustr, std::move(spline_length_field));
+  params.set_output("Point Count"_ustr, std::move(spline_count_field));
 }
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeSplineLength", GEO_NODE_INPUT_SPLINE_LENGTH);
   ntype.ui_name = "Spline Length";
   ntype.ui_description =
@@ -86,7 +86,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

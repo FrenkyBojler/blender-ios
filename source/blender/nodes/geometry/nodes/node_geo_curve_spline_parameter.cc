@@ -285,14 +285,14 @@ static void node_geo_exec(GeoNodeExecParams params)
   Field<float> parameter_field{std::make_shared<CurveParameterFieldInput>()};
   Field<float> length_field{std::make_shared<CurveLengthParameterFieldInput>()};
   Field<int> index_on_spline_field{std::make_shared<IndexOnSplineFieldInput>()};
-  params.set_output("Factor", std::move(parameter_field));
-  params.set_output("Length", std::move(length_field));
-  params.set_output("Index", std::move(index_on_spline_field));
+  params.set_output("Factor"_ustr, std::move(parameter_field));
+  params.set_output("Length"_ustr, std::move(length_field));
+  params.set_output("Index"_ustr, std::move(index_on_spline_field));
 }
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(&ntype, "GeometryNodeSplineParameter", GEO_NODE_CURVE_SPLINE_PARAMETER);
   ntype.ui_name = "Spline Parameter";
   ntype.ui_description = "Retrieve how far along each spline a control point is";
@@ -300,7 +300,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

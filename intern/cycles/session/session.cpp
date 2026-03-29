@@ -164,13 +164,20 @@ void Session::run_main_render_loop()
   while (true) {
     RenderWork render_work = run_update_for_next_iteration();
 
+    const bool did_cancel = progress.get_cancel();
+
     if (!render_work) {
       if (LOG_IS_ON(LOG_LEVEL_INFO)) {
-        double total_time;
-        double render_time;
-        progress.get_time(total_time, render_time);
-        LOG_INFO << "Rendering in main loop is done in " << render_time << " seconds.";
-        LOG_INFO << path_trace_->full_report();
+        if (did_cancel) {
+          LOG_INFO << "Rendering was canceled.";
+        }
+        else {
+          double total_time;
+          double render_time;
+          progress.get_time(total_time, render_time);
+          LOG_INFO << "Rendering in main loop is done in " << render_time << " seconds.";
+          LOG_INFO << path_trace_->full_report();
+        }
       }
 
       if (params.background) {
@@ -180,7 +187,6 @@ void Session::run_main_render_loop()
       }
     }
 
-    const bool did_cancel = progress.get_cancel();
     if (did_cancel) {
       render_scheduler_.render_work_reschedule_on_cancel(render_work);
       if (!render_work) {
@@ -563,6 +569,8 @@ void Session::reset(const SessionParams &session_params, const BufferParams &buf
     delayed_reset_.do_reset = true;
     delayed_reset_.session_params = session_params;
     delayed_reset_.buffer_params = buffer_params;
+
+    scene->scene_updated_while_loading_kernels = true;
 
     path_trace_->cancel();
   }

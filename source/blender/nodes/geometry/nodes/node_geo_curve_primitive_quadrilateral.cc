@@ -22,7 +22,8 @@ static void node_declare(NodeDeclarationBuilder &b)
                     .default_value(2.0f)
                     .min(0.0f)
                     .subtype(PROP_DISTANCE)
-                    .description("The X axis size of the shape");
+                    .description("The X axis size of the shape")
+                    .available(false);
   auto &height = b.add_input<decl::Float>("Height")
                      .default_value(2.0f)
                      .min(0.0f)
@@ -116,14 +117,14 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryCurvePrimitiveQuad *data = MEM_callocN<NodeGeometryCurvePrimitiveQuad>(__func__);
+  NodeGeometryCurvePrimitiveQuad *data = MEM_new<NodeGeometryCurvePrimitiveQuad>(__func__);
   data->mode = GEO_NODE_CURVE_PRIMITIVE_QUAD_MODE_RECTANGLE;
   node->storage = data;
 }
@@ -222,7 +223,7 @@ static void create_kite_curve(MutableSpan<float3> positions,
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const NodeGeometryCurvePrimitiveQuad &storage = node_storage(params.node());
-  const GeometryNodeCurvePrimitiveQuadMode mode = (GeometryNodeCurvePrimitiveQuadMode)storage.mode;
+  const GeometryNodeCurvePrimitiveQuadMode mode = GeometryNodeCurvePrimitiveQuadMode(storage.mode);
 
   Curves *curves_id = bke::curves_new_nomain_single(4, CURVE_TYPE_POLY);
   bke::CurvesGeometry &curves = curves_id->geometry.wrap();
@@ -233,42 +234,42 @@ static void node_geo_exec(GeoNodeExecParams params)
   switch (mode) {
     case GEO_NODE_CURVE_PRIMITIVE_QUAD_MODE_RECTANGLE:
       create_rectangle_curve(positions,
-                             std::max(params.extract_input<float>("Height"), 0.0f),
-                             std::max(params.extract_input<float>("Width"), 0.0f));
+                             std::max(params.extract_input<float>("Height"_ustr), 0.0f),
+                             std::max(params.extract_input<float>("Width"_ustr), 0.0f));
       break;
 
     case GEO_NODE_CURVE_PRIMITIVE_QUAD_MODE_PARALLELOGRAM:
       create_parallelogram_curve(positions,
-                                 std::max(params.extract_input<float>("Height"), 0.0f),
-                                 std::max(params.extract_input<float>("Width"), 0.0f),
-                                 params.extract_input<float>("Offset"));
+                                 std::max(params.extract_input<float>("Height"_ustr), 0.0f),
+                                 std::max(params.extract_input<float>("Width"_ustr), 0.0f),
+                                 params.extract_input<float>("Offset"_ustr));
       break;
     case GEO_NODE_CURVE_PRIMITIVE_QUAD_MODE_TRAPEZOID:
       create_trapezoid_curve(positions,
-                             std::max(params.extract_input<float>("Bottom Width"), 0.0f),
-                             std::max(params.extract_input<float>("Top Width"), 0.0f),
-                             params.extract_input<float>("Offset"),
-                             std::max(params.extract_input<float>("Height"), 0.0f));
+                             std::max(params.extract_input<float>("Bottom Width"_ustr), 0.0f),
+                             std::max(params.extract_input<float>("Top Width"_ustr), 0.0f),
+                             params.extract_input<float>("Offset"_ustr),
+                             std::max(params.extract_input<float>("Height"_ustr), 0.0f));
       break;
     case GEO_NODE_CURVE_PRIMITIVE_QUAD_MODE_KITE:
       create_kite_curve(positions,
-                        std::max(params.extract_input<float>("Width"), 0.0f),
-                        std::max(params.extract_input<float>("Bottom Height"), 0.0f),
-                        params.extract_input<float>("Top Height"));
+                        std::max(params.extract_input<float>("Width"_ustr), 0.0f),
+                        std::max(params.extract_input<float>("Bottom Height"_ustr), 0.0f),
+                        params.extract_input<float>("Top Height"_ustr));
       break;
     case GEO_NODE_CURVE_PRIMITIVE_QUAD_MODE_POINTS:
       create_points_curve(positions,
-                          params.extract_input<float3>("Point 1"),
-                          params.extract_input<float3>("Point 2"),
-                          params.extract_input<float3>("Point 3"),
-                          params.extract_input<float3>("Point 4"));
+                          params.extract_input<float3>("Point 1"_ustr),
+                          params.extract_input<float3>("Point 2"_ustr),
+                          params.extract_input<float3>("Point 3"_ustr),
+                          params.extract_input<float3>("Point 4"_ustr));
       break;
     default:
       params.set_default_remaining_outputs();
       return;
   }
 
-  params.set_output("Curve", GeometrySet::from_curves(curves_id));
+  params.set_output("Curve"_ustr, GeometrySet::from_curves(curves_id));
 }
 
 static void node_rna(StructRNA *srna)
@@ -309,7 +310,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
   geo_node_type_base(
       &ntype, "GeometryNodeCurvePrimitiveQuadrilateral", GEO_NODE_CURVE_PRIMITIVE_QUADRILATERAL);
   ntype.ui_name = "Quadrilateral";
@@ -320,12 +321,12 @@ static void node_register()
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.initfunc = node_init;
-  blender::bke::node_type_storage(ntype,
-                                  "NodeGeometryCurvePrimitiveQuad",
-                                  node_free_standard_storage,
-                                  node_copy_standard_storage);
+  bke::node_type_storage(ntype,
+                         "NodeGeometryCurvePrimitiveQuad",
+                         node_free_standard_storage,
+                         node_copy_standard_storage);
   ntype.gather_link_search_ops = node_gather_link_searches;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

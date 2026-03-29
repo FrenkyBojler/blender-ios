@@ -51,7 +51,7 @@ class PathTraceWork {
   bool has_multiple_works() const;
 
   /* Allocate working memory for execution. Must be called before init_execution(). */
-  virtual void alloc_work_memory(){};
+  virtual void alloc_work_memory() {};
 
   /* Initialize execution of kernels.
    * Will ensure that all device queues are initialized for execution.
@@ -59,6 +59,9 @@ class PathTraceWork {
    * This method is to be called after any change in the scene. It is not needed to call it prior
    * to an every call of the `render_samples()`. */
   virtual void init_execution() = 0;
+
+  /* Release resources acquired by init_execution(). */
+  virtual void deinit_execution() {}
 
   /* Render given number of samples as a synchronous blocking call.
    * The samples are added to the render buffer associated with this work. */
@@ -125,6 +128,9 @@ class PathTraceWork {
   virtual int adaptive_sampling_converge_filter_count_active(const float threshold,
                                                              bool reset) = 0;
 
+  /* Denoise Volume Scattering Probability Guiding buffers. */
+  virtual void denoise_volume_guiding_buffers() = 0;
+
   /* Run cryptomatte pass post-processing kernels. */
   virtual void cryptomatte_postproces() = 0;
 
@@ -162,8 +168,8 @@ class PathTraceWork {
 
   /* Get destination which offset and stride are configured so that writing to it will write to a
    * proper location of GPU display texture, taking current tile and device slice into account. */
-  PassAccessor::Destination get_display_destination_template(
-      const PathTraceDisplay *display) const;
+  PassAccessor::Destination get_display_destination_template(const PathTraceDisplay *display,
+                                                             const PassMode mode) const;
 
   /* Device which will be used for path tracing.
    * Note that it is an actual render device (and never is a multi-device). */

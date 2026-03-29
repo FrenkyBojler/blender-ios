@@ -9,7 +9,7 @@
 #include "BKE_instances.hh"
 #include "BKE_mesh.hh"
 
-#include "FN_multi_function_builder.hh"
+#include "FN_multi_function_registry.hh"
 
 #include "node_geometry_util.hh"
 
@@ -28,19 +28,13 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static const auto &get_add_fn()
 {
-  static const auto fn = mf::build::SI2_SO<float3, float3, float3>(
-      "Add",
-      [](const float3 a, const float3 b) { return a + b; },
-      mf::build::exec_presets::AllSpanOrSingle());
+  static const auto &fn = fn::multi_function::registry::lookup("float3 + float3"_ustr);
   return fn;
 }
 
 static const auto &get_sub_fn()
 {
-  static const auto fn = mf::build::SI2_SO<float3, float3, float3>(
-      "Add",
-      [](const float3 a, const float3 b) { return a - b; },
-      mf::build::exec_presets::AllSpanOrSingle());
+  static const auto &fn = fn::multi_function::registry::lookup("float3 - float3"_ustr);
   return fn;
 }
 
@@ -121,18 +115,18 @@ static void set_instances_position(bke::Instances &instances,
   const IndexMask selection = evaluator.get_evaluated_selection_as_mask();
 
   MutableSpan<float4x4> transforms = instances.transforms_for_write();
-  selection.foreach_index(GrainSize(2048),
-                          [&](const int i) { transforms[i].location() = result[i]; });
+  selection.foreach_index_optimized<int>(
+      [&](const int i) { transforms[i].location() = result[i]; }, exec_mode::grain_size(4096));
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  GeometrySet geometry = params.extract_input<GeometrySet>("Geometry");
-  const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
+  GeometrySet geometry = params.extract_input<GeometrySet>("Geometry"_ustr);
+  const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection"_ustr);
   const fn::Field<float3> position_field(
       fn::FieldOperation::from(get_add_fn(),
-                               {params.extract_input<Field<float3>>("Position"),
-                                params.extract_input<Field<float3>>("Offset")}));
+                               {params.extract_input<Field<float3>>("Position"_ustr),
+                                params.extract_input<Field<float3>>("Offset"_ustr)}));
 
   if (Mesh *mesh = geometry.get_mesh_for_write()) {
     set_points_position(mesh->attributes_for_write(),
@@ -160,12 +154,12 @@ static void node_geo_exec(GeoNodeExecParams params)
     set_instances_position(*instances, selection_field, position_field);
   }
 
-  params.set_output("Geometry", std::move(geometry));
+  params.set_output("Geometry"_ustr, std::move(geometry));
 }
 
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, "GeometryNodeSetPosition", GEO_NODE_SET_POSITION);
   ntype.ui_name = "Set Position";
@@ -174,7 +168,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 
