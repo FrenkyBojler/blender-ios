@@ -1978,24 +1978,9 @@ static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const Modi
 
   writer->write_string(nmd->bake_directory);
 
-  Map<IDProperty *, IDPropertyUIDataBool *> boolean_props;
   if (nmd->settings.properties != nullptr) {
-    if (!BLO_write_is_undo(writer)) {
-      /* Boolean properties are added automatically for boolean node group inputs. Integer
-       * properties are automatically converted to boolean sockets where applicable as well.
-       * However, boolean properties will crash old versions of Blender, so convert them to integer
-       * properties for writing. The actual value is stored in the same variable for both types */
-      for (IDProperty &prop : nmd->settings.properties->data.group) {
-        if (prop.type == IDP_BOOLEAN) {
-          boolean_props.add_new(&prop, reinterpret_cast<IDPropertyUIDataBool *>(prop.ui_data));
-          prop.type = IDP_INT;
-          prop.ui_data = nullptr;
-        }
-      }
-    }
-
-    /* Note that the property settings are based on the socket type info
-     * and don't necessarily need to be written, but we can't just free them. */
+    /* Write legacy settings for forward compatibility. Created by
+     * #create_legacy_geometry_nodes_properties. */
     IDP_BlendWrite(writer, nmd->settings.properties);
   }
 
@@ -2031,21 +2016,6 @@ static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const Modi
     }
   }
   writer->write_struct_array(nmd->panels_num, nmd->panels);
-
-  if (nmd->settings.properties) {
-    if (!BLO_write_is_undo(writer)) {
-      for (IDProperty &prop : nmd->settings.properties->data.group) {
-        if (prop.type == IDP_INT) {
-          if (IDPropertyUIDataBool **ui_data = boolean_props.lookup_ptr(&prop)) {
-            prop.type = IDP_BOOLEAN;
-            if (ui_data) {
-              prop.ui_data = reinterpret_cast<IDPropertyUIData *>(*ui_data);
-            }
-          }
-        }
-      }
-    }
-  }
 }
 
 static void blend_read(BlendDataReader *reader, ModifierData *md)
