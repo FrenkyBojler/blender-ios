@@ -41,7 +41,7 @@ void SourceProcessor::lower_assert(Parser &parser, const string &filename)
     }
     string replacement;
 #ifdef WITH_GPU_SHADER_ASSERT
-    string condition = tokens[1].scope().str();
+    string condition = string(tokens[1].scope().str());
     replacement += "if (!" + condition + ") ";
     replacement += "{";
     replacement += " printf(\"";

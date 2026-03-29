@@ -813,6 +813,7 @@ set(GLSL_SRC
   engines/overlay/shaders/overlay_viewer_attribute_frag.glsl
   engines/overlay/shaders/overlay_viewer_attribute_mesh_vert.glsl
   engines/overlay/shaders/overlay_viewer_attribute_pointcloud_vert.glsl
+  engines/overlay/shaders/overlay_volume_grid.bsl.hh
   engines/overlay/shaders/overlay_volume_gridlines_vert.glsl
   engines/overlay/shaders/overlay_volume_velocity_vert.glsl
   engines/overlay/shaders/overlay_wireframe_frag.glsl

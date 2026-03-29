@@ -158,6 +158,7 @@ set(SRC_GLSL_LIB
 
 set(SRC_BSL
   bsl_shader_linting.cc
+  overlay_volume_grid.bsl.hh
 )
 
 # Compile shaders with shader code.

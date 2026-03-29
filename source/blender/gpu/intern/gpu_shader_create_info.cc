@@ -826,6 +826,17 @@ bool gpu_shader_create_info_compile_all(const char *name_starts_with_filter)
 const GPUShaderCreateInfo *gpu_shader_create_info_get(const char *info_name)
 {
   if (g_create_infos->contains(info_name) == false) {
+    
+    for (const StringRef key : g_create_infos->keys()) {
+      
+      if (key.find(info_name) == StringRefBase::not_found) {
+        continue;
+      }
+      
+      printf("  %s\n", std::string(key).c_str());
+    }
+    
+    
     printf("Error: Cannot find shader create info named \"%s\"\n", info_name);
     return nullptr;
   }
