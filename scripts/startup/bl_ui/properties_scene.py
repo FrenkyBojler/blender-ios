@@ -62,7 +62,7 @@ class SCENE_PT_scene(SceneButtonsPanel, Panel):
 
 
 class SCENE_PT_scene_dynamic_override(SceneButtonsPanel, Panel):
-    bl_label = "Scene"
+    bl_label = "Scene Dynamic Overrides"
 
     def draw(self, context):
         layout = self.layout
