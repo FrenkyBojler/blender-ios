@@ -299,9 +299,8 @@ static void build_targets_timeline(const Scene *scene,
   }
 
   if (snap_mode & SEQ_SNAP_TO_FRAME_RANGE) {
-    const int2 playback_range = BKE_scene_get_playback_range(scene);
-    snap_data->targets.append(float2(playback_range[0], all_channels));
-    snap_data->targets.append(float2(playback_range[1] + 1, all_channels));
+    snap_data->targets.append(float2(scene->playback_start(), all_channels));
+    snap_data->targets.append(float2(scene->playback_end() + 1, all_channels));
     /* Also snap to meta-strip display range if we are in a meta-strip. */
     MetaStack *ms = seq::meta_stack_active_get(seq::editing_get(scene));
     if (ms != nullptr) {

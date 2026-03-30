@@ -203,9 +203,8 @@ static void initTimeSlide(TransInfo *t, wmOperator * /*op*/)
 
     if (min == max) {
       /* Just use the current frame ranges. */
-      const int2 playback_range = BKE_scene_get_playback_range(scene);
-      min = float(playback_range[0]);
-      max = float(playback_range[1]);
+      min = float(scene->playback_start());
+      max = float(scene->playback_end());
     }
 
     range[0] = min;
