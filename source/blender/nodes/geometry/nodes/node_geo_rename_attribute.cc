@@ -52,7 +52,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const std::string new_name = params.extract_input<std::string>("New"_ustr);
   const bool overwrite = params.extract_input<bool>("Overwrite"_ustr);
 
-  if (old_name.empty() || new_name.empty()) {
+  if (old_name.empty()) {
     params.set_output("Geometry"_ustr, std::move(geometry_set));
     return;
   }
