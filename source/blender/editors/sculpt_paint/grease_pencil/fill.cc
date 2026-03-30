@@ -1226,10 +1226,10 @@ bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
                                  const bool invert,
                                  const std::optional<float> alpha_threshold,
                                  const float2 &fill_point,
-                                 const ExtensionData &extensions,
-                                 const FillToolFitMethod fit_method,
+                                 const ExtensionData & /*extensions*/,
+                                 const FillToolFitMethod /*fit_method*/,
                                  const int stroke_material_index,
-                                 const bool keep_images)
+                                 const bool /*keep_images*/)
 {
   ARegion &region = *view_context.region;
   View3D &view3d = *view_context.v3d;
@@ -1808,6 +1808,9 @@ bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
       "fill_id", bke::AttrDomain::Curve);
   bke::SpanAttributeWriter<float> fill_opacities = attributes.lookup_or_add_for_write_span<float>(
       "fill_opacity", bke::AttrDomain::Curve);
+
+  attributes.add<int>(
+      "material_index", bke::AttrDomain::Curve, bke::AttributeInitValue(stroke_material_index));
 
   int i = 0;
   for (const int curve_i : geometry.index_range()) {
