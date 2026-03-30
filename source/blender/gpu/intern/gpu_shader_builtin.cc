@@ -129,20 +129,20 @@ static const char *builtin_shader_create_info_name(GPUBuiltinShader shader)
 
     case GPU_SHADER_2D_UPDATE_MIPMAPS_UNORM_8_8_8_8:
       return "gpu_shader_2D_update_mipmaps_unorm_8_8_8_8";
-    case GPU_SHADER_2D_UPDATE_MIPMAPS_UNORM_8_8_8_8_ARRAYED:
-      return "gpu_shader_2D_update_mipmaps_unorm_8_8_8_8_arrayed";
+    case GPU_SHADER_2D_UPDATE_MIPMAPS_UNORM_8_8_8_8_LAYERED:
+      return "gpu_shader_2D_update_mipmaps_unorm_8_8_8_8_layered";
     case GPU_SHADER_2D_UPDATE_MIPMAPS_SFLOAT_16:
       return "gpu_shader_2D_update_mipmaps_sfloat_16";
-    case GPU_SHADER_2D_UPDATE_MIPMAPS_SFLOAT_16_ARRAYED:
-      return "gpu_shader_2D_update_mipmaps_sfloat_16_arrayed";
+    case GPU_SHADER_2D_UPDATE_MIPMAPS_SFLOAT_16_LAYERED:
+      return "gpu_shader_2D_update_mipmaps_sfloat_16_layered";
     case GPU_SHADER_2D_UPDATE_MIPMAPS_SFLOAT_16_16_16_16:
       return "gpu_shader_2D_update_mipmaps_sfloat_16_16_16_16";
-    case GPU_SHADER_2D_UPDATE_MIPMAPS_SFLOAT_16_16_16_16_ARRAYED:
-      return "gpu_shader_2D_update_mipmaps_sfloat_16_16_16_16_arrayed";
+    case GPU_SHADER_2D_UPDATE_MIPMAPS_SFLOAT_16_16_16_16_LAYERED:
+      return "gpu_shader_2D_update_mipmaps_sfloat_16_16_16_16_layered";
     case GPU_SHADER_2D_UPDATE_MIPMAPS_SRGBA_8_8_8_8:
       return "gpu_shader_2D_update_mipmaps_srgba_8_8_8_8";
-    case GPU_SHADER_2D_UPDATE_MIPMAPS_SRGBA_8_8_8_8_ARRAYED:
-      return "gpu_shader_2D_update_mipmaps_srgba_8_8_8_8_arrayed";
+    case GPU_SHADER_2D_UPDATE_MIPMAPS_SRGBA_8_8_8_8_LAYERED:
+      return "gpu_shader_2D_update_mipmaps_srgba_8_8_8_8_layered";
     default:
       BLI_assert_unreachable();
       return "";

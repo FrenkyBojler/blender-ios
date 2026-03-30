@@ -27,19 +27,19 @@ namespace blender {
 
 namespace gpu {
 
-static Shader *get_update_mipmap_shader(TextureFormat texture_format, bool is_arrayed)
+static Shader *get_update_mipmap_shader(TextureFormat texture_format, bool is_layered)
 {
-  if (is_arrayed) {
+  if (is_layered) {
     switch (texture_format) {
       case TextureFormat::UNORM_8_8_8_8:
-        return GPU_shader_get_builtin_shader(GPU_SHADER_2D_UPDATE_MIPMAPS_UNORM_8_8_8_8_ARRAYED);
+        return GPU_shader_get_builtin_shader(GPU_SHADER_2D_UPDATE_MIPMAPS_UNORM_8_8_8_8_LAYERED);
       case TextureFormat::SFLOAT_16:
-        return GPU_shader_get_builtin_shader(GPU_SHADER_2D_UPDATE_MIPMAPS_SFLOAT_16_ARRAYED);
+        return GPU_shader_get_builtin_shader(GPU_SHADER_2D_UPDATE_MIPMAPS_SFLOAT_16_LAYERED);
       case TextureFormat::SFLOAT_16_16_16_16:
         return GPU_shader_get_builtin_shader(
-            GPU_SHADER_2D_UPDATE_MIPMAPS_SFLOAT_16_16_16_16_ARRAYED);
+            GPU_SHADER_2D_UPDATE_MIPMAPS_SFLOAT_16_16_16_16_LAYERED);
       case TextureFormat::SRGBA_8_8_8_8:
-        return GPU_shader_get_builtin_shader(GPU_SHADER_2D_UPDATE_MIPMAPS_SRGBA_8_8_8_8_ARRAYED);
+        return GPU_shader_get_builtin_shader(GPU_SHADER_2D_UPDATE_MIPMAPS_SRGBA_8_8_8_8_LAYERED);
 
       default:
         break;

@@ -336,11 +336,16 @@ void gpu::MTLTexture::blit(id<MTLBlitCommandEncoder> blit_encoder,
   MTLOrigin src_origin = MTLOriginMake(src_x_offset, src_y_offset, src_z_offset);
   MTLOrigin dst_origin = MTLOriginMake(dst_x_offset, dst_y_offset, dst_z_offset);
 
-  if (this->format_get() != dst->format_get()) {
+  if (!((this->format_get() == dst->format_get()) ||
+        (this->format_get() == TextureFormat::SRGBA_8_8_8_8 &&
+         dst->format_get() == TextureFormat::UNORM_8_8_8_8) ||
+        (this->format_get() == TextureFormat::UNORM_8_8_8_8 &&
+         dst->format_get() == TextureFormat::SRGBA_8_8_8_8)))
+  {
     MTL_LOG_WARNING(
         "gpu::MTLTexture: Cannot copy between two textures of different types using a "
         "blit encoder. TODO: Support this operation");
-    //return;
+    return;
   }
 
   /* TODO(Metal): Verify if we want to use the one with modified base-level/texture view
@@ -1296,7 +1301,11 @@ void gpu::MTLTexture::copy_to(Texture *dst, IndexRange mip_levels)
   gpu::MTLTexture *mt_dst = static_cast<gpu::MTLTexture *>(dst);
   BLI_assert((mt_dst->w_ == mt_src->w_) && (mt_dst->h_ == mt_src->h_) &&
              (mt_dst->d_ == mt_src->d_));
-  //BLI_assert(mt_dst->format_ == mt_src->format_);
+  BLI_assert(mt_dst->format_ == mt_src->format_ ||
+             (mt_src->format_ == TextureFormat::SRGBA_8_8_8_8 &&
+              mt_dst->format_ == TextureFormat::UNORM_8_8_8_8) ||
+             (mt_src->format_ == TextureFormat::UNORM_8_8_8_8 &&
+              mt_dst->format_ == TextureFormat::SRGBA_8_8_8_8));
   BLI_assert(mt_dst->type_ == mt_src->type_);
 
   UNUSED_VARS_NDEBUG(mt_src);
