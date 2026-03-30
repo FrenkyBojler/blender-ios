@@ -548,7 +548,7 @@ void scan([[work_group_id]] const uint3 group_id,
   float2 uv = (float2(texel_fullres) + 0.5f) * uniform_buf.raytrace.full_resolution_inv;
   float depth = texelFetch(hiz_tx, texel_fullres, 0).r;
   float3 vP = drw_point_screen_to_view(float3(uv, depth));
-  float3 vN = eevee::horizon::sample_normal<SphericalHarmonicL1<float4>>(srt.screen_normal_tx, uv);
+  float3 vN = texelFetch(srt.screen_normal_tx, texel, 0).rgb * 2.0f - 1.0f;
 
   float4 noise = utility_tx_fetch(utility_tx, float2(texel), UTIL_BLUE_NOISE_LAYER);
   noise = fract(noise + sampling_rng_3D_get(SAMPLING_AO_U).xyzx);
