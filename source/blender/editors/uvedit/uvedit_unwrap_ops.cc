@@ -2906,7 +2906,7 @@ static wmOperatorStatus unwrap_exec(bContext *C, wmOperator *op)
 
     mat4_to_size(obsize, obedit->object_to_world().ptr());
     if (!(fabsf(obsize[0] - obsize[1]) < 1e-4f && fabsf(obsize[1] - obsize[2]) < 1e-4f)) {
-      if ((reported_errors & UNWRAP_ERROR_NONUNIFORM) == 0) {
+      if ((reported_errors & UNWRAP_ERROR_NONUNIFORM) == 0 && !options.use_uniform_scale) {
         BKE_report(op->reports,
                    RPT_INFO,
                    "Object has non-uniform scale, unwrap will operate on a non-scaled version of "
