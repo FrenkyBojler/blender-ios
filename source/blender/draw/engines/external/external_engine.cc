@@ -13,6 +13,7 @@
 #include "DRW_engine.hh"
 #include "DRW_render.hh"
 
+#include "BLI_profile.hh"
 #include "BLI_string.h"
 
 #include "BLT_translation.hh"
@@ -397,6 +398,7 @@ class Instance : public DrawEngine {
 
   void draw(draw::Manager &manager) final
   {
+    BLI_profile_zone_scoped;
     /* TODO(fclem): Remove global access. */
     View &view = View::default_get();
 

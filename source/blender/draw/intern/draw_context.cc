@@ -17,6 +17,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector.h"
+#include "BLI_profile.hh"
 #include "BLI_rect.h"
 #include "BLI_string.h"
 #include "BLI_sys_types.h"
@@ -430,6 +431,7 @@ static DRWData *drw_viewport_data_ensure(GPUViewport *viewport)
 
 void DRWContext::acquire_data()
 {
+  BLI_profile_zone_scoped_n("DRWContext::acquire_data");
   BLI_assert(GPU_context_active_get() != nullptr);
 
   gpu::TexturePool::get().reset();
@@ -979,6 +981,8 @@ static void drw_engines_cache_populate(draw::ObjectRef &ref,
 
 void DRWContext::sync(iter_callback_t iter_callback)
 {
+  BLI_profile_zone_scoped_n("DRWContext::sync")
+
   /* Enable modules and init for next sync. */
   data->modules_begin_sync();
 
@@ -1001,6 +1005,8 @@ void DRWContext::sync(iter_callback_t iter_callback)
 
 void DRWContext::engines_init_and_sync(iter_callback_t iter_callback)
 {
+  BLI_profile_zone_scoped_n("DRWContext::engines_init_and_sync")
+
   double start_time = BLI_time_now_seconds();
 
   view_data_active->foreach_enabled_engine([&](DrawEngine &instance) { instance.init(); });
@@ -1020,6 +1026,8 @@ void DRWContext::engines_init_and_sync(iter_callback_t iter_callback)
 
 void DRWContext::engines_draw_scene()
 {
+  BLI_profile_zone_scoped;
+
   double start_time = BLI_time_now_seconds();
   /* Start Drawing */
   draw::command::StateSet::set();
@@ -1453,6 +1461,8 @@ DRWTextStore *DRW_text_cache_ensure()
  */
 static void drw_draw_render_loop_3d(DRWContext &draw_ctx, RenderEngineType *engine_type)
 {
+  BLI_profile_zone_scoped;
+
   using namespace blender::draw;
   Depsgraph *depsgraph = draw_ctx.depsgraph;
   View3D *v3d = draw_ctx.v3d;
@@ -1501,6 +1511,7 @@ static void drw_draw_render_loop_3d(DRWContext &draw_ctx, RenderEngineType *engi
 
 static void drw_draw_render_loop_2d(DRWContext &draw_ctx)
 {
+  BLI_profile_zone_scoped;
   Depsgraph *depsgraph = draw_ctx.depsgraph;
   ARegion *region = draw_ctx.region;
 
@@ -1545,6 +1556,7 @@ static void drw_draw_render_loop_2d(DRWContext &draw_ctx)
 
 void DRW_draw_view(const bContext *C)
 {
+  BLI_profile_zone_scoped;
   Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
   ARegion *region = CTX_wm_region(C);
   View3D *v3d = CTX_wm_view3d(C);

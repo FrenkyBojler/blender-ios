@@ -13,6 +13,8 @@
 #include "BKE_global.hh"
 #include "BKE_object.hh"
 
+#include "BLI_profile.hh"
+
 #include "BLI_rect.h"
 #include "BLI_time.h"
 
@@ -783,6 +785,7 @@ void Instance::draw_viewport_image_render()
 
 void Instance::draw(Manager & /*manager*/)
 {
+  BLI_profile_zone_scoped_n("EEVEE Draw");
   if (is_viewport_image_render) {
     draw_viewport_image_render();
   }

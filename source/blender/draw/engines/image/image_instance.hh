@@ -21,6 +21,7 @@
 #include "image_space_node.hh"
 
 #include "BLI_math_matrix.hh"
+#include "BLI_profile.hh"
 
 #include "DNA_space_types.h"
 
@@ -183,6 +184,7 @@ class Instance : public DrawEngine {
 
   void draw(Manager & /*manager*/) final
   {
+    BLI_profile_zone_scoped;
     DRW_submission_start();
     if (drawing_mode_) {
       drawing_mode_->draw_viewport();

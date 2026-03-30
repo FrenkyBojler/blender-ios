@@ -5,6 +5,7 @@
 #include "BLI_bounds.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_vector_types.hh"
+#include "BLI_profile.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_utildefines.h"
 
@@ -417,6 +418,7 @@ class Instance : public DrawEngine {
 
   void draw(Manager & /*manager*/) final
   {
+    BLI_profile_zone_scoped_n("Compositor Draw");
     Context context(cache_manager_, DRW_context_get()->scene, this->info);
     if (context.get_camera_region().is_empty()) {
       return;

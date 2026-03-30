@@ -13,6 +13,7 @@
 #include "BKE_editmesh.hh"
 #include "BKE_mesh_types.hh"
 #include "BLI_math_matrix.h"
+#include "BLI_profile.hh"
 
 #include "BLT_translation.hh"
 
@@ -394,6 +395,7 @@ struct Instance : public DrawEngine {
 
   void draw(Manager &manager) final
   {
+    BLI_profile_zone_scoped;
     StaticData &e_data = StaticData::get();
 
     DRW_submission_start();

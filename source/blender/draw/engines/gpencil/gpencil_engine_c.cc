@@ -21,6 +21,7 @@
 #include "BKE_camera.h"
 
 #include "BLI_listbase.h"
+#include "BLI_profile.hh"
 #include "BLI_memblock.h"
 #include "BLI_virtual_array.hh"
 
@@ -867,6 +868,7 @@ void Instance::draw_object(View &view, tObject *ob)
 
 void Instance::draw(Manager &manager)
 {
+  BLI_profile_zone_scoped_n("Grease Pencil Draw");
   DefaultTextureList *dtxl = draw_ctx->viewport_texture_list_get();
   DefaultFramebufferList *dfbl = draw_ctx->viewport_framebuffer_list_get();
 
