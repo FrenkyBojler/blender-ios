@@ -658,7 +658,7 @@ def register():
         register_class(cls)
 
     register_rna_properties()
-    register_use_time_properties()
+    register_usetime_properties()
 
     prefs = RigifyPreferences.get_instance()
     prefs.register_feature_sets(True)
@@ -697,7 +697,7 @@ def unregister():
     prefs.register_feature_sets(False)
 
     unregister_rna_properties()
-    unregister_use_time_properties()
+    unregister_usetime_properties()
 
     # Classes.
     for cls in classes:
@@ -712,7 +712,7 @@ def unregister():
     feature_set_list.unregister()
 
 
-def register_use_time_properties() -> None:
+def register_usetime_properties() -> None:
     """
     Register all properties that are required at use-time.
     This makes it possible to use a rigify created rig without having the rigify addon enabled.
@@ -726,7 +726,7 @@ def register_use_time_properties() -> None:
         name="UI Title", description="Text to use on the UI panel button instead of the collection name")
 
 
-def unregister_use_time_properties() -> None:
+def unregister_usetime_properties() -> None:
     coll_store: typing.Any = bpy.types.BoneCollection
     del coll_store.rigify_ui_row
     del coll_store.rigify_ui_title
