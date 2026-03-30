@@ -3529,9 +3529,7 @@ static bool check_for_updates_poll(blender::bContext * /*C*/)
 
 static wmOperatorStatus check_for_updates_exec(bContext *C, wmOperator *op)
 {
-  if (bke::check_for_available_updates(
-          *C, false, RNA_boolean_get(op->ptr, "ignore_skipped_versions")))
-  {
+  if (bke::check_for_available_updates(*C, false, true)) {
     wmOperatorType *ot = WM_operatortype_find("WM_OT_call_panel", false);
     PointerRNA op_ptr = WM_operator_properties_create_ptr(ot);
     RNA_string_set(&op_ptr, "name", "STATUS_PT_blender_updates");
@@ -3539,15 +3537,8 @@ static wmOperatorStatus check_for_updates_exec(bContext *C, wmOperator *op)
     WM_operator_properties_free(&op_ptr);
     return OPERATOR_FINISHED;
   }
-  BKE_reportf(op->reports, RPT_WARNING, "No new releases matching your preferences.");
-  return OPERATOR_CANCELLED;
-}
-
-static wmOperatorStatus check_for_updates_invoke(bContext *C,
-                                                 wmOperator *op,
-                                                 const blender::wmEvent * /*event*/)
-{
-  return WM_operator_props_dialog_popup(C, op, 400);
+  BKE_reportf(op->reports, RPT_INFO, "No new releases matching your preferences.");
+  return OPERATOR_FINISHED;
 }
 
 void WM_OT_check_for_updates(wmOperatorType *ot)
@@ -3557,16 +3548,7 @@ void WM_OT_check_for_updates(wmOperatorType *ot)
   ot->description = "Check for available Blender updates";
 
   ot->exec = check_for_updates_exec;
-  ot->invoke = check_for_updates_invoke;
   ot->poll = check_for_updates_poll;
-
-  /** For testing. */
-  ot->prop = RNA_def_boolean(
-      ot->srna,
-      "ignore_skipped_versions",
-      false,
-      "TESTING: Ignore Skipped Versions",
-      "Ignores the previosly skipped versions, so they can listed again for update.");
 }
 
 }  // namespace blender

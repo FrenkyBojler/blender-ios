@@ -470,10 +470,18 @@ bool check_for_available_updates(bContext &C, bool use_cache, bool ignore_skippe
                                             (std::chrono::utc_clock::now() -
                                              last_time_version_update_check()))
                                             .count();
-  if (!use_cache || days_since_last_check >= 1) {
+
+  static std::chrono::utc_clock::time_point last_time_check_quick_test;
+  /* Just for testing. */
+  const int64_t seconds_since_last_check = std::chrono::duration_cast<std::chrono::seconds>(
+                                               (std::chrono::utc_clock::now() -
+                                                last_time_check_quick_test))
+                                               .count();
+  if (!use_cache || days_since_last_check >= 1 || seconds_since_last_check >= 30) {
     download_updates_log(C);
     last_time_version_update_check() = std::chrono::utc_clock::now();
     write_blender_updates_cache_file();
+    last_time_check_quick_test = std::chrono::utc_clock::now();
   }
   return !available_updates().is_empty();
 }
