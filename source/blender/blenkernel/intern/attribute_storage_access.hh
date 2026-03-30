@@ -4,8 +4,10 @@
 
 #include "BKE_attribute.hh"
 #include "BKE_attribute_storage.hh"
+
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
+
 #include <optional>
 
 namespace blender::bke {

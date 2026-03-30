@@ -5,7 +5,9 @@
 #include "BKE_attribute.hh"
 #include "BKE_attribute_storage.hh"
 #include "BKE_deform.hh"
+
 #include "BLI_listbase.h"
+
 #include "DNA_object_types.h"
 
 #include "attribute_storage_access.hh"
