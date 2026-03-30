@@ -657,8 +657,8 @@ def register():
     for cls in classes:
         register_class(cls)
 
-    register_rna_properties()
     register_usetime_properties()
+    register_rna_properties()
 
     prefs = RigifyPreferences.get_instance()
     prefs.register_feature_sets(True)
@@ -919,8 +919,6 @@ def unregister_rna_properties() -> None:
     coll_store: typing.Any = bpy.types.BoneCollection
 
     del coll_store.rigify_uid
-    del coll_store.rigify_ui_row
-    del coll_store.rigify_ui_title
     del coll_store.rigify_ui_title_name
     del coll_store.rigify_sel_set
     del coll_store.rigify_color_set_id
