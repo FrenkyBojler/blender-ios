@@ -218,12 +218,22 @@ const SocketType *NodeType::find_output(ustring name) const
  * The initialization functions are stored in std::vector without guarded allocation
  * as that may not been properly initialized yet. */
 
-static thread_mutex g_types_mutex_;
+static thread_mutex &types_mutex()
+{
+  static thread_mutex types_mutex_;
+  return types_mutex_;
+}
 
 static unordered_map<ustring, NodeType> &types()
 {
   static unordered_map<ustring, NodeType> _types;
   return _types;
+}
+
+static thread_mutex &types_on_init_mutex()
+{
+  static thread_mutex types_on_init_mutex_;
+  return types_on_init_mutex_;
 }
 
 static std::vector<const NodeType *(*)()> &types_on_init()
@@ -234,18 +244,16 @@ static std::vector<const NodeType *(*)()> &types_on_init()
 
 static void ensure_types_initialized()
 {
-  static thread_mutex ensure_init_mutex;
-  thread_scoped_lock lock(ensure_init_mutex);
-
+  thread_scoped_lock lock(types_on_init_mutex());
   for (const auto &init_func : types_on_init()) {
     init_func();
   }
-
   types_on_init().clear();
 }
 
 bool NodeType::register_on_init(const NodeType *(*init_func)())
 {
+  thread_scoped_lock lock(types_on_init_mutex());
   types_on_init().push_back(init_func);
   return true;
 }
@@ -255,7 +263,7 @@ NodeType *NodeType::add(const char *name_, CreateFunc create_, Type type_, const
   const ustring name(name_);
 
   /* Types can be lazily registered from multiple threads. */
-  thread_scoped_lock lock(g_types_mutex_);
+  thread_scoped_lock lock(types_mutex());
 
   if (types().find(name) != types().end()) {
     LOG_ERROR << "Node type " << name_ << " registered twice";
@@ -275,7 +283,7 @@ const NodeType *NodeType::find(ustring name)
 {
   ensure_types_initialized();
 
-  thread_scoped_lock lock(g_types_mutex_);
+  thread_scoped_lock lock(types_mutex());
   const unordered_map<ustring, NodeType>::iterator it = types().find(name);
   return (it == types().end()) ? nullptr : &it->second;
 }
@@ -284,7 +292,7 @@ vector<ustring> NodeType::type_names()
 {
   ensure_types_initialized();
 
-  thread_scoped_lock lock(g_types_mutex_);
+  thread_scoped_lock lock(types_mutex());
   vector<ustring> names;
   for (const auto &pair : types()) {
     names.push_back(pair.first);
