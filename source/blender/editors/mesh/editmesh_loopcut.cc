@@ -210,16 +210,7 @@ static void ringsel_finish(bContext *C, wmOperator *op)
                          use_only_quads,
                          0);
 
-      /* Now reposition newly created vertices from 0.5 to cut_factor.
-       * After subdivision, the new verts are selected. For each new vert
-       * on a quad edge, it sits at the midpoint of the original edge.
-       * We reposition it to cut_factor along that edge instead.
-       *
-       * For a single cut, each new vert has exactly 2 edges connecting
-       * to the original vertices of the subdivided edge. We lerp between
-       * those two neighbors at cut_factor.
-       *
-       * Skip repositioning if cut_factor is ~0.5 (already correct). */
+      /* Now reposition newly created vertices from 0.5 to cut_factor. */
       if (cuts == 1 && fabsf(lcd->cut_factor - 0.5f) > 1e-4f) {
         BMIter viter;
         BMVert *v;
@@ -252,15 +243,8 @@ static void ringsel_finish(bContext *C, wmOperator *op)
             /* Determine consistent direction: cut_factor is defined as
              * the projection onto the axis from cut-edge-A midpoint to
              * cut-edge-B midpoint. We need to figure out which of va/vb
-             * corresponds to the 0-side and which to the 1-side.
-             *
-             * Use the seed edge's orientation as reference: cut_factor=0
-             * is toward eed->v1's side, cut_factor=1 toward eed->v2's side.
-             * Check which original vert (va or vb) is topologically closer
-             * to eed->v1 vs eed->v2 by checking face adjacency. */
+             * corresponds to the 0-side and which to the 1-side. */
 
-            /* Simple heuristic: use the dot product with the axis between
-             * the original seed edge endpoints to determine direction. */
             float dir_ref[3];
             sub_v3_v3v3(dir_ref, v_eed_orig[1]->co, v_eed_orig[0]->co);
 
