@@ -7,6 +7,7 @@
  */
 
 #include "BLI_time.h"
+#include "BLI_profile.hh"
 
 #ifdef WIN32
 
@@ -62,11 +63,17 @@ long int BLI_time_now_seconds_i()
 
 void BLI_time_sleep_ms(int ms)
 {
+  BLI_profile_zone_scoped;
+  BLI_profile_zone_set_name_fmt("Sleep %d ms", ms);
+
   Sleep(ms);
 }
 
 void BLI_time_sleep_precise_us(int us)
 {
+  BLI_profile_zone_scoped;
+  BLI_profile_zone_set_name_fmt("Sleep precise %d us", us);
+
   /* Prefer thread-safety over caching the timer with a static variable. According to
    * https://github.com/rust-lang/rust/pull/116461/files, this costs only approximately 2000ns. */
   HANDLE timerHandle = CreateWaitableTimerExW(
@@ -138,6 +145,9 @@ long int BLI_time_now_seconds_i()
 
 void BLI_time_sleep_ms(int ms)
 {
+  BLI_profile_zone_scoped;
+  BLI_profile_zone_set_name_fmt("Sleep %d ms", ms);
+
   if (ms >= 1000) {
     sleep(ms / 1000);
     ms = (ms % 1000);
@@ -148,6 +158,9 @@ void BLI_time_sleep_ms(int ms)
 
 void BLI_time_sleep_precise_us(int us)
 {
+  BLI_profile_zone_scoped;
+  BLI_profile_zone_set_name_fmt("Sleep precise %d us", us);
+
   std::this_thread::sleep_for(std::chrono::microseconds(us));
 }
 
