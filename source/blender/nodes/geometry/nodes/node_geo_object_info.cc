@@ -11,6 +11,7 @@
 #include "DNA_object_types.h"
 
 #include "NOD_rna_define.hh"
+#include "NOD_socket_search_link.hh"
 
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
@@ -247,6 +248,17 @@ static void node_rna(StructRNA *srna)
   RNA_def_property_update_runtime(prop, rna_Node_update_relations);
 }
 
+static void node_gather_link_searches(nodes::GatherLinkSearchOpParams &params)
+{
+  if (params.node_tree().type == NTREE_GEOMETRY) {
+    search_link_ops_for_basic_node(params);
+    return;
+  }
+
+  static Set<std::string> skip_socket_identifiers = {"As Instance", "Rotation", "Geometry"};
+  nodes::search_filtered_link_ops_for_basic_node(params, skip_socket_identifiers);
+}
+
 static void node_register()
 {
   static bke::bNodeType ntype;
@@ -262,6 +274,7 @@ static void node_register()
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.declare = node_declare;
+  ntype.gather_link_search_ops = node_gather_link_searches;
   ntype.get_compositor_operation = get_compositor_operation;
   bke::node_register_type(ntype);
 
