@@ -46,6 +46,7 @@
 #include "BLI_math_base.h"
 #include "BLI_math_rotation.h"
 #include "BLI_path_utils.hh"
+#include "BLI_profile.hh"
 #include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_threads.h"
@@ -2761,6 +2762,7 @@ static void scene_graph_update_tagged(Depsgraph *depsgraph, Main *bmain, bool on
 
 void BKE_scene_graph_update_tagged(Depsgraph *depsgraph, Main *bmain)
 {
+  BLI_profile_zone_scoped;
   scene_graph_update_tagged(depsgraph, bmain, false);
 }
 

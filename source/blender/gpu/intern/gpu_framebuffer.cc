@@ -9,6 +9,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_math_base.h"
+#include "BLI_profile.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
@@ -728,6 +729,7 @@ GPUOffScreen *GPU_offscreen_create(int width,
                                    bool clear,
                                    char err_out[256])
 {
+  BLI_profile_zone_scoped;
   GPUOffScreen *ofs = MEM_new_zeroed<GPUOffScreen>(__func__);
 
   /* Sometimes areas can have 0 height or width and this will

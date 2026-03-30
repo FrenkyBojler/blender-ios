@@ -9,6 +9,7 @@
  */
 
 #include "BLI_listbase.h"
+#include "BLI_profile.hh"
 #include "BLI_utildefines.h"
 
 #include "DNA_cachefile_types.h"
@@ -330,6 +331,7 @@ void DEG_graph_tag_relations_update(Depsgraph *graph)
 
 void DEG_graph_relations_update(Depsgraph *graph)
 {
+  BLI_profile_zone_scoped;
   deg::Depsgraph *deg_graph = reinterpret_cast<deg::Depsgraph *>(graph);
   if (!deg_graph->need_update_relations) {
     /* Graph is up to date, nothing to do. */
@@ -340,6 +342,7 @@ void DEG_graph_relations_update(Depsgraph *graph)
 
 void DEG_relations_tag_update(Main *bmain)
 {
+  BLI_profile_zone_scoped;
   DEG_GLOBAL_DEBUG_PRINTF(TAG, "%s: Tagging relations for update.\n", __func__);
   for (deg::Depsgraph *depsgraph : deg::get_all_registered_graphs(bmain)) {
     DEG_graph_tag_relations_update(reinterpret_cast<Depsgraph *>(depsgraph));

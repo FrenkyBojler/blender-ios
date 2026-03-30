@@ -16,6 +16,7 @@
 #include "BKE_global.hh"
 
 #include "BLI_assert.h"
+#include "BLI_profile.hh"
 #include "BLI_threads.h"
 #include "BLI_vector_set.hh"
 
@@ -318,6 +319,7 @@ void GPU_context_main_unlock()
 
 void GPU_render_begin()
 {
+  BLI_profile_zone_scoped;
   GPUBackend *backend = GPUBackend::get();
   BLI_assert(backend);
   /* WORKAROUND: Currently a band-aid for the heist production. Has no side effect for GL backend
@@ -329,6 +331,7 @@ void GPU_render_begin()
 }
 void GPU_render_end()
 {
+  BLI_profile_zone_scoped;
   GPUBackend *backend = GPUBackend::get();
   BLI_assert(backend);
   if (backend) {
@@ -338,6 +341,7 @@ void GPU_render_end()
 }
 void GPU_render_step(bool force_resource_release)
 {
+  BLI_profile_zone_scoped;
   GPUBackend *backend = GPUBackend::get();
   BLI_assert(backend);
   if (backend) {
