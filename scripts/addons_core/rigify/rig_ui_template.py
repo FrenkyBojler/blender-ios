@@ -1353,6 +1353,8 @@ class ScriptGenerator(base_generate.GeneratorPlugin):
         }
 
     def finalize(self):
+        from . import register_use_time_properties, unregister_use_time_properties
+
         metarig = self.generator.metarig
         rig_id = self.generator.rig_id
 
@@ -1398,6 +1400,8 @@ class ScriptGenerator(base_generate.GeneratorPlugin):
 
         script.write("\ndef register():\n")
 
+        script.write(f"    {register_use_time_properties.__name__}()\n")
+
         ui_register = OrderedDict.fromkeys(self.ui_register)
         for s in ui_register:
             script.write("    bpy.utils.register_class(" + s + ")\n")
@@ -1411,6 +1415,8 @@ class ScriptGenerator(base_generate.GeneratorPlugin):
             script.write(f"    bpy.types.{classname} = {text}\n ")
 
         script.write("\ndef unregister():\n")
+
+        script.write(f"    {unregister_use_time_properties.__name__}()\n")
 
         for s in ui_register_props:
             script.write("    del bpy.types.%s\n" % s[0])
@@ -1431,12 +1437,12 @@ class ScriptGenerator(base_generate.GeneratorPlugin):
         self.obj['rig_ui'] = script
 
     def _write_rna_prop_register_funcs(self, script: bpy.types.Text) -> None:
-        """Inject the (un)register_rna_properties functions into the script."""
+        """Inject the (un)register_use_time_properties functions into the script."""
         import inspect
-        from . import register_rna_properties, unregister_rna_properties
+        from . import register_use_time_properties, unregister_use_time_properties
 
-        register_func_src = inspect.getsource(register_rna_properties)
-        unregister_func_src = inspect.getsource(unregister_rna_properties)
+        register_func_src = inspect.getsource(register_use_time_properties)
+        unregister_func_src = inspect.getsource(unregister_use_time_properties)
 
         script.write("\n\n")
         script.write(register_func_src)
