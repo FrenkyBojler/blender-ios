@@ -288,9 +288,8 @@ class VolumeTopologyGrid : Overlay {
     grid_positions_ = gpu::VertBufPtr(&dens_tiles());
     pass_.shader_set(grid_shader_.get());
     pass_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL, state.clipping_plane_count);
-    // pass_.bind_texture("positions", grid_positions_);
+    pass_.bind_texture("positions", grid_positions_);
     pass_.draw_procedural(GPU_PRIM_TRIS, 90, 90 * 3);
-    printf("%s;\n", AT);
     res.select_bind(pass_);
   }
 
@@ -298,7 +297,6 @@ class VolumeTopologyGrid : Overlay {
   {
     pass_.framebuffer_set(&framebuffer);
     manager.submit(pass_, view);
-    printf("%s;\n", AT);
   }
 };
 
