@@ -362,8 +362,12 @@ static ShaderNode *add_node(Scene *scene,
   }
   else if (b_node.is_type("FunctionNodeInputVector")) {
     ColorNode *value = graph->create_node<ColorNode>();
-    auto &storage = *static_cast<NodeInputVector *>(node->storage);
-    value->set_value(storage.vector);
+    auto &storage = *static_cast<blender::NodeInputVector *>(b_node.storage);
+    float3 stored_value;
+    stored_value[0] = storage.vector[0];
+    stored_value[1] = storage.vector[1];
+    stored_value[2] = storage.vector[2];
+    value->set_value(stored_value);
     node = value;
   }
   else if (b_node.is_type("ShaderNodeValue")) {
@@ -373,13 +377,13 @@ static ShaderNode *add_node(Scene *scene,
   }
   else if (b_node.is_type("FunctionNodeInputBool")) {
     ValueNode *value = graph->create_node<ValueNode>();
-    auto &storage = *static_cast<NodeInputBool *>(node->storage);
+    auto &storage = *static_cast<blender::NodeInputBool *>(b_node.storage);
     value->set_value(bool(storage.boolean));
     node = value;
   }
   else if (b_node.is_type("FunctionNodeInputInt")) {
     ValueNode *value = graph->create_node<ValueNode>();
-    auto &storage = *static_cast<NodeInputInt *>(node->storage);
+    auto &storage = *static_cast<blender::NodeInputInt *>(b_node.storage);
     value->set_value(storage.integer);
     node = value;
   }
