@@ -1666,15 +1666,15 @@ bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
           }
 
           if (next_tri == NULL_INDEX) {
-            boundary_edges.add(edge_index);
+            /* Return no geometry if we try to fill all of space. */
+            return {};
+          }
+
+          if (tri_hint_index[next_tri] == fill_hint_index) {
+            continue;
           }
           else {
-            if (tri_hint_index[next_tri] == fill_hint_index) {
-              continue;
-            }
-            else {
-              boundary_edges.add(edge_index);
-            }
+            boundary_edges.add(edge_index);
           }
         }
       }
