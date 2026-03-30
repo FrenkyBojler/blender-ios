@@ -56,6 +56,10 @@ static void node_geo_exec(GeoNodeExecParams params)
     params.set_output("Geometry"_ustr, std::move(geometry_set));
     return;
   }
+  if (old_name == new_name) {
+    params.set_output("Geometry"_ustr, std::move(geometry_set));
+    return;
+  }
 
   std::atomic<bool> not_found = false;
   Mutex failures_lock;
