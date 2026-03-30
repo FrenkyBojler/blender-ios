@@ -606,7 +606,8 @@ PyDoc_STRVAR(
     "      :param type: The primitive type of geometry to be drawn.\n"
     "      :type type: " PYDOC_PRIMTYPE_LITERAL
     "\n"
-    "      :param buf: Vertex buffer containing all or some of the attributes required for drawing.\n"
+    "      :param buf: Vertex buffer containing all or some of the attributes required for "
+    "drawing.\n"
     "      :type buf: :class:`gpu.types.GPUVertBuf`\n"
     "      :param elem: An optional index buffer.\n"
     "      :type elem: :class:`gpu.types.GPUIndexBuf` | None\n");
