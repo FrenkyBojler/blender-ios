@@ -13,6 +13,7 @@
 #include <cstring>
 #include <fftw3.h>
 #include <mutex>
+#include <numeric>
 #include <optional>
 #include <thread>
 
@@ -2146,10 +2147,7 @@ static bSoundFrequencySampler::WindowWeights compute_window_function_weights(
       break;
     }
   }
-  float sum = 0.0f;
-  for (const float weight : weights) {
-    sum += weight;
-  }
+  const float sum = std::accumulate(weights.begin(), weights.end(), 0.0f);
   return bSoundFrequencySampler::WindowWeights{std::move(weights), sum};
 }
 
