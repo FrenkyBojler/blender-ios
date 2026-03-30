@@ -716,6 +716,7 @@ def register_use_time_properties() -> None:
     """
     Register all properties that are required at use-time.
     This makes it possible to use a rigify created rig without having the rigify addon enabled.
+    See rig_ui_template.py
     """
     coll_store = bpy.types.BoneCollection
     coll_store.rigify_ui_row = bpy.props.IntProperty(
