@@ -770,6 +770,10 @@ void Mesh::add_undisplaced(Scene *scene)
 
 void Mesh::update_motion(Scene *scene)
 {
+  if (verts_pre.empty()) {
+    return;
+  }
+
   if (need_attribute(scene, ATTR_STD_MOTION_VERTEX_POSITION) && has_motion()) {
     if (motion_steps == 0) {
       motion_steps = 3;
