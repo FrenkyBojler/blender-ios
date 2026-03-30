@@ -72,10 +72,10 @@ template<typename T> using OpenvdbGradientType = typename OpenvdbGradientTypeTra
 template<typename T> using DivergenceType = typename DivergenceTypeTraits<T>::type;
 template<typename T> using OpenvdbDivergenceType = typename OpenvdbDivergenceTypeTraits<T>::type;
 
-template<int N, class TreeT>
-bool probe_values(const TreeT &tree,
+template<int N, class AccessorT>
+bool probe_values(const AccessorT &accessor,
                   const openvdb::Vec3i &index,
-                  typename TreeT::ValueType (&data)[N][N][N])
+                  typename AccessorT::ValueType (&data)[N][N][N])
 {
   constexpr int start_offset = ((N + 1) >> 1) - 1;
   const openvdb::Vec3i start_index = index -
@@ -86,7 +86,7 @@ bool probe_values(const TreeT &tree,
   for (int dx = 0, ix = start_index.x(); dx < N; ++dx, ++ix) {
     for (int dy = 0, iy = start_index.y(); dy < N; ++dy, ++iy) {
       for (int dz = 0, iz = start_index.z(); dz < N; ++dz, ++iz) {
-        if (tree.probeValue(openvdb::Coord(ix, iy, iz), data[dx][dy][dz])) {
+        if (accessor.probeValue(openvdb::Coord(ix, iy, iz), data[dx][dy][dz])) {
           active = true;
         }
       }
@@ -95,10 +95,10 @@ bool probe_values(const TreeT &tree,
   return active;
 }
 
-template<int N, class TreeT>
-void get_values(const TreeT &tree,
+template<int N, class AccessorT>
+void get_values(const AccessorT &accessor,
                 const openvdb::Vec3i &index,
-                typename TreeT::ValueType (&data)[N][N][N])
+                typename AccessorT::ValueType (&data)[N][N][N])
 {
   constexpr int start_offset = ((N + 1) >> 1) - 1;
   const openvdb::Vec3i start_index = index -
@@ -108,7 +108,7 @@ void get_values(const TreeT &tree,
   for (int dx = 0, ix = start_index.x(); dx < N; ++dx, ++ix) {
     for (int dy = 0, iy = start_index.y(); dy < N; ++dy, ++iy) {
       for (int dz = 0, iz = start_index.z(); dz < N; ++dz, ++iz) {
-        data[dx][dy][dz] = tree.getValue(openvdb::Coord(ix, iy, iz));
+        data[dx][dy][dz] = accessor.getValue(openvdb::Coord(ix, iy, iz));
       }
     }
   }
@@ -138,6 +138,7 @@ void interpolate_value_3d(ValueT (&data)[N][N][N],
 template<typename ValueT, int N, typename KernelFn, typename DerivativeFn>
 void interpolate_gradient_3d(ValueT (&data)[N][N][N],
                              const openvdb::Vec3R &uvw,
+                             const openvdb::math::Transform &transform,
                              KernelFn kernel_fn,
                              DerivativeFn derivative_fn,
                              OpenvdbGradientType<ValueT> &result)
@@ -164,21 +165,24 @@ void interpolate_gradient_3d(ValueT (&data)[N][N][N],
      *
      * The matrix constructor takes row vectors by default, use column vectors instead.
      */
-    result = GradientT(derivative_fn(vvx, uvw.x()),
+    result = transform.baseMap()->getAffineMap()->getConstJacobianInv() *
+             GradientT(derivative_fn(vvx, uvw.x()),
                        kernel_fn(gvx, uvw.x()),
                        kernel_fn(vgx, uvw.x()),
                        /*rows=*/false);
   }
   else {
-    result = GradientT(
-        derivative_fn(vvx, uvw.x()), kernel_fn(gvx, uvw.x()), kernel_fn(vgx, uvw.x()));
+    result = transform.baseMap()->applyInverseJacobian(
+        GradientT(derivative_fn(vvx, uvw.x()), kernel_fn(gvx, uvw.x()), kernel_fn(vgx, uvw.x())));
   }
 }
 
-template<typename Kernel, class TreeT>
-bool sample_tree(const TreeT &tree, const openvdb::Vec3R &coord, typename TreeT::ValueType &result)
+template<typename Kernel, class AccessorT>
+bool sample_tree(const AccessorT &accessor,
+                 const openvdb::Vec3R &coord,
+                 typename AccessorT::ValueType &result)
 {
-  using ValueT = typename TreeT::ValueType;
+  using ValueT = typename AccessorT::ValueType;
 
   const openvdb::Vec3i index = openvdb::tools::local_util::floorVec3(coord);
   const openvdb::Vec3R uvw = coord - index;
@@ -186,16 +190,16 @@ bool sample_tree(const TreeT &tree, const openvdb::Vec3R &coord, typename TreeT:
   /* Retrieve the values of the voxels surrounding the fractional source coordinates. */
   constexpr int N = Kernel::size;
   ValueT data[N][N][N];
-  bool active = probe_values(tree, index, data);
+  bool active = probe_values(accessor, index, data);
   interpolate_value_3d(data, uvw, Kernel::template weight<ValueT>, result);
 
   return active;
 }
 
-template<typename Kernel, class TreeT>
-typename TreeT::ValueType sample_tree(const TreeT &tree, const openvdb::Vec3R &coord)
+template<typename Kernel, class AccessorT>
+typename AccessorT::ValueType sample_tree(const AccessorT &accessor, const openvdb::Vec3R &coord)
 {
-  using ValueT = typename TreeT::ValueType;
+  using ValueT = typename AccessorT::ValueType;
 
   const openvdb::Vec3i index = openvdb::tools::local_util::floorVec3(coord);
   const openvdb::Vec3R uvw = coord - index;
@@ -203,19 +207,20 @@ typename TreeT::ValueType sample_tree(const TreeT &tree, const openvdb::Vec3R &c
   /* Retrieve the values of the voxels surrounding the fractional source coordinates. */
   constexpr int N = Kernel::size;
   ValueT data[N][N][N];
-  get_values(tree, index, data);
+  get_values(accessor, index, data);
 
   ValueT result;
   interpolate_value_3d(data, uvw, Kernel::template weight<ValueT>, result);
   return result;
 }
 
-template<typename Kernel, class TreeT>
-bool sample_tree_gradient(const TreeT &tree,
+template<typename Kernel, class AccessorT>
+bool sample_tree_gradient(const AccessorT &accessor,
+                          const openvdb::math::Transform &transform,
                           const openvdb::Vec3R &coord,
-                          OpenvdbGradientType<typename TreeT::ValueType> &result)
+                          OpenvdbGradientType<typename AccessorT::ValueType> &result)
 {
-  using ValueT = typename TreeT::ValueType;
+  using ValueT = typename AccessorT::ValueType;
 
   const openvdb::Vec3i index = openvdb::tools::local_util::floorVec3(coord);
   const openvdb::Vec3R uvw = coord - index;
@@ -223,18 +228,24 @@ bool sample_tree_gradient(const TreeT &tree,
   /* Retrieve the values of the voxels surrounding the fractional source coordinates. */
   constexpr int N = Kernel::size;
   ValueT data[N][N][N];
-  bool active = probe_values(tree, index, data);
-  interpolate_gradient_3d(
-      data, uvw, Kernel::template weight<ValueT>, Kernel::template derivative<ValueT>, result);
+  bool active = probe_values(accessor, index, data);
+  interpolate_gradient_3d(data,
+                          uvw,
+                          transform,
+                          Kernel::template weight<ValueT>,
+                          Kernel::template derivative<ValueT>,
+                          result);
 
   return active;
 }
 
-template<typename Kernel, class TreeT>
-OpenvdbGradientType<typename TreeT::ValueType> sample_tree_gradient(const TreeT &tree,
-                                                                    const openvdb::Vec3R &coord)
+template<typename Kernel, class AccessorT>
+OpenvdbGradientType<typename AccessorT::ValueType> sample_tree_gradient(
+    const AccessorT &accessor,
+    const openvdb::math::Transform &transform,
+    const openvdb::Vec3R &coord)
 {
-  using ValueT = typename TreeT::ValueType;
+  using ValueT = typename AccessorT::ValueType;
 
   const openvdb::Vec3i index = openvdb::tools::local_util::floorVec3(coord);
   const openvdb::Vec3R uvw = coord - index;
@@ -242,26 +253,33 @@ OpenvdbGradientType<typename TreeT::ValueType> sample_tree_gradient(const TreeT 
   /* Retrieve the values of the voxels surrounding the fractional source coordinates. */
   constexpr int N = Kernel::size;
   ValueT data[N][N][N];
-  get_values(tree, index, data);
+  get_values(accessor, index, data);
 
   ValueT result;
-  interpolate_gradient_3d(
-      data, uvw, Kernel::template weight<ValueT>, Kernel::template derivative<ValueT>, result);
+  interpolate_gradient_3d(data,
+                          uvw,
+                          transform,
+                          Kernel::template weight<ValueT>,
+                          Kernel::template derivative<ValueT>,
+                          result);
   return result;
 }
 
 template<typename Kernel, int Moment, typename ValueT, typename ResultT, int N>
 void compute_moments(ValueT const (&data)[N][N][N],
                      ResultT (&moments)[N][N][N],
-                     const openvdb::Vec3R &uvw)
+                     const openvdb::Vec3R &uvw,
+                     const openvdb::math::Transform &transform)
 {
   const openvdb::Vec3R kernel_offset = openvdb::Vec3R((Kernel::size - 1) >> 1);
+  const openvdb::math::AffineMap::ConstPtr affine_map = transform.baseMap()->getAffineMap();
 
   /* Compute moment contributions by multiplying with distance. */
   for (const int i : IndexRange(N)) {
     for (const int j : IndexRange(N)) {
       for (const int k : IndexRange(N)) {
-        openvdb::Vec3R delta = openvdb::Vec3R(i, j, k) - kernel_offset - uvw;
+        openvdb::Vec3s delta = affine_map->applyJacobian(openvdb::Vec3s(i, j, k) - kernel_offset -
+                                                         uvw);
         if constexpr (std::is_same_v<ValueT, float>) {
           if constexpr (Moment == 1) {
             /* Scalar product of the position vector. */
@@ -291,10 +309,13 @@ void compute_moments(ValueT const (&data)[N][N][N],
   }
 }
 
-template<typename Kernel, int Moment, typename ResultT, class TreeT>
-bool sample_tree_moment(const TreeT &tree, const openvdb::Vec3R &coord, ResultT &result)
+template<typename Kernel, int Moment, typename ResultT, class AccessorT>
+bool sample_tree_moment(const AccessorT &accessor,
+                        const openvdb::math::Transform &transform,
+                        const openvdb::Vec3R &coord,
+                        ResultT &result)
 {
-  using ValueT = typename TreeT::ValueType;
+  using ValueT = typename AccessorT::ValueType;
 
   const openvdb::Vec3i index = openvdb::tools::local_util::floorVec3(coord);
   const openvdb::Vec3R uvw = coord - index;
@@ -302,18 +323,20 @@ bool sample_tree_moment(const TreeT &tree, const openvdb::Vec3R &coord, ResultT 
   /* Retrieve the values of the voxels surrounding the fractional source coordinates. */
   constexpr int N = Kernel::size;
   ValueT data[N][N][N];
-  bool active = probe_values(tree, index, data);
+  bool active = probe_values(accessor, index, data);
   ResultT moments[N][N][N];
-  compute_moments<Kernel, Moment>(data, moments, uvw);
+  compute_moments<Kernel, Moment>(data, moments, uvw, transform);
   interpolate_value_3d(moments, uvw, Kernel::template weight<ResultT>, result);
 
   return active;
 }
 
-template<typename Kernel, int Moment, typename ResultT, class TreeT>
-ResultT sample_tree_moment(const TreeT &tree, const openvdb::Vec3R &coord)
+template<typename Kernel, int Moment, typename ResultT, class AccessorT>
+ResultT sample_tree_moment(const AccessorT &accessor,
+                           const openvdb::math::Transform &transform,
+                           const openvdb::Vec3R &coord)
 {
-  using ValueT = typename TreeT::ValueType;
+  using ValueT = typename AccessorT::ValueType;
 
   const openvdb::Vec3i index = openvdb::tools::local_util::floorVec3(coord);
   const openvdb::Vec3R uvw = coord - index;
@@ -321,9 +344,9 @@ ResultT sample_tree_moment(const TreeT &tree, const openvdb::Vec3R &coord)
   /* Retrieve the values of the voxels surrounding the fractional source coordinates. */
   constexpr int N = Kernel::size;
   ValueT data[N][N][N];
-  get_values(tree, index, data);
+  get_values(accessor, index, data);
   ResultT moments[N][N][N];
-  compute_moments<Kernel, Moment>(data, moments, uvw);
+  compute_moments<Kernel, Moment>(data, moments, uvw, transform);
 
   ResultT result;
   interpolate_value_3d(moments, uvw, Kernel::template weight<ResultT>, result);
@@ -644,46 +667,56 @@ struct CubicBSplineKernel {
  * Grid value sampler using a kernel type.
  */
 template<typename KernelT> struct SamplerWithKernel {
-  template<class TreeT>
-  static bool sample(const TreeT &tree,
+  template<class AccessorT>
+  static bool sample(const AccessorT &accessor,
                      const openvdb::Vec3R &coord,
-                     typename TreeT::ValueType &result)
+                     typename AccessorT::ValueType &result)
   {
-    return grid_sampling::sample_tree<KernelT>(tree, coord, result);
+    return grid_sampling::sample_tree<KernelT>(accessor, coord, result);
   }
 
-  template<class TreeT>
-  static typename TreeT::ValueType sample(const TreeT &tree, const openvdb::Vec3R &coord)
+  template<class AccessorT>
+  static typename AccessorT::ValueType sample(const AccessorT &accessor,
+                                              const openvdb::Vec3R &coord)
   {
-    return grid_sampling::sample_tree<KernelT>(tree, coord);
+    return grid_sampling::sample_tree<KernelT>(accessor, coord);
   }
 
-  template<class TreeT>
+  template<class AccessorT>
   static bool sample_gradient(
-      const TreeT &tree,
+      const AccessorT &accessor,
+      const openvdb::math::Transform &transform,
       const openvdb::Vec3R &coord,
-      grid_sampling::OpenvdbGradientType<typename TreeT::ValueType> &result)
+      grid_sampling::OpenvdbGradientType<typename AccessorT::ValueType> &result)
   {
-    return grid_sampling::sample_tree_gradient<KernelT>(tree, coord, result);
+    return grid_sampling::sample_tree_gradient<KernelT>(accessor, transform, coord, result);
   }
 
-  template<class TreeT>
-  static grid_sampling::OpenvdbGradientType<typename TreeT::ValueType> sample_gradient(
-      const TreeT &tree, const openvdb::Vec3R &coord)
+  template<class AccessorT>
+  static grid_sampling::OpenvdbGradientType<typename AccessorT::ValueType> sample_gradient(
+      const AccessorT &accessor,
+      const openvdb::math::Transform &transform,
+      const openvdb::Vec3R &coord)
   {
-    return grid_sampling::sample_tree_gradient<KernelT>(tree, coord);
+    return grid_sampling::sample_tree_gradient<KernelT>(accessor, transform, coord);
   }
 
-  template<int Moment, typename ResultT, class TreeT>
-  static bool sample_moment(const TreeT &tree, const openvdb::Vec3R &coord, ResultT &result)
+  template<int Moment, typename ResultT, class AccessorT>
+  static bool sample_moment(const AccessorT &accessor,
+                            const openvdb::math::Transform &transform,
+                            const openvdb::Vec3R &coord,
+                            ResultT &result)
   {
-    return grid_sampling::sample_tree_moment<KernelT, Moment, ResultT>(tree, coord, result);
+    return grid_sampling::sample_tree_moment<KernelT, Moment, ResultT>(
+        accessor, transform, coord, result);
   }
 
-  template<int Moment, typename ResultT, class TreeT>
-  static ResultT sample_moment(const TreeT &tree, const openvdb::Vec3R &coord)
+  template<int Moment, typename ResultT, class AccessorT>
+  static ResultT sample_moment(const AccessorT &accessor,
+                               const openvdb::math::Transform &transform,
+                               const openvdb::Vec3R &coord)
   {
-    return grid_sampling::sample_tree_moment<KernelT, Moment, ResultT>(tree, coord);
+    return grid_sampling::sample_tree_moment<KernelT, Moment, ResultT>(accessor, transform, coord);
   }
 };
 

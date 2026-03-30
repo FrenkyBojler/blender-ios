@@ -171,7 +171,7 @@ void sample_grid(const bke::OpenvdbGridType<T> &grid,
         const openvdb::Vec3R world_pos(pos.x, pos.y, pos.z);
         const openvdb::Vec3R index_pos = grid.transform().worldToIndex(world_pos);
         GridGradientT value;
-        Sampler::sample_gradient(accessor, index_pos, value);
+        Sampler::sample_gradient(accessor, grid.transform(), index_pos, value);
         dst_typed[i] = float4x4(TraitsT::to_blender(value));
       });
     }
@@ -182,7 +182,7 @@ void sample_grid(const bke::OpenvdbGridType<T> &grid,
         const openvdb::Vec3R world_pos(pos.x, pos.y, pos.z);
         const openvdb::Vec3R index_pos = grid.transform().worldToIndex(world_pos);
         GridGradientT value;
-        Sampler::sample_gradient(accessor, index_pos, value);
+        Sampler::sample_gradient(accessor, grid.transform(), index_pos, value);
         dst_typed[i] = TraitsT::to_blender(value);
       });
     }

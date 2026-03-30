@@ -206,14 +206,14 @@ void sample_grid(const bke::OpenvdbGridType<GridValueT> &grid,
       if constexpr (std::is_same_v<AttributeT, float4x4>) {
         using AttributeTraits = bke::VolumeGridTraits<float3x3>;
         openvdb::Mat3s value;
-        Sampler::template sample_moment<Moment>(accessor, index_pos, value);
+        Sampler::template sample_moment<Moment>(accessor, grid.transform(), index_pos, value);
         dst_typed[i] = float4x4(AttributeTraits::to_blender(value));
       }
       else {
         using AttributeTraits = bke::VolumeGridTraits<AttributeT>;
         using PrimitiveT = typename AttributeTraits::PrimitiveType;
         PrimitiveT value;
-        Sampler::template sample_moment<Moment>(accessor, index_pos, value);
+        Sampler::template sample_moment<Moment>(accessor, grid.transform(), index_pos, value);
         dst_typed[i] = AttributeTraits::to_blender(value);
       }
     });

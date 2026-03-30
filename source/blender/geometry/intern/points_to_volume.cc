@@ -547,14 +547,19 @@ struct DivergenceTransfer : public KernelTransferBase<AttributeT, GridValueT> {
           const AttributeType source_value = this->get_value(point_index);
           const float3 weight_gradient = kernel_functions::kernel_gradient_eval(
               this->kernel_type(), kernel_distance);
+          const openvdb::Vec3s vdb_weight_gradient = openvdb::Vec3s(
+              weight_gradient.x, weight_gradient.y, weight_gradient.z);
+          const openvdb::Vec3s scaled_weight_gradient = this->targetTransform().indexToWorld(
+              vdb_weight_gradient);
           if constexpr (std::is_same_v<AttributeType, openvdb::Mat4s>) {
-            return source_value.col(0).getVec3() * weight_gradient.x +
-                   source_value.col(1).getVec3() * weight_gradient.y +
-                   source_value.col(2).getVec3() * weight_gradient.z;
+            return source_value.col(0).getVec3() * scaled_weight_gradient.x() +
+                   source_value.col(1).getVec3() * scaled_weight_gradient.y() +
+                   source_value.col(2).getVec3() * scaled_weight_gradient.z();
           }
           else {
-            return source_value[0] * weight_gradient.x + source_value[1] * weight_gradient.y +
-                   source_value[2] * weight_gradient.z;
+            return source_value[0] * scaled_weight_gradient.x() +
+                   source_value[1] * scaled_weight_gradient.y() +
+                   source_value[2] * scaled_weight_gradient.z();
           }
         });
   }
@@ -611,9 +616,13 @@ struct GradientTransfer : public KernelTransferBase<AttributeT, GridValueT> {
           const AttributeType source_value = this->get_value(point_index);
           const float3 weight_gradient = kernel_functions::kernel_gradient_eval(
               this->kernel_type(), kernel_distance);
-          return GridValueType{source_value * weight_gradient.x,
-                               source_value * weight_gradient.y,
-                               source_value * weight_gradient.z};
+          const openvdb::Vec3s vdb_weight_gradient = openvdb::Vec3s(
+              weight_gradient.x, weight_gradient.y, weight_gradient.z);
+          const openvdb::Vec3s scaled_weight_gradient = this->targetTransform().indexToWorld(
+              vdb_weight_gradient);
+          return GridValueType{source_value * scaled_weight_gradient.x(),
+                               source_value * scaled_weight_gradient.y(),
+                               source_value * scaled_weight_gradient.z()};
         });
   }
 };
