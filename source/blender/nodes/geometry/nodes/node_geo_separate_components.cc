@@ -22,7 +22,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
+  GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry"_ustr);
 
   GeometrySet meshes;
   GeometrySet curves;
@@ -31,13 +31,15 @@ static void node_geo_exec(GeoNodeExecParams params)
   GeometrySet volumes;
   GeometrySet instances;
 
-  const std::string &name = geometry_set.name;
-  meshes.name = name;
-  curves.name = name;
-  grease_pencil.name = name;
-  pointclouds.name = name;
-  volumes.name = name;
-  instances.name = name;
+  const StringRef name = geometry_set.name();
+  if (!name.is_empty()) {
+    meshes.set_name(name);
+    curves.set_name(name);
+    grease_pencil.set_name(name);
+    pointclouds.set_name(name);
+    volumes.set_name(name);
+    instances.set_name(name);
+  }
 
   meshes.copy_bundle_from(geometry_set);
   curves.copy_bundle_from(geometry_set);
@@ -65,12 +67,12 @@ static void node_geo_exec(GeoNodeExecParams params)
     instances.add(*geometry_set.get_component<InstancesComponent>());
   }
 
-  params.set_output("Mesh", meshes);
-  params.set_output("Curve", curves);
-  params.set_output("Grease Pencil", grease_pencil);
-  params.set_output("Point Cloud", pointclouds);
-  params.set_output("Volume", volumes);
-  params.set_output("Instances", instances);
+  params.set_output("Mesh"_ustr, meshes);
+  params.set_output("Curve"_ustr, curves);
+  params.set_output("Grease Pencil"_ustr, grease_pencil);
+  params.set_output("Point Cloud"_ustr, pointclouds);
+  params.set_output("Volume"_ustr, volumes);
+  params.set_output("Instances"_ustr, instances);
 }
 
 static void node_register()
