@@ -115,6 +115,11 @@ void VKTexture::copy_to(Texture *texture, IndexRange mip_levels)
   VKTexture *src = this;
   BLI_assert(dst);
   BLI_assert(src->w_ == dst->w_ && src->h_ == dst->h_ && src->d_ == dst->d_);
+  BLI_assert((src->format_ == dst->format_) ||
+             (src->format_ == TextureFormat::SRGBA_8_8_8_8 &&
+              dst->format_ == TextureFormat::UNORM_8_8_8_8) ||
+             (src->format_ == TextureFormat::UNORM_8_8_8_8 &&
+              dst->format_ == TextureFormat::SRGBA_8_8_8_8));
   BLI_assert(!is_texture_view());
   UNUSED_VARS_NDEBUG(src);
 

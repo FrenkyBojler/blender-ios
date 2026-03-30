@@ -452,7 +452,11 @@ void GLTexture::copy_to(Texture *dst_, IndexRange mip_levels)
   GLTexture *src = this;
 
   BLI_assert((dst->w_ == src->w_) && (dst->h_ == src->h_) && (dst->d_ == src->d_));
-  BLI_assert(dst->format_ == src->format_);
+  BLI_assert((src->format_ == dst->format_) ||
+             (src->format_ == TextureFormat::SRGBA_8_8_8_8 &&
+              dst->format_ == TextureFormat::UNORM_8_8_8_8) ||
+             (src->format_ == TextureFormat::UNORM_8_8_8_8 &&
+              dst->format_ == TextureFormat::SRGBA_8_8_8_8));
   BLI_assert(dst->type_ == src->type_);
 
   for (int mip : mip_levels) {
