@@ -88,6 +88,7 @@ void RollSpline::clear()
   lengths_3d.clear();
   tangents_3d.clear();
   pressures.clear();
+  normals.clear();
 }
 
 bool RollSpline::is_empty() const
@@ -212,6 +213,7 @@ int PaintStroke::roll_max_points() const
 void PaintStroke::add_roll_point(const float2 &mouse_in,
                                  const float2 &mouse_out,
                                  const float3 &loc,
+                                 const float3 &surface_normal,
                                  float size,
                                  float pressure,
                                  bool pen_flip,
@@ -293,6 +295,9 @@ void PaintStroke::add_roll_point(const float2 &mouse_in,
     point->pen_flip = pen_flip;
 
     point->location = loc;
+    point->surface_normal = (math::length_squared(surface_normal) > 1e-8f) ?
+                                math::normalize(surface_normal) :
+                                float3(0, 0, 1);
     /* Clamp pressure — pen touch-down and lift-off report near-zero values
      * that would create an extreme width spike in the roll strip. */
     point->pressure = std::max(pressure, MIN_ROLL_PRESSURE);
@@ -540,12 +545,18 @@ void PaintStroke::make_roll_spline(bContext * /*C*/)
       }
     }
     extrapolate_pressures(base_p, ratio, n_back, true, roll_spline_.pressures);
+    /* Virtual backward extension: use oldest real point's surface normal. */
+    const float3 back_n = (num_points_ > 0) ? points_[oldest].surface_normal : float3(0, 0, 1);
+    for (int i = 0; i < n_back; i++) {
+      roll_spline_.normals.append(back_n);
+    }
   }
   for (int i = 0; i < num_points_; i++) {
     const int idx = (oldest + i) % buf_cap;
     roll_spline_.poly_2d.append(points_[idx].mouse_out);
     roll_spline_.poly_3d.append(points_[idx].location);
     roll_spline_.pressures.append(points_[idx].pressure);
+    roll_spline_.normals.append(points_[idx].surface_normal);
   }
 
   n_virtual_poly_points_ = int(backward_ext_2d_.size());
@@ -614,18 +625,22 @@ void PaintStroke::finish_roll_stroke(bContext *C,
     float3 location;
     bool is_location_is_set;
     update(C, brush, mode, mouse_up, mouse_out, pressure, location, &is_location_is_set);
+    /* Use last point's surface normal for the finish point. */
+    const int last_idx = (cur_point_ - 1 + PAINT_MAX_INPUT_SAMPLES) % PAINT_MAX_INPUT_SAMPLES;
+    const float3 last_sn = (num_points_ > 0) ? points_[last_idx].surface_normal : float3(0, 0, 1);
+
     if (is_location_is_set) {
       add_roll_point(
-          mouse_up, mouse_out, location, paint_runtime->pixel_radius, pressure, pen_flip_,
-          tilt_.x, tilt_.y);
+          mouse_up, mouse_out, location, last_sn, paint_runtime->pixel_radius, pressure,
+          pen_flip_, tilt_.x, tilt_.y);
     }
     else if (num_points_ > 0) {
       /* Fallback: use last known location so the spline still extends. */
-      const int last = (cur_point_ - 1 + PAINT_MAX_INPUT_SAMPLES) % PAINT_MAX_INPUT_SAMPLES;
       add_roll_point(mouse_up,
                      mouse_out,
-                     points_[last].location,
-                     points_[last].size,
+                     points_[last_idx].location,
+                     last_sn,
+                     points_[last_idx].size,
                      pressure,
                      pen_flip_,
                      tilt_.x,
@@ -696,6 +711,10 @@ void PaintStroke::finish_roll_stroke(bContext *C,
           ratio = std::clamp(p_new / p_prev, PRESSURE_RATIO_MIN, PRESSURE_RATIO_MAX);
         }
         extrapolate_pressures(p_new, ratio, n_forward, false, roll_spline_.pressures);
+      }
+      /* Forward extension: use newest point's surface normal. */
+      for (int i = 0; i < n_forward; i++) {
+        roll_spline_.normals.append(points_[newest].surface_normal);
       }
 
       roll_spline_.update_lengths();
@@ -937,40 +956,48 @@ void PaintStroke::compute_roll_center(StrokeCache &cache)
       roll_initial_radius_ = R;
     }
 
-    /* Use the mesh surface normal (sculpt_normal) for binormal computation
-     * and 2D projection. This aligns the poly-strip to the mesh surface
-     * so the texture "stamps" from the normal direction, giving consistent
-     * results regardless of viewing angle.
-     * Fall back to view_normal on the first dab (sculpt_normal not yet set). */
-    const float3 proj_normal = (math::length_squared(cache.sculpt_normal) > 1e-8f) ?
-                                   math::normalize(cache.sculpt_normal) :
-                                   math::normalize(cache.view_normal);
+    /* Use a stable projection normal for binormal computation and 2D
+     * projection.  Frozen on the first dab so that border positions and
+     * self-intersection merges don't flicker as the brush moves across
+     * a curved surface (where sculpt_normal changes per dab). */
+    if (math::length_squared(roll_proj_normal_) < 1e-8f) {
+      roll_proj_normal_ = (math::length_squared(cache.sculpt_normal) > 1e-8f) ?
+                               math::normalize(cache.sculpt_normal) :
+                               math::normalize(cache.view_normal);
+    }
+    const float3 proj_normal = roll_proj_normal_;
     cache.roll_proj_normal = proj_normal;
 
     cache.roll_binormals.reinitialize(count);
     cache.roll_border_left.reinitialize(count);
     cache.roll_border_right.reinitialize(count);
 
+    /* dab_normal: per-dab surface normal for the LUT projection. */
+    const float3 dab_normal = (math::length_squared(cache.sculpt_normal) > 1e-8f) ?
+                                  math::normalize(cache.sculpt_normal) :
+                                  proj_normal;
+
     for (int k = 0; k < count; k++) {
       const int vi = lo + k; /* polyline vertex index */
       const float3 &T = tangents[vi];
-      /* Binormal = cross(tangent, proj_normal), lies in the mesh tangent plane. */
-      float3 B = math::cross(T, proj_normal);
+      /* Binormal = cross(tangent, dab_normal).  Using the per-dab
+       * surface normal (same as LUT projection) ensures the grid is
+       * aligned with the local surface at the current dab position.
+       * This is view-independent — the same stroke from any camera
+       * angle produces the same borders. */
+      float3 B = math::cross(T, dab_normal);
       const float blen = math::length(B);
       if (blen > 1e-7f) {
         B /= blen;
       }
       else {
-        /* Degenerate: tangent parallel to view — pick an arbitrary perpendicular. */
+        /* Degenerate: tangent parallel to dab_normal. */
         B = math::normalize(math::cross(T, float3(0, 0, 1)));
         if (math::length_squared(B) < 1e-12f) {
           B = math::normalize(math::cross(T, float3(1, 0, 0)));
         }
       }
       cache.roll_binormals[k] = B;
-      /* Per-vertex strip half-width: R * pressure when pressure-scale is on,
-       * constant R otherwise.  This makes the strip narrow where the pen is
-       * light and wide where it's heavy, matching the dab size. */
       const float Rk = (use_pressure_width && vi < int(roll_spline_.pressures.size())) ?
                             std::max(R * roll_spline_.pressures[vi], R * 0.01f) :
                             R;
@@ -987,37 +1014,31 @@ void PaintStroke::compute_roll_center(StrokeCache &cache)
      * This turns overlapping quads into degenerate triangles that fan from
      * the crossing point — the cross-lines rotate to point toward it. */
 
-    /* Find border polyline self-intersections via exact 2D segment tests.
+    /* Find border polyline self-intersections via 2D segment tests.
      *
-     * Self-intersection is a 2D (screen-space) phenomenon: the border
-     * polyline crosses itself when viewed from the camera.  Using exact
-     * 2D intersection (not 3D closest-approach with a tolerance) ensures
-     * the grid collapse matches the 2D debug overlay perfectly and never
-     * incorrectly collapses the outer border at a turn. */
-    float3 view_x = math::cross(proj_normal, float3(0, 0, 1));
-    if (math::length_squared(view_x) < 1e-6f) {
-      view_x = math::cross(proj_normal, float3(1, 0, 0));
+     * Uses the per-dab surface normal for projection so the merge
+     * detection is view-independent and aligned with the LUT.  Border
+     * stability comes from the per-vertex frozen surface normals used
+     * for binormal computation, not from the merge projection normal. */
+    float3 merge_x = math::cross(dab_normal, float3(0, 0, 1));
+    if (math::length_squared(merge_x) < 1e-6f) {
+      merge_x = math::cross(dab_normal, float3(1, 0, 0));
     }
-    view_x = math::normalize(view_x);
-    const float3 view_y = math::normalize(math::cross(proj_normal, view_x));
+    merge_x = math::normalize(merge_x);
+    const float3 merge_y = math::normalize(math::cross(dab_normal, merge_x));
 
-    auto fix_border_self_intersections = [count, &view_x, &view_y, &poly, R](
+    auto fix_border_self_intersections = [count, &merge_x, &merge_y, &poly, R](
                                              Vector<float3> &border) {
       if (count < 4) {
         return;
       }
 
-      /* Project to 2D view plane for exact intersection tests. */
       Vector<float2> b2d(count);
       for (int k = 0; k < count; k++) {
-        b2d[k] = float2(math::dot(border[k], view_x), math::dot(border[k], view_y));
+        b2d[k] = float2(math::dot(border[k], merge_x), math::dot(border[k], merge_y));
       }
 
-      /* Maximum loop size for self-intersection search.
-       * Use count-1 to check all segment pairs — tight turns may produce
-       * large loops and limiting the range causes missed intersections. */
       const int max_loop = count - 1;
-
       Vector<float3> orig(border);
       int skip_until = -1;
 
@@ -1030,7 +1051,6 @@ void PaintStroke::compute_roll_center(StrokeCache &cache)
           continue;
         }
 
-        /* Search within the max_loop neighborhood, far to near. */
         const int j_max = std::min(count - 2, i + max_loop);
         for (int j = j_max; j >= i + 2; j--) {
           const float2 d2 = b2d[j + 1] - b2d[j];
@@ -1038,7 +1058,6 @@ void PaintStroke::compute_roll_center(StrokeCache &cache)
             continue;
           }
 
-          /* Exact 2D segment intersection. */
           const float2 ac = b2d[j] - b2d[i];
           const float denom = d1.x * d2.y - d1.y * d2.x;
           if (std::abs(denom) < 1e-8f) {
@@ -1048,15 +1067,10 @@ void PaintStroke::compute_roll_center(StrokeCache &cache)
           const float t = (ac.x * d1.y - ac.y * d1.x) / denom;
 
           if (s >= 0.0f && s <= 1.0f && t >= 0.0f && t <= 1.0f) {
-            /* Only collapse if all intermediate border vertices are closer
-             * to the stroke center line than the brush radius R.  This
-             * ensures we only merge genuine inner-side folds from tight
-             * curvature, not spurious crossings where the stroke doubles
-             * back or forms complex shapes (loops, S-curves). */
             bool all_inside = true;
             const int m_lo = std::max(0, i - 2);
             const int m_hi = std::min(count - 2, j + 2);
-            const float R_sq = R * R;
+            const float R_sq = (R * 1.2f) * (R * 1.2f); /* 20% margin for inclined borders */
             for (int k = i + 1; k <= j; k++) {
               float min_dist_sq = FLT_MAX;
               for (int m = m_lo; m <= m_hi; m++) {
@@ -1080,7 +1094,6 @@ void PaintStroke::compute_roll_center(StrokeCache &cache)
               continue;
             }
 
-            /* Compute 3D crossing point from the 2D parameters. */
             const float3 pa = orig[i] + (orig[i + 1] - orig[i]) * s;
             const float3 pb = orig[j] + (orig[j + 1] - orig[j]) * t;
             const float3 cross_pt = (pa + pb) * 0.5f;
@@ -1315,12 +1328,18 @@ void PaintStroke::compute_roll_center(StrokeCache &cache)
         }
       }
 
-      /* Pre-project grid to 2D projection-plane coordinates.
-       * Both the grid and per-vertex query points are projected onto the
-       * same 2D plane (perpendicular to the projection normal).  This:
-       * 1. Eliminates off-plane 3D projection bias (V-shape artifact)
-       * 2. Reduces the per-vertex search to 2D (faster, less memory)
-       * The projection is done once per dab, not per vertex. */
+      /* LUT projection uses the per-dab sculpt normal — the direction
+       * the brush "stamps" from.  This ensures the texture maps at
+       * correct density on slopes (combined with the inclination-narrowed
+       * borders).  The per-dab normal adapts to the local surface as
+       * the stroke progresses across curved geometry. */
+      float3 view_x = math::cross(dab_normal, float3(0, 0, 1));
+      if (math::length_squared(view_x) < 1e-6f) {
+        view_x = math::cross(dab_normal, float3(1, 0, 0));
+      }
+      view_x = math::normalize(view_x);
+      const float3 view_y = math::normalize(math::cross(dab_normal, view_x));
+
       const int total = cur_rows * cur_cols;
       Vector<float2> grid_pos_2d(total);
       {
@@ -1404,6 +1423,7 @@ void PaintStroke::compute_roll_center(StrokeCache &cache)
         cache.roll_lut_dist_sq.reinitialize(lut_total);
         cache.roll_lut_tan.reinitialize(lut_total);
         for (int i = 0; i < lut_total; i++) {
+          cache.roll_lut_uv[i] = float2(FLT_MAX, 0.0f);
           cache.roll_lut_dist_sq[i] = FLT_MAX;
         }
 
@@ -1546,8 +1566,16 @@ void PaintStroke::spline_uv(const StrokeCache &cache,
                               math::dot(float3(co), cache.roll_view_y));
 
   const float2 fc = (query - cache.roll_lut_min) * cache.roll_lut_inv_extent;
-  if (UNLIKELY(!std::isfinite(fc.x) || !std::isfinite(fc.y))) {
-    r_out[0] = r_out[1] = r_out[2] = 0.0f;
+  /* If the query is outside the LUT bounding box (or NaN), return a large
+   * distance so this result loses the mirror-symmetry comparison.  Without
+   * this, edge-clamped LUT values at mirrored positions can produce bogus
+   * near-zero U that incorrectly wins. */
+  if (UNLIKELY(!std::isfinite(fc.x) || !std::isfinite(fc.y) ||
+               fc.x < -0.5f || fc.x > float(RES) - 0.5f ||
+               fc.y < -0.5f || fc.y > float(RES) - 0.5f))
+  {
+    r_out[0] = FLT_MAX;
+    r_out[1] = r_out[2] = 0.0f;
     zero_v3(r_tan);
     return;
   }
@@ -1564,6 +1592,19 @@ void PaintStroke::spline_uv(const StrokeCache &cache,
   const float2 &uv10 = cache.roll_lut_uv[iy * RES + ix + 1];
   const float2 &uv01 = cache.roll_lut_uv[(iy + 1) * RES + ix];
   const float2 &uv11 = cache.roll_lut_uv[(iy + 1) * RES + ix + 1];
+
+  /* If any of the 4 LUT pixels was never rasterized (no grid quad covered
+   * it), its UV is the FLT_MAX sentinel.  Return large U so this result
+   * loses the mirror-symmetry comparison. */
+  if (UNLIKELY(uv00.x >= FLT_MAX * 0.5f || uv10.x >= FLT_MAX * 0.5f ||
+               uv01.x >= FLT_MAX * 0.5f || uv11.x >= FLT_MAX * 0.5f))
+  {
+    r_out[0] = FLT_MAX;
+    r_out[1] = r_out[2] = 0.0f;
+    zero_v3(r_tan);
+    return;
+  }
+
   const float2 uv_result = (1 - tx) * (1 - ty) * uv00 + tx * (1 - ty) * uv10 +
                             (1 - tx) * ty * uv01 + tx * ty * uv11;
 

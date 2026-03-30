@@ -113,6 +113,8 @@ struct RollSpline {
   Vector<float3> tangents_3d;
   /** Per-vertex pen pressure (0..1). Used to compute variable strip width. */
   Vector<float> pressures;
+  /** Per-vertex surface normal (frozen at recording time). */
+  Vector<float3> normals;
 
   void clear();
   bool is_empty() const;
@@ -137,6 +139,7 @@ struct PaintStrokePoint {
   float2 mouse_in;
   float2 mouse_out;
   float3 location;
+  float3 surface_normal = float3(0, 0, 1); /* sculpt_normal at recording time */
   float pressure = 0.0f;
   float x_tilt = 0.0f;
   float y_tilt = 0.0f;
@@ -202,6 +205,7 @@ struct PaintStroke : NonCopyable, NonMovable {
   int n_virtual_poly_points_ = 0;          /* polyline points in virtual backward extension */
   float roll_virtual_length_ = 0.0f;       /* arc length of virtual extension (subtracted from V) */
   float roll_initial_radius_ = 0.0f;       /* cache.initial_radius, captured on first dab */
+  float3 roll_proj_normal_ = float3(0);   /* projection normal, frozen on first dab */
   float stroke_distance_normalized_ = 0.0f; /* pressure-normalized V offset for consumed knots */
   float roll_virtual_length_normalized_ = 0.0f; /* normalized arc length of virtual extension */
   int initial_backward_ext_count_ = 0;     /* backward_ext knot count at creation, for budget */
@@ -383,6 +387,7 @@ struct PaintStroke : NonCopyable, NonMovable {
   void add_roll_point(const float2 &mouse_in,
                       const float2 &mouse_out,
                       const float3 &loc,
+                      const float3 &surface_normal,
                       float size,
                       float pressure,
                       bool pen_flip,

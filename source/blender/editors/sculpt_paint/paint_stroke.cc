@@ -546,9 +546,14 @@ void PaintStroke::add_step(bContext *C, wmOperator *op, const float2 mval, float
      * this, the first recorded roll point ends up one spacing step away from
      * the real mouse-down position. */
     if (need_roll_mapping_ && is_location_is_set) {
+      const float3 sn = (vc.obact && vc.obact->runtime->sculpt_session &&
+                          vc.obact->runtime->sculpt_session->cache) ?
+                             vc.obact->runtime->sculpt_session->cache->sculpt_normal :
+                             float3(0);
       add_roll_point(mval,
                      mouse_out,
                      location,
+                     sn,
                      paint_runtime->pixel_radius,
                      pressure,
                      pen_flip_,
@@ -558,14 +563,21 @@ void PaintStroke::add_step(bContext *C, wmOperator *op, const float2 mval, float
     return;
   }
 
-  add_roll_point(mval,
-                 mouse_out,
-                 location,
-                 paint_runtime->pixel_radius,
-                 pressure,
-                 pen_flip_,
-                 tilt_.x,
-                 tilt_.y);
+  {
+    const float3 sn = (vc.obact && vc.obact->runtime->sculpt_session &&
+                        vc.obact->runtime->sculpt_session->cache) ?
+                           vc.obact->runtime->sculpt_session->cache->sculpt_normal :
+                           float3(0);
+    add_roll_point(mval,
+                   mouse_out,
+                   location,
+                   sn,
+                   paint_runtime->pixel_radius,
+                   pressure,
+                   pen_flip_,
+                   tilt_.x,
+                   tilt_.y);
+  }
 
   if (need_roll_mapping_) {
     make_roll_spline(C);

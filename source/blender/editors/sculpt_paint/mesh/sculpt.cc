@@ -2443,20 +2443,22 @@ void sculpt_apply_texture(const SculptSession &ss,
 
       float3 tile_point = float3(brush_point);
 
-      /* Find position in root tile by removing the tile shift added by do_tiled().
-       * cache.location = cache.location_symm + n * tile_step, so subtracting the
-       * difference maps the point back into the principal (n=0) tile.
-       * When tiling is inactive the difference is zero, so this is always safe. */
-      tile_point -= float3(cache.location) - float3(cache.location_symm);
+      /* Undo the tile offset added by do_tiled().  cache.plane_offset is
+       * the pure tile shift (zero for the principal tile), without any
+       * mirror/radial transform mixed in. */
+      tile_point -= cache.plane_offset;
 
-      /* Rotate into base radial slice. */
+      /* Undo radial symmetry rotation. */
       if (cache.radial_symmetry_pass > 0) {
         mul_m4_v3(cache.symm_rot_mat_inv.ptr(), tile_point);
       }
 
-      cache.stroke->spline_uv(cache, tile_point, point_3d, tan);
-
-      /* Loop through each possible symmetry combination. */
+      /* Try each mirror-symmetry flip of the vertex and keep the result
+       * closest to the strip center.  For mirror_pass=0 (no mirror) the
+       * only iteration is i=0 (identity).  For mirror_pass=X, i=1 flips
+       * X and maps the mirrored vertex back near the spline.  Points
+       * outside the LUT bbox return FLT_MAX U and never win. */
+      point_3d[0] = FLT_MAX;
       for (int i = 0; i < 8; i++) {
         if ((int(cache.mirror_symmetry_pass) & i) != i) {
           continue;
