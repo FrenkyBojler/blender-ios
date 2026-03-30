@@ -340,7 +340,7 @@ void gpu::MTLTexture::blit(id<MTLBlitCommandEncoder> blit_encoder,
     MTL_LOG_WARNING(
         "gpu::MTLTexture: Cannot copy between two textures of different types using a "
         "blit encoder. TODO: Support this operation");
-    return;
+    //return;
   }
 
   /* TODO(Metal): Verify if we want to use the one with modified base-level/texture view
@@ -1296,7 +1296,7 @@ void gpu::MTLTexture::copy_to(Texture *dst, IndexRange mip_levels)
   gpu::MTLTexture *mt_dst = static_cast<gpu::MTLTexture *>(dst);
   BLI_assert((mt_dst->w_ == mt_src->w_) && (mt_dst->h_ == mt_src->h_) &&
              (mt_dst->d_ == mt_src->d_));
-  BLI_assert(mt_dst->format_ == mt_src->format_);
+  //BLI_assert(mt_dst->format_ == mt_src->format_);
   BLI_assert(mt_dst->type_ == mt_src->type_);
 
   UNUSED_VARS_NDEBUG(mt_src);

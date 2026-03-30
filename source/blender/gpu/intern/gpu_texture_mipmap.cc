@@ -118,7 +118,6 @@ static void update_mipmaps(Texture &texture, Shader &shader)
                                                 TextureFormat::UNORM_8_8_8_8,
                                                 GPU_TEXTURE_USAGE_SHADER_WRITE,
                                                 nullptr);
-      texture.copy_to(texture_ptr, IndexRange(0, 1));
     }
     else {
       texture_ptr = GPU_texture_create_2d(__func__,
@@ -126,7 +125,7 @@ static void update_mipmaps(Texture &texture, Shader &shader)
                                           texture.height_get(),
                                           texture.mip_count(),
                                           TextureFormat::UNORM_8_8_8_8,
-                                          GPU_TEXTURE_USAGE_SHADER_WRITE,
+                                          GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_SHADER_WRITE,
                                           nullptr);
     }
     texture.copy_to(texture_ptr, IndexRange(1));
