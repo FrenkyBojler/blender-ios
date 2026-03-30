@@ -114,8 +114,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value(0.3f)
       .min(0.01f)
       .subtype(PROP_DISTANCE)
-      .usage_by_menu("Grid Transform Mode", int(GridTransformMode::VoxelSize));
-  b.add_input<decl::Matrix>("Matrix").usage_by_menu("Grid Transform Mode",
+      .usage_by_menu("Grid Transform Mode"_ustr, int(GridTransformMode::VoxelSize));
+  b.add_input<decl::Matrix>("Matrix").usage_by_menu("Grid Transform Mode"_ustr,
                                                     int(GridTransformMode::Matrix));
   b.add_input<decl::Menu>("Kernel Type")
       .static_items(kernel_type_items)
@@ -230,15 +230,15 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   /* Same transform is used for the intermediate point data grid and all output grids. */
   const GridTransformMode grid_transform_mode = params.extract_input<GridTransformMode>(
-      "Grid Transform Mode");
+      "Grid Transform Mode"_ustr);
   float4x4 grid_transform;
   switch (grid_transform_mode) {
     case GridTransformMode::VoxelSize:
       grid_transform = math::from_scale<float4x4>(
-          float3(params.extract_input<float>("Voxel Size")));
+          float3(params.extract_input<float>("Voxel Size"_ustr)));
       break;
     case GridTransformMode::Matrix:
-      grid_transform = params.extract_input<float4x4>("Matrix");
+      grid_transform = params.extract_input<float4x4>("Matrix"_ustr);
       break;
   }
   const double determinant = math::determinant(grid_transform);
@@ -247,15 +247,16 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  const geometry::KernelType kernel_type = params.get_input<geometry::KernelType>("Kernel Type");
-  const GeometrySet geometry_set = params.extract_input<GeometrySet>("Points");
-  const Field<float3> position_field = params.extract_input<Field<float3>>("Position");
+  const geometry::KernelType kernel_type = params.get_input<geometry::KernelType>(
+      "Kernel Type"_ustr);
+  const GeometrySet geometry_set = params.extract_input<GeometrySet>("Points"_ustr);
+  const Field<float3> position_field = params.extract_input<Field<float3>>("Position"_ustr);
   Vector<GField> fields_by_item;
   for (const int i : IndexRange(storage.items_num)) {
     const NodeGeometryRasterizePointsItem &item = storage.items[i];
     const std::string identifier = RasterizePointsItemsAccessor::socket_identifier_for_item(item);
 
-    fields_by_item.append(params.extract_input<GField>(identifier));
+    fields_by_item.append(params.extract_input<GField>(UString(identifier)));
   }
 
   const Array<GeometryComponent::Type> component_types = {GeometryComponent::Type::Mesh,
@@ -325,7 +326,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     const NodeGeometryRasterizePointsItem &item = storage.items[i];
     const std::string identifier = RasterizePointsItemsAccessor::socket_identifier_for_item(item);
     if (output_attribute_grids[i]) {
-      params.set_output(identifier, std::move(output_attribute_grids[i]));
+      params.set_output(UString(identifier), std::move(output_attribute_grids[i]));
     }
     else {
       const std::string message = fmt::format(

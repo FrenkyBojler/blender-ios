@@ -133,7 +133,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 #ifdef WITH_OPENVDB
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(params.node().custom1);
   const Operation operation = Operation(params.node().custom2);
-  auto grids = params.extract_input<GeoNodesMultiInput<bke::GVolumeGrid>>("Grid 2");
+  auto grids = params.extract_input<GeoNodesMultiInput<bke::GVolumeGrid>>("Grid 2"_ustr);
   Vector<bke::GVolumeGrid> operands;
   switch (operation) {
     case Operation::Intersect:
@@ -141,7 +141,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       operands.extend(grids.values);
       break;
     case Operation::Difference:
-      if (auto grid = params.extract_input<bke::GVolumeGrid>("Grid 1")) {
+      if (auto grid = params.extract_input<bke::GVolumeGrid>("Grid 1"_ustr)) {
         operands.append(std::move(grid));
       }
       operands.extend(grids.values);
@@ -200,7 +200,7 @@ static void node_geo_exec(GeoNodeExecParams params)
         }
       });
 
-  params.set_output("Grid", std::move(operands.first()));
+  params.set_output("Grid"_ustr, std::move(operands.first()));
 #else
   node_geo_exec_with_missing_openvdb(params);
 #endif

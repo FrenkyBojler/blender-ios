@@ -86,7 +86,7 @@ template<typename GridOrTree> void bool_grid_topology(GridOrTree &gridOrTree, co
 static void node_geo_exec(GeoNodeExecParams params)
 {
 #ifdef WITH_OPENVDB
-  bke::VolumeGrid<bool> grid = params.extract_input<bke::VolumeGrid<bool>>("Grid");
+  bke::VolumeGrid<bool> grid = params.extract_input<bke::VolumeGrid<bool>>("Grid"_ustr);
   if (grid) {
     bke::VolumeTreeAccessToken grid_access_token;
     openvdb::BoolGrid &vdb_grid = grid.grid_for_write(grid_access_token);
@@ -94,7 +94,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     grid->tag_tree_modified();
   }
 
-  params.set_output("Grid", std::move(grid));
+  params.set_output("Grid"_ustr, std::move(grid));
 #else
   node_geo_exec_with_missing_openvdb(params);
 #endif
