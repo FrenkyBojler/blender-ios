@@ -432,12 +432,8 @@ float4 film_amend_combined_history(
   return color_history;
 }
 
-float film_history_blend_factor(float velocity,
-                                float2 texel,
-                                float luma_min,
-                                float luma_max,
-                                float /*luma_incoming*/,
-                                float luma_history)
+float film_history_blend_factor(
+    float velocity, float2 texel, float luma_min, float luma_max, float luma_history)
 {
   /* 5% of incoming color by default. */
   float blend = 0.05f;

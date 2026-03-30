@@ -104,13 +104,8 @@ bool light_linking_affects_receiver(uint2 light_set_membership, uchar receiver_l
   return bitmask64_test(light_set_membership, receiver_light_set);
 }
 
-void light_eval_single_closure(LightData light,
-                               LightVector lv,
-                               ClosureLight &cl,
-                               float3 V,
-                               float attenuation,
-                               float shadow,
-                               const bool /*is_transmission*/)
+void light_eval_single_closure(
+    LightData light, LightVector lv, ClosureLight &cl, float3 V, float attenuation, float shadow)
 {
   attenuation *= light_power_get(light, cl.type);
   if (attenuation < 1e-30f) {
@@ -191,13 +186,13 @@ void light_eval_single(uint l_idx,
     attenuation *= M_1_PI;
   }
 
-  light_eval_single_closure(light, lv, stack.cl[0], V, attenuation, shadow, is_transmission);
+  light_eval_single_closure(light, lv, stack.cl[0], V, attenuation, shadow);
   if (!is_transmission) {
 #if LIGHT_CLOSURE_EVAL_COUNT > 1
-    light_eval_single_closure(light, lv, stack.cl[1], V, attenuation, shadow, is_transmission);
+    light_eval_single_closure(light, lv, stack.cl[1], V, attenuation, shadow);
 #endif
 #if LIGHT_CLOSURE_EVAL_COUNT > 2
-    light_eval_single_closure(light, lv, stack.cl[2], V, attenuation, shadow, is_transmission);
+    light_eval_single_closure(light, lv, stack.cl[2], V, attenuation, shadow);
 #endif
 #if LIGHT_CLOSURE_EVAL_COUNT > 3
 #  error
