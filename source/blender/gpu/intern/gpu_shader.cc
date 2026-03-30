@@ -9,6 +9,7 @@
 #include "BLI_colorspace.hh"
 #include "BLI_math_matrix.h"
 #include "BLI_math_matrix_types.hh"
+#include "BLI_profile.hh"
 #include "BLI_string.h"
 
 #include "CLG_log.h"
@@ -780,6 +781,8 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info, bool 
 
   TimePoint start_time;
 
+  BLI_profile_zone_scoped_n("ShaderCompiler::compile");
+  BLI_profile_zone_set_name_fmt("Compile Shader: %s", orig_info.name_.c_str());
   if (Context::get()) {
     /* Context can be null in Vulkan compilation threads. */
     GPU_debug_group_begin(GPU_DEBUG_SHADER_COMPILATION_GROUP);
@@ -1129,6 +1132,7 @@ bool ShaderCompiler::async_specialization_is_ready(AsyncSpecializationHandle &ha
 
 void ShaderCompiler::do_work_static_cb(void *payload)
 {
+  BLI_profile_set_thread_name("Shader Compiler Thread");
   ParallelWork *work = reinterpret_cast<ParallelWork *>(payload);
   work->compiler->do_work(*work);
 }
