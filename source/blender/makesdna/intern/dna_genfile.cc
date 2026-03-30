@@ -27,6 +27,7 @@
 #include "BLI_index_range.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_memarena.h"
+#include "BLI_profile.hh"
 #include "BLI_set.hh"
 #include "BLI_utildefines.h"
 
@@ -597,6 +598,7 @@ static SDNA *g_sdna = nullptr;
 
 void DNA_sdna_current_init()
 {
+  BLI_profile_zone_scoped;
   g_sdna = DNA_sdna_from_data(DNAstr, DNAlen, false, true, nullptr);
 }
 

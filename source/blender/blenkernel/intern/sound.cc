@@ -23,6 +23,7 @@
 #include "BLI_math_base.h"
 #include "BLI_math_rotation.h"
 #include "BLI_path_utils.hh"
+#include "BLI_profile.hh"
 #include "BLI_string.h"
 #include "BLI_threads.h"
 
@@ -580,6 +581,7 @@ void BKE_sound_force_device(const char *device)
 
 void BKE_sound_init_once()
 {
+  BLI_profile_zone_scoped;
   bke::sound_system_initialize();
   if (sound_use_close_thread()) {
     CLOG_DEBUG(&LOG, "Using delayed device close thread");

@@ -11,6 +11,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_lazy_threading.hh"
+#include "BLI_profile.hh"
 #include "BLI_task.h"
 #include "BLI_threads.h"
 
@@ -35,6 +36,7 @@ static tbb::global_control *task_scheduler_global_control = nullptr;
 
 void BLI_task_scheduler_init()
 {
+  BLI_profile_zone_scoped;
 #ifdef WITH_TBB_GLOBAL_CONTROL
   const int threads_override_num = BLI_system_num_threads_override_get();
 

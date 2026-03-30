@@ -39,6 +39,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_color.h"
 #include "BLI_math_vector.h"
+#include "BLI_profile.hh"
 #include "BLI_string.h"
 
 #include "BLT_translation.hh"
@@ -2188,6 +2189,7 @@ void BKE_material_defaults_free_gpu()
 
 void BKE_materials_init()
 {
+  BLI_profile_zone_scoped;
   for (int i = 0; default_materials[i]; i++) {
     BLI_assert_msg(*default_materials[i] == nullptr,
                    "Default material pointers should always be null when initializing them, maybe "

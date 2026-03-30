@@ -25,6 +25,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_base.h"
 #include "BLI_mutex.hh"
+#include "BLI_profile.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
@@ -89,6 +90,7 @@ extern const PointerRNA PointerRNA_NULL = {};
 
 void RNA_init()
 {
+  BLI_profile_zone_scoped;
   BlenderRNA &brna = RNA_blender_rna_get();
 
   brna.structs_map.reserve(2048);

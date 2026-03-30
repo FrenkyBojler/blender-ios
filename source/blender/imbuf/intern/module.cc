@@ -10,6 +10,7 @@
 
 #include "BLI_assert.h"
 #include "BLI_mutex.hh"
+#include "BLI_profile.hh"
 #include "BLI_threads.h"
 
 #include "GPU_context.hh"
@@ -25,6 +26,7 @@ static Mutex g_gpu_context_mutex;
 
 void IMB_init()
 {
+  BLI_profile_zone_scoped;
   imb_filetypes_init();
   colormanagement_init();
 }

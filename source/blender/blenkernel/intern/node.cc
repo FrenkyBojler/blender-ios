@@ -6,6 +6,8 @@
  * \ingroup bke
  */
 
+#include "BLI_profile.hh"
+
 #include "CLG_log.h"
 
 #include "MEM_guardedalloc.h"
@@ -5851,6 +5853,7 @@ void node_type_storage(bNodeType &ntype,
 
 void node_system_init()
 {
+  BLI_profile_zone_scoped;
   register_nodes();
 }
 

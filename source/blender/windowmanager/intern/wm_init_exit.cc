@@ -24,6 +24,7 @@
 #include "BLI_listbase.h"
 #include "BLI_memory_cache.hh"
 #include "BLI_path_utils.hh"
+#include "BLI_profile.hh"
 #include "BLI_string.h"
 #include "BLI_task.h"
 #include "BLI_threads.h"
@@ -199,6 +200,7 @@ static void sound_jack_sync_callback(Main *bmain, int mode, double time)
 
 void WM_init(bContext *C, int argc, const char **argv)
 {
+  BLI_profile_zone_scoped;
 
   if (!G.background) {
     wm_ghost_init(C); /* NOTE: it assigns C to ghost! */
@@ -383,6 +385,8 @@ static bool wm_init_splash_show_on_startup_check()
 
 void WM_init_splash_on_startup(bContext *C)
 {
+  BLI_profile_zone_scoped;
+
   if (!wm_init_splash_show_on_startup_check()) {
     return;
   }

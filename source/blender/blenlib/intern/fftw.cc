@@ -13,6 +13,7 @@
 #include "BLI_fftw.hh"
 #include "BLI_index_range.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_profile.hh"
 #include "BLI_task.hh"
 #include "BLI_threads.h"
 
@@ -87,6 +88,7 @@ int2 optimal_size_for_real_transform(int2 size)
 
 void initialize_float()
 {
+  BLI_profile_zone_scoped_n("fftw:initialize_float");
 #if defined(WITH_FFTW3)
   fftwf_init_threads();
   fftwf_make_planner_thread_safe();

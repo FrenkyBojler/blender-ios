@@ -14,6 +14,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math_bits.h"
+#include "BLI_profile.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
@@ -62,6 +63,7 @@ static CLG_LogRef LOG = {"render"};
 
 void RE_engines_init()
 {
+  BLI_profile_zone_scoped;
   DRW_engines_register();
   DRW_module_init();
 }
