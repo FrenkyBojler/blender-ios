@@ -16,6 +16,8 @@
 
 #include "GHOST_ContextMTL.hh"
 
+#include "BLI_profile.hh"
+
 #import <Cocoa/Cocoa.h>
 #import <Metal/Metal.h>
 #import <QuartzCore/QuartzCore.h>
@@ -145,6 +147,8 @@ GHOST_ContextMTL::~GHOST_ContextMTL()
 
 GHOST_TSuccess GHOST_ContextMTL::swapBufferRelease()
 {
+  BLI_profile_zone_scoped;
+
   if (metal_view_) {
     metalSwapBuffers();
   }
@@ -363,6 +367,8 @@ void GHOST_ContextMTL::metalInitFramebuffer()
 
 void GHOST_ContextMTL::metalUpdateFramebuffer()
 {
+  BLI_profile_zone_scoped;
+
   @autoreleasepool {
     const NSSize drawableSize = metal_layer_.drawableSize;
     const size_t width = size_t(drawableSize.width);
@@ -422,6 +428,8 @@ void GHOST_ContextMTL::metalUpdateFramebuffer()
 
 void GHOST_ContextMTL::metalSwapBuffers()
 {
+  BLI_profile_zone_scoped;
+
   @autoreleasepool {
     updateDrawingContext();
 

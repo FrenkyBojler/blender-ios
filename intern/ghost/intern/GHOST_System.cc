@@ -17,6 +17,8 @@
 #  include "GHOST_NDOFManager.hh"
 #endif
 
+#include "BLI_profile.hh"
+
 GHOST_System::GHOST_System()
     : native_pixel_(false),
       window_focus_(true),
@@ -167,6 +169,7 @@ GHOST_IWindow *GHOST_System::getWindowUnderCursor(int32_t x, int32_t y)
 
 void GHOST_System::dispatchEvents()
 {
+  BLI_profile_zone_scoped;
 #ifdef WITH_INPUT_NDOF
   /* NDOF Motion event is sent only once per dispatch, so do it now: */
   if (ndof_manager_) {

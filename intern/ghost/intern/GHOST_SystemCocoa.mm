@@ -16,6 +16,8 @@
 #include "GHOST_WindowCocoa.hh"
 #include "GHOST_WindowManager.hh"
 
+#include "BLI_profile.hh"
+
 /* Don't generate OpenGL deprecation warning. This is a known thing, and is not something easily
  * solvable in a short term. */
 #ifdef __clang__
@@ -983,6 +985,8 @@ GHOST_TCapabilityFlag GHOST_SystemCocoa::getCapabilities() const
  */
 bool GHOST_SystemCocoa::processEvents(bool /*waitForEvent*/)
 {
+  BLI_profile_zone_scoped;
+
   bool anyProcessed = false;
   NSEvent *event;
 
@@ -1072,6 +1076,7 @@ bool GHOST_SystemCocoa::processEvents(bool /*waitForEvent*/)
 /* NOTE: called from #NSApplication delegate. */
 GHOST_TSuccess GHOST_SystemCocoa::handleApplicationBecomeActiveEvent()
 {
+  BLI_profile_zone_scoped;
   @autoreleasepool {
     for (GHOST_IWindow *iwindow : window_manager_->getWindows()) {
       GHOST_WindowCocoa *window = (GHOST_WindowCocoa *)iwindow;
@@ -1844,6 +1849,8 @@ GHOST_TSuccess GHOST_SystemCocoa::handleMouseEvent(void *eventPtr)
 
 GHOST_TSuccess GHOST_SystemCocoa::handleKeyEvent(void *eventPtr)
 {
+  BLI_profile_zone_scoped;
+
   NSEvent *event = (NSEvent *)eventPtr;
   GHOST_IWindow *window = window_manager_->getWindowAssociatedWithOSWindow(
       (const void *)event.window);
