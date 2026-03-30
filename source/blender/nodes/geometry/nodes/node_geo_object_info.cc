@@ -33,19 +33,19 @@ NODE_STORAGE_FUNCS(NodeGeometryObjectInfo)
 static void node_declare(NodeDeclarationBuilder &b)
 {
   const bool is_geometry = b.tree_or_null() ? b.tree_or_null()->type == NTREE_GEOMETRY : true;
-  b.add_input<decl::Object>("Object").optional_label();
-  b.add_input<decl::Bool>("As Instance")
+  b.add_input<decl::Object>("Object"_ustr).optional_label();
+  b.add_input<decl::Bool>("As Instance"_ustr)
       .description(
           "Output the entire object as single instance. "
           "This allows instancing non-geometry object types")
       .available(is_geometry);
-  b.add_output<decl::Matrix>("Transform")
+  b.add_output<decl::Matrix>("Transform"_ustr)
       .description(
           "Transformation matrix containing the location, rotation and scale of the object");
-  b.add_output<decl::Vector>("Location");
-  b.add_output<decl::Rotation>("Rotation").available(is_geometry);
-  b.add_output<decl::Vector>("Scale");
-  b.add_output<decl::Geometry>("Geometry").available(is_geometry);
+  b.add_output<decl::Vector>("Location"_ustr);
+  b.add_output<decl::Rotation>("Rotation"_ustr).available(is_geometry);
+  b.add_output<decl::Vector>("Scale"_ustr);
+  b.add_output<decl::Geometry>("Geometry"_ustr).available(is_geometry);
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
@@ -163,7 +163,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   }
 
-  geometry_set.name = object->id.name + 2;
+  geometry_set.set_name(object->id.name + 2);
   params.set_output("Geometry"_ustr, geometry_set);
 }
 
