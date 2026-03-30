@@ -763,8 +763,8 @@ void resolve([[work_group_id]] const uint3 group_id,
     float4 radiance_with_visibility = accum_sh.evaluate_lambert(vL);
     float3 radiance = radiance_with_visibility.xyz;
     /* Evaluate occlusion from horizon scan. */
-    /* TODO: why do we need this factor. */
-    float distant_radiance_visibility = saturate(radiance_with_visibility.w * 0.29f);
+    /* TODO: Explain why do we need this factor? */
+    float distant_radiance_visibility = saturate(radiance_with_visibility.w * (M_1_PI / 0.945f));
     /* Apply missing distant lighting. */
     radiance += distant_radiance_visibility * samp.volume_irradiance.evaluate_lambert(L).rgb;
 
