@@ -129,7 +129,9 @@ KERNEL_STRUCT_MEMBER(film, float, mist_inv_depth)
 KERNEL_STRUCT_MEMBER(film, float, mist_falloff)
 /* Denoising. */
 KERNEL_STRUCT_MEMBER(film, int, pass_denoising_albedo)
+KERNEL_STRUCT_MEMBER(film, int, pass_denoising_specular_albedo)
 KERNEL_STRUCT_MEMBER(film, int, pass_denoising_normal)
+KERNEL_STRUCT_MEMBER(film, int, pass_denoising_roughness)
 KERNEL_STRUCT_MEMBER(film, int, pass_denoising_depth)
 /* AOVs. */
 KERNEL_STRUCT_MEMBER(film, int, pass_aov_color)
@@ -229,6 +231,17 @@ KERNEL_STRUCT_MEMBER(integrator, int, use_guiding_mis_weights)
 
 KERNEL_STRUCT_MEMBER(integrator, float2, pixel_jitter)
 KERNEL_STRUCT_END(KernelIntegrator)
+
+/* Image. */
+
+KERNEL_STRUCT_BEGIN(KernelImage, image)
+KERNEL_STRUCT_MEMBER(image, float, mip_bias)
+
+/* Padding. */
+KERNEL_STRUCT_MEMBER(image, int, pad1)
+KERNEL_STRUCT_MEMBER(image, int, pad2)
+KERNEL_STRUCT_MEMBER(image, int, pad3)
+KERNEL_STRUCT_END(KernelImage)
 
 /* SVM. For shader specialization. */
 
