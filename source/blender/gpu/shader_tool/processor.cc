@@ -482,6 +482,10 @@ void SourceProcessor::lower_namesless_parameters(Parser &parser)
     if (tok.prev(2).str().starts_with("Pipeline")) {
       return;
     }
+    /* Make sure we matched a function definition and not a macro call. */
+    if (tok.prev() != '>' && tok.prev(2) != Word && tok.prev(2) != '>') {
+      return;
+    }
     int i = 0;
     tok.scope().foreach_scope(ScopeType::FunctionArg, [&](Scope arg) {
       if (arg.token_count() == 1 || arg.back().prev() == Const || arg.back() == '&' ||
