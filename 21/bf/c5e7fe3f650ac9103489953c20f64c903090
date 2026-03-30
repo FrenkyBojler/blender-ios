@@ -1,3 +1,4 @@
 Referenced by issue #117332, Strange behavior of imported dae object
 Referenced by issue #114103, Exit code 134 at "Updating Shaders" on CPU rendering
 Referenced by issue #113684, Wayland and Xwayland mouse pointer stuttering
+Referenced by issue #156551, "Spacing Distance" set to "Scene" can not be saved [blender4.5.1-4.5.8]
