@@ -1881,9 +1881,6 @@ static wmOperatorStatus edbm_boundary_loop_multiselect_exec(bContext *C, wmOpera
       EDBM_flag_disable_all(em, BM_ELEM_SELECT);
       changed = true;
     }
-    if (source_edges.is_empty()) {
-      continue;
-    }
     for (BMEdge *e : source_edges) {
       if (BM_edge_is_boundary(e)) {
         changed |= walker_select(em, BMW_EDGELOOP, e, true, BMW_FLAG_TEST_HIDDEN, delimit);
