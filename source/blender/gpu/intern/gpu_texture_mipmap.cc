@@ -148,13 +148,18 @@ void GPU_texture_update_mipmap_chain(Texture *tex)
     return;
   }
 
+  bool use_compute_shaders = true;
+
+  if ((tex->usage_get() & GPU_TEXTURE_USAGE_SHADER_WRITE) == 0) {
+    CLOG_TRACE(&LOG,
+               "Texture doesn't have `GPU_TEXTURE_USAGE_SHADER_WRITE` set. Fallback to backend "
+               "implementation");
+    use_compute_shaders = false;
+  }
+
   /* Currently enabled for Vulkan and OpenGL. Metal has render issues that needs to be inspected.
    */
-  if (GPU_type_matches_ex(GPU_DEVICE_ANY,
-                          GPU_OS_ANY,
-                          GPU_DRIVER_ANY,
-                          GPUBackendType(GPU_BACKEND_VULKAN | GPU_BACKEND_OPENGL)))
-  {
+  if (use_compute_shaders) {
     const TextureFormat texture_format = tex->format_get();
     Shader *shader = get_update_mipmap_shader(texture_format);
     if (shader) {
