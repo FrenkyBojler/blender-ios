@@ -96,7 +96,8 @@ class Integrator : public Node {
   NODE_SOCKET_API(float, scrambling_distance)
 
   NODE_SOCKET_API(bool, use_pixel_jitter);
-  NODE_SOCKET_API(int, frame)
+  int pixel_jitter_a2 = 0, pixel_jitter_b2 = 1;
+  int pixel_jitter_a3 = 0, pixel_jitter_b3 = 1;
 
   NODE_SOCKET_API(bool, use_denoise);
   NODE_SOCKET_API(DenoiserType, denoiser_type);

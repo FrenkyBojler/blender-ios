@@ -26,23 +26,22 @@
 
 CCL_NAMESPACE_BEGIN
 
-static float halton(int index, int base)
+/* Halton sequence generator using only integer numbers.
+ * See https://doi.org/10.1016/0010-4655(91)90064-R for details. */
+static float halton(int &a, int &b, int base)
 {
-  float f = 1.0f;
-  float r = 0.0f;
-
-  while (index > 0) {
-    f *= float(base);
-    r += float(index % base) / f;
-    index /= base;
+  int x = b - a;
+  if (x == 1) {
+    a = 1;
+    b *= base;
   }
-
-  return r;
-}
-
-static float2 halton_jitter_pattern(int index)
-{
-  return make_float2(halton(index, 2) - 0.5f, halton(index, 3) - 0.5f);
+  else {
+    int y = b / base;
+    while (x <= y)
+      y /= base;
+    a = (1 + base) * y - x;
+  }
+  return static_cast<float>(a) / static_cast<float>(b);
 }
 
 NODE_DEFINE(Integrator)
@@ -154,7 +153,6 @@ NODE_DEFINE(Integrator)
   SOCKET_FLOAT(scrambling_distance, "Scrambling Distance", 1.0f);
 
   SOCKET_BOOLEAN(use_pixel_jitter, "Use Pixel Jitter", false);
-  SOCKET_INT(frame, "Frame Index", 0);
 
   static NodeEnum denoiser_type_enum;
   denoiser_type_enum.insert("none", DENOISER_NONE);
@@ -330,7 +328,7 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
 
   /* Randomize the seed every frame when applying pixel jitter. */
   if (use_pixel_jitter) {
-    kintegrator->seed = hash_uint2(seed, frame);
+    kintegrator->seed = hash_uint3(seed, pixel_jitter_a2, pixel_jitter_a3);
   }
   /* The blue-noise sampler needs a randomized seed to scramble properly, providing e.g. 0 won't
    * work properly. Therefore, hash the seed in those cases. */
@@ -381,10 +379,15 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
   kintegrator->has_shadow_catcher = scene->has_shadow_catcher();
 
   if (use_pixel_jitter) {
-    kintegrator->pixel_jitter = halton_jitter_pattern(frame);
+    kintegrator->pixel_jitter = make_float2(halton(pixel_jitter_a2, pixel_jitter_b2, 2) - 0.5f,
+                                            halton(pixel_jitter_a3, pixel_jitter_b3, 3) - 0.5f);
   }
   else {
     kintegrator->pixel_jitter = zero_float2();
+    pixel_jitter_a2 = 0;
+    pixel_jitter_b2 = 1;
+    pixel_jitter_a3 = 0;
+    pixel_jitter_b3 = 1;
   }
 
   dscene->sample_pattern_lut.clear_modified();

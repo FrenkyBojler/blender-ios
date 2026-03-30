@@ -640,7 +640,7 @@ bool Scene::update_camera_resolution(Progress &progress, int width, int height)
   }
 
   if (integrator->get_use_pixel_jitter()) {
-    integrator->set_frame(integrator->get_frame() + 1);
+    integrator->tag_use_pixel_jitter_modified();
 
     integrator->device_update(device, &dscene, this);
     update_data = true;
