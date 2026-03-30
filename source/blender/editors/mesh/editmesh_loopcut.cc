@@ -11,6 +11,8 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_math_geom.h"
+#include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_string_utf8.h"
 
@@ -41,6 +43,8 @@
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
+
+#include "bmesh.hh"
 
 #include "mesh_intern.hh" /* own include */
 
@@ -85,6 +89,8 @@ struct RingSelOpData {
 
   float cuts; /* cuts as float so smooth mouse pan works in small increments */
   float smoothness;
+  float cut_factor; /* [0,1] position along face for loop cut placement */
+  float mval_fl[2]; /* current mouse position for cut_factor computation */
 };
 
 /* modal loop selection drawing callback */
@@ -147,8 +153,12 @@ static void ringsel_find_edge(RingSelOpData *lcd, const int previewlines)
       gcache->is_init = true;
     }
 
-    EDBM_preselect_edgering_update_from_edge(
-        lcd->presel_edgering, lcd->em->bm, lcd->eed, previewlines, gcache->vert_positions);
+    EDBM_preselect_edgering_set_cut_factor(lcd->presel_edgering, lcd->cut_factor);
+    EDBM_preselect_edgering_update_from_edge(lcd->presel_edgering,
+                                             lcd->em->bm,
+                                             lcd->eed,
+                                             previewlines,
+                                             gcache->vert_positions);
   }
   else {
     EDBM_preselect_edgering_clear(lcd->presel_edgering);
@@ -200,8 +210,73 @@ static void ringsel_finish(bContext *C, wmOperator *op)
                          use_only_quads,
                          0);
 
-      /* When used in a macro the tessellation will be recalculated anyway,
-       * this is needed here because modifiers depend on updated tessellation, see #45920 */
+      /* Now reposition newly created vertices from 0.5 to cut_factor.
+       * After subdivision, the new verts are selected. For each new vert
+       * on a quad edge, it sits at the midpoint of the original edge.
+       * We reposition it to cut_factor along that edge instead.
+       *
+       * For a single cut, each new vert has exactly 2 edges connecting
+       * to the original vertices of the subdivided edge. We lerp between
+       * those two neighbors at cut_factor.
+       *
+       * Skip repositioning if cut_factor is ~0.5 (already correct). */
+      if (cuts == 1 && fabsf(lcd->cut_factor - 0.5f) > 1e-4f) {
+        BMIter viter;
+        BMVert *v;
+        BM_ITER_MESH (v, &viter, em->bm, BM_VERTS_OF_MESH) {
+          if (!BM_elem_flag_test(v, BM_ELEM_SELECT)) {
+            continue;
+          }
+          /* Find the two neighbor verts this new vert was interpolated between.
+           * A newly subdivided vert on a single cut has exactly 2 connected edges
+           * that lead to the original (unselected) verts on the ring. */
+          BMEdge *e1 = nullptr, *e2 = nullptr;
+          BMIter eiter;
+          BMEdge *e;
+          BM_ITER_ELEM (e, &eiter, v, BM_EDGES_OF_VERT) {
+            BMVert *other = BM_edge_other_vert(e, v);
+            if (!BM_elem_flag_test(other, BM_ELEM_SELECT)) {
+              if (e1 == nullptr) {
+                e1 = e;
+              }
+              else if (e2 == nullptr) {
+                e2 = e;
+              }
+            }
+          }
+
+          if (e1 && e2) {
+            BMVert *va = BM_edge_other_vert(e1, v);
+            BMVert *vb = BM_edge_other_vert(e2, v);
+
+            /* Determine consistent direction: cut_factor is defined as
+             * the projection onto the axis from cut-edge-A midpoint to
+             * cut-edge-B midpoint. We need to figure out which of va/vb
+             * corresponds to the 0-side and which to the 1-side.
+             *
+             * Use the seed edge's orientation as reference: cut_factor=0
+             * is toward eed->v1's side, cut_factor=1 toward eed->v2's side.
+             * Check which original vert (va or vb) is topologically closer
+             * to eed->v1 vs eed->v2 by checking face adjacency. */
+
+            /* Simple heuristic: use the dot product with the axis between
+             * the original seed edge endpoints to determine direction. */
+            float dir_ref[3];
+            sub_v3_v3v3(dir_ref, v_eed_orig[1]->co, v_eed_orig[0]->co);
+
+            float dir_ab[3];
+            sub_v3_v3v3(dir_ab, vb->co, va->co);
+
+            float fac = lcd->cut_factor;
+            if (dot_v3v3(dir_ref, dir_ab) < 0.0f) {
+              fac = 1.0f - fac;
+            }
+
+            interp_v3_v3v3(v->co, va->co, vb->co, fac);
+          }
+        }
+      }
+
       EDBMUpdate_Params params{};
       params.calc_looptris = true;
       params.calc_normals = false;
@@ -299,6 +374,9 @@ static int ringsel_init(bContext *C, wmOperator *op, bool do_cut)
   lcd->do_cut = do_cut;
   lcd->cuts = RNA_int_get(op->ptr, "number_cuts");
   lcd->smoothness = RNA_float_get(op->ptr, "smoothness");
+  lcd->cut_factor = 0.5f;
+  lcd->mval_fl[0] = 0.0f;
+  lcd->mval_fl[1] = 0.0f;
 
   initNumInput(&lcd->num);
   lcd->num.idx_max = 1;
@@ -329,13 +407,95 @@ static void loopcut_update_edge(RingSelOpData *lcd,
     lcd->ob = lcd->vc.obedit;
     lcd->base_index = base_index;
     lcd->em = lcd->vc.em;
-    ringsel_find_edge(lcd, previewlines);
   }
   else if (e == nullptr) {
     lcd->ob = nullptr;
     lcd->em = nullptr;
     lcd->base_index = UINT_MAX;
   }
+
+  ringsel_find_edge(lcd, previewlines);
+}
+
+/* Project the mouse position onto the quad face adjacent to the seed edge and compute cut factor */
+static float loopcut_compute_factor(RingSelOpData *lcd)
+{
+  if (!lcd->eed || !lcd->ob || !lcd->em) {
+    return 0.5f;
+  }
+
+  BMFace *ref_face = nullptr;
+  BMIter fiter;
+  BMFace *f;
+  BM_ITER_ELEM (f, &fiter, lcd->eed, BM_FACES_OF_EDGE) {
+    if (f->len == 4) {
+      ref_face = f;
+      break;
+    }
+  }
+  if (!ref_face) {
+    return 0.5f;
+  }
+
+  BMVert *qv[4];
+  BMLoop *l = ref_face->l_first;
+  for (int i = 0; i < 4; i++, l = l->next) {
+    qv[i] = l->v;
+  }
+
+  /* Identify loop edges (parallel to eed) */
+  int eed_idx = -1;
+  for (int i = 0; i < 4; i++) {
+    BMVert *va = qv[i];
+    BMVert *vb = qv[(i + 1) % 4];
+    if ((va == lcd->eed->v1 && vb == lcd->eed->v2) ||
+        (va == lcd->eed->v2 && vb == lcd->eed->v1))
+    {
+      eed_idx = i;
+      break;
+    }
+  }
+  if (eed_idx == -1) {
+    return 0.5f;
+  }
+
+  const float(*obmat)[4] = lcd->ob->object_to_world().ptr();
+
+  /* Transform the cut edge endpoints to world space. */
+  float Aw[3], Bw[3], Cw[3], Dw[3];
+  mul_v3_m4v3(Aw, obmat, qv[(eed_idx + 1) % 4]->co);
+  mul_v3_m4v3(Bw, obmat, qv[(eed_idx + 2) % 4]->co);
+  mul_v3_m4v3(Cw, obmat, qv[(eed_idx + 3) % 4]->co);
+  mul_v3_m4v3(Dw, obmat, qv[eed_idx]->co);
+
+  float Ma[3], Mb[3];
+  mid_v3_v3v3(Ma, Aw, Bw);
+  mid_v3_v3v3(Mb, Cw, Dw);
+
+  float fn[3];
+  float local_normal[3];
+  copy_v3_v3(local_normal, ref_face->no);
+  mul_mat3_m4_v3(obmat, local_normal);
+  normalize_v3_v3(fn, local_normal);
+
+  /* Unproject mouse onto face plane. */
+  float plane[4];
+  plane_from_point_normal_v3(plane, Ma, fn);
+
+  float hit[3];
+  float mval_f[2] = {lcd->mval_fl[0], lcd->mval_fl[1]};
+  ED_view3d_win_to_3d_on_plane(lcd->vc.region, plane, mval_f, false, hit);
+
+  float axis[3], delta[3];
+  sub_v3_v3v3(axis, Mb, Ma);
+  sub_v3_v3v3(delta, hit, Ma);
+
+  const float axis_len_sq = dot_v3v3(axis, axis);
+  if (axis_len_sq < 1e-12f) {
+    return 0.5f;
+  }
+
+  return clamp_f(dot_v3v3(delta, axis) / axis_len_sq, 0.01f, 0.99f);
 }
 
 static void loopcut_mouse_move(RingSelOpData *lcd, const int previewlines)
@@ -438,7 +598,10 @@ static wmOperatorStatus loopcut_init(bContext *C, wmOperator *op, const wmEvent 
 
   if (is_interactive) {
     copy_v2_v2_int(lcd->vc.mval, event->mval);
-    loopcut_mouse_move(lcd, is_interactive ? 1 : 0);
+    lcd->mval_fl[0] = float(event->mval[0]);
+    lcd->mval_fl[1] = float(event->mval[1]);
+    loopcut_mouse_move(lcd, 1);
+    lcd->cut_factor = loopcut_compute_factor(lcd);
   }
   else {
 
@@ -450,20 +613,6 @@ static wmOperatorStatus loopcut_init(bContext *C, wmOperator *op, const wmEvent 
     e = BM_edge_at_index(lcd->vc.em->bm, exec_data.e_index);
     loopcut_update_edge(lcd, exec_data.base_index, e, 0);
   }
-
-#ifdef USE_LOOPSLIDE_HACK
-  /* for use in macro so we can restore, HACK */
-  {
-    ToolSettings *settings = scene->toolsettings;
-    const bool mesh_select_mode[3] = {
-        (settings->selectmode & SCE_SELECT_VERTEX) != 0,
-        (settings->selectmode & SCE_SELECT_EDGE) != 0,
-        (settings->selectmode & SCE_SELECT_FACE) != 0,
-    };
-
-    RNA_boolean_set_array(op->ptr, "mesh_select_mode_init", mesh_select_mode);
-  }
-#endif
 
   if (is_interactive) {
     char buf[UI_MAX_DRAW_STR];
@@ -661,6 +810,10 @@ static wmOperatorStatus loopcut_modal(bContext *C, wmOperator *op, const wmEvent
         {
           lcd->vc.mval[0] = event->mval[0];
           lcd->vc.mval[1] = event->mval[1];
+          lcd->mval_fl[0] = float(event->mval[0]);
+          lcd->mval_fl[1] = float(event->mval[1]);
+          lcd->cut_factor = loopcut_compute_factor(lcd);
+
           loopcut_mouse_move(lcd, int(lcd->cuts));
 
           ED_region_tag_redraw(lcd->region);
@@ -792,11 +945,6 @@ void MESH_OT_loopcut(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_HIDDEN);
   prop = RNA_def_int(ot->srna, "edge_index", -1, -1, INT_MAX, "Edge Index", "", 0, INT_MAX);
   RNA_def_property_flag(prop, PROP_HIDDEN);
-
-#ifdef USE_LOOPSLIDE_HACK
-  prop = RNA_def_boolean_array(ot->srna, "mesh_select_mode_init", 3, nullptr, "", "");
-  RNA_def_property_flag(prop, PROP_HIDDEN);
-#endif
 }
 
 }  // namespace blender

@@ -405,6 +405,7 @@ void EDBM_preselect_edgering_update_from_edge(EditMesh_PreSelEdgeRing *psel,
                                               BMEdge *eed_start,
                                               int previewlines,
                                               Span<float3> vert_positions);
+void EDBM_preselect_edgering_set_cut_factor(EditMesh_PreSelEdgeRing *psel, float cut_factor);
 
 /* `editmesh_preselect_elem.cc` */
 

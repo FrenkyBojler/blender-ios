@@ -126,17 +126,25 @@ struct EditMesh_PreSelEdgeRing {
 
   float (*verts)[3];
   int verts_len;
+  float cut_factor;
 };
 
 EditMesh_PreSelEdgeRing *EDBM_preselect_edgering_create()
 {
-  return MEM_new_zeroed<EditMesh_PreSelEdgeRing>(__func__);
+  EditMesh_PreSelEdgeRing *psel = MEM_new_zeroed<EditMesh_PreSelEdgeRing>(__func__);
+  psel->cut_factor = 0.5f;
+  return psel;
 }
 
 void EDBM_preselect_edgering_destroy(EditMesh_PreSelEdgeRing *psel)
 {
   EDBM_preselect_edgering_clear(psel);
   MEM_delete(psel);
+}
+
+void EDBM_preselect_edgering_set_cut_factor(EditMesh_PreSelEdgeRing *psel, float cut_factor)
+{
+  psel->cut_factor = cut_factor;
 }
 
 void EDBM_preselect_edgering_clear(EditMesh_PreSelEdgeRing *psel)
@@ -214,7 +222,8 @@ static void view3d_preselect_mesh_edgering_update_verts_from_edge(
     BMesh * /*bm*/,
     BMEdge *eed_start,
     int previewlines,
-    const Span<float3> vert_positions)
+    const Span<float3> vert_positions,
+    const float cut_factor)
 {
   float v_cos[2][3];
   float (*verts)[3];
@@ -224,8 +233,16 @@ static void view3d_preselect_mesh_edgering_update_verts_from_edge(
 
   edgering_vcos_get_pair(&eed_start->v1, v_cos, vert_positions);
 
-  for (i = 1; i <= previewlines; i++) {
-    const float fac = (i / (float(previewlines) + 1));
+  for (i = 0; i < previewlines; i++) {
+    float fac;
+    if (previewlines == 1) {
+      fac = cut_factor;
+    }
+    else {
+      /* Distribute cuts symmetrically around cut_factor. */
+      fac = cut_factor + (float(i) - float(previewlines - 1) * 0.5f) / float(previewlines + 1);
+      CLAMP(fac, 0.0f, 1.0f);
+    }
     interp_v3_v3v3(verts[tot], v_cos[0], v_cos[1], fac);
     tot++;
   }
@@ -239,7 +256,8 @@ static void view3d_preselect_mesh_edgering_update_edges_from_edge(
     BMesh *bm,
     BMEdge *eed_start,
     int previewlines,
-    const Span<float3> vert_positions)
+    const Span<float3> vert_positions,
+    const float cut_factor)
 {
   BMWalker walker;
   BMEdge *eed, *eed_last;
@@ -295,8 +313,16 @@ static void view3d_preselect_mesh_edgering_update_edges_from_edge(
       edgering_find_order(eed_last, eed, eve_last, v);
       eve_last = v[0][0];
 
-      for (i = 1; i <= previewlines; i++) {
-        const float fac = (i / (float(previewlines) + 1));
+      for (i = 0; i < previewlines; i++) {
+        float fac;
+        if (previewlines == 1) {
+          fac = cut_factor;
+        }
+        else {
+          fac = cut_factor +
+                (float(i) - float(previewlines - 1) * 0.5f) / float(previewlines + 1);
+          CLAMP(fac, 0.0f, 1.0f);
+        }
         float v_cos[2][2][3];
 
         edgering_vcos_get(v, v_cos, vert_positions);
@@ -322,8 +348,16 @@ static void view3d_preselect_mesh_edgering_update_edges_from_edge(
 
     edgering_find_order(eed_last, eed_start, eve_last, v);
 
-    for (i = 1; i <= previewlines; i++) {
-      const float fac = (i / (float(previewlines) + 1));
+    for (i = 0; i < previewlines; i++) {
+      float fac;
+      if (previewlines == 1) {
+        fac = cut_factor;
+      }
+      else {
+        fac = cut_factor +
+              (float(i) - float(previewlines - 1) * 0.5f) / float(previewlines + 1);
+        CLAMP(fac, 0.0f, 1.0f);
+      }
       float v_cos[2][2][3];
 
       if (!v[0][0] || !v[0][1] || !v[1][0] || !v[1][1]) {
@@ -356,13 +390,15 @@ void EDBM_preselect_edgering_update_from_edge(EditMesh_PreSelEdgeRing *psel,
     BM_mesh_elem_index_ensure(bm, BM_VERT);
   }
 
+  const float cut_factor = psel->cut_factor;
+
   if (BM_edge_is_any_face_len_test(eed_start, 4)) {
     view3d_preselect_mesh_edgering_update_edges_from_edge(
-        psel, bm, eed_start, previewlines, vert_positions);
+        psel, bm, eed_start, previewlines, vert_positions, cut_factor);
   }
   else {
     view3d_preselect_mesh_edgering_update_verts_from_edge(
-        psel, bm, eed_start, previewlines, vert_positions);
+        psel, bm, eed_start, previewlines, vert_positions, cut_factor);
   }
 }
 
