@@ -11,6 +11,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_array.hh"
 #include "BLI_heap.h"
 #include "BLI_listbase.h"
 #include "BLI_math_bits.h"
@@ -1849,45 +1850,58 @@ static wmOperatorStatus edbm_edge_ring_multiselect_exec(bContext *C, wmOperator 
 
 static wmOperatorStatus edbm_boundary_loop_multiselect_exec(bContext *C, wmOperator *op)
 {
-  const bool extend = RNA_boolean_get(op->ptr, "extend");
-  const BMWDelimitFlag delimit = BMWDelimitFlag(RNA_enum_get(op->ptr, "delimit_edge_loop"));
   const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       *bmain, scene, view_layer, CTX_wm_view3d(C));
 
-  bool changed_multi = false;
   bool has_selected_boundary_multi = false;
 
-  for (Object *obedit : objects) {
+  Array<Vector<BMEdge *>> object_edges(objects.size());
+
+  for (const int ob_index : objects.index_range()) {
+    Object *obedit = objects[ob_index];
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
 
-    Vector<BMEdge *> source_edges;
-    source_edges.reserve(em->bm->totedgesel);
     if (em->bm->totedgesel > 0) {
       BMEdge *eed;
       BMIter iter;
       BM_ITER_MESH (eed, &iter, em->bm, BM_EDGES_OF_MESH) {
-        bool is_boundary = BM_edge_is_boundary(eed);
-        if (BM_elem_flag_test(eed, BM_ELEM_SELECT) && (!extend || is_boundary)) {
-          source_edges.append(eed);
-          if (is_boundary) {
-            has_selected_boundary_multi = true;
-          }
+        if (!BM_elem_flag_test(eed, BM_ELEM_SELECT)) {
+          continue;
         }
+        if (!BM_edge_is_boundary(eed)) {
+          continue;
+        }
+        object_edges[ob_index].append(eed);
+        has_selected_boundary_multi = true;
       }
     }
+  }
+
+  if (!has_selected_boundary_multi) {
+    BKE_report(op->reports,
+               RPT_ERROR,
+               "At least one boundary edge is needed to make a boundary loop selection");
+    return OPERATOR_CANCELLED;
+  }
+
+  const bool extend = RNA_boolean_get(op->ptr, "extend");
+  const BMWDelimitFlag delimit = BMWDelimitFlag(RNA_enum_get(op->ptr, "delimit_edge_loop"));
+  bool changed_multi = false;
+
+  for (const int ob_index : objects.index_range()) {
+    Object *obedit = objects[ob_index];
+    BMEditMesh *em = BKE_editmesh_from_object(obedit);
 
     bool changed = false;
     if (extend == false) {
       EDBM_flag_disable_all(em, BM_ELEM_SELECT);
       changed = true;
     }
-    for (BMEdge *e : source_edges) {
-      if (BM_edge_is_boundary(e)) {
-        changed |= walker_select(em, BMW_EDGELOOP, e, true, BMW_FLAG_TEST_HIDDEN, delimit);
-      }
+    for (BMEdge *e : object_edges[ob_index]) {
+      changed |= walker_select(em, BMW_EDGELOOP, e, true, BMW_FLAG_TEST_HIDDEN, delimit);
     }
     if (changed) {
       EDBM_selectmode_flush(em);
@@ -1898,12 +1912,6 @@ static wmOperatorStatus edbm_boundary_loop_multiselect_exec(bContext *C, wmOpera
     }
   }
 
-  if (!has_selected_boundary_multi) {
-    BKE_report(op->reports,
-               RPT_ERROR,
-               "At least one boundary edge is needed to make a boundary loop selection");
-    return OPERATOR_CANCELLED;
-  }
   /* If there are any boundary edges selected,
    * always return finished so the user can modify the delimiter property in the "redo" panel. */
   if (!changed_multi) {
@@ -1983,6 +1991,7 @@ void MESH_OT_select_boundary_loop_multi(wmOperatorType *ot)
                     "Delimit",
                     "Delimit edge loop selection");
 }
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
