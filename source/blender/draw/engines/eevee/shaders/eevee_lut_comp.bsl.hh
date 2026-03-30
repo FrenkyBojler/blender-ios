@@ -36,14 +36,13 @@ namespace eevee {
  * - `y = sqrt(1 - cos(theta))`,
  * and the result is interpreted as:
  * - `integral = F0 * scale + F90 * bias - F82_tint * metal_bias`,
- * where:
- * - `F82_tint = mix(F0, float3(1), pow5f(6/7) * 7 / pow6f(6/7)) * (1 - F82)`.
+ *   where `F82_tint = mix(F0, float3(1), pow5f(6/7) * 7 / pow6f(6/7)) * (1 - F82)`.
  */
-struct GGX_BRDF_Splitsum {
+struct ClosureGGXBRDFSplitsum {
   float roughness;
   float3 V;
 
-  static GGX_BRDF_Splitsum init(float3 params)
+  static ClosureGGXBRDFSplitsum from_params(float3 params)
   {
     /* We use squared roughness for approximate perceptual linearity
      * following [Physically Based Shading at Disney]
@@ -59,6 +58,7 @@ struct GGX_BRDF_Splitsum {
 
   float4 eval(float3 Xi) const
   {
+    /* Geometric normal. */
     constexpr float3 N = float3(0.0f, 0.0f, 1.0f);
 
     /* Return values. */
@@ -103,15 +103,15 @@ struct GGX_BRDF_Splitsum {
  * - `y = sqrt(1 - cos(theta))`,
  * - `z = roughness`,
  * and output is interpreted as:
- * - `reflectance = F0 * sclae + F90 * bias`,
+ * - `reflectance = F0 * scale + F90 * bias`,
  * - `transmittance = (1 - F0) * transmission_factor`.
  */
-struct GGX_BSDF_Splitsum {
+struct ClosureGGXBSDFSplitsum {
   float roughness;
   float ior;
   float3 V;
 
-  static GGX_BSDF_Splitsum init(float3 params)
+  static ClosureGGXBSDFSplitsum from_params(float3 params)
   {
     /* We use squared roughness for approximate perceptual linearity
      * following [Physically Based Shading at Disney]
@@ -138,6 +138,7 @@ struct GGX_BSDF_Splitsum {
 
   float4 eval(float3 Xi) const
   {
+    /* Geometric normal. */
     constexpr float3 N = float3(0.0f, 0.0f, 1.0f);
 
     /* Return values. */
@@ -197,12 +198,12 @@ struct GGX_BSDF_Splitsum {
  * and output is interpreted as:
  * : `transmittance = (1 - F0) * transmission_factor`.
  */
-struct GGX_BTDF_GT_one {
+struct ClosureGGXBTDFGT1 {
   float roughness;
   float ior;
   float3 V;
 
-  static GGX_BTDF_GT_one init(float3 params)
+  static ClosureGGXBTDFGT1 from_params(float3 params)
   {
     /* We use squared roughness for approximate perceptual linearity
      * following [Physically Based Shading at Disney]
@@ -210,8 +211,8 @@ struct GGX_BTDF_GT_one {
      * Section 5.4. */
     float roughness = square(params.z);
 
-    float f0 = clamp(square(params.x), 1e-4f, 0.9999f);
-    float ior = (1.0f + f0) / (1.0f - f0);
+    float F0 = clamp(square(params.x), 1e-4f, 0.9999f);
+    float ior = (1.0f + F0) / (1.0f - F0);
 
     float NV = clamp(1.0f - square(params.y), 1e-4f, 0.9999f);
     float3 V = float3(sqrt(1.0f - square(NV)), 0.0f, NV);
@@ -221,6 +222,7 @@ struct GGX_BTDF_GT_one {
 
   float4 eval(float3 Xi) const
   {
+    /* Geometric normal. */
     constexpr float3 N = float3(0.0f, 0.0f, 1.0f);
 
     /* Return value. */
@@ -248,15 +250,17 @@ struct GGX_BTDF_GT_one {
 };
 
 /**
- * Generate Christensen-Bursley (Disney SSS) translucency profile.
+ * Generate Christensen-Burley translucency profile.
  *
- * TODO(not_mark): Source and document.
+ * Generally follows:
+ * [Extending the Disney BRDF to a BSDF with Integrated Subsurface Scattering]
+ * (https://blog.selfshadow.com/publications/s2015-shading-course/burley/s2015_pbs_disney_bsdf_notes.pdf)
+ * with empirical fitting to match cycles. Precomputes exit radiance for a slab of homogeneous
+ * material, back-lit by a directional light. We only care about a single color primary, as the
+ * profile is applied to each primary independently. The other components are for debugging.
+ *
+ * Params: `x = distance`, while output is interpreted as exit radiance.
  */
-/* Generate SSS translucency profile.
- * We precompute the exit radiance for a slab of homogenous material backface-lit by a directional
- * light. We only integrate for a single color primary since the profile will be applied to each
- * primary independently.
- * For each distance `d` we compute the radiance incoming from an hypothetical parallel plane. */
 float4 burley_sss_translucency(float3 params)
 {
   /* Note that we only store the 1st (radius == 1) component.
@@ -279,10 +283,7 @@ float4 burley_sss_translucency(float3 params)
   return float4(profile, 0.0f);
 }
 
-/**
- * TODO(not_mark): Wait, is this even used? And what exactly is it doing? Seems to just
- * generate a blob.
- */
+/* Note: unused. */
 float4 random_walk_sss_translucency(float3 params)
 {
   /* Note that we only store the 1st (radius == 1) component.
@@ -313,28 +314,28 @@ float4 random_walk_sss_translucency(float3 params)
 /** \name LUT computation, integration
  * \{ */
 
-template<typename F> float4 integrate(const F &f)
+template<typename F> float4 integrate(const F &func)
 {
   constexpr uint sample_count = 512u * 512u;
 
   /* TODO(not_mark): Remove workaround for BSL-spec #4. */
-  /* F f = F::init(params); */
+  // F func = F::from_params(params);
 
-  /* Measure f using N samples. */
+  /* Measure func using N samples. */
   float4 measure = float4(0.0f);
   for (uint i = 1u; i <= sample_count; i++) {
-    /* Warp sequence to a random point on the unit cylinder. */
+    /* Warp sequence to a point on the unit cylinder. */
     float2 rand = hammersley_2d(i, sample_count);
     float3 Xi = sample_cylinder(rand);
 
     /* Add sample to measure. */
-    measure += f.eval(Xi);
+    measure += func.eval(Xi);
   }
   return measure / float(sample_count);
 }
-template float4 integrate<GGX_BRDF_Splitsum>(const GGX_BRDF_Splitsum &);
-template float4 integrate<GGX_BSDF_Splitsum>(const GGX_BSDF_Splitsum &);
-template float4 integrate<GGX_BTDF_GT_one>(const GGX_BTDF_GT_one &);
+template float4 integrate<ClosureGGXBRDFSplitsum>(const ClosureGGXBRDFSplitsum &);
+template float4 integrate<ClosureGGXBSDFSplitsum>(const ClosureGGXBSDFSplitsum &);
+template float4 integrate<ClosureGGXBTDFGT1>(const ClosureGGXBTDFGT1 &);
 
 struct LUT {
   [[image(0, read_write, SFLOAT_32_32_32_32)]] image3D image;
@@ -352,19 +353,16 @@ void comp_main([[global_invocation_id]] const uint3 global_id, [[resource_table]
   float4 result = float4(-1);
   switch (uint(lut.type)) {
     case LUT_GGX_BRDF_SPLIT_SUM: {
-      /* TODO(not_mark): Remove workaround for BSL-spec #4. */
-      GGX_BRDF_Splitsum f = GGX_BRDF_Splitsum::init(lut_normalized_coordinate);
-      result = integrate<GGX_BRDF_Splitsum>(f);
+      ClosureGGXBRDFSplitsum func = ClosureGGXBRDFSplitsum::from_params(lut_normalized_coordinate);
+      result = integrate<ClosureGGXBRDFSplitsum>(func);
     } break;
     case LUT_GGX_BSDF_SPLIT_SUM: {
-      /* TODO(not_mark): Remove workaround for BSL-spec #4. */
-      GGX_BSDF_Splitsum f = GGX_BSDF_Splitsum::init(lut_normalized_coordinate);
-      result = integrate<GGX_BSDF_Splitsum>(f);
+      ClosureGGXBSDFSplitsum func = ClosureGGXBSDFSplitsum::from_params(lut_normalized_coordinate);
+      result = integrate<ClosureGGXBSDFSplitsum>(func);
     } break;
     case LUT_GGX_BTDF_IOR_GT_ONE: {
-      /* TODO(not_mark): Remove workaround for BSL-spec #4. */
-      GGX_BTDF_GT_one f = GGX_BTDF_GT_one::init(lut_normalized_coordinate);
-      result = integrate<GGX_BTDF_GT_one>(f);
+      ClosureGGXBTDFGT1 func = ClosureGGXBTDFGT1::from_params(lut_normalized_coordinate);
+      result = integrate<ClosureGGXBTDFGT1>(func);
     } break;
     case LUT_BURLEY_SSS_PROFILE:
       result = burley_sss_translucency(lut_normalized_coordinate);
