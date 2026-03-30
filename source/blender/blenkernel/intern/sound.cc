@@ -86,6 +86,7 @@
 #include "BKE_packedFile.hh"
 #include "BKE_scene_runtime.hh"
 #include "BKE_sound.hh"
+#include "BKE_sound_sample.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
