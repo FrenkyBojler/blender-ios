@@ -2178,8 +2178,9 @@ bSoundFrequencySampler::bSoundFrequencySampler(const bSound &sound, const Key &k
   /* This could be a parameter but a single fixed value seems fine for now and makes caching much
    * simpler. */
   window_cache_stride_ = key.fft_size / 8;
-  window_caches_.reinitialize(
-      std::ceil(info.length * info.specs.samplerate / window_cache_stride_));
+  const int window_caches_num = std::ceil(info.length * info.specs.samplerate /
+                                          window_cache_stride_);
+  window_caches_.reinitialize(window_caches_num);
 }
 
 std::optional<Array<float>> bSoundFrequencySampler::compute_fft(const int start_sample) const
