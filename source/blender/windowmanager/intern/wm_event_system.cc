@@ -481,6 +481,7 @@ static bool wm_notifier_is_clear(const wmNotifier *note)
 
 void wm_event_do_depsgraph(bContext *C, bool is_after_open_file)
 {
+  BLI_profile_zone_scoped;
   wmWindowManager *wm = CTX_wm_manager(C);
   /* The whole idea of locked interface is to prevent viewport and whatever thread from
    * modifying the same data. Because of this, we can not perform dependency graph update. */
@@ -558,6 +559,8 @@ void wm_event_do_refresh_wm_and_depsgraph(bContext *C)
 
 static void wm_event_timers_execute(bContext *C)
 {
+  BLI_profile_zone_scoped;
+
   wmWindowManager *wm = CTX_wm_manager(C);
   if (UNLIKELY(wm == nullptr)) {
     return;

@@ -968,6 +968,9 @@ GPUViewport *WM_draw_region_get_bound_viewport(ARegion *region)
 
 static void wm_draw_area_offscreen(bContext *C, wmWindow *win, ScrArea *area, bool stereo)
 {
+  BLI_profile_zone_scoped;
+  BLI_profile_zone_set_name_fmt("Draw Area Offscreen: %s", wm_area_name(area));
+
   wmWindowManager *wm = CTX_wm_manager(C);
   Main *bmain = CTX_data_main(C);
 
@@ -1061,6 +1064,7 @@ static void wm_draw_area_offscreen(bContext *C, wmWindow *win, ScrArea *area, bo
 
 static void wm_draw_window_offscreen(bContext *C, wmWindow *win, bool stereo)
 {
+  BLI_profile_zone_scoped;
   bScreen *screen = WM_window_get_active_screen(win);
 
   /* Draw screen areas into their own frame buffer. Status bar and spreadsheet is drawn
@@ -1109,6 +1113,7 @@ static void wm_draw_window_offscreen(bContext *C, wmWindow *win, bool stereo)
 
 static void wm_draw_window_onscreen(bContext *C, wmWindow *win, int view)
 {
+  BLI_profile_zone_scoped;
   wmWindowManager *wm = CTX_wm_manager(C);
   bScreen *screen = WM_window_get_active_screen(win);
 
@@ -1224,6 +1229,7 @@ static void wm_draw_window_onscreen(bContext *C, wmWindow *win, int view)
 
 static void wm_draw_window(bContext *C, wmWindow *win)
 {
+  BLI_profile_zone_scoped;
   GPU_context_begin_frame(static_cast<GPUContext *>(win->runtime->gpuctx));
 
   bScreen *screen = WM_window_get_active_screen(win);
@@ -1531,6 +1537,7 @@ bool WM_desktop_cursor_sample_read(float r_col[3])
 /* Quick test to prevent changing window drawable. */
 static bool wm_draw_update_test_window(Main *bmain, bContext *C, wmWindow *win)
 {
+  BLI_profile_zone_scoped;
   const wmWindowManager *wm = CTX_wm_manager(C);
   Scene *scene = WM_window_get_active_scene(win);
   ViewLayer *view_layer = WM_window_get_active_view_layer(win);
@@ -1609,6 +1616,7 @@ static bool wm_draw_update_test_window(Main *bmain, bContext *C, wmWindow *win)
  * drawing don't cause any additional redraws. */
 static void wm_draw_update_clear_window(bContext *C, wmWindow *win)
 {
+  BLI_profile_zone_scoped;
   bScreen *screen = WM_window_get_active_screen(win);
 
   ED_screen_areas_iter (win, screen, area) {

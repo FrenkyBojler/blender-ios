@@ -1641,6 +1641,8 @@ void wm_window_clear_drawable(wmWindowManager *wm)
 
 void wm_window_make_drawable(wmWindowManager *wm, wmWindow *win)
 {
+  BLI_profile_zone_scoped;
+
   BLI_assert(GPU_framebuffer_active_get() == GPU_framebuffer_back_get());
 
   if (win != wm->runtime->windrawable && win->runtime->ghostwin) {
@@ -2113,6 +2115,8 @@ static bool ghost_event_proc(const GHOST_IEvent *ghost_event, GHOST_TUserDataPtr
  */
 static bool wm_window_timers_process(const bContext *C, int *sleep_us_p)
 {
+  BLI_profile_zone_scoped;
+
   Main *bmain = CTX_data_main(C);
   wmWindowManager *wm = CTX_wm_manager(C);
   const double time = BLI_time_now_seconds();
@@ -2903,12 +2907,16 @@ void wm_window_raise(wmWindow *win)
 
 void wm_window_swap_buffer_acquire(wmWindow *win)
 {
+  BLI_profile_zone_scoped;
+
   GHOST_IWindow *ghost_window = static_cast<GHOST_IWindow *>(win->runtime->ghostwin);
   ghost_window->swapBufferAcquire();
 }
 
 void wm_window_swap_buffer_release(wmWindow *win)
 {
+  BLI_profile_zone_scoped;
+
   GHOST_IWindow *ghost_window = static_cast<GHOST_IWindow *>(win->runtime->ghostwin);
   ghost_window->swapBufferRelease();
 }

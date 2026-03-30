@@ -596,6 +596,8 @@ void wm_close_and_free(bContext *C, wmWindowManager *wm)
 
 void WM_main(bContext *C)
 {
+  BLI_profile_zone_scoped;
+
   /* Single refresh before handling events.
    * This ensures we don't run operators before the depsgraph has been evaluated. */
   wm_event_do_refresh_wm_and_depsgraph(C);

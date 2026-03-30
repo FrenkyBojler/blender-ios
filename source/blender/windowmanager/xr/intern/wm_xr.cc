@@ -16,6 +16,8 @@
 #include "BKE_main.hh"
 #include "BKE_report.hh"
 
+#include "BLI_profile.hh"
+
 #include "DNA_scene_types.h"
 #include "DNA_windowmanager_types.h"
 
@@ -163,6 +165,7 @@ void wm_xr_exit(wmWindowManager *wm)
 
 bool wm_xr_events_handle(wmWindowManager *wm)
 {
+  BLI_profile_zone_scoped;
   if (wm->xr.runtime && wm->xr.runtime->ghost_context) {
     GHOST_XrEventsHandle(wm->xr.runtime->ghost_context);
 

@@ -29,6 +29,8 @@
 #include "BKE_global.hh"
 #include "BKE_report.hh"
 
+#include "BLI_profile.hh"
+
 #include "SEQ_prefetch.hh"
 
 #include "WM_api.hh"
@@ -749,6 +751,8 @@ void wm_jobs_timer(wmWindowManager *wm, wmTimer *wt)
 
 void wm_jobs_handle_finished(const bContext *C)
 {
+  BLI_profile_zone_scoped;
+
   wmWindowManager *wm = CTX_wm_manager(C);
   for (wmJob &job : wm->runtime->jobs.items_reversed_mutable()) {
     if (!job.threads.first) {
