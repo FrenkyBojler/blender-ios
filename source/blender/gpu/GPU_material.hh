@@ -318,17 +318,32 @@ struct GPUNodeStack {
 
   bool socket_not_zero() const
   {
-    return this->link || (clamp_f(this->vec[0], 0.0f, 1.0f) > 1e-5f);
+    return this->link || (saturatef(this->vec[0]) > NEAR_ZERO);
   }
 
   bool socket_not_one() const
   {
-    return this->link || (clamp_f(this->vec[0], 0.0f, 1.0f) < 1.0f - 1e-5f);
+    return this->link || (saturatef(this->vec[0]) < NEAR_ONE);
   }
 
-  bool socket_is_one() const
+  bool socket_not_black() const
   {
-    return !this->link && (clamp_f(this->vec[0], 0.0f, 1.0f) > 0.9999f);
+    return this->link || saturatef(this->vec[0]) > NEAR_ZERO ||
+           saturatef(this->vec[1]) > NEAR_ZERO || saturatef(this->vec[2]) > NEAR_ZERO;
+  }
+
+  bool socket_not_white() const
+  {
+    return this->link || saturatef(this->vec[0]) < NEAR_ONE ||
+           saturatef(this->vec[1]) < NEAR_ONE || saturatef(this->vec[2]) < NEAR_ONE;
+  }
+
+ private:
+  static constexpr float NEAR_ZERO = 1e-5f;
+  static constexpr float NEAR_ONE = 1.0f - 1e-5f;
+  float saturatef(const float f) const
+  {
+    return clamp_f(f, 0.0f, 1.0f);
   }
 };
 
