@@ -30,22 +30,22 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   if (node != nullptr) {
     const eCustomDataType data_type = eCustomDataType(node->custom1);
-    b.add_input(data_type, "Value")
+    b.add_input(data_type, "Value"_ustr)
         .supports_field()
         .description("The values the mean and median will be calculated from");
   }
 
-  b.add_input<decl::Int>("Group ID", "Group Index")
+  b.add_input<decl::Int>("Group ID"_ustr, "Group Index"_ustr)
       .supports_field()
       .hide_value()
       .description("An index used to group values together for multiple separate operations");
 
   if (node != nullptr) {
     const eCustomDataType data_type = eCustomDataType(node->custom1);
-    b.add_output(data_type, "Mean")
+    b.add_output(data_type, "Mean"_ustr)
         .field_source_reference_all()
         .description("The sum of all values in each group divided by the size of said group");
-    b.add_output(data_type, "Median")
+    b.add_output(data_type, "Median"_ustr)
         .translation_context(BLT_I18NCONTEXT_ID_NODETREE)
         .field_source_reference_all()
         .description(
@@ -97,7 +97,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
         [type](LinkSearchOpParams &params) {
           bNode &node = params.add_node("GeometryNodeFieldAverage");
           node.custom1 = *type;
-          params.update_and_connect_available_socket(node, "Mean");
+          params.update_and_connect_available_socket(node, "Mean"_ustr);
         },
         0);
     params.add_item(
@@ -105,7 +105,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
         [type](LinkSearchOpParams &params) {
           bNode &node = params.add_node("GeometryNodeFieldAverage");
           node.custom1 = *type;
-          params.update_and_connect_available_socket(node, "Median");
+          params.update_and_connect_available_socket(node, "Median"_ustr);
         },
         -1);
   }
@@ -115,7 +115,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
         [type](LinkSearchOpParams &params) {
           bNode &node = params.add_node("GeometryNodeFieldAverage");
           node.custom1 = *type;
-          params.update_and_connect_available_socket(node, "Value");
+          params.update_and_connect_available_socket(node, "Value"_ustr);
         },
         0);
   }
@@ -272,17 +272,17 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
   const AttrDomain source_domain = AttrDomain(params.node().custom2);
 
-  const Field<int> group_index_field = params.extract_input<Field<int>>("Group Index");
-  const GField input_field = params.extract_input<GField>("Value");
-  if (params.output_is_required("Mean")) {
+  const Field<int> group_index_field = params.extract_input<Field<int>>("Group Index"_ustr);
+  const GField input_field = params.extract_input<GField>("Value"_ustr);
+  if (params.output_is_required("Mean"_ustr)) {
     params.set_output<GField>(
-        "Mean",
+        "Mean"_ustr,
         GField{std::make_shared<FieldAverageInput>(
             source_domain, input_field, group_index_field, Operation::Mean)});
   }
-  if (params.output_is_required("Median")) {
+  if (params.output_is_required("Median"_ustr)) {
     params.set_output<GField>(
-        "Median",
+        "Median"_ustr,
         GField{std::make_shared<FieldAverageInput>(
             source_domain, input_field, group_index_field, Operation::Median)});
   }

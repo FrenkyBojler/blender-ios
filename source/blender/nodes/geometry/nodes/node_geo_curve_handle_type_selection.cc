@@ -15,7 +15,7 @@ NODE_STORAGE_FUNCS(NodeGeometryCurveSelectHandles)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Bool>("Selection").field_source();
+  b.add_output<decl::Bool>("Selection"_ustr).field_source();
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
@@ -127,7 +127,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const GeometryNodeCurveHandleMode mode = (GeometryNodeCurveHandleMode)storage.mode;
 
   Field<bool> selection_field{std::make_shared<HandleTypeFieldInput>(handle_type, mode)};
-  params.set_output("Selection", std::move(selection_field));
+  params.set_output("Selection"_ustr, std::move(selection_field));
 }
 
 static void node_register()
