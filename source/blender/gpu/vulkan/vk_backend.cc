@@ -430,6 +430,7 @@ void VKBackend::detect_workarounds(VKDevice &device)
 
     /* Force workarounds and disable extensions. */
     workarounds.not_aligned_pixel_formats = true;
+    workarounds.no_texture_pool = true;
     extensions.shader_output_layer = false;
     extensions.shader_output_viewport_index = false;
     extensions.fragment_shader_barycentric = false;
@@ -538,8 +539,8 @@ void VKBackend::detect_workarounds(VKDevice &device)
 
 #ifdef _WIN32
   /* Intel 7th to 10th Gen Processor iGPUs show a black screen at application startup when using
-   * VK_EXT_vertex_input_dynamic_state. The used driver version for these iGPUs is 101.2xxx or
-   * older.
+   * VK_EXT_vertex_input_dynamic_state. Furthermore, texture pool usage leads to visual artifacts.
+   * The used driver version for these iGPUs is 101.2xxx or older.
    *
    * See #147721
    */
@@ -550,6 +551,7 @@ void VKBackend::detect_workarounds(VKDevice &device)
     if (driver_version_major < 101 || (driver_version_major == 101 && driver_version_minor < 3000))
     {
       extensions.vertex_input_dynamic_state = false;
+      workarounds.no_texture_pool = true;
     }
   }
 #endif
@@ -675,7 +677,8 @@ Texture *VKBackend::texture_alloc(const char *name)
 
 TexturePool *VKBackend::texturepool_alloc()
 {
-  if (G.debug & G_DEBUG_GPU_NO_TEXTURE_POOL) {
+  VKDevice &device = VKBackend::get().device;
+  if ((G.debug & G_DEBUG_GPU_NO_TEXTURE_POOL) != 0 || device.workarounds_get().no_texture_pool) {
     CLOG_TRACE(&LOG, "Using texture pool \"TexturePoolImpl\".");
     return new TexturePoolImpl();
   }
