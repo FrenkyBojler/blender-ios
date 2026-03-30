@@ -263,7 +263,7 @@ struct MaskLayer {
   char blend = 0;      /* MaskLayerBlend */
   char blend_flag = 0; /* MaskLayerBlendFlag */
   char falloff = 0;
-  char fill_solver = 0; /* MaskLayerFillSolverType */
+  char fill_solver = MASK_FILL_SOLVER_CDT; /* MaskLayerFillSolverType */
   char _pad[6] = {};
 
   char flag = 0; /* MaskLayerFlag */
