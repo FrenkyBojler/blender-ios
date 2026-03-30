@@ -465,8 +465,8 @@ void version_node_socket_index_animdata(Main *bmain,
                                              nullptr,
                                              input_index,
                                              new_index,
-                                             false,
-                                             true);
+                                             /*verify_paths=*/false,
+                                             /*infix_is_name=*/true);
         MEM_delete(rna_path_prefix);
       }
     }

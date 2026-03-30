@@ -286,8 +286,8 @@ static void version_principled_bsdf_update_animdata(ID *owner_id, bNodeTree *ntr
                                     nullptr,
                                     entry.first,
                                     entry.second,
-                                    false,
-                                    true);
+                                    /*verify_paths=*/false,
+                                    /*infix_is_name=*/true);
     }
   }
 }
