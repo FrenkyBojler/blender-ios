@@ -6344,6 +6344,7 @@ static void rna_def_userdef_system(BlenderRNA *brna)
                            "Checks the latest LTS release",
                            "Allow Blender to access the internet to check for any new update "
                            "available for the latest LTS release");
+  RNA_def_property_update(prop, 0, "rna_userdef_update");
 
   prop = RNA_def_property(srna, "latest_release", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", USER_BLENDER_UPDATE_LATEST_RELEASE);
@@ -6351,6 +6352,7 @@ static void rna_def_userdef_system(BlenderRNA *brna)
                            "Checks the latest release",
                            "Allow Blender to access the internet to check for any new update "
                            "available for the latest release");
+  RNA_def_property_update(prop, 0, "rna_userdef_update");
 
   prop = RNA_def_property(srna, "current_release", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", USER_BLENDER_UPDATE_CURRENT_RELEASE);
@@ -6358,6 +6360,7 @@ static void rna_def_userdef_system(BlenderRNA *brna)
                            "Checks current release updates",
                            "Allow Blender to access the internet to check for any new update "
                            "available for the current release");
+  RNA_def_property_update(prop, 0, "rna_userdef_update");
 
   /* Audio */
   prop = RNA_def_property(srna, "audio_mixing_buffer", PROP_ENUM, PROP_NONE);

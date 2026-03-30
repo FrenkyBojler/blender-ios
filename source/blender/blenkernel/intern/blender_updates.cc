@@ -387,7 +387,7 @@ static void read_blender_updates_cache_file()
     if (!update) {
       continue;
     }
-    register_blender_update(std::move(*update));
+    register_blender_update(*std::move(update));
   }
   std::optional<StringRefNull> last_time_check_str = file_dict->lookup_str("last_time_check");
   if (!last_time_check_str) {
@@ -490,12 +490,12 @@ Vector<const VersionUpdate *> available_updates()
 {
   BlenderUpdates &updates = available_blender_updates();
   Vector<const VersionUpdate *> tmp;
-  if (U.flag & USER_BLENDER_UPDATE_LATEST_LTS_RELEASE && updates.latest_lts) {
-    tmp.append(&(*updates.latest_lts));
-  }
   if (U.flag & USER_BLENDER_UPDATE_LATEST_RELEASE && updates.latest &&
-      (!updates.latest_lts || (updates.latest_lts->version) < updates.latest->version))
+      (!updates.latest_lts || (updates.latest_lts->version < updates.latest->version)))
   {
+    tmp.append(&(*updates.latest));
+  }
+  if (U.flag & USER_BLENDER_UPDATE_LATEST_LTS_RELEASE && updates.latest_lts) {
     tmp.append(&(*updates.latest_lts));
   }
   if (U.flag & USER_BLENDER_UPDATE_CURRENT_RELEASE && updates.current_release) {
