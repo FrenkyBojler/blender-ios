@@ -1820,6 +1820,30 @@ bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
 
   offset_indices::accumulate_counts_to_offsets(offsets);
 
+  const bool use_vertex_color = ed::sculpt_paint::greasepencil::brush_using_vertex_color(
+      scene.toolsettings->gp_paint, &brush);
+  if (use_vertex_color) {
+    ColorGeometry4f vertex_color;
+    copy_v3_v3(vertex_color, brush.color);
+    vertex_color.a = brush.gpencil_settings->vertex_factor;
+
+    // skip_curve_attributes.add("fill_color");
+    bke::SpanAttributeWriter<ColorGeometry4f> fill_colors =
+        attributes.lookup_or_add_for_write_span<ColorGeometry4f>("fill_color",
+                                                                 bke::AttrDomain::Curve);
+    fill_colors.span.fill(vertex_color);
+    fill_colors.finish();
+
+    if (brush.gpencil_settings->flag2 & GP_BRUSH_USE_STROKE) {
+      // skip_point_attributes.add("vertex_color");
+      bke::SpanAttributeWriter<ColorGeometry4f> vertex_colors =
+          attributes.lookup_or_add_for_write_span<ColorGeometry4f>("vertex_color",
+                                                                   bke::AttrDomain::Point);
+      vertex_colors.span.fill(vertex_color);
+      vertex_colors.finish();
+    }
+  }
+
   curves.cyclic_for_write().fill(true);
   curves.fill_curve_types(CURVE_TYPE_POLY);
   curves.tag_topology_changed();
