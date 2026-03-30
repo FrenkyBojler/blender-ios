@@ -268,6 +268,14 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
   NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(md);
   walk(user_data, ob, reinterpret_cast<ID **>(&nmd->node_group), IDWALK_CB_USER);
 
+  if (nmd->settings.properties) {
+    /* Also walk legacy properties because they are still used at runtime before post linking
+     * versioning. */
+    IDP_foreach_property(nmd->settings.properties, IDP_TYPE_FILTER_ID, [&](IDProperty *id_prop) {
+      walk(user_data, ob, reinterpret_cast<ID **>(&id_prop->data.pointer), IDWALK_CB_USER);
+    });
+  }
+
   IDP_foreach_property(
       nmd->modifier.system_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *id_prop) {
         walk(user_data, ob, reinterpret_cast<ID **>(&id_prop->data.pointer), IDWALK_CB_USER);
