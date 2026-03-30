@@ -194,25 +194,33 @@ class Texture {
     return gpu_image_usage_flags_;
   }
 
-  void mip_size_get(int mip, int r_size[3]) const
+  int3 mip_size_get(int mip) const
   {
+    int3 size;
     /* TODO: assert if lvl is below the limit of 1px in each dimension. */
     int div = 1 << mip;
-    r_size[0] = max_ii(1, w_ / div);
+    size.x = max_ii(1, w_ / div);
 
     if (type_ == GPU_TEXTURE_1D_ARRAY) {
-      r_size[1] = h_;
+      size.y = h_;
     }
     else if (h_ > 0) {
-      r_size[1] = max_ii(1, h_ / div);
+      size.y = max_ii(1, h_ / div);
+    }
+    else {
+      size.y = 1;
     }
 
     if (type_ & (GPU_TEXTURE_ARRAY | GPU_TEXTURE_CUBE)) {
-      r_size[2] = d_;
+      size.z = d_;
     }
     else if (d_ > 0) {
-      r_size[2] = max_ii(1, d_ / div);
+      size.z = max_ii(1, d_ / div);
     }
+    else {
+      size.z = 1;
+    }
+    return size;
   }
 
   int mip_width_get(int mip) const

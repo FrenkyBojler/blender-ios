@@ -224,9 +224,8 @@ void Texture::detach_from(FrameBuffer *fb)
 void Texture::update(eGPUDataFormat format, const void *data)
 {
   int mip = 0;
-  int extent[3] = {1, 1, 1};
-  int offset[3] = {0, 0, 0};
-  this->mip_size_get(mip, extent);
+  int3 extent = this->mip_size_get(mip);
+  int3 offset(0);
   this->update_sub(mip, offset, extent, format, data);
 }
 
@@ -396,9 +395,8 @@ gpu::Texture *GPU_texture_create_compressed_2d(const char *name,
   if (data) {
     size_t ofs = 0;
     for (int mip = 0; mip < mip_len; mip++) {
-      int extent[3] = {1, 1, 1};
-      int offset[3] = {0, 0, 0};
-      tex->mip_size_get(mip, extent);
+      int3 extent = tex->mip_size_get(mip);
+      int3 offset(0);
 
       size_t size = ((extent[0] + 3) / 4) * ((extent[1] + 3) / 4) * to_block_size(tex_format);
       tex->update_sub(mip,
@@ -513,8 +511,8 @@ void GPU_texture_update_mipmap(gpu::Texture *texture,
                                const void *pixels,
                                uint unpack_row_length)
 {
-  int extent[3] = {1, 1, 1}, offset[3] = {0, 0, 0};
-  texture->mip_size_get(mip_level, extent);
+  int3 offset(0);
+  int3 extent = texture->mip_size_get(mip_level);
   texture->update_sub(mip_level, offset, extent, data_format, pixels, unpack_row_length);
 }
 
@@ -992,7 +990,8 @@ void GPU_texture_py_reference_set(gpu::Texture *texture, void **py_ref)
 
 void GPU_texture_get_mipmap_size(gpu::Texture *texture, int mip_level, int *r_size)
 {
-  texture->mip_size_get(mip_level, r_size);
+  int3 size = texture->mip_size_get(mip_level);
+  *static_cast<int3 *>(static_cast<void *>(r_size)) = size;
 }
 
 /** \} */

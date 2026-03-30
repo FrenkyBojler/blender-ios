@@ -79,8 +79,7 @@ static void update_mipmaps(Texture &texture, Shader &shader, int layer)
     int num_levels = min_ii(views.size() - mip_start - 1, max_levels_per_dispatch);
     GPU_shader_uniform_1i(&shader, "num_levels", num_levels);
 
-    int3 mip_size(1, 1, 1);
-    texture.mip_size_get(mip_start + num_levels, mip_size);
+    int3 mip_size = texture.mip_size_get(mip_start + num_levels);
 
     if (num_levels == 1U) {
       /* Each thread writes one sample. */

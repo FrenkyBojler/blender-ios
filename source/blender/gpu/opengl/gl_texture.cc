@@ -456,9 +456,7 @@ void GLTexture::copy_to(Texture *dst_)
   BLI_assert(dst->type_ == src->type_);
 
   int mip = 0;
-  /* NOTE: mip_size_get() won't override any dimension that is equal to 0. */
-  int extent[3] = {1, 1, 1};
-  this->mip_size_get(mip, extent);
+  int3 extent = this->mip_size_get(mip);
   glCopyImageSubData(
       src->tex_id_, target_, mip, 0, 0, 0, dst->tex_id_, target_, mip, 0, 0, 0, UNPACK3(extent));
 
@@ -471,11 +469,9 @@ void *GLTexture::read(int mip, eGPUDataFormat type)
   BLI_assert(mip <= mipmaps_ || mip == 0);
   BLI_assert(validate_data_format(format_, type));
 
-  /* NOTE: mip_size_get() won't override any dimension that is equal to 0. */
-  int extent[3] = {1, 1, 1};
-  this->mip_size_get(mip, extent);
+  int3 extent = this->mip_size_get(mip);
 
-  size_t sample_len = extent[0] * extent[1] * extent[2];
+  size_t sample_len = extent.x * extent.y * extent.z;
   size_t sample_size = to_bytesize(format_, type);
   size_t texture_size = sample_len * sample_size;
 
@@ -718,8 +714,7 @@ bool GLTexture::proxy_check(int mip)
   int max_size = GPU_max_texture_size();
   int max_3d_size = GPU_max_texture_3d_size();
   int max_cube_size = GLContext::max_cubemap_size;
-  int size[3] = {1, 1, 1};
-  this->mip_size_get(mip, size);
+  int3 size = this->mip_size_get(mip);
 
   if (type_ & GPU_TEXTURE_ARRAY) {
     if (this->layer_count() > GPU_max_texture_layers()) {
@@ -728,22 +723,22 @@ bool GLTexture::proxy_check(int mip)
   }
 
   if (type_ == GPU_TEXTURE_3D) {
-    if (size[0] > max_3d_size || size[1] > max_3d_size || size[2] > max_3d_size) {
+    if (size.x > max_3d_size || size.y > max_3d_size || size.z > max_3d_size) {
       return false;
     }
   }
   else if ((type_ & ~GPU_TEXTURE_ARRAY) == GPU_TEXTURE_2D) {
-    if (size[0] > max_size || size[1] > max_size) {
+    if (size.x > max_size || size.y > max_size) {
       return false;
     }
   }
   else if ((type_ & ~GPU_TEXTURE_ARRAY) == GPU_TEXTURE_1D) {
-    if (size[0] > max_size) {
+    if (size.x > max_size) {
       return false;
     }
   }
   else if ((type_ & ~GPU_TEXTURE_ARRAY) == GPU_TEXTURE_CUBE) {
-    if (size[0] > max_cube_size) {
+    if (size.x > max_cube_size) {
       return false;
     }
   }
@@ -768,11 +763,11 @@ bool GLTexture::proxy_check(int mip)
   int dimensions = (type_ == GPU_TEXTURE_CUBE) ? 2 : this->dimensions_count();
 
   if (format_flag_ & GPU_FORMAT_COMPRESSED) {
-    size_t img_size = ((size[0] + 3) / 4) * ((size[1] + 3) / 4) * to_block_size(format_);
+    size_t img_size = ((size.x + 3) / 4) * ((size.y + 3) / 4) * to_block_size(format_);
     switch (dimensions) {
       default:
       case 1:
-        glCompressedTexImage1D(gl_proxy, mip, size[0], 0, gl_format, img_size, nullptr);
+        glCompressedTexImage1D(gl_proxy, mip, size.x, 0, gl_format, img_size, nullptr);
         break;
       case 2:
         glCompressedTexImage2D(gl_proxy, mip, UNPACK2(size), 0, gl_format, img_size, nullptr);
@@ -786,7 +781,7 @@ bool GLTexture::proxy_check(int mip)
     switch (dimensions) {
       default:
       case 1:
-        glTexImage1D(gl_proxy, mip, internal_format, size[0], 0, gl_format, gl_type, nullptr);
+        glTexImage1D(gl_proxy, mip, internal_format, size.x, 0, gl_format, gl_type, nullptr);
         break;
       case 2:
         glTexImage2D(

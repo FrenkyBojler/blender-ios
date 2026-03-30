@@ -1317,9 +1317,7 @@ void gpu::MTLTexture::copy_to(Texture *dst)
      * follows, currently it does not. */
     int mip = 0;
 
-    /* NOTE: mip_size_get() won't override any dimension that is equal to 0. */
-    int extent[3] = {1, 1, 1};
-    this->mip_size_get(mip, extent);
+    int3 extent = this->mip_size_get(mip);
 
     switch (mt_dst->type_) {
       case GPU_TEXTURE_2D_ARRAY:
@@ -1345,9 +1343,9 @@ void gpu::MTLTexture::copy_to(Texture *dst)
                    0,
                    slice,
                    mip,
-                   extent[0],
-                   extent[1],
-                   extent[2]);
+                   extent.x,
+                   extent.y,
+                   extent.z);
       } break;
     }
   }
@@ -1495,11 +1493,9 @@ void *gpu::MTLTexture::read(int mip, eGPUDataFormat type)
   BLI_assert(mip <= mipmaps_);
   BLI_assert(validate_data_format(format_, type));
 
-  /* NOTE: mip_size_get() won't override any dimension that is equal to 0. */
-  int extent[3] = {1, 1, 1};
-  this->mip_size_get(mip, extent);
+  int3 extent = this->mip_size_get(mip);
 
-  size_t sample_len = extent[0] * max_ii(extent[1], 1) * max_ii(extent[2], 1);
+  size_t sample_len = extent.x * max_ii(extent.y, 1) * max_ii(extent.z, 1);
   size_t sample_size = to_bytesize(format_, type);
   size_t texture_size = sample_len * sample_size;
   int num_channels = to_component_len(format_);

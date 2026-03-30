@@ -67,8 +67,7 @@ void VKTexture::generate_mipmap()
   VKContext &context = *VKContext::get();
   render_graph::VKUpdateMipmapsNode::Data update_mipmaps = {};
   update_mipmaps.vk_image = vk_image_handle();
-  update_mipmaps.l0_size = int3(1);
-  mip_size_get(0, update_mipmaps.l0_size);
+  update_mipmaps.l0_size = mip_size_get(0);
   if (ELEM(this->type_get(), GPU_TEXTURE_1D_ARRAY)) {
     update_mipmaps.l0_size.y = 1;
     update_mipmaps.l0_size.z = 1;
@@ -320,31 +319,30 @@ void *VKTexture::read(int mip, eGPUDataFormat format)
 {
   BLI_assert(!(format_flag_ & GPU_FORMAT_COMPRESSED));
 
-  int mip_size[3] = {1, 1, 1};
+  int3 mip_size = mip_size_get(mip);
   VkImageType vk_image_type = to_vk_image_type(type_);
-  mip_size_get(mip, mip_size);
   switch (vk_image_type) {
     case VK_IMAGE_TYPE_1D: {
-      mip_size[1] = 1;
-      mip_size[2] = 1;
+      mip_size.y = 1;
+      mip_size.z = 1;
     } break;
     case VK_IMAGE_TYPE_2D: {
-      mip_size[2] = 1;
+      mip_size.y = 1;
     } break;
     case VK_IMAGE_TYPE_3D:
     default:
       break;
   }
 
-  if (mip_size[2] == 0) {
-    mip_size[2] = 1;
+  if (mip_size.z == 0) {
+    mip_size.z = 1;
   }
   IndexRange layers = IndexRange(layer_offset_, vk_layer_count(1));
-  size_t sample_len = mip_size[0] * mip_size[1] * mip_size[2] * layers.size();
+  size_t sample_len = mip_size.x * mip_size.y * mip_size.z * layers.size();
   size_t host_memory_size = sample_len * to_bytesize(format_, format);
 
   void *data = MEM_new_uninitialized(host_memory_size, __func__);
-  int region[6] = {0, 0, 0, mip_size[0], mip_size[1], mip_size[2]};
+  int region[6] = {0, 0, 0, mip_size.x, mip_size.y, mip_size.z};
   read_sub(mip, format, region, layers, data);
   return data;
 }
@@ -789,17 +787,16 @@ int VKTexture::vk_layer_count(int non_layered_value) const
 
 VkExtent3D VKTexture::vk_extent_3d(int mip_level) const
 {
-  int extent[3] = {1, 1, 1};
-  mip_size_get(mip_level, extent);
+  int3 extent = mip_size_get(mip_level);
   if (ELEM(type_, GPU_TEXTURE_CUBE, GPU_TEXTURE_CUBE_ARRAY, GPU_TEXTURE_2D_ARRAY)) {
-    extent[2] = 1;
+    extent.z = 1;
   }
   if (ELEM(type_, GPU_TEXTURE_1D_ARRAY)) {
-    extent[1] = 1;
-    extent[2] = 1;
+    extent.y = 1;
+    extent.z = 1;
   }
 
-  VkExtent3D result{uint32_t(extent[0]), uint32_t(extent[1]), uint32_t(extent[2])};
+  VkExtent3D result{uint32_t(extent.x), uint32_t(extent.y), uint32_t(extent.z)};
   return result;
 }
 
