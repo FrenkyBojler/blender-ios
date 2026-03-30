@@ -35,9 +35,9 @@ static EnumPropertyItem method_items[] = {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Menu>("Method").static_items(method_items).optional_label();
-  b.add_input<decl::Vector>("UV").dimensions(2).subtype(PROP_XYZ).supports_field();
-  b.add_output<decl::Vector>("Tangent").field_source_reference_all();
+  b.add_input<decl::Menu>("Method"_ustr).static_items(method_items).optional_label();
+  b.add_input<decl::Vector>("UV"_ustr).dimensions(2).subtype(PROP_XYZ).supports_field();
+  b.add_output<decl::Vector>("Tangent"_ustr).field_source_reference_all();
 }
 
 static float3 compute_triangle_tangent(const float3 &p1,
@@ -224,9 +224,9 @@ class TangentFieldInput final : public bke::MeshFieldInput {
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  const Method method = params.extract_input<Method>("Method");
-  Field<float3> uv_field = params.extract_input<Field<float3>>("UV");
-  params.set_output("Tangent",
+  const Method method = params.extract_input<Method>("Method"_ustr);
+  Field<float3> uv_field = params.extract_input<Field<float3>>("UV"_ustr);
+  params.set_output("Tangent"_ustr,
                     Field<float3>(std::make_shared<TangentFieldInput>(method, uv_field)));
 }
 
