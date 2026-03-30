@@ -2124,20 +2124,20 @@ static bSoundFrequencySampler::WindowWeights compute_window_function_weights(
   switch (window) {
     case bSoundFrequencySampler::WindowFunction::Hann: {
       for (const int i : IndexRange(size)) {
-        weights[i] = 0.5 - 0.5 * math::cos((2.0f * std::numbers::pi * i) / (size - 1));
+        weights[i] = 0.5f - 0.5f * math::cos((2.0f * std::numbers::pi * i) / (size - 1));
       }
       break;
     }
     case bSoundFrequencySampler::WindowFunction::Hamming: {
       for (const int i : IndexRange(size)) {
-        weights[i] = 0.54 - 0.46 * math::cos((2.0f * std::numbers::pi * i) / (size - 1));
+        weights[i] = 0.54f - 0.46f * math::cos((2.0f * std::numbers::pi * i) / (size - 1));
       }
       break;
     }
     case bSoundFrequencySampler::WindowFunction::Blackman: {
       for (const int i : IndexRange(size)) {
-        weights[i] = 0.42 - 0.5 * math::cos((2.0f * std::numbers::pi * i) / (size - 1)) +
-                     0.08 * math::cos((4.0f * std::numbers::pi * i) / (size - 1));
+        weights[i] = 0.42f - 0.5f * math::cos((2.0f * std::numbers::pi * i) / (size - 1)) +
+                     0.08f * math::cos((4.0f * std::numbers::pi * i) / (size - 1));
       }
       break;
     }
