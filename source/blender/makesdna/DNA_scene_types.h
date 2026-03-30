@@ -2010,6 +2010,8 @@ enum {
   UVCALC_UNWRAP_NO_FLIP = 1 << 6,
   /** Use importance weights. */
   UVCALC_UNWRAP_USE_WEIGHTS = 1 << 7,
+  /** Keep UVs with uniform scale when unwrapping. */
+  UVCALC_UNIFORM_SCALE = 1 << 8,
 };
 
 /** #ToolSettings::uv_flag */
@@ -2185,10 +2187,11 @@ struct ToolSettings {
 
   /* Use `UVCALC_UNWRAP_METHOD_*` values. */
   char unwrapper = UVCALC_UNWRAP_METHOD_CONFORMAL;
-  char uvcalc_flag = UVCALC_TRANSFORM_CORRECT_SLIDE;
+  short uvcalc_flag = UVCALC_TRANSFORM_CORRECT_SLIDE;
   char uv_flag = UV_FLAG_SELECT_SYNC;
   char uv_selectmode = UV_SELECT_VERT;
   char uv_sticky = 0;
+  char _pad_uvcalc[7] = {};
 
   rctf uv_custom_region = {};
 

@@ -199,6 +199,8 @@ struct UnwrapOptions {
   bool fill_holes;
   /** Correct for mapped image texture aspect ratio. */
   bool correct_aspect;
+  /** Use uniform scale for unwrapping. */
+  bool use_uniform_scale;
   /** Treat unselected uvs as if they were pinned. */
   bool pin_unselected;
 
@@ -270,6 +272,7 @@ static UnwrapOptions unwrap_options_get(wmOperator *op, Object *ob, const ToolSe
     options.correct_aspect = (ts->uvcalc_flag & UVCALC_NO_ASPECT_CORRECT) == 0;
     options.fill_holes = (ts->uvcalc_flag & UVCALC_FILLHOLES) != 0;
     options.use_subsurf = (ts->uvcalc_flag & UVCALC_USESUBSURF) != 0;
+    options.use_uniform_scale = (ts->uvcalc_flag & UVCALC_UNIFORM_SCALE) != 0;
 
     options.use_weights = ts->uvcalc_flag & UVCALC_UNWRAP_USE_WEIGHTS;
     STRNCPY_UTF8(options.weight_group, ts->uvcalc_weight_group);
@@ -283,6 +286,7 @@ static UnwrapOptions unwrap_options_get(wmOperator *op, Object *ob, const ToolSe
     options.correct_aspect = RNA_boolean_get(op->ptr, "correct_aspect");
     options.fill_holes = RNA_boolean_get(op->ptr, "fill_holes");
     options.use_subsurf = RNA_boolean_get(op->ptr, "use_subsurf_data");
+    options.use_uniform_scale = RNA_boolean_get(op->ptr, "use_uniform_scale");
 
     options.use_weights = RNA_boolean_get(op->ptr, "use_weights");
     RNA_string_get(op->ptr, "weight_group", options.weight_group);
@@ -328,7 +332,7 @@ static UnwrapOptions unwrap_options_get(wmOperator *op, Object *ob, const ToolSe
  */
 
 static bool rna_property_sync_flag(
-    PointerRNA *ptr, const char *prop_name, char flag, bool flipped, char *value_p)
+    PointerRNA *ptr, const char *prop_name, short flag, bool flipped, short *value_p)
 {
   if (PropertyRNA *prop = RNA_struct_find_property(ptr, prop_name)) {
     if (RNA_property_is_set(ptr, prop)) {
@@ -435,6 +439,8 @@ static void unwrap_options_sync_toolsettings(wmOperator *op, ToolSettings *ts)
 
   rna_property_sync_flag(
       op->ptr, "use_weights", UVCALC_UNWRAP_USE_WEIGHTS, false, &ts->uvcalc_flag);
+  rna_property_sync_flag(
+      op->ptr, "use_uniform_scale", UVCALC_UNIFORM_SCALE, false, &ts->uvcalc_flag);
 }
 
 static bool uvedit_have_selection(const Scene *scene, BMEditMesh *em, const UnwrapOptions *options)
@@ -589,7 +595,8 @@ static void construct_param_handle_face_add(ParamHandle *handle,
                                             const UnwrapOptions *options,
                                             const BMUVOffsets &offsets,
                                             const int cd_weight_offset,
-                                            const int cd_weight_index)
+                                            const int cd_weight_index,
+                                            const float scale[3])
 {
   Array<ParamKey, BM_DEFAULT_NGON_STACK_SIZE> vkeys(efa->len);
   Array<bool, BM_DEFAULT_NGON_STACK_SIZE> pin(efa->len);
@@ -597,6 +604,7 @@ static void construct_param_handle_face_add(ParamHandle *handle,
   Array<const float *, BM_DEFAULT_NGON_STACK_SIZE> co(efa->len);
   Array<float *, BM_DEFAULT_NGON_STACK_SIZE> uv(efa->len);
   Array<float, BM_DEFAULT_NGON_STACK_SIZE> weight(efa->len);
+  Array<float3, BM_DEFAULT_NGON_STACK_SIZE> co_scaled(efa->len);
 
   int i;
 
@@ -624,6 +632,15 @@ static void construct_param_handle_face_add(ParamHandle *handle,
     }
     else {
       weight[i] = 1.0f;
+    }
+  }
+
+  /* Apply non-uniform scale correction by scaling vertex positions. */
+  const bool needs_scale = (scale[0] != 1.0f || scale[1] != 1.0f || scale[2] != 1.0f);
+  if (needs_scale) {
+    for (int j = 0; j < i; j++) {
+      co_scaled[j] = float3(co[j][0] * scale[0], co[j][1] * scale[1], co[j][2] * scale[2]);
+      co[j] = co_scaled[j];
     }
   }
 
@@ -709,10 +726,15 @@ static ParamHandle *construct_param_handle(const Scene *scene,
     }
   }
 
+  float scale[3] = {1.0f, 1.0f, 1.0f};
+  if (options->use_uniform_scale) {
+    mat4_to_size(scale, ob->object_to_world().ptr());
+  }
+
   BM_ITER_MESH_INDEX (efa, &iter, bm, BM_FACES_OF_MESH, i) {
     if (uvedit_is_face_affected(scene, bm, efa, options, offsets)) {
       construct_param_handle_face_add(
-          handle, scene, bm, efa, i, options, offsets, cd_weight_offset, cd_weight_index);
+          handle, scene, bm, efa, i, options, offsets, cd_weight_offset, cd_weight_index, scale);
     }
   }
 
@@ -766,6 +788,11 @@ static ParamHandle *construct_param_handle_multi(const Scene *scene,
       }
     }
 
+    float scale[3] = {1.0f, 1.0f, 1.0f};
+    if (options->use_uniform_scale) {
+      mat4_to_size(scale, obedit->object_to_world().ptr());
+    }
+
     BM_ITER_MESH_INDEX (efa, &iter, bm, BM_FACES_OF_MESH, i) {
       if (uvedit_is_face_affected(scene, bm, efa, options, offsets)) {
         construct_param_handle_face_add(handle,
@@ -776,7 +803,8 @@ static ParamHandle *construct_param_handle_multi(const Scene *scene,
                                         options,
                                         offsets,
                                         cd_weight_offset,
-                                        cd_weight_index);
+                                        cd_weight_index,
+                                        scale);
       }
     }
 
@@ -2971,6 +2999,7 @@ static void unwrap_draw(bContext * /*C*/, wmOperator *op)
 
   col->separator();
   col->prop(&ptr, "correct_aspect", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->prop(&ptr, "use_uniform_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col->prop(&ptr, "margin_method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col->prop(&ptr, "margin", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
@@ -3075,6 +3104,11 @@ void UV_OT_unwrap(wmOperatorType *ot)
       "How much influence the weightmap has for weighted parameterization, 0 being no influence",
       -10.0,
       10.0);
+  RNA_def_boolean(ot->srna,
+                  "use_uniform_scale",
+                  tool_settings_default.uvcalc_flag & UVCALC_UNIFORM_SCALE,
+                  "Use Uniform Scale",
+                  "Apply uniform scale correction before unwrapping");
 }
 
 /** \} */
