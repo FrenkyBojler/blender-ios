@@ -307,8 +307,8 @@ static void dynamic_override_rule_property_write(
 {
   writer.write_struct(&dynoverride_rule_property);
 
-  BLO_write_string(&writer, dynoverride_rule_property.rna_path);
-  BLO_write_string(&writer, dynoverride_rule_property.sub_item_name);
+  writer.write_string(dynoverride_rule_property.rna_path);
+  writer.write_string(dynoverride_rule_property.sub_item_name);
 
   if (dynoverride_rule_property.new_value) {
     IDP_BlendWrite(&writer, dynoverride_rule_property.new_value);
