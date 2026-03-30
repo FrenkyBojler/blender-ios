@@ -266,9 +266,11 @@ bool sound_mixdown(AUD_Sequence sequence,
 namespace bke {
 
 /**
- * Used by the Sample Sound node in Geometry Nodes. It allows efficiently sampling an arbitrary
- * frequency range at an arbitrary point in time. This is achieved by caching the result of the
- * fourier transform for various windows and interpolating between the cached values.
+ * It allows efficiently sampling an arbitrary frequency range at an arbitrary point in time. This
+ * is achieved by caching the result of the fourier transform for various windows and interpolating
+ * between the cached values.
+ *
+ * Used by the Sample Sound node in Geometry Nodes.
  */
 class bSoundFrequencySampler {
  public:

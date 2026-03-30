@@ -2227,7 +2227,7 @@ std::optional<Array<float>> bSoundFrequencySampler::compute_fft(const int start_
    * computed. */
   const int frequencies_num = key_.fft_size / 2;
 
-  /* Setup the fftw plan. */
+  /* Set up the fftw plan. */
   fftwf_complex *fftwf_buffer = static_cast<fftwf_complex *>(
       fftwf_malloc(sizeof(fftwf_complex) * (frequencies_num + 1)));
   fftwf_plan plan = fftwf_plan_dft_r2c_1d(
@@ -2328,7 +2328,7 @@ std::optional<Span<float>> bSoundFrequencySampler::ensure_window_cache(const int
     if (!fft_array.has_value()) {
       return;
     }
-    /* Compute prefix some for the fft values. */
+    /* Compute prefix sum for the fft values. */
     const Span<float> fft_values = fft_array->as_span();
     window.cumulative_amplitudes.emplace(fft_values.size() + 1);
     float sum = 0.0f;
