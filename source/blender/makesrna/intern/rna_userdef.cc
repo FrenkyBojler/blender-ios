@@ -348,19 +348,6 @@ static void rna_userdef_screen_update(Main * /*bmain*/, Scene * /*scene*/, Point
   USERDEF_TAG_DIRTY;
 }
 
-static void rna_userdef_screen_update_header_default(Main *bmain, Scene *scene, PointerRNA *ptr)
-{
-  if (U.uiflag & USER_HEADER_FROM_PREF) {
-    for (bScreen *screen = static_cast<bScreen *>(bmain->screens.first); screen;
-         screen = static_cast<bScreen *>(screen->id.next))
-    {
-      BKE_screen_header_alignment_reset(screen);
-    }
-    rna_userdef_screen_update(bmain, scene, ptr);
-  }
-  USERDEF_TAG_DIRTY;
-}
-
 static void rna_userdef_font_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA * /*ptr*/)
 {
   BLF_cache_clear();
@@ -5266,7 +5253,6 @@ static void rna_def_userdef_view(BlenderRNA *brna)
   RNA_def_property_enum_bitflag_sdna(prop, nullptr, "uiflag");
   RNA_def_property_enum_default(prop, USER_HEADER_FROM_PREF | USER_HEADER_BOTTOM);
   RNA_def_property_ui_text(prop, "Header Position", "Default header position for new space-types");
-  RNA_def_property_update(prop, 0, "rna_userdef_screen_update_header_default");
 
   prop = RNA_def_property(srna, "render_display_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, render_display_types);
