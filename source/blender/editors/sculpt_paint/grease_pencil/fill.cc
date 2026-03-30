@@ -1256,21 +1256,25 @@ bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
   const VArray<bool> cyclic = strokes.cyclic();
   const int num_cyclic = array_utils::count_booleans(cyclic);
 
-  input.vert.reinitialize(4 + strokes.points_num());
-
-  input.vert[0] = double2(0.0f, 0.0f);
-  input.vert[1] = double2(0.0f, region.winy);
-  input.vert[2] = double2(region.winx, region.winy);
-  input.vert[3] = double2(region.winx, 0.0f);
+  input.vert.reinitialize(strokes.points_num() + 4);
 
   const Span<float3> strokes_pos = strokes.positions();
 
   for (const int i : strokes.points_range()) {
     const float3 pos = strokes_pos[i];
 
-    input.vert[i + 4] = double2(ED_view3d_project_float_v2_m4(
+    input.vert[i] = double2(ED_view3d_project_float_v2_m4(
         &region, math::transform_point(local_transform, pos), projection));
   }
+
+  const Bounds<double2> drawing_bound = *bounds::min_max(input.vert.as_span().drop_back(4));
+  const Bounds<double2> screen_bound = Bounds<double2>(double2(0.0, 0.0),
+                                                       double2(region.winx, region.winy));
+
+  Bounds<double2> bound = bounds::merge(drawing_bound, screen_bound);
+
+  const std::array<double2, 4> corners = bounds::corners(bound);
+  input.vert.as_mutable_span().take_back(4).copy_from(corners);
 
   input.edge.reinitialize(strokes.points_num() - strokes.curves_num() + num_cyclic);
 
@@ -1281,7 +1285,7 @@ bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
     const bool is_cyclic = cyclic[curve_i];
     for (const int point_i : points.drop_back(is_cyclic ? 0 : 1)) {
       const int point_next = (point_i - points.first() + 1) % points.size() + points.first();
-      input.edge[idx++] = order_edge(std::pair<int, int>(point_i + 4, point_next + 4));
+      input.edge[idx++] = order_edge(std::pair<int, int>(point_i, point_next));
     }
   }
 
