@@ -348,6 +348,7 @@ void AttributeStorage::rename(const StringRef old_name, std::string new_name)
 
 void AttributeStorage::rename(const Map<Attribute *, StringRef> &renames)
 {
+  /* All the attributes need to be contained in this #AttributeStorage. */
   BLI_assert(std::all_of(renames.keys().begin(), renames.keys().end(), [&](const Attribute *attr) {
     return std::any_of(this->runtime->attributes.begin(),
                        this->runtime->attributes.end(),
