@@ -531,6 +531,13 @@ COMPUTE_FUNCTION("convert_float4_to_bool")
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 
+GPU_SHADER_CREATE_INFO(compositor_convert_float4_to_quaternion)
+ADDITIONAL_INFO(compositor_convert_float_shared)
+IMAGE(0, SFLOAT_16_16_16_16, write, image2D, output_img)
+COMPUTE_FUNCTION("convert_float4_to_quaternion")
+DO_STATIC_COMPILATION()
+GPU_SHADER_CREATE_END()
+
 /* --------------------------------------------------------------------
  * Bool to other.
  */
@@ -628,6 +635,13 @@ GPU_SHADER_CREATE_INFO(compositor_convert_quaternion_to_float3)
 ADDITIONAL_INFO(compositor_convert_float_shared)
 IMAGE(0, SFLOAT_16_16_16_16, write, image2D, output_img)
 COMPUTE_FUNCTION("convert_quaternion_to_float3")
+DO_STATIC_COMPILATION()
+GPU_SHADER_CREATE_END()
+
+GPU_SHADER_CREATE_INFO(compositor_convert_quaternion_to_float4)
+ADDITIONAL_INFO(compositor_convert_float_shared)
+IMAGE(0, SFLOAT_16_16_16_16, write, image2D, output_img)
+COMPUTE_FUNCTION("convert_quaternion_to_float4")
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 

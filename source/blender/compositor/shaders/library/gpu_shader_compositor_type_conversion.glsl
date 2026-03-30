@@ -284,6 +284,11 @@ bool float4_to_bool(float4 value)
   return !all(equal(value, float4(0.0f)));
 }
 
+float4 float4_to_quaternion(float4 value)
+{
+  return value;
+}
+
 /* --------------------------------------------------------------------
  * Int2 to other.
  */
@@ -422,7 +427,7 @@ int3 bool_to_int3(bool value)
 
 float4 float4x4_to_quaternion(float4x4 mat)
 {
-  float3x3 mat_3x3 = float3x3(mat[0].xyz, mat[1].xyz, mat[2].xyz);
+  float3x3 mat_3x3 = to_float3x3(mat);
   return to_quaternion(mat_3x3).as_float4();
 }
 
@@ -432,13 +437,19 @@ float4 float4x4_to_quaternion(float4x4 mat)
 
 float2 quaternion_to_float2(float4 value)
 {
-  return quaternion_to_float3(value).xy();
+  Quaternion quat = Quaternion{value.x, value.y, value.z, value.w};
+  return to_euler(from_rotation(quat)).as_float3().xy();
 }
 
 float3 quaternion_to_float3(float4 value)
 {
   Quaternion quat = Quaternion{value.x, value.y, value.z, value.w};
   return to_euler(from_rotation(quat)).as_float3();
+}
+
+float4 quaternion_to_float4(float4 value)
+{
+  return value;
 }
 
 float4x4 quaternion_to_float4x4(float4 value)

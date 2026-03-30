@@ -235,7 +235,7 @@ static void initialize_input_stack_value(const bNodeSocket &input, GPUNodeStack 
           input.default_value_typed<bNodeSocketValueRotation>();
       const math::EulerXYZ euler(float3(rotation->value_euler));
       const math::Quaternion value = math::to_quaternion(euler);
-      copy_v4_v4(stack.vec, float4(value.w, value.x, value.y, value.z));
+      copy_v4_v4(stack.vec, float4(value));
       break;
     }
     case SOCK_MATRIX:

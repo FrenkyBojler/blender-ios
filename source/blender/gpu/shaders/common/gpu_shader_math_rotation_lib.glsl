@@ -11,20 +11,6 @@
 #include "gpu_shader_utildefines_lib.glsl"
 
 /* -------------------------------------------------------------------- */
-/** \name Quaternion Math
- * \{ */
-
-float4 math_quaternion_multiply(float4 a, float4 b)
-{
-  return float4(a.x * b.x - a.y * b.y - a.z * b.z - a.w * b.w,
-                a.x * b.y + a.y * b.x + a.z * b.w - a.w * b.z,
-                a.x * b.z - a.y * b.w + a.z * b.x + a.w * b.y,
-                a.x * b.w + a.y * b.z - a.z * b.y + a.w * b.x);
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
 /** \name Interpolate
  * \{ */
 

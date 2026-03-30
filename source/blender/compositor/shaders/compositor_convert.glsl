@@ -340,6 +340,15 @@ void convert_float4_to_bool()
   imageStore(image_out, texel, int4(float4_to_bool(value)));
 }
 
+void convert_float4_to_quaternion()
+{
+  auto &sampler_in = sampler_get(compositor_convert_float4_to_quaternion, input_tx);
+  auto &image_out = image_get(compositor_convert_float4_to_quaternion, output_img);
+  int2 texel = int2(gl_GlobalInvocationID.xy);
+  float4 value = texture_load(sampler_in, texel);
+  imageStore(image_out, texel, float4_to_quaternion(value));
+}
+
 /* --------------------------------------------------------------------
  * Color to other.
  */
@@ -766,6 +775,15 @@ void convert_quaternion_to_float3()
   int2 texel = int2(gl_GlobalInvocationID.xy);
   float4 value = texture_load(sampler_in, texel);
   imageStore(image_out, texel, float4(quaternion_to_float3(value), 0.0f));
+}
+
+void convert_quaternion_to_float4()
+{
+  auto &sampler_in = sampler_get(compositor_convert_quaternion_to_float4, input_tx);
+  auto &image_out = image_get(compositor_convert_quaternion_to_float4, output_img);
+  int2 texel = int2(gl_GlobalInvocationID.xy);
+  float4 value = texture_load(sampler_in, texel);
+  imageStore(image_out, texel, float4(value));
 }
 
 void convert_quaternion_to_float4x4()

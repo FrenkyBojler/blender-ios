@@ -147,23 +147,23 @@ static int gpu_shader_axes_to_rotation(GPUMaterial *mat,
     return GPU_stack_link(mat, node, "node_axes_to_rotation_identity", in, out);
   }
 
-  const float primary = {(float)node->custom1};
-  const float secondary = {(float)node->custom2};
+  const float primary = float(node->custom1);
+  const float secondary = float(node->custom2);
   const int tertiary_axis = (0 + 1 + 2) - node->custom1 - node->custom2;
-  const float tertiary = {(float)tertiary_axis};
+  const float tertiary = float(tertiary_axis);
 
   const bool invert_tertiary = (node->custom2 + 1) % 3 == node->custom1;
-  const float factor = {invert_tertiary ? -1.0f : 1.0f};
+  const float factor = invert_tertiary ? -1.0f : 1.0f;
 
   return GPU_stack_link(mat,
                         node,
                         "node_axes_to_rotation",
                         in,
                         out,
-                        GPU_constant(&primary_arr),
-                        GPU_constant(&secondary_arr),
-                        GPU_constant(&tertiary_arr),
-                        GPU_constant(&factor_arr));
+                        GPU_constant(&primary),
+                        GPU_constant(&secondary),
+                        GPU_constant(&tertiary),
+                        GPU_constant(&factor));
 }
 
 static void node_extra_info(NodeExtraInfoParams &params)
