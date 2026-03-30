@@ -1657,6 +1657,7 @@ class USERPREF_PT_file_paths_render(FilePathsPanel, Panel):
         paths = context.preferences.filepaths
 
         col = self.layout.column()
+        col.prop(paths, "texture_cache_directory", text="Texture Cache")
         col.prop(paths, "render_output_directory", text="Render Output")
         col.prop(paths, "render_cache_directory", text="Render Cache")
 
@@ -1809,6 +1810,8 @@ class USERPREF_PT_saveload_blend(SaveLoadPanel, CenterAlignMixIn, Panel):
 
         col = layout.column(heading="Save")
         col.prop(view, "use_save_prompt")
+
+        layout.prop(paths, "save_modified_images")
 
         col = layout.column()
         col.prop(paths, "save_version")

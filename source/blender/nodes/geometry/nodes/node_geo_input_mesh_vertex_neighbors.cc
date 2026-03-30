@@ -12,12 +12,12 @@ namespace blender::nodes::node_geo_input_mesh_vertex_neighbors_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Int>("Vertex Count")
+  b.add_output<decl::Int>("Vertex Count"_ustr)
       .field_source()
       .description(
           "The number of vertices connected to this vertex with an edge, "
           "equal to the number of connected edges");
-  b.add_output<decl::Int>("Face Count")
+  b.add_output<decl::Int>("Face Count"_ustr)
       .field_source()
       .description("Number of faces that contain the vertex");
 }
@@ -99,8 +99,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   Field<int> vertex_field{std::make_shared<VertexCountFieldInput>()};
   Field<int> face_field{std::make_shared<VertexFaceCountFieldInput>()};
 
-  params.set_output("Vertex Count", std::move(vertex_field));
-  params.set_output("Face Count", std::move(face_field));
+  params.set_output("Vertex Count"_ustr, std::move(vertex_field));
+  params.set_output("Face Count"_ustr, std::move(face_field));
 }
 
 static void node_register()

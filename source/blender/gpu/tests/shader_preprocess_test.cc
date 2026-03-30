@@ -769,7 +769,35 @@ template void func(float a);
 )";
     string error;
     string output = process_test_string(input, error);
-    EXPECT_EQ(error, "Template instantiation unsupported syntax");
+    EXPECT_EQ(error,
+              "Template instantiation and specialization require explicit template arguments");
+  }
+  {
+    string input = R"(
+template A<f> fn(A<f> a);
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error,
+              "Template instantiation and specialization require explicit template arguments");
+  }
+  {
+    string input = R"(
+template<> A fn(A a) {}
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error,
+              "Template instantiation and specialization require explicit template arguments");
+  }
+  {
+    string input = R"(
+template<> A<f> fn(A<f> a) {}
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error,
+              "Template instantiation and specialization require explicit template arguments");
   }
   {
     string input = R"(func<float, 1>(a);)";
@@ -811,6 +839,43 @@ static void test_preprocess_template_struct()
   using namespace shader;
   using namespace std;
 
+  {
+    string input = R"(
+template<typename T>
+struct A {
+  T a;
+  A method(T b) const 
+  {
+    return A<T>{b};
+  }
+};
+template struct A<float>;
+)";
+    string expect = R"(
+#line 3
+struct ATfloat {
+  float a;
+#line 9
+};
+
+#ifndef GPU_METAL
+ATfloat ATfloat_ctor_();
+ATfloat _method(const ATfloat this_, float b);
+#endif
+#line 3
+                       ATfloat ATfloat_ctor_() {ATfloat r;r.a=0.0f;return r;}
+#line 5
+  ATfloat _method(const ATfloat this_, float b)
+  {
+    return _ctor(ATfloat) b _rotc() ;
+  }
+#line 11
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
   {
     string input = R"(
 template<typename T>
@@ -1523,6 +1588,23 @@ static void test_preprocess_namespace()
 
   {
     string input = R"(
+struct C {};
+void fn(C b) {}
+namespace B {
+struct D {};
+void fn(D b) {}
+void fn2()
+{
+  fn(C{});
+}
+}
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error, "Call to function is ambiguous. Specify namespace to remove ambiguity.");
+  }
+  {
+    string input = R"(
 namespace A {
 int func(int a) { return 0; }
 int func2(int a)
@@ -2050,7 +2132,7 @@ static void test_preprocess_resource_guard()
   {
     string input = R"(
 void my_func() {
-  interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_index;
+  interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_id;
 }
 )";
     string expect = R"(
@@ -2058,7 +2140,7 @@ void my_func() {
 
 #if defined(CREATE_INFO_draw_resource_id_varying)
 #line 3
-  interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_index;
+  interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_id;
 
 #endif
 #line 4
@@ -2073,7 +2155,7 @@ void my_func() {
     string input = R"(
 uint my_func() {
   uint i = 0;
-  i += interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_index;
+  i += interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_id;
   return i;
 }
 )";
@@ -2083,7 +2165,7 @@ uint my_func() {
 #if defined(CREATE_INFO_draw_resource_id_varying)
 #line 3
   uint i = 0;
-  i += interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_index;
+  i += interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_id;
   return i;
 
 #else
@@ -2103,7 +2185,7 @@ uint my_func() {
 uint my_func() {
   uint i = 0;
   {
-    i += interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_index;
+    i += interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_id;
   }
   return i;
 }
@@ -2115,7 +2197,7 @@ uint my_func() {
 
 #if defined(CREATE_INFO_draw_resource_id_varying)
 #line 5
-    i += interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_index;
+    i += interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_id;
 
 #endif
 #line 6
@@ -2133,7 +2215,7 @@ uint my_func() {
 uint my_func() {
   uint i = 0;
   {
-    i += interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_index;
+    i += interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_id;
     i += buffer_get(draw_resource_id, resource_id_buf)[0];
   }
   return i;
@@ -2149,7 +2231,7 @@ uint my_func() {
 
 #if defined(CREATE_INFO_draw_resource_id)
 #line 5
-    i += interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_index;
+    i += interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_id;
     i += buffer_get(draw_resource_id, resource_id_buf)[0];
 
 #endif
