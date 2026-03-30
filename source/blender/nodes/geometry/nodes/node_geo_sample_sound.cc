@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_sound.hh"
+#include "BKE_sound_sample.hh"
 
 #include "NOD_socket_usage_inference.hh"
 
@@ -59,22 +59,22 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
   b.allow_any_socket_order();
 
-  b.add_output<decl::Float>("Amplitude")
+  b.add_output<decl::Float>("Amplitude"_ustr)
       .reference_pass_all()
       .description("Sum of amplitudes of the frequencies in the given range")
       .structure_type(StructureType::Dynamic);
-  b.add_input<decl::Sound>("Sound").optional_label().description("Sound to sample");
-  b.add_input<decl::Float>("Time")
+  b.add_input<decl::Sound>("Sound"_ustr).optional_label().description("Sound to sample");
+  b.add_input<decl::Float>("Time"_ustr)
       .subtype(PROP_TIME_ABSOLUTE)
       .supports_field()
       .structure_type(StructureType::Dynamic)
       .description("Time in seconds of the sound to sample at");
-  b.add_input<decl::Bool>("All Channels")
+  b.add_input<decl::Bool>("All Channels"_ustr)
       .default_value(true)
       .supports_field()
       .structure_type(StructureType::Dynamic)
       .description("Mix all channels before sampling the sound (e.g. stereo to mono)");
-  b.add_input<decl::Int>("Channel")
+  b.add_input<decl::Int>("Channel"_ustr)
       .min(0)
       .usage_inference(
           [](const socket_usage_inference::SocketUsageParams &params) -> std::optional<bool> {
@@ -96,14 +96,14 @@ static void node_declare(NodeDeclarationBuilder &b)
       .supports_field()
       .structure_type(StructureType::Dynamic)
       .description("The channel to sample unless 'All Channels' is checked");
-  b.add_input<decl::Float>("Low")
+  b.add_input<decl::Float>("Low"_ustr)
       .subtype(PROP_FREQUENCY)
       .default_value(0.0f)
       .min(0.0f)
       .supports_field()
       .structure_type(StructureType::Dynamic)
       .description("Lower bound of the sampled frequency range");
-  b.add_input<decl::Float>("High")
+  b.add_input<decl::Float>("High"_ustr)
       .subtype(PROP_FREQUENCY)
       .default_value(10'000.0f)
       .min(0.0f)
@@ -115,14 +115,14 @@ static void node_declare(NodeDeclarationBuilder &b)
     auto &p = b.add_panel("FFT"_ustr)
                   .default_closed(true)
                   .description("Configure details of the fourier transformation");
-    p.add_input<decl::Menu>("FFT Size")
+    p.add_input<decl::Menu>("FFT Size"_ustr)
         .static_items(fft_size_items)
         .default_value(FFTSize::_4096)
         .optional_label()
         .description(
             "Number of samples to process in the discrete fourier transformation at once. Higher "
             "values have better frequency but worse time resolution and vice versa");
-    p.add_input<decl::Menu>("Window Function")
+    p.add_input<decl::Menu>("Window Function"_ustr)
         .static_items(window_function_items)
         .default_value(WindowFunction::Hann)
         .optional_label()
