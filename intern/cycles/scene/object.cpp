@@ -607,7 +607,8 @@ void ObjectManager::device_update_object_transform(UpdateObjectTransformState *s
 
   /* TODO: why not check hair? */
   if (geom->is_pointcloud()) {
-    if (geom->attributes.find(ATTR_STD_MOTION_VERTEX_POSITION)) {
+    PointCloud *pointcloud = static_cast<PointCloud *>(geom);
+    if (pointcloud->has_motion()) {
       flag |= SD_OBJECT_HAS_VERTEX_MOTION;
     }
   }

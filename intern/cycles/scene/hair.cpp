@@ -282,6 +282,7 @@ NODE_DEFINE(Hair)
   NodeType *type = NodeType::add("hair", create, NodeType::NONE, Geometry::get_node_base_type());
 
   SOCKET_POINT_ARRAY(curve_keys, "Curve Keys", array<float3>());
+  SOCKET_POINT_ARRAY(curve_keys_pre, "Previous Curve Keys", array<float3>());
   SOCKET_FLOAT_ARRAY(curve_radius, "Curve Radius", array<float>());
   SOCKET_INT_ARRAY(curve_first_key, "Curve First Key", array<int>());
   SOCKET_INT_ARRAY(curve_shader, "Curve Shader", array<int>());
@@ -653,6 +654,34 @@ bool Hair::update_shadow_transparency(Device *device, Scene *scene, Progress &pr
   }
 
   return true;
+}
+
+void Hair::update_motion(Scene *scene)
+{
+  if (curve_keys_pre.empty()) {
+    return;
+  }
+
+  if (need_attribute(scene, ATTR_STD_MOTION_VERTEX_POSITION) && has_motion()) {
+    if (motion_steps == 0) {
+      motion_steps = 3;
+    }
+
+    Attribute *attr_mP = attributes.add(ATTR_STD_MOTION_VERTEX_POSITION);
+    attr_mP->modified = true;
+    std::copy_n(curve_keys_pre.data(), curve_keys_pre.size(), attr_mP->data_float3());
+    std::copy_n(
+        curve_keys.data(), curve_keys.size(), attr_mP->data_float3() + curve_keys_pre.size());
+  }
+}
+
+bool Hair::has_motion() const
+{
+  if (curve_keys_pre.size() == curve_keys.size() && curve_keys_pre != curve_keys) {
+    return true;
+  }
+
+  return attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
 }
 
 CCL_NAMESPACE_END

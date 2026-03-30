@@ -40,6 +40,7 @@ class PointCloud : public Geometry {
   };
 
   NODE_SOCKET_API_ARRAY(array<float3>, points)
+  NODE_SOCKET_API_ARRAY(array<float3>, points_pre)
   NODE_SOCKET_API_ARRAY(array<float>, radius)
   NODE_SOCKET_API_ARRAY(array<int>, shader)
 
@@ -82,6 +83,9 @@ class PointCloud : public Geometry {
 
   /* BVH */
   void pack(Scene *scene, float4 *packed_points, uint *packed_shader);
+
+  void update_motion(Scene *scene);
+  bool has_motion() const;
 
  private:
   friend class BVH2;

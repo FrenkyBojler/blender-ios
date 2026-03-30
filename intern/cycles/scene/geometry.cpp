@@ -192,6 +192,26 @@ void GeometryManager::update_motion_pre(Scene *scene)
                        update = true;
                      }
                    }
+                   else if (geom->is_hair()) {
+                     Hair *hair = static_cast<Hair *>(geom);
+
+                     if (hair->curve_keys != hair->curve_keys_pre) {
+                       hair->curve_keys_pre = hair->curve_keys;
+                       hair->tag_curve_keys_pre_modified();
+
+                       update = true;
+                     }
+                   }
+                   else if (geom->is_pointcloud()) {
+                     PointCloud *pointcloud = static_cast<PointCloud *>(geom);
+
+                     if (pointcloud->points != pointcloud->points_pre) {
+                       pointcloud->points_pre = pointcloud->points;
+                       pointcloud->tag_points_pre_modified();
+
+                       update = true;
+                     }
+                   }
                  }
                });
 
@@ -827,7 +847,22 @@ void GeometryManager::device_update(Device *device,
       return;
     }
 
-    if (!(geom->is_modified() && geom->is_mesh())) {
+    if (!geom->is_modified()) {
+      return;
+    }
+
+    if (geom->is_hair()) {
+      Hair *hair = static_cast<Hair *>(geom);
+      hair->update_motion(scene);
+      return;
+    }
+    if (geom->is_pointcloud()) {
+      PointCloud *pointcloud = static_cast<PointCloud *>(geom);
+      pointcloud->update_motion(scene);
+      return;
+    }
+
+    if (!geom->is_mesh()) {
       return;
     }
 

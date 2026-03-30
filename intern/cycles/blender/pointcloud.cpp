@@ -196,6 +196,9 @@ void BlenderSync::sync_pointcloud(PointCloud *pointcloud, BObjectInfo &b_ob_info
 {
   const size_t old_numpoints = pointcloud->num_points();
 
+  array<float3> points_pre;
+  points_pre.steal_data(pointcloud->get_points_pre());
+
   array<Node *> used_shaders = pointcloud->get_used_shaders();
 
   PointCloud new_pointcloud;
@@ -223,6 +226,10 @@ void BlenderSync::sync_pointcloud(PointCloud *pointcloud, BObjectInfo &b_ob_info
   }
 
   pointcloud->attributes.update(std::move(new_pointcloud.attributes));
+
+  if (pointcloud->get_points().size() == points_pre.size()) {
+    pointcloud->set_points_pre(points_pre);
+  }
 
   /* Tag update. */
   const bool rebuild = (pointcloud && old_numpoints != pointcloud->num_points());

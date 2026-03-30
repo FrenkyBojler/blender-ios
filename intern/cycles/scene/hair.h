@@ -81,6 +81,7 @@ class Hair : public Geometry {
   };
 
   NODE_SOCKET_API_ARRAY(array<float3>, curve_keys)
+  NODE_SOCKET_API_ARRAY(array<float3>, curve_keys_pre)
   NODE_SOCKET_API_ARRAY(array<float>, curve_radius)
   NODE_SOCKET_API_ARRAY(array<int>, curve_first_key)
   NODE_SOCKET_API_ARRAY(array<int>, curve_shader)
@@ -150,6 +151,12 @@ class Hair : public Geometry {
   bool need_shadow_transparency() const;
   bool need_update_shadow_transparency() const;
   bool update_shadow_transparency(Device *device, Scene *scene, Progress &progress);
+
+  void update_motion(Scene *scene);
+  bool has_motion() const;
+
+ private:
+  friend class GeometryManager;
 };
 
 CCL_NAMESPACE_END

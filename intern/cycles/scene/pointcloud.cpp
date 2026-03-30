@@ -83,6 +83,7 @@ NODE_DEFINE(PointCloud)
       "pointcloud", create, NodeType::NONE, Geometry::get_node_base_type());
 
   SOCKET_POINT_ARRAY(points, "Points", array<float3>());
+  SOCKET_POINT_ARRAY(points_pre, "Previous Points", array<float3>());
   SOCKET_FLOAT_ARRAY(radius, "Radius", array<float>());
   SOCKET_INT_ARRAY(shader, "Shader", array<int>());
 
@@ -272,6 +273,33 @@ void PointCloud::pack(Scene *scene, float4 *packed_points, uint *packed_shader)
 PrimitiveType PointCloud::primitive_type() const
 {
   return has_motion_blur() ? PRIMITIVE_MOTION_POINT : PRIMITIVE_POINT;
+}
+
+void PointCloud::update_motion(Scene *scene)
+{
+  if (points_pre.empty()) {
+    return;
+  }
+
+  if (need_attribute(scene, ATTR_STD_MOTION_VERTEX_POSITION) && has_motion()) {
+    if (motion_steps == 0) {
+      motion_steps = 3;
+    }
+
+    Attribute *attr_mP = attributes.add(ATTR_STD_MOTION_VERTEX_POSITION);
+    attr_mP->modified = true;
+    std::copy_n(points_pre.data(), points_pre.size(), attr_mP->data_float3());
+    std::copy_n(points.data(), points.size(), attr_mP->data_float3() + points_pre.size());
+  }
+}
+
+bool PointCloud::has_motion() const
+{
+  if (points_pre.size() == points.size() && points_pre != points) {
+    return true;
+  }
+
+  return attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
 }
 
 CCL_NAMESPACE_END

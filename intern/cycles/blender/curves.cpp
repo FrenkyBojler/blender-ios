@@ -1058,6 +1058,9 @@ void BlenderSync::sync_hair(Hair *hair, BObjectInfo &b_ob_info, bool motion, con
 
 void BlenderSync::sync_hair(BObjectInfo &b_ob_info, Hair *hair)
 {
+  array<float3> curve_keys_pre;
+  curve_keys_pre.steal_data(hair->get_curve_keys_pre());
+
   /* make a copy of the shaders as the caller in the main thread still need them for syncing the
    * attributes */
   array<Node *> used_shaders = hair->get_used_shaders();
@@ -1094,6 +1097,10 @@ void BlenderSync::sync_hair(BObjectInfo &b_ob_info, Hair *hair)
   hair->attributes.update(std::move(new_hair.attributes));
 
   hair->curve_shape = new_hair.curve_shape;
+
+  if (hair->get_curve_keys().size() == curve_keys_pre.size()) {
+    hair->set_curve_keys_pre(curve_keys_pre);
+  }
 
   /* tag update */
 
