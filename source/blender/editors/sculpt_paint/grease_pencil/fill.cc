@@ -1096,6 +1096,127 @@ static std::pair<int, int> order_edge(const std::pair<int, int> &edge)
   return edge;
 }
 
+enum Side : uint8_t { Start = 0, End = 1 };
+
+using EncodedConnection = int;
+static constexpr EncodedConnection EDGE_CONNECTION_NULL = 0;
+
+/* We store the side as sign, but because a segment with index zero is valid, we shift by one. */
+static EncodedConnection encode_index_and_side(const int index, const Side side)
+{
+  return side == Side::Start ? index + 1 : -(index + 1);
+}
+
+static int decode_index(const EncodedConnection encoded)
+{
+  return math::abs(encoded) - 1;
+}
+
+static Side decode_side(const EncodedConnection encoded)
+{
+  return encoded < 0 ? Side::End : Side::Start;
+}
+
+/* Both the start and end of every segment is connected to two other edges or null. */
+using EdgeConnections = VecBase<EncodedConnection, 2>;
+
+static void follow_edge_connections(const Span<int> all_edges,
+                                    const Span<bool> edges_to_keep,
+                                    const Span<EdgeConnections> edge_connections,
+                                    Vector<int> &edges,
+                                    Vector<int> &edge_offset_data,
+                                    Vector<bool> &edge_reversed)
+{
+  BLI_assert(all_edges.size() == edges_to_keep.size());
+  BLI_assert(all_edges.size() == edge_connections.size());
+
+  edge_offset_data.append(0);
+
+  Array<bool> processed_edges(all_edges.size(), false);
+  int start_edge = 0;
+
+  auto get_next_unprocessed_edge = [&]() {
+    /* All segment before `start_edge` are guaranteed to be processed, so skip search them.
+     * This optimization make the algorithm `O(N)` instead of `O(N^2)`.*/
+    const int empty_num = start_edge;
+    const int first_segment = processed_edges.as_span().drop_front(empty_num).first_index_try(
+        false);
+
+    if (first_segment == -1) {
+      return -1;
+    }
+    return first_segment + empty_num;
+  };
+
+  /* Mark all edges that are not to keep as processed. */
+  for (const int seg_i : all_edges.index_range()) {
+    if (!edges_to_keep[seg_i]) {
+      processed_edges[seg_i] = true;
+    }
+  }
+
+  start_edge = get_next_unprocessed_edge();
+
+  /* Follow each segment until it loops or ends. */
+  while (start_edge != -1) {
+    Vector<int> curve_edges;
+    Vector<bool> curve_edge_reversed;
+
+    bool current_backwards = false;
+    int current_i = start_edge;
+    const int first_segment = current_i;
+
+    /* Loop through forwards, adding edges until ending or looping. */
+    bool curve_done = false;
+    while (!curve_done) {
+      // temp_3++;
+      // printf("temp_3 %i\n", temp_3);
+      if (processed_edges[current_i] == true) {
+        BLI_assert_unreachable();
+        // printf("BLI_assert_unreachable\n");
+        break;
+      }
+
+      const int current_edge = all_edges[current_i];
+      processed_edges[current_i] = true;
+      curve_edges.append(current_edge);
+      curve_edge_reversed.append(current_backwards);
+
+      const EncodedConnection next_encoded =
+          edge_connections[current_i][current_backwards ? Side::Start : Side::End];
+
+      if (next_encoded == EDGE_CONNECTION_NULL) {
+        curve_done = true;
+        break;
+      }
+
+      const int next_segment = decode_index(next_encoded);
+      const Side next_side = decode_side(next_encoded);
+
+      /* Check if we are back to the start. */
+      if (next_segment == first_segment) {
+        curve_done = true;
+
+        BLI_assert(next_side == Side::Start);
+        break;
+      }
+
+      BLI_assert(edges_to_keep[next_segment]);
+      BLI_assert(!processed_edges[next_segment]);
+
+      current_i = next_segment;
+      current_backwards = next_side == Side::End;
+    }
+
+    edges.extend(curve_edges);
+    edge_reversed.extend(curve_edge_reversed);
+
+    edge_offset_data.append(edges.size());
+
+    start_edge = get_next_unprocessed_edge();
+  }
+}
+
 bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
                                  const Brush &brush,
                                  const Scene &scene,
@@ -1563,13 +1684,93 @@ bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
         }
       }
 
+      Array<EdgeConnections> edge_connections(result.edge.size(),
+                                              EdgeConnections(EDGE_CONNECTION_NULL));
+
+      Array<int> all_edges(result.edge.size());
+      Array<bool> edges_to_keep(result.edge.size(), false);
+      Vector<int> edges;
+      Vector<int> edge_offset_data;
+      Vector<bool> edge_reversed;
+
+      array_utils::fill_index_range<int>(all_edges);
+
       for (const int boundary_index : boundary_edges.index_range()) {
         const int edge_index = boundary_edges[boundary_index];
-        const std::pair<int, int> edge = result.edge[edge_index];
+        edges_to_keep[edge_index] = true;
+      }
+
+      // auto connect = [&](const EncodedConnection point_1, const EncodedConnection point_2) {
+      //   segment_connections[decode_index(point_1)][decode_side(point_1)] =
+      //   encode_index_and_side(
+      //       decode_index(point_2), decode_side(point_2));
+      //   segment_connections[decode_index(point_2)][decode_side(point_2)] =
+      //   encode_index_and_side(
+      //       decode_index(point_1), decode_side(point_1));
+      // };
+
+      /* TODO. Improve from O(n^2) */
+      for (const int boundary_index_1 : boundary_edges.index_range()) {
+        const int edge_index_1 = boundary_edges[boundary_index_1];
+        const std::pair<int, int> edge_1 = result.edge[edge_index_1];
+
+        for (const int boundary_index_2 : boundary_edges.index_range()) {
+          if (boundary_index_1 == boundary_index_2) {
+            continue;
+          }
+
+          const int edge_index_2 = boundary_edges[boundary_index_2];
+          const std::pair<int, int> edge_2 = result.edge[edge_index_2];
+
+          if (edge_1.first == edge_2.first) {
+            edge_connections[edge_index_1][Side::Start] = encode_index_and_side(edge_index_2,
+                                                                                Side::Start);
+            edge_connections[edge_index_2][Side::Start] = encode_index_and_side(edge_index_1,
+                                                                                Side::Start);
+          }
+          if (edge_1.second == edge_2.first) {
+            edge_connections[edge_index_1][Side::End] = encode_index_and_side(edge_index_2,
+                                                                              Side::Start);
+            edge_connections[edge_index_2][Side::Start] = encode_index_and_side(edge_index_1,
+                                                                                Side::End);
+          }
+          if (edge_1.first == edge_2.second) {
+            edge_connections[edge_index_1][Side::Start] = encode_index_and_side(edge_index_2,
+                                                                                Side::End);
+            edge_connections[edge_index_2][Side::End] = encode_index_and_side(edge_index_1,
+                                                                              Side::Start);
+          }
+          if (edge_1.second == edge_2.second) {
+            edge_connections[edge_index_1][Side::End] = encode_index_and_side(edge_index_2,
+                                                                              Side::End);
+            edge_connections[edge_index_2][Side::End] = encode_index_and_side(edge_index_1,
+                                                                              Side::End);
+          }
+        }
+      }
+
+      follow_edge_connections(
+          all_edges, edges_to_keep, edge_connections, edges, edge_offset_data, edge_reversed);
+
+      int i = 0;
+      for (const int curve_i : edge_offset_data.index_range().drop_back(1)) {
+        const int curve_size = edge_offset_data[curve_i + 1] - edge_offset_data[curve_i];
 
         geometry.append(Vector<int>());
-        geometry.last().append(edge.first);
-        geometry.last().append(edge.second);
+        for (const int i_ : IndexRange(curve_size)) {
+          const int edge_index = edges[i];
+          const std::pair<int, int> edge = result.edge[edge_index];
+          const bool reversed = edge_reversed[i];
+
+          if (reversed) {
+            geometry.last().append(edge.second);
+          }
+          else {
+            geometry.last().append(edge.first);
+          }
+
+          i++;
+        }
       }
     }
   }
