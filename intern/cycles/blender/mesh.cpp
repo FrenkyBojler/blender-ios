@@ -890,6 +890,9 @@ void BlenderSync::sync_mesh(BObjectInfo &b_ob_info, Mesh *mesh)
 {
   array<float3> verts_pre;
   verts_pre.steal_data(mesh->get_verts_pre());
+  if (verts_pre.empty()) {
+    verts_pre.steal_data(mesh->get_verts());
+  }
 
   /* make a copy of the shaders as the caller in the main thread still need them for syncing the
    * attributes */

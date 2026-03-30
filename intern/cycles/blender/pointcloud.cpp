@@ -194,10 +194,13 @@ static void export_pointcloud_motion(PointCloud *pointcloud,
 
 void BlenderSync::sync_pointcloud(PointCloud *pointcloud, BObjectInfo &b_ob_info)
 {
-  const size_t old_numpoints = pointcloud->num_points();
-
   array<float3> points_pre;
   points_pre.steal_data(pointcloud->get_points_pre());
+  if (points_pre.empty()) {
+    points_pre.steal_data(pointcloud->get_points());
+  }
+
+  const size_t old_numpoints = pointcloud->num_points();
 
   array<Node *> used_shaders = pointcloud->get_used_shaders();
 
