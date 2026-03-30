@@ -185,7 +185,8 @@ ResultT eval(sampler2D hiz_tx,
         float lod = 1.0f + saturate(float(j) - noise.w) * uniform_buf.ao.lod_factor;
 
         float2 sample_uv = ssray.origin.xy + ssray.direction.xy * time;
-        float sample_depth = textureLod(hiz_tx, sample_uv * uniform_buf.hiz.uv_scale, lod).r;
+        float sample_depth =
+            textureLod(hiz_tx, sample_uv * uniform_buf.hiz.uv_scale, floor(lod)).r;
 
         if (sample_depth == 1.0f && !reversed) {
           /* Skip background. Avoids making shadow on the geometry near the far plane. */
