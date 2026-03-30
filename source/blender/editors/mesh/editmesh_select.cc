@@ -1979,7 +1979,7 @@ void MESH_OT_select_boundary_loop_multi(wmOperatorType *ot)
   RNA_def_enum_flag(ot->srna,
                     "delimit_edge_loop",
                     rna_enum_mesh_walk_delimit_edge_loop_items,
-                    BMW_DELIMIT_EDGE_LOOP_OUTER_CORNERS | BMW_DELIMIT_EDGE_LOOP_NGONS,
+                    BMW_DELIMIT_NONE,
                     "Delimit",
                     "Delimit edge loop selection");
 }
