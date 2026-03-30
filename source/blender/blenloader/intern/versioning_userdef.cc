@@ -1775,6 +1775,9 @@ void blo_do_versions_userdef(UserDef *userdef)
     userdef->geometry_nodes_stack_limit = 100;
   }
 
+  if (!USER_VERSION_ATLEAST(502, 17)) {
+    userdef->flag |= USER_BLENDER_UPDATE_LATEST_LTS_RELEASE;
+  }
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a USER_VERSION_ATLEAST check.
