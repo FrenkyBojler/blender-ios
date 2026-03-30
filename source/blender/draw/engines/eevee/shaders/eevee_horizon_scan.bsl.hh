@@ -156,6 +156,8 @@ ResultT eval(sampler2D hiz_tx,
     vN_angle += (noise.z - 0.5f) * (M_PI / 32.0f) * angle_bias;
 
     SphericalHarmonicL1<float4> sh_slice = {};
+    /* The 4th component contains visibility. Set visibility to 1 for the upper hemisphere. */
+    sh_slice.encode_signal_sample(vN, float4(0.0f, 0.0f, 0.0f, 1.0f));
 
     /* For both sides of the view vector. */
     for (int side = 0; side < 2; side++) {
@@ -231,7 +233,7 @@ ResultT eval(sampler2D hiz_tx,
         float weight_bitmask = bitmask_to_visibility_uniform(sample_bitmask & ~slice_bitmask);
 
         radiance *= facing_weight * weight_bitmask;
-        sh_slice.encode_signal_sample(vL_front, float4(radiance, weight_bitmask));
+        sh_slice.encode_signal_sample(vL_front, float4(radiance, -weight_bitmask));
 
         slice_bitmask |= sample_bitmask;
       }
@@ -755,20 +757,13 @@ void resolve([[work_group_id]] const uint3 group_id,
     float3 vL = drw_normal_world_to_view(L);
 
     /* Evaluate lighting from horizon scan. */
-    float3 radiance = accum_sh.evaluate_lambert(vL).rgb;
-
-    /* Evaluate visibility from horizon scan. */
-    float occlusion = accum_sh.evaluate_lambert(vL).a;
-    /* FIXME(fclem): Tried to match the old occlusion look. I don't know why it's needed. */
-    occlusion *= 0.5f;
-    /* TODO(fclem): Ideally, we should just combine both local and distant irradiance and evaluate
-     * once. Unfortunately, I couldn't find a way to do the same (1.0 - occlusion) with the
-     * spherical harmonic coefficients. */
-    float visibility = saturate(1.0f - occlusion);
-
+    float4 radiance_with_visibility = accum_sh.evaluate_lambert(vL);
+    float3 radiance = radiance_with_visibility.xyz;
+    /* Evaluate occlusion from horizon scan. */
+    /* TODO: why do we need this factor. */
+    float distant_radiance_visibility = saturate(radiance_with_visibility.w * 0.29f);
     /* Apply missing distant lighting. */
-    float3 radiance_probe = samp.volume_irradiance.evaluate_lambert(L).rgb;
-    radiance += visibility * radiance_probe;
+    radiance += distant_radiance_visibility * samp.volume_irradiance.evaluate_lambert(L).rgb;
 
     uchar layer_index = bin_indices[i];
 
