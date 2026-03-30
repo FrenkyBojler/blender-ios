@@ -13,6 +13,7 @@
 #include "DNA_windowmanager_types.h"
 
 #include "BLI_listbase.h"
+#include "BLI_profile.hh"
 
 #include "BKE_context.hh"
 #include "BKE_screen.hh"
@@ -257,6 +258,7 @@ bool ED_region_draw_cb_exit(ARegionType *art, void *handle)
 
 static void ed_region_draw_cb_draw(const bContext *C, ARegion *region, ARegionType *art, int type)
 {
+  BLI_profile_zone_scoped;
   for (RegionDrawCB &rdc : art->drawcalls.items_mutable()) {
     if (rdc.type == type) {
       rdc.draw(C, region, rdc.customdata);

@@ -15,6 +15,7 @@
 #include "BLI_math_half.hh"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
+#include "BLI_profile.hh"
 #include "BLI_rect.h"
 #include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
@@ -354,6 +355,7 @@ void ED_view3d_draw_setup_view(const wmWindowManager *wm,
                                const float winmat[4][4],
                                const rcti *rect)
 {
+  BLI_profile_zone_scoped;
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
 
 #ifdef WITH_XR_OPENXR
@@ -1746,6 +1748,7 @@ void view3d_draw_region_info(const bContext *C, ARegion *region)
 
 static void view3d_draw_view(const bContext *C, ARegion *region)
 {
+  BLI_profile_zone_scoped;
   ED_view3d_draw_setup_view(CTX_wm_manager(C),
                             CTX_wm_window(C),
                             CTX_data_expect_evaluated_depsgraph(C),
@@ -1787,6 +1790,8 @@ static void view3d_update_viewer_path(const bContext *C)
 
 void view3d_main_region_draw(const bContext *C, ARegion *region)
 {
+  BLI_profile_zone_scoped;
+
   using namespace blender::draw;
   Main *bmain = CTX_data_main(C);
   View3D *v3d = CTX_wm_view3d(C);

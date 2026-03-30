@@ -25,6 +25,7 @@
 #include "DNA_userdef_types.h"
 
 #include "BLI_listbase.h"
+#include "BLI_profile.hh"
 #include "BLI_rect.h"
 #include "BLI_set.hh"
 #include "BLI_string.h"
@@ -2222,6 +2223,7 @@ static bool but_pixelrect_in_view(const ARegion *region, const rcti *rect)
 
 void block_draw(const bContext *C, Block *block)
 {
+  BLI_profile_zone_scoped;
   uiStyle style = *style_get_dpi(); /* XXX pass on as arg */
 
   /* get menu region or area region */
@@ -3812,6 +3814,7 @@ void blocklist_update_view_for_buttons(const bContext *C, const ListBaseT<Block>
 
 void blocklist_draw(const bContext *C, const ListBaseT<Block> *lb)
 {
+  BLI_profile_zone_scoped;
   for (Block &block : *lb) {
     if (block.active) {
       block_draw(C, &block);

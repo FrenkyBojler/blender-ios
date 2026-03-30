@@ -17,6 +17,7 @@
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
+#include "BLI_profile.hh"
 #include "BLI_rand.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
@@ -95,6 +96,7 @@ void ED_region_pixelspace(const ARegion *region)
 
 void ED_region_do_listen(wmRegionListenerParams *params)
 {
+  BLI_profile_zone_scoped;
   ARegion *region = params->region;
   const wmNotifier *notifier = params->notifier;
 
@@ -481,6 +483,7 @@ void ED_region_do_layout(bContext *C, ARegion *region)
 
 void ED_region_do_draw(bContext *C, ARegion *region)
 {
+  BLI_profile_zone_scoped;
   wmWindow *win = CTX_wm_window(C);
   ScrArea *area = CTX_wm_area(C);
   ARegionType *at = region->runtime->type;
@@ -3583,6 +3586,7 @@ void ED_region_draw_overflow_indication(const ScrArea *area,
 
 void ED_region_panels_layout(const bContext *C, ARegion *region)
 {
+  BLI_profile_zone_scoped;
   ED_region_panels_layout_ex(C,
                              region,
                              &region->runtime->type->paneltypes,
@@ -3593,6 +3597,7 @@ void ED_region_panels_layout(const bContext *C, ARegion *region)
 
 void ED_region_panels_draw(const bContext *C, ARegion *region)
 {
+  BLI_profile_zone_scoped;
   View2D *v2d = &region->v2d;
   const float aspect = BLI_rctf_size_y(&region->v2d.cur) /
                        (BLI_rcti_size_y(&region->v2d.mask) + 1);
@@ -3844,6 +3849,7 @@ bool ED_region_property_search(const bContext *C,
 
 void ED_region_header_layout(const bContext *C, ARegion *region)
 {
+  BLI_profile_zone_scoped;
   const uiStyle *style = ui::style_get_dpi();
   bool region_layout_based = region->flag & RGN_FLAG_DYNAMIC_SIZE;
   const ScrArea *area = CTX_wm_area(C);
@@ -3945,6 +3951,8 @@ static void region_draw_blocks_in_view2d(const bContext *C, const ARegion *regio
 
 void ED_region_header_draw(const bContext *C, ARegion *region)
 {
+  BLI_profile_zone_scoped;
+
   /* clear */
   ED_region_clear(C, region, region_background_color_id(C, region));
 
@@ -3978,6 +3986,8 @@ void ED_region_header_draw_with_button_sections(const bContext *C,
 
 void ED_region_header(const bContext *C, ARegion *region)
 {
+  BLI_profile_zone_scoped;
+
   /* TODO: remove? */
   ED_region_header_layout(C, region);
   ED_region_header_draw(C, region);
@@ -3987,6 +3997,7 @@ void ED_region_header_with_button_sections(const bContext *C,
                                            ARegion *region,
                                            const ui::ButtonSectionsAlign align)
 {
+  BLI_profile_zone_scoped;
   ED_region_header_layout(C, region);
   ED_region_header_draw_with_button_sections(C, region, align);
 }
