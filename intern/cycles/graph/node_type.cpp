@@ -218,7 +218,7 @@ const SocketType *NodeType::find_output(ustring name) const
  * The initialization functions are stored in std::vector without guarded allocation
  * as that may not been properly initialized yet. */
 
-thread_mutex types_mutex_;
+static thread_mutex g_types_mutex_;
 
 static unordered_map<ustring, NodeType> &types()
 {
@@ -226,7 +226,7 @@ static unordered_map<ustring, NodeType> &types()
   return _types;
 }
 
-std::vector<const NodeType *(*)()> &types_on_init()
+static std::vector<const NodeType *(*)()> &types_on_init()
 {
   static std::vector<const NodeType *(*)()> _types_on_init;
   return _types_on_init;
@@ -234,9 +234,13 @@ std::vector<const NodeType *(*)()> &types_on_init()
 
 static void ensure_types_initialized()
 {
+  static thread_mutex ensure_init_mutex;
+  thread_scoped_lock lock(ensure_init_mutex);
+
   for (const auto &init_func : types_on_init()) {
     init_func();
   }
+
   types_on_init().clear();
 }
 
@@ -251,7 +255,7 @@ NodeType *NodeType::add(const char *name_, CreateFunc create_, Type type_, const
   const ustring name(name_);
 
   /* Types can be lazily registered from multiple threads. */
-  thread_scoped_lock lock(types_mutex_);
+  thread_scoped_lock lock(g_types_mutex_);
 
   if (types().find(name) != types().end()) {
     LOG_ERROR << "Node type " << name_ << " registered twice";
@@ -269,17 +273,18 @@ NodeType *NodeType::add(const char *name_, CreateFunc create_, Type type_, const
 
 const NodeType *NodeType::find(ustring name)
 {
-  thread_scoped_lock lock(types_mutex_);
   ensure_types_initialized();
+
+  thread_scoped_lock lock(g_types_mutex_);
   const unordered_map<ustring, NodeType>::iterator it = types().find(name);
   return (it == types().end()) ? nullptr : &it->second;
 }
 
 vector<ustring> NodeType::type_names()
 {
-  thread_scoped_lock lock(types_mutex_);
   ensure_types_initialized();
 
+  thread_scoped_lock lock(g_types_mutex_);
   vector<ustring> names;
   for (const auto &pair : types()) {
     names.push_back(pair.first);
