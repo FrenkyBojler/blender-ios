@@ -254,10 +254,27 @@ static bDeformGroup *find_vertex_group(ListBaseT<bDeformGroup> &vertex_groups,
   return nullptr;
 }
 
+static void ensure_array_storage(Attribute &attr,
+                                 const FunctionRef<int(AttrDomain)> domain_size_fn)
+{
+  switch (attr.storage_type()) {
+    case AttrStorageType::Single: {
+      const auto &data = std::get<Attribute::SingleData>(attr.data());
+      const GPointer value(attribute_type_to_cpp_type(attr.data_type()), data.value);
+      attr.assign_data(Attribute::ArrayData::from_value(value, domain_size_fn(attr.domain())));
+      break;
+    }
+    case AttrStorageType::Array:
+      break;
+  }
+}
+
 Set<StringRef> rename_attributes(AttributeStorage &storage,
                                  const Map<StringRef, StringRef> &name_map,
                                  const bool overwrite,
                                  const Map<StringRef, AttrBuiltinInfo> &builtin_attributes,
+                                 const Set<StringRef> &array_storage_required,
+                                 const FunctionRef<int(AttrDomain)> domain_size_fn,
                                  std::optional<ListBaseT<bDeformGroup> *> vertex_groups,
                                  FunctionRef<MutableSpan<MDeformVert>()> get_mutable_dverts)
 {
@@ -270,6 +287,11 @@ Set<StringRef> rename_attributes(AttributeStorage &storage,
       failed.add_new(old_name);
       continue;
     }
+    Attribute *attr = storage.lookup(old_name);
+    if (!attr) {
+      failed.add_new(old_name);
+      continue;
+    }
     if (const AttrBuiltinInfo *old_info = builtin_attributes.lookup_ptr(old_name)) {
       if (!old_info->deletable) {
         failed.add_new(old_name);
@@ -277,12 +299,16 @@ Set<StringRef> rename_attributes(AttributeStorage &storage,
       }
     }
     const AttrBuiltinInfo *new_info = builtin_attributes.lookup_ptr(new_name);
-    if (overwrite) {
-      /* If we can replace existing attributes, make sure it's removed first. */
-      if (new_info && !new_info->deletable) {
+    if (new_info) {
+      if (new_info->domain != attr->domain() || new_info->type != attr->data_type()) {
         failed.add_new(old_name);
         continue;
       }
+      if (array_storage_required.contains(new_name)) {
+        ensure_array_storage(*attr, domain_size_fn);
+      }
+    }
+    if (overwrite) {
       names_to_remove.add_new(new_name);
       try_delete_vertex_group(**vertex_groups, new_name, get_mutable_dverts);
     }
@@ -306,18 +332,6 @@ Set<StringRef> rename_attributes(AttributeStorage &storage,
           }
         }
         new_name.copy_utf8_truncated(group->name);
-        continue;
-      }
-    }
-
-    Attribute *attr = storage.lookup(old_name);
-    if (!attr) {
-      failed.add_new(old_name);
-      continue;
-    }
-    if (new_info) {
-      if (new_info->domain != attr->domain() || new_info->type != attr->data_type()) {
-        failed.add_new(old_name);
         continue;
       }
     }

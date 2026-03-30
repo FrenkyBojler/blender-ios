@@ -188,6 +188,8 @@ static constexpr AttributeAccessorFunctions get_pointcloud_accessor_functions()
                              name_map,
                              overwrite,
                              builtin_attributes(),
+                             array_storage_required(),
+                             [&](const bke::AttrDomain /*domain*/) { return pointcloud.totpoint; },
                              std::nullopt,
                              {});
   };

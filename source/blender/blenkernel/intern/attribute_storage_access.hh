@@ -101,6 +101,8 @@ Set<StringRef> rename_attributes(AttributeStorage &storage,
                                  const Map<StringRef, StringRef> &name_map,
                                  bool overwrite,
                                  const Map<StringRef, AttrBuiltinInfo> &builtin_attributes,
+                                 const Set<StringRef> &array_storage_required,
+                                 FunctionRef<int(AttrDomain)> domain_size_fn,
                                  std::optional<ListBaseT<bDeformGroup> *> vertex_groups,
                                  FunctionRef<MutableSpan<MDeformVert>()> get_mutable_dverts);
 

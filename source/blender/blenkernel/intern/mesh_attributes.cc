@@ -1018,12 +1018,15 @@ static AttributeAccessorFunctions get_mesh_accessor_functions()
   };
   fn.rename = [](void *owner, const Map<StringRef, StringRef> &name_map, bool overwrite) {
     Mesh &mesh = *static_cast<Mesh *>(owner);
-    return rename_attributes(mesh.attribute_storage.wrap(),
-                             name_map,
-                             overwrite,
-                             builtin_attributes(),
-                             &mesh.vertex_group_names,
-                             [&]() { return mesh.deform_verts_for_write(); });
+    return rename_attributes(
+        mesh.attribute_storage.wrap(),
+        name_map,
+        overwrite,
+        builtin_attributes(),
+        array_storage_required(),
+        [&](const bke::AttrDomain domain) { return get_domain_size(owner, domain); },
+        &mesh.vertex_group_names,
+        [&]() { return mesh.deform_verts_for_write(); });
   };
   fn.assign_data = [](void *owner, StringRef name, const AttributeInit &initializer) {
     Mesh &mesh = *static_cast<Mesh *>(owner);

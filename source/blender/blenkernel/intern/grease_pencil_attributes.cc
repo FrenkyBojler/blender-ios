@@ -164,12 +164,15 @@ static AttributeAccessorFunctions get_grease_pencil_accessor_functions()
                  const Map<StringRef, StringRef> &name_map,
                  bool overwrite) -> Set<StringRef> {
     GreasePencil &grease_pencil = *static_cast<GreasePencil *>(owner);
-    return rename_attributes(grease_pencil.attribute_storage.wrap(),
-                             name_map,
-                             overwrite,
-                             builtin_attributes(),
-                             std::nullopt,
-                             {});
+    return rename_attributes(
+        grease_pencil.attribute_storage.wrap(),
+        name_map,
+        overwrite,
+        builtin_attributes(),
+        array_storage_required(),
+        [&](const bke::AttrDomain domain) { return get_domain_size(owner, domain); },
+        std::nullopt,
+        {});
   };
   fn.assign_data = [](void *owner, StringRef name, const AttributeInit &initializer) {
     GreasePencil &grease_pencil = *static_cast<GreasePencil *>(owner);

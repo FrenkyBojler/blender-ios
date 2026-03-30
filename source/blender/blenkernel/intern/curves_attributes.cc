@@ -428,12 +428,15 @@ static AttributeAccessorFunctions get_curves_accessor_functions()
   };
   fn.rename = [](void *owner, const Map<StringRef, StringRef> &name_map, bool overwrite) {
     CurvesGeometry &curves = *static_cast<CurvesGeometry *>(owner);
-    return rename_attributes(curves.attribute_storage.wrap(),
-                             name_map,
-                             overwrite,
-                             builtin_attributes(),
-                             &curves.vertex_group_names,
-                             [&]() { return curves.deform_verts_for_write(); });
+    return rename_attributes(
+        curves.attribute_storage.wrap(),
+        name_map,
+        overwrite,
+        builtin_attributes(),
+        array_storage_required(),
+        [&](const bke::AttrDomain domain) { return get_domain_size(owner, domain); },
+        &curves.vertex_group_names,
+        [&]() { return curves.deform_verts_for_write(); });
   };
   fn.assign_data = [](void *owner, StringRef name, const AttributeInit &initializer) {
     CurvesGeometry &curves = *static_cast<CurvesGeometry *>(owner);
