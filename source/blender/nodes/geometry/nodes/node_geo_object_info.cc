@@ -255,7 +255,8 @@ static void node_gather_link_searches(nodes::GatherLinkSearchOpParams &params)
     return;
   }
 
-  static Set<std::string> skip_socket_identifiers = {"As Instance", "Rotation", "Geometry"};
+  static Set<UString> skip_socket_identifiers = {
+      "As Instance"_ustr, "Rotation"_ustr, "Geometry"_ustr};
   nodes::search_filtered_link_ops_for_basic_node(params, skip_socket_identifiers);
 }
 
