@@ -202,6 +202,9 @@ ResultT eval(sampler2D hiz_tx,
         float3 vP_sample_front = drw_point_screen_to_view(float3(sample_uv, sample_depth));
         float3 vP_sample_back = vP_sample_front - vV * thickness_near;
 
+        /* This should be a sphere intersection check + clipping of the intersecting ray.
+         * However, that would be way too costly. So instead we only check if front position is
+         * inside the search radius. */
         float sample_distance;
         float3 vL_front = normalize_and_get_length(vP_sample_front - vP, sample_distance);
         float3 vL_back = normalize(vP_sample_back - vP);
@@ -223,7 +226,7 @@ ResultT eval(sampler2D hiz_tx,
           radiance = float3(0);
         }
         /* Discard back-facing samples.
-         * The 2 factor is to avoid loosing too much energy v(which is something not
+         * The 2 factor is to avoid loosing too much energy (which is something not
          * explained in the paper...). Likely to be wrong, but we need a soft falloff. */
         float facing_weight = saturate(-dot(normal, vL_front) * 2.0f);
 
@@ -754,7 +757,7 @@ void resolve([[work_group_id]] const uint3 group_id,
     LightProbeRay ray = bxdf_lightprobe_ray(cl, P, V, thickness);
 
     float3 L = ray.dominant_direction;
-    float3 vL = drw_normal_world_to_view(L);
+    float3 vL = drw_normal_world_to_view(L); /* TODO rotate SH instead. */
 
     /* Evaluate lighting from horizon scan. */
     float4 radiance_with_visibility = accum_sh.evaluate_lambert(vL);
