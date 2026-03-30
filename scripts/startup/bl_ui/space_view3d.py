@@ -1903,7 +1903,7 @@ class VIEW3D_MT_edit_mesh_select_loops(Menu):
         layout.separator()
 
         layout.operator("mesh.loop_to_region", text="Loop Inner-Region")
-        layout.operator("mesh.region_to_loop", text="Boundary of Selection")
+        layout.operator("mesh.region_to_loop", text="Boundary of Selected")
 
 
 class VIEW3D_MT_select_edit_mesh(Menu):

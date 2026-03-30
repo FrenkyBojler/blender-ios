@@ -6244,7 +6244,7 @@ static wmOperatorStatus edbm_region_to_loop_exec(bContext *C, wmOperator * /*op*
 void MESH_OT_region_to_loop(wmOperatorType *ot)
 {
   /* Identifiers. */
-  ot->name = "Select Boundary Loop";
+  ot->name = "Select Boundary of Selected";
   ot->idname = "MESH_OT_region_to_loop";
   ot->description = "Select boundary edges around the selected faces";
 
