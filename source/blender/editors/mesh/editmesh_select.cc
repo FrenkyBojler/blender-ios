@@ -1860,16 +1860,18 @@ static wmOperatorStatus edbm_boundary_loop_multiselect_exec(bContext *C, wmOpera
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
 
-    BMEdge *eed;
-    BMIter iter;
     Vector<BMEdge *> source_edges;
     source_edges.reserve(em->bm->totedgesel);
-    BM_ITER_MESH (eed, &iter, em->bm, BM_EDGES_OF_MESH) {
-      bool is_boundary = BM_edge_is_boundary(eed);
-      if (BM_elem_flag_test(eed, BM_ELEM_SELECT) && (!extend || is_boundary)) {
-        source_edges.append(eed);
-        if (is_boundary) {
-          has_selected_boundary_multi = true;
+    if (em->bm->totedgesel > 0) {
+      BMEdge *eed;
+      BMIter iter;
+      BM_ITER_MESH (eed, &iter, em->bm, BM_EDGES_OF_MESH) {
+        bool is_boundary = BM_edge_is_boundary(eed);
+        if (BM_elem_flag_test(eed, BM_ELEM_SELECT) && (!extend || is_boundary)) {
+          source_edges.append(eed);
+          if (is_boundary) {
+            has_selected_boundary_multi = true;
+          }
         }
       }
     }
