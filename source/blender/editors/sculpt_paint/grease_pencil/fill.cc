@@ -1557,8 +1557,6 @@ bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
     for (const int hint_index : pos_hint.index_range()) {
       const float2 hint_pos = pos_hint[hint_index];
 
-      Set<int> checked_tris;
-
       int tri_index = get_tri_for_point(hint_pos);
       if (tri_index == NULL_INDEX) {
         tri_index = 0;
@@ -1580,8 +1578,6 @@ bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
 
         for (const int i : tris_to_check.index_range()) {
           const int tri_index = tris_to_check[i];
-
-          checked_tris.add(tri_index);
 
           for (const int j : IndexRange(3)) {
             int next_tri = NULL_INDEX;
@@ -1606,19 +1602,17 @@ bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
             if (is_source_edge[edge_index]) {
               continue;
             }
-            if (checked_tris.contains(next_tri)) {
-              continue;
-            }
 
             const float weight = std::min(edge_weights[edge_index], tri_weight[tri_index]);
-            if (tri_weight[next_tri] == NULL_INDEX) {
+
+            if (weight > tri_weight[next_tri]) {
               new_tris_to_check.append(next_tri);
               tri_hint_index[next_tri] = hint_index;
               tri_weight[next_tri] = weight;
               continue;
             }
 
-            if (tri_weight[next_tri] < weight) {
+            if (weight == tri_weight[next_tri] && tri_hint_index[next_tri] != hint_index) {
               new_tris_to_check.append(next_tri);
               tri_hint_index[next_tri] = hint_index;
               tri_weight[next_tri] = weight;
