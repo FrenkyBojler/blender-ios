@@ -1289,9 +1289,6 @@ bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
     }
   }
 
-  // Set<std::pair<int, int>> source_edges = Set<std::pair<int, int>>(input.edge);
-
-  // meshintersect::CDT_result<double> result = delaunay_2d_calc(input, CDT_CONSTRAINTS);
   meshintersect::CDT_result<double> result = delaunay_2d_calc(input, CDT_FULL);
 
   /**/
@@ -1807,18 +1804,11 @@ bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
   MutableSpan<float3> positions = curves.positions_for_write();
 
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-
-  bke::SpanAttributeWriter<int> fill_ids = attributes.lookup_or_add_for_write_span<int>(
-      "fill_id", bke::AttrDomain::Curve);
-  bke::SpanAttributeWriter<float> fill_opacities = attributes.lookup_or_add_for_write_span<float>(
-      "fill_opacity", bke::AttrDomain::Curve);
-
   attributes.add<int>(
       "material_index", bke::AttrDomain::Curve, bke::AttributeInitValue(stroke_material_index));
 
   int i = 0;
   for (const int curve_i : geometry.index_range()) {
-    fill_ids.span[curve_i] = curve_i + 1;
     Span<int> geometry_i = geometry[curve_i];
     offsets[curve_i] = geometry_i.size();
 
@@ -1830,13 +1820,9 @@ bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
 
   offset_indices::accumulate_counts_to_offsets(offsets);
 
+  curves.cyclic_for_write().fill(true);
   curves.fill_curve_types(CURVE_TYPE_POLY);
   curves.tag_topology_changed();
-
-  fill_ids.finish();
-  fill_opacities.span.fill(0.2);
-  curves.cyclic_for_write().fill(true);
-  fill_opacities.finish();
 
   // /* Zoom and offset based on bounds, to fit all strokes within the render. */
   // const bool uniform_zoom = true;
