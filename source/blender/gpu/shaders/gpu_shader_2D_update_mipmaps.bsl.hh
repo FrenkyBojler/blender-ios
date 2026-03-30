@@ -142,10 +142,14 @@ int2 kernel_size_from_input_size(int2 input_size)
 template<enum TextureWriteFormat format, typename SharedStorage, typename InnerType>
 struct Resources {
   [[compilation_constant]] const bool is_srgb_texture;
+  [[compilation_constant]] const bool is_arrayed;
   [[push_constant]] const int num_levels;
-  [[image(0, read, format)]] image2D mip_in;
-  [[image(1, write, format)]] image2D mip_out1;
-  [[image(2, write, format)]] image2D mip_out2;
+  [[image(0, read, format), condition(!is_arrayed)]] image2D mip_in;
+  [[image(1, write, format), condition(!is_arrayed)]] image2D mip_out1;
+  [[image(2, write, format), condition(!is_arrayed)]] image2D mip_out2;
+  [[image(0, read, format), condition(is_arrayed)]] image2DArray mip_array_in;
+  [[image(1, write, format), condition(is_arrayed)]] image2DArray mip_array_out1;
+  [[image(2, write, format), condition(is_arrayed)]] image2DArray mip_array_out2;
   [[resource_table]] srt_t<SharedStorage> shared_storage;
 
   /** Store sample result into an output mip image. */
@@ -158,12 +162,21 @@ struct Resources {
       color_out.g = linearrgb_to_srgb(color_out.g);
       color_out.b = linearrgb_to_srgb(color_out.b);
     }
-
-    if (dst_level == 1) {
-      imageStore(mip_out1, dst_coord, color_out);
+    if (is_arrayed == false) [[static_branch]] {
+      if (dst_level == 1) {
+        imageStore(mip_out1, dst_coord, color_out);
+      }
+      else if (dst_level == 2) {
+        imageStore(mip_out2, dst_coord, color_out);
+      }
     }
-    else if (dst_level == 2) {
-      imageStore(mip_out2, dst_coord, color_out);
+    if (is_arrayed) [[static_branch]] {
+      if (dst_level == 1) {
+        imageStore(mip_array_out1, int3(dst_coord, 0), color_out);
+      }
+      else if (dst_level == 2) {
+        imageStore(mip_array_out2, int3(dst_coord, 0), color_out);
+      }
     }
   }
 
@@ -181,7 +194,13 @@ struct Resources {
       color = storage.load_sample(src_coord);
     }
     else {
-      float4 loaded_color = imageLoad(mip_in, src_coord);
+      float4 loaded_color;
+      if (is_arrayed == false) [[static_branch]] {
+        loaded_color = imageLoad(mip_in, src_coord);
+      }
+      if (is_arrayed) [[static_branch]] {
+        loaded_color = imageLoad(mip_array_in, int3(src_coord, 0));
+      }
       if (is_srgb_texture) [[static_branch]] {
         loaded_color.r = srgb_to_linearrgb(loaded_color.r);
         loaded_color.g = srgb_to_linearrgb(loaded_color.g);
@@ -194,7 +213,13 @@ struct Resources {
 
   int2 level_size(int level)
   {
-    int2 mip_in_size = imageSize(mip_in);
+    int2 mip_in_size;
+    if (is_arrayed == false) [[static_branch]] {
+      mip_in_size = imageSize(mip_in);
+    }
+    if (is_arrayed) [[static_branch]] {
+      mip_in_size = imageSize(mip_array_in).xy;
+    }
     int2 mip_size = max((mip_in_size >> level), int2(1));
     return mip_size;
   }
@@ -601,19 +626,39 @@ PipelineCompute gpu_shader_2D_update_mipmaps_unorm_8_8_8_8(
     builtin::mipmaps::update_mipmaps<
         builtin::mipmaps::Resources<UNORM_8_8_8_8, builtin::mipmaps::SharedSRGB, float4>>,
     builtin::mipmaps::Resources<UNORM_8_8_8_8, builtin::mipmaps::SharedSRGB, float4>{
-        .is_srgb_texture = false});
+        .is_srgb_texture = false, .is_arrayed = false});
+PipelineCompute gpu_shader_2D_update_mipmaps_unorm_8_8_8_8_arrayed(
+    builtin::mipmaps::update_mipmaps<
+        builtin::mipmaps::Resources<UNORM_8_8_8_8, builtin::mipmaps::SharedSRGB, float4>>,
+    builtin::mipmaps::Resources<UNORM_8_8_8_8, builtin::mipmaps::SharedSRGB, float4>{
+        .is_srgb_texture = false, .is_arrayed = true});
 PipelineCompute gpu_shader_2D_update_mipmaps_sfloat_16(
     builtin::mipmaps::update_mipmaps<
         builtin::mipmaps::Resources<SFLOAT_16, builtin::mipmaps::Shared<float>, float>>,
     builtin::mipmaps::Resources<SFLOAT_16, builtin::mipmaps::Shared<float>, float>{
-        .is_srgb_texture = false});
+        .is_srgb_texture = false, .is_arrayed = false});
+PipelineCompute gpu_shader_2D_update_mipmaps_sfloat_16_arrayed(
+    builtin::mipmaps::update_mipmaps<
+        builtin::mipmaps::Resources<SFLOAT_16, builtin::mipmaps::Shared<float>, float>>,
+    builtin::mipmaps::Resources<SFLOAT_16, builtin::mipmaps::Shared<float>, float>{
+        .is_srgb_texture = false, .is_arrayed = true});
 PipelineCompute gpu_shader_2D_update_mipmaps_sfloat_16_16_16_16(
     builtin::mipmaps::update_mipmaps<
         builtin::mipmaps::Resources<SFLOAT_16_16_16_16, builtin::mipmaps::Shared<float4>, float4>>,
     builtin::mipmaps::Resources<SFLOAT_16_16_16_16, builtin::mipmaps::Shared<float4>, float4>{
-        .is_srgb_texture = false});
+        .is_srgb_texture = false, .is_arrayed = false});
+PipelineCompute gpu_shader_2D_update_mipmaps_sfloat_16_16_16_16_arrayed(
+    builtin::mipmaps::update_mipmaps<
+        builtin::mipmaps::Resources<SFLOAT_16_16_16_16, builtin::mipmaps::Shared<float4>, float4>>,
+    builtin::mipmaps::Resources<SFLOAT_16_16_16_16, builtin::mipmaps::Shared<float4>, float4>{
+        .is_srgb_texture = false, .is_arrayed = true});
 PipelineCompute gpu_shader_2D_update_mipmaps_srgba_8_8_8_8(
     builtin::mipmaps::update_mipmaps<
         builtin::mipmaps::Resources<UNORM_8_8_8_8, builtin::mipmaps::SharedSRGB, float4>>,
     builtin::mipmaps::Resources<UNORM_8_8_8_8, builtin::mipmaps::SharedSRGB, float4>{
-        .is_srgb_texture = true});
+        .is_srgb_texture = true, .is_arrayed = false});
+PipelineCompute gpu_shader_2D_update_mipmaps_srgba_8_8_8_8_arrayed(
+    builtin::mipmaps::update_mipmaps<
+        builtin::mipmaps::Resources<UNORM_8_8_8_8, builtin::mipmaps::SharedSRGB, float4>>,
+    builtin::mipmaps::Resources<UNORM_8_8_8_8, builtin::mipmaps::SharedSRGB, float4>{
+        .is_srgb_texture = true, .is_arrayed = true});

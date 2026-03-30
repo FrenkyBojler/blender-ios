@@ -10,8 +10,6 @@
 
 #include "GPU_compute.hh"
 #include "GPU_debug.hh"
-#include "GPU_platform.hh"
-#include "GPU_platform_backend_enum.h"
 #include "GPU_shader.hh"
 #include "GPU_shader_builtin.hh"
 #include "GPU_state.hh"
@@ -29,8 +27,26 @@ namespace blender {
 
 namespace gpu {
 
-static Shader *get_update_mipmap_shader(TextureFormat texture_format)
+static Shader *get_update_mipmap_shader(TextureFormat texture_format, bool is_arrayed)
 {
+  if (is_arrayed) {
+    switch (texture_format) {
+      case TextureFormat::UNORM_8_8_8_8:
+        return GPU_shader_get_builtin_shader(GPU_SHADER_2D_UPDATE_MIPMAPS_UNORM_8_8_8_8_ARRAYED);
+      case TextureFormat::SFLOAT_16:
+        return GPU_shader_get_builtin_shader(GPU_SHADER_2D_UPDATE_MIPMAPS_SFLOAT_16_ARRAYED);
+      case TextureFormat::SFLOAT_16_16_16_16:
+        return GPU_shader_get_builtin_shader(
+            GPU_SHADER_2D_UPDATE_MIPMAPS_SFLOAT_16_16_16_16_ARRAYED);
+      case TextureFormat::SRGBA_8_8_8_8:
+        return GPU_shader_get_builtin_shader(GPU_SHADER_2D_UPDATE_MIPMAPS_SRGBA_8_8_8_8_ARRAYED);
+
+      default:
+        break;
+    }
+    return nullptr;
+  }
+
   switch (texture_format) {
     case TextureFormat::UNORM_8_8_8_8:
       return GPU_shader_get_builtin_shader(GPU_SHADER_2D_UPDATE_MIPMAPS_UNORM_8_8_8_8);
@@ -125,7 +141,8 @@ static void update_mipmaps(Texture &texture, Shader &shader)
                                           texture.height_get(),
                                           texture.mip_count(),
                                           TextureFormat::UNORM_8_8_8_8,
-                                          GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_SHADER_WRITE,
+                                          GPU_TEXTURE_USAGE_SHADER_READ |
+                                              GPU_TEXTURE_USAGE_SHADER_WRITE,
                                           nullptr);
     }
     texture.copy_to(texture_ptr, IndexRange(1));
@@ -184,7 +201,8 @@ void GPU_texture_update_mipmap_chain(Texture *tex)
 
   if (use_compute_shaders) {
     const TextureFormat texture_format = tex->format_get();
-    Shader *shader = get_update_mipmap_shader(texture_format);
+    const bool is_layered = tex->type_get() & GPU_TEXTURE_ARRAY;
+    Shader *shader = get_update_mipmap_shader(texture_format, is_layered);
     if (shader) {
       GPU_debug_group_begin("Update Mipmaps");
       update_mipmaps(*tex, *shader);
