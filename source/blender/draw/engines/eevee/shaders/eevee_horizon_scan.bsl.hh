@@ -184,7 +184,7 @@ ResultT eval(sampler2D hiz_tx,
           time += 1.0f;
         }
 
-        float lod = 1.0f + saturate(float(j) - noise.w) * uniform_buf.ao.lod_factor;
+        float lod = (float(j) - noise.w) * uniform_buf.ao.lod_factor;
 
         float2 sample_uv = ssray.origin.xy + ssray.direction.xy * time;
         float sample_depth =
