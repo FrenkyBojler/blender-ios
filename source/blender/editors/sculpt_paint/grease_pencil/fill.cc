@@ -1217,19 +1217,97 @@ static void follow_edge_connections(const Span<int> all_edges,
   }
 }
 
-bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
-                                 const Brush &brush,
-                                 const Scene &scene,
-                                 const bke::greasepencil::Layer &layer,
-                                 const VArray<bool> &boundary_layers,
-                                 const Span<DrawingInfo> src_drawings,
-                                 const bool invert,
-                                 const std::optional<float> alpha_threshold,
-                                 const float2 &fill_point,
-                                 const ExtensionData & /*extensions*/,
-                                 const FillToolFitMethod /*fit_method*/,
-                                 const int stroke_material_index,
-                                 const bool /*keep_images*/)
+bke::CurvesGeometry flood_fill_strokes(const ViewContext &view_context,
+                                       const Brush &brush,
+                                       const Scene &scene,
+                                       const bke::greasepencil::Layer &layer,
+                                       const VArray<bool> &boundary_layers,
+                                       const Span<DrawingInfo> src_drawings,
+                                       const bool invert,
+                                       const std::optional<float> alpha_threshold,
+                                       const float2 &fill_point,
+                                       const ExtensionData &extensions,
+                                       const FillToolFitMethod fit_method,
+                                       const int stroke_material_index,
+                                       const bool keep_images)
+{
+  ARegion &region = *view_context.region;
+  View3D &view3d = *view_context.v3d;
+  Depsgraph &depsgraph = *view_context.depsgraph;
+  Object &object = *view_context.obact;
+
+  BLI_assert(object.type == OB_GREASE_PENCIL);
+  const Object &object_eval = *DEG_get_evaluated(&depsgraph, &object);
+
+  /* Zoom and offset based on bounds, to fit all strokes within the render. */
+  const bool uniform_zoom = true;
+  const float max_zoom_factor = 5.0f;
+  const float2 margin = float2(20);
+  /* Pixel scale (aka. "fill_factor, aka. "Precision") to reduce image size. */
+  const float pixel_scale = brush.gpencil_settings->fill_factor;
+  const auto [zoom, offset, image_size, image_to_region] = fit_strokes_to_view(view_context,
+                                                                               boundary_layers,
+                                                                               src_drawings,
+                                                                               fit_method,
+                                                                               fill_point,
+                                                                               uniform_zoom,
+                                                                               max_zoom_factor,
+                                                                               margin,
+                                                                               pixel_scale);
+
+  ed::greasepencil::DrawingPlacement placement(scene, region, view3d, object_eval, &layer);
+  if (placement.use_project_to_surface() || placement.use_project_to_stroke()) {
+    placement.cache_viewport_depths(&depsgraph, &region, &view3d);
+  }
+
+  Image *ima = render_strokes(view_context,
+                              brush,
+                              scene,
+                              layer,
+                              boundary_layers,
+                              src_drawings,
+                              image_size,
+                              alpha_threshold,
+                              fill_point,
+                              extensions,
+                              placement,
+                              zoom,
+                              offset);
+  if (!ima) {
+    return {};
+  }
+
+  /* TODO should use the same hardness as the paint brush. */
+  const float stroke_hardness = 1.0f;
+
+  bke::CurvesGeometry fill_curves = process_image(*ima,
+                                                  scene,
+                                                  view_context,
+                                                  brush,
+                                                  placement,
+                                                  image_to_region,
+                                                  stroke_material_index,
+                                                  stroke_hardness,
+                                                  invert,
+                                                  keep_images);
+
+  if (!keep_images) {
+    BKE_id_free(view_context.bmain, ima);
+  }
+
+  return fill_curves;
+}
+
+bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
+                                          const Brush &brush,
+                                          const Scene &scene,
+                                          const bke::greasepencil::Layer &layer,
+                                          const VArray<bool> &boundary_layers,
+                                          const Span<DrawingInfo> src_drawings,
+                                          const bool /*invert*/,
+                                          const std::optional<float> alpha_threshold,
+                                          const float2 &fill_point,
+                                          const int stroke_material_index)
 {
   ARegion &region = *view_context.region;
   View3D &view3d = *view_context.v3d;

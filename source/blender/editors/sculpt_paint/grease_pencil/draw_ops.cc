@@ -1414,6 +1414,7 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
   const bool on_back = (ts.gpencil_flags & GP_TOOL_FLAG_PAINT_ONBACK);
   const bool auto_remove_fill_guides = (brush.gpencil_settings->flag &
                                         GP_BRUSH_FILL_AUTO_REMOVE_FILL_GUIDES) != 0;
+  const bool is_flood = false;
 
   if (!grease_pencil.has_active_layer()) {
     return false;
@@ -1429,22 +1430,39 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
   for (const FillToolTargetInfo &info : target_drawings) {
     const Layer &layer = *grease_pencil.layers()[info.target.layer_index];
 
-    const ed::greasepencil::ExtensionData extensions = grease_pencil_fill_get_extension_data(
-        C, op_data);
+    bke::CurvesGeometry fill_curves;
 
-    bke::CurvesGeometry fill_curves = fill_strokes(view_context,
-                                                   brush,
-                                                   scene,
-                                                   layer,
-                                                   boundary_layers,
-                                                   info.sources,
-                                                   op_data.invert,
-                                                   alpha_threshold,
-                                                   mouse_position,
-                                                   extensions,
-                                                   fit_method,
-                                                   op_data.material_index,
-                                                   keep_images);
+    if (is_flood) {
+      const ed::greasepencil::ExtensionData extensions = grease_pencil_fill_get_extension_data(
+          C, op_data);
+
+      fill_curves = flood_fill_strokes(view_context,
+                                       brush,
+                                       scene,
+                                       layer,
+                                       boundary_layers,
+                                       info.sources,
+                                       op_data.invert,
+                                       alpha_threshold,
+                                       mouse_position,
+                                       extensions,
+                                       fit_method,
+                                       op_data.material_index,
+                                       keep_images);
+    }
+    else {
+      fill_curves = delaunay_fill_strokes(view_context,
+                                          brush,
+                                          scene,
+                                          layer,
+                                          boundary_layers,
+                                          info.sources,
+                                          op_data.invert,
+                                          alpha_threshold,
+                                          mouse_position,
+                                          op_data.material_index);
+    }
+
     if (fill_curves.is_empty()) {
       continue;
     }
@@ -1455,11 +1473,13 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
             "fill_id", bke::AttrDomain::Curve, bke::AttributeInitValue(1));
     fill_ids.finish();
 
-    // smooth_fill_strokes(fill_curves, fill_curves.curves_range());
+    if (is_flood) {
+      smooth_fill_strokes(fill_curves, fill_curves.curves_range());
 
-    // if (simplify_levels > 0) {
-    //   fill_curves = simplify_fixed(fill_curves, brush.gpencil_settings->fill_simplylvl);
-    // }
+      if (simplify_levels > 0) {
+        fill_curves = simplify_fixed(fill_curves, brush.gpencil_settings->fill_simplylvl);
+      }
+    }
 
     bke::CurvesGeometry &dst_curves = info.target.drawing.strokes_for_write();
     if (auto_remove_fill_guides) {
