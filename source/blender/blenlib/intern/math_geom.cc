@@ -3911,7 +3911,7 @@ void barycentric_weights_v2_quad(const float v1[2],
         lens[3] * lens[0],
     };
 
-    /* Handle cases where point lines exactly on the edge. */
+    /* Handle cases where point lies exactly on the edge. */
     for (int i = 0; i < 4; i++) {
       const float area = areas[i];
       /* Collinear with edge i-j and between the endpoints. */
