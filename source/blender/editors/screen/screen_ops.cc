@@ -3280,6 +3280,22 @@ static wmOperatorStatus region_scale_modal(bContext *C, wmOperator *op, const wm
         if (rmd->region->sizey != rmd->origval) {
           size_changed = true;
         }
+
+        if (delta > 0) {
+          if ((rmd->region->flag & RGN_FLAG_HIDDEN) == 0) {
+            if (ARegion *region_scrubbing = rmd->region->next) {
+              if (region_scrubbing->alignment & RGN_CHILD_OF_PREV) {
+                rmd->region = region_scrubbing;
+                copy_v2_v2_int(rmd->orig_xy, event->xy);
+                rmd->origval = rmd->region->sizey;
+              }
+            }
+          }
+        } else if ((rmd->region->flag & RGN_FLAG_HIDDEN) && (rmd->region->alignment & RGN_CHILD_OF_PREV)) {
+            rmd->region = rmd->region->prev;
+            copy_v2_v2_int(rmd->orig_xy, event->xy);
+            rmd->origval = rmd->region->sizey;
+        }
       }
       if (size_changed && rmd->region->runtime->type->on_user_resize) {
         rmd->region->runtime->type->on_user_resize(rmd->region);

@@ -1640,7 +1640,7 @@ static void region_rect_recursive(
     prefsizey = ED_area_headersize();
   }
   else if (ELEM(region->regiontype, RGN_TYPE_FOOTER, RGN_TYPE_PREVIEW_SCRUBBING)) {
-    prefsizey = ED_area_footersize();
+    prefsizey = 0.9f * ED_area_footersize();
   }
   else if (region->regiontype == RGN_TYPE_ASSET_SHELF) {
     prefsizey = region->sizey > 1 ? (UI_SCALE_FAC * (region->sizey + 0.5f)) :

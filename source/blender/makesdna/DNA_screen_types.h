@@ -700,6 +700,7 @@ enum {
    * should only be set for the previous region, not this. The evaluated visibility respecting this
    * flag can be queried via #ARegion.visible */
   RGN_ALIGN_HIDE_WITH_PREV = 1 << 7,
+  RGN_CHILD_OF_PREV = 1 << 8,
 };
 
 /** Mask out flags so we can check the alignment. */

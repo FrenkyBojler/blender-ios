@@ -114,7 +114,7 @@ static SpaceLink *sequencer_create(const ScrArea * /*area*/, const Scene *scene)
   region = BKE_area_region_new();
   BLI_addtail(&sseq->regionbase, static_cast<void *>(region));
   region->regiontype = RGN_TYPE_PREVIEW_SCRUBBING;
-  region->alignment = RGN_ALIGN_BOTTOM;
+  region->alignment = RGN_ALIGN_BOTTOM | RGN_CHILD_OF_PREV | RGN_ALIGN_HIDE_WITH_PREV;
 
   /* Buttons/list view. */
   region = BKE_area_region_new();
@@ -1292,7 +1292,7 @@ void ED_spacetype_sequencer()
   /* regions: Preview Scrubbing */
   art = MEM_new_zeroed<ARegionType>("spacetype sequencer region");
   art->regionid = RGN_TYPE_PREVIEW_SCRUBBING;
-  art->prefsizey = HEADERY;
+  art->prefsizey = 0.9f * HEADERY;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FOOTER | ED_KEYMAP_FRAMES |
                     ED_KEYMAP_ANIMATION;
   art->init = scrubbing_region_init;
