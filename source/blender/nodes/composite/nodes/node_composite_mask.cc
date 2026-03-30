@@ -46,13 +46,13 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Int>("Size X")
       .default_value(256)
       .min(1)
-      .usage_by_menu("Size Source",
+      .usage_by_menu("Size Source"_ustr,
                      {CMP_NODE_MASK_FLAG_SIZE_FIXED, CMP_NODE_MASK_FLAG_SIZE_FIXED_SCENE})
       .description("The resolution of the mask along the X direction");
   b.add_input<decl::Int>("Size Y")
       .default_value(256)
       .min(1)
-      .usage_by_menu("Size Source",
+      .usage_by_menu("Size Source"_ustr,
                      {CMP_NODE_MASK_FLAG_SIZE_FIXED, CMP_NODE_MASK_FLAG_SIZE_FIXED_SCENE})
       .description("The resolution of the mask along the Y direction");
   b.add_input<decl::Bool>("Feather").default_value(true).description(
@@ -105,8 +105,10 @@ class MaskOperation : public NodeOperation {
         domain,
         this->get_aspect_ratio(),
         this->get_use_feather(),
+        this->context().get_frame_number(),
         this->get_motion_blur_samples(),
-        this->get_motion_blur_shutter());
+        this->get_motion_blur_shutter(),
+        false);
 
     Result &output_mask = this->get_result("Mask");
     output_mask.wrap_external(cached_mask);
