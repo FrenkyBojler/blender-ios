@@ -18,7 +18,7 @@
 
 #include "GEO_foreach_geometry.hh"
 
-#include "FN_multi_function_builder.hh"
+#include "FN_multi_function_registry.hh"
 
 #include "node_geometry_util.hh"
 
@@ -28,17 +28,18 @@ NODE_STORAGE_FUNCS(NodeGeometryMeshToPoints)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Mesh")
+  b.add_input<decl::Geometry>("Mesh"_ustr)
       .supported_type(GeometryComponent::Type::Mesh)
       .description("Mesh whose elements are converted to points");
-  b.add_input<decl::Bool>("Selection").default_value(true).field_on_all().hide_value();
-  b.add_input<decl::Vector>("Position").implicit_field_on_all(NODE_DEFAULT_INPUT_POSITION_FIELD);
-  b.add_input<decl::Float>("Radius")
+  b.add_input<decl::Bool>("Selection"_ustr).default_value(true).field_on_all().hide_value();
+  b.add_input<decl::Vector>("Position"_ustr)
+      .implicit_field_on_all(NODE_DEFAULT_INPUT_POSITION_FIELD);
+  b.add_input<decl::Float>("Radius"_ustr)
       .default_value(0.05f)
       .min(0.0f)
       .subtype(PROP_DISTANCE)
       .field_on_all();
-  b.add_output<decl::Geometry>("Points").propagate_all();
+  b.add_output<decl::Geometry>("Points"_ustr).propagate_all();
 }
 
 static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
@@ -162,23 +163,19 @@ static void geometry_set_mesh_to_points(GeometrySet &geometry_set,
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  GeometrySet geometry_set = params.extract_input<GeometrySet>("Mesh");
-  Field<float3> position = params.extract_input<Field<float3>>("Position");
-  Field<float> radius = params.extract_input<Field<float>>("Radius");
-  Field<bool> selection = params.extract_input<Field<bool>>("Selection");
+  GeometrySet geometry_set = params.extract_input<GeometrySet>("Mesh"_ustr);
+  Field<float3> position = params.extract_input<Field<float3>>("Position"_ustr);
+  Field<float> radius = params.extract_input<Field<float>>("Radius"_ustr);
+  Field<bool> selection = params.extract_input<Field<bool>>("Selection"_ustr);
 
-  /* Use another multi-function operation to make sure the input radius is greater than zero.
-   * TODO: Use mutable multi-function once that is supported. */
-  static auto max_zero_fn = mf::build::SI1_SO<float, float>(
-      __func__,
-      [](float value) { return std::max(0.0f, value); },
-      mf::build::exec_presets::AllSpanOrSingle());
-  const Field<float> positive_radius(FieldOperation::from(max_zero_fn, {std::move(radius)}), 0);
+  static const auto &max_zero_fn = fn::multi_function::registry::lookup("max(float, float)"_ustr);
+  const Field<float> positive_radius(
+      FieldOperation::from(max_zero_fn, {std::move(radius), fn::make_constant_field(0.0f)}), 0);
 
   const NodeGeometryMeshToPoints &storage = node_storage(params.node());
   const GeometryNodeMeshToPointsMode mode = GeometryNodeMeshToPointsMode(storage.mode);
 
-  const NodeAttributeFilter &attribute_filter = params.get_attribute_filter("Points");
+  const NodeAttributeFilter &attribute_filter = params.get_attribute_filter("Points"_ustr);
 
   geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     switch (mode) {
@@ -217,7 +214,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   });
 
-  params.set_output("Points", std::move(geometry_set));
+  params.set_output("Points"_ustr, std::move(geometry_set));
 }
 
 static void node_rna(StructRNA *srna)
