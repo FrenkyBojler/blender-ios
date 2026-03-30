@@ -531,8 +531,8 @@ static void gather_frames_to_render_for_adt(const OGLRender *oglrender, const An
     return;
   }
 
-  const int2 playback_range = BKE_scene_get_playback_range(oglrender->scene);
-  const int frame_start = playback_range[0];
+  const int frame_start = oglrender->scene->playback_start();
+  const int frame_end = oglrender->scene->playback_end();
 
   for (const FCurve *fcu : animrig::fcurves_for_assigned_action(adt)) {
     if (fcu->driver != nullptr || fcu->fpt != nullptr) {
@@ -553,7 +553,7 @@ static void gather_frames_to_render_for_adt(const OGLRender *oglrender, const An
 
       /* (frame_nr < frame_start) cannot happen because of the binary search above. */
       BLI_assert(frame_nr >= frame_start);
-      if (frame_nr > playback_range[1]) {
+      if (frame_nr > frame_end) {
         break;
       }
       BLI_BITMAP_ENABLE(oglrender->render_frames, frame_nr - frame_start);
@@ -568,14 +568,15 @@ static void gather_frames_to_render_for_grease_pencil(const OGLRender *oglrender
     return;
   }
 
-  const int2 playback_range = BKE_scene_get_playback_range(oglrender->scene);
+  const int frame_start = oglrender->scene->playback_start();
+  const int frame_end = oglrender->scene->playback_end();
 
   for (const bGPDlayer &gp_layer : gp->layers) {
     for (const bGPDframe &gp_frame : gp_layer.frames) {
-      if (gp_frame.framenum < playback_range[0] || gp_frame.framenum > playback_range[1]) {
+      if (gp_frame.framenum < frame_start || gp_frame.framenum > frame_end) {
         continue;
       }
-      BLI_BITMAP_ENABLE(oglrender->render_frames, gp_frame.framenum - playback_range[0]);
+      BLI_BITMAP_ENABLE(oglrender->render_frames, gp_frame.framenum - frame_start);
     }
   }
 }
@@ -1011,9 +1012,9 @@ static bool screen_opengl_render_anim_init(wmOperator *op)
 
   G.is_rendering = true;
   oglrender->cfrao = scene->r.cfra;
-  const int2 playback_range = BKE_scene_get_playback_range(scene);
-  oglrender->nfra = playback_range[0];
-  scene->r.cfra = playback_range[0];
+  const int playback_start = scene->playback_start();
+  oglrender->nfra = playback_start;
+  scene->r.cfra = playback_start;
 
   return true;
 }
@@ -1154,7 +1155,6 @@ static bool screen_opengl_render_anim_step(OGLRender *oglrender)
   const bool view_context = (oglrender->v3d != nullptr);
   bool is_movie;
   RenderResult *rr;
-  const int2 playback_range = BKE_scene_get_playback_range(scene);
 
   /* go to next frame */
   if (scene->r.cfra < oglrender->nfra) {
@@ -1223,7 +1223,7 @@ static bool screen_opengl_render_anim_step(OGLRender *oglrender)
   }
 
   if (oglrender->render_frames == nullptr ||
-      BLI_BITMAP_TEST_BOOL(oglrender->render_frames, scene->r.cfra - playback_range[0]))
+      BLI_BITMAP_TEST_BOOL(oglrender->render_frames, scene->r.cfra - scene->playback_start()))
   {
     /* render into offscreen buffer */
     screen_opengl_render_apply(oglrender);
@@ -1244,7 +1244,7 @@ finally: /* Step the frame and bail early if needed */
   oglrender->nfra += scene->r.frame_step;
 
   /* stop at the end or on error */
-  if (scene->r.cfra >= playback_range[1] || !ok) {
+  if (scene->r.cfra >= scene->playback_end() || !ok) {
     return false;
   }
 

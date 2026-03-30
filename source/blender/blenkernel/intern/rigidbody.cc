@@ -1146,8 +1146,7 @@ RigidBodyWorld *BKE_rigidbody_create_world(Scene *scene)
   /* set default settings */
   rbw->effector_weights = BKE_effector_add_weights(nullptr);
 
-  const int2 playback_range = BKE_scene_get_playback_range(scene);
-  rbw->ltime = playback_range[0];
+  rbw->ltime = scene->playback_start();
 
   rbw->time_scale = 1.0f;
 

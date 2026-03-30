@@ -2856,6 +2856,10 @@ struct Scene {
 #ifdef __cplusplus
   /* Return the frame rate of the scene. */
   double frames_per_second() const;
+  /* Return the playback start frame of the scene. */
+  int playback_start() const;
+  /* Return the playback end frame of the scene. */
+  int playback_end() const;
 #endif
 };
 

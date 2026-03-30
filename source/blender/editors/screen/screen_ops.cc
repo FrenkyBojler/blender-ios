@@ -6196,9 +6196,8 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
   }
 
   /* Handle reaching the extreme frames. */
-  const int2 playback_range = BKE_scene_get_playback_range(scene);
-  const int start_frame = playback_range[0];
-  const int end_frame = playback_range[1];
+  const int start_frame = scene->playback_start();
+  const int end_frame = scene->playback_end();
   const bool is_playing_forward = (sad->flag & ANIMPLAY_FLAG_REVERSE) == 0;
   const bool is_extreme_frame = is_playing_forward ? scene->r.cfra > end_frame :
                                                      scene->r.cfra < start_frame;

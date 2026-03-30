@@ -1648,6 +1648,22 @@ double Scene::frames_per_second() const
   return double(this->r.frs_sec) / double(this->r.frs_sec_base);
 }
 
+int Scene::playback_start() const
+{
+  if (this->r.flag & SCER_PRV_RANGE) {
+    return this->r.psfra;
+  }
+  return this->r.sfra;
+}
+
+int Scene::playback_end() const
+{
+  if (this->r.flag & SCER_PRV_RANGE) {
+    return this->r.pefra;
+  }
+  return this->r.efra;
+}
+
 /** \} */
 
 const char *RE_engine_id_BLENDER_EEVEE = "BLENDER_EEVEE";

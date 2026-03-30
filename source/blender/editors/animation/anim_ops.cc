@@ -932,8 +932,7 @@ static wmOperatorStatus anim_set_sfra_exec(bContext *C, wmOperator *op)
     scene->r.sfra = frame;
   }
 
-  const int2 playback_range = BKE_scene_get_playback_range(scene);
-  if (playback_range[1] < frame) {
+  if (scene->playback_end() < frame) {
     if (PRVRANGEON) {
       scene->r.pefra = frame;
     }
@@ -989,8 +988,7 @@ static wmOperatorStatus anim_set_efra_exec(bContext *C, wmOperator *op)
     scene->r.efra = frame;
   }
 
-  const int2 playback_range = BKE_scene_get_playback_range(scene);
-  if (playback_range[0] > frame) {
+  if (scene->playback_start() > frame) {
     if (PRVRANGEON) {
       scene->r.psfra = frame;
     }

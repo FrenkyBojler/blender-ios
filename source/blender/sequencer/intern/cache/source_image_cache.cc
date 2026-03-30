@@ -312,9 +312,8 @@ bool source_image_cache_evict(Scene *scene)
   }
   const bool prefetch_loops_around = cur_prefetch_start > cur_prefetch_end;
 
-  const int2 playback_range = BKE_scene_get_playback_range(scene);
-  const int timeline_start = playback_range[0];
-  const int timeline_end = playback_range[1];
+  const int timeline_start = scene->playback_start();
+  const int timeline_end = scene->playback_end();
   /* If we wrap around, treat the timeline start as the playback head position.
    * This is to try to mitigate un-needed cache evictions. */
   const int cur_frame = prefetch_loops_around ? timeline_start : scene->r.cfra;

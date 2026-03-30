@@ -372,9 +372,8 @@ void animviz_motionpath_compute_range(Object *ob, Scene *scene)
   {
     /* Default to the scene (preview) range if there is no animation data to
      * find selected keys in. */
-    const int2 playback_range = BKE_scene_get_playback_range(scene);
-    avs->path_sf = playback_range[0];
-    avs->path_ef = playback_range[1];
+    avs->path_sf = scene->playback_start();
+    avs->path_ef = scene->playback_end();
     return;
   }
 
