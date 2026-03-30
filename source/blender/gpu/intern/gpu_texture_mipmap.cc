@@ -157,8 +157,6 @@ void GPU_texture_update_mipmap_chain(Texture *tex)
     use_compute_shaders = false;
   }
 
-  /* Currently enabled for Vulkan and OpenGL. Metal has render issues that needs to be inspected.
-   */
   if (use_compute_shaders) {
     const TextureFormat texture_format = tex->format_get();
     Shader *shader = get_update_mipmap_shader(texture_format);
