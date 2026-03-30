@@ -242,10 +242,10 @@ static EvaluationResult evaluate_strip(PointerRNA &animated_id_ptr,
 }
 
 struct QuaternionEvalBuffer {
-  /* The incoming values to blend with. */
-  float current[4] = {1, 0, 0, 0};
-  /* The values of the evaluated layer. */
-  float layer_result[4] = {1, 0, 0, 0};
+  /** The incoming values, to blend into the evaluation. */
+  float evaluating_layer[4] = {1, 0, 0, 0};
+  /** The result of evaluated lower layers, to blend into. */
+  float lower_layer[4] = {1, 0, 0, 0};
   /* Pointers to the `value` of the `AnimatedProperty` that we should write the values to. */
   float *output[4] = {nullptr, nullptr, nullptr, nullptr};
 };
@@ -281,8 +281,8 @@ void blend_layer_results(EvaluationResult &final_result,
     if (rotation_mode.has_value() && rotation_mode.value() == ROT_MODE_QUAT) {
       QuaternionEvalBuffer &quat_buffer = quaternion_buffer.lookup_or_add_default(
           prop_ident.rna_path);
-      quat_buffer.layer_result[prop_ident.array_index] = anim_prop.value;
-      quat_buffer.current[prop_ident.array_index] = last_prop->value;
+      quat_buffer.lower_layer[prop_ident.array_index] = anim_prop.value;
+      quat_buffer.evaluating_layer[prop_ident.array_index] = last_prop->value;
       quat_buffer.output[prop_ident.array_index] = &last_prop->value;
       continue;
     }
@@ -301,25 +301,23 @@ void blend_layer_results(EvaluationResult &final_result,
         }
         break;
       }
-      default:
-        /* Needs to be implemented. */
-        BLI_assert_unreachable();
-        break;
     };
   }
 
   for (QuaternionEvalBuffer &quat_buffer : quaternion_buffer.values()) {
     float output_qt[4];
-    normalize_qt(quat_buffer.layer_result);
-    normalize_qt(quat_buffer.current);
+    normalize_qt(quat_buffer.lower_layer);
+    normalize_qt(quat_buffer.evaluating_layer);
     switch (current_layer.mix_mode()) {
       case Layer::MixMode::Replace:
-        interp_qt_qtqt(
-            output_qt, quat_buffer.current, quat_buffer.layer_result, current_layer.influence);
+        interp_qt_qtqt(output_qt,
+                       quat_buffer.evaluating_layer,
+                       quat_buffer.lower_layer,
+                       current_layer.influence);
         break;
       case Layer::MixMode::Combine:
-        pow_qt_fl_normalized(quat_buffer.layer_result, current_layer.influence);
-        mul_qt_qtqt(output_qt, quat_buffer.current, quat_buffer.layer_result);
+        pow_qt_fl_normalized(quat_buffer.lower_layer, current_layer.influence);
+        mul_qt_qtqt(output_qt, quat_buffer.evaluating_layer, quat_buffer.lower_layer);
         break;
       default:
         /* Needs to be implemented. */
