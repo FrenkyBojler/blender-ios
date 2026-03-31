@@ -9,9 +9,9 @@
  * This..
  */
 
+#include <regex>
 #include <string>
 #include <unordered_map>
-#include <regex>
 
 #include <fmt/format.h>
 
@@ -20,7 +20,7 @@
 namespace blender {
 
 struct CLDRLocalePatterns {
-  const char date[3][14];
+  const char date[3][17];
   const char time[3][12];
   const char datetime[8];
 };
@@ -28,7 +28,7 @@ struct CLDRLocalePatterns {
 static const std::unordered_map<std::string, CLDRLocalePatterns> cldr_locale_table = {
     {"default", {{"%d/%m/%y", "%d %b %Y", "%d %B %Y"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
     {"en_US", /* English (US).*/
-     {{"%d/%m/%y", "%b %d, %Y", "%B %d, %Y"}, {"%I:%M %p", "%I:%M %p", "%I:%M:%S %p"}, "{1} {0}"}},
+     {{"%m/%d/%y", "%b %d, %Y", "%B %d, %Y"}, {"%I:%M %p", "%I:%M %p", "%I:%M:%S %p"}, "{1} {0}"}},
     {"en_GB", /* English (UK). */
      {{"%d/%m/%y", "%d %b %Y", "%d %B %Y"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
     {"ar_EG", /* Arabic (Egypt). */
@@ -40,9 +40,9 @@ static const std::unordered_map<std::string, CLDRLocalePatterns> cldr_locale_tab
     {"ca_AD", /* Catalan. */
      {{"%d/%m/%y", "%d %b %Y", "%d %B %Y"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
     {"zh_HANS", /* Chinese (Simplified). */
-     {{"%y/%m/%d", "%Y年%b%d日", "%Y年%B%d日"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
+     {{"%y/%m/%d", "%Y年%B%d日", "%Y年%B%d日"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
     {"zh_HANT", /* Chinese (Traditional). */
-     {{"%y/%m/%d", "%Y年%b%d日", "%Y年%B%d日"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
+     {{"%y/%m/%d", "%Y年%B%d日", "%Y年%B%d日"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
     {"hr", /* :Croatian. */
      {{"%d.%m.%y", "%d %b %Y", "%d %B %Y"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
     {"cs_CZ", /* Czech. */
@@ -72,9 +72,9 @@ static const std::unordered_map<std::string, CLDRLocalePatterns> cldr_locale_tab
     {"it_IT", /* Italian. */
      {{"%d/%m/%y", "%d %b %Y", "%d %B %Y"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
     {"ja_JP", /* Japanese. */
-     {{"%y/%m/%d", "%Y年%b%d日", "%Y年%B%d日"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
+     {{"%y/%m/%d", "%Y年%b月%d日", "%Y年%B%d日"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
     {"ko_KR", /* Korean. */
-     {{"%y. %m. %d.", "%Y년 %b%d일", "%Y년 %B%d일"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
+     {{"%y. %m. %d.", "%Y년 %B월%d일", "%Y년 %B%d일"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
     {"nb", /* Norwegian. */
      {{"%d.%m.%y", "%d %b %Y", "%d %B %Y"}, {"%H:%M", "%H:%M", "%H:%M:%S"}, "{1} {0}"}},
     {"fa_IR", /* Persian. */

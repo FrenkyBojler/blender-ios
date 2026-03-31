@@ -564,7 +564,7 @@ struct FileDirEntry {
   struct {
     /* Temp caching of UI-generated strings. */
     char size_str[16] = "";
-    char datetime_str[16 + 8] = "";
+    char datetime_str[30] = "";
   } draw_data;
 
   /** #eFileSel_File_Types. */

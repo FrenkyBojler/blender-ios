@@ -35,9 +35,11 @@
 #include "BLI_math_base.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_date.hh"
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
+#include "BLT_lang.hh"
 #include "BLT_translation.hh"
 
 #include "BKE_appdir.hh"
@@ -991,9 +993,12 @@ static void file_attribute_columns_widths(const FileSelectParams *params, FileLa
 
   /* Biggest possible reasonable values... */
   if (file_attribute_column_type_enabled(params, COLUMN_DATETIME, layout)) {
-    columns[COLUMN_DATETIME].width = file_string_width(compact ? "23/08/89" :
-                                                                 "23 Dec 6789, 23:59") +
-                                     pad;
+    const char *lang = BLT_lang_get();
+    tm test = {59, 59, 3, 30, 10, 199, 6, 365, 0}; /* November 30, 2099 03:59:59 */
+    std::string modified_s = BLI_date_format_datetime(
+        &test, compact ? BLI_DateFormatStyle::Short : BLI_DateFormatStyle::Medium, lang);
+    int width = file_string_width(modified_s.c_str());
+    columns[COLUMN_DATETIME].width = width + pad;
   }
   if (file_attribute_column_type_enabled(params, COLUMN_SIZE, layout)) {
     columns[COLUMN_SIZE].width = file_string_width(compact ? "369G" : "098.7 MiB") + pad;

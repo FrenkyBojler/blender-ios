@@ -1226,19 +1226,19 @@ static const char *filelist_get_details_column_string(
     case COLUMN_DATETIME:
       if (!(file->typeflag & FILE_TYPE_BLENDERLIB) && !FILENAME_IS_CURRPAR(file->relpath)) {
         if (file->draw_data.datetime_str[0] == '\0' || update_stat_strings) {
-
-          char date[FILELIST_DIRENTRY_DATE_LEN], time[FILELIST_DIRENTRY_TIME_LEN];
-          bool is_today, is_yesterday;
-
-          BLI_filelist_entry_datetime_to_string(
-              nullptr, file->time, compact, time, date, &is_today, &is_yesterday);
-
-          if (!compact && (is_today || is_yesterday)) {
-            STRNCPY_UTF8(date, is_today ? IFACE_("Today") : IFACE_("Yesterday"));
-          }
-          SNPRINTF_UTF8(file->draw_data.datetime_str, compact ? "%s" : "%s %s", date, time);
+          const tm mod_time = *localtime(&file->time);
+          const time_t ts_now = time(nullptr);
+          const tm now = *localtime(&ts_now);
+          const char *lang = BLT_lang_get();
+          std::string modified_s = BLI_date_format_datetime(&mod_time,
+                                                            compact ? BLI_DateFormatStyle::Short :
+                                                                      BLI_DateFormatStyle::Medium,
+                                                            lang,
+                                                            &now,
+                                                            TIP_("Today"),
+                                                            TIP_("Yesterday"));
+          STRNCPY_UTF8(file->draw_data.datetime_str, modified_s.c_str());
         }
-
         return file->draw_data.datetime_str;
       }
       break;
