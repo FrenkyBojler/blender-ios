@@ -4235,9 +4235,6 @@ static void *node_static_value_storage_for(bNode &node, const bNodeSocket &socke
   if (STREQ(node.idname, "ShaderNodeRGB")) {
     return &node.output_socket(0).default_value_typed<bNodeSocketValueRGBA>()->value;
   }
-  if (STREQ(node.idname, "ShaderNodeRGB")) {
-    return &node.output_socket(0).default_value_typed<bNodeSocketValueRGBA>()->value;
-  }
   if (STREQ(node.idname, "ShaderNodeValue")) {
     return &node.output_socket(0).default_value_typed<bNodeSocketValueFloat>()->value;
   }
