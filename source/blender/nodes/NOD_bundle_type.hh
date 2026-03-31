@@ -40,7 +40,7 @@ class FlatBundleType {
   StringRefNull name() const;
 
   Span<Item> items() const;
-  const SocketDeclaration *find_decl(const StringRef name) const;
+  const SocketDeclaration *find_decl(const UString name) const;
 
   BundleSignature to_bundle_signature() const;
 };

@@ -38,24 +38,25 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   b.add_default_layout();
 
-  b.add_input<decl::Geometry>("Geometry").description("Geometry to evaluate the given fields on");
-  b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
+  b.add_input<decl::Geometry>("Geometry"_ustr)
+      .description("Geometry to evaluate the given fields on");
+  b.add_input<decl::Bool>("Selection"_ustr).default_value(true).hide_value().field_on_all();
   if (node != nullptr) {
     const NodeGeometryAttributeToList &storage = node_storage(*node);
     for (const NodeGeometryAttributeToListItem &item : Span(storage.items, storage.items_num)) {
       const eNodeSocketDatatype data_type = eNodeSocketDatatype(item.socket_type);
-      const std::string identifier = AttributeToListItemsAccessor::socket_identifier_for_item(
-          item);
-      b.add_input(data_type, item.name, identifier)
+      const UString name(item.name);
+      const UString identifier(AttributeToListItemsAccessor::socket_identifier_for_item(item));
+      b.add_input(data_type, name, identifier)
           .field_on_all()
           .socket_name_ptr(&tree->id, *AttributeToListItemsAccessor::item_srna, &item, "name");
-      b.add_output(data_type, item.name, identifier)
+      b.add_output(data_type, name, identifier)
           .align_with_previous()
           .structure_type(StructureType::List);
     }
   }
-  b.add_input<decl::Extend>("", "__extend__").structure_type(StructureType::Field);
-  b.add_output<decl::Extend>("", "__extend__")
+  b.add_input<decl::Extend>(""_ustr, "__extend__"_ustr).structure_type(StructureType::Field);
+  b.add_output<decl::Extend>(""_ustr, "__extend__"_ustr)
       .structure_type(StructureType::Field)
       .align_with_previous();
 }
@@ -277,7 +278,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   if (type == SOCK_GEOMETRY) {
     params.add_item(IFACE_("Geometry"), [](LinkSearchOpParams &params) {
       bNode &node = params.add_node("GeometryNodeAttributeToList");
-      params.connect_available_socket(node, "Geometry");
+      params.connect_available_socket(node, "Geometry"_ustr);
     });
   }
   if (!AttributeToListItemsAccessor::supports_socket_type(type, params.node_tree().type)) {
@@ -288,7 +289,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     bNode &node = params.add_node("GeometryNodeAttributeToList");
     socket_items::add_item_with_socket_type_and_name<AttributeToListItemsAccessor>(
         params.node_tree, node, type, params.socket.name);
-    params.update_and_connect_available_socket(node, params.socket.name);
+    params.update_and_connect_available_socket(node, UString(params.socket.name));
   });
 }
 

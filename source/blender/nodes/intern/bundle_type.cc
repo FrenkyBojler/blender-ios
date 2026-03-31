@@ -15,7 +15,7 @@ FlatBundleType::FlatBundleType(std::string name, Vector<std::unique_ptr<SocketDe
   }
 }
 
-const SocketDeclaration *FlatBundleType::find_decl(const StringRef name) const
+const SocketDeclaration *FlatBundleType::find_decl(const UString name) const
 {
   const Item *item = items_.lookup_key_ptr_as(name);
   if (!item) {

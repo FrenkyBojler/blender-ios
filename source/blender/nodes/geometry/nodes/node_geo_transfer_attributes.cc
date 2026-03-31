@@ -20,34 +20,34 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
   b.allow_any_socket_order();
 
-  b.add_input<decl::Geometry>("Target");
-  b.add_output<decl::Geometry>("Target").align_with_previous().propagate_all();
-  b.add_output<decl::Bool>("Success");
+  b.add_input<decl::Geometry>("Target"_ustr);
+  b.add_output<decl::Geometry>("Target"_ustr).align_with_previous().propagate_all();
+  b.add_output<decl::Bool>("Success"_ustr);
   {
     auto &p = b.add_panel("Target IDs"_ustr).default_closed(true);
     Vector<BaseSocketDeclarationBuilder *> sockets;
-    sockets.append(&p.add_input<decl::Int>("Target Point ID"));
-    sockets.append(&p.add_input<decl::Int>("Target Edge ID"));
-    sockets.append(&p.add_input<decl::Int>("Target Face ID"));
-    sockets.append(&p.add_input<decl::Int>("Target Corner ID"));
-    sockets.append(&p.add_input<decl::Int>("Target Curve ID"));
-    sockets.append(&p.add_input<decl::Int>("Target Instance ID"));
+    sockets.append(&p.add_input<decl::Int>("Target Point ID"_ustr));
+    sockets.append(&p.add_input<decl::Int>("Target Edge ID"_ustr));
+    sockets.append(&p.add_input<decl::Int>("Target Face ID"_ustr));
+    sockets.append(&p.add_input<decl::Int>("Target Corner ID"_ustr));
+    sockets.append(&p.add_input<decl::Int>("Target Curve ID"_ustr));
+    sockets.append(&p.add_input<decl::Int>("Target Instance ID"_ustr));
 
     for (BaseSocketDeclarationBuilder *socket : sockets) {
       socket->implicit_field(NODE_DEFAULT_INPUT_INDEX_FIELD);
       socket->structure_type(StructureType::Field);
     }
   }
-  b.add_input<decl::Geometry>("Source");
+  b.add_input<decl::Geometry>("Source"_ustr);
   {
     auto &p = b.add_panel("Source IDs"_ustr).default_closed(true);
     Vector<BaseSocketDeclarationBuilder *> sockets;
-    sockets.append(&p.add_input<decl::Int>("Source Point ID"));
-    sockets.append(&p.add_input<decl::Int>("Source Edge ID"));
-    sockets.append(&p.add_input<decl::Int>("Source Face ID"));
-    sockets.append(&p.add_input<decl::Int>("Source Corner ID"));
-    sockets.append(&p.add_input<decl::Int>("Source Curve ID"));
-    sockets.append(&p.add_input<decl::Int>("Source Instance ID"));
+    sockets.append(&p.add_input<decl::Int>("Source Point ID"_ustr));
+    sockets.append(&p.add_input<decl::Int>("Source Edge ID"_ustr));
+    sockets.append(&p.add_input<decl::Int>("Source Face ID"_ustr));
+    sockets.append(&p.add_input<decl::Int>("Source Corner ID"_ustr));
+    sockets.append(&p.add_input<decl::Int>("Source Curve ID"_ustr));
+    sockets.append(&p.add_input<decl::Int>("Source Instance ID"_ustr));
 
     for (BaseSocketDeclarationBuilder *socket : sockets) {
       socket->implicit_field(NODE_DEFAULT_INPUT_INDEX_FIELD);
@@ -55,12 +55,12 @@ static void node_declare(NodeDeclarationBuilder &b)
     }
   }
 
-  b.add_input<decl::String>("Names")
+  b.add_input<decl::String>("Names"_ustr)
       .optional_label()
       .structure_type(StructureType::List)
       .description(
           "List of attribute names (not) to transfer. A wildcard (*) at the end is allowed");
-  b.add_input<decl::Bool>("Ignore Names").default_value(false);
+  b.add_input<decl::Bool>("Ignore Names"_ustr).default_value(false);
 }
 
 class AttributeTransferer {

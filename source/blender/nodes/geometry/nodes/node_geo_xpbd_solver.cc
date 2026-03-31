@@ -82,31 +82,32 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.allow_any_socket_order();
 
   static NestedBundleTypePtr world_type = make_world_type();
-  b.add_input<decl::Bundle>("World")
+  b.add_input<decl::Bundle>("World"_ustr)
       .bundle_type(world_type)
       .field_on_all()
       .structure_type(StructureType::Single)
       .description("World state that is updated by the solver");
-  b.add_output<decl::Bundle>("World").pass_through_input_index(0).align_with_previous();
-  b.add_input<decl::Float>("Delta Time")
+  b.add_output<decl::Bundle>("World"_ustr).pass_through_input_index(0).align_with_previous();
+  b.add_input<decl::Float>("Delta Time"_ustr)
       .min(0)
       .default_value(1 / 25.0f)
       .subtype(PROP_TIME_ABSOLUTE);
 
-  b.add_input<decl::String>("Filter").optional_label().description(
-      "Filters the geometry sets to process based on their tags");
+  b.add_input<decl::String>("Filter"_ustr)
+      .optional_label()
+      .description("Filters the geometry sets to process based on their tags");
 
-  b.add_input<decl::Matrix>("Simulation to World");
+  b.add_input<decl::Matrix>("Simulation to World"_ustr);
 
   {
     auto &solver_panel = b.add_panel("Solver"_ustr).default_closed(true);
-    solver_panel.add_input<decl::Int>("Substeps").default_value(10).min(1);
-    solver_panel.add_input<decl::Int>("Constraint Iterations").default_value(1).min(1);
+    solver_panel.add_input<decl::Int>("Substeps"_ustr).default_value(10).min(1);
+    solver_panel.add_input<decl::Int>("Constraint Iterations"_ustr).default_value(1).min(1);
   }
   {
     auto &p = b.add_panel("Interpolation Range"_ustr).default_closed(true);
-    p.add_input<decl::Float>("Begin").default_value(0.0).min(0.0);
-    p.add_input<decl::Float>("End").default_value(1.0).min(0.0);
+    p.add_input<decl::Float>("Begin"_ustr).default_value(0.0).min(0.0);
+    p.add_input<decl::Float>("End"_ustr).default_value(1.0).min(0.0);
   }
 }
 

@@ -36,12 +36,12 @@ static const EnumPropertyItem mode_items[] = {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Bundle>("Bundle");
-  b.add_input<decl::Menu>("Mode").static_items(mode_items).optional_label();
-  b.add_input<decl::String>("Bundle Type")
+  b.add_input<decl::Bundle>("Bundle"_ustr);
+  b.add_input<decl::Menu>("Mode"_ustr).static_items(mode_items).optional_label();
+  b.add_input<decl::String>("Bundle Type"_ustr)
       .optional_label()
       .usage_by_menu("Mode"_ustr, int(Mode::BundleType));
-  b.add_input<decl::Menu>("Data Type")
+  b.add_input<decl::Menu>("Data Type"_ustr)
       .static_items(rna_enum_node_socket_data_type_items,
                     [](const EnumPropertyItem &item) {
                       return socket_type_supported_in_bundle(eNodeSocketDatatype(item.value),
@@ -49,7 +49,7 @@ static void node_declare(NodeDeclarationBuilder &b)
                     })
       .optional_label()
       .usage_by_menu("Mode"_ustr, int(Mode::DataType));
-  b.add_output<decl::String>("Paths").structure_type(StructureType::List);
+  b.add_output<decl::String>("Paths"_ustr).structure_type(StructureType::List);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)

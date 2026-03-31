@@ -10,9 +10,9 @@ namespace blender::nodes::node_geo_tag_filter_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::String>("Tag Filter").optional_label();
-  b.add_input<decl::String>("Tags").structure_type(StructureType::List);
-  b.add_output<decl::Bool>("Match");
+  b.add_input<decl::String>("Tag Filter"_ustr).optional_label();
+  b.add_input<decl::String>("Tags"_ustr).structure_type(StructureType::List);
+  b.add_output<decl::Bool>("Match"_ustr);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
