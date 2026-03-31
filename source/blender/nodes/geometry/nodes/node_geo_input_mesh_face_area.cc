@@ -10,7 +10,7 @@ namespace blender::nodes::node_geo_input_mesh_face_area_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Float>("Area")
+  b.add_output<decl::Float>("Area"_ustr)
       .translation_context(BLT_I18NCONTEXT_AMOUNT)
       .field_source()
       .description("The surface area of each of the mesh's faces");
@@ -63,7 +63,7 @@ class FaceAreaFieldInput final : public bke::MeshFieldInput {
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  params.set_output("Area", Field<float>(std::make_shared<FaceAreaFieldInput>()));
+  params.set_output("Area"_ustr, Field<float>(std::make_shared<FaceAreaFieldInput>()));
 }
 
 static void node_register()
