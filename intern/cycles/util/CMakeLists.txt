@@ -37,6 +37,7 @@ set(SRC
 
 set(LIB
   PUBLIC bf::dependencies::openimageio
+  PRIVATE bf::dependencies::jpeg
   PUBLIC bf::dependencies::optional::tbb
   PUBLIC bf::dependencies::optional::embree
   PUBLIC bf::dependencies::optional::openpgl
@@ -56,6 +57,7 @@ set(SRC_HEADERS
   array.h
   atomic.h
   boundbox.h
+  cache_limiter.h
   color.h
   colorspace.h
   concurrent_set.h
@@ -105,6 +107,7 @@ set(SRC_HEADERS
   queue.h
   random_access_iterator_mixin.h
   rect.h
+  scoped_defer.h
   set.h
   simd.h
   semaphore.h

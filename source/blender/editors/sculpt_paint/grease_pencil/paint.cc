@@ -407,7 +407,7 @@ struct PaintOperationExecutor {
         "material_index", bke::AttrDomain::Curve);
     bke::SpanAttributeWriter<bool> cyclic = attributes.lookup_or_add_for_write_span<bool>(
         "cyclic", bke::AttrDomain::Curve);
-    cyclic.span[active_curve] = false;
+    cyclic.span[active_curve] = use_fill;
     materials.span[active_curve] = material_index;
     curve_attributes_to_skip.add_multiple({"material_index", "cyclic"});
     cyclic.finish();
@@ -445,8 +445,11 @@ struct PaintOperationExecutor {
     if (use_fill) {
       bke::SpanAttributeWriter<int> fill_id = attributes.lookup_or_add_for_write_span<int>(
           "fill_id", bke::AttrDomain::Curve);
-      bke::greasepencil::gather_next_available_fill_ids(
-          fill_id.span.varray(), fill_id.span.slice(IndexRange::from_single(active_curve)));
+      /* Set new fill id to zero, because it will have uninitialized memory otherwise. Then get the
+       * varray of all fill ids to compute a new one. */
+      fill_id.span[active_curve] = 0;
+      const int new_fill_id = bke::greasepencil::get_next_available_fill_id(fill_id.span);
+      fill_id.span[active_curve] = new_fill_id;
       curve_attributes_to_skip.add("fill_id");
       fill_id.finish();
     }
@@ -1465,18 +1468,7 @@ static int trim_end_points(bke::greasepencil::Drawing &drawing,
     }
 
     bke::GSpanAttributeWriter dst = attributes.lookup_for_write_span(iter.name);
-    GMutableSpan attribute_data = dst.span;
-
-    bke::attribute_math::to_static_type(attribute_data.type(), [&]<typename T>() {
-      MutableSpan<T> span_data = attribute_data.typed<T>();
-
-      for (int i = last_active_point - num_points_to_remove + 1;
-           i < curves.points_num() - num_points_to_remove;
-           i++)
-      {
-        span_data[i] = span_data[i + num_points_to_remove];
-      }
-    });
+    bke::attribute_math::shift_left(dst.span, last_active_point, curves.points_num(), 0);
     dst.finish();
   });
 

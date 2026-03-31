@@ -13,7 +13,6 @@
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
-#include "BLI_memory_utils.h"
 #include "BLI_string_ref.hh"
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
@@ -268,7 +267,7 @@ class BaseCryptoMatteOperation : public NodeOperation {
   {
     Vector<Result> layers = get_layers();
     if (layers.is_empty()) {
-      allocate_invalid();
+      this->allocate_default_remaining_outputs();
       return;
     }
 
@@ -300,24 +299,6 @@ class BaseCryptoMatteOperation : public NodeOperation {
     }
     else {
       matte.release();
-    }
-  }
-
-  void allocate_invalid()
-  {
-    Result &pick = get_result("Pick");
-    if (pick.should_compute()) {
-      pick.allocate_invalid();
-    }
-
-    Result &matte = get_result("Matte");
-    if (matte.should_compute()) {
-      matte.allocate_invalid();
-    }
-
-    Result &image = get_result("Image");
-    if (image.should_compute()) {
-      image.allocate_invalid();
     }
   }
 

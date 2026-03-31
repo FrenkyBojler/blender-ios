@@ -1449,32 +1449,6 @@ static void copy_first_from_src(const Span<T> src,
   }
 }
 
-static void mix_src_indices(const GSpan src_attr,
-                            const GroupedSpan<int> dst_to_src,
-                            GMutableSpan dst_attr)
-{
-  bke::attribute_math::to_static_type(src_attr.type(), [&]<typename T>() {
-    if constexpr (!std::is_void_v<bke::attribute_math::DefaultMixer<T>>) {
-      const Span<T> src = src_attr.typed<T>();
-      MutableSpan<T> dst = dst_attr.typed<T>();
-      threading::parallel_for(dst.index_range(), 2048, [&](const IndexRange range) {
-        for (const int dst_index : range) {
-          const Span<int> src_indices = dst_to_src[dst_index];
-          if (src_indices.size() == 1) {
-            dst[dst_index] = src[src_indices.first()];
-            continue;
-          }
-          bke::attribute_math::DefaultMixer<T> mixer({&dst[dst_index], 1});
-          for (const int src_index : src_indices) {
-            mixer.mix_in(0, src[src_index]);
-          }
-          mixer.finalize();
-        }
-      });
-    }
-  });
-}
-
 static void mix_attributes(const bke::AttributeAccessor src_attributes,
                            const GroupedSpan<int> dst_to_src,
                            const bke::AttrDomain domain,
@@ -1488,6 +1462,9 @@ static void mix_attributes(const bke::AttributeAccessor src_attributes,
     if (skip_names.contains(iter.name)) {
       return;
     }
+    if (iter.data_type == bke::AttrType::String) {
+      return;
+    }
     const GVArray src_attr = *iter.get();
     const CommonVArrayInfo info = src_attr.common_info();
     if (info.type == CommonVArrayInfo::Type::Single) {
@@ -1496,10 +1473,9 @@ static void mix_attributes(const bke::AttributeAccessor src_attributes,
         return;
       }
     }
-    const GVArraySpan src_span = src_attr;
     bke::GSpanAttributeWriter dst_attr = dst_attributes.lookup_or_add_for_write_only_span(
         iter.name, iter.domain, iter.data_type);
-    mix_src_indices(src_span, dst_to_src, dst_attr.span);
+    bke::attribute_math::mix_groups(GVArraySpan(src_attr), dst_to_src, dst_attr.span);
     dst_attr.finish();
   });
 }
@@ -1799,6 +1775,14 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
                  bke::AttrDomain::Corner,
                  {".corner_vert", ".corner_edge"},
                  dst_attributes);
+  if (const auto *src = static_cast<const float2 *>(
+          CustomData_get_layer(&mesh.corner_data, CD_ORIGSPACE_MLOOP)))
+  {
+    float2 *dst = static_cast<float2 *>(CustomData_add_layer(
+        &result->corner_data, CD_ORIGSPACE_MLOOP, CD_CONSTRUCT, result->corners_num));
+    bke::attribute_math::mix_groups(
+        Span(src, mesh.corners_num), dst_to_src_corners, MutableSpan(dst, result->corners_num));
+  }
 
   debug_randomize_mesh_order(result);
 

@@ -331,7 +331,7 @@ static void scene_copy_data(Main *bmain,
     scene_dst->display.shading.prop = IDP_CopyProperty(scene_src->display.shading.prop);
   }
 
-  /* Copy sequencer, this is local data! */
+  /* sequencer data */
   if (scene_src->ed) {
     scene_dst->ed = MEM_new<Editing>(__func__);
     scene_dst->ed->cache_flag = scene_src->ed->cache_flag;
@@ -575,16 +575,6 @@ static void scene_foreach_paint(LibraryForeachIDData *data,
                                                     SCENE_FOREACH_UNDO_RESTORE,
                                                     reader,
                                                     &paint_old->brush,
-                                                    IDWALK_CB_NOP);
-
-  Brush *eraser_brush_tmp = nullptr;
-  Brush **eraser_brush_p = paint ? &paint->eraser_brush : &eraser_brush_tmp;
-  BKE_LIB_FOREACHID_UNDO_PRESERVE_PROCESS_IDSUPER_P(data,
-                                                    eraser_brush_p,
-                                                    do_undo_restore,
-                                                    SCENE_FOREACH_UNDO_RESTORE,
-                                                    reader,
-                                                    &paint_old->eraser_brush,
                                                     IDWALK_CB_NOP);
 
   Palette *palette_tmp = nullptr;
@@ -1043,9 +1033,9 @@ static void scene_foreach_cache(ID *id,
     IDCacheKey key;
     key.id_session_uid = id->session_uid;
     /* Preserve VSE thumbnail cache across global undo steps. */
-    key.identifier = offsetof(Editing, runtime.thumbnail_cache);
+    key.identifier = offsetof(Editing, runtime) + offsetof(seq::EditingRuntime, thumbnail_cache);
     function_callback(
-        id, &key, reinterpret_cast<void **>(&scene->ed->runtime.thumbnail_cache), 0, user_data);
+        id, &key, reinterpret_cast<void **>(&scene->ed->runtime->thumbnail_cache), 0, user_data);
   }
 }
 
@@ -1451,14 +1441,7 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
         BLO_read_get_new_data_address_no_us(reader, ed->act_strip, sizeof(Strip)));
     ed->current_meta_strip = static_cast<Strip *>(
         BLO_read_get_new_data_address_no_us(reader, ed->current_meta_strip, sizeof(Strip)));
-    ed->prefetch_job = nullptr;
-    ed->runtime.strip_lookup = nullptr;
-    ed->runtime.media_presence = nullptr;
-    ed->runtime.thumbnail_cache = nullptr;
-    ed->runtime.intra_frame_cache = nullptr;
-    ed->runtime.source_image_cache = nullptr;
-    ed->runtime.final_image_cache = nullptr;
-    ed->runtime.preview_cache = nullptr;
+    ed->runtime = MEM_new<seq::EditingRuntime>(__func__);
 
     /* recursive link sequences, lb will be correctly initialized */
     link_recurs_seq(reader, &ed->seqbase);
@@ -2511,6 +2494,34 @@ void BKE_scene_frame_set(Scene *scene, float frame)
   double intpart;
   scene->r.subframe = modf(double(frame), &intpart);
   scene->r.cfra = int(intpart);
+}
+
+int2 BKE_scene_get_playback_range(const Scene *scene)
+{
+  if (scene->r.flag & SCER_PRV_RANGE) {
+    return {scene->r.psfra, scene->r.pefra};
+  }
+  return {scene->r.sfra, scene->r.efra};
+}
+
+void BKE_scene_frame_clamp_for_playback(Scene *scene, const bool is_playing_forward)
+{
+  const int2 range = BKE_scene_get_playback_range(scene);
+  /* To avoid a flicker to the last frame, reset the current frame to the start of the playback
+   * range relative to the playback direction. */
+  if (is_playing_forward) {
+    if (scene->r.cfra > range[1]) {
+      scene->r.cfra = range[0];
+    }
+  }
+  else {
+    if (scene->r.cfra < range[0]) {
+      scene->r.cfra = range[1];
+    }
+  }
+  if (!(scene->r.flag & SCER_ALLOW_PREROLL)) {
+    scene->r.cfra = clamp_i(scene->r.cfra, range[0], range[1]);
+  }
 }
 
 /* -------------------------------------------------------------------- */
