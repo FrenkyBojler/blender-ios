@@ -38,19 +38,19 @@ namespace blender::ed::space_image {
 class RenderSlotTreeView : public ui::AbstractTreeView {
  protected:
   Image &image_;
-  const bContext *context_;
+  const Scene *scene_;
 
  public:
-  RenderSlotTreeView(Image &image, const bContext *C) : image_(image), context_(C)
+  RenderSlotTreeView(Image &image, const bContext *C) : image_(image), scene_(CTX_data_scene(C))
   {
     is_flat_ = true;
   }
 
   void build_tree() override;
 
-  const bContext *get_context() const
+  const Scene *get_scene() const
   {
-    return context_;
+    return scene_;
   }
 };
 
@@ -113,20 +113,13 @@ class RenderSlotDragController : public ui::AbstractViewItemDragController {
 
 class RenderSlotDropTarget : public ui::TreeViewItemDropTarget {
  private:
-  Image &image_;
-  RenderSlot &drop_slot_;
-  int drop_index_;
+  RenderSlotData drop_data_;
 
  public:
   RenderSlotDropTarget(ui::AbstractTreeViewItem &item,
                        ui::DropBehavior behavior,
-                       Image &image,
-                       RenderSlot &drop_slot,
-                       int index)
-      : TreeViewItemDropTarget(item, behavior),
-        image_(image),
-        drop_slot_(drop_slot),
-        drop_index_(index)
+                       RenderSlotData drop_data)
+      : TreeViewItemDropTarget(item, behavior), drop_data_(drop_data)
   {
   }
 
@@ -147,9 +140,9 @@ class RenderSlotDropTarget : public ui::TreeViewItemDropTarget {
   std::string drop_tooltip(const ui::DragInfo &drag_info) const override
   {
     const StringRef drag_name = TIP_("Selected Slots");
-    const std::string drop_name = drop_slot_.name[0] != '\0' ?
-                                      drop_slot_.name :
-                                      fmt::format("Slot {}", drop_index_ + 1);
+    const std::string drop_name = drop_data_.slot->name[0] != '\0' ?
+                                      drop_data_.slot->name :
+                                      fmt::format("Slot {}", drop_data_.index + 1);
 
     switch (drag_info.drop_location) {
       case ui::DropLocation::Into:
@@ -176,8 +169,8 @@ class RenderSlotDropTarget : public ui::TreeViewItemDropTarget {
     }
 
     for (int8_t i = 0; drag_slots[i] != nullptr; i++) {
-      const int drag_index = BLI_findindex(&image_.renderslots, drag_slots[i]);
-      int drop_index = BLI_findindex(&image_.renderslots, &drop_slot_);
+      const int drag_index = BLI_findindex(&drop_data_.image->renderslots, drag_slots[i]);
+      int drop_index = BLI_findindex(&drop_data_.image->renderslots, drop_data_.slot);
 
       if (drag_index == -1) {
         continue;
@@ -195,7 +188,7 @@ class RenderSlotDropTarget : public ui::TreeViewItemDropTarget {
           break;
       }
 
-      BKE_image_move_renderslot(&image_, drag_index, drop_index);
+      BKE_image_move_renderslot(drop_data_.image, drag_index, drop_index);
     }
 
     WM_event_add_notifier(C, NC_IMAGE | ND_DRAW, nullptr);
@@ -229,13 +222,12 @@ class RenderSlotItem : public ui::AbstractTreeViewItem {
     /* Determine icon based on slot state, same logic as `ui_imageuser_slot_menu`. */
     const RenderSlotTreeView &tree_view = static_cast<const RenderSlotTreeView &>(
         get_tree_view());
-    const bContext *C = tree_view.get_context();
 
     /* Default to "blank" for nicer alignment. */
     int icon = ICON_BLANK1;
 
     /* The scene isn't expected to be null, check since it's not a requirement. */
-    Scene *scene = CTX_data_scene(C);
+    const Scene *scene = tree_view.get_scene();
     const bool has_active_render = scene && (RE_GetSceneRender(scene) != nullptr);
 
     if (slot_data_.index == slot_data_.image->last_render_slot) {
@@ -297,19 +289,17 @@ class RenderSlotItem : public ui::AbstractTreeViewItem {
 
   void delete_item(bContext *C) override
   {
-    ImageUser *iuser = &CTX_wm_space_image(C)->iuser;
-    BKE_image_remove_renderslot(slot_data_.image, iuser, slot_data_.index);
-    WM_event_add_notifier(C, NC_IMAGE | ND_DRAW, nullptr);
-    ED_undo_grouped_push(C, "Delete Render Slot");
-  }
-
-  void build_context_menu(bContext &C, ui::Layout &layout) const override
-  {
-    MenuType *mt = WM_menutype_find("IMAGE_MT_render_slot_context_menu", true);
-    if (!mt) {
+    /* Resolve index at delete time: UI may call this for each selected item in one invoke, and
+     * earlier removals shift list indices while `slot_data_.index` stays stale. */
+    const int index = BLI_findindex(&slot_data_.image->renderslots, slot_data_.slot);
+    if (index < 0) {
       return;
     }
-    ui::menutype_draw(&C, mt, &layout);
+
+    ImageUser *iuser = &CTX_wm_space_image(C)->iuser;
+    BKE_image_remove_renderslot(slot_data_.image, iuser, index);
+    WM_event_add_notifier(C, NC_IMAGE | ND_DRAW, nullptr);
+    ED_undo_grouped_push(C, "Delete Render Slot");
   }
 
   std::unique_ptr<ui::AbstractViewItemDragController> create_drag_controller() const override
@@ -321,7 +311,7 @@ class RenderSlotItem : public ui::AbstractTreeViewItem {
   std::unique_ptr<ui::TreeViewItemDropTarget> create_drop_target() override
   {
     return std::make_unique<RenderSlotDropTarget>(
-        *this, ui::DropBehavior::Reorder, *slot_data_.image, *slot_data_.slot, slot_data_.index);
+        *this, ui::DropBehavior::Reorder, slot_data_);
   }
 };
 
@@ -344,8 +334,8 @@ void image_render_slot_tree_view_draw(const bContext *C, ui::Layout &layout, Ima
       *block,
       "Render Slot Tree View",
       std::make_unique<RenderSlotTreeView>(*image, C));
-  tree_view->set_context_menu_title("Render Slot");
-  tree_view->set_default_rows(3);
+  tree_view->set_default_rows(4);
+  /* Multi-selection (range select, X, move-on-selection): keep unless render module requests otherwise. */
   tree_view->allow_multiselect_items();
 
   ui::TreeViewBuilder::build_tree_view(*C, *tree_view, layout);

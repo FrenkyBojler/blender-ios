@@ -4019,7 +4019,7 @@ static wmOperatorStatus image_render_slot_move_exec(bContext *C, wmOperator *op)
   const int totslot = BLI_listbase_count(&ima->renderslots);
   bool changed = false;
 
-  if (type < 0) { /* Moving upwards. */
+  if (type == SLOT_MOVE_UP) { /* Moving upwards. */
     for (int index = 0; index < totslot; index++) {
       const RenderSlot *slot = static_cast<RenderSlot *>(BLI_findlink(&ima->renderslots, index));
       if (!render_slot_is_selected(*ima, *slot, index)) {
@@ -4029,7 +4029,7 @@ static wmOperatorStatus image_render_slot_move_exec(bContext *C, wmOperator *op)
       changed |= BKE_image_move_renderslot(ima, index, new_index);
     }
   }
-  else { /* Moving downwards. */
+  else if (type == SLOT_MOVE_DOWN) { /* Moving downwards. */
     for (int index = totslot - 1; index >= 0; index--) {
       const RenderSlot *slot = static_cast<RenderSlot *>(BLI_findlink(&ima->renderslots, index));
       if (!render_slot_is_selected(*ima, *slot, index)) {
@@ -4066,7 +4066,7 @@ void IMAGE_OT_render_slot_move(wmOperatorType *ot)
   ot->exec = image_render_slot_move_exec;
 
   /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  ot->flag = OPTYPE_UNDO;
 
   RNA_def_enum(ot->srna, "type", slot_move, 0, "Type", "");
 }

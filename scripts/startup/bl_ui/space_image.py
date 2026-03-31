@@ -1192,25 +1192,6 @@ class IMAGE_PT_render_slots(Panel):
         col.operator("image.clear_render_slot", icon='X', text="")
 
 
-class IMAGE_MT_render_slot_context_menu(Menu):
-    bl_label = "Render Slot"
-
-    def draw(self, context):
-        layout = self.layout
-
-        layout.operator("image.add_render_slot", icon='ADD')
-        layout.operator("image.remove_render_slot", icon='REMOVE')
-
-        layout.separator()
-
-        layout.operator("image.render_slot_move", icon='TRIA_UP', text="Move Up").type = 'UP'
-        layout.operator("image.render_slot_move", icon='TRIA_DOWN', text="Move Down").type = 'DOWN'
-
-        layout.separator()
-
-        layout.operator("image.clear_render_slot", icon='X')
-
-
 class IMAGE_UL_udim_tiles(UIList):
     def draw_item(self, _context, layout, _data, item, _icon, _active_data, _active_propname, _index):
         tile = item
@@ -1886,7 +1867,6 @@ classes = (
     IMAGE_PT_proportional_edit,
     IMAGE_PT_image_properties,
     IMAGE_PT_render_slots,
-    IMAGE_MT_render_slot_context_menu,
     IMAGE_UL_udim_tiles,
     IMAGE_PT_udim_tiles,
     IMAGE_PT_view_display,

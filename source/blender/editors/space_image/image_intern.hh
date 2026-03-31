@@ -98,7 +98,7 @@ void IMAGE_OT_tile_add(wmOperatorType *ot);
 void IMAGE_OT_tile_remove(wmOperatorType *ot);
 void IMAGE_OT_tile_fill(wmOperatorType *ot);
 
-/* `image_panels.cc` */
+/* image_panels.c */
 
 /**
  * Gets active viewer user.
