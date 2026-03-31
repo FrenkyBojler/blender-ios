@@ -206,13 +206,13 @@ static void root_catalogs_draw(const bContext *C, Menu *menu)
 
   Set<std::string> all_builtin_menus = [&]() {
     Set<std::string> menus;
-    if (ELEM(object->type, OB_MESH, OB_CURVES_LEGACY, OB_FONT, OB_SURF, OB_LATTICE)) {
+    if (ELEM(object->type, OB_MESH, OB_CURVES_LEGACY, OB_FONT, OB_SURF, OB_LATTICE, OB_GREASE_PENCIL)) {
       menus.add_new("Edit");
     }
-    if (ELEM(object->type, OB_MESH, OB_CURVES_LEGACY, OB_FONT, OB_SURF, OB_VOLUME)) {
+    if (ELEM(object->type, OB_MESH, OB_CURVES_LEGACY, OB_FONT, OB_SURF, OB_VOLUME, OB_GREASE_PENCIL)) {
       menus.add_new("Generate");
     }
-    if (ELEM(object->type, OB_MESH, OB_CURVES_LEGACY, OB_FONT, OB_SURF, OB_LATTICE, OB_VOLUME)) {
+    if (ELEM(object->type, OB_MESH, OB_CURVES_LEGACY, OB_FONT, OB_SURF, OB_LATTICE, OB_VOLUME, OB_GREASE_PENCIL)) {
       menus.add_new("Deform");
     }
     if (ELEM(object->type, OB_MESH)) {
