@@ -8,6 +8,8 @@
 
 #include "blender/CCL_api.h"
 
+namespace blender {
+
 void CCL_implicit_sharing_init()
 {
   ccl::implicit_sharing_init(
@@ -20,3 +22,5 @@ void CCL_implicit_sharing_init()
         info->remove_user_and_delete_if_last();
       });
 }
+
+}  // namespace blender
