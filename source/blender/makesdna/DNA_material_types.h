@@ -212,6 +212,13 @@ enum {
   MA_THICKNESS_SLAB = 1,
 };
 
+/* Grease Pencil Material Types */
+enum {
+  GP_MATERIAL_TYPE_STROKE = 0,
+  GP_MATERIAL_TYPE_FILL = 1,
+  GP_MATERIAL_TYPE_BOTH = 2,
+};
+
 /* Grease Pencil Stroke styles */
 enum {
   GP_MATERIAL_STROKE_STYLE_SOLID = 0,
@@ -264,7 +271,6 @@ struct TexPaintSlot {
 
 struct MaterialGPencilStyle {
   DNA_DEFINE_CXX_METHODS(MaterialGPencilStyle)
-
   /** Texture image for strokes. */
   struct Image *sima = nullptr;
   /** Texture image for filling. */
@@ -289,7 +295,8 @@ struct MaterialGPencilStyle {
   DNA_DEPRECATED float gradient_angle = 0;
   /** Radius for radial gradients. */
   DNA_DEPRECATED float gradient_radius = 0;
-  char _pad2[4] = {};
+   /* The type of material. Can be stroke, fill, or both. */
+  int type = 0;
   /** UV coordinates scale. */
   DNA_DEPRECATED float gradient_scale[2] = {};
   /** Factor to shift filling in 2d space. */

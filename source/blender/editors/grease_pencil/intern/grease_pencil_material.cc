@@ -6,22 +6,34 @@
  * \ingroup edgreasepencil
  */
 
+#include "DNA_ID.h"
 #include "DNA_material_types.h"
 
 #include "BKE_attribute.hh"
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_material.hh"
 
 #include "BLI_vector.hh"
 
+#include "BLT_translation.hh"
+
 #include "DEG_depsgraph.hh"
 
 #include "ED_grease_pencil.hh"
+#include "ED_object.hh"
+#include "ED_screen.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
+
+#include "RNA_prototypes.hh"
+
+#include "UI_interface_c.hh"
+#include "UI_resources.hh"
 
 #include "WM_api.hh"
 
@@ -502,6 +514,116 @@ static void GREASE_PENCIL_OT_material_isolate(wmOperatorType *ot)
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
+/** \name New Grease Pencil Material Operator
+ * \{ */
+
+static bool new_grease_pencil_material_poll(bContext *C)
+{
+  const Object *ob = ed::object::context_object(C);
+  if (ob->type != OB_GREASE_PENCIL) {
+    return false;
+  }
+  if (!ED_operator_object_active_local_editable_ex(C, ob)) {
+    return false;
+  }
+  if (!OB_TYPE_SUPPORT_MATERIAL(ob->type)) {
+    return false;
+  }
+
+  /* Material linked to object. */
+  if (ob->matbits && ob->actcol && ob->matbits[ob->actcol - 1]) {
+    return true;
+  }
+
+  /* Material linked to obdata. */
+  const ID *data = ob->data;
+  return (data && ID_IS_EDITABLE(data) && !ID_IS_OVERRIDE_LIBRARY(data));
+}
+
+static wmOperatorStatus new_grease_pencil_material_exec(bContext *C, wmOperator *op)
+{
+  Material *ma = static_cast<Material *>(
+      CTX_data_pointer_get_type(C, "material", RNA_Material).data);
+  Main *bmain = CTX_data_main(C);
+  PointerRNA ptr;
+  PropertyRNA *prop;
+
+  const int type = RNA_enum_get(op->ptr, "type");
+
+  /* hook into UI */
+  ui::context_active_but_prop_get_templateID(C, &ptr, &prop);
+
+  Object *ob = static_cast<Object *>((prop && RNA_struct_is_a(ptr.type, RNA_Object)) ? ptr.data :
+                                                                                       nullptr);
+
+  /* add or copy material */
+  if (ma) {
+    Material *new_ma = id_cast<Material *>(
+        BKE_id_copy_ex(bmain, &ma->id, nullptr, LIB_ID_COPY_DEFAULT | LIB_ID_COPY_ACTIONS));
+    ma = new_ma;
+  }
+  else {
+    const char *name = DATA_("Material");
+    ma = BKE_gpencil_material_add(bmain, name);
+    ma->gp_style->type = type;
+  }
+
+  if (prop) {
+    if (ob != nullptr) {
+      /* Add slot follows user-preferences for creating new slots,
+       * RNA pointer assignment doesn't, see: #60014. */
+      if (BKE_object_material_get_p(ob, ob->actcol) == nullptr) {
+        BKE_object_material_slot_add(bmain, ob);
+      }
+    }
+
+    /* when creating new ID blocks, use is already 1, but RNA
+     * pointer use also increases user, so this compensates it */
+    id_us_min(&ma->id);
+
+    if (ptr.owner_id) {
+      BKE_id_move_to_same_lib(*bmain, ma->id, *ptr.owner_id);
+    }
+
+    PointerRNA idptr = RNA_id_pointer_create(&ma->id);
+    RNA_property_pointer_set(&ptr, prop, idptr, nullptr);
+    RNA_property_update(C, &ptr, prop);
+  }
+
+  WM_event_add_notifier(C, NC_MATERIAL | NA_ADDED, ma);
+
+  return OPERATOR_FINISHED;
+}
+
+void GREASE_PENCIL_OT_material_new(wmOperatorType *ot)
+{
+  static const EnumPropertyItem material_type_items[] = {
+      {GP_MATERIAL_TYPE_STROKE, "STROKE", ICON_GP_DRAW_STROKE, "Stroke", ""},
+      {GP_MATERIAL_TYPE_FILL, "FILL", ICON_GP_DRAW_FILL, "Fill", ""},
+      {GP_MATERIAL_TYPE_BOTH, "BOTH", ICON_GP_DRAW_BOTH, "Both", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  /* identifiers */
+  ot->name = "New Material";
+  ot->idname = "GREASE_PENCIL_OT_material_new";
+  ot->description = "Add a new material";
+
+  /* API callbacks. */
+  ot->invoke = WM_menu_invoke;
+  ot->exec = new_grease_pencil_material_exec;
+  ot->poll = new_grease_pencil_material_poll;
+
+  ot->prop = RNA_def_enum(
+      ot->srna, "type", material_type_items, GP_MATERIAL_TYPE_STROKE, "Type", "");
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
+}
+
+/** \} */
+
 }  // namespace ed::greasepencil
 
 void ED_operatortypes_grease_pencil_material()
@@ -515,6 +637,7 @@ void ED_operatortypes_grease_pencil_material()
   WM_operatortype_append(GREASE_PENCIL_OT_material_lock_unselected);
   WM_operatortype_append(GREASE_PENCIL_OT_material_copy_to_object);
   WM_operatortype_append(GREASE_PENCIL_OT_material_isolate);
+  WM_operatortype_append(GREASE_PENCIL_OT_material_new);
 }
 
 }  // namespace blender

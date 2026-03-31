@@ -578,10 +578,21 @@ static void rna_def_material_greasepencil(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
+  static const EnumPropertyItem material_type_items[] = {
+      {GP_MATERIAL_TYPE_STROKE, "STROKE", ICON_GP_DRAW_STROKE, "Stroke", ""},
+      {GP_MATERIAL_TYPE_FILL, "FILL", ICON_GP_DRAW_FILL, "Fill", ""},
+      {GP_MATERIAL_TYPE_BOTH, "BOTH", ICON_GP_DRAW_BOTH, "Both", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
   srna = RNA_def_struct(brna, "MaterialGPencilStyle", nullptr);
   RNA_def_struct_sdna(srna, "MaterialGPencilStyle");
   RNA_def_struct_ui_text(srna, "Grease Pencil Color", "");
   RNA_def_struct_path_func(srna, "rna_GpencilColorData_path");
+
+  /* Read-only material type. */
+  prop = RNA_def_enum(srna, "type", material_type_items, GP_MATERIAL_TYPE_STROKE, "Type", "");
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
   prop = RNA_def_property(srna, "color", PROP_FLOAT, PROP_COLOR);
   RNA_def_property_range(prop, 0.0, 1.0);

@@ -201,6 +201,28 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       scene.r.scemode |= R_USE_TEXTURE_CACHE;
     }
   }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 16)) {
+    for (Material &material : bmain->materials) {
+      if (!material.gp_style) {
+        continue;
+      }
+      MaterialGPencilStyle &gp_mat = *material.gp_style;
+      /* Default. */
+      gp_mat.type = GP_MATERIAL_TYPE_STROKE;
+      const bool use_stroke = gp_mat.stroke_rgba[3] != 0.0f;
+      const bool use_fill = gp_mat.fill_rgba[3] != 0.0f;
+      if (use_stroke && use_fill) {
+        gp_mat.type = GP_MATERIAL_TYPE_BOTH;
+      }
+      else if (use_stroke) {
+        gp_mat.type = GP_MATERIAL_TYPE_STROKE;
+      }
+      else if (use_fill) {
+        gp_mat.type = GP_MATERIAL_TYPE_FILL;
+      }
+    }
+  }
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.

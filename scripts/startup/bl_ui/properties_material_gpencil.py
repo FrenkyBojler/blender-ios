@@ -114,6 +114,12 @@ class MATERIAL_PT_gpencil_strokecolor(GPMaterialButtonsPanel, Panel):
     bl_label = "Stroke"
     bl_parent_id = "MATERIAL_PT_gpencil_surface"
 
+    @classmethod
+    def poll(cls, context):
+        ma = context.material
+        if ma is not None and ma.grease_pencil is not None:
+            return ma.grease_pencil.type == 'STROKE' or ma.grease_pencil.type == 'BOTH'
+
     def draw_header(self, context):
         ma = context.material
         if ma is not None and ma.grease_pencil is not None:
@@ -159,6 +165,12 @@ class MATERIAL_PT_gpencil_strokecolor(GPMaterialButtonsPanel, Panel):
 class MATERIAL_PT_gpencil_fillcolor(GPMaterialButtonsPanel, Panel):
     bl_label = "Fill"
     bl_parent_id = "MATERIAL_PT_gpencil_surface"
+
+    @classmethod
+    def poll(cls, context):
+        ma = context.material
+        if ma is not None and ma.grease_pencil is not None:
+            return ma.grease_pencil.type == 'FILL' or ma.grease_pencil.type == 'BOTH'
 
     def draw_header(self, context):
         ma = context.material
