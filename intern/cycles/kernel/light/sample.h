@@ -286,15 +286,16 @@ ccl_device_inline void shadow_ray_setup(const ccl_private ShaderData *ccl_restri
   }
   else {
     /* signal to not cast shadow ray */
-    ray->P = zero_float3();
-    ray->tmax = 0.0f;
-
     if (ls->t == FLT_MAX) {
       /* Distant and background light.
        * Keep the direction for the proper shader evaluation. */
+      ray->P = P;
       ray->D = ls->D;
+      ray->tmin = 0.0f;
+      ray->tmax = 0.0f;
     }
     else {
+      ray->P = zero_float3();
       ray->D = zero_float3();
     }
   }
