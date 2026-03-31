@@ -1190,6 +1190,15 @@ template<typename T, typename SegmentT>
 #endif
 inline void fill_segment(T *__restrict data, const T &value, const SegmentT segment)
 {
+  if constexpr (std::is_same_v<SegmentT, IndexRange>) {
+    if constexpr (std::is_trivially_copy_assignable_v<T>) {
+      if (memory_is_zero(&value, sizeof(T))) {
+        const IndexRange range = segment;
+        memset(data + range.start(), 0, range.size() * sizeof(T));
+        return;
+      }
+    }
+  }
   for (const int64_t i : segment) {
     data[i] = value;
   }
