@@ -1811,6 +1811,9 @@ static wmOperatorStatus wm_operator_call_internal(bContext *C,
                                                   const bool poll_only,
                                                   const wmEvent *event)
 {
+  BLI_profile_zone_scoped_n("Operator Call");
+  BLI_profile_zone_set_name_fmt("%s operator", ot->name);
+
   wmOperatorStatus retval;
 
   CTX_wm_operator_poll_msg_clear(C);
