@@ -764,8 +764,12 @@ void resolve([[work_group_id]] const uint3 group_id,
     float4 radiance_with_visibility = accum_sh.evaluate_lambert(L);
     float3 radiance = radiance_with_visibility.xyz;
     /* Evaluate occlusion from horizon scan. */
-    /* TODO: Explain why do we need this factor? */
-    float distant_radiance_visibility = saturate(radiance_with_visibility.w * (M_1_PI / 0.945f));
+    /* The energy amount from the visibility factor is supposed to be a pure lambertian visibility
+     * (which integrate to PI over the hemisphere). However, the tracing step weight the incoming
+     * radiance by 4 PI (and with it the visibility). So the expected computation should be
+     * `accum_sh.evaluate(L).w / 4.0f`. But in order to save some complexity, we approximate using
+     * the `evaluate_lambert` version even if not completely correct (max 3% errors). */
+    float distant_radiance_visibility = saturate(radiance_with_visibility.w / 3.0f);
 
     if (closure_has_transmission(cl.type)) {
       /* We only recorded visibility and radiance for the upper hemisphere.
