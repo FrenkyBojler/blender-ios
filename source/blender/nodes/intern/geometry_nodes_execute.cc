@@ -188,8 +188,8 @@ static bke::SocketValueVariant init_socket_cpp_value(PointerRNA *input_props_ptr
         return bke::SocketValueVariant(value_rotation);
       }
       if (type == GeometryNodesInputType::Attribute) {
-        if (std::optional<bke::SocketValueVariant> value = load_attribute_field_input<int>(
-                *input_props_ptr))
+        if (std::optional<bke::SocketValueVariant> value =
+                load_attribute_field_input<math::Quaternion>(*input_props_ptr))
         {
           return std::move(*value);
         }
