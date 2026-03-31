@@ -1164,17 +1164,6 @@ template<typename T, typename SegmentT>
 #if (defined(__GNUC__) && !defined(__clang__))
 [[gnu::optimize("-funroll-loops")]] [[gnu::optimize("O3")]]
 #endif
-inline void masked_fill_segment(T *__restrict data, const T &value, const SegmentT segment)
-{
-  for (const int64_t i : segment) {
-    data[i] = value;
-  }
-}
-
-template<typename T, typename SegmentT>
-#if (defined(__GNUC__) && !defined(__clang__))
-[[gnu::optimize("-funroll-loops")]] [[gnu::optimize("O3")]]
-#endif
 inline void gather_assign_segment(const T *__restrict src,
                                   const SegmentT segment,
                                   T *__restrict dst)
@@ -1192,6 +1181,17 @@ inline void copy_assign_segment(const T *__restrict src, const SegmentT segment,
 {
   for (const int64_t i : segment) {
     dst[i] = src[i];
+  }
+}
+
+template<typename T, typename SegmentT>
+#if (defined(__GNUC__) && !defined(__clang__))
+[[gnu::optimize("-funroll-loops")]] [[gnu::optimize("O3")]]
+#endif
+inline void fill_segment(T *__restrict data, const T &value, const SegmentT segment)
+{
+  for (const int64_t i : segment) {
+    data[i] = value;
   }
 }
 
@@ -1216,7 +1216,7 @@ inline void gather_assign(const T *__restrict src, const IndexMask &indices, T *
 template<typename T> inline void fill(T *__restrict data, const T &value, const IndexMask &mask)
 {
   mask.foreach_segment_optimized(
-      [data, value](const auto segment) { masked_fill_segment(data, value, segment); },
+      [data, value](const auto segment) { fill_segment(data, value, segment); },
       exec_mode::serial);
 }
 
