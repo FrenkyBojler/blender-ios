@@ -422,15 +422,17 @@ static void pose_slide_apply_vec3(tPoseSlideOp *pso,
                                   float vec[3],
                                   const char propName[])
 {
-  LinkData *ld = nullptr;
   char *path = nullptr;
 
   /* Get the path to use. */
   path = BLI_sprintfN("%s.%s", pfl->pchan_path, propName);
 
   /* Using this path, find each matching F-Curve for the variables we're interested in. */
-  while ((ld = poseAnim_mapping_getNextFCurve(&pfl->fcurves, ld, path))) {
-    FCurve *fcu = static_cast<FCurve *>(ld->data);
+
+  for (FCurve *fcu : pfl->fcurves) {
+    if (!STREQ(fcu->rna_path, path)) {
+      continue;
+    }
     const int idx = fcu->array_index;
     const int lock = pso->axislock;
 
@@ -466,8 +468,7 @@ static void pose_slide_apply_props(tPoseSlideOp *pso,
    * - bbone properties are similar, but they always start with a prefix "bbone_*",
    *   so a similar method should work here for those too
    */
-  for (LinkData &ld : pfl->fcurves) {
-    FCurve *fcu = static_cast<FCurve *>(ld.data);
+  for (FCurve *fcu : pfl->fcurves) {
     const char *bPtr, *pPtr;
 
     if (fcu->rna_path == nullptr) {
@@ -584,7 +585,6 @@ static void pose_slide_apply_quat(tPoseSlideOp *pso, tPChanFCurveLink *pfl)
 {
   const FCurve *fcu_w = nullptr, *fcu_x = nullptr, *fcu_y = nullptr, *fcu_z = nullptr;
   bPoseChannel *pchan = pfl->pchan;
-  LinkData *ld = nullptr;
   char *path = nullptr;
   float prev_frame, next_frame;
 
@@ -600,9 +600,10 @@ static void pose_slide_apply_quat(tPoseSlideOp *pso, tPChanFCurveLink *pfl)
   const float current_frame = float(pso->current_frame);
   const float factor = ED_slider_factor_get(pso->slider);
 
-  /* Using this path, find each matching F-Curve for the variables we're interested in. */
-  while ((ld = poseAnim_mapping_getNextFCurve(&pfl->fcurves, ld, path))) {
-    FCurve *fcu = static_cast<FCurve *>(ld->data);
+  for (FCurve *fcu : pfl->fcurves) {
+    if (!STREQ(fcu->rna_path, path)) {
+      continue;
+    }
 
     /* Assign this F-Curve to one of the relevant pointers. */
     switch (fcu->array_index) {
@@ -983,9 +984,8 @@ static wmOperatorStatus pose_slide_invoke_common(bContext *C, wmOperator *op, co
   /* For each link, add all its keyframes to the search tree. */
   for (tPChanFCurveLink &pfl : pso->pfLinks) {
     /* Do this for each F-Curve. */
-    for (LinkData &ld : pfl.fcurves) {
+    for (FCurve *fcu : pfl.fcurves) {
       AnimData *adt = pfl.ob->adt;
-      FCurve *fcu = static_cast<FCurve *>(ld.data);
       fcurve_to_keylist(adt, fcu, pso->keylist, 0, {-FLT_MAX, FLT_MAX}, adt != nullptr);
     }
   }
@@ -1707,8 +1707,7 @@ static void propagate_curve_values(ListBaseT<tPChanFCurveLink> *pflinks,
   using namespace blender::animrig;
   const KeyframeSettings settings = get_keyframe_settings(true);
   for (tPChanFCurveLink &pfl : *pflinks) {
-    for (LinkData &ld : pfl.fcurves) {
-      FCurve *fcu = static_cast<FCurve *>(ld.data);
+    for (FCurve *fcu : pfl.fcurves) {
       if (!fcu->bezt) {
         continue;
       }
@@ -1725,8 +1724,7 @@ static float find_next_key(ListBaseT<tPChanFCurveLink> *pflinks, const float sta
 {
   float target_frame = FLT_MAX;
   for (tPChanFCurveLink &pfl : *pflinks) {
-    for (LinkData &ld : pfl.fcurves) {
-      FCurve *fcu = static_cast<FCurve *>(ld.data);
+    for (FCurve *fcu : pfl.fcurves) {
       if (!fcu->bezt) {
         continue;
       }
@@ -1748,8 +1746,7 @@ static float find_last_key(ListBaseT<tPChanFCurveLink> *pflinks)
 {
   float target_frame = FLT_MIN;
   for (tPChanFCurveLink &pfl : *pflinks) {
-    for (LinkData &ld : pfl.fcurves) {
-      const FCurve *fcu = static_cast<const FCurve *>(ld.data);
+    for (FCurve *fcu : pfl.fcurves) {
       if (!fcu->bezt) {
         continue;
       }
@@ -1779,8 +1776,7 @@ static void get_keyed_frames_in_range(ListBaseT<tPChanFCurveLink> *pflinks,
 {
   AnimKeylist *keylist = ED_keylist_create();
   for (tPChanFCurveLink &pfl : *pflinks) {
-    for (LinkData &ld : pfl.fcurves) {
-      FCurve *fcu = static_cast<FCurve *>(ld.data);
+    for (FCurve *fcu : pfl.fcurves) {
       fcurve_to_keylist(nullptr, fcu, keylist, 0, {start_frame, end_frame}, false);
     }
   }
@@ -1803,8 +1799,7 @@ static void get_selected_frames(ListBaseT<tPChanFCurveLink> *pflinks,
 {
   AnimKeylist *keylist = ED_keylist_create();
   for (tPChanFCurveLink &pfl : *pflinks) {
-    for (LinkData &ld : pfl.fcurves) {
-      FCurve *fcu = static_cast<FCurve *>(ld.data);
+    for (FCurve *fcu : pfl.fcurves) {
       fcurve_to_keylist(nullptr, fcu, keylist, 0, {-FLT_MAX, FLT_MAX}, false);
     }
   }

@@ -139,7 +139,7 @@ struct tPChanFCurveLink {
   Object *ob;
 
   /** F-Curves for this PoseChannel (wrapped with LinkData) */
-  ListBaseT<LinkData> fcurves;
+  Vector<FCurve *> fcurves;
   /** Pose Channel which data is attached to */
   bPoseChannel *pchan;
 
