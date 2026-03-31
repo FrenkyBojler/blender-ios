@@ -380,33 +380,7 @@ static PointerRNA rna_Struct_name_property_get(PointerRNA *ptr)
 
 /* Struct property iteration. This is quite complicated, the purpose is to
  * iterate over properties of all inheritance levels, and for each struct to
- * also iterator over id properties not known by RNA. */
-
-static bool rna_idproperty_known(CollectionPropertyIterator *iter, void *data)
-{
-  IDProperty *idprop = static_cast<IDProperty *>(data);
-  PropertyRNA *prop;
-  StructRNA *ptype = iter->builtin_parent.type;
-
-  /* Function to skip any id properties that are already known by RNA,
-   * for the second loop where we go over unknown id properties.
-   *
-   * Note that only dynamically-defined RNA properties (the ones actually using IDProperties as
-   * storage back-end) should be checked here. If a custom property is named the same as a 'normal'
-   * RNA property, they are different data. */
-  do {
-    for (prop = static_cast<PropertyRNA *>(ptype->cont.properties.first); prop; prop = prop->next)
-    {
-      if ((prop->flag_internal & PROP_INTERN_BUILTIN) == 0 &&
-          (prop->flag & PROP_IDPROPERTY) != 0 && STREQ(prop->identifier, idprop->name))
-      {
-        return true;
-      }
-    }
-  } while ((ptype = ptype->base));
-
-  return false;
-}
+ * also iterate over custom properties. */
 
 static bool rna_property_builtin(CollectionPropertyIterator * /*iter*/, void *data)
 {
@@ -469,7 +443,7 @@ static void rna_Struct_properties_next(CollectionPropertyIterator *iter)
 
     /* Try IDProperties (i.e. custom data).
      *
-     * NOTE: System IDProperties should not need to be handled here, as they are expected to have a
+     * NOTE: System IDProperties do not need to be handled here, as they should have a
      * valid (runtime-defined) RNA property to wrap them, which will have been processed above as
      * part of `rna_inheritance_properties_listbase_next`. */
     if (!iter->valid) {
@@ -477,7 +451,7 @@ static void rna_Struct_properties_next(CollectionPropertyIterator *iter)
 
       if (group) {
         rna_iterator_listbase_end(iter);
-        rna_iterator_listbase_begin(iter, &iter->parent, &group->data.group, rna_idproperty_known);
+        rna_iterator_listbase_begin(iter, &iter->parent, &group->data.group, nullptr);
         internal = &iter->internal.listbase;
         internal->flag = 1;
       }
