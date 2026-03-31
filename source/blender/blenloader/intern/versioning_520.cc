@@ -10,7 +10,9 @@
 
 #include "DNA_ID.h"
 #include "DNA_brush_types.h"
+#include "DNA_curve_types.h"
 #include "DNA_node_types.h"
+#include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 
 #include "BLI_listbase_iterator.hh"
@@ -221,6 +223,24 @@ static void version_clear_strip_linear_modifier_flag(Main &bmain)
   }
 }
 
+static void fix_single_point_curves_custom_knots(Main *bmain)
+{
+  /* Fix corrupted flagu/flagv values created by older versions of the Curve Pen tool.
+   * The tool could create loose vertices with invalid flag values (e.g. -2), where
+   * CU_NURB_CUSTOM was set alongside other flags and knotsu/knotsv was left null,
+   * causing a crash when opening these files in newer versions. */
+  for (Curve &cu : bmain->curves) {
+    for (Nurb *nu = static_cast<Nurb *>(cu.nurb.first); nu != nullptr; nu = nu->next) {
+      if (nu->knotsu == nullptr && (nu->flagu & CU_NURB_CUSTOM)) {
+        nu->flagu &= (CU_NURB_CYCLIC | CU_NURB_BEZIER | CU_NURB_ENDPOINT);
+      }
+      if (nu->knotsv == nullptr && (nu->flagv & CU_NURB_CUSTOM)) {
+        nu->flagv &= (CU_NURB_CYCLIC | CU_NURB_BEZIER | CU_NURB_ENDPOINT);
+      }
+    }
+  }
+}
+
 void do_versions_after_linking_520(FileData * /*fd*/, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 2)) {
@@ -234,7 +254,7 @@ void do_versions_after_linking_520(FileData * /*fd*/, Main *bmain)
   }
 
   /* Restore old "UV Map" behavior of geometry nodes Cylinder and UV Sphere primitives. */
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 14)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 16)) {
     FOREACH_NODETREE_BEGIN (bmain, node_tree, id_owner) {
       if (node_tree->type == NTREE_GEOMETRY) {
         do_version_geometry_node_primitive_uvmaps(node_tree);
@@ -336,6 +356,15 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     version_clear_strip_linear_modifier_flag(*bmain);
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 14)) {
+    fix_single_point_curves_custom_knots(bmain);
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 15)) {
+    for (Scene &scene : bmain->scenes) {
+      scene.r.scemode |= R_USE_TEXTURE_CACHE;
+    }
+  }
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.

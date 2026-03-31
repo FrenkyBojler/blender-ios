@@ -14,13 +14,13 @@ namespace blender::nodes::node_geo_input_mesh_edge_angle_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Float>("Unsigned Angle")
+  b.add_output<decl::Float>("Unsigned Angle"_ustr)
       .field_source()
       .description(
           "The shortest angle in radians between two faces where they meet at an edge. Flat edges "
           "and Non-manifold edges have an angle of zero. Computing this value is faster than the "
           "signed angle");
-  b.add_output<decl::Float>("Signed Angle")
+  b.add_output<decl::Float>("Signed Angle"_ustr)
       .field_source()
       .description(
           "The signed angle in radians between two faces where they meet at an edge. Flat edges "
@@ -204,13 +204,13 @@ class SignedAngleFieldInput final : public bke::MeshFieldInput {
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  if (params.output_is_required("Unsigned Angle")) {
+  if (params.output_is_required("Unsigned Angle"_ustr)) {
     Field<float> angle_field{std::make_shared<AngleFieldInput>()};
-    params.set_output("Unsigned Angle", std::move(angle_field));
+    params.set_output("Unsigned Angle"_ustr, std::move(angle_field));
   }
-  if (params.output_is_required("Signed Angle")) {
+  if (params.output_is_required("Signed Angle"_ustr)) {
     Field<float> angle_field{std::make_shared<SignedAngleFieldInput>()};
-    params.set_output("Signed Angle", std::move(angle_field));
+    params.set_output("Signed Angle"_ustr, std::move(angle_field));
   }
 }
 
