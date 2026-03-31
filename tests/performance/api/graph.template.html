@@ -19,6 +19,7 @@
     .btn-scale-mode            { width: 133.33px; /* (100 * 4) / 3 */ }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js" integrity="sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-error-bars@4.4.5/build/index.umd.min.js"></script>
   <script>
     let chart_instances = [];
     let current_scale_mode = 'linear-clipped';
@@ -461,7 +462,7 @@
 
         /* Draw Chart. */
         const chart = new Chart(canvas, {
-          type: benchmark['chart_type'] === 'line' ? 'line' : 'bar',
+          type: benchmark['chart_type'] === 'line' ? 'line' : 'barWithErrorBars',
           data: chart_data,
           options: {
             responsive: true,

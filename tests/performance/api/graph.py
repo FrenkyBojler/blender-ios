@@ -108,7 +108,15 @@ class TestGraph:
                 test_index = tests[entry.test]
                 revision_index = revisions[entry.revision]
                 output_value = entry.output[output] if output in entry.output else None
-                datasets[revision_index]['data'][test_index] = output_value
+                output_value_min = entry.output.get(f"_{output}_min")
+                output_value_max = entry.output.get(f"_{output}_max")
+                output_values = {
+                    'y': output_value,
+                    'yMin': output_value_min,
+                    'yMax': output_value_max,
+                }
+
+                datasets[revision_index]['data'][test_index] = output_values
 
         else:
             # For time series, dates on the X axis and tests as datasets.
