@@ -31,9 +31,9 @@ Attribute::Attribute(ustring name,
   if (element & ATTR_ELEMENT_VOXEL) {
     auto *data = GuardedAllocator<ImageHandle>().allocate(1);
     new (data) ImageHandle();
-    this->buffer = data;
-    this->size = Attribute::element_size(geom, element, prim);
-    this->sharing_info = nullptr;
+    buffer = data;
+    size = Attribute::element_size(geom, element, prim);
+    sharing_info = nullptr;
   }
   else {
     resize(geom, prim);
@@ -55,7 +55,7 @@ Attribute::Attribute(ustring name,
       modified(true)
 {
   assert((element & ATTR_ELEMENT_VOXEL) == 0);
-  this->buffer = data;
+  buffer = data;
   /* Implicit sharing function pointers should be set if shared attribtues are created. */
   assert(g_implicit_sharing_user_add_fn);
   assert(g_implicit_sharing_user_remove_fn);
@@ -67,7 +67,7 @@ void Attribute::free_data()
 {
   /* For voxel data, we need to free the image handle. */
   if (element & ATTR_ELEMENT_VOXEL) {
-    auto *image = static_cast<ImageHandle *>(const_cast<void *>(this->buffer));
+    auto *image = static_cast<ImageHandle *>(const_cast<void *>(buffer));
     image->~ImageHandle();
     GuardedAllocator<ImageHandle>().deallocate(image, 1);
   }
@@ -76,19 +76,19 @@ void Attribute::free_data()
   }
   else {
     GuardedAllocator<char>().deallocate(static_cast<char *>(const_cast<void *>(buffer)),
-                                        this->data_sizeof() * size);
+                                        data_sizeof() * size);
   }
 }
 
 Attribute::~Attribute()
 {
-  this->free_data();
+  free_data();
 }
 
 void Attribute::resize(Geometry *geom, AttributePrimitive prim)
 {
   if (!(element & ATTR_ELEMENT_VOXEL)) {
-    this->resize(Attribute::element_size(geom, element, prim));
+    resize(Attribute::element_size(geom, element, prim));
   }
 }
 
@@ -96,40 +96,38 @@ void Attribute::resize(const size_t num_elements)
 {
   if (!(element & ATTR_ELEMENT_VOXEL)) {
     const size_t new_size = num_elements;
-    if (new_size == this->size) {
+    if (new_size == size) {
       return;
     }
-    auto *new_data = GuardedAllocator<char>().allocate(new_size * this->data_sizeof());
-    if (this->buffer) {
-      assert(this->size > 0);
-      memcpy(new_data,
-             this->buffer,
-             std::min(num_elements, size_t(this->size)) * this->data_sizeof());
+    auto *new_data = GuardedAllocator<char>().allocate(new_size * data_sizeof());
+    if (buffer) {
+      assert(size > 0);
+      memcpy(new_data, buffer, std::min(num_elements, size_t(size)) * data_sizeof());
     }
-    this->free_data();
-    this->buffer = new_data;
-    this->size = new_size;
-    this->sharing_info = nullptr;
+    free_data();
+    buffer = new_data;
+    size = new_size;
+    sharing_info = nullptr;
   }
 }
 
 char *Attribute::data_for_write()
 {
-  if (!this->buffer) {
-    assert(this->size == 0);
+  if (!buffer) {
+    assert(size == 0);
     return nullptr;
   }
-  if (this->sharing_info) {
+  if (sharing_info) {
     /* Here we assume that the sharing info is not mutable. With the addition of another sharing
      * info callback function pointer we could check the user count to avoid unnecessary copies.
      * For now that isn't expected to happen in practice though. */
-    auto *new_data = GuardedAllocator<char>().allocate(this->data_sizeof() * this->size);
-    memcpy(new_data, this->buffer, this->data_sizeof() * this->size);
-    g_implicit_sharing_user_remove_fn(this->sharing_info);
-    this->sharing_info = nullptr;
-    this->buffer = new_data;
+    auto *new_data = GuardedAllocator<char>().allocate(data_sizeof() * size);
+    memcpy(new_data, buffer, data_sizeof() * size);
+    g_implicit_sharing_user_remove_fn(sharing_info);
+    sharing_info = nullptr;
+    buffer = new_data;
   }
-  return const_cast<char *>(reinterpret_cast<const char *>(this->buffer));
+  return const_cast<char *>(reinterpret_cast<const char *>(buffer));
 }
 
 void Attribute::set_data_from(Attribute &&other)
@@ -138,28 +136,26 @@ void Attribute::set_data_from(Attribute &&other)
   assert(other.type == type);
   assert(other.element == element);
 
-  this->flags = other.flags;
+  flags = other.flags;
 
   const auto take_data = [&]() {
-    this->free_data();
-    this->buffer = other.buffer;
-    this->sharing_info = other.sharing_info;
-    this->size = other.size;
+    free_data();
+    buffer = other.buffer;
+    sharing_info = other.sharing_info;
+    size = other.size;
     other.buffer = nullptr;
     other.sharing_info = nullptr;
     other.size = 0;
     modified = true;
   };
 
-  if (this->size != other.size) {
+  if (size != other.size) {
     take_data();
   }
-  else if (this->sharing_info != other.sharing_info) {
+  else if (sharing_info != other.sharing_info) {
     take_data();
   }
-  else if (this->size > 0 &&
-           memcmp(this->buffer, other.buffer, this->data_sizeof() * this->size) != 0)
-  {
+  else if (size > 0 && memcmp(buffer, other.buffer, data_sizeof() * size) != 0) {
     take_data();
   }
 }
