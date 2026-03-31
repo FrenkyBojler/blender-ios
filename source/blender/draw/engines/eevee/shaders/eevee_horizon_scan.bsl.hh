@@ -766,6 +766,14 @@ void resolve([[work_group_id]] const uint3 group_id,
     /* Evaluate occlusion from horizon scan. */
     /* TODO: Explain why do we need this factor? */
     float distant_radiance_visibility = saturate(radiance_with_visibility.w * (M_1_PI / 0.945f));
+
+    if (closure_has_transmission(cl.type)) {
+      /* We only recorded visibility and radiance for the upper hemisphere.
+       * Discard result for transmission closures. */
+      distant_radiance_visibility = 1.0f;
+      radiance = float3(0.0);
+    }
+
     /* Apply missing distant lighting. */
     radiance += distant_radiance_visibility * samp.volume_irradiance.evaluate_lambert(L).rgb;
 
