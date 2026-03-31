@@ -72,8 +72,7 @@ struct Report {
   const char *typestr;
   const char *message;
   /** Unique per-session identifier, assigned at creation. */
-  int id;
-  int _pad;
+  int session_uid;
 };
 
 struct ReportList {

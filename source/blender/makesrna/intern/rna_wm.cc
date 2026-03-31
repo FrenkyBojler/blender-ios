@@ -1529,10 +1529,10 @@ static void rna_WindowManager_reports_begin(CollectionPropertyIterator *iter, Po
   rna_iterator_listbase_begin(iter, ptr, &wm->runtime->reports.list, nullptr);
 }
 
-static int rna_Report_id_get(PointerRNA *ptr)
+static int rna_Report_session_uid_get(PointerRNA *ptr)
 {
   const Report *report = static_cast<const Report *>(ptr->data);
-  return report->id;
+  return report->session_uid;
 }
 
 static int rna_Report_type_get(PointerRNA *ptr)
@@ -2930,12 +2930,12 @@ static void rna_def_report(BlenderRNA *brna)
 
   srna = RNA_def_struct(brna, "Report", nullptr);
   RNA_def_struct_sdna(srna, "Report");
-  RNA_def_struct_ui_text(srna, "Report", "Info editor report entry");
+  RNA_def_struct_ui_text(srna, "Report", "Report entry");
 
-  prop = RNA_def_property(srna, "report_id", PROP_INT, PROP_NONE);
+  prop = RNA_def_property(srna, "session_uid", PROP_INT, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-  RNA_def_property_int_funcs(prop, "rna_Report_id_get", nullptr, nullptr);
-  RNA_def_property_ui_text(prop, "ID", "Unique per-session report identifier");
+  RNA_def_property_int_funcs(prop, "rna_Report_session_uid_get", nullptr, nullptr);
+  RNA_def_property_ui_text(prop, "Session UID", "Unique per-session report identifier");
 
   prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
@@ -2987,7 +2987,7 @@ static void rna_def_windowmanager(BlenderRNA *brna)
                                     nullptr,
                                     nullptr,
                                     nullptr);
-  RNA_def_property_ui_text(prop, "Reports", "Collection of info editor reports");
+  RNA_def_property_ui_text(prop, "Reports", "Collection of reports");
 
   prop = RNA_def_property(srna, "windows", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_struct_type(prop, "Window");
