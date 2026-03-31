@@ -762,6 +762,8 @@ void Instance::release_resources()
 
 void Instance::draw_mask(View &view, tObject *ob, tLayer *layer)
 {
+  BLI_profile_zone_scoped_n("GPencil Mask");
+
   Manager *manager = DRW_manager_get();
 
   bool inverted = false;
@@ -810,6 +812,8 @@ void Instance::draw_mask(View &view, tObject *ob, tLayer *layer)
 
 void Instance::draw_object(View &view, tObject *ob)
 {
+  BLI_profile_zone_scoped_n("GPencil Object");
+
   Manager *manager = DRW_manager_get();
 
   const std::array<double4, 2> clear_cols = {double4{0, 0, 0, 0}, double4{1, 1, 1, 1}};
@@ -868,7 +872,6 @@ void Instance::draw_object(View &view, tObject *ob)
 
 void Instance::draw(Manager &manager)
 {
-  BLI_profile_zone_scoped_n("Grease Pencil Draw");
   DefaultTextureList *dtxl = draw_ctx->viewport_texture_list_get();
   DefaultFramebufferList *dfbl = draw_ctx->viewport_framebuffer_list_get();
 

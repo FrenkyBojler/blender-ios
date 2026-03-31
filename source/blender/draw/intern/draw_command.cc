@@ -772,6 +772,7 @@ void DrawMultiBuf::generate_commands(Vector<Header, 0> & /*headers*/,
                                      int view_len,
                                      bool use_custom_ids)
 {
+  BLI_profile_zone_scoped_n("DrawMultiBuf.bind");
   GPU_debug_group_begin("DrawMultiBuf.bind");
 
   resource_id_count_ = 0u;

@@ -11,6 +11,8 @@
  */
 
 #include "BLI_bounds.hh"
+#include "BLI_profile.hh"
+
 #include "GPU_capabilities.hh"
 
 #include "eevee_instance.hh"
@@ -549,6 +551,7 @@ void ForwardPipeline::render(View &view,
                              Framebuffer &combined_fb,
                              int2 extent)
 {
+  BLI_profile_zone_scoped_n("Forward.Opaque");
   /* We need to ensure the pipeline runs if outputting the transparent render-pass (see #154895).
    */
   if (!has_transparent_ && !has_opaque_ && inst_.render_buffers.data.transparent_id == -1) {
@@ -1176,27 +1179,33 @@ void DeferredPipeline::render(View &main_view,
 {
   gpu::Texture *feedback_tx = nullptr;
 
-  GPU_debug_group_begin("Deferred.Opaque");
-  feedback_tx = opaque_layer_.render(main_view,
-                                     render_view,
-                                     prepass_fb,
-                                     combined_fb,
-                                     gbuffer_fb,
-                                     extent,
-                                     rt_buffer_opaque_layer,
-                                     feedback_tx);
-  GPU_debug_group_end();
+  {
+    BLI_profile_zone_scoped_n("Deferred.Opaque");
+    GPU_debug_group_begin("Deferred.Opaque");
+    feedback_tx = opaque_layer_.render(main_view,
+                                       render_view,
+                                       prepass_fb,
+                                       combined_fb,
+                                       gbuffer_fb,
+                                       extent,
+                                       rt_buffer_opaque_layer,
+                                       feedback_tx);
+    GPU_debug_group_end();
+  }
 
-  GPU_debug_group_begin("Deferred.Refract");
-  feedback_tx = refraction_layer_.render(main_view,
-                                         render_view,
-                                         prepass_fb,
-                                         combined_fb,
-                                         gbuffer_fb,
-                                         extent,
-                                         rt_buffer_refract_layer,
-                                         feedback_tx);
-  GPU_debug_group_end();
+  {
+    BLI_profile_zone_scoped_n("Deferred.Refract");
+    GPU_debug_group_begin("Deferred.Refract");
+    feedback_tx = refraction_layer_.render(main_view,
+                                           render_view,
+                                           prepass_fb,
+                                           combined_fb,
+                                           gbuffer_fb,
+                                           extent,
+                                           rt_buffer_refract_layer,
+                                           feedback_tx);
+    GPU_debug_group_end();
+  }
 }
 
 /** \} */
@@ -1503,6 +1512,7 @@ void DeferredProbePipeline::render(View &view,
                                    Framebuffer &gbuffer_fb,
                                    int2 extent)
 {
+  BLI_profile_zone_scoped_n("Probe.Render");
   GPU_debug_group_begin("Probe.Render");
 
   opaque_layer_.radiance_behind_tx_ = dummy_black;
@@ -1614,6 +1624,7 @@ void PlanarProbePipeline::render(View &view,
                                  Framebuffer &combined_fb,
                                  int2 extent)
 {
+  BLI_profile_zone_scoped_n("Planar.Capture");
   GPU_debug_group_begin("Planar.Capture");
 
   radiance_behind_tx_ = dummy_black_;

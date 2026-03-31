@@ -9,6 +9,7 @@
 #include "BLI_assert.h"
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
+#include "BLI_profile.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector_set.hh"
 
@@ -51,7 +52,8 @@ ShaderOperation::~ShaderOperation()
 
 void ShaderOperation::execute()
 {
-  GPU_debug_group_begin("ShaderOperation");
+  BLI_profile_zone_scoped;
+  BLI_profile_zone_set_name_fmt("Material ShaderOperation: %s", GPU_material_get_name(material_));
   const Domain domain = compute_domain();
   for (StringRef identifier : output_sockets_to_output_identifiers_map_.values()) {
     Result &result = get_result(identifier);

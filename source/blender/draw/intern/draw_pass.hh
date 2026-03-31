@@ -42,6 +42,7 @@
 
 #include "BLI_assert.h"
 #include "BLI_listbase_wrapper.hh"
+#include "BLI_profile.hh"
 #include "BLI_vector.hh"
 
 #include "BKE_image.hh"
@@ -699,6 +700,9 @@ template<class T> inline PassBase<T> &PassBase<T>::sub(const char *name)
 template<class T>
 void PassBase<T>::warm_shader_specialization(command::RecordingState &state) const
 {
+  BLI_profile_zone_scoped_n("warm_shader_specialization");
+  BLI_profile_zone_set_name_fmt("warm_shader_specialization: %s", this->debug_name);
+
   GPU_debug_group_begin("warm_shader_specialization");
   GPU_debug_group_begin(this->debug_name);
 

@@ -6,6 +6,7 @@
  * \ingroup eevee
  */
 
+#include "BLI_profile.hh"
 #include "BLI_time.h"
 #include "DNA_material_types.h"
 
@@ -142,6 +143,8 @@ void MaterialModule::queue_texture_loading(GPUMaterial *material)
 
 void MaterialModule::end_sync()
 {
+  BLI_profile_zone_scoped_n("Texture Loading");
+
   if (texture_loading_queue_.is_empty()) {
     return;
   }

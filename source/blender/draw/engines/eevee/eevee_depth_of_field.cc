@@ -20,6 +20,7 @@
 #include "DRW_render.hh"
 
 #include "BKE_camera.h"
+#include "BLI_profile.hh"
 #include "DNA_camera_types.h"
 
 #include "GPU_platform.hh"
@@ -515,6 +516,8 @@ void DepthOfField::render(View &view,
                           gpu::Texture **output_tx,
                           DepthOfFieldBuffer &dof_buffer)
 {
+  BLI_profile_zone_scoped_n("DepthOfField");
+
   if (fx_radius_ == 0.0f) {
     return;
   }
@@ -589,6 +592,7 @@ void DepthOfField::render(View &view,
   constexpr eGPUTextureUsage usage_readwrite_attach = usage_readwrite |
                                                       GPU_TEXTURE_USAGE_ATTACHMENT;
   {
+    BLI_profile_zone_scoped_n("DoF Setup");
     GPU_debug_group_begin("Setup");
     {
       bokeh_gather_lut_tx_.acquire(int2(DOF_BOKEH_LUT_SIZE), gpu::TextureFormat::SFLOAT_16_16);
@@ -629,6 +633,7 @@ void DepthOfField::render(View &view,
       setup_color_tx_.release();
     }
     {
+      BLI_profile_zone_scoped_n("DoF Tile Prepare");
       GPU_debug_group_begin("Tile Prepare");
 
       /* WARNING: If format changes, make sure dof_tile_* GLSL constants are properly encoded. */
@@ -696,6 +701,7 @@ void DepthOfField::render(View &view,
   }
 
   for (int is_background = 0; is_background < 2; is_background++) {
+    BLI_profile_zone_scoped_n("DoF Convolution");
     GPU_debug_group_begin(is_background ? "Background Convolution" : "Foreground Convolution");
 
     SwapChain<TextureFromPool, 2> &color_tx = is_background ? color_bg_tx_ : color_fg_tx_;
@@ -748,6 +754,7 @@ void DepthOfField::render(View &view,
     GPU_debug_group_end();
   }
   {
+    BLI_profile_zone_scoped_n("DoF Hole Fill");
     GPU_debug_group_begin("Hole Fill");
 
     bokeh_gather_lut_tx_.release();
@@ -763,6 +770,7 @@ void DepthOfField::render(View &view,
     GPU_debug_group_end();
   }
   {
+    BLI_profile_zone_scoped_n("DoF Resolve");
     GPU_debug_group_begin("Resolve");
 
     resolve_stable_color_tx_ = dof_buffer.stabilize_history_tx_;

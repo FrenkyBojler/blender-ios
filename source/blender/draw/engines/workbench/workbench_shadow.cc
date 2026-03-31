@@ -212,6 +212,7 @@ void ShadowPass::ShadowView::compute_visibility(ObjectBoundsBuf &bounds,
                                                 bool /*debug_freeze*/)
 {
   /* TODO (Miguel Pozo): Add debug_freeze support */
+  BLI_profile_zone_scoped_n("ShadowView.compute_visibility");
 
   GPU_debug_group_begin("ShadowView.compute_visibility");
 

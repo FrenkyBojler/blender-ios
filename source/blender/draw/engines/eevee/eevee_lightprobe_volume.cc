@@ -7,6 +7,8 @@
 #include "BKE_global.hh"
 #include "BKE_lightprobe.h"
 
+#include "BLI_profile.hh"
+
 #include "GPU_capabilities.hh"
 
 #include "GPU_debug.hh"
@@ -982,6 +984,7 @@ void IrradianceBake::surfel_raster_views_sync(const float3 &scene_min,
 
 void IrradianceBake::surfels_create(const Object &probe_object)
 {
+  BLI_profile_zone_scoped_n("LightProbe IrradianceBake");
   /**
    * We rasterize the scene along the 3 axes. Each generated fragment will write a surface element
    * so raster grid density need to match the desired surfel density. We do a first pass to know

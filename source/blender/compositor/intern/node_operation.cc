@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_assert.h"
+#include "BLI_profile.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_timeit.hh"
 #include "BLI_vector_set.hh"
@@ -47,6 +48,9 @@ NodeOperation::NodeOperation(Context &context, const bNode &node) : Operation(co
 
 void NodeOperation::evaluate()
 {
+  BLI_profile_zone_scoped;
+  BLI_profile_zone_set_name_fmt("NodeOperation evaluate: %s",
+                                this->node().typeinfo->idname.c_str());
   if (this->context().use_gpu()) {
     GPU_debug_group_begin(this->node().typeinfo->idname.c_str());
   }

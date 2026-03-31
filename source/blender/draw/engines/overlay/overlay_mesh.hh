@@ -18,6 +18,8 @@
 #include "BKE_paint.hh"
 #include "BKE_subdiv_modifier.hh"
 
+#include "BLI_profile.hh"
+
 #include "DEG_depsgraph_query.hh"
 
 #include "DNA_brush_types.h"
@@ -380,6 +382,7 @@ class Meshes : Overlay {
 
   void draw_line(Framebuffer &framebuffer, Manager &manager, View &view) final
   {
+    BLI_profile_zone_scoped_n("Overlay Mesh Edit");
     if (!enabled_) {
       return;
     }
@@ -417,6 +420,8 @@ class Meshes : Overlay {
     if (!enabled_) {
       return;
     }
+
+    BLI_profile_zone_scoped_n("Overlay Mesh Edit Color Only");
 
     if (xray_enabled_) {
       /* Still use depth-testing for selected faces when X-Ray flag is enabled but transparency is
@@ -1037,6 +1042,8 @@ class MeshUVs : Overlay {
     if (!enabled_) {
       return;
     }
+
+    BLI_profile_zone_scoped_n("Overlay Mesh Edit UVs");
 
     GPU_debug_group_begin("Mesh Edit UVs");
 

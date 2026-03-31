@@ -9,6 +9,8 @@
  */
 
 #include "BLI_math_matrix.hh"
+#include "BLI_profile.hh"
+
 #include "GPU_batch_utils.hh"
 #include "GPU_compute.hh"
 
@@ -1263,6 +1265,7 @@ void ShadowModule::ShadowView::compute_visibility(ObjectBoundsBuf &bounds,
                                                   bool /*debug_freeze*/)
 {
   GPU_debug_group_begin("View.compute_visibility");
+  BLI_profile_zone_scoped_n("Shadow View.compute_visibility");
 
   uint word_per_draw = this->visibility_word_per_draw();
   /* Switch between tightly packed and set of whole word per instance. */
@@ -1344,6 +1347,7 @@ void ShadowModule::set_view(View &view, int2 extent)
 
   int loop_count = 0;
   do {
+    BLI_profile_zone_scoped_n("Shadow");
     GPU_debug_group_begin("Shadow");
     {
       GPU_uniformbuf_clear_to_zero(shadow_multi_view_.matrices_ubo_get());

@@ -23,6 +23,8 @@
 #include "BKE_paint.hh"
 #include "BKE_screen.hh"
 
+#include "BLI_profile.hh"
+
 #include "DRW_engine.hh"
 #include "DRW_render.hh"
 
@@ -36,6 +38,7 @@ namespace blender {
 
 void DRW_draw_region_info(const bContext *C, ARegion *region)
 {
+  BLI_profile_zone_scoped;
   GPU_debug_group_begin("RegionInfo");
   view3d_draw_region_info(C, region);
   GPU_debug_group_end();

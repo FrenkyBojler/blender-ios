@@ -418,7 +418,6 @@ class Instance : public DrawEngine {
 
   void draw(Manager & /*manager*/) final
   {
-    BLI_profile_zone_scoped_n("Compositor Draw");
     Context context(cache_manager_, DRW_context_get()->scene, this->info);
     if (context.get_camera_region().is_empty()) {
       return;

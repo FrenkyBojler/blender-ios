@@ -21,6 +21,8 @@
 
 #include "BKE_camera.h"
 
+#include "BLI_profile.hh"
+
 #include "GPU_debug.hh"
 
 namespace blender::workbench {
@@ -223,6 +225,8 @@ void DofPass::draw(Manager &manager, View &view, SceneResources &resources, int2
   if (!enabled_) {
     return;
   }
+
+  BLI_profile_zone_scoped_n("Workbench Depth of Field");
 
   GPU_debug_group_begin("Depth Of Field");
 

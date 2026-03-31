@@ -1033,6 +1033,8 @@ void DRWContext::engines_draw_scene()
   draw::command::StateSet::set();
 
   view_data_active->foreach_enabled_engine([&](DrawEngine &instance) {
+    BLI_profile_zone_scoped;
+    BLI_profile_zone_set_name_fmt("%s", instance.name_get().c_str());
 #ifdef __APPLE__
     if (G.debug & G_DEBUG_GPU) {
       /* Put each engine inside their own command buffers. */

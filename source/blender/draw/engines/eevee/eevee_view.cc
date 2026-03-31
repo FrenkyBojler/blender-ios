@@ -15,6 +15,7 @@
  * its type. Passes are shared between views.
  */
 
+#include "BLI_profile.hh"
 #include "DRW_render.hh"
 
 #include "GPU_debug.hh"
@@ -83,6 +84,8 @@ void ShadingView::render()
 
   update_view();
 
+  BLI_profile_zone_scoped_n("Shading View Render");
+  BLI_profile_zone_set_name_fmt("ShadingView Render: %s", name_);
   GPU_debug_group_begin(name_);
 
   /* Needs to be before planar_probes because it needs correct crypto-matte & render-pass buffers
@@ -292,6 +295,8 @@ void CaptureView::render_world()
     return;
   }
 
+  BLI_profile_zone_scoped_n("CaptureView Render World");
+
   View view = {"Capture.View"};
   GPU_debug_group_begin("World.Capture");
 
@@ -347,9 +352,11 @@ void CaptureView::render_world()
 
 void CaptureView::render_probes()
 {
+  BLI_profile_zone_scoped_n("CaptureView Render Probes");
   Framebuffer prepass_fb;
   View view = {"Capture.View"};
   while (const auto update_info = inst_.sphere_probes.probe_update_info_pop()) {
+    BLI_profile_zone_scoped_n("Probe.Capture");
     GPU_debug_group_begin("Probe.Capture");
 
     if (assign_if_different(inst_.pipelines.data.ray_type, RAY_TYPE_GLOSSY)) {
@@ -428,6 +435,7 @@ void LookdevView::render()
   if (!inst_.lookdev.use_reference_spheres_) {
     return;
   }
+  BLI_profile_zone_scoped_n("Lookdev");
   GPU_debug_group_begin("Lookdev");
 
   const float radius = inst_.lookdev.sphere_radius_;

@@ -6,6 +6,8 @@
  * \ingroup eevee
  */
 
+#include "BLI_profile.hh"
+
 #include "BKE_colortools.hh"
 
 #include "RE_engine.h"
@@ -189,6 +191,8 @@ void MotionBlurModule::sync()
 
 void MotionBlurModule::render(View &view, gpu::Texture **input_tx, gpu::Texture **output_tx)
 {
+  BLI_profile_zone_scoped_n("Motion Blur");
+
   if (!motion_blur_fx_enabled_) {
     return;
   }

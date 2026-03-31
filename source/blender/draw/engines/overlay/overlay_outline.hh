@@ -238,6 +238,8 @@ class Outline : Overlay {
       return;
     }
 
+    BLI_profile_zone_scoped_n("Overlay Outline");
+
     GPU_debug_group_begin("Outline");
 
     int2 render_size = int2(res.depth_tx.size());

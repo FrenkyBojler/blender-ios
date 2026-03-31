@@ -1083,6 +1083,7 @@ static void wm_draw_window_offscreen(bContext *C, wmWindow *win, bool stereo)
 
   /* Draw menus into their own frame-buffer. */
   for (ARegion &region : screen->regionbase) {
+    BLI_profile_zone_scoped_n("Menu")
     if (!region.runtime->visible) {
       continue;
     }

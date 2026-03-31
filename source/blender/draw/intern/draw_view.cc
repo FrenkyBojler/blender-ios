@@ -9,6 +9,7 @@
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
+#include "BLI_profile.hh"
 
 #include "DRW_render.hh"
 #include "GPU_compute.hh"
@@ -237,6 +238,8 @@ void View::bind()
 
 void View::compute_procedural_bounds()
 {
+  BLI_profile_zone_scoped_n("View.compute_procedural_bounds");
+
   /* Sync happens on the GPU. This is called after each sync. */
   manager_fingerprint_ = 0;
   /* Add 2 to always have a non-null number even in case of overflow. */
@@ -259,6 +262,7 @@ void View::compute_visibility(ObjectBoundsBuf &bounds,
                               uint resource_len,
                               bool debug_freeze)
 {
+  BLI_profile_zone_scoped_n("View.compute_visiblity");
   if (debug_freeze && frozen_ == false) {
     data_freeze_[0] = static_cast<ViewMatrices>(data_[0]);
     data_freeze_.push_update();

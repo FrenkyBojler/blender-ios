@@ -12,6 +12,7 @@
 #include "BLI_math_bits.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
+#include "BLI_profile.hh"
 #include "GPU_batch.hh"
 #include "GPU_debug.hh"
 
@@ -240,6 +241,7 @@ void DebugDraw::display_lines(View &view)
   GPU_shader_uniform_2f(shader, "size_viewport", viewport_size[2], viewport_size[3]);
 
   if (gpu_draw_buf_used) {
+    BLI_profile_zone_scoped_n("DebugDraw GPU");
     GPU_debug_group_begin("GPU");
     /* Reset buffer. */
     gpu_draw_buf_.next()->command.array().vertex_len = 0;
@@ -254,6 +256,7 @@ void DebugDraw::display_lines(View &view)
   }
 
   {
+    BLI_profile_zone_scoped_n("DebugDraw CPU");
     GPU_debug_group_begin("CPU");
     /* We might have race condition here (a writer thread might still be outputting vertices).
      * But that is ok. At worse, we will be missing some vertex data and show 1 corrupted line. */
@@ -284,6 +287,7 @@ void DebugDraw::display_to_view(View &view)
 {
   /* Display only on the main thread. Avoid concurrent usage of the resource. */
   BLI_assert(BLI_thread_is_main());
+  BLI_profile_zone_scoped_n("DebugDraw");
 
   GPU_debug_group_begin("DebugDraw");
 

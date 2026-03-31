@@ -8,6 +8,8 @@
  * The ray-tracing module class handles ray generation, scheduling, tracing and denoising.
  */
 
+#include "BLI_profile.hh"
+
 #include "GPU_debug.hh"
 
 #include "eevee_instance.hh"
@@ -410,6 +412,8 @@ RayTraceResult RayTraceModule::render(RayTraceBuffer &rt_buffer,
                                       View &render_view)
 {
   using namespace blender::math;
+
+  BLI_profile_zone_scoped_n("Raytracing Render");
   BLI_assert(use_raytracing_);
 
   screen_radiance_front_tx_ = rt_buffer.radiance_feedback_tx.is_valid() ?
@@ -501,6 +505,7 @@ RayTraceResult RayTraceModule::render(RayTraceBuffer &rt_buffer,
 
   if (has_active_closure) {
     if (use_horizon_scan) {
+      BLI_profile_zone_scoped_n("Raytracing Horizon Scan");
       GPU_debug_group_begin("Horizon Scan");
 
       downsampled_in_radiance_tx_.acquire(
@@ -558,6 +563,8 @@ RayTraceResultTexture RayTraceModule::trace(
     View &main_view,
     View &render_view)
 {
+  BLI_profile_zone_scoped_n("Raytracing Trace");
+
   RayTraceBuffer::DenoiseBuffer *denoise_buf = &rt_buffer.closures[closure_index];
 
   if (!active_layer) {

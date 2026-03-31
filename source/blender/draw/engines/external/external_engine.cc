@@ -360,15 +360,18 @@ class Instance : public DrawEngine {
 
     external_image_space_matrix_set(engine);
 
-    GPU_debug_group_begin("External Engine");
+    {
+      BLI_profile_zone_scoped_n("External Engine Draw");
+      GPU_debug_group_begin("External Engine");
 
-    const RenderEngineType *engine_type = engine->type;
-    BLI_assert(engine_type != nullptr);
-    BLI_assert(engine_type->draw != nullptr);
+      const RenderEngineType *engine_type = engine->type;
+      BLI_assert(engine_type != nullptr);
+      BLI_assert(engine_type->draw != nullptr);
 
-    engine_type->draw(engine, draw_ctx->evil_C, draw_ctx->depsgraph);
+      engine_type->draw(engine, draw_ctx->evil_C, draw_ctx->depsgraph);
 
-    GPU_debug_group_end();
+      GPU_debug_group_end();
+    }
 
     GPU_matrix_pop();
     GPU_matrix_pop_projection();

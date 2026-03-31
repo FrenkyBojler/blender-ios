@@ -10,6 +10,8 @@
  * https://www.ea.com/frostbite/news/physically-based-unified-volumetric-rendering-in-frostbite
  */
 
+#include "BLI_profile.hh"
+
 #include "GPU_capabilities.hh"
 
 #include "GPU_debug.hh"
@@ -328,6 +330,7 @@ void VolumeModule::end_sync()
 
 void VolumeModule::draw_prepass(View &main_view)
 {
+  BLI_profile_zone_scoped_n("Volumes");
   if (!enabled_) {
     return;
   }

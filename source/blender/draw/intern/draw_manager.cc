@@ -35,6 +35,7 @@ Manager::~Manager()
 
 void Manager::begin_sync(Object *object_active)
 {
+  BLI_profile_zone_scoped_n("Manager.begin_sync");
   /* Add 2 to always have a non-null number even in case of overflow. */
   sync_counter_ = (global_sync_counter_ += 2);
 
@@ -113,6 +114,7 @@ void Manager::sync_layer_attributes()
 
 void Manager::end_sync()
 {
+  BLI_profile_zone_scoped_n("Manager.end_sync");
   GPU_debug_group_begin("Manager.end_sync");
 
   sync_layer_attributes();
