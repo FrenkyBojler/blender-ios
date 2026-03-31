@@ -23,6 +23,7 @@
 #include "BKE_geometry_set.hh"
 #include "BKE_volume_grid.hh"
 #include "BKE_volume_grid_fields.hh"
+#include "BKE_volume_grid_fwd.hh"
 #include "BKE_volume_openvdb.hh"
 
 #include "GPU_vertex_buffer.hh"
@@ -240,8 +241,20 @@ struct BatchDeleter {
   }
 };
 
-static gpu::VertBuf &dens_tiles()
+static gpu::VertBuf *dens_tiles(const openvdb::GridBase &grid_base, int &r_total_voxels)
 {
+  Vector<float3> position_data;
+  grid_leaf_on_positions(grid_base, position_data);
+  Array<int> offsets_data(position_data.size() + 1);
+  // for (const int i : position_data.index_range()) {
+  //   offsets_data[i] = position_data[i].size();
+  // }
+  // const OffsetIndices<int> offsets = offset_indices::accumulate_counts_to_offsets(offsets_data);
+  r_total_voxels = position_data.size();
+  if (position_data.size() == 0) {
+    return nullptr;
+  }
+
   static const GPUVertFormat format = [&]() {
     GPUVertFormat format{};
     GPU_vertformat_attr_add(&format, "pos_scale", gpu::VertAttrType::SFLOAT_32_32_32_32);
@@ -249,12 +262,17 @@ static gpu::VertBuf &dens_tiles()
   }();
 
   gpu::VertBuf &position_buffer = *GPU_vertbuf_create_with_format_ex(format, GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY);
-  GPU_vertbuf_data_alloc(position_buffer, 2);
+  GPU_vertbuf_data_alloc(position_buffer, position_data.size());
   MutableSpan<float4> positions = position_buffer.data<float4>();
-  positions[0] = float4(10, 10, 1, 0);
-  positions[1] = float4(-3, 40, -33, 0);
+
+  threading::parallel_for(position_data.index_range(), 1024, [&](const IndexRange range) {
+    for (const int i : position_data.index_range()) {
+      positions[i] = float4(position_data[i], 0.0f);
+    }
+  });
   
-  return position_buffer;
+  
+  return &position_buffer;
 }
 
 class VolumeTopologyGrid : Overlay {
@@ -265,15 +283,41 @@ class VolumeTopologyGrid : Overlay {
   StaticShader grid_shader_ = {"workbench_overlay_volume_grid_pipline"};
 
   gpu::VertBufPtr grid_positions_ = nullptr;
+  int total_voxels_ = 0;
+  float4x4 grid_transform_;
 
  public:
   VolumeTopologyGrid(const SelectionType selection_type) : selection_type_(selection_type){};
 
   void begin_sync(Resources &res, const State &state) final
   {
+    enabled_ = false;
+
+    if (!state.is_space_v3d()) {
+      return;
+    }
+
+    if (!state.show_grid_overlay()) {
+      return;
+    }
+
+    const StringRef grid_name = state.grid_to_show();
+    if (grid_name.is_empty()) {
+      return;
+    }
+
+    if (!(state.show_grid_root_nodes() || state.show_grid_disabled_root_nodes() ||
+          state.show_grid_internal_nodes() || state.show_grid_disabled_internal_nodes() ||
+          state.show_grid_leaf_nodes() || state.show_grid_disabled_leaf_nodes()))
+    {
+      return;
+    }
+
     enabled_ = true;
 
     pass_.init();
+    
+    printf("%s;\n", AT);
   }
 
   void object_sync(Manager &manager,
@@ -281,20 +325,67 @@ class VolumeTopologyGrid : Overlay {
                    Resources &res,
                    const State &state) final
   {
-  }
+    if (!enabled_) {
+      return;
+    }
 
-  void end_sync(Resources &res, const State &state) final
-  {
-    grid_positions_ = gpu::VertBufPtr(&dens_tiles());
+    const Object *eval_object = ob_ref.object;
+    if (eval_object == nullptr) {
+      return;
+    }
+
+    const bke::ObjectRuntime *object_runtime = eval_object->runtime;
+    if (object_runtime == nullptr) {
+      return;
+    }
+
+    const bke::GeometrySet *eval_geometry = object_runtime->geometry_set_eval;
+    if (eval_geometry == nullptr) {
+      return;
+    }
+
+    const Volume *volume = eval_geometry->get_volume();
+    if (volume == nullptr) {
+      return;
+    }
+
+    const StringRef grid_name = state.grid_to_show();
+    const bke::VolumeGridData *grid_to_view = BKE_volume_grid_find(volume, grid_name);
+    if (grid_to_view == nullptr) {
+      return;
+    }
+    
+    printf("%s;\n", AT);
+
+    bke::VolumeTreeAccessToken token;
+    const openvdb::GridBase &grid_base = grid_to_view->grid(token);
+    grid_positions_ = gpu::VertBufPtr(dens_tiles(grid_base, total_voxels_));
+    printf("%d;\n", total_voxels_);
+    if (!grid_positions_) {
+      return;
+    }
+
+    grid_transform_ = eval_object->object_to_world() * bke::volume_grid::get_transform_matrix(*grid_to_view);
+
     pass_.shader_set(grid_shader_.get());
-    pass_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL, state.clipping_plane_count);
     pass_.bind_texture("positions", grid_positions_);
-    pass_.draw_procedural(GPU_PRIM_TRIS, 90, 90 * 3);
+    pass_.push_constant("grid_transform", &grid_transform_);
+    pass_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL, state.clipping_plane_count);
+    pass_.draw_procedural(GPU_PRIM_LINES, 1, total_voxels_ * 24);
     res.select_bind(pass_);
   }
 
-  void draw(Framebuffer &framebuffer, Manager &manager, View &view) final
+  void draw_line(Framebuffer &framebuffer, Manager &manager, View &view) final
   {
+    if (!enabled_) {
+      return;
+    }
+    if (!grid_positions_) {
+      return;
+    }
+
+    printf("%s;\n", AT);
+
     pass_.framebuffer_set(&framebuffer);
     manager.submit(pass_, view);
   }

@@ -689,7 +689,6 @@ void Instance::end_sync()
     layer.relations.end_sync(resources, state);
     layer.fluids.end_sync(resources, state);
     layer.speakers.end_sync(resources, state);
-    layer.volume_grid.end_sync(resources, state);
   };
   end_sync_layer(regular);
   end_sync_layer(infront);
@@ -842,8 +841,6 @@ void Instance::draw_v3d(Manager &manager, View &view)
     layer.text.draw(framebuffer, manager, view);
     layer.paints.draw(framebuffer, manager, view);
     layer.particles.draw(framebuffer, manager, view);
-    
-    layer.volume_grid.draw(framebuffer, manager, view);
   };
 
   auto draw_line = [&](OverlayLayer &layer, Framebuffer &framebuffer) {
@@ -856,7 +853,7 @@ void Instance::draw_v3d(Manager &manager, View &view)
     layer.lights.draw_line(framebuffer, manager, view);
     layer.light_probes.draw_line(framebuffer, manager, view);
     layer.speakers.draw_line(framebuffer, manager, view);
-    // layer.volume_grid.draw_line(framebuffer, manager, view);
+    layer.volume_grid.draw_line(framebuffer, manager, view);
     layer.lattices.draw_line(framebuffer, manager, view);
     layer.metaballs.draw_line(framebuffer, manager, view);
     layer.pointclouds.draw_line(framebuffer, manager, view);
