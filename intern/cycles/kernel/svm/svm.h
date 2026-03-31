@@ -207,14 +207,16 @@ ccl_device void svm_eval_nodes(KernelGlobals kg,
       }
       break;
       SVM_CASE(NODE_TEX_COORD)
-      offset = svm_node_tex_coord(
-          kg, sd, path_flag, stack, svm_node_get<SVMNodeTexCoord>(kg, &offset), offset);
+      {
+        const auto &node = svm_node_get<SVMNodeTexCoord>(kg, &offset);
+        offset = svm_node_tex_coord(kg, sd, path_flag, stack, node, offset);
+      }
       break;
       SVM_CASE(NODE_TEX_COORD_DERIVATIVE)
       IF_NOT_KERNEL_NODES_FEATURE(VOLUME)
       {
-        offset = svm_node_tex_coord_derivative(
-            kg, sd, path_flag, stack, svm_node_get<SVMNodeTexCoord>(kg, &offset), offset);
+        const auto &node = svm_node_get<SVMNodeTexCoord>(kg, &offset);
+        offset = svm_node_tex_coord_derivative(kg, sd, path_flag, stack, node, offset);
       }
       break;
       SVM_CASE(NODE_VALUE_F)
@@ -373,7 +375,10 @@ ccl_device void svm_eval_nodes(KernelGlobals kg,
       }
       break;
       SVM_CASE(NODE_RGB_RAMP)
-      offset = svm_node_rgb_ramp(kg, stack, svm_node_get<SVMNodeRGBRamp>(kg, &offset), offset);
+      {
+        const auto &node = svm_node_get<SVMNodeRGBRamp>(kg, &offset);
+        offset = svm_node_rgb_ramp(kg, stack, node, offset);
+      }
       break;
       SVM_CASE(NODE_GAMMA)
       svm_node_gamma(stack, svm_node_get<SVMNodeGamma>(kg, &offset));
@@ -431,8 +436,10 @@ ccl_device void svm_eval_nodes(KernelGlobals kg,
       }
       break;
       SVM_CASE(NODE_TEX_SKY)
-      offset = svm_node_tex_sky(
-          kg, sd, path_flag, stack, svm_node_get<SVMNodeTexSky>(kg, &offset), offset);
+      {
+        const auto &node = svm_node_get<SVMNodeTexSky>(kg, &offset);
+        offset = svm_node_tex_sky(kg, sd, path_flag, stack, node, offset);
+      }
       break;
       SVM_CASE(NODE_TEX_GRADIENT)
       svm_node_tex_gradient(stack, svm_node_get<SVMNodeTexGradient>(kg, &offset));
@@ -468,7 +475,10 @@ ccl_device void svm_eval_nodes(KernelGlobals kg,
       svm_node_ies(kg, sd, stack, svm_node_get<SVMNodeIES>(kg, &offset));
       break;
       SVM_CASE(NODE_CURVES)
-      offset = svm_node_curves(kg, stack, svm_node_get<SVMNodeCurves>(kg, &offset), offset);
+      {
+        const auto &node = svm_node_get<SVMNodeCurves>(kg, &offset);
+        offset = svm_node_curves(kg, stack, node, offset);
+      }
       break;
       SVM_CASE(NODE_TANGENT)
       svm_node_tangent<float3>(kg, sd, stack, svm_node_get<SVMNodeTangent>(kg, &offset));
@@ -568,7 +578,10 @@ ccl_device void svm_eval_nodes(KernelGlobals kg,
           kg, sd, state, stack, svm_node_get<SVMNodeAOVValue>(kg, &offset), render_buffer);
       break;
       SVM_CASE(NODE_FLOAT_CURVE)
-      offset = svm_node_curve(kg, stack, svm_node_get<SVMNodeFloatCurve>(kg, &offset), offset);
+      {
+        const auto &node = svm_node_get<SVMNodeFloatCurve>(kg, &offset);
+        offset = svm_node_curve(kg, stack, node, offset);
+      }
       break;
       SVM_CASE(NODE_MIX_COLOR)
       svm_node_mix_color(stack, svm_node_get<SVMNodeMixColor>(kg, &offset));
