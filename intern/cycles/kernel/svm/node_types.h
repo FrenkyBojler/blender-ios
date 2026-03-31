@@ -698,7 +698,7 @@ struct SVMNodeTexBrick {
   SVMStackOffset co;
   SVMStackOffset color_offset;
   SVMStackOffset fac_offset;
-  uint8_t _pad[1];
+  uint8_t _pad[3];
 };
 
 static_assert(sizeof(SVMNodeTexBrick) % sizeof(uint) == 0);
@@ -1269,7 +1269,7 @@ struct SVMNodeRadialTiling {
   SVMStackOffset segment_id_offset;
   SVMStackOffset max_unit_parameter_offset;
   SVMStackOffset x_axis_A_angle_bisector_offset;
-  uint8_t _pad[2];
+  uint8_t _pad[3];
 };
 
 static_assert(sizeof(SVMNodeRadialTiling) % sizeof(uint) == 0);

@@ -114,10 +114,10 @@ void SVMShaderManager::device_update_specific(Device *device,
      * to the shader, so copy those and add the offset into the global node list. */
     const int base = shader->id * jump_node_size;
     svm_nodes[base + 0] = NODE_SHADER_JUMP;
-    svm_nodes[base + 1] = shader_svm_nodes[i][1] - jump_node_size + node_offset;
-    svm_nodes[base + 2] = shader_svm_nodes[i][2] - jump_node_size + node_offset;
-    svm_nodes[base + 3] = shader_svm_nodes[i][3] - jump_node_size + node_offset;
-
+    *reinterpret_cast<SVMNodeShaderJump *>(&svm_nodes[base + 1]) = SVMNodeShaderJump{
+        .offset_surface = shader_svm_nodes[i][1] - jump_node_size + node_offset,
+        .offset_volume = shader_svm_nodes[i][2] - jump_node_size + node_offset,
+        .offset_displacement = shader_svm_nodes[i][3] - jump_node_size + node_offset};
     node_offset += shader_svm_nodes[i].size() - jump_node_size;
   }
 
