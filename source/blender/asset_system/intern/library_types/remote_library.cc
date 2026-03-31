@@ -56,7 +56,7 @@ RemoteLibraryDefinitionRef::RemoteLibraryDefinitionRef(const bUserAssetLibrary &
 RemoteAssetLibrary::RemoteAssetLibrary(const StringRef remote_url,
                                        const StringRef name,
                                        const StringRef cache_root_path)
-    : AssetLibrary(ASSET_LIBRARY_CUSTOM, name, cache_root_path)
+    : AssetLibrary(ASSET_LIBRARY_CUSTOM, /*is_read_only=*/true, name, cache_root_path)
 {
   import_method_ = ASSET_IMPORT_APPEND_REUSE;
   may_override_import_method_ = false;
