@@ -261,7 +261,7 @@ const FloatMathOperationInfo *get_float3_math_operation_info(const int operation
       RETURN_OPERATION_INFO(
           "Multiply Add", "vector_math_multiply_add", "float3 * float3 + float3"_ustr);
     case NODE_VECTOR_MATH_POWER:
-      RETURN_OPERATION_INFO("Power", "vector_math_power", "float3 ^ float3"_ustr);
+      RETURN_OPERATION_INFO("Power", "vector_math_power", "float3 ** float3"_ustr);
     case NODE_VECTOR_MATH_SIGN:
       RETURN_OPERATION_INFO("Sign", "vector_math_sign", "sign(float3)"_ustr);
   }
