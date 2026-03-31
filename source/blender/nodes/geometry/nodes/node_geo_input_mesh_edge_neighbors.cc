@@ -12,7 +12,7 @@ namespace blender::nodes::node_geo_input_mesh_edge_neighbors_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Int>("Face Count")
+  b.add_output<decl::Int>("Face Count"_ustr)
       .field_source()
       .description("The number of faces that use each edge as one of their sides");
 }
@@ -22,7 +22,6 @@ class EdgeNeighborCountFieldInput final : public bke::MeshFieldInput {
   EdgeNeighborCountFieldInput()
       : bke::MeshFieldInput(CPPType::get<int>(), "Edge Neighbor Count Field")
   {
-    category_ = Category::Generated;
   }
 
   GVArray get_varray_for_context(const Mesh &mesh,

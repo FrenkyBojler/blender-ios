@@ -35,9 +35,9 @@ static EnumPropertyItem method_items[] = {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Menu>("Method").static_items(method_items).optional_label();
-  b.add_input<decl::Vector>("UV").dimensions(2).subtype(PROP_XYZ).supports_field();
-  b.add_output<decl::Vector>("Tangent").field_source_reference_all();
+  b.add_input<decl::Menu>("Method"_ustr).static_items(method_items).optional_label();
+  b.add_input<decl::Vector>("UV"_ustr).dimensions(2).subtype(PROP_XYZ).supports_field();
+  b.add_output<decl::Vector>("Tangent"_ustr).field_source_reference_all();
 }
 
 static float3 compute_triangle_tangent(const float3 &p1,
@@ -138,7 +138,6 @@ class TangentFieldInput final : public bke::MeshFieldInput {
         method_(method),
         uv_field_(std::move(uv))
   {
-    category_ = Category::Generated;
   }
 
   GVArray get_varray_for_context(const Mesh &mesh,
