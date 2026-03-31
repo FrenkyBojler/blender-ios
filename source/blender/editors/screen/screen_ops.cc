@@ -6245,10 +6245,12 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
   /* next frame overridden by user action (pressed jump to first/last frame) */
   if (sad->flag & ANIMPLAY_FLAG_USE_NEXT_FRAME) {
     scene->r.cfra = sad->nextfra;
-    scene->r.subframe = 0.0f;
     sad->flag &= ~ANIMPLAY_FLAG_USE_NEXT_FRAME;
     sad->flag |= ANIMPLAY_FLAG_JUMPED;
   }
+
+  /* Always reset the subframe on animation playback. */
+  scene->r.subframe = 0.0f;
 
   if (sad->flag & ANIMPLAY_FLAG_JUMPED) {
     DEG_id_tag_update(&scene->id, ID_RECALC_FRAME_CHANGE);
