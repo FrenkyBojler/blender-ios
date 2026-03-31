@@ -200,7 +200,7 @@ struct UnwrapOptions {
   /** Correct for mapped image texture aspect ratio. */
   bool correct_aspect;
   /** Use uniform scale for unwrapping. */
-  bool use_uniform_scale;
+  bool uniform_scale;
   /** Treat unselected uvs as if they were pinned. */
   bool pin_unselected;
 
@@ -272,7 +272,7 @@ static UnwrapOptions unwrap_options_get(wmOperator *op, Object *ob, const ToolSe
     options.correct_aspect = (ts->uvcalc_flag & UVCALC_NO_ASPECT_CORRECT) == 0;
     options.fill_holes = (ts->uvcalc_flag & UVCALC_FILLHOLES) != 0;
     options.use_subsurf = (ts->uvcalc_flag & UVCALC_USESUBSURF) != 0;
-    options.use_uniform_scale = (ts->uvcalc_flag & UVCALC_UNIFORM_SCALE) != 0;
+    options.uniform_scale = (ts->uvcalc_flag & UVCALC_UNIFORM_SCALE) != 0;
 
     options.use_weights = ts->uvcalc_flag & UVCALC_UNWRAP_USE_WEIGHTS;
     STRNCPY_UTF8(options.weight_group, ts->uvcalc_weight_group);
@@ -286,7 +286,7 @@ static UnwrapOptions unwrap_options_get(wmOperator *op, Object *ob, const ToolSe
     options.correct_aspect = RNA_boolean_get(op->ptr, "correct_aspect");
     options.fill_holes = RNA_boolean_get(op->ptr, "fill_holes");
     options.use_subsurf = RNA_boolean_get(op->ptr, "use_subsurf_data");
-    options.use_uniform_scale = RNA_boolean_get(op->ptr, "use_uniform_scale");
+    options.uniform_scale = RNA_boolean_get(op->ptr, "uniform_scale");
 
     options.use_weights = RNA_boolean_get(op->ptr, "use_weights");
     RNA_string_get(op->ptr, "weight_group", options.weight_group);
@@ -440,7 +440,7 @@ static void unwrap_options_sync_toolsettings(wmOperator *op, ToolSettings *ts)
   rna_property_sync_flag(
       op->ptr, "use_weights", UVCALC_UNWRAP_USE_WEIGHTS, false, &ts->uvcalc_flag);
   rna_property_sync_flag(
-      op->ptr, "use_uniform_scale", UVCALC_UNIFORM_SCALE, false, &ts->uvcalc_flag);
+      op->ptr, "uniform_scale", UVCALC_UNIFORM_SCALE, true, &ts->uvcalc_flag);
 }
 
 static bool uvedit_have_selection(const Scene *scene, BMEditMesh *em, const UnwrapOptions *options)
@@ -727,7 +727,7 @@ static ParamHandle *construct_param_handle(const Scene *scene,
   }
 
   float scale[3] = {1.0f, 1.0f, 1.0f};
-  if (options->use_uniform_scale) {
+  if (options->uniform_scale) {
     mat4_to_size(scale, ob->object_to_world().ptr());
   }
 
@@ -789,7 +789,7 @@ static ParamHandle *construct_param_handle_multi(const Scene *scene,
     }
 
     float scale[3] = {1.0f, 1.0f, 1.0f};
-    if (options->use_uniform_scale) {
+    if (options->uniform_scale) {
       mat4_to_size(scale, obedit->object_to_world().ptr());
     }
 
@@ -2906,7 +2906,7 @@ static wmOperatorStatus unwrap_exec(bContext *C, wmOperator *op)
 
     mat4_to_size(obsize, obedit->object_to_world().ptr());
     if (!(fabsf(obsize[0] - obsize[1]) < 1e-4f && fabsf(obsize[1] - obsize[2]) < 1e-4f)) {
-      if ((reported_errors & UNWRAP_ERROR_NONUNIFORM) == 0 && !options.use_uniform_scale) {
+      if ((reported_errors & UNWRAP_ERROR_NONUNIFORM) == 0 && !options.uniform_scale) {
         BKE_report(op->reports,
                    RPT_INFO,
                    "Object has non-uniform scale, unwrap will operate on a non-scaled version of "
@@ -2999,7 +2999,7 @@ static void unwrap_draw(bContext * /*C*/, wmOperator *op)
 
   col->separator();
   col->prop(&ptr, "correct_aspect", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col->prop(&ptr, "use_uniform_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->prop(&ptr, "uniform_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col->prop(&ptr, "margin_method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col->prop(&ptr, "margin", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
@@ -3105,7 +3105,7 @@ void UV_OT_unwrap(wmOperatorType *ot)
       -10.0,
       10.0);
   RNA_def_boolean(ot->srna,
-                  "use_uniform_scale",
+                  "uniform_scale",
                   tool_settings_default.uvcalc_flag & UVCALC_UNIFORM_SCALE,
                   "Use Uniform Scale",
                   "Apply uniform scale correction before unwrapping");
