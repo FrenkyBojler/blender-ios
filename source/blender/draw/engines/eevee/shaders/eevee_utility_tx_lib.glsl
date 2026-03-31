@@ -33,7 +33,7 @@ float4 utility_tx_sample_bsdf_lut(sampler2DArray util_tx, float2 uv, float layer
 {
   /* Scale and bias coordinates, for correct filtered lookup. */
   uv = uv * UTIL_TEX_UV_SCALE + UTIL_TEX_UV_BIAS;
-  layer = layer * UTIL_BTDF_LAYER_COUNT + UTIL_BTDF_LAYER;
+  layer = layer * UTIL_BSDF_LAYER_COUNT + UTIL_BSDF_LAYER;
 
   float layer_floored;
   float interp = modf(layer, layer_floored);
