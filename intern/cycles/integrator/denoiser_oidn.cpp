@@ -116,11 +116,11 @@ class OIDNDenoiseContext {
         allow_inplace_modification_(allow_inplace_modification),
         pass_sample_count_(buffer_params_.get_pass_offset(PASS_SAMPLE_COUNT))
   {
-    if (denoise_params_.use_pass_albedo) {
+    if (denoise_params_.passes & DENOISER_PASS_ALBEDO) {
       oidn_albedo_pass_ = OIDNPass(buffer_params_, "albedo", PASS_DENOISING_ALBEDO);
     }
 
-    if (denoise_params_.use_pass_normal) {
+    if (denoise_params_.passes & DENOISER_PASS_NORMAL) {
       oidn_normal_pass_ = OIDNPass(buffer_params_, "normal", PASS_DENOISING_NORMAL);
     }
   }
@@ -589,13 +589,14 @@ bool OIDNDenoiser::denoise_create_if_needed(const OIDNDenoiseContext &context)
     base_.load_custom_weights();
   }
 
+  const bool use_pass_albedo = params_.prefilter == DENOISER_PREFILTER_ACCURATE &&
+                               (context.denoise_params_.passes & DENOISER_PASS_ALBEDO) != 0;
+  const bool use_pass_normal = params_.prefilter == DENOISER_PREFILTER_ACCURATE &&
+                               (context.denoise_params_.passes & DENOISER_PASS_NORMAL) != 0;
+
   const bool recreate_filter = (base_.oidn_filter_ == nullptr) ||
-                               (base_.use_pass_albedo_ !=
-                                (params_.prefilter == DENOISER_PREFILTER_ACCURATE &&
-                                 context.denoise_params_.use_pass_albedo)) ||
-                               (base_.use_pass_normal_ !=
-                                (params_.prefilter == DENOISER_PREFILTER_ACCURATE &&
-                                 context.denoise_params_.use_pass_normal)) ||
+                               (base_.use_pass_albedo_ != use_pass_albedo) ||
+                               (base_.use_pass_normal_ != use_pass_normal) ||
                                (base_.quality_ != params_.quality);
 
   if (!recreate_filter) {
@@ -617,12 +618,7 @@ bool OIDNDenoiser::denoise_create_if_needed(const OIDNDenoiseContext &context)
     base_.oidn_filter_ = nullptr;
   }
 
-  if (!base_.create_filters(params_.quality,
-                            params_.prefilter == DENOISER_PREFILTER_ACCURATE &&
-                                context.denoise_params_.use_pass_albedo,
-                            params_.prefilter == DENOISER_PREFILTER_ACCURATE &&
-                                context.denoise_params_.use_pass_normal))
-  {
+  if (!base_.create_filters(params_.quality, use_pass_albedo, use_pass_normal)) {
     return false;
   }
 
