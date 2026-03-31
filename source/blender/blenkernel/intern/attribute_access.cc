@@ -621,9 +621,6 @@ void gather_attributes(const AttributeAccessor src_attributes,
     if (iter.domain != src_domain) {
       return;
     }
-    if (iter.data_type == AttrType::String) {
-      return;
-    }
     if (attribute_filter.allow_skip(iter.name)) {
       return;
     }
@@ -663,9 +660,6 @@ void gather_attributes(const AttributeAccessor src_attributes,
   else {
     src_attributes.foreach_attribute([&](const AttributeIter &iter) {
       if (iter.domain != src_domain) {
-        return;
-      }
-      if (iter.data_type == AttrType::String) {
         return;
       }
       if (attribute_filter.allow_skip(iter.name)) {
@@ -709,9 +703,6 @@ void gather_attributes_group_to_group(const AttributeAccessor src_attributes,
     if (iter.domain != src_domain) {
       return;
     }
-    if (iter.data_type == AttrType::String) {
-      return;
-    }
     if (attribute_filter.allow_skip(iter.name)) {
       return;
     }
@@ -741,9 +732,6 @@ void gather_attributes_to_groups(const AttributeAccessor src_attributes,
 {
   src_attributes.foreach_attribute([&](const AttributeIter &iter) {
     if (iter.domain != src_domain) {
-      return;
-    }
-    if (iter.data_type == AttrType::String) {
       return;
     }
     if (attribute_filter.allow_skip(iter.name)) {
@@ -808,9 +796,6 @@ void copy_attributes_group_to_group(const AttributeAccessor src_attributes,
     if (iter.domain != src_domain) {
       return;
     }
-    if (iter.data_type == AttrType::String) {
-      return;
-    }
     if (attribute_filter.allow_skip(iter.name)) {
       return;
     }
@@ -857,9 +842,6 @@ void fill_attribute_range_default(MutableAttributeAccessor attributes,
       return;
     }
     if (attribute_filter.allow_skip(iter.name)) {
-      return;
-    }
-    if (iter.data_type == AttrType::String) {
       return;
     }
     const GVArray varray = *iter.get();
