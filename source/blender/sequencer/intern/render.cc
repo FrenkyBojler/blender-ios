@@ -637,7 +637,7 @@ static ImBuf *input_preprocess(const RenderData *context,
                                                   context->recty,
                                                   image_scale_factor,
                                                   preview_scale_factor);
-    ModifierApplyContext mod_context(*context, *state, *strip, matrix, ibuf);
+    ModifierApplyContext mod_context(*context, *state, *strip, matrix, timeline_frame, ibuf);
     modifier_apply_stack(mod_context, timeline_frame);
     modifier_translation = mod_context.result_translation;
   }

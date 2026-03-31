@@ -155,6 +155,11 @@ using SocketMakeGeometryNodesInputSrnaFunction =
              StructRNA &srna,
              const bNodeTreeInterfaceSocket &io_socket,
              nodes::GeneratedTreeSrnaData &r_generated);
+using SocketMakeCompositorNodesInputSrnaFunction =
+    void (*)(const bNodeTree &tree,
+             StructRNA &srna,
+             const bNodeTreeInterfaceSocket &io_socket,
+             nodes::GeneratedTreeSrnaData &r_generated);
 
 /**
  * \brief Defines a socket type.
@@ -217,6 +222,7 @@ struct bNodeSocketType {
   const SocketValueVariant *geometry_nodes_default_value = nullptr;
 
   SocketMakeGeometryNodesInputSrnaFunction make_geometry_nodes_input_srna = nullptr;
+  SocketMakeCompositorNodesInputSrnaFunction make_compositor_nodes_input_srna = nullptr;
 };
 
 using NodeInitExecFunction = void *(*)(bNodeExecContext * context,

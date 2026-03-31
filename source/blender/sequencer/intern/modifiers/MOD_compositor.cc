@@ -6,6 +6,8 @@
  * \ingroup sequencer
  */
 
+#include "BLI_math_rotation.hh"
+
 #include "BLT_translation.hh"
 
 #include "COM_domain.hh"
@@ -18,6 +20,7 @@
 #include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
 #include "BKE_context.hh"
+#include "BKE_idprop.hh"
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 
@@ -25,13 +28,19 @@
 
 #include "IMB_colormanagement.hh"
 
+#include "NOD_composite.hh"
+#include "NOD_compositor_nodes_caller_ui.hh"
+#include "NOD_compositor_nodes_srna.hh"
+
 #include "SEQ_modifier.hh"
 #include "SEQ_select.hh"
 #include "SEQ_sequencer.hh"
 #include "SEQ_transform.hh"
 
 #include "UI_interface.hh"
-#include "UI_interface_layout.hh"
+
+#include "RNA_access.hh"
+#include "RNA_prototypes.hh"
 
 #include "cache/compositor_cache.hh"
 #include "compositor.hh"
@@ -40,10 +49,120 @@
 
 namespace blender::seq {
 
+void compositor_nodes_update_interface(Scene &sequencer_scene,
+                                       SequencerCompositorModifierData &cmd)
+{
+  if (!cmd.modifier.system_properties) {
+    cmd.modifier.system_properties =
+        bke::idprop::create_group("SequencerCompositorModifierProperties").release();
+  }
+  PointerRNA properties_ptr = RNA_pointer_create_discrete(
+      &sequencer_scene.id, RNA_SequencerCompositorModifierProperties, &cmd);
+  RNA_sync_system_properties(properties_ptr, *cmd.modifier.system_properties);
+
+  DEG_id_tag_update(&sequencer_scene.id, ID_RECALC_SEQUENCER_STRIPS);
+}
+
+static void set_single_input_from_rna_value(PointerRNA *input_props_ptr,
+                                            const eNodeSocketDatatype socket_type,
+                                            compositor::Result &result)
+{
+  using namespace nodes;
+  switch (socket_type) {
+    case SOCK_FLOAT: {
+      const auto type = CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == CompositorNodesInputType::Value) {
+        const float value = RNA_float_get(input_props_ptr, "value");
+        result.set_single_value(value);
+      }
+      break;
+    }
+    case SOCK_VECTOR: {
+      const auto type = CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == CompositorNodesInputType::Value) {
+        float3 value;
+        RNA_float_get_array(input_props_ptr, "value", value);
+        result.set_single_value(value);
+      }
+      break;
+    }
+    case SOCK_RGBA: {
+      const auto type = CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == CompositorNodesInputType::Value) {
+        ColorGeometry4f value;
+        RNA_float_get_array(input_props_ptr, "value", value);
+        result.set_single_value(value);
+      }
+      break;
+    }
+    case SOCK_BOOLEAN: {
+      const auto type = CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == CompositorNodesInputType::Value) {
+        const bool value = RNA_boolean_get(input_props_ptr, "value");
+        result.set_single_value(value);
+      }
+      break;
+    }
+    case SOCK_INT: {
+      const auto type = CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == CompositorNodesInputType::Value) {
+        const int value = RNA_int_get(input_props_ptr, "value");
+        result.set_single_value(value);
+      }
+      break;
+    }
+    case SOCK_ROTATION: {
+      const auto type = CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == CompositorNodesInputType::Value) {
+        float3 value_euler;
+        RNA_float_get_array(input_props_ptr, "value", value_euler);
+        math::Quaternion value_rotation = math::to_quaternion(math::EulerXYZ(value_euler));
+        result.set_single_value(
+            float4(value_rotation.x, value_rotation.y, value_rotation.z, value_rotation.w));
+      }
+      break;
+    }
+    case SOCK_MENU: {
+      const auto type = CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == CompositorNodesInputType::Value) {
+        const MenuValue value = MenuValue(RNA_enum_get(input_props_ptr, "value"));
+        result.set_single_value(value);
+      }
+      break;
+    }
+    case SOCK_STRING: {
+      const auto type = CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == CompositorNodesInputType::Value) {
+        const std::string value = RNA_string_get(input_props_ptr, "value");
+        result.set_single_value(value);
+      }
+      break;
+    }
+    case SOCK_OBJECT:
+    case SOCK_IMAGE:
+    case SOCK_COLLECTION:
+    case SOCK_TEXTURE:
+    case SOCK_MATERIAL:
+    case SOCK_FONT:
+    case SOCK_SCENE:
+    case SOCK_TEXT_ID:
+    case SOCK_MASK:
+    case SOCK_SOUND:
+    case SOCK_GEOMETRY:
+    case SOCK_MATRIX:
+    case SOCK_BUNDLE:
+    case SOCK_CLOSURE:
+    case SOCK_SHADER:
+    case SOCK_CUSTOM:
+    case SOCK_INT_VECTOR:
+      break;
+  }
+}
+
 class CompositorModifierContext : public CompositorContext {
  private:
   const ModifierApplyContext &mod_context_;
-  const SequencerCompositorModifierData *modifier_data_;
+  SequencerCompositorModifierData *modifier_data_;
 
   ImBuf *image_buffer_;
   compositor::Result mask_;
@@ -51,12 +170,13 @@ class CompositorModifierContext : public CompositorContext {
   ImBuf *mask_buffer_ = nullptr;
   int timeline_frame_;
   bool owns_mask_ = false;
+  PointerRNA properties_ptr_;
 
  public:
   CompositorModifierContext(const ModifierApplyContext &mod_context,
                             int timeline_frame,
                             compositor::StaticCacheManager &cache_manager,
-                            const SequencerCompositorModifierData *modifier_data)
+                            SequencerCompositorModifierData *modifier_data)
       : CompositorContext(cache_manager, mod_context.render_data, mod_context.strip),
         mod_context_(mod_context),
         modifier_data_(modifier_data),
@@ -67,7 +187,14 @@ class CompositorModifierContext : public CompositorContext {
     /* Masks are in screen space, whereas modifier executes in strip space. */
     mask_transform_ = math::invert(
         image_transform_matrix_get(mod_context.render_data.scene, &mod_context.strip));
+
+    PointerRNA ptr = RNA_pointer_create_discrete(
+        const_cast<ID *>(&mod_context.render_data.scene->id),
+        RNA_SequencerCompositorModifierData,
+        modifier_data);
+    properties_ptr_ = RNA_pointer_get(&ptr, "properties");
   }
+
   ~CompositorModifierContext()
   {
     if (this->mask_buffer_ != nullptr) {
@@ -124,26 +251,45 @@ class CompositorModifierContext : public CompositorContext {
                                             bke::NODE_INSTANCE_KEY_BASE);
     set_output_refcount(node_group, node_group_operation);
 
+    node_group.ensure_topology_cache();
+    PointerRNA inputs_ptr = RNA_pointer_get(&properties_ptr_, "inputs");
+    BLI_assert(inputs_ptr.data != nullptr);
+
     /* Map the inputs to the operation. */
     Vector<std::unique_ptr<Result>> inputs;
+    bool found_image_input = false;
+    bool found_mask_input = false;
     for (const bNodeTreeInterfaceSocket *input_socket : node_group.interface_inputs()) {
+      const bke::bNodeSocketType *typeinfo = input_socket->socket_typeinfo();
+      const eNodeSocketDatatype socket_type = typeinfo ? typeinfo->type : SOCK_CUSTOM;
+
+      PointerRNA input_props_ptr = RNA_pointer_get(&inputs_ptr, input_socket->identifier);
+      const std::optional<ResultType> result_type = Result::from_socket_data_type(socket_type);
       Result *input_result = new Result(
-          this->create_result(ResultType::Color, ResultPrecision::Full));
-      if (input_socket == node_group.interface_inputs()[0]) {
-        /* First socket is the image input. */
-        create_result_from_input(*input_result, *image_buffer_);
-      }
-      else if (input_socket == node_group.interface_inputs()[1]) {
-        /* Second socket is the mask input. */
-        render_mask_input(this->mod_context_, this->timeline_frame_);
-        if (this->mask_.is_allocated()) {
-          input_result->set_type(this->mask_.type());
-          input_result->set_precision(this->mask_.precision());
-          input_result->wrap_external(this->mask_);
-          input_result->set_transformation(this->mask_transform_);
+          this->create_result(result_type.value_or(ResultType::Color), ResultPrecision::Full));
+      if (result_type) {
+        if (!found_image_input && socket_type == SOCK_RGBA) {
+          /* First color socket is the image input. */
+          create_result_from_input(*input_result, *image_buffer_);
+          found_image_input = true;
+        }
+        else if (!found_mask_input && socket_type == SOCK_RGBA) {
+          /* Second socket is the mask input. */
+          render_mask_input(this->mod_context_, this->timeline_frame_);
+          if (this->mask_.is_allocated()) {
+            input_result->set_type(this->mask_.type());
+            input_result->set_precision(this->mask_.precision());
+            input_result->wrap_external(this->mask_);
+            input_result->set_transformation(this->mask_transform_);
+          }
+          else {
+            input_result->allocate_invalid();
+          }
         }
         else {
-          input_result->allocate_invalid();
+          PointerRNA input_props_ptr = RNA_pointer_get(&inputs_ptr, input_socket->identifier);
+          input_result->allocate_single_value();
+          set_single_input_from_rna_value(&input_props_ptr, socket_type, *input_result);
         }
       }
       else {
@@ -217,7 +363,7 @@ static void compositor_modifier_apply(ModifierApplyContext &context,
                                       StripModifierData *strip_modifier_data,
                                       int timeline_frame)
 {
-  const SequencerCompositorModifierData *modifier_data =
+  SequencerCompositorModifierData *modifier_data =
       reinterpret_cast<SequencerCompositorModifierData *>(strip_modifier_data);
   if (!modifier_data->node_group) {
     return;
@@ -245,50 +391,20 @@ static void compositor_modifier_apply(ModifierApplyContext &context,
   context.result_translation += com_mod_context.get_result_translation();
 }
 
+static PointerRNA *modifier_panel_get_property_pointers(Panel *panel)
+{
+  PointerRNA *ptr = ui::panel_custom_data_get(panel);
+  BLI_assert(!RNA_pointer_is_null(ptr));
+  BLI_assert(RNA_struct_is_a(ptr->type, RNA_StripModifier));
+  ui::panel_context_pointer_set(panel, "modifier", ptr);
+  return ptr;
+}
+
 static void compositor_modifier_panel_draw(const bContext *C, Panel *panel)
 {
   ui::Layout &layout = *panel->layout;
-  PointerRNA *ptr = ui::panel_custom_data_get(panel);
-
-  layout.use_property_split_set(true);
-
-  Scene *scene = CTX_data_sequencer_scene(C);
-  Strip *strip = seq::select_active_get(scene);
-  bool has_existing_group = false;
-  if (strip != nullptr) {
-    StripModifierData *smd = seq::modifier_get_active(strip);
-
-    if (smd && smd->type == eSeqModifierType_Compositor) {
-      SequencerCompositorModifierData *nmd = reinterpret_cast<SequencerCompositorModifierData *>(
-          smd);
-      if (nmd->node_group != nullptr) {
-        template_id(&layout,
-                    C,
-                    ptr,
-                    "node_group",
-                    "NODE_OT_duplicate_compositing_modifier_node_group",
-                    nullptr,
-                    nullptr);
-        has_existing_group = true;
-      }
-    }
-  }
-
-  if (!has_existing_group) {
-    template_id(&layout,
-                C,
-                ptr,
-                "node_group",
-                "NODE_OT_new_compositor_sequencer_node_group",
-                nullptr,
-                nullptr);
-  }
-
-  if (ui::Layout *mask_input_layout = layout.panel_prop(
-          C, ptr, "open_mask_input_panel", IFACE_("Mask Input")))
-  {
-    draw_mask_input_type_settings(C, *mask_input_layout, ptr);
-  }
+  PointerRNA *modifier_ptr = modifier_panel_get_property_pointers(panel);
+  nodes::draw_compositor_nodes_modifier_ui(*C, modifier_ptr, layout);
 }
 
 static void compositor_modifier_register(ARegionType *region_type)
@@ -307,6 +423,8 @@ StripModifierTypeInfo seqModifierType_Compositor = {
     /*copy_data*/ nullptr,
     /*apply*/ compositor_modifier_apply,
     /*panel_register*/ compositor_modifier_register,
+    /*blend_write*/ nullptr,
+    /*blend_read*/ nullptr,
 };
 
 };  // namespace blender::seq

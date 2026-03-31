@@ -91,7 +91,7 @@ bool modifier_remove(Strip *strip, StripModifierData *smd);
 void modifier_clear(Strip *strip);
 void modifier_free(StripModifierData *smd);
 void modifier_unique_name(Strip *strip, StripModifierData *smd);
-StripModifierData *modifier_find_by_name(Strip *strip, const char *name);
+StripModifierData *modifier_find_by_name(const Strip *strip, const char *name);
 StripModifierData *modifier_copy(Strip &strip_dst, StripModifierData *mod_src);
 void modifier_list_copy(Strip *strip_new, Strip *strip);
 int sequence_supports_modifiers(Strip *strip);
@@ -110,6 +110,9 @@ void modifier_type_panel_id(eStripModifierType type, char *r_idname);
 
 /* Iterate over all the modifiers and call the callback function for every referenced ID. */
 void foreach_strip_modifier_id(Strip *strip, const FunctionRef<void(ID *)> fn);
+
+void compositor_nodes_update_interface(Scene &sequencer_scene,
+                                       SequencerCompositorModifierData &cmd);
 
 }  // namespace seq
 }  // namespace blender
