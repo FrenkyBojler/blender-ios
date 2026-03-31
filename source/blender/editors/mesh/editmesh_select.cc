@@ -12,6 +12,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_array.hh"
+#include "BLI_function_ref.hh"
 #include "BLI_heap.h"
 #include "BLI_listbase.h"
 #include "BLI_math_bits.h"
@@ -1695,7 +1696,8 @@ static bool walker_select(BMEditMesh *em,
                           void *start,
                           const bool select,
                           BMWFlag flags,
-                          BMWDelimitFlag delimit)
+                          BMWDelimitFlag delimit,
+                          FunctionRef<void(BMElem *)> foreach_elem_fn)
 {
   BMesh *bm = em->bm;
   BMElem *ele;
@@ -1719,6 +1721,9 @@ static bool walker_select(BMEditMesh *em,
       BM_select_history_remove(bm, ele);
     }
     BM_elem_select_set(bm, ele, select);
+    if (foreach_elem_fn) {
+      foreach_elem_fn(ele);
+    }
     changed = true;
   }
   BMW_end(&walker);
@@ -1768,10 +1773,11 @@ static wmOperatorStatus edbm_edge_loop_multiselect_exec(bContext *C, wmOperator 
       const bool non_manifold = BM_edge_face_count_is_over(eed, 2);
       if (non_manifold) {
         changed |= walker_select(
-            em, BMW_EDGELOOP_NONMANIFOLD, eed, true, BMW_FLAG_TEST_HIDDEN, delimit);
+            em, BMW_EDGELOOP_NONMANIFOLD, eed, true, BMW_FLAG_TEST_HIDDEN, delimit, nullptr);
       }
       else {
-        changed |= walker_select(em, BMW_EDGELOOP, eed, true, BMW_FLAG_TEST_HIDDEN, delimit);
+        changed |= walker_select(
+            em, BMW_EDGELOOP, eed, true, BMW_FLAG_TEST_HIDDEN, delimit, nullptr);
       }
     }
     if (changed) {
@@ -1830,7 +1836,8 @@ static wmOperatorStatus edbm_edge_ring_multiselect_exec(bContext *C, wmOperator 
     bool changed = false;
     for (edindex = 0; edindex < totedgesel; edindex += 1) {
       eed = edarray[edindex];
-      changed |= walker_select(em, BMW_EDGERING, eed, true, BMW_FLAG_TEST_HIDDEN, delimit);
+      changed |= walker_select(
+          em, BMW_EDGERING, eed, true, BMW_FLAG_TEST_HIDDEN, delimit, nullptr);
     }
     if (changed) {
       EDBM_selectmode_flush(em);
@@ -1868,6 +1875,11 @@ static wmOperatorStatus edbm_boundary_loop_multiselect_exec(bContext *C, wmOpera
       BMEdge *eed;
       BMIter iter;
       BM_ITER_MESH (eed, &iter, em->bm, BM_EDGES_OF_MESH) {
+        /* Use the TAG to avoid unnecessary work when an entire boundary is already selected,
+         * there is no need for the walker to walk the boundary for *every* edge.
+         * Use tags so its only walked once. */
+        BM_elem_flag_disable(eed, BM_ELEM_TAG);
+
         if (!BM_elem_flag_test(eed, BM_ELEM_SELECT)) {
           continue;
         }
@@ -1896,15 +1908,29 @@ static wmOperatorStatus edbm_boundary_loop_multiselect_exec(bContext *C, wmOpera
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
 
     bool changed = false;
+    bool changed_boundary = false;
     if (extend == false) {
       EDBM_flag_disable_all(em, BM_ELEM_SELECT);
       changed = true;
     }
+
     for (BMEdge *e : object_edges[ob_index]) {
-      changed |= walker_select(em, BMW_EDGELOOP, e, true, BMW_FLAG_TEST_HIDDEN, delimit);
+      if (BM_elem_flag_test(e, BM_ELEM_TAG)) {
+        /* Already selected, don't handle again. */
+        continue;
+      }
+      changed_boundary |= walker_select(
+          em, BMW_EDGELOOP, e, true, BMW_FLAG_TEST_HIDDEN, delimit, [](BMElem *ele) {
+            BM_elem_flag_enable(ele, BM_ELEM_TAG);
+          });
+      changed |= changed_boundary;
     }
     if (changed) {
-      EDBM_selectmode_flush(em);
+      /* Only flush modes if a boundary selection was made,
+       * otherwise it's a simple de-select all. */
+      if (changed_boundary) {
+        EDBM_selectmode_flush(em);
+      }
       EDBM_uvselect_clear(em);
       DEG_id_tag_update(obedit->data, ID_RECALC_SELECT);
       WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
@@ -2004,7 +2030,7 @@ static void mouse_mesh_loop_face(
   if (select_clear) {
     EDBM_flag_disable_all(em, BM_ELEM_SELECT);
   }
-  walker_select(em, BMW_FACELOOP, eed, select, BMW_FLAG_TEST_HIDDEN, delimit);
+  walker_select(em, BMW_FACELOOP, eed, select, BMW_FLAG_TEST_HIDDEN, delimit, nullptr);
 }
 
 static void mouse_mesh_loop_edge_ring(
@@ -2033,10 +2059,10 @@ static void mouse_mesh_loop_edge_ring(
     EDBM_flag_disable_all(em, BM_ELEM_SELECT);
   }
   if (full_loop) {
-    walker_select(em, BMW_EDGERING, eed, select, BMW_FLAG_TEST_HIDDEN, BMW_DELIMIT_NONE);
+    walker_select(em, BMW_EDGERING, eed, select, BMW_FLAG_TEST_HIDDEN, BMW_DELIMIT_NONE, nullptr);
   }
   else {
-    walker_select(em, BMW_EDGERING, eed, select, BMW_FLAG_TEST_HIDDEN, delimit);
+    walker_select(em, BMW_EDGERING, eed, select, BMW_FLAG_TEST_HIDDEN, delimit, nullptr);
   }
 }
 
@@ -2093,16 +2119,18 @@ static void mouse_mesh_loop_edge(BMEditMesh *em,
   }
 
   if (full_boundary) {
-    walker_select(em, BMW_EDGEBOUNDARY, eed, select, BMW_FLAG_TEST_HIDDEN, BMW_DELIMIT_NONE);
+    walker_select(
+        em, BMW_EDGEBOUNDARY, eed, select, BMW_FLAG_TEST_HIDDEN, BMW_DELIMIT_NONE, nullptr);
   }
   else if (non_manifold) {
-    walker_select(em, BMW_EDGELOOP_NONMANIFOLD, eed, select, BMW_FLAG_TEST_HIDDEN, delimit);
+    walker_select(
+        em, BMW_EDGELOOP_NONMANIFOLD, eed, select, BMW_FLAG_TEST_HIDDEN, delimit, nullptr);
   }
   else if (full_loop) {
-    walker_select(em, BMW_EDGELOOP, eed, select, BMW_FLAG_TEST_HIDDEN, BMW_DELIMIT_NONE);
+    walker_select(em, BMW_EDGELOOP, eed, select, BMW_FLAG_TEST_HIDDEN, BMW_DELIMIT_NONE, nullptr);
   }
   else {
-    walker_select(em, BMW_EDGELOOP, eed, select, BMW_FLAG_TEST_HIDDEN, delimit);
+    walker_select(em, BMW_EDGELOOP, eed, select, BMW_FLAG_TEST_HIDDEN, delimit, nullptr);
   }
 }
 
