@@ -24,7 +24,9 @@ void node_bsdf_glossy(float4 color,
   float3 V = coordinate_incoming(g_data.P);
   float NV = dot(N, V);
 
-  float2 split_sum = brdf_lut(NV, roughness);
+  auto &utility_tx = sampler_get(eevee_utility_texture, utility_tx);
+  eevee::lut::BrdfGGX split_sum = eevee::lut::BrdfGGX::sample_utility_tx(
+      utility_tx, NV, roughness);
 
   ClosureReflection reflection_data;
   reflection_data.weight = weight;
