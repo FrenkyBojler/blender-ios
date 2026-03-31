@@ -74,6 +74,7 @@ void register_node_type_sh_radial_tiling();
 void register_node_type_sh_raycast();
 void register_node_type_sh_rgb();
 void register_node_type_sh_rgbtobw();
+void register_node_type_sh_scene_time();
 void register_node_type_sh_script();
 void register_node_type_sh_sepcolor();
 void register_node_type_sh_sepxyz();

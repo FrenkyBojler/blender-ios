@@ -8199,4 +8199,35 @@ void RaycastNode::compile(OSLCompiler &compiler)
   compiler.add(this, "node_raycast");
 }
 
+/* Scene Time */
+/*
+NODE_DEFINE(ShaderSceneTimeNode)
+{
+  NodeType *type = NodeType::add("shader_scene_time_node", create, NodeType::SHADER);
+
+  SOCKET_OUT_FLOAT(seconds, "Seconds");
+  SOCKET_OUT_COLOR(frame, "Frame");
+
+  return type;
+}
+
+ShaderSceneTimeNode::ShaderSceneTimeNode() : ShaderNode(get_node_type()) {}
+
+void ShaderSceneTimeNode::compile(SVMCompiler &compiler)
+{
+  ShaderOutput *seconds_out = output("Seconds");
+  ShaderOutput *frame_out = output("Frame");
+
+  const int seconds_stack_offset = compiler.stack_assign(seconds_out);
+  const int frame_stack_offset = compiler.stack_assign(frame_out);
+
+  compiler.add_node(NODE_SHADER_SCENE_TIME,
+                    compiler.encode_uchar4(seconds_stack_offset, frame_stack_offset));
+}
+
+void ShaderSceneTimeNode::compile(OSLCompiler &compiler)
+{
+  compiler.add(this, "node_shader_scene_time");
+}*/
+
 CCL_NAMESPACE_END
