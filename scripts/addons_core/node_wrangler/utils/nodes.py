@@ -8,6 +8,17 @@ from math import hypot, inf
 from bpy.app.translations import pgettext_tip as tip_
 
 
+compatible_socket_types = {
+    "BOOLEAN": {"INT", "VECTOR", "RGBA", "VALUE"},
+    "RGBA": {"VALUE", "INT", "BOOLEAN", "VECTOR"},
+    "VALUE": {"INT", "BOOLEAN", "VECTOR", "RGBA", "ROTATION"},
+    "INT": {"VALUE", "BOOLEAN", "VECTOR", "RGBA"},
+    "MATRIX": {"ROTATION"},
+    "ROTATION": {"VECTOR", "MATRIX"},
+    "VECTOR": {"RGBA", "ROTATION", "INT", "VALUE", "BOOLEAN"},
+}
+
+
 def force_update(context):
     context.space_data.node_tree.update_tag()
 
@@ -142,6 +153,17 @@ def store_mouse_cursor(context, event):
 def get_nodes_links(context):
     tree = context.space_data.edit_tree
     return tree.nodes, tree.links
+
+
+def are_sockets_compatible(sock_a, sock_b):
+    if sock_a == sock_b:
+        return True
+    if sock_a == 'CUSTOM' or sock_b == 'CUSTOM':
+        return True
+    if sock_a in compatible_socket_types and sock_b in compatible_socket_types[sock_a]:
+        return True
+
+    return False
 
 
 def get_internal_socket(socket):

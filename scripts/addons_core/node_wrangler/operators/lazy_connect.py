@@ -17,6 +17,7 @@ from ..utils.nodes import (
     nw_check,
     nw_check_not_empty,
     get_nodes_links,
+    are_sockets_compatible,
     node_at_pos,
     autolink,
     force_update,
@@ -151,10 +152,22 @@ class NODE_OT_lazy_connect_call_inputs_menu(Operator, NWBase):
 
         n1 = nodes[context.scene.NWLazySource]
         n2 = nodes[context.scene.NWLazyTarget]
-        if len(n2.inputs) > 1:
+
+        num_compatible_socks = 0
+        target_index = 0
+
+        for index, input in enumerate(n2.inputs):
+            if not input.enabled:
+                continue
+            if are_sockets_compatible(n1.outputs[self.from_socket].type, input.type):
+                num_compatible_socks += 1
+                target_index = index
+
+        if num_compatible_socks > 1:
             bpy.ops.wm.call_menu("INVOKE_DEFAULT", name=NODE_MT_lazy_connect_inputs.bl_idname)
-        elif len(n2.inputs) == 1:
-            connect_sockets(n1.outputs[self.from_socket], n2.inputs[0])
+        elif num_compatible_socks == 1:
+            connect_sockets(n1.outputs[self.from_socket], n2.inputs[target_index])
+
         return {'FINISHED'}
 
 
@@ -217,6 +230,8 @@ class NODE_MT_lazy_connect_inputs(Menu, NWBaseMenu):
         layout.label(text="To Socket", icon='FORWARD')
         layout.separator()
 
+        n1 = nodes[context.scene.NWLazySource]
+        from_socket = context.scene.NWSourceSocket
         n2 = nodes[context.scene.NWLazyTarget]
 
         for index, input in enumerate(n2.inputs):
@@ -224,11 +239,16 @@ class NODE_MT_lazy_connect_inputs(Menu, NWBaseMenu):
             # This prevents, for example, the scale value socket
             # of the vector math node being added to the list when
             # the mode is not 'SCALE'.
-            if input.enabled:
-                op = layout.operator(
-                    "node.lazy_connect_make_link", text=input.name,
-                    text_ctxt=i18n_contexts.default,
-                    icon=socket_to_icon(input),
-                )
-                op.from_socket = context.scene.NWSourceSocket
-                op.to_socket = index
+            if not input.enabled:
+                continue
+
+            if not are_sockets_compatible(n1.outputs[from_socket].type, input.type):
+                continue
+
+            op = layout.operator(
+                "node.lazy_connect_make_link", text=input.name,
+                text_ctxt=i18n_contexts.default,
+                icon=socket_to_icon(input),
+            )
+            op.from_socket = from_socket
+            op.to_socket = index
