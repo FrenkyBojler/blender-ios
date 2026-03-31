@@ -753,7 +753,7 @@ static_assert(sizeof(SVMNodeTexImageBox) % sizeof(uint) == 0);
 /* NODE_TEX_ENVIRONMENT / NODE_TEX_ENVIRONMENT_DERIVATIVE */
 struct SVMNodeTexEnvironment {
   int id;
-  uint projection;
+  NodeEnvironmentProjection projection;
   uint8_t flags;
   SVMStackOffset co;
   SVMStackOffset out_offset;

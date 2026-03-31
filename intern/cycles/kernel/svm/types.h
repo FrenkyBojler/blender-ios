@@ -408,7 +408,7 @@ enum NodeImageFlags {
   NODE_IMAGE_ALPHA_UNASSOCIATE = 2,
 };
 
-enum NodeEnvironmentProjection {
+enum NodeEnvironmentProjection : uint {
   NODE_ENVIRONMENT_EQUIRECTANGULAR = 0,
   NODE_ENVIRONMENT_MIRROR_BALL = 1,
 };
