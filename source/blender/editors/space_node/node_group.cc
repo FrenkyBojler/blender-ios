@@ -252,8 +252,9 @@ void NODE_OT_group_enter_exit(wmOperatorType *ot)
 /**
  * \return True if successful.
  */
-static void node_group_ungroup(Main &bmain, bNodeTree &ntree, bNode &group_node)
+static void node_group_ungroup(bContext &C, bNodeTree &ntree, bNode &group_node)
 {
+  Main &bmain = *CTX_data_main(&C);
   NodeSetInterfaceParams params;
   params.skip_hidden = false;
 
@@ -270,7 +271,8 @@ static void node_group_ungroup(Main &bmain, bNodeTree &ntree, bNode &group_node)
         return true;
       },
       ntree);
-  connect_copied_nodes_to_external_sockets(ngroup, copied_nodes, io_mapping);
+  const InterfaceProxyNodes proxy_nodes = connect_copied_nodes_to_external_sockets(
+      C, ngroup, copied_nodes, io_mapping, &group_node);
 
   /* Center nodes on the bounds of the original group node. */
   if (const std::optional<Bounds<float2>> bounds = node_location_bounds(Span{&group_node})) {
@@ -278,6 +280,19 @@ static void node_group_ungroup(Main &bmain, bNodeTree &ntree, bNode &group_node)
     for (bNode *node : copied_nodes.node_map().values()) {
       node->location[0] += center[0];
       node->location[1] += center[1];
+    }
+    for (bNode *node : proxy_nodes.values()) {
+      node->location[0] += center[0];
+      node->location[1] += center[1];
+    }
+  }
+  /* Attach to the same parent as the group node. */
+  if (group_node.parent) {
+    for (bNode *node : copied_nodes.node_map().values()) {
+      node->parent = group_node.parent;
+    }
+    for (bNode *node : proxy_nodes.values()) {
+      node->parent = group_node.parent;
     }
   }
 
@@ -288,6 +303,9 @@ static void node_group_ungroup(Main &bmain, bNodeTree &ntree, bNode &group_node)
 
   /* Select ungrouped nodes*/
   for (bNode *node : copied_nodes.node_map().values()) {
+    bke::node_set_selected(*node, true);
+  }
+  for (bNode *node : proxy_nodes.values()) {
     bke::node_set_selected(*node, true);
   }
 }
@@ -316,7 +334,7 @@ static wmOperatorStatus node_group_ungroup_exec(bContext *C, wmOperator * /*op*/
 
   node_deselect_all(*snode->edittree);
   for (bNode *node : nodes_to_ungroup) {
-    node_group_ungroup(*bmain, *snode->edittree, *node);
+    node_group_ungroup(*C, *snode->edittree, *node);
   }
   BKE_main_ensure_invariants(*CTX_data_main(C));
   return OPERATOR_FINISHED;
@@ -625,6 +643,9 @@ static bNode *node_group_make_from_nodes(const bContext &C,
   if (const std::optional<Bounds<float2>> bounds = node_location_bounds(nodes_to_group)) {
     gnode->location[0] = bounds->center()[0];
     gnode->location[1] = bounds->center()[1];
+  }
+  if (bNode *parent = ed::space_node::find_common_parent_node(nodes_to_group)) {
+    gnode->parent = parent;
   }
 
   node_group_make_insert_selected(C, ntree, gnode, nodes_to_group);

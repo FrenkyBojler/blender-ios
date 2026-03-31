@@ -95,8 +95,8 @@ set(SRC
   nodes/node_geo_flip_faces.cc
   nodes/node_geo_foreach_geometry_element.cc
   nodes/node_geo_geometry_to_instance.cc
-  nodes/node_geo_get_geometry_bundle.cc
   nodes/node_geo_get_bundle_item.cc
+  nodes/node_geo_get_geometry_bundle.cc
   nodes/node_geo_get_named_grid.cc
   nodes/node_geo_gizmo_dial.cc
   nodes/node_geo_gizmo_linear.cc
@@ -211,6 +211,7 @@ set(SRC
   nodes/node_geo_raycast.cc
   nodes/node_geo_realize_instances.cc
   nodes/node_geo_remove_attribute.cc
+  nodes/node_geo_rename_attribute.cc
   nodes/node_geo_repeat.cc
   nodes/node_geo_rotate_instances.cc
   nodes/node_geo_sample_grid.cc
@@ -234,7 +235,6 @@ set(SRC
   nodes/node_geo_separate_geometry.cc
   nodes/node_geo_set_curve_handles.cc
   nodes/node_geo_set_curve_normal.cc
-  nodes/node_geo_set_curve_order.cc
   nodes/node_geo_set_curve_radius.cc
   nodes/node_geo_set_curve_tilt.cc
   nodes/node_geo_set_geometry_bundle.cc
@@ -249,6 +249,8 @@ set(SRC
   nodes/node_geo_set_material.cc
   nodes/node_geo_set_material_index.cc
   nodes/node_geo_set_mesh_normal.cc
+  nodes/node_geo_set_nurbs_order.cc
+  nodes/node_geo_set_nurbs_weight.cc
   nodes/node_geo_set_point_radius.cc
   nodes/node_geo_set_position.cc
   nodes/node_geo_set_shade_smooth.cc
