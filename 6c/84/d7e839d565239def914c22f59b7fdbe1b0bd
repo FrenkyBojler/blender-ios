@@ -1,2 +1,3 @@
 Referenced by issue #154768, Duplicating object in camera view crashes X server
 Referenced by pull request #156577, Fix: Vulkan: Disable vertex input dynamic state on legacy Intel iGPUs
+Referenced by issue #156496, Intel artifacting adjusting materials in Blender 5.1.0 with Vulkan
