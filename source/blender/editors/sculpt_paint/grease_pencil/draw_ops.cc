@@ -1414,7 +1414,7 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
   const bool on_back = (ts.gpencil_flags & GP_TOOL_FLAG_PAINT_ONBACK);
   const bool auto_remove_fill_guides = (brush.gpencil_settings->flag &
                                         GP_BRUSH_FILL_AUTO_REMOVE_FILL_GUIDES) != 0;
-  const bool is_flood = false;
+  const bool is_exact = brush.gpencil_settings->fill_method == GP_FILL_METHOD_EXACT;
 
   if (!grease_pencil.has_active_layer()) {
     return false;
@@ -1432,7 +1432,7 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
 
     bke::CurvesGeometry fill_curves;
 
-    if (is_flood) {
+    if (!is_exact) {
       const ed::greasepencil::ExtensionData extensions = grease_pencil_fill_get_extension_data(
           C, op_data);
 
@@ -1473,7 +1473,7 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
             "fill_id", bke::AttrDomain::Curve, bke::AttributeInitValue(1));
     fill_ids.finish();
 
-    if (is_flood) {
+    if (!is_exact) {
       smooth_fill_strokes(fill_curves, fill_curves.curves_range());
 
       if (simplify_levels > 0) {

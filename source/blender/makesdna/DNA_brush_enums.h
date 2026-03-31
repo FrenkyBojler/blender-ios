@@ -119,6 +119,12 @@ enum eGP_FillLayerModes {
   GP_FILL_GPLMODE_BELOW = 5,
 };
 
+/* BrushGpencilSettings->fill_method */
+enum eGP_FillMethod {
+  GP_FILL_METHOD_EXACT = 0,
+  GP_FILL_METHOD_FLOOD = 1,
+};
+
 /* BrushGpencilSettings->gp_eraser_mode */
 enum eGP_BrushEraserMode {
   GP_BRUSH_ERASER_SOFT = 0,

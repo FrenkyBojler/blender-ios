@@ -51,7 +51,7 @@ struct BrushGpencilSettings {
 
   /** Factor for transparency. */
   float fill_threshold = 0;
-  char _pad[2] = {};
+  short fill_method = 0;
   /* Type of caps: eGPDstroke_Caps. */
   int8_t caps_type = 0;
   char _pad1[1] = {};
