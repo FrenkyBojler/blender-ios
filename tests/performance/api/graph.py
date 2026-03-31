@@ -56,6 +56,8 @@ class TestGraph:
                 outputs = set()
                 for entry in entries:
                     for output in entry.output.keys():
+                        if output.startswith('_'):
+                            continue
                         outputs.add(output)
 
                 chart_type = 'line' if entries[0].benchmark_type == 'time_series' else 'comparison'

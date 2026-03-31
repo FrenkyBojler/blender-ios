@@ -188,7 +188,7 @@ def run_entry(env: api.TestEnvironment,
     if executable_ok:
         run_outputs = []
         for run in range(count):
-            entry.status = 'running' if count == 1 else f'run [{run+1}/{count}]'
+            entry.status = 'running' if count == 1 else f'run [{run + 1}/{count}]'
             print_row(config, row, end='\r')
 
             try:
@@ -220,6 +220,8 @@ def run_entry(env: api.TestEnvironment,
                         continue
                     values.append(run_output[key])
                 output[key] = sum(values) / len(values)
+                output[f"_{key}_min"] = min(values)
+                output[f"_{key}_max"] = max(values)
             entry.output = output
 
     print_row(config, row, end='\r')
