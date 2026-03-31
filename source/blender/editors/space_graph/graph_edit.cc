@@ -335,7 +335,7 @@ static wmOperatorStatus graphkeys_click_insert_exec(bContext *C, wmOperator *op)
      *
      * We apply inverse NLA-mapping to `frame` to get correct time in un-scaled
      * action. */
-    const float frame = ANIM_nla_tweakedit_remap(
+    float frame = ANIM_nla_tweakedit_remap(
         ale, RNA_float_get(op->ptr, "frame"), NLATIME_CONVERT_UNMAP);
     float val = RNA_float_get(op->ptr, "value");
 
@@ -347,6 +347,11 @@ static wmOperatorStatus graphkeys_click_insert_exec(bContext *C, wmOperator *op)
           ac.scene, ale->id, fcu, mapping_flag | ANIM_UNITCONV_RESTORE, &offset);
 
       val = val * scale - offset;
+    }
+
+    /* It only seems logical to snap to the nearest frame and ignore markers and seconds. */
+    if ((ts->snap_flag_anim & SCE_SNAP) && (ts->snap_anim_mode == SCE_SNAP_TO_FRAME)) {
+      frame = roundf(frame);
     }
 
     KeyframeSettings settings = get_keyframe_settings(true);
