@@ -1194,7 +1194,16 @@ inline void fill_segment(T *__restrict data, const T &value, const SegmentT segm
     if constexpr (std::is_trivially_copy_assignable_v<T>) {
       if (memory_is_zero(&value, sizeof(T))) {
         const IndexRange range = segment;
+/* GCC warns about memset on types without trivial copy-assignment even when guarded by
+ * `if constexpr (std::is_trivially_copy_assignable_v<T>)`. Quiet the compiler bug. */
+#if defined(__GNUC__) && !defined(__clang__)
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wclass-memaccess"
+#endif
         memset(data + range.start(), 0, range.size() * sizeof(T));
+#if defined(__GNUC__) && !defined(__clang__)
+#  pragma GCC diagnostic pop
+#endif
         return;
       }
     }
