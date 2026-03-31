@@ -604,6 +604,11 @@ if(WITH_CYCLES AND WITH_CYCLES_PATH_GUIDING)
   endif()
 endif()
 
+if(WITH_COMPILER_TRACY)
+  set(TracyClient_ROOT_DIR ${LIBDIR}/tracy)
+  find_package_wrapper(TracyClient REQUIRED)
+endif()
+
 if(DEFINED LIBDIR)
   without_system_libs_end()
 endif()

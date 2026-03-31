@@ -496,3 +496,15 @@ else()
   add_library(bf_deps_optional_osl INTERFACE)
   add_library(bf::dependencies::optional::osl ALIAS bf_deps_optional_osl)
 endif()
+
+# -----------------------------------------------------------------------------
+# Configure TracyClient
+
+add_library(bf_deps_optional_tracy_client INTERFACE)
+add_library(bf::dependencies::optional::TracyClient ALIAS bf_deps_optional_tracy_client)
+
+if(WITH_COMPILER_TRACY)
+  target_compile_definitions(bf_deps_optional_tracy_client INTERFACE WITH_TRACY_CLIENT TRACY_ENABLE)
+  target_include_directories(bf_deps_optional_tracy_client SYSTEM INTERFACE ${TracyClient_INCLUDE_DIRS})
+  target_link_libraries(bf_deps_optional_tracy_client INTERFACE ${TracyClient_LIBRARIES})
+endif()
