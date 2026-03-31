@@ -10,6 +10,7 @@
  * functions into (called via blenders generic BLI_cb API)
  */
 
+#include "BLI_profile.hh"
 #include "BLI_utildefines.h"
 #include <Python.h>
 
@@ -469,7 +470,7 @@ void bpy_app_generic_callback(Main * /*main*/,
     for (pos = 0; pos < PyList_GET_SIZE(cb_list); pos++) {
       func = PyList_GET_ITEM(cb_list, pos);
       PyObject *args = choose_arguments(func, args_all, args_single);
-      ret = PyObject_Call(func, args, nullptr);
+      ret = BLI_profile_PyObject_Call_parsefunc("App Handler", func, args, nullptr);
       if (ret == nullptr) {
         /* Don't set last system variables because they might cause some
          * dangling pointers to external render engines (when exception

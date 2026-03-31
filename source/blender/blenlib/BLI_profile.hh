@@ -69,6 +69,75 @@
 #  define BLI_profile_set_thread_name(name) tracy::SetThreadName(name)
 #  define BLI_profile_set_thread_name_with_hint(name, hint) tracy::SetThreadNameWithHint(name, hint)
 
+#  define BLI_profile_color_python 0x00A000
+
+/* PyObject_Call* wrappers to profile Python code execution.
+ * API exposes both Python function parsing and explicit object name variants. */
+// TODO: Check if it would be possible to override the source location data to show the original
+//       function name, and not the lambda operator().
+#define __bli_profile_python_base_zone_label(label) "Python " label " call"
+#define __bli_profile_python_unknown_label "<unknown python func>"
+
+#  define __bli_profile_python_zone(profile_label) \
+    BLI_profile_zone_scoped_nc(__bli_profile_python_base_zone_label(profile_label), \
+                               BLI_profile_color_python); \
+
+#  define __bli_profile_python_parsefunc(py_callable) \
+    if (PyFunction_Check(py_callable)) { \
+      const PyCodeObject *code_obj = (PyCodeObject *)PyFunction_GetCode(py_callable); \
+      const char *py_func_name = PyUnicode_AsUTF8AndSize(code_obj->co_qualname, nullptr); \
+      BLI_profile_zone_set_name_fmt("Python Function: %s", py_func_name); \
+    } \
+    else { \
+      BLI_profile_zone_set_name(__bli_profile_python_unknown_label, \
+                                sizeof(__bli_profile_python_unknown_label)); \
+    }
+
+#  define __bli_profile_python_objectname(object_name) \
+    BLI_profile_zone_set_name_fmt("Python Instance: %s", object_name);
+
+#  define BLI_profile_PyObject_Call_parsefunc(profile_label, py_callable, py_args, py_kwargs) \
+    [](PyObject *callable, PyObject *args, PyObject *kwargs) -> PyObject * { \
+      __bli_profile_python_zone(profile_label); \
+      __bli_profile_python_parsefunc(callable); \
+      return PyObject_Call(callable, args, kwargs); \
+    }(py_callable, py_args, py_kwargs)
+
+#  define BLI_profile_PyObject_CallObject_parsefunc(profile_label, py_callable, py_args) \
+    [](PyObject *callable, PyObject *args) -> PyObject * { \
+      __bli_profile_python_zone(profile_label); \
+      __bli_profile_python_parsefunc(callable); \
+      return PyObject_CallObject(callable, args); \
+    }(py_callable, py_args)
+
+#  define BLI_profile_PyObject_CallOneArg_parsefunc(profile_label, py_callable, py_arg) \
+    [](PyObject *callable, PyObject *arg) -> PyObject * { \
+      __bli_profile_python_zone(profile_label); \
+      __bli_profile_python_parsefunc(callable); \
+      return PyObject_CallOneArg(callable, arg); \
+    }(py_callable, py_arg)
+
+#  define BLI_profile_PyObject_Call_objectname(profile_label, object_name, py_callable, py_args, py_kwargs) \
+    [&object_name](PyObject *callable, PyObject *args, PyObject *kwargs) -> PyObject * { \
+      __bli_profile_python_zone(profile_label); \
+      __bli_profile_python_objectname(object_name); \
+      return PyObject_Call(callable, args, kwargs); \
+    }(py_callable, py_args, py_kwargs)
+
+#  define BLI_profile_PyObject_CallObject_objectname(profile_label, object_name, py_callable, py_args) \
+    [&object_name](PyObject *callable, PyObject *args) -> PyObject * { \
+      __bli_profile_python_zone(profile_label); \
+      __bli_profile_python_objectname(object_name); \
+      return PyObject_CallObject(callable, args); \
+    }(py_callable, py_args)
+
+#  define BLI_profile_PyObject_CallOneArg_objectname(profile_label, object_name, py_callable, py_arg) \
+    [&object_name](PyObject *callable, PyObject *arg) -> PyObject * { \
+      __bli_profile_python_zone(profile_label); \
+      __bli_profile_python_objectname(object_name); \
+      return PyObject_CallOneArg(callable, arg); \
+    }(py_callable, py_arg)
+
 #else
 #  define BLI_profile_zone_scoped
 #  define BLI_profile_zone_scoped_n(name)

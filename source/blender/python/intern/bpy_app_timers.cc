@@ -6,6 +6,7 @@
  * \ingroup pythonintern
  */
 
+#include "BLI_profile.hh"
 #include "BLI_timer.h"
 
 #include <Python.h>
@@ -50,7 +51,7 @@ static double py_timer_execute(uintptr_t /*uuid*/, void *user_data)
 
   PyObject *function = static_cast<PyObject *>(user_data);
 
-  PyObject *py_ret = PyObject_CallObject(function, nullptr);
+  PyObject *py_ret = BLI_profile_PyObject_CallObject_parsefunc("Timer Execute", function, nullptr);
   const double ret = handle_returned_value(function, py_ret);
 
   PyGILState_Release(gilstate);

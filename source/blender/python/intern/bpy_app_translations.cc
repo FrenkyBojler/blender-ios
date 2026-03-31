@@ -17,6 +17,7 @@
 
 #include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
+#include "BLI_profile.hh"
 #include "BLI_utildefines.h"
 
 #include "BPY_extern.hh"
@@ -998,7 +999,12 @@ PyObject *BPY_app_translations_struct()
     return nullptr;
   }
 
-  ret = PyObject_CallObject(reinterpret_cast<PyObject *>(&BlenderAppTranslationsType), nullptr);
+  const char *object_name = "bpy_app_translations";
+  ret = BLI_profile_PyObject_CallObject_objectname(
+      "bpy_app_translation_struct",
+      object_name,
+      reinterpret_cast<PyObject *>(&BlenderAppTranslationsType),
+      nullptr);
 
   /* prevent user from creating new instances */
   BlenderAppTranslationsType.tp_new = nullptr;

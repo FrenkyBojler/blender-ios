@@ -14,6 +14,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_kdtree.hh"
+#include "BLI_profile.hh"
 #include "BLI_utildefines.h"
 
 #include "../generic/py_capi_utils.hh"
@@ -185,7 +186,7 @@ static int py_find_nearest_cb(void *user_data, int index, const float3 &co, floa
 
   PyObject *py_args = PyTuple_New(1);
   PyTuple_SET_ITEM(py_args, 0, PyLong_FromLong(index));
-  PyObject *result = PyObject_CallObject(data->py_filter, py_args);
+  PyObject *result = BLI_profile_PyObject_CallObject_parsefunc("mathutils_kdtree_find_nearest_cb", data->py_filter, py_args);
   Py_DECREF(py_args);
 
   if (result) {

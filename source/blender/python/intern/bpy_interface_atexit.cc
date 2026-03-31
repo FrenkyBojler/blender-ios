@@ -15,6 +15,8 @@
 #include "bpy.hh" /* own include */
 #include "bpy_capi_utils.hh"
 
+#include "BLI_profile.hh"
+
 #include "../generic/py_capi_utils.hh"
 
 #include "WM_api.hh"
@@ -108,7 +110,7 @@ static void atexit_func_call(const char *func_name, PyObject *atexit_func_arg)
   PyTuple_SET_ITEM(args, 0, atexit_func_arg);
   Py_INCREF(atexit_func_arg); /* only incref so we don't dec'ref along with 'args' */
 
-  ret = PyObject_CallObject(atexit_func, args);
+  ret = BLI_profile_PyObject_CallObject_objectname("atexit module", func_name, atexit_func, args);
 
   Py_DECREF(atexit_mod);
   Py_DECREF(atexit_func);

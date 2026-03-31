@@ -14,6 +14,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_alloca.h"
+#include "BLI_profile.hh"
 #include "BLI_utildefines.h"
 
 #include "WM_types.hh"
@@ -153,7 +154,7 @@ static void py_rna_gizmo_handler_get_cb(const wmGizmo * /*gz*/,
 
   BPyGizmoHandlerUserData *data = static_cast<BPyGizmoHandlerUserData *>(
       gz_prop->custom_func.user_data);
-  PyObject *ret = PyObject_CallObject(data->fn_slots[BPY_GIZMO_FN_SLOT_GET], nullptr);
+  PyObject *ret = BLI_profile_PyObject_CallObject_parsefunc("rna_gizmo_handler_get", data->fn_slots[BPY_GIZMO_FN_SLOT_GET], nullptr);
   if (ret == nullptr) {
     goto fail;
   }
@@ -226,7 +227,8 @@ static void py_rna_gizmo_handler_set_cb(const wmGizmo * /*gz*/,
     goto fail;
   }
 
-  ret = PyObject_CallObject(data->fn_slots[BPY_GIZMO_FN_SLOT_SET], args);
+  ret = BLI_profile_PyObject_CallObject_parsefunc(
+      "rna_gizmo_handler_set", data->fn_slots[BPY_GIZMO_FN_SLOT_SET], args);
   if (ret == nullptr) {
     goto fail;
   }
@@ -253,7 +255,8 @@ static void py_rna_gizmo_handler_range_get_cb(const wmGizmo * /*gz*/,
   BPyGizmoHandlerUserData *data = static_cast<BPyGizmoHandlerUserData *>(
       gz_prop->custom_func.user_data);
 
-  PyObject *ret = PyObject_CallObject(data->fn_slots[BPY_GIZMO_FN_SLOT_RANGE_GET], nullptr);
+  PyObject *ret = BLI_profile_PyObject_CallObject_parsefunc(
+      "rna_gizmo_handler_ranger_get", data->fn_slots[BPY_GIZMO_FN_SLOT_RANGE_GET], nullptr);
   if (ret == nullptr) {
     goto fail;
   }

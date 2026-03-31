@@ -9,6 +9,7 @@
  */
 #include <Python.h>
 
+#include "BLI_profile.hh"
 #include "BLI_utildefines.h"
 
 #include "bpy_capi_utils.hh"
@@ -85,7 +86,8 @@ static int bpy_cli_command_exec(bContext *C,
     PyObject *exec_args = PyTuple_New(1);
     PyTuple_SET_ITEM(exec_args, 0, py_argv);
 
-    PyObject *result = PyObject_Call(py_exec_fn, exec_args, nullptr);
+    PyObject *result = BLI_profile_PyObject_Call_parsefunc(
+        "bpy_cli_command_exec", py_exec_fn, exec_args, nullptr);
 
     Py_DECREF(exec_args); /* Frees `py_argv` too. */
 

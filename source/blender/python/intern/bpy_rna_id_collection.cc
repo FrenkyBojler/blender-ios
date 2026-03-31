@@ -14,6 +14,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_bitmap.h"
+#include "BLI_profile.hh"
 #include "BLI_string.h"
 
 #include "BKE_bpath.hh"
@@ -615,7 +616,8 @@ static bool foreach_id_file_path_foreach_callback(BPathForeachPathData *bpath_da
   PyTuple_SET_ITEMS(args, py_owner_id, py_path_src, py_path_meta);
 
   /* Call the Python callback function. */
-  PyObject *result = PyObject_CallObject(data.visit_path_fn, args);
+  PyObject *result = BLI_profile_PyObject_CallObject_parsefunc(
+      "id_file_path_foreach_callback", data.visit_path_fn, args);
 
   /* Done with the function arguments. */
   Py_DECREF(args);

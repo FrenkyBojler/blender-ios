@@ -22,6 +22,8 @@
 
 #include "BKE_screen.hh"
 
+#include "BLI_profile.hh"
+
 #include "WM_api.hh"
 
 #include "ED_space_api.hh"
@@ -55,7 +57,8 @@ static void cb_region_draw(const bContext *C, ARegion * /*region*/, void *custom
 
   cb_func = PyTuple_GET_ITEM((PyObject *)customdata, 1);
   cb_args = PyTuple_GET_ITEM((PyObject *)customdata, 2);
-  result = PyObject_CallObject(cb_func, cb_args);
+
+  result = BLI_profile_PyObject_CallObject_parsefunc("RNA callback", cb_func, cb_args);
 
   if (result) {
     Py_DECREF(result);
@@ -101,7 +104,7 @@ static void cb_wm_cursor_draw(bContext *C,
   PyObject *cb_args_with_xy = PyC_Tuple_CopySized(cb_args, cb_args_len + 1);
   PyTuple_SET_ITEM(cb_args_with_xy, cb_args_len, cb_args_xy);
 
-  result = PyObject_CallObject(cb_func, cb_args_with_xy);
+  result = BLI_profile_PyObject_CallObject_parsefunc("RNA callback", cb_func, cb_args_with_xy);
 
   Py_DECREF(cb_args_with_xy);
 

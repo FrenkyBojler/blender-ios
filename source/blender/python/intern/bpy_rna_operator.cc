@@ -10,6 +10,7 @@
 
 #include <Python.h>
 
+#include "BLI_profile.hh"
 #include "BLI_string.h"
 
 #include "BKE_context.hh"
@@ -41,7 +42,7 @@ static char *pyop_poll_message_get_fn(bContext * /*C*/, void *user_data)
   }
   else {
     PyObject *py_args_after_first = PyTuple_GetSlice(py_args, 1, PY_SSIZE_T_MAX);
-    PyObject *py_msg = PyObject_CallObject(py_func_or_msg, py_args_after_first);
+    PyObject *py_msg = BLI_profile_PyObject_CallObject_parsefunc("op_poll_message_get_fn", py_func_or_msg, py_args_after_first);
     Py_DECREF(py_args_after_first);
 
     bool error = false;

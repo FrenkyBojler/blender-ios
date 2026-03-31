@@ -63,6 +63,8 @@
 #include "BKE_main.hh"
 #include "BKE_report.hh"
 
+#include "BLI_profile.hh"
+
 /* Only for types. */
 #include "BKE_node.hh"
 
@@ -8101,8 +8103,12 @@ static PyObject *pyrna_prop_collection_iter_CreatePyObject(PointerRNA *ptr, Prop
   PyObject *pypropptr_rna = PyCapsule_New(
       &prop_ptr, BPy_PropertyPointerRNA_capsule_identifier, nullptr);
 
-  PyObject *self = PyObject_CallOneArg(
-      reinterpret_cast<PyObject *>(&pyrna_prop_collection_iter_Type), pypropptr_rna);
+  const char *struct_identifier = RNA_struct_identifier(ptr->type);
+  PyObject *self = BLI_profile_PyObject_CallOneArg_objectname(
+      "rna_prop_collection_iter_CreatePyObject",
+      struct_identifier,
+      reinterpret_cast<PyObject *>(&pyrna_prop_collection_iter_Type),
+      pypropptr_rna);
   BPy_PropertyCollectionIterRNA *self_property = reinterpret_cast<BPy_PropertyCollectionIterRNA *>(
       self);
 
@@ -8497,7 +8503,8 @@ static PyObject *pyrna_srna_Subtype(StructRNA *srna)
       Py_DECREF(value);
       BLI_assert(ok != -1);
 
-      newclass = PyObject_CallObject(metaclass, args);
+      newclass = BLI_profile_PyObject_CallObject_objectname(
+          "srna_Subtype", idname, metaclass, args);
       Py_DECREF(args);
 
       (void)ok;
@@ -8560,15 +8567,22 @@ static PyObject *pyrna_struct_CreatePyObject_from_type(const PointerRNA *ptr,
       const_cast<PointerRNA *>(ptr), BPy_capsule_PointerRNA_identifier, nullptr);
 
   BPy_StructRNA *pyrna = nullptr;
+  const char *struct_identifier = RNA_struct_identifier(ptr->type);
   if (tp) {
     pyrna = reinterpret_cast<BPy_StructRNA *>(
-        PyObject_CallOneArg(reinterpret_cast<PyObject *>(tp), pyptr_rna));
+        BLI_profile_PyObject_CallOneArg_objectname("rna_struct_CreatePyObject",
+                                         struct_identifier,
+                                         reinterpret_cast<PyObject *>(tp),
+                                         pyptr_rna));
   }
   else {
-    CLOG_WARN(BPY_LOG_RNA, "could not make type '%s'", RNA_struct_identifier(ptr->type));
+    CLOG_WARN(BPY_LOG_RNA, "could not make type '%s'", struct_identifier);
 
     pyrna = reinterpret_cast<BPy_StructRNA *>(
-        PyObject_CallOneArg(reinterpret_cast<PyObject *>(&pyrna_struct_Type), pyptr_rna));
+        BLI_profile_PyObject_CallOneArg_objectname("rna_struct_CreatePyObject",
+                                         struct_identifier,
+                                         reinterpret_cast<PyObject *>(&pyrna_struct_Type),
+                                         pyptr_rna));
   }
 
 #ifdef USE_PYRNA_STRUCT_REFERENCE
@@ -8701,8 +8715,12 @@ PyObject *pyrna_prop_CreatePyObject(PointerRNA *ptr, PropertyRNA *prop)
   PyObject *pypropptr_rna = PyCapsule_New(
       &prop_ptr, BPy_PropertyPointerRNA_capsule_identifier, nullptr);
 
+  const char *struct_identifier = RNA_struct_identifier(ptr->type);
   BPy_PropertyRNA *pyrna = reinterpret_cast<BPy_PropertyRNA *>(
-      PyObject_CallOneArg(reinterpret_cast<PyObject *>(type), pypropptr_rna));
+      BLI_profile_PyObject_CallOneArg_objectname("rna_prop_CreatePyObject",
+                                       struct_identifier,
+                                       reinterpret_cast<PyObject *>(type),
+                                       pypropptr_rna));
 
   if (pyrna == nullptr) {
     PyErr_SetString(PyExc_MemoryError, "couldn't create BPy_rna object");
@@ -9266,7 +9284,9 @@ static int deferred_register_prop(StructRNA *srna, PyObject *key, PyObject *item
   PyObject *args_fake = PyTuple_New(1);
   PyTuple_SET_ITEM(args_fake, 0, py_srna_cobject);
 
-  PyObject *py_ret = PyObject_Call(py_func, args_fake, py_kw);
+  const char *struct_identifier = RNA_struct_identifier(srna);
+  PyObject *py_ret = BLI_profile_PyObject_Call_objectname(
+      "rna_deferred_register_prop", struct_identifier, py_func, args_fake, py_kw);
 
   if (py_ret) {
     Py_DECREF(py_ret);
@@ -9308,7 +9328,8 @@ static int pyrna_deferred_register_class_from_type_hints(StructRNA *srna, PyType
         PyTuple_SET_ITEM(args, 0, (PyObject *)py_class);
         Py_INCREF(py_class);
 
-        annotations_dict = PyObject_CallObject(get_type_hints_fn, args);
+        annotations_dict = BLI_profile_PyObject_CallObject_parsefunc(
+            "rna_deferred_register_class_from_type_hints", get_type_hints_fn, args);
 
         Py_DECREF(args);
         Py_DECREF(get_type_hints_fn);
@@ -9830,7 +9851,10 @@ static int bpy_class_call(bContext *C, PointerRNA *ptr, FunctionRNA *func, Param
        * None of Blender's default scripts use __init__ but it's nice to call it
        * for general correctness. just to note why this is here when it could be safely removed.
        */
-      py_class_instance = PyObject_CallOneArg(reinterpret_cast<PyObject *>(py_class), py_srna);
+
+      const char *struct_identifier = RNA_struct_identifier(ptr->type);
+      py_class_instance = BLI_profile_PyObject_CallOneArg_objectname(
+          "bpy_class_instance", struct_identifier, reinterpret_cast<PyObject *>(py_class), py_srna);
 
 #  ifdef USE_PEDANTIC_WRITE
       rna_disallow_writes = prev_write;
@@ -9916,7 +9940,9 @@ static int bpy_class_call(bContext *C, PointerRNA *ptr, FunctionRNA *func, Param
 #endif
       /* *** Main Caller *** */
 
-      ret = PyObject_Call(item, args, nullptr);
+      const char *struct_identifier = RNA_struct_identifier(ptr->type);
+      ret = BLI_profile_PyObject_Call_objectname(
+          "bpy_class_call", struct_identifier, item, args, nullptr);
 
       /* *** Done Calling *** */
 
@@ -10472,7 +10498,8 @@ static PyObject *pyrna_register_class(PyObject * /*self*/, PyObject *py_class)
    * Note that zero falls through, no attribute, no error. */
   switch (PyObject_GetOptionalAttr(py_class, bpy_intern_str_register, &py_cls_meth)) {
     case 1: {
-      PyObject *ret = PyObject_CallObject(py_cls_meth, nullptr);
+      PyObject *ret = BLI_profile_PyObject_CallObject_objectname(
+          "rna_register_class", identifier, py_cls_meth, nullptr);
       Py_DECREF(py_cls_meth);
       if (ret) {
         Py_DECREF(ret);
@@ -10603,7 +10630,7 @@ static PyObject *pyrna_unregister_class(PyObject * /*self*/, PyObject *py_class)
    * Note that zero falls through, no attribute, no error. */
   switch (PyObject_GetOptionalAttr(py_class, bpy_intern_str_unregister, &py_cls_meth)) {
     case 1: {
-      PyObject *ret = PyObject_CallObject(py_cls_meth, nullptr);
+      PyObject *ret = BLI_profile_PyObject_CallObject_parsefunc("rna_unregister_class", py_cls_meth, nullptr);
       Py_DECREF(py_cls_meth);
       if (ret) {
         Py_DECREF(ret);

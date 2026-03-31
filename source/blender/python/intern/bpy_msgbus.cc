@@ -18,6 +18,8 @@
 
 #include "BKE_context.hh"
 
+#include "BLI_profile.hh"
+
 #include "WM_message.hh"
 
 #include "RNA_access.hh"
@@ -154,7 +156,8 @@ static void bpy_msgbus_notify(bContext *C,
   PyObject *callback_args = PyTuple_GET_ITEM(user_data, 0);
   PyObject *callback_notify = PyTuple_GET_ITEM(user_data, 1);
 
-  PyObject *ret = PyObject_CallObject(callback_notify, callback_args);
+  PyObject *ret = BLI_profile_PyObject_CallObject_parsefunc(
+      "msgbus notification", callback_notify, callback_args);
 
   if (ret == nullptr) {
     PyC_Err_PrintWithFunc(callback_notify);
