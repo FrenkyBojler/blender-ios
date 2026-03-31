@@ -726,6 +726,8 @@ void resolve([[work_group_id]] const uint3 group_id,
     accum_sh = spherical_harmonics::madd(sh_11, weights.w, accum_sh);
   }
 
+  accum_sh = spherical_harmonics::rotate(to_float3x3(drw_view().viewinv), accum_sh);
+
   float3 P = center_P;
   float3 Ng = center_N;
   float3 V = drw_world_incident_vector(P);
@@ -757,10 +759,9 @@ void resolve([[work_group_id]] const uint3 group_id,
     LightProbeRay ray = bxdf_lightprobe_ray(cl, P, V, thickness);
 
     float3 L = ray.dominant_direction;
-    float3 vL = drw_normal_world_to_view(L); /* TODO rotate SH instead. */
 
     /* Evaluate lighting from horizon scan. */
-    float4 radiance_with_visibility = accum_sh.evaluate_lambert(vL);
+    float4 radiance_with_visibility = accum_sh.evaluate_lambert(L);
     float3 radiance = radiance_with_visibility.xyz;
     /* Evaluate occlusion from horizon scan. */
     /* TODO: Explain why do we need this factor? */
