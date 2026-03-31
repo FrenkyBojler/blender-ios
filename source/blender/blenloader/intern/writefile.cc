@@ -1382,7 +1382,9 @@ static void write_libraries(WriteData *wd, Main *bmain)
         write_id(wd, id);
       }
       else {
-        if (!BKE_idtype_idcode_is_linkable(GS(id->name))) {
+        /* In undo case, all existing linked IDs get a placeholder, even the ones not directly
+         * linkable. */
+        if (!is_undo && !BKE_idtype_idcode_is_linkable(GS(id->name))) {
           CLOG_ERROR(&LOG,
                      "Data-block '%s' from lib '%s' is not linkable, but is flagged as "
                      "directly linked",
@@ -1754,6 +1756,8 @@ static bool write_file_handle(Main *mainvar,
   wd->debug_dst = debug_dst;
   BlendWriter writer = {wd};
 
+  BKE_main_view_layers_synced_ensure(mainvar);
+
   prepare_stable_data_block_ids(*wd, *mainvar);
 
   /* Clear 'directly linked' flag for all linked data, these are not necessarily valid/up-to-date
@@ -2051,7 +2055,11 @@ static bool BLO_write_file_impl(Main *mainvar,
           BKE_bpath_relative_rebase(mainvar, dir_src, dir_dst, nullptr);
           break;
         case BLO_WRITE_PATH_REMAP_RELATIVE_ALL:
-          /* Make all relative (when requested or unsaved). */
+          /* If saved, make relative paths relative to new location (if possible). */
+          if (relbase_valid && (BLI_path_cmp(dir_dst, dir_src) != 0)) {
+            BKE_bpath_relative_rebase(mainvar, dir_src, dir_dst, nullptr);
+          }
+          /* Make all absolute paths relative (when requested or unsaved). */
           BKE_bpath_relative_convert(mainvar, dir_dst, nullptr);
           break;
         case BLO_WRITE_PATH_REMAP_ABSOLUTE:
@@ -2152,11 +2160,6 @@ bool BLO_write_file_mem(Main *mainvar, MemFile *compare, MemFile *current, const
  * API to write chunks of data.
  */
 
-void BLO_write_raw(BlendWriter *writer, const size_t size_in_bytes, const void *data_ptr)
-{
-  writedata(writer->wd, BLO_CODE_DATA, size_in_bytes, data_ptr);
-}
-
 void BlendWriter::write_struct_by_name(const char *struct_name, const void *data)
 {
   this->write_struct_array_by_name(struct_name, 1, data);
@@ -2230,68 +2233,73 @@ int BlendWriter::struct_id_by_name(const char *struct_name) const
   return struct_id;
 }
 
-void BLO_write_char_array(BlendWriter *writer, const int64_t num, const char *data_ptr)
+void BlendWriter::write_raw(size_t size_in_bytes, const void *data)
 {
-  BLO_write_raw(writer, sizeof(char) * size_t(num), data_ptr);
+  writedata(this->wd, BLO_CODE_DATA, size_in_bytes, data);
 }
 
-void BLO_write_int8_array(BlendWriter *writer, const int64_t num, const int8_t *data_ptr)
+void BlendWriter::write_char_array(int64_t num, const char *data)
 {
-  BLO_write_raw(writer, sizeof(int8_t) * size_t(num), data_ptr);
+  this->write_raw(sizeof(char) * size_t(num), data);
 }
 
-void BLO_write_int16_array(BlendWriter *writer, const int64_t num, const int16_t *data_ptr)
+void BlendWriter::write_int8_array(int64_t num, const int8_t *data)
 {
-  BLO_write_raw(writer, sizeof(int16_t) * size_t(num), data_ptr);
+  this->write_raw(sizeof(int8_t) * size_t(num), data);
 }
 
-void BLO_write_uint8_array(BlendWriter *writer, const int64_t num, const uint8_t *data_ptr)
+void BlendWriter::write_int16_array(int64_t num, const int16_t *data)
 {
-  BLO_write_raw(writer, sizeof(uint8_t) * size_t(num), data_ptr);
+  this->write_raw(sizeof(int16_t) * size_t(num), data);
 }
 
-void BLO_write_int32_array(BlendWriter *writer, const int64_t num, const int32_t *data_ptr)
+void BlendWriter::write_uint8_array(int64_t num, const uint8_t *data)
 {
-  BLO_write_raw(writer, sizeof(int32_t) * size_t(num), data_ptr);
+  this->write_raw(sizeof(uint8_t) * size_t(num), data);
 }
 
-void BLO_write_uint32_array(BlendWriter *writer, const int64_t num, const uint32_t *data_ptr)
+void BlendWriter::write_int32_array(int64_t num, const int32_t *data)
 {
-  BLO_write_raw(writer, sizeof(uint32_t) * size_t(num), data_ptr);
+  this->write_raw(sizeof(int32_t) * size_t(num), data);
 }
 
-void BLO_write_float_array(BlendWriter *writer, const int64_t num, const float *data_ptr)
+void BlendWriter::write_uint32_array(int64_t num, const uint32_t *data)
 {
-  BLO_write_raw(writer, sizeof(float) * size_t(num), data_ptr);
+  this->write_raw(sizeof(uint32_t) * size_t(num), data);
 }
 
-void BLO_write_double_array(BlendWriter *writer, const int64_t num, const double *data_ptr)
+void BlendWriter::write_float_array(int64_t num, const float *data)
 {
-  BLO_write_raw(writer, sizeof(double) * size_t(num), data_ptr);
+  this->write_raw(sizeof(float) * size_t(num), data);
 }
 
-void BLO_write_pointer_array(BlendWriter *writer, const int64_t num, const void *data_ptr)
+void BlendWriter::write_double_array(int64_t num, const double *data)
+{
+  this->write_raw(sizeof(double) * size_t(num), data);
+}
+
+void BlendWriter::write_float3_array(int64_t num, const float *data)
+{
+  this->write_raw(sizeof(float[3]) * size_t(num), data);
+}
+
+void BlendWriter::write_pointer_array(int64_t num, const void *data_ptr)
 {
   /* Create a temporary copy of the pointer array, because all pointers need to be remapped to
    * their stable address ids. */
   Array<const void *, 32> data = Span<const void *>(
       reinterpret_cast<const void *const *>(data_ptr), num);
   for (const int64_t i : data.index_range()) {
-    data[i] = get_address_id(*writer->wd, data[i]);
+    data[i] = get_address_id(*this->wd, data[i]);
   }
 
-  writedata(writer->wd, BLO_CODE_DATA, data.data(), data.as_span().size_in_bytes(), data_ptr);
+  writedata(this->wd, BLO_CODE_DATA, data.data(), data.as_span().size_in_bytes(), data_ptr);
 }
 
-void BLO_write_float3_array(BlendWriter *writer, const int64_t num, const float *data_ptr)
+void BlendWriter::write_string(const char *data)
 {
-  BLO_write_raw(writer, sizeof(float[3]) * size_t(num), data_ptr);
-}
-
-void BLO_write_string(BlendWriter *writer, const char *data_ptr)
-{
-  if (data_ptr != nullptr) {
-    BLO_write_raw(writer, strlen(data_ptr) + 1, data_ptr);
+  if (data != nullptr) {
+    this->write_raw(strlen(data) + 1, data);
   }
 }
 

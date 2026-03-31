@@ -1190,6 +1190,7 @@ GHOST_TSuccess GHOST_SystemCocoa::handleWindowEvent(GHOST_TEventType eventType,
       if (!ignore_window_sized_messages_) {
         /* Enforce only one resize message per event loop
          * (coalescing all the live resize messages). */
+        window->updateDrawingSize();
         window->updateDrawingContext();
         pushEvent(
             std::make_unique<GHOST_Event>(getMilliSeconds(), GHOST_kEventWindowSize, window));
@@ -1204,6 +1205,7 @@ GHOST_TSuccess GHOST_SystemCocoa::handleWindowEvent(GHOST_TEventType eventType,
       }
       break;
     case GHOST_kEventNativeResolutionChange:
+      window->updateDrawingSize();
 
       if (native_pixel_) {
         window->setNativePixelSize();

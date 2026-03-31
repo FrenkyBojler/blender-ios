@@ -1039,7 +1039,7 @@ Mesh *BKE_mesh_new_from_object_to_bmain(Main *bmain,
 static void copy_loose_vert_hint(const Mesh &src, Mesh &dst)
 {
   const auto &src_cache = src.runtime->loose_verts_cache;
-  if (src_cache.is_cached() && src_cache.data().count == 0) {
+  if (src_cache.is_cached() && src_cache.data().mask.is_empty()) {
     dst.tag_loose_verts_none();
   }
 }
@@ -1047,7 +1047,7 @@ static void copy_loose_vert_hint(const Mesh &src, Mesh &dst)
 static void copy_loose_edge_hint(const Mesh &src, Mesh &dst)
 {
   const auto &src_cache = src.runtime->loose_edges_cache;
-  if (src_cache.is_cached() && src_cache.data().count == 0) {
+  if (src_cache.is_cached() && src_cache.data().mask.is_empty()) {
     dst.tag_loose_edges_none();
   }
 }
@@ -1195,10 +1195,9 @@ void BKE_mesh_nomain_to_meshkey(Mesh *mesh_src, Mesh *mesh_dst, KeyBlock *kb)
   }
 
   if (kb->data) {
-    MEM_delete_void(kb->data);
+    MEM_delete(static_cast<float3 *>(kb->data));
   }
-  kb->data = MEM_new_array_uninitialized(
-      size_t(mesh_dst->verts_num), size_t(mesh_dst->key->elemsize), "kb->data");
+  kb->data = MEM_new_array_uninitialized<float3>(size_t(mesh_dst->verts_num), "kb->data");
   kb->totelem = totvert;
   MutableSpan(static_cast<float3 *>(kb->data), kb->totelem).copy_from(mesh_src->vert_positions());
 }

@@ -10,6 +10,7 @@
 #include "DNA_scene_types.h"
 
 #include "BKE_camera.h"
+#include "BKE_scene.hh"
 
 #include "RNA_access.hh"
 
@@ -30,12 +31,12 @@ NODE_STORAGE_FUNCS(NodeDefocus)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Color>("Image")
+  b.add_input<decl::Color>("Image"_ustr)
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
       .structure_type(StructureType::Dynamic);
-  b.add_input<decl::Float>("Z").default_value(1.0f).min(0.0f).max(1.0f).structure_type(
+  b.add_input<decl::Float>("Z"_ustr).default_value(1.0f).min(0.0f).max(1.0f).structure_type(
       StructureType::Dynamic);
-  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
+  b.add_output<decl::Color>("Image"_ustr).structure_type(StructureType::Dynamic);
 }
 
 static void node_init(bNodeTree * /*ntree*/, bNode *node)
@@ -496,7 +497,9 @@ class DefocusOperation : public NodeOperation {
 
   const Object *get_camera_object()
   {
-    return get_scene()->camera;
+    Object *marker_camera = BKE_scene_camera_switch_find(this->get_scene(),
+                                                         this->context().get_frame_number());
+    return marker_camera ? marker_camera : this->get_scene()->camera;
   }
 
   const Scene *get_scene()

@@ -519,7 +519,7 @@ class CurvesGeometry : public blender::CurvesGeometry {
    * This function needs to be called before `blend_write` and before the `CurvesGeometry` struct
    * is written because it can mutate the `CustomData` and `AttributeStorage` structs.
    */
-  void blend_write_prepare(BlendWriteData &write_data);
+  void blend_write_prepare(BlendWriteData &write_data, bool use_5_0_compatibility);
   void blend_write(BlendWriter &writer, ID &id, const BlendWriteData &write_data);
 };
 
@@ -893,7 +893,7 @@ int knots_num(int points_num, int8_t order, bool cyclic);
  * Calculate the total number of control points for a NURBS curve including virtual/repeated points
  * for a cyclic/closed curve.
  */
-int control_points_num(int num_control_points, int8_t order, bool cyclic);
+int control_points_num(int points_num, int8_t order, bool cyclic);
 
 /**
  * Depending on KnotsMode calculates knots or copies custom knots into given `MutableSpan`.

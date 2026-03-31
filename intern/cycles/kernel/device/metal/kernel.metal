@@ -97,7 +97,7 @@ TReturn metalrt_local_hit(constant KernelParamsMetal &launch_params_metal,
     return result;
   }
 
-  /* Make a copty of the lcg_state in the private address space, allowing to use utility function
+  /* Make a copy of the lcg_state in the private address space, allowing to use utility function
    * to find the hit index to write the intersection to. This function is used from both HW-RT
    * code-path and non-HW-RT, making it hard to deal with the address spaces in the function
    * signature. Hopefully, compiler is smart enough to eliminate this temporary copy. */
@@ -239,8 +239,9 @@ bool metalrt_shadow_all_hit(constant KernelParamsMetal &launch_params_metal,
   constexpr uint enabled_primitive_types = (intersection_type == METALRT_HIT_CURVE) ?
                                                PRIMITIVE_CURVE :
                                                (PRIMITIVE_ALL & ~PRIMITIVE_CURVE);
-  return context.bvh_shadow_all_anyhit_filter<true, enabled_primitive_types>(
-      kg, payload.state, payload, payload.base.ray_self, payload.base.ray_visibility, isect);
+  return context
+      .bvh_shadow_all_anyhit_filter<MetalKernelContext::ISECT_TEST_ALL, enabled_primitive_types>(
+          kg, payload.state, payload, payload.base.ray_self, payload.base.ray_visibility, isect);
 
 #  else  /* __TRANSPARENT_SHADOWS__ */
   payload.throughput = 0.0f;

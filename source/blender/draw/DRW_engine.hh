@@ -10,6 +10,7 @@
 
 #include "BLI_string_ref.hh"
 struct DRWInstanceDataList;
+class GHOST_IContext;
 
 namespace blender {
 
@@ -64,12 +65,14 @@ void DRW_draw_view(const bContext *C);
 void DRW_draw_region_engine_info(int xoffset, int *yoffset, int line_height);
 
 /**
- * \param viewport: can be NULL, in this case we create one.
+ * \param context: can be nullptr, optionally passed to the DRWContext for draw handlers/callbacks.
+ * \param viewport: can be nullptr, in this case we create one.
  */
 void DRW_draw_render_loop_offscreen(Depsgraph *depsgraph,
                                     RenderEngineType *engine_type,
                                     ARegion *region,
                                     View3D *v3d,
+                                    bContext *context,
                                     bool is_image_render,
                                     bool draw_background,
                                     bool do_color_management,
@@ -162,7 +165,7 @@ void DRW_gpu_context_disable();
 
 #ifdef WITH_XR_OPENXR
 /* XXX: see comment on #DRW_system_gpu_context_get() */
-void *DRW_system_gpu_context_get();
+GHOST_IContext *DRW_system_gpu_context_get();
 void *DRW_xr_blender_gpu_context_get();
 void DRW_xr_drawing_begin();
 void DRW_xr_drawing_end();
@@ -186,8 +189,8 @@ void DRW_gpu_context_disable_ex(bool restore);
  * Enable system context first, then enable blender context,
  * then disable blender context, then disable system context. */
 
-void DRW_system_gpu_render_context_enable(void *re_system_gpu_context);
-void DRW_system_gpu_render_context_disable(void *re_system_gpu_context);
+void DRW_system_gpu_render_context_enable(GHOST_IContext *re_system_gpu_context);
+void DRW_system_gpu_render_context_disable(GHOST_IContext *re_system_gpu_context);
 void DRW_blender_gpu_render_context_enable(void *re_gpu_context);
 void DRW_blender_gpu_render_context_disable(void *re_gpu_context);
 

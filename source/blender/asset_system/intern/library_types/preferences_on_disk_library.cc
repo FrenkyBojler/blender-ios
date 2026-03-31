@@ -17,7 +17,7 @@
 namespace blender::asset_system {
 
 PreferencesOnDiskAssetLibrary::PreferencesOnDiskAssetLibrary(StringRef name, StringRef root_path)
-    : OnDiskAssetLibrary(ASSET_LIBRARY_CUSTOM, name, root_path)
+    : OnDiskAssetLibrary(ASSET_LIBRARY_CUSTOM, name, root_path, /*is_read_only=*/false)
 {
 }
 
@@ -25,6 +25,9 @@ std::optional<AssetLibraryReference> PreferencesOnDiskAssetLibrary::library_refe
 {
 
   for (const auto [i, asset_library] : U.asset_libraries.enumerate()) {
+    if (asset_library.flag & ASSET_LIBRARY_USE_REMOTE_URL) {
+      continue;
+    }
     if (!BLI_is_dir(asset_library.dirpath)) {
       continue;
     }
