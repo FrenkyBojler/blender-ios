@@ -40,7 +40,6 @@ static Shader *get_update_mipmap_shader(TextureFormat texture_format, bool is_la
             GPU_SHADER_2D_UPDATE_MIPMAPS_SFLOAT_16_16_16_16_LAYERED);
       case TextureFormat::SRGBA_8_8_8_8:
         return GPU_shader_get_builtin_shader(GPU_SHADER_2D_UPDATE_MIPMAPS_SRGBA_8_8_8_8_LAYERED);
-
       default:
         break;
     }
@@ -56,7 +55,6 @@ static Shader *get_update_mipmap_shader(TextureFormat texture_format, bool is_la
       return GPU_shader_get_builtin_shader(GPU_SHADER_2D_UPDATE_MIPMAPS_SFLOAT_16_16_16_16);
     case TextureFormat::SRGBA_8_8_8_8:
       return GPU_shader_get_builtin_shader(GPU_SHADER_2D_UPDATE_MIPMAPS_SRGBA_8_8_8_8);
-
     default:
       break;
   }
