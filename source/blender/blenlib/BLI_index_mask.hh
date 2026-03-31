@@ -1184,16 +1184,6 @@ inline void gather_assign_segment(const T *__restrict src,
   }
 }
 
-template<typename T>
-inline void gather_assign(const T *__restrict src, const IndexMask &indices, T *__restrict dst)
-{
-  indices.foreach_segment_optimized(
-      [src, dst](const auto segment, const int64_t segment_pos) {
-        gather_assign_segment(src, segment, dst + segment_pos);
-      },
-      exec_mode::serial);
-}
-
 template<typename T, typename SegmentT>
 #if (defined(__GNUC__) && !defined(__clang__))
 [[gnu::optimize("-funroll-loops")]] [[gnu::optimize("O3")]]
@@ -1210,6 +1200,16 @@ inline void copy_assign(const T *__restrict src, const IndexMask &mask, T *__res
 {
   mask.foreach_segment_optimized(
       [src, dst](const auto segment) { copy_assign_segment(src, segment, dst); },
+      exec_mode::serial);
+}
+
+template<typename T>
+inline void gather_assign(const T *__restrict src, const IndexMask &indices, T *__restrict dst)
+{
+  indices.foreach_segment_optimized(
+      [src, dst](const auto segment, const int64_t segment_pos) {
+        gather_assign_segment(src, segment, dst + segment_pos);
+      },
       exec_mode::serial);
 }
 
