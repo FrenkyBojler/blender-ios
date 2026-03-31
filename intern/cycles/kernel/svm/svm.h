@@ -407,7 +407,10 @@ ccl_device void svm_eval_nodes(KernelGlobals kg,
       break;
 #endif
       SVM_CASE(NODE_TEXTURE_MAPPING)
-      svm_node_texture_mapping(stack, svm_node_get<SVMNodeTextureMapping>(kg, &offset));
+      {
+        const ccl_global auto &node = svm_node_get<SVMNodeTextureMapping>(kg, &offset);
+        offset = svm_node_texture_mapping(kg, stack, node, offset);
+      }
       break;
       SVM_CASE(NODE_MAPPING)
       svm_node_mapping<float3>(stack, svm_node_get<SVMNodeMapping>(kg, &offset));

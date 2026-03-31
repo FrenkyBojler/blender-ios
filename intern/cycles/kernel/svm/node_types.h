@@ -1274,14 +1274,11 @@ struct SVMNodeRadialTiling {
 
 static_assert(sizeof(SVMNodeRadialTiling) % sizeof(uint) == 0);
 
-/* NODE_TEXTURE_MAPPING */
+/* NODE_TEXTURE_MAPPING, followed by Transform data in the bytecode. */
 struct SVMNodeTextureMapping {
   SVMStackOffset vec_offset;
   SVMStackOffset out_offset;
   uint8_t _pad[2];
-  float4 tfm_x;
-  float4 tfm_y;
-  float4 tfm_z;
 };
 
 static_assert(sizeof(SVMNodeTextureMapping) % sizeof(uint) == 0);
@@ -1291,8 +1288,8 @@ struct SVMNodeMinMax {
   SVMStackOffset vec_offset;
   SVMStackOffset out_offset;
   uint8_t _pad[2];
-  float4 mn;
-  float4 mx;
+  packed_float3 mn;
+  packed_float3 mx;
 };
 
 static_assert(sizeof(SVMNodeMinMax) % sizeof(uint) == 0);

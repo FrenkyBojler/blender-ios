@@ -211,6 +211,20 @@ ccl_device_inline float4 svm_node_get_data_float4(KernelGlobals kg, const int of
                      __uint_as_float(kernel_data_fetch(svm_nodes, offset + 3)));
 }
 
+/* Read Transform from bytecode element by element, to avoid alignment issues since
+ * Transform contains float4 which requires 16-byte alignment but svm_nodes is a
+ * uint array with only 4-byte alignment. */
+ccl_device_inline Transform svm_node_get_data_transform(KernelGlobals kg,
+                                                        ccl_private int *const offset)
+{
+  Transform tfm;
+  tfm.x = svm_node_get_data_float4(kg, *offset);
+  tfm.y = svm_node_get_data_float4(kg, *offset + 4);
+  tfm.z = svm_node_get_data_float4(kg, *offset + 8);
+  *offset += sizeof(Transform) / sizeof(uint);
+  return tfm;
+}
+
 /* Shading Helpers */
 
 ccl_device_forceinline float3 dPdx(const ccl_private ShaderData *sd)

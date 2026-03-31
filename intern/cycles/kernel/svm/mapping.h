@@ -27,19 +27,18 @@ ccl_device_noinline void svm_node_mapping(ccl_private float *ccl_restrict stack,
 
 /* Texture Mapping */
 
-ccl_device_noinline void svm_node_texture_mapping(
+ccl_device_noinline int svm_node_texture_mapping(
+    KernelGlobals kg,
     ccl_private float *ccl_restrict stack,
-    const ccl_global SVMNodeTextureMapping &ccl_restrict node)
+    const ccl_global SVMNodeTextureMapping &ccl_restrict node,
+    int offset)
 {
   const float3 v = stack_load_float3(stack, node.vec_offset);
-
-  Transform tfm;
-  tfm.x = node.tfm_x;
-  tfm.y = node.tfm_y;
-  tfm.z = node.tfm_z;
+  const Transform tfm = svm_node_get_data_transform(kg, &offset);
 
   const float3 r = transform_point(&tfm, v);
   stack_store_float3(stack, node.out_offset, r);
+  return offset;
 }
 
 ccl_device_noinline void svm_node_min_max(ccl_private float *ccl_restrict stack,
@@ -47,8 +46,8 @@ ccl_device_noinline void svm_node_min_max(ccl_private float *ccl_restrict stack,
 {
   const float3 v = stack_load_float3(stack, node.vec_offset);
 
-  const float3 mn = make_float3(node.mn);
-  const float3 mx = make_float3(node.mx);
+  const float3 mn = node.mn;
+  const float3 mx = node.mx;
 
   const float3 r = min(max(mn, v), mx);
   stack_store_float3(stack, node.out_offset, r);

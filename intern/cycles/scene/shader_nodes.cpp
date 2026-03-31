@@ -168,10 +168,10 @@ void TextureMapping::compile(SVMCompiler &compiler,
                     SVMNodeTextureMapping{
                         .vec_offset = offset_in,
                         .out_offset = offset_out,
-                        .tfm_x = tfm.x,
-                        .tfm_y = tfm.y,
-                        .tfm_z = tfm.z,
                     });
+  compiler.add_node_data_float4(tfm.x);
+  compiler.add_node_data_float4(tfm.y);
+  compiler.add_node_data_float4(tfm.z);
 
   if (use_minmax) {
     compiler.add_node(nullptr,
@@ -179,8 +179,8 @@ void TextureMapping::compile(SVMCompiler &compiler,
                       SVMNodeMinMax{
                           .vec_offset = offset_out,
                           .out_offset = offset_out,
-                          .mn = make_float4(min),
-                          .mx = make_float4(max),
+                          .mn = min,
+                          .mx = max,
                       });
   }
 

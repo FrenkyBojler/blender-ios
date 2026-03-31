@@ -105,7 +105,7 @@ ccl_device_noinline Float3Type svm_node_tex_coord_eval(KernelGlobals kg,
         object_inverse_position_transform_if_object(kg, sd, &data);
       }
       else {
-        const Transform tfm = svm_node_get<Transform>(kg, offset);
+        const Transform tfm = svm_node_get_data_transform(kg, offset);
         data = transform_point(&tfm, data);
       }
       break;
