@@ -24,6 +24,8 @@
 
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
+#include "BKE_node_socket_value.hh"
+#include "BKE_node_tree_interface.hh"
 #include "BKE_node_tree_update.hh"
 
 #include "DNA_array_utils.hh"
@@ -327,7 +329,7 @@ template<typename Accessor>
     if (!added_socket_type) {
       return false;
     }
-    std::string name = src_socket->name;
+    std::string name = bke::node_socket_label(*src_socket);
     if constexpr (Accessor::has_custom_initial_name) {
       name = Accessor::custom_initial_name(storage_node, name);
     }

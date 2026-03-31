@@ -680,6 +680,13 @@ class NodeTreeMainUpdater {
         }
       }
     }
+
+    if (node.type_legacy == GEO_NODE_VIEWER) {
+      if (ntree.runtime->changed_flag & NTREE_CHANGED_NODE_PROPERTY) {
+        return true;
+      }
+    }
+
     return false;
   }
 

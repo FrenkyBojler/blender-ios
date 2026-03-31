@@ -4,8 +4,14 @@
 
 #include <fmt/format.h>
 
+#include "node_geometry_util.hh"
+
+#include "BKE_node.hh"
+#include "BKE_node_runtime.hh"
 #include "BKE_context.hh"
 #include "BKE_type_conversions.hh"
+#include "BKE_node_tree_update.hh"
+#include "NOD_socket.hh"
 
 #include "BLO_read_write.hh"
 
@@ -225,7 +231,18 @@ static void node_declare(NodeDeclarationBuilder &b)
     const std::string identifier = GeoViewerItemsAccessor::socket_identifier_for_item(item);
     auto &input_decl = b.add_input(socket_type, name, UString(identifier))
                            .socket_name_ptr(
-                               &tree->id, *GeoViewerItemsAccessor::item_srna, &item, "name");
+                               &tree->id, *GeoViewerItemsAccessor::item_srna, &item, "name")
+                           .label_fn([i](bNode node) {
+                             const bNodeSocket &socket = node.input_socket(i);
+                             if (socket.link) {
+                               const bNodeLink *link = static_cast<const bNodeLink *>(socket.link);
+                               if (link && link->fromsock) {
+                                 return bke::node_socket_label(*link->fromsock);
+                               }
+                             }
+                             const auto &storage = *static_cast<const NodeGeometryViewer *>(node.storage);
+                             return StringRefNull(storage.items[i].name);
+                           });
     if (socket_type_supports_attributes(socket_type)) {
       input_decl.field_on_all();
     }
@@ -393,7 +410,13 @@ static void geo_viewer_node_log_impl(const bNode &node,
     if (value.is_single() && value.get_single_ptr().is_type<bke::GeometrySet>()) {
       value.get_single_ptr().get<bke::GeometrySet>()->ensure_owns_direct_data();
     }
-    r_log.items.add_new({item.identifier, item.name, std::move(value)});
+
+    const bNodeSocket &socket = node.input_socket(i);
+    StringRefNull label = item.name;
+    if (socket.link) {
+      label = bke::node_socket_label(*socket.link->fromsock);
+    }
+    r_log.items.add_new({item.identifier, label.c_str(), std::move(value)});
   }
   log_viewer_attribute(node, r_log);
 }
@@ -470,6 +493,31 @@ static void node_blend_write(const bNodeTree & /*tree*/, const bNode &node, Blen
   socket_items::blend_write<GeoViewerItemsAccessor>(&writer, node);
 }
 
+static void node_update(bNodeTree *ntree, bNode *node)
+{
+  auto &storage = *static_cast<NodeGeometryViewer *>(node->storage);
+  bool changed = false;
+  bNodeSocket *socket = static_cast<bNodeSocket *>(node->inputs.first);
+  for (int i = 0; i < storage.items_num && socket; i++, socket = socket->next) {
+    if (socket->link) {
+      const bNodeSocket *src_socket = socket->link->fromsock;
+      if (src_socket) {
+        StringRefNull label = bke::node_socket_label(*src_socket);
+        NodeGeometryViewerItem &item = storage.items[i];
+        if (item.name && label != item.name) {
+          GeoViewerItemsAccessor::destruct_item(&item);
+          item.name = BLI_strdup_null(label.c_str());
+          changed = true;
+        }
+      }
+    }
+  }
+  if (changed) {
+    BKE_ntree_update_tag_node_property(ntree, node);
+    nodes::update_node_declaration_and_sockets(*ntree, *node);
+  }
+}
+
 static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &reader)
 {
   socket_items::blend_read_data<GeoViewerItemsAccessor>(&reader, node);
@@ -489,6 +537,7 @@ static void node_register()
   ntype.initfunc = node_init;
   ntype.draw_buttons = node_layout;
   ntype.draw_buttons_ex = node_layout_ex;
+  ntype.updatefunc = node_update;
   ntype.insert_link = node_insert_link;
   ntype.gather_link_search_ops = node_gather_link_searches;
   ntype.no_muting = true;
