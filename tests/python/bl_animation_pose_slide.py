@@ -13,6 +13,7 @@ import pathlib
 blender -b --factory-startup --python tests/python/bl_animation_pose_slide.py
 """
 
+
 def _get_view3d_context():
     ctx = bpy.context.copy()
 
@@ -29,6 +30,7 @@ def _get_view3d_context():
 
 _BONE_NAME = "bone"
 _CUSTOM_PROP = "test"
+
 
 class BreakdownerTestPoseBone(unittest.TestCase):
     armature_ob: bpy.types.Object
@@ -98,6 +100,7 @@ class BreakdownerTestPoseBone(unittest.TestCase):
         self.assertEqual(len(channelbag.fcurves[0].keyframe_points), 2)
 
     def test_break_down_all_properties(self):
+        # By default the pose slide operators act on location, rotation, scale, bbone properties and custom properties.
         bpy.context.scene.frame_set(0)
         self.pose_bone.location = (1, 1, 1)
         self.pose_bone.rotation_euler = (1, 1, 1)
@@ -135,6 +138,8 @@ class BreakdownerTestPoseBone(unittest.TestCase):
         self.assertAlmostEqual(self.pose_bone[_CUSTOM_PROP], 1.5, 3)
 
     def test_break_down_location(self):
+        # The pose slide operators can constrain to a single property type.
+        # All other properties should not be modified.
         bpy.context.scene.frame_set(0)
         self.pose_bone.location = (1, 1, 1)
         self.pose_bone.rotation_euler = (1, 1, 1)
@@ -158,6 +163,7 @@ class BreakdownerTestPoseBone(unittest.TestCase):
             self.assertAlmostEqual(self.pose_bone.rotation_euler[i], 1.0279, 3)
 
     def test_break_down_location_x(self):
+        # The slider operators can constrain to a single axis.
         bpy.context.scene.frame_set(0)
         self.pose_bone.location = (1, 1, 1)
         self._keyframe_all()
