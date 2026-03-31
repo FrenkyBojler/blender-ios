@@ -994,11 +994,11 @@ static void file_attribute_columns_widths(const FileSelectParams *params, FileLa
   /* Biggest possible reasonable values... */
   if (file_attribute_column_type_enabled(params, COLUMN_DATETIME, layout)) {
     const char *lang = BLT_lang_get();
-    tm test = {59, 59, 3, 30, 10, 199, 6, 365, 0}; /* November 30, 2099 03:59:59 */
+    tm test = {59, 59, 3, 30, 8, 199, 6, 365, 0}; /* September 30, 2099 03:59:59 */
     std::string modified_s = BLI_date_format_datetime(
         &test, compact ? BLI_DateFormatStyle::Short : BLI_DateFormatStyle::Medium, lang);
     int width = file_string_width(modified_s.c_str());
-    columns[COLUMN_DATETIME].width = width + pad;
+    columns[COLUMN_DATETIME].width = width + pad + (0.2f * UI_UNIT_X);
   }
   if (file_attribute_column_type_enabled(params, COLUMN_SIZE, layout)) {
     columns[COLUMN_SIZE].width = file_string_width(compact ? "369G" : "098.7 MiB") + pad;
