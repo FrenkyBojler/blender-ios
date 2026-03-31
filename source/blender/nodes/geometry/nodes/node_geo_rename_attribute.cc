@@ -4,6 +4,8 @@
 
 #include "GEO_foreach_geometry.hh"
 
+#include "BKE_attribute.hh"
+
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_rename_attribute_cc {
@@ -32,14 +34,14 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
   b.allow_any_socket_order();
 
-  b.add_input<decl::Geometry>("Geometry");
-  b.add_output<decl::Geometry>("Geometry").align_with_previous().propagate_all();
+  b.add_input<decl::Geometry>("Geometry"_ustr);
+  b.add_output<decl::Geometry>("Geometry"_ustr).align_with_previous().propagate_all();
 
-  b.add_input<decl::Menu>("Mode").static_items(rename_mode_items).optional_label();
+  b.add_input<decl::Menu>("Mode"_ustr).static_items(rename_mode_items).optional_label();
 
-  b.add_input<decl::String>("Old").optional_label();
-  b.add_input<decl::String>("New").optional_label();
-  b.add_input<decl::Bool>("Overwrite").default_value(false);
+  b.add_input<decl::String>("Old"_ustr).optional_label().is_attribute_name();
+  b.add_input<decl::String>("New"_ustr).optional_label();
+  b.add_input<decl::Bool>("Overwrite"_ustr).default_value(false);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -50,25 +52,33 @@ static void node_geo_exec(GeoNodeExecParams params)
   const std::string new_name = params.extract_input<std::string>("New"_ustr);
   const bool overwrite = params.extract_input<bool>("Overwrite"_ustr);
 
-  if (old_name.empty() || new_name.empty()) {
+  if (old_name.empty()) {
+    params.set_output("Geometry"_ustr, std::move(geometry_set));
+    return;
+  }
+  if (old_name == new_name) {
     params.set_output("Geometry"_ustr, std::move(geometry_set));
     return;
   }
 
   std::atomic<bool> not_found = false;
-  std::atomic<bool> rename_failed = false;
-  /* TODO: Support grease pencil and instances. */
+  Mutex failures_lock;
+  Map<std::string, std::string> failures;
   geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry) {
-    for (const GeometryComponent::Type type : {
+    for (const auto type : {
              GeometryComponent::Type::Mesh,
              GeometryComponent::Type::PointCloud,
              GeometryComponent::Type::Curve,
+             GeometryComponent::Type::Instance,
+             GeometryComponent::Type::GreasePencil,
          })
     {
       if (!geometry.has(type)) {
         continue;
       }
-      Vector<std::pair<std::string, std::string>> renames;
+      AlignedBuffer<512, 8> strings_buffer;
+      ResourceScope scope(strings_buffer);
+      Map<StringRef, StringRef> renames;
       {
         const GeometryComponent &component = *geometry.get_component(type);
         const AttributeAccessor attributes = *component.attributes();
@@ -78,13 +88,15 @@ static void node_geo_exec(GeoNodeExecParams params)
               not_found = true;
               continue;
             }
-            renames.append({old_name, new_name});
+            renames.add_new(old_name, new_name);
             break;
           }
           case RenameMode::Prefix: {
             attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
               if (iter.name.startswith(old_name)) {
-                renames.append({iter.name, new_name + iter.name.substr(old_name.size())});
+                renames.add(
+                    scope.allocator().copy_string(iter.name),
+                    scope.construct<std::string>(new_name + iter.name.substr(old_name.size())));
               }
             });
             break;
@@ -96,9 +108,11 @@ static void node_geo_exec(GeoNodeExecParams params)
       }
       GeometryComponent &component = geometry.get_component_for_write(type);
       MutableAttributeAccessor attributes = *component.attributes_for_write();
-      for (const std::pair<std::string, std::string> &rename : renames) {
-        if (!attributes.rename(rename.first, rename.second, overwrite)) {
-          rename_failed = true;
+      const Set<StringRef> failed = attributes.rename(renames, overwrite);
+      if (!failed.is_empty()) {
+        std::scoped_lock lock(failures_lock);
+        for (const StringRef failed_name : failed) {
+          failures.add_as(failed_name, renames.lookup(failed_name));
         }
       }
     }
@@ -108,10 +122,10 @@ static void node_geo_exec(GeoNodeExecParams params)
     params.error_message_add(NodeWarningType::Warning,
                              fmt::format("{}: '{}'", TIP_("Attribute not found"), old_name));
   }
-  if (rename_failed) {
+  for (const auto &[old_name, new_name] : failures.items()) {
     params.error_message_add(
         NodeWarningType::Warning,
-        fmt::format("{}: '{}' to '{}'", TIP_("Failed to rename attribute"), old_name, new_name));
+        fmt::format(fmt::runtime("Failed to rename attribute: '{}' to '{}'"), old_name, new_name));
   }
 
   params.set_output("Geometry"_ustr, std::move(geometry_set));

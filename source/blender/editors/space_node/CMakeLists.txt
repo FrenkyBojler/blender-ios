@@ -29,6 +29,7 @@ set(SRC
   link_drag_search.cc
   node_add.cc
   node_bundle_type_search.cc
+  node_compositor_job.cc
   node_context_path.cc
   node_copy_util.cc
   node_draw.cc

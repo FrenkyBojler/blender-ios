@@ -782,6 +782,8 @@ enum {
   R_SCEMODE_UNUSED_19 = 1 << 19, /* cleared */
   R_EXR_CACHE_FILE = 1 << 20,
   R_MULTIVIEW = 1 << 21,
+  R_USE_TEXTURE_CACHE = 1 << 22,
+  R_TEXTURE_CACHE_AUTO_GENERATE = 1 << 23,
 };
 
 /** #RenderData::stamp */
@@ -886,7 +888,7 @@ struct RenderData {
   /**
    * Flags for render settings. Use bit-masking to access the settings.
    */
-  int scemode = R_DOCOMP | R_DOSEQ | R_EXTENSION;
+  int scemode = R_DOCOMP | R_DOSEQ | R_EXTENSION | R_USE_TEXTURE_CACHE;
 
   /**
    * Flags for render settings. Use bit-masking to access the settings.
@@ -1454,8 +1456,6 @@ struct Sculpt {
 
   Paint paint;
 
-  /** For rotating around a pivot point. */
-  // float pivot[3] = {}; XXX not used?
   int flags = SCULPT_DYNTOPO_SUBDIVIDE | SCULPT_DYNTOPO_COLLAPSE;
 
   /** Transform tool. */
@@ -1463,8 +1463,6 @@ struct Sculpt {
 
   int automasking_flags = 0;
 
-  // /* Control tablet input. */
-  // char tablet_size = {}, tablet_strength = {}; XXX not used?
   int radial_symm_legacy[3] = {};
 
   /** Maximum edge length for dynamic topology sculpting (in pixels). */
