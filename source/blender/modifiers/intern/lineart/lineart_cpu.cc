@@ -1992,7 +1992,7 @@ static void lineart_geometry_object_load(LineartObjectInfo *ob_info,
   const Span<int3> corner_tris = mesh->corner_tris();
   const AttributeAccessor attributes = mesh->attributes();
   const VArraySpan material_indices = *attributes.lookup<int>("material_index", AttrDomain::Face);
-  const VArraySpan face_marks = attributes.lookup<bool>("freestyle_face", AttrDomain::Face).varray;
+  const VArraySpan face_marks = *attributes.lookup<bool>("freestyle_face", AttrDomain::Face);
 
   /* If we allow duplicated edges, one edge should get added multiple times if is has been
    * classified as more than one edge type. This is so we can create multiple different line type
