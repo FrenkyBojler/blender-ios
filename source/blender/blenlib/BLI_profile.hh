@@ -27,10 +27,14 @@
 /* Scoped zones, create a profiling zone lasting until end of current scope. */
 #  define BLI_profile_zone_scoped ZoneScoped
 #  define BLI_profile_zone_scoped_n(name) ZoneScopedN(name)
+#  define BLI_profile_zone_scoped_c(color) ZoneScopedC(color)
+#  define BLI_profile_zone_scoped_nc(name, color) ZoneScopedNC(name, color)
 
 /* Named zones, zones attached to a specific string, allowing multiple zones in a single scope. */
-#  define BLI_profile_zone_named(zone) ZoneNamed(zone)
-#  define BLI_profile_zone_named_n(zone, ui_name) ZoneNamedN(zone_name, ui_name)
+#  define BLI_profile_zone_named(zone) ZoneNamed(zone, true)
+#  define BLI_profile_zone_named_n(zone, ui_name) ZoneNamedN(zone_name, ui_name, true)
+#  define BLI_profile_zone_named_c(zone, color) ZoneNamedC(zone_name, color, true)
+#  define BLI_profile_zone_named_nc(zone, ui_name, color) ZoneNamedNC(zone_name, ui_name, color, true)
 
 /* Set dynamic zone name, text, color, and value. */
 #  define BLI_profile_zone_set_name(text, size) ZoneName(text, size)
@@ -50,9 +54,7 @@
 
 /* Memory allocation profiling. */
 #  define BLI_profile_memory_alloc(ptr, size) TracyAlloc(ptr, size)
-#  define BLI_profile_memory_alloc_n(ptr, size, name) TracyAllocN(ptr, size, name)
 #  define BLI_profile_memory_free(ptr) TracyFree(ptr)
-#  define BLI_profile_memory_free_n(ptr, name) TracyFreeN(ptr, name)
 
 /* Set current thread name. */
 #  define BLI_profile_set_thread_name(name) tracy::SetThreadName(name)
@@ -61,9 +63,13 @@
 #else
 #  define BLI_profile_zone_scoped
 #  define BLI_profile_zone_scoped_n(name)
+#  define BLI_profile_zone_scoped_c(color)
+#  define BLI_profile_zone_scoped_nc(name, color)
 
 #  define BLI_profile_zone_named(zone_name)
 #  define BLI_profile_zone_named_n(zone_name, ui_name)
+#  define BLI_profile_zone_named_c(zone, color)
+#  define BLI_profile_zone_named_nc(zone, ui_name, color)
 
 #  define BLI_profile_zone_set_name(text, size)
 #  define BLI_profile_zone_set_name_fmt(fmt, ...)
