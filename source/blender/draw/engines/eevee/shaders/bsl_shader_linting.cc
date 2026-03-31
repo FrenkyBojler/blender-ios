@@ -6,6 +6,8 @@
  * Compile shader files as C++ inside one compilation unit to lint syntax and get IDE integration.
  */
 
+#include "eevee_bxdf_lut_comp.bsl.hh"                /* IWYU pragma: export */
+#include "eevee_bxdf_lut_lib.bsl.hh"                 /* IWYU pragma: export */
 #include "eevee_camera_lib.bsl.hh"                   /* IWYU pragma: export */
 #include "eevee_colorspace_lib.bsl.hh"               /* IWYU pragma: export */
 #include "eevee_horizon_scan.bsl.hh"                 /* IWYU pragma: export */
