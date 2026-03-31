@@ -12,6 +12,11 @@
 
 #pragma once
 
+#define BLI_profile_color_wm 0xA00030
+#define BLI_profile_color_python 0x30A000
+#define BLI_profile_color_draw 0x0030A0
+#define BLI_profile_color_ghost 0xA06000
+
 #ifdef WITH_TRACY_CLIENT
 #  include <tracy/tracy/Tracy.hpp>
 
@@ -68,8 +73,6 @@
 /* Set current thread name. */
 #  define BLI_profile_set_thread_name(name) tracy::SetThreadName(name)
 #  define BLI_profile_set_thread_name_with_hint(name, hint) tracy::SetThreadNameWithHint(name, hint)
-
-#  define BLI_profile_color_python 0x00A000
 
 /* PyObject_Call* wrappers to profile Python code execution.
  * API exposes both Python function parsing and explicit object name variants. */
