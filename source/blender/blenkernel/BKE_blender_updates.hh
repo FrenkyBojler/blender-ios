@@ -68,4 +68,12 @@ void ignore_update(const VersionUpdate *update_info);
  */
 void ignore_all_updates();
 
+void check_for_updates_set_finished();
+
+void check_for_updates_set_failed();
+
+bool is_looking_for_updates();
+
+bool is_looking_for_updates_failed();
+
 }  // namespace blender::bke

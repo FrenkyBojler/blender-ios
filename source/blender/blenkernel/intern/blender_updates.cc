@@ -235,37 +235,81 @@ std::optional<VersionUpdate> read_version_update(io::serialize::Value *entry)
   };
 }
 
-static bool download_updates_log(bContext &C)
+enum class CheckForUpdatesState {
+  None,
+  Loading,
+  Done,
+  Failed,
+};
+
+static CheckForUpdatesState &check_for_updates_state()
 {
+  static CheckForUpdatesState check_for_updates_state;
+  return check_for_updates_state;
+}
+
+void check_for_updates_set_finished()
+{
+  check_for_updates_state() = CheckForUpdatesState::Done;
+}
+
+void check_for_updates_set_failed()
+{
+  check_for_updates_state() = CheckForUpdatesState::Failed;
+}
+
+bool is_looking_for_updates()
+{
+  return check_for_updates_state() == CheckForUpdatesState::Loading;
+}
+
+bool is_looking_for_updates_failed()
+{
+  return check_for_updates_state() == CheckForUpdatesState::Failed;
+}
+
+static void download_available_updates_list(bContext &C)
+{
+  if (check_for_updates_state() == CheckForUpdatesState::Loading) {
+    return;
+  }
+  check_for_updates_state() = CheckForUpdatesState::Loading;
+
   constexpr const char *expr =
       R"(
-import tempfile
-with tempfile.TemporaryDirectory() as temp_dir:
-    from pathlib import Path
-    output_dir = Path(temp_dir)
-    
-    from _bpy_internal.http import downloader as http_dl
-    metadata_provider = http_dl.MetadataProviderFilesystem(cache_location= output_dir / "http_metadata")
-    
-    downloader = http_dl.ConditionalDownloader(metadata_provider=metadata_provider)
-    downloader.download_to_file("http://localhost:8000/updates.json", Path(output_dir / "blender-updates.json"))
-    
-    import os
-    with open(os.path.join(temp_dir,  "blender-updates.json"), 'r') as file:
-        _result = file.read()
+import _bpy_internal.available_updates.available_updates_list_downloader as downloader
+downloader.download_available_updates_list()
+)";
+  std::unique_ptr locals = bke::idprop::create_group("locals");
+  BPY_run_string_exec_with_locals(&C, expr, *locals);
+}
+
+static void read_new_available_updates_list(bContext &C)
+{
+  if (check_for_updates_state() != CheckForUpdatesState::Done) {
+    return;
+  }
+  check_for_updates_state() = CheckForUpdatesState::None;
+
+  constexpr const char *expr =
+      R"(
+import _bpy_internal.available_updates.available_updates_list_downloader as downloader
+result = downloader.read_available_updates_list()
+if result:
+  _result = result 
 )";
   std::unique_ptr locals = bke::idprop::create_group("locals");
   std::optional<blender::IDProperty *> updates_ptr = BPY_run_string_exec_with_locals_return_idprop(
       &C, expr, *locals, "_result");
   if (!updates_ptr) {
-    return false;
+    return;
   }
   IDProperty *updates_idprop = *updates_ptr;
 
   /* Check the returned value. */
   if (updates_idprop == nullptr || updates_idprop->type != IDP_STRING) {
     IDP_FreeProperty(updates_idprop);
-    return false;
+    return;
   }
   std::string updates_str = IDP_string_get(updates_idprop);
   IDP_FreeProperty(updates_idprop);
@@ -278,10 +322,10 @@ with tempfile.TemporaryDirectory() as temp_dir:
   std::unique_ptr<Value> updates_json = json.deserialize(updates_stream);
 
   if (!updates_json) {
-    return false;
+    return;
   }
   if (updates_json->type() != eValueType::Array) {
-    return false;
+    return;
   }
   for (const std::shared_ptr<Value> &entry : updates_json->as_array_value()->elements()) {
     std::optional<VersionUpdate> update = read_version_update(entry.get());
@@ -291,9 +335,8 @@ with tempfile.TemporaryDirectory() as temp_dir:
     register_blender_update(std::move(*update));
   }
 
-  return false;
+  return;
 }
-
 #undef TEST_JSON_ENTRY
 
 #define BLENDER_AVAILABLE_UPDATES_FILE "available_updates.json"
@@ -478,10 +521,13 @@ bool check_for_available_updates(bContext &C, bool use_cache, bool ignore_skippe
                                                 last_time_check_quick_test))
                                                .count();
   if (!use_cache || days_since_last_check >= 1 || seconds_since_last_check >= 30) {
-    download_updates_log(C);
+    download_available_updates_list(C);
     last_time_version_update_check() = std::chrono::utc_clock::now();
     write_blender_updates_cache_file();
     last_time_check_quick_test = std::chrono::utc_clock::now();
+  }
+  if (check_for_updates_state() == CheckForUpdatesState::Done) {
+    read_new_available_updates_list(C);
   }
   return !available_updates().is_empty();
 }

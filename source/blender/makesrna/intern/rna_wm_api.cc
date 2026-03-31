@@ -16,6 +16,8 @@
 #include "DNA_space_types.h"
 #include "DNA_windowmanager_types.h"
 
+#include "BKE_blender_updates.hh"
+
 #include "ED_screen.hh"
 
 #include "UI_interface_icons.hh"
@@ -862,6 +864,16 @@ static void rna_asset_library_status_failed_loading(const char *library_url, con
   RemoteLibraryLoadingStatus::set_failure(
       library_url,
       message && message[0] ? std::optional<blender::StringRefNull>{message} : std::nullopt);
+}
+
+static void rna_check_for_available_updates_status_finished_loading()
+{
+  bke::check_for_updates_set_finished();
+}
+
+static void rna_check_for_available_updates_status_failed_loading()
+{
+  bke::check_for_updates_set_failed();
 }
 
 }  // namespace blender
@@ -1734,6 +1746,20 @@ void RNA_api_asset_library_loading_status(StructRNA *srna)
                         "The URL identifying the asset library being loaded");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   RNA_def_string(func, "message", nullptr, 0, "Message", "An error message to show to users");
+
+  func = RNA_def_function(srna,
+                          "check_for_available_updates_status_finished_loading",
+                          "rna_check_for_available_updates_status_finished_loading");
+  RNA_def_function_ui_description(
+      func, "Inform that the download of the available updates list was successful.");
+  RNA_def_function_flag(func, FUNC_NO_SELF);
+
+  func = RNA_def_function(srna,
+                          "check_for_available_updates_status_failed_loading",
+                          "rna_check_for_available_updates_status_failed_loading");
+  RNA_def_function_ui_description(
+      func, "Inform that the download of the available updates has encountered some errors.");
+  RNA_def_function_flag(func, FUNC_NO_SELF);
 }
 
 }  // namespace blender

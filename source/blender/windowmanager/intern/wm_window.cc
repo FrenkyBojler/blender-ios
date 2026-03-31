@@ -3520,24 +3520,61 @@ void WM_ghost_show_message_box(const char *title,
 
 /** \} */
 
+/* Allows just one `WM_OT_check_for_updates` instance at he time. */
+static bool &is_checking_for_updates_operator()
+{
+  static bool is_checking_for_updates = false;
+  return is_checking_for_updates;
+}
+
 static bool check_for_updates_poll(blender::bContext * /*C*/)
 {
   return G.f & G_FLAG_INTERNET_ALLOW &&
          (U.flag & (USER_BLENDER_UPDATE_LATEST_RELEASE | USER_BLENDER_UPDATE_LATEST_LTS_RELEASE |
-                    USER_BLENDER_UPDATE_CURRENT_RELEASE));
+                    USER_BLENDER_UPDATE_CURRENT_RELEASE)) &&
+         !is_checking_for_updates_operator();
 }
 
 static wmOperatorStatus check_for_updates_exec(bContext *C, wmOperator *op)
 {
-  if (bke::check_for_available_updates(*C, false, true)) {
+  return OPERATOR_FINISHED;
+}
+
+wmOperatorStatus check_for_updates_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  is_checking_for_updates_operator() = true;
+  bke::check_for_available_updates(*C, false, true);
+  op->customdata = WM_event_timer_add(CTX_wm_manager(C), CTX_wm_window(C), TIMER, 0.2);
+  WM_event_add_modal_handler(C, op);
+  return OPERATOR_RUNNING_MODAL;
+}
+
+wmOperatorStatus check_for_updates_modal(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  if (!(event->type == TIMER && event->customdata == op->customdata)) {
+    return OPERATOR_PASS_THROUGH;
+  }
+  if (bke::is_looking_for_updates()) {
+    return OPERATOR_RUNNING_MODAL;
+  }
+  if (bke::is_looking_for_updates_failed()) {
+    BKE_reportf(op->reports,
+                RPT_ERROR,
+                "Someting went wrong when looking for new updates, please try again later.");
+  }
+  else if (bke::check_for_available_updates(*C)) {
     wmOperatorType *ot = WM_operatortype_find("WM_OT_call_panel", false);
     PointerRNA op_ptr = WM_operator_properties_create_ptr(ot);
     RNA_string_set(&op_ptr, "name", "STATUS_PT_blender_updates");
     WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &op_ptr, nullptr);
     WM_operator_properties_free(&op_ptr);
-    return OPERATOR_FINISHED;
   }
-  BKE_reportf(op->reports, RPT_INFO, "No new releases matching your preferences.");
+  else {
+    BKE_reportf(op->reports, RPT_INFO, "No new releases matching your preferences.");
+  }
+  WM_event_timer_remove(CTX_wm_manager(C), nullptr, static_cast<wmTimer *>(op->customdata));
+  op->customdata = nullptr;
+  is_checking_for_updates_operator() = false;
   return OPERATOR_FINISHED;
 }
 
@@ -3548,6 +3585,8 @@ void WM_OT_check_for_updates(wmOperatorType *ot)
   ot->description = "Check for available Blender updates";
 
   ot->exec = check_for_updates_exec;
+  ot->invoke = check_for_updates_invoke;
+  ot->modal = check_for_updates_modal;
   ot->poll = check_for_updates_poll;
 }
 
