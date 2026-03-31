@@ -1453,10 +1453,11 @@ bool EDBM_unified_findnearest_from_raycast(ViewContext *vc,
 
 static wmOperatorStatus edbm_select_similar_region_exec(bContext *C, wmOperator *op)
 {
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
+      *bmain, scene, view_layer, CTX_wm_view3d(C));
 
   bool changed = false;
   Vector<Array<BMFace *>> src_regions;
