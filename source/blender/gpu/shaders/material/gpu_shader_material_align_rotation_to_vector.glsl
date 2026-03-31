@@ -7,27 +7,34 @@
 #include "gpu_shader_math_rotation_lib.glsl"
 #include "gpu_shader_math_vector_compare_lib.glsl"
 
-float3 transform_point_by_quaternion(float3 v, float4 q)
+float angle_normalized_v3v3(float3 v1, float3 v2)
 {
-  const float3 qv = q.yzw;
-  const float3 t = 2.0f * cross(qv, v);
-  return v + q.x * t + cross(qv, t);
+  v1 = normalize(v1);
+  v2 = normalize(v2);
+  if (dot(v1, v2) >= 0.0f) {
+    return 2.0f * asin(clamp(length(v2 - v1) / 2.0f, -1.0f, 1.0f));
+  }
+  const float3 v2_n = -v2;
+  return M_PI - 2.0f * asin(clamp(length(v2_n - v1) / 2.0f, -1.0f, 1.0f));
 }
 
-float angle_normalized_v3v3(float3 a, float3 b)
+float3 project_plane_normalized_v3_v3v3(float3 p, float3 v_plane)
 {
-  const float3 na = normalize(a);
-  const float3 nb = normalize(b);
-  return acos(clamp(dot(na, nb), -1.0f, 1.0f));
+  const float mul = dot(p, v_plane);
+  return p - v_plane * mul;
 }
 
 float angle_signed_on_axis_v3v3_v3(float3 v1, float3 v2, float3 axis)
 {
-  const float3 v1_proj = normalize(v1 - dot(v1, axis) * axis);
-  const float3 v2_proj = normalize(v2 - dot(v2, axis) * axis);
-  float angle = atan(dot(cross(v2_proj, v1_proj), axis), dot(v2_proj, v1_proj));
-  if (angle < 0.0f) {
-    angle += 2.0f * M_PI;
+  const float3 axis_n = normalize(axis);
+  const float3 v1_proj = project_plane_normalized_v3_v3v3(v1, axis_n);
+  const float3 v2_proj = project_plane_normalized_v3_v3v3(v2, axis_n);
+
+  float angle = angle_normalized_v3v3(v1_proj, v2_proj);
+
+  const float3 tproj = cross(v2_proj, v1_proj);
+  if (dot(tproj, axis) < 0.0f) {
+    angle = M_PI * 2.0 - angle;
   }
   return angle;
 }
@@ -44,8 +51,8 @@ void node_align_rotation_to_vector_auto_pivot(float4 old_rotation,
     return;
   }
 
-  const float3 old_axis = transform_point_by_quaternion(local_main_axis, old_rotation);
-  const float3 new_axis = input_vector;
+  const float3 old_axis = transform_point_by_quaternion(old_rotation, local_main_axis);
+  const float3 new_axis = normalize(input_vector);
 
   float3 rotation_axis = cross(old_axis, new_axis);
   if (is_zero(rotation_axis)) {
@@ -85,8 +92,8 @@ void node_align_rotation_to_vector_fixed_pivot(float4 old_rotation,
     return;
   }
 
-  const float3 old_axis = transform_point_by_quaternion(local_main_axis, old_rotation);
-  const float3 pivot_axis = transform_point_by_quaternion(local_pivot_axis, old_rotation);
+  const float3 old_axis = transform_point_by_quaternion(old_rotation, local_main_axis);
+  const float3 pivot_axis = transform_point_by_quaternion(old_rotation, local_pivot_axis);
 
   float full_angle = angle_signed_on_axis_v3v3_v3(input_vector, old_axis, pivot_axis);
   if (full_angle > M_PI) {

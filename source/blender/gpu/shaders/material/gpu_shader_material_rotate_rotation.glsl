@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "gpu_shader_math_rotation_lib.glsl"
+#include "gpu_shader_math_quaternion_lib.glsl"
 
 [[node]]
 void rotate_rotation_global(float4 rotation, float4 rotate_by, out float4 result)

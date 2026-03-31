@@ -2,15 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "gpu_shader_math_quaternion_lib.glsl"
+
 [[node]]
 void rotate_vector(float3 vector, float4 rotation, float3 &result)
 {
-  /*
-   * Optimized formula used:
-   *   v' = v + w * t + cross(qv, t)
-   *   where t = 2 * cross(qv, v)
-   */
-  const float3 qv = rotation.yzw;
-  const float3 t = 2.0f * cross(qv, vector);
-  result = vector + rotation.x * t + cross(qv, t);
+  result = transform_point_by_quaternion(rotation, vector);
 }
