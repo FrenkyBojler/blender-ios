@@ -3535,12 +3535,12 @@ static bool check_for_updates_poll(blender::bContext * /*C*/)
          !is_checking_for_updates_operator();
 }
 
-static wmOperatorStatus check_for_updates_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus check_for_updates_exec(bContext * /*C*/, wmOperator * /*op*/)
 {
   return OPERATOR_FINISHED;
 }
 
-wmOperatorStatus check_for_updates_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+wmOperatorStatus check_for_updates_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   is_checking_for_updates_operator() = true;
   bke::check_for_available_updates(*C, false, true);
