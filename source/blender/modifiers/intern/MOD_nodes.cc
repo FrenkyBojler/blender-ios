@@ -113,11 +113,6 @@ static void init_data(ModifierData *md)
 static void find_dependencies_from_settings(const NodesModifierData &nmd,
                                             nodes::EvalDependencies &deps)
 {
-  IDP_foreach_property(nmd.settings.properties, IDP_TYPE_FILTER_ID, [&](IDProperty *property) {
-    if (ID *id = IDP_ID_get(property)) {
-      deps.add_generic_id_full(id);
-    }
-  });
   IDP_foreach_property(
       nmd.modifier.system_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *property) {
         if (ID *id = IDP_ID_get(property)) {
@@ -273,9 +268,18 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
   NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(md);
   walk(user_data, ob, reinterpret_cast<ID **>(&nmd->node_group), IDWALK_CB_USER);
 
-  IDP_foreach_property(nmd->settings.properties, IDP_TYPE_FILTER_ID, [&](IDProperty *id_prop) {
-    walk(user_data, ob, reinterpret_cast<ID **>(&id_prop->data.pointer), IDWALK_CB_USER);
-  });
+  if (nmd->settings.properties) {
+    /* Also walk legacy properties because they are still used at runtime before post linking
+     * versioning. */
+    IDP_foreach_property(nmd->settings.properties, IDP_TYPE_FILTER_ID, [&](IDProperty *id_prop) {
+      walk(user_data, ob, reinterpret_cast<ID **>(&id_prop->data.pointer), IDWALK_CB_USER);
+    });
+  }
+
+  IDP_foreach_property(
+      nmd->modifier.system_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *id_prop) {
+        walk(user_data, ob, reinterpret_cast<ID **>(&id_prop->data.pointer), IDWALK_CB_USER);
+      });
 
   for (NodesModifierBake &bake : MutableSpan(nmd->bakes, nmd->bakes_num)) {
     for (NodesModifierDataBlock &data_block : MutableSpan(bake.data_blocks, bake.data_blocks_num))
@@ -812,7 +816,7 @@ static void find_side_effect_nodes_for_active_gizmos(
     const ModifierEvalContext &ctx,
     const wmWindowManager &wm,
     nodes::GeoNodesSideEffectNodes &r_side_effect_nodes,
-    Set<ComputeContextHash> &r_socket_log_contexts)
+    Set<ComputeContextHash> &r_verbose_log_contexts)
 {
   Object *object_orig = DEG_get_original(ctx.object);
   const NodesModifierData &nmd_orig = *reinterpret_cast<const NodesModifierData *>(
@@ -828,13 +832,13 @@ static void find_side_effect_nodes_for_active_gizmos(
           const bNodeSocket &gizmo_socket) {
         try_add_side_effect_node(
             ctx, compute_context, gizmo_node.identifier, nmd, r_side_effect_nodes);
-        r_socket_log_contexts.add(compute_context.hash());
+        r_verbose_log_contexts.add(compute_context.hash());
 
         nodes::gizmos::foreach_compute_context_on_gizmo_path(
             compute_context, gizmo_node, gizmo_socket, [&](const ComputeContext &node_context) {
               /* Make sure that all intermediate sockets are logged. This is necessary to be able
                * to evaluate the nodes in reverse for the gizmo. */
-              r_socket_log_contexts.add(node_context.hash());
+              r_verbose_log_contexts.add(node_context.hash());
             });
       });
 }
@@ -842,7 +846,7 @@ static void find_side_effect_nodes_for_active_gizmos(
 static void find_side_effect_nodes(const NodesModifierData &nmd,
                                    const ModifierEvalContext &ctx,
                                    nodes::GeoNodesSideEffectNodes &r_side_effect_nodes,
-                                   Set<ComputeContextHash> &r_socket_log_contexts)
+                                   Set<ComputeContextHash> &r_verbose_log_contexts)
 {
   Main *bmain = DEG_get_bmain(ctx.depsgraph);
   wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
@@ -869,12 +873,12 @@ static void find_side_effect_nodes(const NodesModifierData &nmd,
 
   find_side_effect_nodes_for_baking(nmd, ctx, r_side_effect_nodes);
   find_side_effect_nodes_for_active_gizmos(
-      nmd, ctx, *wm, r_side_effect_nodes, r_socket_log_contexts);
+      nmd, ctx, *wm, r_side_effect_nodes, r_verbose_log_contexts);
 }
 
-static void find_socket_log_contexts(const NodesModifierData &nmd,
-                                     const ModifierEvalContext &ctx,
-                                     Set<ComputeContextHash> &r_socket_log_contexts)
+static void find_verbose_log_contexts(const NodesModifierData &nmd,
+                                      const ModifierEvalContext &ctx,
+                                      Set<ComputeContextHash> &r_socket_log_contexts)
 {
   Main *bmain = DEG_get_bmain(ctx.depsgraph);
   wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
@@ -1829,16 +1833,16 @@ static void modifyGeometry(ModifierData *md,
   NodesModifierBakeParams bake_params{*nmd, *ctx};
   call_data.bake_params = &bake_params;
 
-  Set<ComputeContextHash> socket_log_contexts;
+  Set<ComputeContextHash> verbose_log_contexts;
   if (logging_enabled(ctx)) {
     call_data.eval_log = eval_log.get();
 
-    find_socket_log_contexts(*nmd, *ctx, socket_log_contexts);
-    call_data.socket_log_contexts = &socket_log_contexts;
+    find_verbose_log_contexts(*nmd, *ctx, verbose_log_contexts);
+    call_data.verbose_log_contexts = &verbose_log_contexts;
   }
 
   nodes::GeoNodesSideEffectNodes side_effect_nodes;
-  find_side_effect_nodes(*nmd, *ctx, side_effect_nodes, socket_log_contexts);
+  find_side_effect_nodes(*nmd, *ctx, side_effect_nodes, verbose_log_contexts);
   call_data.side_effect_nodes = &side_effect_nodes;
 
   bke::DataBlockComputeContext data_block_compute_context{nullptr, ctx->object->id};
@@ -1982,24 +1986,9 @@ static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const Modi
 
   writer->write_string(nmd->bake_directory);
 
-  Map<IDProperty *, IDPropertyUIDataBool *> boolean_props;
   if (nmd->settings.properties != nullptr) {
-    if (!BLO_write_is_undo(writer)) {
-      /* Boolean properties are added automatically for boolean node group inputs. Integer
-       * properties are automatically converted to boolean sockets where applicable as well.
-       * However, boolean properties will crash old versions of Blender, so convert them to integer
-       * properties for writing. The actual value is stored in the same variable for both types */
-      for (IDProperty &prop : nmd->settings.properties->data.group) {
-        if (prop.type == IDP_BOOLEAN) {
-          boolean_props.add_new(&prop, reinterpret_cast<IDPropertyUIDataBool *>(prop.ui_data));
-          prop.type = IDP_INT;
-          prop.ui_data = nullptr;
-        }
-      }
-    }
-
-    /* Note that the property settings are based on the socket type info
-     * and don't necessarily need to be written, but we can't just free them. */
+    /* Write legacy settings for forward compatibility. Created by
+     * #create_legacy_geometry_nodes_properties. */
     IDP_BlendWrite(writer, nmd->settings.properties);
   }
 
@@ -2035,28 +2024,14 @@ static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const Modi
     }
   }
   writer->write_struct_array(nmd->panels_num, nmd->panels);
-
-  if (nmd->settings.properties) {
-    if (!BLO_write_is_undo(writer)) {
-      for (IDProperty &prop : nmd->settings.properties->data.group) {
-        if (prop.type == IDP_INT) {
-          if (IDPropertyUIDataBool **ui_data = boolean_props.lookup_ptr(&prop)) {
-            prop.type = IDP_BOOLEAN;
-            if (ui_data) {
-              prop.ui_data = reinterpret_cast<IDPropertyUIData *>(*ui_data);
-            }
-          }
-        }
-      }
-    }
-  }
 }
 
 static void blend_read(BlendDataReader *reader, ModifierData *md)
 {
   NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(md);
   BLO_read_string(reader, &nmd->bake_directory);
-  if (nmd->node_group == nullptr) {
+  if (nmd->node_group == nullptr || nmd->modifier.system_properties) {
+    /* Don't bother reading old settings when modifier system properties are available. */
     nmd->settings.properties = nullptr;
   }
   else {
@@ -2179,10 +2154,6 @@ static void copy_data(const ModifierData *md, ModifierData *target, const int fl
     /* Clear the bake path when duplicating. */
     tnmd->bake_directory = nullptr;
   }
-
-  if (nmd->settings.properties != nullptr) {
-    tnmd->settings.properties = IDP_CopyProperty_ex(nmd->settings.properties, flag);
-  }
 }
 
 void nodes_modifier_packed_bake_free(NodesModifierPackedBake *packed_bake)
@@ -2219,11 +2190,6 @@ void nodes_modifier_bake_destruct(NodesModifierBake *bake, const bool do_id_user
 static void free_data(ModifierData *md)
 {
   NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(md);
-  if (nmd->settings.properties != nullptr) {
-    IDP_FreeProperty_ex(nmd->settings.properties, false);
-    nmd->settings.properties = nullptr;
-  }
-
   for (NodesModifierBake &bake : MutableSpan(nmd->bakes, nmd->bakes_num)) {
     nodes_modifier_bake_destruct(&bake, false);
   }

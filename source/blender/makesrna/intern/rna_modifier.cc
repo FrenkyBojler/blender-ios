@@ -1961,7 +1961,7 @@ static PointerRNA rna_NodesModifierProperties_get(PointerRNA *ptr)
   if (!nmd->node_group) {
     return PointerRNA_NULL;
   }
-  return RNA_pointer_create_discrete(ptr->owner_id, RNA_NodesModifierProperties, nmd);
+  return RNA_pointer_create_with_parent(*ptr, RNA_NodesModifierProperties, nmd);
 }
 
 static nodes::geo_eval_log::GeoTreeLog *get_nodes_modifier_log(const Object &object,
@@ -9169,6 +9169,12 @@ static void rna_def_modifier_grease_pencil_lineart(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, modifier_lineart_silhouette_filtering);
   RNA_def_property_ui_text(prop, "Silhouette Filtering", "Select contour or silhouette");
   RNA_def_property_update(prop, 0, "rna_Modifier_dependency_update");
+
+  prop = RNA_def_property(srna, "fill_strokes", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "fill_strokes", 0);
+  RNA_def_property_ui_text(
+      prop, "Fill Strokes", "Generate filled strokes instead of only outline");
+  RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
   prop = RNA_def_property(srna, "use_multiple_levels", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "use_multiple_levels", 0);

@@ -769,7 +769,35 @@ template void func(float a);
 )";
     string error;
     string output = process_test_string(input, error);
-    EXPECT_EQ(error, "Template instantiation unsupported syntax");
+    EXPECT_EQ(error,
+              "Template instantiation and specialization require explicit template arguments");
+  }
+  {
+    string input = R"(
+template A<f> fn(A<f> a);
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error,
+              "Template instantiation and specialization require explicit template arguments");
+  }
+  {
+    string input = R"(
+template<> A fn(A a) {}
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error,
+              "Template instantiation and specialization require explicit template arguments");
+  }
+  {
+    string input = R"(
+template<> A<f> fn(A<f> a) {}
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error,
+              "Template instantiation and specialization require explicit template arguments");
   }
   {
     string input = R"(func<float, 1>(a);)";
@@ -795,6 +823,14 @@ template void func(float a);
     EXPECT_EQ(output, expect);
     EXPECT_EQ(error, "");
   }
+  {
+    string input = R"(A<B<1, 2>, C<1, D<T, -1>>> a;)";
+    string expect = R"(ATBT1T2TCT1TDTTT_1 a;)";
+    string error;
+    string output = process_test_local(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
 }
 GPU_TEST(preprocess_template);
 
@@ -803,6 +839,43 @@ static void test_preprocess_template_struct()
   using namespace shader;
   using namespace std;
 
+  {
+    string input = R"(
+template<typename T>
+struct A {
+  T a;
+  A method(T b) const 
+  {
+    return A<T>{b};
+  }
+};
+template struct A<float>;
+)";
+    string expect = R"(
+#line 3
+struct ATfloat {
+  float a;
+#line 9
+};
+
+#ifndef GPU_METAL
+ATfloat ATfloat_ctor_();
+ATfloat _method(const ATfloat this_, float b);
+#endif
+#line 3
+                       ATfloat ATfloat_ctor_() {ATfloat r;r.a=0.0f;return r;}
+#line 5
+  ATfloat _method(const ATfloat this_, float b)
+  {
+    return _ctor(ATfloat) b _rotc() ;
+  }
+#line 11
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
   {
     string input = R"(
 template<typename T>
@@ -857,23 +930,25 @@ void func(ATfloat a) {}
     string input = R"(
 namespace N {
 
-struct A {
-  int i;
+template<typename B> struct A {
+  B i;
   template<typename T> static void fn1(T a) {}
   template<typename T> static T fn2() { return T(0); }
   template<typename T> void fn3(T a) { i += int(fn4<T>()); }
   template<typename T> T fn4() { fn3(0); return T(0); }
 };
 
-template void A::fn1<int>(int);
-template int A::fn2<int>();
-template void A::fn3<int>(int);
-template int A::fn4<int>();
+template struct A<int>;
 
-void fn(A a)
+template void A<int>::fn1<int>(int);
+template int A<int>::fn2<int>();
+template void A<int>::fn3<int>(int);
+template int A<int>::fn4<int>();
+
+void fn(A<int> a)
 {
-  A::fn1(0);
-  A::fn2<int>();
+  A<int>::fn1(0);
+  A<int>::fn2<int>();
   a.fn3(0);
   a.fn4<int>();
 }
@@ -882,7 +957,7 @@ void fn(A a)
 )";
     string expect = R"(
 #line 4
-struct N_A {
+struct N_ATint {
   int i;
 
 
@@ -890,28 +965,28 @@ struct N_A {
 
 
 
-#line 17
+#line 19
 };
-#line 25
+#line 22
 #ifndef GPU_METAL
-N_A N_A_ctor_();
-void N_A_fn1(int a);
-int N_A_fn2Tint();
-void _fn3(_ref(N_A ,this_), int a);
-int _fn4Tint(_ref(N_A ,this_));
+N_ATint N_ATint_ctor_();
+void N_ATint_fn1(int a);
+int N_ATint_fn2Tint();
+void _fn3(_ref(N_ATint ,this_), int a);
+int _fn4Tint(_ref(N_ATint ,this_));
 #endif
 #line 4
-                   N_A N_A_ctor_() {N_A r;r.i=0;return r;}
+                       N_ATint N_ATint_ctor_() {N_ATint r;r.i=0;return r;}
 #line 6
-       void N_A_fn1(int a) {}
-       int N_A_fn2Tint() { return int(0); }
-void _fn3(_ref(N_A ,this_), int a) { this_.i += int(_fn4Tint(this_)); }
-int _fn4Tint(_ref(N_A ,this_)) { _fn3(this_, 0); return int(0); }
-#line 24
-void N_fn(N_A a)
+       void N_ATint_fn1(int a) {}
+       int N_ATint_fn2Tint() { return int(0); }
+void _fn3(_ref(N_ATint ,this_), int a) { this_.i += int(_fn4Tint(this_)); }
+int _fn4Tint(_ref(N_ATint ,this_)) { _fn3(this_, 0); return int(0); }
+#line 19
+void N_fn(N_ATint a)
 {
-  N_A_fn1(0);
-  N_A_fn2Tint();
+  N_ATint_fn1(0);
+  N_ATint_fn2Tint();
   _fn3(a, 0);
   _fn4Tint(a);
 }
@@ -1513,6 +1588,49 @@ static void test_preprocess_namespace()
 
   {
     string input = R"(
+struct C {};
+void fn(C b) {}
+namespace B {
+struct D {};
+void fn(D b) {}
+void fn2()
+{
+  fn(C{});
+}
+}
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error, "Call to function is ambiguous. Specify namespace to remove ambiguity.");
+  }
+  {
+    string input = R"(
+namespace A {
+int func(int a) { return 0; }
+int func2(int a)
+{
+  int func = func();
+  return func;
+}
+}
+)";
+    string expect = R"(
+
+int A_func(int a) { return 0; }
+int A_func2(int a)
+{
+  int func = A_func();
+  return func;
+}
+
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(
 namespace A {
 struct S {};
 int func(int a)
@@ -2014,7 +2132,7 @@ static void test_preprocess_resource_guard()
   {
     string input = R"(
 void my_func() {
-  interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_index;
+  interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_id;
 }
 )";
     string expect = R"(
@@ -2022,7 +2140,7 @@ void my_func() {
 
 #if defined(CREATE_INFO_draw_resource_id_varying)
 #line 3
-  interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_index;
+  interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_id;
 
 #endif
 #line 4
@@ -2037,7 +2155,7 @@ void my_func() {
     string input = R"(
 uint my_func() {
   uint i = 0;
-  i += interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_index;
+  i += interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_id;
   return i;
 }
 )";
@@ -2047,7 +2165,7 @@ uint my_func() {
 #if defined(CREATE_INFO_draw_resource_id_varying)
 #line 3
   uint i = 0;
-  i += interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_index;
+  i += interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_id;
   return i;
 
 #else
@@ -2067,7 +2185,7 @@ uint my_func() {
 uint my_func() {
   uint i = 0;
   {
-    i += interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_index;
+    i += interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_id;
   }
   return i;
 }
@@ -2079,7 +2197,7 @@ uint my_func() {
 
 #if defined(CREATE_INFO_draw_resource_id_varying)
 #line 5
-    i += interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_index;
+    i += interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_id;
 
 #endif
 #line 6
@@ -2097,7 +2215,7 @@ uint my_func() {
 uint my_func() {
   uint i = 0;
   {
-    i += interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_index;
+    i += interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_id;
     i += buffer_get(draw_resource_id, resource_id_buf)[0];
   }
   return i;
@@ -2113,7 +2231,7 @@ uint my_func() {
 
 #if defined(CREATE_INFO_draw_resource_id)
 #line 5
-    i += interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_index;
+    i += interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_id;
     i += buffer_get(draw_resource_id, resource_id_buf)[0];
 
 #endif
@@ -2465,7 +2583,7 @@ struct VertOut {
 
 struct FragOut {
   [[frag_color(0)]] float3 color;
-  [[frag_color(1), index(2)]] uint test;
+  [[frag_color(1), index(1)]] uint test;
 };
 
 template<typename T>
@@ -2639,7 +2757,7 @@ GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(ns_FragOut)
 FRAGMENT_OUT(0, float3, ns_FragOut_color)
-FRAGMENT_OUT_DUAL(1, uint, ns_FragOut_test, 2)
+FRAGMENT_OUT_DUAL(1, uint, ns_FragOut_test, SRC_1)
 GPU_SHADER_CREATE_END()
 
 
@@ -2791,8 +2909,8 @@ void fn() {
     string expect = R"(
 T fn1() { return _ctor(T) 1, 2 _rotc() ; }
 T fn2() { return _ctor(T) 1, 2   _rotc() ; }
-T fn3() { {T _tmp ;    _tmp.a=1;  _tmp.b=2;   return T_tmp;}; }
-T fn4() { {T _tmp ;    _tmp.a=1;  _tmp.b=2  ;   return T_tmp;}; }
+T fn3() { {T _tmp ;    _tmp.a=1;  _tmp.b=2;   return _tmp;}; }
+T fn4() { {T _tmp ;    _tmp.a=1;  _tmp.b=2  ;   return _tmp;}; }
 T fn5() { return _ctor(T) 1, 2 _rotc() ; }
 T fn6() { return _ctor(T) 1, 2   _rotc() ; }
 T fn7() { {T _tmp ;    _tmp.a=1;  _tmp.b=2;   return _tmp;}; }

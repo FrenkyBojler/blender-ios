@@ -12,7 +12,7 @@
 
 #include "DNA_node_types.h"
 
-#include "BLI_color.hh"
+#include "BLI_color_types.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_euler.hh"
 #include "BLI_math_quaternion_types.hh"
@@ -240,6 +240,7 @@ static void refresh_node_socket(bNodeTree &ntree,
       if (new_socket == old_socket_with_same_identifier) {
         /* The existing socket has been updated, set the correct identifier again. */
         STRNCPY_UTF8(new_socket->identifier, socket_decl.identifier.c_str());
+        new_socket->runtime->identifier_ustr = UString(new_socket->identifier);
       }
       else {
         /* Move links to new socket with same identifier. */
@@ -405,6 +406,7 @@ static void do_forward_compat_versioning(bNode &node, const NodeDeclaration &nod
               node, socket, node_decl.inputs))
       {
         STRNCPY_UTF8(socket.identifier, new_identifier);
+        socket.runtime->identifier_ustr = UString(socket.identifier);
       }
     }
   }
@@ -414,6 +416,7 @@ static void do_forward_compat_versioning(bNode &node, const NodeDeclaration &nod
               node, socket, node_decl.outputs))
       {
         STRNCPY_UTF8(socket.identifier, new_identifier);
+        socket.runtime->identifier_ustr = UString(socket.identifier);
       }
     }
   }
@@ -1729,6 +1732,7 @@ static bke::bNodeSocketType *make_socket_type_menu()
                                                 nodes::GeneratedTreeSrnaData &r_generated) {
     const auto *data = static_cast<const bNodeSocketValueMenu *>(socket.socket_data);
     const EnumPropertyItem *items;
+    bool default_value_found = false;
     if (data->has_conflict() || !data->enum_items) {
       items = rna_enum_dummy_NULL_items;
     }
@@ -1740,6 +1744,9 @@ static bke::bNodeSocketType *make_socket_type_menu()
         const bke::RuntimeNodeEnumItem &item_data = data->enum_items->items[i];
         EnumPropertyItem item{};
         item.value = item_data.identifier;
+        if (item.value == data->value) {
+          default_value_found = true;
+        }
         item.identifier = item_data.name.c_str();
         item.name = item_data.name.c_str();
         item.description = item_data.description.c_str();
@@ -1748,8 +1755,12 @@ static bke::bNodeSocketType *make_socket_type_menu()
       new_items.last() = {};
       items = new_items.data();
     }
-    PropertyRNA *prop = RNA_def_enum(
-        &srna, "value", items, data->value, socket.name, socket.description);
+    PropertyRNA *prop = RNA_def_enum(&srna,
+                                     "value",
+                                     items,
+                                     default_value_found ? data->value : 0,
+                                     socket.name,
+                                     socket.description);
     RNA_def_property_flag(prop, PROP_FORCE_GEOMETRY_EVAL);
     RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
     make_common_value_props(srna, socket, r_generated);
@@ -1760,6 +1771,7 @@ static bke::bNodeSocketType *make_socket_type_menu()
                                                   nodes::GeneratedTreeSrnaData &r_generated) {
     const auto *data = static_cast<const bNodeSocketValueMenu *>(socket.socket_data);
     const EnumPropertyItem *items;
+    bool default_value_found = false;
     if (data->has_conflict() || !data->enum_items) {
       items = rna_enum_dummy_NULL_items;
     }
@@ -1771,6 +1783,9 @@ static bke::bNodeSocketType *make_socket_type_menu()
         const bke::RuntimeNodeEnumItem &item_data = data->enum_items->items[i];
         EnumPropertyItem item{};
         item.value = item_data.identifier;
+        if (item.value == data->value) {
+          default_value_found = true;
+        }
         item.identifier = item_data.name.c_str();
         item.name = item_data.name.c_str();
         item.description = item_data.description.c_str();
@@ -1779,8 +1794,12 @@ static bke::bNodeSocketType *make_socket_type_menu()
       new_items.last() = {};
       items = new_items.data();
     }
-    PropertyRNA *prop = RNA_def_enum(
-        &srna, "value", items, data->value, socket.name, socket.description);
+    PropertyRNA *prop = RNA_def_enum(&srna,
+                                     "value",
+                                     items,
+                                     default_value_found ? data->value : 0,
+                                     socket.name,
+                                     socket.description);
     set_common_sequencer_update_function(prop);
     make_common_type_prop(srna,
                           socket,

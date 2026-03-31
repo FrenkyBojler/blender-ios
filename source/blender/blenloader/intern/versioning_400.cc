@@ -286,8 +286,8 @@ static void version_principled_bsdf_update_animdata(ID *owner_id, bNodeTree *ntr
                                     nullptr,
                                     entry.first,
                                     entry.second,
-                                    false,
-                                    true);
+                                    /*verify_paths=*/false,
+                                    /*infix_is_name=*/true);
     }
   }
 }
@@ -627,7 +627,7 @@ static void version_replace_velvet_sheen_node(bNodeTree *ntree)
       bNodeSocket *sigmaInput = bke::node_find_socket(node, SOCK_IN, "Sigma");
       if (sigmaInput != nullptr) {
         node.custom1 = SHD_SHEEN_ASHIKHMIN;
-        STRNCPY_UTF8(sigmaInput->identifier, "Roughness");
+        version_node_socket_identifier_set(*sigmaInput, "Roughness");
         STRNCPY_UTF8(sigmaInput->name, "Roughness");
       }
     }

@@ -33,7 +33,7 @@
 #include "DNA_vfont_types.h"
 #include "DNA_world_types.h"
 
-#include "BLI_color.hh"
+#include "BLI_color_types.hh"
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
@@ -1820,6 +1820,7 @@ static void direct_link_node_socket(BlendDataReader *reader, const bNode *node, 
 
   BLO_read_string(reader, &sock->default_attribute_name);
   sock->runtime = MEM_new<bNodeSocketRuntime>(__func__);
+  sock->runtime->identifier_ustr = UString(sock->identifier);
 }
 
 static void remove_unsupported_sockets(ListBaseT<bNodeSocket> *sockets,
@@ -2226,6 +2227,7 @@ IDProperty *node_create_asset_meta_data_properties(const bNodeTree &node_tree)
       case SOCK_TEXT_ID:
       case SOCK_MASK:
       case SOCK_SOUND:
+      case SOCK_INT_VECTOR:
         break;
     }
     IDP_AddToGroup(inputs.get(), input.release());
@@ -2912,6 +2914,7 @@ static bNodeSocket *make_socket(bNodeTree *ntree,
   sock->in_out = in_out;
 
   STRNCPY_UTF8(sock->identifier, auto_identifier);
+  sock->runtime->identifier_ustr = UString(sock->identifier);
   sock->limit = (in_out == SOCK_IN ? 1 : 0xFFF);
 
   name.copy_utf8_truncated(sock->name);
@@ -4068,6 +4071,7 @@ bNode *node_add_static_node(const bContext *C, bNodeTree &ntree, const int type)
 static void node_socket_copy(bNodeSocket *sock_dst, const bNodeSocket *sock_src, const int flag)
 {
   sock_dst->runtime = MEM_new<bNodeSocketRuntime>(__func__);
+  sock_dst->runtime->identifier_ustr = UString(sock_src->runtime->identifier_ustr);
   if (sock_src->prop) {
     sock_dst->prop = IDP_CopyProperty_ex(sock_src->prop, flag);
   }

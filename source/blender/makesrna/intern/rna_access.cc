@@ -6075,7 +6075,7 @@ static void update_idprop_int(PointerRNA &rna_ptr, PropertyRNA &rna_prop, IDProp
           const float *old_values = IDP_array_float_get(&idprop);
           auto *new_values = MEM_new_array_zeroed<int>(rna_array_size, __func__);
           for (const int i : IndexRange(std::min(rna_array_size, idprop_array_size))) {
-            new_values[i] = bool(old_values[i]);
+            new_values[i] = int(old_values[i]);
           }
           IDP_ClearProperty(&idprop);
           idprop.subtype = PROP_INT;
@@ -6088,7 +6088,7 @@ static void update_idprop_int(PointerRNA &rna_ptr, PropertyRNA &rna_prop, IDProp
           const double *old_values = IDP_array_double_get(&idprop);
           auto *new_values = MEM_new_array_zeroed<int>(rna_array_size, __func__);
           for (const int i : IndexRange(std::min(rna_array_size, idprop_array_size))) {
-            new_values[i] = bool(old_values[i]);
+            new_values[i] = int(old_values[i]);
           }
           IDP_ClearProperty(&idprop);
           idprop.subtype = PROP_INT;
@@ -6123,14 +6123,14 @@ static void update_idprop_int(PointerRNA &rna_ptr, PropertyRNA &rna_prop, IDProp
       const float value = IDP_float_get(&idprop);
       IDP_ClearProperty(&idprop);
       idprop.type = PROP_INT;
-      IDP_int_set(&idprop, bool(value));
+      IDP_int_set(&idprop, int(value));
       break;
     }
     case IDP_DOUBLE: {
       const double value = IDP_double_get(&idprop);
       IDP_ClearProperty(&idprop);
       idprop.type = PROP_INT;
-      IDP_int_set(&idprop, bool(value));
+      IDP_int_set(&idprop, int(value));
       break;
     }
     case IDP_BOOLEAN: {
@@ -6252,7 +6252,7 @@ static void update_idprop_float(PointerRNA &rna_ptr, PropertyRNA &rna_prop, IDPr
     case IDP_INT: {
       const int value = IDP_int_get(&idprop);
       IDP_ClearProperty(&idprop);
-      idprop.type = IDP_BOOLEAN;
+      idprop.type = IDP_FLOAT;
       IDP_float_set(&idprop, float(value));
       break;
     }
@@ -6271,7 +6271,7 @@ static void update_idprop_float(PointerRNA &rna_ptr, PropertyRNA &rna_prop, IDPr
     case IDP_BOOLEAN: {
       const bool value = IDP_bool_get(&idprop);
       IDP_ClearProperty(&idprop);
-      idprop.type = IDP_BOOLEAN;
+      idprop.type = IDP_FLOAT;
       IDP_float_set(&idprop, float(value));
       break;
     }
@@ -6287,13 +6287,16 @@ void RNA_sync_system_properties(PointerRNA &ptr, IDProperty &idprops)
     if (RNA_property_builtin(&rna_prop)) {
       continue;
     }
+    if (STREQ(rna_prop.identifier, "rna_type")) {
+      /* Avoid infinite loop trying to create property group for this property that's defined
+       * automatically for every type, including the base type "RNA_Struct". */
+      continue;
+    }
 
     const StringRefNull identifier = RNA_property_identifier(&rna_prop);
-    IDProperty *idprop = IDP_GetPropertyFromGroup(&idprops, identifier.c_str());
+    IDProperty *idprop = IDP_GetPropertyFromGroup(&idprops, identifier);
     if (!idprop) {
-      /* Create an IDProperty of an arbitrary type, to be converte to the correct type next. */
-      idprop = bke::idprop::create_group(identifier, IDP_FLAG_STATIC_TYPE).release();
-      IDP_AddToGroup(&idprops, idprop);
+      continue;
     }
 
     used_props.add_new(idprop);

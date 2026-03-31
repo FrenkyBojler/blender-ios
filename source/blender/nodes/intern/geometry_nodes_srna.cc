@@ -118,7 +118,9 @@ static StructRNA *create_inputs_srna(const bNodeTree &tree, GeneratedTreeSrnaDat
       continue;
     }
     const StringRefNull identifier = r_generated.scope.allocator().copy_string(socket->identifier);
-    RNA_def_pointer_runtime(srna, identifier.c_str(), socket_srna, socket->name, "");
+    PropertyRNA *prop = RNA_def_pointer_runtime(
+        srna, identifier.c_str(), socket_srna, socket->name, "");
+    RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   }
 
   return srna;
@@ -153,15 +155,16 @@ static StructRNA *create_outputs_srna(const bNodeTree &tree, GeneratedTreeSrnaDa
 
     StructRNA *output_srna = RNA_def_struct_ptr(
         r_generated.generated_rna, identifier.c_str(), RNA_PropertyGroup);
+    RNA_def_struct_path_func_runtime(output_srna, rna_NodesModifierPropertyOutput_path);
     PropertyRNA *prop = RNA_def_string(output_srna,
                                        "attribute_name",
                                        default_value.is_empty() ? nullptr : default_value.c_str(),
                                        0,
                                        name.c_str(),
                                        description.c_str());
-    RNA_def_struct_path_func_runtime(output_srna, rna_NodesModifierPropertyOutput_path);
-    RNA_def_pointer_runtime(srna, identifier.c_str(), output_srna, name.c_str(), "");
     RNA_def_property_flag(prop, PROP_FORCE_GEOMETRY_EVAL);
+    RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+    prop = RNA_def_pointer_runtime(srna, identifier.c_str(), output_srna, name.c_str(), "");
     RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   }
 
@@ -216,9 +219,15 @@ std::shared_ptr<GeneratedTreeSrnaData> create_geometry_nodes_rna_for_modifier(
   StructRNA *outputs_srna = create_outputs_srna(tree, *generated);
   StructRNA *panels_srna = create_panels_srna(tree, *generated);
 
-  RNA_def_pointer_runtime(srna, "inputs", inputs_srna, "Inputs", "Settings for input sockets");
-  RNA_def_pointer_runtime(srna, "outputs", outputs_srna, "Outputs", "Settings for output sockets");
-  RNA_def_pointer_runtime(srna, "panels", panels_srna, "Panels", "Settings for panels");
+  PropertyRNA *prop;
+  prop = RNA_def_pointer_runtime(
+      srna, "inputs", inputs_srna, "Inputs", "Settings for input sockets");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  prop = RNA_def_pointer_runtime(
+      srna, "outputs", outputs_srna, "Outputs", "Settings for output sockets");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  prop = RNA_def_pointer_runtime(srna, "panels", panels_srna, "Panels", "Settings for panels");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
 
   return generated;
 }

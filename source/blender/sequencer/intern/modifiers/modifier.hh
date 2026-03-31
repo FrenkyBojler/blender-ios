@@ -70,7 +70,11 @@ struct ModifierApplyContext {
   float2 result_translation = float2(0, 0);
 };
 
-void modifier_apply_stack(ModifierApplyContext &context);
+void modifier_apply_stack(ModifierApplyContext &context, int timeline_frame);
+
+ImBuf *modifier_render_mask_input(const ModifierApplyContext &context,
+                                  const StripModifierData &smd,
+                                  int timeline_frame);
 
 bool modifier_persistent_uids_are_valid(const Strip &strip);
 

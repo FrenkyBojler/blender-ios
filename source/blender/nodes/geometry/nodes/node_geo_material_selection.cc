@@ -15,8 +15,8 @@ namespace blender::nodes::node_geo_material_selection_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Material>("Material").optional_label(true);
-  b.add_output<decl::Bool>("Selection").field_source();
+  b.add_input<decl::Material>("Material"_ustr).optional_label(true);
+  b.add_output<decl::Bool>("Selection"_ustr).field_source();
 }
 
 static VArray<bool> select_by_material(const Span<Material *> materials,
@@ -61,7 +61,6 @@ class MaterialSelectionFieldInput final : public bke::GeometryFieldInput {
       : bke::GeometryFieldInput(CPPType::get<bool>(), "Material Selection node"),
         material_(material)
   {
-    category_ = Category::Generated;
   }
 
   GVArray get_varray_for_context(const bke::GeometryFieldContext &context,
@@ -154,9 +153,9 @@ class MaterialSelectionFieldInput final : public bke::GeometryFieldInput {
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  Material *material = params.extract_input<Material *>("Material");
+  Material *material = params.extract_input<Material *>("Material"_ustr);
   Field<bool> material_field{std::make_shared<MaterialSelectionFieldInput>(material)};
-  params.set_output("Selection", std::move(material_field));
+  params.set_output("Selection"_ustr, std::move(material_field));
 }
 
 static void node_register()

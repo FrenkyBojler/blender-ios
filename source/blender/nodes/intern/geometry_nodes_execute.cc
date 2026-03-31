@@ -188,8 +188,8 @@ static bke::SocketValueVariant init_socket_cpp_value(PointerRNA *input_props_ptr
         return bke::SocketValueVariant(value_rotation);
       }
       if (type == GeometryNodesInputType::Attribute) {
-        if (std::optional<bke::SocketValueVariant> value = load_attribute_field_input<int>(
-                *input_props_ptr))
+        if (std::optional<bke::SocketValueVariant> value =
+                load_attribute_field_input<math::Quaternion>(*input_props_ptr))
         {
           return std::move(*value);
         }
@@ -288,6 +288,7 @@ static bke::SocketValueVariant init_socket_cpp_value(PointerRNA *input_props_ptr
     case SOCK_CLOSURE:
     case SOCK_SHADER:
     case SOCK_CUSTOM:
+    case SOCK_INT_VECTOR:
       break;
   }
 
@@ -505,6 +506,8 @@ bke::GeometrySet execute_geometry_nodes_on_geometry(const bNodeTree &btree,
   param_output_usages.as_mutable_span()
       .slice(function.outputs.input_usages)
       .fill(lf::ValueUsage::Unused);
+
+  call_data.call_depth_limit = U.geometry_nodes_stack_limit;
 
   GeoNodesUserData user_data;
   user_data.call_data = &call_data;
