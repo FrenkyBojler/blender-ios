@@ -45,6 +45,7 @@ class CustomPropertiesTest(unittest.TestCase):
 
         Types = api_models.CustomPropertyTypeV1
         Prop = api_models.CustomPropertyV1
+        # autopep8: off
         expected_props = [
             Prop(name='dimensions', type=Types.IDP_ARRAY, value=[2.0, 2.0, 2.0], itemtype=Types.IDP_FLOAT),
             Prop(name='barcode', type=Types.IDP_STRING, value='155366'),
@@ -53,6 +54,7 @@ class CustomPropertiesTest(unittest.TestCase):
             Prop(name='count', type=Types.IDP_INT, value=47),
             Prop(name='amazing', type=Types.IDP_BOOLEAN, value=True),
         ]
+        # autopep8: on
 
         assert meta is not None
         self.assertEqual(expected_props, meta.properties)
@@ -68,12 +70,14 @@ class CustomPropertiesTest(unittest.TestCase):
 
         Types = api_models.CustomPropertyTypeV1
         Prop = api_models.CustomPropertyV1
+        # autopep8: off
         expected_prop = [
             Prop(name='dimensions', type=Types.IDP_ARRAY, value=[2.0, 2.0, 2.0], itemtype=Types.IDP_FLOAT),
             Prop(name='agents', type=Types.IDP_ARRAY, value=["007", "47", "327"], itemtype=Types.IDP_STRING),
             Prop(name='locations', type=Types.IDP_ARRAY, value=["Hokkaido", "Santa Fortuna", "Sapienza"], itemtype=Types.IDP_STRING),
             Prop(name='boundingbox', type=Types.IDP_ARRAY, value=[-3.0, -4.0, -0.1, 1.0, 2.0, 3.0], itemtype=Types.IDP_FLOAT),
         ]
+        # autopep8: on
 
         assert meta is not None
         self.assertEqual(expected_prop, meta.properties)
