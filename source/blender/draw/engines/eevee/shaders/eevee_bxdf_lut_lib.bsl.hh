@@ -32,10 +32,10 @@ struct BrdfGGX {
     return float2(roughness, sqrt(saturate(1.0f - cos_theta)));
   }
 
-  static BrdfGGX from_utility_tx(const sampler2DArray &util_tx, float cos_theta, float roughness)
+  static BrdfGGX sample_utility_tx(const sampler2DArray &util_tx, float cos_theta, float roughness)
   {
     const float2 coords = coords_from_params(cos_theta, roughness);
-    const float4 data = utility_tx_sample_lut(util_tx, coords, UTIL_BSDF_LAYER);
+    const float4 data = utility_tx_sample_lut(util_tx, coords, UTIL_BRDF_LAYER);
     return unpack(data);
   }
 };
@@ -71,10 +71,10 @@ struct BsdfGGX {
     return saturate(coords);
   }
 
-  static BsdfGGX from_utility_tx(const sampler2DArray &util_tx,
-                                 float cos_theta,
-                                 float roughness,
-                                 float ior)
+  static BsdfGGX sample_utility_tx(const sampler2DArray &util_tx,
+                                   float cos_theta,
+                                   float roughness,
+                                   float ior)
   {
     const float3 coords = coords_from_params(cos_theta, roughness, ior);
     const float4 data = utility_tx_sample_bsdf_lut(util_tx, coords.xy, coords.z);
@@ -100,10 +100,10 @@ struct BtdfGGXGt1 {
     return float3(sqrt(f0), sqrt(1.0f - cos_theta), roughness);
   }
 
-  static BtdfGGXGt1 from_utility_tx(const sampler2DArray &util_tx,
-                                    float cos_theta,
-                                    float roughness,
-                                    float f0)
+  static BtdfGGXGt1 sample_utility_tx(const sampler2DArray &util_tx,
+                                      float cos_theta,
+                                      float roughness,
+                                      float f0)
   {
     const float3 coords = coords_from_params(cos_theta, roughness, f0);
     const float4 data = utility_tx_sample_bsdf_lut(util_tx, coords.xy, coords.z);
