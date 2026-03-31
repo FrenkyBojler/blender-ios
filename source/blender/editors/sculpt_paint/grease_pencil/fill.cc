@@ -1351,6 +1351,10 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
 
   Bounds<double2> bound = bounds::merge(drawing_bound, screen_bound);
 
+  /* Pad by enough that all edges connected to the boundary are longer than any edge inside the
+   * shape. */
+  bound.pad(math::max(bound.size().x, bound.size().y) * 1.1f);
+
   const std::array<double2, 4> corners = bounds::corners(bound);
   input.vert.as_mutable_span().take_back(4).copy_from(corners);
 
@@ -1630,7 +1634,7 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
     Array<float> tri_weight(result.face.size(), 0.0f);
 
     Array<float2> pos_hint(2);
-    pos_hint[0] = float2(1.0f, 1.0f);
+    pos_hint[0] = float2(corners[0]) + float2(1.0f, 1.0f);
     pos_hint[1] = fill_point;
 
     for (const int hint_index : pos_hint.index_range()) {
