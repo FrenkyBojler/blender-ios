@@ -2,3 +2,4 @@ Referenced by issue #154128, Cycles normal map rendering is wrong on some object
 Referenced by pull request #155223, Fix #155171: Cycles renders flat faces with custom normals wrong
 Referenced by commit 2dc2e0b0625458919a98fd9b46f64f59a545f78d, Fix #155171: Cycles renders flat faces with custom normals wrong
 Referenced by issue #155951, Cycles smooth shading with sharp edges doesn't work properly with materials that use displacement
+Referenced by issue #156603, Sharp Edges No Longer Work Properly
