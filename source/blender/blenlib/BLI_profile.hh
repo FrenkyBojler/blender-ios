@@ -14,11 +14,20 @@
 
 #ifdef WITH_TRACY_CLIENT
 #  include <tracy/tracy/Tracy.hpp>
-#endif
 
 /* TODO: WIP incomplete API. See Tracy.hpp header for a complete list of implementable macros. */
 
-#ifdef WITH_TRACY_CLIENT
+#if 0 /* Optionally, use full signature for function names. */
+// TODO: See if it would be possible to trim the blender:: namespace and arguments
+#    if defined(__clang__) || defined(__GNUC__)
+#      undef TracyFunction
+#      define TracyFunction __PRETTY_FUNCTION__
+#    elif defined(_MSC_VER)
+#      undef TracyFunction
+#      define TracyFunction __FUNCSIG__
+#    endif
+#endif
+
 /* Frame markers. */
 #  define BLI_profile_frame_mark FrameMark
 #  define BLI_profile_frame_mark_start(name) FrameMarkStart(name)
