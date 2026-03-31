@@ -82,7 +82,8 @@ class GLTexture : public Texture {
   void clear(const double4 data) override;
   void swizzle_set(const char swizzle_mask[4]) override;
   void mip_range_set(int min, int max) override;
-  void *read(int mip, eGPUDataFormat type) override;
+  size_t read_size(int mip, eGPUDataFormat type) const override;
+  void read(int mip, eGPUDataFormat type, void *data) override;
 
   void check_feedback_loop();
 
@@ -116,6 +117,7 @@ class GLTexture : public Texture {
                      bool use_stencil) override;
 
  private:
+  size_t calc_read_texture_size(int mip, eGPUDataFormat type) const;
   bool proxy_check(int mip);
   void stencil_texture_mode_set(bool use_stencil);
   void update_sub_direct_state_access(
