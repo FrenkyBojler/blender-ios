@@ -1937,8 +1937,9 @@ class VIEW3D_PT_tools_grease_pencil_v3_brush_fill_advanced(View3DPanel, Panel):
         row = col.row(align=True)
         row.prop(gp_settings, "fill_layer_mode", text="Layers")
 
-        col.separator()
-        col.prop(gp_settings, "fill_simplify_level", text="Simplify")
+        if gp_settings.fill_method == "FLOOD":
+            col.separator()
+            col.prop(gp_settings, "fill_simplify_level", text="Simplify")
         if gp_settings.fill_draw_mode != 'STROKE':
             col = layout.column(align=False, heading="Ignore Transparent")
             col.use_property_decorate = False
@@ -1950,8 +1951,9 @@ class VIEW3D_PT_tools_grease_pencil_v3_brush_fill_advanced(View3DPanel, Panel):
             sub.prop(gp_settings, "fill_threshold", text="")
 
         col.separator()
-        row = col.row(align=True)
-        row.prop(gp_settings, "use_fill_limit")
+        if gp_settings.fill_method == "FLOOD":
+            row = col.row(align=True)
+            row.prop(gp_settings, "use_fill_limit")
         row = col.row(align=True)
         row.prop(gp_settings, "use_auto_remove_fill_guides")
 
@@ -2289,7 +2291,11 @@ class VIEW3D_PT_tools_grease_pencil_v3_brush_gap_closure(View3DPanel, Panel):
     @classmethod
     def poll(cls, context):
         brush = context.tool_settings.gpencil_paint.brush
-        return brush is not None and brush.gpencil_brush_type == 'FILL'
+        if brush is None:
+            return False
+        if brush.gpencil_brush_type != 'FILL':
+            return False
+        return brush.gpencil_settings.fill_method == "FLOOD"
 
     def draw(self, context):
         layout = self.layout
