@@ -87,7 +87,7 @@ static bConstraint *add_temporary_ik_constraint(bPoseChannel *pchan,
     *temp_con_data = *targetless_con;
   }
   else {
-    temp_con_data->flag = CONSTRAINT_IK_TIP | CONSTRAINT_IK_STRETCH;
+    temp_con_data->flag = CONSTRAINT_IK_TIP;
   }
 
   temp_con_data->flag |= CONSTRAINT_IK_TEMP | CONSTRAINT_IK_AUTO | CONSTRAINT_IK_POS;
