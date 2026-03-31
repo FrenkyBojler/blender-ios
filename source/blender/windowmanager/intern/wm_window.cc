@@ -3527,12 +3527,24 @@ static bool &is_checking_for_updates_operator()
   return is_checking_for_updates;
 }
 
-static bool check_for_updates_poll(blender::bContext * /*C*/)
+static bool check_for_updates_poll(blender::bContext *C)
 {
-  return G.f & G_FLAG_INTERNET_ALLOW &&
-         (U.flag & (USER_BLENDER_UPDATE_LATEST_RELEASE | USER_BLENDER_UPDATE_LATEST_LTS_RELEASE |
-                    USER_BLENDER_UPDATE_CURRENT_RELEASE)) &&
-         !is_checking_for_updates_operator();
+  if (!(G.f & G_FLAG_INTERNET_ALLOW)) {
+    CTX_wm_operator_poll_msg_set(C, "Online Access is required");
+    return false;
+  }
+
+  if (!(U.flag & (USER_BLENDER_UPDATE_LATEST_RELEASE | USER_BLENDER_UPDATE_LATEST_LTS_RELEASE |
+                  USER_BLENDER_UPDATE_CURRENT_RELEASE)))
+  {
+    CTX_wm_operator_poll_msg_set(C, "Update Notifications for release updates has to be enabled");
+    return false;
+  }
+  if (is_checking_for_updates_operator()) {
+    CTX_wm_operator_poll_msg_set(C, "There is already an ongoing process checking for updates.");
+    return false;
+  }
+  return true;
 }
 
 static wmOperatorStatus check_for_updates_exec(bContext * /*C*/, wmOperator * /*op*/)
