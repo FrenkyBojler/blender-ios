@@ -12,17 +12,17 @@ namespace blender::nodes::node_geo_curve_endpoint_selection_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Int>("Start Size")
+  b.add_input<decl::Int>("Start Size"_ustr)
       .min(0)
       .default_value(1)
       .supports_field()
       .description("The amount of points to select from the start of each spline");
-  b.add_input<decl::Int>("End Size")
+  b.add_input<decl::Int>("End Size"_ustr)
       .min(0)
       .default_value(1)
       .supports_field()
       .description("The amount of points to select from the end of each spline");
-  b.add_output<decl::Bool>("Selection")
+  b.add_output<decl::Bool>("Selection"_ustr)
       .field_source_reference_all()
       .description("The selection from the start and end of the splines based on the input sizes");
 }
@@ -111,10 +111,10 @@ class EndpointFieldInput final : public bke::GeometryFieldInput {
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  Field<int> start_size = params.extract_input<Field<int>>("Start Size");
-  Field<int> end_size = params.extract_input<Field<int>>("End Size");
+  Field<int> start_size = params.extract_input<Field<int>>("Start Size"_ustr);
+  Field<int> end_size = params.extract_input<Field<int>>("End Size"_ustr);
   Field<bool> selection_field{std::make_shared<EndpointFieldInput>(start_size, end_size)};
-  params.set_output("Selection", std::move(selection_field));
+  params.set_output("Selection"_ustr, std::move(selection_field));
 }
 
 static void node_register()

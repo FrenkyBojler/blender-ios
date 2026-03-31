@@ -903,12 +903,19 @@ function(add_check_c_compiler_flag_impl
 
   include(CheckCCompilerFlag)
 
+  set(_is_new TRUE)
+  if (DEFINED CACHE{${_CACHE_VAR}})
+    set(_is_new FALSE)
+  endif()
+
   check_c_compiler_flag("${_FLAG}" "${_CACHE_VAR}")
   if(${_CACHE_VAR})
     # message(STATUS "Using CFLAG: ${_FLAG}")
     set(${_CFLAGS} "${${_CFLAGS}} ${_FLAG}" PARENT_SCOPE)
   else()
-    message(STATUS "Unsupported CFLAG: ${_FLAG}")
+    if(_is_new)
+      message(STATUS "Unsupported CFLAG: ${_FLAG}")
+    endif()
   endif()
 endfunction()
 
@@ -920,12 +927,19 @@ function(add_check_cxx_compiler_flag_impl
 
   include(CheckCXXCompilerFlag)
 
+  set(_is_new TRUE)
+  if (DEFINED CACHE{${_CACHE_VAR}})
+    set(_is_new FALSE)
+  endif()
+
   check_cxx_compiler_flag("${_FLAG}" "${_CACHE_VAR}")
   if(${_CACHE_VAR})
     # message(STATUS "Using CXXFLAG: ${_FLAG}")
     set(${_CXXFLAGS} "${${_CXXFLAGS}} ${_FLAG}" PARENT_SCOPE)
   else()
-    message(STATUS "Unsupported CXXFLAG: ${_FLAG}")
+    if(_is_new)
+      message(STATUS "Unsupported CXXFLAG: ${_FLAG}")
+    endif()
   endif()
 endfunction()
 
@@ -1645,16 +1659,12 @@ function(compile_sources_as_cpp
     target_compile_options(${library} PRIVATE "-Wno-missing-declarations")
     # Would be nice to enable the warning once we support references.
     target_compile_options(${library} PRIVATE "-Wno-uninitialized")
-    # Would be nice to enable the warning once we support nameless parameters.
-    target_compile_options(${library} PRIVATE "-Wno-unused-parameter")
     # To compile libraries.
     target_compile_options(${library} PRIVATE "-Wno-pragma-once-outside-header")
     target_compile_options(${library} PRIVATE "-Wno-unknown-pragmas")
   elseif(MSVC)
     # Equivalent to "-Wno-uninitialized"
     target_compile_options(${library} PRIVATE "/wd4700")
-    # Equivalent to "-Wno-unused-parameter"
-    target_compile_options(${library} PRIVATE "/wd4100")
     # Disable "potential divide by 0" warning
     target_compile_options(${library} PRIVATE "/wd4723")
     # Disable unkown pragma warning

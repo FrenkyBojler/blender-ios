@@ -10,11 +10,12 @@ namespace blender::nodes::node_geo_tool_selection_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Bool>("Boolean", "Selection")
+  b.add_output<decl::Bool>("Boolean"_ustr, "Selection"_ustr)
       .field_source()
       .description("The selection of each element as a true or false value");
-  b.add_output<decl::Float>("Float").field_source().description(
-      "The selection of each element as a floating point value");
+  b.add_output<decl::Float>("Float"_ustr)
+      .field_source()
+      .description("The selection of each element as a floating point value");
 }
 
 static const void *true_value(const bke::AttrType data_type)
@@ -177,8 +178,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
   const eObjectMode mode = params.user_data()->call_data->operator_data->mode;
-  params.set_output("Selection", get_selection_field(mode, bke::AttrType::Bool));
-  params.set_output("Float", get_selection_field(mode, bke::AttrType::Float));
+  params.set_output("Selection"_ustr, get_selection_field(mode, bke::AttrType::Bool));
+  params.set_output("Float"_ustr, get_selection_field(mode, bke::AttrType::Float));
 }
 
 static void node_register()

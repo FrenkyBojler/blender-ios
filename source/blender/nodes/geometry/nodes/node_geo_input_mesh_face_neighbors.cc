@@ -14,10 +14,10 @@ namespace blender::nodes::node_geo_input_mesh_face_neighbors_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Int>("Vertex Count")
+  b.add_output<decl::Int>("Vertex Count"_ustr)
       .field_source()
       .description("Number of edges or points in the face");
-  b.add_output<decl::Int>("Face Count")
+  b.add_output<decl::Int>("Face Count"_ustr)
       .field_source()
       .description("Number of faces which share an edge with the face");
 }
@@ -148,8 +148,8 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
   Field<int> vertex_count_field{std::make_shared<FaceVertexCountFieldInput>()};
   Field<int> neighbor_count_field{std::make_shared<FaceNeighborCountFieldInput>()};
-  params.set_output("Vertex Count", std::move(vertex_count_field));
-  params.set_output("Face Count", std::move(neighbor_count_field));
+  params.set_output("Vertex Count"_ustr, std::move(vertex_count_field));
+  params.set_output("Face Count"_ustr, std::move(neighbor_count_field));
 }
 
 static void node_register()
