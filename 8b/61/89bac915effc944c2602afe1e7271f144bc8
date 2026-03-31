@@ -2,3 +2,4 @@ Referenced by issue #154036, Crash Toggling Boolean Attribute on mesh created by
 Referenced by issue #154046, Select linked all in edit mode crash.
 Referenced by issue #154049, Blender Crashes When Adjusting “Triangles to Quads” Redo Panel Settings with All Faces Selected on a Specific Mesh
 Referenced by issue #155940, Memory leak when toggling edit mode on a mesh with multiresolution modifier
+Referenced by issue #156634, Texture Paint Normal Falloff is wrong
