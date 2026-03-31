@@ -447,6 +447,10 @@ void VKBackend::detect_workarounds(VKDevice &device)
     return;
   }
 
+  if (G.debug & G_DEBUG_GPU_NO_TEXTURE_POOL) {
+    workarounds.no_texture_pool = true;
+  }
+
   extensions.shader_output_layer =
       device.physical_device_vulkan_12_features_get().shaderOutputLayer;
   extensions.shader_output_viewport_index =
@@ -677,8 +681,7 @@ Texture *VKBackend::texture_alloc(const char *name)
 
 TexturePool *VKBackend::texturepool_alloc()
 {
-  VKDevice &device = VKBackend::get().device;
-  if ((G.debug & G_DEBUG_GPU_NO_TEXTURE_POOL) != 0 || device.workarounds_get().no_texture_pool) {
+  if (device.workarounds_get().no_texture_pool) {
     CLOG_TRACE(&LOG, "Using texture pool \"TexturePoolImpl\".");
     return new TexturePoolImpl();
   }

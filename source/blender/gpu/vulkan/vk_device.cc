@@ -76,7 +76,9 @@ void VKWorkarounds::log() const
   CLOG_DEBUG(&LOG,
              "Activated workarounds\n"
              " - [%c] Not 16/32 bit aligned image formats",
-             not_aligned_pixel_formats ? 'X' : ' ');
+             not_aligned_pixel_formats ? 'X' : ' ',
+             " - [%c] No texture pool",
+             no_texture_pool ? 'X' : ' ');
 }
 
 void VKDevice::reinit()
