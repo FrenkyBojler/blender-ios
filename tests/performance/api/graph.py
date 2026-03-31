@@ -107,16 +107,18 @@ class TestGraph:
             for entry in entries:
                 test_index = tests[entry.test]
                 revision_index = revisions[entry.revision]
-                output_value = entry.output[output] if output in entry.output else None
-                output_value_min = entry.output.get(f"_{output}_min")
-                output_value_max = entry.output.get(f"_{output}_max")
-                output_values = {
-                    'y': output_value,
-                    'yMin': output_value_min,
-                    'yMax': output_value_max,
-                }
+                output_values = entry.output.get(f'_{output}_values')
+                if output_values is None:
+                    output_values = []
+                    output_value = entry.output.get(output)
+                    if output_value is not None:
+                        output_values = [output_value]
 
-                datasets[revision_index]['data'][test_index] = output_values
+                datasets[revision_index]['data'][test_index] = {
+                    'y': sum(output_values) / len(output_values),
+                    'yMin': min(output_values),
+                    'yMax': max(output_values),
+                }
 
         else:
             # For time series, dates on the X axis and tests as datasets.
@@ -137,9 +139,18 @@ class TestGraph:
             for entry in entries:
                 test_index = tests[entry.test]
                 revision_index = revisions[entry.revision]
-                output_value = entry.output[output] if output in entry.output else None
+                output_values = entry.output.get(f'_{output}_values')
+                if output_values is None:
+                    output_values = []
+                    output_value = entry.output.get(output)
+                    if output_value is not None:
+                        output_values = [output_value]
 
-                datasets[test_index]['data'][revision_index] = output_value
+                datasets[test_index]['data'][revision_index] = {
+                    'y': sum(output_values) / len(output_values),
+                    'yMin': min(output_values),
+                    'yMax': max(output_values),
+                }
 
         data = {'labels': labels, 'datasets': datasets}
         return {

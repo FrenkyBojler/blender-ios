@@ -220,8 +220,7 @@ def run_entry(env: api.TestEnvironment,
                         continue
                     values.append(run_output[key])
                 output[key] = sum(values) / len(values)
-                output[f"_{key}_min"] = min(values)
-                output[f"_{key}_max"] = max(values)
+                output[f"_{key}_values"] = values
             entry.output = output
 
     print_row(config, row, end='\r')

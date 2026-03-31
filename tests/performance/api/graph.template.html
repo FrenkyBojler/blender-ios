@@ -462,7 +462,7 @@
 
         /* Draw Chart. */
         const chart = new Chart(canvas, {
-          type: benchmark['chart_type'] === 'line' ? 'line' : 'barWithErrorBars',
+          type: benchmark['chart_type'] === 'line' ? 'lineWithErrorBars' : 'barWithErrorBars',
           data: chart_data,
           options: {
             responsive: true,
