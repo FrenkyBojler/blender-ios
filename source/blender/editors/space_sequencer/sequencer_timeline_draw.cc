@@ -1871,8 +1871,7 @@ void seq_scrubbing_draw(const bContext *C, ARegion *region)
 
   const int fps = round_db_to_int(scene->frames_per_second());
   ED_time_scrub_draw(region, scene, !(sseq->flag & SEQ_DRAWFRAMES), true, fps);
-  ED_time_scrub_draw_current_frame(
-      region, scene, !(sseq->flag & SEQ_DRAWFRAMES), region->winy >= UI_ANIM_MINY);
+  ED_time_scrub_draw_current_frame(region, scene, !(sseq->flag & SEQ_DRAWFRAMES), false, true);
 }
 
 void draw_timeline_seq(const bContext *C, const ARegion *region)
