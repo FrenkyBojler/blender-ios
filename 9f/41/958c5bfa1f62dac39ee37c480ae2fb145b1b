@@ -1,3 +1,4 @@
 Referenced by issue #154356, Issue while creating render region in material preview mode
 Referenced by issue #156352, EEVEE: Broken Render Region in Viewport Image Render
 Referenced by pull request #156366, Fix #156352: EEVEE: Broken Render Region in Viewport Image Render
+Referenced by commit 0765381362f128bed8d6198aa8f1b0e955732500, Fix #156352: EEVEE: Broken Render Region in Viewport Image Render
