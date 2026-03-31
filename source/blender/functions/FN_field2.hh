@@ -21,6 +21,7 @@ class FieldContext;
 using FieldInputNodePtr = ImplicitSharingPtr<FieldInputNode>;
 using FieldMultiFunctionNodePtr = ImplicitSharingPtr<FieldMultiFunctionNode>;
 using FieldInputsPtr = ImplicitSharingPtr<FieldInputs>;
+template<typename T> class Field;
 
 class GField {
  public:
@@ -48,6 +49,7 @@ class GField {
   };
 
   struct GeneralConstant {
+    /* TODO: Ownership handling. */
     const CPPType *type = nullptr;
     const void *value = nullptr;
   };
@@ -83,6 +85,10 @@ class GField {
    */
   friend bool operator==(const GField &a, const GField &b);
   uint64_t hash() const;
+};
+
+template<typename T> class Field {
+  /* TODO */
 };
 
 class FieldContext {
