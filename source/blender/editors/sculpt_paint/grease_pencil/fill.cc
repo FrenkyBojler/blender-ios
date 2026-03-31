@@ -1304,7 +1304,7 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
                                           const bke::greasepencil::Layer &layer,
                                           const VArray<bool> &boundary_layers,
                                           const Span<DrawingInfo> src_drawings,
-                                          const bool /*invert*/,
+                                          const bool invert,
                                           const std::optional<float> alpha_threshold,
                                           const float2 &fill_point,
                                           const int stroke_material_index)
@@ -1551,7 +1551,9 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
   //   }
   // }
 
-  if (false) {
+  Array<bool> tri_to_fill(result.face.size(), false);
+
+  if (invert) {
     // fill_tris = set()
 
     // for j in range(len(pos_hint)):
@@ -1618,18 +1620,13 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
       tris_to_check = new_tris_to_check;
     }
 
+    tri_to_fill.as_mutable_span().fill(true);
     for (const int fill_index : fill_tris.index_range()) {
       const int tri_index = fill_tris[fill_index];
-      const Vector<int> &tri = result.face[tri_index];
-
-      geometry.append(Vector<int>());
-      for (const int i : tri.index_range()) {
-        geometry.last().append(tri[i]);
-      }
+      tri_to_fill[tri_index] = false;
     }
   }
-
-  {
+  else {
     Array<int> tri_hint_index(result.face.size(), NULL_INDEX);
     Array<float> tri_weight(result.face.size(), 0.0f);
 
@@ -1709,146 +1706,135 @@ bke::CurvesGeometry delaunay_fill_strokes(const ViewContext &view_context,
 
     const int fill_hint_index = 1;
 
-    if (false) {
-      for (const int tri_index : result.face.index_range()) {
-        if (tri_hint_index[tri_index] == fill_hint_index) {
-          const Vector<int> &tri = result.face[tri_index];
-
-          geometry.append(Vector<int>());
-          for (const int i : tri.index_range()) {
-            geometry.last().append(tri[i]);
-          }
-        }
+    for (const int tri_index : result.face.index_range()) {
+      if (tri_hint_index[tri_index] == fill_hint_index) {
+        tri_to_fill[tri_index] = true;
       }
     }
+  }
 
-    {
-      VectorSet<int> boundary_edges;
+  VectorSet<int> boundary_edges;
 
-      for (const int tri_index : result.face.index_range()) {
-        if (tri_hint_index[tri_index] != fill_hint_index) {
-          continue;
-        }
+  for (const int tri_index : result.face.index_range()) {
+    if (!tri_to_fill[tri_index]) {
+      continue;
+    }
 
-        for (const int j : IndexRange(3)) {
-          int next_tri = NULL_INDEX;
-          int edge_index = NULL_INDEX;
+    for (const int j : IndexRange(3)) {
+      int next_tri = NULL_INDEX;
+      int edge_index = NULL_INDEX;
 
-          if (j == 0) {
-            next_tri = tri_adjacency_0[tri_index].first;
-            edge_index = tri_adjacency_0[tri_index].second;
-          }
-          if (j == 1) {
-            next_tri = tri_adjacency_1[tri_index].first;
-            edge_index = tri_adjacency_1[tri_index].second;
-          }
-          if (j == 2) {
-            next_tri = tri_adjacency_2[tri_index].first;
-            edge_index = tri_adjacency_2[tri_index].second;
-          }
-
-          if (next_tri == NULL_INDEX) {
-            /* Return no geometry if we try to fill all of space. */
-            return {};
-          }
-
-          if (tri_hint_index[next_tri] == fill_hint_index) {
-            continue;
-          }
-          else {
-            boundary_edges.add(edge_index);
-          }
-        }
+      if (j == 0) {
+        next_tri = tri_adjacency_0[tri_index].first;
+        edge_index = tri_adjacency_0[tri_index].second;
+      }
+      if (j == 1) {
+        next_tri = tri_adjacency_1[tri_index].first;
+        edge_index = tri_adjacency_1[tri_index].second;
+      }
+      if (j == 2) {
+        next_tri = tri_adjacency_2[tri_index].first;
+        edge_index = tri_adjacency_2[tri_index].second;
       }
 
-      Array<EdgeConnections> edge_connections(result.edge.size(),
-                                              EdgeConnections(EDGE_CONNECTION_NULL));
-
-      Array<int> all_edges(result.edge.size());
-      Array<bool> edges_to_keep(result.edge.size(), false);
-      Vector<int> edges;
-      Vector<int> edge_offset_data;
-      Vector<bool> edge_reversed;
-
-      array_utils::fill_index_range<int>(all_edges);
-
-      for (const int boundary_index : boundary_edges.index_range()) {
-        const int edge_index = boundary_edges[boundary_index];
-        edges_to_keep[edge_index] = true;
+      if (next_tri == NULL_INDEX) {
+        /* Return no geometry if we try to fill all of space. */
+        return {};
       }
 
-      // auto connect = [&](const EncodedConnection point_1, const EncodedConnection point_2) {
-      //   segment_connections[decode_index(point_1)][decode_side(point_1)] =
-      //   encode_index_and_side(
-      //       decode_index(point_2), decode_side(point_2));
-      //   segment_connections[decode_index(point_2)][decode_side(point_2)] =
-      //   encode_index_and_side(
-      //       decode_index(point_1), decode_side(point_1));
-      // };
+      if (tri_to_fill[next_tri]) {
+        continue;
+      }
+      else {
+        boundary_edges.add(edge_index);
+      }
+    }
+  }
 
-      /* TODO. Improve from O(n^2) */
-      for (const int boundary_index_1 : boundary_edges.index_range()) {
-        const int edge_index_1 = boundary_edges[boundary_index_1];
-        const std::pair<int, int> edge_1 = result.edge[edge_index_1];
+  Array<EdgeConnections> edge_connections(result.edge.size(),
+                                          EdgeConnections(EDGE_CONNECTION_NULL));
 
-        for (const int boundary_index_2 : boundary_edges.index_range()) {
-          if (boundary_index_1 == boundary_index_2) {
-            continue;
-          }
+  Array<int> all_edges(result.edge.size());
+  Array<bool> edges_to_keep(result.edge.size(), false);
+  Vector<int> edges;
+  Vector<int> edge_offset_data;
+  Vector<bool> edge_reversed;
 
-          const int edge_index_2 = boundary_edges[boundary_index_2];
-          const std::pair<int, int> edge_2 = result.edge[edge_index_2];
+  array_utils::fill_index_range<int>(all_edges);
 
-          if (edge_1.first == edge_2.first) {
-            edge_connections[edge_index_1][Side::Start] = encode_index_and_side(edge_index_2,
-                                                                                Side::Start);
-            edge_connections[edge_index_2][Side::Start] = encode_index_and_side(edge_index_1,
-                                                                                Side::Start);
-          }
-          if (edge_1.second == edge_2.first) {
-            edge_connections[edge_index_1][Side::End] = encode_index_and_side(edge_index_2,
-                                                                              Side::Start);
-            edge_connections[edge_index_2][Side::Start] = encode_index_and_side(edge_index_1,
-                                                                                Side::End);
-          }
-          if (edge_1.first == edge_2.second) {
-            edge_connections[edge_index_1][Side::Start] = encode_index_and_side(edge_index_2,
-                                                                                Side::End);
-            edge_connections[edge_index_2][Side::End] = encode_index_and_side(edge_index_1,
-                                                                              Side::Start);
-          }
-          if (edge_1.second == edge_2.second) {
-            edge_connections[edge_index_1][Side::End] = encode_index_and_side(edge_index_2,
-                                                                              Side::End);
-            edge_connections[edge_index_2][Side::End] = encode_index_and_side(edge_index_1,
-                                                                              Side::End);
-          }
-        }
+  for (const int boundary_index : boundary_edges.index_range()) {
+    const int edge_index = boundary_edges[boundary_index];
+    edges_to_keep[edge_index] = true;
+  }
+
+  // auto connect = [&](const EncodedConnection point_1, const EncodedConnection point_2) {
+  //   segment_connections[decode_index(point_1)][decode_side(point_1)] =
+  //   encode_index_and_side(
+  //       decode_index(point_2), decode_side(point_2));
+  //   segment_connections[decode_index(point_2)][decode_side(point_2)] =
+  //   encode_index_and_side(
+  //       decode_index(point_1), decode_side(point_1));
+  // };
+
+  /* TODO. Improve from O(n^2) */
+  for (const int boundary_index_1 : boundary_edges.index_range()) {
+    const int edge_index_1 = boundary_edges[boundary_index_1];
+    const std::pair<int, int> edge_1 = result.edge[edge_index_1];
+
+    for (const int boundary_index_2 : boundary_edges.index_range()) {
+      if (boundary_index_1 == boundary_index_2) {
+        continue;
       }
 
-      follow_edge_connections(
-          all_edges, edges_to_keep, edge_connections, edges, edge_offset_data, edge_reversed);
+      const int edge_index_2 = boundary_edges[boundary_index_2];
+      const std::pair<int, int> edge_2 = result.edge[edge_index_2];
 
-      int i = 0;
-      for (const int curve_i : edge_offset_data.index_range().drop_back(1)) {
-        const int curve_size = edge_offset_data[curve_i + 1] - edge_offset_data[curve_i];
-
-        geometry.append(Vector<int>());
-        for (const int i_ : IndexRange(curve_size)) {
-          const int edge_index = edges[i];
-          const std::pair<int, int> edge = result.edge[edge_index];
-          const bool reversed = edge_reversed[i];
-
-          if (reversed) {
-            geometry.last().append(edge.second);
-          }
-          else {
-            geometry.last().append(edge.first);
-          }
-
-          i++;
-        }
+      if (edge_1.first == edge_2.first) {
+        edge_connections[edge_index_1][Side::Start] = encode_index_and_side(edge_index_2,
+                                                                            Side::Start);
+        edge_connections[edge_index_2][Side::Start] = encode_index_and_side(edge_index_1,
+                                                                            Side::Start);
       }
+      if (edge_1.second == edge_2.first) {
+        edge_connections[edge_index_1][Side::End] = encode_index_and_side(edge_index_2,
+                                                                          Side::Start);
+        edge_connections[edge_index_2][Side::Start] = encode_index_and_side(edge_index_1,
+                                                                            Side::End);
+      }
+      if (edge_1.first == edge_2.second) {
+        edge_connections[edge_index_1][Side::Start] = encode_index_and_side(edge_index_2,
+                                                                            Side::End);
+        edge_connections[edge_index_2][Side::End] = encode_index_and_side(edge_index_1,
+                                                                          Side::Start);
+      }
+      if (edge_1.second == edge_2.second) {
+        edge_connections[edge_index_1][Side::End] = encode_index_and_side(edge_index_2, Side::End);
+        edge_connections[edge_index_2][Side::End] = encode_index_and_side(edge_index_1, Side::End);
+      }
+    }
+  }
+
+  follow_edge_connections(
+      all_edges, edges_to_keep, edge_connections, edges, edge_offset_data, edge_reversed);
+
+  int total_i = 0;
+  for (const int curve_i : edge_offset_data.index_range().drop_back(1)) {
+    const int curve_size = edge_offset_data[curve_i + 1] - edge_offset_data[curve_i];
+
+    geometry.append(Vector<int>());
+    for (const int i_ : IndexRange(curve_size)) {
+      const int edge_index = edges[total_i];
+      const std::pair<int, int> edge = result.edge[edge_index];
+      const bool reversed = edge_reversed[total_i];
+
+      if (reversed) {
+        geometry.last().append(edge.second);
+      }
+      else {
+        geometry.last().append(edge.first);
+      }
+
+      total_i++;
     }
   }
 
