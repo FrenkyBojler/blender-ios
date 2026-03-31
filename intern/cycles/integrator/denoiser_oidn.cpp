@@ -740,9 +740,4 @@ bool OIDNDenoiser::denoise_buffer(const BufferParams &buffer_params,
   return true;
 }
 
-uint OIDNDenoiser::get_device_type_mask() const
-{
-  return DEVICE_MASK_CPU;
-}
-
 CCL_NAMESPACE_END

@@ -29,11 +29,6 @@ OptiXDenoiser::~OptiXDenoiser()
   }
 }
 
-uint OptiXDenoiser::get_device_type_mask() const
-{
-  return DEVICE_MASK_OPTIX;
-}
-
 bool OptiXDenoiser::is_device_supported(const DeviceInfo &device)
 {
   if (device.type == DEVICE_OPTIX) {

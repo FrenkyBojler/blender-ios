@@ -160,25 +160,6 @@ OIDNDenoiserGPU::OIDNDenoiserGPU(Device *denoiser_device, const DenoiseParams &p
   DCHECK_EQ(params.type, DENOISER_OPENIMAGEDENOISE);
 }
 
-uint OIDNDenoiserGPU::get_device_type_mask() const
-{
-  uint device_mask = 0;
-#  ifdef OIDN_DEVICE_SYCL
-  device_mask |= DEVICE_MASK_ONEAPI;
-#  endif
-#  ifdef OIDN_DEVICE_METAL
-  device_mask |= DEVICE_MASK_METAL;
-#  endif
-#  ifdef OIDN_DEVICE_CUDA
-  device_mask |= DEVICE_MASK_CUDA;
-  device_mask |= DEVICE_MASK_OPTIX;
-#  endif
-#  ifdef OIDN_DEVICE_HIP
-  device_mask |= DEVICE_MASK_HIP;
-#  endif
-  return device_mask;
-}
-
 bool OIDNDenoiserGPU::commit_and_execute_filter(OIDNFilter filter, ExecMode mode)
 {
   const char *error_message = nullptr;
