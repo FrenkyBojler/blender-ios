@@ -13,22 +13,19 @@ namespace blender::nodes::node_geo_input_mesh_island_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Int>("Island Index")
+  b.add_output<decl::Int>("Island Index"_ustr)
       .field_source()
       .description(
           "The index of the each vertex's island. Indices are based on the "
           "lowest vertex index contained in each island");
-  b.add_output<decl::Int>("Island Count")
+  b.add_output<decl::Int>("Island Count"_ustr)
       .field_source()
       .description("The total number of mesh islands");
 }
 
 class IslandFieldInput final : public bke::MeshFieldInput {
  public:
-  IslandFieldInput() : bke::MeshFieldInput(CPPType::get<int>(), "Island Index")
-  {
-    category_ = Category::Generated;
-  }
+  IslandFieldInput() : bke::MeshFieldInput(CPPType::get<int>(), "Island Index") {}
 
   GVArray get_varray_for_context(const Mesh &mesh,
                                  const AttrDomain domain,
@@ -69,10 +66,7 @@ class IslandFieldInput final : public bke::MeshFieldInput {
 
 class IslandCountFieldInput final : public bke::MeshFieldInput {
  public:
-  IslandCountFieldInput() : bke::MeshFieldInput(CPPType::get<int>(), "Island Count")
-  {
-    category_ = Category::Generated;
-  }
+  IslandCountFieldInput() : bke::MeshFieldInput(CPPType::get<int>(), "Island Count") {}
 
   GVArray get_varray_for_context(const Mesh &mesh,
                                  const AttrDomain domain,

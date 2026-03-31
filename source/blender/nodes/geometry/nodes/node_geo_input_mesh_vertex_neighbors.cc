@@ -12,22 +12,19 @@ namespace blender::nodes::node_geo_input_mesh_vertex_neighbors_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Int>("Vertex Count")
+  b.add_output<decl::Int>("Vertex Count"_ustr)
       .field_source()
       .description(
           "The number of vertices connected to this vertex with an edge, "
           "equal to the number of connected edges");
-  b.add_output<decl::Int>("Face Count")
+  b.add_output<decl::Int>("Face Count"_ustr)
       .field_source()
       .description("Number of faces that contain the vertex");
 }
 
 class VertexCountFieldInput final : public bke::MeshFieldInput {
  public:
-  VertexCountFieldInput() : bke::MeshFieldInput(CPPType::get<int>(), "Vertex Count Field")
-  {
-    category_ = Category::Generated;
-  }
+  VertexCountFieldInput() : bke::MeshFieldInput(CPPType::get<int>(), "Vertex Count Field") {}
 
   GVArray get_varray_for_context(const Mesh &mesh,
                                  const AttrDomain domain,
@@ -62,7 +59,6 @@ class VertexFaceCountFieldInput final : public bke::MeshFieldInput {
  public:
   VertexFaceCountFieldInput() : bke::MeshFieldInput(CPPType::get<int>(), "Vertex Face Count Field")
   {
-    category_ = Category::Generated;
   }
 
   GVArray get_varray_for_context(const Mesh &mesh,
