@@ -11,6 +11,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_array.hh"
 #include "BLI_heap.h"
 #include "BLI_listbase.h"
 #include "BLI_math_bits.h"
@@ -1451,64 +1452,80 @@ bool EDBM_unified_findnearest_from_raycast(ViewContext *vc,
 
 static wmOperatorStatus edbm_select_similar_region_exec(bContext *C, wmOperator *op)
 {
-  Object *obedit = CTX_data_edit_object(C);
-  BMEditMesh *em = BKE_editmesh_from_object(obedit);
-  BMesh *bm = em->bm;
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
+      scene, view_layer, CTX_wm_view3d(C));
+
   bool changed = false;
+  Vector<Array<BMFace *>> src_regions;
 
-  /* Group variables. */
-  int (*group_index)[2];
-  int group_tot;
-  int i;
+  for (Object *obedit : objects) {
+    BMEditMesh *em = BKE_editmesh_from_object(obedit);
+    BMesh *bm = em->bm;
 
-  if (bm->totfacesel < 2) {
+    if (bm->totfacesel < 2) {
+      continue;
+    }
+
+    /* Group variables. */
+    int (*group_index)[2];
+    Array<int> groups_array(bm->totfacesel);
+    const int group_tot = BM_mesh_calc_face_groups(
+        bm, groups_array.data(), &group_index, nullptr, nullptr, nullptr, BM_ELEM_SELECT, BM_VERT);
+
+    BM_mesh_elem_table_ensure(bm, BM_FACE);
+
+    for (const int i : IndexRange(group_tot)) {
+      const int fg_sta = group_index[i][0];
+      const int fg_len = group_index[i][1];
+
+      Array<BMFace *> fg(fg_len);
+      for (const int j : IndexRange(fg_len)) {
+        fg[j] = BM_face_at_index(bm, groups_array[fg_sta + j]);
+      }
+      src_regions.append(std::move(fg));
+    }
+
+    MEM_delete(group_index);
+  }
+
+  if (src_regions.is_empty()) {
     BKE_report(op->reports, RPT_ERROR, "No face regions selected");
     return OPERATOR_CANCELLED;
   }
 
-  int *groups_array = MEM_new_array_uninitialized<int>(bm->totfacesel, __func__);
-  group_tot = BM_mesh_calc_face_groups(
-      bm, groups_array, &group_index, nullptr, nullptr, nullptr, BM_ELEM_SELECT, BM_VERT);
+  for (const int i : src_regions.index_range()) {
+    BMFace **fg = src_regions[i].data();
+    const int fg_len = src_regions[i].size();
 
-  BM_mesh_elem_table_ensure(bm, BM_FACE);
+    for (Object *obedit : objects) {
+      BMEditMesh *em = BKE_editmesh_from_object(obedit);
+      BMesh *bm_dst = em->bm;
 
-  for (i = 0; i < group_tot; i++) {
-    ListBaseT<LinkData> faces_regions;
-    int tot;
+      ListBaseT<LinkData> faces_regions;
+      const int tot = BM_mesh_region_match(bm_dst, fg, fg_len, &faces_regions);
 
-    const int fg_sta = group_index[i][0];
-    const int fg_len = group_index[i][1];
-    int j;
-    BMFace **fg = MEM_new_array_uninitialized<BMFace *>(fg_len, __func__);
+      if (tot) {
+        while (LinkData *link = static_cast<LinkData *>(BLI_pophead(&faces_regions))) {
+          BMFace **faces = static_cast<BMFace **>(link->data);
+          while (BMFace *f = *(faces++)) {
+            BM_face_select_set(bm_dst, f, true);
+          }
+          MEM_delete_void(link->data);
+          MEM_delete(link);
 
-    for (j = 0; j < fg_len; j++) {
-      fg[j] = BM_face_at_index(bm, groups_array[fg_sta + j]);
-    }
-
-    tot = BM_mesh_region_match(bm, fg, fg_len, &faces_regions);
-
-    MEM_delete(fg);
-
-    if (tot) {
-      while (LinkData *link = static_cast<LinkData *>(BLI_pophead(&faces_regions))) {
-        BMFace **faces = static_cast<BMFace **>(link->data);
-        while (BMFace *f = *(faces++)) {
-          BM_face_select_set(bm, f, true);
+          changed = true;
         }
-        MEM_delete_void(link->data);
-        MEM_delete(link);
-
-        changed = true;
       }
     }
   }
 
-  MEM_delete(groups_array);
-  MEM_delete(group_index);
-
   if (changed) {
-    DEG_id_tag_update(obedit->data, ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+    for (Object *obedit : objects) {
+      DEG_id_tag_update(obedit->data, ID_RECALC_SELECT);
+      WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+    }
   }
   else {
     BKE_report(op->reports, RPT_WARNING, "No matching face regions found");
