@@ -2404,8 +2404,7 @@ BLI_INLINE bool wm_eventmatch(const wmEvent *winevent, const wmKeyMapItem *kmi)
   /* The matching rules. */
   if (kmitype == KM_TEXTINPUT) {
 #ifdef WITH_INPUT_IME
-    if (ELEM(winevent->type, WM_IME_COMPOSITE_START, WM_IME_COMPOSITE_EVENT, WM_IME_COMPOSITE_END))
-    {
+    if (IS_EVENT_IME_ANY(winevent->type)) {
       return true;
     }
 #endif

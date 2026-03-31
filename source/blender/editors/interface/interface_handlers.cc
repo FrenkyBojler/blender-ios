@@ -3541,6 +3541,7 @@ static void textedit_ime_begin(wmWindow *win, Button *but)
   /* XXX Is this really needed? */
   int x, y;
 
+  /* If we were in an IME elsewhere, end it so we can start fresh. */
   if (win->runtime->ime_data) {
     wm_window_IME_end(win);
   }

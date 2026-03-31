@@ -62,7 +62,7 @@
 #include "WM_toolsystem.hh"
 #include "WM_types.hh"
 
-#if defined(WITH_INPUT_IME)
+#ifdef WITH_INPUT_IME
 #  include "wm_window.hh"
 #endif
 
@@ -558,6 +558,22 @@ static void *view3d_main_region_duplicate(void *poin)
   return nullptr;
 }
 
+#ifdef WITH_INPUT_IME
+static void view3d_main_region_ime_refresh(wmWindow *win, ARegion *region)
+{
+  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+  if (view_layer) {
+    Object *ob = BKE_view_layer_active_object_get(view_layer);
+    if (ob && ob->type == OB_FONT && ob->mode == OB_MODE_EDIT) {
+      wm_window_IME_begin(win, region->winrct.xmin, region->winrct.ymax, 0, 0, true);
+    }
+    else {
+      wm_window_IME_end(win);
+    }
+  }
+}
+#endif
+
 static void view3d_main_region_listener(const wmRegionListenerParams *params)
 {
   wmWindow *window = params->window;
@@ -631,17 +647,8 @@ static void view3d_main_region_listener(const wmRegionListenerParams *params)
           WM_gizmomap_tag_refresh(gzmap);
           break;
         case ND_MODE: {
-#if defined WITH_INPUT_IME
-          ViewLayer *view_layer = WM_window_get_active_view_layer(window);
-          if (view_layer) {
-            Object *ob = BKE_view_layer_active_object_get(view_layer);
-            if (ob && ob->type == OB_FONT && ob->mode == OB_MODE_EDIT) {
-              wm_window_IME_begin(window, region->winrct.xmin, region->winrct.ymax, 0, 0, true);
-            }
-            else {
-              wm_window_IME_end(window);
-            }
-          }
+#ifdef WITH_INPUT_IME
+          view3d_main_region_ime_refresh(window, region);
 #endif
           ED_region_tag_redraw(region);
           WM_gizmomap_tag_refresh(gzmap);
@@ -1621,13 +1628,7 @@ static void view3d_main_region_on_activation_changed(wmWindow *win,
                                                      bool activated)
 {
   if (activated) {
-    ViewLayer *view_layer = WM_window_get_active_view_layer(win);
-    if (view_layer) {
-      Object *ob = BKE_view_layer_active_object_get(view_layer);
-      if (ob && ob->type == OB_FONT && ob->mode == OB_MODE_EDIT) {
-        wm_window_IME_begin(win, region->winrct.xmin, region->winrct.ymax, 0, 0, true);
-      }
-    }
+    view3d_main_region_ime_refresh(win, region);
   }
   else {
     wm_window_IME_end(win);
