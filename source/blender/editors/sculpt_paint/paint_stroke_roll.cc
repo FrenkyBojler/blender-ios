@@ -1071,6 +1071,11 @@ void PaintStroke::compute_roll_center(StrokeCache &cache)
             const int m_lo = std::max(0, i - 2);
             const int m_hi = std::min(count - 2, j + 2);
             const float R_sq = (R * 1.2f) * (R * 1.2f); /* 20% margin for inclined borders */
+            /* Validate all loop vertices are within R of center.
+             * Also find the apex = vertex with sharpest curvature on the
+             * border (largest turning angle between consecutive segments). */
+            int apex_idx = (i + 1 + j) / 2; /* default to midpoint */
+            float max_turn_angle = -1.0f;
             for (int k = i + 1; k <= j; k++) {
               float min_dist_sq = FLT_MAX;
               for (int m = m_lo; m <= m_hi; m++) {
@@ -1089,17 +1094,102 @@ void PaintStroke::compute_roll_center(StrokeCache &cache)
                 all_inside = false;
                 break;
               }
+              /* Curvature: angle between incoming and outgoing border segments
+               * at vertex k (in 2D projection).  Higher = sharper turn. */
+              if (k > i + 1 && k < j) {
+                const float2 seg_prev = b2d[k] - b2d[k - 1];
+                const float2 seg_next = b2d[k + 1] - b2d[k];
+                const float lp = math::length(seg_prev);
+                const float ln = math::length(seg_next);
+                if (lp > 1e-7f && ln > 1e-7f) {
+                  const float cos_a = math::dot(seg_prev, seg_next) / (lp * ln);
+                  const float turn = 1.0f - std::clamp(cos_a, -1.0f, 1.0f);
+                  if (turn > max_turn_angle) {
+                    max_turn_angle = turn;
+                    apex_idx = k;
+                  }
+                }
+              }
             }
             if (!all_inside) {
               continue;
             }
 
+            /* Standard merge point from segment intersection. */
             const float3 pa = orig[i] + (orig[i + 1] - orig[i]) * s;
             const float3 pb = orig[j] + (orig[j + 1] - orig[j]) * t;
             const float3 cross_pt = (pa + pb) * 0.5f;
-            for (int k = i + 1; k <= j; k++) {
-              border[k] = cross_pt;
+
+            /* If the span is too long, only collapse the sharpest portion
+             * (centered on the apex vertex).  This prevents long gentle
+             * turns from collapsing the entire inner border.  The merge
+             * point for partial collapses is the midpoint of the first
+             * and last border vertices in the trimmed range. */
+            int collapse_lo = i + 1;
+            int collapse_hi = j;
+            float3 merge_pt = cross_pt;
+
+            /* If the intersection loop arc length exceeds 3R along the
+             * center polyline, only collapse the sharpest portion centered
+             * on the apex.  Remaining overlap vertices are linearly
+             * interpolated between the intersection endpoints and the
+             * merge point. */
+            const float max_collapse_arc = 3.0f * R;
+            float span_arc = 0.0f;
+            for (int k = i; k < j; k++) {
+              span_arc += math::distance(poly[k], poly[k + 1]);
             }
+            const bool is_partial = span_arc > max_collapse_arc && (j - i) > 3;
+            if (is_partial) {
+              /* Center the window on the apex using arc-length balance:
+               * grow outward from the apex in both directions, spending
+               * half the budget on each side. */
+              const float half_arc = max_collapse_arc * 0.5f;
+              collapse_lo = apex_idx;
+              collapse_hi = apex_idx;
+              float arc_lo = 0.0f, arc_hi = 0.0f;
+              while (collapse_lo > i + 1 || collapse_hi < j) {
+                const bool can_lo = (collapse_lo > i + 1) && (arc_lo <= arc_hi);
+                const bool can_hi = (collapse_hi < j) && (arc_hi <= arc_lo);
+                if (can_lo) {
+                  const float seg = math::distance(poly[collapse_lo - 1], poly[collapse_lo]);
+                  if (arc_lo + seg > half_arc) { break; }
+                  collapse_lo--;
+                  arc_lo += seg;
+                }
+                else if (can_hi) {
+                  const float seg = math::distance(poly[collapse_hi], poly[collapse_hi + 1]);
+                  if (arc_hi + seg > half_arc) { break; }
+                  collapse_hi++;
+                  arc_hi += seg;
+                }
+                else {
+                  break;
+                }
+              }
+              merge_pt = (orig[collapse_lo] + orig[collapse_hi]) * 0.5f;
+            }
+
+            for (int k = collapse_lo; k <= collapse_hi; k++) {
+              border[k] = merge_pt;
+            }
+            if (is_partial) {
+              /* Linearly interpolate border vertices between the real
+               * intersection endpoints and the merge point.  This evenly
+               * spaces the overlap zone instead of leaving it overlapping. */
+              const int n_before = collapse_lo - (i + 1);
+              for (int k = 0; k < n_before; k++) {
+                const float t = float(k + 1) / float(n_before + 1);
+                border[i + 1 + k] = math::interpolate(orig[i + 1], merge_pt, t);
+              }
+              const int n_after = j - collapse_hi;
+              for (int k = 0; k < n_after; k++) {
+                const float t = float(k + 1) / float(n_after + 1);
+                border[collapse_hi + 1 + k] = math::interpolate(merge_pt, orig[j], t);
+              }
+            }
+            /* Skip the entire original intersection span so the uncollapsed
+             * outer portions are not re-tested by later iterations. */
             skip_until = j;
             break;
           }
@@ -1807,18 +1897,16 @@ void PaintStroke::draw_debug_roll(bContext *C) const
       GPU_point_size(8.0f);
       immUniformColor4ub(255, 0, 0, 255);
       for (int side = 0; side < 2; side++) {
-        const int bc = (side == 0) ? 0 : cols - 1;
-        for (int r = 2; r < rows - 1; r++) {
-          const float3 &prev = gpos[(r - 1) * cols + bc];
-          const float3 &cur = gpos[r * cols + bc];
-          const float3 &next = gpos[(r + 1) * cols + bc];
-          if (math::distance_squared(prev, cur) < 1e-10f &&
-              math::distance_squared(cur, next) < 1e-10f)
+        const Vector<float3> &border = (side == 0) ? cache.roll_border_left :
+                                                      cache.roll_border_right;
+        const int bcount = int(border.size());
+        for (int k = 2; k < bcount - 1; k++) {
+          if (math::distance_squared(border[k - 1], border[k]) < 1e-10f &&
+              math::distance_squared(border[k], border[k + 1]) < 1e-10f)
           {
-            const float3 &before = gpos[(r - 2) * cols + bc];
-            if (math::distance_squared(before, prev) > 1e-10f) {
+            if (math::distance_squared(border[k - 2], border[k - 1]) > 1e-10f) {
               immBegin(GPU_PRIM_POINTS, 1);
-              immVertex3fv(pos3d_attr, cur);
+              immVertex3fv(pos3d_attr, border[k]);
               immEnd();
             }
           }
