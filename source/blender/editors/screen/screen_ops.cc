@@ -3281,7 +3281,7 @@ static wmOperatorStatus region_scale_modal(bContext *C, wmOperator *op, const wm
           size_changed = true;
         }
 
-        if (delta > 0) {
+        if (delta > rmd->origval) {
           if ((rmd->region->flag & RGN_FLAG_HIDDEN) == 0) {
             if (ARegion *region_scrubbing = rmd->region->next) {
               if (region_scrubbing->alignment & RGN_CHILD_OF_PREV) {
@@ -3291,10 +3291,13 @@ static wmOperatorStatus region_scale_modal(bContext *C, wmOperator *op, const wm
               }
             }
           }
-        } else if ((rmd->region->flag & RGN_FLAG_HIDDEN) && (rmd->region->alignment & RGN_CHILD_OF_PREV)) {
-            rmd->region = rmd->region->prev;
-            copy_v2_v2_int(rmd->orig_xy, event->xy);
-            rmd->origval = rmd->region->sizey;
+        }
+        else if ((rmd->region->flag & RGN_FLAG_HIDDEN) &&
+                 (rmd->region->alignment & RGN_CHILD_OF_PREV))
+        {
+          rmd->region = rmd->region->prev;
+          copy_v2_v2_int(rmd->orig_xy, event->xy);
+          rmd->origval = rmd->region->sizey;
         }
       }
       if (size_changed && rmd->region->runtime->type->on_user_resize) {

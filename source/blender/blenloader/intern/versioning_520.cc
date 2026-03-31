@@ -208,7 +208,8 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
           ARegion *scrubbing_region = do_versions_add_region_if_not_found(
               regionbase, RGN_TYPE_PREVIEW_SCRUBBING, "Scrubbing Region", RGN_TYPE_FOOTER);
           if (scrubbing_region) {
-            scrubbing_region->alignment = RGN_ALIGN_BOTTOM | RGN_CHILD_OF_PREV | RGN_ALIGN_HIDE_WITH_PREV;
+            scrubbing_region->alignment = RGN_ALIGN_BOTTOM | RGN_CHILD_OF_PREV |
+                                          RGN_ALIGN_HIDE_WITH_PREV;
           }
         }
       }
