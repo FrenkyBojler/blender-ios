@@ -159,7 +159,7 @@ class UpdatesDownloader:
 
         # Work around a limitation of Blender, see bug report #139720 for details.
         self.on_timer_event = self.on_timer_event  # type: ignore[method-assign]
-        
+
         import tempfile
         self._temp_dir = tempfile.TemporaryDirectory()
 
@@ -210,7 +210,7 @@ class UpdatesDownloader:
         if not self._bg_downloader:
             self.start()
 
-        url:str = "http://localhost:8000/updates.json"
+        url: str = "http://localhost:8000/updates.json"
         save_to: Path = Path(self._temp_dir.name) / "updates.json"
         self._status = DownloadStatus.DOWNLOADING
         self._queue_download(url, save_to)
@@ -239,7 +239,7 @@ class UpdatesDownloader:
 
         assert self._bg_downloader, "downloads can only be queued when the bgdownloader is available"
 
-        #assert self._bg_downloader.num_pending_downloads == 0, "there is need to download more than once the available updates list file"
+        # assert self._bg_downloader.num_pending_downloads == 0, "there is need to download more than once the available updates list file"
 
         self._bg_downloader.queue_download(
             remote_url,
@@ -269,7 +269,6 @@ class UpdatesDownloader:
         # takes care of the last queued messages.
         if bpy.app.timers.is_registered(self.on_timer_event):
             bpy.app.timers.unregister(self.on_timer_event)
-
 
         try:
             if self._bg_downloader:
@@ -322,7 +321,7 @@ class UpdatesDownloader:
     @property
     def status(self) -> DownloadStatus:
         return self._status
-    
+
     @property
     def download_directory(self) -> str:
         return self._temp_dir.name

@@ -46,13 +46,16 @@ struct VersionUpdate {
 };
 
 /**
- * Check if there is any new available blender update.
- * \param use_cache: When set to false this request new updates from the server.
- * \param ignore_skipped_versions: When set to true this ignores previously ignored versions.
+ * Check if there is any new available blender update in the background, this resets previously
+ * ignored notifications.
  */
-bool check_for_available_updates(bContext &C,
-                                 bool use_cache = true,
-                                 bool ignore_skipped_versions = false);
+void check_for_available_updates(bContext &C);
+
+bool have_available_updates(bContext &C);
+
+/** Loads available updates notifications from the cache file, it may check for updates if the
+ * cache is expired. */
+void load_available_updates_cache_file(bContext &C);
 
 /** Return available blender updates. */
 Vector<const VersionUpdate *> available_updates();
@@ -64,16 +67,20 @@ Vector<const VersionUpdate *> available_updates();
 void ignore_update(const VersionUpdate *update_info);
 
 /**
- * Ignores all available specific updates, see #ignore_update.
+ * Ignores all available updates, see #ignore_update.
  */
 void ignore_all_updates();
 
+/** Sets when the process downloading the file of the latest updates have beed finished successfully. */
 void check_for_updates_set_finished();
 
+/** Sets when the process downloading the file of the latest available updates have encounter any error. */
 void check_for_updates_set_failed();
 
+/** Checks if there is an active process downloading the file of the latest available updates. */
 bool is_looking_for_updates();
 
+/** Checks is there was as issue when downloading the file of the latest available updates. */
 bool is_looking_for_updates_failed();
 
 }  // namespace blender::bke

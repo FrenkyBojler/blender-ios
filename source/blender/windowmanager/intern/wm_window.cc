@@ -3543,7 +3543,7 @@ static wmOperatorStatus check_for_updates_exec(bContext * /*C*/, wmOperator * /*
 wmOperatorStatus check_for_updates_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   is_checking_for_updates_operator() = true;
-  bke::check_for_available_updates(*C, false, true);
+  bke::check_for_available_updates(*C);
   op->customdata = WM_event_timer_add(CTX_wm_manager(C), CTX_wm_window(C), TIMER, 0.2);
   WM_event_add_modal_handler(C, op);
   return OPERATOR_RUNNING_MODAL;
@@ -3562,7 +3562,7 @@ wmOperatorStatus check_for_updates_modal(bContext *C, wmOperator *op, const wmEv
                 RPT_ERROR,
                 "Someting went wrong when looking for new updates, please try again later.");
   }
-  else if (bke::check_for_available_updates(*C)) {
+  else if (bke::have_available_updates(*C)) {
     wmOperatorType *ot = WM_operatortype_find("WM_OT_call_panel", false);
     PointerRNA op_ptr = WM_operator_properties_create_ptr(ot);
     RNA_string_set(&op_ptr, "name", "STATUS_PT_blender_updates");

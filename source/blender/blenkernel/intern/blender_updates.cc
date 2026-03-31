@@ -284,7 +284,9 @@ downloader.download_available_updates_list()
   BPY_run_string_exec_with_locals(&C, expr, *locals);
 }
 
-static void read_new_available_updates_list(bContext &C)
+static void write_blender_updates_cache_file();
+
+static void load_latest_available_updates_file(bContext &C)
 {
   if (check_for_updates_state() != CheckForUpdatesState::Done) {
     return;
@@ -335,13 +337,15 @@ if result:
     register_blender_update(std::move(*update));
   }
 
-  return;
+  last_time_version_update_check() = std::chrono::utc_clock::now();
+
+  write_blender_updates_cache_file();
 }
 #undef TEST_JSON_ENTRY
 
 #define BLENDER_AVAILABLE_UPDATES_FILE "available_updates.json"
 
-static void read_blender_updates_cache_file()
+void load_available_updates_cache_file_impl()
 {
   std::optional<std::string> datafiles_path = BKE_appdir_folder_id(BLENDER_USER_CONFIG, "");
   if (!datafiles_path) {
@@ -351,6 +355,8 @@ static void read_blender_updates_cache_file()
   size_t size;
   std::unique_ptr<char, MEM_smart_ptr_deleter<char>> json_text = nullptr;
   json_text.reset(BLI_file_read_text_as_mem(available_updates_file.c_str(), 0, &size));
+
+  printf("%s\n", available_updates_file.c_str());
 
   if (!json_text || size == 0) {
     return;
@@ -443,10 +449,19 @@ static void read_blender_updates_cache_file()
     CLOG_WARN(&LOG, "corrupt entry :`last_time_check`.");
     return;
   }
+
   last_time_version_update_check() = std::chrono::utc_clock::from_sys(*last_time_check);
 }
 
-static void write_blender_updates_cache_file()
+void check_for_available_updates_if_expired(bContext &C);
+
+void load_available_updates_cache_file(bContext &C)
+{
+  load_available_updates_cache_file_impl();
+  check_for_available_updates_if_expired(C);
+}
+
+void write_blender_updates_cache_file()
 {
   std::optional<std::string> datafiles_path = BKE_appdir_folder_id(BLENDER_USER_CONFIG, "");
   if (!datafiles_path) {
@@ -489,45 +504,50 @@ static void write_blender_updates_cache_file()
   io::serialize::write_json_file(available_updates_file, *dict);
 }
 
-bool check_for_available_updates(bContext &C, bool use_cache, bool ignore_skipped_versions)
+void check_for_available_updates_if_expired(bContext &C)
 {
-  [[maybe_unused]] static int i = []() -> int {
-    read_blender_updates_cache_file();
-    return 0;
-  }();
-
   if (!(G.f & G_FLAG_INTERNET_ALLOW &&
         (U.flag & (USER_BLENDER_UPDATE_LATEST_RELEASE | USER_BLENDER_UPDATE_LATEST_LTS_RELEASE |
                    USER_BLENDER_UPDATE_CURRENT_RELEASE))))
   {
-    return false;
-  }
-  if (ignore_skipped_versions) {
-    ignored_blender_updates() = {
-        {BLENDER_VERSION, BLENDER_VERSION_PATCH},
-        {BLENDER_VERSION, BLENDER_VERSION_PATCH},
-        {BLENDER_VERSION, BLENDER_VERSION_PATCH},
-    };
+    return;
   }
   const int64_t days_since_last_check = std::chrono::duration_cast<std::chrono::days>(
                                             (std::chrono::utc_clock::now() -
                                              last_time_version_update_check()))
                                             .count();
 
-  static std::chrono::utc_clock::time_point last_time_check_quick_test;
-  /* Just for testing. */
-  const int64_t seconds_since_last_check = std::chrono::duration_cast<std::chrono::seconds>(
-                                               (std::chrono::utc_clock::now() -
-                                                last_time_check_quick_test))
-                                               .count();
-  if (!use_cache || days_since_last_check >= 1 || seconds_since_last_check >= 30) {
+  if (days_since_last_check >= 1) {
     download_available_updates_list(C);
-    last_time_version_update_check() = std::chrono::utc_clock::now();
-    write_blender_updates_cache_file();
-    last_time_check_quick_test = std::chrono::utc_clock::now();
+  }
+}
+
+void check_for_available_updates(bContext &C)
+{
+  if (!(G.f & G_FLAG_INTERNET_ALLOW &&
+        (U.flag & (USER_BLENDER_UPDATE_LATEST_RELEASE | USER_BLENDER_UPDATE_LATEST_LTS_RELEASE |
+                   USER_BLENDER_UPDATE_CURRENT_RELEASE))))
+  {
+    return;
+  }
+  ignored_blender_updates() = {
+      {BLENDER_VERSION, BLENDER_VERSION_PATCH},
+      {BLENDER_VERSION, BLENDER_VERSION_PATCH},
+      {BLENDER_VERSION, BLENDER_VERSION_PATCH},
+  };
+  download_available_updates_list(C);
+}
+
+bool have_available_updates(bContext &C)
+{
+  if (!(G.f & G_FLAG_INTERNET_ALLOW &&
+        (U.flag & (USER_BLENDER_UPDATE_LATEST_RELEASE | USER_BLENDER_UPDATE_LATEST_LTS_RELEASE |
+                   USER_BLENDER_UPDATE_CURRENT_RELEASE))))
+  {
+    return false;
   }
   if (check_for_updates_state() == CheckForUpdatesState::Done) {
-    read_new_available_updates_list(C);
+    load_latest_available_updates_file(C);
   }
   return !available_updates().is_empty();
 }

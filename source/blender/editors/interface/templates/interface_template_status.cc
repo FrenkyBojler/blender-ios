@@ -543,7 +543,7 @@ void uiTemplateStatusInfo(Layout *layout, bContext *C)
       else if (U.flag &
                    (USER_BLENDER_UPDATE_LATEST_RELEASE | USER_BLENDER_UPDATE_LATEST_LTS_RELEASE |
                     USER_BLENDER_UPDATE_CURRENT_RELEASE) &&
-               bke::check_for_available_updates(*C))
+               bke::have_available_updates(*C))
       {
         if (has_status_info) {
           row.separator(-0.5f);

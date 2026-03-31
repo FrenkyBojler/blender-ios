@@ -34,6 +34,7 @@
 #include "BLO_writefile.hh"
 
 #include "BKE_blender.hh"
+#include "BKE_blender_updates.hh"
 #include "BKE_blendfile.hh"
 #include "BKE_callbacks.hh"
 #include "BKE_context.hh"
@@ -357,6 +358,8 @@ void WM_init(bContext *C, int argc, const char **argv)
   WM_keyconfig_update_on_startup(static_cast<wmWindowManager *>(G_MAIN->wm.first));
 
   wm_homefile_read_post(C, params_file_read_post);
+
+  bke::load_available_updates_cache_file(*C);
 }
 
 static bool wm_init_splash_show_on_startup_check()
