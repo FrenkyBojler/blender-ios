@@ -1882,10 +1882,12 @@ static void lineart_load_tri_task(void *__restrict userdata,
     tri->flags |= LRT_TRIANGLE_NO_INTERSECTION;
   }
 
-  if(!tri_task_data->face_marks.is_empty()){
-    const bool has_mark= tri_task_data->face_marks[face_i];
-    const bool filtered = tri_task_data->invert_face_marks?has_mark:(!has_mark);
-    if(filtered){ tri->flags|=LRT_TRIANGLE_NO_INTERSECTION; }
+  if (!tri_task_data->face_marks.is_empty()) {
+    const bool has_mark = tri_task_data->face_marks[face_i];
+    const bool filtered = tri_task_data->invert_face_marks ? has_mark : (!has_mark);
+    if (filtered) {
+      tri->flags |= LRT_TRIANGLE_NO_INTERSECTION;
+    }
   }
 
   /* Re-use this field to refer to adjacent info, will be cleared after culling stage. */
@@ -2088,9 +2090,9 @@ static void lineart_geometry_object_load(LineartObjectInfo *ob_info,
   tri_data.tri_arr = la_tri_arr;
   tri_data.lineart_triangle_size = la_data->sizeof_triangle;
   tri_data.tri_adj = tri_adj;
-  if(la_data->conf.filter_face_mark){
+  if (la_data->conf.filter_face_mark) {
     tri_data.face_marks = face_marks;
-    tri_data.invert_face_marks= la_data->conf.filter_face_mark_invert;
+    tri_data.invert_face_marks = la_data->conf.filter_face_mark_invert;
   }
 
   uint32_t total_edges = corner_tris.size() * 3;
