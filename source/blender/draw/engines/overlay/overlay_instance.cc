@@ -720,7 +720,6 @@ void Instance::end_sync()
 
 void Instance::draw(Manager &manager)
 {
-  BLI_profile_zone_scoped;
   /* TODO(fclem): Remove global access. */
   View &view = View::default_get();
 

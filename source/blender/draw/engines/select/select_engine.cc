@@ -395,7 +395,6 @@ struct Instance : public DrawEngine {
 
   void draw(Manager &manager) final
   {
-    BLI_profile_zone_scoped;
     StaticData &e_data = StaticData::get();
 
     DRW_submission_start();

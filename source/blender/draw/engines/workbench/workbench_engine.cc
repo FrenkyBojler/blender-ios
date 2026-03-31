@@ -528,7 +528,6 @@ class Instance : public DrawEngine {
 
   void draw(Manager &manager) final
   {
-    BLI_profile_zone_scoped;
     DefaultTextureList *dtxl = draw_ctx->viewport_texture_list_get();
 
     DRW_submission_start();

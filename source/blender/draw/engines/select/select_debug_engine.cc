@@ -64,7 +64,6 @@ class Instance : public DrawEngine {
 
   void draw(draw::Manager &manager) final
   {
-    BLI_profile_zone_scoped;
     gpu::Texture *texture_u32 = DRW_engine_select_texture_get();
     if (texture_u32 == nullptr) {
       return;

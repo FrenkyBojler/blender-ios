@@ -401,7 +401,6 @@ class Instance : public DrawEngine {
 
   void draw(draw::Manager &manager) final
   {
-    BLI_profile_zone_scoped;
     /* TODO(fclem): Remove global access. */
     View &view = View::default_get();
 

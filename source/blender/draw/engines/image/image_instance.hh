@@ -184,7 +184,6 @@ class Instance : public DrawEngine {
 
   void draw(Manager & /*manager*/) final
   {
-    BLI_profile_zone_scoped;
     DRW_submission_start();
     if (drawing_mode_) {
       drawing_mode_->draw_viewport();
