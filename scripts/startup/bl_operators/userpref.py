@@ -372,9 +372,31 @@ class PREFERENCES_OT_keymap_restore(Operator):
         else:
             km = context.keymap
             km.restore_to_default()
+            self.restore_children(wm, km.name, km.space_type, km.region_type)
 
         context.preferences.is_dirty = True
         return {'FINISHED'}
+
+    def restore_children(wm, parent_name, parent_space_type, parent_region_type):
+        from bl_keymap_utils import keymap_hierarchy
+
+        def _collect_descendants(entries):
+            for name, space_type, region_type, children in entries:
+                yield (name, space_type, region_type)
+                yield from _collect_descendants(children)
+
+        def _find_children(entries):
+            result = set()
+            for name, space_type, region_type, children in entries:
+                if name == parent_name and space_type == parent_space_type and region_type == parent_region_type:
+                    result |= set(_collect_descendants(children))
+                result |= _find_children(children)
+            return result
+
+        child_keys = _find_children(keymap_hierarchy.generate())
+        for km in wm.keyconfigs.user.keymaps:
+            if (km.name, km.space_type, km.region_type) in child_keys:
+                km.restore_to_default()
 
 
 class PREFERENCES_OT_keyitem_restore(Operator):
