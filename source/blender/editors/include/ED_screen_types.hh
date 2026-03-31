@@ -38,7 +38,6 @@ struct ScreenAnimData {
   int sfra;
   /** Next frame to go to (when ANIMPLAY_FLAG_USE_NEXT_FRAME is set) */
   int nextfra;
-  float next_subframe;
   /** Used for frame dropping */
   double lagging_frame_count;
   /** Playback was invoked from animation editor */
