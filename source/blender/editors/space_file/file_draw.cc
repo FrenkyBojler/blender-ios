@@ -25,6 +25,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_date.hh"
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
@@ -43,6 +44,7 @@
 
 #include "BLO_readfile.hh"
 
+#include "BLT_lang.hh"
 #include "BLT_translation.hh"
 
 #include "BLF_api.hh"
@@ -303,19 +305,14 @@ static void file_draw_tooltip_custom_func(bContext & /*C*/,
       free_imbuf = true;
     }
 
-    char date_str[FILELIST_DIRENTRY_DATE_LEN], time_str[FILELIST_DIRENTRY_TIME_LEN];
-    bool is_today, is_yesterday;
-    std::string day_string;
-    BLI_filelist_entry_datetime_to_string(
-        nullptr, file->time, false, time_str, date_str, &is_today, &is_yesterday);
-    if (is_today || is_yesterday) {
-      day_string = (is_today ? TIP_("Today") : TIP_("Yesterday")) + std::string(" ");
-    }
+    const tm mod_time = *localtime(&file->time);
+    const time_t ts_now = time(nullptr);
+    const tm now = *localtime(&ts_now);
+    const char *lang = BLT_lang_get();
+    std::string modified_s = BLI_date_format_datetime(
+        &mod_time, BLI_DateFormatStyle::Medium, lang, &now, TIP_("Today"), TIP_("Yesterday"));
     tooltip_text_field_add(tip,
-                           fmt::format(fmt::runtime(TIP_("Modified: {}{}{}")),
-                                       day_string,
-                                       (is_today || is_yesterday) ? "" : date_str,
-                                       (is_today || is_yesterday) ? time_str : ""),
+                           fmt::format(fmt::runtime(TIP_("Modified: {}")), modified_s),
                            {},
                            ui::TIP_STYLE_NORMAL,
                            ui::TIP_LC_NORMAL);
@@ -1229,6 +1226,7 @@ static const char *filelist_get_details_column_string(
     case COLUMN_DATETIME:
       if (!(file->typeflag & FILE_TYPE_BLENDERLIB) && !FILENAME_IS_CURRPAR(file->relpath)) {
         if (file->draw_data.datetime_str[0] == '\0' || update_stat_strings) {
+
           char date[FILELIST_DIRENTRY_DATE_LEN], time[FILELIST_DIRENTRY_TIME_LEN];
           bool is_today, is_yesterday;
 

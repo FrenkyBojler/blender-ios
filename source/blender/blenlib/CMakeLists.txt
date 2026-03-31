@@ -137,6 +137,7 @@ set(SRC
   intern/storage.cc
   intern/string.cc
   intern/string_cursor_utf8.cc
+  intern/string_date.cc
   intern/string_ref.cc
   intern/string_search.cc
   intern/string_utf8.cc
@@ -374,6 +375,7 @@ set(SRC
   BLI_strict_flags.h
   BLI_string.h
   BLI_string_cursor_utf8.h
+  BLI_string_date.hh
   BLI_string_ref.hh
   BLI_string_search.hh
   BLI_string_utf8.h

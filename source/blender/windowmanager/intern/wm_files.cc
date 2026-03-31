@@ -41,6 +41,7 @@
 #include "BLI_math_time.h"
 #include "BLI_memory_cache.hh"
 #include "BLI_string.h"
+#include "BLI_string_date.hh"
 #include "BLI_string_utf8.h"
 #include "BLI_system.h"
 #include "BLI_threads.h"
@@ -3275,26 +3276,19 @@ static std::string wm_open_mainfile_get_description(bContext * /*C*/,
   }
 
   /* Date. */
-  char date_str[FILELIST_DIRENTRY_DATE_LEN];
-  char time_str[FILELIST_DIRENTRY_TIME_LEN];
-  bool is_today, is_yesterday;
-  BLI_filelist_entry_datetime_to_string(
-      nullptr, int64_t(stats.st_mtime), false, time_str, date_str, &is_today, &is_yesterday);
-  if (is_today || is_yesterday) {
-    STRNCPY(date_str, is_today ? TIP_("Today") : TIP_("Yesterday"));
-  }
+  const tm mod_time = *localtime(&stats.st_mtime);
+  const time_t ts_now = time(nullptr);
+  const tm now = *localtime(&ts_now);
+  const char *lang = BLT_lang_get();
+  std::string modified_s = BLI_date_format_datetime(
+      &mod_time, BLI_DateFormatStyle::Medium, lang, &now, TIP_("Today"), TIP_("Yesterday"));
 
   /* Size. */
   char size_str[FILELIST_DIRENTRY_SIZE_LEN];
   BLI_filelist_entry_size_to_string(nullptr, uint64_t(stats.st_size), false, size_str);
 
-  return fmt::format("{}\n\n{}: {} {}\n{}: {}",
-                     filepath,
-                     TIP_("Modified"),
-                     date_str,
-                     time_str,
-                     TIP_("Size"),
-                     size_str);
+  return fmt::format(
+      "{}\n\n{}: {}\n{}: {}", filepath, TIP_("Modified"), modified_s, TIP_("Size"), size_str);
 }
 
 /* Currently fits in a pointer. */
