@@ -2968,7 +2968,7 @@ static wmOperatorStatus ui_view_item_navigate_invoke(bContext *C,
 
   if (!found_active) {
     view_item_click_select(*C, active_item, tree_view, false, false, false);
-    tree_view.scroll_active_into_view(true);
+    tree_view.scroll_active_into_view();
     ED_region_tag_redraw(&region);
     return OPERATOR_FINISHED;
   }
@@ -3023,7 +3023,7 @@ static wmOperatorStatus ui_view_item_navigate_invoke(bContext *C,
 
   if (next_item) {
     view_item_click_select(*C, next_item, tree_view, false, false, false);
-    tree_view.scroll_active_into_view(true);
+    tree_view.scroll_active_into_view();
   }
   ED_region_tag_redraw(&region);
   return OPERATOR_FINISHED;

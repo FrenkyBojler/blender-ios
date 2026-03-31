@@ -171,7 +171,7 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
   /**
    * Scroll the view so the active item is visible.
    */
-  void scroll_active_into_view(bool scroll_to_active);
+  void scroll_active_into_view();
 
  protected:
   virtual void build_tree() = 0;

@@ -401,7 +401,7 @@ void AbstractTreeView::scroll(ViewScrollDirection direction)
   *scroll_value_ += ((direction == ViewScrollDirection::UP) ? -1 : 1);
 }
 
-void AbstractTreeView::scroll_active_into_view(bool scroll_to_active)
+void AbstractTreeView::scroll_active_into_view()
 {
   int index = 0;
   const std::optional<int> visible_row_count = tot_visible_row_count();
@@ -414,27 +414,24 @@ void AbstractTreeView::scroll_active_into_view(bool scroll_to_active)
     return;
   }
 
-  if (scroll_to_active) {
-    if (!scroll_value_) {
-      scroll_value_ = std::make_unique<int>(0);
-    }
-    foreach_item(
-        [&, this](AbstractTreeViewItem &item) {
-          if (item.is_active_) {
-            if (index < *scroll_value_) {
-              *scroll_value_ = index;
-              return;
-            }
-            if (index > (*scroll_value_ + *visible_row_count - 1)) {
-              *scroll_value_ = std::max(0, index - *visible_row_count + 1);
-              return;
-            }
-          }
-          index++;
-        },
-        AbstractTreeView::IterOptions::SkipCollapsed |
-            AbstractTreeView::IterOptions::SkipFiltered);
+  if (!scroll_value_) {
+    scroll_value_ = std::make_unique<int>(0);
   }
+  foreach_item(
+      [&, this](AbstractTreeViewItem &item) {
+        if (item.is_active_) {
+          if (index < *scroll_value_) {
+            *scroll_value_ = index;
+            return;
+          }
+          if (index > (*scroll_value_ + *visible_row_count - 1)) {
+            *scroll_value_ = std::max(0, index - *visible_row_count + 1);
+            return;
+          }
+        }
+        index++;
+      },
+      AbstractTreeView::IterOptions::SkipCollapsed | AbstractTreeView::IterOptions::SkipFiltered);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -899,7 +896,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
 
   if (tree_view.scroll_active_into_view_on_draw_) {
     /* Don't scroll the list when active item is already in view. */
-    tree_view.scroll_active_into_view(tree_view.scroll_active_into_view_on_draw_);
+    tree_view.scroll_active_into_view();
   }
 
   const int first_visible_index = tree_view.scroll_value_ ? *tree_view.scroll_value_ : 0;
