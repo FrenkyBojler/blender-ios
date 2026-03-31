@@ -596,7 +596,7 @@ static void construct_param_handle_face_add(ParamHandle *handle,
                                             const BMUVOffsets &offsets,
                                             const int cd_weight_offset,
                                             const int cd_weight_index,
-                                            const float scale[3])
+                                            const float3 &scale)
 {
   Array<ParamKey, BM_DEFAULT_NGON_STACK_SIZE> vkeys(efa->len);
   Array<bool, BM_DEFAULT_NGON_STACK_SIZE> pin(efa->len);
@@ -636,10 +636,10 @@ static void construct_param_handle_face_add(ParamHandle *handle,
   }
 
   /* Apply non-uniform scale correction by scaling vertex positions. */
-  const bool needs_scale = (scale[0] != 1.0f || scale[1] != 1.0f || scale[2] != 1.0f);
+  const bool needs_scale = (scale != float3(1.0f));
   if (needs_scale) {
-    for (int j = 0; j < i; j++) {
-      co_scaled[j] = float3(co[j][0] * scale[0], co[j][1] * scale[1], co[j][2] * scale[2]);
+    for (const int j : IndexRange(i)) {
+      co_scaled[j] = float3(co[j]) * scale;
       co[j] = co_scaled[j];
     }
   }
@@ -726,7 +726,7 @@ static ParamHandle *construct_param_handle(const Scene *scene,
     }
   }
 
-  float scale[3] = {1.0f, 1.0f, 1.0f};
+  float3 scale = float3(1.0f);
   if (options->uniform_scale) {
     mat4_to_size(scale, ob->object_to_world().ptr());
   }
@@ -788,7 +788,7 @@ static ParamHandle *construct_param_handle_multi(const Scene *scene,
       }
     }
 
-    float scale[3] = {1.0f, 1.0f, 1.0f};
+    float3 scale = float3(1.0f);
     if (options->uniform_scale) {
       mat4_to_size(scale, obedit->object_to_world().ptr());
     }
