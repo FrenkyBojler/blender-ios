@@ -175,6 +175,8 @@ void DEG_add_object_pointcache_relation(DepsNodeHandle *node_handle,
                                         eDepsObjectComponentType component,
                                         const char *description);
 
+void DEG_add_time_source_relation(DepsNodeHandle *node_handle, const char *description);
+
 void DEG_add_special_eval_flag(DepsNodeHandle *handle, ID *id, uint32_t flag);
 void DEG_add_customdata_mask(DepsNodeHandle *handle,
                              Object *object,

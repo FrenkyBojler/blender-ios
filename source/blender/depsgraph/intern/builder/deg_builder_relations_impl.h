@@ -10,6 +10,7 @@
 
 #include "intern/builder/deg_builder_relations.h"
 #include "intern/node/deg_node_id.hh"
+#include "intern/node/deg_node_time.hh"
 
 #include <iostream>
 

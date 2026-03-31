@@ -220,7 +220,8 @@ static void gather_geometry_nodes_eval_dependencies(
   deps.needs_active_camera |= has_enabled_nodes_of_type(ntree, "GeometryNodeInputActiveCamera");
   deps.needs_scene_render_params |= needs_scene_render_params(ntree);
   deps.time_dependent |= has_enabled_nodes_of_type(ntree, "GeometryNodeSimulationInput") ||
-                         has_enabled_nodes_of_type(ntree, "GeometryNodeInputSceneTime");
+                         has_enabled_nodes_of_type(ntree, "GeometryNodeInputSceneTime") ||
+                         has_enabled_nodes_of_type(ntree, "CompositorNodeSceneTime");
 
   add_eval_dependencies_from_node_data(ntree, deps);
   add_own_transform_dependencies(ntree, deps);

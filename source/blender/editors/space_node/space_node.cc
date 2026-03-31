@@ -676,17 +676,11 @@ static bool any_node_uses_id(const bNodeTree *ntree, const ID *id)
 /**
  * Tag the space to recalculate the current tree.
  *
- * For all node trees this will do `snode_set_context()` which takes care of setting an active
- * tree. This will be done in the area refresh callback.
- *
- * For compositor tree this will additionally start of the compositor job.
+ * This will do `snode_set_context()` which takes care of setting an active tree. This will be done
+ * in the area refresh callback.
  */
-static void node_area_tag_tree_recalc(SpaceNode *snode, ScrArea *area)
+static void node_area_tag_tree_recalc(SpaceNode * /*snode*/, ScrArea *area)
 {
-  if (ED_node_is_compositor(snode)) {
-    snode->runtime->recalc_regular_compositing = true;
-  }
-
   ED_area_tag_refresh(area);
 }
 
@@ -774,6 +768,13 @@ static void node_area_listener(const wmSpaceTypeListenerParams *params)
       }
       break;
     case NC_NODE:
+      if (wmn->data == ND_NODE_OUTPUT_CHANGED && wmn->reference == snode->nodetree &&
+          wmn->reference == params->scene->compositing_node_group)
+      {
+        snode->runtime->recalc_regular_compositing = true;
+        ED_area_tag_refresh(area);
+      }
+
       if (wmn->action == NA_EDITED) {
         if (ELEM(wmn->reference, snode->nodetree, snode->id, nullptr) || snode->id == nullptr) {
           node_area_tag_tree_recalc(snode, area);
