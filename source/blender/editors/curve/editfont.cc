@@ -1742,7 +1742,6 @@ static wmOperatorStatus delete_exec(bContext *C, wmOperator *op)
 
 #ifdef WITH_INPUT_IME
   wmWindow *win = CTX_wm_window(C);
-  const wmIMEData *ime_data = win->runtime->ime_data;
   if (win->runtime->ime_data_is_composing) {
     return OPERATOR_CANCELLED;
   }
@@ -1944,7 +1943,7 @@ static wmOperatorStatus insert_text_invoke(bContext *C, wmOperator *op, const wm
   wmWindow *win = CTX_wm_window(C);
   const wmIMEData *ime_data = win->runtime->ime_data;
   if (event->type == WM_IME_COMPOSITE_EVENT) {
-    if (ime_data && ime_data->result.size()) {
+    if (ime_data && !ime_data->result.empty()) {
       RNA_string_set(op->ptr, "text", ime_data->result.c_str());
       return insert_text_exec(C, op);
     }

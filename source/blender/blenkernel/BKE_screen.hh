@@ -313,7 +313,7 @@ struct ARegionType {
 
   /**
    * Called when the region is activated or deactivated.
-   * Params `win` and `area` always relate to the active region, not the deactive region.
+   * Params `win` and `area` are always the active region, not the deactivated region.
    */
   void (*on_activation_changed)(wmWindow *win, ScrArea *area, ARegion *region, bool active);
 
