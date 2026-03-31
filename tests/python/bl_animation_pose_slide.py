@@ -28,6 +28,7 @@ def _get_view3d_context():
 
 
 _BONE_NAME = "bone"
+_CUSTOM_PROP = "test"
 
 class BreakdownerTestPoseBone(unittest.TestCase):
     armature_ob: bpy.types.Object
@@ -44,7 +45,15 @@ class BreakdownerTestPoseBone(unittest.TestCase):
         bpy.ops.object.mode_set(mode='POSE')
         self.pose_bone = self.armature_ob.pose.bones[_BONE_NAME]
         self.pose_bone.rotation_mode = 'XYZ'
+        self.pose_bone[_CUSTOM_PROP] = 1.0
         self.pose_bone.select = True
+
+    def _keyframe_all(self):
+        self.pose_bone.keyframe_insert("location")
+        self.pose_bone.keyframe_insert("rotation_euler")
+        self.pose_bone.keyframe_insert("scale")
+        self.pose_bone.keyframe_insert("bbone_curveinx")
+        self.pose_bone.keyframe_insert(f'["{_CUSTOM_PROP}"]')
 
     def test_break_down_no_keys(self):
         # The case of no keys will produce no interpolation.
@@ -85,7 +94,7 @@ class BreakdownerTestPoseBone(unittest.TestCase):
             self.assertAlmostEqual(self.pose_bone.location[i], 1, 3)
 
         # This depends on the setting "Only insert available" in the user preferences.
-        self.assertEqual(len(channelbag.fcurves), 9)
+        self.assertEqual(len(channelbag.fcurves), 10)
         self.assertEqual(len(channelbag.fcurves[0].keyframe_points), 2)
 
     def test_break_down_all_properties(self):
@@ -94,24 +103,16 @@ class BreakdownerTestPoseBone(unittest.TestCase):
         self.pose_bone.rotation_euler = (1, 1, 1)
         self.pose_bone.scale = (1, 1, 1)
         self.pose_bone.bbone_curveinx = 1
-        self.pose_bone["test"] = 1.0
-
-        def keyframe_all():
-            self.pose_bone.keyframe_insert("location")
-            self.pose_bone.keyframe_insert("rotation_euler")
-            self.pose_bone.keyframe_insert("scale")
-            self.pose_bone.keyframe_insert("bbone_curveinx")
-            self.pose_bone.keyframe_insert('["test"]')
-
-        keyframe_all()
+        self.pose_bone[_CUSTOM_PROP] = 1.0
+        self._keyframe_all()
 
         bpy.context.scene.frame_set(10)
         self.pose_bone.location = (2, 2, 2)
         self.pose_bone.rotation_euler = (2, 2, 2)
         self.pose_bone.scale = (2, 2, 2)
         self.pose_bone.bbone_curveinx = 2
-        self.pose_bone["test"] = 2.0
-        keyframe_all()
+        self.pose_bone[_CUSTOM_PROP] = 2.0
+        self._keyframe_all()
 
         action = self.armature_ob.animation_data.action
         slot = self.armature_ob.animation_data.action_slot
@@ -126,12 +127,53 @@ class BreakdownerTestPoseBone(unittest.TestCase):
             bpy.ops.pose.breakdown(factor=0.5, prev_frame=0, next_frame=10)
 
         for i in range(3):
-            self.assertAlmostEqual(self.pose_bone.location[i], 1.5, 3, f"Fail at index {i}")
-            self.assertAlmostEqual(self.pose_bone.rotation_euler[i], 1.5, 3, f"Fail at index {i}")
-            self.assertAlmostEqual(self.pose_bone.scale[i], 1.5, 3, f"Fail at index {i}")
+            self.assertAlmostEqual(self.pose_bone.location[i], 1.5, 3)
+            self.assertAlmostEqual(self.pose_bone.rotation_euler[i], 1.5, 3)
+            self.assertAlmostEqual(self.pose_bone.scale[i], 1.5, 3)
 
-        self.assertAlmostEqual(self.pose_bone.bbone_curveinx, 1.5, 3, f"Fail at index {i}")
-        self.assertAlmostEqual(self.pose_bone["test"], 1.5, 3, f"Fail at index {i}")
+        self.assertAlmostEqual(self.pose_bone.bbone_curveinx, 1.5, 3)
+        self.assertAlmostEqual(self.pose_bone[_CUSTOM_PROP], 1.5, 3)
+
+    def test_break_down_location(self):
+        bpy.context.scene.frame_set(0)
+        self.pose_bone.location = (1, 1, 1)
+        self.pose_bone.rotation_euler = (1, 1, 1)
+        self._keyframe_all()
+
+        bpy.context.scene.frame_set(10)
+        self.pose_bone.location = (2, 2, 2)
+        self.pose_bone.rotation_euler = (2, 2, 2)
+        self._keyframe_all()
+
+        bpy.context.scene.tool_settings.use_keyframe_insert_auto = True
+
+        bpy.context.scene.frame_set(1)
+        with bpy.context.temp_override(**_get_view3d_context()):
+            # The prev and next frames have to be specified in order for this to work correctly.
+            bpy.ops.pose.breakdown(factor=0.5, prev_frame=0, next_frame=10, channels='LOC')
+
+        for i in range(3):
+            self.assertAlmostEqual(self.pose_bone.location[i], 1.5, 3)
+            # Rotation should not be modified.
+            self.assertAlmostEqual(self.pose_bone.rotation_euler[i], 1.0279, 3)
+
+    def test_break_down_location_x(self):
+        bpy.context.scene.frame_set(0)
+        self.pose_bone.location = (1, 1, 1)
+        self._keyframe_all()
+
+        bpy.context.scene.frame_set(10)
+        self.pose_bone.location = (2, 2, 2)
+        self._keyframe_all()
+
+        bpy.context.scene.frame_set(1)
+        with bpy.context.temp_override(**_get_view3d_context()):
+            # The prev and next frames have to be specified in order for this to work correctly.
+            bpy.ops.pose.breakdown(factor=0.5, prev_frame=0, next_frame=10, channels='LOC', axis_lock="X")
+
+        self.assertAlmostEqual(self.pose_bone.location[0], 1.5, 3)
+        self.assertAlmostEqual(self.pose_bone.location[1], 1.0279, 3)
+        self.assertAlmostEqual(self.pose_bone.location[2], 1.0279, 3)
 
 
 def main():
