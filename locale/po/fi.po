@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'1ece094312b3')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'227100a72567')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-02 14:51+0000\n"
+"POT-Creation-Date: 2026-03-30 09:56+0000\n"
 "PO-Revision-Date: 2025-07-23 15:32+0000\n"
 "Last-Translator: Leevi Oksanen <laavi.oksanen@gmail.com>\n"
 "Language-Team: Finnish <https://translate.blender.org/projects/blender-ui/ui/fi/>\n"
@@ -3181,24 +3181,8 @@ msgid "Stroke"
 msgstr "Piirto"
 
 
-msgid "Vertex Color affects to Stroke only"
-msgstr "Kärkiväri vaikuttaa ainoastaan viivaan"
-
-
 msgid "Fill"
 msgstr "Täytä"
-
-
-msgid "Vertex Color affects to Fill only"
-msgstr "Kärkiväri vaikuttaa ainoastaan täyttöön"
-
-
-msgid "Stroke & Fill"
-msgstr "Piirrä & täytä"
-
-
-msgid "Vertex Color affects to Stroke and Fill"
-msgstr "Kärkiväri vaikuttaa viivaan ja täyttöön"
 
 
 msgid "Byte Color Attribute Value"
@@ -3639,18 +3623,6 @@ msgstr "Käytä käyriä"
 
 msgid "View"
 msgstr "Näkymä"
-
-
-msgid "Mix"
-msgstr "Sekoita"
-
-
-msgid "Screen"
-msgstr "Näyttö"
-
-
-msgid "Divide"
-msgstr "Jaa"
 
 
 msgid "Brightness"
@@ -5866,6 +5838,10 @@ msgid "Use Masks"
 msgstr "Käytä maskeja"
 
 
+msgid "Divide"
+msgstr "Jaa"
+
+
 msgid "Active Grease Pencil layer"
 msgstr "Aktiivinen öljykynän taso"
 
@@ -7244,6 +7220,14 @@ msgid "Direction"
 msgstr "Suunta"
 
 
+msgid "Mix"
+msgstr "Sekoita"
+
+
+msgid "Screen"
+msgstr "Näyttö"
+
+
 msgid "ID Type"
 msgstr "ID-tyyppi"
 
@@ -7252,12 +7236,12 @@ msgid "Math"
 msgstr "Matematiikka"
 
 
-msgid "UV"
-msgstr "UV"
+msgid "Names"
+msgstr "Nimet"
 
 
-msgid "Metaball"
-msgstr "Metapallo"
+msgid "Utilities"
+msgstr "Työkalut"
 
 
 msgid "Show/Hide"
@@ -7272,8 +7256,12 @@ msgid "Write"
 msgstr "Kirjoita"
 
 
-msgid "Names"
-msgstr "Nimet"
+msgid "Instances"
+msgstr "Instanssit"
+
+
+msgid "Import"
+msgstr "Tuo"
 
 
 msgid "UV Mapping"
@@ -7282,6 +7270,10 @@ msgstr "UV-kartoittaminen"
 
 msgid "Select More/Less"
 msgstr "Valitse enemmän/vähemmän"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Select Similar"
@@ -7296,8 +7288,8 @@ msgid "Select Loops"
 msgstr "Valitse silmukat"
 
 
-msgid "Utilities"
-msgstr "Työkalut"
+msgid "Metaball"
+msgstr "Metapallo"
 
 
 msgid "Light"
@@ -7326,14 +7318,6 @@ msgstr "Satunnainen maski"
 
 msgid "Mesh Select Mode"
 msgstr "Muodon valintatila"
-
-
-msgid "Instances"
-msgstr "Instanssit"
-
-
-msgid "Import"
-msgstr "Tuo"
 
 
 msgid "Basic"
@@ -7599,6 +7583,10 @@ msgid "Protect"
 msgstr "Suojaa"
 
 
+msgid "Stroke & Fill"
+msgstr "Piirrä & täytä"
+
+
 msgid "Read Data"
 msgstr "Lue dataa"
 
@@ -7734,10 +7722,6 @@ msgstr "V-akseli"
 
 msgid "UV Center"
 msgstr "UV-keskus"
-
-
-msgid "Use Channel"
-msgstr "Käytä kanavaa"
 
 
 msgid "Wave Modifier"
@@ -10034,6 +10018,11 @@ msgid "Save Sequence"
 msgstr "Tallenna sekvenssi"
 
 
+msgctxt "Mesh"
+msgid "Angle"
+msgstr "Kulma"
+
+
 msgid "Expand"
 msgstr "Laajenna"
 
@@ -10919,11 +10908,6 @@ msgid "Dynamic Grid Size"
 msgstr "Dynaaminen Ruudukon Koko"
 
 
-msgctxt "Mesh"
-msgid "Angle"
-msgstr "Kulma"
-
-
 msgid "Dynamic grid"
 msgstr "Dynaaminen ruudukko"
 
@@ -11031,6 +11015,31 @@ msgstr "Käytä huomioita"
 msgctxt "Sound"
 msgid "Pan"
 msgstr "Panoroi"
+
+
+msgctxt "Sequence"
+msgid "Brightness/Contrast"
+msgstr "Kirkkaus/Kontrasti"
+
+
+msgctxt "Sequence"
+msgid "Color Balance"
+msgstr "Väritasapaino"
+
+
+msgctxt "Sequence"
+msgid "Curves"
+msgstr "Käyrät"
+
+
+msgctxt "Sequence"
+msgid "Hue Correct"
+msgstr "Sävykorjaus"
+
+
+msgctxt "Sequence"
+msgid "White Balance"
+msgstr "Valkotasapaino"
 
 
 msgid "Move along X axis"
@@ -12137,6 +12146,10 @@ msgid "Downloading..."
 msgstr "Ladataan..."
 
 
+msgid "Object Index"
+msgstr "Objekti-indeksi"
+
+
 msgid "Viewports"
 msgstr "Näkymät"
 
@@ -13207,6 +13220,10 @@ msgid "Text"
 msgstr "Teksti"
 
 
+msgid "Workbench"
+msgstr "Työtila"
+
+
 msgid "Add Transition"
 msgstr "Lisää siirtymä"
 
@@ -13244,6 +13261,11 @@ msgstr "Uusi"
 
 
 msgctxt "Operator"
+msgid "Save Copy..."
+msgstr "Tallenna kopio..."
+
+
+msgctxt "Operator"
 msgid "Quit"
 msgstr "Poistu"
 
@@ -13276,11 +13298,6 @@ msgstr "Toista historia..."
 msgctxt "Operator"
 msgid "Preferences..."
 msgstr "Mieltymykset..."
-
-
-msgctxt "Operator"
-msgid "Save Copy..."
-msgstr "Tallenna kopio..."
 
 
 msgid "More..."
@@ -13652,10 +13669,6 @@ msgid "VFX"
 msgstr "VFX"
 
 
-msgid "Workbench"
-msgstr "Työtila"
-
-
 msgid "Create"
 msgstr "Luo"
 
@@ -13708,10 +13721,6 @@ msgstr "Harnaa"
 
 msgid "Eyes"
 msgstr "Silmät"
-
-
-msgid "Pupils"
-msgstr "Pupillit"
 
 
 msgid "Nothing selected"
@@ -13852,10 +13861,6 @@ msgstr "Kylläisyys:"
 
 msgid "Lightness:"
 msgstr "Valoisuus:"
-
-
-msgid "Value:"
-msgstr "Arvo:"
 
 
 msgid "Alpha:"
@@ -14497,10 +14502,6 @@ msgid "No active camera set"
 msgstr "Ei aktiivista kamerasarjaa"
 
 
-msgid "Attribute Data Detected"
-msgstr "Attribuutti-data havaittu"
-
-
 msgid "PaintCurve"
 msgstr "Maalikäyrä"
 
@@ -14671,6 +14672,10 @@ msgstr "Avainkehys"
 
 msgid "Driver Value:"
 msgstr "Ajuriarvo:"
+
+
+msgid "Value:"
+msgstr "Arvo:"
 
 
 msgid "Driver:"
@@ -16380,10 +16385,6 @@ msgid "Dot"
 msgstr "Piste"
 
 
-msgid "Object Index"
-msgstr "Objekti-indeksi"
-
-
 msgid "Color Fac"
 msgstr "Väritekijä"
 
@@ -16525,33 +16526,8 @@ msgstr "Kaikki renderöintitasot on poistettu käytöstä"
 
 
 msgctxt "Sequence"
-msgid "Brightness/Contrast"
-msgstr "Kirkkaus/Kontrasti"
-
-
-msgctxt "Sequence"
-msgid "Color Balance"
-msgstr "Väritasapaino"
-
-
-msgctxt "Sequence"
-msgid "Curves"
-msgstr "Käyrät"
-
-
-msgctxt "Sequence"
-msgid "Hue Correct"
-msgstr "Sävykorjaus"
-
-
-msgctxt "Sequence"
 msgid "Tonemap"
 msgstr "Sävykartta"
-
-
-msgctxt "Sequence"
-msgid "White Balance"
-msgstr "Valkotasapaino"
 
 
 msgctxt "Sequence"

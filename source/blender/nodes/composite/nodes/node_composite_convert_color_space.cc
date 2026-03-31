@@ -23,11 +23,11 @@ NODE_STORAGE_FUNCS(NodeConvertColorSpace)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Color>("Image")
+  b.add_input<decl::Color>("Image"_ustr)
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
       .structure_type(StructureType::Dynamic);
 
-  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
+  b.add_output<decl::Color>("Image"_ustr).structure_type(StructureType::Dynamic);
 }
 
 static void node_init(bNodeTree * /*ntree*/, bNode *node)
@@ -44,8 +44,18 @@ static void node_draw_buttons(ui::Layout &layout, bContext * /*C*/, PointerRNA *
   layout.label(RPT_("Disabled, built without OpenColorIO"), ICON_ERROR);
 #endif
 
-  layout.prop(ptr, "from_color_space", ui::ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-  layout.prop(ptr, "to_color_space", ui::ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  layout.prop_with_menu(ptr,
+                        "from_color_space",
+                        ui::ITEM_R_SPLIT_EMPTY_NAME,
+                        std::nullopt,
+                        ICON_NONE,
+                        "UI_MT_color_space_select");
+  layout.prop_with_menu(ptr,
+                        "to_color_space",
+                        ui::ITEM_R_SPLIT_EMPTY_NAME,
+                        std::nullopt,
+                        ICON_NONE,
+                        "UI_MT_color_space_select");
 }
 
 using namespace blender::compositor;

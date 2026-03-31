@@ -63,7 +63,10 @@ class DenoiseParams : public Node {
 
   /* Auxiliary passes. */
   bool use_pass_albedo = true;
+  bool use_pass_specular_albedo = false;
   bool use_pass_normal = true;
+  bool use_pass_roughness = false;
+  bool use_pass_depth = false;
 
   /* Configure the denoiser to use motion vectors, previous image and a temporally stable model. */
   bool temporally_stable = false;
@@ -74,6 +77,7 @@ class DenoiseParams : public Node {
 
   DenoiserPrefilter prefilter = DENOISER_PREFILTER_FAST;
   DenoiserQuality quality = DENOISER_QUALITY_HIGH;
+  float upscale_factor = 1.0f;
 
   static const NodeEnum *get_type_enum();
   static const NodeEnum *get_prefilter_enum();

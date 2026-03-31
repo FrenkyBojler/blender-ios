@@ -187,7 +187,7 @@ class BPyCommandHandler : public CommandHandler {
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_cli_command_register_doc,
-    ".. method:: register_cli_command(id, execute)\n"
+    ".. function:: register_cli_command(id, execute)\n"
     "\n"
     "   Register a command, accessible via the (``-c`` / ``--command``) command-line argument.\n"
     "\n"
@@ -200,12 +200,13 @@ PyDoc_STRVAR(
     "      The arguments are built from all command-line arguments following the command id.\n"
     "      The return value should be 0 for success, 1 on failure "
     "(specific error codes from the ``os`` module can also be used).\n"
-    "   :type execute: callable\n"
+    "   :type execute: Callable[[list[str]], int]\n"
     "   :return: The command handle which can be passed to :func:`unregister_cli_command`.\n"
     "\n"
     "      This uses Python's capsule type "
     "however the result should be considered an opaque handle only used for unregistering.\n"
-    "   :rtype: capsule\n");
+    /* No exposed type for "Capsule", use "Any". */
+    "   :rtype: Any\n");
 static PyObject *bpy_cli_command_register(PyObject * /*self*/, PyObject *args, PyObject *kw)
 {
   PyObject *py_id;
@@ -250,12 +251,13 @@ static PyObject *bpy_cli_command_register(PyObject * /*self*/, PyObject *args, P
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_cli_command_unregister_doc,
-    ".. method:: unregister_cli_command(handle)\n"
+    ".. function:: unregister_cli_command(handle)\n"
     "\n"
     "   Unregister a CLI command.\n"
     "\n"
     "   :param handle: The return value of :func:`register_cli_command`.\n"
-    "   :type handle: capsule\n");
+    /* No exposed type for "Capsule", use "Any". */
+    "   :type handle: Any\n");
 static PyObject *bpy_cli_command_unregister(PyObject * /*self*/, PyObject *value)
 {
   if (!PyCapsule_CheckExact(value)) {
