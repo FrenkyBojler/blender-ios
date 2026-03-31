@@ -1869,9 +1869,6 @@ void seq_scrubbing_draw(const bContext *C, ARegion *region)
   region->v2d.cur.xmin = scene->r.sfra;
   region->v2d.cur.xmax = scene->r.efra;
 
-  /* TODO: This maybe sort of hacky solution to clamp current frame in draw function. */
-  scene->r.cfra = math::clamp(scene->r.cfra, scene->r.sfra, scene->r.efra);
-
   const int fps = round_db_to_int(scene->frames_per_second());
   ED_time_scrub_draw(region, scene, !(sseq->flag & SEQ_DRAWFRAMES), true, fps);
   ED_time_scrub_draw_current_frame(

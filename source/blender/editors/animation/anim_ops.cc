@@ -617,7 +617,9 @@ static float frame_from_event(bContext *C, const wmEvent *event)
   frame = ui::view2d_region_to_view_x(&region->v2d, event->mval[0]);
 
   /* respect preview range restrictions (if only allowed to move around within that range) */
-  if (scene->r.flag & SCER_LOCK_FRAME_SELECTION) {
+  if ((scene->r.flag & SCER_LOCK_FRAME_SELECTION) ||
+      region->regiontype == RGN_TYPE_PREVIEW_SCRUBBING)
+  {
     CLAMP(frame, PSFRA, PEFRA);
   }
 
