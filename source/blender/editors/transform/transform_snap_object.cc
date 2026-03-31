@@ -937,7 +937,7 @@ eSnapMode snap_object_center(SnapObjectContext *sctx,
 {
 
   eSnapMode retval = SCE_SNAP_TO_NONE;
-  const bool is_entity = ELEM(ob_eval->type, OB_EMPTY, OB_LAMP, OB_CAMERA);
+  const bool is_entity = ob_eval ? ELEM(ob_eval->type, OB_EMPTY, OB_LAMP, OB_CAMERA) : false;
   if (((snap_to_flag & SCE_SNAP_TO_POINT) != 0) & is_entity) {
     retval = SCE_SNAP_TO_POINT;
   }
