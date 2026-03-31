@@ -616,6 +616,22 @@ void mesh_ensure_required_data_layers(Mesh &mesh)
   attributes.add(".corner_edge", AttrDomain::Corner, bke::AttrType::Int32, attribute_init);
 }
 
+void mesh_ensure_active_uv_map(Mesh &mesh)
+{
+  const StringRefNull active_name = mesh.active_uv_map_name();
+  if (!active_name.is_empty()) {
+    return;
+  }
+  const StringRefNull default_name = mesh.default_uv_map_name();
+  if (!default_name.is_empty()) {
+    mesh.uv_maps_active_set(default_name);
+    return;
+  }
+  if (mesh.uv_map_names().size() > 0) {
+    mesh.uv_maps_active_set(mesh.uv_map_names()[0]);
+  }
+}
+
 void mesh_remove_invalid_attribute_strings(Mesh &mesh)
 {
   bke::AttributeAccessor attributes = mesh.attributes();
