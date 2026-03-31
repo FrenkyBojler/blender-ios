@@ -93,7 +93,7 @@ class BreakdownerTestPoseBone(unittest.TestCase):
         for i in range(3):
             self.assertAlmostEqual(self.pose_bone.location[i], 1, 3)
 
-        # This depends on the setting "Only insert available" in the user preferences.
+        # The key count depends on the setting "Only insert available" in the user preferences.
         self.assertEqual(len(channelbag.fcurves), 10)
         self.assertEqual(len(channelbag.fcurves[0].keyframe_points), 2)
 
