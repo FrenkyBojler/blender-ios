@@ -147,13 +147,18 @@
     }(py_callable, py_arg)
 
 #else
+
+#  define BLI_profile_frame_mark
+#  define BLI_profile_frame_mark_start(name)
+#  define BLI_profile_frame_mark_end(name)
+
 #  define BLI_profile_zone_scoped
 #  define BLI_profile_zone_scoped_n(name)
 #  define BLI_profile_zone_scoped_c(color)
 #  define BLI_profile_zone_scoped_nc(name, color)
 
-#  define BLI_profile_zone_named(zone_name)
-#  define BLI_profile_zone_named_n(zone_name, ui_name)
+#  define BLI_profile_zone_named(zone)
+#  define BLI_profile_zone_named_n(zone, ui_name)
 #  define BLI_profile_zone_named_c(zone, color)
 #  define BLI_profile_zone_named_nc(zone, ui_name, color)
 
@@ -171,15 +176,26 @@
 #  define BLI_profile_zone_set_color_z(zone, color)
 #  define BLI_profile_zone_set_value_z(zone, value)
 
-#  define BLI_profile_frame_mark
-#  define BLI_profile_frame_mark_start(name)
-#  define BLI_profile_frame_mark_end(name)
-
 #  define BLI_profile_memory_alloc(ptr, size)
-#  define BLI_profile_memory_alloc_n(ptr, size, name)
-#  define BLI_profile_memory_free(ptr, size)
-#  define BLI_profile_memory_free_n(ptr, size, name)
+#  define BLI_profile_memory_free(ptr)
 
 #  define BLI_profile_set_thread_name(name)
 #  define BLI_profile_set_thread_name_with_hint(name, hint)
+
+#  define BLI_profile_PyObject_Call_parsefunc(profile_label, py_callable, py_args, py_kwargs) \
+    PyObject_Call(py_callable, py_args, py_kwargs)
+#  define BLI_profile_PyObject_CallObject_parsefunc(profile_label, py_callable, py_args) \
+    PyObject_CallObject(py_callable, py_args)
+#  define BLI_profile_PyObject_CallOneArg_parsefunc(profile_label, py_callable, py_arg) \
+    PyObject_CallOneArg(py_callable, py_arg)
+#  define BLI_profile_PyObject_Call_objectname( \
+      profile_label, object_name, py_callable, py_args, py_kwargs) \
+    PyObject_Call(py_callable, py_args, py_kwargs)
+#  define BLI_profile_PyObject_CallObject_objectname( \
+      profile_label, object_name, py_callable, py_args) \
+    PyObject_CallObject(py_callable, py_args)
+#  define BLI_profile_PyObject_CallOneArg_objectname( \
+      profile_label, object_name, py_callable, py_arg) \
+    PyObject_CallOneArg(py_callable, py_arg)
+
 #endif
