@@ -35,11 +35,19 @@ ccl_device void shader_setup_object_transforms(KernelGlobals kg,
 }
 
 /* TODO: break this up if it helps reduce register pressure to load data from
- * global memory as we write it to shader-data. */
-ccl_device_inline void shader_setup_from_ray(KernelGlobals kg,
-                                             ccl_private ShaderData *ccl_restrict sd,
-                                             const ccl_private Ray *ccl_restrict ray,
-                                             const ccl_private Intersection *ccl_restrict isect)
+ * global memory as we write it to shader-data.
+ *
+ * HIP on Linux currently needs noinline to sidestep a probable compiler bug. */
+#ifdef __KERNEL_HIP__
+ccl_device_noinline
+#else
+ccl_device_inline
+#endif
+    void
+    shader_setup_from_ray(KernelGlobals kg,
+                          ccl_private ShaderData *ccl_restrict sd,
+                          const ccl_private Ray *ccl_restrict ray,
+                          const ccl_private Intersection *ccl_restrict isect)
 {
   /* Read intersection data into shader globals.
    *
@@ -279,6 +287,18 @@ ccl_device void shader_setup_from_displace(KernelGlobals kg,
 
   /* Assign some incoming direction to avoid division by zero. */
   sd->wi = sd->N;
+
+#ifdef __RAY_DIFFERENTIALS__
+  /* Set ray differentials based on triangle size for texture filtering.
+   * The parametric step across the triangle is 1.0, giving dPdx = dPdu
+   * and dPdy = dPdv.
+   * TODO: consider computing this based on all triangles adjacent to the vertex. */
+  sd->du.dx = 1.0f;
+  sd->du.dy = 0.0f;
+  sd->dv.dx = 0.0f;
+  sd->dv.dy = 1.0f;
+  sd->dP = 0.5f * (len(sd->dPdu) + len(sd->dPdv));
+#endif
 }
 
 /* ShaderData setup for point on curve. */

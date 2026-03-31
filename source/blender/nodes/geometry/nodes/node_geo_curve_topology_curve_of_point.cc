@@ -10,14 +10,14 @@ namespace blender::nodes::node_geo_curve_topology_curve_of_point_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Int>("Point Index")
+  b.add_input<decl::Int>("Point Index"_ustr)
       .implicit_field(NODE_DEFAULT_INPUT_INDEX_FIELD)
       .description("The control point to retrieve data from")
       .structure_type(StructureType::Field);
-  b.add_output<decl::Int>("Curve Index")
+  b.add_output<decl::Int>("Curve Index"_ustr)
       .field_source_reference_all()
       .description("The curve the control point is part of");
-  b.add_output<decl::Int>("Index in Curve")
+  b.add_output<decl::Int>("Index in Curve"_ustr)
       .field_source_reference_all()
       .description("How far along the control point is along its curve");
 }
@@ -97,15 +97,15 @@ class PointIndexInCurveInput final : public bke::CurvesFieldInput {
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  const Field<int> point_index = params.extract_input<Field<int>>("Point Index");
-  if (params.output_is_required("Curve Index")) {
+  const Field<int> point_index = params.extract_input<Field<int>>("Point Index"_ustr);
+  if (params.output_is_required("Curve Index"_ustr)) {
     params.set_output(
-        "Curve Index",
+        "Curve Index"_ustr,
         Field<int>(std::make_shared<bke::EvaluateAtIndexInput>(
             point_index, Field<int>(std::make_shared<CurveOfPointInput>()), AttrDomain::Point)));
   }
-  if (params.output_is_required("Index in Curve")) {
-    params.set_output("Index in Curve",
+  if (params.output_is_required("Index in Curve"_ustr)) {
+    params.set_output("Index in Curve"_ustr,
                       Field<int>(std::make_shared<bke::EvaluateAtIndexInput>(
                           point_index,
                           Field<int>(std::make_shared<PointIndexInCurveInput>()),
