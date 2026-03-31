@@ -36,6 +36,7 @@ struct bNodeTree;
 namespace nodes {
 struct FieldInferencingInterface;
 struct EvalDependencies;
+struct GeneratedTreeSrnaData;
 class NodeDeclaration;
 struct GeometryNodesLazyFunctionGraphInfo;
 struct StructureTypeInterface;
@@ -159,6 +160,9 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
    * tree execution instructions and its evaluation.
    */
   bNodeTreeExec *execdata = nullptr;
+
+  /** Contains RNA types generated for the geometry nodes modifier interface. */
+  std::shared_ptr<nodes::GeneratedTreeSrnaData> geometry_nodes_srna_data;
 
   /** Information about how inputs and outputs of the node group interact with fields. */
   std::unique_ptr<nodes::FieldInferencingInterface> field_inferencing_interface;
@@ -405,8 +409,8 @@ class bNodeRuntime : NonCopyable, NonMovable {
   /** Only valid if #topology_cache_is_dirty is false. */
   Vector<bNodeSocket *> inputs;
   Vector<bNodeSocket *> outputs;
-  Map<StringRefNull, bNodeSocket *> inputs_by_identifier;
-  Map<StringRefNull, bNodeSocket *> outputs_by_identifier;
+  Map<UString, bNodeSocket *> inputs_by_identifier;
+  Map<UString, bNodeSocket *> outputs_by_identifier;
   bool has_available_linked_inputs = false;
   bool has_available_linked_outputs = false;
   Vector<bNode *> direct_children_in_frame;
@@ -836,25 +840,25 @@ inline const bNodeSocket &bNode::output_socket(int index) const
   return *this->runtime->outputs[index];
 }
 
-inline const bNodeSocket *bNode::input_by_identifier(StringRef identifier) const
+inline const bNodeSocket *bNode::input_by_identifier(UString identifier) const
 {
   BLI_assert(bke::node_tree_runtime::topology_cache_is_available(*this));
   return this->runtime->inputs_by_identifier.lookup_default_as(identifier, nullptr);
 }
 
-inline const bNodeSocket *bNode::output_by_identifier(StringRef identifier) const
+inline const bNodeSocket *bNode::output_by_identifier(UString identifier) const
 {
   BLI_assert(bke::node_tree_runtime::topology_cache_is_available(*this));
   return this->runtime->outputs_by_identifier.lookup_default_as(identifier, nullptr);
 }
 
-inline bNodeSocket *bNode::input_by_identifier(StringRef identifier)
+inline bNodeSocket *bNode::input_by_identifier(UString identifier)
 {
   BLI_assert(bke::node_tree_runtime::topology_cache_is_available(*this));
   return this->runtime->inputs_by_identifier.lookup_default_as(identifier, nullptr);
 }
 
-inline bNodeSocket *bNode::output_by_identifier(StringRef identifier)
+inline bNodeSocket *bNode::output_by_identifier(UString identifier)
 {
   BLI_assert(bke::node_tree_runtime::topology_cache_is_available(*this));
   return this->runtime->outputs_by_identifier.lookup_default_as(identifier, nullptr);

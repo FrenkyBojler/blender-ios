@@ -12,7 +12,7 @@ namespace blender::nodes::node_geo_input_instance_rotation_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Rotation>("Rotation").field_source();
+  b.add_output<decl::Rotation>("Rotation"_ustr).field_source();
 }
 
 class InstanceRotationFieldInput final : public bke::InstancesFieldInput {
@@ -45,7 +45,7 @@ class InstanceRotationFieldInput final : public bke::InstancesFieldInput {
 static void node_geo_exec(GeoNodeExecParams params)
 {
   Field<math::Quaternion> rotation{std::make_shared<InstanceRotationFieldInput>()};
-  params.set_output("Rotation", std::move(rotation));
+  params.set_output("Rotation"_ustr, std::move(rotation));
 }
 
 static void node_register()

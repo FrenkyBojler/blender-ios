@@ -1493,7 +1493,7 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
     const char *category_id = pc_dyn.idname;
     const char *category_id_draw = IFACE_(category_id);
     const int category_width = round_fl_to_int(
-        show_icons ? 9.5 * UI_SCALE_FAC * zoom :
+        show_icons ? 10.5 * UI_SCALE_FAC * zoom :
                      BLF_width(fontid, category_id_draw, BLF_DRAW_STR_DUMMY_MAX));
 
     rct->xmin = rct_xmin;
@@ -1633,7 +1633,7 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
                      float(rct->ymin) + ofs_y,
                      pc_dyn.icon,
                      aspect / UI_SCALE_FAC,
-                     1.0f,
+                     0.9f,
                      0.0f,
                      nullptr,
                      false,
@@ -1642,14 +1642,24 @@ void panel_category_tabs_draw_all(ARegion *region, const char *category_id_activ
         BLF_size(fontid, fstyle_points * UI_SCALE_FAC);
       }
       else {
-        float r_width;
-        size_t len = BLF_width_to_strlen(
-            fontid, category_id_draw, category_draw_len, 14.0f * UI_SCALE_FAC * zoom, &r_width);
-        const float ofs_x = float(rct_xmax - rct_xmin - r_width) / 2.0f;
-        const float ofs_y = float(rct->ymax - rct->ymin) * 0.3f;
+        int len = BLI_str_utf8_offset_from_index(category_id_draw, category_draw_len, 1);
+        std::string title (category_id_draw, len);
+        if (len < 3) {
+          char *space = BLI_strcasestr(category_id_draw, " ");
+          if (space) {
+            int len2 = BLI_str_utf8_offset_from_index(space + 1, category_draw_len - len, 1);
+            title += std::string(space + 1, len2);
+          }
+        }
+
+        float width;
+        float height;
+        BLF_width_and_height(fontid, title.c_str(), title.size(), &width, &height);
+        const float ofs_x = float(rct_xmax - rct_xmin - width) / 2.0f;
+        const float ofs_y = float(rct->ymax - rct->ymin - height) / 2.0f;
 
         BLF_position(fontid, rct->xmin + ofs_x, rct->ymin + ofs_y, 0.0f);
-        BLF_draw(fontid, category_id_draw, len);
+        BLF_draw(fontid, title.c_str(), title.size());
       }
     }
     else {
