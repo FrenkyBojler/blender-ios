@@ -1261,7 +1261,7 @@ template<typename T>
 inline void gather_assign(const Span<T> src, const IndexMask &mask, const MutableSpan<T> dst)
 {
   BLI_assert(src.size() >= mask.min_array_size());
-  BLI_assert(dst.size() >= mask.size());
+  BLI_assert(dst.size() == mask.size());
   detail::gather_assign(src.data(), mask, dst.data());
 }
 
