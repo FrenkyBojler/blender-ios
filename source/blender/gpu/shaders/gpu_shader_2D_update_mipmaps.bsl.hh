@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include "common/gpu_shader_utildefines_lib.glsl"
+#include "gpu_shader_utildefines_lib.glsl"
 
 namespace builtin::mipmaps {
 
@@ -100,7 +100,7 @@ struct SharedUnorm {
     intermediate_level[dst_coord.y][dst_coord.x] = encoded;
   }
 
-  T load_sample(int2 src_coord)
+  float load_sample(int2 src_coord)
   {
     uint encoded = intermediate_level[src_coord.y][src_coord.x];
     return float(encoded) / UINT_MAX;
