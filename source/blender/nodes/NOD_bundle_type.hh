@@ -20,12 +20,12 @@ class FlatBundleType {
   struct Item {
     std::unique_ptr<SocketDeclaration> decl;
 
-    StringRefNull name() const;
+    UString name() const;
   };
 
  private:
   struct ItemNameGetter {
-    std::string operator()(const Item &item)
+    UString operator()(const Item &item)
     {
       return item.decl->name;
     }
@@ -87,7 +87,7 @@ class FlatBundleTypeBuilder {
  public:
   FlatBundleTypeBuilder(std::string name);
 
-  template<typename DeclType> typename DeclType::Builder &add(std::string name);
+  template<typename DeclType> typename DeclType::Builder &add(UString name);
 
   FlatBundleTypePtr build();
 };
@@ -102,7 +102,7 @@ class BundleTypeRegistry {
 };
 
 template<typename DeclType>
-inline typename DeclType::Builder &FlatBundleTypeBuilder::add(std::string name)
+inline typename DeclType::Builder &FlatBundleTypeBuilder::add(UString name)
 {
   static_assert(std::is_base_of_v<SocketDeclaration, DeclType>);
   using SocketBuilder = typename DeclType::Builder;
@@ -126,9 +126,9 @@ inline typename DeclType::Builder &FlatBundleTypeBuilder::add(std::string name)
   return decl_builder;
 }
 
-inline StringRefNull FlatBundleType::Item::name() const
+inline UString FlatBundleType::Item::name() const
 {
-  return decl->name;
+  return this->decl->name;
 }
 
 inline StringRefNull FlatBundleType::name() const

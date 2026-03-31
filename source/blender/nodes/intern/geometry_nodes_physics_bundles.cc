@@ -11,8 +11,8 @@ namespace blender::nodes::physics_bundles {
 
 static void add_filter(FlatBundleTypeBuilder &b)
 {
-  b.add<decl::String>("filter");
-  b.add<decl::Bool>("filter_local").default_value(false);
+  b.add<decl::String>("filter"_ustr);
+  b.add<decl::Bool>("filter_local"_ustr).default_value(false);
 }
 
 const FlatBundleTypePtr &GravityBundle::get_bundle_type()
@@ -20,7 +20,7 @@ const FlatBundleTypePtr &GravityBundle::get_bundle_type()
   static const FlatBundleTypePtr bundle_type = []() {
     FlatBundleTypeBuilder b(GravityBundle::name);
     add_filter(b);
-    b.add<decl::Vector>("gravity").default_value(float3(0.0f, 0.0f, -9.81f));
+    b.add<decl::Vector>("gravity"_ustr).default_value(float3(0.0f, 0.0f, -9.81f));
     FlatBundleTypePtr bundle_type = b.build();
     BundleTypeRegistry::register_type(bundle_type);
     return bundle_type;
@@ -33,8 +33,8 @@ const FlatBundleTypePtr &ForceBundle::get_bundle_type()
   static const FlatBundleTypePtr bundle_type = []() {
     FlatBundleTypeBuilder b(ForceBundle::name);
     add_filter(b);
-    b.add<decl::Bool>("selection").default_value(true).supports_field();
-    b.add<decl::Vector>("force").supports_field();
+    b.add<decl::Bool>("selection"_ustr).default_value(true).supports_field();
+    b.add<decl::Vector>("force"_ustr).supports_field();
     const FlatBundleTypePtr bundle_type = b.build();
     BundleTypeRegistry::register_type(bundle_type);
     return bundle_type;
@@ -47,8 +47,8 @@ const FlatBundleTypePtr &TorqueBundle::get_bundle_type()
   static const FlatBundleTypePtr bundle_type = []() {
     FlatBundleTypeBuilder b(TorqueBundle::name);
     add_filter(b);
-    b.add<decl::Bool>("selection").default_value(true).supports_field();
-    b.add<decl::Vector>("torque").supports_field();
+    b.add<decl::Bool>("selection"_ustr).default_value(true).supports_field();
+    b.add<decl::Vector>("torque"_ustr).supports_field();
     const FlatBundleTypePtr bundle_type = b.build();
     BundleTypeRegistry::register_type(bundle_type);
     return bundle_type;
@@ -61,10 +61,10 @@ const FlatBundleTypePtr &ColliderBundle::get_bundle_type()
   static const FlatBundleTypePtr bundle_type = []() {
     FlatBundleTypeBuilder b(ColliderBundle::name);
     add_filter(b);
-    b.add<decl::Geometry>("geometry");
-    b.add<decl::Float>("friction").min(0.0f);
-    b.add<decl::Float>("compliance").min(0.0f);
-    b.add<decl::Bool>("deforming").default_value(false);
+    b.add<decl::Geometry>("geometry"_ustr);
+    b.add<decl::Float>("friction"_ustr).min(0.0f);
+    b.add<decl::Float>("compliance"_ustr).min(0.0f);
+    b.add<decl::Bool>("deforming"_ustr).default_value(false);
     const FlatBundleTypePtr bundle_type = b.build();
     BundleTypeRegistry::register_type(bundle_type);
     return bundle_type;
@@ -77,8 +77,8 @@ const FlatBundleTypePtr &DampingBundle::get_bundle_type()
   static const FlatBundleTypePtr bundle_type = []() {
     FlatBundleTypeBuilder b(DampingBundle::name);
     add_filter(b);
-    b.add<decl::Float>("linear_damping").min(0.0f);
-    b.add<decl::Float>("angular_damping").min(0.0f);
+    b.add<decl::Float>("linear_damping"_ustr).min(0.0f);
+    b.add<decl::Float>("angular_damping"_ustr).min(0.0f);
     const FlatBundleTypePtr bundle_type = b.build();
     BundleTypeRegistry::register_type(bundle_type);
     return bundle_type;
@@ -91,12 +91,12 @@ const FlatBundleTypePtr &PinPositionBundle::get_bundle_type()
   static const FlatBundleTypePtr bundle_type = []() {
     FlatBundleTypeBuilder b(PinPositionBundle::name);
     add_filter(b);
-    b.add<decl::Bool>("selection").default_value(true).supports_field();
-    b.add<decl::Vector>("position").supports_field();
-    b.add<decl::Float>("compliance").min(0.0f).supports_field();
-    b.add<decl::String>("was_pinned_attribute");
-    b.add<decl::String>("previous_pin_position_attribute");
-    b.add<decl::String>("lambda_attribute");
+    b.add<decl::Bool>("selection"_ustr).default_value(true).supports_field();
+    b.add<decl::Vector>("position"_ustr).supports_field();
+    b.add<decl::Float>("compliance"_ustr).min(0.0f).supports_field();
+    b.add<decl::String>("was_pinned_attribute"_ustr);
+    b.add<decl::String>("previous_pin_position_attribute"_ustr);
+    b.add<decl::String>("lambda_attribute"_ustr);
     const FlatBundleTypePtr bundle_type = b.build();
     BundleTypeRegistry::register_type(bundle_type);
     return bundle_type;
@@ -109,11 +109,11 @@ const FlatBundleTypePtr &PinRotationBundle::get_bundle_type()
   static const FlatBundleTypePtr bundle_type = []() {
     FlatBundleTypeBuilder b(PinRotationBundle::name);
     add_filter(b);
-    b.add<decl::Bool>("selection").default_value(true).supports_field();
-    b.add<decl::Rotation>("rotation").supports_field();
-    b.add<decl::Float>("compliance").min(0.0f).supports_field();
-    b.add<decl::String>("was_pinned_attribute");
-    b.add<decl::String>("previous_pin_rotation_attribute");
+    b.add<decl::Bool>("selection"_ustr).default_value(true).supports_field();
+    b.add<decl::Rotation>("rotation"_ustr).supports_field();
+    b.add<decl::Float>("compliance"_ustr).min(0.0f).supports_field();
+    b.add<decl::String>("was_pinned_attribute"_ustr);
+    b.add<decl::String>("previous_pin_rotation_attribute"_ustr);
     const FlatBundleTypePtr bundle_type = b.build();
     BundleTypeRegistry::register_type(bundle_type);
     return bundle_type;
@@ -126,9 +126,9 @@ const FlatBundleTypePtr &InfinitePlaneColliderBundle::get_bundle_type()
   static const FlatBundleTypePtr bundle_type = []() {
     FlatBundleTypeBuilder b(InfinitePlaneColliderBundle::name);
     add_filter(b);
-    b.add<decl::Vector>("position");
-    b.add<decl::Vector>("normal").default_value(float3(0.0f, 0.0f, 1.0f));
-    b.add<decl::Float>("friction").default_value(0.5f).min(0.0f);
+    b.add<decl::Vector>("position"_ustr);
+    b.add<decl::Vector>("normal"_ustr).default_value(float3(0.0f, 0.0f, 1.0f));
+    b.add<decl::Float>("friction"_ustr).default_value(0.5f).min(0.0f);
     const FlatBundleTypePtr bundle_type = b.build();
     BundleTypeRegistry::register_type(bundle_type);
     return bundle_type;
@@ -141,10 +141,10 @@ const FlatBundleTypePtr &RodStretchShearBundle::get_bundle_type()
   static const FlatBundleTypePtr bundle_type = []() {
     FlatBundleTypeBuilder b(RodStretchShearBundle::name);
     add_filter(b);
-    b.add<decl::Float>("rest_length").min(0.0f).supports_field();
-    b.add<decl::Float>("compliance").default_value(1e-4f).min(0.0f);
-    b.add<decl::String>("lambda_position_attribute");
-    b.add<decl::String>("lambda_rotation_attribute");
+    b.add<decl::Float>("rest_length"_ustr).min(0.0f).supports_field();
+    b.add<decl::Float>("compliance"_ustr).default_value(1e-4f).min(0.0f);
+    b.add<decl::String>("lambda_position_attribute"_ustr);
+    b.add<decl::String>("lambda_rotation_attribute"_ustr);
     const FlatBundleTypePtr bundle_type = b.build();
     BundleTypeRegistry::register_type(bundle_type);
     return bundle_type;
@@ -157,8 +157,8 @@ const FlatBundleTypePtr &RodBendTwistBundle::get_bundle_type()
   static const FlatBundleTypePtr bundle_type = []() {
     FlatBundleTypeBuilder b(RodBendTwistBundle::name);
     add_filter(b);
-    b.add<decl::Rotation>("rest_bend_rotation").supports_field();
-    b.add<decl::Float>("compliance").default_value(1e-4f).min(0.0f);
+    b.add<decl::Rotation>("rest_bend_rotation"_ustr).supports_field();
+    b.add<decl::Float>("compliance"_ustr).default_value(1e-4f).min(0.0f);
     const FlatBundleTypePtr bundle_type = b.build();
     BundleTypeRegistry::register_type(bundle_type);
     return bundle_type;
@@ -171,8 +171,8 @@ const FlatBundleTypePtr &EdgeLengthConstraintBundle::get_bundle_type()
   static const FlatBundleTypePtr bundle_type = []() {
     FlatBundleTypeBuilder b(EdgeLengthConstraintBundle::name);
     add_filter(b);
-    b.add<decl::Float>("rest_length").min(0.0f).supports_field();
-    b.add<decl::Float>("compliance").default_value(1e-4f).min(0.0f);
+    b.add<decl::Float>("rest_length"_ustr).min(0.0f).supports_field();
+    b.add<decl::Float>("compliance"_ustr).default_value(1e-4f).min(0.0f);
     const FlatBundleTypePtr bundle_type = b.build();
     BundleTypeRegistry::register_type(bundle_type);
     return bundle_type;
@@ -185,8 +185,8 @@ const FlatBundleTypePtr &CrossEdgeLengthConstraintBundle::get_bundle_type()
   static const FlatBundleTypePtr bundle_type = []() {
     FlatBundleTypeBuilder b(CrossEdgeLengthConstraintBundle::name);
     add_filter(b);
-    b.add<decl::Vector>("rest_position").supports_field();
-    b.add<decl::Float>("compliance").default_value(1e-4f).min(0.0f);
+    b.add<decl::Vector>("rest_position"_ustr).supports_field();
+    b.add<decl::Float>("compliance"_ustr).default_value(1e-4f).min(0.0f);
     const FlatBundleTypePtr bundle_type = b.build();
     BundleTypeRegistry::register_type(bundle_type);
     return bundle_type;
