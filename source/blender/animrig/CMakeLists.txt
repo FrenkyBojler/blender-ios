@@ -34,6 +34,7 @@ set(SRC
   intern/keyingsets.cc
   intern/nla.cc
   intern/pose.cc
+  intern/transformable.cc
   intern/versioning.cc
   intern/visualkey.cc
 
@@ -53,6 +54,7 @@ set(SRC
   ANIM_nla.hh
   ANIM_pose.hh
   ANIM_rna.hh
+  ANIM_transformable.hh
   ANIM_versioning.hh
   ANIM_visualkey.hh
   intern/action_runtime.hh
