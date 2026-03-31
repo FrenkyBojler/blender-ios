@@ -19,3 +19,4 @@ Referenced by issue #128555, Custom properties on Objects does not show the Enum
 Referenced by issue #154935, Crash when deleting object via the outliner
 Referenced by issue #156265, Rigify Rig_UI_layers don't show if rigify addon disabled
 Referenced by pull request #156345, Fix #156265: Rigify UI errors when rigify is disabled
+Referenced by issue #156535, API defined custom properties do not update Attribute Shader node
