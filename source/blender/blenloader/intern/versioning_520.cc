@@ -24,6 +24,7 @@
 #include "BLI_sys_types.h"
 
 #include "BKE_animsys.h"
+#include "BKE_curves.hh"
 #include "BKE_idprop.hh"
 #include "BKE_main.hh"
 #include "BKE_mesh_legacy_convert.hh"
@@ -351,6 +352,15 @@ void blo_do_versions_520(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 15)) {
     for (Scene &scene : bmain->scenes) {
       scene.r.scemode |= R_USE_TEXTURE_CACHE;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 502, 16)) {
+    for (Brush &brush : bmain->brushes) {
+      if (brush.gpencil_settings != nullptr) {
+        brush.gpencil_settings->curve_type = CURVE_TYPE_POLY;
+        brush.gpencil_settings->conversion_threshold = 0.001f;
+      }
     }
   }
   /**
