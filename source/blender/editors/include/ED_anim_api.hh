@@ -628,7 +628,7 @@ bAction *ANIM_active_action_from_area(Scene *scene,
 
 /* ************************************************ */
 /* ANIMATION CHANNELS LIST */
-/* anim_channels_*.c */
+/* anim_channels_*.cc */
 
 /** \} */
 
