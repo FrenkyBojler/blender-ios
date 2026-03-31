@@ -22,7 +22,7 @@
 
 /* TODO: WIP incomplete API. See Tracy.hpp header for a complete list of implementable macros. */
 
-#if 0 /* Optionally, use full signature for function names. */
+#  if 0 /* Optionally, use full signature for function names. */
 // TODO: See if it would be possible to trim the blender:: namespace and arguments
 #    if defined(__clang__) || defined(__GNUC__)
 #      undef TracyFunction
@@ -31,7 +31,7 @@
 #      undef TracyFunction
 #      define TracyFunction __FUNCSIG__
 #    endif
-#endif
+#  endif
 
 /* Frame markers. */
 #  define BLI_profile_frame_mark FrameMark
@@ -48,7 +48,8 @@
 #  define BLI_profile_zone_named(zone) ZoneNamed(zone, true)
 #  define BLI_profile_zone_named_n(zone, ui_name) ZoneNamedN(zone_name, ui_name, true)
 #  define BLI_profile_zone_named_c(zone, color) ZoneNamedC(zone_name, color, true)
-#  define BLI_profile_zone_named_nc(zone, ui_name, color) ZoneNamedNC(zone_name, ui_name, color, true)
+#  define BLI_profile_zone_named_nc(zone, ui_name, color) \
+    ZoneNamedNC(zone_name, ui_name, color, true)
 
 /* Set dynamic zone name, text, color, and value. */
 #  define BLI_profile_zone_set_name(text, size) ZoneName(text, size)
@@ -72,18 +73,19 @@
 
 /* Set current thread name. */
 #  define BLI_profile_set_thread_name(name) tracy::SetThreadName(name)
-#  define BLI_profile_set_thread_name_with_hint(name, hint) tracy::SetThreadNameWithHint(name, hint)
+#  define BLI_profile_set_thread_name_with_hint(name, hint) \
+    tracy::SetThreadNameWithHint(name, hint)
 
 /* PyObject_Call* wrappers to profile Python code execution.
  * API exposes both Python function parsing and explicit object name variants. */
 // TODO: Check if it would be possible to override the source location data to show the original
 //       function name, and not the lambda operator().
-#define __bli_profile_python_base_zone_label(label) "Python " label " call"
-#define __bli_profile_python_unknown_label "<unknown python func>"
+#  define __bli_profile_python_base_zone_label(label) "Python " label " call"
+#  define __bli_profile_python_unknown_label "<unknown python func>"
 
 #  define __bli_profile_python_zone(profile_label) \
     BLI_profile_zone_scoped_nc(__bli_profile_python_base_zone_label(profile_label), \
-                               BLI_profile_color_python); \
+                               BLI_profile_color_python);
 
 #  define __bli_profile_python_parsefunc(py_callable) \
     if (PyFunction_Check(py_callable)) { \
@@ -120,21 +122,24 @@
       return PyObject_CallOneArg(callable, arg); \
     }(py_callable, py_arg)
 
-#  define BLI_profile_PyObject_Call_objectname(profile_label, object_name, py_callable, py_args, py_kwargs) \
+#  define BLI_profile_PyObject_Call_objectname( \
+      profile_label, object_name, py_callable, py_args, py_kwargs) \
     [&object_name](PyObject *callable, PyObject *args, PyObject *kwargs) -> PyObject * { \
       __bli_profile_python_zone(profile_label); \
       __bli_profile_python_objectname(object_name); \
       return PyObject_Call(callable, args, kwargs); \
     }(py_callable, py_args, py_kwargs)
 
-#  define BLI_profile_PyObject_CallObject_objectname(profile_label, object_name, py_callable, py_args) \
+#  define BLI_profile_PyObject_CallObject_objectname( \
+      profile_label, object_name, py_callable, py_args) \
     [&object_name](PyObject *callable, PyObject *args) -> PyObject * { \
       __bli_profile_python_zone(profile_label); \
       __bli_profile_python_objectname(object_name); \
       return PyObject_CallObject(callable, args); \
     }(py_callable, py_args)
 
-#  define BLI_profile_PyObject_CallOneArg_objectname(profile_label, object_name, py_callable, py_arg) \
+#  define BLI_profile_PyObject_CallOneArg_objectname( \
+      profile_label, object_name, py_callable, py_arg) \
     [&object_name](PyObject *callable, PyObject *arg) -> PyObject * { \
       __bli_profile_python_zone(profile_label); \
       __bli_profile_python_objectname(object_name); \

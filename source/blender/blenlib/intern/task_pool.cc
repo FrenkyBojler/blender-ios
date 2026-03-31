@@ -121,7 +121,7 @@ void Task::operator()() const
   if (!BLI_thread_is_main()) {
     BLI_profile_set_thread_name("BLI Task thread");
   }
-  BLI_profile_zone_scoped_n("BLI Task")
+  BLI_profile_zone_scoped_n("BLI Task");
   run(pool, taskdata);
 }
 

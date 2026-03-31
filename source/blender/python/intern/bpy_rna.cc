@@ -8571,18 +8571,18 @@ static PyObject *pyrna_struct_CreatePyObject_from_type(const PointerRNA *ptr,
   if (tp) {
     pyrna = reinterpret_cast<BPy_StructRNA *>(
         BLI_profile_PyObject_CallOneArg_objectname("rna_struct_CreatePyObject",
-                                         struct_identifier,
-                                         reinterpret_cast<PyObject *>(tp),
-                                         pyptr_rna));
+                                                   struct_identifier,
+                                                   reinterpret_cast<PyObject *>(tp),
+                                                   pyptr_rna));
   }
   else {
     CLOG_WARN(BPY_LOG_RNA, "could not make type '%s'", struct_identifier);
 
-    pyrna = reinterpret_cast<BPy_StructRNA *>(
-        BLI_profile_PyObject_CallOneArg_objectname("rna_struct_CreatePyObject",
-                                         struct_identifier,
-                                         reinterpret_cast<PyObject *>(&pyrna_struct_Type),
-                                         pyptr_rna));
+    pyrna = reinterpret_cast<BPy_StructRNA *>(BLI_profile_PyObject_CallOneArg_objectname(
+        "rna_struct_CreatePyObject",
+        struct_identifier,
+        reinterpret_cast<PyObject *>(&pyrna_struct_Type),
+        pyptr_rna));
   }
 
 #ifdef USE_PYRNA_STRUCT_REFERENCE
@@ -8718,9 +8718,9 @@ PyObject *pyrna_prop_CreatePyObject(PointerRNA *ptr, PropertyRNA *prop)
   const char *struct_identifier = RNA_struct_identifier(ptr->type);
   BPy_PropertyRNA *pyrna = reinterpret_cast<BPy_PropertyRNA *>(
       BLI_profile_PyObject_CallOneArg_objectname("rna_prop_CreatePyObject",
-                                       struct_identifier,
-                                       reinterpret_cast<PyObject *>(type),
-                                       pypropptr_rna));
+                                                 struct_identifier,
+                                                 reinterpret_cast<PyObject *>(type),
+                                                 pypropptr_rna));
 
   if (pyrna == nullptr) {
     PyErr_SetString(PyExc_MemoryError, "couldn't create BPy_rna object");
@@ -9854,7 +9854,10 @@ static int bpy_class_call(bContext *C, PointerRNA *ptr, FunctionRNA *func, Param
 
       const char *struct_identifier = RNA_struct_identifier(ptr->type);
       py_class_instance = BLI_profile_PyObject_CallOneArg_objectname(
-          "bpy_class_instance", struct_identifier, reinterpret_cast<PyObject *>(py_class), py_srna);
+          "bpy_class_instance",
+          struct_identifier,
+          reinterpret_cast<PyObject *>(py_class),
+          py_srna);
 
 #  ifdef USE_PEDANTIC_WRITE
       rna_disallow_writes = prev_write;
@@ -10630,7 +10633,8 @@ static PyObject *pyrna_unregister_class(PyObject * /*self*/, PyObject *py_class)
    * Note that zero falls through, no attribute, no error. */
   switch (PyObject_GetOptionalAttr(py_class, bpy_intern_str_unregister, &py_cls_meth)) {
     case 1: {
-      PyObject *ret = BLI_profile_PyObject_CallObject_parsefunc("rna_unregister_class", py_cls_meth, nullptr);
+      PyObject *ret = BLI_profile_PyObject_CallObject_parsefunc(
+          "rna_unregister_class", py_cls_meth, nullptr);
       Py_DECREF(py_cls_meth);
       if (ret) {
         Py_DECREF(ret);

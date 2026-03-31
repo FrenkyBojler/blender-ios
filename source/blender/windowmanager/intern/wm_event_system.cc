@@ -610,7 +610,7 @@ void wm_event_do_notifiers(bContext *C)
 #if 1
   /* Cache & catch WM level notifiers, such as frame change, scene/screen set. */
   for (wmWindow &win : wm->windows) {
-    BLI_profile_zone_scoped_n("Window notifiers")
+    BLI_profile_zone_scoped_n("Window notifiers");
     Scene *scene = WM_window_get_active_scene(&win);
     bool do_anim = false;
     bool clear_info_stats = false;

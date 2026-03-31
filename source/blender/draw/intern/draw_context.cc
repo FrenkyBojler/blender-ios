@@ -981,7 +981,7 @@ static void drw_engines_cache_populate(draw::ObjectRef &ref,
 
 void DRWContext::sync(iter_callback_t iter_callback)
 {
-  BLI_profile_zone_scoped_n("DRWContext::sync")
+  BLI_profile_zone_scoped_n("DRWContext::sync");
 
   /* Enable modules and init for next sync. */
   data->modules_begin_sync();
@@ -1005,7 +1005,7 @@ void DRWContext::sync(iter_callback_t iter_callback)
 
 void DRWContext::engines_init_and_sync(iter_callback_t iter_callback)
 {
-  BLI_profile_zone_scoped_n("DRWContext::engines_init_and_sync")
+  BLI_profile_zone_scoped_n("DRWContext::engines_init_and_sync");
 
   double start_time = BLI_time_now_seconds();
 

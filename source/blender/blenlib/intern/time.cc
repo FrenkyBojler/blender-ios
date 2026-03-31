@@ -6,8 +6,8 @@
  * \ingroup bli
  */
 
-#include "BLI_time.h"
 #include "BLI_profile.hh"
+#include "BLI_time.h"
 
 #ifdef WIN32
 

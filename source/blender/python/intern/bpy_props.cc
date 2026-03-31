@@ -21,8 +21,8 @@
 #include "RNA_types.hh"
 
 #include "BLI_array.hh"
-#include "BLI_profile.hh"
 #include "BLI_listbase.h"
+#include "BLI_profile.hh"
 #include "BLI_utildefines.h"
 
 #include "bpy_capi_utils.hh"
@@ -816,7 +816,8 @@ static bool bpy_prop_boolean_get_transform_fn(PointerRNA *ptr,
     PyObject *self = pyrna_struct_as_instance(ptr);
     PyTuple_SET_ITEMS(args, self, PyBool_FromLong(curr_value), PyBool_FromLong(is_set));
 
-    ret = BLI_profile_PyObject_CallObject_parsefunc("bpy_prop_boolean_get_transform", py_func, args);
+    ret = BLI_profile_PyObject_CallObject_parsefunc(
+        "bpy_prop_boolean_get_transform", py_func, args);
 
     Py_DECREF(args);
   }
@@ -902,7 +903,8 @@ static bool bpy_prop_boolean_set_transform_fn(
                       PyBool_FromLong(curr_value),
                       PyBool_FromLong(is_set));
 
-    ret = BLI_profile_PyObject_CallObject_parsefunc("bpy_prop_boolean_set_transform", py_func, args);
+    ret = BLI_profile_PyObject_CallObject_parsefunc(
+        "bpy_prop_boolean_set_transform", py_func, args);
 
     Py_DECREF(args);
   }
@@ -1012,7 +1014,8 @@ static void bpy_prop_boolean_array_get_transform_fn(
         bpy_py_object_from_prop_array_with_dims(curr_values, array_len_info, PyBool_Type),
         PyBool_FromLong(is_set));
 
-    ret = BLI_profile_PyObject_CallObject_parsefunc("bpy_prop_boolean_array_get_transform", py_func, args);
+    ret = BLI_profile_PyObject_CallObject_parsefunc(
+        "bpy_prop_boolean_array_get_transform", py_func, args);
 
     Py_DECREF(args);
   }
@@ -1091,7 +1094,8 @@ static void bpy_prop_boolean_array_set_transform_fn(PointerRNA *ptr,
         bpy_py_object_from_prop_array_with_dims(curr_values, array_len_info, PyBool_Type),
         PyBool_FromLong(is_set));
 
-    ret = BLI_profile_PyObject_CallObject_parsefunc("bpy_prop_boolean_array_set_transform", py_func, args);
+    ret = BLI_profile_PyObject_CallObject_parsefunc(
+        "bpy_prop_boolean_array_set_transform", py_func, args);
 
     Py_DECREF(args);
   }
@@ -1362,7 +1366,8 @@ static void bpy_prop_int_array_get_transform_fn(
         bpy_py_object_from_prop_array_with_dims(curr_values, array_len_info, PyLong_Type),
         PyBool_FromLong(is_set));
 
-    ret = BLI_profile_PyObject_CallObject_parsefunc("bpy_prop_int_array_get_transform", py_func, args);
+    ret = BLI_profile_PyObject_CallObject_parsefunc(
+        "bpy_prop_int_array_get_transform", py_func, args);
 
     Py_DECREF(args);
   }
@@ -1441,7 +1446,8 @@ static void bpy_prop_int_array_set_transform_fn(PointerRNA *ptr,
         bpy_py_object_from_prop_array_with_dims(curr_values, array_len_info, PyLong_Type),
         PyBool_FromLong(is_set));
 
-    ret = BLI_profile_PyObject_CallObject_parsefunc("bpy_prop_int_array_set_transform", py_func, args);
+    ret = BLI_profile_PyObject_CallObject_parsefunc(
+        "bpy_prop_int_array_set_transform", py_func, args);
 
     Py_DECREF(args);
   }
@@ -1720,7 +1726,8 @@ static void bpy_prop_float_array_get_transform_fn(
         bpy_py_object_from_prop_array_with_dims(curr_values, array_len_info, PyFloat_Type),
         PyBool_FromLong(is_set));
 
-    ret = BLI_profile_PyObject_CallObject_parsefunc("bpy_prop_float_array_get_transform", py_func, args);
+    ret = BLI_profile_PyObject_CallObject_parsefunc(
+        "bpy_prop_float_array_get_transform", py_func, args);
 
     Py_DECREF(args);
   }
@@ -1803,7 +1810,8 @@ static void bpy_prop_float_array_set_transform_fn(PointerRNA *ptr,
         bpy_py_object_from_prop_array_with_dims(curr_values, array_len_info, PyFloat_Type),
         PyBool_FromLong(is_set));
 
-    ret = BLI_profile_PyObject_CallObject_parsefunc("bpy_prop_float_array_set_transform", py_func, args);
+    ret = BLI_profile_PyObject_CallObject_parsefunc(
+        "bpy_prop_float_array_set_transform", py_func, args);
 
     Py_DECREF(args);
   }
@@ -1914,7 +1922,8 @@ static std::string bpy_prop_string_get_transform_locked_fn(PointerRNA *ptr,
         PyUnicode_FromStringAndSize(curr_value.c_str(), Py_ssize_t(curr_value.size())),
         PyBool_FromLong(is_set));
 
-    ret = BLI_profile_PyObject_CallObject_parsefunc("bpy_prop_string_get_transformed_locked", py_func, args);
+    ret = BLI_profile_PyObject_CallObject_parsefunc(
+        "bpy_prop_string_get_transformed_locked", py_func, args);
 
     Py_DECREF(args);
   }
@@ -2032,7 +2041,8 @@ static std::string bpy_prop_string_set_transform_fn(PointerRNA *ptr,
         PyUnicode_FromStringAndSize(curr_value.c_str(), Py_ssize_t(curr_value.size())),
         PyBool_FromLong(is_set));
 
-    ret = BLI_profile_PyObject_CallObject_parsefunc("bpy_prop_string_set_transform", py_func, args);
+    ret = BLI_profile_PyObject_CallObject_parsefunc(
+        "bpy_prop_string_set_transform", py_func, args);
 
     Py_DECREF(args);
   }
@@ -2121,7 +2131,8 @@ static void bpy_prop_string_visit_for_search_fn(
     Py_INCREF(py_context);
     PyTuple_SET_ITEMS(args, self, py_context, py_edit_text);
 
-    ret = BLI_profile_PyObject_CallObject_parsefunc("bpy_prop_string_visit_for_search", py_func, args);
+    ret = BLI_profile_PyObject_CallObject_parsefunc(
+        "bpy_prop_string_visit_for_search", py_func, args);
 
     Py_DECREF(args);
   }

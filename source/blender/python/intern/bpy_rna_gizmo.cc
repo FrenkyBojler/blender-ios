@@ -154,7 +154,8 @@ static void py_rna_gizmo_handler_get_cb(const wmGizmo * /*gz*/,
 
   BPyGizmoHandlerUserData *data = static_cast<BPyGizmoHandlerUserData *>(
       gz_prop->custom_func.user_data);
-  PyObject *ret = BLI_profile_PyObject_CallObject_parsefunc("rna_gizmo_handler_get", data->fn_slots[BPY_GIZMO_FN_SLOT_GET], nullptr);
+  PyObject *ret = BLI_profile_PyObject_CallObject_parsefunc(
+      "rna_gizmo_handler_get", data->fn_slots[BPY_GIZMO_FN_SLOT_GET], nullptr);
   if (ret == nullptr) {
     goto fail;
   }
