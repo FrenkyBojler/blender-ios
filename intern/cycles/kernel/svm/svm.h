@@ -208,14 +208,14 @@ ccl_device void svm_eval_nodes(KernelGlobals kg,
       break;
       SVM_CASE(NODE_TEX_COORD)
       {
-        const auto &node = svm_node_get<SVMNodeTexCoord>(kg, &offset);
+        const ccl_global auto &node = svm_node_get<SVMNodeTexCoord>(kg, &offset);
         offset = svm_node_tex_coord(kg, sd, path_flag, stack, node, offset);
       }
       break;
       SVM_CASE(NODE_TEX_COORD_DERIVATIVE)
       IF_NOT_KERNEL_NODES_FEATURE(VOLUME)
       {
-        const auto &node = svm_node_get<SVMNodeTexCoord>(kg, &offset);
+        const ccl_global auto &node = svm_node_get<SVMNodeTexCoord>(kg, &offset);
         offset = svm_node_tex_coord_derivative(kg, sd, path_flag, stack, node, offset);
       }
       break;
@@ -376,7 +376,7 @@ ccl_device void svm_eval_nodes(KernelGlobals kg,
       break;
       SVM_CASE(NODE_RGB_RAMP)
       {
-        const auto &node = svm_node_get<SVMNodeRGBRamp>(kg, &offset);
+        const ccl_global auto &node = svm_node_get<SVMNodeRGBRamp>(kg, &offset);
         offset = svm_node_rgb_ramp(kg, stack, node, offset);
       }
       break;
@@ -437,7 +437,7 @@ ccl_device void svm_eval_nodes(KernelGlobals kg,
       break;
       SVM_CASE(NODE_TEX_SKY)
       {
-        const auto &node = svm_node_get<SVMNodeTexSky>(kg, &offset);
+        const ccl_global auto &node = svm_node_get<SVMNodeTexSky>(kg, &offset);
         offset = svm_node_tex_sky(kg, sd, path_flag, stack, node, offset);
       }
       break;
@@ -476,7 +476,7 @@ ccl_device void svm_eval_nodes(KernelGlobals kg,
       break;
       SVM_CASE(NODE_CURVES)
       {
-        const auto &node = svm_node_get<SVMNodeCurves>(kg, &offset);
+        const ccl_global auto &node = svm_node_get<SVMNodeCurves>(kg, &offset);
         offset = svm_node_curves(kg, stack, node, offset);
       }
       break;
@@ -579,7 +579,7 @@ ccl_device void svm_eval_nodes(KernelGlobals kg,
       break;
       SVM_CASE(NODE_FLOAT_CURVE)
       {
-        const auto &node = svm_node_get<SVMNodeFloatCurve>(kg, &offset);
+        const ccl_global auto &node = svm_node_get<SVMNodeFloatCurve>(kg, &offset);
         offset = svm_node_curve(kg, stack, node, offset);
       }
       break;
