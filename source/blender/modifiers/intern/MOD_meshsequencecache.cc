@@ -53,7 +53,7 @@
 #endif
 
 #ifdef WITH_USD
-#  include "usd.hh"
+#  include "usd_api_modifier.hh"
 #endif
 
 namespace blender {
@@ -397,7 +397,7 @@ static void override_layers_panel_draw(const bContext *C, Panel *panel)
   }
 
   layout.use_property_split_set(true);
-  template_list_flags(&layout, C, &fileptr);
+  template_uilist_flags(&layout, C, &fileptr);
 }
 
 static void panel_register(ARegionType *region_type)

@@ -17,7 +17,7 @@
 namespace blender::asset_system {
 
 PreferencesOnDiskAssetLibrary::PreferencesOnDiskAssetLibrary(StringRef name, StringRef root_path)
-    : OnDiskAssetLibrary(ASSET_LIBRARY_CUSTOM, name, root_path)
+    : OnDiskAssetLibrary(ASSET_LIBRARY_CUSTOM, name, root_path, /*is_read_only=*/false)
 {
 }
 
@@ -25,6 +25,9 @@ std::optional<AssetLibraryReference> PreferencesOnDiskAssetLibrary::library_refe
 {
 
   for (const auto [i, asset_library] : U.asset_libraries.enumerate()) {
+    if (asset_library.flag & ASSET_LIBRARY_USE_REMOTE_URL) {
+      continue;
+    }
     if (!BLI_is_dir(asset_library.dirpath)) {
       continue;
     }
@@ -38,6 +41,21 @@ std::optional<AssetLibraryReference> PreferencesOnDiskAssetLibrary::library_refe
   }
 
   return {};
+}
+
+bool PreferencesOnDiskAssetLibrary::is_enabled() const
+{
+  for (const bUserAssetLibrary &asset_library : U.asset_libraries) {
+    if (!BLI_is_dir(asset_library.dirpath)) {
+      continue;
+    }
+
+    if (BLI_path_cmp_normalized(asset_library.dirpath, this->root_path().c_str()) == 0) {
+      return (asset_library.flag & ASSET_LIBRARY_DISABLED) == 0;
+    }
+  }
+
+  return false;
 }
 
 }  // namespace blender::asset_system

@@ -372,7 +372,7 @@ void clip_draw_dopesheet_channels(const bContext *C, ARegion *region)
   y = (CHANNEL_FIRST);
 
   /* get RNA properties (once) */
-  PropertyRNA *chan_prop_lock = RNA_struct_type_find_property(&RNA_MovieTrackingTrack, "lock");
+  PropertyRNA *chan_prop_lock = RNA_struct_type_find_property(RNA_MovieTrackingTrack, "lock");
   BLI_assert(chan_prop_lock);
 
   GPU_blend(GPU_BLEND_ALPHA);
@@ -386,23 +386,22 @@ void clip_draw_dopesheet_channels(const bContext *C, ARegion *region)
     {
       MovieTrackingTrack *track = channel.track;
       const int icon = (track->flag & TRACK_LOCKED) ? ICON_LOCKED : ICON_UNLOCKED;
-      PointerRNA ptr = RNA_pointer_create_discrete(&clip->id, &RNA_MovieTrackingTrack, track);
+      PointerRNA ptr = RNA_pointer_create_discrete(&clip->id, RNA_MovieTrackingTrack, track);
 
       block_emboss_set(block, ui::EmbossType::None);
-      ui::Button *but = uiDefIconButR_prop(block,
-                                           ui::ButtonType::IconToggle,
-                                           icon,
-                                           v2d->cur.xmax - UI_UNIT_X - CHANNEL_PAD,
-                                           y - UI_UNIT_Y / 2.0f,
-                                           UI_UNIT_X,
-                                           UI_UNIT_Y,
-                                           &ptr,
-                                           chan_prop_lock,
-                                           0,
-                                           0,
-                                           0,
-                                           std::nullopt);
-      button_retval_set(but, 1);
+      uiDefIconButR_prop(block,
+                         ui::ButtonType::IconToggle,
+                         icon,
+                         v2d->cur.xmax - UI_UNIT_X - CHANNEL_PAD,
+                         y - UI_UNIT_Y / 2.0f,
+                         UI_UNIT_X,
+                         UI_UNIT_Y,
+                         &ptr,
+                         chan_prop_lock,
+                         0,
+                         0,
+                         0,
+                         std::nullopt);
       block_emboss_set(block, ui::EmbossType::Emboss);
     }
 

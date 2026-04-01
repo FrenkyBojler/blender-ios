@@ -71,7 +71,7 @@
 
 #include "SEQ_render.hh"
 
-#include "ANIM_action_legacy.hh"
+#include "ANIM_animdata.hh"
 
 #include "GPU_context.hh"
 #include "GPU_framebuffer.hh"
@@ -190,7 +190,7 @@ static void screen_opengl_views_setup(OGLRender *oglrender)
     rv = static_cast<RenderView *>(rr->views.first);
 
     if (rv == nullptr) {
-      rv = MEM_new_for_free<RenderView>("new opengl render view");
+      rv = MEM_new<RenderView>("new opengl render view");
       BLI_addtail(&rr->views, rv);
     }
 
@@ -200,7 +200,7 @@ static void screen_opengl_views_setup(OGLRender *oglrender)
 
       IMB_freeImBuf(rv_del->ibuf);
 
-      MEM_freeN(rv_del);
+      MEM_delete(rv_del);
     }
   }
   else {
@@ -224,7 +224,7 @@ static void screen_opengl_views_setup(OGLRender *oglrender)
 
         IMB_freeImBuf(rv_del->ibuf);
 
-        MEM_freeN(rv_del);
+        MEM_delete(rv_del);
       }
     }
 
@@ -238,7 +238,7 @@ static void screen_opengl_views_setup(OGLRender *oglrender)
           BLI_findstring(&rr->views, srv.name, offsetof(SceneRenderView, name)));
 
       if (rv == nullptr) {
-        rv = MEM_new_for_free<RenderView>("new opengl render view");
+        rv = MEM_new<RenderView>("new opengl render view");
         STRNCPY_UTF8(rv->name, srv.name);
         BLI_addtail(&rr->views, rv);
       }
@@ -251,7 +251,8 @@ static void screen_opengl_views_setup(OGLRender *oglrender)
 
   /* will only work for non multiview correctly */
   if (v3d) {
-    camera = BKE_camera_multiview_render(oglrender->scene, v3d->camera, "new opengl render view");
+    camera = BKE_camera_multiview_render(
+        *oglrender->bmain, oglrender->scene, v3d->camera, "new opengl render view");
     BKE_render_result_stamp_info(oglrender->scene, camera, rr, false);
   }
   else {
@@ -316,7 +317,7 @@ static void screen_opengl_render_doit(OGLRender *oglrender, RenderResult *rr)
       ED_annotation_draw_ex(scene, gpd, sizex, sizey, scene->r.cfra, SPACE_SEQ);
       G.f &= ~G_FLAG_RENDER_VIEWPORT;
 
-      gp_rect = MEM_malloc_arrayN<uchar>(4 * sizex * sizey, "offscreen rect");
+      gp_rect = MEM_new_array_uninitialized<uchar>(4 * sizex * sizey, "offscreen rect");
       GPU_offscreen_read_color(oglrender->ofs, GPU_DATA_UBYTE, gp_rect);
 
       for (i = 0; i < sizex * sizey * 4; i += 4) {
@@ -325,7 +326,7 @@ static void screen_opengl_render_doit(OGLRender *oglrender, RenderResult *rr)
       GPU_offscreen_unbind(oglrender->ofs, true);
       DRW_gpu_context_disable();
 
-      MEM_freeN(gp_rect);
+      MEM_delete(gp_rect);
     }
   }
   else {
@@ -360,7 +361,8 @@ static void screen_opengl_render_doit(OGLRender *oglrender, RenderResult *rr)
 
       /* for stamp only */
       if (oglrender->rv3d->persp == RV3D_CAMOB && v3d->camera) {
-        camera = BKE_camera_multiview_render(oglrender->scene, v3d->camera, viewname);
+        camera = BKE_camera_multiview_render(
+            *oglrender->bmain, oglrender->scene, v3d->camera, viewname);
       }
     }
     else {
@@ -397,10 +399,12 @@ static void screen_opengl_render_doit(OGLRender *oglrender, RenderResult *rr)
     IMB_freeImBuf(ibuf_result);
   }
 
-  /* Perform render step between renders to allow
-   * flushing of freed GPUBackend resources. */
   DRW_gpu_context_enable();
-  if (GPU_backend_get_type() == GPU_BACKEND_METAL) {
+  /* Metal: Perform render step between samples to allow flushing of freed GPUBackend resources.
+   * Vulkan: Perform render step between samples to avoid allocation of a high amount of command
+   * buffer memory that can eventually result in out-of-memory errors or a TDR when submitted as
+   * one large command buffer. */
+  if (ELEM(GPU_backend_get_type(), GPU_BACKEND_METAL, GPU_BACKEND_VULKAN)) {
     GPU_flush();
   }
   GPU_render_step(true);
@@ -533,7 +537,7 @@ static void gather_frames_to_render_for_adt(const OGLRender *oglrender, const An
   int frame_start = PSFRA;
   int frame_end = PEFRA;
 
-  for (const FCurve *fcu : animrig::legacy::fcurves_for_assigned_action(adt)) {
+  for (const FCurve *fcu : animrig::fcurves_for_assigned_action(adt)) {
     if (fcu->driver != nullptr || fcu->fpt != nullptr) {
       /* Drivers have values for any point in time, so to get "the keyed frames" they are
        * useless. Same for baked FCurves, they also have keys for every frame, which is not
@@ -810,7 +814,7 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
   oglrender->is_sequencer = is_sequencer;
   if (is_sequencer) {
     oglrender->sseq = CTX_wm_space_seq(C);
-    ImBuf **ibufs_arr = MEM_calloc_arrayN<ImBuf *>(oglrender->views_len, __func__);
+    ImBuf **ibufs_arr = MEM_new_array_zeroed<ImBuf *>(oglrender->views_len, __func__);
     oglrender->seq_data.ibufs_arr = ibufs_arr;
   }
 
@@ -826,7 +830,8 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
 
     /* MUST be cleared on exit */
     oglrender->scene->customdata_mask_modal = CustomData_MeshMasks{};
-    ED_view3d_datamask(oglrender->scene,
+    ED_view3d_datamask(*oglrender->bmain,
+                       oglrender->scene,
                        oglrender->view_layer,
                        oglrender->v3d,
                        &oglrender->scene->customdata_mask_modal);
@@ -906,7 +911,7 @@ static void screen_opengl_render_end(OGLRender *oglrender)
     oglrender->task_pool = nullptr;
   }
 
-  MEM_SAFE_FREE(oglrender->render_frames);
+  MEM_SAFE_DELETE(oglrender->render_frames);
 
   if (!oglrender->movie_writers.is_empty()) {
     if (BKE_imtype_is_movie(oglrender->scene->r.im_format.imtype)) {
@@ -927,7 +932,7 @@ static void screen_opengl_render_end(OGLRender *oglrender)
     oglrender->viewport = nullptr;
   }
 
-  MEM_SAFE_FREE(oglrender->seq_data.ibufs_arr);
+  MEM_SAFE_DELETE(oglrender->seq_data.ibufs_arr);
 
   oglrender->scene->customdata_mask_modal = CustomData_MeshMasks{};
 
@@ -965,6 +970,11 @@ static bool screen_opengl_render_anim_init(wmOperator *op)
   OGLRender *oglrender = static_cast<OGLRender *>(op->customdata);
   Scene *scene = oglrender->scene;
 
+  if (!(scene->r.mode & R_SAVE_OUTPUT)) {
+    BKE_report(op->reports, RPT_ERROR, "Render output disabled in Output properties");
+    return false;
+  }
+
   ImageFormatData image_format;
   BKE_image_format_init_for_write(&image_format, scene, nullptr, true);
 
@@ -979,14 +989,19 @@ static bool screen_opengl_render_anim_init(wmOperator *op)
         &scene->r, &image_format, oglrender->sizex, oglrender->sizey, &width, &height);
     oglrender->movie_writers.reserve(oglrender->totvideos);
 
+    const bool is_multiview_name = ((scene->r.scemode & R_MULTIVIEW) != 0 &&
+                                    (image_format.views_format == R_IMF_VIEWS_INDIVIDUAL));
+
     for (i = 0; i < oglrender->totvideos; i++) {
       Scene *scene_eval = DEG_get_evaluated_scene(oglrender->depsgraph);
-      const char *suffix = BKE_scene_multiview_view_id_suffix_get(&scene->r, i);
+      const char *suffix = is_multiview_name ?
+                               BKE_scene_multiview_view_id_suffix_get(&scene->r, i) :
+                               "";
       MovieWriter *writer = MOV_write_begin(scene_eval,
                                             &scene->r,
                                             &image_format,
-                                            oglrender->sizex,
-                                            oglrender->sizey,
+                                            width,
+                                            height,
                                             oglrender->reports,
                                             PRVRANGEON != 0,
                                             suffix);
@@ -1123,7 +1138,7 @@ static bool schedule_write_result(OGLRender *oglrender, RenderResult *rr)
     return false;
   }
   Scene *scene = oglrender->scene;
-  WriteTaskData *task_data = MEM_new_for_free<WriteTaskData>("write task data");
+  WriteTaskData *task_data = MEM_new<WriteTaskData>("write task data");
   task_data->rr = rr;
   task_data->tmp_scene = dna::shallow_copy(*scene);
   {

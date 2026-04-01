@@ -128,10 +128,10 @@ static void palette_blend_write(BlendWriter *writer, ID *id, const void *id_addr
 {
   Palette *palette = id_cast<Palette *>(id);
 
-  BLO_write_id_struct(writer, Palette, id_address, &palette->id);
+  writer->write_id_struct(id_address, palette);
   BKE_id_blend_write(writer, &palette->id);
 
-  BLO_write_struct_list(writer, PaletteColor, &palette->colors);
+  writer->write_struct_list(&palette->colors);
 }
 
 static void palette_blend_read_data(BlendDataReader *reader, ID *id)
@@ -152,34 +152,34 @@ static void palette_undo_preserve(BlendLibReader * /*reader*/, ID *id_new, ID *i
 }
 
 IDTypeInfo IDType_ID_PAL = {
-    /*id_code*/ Palette::id_type,
-    /*id_filter*/ FILTER_ID_PAL,
-    /*dependencies_id_types*/ 0,
-    /*main_listbase_index*/ INDEX_ID_PAL,
-    /*struct_size*/ sizeof(Palette),
-    /*name*/ "Palette",
-    /*name_plural*/ N_("palettes"),
-    /*translation_context*/ BLT_I18NCONTEXT_ID_PALETTE,
-    /*flags*/ IDTYPE_FLAGS_NO_ANIMDATA,
-    /*asset_type_info*/ nullptr,
+    .id_code = Palette::id_type,
+    .id_filter = FILTER_ID_PAL,
+    .dependencies_id_types = 0,
+    .main_listbase_index = INDEX_ID_PAL,
+    .struct_size = sizeof(Palette),
+    .name = "Palette",
+    .name_plural = N_("palettes"),
+    .translation_context = BLT_I18NCONTEXT_ID_PALETTE,
+    .flags = IDTYPE_FLAGS_NO_ANIMDATA,
+    .asset_type_info = nullptr,
 
-    /*init_data*/ palette_init_data,
-    /*copy_data*/ palette_copy_data,
-    /*free_data*/ palette_free_data,
-    /*make_local*/ nullptr,
-    /*foreach_id*/ nullptr,
-    /*foreach_cache*/ nullptr,
-    /*foreach_path*/ nullptr,
-    /*foreach_working_space_color*/ palette_foreach_working_space_color,
-    /*owner_pointer_get*/ nullptr,
+    .init_data = palette_init_data,
+    .copy_data = palette_copy_data,
+    .free_data = palette_free_data,
+    .make_local = nullptr,
+    .foreach_id = nullptr,
+    .foreach_cache = nullptr,
+    .foreach_path = nullptr,
+    .foreach_working_space_color = palette_foreach_working_space_color,
+    .owner_pointer_get = nullptr,
 
-    /*blend_write*/ palette_blend_write,
-    /*blend_read_data*/ palette_blend_read_data,
-    /*blend_read_after_liblink*/ nullptr,
+    .blend_write = palette_blend_write,
+    .blend_read_data = palette_blend_read_data,
+    .blend_read_after_liblink = nullptr,
 
-    /*blend_read_undo_preserve*/ palette_undo_preserve,
+    .blend_read_undo_preserve = palette_undo_preserve,
 
-    /*lib_override_apply_post*/ nullptr,
+    .lib_override_apply_post = nullptr,
 };
 
 static void paint_curve_copy_data(Main * /*bmain*/,
@@ -193,7 +193,7 @@ static void paint_curve_copy_data(Main * /*bmain*/,
 
   if (paint_curve_src->tot_points != 0) {
     paint_curve_dst->points = static_cast<PaintCurvePoint *>(
-        MEM_dupallocN(paint_curve_src->points));
+        MEM_dupalloc(paint_curve_src->points));
   }
 }
 
@@ -201,7 +201,7 @@ static void paint_curve_free_data(ID *id)
 {
   PaintCurve *paint_curve = id_cast<PaintCurve *>(id);
 
-  MEM_SAFE_FREE(paint_curve->points);
+  MEM_SAFE_DELETE(paint_curve->points);
   paint_curve->tot_points = 0;
 }
 
@@ -209,10 +209,10 @@ static void paint_curve_blend_write(BlendWriter *writer, ID *id, const void *id_
 {
   PaintCurve *pc = id_cast<PaintCurve *>(id);
 
-  BLO_write_id_struct(writer, PaintCurve, id_address, &pc->id);
+  writer->write_id_struct(id_address, pc);
   BKE_id_blend_write(writer, &pc->id);
 
-  BLO_write_struct_array(writer, PaintCurvePoint, pc->tot_points, pc->points);
+  writer->write_struct_array(pc->tot_points, pc->points);
 }
 
 static void paint_curve_blend_read_data(BlendDataReader *reader, ID *id)
@@ -222,41 +222,44 @@ static void paint_curve_blend_read_data(BlendDataReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_PC = {
-    /*id_code*/ PaintCurve::id_type,
-    /*id_filter*/ FILTER_ID_PC,
-    /*dependencies_id_types*/ 0,
-    /*main_listbase_index*/ INDEX_ID_PC,
-    /*struct_size*/ sizeof(PaintCurve),
-    /*name*/ "PaintCurve",
-    /*name_plural*/ N_("paint_curves"),
-    /*translation_context*/ BLT_I18NCONTEXT_ID_PAINTCURVE,
-    /*flags*/ IDTYPE_FLAGS_NO_ANIMDATA,
-    /*asset_type_info*/ nullptr,
+    .id_code = PaintCurve::id_type,
+    .id_filter = FILTER_ID_PC,
+    .dependencies_id_types = 0,
+    .main_listbase_index = INDEX_ID_PC,
+    .struct_size = sizeof(PaintCurve),
+    .name = "PaintCurve",
+    .name_plural = N_("paint_curves"),
+    .translation_context = BLT_I18NCONTEXT_ID_PAINTCURVE,
+    .flags = IDTYPE_FLAGS_NO_ANIMDATA,
+    .asset_type_info = nullptr,
 
-    /*init_data*/ nullptr,
-    /*copy_data*/ paint_curve_copy_data,
-    /*free_data*/ paint_curve_free_data,
-    /*make_local*/ nullptr,
-    /*foreach_id*/ nullptr,
-    /*foreach_cache*/ nullptr,
-    /*foreach_path*/ nullptr,
-    /*foreach_working_space_color*/ nullptr,
-    /*owner_pointer_get*/ nullptr,
+    .init_data = nullptr,
+    .copy_data = paint_curve_copy_data,
+    .free_data = paint_curve_free_data,
+    .make_local = nullptr,
+    .foreach_id = nullptr,
+    .foreach_cache = nullptr,
+    .foreach_path = nullptr,
+    .foreach_working_space_color = nullptr,
+    .owner_pointer_get = nullptr,
 
-    /*blend_write*/ paint_curve_blend_write,
-    /*blend_read_data*/ paint_curve_blend_read_data,
-    /*blend_read_after_liblink*/ nullptr,
+    .blend_write = paint_curve_blend_write,
+    .blend_read_data = paint_curve_blend_read_data,
+    .blend_read_after_liblink = nullptr,
 
-    /*blend_read_undo_preserve*/ nullptr,
+    .blend_read_undo_preserve = nullptr,
 
-    /*lib_override_apply_post*/ nullptr,
+    .lib_override_apply_post = nullptr,
 };
 
 static ePaintOverlayControlFlags overlay_flags = ePaintOverlayControlFlags(0);
 
-void BKE_paint_invalidate_overlay_tex(Scene *scene, ViewLayer *view_layer, const Tex *tex)
+void BKE_paint_invalidate_overlay_tex(const Main &bmain,
+                                      Scene *scene,
+                                      ViewLayer *view_layer,
+                                      const Tex *tex)
 {
-  Paint *paint = BKE_paint_get_active(scene, view_layer);
+  Paint *paint = BKE_paint_get_active(bmain, scene, view_layer);
   if (!paint) {
     return;
   }
@@ -274,9 +277,12 @@ void BKE_paint_invalidate_overlay_tex(Scene *scene, ViewLayer *view_layer, const
   }
 }
 
-void BKE_paint_invalidate_cursor_overlay(Scene *scene, ViewLayer *view_layer, CurveMapping *curve)
+void BKE_paint_invalidate_cursor_overlay(const Main &bmain,
+                                         Scene *scene,
+                                         ViewLayer *view_layer,
+                                         CurveMapping *curve)
 {
-  Paint *paint = BKE_paint_get_active(scene, view_layer);
+  Paint *paint = BKE_paint_get_active(bmain, scene, view_layer);
   if (paint == nullptr) {
     return;
   }
@@ -432,11 +438,11 @@ const EnumPropertyItem *BKE_paint_get_tool_enum_from_paintmode(const PaintMode m
   return nullptr;
 }
 
-Paint *BKE_paint_get_active(Scene *sce, ViewLayer *view_layer)
+Paint *BKE_paint_get_active(const Main &bmain, Scene *sce, ViewLayer *view_layer)
 {
   if (sce && view_layer) {
     ToolSettings *ts = sce->toolsettings;
-    BKE_view_layer_synced_ensure(sce, view_layer);
+    BKE_view_layer_synced_ensure(bmain, sce, view_layer);
     Object *actob = BKE_view_layer_active_object_get(view_layer);
 
     if (actob) {
@@ -473,12 +479,13 @@ Paint *BKE_paint_get_active(Scene *sce, ViewLayer *view_layer)
 
 Paint *BKE_paint_get_active_from_context(const bContext *C)
 {
+  const Main *bmain = CTX_data_main(C);
   Scene *sce = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
   if (sce && view_layer) {
     ToolSettings *ts = sce->toolsettings;
-    BKE_view_layer_synced_ensure(sce, view_layer);
+    BKE_view_layer_synced_ensure(*bmain, sce, view_layer);
     Object *obact = BKE_view_layer_active_object_get(view_layer);
 
     SpaceImage *sima = CTX_wm_space_image(C);
@@ -493,7 +500,7 @@ Paint *BKE_paint_get_active_from_context(const bContext *C)
       }
     }
     else {
-      return BKE_paint_get_active(sce, view_layer);
+      return BKE_paint_get_active(*bmain, sce, view_layer);
     }
   }
 
@@ -502,11 +509,12 @@ Paint *BKE_paint_get_active_from_context(const bContext *C)
 
 PaintMode BKE_paintmode_get_active_from_context(const bContext *C)
 {
+  const Main *bmain = CTX_data_main(C);
   Scene *sce = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
   if (sce && view_layer) {
-    BKE_view_layer_synced_ensure(sce, view_layer);
+    BKE_view_layer_synced_ensure(*bmain, sce, view_layer);
     Object *obact = BKE_view_layer_active_object_get(view_layer);
 
     SpaceImage *sima = CTX_wm_space_image(C);
@@ -596,9 +604,29 @@ PaintMode BKE_paintmode_get_from_tool(const bToolRef *tref)
   return PaintMode::Invalid;
 }
 
+bool BKE_paint_use_unified_size(const Paint *paint)
+{
+  /* For now, Grease Pencil Draw mode doesn't use the unified paint settings. */
+  if (paint->runtime->ob_mode == OB_MODE_PAINT_GREASE_PENCIL) {
+    return false;
+  }
+
+  return paint->unified_paint_settings.flag & UNIFIED_PAINT_SIZE;
+}
+
+bool BKE_paint_use_unified_strength(const Paint *paint)
+{
+  /* For now, Grease Pencil Draw mode doesn't use the unified paint settings. */
+  if (paint->runtime->ob_mode == OB_MODE_PAINT_GREASE_PENCIL) {
+    return false;
+  }
+
+  return paint->unified_paint_settings.flag & UNIFIED_PAINT_ALPHA;
+}
+
 bool BKE_paint_use_unified_color(const Paint *paint)
 {
-  /* Grease pencil draw mode never uses unified paint. */
+  /* For now, Grease Pencil Draw mode doesn't use the unified paint settings. */
   if (paint->runtime->ob_mode == OB_MODE_PAINT_GREASE_PENCIL) {
     return false;
   }
@@ -808,24 +836,11 @@ static void paint_brush_set_essentials_reference(Paint *paint, const char *name)
   paint->brush = nullptr;
 }
 
-static void paint_eraser_brush_set_essentials_reference(Paint *paint, const char *name)
-{
-  /* Set brush asset reference to a named brush in the essentials asset library. */
-  MEM_delete(paint->eraser_brush_asset_reference);
-
-  BLI_assert(paint->runtime->initialized);
-  paint->eraser_brush_asset_reference = paint_brush_asset_reference_ptr_from_essentials(
-      name, paint->runtime->paint_mode);
-  paint->eraser_brush = nullptr;
-}
-
 static void paint_brush_default_essentials_name_get(const PaintMode paint_mode,
                                                     std::optional<int> brush_type,
-                                                    StringRefNull *r_name,
-                                                    StringRefNull *r_eraser_name = nullptr)
+                                                    StringRefNull *r_name)
 {
   const char *name = "";
-  const char *eraser_name = "";
 
   switch (paint_mode) {
     case PaintMode::Sculpt:
@@ -956,7 +971,6 @@ static void paint_brush_default_essentials_name_get(const PaintMode paint_mode,
             break;
         }
       }
-      eraser_name = "Eraser Soft";
       break;
     case PaintMode::VertexGPencil:
       name = "Paint";
@@ -1021,9 +1035,6 @@ static void paint_brush_default_essentials_name_get(const PaintMode paint_mode,
   }
 
   *r_name = name;
-  if (r_eraser_name) {
-    *r_eraser_name = eraser_name;
-  }
 }
 
 std::optional<AssetWeakReference> BKE_paint_brush_type_default_reference(
@@ -1031,7 +1042,7 @@ std::optional<AssetWeakReference> BKE_paint_brush_type_default_reference(
 {
   StringRefNull name;
 
-  paint_brush_default_essentials_name_get(paint_mode, brush_type, &name, nullptr);
+  paint_brush_default_essentials_name_get(paint_mode, brush_type, &name);
   if (name.is_empty()) {
     return {};
   }
@@ -1039,9 +1050,7 @@ std::optional<AssetWeakReference> BKE_paint_brush_type_default_reference(
   return paint_brush_asset_reference_from_essentials(name.c_str(), paint_mode);
 }
 
-static void paint_brush_set_default_reference(Paint *paint,
-                                              const bool do_regular = true,
-                                              const bool do_eraser = true)
+static void paint_brush_set_default_reference(Paint *paint, const bool do_regular = true)
 {
   if (!paint->runtime || !paint->runtime->initialized) {
     /* Can happen when loading old file where toolsettings are created in versioning, without
@@ -1050,16 +1059,11 @@ static void paint_brush_set_default_reference(Paint *paint,
   }
 
   StringRefNull name;
-  StringRefNull eraser_name;
 
-  paint_brush_default_essentials_name_get(
-      paint->runtime->paint_mode, std::nullopt, &name, &eraser_name);
+  paint_brush_default_essentials_name_get(paint->runtime->paint_mode, std::nullopt, &name);
 
   if (do_regular && !name.is_empty()) {
     paint_brush_set_essentials_reference(paint, name.c_str());
-  }
-  if (do_eraser && !eraser_name.is_empty()) {
-    paint_eraser_brush_set_essentials_reference(paint, eraser_name.c_str());
   }
 }
 
@@ -1094,7 +1098,7 @@ void BKE_paint_brushes_set_default_references(ToolSettings *ts)
 
 bool BKE_paint_brush_set_default(Main *bmain, Paint *paint)
 {
-  paint_brush_set_default_reference(paint, true, false);
+  paint_brush_set_default_reference(paint, true);
   return paint_brush_update_from_asset_reference(bmain, paint);
 }
 
@@ -1127,102 +1131,6 @@ void BKE_paint_brushes_validate(Main *bmain, Paint *paint)
     BKE_paint_brush_set(paint, nullptr);
     BKE_paint_brush_set_default(bmain, paint);
   }
-
-  Brush *eraser_brush = BKE_paint_eraser_brush(paint);
-  if (eraser_brush && (paint->runtime->ob_mode & eraser_brush->ob_mode) == 0) {
-    BKE_paint_eraser_brush_set(paint, nullptr);
-    BKE_paint_eraser_brush_set_default(bmain, paint);
-  }
-}
-
-static bool paint_eraser_brush_set_from_asset_reference(Main *bmain, Paint *paint)
-{
-  /* Don't resolve this during file read, it will be done after. */
-  if (bmain->is_locked_for_linking) {
-    return false;
-  }
-  /* Attempt to restore a valid active brush from brush asset information. */
-  if (paint->eraser_brush != nullptr) {
-    return false;
-  }
-  if (paint->eraser_brush_asset_reference == nullptr) {
-    return false;
-  }
-
-  Brush *brush = reinterpret_cast<Brush *>(
-      bke::asset_edit_id_from_weak_reference(*bmain, ID_BR, *paint->eraser_brush_asset_reference));
-  BLI_assert(brush == nullptr || bke::asset_edit_id_is_editable(brush->id));
-
-  /* Ensure we have a brush with appropriate mode to assign.
-   * Could happen if contents of asset blend was manually changed. */
-  if (brush == nullptr || (paint->runtime->ob_mode & brush->ob_mode) == 0) {
-    MEM_delete(paint->eraser_brush_asset_reference);
-    paint->eraser_brush_asset_reference = nullptr;
-    return false;
-  }
-
-  paint->eraser_brush = brush;
-  return true;
-}
-
-Brush *BKE_paint_eraser_brush(Paint *paint)
-{
-  return paint ? paint->eraser_brush : nullptr;
-}
-
-const Brush *BKE_paint_eraser_brush_for_read(const Paint *paint)
-{
-  return paint ? paint->eraser_brush : nullptr;
-}
-
-bool BKE_paint_eraser_brush_set(Paint *paint, Brush *brush)
-{
-  if (paint == nullptr || paint->eraser_brush == brush) {
-    return false;
-  }
-  if (brush && (paint->runtime->ob_mode & brush->ob_mode) == 0) {
-    return false;
-  }
-
-  paint->eraser_brush = brush;
-
-  MEM_delete(paint->eraser_brush_asset_reference);
-  paint->eraser_brush_asset_reference = nullptr;
-
-  if (brush != nullptr) {
-    std::optional<AssetWeakReference> weak_ref = bke::asset_edit_weak_reference_from_id(brush->id);
-    if (weak_ref.has_value()) {
-      paint->eraser_brush_asset_reference = MEM_new<AssetWeakReference>(__func__, *weak_ref);
-    }
-  }
-
-  return true;
-}
-
-Brush *BKE_paint_eraser_brush_from_essentials(Main *bmain,
-                                              const PaintMode paint_mode,
-                                              const char *name)
-{
-  std::optional<AssetWeakReference> weak_ref = paint_brush_asset_reference_from_essentials(
-      name, paint_mode);
-  if (!weak_ref) {
-    return {};
-  }
-
-  return reinterpret_cast<Brush *>(
-      bke::asset_edit_id_from_weak_reference(*bmain, ID_BR, *weak_ref));
-}
-
-bool BKE_paint_eraser_brush_set_default(Main *bmain, Paint *paint)
-{
-  paint_brush_set_default_reference(paint, false, true);
-  return paint_eraser_brush_set_from_asset_reference(bmain, paint);
-}
-
-bool BKE_paint_eraser_brush_set_essentials(Main *bmain, Paint *paint, const char *name)
-{
-  paint_eraser_brush_set_essentials_reference(paint, name);
-  return paint_eraser_brush_set_from_asset_reference(bmain, paint);
 }
 
 static void paint_runtime_init(const ToolSettings *ts, Paint *paint)
@@ -1399,7 +1307,7 @@ void BKE_palette_color_remove(Palette *palette, PaletteColor *color)
     palette->active_color = 0;
   }
 
-  MEM_freeN(color);
+  MEM_delete(color);
 }
 
 void BKE_palette_clear(Palette *palette)
@@ -1427,7 +1335,7 @@ Palette *BKE_palette_add(Main *bmain, const char *name)
 
 PaletteColor *BKE_palette_color_add(Palette *palette)
 {
-  PaletteColor *color = MEM_new_for_free<PaletteColor>(__func__);
+  PaletteColor *color = MEM_new<PaletteColor>(__func__);
   BLI_addtail(&palette->colors, color);
   return color;
 }
@@ -1581,7 +1489,7 @@ bool BKE_palette_from_hash(Main *bmain, GHash *color_table, const char *name)
   const int totpal = BLI_ghash_len(color_table);
 
   if (totpal > 0) {
-    color_array = MEM_new_array_for_free<tPaletteColorHSV>(totpal, __func__);
+    color_array = MEM_new_array<tPaletteColorHSV>(totpal, __func__);
     /* Put all colors in an array. */
     GHashIterator gh_iter;
     int t = 0;
@@ -1626,7 +1534,7 @@ bool BKE_palette_from_hash(Main *bmain, GHash *color_table, const char *name)
   }
 
   if (totpal > 0) {
-    MEM_SAFE_FREE(color_array);
+    MEM_SAFE_DELETE(color_array);
   }
 
   return done;
@@ -1767,38 +1675,38 @@ bool BKE_paint_ensure(ToolSettings *ts, Paint **r_paint)
   if ((reinterpret_cast<VPaint **>(r_paint) == &ts->vpaint) ||
       (reinterpret_cast<VPaint **>(r_paint) == &ts->wpaint))
   {
-    VPaint *data = MEM_new_for_free<VPaint>(__func__);
+    VPaint *data = MEM_new<VPaint>(__func__);
     paint = &data->paint;
     paint_init_data(*paint);
   }
   else if (reinterpret_cast<Sculpt **>(r_paint) == &ts->sculpt) {
-    Sculpt *data = MEM_new_for_free<Sculpt>(__func__);
+    Sculpt *data = MEM_new<Sculpt>(__func__);
 
     paint = &data->paint;
     paint_init_data(*paint);
   }
   else if (reinterpret_cast<GpPaint **>(r_paint) == &ts->gp_paint) {
-    GpPaint *data = MEM_new_for_free<GpPaint>(__func__);
+    GpPaint *data = MEM_new<GpPaint>(__func__);
     paint = &data->paint;
     paint_init_data(*paint);
   }
   else if (reinterpret_cast<GpVertexPaint **>(r_paint) == &ts->gp_vertexpaint) {
-    GpVertexPaint *data = MEM_new_for_free<GpVertexPaint>(__func__);
+    GpVertexPaint *data = MEM_new<GpVertexPaint>(__func__);
     paint = &data->paint;
     paint_init_data(*paint);
   }
   else if (reinterpret_cast<GpSculptPaint **>(r_paint) == &ts->gp_sculptpaint) {
-    GpSculptPaint *data = MEM_new_for_free<GpSculptPaint>(__func__);
+    GpSculptPaint *data = MEM_new<GpSculptPaint>(__func__);
     paint = &data->paint;
     paint_init_data(*paint);
   }
   else if (reinterpret_cast<GpWeightPaint **>(r_paint) == &ts->gp_weightpaint) {
-    GpWeightPaint *data = MEM_new_for_free<GpWeightPaint>(__func__);
+    GpWeightPaint *data = MEM_new<GpWeightPaint>(__func__);
     paint = &data->paint;
     paint_init_data(*paint);
   }
   else if (reinterpret_cast<CurvesSculpt **>(r_paint) == &ts->curves_sculpt) {
-    CurvesSculpt *data = MEM_new_for_free<CurvesSculpt>(__func__);
+    CurvesSculpt *data = MEM_new<CurvesSculpt>(__func__);
     paint = &data->paint;
     paint_init_data(*paint);
   }
@@ -1821,15 +1729,9 @@ void BKE_paint_brushes_ensure(Main *bmain, Paint *paint)
   if (paint->brush_asset_reference) {
     paint_brush_update_from_asset_reference(bmain, paint);
   }
-  if (paint->eraser_brush_asset_reference) {
-    paint_eraser_brush_set_from_asset_reference(bmain, paint);
-  }
 
   if (!paint->brush) {
     BKE_paint_brush_set_default(bmain, paint);
-  }
-  if (!paint->eraser_brush) {
-    BKE_paint_eraser_brush_set_default(bmain, paint);
   }
 }
 
@@ -1853,7 +1755,6 @@ void BKE_paint_free(Paint *paint)
   BKE_curvemapping_free(paint->cavity_curve);
   MEM_delete(paint->brush_asset_reference);
   MEM_delete(paint->tool_brush_bindings.main_brush_asset_reference);
-  MEM_delete(paint->eraser_brush_asset_reference);
 
   for (NamedBrushAssetReference &brush_ref :
        paint->tool_brush_bindings.active_brush_per_brush_type.items_mutable())
@@ -1881,10 +1782,6 @@ void BKE_paint_copy(const Paint *src, Paint *dst, const int flag)
   if (src->tool_brush_bindings.main_brush_asset_reference) {
     dst->tool_brush_bindings.main_brush_asset_reference = MEM_new<AssetWeakReference>(
         __func__, *src->tool_brush_bindings.main_brush_asset_reference);
-  }
-  if (src->eraser_brush_asset_reference) {
-    dst->eraser_brush_asset_reference = MEM_new<AssetWeakReference>(
-        __func__, *src->eraser_brush_asset_reference);
   }
   BLI_duplicatelist(&dst->tool_brush_bindings.active_brush_per_brush_type,
                     &src->tool_brush_bindings.active_brush_per_brush_type);
@@ -2019,9 +1916,6 @@ void BKE_paint_blend_write(BlendWriter *writer, Paint *paint)
   if (paint->brush_asset_reference) {
     BKE_asset_weak_reference_write(writer, paint->brush_asset_reference);
   }
-  if (paint->eraser_brush_asset_reference) {
-    BKE_asset_weak_reference_write(writer, paint->eraser_brush_asset_reference);
-  }
 
   {
     /* Write tool system bindings. */
@@ -2030,10 +1924,9 @@ void BKE_paint_blend_write(BlendWriter *writer, Paint *paint)
     if (tool_brush_bindings.main_brush_asset_reference) {
       BKE_asset_weak_reference_write(writer, tool_brush_bindings.main_brush_asset_reference);
     }
-    BLO_write_struct_list(
-        writer, NamedBrushAssetReference, &tool_brush_bindings.active_brush_per_brush_type);
+    writer->write_struct_list(&tool_brush_bindings.active_brush_per_brush_type);
     for (NamedBrushAssetReference &brush_ref : tool_brush_bindings.active_brush_per_brush_type) {
-      BLO_write_string(writer, brush_ref.name);
+      writer->write_string(brush_ref.name);
       if (brush_ref.brush_asset_reference) {
         BKE_asset_weak_reference_write(writer, brush_ref.brush_asset_reference);
       }
@@ -2066,10 +1959,6 @@ void BKE_paint_blend_read_data(BlendDataReader *reader, const Scene *scene, Pain
   BLO_read_struct(reader, AssetWeakReference, &paint->brush_asset_reference);
   if (paint->brush_asset_reference) {
     BKE_asset_weak_reference_read(reader, paint->brush_asset_reference);
-  }
-  BLO_read_struct(reader, AssetWeakReference, &paint->eraser_brush_asset_reference);
-  if (paint->eraser_brush_asset_reference) {
-    BKE_asset_weak_reference_read(reader, paint->eraser_brush_asset_reference);
   }
 
   {
@@ -2141,6 +2030,59 @@ bool paint_is_bmesh_face_hidden(const BMFace *f)
 
   return false;
 }
+
+namespace bke::paint {
+bool supports_scene_size(const PaintMode paint_mode)
+{
+  switch (paint_mode) {
+    case PaintMode::Sculpt:
+      return true;
+    case PaintMode::Vertex:
+    case PaintMode::Weight:
+    case PaintMode::Texture3D:
+      return false;
+    case PaintMode::GPencil:
+    case PaintMode::VertexGPencil:
+    case PaintMode::SculptGPencil:
+    case PaintMode::WeightGPencil:
+      return true;
+    case PaintMode::SculptCurves:
+      return false;
+    case PaintMode::Texture2D:
+      return false;
+    case PaintMode::Invalid:
+      BLI_assert_unreachable();
+      return false;
+  }
+  BLI_assert_unreachable();
+  return false;
+}
+bool supports_symmetry_tiling(const PaintMode paint_mode)
+{
+  switch (paint_mode) {
+    case PaintMode::Sculpt:
+      return true;
+    case PaintMode::Vertex:
+    case PaintMode::Weight:
+    case PaintMode::Texture3D:
+      return false;
+    case PaintMode::GPencil:
+    case PaintMode::VertexGPencil:
+    case PaintMode::SculptGPencil:
+    case PaintMode::WeightGPencil:
+      return false;
+    case PaintMode::SculptCurves:
+      return false;
+    case PaintMode::Texture2D:
+      return false;
+    case PaintMode::Invalid:
+      BLI_assert_unreachable();
+      return false;
+  }
+  BLI_assert_unreachable();
+  return false;
+}
+}  // namespace bke::paint
 
 float paint_grid_paint_mask(const GridPaintMask *gpm, uint level, uint x, uint y)
 {
@@ -2234,24 +2176,12 @@ void BKE_sculptsession_free_deformMats(SculptSession *ss)
   ss->face_normals_deform = {};
 }
 
-void BKE_sculptsession_free_vwpaint_data(SculptSession *ss)
-{
-  if (ss->mode_type == OB_MODE_WEIGHT_PAINT) {
-    MEM_SAFE_FREE(ss->mode.wpaint.alpha_weight);
-    if (!ss->mode.wpaint.dvert_prev.is_empty()) {
-      BKE_defvert_array_free_elems(ss->mode.wpaint.dvert_prev.data(),
-                                   ss->mode.wpaint.dvert_prev.size());
-      ss->mode.wpaint.dvert_prev = {};
-    }
-  }
-}
-
 /**
  * Write out the sculpt dynamic-topology #BMesh to the #Mesh.
  */
 static void sculptsession_bm_to_me_update_data_only(Object *ob)
 {
-  SculptSession &ss = *ob->sculpt;
+  SculptSession &ss = *ob->runtime->sculpt_session;
 
   if (ss.bm) {
     if (ob->data) {
@@ -2264,7 +2194,7 @@ static void sculptsession_bm_to_me_update_data_only(Object *ob)
 
 void BKE_sculptsession_bm_to_me(Object *ob)
 {
-  if (ob && ob->sculpt) {
+  if (ob && ob->runtime->sculpt_session) {
     sculptsession_bm_to_me_update_data_only(ob);
 
     /* Ensure the objects evaluated mesh doesn't hold onto arrays
@@ -2275,7 +2205,7 @@ void BKE_sculptsession_bm_to_me(Object *ob)
 
 void BKE_sculptsession_free_pbvh(Object &object)
 {
-  SculptSession *ss = object.sculpt;
+  SculptSession *ss = object.runtime->sculpt_session;
   if (!ss) {
     return;
   }
@@ -2299,8 +2229,8 @@ void BKE_sculptsession_free_pbvh(Object &object)
 
 void BKE_sculptsession_bm_to_me_for_render(Object *object)
 {
-  if (object && object->sculpt) {
-    if (object->sculpt->bm) {
+  if (object && object->runtime->sculpt_session) {
+    if (object->runtime->sculpt_session->bm) {
       /* Ensure no points to old arrays are stored in DM
        *
        * Apparently, we could not use DEG_id_tag_update
@@ -2321,8 +2251,8 @@ void BKE_sculptsession_bm_to_me_for_render(Object *object)
 
 void BKE_sculptsession_free(Object *ob)
 {
-  if (ob && ob->sculpt) {
-    SculptSession *ss = ob->sculpt;
+  if (ob && ob->runtime->sculpt_session) {
+    SculptSession *ss = ob->runtime->sculpt_session;
 
     if (ss->bm) {
       BKE_sculptsession_bm_to_me(ob);
@@ -2333,7 +2263,7 @@ void BKE_sculptsession_free(Object *ob)
 
     MEM_delete(ss);
 
-    ob->sculpt = nullptr;
+    ob->runtime->sculpt_session = nullptr;
   }
 }
 
@@ -2348,10 +2278,6 @@ SculptSession::~SculptSession()
   if (this->tex_pool) {
     BKE_image_pool_free(this->tex_pool);
   }
-
-  BKE_sculptsession_free_vwpaint_data(this);
-
-  MEM_SAFE_FREE(this->last_paint_canvas_key);
 }
 
 ActiveVert SculptSession::active_vert() const
@@ -2452,7 +2378,7 @@ static MultiresModifierData *sculpt_multires_modifier_get(const Scene *scene,
 {
   Mesh &mesh = *id_cast<Mesh *>(ob->data);
 
-  if (ob->sculpt && ob->sculpt->bm) {
+  if (ob->runtime->sculpt_session && ob->runtime->sculpt_session->bm) {
     /* Can't combine multires and dynamic topology. */
     return nullptr;
   }
@@ -2506,7 +2432,7 @@ MultiresModifierData *BKE_sculpt_multires_active(const Scene *scene, Object *ob)
 
 int BKE_sculpt_get_grid_num_verts(const Object &object)
 {
-  const SculptSession &ss = *object.sculpt;
+  const SculptSession &ss = *object.runtime->sculpt_session;
   BLI_assert(bke::object::pbvh_get(object)->type() == bke::pbvh::Type::Grids);
   const CCGKey key = BKE_subdiv_ccg_key_top_level(*ss.subdiv_ccg);
   return ss.subdiv_ccg->grids_num * key.grid_area;
@@ -2514,7 +2440,7 @@ int BKE_sculpt_get_grid_num_verts(const Object &object)
 
 int BKE_sculpt_get_grid_num_faces(const Object &object)
 {
-  const SculptSession &ss = *object.sculpt;
+  const SculptSession &ss = *object.runtime->sculpt_session;
   BLI_assert(bke::object::pbvh_get(object)->type() == bke::pbvh::Type::Grids);
   const CCGKey key = BKE_subdiv_ccg_key_top_level(*ss.subdiv_ccg);
   return ss.subdiv_ccg->grids_num * square_i(key.grid_size - 1);
@@ -2525,7 +2451,7 @@ static bool sculpt_modifiers_active(const Scene *scene, const Sculpt *sd, Object
 {
   const Mesh &mesh = *id_cast<Mesh *>(ob->data);
 
-  if (ob->sculpt->bm || BKE_sculpt_multires_active(scene, ob)) {
+  if (ob->runtime->sculpt_session->bm || BKE_sculpt_multires_active(scene, ob)) {
     return false;
   }
 
@@ -2572,7 +2498,7 @@ static void sculpt_update_object(Depsgraph *depsgraph,
   using namespace blender::bke;
   Scene *scene = DEG_get_input_scene(depsgraph);
   Sculpt *sd = scene->toolsettings->sculpt;
-  SculptSession &ss = *ob->sculpt;
+  SculptSession &ss = *ob->runtime->sculpt_session;
   Mesh *mesh_orig = BKE_object_get_original_mesh(ob);
   /* Use the "unchecked" function, because this code also runs as part of the depsgraph node that
    * evaluates the object's geometry. So from perspective of the depsgraph, the mesh is not fully
@@ -2590,22 +2516,10 @@ static void sculpt_update_object(Depsgraph *depsgraph,
 
   ss.deform_modifiers_active = sculpt_modifiers_active(scene, sd, ob);
 
-  ss.building_vp_handle = false;
+  ss.shapekey_active = (mmd == nullptr && ss.bm == nullptr) ? BKE_keyblock_from_object(ob) :
+                                                              nullptr;
 
-  ss.shapekey_active = (mmd == nullptr) ? BKE_keyblock_from_object(ob) : nullptr;
-
-  /* NOTE: Weight pPaint require mesh info for loop lookup, but it never uses multires code path,
-   * so no extra checks is needed here. */
-  if (mmd) {
-    ss.multires.active = true;
-    ss.multires.modifier = mmd;
-    ss.multires.level = mmd->sculptlvl;
-  }
-  else {
-    ss.multires.active = false;
-    ss.multires.modifier = nullptr;
-    ss.multires.level = 0;
-  }
+  ss.multires_modifier = mmd;
 
   ss.subdiv_ccg = mesh_eval->runtime->subdiv_ccg.get();
 
@@ -2657,20 +2571,8 @@ static void sculpt_update_object(Depsgraph *depsgraph,
   if (ss.shapekey_active != nullptr && ss.deform_cos.is_empty()) {
     ss.deform_cos = Span(static_cast<const float3 *>(ss.shapekey_active->data),
                          mesh_orig->verts_num);
-  }
-
-  /* if pbvh is deformed, key block is already applied to it */
-  if (ss.shapekey_active) {
-    if (ss.deform_cos.is_empty()) {
-      const Span key_data(static_cast<const float3 *>(ss.shapekey_active->data),
-                          mesh_orig->verts_num);
-
-      if (key_data.data() != nullptr) {
-        BKE_pbvh_vert_coords_apply(pbvh, key_data);
-        if (ss.deform_cos.is_empty()) {
-          ss.deform_cos = key_data;
-        }
-      }
+    if (!ss.deform_cos.is_empty()) {
+      BKE_pbvh_vert_coords_apply(pbvh, ss.deform_cos);
     }
   }
 
@@ -2680,16 +2582,11 @@ static void sculpt_update_object(Depsgraph *depsgraph,
      * The relevant changes are stored/encoded in the paint canvas key.
      * These include the active uv map, and resolutions. */
     if (USER_EXPERIMENTAL_TEST(&U, use_sculpt_texture_paint)) {
-      char *paint_canvas_key = BKE_paint_canvas_key_get(&scene->toolsettings->paint_mode, ob);
-      if (ss.last_paint_canvas_key == nullptr ||
-          !STREQ(paint_canvas_key, ss.last_paint_canvas_key))
-      {
-        MEM_SAFE_FREE(ss.last_paint_canvas_key);
+      std::string paint_canvas_key = BKE_paint_canvas_key_get(&scene->toolsettings->paint_mode,
+                                                              ob);
+      if (!ss.last_paint_canvas_key || paint_canvas_key != ss.last_paint_canvas_key) {
         ss.last_paint_canvas_key = paint_canvas_key;
         BKE_pbvh_mark_rebuild_pixels(pbvh);
-      }
-      else {
-        MEM_freeN(paint_canvas_key);
       }
     }
 
@@ -2710,11 +2607,8 @@ void BKE_sculpt_update_object_before_eval(Object *ob_eval)
 {
   /* Update before mesh evaluation in the dependency graph. */
   Object *ob_orig = DEG_get_original(ob_eval);
-  SculptSession *ss = ob_orig->sculpt;
+  SculptSession *ss = ob_orig->runtime->sculpt_session;
   if (!ss) {
-    return;
-  }
-  if (ss->building_vp_handle) {
     return;
   }
 
@@ -2736,31 +2630,12 @@ void BKE_sculpt_update_object_before_eval(Object *ob_eval)
     BKE_sculptsession_free_pbvh(*ob_orig);
 
     BKE_sculptsession_free_deformMats(ss);
-
-    /* In vertex/weight paint, force maps to be rebuilt. */
-    BKE_sculptsession_free_vwpaint_data(ss);
   }
   else if (pbvh) {
     IndexMaskMemory memory;
     const IndexMask node_mask = bke::pbvh::all_leaf_nodes(*pbvh, memory);
     pbvh->tag_positions_changed(node_mask);
-    switch (pbvh->type()) {
-      case bke::pbvh::Type::Mesh: {
-        MutableSpan<bke::pbvh::MeshNode> nodes = pbvh->nodes<bke::pbvh::MeshNode>();
-        node_mask.foreach_index([&](const int i) { BKE_pbvh_node_mark_update(nodes[i]); });
-        break;
-      }
-      case bke::pbvh::Type::Grids: {
-        MutableSpan<bke::pbvh::GridsNode> nodes = pbvh->nodes<bke::pbvh::GridsNode>();
-        node_mask.foreach_index([&](const int i) { BKE_pbvh_node_mark_update(nodes[i]); });
-        break;
-      }
-      case bke::pbvh::Type::BMesh: {
-        MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh->nodes<bke::pbvh::BMeshNode>();
-        node_mask.foreach_index([&](const int i) { BKE_pbvh_node_mark_update(nodes[i]); });
-        break;
-      }
-    }
+    BKE_pbvh_mark_rebuild_pixels(*pbvh);
   }
 }
 
@@ -2830,7 +2705,7 @@ void BKE_sculpt_mask_layers_ensure(Depsgraph *depsgraph,
       GridPaintMask *gpm = &gmask[i];
 
       gpm->level = level;
-      gpm->data = MEM_calloc_arrayN<float>(gridarea, "GridPaintMask.data");
+      gpm->data = MEM_new_array_zeroed<float>(gridarea, "GridPaintMask.data");
     }
 
     /* If vertices already have mask, copy into multires data. */
@@ -2936,16 +2811,17 @@ static bool check_sculpt_object_deformed(Object *object, const bool for_construc
   /* Active modifiers means extra deformation, which can't be handled correct
    * on birth of pbvh::Tree and sculpt "layer" levels, so use pbvh::Tree only for internal brush
    * stuff and show final evaluated mesh so user would see actual object shape. */
-  deformed |= object->sculpt->deform_modifiers_active;
+  deformed |= object->runtime->sculpt_session->deform_modifiers_active;
 
   if (for_construction) {
-    deformed |= object->sculpt->shapekey_active != nullptr;
+    deformed |= object->runtime->sculpt_session->shapekey_active != nullptr;
   }
   else {
     /* As in case with modifiers, we can't synchronize deformation made against
      * pbvh::Tree and non-locked keyblock, so also use pbvh::Tree only for brushes and
      * final DM to give final result to user. */
-    deformed |= object->sculpt->shapekey_active && (object->shapeflag & OB_SHAPE_LOCK) == 0;
+    deformed |= object->runtime->sculpt_session->shapekey_active &&
+                (object->shapeflag & OB_SHAPE_LOCK) == 0;
   }
 
   return deformed;
@@ -2981,7 +2857,7 @@ namespace bke {
 
 static std::unique_ptr<pbvh::Tree> build_pbvh_for_dynamic_topology(Object *ob)
 {
-  BMesh &bm = *ob->sculpt->bm;
+  BMesh &bm = *ob->runtime->sculpt_session->bm;
   BM_data_layer_ensure_named(&bm, &bm.vdata, CD_PROP_INT32, ".sculpt_dyntopo_node_id_vertex");
   BM_data_layer_ensure_named(&bm, &bm.pdata, CD_PROP_INT32, ".sculpt_dyntopo_node_id_face");
 
@@ -3019,8 +2895,8 @@ pbvh::Tree &pbvh_ensure(Depsgraph &depsgraph, Object &object)
   if (pbvh::Tree *pbvh = pbvh_get(object)) {
     return *pbvh;
   }
-  BLI_assert(object.sculpt != nullptr);
-  SculptSession &ss = *object.sculpt;
+  BLI_assert(object.runtime->sculpt_session != nullptr);
+  SculptSession &ss = *object.runtime->sculpt_session;
 
   if (ss.bm != nullptr) {
     /* Sculpting on a BMesh (dynamic-topology) gets a special pbvh::Tree. */
@@ -3043,31 +2919,31 @@ pbvh::Tree &pbvh_ensure(Depsgraph &depsgraph, Object &object)
 
 const pbvh::Tree *pbvh_get(const Object &object)
 {
-  if (!object.sculpt) {
+  if (!object.runtime->sculpt_session) {
     return nullptr;
   }
-  return object.sculpt->pbvh.get();
+  return object.runtime->sculpt_session->pbvh.get();
 }
 
 pbvh::Tree *pbvh_get(Object &object)
 {
   BLI_assert(object.type == OB_MESH);
-  if (!object.sculpt) {
+  if (!object.runtime->sculpt_session) {
     return nullptr;
   }
-  return object.sculpt->pbvh.get();
+  return object.runtime->sculpt_session->pbvh.get();
 }
 
 }  // namespace bke::object
 
 bool BKE_object_sculpt_use_dyntopo(const Object *object)
 {
-  return object->sculpt && object->sculpt->bm;
+  return object->runtime->sculpt_session && object->runtime->sculpt_session->bm;
 }
 
 bool BKE_sculptsession_use_pbvh_draw(const Object *ob, const RegionView3D *rv3d)
 {
-  SculptSession *ss = ob->sculpt;
+  SculptSession *ss = ob->runtime->sculpt_session;
   if (ss == nullptr || ss->mode_type != OB_MODE_SCULPT) {
     return false;
   }
@@ -3076,14 +2952,22 @@ bool BKE_sculptsession_use_pbvh_draw(const Object *ob, const RegionView3D *rv3d)
     return false;
   }
 
+  /* External render engines like Cycles do not have access to the pbvh::Tree
+   * like Eevee does, and need evaluated mesh geometry to render from. */
+  const bool external_engine = rv3d && rv3d->view_render != nullptr;
+
   if (pbvh->type() == bke::pbvh::Type::Mesh) {
-    /* Regular mesh only draws from pbvh::Tree without modifiers and shape keys, or for
-     * external engines that do not have access to the pbvh::Tree like Eevee does. */
-    const bool external_engine = rv3d && rv3d->view_render != nullptr;
+    /* Regular mesh only draws from pbvh::Tree without modifiers and shape keys,
+     * and without external render engine. */
     return !(ss->shapekey_active || ss->deform_modifiers_active || external_engine);
   }
 
-  /* Multires and dyntopo always draw directly from the pbvh::Tree. */
+  if (pbvh->type() == bke::pbvh::Type::BMesh) {
+    /* Dyntopo draws from pbvh::Tree, except for external render engines. */
+    return !external_engine;
+  }
+
+  /* Multires always draws directly from the pbvh::Tree. */
   return true;
 }
 

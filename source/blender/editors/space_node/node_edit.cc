@@ -49,6 +49,7 @@
 #include "DEG_depsgraph_query.hh"
 
 #include "NOD_shader_nodes_inline.hh"
+#include "RE_compositor.hh"
 #include "RE_engine.h"
 #include "RE_pipeline.h"
 
@@ -67,9 +68,9 @@
 
 #include "UI_view2d.hh"
 
-#include "GPU_capabilities.hh"
 #include "GPU_material.hh"
 
+#include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
 #include "NOD_composite.hh"
@@ -79,375 +80,7 @@
 #include "NOD_texture.h"
 #include "node_intern.hh" /* own include */
 
-#include "COM_compositor.hh"
-#include "COM_context.hh"
-#include "COM_node_group_operation.hh"
-#include "COM_profiler.hh"
-
 namespace blender {
-
-namespace ed::space_node {
-
-#define USE_ESC_COMPO
-
-/* -------------------------------------------------------------------- */
-/** \name Composite Job Manager
- * \{ */
-
-struct CompoJob {
-  /* Input parameters. */
-  Main *bmain;
-  Scene *scene;
-  ViewLayer *view_layer;
-  bNodeTree *ntree;
-  /* Evaluated state/ */
-  Depsgraph *compositor_depsgraph;
-  bNodeTree *localtree;
-  /* Render instance. */
-  Render *re;
-  /* Job system integration. */
-  const bool *stop;
-  bool *do_update;
-  float *progress;
-  bool cancelled;
-
-  compositor::Profiler profiler;
-  compositor::NodeGroupOutputTypes needed_outputs;
-};
-
-float node_socket_calculate_height(const bNodeSocket &socket)
-{
-  float sock_height = NODE_SOCKSIZE;
-  if (socket.flag & SOCK_MULTI_INPUT) {
-    sock_height += max_ii(NODE_MULTI_INPUT_LINK_GAP * 0.5f * socket.runtime->total_inputs,
-                          NODE_SOCKSIZE);
-  }
-  return sock_height;
-}
-
-float2 node_link_calculate_multi_input_position(const float2 &socket_position,
-                                                const int index,
-                                                const int total_inputs)
-{
-  const float offset = (total_inputs * NODE_MULTI_INPUT_LINK_GAP - NODE_MULTI_INPUT_LINK_GAP) *
-                       0.5f;
-  return {socket_position.x, socket_position.y - offset + index * NODE_MULTI_INPUT_LINK_GAP};
-}
-
-/* Called by compositor, only to check job 'stop' value. */
-static bool compo_breakjob(void *cjv)
-{
-  CompoJob *cj = static_cast<CompoJob *>(cjv);
-
-  /* Without G.is_break 'ESC' won't quit - which annoys users. */
-  return (*(cj->stop)
-#ifdef USE_ESC_COMPO
-          || G.is_break
-#endif
-  );
-}
-
-/* Called by compositor, #wmJob sends notifier. */
-static void compo_statsdrawjob(void *cjv, const char * /*str*/)
-{
-  CompoJob *cj = static_cast<CompoJob *>(cjv);
-
-  *(cj->do_update) = true;
-}
-
-/* Called by compositor, wmJob sends notifier. */
-static void compo_redrawjob(void *cjv)
-{
-  CompoJob *cj = static_cast<CompoJob *>(cjv);
-
-  *(cj->do_update) = true;
-}
-
-static void compo_freejob(void *cjv)
-{
-  CompoJob *cj = static_cast<CompoJob *>(cjv);
-
-  if (cj->localtree) {
-    /* Merge back node previews, only for completed jobs. */
-    if (!cj->cancelled) {
-      bke::node_tree_local_merge(cj->bmain, cj->localtree, cj->ntree);
-    }
-
-    bke::node_tree_free_tree(*cj->localtree);
-    MEM_freeN(cj->localtree);
-  }
-
-  MEM_delete(cj);
-}
-
-/* Only now we copy the nodetree, so adding many jobs while
- * sliding buttons doesn't frustrate. */
-static void compo_initjob(void *cjv)
-{
-  CompoJob *cj = static_cast<CompoJob *>(cjv);
-  Main *bmain = cj->bmain;
-  Scene *scene = cj->scene;
-  ViewLayer *view_layer = cj->view_layer;
-
-  bke::CompositorRuntime &compositor_runtime = scene->runtime->compositor;
-
-  if (!compositor_runtime.preview_depsgraph) {
-    compositor_runtime.preview_depsgraph = DEG_graph_new(
-        bmain, scene, view_layer, DAG_EVAL_RENDER);
-    DEG_debug_name_set(compositor_runtime.preview_depsgraph, "COMPOSITOR");
-  }
-
-  /* Update the viewer layer of the compositor since it changed since the depsgraph was created. */
-  if (DEG_get_input_view_layer(compositor_runtime.preview_depsgraph) != view_layer) {
-    DEG_graph_replace_owners(compositor_runtime.preview_depsgraph, bmain, scene, view_layer);
-    DEG_graph_tag_relations_update(compositor_runtime.preview_depsgraph);
-  }
-
-  cj->compositor_depsgraph = compositor_runtime.preview_depsgraph;
-  DEG_graph_build_for_compositor_preview(cj->compositor_depsgraph, cj->ntree);
-
-  /* NOTE: Don't update animation to preserve unkeyed changes, this means can not use
-   * evaluate_on_framechange. */
-  DEG_evaluate_on_refresh(cj->compositor_depsgraph);
-
-  bNodeTree *ntree_eval = DEG_get_evaluated(cj->compositor_depsgraph, cj->ntree);
-
-  cj->localtree = bke::node_tree_localize(ntree_eval, nullptr);
-
-  cj->re = RE_NewInteractiveCompositorRender(scene);
-  if (scene->r.compositor_device == SCE_COMPOSITOR_DEVICE_GPU) {
-    RE_display_ensure_gpu_context(cj->re);
-  }
-}
-
-/* Called before redraw notifiers, it moves finished previews over. */
-static void compo_updatejob(void * /*cjv*/)
-{
-  WM_main_add_notifier(NC_SCENE | ND_COMPO_RESULT, nullptr);
-}
-
-static void compo_progressjob(void *cjv, float progress)
-{
-  CompoJob *cj = static_cast<CompoJob *>(cjv);
-
-  *(cj->progress) = progress;
-}
-
-/* Only this runs inside thread. */
-static void compo_startjob(void *cjv, wmJobWorkerStatus *worker_status)
-{
-  CompoJob *cj = static_cast<CompoJob *>(cjv);
-  bNodeTree *ntree = cj->localtree;
-  Scene *scene = DEG_get_evaluated_scene(cj->compositor_depsgraph);
-
-  cj->stop = &worker_status->stop;
-  cj->do_update = &worker_status->do_update;
-  cj->progress = &worker_status->progress;
-
-  ntree->runtime->test_break = compo_breakjob;
-  ntree->runtime->tbh = cj;
-  ntree->runtime->stats_draw = compo_statsdrawjob;
-  ntree->runtime->sdh = cj;
-  ntree->runtime->progress = compo_progressjob;
-  ntree->runtime->prh = cj;
-  ntree->runtime->update_draw = compo_redrawjob;
-  ntree->runtime->udh = cj;
-
-  BKE_callback_exec_id(cj->bmain, &cj->scene->id, BKE_CB_EVT_COMPOSITE_PRE);
-
-  if ((scene->r.scemode & R_MULTIVIEW) == 0) {
-    COM_execute(cj->re, &scene->r, scene, ntree, "", nullptr, &cj->profiler, cj->needed_outputs);
-  }
-  else {
-    for (SceneRenderView &srv : scene->r.views) {
-      if (BKE_scene_multiview_is_render_view_active(&scene->r, &srv) == false) {
-        continue;
-      }
-      COM_execute(
-          cj->re, &scene->r, scene, ntree, srv.name, nullptr, &cj->profiler, cj->needed_outputs);
-    }
-  }
-
-  ntree->runtime->test_break = nullptr;
-  ntree->runtime->stats_draw = nullptr;
-  ntree->runtime->progress = nullptr;
-}
-
-static void compo_canceljob(void *cjv)
-{
-  CompoJob *cj = static_cast<CompoJob *>(cjv);
-  Main *bmain = cj->bmain;
-  Scene *scene = cj->scene;
-  BKE_callback_exec_id(bmain, &scene->id, BKE_CB_EVT_COMPOSITE_CANCEL);
-  cj->cancelled = true;
-
-  scene->runtime->compositor.per_node_execution_time = cj->profiler.get_nodes_evaluation_times();
-}
-
-static void compo_completejob(void *cjv)
-{
-  CompoJob *cj = static_cast<CompoJob *>(cjv);
-  Main *bmain = cj->bmain;
-  Scene *scene = cj->scene;
-  BKE_callback_exec_id(bmain, &scene->id, BKE_CB_EVT_COMPOSITE_POST);
-
-  scene->runtime->compositor.per_node_execution_time = cj->profiler.get_nodes_evaluation_times();
-}
-
-/** \} */
-
-}  // namespace ed::space_node
-
-/* -------------------------------------------------------------------- */
-/** \name Composite Job C API
- * \{ */
-
-/* Identify if the compositor can run. Currently, this only checks if the compositor is set to GPU
- * and the render size exceeds what can be allocated as a texture in it. */
-static bool is_compositing_possible(const bContext *C)
-{
-  Scene *scene = CTX_data_scene(C);
-  /* CPU compositor can always run. */
-  if (scene->r.compositor_device != SCE_COMPOSITOR_DEVICE_GPU) {
-    return true;
-  }
-
-  int width, height;
-  BKE_render_resolution(&scene->r, false, &width, &height);
-  if (!GPU_is_safe_texture_size(width, height)) {
-    WM_global_report(RPT_ERROR, "Render size too large for GPU, use CPU compositor instead");
-    return false;
-  }
-
-  return true;
-}
-
-/* Returns the compositor outputs that need to be computed because their result is visible to the
- * user or required by the render pipeline. */
-static compositor::NodeGroupOutputTypes get_compositor_needed_outputs(const bContext *C,
-                                                                      Scene *scene_owner)
-{
-  compositor::NodeGroupOutputTypes needed_outputs = compositor::NodeGroupOutputTypes::None;
-
-  wmWindowManager *window_manager = CTX_wm_manager(C);
-  for (wmWindow &window : window_manager->windows) {
-    bScreen *screen = WM_window_get_active_screen(&window);
-    for (ScrArea &area : screen->areabase) {
-      SpaceLink *space_link = static_cast<SpaceLink *>(area.spacedata.first);
-      if (!space_link || !ELEM(space_link->spacetype, SPACE_NODE, SPACE_IMAGE)) {
-        continue;
-      }
-      if (space_link->spacetype == SPACE_NODE) {
-        const SpaceNode *space_node = reinterpret_cast<const SpaceNode *>(space_link);
-        if (space_node->flag & SNODE_BACKDRAW) {
-          needed_outputs |= compositor::NodeGroupOutputTypes::ViewerNode;
-        }
-        if (space_node->overlay.flag & SN_OVERLAY_SHOW_PREVIEWS) {
-          needed_outputs |= compositor::NodeGroupOutputTypes::NodePreviews;
-        }
-      }
-      else if (space_link->spacetype == SPACE_IMAGE) {
-        const SpaceImage *space_image = reinterpret_cast<const SpaceImage *>(space_link);
-        Image *image = ED_space_image(space_image);
-        if (!image || image->source != IMA_SRC_VIEWER) {
-          continue;
-        }
-        /* Do not override the Render Result if compositing is disabled in the render pipeline or
-         * if the sequencer is enabled. */
-        if (image->type == IMA_TYPE_R_RESULT && scene_owner->r.scemode & R_DOCOMP &&
-            !RE_seq_render_active(scene_owner, &scene_owner->r))
-        {
-          needed_outputs |= compositor::NodeGroupOutputTypes::GroupOutputNode;
-        }
-        else if (image->type == IMA_TYPE_COMPOSITE) {
-          needed_outputs |= compositor::NodeGroupOutputTypes::ViewerNode;
-        }
-      }
-      else if (space_link->spacetype == SPACE_SEQ) {
-        const SpaceSeq *space_sequencer = reinterpret_cast<const SpaceSeq *>(space_link);
-        if (ELEM(space_sequencer->view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW)) {
-          needed_outputs |= compositor::NodeGroupOutputTypes::ViewerNode;
-        }
-      }
-
-      /* All outputs are already needed, return early. */
-      if (needed_outputs == (compositor::NodeGroupOutputTypes::GroupOutputNode |
-                             compositor::NodeGroupOutputTypes::ViewerNode |
-                             compositor::NodeGroupOutputTypes::NodePreviews))
-      {
-        return needed_outputs;
-      }
-    }
-  }
-
-  return needed_outputs;
-}
-
-void ED_node_composite_job(const bContext *C, bNodeTree *nodetree, Scene *scene_owner)
-{
-  /* None of the outputs are needed except maybe previews, so no need to execute the compositor.
-   * Previews are not considered because they are a secondary output that needs another output to
-   * be computed with. */
-  compositor::NodeGroupOutputTypes needed_outputs = get_compositor_needed_outputs(C, scene_owner);
-  if (ELEM(needed_outputs,
-           compositor::NodeGroupOutputTypes::None,
-           compositor::NodeGroupOutputTypes::NodePreviews))
-  {
-    return;
-  }
-
-  using namespace blender::ed::space_node;
-
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-
-  if (!is_compositing_possible(C)) {
-    return;
-  }
-
-  /* See #32272. */
-  if (G.is_rendering) {
-    return;
-  }
-
-#ifdef USE_ESC_COMPO
-  G.is_break = false;
-#endif
-
-  BKE_image_backup_render(
-      scene, BKE_image_ensure_viewer(bmain, IMA_TYPE_R_RESULT, "Render Result"), false);
-
-  wmJob *wm_job = WM_jobs_get(CTX_wm_manager(C),
-                              CTX_wm_window(C),
-                              scene_owner,
-                              "Compositing...",
-                              WM_JOB_EXCL_RENDER | WM_JOB_PROGRESS,
-                              WM_JOB_TYPE_COMPOSITE);
-  CompoJob *cj = MEM_new<CompoJob>("compo job");
-
-  /* Custom data for preview thread. */
-  cj->bmain = bmain;
-  cj->scene = scene;
-  cj->view_layer = view_layer;
-  cj->ntree = nodetree;
-  cj->needed_outputs = needed_outputs;
-
-  /* Set up job. */
-  WM_jobs_customdata_set(wm_job, cj, compo_freejob);
-  WM_jobs_timer(wm_job, 0.1, NC_SCENE | ND_COMPO_RESULT, NC_SCENE | ND_COMPO_RESULT);
-  WM_jobs_callbacks_ex(wm_job,
-                       compo_startjob,
-                       compo_initjob,
-                       compo_updatejob,
-                       nullptr,
-                       compo_completejob,
-                       compo_canceljob);
-
-  WM_jobs_start(CTX_wm_manager(C), wm_job);
-}
-
-/** \} */
 
 namespace ed::space_node {
 
@@ -784,7 +417,7 @@ static void node_resize_init(
     bContext *C, wmOperator *op, const float2 &cursor, const bNode *node, NodeResizeDirection dir)
 {
   Scene *scene = CTX_data_scene(C);
-  NodeSizeWidget *nsw = MEM_callocN<NodeSizeWidget>(__func__);
+  NodeSizeWidget *nsw = MEM_new_zeroed<NodeSizeWidget>(__func__);
 
   op->customdata = nsw;
 
@@ -821,7 +454,7 @@ static void node_resize_exit(bContext *C, wmOperator *op, bool cancel)
     node->height = nsw->oldheight;
   }
 
-  MEM_freeN(nsw);
+  MEM_delete(nsw);
   op->customdata = nullptr;
 }
 
@@ -855,8 +488,7 @@ wmKeyMap *node_resize_modal_keymap(wmKeyConfig *keyconf)
   return keymap;
 }
 
-/* Compute the nearest 1D coordinate corresponding to the nearest grid in node editors. */
-static float nearest_node_grid_coord(float co)
+float nearest_node_grid_coord(float co)
 {
   /* Size and location of nodes are independent of UI scale, so grid size should be independent of
    * UI scale as well. */
@@ -1086,6 +718,25 @@ bool node_is_previewable(const SpaceNode &snode, const bNodeTree &ntree, const b
            snode.shaderfrom == SNODE_SHADER_OBJECT;
   }
   return node.typeinfo->flag & NODE_PREVIEW;
+}
+
+float node_socket_calculate_height(const bNodeSocket &socket)
+{
+  float sock_height = NODE_SOCKSIZE;
+  if (socket.flag & SOCK_MULTI_INPUT) {
+    sock_height += max_ii(NODE_MULTI_INPUT_LINK_GAP * 0.5f * socket.runtime->total_inputs,
+                          NODE_SOCKSIZE);
+  }
+  return sock_height;
+}
+
+float2 node_link_calculate_multi_input_position(const float2 &socket_position,
+                                                const int index,
+                                                const int total_inputs)
+{
+  const float offset = (total_inputs * NODE_MULTI_INPUT_LINK_GAP - NODE_MULTI_INPUT_LINK_GAP) *
+                       0.5f;
+  return {socket_position.x, socket_position.y - offset + index * NODE_MULTI_INPUT_LINK_GAP};
 }
 
 static bool cursor_isect_multi_input_socket(const float2 &cursor, const bNodeSocket &socket)
@@ -1338,7 +989,7 @@ static wmOperatorStatus node_duplicate_exec(bContext *C, wmOperator *op)
     if (link.tonode && (link.tonode->flag & NODE_SELECT) &&
         (keep_inputs || (link.fromnode && (link.fromnode->flag & NODE_SELECT))))
     {
-      bNodeLink *newlink = MEM_new_for_free<bNodeLink>("bNodeLink");
+      bNodeLink *newlink = MEM_new<bNodeLink>("bNodeLink");
       newlink->flag = link.flag;
       newlink->tonode = node_map.lookup(link.tonode);
       newlink->tosock = socket_map.lookup(link.tosock);
@@ -1618,6 +1269,7 @@ void NODE_OT_collapse_toggle(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Collapse";
+  ot->translation_context = BLT_I18NCONTEXT_OPERATOR_DEFAULT;
   ot->description = "Toggle collapsing of selected nodes";
   ot->idname = "NODE_OT_hide_toggle";
 
@@ -2131,7 +1783,7 @@ static bool node_shader_script_update_poll(bContext *C)
 
   /* See if we have a shader script node in context. */
   bNode *node = static_cast<bNode *>(
-      CTX_data_pointer_get_type(C, "node", &RNA_ShaderNodeScript).data);
+      CTX_data_pointer_get_type(C, "node", RNA_ShaderNodeScript).data);
 
   if (!node && snode && snode->edittree) {
     node = bke::node_get_active(*snode->edittree);
@@ -2152,7 +1804,7 @@ static wmOperatorStatus node_shader_script_update_exec(bContext *C, wmOperator *
 {
   RenderEngineType *type = CTX_data_engine_type(C);
   SpaceNode *snode = CTX_wm_space_node(C);
-  PointerRNA nodeptr = CTX_data_pointer_get_type(C, "node", &RNA_ShaderNodeScript);
+  PointerRNA nodeptr = CTX_data_pointer_get_type(C, "node", RNA_ShaderNodeScript);
 
   /* setup render engine */
   RenderEngine *engine = RE_engine_create(type);
@@ -2274,7 +1926,7 @@ void NODE_OT_viewer_border(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Viewer Region";
-  ot->description = "Set the boundaries for viewer operations";
+  ot->description = "Set the boundaries for viewer operations (Not implemented)";
   ot->idname = "NODE_OT_viewer_border";
 
   /* API callbacks. */

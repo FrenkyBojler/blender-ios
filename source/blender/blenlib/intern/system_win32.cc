@@ -11,6 +11,7 @@
 #include <sstream>
 
 #include <dbghelp.h>
+#include <shellapi.h>
 #include <shlwapi.h>
 #include <tlhelp32.h>
 
@@ -22,6 +23,13 @@
 #include "BLI_string.h"
 
 #include "BLI_system.h" /* Own include. */
+
+/* GetVersionEx is deprecated and also tends to lie about much of the information
+ * it gives you. We should deal with that one day, but today is not that day. For
+ * now suppress the warning only clang-cl appears to be emitting */
+#if defined(__clang__)
+#  pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
 
 namespace blender {
 
@@ -99,7 +107,7 @@ static void bli_windows_get_module_version(const char *file, char *buffer, size_
   LPBYTE lpBuffer = nullptr;
   DWORD verSize = GetFileVersionInfoSize(file, &verHandle);
   if (verSize != 0) {
-    LPSTR verData = (LPSTR)MEM_callocN(verSize, "crash module version");
+    LPSTR verData = (LPSTR)MEM_new_zeroed(verSize, "crash module version");
 
     if (GetFileVersionInfo(file, verHandle, verSize, verData)) {
       if (VerQueryValue(verData, "\\", (VOID FAR * FAR *)&lpBuffer, &size)) {
@@ -120,7 +128,7 @@ static void bli_windows_get_module_version(const char *file, char *buffer, size_
         }
       }
     }
-    MEM_freeN(verData);
+    MEM_delete(verData);
   }
 }
 
@@ -129,14 +137,14 @@ static void bli_windows_system_backtrace_exception_record(FILE *fp, PEXCEPTION_R
   char module[MAX_PATH];
   fprintf(fp, "Exception Record:\n\n");
   fprintf(fp,
-          "ExceptionCode         : %s (0x%.8x)\n",
+          "ExceptionCode         : %s (0x%.8lx)\n",
           bli_windows_get_exception_description(record->ExceptionCode),
           record->ExceptionCode);
   fprintf(fp, "Exception Address     : 0x%p\n", record->ExceptionAddress);
   bli_windows_get_module_name(record->ExceptionAddress, module, sizeof(module));
   fprintf(fp, "Exception Module      : %s\n", module);
-  fprintf(fp, "Exception Flags       : 0x%.8x\n", record->ExceptionFlags);
-  fprintf(fp, "Exception Parameters  : 0x%x\n", record->NumberParameters);
+  fprintf(fp, "Exception Flags       : 0x%.8lx\n", record->ExceptionFlags);
+  fprintf(fp, "Exception Parameters  : 0x%lx\n", record->NumberParameters);
 
   /* Special handling for access violations to make them a little easier to read. */
   if (record->ExceptionCode == EXCEPTION_ACCESS_VIOLATION && record->NumberParameters == 2) {
@@ -163,7 +171,7 @@ static void bli_windows_system_backtrace_exception_record(FILE *fp, PEXCEPTION_R
   }
   else {
     for (DWORD idx = 0; idx < record->NumberParameters; idx++) {
-      fprintf(fp, "\tParameters[%d] : 0x%p\n", idx, (LPVOID *)record->ExceptionInformation[idx]);
+      fprintf(fp, "\tParameters[%lu] : 0x%p\n", idx, (LPVOID *)record->ExceptionInformation[idx]);
     }
   }
   if (record->ExceptionRecord) {
@@ -179,12 +187,12 @@ static bool BLI_windows_system_backtrace_run_trace(FILE *fp, HANDLE hThread, PCO
 
   bool result = true;
 
-  PSYMBOL_INFO symbolinfo = static_cast<PSYMBOL_INFO>(
-      MEM_callocN(sizeof(SYMBOL_INFO) + max_symbol_length * sizeof(char), "crash Symbol table"));
+  PSYMBOL_INFO symbolinfo = static_cast<PSYMBOL_INFO>(MEM_new_zeroed(
+      sizeof(SYMBOL_INFO) + max_symbol_length * sizeof(char), "crash Symbol table"));
   symbolinfo->MaxNameLen = max_symbol_length - 1;
   symbolinfo->SizeOfStruct = sizeof(SYMBOL_INFO);
 
-  STACKFRAME frame = {0};
+  STACKFRAME frame = {{0}};
   DWORD machineType = 0;
 #if defined(_M_AMD64)
   frame.AddrPC.Offset = context->Rip;
@@ -228,7 +236,7 @@ static bool BLI_windows_system_backtrace_run_trace(FILE *fp, HANDLE hThread, PCO
           if (SymGetLineFromAddr(
                   GetCurrentProcess(), (DWORD64)(frame.AddrPC.Offset), &displacement, &lineinfo))
           {
-            fprintf(fp, " %s:%d", lineinfo.FileName, lineinfo.LineNumber);
+            fprintf(fp, " %s:%lu", lineinfo.FileName, lineinfo.LineNumber);
           }
           fprintf(fp, "\n");
         }
@@ -250,7 +258,7 @@ static bool BLI_windows_system_backtrace_run_trace(FILE *fp, HANDLE hThread, PCO
       break;
     }
   }
-  MEM_freeN(symbolinfo);
+  MEM_delete(symbolinfo);
   fprintf(fp, "\n\n");
   return result;
 }
@@ -266,7 +274,7 @@ static bool bli_windows_system_backtrace_stack_thread(FILE *fp, HANDLE hThread)
     bool success = GetThreadContext(hThread, &context);
     ResumeThread(hThread);
     if (!success) {
-      fprintf(fp, "Cannot get thread context : 0x0%.8x\n", GetLastError());
+      fprintf(fp, "Cannot get thread context : 0x0%.8lx\n", GetLastError());
       return false;
     }
   }
@@ -337,7 +345,7 @@ static void bli_windows_system_backtrace_threads(FILE *fp)
   do {
     if (te32.th32OwnerProcessID == GetCurrentProcessId()) {
       if (GetCurrentThreadId() != te32.th32ThreadID) {
-        fprintf(fp, "Thread : %.8x\n", te32.th32ThreadID);
+        fprintf(fp, "Thread : %.8lx\n", te32.th32ThreadID);
         HANDLE ht = OpenThread(THREAD_ALL_ACCESS, FALSE, te32.th32ThreadID);
         bli_windows_system_backtrace_stack_thread(fp, ht);
         CloseHandle(ht);
@@ -405,7 +413,7 @@ static void bli_load_symbols()
                                               (DWORD)file_data.nFileSizeLow);
           if (module_base == 0) {
             fprintf(stderr,
-                    "Error loading symbols %s\n\terror:0x%.8x\n\tsize = %d\n\tbase=0x%p\n",
+                    "Error loading symbols %s\n\terror:0x%.8lx\n\tsize = %lu\n\tbase=0x%p\n",
                     pdb_file,
                     GetLastError(),
                     file_data.nFileSizeLow,
@@ -459,7 +467,7 @@ void BLI_windows_exception_print_message(const void *os_info)
                modulename,
                threadId);
 
-  fprintf(stderr, message);
+  fprintf(stderr, "%s", message);
   fflush(stderr);
 }
 

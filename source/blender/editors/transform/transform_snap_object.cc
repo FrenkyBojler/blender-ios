@@ -44,7 +44,10 @@ static timeit::Nanoseconds duration_;
 
 namespace blender::ed::transform {
 
-static float4 occlusion_plane_create(float3 ray_dir, float3 ray_co, float3 ray_no)
+static float4 occlusion_plane_create(float3 ray_start,
+                                     float3 ray_dir,
+                                     float3 ray_co,
+                                     float3 ray_no)
 {
   float4 plane;
   plane_from_point_normal_v3(plane, ray_co, ray_no);
@@ -53,8 +56,15 @@ static float4 occlusion_plane_create(float3 ray_dir, float3 ray_co, float3 ray_n
     negate_v4(plane);
   }
 
-  /* Small offset to simulate a kind of volume for edges and vertices. */
-  plane[3] += 0.01f;
+  /* Small offset to simulate a kind of volume for edges and vertices.
+   * NOTE: The offset added to plane[3] was previously hardcoded as 0.01f
+   * but that caused snapping to pass through occluding geometry at small
+   * scales, so scale it by the view depth instead. Values of 1e-6f and
+   * above work for the scale factor, 1e-7f or smaller are lost to float
+   * precision. See: #154426. */
+  const float depth = math::dot(ray_co - ray_start, ray_dir);
+  const float scale_factor = 1e-5f;
+  plane[3] += std::max(depth * scale_factor, FLT_EPSILON);
 
   return plane;
 }
@@ -343,7 +353,7 @@ void SnapData::register_result_raycast(SnapObjectContext *sctx,
 
     if (is_in_front) {
       sctx->runtime.occlusion_plane_in_front = occlusion_plane_create(
-          sctx->runtime.ray_dir, co, no);
+          sctx->runtime.ray_start, sctx->runtime.ray_dir, co, no);
       sctx->runtime.has_occlusion_plane_in_front = true;
     }
   }
@@ -497,7 +507,7 @@ static eSnapMode iter_snap_objects(SnapObjectContext *sctx, IterSnapObjsCallback
   Scene *scene = DEG_get_input_scene(sctx->runtime.depsgraph);
   ViewLayer *view_layer = DEG_get_input_view_layer(sctx->runtime.depsgraph);
   const eSnapTargetOP snap_target_select = sctx->runtime.params.snap_target_select;
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*DEG_get_bmain(sctx->runtime.depsgraph), scene, view_layer);
   Base *base_act = BKE_view_layer_active_base_get(view_layer);
 
   DupliList duplilist;
@@ -509,7 +519,7 @@ static eSnapMode iter_snap_objects(SnapObjectContext *sctx, IterSnapObjsCallback
     const bool is_object_active = (&base == base_act);
     Object *obj_eval = DEG_get_evaluated(sctx->runtime.depsgraph, base.object);
     if (obj_eval->transflag & OB_DUPLI || bke::object_has_geometry_set_instances(*obj_eval)) {
-      object_duplilist(sctx->runtime.depsgraph, sctx->scene, obj_eval, nullptr, duplilist);
+      object_duplilist(sctx->runtime.depsgraph, obj_eval, nullptr, duplilist);
       for (DupliObject &dupli_ob : duplilist) {
         BLI_assert(DEG_is_evaluated(dupli_ob.ob));
         const ID *ob_data = dupli_ob.ob_data ? data_for_snap_dupli(dupli_ob.ob_data) : nullptr;
@@ -1066,13 +1076,9 @@ static bool snap_grid(SnapObjectContext *sctx)
 /** \name Public Object Snapping API
  * \{ */
 
-SnapObjectContext *snap_object_context_create(Scene *scene, int /*flag*/)
+SnapObjectContext *snap_object_context_create()
 {
-  SnapObjectContext *sctx = MEM_new<SnapObjectContext>(__func__);
-
-  sctx->scene = scene;
-
-  return sctx;
+  return MEM_new<SnapObjectContext>(__func__);
 }
 
 void snap_object_context_destroy(SnapObjectContext *sctx)
@@ -1194,8 +1200,8 @@ static bool snap_object_context_runtime_init(SnapObjectContext *sctx,
       if (!compare_m4m4(sctx->grid.persmat.ptr(), rv3d->persmat, FLT_EPSILON)) {
         sctx->grid.persmat = float4x4(rv3d->persmat);
         if (params->grid_size == 0.0f) {
-          sctx->grid.size = ED_view3d_grid_view_scale(
-              sctx->scene, sctx->runtime.v3d, region, nullptr);
+          const Scene *scene = DEG_get_evaluated_scene(sctx->runtime.depsgraph);
+          sctx->grid.size = ED_view3d_grid_view_scale(scene, sctx->runtime.v3d, region, nullptr);
         }
 
         if (!sctx->grid.use_init_co) {
@@ -1489,7 +1495,7 @@ eSnapMode snap_object_project_view3d_ex(SnapObjectContext *sctx,
       /* Compute the new clip plane but do not add it yet. */
       BLI_ASSERT_UNIT_V3(sctx->ret.no);
       sctx->runtime.occlusion_plane = occlusion_plane_create(
-          sctx->runtime.ray_dir, sctx->ret.loc, sctx->ret.no);
+          sctx->runtime.ray_start, sctx->runtime.ray_dir, sctx->ret.loc, sctx->ret.no);
 
       /* First, snap to the geometry of the polygon obtained via raycast.
        * This is necessary because the occlusion plane may "occlude" part of the polygon's

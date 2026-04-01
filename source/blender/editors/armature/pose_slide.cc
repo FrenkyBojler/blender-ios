@@ -220,8 +220,9 @@ static int pose_slide_init(bContext *C, wmOperator *op, ePoseSlide_Modes mode)
   params.object_mode = OB_MODE_POSE;
   /* Explicitly setting this to false because we *do* want this to work for armature instances. */
   params.no_dup_data = false;
+  const Main *bmain = CTX_data_main(C);
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_mode_params(
-      CTX_data_scene(C), CTX_data_view_layer(C), CTX_wm_view3d(C), &params);
+      *bmain, CTX_data_scene(C), CTX_data_view_layer(C), CTX_wm_view3d(C), &params);
   pso->ob_data_array.reinitialize(objects.size());
 
   for (const int ob_index : objects.index_range()) {
@@ -445,7 +446,7 @@ static void pose_slide_apply_vec3(tPoseSlideOp *pso,
   }
 
   /* Free the temp path we got. */
-  MEM_freeN(path);
+  MEM_delete(path);
 }
 
 /**
@@ -458,7 +459,7 @@ static void pose_slide_apply_props(tPoseSlideOp *pso,
   int len = strlen(pfl->pchan_path);
 
   /* Setup pointer RNA for resolving paths. */
-  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, &RNA_PoseBone, pfl->pchan);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, RNA_PoseBone, pfl->pchan);
 
   /* - custom properties are just denoted using ["..."][etc.] after the end of the base path,
    *   so just check for opening pair after the end of the path
@@ -698,7 +699,7 @@ static void pose_slide_apply_quat(tPoseSlideOp *pso, tPChanFCurveLink *pfl)
   }
 
   /* Free the path now. */
-  MEM_freeN(path);
+  MEM_delete(path);
 }
 
 static void pose_slide_rest_pose_apply_vec3(tPoseSlideOp *pso, float vec[3], float default_value)
@@ -1764,7 +1765,7 @@ static void get_selected_marker_positions(Scene *scene, ListBaseT<FrameLink> *ta
   ListBaseT<CfraElem> selected_markers = {nullptr, nullptr};
   ED_markers_make_cfra_list(&scene->markers, &selected_markers, true);
   for (CfraElem &marker : selected_markers) {
-    FrameLink *link = MEM_callocN<FrameLink>("Marker Key Link");
+    FrameLink *link = MEM_new_zeroed<FrameLink>("Marker Key Link");
     link->frame = marker.cfra;
     BLI_addtail(target_frames, link);
   }
@@ -1790,7 +1791,7 @@ static void get_keyed_frames_in_range(ListBaseT<tPChanFCurveLink> *pflinks,
     if (column.cfra > end_frame) {
       break;
     }
-    FrameLink *link = MEM_callocN<FrameLink>("Marker Key Link");
+    FrameLink *link = MEM_new_zeroed<FrameLink>("Marker Key Link");
     link->frame = column.cfra;
     BLI_addtail(target_frames, link);
   }
@@ -1811,7 +1812,7 @@ static void get_selected_frames(ListBaseT<tPChanFCurveLink> *pflinks,
     if (!column.sel) {
       continue;
     }
-    FrameLink *link = MEM_callocN<FrameLink>("Marker Key Link");
+    FrameLink *link = MEM_new_zeroed<FrameLink>("Marker Key Link");
     link->frame = column.cfra;
     BLI_addtail(target_frames, link);
   }
@@ -1822,6 +1823,7 @@ static void get_selected_frames(ListBaseT<tPChanFCurveLink> *pflinks,
 
 static wmOperatorStatus pose_propagate_exec(bContext *C, wmOperator *op)
 {
+  const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   View3D *v3d = CTX_wm_view3d(C);
@@ -1849,7 +1851,7 @@ static wmOperatorStatus pose_propagate_exec(bContext *C, wmOperator *op)
   switch (mode) {
     case POSE_PROPAGATE_NEXT_KEY: {
       float target_frame = find_next_key(&pflinks, current_frame);
-      FrameLink *link = MEM_callocN<FrameLink>("Next Key Link");
+      FrameLink *link = MEM_new_zeroed<FrameLink>("Next Key Link");
       link->frame = target_frame;
       BLI_addtail(&target_frames, link);
       propagate_curve_values(&pflinks, current_frame, &target_frames);
@@ -1858,7 +1860,7 @@ static wmOperatorStatus pose_propagate_exec(bContext *C, wmOperator *op)
 
     case POSE_PROPAGATE_LAST_KEY: {
       float target_frame = find_last_key(&pflinks);
-      FrameLink *link = MEM_callocN<FrameLink>("Last Key Link");
+      FrameLink *link = MEM_new_zeroed<FrameLink>("Last Key Link");
       link->frame = target_frame;
       BLI_addtail(&target_frames, link);
       propagate_curve_values(&pflinks, current_frame, &target_frames);
@@ -1894,7 +1896,7 @@ static wmOperatorStatus pose_propagate_exec(bContext *C, wmOperator *op)
   poseAnim_mapping_free(&pflinks);
 
   /* Updates + notifiers. */
-  FOREACH_OBJECT_IN_MODE_BEGIN (scene, view_layer, v3d, OB_ARMATURE, OB_MODE_POSE, ob) {
+  FOREACH_OBJECT_IN_MODE_BEGIN (bmain, scene, view_layer, v3d, OB_ARMATURE, OB_MODE_POSE, ob) {
     poseAnim_mapping_refresh(C, scene, ob);
   }
   FOREACH_OBJECT_IN_MODE_END;

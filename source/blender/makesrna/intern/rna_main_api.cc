@@ -133,6 +133,8 @@ static void rna_Main_ID_remove(Main *bmain,
     id_ptr->invalidate();
     /* Force full redraw, mandatory to avoid crashes when running this from UI... */
     WM_main_add_notifier(NC_WINDOW, nullptr);
+    WM_main_add_notifier(NC_SCENE | ND_OB_ACTIVE, nullptr);
+    WM_main_add_notifier(NC_SCENE | ND_LAYER_CONTENT, nullptr);
   }
   else if (ID_REAL_USERS(id) <= 0) {
     const int flag = (do_id_user ? 0 : LIB_ID_FREE_NO_USER_REFCOUNT) |
@@ -257,7 +259,7 @@ static Object *rna_Main_objects_new(Main *bmain, ReportList *reports, const char
   ob = BKE_object_add_only_object(bmain, type, safe_name);
 
   ob->data = data;
-  BKE_object_materials_sync_length(bmain, ob, static_cast<ID *>(ob->data));
+  BKE_object_materials_sync_length(bmain, ob, ob->data);
 
   WM_main_add_notifier(NC_ID | NA_ADDED, nullptr);
 
@@ -291,7 +293,7 @@ static void rna_Main_materials_gpencil_remove(Main * /*bmain*/, PointerRNA *id_p
   ID *id = static_cast<ID *>(id_ptr->data);
   Material *ma = id_cast<Material *>(id);
   if (ma->gp_style) {
-    MEM_SAFE_FREE(ma->gp_style);
+    MEM_SAFE_DELETE(ma->gp_style);
   }
 }
 

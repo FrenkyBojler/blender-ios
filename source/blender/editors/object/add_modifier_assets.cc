@@ -259,7 +259,7 @@ static bNodeTree *get_asset_or_local_node_group(const bContext &C,
 static bNodeTree *get_node_group(const bContext &C, PointerRNA &ptr, ReportList *reports)
 {
   bNodeTree *node_group = get_asset_or_local_node_group(C, ptr, reports);
-  if (!node_group) {
+  if (!node_group || ID_MISSING(node_group)) {
     return nullptr;
   }
   if (node_group->type != NTREE_GEOMETRY) {
@@ -397,9 +397,9 @@ static MenuType modifier_add_root_catalogs_menu_type()
 
 void object_modifier_add_asset_register()
 {
-  WM_menutype_add(MEM_dupallocN<MenuType>(__func__, modifier_add_catalog_assets_menu_type()));
-  WM_menutype_add(MEM_dupallocN<MenuType>(__func__, modifier_add_unassigned_assets_menu_type()));
-  WM_menutype_add(MEM_dupallocN<MenuType>(__func__, modifier_add_root_catalogs_menu_type()));
+  WM_menutype_add(MEM_new<MenuType>(__func__, modifier_add_catalog_assets_menu_type()));
+  WM_menutype_add(MEM_new<MenuType>(__func__, modifier_add_unassigned_assets_menu_type()));
+  WM_menutype_add(MEM_new<MenuType>(__func__, modifier_add_root_catalogs_menu_type()));
   WM_operatortype_append(OBJECT_OT_modifier_add_node_group);
 }
 

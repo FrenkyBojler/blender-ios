@@ -84,25 +84,29 @@ void Instance::init()
     }
 
     if (camera) {
-      rctf default_border;
-      BLI_rctf_init(&default_border, 0.0f, 1.0f, 0.0f, 1.0f);
-      bool is_default_border = BLI_rctf_compare(&scene->r.border, &default_border, 0.0f);
-      bool use_border = scene->r.mode & R_BORDER;
-      if (!is_default_border && use_border) {
-        rctf viewborder;
-        /* TODO(fclem) Might be better to get it from DRW. */
-        ED_view3d_calc_camera_border(scene, depsgraph, region, v3d, rv3d, false, &viewborder);
-        float viewborder_sizex = BLI_rctf_size_x(&viewborder);
-        float viewborder_sizey = BLI_rctf_size_y(&viewborder);
-        rect.xmin = floorf(viewborder.xmin + (scene->r.border.xmin * viewborder_sizex));
-        rect.ymin = floorf(viewborder.ymin + (scene->r.border.ymin * viewborder_sizey));
-        rect.xmax = floorf(viewborder.xmin + (scene->r.border.xmax * viewborder_sizex));
-        rect.ymax = floorf(viewborder.ymin + (scene->r.border.ymax * viewborder_sizey));
-        /* Clamp it to the viewport area. */
-        rect.xmin = max(rect.xmin, 0);
-        rect.ymin = max(rect.ymin, 0);
-        rect.xmax = min(rect.xmax, size.x);
-        rect.ymax = min(rect.ymax, size.y);
+      if (scene->r.mode & R_BORDER) {
+        if (draw_ctx->is_viewport_image_render()) {
+          rect.xmin = scene->r.border.xmin * size[0];
+          rect.ymin = scene->r.border.ymin * size[1];
+          rect.xmax = scene->r.border.xmax * size[0];
+          rect.ymax = scene->r.border.ymax * size[1];
+        }
+        else {
+          rctf viewborder;
+          /* TODO(fclem) Might be better to get it from DRW. */
+          ED_view3d_calc_camera_border(scene, depsgraph, region, v3d, rv3d, false, &viewborder);
+          float viewborder_sizex = BLI_rctf_size_x(&viewborder);
+          float viewborder_sizey = BLI_rctf_size_y(&viewborder);
+          rect.xmin = floorf(viewborder.xmin + (scene->r.border.xmin * viewborder_sizex));
+          rect.ymin = floorf(viewborder.ymin + (scene->r.border.ymin * viewborder_sizey));
+          rect.xmax = floorf(viewborder.xmin + (scene->r.border.xmax * viewborder_sizex));
+          rect.ymax = floorf(viewborder.ymin + (scene->r.border.ymax * viewborder_sizey));
+          /* Clamp it to the viewport area. */
+          rect.xmin = max(rect.xmin, 0);
+          rect.ymin = max(rect.ymin, 0);
+          rect.xmax = min(rect.xmax, size.x);
+          rect.ymax = min(rect.ymax, size.y);
+        }
       }
     }
     else if (v3d->flag2 & V3D_RENDER_BORDER) {
@@ -191,10 +195,15 @@ void Instance::init(const int2 &output_res,
     if (is_navigating && scene->eevee.flag & SCE_EEVEE_SHADOW_JITTERED_VIEWPORT) {
       sampling.reset();
     }
+    if (is_playback) {
+      sampling.reset();
+    }
   }
   else {
     is_image_render = true;
   }
+
+  anisotropic_filtering = GPU_anisotropic_filtering_flags(scene->r.anisotropic_filter);
 
   sampling.init(scene);
   camera.init();
@@ -668,9 +677,11 @@ void Instance::render_frame(RenderEngine *engine, RenderLayer *render_layer, con
       RE_engine_update_stats(engine, nullptr, re_info.c_str());
     }
 
-    /* Perform render step between samples to allow
-     * flushing of freed GPUBackend resources. */
-    if (GPU_backend_get_type() == GPU_BACKEND_METAL) {
+    /* Metal: Perform render step between samples to allow flushing of freed GPUBackend resources.
+     * Vulkan: Perform render step between samples to avoid allocation of a high amount of command
+     * buffer memory that can eventually result in out-of-memory errors or a TDR when submitted as
+     * one large command buffer. */
+    if (ELEM(GPU_backend_get_type(), GPU_BACKEND_METAL, GPU_BACKEND_VULKAN)) {
       GPU_flush();
     }
     GPU_render_step();
@@ -708,7 +719,7 @@ void Instance::draw_viewport()
 {
   if (skip_render_ || !is_loaded(needed_shaders)) {
     DefaultFramebufferList *dfbl = draw_ctx->viewport_framebuffer_list_get();
-    GPU_framebuffer_clear_color_depth(dfbl->default_fb, float4(0.0f), 1.0f);
+    GPU_framebuffer_clear_color_depth(dfbl->default_fb, double4(0.0), 1.0f);
     if (!is_loaded(needed_shaders & ~WORLD_SHADERS)) {
       info_append_i18n("Compiling EEVEE engine shaders");
       DRW_viewport_request_redraw();

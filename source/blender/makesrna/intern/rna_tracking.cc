@@ -111,7 +111,7 @@ static PointerRNA rna_trackingReconstruction_get(PointerRNA *ptr)
   MovieTrackingObject *tracking_camera_object = BKE_tracking_object_get_camera(&clip->tracking);
 
   return RNA_pointer_create_with_parent(
-      *ptr, &RNA_MovieTrackingReconstruction, &tracking_camera_object->reconstruction);
+      *ptr, RNA_MovieTrackingReconstruction, &tracking_camera_object->reconstruction);
 }
 
 static void rna_trackingObjects_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
@@ -151,7 +151,7 @@ static PointerRNA rna_tracking_active_track_get(PointerRNA *ptr)
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
 
   return RNA_pointer_create_with_parent(
-      *ptr, &RNA_MovieTrackingTrack, tracking_object->active_track);
+      *ptr, RNA_MovieTrackingTrack, tracking_object->active_track);
 }
 
 static void rna_tracking_active_track_set(PointerRNA *ptr, PointerRNA value, ReportList *reports)
@@ -179,7 +179,7 @@ static PointerRNA rna_tracking_active_plane_track_get(PointerRNA *ptr)
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
 
   return RNA_pointer_create_with_parent(
-      *ptr, &RNA_MovieTrackingPlaneTrack, tracking_object->active_plane_track);
+      *ptr, RNA_MovieTrackingPlaneTrack, tracking_object->active_plane_track);
 }
 
 static void rna_tracking_active_plane_track_set(PointerRNA *ptr,
@@ -209,7 +209,7 @@ static PointerRNA rna_tracking_object_active_track_get(PointerRNA *ptr)
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
 
   return RNA_pointer_create_with_parent(
-      *ptr, &RNA_MovieTrackingTrack, tracking_object->active_track);
+      *ptr, RNA_MovieTrackingTrack, tracking_object->active_track);
 }
 
 static void rna_tracking_object_active_track_set(PointerRNA *ptr,
@@ -237,7 +237,7 @@ static PointerRNA rna_tracking_object_active_plane_track_get(PointerRNA *ptr)
   MovieTrackingObject *tracking_object = static_cast<MovieTrackingObject *>(ptr->data);
 
   return RNA_pointer_create_with_parent(
-      *ptr, &RNA_MovieTrackingPlaneTrack, tracking_object->active_plane_track);
+      *ptr, RNA_MovieTrackingPlaneTrack, tracking_object->active_plane_track);
 }
 
 static void rna_tracking_object_active_plane_track_set(PointerRNA *ptr,
@@ -278,8 +278,16 @@ static void rna_trackingTrack_name_set(PointerRNA *ptr, const char *value)
     char rna_path_prefix[MAX_NAME * 2 + 64];
     BKE_tracking_get_rna_path_prefix_for_track(
         &clip->tracking, track, rna_path_prefix, sizeof(rna_path_prefix));
-    BKE_animdata_fix_paths_rename(
-        &clip->id, adt, nullptr, rna_path_prefix, old_name, track->name, 0, 0, 1);
+    BKE_animdata_fix_paths_rename(&clip->id,
+                                  adt,
+                                  nullptr,
+                                  rna_path_prefix,
+                                  old_name,
+                                  track->name,
+                                  0,
+                                  0,
+                                  /*verify_paths=*/true,
+                                  /*infix_is_name=*/true);
   }
 }
 
@@ -366,8 +374,16 @@ static void rna_trackingPlaneTrack_name_set(PointerRNA *ptr, const char *value)
     char rna_path[MAX_NAME * 2 + 64];
     BKE_tracking_get_rna_path_prefix_for_plane_track(
         &clip->tracking, plane_track, rna_path, sizeof(rna_path));
-    BKE_animdata_fix_paths_rename(
-        &clip->id, adt, nullptr, rna_path, old_name, plane_track->name, 0, 0, 1);
+    BKE_animdata_fix_paths_rename(&clip->id,
+                                  adt,
+                                  nullptr,
+                                  rna_path,
+                                  old_name,
+                                  plane_track->name,
+                                  0,
+                                  0,
+                                  /*verify_paths=*/true,
+                                  /*infix_is_name=*/true);
   }
 }
 
@@ -542,7 +558,7 @@ static PointerRNA rna_trackingObject_reconstruction_get(PointerRNA *ptr)
 {
   MovieTrackingObject *tracking_object = static_cast<MovieTrackingObject *>(ptr->data);
   return RNA_pointer_create_with_parent(
-      *ptr, &RNA_MovieTrackingReconstruction, &tracking_object->reconstruction);
+      *ptr, RNA_MovieTrackingReconstruction, &tracking_object->reconstruction);
 }
 
 static PointerRNA rna_tracking_active_object_get(PointerRNA *ptr)
@@ -551,7 +567,7 @@ static PointerRNA rna_tracking_active_object_get(PointerRNA *ptr)
   MovieTrackingObject *tracking_object = static_cast<MovieTrackingObject *>(
       BLI_findlink(&clip->tracking.objects, clip->tracking.objectnr));
 
-  return RNA_pointer_create_with_parent(*ptr, &RNA_MovieTrackingObject, tracking_object);
+  return RNA_pointer_create_with_parent(*ptr, RNA_MovieTrackingObject, tracking_object);
 }
 
 static void rna_tracking_active_object_set(PointerRNA *ptr,
@@ -1923,6 +1939,8 @@ static void rna_def_trackingPlaneTrack(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Image", "Image displayed in the track during editing in clip editor");
   RNA_def_property_update(prop, NC_MOVIECLIP | ND_DISPLAY, nullptr);
+  RNA_def_property_pointer_funcs(
+      prop, nullptr, nullptr, nullptr, "rna_Image_no_renderresult_or_viewer_poll");
 
   /* image opacity */
   prop = RNA_def_property(srna, "image_opacity", PROP_FLOAT, PROP_FACTOR);

@@ -371,6 +371,31 @@ void region_message_subscribe(const wmRegionMessageSubscribeParams *params)
   msg_sub_value_region_tag_redraw.notify = ED_region_do_msg_notify_tag_redraw;
   WM_msg_subscribe_rna_prop(
       mbus, &workspace->id, workspace, WorkSpace, tools, &msg_sub_value_region_tag_redraw);
+
+  {
+    wmMsgSubscribeValue msg_sub_value_region_clear_remote_libraries{};
+    msg_sub_value_region_clear_remote_libraries.owner = region;
+    msg_sub_value_region_clear_remote_libraries.user_data = region;
+    msg_sub_value_region_clear_remote_libraries.notify = [](/* Follow wmMsgNotifyFn spec */
+                                                            bContext *C,
+                                                            wmMsgSubscribeKey * /*msg_key*/,
+                                                            wmMsgSubscribeValue *msg_val) {
+      ARegion *region = static_cast<ARegion *>(msg_val->owner);
+      RegionAssetShelf *shelf_regiondata = RegionAssetShelf::get_from_asset_shelf_region(*region);
+      AssetShelf *active_shelf = shelf_regiondata->active_shelf;
+      if (blender::asset_system::is_or_contains_remote_libraries(
+              active_shelf->settings.asset_library_reference))
+      {
+        asset::list::clear(&active_shelf->settings.asset_library_reference, C);
+      }
+    };
+    WM_msg_subscribe_rna_prop(mbus,
+                              nullptr,
+                              &U,
+                              PreferencesSystem,
+                              use_online_access,
+                              &msg_sub_value_region_clear_remote_libraries);
+  }
 }
 
 void region_init(wmWindowManager *wm, ARegion *region)
@@ -733,7 +758,7 @@ int context(const bContext *C, const char *member, bContextDataResult *result)
       return CTX_RESULT_NO_DATA;
     }
 
-    CTX_data_pointer_set(result, &screen->id, &RNA_AssetShelf, active_shelf);
+    CTX_data_pointer_set(result, &screen->id, RNA_AssetShelf, active_shelf);
     return CTX_RESULT_OK;
   }
 
@@ -745,7 +770,7 @@ int context(const bContext *C, const char *member, bContextDataResult *result)
 
     CTX_data_pointer_set(result,
                          &screen->id,
-                         &RNA_AssetLibraryReference,
+                         RNA_AssetLibraryReference,
                          &active_shelf->settings.asset_library_reference);
     return CTX_RESULT_OK;
   }
@@ -763,7 +788,7 @@ int context(const bContext *C, const char *member, bContextDataResult *result)
     }
 
     const PointerRNA *asset_ptr = CTX_store_ptr_lookup(
-        but_context, "asset", &RNA_AssetRepresentation);
+        but_context, "asset", RNA_AssetRepresentation);
     if (!asset_ptr) {
       return CTX_RESULT_NO_DATA;
     }
@@ -777,7 +802,7 @@ int context(const bContext *C, const char *member, bContextDataResult *result)
 
 static PointerRNA active_shelf_ptr_from_context(const bContext *C)
 {
-  return CTX_data_pointer_get_type(C, "asset_shelf", &RNA_AssetShelf);
+  return CTX_data_pointer_get_type(C, "asset_shelf", RNA_AssetShelf);
 }
 
 AssetShelf *active_shelf_from_context(const bContext *C)
@@ -889,7 +914,7 @@ static void asset_shelf_header_draw(const bContext *C, Header *header)
 
 static void header_regiontype_register(ARegionType *region_type, const int space_type)
 {
-  HeaderType *ht = MEM_callocN<HeaderType>(__func__);
+  HeaderType *ht = MEM_new_zeroed<HeaderType>(__func__);
   STRNCPY_UTF8(ht->idname, "ASSETSHELF_HT_settings");
   ht->space_type = space_type;
   ht->region_type = RGN_TYPE_ASSET_SHELF_HEADER;

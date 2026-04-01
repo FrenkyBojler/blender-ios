@@ -19,7 +19,6 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_span.hh"
-#include "BLI_string.h"
 #include "BLI_task.hh"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
@@ -197,19 +196,6 @@ static void add_orco_mesh(Object &ob,
 }
 
 /**
- * Does final touches to the final evaluated mesh, making sure it is perfectly usable.
- *
- * This is needed because certain information is not passed along intermediate meshes allocated
- * during stack evaluation.
- */
-static void mesh_calc_finalize(const Mesh &mesh_input, Mesh &mesh_eval)
-{
-  /* Make sure the name is the same. This is because mesh allocation from template does not
-   * take care of naming. */
-  STRNCPY(mesh_eval.id.name, mesh_input.id.name);
-}
-
-/**
  * Modifies the given mesh and geometry set. The mesh is not passed as part of the mesh component
  * in the \a geometry_set input, it is only passed in \a input_mesh and returned in the return
  * value.
@@ -319,8 +305,8 @@ static void mesh_calc_modifiers(Depsgraph &depsgraph,
   /* Sculpt can skip certain modifiers. */
   const bool has_multires = BKE_sculpt_multires_active(&scene, &ob) != nullptr;
   bool multires_applied = false;
-  const bool sculpt_mode = ob.mode & OB_MODE_SCULPT && ob.sculpt && !use_render;
-  const bool sculpt_dyntopo = (sculpt_mode && ob.sculpt->bm) && !use_render;
+  const bool sculpt_mode = ob.mode & OB_MODE_SCULPT && ob.runtime->sculpt_session && !use_render;
+  const bool sculpt_dyntopo = (sculpt_mode && ob.runtime->sculpt_session->bm) && !use_render;
 
   /* Modifier evaluation contexts for different types of modifiers. */
   ModifierApplyFlag apply_render = use_render ? MOD_APPLY_RENDER : ModifierApplyFlag(0);
@@ -677,20 +663,14 @@ static void mesh_calc_modifiers(Depsgraph &depsgraph,
    * Save some memory, and ensure GPU subdivision does not need to deal with this. */
   CustomData_free_layers(&mesh->vert_data, CD_CLOTH_ORCO);
 
-  /* Compute normals. */
-  if (is_own_mesh) {
-    mesh_calc_finalize(mesh_input, *mesh);
-  }
-  else {
+  if (!is_own_mesh) {
     MeshRuntime *runtime = mesh_input.runtime;
     if (runtime->mesh_eval == nullptr) {
       std::lock_guard lock{mesh_input.runtime->eval_mutex};
       if (runtime->mesh_eval == nullptr) {
-        /* Not yet finalized by any instance, do it now
-         * Isolate since computing normals is multithreaded and we are holding a lock. */
+        /* Not yet finalized by any instance, do it now. */
         threading::isolate_task([&] {
           mesh = BKE_mesh_copy_for_eval(mesh_input);
-          mesh_calc_finalize(mesh_input, *mesh);
           runtime->mesh_eval = mesh;
         });
       }
@@ -1018,7 +998,7 @@ static void mesh_build_data(Depsgraph &depsgraph,
   BLI_assert(mesh->key == nullptr || DEG_is_evaluated(mesh->key));
   mesh_eval->key = mesh->key;
 
-  if ((ob.mode & OB_MODE_ALL_SCULPT) && ob.sculpt) {
+  if ((ob.mode & OB_MODE_ALL_SCULPT) && ob.runtime->sculpt_session) {
     if (DEG_is_active(&depsgraph)) {
       BKE_sculpt_update_object_after_eval(&depsgraph, &ob);
     }
@@ -1079,7 +1059,7 @@ static void object_get_datamask(const Depsgraph &depsgraph,
     return;
   }
 
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*DEG_get_bmain(&depsgraph), scene, view_layer);
   Object *actob = BKE_view_layer_active_object_get(view_layer);
   if (actob) {
     actob = DEG_get_original(actob);
@@ -1258,8 +1238,8 @@ Mesh *editbmesh_get_eval_cage_from_orig(Depsgraph *depsgraph,
   BLI_assert((obedit->id.tag & ID_TAG_COPIED_ON_EVAL) == 0);
   const Scene *scene_eval = DEG_get_evaluated(depsgraph, scene);
   Object *obedit_eval = DEG_get_evaluated(depsgraph, obedit);
-  BMEditMesh *em_eval = BKE_editmesh_from_object(obedit_eval);
-  return editbmesh_get_eval_cage(depsgraph, scene_eval, obedit_eval, em_eval, dataMask);
+  BMEditMesh *em = BKE_editmesh_from_object(obedit);
+  return editbmesh_get_eval_cage(depsgraph, scene_eval, obedit_eval, em, dataMask);
 }
 
 struct MappedUserData {

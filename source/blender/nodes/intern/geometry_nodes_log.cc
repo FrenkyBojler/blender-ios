@@ -9,6 +9,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_stack.hh"
+#include "BLI_string.h"
 #include "BLI_string_ref.hh"
 #include "BLI_string_utf8.h"
 
@@ -79,24 +80,18 @@ FieldInfoLog::FieldInfoLog(const GField &field) : type(field.cpp_type())
                         field_input_nodes->deduplicated_nodes.end());
   }
 
-  std::sort(
-      field_inputs.begin(), field_inputs.end(), [](const FieldInput &a, const FieldInput &b) {
-        const int index_a = int(a.category());
-        const int index_b = int(b.category());
-        if (index_a == index_b) {
-          return a.socket_inspection_name().size() < b.socket_inspection_name().size();
-        }
-        return index_a < index_b;
-      });
-
+  this->input_tooltips.reserve(field_inputs.size());
   for (const FieldInput &field_input : field_inputs) {
-    this->input_tooltips.append(field_input.socket_inspection_name());
+    input_tooltips.append(field_input.socket_inspection_name());
   }
+  std::ranges::sort(input_tooltips, [](const std::string &a, const std::string &b) {
+    return BLI_strcasecmp_natural(a.c_str(), b.c_str()) < 0;
+  });
 }
 
 GeometryInfoLog::GeometryInfoLog(const bke::GeometrySet &geometry_set)
 {
-  this->name = geometry_set.name;
+  this->name = geometry_set.name();
 
   static std::array all_component_types = {bke::GeometryComponent::Type::Curve,
                                            bke::GeometryComponent::Type::Instance,
@@ -110,16 +105,17 @@ GeometryInfoLog::GeometryInfoLog(const bke::GeometrySet &geometry_set)
    * attributes with the same name but different domains or data types on separate components. */
   Set<StringRef> names;
 
-  geometry_set.attribute_foreach(
-      all_component_types,
-      true,
-      [&](const StringRef attribute_id,
-          const bke::AttributeMetaData &meta_data,
-          const bke::GeometryComponent & /*component*/) {
-        if (!bke::attribute_name_is_anonymous(attribute_id) && names.add(attribute_id)) {
-          this->attributes.append({attribute_id, meta_data.domain, meta_data.data_type});
-        }
-      });
+  geometry_set.attribute_foreach(all_component_types,
+                                 true,
+                                 [&](const StringRef name,
+                                     const bke::AttributeMetaData &meta_data,
+                                     const bke::GeometryComponent & /*component*/) {
+                                   if (!bke::attribute_name_is_anonymous(name) && names.add(name))
+                                   {
+                                     this->attributes.append(
+                                         {name, meta_data.domain, meta_data.data_type});
+                                   }
+                                 });
 
   for (const bke::GeometryComponent *component : geometry_set.get_components()) {
     this->component_types.append(component->type());
@@ -434,7 +430,7 @@ void GeoTreeLog::ensure_node_warnings(const NodesModifierData &nmd)
   if (reduced_node_warnings_) {
     return;
   }
-  if (!nmd.node_group) {
+  if (!nmd.node_group || ID_MISSING(nmd.node_group)) {
     reduced_node_warnings_ = true;
     return;
   }
@@ -1009,7 +1005,10 @@ const ViewerNodeLog *GeoNodesLog::find_viewer_node_log_for_path(const ViewerPath
   nodes::geo_eval_log::GeoNodesLog *root_log = nmd->runtime->eval_log.get();
 
   bke::ComputeContextCache compute_context_cache;
-  const ComputeContext *compute_context = &compute_context_cache.for_modifier(nullptr, *nmd);
+  const ComputeContext *object_context = &compute_context_cache.for_data_block(
+      nullptr, parsed_path->object->id);
+  const ComputeContext *compute_context = &compute_context_cache.for_modifier(object_context,
+                                                                              *nmd);
   for (const ViewerPathElem *elem : parsed_path->node_path) {
     compute_context = ed::viewer_path::compute_context_for_viewer_path_elem(
         *elem, compute_context_cache, compute_context);

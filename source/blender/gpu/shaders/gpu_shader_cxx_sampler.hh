@@ -12,8 +12,6 @@
 
 #include "gpu_shader_cxx_vector.hh"
 
-namespace blender {
-
 /* Some compilers complain about lack of return values. Keep it short. */
 #define RET \
   { \
@@ -109,10 +107,8 @@ float4 texelFetch(samplerBuffer, int) RET;
 int4 texelFetch(isamplerBuffer, int) RET;
 uint4 texelFetch(usamplerBuffer, int) RET;
 
-float4 texelFetchExtend(sampler2D samp, int2 texel, int lvl) RET;
+float4 texelFetchExtend(sampler2D /*samp*/, int2 /*texel*/, int /*lvl*/) RET;
 
 /** \} */
 
 #undef RET
-
-}  // namespace blender

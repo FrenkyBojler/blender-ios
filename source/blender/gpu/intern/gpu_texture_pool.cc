@@ -11,11 +11,21 @@
 
 #include "GPU_texture_pool.hh"
 
+#include "gpu_backend.hh"
 #include "gpu_context_private.hh"
+#include "gpu_texture_pool_private.hh"
+
+#include "fmt/format.h"
 
 namespace blender::gpu {
 
-TexturePool::~TexturePool()
+TexturePool &TexturePool::get()
+{
+  BLI_assert(GPU_context_active_get() != nullptr);
+  return *unwrap(GPU_context_active_get())->texture_pool;
+}
+
+TexturePoolImpl::~TexturePoolImpl()
 {
   for (TextureHandle tex : acquired_) {
     GPU_texture_free(tex.texture);
@@ -25,7 +35,10 @@ TexturePool::~TexturePool()
   }
 }
 
-Texture *TexturePool::acquire_texture(int2 extent, TextureFormat format, eGPUTextureUsage usage)
+Texture *TexturePoolImpl::acquire_texture(int2 extent,
+                                          TextureFormat format,
+                                          eGPUTextureUsage usage,
+                                          const char * /* name */)
 {
   /* Search pool for compatible available texture first. */
   int64_t match_index = -1;
@@ -47,18 +60,21 @@ Texture *TexturePool::acquire_texture(int2 extent, TextureFormat format, eGPUTex
     return handle.texture;
   }
 
-  /* Otherwise, allocate a new texture as a last resort. */
-  char name[16] = "TexFromPool";
+  /* Generate debug label name, if one isn't passed in `name`. TexturePoolImpl ignores the
+   *name argument, as returned textures do not shadow/view/abstract the underlying texture. */
+  std::string name_str;
   if (G.debug & G_DEBUG_GPU) {
-    int texture_id = pool_.size();
-    SNPRINTF(name, "TexFromPool_%d", texture_id);
+    name_str = fmt::format("TexFromPool_{}", pool_.size());
   }
-  TextureHandle handle = {GPU_texture_create_2d(name, UNPACK2(extent), 1, format, usage, nullptr)};
+
+  /* Otherwise, allocate a new texture as a last resort. */
+  TextureHandle handle = {
+      GPU_texture_create_2d(name_str.c_str(), UNPACK2(extent), 1, format, usage, nullptr)};
   acquired_.add(handle);
   return handle.texture;
 }
 
-void TexturePool::release_texture(Texture *tex)
+void TexturePoolImpl::release_texture(Texture *tex)
 {
   BLI_assert_msg(acquired_.contains({tex}),
                  "Unacquired texture passed to TexturePool::release_texture()");
@@ -66,7 +82,7 @@ void TexturePool::release_texture(Texture *tex)
   pool_.append({tex});
 }
 
-void TexturePool::offset_users_count(Texture *tex, int offset)
+void TexturePoolImpl::offset_users_count(Texture *tex, int offset)
 {
   BLI_assert_msg(acquired_.contains({tex}),
                  "Unacquired texture passed to TexturePool::offset_users_count()");
@@ -74,7 +90,7 @@ void TexturePool::offset_users_count(Texture *tex, int offset)
   acquired_.add_overwrite({tex, users_count + offset, 0});
 }
 
-void TexturePool::reset(bool force_free)
+void TexturePoolImpl::reset(bool force_free)
 {
 #ifndef NDEBUG
   /* Iterate acquired textures, and ensure the internal counter equals 0; otherwise
@@ -98,11 +114,4 @@ void TexturePool::reset(bool force_free)
     }
   }
 }
-
-TexturePool &TexturePool::get()
-{
-  BLI_assert(GPU_context_active_get() != nullptr);
-  return *unwrap(GPU_context_active_get())->texture_pool;
-}
-
 }  // namespace blender::gpu

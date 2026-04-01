@@ -171,7 +171,7 @@ static PointerRNA rna_Mask_layer_active_get(PointerRNA *ptr)
   Mask *mask = id_cast<Mask *>(ptr->owner_id);
   MaskLayer *masklay = BKE_mask_layer_active(mask);
 
-  return RNA_pointer_create_with_parent(*ptr, &RNA_MaskLayer, masklay);
+  return RNA_pointer_create_with_parent(*ptr, RNA_MaskLayer, masklay);
 }
 
 static void rna_Mask_layer_active_set(PointerRNA *ptr, PointerRNA value, ReportList * /*reports*/)
@@ -206,7 +206,7 @@ static PointerRNA rna_MaskLayer_active_spline_get(PointerRNA *ptr)
 {
   MaskLayer *masklay = static_cast<MaskLayer *>(ptr->data);
 
-  return RNA_pointer_create_with_parent(*ptr, &RNA_MaskSpline, masklay->act_spline);
+  return RNA_pointer_create_with_parent(*ptr, RNA_MaskSpline, masklay->act_spline);
 }
 
 static void rna_MaskLayer_active_spline_set(PointerRNA *ptr,
@@ -229,7 +229,7 @@ static PointerRNA rna_MaskLayer_active_spline_point_get(PointerRNA *ptr)
 {
   MaskLayer *masklay = static_cast<MaskLayer *>(ptr->data);
 
-  return RNA_pointer_create_with_parent(*ptr, &RNA_MaskSplinePoint, masklay->act_point);
+  return RNA_pointer_create_with_parent(*ptr, RNA_MaskSplinePoint, masklay->act_point);
 }
 
 static void rna_MaskLayer_active_spline_point_set(PointerRNA *ptr,
@@ -514,7 +514,7 @@ static void rna_MaskSpline_points_add(ID *id, MaskSpline *spline, int count)
   }
 
   spline->points = static_cast<MaskSplinePoint *>(
-      MEM_recallocN(spline->points, sizeof(MaskSplinePoint) * (spline->tot_point + count)));
+      MEM_realloc_zeroed(spline->points, sizeof(MaskSplinePoint) * (spline->tot_point + count)));
   spline->tot_point += count;
 
   if (active_point_index >= 0) {
@@ -573,15 +573,15 @@ static void rna_MaskSpline_point_remove(ID *id,
 
   point_index = point - spline->points;
 
-  new_point_array = MEM_new_array_for_free<MaskSplinePoint>(size_t(spline->tot_point) - 1,
-                                                            "remove mask point");
+  new_point_array = MEM_new_array<MaskSplinePoint>(size_t(spline->tot_point) - 1,
+                                                   "remove mask point");
 
   memcpy(new_point_array, spline->points, sizeof(MaskSplinePoint) * point_index);
   memcpy(new_point_array + point_index,
          spline->points + point_index + 1,
          sizeof(MaskSplinePoint) * (spline->tot_point - point_index - 1));
 
-  MEM_freeN(spline->points);
+  MEM_delete(spline->points);
   spline->points = new_point_array;
   spline->tot_point--;
 
@@ -992,6 +992,20 @@ static void rna_def_mask_layer(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
+  static const EnumPropertyItem fill_solver_items[] = {
+      {MASK_FILL_SOLVER_SWEEP_LINE,
+       "SWEEP_LINE",
+       0,
+       "Sweep Line",
+       "Fast without support for self-intersection"},
+      {MASK_FILL_SOLVER_CDT,
+       "CDT",
+       0,
+       "Delaunay",
+       "Constrained Delaunay Triangulation (CDT), robust with support for self-intersections"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
   StructRNA *srna;
   PropertyRNA *prop;
 
@@ -1080,6 +1094,12 @@ static void rna_def_mask_layer(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_MASK | NA_EDITED, nullptr);
 
   /* filling options */
+  prop = RNA_def_property(srna, "fill_solver", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "fill_solver");
+  RNA_def_property_enum_items(prop, fill_solver_items);
+  RNA_def_property_ui_text(prop, "Fill Solver", "Triangulation solver for filling 2D curves");
+  RNA_def_property_update(prop, NC_MASK | ND_DRAW, nullptr);
+
   prop = RNA_def_property(srna, "use_fill_holes", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, nullptr, "flag", MASK_LAYERFLAG_FILL_DISCRETE);
   RNA_def_property_ui_text(
@@ -1088,8 +1108,10 @@ static void rna_def_mask_layer(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "use_fill_overlap", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", MASK_LAYERFLAG_FILL_OVERLAP);
-  RNA_def_property_ui_text(
-      prop, "Calculate Overlap", "Calculate self intersections and overlap before filling");
+  RNA_def_property_ui_text(prop,
+                           "Calculate Overlap",
+                           "Calculate self intersections and overlap before filling "
+                           "(only for the sweep-line solver)");
   RNA_def_property_update(prop, NC_MASK | NA_EDITED, nullptr);
 }
 

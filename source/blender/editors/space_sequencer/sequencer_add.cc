@@ -37,6 +37,7 @@
 #include "IMB_imbuf_enums.h"
 
 #include "SEQ_channels.hh"
+#include "SEQ_retiming.hh"
 #include "WM_api.hh"
 #include "WM_types.hh"
 
@@ -156,7 +157,7 @@ static bool sequencer_add_draw_check_fn(PointerRNA *ptr, PropertyRNA *prop, void
                    "use_sequence_detection");
 }
 
-static void sequencer_add_draw(bContext * /*C*/, wmOperator *op)
+static void sequencer_add_ui(bContext * /*C*/, wmOperator *op)
 {
   ui::Layout &layout = *op->layout;
   SequencerAddData *sad = static_cast<SequencerAddData *>(op->customdata);
@@ -193,7 +194,7 @@ static void sequencer_add_draw(bContext * /*C*/, wmOperator *op)
   layout.separator();
 
   /* Image template. */
-  PointerRNA imf_ptr = RNA_pointer_create_discrete(nullptr, &RNA_ImageFormatSettings, imf);
+  PointerRNA imf_ptr = RNA_pointer_create_discrete(nullptr, RNA_ImageFormatSettings, imf);
 
   /* Multiview template. */
   if (RNA_boolean_get(op->ptr, "show_multiview")) {
@@ -368,14 +369,14 @@ static int sequencer_generic_invoke_xy_guess_channel(bContext *C, int type)
 
 static bool have_free_channels(bContext *C,
                                wmOperator *op,
-                               int need_channels,
+                               const int needed_channels,
                                const char **r_error_msg)
 {
   const int channel = RNA_int_get(op->ptr, "channel");
   const int frame_start = RNA_int_get(op->ptr, "frame_start");
 
   /* First check simple case - strip is added to very top of timeline. */
-  const int max_channel = seq::MAX_CHANNELS - need_channels + 1;
+  const int max_channel = seq::MAX_CHANNELS - needed_channels + 1;
   if (channel > max_channel) {
     *r_error_msg = RPT_("No available channel for the current frame.");
     return false;
@@ -395,7 +396,7 @@ static bool have_free_channels(bContext *C,
     if (!used_channels.contains(i)) {
       free_channels++;
     }
-    if (free_channels == need_channels) {
+    if (free_channels == needed_channels) {
       return true;
     }
   }
@@ -630,6 +631,31 @@ static bool load_data_init_from_operator(seq::LoadData *load_data, bContext *C, 
   return true;
 }
 
+static bool sequencer_add_generic_exec(
+    bContext *C, wmOperator *op, seq::LoadData *load_data, Scene *scene, const int num_strips)
+{
+  Editing *ed = seq::editing_ensure(scene);
+
+  const char *error_msg;
+  if (!have_free_channels(C, op, num_strips, &error_msg)) {
+    BKE_report(op->reports, RPT_ERROR, error_msg);
+    return false;
+  }
+
+  /* Keeping the old selection when moving newly imported strips is unexpected and feels buggy,
+   * so we deselect when `move_strips` is set too. */
+  if (RNA_boolean_get(op->ptr, "move_strips") || RNA_boolean_get(op->ptr, "replace_sel")) {
+    deselect_all_strips(scene);
+    seq::retiming_selection_clear(ed);
+  }
+
+  if (!load_data_init_from_operator(load_data, C, op)) {
+    return false;
+  }
+
+  return true;
+}
+
 static void seq_load_apply_generic_options(bContext *C, wmOperator *op, Strip *strip)
 {
   Scene *scene = CTX_data_sequencer_scene(C);
@@ -720,18 +746,10 @@ static wmOperatorStatus sequencer_add_scene_strip_exec(bContext *C, wmOperator *
     return OPERATOR_CANCELLED;
   }
 
-  const char *error_msg;
-  if (!have_free_channels(C, op, 1, &error_msg)) {
-    BKE_report(op->reports, RPT_ERROR, error_msg);
+  seq::LoadData load_data;
+  if (!sequencer_add_generic_exec(C, op, &load_data, scene, 1)) {
     return OPERATOR_CANCELLED;
   }
-
-  if (RNA_boolean_get(op->ptr, "replace_sel")) {
-    deselect_all_strips(scene);
-  }
-
-  seq::LoadData load_data;
-  load_data_init_from_operator(&load_data, C, op);
   load_data.scene = sce_seq;
 
   Strip *strip = seq::add_scene_strip(scene, ed->current_strips(), &load_data);
@@ -814,18 +832,10 @@ static wmOperatorStatus sequencer_add_scene_strip_new_exec(bContext *C, wmOperat
   Scene *scene = CTX_data_sequencer_scene(C);
   const Editing *ed = seq::editing_ensure(scene);
 
-  const char *error_msg;
-  if (!have_free_channels(C, op, 1, &error_msg)) {
-    BKE_report(op->reports, RPT_ERROR, error_msg);
+  seq::LoadData load_data;
+  if (!sequencer_add_generic_exec(C, op, &load_data, scene, 1)) {
     return OPERATOR_CANCELLED;
   }
-
-  if (RNA_boolean_get(op->ptr, "replace_sel")) {
-    deselect_all_strips(scene);
-  }
-
-  seq::LoadData load_data;
-  load_data_init_from_operator(&load_data, C, op);
 
   int type = RNA_enum_get(op->ptr, "type");
   Scene *scene_new = ED_scene_sequencer_add(bmain, C, eSceneCopyMethod(type));
@@ -931,18 +941,10 @@ static wmOperatorStatus sequencer_add_scene_asset_invoke(bContext *C,
     return OPERATOR_CANCELLED;
   }
 
-  const char *error_msg;
-  if (!have_free_channels(C, op, 1, &error_msg)) {
-    BKE_report(op->reports, RPT_ERROR, error_msg);
+  seq::LoadData load_data;
+  if (!sequencer_add_generic_exec(C, op, &load_data, scene, 1)) {
     return OPERATOR_CANCELLED;
   }
-
-  if (RNA_boolean_get(op->ptr, "replace_sel")) {
-    deselect_all_strips(scene);
-  }
-
-  seq::LoadData load_data;
-  load_data_init_from_operator(&load_data, C, op);
   load_data.scene = scene_asset;
 
   Strip *strip = seq::add_scene_strip(scene, ed->current_strips(), &load_data);
@@ -1008,18 +1010,8 @@ static wmOperatorStatus sequencer_add_movieclip_strip_exec(bContext *C, wmOperat
     return OPERATOR_CANCELLED;
   }
 
-  const char *error_msg;
-  if (!have_free_channels(C, op, 1, &error_msg)) {
-    BKE_report(op->reports, RPT_ERROR, error_msg);
-    return OPERATOR_CANCELLED;
-  }
-
-  if (RNA_boolean_get(op->ptr, "replace_sel")) {
-    deselect_all_strips(scene);
-  }
-
   seq::LoadData load_data;
-  if (!load_data_init_from_operator(&load_data, C, op)) {
+  if (!sequencer_add_generic_exec(C, op, &load_data, scene, 1)) {
     return OPERATOR_CANCELLED;
   }
   load_data.clip = clip;
@@ -1089,18 +1081,10 @@ static wmOperatorStatus sequencer_add_mask_strip_exec(bContext *C, wmOperator *o
     return OPERATOR_CANCELLED;
   }
 
-  const char *error_msg;
-  if (!have_free_channels(C, op, 1, &error_msg)) {
-    BKE_report(op->reports, RPT_ERROR, error_msg);
+  seq::LoadData load_data;
+  if (!sequencer_add_generic_exec(C, op, &load_data, scene, 1)) {
     return OPERATOR_CANCELLED;
   }
-
-  if (RNA_boolean_get(op->ptr, "replace_sel")) {
-    deselect_all_strips(scene);
-  }
-
-  seq::LoadData load_data;
-  load_data_init_from_operator(&load_data, C, op);
   load_data.mask = mask;
 
   Strip *strip = seq::add_mask_strip(scene, ed->current_strips(), &load_data);
@@ -1193,8 +1177,7 @@ static void seq_build_proxy(bContext *C, Span<Strip *> movie_strips)
     seq::proxy_set(strip, true);
     strip->data->proxy->build_size_flags = seq_get_proxy_size_flags(C);
     strip->data->proxy->build_flags |= SEQ_PROXY_SKIP_EXISTING;
-    seq::proxy_rebuild_context(
-        pj->main, pj->depsgraph, pj->scene, strip, nullptr, &pj->queue, true);
+    seq::proxy_build_start(pj->main, pj->scene, strip, nullptr, true, pj->queue);
   }
 
   if (!WM_jobs_is_running(wm_job)) {
@@ -1372,22 +1355,10 @@ static wmOperatorStatus sequencer_add_movie_strip_exec(bContext *C, wmOperator *
 
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_sequencer_scene(C);
+
   seq::LoadData load_data;
-
-  if (!load_data_init_from_operator(&load_data, C, op)) {
+  if (!sequencer_add_generic_exec(C, op, &load_data, scene, 2)) {
     return OPERATOR_CANCELLED;
-  }
-
-  sequencer_generic_invoke_xy__internal(C, op, SEQPROP_NOPATHS, STRIP_TYPE_MOVIE, nullptr);
-
-  const char *error_msg;
-  if (!have_free_channels(C, op, 2, &error_msg)) {
-    BKE_report(op->reports, RPT_ERROR, error_msg);
-    return OPERATOR_CANCELLED;
-  }
-
-  if (RNA_boolean_get(op->ptr, "replace_sel")) {
-    deselect_all_strips(scene);
   }
 
   VectorSet<Strip *> movie_strips;
@@ -1488,7 +1459,7 @@ void SEQUENCER_OT_movie_strip_add(wmOperatorType *ot)
   ot->invoke = sequencer_add_movie_strip_invoke;
   ot->exec = sequencer_add_movie_strip_exec;
   ot->cancel = sequencer_add_free;
-  ot->ui = sequencer_add_draw;
+  ot->ui = sequencer_add_ui;
   ot->poll = ED_operator_sequencer_active_editable;
 
   /* Flags. */
@@ -1571,17 +1542,10 @@ static wmOperatorStatus sequencer_add_sound_strip_exec(bContext *C, wmOperator *
 
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_sequencer_scene(C);
+
   seq::LoadData load_data;
-  load_data_init_from_operator(&load_data, C, op);
-
-  const char *error_msg;
-  if (!have_free_channels(C, op, 1, &error_msg)) {
-    BKE_report(op->reports, RPT_ERROR, error_msg);
+  if (!sequencer_add_generic_exec(C, op, &load_data, scene, 1)) {
     return OPERATOR_CANCELLED;
-  }
-
-  if (RNA_boolean_get(op->ptr, "replace_sel")) {
-    deselect_all_strips(scene);
   }
 
   const int tot_files = RNA_property_collection_length(op->ptr,
@@ -1645,6 +1609,7 @@ void SEQUENCER_OT_sound_strip_add(wmOperatorType *ot)
   /* API callbacks. */
   ot->invoke = sequencer_add_sound_strip_invoke;
   ot->exec = sequencer_add_sound_strip_exec;
+  ot->ui = sequencer_add_ui;
   ot->poll = ED_operator_sequencer_active_editable;
   ot->cancel = sequencer_add_free;
 
@@ -1724,7 +1689,7 @@ void sequencer_image_strip_reserve_frames(
       SNPRINTF(se->filename, "%s%s", filename_stripped, ext);
     }
 
-    MEM_freeN(filename);
+    MEM_delete(filename);
   }
 }
 
@@ -1797,10 +1762,6 @@ static bool sequencer_add_image_sequence_force(bContext *C,
     return false;
   }
 
-  if (RNA_boolean_get(op->ptr, "replace_sel")) {
-    deselect_all_strips(scene);
-  }
-
   Strip *strip = seq::add_image_strip(bmain, scene, ed->current_strips(), &load_data);
   char dirpath[sizeof(strip->data->dirpath)];
   BLI_path_split_dir_part(load_data.path, dirpath, sizeof(dirpath));
@@ -1831,10 +1792,6 @@ static bool sequencer_add_images(bContext *C, wmOperator *op, seq::LoadData &loa
   if (BLI_listbase_is_empty(&ranges)) {
     sequencer_add_free(C, op);
     return false;
-  }
-
-  if (RNA_boolean_get(op->ptr, "replace_sel")) {
-    deselect_all_strips(scene);
   }
 
   const bool use_placeholders = RNA_boolean_get(op->ptr, "use_placeholders");
@@ -1871,13 +1828,7 @@ static wmOperatorStatus sequencer_add_image_strip_exec(bContext *C, wmOperator *
   Scene *scene = CTX_data_sequencer_scene(C);
 
   seq::LoadData load_data;
-  if (!load_data_init_from_operator(&load_data, C, op)) {
-    return OPERATOR_CANCELLED;
-  }
-
-  const char *error_msg;
-  if (!have_free_channels(C, op, 1, &error_msg)) {
-    BKE_report(op->reports, RPT_ERROR, error_msg);
+  if (!sequencer_add_generic_exec(C, op, &load_data, scene, 1)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1965,7 +1916,7 @@ void SEQUENCER_OT_image_strip_add(wmOperatorType *ot)
   ot->invoke = sequencer_add_image_strip_invoke;
   ot->exec = sequencer_add_image_strip_exec;
   ot->cancel = sequencer_add_free;
-  ot->ui = sequencer_add_draw;
+  ot->ui = sequencer_add_ui;
   ot->poll = ED_operator_sequencer_active_editable;
 
   /* Flags. */
@@ -2017,32 +1968,27 @@ static wmOperatorStatus sequencer_add_effect_strip_exec(bContext *C, wmOperator 
   Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_ensure(scene);
 
-  const char *error;
-  if (!have_free_channels(C, op, 1, &error)) {
-    BKE_report(op->reports, RPT_ERROR, error);
-    return OPERATOR_CANCELLED;
+  StripType effect_type = StripType(RNA_enum_get(op->ptr, "type"));
+  const int min_inputs = seq::effect_type_get_min_num_inputs(effect_type);
+
+  VectorSet<Strip *> inputs = strip_effect_get_new_inputs(
+      scene, effect_type == STRIP_TYPE_COMPOSITOR ? 2 : min_inputs);
+  if (effect_type != STRIP_TYPE_COMPOSITOR) {
+    const char *error_msg = effect_inputs_validate(inputs.size(), min_inputs);
+    if (error_msg != nullptr) {
+      BKE_report(op->reports, RPT_ERROR, error_msg);
+      return OPERATOR_CANCELLED;
+    }
   }
 
   seq::LoadData load_data;
-  load_data_init_from_operator(&load_data, C, op);
-  load_data.effect.type = StripType(RNA_enum_get(op->ptr, "type"));
-  const int num_inputs = seq::effect_get_num_inputs(load_data.effect.type);
-
-  VectorSet<Strip *> inputs = strip_effect_get_new_inputs(scene, num_inputs);
-  StringRef error_msg = effect_inputs_validate(inputs, num_inputs);
-
-  if (!error_msg.is_empty()) {
-    BKE_report(op->reports, RPT_ERROR, error_msg.data());
+  if (!sequencer_add_generic_exec(C, op, &load_data, scene, 1)) {
     return OPERATOR_CANCELLED;
   }
 
-  if (RNA_boolean_get(op->ptr, "replace_sel")) {
-    deselect_all_strips(scene);
-  }
-
+  load_data.effect.type = effect_type;
   Strip *input1 = inputs.size() > 0 ? inputs[0] : nullptr;
   Strip *input2 = inputs.size() == 2 ? inputs[1] : nullptr;
-
   load_data.effect.input1 = input1;
   load_data.effect.input2 = input2;
 
@@ -2063,16 +2009,18 @@ static wmOperatorStatus sequencer_add_effect_strip_exec(bContext *C, wmOperator 
     SolidColorVars *colvars = static_cast<SolidColorVars *>(strip->effectdata);
     RNA_float_get_array(op->ptr, "color", colvars->col);
   }
+  else if (strip->type == STRIP_TYPE_TEXT) {
+    TextVars *textvars = static_cast<TextVars *>(strip->effectdata);
+    textvars->runtime = seq::text_effect_calc_runtime(
+        strip, textvars->text_blf_id, int2(scene->r.xsch, scene->r.ysch));
+  }
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   sequencer_select_do_updates(C, scene);
 
-  /* It's reasonable to add effects with inputs directly above the input. */
-  if (ELEM(load_data.effect.type,
-           STRIP_TYPE_COLOR,
-           STRIP_TYPE_TEXT,
-           STRIP_TYPE_ADJUSTMENT,
-           STRIP_TYPE_MULTICAM))
+  /* Place generator effects; others are automatically placed above their inputs. */
+  if (seq::effect_type_get_min_num_inputs(load_data.effect.type) == 0 &&
+      (load_data.effect.type != STRIP_TYPE_COMPOSITOR || input1 == nullptr))
   {
     move_strips(C, op);
   }
@@ -2080,23 +2028,34 @@ static wmOperatorStatus sequencer_add_effect_strip_exec(bContext *C, wmOperator 
   return OPERATOR_FINISHED;
 }
 
+static bool is_op_for_effect_with_inputs(const Scene *scene, StripType type)
+{
+  if (seq::effect_type_get_min_num_inputs(type) != 0) {
+    return true;
+  }
+  /* Adding compositor effect with any selected strip; assuming it will be for that strip. */
+  if (type == STRIP_TYPE_COMPOSITOR) {
+    if (seq::select_has_any(scene)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 static wmOperatorStatus sequencer_add_effect_strip_invoke(bContext *C,
                                                           wmOperator *op,
                                                           const wmEvent *event)
 {
   bool is_type_set = RNA_struct_property_is_set(op->ptr, "type");
-  int type = -1;
-  int prop_flag = SEQPROP_LENGTH;
-
   if (!is_type_set) {
     BKE_report(op->reports, RPT_ERROR_INVALID_INPUT, "Strip type is not set.");
     return OPERATOR_CANCELLED;
   }
 
-  type = RNA_enum_get(op->ptr, "type");
-
+  int prop_flag = SEQPROP_LENGTH;
   /* When invoking an effect strip which uses inputs, skip guessing of the channel. */
-  if (seq::effect_get_num_inputs(type) != 0) {
+  StripType type = StripType(RNA_enum_get(op->ptr, "type"));
+  if (is_op_for_effect_with_inputs(CTX_data_sequencer_scene(C), type)) {
     prop_flag |= SEQPROP_NOCHAN;
   }
 
@@ -2105,15 +2064,15 @@ static wmOperatorStatus sequencer_add_effect_strip_invoke(bContext *C,
   return sequencer_add_effect_strip_exec(C, op);
 }
 
-static bool sequencer_add_effect_strip_poll_property(const bContext * /*C*/,
+static bool sequencer_add_effect_strip_poll_property(const bContext *C,
                                                      wmOperator *op,
                                                      const PropertyRNA *prop)
 {
   const char *prop_id = RNA_property_identifier(prop);
-  int type = RNA_enum_get(op->ptr, "type");
+  StripType type = StripType(RNA_enum_get(op->ptr, "type"));
 
   /* Hide start frame and length for effect strips that are locked to their parents' location. */
-  if (seq::effect_get_num_inputs(type) != 0) {
+  if (is_op_for_effect_with_inputs(CTX_data_sequencer_scene(C), type)) {
     if (STR_ELEM(prop_id, "frame_start", "length")) {
       return false;
     }
@@ -2170,6 +2129,8 @@ static std::string sequencer_add_effect_strip_get_description(bContext * /*C*/,
       return TIP_("Add a text strip to the sequencer");
     case STRIP_TYPE_COLORMIX:
       return TIP_("Add a color mix effect strip to the sequencer");
+    case STRIP_TYPE_COMPOSITOR:
+      return TIP_("Add a compositor based effect strip for zero, one, or two selected inputs");
     default:
       break;
   }

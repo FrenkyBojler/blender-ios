@@ -6,6 +6,7 @@
  * \ingroup RNA
  */
 
+#include <algorithm>
 #include <cstdlib>
 
 #include "DNA_action_types.h"
@@ -574,41 +575,41 @@ static StructRNA *rna_Object_data_typef(PointerRNA *ptr)
   /* keep in sync with OB_DATA_SUPPORT_ID() macro */
   switch (ob->type) {
     case OB_EMPTY:
-      return &RNA_Image;
+      return RNA_Image;
     case OB_MESH:
-      return &RNA_Mesh;
+      return RNA_Mesh;
     case OB_CURVES_LEGACY:
-      return &RNA_Curve;
+      return RNA_Curve;
     case OB_SURF:
-      return &RNA_Curve;
+      return RNA_Curve;
     case OB_FONT:
-      return &RNA_Curve;
+      return RNA_Curve;
     case OB_MBALL:
-      return &RNA_MetaBall;
+      return RNA_MetaBall;
     case OB_LAMP:
-      return &RNA_Light;
+      return RNA_Light;
     case OB_CAMERA:
-      return &RNA_Camera;
+      return RNA_Camera;
     case OB_LATTICE:
-      return &RNA_Lattice;
+      return RNA_Lattice;
     case OB_ARMATURE:
-      return &RNA_Armature;
+      return RNA_Armature;
     case OB_SPEAKER:
-      return &RNA_Speaker;
+      return RNA_Speaker;
     case OB_LIGHTPROBE:
-      return &RNA_LightProbe;
+      return RNA_LightProbe;
     case OB_GPENCIL_LEGACY:
-      return &RNA_Annotation;
+      return RNA_Annotation;
     case OB_GREASE_PENCIL:
-      return &RNA_GreasePencil;
+      return RNA_GreasePencil;
     case OB_CURVES:
-      return &RNA_Curves;
+      return RNA_Curves;
     case OB_POINTCLOUD:
-      return &RNA_PointCloud;
+      return RNA_PointCloud;
     case OB_VOLUME:
-      return &RNA_Volume;
+      return RNA_Volume;
     default:
-      return &RNA_ID;
+      return RNA_ID;
   }
 }
 
@@ -894,7 +895,7 @@ static PointerRNA rna_Object_active_vertex_group_get(PointerRNA *ptr)
   const ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list(ob);
 
   return RNA_pointer_create_with_parent(
-      *ptr, &RNA_VertexGroup, BLI_findlink(defbase, BKE_object_defgroup_active_index_get(ob) - 1));
+      *ptr, RNA_VertexGroup, BLI_findlink(defbase, BKE_object_defgroup_active_index_get(ob) - 1));
 }
 
 static void rna_Object_active_vertex_group_set(PointerRNA *ptr,
@@ -1025,19 +1026,13 @@ void rna_object_uvlayer_name_set(PointerRNA *ptr,
 {
   Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
   Mesh *mesh;
-  CustomDataLayer *layer;
-  int a;
 
   if (ob->type == OB_MESH && ob->data) {
     mesh = id_cast<Mesh *>(ob->data);
 
-    for (a = 0; a < mesh->corner_data.totlayer; a++) {
-      layer = &mesh->corner_data.layers[a];
-
-      if (layer->type == CD_PROP_FLOAT2 && STREQ(layer->name, value)) {
-        BLI_strncpy(result, value, result_maxncpy);
-        return;
-      }
+    if (mesh->uv_map_names().contains(value)) {
+      BLI_strncpy(result, value, result_maxncpy);
+      return;
     }
   }
 
@@ -1201,7 +1196,7 @@ static void rna_Object_rotation_mode_set(PointerRNA *ptr, int value)
       ob->quat, ob->rot, ob->rotAxis, &ob->rotAngle, ob->rotmode, short(value));
 
   /* finally, set the new rotation type */
-  ob->rotmode = value;
+  ob->rotmode = clamp_i(value, ROT_MODE_MIN, ROT_MODE_MAX);
 }
 
 static void rna_Object_dimensions_get(PointerRNA *ptr, float *value)
@@ -1472,7 +1467,7 @@ static PointerRNA rna_Object_material_slots_get(CollectionPropertyIterator *iter
   ID *id = static_cast<ID *>(iter->internal.count.ptr);
   PointerRNA ptr = RNA_pointer_create_with_parent(
       iter->parent,
-      &RNA_MaterialSlot,
+      RNA_MaterialSlot,
       /* Add offset, so that `ptr->data` is not null and unique across IDs. */
       (void *)(iter->internal.count.item + uintptr_t(id)));
   return ptr;
@@ -1482,7 +1477,7 @@ static void rna_Object_material_slots_end(CollectionPropertyIterator * /*iter*/)
 
 static PointerRNA rna_Object_display_get(PointerRNA *ptr)
 {
-  return RNA_pointer_create_with_parent(*ptr, &RNA_ObjectDisplay, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, RNA_ObjectDisplay, ptr->data);
 }
 
 static std::optional<std::string> rna_ObjectDisplay_path(const PointerRNA * /*ptr*/)
@@ -1494,7 +1489,7 @@ static PointerRNA rna_Object_active_particle_system_get(PointerRNA *ptr)
 {
   Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
   ParticleSystem *psys = psys_get_current(ob);
-  return RNA_pointer_create_with_parent(*ptr, &RNA_ParticleSystem, psys);
+  return RNA_pointer_create_with_parent(*ptr, RNA_ParticleSystem, psys);
 }
 
 static void rna_Object_active_shape_key_index_range(
@@ -1540,7 +1535,7 @@ static PointerRNA rna_Object_active_shape_key_get(PointerRNA *ptr)
   }
 
   kb = static_cast<KeyBlock *>(BLI_findlink(&key->block, ob->shapenr - 1));
-  PointerRNA keyptr = RNA_pointer_create_discrete(reinterpret_cast<ID *>(key), &RNA_ShapeKey, kb);
+  PointerRNA keyptr = RNA_pointer_create_discrete(reinterpret_cast<ID *>(key), RNA_ShapeKey, kb);
   return keyptr;
 }
 
@@ -1548,7 +1543,7 @@ static PointerRNA rna_Object_field_get(PointerRNA *ptr)
 {
   Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
 
-  return RNA_pointer_create_with_parent(*ptr, &RNA_FieldSettings, ob->pd);
+  return RNA_pointer_create_with_parent(*ptr, RNA_FieldSettings, ob->pd);
 }
 
 static PointerRNA rna_Object_collision_get(PointerRNA *ptr)
@@ -1559,14 +1554,14 @@ static PointerRNA rna_Object_collision_get(PointerRNA *ptr)
     return PointerRNA_NULL;
   }
 
-  return RNA_pointer_create_with_parent(*ptr, &RNA_CollisionSettings, ob->pd);
+  return RNA_pointer_create_with_parent(*ptr, RNA_CollisionSettings, ob->pd);
 }
 
 static PointerRNA rna_Object_active_constraint_get(PointerRNA *ptr)
 {
   Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
   bConstraint *con = BKE_constraints_active_get(&ob->constraints);
-  return RNA_pointer_create_with_parent(*ptr, &RNA_Constraint, con);
+  return RNA_pointer_create_with_parent(*ptr, RNA_Constraint, con);
 }
 
 static void rna_Object_active_constraint_set(PointerRNA *ptr,
@@ -1750,7 +1745,7 @@ static PointerRNA rna_Object_active_modifier_get(PointerRNA *ptr)
 {
   Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
   ModifierData *md = BKE_object_active_modifier(ob);
-  return RNA_pointer_create_with_parent(*ptr, &RNA_Modifier, md);
+  return RNA_pointer_create_with_parent(*ptr, RNA_Modifier, md);
 }
 
 static void rna_Object_active_modifier_set(PointerRNA *ptr, PointerRNA value, ReportList *reports)
@@ -1894,7 +1889,7 @@ static void rna_Object_boundbox_get(PointerRNA *ptr, float *values)
     *reinterpret_cast<std::array<float3, 8> *>(values) = bounds::corners(*bounds);
   }
   else {
-    copy_vn_fl(values, 8 * 3, 0.0f);
+    std::fill_n(values, 8 * 3, 0.0f);
   }
 }
 
@@ -1952,7 +1947,9 @@ static void rna_Object_vgroup_remove(Object *ob,
   BKE_object_defgroup_remove(ob, defgroup);
   defgroup_ptr->invalidate();
 
+  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   DEG_relations_tag_update(bmain);
+  WM_main_add_notifier(NC_GEOM | ND_VERTEX_GROUP, ob->data);
   WM_main_add_notifier(NC_OBJECT | ND_DRAW, ob);
 }
 
@@ -1964,7 +1961,9 @@ static void rna_Object_vgroup_clear(Object *ob, Main *bmain, ReportList *reports
 
   BKE_object_defgroup_remove_all(ob);
 
+  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   DEG_relations_tag_update(bmain);
+  WM_main_add_notifier(NC_GEOM | ND_VERTEX_GROUP, ob->data);
   WM_main_add_notifier(NC_OBJECT | ND_DRAW, ob);
 }
 
@@ -1990,7 +1989,7 @@ static void rna_VertexGroup_vertex_add(ID *id,
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_main_add_notifier(NC_GEOM | ND_DATA, static_cast<ID *>(ob->data));
+  WM_main_add_notifier(NC_GEOM | ND_DATA, ob->data);
 }
 
 static void rna_VertexGroup_vertex_remove(
@@ -2009,7 +2008,7 @@ static void rna_VertexGroup_vertex_remove(
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_main_add_notifier(NC_GEOM | ND_DATA, static_cast<ID *>(ob->data));
+  WM_main_add_notifier(NC_GEOM | ND_DATA, ob->data);
 }
 
 static float rna_VertexGroup_weight(ID *id, bDeformGroup *dg, ReportList *reports, int index)
@@ -2165,7 +2164,7 @@ void rna_Object_lightgroup_set(PointerRNA *ptr, const char *value)
 
 static PointerRNA rna_Object_light_linking_get(PointerRNA *ptr)
 {
-  return RNA_pointer_create_with_parent(*ptr, &RNA_ObjectLightLinking, ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, RNA_ObjectLightLinking, ptr->data);
 }
 
 static std::optional<std::string> rna_ObjectLightLinking_path(const PointerRNA * /*ptr*/)
@@ -3547,7 +3546,7 @@ static void rna_def_object(BlenderRNA *brna)
   prop = RNA_def_property(srna, "instance_collection", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "Collection");
   RNA_def_property_pointer_sdna(prop, nullptr, "instance_collection");
-  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
   RNA_def_property_pointer_funcs(prop, nullptr, "rna_Object_dup_collection_set", nullptr, nullptr);
   RNA_def_property_ui_text(prop, "Instance Collection", "Instance an existing collection");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_dependency_update");
@@ -3724,6 +3723,7 @@ static void rna_def_object(BlenderRNA *brna)
                                 "rna_Object_lightgroup_set");
   RNA_def_property_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop, "Lightgroup", "Lightgroup that the object belongs to");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_internal_update_draw");
 
   /* Light Linking. */
   prop = RNA_def_property(srna, "light_linking", PROP_POINTER, PROP_NONE);

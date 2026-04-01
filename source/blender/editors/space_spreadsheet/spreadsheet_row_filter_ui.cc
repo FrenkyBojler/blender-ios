@@ -99,6 +99,14 @@ static std::string value_string(const SpreadsheetRowFilter &row_filter,
              << row_filter.value_float3[1] << ", " << row_filter.value_float3[2] << ")";
       return result.str();
     }
+    case SPREADSHEET_VALUE_TYPE_FLOAT4: {
+      std::ostringstream result;
+      result.precision(3);
+      result << std::fixed << "(" << row_filter.value_float4[0] << ", "
+             << row_filter.value_float4[1] << ", " << row_filter.value_float4[2] << ", "
+             << row_filter.value_float4[3] << ")";
+      return result.str();
+    }
     case SPREADSHEET_VALUE_TYPE_BOOL:
       return (row_filter.flag & SPREADSHEET_ROW_FILTER_BOOL_VALUE) ? IFACE_("True") :
                                                                      IFACE_("False");
@@ -254,6 +262,13 @@ static void spreadsheet_filter_panel_draw(const bContext *C, Panel *panel)
         layout.prop(filter_ptr, "threshold", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       }
       break;
+    case SPREADSHEET_VALUE_TYPE_FLOAT4:
+      layout.prop(filter_ptr, "operation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout.prop(filter_ptr, "value_float4", UI_ITEM_NONE, IFACE_("Value"), ICON_NONE);
+      if (operation == SPREADSHEET_ROW_FILTER_EQUAL) {
+        layout.prop(filter_ptr, "threshold", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      }
+      break;
     case SPREADSHEET_VALUE_TYPE_BOOL:
       layout.prop(filter_ptr, "value_boolean", UI_ITEM_NONE, IFACE_("Value"), ICON_NONE);
       break;
@@ -304,7 +319,7 @@ static void spreadsheet_row_filters_layout(const bContext *C, Panel *panel)
 
       PointerRNA *filter_ptr = MEM_new<PointerRNA>("panel customdata");
       *filter_ptr = RNA_pointer_create_discrete(
-          &screen->id, &RNA_SpreadsheetRowFilter, &row_filter);
+          &screen->id, RNA_SpreadsheetRowFilter, &row_filter);
 
       ui::panel_add_instanced(C, region, &region->panels, panel_idname, filter_ptr);
     }
@@ -322,7 +337,7 @@ static void spreadsheet_row_filters_layout(const bContext *C, Panel *panel)
 
       PointerRNA *filter_ptr = MEM_new<PointerRNA>("panel customdata");
       *filter_ptr = RNA_pointer_create_discrete(
-          &screen->id, &RNA_SpreadsheetRowFilter, &row_filter);
+          &screen->id, RNA_SpreadsheetRowFilter, &row_filter);
       ui::panel_custom_data_set(panel_iter, filter_ptr);
 
       panel_iter = panel_iter->next;
@@ -365,7 +380,7 @@ static void set_filter_expand_flag(const bContext * /*C*/, Panel *panel, short e
 void register_row_filter_panels(ARegionType &region_type)
 {
   {
-    PanelType *panel_type = MEM_callocN<PanelType>(__func__);
+    PanelType *panel_type = MEM_new_zeroed<PanelType>(__func__);
     STRNCPY_UTF8(panel_type->idname, "SPREADSHEET_PT_row_filters");
     STRNCPY_UTF8(panel_type->label, N_("Filters"));
     STRNCPY_UTF8(panel_type->category, "Filters");
@@ -376,7 +391,7 @@ void register_row_filter_panels(ARegionType &region_type)
   }
 
   {
-    PanelType *panel_type = MEM_callocN<PanelType>(__func__);
+    PanelType *panel_type = MEM_new_zeroed<PanelType>(__func__);
     STRNCPY_UTF8(panel_type->idname, "SPREADSHEET_PT_filter");
     STRNCPY_UTF8(panel_type->label, "");
     STRNCPY_UTF8(panel_type->category, "Filters");

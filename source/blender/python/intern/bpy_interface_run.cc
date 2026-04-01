@@ -7,18 +7,21 @@
  */
 
 #include <cstdio>
+#include <optional>
 
 #include <Python.h>
 
 #include "MEM_guardedalloc.h"
 
 #include "BLI_fileops.h"
+#include "BLI_function_ref.hh"
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_string_utils.hh"
 
 #include "BKE_context.hh"
+#include "BKE_idprop.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_report.hh"
@@ -104,7 +107,7 @@ static PyObject *python_compat_wrapper_PyRun_FileExFlags(FILE *fp,
     buf[buf_len] = '\0';
     PyObject *filepath_py = PyC_UnicodeFromBytes(filepath);
     PyObject *compiled = Py_CompileStringObject(buf, filepath_py, Py_file_input, flags, -1);
-    MEM_freeN(buf);
+    MEM_delete(buf);
     Py_DECREF(filepath_py);
 
     if (compiled == nullptr) {
@@ -156,7 +159,7 @@ static bool python_script_exec(
       size_t buf_len_dummy;
       char *buf = txt_to_buf(text, &buf_len_dummy);
       text->compiled = Py_CompileStringObject(buf, filepath_dummy_py, Py_file_input, nullptr, -1);
-      MEM_freeN(buf);
+      MEM_delete(buf);
       Py_DECREF(filepath_dummy_py);
     }
 
@@ -196,6 +199,9 @@ static bool python_script_exec(
   if (!py_result) {
     if (reports) {
       BPy_errors_to_report(reports);
+    }
+    else {
+      PyC_Err_CaptureSystemExitCode();
     }
     if (text) {
       if (do_jump) {
@@ -262,7 +268,8 @@ static bool bpy_run_string_impl(bContext *C,
     return ok;
   }
 
-  bpy_context_set(C, &gilstate);
+  /* Historically `BPY_run_*` C to be null, risky but not trivial to change. See doc-string. */
+  bpy_context_set_allow_null(C, &gilstate);
 
   PyObject *main_mod = PyC_MainModule_Backup();
 
@@ -280,6 +287,9 @@ static bool bpy_run_string_impl(bContext *C,
     ok = false;
     if (ReportList *wm_reports = C ? CTX_wm_reports(C) : nullptr) {
       BPy_errors_to_report(wm_reports);
+    }
+    else {
+      PyC_Err_CaptureSystemExitCode();
     }
     PyErr_Print();
   }
@@ -305,14 +315,33 @@ bool BPY_run_string_exec(bContext *C, const char *imports[], const char *expr)
 }
 
 /**
+ * Convert a simple Python object to an IDProperty.
+ *
+ * Only supports bool, int, float, string, and None values.
+ *
+ * \param obj The Python object to convert. Should NOT be nullptr.
+ * \return IDProperty The converted property, or nullptr if the Python value was None. The caller
+ * owns the pointer, and is responsible for freeing it.
+ */
+static IDProperty *pyobject_to_idprop(const StringRefNull prop_name, PyObject *py_object)
+{
+  if (py_object == Py_None) {
+    return nullptr;
+  }
+  return BPy_IDProperty_FromPyObject(nullptr, prop_name.c_str(), py_object, false, true);
+}
+
+/**
  * Run the given script with the given local variables.
  *
  * This assumes that the Python environment has been set up (i.e. the GIL has been acquired). In
  * case of a Python exception, this function returns `false` and the caller is responsible for
  * dealing with the exception.
  */
-static bool bpy_run_string_exec_with_locals_impl(const blender::StringRefNull script,
-                                                 IDProperty &locals)
+static bool bpy_run_string_exec_with_locals_assume_gil(
+    const StringRefNull script,
+    IDProperty &locals,
+    FunctionRef<void(PyObject *py_locals)> on_exec_ok)
 {
   /* Set up locals & globals. */
   BLI_assert(locals.type == IDP_GROUP);
@@ -330,8 +359,11 @@ static bool bpy_run_string_exec_with_locals_impl(const blender::StringRefNull sc
    * any exception is left to the caller. */
   PyObject *result = PyRun_String(script.c_str(), Py_file_input, py_globals, py_locals);
   const bool ok = (result != nullptr);
-  if (result) {
+  if (ok) {
     Py_DECREF(result);
+    if (on_exec_ok) {
+      on_exec_ok(py_locals);
+    }
   }
 
   /* Clean up references. */
@@ -341,19 +373,26 @@ static bool bpy_run_string_exec_with_locals_impl(const blender::StringRefNull sc
   return ok;
 }
 
-bool BPY_run_string_exec_with_locals(bContext *C,
-                                     const blender::StringRefNull script,
-                                     IDProperty &locals)
+static bool bpy_run_string_exec_with_locals_acquire_gil(
+    bContext *C,
+    const StringRefNull script,
+    IDProperty &locals,
+    FunctionRef<void(PyObject *py_locals)> on_exec_ok)
 {
   PyGILState_STATE gilstate;
-  bpy_context_set(C, &gilstate);
+  /* Historically `BPY_run_*` C to be null, risky but not trivial to change. See doc-string. */
+
+  bpy_context_set_allow_null(C, &gilstate);
 
   PyObject *main_mod_backup = PyC_MainModule_Backup();
 
-  const bool ok = bpy_run_string_exec_with_locals_impl(script, locals);
+  const bool ok = bpy_run_string_exec_with_locals_assume_gil(script, locals, on_exec_ok);
   if (!ok) {
     if (ReportList *wm_reports = C ? CTX_wm_reports(C) : nullptr) {
       BPy_errors_to_report(wm_reports);
+    }
+    else {
+      PyC_Err_CaptureSystemExitCode();
     }
     PyErr_Print();
   }
@@ -362,6 +401,49 @@ bool BPY_run_string_exec_with_locals(bContext *C,
   bpy_context_clear(C, &gilstate);
 
   return ok;
+}
+
+bool BPY_run_string_exec_with_locals(bContext *C, const StringRefNull script, IDProperty &locals)
+{
+  return bpy_run_string_exec_with_locals_acquire_gil(C, script, locals, nullptr);
+}
+
+std::optional<IDProperty *> BPY_run_string_exec_with_locals_return_idprop(
+    bContext *C,
+    const StringRefNull script,
+    IDProperty &locals,
+    const StringRefNull result_var_name)
+{
+  BLI_assert(!result_var_name.is_empty());
+
+  std::optional<IDProperty *> result_idprop;
+
+  const auto on_exec_ok = [&result_var_name, &result_idprop](PyObject *py_locals) {
+    PyObject *py_ret = PyDict_GetItemString(py_locals, result_var_name.c_str());
+    if (!py_ret) {
+      /* _result was not defined by the script, translates to 'no value'. */
+      return;
+    }
+
+    if (py_ret == Py_None) {
+      /* _result = None, which translates to a nullptr value. */
+      result_idprop = nullptr;
+      return;
+    }
+
+    result_idprop = pyobject_to_idprop(result_var_name, py_ret);
+    if (!result_idprop) {
+      PyErr_Print();
+    }
+  };
+
+  const bool exec_ok = bpy_run_string_exec_with_locals_acquire_gil(C, script, locals, on_exec_ok);
+  if (!exec_ok) {
+    BLI_assert(!result_idprop.has_value());
+    return std::nullopt;
+  }
+
+  return result_idprop;
 }
 
 /** \} */
@@ -431,7 +513,8 @@ bool BPY_run_string_as_number(bContext *C,
   }
 
   PyGILState_STATE gilstate;
-  bpy_context_set(C, &gilstate);
+  /* Historically `BPY_run_*` C to be null, risky but not trivial to change. See doc-string. */
+  bpy_context_set_allow_null(C, &gilstate);
 
   ok = PyC_RunString_AsNumber(imports, expr, "<expr as number>", r_value);
 
@@ -459,7 +542,8 @@ bool BPY_run_string_as_string_and_len(bContext *C,
   }
 
   PyGILState_STATE gilstate;
-  bpy_context_set(C, &gilstate);
+  /* Historically `BPY_run_*` C to be null, risky but not trivial to change. See doc-string. */
+  bpy_context_set_allow_null(C, &gilstate);
 
   ok = PyC_RunString_AsStringAndSize(imports, expr, "<expr as str>", r_value, r_value_len);
 
@@ -494,7 +578,8 @@ bool BPY_run_string_as_string_and_len_or_none(bContext *C,
   }
 
   PyGILState_STATE gilstate;
-  bpy_context_set(C, &gilstate);
+  /* Historically `BPY_run_*` C to be null, risky but not trivial to change. See doc-string. */
+  bpy_context_set_allow_null(C, &gilstate);
 
   ok = PyC_RunString_AsStringAndSizeOrNone(
       imports, expr, "<expr as str or none>", r_value, r_value_len);
@@ -530,7 +615,8 @@ bool BPY_run_string_as_intptr(bContext *C,
   }
 
   PyGILState_STATE gilstate;
-  bpy_context_set(C, &gilstate);
+  /* Historically `BPY_run_*` C to be null, risky but not trivial to change. See doc-string. */
+  bpy_context_set_allow_null(C, &gilstate);
 
   ok = PyC_RunString_AsIntPtr(imports, expr, "<expr as intptr>", r_value);
 

@@ -89,6 +89,8 @@ namespace blender {
 static Base *find_view_layer_base_with_synced_ensure(
     Object *ob, bContext *C, PointerRNA *view_layer_ptr, Scene **r_scene, ViewLayer **r_view_layer)
 {
+  const Main *bmain = CTX_data_main(C);
+
   Scene *scene;
   ViewLayer *view_layer;
   if (view_layer_ptr->data) {
@@ -106,7 +108,7 @@ static Base *find_view_layer_base_with_synced_ensure(
     *r_view_layer = view_layer;
   }
 
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
   return BKE_view_layer_base_find(view_layer, ob);
 }
 
@@ -239,7 +241,10 @@ static Base *rna_Object_local_view_property_helper(bScreen *screen,
     view_layer = WM_window_get_active_view_layer(win);
   }
 
-  BKE_view_layer_synced_ensure(win ? WM_window_get_active_scene(win) : nullptr, view_layer);
+  /* FIXME Using G_MAIN is weak, but should work in practrice given current context (code already
+   * relies on 'G_MAIN data'). */
+  BKE_view_layer_synced_ensure(
+      *G_MAIN, win ? WM_window_get_active_scene(win) : nullptr, view_layer);
   Base *base = BKE_view_layer_base_find(view_layer, ob);
   if (base == nullptr) {
     BKE_reportf(
@@ -480,7 +485,7 @@ static PointerRNA rna_Object_shape_key_add(
     CLAMP(kb->curval, kb->slidermin, kb->slidermax);
 
     PointerRNA keyptr = RNA_pointer_create_discrete(
-        id_cast<ID *>(BKE_key_from_object(ob)), &RNA_ShapeKey, kb);
+        id_cast<ID *>(BKE_key_from_object(ob)), RNA_ShapeKey, kb);
     WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
@@ -524,6 +529,22 @@ static void rna_Object_shape_key_clear(Object *ob, Main *bmain)
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   WM_main_add_notifier(NC_OBJECT | ND_DRAW, ob);
+}
+
+static CollectionVector rna_Object_shape_keys_selected(Object *ob)
+{
+  Key *key = BKE_key_from_object(ob);
+  if (key == nullptr) {
+    return CollectionVector();
+  }
+
+  CollectionVector selected_keys;
+  for (KeyBlock &kb : key->block) {
+    if (kb.flag & KEYBLOCK_SEL) {
+      selected_keys.items.append(RNA_pointer_create_discrete(&key->id, RNA_ShapeKey, &kb));
+    }
+  }
+  return selected_keys;
 }
 
 #  if 0
@@ -778,7 +799,7 @@ void rna_Object_me_eval_info(
     ret = BKE_mesh_debug_info(mesh_eval);
     if (ret) {
       BLI_strncpy(result, ret, MESH_DM_INFO_STR_MAX);
-      MEM_freeN(ret);
+      MEM_delete(ret);
     }
   }
 }
@@ -1134,6 +1155,13 @@ void RNA_api_object(StructRNA *srna)
   func = RNA_def_function(srna, "shape_key_clear", "rna_Object_shape_key_clear");
   RNA_def_function_ui_description(func, "Remove all Shape Keys from this object");
   RNA_def_function_flag(func, FUNC_USE_MAIN);
+
+  func = RNA_def_function(srna, "shape_keys_selected", "rna_Object_shape_keys_selected");
+  RNA_def_function_ui_description(func, "Return selected shape keys");
+
+  parm = RNA_def_property(func, "keyblocks", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_struct_type(parm, "ShapeKey");
+  RNA_def_function_return(func, parm);
 
   /* Ray Cast */
   func = RNA_def_function(srna, "ray_cast", "rna_Object_ray_cast");

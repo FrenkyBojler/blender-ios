@@ -52,8 +52,8 @@ void SourceProcessor::lower_enums(Parser &parser)
                   "enum declaration must explicitly use an underlying type");
   };
 
-  parser().foreach_match("Mw{", missing_underlying_type);
-  parser().foreach_match("MSw{", missing_underlying_type);
+  parser().foreach_match("MA{", missing_underlying_type);
+  parser().foreach_match("MSA{", missing_underlying_type);
 
   const string placeholder_value = "=__auto__";
 
@@ -66,14 +66,14 @@ void SourceProcessor::lower_enums(Parser &parser)
         parser.insert_after(name, replacement);
       }
     };
-    enum_scope.foreach_match("{w", [&](const Tokens &t) { insert(t[1], start); });
-    enum_scope.foreach_match(",w", [&](const Tokens &t) { insert(t[1], value); });
+    enum_scope.foreach_match("{A", [&](const Tokens &t) { insert(t[1], start); });
+    enum_scope.foreach_match(",A", [&](const Tokens &t) { insert(t[1], value); });
   };
 
-  parser().foreach_match("MSw:w{", [&](const Tokens &t) { placeholder(t[5].scope()); });
-  parser().foreach_match("Mw:w{", [&](const Tokens &t) { placeholder(t[4].scope()); });
-  parser().foreach_match("MS[[w]]w:w{", [&](const Tokens &t) { placeholder(t[10].scope()); });
-  parser().foreach_match("M[[w]]w:w{", [&](const Tokens &t) { placeholder(t[9].scope()); });
+  parser().foreach_match("MSA:A{", [&](const Tokens &t) { placeholder(t[5].scope()); });
+  parser().foreach_match("MA:A{", [&](const Tokens &t) { placeholder(t[4].scope()); });
+  parser().foreach_match("MS[[A]]A:A{", [&](const Tokens &t) { placeholder(t[10].scope()); });
+  parser().foreach_match("M[[A]]A:A{", [&](const Tokens &t) { placeholder(t[9].scope()); });
 
   parser.apply_mutations();
 
@@ -83,14 +83,14 @@ void SourceProcessor::lower_enums(Parser &parser)
                           Token enum_type,
                           Scope enum_scope,
                           const bool is_host_shared) {
-    const string type_str = enum_type.str();
-    const string enum_name_str = enum_name.str();
+    const string type_str(enum_type.str());
+    const string enum_name_str(enum_name.str());
 
     string previous_value = "error_invalid_first_value";
     enum_scope.foreach_scope(ScopeType::Assignment, [&](Scope scope) {
       Token name_tok = scope.front().prev();
-      string name = name_tok.str();
-      string value = scope.str();
+      string name(name_tok.str());
+      string value(scope.str());
       if (value == placeholder_value) {
         value = "= " + previous_value + " + 1" + (enum_type.str()[0] == 'u' ? "u" : "");
       }
@@ -104,13 +104,11 @@ void SourceProcessor::lower_enums(Parser &parser)
       previous_value = name;
     });
     parser.insert_directive(enum_tok.prev(),
-                            "#define " + enum_name_str + " " + enum_type.str() + "\n");
+                            "#define " + enum_name_str + " " + string(enum_type.str()) + "\n");
     if (is_host_shared) {
       if (type_str != "uint32_t" && type_str != "int32_t") {
-        report_error_(
-            ERROR_TOK(enum_type),
-            "enum declaration must use uint32_t or int32_t underlying type for interface "
-            "compatibility");
+        report_error_(ERROR_TOK(enum_type),
+                      "Host shared enum declaration must use uint32_t or int32_t underlying type");
         return;
       }
 
@@ -124,23 +122,24 @@ void SourceProcessor::lower_enums(Parser &parser)
     parser.erase(enum_tok, enum_scope.back().next());
   };
 
-  parser().foreach_match("MSw:w{", [&](vector<Token> tokens) {
+  parser().foreach_match("MSA:A{", [&](vector<Token> tokens) {
     process_enum(tokens[0], tokens[1], tokens[2], tokens[4], tokens[5].scope(), false);
   });
-  parser().foreach_match("Mw:w{", [&](vector<Token> tokens) {
-    process_enum(tokens[0], Token::invalid(), tokens[1], tokens[3], tokens[4].scope(), false);
+  parser().foreach_match("MA:A{", [&](vector<Token> tokens) {
+    process_enum(tokens[0], Token(parser), tokens[1], tokens[3], tokens[4].scope(), false);
   });
-  parser().foreach_match("MS[[w]]w:w{", [&](vector<Token> tokens) {
+  parser().foreach_match("MS[[A]]A:A{", [&](vector<Token> tokens) {
     process_enum(tokens[0], tokens[1], tokens[7], tokens[9], tokens[10].scope(), true);
   });
-  parser().foreach_match("M[[w]]w:w{", [&](vector<Token> tokens) {
-    process_enum(tokens[0], Token::invalid(), tokens[6], tokens[8], tokens[9].scope(), true);
+  parser().foreach_match("M[[A]]A:A{", [&](vector<Token> tokens) {
+    process_enum(tokens[0], Token(parser), tokens[6], tokens[8], tokens[9].scope(), true);
   });
 
   parser.apply_mutations();
 
-  parser().foreach_token(
-      Enum, [&](Token tok) { report_error_(ERROR_TOK(tok), "invalid enum declaration"); });
+  parser().foreach_token(Enum, [&](Token tok) {
+    report_error_(ERROR_TOK(tok), "invalid enum declaration, likely missing underlying type");
+  });
 }
 
 }  // namespace blender::gpu::shader

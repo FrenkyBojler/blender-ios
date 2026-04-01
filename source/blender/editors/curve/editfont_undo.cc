@@ -102,7 +102,7 @@ static void uf_arraystore_compact_ex(UndoFont *uf, const UndoFont *uf_ref, bool 
             bs, (uf)->id, size_t(len) * stride, state_reference); \
       } \
       /* keep uf->len for validation */ \
-      MEM_freeN((uf)->id); \
+      MEM_delete((uf)->id); \
       (uf)->id = nullptr; \
     } \
     ((void)0)
@@ -256,10 +256,10 @@ static void *undofont_from_editfont(UndoFont *uf, Curve *cu)
   size_t alloc_len = ef->len + 1;
 
   BLI_assert(sizeof(*uf->textbuf) == sizeof(*ef->textbuf));
-  uf->textbuf = MEM_malloc_arrayN<char32_t>(alloc_len, __func__);
+  uf->textbuf = MEM_new_array_uninitialized<char32_t>(alloc_len, __func__);
   memcpy(uf->textbuf, ef->textbuf, sizeof(char32_t) * alloc_len);
 
-  uf->textbufinfo = MEM_new_array_for_free<CharInfo>(alloc_len, __func__);
+  uf->textbufinfo = MEM_new_array<CharInfo>(alloc_len, __func__);
   memcpy(uf->textbufinfo, ef->textbufinfo, sizeof(CharInfo) * alloc_len);
 
   uf->pos = ef->pos;
@@ -295,24 +295,25 @@ static void undofont_free_data(UndoFont *uf)
     LinkData *link = static_cast<LinkData *>(
         BLI_findptr(&uf_arraystore.local_links, uf, offsetof(LinkData, data)));
     BLI_remlink(&uf_arraystore.local_links, link);
-    MEM_freeN(link);
+    MEM_delete(link);
   }
   uf_arraystore_free(uf);
 #endif
 
   if (uf->textbuf) {
-    MEM_freeN(uf->textbuf);
+    MEM_delete(uf->textbuf);
   }
   if (uf->textbufinfo) {
-    MEM_freeN(uf->textbufinfo);
+    MEM_delete(uf->textbufinfo);
   }
 }
 
 static Object *editfont_object_from_context(bContext *C)
 {
+  const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
   Object *obedit = BKE_view_layer_edit_object_get(view_layer);
   if (obedit && obedit->type == OB_FONT) {
     const Curve *cu = id_cast<Curve *>(obedit->data);
@@ -376,7 +377,7 @@ static void font_undosys_step_decode(
   undofont_to_editfont(&us->data, cu);
   DEG_id_tag_update(&cu->id, ID_RECALC_GEOMETRY);
 
-  ED_undo_object_set_active_or_warn(scene, view_layer, obedit, us_p->name, &LOG);
+  ED_undo_object_set_active_or_warn(*bmain, scene, view_layer, obedit, us_p->name, &LOG);
 
   /* Check after setting active (unless undoing into another scene). */
   BLI_assert(font_undosys_poll(C) || (scene != CTX_data_scene(C)));

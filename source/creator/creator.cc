@@ -10,6 +10,9 @@
 #include <cstring>
 
 #ifdef WIN32
+#  ifdef WIN32_LEAN_AND_MEAN
+#    undef WIN32_LEAN_AND_MEAN
+#  endif
 #  include "utfconv.hh"
 #  include <windows.h>
 #  ifdef WITH_CPU_CHECK
@@ -76,6 +79,8 @@
 
 #include "RNA_define.hh"
 
+#include "FN_init.hh"
+
 #ifdef WITH_OPENGL_BACKEND
 #  include "GPU_compilation_subprocess.hh"
 #endif
@@ -106,6 +111,10 @@
 /* Environment is not available in macOS shared libraries. */
 #  include <crt_externs.h>
 char **environ = nullptr;
+#endif
+
+#if defined(WITH_TBB_MALLOC) && defined(__linux__)
+#  include <tbb/scalable_allocator.h>
 #endif
 
 #include "creator_intern.h" /* Own include. */
@@ -380,6 +389,11 @@ int main(int argc,
   }
 #endif
 
+#if defined(WITH_TBB_MALLOC) && defined(__linux__)
+  /* Enable huge pages for performance .*/
+  scalable_allocation_mode(TBBMALLOC_USE_HUGE_PAGES, 1);
+#endif
+
   /* NOTE: Special exception for guarded allocator type switch:
    *       we need to perform switch from lock-free to fully
    *       guarded allocator before any allocation happened.
@@ -478,6 +492,7 @@ int main(int argc,
   BKE_blender_globals_init(); /* `blender.cc` */
 
   BKE_cpp_types_init();
+  fn::multi_function::register_common_functions();
   BKE_idtype_init();
   BKE_modifier_init();
   seq::modifiers_init();

@@ -44,35 +44,35 @@ static void composite_get_from_context(const bContext *C,
 {
   const SpaceNode *snode = CTX_wm_space_node(C);
   if (snode->node_tree_sub_type == SNODE_COMPOSITOR_SEQUENCER) {
+    *r_ntree = nullptr;
     Scene *sequencer_scene = CTX_data_sequencer_scene(C);
     if (!sequencer_scene) {
-      *r_ntree = nullptr;
-      return;
-    }
-    Editing *ed = seq::editing_get(sequencer_scene);
-    if (!ed) {
-      *r_ntree = nullptr;
       return;
     }
     Strip *strip = seq::select_active_get(sequencer_scene);
     if (!strip) {
-      *r_ntree = nullptr;
       return;
     }
-    StripModifierData *smd = seq::modifier_get_active(strip);
-    if (!smd) {
-      *r_ntree = nullptr;
-      return;
+
+    bNodeTree *node_group = nullptr;
+    if (strip->type == STRIP_TYPE_COMPOSITOR && strip->effectdata) {
+      CompositorEffectVars *comp_data = static_cast<CompositorEffectVars *>(strip->effectdata);
+      node_group = comp_data->node_group;
     }
-    if (smd->type != eSeqModifierType_Compositor) {
-      *r_ntree = nullptr;
-      return;
+    else {
+      StripModifierData *smd = seq::modifier_get_active(strip);
+      if (smd && smd->type == eSeqModifierType_Compositor) {
+        SequencerCompositorModifierData *scmd =
+            reinterpret_cast<SequencerCompositorModifierData *>(smd);
+        node_group = scmd->node_group;
+      }
     }
-    SequencerCompositorModifierData *scmd = reinterpret_cast<SequencerCompositorModifierData *>(
-        smd);
-    *r_from = nullptr;
-    *r_id = &sequencer_scene->id;
-    *r_ntree = scmd->node_group;
+
+    if (node_group) {
+      *r_from = nullptr;
+      *r_id = &sequencer_scene->id;
+      *r_ntree = node_group;
+    }
     return;
   }
 
@@ -98,64 +98,11 @@ static void foreach_nodeclass(void *calldata, bke::bNodeClassCallback func)
   func(calldata, NODE_CLASS_LAYOUT, N_("Layout"));
 }
 
-/* local tree then owns all compbufs */
-static void localize(bNodeTree *localtree, bNodeTree *ntree)
-{
-
-  bNode *node = static_cast<bNode *>(ntree->nodes.first);
-  bNode *local_node = static_cast<bNode *>(localtree->nodes.first);
-  while (node != nullptr) {
-
-    /* Ensure new user input gets handled ok. */
-    node->runtime->need_exec = 0;
-    local_node->runtime->original = node;
-
-    /* move over the compbufs */
-    /* right after #bke::node_tree_copy_tree() `oldsock` pointers are valid */
-
-    node = node->next;
-    local_node = local_node->next;
-  }
-}
-
-static void local_merge(Main * /*bmain*/, bNodeTree *localtree, bNodeTree *ntree)
-{
-  /* move over the compbufs and previews */
-  bke::node_preview_merge_tree(ntree, localtree, true);
-
-  for (bNode &lnode : localtree->nodes) {
-    if (bNode *orig_node = bke::node_find_node_by_name(*ntree, lnode.name)) {
-      if (lnode.type_legacy == CMP_NODE_MOVIEDISTORTION) {
-        /* special case for distortion node: distortion context is allocating in exec function
-         * and to achieve much better performance on further calls this context should be
-         * copied back to original node */
-        if (lnode.storage) {
-          if (orig_node->storage) {
-            BKE_tracking_distortion_free((MovieDistortion *)orig_node->storage);
-          }
-
-          orig_node->storage = BKE_tracking_distortion_copy((MovieDistortion *)lnode.storage);
-        }
-      }
-    }
-  }
-}
-
 static void update(bNodeTree *ntree)
 {
   bke::node_tree_set_output(*ntree);
 
   ntree_update_reroute_nodes(ntree);
-}
-
-static void composite_node_add_init(bNodeTree * /*bnodetree*/, bNode *bnode)
-{
-  /* Composite node will only show previews for input classes
-   * by default, other will be hidden
-   * but can be made visible with the show_preview option */
-  if (bnode->typeinfo->nclass != NODE_CLASS_INPUT) {
-    bnode->flag &= ~NODE_PREVIEW;
-  }
 }
 
 static bool composite_node_tree_socket_type_valid(bke::bNodeTreeType * /*ntreetype*/,
@@ -166,9 +113,12 @@ static bool composite_node_tree_socket_type_valid(bke::bNodeTreeType * /*ntreety
                                                                SOCK_INT,
                                                                SOCK_BOOLEAN,
                                                                SOCK_VECTOR,
+                                                               SOCK_INT_VECTOR,
                                                                SOCK_RGBA,
+                                                               SOCK_MATRIX,
                                                                SOCK_MENU,
-                                                               SOCK_STRING);
+                                                               SOCK_STRING,
+                                                               SOCK_OBJECT);
 }
 
 /**
@@ -178,8 +128,14 @@ static bool composite_node_tree_socket_type_valid(bke::bNodeTreeType * /*ntreety
 static bool composite_validate_link(eNodeSocketDatatype from_type, eNodeSocketDatatype to_type)
 {
   /* Basic math types can be implicitly converted to each other. */
-  if (ELEM(from_type, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA, SOCK_BOOLEAN, SOCK_INT) &&
-      ELEM(to_type, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA, SOCK_BOOLEAN, SOCK_INT))
+  if (ELEM(from_type,
+           SOCK_FLOAT,
+           SOCK_VECTOR,
+           SOCK_INT_VECTOR,
+           SOCK_RGBA,
+           SOCK_BOOLEAN,
+           SOCK_INT) &&
+      ELEM(to_type, SOCK_FLOAT, SOCK_VECTOR, SOCK_INT_VECTOR, SOCK_RGBA, SOCK_BOOLEAN, SOCK_INT))
   {
     return true;
   }
@@ -201,15 +157,12 @@ void register_node_tree_type_cmp()
   tt->ui_description = N_("Create effects and post-process renders, images, and the 3D Viewport");
 
   tt->foreach_nodeclass = foreach_nodeclass;
-  tt->localize = localize;
-  tt->local_merge = local_merge;
   tt->update = update;
   tt->get_from_context = composite_get_from_context;
-  tt->node_add_init = composite_node_add_init;
   tt->validate_link = composite_validate_link;
   tt->valid_socket_type = composite_node_tree_socket_type_valid;
 
-  tt->rna_ext.srna = &RNA_CompositorNodeTree;
+  tt->rna_ext.srna = RNA_CompositorNodeTree;
 
   bke::node_tree_type_add(*tt);
 }
@@ -235,27 +188,6 @@ void ntreeCompositTagRender(Scene *scene)
     }
   }
   BKE_ntree_update(*G_MAIN);
-}
-
-void ntreeCompositClearTags(bNodeTree *ntree)
-{
-  /* XXX: after render animation system gets a refresh, this call allows composite to end clean. */
-
-  if (ntree == nullptr) {
-    return;
-  }
-
-  for (bNode *node : ntree->all_nodes()) {
-    node->runtime->need_exec = 0;
-    if (node->is_group()) {
-      ntreeCompositClearTags(id_cast<bNodeTree *>(node->id));
-    }
-  }
-}
-
-void ntreeCompositTagNeedExec(bNode *node)
-{
-  node->runtime->need_exec = true;
 }
 
 }  // namespace blender

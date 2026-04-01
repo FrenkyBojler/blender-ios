@@ -316,10 +316,10 @@ static void transfer_default_color_string(Mesh *mesh_dst, const Mesh *mesh_src)
 
 static void transfer_active_uv_map_string(Mesh *mesh_dst, const Mesh *mesh_src)
 {
-  const StringRef name = mesh_src->active_uv_map_attribute;
-  if (!name.is_empty()) {
+  if (!mesh_dst->active_uv_map_name().is_empty()) {
     return;
   }
+  const StringRef name = mesh_src->active_uv_map_name();
   const bke::AttributeAccessor attributes_src = mesh_src->attributes();
   const bke::AttributeAccessor attributes_dst = mesh_dst->attributes();
 
@@ -345,10 +345,11 @@ static void transfer_active_uv_map_string(Mesh *mesh_dst, const Mesh *mesh_src)
 
 static void transfer_default_uv_map_string(Mesh *mesh_dst, const Mesh *mesh_src)
 {
-  const StringRef name = mesh_src->default_uv_map_attribute;
-  if (!name.is_empty()) {
+  if (!mesh_dst->default_uv_map_name().is_empty()) {
     return;
   }
+
+  const StringRef name = mesh_src->default_uv_map_name();
   const bke::AttributeAccessor attributes_src = mesh_src->attributes();
   const bke::AttributeAccessor attributes_dst = mesh_dst->attributes();
 
@@ -369,6 +370,25 @@ static void transfer_default_uv_map_string(Mesh *mesh_dst, const Mesh *mesh_src)
       }
       mesh_dst->uv_maps_default_set(iter.name);
     });
+  }
+}
+
+/**
+ * Make sure we have active/default color/uv layers if none existed before.
+ * If a match cant be found, use the first color/uv layer that can be found (to ensure a valid
+ * string is set).
+ */
+static void transfer_attribute_name_strings(const eCustomDataType cddata_type,
+                                            Mesh &mesh_dst,
+                                            const Mesh &mesh_src)
+{
+  if (ELEM(cddata_type, CD_PROP_COLOR, CD_PROP_BYTE_COLOR)) {
+    transfer_active_color_string(&mesh_dst, &mesh_src);
+    transfer_default_color_string(&mesh_dst, &mesh_src);
+  }
+  else if (ELEM(cddata_type, CD_PROP_FLOAT2)) {
+    transfer_active_uv_map_string(&mesh_dst, &mesh_src);
+    transfer_default_uv_map_string(&mesh_dst, &mesh_src);
   }
 }
 
@@ -716,6 +736,8 @@ static bool data_transfer_layersmapping_cdlayers_multisrc_to_dst(
       return false;
   }
 
+  transfer_attribute_name_strings(cddata_type, mesh_dst, mesh_src);
+
   return true;
 }
 
@@ -742,6 +764,11 @@ static bool data_transfer_layersmapping_cdlayers(Vector<CustomDataTransferLayerM
       src_names.append(iter.name);
     }
   });
+  if (src_names.is_empty()) {
+    /* Can happen for colors, since we go over both CD_PROP_COLOR and CD_PROP_BYTE_COLOR. */
+    return true;
+  }
+
   Vector<std::string> dst_names;
   mesh_dst.attributes().foreach_attribute([&](const bke::AttributeIter &iter) {
     if (iter.domain == domain && iter.data_type == attr_type) {
@@ -792,10 +819,10 @@ static bool data_transfer_layersmapping_cdlayers(Vector<CustomDataTransferLayerM
       name_dst = [&]() -> StringRef {
         switch (cddata_type) {
           case CD_PROP_FLOAT2:
-            return mesh_src.active_uv_map_name();
+            return mesh_dst.active_uv_map_name();
           case CD_PROP_COLOR:
           case CD_PROP_BYTE_COLOR:
-            return StringRef(mesh_src.active_color_attribute);
+            return StringRef(mesh_dst.active_color_attribute);
           default:
             BLI_assert_unreachable();
             return "";
@@ -849,6 +876,8 @@ static bool data_transfer_layersmapping_cdlayers(Vector<CustomDataTransferLayerM
       return false;
     }
 
+    transfer_attribute_name_strings(cddata_type, mesh_dst, mesh_src);
+
     if (r_map) {
       data_transfer_layersmapping_add_item_cd(r_map,
                                               cddata_type,
@@ -863,7 +892,8 @@ static bool data_transfer_layersmapping_cdlayers(Vector<CustomDataTransferLayerM
   }
   else if (fromlayers == DT_LAYERS_ALL_SRC) {
     int num_src = src_names.size();
-    bool *use_layers_src = num_src ? MEM_malloc_arrayN<bool>(size_t(num_src), __func__) : nullptr;
+    bool *use_layers_src = num_src ? MEM_new_array_uninitialized<bool>(size_t(num_src), __func__) :
+                                     nullptr;
     bool ret;
 
     if (use_layers_src) {
@@ -887,8 +917,11 @@ static bool data_transfer_layersmapping_cdlayers(Vector<CustomDataTransferLayerM
                                                                num_src);
 
     if (use_layers_src) {
-      MEM_freeN(use_layers_src);
+      MEM_delete(use_layers_src);
     }
+
+    transfer_attribute_name_strings(cddata_type, mesh_dst, mesh_src);
+
     return ret;
   }
   else {
@@ -1305,12 +1338,6 @@ void BKE_object_data_transfer_layout(Depsgraph *depsgraph,
                                            fromlayers,
                                            tolayers,
                                            nullptr);
-      /* Make sure we have active/default color layers if none existed before.
-       * Use the active/default from src (if it was transferred), otherwise the first. */
-      if (ELEM(cddata_type, CD_PROP_COLOR, CD_PROP_BYTE_COLOR)) {
-        transfer_active_color_string(me_dst, me_src);
-        transfer_default_color_string(me_dst, me_src);
-      }
     }
     if (DT_DATATYPE_IS_EDGE(dtdata_type)) {
       data_transfer_layersmapping_generate(nullptr,
@@ -1345,16 +1372,6 @@ void BKE_object_data_transfer_layout(Depsgraph *depsgraph,
                                            fromlayers,
                                            tolayers,
                                            nullptr);
-      /* Make sure we have active/default color layers if none existed before.
-       * Use the active/default from src (if it was transferred), otherwise the first. */
-      if (ELEM(cddata_type, CD_PROP_COLOR, CD_PROP_BYTE_COLOR)) {
-        transfer_active_color_string(me_dst, me_src);
-        transfer_default_color_string(me_dst, me_src);
-      }
-      else if (ELEM(cddata_type, CD_PROP_FLOAT2)) {
-        transfer_active_uv_map_string(me_dst, me_src);
-        transfer_default_uv_map_string(me_dst, me_src);
-      }
     }
     if (DT_DATATYPE_IS_FACE(dtdata_type)) {
       data_transfer_layersmapping_generate(nullptr,
@@ -1373,6 +1390,8 @@ void BKE_object_data_transfer_layout(Depsgraph *depsgraph,
                                            tolayers,
                                            nullptr);
     }
+
+    transfer_attribute_name_strings(eCustomDataType(cddata_type), *me_dst, *me_src);
   }
 }
 
@@ -1531,7 +1550,7 @@ bool BKE_object_data_transfer_ex(Depsgraph *depsgraph,
       }
 
       if (mdef && vg_idx != -1 && !weights[VDATA]) {
-        weights[VDATA] = MEM_malloc_arrayN<float>(size_t(num_verts_dst), __func__);
+        weights[VDATA] = MEM_new_array_uninitialized<float>(size_t(num_verts_dst), __func__);
         BKE_defvert_extract_vgroup_to_vertweights(
             mdef, vg_idx, num_verts_dst, invert_vgroup, weights[VDATA]);
       }
@@ -1605,7 +1624,7 @@ bool BKE_object_data_transfer_ex(Depsgraph *depsgraph,
       }
 
       if (mdef && vg_idx != -1 && !weights[EDATA]) {
-        weights[EDATA] = MEM_malloc_arrayN<float>(size_t(edges_dst.size()), __func__);
+        weights[EDATA] = MEM_new_array_uninitialized<float>(size_t(edges_dst.size()), __func__);
         BKE_defvert_extract_vgroup_to_edgeweights(
             mdef, vg_idx, num_verts_dst, edges_dst, invert_vgroup, weights[EDATA]);
       }
@@ -1685,7 +1704,8 @@ bool BKE_object_data_transfer_ex(Depsgraph *depsgraph,
       }
 
       if (mdef && vg_idx != -1 && !weights[LDATA]) {
-        weights[LDATA] = MEM_malloc_arrayN<float>(size_t(corner_verts_dst.size()), __func__);
+        weights[LDATA] = MEM_new_array_uninitialized<float>(size_t(corner_verts_dst.size()),
+                                                            __func__);
         BKE_defvert_extract_vgroup_to_loopweights(
             mdef, vg_idx, num_verts_dst, corner_verts_dst, invert_vgroup, weights[LDATA]);
       }
@@ -1760,7 +1780,7 @@ bool BKE_object_data_transfer_ex(Depsgraph *depsgraph,
       }
 
       if (mdef && vg_idx != -1 && !weights[PDATA]) {
-        weights[PDATA] = MEM_malloc_arrayN<float>(size_t(faces_dst.size()), __func__);
+        weights[PDATA] = MEM_new_array_uninitialized<float>(size_t(faces_dst.size()), __func__);
         BKE_defvert_extract_vgroup_to_faceweights(mdef,
                                                   vg_idx,
                                                   num_verts_dst,
@@ -1801,7 +1821,7 @@ bool BKE_object_data_transfer_ex(Depsgraph *depsgraph,
 
   for (int i = 0; i < DATAMAX; i++) {
     BKE_mesh_remap_free(&geom_map[i]);
-    MEM_SAFE_FREE(weights[i]);
+    MEM_SAFE_DELETE(weights[i]);
   }
 
   return changed;

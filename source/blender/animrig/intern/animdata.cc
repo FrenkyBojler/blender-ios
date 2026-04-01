@@ -346,4 +346,21 @@ const FCurve *fcurve_find_by_rna_path(const AnimData &adt,
   return nullptr;
 }
 
+Span<FCurve *> fcurves_for_assigned_action(AnimData *adt)
+{
+  if (!adt || !adt->action) {
+    return {};
+  }
+  return fcurves_for_action_slot(adt->action->wrap(), adt->slot_handle);
+}
+
+Span<const FCurve *> fcurves_for_assigned_action(const AnimData *adt)
+{
+  if (!adt || !adt->action) {
+    return {};
+  }
+  return fcurves_for_action_slot(const_cast<const bAction *>(adt->action)->wrap(),
+                                 adt->slot_handle);
+}
+
 }  // namespace blender::animrig

@@ -382,6 +382,7 @@ static void menu_items_from_all_operators(bContext *C, MenuSearch_Data *data)
       op_data.type = ot;
       op_data.opcontext = wm::OpCallContext::InvokeDefault;
       op_data.context = nullptr;
+      op_data.opptr = MEM_new<PointerRNA>(__func__, WM_operator_properties_create_ptr(ot));
 
       char idname_as_py[OP_MAX_TYPENAME];
       char uiname[256];
@@ -398,7 +399,7 @@ static void menu_items_from_all_operators(bContext *C, MenuSearch_Data *data)
     }
   }
 
-  std::sort(operator_items.begin(), operator_items.end(), menu_item_sort_by_drawstr_full);
+  std::ranges::sort(operator_items, menu_item_sort_by_drawstr_full);
 
   data->items.extend(operator_items);
 }
@@ -514,7 +515,7 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
       /* Anything besides #SPACE_EMPTY is fine,
        * as this value is only included in the enum when set. */
       area_dummy.spacetype = SPACE_TOPBAR;
-      PointerRNA ptr = RNA_pointer_create_discrete(&screen->id, &RNA_Area, &area_dummy);
+      PointerRNA ptr = RNA_pointer_create_discrete(&screen->id, RNA_Area, &area_dummy);
       prop_ui_type = RNA_struct_find_property(&ptr, "ui_type");
       RNA_property_enum_items(C,
                               &ptr,
@@ -532,7 +533,7 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
     for (ScrArea &area : screen->areabase) {
       ARegion *region = BKE_area_find_region_type(&area, RGN_TYPE_WINDOW);
       if (region != nullptr) {
-        PointerRNA ptr = RNA_pointer_create_discrete(&screen->id, &RNA_Area, &area);
+        PointerRNA ptr = RNA_pointer_create_discrete(&screen->id, RNA_Area, &area);
         const int space_type_ui = RNA_property_enum_get(&ptr, prop_ui_type);
 
         const int space_type_ui_index = RNA_enum_from_value(space_type_ui_items, space_type_ui);
@@ -690,20 +691,21 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
 
       block_end(C, block);
 
-      for (const int i : block->buttons.index_range()) {
-        const std::unique_ptr<Button> &but = block->buttons[i];
+      for (const int i : block->buttons_ptrs.index_range()) {
+        const std::unique_ptr<Button> &but = block->buttons_ptrs[i];
         MenuType *mt_from_but = nullptr;
         /* Support menu titles with dynamic from initial labels
          * (used by edit-mesh context menu). */
         if (but->type == ButtonType::Label) {
 
           /* Check if the label is the title. */
-          const std::unique_ptr<Button> *but_test = block->buttons.begin() + i - 1;
-          while (but_test >= block->buttons.begin() && (*but_test)->type == ButtonType::Sepr) {
+          const std::unique_ptr<Button> *but_test = block->buttons_ptrs.begin() + i - 1;
+          while (but_test >= block->buttons_ptrs.begin() && (*but_test)->type == ButtonType::Sepr)
+          {
             but_test--;
           }
 
-          if (but_test < block->buttons.begin()) {
+          if (but_test < block->buttons_ptrs.begin()) {
             menu_display_name_map.add(mt, scope.allocator().copy_string(but->drawstr).c_str());
           }
         }
@@ -819,14 +821,9 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
             menu_parent->drawstr = scope.allocator().copy_string(but->drawstr);
             menu_parent->parent = current_menu.self_as_parent;
 
-            for (const std::unique_ptr<Button> &sub_but : sub_block->buttons) {
-              menu_items_from_ui_create_item_from_button(data,
-                                                         scope,
-                                                         mt,
-                                                         sub_but.get(),
-                                                         wm_context,
-                                                         menu_parent,
-                                                         ignored_operator_idnames);
+            for (Button &sub_but : sub_block->buttons()) {
+              menu_items_from_ui_create_item_from_button(
+                  data, scope, mt, &sub_but, wm_context, menu_parent, ignored_operator_idnames);
             }
           }
 
@@ -908,14 +905,14 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
   /* Finally sort menu items.
    *
    * NOTE: we might want to keep the in-menu order, for now sort all. */
-  std::sort(data->items.begin(), data->items.end(), menu_item_sort_by_drawstr_full);
+  std::ranges::sort(data->items, menu_item_sort_by_drawstr_full);
 
   if (include_all_areas) {
     CTX_wm_area_set(C, area_init);
     CTX_wm_region_set(C, region_init);
 
     if (space_type_ui_items_free) {
-      MEM_freeN(space_type_ui_items);
+      MEM_delete(space_type_ui_items);
     }
   }
 
@@ -1034,10 +1031,10 @@ static void menu_search_update_fn(const bContext * /*C*/,
  * a separate context menu just for the search, however this is fairly involved.
  * \{ */
 
-static bool ui_search_menu_create_context_menu(bContext *C,
-                                               void *arg,
-                                               void *active,
-                                               const wmEvent *event)
+static bool search_menu_create_context_menu(bContext *C,
+                                            void *arg,
+                                            void *active,
+                                            const wmEvent *event)
 {
   MenuSearch_Data *data = static_cast<MenuSearch_Data *>(arg);
   MenuSearch_Item *item = static_cast<MenuSearch_Item *>(active);
@@ -1078,7 +1075,7 @@ static bool ui_search_menu_create_context_menu(bContext *C,
 /** \name Tooltip
  * \{ */
 
-static ARegion *ui_search_menu_create_tooltip(
+static ARegion *search_menu_create_tooltip(
     bContext *C, ARegion *region, const rcti * /*item_rect*/, void *arg, void *active)
 {
   MenuSearch_Data *data = static_cast<MenuSearch_Data *>(arg);
@@ -1153,8 +1150,8 @@ void button_func_menu_search(Button *but, const char *single_menu_idname)
                          menu_search_exec_fn,
                          nullptr);
 
-  button_func_search_set_context_menu(but, ui_search_menu_create_context_menu);
-  button_func_search_set_tooltip(but, ui_search_menu_create_tooltip);
+  button_func_search_set_context_menu(but, search_menu_create_context_menu);
+  button_func_search_set_tooltip(but, search_menu_create_tooltip);
   button_func_search_set_sep_string(but, UI_MENU_ARROW_SEP);
 }
 

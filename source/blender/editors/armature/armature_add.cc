@@ -63,7 +63,7 @@ namespace blender {
 
 EditBone *ED_armature_ebone_add(bArmature *arm, const char *name)
 {
-  EditBone *bone = MEM_new_for_free<EditBone>("eBone");
+  EditBone *bone = MEM_new<EditBone>("eBone");
 
   STRNCPY_UTF8(bone->name, name);
   ED_armature_ebone_unique_name(arm->edbo, bone->name, nullptr);
@@ -112,7 +112,7 @@ EditBone *ED_armature_ebone_add_primitive(Object *obedit_arm,
   ED_armature_edit_deselect_all(obedit_arm);
 
   /* Create a bone */
-  bone = ED_armature_ebone_add(arm, DATA_("Bone"));
+  bone = ED_armature_ebone_add(arm, DATA_(animrig::bone_default_name));
 
   arm->act_edbone = bone;
 
@@ -223,6 +223,21 @@ static wmOperatorStatus armature_click_extrude_exec(bContext *C, wmOperator * /*
     newbone->length = len_v3v3(newbone->head, newbone->tail);
     newbone->rad_tail = newbone->length * 0.05f;
     newbone->dist = newbone->length * 0.25f;
+
+    /* Calculate the new bone roll:
+     * Ensure the Z-axis of the newly-created bone matches the Z-axis of the parent bone.
+     * The roll_to_vector operator can then take care of the bone roll angle. */
+    float parent_y[3];
+    sub_v3_v3v3(parent_y, ebone->tail, ebone->head);
+    normalize_v3(parent_y);
+    float parent_mat[3][3];
+    vec_roll_to_mat3_normalized(parent_y, ebone->roll, parent_mat);
+    float align_axis[3];
+    copy_v3_v3(align_axis, parent_mat[2]);
+    newbone->roll = ED_armature_ebone_roll_to_vector(newbone, align_axis, false);
+
+    /* Copy bone collection membership. */
+    BLI_duplicatelist(&newbone->bone_collections, &ebone->bone_collections);
   }
 
   ED_armature_edit_sync_selection(arm->edbo);
@@ -294,7 +309,8 @@ EditBone *add_points_bone(Object *obedit, float head[3], float tail[3])
 {
   EditBone *ebo;
 
-  ebo = ED_armature_ebone_add(id_cast<bArmature *>(obedit->data), DATA_("Bone"));
+  ebo = ED_armature_ebone_add(id_cast<bArmature *>(obedit->data),
+                              DATA_(animrig::bone_default_name));
 
   copy_v3_v3(ebo->head, head);
   copy_v3_v3(ebo->tail, tail);
@@ -531,7 +547,7 @@ static void update_duplicate_action_constraint_settings(
       char *old_path = new_curve->rna_path;
 
       new_curve->rna_path = BLI_string_replaceN(old_path, orig_bone->name, dup_bone->name);
-      MEM_freeN(old_path);
+      MEM_delete(old_path);
 
       /* FIXME: deal with the case where this F-Curve already exists. */
 
@@ -1071,7 +1087,7 @@ EditBone *duplicateEditBoneObjects(EditBone *cur_bone,
                                    Object *src_ob,
                                    Object *dst_ob)
 {
-  EditBone *e_bone = MEM_new_for_free<EditBone>("addup_editbone");
+  EditBone *e_bone = MEM_new<EditBone>("addup_editbone");
 
   /* Copy data from old bone to new bone */
   ED_armature_ebone_copy(e_bone, cur_bone);
@@ -1101,6 +1117,7 @@ EditBone *duplicateEditBone(EditBone *cur_bone,
 
 static wmOperatorStatus armature_duplicate_selected_exec(bContext *C, wmOperator *op)
 {
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const bool do_flip_names = RNA_boolean_get(op->ptr, "do_flip_names");
@@ -1111,7 +1128,7 @@ static wmOperatorStatus armature_duplicate_selected_exec(bContext *C, wmOperator
   }
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
+      *bmain, scene, view_layer, CTX_wm_view3d(C));
   for (Object *ob : objects) {
     EditBone *ebone_iter;
     /* The beginning of the duplicated bones in the edbo list */
@@ -1275,6 +1292,7 @@ static EditBone *get_symmetrized_bone(bArmature *arm, EditBone *bone)
  */
 static wmOperatorStatus armature_symmetrize_exec(bContext *C, wmOperator *op)
 {
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const int direction = RNA_enum_get(op->ptr, "direction");
@@ -1287,7 +1305,7 @@ static wmOperatorStatus armature_symmetrize_exec(bContext *C, wmOperator *op)
   }
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
+      *bmain, scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
     EditBone *ebone_iter;
     /* The beginning of the duplicated mirrored bones in the edbo list */
@@ -1555,12 +1573,13 @@ void ARMATURE_OT_symmetrize(wmOperatorType *ot)
 /* if forked && mirror-edit: makes two bones with flipped names */
 static wmOperatorStatus armature_extrude_exec(bContext *C, wmOperator *op)
 {
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const bool forked = RNA_boolean_get(op->ptr, "forked");
   bool changed_multi = false;
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
+      *bmain, scene, view_layer, CTX_wm_view3d(C));
 
   enum ExtrudePoint {
     SKIP_EXTRUDE,
@@ -1637,7 +1656,7 @@ static wmOperatorStatus armature_extrude_exec(bContext *C, wmOperator *op)
           }
 
           totbone++;
-          newbone = MEM_new_for_free<EditBone>("extrudebone");
+          newbone = MEM_new<EditBone>("extrudebone");
 
           if (do_extrude == TIP_EXTRUDE) {
             copy_v3_v3(newbone->head, ebone->tail);
@@ -1850,7 +1869,12 @@ void ARMATURE_OT_bone_primitive_add(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  RNA_def_string(ot->srna, "name", nullptr, MAXBONENAME, "Name", "Name of the newly created bone");
+  RNA_def_string(ot->srna,
+                 "name",
+                 DATA_(animrig::bone_default_name),
+                 MAXBONENAME,
+                 "Name",
+                 "Name of the newly created bone");
 }
 
 /* ********************** Subdivide *******************************/
@@ -1887,7 +1911,7 @@ static wmOperatorStatus armature_subdivide_exec(bContext *C, wmOperator *op)
       float val2[3];
       float val3[3];
 
-      newbone = MEM_new_for_free<EditBone>("ebone subdiv", *ebone);
+      newbone = MEM_new<EditBone>("ebone subdiv", *ebone);
       BLI_addtail(arm->edbo, newbone);
 
       /* calculate location of newbone->head */

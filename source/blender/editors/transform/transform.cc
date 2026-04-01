@@ -549,7 +549,7 @@ static void viewRedrawForce(const bContext *C, TransInfo *t)
       /* XXX how to deal with lock? */
       SpaceImage *sima = static_cast<SpaceImage *>(t->area->spacedata.first);
       if (sima->lock) {
-        BKE_view_layer_synced_ensure(t->scene, t->view_layer);
+        BKE_view_layer_synced_ensure(*t->bmain, t->scene, t->view_layer);
         WM_event_add_notifier(
             C, NC_GEOM | ND_DATA, BKE_view_layer_edit_object_get(t->view_layer)->data);
       }
@@ -1041,7 +1041,7 @@ static void tool_settings_update_snap_toggle(TransInfo *t)
   short *snap_flag_ptr;
 
   wmMsgParams_RNA msg_key_params = {{}};
-  msg_key_params.ptr = RNA_pointer_create_discrete(&t->scene->id, &RNA_ToolSettings, t->settings);
+  msg_key_params.ptr = RNA_pointer_create_discrete(&t->scene->id, RNA_ToolSettings, t->settings);
   if ((snap_flag_ptr = transform_snap_flag_from_spacetype_ptr(t, &msg_key_params.prop)) &&
       (is_snap_enabled != bool(*snap_flag_ptr & SCE_SNAP)))
   {
@@ -1364,7 +1364,9 @@ wmOperatorStatus transformEvent(TransInfo *t, wmOperator *op, const wmEvent *eve
         else if (event->prev_val == KM_PRESS) {
           t->modifiers |= MOD_PRECISION;
           /* Mouse position during Snap to Grid is not affected by precision. */
-          if (!(validSnap(t) && t->tsnap.target_type == SCE_SNAP_TO_GRID)) {
+          if (!(transform_snap_is_active(t) && validSnap(t) &&
+                t->tsnap.target_type == SCE_SNAP_TO_GRID))
+          {
             t->mouse.precision = true;
           }
 
@@ -1496,7 +1498,7 @@ wmOperatorStatus transformEvent(TransInfo *t, wmOperator *op, const wmEvent *eve
 
 bool calculateTransformCenter(bContext *C, int centerMode, float cent3d[3], float cent2d[2])
 {
-  TransInfo *t = MEM_callocN<TransInfo>("TransInfo data");
+  TransInfo *t = MEM_new_zeroed<TransInfo>("TransInfo data");
   bool success;
 
   t->context = C;
@@ -1540,7 +1542,7 @@ bool calculateTransformCenter(bContext *C, int centerMode, float cent3d[3], floa
 
   postTrans(C, t);
 
-  MEM_freeN(t);
+  MEM_delete(t);
 
   return success;
 }
@@ -1569,11 +1571,14 @@ static bool transinfo_show_overlay(TransInfo *t, ARegion *region)
       const SpaceAction *sact = static_cast<const SpaceAction *>(t->area->spacedata.first);
       return (sact->overlays.flag & ADS_OVERLAY_SHOW_OVERLAYS) != 0;
     }
-
     case SPACE_GRAPH: {
       /* There is no overlay flag defined yet for the Graph Editor. But there is the proportional
        * editing drawing that will not happen if we return false here. */
       return true;
+    }
+    case SPACE_CLIP: {
+      const SpaceClip *sclip = static_cast<const SpaceClip *>(t->area->spacedata.first);
+      return (sclip->overlay.flag & SC_SHOW_OVERLAYS) != 0;
     }
   }
   return false;
@@ -1709,7 +1714,7 @@ static void drawTransformPixel(const bContext * /*C*/, ARegion *region, void *ar
     if (t->options & (CTX_OBJECT | CTX_POSE_BONE)) {
       Scene *scene = t->scene;
       ViewLayer *view_layer = t->view_layer;
-      BKE_view_layer_synced_ensure(scene, view_layer);
+      BKE_view_layer_synced_ensure(*t->bmain, scene, view_layer);
       Object *ob = BKE_view_layer_active_object_get(view_layer);
 
       if (ob && animrig::autokeyframe_cfra_can_key(scene, &ob->id)) {
@@ -1750,7 +1755,7 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
       if ((prop = RNA_struct_find_property(op->ptr, "use_proportional_edit")) &&
           !RNA_property_is_set(op->ptr, prop))
       {
-        BKE_view_layer_synced_ensure(t->scene, t->view_layer);
+        BKE_view_layer_synced_ensure(*t->bmain, t->scene, t->view_layer);
         const Object *obact = BKE_view_layer_active_object_get(t->view_layer);
         const eObjectMode object_mode = eObjectMode(obact ? obact->mode : OB_MODE_OBJECT);
 
@@ -1874,7 +1879,6 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
         int orient_axis = constraintModeToIndex(t);
         if (orient_axis != -1) {
           RNA_property_enum_set(op->ptr, prop, orient_axis);
-          t->con.mode &= ~CON_APPLY;
         }
       }
       else {

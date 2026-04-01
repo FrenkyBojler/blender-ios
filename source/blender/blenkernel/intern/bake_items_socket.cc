@@ -60,7 +60,7 @@ static void move_bundle_socket_value_to_bake_item(
               *item_socket_value->type, value_variant, std::nullopt, r_geometry_bake_items))
       {
         bundle_bake_item.items.append(BundleBakeItem::Item{
-            bundle_item.key,
+            UString(bundle_item.key),
             BundleBakeItem::SocketValue{item_socket_value->type->idname, std::move(bake_item)}});
       }
     }
@@ -386,7 +386,8 @@ static bool copy_bundle_bake_item_to_socket_value(const BundleBakeItem &bundle_b
           const CPPType &type = CPPType::get<nodes::BundlePtr>();
           const int count = bundle_list->size();
           auto array_data = nodes::List::ArrayData::ForDefaultValue(type, count);
-          MutableSpan array_span(static_cast<nodes::BundlePtr *>(array_data.data), count);
+          MutableSpan array_span(
+              static_cast<nodes::BundlePtr *>(const_cast<void *>(array_data.data)), count);
           for (const int i : IndexRange(count)) {
             array_span[i] = nodes::Bundle::create();
             nodes::Bundle &bundle = const_cast<nodes::Bundle &>(*array_span[i]);

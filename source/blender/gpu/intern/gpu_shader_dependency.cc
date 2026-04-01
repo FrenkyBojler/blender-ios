@@ -33,6 +33,7 @@
 #endif
 
 #include "../shader_tool/metadata.hh"
+#include "../shader_tool/processor.hh"
 
 namespace blender {
 
@@ -49,7 +50,7 @@ extern "C" {
 #undef SHADER_SOURCE
 }
 
-static CLG_LogRef LOG = {"shader.dependencies"};
+static CLG_LogRef LOG = {"gpu.shader.deps"};
 
 namespace gpu::shader {
 
@@ -194,6 +195,9 @@ struct GPUSource {
       std::function<void(GPUSource &, GPUFunctionDictionary *, GPUPrintFormatMap *)> metadata_fn)
       : fullpath(path), filename(file), source(datatoc)
   {
+    BLI_assert_msg(source.find("//") == std::string::npos &&
+                       source.find("/*") == std::string::npos,
+                   "Input source should have no comments.");
     metadata_fn(*this, g_functions, g_formats);
   };
 
@@ -377,8 +381,8 @@ struct GPUSource {
                   const GPUSource &from) const
   {
 #define CLOG_FILE_INCLUDE(_from, _include) \
-  if (CLOG_CHECK(&LOG, CLG_LEVEL_INFO) && (from).filename.c_str() != (_include).filename.c_str()) \
-  { \
+  if (CLOG_CHECK(&LOG, CLG_LEVEL_TRACE) && \
+      (from).filename.c_str() != (_include).filename.c_str()) { \
     const char *from_filename = (_from).filename.c_str(); \
     const char *include_filename = (_include).filename.c_str(); \
     const int from_size = int((_from).source.size()); \
@@ -497,6 +501,11 @@ static GPUSourceDictionary *g_sources = nullptr;
 static GPUFunctionDictionary *g_functions = nullptr;
 static bool force_printf_injection = false;
 
+#ifdef WITH_OPENSUBDIV
+/* Using a global string to avoid dealing with memory allocation/ownership. */
+static std::string osd_patch_basis;
+#endif
+
 void gpu_shader_dependency_init()
 {
   g_formats = new GPUPrintFormatMap();
@@ -521,7 +530,10 @@ void gpu_shader_dependency_init()
 #endif
 #undef SHADER_SOURCE
 #ifdef WITH_OPENSUBDIV
-  const StringRefNull patch_basis_source = openSubdiv_getGLSLPatchBasisSource();
+  osd_patch_basis = openSubdiv_getGLSLPatchBasisSource();
+  osd_patch_basis = shader::SourceProcessor(
+                        osd_patch_basis, "osd_patch_basis.glsl", gpu::shader::Language::GLSL)
+                        .remove_comments();
   auto source_ptr_opt = g_sources->pop_try("osd_patch_basis.glsl");
   if (source_ptr_opt) {
     delete source_ptr_opt.value();
@@ -530,7 +542,7 @@ void gpu_shader_dependency_init()
       "osd_patch_basis.glsl",
       new GPUSource("osd_patch_basis.glsl",
                     "osd_patch_basis.glsl",
-                    patch_basis_source.c_str(),
+                    (osd_patch_basis).c_str(),
                     g_functions,
                     g_formats,
                     [](GPUSource &, GPUFunctionDictionary *, GPUPrintFormatMap *) {}));
@@ -650,12 +662,12 @@ Vector<StringRefNull> gpu_shader_dependency_get_resolved_source(
   if (src == nullptr) {
     std::cerr << "Error source not found : " << shader_source_name << std::endl;
   }
-  CLOG_INFO(&LOG, "Resolved Source Tree (Mermaid flowchart) %s", shader_name.c_str());
-  if (CLOG_CHECK(&LOG, CLG_LEVEL_INFO)) {
+  CLOG_TRACE(&LOG, "Resolved Source Tree (Mermaid flowchart) %s", shader_name.c_str());
+  if (CLOG_CHECK(&LOG, CLG_LEVEL_TRACE)) {
     CLG_log_raw(LOG.type, "flowchart LR\n");
   }
   src->build(result, generated_sources, *g_sources);
-  if (CLOG_CHECK(&LOG, CLG_LEVEL_INFO)) {
+  if (CLOG_CHECK(&LOG, CLG_LEVEL_TRACE)) {
     CLG_log_raw(LOG.type, "\n");
   }
   return result;

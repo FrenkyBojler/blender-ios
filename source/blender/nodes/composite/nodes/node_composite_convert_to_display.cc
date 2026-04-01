@@ -2,10 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/** \file
- * \ingroup cmpnodes
- */
-
 #include "DNA_color_types.h"
 
 #include "BKE_colortools.hh"
@@ -33,19 +29,21 @@ NODE_STORAGE_FUNCS(NodeConvertToDisplay)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Color>("Image")
+  b.add_input<decl::Color>("Image"_ustr)
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
       .structure_type(StructureType::Dynamic);
-  b.add_input<decl::Bool>("Invert").default_value(false).description(
-      "Convert from display to scene linear instead. Not all view transforms can be inverted "
-      "exactly, and the result may not match the original scene linear image");
+  b.add_input<decl::Bool>("Invert"_ustr)
+      .default_value(false)
+      .description(
+          "Convert from display to scene linear instead. Not all view transforms can be inverted "
+          "exactly, and the result may not match the original scene linear image");
 
-  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
+  b.add_output<decl::Color>("Image"_ustr).structure_type(StructureType::Dynamic);
 }
 
 static void node_init(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeConvertToDisplay *nctd = MEM_new_for_free<NodeConvertToDisplay>(__func__);
+  NodeConvertToDisplay *nctd = MEM_new<NodeConvertToDisplay>(__func__);
   BKE_color_managed_display_settings_init(&nctd->display_settings);
   BKE_color_managed_view_settings_init(&nctd->view_settings, &nctd->display_settings, nullptr);
   nctd->view_settings.flag |= COLORMANAGE_VIEW_ONLY_VIEW_LOOK;
@@ -56,12 +54,12 @@ static void node_free(bNode *node)
 {
   NodeConvertToDisplay *nctd = static_cast<NodeConvertToDisplay *>(node->storage);
   BKE_color_managed_view_settings_free(&nctd->view_settings);
-  MEM_freeN(nctd);
+  MEM_delete(nctd);
 }
 
 static void node_copy(bNodeTree * /*dest_ntree*/, bNode *dest_node, const bNode *src_node)
 {
-  NodeConvertToDisplay *dest = MEM_new_for_free<NodeConvertToDisplay>(__func__);
+  NodeConvertToDisplay *dest = MEM_new<NodeConvertToDisplay>(__func__);
   const NodeConvertToDisplay *src = static_cast<const NodeConvertToDisplay *>(src_node->storage);
   BKE_color_managed_view_settings_copy(&dest->view_settings, &src->view_settings);
   BKE_color_managed_display_settings_copy(&dest->display_settings, &src->display_settings);
@@ -200,9 +198,8 @@ static NodeOperation *get_compositor_operation(Context &context, const bNode &no
   return new ConvertToDisplayOperation(context, node);
 }
 
-static void register_node_type_cmp_convert_to_display()
+static void node_register()
 {
-  namespace file_ns = nodes::node_composite_convert_to_display_cc;
   static bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodeConvertToDisplay", CMP_NODE_CONVERT_TO_DISPLAY);
@@ -224,6 +221,6 @@ static void register_node_type_cmp_convert_to_display()
 
   bke::node_register_type(ntype);
 }
-NOD_REGISTER_NODE(register_node_type_cmp_convert_to_display)
+NOD_REGISTER_NODE(node_register)
 
 }  // namespace blender::nodes::node_composite_convert_to_display_cc

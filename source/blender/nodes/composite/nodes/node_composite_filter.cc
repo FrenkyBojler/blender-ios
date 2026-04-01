@@ -2,13 +2,11 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/** \file
- * \ingroup cmpnodes
- */
-
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
+
+#include "BKE_node_runtime.hh"
 
 #include "RNA_types.hh"
 
@@ -17,9 +15,7 @@
 
 #include "node_composite_util.hh"
 
-namespace blender {
-
-namespace nodes::node_composite_filter_cc {
+namespace blender::nodes::node_composite_filter_cc {
 
 static const EnumPropertyItem type_items[] = {
     {CMP_NODE_FILTER_SOFT, "SOFTEN", 0, N_("Soften"), ""},
@@ -41,23 +37,25 @@ static const EnumPropertyItem type_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static void cmp_node_filter_declare(NodeDeclarationBuilder &b)
+static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
-  b.add_input<decl::Color>("Image")
+  b.add_input<decl::Color>("Image"_ustr)
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
       .hide_value()
       .structure_type(StructureType::Dynamic);
-  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic).align_with_previous();
+  b.add_output<decl::Color>("Image"_ustr)
+      .structure_type(StructureType::Dynamic)
+      .align_with_previous();
 
-  b.add_input<decl::Float>("Factor", "Fac")
+  b.add_input<decl::Float>("Factor"_ustr, "Fac"_ustr)
       .default_value(1.0f)
       .min(0.0f)
       .max(1.0f)
       .subtype(PROP_FACTOR)
       .structure_type(StructureType::Dynamic);
-  b.add_input<decl::Menu>("Type")
+  b.add_input<decl::Menu>("Type"_ustr)
       .default_value(CMP_NODE_FILTER_SOFT)
       .static_items(type_items)
       .optional_label();
@@ -71,7 +69,7 @@ class SocketSearchOp {
     bNode &node = params.add_node("CompositorNodeFilter");
     bNodeSocket &type_socket = *bke::node_find_socket(node, SOCK_IN, "Type");
     type_socket.default_value_typed<bNodeSocketValueMenu>()->value = this->filter_type;
-    params.update_and_connect_available_socket(node, "Image");
+    params.update_and_connect_available_socket(node, "Image"_ustr);
   }
 };
 
@@ -292,12 +290,8 @@ static NodeOperation *get_compositor_operation(Context &context, const bNode &no
   return new FilterOperation(context, node);
 }
 
-}  // namespace nodes::node_composite_filter_cc
-
-static void register_node_type_cmp_filter()
+static void node_register()
 {
-  namespace file_ns = nodes::node_composite_filter_cc;
-
   static bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodeFilter", CMP_NODE_FILTER);
@@ -305,13 +299,13 @@ static void register_node_type_cmp_filter()
   ntype.ui_description = "Apply common image enhancement filters";
   ntype.enum_name_legacy = "FILTER";
   ntype.nclass = NODE_CLASS_OP_FILTER;
-  ntype.declare = file_ns::cmp_node_filter_declare;
+  ntype.declare = node_declare;
   ntype.flag |= NODE_PREVIEW;
-  ntype.get_compositor_operation = file_ns::get_compositor_operation;
-  ntype.gather_link_search_ops = file_ns::gather_link_searches;
+  ntype.get_compositor_operation = get_compositor_operation;
+  ntype.gather_link_search_ops = gather_link_searches;
 
   bke::node_register_type(ntype);
 }
-NOD_REGISTER_NODE(register_node_type_cmp_filter)
+NOD_REGISTER_NODE(node_register)
 
-}  // namespace blender
+}  // namespace blender::nodes::node_composite_filter_cc

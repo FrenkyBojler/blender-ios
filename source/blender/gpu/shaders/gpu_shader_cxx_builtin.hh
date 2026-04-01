@@ -12,8 +12,6 @@
 
 #include "gpu_shader_cxx_vector.hh"
 
-namespace blender {
-
 /* Some compilers complain about lack of return values. Keep it short. */
 #define RET \
   { \
@@ -223,17 +221,13 @@ float2 unpackSnorm2x16(uint) RET;
 float4 unpackUnorm4x8(uint) RET;
 float4 unpackSnorm4x8(uint) RET;
 
-namespace gl_ComputeShader {
 void barrier() {}
 void memoryBarrier() {}
 void memoryBarrierShared() {}
 void memoryBarrierImage() {}
 void memoryBarrierBuffer() {}
 void groupMemoryBarrier() {}
-}  // namespace gl_ComputeShader
 
 /** \} */
 
 #undef RET
-
-}  // namespace blender

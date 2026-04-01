@@ -18,6 +18,7 @@
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_vfont_types.h"
 
 #include "BKE_collection.hh"
 #include "BKE_global.hh"
@@ -195,6 +196,14 @@ void DEG_add_bone_relation(DepsNodeHandle *node_handle,
   deg_node_handle->builder->add_node_handle_relation(comp_key, deg_node_handle, description);
 }
 
+void DEG_add_vfont_relation(DepsNodeHandle *handle, VFont *vfont, const char *description)
+{
+  deg::OperationKey operation_key(
+      &vfont->id, deg::NodeType::PARAMETERS, deg::OperationCode::PARAMETERS_EXIT);
+  deg::DepsNodeHandle *deg_node_handle = get_node_handle(handle);
+  deg_node_handle->builder->add_node_handle_relation(operation_key, deg_node_handle, description);
+}
+
 void DEG_add_object_pointcache_relation(DepsNodeHandle *node_handle,
                                         Object *object,
                                         eDepsObjectComponentType component,
@@ -280,9 +289,9 @@ void DEG_graph_build_for_render_pipeline(Depsgraph *graph)
   builder.build();
 }
 
-void DEG_graph_build_for_compositor_preview(Depsgraph *graph, bNodeTree *nodetree)
+void DEG_graph_build_for_compositor_preview(Depsgraph *graph)
 {
-  deg::CompositorBuilderPipeline builder(graph, nodetree);
+  deg::CompositorBuilderPipeline builder(graph);
   builder.build();
 }
 

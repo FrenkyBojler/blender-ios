@@ -362,11 +362,11 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
   /* Allocate memory for data. */
   tc->data_len = count;
 
-  tc->data = MEM_calloc_arrayN<TransData>(tc->data_len, "TransData (Graph Editor)");
+  tc->data = MEM_new_array_zeroed<TransData>(tc->data_len, "TransData (Graph Editor)");
   /* For each 2d vert a 3d vector is allocated,
    * so that they can be treated just as if they were 3d verts. */
-  tc->data_2d = MEM_calloc_arrayN<TransData2D>(tc->data_len, "TransData2D (Graph Editor)");
-  tc->custom.type.data = MEM_calloc_arrayN<TransDataGraph>(tc->data_len, "TransDataGraph");
+  tc->data_2d = MEM_new_array_zeroed<TransData2D>(tc->data_len, "TransData2D (Graph Editor)");
+  tc->custom.type.data = MEM_new_array_zeroed<TransDataGraph>(tc->data_len, "TransDataGraph");
   tc->custom.type.use_free = true;
 
   td = tc->data;
@@ -895,7 +895,7 @@ static void remake_graph_transdata(TransInfo *t, const Span<FCurve *> fcurves)
 
       /* Re-sort actual beztriples
        * (perhaps this could be done using the beztmaps to save time?). */
-      sort_time_fcurve(fcu);
+      sort_time_fcurve(*fcu);
 
       testhandles_fcurve(fcu, BEZT_FLAG_TEMP_TAG, use_handle);
     }
@@ -911,7 +911,7 @@ static void recalcData_graphedit(TransInfo *t)
   bAnimContext ac = {nullptr};
   int filter;
 
-  BKE_view_layer_synced_ensure(t->scene, t->view_layer);
+  BKE_view_layer_synced_ensure(*t->bmain, t->scene, t->view_layer);
 
   /* Initialize relevant anim-context 'context' data from TransInfo data. */
   /* NOTE: sync this with the code in #ANIM_animdata_get_context(). */
@@ -947,11 +947,11 @@ static void recalcData_graphedit(TransInfo *t)
     }
 
     /* Watch it: if the time is wrong: do not correct handles yet. */
-    if (test_time_fcurve(fcu)) {
+    if (test_time_fcurve(*fcu)) {
       unsorted_fcurves.append(fcu);
     }
     else {
-      BKE_fcurve_handles_recalc_ex(fcu, BEZT_FLAG_TEMP_TAG);
+      BKE_fcurve_handles_recalc_ex(*fcu, BEZT_FLAG_TEMP_TAG);
     }
 
     /* Set refresh tags for objects using this animation,

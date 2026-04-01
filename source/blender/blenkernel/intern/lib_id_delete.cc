@@ -51,12 +51,12 @@ void BKE_libblock_free_data(ID *id, const bool do_id_user)
 {
   if (id->properties) {
     IDP_FreePropertyContent_ex(id->properties, do_id_user);
-    MEM_freeN(id->properties);
+    MEM_delete(id->properties);
     id->properties = nullptr;
   }
   if (id->system_properties) {
     IDP_FreePropertyContent_ex(id->system_properties, do_id_user);
-    MEM_freeN(id->system_properties);
+    MEM_delete(id->system_properties);
     id->system_properties = nullptr;
   }
 
@@ -70,7 +70,7 @@ void BKE_libblock_free_data(ID *id, const bool do_id_user)
   }
 
   if (id->library_weak_reference != nullptr) {
-    MEM_freeN(id->library_weak_reference);
+    MEM_delete(id->library_weak_reference);
   }
 
   BKE_animdata_free(id, do_id_user);
@@ -190,7 +190,7 @@ static int id_free(Main *bmain, void *idv, int flag, const bool use_flag_from_id
   }
 
   if ((flag & LIB_ID_FREE_NOT_ALLOCATED) == 0) {
-    MEM_freeN(id);
+    MEM_delete(id);
   }
 
   return flag;
@@ -202,7 +202,7 @@ void BKE_id_free_ex(Main *bmain, void *idv, const int flag_orig, const bool use_
    * between the Scene's master collection and its view_layers become invalid
    * (due to remapping). */
   if (bmain && (flag_orig & LIB_ID_FREE_NO_MAIN) == 0) {
-    BKE_layer_collection_resync_forbid();
+    BKE_layer_collection_resync_forbid(*bmain);
   }
 
   const ID_Type id_type = GS(static_cast<ID *>(idv)->name);
@@ -211,7 +211,7 @@ void BKE_id_free_ex(Main *bmain, void *idv, const int flag_orig, const bool use_
 
   if (bmain) {
     if ((flag_orig & LIB_ID_FREE_NO_MAIN) == 0) {
-      BKE_layer_collection_resync_allow();
+      BKE_layer_collection_resync_allow(*bmain);
     }
 
     if ((flag_final & LIB_ID_FREE_NO_MAIN) == 0) {
@@ -274,7 +274,7 @@ static size_t id_delete(Main *bmain, Set<ID *> &ids_to_delete, const int extra_r
   const int base_count = lbarray.size();
 
   BKE_main_lock(bmain);
-  BKE_layer_collection_resync_forbid();
+  BKE_layer_collection_resync_forbid(*bmain);
   IDRemapper id_remapper;
 
   /* Main idea of batch deletion is to remove all IDs to be deleted from Main database.
@@ -372,7 +372,7 @@ static size_t id_delete(Main *bmain, Set<ID *> &ids_to_delete, const int extra_r
   }
 
   BKE_main_unlock(bmain);
-  BKE_layer_collection_resync_allow();
+  BKE_layer_collection_resync_allow(*bmain);
   BKE_main_collection_sync_remap(bmain);
 
   if (has_deleted_library) {

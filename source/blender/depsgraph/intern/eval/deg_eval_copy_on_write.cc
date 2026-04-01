@@ -397,7 +397,7 @@ void view_layer_remove_disabled_bases(const Depsgraph *depsgraph,
     return;
   }
   ListBaseT<Base> enabled_bases = {nullptr, nullptr};
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  BKE_view_layer_synced_ensure(*depsgraph->bmain, scene, view_layer);
   for (Base &base : BKE_view_layer_object_bases_get(view_layer)->items_mutable()) {
     /* TODO(sergey): Would be cool to optimize this somehow, or make it so
      * builder tags bases.
@@ -418,7 +418,7 @@ void view_layer_remove_disabled_bases(const Depsgraph *depsgraph,
       if (&base == view_layer->basact) {
         view_layer->basact = nullptr;
       }
-      MEM_freeN(&base);
+      MEM_delete(&base);
     }
   }
   view_layer->object_bases = enabled_bases;
@@ -692,7 +692,7 @@ void update_id_after_copy(const Depsgraph *depsgraph,
       Object *object_cow = id_cast<Object *>(id_cow);
       const Object *object_orig = id_cast<const Object *>(id_orig);
       object_cow->mode = object_orig->mode;
-      object_cow->sculpt = object_orig->sculpt;
+      object_cow->runtime->sculpt_session = object_orig->runtime->sculpt_session;
       object_cow->runtime->data_orig = object_cow->data;
       if (object_cow->type == OB_ARMATURE) {
         const bArmature *armature_orig = id_cast<bArmature *>(object_orig->data);
@@ -983,7 +983,7 @@ void deg_free_eval_copy_datablock(ID *id_cow)
        * due to mesh/curve data-block bound-box tagging dirty. */
       Object *ob_cow = id_cast<Object *>(id_cow);
       ob_cow->data = nullptr;
-      ob_cow->sculpt = nullptr;
+      ob_cow->runtime->sculpt_session = nullptr;
       break;
     }
     default:

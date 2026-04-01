@@ -113,8 +113,7 @@ void WM_operator_properties_filesel(wmOperatorType *ot,
   }
 
   if (flag & WM_FILESEL_FILES) {
-    prop = RNA_def_collection_runtime(
-        ot->srna, "files", &RNA_OperatorFileListElement, "Files", "");
+    prop = RNA_def_collection_runtime(ot->srna, "files", RNA_OperatorFileListElement, "Files", "");
     RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE | PROP_SKIP_PRESET);
   }
 
@@ -142,7 +141,7 @@ void WM_operator_properties_filesel(wmOperatorType *ot,
   prop = RNA_def_boolean(ot->srna,
                          "filter_backup",
                          (filter & FILE_TYPE_BLENDER_BACKUP) != 0,
-                         "Filter .blend files",
+                         "Filter backup .blend files",
                          "");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
   prop = RNA_def_boolean(
@@ -539,7 +538,7 @@ void WM_operator_properties_gesture_box_zoom(wmOperatorType *ot)
 void WM_operator_properties_gesture_lasso(wmOperatorType *ot)
 {
   PropertyRNA *prop;
-  prop = RNA_def_collection_runtime(ot->srna, "path", &RNA_OperatorMousePath, "Path", "");
+  prop = RNA_def_collection_runtime(ot->srna, "path", RNA_OperatorMousePath, "Path", "");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
   prop = RNA_def_boolean(ot->srna,
                          "use_smooth_stroke",
@@ -552,7 +551,7 @@ void WM_operator_properties_gesture_lasso(wmOperatorType *ot)
                        0.5f,
                        0.99f,
                        "Smooth Stroke Factor",
-                       "Higher values gives a smoother stroke",
+                       "Higher values give a smoother stroke",
                        0.5f,
                        0.99f);
   prop = RNA_def_int(ot->srna,
@@ -570,7 +569,7 @@ void WM_operator_properties_gesture_lasso(wmOperatorType *ot)
 void WM_operator_properties_gesture_polyline(wmOperatorType *ot)
 {
   PropertyRNA *prop;
-  prop = RNA_def_collection_runtime(ot->srna, "path", &RNA_OperatorMousePath, "Path", "");
+  prop = RNA_def_collection_runtime(ot->srna, "path", RNA_OperatorMousePath, "Path", "");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 

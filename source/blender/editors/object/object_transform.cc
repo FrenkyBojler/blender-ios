@@ -333,7 +333,7 @@ static wmOperatorStatus object_clear_transform_generic_exec(bContext *C,
     BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
     xcs = xform_skip_child_container_create();
     xform_skip_child_container_item_ensure_from_array(
-        xcs, scene, view_layer, objects.data(), objects.size());
+        xcs, *bmain, scene, view_layer, objects.data(), objects.size());
   }
   if (use_transform_data_origin) {
     BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
@@ -658,7 +658,8 @@ static wmOperatorStatus apply_objects_internal(bContext *C,
                                                bool apply_rot,
                                                bool apply_scale,
                                                bool do_props,
-                                               bool do_single_user)
+                                               bool do_single_user,
+                                               bool corrective_flip_normals)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -870,6 +871,12 @@ static wmOperatorStatus apply_objects_internal(bContext *C,
 
       /* adjust data */
       bke::mesh_transform(*mesh, float4x4(mat), true);
+      /* The determinant of mat will be negative for objects with an odd number of negative scale
+       * axes, since the normals will be flipped when scale is applied, we provide the option to
+       * flip them back. */
+      if (corrective_flip_normals && math::determinant(float4x4(mat)) < 0.0f) {
+        bke::mesh_flip_faces(*mesh, IndexMask(mesh->faces_num));
+      }
     }
     else if (ob->type == OB_ARMATURE) {
       bArmature *arm = id_cast<bArmature *>(ob->data);
@@ -1141,9 +1148,11 @@ static wmOperatorStatus object_transform_apply_exec(bContext *C, wmOperator *op)
   const bool sca = RNA_boolean_get(op->ptr, "scale");
   const bool do_props = RNA_boolean_get(op->ptr, "properties");
   const bool do_single_user = RNA_boolean_get(op->ptr, "isolate_users");
+  const bool corrective_flip_normals = RNA_boolean_get(op->ptr, "corrective_flip_normals");
 
   if (loc || rot || sca) {
-    return apply_objects_internal(C, op->reports, loc, rot, sca, do_props, do_single_user);
+    return apply_objects_internal(
+        C, op->reports, loc, rot, sca, do_props, do_single_user, corrective_flip_normals);
   }
   /* allow for redo */
   return OPERATOR_FINISHED;
@@ -1200,6 +1209,11 @@ void OBJECT_OT_transform_apply(wmOperatorType *ot)
                   true,
                   "Apply Properties",
                   "Modify properties such as curve vertex radius, font size and bone envelope");
+  RNA_def_boolean(ot->srna,
+                  "corrective_flip_normals",
+                  true,
+                  "Corrective Flip Normals",
+                  "Invert normals for negative scaled objects.");
   PropertyRNA *prop = RNA_def_boolean(ot->srna,
                                       "isolate_users",
                                       false,
@@ -1416,7 +1430,7 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
             float3 min, max;
             /* only bounds support */
             INIT_MINMAX(min, max);
-            BKE_object_minmax_dupli(depsgraph, scene, ob, min, max, true);
+            BKE_object_minmax_dupli(depsgraph, ob, min, max, true);
             mid_v3_v3v3(cent, min, max);
             invert_m4_m4(ob->runtime->world_to_object.ptr(), ob->object_to_world().ptr());
             mul_m4_v3(ob->world_to_object().ptr(), cent);
@@ -1936,6 +1950,13 @@ void OBJECT_OT_origin_set(wmOperatorType *ot)
  */
 #define USE_FAKE_DEPTH_INIT
 
+enum {
+  AXIS_TARGET_MODAL_CONFIRM = 1,
+  AXIS_TARGET_MODAL_CANCEL = 2,
+  AXIS_TARGET_MODAL_TRANSLATE_ENABLE = 3,
+  AXIS_TARGET_MODAL_TRANSLATE_DISABLE = 4,
+};
+
 struct XFormAxisItem {
   Object *ob;
   float rot_mat[3][3];
@@ -2003,12 +2024,9 @@ static bool object_is_target_compat(const Object *ob)
       return true;
     }
   }
-  /* We might want to enable this later, for now just lights. */
-#if 0
   else if (ob->type == OB_CAMERA) {
     return true;
   }
-#endif
   return false;
 }
 
@@ -2023,7 +2041,7 @@ static void object_transform_axis_target_free_data(wmOperator *op)
 #endif
 
   for (XFormAxisItem &item : xfd->object_data) {
-    MEM_freeN(item.obtfm);
+    BKE_object_tfm_free(item.obtfm);
   }
   MEM_delete(xfd);
   op->customdata = nullptr;
@@ -2085,6 +2103,32 @@ static bool object_orient_to_location(Object *ob,
   return false;
 }
 
+static void object_transform_axis_target_update_status(bContext *C,
+                                                       wmOperator *op,
+                                                       const XFormAxisData *xfd)
+{
+  WorkspaceStatus status(C);
+  status.opmodal(IFACE_("Confirm"), op->type, AXIS_TARGET_MODAL_CONFIRM);
+  status.opmodal(IFACE_("Cancel"), op->type, AXIS_TARGET_MODAL_CANCEL);
+  status.opmodal(
+      IFACE_("Translate"), op->type, AXIS_TARGET_MODAL_TRANSLATE_ENABLE, xfd->is_translate);
+}
+
+void object_transform_axis_target_modal_keymap(wmKeyConfig *keyconf)
+{
+  static const EnumPropertyItem modal_items[] = {
+      {AXIS_TARGET_MODAL_CONFIRM, "CONFIRM", 0, "Confirm", ""},
+      {AXIS_TARGET_MODAL_CANCEL, "CANCEL", 0, "Cancel", ""},
+      {AXIS_TARGET_MODAL_TRANSLATE_ENABLE, "TRANSLATE_ENABLE", 0, "Translate On", ""},
+      {AXIS_TARGET_MODAL_TRANSLATE_DISABLE, "TRANSLATE_DISABLE", 0, "Translate Off", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  wmKeyMap *keymap = WM_modalkeymap_ensure(
+      keyconf, "Transform Axis Target Modal Map", modal_items);
+  WM_modalkeymap_assign(keymap, "OBJECT_OT_transform_axis_target");
+}
+
 static void object_transform_axis_target_cancel(bContext *C, wmOperator *op)
 {
   XFormAxisData *xfd = static_cast<XFormAxisData *>(op->customdata);
@@ -2094,6 +2138,7 @@ static void object_transform_axis_target_cancel(bContext *C, wmOperator *op)
     WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, item.ob);
   }
 
+  ED_workspace_status_text(C, nullptr);
   object_transform_axis_target_free_data(op);
 }
 
@@ -2180,10 +2225,52 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
 
   view3d_operator_needs_gpu(C);
 
-  const bool is_translate = event->modifier & KM_CTRL;
-  const bool is_translate_init = is_translate && (xfd->is_translate != is_translate);
+  bool is_translate = xfd->is_translate;
+  bool is_translate_init = false;
 
-  if (event->type == MOUSEMOVE || is_translate_init) {
+  wmOperatorStatus status = OPERATOR_RUNNING_MODAL;
+  bool update = false;
+
+  /* Handle modal keymap events. */
+  if (event->type == EVT_MODAL_MAP) {
+    switch (event->val) {
+      case AXIS_TARGET_MODAL_CONFIRM: {
+        status = OPERATOR_FINISHED;
+        break;
+      }
+      case AXIS_TARGET_MODAL_CANCEL: {
+        status = OPERATOR_CANCELLED;
+        break;
+      }
+      case AXIS_TARGET_MODAL_TRANSLATE_ENABLE: {
+        if (!is_translate) {
+          is_translate = true;
+          is_translate_init = true;
+          update = true;
+        }
+        break;
+      }
+      case AXIS_TARGET_MODAL_TRANSLATE_DISABLE: {
+        if (is_translate) {
+          is_translate = false;
+          update = true;
+        }
+        break;
+      }
+    }
+  }
+  else if (event->type == MOUSEMOVE) {
+    update = true;
+  }
+  else {
+    if (ISMOUSE_BUTTON(xfd->init_event)) {
+      if ((event->type == xfd->init_event) && (event->val == KM_RELEASE)) {
+        status = OPERATOR_FINISHED;
+      }
+    }
+  }
+
+  if (update) {
     const ViewDepths *depths = xfd->depths;
     if (depths && (uint(event->mval[0]) < depths->w) && (uint(event->mval[1]) < depths->h)) {
       float depth_fl = 1.0f;
@@ -2331,24 +2418,14 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
     ED_region_tag_redraw(xfd->vc.region);
   }
 
-  bool is_finished = false;
-
-  if (ISMOUSE_BUTTON(xfd->init_event)) {
-    if ((event->type == xfd->init_event) && (event->val == KM_RELEASE)) {
-      is_finished = true;
-    }
+  if (status & OPERATOR_RUNNING_MODAL) {
+    object_transform_axis_target_update_status(C, op, xfd);
   }
-  else {
-    if (ELEM(event->type, LEFTMOUSE, EVT_RETKEY, EVT_PADENTER)) {
-      is_finished = true;
-    }
-  }
-
-  if (is_finished) {
+  else if (status & OPERATOR_FINISHED) {
     Scene *scene = CTX_data_scene(C);
     /* Perform auto-keying for rotational changes for all objects. */
     for (XFormAxisItem &item : xfd->object_data) {
-      PointerRNA ptr = RNA_pointer_create_discrete(&item.ob->id, &RNA_Object, &item.ob->id);
+      PointerRNA ptr = RNA_pointer_create_discrete(&item.ob->id, RNA_Object, &item.ob->id);
       const char *rotation_property = "rotation_euler";
       switch (item.ob->rotmode) {
         case ROT_MODE_QUAT:
@@ -2363,23 +2440,23 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
       PropertyRNA *prop = RNA_struct_find_property(&ptr, rotation_property);
       animrig::autokeyframe_property(C, scene, &ptr, prop, -1, scene->r.cfra, true);
     }
-
+    ED_workspace_status_text(C, nullptr);
     object_transform_axis_target_free_data(op);
-    return OPERATOR_FINISHED;
   }
-  if (ELEM(event->type, EVT_ESCKEY, RIGHTMOUSE)) {
+  else if (status & OPERATOR_CANCELLED) {
     object_transform_axis_target_cancel(C, op);
-    return OPERATOR_CANCELLED;
   }
 
-  return OPERATOR_RUNNING_MODAL;
+  return status;
 }
 
 void OBJECT_OT_transform_axis_target(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Interactive Light Track to Cursor";
-  ot->description = "Interactively point cameras and lights to a location (Ctrl translates)";
+  ot->name = "Look at Surface";
+  ot->description =
+      "Interactively point cameras and lights to the surface under the pointer (Ctrl to "
+      "translate)";
   ot->idname = "OBJECT_OT_transform_axis_target";
 
   /* API callbacks. */

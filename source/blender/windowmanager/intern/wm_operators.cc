@@ -9,6 +9,7 @@
  * as well as some generic operators and shared operator properties.
  */
 
+#include "UI_interface_c.hh"
 #include <algorithm>
 #include <cctype>
 #include <cerrno>
@@ -21,7 +22,7 @@
 #include <fmt/format.h>
 
 #ifdef WIN32
-#  include "GHOST_C-api.h"
+#  include "GHOST_ISystem.hh"
 #endif
 
 #include "MEM_guardedalloc.h"
@@ -483,7 +484,7 @@ static const char *wm_context_member_from_ptr(const bContext *C,
 #  define TEST_PTR_DATA_TYPE(member, rna_type, rna_ptr, dataptr_cmp) \
     { \
       const char *ctx_member = member; \
-      if (RNA_struct_is_a((rna_ptr)->type, &(rna_type)) && (rna_ptr)->data == (dataptr_cmp)) { \
+      if (RNA_struct_is_a((rna_ptr)->type, (rna_type)) && (rna_ptr)->data == (dataptr_cmp)) { \
         member_id = ctx_member; \
         break; \
       } \
@@ -494,8 +495,8 @@ static const char *wm_context_member_from_ptr(const bContext *C,
 #  define TEST_PTR_DATA_TYPE_FROM_CONTEXT(member, rna_type, rna_ptr) \
     { \
       const char *ctx_member = member; \
-      if (RNA_struct_is_a((rna_ptr)->type, &(rna_type)) && \
-          (rna_ptr)->data == (CTX_data_pointer_get_type(C, ctx_member, &(rna_type)).data)) \
+      if (RNA_struct_is_a((rna_ptr)->type, (rna_type)) && \
+          (rna_ptr)->data == (CTX_data_pointer_get_type(C, ctx_member, (rna_type)).data)) \
       { \
         member_id = ctx_member; \
         break; \
@@ -756,7 +757,7 @@ PointerRNA WM_operator_properties_create(const char *opstring)
   }
   /* Set the ID so the context can be accessed: see #STRUCT_NO_CONTEXT_WITHOUT_OWNER_ID. */
   return RNA_pointer_create_discrete(
-      static_cast<ID *>(G_MAIN->wm.first), &RNA_OperatorProperties, nullptr);
+      static_cast<ID *>(G_MAIN->wm.first), RNA_OperatorProperties, nullptr);
 }
 
 void WM_operator_properties_alloc(PointerRNA **ptr, IDProperty **properties, const char *opstring)
@@ -794,7 +795,7 @@ void WM_operator_properties_sanitize(PointerRNA *ptr, const bool no_context)
         StructRNA *ptype = RNA_property_pointer_type(ptr, prop);
 
         /* Recurse into operator properties. */
-        if (RNA_struct_is_a(ptype, &RNA_OperatorProperties)) {
+        if (RNA_struct_is_a(ptype, RNA_OperatorProperties)) {
           PointerRNA opptr = RNA_property_pointer_get(ptr, prop);
           WM_operator_properties_sanitize(&opptr, no_context);
         }
@@ -814,7 +815,7 @@ bool WM_operator_properties_default(PointerRNA *ptr, const bool do_update)
     switch (RNA_property_type(prop)) {
       case PROP_POINTER: {
         StructRNA *ptype = RNA_property_pointer_type(ptr, prop);
-        if (ptype != &RNA_Struct) {
+        if (ptype != RNA_Struct) {
           PointerRNA opptr = RNA_property_pointer_get(ptr, prop);
           changed |= WM_operator_properties_default(&opptr, do_update);
         }
@@ -1425,14 +1426,16 @@ static ui::Block *wm_block_create_redo(bContext *C, ARegion *region, void *arg_o
   block_theme_style_set(block, ui::BLOCK_THEME_STYLE_REGULAR);
 
   /* #BLOCK_NUMSELECT for layer buttons. */
-  block_flag_enable(block, ui::BLOCK_NUMSELECT | ui::BLOCK_KEEP_OPEN | ui::BLOCK_MOVEMOUSE_QUIT);
+  block_flag_enable(block,
+                    ui::BLOCK_NUMSELECT | ui::BLOCK_KEEP_OPEN | ui::BLOCK_MOVEMOUSE_QUIT |
+                        ui::BLOCK_POPUP);
 
   /* If register is not enabled, the operator gets freed on #OPERATOR_FINISHED
    * ui_apply_but_funcs_after calls #ED_undo_operator_repeate_cb and crashes. */
   BLI_assert(op->type->flag & OPTYPE_REGISTER);
 
   block_func_handle_set(block, wm_block_redo_cb, arg_op);
-  popup_dummy_panel_set(region, block);
+  popup_dummy_panel_set(region, block, op->idname);
   ui::Layout &layout = ui::block_layout(block,
                                         ui::LayoutDirection::Vertical,
                                         ui::LayoutType::Panel,
@@ -1477,18 +1480,16 @@ struct wmOpPopUp {
 };
 
 /* Only invoked by OK button in popups created with #wm_block_dialog_create(). */
-static void dialog_exec_cb(bContext *C, void *arg1, void *arg2)
+static void dialog_exec_cb(bContext *C, wmOpPopUp *data, ui::Block *block)
 {
   wmOperator *op;
   {
     /* Execute will free the operator.
      * In this case, wm_operator_ui_popup_cancel won't run. */
-    wmOpPopUp *data = static_cast<wmOpPopUp *>(arg1);
     op = data->op;
     MEM_delete(data);
   }
 
-  ui::Block *block = static_cast<ui::Block *>(arg2);
   /* Explicitly set RETURN_OK flag, otherwise the menu might be canceled
    * in case WM_operator_call_ex exits/reloads the current file (#49199). */
 
@@ -1505,10 +1506,9 @@ static void dialog_exec_cb(bContext *C, void *arg1, void *arg2)
 static void wm_operator_ui_popup_cancel(bContext *C, void *user_data);
 
 /* Only invoked by Cancel button in popups created with #wm_block_dialog_create(). */
-static void dialog_cancel_cb(bContext *C, void *arg1, void *arg2)
+static void dialog_cancel_cb(bContext *C, wmOpPopUp *data, ui::Block *block)
 {
-  wm_operator_ui_popup_cancel(C, arg1);
-  ui::Block *block = static_cast<ui::Block *>(arg2);
+  wm_operator_ui_popup_cancel(C, data);
   popup_menu_retval_set(block, ui::RETURN_CANCEL, true);
   wmWindow *win = CTX_wm_window(C);
   popup_block_close(C, win, block);
@@ -1528,7 +1528,7 @@ static ui::Block *wm_block_dialog_create(bContext *C, ARegion *region, void *use
   ui::Block *block = block_begin(C, region, __func__, ui::EmbossType::Emboss);
   block_flag_disable(block, ui::BLOCK_LOOP);
   block_theme_style_set(block, ui::BLOCK_THEME_STYLE_POPUP);
-  popup_dummy_panel_set(region, block);
+  popup_dummy_panel_set(region, block, op->idname);
 
   if (data->mouse_move_quit) {
     block_flag_enable(block, ui::BLOCK_MOVEMOUSE_QUIT);
@@ -1537,7 +1537,7 @@ static ui::Block *wm_block_dialog_create(bContext *C, ARegion *region, void *use
     data->icon = ui::AlertIcon::Question;
   }
 
-  block_flag_enable(block, ui::BLOCK_KEEP_OPEN | ui::BLOCK_NUMSELECT);
+  block_flag_enable(block, ui::BLOCK_KEEP_OPEN | ui::BLOCK_NUMSELECT | ui::BLOCK_POPUP);
 
   ui::fontstyle_set(&style->widget);
   /* Width based on the text lengths. */
@@ -1660,8 +1660,10 @@ static ui::Block *wm_block_dialog_create(bContext *C, ARegion *region, void *use
                              "");
     }
 
-    button_func_set(confirm_but, dialog_exec_cb, data, col_block);
-    button_func_set(cancel_but, dialog_cancel_cb, data, col_block);
+    button_func_set(confirm_but,
+                    [data, col_block](bContext &C) { dialog_exec_cb(&C, data, col_block); });
+    button_func_set(cancel_but,
+                    [data, col_block](bContext &C) { dialog_cancel_cb(&C, data, col_block); });
     button_flag_enable((data->cancel_default) ? cancel_but : confirm_but, ui::BUT_ACTIVE_DEFAULT);
   }
 
@@ -1689,10 +1691,10 @@ static ui::Block *wm_operator_ui_create(bContext *C, ARegion *region, void *user
 
   ui::Block *block = block_begin(C, region, __func__, ui::EmbossType::Emboss);
   block_flag_disable(block, ui::BLOCK_LOOP);
-  block_flag_enable(block, ui::BLOCK_KEEP_OPEN | ui::BLOCK_MOVEMOUSE_QUIT);
+  block_flag_enable(block, ui::BLOCK_KEEP_OPEN | ui::BLOCK_MOVEMOUSE_QUIT | ui::BLOCK_POPUP);
   block_theme_style_set(block, ui::BLOCK_THEME_STYLE_REGULAR);
 
-  popup_dummy_panel_set(region, block);
+  popup_dummy_panel_set(region, block, op->idname);
 
   ui::Layout &layout = ui::block_layout(
       block, ui::LayoutDirection::Vertical, ui::LayoutType::Panel, 0, 0, data->width, 0, 0, style);
@@ -1960,7 +1962,7 @@ static void WM_OT_debug_menu(wmOperatorType *ot)
 
 static wmOperatorStatus wm_operator_defaults_exec(bContext *C, wmOperator *op)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "active_operator", &RNA_Operator);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "active_operator", RNA_Operator);
 
   if (!ptr.data) {
     BKE_report(op->reports, RPT_ERROR, "No operator in context");
@@ -2444,7 +2446,8 @@ static void WM_OT_quit_blender(wmOperatorType *ot)
 
 static wmOperatorStatus wm_console_toggle_exec(bContext * /*C*/, wmOperator * /*op*/)
 {
-  GHOST_setConsoleWindowState(GHOST_kConsoleWindowStateToggle);
+  GHOST_ISystem *ghost_system = GHOST_ISystem::getSystem();
+  ghost_system->setConsoleWindowState(GHOST_kConsoleWindowStateToggle);
   return OPERATOR_FINISHED;
 }
 
@@ -2480,7 +2483,7 @@ wmPaintCursor *WM_paint_cursor_activate(short space_type,
 {
   wmWindowManager *wm = static_cast<wmWindowManager *>(G_MAIN->wm.first);
 
-  wmPaintCursor *pc = MEM_callocN<wmPaintCursor>("paint cursor");
+  wmPaintCursor *pc = MEM_new_zeroed<wmPaintCursor>("paint cursor");
 
   BLI_addtail(&wm->runtime->paintcursors, pc);
 
@@ -2500,7 +2503,7 @@ bool WM_paint_cursor_end(wmPaintCursor *handle)
   for (wmPaintCursor &pc : wm->runtime->paintcursors) {
     if (&pc == handle) {
       BLI_remlink(&wm->runtime->paintcursors, &pc);
-      MEM_freeN(&pc);
+      MEM_delete(&pc);
       return true;
     }
   }
@@ -2515,7 +2518,7 @@ void WM_paint_cursor_remove_by_type(wmWindowManager *wm, void *draw_fn, void (*f
         free(pc.customdata);
       }
       BLI_remlink(&wm->runtime->paintcursors, &pc);
-      MEM_freeN(&pc);
+      MEM_delete(&pc);
     }
   }
 }
@@ -2678,8 +2681,8 @@ static void radial_control_set_tex(RadialControl *rc)
         GPU_texture_filter_mode(rc->texture, true);
         GPU_texture_swizzle_set(rc->texture, "111r");
 
-        MEM_freeN(ibuf->float_buffer.data);
-        MEM_freeN(ibuf);
+        MEM_delete(ibuf->float_buffer.data);
+        MEM_delete(ibuf);
       }
       break;
     default:
@@ -3022,7 +3025,7 @@ static int radial_control_get_properties(bContext *C, wmOperator *op)
 {
   RadialControl *rc = static_cast<RadialControl *>(op->customdata);
 
-  PointerRNA ctx_ptr = RNA_pointer_create_discrete(nullptr, &RNA_Context, C);
+  PointerRNA ctx_ptr = RNA_pointer_create_discrete(nullptr, RNA_Context, C);
 
   /* Check if we use primary or secondary path. */
   PointerRNA use_secondary_ptr;
@@ -4554,8 +4557,14 @@ static const EnumPropertyItem *rna_id_itemf(bool *r_free,
         item_tmp.identifier = item_tmp.name = id->name + 2;
         item_tmp.value = i++;
 
+        const BIFIconID lib_state_icon = ui::icon_from_library(id);
+        /* Indicate library linking, override or asset state in icon. In enum menus that's the only
+         * way to tell apart linked IDs from their overridden versions. */
+        if (lib_state_icon != ICON_NONE) {
+          item_tmp.icon = lib_state_icon;
+        }
         /* Show collection color tag icons in menus. */
-        if (id_type == ID_GR) {
+        else if (id_type == ID_GR) {
           item_tmp.icon = ui::icon_color_from_collection(reinterpret_cast<Collection *>(id));
         }
 

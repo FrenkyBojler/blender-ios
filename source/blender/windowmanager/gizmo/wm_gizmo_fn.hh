@@ -30,6 +30,7 @@ using wmGizmoGroupFnPoll = bool (*)(const bContext *, wmGizmoGroupType *);
 using wmGizmoGroupFnInit = void (*)(const bContext *, wmGizmoGroup *);
 using wmGizmoGroupFnRefresh = void (*)(const bContext *, wmGizmoGroup *);
 using wmGizmoGroupFnDrawPrepare = void (*)(const bContext *, wmGizmoGroup *);
+using wmGizmoGroupFnDrawBackground = void (*)(const bContext *, wmGizmoGroup *);
 using wmGizmoGroupFnInvokePrepare = void (*)(const bContext *,
                                              wmGizmoGroup *,
                                              wmGizmo *,
@@ -53,7 +54,7 @@ using wmGizmoFnMatrixBasisGet = void (*)(const wmGizmo *, float[4][4]);
 using wmGizmoFnInvoke = wmOperatorStatus (*)(bContext *, wmGizmo *, const wmEvent *);
 using wmGizmoFnExit = void (*)(bContext *, wmGizmo *, const bool);
 using wmGizmoFnCursorGet = int (*)(wmGizmo *);
-using wmGizmoFnScreenBoundsGet = bool (*)(bContext *, wmGizmo *, rcti *r_bounding_box);
+using wmGizmoFnScreenBoundsGet = bool (*)(const bContext *, wmGizmo *, rcti *r_bounding_box);
 using wmGizmoFnSelectRefresh = void (*)(wmGizmo *);
 using wmGizmoFnFree = void (*)(wmGizmo *);
 
@@ -73,6 +74,10 @@ using wmGizmoPropertyFnRangeGet = void (*)(const wmGizmo *,
 /**
  * To inspect the RNA properties gizmos are manipulating (can be multiple).
  * Used e.g. for auto-keying.
+ *
+ * \param gz_prop: The gizmo property to inspect.
+ * \param callback: Called for each RNA property being manipulated.
+ *        - `index`: Property element index (-1 for all items).
  */
 using wmGizmoPropertyFnForeachRNAProp =
     void (*)(wmGizmoProperty *,

@@ -17,24 +17,27 @@ using namespace metadata;
 
 void SourceProcessor::lower_loop_unroll(Parser &parser)
 {
-  auto parse_for_args =
-      [&](const Scope loop_args, Scope &r_init, Scope &r_condition, Scope &r_iter) {
-        r_init = r_condition = r_iter = Scope::invalid();
-        loop_args.foreach_scope(ScopeType::LoopArg, [&](const Scope arg) {
-          if (arg.front().prev() == '(' && arg.back().next() == ';') {
-            r_init = arg;
-          }
-          else if (arg.front().prev() == ';' && arg.back().next() == ';') {
-            r_condition = arg;
-          }
-          else if (arg.front().prev() == ';' && arg.back().next() == ')') {
-            r_iter = arg;
-          }
-          else {
-            report_error_(ERROR_TOK(arg.front()), "Invalid loop declaration.");
-          }
-        });
-      };
+  struct ArgParseResult {
+    Scope init, condition, iter;
+  };
+  auto parse_for_args = [&](const Scope loop_args) -> ArgParseResult {
+    ArgParseResult result{Scope(parser), Scope(parser), Scope(parser)};
+    loop_args.foreach_scope(ScopeType::LoopArg, [&](const Scope arg) {
+      if (arg.front().prev() == '(' && arg.back().next() == ';') {
+        result.init = arg;
+      }
+      else if (arg.front().prev() == ';' && arg.back().next() == ';') {
+        result.condition = arg;
+      }
+      else if (arg.front().prev() == ';' && arg.back().next() == ')') {
+        result.iter = arg;
+      }
+      else {
+        report_error_(ERROR_TOK(arg.front()), "Invalid loop declaration.");
+      }
+    });
+    return result;
+  };
 
   auto process_loop = [&](const Token loop_start,
                           const int iter_count,
@@ -106,7 +109,8 @@ void SourceProcessor::lower_loop_unroll(Parser &parser)
     parser.insert_after(body.back(), "\n");
     if (init.is_valid() && !iteration_is_trivial) {
       parser.insert_line_number(body.back(), init.front().line_number());
-      parser.insert_after(body.back(), indent_init + "{" + init.str_with_whitespace() + ";\n");
+      parser.insert_after(body.back(),
+                          indent_init + "{" + string(init.str_with_whitespace()) + ";\n");
     }
     else {
       parser.insert_after(body.back(), "{\n");
@@ -114,20 +118,22 @@ void SourceProcessor::lower_loop_unroll(Parser &parser)
     for (int64_t i = 0, value = iter_init; i < iter_count; i++, value += iter_incr) {
       if (cond.is_valid() && !condition_is_trivial) {
         parser.insert_line_number(body.back(), cond.front().line_number());
-        parser.insert_after(body.back(), indent_cond + "if(" + cond.str_with_whitespace() + ")\n");
+        parser.insert_after(body.back(),
+                            indent_cond + "if(" + string(cond.str_with_whitespace()) + ")\n");
       }
       parser.insert_after(body.back(), replace_index(body_prefix, value));
       parser.insert_line_number(body.back(), body.front().line_number());
       parser.insert_after(body.back(),
-                          indent_body + replace_index(body.str_with_whitespace(), value) + "\n");
+                          indent_body + replace_index(string(body.str_with_whitespace()), value) +
+                              "\n");
       parser.insert_after(body.back(), body_suffix);
       if (iter.is_valid() && !iteration_is_trivial) {
         parser.insert_line_number(body.back(), iter.front().line_number());
-        parser.insert_after(body.back(), indent_iter + iter.str_with_whitespace() + ";\n");
+        parser.insert_after(body.back(), indent_iter + string(iter.str_with_whitespace()) + ";\n");
       }
     }
     parser.insert_line_number(body.back(), body.back().line_number());
-    parser.insert_after(body.back(), indent_end + body.back().str_with_whitespace());
+    parser.insert_after(body.back(), indent_end + string(body.back().str_with_whitespace()));
   };
 
   do {
@@ -145,7 +151,7 @@ void SourceProcessor::lower_loop_unroll(Parser &parser)
     });
 
     /* [[unroll]]. */
-    parser().foreach_match("f(..)[[w]]{..}", [&](const vector<Token> tokens) {
+    parser().foreach_match("f(..)[[A]]{..}", [&](const vector<Token> tokens) {
       if (tokens[6].scope().str_with_whitespace() != "[unroll]") {
         return;
       }
@@ -153,8 +159,7 @@ void SourceProcessor::lower_loop_unroll(Parser &parser)
       const Scope loop_args = tokens[1].scope();
       const Scope loop_body = tokens[10].scope();
 
-      Scope init, cond, iter;
-      parse_for_args(loop_args, init, cond, iter);
+      auto [init, cond, iter] = parse_for_args(loop_args);
 
       /* Init statement. */
       const Token var_type = init[0];
@@ -168,21 +173,25 @@ void SourceProcessor::lower_loop_unroll(Parser &parser)
         report_error_(ERROR_TOK(var_init), "Expecting assignment here.");
         return;
       }
-      if (init[3] != '0' && init[3] != '-') {
+      if (init[3] != Number && init[3] != '-') {
         report_error_(ERROR_TOK(init[3]), "Expecting integer literal here.");
         return;
       }
 
       /* Conditional statement. */
-      const Token cond_var = cond[0];
-      const Token cond_type = cond[1];
-      const Token cond_sign = (cond[2] == '+' || cond[2] == '-') ? cond[2] : Token::invalid();
-      const Token cond_end = cond_sign.is_valid() ? cond[3] : cond[2];
+      int t = 0;
+      const Token cond_var = cond[t++];
+      const Token cond_type = cond[t++];
+      if (cond_type.next() == '=') {
+        t++; /* Skip equal sign. */
+      }
+      const Token cond_sign = (cond[t] == '+' || cond[t] == '-') ? cond[t++] : Token(parser);
+      const Token cond_end = cond[t];
       if (cond_var.str() != var_name.str()) {
         report_error_(ERROR_TOK(cond_var), "Non matching loop counter variable.");
         return;
       }
-      if (cond_end != '0') {
+      if (cond_end != Number) {
         report_error_(ERROR_TOK(cond_end), "Expecting integer literal here.");
         return;
       }
@@ -221,7 +230,7 @@ void SourceProcessor::lower_loop_unroll(Parser &parser)
           parser.substr_range_inclusive(cond_sign.is_valid() ? cond_sign : cond_end, cond_end));
       /* TODO(fclem): Support arbitrary strides (aka, arbitrary iter statement). */
       int iter_count = abs(end_value - init_value);
-      if (cond_type == GEqual || cond_type == LEqual) {
+      if (cond_type.next() == '=') {
         iter_count += 1;
       }
 
@@ -241,24 +250,23 @@ void SourceProcessor::lower_loop_unroll(Parser &parser)
     });
 
     /* [[unroll_n(n)]]. */
-    parser().foreach_match("f(..)[[w(0)]]{..}", [&](const vector<Token> tokens) {
+    parser().foreach_match("f(..)[[A(1)]]{..}", [&](const vector<Token> tokens) {
       if (tokens[7].str() != "unroll_n") {
         return;
       }
       const Scope loop_args = tokens[1].scope();
       const Scope loop_body = tokens[13].scope();
 
-      Scope init, cond, iter;
-      parse_for_args(loop_args, init, cond, iter);
+      auto [init, cond, iter] = parse_for_args(loop_args);
 
-      int iter_count = stol(tokens[9].str());
+      int iter_count = stol(string(tokens[9].str()));
 
       process_loop(tokens[0], iter_count, 0, 0, false, false, init, cond, iter, loop_body);
     });
   } while (parser.apply_mutations());
 
   /* Check for remaining keywords. */
-  parser().foreach_match("[[w", [&](const vector<Token> tokens) {
+  parser().foreach_match("[[A", [&](const vector<Token> tokens) {
     if (tokens[2].str().find("unroll") != string::npos) {
       report_error_(ERROR_TOK(tokens[0]), "Incompatible loop format for [[unroll]].");
     }
@@ -267,7 +275,7 @@ void SourceProcessor::lower_loop_unroll(Parser &parser)
 
 void SourceProcessor::lower_static_branch(Parser &parser)
 {
-  parser().foreach_match("i(..)[[w]]{..}", [&](const vector<Token> &tokens) {
+  parser().foreach_match("i(..)[[A]]{..}", [&](const vector<Token> &tokens) {
     Token if_tok = tokens[0];
     Scope condition = tokens[1].scope();
     Token attribute = tokens[7];
@@ -283,13 +291,15 @@ void SourceProcessor::lower_static_branch(Parser &parser)
     }
 
     if (condition[1].str() != "srt_access") {
-      report_error_(ERROR_TOK(if_tok), "Expecting compilation or specialization constant.");
+      report_error_(ERROR_TOK(if_tok),
+                    "Expecting compilation or specialization constant. Make sure SRT arguments "
+                    "have the [[resource_table]] attribute.");
       return;
     }
 
     Token before_body = body.front().prev();
 
-    string test = "SRT_CONSTANT_" + condition[5].str() + " ";
+    string test = "SRT_CONSTANT_" + string(condition[5].str()) + " ";
     if (condition[7] != condition.back().prev()) {
       test += parser.substr_range_inclusive(condition[7], condition.back().prev());
     }

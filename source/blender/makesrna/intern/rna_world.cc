@@ -37,12 +37,12 @@ namespace blender {
 
 static PointerRNA rna_World_lighting_get(PointerRNA *ptr)
 {
-  return RNA_pointer_create_with_parent(*ptr, &RNA_WorldLighting, ptr->owner_id);
+  return RNA_pointer_create_with_parent(*ptr, RNA_WorldLighting, ptr->owner_id);
 }
 
 static PointerRNA rna_World_mist_get(PointerRNA *ptr)
 {
-  return RNA_pointer_create_with_parent(*ptr, &RNA_WorldMistSettings, ptr->owner_id);
+  return RNA_pointer_create_with_parent(*ptr, RNA_WorldMistSettings, ptr->owner_id);
 }
 
 static void rna_World_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
@@ -280,6 +280,7 @@ void RNA_def_world(BlenderRNA *brna)
       prop, "rna_World_lightgroup_get", "rna_World_lightgroup_length", "rna_World_lightgroup_set");
   RNA_def_property_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop, "Lightgroup", "Lightgroup that the world belongs to");
+  RNA_def_property_update(prop, 0, "rna_World_draw_update");
 
   /* Reflection Probe Baking. */
   prop = RNA_def_property(srna, "probe_resolution", PROP_ENUM, PROP_NONE);

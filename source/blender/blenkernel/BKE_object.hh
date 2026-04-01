@@ -248,6 +248,8 @@ void BKE_object_obdata_size_init(Object *ob, float size);
 void BKE_object_scale_to_mat3(const Object *ob, float r_mat[3][3]);
 void BKE_object_rot_to_mat3(const Object *ob, float r_mat[3][3], bool use_drot);
 void BKE_object_mat3_to_rot(Object *ob, float r_mat[3][3], bool use_compat);
+float4 BKE_object_rot_to_quat(const Object &ob);
+void BKE_object_quat_to_rot(Object &ob, const float4 &quat);
 void BKE_object_to_mat3(const Object *ob, float r_mat[3][3]);
 void BKE_object_to_mat4(const Object *ob, float r_mat[4][4]);
 /**
@@ -292,31 +294,31 @@ Object *BKE_object_pose_armature_get(Object *ob);
  * which isn't the case when the object using the armature isn't in weight-paint mode.
  */
 Object *BKE_object_pose_armature_get_with_wpaint_check(Object *ob);
-Object *BKE_object_pose_armature_get_visible(Object *ob,
-                                             const Scene *scene,
-                                             ViewLayer *view_layer,
-                                             View3D *v3d);
+Object *BKE_object_pose_armature_get_visible(
+    const Main &bmain, Object *ob, const Scene *scene, ViewLayer *view_layer, View3D *v3d);
 
 /**
  * Access pose array with special check to get pose object when in weight paint mode.
  */
-Vector<Object *> BKE_object_pose_array_get_ex(const Scene *scene,
-                                              ViewLayer *view_layer,
-                                              View3D *v3d,
-                                              bool unique);
-Vector<Object *> BKE_object_pose_array_get_unique(const Scene *scene,
+Vector<Object *> BKE_object_pose_array_get_ex(
+    const Main &bmain, const Scene *scene, ViewLayer *view_layer, View3D *v3d, bool unique);
+Vector<Object *> BKE_object_pose_array_get_unique(const Main &bmain,
+                                                  const Scene *scene,
                                                   ViewLayer *view_layer,
                                                   View3D *v3d);
-Vector<Object *> BKE_object_pose_array_get(const Scene *scene, ViewLayer *view_layer, View3D *v3d);
+Vector<Object *> BKE_object_pose_array_get(const Main &bmain,
+                                           const Scene *scene,
+                                           ViewLayer *view_layer,
+                                           View3D *v3d);
 
-Vector<Base *> BKE_object_pose_base_array_get_ex(const Scene *scene,
-                                                 ViewLayer *view_layer,
-                                                 View3D *v3d,
-                                                 bool unique);
-Vector<Base *> BKE_object_pose_base_array_get_unique(const Scene *scene,
+Vector<Base *> BKE_object_pose_base_array_get_ex(
+    const Main &bmain, const Scene *scene, ViewLayer *view_layer, View3D *v3d, bool unique);
+Vector<Base *> BKE_object_pose_base_array_get_unique(const Main &bmain,
+                                                     const Scene *scene,
                                                      ViewLayer *view_layer,
                                                      View3D *v3d);
-Vector<Base *> BKE_object_pose_base_array_get(const Scene *scene,
+Vector<Base *> BKE_object_pose_base_array_get(const Main &bmain,
+                                              const Scene *scene,
                                               ViewLayer *view_layer,
                                               View3D *v3d);
 
@@ -388,7 +390,7 @@ void BKE_object_empty_draw_type_set(Object *ob, int value);
 
 void BKE_object_minmax(Object *ob, float3 &r_min, float3 &r_max);
 bool BKE_object_minmax_dupli(
-    Depsgraph *depsgraph, Scene *scene, Object *ob, float3 &r_min, float3 &r_max, bool use_hidden);
+    Depsgraph *depsgraph, Object *ob, float3 &r_min, float3 &r_max, bool use_hidden);
 /**
  * Calculate visual bounds from an empty objects draw-type.
  *
@@ -412,6 +414,7 @@ bool BKE_object_parent_loop_check(const Object *parent, const Object *ob);
 
 void *BKE_object_tfm_backup(Object *ob);
 void BKE_object_tfm_restore(Object *ob, void *obtfm_pt);
+void BKE_object_tfm_free(void *obtfm_pt);
 
 struct ObjectTfmProtectedChannels {
   float loc[3], dloc[3];
@@ -562,7 +565,11 @@ int BKE_object_is_modified(Scene *scene, Object *ob);
  * and we can still if there was actual deformation afterwards.
  */
 int BKE_object_is_deform_modified(Scene *scene, Object *ob);
-
+/**
+ * Populates r_axis with the mirror axes that are currently active
+ * and have merging enabled on an object.
+ */
+void BKE_object_get_mirror_axes(const Object *ob, bool r_axis[3]);
 /**
  * Check of objects moves in time.
  *
@@ -625,7 +632,8 @@ enum eObjectSet {
  * If #OB_SET_VISIBLE or#OB_SET_SELECTED are collected,
  * then also add related objects according to the given \a includeFilter.
  */
-LinkNode *BKE_object_relational_superset(const Scene *scene,
+LinkNode *BKE_object_relational_superset(const Main &bmain,
+                                         const Scene *scene,
                                          ViewLayer *view_layer,
                                          eObjectSet objectSet,
                                          eObRelationTypes includeFilter);

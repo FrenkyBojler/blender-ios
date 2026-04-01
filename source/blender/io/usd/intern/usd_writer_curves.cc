@@ -259,8 +259,14 @@ static void populate_curve_props_for_bezier(const bke::CurvesGeometry &curves,
 
   pxr::VtArray<int> segments(num_curves);
 
-  populate_curve_verts_for_bezier(
-      curves, positions, *handles_l, *handles_r, verts, control_point_counts, segments, is_cyclic);
+  populate_curve_verts_for_bezier(curves,
+                                  positions,
+                                  handles_l.value_or(Span<float3>{}),
+                                  handles_r.value_or(Span<float3>{}),
+                                  verts,
+                                  control_point_counts,
+                                  segments,
+                                  is_cyclic);
 
   populate_curve_widths(curves, widths);
   interpolation = get_curve_width_interpolation(
@@ -387,14 +393,13 @@ void USDCurvesWriter::set_writer_attributes(pxr::UsdGeomCurves &usd_curves,
   pxr::UsdAttribute attr_points = usd_curves.CreatePointsAttr(pxr::VtValue(), true);
   set_attribute(attr_points, verts, time, usd_value_writer_);
 
-  pxr::UsdAttribute attr_vertex_counts = usd_curves.CreateCurveVertexCountsAttr(pxr::VtValue(),
-                                                                                true);
-  set_attribute(attr_vertex_counts, control_point_counts, time, usd_value_writer_);
+  pxr::UsdAttribute attr_counts = usd_curves.CreateCurveVertexCountsAttr(pxr::VtValue(), true);
+  set_attribute(attr_counts, control_point_counts, time, usd_value_writer_);
 
-  if (!widths.empty()) {
-    pxr::UsdAttribute attr_widths = usd_curves.CreateWidthsAttr(pxr::VtValue(), true);
-    set_attribute(attr_widths, widths, time, usd_value_writer_);
+  pxr::UsdAttribute attr_widths = usd_curves.CreateWidthsAttr(pxr::VtValue(), true);
+  set_attribute(attr_widths, widths, time, usd_value_writer_);
 
+  if (!interpolation.IsEmpty()) {
     usd_curves.SetWidthsInterpolation(interpolation);
   }
 }
@@ -468,7 +473,7 @@ void USDCurvesWriter::write_generic_data(const bke::CurvesGeometry &curves,
 
   const pxr::UsdTimeCode time = get_export_time_code();
   const pxr::TfToken pv_name(
-      make_safe_name(attr.name, usd_export_context_.export_params.allow_unicode));
+      make_safe_primvar_name(attr.name, usd_export_context_.export_params.allow_unicode));
   const pxr::UsdGeomPrimvarsAPI pv_api = pxr::UsdGeomPrimvarsAPI(usd_curves);
 
   pxr::UsdGeomPrimvar pv_attr = pv_api.CreatePrimvar(pv_name, *pv_type, *pv_interp);
@@ -486,7 +491,7 @@ void USDCurvesWriter::write_uv_data(const bke::AttributeIter &attr,
 
   const pxr::UsdTimeCode time = get_export_time_code();
   const pxr::TfToken pv_name(
-      make_safe_name(attr.name, usd_export_context_.export_params.allow_unicode));
+      make_safe_primvar_name(attr.name, usd_export_context_.export_params.allow_unicode));
   const pxr::UsdGeomPrimvarsAPI pv_api = pxr::UsdGeomPrimvarsAPI(usd_curves);
 
   pxr::UsdGeomPrimvar pv_uv = pv_api.CreatePrimvar(
@@ -545,6 +550,7 @@ void USDCurvesWriter::do_write(HierarchyContext &context)
 {
   Curves *curves_id;
   std::unique_ptr<Curves, std::function<void(Curves *)>> converted_curves;
+  int8_t curve_type_default = CURVE_TYPE_CATMULL_ROM;
 
   switch (context.object->type) {
     case OB_CURVES_LEGACY: {
@@ -552,6 +558,7 @@ void USDCurvesWriter::do_write(HierarchyContext &context)
       converted_curves = std::unique_ptr<Curves, std::function<void(Curves *)>>(
           bke::curve_legacy_to_curves(*legacy_curve), [](Curves *c) { BKE_id_free(nullptr, c); });
       curves_id = converted_curves.get();
+      curve_type_default = CURVE_TYPE_BEZIER;
       break;
     }
     case OB_CURVES:
@@ -562,10 +569,8 @@ void USDCurvesWriter::do_write(HierarchyContext &context)
       return;
   }
 
-  const bke::CurvesGeometry &curves = curves_id->geometry.wrap();
-  if (curves.is_empty()) {
-    return;
-  }
+  const bke::CurvesGeometry empty;
+  const bke::CurvesGeometry &curves = curves_id ? curves_id->geometry.wrap() : empty;
 
   const std::array<int, CURVE_TYPES_NUM> &curve_type_counts = curves.curve_type_counts();
   const int number_of_curve_types = std::count_if(curve_type_counts.begin(),
@@ -585,7 +590,10 @@ void USDCurvesWriter::do_write(HierarchyContext &context)
   }
 
   const pxr::UsdTimeCode time = get_export_time_code();
-  const int8_t curve_type = curves.curve_types()[0];
+  const int8_t curve_type_fallback = first_frame_curve_type == -1 ? curve_type_default :
+                                                                    first_frame_curve_type;
+  const int8_t curve_type = curves.curves_num() > 0 ? curves.curve_types()[0] :
+                                                      curve_type_fallback;
 
   if (first_frame_curve_type == -1) {
     first_frame_curve_type = curve_type;
@@ -609,7 +617,7 @@ void USDCurvesWriter::do_write(HierarchyContext &context)
     return;
   }
 
-  const bool is_cyclic = curves.cyclic().first();
+  const bool is_cyclic = curves.curves_num() > 0 ? curves.cyclic().first() : false;
   pxr::VtArray<pxr::GfVec3f> verts;
   pxr::VtIntArray control_point_counts;
   pxr::VtArray<float> widths;
@@ -676,15 +684,17 @@ void USDCurvesWriter::do_write(HierarchyContext &context)
 
   this->assign_materials(context, *usd_curves);
 
-  /* TODO: We cannot write custom privars for cyclic NURBS curves at the moment. */
+  /* TODO: We cannot write custom primvars for cyclic NURBS curves at the moment. */
   if (!is_cyclic || (is_cyclic && curve_type != CURVE_TYPE_NURBS)) {
     this->write_velocities(curves, *usd_curves);
     this->write_custom_data(curves, *usd_curves);
   }
 
-  auto prim = usd_curves->GetPrim();
-  add_to_prim_map(prim.GetPath(), &curves_id->id);
-  write_id_properties(prim, curves_id->id, time);
+  if (curves_id) {
+    const pxr::UsdPrim prim = usd_curves->GetPrim();
+    add_to_prim_map(prim.GetPath(), &curves_id->id);
+    write_id_properties(prim, curves_id->id, time);
+  }
 
   this->author_extent(*usd_curves, curves.bounds_min_max(), time);
 }

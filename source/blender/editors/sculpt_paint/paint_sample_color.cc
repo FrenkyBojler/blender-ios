@@ -64,8 +64,8 @@
 
 #include "paint_intern.hh"
 
-#include "sculpt_color.hh"
-#include "sculpt_intern.hh"
+#include "mesh/sculpt_color.hh"
+#include "mesh/sculpt_intern.hh"
 
 /* -------------------------------------------------------------------- */
 /** \name Sample Color Operator
@@ -310,6 +310,7 @@ static float3 paint_sample_color(bContext *C,
                                  const int2 mval,
                                  const bool use_merged_texture)
 {
+  const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Paint *paint = BKE_paint_get_active_from_context(C);
@@ -322,7 +323,7 @@ static float3 paint_sample_color(bContext *C,
   std::optional<float3> sampled_color;
   if (v3d && !use_merged_texture) {
     ViewLayer *view_layer = CTX_data_view_layer(C);
-    BKE_view_layer_synced_ensure(scene, view_layer);
+    BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
     Object *ob = BKE_view_layer_active_object_get(view_layer);
 
     if (mode == PaintMode::Texture3D) {
@@ -369,6 +370,8 @@ struct SampleColorData {
   short launch_event;
   float3 initial_color;
   bool sample_palette;
+  float3 accum_color;
+  int num_samples;
 };
 
 static void sample_color_update_header(SampleColorData *data, bContext *C)
@@ -386,10 +389,23 @@ static void sample_color_update_header(SampleColorData *data, bContext *C)
   }
 }
 
+static float3 sample_average_color(SampleColorData *data, const float3 &sampled_color)
+{
+  if (data == nullptr) {
+    return sampled_color;
+  }
+
+  data->accum_color += sampled_color;
+  data->num_samples++;
+
+  return data->accum_color / float(data->num_samples);
+}
+
 static wmOperatorStatus sample_color_exec(bContext *C, wmOperator *op)
 {
   Scene &scene = *CTX_data_scene(C);
   Object &object = *CTX_data_active_object(C);
+  SampleColorData *data = static_cast<SampleColorData *>(op->customdata);
   Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *brush = BKE_paint_brush(paint);
   ARegion *region = CTX_wm_region(C);
@@ -418,7 +434,8 @@ static wmOperatorStatus sample_color_exec(bContext *C, wmOperator *op)
   const bool use_palette = RNA_boolean_get(op->ptr, "palette");
 
   const float3 sampled_color = paint_sample_color(C, region, location, use_merged_texture);
-  apply_sampled_color(*CTX_data_main(C), *paint, sampled_color, use_palette);
+  const float3 average_color = sample_average_color(data, sampled_color);
+  apply_sampled_color(*CTX_data_main(C), *paint, average_color, use_palette);
 
   if (show_cursor) {
     paint->flags |= PAINT_SHOW_BRUSH;
@@ -455,6 +472,9 @@ static wmOperatorStatus sample_color_invoke(bContext *C, wmOperator *op, const w
   op->customdata = data;
   paint->flags &= ~PAINT_SHOW_BRUSH;
 
+  data->accum_color = float3(0.0f);
+  data->num_samples = 0;
+
   sample_color_update_header(data, C);
 
   WM_event_add_modal_handler(C, op);
@@ -468,8 +488,9 @@ static wmOperatorStatus sample_color_invoke(bContext *C, wmOperator *op, const w
   int2 mval(std::clamp(event->mval[0], 0, (int)region->winx),
             std::clamp(event->mval[1], 0, (int)region->winy));
   const float3 sampled_color = paint_sample_color(C, region, mval, use_merged_texture);
+  const float3 average_color = sample_average_color(data, sampled_color);
   /* On initial invoke, we never sample to the palette. */
-  apply_sampled_color(*CTX_data_main(C), *paint, sampled_color, false);
+  apply_sampled_color(*CTX_data_main(C), *paint, average_color, false);
 
   WM_cursor_modal_set(win, WM_CURSOR_EYEDROPPER);
 
@@ -483,6 +504,7 @@ static wmOperatorStatus sample_color_modal(bContext *C, wmOperator *op, const wm
   SampleColorData *data = static_cast<SampleColorData *>(op->customdata);
   Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *brush = BKE_paint_brush(paint);
+  Main &bmain = *CTX_data_main(C);
 
   if ((event->type == data->launch_event) && (event->val == KM_RELEASE)) {
     if (data->show_cursor) {
@@ -511,7 +533,8 @@ static wmOperatorStatus sample_color_modal(bContext *C, wmOperator *op, const wm
     case MOUSEMOVE: {
       RNA_int_set_array(op->ptr, "location", event->mval);
       const float3 sampled_color = paint_sample_color(C, region, mval, use_merged_texture);
-      apply_sampled_color(*CTX_data_main(C), *paint, sampled_color, false);
+      const float3 average_color = sample_average_color(data, sampled_color);
+      apply_sampled_color(bmain, *paint, average_color, false);
       WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
       break;
     }
@@ -520,7 +543,8 @@ static wmOperatorStatus sample_color_modal(bContext *C, wmOperator *op, const wm
       if (event->val == KM_PRESS) {
         RNA_int_set_array(op->ptr, "location", event->mval);
         const float3 sampled_color = paint_sample_color(C, region, mval, use_merged_texture);
-        apply_sampled_color(*CTX_data_main(C), *paint, sampled_color, true);
+        const float3 average_color = sample_average_color(data, sampled_color);
+        apply_sampled_color(bmain, *paint, average_color, true);
         if (!data->sample_palette) {
           data->sample_palette = true;
           sample_color_update_header(data, C);
@@ -540,7 +564,7 @@ static wmOperatorStatus sample_color_modal(bContext *C, wmOperator *op, const wm
 static bool sample_color_poll(bContext *C)
 {
   return (image_paint_poll_ignore_tool(C) || vertex_paint_poll_ignore_tool(C) ||
-          SCULPT_mode_poll(C) || ed::greasepencil::grease_pencil_painting_poll(C) ||
+          sculpt_mode_poll(C) || ed::greasepencil::grease_pencil_painting_poll(C) ||
           ed::greasepencil::grease_pencil_vertex_painting_poll(C));
 }
 

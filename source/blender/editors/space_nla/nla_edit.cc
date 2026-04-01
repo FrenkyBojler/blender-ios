@@ -415,7 +415,7 @@ void NLA_OT_previewrange_set(wmOperatorType *ot)
   /* identifiers */
   ot->name = "Set Preview Range to Selected";
   ot->idname = "NLA_OT_previewrange_set";
-  ot->description = "Set Preview Range based on extends of selected strips";
+  ot->description = "Set Preview Range based on extents of selected strips";
 
   /* API callbacks. */
   ot->exec = nlaedit_previewrange_exec;
@@ -835,7 +835,7 @@ static wmOperatorStatus nlaedit_add_transition_exec(bContext *C, wmOperator *op)
       }
 
       /* allocate new strip */
-      strip = MEM_new_for_free<NlaStrip>("NlaStrip");
+      strip = MEM_new<NlaStrip>("NlaStrip");
       BLI_insertlinkafter(&nlt->strips, s1, strip);
 
       /* set the type */
@@ -2315,7 +2315,7 @@ static wmOperatorStatus nlaedit_clear_scale_exec(bContext *C, wmOperator * /*op*
       /* strip must be selected, and must be action-clip only
        * (transitions don't have scale) */
       if ((strip.flag & NLASTRIP_FLAG_SELECT) && (strip.type == NLASTRIP_TYPE_CLIP)) {
-        PointerRNA strip_ptr = RNA_pointer_create_discrete(nullptr, &RNA_NlaStrip, &strip);
+        PointerRNA strip_ptr = RNA_pointer_create_discrete(nullptr, RNA_NlaStrip, &strip);
         RNA_float_set(&strip_ptr, "scale", 1.0f);
       }
     }

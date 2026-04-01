@@ -58,6 +58,7 @@ struct bNodeTreeExec;
 
 class CPPType;
 namespace nodes {
+struct GeneratedTreeSrnaData;
 class NodeMultiFunctionBuilder;
 class GeoNodeExecParams;
 class NodeDeclaration;
@@ -149,6 +150,12 @@ using NodeBlendWriteFunction = void (*)(const bNodeTree &tree,
                                         BlendWriter &writer);
 using NodeBlendDataReadFunction = void (*)(bNodeTree &tree, bNode &node, BlendDataReader &reader);
 
+using SocketMakeGeometryNodesInputSrnaFunction =
+    void (*)(const bNodeTree &tree,
+             StructRNA &srna,
+             const bNodeTreeInterfaceSocket &io_socket,
+             nodes::GeneratedTreeSrnaData &r_generated);
+
 /**
  * \brief Defines a socket type.
  *
@@ -208,6 +215,8 @@ struct bNodeSocketType {
   SocketGetGeometryNodesCPPValueFunction get_geometry_nodes_cpp_value = nullptr;
   /* Default value for this socket type. */
   const SocketValueVariant *geometry_nodes_default_value = nullptr;
+
+  SocketMakeGeometryNodesInputSrnaFunction make_geometry_nodes_input_srna = nullptr;
 };
 
 using NodeInitExecFunction = void *(*)(bNodeExecContext * context,
@@ -515,14 +524,11 @@ struct bNodeTreeType {
 
   /* calls allowing threaded composite */
   void (*localize)(bNodeTree *localtree, bNodeTree *ntree) = nullptr;
-  void (*local_merge)(Main *bmain, bNodeTree *localtree, bNodeTree *ntree) = nullptr;
 
   /* Tree update. Overrides `nodetype->updatetreefunc`. */
   void (*update)(bNodeTree *ntree) = nullptr;
 
   bool (*validate_link)(eNodeSocketDatatype from, eNodeSocketDatatype to) = nullptr;
-
-  void (*node_add_init)(bNodeTree *ntree, bNode *bnode) = nullptr;
 
   /* Check if the socket type is valid for this tree type. */
   bool (*valid_socket_type)(bNodeTreeType *ntreetype, bNodeSocketType *socket_type) = nullptr;
@@ -635,6 +641,14 @@ void node_register_type(bNodeType &ntype);
 void node_unregister_type(bNodeType &ntype);
 void node_register_alias(bNodeType &nt, StringRef alias);
 
+/**
+ * Set the node type \a idname and \a type_legacy to "undefined" to prevent future access to broken
+ * nodes. This should be used for nodes with missing data that cannot be fixed and should be
+ * permanently disabled.
+ * \warning The node type is not recoverable afterwards!
+ */
+void node_set_undefined_type(bNode &node);
+
 Span<bNodeType *> node_types_get();
 
 bNodeSocketType *node_socket_type_find(StringRef idname);
@@ -740,6 +754,9 @@ bNode *node_find_node_by_name(bNodeTree &ntree, StringRefNull name);
 /** Try to find an input item with the given identifier in the entire node interface tree. */
 const bNodeTreeInterfaceSocket *node_find_interface_input_by_identifier(const bNodeTree &ntree,
                                                                         StringRef identifier);
+/** Try to find an output item with the given identifier in the entire node interface tree. */
+const bNodeTreeInterfaceSocket *node_find_interface_output_by_identifier(const bNodeTree &ntree,
+                                                                         StringRef identifier);
 
 bool node_is_parent_and_child(const bNode &parent, const bNode &child);
 
@@ -920,16 +937,10 @@ void node_tree_free_local_node(bNodeTree &ntree, bNode &node);
 void node_tree_update_all_new(Main &main);
 
 /** Update asset meta-data cache of data-block properties. */
+IDProperty *node_create_asset_meta_data_properties(const bNodeTree &node_tree);
 void node_update_asset_metadata(bNodeTree &node_tree);
 
 void node_tree_node_flag_set(bNodeTree &ntree, int flag, bool enable);
-
-/**
- * Merge local tree results back, and free local tree.
- *
- * We have to assume the editor already changed completely.
- */
-void node_tree_local_merge(Main *bmain, bNodeTree *localtree, bNodeTree *ntree);
 
 /**
  * \note `ntree` itself has been read!
@@ -1112,13 +1123,12 @@ struct bNodePreview {
   ~bNodePreview();
 };
 
-bNodePreview *node_preview_verify(Map<bNodeInstanceKey, bNodePreview> &previews,
+/* Ensure that a node preview of the given size exists in the given previews map for the node with
+ * the given instance key. */
+bNodePreview *node_ensure_preview(Map<bNodeInstanceKey, bNodePreview> &previews,
                                   bNodeInstanceKey key,
                                   int xsize,
-                                  int ysize,
-                                  bool create);
-
-void node_preview_init_tree(bNodeTree *ntree, int xsize, int ysize);
+                                  int ysize);
 
 void node_preview_remove_unused(bNodeTree *ntree);
 

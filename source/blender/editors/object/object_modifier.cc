@@ -81,6 +81,7 @@
 #include "DEG_depsgraph_build.hh"
 #include "DEG_depsgraph_query.hh"
 
+#include "NOD_geometry_nodes_srna.hh"
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
@@ -254,7 +255,7 @@ bool iter_other(Main *bmain,
                 bool (*callback)(Object *ob, void *callback_data),
                 void *callback_data)
 {
-  ID *ob_data_id = static_cast<ID *>(orig_ob->data);
+  ID *ob_data_id = orig_ob->data;
   int users = ob_data_id->us;
 
   if (ob_data_id->flag & ID_FLAG_FAKEUSER) {
@@ -367,7 +368,7 @@ static bool object_modifier_remove(
     ob->mode &= ~OB_MODE_PARTICLE_EDIT;
   }
 
-  BKE_animdata_drivers_remove_for_rna_struct(ob->id, RNA_Modifier, md);
+  BKE_animdata_drivers_remove_for_rna_struct(ob->id, *RNA_Modifier, md);
 
   BKE_modifier_remove_from_list(ob, md);
   BKE_modifier_free(md);
@@ -746,10 +747,10 @@ static void add_shapekey_layers(Mesh &mesh_dest, const Mesh &mesh_src)
                  mesh_src.verts_num,
                  kb.name,
                  kb.totelem);
-      array = MEM_calloc_arrayN<float[3]>(mesh_src.verts_num, __func__);
+      array = MEM_new_array_zeroed<float[3]>(mesh_src.verts_num, __func__);
     }
     else {
-      array = MEM_malloc_arrayN<float[3]>(size_t(mesh_src.verts_num), __func__);
+      array = MEM_new_array_uninitialized<float[3]>(size_t(mesh_src.verts_num), __func__);
       memcpy(array, kb.data, sizeof(float[3]) * size_t(mesh_src.verts_num));
     }
 
@@ -996,7 +997,7 @@ static bool apply_grease_pencil_for_modifier_all_keyframes(Depsgraph *depsgraph,
   for (const int key : layer_indices_to_apply_per_frame.keys()) {
     sorted_frame_times[i++] = key;
   }
-  std::sort(sorted_frame_times.begin(), sorted_frame_times.end());
+  std::ranges::sort(sorted_frame_times);
 
   const int prev_frame = int(DEG_get_ctime(depsgraph));
   bool changed = false;
@@ -1433,7 +1434,7 @@ static const EnumPropertyItem *modifier_add_itemf(bContext *C,
                                                   PropertyRNA * /*prop*/,
                                                   bool *r_free)
 {
-  Object *ob = context_active_object(C);
+  Object *ob = (C) ? context_active_object(C) : nullptr;
 
   if (!ob) {
     return rna_enum_object_modifier_type_items;
@@ -1550,14 +1551,14 @@ bool edit_modifier_poll_generic(bContext *C,
 
 static bool edit_modifier_poll(bContext *C)
 {
-  return edit_modifier_poll_generic(C, &RNA_Modifier, 0, true, false);
+  return edit_modifier_poll_generic(C, RNA_Modifier, 0, true, false);
 }
 
 /* Used by operators performing actions allowed also on modifiers from the overridden linked object
  * (not only from added 'local' ones). */
 static bool edit_modifier_liboverride_allowed_poll(bContext *C)
 {
-  return edit_modifier_poll_generic(C, &RNA_Modifier, 0, true, true);
+  return edit_modifier_poll_generic(C, RNA_Modifier, 0, true, true);
 }
 
 void edit_modifier_properties(wmOperatorType *ot)
@@ -1588,7 +1589,7 @@ bool edit_modifier_invoke_properties(bContext *C, wmOperator *op)
     return true;
   }
 
-  PointerRNA ctx_ptr = CTX_data_pointer_get_type(C, "modifier", &RNA_Modifier);
+  PointerRNA ctx_ptr = CTX_data_pointer_get_type(C, "modifier", RNA_Modifier);
   if (ctx_ptr.data != nullptr) {
     ModifierData *md = static_cast<ModifierData *>(ctx_ptr.data);
     RNA_string_set(op->ptr, "modifier", md->name);
@@ -1619,7 +1620,7 @@ static bool edit_modifier_invoke_properties_with_hover(bContext *C,
   }
 
   /* Note that the context pointer is *not* the active modifier, it is set in UI layouts. */
-  PointerRNA ctx_ptr = CTX_data_pointer_get_type(C, "modifier", &RNA_Modifier);
+  PointerRNA ctx_ptr = CTX_data_pointer_get_type(C, "modifier", RNA_Modifier);
   if (ctx_ptr.data != nullptr) {
     ModifierData *md = static_cast<ModifierData *>(ctx_ptr.data);
     RNA_string_set(op->ptr, "modifier", md->name);
@@ -1635,7 +1636,7 @@ static bool edit_modifier_invoke_properties_with_hover(bContext *C,
     return false;
   }
 
-  if (!RNA_struct_is_a(panel_ptr->type, &RNA_Modifier)) {
+  if (!RNA_struct_is_a(panel_ptr->type, RNA_Modifier)) {
     /* Work around multiple operators using the same shortcut. The operators for the other
      * stacks in the property editor use the same key, and will not run after these return
      * OPERATOR_CANCELLED. */
@@ -1697,7 +1698,7 @@ static wmOperatorStatus modifier_remove_exec(bContext *C, wmOperator *op)
     /* if cloth/softbody was removed, particle mode could be cleared */
     if (mode_orig & OB_MODE_PARTICLE_EDIT) {
       if ((ob->mode & OB_MODE_PARTICLE_EDIT) == 0) {
-        BKE_view_layer_synced_ensure(scene, view_layer);
+        BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
         if (ob == BKE_view_layer_active_object_get(view_layer)) {
           WM_event_add_notifier(C, NC_SCENE | ND_MODE | NS_MODE_OBJECT, nullptr);
         }
@@ -1944,12 +1945,12 @@ void OBJECT_OT_modifier_move_to_index(wmOperatorType *ot)
 
 static bool modifier_apply_poll(bContext *C)
 {
-  if (!edit_modifier_poll_generic(C, &RNA_Modifier, 0, false, false)) {
+  if (!edit_modifier_poll_generic(C, RNA_Modifier, 0, false, false)) {
     return false;
   }
 
   Scene *scene = CTX_data_scene(C);
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", &RNA_Modifier);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", RNA_Modifier);
   Object *ob = (ptr.owner_id != nullptr) ? id_cast<Object *>(ptr.owner_id) :
                                            context_active_object(C);
   ModifierData *md = static_cast<ModifierData *>(ptr.data); /* May be nullptr. */
@@ -2062,7 +2063,7 @@ static wmOperatorStatus modifier_apply_invoke(bContext *C, wmOperator *op, const
 {
   wmOperatorStatus retval;
   if (edit_modifier_invoke_properties_with_hover(C, op, event, &retval)) {
-    PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", &RNA_Modifier);
+    PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", RNA_Modifier);
     Object *ob = (ptr.owner_id != nullptr) ? id_cast<Object *>(ptr.owner_id) :
                                              context_active_object(C);
 
@@ -2402,7 +2403,7 @@ static wmOperatorStatus modifier_copy_to_selected_invoke(bContext *C,
 
 static bool modifier_copy_to_selected_poll(bContext *C)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", &RNA_Modifier);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", RNA_Modifier);
   Object *obact = (ptr.owner_id) ? id_cast<Object *>(ptr.owner_id) : context_active_object(C);
   ModifierData *md = static_cast<ModifierData *>(ptr.data);
 
@@ -2544,14 +2545,14 @@ static void modifier_skin_customdata_delete(Object *ob)
 
 static bool skin_poll(bContext *C)
 {
-  return edit_modifier_poll_generic(C, &RNA_SkinModifier, (1 << OB_MESH), false, false);
+  return edit_modifier_poll_generic(C, RNA_SkinModifier, (1 << OB_MESH), false, false);
 }
 
 static bool skin_edit_poll(bContext *C)
 {
   Object *ob = CTX_data_edit_object(C);
   return (ob != nullptr &&
-          edit_modifier_poll_generic(C, &RNA_SkinModifier, (1 << OB_MESH), true, false) &&
+          edit_modifier_poll_generic(C, RNA_SkinModifier, (1 << OB_MESH), true, false) &&
           !ID_IS_OVERRIDE_LIBRARY(ob) && !ID_IS_OVERRIDE_LIBRARY(ob->data));
 }
 
@@ -2790,7 +2791,7 @@ static Object *modifier_skin_armature_create(Depsgraph *depsgraph, Main *bmain, 
   ANIM_armature_bonecoll_show_all(arm);
   arm_ob->dtx |= OB_DRAW_IN_FRONT;
   arm->drawtype = ARM_DRAW_TYPE_STICK;
-  arm->edbo = MEM_callocN<ListBaseT<EditBone>>("edbo armature");
+  arm->edbo = MEM_new_zeroed<ListBaseT<EditBone>>("edbo armature");
 
   MVertSkin *mvert_skin = static_cast<MVertSkin *>(
       CustomData_get_layer_for_write(&mesh->vert_data, CD_MVERT_SKIN, mesh->verts_num));
@@ -2828,7 +2829,7 @@ static Object *modifier_skin_armature_create(Depsgraph *depsgraph, Main *bmain, 
     }
   }
 
-  MEM_freeN(edges_visited);
+  MEM_delete(edges_visited);
 
   ED_armature_from_edit(bmain, arm);
   ED_armature_edit_free(arm);
@@ -2904,7 +2905,7 @@ void OBJECT_OT_skin_armature_create(wmOperatorType *ot)
 
 static bool correctivesmooth_poll(bContext *C)
 {
-  return edit_modifier_poll_generic(C, &RNA_CorrectiveSmoothModifier, 0, true, false);
+  return edit_modifier_poll_generic(C, RNA_CorrectiveSmoothModifier, 0, true, false);
 }
 
 static wmOperatorStatus correctivesmooth_bind_exec(bContext *C, wmOperator *op)
@@ -2927,7 +2928,7 @@ static wmOperatorStatus correctivesmooth_bind_exec(bContext *C, wmOperator *op)
   const bool is_bind = (csmd->bind_coords != nullptr);
 
   implicit_sharing::free_shared_data(&csmd->bind_coords, &csmd->bind_coords_sharing_info);
-  MEM_SAFE_FREE(csmd->delta_cache.deltas);
+  MEM_SAFE_DELETE(csmd->delta_cache.deltas);
 
   if (is_bind) {
     /* toggle off */
@@ -2985,7 +2986,7 @@ void OBJECT_OT_correctivesmooth_bind(wmOperatorType *ot)
 
 static bool meshdeform_poll(bContext *C)
 {
-  return edit_modifier_poll_generic(C, &RNA_MeshDeformModifier, 0, true, false);
+  return edit_modifier_poll_generic(C, RNA_MeshDeformModifier, 0, true, false);
 }
 
 static wmOperatorStatus meshdeform_bind_exec(bContext *C, wmOperator *op)
@@ -3006,8 +3007,8 @@ static wmOperatorStatus meshdeform_bind_exec(bContext *C, wmOperator *op)
     implicit_sharing::free_shared_data(&mmd->bindinfluences, &mmd->bindinfluences_sharing_info);
     implicit_sharing::free_shared_data(&mmd->bindoffsets, &mmd->bindoffsets_sharing_info);
     implicit_sharing::free_shared_data(&mmd->dynverts, &mmd->dynverts_sharing_info);
-    MEM_SAFE_FREE(mmd->bindweights); /* Deprecated */
-    MEM_SAFE_FREE(mmd->bindcos);     /* Deprecated */
+    MEM_SAFE_DELETE(mmd->bindweights); /* Deprecated */
+    MEM_SAFE_DELETE(mmd->bindcos);     /* Deprecated */
     mmd->verts_num = 0;
     mmd->cage_verts_num = 0;
     mmd->influences_num = 0;
@@ -3062,7 +3063,7 @@ void OBJECT_OT_meshdeform_bind(wmOperatorType *ot)
 
 static bool explode_poll(bContext *C)
 {
-  return edit_modifier_poll_generic(C, &RNA_ExplodeModifier, 0, true, false);
+  return edit_modifier_poll_generic(C, RNA_ExplodeModifier, 0, true, false);
 }
 
 static wmOperatorStatus explode_refresh_exec(bContext *C, wmOperator *op)
@@ -3116,7 +3117,7 @@ void OBJECT_OT_explode_refresh(wmOperatorType *ot)
 
 static bool ocean_bake_poll(bContext *C)
 {
-  return edit_modifier_poll_generic(C, &RNA_OceanModifier, 0, true, false);
+  return edit_modifier_poll_generic(C, RNA_OceanModifier, 0, true, false);
 }
 
 struct OceanBakeJob {
@@ -3223,7 +3224,7 @@ static wmOperatorStatus ocean_bake_exec(bContext *C, wmOperator *op)
                                          omd->foam_fade,
                                          omd->resolution);
 
-  och->time = MEM_malloc_arrayN<float>(och->duration, "foam bake time");
+  och->time = MEM_new_array_uninitialized<float>(och->duration, "foam bake time");
 
   int cfra = scene->r.cfra;
 
@@ -3272,7 +3273,7 @@ static wmOperatorStatus ocean_bake_exec(bContext *C, wmOperator *op)
                               "Simulating ocean...",
                               WM_JOB_PROGRESS,
                               WM_JOB_TYPE_OBJECT_SIM_OCEAN);
-  OceanBakeJob *oj = MEM_callocN<OceanBakeJob>("ocean bake job");
+  OceanBakeJob *oj = MEM_new_zeroed<OceanBakeJob>("ocean bake job");
   oj->owner = ob;
   oj->ocean = ocean;
   oj->och = och;
@@ -3320,7 +3321,7 @@ void OBJECT_OT_ocean_bake(wmOperatorType *ot)
 
 static bool laplaciandeform_poll(bContext *C)
 {
-  return edit_modifier_poll_generic(C, &RNA_LaplacianDeformModifier, 0, false, false);
+  return edit_modifier_poll_generic(C, RNA_LaplacianDeformModifier, 0, false, false);
 }
 
 static wmOperatorStatus laplaciandeform_bind_exec(bContext *C, wmOperator *op)
@@ -3402,7 +3403,7 @@ void OBJECT_OT_laplaciandeform_bind(wmOperatorType *ot)
 
 static bool surfacedeform_bind_poll(bContext *C)
 {
-  return edit_modifier_poll_generic(C, &RNA_SurfaceDeformModifier, 0, true, false);
+  return edit_modifier_poll_generic(C, RNA_SurfaceDeformModifier, 0, true, false);
 }
 
 static wmOperatorStatus surfacedeform_bind_exec(bContext *C, wmOperator *op)
@@ -3488,21 +3489,19 @@ static wmOperatorStatus geometry_nodes_input_attribute_toggle_exec(bContext *C, 
   char input_name[MAX_NAME];
   RNA_string_get(op->ptr, "input_name", input_name);
 
-  IDProperty *use_attribute = IDP_GetPropertyFromGroup(
-      nmd->settings.properties, std::string(input_name + std::string("_use_attribute")).c_str());
-  if (!use_attribute) {
-    return OPERATOR_CANCELLED;
-  }
+  PointerRNA modifier_ptr = RNA_pointer_create_discrete(&ob->id, RNA_NodesModifier, nmd);
+  PointerRNA properties_ptr = RNA_pointer_get(&modifier_ptr, "properties");
+  PointerRNA inputs_ptr = RNA_pointer_get(&properties_ptr, "inputs");
+  PointerRNA input_ptr = RNA_pointer_get(&inputs_ptr, input_name);
 
-  if (use_attribute->type == IDP_INT) {
-    IDP_int_set(use_attribute, !IDP_int_get(use_attribute));
-  }
-  else if (use_attribute->type == IDP_BOOLEAN) {
-    IDP_bool_set(use_attribute, !IDP_bool_get(use_attribute));
+  int type = RNA_enum_get(&input_ptr, "type");
+  if (type == int(nodes::GeometryNodesInputType::Attribute)) {
+    type = int(nodes::GeometryNodesInputType::Value);
   }
   else {
-    return OPERATOR_CANCELLED;
+    type = int(nodes::GeometryNodesInputType::Attribute);
   }
+  RNA_enum_set(&input_ptr, "type", type);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
@@ -3542,7 +3541,7 @@ static wmOperatorStatus geometry_node_tree_copy_assign_exec(bContext *C, wmOpera
 
   NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(md);
   bNodeTree *tree = nmd->node_group;
-  if (tree == nullptr) {
+  if (tree == nullptr || ID_MISSING(tree)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -3586,7 +3585,7 @@ void OBJECT_OT_geometry_node_tree_copy_assign(wmOperatorType *ot)
 
 static bool dash_modifier_segment_poll(bContext *C)
 {
-  return edit_modifier_poll_generic(C, &RNA_GreasePencilDashModifierData, 0, false, false);
+  return edit_modifier_poll_generic(C, RNA_GreasePencilDashModifierData, 0, false, false);
 }
 
 static wmOperatorStatus dash_modifier_segment_add_exec(bContext *C, wmOperator *op)
@@ -3599,8 +3598,8 @@ static wmOperatorStatus dash_modifier_segment_add_exec(bContext *C, wmOperator *
     return OPERATOR_CANCELLED;
   }
 
-  GreasePencilDashModifierSegment *new_segments =
-      MEM_new_array_for_free<GreasePencilDashModifierSegment>(dmd->segments_num + 1, __func__);
+  GreasePencilDashModifierSegment *new_segments = MEM_new_array<GreasePencilDashModifierSegment>(
+      dmd->segments_num + 1, __func__);
 
   const int new_active_index = std::clamp(dmd->segment_active_index + 1, 0, dmd->segments_num);
   if (dmd->segments_num != 0) {
@@ -3629,7 +3628,7 @@ static wmOperatorStatus dash_modifier_segment_add_exec(bContext *C, wmOperator *
       '.',
       ds->name);
 
-  MEM_SAFE_FREE(dmd->segments_array);
+  MEM_SAFE_DELETE(dmd->segments_array);
   dmd->segments_array = new_segments;
   dmd->segments_num++;
   dmd->segment_active_index = new_active_index;
@@ -3820,7 +3819,7 @@ void OBJECT_OT_grease_pencil_dash_modifier_segment_move(wmOperatorType *ot)
 
 static bool time_modifier_segment_poll(bContext *C)
 {
-  return edit_modifier_poll_generic(C, &RNA_GreasePencilTimeModifier, 0, false, false);
+  return edit_modifier_poll_generic(C, RNA_GreasePencilTimeModifier, 0, false, false);
 }
 
 static wmOperatorStatus time_modifier_segment_add_exec(bContext *C, wmOperator *op)
@@ -3833,8 +3832,8 @@ static wmOperatorStatus time_modifier_segment_add_exec(bContext *C, wmOperator *
     return OPERATOR_CANCELLED;
   }
 
-  GreasePencilTimeModifierSegment *new_segments =
-      MEM_new_array_for_free<GreasePencilTimeModifierSegment>(tmd->segments_num + 1, __func__);
+  GreasePencilTimeModifierSegment *new_segments = MEM_new_array<GreasePencilTimeModifierSegment>(
+      tmd->segments_num + 1, __func__);
 
   const int new_active_index = std::clamp(tmd->segment_active_index + 1, 0, tmd->segments_num);
   if (tmd->segments_num != 0) {
@@ -3863,7 +3862,7 @@ static wmOperatorStatus time_modifier_segment_add_exec(bContext *C, wmOperator *
       '.',
       segment->name);
 
-  MEM_SAFE_FREE(tmd->segments_array);
+  MEM_SAFE_DELETE(tmd->segments_array);
   tmd->segments_array = new_segments;
   tmd->segments_num++;
   tmd->segment_active_index++;

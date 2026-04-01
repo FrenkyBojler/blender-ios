@@ -28,6 +28,7 @@
 #include "GPU_texture.hh"
 
 #include "BLI_enum_flags.hh"
+#include "BLI_math_vector_types.hh"
 
 namespace blender {
 
@@ -138,7 +139,7 @@ void GPU_framebuffer_restore();
 struct GPULoadStore {
   GPULoadOp load_action;
   GPUStoreOp store_action;
-  float clear_value[4];
+  double clear_value[4];
 };
 
 /* Empty bind point. */
@@ -170,7 +171,7 @@ struct GPULoadStore {
  *         {GPU_LOADACTION_LOAD, GPU_STOREACTION_STORE}, // Color attachment 0
  *         {GPU_LOADACTION_DONT_CARE, GPU_STOREACTION_STORE}, // Color attachment 1
  *         {GPU_LOADACTION_DONT_CARE, GPU_STOREACTION_STORE} // Color attachment 2
- * })
+ * }, 4)
  * \endcode
  */
 void GPU_framebuffer_bind_loadstore(gpu::FrameBuffer *fb,
@@ -260,62 +261,54 @@ void GPU_framebuffer_config_array(gpu::FrameBuffer *fb,
 
 /** Empty bind point. */
 #define GPU_ATTACHMENT_NONE \
+  GPUAttachment \
   { \
-      nullptr, \
-      -1, \
-      0, \
+    nullptr, -1, 0, \
   }
 /** Leave currently bound texture in this slot. DEPRECATED: Specify all textures for clarity. */
 #define GPU_ATTACHMENT_LEAVE \
+  GPUAttachment \
   { \
-      nullptr, \
-      -1, \
-      -1, \
+    nullptr, -1, -1, \
   }
 /** Bind the first mip level of a texture (all layers). */
 #define GPU_ATTACHMENT_TEXTURE(_texture) \
+  GPUAttachment \
   { \
-      _texture, \
-      -1, \
-      0, \
+    _texture, -1, 0, \
   }
 /** Bind the \a _mip level of a texture (all layers). */
 #define GPU_ATTACHMENT_TEXTURE_MIP(_texture, _mip) \
+  GPUAttachment \
   { \
-      _texture, \
-      -1, \
-      _mip, \
+    _texture, -1, _mip, \
   }
 /** Bind the \a _layer layer of the first mip level of a texture. */
 #define GPU_ATTACHMENT_TEXTURE_LAYER(_texture, _layer) \
+  GPUAttachment \
   { \
-      _texture, \
-      _layer, \
-      0, \
+    _texture, _layer, 0, \
   }
 /** Bind the \a _layer layer of the \a _mip level of a texture. */
 #define GPU_ATTACHMENT_TEXTURE_LAYER_MIP(_texture, _layer, _mip) \
+  GPUAttachment \
   { \
-      _texture, \
-      _layer, \
-      _mip, \
+    _texture, _layer, _mip, \
   }
 
 /** NOTE: The cube-face variants are equivalent to the layer ones but give better semantic. */
 
 /** Bind the first mip level of a cube-map \a _face texture. */
 #define GPU_ATTACHMENT_TEXTURE_CUBEFACE(_texture, _face) \
+  GPUAttachment \
   { \
-      _texture, \
-      _face, \
-      0, \
+    _texture, _face, 0, \
   }
 /** Bind the \a _mip level of a cube-map \a _face texture. */
 #define GPU_ATTACHMENT_TEXTURE_CUBEFACE_MIP(_texture, _face, _mip) \
+  GPUAttachment \
   { \
-      _texture, \
-      _face, \
-      _mip, \
+    _texture, _face, _mip, \
   }
 
 /**
@@ -395,6 +388,11 @@ void GPU_framebuffer_default_size(gpu::FrameBuffer *fb, int width, int height);
  * \{ */
 
 /**
+ * \brief Get the extent of the framebuffer
+ */
+int2 GPU_framebuffer_extent_get(gpu::FrameBuffer *fb);
+
+/**
  * Set the viewport offset and size.
  * These are reset to the original dimensions explicitly (using `GPU_framebuffer_viewport_reset()`)
  * or when binding the frame-buffer after modifying its attachments.
@@ -448,7 +446,7 @@ void GPU_framebuffer_viewport_reset(gpu::FrameBuffer *fb);
  */
 void GPU_framebuffer_clear(gpu::FrameBuffer *fb,
                            GPUFrameBufferBits buffers,
-                           const float clear_col[4],
+                           const double4 clear_col,
                            float clear_depth,
                            unsigned int clear_stencil);
 
@@ -457,7 +455,7 @@ void GPU_framebuffer_clear(gpu::FrameBuffer *fb,
  * \note `GPU_write_mask`, and stencil test do not affect this command.
  * \note Viewport and scissor regions affect this command but are not efficient nor recommended.
  */
-void GPU_framebuffer_clear_color(gpu::FrameBuffer *fb, const float clear_col[4]);
+void GPU_framebuffer_clear_color(gpu::FrameBuffer *fb, const double4 clear_col);
 
 /**
  * Clear the depth attachment texture with the value \a clear_depth .
@@ -480,7 +478,7 @@ void GPU_framebuffer_clear_stencil(gpu::FrameBuffer *fb, uint clear_stencil);
  * \note Viewport and scissor regions affect this command but are not efficient nor recommended.
  */
 void GPU_framebuffer_clear_color_depth(gpu::FrameBuffer *fb,
-                                       const float clear_col[4],
+                                       const double4 clear_col,
                                        float clear_depth);
 
 /**
@@ -499,17 +497,17 @@ void GPU_framebuffer_clear_depth_stencil(gpu::FrameBuffer *fb,
  * \note Viewport and scissor regions affect this command but are not efficient nor recommended.
  */
 void GPU_framebuffer_clear_color_depth_stencil(gpu::FrameBuffer *fb,
-                                               const float clear_col[4],
+                                               const double4 clear_col,
                                                float clear_depth,
                                                uint clear_stencil);
 
 /**
  * Clear each color attachment texture attached to this frame-buffer with a different color.
- * IMPORTANT: The size of `clear_colors` must match the number of color attachments.
+ * IMPORTANT: The size of `clear_colors` must contain at least the number of color attachments.
  * \note `GPU_write_mask`, and stencil test do not affect this command.
  * \note Viewport and scissor regions affect this command but are not efficient nor recommended.
  */
-void GPU_framebuffer_multi_clear(gpu::FrameBuffer *fb, const float (*clear_colors)[4]);
+void GPU_framebuffer_multi_clear(gpu::FrameBuffer *fb, Span<double4> clear_colors);
 
 /**
  * Clear all color attachment textures of the active frame-buffer with the given red, green, blue,

@@ -14,6 +14,7 @@
 
 #include "bpy_app_timers.hh"
 
+#include "../generic/py_capi_utils.hh"
 #include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
 namespace blender {
@@ -78,11 +79,11 @@ PyDoc_STRVAR(
     "   A returned number specifies the delay until the function is called again.\n"
     "   ``functools.partial`` can be used to assign some parameters.\n"
     "\n"
-    "   :arg function: The function that should called.\n"
+    "   :param function: The function that should called.\n"
     "   :type function: Callable[[], float | None]\n"
-    "   :arg first_interval: Seconds until the callback should be called the first time.\n"
+    "   :param first_interval: Seconds until the callback should be called the first time.\n"
     "   :type first_interval: float\n"
-    "   :arg persistent: Don't remove timer when a new file is loaded.\n"
+    "   :param persistent: Don't remove timer when a new file is loaded.\n"
     "   :type persistent: bool\n");
 static PyObject *bpy_app_timers_register(PyObject * /*self*/, PyObject *args, PyObject *kw)
 {
@@ -92,7 +93,6 @@ static PyObject *bpy_app_timers_register(PyObject * /*self*/, PyObject *args, Py
 
   static const char *_keywords[] = {"function", "first_interval", "persistent", nullptr};
   static _PyArg_Parser _parser = {
-      PY_ARG_PARSER_HEAD_COMPAT()
       "O"  /* `function` */
       "|$" /* Optional keyword only arguments. */
       "d"  /* `first_interval` */
@@ -125,7 +125,7 @@ PyDoc_STRVAR(
     "\n"
     "   Unregister timer.\n"
     "\n"
-    "   :arg function: Function to unregister.\n"
+    "   :param function: Function to unregister.\n"
     "   :type function: Callable[[], float | None]\n");
 static PyObject *bpy_app_timers_unregister(PyObject * /*self*/, PyObject *function)
 {
@@ -143,7 +143,7 @@ PyDoc_STRVAR(
     "\n"
     "   Check if this function is registered as a timer.\n"
     "\n"
-    "   :arg function: Function to check.\n"
+    "   :param function: Function to check.\n"
     "   :type function: Callable[[], float | None]\n"
     "   :return: True when this function is registered, otherwise False.\n"
     "   :rtype: bool\n");
@@ -203,7 +203,7 @@ PyObject *BPY_app_timers_module()
 {
   PyObject *sys_modules = PyImport_GetModuleDict();
   PyObject *mod = PyModule_Create(&M_AppTimers_module_def);
-  PyDict_SetItem(sys_modules, PyModule_GetNameObject(mod), mod);
+  PyC_Module_AddToSysModules(sys_modules, mod);
   return mod;
 }
 

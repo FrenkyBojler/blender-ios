@@ -16,14 +16,14 @@ namespace nodes::node_shader_ies_light_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Vector>("Vector").hide_value();
-  b.add_input<decl::Float>("Strength")
+  b.add_input<decl::Vector>("Vector"_ustr).hide_value();
+  b.add_input<decl::Float>("Strength"_ustr)
       .default_value(1.0f)
       .min(0.0f)
       .max(1000000.0f)
       .description("Strength of the light source")
       .translation_context(BLT_I18NCONTEXT_AMOUNT);
-  b.add_output<decl::Float>("Factor", "Fac");
+  b.add_output<decl::Float>("Factor"_ustr, "Fac"_ustr);
 }
 
 static void node_shader_buts_ies(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
@@ -47,7 +47,7 @@ static void node_shader_buts_ies(ui::Layout &layout, bContext * /*C*/, PointerRN
 
 static void node_shader_init_tex_ies(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeShaderTexIES *tex = MEM_new_for_free<NodeShaderTexIES>("NodeShaderIESLight");
+  NodeShaderTexIES *tex = MEM_new<NodeShaderTexIES>("NodeShaderIESLight");
   node->storage = tex;
 }
 

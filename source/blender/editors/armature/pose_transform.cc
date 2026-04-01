@@ -61,6 +61,10 @@
 
 #include "armature_intern.hh"
 
+#include "CLG_log.h"
+
+static CLG_LogRef LOG_POSE_PASTE = {"pose.paste"};
+
 namespace blender {
 
 /* -------------------------------------------------------------------- */
@@ -517,6 +521,7 @@ void POSE_OT_armature_apply(wmOperatorType *ot)
 
 static wmOperatorStatus pose_visual_transform_apply_exec(bContext *C, wmOperator * /*op*/)
 {
+  const Main *bmain = CTX_data_main(C);
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   View3D *v3d = CTX_wm_view3d(C);
@@ -524,7 +529,7 @@ static wmOperatorStatus pose_visual_transform_apply_exec(bContext *C, wmOperator
   /* Needed to ensure #bPoseChannel.pose_mat are up to date. */
   CTX_data_ensure_evaluated_depsgraph(C);
 
-  FOREACH_OBJECT_IN_MODE_BEGIN (scene, view_layer, v3d, OB_ARMATURE, OB_MODE_POSE, ob) {
+  FOREACH_OBJECT_IN_MODE_BEGIN (bmain, scene, view_layer, v3d, OB_ARMATURE, OB_MODE_POSE, ob) {
     const bArmature *arm = id_cast<const bArmature *>(ob->data);
 
     int chanbase_len = BLI_listbase_count(&ob->pose->chanbase);
@@ -534,7 +539,7 @@ static wmOperatorStatus pose_visual_transform_apply_exec(bContext *C, wmOperator
     struct XFormArray {
       float matrix[4][4];
       bool is_set;
-    } *pchan_xform_array = MEM_malloc_arrayN<XFormArray>(chanbase_len, __func__);
+    } *pchan_xform_array = MEM_new_array_uninitialized<XFormArray>(chanbase_len, __func__);
     bool changed = false;
 
     for (const auto [i, pchan] : ob->pose->chanbase.enumerate()) {
@@ -572,7 +577,7 @@ static wmOperatorStatus pose_visual_transform_apply_exec(bContext *C, wmOperator
       WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
     }
 
-    MEM_freeN(pchan_xform_array);
+    MEM_delete(pchan_xform_array);
   }
   FOREACH_OBJECT_IN_MODE_END;
 
@@ -607,12 +612,15 @@ void POSE_OT_visual_transform_apply(wmOperatorType *ot)
  * \param chan: Bone that pose to paste comes from
  * \param selOnly: Only paste on selected bones
  * \param flip: Flip on x-axis
+ * \param r_is_found: optional return param, indicates whether the expected bone was found. This
+ * helps to distinguish between "not found" and "found, but skipped because not selected" cases.
  * \return The channel of the bone that was pasted to, or nullptr if no paste was performed.
  */
 static bPoseChannel *pose_bone_do_paste(Object *ob,
-                                        bPoseChannel *chan,
+                                        const bPoseChannel *chan,
                                         const bool selOnly,
-                                        const bool flip)
+                                        const bool flip,
+                                        bool *r_is_found = nullptr)
 {
   char name[MAXBONENAME];
 
@@ -630,6 +638,9 @@ static bPoseChannel *pose_bone_do_paste(Object *ob,
    *     only selected bones get pasted on, allowing making both sides symmetrical.
    */
   bPoseChannel *pchan = BKE_pose_channel_find_name(ob->pose, name);
+  if (r_is_found) {
+    *r_is_found = pchan != nullptr;
+  }
   if (pchan == nullptr) {
     return nullptr;
   }
@@ -868,13 +879,22 @@ static wmOperatorStatus pose_paste_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
   /* Make sure data from this file is usable for pose paste. */
-  if (!BLI_listbase_is_single(&temp_bmain->objects)) {
-    BKE_report(op->reports, RPT_ERROR, "Internal clipboard is not from pose mode");
-    BKE_main_free(temp_bmain);
-    return OPERATOR_CANCELLED;
+  Object *object_from = nullptr;
+  for (Object &obj : temp_bmain->objects) {
+    if (!(obj.id.flag & ID_FLAG_CLIPBOARD_MARK)) {
+      continue;
+    }
+    if (object_from != nullptr) {
+      /* There can only be one object in the clipboard to read the pose from. However there may be
+       * more than 1 object in total when dealing with packed assets and library overrides.
+       * See #155723. */
+      BKE_report(op->reports, RPT_ERROR, "Internal clipboard is not from pose mode");
+      BKE_main_free(temp_bmain);
+      return OPERATOR_CANCELLED;
+    }
+    object_from = &obj;
   }
 
-  Object *object_from = static_cast<Object *>(temp_bmain->objects.first);
   bPose *pose_from = object_from->pose;
   if (pose_from == nullptr) {
     BKE_report(op->reports, RPT_ERROR, "Internal clipboard has no pose");
@@ -895,17 +915,79 @@ static wmOperatorStatus pose_paste_exec(bContext *C, wmOperator *op)
   /* Safely merge all of the channels in the buffer pose into any
    * existing pose.
    */
-  for (bPoseChannel &chan : pose_from->chanbase) {
-    if (chan.flag & POSE_SELECTED) {
-      /* Try to perform paste on this bone. */
-      bPoseChannel *pchan = pose_bone_do_paste(ob, &chan, selOnly, flip);
-      if (pchan != nullptr) {
-        /* Keyframing tagging for successful paste, */
-        animrig::autokeyframe_pchan(C, scene, ob, pchan, ks);
-      }
+  int num_pasted_bones = 0;
+  int num_skipped_bones = 0;
+  int num_copied_bones = 0;
+  for (const bPoseChannel &pchan_from : pose_from->chanbase) {
+    if ((pchan_from.flag & POSE_SELECTED) == 0) {
+      /* This code pretends that bones that were not selected at copy time do not exist. */
+      continue;
     }
+
+    num_copied_bones++;
+
+    /* Try to perform paste on this bone. */
+    bool is_found;
+    bPoseChannel *pchan_to = pose_bone_do_paste(ob, &pchan_from, selOnly, flip, &is_found);
+    if (!pchan_to) {
+      if (is_found) {
+        /* The bone was found, but not selected (and selOnly), so nothing was pasted to it. */
+        num_skipped_bones++;
+        continue;
+      }
+      /* This doesn't have to be an issue, as a pose could be copied to an armature where only a
+       * subset of the bones match. But having access to this information can still be nice. */
+      CLOG_INFO(&LOG_POSE_PASTE,
+                "Copied pose has bone '%s', but that bone cannot be found now.\n",
+                pchan_from.name);
+      continue;
+    }
+
+    animrig::autokeyframe_pchan(C, scene, ob, pchan_to, ks);
+    num_pasted_bones++;
   }
   BKE_main_free(temp_bmain);
+
+  if (num_pasted_bones == 0) {
+    const char *msg = selOnly ? "None of the %d copied bones are selected now" :
+                                "None of the %d copied bones could be pasted";
+    BKE_reportf(op->reports, RPT_WARNING, msg, num_copied_bones);
+    /* Return OPERATOR_FINISHED to show the redo panel. It should be possible to
+     * turn off "Selected Only" if necessary. */
+    return OPERATOR_FINISHED;
+  }
+
+  if (num_pasted_bones + num_skipped_bones == num_copied_bones) {
+    /* All copied bones were found, but maybe some skipped due to selection state: */
+    if (num_skipped_bones) {
+      BKE_reportf(op->reports,
+                  RPT_INFO,
+                  "Pasted %d bones, and skipped %d unselected bones",
+                  num_pasted_bones,
+                  num_skipped_bones);
+    }
+    else {
+      BKE_reportf(op->reports, RPT_INFO, "Pasted all %d bones", num_pasted_bones);
+    }
+  }
+  else {
+    /* Some bones could not be found: */
+    if (num_skipped_bones) {
+      BKE_reportf(op->reports,
+                  RPT_INFO,
+                  "Pasted only %d of the %d copied bones, and skipped %d unselected bones",
+                  num_pasted_bones,
+                  num_copied_bones,
+                  num_skipped_bones);
+    }
+    else {
+      BKE_reportf(op->reports,
+                  RPT_WARNING,
+                  "Pasted only %d of the %d copied bones",
+                  num_pasted_bones,
+                  num_copied_bones);
+    }
+  }
 
   /* Update event for pose and deformation children. */
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
@@ -1175,6 +1257,7 @@ static wmOperatorStatus pose_clear_transform_generic_exec(bContext *C,
                                                           const char default_ksName[])
 {
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   bool changed_multi = false;
 
@@ -1189,7 +1272,8 @@ static wmOperatorStatus pose_clear_transform_generic_exec(bContext *C,
   /* only clear relevant transforms for selected bones */
   ViewLayer *view_layer = CTX_data_view_layer(C);
   View3D *v3d = CTX_wm_view3d(C);
-  FOREACH_OBJECT_IN_MODE_BEGIN (scene, view_layer, v3d, OB_ARMATURE, OB_MODE_POSE, ob_iter) {
+  FOREACH_OBJECT_IN_MODE_BEGIN (bmain, scene, view_layer, v3d, OB_ARMATURE, OB_MODE_POSE, ob_iter)
+  {
     /* XXX: UGLY HACK (for auto-key + clear transforms). */
     Object *ob_eval = DEG_get_evaluated(depsgraph, ob_iter);
     Vector<PointerRNA> sources;
@@ -1203,7 +1287,7 @@ static wmOperatorStatus pose_clear_transform_generic_exec(bContext *C,
       /* do auto-keyframing as appropriate */
       if (animrig::autokeyframe_cfra_can_key(scene, &ob_iter->id)) {
         /* tag for autokeying later */
-        animrig::relative_keyingset_add_source(sources, &ob_iter->id, &RNA_PoseBone, pchan);
+        animrig::relative_keyingset_add_source(sources, &ob_iter->id, RNA_PoseBone, pchan);
 
 #if 1 /* XXX: Ugly Hack - Run clearing function on evaluated copy of pchan */
         bPoseChannel *pchan_eval = BKE_pose_channel_find_name(ob_eval->pose, pchan->name);
@@ -1361,13 +1445,14 @@ static wmOperatorStatus pose_clear_user_transforms_exec(bContext *C, wmOperator 
 {
   ViewLayer *view_layer = CTX_data_view_layer(C);
   View3D *v3d = CTX_wm_view3d(C);
+  const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(
       depsgraph, float(scene->r.cfra));
   const bool only_select = RNA_boolean_get(op->ptr, "only_selected");
 
-  FOREACH_OBJECT_IN_MODE_BEGIN (scene, view_layer, v3d, OB_ARMATURE, OB_MODE_POSE, ob) {
+  FOREACH_OBJECT_IN_MODE_BEGIN (bmain, scene, view_layer, v3d, OB_ARMATURE, OB_MODE_POSE, ob) {
     if ((ob->adt) && (ob->adt->action)) {
       /* XXX: this is just like this to avoid contaminating anything else;
        * just pose values should change, so this should be fine
@@ -1404,7 +1489,7 @@ static wmOperatorStatus pose_clear_user_transforms_exec(bContext *C, wmOperator 
 
       /* was copied without constraints */
       BLI_freelistN(&dummyPose->chanbase);
-      MEM_freeN(dummyPose);
+      MEM_delete(dummyPose);
     }
     else {
       /* No animation, so just reset to the rest pose. */
