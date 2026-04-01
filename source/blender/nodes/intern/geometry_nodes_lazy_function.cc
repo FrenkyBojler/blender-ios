@@ -1412,7 +1412,7 @@ class LazyFunctionForExtractingReferenceSet : public lf::LazyFunction {
       const fn::GFieldRef &field_to_check = fields_to_check.pop();
       const fn::FieldInputsPtr &field_inputs = field_to_check.field_inputs();
       if (field_inputs) {
-        for (const fn::FieldInput &field_input : field_inputs->nodes) {
+        for (const fn::FieldInput &field_input : field_inputs->inputs) {
           field_input.foreach_recursive_field(
               [&](const GField &recursive_field) { fields_to_check.push(recursive_field); });
           if (const auto *attr_field_input = dynamic_cast<const AttributeFieldInput *>(
