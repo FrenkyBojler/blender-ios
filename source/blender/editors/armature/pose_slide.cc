@@ -605,7 +605,7 @@ static void pose_slide_apply_quat(tPoseSlideOp *pso, tPChanFCurveLink *pfl)
   const float factor = ED_slider_factor_get(pso->slider);
 
   /* By using `get_rotation()` we use the current values as default in case they are not animated.
-   * Due to using spherical blending, the not-animated values may be modified which may not be
+   * Due to using spherical interpolation, the not-animated values may be modified which may not be
    * expected by the user. Ideally this throws a warning.  */
   animrig::Rotation rot_prev_frame = transformable->get_rotation();
   animrig::Rotation rot_next_frame = rot_prev_frame;
@@ -614,6 +614,8 @@ static void pose_slide_apply_quat(tPoseSlideOp *pso, tPChanFCurveLink *pfl)
     rot_prev_frame.values[fcurve->array_index] = evaluate_fcurve(fcurve, prev_frame);
     rot_next_frame.values[fcurve->array_index] = evaluate_fcurve(fcurve, next_frame);
   }
+  normalize_qt(rot_prev_frame.values.data());
+  normalize_qt(rot_next_frame.values.data());
 
   /* Perform blending. */
   if (ELEM(pso->mode, POSESLIDE_BREAKDOWN, POSESLIDE_PUSH, POSESLIDE_RELAX)) {
