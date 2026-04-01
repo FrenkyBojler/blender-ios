@@ -1,2 +1,3 @@
 Referenced by issue #155533, 5.1: Candidates for corrective releases
 Referenced by pull request #156700, Fix: Cycles denoise animation test is flaky with parallel ctest
+Referenced by commit 864f953f6733635225f399f00a5717f57df25060, Fix: Cycles denoise animation test is flaky with parallel ctest
