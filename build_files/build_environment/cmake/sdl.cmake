@@ -47,5 +47,7 @@ if(WIN32)
   endif()
 else()
   harvest(external_sdl sdl/include sdl/include "*.h")
-  harvest(external_sdl sdl/lib sdl/lib "libSDL3.a")
+  # Harvest both SDL3.a and SDL3-test.a to satisfy the SDL CMake config files used by find_package.
+  harvest(external_sdl sdl/lib sdl/lib "*.a")
+  harvest(external_sdl sdl/lib/cmake/SDL3 sdl/lib/cmake/SDL3 "*.cmake")
 endif()

@@ -302,15 +302,6 @@ endif()
 
 if(WITH_SDL)
   find_package_wrapper(SDL3)
-  if(SDL3_FOUND)
-    set(SDL_INCLUDE_DIR "${SDL3_INCLUDE_DIR}")
-    set(SDL_LIBRARY "${SDL3_LIBRARY}")
-    set(SDL_FOUND "${SDL3_FOUND}")
-  endif()
-  mark_as_advanced(
-    SDL_INCLUDE_DIR
-    SDL_LIBRARY
-  )
   set_and_warn_library_found("SDL" SDL_FOUND WITH_SDL)
 endif()
 
