@@ -102,72 +102,23 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
     }
   }
 
+  /* Check #composite_node_tree_socket_type_valid for which socket types are valid and should be
+   * drawn. */
   switch (type) {
+    case SOCK_COLLECTION:
+    case SOCK_MATERIAL:
+    case SOCK_TEXTURE:
+    case SOCK_FONT:
+    case SOCK_SCENE:
+    case SOCK_TEXT_ID:
+    case SOCK_MASK:
+    case SOCK_SOUND:
+    case SOCK_IMAGE: {
+      /* Unsupported. */
+      break;
+    }
     case SOCK_OBJECT: {
       row.prop_search(socket_props_ptr, "value", ctx.bmain_ptr, "objects", name, ICON_OBJECT_DATA);
-      break;
-    }
-    case SOCK_COLLECTION: {
-      row.prop_search(
-          socket_props_ptr, "value", ctx.bmain_ptr, "collections", name, ICON_OUTLINER_COLLECTION);
-      break;
-    }
-    case SOCK_MATERIAL: {
-      row.prop_search(socket_props_ptr, "value", ctx.bmain_ptr, "materials", name, ICON_MATERIAL);
-      break;
-    }
-    case SOCK_TEXTURE: {
-      row.prop_search(socket_props_ptr, "value", ctx.bmain_ptr, "textures", name, ICON_TEXTURE);
-      break;
-    }
-    case SOCK_FONT: {
-      PropertyRNA *prop = RNA_struct_find_property(ctx.properties_ptr, "value");
-      if (prop && RNA_property_type(prop) == PROP_POINTER) {
-        template_id(&row,
-                    &ctx.C,
-                    ctx.properties_ptr,
-                    "value",
-                    nullptr,
-                    "FONT_OT_open",
-                    "FONT_OT_unlink",
-                    ui::TEMPLATE_ID_FILTER_ALL,
-                    false,
-                    name);
-      }
-      else {
-        /* #template_id only supports pointer properties currently. Node tools store
-         * data-block pointers in strings currently. */
-        row.prop_search(ctx.properties_ptr, "value", ctx.bmain_ptr, "fonts", name, ICON_FONT_DATA);
-      }
-      break;
-    }
-    case SOCK_SCENE: {
-      row.prop_search(ctx.properties_ptr, "value", ctx.bmain_ptr, "scenes", name, ICON_SCENE);
-      break;
-    }
-    case SOCK_TEXT_ID: {
-      row.prop_search(ctx.properties_ptr, "value", ctx.bmain_ptr, "texts", name, ICON_TEXT);
-      break;
-    }
-    case SOCK_MASK: {
-      row.prop_search(ctx.properties_ptr, "value", ctx.bmain_ptr, "masks", name, ICON_NONE);
-      break;
-    }
-    case SOCK_SOUND: {
-      row.prop_search(ctx.properties_ptr, "value", ctx.bmain_ptr, "sounds", name, ICON_SOUND);
-      break;
-    }
-    case SOCK_IMAGE: {
-      template_id(&row,
-                  &ctx.C,
-                  socket_props_ptr,
-                  "value",
-                  "image.new",
-                  "image.open",
-                  nullptr,
-                  ui::TEMPLATE_ID_FILTER_ALL,
-                  false,
-                  name);
       break;
     }
     case SOCK_MENU: {
