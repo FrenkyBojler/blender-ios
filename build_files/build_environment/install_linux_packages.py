@@ -111,8 +111,8 @@ class Package:
         self.is_mandatory = is_mandatory
         self.version = version
         self.version_short = version_short
-        self.version_min = version_min
-        self.version_mex = version_mex
+        self.version_min = version_min # minimum version
+        self.version_mex = version_mex # minimal excluded version
         self.version_installed = ...
         self.sub_packages = sub_packages
         self.distro_package_names = distro_package_names
