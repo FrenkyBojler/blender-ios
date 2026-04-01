@@ -186,7 +186,7 @@ static void store_vertex_normals(const Mesh *mesh,
           continue;
         }
 
-        float3 N = normalize(vN_float[vert]);
+        float3 N = safe_normalize(vN_float[vert]);
         if (flip) {
           N = -N;
         }
@@ -217,12 +217,12 @@ static void apply_corner_normal_delta(const Mesh *mesh,
     if (smooth && smooth[i]) {
       for (size_t j = 0; j < 3; j++) {
         const int vert = triangle.v[j];
-        float3 post = normalize(post_vN[vert]);
+        float3 post = safe_normalize(post_vN[vert]);
         if (flip) {
           post = -post;
         }
         const float3 delta = post - pre_vN[vert];
-        cN[i * 3 + j] = packed_normal(normalize(cN[i * 3 + j].decode() + delta));
+        cN[i * 3 + j] = packed_normal(safe_normalize(cN[i * 3 + j].decode() + delta));
       }
     }
     else {
@@ -254,7 +254,7 @@ static void save_pre_displacement_normals(const Mesh *mesh,
     vector<float3> vN(num_verts, zero_float3());
     compute_vertex_normals(mesh, verts_data, all_tris, vN);
     for (size_t i = 0; i < num_verts; i++) {
-      float3 N = normalize(vN[i]);
+      float3 N = safe_normalize(vN[i]);
       if (flip) {
         N = -N;
       }
@@ -310,13 +310,8 @@ static void recompute_displaced_corner_normals(Mesh *mesh,
       vector<float3> mN_float(num_verts, zero_float3());
       compute_vertex_normals(mesh, mP, tri_recompute, mN_float);
 
-      apply_corner_normal_delta(mesh,
-                                mP,
-                                mN_float,
-                                pre_displace_motion_vN[step].data(),
-                                tri_recompute,
-                                flip,
-                                mcN);
+      apply_corner_normal_delta(
+          mesh, mP, mN_float, pre_displace_motion_vN[step].data(), tri_recompute, flip, mcN);
     }
   }
 }
