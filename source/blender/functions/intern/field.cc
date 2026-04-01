@@ -131,8 +131,7 @@ FieldOperationPtr FieldOperation::from(std::shared_ptr<const mf::MultiFunction> 
   return FieldOperationPtr(MEM_new<FieldOperation>(__func__, std::move(fn), std::move(inputs)));
 }
 
-FieldOperationPtr FieldOperation::from_non_owning(const mf::MultiFunction &fn,
-                                                  Vector<GField> inputs)
+FieldOperationPtr FieldOperation::from(const mf::MultiFunction &fn, Vector<GField> inputs)
 {
   return FieldOperationPtr(MEM_new<FieldOperation>(__func__, fn, inputs));
 }
@@ -411,7 +410,7 @@ bool IndexFieldInput::is_equal_to(const fn::FieldInput &other) const
 Field<bool> invert_boolean_field(const Field<bool> &field)
 {
   const mf::MultiFunction &not_fn = fn::multi_function::registry::lookup("!bool"_ustr);
-  auto not_op = FieldOperation::from_non_owning(not_fn, {field});
+  auto not_op = FieldOperation::from(not_fn, {field});
   return GField(not_op, 0).typed<bool>();
 }
 

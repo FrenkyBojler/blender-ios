@@ -370,7 +370,7 @@ class FieldOperation : public ImplicitSharingMixin {
 
   static FieldOperationPtr from(std::shared_ptr<const mf::MultiFunction> fn,
                                 Vector<GField> inputs);
-  static FieldOperationPtr from_non_owning(const mf::MultiFunction &fn, Vector<GField> inputs);
+  static FieldOperationPtr from(const mf::MultiFunction &fn, Vector<GField> inputs);
 
   /** Get the type of a specific output. */
   const CPPType &output_cpp_type(int output_i) const;

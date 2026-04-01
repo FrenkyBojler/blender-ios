@@ -30,8 +30,8 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   static auto clamp_negative = mf::build::SI1_SO<float, float>(
       "Clamp Negative", [](float value) { return std::max(value, 0.0f); });
-  Field<float> weight(FieldOperation::from_non_owning(
-      clamp_negative, {params.extract_input<Field<float>>("Weight"_ustr)}));
+  Field<float> weight(
+      FieldOperation::from(clamp_negative, {params.extract_input<Field<float>>("Weight"_ustr)}));
 
   std::atomic<bool> has_curves = false;
   std::atomic<bool> has_nurbs = false;

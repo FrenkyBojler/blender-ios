@@ -483,7 +483,7 @@ static void execute_multi_function_on_value_variant__field(
     operation = fn::FieldOperation::from(owned_fn, std::move(input_fields));
   }
   else {
-    operation = fn::FieldOperation::from_non_owning(fn, std::move(input_fields));
+    operation = fn::FieldOperation::from(fn, std::move(input_fields));
   }
 
   /* Store the new fields in the output. */

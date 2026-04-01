@@ -1490,8 +1490,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   /* Create a combined field from the offset and the scale so the field evaluator
    * can take care of the multiplication and to simplify each extrude function. */
   const Field<float3> final_offset{
-      FieldOperation::from_non_owning(fn::multi_function::registry::lookup("float3 * float"_ustr),
-                                      {std::move(offset_field), std::move(scale_field)})};
+      FieldOperation::from(fn::multi_function::registry::lookup("float3 * float"_ustr),
+                           {std::move(offset_field), std::move(scale_field)})};
 
   AttributeOutputs attribute_outputs;
   attribute_outputs.top_id = params.get_output_anonymous_attribute_id_if_needed("Top"_ustr);

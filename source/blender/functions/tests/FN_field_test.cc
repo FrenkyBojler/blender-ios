@@ -106,7 +106,7 @@ TEST(field, InputAndFunction)
   GField index_field = GField::from_input<IndexFieldInput>();
 
   auto add_fn = mf::build::SI2_SO<int, int, int>("add", [](int a, int b) { return a + b; });
-  GField output_field{FieldOperation::from_non_owning(add_fn, {index_field, index_field}), 0};
+  GField output_field{FieldOperation::from(add_fn, {index_field, index_field}), 0};
 
   Array<int> result(10);
 
@@ -129,10 +129,10 @@ TEST(field, TwoFunctions)
   GField index_field = GField::from_input<IndexFieldInput>();
 
   auto add_fn = mf::build::SI2_SO<int, int, int>("add", [](int a, int b) { return a + b; });
-  GField add_field{FieldOperation::from_non_owning(add_fn, {index_field, index_field}), 0};
+  GField add_field{FieldOperation::from(add_fn, {index_field, index_field}), 0};
 
   auto add_10_fn = mf::build::SI1_SO<int, int>("add_10", [](int a) { return a + 10; });
-  GField result_field{FieldOperation::from_non_owning(add_10_fn, {add_field}), 0};
+  GField result_field{FieldOperation::from(add_10_fn, {add_field}), 0};
 
   Array<int> result(10);
 
@@ -227,7 +227,7 @@ TEST(field, TwoFunctionsTwoOutputs)
   Field<int> intermediate_field{fn, 1};
 
   auto add_10_fn = mf::build::SI1_SO<int, int>("add_10", [](int a) { return a + 10; });
-  Field<int> result_field_2{FieldOperation::from_non_owning(add_10_fn, {intermediate_field}), 0};
+  Field<int> result_field_2{FieldOperation::from(add_10_fn, {intermediate_field}), 0};
 
   FieldContext field_context;
   FieldEvaluator field_evaluator{field_context, &mask};
@@ -270,7 +270,7 @@ TEST(field, SameFieldTwice)
 TEST(field, IgnoredOutput)
 {
   static mf::tests::OptionalOutputsFunction fn;
-  Field<int> field{FieldOperation::from_non_owning(fn, {}), 0};
+  Field<int> field{FieldOperation::from(fn, {}), 0};
 
   FieldContext field_context;
   FieldEvaluator field_evaluator{field_context, 10};

@@ -26,9 +26,9 @@ namespace blender::geometry {
 
 static fn::Field<int> get_count_input_max_one(const fn::Field<int> &count_field)
 {
-  return fn::Field<int>(fn::FieldOperation::from_non_owning(
-      fn::multi_function::registry::lookup("max(int, int)"_ustr),
-      {fn::Field<int>(1), count_field}));
+  return fn::Field<int>(
+      fn::FieldOperation::from(fn::multi_function::registry::lookup("max(int, int)"_ustr),
+                               {fn::Field<int>(1), count_field}));
 }
 
 static int get_count_from_length(const float curve_length,
@@ -52,7 +52,7 @@ static fn::Field<int> get_count_input_from_length(const fn::Field<float> &length
       get_count_from_length,
       mf::build::exec_presets::SomeSpanOrSingle<0, 1>());
 
-  auto get_count_op = fn::FieldOperation::from_non_owning(
+  auto get_count_op = fn::FieldOperation::from(
       get_count_fn,
       {fn::Field<float>::from_input<bke::CurveLengthFieldInput>(),
        length_field,

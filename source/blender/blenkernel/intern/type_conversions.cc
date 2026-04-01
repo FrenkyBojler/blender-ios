@@ -972,7 +972,7 @@ std::optional<fn::GField> DataTypeConversions::try_convert(fn::GField field,
   }
   const mf::MultiFunction &fn = *this->get_conversion_multi_function(
       mf::DataType::ForSingle(from_type), mf::DataType::ForSingle(to_type));
-  return fn::GField{fn::FieldOperation::from_non_owning(fn, {std::move(field)})};
+  return fn::GField{fn::FieldOperation::from(fn, {std::move(field)})};
 }
 
 }  // namespace blender::bke

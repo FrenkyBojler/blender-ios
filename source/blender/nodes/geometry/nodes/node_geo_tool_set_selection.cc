@@ -68,19 +68,19 @@ static GField clamp_selection(const GField &selection)
   }
   static auto clamp = mf::build::SI1_SO<float, float>(
       "Clamp", [](const float value) { return std::clamp(value, 0.0f, 1.0f); });
-  return Field<float>(FieldOperation::from_non_owning(clamp, {selection}));
+  return Field<float>(FieldOperation::from(clamp, {selection}));
 }
 
 static GField invert_selection(const GField &selection)
 {
   if (selection.cpp_type().is<bool>()) {
     static const mf::MultiFunction &invert = fn::multi_function::registry::lookup("!bool"_ustr);
-    return GField(FieldOperation::from_non_owning(invert, {selection}));
+    return GField(FieldOperation::from(invert, {selection}));
   }
 
   static const mf::MultiFunction &invert = fn::multi_function::registry::lookup(
       "float - float"_ustr);
-  return GField(FieldOperation::from_non_owning(invert, {fn::Field<float>(1.0f), selection}));
+  return GField(FieldOperation::from(invert, {fn::Field<float>(1.0f), selection}));
 }
 
 /**

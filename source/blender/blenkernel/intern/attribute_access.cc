@@ -552,7 +552,7 @@ Set<StringRef> MutableAttributeAccessor::rename(const Map<StringRef, StringRef> 
 fn::GField AttributeValidator::validate_field_if_necessary(const fn::GField &field) const
 {
   if (function) {
-    auto validate_op = fn::FieldOperation::from_non_owning(*function, {field});
+    auto validate_op = fn::FieldOperation::from(*function, {field});
     return fn::GField(validate_op);
   }
   return field;
