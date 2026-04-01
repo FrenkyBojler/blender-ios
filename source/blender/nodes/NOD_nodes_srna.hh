@@ -14,6 +14,11 @@ struct BlenderRNA;
 struct StructRNA;
 namespace nodes {
 
+/**
+ * Contains a runtime registration of RNA types generated based on the node group's interface for
+ * a particular context. These RNA types are not registered in the global list, but owned by the
+ * node group so that RNA access to interface properties works as long as the node group exists.
+ */
 struct GeneratedTreeSrnaData {
   ResourceScope scope;
   StructRNA *properties_struct;
