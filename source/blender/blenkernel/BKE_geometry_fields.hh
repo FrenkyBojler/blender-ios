@@ -314,6 +314,8 @@ class AttributeFieldInput : public GeometryFieldInput {
   uint64_t hash() const override;
   bool is_equal_to(const fn::FieldInput &other) const override;
   std::optional<AttrDomain> preferred_domain(const GeometryComponent &component) const override;
+
+  static const fn::GField &position_field();
 };
 
 class AttributeExistsFieldInput final : public bke::GeometryFieldInput {

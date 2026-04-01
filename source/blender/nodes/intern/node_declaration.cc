@@ -1057,8 +1057,7 @@ namespace implicit_field_inputs {
 
 static void position(const bNode & /*node*/, void *r_value)
 {
-  bke::SocketValueVariant::ConstructIn(r_value,
-                                       bke::AttributeFieldInput::from<float3>("position"));
+  bke::SocketValueVariant::ConstructIn(r_value, bke::AttributeFieldInput::position_field());
 }
 
 static void normal(const bNode & /*node*/, void *r_value)

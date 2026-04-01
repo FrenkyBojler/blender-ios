@@ -485,6 +485,13 @@ std::optional<AttrDomain> AttributeFieldInput::preferred_domain(
   return meta_data->domain;
 }
 
+const fn::GField &AttributeFieldInput::position_field()
+{
+  static const fn::GField position_field = AttributeFieldInput::from<float3>("position");
+  static const fn::GField position_field_ref = fn::GField::from_non_owning_ref(position_field);
+  return position_field_ref;
+}
+
 static StringRef get_random_id_attribute_name(const AttrDomain domain)
 {
   switch (domain) {
