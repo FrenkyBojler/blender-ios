@@ -285,6 +285,7 @@ class CompositorModifierContext : public CompositorContext {
           else {
             input_result->allocate_invalid();
           }
+          found_mask_input = true;
         }
         else {
           PointerRNA input_props_ptr = RNA_pointer_get(&inputs_ptr, input_socket->identifier);
