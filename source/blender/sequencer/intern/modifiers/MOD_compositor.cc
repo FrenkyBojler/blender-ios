@@ -138,7 +138,23 @@ static void set_single_input_from_rna_value(PointerRNA *input_props_ptr,
       }
       break;
     }
-    case SOCK_OBJECT:
+    case SOCK_INT_VECTOR: {
+      const auto type = CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == CompositorNodesInputType::Value) {
+        int3 value;
+        RNA_int_get_array(input_props_ptr, "value", value);
+        result.set_single_value(value);
+      }
+      break;
+    }
+    case SOCK_OBJECT: {
+      const auto type = CompositorNodesInputType(RNA_enum_get(input_props_ptr, "type"));
+      if (type == CompositorNodesInputType::Value) {
+        Object *value = RNA_pointer_get(input_props_ptr, "value").data_as<Object>();
+        result.set_single_value(value);
+      }
+      break;
+    }
     case SOCK_IMAGE:
     case SOCK_COLLECTION:
     case SOCK_TEXTURE:
@@ -154,7 +170,6 @@ static void set_single_input_from_rna_value(PointerRNA *input_props_ptr,
     case SOCK_CLOSURE:
     case SOCK_SHADER:
     case SOCK_CUSTOM:
-    case SOCK_INT_VECTOR:
       break;
   }
 }
