@@ -315,10 +315,10 @@ static void pose_slide_refresh(bContext *C, tPoseSlideOp *pso)
  * I (christoph) don't know why the frame range is stored per object. There doesn't seem to be a
  * good reason for it. Ideally this is just one value.
  */
-static bool pose_frame_range_from_object_get(tPoseSlideOp *pso,
-                                             ID *id,
-                                             float *prev_frame,
-                                             float *next_frame)
+static bool pose_frame_range_from_id_get(tPoseSlideOp *pso,
+                                         ID *id,
+                                         float *prev_frame,
+                                         float *next_frame)
 {
   for (tPoseSlideObject &ob_data : pso->ob_data_array) {
 
@@ -339,7 +339,7 @@ static void pose_slide_apply_val(tPoseSlideOp *pso, const FCurve *fcu, ID *id, f
 {
   float prev_frame, next_frame;
   float prev_weight, next_weight;
-  pose_frame_range_from_object_get(pso, id, &prev_frame, &next_frame);
+  pose_frame_range_from_id_get(pso, id, &prev_frame, &next_frame);
 
   const float factor = ED_slider_factor_get(pso->slider);
   const float current_frame = float(pso->current_frame);
@@ -571,127 +571,84 @@ static void pose_slide_apply_props(tPoseSlideOp *pso,
   }
 }
 
+static Vector<FCurve *> fcurves_filtered_by_path(const Span<FCurve *> input_fcurves,
+                                                 StringRef path)
+{
+  Vector<FCurve *> fcurves;
+  for (FCurve *fcu : input_fcurves) {
+    if (StringRefNull(fcu->rna_path) != path) {
+      continue;
+    }
+    fcurves.append(fcu);
+  }
+  return fcurves;
+}
+
 /**
  * Helper for apply() - perform sliding for quaternion rotations (using quat blending).
  */
 static void pose_slide_apply_quat(tPoseSlideOp *pso, tPChanFCurveLink *pfl)
 {
-  const FCurve *fcu_w = nullptr, *fcu_x = nullptr, *fcu_y = nullptr, *fcu_z = nullptr;
   animrig::Transformable *transformable = pfl->transformable;
-  bPoseChannel *pchan = static_cast<bPoseChannel *>(transformable->data());
   float prev_frame, next_frame;
 
-  if (!pose_frame_range_from_object_get(
-          pso, pfl->transformable->owner_id(), &prev_frame, &next_frame))
-  {
+  if (!pose_frame_range_from_id_get(pso, transformable->owner_id(), &prev_frame, &next_frame)) {
     BLI_assert_msg(0, "Invalid pfl data");
     return;
   }
 
   /* Get the path to use - this should be quaternion rotations only (needs care). */
-  std::string path = fmt::format("{}.{}", pfl->transformable->rna_path(), "rotation_quaternion");
+  std::string path = fmt::format("{}.{}", transformable->rna_path(), "rotation_quaternion");
 
   /* Get the current frame number. */
   const float current_frame = float(pso->current_frame);
   const float factor = ED_slider_factor_get(pso->slider);
 
-  for (FCurve *fcu : pfl->fcurves) {
-    if (StringRefNull(fcu->rna_path) != path) {
-      continue;
-    }
-
-    /* Assign this F-Curve to one of the relevant pointers. */
-    switch (fcu->array_index) {
-      case 3: /* z */
-        fcu_z = fcu;
-        break;
-      case 2: /* y */
-        fcu_y = fcu;
-        break;
-      case 1: /* x */
-        fcu_x = fcu;
-        break;
-      case 0: /* w */
-        fcu_w = fcu;
-        break;
-    }
+  /* By using `get_rotation()` we use the current values as default in case they are not animated.
+   * Due to using spherical blending, the not-animated values may be modified which may not be
+   * expected by the user. Ideally this throws a warning.  */
+  animrig::Rotation rot_prev_frame = transformable->get_rotation();
+  animrig::Rotation rot_next_frame = rot_prev_frame;
+  Vector<FCurve *> quaternion_fcurves = fcurves_filtered_by_path(pfl->fcurves, path);
+  for (const FCurve *fcurve : quaternion_fcurves) {
+    rot_prev_frame.values[fcurve->array_index] = evaluate_fcurve(fcurve, prev_frame);
+    rot_next_frame.values[fcurve->array_index] = evaluate_fcurve(fcurve, next_frame);
   }
 
-  /* Only if all channels exist, proceed. */
-  if (fcu_w && fcu_x && fcu_y && fcu_z) {
-    float quat_final[4];
+  /* Perform blending. */
+  if (ELEM(pso->mode, POSESLIDE_BREAKDOWN, POSESLIDE_PUSH, POSESLIDE_RELAX)) {
 
-    /* Perform blending. */
-    if (ELEM(pso->mode, POSESLIDE_BREAKDOWN, POSESLIDE_PUSH, POSESLIDE_RELAX)) {
-      float quat_prev[4], quat_next[4];
+    if (pso->mode == POSESLIDE_BREAKDOWN) {
+      transformable->set_rotation(rot_prev_frame);
+      transformable->blend_rotation_to(rot_next_frame, factor, animrig::AxisFlag::NONE);
+    }
+    else {
+      /* Compute breakdown based on actual frame range. */
+      const float interp_factor = (current_frame - pso->prev_frame) /
+                                  float(pso->next_frame - pso->prev_frame);
+      animrig::Rotation current = transformable->get_rotation();
+      animrig::Rotation breakdown = animrig::Rotation::interpolated(
+          rot_prev_frame, rot_next_frame, interp_factor);
 
-      quat_prev[0] = evaluate_fcurve(fcu_w, prev_frame);
-      quat_prev[1] = evaluate_fcurve(fcu_x, prev_frame);
-      quat_prev[2] = evaluate_fcurve(fcu_y, prev_frame);
-      quat_prev[3] = evaluate_fcurve(fcu_z, prev_frame);
-
-      quat_next[0] = evaluate_fcurve(fcu_w, next_frame);
-      quat_next[1] = evaluate_fcurve(fcu_x, next_frame);
-      quat_next[2] = evaluate_fcurve(fcu_y, next_frame);
-      quat_next[3] = evaluate_fcurve(fcu_z, next_frame);
-
-      normalize_qt(quat_prev);
-      normalize_qt(quat_next);
-
-      if (pso->mode == POSESLIDE_BREAKDOWN) {
-        /* Just perform the interpolation between quat_prev and
-         * quat_next using pso->factor as a guide. */
-        interp_qt_qtqt(quat_final, quat_prev, quat_next, factor);
+      if (pso->mode == POSESLIDE_PUSH) {
+        transformable->set_rotation(breakdown);
+        transformable->blend_rotation_to(current, factor, animrig::AxisFlag::NONE);
       }
       else {
-        float quat_curr[4], quat_breakdown[4];
-
-        normalize_qt_qt(quat_curr, pchan->quat);
-
-        /* Compute breakdown based on actual frame range. */
-        const float interp_factor = (current_frame - pso->prev_frame) /
-                                    float(pso->next_frame - pso->prev_frame);
-
-        interp_qt_qtqt(quat_breakdown, quat_prev, quat_next, interp_factor);
-
-        if (pso->mode == POSESLIDE_PUSH) {
-          interp_qt_qtqt(quat_final, quat_breakdown, quat_curr, 1.0f + factor);
-        }
-        else {
-          BLI_assert(pso->mode == POSESLIDE_RELAX);
-          interp_qt_qtqt(quat_final, quat_curr, quat_breakdown, factor);
-        }
+        BLI_assert(pso->mode == POSESLIDE_RELAX);
+        transformable->set_rotation(current);
+        transformable->blend_rotation_to(breakdown, factor, animrig::AxisFlag::NONE);
       }
     }
-    else if (pso->mode == POSESLIDE_BLEND) {
-      float quat_blend[4];
-      float quat_curr[4];
-
-      copy_qt_qt(quat_curr, pchan->quat);
-
-      if (factor < 0.5) {
-        quat_blend[0] = evaluate_fcurve(fcu_w, prev_frame);
-        quat_blend[1] = evaluate_fcurve(fcu_x, prev_frame);
-        quat_blend[2] = evaluate_fcurve(fcu_y, prev_frame);
-        quat_blend[3] = evaluate_fcurve(fcu_z, prev_frame);
-      }
-      else {
-        quat_blend[0] = evaluate_fcurve(fcu_w, next_frame);
-        quat_blend[1] = evaluate_fcurve(fcu_x, next_frame);
-        quat_blend[2] = evaluate_fcurve(fcu_y, next_frame);
-        quat_blend[3] = evaluate_fcurve(fcu_z, next_frame);
-      }
-
-      normalize_qt(quat_blend);
-      normalize_qt(quat_curr);
-
-      const float blend_factor = fabs((factor - 0.5f) * 2);
-
-      interp_qt_qtqt(quat_final, quat_curr, quat_blend, blend_factor);
+  }
+  else if (pso->mode == POSESLIDE_BLEND) {
+    const float blend_factor = fabs((factor - 0.5f) * 2);
+    if (factor < 0.5) {
+      transformable->blend_rotation_to(rot_prev_frame, blend_factor, animrig::AxisFlag::NONE);
     }
-
-    /* Apply final to the pose bone, keeping compatible for similar keyframe positions. */
-    quat_to_compatible_quat(pchan->quat, quat_final, pchan->quat);
+    else {
+      transformable->blend_rotation_to(rot_next_frame, blend_factor, animrig::AxisFlag::NONE);
+    }
   }
 }
 

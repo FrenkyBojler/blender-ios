@@ -49,7 +49,9 @@ struct Rotation {
 
   /* Returns a copy of the rotation in the given mode. */
   Rotation converted_to_mode(eRotationModes mode) const;
+  /* Returns a unit rotation for the given mode. */
   static Rotation unit_rotation(eRotationModes mode);
+  static Rotation interpolated(const Rotation &a, const Rotation &b, float factor);
 };
 
 class Transformable {

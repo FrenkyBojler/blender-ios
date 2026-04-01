@@ -83,6 +83,30 @@ Rotation Rotation::unit_rotation(const eRotationModes mode)
   }
 }
 
+Rotation Rotation::interpolated(const Rotation &a, const Rotation &b, const float factor)
+{
+  /* TODO: lift this limiation. */
+  BLI_assert(a.mode == b.mode);
+
+  Rotation interpolated;
+  interpolated.mode = a.mode;
+  interpolated.values.reinitialize(a.values.size());
+  switch (a.mode) {
+    case ROT_MODE_QUAT:
+      interp_qt_qtqt(interpolated.values.data(), a.values.data(), b.values.data(), factor);
+      break;
+
+    default:
+      /* Should axis angle use a different interpolation mode? */
+      for (int i : interpolated.values.index_range()) {
+        interpolated.values[i] = interpf(a.values[i], b.values[i], factor);
+      }
+      break;
+  }
+
+  return interpolated;
+}
+
 StringRefNull Transformable::rna_path()
 {
   return rna_path_from_id_;
@@ -317,7 +341,9 @@ void Transformable::blend_rotation_to(const Rotation &target,
         current_quat[i] = *((*rotations_array)[i]);
       }
       normalize_qt(current_quat);
+      normalize_qt(rot.values.data());
       result.reinitialize(4);
+      /* We are not using the axis flag here. Not sure how that would work with quaternions. */
       interp_qt_qtqt(result.data(), current_quat, rot.values.data(), factor);
       break;
     }
@@ -326,6 +352,7 @@ void Transformable::blend_rotation_to(const Rotation &target,
       for (int i : IndexRange(4)) {
         result[i] = *((*rotations_array)[i]);
       }
+      /* Should this use spherical blending? */
       blend_linear(result, rot.values, factor, axis_flag);
       break;
     }
