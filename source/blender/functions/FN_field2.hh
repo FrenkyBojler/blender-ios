@@ -25,6 +25,10 @@ template<typename T> class Field;
 
 class GField {
  public:
+  struct Default {
+    const CPPType *type = nullptr;
+  };
+
   struct Input {
     FieldInputNodePtr node;
   };
@@ -55,20 +59,27 @@ class GField {
   };
 
   template<typename T>
-  static constexpr bool is_constant_v =
+  static constexpr bool is_constant_value_v =
       is_same_any_v<T, ConstantRef, TrivialInlineConstant, GeneralConstant>;
 
-  using GFieldVariant =
-      std::variant<Input, MultiFn, FieldRef, ConstantRef, TrivialInlineConstant, GeneralConstant>;
+  using GFieldVariant = std::variant<Default,
+                                     Input,
+                                     MultiFn,
+                                     FieldRef,
+                                     ConstantRef,
+                                     TrivialInlineConstant,
+                                     GeneralConstant>;
 
  private:
   GFieldVariant variant_;
 
-  GField() = default;
+  GField() = delete;
 
  public:
+  explicit GField(const CPPType &type);
   explicit GField(FieldInputNodePtr node);
   explicit GField(FieldMultiFunctionNodePtr node, int output_i);
+  explicit GField(GFieldVariant variant);
   static GField from_non_owning_ref(const GField &field);
   static GField from_constant(const CPPType &type, const void *value);
   static GField from_non_owning_constant(const CPPType &type, const void *value);
@@ -180,7 +191,9 @@ template<typename T> constexpr bool is_field_v<Field<T>> = true;
 /** \name Inline Methods
  * \{ */
 
+inline GField::GField(const CPPType &type) : variant_(Default{&type}) {}
 inline GField::GField(FieldInputNodePtr node) : variant_(Input{std::move(node)}) {}
+inline GField::GField(GFieldVariant variant) : variant_(std::move(variant)) {}
 inline GField::GField(FieldMultiFunctionNodePtr node, const int output_i)
     : variant_(MultiFn{std::move(node), output_i})
 {
@@ -188,9 +201,7 @@ inline GField::GField(FieldMultiFunctionNodePtr node, const int output_i)
 
 inline GField GField::from_non_owning_ref(const GField &field)
 {
-  GField ret;
-  ret.variant_ = FieldRef{&field};
-  return ret;
+  return GField(FieldRef{&field});
 }
 
 inline GField GField::from_constant(const CPPType &type, const void *value)
@@ -203,9 +214,7 @@ inline GField GField::from_constant(const CPPType &type, const void *value)
 
 inline GField GField::from_non_owning_constant(const CPPType &type, const void *value)
 {
-  GField ret;
-  ret.variant_ = ConstantRef{&type, value};
-  return ret;
+  return GField(ConstantRef{&type, value});
 }
 
 inline const CPPType &GField::cpp_type() const
@@ -221,7 +230,9 @@ inline const CPPType &GField::cpp_type() const
         else if constexpr (std::is_same_v<T, FieldRef>) {
           return v.field_ref->cpp_type();
         }
-        else if constexpr (is_same_any_v<T, ConstantRef, TrivialInlineConstant, GeneralConstant>) {
+        else if constexpr (
+            is_same_any_v<T, Default, ConstantRef, TrivialInlineConstant, GeneralConstant>)
+        {
           return *v.type;
         }
       },
@@ -239,7 +250,9 @@ inline const ImplicitSharingPtr<FieldInputs> &GField::field_inputs() const
         else if constexpr (std::is_same_v<T, FieldRef>) {
           return v.field_ref->field_inputs();
         }
-        else if constexpr (is_same_any_v<T, ConstantRef, TrivialInlineConstant, GeneralConstant>) {
+        else if constexpr (
+            is_same_any_v<T, Default, ConstantRef, TrivialInlineConstant, GeneralConstant>)
+        {
           return empty_inputs;
         }
       },
@@ -278,12 +291,12 @@ inline bool operator==(const GField &a, const GField &b)
           BLI_assert_unreachable();
           return false;
         }
-        else if constexpr (GField::is_constant_v<T>) {
+        else if constexpr (GField::is_constant_value_v<T>) {
           const CPPType &type_a = *v_a.type;
           const void *constant_a = v_a.value;
           return std::visit(
               [&]<typename U>(const U &v_b) -> bool {
-                if constexpr (GField::is_constant_v<U>) {
+                if constexpr (GField::is_constant_value_v<U>) {
                   const CPPType &type_b = *v_b.type;
                   if (type_a != type_b) {
                     return false;
@@ -307,18 +320,21 @@ inline uint64_t GField::hash() const
   const GField &ref = this->deref_field_ref();
   return std::visit(
       [&]<typename T>(const T &v) -> uint64_t {
-        if constexpr (std::is_same_v<T, GField::Input>) {
+        if constexpr (std::is_same_v<T, Input>) {
           return get_default_hash(v.node);
         }
-        else if constexpr (std::is_same_v<T, GField::MultiFn>) {
+        else if constexpr (std::is_same_v<T, MultiFn>) {
           return get_default_hash(v.node, v.output_i);
         }
-        else if constexpr (std::is_same_v<T, GField::FieldRef>) {
+        else if constexpr (std::is_same_v<T, FieldRef>) {
           /* Should not exist due to #deref_field_ref above. */
           BLI_assert_unreachable();
           return 0;
         }
-        else if constexpr (GField::is_constant_v<T>) {
+        else if constexpr (std::is_same_v<T, Default>) {
+          return 0;
+        }
+        else if constexpr (is_constant_value_v<T>) {
           return v.type->hash_or_fallback(v.value, uint64_t(v.type));
         }
       },
