@@ -27,6 +27,7 @@ struct wmGizmoGroupType;
 struct wmGizmoType;
 struct wmKeyConfig;
 struct wmOperatorType;
+struct wmWindow;
 
 /* `view3d_header.cc` */
 
@@ -58,6 +59,12 @@ void VIEW3D_OT_render_border(wmOperatorType *ot);
 void VIEW3D_OT_clear_render_border(wmOperatorType *ot);
 void VIEW3D_OT_toggle_shading(wmOperatorType *ot);
 void VIEW3D_OT_toggle_xray(wmOperatorType *ot);
+
+/* `space_view3d.cc` */
+
+#ifdef WITH_INPUT_IME
+void view3d_main_region_ime_refresh(wmWindow *win, ARegion *region);
+#endif
 
 /* `view3d_draw.cc` */
 

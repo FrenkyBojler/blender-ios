@@ -29,6 +29,10 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#ifdef WITH_INPUT_IME
+#  include "wm_window.hh"
+#endif
+
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
@@ -212,6 +216,30 @@ static void console_dropboxes()
 
 /* ************* end drop *********** */
 
+#ifdef WITH_INPUT_IME
+static void console_main_region_ime_refresh(wmWindow *win, ScrArea *area, ARegion *region)
+{
+  SpaceConsole *sc = static_cast<SpaceConsole *>(area->spacedata.first);
+  const ConsoleLine *cl = static_cast<const ConsoleLine *>(sc->history.last);
+  if (cl) {
+    int cursor_xy[2];
+    console_cursor_region_xy_get(sc, region, cl->cursor, cursor_xy);
+    /* The cursor may be scrolled out of view. */
+    cursor_xy[0] = std::clamp(cursor_xy[0], 0, BLI_rcti_size_x(&region->winrct));
+    cursor_xy[1] = std::clamp(cursor_xy[1], 0, BLI_rcti_size_y(&region->winrct));
+    wm_window_IME_begin(win,
+                        region->winrct.xmin + cursor_xy[0],
+                        region->winrct.ymin + cursor_xy[1],
+                        0,
+                        0,
+                        false);
+  }
+  else {
+    wm_window_IME_end(win);
+  }
+}
+#endif
+
 static void console_main_region_draw(const bContext *C, ARegion *region)
 {
   /* draw entirely, view changes should be handled here */
@@ -242,6 +270,15 @@ static void console_main_region_draw(const bContext *C, ARegion *region)
 
   /* scrollers */
   ui::view2d_scrollers_draw(v2d, nullptr);
+
+#ifdef WITH_INPUT_IME
+  if (!(v2d->flag & V2D_IS_NAVIGATING)) {
+    wmWindow *win = CTX_wm_window(C);
+    if (win->runtime->ime_data) {
+      console_main_region_ime_refresh(win, CTX_wm_area(C), region);
+    }
+  }
+#endif
 }
 
 static void console_operatortypes()
@@ -349,6 +386,21 @@ static void console_space_blend_write(BlendWriter *writer, SpaceLink *sl)
   writer->write_struct_cast<SpaceConsole>(sl);
 }
 
+#ifdef WITH_INPUT_IME
+static void console_main_region_on_activation_changed(wmWindow *win,
+                                                      ScrArea *area,
+                                                      ARegion *region,
+                                                      bool activated)
+{
+  if (activated) {
+    console_main_region_ime_refresh(win, area, region);
+  }
+  else {
+    wm_window_IME_end(win);
+  }
+}
+#endif
+
 void ED_spacetype_console()
 {
   std::unique_ptr<SpaceType> st = std::make_unique<SpaceType>();
@@ -377,6 +429,9 @@ void ED_spacetype_console()
   art->cursor = console_cursor;
   art->event_cursor = true;
   art->listener = console_main_region_listener;
+#ifdef WITH_INPUT_IME
+  art->on_activation_changed = console_main_region_on_activation_changed;
+#endif
 
   BLI_addhead(&st->regiontypes, art);
 

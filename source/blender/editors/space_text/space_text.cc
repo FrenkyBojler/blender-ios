@@ -20,12 +20,17 @@
 #include "BKE_lib_query.hh"
 #include "BKE_lib_remap.hh"
 #include "BKE_screen.hh"
+#include "BKE_text.h"
 
 #include "ED_screen.hh"
 #include "ED_space_api.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
+
+#ifdef WITH_INPUT_IME
+#  include "wm_window.hh"
+#endif
 
 #include "UI_interface.hh"
 #include "UI_resources.hh"
@@ -112,6 +117,32 @@ static SpaceLink *text_duplicate(SpaceLink *sl)
   return reinterpret_cast<SpaceLink *>(stextn);
 }
 
+#ifdef WITH_INPUT_IME
+static void text_main_region_ime_refresh(wmWindow *win, ScrArea *area, ARegion *region)
+{
+  SpaceText *st = static_cast<SpaceText *>(area->spacedata.first);
+  if (st->text) {
+    int offl, offc;
+    space_text_wrap_offset(st, region, st->text->sell, st->text->selc, &offl, &offc);
+    const int lheight = TXT_LINE_HEIGHT(st);
+    const int vsell = txt_get_span(static_cast<TextLine *>(st->text->lines.first),
+                                   st->text->sell) -
+                      st->top + offl;
+    const int vselc = space_text_get_char_pos(st, st->text->sell->line, st->text->selc) -
+                      st->left + offc;
+    int x = region->winrct.xmin + TXT_BODY_LEFT(st) + (vselc * st->runtime->cwidth_px);
+    int y = region->winrct.ymin + region->winy - vsell * lheight;
+    if (st->flags & ST_SCROLL_SELECT) {
+      y += st->runtime->scroll_ofs_px[1];
+    }
+    wm_window_IME_begin(win, x, y - lheight, 0, 0, false);
+  }
+  else {
+    wm_window_IME_end(win);
+  }
+}
+#endif
+
 static void text_listener(const wmSpaceTypeListenerParams *params)
 {
   ScrArea *area = params->area;
@@ -154,6 +185,14 @@ static void text_listener(const wmSpaceTypeListenerParams *params)
       break;
     case NC_SPACE:
       if (wmn->data == ND_SPACE_TEXT) {
+#ifdef WITH_INPUT_IME
+        {
+          ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
+          if (region) {
+            text_main_region_ime_refresh(params->window, area, region);
+          }
+        }
+#endif
         ED_area_tag_redraw(area);
       }
       break;
@@ -288,6 +327,15 @@ static void text_main_region_draw(const bContext *C, ARegion *region)
   // view2d_view_restore(C);
 
   /* Scroll-bars? */
+
+#ifdef WITH_INPUT_IME
+  if (!(st->flags & ST_SCROLL_SELECT)) {
+    wmWindow *win = CTX_wm_window(C);
+    if (win->runtime->ime_data) {
+      text_main_region_ime_refresh(win, CTX_wm_area(C), region);
+    }
+  }
+#endif
 }
 
 static void text_cursor(wmWindow *win, ScrArea *area, ARegion *region)
@@ -423,6 +471,21 @@ static void text_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 
 /********************* registration ********************/
 
+#ifdef WITH_INPUT_IME
+static void text_main_region_on_activation_changed(wmWindow *win,
+                                                   ScrArea *area,
+                                                   ARegion *region,
+                                                   bool activated)
+{
+  if (activated) {
+    text_main_region_ime_refresh(win, area, region);
+  }
+  else {
+    wm_window_IME_end(win);
+  }
+}
+#endif
+
 void ED_spacetype_text()
 {
   std::unique_ptr<SpaceType> st = std::make_unique<SpaceType>();
@@ -453,6 +516,9 @@ void ED_spacetype_text()
   art->draw = text_main_region_draw;
   art->cursor = text_cursor;
   art->event_cursor = true;
+#ifdef WITH_INPUT_IME
+  art->on_activation_changed = text_main_region_on_activation_changed;
+#endif
 
   BLI_addhead(&st->regiontypes, art);
 

@@ -12,6 +12,7 @@
 #include <cstring>
 
 #include "DNA_collection_types.h"
+#include "DNA_curve_types.h"
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_lightprobe_types.h"
 #include "DNA_object_types.h"
@@ -22,6 +23,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
+#include "BLI_math_matrix.hh"
 #include "BLI_math_vector.h"
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
@@ -40,6 +42,7 @@
 #include "BKE_object.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
+#include "BKE_vfont.hh"
 #include "BKE_viewer_path.hh"
 
 #include "ED_asset_shelf.hh"
@@ -559,18 +562,41 @@ static void *view3d_main_region_duplicate(void *poin)
 }
 
 #ifdef WITH_INPUT_IME
-static void view3d_main_region_ime_refresh(wmWindow *win, ARegion *region)
+void view3d_main_region_ime_refresh(wmWindow *win, ARegion *region)
 {
   ViewLayer *view_layer = WM_window_get_active_view_layer(win);
   if (view_layer) {
     Object *ob = BKE_view_layer_active_object_get(view_layer);
     if (ob && ob->type == OB_FONT && ob->mode == OB_MODE_EDIT) {
-      wm_window_IME_begin(win, region->winrct.xmin, region->winrct.ymax, 0, 0, true);
-    }
-    else {
-      wm_window_IME_end(win);
+      Curve *cu = id_cast<Curve *>(ob->data);
+      EditFont *ef = cu->editfont;
+
+      /* Bottom right corner of the text cursor to get its center in local space. */
+      float3 cursor_local = {UNPACK2(ef->textcurs[1]), 0.0f};
+
+      /* Transform to world space, then project to region coordinates. */
+      const float3 cursor_world = math::transform_point(ob->object_to_world(), cursor_local);
+      float2 cursor_screen;
+      if (ED_view3d_project_float_global(region, cursor_world, cursor_screen, V3D_PROJ_TEST_NOP) ==
+          V3D_PROJ_RET_OK)
+      {
+        /* Pass. */
+      }
+      else {
+        /* Outside the viewport, use a fallback position. */
+        cursor_screen = float2(0);
+      }
+      wm_window_IME_begin(win,
+                          region->winrct.xmin + int(cursor_screen[0]),
+                          region->winrct.ymin + int(cursor_screen[1]),
+                          0,
+                          0,
+                          true);
+
+      return;
     }
   }
+  wm_window_IME_end(win);
 }
 #endif
 
@@ -1623,7 +1649,7 @@ static void view3d_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 
 #ifdef WITH_INPUT_IME
 static void view3d_main_region_on_activation_changed(wmWindow *win,
-                                                     ScrArea *area,
+                                                     ScrArea * /*area*/,
                                                      ARegion *region,
                                                      bool activated)
 {
