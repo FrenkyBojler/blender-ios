@@ -317,6 +317,7 @@ class FieldInput : public ImplicitSharingMixin {
 
  public:
   FieldInput(const CPPType &type, std::string debug_name = "");
+  ~FieldInput();
 
   StringRefNull debug_name() const;
   virtual std::string socket_inspection_name() const;
@@ -381,6 +382,9 @@ class FieldOperation : public ImplicitSharingMixin {
   void delete_self() override;
 };
 
+bool operator==(const GField &a, const GField &b);
+bool operator==(const GFieldRef &a, const GFieldRef &b);
+
 /** Type trait to detect field types. */
 template<typename T> constexpr bool is_field_v = false;
 template<typename T> constexpr bool is_field_v<Field<T>> = true;
@@ -405,11 +409,6 @@ class IndexFieldInput final : public FieldInput {
 /** \name Inline Methods
  * \{ */
 
-inline FieldInput::FieldInput(const CPPType &type, std::string debug_name)
-    : type_(&type), debug_name_(std::move(debug_name))
-{
-}
-
 inline GField::GField(const CPPType &type) noexcept
     : variant_(ConstantRef{&type, type.default_value()})
 {
@@ -430,19 +429,6 @@ inline bool GField::TrivialInlineConstant::cpp_type_supported(const CPPType &typ
 {
   return type.is_trivial && type.size <= TrivialInlineConstant::inline_size &&
          type.alignment <= TrivialInlineConstant::inline_alignment;
-}
-
-inline GField GField::from_constant(const CPPType &type, const void *value)
-{
-  if (TrivialInlineConstant::cpp_type_supported(type)) {
-    TrivialInlineConstant constant;
-    constant.type = &type;
-    type.copy_construct(value, constant.value.ptr());
-    return GField(constant);
-  }
-  void *new_value = MEM_new_uninitialized_aligned(type.size, type.alignment, __func__);
-  type.copy_construct(value, new_value);
-  return GField(OwnedConstant{&type, new_value});
 }
 
 inline GField GField::from_non_owning_constant(const CPPType &type, const void *value)
@@ -507,101 +493,12 @@ inline const CPPType &GField::cpp_type() const
       this->variant_);
 }
 
-inline const FieldInputsPtr &GField::field_inputs() const
-{
-  static const ImplicitSharingPtr<FieldInputs> empty_inputs;
-  return std::visit(
-      []<typename T>(const T &v) -> const FieldInputsPtr & {
-        if constexpr (is_same_any_v<T, Input, MultiFn>) {
-          return v.node->field_inputs();
-        }
-        else if constexpr (std::is_same_v<T, FieldRef>) {
-          return v.field_ref->field_inputs();
-        }
-        else if constexpr (is_same_any_v<T, ConstantRef, TrivialInlineConstant, OwnedConstant>) {
-          return empty_inputs;
-        }
-      },
-      this->variant_);
-}
-
 inline const GField &GField::deref_field_ref() const
 {
   if (const auto *field_ref = std::get_if<FieldRef>(&this->variant_)) {
     return field_ref->field_ref->deref_field_ref();
   }
   return *this;
-}
-
-inline bool operator==(const GField &a, const GField &b)
-{
-  const GField &a_ref = a.deref_field_ref();
-  const GField &b_ref = b.deref_field_ref();
-
-  return std::visit(
-      [&]<typename T>(const T &v_a) -> bool {
-        if constexpr (std::is_same_v<T, GField::Input>) {
-          if (const auto *v_b = std::get_if<GField::Input>(&b_ref.variant_)) {
-            return v_a.node == v_b->node;
-          }
-          return false;
-        }
-        else if constexpr (std::is_same_v<T, GField::MultiFn>) {
-          if (const auto *v_b = std::get_if<GField::MultiFn>(&b_ref.variant_)) {
-            return v_a.node == v_b->node && v_a.output_i == v_b->output_i;
-          }
-          return false;
-        }
-        else if constexpr (std::is_same_v<T, GField::FieldRef>) {
-          /* Should not exist due to #deref_field_ref above. */
-          BLI_assert_unreachable();
-          return false;
-        }
-        else if constexpr (GField::is_constant_value_v<T>) {
-          const CPPType &type_a = *v_a.type;
-          const void *constant_a = v_a.value;
-          return std::visit(
-              [&]<typename U>(const U &v_b) -> bool {
-                if constexpr (GField::is_constant_value_v<U>) {
-                  const CPPType &type_b = *v_b.type;
-                  if (type_a != type_b) {
-                    return false;
-                  }
-                  const void *constant_b = v_b.value;
-                  return type_a.is_equal_or_false(constant_a, constant_b);
-                }
-                else {
-                  return false;
-                }
-              },
-              b_ref.variant_);
-        }
-        return false;
-      },
-      a_ref.variant_);
-}
-
-inline uint64_t GField::hash() const
-{
-  const GField &ref = this->deref_field_ref();
-  return std::visit(
-      [&]<typename T>(const T &v) -> uint64_t {
-        if constexpr (std::is_same_v<T, Input>) {
-          return get_default_hash(v.node);
-        }
-        else if constexpr (std::is_same_v<T, MultiFn>) {
-          return get_default_hash(v.node, v.output_i);
-        }
-        else if constexpr (std::is_same_v<T, FieldRef>) {
-          /* Should not exist due to #deref_field_ref above. */
-          BLI_assert_unreachable();
-          return 0;
-        }
-        else if constexpr (is_constant_value_v<T>) {
-          return v.type->hash_or_fallback(v.value, uint64_t(v.type));
-        }
-      },
-      ref.variant_);
 }
 
 template<typename T> inline bool operator==(const Field<T> &a, const Field<T> &b)
@@ -612,16 +509,6 @@ template<typename T> inline bool operator==(const Field<T> &a, const Field<T> &b
 template<typename T> inline uint64_t Field<T>::hash() const
 {
   return field_.hash();
-}
-
-inline const FieldInputsPtr &FieldInput::field_inputs() const
-{
-  field_inputs_mutex_.ensure([&]() {
-    FieldInputs *inputs = MEM_new<FieldInputs>(__func__);
-    inputs->inputs.add(*this);
-    field_inputs_ = FieldInputsPtr(inputs);
-  });
-  return field_inputs_;
 }
 
 inline const CPPType &FieldInput::cpp_type() const
@@ -639,118 +526,9 @@ inline bool FieldInput::is_equal_to(const FieldInput &other) const
   return this == &other;
 }
 
-inline void FieldInput::foreach_recursive_field(FunctionRef<void(const GField &)> /*fn*/) const {}
-
 inline const FieldInputsPtr &FieldOperation::field_inputs() const
 {
   return field_inputs_;
-}
-
-inline void FieldInput::delete_self()
-{
-  MEM_delete(this);
-}
-
-inline void FieldOperation::delete_self()
-{
-  MEM_delete(this);
-}
-
-inline void FieldInputs::delete_self()
-{
-  MEM_delete(this);
-}
-
-inline const CPPType &FieldOperation::output_cpp_type(const int output_i) const
-{
-  int count = 0;
-  for (const int param_index : fn_->param_indices()) {
-    const mf::ParamType param_type = fn_->param_type(param_index);
-    if (param_type.is_output()) {
-      if (count == output_i) {
-        return param_type.data_type().single_type();
-      }
-      count++;
-    }
-  }
-  BLI_assert_unreachable();
-  return CPPType::get<float>();
-}
-
-inline FieldOperationPtr FieldOperation::from(std::shared_ptr<const mf::MultiFunction> fn,
-                                              Vector<GField> inputs)
-{
-  return FieldOperationPtr(MEM_new<FieldOperation>(__func__, std::move(fn), std::move(inputs)));
-}
-
-inline FieldOperationPtr FieldOperation::from_non_owning(const mf::MultiFunction &fn,
-                                                         Vector<GField> inputs)
-{
-  return FieldOperationPtr(MEM_new<FieldOperation>(__func__, fn, inputs));
-}
-
-inline FieldInputsPtr combine_field_inputs(const Span<GField> &fields)
-{
-  bool candidate_valid = true;
-  const FieldInputsPtr *candidate = nullptr;
-  for (const GField &field : fields) {
-    const FieldInputsPtr &field_inputs_ptr = field.field_inputs();
-    if (!field_inputs_ptr) {
-      continue;
-    }
-    if (!candidate) {
-      candidate = &field_inputs_ptr;
-      continue;
-    }
-    if (field_inputs_ptr == *candidate) {
-      continue;
-    }
-    const FieldInputsPtr *smaller_candidate = candidate;
-    const FieldInputsPtr *larger_candidate = &field_inputs_ptr;
-    if ((*smaller_candidate)->inputs.size() > (*larger_candidate)->inputs.size()) {
-      std::swap(smaller_candidate, larger_candidate);
-    }
-    for (const FieldInput &field_input : (*smaller_candidate)->inputs) {
-      if (!(*larger_candidate)->inputs.contains(field_input)) {
-        candidate_valid = false;
-        break;
-      }
-    }
-    if (!candidate_valid) {
-      break;
-    }
-    candidate = larger_candidate;
-  }
-  if (candidate_valid) {
-    if (candidate) {
-      return *candidate;
-    }
-    return {};
-  }
-  FieldInputs *new_field_inputs = MEM_new<FieldInputs>(__func__);
-  for (const GField &field : fields) {
-    const FieldInputsPtr &field_inputs_ptr = field.field_inputs();
-    if (!field_inputs_ptr) {
-      continue;
-    }
-    for (const FieldInput &field_input : field_inputs_ptr->inputs) {
-      new_field_inputs->inputs.add(field_input);
-    }
-  }
-  return FieldInputsPtr(new_field_inputs);
-}
-
-inline FieldOperation::FieldOperation(std::shared_ptr<const mf::MultiFunction> fn,
-                                      Vector<GField> inputs)
-    : FieldOperation(*fn, std::move(inputs))
-{
-  owned_fn_ = std::move(fn);
-}
-
-inline FieldOperation::FieldOperation(const mf::MultiFunction &fn, Vector<GField> inputs)
-    : inputs_(inputs), fn_(&fn)
-{
-  field_inputs_ = combine_field_inputs(inputs_);
 }
 
 inline StringRefNull FieldInput::debug_name() const
@@ -785,58 +563,6 @@ template<typename T> inline Field<T> &GField::typed()
 inline const GField::Variant &GField::variant() const
 {
   return variant_;
-}
-
-inline GField::GField(const GField &other) : variant_(other.variant_)
-{
-  std::visit(
-      [&]<typename T>(T &v) {
-        if constexpr (std::is_same_v<T, OwnedConstant>) {
-          void *new_value = MEM_new_uninitialized_aligned(
-              v.type->size, v.type->alignment, __func__);
-          v.type->copy_construct(v.value, new_value);
-          v.value = new_value;
-        }
-      },
-      variant_);
-}
-
-inline GField::GField(GField &&other) noexcept : variant_(std::move(other.variant_))
-{
-  const CPPType &type = this->cpp_type();
-  other.variant_ = ConstantRef{&type, type.default_value()};
-}
-
-inline GField &GField::operator=(const GField &other)
-{
-  if (this == &other) {
-    return *this;
-  }
-  this->~GField();
-  new (this) GField(other);
-  return *this;
-}
-
-inline GField &GField::operator=(GField &&other) noexcept
-{
-  if (this == &other) {
-    return *this;
-  }
-  this->~GField();
-  new (this) GField(std::move(other));
-  return *this;
-}
-
-inline GField::~GField()
-{
-  std::visit(
-      [&]<typename T>(T &v) {
-        if constexpr (std::is_same_v<T, OwnedConstant>) {
-          v.type->destruct(v.value);
-          MEM_delete_void(v.value);
-        }
-      },
-      variant_);
 }
 
 template<typename T> inline Field<T>::Field() : field_(CPPType::get<T>()) {}
@@ -885,28 +611,6 @@ inline GFieldRef::GFieldRef(const FieldOperation &field_multi_fn, int output_i)
 {
 }
 
-inline GFieldRef::GFieldRef(const GField &field)
-    : variant_(std::visit(
-          []<typename T>(const T &v) -> Variant {
-            if constexpr (std::is_same_v<T, GField::Input>) {
-              return Input{v.node.get()};
-            }
-            else if constexpr (std::is_same_v<T, GField::MultiFn>) {
-              return MultiFn{v.node.get(), v.output_i};
-            }
-            else if constexpr (std::is_same_v<T, GField::FieldRef>) {
-              /* Should not exist due to #deref_field_ref. */
-              BLI_assert_unreachable();
-              return Value{};
-            }
-            else if constexpr (GField::is_constant_value_v<T>) {
-              return Value{v.type, v.value};
-            }
-          },
-          field.deref_field_ref().variant()))
-{
-}
-
 template<typename T>
 inline GFieldRef::GFieldRef(const Field<T> &field) : GFieldRef(static_cast<const GField &>(field))
 {
@@ -929,70 +633,6 @@ inline const CPPType &GFieldRef::cpp_type() const
         }
         else if constexpr (std::is_same_v<T, MultiFn>) {
           return v.node->output_cpp_type(v.output_i);
-        }
-      },
-      variant_);
-}
-
-inline const FieldInputsPtr &GFieldRef::field_inputs() const
-{
-  static const ImplicitSharingPtr<FieldInputs> empty_inputs;
-  return std::visit(
-      [&]<typename T>(const T &v) -> const FieldInputsPtr & {
-        if constexpr (std::is_same_v<T, Input>) {
-          return v.node->field_inputs();
-        }
-        else if constexpr (std::is_same_v<T, MultiFn>) {
-          return v.node->field_inputs();
-        }
-        else if constexpr (std::is_same_v<T, Value>) {
-          return empty_inputs;
-        }
-      },
-      variant_);
-}
-
-inline bool operator==(const GFieldRef &a, const GFieldRef &b)
-{
-  return std::visit(
-      [&]<typename T>(const T &v_a) -> bool {
-        if constexpr (std::is_same_v<T, GFieldRef::Value>) {
-          if (const auto *v_b = std::get_if<GFieldRef::Value>(&b.variant())) {
-            if (v_a.type != v_b->type) {
-              return false;
-            }
-            return v_a.type->is_equal_or_false(v_a.value, v_b->value);
-          }
-          return false;
-        }
-        else if constexpr (std::is_same_v<T, GFieldRef::Input>) {
-          if (const auto *v_b = std::get_if<GFieldRef::Input>(&b.variant())) {
-            return v_a.node == v_b->node;
-          }
-          return false;
-        }
-        else if constexpr (std::is_same_v<T, GFieldRef::MultiFn>) {
-          if (const auto *v_b = std::get_if<GFieldRef::MultiFn>(&b.variant())) {
-            return v_a.node == v_b->node && v_a.output_i == v_b->output_i;
-          }
-          return false;
-        }
-      },
-      a.variant());
-}
-
-inline uint64_t GFieldRef::hash() const
-{
-  return std::visit(
-      [&]<typename T>(const T &v) -> uint64_t {
-        if constexpr (std::is_same_v<T, Value>) {
-          return v.type->hash_or_fallback(v.value, uint64_t(v.type));
-        }
-        else if constexpr (std::is_same_v<T, Input>) {
-          return get_default_hash(v.node);
-        }
-        else if constexpr (std::is_same_v<T, MultiFn>) {
-          return get_default_hash(v.node, v.output_i);
         }
       },
       variant_);
