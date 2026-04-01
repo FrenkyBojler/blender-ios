@@ -17,10 +17,10 @@ namespace blender::nodes::node_geo_input_shortest_edge_paths_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Bool>("End Vertex").default_value(false).hide_value().supports_field();
-  b.add_input<decl::Float>("Edge Cost").default_value(1.0f).hide_value().supports_field();
-  b.add_output<decl::Int>("Next Vertex Index").field_source().reference_pass_all();
-  b.add_output<decl::Float>("Total Cost").field_source().reference_pass_all();
+  b.add_input<decl::Bool>("End Vertex"_ustr).default_value(false).hide_value().supports_field();
+  b.add_input<decl::Float>("Edge Cost"_ustr).default_value(1.0f).hide_value().supports_field();
+  b.add_output<decl::Int>("Next Vertex Index"_ustr).field_source().reference_pass_all();
+  b.add_output<decl::Float>("Total Cost"_ustr).field_source().reference_pass_all();
 }
 
 using VertPriority = std::pair<float, int>;
@@ -90,7 +90,6 @@ class ShortestEdgePathsNextVertFieldInput final : public bke::MeshFieldInput {
         end_selection_(end_selection),
         cost_(cost)
   {
-    category_ = Category::Generated;
   }
 
   GVArray get_varray_for_context(const Mesh &mesh,
@@ -174,7 +173,6 @@ class ShortestEdgePathsCostFieldInput final : public bke::MeshFieldInput {
         end_selection_(end_selection),
         cost_(cost)
   {
-    category_ = Category::Generated;
   }
 
   GVArray get_varray_for_context(const Mesh &mesh,

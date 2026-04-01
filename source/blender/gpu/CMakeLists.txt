@@ -99,8 +99,8 @@ set(SRC
   intern/gpu_state.cc
   intern/gpu_storage_buffer.cc
   intern/gpu_texture.cc
-  intern/gpu_texture_pool.cc
   intern/gpu_texture_mipmap.cc
+  intern/gpu_texture_pool.cc
   intern/gpu_uniform_buffer.cc
   intern/gpu_vertex_buffer.cc
   intern/gpu_vertex_format.cc
@@ -118,7 +118,6 @@ set(SRC
   shader_tool/namespace.cc
   shader_tool/processor.cc
   shader_tool/resource_table.cc
-  shader_tool/shader_tool.cc
   shader_tool/string.cc
   shader_tool/struct.cc
   shader_tool/template.cc
@@ -822,8 +821,8 @@ set(GLSL_INC
   intern
   shaders
   shaders/common
-  shaders/material
   shaders/infos
+  shaders/material
 
   vulkan/shaders
 )
