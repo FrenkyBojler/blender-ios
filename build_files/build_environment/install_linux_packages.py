@@ -387,15 +387,32 @@ class PackageInstaller:
 
         p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         pbar = ProgressBar(is_known_limit=False)
+        # Note: In some cases installing many packages can generate a lot of output in stdout, saturating
+        # the stream and leading to a forever-hanging state. Work around this by reading the streams in
+        # the polling loop.
+        stdout = p.stdout.read(1024)
+        stderr = p.stderr.read(1024)
         while p.poll() is None:
+            stdout += p.stdout.read(1024)
+            stderr += p.stderr.read(1024)
             pbar.update(steps=2)
             time.sleep(0.05)
         pbar.finish()
         return subprocess.CompletedProcess(
             args=command,
             returncode=p.returncode,
-            stdout=p.stdout.read(),
-            stderr=p.stderr.read())
+            stdout=stdout,
+            stderr=stderr)
+
+
+    @staticmethod
+    def is_returncode_successful(returncode):
+        # These values are:
+        #   - 0: Success.
+        #   - [64 - 113]: Generally considered 'user-defined' exit codes, assumed as 'success' here
+        #                 (e.g. dnf in Fedora 43 returns 100 when updates are available).
+        # See https://tldp.org/LDP/abs/html/exitcodes.html
+        return returncode == 0 or 64 <= returncode <= 113
 
     @property
     def can_install(self):
@@ -548,12 +565,13 @@ class PackageInstaller:
 
         self.settings.logger.info("Trying to update packages info.")
         result = self.run_command(self._update_command)
-        if result.returncode != 0:
+        success = self.is_returncode_successful(result.returncode)
+        if not success:
             self.settings.logger.critical(f"\tFailed to update packages info:\n\t{repr(result)}\n")
             exit(1)
         self.settings.logger.info("Done.\n")
         self.settings.logger.debug(repr(result))
-        return result.returncode == 0
+        return success
 
     def package_find(self, package, package_distro_name):
         """
@@ -709,7 +727,8 @@ class PackageInstaller:
         self.settings.logger.info(f"\tInstalling package {package_name} ({package_version}).")
         cmd = self._install_command + [package_name]
         result = self.run_command(cmd)
-        if result.returncode != 0:
+        success = self.is_returncode_successful(result.returncode)
+        if not success:
             self.settings.logger.critical(f"\tFailed to install {package_name}:\n\t{repr(result)}")
             exit(1)
 
@@ -720,7 +739,7 @@ class PackageInstaller:
             exit(1)
         self.settings.logger.debug(repr(result))
         package.version_installed = package_version_installed
-        return result.returncode == 0
+        return success
 
     def group_package_install(self, package, parent_packages=()):
         """Install a group package and all of its sub-packages."""
@@ -744,7 +763,8 @@ class PackageInstaller:
         self.settings.logger.info(f"\tInstalling packages {', '.join(packages_distro_names)}.")
         cmd = self._install_command + [*packages_distro_names]
         result = self.run_command(cmd)
-        if result.returncode != 0:
+        success = self.is_returncode_successful(result.returncode)
+        if not success:
             if package.is_mandatory:
                 self.settings.logger.critical(f"\tFailed to install packages:\n\t{repr(result)}")
                 exit(1)
@@ -752,7 +772,7 @@ class PackageInstaller:
                 self.settings.logger.warning(
                     f"\tFailed to find install all of {packages_distro_names}:\n\t{repr(result)}")
         self.settings.logger.debug(repr(result))
-        return result.returncode == 0
+        return success
 
     # Implementation-specific, will most likely need to be re-defined in sub-classes.
     # ----------
