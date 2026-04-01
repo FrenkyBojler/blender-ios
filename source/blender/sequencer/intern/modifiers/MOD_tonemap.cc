@@ -15,6 +15,7 @@
 #include "IMB_colormanagement.hh"
 
 #include "SEQ_modifier.hh"
+#include "SEQ_render.hh"
 
 #include "UI_interface.hh"
 #include "UI_interface_layout.hh"
@@ -22,6 +23,7 @@
 #include "RNA_access.hh"
 
 #include "modifier.hh"
+#include "render.hh"
 
 namespace blender::seq {
 
@@ -36,7 +38,7 @@ struct AvgLogLum {
 
 static void tonemapmodifier_init_data(StripModifierData *smd)
 {
-  SequencerTonemapModifierData *tmmd = (SequencerTonemapModifierData *)smd;
+  SequencerTonemapModifierData *tmmd = reinterpret_cast<SequencerTonemapModifierData *>(smd);
   /* Same as tone-map compositor node. */
   tmmd->type = SEQ_TONEMAP_RD_PHOTORECEPTOR;
   tmmd->key = 0.18f;
@@ -54,7 +56,7 @@ static void pixels_to_scene_linear_float(const ColorSpace *colorspace,
                                          int64_t count)
 {
   IMB_colormanagement_colorspace_to_scene_linear(
-      (float *)(pixels), int(count), 1, 4, colorspace, false);
+      reinterpret_cast<float *>(pixels), int(count), 1, 4, colorspace, false);
 }
 
 /* Convert chunk of byte image pixels to scene linear space, into a destination array. */
@@ -71,14 +73,14 @@ static void pixels_to_scene_linear_byte(const ColorSpace *colorspace,
     dst_ptr++;
   }
   IMB_colormanagement_colorspace_to_scene_linear(
-      (float *)dst, int(count), 1, 4, colorspace, false);
+      reinterpret_cast<float *>(dst), int(count), 1, 4, colorspace, false);
 }
 
 static void scene_linear_to_image_chunk_byte(float4 *src, ImBuf *ibuf, IndexRange range)
 {
   const ColorSpace *colorspace = ibuf->byte_buffer.colorspace;
   IMB_colormanagement_scene_linear_to_colorspace(
-      (float *)src, int(range.size()), 1, 4, colorspace);
+      reinterpret_cast<float *>(src), int(range.size()), 1, 4, colorspace);
   const float4 *src_ptr = src;
   uchar *bptr = ibuf->byte_buffer.data;
   for (const int64_t idx : range) {
@@ -101,7 +103,7 @@ static void scene_linear_to_image_chunk_float(ImBuf *ibuf, IndexRange range)
   const ColorSpace *colorspace = ibuf->float_buffer.colorspace;
   float4 *fptr = reinterpret_cast<float4 *>(ibuf->float_buffer.data);
   IMB_colormanagement_scene_linear_to_colorspace(
-      (float *)(fptr + range.first()), int(range.size()), 1, 4, colorspace);
+      reinterpret_cast<float *>(fptr + range.first()), int(range.size()), 1, 4, colorspace);
 }
 
 template<typename MaskSampler>
@@ -282,9 +284,13 @@ static AreaLuminance tonemap_calc_input_luminance(const ImBuf *ibuf)
 
 static void tonemapmodifier_apply(ModifierApplyContext &context,
                                   StripModifierData *smd,
-                                  ImBuf *mask)
+                                  int timeline_frame)
 {
-  const SequencerTonemapModifierData *tmmd = (const SequencerTonemapModifierData *)smd;
+  ensure_ibuf_is_sequencer_space(context.render_data.scene, context.image, false);
+  ImBuf *mask = modifier_render_mask_input(context, *smd, timeline_frame);
+
+  const SequencerTonemapModifierData *tmmd =
+      reinterpret_cast<const SequencerTonemapModifierData *>(smd);
 
   TonemapApplyOp op;
   op.type = eModTonemapType(tmmd->type);
@@ -308,18 +314,22 @@ static void tonemapmodifier_apply(ModifierApplyContext &context,
   op.data.igm = (tmmd->gamma == 0.0f) ? 1.0f : (1.0f / tmmd->gamma);
 
   apply_modifier_op(op, context.image, mask, context.transform);
+
+  if (mask != nullptr) {
+    IMB_freeImBuf(mask);
+  }
 }
 
 static void tonemapmodifier_panel_draw(const bContext *C, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
-  PointerRNA *ptr = UI_panel_custom_data_get(panel);
+  ui::Layout &layout = *panel->layout;
+  PointerRNA *ptr = ui::panel_custom_data_get(panel);
 
   const int tonemap_type = RNA_enum_get(ptr, "tonemap_type");
 
-  layout->use_property_split_set(true);
+  layout.use_property_split_set(true);
 
-  uiLayout &col = layout->column(false);
+  ui::Layout &col = layout.column(false);
   col.prop(ptr, "tonemap_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   if (tonemap_type == SEQ_TONEMAP_RD_PHOTORECEPTOR) {
     col.prop(ptr, "intensity", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -336,10 +346,10 @@ static void tonemapmodifier_panel_draw(const bContext *C, Panel *panel)
     BLI_assert_unreachable();
   }
 
-  if (uiLayout *mask_input_layout = layout->panel_prop(
+  if (ui::Layout *mask_input_layout = layout.panel_prop(
           C, ptr, "open_mask_input_panel", IFACE_("Mask Input")))
   {
-    draw_mask_input_type_settings(C, mask_input_layout, ptr);
+    draw_mask_input_type_settings(C, *mask_input_layout, ptr);
   }
 }
 

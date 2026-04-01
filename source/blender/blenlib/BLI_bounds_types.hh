@@ -14,7 +14,7 @@ template<typename T> struct Bounds {
   T min;
   T max;
   Bounds() = default;
-  Bounds(const T &value) : min(value), max(value) {}
+  explicit Bounds(const T &value) : min(value), max(value) {}
   Bounds(const T &min, const T &max) : min(min), max(max) {}
 
   /**
@@ -68,6 +68,16 @@ template<typename T> struct Bounds {
    * This matches the behavior of #BLI_rctf_isect_pt/#BLI_rcti_isect_pt.
    */
   bool contains(const T &point);
+
+  /**
+   * Returns true if the \a other bounds is inside or intersect this one.
+   */
+  bool intersects(const Bounds<T> &other);
+  /**
+   * Returns true if a line segment from \a start to \a end is inside or intersects the bounds.
+   * This matches the behavior of #BLI_rctf_isect_segment/#BLI_rcti_isect_segment.
+   */
+  bool intersects_segment(const T &start, const T &end);
 };
 
 }  // namespace blender

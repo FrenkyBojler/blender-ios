@@ -14,7 +14,11 @@
 #include "BLI_math_vector.hh"
 #include "BLI_task.hh"
 
+#include "DNA_sequence_types.h"
+
 #include "IMB_imbuf.hh"
+
+namespace blender {
 
 struct bContext;
 struct ARegionType;
@@ -24,11 +28,11 @@ struct Panel;
 struct PanelType;
 struct PointerRNA;
 
-namespace blender::ui {
+namespace ui {
 struct Layout;
-}  // namespace blender::ui
+}  // namespace ui
 
-namespace blender::seq {
+namespace seq {
 
 struct RenderData;
 struct SeqRenderState;
@@ -64,9 +68,13 @@ struct ModifierApplyContext {
 
 void modifier_apply_stack(ModifierApplyContext &context, int timeline_frame);
 
+ImBuf *modifier_render_mask_input(const ModifierApplyContext &context,
+                                  const StripModifierData &smd,
+                                  int timeline_frame);
+
 bool modifier_persistent_uids_are_valid(const Strip &strip);
 
-void draw_mask_input_type_settings(const bContext *C, ui::Layout *layout, PointerRNA *ptr);
+void draw_mask_input_type_settings(const bContext *C, ui::Layout &layout, PointerRNA *ptr);
 
 bool modifier_ui_poll(const bContext *C, PanelType *pt);
 
@@ -338,4 +346,5 @@ void apply_modifier_op(T &op, ImBuf *ibuf, const ImBuf *mask, const float3x3 &ma
   });
 }
 
-}  // namespace blender::seq
+}  // namespace seq
+}  // namespace blender

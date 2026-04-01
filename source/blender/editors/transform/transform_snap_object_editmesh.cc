@@ -14,6 +14,8 @@
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
 
+#include "DEG_depsgraph_query.hh"
+
 #include "ED_transform_snap_object_context.hh"
 
 #include "transform_snap_object.hh"
@@ -34,7 +36,7 @@ static const Mesh *get_mesh_ref(const Object *ob_eval)
     return me;
   }
 
-  return static_cast<const Mesh *>(ob_eval->data);
+  return id_cast<const Mesh *>(ob_eval->data);
 }
 
 /**
@@ -96,7 +98,7 @@ static Mesh *create_mesh(SnapObjectContext *sctx,
                          eSnapEditType /*edit_mode_type*/)
 {
   Mesh *mesh = BKE_id_new_nomain<Mesh>(nullptr);
-  const BMEditMesh *em = BKE_editmesh_from_object(const_cast<Object *>(ob_eval));
+  const BMEditMesh *em = BKE_editmesh_from_object(const_cast<Object *>(DEG_get_original(ob_eval)));
   BMesh *bm = em->bm;
   BM_mesh_bm_to_me_compact(*bm, *mesh, nullptr, false);
 
@@ -166,7 +168,7 @@ static SnapCache_EditMesh *snap_object_data_editmesh_get(SnapObjectContext *sctx
                                                          const Object *ob_eval,
                                                          bool create)
 {
-  BLI_assert(ob_eval->mode & OB_MODE_EDIT);
+  BLI_assert((ob_eval->mode & OB_MODE_EDIT) || sctx->runtime.params.ignore_editmode_filtering);
   SnapCache_EditMesh *em_cache = nullptr;
 
   bool init = false;
@@ -216,8 +218,8 @@ static eSnapMode editmesh_snap_mode_supported(BMesh *bm)
 {
   eSnapMode snap_mode_supported = SCE_SNAP_TO_NONE;
   if (bm->totface) {
-    snap_mode_supported |= SCE_SNAP_TO_FACE | SCE_SNAP_INDIVIDUAL_NEAREST | SNAP_TO_EDGE_ELEMENTS |
-                           SCE_SNAP_TO_POINT;
+    snap_mode_supported |= SCE_SNAP_TO_FACE | SCE_SNAP_TO_FACE_MIDPOINT |
+                           SCE_SNAP_INDIVIDUAL_NEAREST | SNAP_TO_EDGE_ELEMENTS | SCE_SNAP_TO_POINT;
   }
   else if (bm->totedge) {
     snap_mode_supported |= SNAP_TO_EDGE_ELEMENTS | SCE_SNAP_TO_POINT;
@@ -233,11 +235,13 @@ static SnapCache_EditMesh *editmesh_snapdata_init(SnapObjectContext *sctx,
                                                   eSnapMode snap_to_flag)
 {
   /* See code-comment on #SnapCache_EditMesh for why this is needed.  */
-  if ((ob_eval->mode & OB_MODE_EDIT) == 0) {
-    return nullptr;
+  if (!sctx->runtime.params.ignore_editmode_filtering) {
+    if ((ob_eval->mode & OB_MODE_EDIT) == 0) {
+      return nullptr;
+    }
   }
 
-  const BMEditMesh *em = BKE_editmesh_from_object(const_cast<Object *>(ob_eval));
+  const BMEditMesh *em = BKE_editmesh_from_object(const_cast<Object *>(DEG_get_original(ob_eval)));
   if (em == nullptr) {
     return nullptr;
   }

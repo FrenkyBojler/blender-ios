@@ -64,7 +64,7 @@
 
 #include "uvedit_intern.hh"
 
-using namespace blender;
+namespace blender {
 
 /* -------------------------------------------------------------------- */
 /** \name State Testing
@@ -114,14 +114,14 @@ bool ED_object_get_active_image(Object *ob,
 
   if (node && is_image_texture_node(node)) {
     if (r_ima) {
-      *r_ima = (Image *)node->id;
+      *r_ima = id_cast<Image *>(node->id);
     }
     if (r_iuser) {
       if (node->type_legacy == SH_NODE_TEX_IMAGE) {
-        *r_iuser = &((NodeTexImage *)node->storage)->iuser;
+        *r_iuser = &(static_cast<NodeTexImage *>(node->storage))->iuser;
       }
       else if (node->type_legacy == SH_NODE_TEX_ENVIRONMENT) {
-        *r_iuser = &((NodeTexEnvironment *)node->storage)->iuser;
+        *r_iuser = &(static_cast<NodeTexEnvironment *>(node->storage))->iuser;
       }
       else {
         *r_iuser = nullptr;
@@ -295,7 +295,8 @@ bool ED_uvedit_center_multi(const Scene *scene,
   return changed;
 }
 
-bool ED_uvedit_center_from_pivot_ex(const SpaceImage *sima,
+bool ED_uvedit_center_from_pivot_ex(const Main &bmain,
+                                    const SpaceImage *sima,
                                     Scene *scene,
                                     ViewLayer *view_layer,
                                     float r_center[2],
@@ -310,7 +311,7 @@ bool ED_uvedit_center_from_pivot_ex(const SpaceImage *sima,
       if (r_has_select != nullptr) {
         Vector<Object *> objects =
             BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-                scene, view_layer, nullptr);
+                bmain, scene, view_layer, nullptr);
         *r_has_select = uvedit_select_is_any_selected_multi(scene, objects);
       }
       break;
@@ -318,7 +319,7 @@ bool ED_uvedit_center_from_pivot_ex(const SpaceImage *sima,
     default: {
       Vector<Object *> objects =
           BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-              scene, view_layer, nullptr);
+              bmain, scene, view_layer, nullptr);
       changed = ED_uvedit_center_multi(scene, objects, r_center, mode);
       if (r_has_select != nullptr) {
         *r_has_select = changed;
@@ -342,11 +343,12 @@ enum class UVMoveDirection {
 static wmOperatorStatus uv_move_on_axis_exec(bContext *C, wmOperator *op)
 
 {
+  const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   SpaceImage *sima = CTX_wm_space_image(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-      scene, view_layer, nullptr);
+      *bmain, scene, view_layer, nullptr);
   UVMoveType type = UVMoveType(RNA_enum_get(op->ptr, "type"));
   UVMoveDirection axis = UVMoveDirection(RNA_enum_get(op->ptr, "axis"));
   int distance = RNA_int_get(op->ptr, "distance");
@@ -378,7 +380,7 @@ static wmOperatorStatus uv_move_on_axis_exec(bContext *C, wmOperator *op)
 
     if (changed) {
       uvedit_live_unwrap_update(sima, scene, obedit);
-      DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+      DEG_id_tag_update(obedit->data, 0);
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     }
   }
@@ -716,12 +718,13 @@ static bool uvedit_uv_islands_arrange(const Scene *scene,
 
 static wmOperatorStatus uv_arrange_islands_exec(bContext *C, wmOperator *op)
 {
+  const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   SpaceImage *sima = CTX_wm_space_image(C);
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-      scene, view_layer, nullptr);
+      *bmain, scene, view_layer, nullptr);
 
   const UVAlignInitialPosition initial_position = UVAlignInitialPosition(
       RNA_enum_get(op->ptr, "initial_position"));
@@ -786,7 +789,7 @@ static wmOperatorStatus uv_arrange_islands_exec(bContext *C, wmOperator *op)
     }
     if (uvedit_uv_islands_arrange(scene, em->bm, axis, align, order, margin, position)) {
       uvedit_live_unwrap_update(sima, scene, obedit);
-      DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+      DEG_id_tag_update(obedit->data, 0);
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     }
   }
@@ -830,7 +833,7 @@ static void UV_OT_arrange_islands(wmOperatorType *ot)
        "MAX",
        0,
        "Max",
-       "Align the islands to the left side of the island"},
+       "Align the islands to the max side of the island"},
       {int(UVAlignIslandMode::Center),
        "CENTER",
        0,
@@ -896,13 +899,14 @@ static void UV_OT_arrange_islands(wmOperatorType *ot)
 
 static void uv_weld(bContext *C)
 {
+  const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   SpaceImage *sima = CTX_wm_space_image(C);
   float cent[2];
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-      scene, view_layer, nullptr);
+      *bmain, scene, view_layer, nullptr);
 
   ED_uvedit_center_multi(scene, objects, cent, 0);
 
@@ -918,7 +922,7 @@ static void uv_weld(bContext *C)
 
     if (changed) {
       uvedit_live_unwrap_update(sima, scene, obedit);
-      DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+      DEG_id_tag_update(obedit->data, 0);
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     }
   }
@@ -926,6 +930,7 @@ static void uv_weld(bContext *C)
 
 static void uv_align(bContext *C, eUVWeldAlign tool, UVAlignPositionMode position_mode)
 {
+  const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   SpaceImage *sima = CTX_wm_space_image(C);
@@ -934,7 +939,7 @@ static void uv_align(bContext *C, eUVWeldAlign tool, UVAlignPositionMode positio
   INIT_MINMAX2(min, max);
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-      scene, view_layer, nullptr);
+      *bmain, scene, view_layer, nullptr);
 
   if (tool == UV_ALIGN_AUTO) {
     ED_uvedit_foreach_uv_multi(
@@ -977,7 +982,7 @@ static void uv_align(bContext *C, eUVWeldAlign tool, UVAlignPositionMode positio
 
     if (changed) {
       uvedit_live_unwrap_update(sima, scene, obedit);
-      DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+      DEG_id_tag_update(obedit->data, 0);
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     }
   }
@@ -1070,6 +1075,7 @@ static void UV_OT_align(wmOperatorType *ot)
 
 static wmOperatorStatus uv_remove_doubles_to_selected(bContext *C, wmOperator *op)
 {
+  const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   SpaceImage *sima = CTX_wm_space_image(C);
@@ -1077,13 +1083,13 @@ static wmOperatorStatus uv_remove_doubles_to_selected(bContext *C, wmOperator *o
   const float threshold = RNA_float_get(op->ptr, "threshold");
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-      scene, view_layer, nullptr);
+      *bmain, scene, view_layer, nullptr);
 
-  bool *changed = MEM_calloc_arrayN<bool>(objects.size(), __func__);
+  bool *changed = MEM_new_array_zeroed<bool>(objects.size(), __func__);
 
   /* Maximum index of an objects[i]'s UVs in UV_arr.
    * It helps find which UV in *uv_map_arr belongs to which object. */
-  uint *ob_uv_map_max_idx = MEM_calloc_arrayN<uint>(objects.size(), __func__);
+  uint *ob_uv_map_max_idx = MEM_new_array_zeroed<uint>(objects.size(), __func__);
 
   /* Calculate max possible number of kdtree nodes. */
   int uv_maxlen = 0;
@@ -1097,10 +1103,10 @@ static wmOperatorStatus uv_remove_doubles_to_selected(bContext *C, wmOperator *o
     uv_maxlen += em->bm->totloop;
   }
 
-  KDTree_2d *tree = BLI_kdtree_2d_new(uv_maxlen);
+  KDTree_2d *tree = kdtree_2d_new(uv_maxlen);
 
-  blender::Vector<int> duplicates;
-  blender::Vector<float *> uv_map_arr;
+  Vector<int> duplicates;
+  Vector<float *> uv_map_arr;
 
   int uv_map_count = 0; /* Also used for *duplicates count. */
 
@@ -1108,7 +1114,7 @@ static wmOperatorStatus uv_remove_doubles_to_selected(bContext *C, wmOperator *o
     Object *obedit = objects[ob_index];
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     ED_uvedit_foreach_uv(scene, em->bm, true, true, [&](float luv[2]) {
-      BLI_kdtree_2d_insert(tree, uv_map_count, luv);
+      kdtree_2d_insert(tree, uv_map_count, luv);
       duplicates.append(-1);
       uv_map_arr.append(luv);
       uv_map_count++;
@@ -1117,13 +1123,12 @@ static wmOperatorStatus uv_remove_doubles_to_selected(bContext *C, wmOperator *o
     ob_uv_map_max_idx[ob_index] = uv_map_count - 1;
   }
 
-  BLI_kdtree_2d_balance(tree);
-  int found_duplicates = BLI_kdtree_2d_calc_duplicates_fast(
-      tree, threshold, false, duplicates.data());
+  kdtree_2d_balance(tree);
+  int found_duplicates = kdtree_2d_calc_duplicates_fast(tree, threshold, false, duplicates.data());
 
   if (found_duplicates > 0) {
     /* Calculate average uv for duplicates. */
-    int *uv_duplicate_count = MEM_calloc_arrayN<int>(uv_map_count, __func__);
+    int *uv_duplicate_count = MEM_new_array_zeroed<int>(uv_map_count, __func__);
     for (int i = 0; i < uv_map_count; i++) {
       if (duplicates[i] == -1) { /* If doesn't reference another */
         uv_duplicate_count[i]++; /* self */
@@ -1145,7 +1150,7 @@ static wmOperatorStatus uv_remove_doubles_to_selected(bContext *C, wmOperator *o
 
       mul_v2_fl(uv_map_arr[i], 1.0f / float(uv_duplicate_count[i]));
     }
-    MEM_freeN(uv_duplicate_count);
+    MEM_delete(uv_duplicate_count);
 
     /* Update duplicated uvs. */
     uint ob_index = 0;
@@ -1169,28 +1174,29 @@ static wmOperatorStatus uv_remove_doubles_to_selected(bContext *C, wmOperator *o
       if (changed[ob_index]) {
         Object *obedit = objects[ob_index];
         uvedit_live_unwrap_update(sima, scene, obedit);
-        DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+        DEG_id_tag_update(obedit->data, 0);
         WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
       }
     }
   }
 
-  BLI_kdtree_2d_free(tree);
-  MEM_freeN(changed);
-  MEM_freeN(ob_uv_map_max_idx);
+  kdtree_2d_free(tree);
+  MEM_delete(changed);
+  MEM_delete(ob_uv_map_max_idx);
 
   return OPERATOR_FINISHED;
 }
 
 static wmOperatorStatus uv_remove_doubles_to_unselected(bContext *C, wmOperator *op)
 {
+  const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   SpaceImage *sima = CTX_wm_space_image(C);
   const float threshold = RNA_float_get(op->ptr, "threshold");
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-      scene, view_layer, nullptr);
+      *bmain, scene, view_layer, nullptr);
 
   /* Calculate max possible number of kdtree nodes. */
   int uv_maxlen = 0;
@@ -1199,20 +1205,20 @@ static wmOperatorStatus uv_remove_doubles_to_unselected(bContext *C, wmOperator 
     uv_maxlen += em->bm->totloop;
   }
 
-  KDTree_2d *tree = BLI_kdtree_2d_new(uv_maxlen);
+  KDTree_2d *tree = kdtree_2d_new(uv_maxlen);
 
-  blender::Vector<float *> uv_map_arr;
+  Vector<float *> uv_map_arr;
 
   int uv_map_count = 0;
 
   /* Add visible non-selected uvs to tree */
   ED_uvedit_foreach_uv_multi(scene, objects, true, false, [&](float luv[2]) {
-    BLI_kdtree_2d_insert(tree, uv_map_count, luv);
+    kdtree_2d_insert(tree, uv_map_count, luv);
     uv_map_arr.append(luv);
     uv_map_count++;
   });
 
-  BLI_kdtree_2d_balance(tree);
+  kdtree_2d_balance(tree);
 
   /* For each selected uv, find duplicate non selected uv. */
   for (Object *obedit : objects) {
@@ -1220,7 +1226,7 @@ static wmOperatorStatus uv_remove_doubles_to_unselected(bContext *C, wmOperator 
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     ED_uvedit_foreach_uv(scene, em->bm, true, true, [&](float luv[2]) {
       KDTreeNearest_2d nearest;
-      const int i = BLI_kdtree_2d_find_nearest(tree, luv, &nearest);
+      const int i = kdtree_2d_find_nearest(tree, luv, &nearest);
 
       if (i != -1 && nearest.dist < threshold) {
         copy_v2_v2(luv, uv_map_arr[i]);
@@ -1230,12 +1236,12 @@ static wmOperatorStatus uv_remove_doubles_to_unselected(bContext *C, wmOperator 
 
     if (changed) {
       uvedit_live_unwrap_update(sima, scene, obedit);
-      DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+      DEG_id_tag_update(obedit->data, 0);
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     }
   }
 
-  BLI_kdtree_2d_free(tree);
+  kdtree_2d_free(tree);
 
   return OPERATOR_FINISHED;
 }
@@ -1245,11 +1251,12 @@ static wmOperatorStatus uv_remove_doubles_to_selected_shared_vertex(bContext *C,
   /* NOTE: The calculation for the center-point of loops belonging to a vertex will be skewed
    * if one UV coordinate holds more loops than the others. */
 
+  const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   SpaceImage *sima = CTX_wm_space_image(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-      scene, view_layer, nullptr);
+      *bmain, scene, view_layer, nullptr);
 
   /* Only use the squared distance, to avoid a square-root. */
   const float threshold_sq = math::square(RNA_float_get(op->ptr, "threshold"));
@@ -1262,7 +1269,7 @@ static wmOperatorStatus uv_remove_doubles_to_selected_shared_vertex(bContext *C,
     BMIter viter, liter;
 
     /* The `changed` variable keeps track if any loops from the current object are merged. */
-    blender::Vector<float *> uvs;
+    Vector<float *> uvs;
     uvs.reserve(32);
     bool changed = false;
 
@@ -1342,7 +1349,7 @@ static wmOperatorStatus uv_remove_doubles_to_selected_shared_vertex(bContext *C,
     }
     if (changed) {
       uvedit_live_unwrap_update(sima, scene, obedit);
-      DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+      DEG_id_tag_update(obedit->data, 0);
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     }
   }
@@ -1463,12 +1470,13 @@ static wmOperatorStatus uv_snap_cursor_exec(bContext *C, wmOperator *op)
       changed = true;
       break;
     case 1: {
+      const Main *bmain = CTX_data_main(C);
       Scene *scene = CTX_data_scene(C);
       ViewLayer *view_layer = CTX_data_view_layer(C);
 
       Vector<Object *> objects =
           BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-              scene, view_layer, nullptr);
+              *bmain, scene, view_layer, nullptr);
       changed = uv_snap_cursor_to_selection(scene, objects, sima);
       break;
     }
@@ -1619,6 +1627,7 @@ static bool uv_snap_uvs_to_pixels(SpaceImage *sima, Scene *scene, Object *obedit
 
 static wmOperatorStatus uv_snap_selection_exec(bContext *C, wmOperator *op)
 {
+  const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   SpaceImage *sima = CTX_wm_space_image(C);
@@ -1626,7 +1635,7 @@ static wmOperatorStatus uv_snap_selection_exec(bContext *C, wmOperator *op)
   float offset[2] = {0};
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-      scene, view_layer, nullptr);
+      *bmain, scene, view_layer, nullptr);
 
   if (target == 2) {
     float center[2];
@@ -1663,7 +1672,7 @@ static wmOperatorStatus uv_snap_selection_exec(bContext *C, wmOperator *op)
     if (changed) {
       changed_multi = true;
       uvedit_live_unwrap_update(sima, scene, obedit);
-      DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+      DEG_id_tag_update(obedit->data, 0);
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     }
   }
@@ -1704,6 +1713,7 @@ static void UV_OT_snap_selected(wmOperatorType *ot)
 
 static wmOperatorStatus uv_pin_exec(bContext *C, wmOperator *op)
 {
+  const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   BMFace *efa;
@@ -1713,10 +1723,10 @@ static wmOperatorStatus uv_pin_exec(bContext *C, wmOperator *op)
   const bool invert = RNA_boolean_get(op->ptr, "invert");
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-      scene, view_layer, nullptr);
+      *bmain, scene, view_layer, nullptr);
 
   for (Object *obedit : objects) {
-    Mesh &mesh = *static_cast<Mesh *>(obedit->data);
+    Mesh &mesh = *id_cast<Mesh *>(obedit->data);
     BMEditMesh *em = mesh.runtime->edit_mesh.get();
 
     bool changed = false;
@@ -1754,7 +1764,7 @@ static wmOperatorStatus uv_pin_exec(bContext *C, wmOperator *op)
 
     if (changed) {
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
-      DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SYNC_TO_EVAL);
+      DEG_id_tag_update(obedit->data, ID_RECALC_SYNC_TO_EVAL);
     }
   }
 
@@ -1931,7 +1941,7 @@ static bool uv_mesh_hide_sync_select(const ToolSettings *ts, Object *ob, BMEditM
   }
 
   if (changed) {
-    Mesh *mesh = static_cast<Mesh *>(ob->data);
+    Mesh *mesh = id_cast<Mesh *>(ob->data);
     EDBMUpdate_Params params = {0};
     params.calc_looptris = true;
     params.calc_normals = false;
@@ -1944,6 +1954,7 @@ static bool uv_mesh_hide_sync_select(const ToolSettings *ts, Object *ob, BMEditM
 
 static wmOperatorStatus uv_hide_exec(bContext *C, wmOperator *op)
 {
+  const Main *bmain = CTX_data_main(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   Scene *scene = CTX_data_scene(C);
   const ToolSettings *ts = scene->toolsettings;
@@ -1952,7 +1963,7 @@ static wmOperatorStatus uv_hide_exec(bContext *C, wmOperator *op)
   const bool use_select_linked = ED_uvedit_select_island_check(ts);
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-      scene, view_layer, nullptr);
+      *bmain, scene, view_layer, nullptr);
 
   for (Object *ob : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(ob);
@@ -2069,7 +2080,7 @@ static wmOperatorStatus uv_hide_exec(bContext *C, wmOperator *op)
 
     BM_select_history_validate(em->bm);
 
-    DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_SELECT);
+    DEG_id_tag_update(ob->data, ID_RECALC_SELECT);
     WM_event_add_notifier(C, NC_GEOM | ND_SELECT, ob->data);
   }
 
@@ -2104,6 +2115,7 @@ static void UV_OT_hide(wmOperatorType *ot)
 
 static wmOperatorStatus uv_reveal_exec(bContext *C, wmOperator *op)
 {
+  const Main *bmain = CTX_data_main(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   Scene *scene = CTX_data_scene(C);
   const ToolSettings *ts = scene->toolsettings;
@@ -2112,7 +2124,7 @@ static wmOperatorStatus uv_reveal_exec(bContext *C, wmOperator *op)
   const bool select = RNA_boolean_get(op->ptr, "select");
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-      scene, view_layer, nullptr);
+      *bmain, scene, view_layer, nullptr);
 
   for (Object *ob : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(ob);
@@ -2128,7 +2140,7 @@ static wmOperatorStatus uv_reveal_exec(bContext *C, wmOperator *op)
     /* call the mesh function if we are in mesh sync sel */
     if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
       if (EDBM_mesh_reveal(em, select)) {
-        Mesh *mesh = static_cast<Mesh *>(ob->data);
+        Mesh *mesh = id_cast<Mesh *>(ob->data);
         EDBMUpdate_Params params = {0};
         params.calc_looptris = true;
         params.calc_normals = false;
@@ -2217,7 +2229,7 @@ static wmOperatorStatus uv_reveal_exec(bContext *C, wmOperator *op)
     /* re-select tagged faces */
     BM_mesh_elem_hflag_enable_test(em->bm, BM_FACE, BM_ELEM_SELECT, true, false, BM_ELEM_TAG);
 
-    DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_SELECT);
+    DEG_id_tag_update(ob->data, ID_RECALC_SELECT);
     WM_event_add_notifier(C, NC_GEOM | ND_SELECT, ob->data);
   }
 
@@ -2279,7 +2291,7 @@ static wmOperatorStatus uv_set_2d_cursor_invoke(bContext *C, wmOperator *op, con
     }
   }
 
-  UI_view2d_region_to_view(
+  ui::view2d_region_to_view(
       &region->v2d, event->mval[0], event->mval[1], &location[0], &location[1]);
   RNA_float_set_array(op->ptr, "location", location);
 
@@ -2319,6 +2331,7 @@ static void UV_OT_cursor_set(wmOperatorType *ot)
 
 static wmOperatorStatus uv_seams_from_islands_exec(bContext *C, wmOperator *op)
 {
+  const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const bool mark_seams = RNA_boolean_get(op->ptr, "mark_seams");
@@ -2326,10 +2339,10 @@ static wmOperatorStatus uv_seams_from_islands_exec(bContext *C, wmOperator *op)
   bool changed_multi = false;
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-      scene, view_layer, nullptr);
+      *bmain, scene, view_layer, nullptr);
 
   for (Object *ob : objects) {
-    Mesh *mesh = (Mesh *)ob->data;
+    Mesh *mesh = id_cast<Mesh *>(ob->data);
     BMEditMesh *em = mesh->runtime->edit_mesh.get();
     BMesh *bm = em->bm;
     BMIter iter;
@@ -2416,6 +2429,7 @@ static void UV_OT_seams_from_islands(wmOperatorType *ot)
 
 static wmOperatorStatus uv_mark_seam_exec(bContext *C, wmOperator *op)
 {
+  const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const ToolSettings *ts = scene->toolsettings;
@@ -2428,12 +2442,12 @@ static wmOperatorStatus uv_mark_seam_exec(bContext *C, wmOperator *op)
   const bool synced_selection = (ts->uv_flag & UV_FLAG_SELECT_SYNC) != 0;
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-      scene, view_layer, nullptr);
+      *bmain, scene, view_layer, nullptr);
 
   bool changed = false;
 
   for (Object *ob : objects) {
-    Mesh *mesh = (Mesh *)ob->data;
+    Mesh *mesh = id_cast<Mesh *>(ob->data);
     BMEditMesh *em = mesh->runtime->edit_mesh.get();
     BMesh *bm = em->bm;
 
@@ -2469,25 +2483,22 @@ static wmOperatorStatus uv_mark_seam_exec(bContext *C, wmOperator *op)
 
 static wmOperatorStatus uv_mark_seam_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
-  uiPopupMenu *pup;
-  uiLayout *layout;
-
   if (RNA_struct_property_is_set(op->ptr, "clear")) {
     return uv_mark_seam_exec(C, op);
   }
 
-  pup = UI_popup_menu_begin(C, IFACE_("Edges"), ICON_NONE);
-  layout = UI_popup_menu_layout(pup);
+  ui::PopupMenu *pup = ui::popup_menu_begin(C, IFACE_("Edges"), ICON_NONE);
+  ui::Layout &layout = *popup_menu_layout(pup);
 
-  layout->operator_context_set(blender::wm::OpCallContext::ExecDefault);
-  PointerRNA op_ptr = layout->op(
+  layout.operator_context_set(wm::OpCallContext::ExecDefault);
+  PointerRNA op_ptr = layout.op(
       op->type->idname, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Mark Seam"), ICON_NONE);
   RNA_boolean_set(&op_ptr, "clear", false);
-  op_ptr = layout->op(
+  op_ptr = layout.op(
       op->type->idname, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Clear Seam"), ICON_NONE);
   RNA_boolean_set(&op_ptr, "clear", true);
 
-  UI_popup_menu_end(C, pup);
+  popup_menu_end(C, pup);
 
   return OPERATOR_INTERFACE;
 }
@@ -2576,7 +2587,7 @@ static bool uv_copy_mirrored_faces(
       sorted_verts[loop_index] = l->v;
     }
     if (valid) {
-      std::sort(sorted_verts.begin(), sorted_verts.end());
+      std::ranges::sort(sorted_verts);
       sorted_verts_to_face.add(std::move(sorted_verts), f);
     }
   }
@@ -2586,7 +2597,7 @@ static bool uv_copy_mirrored_faces(
     for (int index = 0; index < sorted_verts.size(); index++) {
       mirror_verts[index] = vmap.lookup_default(sorted_verts[index], nullptr);
     }
-    std::sort(mirror_verts.begin(), mirror_verts.end());
+    std::ranges::sort(mirror_verts);
     BMFace *f_src = sorted_verts_to_face.lookup_default(mirror_verts, nullptr);
     if (f_src) {
       if (f_src != f_dst) {
@@ -2640,10 +2651,11 @@ static bool uv_copy_mirrored_faces(
 
 static wmOperatorStatus uv_copy_mirrored_faces_exec(bContext *C, wmOperator *op)
 {
+  const Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-      scene, view_layer, nullptr);
+      *bmain, scene, view_layer, nullptr);
   const int direction = RNA_enum_get(op->ptr, "direction");
   const int precision = RNA_int_get(op->ptr, "precision");
 
@@ -2663,7 +2675,7 @@ static wmOperatorStatus uv_copy_mirrored_faces_exec(bContext *C, wmOperator *op)
     }
 
     if (changed) {
-      DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+      DEG_id_tag_update(obedit->data, 0);
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     }
   }
@@ -2732,6 +2744,8 @@ void ED_operatortypes_uvedit()
   WM_operatortype_append(UV_OT_select_less);
   WM_operatortype_append(UV_OT_select_overlap);
   WM_operatortype_append(UV_OT_select_mode);
+  WM_operatortype_append(UV_OT_select_tile);
+
   WM_operatortype_append(UV_OT_custom_region_set);
 
   WM_operatortype_append(UV_OT_snap_cursor);
@@ -2796,3 +2810,5 @@ void ED_keymap_uvedit(wmKeyConfig *keyconf)
 }
 
 /** \} */
+
+}  // namespace blender
