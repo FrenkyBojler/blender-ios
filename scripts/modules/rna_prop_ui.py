@@ -186,17 +186,10 @@ def draw(layout, context, context_member, property_type, *, use_edit=True):
         layout.separator()
 
     show_developer_ui = context.preferences.view.show_developer_ui
-    rna_properties = {prop.identifier for prop in rna_item.bl_rna.properties if prop.is_runtime} if items else None
 
     layout.use_property_decorate = False
 
     for key, value in items:
-        is_rna = (key in rna_properties)
-
-        # Only show API defined properties to developers.
-        if is_rna and not show_developer_ui:
-            continue
-
         to_dict = getattr(value, "to_dict", None)
         to_list = getattr(value, "to_list", None)
         is_datablock = value is None or isinstance(value, bpy.types.ID)
@@ -216,9 +209,7 @@ def draw(layout, context, context_member, property_type, *, use_edit=True):
 
         is_long_array = to_list and len(value) >= MAX_DISPLAY_ROWS
 
-        if is_rna:
-            value_column.prop(rna_item, key, text="")
-        elif to_dict or is_long_array:
+        if to_dict or is_long_array:
             props = value_column.operator("wm.properties_edit_value", text="Edit Value")
             props.data_path = context_member
             props.property_name = key
@@ -235,9 +226,7 @@ def draw(layout, context, context_member, property_type, *, use_edit=True):
         operator_row.enabled = not (is_lib_override and key in rna_item.id_data.override_library.reference)
 
         if use_edit:
-            if is_rna:
-                operator_row.label(text="API Defined")
-            elif is_lib_override:
+            if is_lib_override:
                 operator_row.active = False
                 operator_row.label(text="", icon='DECORATE_LIBRARY_OVERRIDE')
             else:
