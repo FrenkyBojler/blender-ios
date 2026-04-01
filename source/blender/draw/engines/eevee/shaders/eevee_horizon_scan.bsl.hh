@@ -225,10 +225,8 @@ ResultT eval(sampler2D hiz_tx,
         if (ao_only) {
           radiance = float3(0);
         }
-        /* Discard back-facing samples.
-         * The 2 factor is to avoid loosing too much energy (which is something not
-         * explained in the paper...). Likely to be wrong, but we need a soft falloff. */
-        float facing_weight = saturate(-dot(normal, vL_front) * 2.0f);
+        /* Discard back-facing samples. */
+        float facing_weight = saturate(-dot(normal, vL_front));
 
         /* Angular bias shrinks the visibility bitmask around the projected normal. */
         float2 biased_theta = (theta - vN_angle) * angle_bias;
