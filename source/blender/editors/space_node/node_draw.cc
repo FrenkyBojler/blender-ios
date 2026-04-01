@@ -4666,7 +4666,7 @@ static void snode_setup_v2d(SpaceNode &snode,
 {
   View2D &v2d = region.v2d;
   BLI_assert(!BLI_rctf_is_empty(&v2d.cur));
-  float aspect = BLI_rctf_size_x(&v2d.cur) / BLI_rctf_size_y(&v2d.cur);
+  const float aspect = BLI_rctf_size_x(&v2d.cur) / BLI_rctf_size_y(&v2d.cur);
   BLI_rctf_resize(&v2d.cur, size_x, size_x / aspect);
 
   /* Shift view to node tree center. */
@@ -4832,7 +4832,7 @@ void node_draw_space(const bContext &C, ARegion &region)
     /* Current View2D center, will be set temporarily for parent node trees. */
     float2 center;
     ui::view2d_center_get(&v2d, &center.x, &center.y);
-    float size_x = BLI_rctf_size_x(&v2d.cur);
+    const float size_x = BLI_rctf_size_x(&v2d.cur);
 
     /* Store new view center in path and current edit tree. */
     copy_v2_v2(path->view_center, center);

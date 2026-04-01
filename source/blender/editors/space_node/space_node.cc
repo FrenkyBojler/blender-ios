@@ -92,7 +92,7 @@ void ED_node_tree_start(ARegion *region, SpaceNode *snode, bNodeTree *ntree, ID 
     path->view_width = ntree->view_width;
 
     if (region) {
-      /* Leave the zoom level unchanged if it hasn't bee set before. */
+      /* Leave the zoom level unchanged if it hasn't been set before. */
       if (!math::is_zero(ntree->view_width)) {
         ui::view2d_size_x_set(&region->v2d, ntree->view_width);
       }

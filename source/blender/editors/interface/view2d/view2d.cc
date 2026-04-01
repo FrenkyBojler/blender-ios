@@ -1955,7 +1955,7 @@ void view2d_center_set(View2D *v2d, float x, float y)
 void view2d_size_x_set(View2D *v2d, float size_x)
 {
   BLI_assert(BLI_rctf_size_y(&v2d->cur) != 0.0f);
-  float aspect = BLI_rctf_size_x(&v2d->cur) / BLI_rctf_size_y(&v2d->cur);
+  const float aspect = BLI_rctf_size_x(&v2d->cur) / BLI_rctf_size_y(&v2d->cur);
   BLI_rctf_resize(&v2d->cur, size_x, size_x / aspect);
 }
 
