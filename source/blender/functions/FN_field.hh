@@ -112,13 +112,12 @@ class GField {
  private:
   Variant variant_;
 
+ public:
   /**
    * #GField is expected to always have a valid #CPPType. Therefore, it can't be default
    * constructed.
    */
   GField() = delete;
-
- public:
   /** Construct a field that just outputs the default value of the given type. */
   explicit GField(const CPPType &type) noexcept;
   /** Construct a field owning a field input. */
