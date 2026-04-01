@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "BLI_cache_mutex.hh"
 #include "BLI_implicit_sharing_ptr.hh"
 
 #include "FN_multi_function.hh"
@@ -85,7 +86,7 @@ class GField {
 
   const CPPType &cpp_type() const;
 
-  const ImplicitSharingPtr<FieldInputs> &field_inputs() const;
+  const FieldInputsPtr &field_inputs() const;
 
   const GField &deref_field_ref() const;
 
@@ -163,6 +164,8 @@ class GFieldRef {
 
   const CPPType &cpp_type() const;
 
+  const FieldInputsPtr &field_inputs() const;
+
   uint64_t hash() const;
 };
 
@@ -185,14 +188,17 @@ class FieldInputs : public ImplicitSharingMixin {
 class FieldInput : public ImplicitSharingMixin {
  protected:
   const CPPType *type_;
-  FieldInputsPtr field_inputs_;
   std::string debug_name_;
 
+  /**
+   * Field inputs are initialized lazily because it can't be done in the constructor because the
+   * derived class constructor has not run yet.
+   */
+  mutable CacheMutex field_inputs_mutex_;
+  mutable FieldInputsPtr field_inputs_;
+
  public:
-  FieldInput(const CPPType &type, std::string debug_name_ = "")
-      : type_(&type), debug_name_(std::move(debug_name_))
-  {
-  }
+  FieldInput(const CPPType &type, std::string debug_name = "");
 
   StringRefNull debug_name() const;
   virtual std::string socket_inspection_name() const;
@@ -245,6 +251,11 @@ template<typename T> constexpr bool is_field_v<Field<T>> = true;
 /* -------------------------------------------------------------------- */
 /** \name Inline Methods
  * \{ */
+
+inline FieldInput::FieldInput(const CPPType &type, std::string debug_name)
+    : type_(&type), debug_name_(std::move(debug_name))
+{
+}
 
 inline GField::GField(const CPPType &type) : variant_(ConstantRef{&type, type.default_value()}) {}
 inline GField::GField(FieldInputPtr node) : variant_(Input{std::move(node)}) {}
@@ -317,11 +328,11 @@ inline const CPPType &GField::cpp_type() const
       this->variant_);
 }
 
-inline const ImplicitSharingPtr<FieldInputs> &GField::field_inputs() const
+inline const FieldInputsPtr &GField::field_inputs() const
 {
   static const ImplicitSharingPtr<FieldInputs> empty_inputs;
   return std::visit(
-      []<typename T>(const T &v) -> const ImplicitSharingPtr<FieldInputs> & {
+      []<typename T>(const T &v) -> const FieldInputsPtr & {
         if constexpr (is_same_any_v<T, Input, MultiFn>) {
           return v.node->field_inputs();
         }
@@ -426,6 +437,11 @@ template<typename T> inline uint64_t Field<T>::hash() const
 
 inline const FieldInputsPtr &FieldInput::field_inputs() const
 {
+  field_inputs_mutex_.ensure([&]() {
+    FieldInputs *inputs = MEM_new<FieldInputs>(__func__);
+    inputs->deduplicated_nodes.add(*this);
+    field_inputs_ = FieldInputsPtr(inputs);
+  });
   return field_inputs_;
 }
 
@@ -436,7 +452,7 @@ inline const CPPType &FieldInput::cpp_type() const
 
 inline uint64_t FieldInput::hash() const
 {
-  return get_default_hash(*this);
+  return get_default_hash(this);
 }
 
 inline bool FieldInput::is_equal_to(const FieldInput &other) const
@@ -735,6 +751,24 @@ inline const CPPType &GFieldRef::cpp_type() const
         }
         else if constexpr (std::is_same_v<T, MultiFn>) {
           return v.node->output_cpp_type(v.output_i);
+        }
+      },
+      variant_);
+}
+
+inline const FieldInputsPtr &GFieldRef::field_inputs() const
+{
+  static const ImplicitSharingPtr<FieldInputs> empty_inputs;
+  return std::visit(
+      [&]<typename T>(const T &v) -> const FieldInputsPtr & {
+        if constexpr (std::is_same_v<T, Input>) {
+          return v.node->field_inputs();
+        }
+        else if constexpr (std::is_same_v<T, MultiFn>) {
+          return v.node->field_inputs();
+        }
+        else if constexpr (std::is_same_v<T, Value>) {
+          return empty_inputs;
         }
       },
       variant_);

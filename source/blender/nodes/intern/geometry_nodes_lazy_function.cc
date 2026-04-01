@@ -1410,20 +1410,25 @@ class LazyFunctionForExtractingReferenceSet : public lf::LazyFunction {
     fields_to_check.push(field);
     while (!fields_to_check.is_empty()) {
       const fn::GFieldRef &field_to_check = fields_to_check.pop();
-      // TODO
+      const fn::FieldInputsPtr &field_inputs = field_to_check.field_inputs();
+      if (field_inputs) {
+        for (const fn::FieldInput &field_input : field_inputs->deduplicated_nodes) {
+          field_input.foreach_recursive_field(
+              [&](const GField &recursive_field) { fields_to_check.push(recursive_field); });
+          if (const auto *attr_field_input = dynamic_cast<const AttributeFieldInput *>(
+                  &field_input))
+          {
+            const StringRef name = attr_field_input->attribute_name();
+            if (bke::attribute_name_is_anonymous(name)) {
+              if (!r_references.names) {
+                r_references.names = std::make_shared<Set<std::string>>();
+              }
+              r_references.names->add_as(name);
+            }
+          }
+        }
+      }
     }
-    // field.node().for_each_field_input_recursive([&](const FieldInput &field_input) {
-    //   if (const auto *attr_field_input = dynamic_cast<const AttributeFieldInput
-    //   *>(&field_input)) {
-    //     const StringRef name = attr_field_input->attribute_name();
-    //     if (bke::attribute_name_is_anonymous(name)) {
-    //       if (!r_references.names) {
-    //         r_references.names = std::make_shared<Set<std::string>>();
-    //       }
-    //       r_references.names->add_as(name);
-    //     }
-    //   }
-    // });
   }
 
   void gather__bundle(const BundlePtr &bundle, GeometryNodesReferenceSet &r_references) const

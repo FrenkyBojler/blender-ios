@@ -154,13 +154,13 @@ static void build_multi_function_procedure_for_fields(mf::Procedure &procedure,
   mf::ProcedureBuilder builder{procedure};
   /* Every input, intermediate and output field corresponds to a variable in the procedure. */
   Map<GFieldRef, mf::Variable *> variable_by_field;
+  Map<std::reference_wrapper<const FieldInput>, mf::Variable *> variable_by_field_input;
 
   /* Start by adding the field inputs as parameters to the procedure. */
   for (const FieldInput &field_input : field_tree_info.deduplicated_field_inputs) {
-    const GFieldRef field_input_field{field_input};
     mf::Variable &variable = builder.add_input_parameter(
         mf::DataType::ForSingle(field_input.cpp_type()), field_input.debug_name());
-    variable_by_field.add_new(field_input_field, &variable);
+    variable_by_field_input.add_new(field_input, &variable);
   }
 
   /* Utility struct that is used to do proper depth first search traversal of the tree below. */
@@ -187,6 +187,8 @@ static void build_multi_function_procedure_for_fields(mf::Procedure &procedure,
           [&]<typename T>(const T &v) {
             if constexpr (std::is_same_v<T, GFieldRef::Input>) {
               /* Field inputs should already be handled above. */
+              mf::Variable *variable = variable_by_field_input.lookup(*v.node);
+              variable_by_field.add_new(field, variable);
             }
             else if constexpr (std::is_same_v<T, GFieldRef::MultiFn>) {
               const FieldOperation &field_multi_fn = *v.node;
@@ -255,33 +257,31 @@ static void build_multi_function_procedure_for_fields(mf::Procedure &procedure,
   }
 
   /* Add output parameters to the procedure. */
-  Set<mf::Variable *> already_output_variables;
+  Set<mf::Variable *> output_variables;
   for (const GFieldRef &field : output_fields) {
     mf::Variable *variable = variable_by_field.lookup(field);
-    if (!already_output_variables.add(variable)) {
+    if (!output_variables.add(variable)) {
       /* One variable can be output at most once. To output the same value twice, we have to make
        * a copy first. */
       const mf::MultiFunction &copy_fn = scope.construct<mf::CustomMF_GenericCopy>(
           variable->data_type());
       variable = builder.add_call<1>(copy_fn, {variable})[0];
+      output_variables.add(variable);
     }
     builder.add_output_parameter(*variable);
   }
 
-  /* Remove the variables that should not be destructed from the map. */
-  for (const GFieldRef &field : output_fields) {
-    variable_by_field.remove(field);
-  }
-  /* Add destructor calls for the remaining variables. */
-  for (mf::Variable *variable : variable_by_field.values()) {
-    builder.add_destruct(*variable);
+  for (mf::Variable *variable : procedure.variables()) {
+    if (!output_variables.contains(variable)) {
+      builder.add_destruct(*variable);
+    }
   }
 
   mf::ReturnInstruction &return_instr = builder.add_return();
 
   mf::procedure_optimization::move_destructs_up(procedure, return_instr);
 
-  // std::cout << procedure.to_dot() << "\n";
+  std::cout << procedure.to_dot() << "\n";
   BLI_assert(procedure.validate());
 }
 
