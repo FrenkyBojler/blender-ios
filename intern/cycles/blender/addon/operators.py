@@ -30,7 +30,8 @@ class CYCLES_OT_use_shading_nodes(Operator):
 class CYCLES_OT_denoise_animation(Operator):
     "Denoise rendered animation sequence using current scene and view " \
         "layer settings. Requires denoising data passes and output to " \
-        "OpenEXR multilayer files"
+        "OpenEXR multilayer files. Uses the same denoiser settings as"  \
+        "per frame denoising."
     bl_idname = "cycles.denoise_animation"
     bl_label = "Denoise Animation"
 
