@@ -10,8 +10,8 @@ namespace blender::nodes::node_geo_input_spline_length_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Float>("Length").field_source();
-  b.add_output<decl::Int>("Point Count").field_source();
+  b.add_output<decl::Float>("Length"_ustr).field_source();
+  b.add_output<decl::Int>("Point Count"_ustr).field_source();
 }
 
 /* --------------------------------------------------------------------
@@ -37,10 +37,7 @@ static VArray<int> construct_curve_point_count_gvarray(const bke::CurvesGeometry
 
 class SplineCountFieldInput final : public bke::CurvesFieldInput {
  public:
-  SplineCountFieldInput() : bke::CurvesFieldInput(CPPType::get<int>(), "Spline Point Count")
-  {
-    category_ = Category::Generated;
-  }
+  SplineCountFieldInput() : bke::CurvesFieldInput(CPPType::get<int>(), "Spline Point Count") {}
 
   GVArray get_varray_for_context(const bke::CurvesGeometry &curves,
                                  const AttrDomain domain,
