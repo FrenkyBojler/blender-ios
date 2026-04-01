@@ -285,7 +285,8 @@ class FieldContext {
 
 /**
  * Cache of field inputs. This is used quite often and is therefore computed eagerly. Otherwise one
- * would have to parse the field tree every time the set of inputs is required.
+ * would have to parse the field tree every time the set of inputs is required. Since many fields
+ * share the same set of inputs, this is often shared.
  */
 class FieldInputs : public ImplicitSharingMixin {
  public:
@@ -342,14 +343,27 @@ class FieldInput : public ImplicitSharingMixin {
   void delete_self() override;
 };
 
+/**
+ * This is an intermediate node in a field tree which executes a #MultiFunction on each value. The
+ * #MultiFunction can either be owned or just referenced.
+ *
+ * It also stores a #GField for every input of the multi-function. Other fields may reference
+ * individual outputs.
+ */
 class FieldOperation : public ImplicitSharingMixin {
  private:
+  /** One #GField for every input of the multi-function. */
   Vector<GField> inputs_;
+
+  /** Optionally owned multi-function. */
   std::shared_ptr<const mf::MultiFunction> owned_fn_;
   const mf::MultiFunction *fn_;
+
+  /** Cached field inputs. */
   FieldInputsPtr field_inputs_;
 
  public:
+  /** Prefer `from*` constructor functions instead. */
   FieldOperation(std::shared_ptr<const mf::MultiFunction> fn, Vector<GField> inputs);
   FieldOperation(const mf::MultiFunction &fn, Vector<GField> inputs);
 
@@ -357,15 +371,14 @@ class FieldOperation : public ImplicitSharingMixin {
                                 Vector<GField> inputs);
   static FieldOperationPtr from_non_owning(const mf::MultiFunction &fn, Vector<GField> inputs);
 
+  /** Get the type of a specific output. */
   const CPPType &output_cpp_type(int output_i) const;
 
   const mf::MultiFunction &multi_function() const;
-
   const FieldInputsPtr &field_inputs() const;
+  Span<GField> inputs() const;
 
   void delete_self() override;
-
-  Span<GField> inputs() const;
 };
 
 template<typename T> constexpr bool is_field_v = false;
