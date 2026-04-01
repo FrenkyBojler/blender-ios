@@ -4927,7 +4927,8 @@ void node_draw_space(const bContext &C, ARegion &region)
     }
   }
 
-  const bool show_text_info = (snode.overlay.flag & SN_OVERLAY_SHOW_OVERLAYS &&
+  const bool show_text_info = ED_node_is_compositor(&snode) &&
+                              (snode.overlay.flag & SN_OVERLAY_SHOW_OVERLAYS &&
                                snode.overlay.flag & SN_OVERLAY_SHOW_TEXT_INFO &&
                                snode.flag & SNODE_BACKDRAW);
 
