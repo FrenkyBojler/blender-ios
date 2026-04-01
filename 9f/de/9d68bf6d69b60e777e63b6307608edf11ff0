@@ -1,2 +1,3 @@
 Referenced by issue #155797, Crash when undoing in shader editor if node values/connections have changed
 Referenced by pull request #156592, Fix #155797: Crash with fast undo and color wheel clicks
+Referenced by pull request #156712, Fix #155797: Crash with fast undo and color wheel clicks
