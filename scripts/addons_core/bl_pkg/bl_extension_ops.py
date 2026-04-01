@@ -4055,17 +4055,20 @@ class EXTENSIONS_OT_userpref_allow_online_popup(Operator):
         for line in lines:
             col.label(text=line, translate=False)
 
-class EXTENSIONS_OT_unified_drop_handler(Operator):
-    """Handle dropping of repository and extension URLs in one unified flow"""
+class EXTENSIONS_OT_unified_drop_handler(Operator, _ExtCmdMixIn):
+    """Handle dropping of repository and extension URLs: setup repo, sync, and install in one flow"""
     bl_idname = "extensions.unified_drop_handler"
     bl_label = "Extension Installation from URL"
     bl_options = {'INTERNAL'}
+    __slots__ = _ExtCmdMixIn.cls_slots
 
     url: StringProperty(
         name="URL",
         description="The dropped URL",
         subtype='NONE',
     )
+
+    enable_on_install: rna_prop_enable_on_install
 
     ui_do_enable_online_access: BoolProperty(
         name="Enable Online Access",
@@ -4095,23 +4098,10 @@ class EXTENSIONS_OT_unified_drop_handler(Operator):
     ui_repo_config_use_access_token: BoolProperty(name="Use Access Token", default=False)
     ui_repo_config_access_token: StringProperty(name="Access Token", subtype='PASSWORD', default="")
 
-    __slots__ = (
-        "_parsed_main_url",
-        "_parsed_repo_remote_url",
-        "_parsed_access_token",
-        "_initial_online_access",
-        "_can_change_online_access",
-        "_repo_info_name",
-        "_repo_info_index",
-        "_repo_info_exists",
-        "_repo_info_enabled",
-    )
-
     def invoke(self, context, _event):
         from .bl_extension_utils import url_parse_for_blender
 
-        url = self.url
-        url = url_normalize(url)
+        url = url_normalize(self.url)
 
         # pylint: disable-next=attribute-defined-outside-init
         self._parsed_main_url, parsed_query_params = url_parse_for_blender(url)
@@ -4259,15 +4249,17 @@ class EXTENSIONS_OT_unified_drop_handler(Operator):
         elif not self._parsed_repo_remote_url:
             col.label(text="No repository specified in the URL.", icon='ERROR')
 
-        # --- 3. Info about next step ---
+        # --- 3. Extension Install options ---
         info_box = main_col.box()
         if not self._initial_online_access and not self.ui_do_enable_online_access:
             info_box.enabled = False
         col = info_box.column()
         col.label(text="Extension Installation", icon='PACKAGE')
-        col.label(text="After confirming, the extension will be fetched and installed.")
+        col.label(text="The extension will be synced and installed after confirming.")
+        col.prop(self, "enable_on_install")
 
-    def execute(self, context):
+    def _do_repo_setup(self, context):
+        """Handle online access and repository setup. Returns repo_item or None on failure."""
         # --- 1. Handle Online Access ---
         if self.ui_do_enable_online_access and not self._initial_online_access and self._can_change_online_access:
             context.preferences.system.use_online_access = True
@@ -4275,13 +4267,13 @@ class EXTENSIONS_OT_unified_drop_handler(Operator):
 
         if not bpy.app.online_access:
             self.report({'ERROR'}, "Online access is required but not enabled.")
-            return {'CANCELLED'}
+            return None
 
         # --- 2. Handle Repository ---
         if self.ui_repo_action == 'ADD':
             if not self.ui_repo_add_remote_url:
                 self.report({'ERROR'}, "Repository URL is empty.")
-                return {'CANCELLED'}
+                return None
             try:
                 bpy.ops.preferences.extension_repo_add(
                     type='REMOTE',
@@ -4296,38 +4288,135 @@ class EXTENSIONS_OT_unified_drop_handler(Operator):
                 self.report({'INFO'}, "Repository added.")
             except RuntimeError as ex:
                 self.report({'ERROR'}, str(ex))
-                return {'CANCELLED'}
+                return None
 
         elif self.ui_repo_action == 'ENABLE':
             if self._repo_info_index != -1:
                 repo = context.preferences.extensions.repos[self._repo_info_index]
                 repo.enabled = True
-                self.report({'INFO'}, iface_("Repository \"{:s}\" enabled.").format(repo.name))
             else:
                 self.report({'ERROR'}, "Repository index not found.")
-                return {'CANCELLED'}
+                return None
 
         elif self.ui_repo_action == 'CONFIG_TOKEN':
             if self._repo_info_index != -1:
                 repo = context.preferences.extensions.repos[self._repo_info_index]
                 repo.use_access_token = self.ui_repo_config_use_access_token
-                if self.ui_repo_config_use_access_token:
-                    repo.access_token = self.ui_repo_config_access_token
-                else:
-                    repo.access_token = ""
-                self.report({'INFO'}, iface_("Access token for \"{:s}\" updated.").format(repo.name))
+                repo.access_token = self.ui_repo_config_access_token if self.ui_repo_config_use_access_token else ""
             else:
                 self.report({'ERROR'}, "Repository index not found.")
-                return {'CANCELLED'}
+                return None
 
-        # --- 3. Delegate to package_install which handles async sync + install ---
-        # The package_install operator's _invoke_for_drop path uses
-        # OperatorNonBlockingSyncHelper for async repo sync, then shows
-        # a confirmation dialog with package details, then installs asynchronously
-        # via _ExtCmdMixIn. This keeps Blender responsive throughout.
-        bpy.ops.extensions.package_install('INVOKE_DEFAULT', url=self.url)
+        # Find the repo item for syncing.
+        repo_data, _repo_idx = _preferences_repo_find_by_remote_url(
+            context, self._parsed_repo_remote_url)
+        if repo_data is None:
+            self.report({'ERROR'}, "Repository not found after setup.")
+            return None
+        return repo_data
 
-        return {'FINISHED'}
+    def exec_command_iter(self, is_modal):
+        """Called by _ExtCmdMixIn.execute(). Do repo setup, then return async sync batch."""
+        from . import bl_extension_utils
+
+        repo_item = self._do_repo_setup(bpy.context)
+        if repo_item is None:
+            return None
+
+        directory = repo_item.directory
+        if not os.path.exists(directory):
+            try:
+                os.makedirs(directory)
+            except Exception as ex:
+                self.report({'ERROR'}, str(ex))
+                return None
+
+        # Store for exec_command_finish.
+        # pylint: disable-next=attribute-defined-outside-init
+        self.repo_directory = directory
+
+        prefs = bpy.context.preferences
+
+        cmd_batch = []
+        if repo_item.remote_url:
+            cmd_batch.append(
+                partial(
+                    bl_extension_utils.repo_sync,
+                    directory=directory,
+                    remote_name=repo_item.name,
+                    remote_url=url_append_defaults(repo_item.remote_url),
+                    online_user_agent=online_user_agent_from_blender(),
+                    access_token=repo_item.access_token,
+                    timeout=prefs.system.network_timeout,
+                    use_idle=is_modal,
+                    python_args=bpy.app.python_args,
+                )
+            )
+
+        repos_lock = [repo_item.directory] if repo_item.remote_url else []
+
+        # pylint: disable-next=attribute-defined-outside-init
+        self.repo_lock = bl_extension_utils.RepoLock(
+            repo_directories=repos_lock,
+            cookie=cookie_from_session(),
+        )
+        if lock_result_any_failed_with_report(self, self.repo_lock.acquire()):
+            return None
+
+        return bl_extension_utils.CommandBatch(
+            title="Sync Repository",
+            batch=cmd_batch,
+            batch_job_limit=1,
+        )
+
+    def exec_command_finish(self, canceled):
+        """Called when async sync completes. Refresh cache, then trigger async install."""
+        # Refresh cache after sync.
+        repo_cache_store = repo_cache_store_ensure()
+        repo_cache_store_refresh_from_prefs(repo_cache_store)
+        repo_cache_store.refresh_remote_from_directory(
+            directory=self.repo_directory,
+            error_fn=self.error_fn_from_exception,
+            force=True,
+        )
+
+        # Unlock repositories.
+        lock_result_any_failed_with_report(self, self.repo_lock.release(), report_type='WARNING')
+        del self.repo_lock
+
+        repo_stats_calc()
+        _preferences_ui_redraw()
+
+        if canceled:
+            return
+
+        # Look up the package now that the repo is synced.
+        repo_index, _repo_name, pkg_id, item_remote, item_local = \
+            extension_url_find_repo_index_and_pkg_id(self._parsed_main_url)
+
+        if repo_index == -1 or not pkg_id or not item_remote:
+            self.report(
+                {'WARNING'},
+                "Extension not found in the synced repository. "
+                "Check the URL or sync the repository manually.",
+            )
+            return
+
+        if item_local is not None:
+            self.report({'INFO'}, iface_("Extension \"{:s}\" is already installed.").format(item_remote.name))
+            return
+
+        # Trigger the actual install as a separate async operation.
+        # Using EXEC_DEFAULT so no additional dialog is shown.
+        try:
+            bpy.ops.extensions.package_install(
+                'EXEC_DEFAULT',
+                repo_index=repo_index,
+                pkg_id=pkg_id,
+                enable_on_install=self.enable_on_install,
+            )
+        except RuntimeError as ex:
+            self.report({'ERROR'}, str(ex))
 
 
 # -----------------------------------------------------------------------------
