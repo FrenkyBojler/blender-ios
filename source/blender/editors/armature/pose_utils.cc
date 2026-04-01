@@ -41,6 +41,7 @@
 #include "ANIM_action_iterators.hh"
 #include "ANIM_keyframing.hh"
 #include "ANIM_keyingsets.hh"
+#include "ANIM_transformable.hh"
 
 #include "armature_intern.hh"
 
@@ -180,13 +181,8 @@ static void fcurves_to_pchan_links_get(ListBaseT<tPChanFCurveLink> &pfLinks,
 
   tPChanFCurveLink *pfl = MEM_new<tPChanFCurveLink>("tPChanFCurveLink");
 
-  pfl->ob = &ob;
   pfl->fcurves = curves;
-  pfl->pchan = &pchan;
-
-  /* Get the RNA path to this pchan - this needs to be freed! */
-  PointerRNA ptr = RNA_pointer_create_discrete(reinterpret_cast<ID *>(&ob), RNA_PoseBone, &pchan);
-  pfl->pchan_path = BLI_strdup(RNA_path_from_ID_to_struct(&ptr).value_or("").c_str());
+  pfl->transformable = MEM_new<animrig::Transformable>("transformable_pose_bone", ob, pchan);
 
   BLI_addtail(&pfLinks, pfl);
 
@@ -205,11 +201,8 @@ static void fcurves_to_pchan_links_get(ListBaseT<tPChanFCurveLink> &pfLinks,
   }
 
   copy_v3_v3(pfl->oldloc, pchan.loc);
-  copy_v3_v3(pfl->oldrot, pchan.eul);
+  pfl->old_rot = pfl->transformable->get_rotation();
   copy_v3_v3(pfl->oldscale, pchan.scale);
-  copy_qt_qt(pfl->oldquat, pchan.quat);
-  copy_v3_v3(pfl->oldaxis, pchan.rotAxis);
-  pfl->oldangle = pchan.rotAngle;
 
   /* Store current bbone values. */
   pfl->roll1 = pchan.roll1;
@@ -313,9 +306,6 @@ void poseAnim_mapping_free(ListBaseT<tPChanFCurveLink> *pfLinks)
       IDP_FreeProperty(pfl->oldprops);
     }
 
-    /* free pchan RNA Path */
-    MEM_delete(pfl->pchan_path);
-
     /* free link itself */
     BLI_freelinkN(pfLinks, pfl);
   }
@@ -338,16 +328,15 @@ void poseAnim_mapping_reset(ListBaseT<tPChanFCurveLink> *pfLinks)
 {
   /* iterate over each pose-channel affected, restoring all channels to their original values */
   for (tPChanFCurveLink &pfl : *pfLinks) {
-    bPoseChannel *pchan = pfl.pchan;
+    animrig::Transformable *transformable = pfl.transformable;
 
     /* just copy all the values over regardless of whether they changed or not */
-    copy_v3_v3(pchan->loc, pfl.oldloc);
-    copy_v3_v3(pchan->eul, pfl.oldrot);
-    copy_v3_v3(pchan->scale, pfl.oldscale);
-    copy_qt_qt(pchan->quat, pfl.oldquat);
-    copy_v3_v3(pchan->rotAxis, pfl.oldaxis);
-    pchan->rotAngle = pfl.oldangle;
+    transformable->set_location(pfl.oldloc);
+    transformable->set_rotation(pfl.old_rot);
+    transformable->set_scale(pfl.oldscale);
 
+    BLI_assert(transformable->type() == animrig::Transformable::Type::POSE_BONE);
+    bPoseChannel *pchan = static_cast<bPoseChannel *>(transformable->data());
     /* store current bbone values */
     pchan->roll1 = pfl.roll1;
     pchan->roll2 = pfl.roll2;
@@ -363,10 +352,10 @@ void poseAnim_mapping_reset(ListBaseT<tPChanFCurveLink> *pfLinks)
 
     /* just overwrite values of properties from the stored copies (there should be some) */
     if (pfl.oldprops) {
-      IDP_SyncGroupValues(pfl.pchan->prop, pfl.oldprops);
+      IDP_SyncGroupValues(pchan->prop, pfl.oldprops);
     }
     if (pfl.old_system_properties) {
-      IDP_SyncGroupValues(pfl.pchan->system_properties, pfl.old_system_properties);
+      IDP_SyncGroupValues(pchan->system_properties, pfl.old_system_properties);
     }
   }
 }
@@ -410,14 +399,16 @@ void poseAnim_mapping_autoKeyframe(bContext *C,
    * it might be easier to just overwrite all using normal mechanisms
    */
   for (tPChanFCurveLink &pfl : *pfLinks) {
-    bPoseChannel *pchan = pfl.pchan;
+    animrig::Transformable *transformable = pfl.transformable;
+    bPoseChannel *pchan = static_cast<bPoseChannel *>(transformable->data());
 
-    if ((pfl.ob->id.tag & ID_TAG_DOIT) == 0) {
+    if ((transformable->owner_id()->tag & ID_TAG_DOIT) == 0) {
       continue;
     }
 
     /* Add data-source override for the PoseChannel, to be used later. */
-    animrig::relative_keyingset_add_source(sources, &pfl.ob->id, RNA_PoseBone, pchan);
+    animrig::relative_keyingset_add_source(
+        sources, transformable->owner_id(), RNA_PoseBone, pchan);
   }
 
   /* insert keyframes for all relevant bones in one go */

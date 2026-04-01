@@ -312,18 +312,17 @@ static void pose_slide_refresh(bContext *C, tPoseSlideOp *pso)
 }
 
 /**
- * Although this lookup is not ideal, we won't be dealing with a lot of objects at a given time.
- * But if it comes to that we can instead store prev/next frame in the #tPChanFCurveLink.
+ * I (christoph) don't know why the frame range is stored per object. There doesn't seem to be a
+ * good reason for it. Ideally this is just one value.
  */
 static bool pose_frame_range_from_object_get(tPoseSlideOp *pso,
-                                             Object *ob,
+                                             ID *id,
                                              float *prev_frame,
                                              float *next_frame)
 {
   for (tPoseSlideObject &ob_data : pso->ob_data_array) {
-    Object *ob_iter = ob_data.ob;
 
-    if (ob_iter == ob) {
+    if (&ob_data.ob->id == id) {
       *prev_frame = ob_data.prev_frame;
       *next_frame = ob_data.next_frame;
       return true;
@@ -336,11 +335,11 @@ static bool pose_frame_range_from_object_get(tPoseSlideOp *pso,
 /**
  * Helper for apply() - perform sliding for some value.
  */
-static void pose_slide_apply_val(tPoseSlideOp *pso, const FCurve *fcu, Object *ob, float *val)
+static void pose_slide_apply_val(tPoseSlideOp *pso, const FCurve *fcu, ID *id, float *val)
 {
   float prev_frame, next_frame;
   float prev_weight, next_weight;
-  pose_frame_range_from_object_get(pso, ob, &prev_frame, &next_frame);
+  pose_frame_range_from_object_get(pso, id, &prev_frame, &next_frame);
 
   const float factor = ED_slider_factor_get(pso->slider);
   const float current_frame = float(pso->current_frame);
@@ -422,15 +421,12 @@ static void pose_slide_apply_vec3(tPoseSlideOp *pso,
                                   float vec[3],
                                   const char propName[])
 {
-  char *path = nullptr;
-
   /* Get the path to use. */
-  path = BLI_sprintfN("%s.%s", pfl->pchan_path, propName);
+  std::string path = fmt::format("{}.{}", pfl->transformable->rna_path(), propName);
 
   /* Using this path, find each matching F-Curve for the variables we're interested in. */
-
   for (FCurve *fcu : pfl->fcurves) {
-    if (!STREQ(fcu->rna_path, path)) {
+    if (StringRefNull(fcu->rna_path) != path) {
       continue;
     }
     const int idx = fcu->array_index;
@@ -443,12 +439,9 @@ static void pose_slide_apply_vec3(tPoseSlideOp *pso,
         ((lock & PS_LOCK_Z) && (idx == 2)))
     {
       /* Just work on these channels one by one... there's no interaction between values. */
-      pose_slide_apply_val(pso, fcu, pfl->ob, &vec[fcu->array_index]);
+      pose_slide_apply_val(pso, fcu, pfl->transformable->owner_id(), &vec[fcu->array_index]);
     }
   }
-
-  /* Free the temp path we got. */
-  MEM_delete(path);
 }
 
 /**
@@ -458,10 +451,10 @@ static void pose_slide_apply_props(tPoseSlideOp *pso,
                                    tPChanFCurveLink *pfl,
                                    const char prop_prefix[])
 {
-  int len = strlen(pfl->pchan_path);
+  const int len = pfl->transformable->rna_path().size();
 
   /* Setup pointer RNA for resolving paths. */
-  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, RNA_PoseBone, pfl->pchan);
+  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, RNA_PoseBone, pfl->transformable);
 
   /* - custom properties are just denoted using ["..."][etc.] after the end of the base path,
    *   so just check for opening pair after the end of the path
@@ -479,7 +472,7 @@ static void pose_slide_apply_props(tPoseSlideOp *pso,
      * - bPtr is the RNA Path with the standard part chopped off.
      * - pPtr is the chunk of the path which is left over.
      */
-    bPtr = strstr(fcu->rna_path, pfl->pchan_path) + len;
+    bPtr = strstr(fcu->rna_path, pfl->transformable->rna_path().data()) + len;
     pPtr = strstr(bPtr, prop_prefix);
 
     if (pPtr) {
@@ -503,7 +496,7 @@ static void pose_slide_apply_props(tPoseSlideOp *pso,
               tval = RNA_property_float_get(&ptr, prop);
             }
 
-            pose_slide_apply_val(pso, fcu, pfl->ob, &tval);
+            pose_slide_apply_val(pso, fcu, pfl->transformable->owner_id(), &tval);
 
             if (is_array) {
               RNA_property_float_set_index(&ptr, prop, fcu->array_index, tval);
@@ -526,7 +519,7 @@ static void pose_slide_apply_props(tPoseSlideOp *pso,
               tval = RNA_property_int_get(&ptr, prop);
             }
 
-            pose_slide_apply_val(pso, fcu, pfl->ob, &tval);
+            pose_slide_apply_val(pso, fcu, pfl->transformable->owner_id(), &tval);
 
             if (is_array) {
               RNA_property_int_set_index(&ptr, prop, fcu->array_index, tval);
@@ -551,7 +544,7 @@ static void pose_slide_apply_props(tPoseSlideOp *pso,
               tval = float(RNA_property_boolean_get(&ptr, prop));
             }
 
-            pose_slide_apply_val(pso, fcu, pfl->ob, &tval);
+            pose_slide_apply_val(pso, fcu, pfl->transformable->owner_id(), &tval);
 
             /* XXX: do we need threshold clamping here? */
             if (is_array) {
@@ -584,24 +577,26 @@ static void pose_slide_apply_props(tPoseSlideOp *pso,
 static void pose_slide_apply_quat(tPoseSlideOp *pso, tPChanFCurveLink *pfl)
 {
   const FCurve *fcu_w = nullptr, *fcu_x = nullptr, *fcu_y = nullptr, *fcu_z = nullptr;
-  bPoseChannel *pchan = pfl->pchan;
-  char *path = nullptr;
+  animrig::Transformable *transformable = pfl->transformable;
+  bPoseChannel *pchan = static_cast<bPoseChannel *>(transformable->data());
   float prev_frame, next_frame;
 
-  if (!pose_frame_range_from_object_get(pso, pfl->ob, &prev_frame, &next_frame)) {
+  if (!pose_frame_range_from_object_get(
+          pso, pfl->transformable->owner_id(), &prev_frame, &next_frame))
+  {
     BLI_assert_msg(0, "Invalid pfl data");
     return;
   }
 
   /* Get the path to use - this should be quaternion rotations only (needs care). */
-  path = BLI_sprintfN("%s.%s", pfl->pchan_path, "rotation_quaternion");
+  std::string path = fmt::format("{}.{}", pfl->transformable->rna_path(), "rotation_quaternion");
 
   /* Get the current frame number. */
   const float current_frame = float(pso->current_frame);
   const float factor = ED_slider_factor_get(pso->slider);
 
   for (FCurve *fcu : pfl->fcurves) {
-    if (!STREQ(fcu->rna_path, path)) {
+    if (StringRefNull(fcu->rna_path) != path) {
       continue;
     }
 
@@ -698,9 +693,6 @@ static void pose_slide_apply_quat(tPoseSlideOp *pso, tPChanFCurveLink *pfl)
     /* Apply final to the pose bone, keeping compatible for similar keyframe positions. */
     quat_to_compatible_quat(pchan->quat, quat_final, pchan->quat);
   }
-
-  /* Free the path now. */
-  MEM_delete(path);
 }
 
 static void pose_slide_rest_pose_apply_vec3(tPoseSlideOp *pso, float vec[3], float default_value)
@@ -712,7 +704,7 @@ static void pose_slide_rest_pose_apply_vec3(tPoseSlideOp *pso, float vec[3], flo
     if ((lock == 0) || ((lock & PS_LOCK_X) && (idx == 0)) || ((lock & PS_LOCK_Y) && (idx == 1)) ||
         ((lock & PS_LOCK_Z) && (idx == 2)))
     {
-      float diff_val = default_value - vec[idx];
+      const float diff_val = default_value - vec[idx];
       vec[idx] += factor * diff_val;
     }
   }
@@ -746,16 +738,17 @@ static void pose_slide_rest_pose_apply(bContext *C, tPoseSlideOp *pso)
      *   but rotations get more complicated since we may want to use quaternion blending
      *   for quaternions instead.
      */
-    bPoseChannel *pchan = pfl.pchan;
+    animrig::Transformable *transformable = pfl.transformable;
+    bPoseChannel *pchan = static_cast<bPoseChannel *>(pfl.transformable->data());
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_LOC) && (pchan->flag & POSE_LOC)) {
-      /* Calculate these for the 'location' vector, and use location curves. */
-      pose_slide_rest_pose_apply_vec3(pso, pchan->loc, 0.0f);
+      transformable->blend_location_to(
+          0.0f, ED_slider_factor_get(pso->slider), animrig::ChannelFlag::NONE);
     }
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_SCALE) && (pchan->flag & POSE_SCALE)) {
       /* Calculate these for the 'scale' vector, and use scale curves. */
-      pose_slide_rest_pose_apply_vec3(pso, pchan->scale, 1.0f);
+      // pose_slide_rest_pose_apply_vec3(pso, transformable->get_scale(), 1.0f);
     }
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_ROT) && (pchan->flag & POSE_ROT)) {
@@ -822,7 +815,8 @@ static void pose_slide_apply(bContext *C, tPoseSlideOp *pso)
      *   but rotations get more complicated since we may want to use quaternion blending
      *   for quaternions instead...
      */
-    bPoseChannel *pchan = pfl.pchan;
+    animrig::Transformable *transformable = pfl.transformable;
+    bPoseChannel *pchan = static_cast<bPoseChannel *>(transformable->data());
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_LOC) && (pchan->flag & POSE_LOC)) {
       /* Calculate these for the 'location' vector, and use location curves. */
@@ -985,7 +979,7 @@ static wmOperatorStatus pose_slide_invoke_common(bContext *C, wmOperator *op, co
   for (tPChanFCurveLink &pfl : pso->pfLinks) {
     /* Do this for each F-Curve. */
     for (FCurve *fcu : pfl.fcurves) {
-      AnimData *adt = pfl.ob->adt;
+      AnimData *adt = BKE_animdata_from_id(pfl.transformable->owner_id());
       fcurve_to_keylist(adt, fcu, pso->keylist, 0, {-FLT_MAX, FLT_MAX}, adt != nullptr);
     }
   }

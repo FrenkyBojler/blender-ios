@@ -12,6 +12,8 @@
 
 #include "BLI_span.hh"
 
+#include "ANIM_transformable.hh"
+
 namespace blender {
 
 struct Base;
@@ -135,24 +137,15 @@ void POSE_OT_quaternions_flip(wmOperatorType *ot);
 struct tPChanFCurveLink {
   tPChanFCurveLink *next, *prev;
 
-  /** Object this Pose Channel belongs to. */
-  Object *ob;
-
-  /** F-Curves for this PoseChannel (wrapped with LinkData) */
+  /** The Transformable which the data is attached to */
+  animrig::Transformable *transformable;
+  /** F-Curves for this Transformable. */
   Vector<FCurve *> fcurves;
-  /** Pose Channel which data is attached to */
-  bPoseChannel *pchan;
-
-  /** RNA Path to this Pose Channel (needs to be freed when we're done) */
-  char *pchan_path;
 
   /** transform values at start of operator (to be restored before each modal step) */
   float oldloc[3];
-  float oldrot[3];
+  animrig::Rotation old_rot;
   float oldscale[3];
-  float oldquat[4];
-  float oldangle;
-  float oldaxis[3];
 
   /** old bbone values (to be restored along with the transform properties) */
   float roll1, roll2;
