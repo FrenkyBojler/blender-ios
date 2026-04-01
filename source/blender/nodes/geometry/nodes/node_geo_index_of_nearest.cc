@@ -13,14 +13,15 @@ namespace blender::nodes::node_geo_index_of_nearest_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Vector>("Position")
+  b.add_input<decl::Vector>("Position"_ustr)
       .implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD)
       .structure_type(StructureType::Field);
-  b.add_input<decl::Int>("Group ID").supports_field().hide_value();
+  b.add_input<decl::Int>("Group ID"_ustr).supports_field().hide_value();
 
-  b.add_output<decl::Int>("Index").field_source_reference_all().description(
-      "Index of nearest element");
-  b.add_output<decl::Bool>("Has Neighbor").field_source_reference_all();
+  b.add_output<decl::Int>("Index"_ustr)
+      .field_source_reference_all()
+      .description("Index of nearest element");
+  b.add_output<decl::Bool>("Has Neighbor"_ustr).field_source_reference_all();
 }
 
 static KDTree_3d *build_kdtree(const Span<float3> positions, const IndexMask &mask)
@@ -226,18 +227,18 @@ class HasNeighborFieldInput final : public bke::GeometryFieldInput {
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  Field<float3> position_field = params.extract_input<Field<float3>>("Position");
-  Field<int> group_field = params.extract_input<Field<int>>("Group ID");
+  Field<float3> position_field = params.extract_input<Field<float3>>("Position"_ustr);
+  Field<int> group_field = params.extract_input<Field<int>>("Group ID"_ustr);
 
-  if (params.output_is_required("Index")) {
-    params.set_output("Index",
+  if (params.output_is_required("Index"_ustr)) {
+    params.set_output("Index"_ustr,
                       Field<int>(std::make_shared<IndexOfNearestFieldInput>(
                           std::move(position_field), group_field)));
   }
 
-  if (params.output_is_required("Has Neighbor")) {
+  if (params.output_is_required("Has Neighbor"_ustr)) {
     params.set_output(
-        "Has Neighbor",
+        "Has Neighbor"_ustr,
         Field<bool>(std::make_shared<HasNeighborFieldInput>(std::move(group_field))));
   }
 }
