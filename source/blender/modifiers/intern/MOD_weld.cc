@@ -180,11 +180,12 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
   int weld_mode = RNA_enum_get(ptr, "mode");
 
-  char merged_count_info[64];
-  SNPRINTF(merged_count_info,
-           RPT_("Welded Vertices: %i, Edges: %i"),
-           RNA_int_get(ptr, "merged_vert_count"),
-           RNA_int_get(ptr, "merged_edge_count"));
+  char weld_stats[64];
+  char vert_count_str[BLI_STR_FORMAT_INT32_GROUPED_SIZE];
+  char edge_count_str[BLI_STR_FORMAT_INT32_GROUPED_SIZE];
+  BLI_str_format_int_grouped(vert_count_str, RNA_int_get(ptr, "merged_vert_count"));
+  BLI_str_format_int_grouped(edge_count_str, RNA_int_get(ptr, "merged_edge_count"));
+  SNPRINTF(weld_stats, RPT_("Welded Vertices: %s | Edges: %s"), vert_count_str, edge_count_str);
 
   layout.use_property_split_set(true);
 
@@ -194,7 +195,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
     layout.prop(ptr, "loose_edges", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
-  layout.label(merged_count_info, ICON_NONE);
+  layout.label(weld_stats, ICON_NONE);
 
   modifier_error_message_draw(layout, ptr);
 }
