@@ -375,7 +375,7 @@ add_bundled_libraries(ceres/lib)
 set(ZSTD_ROOT_DIR ${LIBDIR}/zstd)
 find_package(Zstd REQUIRED)
 
-if(WITH_COMPILER_TRACY)
+if(WITH_TRACY)
   set(TracyClient_ROOT_DIR ${LIBDIR}/tracy)
   find_package(TracyClient REQUIRED)
 endif()

@@ -941,7 +941,6 @@ if(UNIX AND NOT APPLE)
   option(WITH_DOC_MANPAGE "Create a manual page (Unix manpage)" OFF)
 endif()
 
-
 # GPU Module
 option(WITH_RENDERDOC "Use Renderdoc API to capture frames" OFF)
 
@@ -966,6 +965,11 @@ if(POLICY CMP0119)
 else()
   set(WITH_GPU_SHADER_CPP_COMPILATION OFF)
 endif()
+
+
+# Profiling
+option(WITH_TRACY "Enable profiling via the Tracy Frame Profiler" OFF)
+mark_as_advanced(WITH_TRACY)
 
 
 # OpenGL
@@ -1032,9 +1036,6 @@ mark_as_advanced(WITH_COMPILER_ASAN_EXTERN)
 # (both CLANG/LLVM and GCC ones).
 set_and_warn_incompatible(WITH_COMPILER_ASAN WITH_MEM_VALGRIND OFF)
 set_and_warn_incompatible(WITH_COMPILER_ASAN_EXTERN WITH_MEM_VALGRIND OFF)
-
-option(WITH_COMPILER_TRACY "Enable profiling via the Tracy Frame Profiler" OFF)
-mark_as_advanced(WITH_COMPILER_TRACY)
 
 option(WITH_COMPILER_CODE_COVERAGE "\
 Build and link with code coverage support (only for Debug targets)."
