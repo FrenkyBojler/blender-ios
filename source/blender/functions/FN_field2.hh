@@ -110,6 +110,7 @@ template<typename T> class Field {
 
  public:
   Field();
+
   operator const GField &() const;
 };
 
@@ -134,6 +135,10 @@ class GFieldRef {
 
  public:
   GFieldRef(const GField &field);
+  template<typename T> GFieldRef(const Field<T> &field);
+
+  explicit GFieldRef(const FieldInput &field_input);
+  explicit GFieldRef(const FieldMultiFunction &field_multi_fn, int output_i);
 
   const Variant &variant() const;
 
@@ -604,6 +609,13 @@ inline Span<GField> FieldMultiFunction::inputs() const
   return inputs_;
 }
 
+inline GFieldRef::GFieldRef(const FieldInput &field_input) : variant_(Input{&field_input}) {}
+
+inline GFieldRef::GFieldRef(const FieldMultiFunction &field_multi_fn, int output_i)
+    : variant_(MultiFn{&field_multi_fn, output_i})
+{
+}
+
 inline GFieldRef::GFieldRef(const GField &field)
     : variant_(std::visit(
           []<typename T>(const T &v) -> Variant {
@@ -623,6 +635,11 @@ inline GFieldRef::GFieldRef(const GField &field)
             }
           },
           field.deref_field_ref().variant()))
+{
+}
+
+template<typename T>
+inline GFieldRef::GFieldRef(const Field<T> &field) : GFieldRef(static_cast<const GField &>(field))
 {
 }
 
