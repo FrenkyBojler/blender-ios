@@ -9,7 +9,7 @@
 #include "BLI_stack.hh"
 #include "BLI_vector_set.hh"
 
-#include "FN_field.hh"
+#include "FN_field_evaluation.hh"
 #include "FN_multi_function.hh"
 #include "FN_multi_function_builder.hh"
 #include "FN_multi_function_procedure.hh"

@@ -28,6 +28,7 @@ set(SRC
   intern/user_data.cc
 
   FN_field.hh
+  FN_field_evaluation.hh
   FN_init.hh
   FN_lazy_function.hh
   FN_lazy_function_execute.hh

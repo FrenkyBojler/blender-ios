@@ -13,7 +13,7 @@
 #include "BKE_anonymous_attribute_id.hh"
 #include "BKE_geometry_set.hh"
 
-#include "FN_field.hh"
+#include "FN_field_evaluation.hh"
 
 namespace blender {
 

@@ -23,7 +23,7 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_memory_counter.hh"
 
-#include "FN_field.hh"
+#include "FN_field_evaluation.hh"
 
 namespace blender::bke {
 
