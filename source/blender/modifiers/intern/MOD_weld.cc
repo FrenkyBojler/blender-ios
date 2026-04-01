@@ -17,6 +17,7 @@
 #include "BLI_array.hh"
 #include "BLI_index_range.hh"
 #include "BLI_span.hh"
+#include "BLI_string.h"
 #include "BLI_vector.hh"
 
 #include "BLT_translation.hh"
@@ -33,6 +34,8 @@
 
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
+
+#include "DEG_depsgraph_query.hh"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
@@ -74,6 +77,30 @@ static Array<bool> selection_array_from_vertex_group(Span<MDeformVert> vertex_gr
   return selection;
 }
 
+static WeldModifierData *getOriginalModifierData(const WeldModifierData *wmd,
+                                                 const ModifierEvalContext *ctx)
+{
+  Object *ob_orig = DEG_get_original(ctx->object);
+  return reinterpret_cast<WeldModifierData *>(
+      BKE_modifiers_findby_name(ob_orig, wmd->modifier.name));
+}
+
+static void updateMergedCount(const ModifierEvalContext *ctx,
+                              WeldModifierData *wmd,
+                              int vert_count,
+                              int edge_count)
+{
+  wmd->merged_vert_count = vert_count;
+  wmd->merged_edge_count = edge_count;
+
+  if (DEG_is_active(ctx->depsgraph)) {
+    /* update for display only */
+    WeldModifierData *wmd_orig = getOriginalModifierData(wmd, ctx);
+    wmd_orig->merged_vert_count = vert_count;
+    wmd_orig->merged_edge_count = edge_count;
+  }
+}
+
 static std::optional<Mesh *> calculate_weld(const Mesh &mesh, const WeldModifierData &wmd)
 {
   const int defgrp_index = BKE_id_defgroup_name_index(&mesh.id, wmd.defgrp_name);
@@ -107,11 +134,22 @@ static std::optional<Mesh *> calculate_weld(const Mesh &mesh, const WeldModifier
   return nullptr;
 }
 
-static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext * /*ctx*/, Mesh *mesh)
+static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *mesh)
 {
-  const WeldModifierData &wmd = reinterpret_cast<WeldModifierData &>(*md);
+  WeldModifierData &wmd = reinterpret_cast<WeldModifierData &>(*md);
 
   std::optional<Mesh *> result = calculate_weld(*mesh, wmd);
+
+  int merged_verts = 0;
+  int merged_edges = 0;
+
+  if (result) {
+    merged_verts = mesh->verts_num - (*result)->verts_num;
+    merged_edges = mesh->edges_num - (*result)->edges_num;
+  }
+
+  updateMergedCount(ctx, &wmd, merged_verts, merged_edges);
+
   if (!result) {
     return mesh;
   }
@@ -142,6 +180,12 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
   int weld_mode = RNA_enum_get(ptr, "mode");
 
+  char merged_count_info[64];
+  SNPRINTF(merged_count_info,
+           RPT_("Welded Vertices: %i, Edges: %i"),
+           RNA_int_get(ptr, "merged_vert_count"),
+           RNA_int_get(ptr, "merged_edge_count"));
+
   layout.use_property_split_set(true);
 
   layout.prop(ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -150,6 +194,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
     layout.prop(ptr, "loose_edges", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
+  layout.label(merged_count_info, ICON_NONE);
 
   modifier_error_message_draw(layout, ptr);
 }

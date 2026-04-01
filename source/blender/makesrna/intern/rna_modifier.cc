@@ -7203,6 +7203,14 @@ static void rna_def_modifier_weld(BlenderRNA *brna)
       prop, "Only Loose Edges", "Collapse edges without faces, cloth sewing edges");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
+  prop = RNA_def_property(srna, "merged_vert_count", PROP_INT, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop, "Merged Vertex Count", "Number of vertices that are merged");
+  RNA_define_lib_overridable(false);
+
+  prop = RNA_def_property(srna, "merged_edge_count", PROP_INT, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop, "Merged Edge Count", "Number of edges that are merged");
   RNA_define_lib_overridable(false);
 }
 

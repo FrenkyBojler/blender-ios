@@ -2213,6 +2213,10 @@ struct WeldModifierData {
   /** #WeldModifierFlag. */
   char flag = 0;
   char _pad[2] = {};
+
+  /* Runtime data. */
+  int merged_vert_count = 0;
+  int merged_edge_count = 0;
 };
 
 /** #DataTransferModifierData.flags */
