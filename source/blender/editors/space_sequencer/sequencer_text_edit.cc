@@ -734,7 +734,7 @@ static bool text_insert(TextVars *data, const char *buf, const size_t buf_len)
   MEM_delete(data->text_ptr);
   data->text_ptr = new_text;
 
-  data->cursor_offset += 1;
+  data->cursor_offset += BLI_strlen_utf8(buf);
   return true;
 }
 
