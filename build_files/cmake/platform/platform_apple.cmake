@@ -219,12 +219,6 @@ endif()
 
 if(WITH_SDL)
   find_package(SDL3 REQUIRED CONFIG)
-  string(APPEND PLATFORM_LINKFLAGS " -framework ForceFeedback -framework GameController -framework UniformTypeIdentifiers")
-  if("${CMAKE_OSX_ARCHITECTURES}" STREQUAL "arm64")
-    # The minimum macOS version of the libraries makes it so this is included in SDL on arm64
-    # but not x86_64.
-    string(APPEND PLATFORM_LINKFLAGS " -framework CoreHaptics")
-  endif()
 endif()
 
 set(EPOXY_ROOT_DIR ${LIBDIR}/epoxy)
