@@ -682,10 +682,13 @@ void calc_vert_factors(const Depsgraph &depsgraph,
       }
     }
 
+    /* The filter tools do not take symmetry into consideration, use the "generic" (i.e. 0)
+     * symmetry pass instead */
+    const int current_symmetry_pass = ss.cache ? ss.cache->mirror_symmetry_pass : 0;
     if (!automasking.settings.topology_use_brush_limit &&
         automasking.settings.flags & BRUSH_AUTOMASKING_TOPOLOGY &&
         islands::vert_id_get(ss, vert) !=
-            automasking.settings.initial_island_nr[ss.cache->mirror_symmetry_pass])
+            automasking.settings.initial_island_nr[current_symmetry_pass])
     {
       factors[i] = 0.0f;
       continue;
@@ -794,10 +797,13 @@ void calc_face_factors(const Depsgraph &depsgraph,
         }
       }
 
+      /* The filter tools do not take symmetry into consideration, use the "generic" (i.e. 0)
+       * symmetry pass instead */
+      const int current_symmetry_pass = ss.cache ? ss.cache->mirror_symmetry_pass : 0;
       if (!automasking.settings.topology_use_brush_limit &&
           automasking.settings.flags & BRUSH_AUTOMASKING_TOPOLOGY &&
           islands::vert_id_get(ss, vert) !=
-              automasking.settings.initial_island_nr[ss.cache->mirror_symmetry_pass])
+              automasking.settings.initial_island_nr[current_symmetry_pass])
       {
         factor = 0.0f;
         continue;
@@ -923,10 +929,13 @@ void calc_grids_factors(const Depsgraph &depsgraph,
         }
       }
 
+      /* The filter tools do not take symmetry into consideration, use the "generic" (i.e. 0)
+       * symmetry pass instead */
+      const int current_symmetry_pass = ss.cache ? ss.cache->mirror_symmetry_pass : 0;
       if (!automasking.settings.topology_use_brush_limit &&
           automasking.settings.flags & BRUSH_AUTOMASKING_TOPOLOGY &&
           islands::vert_id_get(ss, vert) !=
-              automasking.settings.initial_island_nr[ss.cache->mirror_symmetry_pass])
+              automasking.settings.initial_island_nr[current_symmetry_pass])
       {
         factors[node_vert] = 0.0f;
         continue;
@@ -1046,10 +1055,13 @@ void calc_vert_factors(const Depsgraph &depsgraph,
       }
     }
 
+    /* The filter tools do not take symmetry into consideration, use the "generic" (i.e. 0)
+     * symmetry pass instead */
+    const int current_symmetry_pass = ss.cache ? ss.cache->mirror_symmetry_pass : 0;
     if (!automasking.settings.topology_use_brush_limit &&
         automasking.settings.flags & BRUSH_AUTOMASKING_TOPOLOGY &&
         islands::vert_id_get(ss, vert_i) !=
-            automasking.settings.initial_island_nr[ss.cache->mirror_symmetry_pass])
+            automasking.settings.initial_island_nr[current_symmetry_pass])
     {
       factors[i] = 0.0f;
       continue;
@@ -1675,7 +1687,7 @@ std::unique_ptr<Cache> cache_init(const Depsgraph &depsgraph,
 
     std::array<int, PAINT_SYMM_AREAS> symm_verts = find_all_symm_verts(
         depsgraph, ob, ss.active_vert_index());
-    const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(ob);
+    const ePaintSymmetryFlags symm = mesh_symmetry_xyz_get(ob);
 
     for (int symm_it = 0; symm_it < PAINT_SYMM_AREAS; symm_it++) {
       if (!is_symmetry_iteration_valid(symm_it, symm)) {
