@@ -1456,6 +1456,42 @@ if(TEST_SRC_DIR_EXISTS)
     ${TEST_SRC_DIR}/sequence_editing/vse_load_meta_stack.blend
     --python ${TEST_PYTHON_DIR}/sequencer_load_meta_stack.py
   )
+
+  if(WITH_GPU_COMPOSITOR_TESTS)
+    if(WITH_OPENGL_BACKEND)
+      foreach(render_test ${render_tests})
+        add_render_test(
+                sequencer_gpu_opengl_${render_test}
+                ${CMAKE_CURRENT_LIST_DIR}/sequencer_render_tests.py
+                --testdir "${TEST_SRC_DIR}/sequence_editing/${render_test}"
+                --outdir "${TEST_OUT_DIR}/sequence_editing"
+                --gpu-backend opengl
+        )
+      endforeach()
+    endif()
+    if(WITH_METAL_BACKEND)
+      foreach(render_test ${render_tests})
+        add_render_test(
+                sequencer_gpu_metal_${render_test}
+                ${CMAKE_CURRENT_LIST_DIR}/sequencer_render_tests.py
+                --testdir "${TEST_SRC_DIR}/sequence_editing/${render_test}"
+                --outdir "${TEST_OUT_DIR}/sequence_editing"
+                --gpu-backend metal
+        )
+      endforeach()
+    endif()
+    if(WITH_VULKAN_BACKEND AND WITH_GPU_RENDER_TESTS_VULKAN)
+      foreach(render_test ${render_tests})
+        add_render_test(
+                sequencer_gpu_vulkan_${render_test}
+                ${CMAKE_CURRENT_LIST_DIR}/sequencer_render_tests.py
+                --testdir "${TEST_SRC_DIR}/sequence_editing/${render_test}"
+                --outdir "${TEST_OUT_DIR}/sequence_editing"
+                --gpu-backend vulkan
+        )
+      endforeach()
+    endif()
+  endif()
 endif()
 
 # ------------------------------------------------------------------------------
