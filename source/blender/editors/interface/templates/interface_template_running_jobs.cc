@@ -181,6 +181,7 @@ void template_running_jobs(Layout *layout, bContext *C)
       break;
     }
     if (WM_jobs_test(wm, &scene, WM_JOB_TYPE_SOUND_MIXDOWN)) {
+      cancel_fn = set_global_break;
       icon = ICON_FILE_SOUND;
       break;
     }
