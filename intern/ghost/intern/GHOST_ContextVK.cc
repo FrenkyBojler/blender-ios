@@ -282,7 +282,7 @@ class GHOST_DeviceVK {
         vk_physical_device, &queue_family_count, queue_families.data());
 
     generic_queue_family = 0;
-    for (const auto &queue_family : queue_families) {
+    for (const VkQueueFamilyProperties &queue_family : queue_families) {
       /* Every VULKAN implementation by spec must have one queue family that support both graphics
        * and compute pipelines. We select this one; compute only queue family hints at asynchronous
        * compute implementations. */
@@ -393,7 +393,7 @@ struct GHOST_InstanceVK {
 
     int best_device_score = -1;
     int device_index = -1;
-    for (const auto &physical_device : physical_devices) {
+    for (const VkPhysicalDevice &physical_device : physical_devices) {
       GHOST_DeviceVK device_vk(physical_device, false);
       device_index++;
 
@@ -407,8 +407,8 @@ struct GHOST_InstanceVK {
       if (
 #ifndef __APPLE__
           !device_vk.features.features.geometryShader ||
-          !device_vk.features.features.vertexPipelineStoresAndAtomics ||
 #endif
+          !device_vk.features.features.vertexPipelineStoresAndAtomics ||
           !device_vk.features.features.multiViewport ||
           !device_vk.features.features.shaderClipDistance ||
           !device_vk.features.features.fragmentStoresAndAtomics ||
@@ -494,6 +494,27 @@ struct GHOST_InstanceVK {
       device.extensions.disable(VK_EXT_VERTEX_INPUT_DYNAMIC_STATE_EXTENSION_NAME);
     }
 
+#ifdef _WIN32
+    /* Intel 7th to 10th Gen Processor iGPUs show a black screen at application startup when using
+     * VK_EXT_vertex_input_dynamic_state. The used driver version for these iGPUs is 101.2xxx or
+     * older.
+     *
+     * Ref: #147721
+     */
+    if (device.properties_12.driverID == VK_DRIVER_ID_INTEL_PROPRIETARY_WINDOWS &&
+        device.properties.properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
+    {
+      const uint32_t driver_version = device.properties.properties.driverVersion;
+      uint32_t driver_version_major = driver_version >> 14u;
+      uint32_t driver_version_minor = driver_version & 0x3fffu;
+      if (driver_version_major < 101 ||
+          (driver_version_major == 101 && driver_version_minor < 3000))
+      {
+        device.extensions.disable(VK_EXT_VERTEX_INPUT_DYNAMIC_STATE_EXTENSION_NAME);
+      }
+    }
+#endif
+
     device.init_generic_queue_family();
 
     float queue_priorities[] = {1.0f};
@@ -508,8 +529,8 @@ struct GHOST_InstanceVK {
     VkPhysicalDeviceFeatures device_features = {};
 #ifndef __APPLE__
     device_features.geometryShader = VK_TRUE;
-    device_features.vertexPipelineStoresAndAtomics = VK_TRUE;
 #endif
+    device_features.vertexPipelineStoresAndAtomics = VK_TRUE;
     device_features.multiViewport = VK_TRUE;
     device_features.shaderClipDistance = VK_TRUE;
     device_features.fragmentStoresAndAtomics = VK_TRUE;
@@ -945,7 +966,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferRelease()
   if (swapchain_ == VK_NULL_HANDLE) {
     GHOST_VulkanSwapChainData swap_chain_data = {};
     if (swap_buffer_draw_callback_) {
-      swap_buffer_draw_callback_(&swap_chain_data);
+      swap_buffer_draw_callback_(&swap_chain_data, true);
     }
     return GHOST_kSuccess;
   }
@@ -974,7 +995,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferRelease()
 
   vkResetFences(vk_device, 1, &submission_frame_data.submission_fence);
   if (swap_buffer_draw_callback_) {
-    swap_buffer_draw_callback_(&swap_chain_data);
+    swap_buffer_draw_callback_(&swap_chain_data, true);
   }
 
   VkPresentInfoKHR present_info = {};
@@ -1059,7 +1080,7 @@ GHOST_TSuccess GHOST_ContextVK::getVulkanHandles(GHOST_VulkanHandles &r_handles)
 }
 
 GHOST_TSuccess GHOST_ContextVK::setVulkanSwapBuffersCallbacks(
-    std::function<void(const GHOST_VulkanSwapChainData *)> swap_buffer_draw_callback,
+    std::function<void(const GHOST_VulkanSwapChainData *, bool)> swap_buffer_draw_callback,
     std::function<void(void)> swap_buffer_acquired_callback,
     std::function<void(GHOST_VulkanOpenXRData *)> openxr_acquire_framebuffer_image_callback,
     std::function<void(GHOST_VulkanOpenXRData *)> openxr_release_framebuffer_image_callback)
@@ -1096,7 +1117,7 @@ static GHOST_TSuccess selectPresentMode(const GHOST_TVSyncModes vsync,
   if (vsync != GHOST_kVSyncModeUnset) {
     const bool vsync_off = (vsync == GHOST_kVSyncModeOff);
     if (vsync_off) {
-      for (auto present_mode : presents) {
+      for (const VkPresentModeKHR present_mode : presents) {
         if (present_mode == VK_PRESENT_MODE_IMMEDIATE_KHR) {
           *r_presentMode = present_mode;
           return GHOST_kSuccess;
@@ -1113,7 +1134,7 @@ static GHOST_TSuccess selectPresentMode(const GHOST_TVSyncModes vsync,
   /* TODO: select the correct presentation mode based on the actual being performed by the user.
    * When low latency is required (paint cursor) we should select mailbox, otherwise we can do FIFO
    * to reduce CPU/GPU usage. */
-  for (auto present_mode : presents) {
+  for (const VkPresentModeKHR present_mode : presents) {
     if (present_mode == VK_PRESENT_MODE_MAILBOX_KHR) {
       *r_presentMode = present_mode;
       return GHOST_kSuccess;
@@ -1515,7 +1536,7 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
     GHOST_InstanceVK &instance_vk = vulkan_instance.value();
     instance_vk.extensions.enable(VK_EXT_DEBUG_UTILS_EXTENSION_NAME, true);
 
-    /* Some XR platforms load functions without knowning if they were replaced by a core
+    /* Some XR platforms load functions without knowing if they were replaced by a core
      * function. Monado for example always uses the extension functions. Due to maintenance changes
      * drivers now only return the function pointer when the extension is enabled.
      *

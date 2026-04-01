@@ -305,7 +305,7 @@ void OUTLINER_OT_item_openclose(wmOperatorType *ot)
 {
   ot->name = "Open/Close";
   ot->idname = "OUTLINER_OT_item_openclose";
-  ot->description = "Toggle whether item under cursor is enabled or closed";
+  ot->description = "Toggle whether item under cursor is open or closed";
 
   ot->invoke = outliner_item_openclose_invoke;
   ot->modal = outliner_item_openclose_modal;
@@ -1546,7 +1546,9 @@ static TreeElement *outliner_show_active_get_element(const bContext *C,
 {
   TreeElement *te;
 
-  BKE_view_layer_synced_ensure(scene, view_layer);
+  const Main *bmain = CTX_data_main(C);
+
+  BKE_view_layer_synced_ensure(*bmain, scene, view_layer);
   Object *obact = BKE_view_layer_active_object_get(view_layer);
 
   if (!obact) {

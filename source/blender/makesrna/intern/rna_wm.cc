@@ -1529,6 +1529,12 @@ static void rna_WindowManager_keyconfigs_begin(CollectionPropertyIterator *iter,
   rna_iterator_listbase_begin(iter, ptr, &wm->runtime->keyconfigs, nullptr);
 }
 
+static bool rna_WindowManager_is_event_handling_break_get(PointerRNA *ptr)
+{
+  wmWindowManager *wm = static_cast<wmWindowManager *>(ptr->data);
+  return wm->runtime->break_events_handling;
+}
+
 static PointerRNA rna_WindowManager_xr_session_state_get(PointerRNA *ptr)
 {
   wmWindowManager *wm = static_cast<wmWindowManager *>(ptr->data);
@@ -2831,6 +2837,18 @@ static void rna_def_window(BlenderRNA *brna)
   RNA_api_window(srna);
 }
 
+static void rna_def_windows(BlenderRNA *brna, PropertyRNA *cprop)
+{
+  StructRNA *srna;
+
+  RNA_def_property_srna(cprop, "Windows");
+  srna = RNA_def_struct(brna, "Windows", nullptr);
+  RNA_def_struct_sdna(srna, "wmWindowManager");
+  RNA_def_struct_ui_text(srna, "Windows", "Collection of windows");
+
+  RNA_api_windows(srna);
+}
+
 /* curve.splines */
 static void rna_def_wm_keyconfigs(BlenderRNA *brna, PropertyRNA *cprop)
 {
@@ -2910,6 +2928,7 @@ static void rna_def_windowmanager(BlenderRNA *brna)
   prop = RNA_def_property(srna, "windows", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_struct_type(prop, "Window");
   RNA_def_property_ui_text(prop, "Windows", "Open windows");
+  rna_def_windows(brna, prop);
 
   prop = RNA_def_property(srna, "keyconfigs", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_struct_type(prop, "KeyConfig");
@@ -2948,7 +2967,16 @@ static void rna_def_windowmanager(BlenderRNA *brna)
       prop, "Extensions Blocked", "Number of installed extensions which are blocked");
   RNA_def_property_update(prop, 0, "rna_WindowManager_extensions_statusbar_update");
 
+  prop = RNA_def_property(srna, "is_event_handling_break", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_boolean_funcs(prop, "rna_WindowManager_is_event_handling_break_get", nullptr);
+  RNA_def_property_ui_text(
+      prop,
+      "Event Handling Break",
+      "Remaining events in the queue are delayed until the next main loop iteration");
+
   RNA_api_wm(srna);
+  RNA_api_asset_library_loading_status(srna);
 }
 
 /* keyconfig.items */
