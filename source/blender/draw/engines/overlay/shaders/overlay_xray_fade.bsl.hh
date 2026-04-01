@@ -11,7 +11,6 @@
  */
 
 #pragma once
-#pragma create_info
 
 #include "gpu_shader_compat.hh"
 #include "gpu_shader_fullscreen_lib.glsl"
@@ -30,7 +29,7 @@ struct Resources {
   [[sampler(2)]] const sampler2DDepth xray_depth_tx;
   [[sampler(3)]] const sampler2DDepth xray_depth_in_front_tx;
 
-  [[push_constant]] float opacity;
+  [[push_constant]] const float opacity;
 
   TexelData sample_texel(float2 uv)
   {
@@ -83,7 +82,7 @@ struct FragOut {
 
   TexelData data = srt.sample_texel(v_in.uv);
 
-  /* Merge infront depth. */
+  /* Merge in-front depth. */
   if (data_in_front.depth != 1.0f) {
     data.depth = 0.0f;
   }
@@ -96,6 +95,6 @@ struct FragOut {
   gpu_discard_fragment();
 }
 
-PipelineGraphic pipeline(vert_main, frag_main, Resources{});
+PipelineGraphic pipeline(vert_main, frag_main);
 
 }  // namespace overlay::xray_fade

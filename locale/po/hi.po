@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'45d5533d8e66')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'227100a72567')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-16 11:01+0000\n"
+"POT-Creation-Date: 2026-03-30 09:56+0000\n"
 "PO-Revision-Date: 2025-12-04 22:18+0000\n"
 "Last-Translator: Jackson Zheng <business.jackson.zheng@gmail.com>\n"
 "Language-Team: Hindi <https://translate.blender.org/projects/blender-ui/ui/hi/>\n"
@@ -712,6 +712,10 @@ msgstr "छटा"
 
 msgid "Fill"
 msgstr "भरण"
+
+
+msgid "Both"
+msgstr "दोनों"
 
 
 msgid "Background Image"
@@ -2573,20 +2577,56 @@ msgid "Dots"
 msgstr "बिन्दु्"
 
 
-msgid "Quick Effects"
-msgstr "त्वरित प्रभाव"
+msgid "Math"
+msgstr "गणित"
+
+
+msgid "Names"
+msgstr "नाम"
+
+
+msgid "Bone Roll"
+msgstr "हड्डी पंजी"
 
 
 msgid "Show/Hide"
 msgstr "छुपाएँ / दिखाएँ"
 
 
-msgid "Math"
-msgstr "गणित"
+msgid "Snap"
+msgstr "स्नैप"
+
+
+msgid "Import"
+msgstr "आयात करें"
+
+
+msgid "Mirror"
+msgstr "दर्पण"
 
 
 msgid "UV"
 msgstr "यूवी"
+
+
+msgid "Light"
+msgstr "प्रकाश"
+
+
+msgid "Rigid Body"
+msgstr "कठोर-पदार्थ"
+
+
+msgid "Apply"
+msgstr "लागू करें"
+
+
+msgid "Track"
+msgstr "ट्रैक"
+
+
+msgid "Quick Effects"
+msgstr "त्वरित प्रभाव"
 
 
 msgid "Make Single User"
@@ -2597,12 +2637,8 @@ msgid "Hooks"
 msgstr "खूँटी"
 
 
-msgid "Names"
-msgstr "नाम"
-
-
-msgid "Apply"
-msgstr "लागू करें"
+msgid "Keying"
+msgstr "कुंजीयन"
 
 
 msgid "Toggle Bone Options"
@@ -2615,38 +2651,6 @@ msgstr "हड्डी विकल्प को सक्षम करें"
 
 msgid "Merge"
 msgstr "विलय करें"
-
-
-msgid "Bone Roll"
-msgstr "हड्डी पंजी"
-
-
-msgid "Keying"
-msgstr "कुंजीयन"
-
-
-msgid "Snap"
-msgstr "स्नैप"
-
-
-msgid "Mirror"
-msgstr "दर्पण"
-
-
-msgid "Light"
-msgstr "प्रकाश"
-
-
-msgid "Import"
-msgstr "आयात करें"
-
-
-msgid "Rigid Body"
-msgstr "कठोर-पदार्थ"
-
-
-msgid "Track"
-msgstr "ट्रैक"
 
 
 msgid "Basic"
@@ -3596,10 +3600,6 @@ msgstr "समतल"
 
 msgid "Side"
 msgstr "किनारा"
-
-
-msgid "Both"
-msgstr "दोनों"
 
 
 msgid "Next Keyframe"
