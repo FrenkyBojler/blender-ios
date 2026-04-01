@@ -69,19 +69,19 @@ class GField {
   GField() = delete;
 
  public:
-  explicit GField(const CPPType &type);
-  explicit GField(FieldInputPtr node);
-  explicit GField(FieldOperationPtr node, int output_i = 0);
-  explicit GField(Variant variant);
+  explicit GField(const CPPType &type) noexcept;
+  explicit GField(FieldInputPtr node) noexcept;
+  explicit GField(FieldOperationPtr node, int output_i = 0) noexcept;
+  explicit GField(Variant variant) noexcept;
   static GField from_non_owning_ref(const GField &field);
   static GField from_constant(const CPPType &type, const void *value);
   static GField from_non_owning_constant(const CPPType &type, const void *value);
   template<typename InputT, typename... Args> static GField from_input(Args &&...args);
 
   GField(const GField &other);
-  GField(GField &&other);
+  GField(GField &&other) noexcept;
   GField &operator=(const GField &other);
-  GField &operator=(GField &&other);
+  GField &operator=(GField &&other) noexcept;
   ~GField();
 
   const CPPType &cpp_type() const;
@@ -257,10 +257,13 @@ inline FieldInput::FieldInput(const CPPType &type, std::string debug_name)
 {
 }
 
-inline GField::GField(const CPPType &type) : variant_(ConstantRef{&type, type.default_value()}) {}
-inline GField::GField(FieldInputPtr node) : variant_(Input{std::move(node)}) {}
-inline GField::GField(Variant variant) : variant_(std::move(variant)) {}
-inline GField::GField(FieldOperationPtr node, const int output_i)
+inline GField::GField(const CPPType &type) noexcept
+    : variant_(ConstantRef{&type, type.default_value()})
+{
+}
+inline GField::GField(FieldInputPtr node) noexcept : variant_(Input{std::move(node)}) {}
+inline GField::GField(Variant variant) noexcept : variant_(std::move(variant)) {}
+inline GField::GField(FieldOperationPtr node, const int output_i) noexcept
     : variant_(MultiFn{std::move(node), output_i})
 {
 }
@@ -624,7 +627,7 @@ inline GField::GField(const GField &other) : variant_(other.variant_)
       variant_);
 }
 
-inline GField::GField(GField &&other) : variant_(std::move(other.variant_))
+inline GField::GField(GField &&other) noexcept : variant_(std::move(other.variant_))
 {
   const CPPType &type = this->cpp_type();
   other.variant_ = ConstantRef{&type, type.default_value()};
@@ -640,7 +643,7 @@ inline GField &GField::operator=(const GField &other)
   return *this;
 }
 
-inline GField &GField::operator=(GField &&other)
+inline GField &GField::operator=(GField &&other) noexcept
 {
   if (this == &other) {
     return *this;
