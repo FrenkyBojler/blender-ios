@@ -235,8 +235,6 @@ template<typename T> T evaluate_constant_field(const Field<T> &field)
   return value;
 }
 
-Field<bool> invert_boolean_field(const Field<bool> &field);
-
 /**
  * If the field depends on some input, the same field is returned.
  * Otherwise the field is evaluated and a new field is created that just computes this constant.
@@ -247,20 +245,6 @@ Field<bool> invert_boolean_field(const Field<bool> &field);
  * - Memory of the input fields may be freed.
  */
 GField make_field_constant_if_possible(GField field);
-
-class IndexFieldInput final : public FieldInput {
- public:
-  IndexFieldInput();
-
-  static GVArray get_index_varray(const IndexMask &mask);
-
-  GVArray get_varray_for_context(const FieldContext &context,
-                                 const IndexMask &mask,
-                                 ResourceScope &scope) const final;
-
-  uint64_t hash() const override;
-  bool is_equal_to(const fn::FieldInput &other) const override;
-};
 
 /** \} */
 

@@ -257,6 +257,22 @@ class FieldOperation : public ImplicitSharingMixin {
 template<typename T> constexpr bool is_field_v = false;
 template<typename T> constexpr bool is_field_v<Field<T>> = true;
 
+Field<bool> invert_boolean_field(const Field<bool> &field);
+
+class IndexFieldInput final : public FieldInput {
+ public:
+  IndexFieldInput();
+
+  static GVArray get_index_varray(const IndexMask &mask);
+
+  GVArray get_varray_for_context(const FieldContext &context,
+                                 const IndexMask &mask,
+                                 ResourceScope &scope) const final;
+
+  uint64_t hash() const override;
+  bool is_equal_to(const fn::FieldInput &other) const override;
+};
+
 /* -------------------------------------------------------------------- */
 /** \name Inline Methods
  * \{ */
