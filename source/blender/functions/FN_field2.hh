@@ -79,16 +79,26 @@ class GField {
 
   const GField &deref_field_ref() const;
 
+  const GFieldVariant &variant() const;
+
   /**
    * Equality at this level is only checked in a shallow way. A more deep comparison could reveal
    * that two fields are semantically the same even if this comparison is false.
    */
   friend bool operator==(const GField &a, const GField &b);
   uint64_t hash() const;
+
+  template<typename T> const Field<T> &typed() const;
 };
 
 template<typename T> class Field {
-  /* TODO */
+ private:
+  GField field_;
+
+  friend GField;
+
+ public:
+  operator const GField &() const;
 };
 
 class FieldContext {
@@ -162,6 +172,9 @@ class FieldMultiFunctionNode : public ImplicitSharingMixin {
 
   void delete_self() override;
 };
+
+template<typename T> constexpr bool is_field_v = false;
+template<typename T> constexpr bool is_field_v<Field<T>> = true;
 
 /* -------------------------------------------------------------------- */
 /** \name Inline Methods
@@ -457,6 +470,23 @@ inline StringRefNull FieldInputNode::debug_name() const
 inline std::string FieldInputNode::socket_inspection_name() const
 {
   return debug_name_;
+}
+
+template<typename T> inline Field<T>::operator const GField &() const
+{
+  return field_;
+}
+
+template<typename T> inline const Field<T> &GField::typed() const
+{
+  static_assert(sizeof(GField) == sizeof(Field<T>));
+  BLI_assert(this->cpp_type().is<T>());
+  return reinterpret_cast<const Field<T> &>(*this);
+}
+
+inline const GField::GFieldVariant &GField::variant() const
+{
+  return variant_;
 }
 
 /** \} */
