@@ -130,12 +130,12 @@ template<typename T> class Field {
   Field();
   explicit Field(FieldInputPtr node);
   explicit Field(FieldOperationPtr node, int output_i = 0);
+  explicit Field(T value);
 
   operator const GField &() const;
 
   bool depends_on_input() const;
 
-  static Field from_constant(T value);
   template<typename InputT, typename... Args> static Field from_input(Args &&...args);
 
   template<typename InputT> const InputT *get_input_if() const;
@@ -319,18 +319,23 @@ inline Field<T> Field<T>::from_input(Args &&...args)
   return GField::from_input<InputT>(std::forward<Args>(args)...).template typed<T>();
 }
 
-template<typename T> inline Field<T> Field<T>::from_constant(T value)
+template<typename T>
+inline Field<T>::Field(T value)
+    : field_([&]() {
+        const CPPType &type = CPPType::get<T>();
+        if constexpr (GField::TrivialInlineConstant::type_supported_v<T>) {
+          GField::TrivialInlineConstant constant;
+          constant.type = &type;
+          new (constant.value.ptr()) T(std::move(value));
+          return GField(constant);
+        }
+        else {
+          void *new_value = MEM_new_uninitialized_aligned(sizeof(T), alignof(T), __func__);
+          new (new_value) T(std::move(value));
+          return GField(GField::GeneralConstant{&type, new_value});
+        }
+      }())
 {
-  const CPPType &type = CPPType::get<T>();
-  if constexpr (GField::TrivialInlineConstant::type_supported_v<T>) {
-    GField::TrivialInlineConstant constant;
-    constant.type = &type;
-    new (constant.value.ptr()) T(std::move(value));
-    return GField(constant);
-  }
-  void *new_value = MEM_new_uninitialized_aligned(sizeof(T), alignof(T), __func__);
-  new (new_value) T(std::move(value));
-  return GField(GField::GeneralConstant{&type, new_value});
 }
 
 template<typename T> inline bool Field<T>::depends_on_input() const
@@ -695,10 +700,12 @@ inline GField::~GField()
 template<typename T> inline Field<T>::Field(GField field) : field_(std::move(field)) {}
 template<typename T> inline Field<T>::Field() : field_(CPPType::get<T>()) {}
 
-template<typename T> inline Field<T>::Field(FieldInputPtr node) : Field(GField(std::move(node))) {}
+template<typename T> inline Field<T>::Field(FieldInputPtr node) : field_(GField(std::move(node)))
+{
+}
 template<typename T>
 inline Field<T>::Field(FieldOperationPtr node, const int output_i)
-    : Field(GField(std::move(node), output_i))
+    : field_(GField(std::move(node), output_i))
 {
 }
 

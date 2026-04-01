@@ -1211,7 +1211,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   const Field<int> count_field(FieldOperation::from_non_owning(
       fn::multi_function::registry::lookup("max(int, int)"_ustr),
-      {fn::Field<int>::from_constant(0), params.extract_input<Field<int>>("Amount"_ustr)}));
+      {fn::Field<int>(0), params.extract_input<Field<int>>("Amount"_ustr)}));
 
   Field<bool> selection_field = params.extract_input<Field<bool>>("Selection"_ustr);
   IndexAttributes attribute_outputs;

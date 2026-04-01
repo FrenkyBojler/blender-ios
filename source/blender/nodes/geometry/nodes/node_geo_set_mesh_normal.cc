@@ -149,7 +149,7 @@ static void node_geo_exec(GeoNodeExecParams params)
                                              bke::MeshFieldContext(*mesh, domain),
                                              "custom_normal",
                                              domain,
-                                             fn::Field<bool>::from_constant(true),
+                                             fn::Field<bool>(true),
                                              custom_normal);
         }
       });

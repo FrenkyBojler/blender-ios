@@ -80,8 +80,7 @@ static GField invert_selection(const GField &selection)
 
   static const mf::MultiFunction &invert = fn::multi_function::registry::lookup(
       "float - float"_ustr);
-  return GField(
-      FieldOperation::from_non_owning(invert, {fn::Field<float>::from_constant(1.0f), selection}));
+  return GField(FieldOperation::from_non_owning(invert, {fn::Field<float>(1.0f), selection}));
 }
 
 /**
