@@ -478,7 +478,7 @@ void setup([[global_invocation_id]] const uint3 global_id, [[resource_table]] Se
   float depth = reverse_z::read(texelFetch(srt.depth_tx, texel_fullres, 0).r);
   float3 P = drw_point_screen_to_world(float3(uv, depth));
 
-  float3 ssP_prev = drw_ndc_to_screen(project_point(uniform_buf.raytrace.radiance_persmat, P));
+  float3 ssP_prev = drw_ndc_to_screen(project_point(uniform_buf.raytrace.history_persmat, P));
 
   float4 radiance = texture(srt.in_radiance_tx, ssP_prev.xy);
   radiance = colorspace_brightness_clamp_max(radiance, uniform_buf.clamp.surface_indirect);
