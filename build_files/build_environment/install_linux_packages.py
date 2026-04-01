@@ -21,11 +21,24 @@ DISTRO_ID_SUSE = "suse"
 DISTRO_ID_ARCH = "arch"
 
 
-MAYSUDO = subprocess.run("command -v sudo || command -v doas",
-                         shell=True,
-                         stdout=subprocess.PIPE,
-                         stderr=subprocess.PIPE,
-                         universal_newlines=True).stdout.rstrip('\n')
+def find_privilege_escalation_tool():
+    """Return a command to escalate privileges (['sudo'] or ['doas']), or [] if none found."""
+    if os.getuid() == 0:
+        return []
+
+    for cmd in ("sudo", "doas"):
+        if subprocess.run(
+            ["command", "-v", cmd],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+        ).returncode == 0:
+            return [cmd]
+
+    return []
+
+
+IS_ROOT = os.getuid() == 0
+MAYSUDO = find_privilege_escalation_tool()
 
 
 class LoggingColoredFormatter(logging.Formatter):
@@ -380,10 +393,10 @@ class PackageInstaller:
 
     def run_command(self, command):
         """Basic wrapper around ``subprocess.Popen``, mimicking ``subprocess.run`` with a basic progress bar."""
-        # First dummy call to get user password for `sudo`. Otherwise the progress bar on actual commands
-        # makes it impossible for users to enter their password.
-        if not self.settings.no_sudo:
-            subprocess.run([MAYSUDO, "echo"], capture_output=True)
+        # First dummy call to get user password for `sudo`/`doas`. Only needed when not root and not skipping sudo.
+        # Otherwise the progress bar on actual commands makes it impossible for users to enter their password.
+        if not IS_ROOT and not self.settings.no_sudo and MAYSUDO:
+            subprocess.run([*MAYSUDO, "echo"], capture_output=True)
 
         p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         pbar = ProgressBar(is_known_limit=False)
@@ -403,7 +416,6 @@ class PackageInstaller:
             returncode=p.returncode,
             stdout=stdout,
             stderr=stderr)
-
 
     @staticmethod
     def is_returncode_successful(returncode):
@@ -720,7 +732,7 @@ class PackageInstaller:
             return True
 
         if self.settings.no_sudo:
-            self.settings.logger.warning(f"\t--no-sudo enabled, impossible to run apt-get install for {package_name}.")
+            self.settings.logger.warning(f"\t--no-sudo enabled, impossible to run install for {package_name}.")
             return True
 
         package_version = self.package_query_version_get(package_name)
@@ -754,7 +766,7 @@ class PackageInstaller:
 
         if self.settings.no_sudo:
             self.settings.logger.warning(
-                f"\t--no-sudo enabled, impossible to run apt-get install for {packages_distro_names}.")
+                f"\t--no-sudo enabled, impossible to run install for {packages_distro_names}.")
             return True
 
         if not packages_distro_names:
@@ -810,8 +822,8 @@ class PackageInstallerDebian(PackageInstaller):
     _re_version = re.compile(_version_regex_base_pattern)
     _re_version_candidate = re.compile(r"Candidate:\s*" + _version_regex_base_pattern)
 
-    _install_command = [MAYSUDO, "apt", "install", "-y"]
-    _update_command = [MAYSUDO, "apt", "update"]
+    _install_command = [*MAYSUDO, "apt", "install", "-y"]
+    _update_command = [*MAYSUDO, "apt", "update"]
 
     def package_installed_version_get(self, package_distro_name):
         cmd = ["dpkg-query", "-W", "-f", "${Version}", package_distro_name]
@@ -884,8 +896,8 @@ class PackageInstallerFedora(PackageInstaller):
 
     _re_version = re.compile(r"Version\s*:\s*(?:[0-9]+:)?(?P<version>([0-9]+\.?)+([0-9]+)).*")
 
-    _install_command = [MAYSUDO, "dnf", "install", "-y"]
-    _update_command = [MAYSUDO, "dnf", "check-update"]
+    _install_command = [*MAYSUDO, "dnf", "install", "-y"]
+    _update_command = [*MAYSUDO, "dnf", "check-update"]
 
     def package_version_get(self, command):
         result = self.run_command(command)
@@ -893,10 +905,10 @@ class PackageInstallerFedora(PackageInstaller):
         return version["version"] if version is not None else None
 
     def package_installed_version_get(self, package_distro_name):
-        return self.package_version_get([MAYSUDO, "dnf", "info", "--installed", package_distro_name])
+        return self.package_version_get([*MAYSUDO, "dnf", "info", "--installed", package_distro_name])
 
     def package_query_version_get_impl(self, package_distro_name):
-        return self.package_version_get([MAYSUDO, "dnf", "info", package_distro_name])
+        return self.package_version_get([*MAYSUDO, "dnf", "info", package_distro_name])
 
     def package_name_version_gen(
             self,
@@ -951,20 +963,20 @@ class PackageInstallerSuse(PackageInstaller):
     _re_version = re.compile(r"Version\s*:\s*(?:[0-9]+:)?(?P<version>([0-9]+\.?)+([0-9]+)).*")
     _re_installed = re.compile(r"Installed\s*:\s*Yes")
 
-    _install_command = [MAYSUDO, "zypper", "--non-interactive", "install"]
-    _update_command = [MAYSUDO, "zypper", "refresh"]
+    _install_command = [*MAYSUDO, "zypper", "--non-interactive", "install"]
+    _update_command = [*MAYSUDO, "zypper", "refresh"]
 
     def package_version_get(self, command_result):
         version = self._re_version.search(str(command_result.stdout))
         return version["version"] if version is not None else None
 
     def package_installed_version_get(self, package_distro_name):
-        result = self.run_command([MAYSUDO, "zypper", "info", package_distro_name])
+        result = self.run_command([*MAYSUDO, "zypper", "info", package_distro_name])
         is_installed = self._re_installed.search(str(result.stdout))
         return self.package_version_get(result) if is_installed is not None else None
 
     def package_query_version_get_impl(self, package_distro_name):
-        result = self.run_command([MAYSUDO, "zypper", "info", package_distro_name])
+        result = self.run_command([*MAYSUDO, "zypper", "info", package_distro_name])
         return self.package_version_get(result)
 
     def package_name_version_gen(
@@ -1019,8 +1031,8 @@ class PackageInstallerArch(PackageInstaller):
 
     _re_version = re.compile(r"Version\s*:\s*(?:[0-9]+:)?(?P<version>([0-9]+\.?)+([0-9]+)).*")
 
-    _install_command = [MAYSUDO, "pacman", "-S", "--needed", "--noconfirm"]
-    _update_command = [MAYSUDO, "pacman", "-Sy"]
+    _install_command = [*MAYSUDO, "pacman", "-S", "--needed", "--noconfirm"]
+    _update_command = [*MAYSUDO, "pacman", "-Sy"]
 
     def package_version_get(self, command):
         result = self.run_command(command)
@@ -1188,7 +1200,7 @@ def main():
     logger.addHandler(stdout_handler)
     settings.logger = logger
 
-    if not settings.no_sudo and len(MAYSUDO) == 0:
+    if not IS_ROOT and not settings.no_sudo and not MAYSUDO:
         logger.critical("`sudo` or `doas` commands are needed to escalate privileges,"
                         " but they were not found.")
         exit(42)
