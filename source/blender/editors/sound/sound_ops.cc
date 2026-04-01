@@ -450,6 +450,8 @@ static wmOperatorStatus sound_mixdown_exec(bContext *C, wmOperator *op)
 
   if (scene_eval->r.use_lock_interface) {
     WM_locked_interface_set(mixdown_job_data->wm, true);
+    /* Save the state in the main thread to avoid any issues if the user messes with the setting
+     * during rendering. */
     mixdown_job_data->interface_is_locked = true;
   }
 
