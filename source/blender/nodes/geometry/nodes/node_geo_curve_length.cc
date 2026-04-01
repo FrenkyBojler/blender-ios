@@ -14,29 +14,55 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Geometry>("Curve")
       .supported_type({GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil})
       .description("Curve to compute the length of");
-  b.add_output<decl::Float>("Length");
+  b.add_output<decl::Float>("Length")
+      .description("Total length (sum of the lengths of the Splines in the Curve)");
+  b.add_output<decl::Float>("Spline Lengths")
+      .structure_type(StructureType::List)
+      .description("List of the lengths of each Spline in the Curve");
 }
 
-static float curves_total_length(const bke::CurvesGeometry &curves)
+struct LengthsData {
+    float total_length = 0.0f;
+    std::vector<float> spline_lengths;
+  };
+
+static LengthsData curves_total_length(const bke::CurvesGeometry &curves)
 {
   const VArray<bool> cyclic = curves.cyclic();
   curves.ensure_evaluated_lengths();
 
-  float total_length = 0.0f;
+  LengthsData result;
+
   for (const int i : curves.curves_range()) {
-    total_length += curves.evaluated_length_total_for_curve(i, cyclic[i]);
+    float length = curves.evaluated_length_total_for_curve(i, cyclic[i]);
+    result.spline_lengths.push_back(length);
+    result.total_length += length;
   }
-  return total_length;
+  return result;
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Curve");
-  float length = 0.0f;
+  int curve_num = 0;
+  float total_length = 0.0f;
+  std::vector<float> spline_lengths;
   if (geometry_set.has_curves()) {
     const Curves &curves_id = *geometry_set.get_curves();
     const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
-    length += curves_total_length(curves);
+    curve_num = curves.curve_num;
+    const Object *obj = params.self_object();
+    if (obj->object_to_world() != blender::float4x4::identity()) {
+      bke::CurvesGeometry curves_geom = curves;
+      curves_geom.transform(obj->object_to_world().view<4, 4>());
+      LengthsData lengths_data = curves_total_length(curves_geom);
+      total_length += lengths_data.total_length;
+      spline_lengths = lengths_data.spline_lengths;
+    } else {
+      LengthsData lengths_data = curves_total_length(curves);
+      total_length += lengths_data.total_length;
+      spline_lengths = lengths_data.spline_lengths;
+    }
   }
   else if (geometry_set.has_grease_pencil()) {
     using namespace bke::greasepencil;
@@ -47,7 +73,19 @@ static void node_geo_exec(GeoNodeExecParams params)
         continue;
       }
       const bke::CurvesGeometry &curves = drawing->strokes();
-      length += curves_total_length(curves);
+      curve_num = curves.curve_num;
+      const Object *obj = params.self_object();
+      if (obj->object_to_world() != blender::float4x4::identity()) {
+        bke::CurvesGeometry curves_geom = curves;
+        curves_geom.transform(obj->object_to_world().view<4, 4>());
+        LengthsData lengths_data = curves_total_length(curves_geom);
+        total_length += lengths_data.total_length;
+        spline_lengths = lengths_data.spline_lengths;
+      } else {
+        LengthsData lengths_data = curves_total_length(curves);
+        total_length += lengths_data.total_length;
+        spline_lengths = lengths_data.spline_lengths;
+      }
     }
   }
   else {
@@ -55,7 +93,20 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  params.set_output("Length", length);
+  params.set_output("Length", total_length);
+  if (params.output_is_required("Spline Lengths")) {
+    const CPPType &cpp_type = CPPType::get<float>();
+    ListPtr list_ptr = List::create(cpp_type,
+                                    List::ArrayData::ForUninitialized(cpp_type, curve_num),
+                                    curve_num);
+    GMutableSpan values(cpp_type,
+                        const_cast<void *>(std::get<List::ArrayData>(list_ptr->data()).data),
+                        curve_num);
+    for (int i = 0; i < spline_lengths.size(); i++) {
+      cpp_type.copy_construct((void *)&spline_lengths[i], values[i]);
+    }
+    params.set_output("Spline Lengths", std::move(list_ptr));
+  }
 }
 
 static void node_register()
