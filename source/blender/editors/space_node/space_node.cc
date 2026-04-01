@@ -93,7 +93,7 @@ void ED_node_tree_start(ARegion *region, SpaceNode *snode, bNodeTree *ntree, ID 
 
     if (region) {
       /* Leave the zoom level unchanged if it hasn't been set before. */
-      if (!math::is_zero(ntree->view_width)) {
+      if (ntree->view_width != 0.0f) {
         ui::view2d_size_x_set(&region->v2d, ntree->view_width);
       }
       ui::view2d_center_set(&region->v2d, ntree->view_center[0], ntree->view_center[1]);
@@ -148,7 +148,7 @@ void ED_node_tree_push(ARegion *region, SpaceNode *snode, bNodeTree *ntree, bNod
   copy_v2_v2(path->view_center, ntree->view_center);
   path->view_width = ntree->view_width;
   if (region) {
-    if (!math::is_zero(ntree->view_width)) {
+    if (ntree->view_width != 0.0f) {
       ui::view2d_size_x_set(&region->v2d, ntree->view_width);
     }
     ui::view2d_center_set(&region->v2d, ntree->view_center[0], ntree->view_center[1]);
@@ -185,7 +185,7 @@ void ED_node_tree_pop(ARegion *region, SpaceNode *snode)
 
   /* Set view center and zoom from node tree path. */
   if (region) {
-    if (!math::is_zero(path->view_width)) {
+    if (path->view_width != 0.0f) {
       ui::view2d_size_x_set(&region->v2d, path->view_width);
     }
     ui::view2d_center_set(&region->v2d, path->view_center[0], path->view_center[1]);
