@@ -44,15 +44,13 @@ rl_outputs = (
 
 # list of blend types of "Mix" nodes in a form that can be used as 'items' for EnumProperty.
 # used list, not tuple for easy merging with other lists.
-blend_types = [
-    (enum.identifier, enum.name, enum.description) for enum in ShaderNodeMix.bl_rna.properties['blend_type'].enum_items_static
-]
+blend_types = [(enum.identifier, enum.name, enum.description)
+               for enum in ShaderNodeMix.bl_rna.properties['blend_type'].enum_items_static]
 
 # list of operations of "Math" nodes in a form that can be used as 'items' for EnumProperty.
 # used list, not tuple for easy merging with other lists.
-operations = [
-    (enum.identifier, enum.name, enum.description) for enum in ShaderNodeMath.bl_rna.properties['operation'].enum_items_static
-]
+operations = [(enum.identifier, enum.name, enum.description)
+              for enum in ShaderNodeMath.bl_rna.properties['operation'].enum_items_static]
 
 # Operations used by the geometry boolean node and join geometry node
 geo_combine_operations = [
