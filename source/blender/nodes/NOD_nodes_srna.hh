@@ -6,21 +6,26 @@
 
 #include "BLI_resource_scope.hh"
 
-#include "RNA_types.hh"
+#include "RNA_define.hh"
 
 namespace blender {
 
+struct BlenderRNA;
 struct StructRNA;
-struct bNodeTree;
-
 namespace nodes {
 
 struct GeneratedTreeSrnaData {
   ResourceScope scope;
   StructRNA *properties_struct;
   BlenderRNA *generated_rna;
-  GeneratedTreeSrnaData();
-  ~GeneratedTreeSrnaData();
+  GeneratedTreeSrnaData()
+  {
+    generated_rna = RNA_create_runtime();
+  }
+  ~GeneratedTreeSrnaData()
+  {
+    RNA_free(generated_rna);
+  }
 };
 
 }  // namespace nodes
