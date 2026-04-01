@@ -1,2 +1,3 @@
 Referenced by commit blender/blender-manual@1f2bf753c8df901433ba5c816be4dd22f4a5f41d, Cycles: Texture Cache
 Referenced by pull request #156711, Fix: Cycles: Wrong minimum value for render texture resolution
+Referenced by commit ba6a8ca4da34cdcaeeab7edcf73211f1b814b6dc, Fix: Cycles: Wrong minimum value for render texture resolution
