@@ -1733,19 +1733,18 @@ static const EnumPropertyItem delete_type_items[] = {
 
 static wmOperatorStatus delete_exec(bContext *C, wmOperator *op)
 {
+#ifdef WITH_INPUT_IME
+  if (CTX_wm_window(C)->runtime->ime_data_is_composing) {
+    return OPERATOR_CANCELLED;
+  }
+#endif
+
   Object *obedit = CTX_data_edit_object(C);
   Curve *cu = id_cast<Curve *>(obedit->data);
   EditFont *ef = cu->editfont;
   int selstart, selend, type = RNA_enum_get(op->ptr, "type");
   int range[2] = {0, 0};
   bool has_select = false;
-
-#ifdef WITH_INPUT_IME
-  wmWindow *win = CTX_wm_window(C);
-  if (win->runtime->ime_data_is_composing) {
-    return OPERATOR_CANCELLED;
-  }
-#endif
 
   if (ef->len == 0) {
     return OPERATOR_CANCELLED;
