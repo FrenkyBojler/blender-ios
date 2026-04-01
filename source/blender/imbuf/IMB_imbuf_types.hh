@@ -31,8 +31,6 @@ class ColorSpace;
 }
 using ColorSpace = ocio::ColorSpace;
 
-#define IMB_FILEPATH_SIZE 1024
-
 /**
  * \ingroup imbuf
  * This is the abstraction of an image. ImBuf is the basic type used for all imbuf operations.
