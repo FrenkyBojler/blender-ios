@@ -136,7 +136,7 @@ class NWNodeWrangler(bpy.types.AddonPreferences):
 
             col.prop(self, "hotkey_list_filter", icon="VIEWZOOM")
             col.separator()
-            
+
             for hotkey in kmi_defs:
                 if hotkey[7]:
                     hotkey_name = hotkey[7]
