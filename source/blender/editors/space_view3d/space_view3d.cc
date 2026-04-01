@@ -569,23 +569,23 @@ void view3d_main_region_ime_refresh(wmWindow *win, ARegion *region)
     Object *ob = BKE_view_layer_active_object_get(view_layer);
     if (ob && ob->type == OB_FONT && ob->mode == OB_MODE_EDIT) {
       Curve *cu = id_cast<Curve *>(ob->data);
+
+      float2 cursor_screen = float2(0);
       EditFont *ef = cu->editfont;
 
-      /* Bottom right corner of the text cursor to get its center in local space. */
-      float3 cursor_local = {UNPACK2(ef->textcurs[1]), 0.0f};
+      /* cu->editfont can be nullpr on Blender startup. */
+      if (ef) {
+        /* Bottom right corner of the text cursor to get its center in local space. */
+        float3 cursor_local = {UNPACK2(ef->textcurs[1]), 0.0f};
+        /* Transform to world space, then project to region coordinates. */
+        const float3 cursor_world = math::transform_point(ob->object_to_world(), cursor_local);
+        if (ED_view3d_project_float_global(
+                region, cursor_world, cursor_screen, V3D_PROJ_TEST_NOP) != V3D_PROJ_RET_OK)
+        {
+          cursor_screen = float2(0);
+        }
+      }
 
-      /* Transform to world space, then project to region coordinates. */
-      const float3 cursor_world = math::transform_point(ob->object_to_world(), cursor_local);
-      float2 cursor_screen;
-      if (ED_view3d_project_float_global(region, cursor_world, cursor_screen, V3D_PROJ_TEST_NOP) ==
-          V3D_PROJ_RET_OK)
-      {
-        /* Pass. */
-      }
-      else {
-        /* Outside the viewport, use a fallback position. */
-        cursor_screen = float2(0);
-      }
       wm_window_IME_begin(win,
                           region->winrct.xmin + int(cursor_screen[0]),
                           region->winrct.ymin + int(cursor_screen[1]),
