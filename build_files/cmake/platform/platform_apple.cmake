@@ -377,7 +377,7 @@ find_package(Zstd REQUIRED)
 
 if(WITH_TRACY)
   set(Tracy_ROOT_DIR ${LIBDIR}/tracy)
-  find_package(Tracy REQUIRED)
+  find_package(Tracy REQUIRED CONFIG)
 endif()
 
 if(EXISTS ${LIBDIR})
