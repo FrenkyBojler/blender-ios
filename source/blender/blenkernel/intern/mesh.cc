@@ -616,7 +616,7 @@ void mesh_ensure_required_data_layers(Mesh &mesh)
   attributes.add(".corner_edge", AttrDomain::Corner, bke::AttrType::Int32, attribute_init);
 }
 
-static StringRefNull get_first_uv_map_name(Mesh const &mesh)
+static StringRefNull get_first_uv_map_name(const Mesh &mesh)
 {
   StringRefNull found;
   mesh.attributes().foreach_attribute([&](const AttributeIter &iter) {
