@@ -1223,8 +1223,8 @@ if(WITH_CYCLES AND (WITH_CYCLES_DEVICE_ONEAPI OR (WITH_CYCLES_EMBREE AND EMBREE_
 endif()
 
 if(WITH_COMPILER_TRACY)
-  set(TracyClient_ROOT_DIR ${LIBDIR}/tracy)
-  find_package(TracyClient REQUIRED)
+  set(Tracy_ROOT_DIR ${LIBDIR}/tracy)
+  find_package(Tracy REQUIRED CONFIG)
 endif()
 
 # Add the MSVC directory to the path so when building with ASAN enabled tools such as
