@@ -1078,14 +1078,13 @@ struct PaintOperationExecutor {
         math::transform_point(self.placement_.to_world_space(), self.start_location));
 
     bke::CurvesGeometry &curves = self.drawing_->strokes_for_write();
-    OffsetIndices<int> points_by_curve = curves.points_by_curve();
+    const OffsetIndices<int> points_by_curve = curves.points_by_curve();
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
     const int active_curve = on_back ? curves.curves_range().first() :
                                        curves.curves_range().last();
-    IndexRange curve_points = points_by_curve[active_curve];
+    const IndexRange curve_points = points_by_curve[active_curve];
 
     /* Resize the curves geometry and buffers. */
-    ed::greasepencil::resize_single_curve(curves, on_back == false, 1);
     self.screen_space_final_coords_.resize(1);
     self.stroke_placement_depths_.resize(1);
 
@@ -1097,7 +1096,7 @@ struct PaintOperationExecutor {
                                            1.0f / float(self.max_points_per_pixel));
 
     /* Set samples based on line distance. */
-    int line_samples = math::clamp(
+    const int line_samples = math::clamp(
         int(distance_px / math::max(self.point_override_threshold_px, max_spacing_px)),
         1,
         max_points);
@@ -1191,7 +1190,7 @@ struct PaintOperationExecutor {
     const bool use_depth = self.placement_.use_project_to_stroke() ||
                            self.placement_.use_project_to_surface();
 
-    IndexRange range = self.screen_space_final_coords_.index_range();
+    const IndexRange range = self.screen_space_final_coords_.index_range();
     const int samples = self.screen_space_final_coords_.size();
 
     const bool use_jitter = (use_settings_random_ && settings_->draw_jitter > 0.0f);
@@ -1244,7 +1243,7 @@ struct PaintOperationExecutor {
       }
     }
 
-    for (int i : range.drop_front(1)) {
+    for (const int i : range.drop_front(1)) {
       const float t = float(i) / float(samples);
       float2 new_position = math::interpolate(start, coords, t);
       if (use_jitter) {
@@ -1273,7 +1272,7 @@ struct PaintOperationExecutor {
         }
       }
 
-      float distance = t * distance_px;
+      const float distance = t * distance_px;
       if (use_settings_random_ && settings_->draw_random_press > 0.0f) {
         new_radius = ed::greasepencil::randomize_radius(*settings_,
                                                         self.stroke_random_radius_factor_,
@@ -1296,7 +1295,7 @@ struct PaintOperationExecutor {
       const StrokeSnapMode snap_mode = get_snap_mode(*scene_);
 
       /* Interpolate depths. */
-      IndexRange range = self.screen_space_final_coords_.index_range();
+      const IndexRange range = self.screen_space_final_coords_.index_range();
       switch (snap_mode) {
         case StrokeSnapMode::FirstPoint: {
           for (const int i : range) {
