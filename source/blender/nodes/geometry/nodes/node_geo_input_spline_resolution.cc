@@ -10,15 +10,12 @@ namespace blender::nodes::node_geo_input_spline_resolution_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_output<decl::Int>("Resolution").field_source();
+  b.add_output<decl::Int>("Resolution"_ustr).field_source();
 }
 
 class ResolutionFieldInput final : public bke::CurvesFieldInput {
  public:
-  ResolutionFieldInput() : bke::CurvesFieldInput(CPPType::get<int>(), "Resolution")
-  {
-    category_ = Category::NamedAttribute;
-  }
+  ResolutionFieldInput() : bke::CurvesFieldInput(CPPType::get<int>(), "Resolution") {}
 
   GVArray get_varray_for_context(const bke::CurvesGeometry &curves,
                                  const AttrDomain domain,
