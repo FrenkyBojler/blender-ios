@@ -171,6 +171,9 @@ class ShaderOperation : public PixelOperation {
    * the value in the appropriate image identified by the given index. */
   void populate_operation_result(const bNodeSocket &output_socket);
 
+  /* TODO. */
+  void convert_input_link_type(const bNodeSocket &input_socket, const ResultType source_type);
+
   /* A static callback method of interface GPUCodegenCallbackFn that is passed to
    * GPU_material_from_callbacks to create the shader create info of the GPU material. The thunk
    * parameter will be a pointer to the instance of ShaderOperation that is being compiled.
