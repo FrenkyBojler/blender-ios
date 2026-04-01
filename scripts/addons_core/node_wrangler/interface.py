@@ -353,7 +353,7 @@ class NWAttributeMenuBase:
                 ops.value = repr(attr_name)
         else:
             l.label(text="No attributes on objects with this material")
-            
+
 
 class NWAttributeMenuAdd(NWAttributeMenuBase, AddNodeMenu):
     bl_idname = "NODE_MT_nw_node_attribute_menu_add"
