@@ -10,24 +10,21 @@ namespace blender::nodes::node_geo_curve_topology_curve_of_point_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Int>("Point Index")
+  b.add_input<decl::Int>("Point Index"_ustr)
       .implicit_field(NODE_DEFAULT_INPUT_INDEX_FIELD)
       .description("The control point to retrieve data from")
       .structure_type(StructureType::Field);
-  b.add_output<decl::Int>("Curve Index")
+  b.add_output<decl::Int>("Curve Index"_ustr)
       .field_source_reference_all()
       .description("The curve the control point is part of");
-  b.add_output<decl::Int>("Index in Curve")
+  b.add_output<decl::Int>("Index in Curve"_ustr)
       .field_source_reference_all()
       .description("How far along the control point is along its curve");
 }
 
 class CurveOfPointInput final : public bke::CurvesFieldInput {
  public:
-  CurveOfPointInput() : bke::CurvesFieldInput(CPPType::get<int>(), "Point Curve Index")
-  {
-    category_ = Category::Generated;
-  }
+  CurveOfPointInput() : bke::CurvesFieldInput(CPPType::get<int>(), "Point Curve Index") {}
 
   GVArray get_varray_for_context(const bke::CurvesGeometry &curves,
                                  const AttrDomain domain,
@@ -57,10 +54,7 @@ class CurveOfPointInput final : public bke::CurvesFieldInput {
 
 class PointIndexInCurveInput final : public bke::CurvesFieldInput {
  public:
-  PointIndexInCurveInput() : bke::CurvesFieldInput(CPPType::get<int>(), "Point Index in Curve")
-  {
-    category_ = Category::Generated;
-  }
+  PointIndexInCurveInput() : bke::CurvesFieldInput(CPPType::get<int>(), "Point Index in Curve") {}
 
   GVArray get_varray_for_context(const bke::CurvesGeometry &curves,
                                  const AttrDomain domain,
