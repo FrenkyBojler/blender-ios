@@ -334,11 +334,12 @@ static void SOUND_OT_bake_animation(wmOperatorType *ot)
 /******************** mixdown operator ********************/
 
 #ifdef WITH_AUDASPACE
-static void sound_mixdown_progress(float progress, void *data)
+static bool sound_mixdown_progress(float progress, void *data)
 {
   wmJobWorkerStatus *worker_status = static_cast<wmJobWorkerStatus *>(data);
   worker_status->progress = progress;
   worker_status->do_update = true;
+  return G.is_break == false && worker_status->stop == false;
 }
 
 struct SoundMixdownJobData {

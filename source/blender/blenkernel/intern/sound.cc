@@ -1779,7 +1779,7 @@ bool bke::sound_mixdown(AUD_Sequence sequence,
                         unsigned int bitrate,
                         bool split_channels,
                         std::string &r_error,
-                        void (*progress_callback)(float, void *),
+                        bool (*progress_callback)(float, void *),
                         void *progress_data)
 {
   using namespace aud;
