@@ -12,23 +12,23 @@ namespace blender::fn {
 
 class GField;
 class FieldInput;
-class FieldMultiFunction;
+class FieldOperation;
 class FieldInputs;
 class FieldContext;
 
-using FieldInputNodePtr = ImplicitSharingPtr<FieldInput>;
-using FieldMultiFunctionNodePtr = ImplicitSharingPtr<FieldMultiFunction>;
+using FieldInputPtr = ImplicitSharingPtr<FieldInput>;
+using FieldOperationPtr = ImplicitSharingPtr<FieldOperation>;
 using FieldInputsPtr = ImplicitSharingPtr<FieldInputs>;
 template<typename T> class Field;
 
 class GField {
  public:
   struct Input {
-    FieldInputNodePtr node;
+    FieldInputPtr node;
   };
 
   struct MultiFn {
-    FieldMultiFunctionNodePtr node;
+    FieldOperationPtr node;
     int output_i = 0;
   };
 
@@ -69,8 +69,8 @@ class GField {
 
  public:
   explicit GField(const CPPType &type);
-  explicit GField(FieldInputNodePtr node);
-  explicit GField(FieldMultiFunctionNodePtr node, int output_i);
+  explicit GField(FieldInputPtr node);
+  explicit GField(FieldOperationPtr node, int output_i);
   explicit GField(Variant variant);
   static GField from_non_owning_ref(const GField &field);
   static GField from_constant(const CPPType &type, const void *value);
@@ -124,7 +124,7 @@ class GFieldRef {
     const FieldInput *node = nullptr;
   };
   struct MultiFn {
-    const FieldMultiFunction *node = nullptr;
+    const FieldOperation *node = nullptr;
     int output_i = 0;
   };
 
@@ -138,7 +138,7 @@ class GFieldRef {
   template<typename T> GFieldRef(const Field<T> &field);
 
   explicit GFieldRef(const FieldInput &field_input);
-  explicit GFieldRef(const FieldMultiFunction &field_multi_fn, int output_i);
+  explicit GFieldRef(const FieldOperation &field_multi_fn, int output_i);
 
   const Variant &variant() const;
 
@@ -196,7 +196,7 @@ class FieldInput : public ImplicitSharingMixin {
   void delete_self() override;
 };
 
-class FieldMultiFunction : public ImplicitSharingMixin {
+class FieldOperation : public ImplicitSharingMixin {
  private:
   Vector<GField> inputs_;
   std::shared_ptr<const mf::MultiFunction> owned_fn_;
@@ -204,13 +204,12 @@ class FieldMultiFunction : public ImplicitSharingMixin {
   FieldInputsPtr field_inputs_;
 
  public:
-  FieldMultiFunction(std::shared_ptr<const mf::MultiFunction> fn, Vector<GField> inputs);
-  FieldMultiFunction(const mf::MultiFunction &fn, Vector<GField> inputs);
+  FieldOperation(std::shared_ptr<const mf::MultiFunction> fn, Vector<GField> inputs);
+  FieldOperation(const mf::MultiFunction &fn, Vector<GField> inputs);
 
-  static FieldMultiFunctionNodePtr from(std::shared_ptr<const mf::MultiFunction> fn,
-                                        Vector<GField> inputs);
-  static FieldMultiFunctionNodePtr from_non_owning(const mf::MultiFunction &fn,
-                                                   Vector<GField> inputs);
+  static FieldOperationPtr from(std::shared_ptr<const mf::MultiFunction> fn,
+                                Vector<GField> inputs);
+  static FieldOperationPtr from_non_owning(const mf::MultiFunction &fn, Vector<GField> inputs);
 
   const CPPType &output_cpp_type(int output_i) const;
 
@@ -231,9 +230,9 @@ template<typename T> constexpr bool is_field_v<Field<T>> = true;
  * \{ */
 
 inline GField::GField(const CPPType &type) : variant_(ConstantRef{&type, type.default_value()}) {}
-inline GField::GField(FieldInputNodePtr node) : variant_(Input{std::move(node)}) {}
+inline GField::GField(FieldInputPtr node) : variant_(Input{std::move(node)}) {}
 inline GField::GField(Variant variant) : variant_(std::move(variant)) {}
-inline GField::GField(FieldMultiFunctionNodePtr node, const int output_i)
+inline GField::GField(FieldOperationPtr node, const int output_i)
     : variant_(MultiFn{std::move(node), output_i})
 {
 }
@@ -402,7 +401,7 @@ inline bool FieldInput::is_equal_to(const FieldInput &other) const
 
 inline void FieldInput::foreach_recursive_field(FunctionRef<void(const GField &)> /*fn*/) const {}
 
-inline const FieldInputsPtr &FieldMultiFunction::field_inputs() const
+inline const FieldInputsPtr &FieldOperation::field_inputs() const
 {
   return field_inputs_;
 }
@@ -412,7 +411,7 @@ inline void FieldInput::delete_self()
   MEM_delete(this);
 }
 
-inline void FieldMultiFunction::delete_self()
+inline void FieldOperation::delete_self()
 {
   MEM_delete(this);
 }
@@ -422,7 +421,7 @@ inline void FieldInputs::delete_self()
   MEM_delete(this);
 }
 
-inline const CPPType &FieldMultiFunction::output_cpp_type(const int output_i) const
+inline const CPPType &FieldOperation::output_cpp_type(const int output_i) const
 {
   int count = 0;
   for (const int param_index : fn_->param_indices()) {
@@ -438,17 +437,16 @@ inline const CPPType &FieldMultiFunction::output_cpp_type(const int output_i) co
   return CPPType::get<float>();
 }
 
-inline FieldMultiFunctionNodePtr FieldMultiFunction::from(
-    std::shared_ptr<const mf::MultiFunction> fn, Vector<GField> inputs)
+inline FieldOperationPtr FieldOperation::from(std::shared_ptr<const mf::MultiFunction> fn,
+                                              Vector<GField> inputs)
 {
-  return FieldMultiFunctionNodePtr(
-      MEM_new<FieldMultiFunction>(__func__, std::move(fn), std::move(inputs)));
+  return FieldOperationPtr(MEM_new<FieldOperation>(__func__, std::move(fn), std::move(inputs)));
 }
 
-inline FieldMultiFunctionNodePtr FieldMultiFunction::from_non_owning(const mf::MultiFunction &fn,
-                                                                     Vector<GField> inputs)
+inline FieldOperationPtr FieldOperation::from_non_owning(const mf::MultiFunction &fn,
+                                                         Vector<GField> inputs)
 {
-  return FieldMultiFunctionNodePtr(MEM_new<FieldMultiFunction>(__func__, fn, inputs));
+  return FieldOperationPtr(MEM_new<FieldOperation>(__func__, fn, inputs));
 }
 
 inline FieldInputsPtr combine_field_inputs(const Span<GField> &fields)
@@ -501,14 +499,14 @@ inline FieldInputsPtr combine_field_inputs(const Span<GField> &fields)
   return FieldInputsPtr(new_field_inputs);
 }
 
-inline FieldMultiFunction::FieldMultiFunction(std::shared_ptr<const mf::MultiFunction> fn,
-                                              Vector<GField> inputs)
-    : FieldMultiFunction(*fn, std::move(inputs))
+inline FieldOperation::FieldOperation(std::shared_ptr<const mf::MultiFunction> fn,
+                                      Vector<GField> inputs)
+    : FieldOperation(*fn, std::move(inputs))
 {
   owned_fn_ = std::move(fn);
 }
 
-inline FieldMultiFunction::FieldMultiFunction(const mf::MultiFunction &fn, Vector<GField> inputs)
+inline FieldOperation::FieldOperation(const mf::MultiFunction &fn, Vector<GField> inputs)
     : inputs_(inputs), fn_(&fn)
 {
   field_inputs_ = combine_field_inputs(inputs_);
@@ -604,14 +602,14 @@ inline bool GField::depends_on_input() const
   return !inputs->deduplicated_nodes.is_empty();
 }
 
-inline Span<GField> FieldMultiFunction::inputs() const
+inline Span<GField> FieldOperation::inputs() const
 {
   return inputs_;
 }
 
 inline GFieldRef::GFieldRef(const FieldInput &field_input) : variant_(Input{&field_input}) {}
 
-inline GFieldRef::GFieldRef(const FieldMultiFunction &field_multi_fn, int output_i)
+inline GFieldRef::GFieldRef(const FieldOperation &field_multi_fn, int output_i)
     : variant_(MultiFn{&field_multi_fn, output_i})
 {
 }
