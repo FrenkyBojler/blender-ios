@@ -2,9 +2,6 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# NOTE: SDL2 patches are no longer applicable to SDL3,
-# they will need to be reviewed and updated or removed.
-
 if(WIN32)
   set(SDL_EXTRA_ARGS
     -DSDL_STATIC=Off
