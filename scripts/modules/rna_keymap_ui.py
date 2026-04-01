@@ -295,7 +295,7 @@ def _init_search_tables():
 
     from sys import platform
 
-    # Event type tables 
+    # Event type tables
     enum = bpy.types.Event.bl_rna.properties["type"].enum_items
     _EVENT_TYPES.update(enum.keys())
     _EVENT_TYPE_MAP.update({
@@ -328,7 +328,7 @@ def _init_search_tables():
         "{:d}".format(i): "NUMPAD_{:d}".format(i) for i in range(10)
     })
 
-    #  Modifier {alias: kmi_attribute} 
+    #  Modifier {alias: kmi_attribute}
     _MODIFIER_ALIASES.update({
         "ctrl": "ctrl",
         "alt": "alt",
@@ -368,7 +368,7 @@ def _init_search_tables():
         if translated not in _MODIFIER_ALIASES:
             _MODIFIER_ALIASES[translated] = attr
 
-    # Event value {alias: enum_identifier} 
+    # Event value {alias: enum_identifier}
     _VALUE_ALIASES.update({
         "dbl": "DOUBLE_CLICK",
         "double": "DOUBLE_CLICK",
