@@ -10,7 +10,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_color.hh"
+#include "BLI_color_types.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector_types.hh"
@@ -333,7 +333,7 @@ struct CurveBatchCache {
 
 static bool curve_batch_cache_valid(Curve *cu)
 {
-  CurveBatchCache *cache = static_cast<CurveBatchCache *>(cu->batch_cache);
+  CurveBatchCache *cache = cu->batch_cache;
 
   if (cache == nullptr) {
     return false;
@@ -358,7 +358,7 @@ static bool curve_batch_cache_valid(Curve *cu)
 
 static void curve_batch_cache_init(Curve *cu)
 {
-  CurveBatchCache *cache = static_cast<CurveBatchCache *>(cu->batch_cache);
+  CurveBatchCache *cache = cu->batch_cache;
 
   if (!cache) {
     cache = MEM_new_zeroed<CurveBatchCache>(__func__);
@@ -394,12 +394,12 @@ void DRW_curve_batch_cache_validate(Curve *cu)
 
 static CurveBatchCache *curve_batch_cache_get(Curve *cu)
 {
-  return static_cast<CurveBatchCache *>(cu->batch_cache);
+  return cu->batch_cache;
 }
 
 void DRW_curve_batch_cache_dirty_tag(Curve *cu, int mode)
 {
-  CurveBatchCache *cache = static_cast<CurveBatchCache *>(cu->batch_cache);
+  CurveBatchCache *cache = cu->batch_cache;
   if (cache == nullptr) {
     return;
   }
@@ -420,7 +420,7 @@ void DRW_curve_batch_cache_dirty_tag(Curve *cu, int mode)
 
 static void curve_batch_cache_clear(Curve *cu)
 {
-  CurveBatchCache *cache = static_cast<CurveBatchCache *>(cu->batch_cache);
+  CurveBatchCache *cache = cu->batch_cache;
   if (!cache) {
     return;
   }
@@ -446,7 +446,7 @@ static void curve_batch_cache_clear(Curve *cu)
 void DRW_curve_batch_cache_free(Curve *cu)
 {
   curve_batch_cache_clear(cu);
-  MEM_SAFE_DELETE_VOID(cu->batch_cache);
+  MEM_SAFE_DELETE(cu->batch_cache);
 }
 
 /* -------------------------------------------------------------------- */
@@ -612,7 +612,7 @@ static void curve_create_edit_curves_nor(CurveRenderData *rdata,
       }
       vbo_len_used++;
 
-      /* Skip the other vertex (it does not need to be offsetted). */
+      /* Skip the other vertex (it does not need to be offset). */
       GPU_vertbuf_attr_set(&vbo_curves_nor, attr_id.pos, vbo_len_used, bevp->vec);
       vbo_len_used++;
 

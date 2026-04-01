@@ -2,8 +2,8 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-set(PYTHON_POSTFIX)
-set(PYTHON_EXTRA_INSTALL_FLAGS)
+set(PYTHON_POSTFIX "")
+set(PYTHON_EXTRA_INSTALL_FLAGS "")
 if(BUILD_MODE STREQUAL Debug)
   set(PYTHON_POSTFIX _d)
   set(PYTHON_EXTRA_INSTALL_FLAGS -d)
@@ -12,9 +12,12 @@ endif()
 if(WIN32)
   set(PYTHON_BINARY ${LIBDIR}/python/python${PYTHON_POSTFIX}.exe)
   set(PYTHON_SRC ${BUILD_DIR}/python/src/external_python/)
-  macro(cmake_to_dos_path MsysPath ResultingPath)
-    string(REPLACE "/" "\\" ${ResultingPath} "${MsysPath}")
-  endmacro()
+  # Return values:
+  # - `${ResultingPath}`: the DOS-style path.
+  function(cmake_to_dos_path MsysPath ResultingPath)
+    string(REPLACE "/" "\\" _result "${MsysPath}")
+    set(${ResultingPath} "${_result}" PARENT_SCOPE)
+  endfunction()
 
   if(BLENDER_PLATFORM_ARM)
     set(PYTHON_BINARY_INTERNAL ${BUILD_DIR}/python/src/external_python/PCBuild/arm64/python${PYTHON_POSTFIX}.exe)
@@ -152,6 +155,13 @@ ${LIBDIR}/ssl/lib64/pkgconfig:${LIBDIR}/lzma/lib/pkgconfig:${LIBDIR}/zlib/share/
     # Use flags documented by ./configure for other libs.
     export BZIP2_CFLAGS=-I${LIBDIR}/bzip2/include
     export BZIP2_LIBS=${LIBDIR}/bzip2/lib/${LIBPREFIX}bz2${LIBEXT}
+
+    # Prevent Python configuration script from enabling modules that might be enabled due to the
+    # presence of system-wide libraries.
+    # There is no official way of explicitly disabling modules via command line arguments to the
+    # configuration script, so instead use CFLAGS that are passed to the try-compile utilities that
+    # probe libraries to ensure the test program does not compile.
+    export TCLTK_CFLAGS="--non-existing-flag"
   )
 
   if(APPLE)

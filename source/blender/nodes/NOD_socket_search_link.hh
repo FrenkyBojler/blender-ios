@@ -6,6 +6,7 @@
 
 #include <functional>
 
+#include "BLI_set.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
@@ -57,13 +58,13 @@ class LinkSearchOpParams {
    * Find a socket with the given name (correctly checks for inputs and outputs)
    * and connect it to the socket the link drag started from (#socket).
    */
-  void connect_available_socket(bNode &new_node, StringRef socket_name);
-  void connect_available_socket_by_identifier(bNode &new_node, StringRef socket_identifier);
+  void connect_available_socket(bNode &new_node, UString socket_name);
+  void connect_available_socket_by_identifier(bNode &new_node, UString socket_identifier);
   void connect_socket(bNode &new_node, bNodeSocket &new_socket);
   /**
    * Like #connect_available_socket, but also calls the node's update function.
    */
-  void update_and_connect_available_socket(bNode &new_node, StringRef socket_name);
+  void update_and_connect_available_socket(bNode &new_node, UString socket_name);
 };
 
 struct SocketLinkOperation {
@@ -154,6 +155,12 @@ class GatherLinkSearchOpParams {
  * these criteria do not apply and the function just tries its best without asserting.
  */
 void search_link_ops_for_basic_node(GatherLinkSearchOpParams &params);
+
+/**
+ * Same as search_link_ops_for_basic_node with additional filtering to exclude sockets.
+ */
+void search_filtered_link_ops_for_basic_node(GatherLinkSearchOpParams &params,
+                                             const Set<UString> &skip_socket_identifiers);
 
 void search_link_ops_for_declarations(GatherLinkSearchOpParams &params,
                                       Span<SocketDeclaration *> declarations);

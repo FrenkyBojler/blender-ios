@@ -1312,6 +1312,12 @@ void sort_time_fcurve(FCurve &fcu)
         /* Swap if one is after the other (and indicate that order has changed). */
         if (bezt->vec[1][0] > (bezt + 1)->vec[1][0]) {
           std::swap(*bezt, *(bezt + 1));
+          if (a == fcu.active_keyframe_index) {
+            fcu.active_keyframe_index++;
+          }
+          else if (a + 1 == fcu.active_keyframe_index) {
+            fcu.active_keyframe_index--;
+          }
           ok = true;
         }
       }
@@ -2390,6 +2396,19 @@ float evaluate_fcurve_only_curve(const FCurve *fcu, float evaltime)
   return evaluate_fcurve_ex(fcu, evaltime, 0.0);
 }
 
+float evaluate_fcurve_unmodified(const FCurve *fcu, float evaltime)
+{
+  if (fcu->bezt) {
+    return fcurve_eval_keyframes(fcu, fcu->bezt, evaltime);
+  }
+  if (fcu->fpt) {
+    return fcurve_eval_samples(fcu, fcu->fpt, evaltime);
+  }
+
+  BLI_assert_unreachable();
+  return 0;
+}
+
 float evaluate_fcurve_driver(PathResolvedRNA *anim_rna,
                              FCurve *fcu,
                              ChannelDriver *driver_orig,
@@ -2494,7 +2513,7 @@ void BKE_fmodifiers_blend_write(BlendWriter *writer, ListBaseT<FModifier> *fmodi
 
           /* write coefficients array */
           if (data->coefficients) {
-            BLO_write_float_array(writer, data->arraysize, data->coefficients);
+            writer->write_float_array(data->arraysize, data->coefficients);
           }
 
           break;
@@ -2566,7 +2585,7 @@ void BKE_fcurve_blend_write_data(BlendWriter *writer, FCurve *fcu)
   }
 
   if (fcu->rna_path) {
-    BLO_write_string(writer, fcu->rna_path);
+    writer->write_string(fcu->rna_path);
   }
 
   /* driver data */
@@ -2580,7 +2599,7 @@ void BKE_fcurve_blend_write_data(BlendWriter *writer, FCurve *fcu)
     for (DriverVar &dvar : driver->variables) {
       DRIVER_TARGETS_USED_LOOPER_BEGIN (&dvar) {
         if (dtar->rna_path) {
-          BLO_write_string(writer, dtar->rna_path);
+          writer->write_string(dtar->rna_path);
         }
       }
       DRIVER_TARGETS_LOOPER_END;
