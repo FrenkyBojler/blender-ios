@@ -48,14 +48,17 @@ class GField {
   };
 
   struct TrivialInlineConstant {
+    static constexpr int64_t inline_size = 16;
+    static constexpr int64_t inline_alignment = 8;
+
     const CPPType *type = nullptr;
-    AlignedBuffer<16, 8> value;
+    AlignedBuffer<inline_size, inline_alignment> value;
   };
 
   struct GeneralConstant {
-    /* TODO: Ownership handling. */
     const CPPType *type = nullptr;
-    const void *value = nullptr;
+    /* This value is owned by the #GField. */
+    void *value = nullptr;
   };
 
   template<typename T>
@@ -83,6 +86,12 @@ class GField {
   static GField from_non_owning_ref(const GField &field);
   static GField from_constant(const CPPType &type, const void *value);
   static GField from_non_owning_constant(const CPPType &type, const void *value);
+
+  GField(const GField &other);
+  GField(GField &&other);
+  GField &operator=(const GField &other);
+  GField &operator=(GField &&other);
+  ~GField();
 
   const CPPType &cpp_type() const;
 
@@ -206,10 +215,17 @@ inline GField GField::from_non_owning_ref(const GField &field)
 
 inline GField GField::from_constant(const CPPType &type, const void *value)
 {
-  /* TODO: Avoid allocation if possible. */
-  return GField(FieldMultiFunctionNode::from(
-                    std::make_shared<mf::CustomMF_GenericConstant>(type, value, true), {}),
-                0);
+  if (type.is_trivial && type.size <= TrivialInlineConstant::inline_size &&
+      type.alignment <= TrivialInlineConstant::inline_alignment)
+  {
+    TrivialInlineConstant constant;
+    constant.type = &type;
+    type.copy_construct(value, constant.value.ptr());
+    return GField(constant);
+  }
+  void *new_value = MEM_new_uninitialized_aligned(type.size, type.alignment, __func__);
+  type.copy_construct(value, new_value);
+  return GField(GeneralConstant{&type, new_value});
 }
 
 inline GField GField::from_non_owning_constant(const CPPType &type, const void *value)
@@ -503,6 +519,58 @@ template<typename T> inline const Field<T> &GField::typed() const
 inline const GField::GFieldVariant &GField::variant() const
 {
   return variant_;
+}
+
+inline GField::GField(const GField &other) : variant_(other.variant_)
+{
+  std::visit(
+      [&]<typename T>(T &v) {
+        if constexpr (std::is_same_v<T, GeneralConstant>) {
+          void *new_value = MEM_new_uninitialized_aligned(
+              v.type->size, v.type->alignment, __func__);
+          v.type->copy_construct(v.value, new_value);
+          v.value = new_value;
+        }
+      },
+      variant_);
+}
+
+inline GField::GField(GField &&other) : variant_(std::move(other.variant_))
+{
+  const CPPType &type = this->cpp_type();
+  other.variant_ = Default{&type};
+}
+
+inline GField &GField::operator=(const GField &other)
+{
+  if (this == &other) {
+    return *this;
+  }
+  this->~GField();
+  new (this) GField(other);
+  return *this;
+}
+
+inline GField &GField::operator=(GField &&other)
+{
+  if (this == &other) {
+    return *this;
+  }
+  this->~GField();
+  new (this) GField(std::move(other));
+  return *this;
+}
+
+inline GField::~GField()
+{
+  std::visit(
+      [&]<typename T>(T &v) {
+        if constexpr (std::is_same_v<T, GeneralConstant>) {
+          v.type->destruct(v.value);
+          MEM_delete_void(v.value);
+        }
+      },
+      variant_);
 }
 
 /** \} */
