@@ -156,11 +156,11 @@ static GField get_selection_field(const eObjectMode object_mode, const bke::Attr
       return fn::make_constant_field(bke::attribute_type_to_cpp_type(data_type),
                                      true_value(data_type));
     case OB_MODE_EDIT:
-      return GField(std::make_shared<EditSelectionFieldInput>(data_type));
+      return GField::from_input<EditSelectionFieldInput>(data_type);
     case OB_MODE_SCULPT:
     case OB_MODE_SCULPT_CURVES:
     case OB_MODE_SCULPT_GREASE_PENCIL:
-      return GField(std::make_shared<SculptSelectionFieldInput>(data_type));
+      return GField::from_input<SculptSelectionFieldInput>(data_type);
     case OB_MODE_PAINT_GREASE_PENCIL:
       return fn::make_constant_field(bke::attribute_type_to_cpp_type(data_type),
                                      true_value(data_type));

@@ -201,7 +201,7 @@ class LazyFunctionForSwitchNode : public LazyFunction {
     GField false_field = false_value_variant->extract<GField>();
     GField true_field = true_value_variant->extract<GField>();
 
-    GField output_field{FieldOperation::from(
+    GField output_field{FieldOperation::from_non_owning(
         switch_multi_function,
         {std::move(condition), std::move(false_field), std::move(true_field)})};
 

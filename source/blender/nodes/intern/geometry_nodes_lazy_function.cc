@@ -35,6 +35,7 @@
 #include "BLI_cpp_types.hh"
 #include "BLI_lazy_threading.hh"
 #include "BLI_map.hh"
+#include "BLI_stack.hh"
 
 #include "DNA_ID.h"
 
@@ -283,13 +284,13 @@ class LazyFunctionForGeometryNode : public LazyFunction {
     std::string attribute_name = this->anonymous_attribute_name_for_output(user_data,
                                                                            socket.index());
     std::string socket_inspection_name = make_anonymous_attribute_socket_inspection_string(socket);
-    auto attribute_field = std::make_shared<AttributeFieldInput>(
-        std::move(attribute_name),
-        *socket.typeinfo->base_cpp_type,
-        std::move(socket_inspection_name));
 
     void *r_value = params.get_output_data_ptr(lf_index);
-    SocketValueVariant::ConstructIn(r_value, GField(std::move(attribute_field)));
+    SocketValueVariant::ConstructIn(
+        r_value,
+        GField::from_input<AttributeFieldInput>(std::move(attribute_name),
+                                                *socket.typeinfo->base_cpp_type,
+                                                std::move(socket_inspection_name)));
     params.output_set(lf_index);
   }
 
@@ -477,12 +478,12 @@ static void execute_multi_function_on_value_variant__field(
   }
 
   /* Construct the new field node. */
-  std::shared_ptr<fn::FieldOperation> operation;
+  ImplicitSharingPtr<fn::FieldOperation> operation;
   if (owned_fn) {
     operation = fn::FieldOperation::from(owned_fn, std::move(input_fields));
   }
   else {
-    operation = fn::FieldOperation::from(fn, std::move(input_fields));
+    operation = fn::FieldOperation::from_non_owning(fn, std::move(input_fields));
   }
 
   /* Store the new fields in the output. */
@@ -1405,17 +1406,24 @@ class LazyFunctionForExtractingReferenceSet : public lf::LazyFunction {
 
   void gather__field(const GField &field, GeometryNodesReferenceSet &r_references) const
   {
-    field.node().for_each_field_input_recursive([&](const FieldInput &field_input) {
-      if (const auto *attr_field_input = dynamic_cast<const AttributeFieldInput *>(&field_input)) {
-        const StringRef name = attr_field_input->attribute_name();
-        if (bke::attribute_name_is_anonymous(name)) {
-          if (!r_references.names) {
-            r_references.names = std::make_shared<Set<std::string>>();
-          }
-          r_references.names->add_as(name);
-        }
-      }
-    });
+    Stack<fn::GFieldRef> fields_to_check;
+    fields_to_check.push(field);
+    while (!fields_to_check.is_empty()) {
+      const fn::GFieldRef &field_to_check = fields_to_check.pop();
+      // TODO
+    }
+    // field.node().for_each_field_input_recursive([&](const FieldInput &field_input) {
+    //   if (const auto *attr_field_input = dynamic_cast<const AttributeFieldInput
+    //   *>(&field_input)) {
+    //     const StringRef name = attr_field_input->attribute_name();
+    //     if (bke::attribute_name_is_anonymous(name)) {
+    //       if (!r_references.names) {
+    //         r_references.names = std::make_shared<Set<std::string>>();
+    //       }
+    //       r_references.names->add_as(name);
+    //     }
+    //   }
+    // });
   }
 
   void gather__bundle(const BundlePtr &bundle, GeometryNodesReferenceSet &r_references) const

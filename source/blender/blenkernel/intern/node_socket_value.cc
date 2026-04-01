@@ -197,7 +197,7 @@ template<typename T> T SocketValueVariant::extract()
   else if constexpr (fn::is_field_v<T>) {
     using base_type = typename T::base_type;
     BLI_assert(static_type_is_base_socket_type<base_type>(socket_type_));
-    return T(this->extract<fn::GField>().typed<base_type>());
+    return this->extract<fn::GField>().typed<base_type>();
   }
   else if constexpr (std::is_same_v<T, nodes::ListPtr>) {
     if (kind_ != Kind::List) {
@@ -246,7 +246,12 @@ template<typename T> T SocketValueVariant::extract()
     }
   }
   BLI_assert_unreachable();
-  return T();
+  if constexpr (std::is_same_v<T, fn::GField>) {
+    return fn::GField(CPPType::get<float>());
+  }
+  else {
+    return T();
+  }
 }
 
 template<typename T> T SocketValueVariant::get() const
@@ -421,10 +426,7 @@ bool SocketValueVariant::is_context_dependent_field() const
     return false;
   }
   const fn::GField &field = value_.get<fn::GField>();
-  if (!field) {
-    return false;
-  }
-  return field.node().depends_on_input();
+  return field.depends_on_input();
 }
 
 bool SocketValueVariant::is_field() const

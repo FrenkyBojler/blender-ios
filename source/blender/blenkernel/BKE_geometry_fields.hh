@@ -290,9 +290,8 @@ class AttributeFieldInput : public GeometryFieldInput {
                          const CPPType &type,
                          std::optional<std::string> socket_inspection_name = std::nullopt)
   {
-    auto field_input = std::make_shared<AttributeFieldInput>(
+    return fn::GField::from_input<AttributeFieldInput>(
         std::move(name), type, std::move(socket_inspection_name));
-    return fn::GField(field_input);
   }
   template<typename T>
   static fn::Field<T> from(std::string name,
@@ -313,7 +312,7 @@ class AttributeFieldInput : public GeometryFieldInput {
   std::string socket_inspection_name() const override;
 
   uint64_t hash() const override;
-  bool is_equal_to(const fn::FieldNode &other) const override;
+  bool is_equal_to(const fn::FieldInput &other) const override;
   std::optional<AttrDomain> preferred_domain(const GeometryComponent &component) const override;
 };
 
@@ -330,8 +329,7 @@ class AttributeExistsFieldInput final : public bke::GeometryFieldInput {
   static fn::Field<bool> from(std::string name)
   {
     const CPPType &type = CPPType::get<bool>();
-    auto field_input = std::make_shared<AttributeExistsFieldInput>(std::move(name), type);
-    return fn::Field<bool>(field_input);
+    return fn::GField::from_input<AttributeExistsFieldInput>(std::move(name), type).typed<bool>();
   }
 
   GVArray get_varray_for_context(const bke::GeometryFieldContext &context,
@@ -352,7 +350,7 @@ class NamedLayerSelectionFieldInput final : public bke::GeometryFieldInput {
   GVArray get_varray_for_context(const bke::GeometryFieldContext &context,
                                  const IndexMask &mask) const final;
   uint64_t hash() const override;
-  bool is_equal_to(const fn::FieldNode &other) const override;
+  bool is_equal_to(const fn::FieldInput &other) const override;
   std::optional<AttrDomain> preferred_domain(const GeometryComponent &component) const override;
 };
 
@@ -366,7 +364,7 @@ class IDAttributeFieldInput : public GeometryFieldInput {
   std::string socket_inspection_name() const override;
 
   uint64_t hash() const override;
-  bool is_equal_to(const fn::FieldNode &other) const override;
+  bool is_equal_to(const fn::FieldInput &other) const override;
 };
 
 VArray<float3> curve_normals_varray(const CurvesGeometry &curves, AttrDomain domain);
@@ -395,7 +393,7 @@ class NormalFieldInput : public GeometryFieldInput {
   std::string socket_inspection_name() const override;
 
   uint64_t hash() const override;
-  bool is_equal_to(const fn::FieldNode &other) const override;
+  bool is_equal_to(const fn::FieldInput &other) const override;
 };
 
 class CurveLengthFieldInput final : public CurvesFieldInput {
@@ -405,7 +403,7 @@ class CurveLengthFieldInput final : public CurvesFieldInput {
                                  AttrDomain domain,
                                  const IndexMask &mask) const final;
   uint64_t hash() const override;
-  bool is_equal_to(const fn::FieldNode &other) const override;
+  bool is_equal_to(const fn::FieldInput &other) const override;
   std::optional<AttrDomain> preferred_domain(const bke::CurvesGeometry &curves) const final;
 };
 
@@ -460,7 +458,7 @@ class EvaluateOnDomainInput final : public bke::GeometryFieldInput {
 
   GVArray get_varray_for_context(const bke::GeometryFieldContext &context,
                                  const IndexMask & /*mask*/) const final;
-  void for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const override;
+  void foreach_recursive_field(FunctionRef<void(const fn::GField &)> fn) const override;
 
   std::optional<AttrDomain> preferred_domain(
       const GeometryComponent & /*component*/) const override;

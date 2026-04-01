@@ -71,7 +71,7 @@ StringLog::StringLog(StringRef string, LinearAllocator<> &allocator)
 
 FieldInfoLog::FieldInfoLog(const GField &field) : type(field.cpp_type())
 {
-  const std::shared_ptr<const fn::FieldInputs> &field_input_nodes = field.node().field_inputs();
+  const fn::FieldInputsPtr &field_input_nodes = field.field_inputs();
 
   /* Put the deduplicated field inputs into a vector so that they can be sorted below. */
   Vector<std::reference_wrapper<const FieldInput>> field_inputs;

@@ -55,29 +55,30 @@ static FieldTreeInfo preprocess_field_tree(Span<GFieldRef> entry_fields)
   }
 
   while (!fields_to_check.is_empty()) {
-    GFieldRef field = fields_to_check.pop();
-    const FieldNode &field_node = field.node();
-    switch (field_node.node_type()) {
-      case FieldNodeType::Input: {
-        const FieldInput &field_input = static_cast<const FieldInput &>(field_node);
-        field_tree_info.deduplicated_field_inputs.add(field_input);
-        break;
-      }
-      case FieldNodeType::Operation: {
-        const FieldOperation &operation = static_cast<const FieldOperation &>(field_node);
-        for (const GFieldRef operation_input : operation.inputs()) {
-          field_tree_info.field_users.add(operation_input, field);
-          if (handled_fields.add(operation_input)) {
-            fields_to_check.push(operation_input);
+    const GFieldRef &field = fields_to_check.pop();
+    const GFieldRef::Variant &field_variant = field.variant();
+    std::visit(
+        [&]<typename T>(const T &v) {
+          if constexpr (std::is_same_v<T, GFieldRef::Input>) {
+            field_tree_info.deduplicated_field_inputs.add(*v.node);
           }
-        }
-        break;
-      }
-      case FieldNodeType::Constant: {
-        /* Nothing to do. */
-        break;
-      }
-    }
+          else if constexpr (std::is_same_v<T, GFieldRef::MultiFn>) {
+            for (const GField &input_field : v.node->inputs()) {
+              field_tree_info.field_users.add(input_field, field);
+              if (handled_fields.add(input_field)) {
+                fields_to_check.push(input_field);
+              }
+            }
+          }
+          else if constexpr (std::is_same_v<T, GFieldRef::Value>) {
+            /* Nothing to do. */
+          }
+          else {
+            /* Ensure all cases handled. */
+            static_assert(sizeof(T) == 0);
+          }
+        },
+        field_variant);
   }
   return field_tree_info;
 }
@@ -122,7 +123,7 @@ static Set<GFieldRef> find_varying_fields(const FieldTreeInfo &field_tree_info,
       continue;
     }
     const FieldInput &field_input = field_tree_info.deduplicated_field_inputs[i];
-    const GFieldRef field_input_field{field_input, 0};
+    const GFieldRef field_input_field{field_input};
     const Span<GFieldRef> users = field_tree_info.field_users.lookup(field_input_field);
     for (const GFieldRef &field : users) {
       if (found_fields.add(field)) {
@@ -156,9 +157,10 @@ static void build_multi_function_procedure_for_fields(mf::Procedure &procedure,
 
   /* Start by adding the field inputs as parameters to the procedure. */
   for (const FieldInput &field_input : field_tree_info.deduplicated_field_inputs) {
+    const GFieldRef field_input_field{field_input};
     mf::Variable &variable = builder.add_input_parameter(
         mf::DataType::ForSingle(field_input.cpp_type()), field_input.debug_name());
-    variable_by_field.add_new({field_input, 0}, &variable);
+    variable_by_field.add_new(field_input_field, &variable);
   }
 
   /* Utility struct that is used to do proper depth first search traversal of the tree below. */
@@ -180,72 +182,75 @@ static void build_multi_function_procedure_for_fields(mf::Procedure &procedure,
         fields_to_check.pop();
         continue;
       }
-      const FieldNode &field_node = field.node();
-      switch (field_node.node_type()) {
-        case FieldNodeType::Input: {
-          /* Field inputs should already be handled above. */
-          break;
-        }
-        case FieldNodeType::Operation: {
-          const FieldOperation &operation_node = static_cast<const FieldOperation &>(field.node());
-          const Span<GField> operation_inputs = operation_node.inputs();
+      const GFieldRef::Variant &field_variant = field.variant();
+      std::visit(
+          [&]<typename T>(const T &v) {
+            if constexpr (std::is_same_v<T, GFieldRef::Input>) {
+              /* Field inputs should already be handled above. */
+            }
+            else if constexpr (std::is_same_v<T, GFieldRef::MultiFn>) {
+              const FieldOperation &field_multi_fn = *v.node;
+              const Span<GField> fn_inputs = field_multi_fn.inputs();
 
-          if (field_with_index.current_input_index < operation_inputs.size()) {
-            /* Not all inputs are handled yet. Push the next input field to the stack and increment
-             * the input index. */
-            fields_to_check.push({operation_inputs[field_with_index.current_input_index]});
-            field_with_index.current_input_index++;
-          }
-          else {
-            /* All inputs variables are ready, now gather all variables that are used by the
-             * function and call it. */
-            const mf::MultiFunction &multi_function = operation_node.multi_function();
-            Vector<mf::Variable *> variables(multi_function.param_amount());
-
-            int param_input_index = 0;
-            int param_output_index = 0;
-            for (const int param_index : multi_function.param_indices()) {
-              const mf::ParamType param_type = multi_function.param_type(param_index);
-              const mf::ParamType::InterfaceType interface_type = param_type.interface_type();
-              if (interface_type == mf::ParamType::Input) {
-                const GField &input_field = operation_inputs[param_input_index];
-                variables[param_index] = variable_by_field.lookup(input_field);
-                param_input_index++;
-              }
-              else if (interface_type == mf::ParamType::Output) {
-                const GFieldRef output_field{operation_node, param_output_index};
-                const bool output_is_ignored =
-                    field_tree_info.field_users.lookup(output_field).is_empty() &&
-                    !output_fields.contains(output_field);
-                if (output_is_ignored) {
-                  /* Ignored outputs don't need a variable. */
-                  variables[param_index] = nullptr;
-                }
-                else {
-                  /* Create a new variable for used outputs. */
-                  mf::Variable &new_variable = procedure.new_variable(param_type.data_type());
-                  variables[param_index] = &new_variable;
-                  variable_by_field.add_new(output_field, &new_variable);
-                }
-                param_output_index++;
+              if (field_with_index.current_input_index < fn_inputs.size()) {
+                /* Not all inputs are handled yet. Push the next input field to the stack and
+                 * increment the input index. */
+                fields_to_check.push({fn_inputs[field_with_index.current_input_index]});
+                field_with_index.current_input_index++;
               }
               else {
-                BLI_assert_unreachable();
+                /* All inputs variables are ready, now gather all variables that are used by the
+                 * function and call it. */
+                const mf::MultiFunction &multi_function = field_multi_fn.multi_function();
+                Vector<mf::Variable *> variables(multi_function.param_amount());
+
+                int param_input_index = 0;
+                int param_output_index = 0;
+                for (const int param_index : multi_function.param_indices()) {
+                  const mf::ParamType param_type = multi_function.param_type(param_index);
+                  const mf::ParamType::InterfaceType interface_type = param_type.interface_type();
+                  if (interface_type == mf::ParamType::Input) {
+                    const GField &input_field = fn_inputs[param_input_index];
+                    variables[param_index] = variable_by_field.lookup(input_field);
+                    param_input_index++;
+                  }
+                  else if (interface_type == mf::ParamType::Output) {
+                    const GFieldRef output_field{field_multi_fn, param_output_index};
+                    const bool output_is_ignored =
+                        field_tree_info.field_users.lookup(output_field).is_empty() &&
+                        !output_fields.contains(output_field);
+                    if (output_is_ignored) {
+                      /* Ignored outputs don't need a variable. */
+                      variables[param_index] = nullptr;
+                    }
+                    else {
+                      /* Create a new variable for used outputs. */
+                      mf::Variable &new_variable = procedure.new_variable(param_type.data_type());
+                      variables[param_index] = &new_variable;
+                      variable_by_field.add_new(output_field, &new_variable);
+                    }
+                    param_output_index++;
+                  }
+                  else {
+                    BLI_assert_unreachable();
+                  }
+                }
+                builder.add_call_with_all_variables(multi_function, variables);
               }
             }
-            builder.add_call_with_all_variables(multi_function, variables);
-          }
-          break;
-        }
-        case FieldNodeType::Constant: {
-          const FieldConstant &constant_node = static_cast<const FieldConstant &>(field_node);
-          const mf::MultiFunction &fn = procedure.construct_function<mf::CustomMF_GenericConstant>(
-              constant_node.type(), constant_node.value().get(), false);
-          mf::Variable &new_variable = *builder.add_call<1>(fn)[0];
-          variable_by_field.add_new(field, &new_variable);
-          break;
-        }
-      }
+            else if constexpr (std::is_same_v<T, GFieldRef::Value>) {
+              const mf::MultiFunction &fn =
+                  procedure.construct_function<mf::CustomMF_GenericConstant>(
+                      *v.type, v.value, false);
+              mf::Variable &new_variable = *builder.add_call<1>(fn)[0];
+              variable_by_field.add_new(field, &new_variable);
+            }
+            else {
+              /* Ensure all cases handled. */
+              static_assert(sizeof(T) == 0);
+            }
+          },
+          field_variant);
     }
   }
 
@@ -321,26 +326,28 @@ Vector<GVArray> evaluate_fields(ResourceScope &scope,
   /* Finish fields that don't need any processing directly. */
   for (const int out_index : fields_to_evaluate.index_range()) {
     const GFieldRef &field = fields_to_evaluate[out_index];
-    const FieldNode &field_node = field.node();
-    switch (field_node.node_type()) {
-      case FieldNodeType::Input: {
-        const FieldInput &field_input = static_cast<const FieldInput &>(field.node());
-        const int field_input_index = field_tree_info.deduplicated_field_inputs.index_of(
-            field_input);
-        const GVArray &varray = field_context_inputs[field_input_index];
-        varrays[out_index] = varray;
-        break;
-      }
-      case FieldNodeType::Constant: {
-        const FieldConstant &field_constant = static_cast<const FieldConstant &>(field.node());
-        varrays[out_index] = GVArray::from_single_ref(
-            field_constant.type(), mask.min_array_size(), field_constant.value().get());
-        break;
-      }
-      case FieldNodeType::Operation: {
-        break;
-      }
-    }
+    const GFieldRef::Variant &field_variant = field.variant();
+    std::visit(
+        [&]<typename T>(const T &v) {
+          if constexpr (std::is_same_v<T, GFieldRef::Input>) {
+            const FieldInput &field_input = *v.node;
+            const int field_input_index = field_tree_info.deduplicated_field_inputs.index_of(
+                field_input);
+            const GVArray &varray = field_context_inputs[field_input_index];
+            varrays[out_index] = varray;
+          }
+          else if constexpr (std::is_same_v<T, GFieldRef::MultiFn>) {
+            /* This always needs processing. */
+          }
+          else if constexpr (std::is_same_v<T, GFieldRef::Value>) {
+            varrays[out_index] = GVArray::from_single_ref(*v.type, mask.min_array_size(), v.value);
+          }
+          else {
+            /* Ensure all cases handled. */
+            static_assert(sizeof(T) == 0);
+          }
+        },
+        field_variant);
   }
 
   Set<GFieldRef> varying_fields = find_varying_fields(field_tree_info, field_context_inputs);
@@ -494,7 +501,7 @@ Vector<GVArray> evaluate_fields(ResourceScope &scope,
 
 void evaluate_constant_field(const GField &field, void *r_value)
 {
-  if (field.node().depends_on_input()) {
+  if (field.depends_on_input()) {
     const CPPType &type = field.cpp_type();
     type.value_initialize(r_value);
     return;
@@ -509,7 +516,7 @@ void evaluate_constant_field(const GField &field, void *r_value)
 
 GField make_field_constant_if_possible(GField field)
 {
-  if (field.node().depends_on_input()) {
+  if (field.depends_on_input()) {
     return field;
   }
   const CPPType &type = field.cpp_type();
@@ -523,14 +530,13 @@ GField make_field_constant_if_possible(GField field)
 Field<bool> invert_boolean_field(const Field<bool> &field)
 {
   const mf::MultiFunction &not_fn = fn::multi_function::registry::lookup("!bool"_ustr);
-  auto not_op = FieldOperation::from(not_fn, {field});
-  return Field<bool>(not_op);
+  auto not_op = FieldOperation::from_non_owning(not_fn, {field});
+  return GField(not_op, 0).typed<bool>();
 }
 
 GField make_constant_field(const CPPType &type, const void *value)
 {
-  auto constant_node = std::make_shared<FieldConstant>(type, value);
-  return GField{std::move(constant_node)};
+  return GField::from_constant(type, value);
 }
 
 GVArray FieldContext::get_varray_for_input(const FieldInput &field_input,
@@ -564,180 +570,9 @@ uint64_t IndexFieldInput::hash() const
   return 128736487678;
 }
 
-bool IndexFieldInput::is_equal_to(const fn::FieldNode &other) const
+bool IndexFieldInput::is_equal_to(const fn::FieldInput &other) const
 {
   return dynamic_cast<const IndexFieldInput *>(&other) != nullptr;
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name #FieldNode
- * \{ */
-
-/* Avoid generating the destructor in every translation unit. */
-FieldNode::~FieldNode() = default;
-
-void FieldNode::for_each_field_input_recursive(FunctionRef<void(const FieldInput &)> fn) const
-{
-  if (field_inputs_) {
-    for (const FieldInput &field_input : field_inputs_->deduplicated_nodes) {
-      fn(field_input);
-      if (&field_input != this) {
-        field_input.for_each_field_input_recursive(fn);
-      }
-    }
-  }
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name #FieldOperation
- * \{ */
-
-FieldOperation::FieldOperation(std::shared_ptr<const mf::MultiFunction> function,
-                               Vector<GField> inputs)
-    : FieldOperation(*function, std::move(inputs))
-{
-  owned_function_ = std::move(function);
-}
-
-/* Avoid generating the destructor in every translation unit. */
-FieldOperation::~FieldOperation() = default;
-
-/**
- * Returns the field inputs used by all the provided fields.
- * This tries to reuse an existing #FieldInputs whenever possible to avoid copying it.
- */
-static std::shared_ptr<const FieldInputs> combine_field_inputs(Span<GField> fields)
-{
-  /* The #FieldInputs that we try to reuse if possible. */
-  const std::shared_ptr<const FieldInputs> *field_inputs_candidate = nullptr;
-  for (const GField &field : fields) {
-    const std::shared_ptr<const FieldInputs> &field_inputs = field.node().field_inputs();
-    /* Only try to reuse non-empty #FieldInputs. */
-    if (field_inputs && !field_inputs->nodes.is_empty()) {
-      if (field_inputs_candidate == nullptr) {
-        field_inputs_candidate = &field_inputs;
-      }
-      else if ((*field_inputs_candidate)->nodes.size() < field_inputs->nodes.size()) {
-        /* Always try to reuse the #FieldInputs that has the most nodes already. */
-        field_inputs_candidate = &field_inputs;
-      }
-    }
-  }
-  if (field_inputs_candidate == nullptr) {
-    /* None of the field depends on an input. */
-    return {};
-  }
-  /* Check if all inputs are in the candidate. */
-  Vector<const FieldInput *> inputs_not_in_candidate;
-  for (const GField &field : fields) {
-    const std::shared_ptr<const FieldInputs> &field_inputs = field.node().field_inputs();
-    if (!field_inputs) {
-      continue;
-    }
-    if (&field_inputs == field_inputs_candidate) {
-      continue;
-    }
-    for (const FieldInput *field_input : field_inputs->nodes) {
-      if (!(*field_inputs_candidate)->nodes.contains(field_input)) {
-        inputs_not_in_candidate.append(field_input);
-      }
-    }
-  }
-  if (inputs_not_in_candidate.is_empty()) {
-    /* The existing #FieldInputs can be reused, because no other field has additional inputs. */
-    return *field_inputs_candidate;
-  }
-  /* Create new #FieldInputs that contains all of the inputs that the fields depend on. */
-  std::shared_ptr<FieldInputs> new_field_inputs = std::make_shared<FieldInputs>(
-      **field_inputs_candidate);
-  for (const FieldInput *field_input : inputs_not_in_candidate) {
-    new_field_inputs->nodes.add(field_input);
-    new_field_inputs->deduplicated_nodes.add(*field_input);
-  }
-  return new_field_inputs;
-}
-
-FieldOperation::FieldOperation(const mf::MultiFunction &function, Vector<GField> inputs)
-    : FieldNode(FieldNodeType::Operation), function_(&function), inputs_(std::move(inputs))
-{
-  field_inputs_ = combine_field_inputs(inputs_);
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name #FieldInput
- * \{ */
-
-FieldInput::FieldInput(const CPPType &type, std::string debug_name)
-    : FieldNode(FieldNodeType::Input), type_(&type), debug_name_(std::move(debug_name))
-{
-  std::shared_ptr<FieldInputs> field_inputs = std::make_shared<FieldInputs>();
-  field_inputs->nodes.add_new(this);
-  field_inputs->deduplicated_nodes.add_new(*this);
-  field_inputs_ = std::move(field_inputs);
-}
-
-/* Avoid generating the destructor in every translation unit. */
-FieldInput::~FieldInput() = default;
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name #FieldConstant
- * \{ */
-
-FieldConstant::FieldConstant(const CPPType &type, const void *value)
-    : FieldNode(FieldNodeType::Constant), type_(type)
-{
-  value_ = MEM_new_uninitialized_aligned(type.size, type.alignment, __func__);
-  type.copy_construct(value, value_);
-}
-
-FieldConstant::~FieldConstant()
-{
-  type_.destruct(value_);
-  MEM_delete_void(value_);
-}
-
-const CPPType &FieldConstant::output_cpp_type(int output_index) const
-{
-  BLI_assert(output_index == 0);
-  UNUSED_VARS_NDEBUG(output_index);
-  return type_;
-}
-
-const CPPType &FieldConstant::type() const
-{
-  return type_;
-}
-
-GPointer FieldConstant::value() const
-{
-  return {type_, value_};
-}
-
-uint64_t FieldConstant::hash() const
-{
-  return type_.hash_or_fallback(value_, get_default_hash(this));
-}
-
-bool FieldConstant::is_equal_to(const FieldNode &other) const
-{
-  if (const FieldConstant *other_constant = dynamic_cast<const FieldConstant *>(&other)) {
-    if (type_ != other_constant->type_) {
-      return false;
-    }
-    if (type_.is_equal_or_false(value_, other_constant->value_)) {
-      return true;
-    }
-    return this == &other;
-  }
-  return false;
 }
 
 /** \} */
@@ -790,23 +625,23 @@ static IndexMask evaluate_selection(const Field<bool> &selection_field,
                                     const IndexMask &full_mask,
                                     ResourceScope &scope)
 {
-  if (selection_field) {
-    VArray<bool> selection =
-        evaluate_fields(scope, {selection_field}, full_mask, context)[0].typed<bool>();
-    return index_mask_from_selection(full_mask, selection, scope);
-  }
-  return full_mask;
+  VArray<bool> selection =
+      evaluate_fields(scope, {selection_field}, full_mask, context)[0].typed<bool>();
+  return index_mask_from_selection(full_mask, selection, scope);
 }
 
 void FieldEvaluator::evaluate()
 {
   BLI_assert_msg(!is_evaluated_, "Cannot evaluate fields twice.");
 
-  selection_mask_ = evaluate_selection(selection_field_, context_, mask_, scope_);
+  selection_mask_ = selection_field_ ?
+                        evaluate_selection(*selection_field_, context_, mask_, scope_) :
+                        mask_;
 
-  Array<GFieldRef> fields(fields_to_evaluate_.size());
+  Vector<GFieldRef> fields;
+  fields.reserve(fields_to_evaluate_.size());
   for (const int i : fields_to_evaluate_.index_range()) {
-    fields[i] = fields_to_evaluate_[i];
+    fields.append(fields_to_evaluate_[i]);
   }
   evaluated_varrays_ = evaluate_fields(scope_, fields, selection_mask_, context_, dst_varrays_);
   BLI_assert(fields_to_evaluate_.size() == evaluated_varrays_.size());

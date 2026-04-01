@@ -70,11 +70,12 @@ class GField {
  public:
   explicit GField(const CPPType &type);
   explicit GField(FieldInputPtr node);
-  explicit GField(FieldOperationPtr node, int output_i);
+  explicit GField(FieldOperationPtr node, int output_i = 0);
   explicit GField(Variant variant);
   static GField from_non_owning_ref(const GField &field);
   static GField from_constant(const CPPType &type, const void *value);
   static GField from_non_owning_constant(const CPPType &type, const void *value);
+  template<typename InputT, typename... Args> static GField from_input(Args &&...args);
 
   GField(const GField &other);
   GField(GField &&other);
@@ -92,6 +93,8 @@ class GField {
 
   bool depends_on_input() const;
 
+  template<typename InputT> const InputT *get_input_if() const;
+
   /**
    * Equality at this level is only checked in a shallow way. A more deep comparison could reveal
    * that two fields are semantically the same even if this comparison is false.
@@ -100,18 +103,34 @@ class GField {
   uint64_t hash() const;
 
   template<typename T> const Field<T> &typed() const;
+  template<typename T> Field<T> &typed();
 };
 
 template<typename T> class Field {
+ public:
+  using base_type = T;
+
  private:
   GField field_;
 
   friend GField;
 
+  Field(GField field);
+
  public:
   Field();
+  explicit Field(FieldInputPtr node);
+  explicit Field(FieldOperationPtr node, int output_i = 0);
 
   operator const GField &() const;
+
+  bool depends_on_input() const;
+
+  template<typename InputT, typename... Args> static Field from_input(Args &&...args);
+
+  template<typename InputT> const InputT *get_input_if() const;
+
+  uint64_t hash() const;
 };
 
 class GFieldRef {
@@ -138,14 +157,12 @@ class GFieldRef {
   template<typename T> GFieldRef(const Field<T> &field);
 
   explicit GFieldRef(const FieldInput &field_input);
-  explicit GFieldRef(const FieldOperation &field_multi_fn, int output_i);
+  explicit GFieldRef(const FieldOperation &field_multi_fn, int output_i = 0);
 
   const Variant &variant() const;
 
   const CPPType &cpp_type() const;
 
-  /** Also see #operator== on #GField. */
-  friend bool operator==(const GFieldRef &a, const GFieldRef &b);
   uint64_t hash() const;
 };
 
@@ -262,6 +279,24 @@ inline GField GField::from_non_owning_constant(const CPPType &type, const void *
   return GField(ConstantRef{&type, value});
 }
 
+template<typename InputT, typename... Args> inline GField GField::from_input(Args &&...args)
+{
+  FieldInputPtr input{MEM_new<InputT>(__func__, std::forward<Args>(args)...)};
+  return GField(Input{std::move(input)});
+}
+
+template<typename T>
+template<typename InputT, typename... Args>
+inline Field<T> Field<T>::from_input(Args &&...args)
+{
+  return GField::from_input<InputT>(std::forward<Args>(args)...).template typed<T>();
+}
+
+template<typename T> inline bool Field<T>::depends_on_input() const
+{
+  return field_.depends_on_input();
+}
+
 inline const CPPType &GField::cpp_type() const
 {
   return std::visit(
@@ -300,7 +335,7 @@ inline const ImplicitSharingPtr<FieldInputs> &GField::field_inputs() const
       this->variant_);
 }
 
-const GField &GField::deref_field_ref() const
+inline const GField &GField::deref_field_ref() const
 {
   if (const auto *field_ref = std::get_if<FieldRef>(&this->variant_)) {
     return field_ref->field_ref->deref_field_ref();
@@ -377,6 +412,16 @@ inline uint64_t GField::hash() const
         }
       },
       ref.variant_);
+}
+
+template<typename T> inline bool operator==(const Field<T> &a, const Field<T> &b)
+{
+  return static_cast<const GField &>(a) == static_cast<const GField &>(b);
+}
+
+template<typename T> inline uint64_t Field<T>::hash() const
+{
+  return field_.hash();
 }
 
 inline const FieldInputsPtr &FieldInput::field_inputs() const
@@ -534,6 +579,13 @@ template<typename T> inline const Field<T> &GField::typed() const
   return reinterpret_cast<const Field<T> &>(*this);
 }
 
+template<typename T> inline Field<T> &GField::typed()
+{
+  static_assert(sizeof(GField) == sizeof(Field<T>));
+  BLI_assert(this->cpp_type().is<T>());
+  return reinterpret_cast<Field<T> &>(*this);
+}
+
 inline const GField::Variant &GField::variant() const
 {
   return variant_;
@@ -591,7 +643,15 @@ inline GField::~GField()
       variant_);
 }
 
-template<typename T> Field<T>::Field() : GField(CPPType::get<T>()) {}
+template<typename T> inline Field<T>::Field(GField field) : field_(std::move(field)) {}
+template<typename T> inline Field<T>::Field() : field_(CPPType::get<T>()) {}
+
+template<typename T> inline Field<T>::Field(FieldInputPtr node) : Field(GField(std::move(node))) {}
+template<typename T>
+inline Field<T>::Field(FieldOperationPtr node, const int output_i)
+    : Field(GField(std::move(node), output_i))
+{
+}
 
 inline bool GField::depends_on_input() const
 {
@@ -600,6 +660,20 @@ inline bool GField::depends_on_input() const
     return false;
   }
   return !inputs->deduplicated_nodes.is_empty();
+}
+
+template<typename InputT> inline const InputT *GField::get_input_if() const
+{
+  const GField &deref_field = this->deref_field_ref();
+  if (const auto *input = std::get_if<Input>(&deref_field.variant())) {
+    return dynamic_cast<const InputT *>(input->node.get());
+  }
+  return nullptr;
+}
+
+template<typename T> template<typename InputT> inline const InputT *Field<T>::get_input_if() const
+{
+  return field_.get_input_if<InputT>();
 }
 
 inline Span<GField> FieldOperation::inputs() const
@@ -668,7 +742,7 @@ inline bool operator==(const GFieldRef &a, const GFieldRef &b)
   return std::visit(
       [&]<typename T>(const T &v_a) -> bool {
         if constexpr (std::is_same_v<T, GFieldRef::Value>) {
-          if (const auto *v_b = std::get_if<GFieldRef::Value>(&b.variant_)) {
+          if (const auto *v_b = std::get_if<GFieldRef::Value>(&b.variant())) {
             if (v_a.type != v_b->type) {
               return false;
             }
@@ -677,19 +751,19 @@ inline bool operator==(const GFieldRef &a, const GFieldRef &b)
           return false;
         }
         else if constexpr (std::is_same_v<T, GFieldRef::Input>) {
-          if (const auto *v_b = std::get_if<GFieldRef::Input>(&b.variant_)) {
+          if (const auto *v_b = std::get_if<GFieldRef::Input>(&b.variant())) {
             return v_a.node == v_b->node;
           }
           return false;
         }
         else if constexpr (std::is_same_v<T, GFieldRef::MultiFn>) {
-          if (const auto *v_b = std::get_if<GFieldRef::MultiFn>(&b.variant_)) {
+          if (const auto *v_b = std::get_if<GFieldRef::MultiFn>(&b.variant())) {
             return v_a.node == v_b->node && v_a.output_i == v_b->output_i;
           }
           return false;
         }
       },
-      a.variant_);
+      a.variant());
 }
 
 inline uint64_t GFieldRef::hash() const
@@ -707,6 +781,16 @@ inline uint64_t GFieldRef::hash() const
         }
       },
       variant_);
+}
+
+inline bool operator==(const FieldInput &a, const FieldInput &b)
+{
+  return a.is_equal_to(b);
+}
+
+inline const mf::MultiFunction &FieldOperation::multi_function() const
+{
+  return *this->fn_;
 }
 
 /** \} */
