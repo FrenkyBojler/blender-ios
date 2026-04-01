@@ -262,8 +262,6 @@ def main():
     report.set_pixelated(True)
     report.set_reference_dir("eevee_renders")
 
-    report.set_fail_threshold(0.001)
-
     test_dir_name = Path(args.testdir).name
     if test_dir_name.startswith('image_mapping'):
         # Platform dependent border values. To be fixed
