@@ -204,8 +204,8 @@ template<typename T> class Field {
 
  public:
   /**
-   * Other than #GField, default construction is allowed here, because the type is known without
-   * extra arguments.
+   * Unlike #GField, default construction is allowed here, because the type is known without extra
+   * arguments.
    */
   Field();
 
