@@ -372,7 +372,7 @@ static void sound_mixdown_startjob(void *customdata, wmJobWorkerStatus *worker_s
   aud::DeviceSpecs specs = mixdown_job_data->specs;
   bool split = mixdown_job_data->split;
 
-  const double fps = double(scene_eval->r.frs_sec) / double(scene_eval->r.frs_sec_base);
+  const double fps = scene_eval->frames_per_second();
   const int start_frame = scene_eval->r.sfra;
   const int end_frame = scene_eval->r.efra;
 
