@@ -509,8 +509,14 @@ static void outliner_sync_selection_to_outliner(const Main &bmain,
     const bool is_active_new = (tselem->flag & TSE_ACTIVE) != 0;
     is_active_changed |= is_active_new && !is_active_old;
     /* Sync subtree elements */
-    outliner_sync_selection_to_outliner(
-        bmain, scene, view_layer, space_outliner, &te.subtree, active_data, sync_types, is_active_changed);
+    outliner_sync_selection_to_outliner(bmain,
+                                        scene,
+                                        view_layer,
+                                        space_outliner,
+                                        &te.subtree,
+                                        active_data,
+                                        sync_types,
+                                        is_active_changed);
   }
 }
 
