@@ -2959,6 +2959,92 @@ void GRAPH_OT_fmodifier_add(wmOperatorType *ot)
       ot->srna, "only_active", false, "Only Active", "Only add F-Modifier to active F-Curve");
 }
 
+/* -------------------------------------------------------------------- */
+/** \name Remove F-Modifiers Operator
+ * \{ */
+
+static wmOperatorStatus graph_fmodifier_remove_exec(bContext *C, wmOperator *op)
+{
+  bAnimContext ac;
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
+  int filter;
+  short type;
+
+  /* Get editor data. */
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
+    return OPERATOR_CANCELLED;
+  }
+
+  /* Get type of modifier to remove. */
+  type = RNA_enum_get(op->ptr, "type");
+
+  /* Filter data. */
+  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_FOREDIT | ANIMFILTER_NODUPLIS |
+            ANIMFILTER_FCURVESONLY);
+  if (RNA_boolean_get(op->ptr, "only_active")) {
+    filter |= ANIMFILTER_ACTIVE;
+  }
+  else {
+    filter |= (ANIMFILTER_SEL | ANIMFILTER_CURVE_VISIBLE);
+  }
+  ANIM_animdata_filter(
+      &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
+
+  /* Remove f-modifier from each curve. */
+  for (bAnimListElem &ale : anim_data) {
+    FCurve *fcu = static_cast<FCurve *>(ale.data);
+    FModifier *fcm, *fcm_next;
+
+    for (fcm = static_cast<FModifier *>(fcu->modifiers.first); fcm; fcm = fcm_next) {
+      fcm_next = fcm->next;
+
+      if (fcm->type == type) {
+        remove_fmodifier(&fcu->modifiers, fcm);
+      }
+    }
+
+    ale.update |= ANIM_UPDATE_DEPS;
+  }
+
+  ANIM_animdata_update(&ac, &anim_data);
+  ANIM_animdata_freelist(&anim_data);
+
+  /* Set notifier that things have changed. */
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+
+  return OPERATOR_FINISHED;
+}
+
+void GRAPH_OT_fmodifier_remove(wmOperatorType *ot)
+{
+  PropertyRNA *prop;
+
+  /* Identifiers */
+  ot->name = "Remove F-Curve Modifier(s)";
+  ot->idname = "GRAPH_OT_fmodifier_remove";
+  ot->description = "Remove Modifier(s) from the active/selected F-Curves";
+
+  /* API callbacks */
+  ot->invoke = WM_menu_invoke;
+  ot->exec = graph_fmodifier_remove_exec;
+  ot->poll = graphop_selected_fcurve_poll;
+
+  /* Flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  /* Id-props */
+  prop = RNA_def_enum(ot->srna, "type", rna_enum_fmodifier_type_items, 0, "Type", "");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_ACTION);
+  RNA_def_enum_funcs(prop, graph_fmodifier_itemf);
+  ot->prop = prop;
+
+  RNA_def_boolean(ot->srna,
+                  "only_active",
+                  false,
+                  "Only Active",
+                  "Only remove Modifier(s) from active F-Curve");
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */

@@ -354,6 +354,10 @@ class GRAPH_MT_channel(Menu):
         layout.operator_context = operator_context
         layout.operator_menu_enum("graph.fmodifier_add", "type").only_active = False
         layout.operator_context = 'INVOKE_REGION_CHANNELS'
+        # New Operator
+        layout.operator_context = operator_context
+        layout.operator_menu_enum("graph.fmodifier_remove", "type").only_active = False
+        layout.operator_context = 'INVOKE_REGION_CHANNELS'
 
         layout.separator()
         layout.operator("graph.hide", text="Hide Selected Curves").unselected = False
