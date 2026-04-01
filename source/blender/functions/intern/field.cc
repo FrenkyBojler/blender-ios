@@ -36,6 +36,7 @@ struct FieldTreeInfo {
    * the tree is constructed. This set contains every different input only once.
    */
   VectorSet<std::reference_wrapper<const FieldInput>> deduplicated_field_inputs;
+  Vector<GFieldRef> field_inputs;
 };
 
 /**
@@ -61,6 +62,7 @@ static FieldTreeInfo preprocess_field_tree(Span<GFieldRef> entry_fields)
         [&]<typename T>(const T &v) {
           if constexpr (std::is_same_v<T, GFieldRef::Input>) {
             field_tree_info.deduplicated_field_inputs.add(*v.node);
+            field_tree_info.field_inputs.append(field);
           }
           else if constexpr (std::is_same_v<T, GFieldRef::MultiFn>) {
             for (const GField &input_field : v.node->inputs()) {
@@ -117,14 +119,14 @@ static Set<GFieldRef> find_varying_fields(const FieldTreeInfo &field_tree_info,
   /* The varying fields are the ones that depend on inputs that are not constant. Therefore we
    * start the tree search at the non-constant input fields and traverse through all fields that
    * depend on them. */
-  for (const int i : field_context_inputs.index_range()) {
-    const GVArray &varray = field_context_inputs[i];
+  for (const GFieldRef &field : field_tree_info.field_inputs) {
+    const FieldInput &field_input = *std::get<GFieldRef::Input>(field.variant()).node;
+    const int deduplicated_i = field_tree_info.deduplicated_field_inputs.index_of(field_input);
+    const GVArray &varray = field_context_inputs[deduplicated_i];
     if (varray.is_single()) {
       continue;
     }
-    const FieldInput &field_input = field_tree_info.deduplicated_field_inputs[i];
-    const GFieldRef field_input_field{field_input};
-    const Span<GFieldRef> users = field_tree_info.field_users.lookup(field_input_field);
+    const Span<GFieldRef> users = field_tree_info.field_users.lookup(field);
     for (const GFieldRef &field : users) {
       if (found_fields.add(field)) {
         fields_to_check.push(field);
