@@ -257,7 +257,22 @@ ResultT eval(sampler2D hiz_tx,
   float weight_rcp = safe_rcp(weight_accum);
 
   /* Weight by area of the sphere. This is expected for correct SH evaluation. */
-  sh_accum = spherical_harmonics::mul(sh_accum, weight_rcp * 4.0f * M_PI);
+  float sphere_weight = 2.0f * M_TAU;
+
+  /* We store the energy for the whole sphere but we weighted G.I. from a biased cone (angle_bias).
+   * So we need to normalize by the actual cone we weighted with.
+   * `angle_bias` has range [1..2] */
+  // float biased_solid_angle = M_TAU * (1.0f - cos(angle_bias * M_PI_2));
+  // float hemisphere_solid_angle = M_TAU;
+  // float gi_weight_factor = sphere_weight / (hemisphere_solid_angle + biased_solid_angle);
+  /* The above simplifies to this. */
+  float gi_weight_factor = 1.0f / ((3.0f / 2.0f) - cos(angle_bias * M_PI_2));
+
+  sphere_weight = weight_rcp * sphere_weight;
+  /* For some unknown reason, the GI and visibility do not need the same weighting. */
+  float4 sh_weight = float4(float3(sphere_weight * gi_weight_factor), sphere_weight);
+
+  sh_accum = spherical_harmonics::mul(sh_accum, sh_weight);
   occlusion_accum *= weight_rcp;
   return select_result<ResultT>(occlusion_accum, sh_accum);
 }
