@@ -1382,7 +1382,9 @@ static void write_libraries(WriteData *wd, Main *bmain)
         write_id(wd, id);
       }
       else {
-        if (!BKE_idtype_idcode_is_linkable(GS(id->name))) {
+        /* In undo case, all existing linked IDs get a placeholder, even the ones not directly
+         * linkable. */
+        if (!is_undo && !BKE_idtype_idcode_is_linkable(GS(id->name))) {
           CLOG_ERROR(&LOG,
                      "Data-block '%s' from lib '%s' is not linkable, but is flagged as "
                      "directly linked",
@@ -1753,6 +1755,8 @@ static bool write_file_handle(Main *mainvar,
   wd = mywrite_begin(ww, compare, current);
   wd->debug_dst = debug_dst;
   BlendWriter writer = {wd};
+
+  BKE_main_view_layers_synced_ensure(mainvar);
 
   prepare_stable_data_block_ids(*wd, *mainvar);
 
