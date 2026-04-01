@@ -1781,6 +1781,12 @@ class GeometryNodesLazyFunctionLogger : public lf::GraphExecutor::Logger {
   {
   }
 
+  LoggingEnabledState get_logging_enabled_state(const lf::Context &context) const override
+  {
+    auto &user_data = *static_cast<GeoNodesUserData *>(context.user_data);
+    return LoggingEnabledState{user_data.verbose_log};
+  }
+
   void log_socket_value(const lf::Socket &lf_socket,
                         const GPointer value,
                         const lf::Context &context) const override
@@ -3519,8 +3525,8 @@ struct GeometryNodesLazyFunctionBuilder {
 
   void build_enable_output_node_socket_usage(const bNode &bnode, BuildGraphParams &graph_params)
   {
-    const bNodeSocket &enable_bsocket = *bnode.input_by_identifier("Enable");
-    const bNodeSocket &value_input_bsocket = *bnode.input_by_identifier("Value");
+    const bNodeSocket &enable_bsocket = *bnode.input_by_identifier("Enable"_ustr);
+    const bNodeSocket &value_input_bsocket = *bnode.input_by_identifier("Value"_ustr);
     const bNodeSocket &output_bsocket = bnode.output_socket(0);
     lf::OutputSocket *output_is_used_socket = graph_params.usage_by_bsocket.lookup_default(
         &output_bsocket, nullptr);
