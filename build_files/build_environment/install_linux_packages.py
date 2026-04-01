@@ -398,24 +398,17 @@ class PackageInstaller:
         if not IS_ROOT and not self.settings.no_sudo and MAYSUDO:
             subprocess.run([*MAYSUDO, "echo"], capture_output=True)
 
-        p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, pipesize=2**20)
         pbar = ProgressBar(is_known_limit=False)
-        # Note: In some cases installing many packages can generate a lot of output in stdout, saturating
-        # the stream and leading to a forever-hanging state. Work around this by reading the streams in
-        # the polling loop.
-        stdout = p.stdout.read(1024)
-        stderr = p.stderr.read(1024)
         while p.poll() is None:
-            stdout += p.stdout.read(1024)
-            stderr += p.stderr.read(1024)
             pbar.update(steps=2)
             time.sleep(0.05)
         pbar.finish()
         return subprocess.CompletedProcess(
             args=command,
             returncode=p.returncode,
-            stdout=stdout,
-            stderr=stderr)
+            stdout=p.stdout.read(),
+            stderr=p.stderr.read())
 
     @staticmethod
     def is_returncode_successful(returncode):
