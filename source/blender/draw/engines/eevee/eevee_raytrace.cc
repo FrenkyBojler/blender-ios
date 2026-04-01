@@ -472,7 +472,8 @@ RayTraceResult RayTraceModule::render(RayTraceBuffer &rt_buffer,
   /* Data for the radiance setup. */
   data_.resolution_scale = resolution_scale;
   data_.resolution_bias = int2(inst_.sampling.rng_2d_get(SAMPLING_RAYTRACE_V) * resolution_scale);
-  data_.history_persmat = rt_buffer.history_persmat;
+  data_.history_persmat = is_zero(rt_buffer.history_persmat) ? render_view.persmat() :
+                                                               rt_buffer.history_persmat;
   data_.radiance_persmat = render_view.persmat();
   data_.full_resolution = extent;
   data_.full_resolution_inv = 1.0f / float2(extent);
