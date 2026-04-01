@@ -1734,6 +1734,34 @@ static bke::bNodeSocketType *make_socket_type_string(PropertySubType subtype)
   return socktype;
 }
 
+static const EnumPropertyItem *enum_property_items_from_menu_node_socket(
+    const bNodeSocketValueMenu *menu,
+    bool &r_default_value_found,
+    nodes::GeneratedTreeSrnaData &r_generated)
+{
+  r_default_value_found = false;
+  if (menu->has_conflict() || !menu->enum_items) {
+    return rna_enum_dummy_NULL_items;
+  }
+  MutableSpan<EnumPropertyItem> new_items =
+      r_generated.scope.allocator().allocate_array<EnumPropertyItem>(
+          menu->enum_items->items.size() + 1);
+  for (const int i : menu->enum_items->items.index_range()) {
+    const bke::RuntimeNodeEnumItem &item_data = menu->enum_items->items[i];
+    EnumPropertyItem item{};
+    item.value = item_data.identifier;
+    if (item.value == menu->value) {
+      r_default_value_found = true;
+    }
+    item.identifier = item_data.name.c_str();
+    item.name = item_data.name.c_str();
+    item.description = item_data.description.c_str();
+    new_items[i] = item;
+  }
+  new_items.last() = {};
+  return new_items.data();
+}
+
 static bke::bNodeSocketType *make_socket_type_menu()
 {
   bke::bNodeSocketType *socktype = make_standard_socket_type(SOCK_MENU, PROP_NONE);
@@ -1754,30 +1782,9 @@ static bke::bNodeSocketType *make_socket_type_menu()
                                                 const bNodeTreeInterfaceSocket &socket,
                                                 nodes::GeneratedTreeSrnaData &r_generated) {
     const auto *data = static_cast<const bNodeSocketValueMenu *>(socket.socket_data);
-    const EnumPropertyItem *items;
     bool default_value_found = false;
-    if (data->has_conflict() || !data->enum_items) {
-      items = rna_enum_dummy_NULL_items;
-    }
-    else {
-      MutableSpan<EnumPropertyItem> new_items =
-          r_generated.scope.allocator().allocate_array<EnumPropertyItem>(
-              data->enum_items->items.size() + 1);
-      for (const int i : data->enum_items->items.index_range()) {
-        const bke::RuntimeNodeEnumItem &item_data = data->enum_items->items[i];
-        EnumPropertyItem item{};
-        item.value = item_data.identifier;
-        if (item.value == data->value) {
-          default_value_found = true;
-        }
-        item.identifier = item_data.name.c_str();
-        item.name = item_data.name.c_str();
-        item.description = item_data.description.c_str();
-        new_items[i] = item;
-      }
-      new_items.last() = {};
-      items = new_items.data();
-    }
+    const EnumPropertyItem *items = enum_property_items_from_menu_node_socket(
+        data, default_value_found, r_generated);
     PropertyRNA *prop = RNA_def_enum(&srna,
                                      "value",
                                      items,
@@ -1793,30 +1800,9 @@ static bke::bNodeSocketType *make_socket_type_menu()
                                                   const bNodeTreeInterfaceSocket &socket,
                                                   nodes::GeneratedTreeSrnaData &r_generated) {
     const auto *data = static_cast<const bNodeSocketValueMenu *>(socket.socket_data);
-    const EnumPropertyItem *items;
     bool default_value_found = false;
-    if (data->has_conflict() || !data->enum_items) {
-      items = rna_enum_dummy_NULL_items;
-    }
-    else {
-      MutableSpan<EnumPropertyItem> new_items =
-          r_generated.scope.allocator().allocate_array<EnumPropertyItem>(
-              data->enum_items->items.size() + 1);
-      for (const int i : data->enum_items->items.index_range()) {
-        const bke::RuntimeNodeEnumItem &item_data = data->enum_items->items[i];
-        EnumPropertyItem item{};
-        item.value = item_data.identifier;
-        if (item.value == data->value) {
-          default_value_found = true;
-        }
-        item.identifier = item_data.name.c_str();
-        item.name = item_data.name.c_str();
-        item.description = item_data.description.c_str();
-        new_items[i] = item;
-      }
-      new_items.last() = {};
-      items = new_items.data();
-    }
+    const EnumPropertyItem *items = enum_property_items_from_menu_node_socket(
+        data, default_value_found, r_generated);
     PropertyRNA *prop = RNA_def_enum(&srna,
                                      "value",
                                      items,
