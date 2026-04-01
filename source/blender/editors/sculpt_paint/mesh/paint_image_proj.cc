@@ -330,7 +330,7 @@ struct ProjPaintState {
   /** size of projectImages array. */
   int image_tot;
 
-  /* The following all all updated for symmetry passes. */
+  /* The following are all updated for symmetry passes. */
   /** verts projected into floating point screen space. */
   float (*screenCoords)[4];
   /** 2D bounds for mesh verts on the screen's plane (screen-space). */
