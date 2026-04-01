@@ -74,10 +74,11 @@ class Instance : public DrawEngine {
   {
     if (this->state.image->source != IMA_SRC_TILED) {
       void *lock;
-      ImBuf *buffer = BKE_image_acquire_ibuf(this->state.image, space_->get_image_user(), &lock);
+      ImBuf *buffer = BKE_image_acquire_ibuf_gpu(
+          this->state.image, space_->get_image_user(), &lock);
       BLI_SCOPED_DEFER([&]() { BKE_image_release_ibuf(this->state.image, buffer, lock); });
 
-      /* The image buffer already have a GPU texture, so use image space drawing. */
+      /* The image buffer already has a GPU texture, so use image space drawing. */
       if (buffer && buffer->gpu.texture) {
         return std::make_unique<ImageSpaceDrawingMode>(*this, buffer->gpu.texture);
       }
@@ -101,7 +102,7 @@ class Instance : public DrawEngine {
       ImageUser tile_user = space_->get_image_user() ? *space_->get_image_user() :
                                                        ImageUser{.scene = nullptr};
       tile_user.tile = image_tile.get_tile_number();
-      ImBuf *buffer = BKE_image_acquire_ibuf(this->state.image, &tile_user, nullptr);
+      ImBuf *buffer = BKE_image_acquire_ibuf_gpu(this->state.image, &tile_user, nullptr);
       BLI_SCOPED_DEFER([&]() { BKE_image_release_ibuf(this->state.image, buffer, nullptr); });
       if (!buffer) {
         continue;
@@ -132,6 +133,7 @@ class Instance : public DrawEngine {
 
     this->image_sync();
     drawing_mode_.reset();
+    this->state.float_buffers.reset_usage_flags();
     if (this->state.image) {
       this->drawing_mode_ = this->get_drawing_mode();
       drawing_mode_->begin_sync();
@@ -184,12 +186,12 @@ class Instance : public DrawEngine {
     DRW_submission_start();
     if (drawing_mode_) {
       drawing_mode_->draw_viewport();
-      drawing_mode_->draw_finish();
     }
     else {
       GPU_framebuffer_clear_color_depth(
-          DRW_context_get()->viewport_framebuffer_list_get()->default_fb, float4(0.0), 1.0f);
+          DRW_context_get()->viewport_framebuffer_list_get()->default_fb, double4(0.0), 1.0f);
     }
+    this->state.float_buffers.remove_unused_buffers();
     state.image = nullptr;
     drawing_mode_.reset();
     DRW_submission_end();

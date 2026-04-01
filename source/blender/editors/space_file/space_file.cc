@@ -25,6 +25,8 @@
 #include "BKE_report.hh"
 #include "BKE_screen.hh"
 
+#include "BLT_translation.hh"
+
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
@@ -662,9 +664,10 @@ static void file_main_region_draw(const bContext *C, ARegion *region)
     file_highlight_set(sfile, region, event->xy[0], event->xy[1]);
   }
 
+  ED_fileselect_init_layout(sfile, region);
+
   if (!file_draw_hint_if_invalid(C, sfile, region)) {
-    /* sets tile/border settings in sfile */
-    file_calc_previews(C, region);
+    ui::view2d_totRect_set(v2d, sfile->layout->width, sfile->layout->height);
 
     /* set view */
     ui::view2d_view_ortho(v2d);
@@ -989,6 +992,7 @@ static void file_space_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
       case FILE_ASSET_IMPORT_APPEND:
       case FILE_ASSET_IMPORT_APPEND_REUSE:
       case FILE_ASSET_IMPORT_FOLLOW_PREFS:
+      case FILE_ASSET_IMPORT_PACK:
         break;
       default:
         sfile->asset_params->import_method = FILE_ASSET_IMPORT_FOLLOW_PREFS;
@@ -1139,13 +1143,28 @@ void ED_file_read_bookmarks()
 
   fsmenu_free();
 
-  fsmenu_read_system(ED_fsmenu_get(), true);
-  fsmenu_add_common_platform_directories(ED_fsmenu_get());
+  FSMenu *fsmenu = ED_fsmenu_get();
+
+  const char *blendfile_path = BKE_main_blendfile_path_from_global();
+  if (blendfile_path && blendfile_path[0]) {
+    /* Folder containing the currently-loaded Blend file. */
+    char dir[FILE_MAX];
+    BLI_path_split_dir_part(blendfile_path, dir, sizeof(dir));
+    fsmenu_insert_entry(fsmenu,
+                        FS_CATEGORY_SYSTEM_BOOKMARKS,
+                        dir,
+                        IFACE_("Current File"),
+                        FSMENU_CURRENT_FILE_ICON,
+                        FS_INSERT_FIRST);
+  }
+
+  fsmenu_read_system(fsmenu, true);
+  fsmenu_add_common_platform_directories(fsmenu);
 
   if (cfgdir.has_value()) {
     char filepath[FILE_MAX];
     BLI_path_join(filepath, sizeof(filepath), cfgdir->c_str(), BLENDER_BOOKMARK_FILE);
-    fsmenu_read_bookmarks(ED_fsmenu_get(), filepath);
+    fsmenu_read_bookmarks(fsmenu, filepath);
   }
 }
 

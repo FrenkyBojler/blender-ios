@@ -284,8 +284,6 @@ class AttributeFieldInput : public GeometryFieldInput {
         name_(std::move(name)),
         socket_inspection_name_(std::move(socket_inspection_name))
   {
-    category_ = attribute_name_is_anonymous(name_) ? Category::AnonymousAttribute :
-                                                     Category::NamedAttribute;
   }
 
   static fn::GField from(std::string name,
@@ -327,7 +325,6 @@ class AttributeExistsFieldInput final : public bke::GeometryFieldInput {
   AttributeExistsFieldInput(std::string name, const CPPType &type)
       : GeometryFieldInput(type, name), name_(std::move(name))
   {
-    category_ = Category::Generated;
   }
 
   static fn::Field<bool> from(std::string name)
@@ -350,7 +347,6 @@ class NamedLayerSelectionFieldInput final : public bke::GeometryFieldInput {
       : bke::GeometryFieldInput(CPPType::get<bool>(), "Named Layer node"),
         layer_name_(std::move(layer_name))
   {
-    category_ = Category::Generated;
   }
 
   GVArray get_varray_for_context(const bke::GeometryFieldContext &context,
@@ -362,10 +358,7 @@ class NamedLayerSelectionFieldInput final : public bke::GeometryFieldInput {
 
 class IDAttributeFieldInput : public GeometryFieldInput {
  public:
-  IDAttributeFieldInput() : GeometryFieldInput(CPPType::get<int>())
-  {
-    category_ = Category::Generated;
-  }
+  IDAttributeFieldInput() : GeometryFieldInput(CPPType::get<int>()) {}
 
   GVArray get_varray_for_context(const GeometryFieldContext &context,
                                  const IndexMask &mask) const override;
@@ -394,7 +387,6 @@ class NormalFieldInput : public GeometryFieldInput {
         legacy_corner_normals_(legacy_corner_normals),
         true_normals_(true_normals)
   {
-    category_ = Category::Generated;
   }
 
   GVArray get_varray_for_context(const GeometryFieldContext &context,
@@ -437,10 +429,26 @@ class EvaluateAtIndexInput final : public bke::GeometryFieldInput {
   }
 };
 
-void copy_with_checked_indices(const GVArray &src,
-                               const VArray<int> &indices,
-                               const IndexMask &mask,
-                               GMutableSpan dst);
+class SampleIndexFunction : public mf::MultiFunction {
+  GeometrySet src_geometry_;
+  fn::GField src_field_;
+  AttrDomain domain_;
+
+  mf::Signature signature_;
+
+  std::optional<bke::GeometryFieldContext> geometry_context_;
+  std::unique_ptr<fn::FieldEvaluator> evaluator_;
+  const GVArray *src_data_ = nullptr;
+
+ public:
+  SampleIndexFunction(GeometrySet geometry, fn::GField src_field, AttrDomain domain);
+  void evaluate_field();
+
+  void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override;
+
+  static const GeometryComponent *find_source_component(const GeometrySet &geometry,
+                                                        AttrDomain domain);
+};
 
 class EvaluateOnDomainInput final : public bke::GeometryFieldInput {
  private:

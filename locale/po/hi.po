@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Beta (b'c1168d06bba2')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'227100a72567')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-02-09 09:47+0000\n"
+"POT-Creation-Date: 2026-03-30 09:56+0000\n"
 "PO-Revision-Date: 2025-12-04 22:18+0000\n"
 "Last-Translator: Jackson Zheng <business.jackson.zheng@gmail.com>\n"
 "Language-Team: Hindi <https://translate.blender.org/projects/blender-ui/ui/hi/>\n"
@@ -298,6 +298,10 @@ msgstr "सूचना"
 
 msgid "Default"
 msgstr "मूलभूत"
+
+
+msgid "Display Mode"
+msgstr "प्रदर्शित रूप"
 
 
 msgid "Coordinates"
@@ -842,18 +846,6 @@ msgid "View"
 msgstr "दृश्य"
 
 
-msgid "Blend Type"
-msgstr "मिश्रण प्रकार"
-
-
-msgid "Mix"
-msgstr "मिश्रण"
-
-
-msgid "Screen"
-msgstr "चित्रपट"
-
-
 msgid "RGB"
 msgstr "ला.ह.नी."
 
@@ -1328,6 +1320,10 @@ msgid "Sine"
 msgstr "ज्या"
 
 
+msgid "Blend Type"
+msgstr "मिश्रण प्रकार"
+
+
 msgid "Phase"
 msgstr "चरण"
 
@@ -1422,10 +1418,6 @@ msgstr "निर्देशिका"
 
 msgid "Directory displayed in the file browser"
 msgstr "निर्देशिका संचिका विचरक में प्रदर्शित"
-
-
-msgid "Display Mode"
-msgstr "प्रदर्शित रूप"
 
 
 msgid "File Name"
@@ -1642,14 +1634,6 @@ msgstr "परतें"
 
 msgid "Rest Position"
 msgstr "शेष स्थिति"
-
-
-msgid "Erase Alpha"
-msgstr "पारदर्शिता को मिटाएँ"
-
-
-msgid "Add Alpha"
-msgstr "पारदर्शिता जोड़ें"
 
 
 msgid "Box"
@@ -2549,12 +2533,20 @@ msgid "Point selected"
 msgstr "बिंदु चयनित"
 
 
+msgid "Mix"
+msgstr "मिश्रण"
+
+
 msgid "Min Angle"
 msgstr "न्यूनतम् कोण"
 
 
 msgid "Change alpha transparency based on a material attribute"
 msgstr "पदार्थ"
+
+
+msgid "Screen"
+msgstr "चित्रपट"
 
 
 msgid "Circles"
@@ -2585,6 +2577,14 @@ msgid "Dots"
 msgstr "बिन्दु्"
 
 
+msgid "Math"
+msgstr "गणित"
+
+
+msgid "Names"
+msgstr "नाम"
+
+
 msgid "Bone Roll"
 msgstr "हड्डी पंजी"
 
@@ -2593,72 +2593,64 @@ msgid "Show/Hide"
 msgstr "छुपाएँ / दिखाएँ"
 
 
-msgid "Names"
-msgstr "नाम"
-
-
-msgid "Toggle Bone Options"
-msgstr "हड्डी विकल्प बंद/बुझ"
-
-
-msgid "Merge"
-msgstr "विलय करें"
-
-
-msgid "Enable Bone Options"
-msgstr "हड्डी विकल्प को सक्षम करें"
-
-
-msgid "Apply"
-msgstr "लागू करें"
-
-
-msgid "Keying"
-msgstr "कुंजीयन"
-
-
-msgid "Hooks"
-msgstr "खूँटी"
-
-
-msgid "Math"
-msgstr "गणित"
-
-
-msgid "Make Single User"
-msgstr "एकल प्रयोक्ता बनाएँ"
-
-
-msgid "Quick Effects"
-msgstr "त्वरित प्रभाव"
-
-
-msgid "Light"
-msgstr "प्रकाश"
-
-
-msgid "Track"
-msgstr "ट्रैक"
-
-
-msgid "Rigid Body"
-msgstr "कठोर-पदार्थ"
-
-
 msgid "Snap"
 msgstr "स्नैप"
-
-
-msgid "Mirror"
-msgstr "दर्पण"
 
 
 msgid "Import"
 msgstr "आयात करें"
 
 
+msgid "Mirror"
+msgstr "दर्पण"
+
+
 msgid "UV"
 msgstr "यूवी"
+
+
+msgid "Light"
+msgstr "प्रकाश"
+
+
+msgid "Rigid Body"
+msgstr "कठोर-पदार्थ"
+
+
+msgid "Apply"
+msgstr "लागू करें"
+
+
+msgid "Track"
+msgstr "ट्रैक"
+
+
+msgid "Quick Effects"
+msgstr "त्वरित प्रभाव"
+
+
+msgid "Make Single User"
+msgstr "एकल प्रयोक्ता बनाएँ"
+
+
+msgid "Hooks"
+msgstr "खूँटी"
+
+
+msgid "Keying"
+msgstr "कुंजीयन"
+
+
+msgid "Toggle Bone Options"
+msgstr "हड्डी विकल्प बंद/बुझ"
+
+
+msgid "Enable Bone Options"
+msgstr "हड्डी विकल्प को सक्षम करें"
+
+
+msgid "Merge"
+msgstr "विलय करें"
 
 
 msgid "Basic"
@@ -3034,10 +3026,6 @@ msgid "NLA Track is locked"
 msgstr "अरैखिक अनुप्राणन ट्रैक अवरोधित है"
 
 
-msgid "Height of the node"
-msgstr "ग्रन्थि की ऊंचाई"
-
-
 msgid "To"
 msgstr "करने के लिए"
 
@@ -3092,6 +3080,10 @@ msgstr "प्रतिबिंबक सामग्री"
 
 msgid "Layer Weight"
 msgstr "परत भार"
+
+
+msgid "Base"
+msgstr "आधार"
 
 
 msgid "Cycles"
@@ -3837,10 +3829,6 @@ msgid "Exit"
 msgstr "निर्गम"
 
 
-msgid "Current"
-msgstr "वर्तमान"
-
-
 msgctxt "Operator"
 msgid "Bake"
 msgstr "भर्जन"
@@ -3946,10 +3934,6 @@ msgstr "कारण"
 
 msgctxt "Operator"
 msgid "Bake All Physics"
-msgstr "सभी भौतिकी भर्जन"
-
-
-msgid "Bake all physics"
 msgstr "सभी भौतिकी भर्जन"
 
 
@@ -4421,12 +4405,12 @@ msgid "Lock Y"
 msgstr "तालाबंदी y"
 
 
-msgid "Transform Orientations"
-msgstr "दिक् विन्यास संरचनांतरण"
-
-
 msgid "Motion Tracking"
 msgstr "गति मार्गन"
+
+
+msgid "Transform Orientations"
+msgstr "दिक् विन्यास संरचनांतरण"
 
 
 msgid "Predefined tracking camera intrinsics"
@@ -4582,10 +4566,6 @@ msgstr "नई खिडकी"
 
 msgid "Language"
 msgstr "भाषा"
-
-
-msgid "Base"
-msgstr "आधार"
 
 
 msgid "Case"
@@ -4800,6 +4780,10 @@ msgstr "कुंजी-बंधन"
 
 msgid "Filter based on key bindings"
 msgstr "प्रमुख बाइंडिंग पर आधारित फ़िल्टर करें"
+
+
+msgid "Current"
+msgstr "वर्तमान"
 
 
 msgid "Find Text"
@@ -5879,10 +5863,6 @@ msgid "%d items"
 msgstr "%d वस्तु"
 
 
-msgid "Value:"
-msgstr "मान:"
-
-
 msgid "Hex"
 msgstr "हेक्स"
 
@@ -6276,6 +6256,10 @@ msgstr "संचिका पथ"
 
 msgid "File name"
 msgstr "संचिका का नाम"
+
+
+msgid "Value:"
+msgstr "मान:"
 
 
 msgid "Unsupported audio format"
