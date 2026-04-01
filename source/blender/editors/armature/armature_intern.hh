@@ -143,9 +143,9 @@ struct tPChanFCurveLink {
   Vector<FCurve *> fcurves;
 
   /** transform values at start of operator (to be restored before each modal step) */
-  float oldloc[3];
+  Array<float> old_loc;
   animrig::Rotation old_rot;
-  float oldscale[3];
+  Array<float> old_scale;
 
   /** old bbone values (to be restored along with the transform properties) */
   float roll1, roll2;

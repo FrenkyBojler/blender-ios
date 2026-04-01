@@ -182,7 +182,9 @@ static void fcurves_to_pchan_links_get(ListBaseT<tPChanFCurveLink> &pfLinks,
   tPChanFCurveLink *pfl = MEM_new<tPChanFCurveLink>("tPChanFCurveLink");
 
   pfl->fcurves = curves;
-  pfl->transformable = MEM_new<animrig::Transformable>("transformable_pose_bone", ob, pchan);
+  animrig::Transformable *transformable = MEM_new<animrig::Transformable>(
+      "transformable_pose_bone", ob, pchan);
+  pfl->transformable = transformable;
 
   BLI_addtail(&pfLinks, pfl);
 
@@ -200,9 +202,9 @@ static void fcurves_to_pchan_links_get(ListBaseT<tPChanFCurveLink> &pfLinks,
     pchan.flag |= POSE_BBONE_SHAPE;
   }
 
-  copy_v3_v3(pfl->oldloc, pchan.loc);
-  pfl->old_rot = pfl->transformable->get_rotation();
-  copy_v3_v3(pfl->oldscale, pchan.scale);
+  pfl->old_loc = transformable->get_location();
+  pfl->old_rot = transformable->get_rotation();
+  pfl->old_scale = transformable->get_scale();
 
   /* Store current bbone values. */
   pfl->roll1 = pchan.roll1;
@@ -306,6 +308,8 @@ void poseAnim_mapping_free(ListBaseT<tPChanFCurveLink> *pfLinks)
       IDP_FreeProperty(pfl->oldprops);
     }
 
+    MEM_delete(pfl->transformable);
+
     /* free link itself */
     BLI_freelinkN(pfLinks, pfl);
   }
@@ -331,9 +335,9 @@ void poseAnim_mapping_reset(ListBaseT<tPChanFCurveLink> *pfLinks)
     animrig::Transformable *transformable = pfl.transformable;
 
     /* just copy all the values over regardless of whether they changed or not */
-    transformable->set_location(pfl.oldloc);
+    transformable->set_location(pfl.old_loc);
     transformable->set_rotation(pfl.old_rot);
-    transformable->set_scale(pfl.oldscale);
+    transformable->set_scale(pfl.old_scale);
 
     BLI_assert(transformable->type() == animrig::Transformable::Type::POSE_BONE);
     bPoseChannel *pchan = static_cast<bPoseChannel *>(transformable->data());

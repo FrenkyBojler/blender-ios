@@ -31,7 +31,7 @@ class StringRefNull;
 
 namespace animrig {
 
-namespace ChannelFlag {
+namespace AxisFlag {
 enum Flags : int8_t {
   NONE = 0,
   X = 1 << 0,
@@ -43,8 +43,12 @@ enum Flags : int8_t {
 
 /* Describes a rotation in a specific mode. */
 struct Rotation {
+  /* The array size differs depending on the rotation mode. */
   Array<float> values;
   eRotationModes mode;
+
+  /* Returns a copy of the rotation in the given mode. */
+  Rotation converted_to_mode(eRotationModes mode) const;
 };
 
 class Transformable {
@@ -69,6 +73,8 @@ class Transformable {
   Array<Array<float *>> rotations_;
   short *rotation_mode_;
   MutableSpan<float> scale_;
+
+  const Array<float *> *get_rotation_array_from_mode(eRotationModes mode) const;
 
  public:
   Transformable(Object &obj, bPoseChannel &pchan);
@@ -113,10 +119,10 @@ class Transformable {
   /**
    * Blend all location values to a single value.
    */
-  void blend_location_to(float value, float factor, ChannelFlag::Flags lock_flag);
+  void blend_location_to(float value, float factor, AxisFlag::Flags lock_flag);
   /* Blend the location to the values given in the span. The span size has to match the location
    * value count. */
-  void blend_location_to(Span<float> values, float factor, ChannelFlag::Flags lock_flag);
+  void blend_location_to(Span<float> values, float factor, AxisFlag::Flags lock_flag);
 };
 
 }  // namespace animrig

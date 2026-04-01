@@ -743,7 +743,7 @@ static void pose_slide_rest_pose_apply(bContext *C, tPoseSlideOp *pso)
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_LOC) && (pchan->flag & POSE_LOC)) {
       transformable->blend_location_to(
-          0.0f, ED_slider_factor_get(pso->slider), animrig::ChannelFlag::NONE);
+          0.0f, ED_slider_factor_get(pso->slider), animrig::AxisFlag::Flags(pso->axislock));
     }
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_SCALE) && (pchan->flag & POSE_SCALE)) {

@@ -5,6 +5,7 @@
 /** \file
  * \ingroup animrig
  */
+#include "BLI_math_rotation.h"
 #include "BLI_string.h"
 
 #include "DNA_object_types.h"
@@ -26,6 +27,48 @@ enum Indices : uint8_t {
   /* Not a rotation mode, always keep last. */
   MAX_ENUM,
 };
+}
+
+Rotation Rotation::converted_to_mode(eRotationModes mode) const
+{
+  if (mode == this->mode) {
+    return *this;
+  }
+
+  float4 quat;
+  switch (this->mode) {
+    case ROT_MODE_QUAT:
+      copy_qt_qt(quat, this->values.data());
+      break;
+
+    case ROT_MODE_AXISANGLE:
+      axis_angle_to_quat(quat, this->values.data(), this->values[3]);
+      break;
+
+    default:
+      eulO_to_quat(quat, this->values.data(), this->mode);
+      break;
+  }
+
+  Rotation converted;
+  converted.mode = mode;
+  switch (mode) {
+    case ROT_MODE_QUAT:
+      converted.values.reinitialize(4);
+      copy_qt_qt(converted.values.data(), quat);
+      break;
+
+    case ROT_MODE_AXISANGLE:
+      converted.values.reinitialize(4);
+      quat_to_axis_angle(converted.values.data(), &converted.values[3], quat);
+      break;
+
+    default:
+      converted.values.reinitialize(3);
+      quat_to_eulO(converted.values.data(), mode, quat);
+      break;
+  }
+  return converted;
 }
 
 StringRefNull Transformable::rna_path()
@@ -133,12 +176,10 @@ void Transformable::set_scale(const float3 value)
   copy_span_into_mutable_span(Span<float>(value, 3), scale_);
 }
 
-Rotation Transformable::get_rotation() const
+const Array<float *> *Transformable::get_rotation_array_from_mode(const eRotationModes mode) const
 {
   const Array<float *> *rotations_array = nullptr;
-  Rotation rotation;
-  rotation.mode = eRotationModes(*rotation_mode_);
-  switch (*rotation_mode_) {
+  switch (mode) {
     case ROT_MODE_QUAT:
       rotations_array = &rotations_[RotationModeIndex::QUATERNION];
       break;
@@ -150,6 +191,15 @@ Rotation Transformable::get_rotation() const
       break;
   }
   BLI_assert(!rotations_array->is_empty());
+  return rotations_array;
+}
+
+Rotation Transformable::get_rotation() const
+{
+  Rotation rotation;
+  rotation.mode = eRotationModes(*rotation_mode_);
+  const Array<float *> *rotations_array = get_rotation_array_from_mode(rotation.mode);
+  BLI_assert(rotations_array != nullptr);
 
   rotation.values.reinitialize(rotations_array->size());
   for (int i : rotations_array->index_range()) {
@@ -158,14 +208,42 @@ Rotation Transformable::get_rotation() const
   return rotation;
 }
 
-void Transformable::set_rotation(const Rotation &value) {}
+void Transformable::set_rotation(const Rotation &rotation)
+{
+  const eRotationModes current_mode = eRotationModes(*rotation_mode_);
+  const Array<float *> *rotations_array = get_rotation_array_from_mode(current_mode);
+  BLI_assert(rotations_array != nullptr);
+  if (rotation.mode == *rotation_mode_) {
+    /* Easy case, can just copy the values. */
+    for (int i : rotations_array->index_range()) {
+      *(*rotations_array)[i] = rotation.values[i];
+    }
+    return;
+  }
+
+  Rotation rot_in_correct_mode = rotation.converted_to_mode(current_mode);
+  for (int i : rotations_array->index_range()) {
+    *(*rotations_array)[i] = rot_in_correct_mode.values[i];
+  }
+}
+
+static bool should_modify_axis(const int index, const AxisFlag::Flags axis_flag)
+{
+  if (axis_flag == AxisFlag::NONE) {
+    return true;
+  }
+  return axis_flag & (1 << index);
+}
 
 static void blend_linear(MutableSpan<float> values,
                          const float target,
                          const float factor,
-                         const ChannelFlag::Flags lock_flag)
+                         const AxisFlag::Flags axis_flag)
 {
   for (int i : values.index_range()) {
+    if (!should_modify_axis(i, axis_flag)) {
+      continue;
+    }
     values[i] += factor * (target - values[i]);
   }
 }
@@ -173,25 +251,28 @@ static void blend_linear(MutableSpan<float> values,
 static void blend_linear(MutableSpan<float> values,
                          const Span<float> target,
                          const float factor,
-                         const ChannelFlag::Flags lock_flag)
+                         const AxisFlag::Flags axis_flag)
 {
   for (int i : values.index_range()) {
+    if (!should_modify_axis(i, axis_flag)) {
+      continue;
+    }
     values[i] += factor * (target[i] - values[i]);
   }
 }
 
 void Transformable::blend_location_to(const float target,
                                       const float factor,
-                                      const ChannelFlag::Flags lock_flag)
+                                      const AxisFlag::Flags axis_flag)
 {
-  blend_linear(location_, target, factor, lock_flag);
+  blend_linear(location_, target, factor, axis_flag);
 }
 
 void Transformable::blend_location_to(const Span<float> target,
                                       const float factor,
-                                      const ChannelFlag::Flags lock_flag)
+                                      const AxisFlag::Flags axis_flag)
 {
-  blend_linear(location_, target, factor, lock_flag);
+  blend_linear(location_, target, factor, axis_flag);
 }
 
 }  // namespace blender::animrig
