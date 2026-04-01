@@ -155,19 +155,12 @@ enum bPoseChannelRuntimeFlag {
 
 /* PoseChannel (transform) flags */
 enum ePchan_Flag {
-  /* has transforms */
-  POSE_LOC = (1 << 0),
-  POSE_ROT = (1 << 1),
-  POSE_SCALE = (1 << 2),
-
   /* old IK/cache stuff
    * - used to be here from (1 << 3) to (1 << 8)
    *   but has been repurposed since 2.77.2
    *   as they haven't been used in over 10 years
    */
 
-  /* has BBone deforms */
-  POSE_BBONE_SHAPE = (1 << 3),
   /**
    * When set and bPoseChan.custom_tx is not a nullptr,
    * the gizmo will be drawn at the location and

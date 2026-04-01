@@ -71,6 +71,18 @@ Rotation Rotation::converted_to_mode(eRotationModes mode) const
   return converted;
 }
 
+Rotation Rotation::unit_rotation(const eRotationModes mode)
+{
+  switch (mode) {
+    case ROT_MODE_QUAT:
+      return {{1, 0, 0, 0}, mode};
+    case ROT_MODE_AXISANGLE:
+      return {{0, 1, 0, 0}, mode};
+    default:
+      return {{0, 0, 0}, mode};
+  }
+}
+
 StringRefNull Transformable::rna_path()
 {
   return rna_path_from_id_;
@@ -213,7 +225,7 @@ void Transformable::set_rotation(const Rotation &rotation)
   const eRotationModes current_mode = eRotationModes(*rotation_mode_);
   const Array<float *> *rotations_array = get_rotation_array_from_mode(current_mode);
   BLI_assert(rotations_array != nullptr);
-  if (rotation.mode == *rotation_mode_) {
+  if (rotation.mode == current_mode) {
     /* Easy case, can just copy the values. */
     for (int i : rotations_array->index_range()) {
       *(*rotations_array)[i] = rotation.values[i];
@@ -273,6 +285,64 @@ void Transformable::blend_location_to(const Span<float> target,
                                       const AxisFlag::Flags axis_flag)
 {
   blend_linear(location_, target, factor, axis_flag);
+}
+
+void Transformable::blend_scale_to(const float target,
+                                   const float factor,
+                                   const AxisFlag::Flags axis_flag)
+{
+  blend_linear(scale_, target, factor, axis_flag);
+}
+
+void Transformable::blend_rotation_to(const Rotation &target,
+                                      const float factor,
+                                      const AxisFlag::Flags axis_flag)
+{
+  const eRotationModes current_mode = eRotationModes(*rotation_mode_);
+  Rotation rot;
+  if (target.mode == current_mode) {
+    rot = target;
+  }
+  else {
+    rot = target.converted_to_mode(current_mode);
+  }
+  const Array<float *> *rotations_array = get_rotation_array_from_mode(current_mode);
+  BLI_assert(rotations_array != nullptr);
+
+  Array<float> result;
+  switch (current_mode) {
+    case ROT_MODE_QUAT: {
+      float4 current_quat;
+      for (int i : IndexRange(4)) {
+        current_quat[i] = *((*rotations_array)[i]);
+      }
+      normalize_qt(current_quat);
+      result.reinitialize(4);
+      interp_qt_qtqt(result.data(), current_quat, rot.values.data(), factor);
+      break;
+    }
+    case ROT_MODE_AXISANGLE: {
+      result.reinitialize(4);
+      for (int i : IndexRange(4)) {
+        result[i] = *((*rotations_array)[i]);
+      }
+      blend_linear(result, rot.values, factor, axis_flag);
+      break;
+    }
+    default: {
+      result.reinitialize(3);
+      for (int i : IndexRange(3)) {
+        result[i] = *((*rotations_array)[i]);
+      }
+      blend_linear(result, rot.values, factor, axis_flag);
+      break;
+    }
+  }
+
+  BLI_assert(result.size() == rotations_array->size());
+  for (int i : result.index_range()) {
+    *(*rotations_array)[i] = result[i];
+  }
 }
 
 }  // namespace blender::animrig

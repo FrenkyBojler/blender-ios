@@ -49,6 +49,7 @@ struct Rotation {
 
   /* Returns a copy of the rotation in the given mode. */
   Rotation converted_to_mode(eRotationModes mode) const;
+  static Rotation unit_rotation(eRotationModes mode);
 };
 
 class Transformable {
@@ -123,6 +124,10 @@ class Transformable {
   /* Blend the location to the values given in the span. The span size has to match the location
    * value count. */
   void blend_location_to(Span<float> values, float factor, AxisFlag::Flags lock_flag);
+
+  void blend_scale_to(float target, float factor, AxisFlag::Flags axis_flag);
+
+  void blend_rotation_to(const Rotation &target, float factor, AxisFlag::Flags axis_flag);
 };
 
 }  // namespace animrig

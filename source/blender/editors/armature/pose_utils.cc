@@ -62,18 +62,6 @@ namespace blender {
  * Types of transforms applied to the given item:
  * - these are the return flags for get_item_transform_flags()
  */
-enum eAction_TransformFlags {
-  ACT_TRANS_LOC = (1 << 0),
-  ACT_TRANS_ROT = (1 << 1),
-  ACT_TRANS_SCALE = (1 << 2),
-
-  /* BBone shape - for all the parameters, provided one is set. */
-  ACT_TRANS_BBONE = (1 << 3),
-  ACT_TRANS_PROP = (1 << 4),
-
-  ACT_TRANS_ONLY = (ACT_TRANS_LOC | ACT_TRANS_ROT | ACT_TRANS_SCALE),
-  ACT_TRANS_ALL = (ACT_TRANS_ONLY | ACT_TRANS_PROP),
-};
 
 static eAction_TransformFlags get_item_transform_flags_and_fcurves(Object &ob,
                                                                    bPoseChannel &pchan,
@@ -173,8 +161,6 @@ static void fcurves_to_pchan_links_get(ListBaseT<tPChanFCurveLink> &pfLinks,
   const eAction_TransformFlags transFlags = get_item_transform_flags_and_fcurves(
       ob, pchan, curves);
 
-  pchan.flag &= ~(POSE_LOC | POSE_ROT | POSE_SCALE | POSE_BBONE_SHAPE);
-
   if (!transFlags) {
     return;
   }
@@ -189,18 +175,7 @@ static void fcurves_to_pchan_links_get(ListBaseT<tPChanFCurveLink> &pfLinks,
   BLI_addtail(&pfLinks, pfl);
 
   /* Set pchan's transform flags. */
-  if (transFlags & ACT_TRANS_LOC) {
-    pchan.flag |= POSE_LOC;
-  }
-  if (transFlags & ACT_TRANS_ROT) {
-    pchan.flag |= POSE_ROT;
-  }
-  if (transFlags & ACT_TRANS_SCALE) {
-    pchan.flag |= POSE_SCALE;
-  }
-  if (transFlags & ACT_TRANS_BBONE) {
-    pchan.flag |= POSE_BBONE_SHAPE;
-  }
+  pfl->transform_flag = transFlags;
 
   pfl->old_loc = transformable->get_location();
   pfl->old_rot = transformable->get_rotation();
@@ -243,8 +218,7 @@ void poseAnim_mapping_get(bContext *C, ListBaseT<tPChanFCurveLink> *pfLinks)
 {
   BLI_assert(pfLinks != nullptr);
   /* For each Pose-Channel which gets affected, get the F-Curves for that channel
-   * and set the relevant transform flags...
-   */
+   * and set the relevant transform flags... */
   Object *prev_ob, *ob_pose_armature;
 
   prev_ob = nullptr;
@@ -330,7 +304,7 @@ void poseAnim_mapping_refresh(bContext *C, Scene * /*scene*/, Object *ob)
 
 void poseAnim_mapping_reset(ListBaseT<tPChanFCurveLink> *pfLinks)
 {
-  /* iterate over each pose-channel affected, restoring all channels to their original values */
+  /* Iterate over each transformable affected, restoring all channels to their original values. */
   for (tPChanFCurveLink &pfl : *pfLinks) {
     animrig::Transformable *transformable = pfl.transformable;
 
@@ -339,27 +313,29 @@ void poseAnim_mapping_reset(ListBaseT<tPChanFCurveLink> *pfLinks)
     transformable->set_rotation(pfl.old_rot);
     transformable->set_scale(pfl.old_scale);
 
-    BLI_assert(transformable->type() == animrig::Transformable::Type::POSE_BONE);
-    bPoseChannel *pchan = static_cast<bPoseChannel *>(transformable->data());
-    /* store current bbone values */
-    pchan->roll1 = pfl.roll1;
-    pchan->roll2 = pfl.roll2;
-    pchan->curve_in_x = pfl.curve_in_x;
-    pchan->curve_in_z = pfl.curve_in_z;
-    pchan->curve_out_x = pfl.curve_out_x;
-    pchan->curve_out_z = pfl.curve_out_z;
-    pchan->ease1 = pfl.ease1;
-    pchan->ease2 = pfl.ease2;
+    if (transformable->type() == animrig::Transformable::Type::POSE_BONE) {
+      bPoseChannel *pchan = static_cast<bPoseChannel *>(transformable->data());
+      /* store current bbone values */
+      pchan->roll1 = pfl.roll1;
+      pchan->roll2 = pfl.roll2;
+      pchan->curve_in_x = pfl.curve_in_x;
+      pchan->curve_in_z = pfl.curve_in_z;
+      pchan->curve_out_x = pfl.curve_out_x;
+      pchan->curve_out_z = pfl.curve_out_z;
+      pchan->ease1 = pfl.ease1;
+      pchan->ease2 = pfl.ease2;
 
-    copy_v3_v3(pchan->scale_in, pfl.scale_in);
-    copy_v3_v3(pchan->scale_out, pfl.scale_out);
+      copy_v3_v3(pchan->scale_in, pfl.scale_in);
+      copy_v3_v3(pchan->scale_out, pfl.scale_out);
 
-    /* just overwrite values of properties from the stored copies (there should be some) */
-    if (pfl.oldprops) {
-      IDP_SyncGroupValues(pchan->prop, pfl.oldprops);
-    }
-    if (pfl.old_system_properties) {
-      IDP_SyncGroupValues(pchan->system_properties, pfl.old_system_properties);
+      /* TODO: implement custom property support for other transformables. */
+      /* just overwrite values of properties from the stored copies (there should be some) */
+      if (pfl.oldprops) {
+        IDP_SyncGroupValues(pchan->prop, pfl.oldprops);
+      }
+      if (pfl.old_system_properties) {
+        IDP_SyncGroupValues(pchan->system_properties, pfl.old_system_properties);
+      }
     }
   }
 }

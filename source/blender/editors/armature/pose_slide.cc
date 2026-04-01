@@ -695,42 +695,13 @@ static void pose_slide_apply_quat(tPoseSlideOp *pso, tPChanFCurveLink *pfl)
   }
 }
 
-static void pose_slide_rest_pose_apply_vec3(tPoseSlideOp *pso, float vec[3], float default_value)
-{
-  /* We only slide to the rest pose. So only use the default rest pose value. */
-  const int lock = pso->axislock;
-  const float factor = ED_slider_factor_get(pso->slider);
-  for (int idx = 0; idx < 3; idx++) {
-    if ((lock == 0) || ((lock & PS_LOCK_X) && (idx == 0)) || ((lock & PS_LOCK_Y) && (idx == 1)) ||
-        ((lock & PS_LOCK_Z) && (idx == 2)))
-    {
-      const float diff_val = default_value - vec[idx];
-      vec[idx] += factor * diff_val;
-    }
-  }
-}
-
-static void pose_slide_rest_pose_apply_other_rot(tPoseSlideOp *pso, float vec[4], bool quat)
-{
-  /* We only slide to the rest pose. So only use the default rest pose value. */
-  float default_values[] = {1.0f, 0.0f, 0.0f, 0.0f};
-  if (!quat) {
-    /* Axis Angle */
-    default_values[0] = 0.0f;
-    default_values[2] = 1.0f;
-  }
-  const float factor = ED_slider_factor_get(pso->slider);
-  for (int idx = 0; idx < 4; idx++) {
-    float diff_val = default_values[idx] - vec[idx];
-    vec[idx] += factor * diff_val;
-  }
-}
-
 /**
  * apply() - perform the pose sliding between the current pose and the rest pose.
  */
 static void pose_slide_rest_pose_apply(bContext *C, tPoseSlideOp *pso)
 {
+  const animrig::AxisFlag::Flags axis_flag = animrig::AxisFlag::Flags(pso->axislock);
+  const float slider_factor = ED_slider_factor_get(pso->slider);
   /* For each link, handle each set of transforms. */
   for (tPChanFCurveLink &pfl : pso->pfLinks) {
     /* Valid transforms for each #bPoseChannel should have been noted already.
@@ -741,32 +712,24 @@ static void pose_slide_rest_pose_apply(bContext *C, tPoseSlideOp *pso)
     animrig::Transformable *transformable = pfl.transformable;
     bPoseChannel *pchan = static_cast<bPoseChannel *>(pfl.transformable->data());
 
-    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_LOC) && (pchan->flag & POSE_LOC)) {
-      transformable->blend_location_to(
-          0.0f, ED_slider_factor_get(pso->slider), animrig::AxisFlag::Flags(pso->axislock));
+    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_LOC) && (pfl.transform_flag & ACT_TRANS_LOC)) {
+      transformable->blend_location_to(0.0f, slider_factor, axis_flag);
     }
 
-    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_SCALE) && (pchan->flag & POSE_SCALE)) {
-      /* Calculate these for the 'scale' vector, and use scale curves. */
-      // pose_slide_rest_pose_apply_vec3(pso, transformable->get_scale(), 1.0f);
+    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_SCALE) && (pfl.transform_flag & ACT_TRANS_SCALE)) {
+      transformable->blend_scale_to(1.0f, slider_factor, axis_flag);
     }
 
-    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_ROT) && (pchan->flag & POSE_ROT)) {
-      /* Everything depends on the rotation mode. */
-      if (pchan->rotmode > 0) {
-        /* Eulers - so calculate these for the 'eul' vector, and use euler_rotation curves. */
-        pose_slide_rest_pose_apply_vec3(pso, pchan->eul, 0.0f);
-      }
-      else if (pchan->rotmode == ROT_MODE_AXISANGLE) {
-        pose_slide_rest_pose_apply_other_rot(pso, pchan->quat, false);
-      }
-      else {
-        /* Quaternions - use quaternion blending. */
-        pose_slide_rest_pose_apply_other_rot(pso, pchan->quat, true);
-      }
+    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_ROT) && (pfl.transform_flag & ACT_TRANS_ROT)) {
+      transformable->blend_rotation_to(
+          animrig::Rotation::unit_rotation(eRotationModes(pchan->rotmode)),
+          slider_factor,
+          axis_flag);
     }
 
-    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_BBONE_SHAPE) && (pchan->flag & POSE_BBONE_SHAPE)) {
+    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_BBONE_SHAPE) &&
+        (pfl.transform_flag & ACT_TRANS_BBONE))
+    {
       /* Bbone properties - they all start a "bbone_" prefix. */
       /* TODO: Not implemented. */
       // pose_slide_apply_props(pso, pfl, "bbone_");
@@ -818,17 +781,17 @@ static void pose_slide_apply(bContext *C, tPoseSlideOp *pso)
     animrig::Transformable *transformable = pfl.transformable;
     bPoseChannel *pchan = static_cast<bPoseChannel *>(transformable->data());
 
-    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_LOC) && (pchan->flag & POSE_LOC)) {
+    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_LOC) && (pfl.transform_flag & ACT_TRANS_LOC)) {
       /* Calculate these for the 'location' vector, and use location curves. */
       pose_slide_apply_vec3(pso, &pfl, pchan->loc, "location");
     }
 
-    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_SCALE) && (pchan->flag & POSE_SCALE)) {
+    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_SCALE) && (pfl.transform_flag & ACT_TRANS_SCALE)) {
       /* Calculate these for the 'scale' vector, and use scale curves. */
       pose_slide_apply_vec3(pso, &pfl, pchan->scale, "scale");
     }
 
-    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_ROT) && (pchan->flag & POSE_ROT)) {
+    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_ROT) && (pfl.transform_flag & ACT_TRANS_ROT)) {
       /* Everything depends on the rotation mode. */
       if (pchan->rotmode > 0) {
         /* Eulers - so calculate these for the 'eul' vector, and use euler_rotation curves. */
@@ -843,7 +806,9 @@ static void pose_slide_apply(bContext *C, tPoseSlideOp *pso)
       }
     }
 
-    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_BBONE_SHAPE) && (pchan->flag & POSE_BBONE_SHAPE)) {
+    if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_BBONE_SHAPE) &&
+        (pfl.transform_flag & ACT_TRANS_BBONE))
+    {
       /* Bbone properties - they all start a "bbone_" prefix. */
       pose_slide_apply_props(pso, &pfl, "bbone_");
     }
