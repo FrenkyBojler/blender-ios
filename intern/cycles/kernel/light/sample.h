@@ -291,13 +291,13 @@ ccl_device_inline void shadow_ray_setup(const ccl_private ShaderData *ccl_restri
        * Keep the direction for the proper shader evaluation. */
       ray->P = P;
       ray->D = ls->D;
-      ray->tmin = 0.0f;
-      ray->tmax = 0.0f;
     }
     else {
       ray->P = zero_float3();
       ray->D = zero_float3();
     }
+    ray->tmin = 0.0f;
+    ray->tmax = 0.0f;
   }
 
   ray->dP = differential_make_compact(sd->dP);
