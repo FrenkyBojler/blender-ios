@@ -24,6 +24,8 @@ template<typename T = ImplicitSharingInfo, bool IsStrong = true> class ImplicitS
  private:
   const T *data_ = nullptr;
 
+  template<typename U, bool OtherIsStrong> friend class ImplicitSharingPtr;
+
  public:
   using element_type = T;
 
