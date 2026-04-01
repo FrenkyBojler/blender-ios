@@ -329,7 +329,7 @@ static bool copy_bundle_bake_item_to_socket_value(const BundleBakeItem &bundle_b
         }
         ImplicitSharingPtr<AttributeFieldInput> attribute_field = make_attribute_field(base_type);
         r_attribute_map.add(item->name(), attribute_field->attribute_name());
-        fn::GField field{fn::FieldInputPtr(attribute_field.release())};
+        fn::GField field{attribute_field};
         return SocketValueVariant::From(std::move(field));
       }
       if (const auto *item = dynamic_cast<const ListBakeItem *>(&bake_item)) {

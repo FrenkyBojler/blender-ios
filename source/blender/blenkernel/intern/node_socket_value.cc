@@ -271,6 +271,7 @@ template<typename T> void SocketValueVariant::store_impl(T value)
     socket_type_ = *new_socket_type;
     kind_ = Kind::Field;
     value_.emplace<fn::GField>(std::move(value));
+    static_assert(decltype(value_)::is_inline_v<fn::GField>);
   }
   else if constexpr (fn::is_field_v<T>) {
     /* Always store #Field<T> as #GField. */

@@ -315,6 +315,7 @@ class AttributeFieldInput : public GeometryFieldInput {
   bool is_equal_to(const fn::FieldInput &other) const override;
   std::optional<AttrDomain> preferred_domain(const GeometryComponent &component) const override;
 
+  /** Cached position field to avoid allocating a new one every time. */
   static const fn::GField &position_field();
 };
 
