@@ -52,9 +52,6 @@ bool PreferencesOnDiskAssetLibrary::is_enabled() const
   if (!library_definition) {
     return false;
   }
-  if (!BLI_is_dir(library_definition->dirpath)) {
-    return false;
-  }
 
   return (library_definition->flag & ASSET_LIBRARY_DISABLED) == 0;
 }
