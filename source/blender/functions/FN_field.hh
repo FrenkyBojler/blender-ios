@@ -381,6 +381,7 @@ class FieldOperation : public ImplicitSharingMixin {
   void delete_self() override;
 };
 
+/** Type trait to detect field types. */
 template<typename T> constexpr bool is_field_v = false;
 template<typename T> constexpr bool is_field_v<Field<T>> = true;
 
