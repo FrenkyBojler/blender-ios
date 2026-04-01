@@ -349,8 +349,8 @@ static wmOperatorStatus graphkeys_click_insert_exec(bContext *C, wmOperator *op)
       val = val * scale - offset;
     }
 
-    /* It only seems logical to snap to the nearest frame and ignore markers and seconds. */
-    if ((ts->snap_flag_anim & SCE_SNAP) && (ts->snap_anim_mode == SCE_SNAP_TO_FRAME)) {
+    /* It only seems logical to only snap to the nearest frame and not markers or seconds. */
+    if (ts->snap_flag_anim & SCE_SNAP) {
       frame = roundf(frame);
     }
 
