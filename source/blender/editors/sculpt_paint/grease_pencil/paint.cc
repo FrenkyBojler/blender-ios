@@ -287,6 +287,13 @@ enum class StrokeSnapMode {
   FirstPoint,
 };
 
+struct DepthInfo {
+  int index;
+  float depth;
+  int index2;
+  float depth2;
+};
+
 static StrokeSnapMode get_snap_mode(const Scene &scene)
 {
   /* gpencil_v3d_align is an awkward combination of multiple properties. If none of the non-zero
@@ -1220,13 +1227,6 @@ struct PaintOperationExecutor {
 
     const float2 cotangent = float2(-self.smoothed_pen_direction_.y,
                                     self.smoothed_pen_direction_.x);
-
-    struct DepthInfo {
-      int index;
-      float depth;
-      int index2;
-      float depth2;
-    };
 
     Vector<DepthInfo> depthinfo;
 
