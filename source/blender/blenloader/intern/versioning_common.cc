@@ -11,6 +11,7 @@
 #include <cstring>
 
 #include "DNA_layer_types.h"
+#include "DNA_modifier_types.h"
 #include "DNA_node_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
@@ -140,7 +141,7 @@ static void change_node_socket_name(ListBaseT<bNodeSocket> *sockets,
       STRNCPY_UTF8(socket.name, new_name);
     }
     if (STREQ(socket.identifier, old_name)) {
-      STRNCPY_UTF8(socket.identifier, new_name);
+      version_node_socket_identifier_set(socket, new_name);
     }
   }
 }
@@ -169,7 +170,14 @@ void version_node_socket_id_delim(bNodeSocket *socket)
 
   if (id_number.startswith(".")) {
     socket->identifier[name.size()] = '_';
+    socket->runtime->identifier_ustr = UString(socket->identifier);
   }
+}
+
+void version_node_socket_identifier_set(bNodeSocket &socket, const StringRefNull identifier)
+{
+  STRNCPY_UTF8(socket.identifier, identifier.c_str());
+  socket.runtime->identifier_ustr = UString(socket.identifier);
 }
 
 void version_node_socket_name(bNodeTree *ntree,
@@ -327,6 +335,7 @@ bNodeSocket &version_node_add_socket(bNodeTree &ntree,
                                      const char *identifier)
 {
   bke::bNodeSocketType *stype = bke::node_socket_type_find(idname);
+  BLI_assert(stype != nullptr);
 
   bNodeSocket *socket = MEM_new<bNodeSocket>(__func__);
   socket->runtime = MEM_new<bke::bNodeSocketRuntime>(__func__);
@@ -336,6 +345,7 @@ bNodeSocket &version_node_add_socket(bNodeTree &ntree,
 
   STRNCPY_UTF8(socket->idname, idname);
   STRNCPY_UTF8(socket->identifier, identifier);
+  socket->runtime->identifier_ustr = UString(socket->identifier);
   STRNCPY_UTF8(socket->name, identifier);
 
   if (in_out == SOCK_IN) {
@@ -373,6 +383,19 @@ bNodeLink &version_node_add_link(
 
   BKE_ntree_update_tag_link_added(&ntree, link);
   return *link;
+}
+
+bool version_node_ensure_storage_or_invalidate(bNode &node)
+{
+  /* Accept node if storage is valid. */
+  if (node.storage != nullptr) {
+    return true;
+  }
+
+  /* Invalidate the type identifiers to prevent invalid access where storage data is expected
+   * (#154086). */
+  bke::node_set_undefined_type(node);
+  return false;
 }
 
 bNodeSocket *version_node_add_socket_if_not_exist(bNodeTree *ntree,
@@ -843,6 +866,25 @@ void do_versions_after_setup(Main *new_bmain,
 
       /* NOTE: The user count remains zero at this point. It will get automatically updated after
        * blend file reading is done. */
+    }
+  }
+
+  if (!blendfile_or_libraries_versions_atleast(new_bmain, 501, 29)) {
+    /* Clear modifier node trees if the tree type is undefined.
+     * This can happen to generated auto-smooth node groups for unknown reasons (#152810). */
+    for (Object &object : new_bmain->objects) {
+      for (ModifierData &md : object.modifiers) {
+        if (md.type != eModifierType_Nodes) {
+          continue;
+        }
+        NodesModifierData &nmd = *reinterpret_cast<NodesModifierData *>(&md);
+        if (nmd.node_group && !ID_MISSING(nmd.node_group) &&
+            !STREQ(nmd.node_group->idname, "GeometryNodeTree"))
+        {
+          id_us_min(&nmd.node_group->id);
+          nmd.node_group = nullptr;
+        }
+      }
     }
   }
 }

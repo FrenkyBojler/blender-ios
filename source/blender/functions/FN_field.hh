@@ -46,6 +46,7 @@ namespace blender::fn {
 
 class FieldInput;
 struct FieldInputs;
+template<typename T> class Field;
 
 /**
  * Have a fixed set of base node types, because all code that works with field nodes has to
@@ -154,6 +155,9 @@ class GField : public GFieldBase<std::shared_ptr<FieldNode>> {
       : GFieldBase<std::shared_ptr<FieldNode>>(std::move(node), node_output_index)
   {
   }
+
+  template<typename T> Field<T> typed() const &;
+  template<typename T> Field<T> typed() &&;
 };
 
 /**
@@ -184,15 +188,18 @@ struct TypedFieldBase {};
  * A typed version of #GField. It has the same memory layout as #GField.
  */
 template<typename T> class Field : public GField, detail::TypedFieldBase {
- public:
-  using base_type = T;
-
-  Field() = default;
-
+ private:
   Field(GField field) : GField(std::move(field))
   {
     BLI_assert(this->cpp_type().template is<T>());
   }
+
+  friend GField;
+
+ public:
+  using base_type = T;
+
+  Field() = default;
 
   /**
    * Generally, the constructor above would be sufficient, but this additional constructor ensures
@@ -209,6 +216,16 @@ template<typename T> class Field : public GField, detail::TypedFieldBase {
   {
   }
 };
+
+template<typename T> inline Field<T> GField::typed() const &
+{
+  return Field<T>(*this);
+}
+
+template<typename T> inline Field<T> GField::typed() &&
+{
+  return Field<T>(std::move(*this));
+}
 
 /** True when T is any Field<...> type. */
 template<typename T>
@@ -257,19 +274,9 @@ class FieldContext;
  * A #FieldNode that represents an input to the entire field-tree.
  */
 class FieldInput : public FieldNode {
- public:
-  /* The order is also used for sorting in socket inspection. */
-  enum class Category {
-    NamedAttribute = 0,
-    Generated = 1,
-    AnonymousAttribute = 2,
-    Unknown,
-  };
-
  protected:
   const CPPType *type_;
   std::string debug_name_;
-  Category category_ = Category::Unknown;
 
  public:
   FieldInput(const CPPType &type, std::string debug_name = "");
@@ -286,7 +293,6 @@ class FieldInput : public FieldNode {
   virtual std::string socket_inspection_name() const;
   StringRef debug_name() const;
   const CPPType &cpp_type() const;
-  Category category() const;
 
   const CPPType &output_cpp_type(int output_index) const override;
 };
@@ -438,6 +444,17 @@ class FieldEvaluator : NonMovable, NonCopyable {
     return field_index;
   }
 
+  template<typename T> int add(Field<T> field, VArraySpan<T> *varray_span_ptr)
+  {
+    const int field_index = fields_to_evaluate_.append_and_get_index(std::move(field));
+    dst_varrays_.append({});
+    output_pointer_infos_.append(OutputPointerInfo{
+        varray_span_ptr, [](void *dst, const GVArray &varray, ResourceScope & /*scope*/) {
+          *static_cast<VArraySpan<T> *>(dst) = varray.typed<T>();
+        }});
+    return field_index;
+  }
+
   /**
    * \return Index of the field in the evaluator which can be used in the #get_evaluated methods.
    */
@@ -518,7 +535,7 @@ GField make_constant_field(const CPPType &type, const void *value);
 
 template<typename T> Field<T> make_constant_field(T value)
 {
-  return make_constant_field(CPPType::get<T>(), &value);
+  return make_constant_field(CPPType::get<T>(), &value).template typed<T>();
 }
 
 /**
@@ -640,11 +657,6 @@ inline StringRef FieldInput::debug_name() const
 inline const CPPType &FieldInput::cpp_type() const
 {
   return *type_;
-}
-
-inline FieldInput::Category FieldInput::category() const
-{
-  return category_;
 }
 
 inline const CPPType &FieldInput::output_cpp_type(int output_index) const

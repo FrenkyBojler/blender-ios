@@ -429,7 +429,8 @@ static ImBuf *brush_painter_imbuf_new(
   for (y = 0; y < size; y++) {
     for (x = 0; x < size; x++) {
       /* sample texture and multiply with brush color */
-      float texco[3], rgba[4];
+      float3 texco;
+      float4 rgba;
 
       if (is_texbrush) {
         brush_imbuf_tex_co(&tex_mapping, x, y, texco);
@@ -519,7 +520,8 @@ static void brush_painter_imbuf_update(BrushPainter *painter,
   for (y = origy; y < h; y++) {
     for (x = origx; x < w; x++) {
       /* sample texture and multiply with brush color */
-      float texco[3], rgba[4];
+      float3 texco;
+      float4 rgba;
 
       if (!use_texture_old) {
         if (is_texbrush) {
@@ -751,7 +753,7 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s,
     else if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_RANDOM) {
       do_random = true;
     }
-    else if (!((brush->flag & BRUSH_ANCHORED) || update_color)) {
+    else if (!((brush->stroke_method == BRUSH_STROKE_ANCHORED) || update_color)) {
       do_partial_update = true;
     }
 
@@ -769,7 +771,7 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s,
     else if (brush->mask_mtex.brush_map_mode == MTEX_MAP_MODE_RANDOM) {
       renew_maxmask = true;
     }
-    else if (!(brush->flag & BRUSH_ANCHORED)) {
+    else if (!(brush->stroke_method == BRUSH_STROKE_ANCHORED)) {
       do_partial_update_mask = true;
       renew_maxmask = true;
     }
