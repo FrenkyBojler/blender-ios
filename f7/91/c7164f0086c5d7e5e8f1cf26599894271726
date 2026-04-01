@@ -1,2 +1,3 @@
 Referenced by commit blender/blender-manual@1f2bf753c8df901433ba5c816be4dd22f4a5f41d, Cycles: Texture Cache
 Referenced by pull request #156710, Fix: Cycles: Generate texture cache wrong error on missing file
+Referenced by commit 1a22c71b8498f39ff84462d5cba1949a99d473c4, Fix: Cycles: Generate texture cache wrong error on missing file
