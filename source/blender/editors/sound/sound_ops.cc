@@ -343,6 +343,7 @@ static void sound_mixdown_progress(float progress, void *data)
 
 struct SoundMixdownJobData {
   wmWindowManager *wm = nullptr;
+  bool interface_is_locked = false;
 
   Scene *scene_eval = nullptr;
   std::string filepath = "";
@@ -360,8 +361,6 @@ struct SoundMixdownJobData {
 static void sound_mixdown_startjob(void *customdata, wmJobWorkerStatus *worker_status)
 {
   SoundMixdownJobData *mixdown_job_data = static_cast<SoundMixdownJobData *>(customdata);
-
-  WM_locked_interface_set(mixdown_job_data->wm, true);
 
   Scene *scene_eval = mixdown_job_data->scene_eval;
   const char *filepath = mixdown_job_data->filepath.c_str();
@@ -401,7 +400,9 @@ static void sound_mixdown_endjob(void *customdata)
 {
   SoundMixdownJobData *mixdown_job_data = static_cast<SoundMixdownJobData *>(customdata);
 
-  WM_locked_interface_set(mixdown_job_data->wm, false);
+  if (mixdown_job_data->interface_is_locked) {
+    WM_locked_interface_set(mixdown_job_data->wm, false);
+  }
 
   if (!mixdown_job_data->succeeded) {
     WM_global_report(RPT_ERROR, mixdown_job_data->error_message.c_str());
@@ -445,6 +446,11 @@ static wmOperatorStatus sound_mixdown_exec(bContext *C, wmOperator *op)
   mixdown_job_data->bitrate = bitrate;
   mixdown_job_data->accuracy = accuracy;
   mixdown_job_data->split = split;
+
+  if (scene_eval->r.use_lock_interface) {
+    WM_locked_interface_set(mixdown_job_data->wm, true);
+    mixdown_job_data->interface_is_locked = true;
+  }
 
   wmJob *wm_job = WM_jobs_get(wm,
                               CTX_wm_window(C),
