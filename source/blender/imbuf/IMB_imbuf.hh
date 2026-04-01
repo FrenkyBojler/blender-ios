@@ -77,6 +77,31 @@ int IMB_test_image_type(const char *filepath);
 bool IMB_ftype_is_supported(int ftype);
 
 /**
+ * Return the string identifier for a file type, or nullptr if not found.
+ */
+const char *IMB_ftype_to_id(int ftype);
+
+/**
+ * Return the file type enum value for a string identifier, or #IMB_FTYPE_NONE if not found.
+ */
+int IMB_ftype_from_id(const char *id);
+
+/**
+ * Return the null-terminated list of extensions for a file type, or nullptr if not found.
+ */
+const char **IMB_ftype_file_extensions(int ftype);
+
+/**
+ * Return the read capability flags for a file type.
+ */
+eImFileTypeCapability IMB_ftype_capability_read(int ftype);
+
+/**
+ * Return the write capability flags for a file type.
+ */
+eImFileTypeCapability IMB_ftype_capability_write(int ftype);
+
+/**
  * Load thumbnail image.
  */
 enum class IMBThumbLoadFlags {
@@ -592,10 +617,16 @@ void IMB_transform(const ImBuf *src,
                    const float3x3 &transform_matrix,
                    const rctf *src_crop);
 
+/* Creates a GPU texture from the given image buffer and name. If use_high_bitdepth is true, float
+ * image buffers will be stored in full float textures, otherwise, they will be stored in half
+ * float textures. If use_premult is true, the image buffer data will be stored premultiplied. If
+ * limit_size is true, the texture will be scaled down to match the maximum size allowed by the
+ * U.glreslimit user preferences setting. */
 gpu::Texture *IMB_create_gpu_texture(const char *name,
                                      ImBuf *ibuf,
                                      bool use_high_bitdepth,
-                                     bool use_premult);
+                                     bool use_premult,
+                                     const bool limit_size);
 
 gpu::TextureFormat IMB_gpu_get_texture_format(const ImBuf *ibuf,
                                               bool high_bitdepth,

@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.2.0 Alpha (b'45d5533d8e66')\n"
+"Project-Id-Version: Blender 5.2.0 Alpha (b'227100a72567')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-16 11:01+0000\n"
+"POT-Creation-Date: 2026-03-30 09:56+0000\n"
 "PO-Revision-Date: 2025-12-01 09:17+0000\n"
 "Last-Translator: Matt Mitacek <mattmitacek@gmail.com>\n"
 "Language-Team: Czech <https://translate.blender.org/projects/blender-ui/ui/cs/>\n"
@@ -3589,6 +3589,10 @@ msgstr "Tah"
 
 msgid "Fill"
 msgstr "Vyplnit"
+
+
+msgid "Both"
+msgstr "Oba"
 
 
 msgid "Object Path"
@@ -13826,8 +13830,20 @@ msgid "Material slot name"
 msgstr "Název okénka materiálu"
 
 
-msgid "Quick Effects"
-msgstr "Rychlé Efekty"
+msgid "Math"
+msgstr "Matematika"
+
+
+msgid "Names"
+msgstr "Názvy"
+
+
+msgid "Utilities"
+msgstr "Nástroje"
+
+
+msgid "Bone Roll"
+msgstr "Kost"
 
 
 msgid "Show/Hide"
@@ -13836,74 +13852,6 @@ msgstr "Zobrazit/skrýt"
 
 msgid "Clean Up"
 msgstr "Vyčistit"
-
-
-msgid "Math"
-msgstr "Matematika"
-
-
-msgid "Make Single User"
-msgstr "Přivlastnit"
-
-
-msgid "Hooks"
-msgstr "Háky"
-
-
-msgid "Clear Transform"
-msgstr "Vyčistit transformaci"
-
-
-msgid "Propagate"
-msgstr "Vložit"
-
-
-msgid "Names"
-msgstr "Názvy"
-
-
-msgid "Apply"
-msgstr "Použít"
-
-
-msgid "Mesh Select Mode"
-msgstr "Síťový mód výběru"
-
-
-msgid "Face Data"
-msgstr "Data Ploch"
-
-
-msgid "Merge"
-msgstr "Sloučit"
-
-
-msgid "Special Characters"
-msgstr "Speciální Znaky"
-
-
-msgid "Layout"
-msgstr "Rozložení"
-
-
-msgid "Metaball"
-msgstr "Meta objekt"
-
-
-msgid "Bone Roll"
-msgstr "Kost"
-
-
-msgid "Keying"
-msgstr "Klíčovací sestava"
-
-
-msgid "Tracking"
-msgstr "Sledování"
-
-
-msgid "Utilities"
-msgstr "Nástroje"
 
 
 msgid "Pivot Point"
@@ -13916,6 +13864,14 @@ msgstr "Přichytit"
 
 msgid "Proportional Editing Falloff"
 msgstr "Způsob útlumu"
+
+
+msgid "Instances"
+msgstr "Instance"
+
+
+msgid "Import"
+msgstr "Importovat"
 
 
 msgid "Mirror"
@@ -13946,28 +13902,76 @@ msgid "Assign Material"
 msgstr "Přiřadit Materiál"
 
 
+msgid "Metaball"
+msgstr "Meta objekt"
+
+
 msgid "Light"
 msgstr "Světlo"
-
-
-msgid "Instances"
-msgstr "Instance"
 
 
 msgid "Relations"
 msgstr "Vztahy"
 
 
-msgid "Import"
-msgstr "Importovat"
-
-
 msgid "Rigid Body"
 msgstr "Tuhé Těleso"
 
 
+msgid "Apply"
+msgstr "Použít"
+
+
 msgid "Track"
 msgstr "Sledování"
+
+
+msgid "Quick Effects"
+msgstr "Rychlé Efekty"
+
+
+msgid "Make Single User"
+msgstr "Přivlastnit"
+
+
+msgid "Hooks"
+msgstr "Háky"
+
+
+msgid "Layout"
+msgstr "Rozložení"
+
+
+msgid "Clear Transform"
+msgstr "Vyčistit transformaci"
+
+
+msgid "Propagate"
+msgstr "Vložit"
+
+
+msgid "Keying"
+msgstr "Klíčovací sestava"
+
+
+msgid "Tracking"
+msgstr "Sledování"
+
+
+msgid "Mesh Select Mode"
+msgstr "Síťový mód výběru"
+
+
+msgid "Face Data"
+msgstr "Data Ploch"
+
+
+msgid "Merge"
+msgstr "Sloučit"
+
+
+msgid "Special Characters"
+msgstr "Speciální Znaky"
 
 
 msgid "Basic"
@@ -21831,10 +21835,6 @@ msgid "Side"
 msgstr "Ze strany"
 
 
-msgid "Both"
-msgstr "Oba"
-
-
 msgctxt "Operator"
 msgid "Add F-Curve Modifier"
 msgstr "Přidat modifikátor"
@@ -23316,22 +23316,6 @@ msgstr "Sloučit vybrané vertexy"
 
 msgid "Merge method to use"
 msgstr "Použitá metoda sloučení"
-
-
-msgid "At Center"
-msgstr "Na Střed"
-
-
-msgid "At Cursor"
-msgstr "Na kurzoru"
-
-
-msgid "At First"
-msgstr "Na prvním"
-
-
-msgid "At Last"
-msgstr "Na posledním"
 
 
 msgctxt "Operator"
@@ -32925,18 +32909,6 @@ msgid "Number of samples to render for each pixel"
 msgstr "Počet snímků renderovaných předem během přehrávání"
 
 
-msgid "Viewport Texture Limit"
-msgstr "Omezení Textury v Zobrazení"
-
-
-msgid "No Limit"
-msgstr "Bez Omezení"
-
-
-msgid "Render Texture Limit"
-msgstr "Omezení Textury ve Vykreslení"
-
-
 msgid "Tile Size"
 msgstr "Velikost dlaždice"
 
@@ -35115,10 +35087,6 @@ msgid "Use Default Fade"
 msgstr "Výchozí hodnota"
 
 
-msgid "Use Linear Modifiers"
-msgstr "Upraveno uživatelem"
-
-
 msgid "Multiply Colors"
 msgstr "Multivrstva"
 
@@ -37043,6 +37011,10 @@ msgid "Report a Bug"
 msgstr "Nahlásit chybu"
 
 
+msgid "Object Index"
+msgstr "Index objektu"
+
+
 msgid "Denoising completed"
 msgstr "Odšumění dokončeno"
 
@@ -37105,10 +37077,6 @@ msgstr "Stín"
 
 msgid "Max Subdivision"
 msgstr "Maximální Dělení"
-
-
-msgid "Texture Limit"
-msgstr "Omezení Textury"
 
 
 msgid "Volume Resolution"
@@ -42820,10 +42788,6 @@ msgstr "Barva 2"
 
 msgid "Dot"
 msgstr "Kvadratické"
-
-
-msgid "Object Index"
-msgstr "Index objektu"
 
 
 msgid "Brick Width"
