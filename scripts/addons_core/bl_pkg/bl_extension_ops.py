@@ -4095,6 +4095,18 @@ class EXTENSIONS_OT_unified_drop_handler(Operator):
     ui_repo_config_use_access_token: BoolProperty(name="Use Access Token", default=False)
     ui_repo_config_access_token: StringProperty(name="Access Token", subtype='PASSWORD', default="")
 
+    __slots__ = (
+        "_parsed_main_url",
+        "_parsed_repo_remote_url",
+        "_parsed_access_token",
+        "_initial_online_access",
+        "_can_change_online_access",
+        "_repo_info_name",
+        "_repo_info_index",
+        "_repo_info_exists",
+        "_repo_info_enabled",
+    )
+
     def invoke(self, context, _event):
         from .bl_extension_utils import url_parse_for_blender
 
