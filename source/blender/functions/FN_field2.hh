@@ -529,7 +529,10 @@ inline FieldInputsPtr combine_field_inputs(const Span<GField> &fields)
     candidate = larger_candidate;
   }
   if (candidate_valid) {
-    return *candidate;
+    if (candidate) {
+      return *candidate;
+    }
+    return {};
   }
   FieldInputs *new_field_inputs = MEM_new<FieldInputs>(__func__);
   for (const GField &field : fields) {
