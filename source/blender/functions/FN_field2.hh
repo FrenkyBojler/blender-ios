@@ -4,11 +4,9 @@
 
 #pragma once
 
-#include "BLI_implicit_sharing.hh"
 #include "BLI_implicit_sharing_ptr.hh"
 
 #include "FN_multi_function.hh"
-#include "FN_multi_function_builder.hh"
 
 namespace blender::fn {
 
@@ -118,6 +116,7 @@ template<typename T> class Field {
   friend GField;
 
  public:
+  Field();
   operator const GField &() const;
 };
 
@@ -572,6 +571,8 @@ inline GField::~GField()
       },
       variant_);
 }
+
+template<typename T> Field<T>::Field() : GField(CPPType::get<T>()) {}
 
 /** \} */
 
