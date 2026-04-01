@@ -1585,7 +1585,37 @@ static bke::bNodeSocketType *make_socket_type_vector(PropertySubType subtype, co
 static bke::bNodeSocketType *make_socket_type_int_vector(PropertySubType subtype,
                                                          const int dimensions)
 {
-  return make_standard_socket_type(SOCK_INT_VECTOR, subtype, dimensions);
+  bke::bNodeSocketType *socktype = make_standard_socket_type(SOCK_INT_VECTOR, subtype, dimensions);
+  socktype->base_cpp_type = &CPPType::get<int3>();
+  socktype->get_base_cpp_value = [](const void *socket_value, void *r_value) {
+    *static_cast<int3 *>(r_value) =
+        (static_cast<bNodeSocketValueIntVector *>(const_cast<void *>(socket_value)))->value;
+  };
+  socktype->make_compositor_nodes_input_srna = [](const bNodeTree & /*tree*/,
+                                                  StructRNA &srna,
+                                                  const bNodeTreeInterfaceSocket &socket,
+                                                  nodes::GeneratedTreeSrnaData &r_generated) {
+    PropertyRNA *prop;
+    const auto *data = static_cast<const bNodeSocketValueIntVector *>(socket.socket_data);
+    prop = RNA_def_int_vector(&srna,
+                              "value",
+                              data->dimensions,
+                              data->value,
+                              -INT_MAX,
+                              INT_MAX,
+                              socket.name,
+                              socket.description,
+                              data->min,
+                              data->max);
+    RNA_def_property_subtype(prop, PropertySubType(data->subtype));
+    set_common_sequencer_update_function(prop);
+    make_common_type_prop(srna,
+                          socket,
+                          nodes::compositor_nodes_input_type_items_value,
+                          nodes::CompositorNodesInputType::Value,
+                          r_generated);
+  };
+  return socktype;
 }
 
 static bke::bNodeSocketType *make_socket_type_rgba()
