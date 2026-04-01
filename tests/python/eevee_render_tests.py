@@ -130,7 +130,7 @@ def setup():
         ray_tracing.screen_trace_thickness = 1.0
 
         # Fast GI
-        eevee.fast_gi_quality = 0.8 # Counteract changes in quality setting
+        eevee.fast_gi_quality = 0.8
 
         # Light-probes
         eevee.gi_cubemap_resolution = '256'
