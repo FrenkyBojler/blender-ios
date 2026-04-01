@@ -4,36 +4,6 @@
 
 #pragma once
 
-/** \file
- * \ingroup fn
- *
- * A #Field represents a function that outputs a value based on an arbitrary number of inputs. The
- * inputs for a specific field evaluation are provided by a #FieldContext.
- *
- * A typical example is a field that computes a displacement vector for every vertex on a mesh
- * based on its position.
- *
- * Fields can be built, composed and evaluated at run-time. They are stored in a directed tree
- * graph data structure, whereby each node is a #FieldNode and edges are dependencies. A #FieldNode
- * has an arbitrary number of inputs and at least one output and a #Field references a specific
- * output of a #FieldNode. The inputs of a #FieldNode are other fields.
- *
- * There are two different types of field nodes:
- *  - #FieldInput: Has no input and exactly one output. It represents an input to the entire field
- *    when it is evaluated. During evaluation, the value of this input is based on a #FieldContext.
- *  - #FieldOperation: Has an arbitrary number of field inputs and at least one output. Its main
- *    use is to compose multiple existing fields into new fields.
- *
- * When fields are evaluated, they are converted into a multi-function procedure which allows
- * efficient computation. In the future, we might support different field evaluation mechanisms for
- * e.g. the following scenarios:
- *  - Latency of a single evaluation is more important than throughput.
- *  - Evaluation should happen on other hardware like GPUs.
- *
- * Whenever possible, multiple fields should be evaluated together to avoid duplicate work when
- * they share common sub-fields and a common context.
- */
-
 #include "BLI_function_ref.hh"
 #include "BLI_generic_virtual_array.hh"
 #include "BLI_string_ref.hh"
