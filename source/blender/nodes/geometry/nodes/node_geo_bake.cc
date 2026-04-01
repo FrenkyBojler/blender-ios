@@ -71,8 +71,7 @@ static void node_declare(NodeDeclarationBuilder &b)
     const UString name(item.name);
     const UString identifier(BakeItemsAccessor::socket_identifier_for_item(item));
     auto &input_decl = b.add_input(socket_type, name, identifier)
-                           .socket_name_ptr(
-                               &ntree->id, *BakeItemsAccessor::item_srna, &item, "name");
+                           .socket_name_ptr(&ntree->id, *BakeItemsAccessor::item_srna, &item, "name");
     auto &output_decl = b.add_output(socket_type, name, identifier).align_with_previous();
     if (socket_type_supports_attributes(socket_type)) {
       input_decl.supports_field();
@@ -565,7 +564,7 @@ static void node_register()
   ntype.internally_linked_input = node_internally_linked_input;
   ntype.blend_write_storage_content = node_blend_write;
   ntype.blend_data_read_storage_content = node_blend_read;
-  bke::node_type_storage(ntype, "NodeGeometryBake", node_free_storage, node_copy_storage);
+  ntype.blend_data_read_storage_content = node_blend_read;
   bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)

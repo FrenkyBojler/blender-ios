@@ -43,6 +43,7 @@ struct SocketItemsAccessorDefaults {
   static constexpr char unique_name_separator = '.';
 };
 
+
 /**
  * References a "C-Array" that is stored elsewhere. This is different from a MutableSpan, because
  * one can even resize the array through this reference.
@@ -341,7 +342,8 @@ template<typename Accessor>
         ntree, storage_node, *added_socket_type, name.c_str(), dimensions);
   }
   else if constexpr (Accessor::has_name && !Accessor::has_type) {
-    item = add_item_with_name<Accessor>(storage_node, src_socket->name);
+    const std::string name = bke::node_socket_label(*src_socket);
+    item = add_item_with_name<Accessor>(storage_node, name.c_str());
   }
   else {
     item = add_item<Accessor>(storage_node);

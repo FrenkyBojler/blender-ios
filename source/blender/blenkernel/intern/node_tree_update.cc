@@ -681,6 +681,8 @@ class NodeTreeMainUpdater {
       }
     }
 
+    /* Some nodes need to be updated when properties change that affect their sockets.
+     * The Viewer node specifically needs this when the tree changes its mode. */
     if (node.type_legacy == GEO_NODE_VIEWER) {
       if (ntree.runtime->changed_flag & NTREE_CHANGED_NODE_PROPERTY) {
         return true;

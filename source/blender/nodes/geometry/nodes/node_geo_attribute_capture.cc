@@ -295,7 +295,6 @@ static void node_register()
   ntype.register_operators = node_operators;
   ntype.gather_link_search_ops = node_gather_link_searches;
   ntype.internally_linked_input = node_internally_linked_input;
-  ntype.blend_write_storage_content = node_blend_write;
   ntype.blend_data_read_storage_content = node_blend_read;
   bke::node_register_type(ntype);
 }

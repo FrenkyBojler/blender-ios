@@ -231,18 +231,7 @@ static void node_declare(NodeDeclarationBuilder &b)
     const std::string identifier = GeoViewerItemsAccessor::socket_identifier_for_item(item);
     auto &input_decl = b.add_input(socket_type, name, UString(identifier))
                            .socket_name_ptr(
-                               &tree->id, *GeoViewerItemsAccessor::item_srna, &item, "name")
-                           .label_fn([i](bNode node) {
-                             const bNodeSocket &socket = node.input_socket(i);
-                             if (socket.link) {
-                               const bNodeLink *link = static_cast<const bNodeLink *>(socket.link);
-                               if (link && link->fromsock) {
-                                 return bke::node_socket_label(*link->fromsock);
-                               }
-                             }
-                             const auto &storage = *static_cast<const NodeGeometryViewer *>(node.storage);
-                             return StringRefNull(storage.items[i].name);
-                           });
+                               &tree->id, *GeoViewerItemsAccessor::item_srna, &item, "name");
     if (socket_type_supports_attributes(socket_type)) {
       input_decl.field_on_all();
     }
@@ -493,30 +482,6 @@ static void node_blend_write(const bNodeTree & /*tree*/, const bNode &node, Blen
   socket_items::blend_write<GeoViewerItemsAccessor>(&writer, node);
 }
 
-static void node_update(bNodeTree *ntree, bNode *node)
-{
-  auto &storage = *static_cast<NodeGeometryViewer *>(node->storage);
-  bool changed = false;
-  bNodeSocket *socket = static_cast<bNodeSocket *>(node->inputs.first);
-  for (int i = 0; i < storage.items_num && socket; i++, socket = socket->next) {
-    if (socket->link) {
-      const bNodeSocket *src_socket = socket->link->fromsock;
-      if (src_socket) {
-        StringRefNull label = bke::node_socket_label(*src_socket);
-        NodeGeometryViewerItem &item = storage.items[i];
-        if (item.name && label != item.name) {
-          GeoViewerItemsAccessor::destruct_item(&item);
-          item.name = BLI_strdup_null(label.c_str());
-          changed = true;
-        }
-      }
-    }
-  }
-  if (changed) {
-    BKE_ntree_update_tag_node_property(ntree, node);
-    nodes::update_node_declaration_and_sockets(*ntree, *node);
-  }
-}
 
 static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &reader)
 {
@@ -537,12 +502,10 @@ static void node_register()
   ntype.initfunc = node_init;
   ntype.draw_buttons = node_layout;
   ntype.draw_buttons_ex = node_layout_ex;
-  ntype.updatefunc = node_update;
   ntype.insert_link = node_insert_link;
   ntype.gather_link_search_ops = node_gather_link_searches;
   ntype.no_muting = true;
   ntype.register_operators = node_operators;
-  ntype.get_extra_info = node_extra_info;
   ntype.blend_write_storage_content = node_blend_write;
   ntype.blend_data_read_storage_content = node_blend_read;
   bke::node_register_type(ntype);
