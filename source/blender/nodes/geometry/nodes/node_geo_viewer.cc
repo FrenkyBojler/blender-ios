@@ -4,14 +4,8 @@
 
 #include <fmt/format.h>
 
-#include "node_geometry_util.hh"
-
-#include "BKE_node.hh"
-#include "BKE_node_runtime.hh"
 #include "BKE_context.hh"
 #include "BKE_type_conversions.hh"
-#include "BKE_node_tree_update.hh"
-#include "NOD_socket.hh"
 
 #include "BLO_read_write.hh"
 
@@ -399,13 +393,7 @@ static void geo_viewer_node_log_impl(const bNode &node,
     if (value.is_single() && value.get_single_ptr().is_type<bke::GeometrySet>()) {
       value.get_single_ptr().get<bke::GeometrySet>()->ensure_owns_direct_data();
     }
-
-    const bNodeSocket &socket = node.input_socket(i);
-    StringRefNull label = item.name;
-    if (socket.link) {
-      label = bke::node_socket_label(*socket.link->fromsock);
-    }
-    r_log.items.add_new({item.identifier, label.c_str(), std::move(value)});
+    r_log.items.add_new({item.identifier, item.name, std::move(value)});
   }
   log_viewer_attribute(node, r_log);
 }
@@ -482,7 +470,6 @@ static void node_blend_write(const bNodeTree & /*tree*/, const bNode &node, Blen
   socket_items::blend_write<GeoViewerItemsAccessor>(&writer, node);
 }
 
-
 static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &reader)
 {
   socket_items::blend_read_data<GeoViewerItemsAccessor>(&reader, node);
@@ -506,6 +493,7 @@ static void node_register()
   ntype.gather_link_search_ops = node_gather_link_searches;
   ntype.no_muting = true;
   ntype.register_operators = node_operators;
+  ntype.get_extra_info = node_extra_info;
   ntype.blend_write_storage_content = node_blend_write;
   ntype.blend_data_read_storage_content = node_blend_read;
   bke::node_register_type(ntype);

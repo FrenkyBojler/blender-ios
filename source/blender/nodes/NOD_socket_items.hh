@@ -24,8 +24,6 @@
 
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
-#include "BKE_node_socket_value.hh"
-#include "BKE_node_tree_interface.hh"
 #include "BKE_node_tree_update.hh"
 
 #include "DNA_array_utils.hh"
@@ -42,7 +40,6 @@ struct SocketItemsAccessorDefaults {
   static constexpr bool can_have_empty_name = false;
   static constexpr char unique_name_separator = '.';
 };
-
 
 /**
  * References a "C-Array" that is stored elsewhere. This is different from a MutableSpan, because
@@ -330,20 +327,29 @@ template<typename Accessor>
     if (!added_socket_type) {
       return false;
     }
-    std::string name = bke::node_socket_label(*src_socket);
-    if constexpr (Accessor::has_custom_initial_name) {
-      name = Accessor::custom_initial_name(storage_node, name);
+    /* Ensure the source node declaration is up-to-date before capturing the socket label.
+     * This is necessary to correctly capture dynamic labels at creation time. Use the source 
+     * node's own tree to avoid issues when linking across different trees. */
+    if (src_socket->runtime && src_socket->runtime->owner_node && src_socket->runtime->owner_node->runtime->owner_tree) {
+      blender::bke::node_declaration_ensure(*src_socket->runtime->owner_node->runtime->owner_tree, *src_socket->runtime->owner_node);
+      blender::bke::node_socket_declarations_update(src_socket->runtime->owner_node);
     }
+    std::string name = blender::bke::node_socket_label(*src_socket);
+
     std::optional<int> dimensions = std::nullopt;
     if (src_socket_type == SOCK_VECTOR && added_socket_type == SOCK_VECTOR) {
       dimensions = src_socket->default_value_typed<bNodeSocketValueVector>()->dimensions;
     }
+
+    if constexpr (Accessor::has_custom_initial_name) {
+      name = Accessor::custom_initial_name(storage_node, name);
+    }
+
     item = add_item_with_socket_type_and_name<Accessor>(
         ntree, storage_node, *added_socket_type, name.c_str(), dimensions);
   }
   else if constexpr (Accessor::has_name && !Accessor::has_type) {
-    const std::string name = bke::node_socket_label(*src_socket);
-    item = add_item_with_name<Accessor>(storage_node, name.c_str());
+    item = add_item_with_name<Accessor>(storage_node, src_socket->name);
   }
   else {
     item = add_item<Accessor>(storage_node);
