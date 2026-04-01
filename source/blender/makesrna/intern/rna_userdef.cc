@@ -22,6 +22,7 @@
 
 #include "BLT_translation.hh"
 
+#include "BKE_report.hh"
 #include "BKE_studiolight.h"
 
 #include "RNA_define.hh"
@@ -299,6 +300,78 @@ static void rna_userdef_ui_update(Main * /*bmain*/, Scene * /*scene*/, PointerRN
 static void rna_userdef_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA * /*ptr*/)
 {
   WM_main_add_notifier(NC_WINDOW, nullptr);
+  USERDEF_TAG_DIRTY;
+}
+
+static int rna_UserMenu_space_type_get(PointerRNA *ptr)
+{
+  bUserMenu *um = static_cast<bUserMenu *>(ptr->data);
+  return int(um->space_type);
+}
+
+static void rna_UserMenuItem_name_get(PointerRNA *ptr, char *value)
+{
+  bUserMenuItem *umi = static_cast<bUserMenuItem *>(ptr->data);
+
+  /* Prefer custom ui_name when set. */
+  if (umi->ui_name[0] != '\0') {
+    strcpy(value, umi->ui_name);
+    return;
+  }
+
+  /* Resolve display name from the item's type-specific data. */
+  if (umi->type == USER_MENU_TYPE_OPERATOR) {
+    bUserMenuItem_Op *umi_op = reinterpret_cast<bUserMenuItem_Op *>(umi);
+    wmOperatorType *ot = WM_operatortype_find(umi_op->op_idname, true);
+    if (ot) {
+      strcpy(value, ot->name);
+      return;
+    }
+  }
+  else if (umi->type == USER_MENU_TYPE_MENU) {
+    bUserMenuItem_Menu *umi_mt = reinterpret_cast<bUserMenuItem_Menu *>(umi);
+    MenuType *mt = WM_menutype_find(umi_mt->mt_idname, true);
+    if (mt) {
+      strcpy(value, mt->label);
+      return;
+    }
+  }
+
+  value[0] = '\0';
+}
+
+static int rna_UserMenuItem_name_length(PointerRNA *ptr)
+{
+  bUserMenuItem *umi = static_cast<bUserMenuItem *>(ptr->data);
+
+  if (umi->ui_name[0] != '\0') {
+    return strlen(umi->ui_name);
+  }
+
+  if (umi->type == USER_MENU_TYPE_OPERATOR) {
+    bUserMenuItem_Op *umi_op = reinterpret_cast<bUserMenuItem_Op *>(umi);
+    wmOperatorType *ot = WM_operatortype_find(umi_op->op_idname, true);
+    if (ot) {
+      return strlen(ot->name);
+    }
+  }
+  else if (umi->type == USER_MENU_TYPE_MENU) {
+    bUserMenuItem_Menu *umi_mt = reinterpret_cast<bUserMenuItem_Menu *>(umi);
+    MenuType *mt = WM_menutype_find(umi_mt->mt_idname, true);
+    if (mt) {
+      return strlen(mt->label);
+    }
+  }
+
+  return 0;
+}
+
+static void rna_UserMenu_items_move(bUserMenu *um, ReportList *reports, int from, int to)
+{
+  if (!BLI_listbase_move_index(reinterpret_cast<ListBase *>(&um->items), from, to)) {
+    BKE_reportf(reports, RPT_ERROR, "Cannot move item from index %d to %d", from, to);
+    return;
+  }
   USERDEF_TAG_DIRTY;
 }
 
@@ -7689,6 +7762,85 @@ static void rna_def_userdef_autoexec_path_collection(BlenderRNA *brna, PropertyR
   RNA_def_parameter_clear_flags(parm, PROP_THICK_WRAP, ParameterFlag(0));
 }
 
+static const EnumPropertyItem rna_enum_user_menu_item_type_items[] = {
+    {USER_MENU_TYPE_SEP, "SEPARATOR", 0, "Separator", ""},
+    {USER_MENU_TYPE_OPERATOR, "OPERATOR", 0, "Operator", ""},
+    {USER_MENU_TYPE_MENU, "MENU", 0, "Menu", ""},
+    {USER_MENU_TYPE_PROP, "PROPERTY", 0, "Property", ""},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+static void rna_def_userdef_user_menu_item(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  srna = RNA_def_struct(brna, "UserMenuItem", nullptr);
+  RNA_def_struct_sdna(srna, "bUserMenuItem");
+  RNA_def_struct_ui_text(srna, "User Menu Item", "");
+
+  prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_funcs(
+      prop, "rna_UserMenuItem_name_get", "rna_UserMenuItem_name_length", nullptr);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop, "Name", "");
+
+  prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "type");
+  RNA_def_property_enum_items(prop, rna_enum_user_menu_item_type_items);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop, "Type", "");
+}
+
+static void rna_def_userdef_user_menu_items_collection(BlenderRNA *brna, PropertyRNA *cprop)
+{
+  StructRNA *srna;
+  FunctionRNA *func;
+  PropertyRNA *parm;
+
+  RNA_def_property_srna(cprop, "UserMenuItems");
+  srna = RNA_def_struct(brna, "UserMenuItems", nullptr);
+  RNA_def_struct_sdna(srna, "bUserMenu");
+  RNA_def_struct_ui_text(srna, "User Menu Items", "");
+
+  func = RNA_def_function(srna, "move", "rna_UserMenu_items_move");
+  RNA_def_function_ui_description(func, "Move a menu item to a different position");
+  RNA_def_function_flag(func, FUNC_USE_REPORTS);
+  parm = RNA_def_int(
+      func, "from_index", -1, INT_MIN, INT_MAX, "From Index", "Index to move", 0, 10000);
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_int(
+      func, "to_index", -1, INT_MIN, INT_MAX, "To Index", "Target index", 0, 10000);
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+}
+
+static void rna_def_userdef_user_menu(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  srna = RNA_def_struct(brna, "UserMenu", nullptr);
+  RNA_def_struct_sdna(srna, "bUserMenu");
+  RNA_def_struct_ui_text(srna, "User Menu", "");
+
+  prop = RNA_def_property(srna, "space_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_space_type_items);
+  RNA_def_property_enum_funcs(prop, "rna_UserMenu_space_type_get", nullptr, nullptr);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop, "Space Type", "Editor type this menu is associated with");
+
+  prop = RNA_def_property(srna, "context", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, nullptr, "context");
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop, "Context", "Mode or context this menu is associated with");
+
+  prop = RNA_def_property(srna, "menu_items", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_collection_sdna(prop, nullptr, "items", nullptr);
+  RNA_def_property_struct_type(prop, "UserMenuItem");
+  RNA_def_property_ui_text(prop, "Menu Items", "Items in this Quick Favorites menu");
+  rna_def_userdef_user_menu_items_collection(brna, prop);
+}
+
 void RNA_def_userdef(BlenderRNA *brna)
 {
   USERDEF_TAG_DIRTY_PROPERTY_UPDATE_ENABLE;
@@ -7700,6 +7852,8 @@ void RNA_def_userdef(BlenderRNA *brna)
   rna_def_userdef_solidlight(brna);
   rna_def_userdef_walk_navigation(brna);
   rna_def_userdef_xr_navigation(brna);
+  rna_def_userdef_user_menu_item(brna);
+  rna_def_userdef_user_menu(brna);
 
   srna = RNA_def_struct(brna, "Preferences", nullptr);
   RNA_def_struct_sdna(srna, "UserDef");
@@ -7738,6 +7892,12 @@ void RNA_def_userdef(BlenderRNA *brna)
   RNA_def_property_struct_type(prop, "PathCompare");
   RNA_def_property_ui_text(prop, "Auto-Execution Paths", "");
   rna_def_userdef_autoexec_path_collection(brna, prop);
+
+  prop = RNA_def_property(srna, "user_menus", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_collection_sdna(prop, nullptr, "user_menus", nullptr);
+  RNA_def_property_struct_type(prop, "UserMenu");
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop, "Quick Favorites Menus", "User-defined Quick Favorites menus");
 
   prop = RNA_def_property(srna, "use_recent_searches", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, nullptr, "flag", USER_FLAG_RECENT_SEARCHES_DISABLE);

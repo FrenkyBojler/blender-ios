@@ -15,12 +15,14 @@
 #include "DNA_screen_types.h"
 
 #include "BLI_fileops.h"
+#include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
 
+#include "BKE_blender_user_menu.hh"
 #include "BKE_context.hh"
 #include "BKE_idprop.hh"
 #include "BKE_screen.hh"
@@ -1087,6 +1089,68 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
           U.runtime.is_dirty = true;
           ED_screen_user_menu_item_remove(&um->items, umi);
         });
+
+        Button *but_up = uiDefIconTextBut(
+            block,
+            ButtonType::But,
+            ICON_TRIA_UP,
+            CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Move Up in Quick Favorites"),
+            0,
+            0,
+            w,
+            UI_UNIT_Y,
+            nullptr,
+            "");
+        button_func_set(but_up, [um, umi](bContext &) {
+          U.runtime.is_dirty = true;
+          BLI_listbase_link_move(reinterpret_cast<ListBase *>(&um->items), umi, -1);
+        });
+
+        Button *but_down = uiDefIconTextBut(
+            block,
+            ButtonType::But,
+            ICON_TRIA_DOWN,
+            CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Move Down in Quick Favorites"),
+            0,
+            0,
+            w,
+            UI_UNIT_Y,
+            nullptr,
+            "");
+        button_func_set(but_down, [um, umi](bContext &) {
+          U.runtime.is_dirty = true;
+          BLI_listbase_link_move(reinterpret_cast<ListBase *>(&um->items), umi, 1);
+        });
+
+        bUserMenuItem *next = umi->next;
+        bool next_is_sep = (next != nullptr && next->type == USER_MENU_TYPE_SEP);
+        Button *but_sep = uiDefIconTextBut(
+            block,
+            ButtonType::But,
+            ICON_REMOVE,
+            CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT,
+                        next_is_sep ? "Remove Separator" : "Add Separator After"),
+            0,
+            0,
+            w,
+            UI_UNIT_Y,
+            nullptr,
+            "");
+        if (next_is_sep) {
+          button_func_set(but_sep, [um, next](bContext &) {
+            U.runtime.is_dirty = true;
+            ED_screen_user_menu_item_remove(&um->items, next);
+          });
+        }
+        else {
+          button_func_set(but_sep, [um, umi](bContext &) {
+            U.runtime.is_dirty = true;
+            bUserMenuItem *sep = BKE_blender_user_menu_item_add(
+                &um->items, USER_MENU_TYPE_SEP);
+            BLI_remlink(&um->items, sep);
+            BLI_insertlinkafter(&um->items, umi, sep);
+          });
+        }
       }
     }
     if (um_array) {
