@@ -153,6 +153,7 @@ ResultT eval(sampler2D hiz_tx,
 
     projected_normal_to_plane_angle_and_length(vN, vV, vT, vB, vN_length, vN_angle);
 
+    /* Jitter slice integration domain to avoid banding due to the bitmask. */
     vN_angle += (noise.z - 0.5f) * (M_PI / 32.0f) * angle_bias;
 
     SphericalHarmonicL1<float4> sh_slice = {};
