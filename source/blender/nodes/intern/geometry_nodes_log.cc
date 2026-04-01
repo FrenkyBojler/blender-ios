@@ -76,8 +76,7 @@ FieldInfoLog::FieldInfoLog(const GField &field) : type(field.cpp_type())
   /* Put the deduplicated field inputs into a vector so that they can be sorted below. */
   Vector<std::reference_wrapper<const FieldInput>> field_inputs;
   if (field_input_nodes) {
-    field_inputs.extend(field_input_nodes->deduplicated_nodes.begin(),
-                        field_input_nodes->deduplicated_nodes.end());
+    field_inputs.extend(field_input_nodes->nodes.begin(), field_input_nodes->nodes.end());
   }
 
   this->input_tooltips.reserve(field_inputs.size());

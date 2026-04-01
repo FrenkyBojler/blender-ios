@@ -4,6 +4,28 @@
 
 #pragma once
 
+/** \file
+ * \ingroup fn
+ *
+ * A #Field represents a function that outputs a value based on an arbitrary number of inputs. The
+ * inputs for a specific field evaluation are provided by a #FieldContext.
+ *
+ * A typical example is a field that computes a displacement vector for every vertex on a mesh
+ * based on its position.
+ *
+ * Fields can be built, composed and evaluated at run-time. They are stored in a directed tree
+ * graph data structure. A field may generally depend on other fields.
+ *
+ * When fields are evaluated, they are converted into a multi-function procedure which allows
+ * efficient computation. In the future, we might support different field evaluation mechanisms for
+ * e.g. the following scenarios:
+ *  - Latency of a single evaluation is more important than throughput.
+ *  - Evaluation should happen on other hardware like GPUs.
+ *
+ * Whenever possible, multiple fields should be evaluated together to avoid duplicate work when
+ * they share common sub-fields and a common context.
+ */
+
 #include "BLI_cache_mutex.hh"
 #include "BLI_implicit_sharing_ptr.hh"
 
@@ -22,6 +44,13 @@ using FieldOperationPtr = ImplicitSharingPtr<FieldOperation>;
 using FieldInputsPtr = ImplicitSharingPtr<FieldInputs>;
 template<typename T> class Field;
 
+/**
+ * A field with a type that is only known at runtime which can be accessed through the #cpp_type
+ * method. If the type is known at compile time, it is recommended to use #Field<T> instead.
+ *
+ * It is designed to support various internal storage representations to avoid unnecessary
+ * allocations or reference counting in many common cases.
+ */
 class GField {
  public:
   struct Input {
@@ -33,15 +62,23 @@ class GField {
     int output_i = 0;
   };
 
+  /**
+   * Allows referencing another field without owning it. This helps with fields that are highly
+   * reused like the position field because it avoids reference counting..
+   */
   struct FieldRef {
     const GField *field_ref = nullptr;
   };
 
   struct ConstantRef {
     const CPPType *type = nullptr;
+    /** This value is not owned. Typically it has static lifetime. */
     const void *value = nullptr;
   };
 
+  /**
+   * Allows storing constants inside of #GField without any additional memory allocation.
+   */
   struct TrivialInlineConstant {
     static constexpr int64_t inline_size = 16;
     static constexpr int64_t inline_alignment = 8;
@@ -58,7 +95,8 @@ class GField {
     AlignedBuffer<inline_size, inline_alignment> value;
   };
 
-  struct GeneralConstant {
+  /** Used for storing constants that can't be inlined. */
+  struct OwnedConstant {
     const CPPType *type = nullptr;
     /* This value is owned by the #GField. */
     void *value = nullptr;
@@ -66,83 +104,134 @@ class GField {
 
   template<typename T>
   static constexpr bool is_constant_value_v =
-      is_same_any_v<T, ConstantRef, TrivialInlineConstant, GeneralConstant>;
+      is_same_any_v<T, ConstantRef, TrivialInlineConstant, OwnedConstant>;
 
   using Variant =
-      std::variant<Input, MultiFn, FieldRef, ConstantRef, TrivialInlineConstant, GeneralConstant>;
+      std::variant<Input, MultiFn, FieldRef, ConstantRef, TrivialInlineConstant, OwnedConstant>;
 
  private:
   Variant variant_;
 
+  /**
+   * #GField is expected to always have a valid #CPPType. Therefore, it can't be default
+   * constructed.
+   */
   GField() = delete;
 
  public:
+  /** Construct a field that just outputs the default value of the given type. */
   explicit GField(const CPPType &type) noexcept;
+  /** Construct a field owning a field input. */
   explicit GField(FieldInputPtr node) noexcept;
+  /** Construct a field that owns a field operation and outputs one of its outputs. */
   explicit GField(FieldOperationPtr node, int output_i = 0) noexcept;
+  /** Construct directly from a #Variant, mostly for internal use. */
   explicit GField(Variant variant) noexcept;
+
+  /**
+   * Wraps the given field in a new field. This is used to avoid reference counting for some field
+   * fields which have static lifetime.
+   */
   static GField from_non_owning_ref(const GField &field);
+
+  /** Construct a field that just outputs the given constant value. */
   static GField from_constant(const CPPType &type, const void *value);
+
+  /** Construct a field that just outputs the given constant value without owning it. */
   static GField from_non_owning_constant(const CPPType &type, const void *value);
+
+  /** Build a new #FieldInput with the given arguments. */
   template<typename InputT, typename... Args> static GField from_input(Args &&...args);
 
+  /**
+   * #GField requires manual memory management due to inlined values and to support move semantics
+   * without making #GField nullable.
+   */
   GField(const GField &other);
   GField(GField &&other) noexcept;
   GField &operator=(const GField &other);
   GField &operator=(GField &&other) noexcept;
   ~GField();
 
+  /** The value type the field outputs for each element, e.g. float. */
   const CPPType &cpp_type() const;
 
+  /** Root #FieldInput nodes that this field depends on. */
   const FieldInputsPtr &field_inputs() const;
 
+  /**
+   * This "normalizes" the field. Specifically, if this field is just a non-owning reference to
+   * some other field, the referenced field is returned.
+   */
   const GField &deref_field_ref() const;
 
+  /** Get the underlying #Variant. */
   const Variant &variant() const;
 
+  /** Returns true when the field depends on some input. */
   bool depends_on_input() const;
 
+  /** Utility to access a specific input type if this field is just an input. */
   template<typename InputT> const InputT *get_input_if() const;
 
   /**
-   * Equality at this level is only checked in a shallow way. A more deep comparison could reveal
-   * that two fields are semantically the same even if this comparison is false.
+   * This only implements shallow comparison. A more deep comparison could reveal that two fields
+   * are semantically the same even if this comparison is false. Deep comparison is much more
+   * expensive though.
    */
   friend bool operator==(const GField &a, const GField &b);
   uint64_t hash() const;
 
+  /**
+   * Get a typed reference to this field. Not that #Field<T> happens to be identical to #GField on
+   * a bit-level. So this is just a cast.
+   */
   template<typename T> const Field<T> &typed() const;
   template<typename T> Field<T> &typed();
 };
 
+/** A version of #GField that should be used when the field type is known at compile time. */
 template<typename T> class Field {
  public:
   using base_type = T;
 
  private:
+  /**
+   * #Field<T> just stores a #GField. This makes converting between the two types easy.
+   */
   GField field_;
 
   friend GField;
 
-  Field(GField field);
-
  public:
+  /**
+   * Other than #GField, default construction is allowed here, because the type is known without
+   * extra arguments.
+   */
   Field();
+
+  /** Same as corresponding #GField constructors. */
   explicit Field(FieldInputPtr node);
   explicit Field(FieldOperationPtr node, int output_i = 0);
+
+  /** Construct a field that just outputs the given value. */
   explicit Field(T value);
 
+  /** This is implicitly cast to #GField which is always valid. */
   operator const GField &() const;
 
+  /** These are the same as the corresponding #GField methods. */
   bool depends_on_input() const;
-
   template<typename InputT, typename... Args> static Field from_input(Args &&...args);
-
   template<typename InputT> const InputT *get_input_if() const;
-
   uint64_t hash() const;
 };
 
+/**
+ * A version of #GField that only references data from other fields but does not own any data
+ * itself. This allows it to be smaller and trivially copyable making it more efficient in some
+ * contexts. This is mainly used during field evaluation.
+ */
 class GFieldRef {
  public:
   struct Value {
@@ -163,21 +252,28 @@ class GFieldRef {
   Variant variant_;
 
  public:
+  /**
+   * Create a reference to the given fields. The caller is responsible for making sure that the
+   * referenced data stays valid.
+   */
   GFieldRef(const GField &field);
   template<typename T> GFieldRef(const Field<T> &field);
-
   explicit GFieldRef(const FieldInput &field_input);
   explicit GFieldRef(const FieldOperation &field_multi_fn, int output_i = 0);
 
+  /** Get access to the underlying #Variant. */
   const Variant &variant() const;
 
+  /** These are the same as the corresponding #GField methods. */
   const CPPType &cpp_type() const;
-
   const FieldInputsPtr &field_inputs() const;
-
   uint64_t hash() const;
 };
 
+/**
+ * A field is always evaluated in some context. This context determines the value of the field
+ * inputs.
+ */
 class FieldContext {
  public:
   virtual ~FieldContext() = default;
@@ -187,13 +283,25 @@ class FieldContext {
                                        ResourceScope &scope) const;
 };
 
+/**
+ * Cache of field inputs. This is used quite often and is therefore computed eagerly. Otherwise one
+ * would have to parse the field tree every time the set of inputs is required.
+ */
 class FieldInputs : public ImplicitSharingMixin {
  public:
-  VectorSet<std::reference_wrapper<const FieldInput>> deduplicated_nodes;
+  /** Deduplicated set of field inputs. */
+  VectorSet<std::reference_wrapper<const FieldInput>> inputs;
 
   void delete_self() override;
 };
 
+/**
+ * This is an abstract class which concrete field inputs have to derive from. When a field is
+ * evaluated, this can provide values based on the provided context.
+ *
+ * Since there is no better way yet, #FieldInput is also often used to process the output of
+ * intermediate fields, in which case this is not technically an "input".
+ */
 class FieldInput : public ImplicitSharingMixin {
  protected:
   const CPPType *type_;
@@ -219,8 +327,14 @@ class FieldInput : public ImplicitSharingMixin {
   virtual uint64_t hash() const;
   virtual bool is_equal_to(const FieldInput &other) const;
 
+  /**
+   * If this #FieldInput depends on other fields, this function should be overridden.
+   */
   virtual void foreach_recursive_field(FunctionRef<void(const GField &)> fn) const;
 
+  /**
+   * Output a virtual array for the given index mask in the given context.
+   */
   virtual GVArray get_varray_for_context(const FieldContext &context,
                                          const IndexMask &mask,
                                          ResourceScope &scope) const = 0;
@@ -314,7 +428,7 @@ inline GField GField::from_constant(const CPPType &type, const void *value)
   }
   void *new_value = MEM_new_uninitialized_aligned(type.size, type.alignment, __func__);
   type.copy_construct(value, new_value);
-  return GField(GeneralConstant{&type, new_value});
+  return GField(OwnedConstant{&type, new_value});
 }
 
 inline GField GField::from_non_owning_constant(const CPPType &type, const void *value)
@@ -348,7 +462,7 @@ inline Field<T>::Field(T value)
         else {
           void *new_value = MEM_new_uninitialized_aligned(sizeof(T), alignof(T), __func__);
           new (new_value) T(std::move(value));
-          return GField(GField::GeneralConstant{&type, new_value});
+          return GField(GField::OwnedConstant{&type, new_value});
         }
       }())
 {
@@ -372,7 +486,7 @@ inline const CPPType &GField::cpp_type() const
         else if constexpr (std::is_same_v<T, FieldRef>) {
           return v.field_ref->cpp_type();
         }
-        else if constexpr (is_same_any_v<T, ConstantRef, TrivialInlineConstant, GeneralConstant>) {
+        else if constexpr (is_same_any_v<T, ConstantRef, TrivialInlineConstant, OwnedConstant>) {
           return *v.type;
         }
       },
@@ -390,7 +504,7 @@ inline const FieldInputsPtr &GField::field_inputs() const
         else if constexpr (std::is_same_v<T, FieldRef>) {
           return v.field_ref->field_inputs();
         }
-        else if constexpr (is_same_any_v<T, ConstantRef, TrivialInlineConstant, GeneralConstant>) {
+        else if constexpr (is_same_any_v<T, ConstantRef, TrivialInlineConstant, OwnedConstant>) {
           return empty_inputs;
         }
       },
@@ -490,7 +604,7 @@ inline const FieldInputsPtr &FieldInput::field_inputs() const
 {
   field_inputs_mutex_.ensure([&]() {
     FieldInputs *inputs = MEM_new<FieldInputs>(__func__);
-    inputs->deduplicated_nodes.add(*this);
+    inputs->inputs.add(*this);
     field_inputs_ = FieldInputsPtr(inputs);
   });
   return field_inputs_;
@@ -579,13 +693,11 @@ inline FieldInputsPtr combine_field_inputs(const Span<GField> &fields)
     }
     const FieldInputsPtr *smaller_candidate = candidate;
     const FieldInputsPtr *larger_candidate = &field_inputs_ptr;
-    if ((*smaller_candidate)->deduplicated_nodes.size() >
-        (*larger_candidate)->deduplicated_nodes.size())
-    {
+    if ((*smaller_candidate)->inputs.size() > (*larger_candidate)->inputs.size()) {
       std::swap(smaller_candidate, larger_candidate);
     }
-    for (const FieldInput &field_input : (*smaller_candidate)->deduplicated_nodes) {
-      if (!(*larger_candidate)->deduplicated_nodes.contains(field_input)) {
+    for (const FieldInput &field_input : (*smaller_candidate)->inputs) {
+      if (!(*larger_candidate)->inputs.contains(field_input)) {
         candidate_valid = false;
         break;
       }
@@ -607,8 +719,8 @@ inline FieldInputsPtr combine_field_inputs(const Span<GField> &fields)
     if (!field_inputs_ptr) {
       continue;
     }
-    for (const FieldInput &field_input : field_inputs_ptr->deduplicated_nodes) {
-      new_field_inputs->deduplicated_nodes.add(field_input);
+    for (const FieldInput &field_input : field_inputs_ptr->inputs) {
+      new_field_inputs->inputs.add(field_input);
     }
   }
   return FieldInputsPtr(new_field_inputs);
@@ -665,7 +777,7 @@ inline GField::GField(const GField &other) : variant_(other.variant_)
 {
   std::visit(
       [&]<typename T>(T &v) {
-        if constexpr (std::is_same_v<T, GeneralConstant>) {
+        if constexpr (std::is_same_v<T, OwnedConstant>) {
           void *new_value = MEM_new_uninitialized_aligned(
               v.type->size, v.type->alignment, __func__);
           v.type->copy_construct(v.value, new_value);
@@ -705,7 +817,7 @@ inline GField::~GField()
 {
   std::visit(
       [&]<typename T>(T &v) {
-        if constexpr (std::is_same_v<T, GeneralConstant>) {
+        if constexpr (std::is_same_v<T, OwnedConstant>) {
           v.type->destruct(v.value);
           MEM_delete_void(v.value);
         }
@@ -713,7 +825,6 @@ inline GField::~GField()
       variant_);
 }
 
-template<typename T> inline Field<T>::Field(GField field) : field_(std::move(field)) {}
 template<typename T> inline Field<T>::Field() : field_(CPPType::get<T>()) {}
 
 template<typename T> inline Field<T>::Field(FieldInputPtr node) : field_(GField(std::move(node)))
@@ -731,7 +842,7 @@ inline bool GField::depends_on_input() const
   if (!inputs) {
     return false;
   }
-  return !inputs->deduplicated_nodes.is_empty();
+  return !inputs->inputs.is_empty();
 }
 
 template<typename InputT> inline const InputT *GField::get_input_if() const

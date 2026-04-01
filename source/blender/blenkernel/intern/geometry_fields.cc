@@ -1140,7 +1140,7 @@ std::optional<AttrDomain> try_detect_field_domain(const GeometryComponent &compo
     if (mesh == nullptr) {
       return std::nullopt;
     }
-    for (const fn::FieldInput &field_input : field_inputs->deduplicated_nodes) {
+    for (const fn::FieldInput &field_input : field_inputs->nodes) {
       if (const auto *geometry_field_input = dynamic_cast<const GeometryFieldInput *>(
               &field_input))
       {
@@ -1164,7 +1164,7 @@ std::optional<AttrDomain> try_detect_field_domain(const GeometryComponent &compo
     if (curves == nullptr) {
       return std::nullopt;
     }
-    for (const fn::FieldInput &field_input : field_inputs->deduplicated_nodes) {
+    for (const fn::FieldInput &field_input : field_inputs->nodes) {
       if (const auto *geometry_field_input = dynamic_cast<const GeometryFieldInput *>(
               &field_input))
       {
