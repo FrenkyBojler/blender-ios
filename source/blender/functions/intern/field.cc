@@ -524,7 +524,7 @@ GField make_field_constant_if_possible(GField field)
   const CPPType &type = field.cpp_type();
   BUFFER_FOR_CPP_TYPE_VALUE(type, buffer);
   evaluate_constant_field(field, buffer);
-  GField new_field = make_constant_field(type, buffer);
+  GField new_field = GField::from_constant(type, buffer);
   type.destruct(buffer);
   return new_field;
 }
@@ -534,11 +534,6 @@ Field<bool> invert_boolean_field(const Field<bool> &field)
   const mf::MultiFunction &not_fn = fn::multi_function::registry::lookup("!bool"_ustr);
   auto not_op = FieldOperation::from_non_owning(not_fn, {field});
   return GField(not_op, 0).typed<bool>();
-}
-
-GField make_constant_field(const CPPType &type, const void *value)
-{
-  return GField::from_constant(type, value);
 }
 
 GVArray FieldContext::get_varray_for_input(const FieldInput &field_input,

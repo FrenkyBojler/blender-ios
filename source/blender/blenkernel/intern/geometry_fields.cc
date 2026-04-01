@@ -1099,7 +1099,7 @@ bool try_capture_fields_on_geometry(GeometryComponent &component,
                                     const AttrDomain domain,
                                     const Span<fn::GField> fields)
 {
-  const fn::Field<bool> selection = fn::make_constant_field<bool>(true);
+  const fn::Field<bool> selection = fn::Field<bool>::from_constant(true);
   return try_capture_fields_on_geometry(component, names, domain, selection, fields);
 }
 

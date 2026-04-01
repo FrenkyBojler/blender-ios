@@ -288,8 +288,8 @@ TEST(field, EvaluateWithVArrayPtr)
 
   FieldContext field_context;
   FieldEvaluator field_evaluator{field_context, 2};
-  field_evaluator.add(make_constant_field(10), &dst_a);
-  field_evaluator.add(make_constant_field(20), &dst_b);
+  field_evaluator.add(Field<int>::from_constant(10), &dst_a);
+  field_evaluator.add(Field<int>::from_constant(20), &dst_b);
   field_evaluator.evaluate();
 
   EXPECT_EQ(dst_a.size(), 2);

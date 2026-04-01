@@ -46,6 +46,14 @@ class GField {
     static constexpr int64_t inline_size = 16;
     static constexpr int64_t inline_alignment = 8;
 
+    template<typename T>
+    static constexpr bool type_supported_v = std::is_trivially_destructible_v<T> &&
+                                             std::is_trivially_copyable_v<T> &&
+                                             sizeof(T) <= inline_size &&
+                                             alignof(T) <= inline_alignment;
+
+    static bool cpp_type_supported(const CPPType &type);
+
     const CPPType *type = nullptr;
     AlignedBuffer<inline_size, inline_alignment> value;
   };
@@ -127,6 +135,7 @@ template<typename T> class Field {
 
   bool depends_on_input() const;
 
+  static Field from_constant(T value);
   template<typename InputT, typename... Args> static Field from_input(Args &&...args);
 
   template<typename InputT> const InputT *get_input_if() const;
@@ -273,11 +282,15 @@ inline GField GField::from_non_owning_ref(const GField &field)
   return GField(FieldRef{&field});
 }
 
+inline bool GField::TrivialInlineConstant::cpp_type_supported(const CPPType &type)
+{
+  return type.is_trivial && type.size <= TrivialInlineConstant::inline_size &&
+         type.alignment <= TrivialInlineConstant::inline_alignment;
+}
+
 inline GField GField::from_constant(const CPPType &type, const void *value)
 {
-  if (type.is_trivial && type.size <= TrivialInlineConstant::inline_size &&
-      type.alignment <= TrivialInlineConstant::inline_alignment)
-  {
+  if (TrivialInlineConstant::cpp_type_supported(type)) {
     TrivialInlineConstant constant;
     constant.type = &type;
     type.copy_construct(value, constant.value.ptr());
@@ -304,6 +317,20 @@ template<typename InputT, typename... Args>
 inline Field<T> Field<T>::from_input(Args &&...args)
 {
   return GField::from_input<InputT>(std::forward<Args>(args)...).template typed<T>();
+}
+
+template<typename T> inline Field<T> Field<T>::from_constant(T value)
+{
+  const CPPType &type = CPPType::get<T>();
+  if constexpr (GField::TrivialInlineConstant::type_supported_v<T>) {
+    GField::TrivialInlineConstant constant;
+    constant.type = &type;
+    new (constant.value.ptr()) T(std::move(value));
+    return GField(constant);
+  }
+  void *new_value = MEM_new_uninitialized_aligned(sizeof(T), alignof(T), __func__);
+  new (new_value) T(std::move(value));
+  return GField(GField::GeneralConstant{&type, new_value});
 }
 
 template<typename T> inline bool Field<T>::depends_on_input() const

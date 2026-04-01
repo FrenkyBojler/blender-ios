@@ -237,13 +237,6 @@ template<typename T> T evaluate_constant_field(const Field<T> &field)
 
 Field<bool> invert_boolean_field(const Field<bool> &field);
 
-GField make_constant_field(const CPPType &type, const void *value);
-
-template<typename T> Field<T> make_constant_field(T value)
-{
-  return make_constant_field(CPPType::get<T>(), &value).template typed<T>();
-}
-
 /**
  * If the field depends on some input, the same field is returned.
  * Otherwise the field is evaluated and a new field is created that just computes this constant.
