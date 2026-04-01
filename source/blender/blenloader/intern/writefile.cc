@@ -702,7 +702,7 @@ static void mywrite_id_end(WriteData *wd, ID * /*id*/)
     /* In undo case:
      *   - IDs never get a stable address id;
      *   - Shared data (implicit sharing) never gets a stable address id.
-     *   - Other addresses (private ID data) should never be shared accross IDs.
+     *   - Other addresses (private ID data) should never be shared across IDs.
      *
      * So we can clear the stable address ids after each ID writing. This makes the mapping even
      * smaller, and ensures that data dynamically generated on write (which may re-use the same
@@ -833,7 +833,7 @@ static uint64_t get_address_id_int(WriteData &wd, const void *address)
     return 0;
   }
   /* In undo case, addresses are kept as-is, unless they have been tagged by specific functions
-   * like BLO_write_generated_pointer_tag`, in which case their value will already be in the
+   * like `BLO_write_generated_pointer_tag`, in which case their value will already be in the
    * `pointer_map`. */
   if (wd.use_memfile) {
     return wd.stable_address_ids.pointer_map.lookup_default_as(
@@ -2314,7 +2314,7 @@ void BLO_write_generated_pointer_tag(BlendWriter *writer, const void *data)
     return;
   }
   const uint64_t address_id = get_address_id_for_undo(*writer->wd);
-  /* Check that the pointer has not been written before it was tagged as being shared. */
+  /* Check that the pointer has not been written before it was tagged as being generated. */
   BLI_assert(writer->wd->stable_address_ids.pointer_map.lookup_default(data, address_id) ==
              address_id);
   writer->wd->stable_address_ids.pointer_map.add(data, address_id);
