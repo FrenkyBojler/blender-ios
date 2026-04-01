@@ -11,13 +11,13 @@
 namespace blender::fn {
 
 class GField;
-class FieldInputNode;
-class FieldMultiFunctionNode;
+class FieldInput;
+class FieldMultiFunction;
 class FieldInputs;
 class FieldContext;
 
-using FieldInputNodePtr = ImplicitSharingPtr<FieldInputNode>;
-using FieldMultiFunctionNodePtr = ImplicitSharingPtr<FieldMultiFunctionNode>;
+using FieldInputNodePtr = ImplicitSharingPtr<FieldInput>;
+using FieldMultiFunctionNodePtr = ImplicitSharingPtr<FieldMultiFunction>;
 using FieldInputsPtr = ImplicitSharingPtr<FieldInputs>;
 template<typename T> class Field;
 
@@ -99,6 +99,8 @@ class GField {
 
   const GFieldVariant &variant() const;
 
+  bool depends_on_input() const;
+
   /**
    * Equality at this level is only checked in a shallow way. A more deep comparison could reveal
    * that two fields are semantically the same even if this comparison is false.
@@ -124,26 +126,26 @@ class FieldContext {
  public:
   virtual ~FieldContext() = default;
 
-  virtual GVArray get_varray_for_input(const FieldInputNode &field_input,
+  virtual GVArray get_varray_for_input(const FieldInput &field_input,
                                        const IndexMask &mask,
                                        ResourceScope &scope) const;
 };
 
 class FieldInputs : public ImplicitSharingMixin {
  public:
-  VectorSet<std::reference_wrapper<const FieldInputNode>> deduplicated_nodes;
+  VectorSet<std::reference_wrapper<const FieldInput>> deduplicated_nodes;
 
   void delete_self() override;
 };
 
-class FieldInputNode : public ImplicitSharingMixin {
+class FieldInput : public ImplicitSharingMixin {
  protected:
   const CPPType *type_;
   FieldInputsPtr field_inputs_;
   std::string debug_name_;
 
  public:
-  FieldInputNode(const CPPType &type, std::string debug_name_ = "")
+  FieldInput(const CPPType &type, std::string debug_name_ = "")
       : type_(&type), debug_name_(std::move(debug_name_))
   {
   }
@@ -156,7 +158,7 @@ class FieldInputNode : public ImplicitSharingMixin {
   const FieldInputsPtr &field_inputs() const;
 
   virtual uint64_t hash() const;
-  virtual bool is_equal_to(const FieldInputNode &other) const;
+  virtual bool is_equal_to(const FieldInput &other) const;
 
   virtual void foreach_recursive_field(FunctionRef<void(const GField &)> fn) const;
 
@@ -167,7 +169,7 @@ class FieldInputNode : public ImplicitSharingMixin {
   void delete_self() override;
 };
 
-class FieldMultiFunctionNode : public ImplicitSharingMixin {
+class FieldMultiFunction : public ImplicitSharingMixin {
  private:
   Vector<GField> inputs_;
   std::shared_ptr<const mf::MultiFunction> owned_fn_;
@@ -175,8 +177,8 @@ class FieldMultiFunctionNode : public ImplicitSharingMixin {
   FieldInputsPtr field_inputs_;
 
  public:
-  FieldMultiFunctionNode(std::shared_ptr<const mf::MultiFunction> fn, Vector<GField> inputs);
-  FieldMultiFunctionNode(const mf::MultiFunction &fn, Vector<GField> inputs);
+  FieldMultiFunction(std::shared_ptr<const mf::MultiFunction> fn, Vector<GField> inputs);
+  FieldMultiFunction(const mf::MultiFunction &fn, Vector<GField> inputs);
 
   static FieldMultiFunctionNodePtr from(std::shared_ptr<const mf::MultiFunction> fn,
                                         Vector<GField> inputs);
@@ -190,6 +192,8 @@ class FieldMultiFunctionNode : public ImplicitSharingMixin {
   const FieldInputsPtr &field_inputs() const;
 
   void delete_self() override;
+
+  Span<GField> inputs() const;
 };
 
 template<typename T> constexpr bool is_field_v = false;
@@ -356,41 +360,39 @@ inline uint64_t GField::hash() const
       ref.variant_);
 }
 
-inline const FieldInputsPtr &FieldInputNode::field_inputs() const
+inline const FieldInputsPtr &FieldInput::field_inputs() const
 {
   return field_inputs_;
 }
 
-inline const CPPType &FieldInputNode::cpp_type() const
+inline const CPPType &FieldInput::cpp_type() const
 {
   return *this->type_;
 }
 
-inline uint64_t FieldInputNode::hash() const
+inline uint64_t FieldInput::hash() const
 {
   return get_default_hash(*this);
 }
 
-inline bool FieldInputNode::is_equal_to(const FieldInputNode &other) const
+inline bool FieldInput::is_equal_to(const FieldInput &other) const
 {
   return this == &other;
 }
 
-inline void FieldInputNode::foreach_recursive_field(FunctionRef<void(const GField &)> /*fn*/) const
-{
-}
+inline void FieldInput::foreach_recursive_field(FunctionRef<void(const GField &)> /*fn*/) const {}
 
-inline const FieldInputsPtr &FieldMultiFunctionNode::field_inputs() const
+inline const FieldInputsPtr &FieldMultiFunction::field_inputs() const
 {
   return field_inputs_;
 }
 
-inline void FieldInputNode::delete_self()
+inline void FieldInput::delete_self()
 {
   MEM_delete(this);
 }
 
-inline void FieldMultiFunctionNode::delete_self()
+inline void FieldMultiFunction::delete_self()
 {
   MEM_delete(this);
 }
@@ -400,7 +402,7 @@ inline void FieldInputs::delete_self()
   MEM_delete(this);
 }
 
-inline const CPPType &FieldMultiFunctionNode::output_cpp_type(const int output_i) const
+inline const CPPType &FieldMultiFunction::output_cpp_type(const int output_i) const
 {
   int count = 0;
   for (const int param_index : fn_->param_indices()) {
@@ -416,17 +418,17 @@ inline const CPPType &FieldMultiFunctionNode::output_cpp_type(const int output_i
   return CPPType::get<float>();
 }
 
-inline FieldMultiFunctionNodePtr FieldMultiFunctionNode::from(
+inline FieldMultiFunctionNodePtr FieldMultiFunction::from(
     std::shared_ptr<const mf::MultiFunction> fn, Vector<GField> inputs)
 {
   return FieldMultiFunctionNodePtr(
-      MEM_new<FieldMultiFunctionNode>(__func__, std::move(fn), std::move(inputs)));
+      MEM_new<FieldMultiFunction>(__func__, std::move(fn), std::move(inputs)));
 }
 
-inline FieldMultiFunctionNodePtr FieldMultiFunctionNode::from_non_owning(
-    const mf::MultiFunction &fn, Vector<GField> inputs)
+inline FieldMultiFunctionNodePtr FieldMultiFunction::from_non_owning(const mf::MultiFunction &fn,
+                                                                     Vector<GField> inputs)
 {
-  return FieldMultiFunctionNodePtr(MEM_new<FieldMultiFunctionNode>(__func__, fn, inputs));
+  return FieldMultiFunctionNodePtr(MEM_new<FieldMultiFunction>(__func__, fn, inputs));
 }
 
 inline FieldInputsPtr combine_field_inputs(const Span<GField> &fields)
@@ -452,7 +454,7 @@ inline FieldInputsPtr combine_field_inputs(const Span<GField> &fields)
     {
       std::swap(smaller_candidate, larger_candidate);
     }
-    for (const FieldInputNode &field_input : (*smaller_candidate)->deduplicated_nodes) {
+    for (const FieldInput &field_input : (*smaller_candidate)->deduplicated_nodes) {
       if (!(*larger_candidate)->deduplicated_nodes.contains(field_input)) {
         candidate_valid = false;
         break;
@@ -472,33 +474,32 @@ inline FieldInputsPtr combine_field_inputs(const Span<GField> &fields)
     if (!field_inputs_ptr) {
       continue;
     }
-    for (const FieldInputNode &field_input : field_inputs_ptr->deduplicated_nodes) {
+    for (const FieldInput &field_input : field_inputs_ptr->deduplicated_nodes) {
       new_field_inputs->deduplicated_nodes.add(field_input);
     }
   }
   return FieldInputsPtr(new_field_inputs);
 }
 
-inline FieldMultiFunctionNode::FieldMultiFunctionNode(std::shared_ptr<const mf::MultiFunction> fn,
-                                                      Vector<GField> inputs)
-    : FieldMultiFunctionNode(*fn, std::move(inputs))
+inline FieldMultiFunction::FieldMultiFunction(std::shared_ptr<const mf::MultiFunction> fn,
+                                              Vector<GField> inputs)
+    : FieldMultiFunction(*fn, std::move(inputs))
 {
   owned_fn_ = std::move(fn);
 }
 
-inline FieldMultiFunctionNode::FieldMultiFunctionNode(const mf::MultiFunction &fn,
-                                                      Vector<GField> inputs)
+inline FieldMultiFunction::FieldMultiFunction(const mf::MultiFunction &fn, Vector<GField> inputs)
     : inputs_(inputs), fn_(&fn)
 {
   field_inputs_ = combine_field_inputs(inputs_);
 }
 
-inline StringRefNull FieldInputNode::debug_name() const
+inline StringRefNull FieldInput::debug_name() const
 {
   return debug_name_;
 }
 
-inline std::string FieldInputNode::socket_inspection_name() const
+inline std::string FieldInput::socket_inspection_name() const
 {
   return debug_name_;
 }
@@ -573,6 +574,20 @@ inline GField::~GField()
 }
 
 template<typename T> Field<T>::Field() : GField(CPPType::get<T>()) {}
+
+inline bool GField::depends_on_input() const
+{
+  const FieldInputsPtr &inputs = this->field_inputs();
+  if (!inputs) {
+    return false;
+  }
+  return !inputs->deduplicated_nodes.is_empty();
+}
+
+inline Span<GField> FieldMultiFunction::inputs() const
+{
+  return inputs_;
+}
 
 /** \} */
 
