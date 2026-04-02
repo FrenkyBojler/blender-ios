@@ -36,11 +36,12 @@ def download_available_updates_list() -> None:
     if _blender_updates_listing.downloader is None:
         _blender_updates_listing.downloader = UpdatesDownloader(
             lambda x: None,  # on-update callback.
-            lambda x, y, z: None,
-            on_done_callback,  # on-queue-empty callback.
+            on_download_done_callback,
+            on_done_callback,
         )
         _blender_updates_listing.downloader.start()
-    _blender_updates_listing.downloader.download_available_updates_list_file()
+        _blender_updates_listing.downloader.download_available_updates_list_file()
+        _blender_updates_listing.updates_str = None
 
 
 def read_available_updates_list() -> str | None:
@@ -49,24 +50,31 @@ def read_available_updates_list() -> str | None:
     return result
 
 
+def on_download_done_callback(
+    downloader: UpdatesDownloader,
+    _http_req_descr: http_dl.RequestDescription,
+    _temp_path: Path,
+) -> None:
+    _blender_updates_listing.updates_str = None
+    try:
+        with _temp_path.open() as file:
+            _blender_updates_listing.updates_str = file.read()
+    finally:
+        pass
+
+
 def on_done_callback(
     downloader: UpdatesDownloader,
 ) -> None:
-    _blender_updates_listing.updates_str = None
     if downloader.status == DownloadStatus.FINISHED:
         bpy.types.WindowManager.check_for_available_updates_status_finished_loading()
-        try:
-            with (Path(downloader.download_directory) / "updates.json").open() as file:
-                _blender_updates_listing.updates_str = file.read()
-        finally:
-            pass
     else:
         bpy.types.WindowManager.check_for_available_updates_status_failed_loading()
     _blender_updates_listing.downloader = None
 
 
 def downloader_status() -> DownloadStatus:
-    """Returns the asset downloader status.
+    """Returns the downloader status.
 
     Raises a KeyError if there never was a downloader for this URL.
     """
@@ -78,10 +86,7 @@ class DownloadStatus(enum.Enum):
     DOWNLOADING = 'downloading'
 
     FINISHED = 'finished'
-    """The downloader has downloaded everything that was queued.
-
-    Note: this does NOT mean that all downloads were perfect. It just means that
-    there were no exceptions raised.
+    """The downloader has downloaded the list of latest available releases.
     """
 
     FAILED = 'failed'
@@ -99,8 +104,8 @@ class UpdatesDownloader:
     _on_done_callback: OnDoneCallback
 
     # Called for each downloaded file being 'done':
-    type OnAssetDoneCallback = Callable[['UpdatesDownloader', http_dl.RequestDescription, Path], None]
-    _on_asset_done_callback: OnAssetDoneCallback | None
+    type OnDownloadDoneCallback = Callable[['UpdatesDownloader', http_dl.RequestDescription, Path], None]
+    _on_download_done_callback: OnDownloadDoneCallback | None
 
     _bg_downloader: http_dl.BackgroundDownloader | None
 
@@ -123,14 +128,10 @@ class UpdatesDownloader:
     def __init__(
         self,
         on_update_callback: OnUpdateCallback,
-        on_asset_done_callback: OnAssetDoneCallback,
+        on_download_done_callback: OnDownloadDoneCallback,
         on_done_callback: OnDoneCallback,
     ) -> None:
-        """Create a downloader for assets of a specific asset library.
-
-        :param remote_url: Base URL of the remote asset library server.
-
-        :param local_path: The directory to download the index files to.
+        """Create a downloader for checking the latest available updates.
 
         :param on_update_callback: Called with one parameter (this
             UpdatesDownloader) in short, regular intervals
@@ -144,15 +145,15 @@ class UpdatesDownloader:
             errors, or other issues can cause things to abort. In that case,
             this function is still called.
 
-        :param on_asset_done_callback: called with one parameter (this
-            UpdatesDownloader) when at least one new asset finished downloading
-            and was put in its final location, ready to be picked up by the
-            asset system.
+        :param on_download_done_callback: called with one parameter (this
+            UpdatesDownloader) when at the list of latest releases has
+            finished downloading and was put in its final location, ready to be
+            picked up.
         """
 
         self._on_done_callback = on_done_callback
         self._on_update_callback = on_update_callback
-        self._on_asset_done_callback = on_asset_done_callback
+        self._on_download_done_callback = on_download_done_callback
 
         self._status = DownloadStatus.IDLE
         self._error_message = ""
@@ -204,7 +205,7 @@ class UpdatesDownloader:
             assert bpy.app.timers.is_registered(self.on_timer_event)
 
     def download_available_updates_list_file(self) -> None:
-        """Download an asset or preview file to a local file."""
+        """Download the list of latest available release updates to a temp file."""
 
         # If the downloader was shut down, start it up again.
         if not self._bg_downloader:
@@ -230,30 +231,28 @@ class UpdatesDownloader:
         self.shutdown(DownloadStatus.FAILED)
         bpy.types.WindowManager.blender_updates_status_failed_loading()
 
-    def _queue_download(self, asset_url: str, download_to_path: Path | str) -> Path:
+    def _queue_download(self, url: str, download_to_path: Path | str) -> Path:
         """Queue up this download, returning the path to which it will be downloaded."""
-        remote_url = asset_url
-        download_to_path = download_to_path
 
-        logger.info("downloading %s to %s", remote_url, download_to_path)
+        logger.info("downloading %s to %s", url, download_to_path)
 
         assert self._bg_downloader, "downloads can only be queued when the bgdownloader is available"
 
-        # assert self._bg_downloader.num_pending_downloads == 0, "there is need to download more than once the available updates list file"
+        assert self._bg_downloader.num_pending_downloads == 0, "there is no need to download more than once the available updates list file"
 
         self._bg_downloader.queue_download(
-            remote_url,
+            url,
             download_to_path,
-            self._on_asset_done,
+            self._ond_download_done_done,
         )
         return download_to_path
 
-    def _on_asset_done(self,
-                       http_req_descr: http_dl.RequestDescription,
-                       local_file: Path,
-                       ) -> None:
-        if self._on_asset_done_callback:
-            self._on_asset_done_callback(self, http_req_descr, local_file)
+    def _ond_download_done_done(self,
+                                http_req_descr: http_dl.RequestDescription,
+                                local_file: Path,
+                                ) -> None:
+        if self._on_download_done_callback:
+            self._on_download_done_callback(self, http_req_descr, local_file)
 
     # TODO: implement this in a more useful way:
     def report(self, level: set[str], message: str) -> None:
@@ -269,6 +268,11 @@ class UpdatesDownloader:
         # takes care of the last queued messages.
         if bpy.app.timers.is_registered(self.on_timer_event):
             bpy.app.timers.unregister(self.on_timer_event)
+
+        # Cleanup temp directory 
+        if self._temp_dir:
+            self._temp_dir.cleanup()
+            self._temp_dir = None
 
         try:
             if self._bg_downloader:
@@ -289,9 +293,6 @@ class UpdatesDownloader:
             # so for all intents and purposes, the downloader is done.
             self._bg_downloader = None
             self._on_done_callback(self)
-        if self._temp_dir:
-            self._temp_dir.cleanup()
-            self._temp_dir = None
 
     def on_timer_event(self) -> float:
         assert self._bg_downloader, "timer events should only come in while the bgdownloader is available"
@@ -321,10 +322,6 @@ class UpdatesDownloader:
     @property
     def status(self) -> DownloadStatus:
         return self._status
-
-    @property
-    def download_directory(self) -> str:
-        return self._temp_dir.name
 
     @property
     def error_message(self) -> str:
@@ -369,7 +366,6 @@ class UpdatesDownloader:
         http_req_descr: http_dl.RequestDescription,
         local_file: Path,
     ) -> None:
-        _blender_updates_listing.updates_str = None
         _blender_updates_listing.downloader = None
 
         self.report({'INFO'}, "Download finished: {}".format(http_req_descr.url))

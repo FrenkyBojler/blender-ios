@@ -71,10 +71,12 @@ void ignore_update(const VersionUpdate *update_info);
  */
 void ignore_all_updates();
 
-/** Sets when the process downloading the file of the latest updates have beed finished successfully. */
+/** Sets when the process downloading the file of the latest updates have beed finished
+ * successfully. */
 void check_for_updates_set_finished();
 
-/** Sets when the process downloading the file of the latest available updates have encounter any error. */
+/** Sets when the process downloading the file of the latest available updates have encounter any
+ * error. */
 void check_for_updates_set_failed();
 
 /** Checks if there is an active process downloading the file of the latest available updates. */
