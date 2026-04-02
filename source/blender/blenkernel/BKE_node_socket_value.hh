@@ -79,7 +79,7 @@ class SocketValueVariant {
    *
    * Small types are embedded directly, while larger types are separately allocated.
    */
-  Any<void, 24> value_;
+  Any<void, 32> value_;
 
  public:
   /**
@@ -136,6 +136,8 @@ class SocketValueVariant {
    * Replaces the stored value with a new value of potentially a different type.
    */
   template<typename T> void set(T &&value);
+
+  eNodeSocketDatatype socket_type() const;
 
   /**
    * If true, the stored value cannot be converted to a single value without loss of information.
@@ -211,6 +213,11 @@ class SocketValueVariant {
    */
   template<typename T> void store_impl(T value);
 };
+
+inline eNodeSocketDatatype SocketValueVariant::socket_type() const
+{
+  return socket_type_;
+}
 
 template<typename T>
 inline SocketValueVariant &SocketValueVariant::ConstructIn(void *ptr, T &&value)

@@ -23,6 +23,8 @@
 #include "BKE_image_format.hh"
 #include "BKE_path_templates.hh"
 
+#include "BLT_translation.hh"
+
 namespace blender {
 
 namespace path_templates = bke::path_templates;
@@ -177,7 +179,7 @@ void BKE_image_format_set(ImageFormatData *imf, ID *owner_id, const char imtype)
 
 /* File Types */
 
-int BKE_imtype_to_ftype(const char imtype, ImbFormatOptions *r_options)
+eImbFileType BKE_imtype_to_ftype(const char imtype, ImbFormatOptions *r_options)
 {
   *r_options = ImbFormatOptions();
 
@@ -195,7 +197,6 @@ int BKE_imtype_to_ftype(const char imtype, ImbFormatOptions *r_options)
     return IMB_FTYPE_RADHDR;
   }
   if (imtype == R_IMF_IMTYPE_PNG) {
-    r_options->quality = 15;
     return IMB_FTYPE_PNG;
   }
   if (imtype == R_IMF_IMTYPE_DDS) {
@@ -208,7 +209,6 @@ int BKE_imtype_to_ftype(const char imtype, ImbFormatOptions *r_options)
     return IMB_FTYPE_TIF;
   }
   if (ELEM(imtype, R_IMF_IMTYPE_OPENEXR, R_IMF_IMTYPE_MULTILAYER)) {
-    r_options->quality = 90;
     return IMB_FTYPE_OPENEXR;
   }
 #ifdef WITH_IMAGE_CINEON
@@ -222,13 +222,11 @@ int BKE_imtype_to_ftype(const char imtype, ImbFormatOptions *r_options)
 #ifdef WITH_IMAGE_OPENJPEG
   if (imtype == R_IMF_IMTYPE_JP2) {
     r_options->flag |= JP2_JP2;
-    r_options->quality = 90;
     return IMB_FTYPE_JP2;
   }
 #endif
 #ifdef WITH_IMAGE_WEBP
   if (imtype == R_IMF_IMTYPE_WEBP) {
-    r_options->quality = 90;
     return IMB_FTYPE_WEBP;
   }
 #endif
@@ -237,11 +235,10 @@ int BKE_imtype_to_ftype(const char imtype, ImbFormatOptions *r_options)
     return IMB_FTYPE_AVIF;
   }
 
-  r_options->quality = 90;
   return IMB_FTYPE_JPG;
 }
 
-char BKE_ftype_to_imtype(const int ftype, const ImbFormatOptions *options)
+char BKE_ftype_to_imtype(const eImbFileType ftype, const ImbFormatOptions *options)
 {
   if (ftype == IMB_FTYPE_NONE) {
     return R_IMF_IMTYPE_TARGA;
@@ -381,7 +378,6 @@ char BKE_imtype_valid_channels(const char imtype)
     case R_IMF_IMTYPE_TIFF:
     case R_IMF_IMTYPE_IRIS:
     case R_IMF_IMTYPE_OPENEXR:
-    case R_IMF_IMTYPE_AVIF:
       chan_flag |= IMA_CHAN_FLAG_BW;
       break;
   }
@@ -685,6 +681,13 @@ static Vector<path_templates::Error> do_makepicstring(
   if (use_frames) {
     BLI_path_frame(filepath, FILE_MAX, frame, 4);
   }
+  else {
+    /* Avoid empty filename if there is no frame and only a directory was specified. */
+    const size_t len = strlen(filepath);
+    if (len && BLI_path_slash_is_native_compat(filepath[len - 1])) {
+      BLI_path_suffix(filepath, FILE_MAX, DATA_("Untitled"), "");
+    }
+  }
 
   if (suffix) {
     BLI_path_suffix(filepath, FILE_MAX, suffix, "");
@@ -769,7 +772,7 @@ void BKE_image_format_to_imbuf(ImBuf *ibuf, const ImageFormatData *imf)
         ibuf->foptions.flag |= PNG_16BIT;
       }
 
-      ibuf->foptions.quality = compress;
+      ibuf->foptions.compress = compress;
     }
   }
   else if (imtype == R_IMF_IMTYPE_DDS) {
@@ -954,9 +957,10 @@ static char imtype_best_depth(const ImBuf *ibuf, const char imtype)
 void BKE_image_format_from_imbuf(ImageFormatData *im_format, const ImBuf *imbuf)
 {
   /* Read from ImBuf after file read. */
-  int ftype = imbuf->ftype;
+  eImbFileType ftype = imbuf->ftype;
   int custom_flags = imbuf->foptions.flag;
   char quality = imbuf->foptions.quality;
+  char compress = imbuf->foptions.compress;
   bool is_depth_set = false;
 
   BKE_image_format_init(im_format);
@@ -977,7 +981,7 @@ void BKE_image_format_from_imbuf(ImageFormatData *im_format, const ImBuf *imbuf)
       is_depth_set = true;
     }
 
-    im_format->compress = quality;
+    im_format->compress = compress;
   }
   else if (ftype == IMB_FTYPE_DDS) {
     im_format->imtype = R_IMF_IMTYPE_DDS;
