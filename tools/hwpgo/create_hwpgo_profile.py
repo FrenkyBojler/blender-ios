@@ -19,10 +19,9 @@ def main() -> int:
     parser.add_argument("--cache", required=False, type=Path, default=Path(".cache"), help="A cache for scratch data")
     parser.add_argument("--llvm", required=True, type=Path, help="Path to the LLVM bin dir")
 
-
     args = parser.parse_args()
 
-    collections_dir = args.performance_events.resolve()
+    collections_dir = args.event_collection.resolve()
     blender_exe_path = args.blender.resolve()
     llvm_bin_dir = args.llvm.resolve()
     final_profile = args.profile.resolve()

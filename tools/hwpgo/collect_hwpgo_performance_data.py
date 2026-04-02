@@ -74,7 +74,7 @@ def main() -> int:
     llvm_readobj_exe = llvm_bin_dir / "llvm-readobj.exe"
 
     workload_dict = load_workload_json(workload_path)
-    out_dir = args.performance_events
+    out_dir = args.event_collection
 
     # Check binaries in blender folder for required symbols
     blender_dir_path = blender_exe_path.parent
