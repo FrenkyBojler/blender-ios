@@ -133,11 +133,15 @@ FieldOperationPtr FieldOperation::from(std::shared_ptr<const mf::MultiFunction> 
 
 FieldOperationPtr FieldOperation::from(const mf::MultiFunction &fn, Vector<GField> inputs)
 {
-  return FieldOperationPtr(MEM_new<FieldOperation>(__func__, fn, inputs));
+  return FieldOperationPtr(MEM_new<FieldOperation>(__func__, fn, std::move(inputs)));
 }
 
+/**
+ * Combine the field inputs from multiple fields. If possible, nothing new is allocated.
+ */
 static FieldInputsPtr combine_field_inputs(const Span<GField> &fields)
 {
+  /* Try to find an existing #FieldInputsPtr that covers all given fields. */
   bool candidate_valid = true;
   const FieldInputsPtr *candidate = nullptr;
   for (const GField &field : fields) {
@@ -157,6 +161,7 @@ static FieldInputsPtr combine_field_inputs(const Span<GField> &fields)
     if ((*smaller_candidate)->inputs.size() > (*larger_candidate)->inputs.size()) {
       std::swap(smaller_candidate, larger_candidate);
     }
+    /* Check if the smaller candidate is fully contained in the larger one. */
     for (const FieldInput &field_input : (*smaller_candidate)->inputs) {
       if (!(*larger_candidate)->inputs.contains(field_input)) {
         candidate_valid = false;
@@ -174,6 +179,8 @@ static FieldInputsPtr combine_field_inputs(const Span<GField> &fields)
     }
     return {};
   }
+  /* None of the existing #FieldInputs can be reused, create a new #FieldInputs and add all the
+   * inputs to it. */
   FieldInputs *new_field_inputs = MEM_new<FieldInputs>(__func__);
   for (const GField &field : fields) {
     const FieldInputsPtr &field_inputs_ptr = field.field_inputs();

@@ -283,9 +283,9 @@ class FieldContext {
 };
 
 /**
- * Cache of field inputs. This is used quite often and is therefore computed eagerly. Otherwise one
- * would have to parse the field tree every time the set of inputs is required. Since many fields
- * share the same set of inputs, this is often shared.
+ * Cache of field inputs. This is used quite often and is therefore computed eagerly for
+ * intermediate operations. Otherwise one would have to parse the field tree every time the set of
+ * inputs is required. Since many fields share the same set of inputs, this is often shared.
  */
 class FieldInputs : public ImplicitSharingMixin {
  public:
@@ -459,8 +459,7 @@ inline Field<T>::Field(T value)
           return GField(constant);
         }
         else {
-          void *new_value = MEM_new_uninitialized_aligned(sizeof(T), alignof(T), __func__);
-          new (new_value) T(std::move(value));
+          T *new_value = MEM_new<T>(__func__, std::move(new_value));
           return GField(GField::OwnedConstant{&type, new_value});
         }
       }())
