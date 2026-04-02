@@ -2719,7 +2719,8 @@ static wmOperatorStatus wm_userpref_read_exec(bContext *C, wmOperator *op)
   if (use_factory_settings) {
     U.runtime.is_dirty = true;
 
-    /* Default to Interface if Developer Tools section is active before Load Factory Settings. */
+    /* Default to Interface if Developer Tools section is active before Load Factory Preferences.
+     */
     if (U.space_data.section_active == USER_SECTION_DEVELOPER_TOOLS &&
         !(U.flag & USER_DEVELOPER_UI))
     {
