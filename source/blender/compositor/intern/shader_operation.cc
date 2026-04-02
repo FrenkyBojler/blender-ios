@@ -150,24 +150,23 @@ void ShaderOperation::link_node_inputs(const bNode &node)
       else {
         this->link_node_input_implicit(*input);
       }
+      continue;
+    }
+
+    /* If the source node is part of the shader operation, then the link is internal to the GPU
+     * material graph and is linked appropriately. */
+    if (compile_unit_.contains(&output->owner_node())) {
+      this->link_node_input_internal(*input, *output);
     }
     else {
-      /* If the source node is part of the shader operation, then the link is internal to the GPU
-       * material graph and is linked appropriately. */
-      if (compile_unit_.contains(&output->owner_node())) {
-        this->link_node_input_internal(*input, *output);
-      }
-      else {
-        /* Otherwise, the source node is not part of the shader operation, then the link is
-         * external to the GPU material graph and an input to the shader operation must be declared
-         * and linked to the node input. */
-        this->link_node_input_external(*input, *output);
-      }
-
-      /* Implicitly convert the input link type to the expected input type if needed. */
-      const ResultType source_type = get_node_socket_result_type(output);
-      this->convert_input_link_type(*input, source_type);
+      /* Otherwise, the source node is not part of the shader operation, then the link is
+       * external to the GPU material graph and an input to the shader operation must be declared
+       * and linked to the node input. */
+      this->link_node_input_external(*input, *output);
     }
+
+    /* Implicitly convert the input link type to the expected input type if needed. */
+    this->convert_input_link_type(*input, *output);
   }
 }
 
@@ -176,7 +175,7 @@ void ShaderOperation::link_node_input_unavailable(const bNodeSocket &input)
   ShaderNode &node = *shader_nodes_.lookup(&input.owner_node());
   GPUNodeStack &stack = node.get_input(input.identifier);
 
-  /* Create a constant link with some float zero value. The value is arbitrary and ignored. See the
+  /* Create a constant link with some zero value. The value is arbitrary and ignored. See the
    * method description. */
   zero_v4(stack.vec);
   GPUNodeLink *link = GPU_constant(stack.vec);
@@ -561,9 +560,9 @@ void ShaderOperation::populate_operation_result(const bNodeSocket &output_socket
   GPU_material_add_output_link_composite(material_, storer_output_link);
 }
 
-void ShaderOperation::convert_input_link_type(const bNodeSocket &input,
-                                              const ResultType source_type)
+void ShaderOperation::convert_input_link_type(const bNodeSocket &input, const bNodeSocket &output)
 {
+  const ResultType source_type = get_node_socket_result_type(&output);
   const ResultType target_type = get_node_socket_result_type(&input);
   if (target_type == source_type) {
     return;

@@ -4,7 +4,11 @@
 
 /* The file contains the implementation of functions inserted by the GPUMatrial code generator,
  * this mainly contains the [type]_to_[type] and [type]_from_[type] implicit conversion functions,
- * the former are inserted by the compositor and the latter are inserted bu the code generator. */
+ * the former are inserted by the compositor and the latter are inserted by the code generator.
+ *
+ * Note that the [type]_to_[type] functions are the same as the type conversion functions but they
+ * use references for the output, has the node attribute, and use float types in the interface
+ * instead of int and bool types because those are not supported by GPUMatrial. */
 
 #include "gpu_shader_compositor_type_conversion.glsl"
 
