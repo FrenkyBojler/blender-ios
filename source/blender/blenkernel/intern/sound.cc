@@ -11,11 +11,14 @@
 #include <condition_variable>
 #include <cstdlib>
 #include <cstring>
-#include <fftw3.h>
 #include <mutex>
 #include <numeric>
 #include <optional>
 #include <thread>
+
+#ifdef WITH_FFTW3
+#  include <fftw3.h>
+#endif
 
 #include "MEM_guardedalloc.h"
 
@@ -2199,7 +2202,7 @@ std::optional<Array<float>> bSoundFrequencySampler::compute_fft(const int start_
    * computed. */
   const int frequencies_num = key_.fft_size / 2;
 
-#ifdef WITH_AUDASPACE
+#if defined(WITH_AUDASPACE) && defined(WITH_FFTW3)
   /* Prepare the reader. */
   AUD_Sound sound_handle = sound_.runtime->handle;
   std::shared_ptr<aud::IReader> reader = sound_handle->createReader();
