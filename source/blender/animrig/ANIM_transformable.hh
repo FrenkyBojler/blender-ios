@@ -147,6 +147,7 @@ class Transformable {
    * the given rotation, a conversion is performed.
    */
   void set_rotation(const Rotation &value);
+  eRotationModes get_rotation_mode() const;
 
   /**
    * Blend all location values to a single value.

@@ -25,7 +25,7 @@ static bool should_modify_axis(const int index, const AxisFlag axis_flag)
   return axis_flag & (1 << index);
 }
 
-static Array<float> copy_span_to_array(const Span<float> value)
+static Array<float> array_from_span(const Span<float> value)
 {
   Array<float> copy(value.size());
   for (int i : value.index_range()) {
@@ -34,7 +34,7 @@ static Array<float> copy_span_to_array(const Span<float> value)
   return copy;
 }
 
-static Array<float> copy_span_to_array(const Span<float *> value)
+static Array<float> array_from_span(const Span<float *> value)
 {
   Array<float> copy(value.size());
   for (int i : value.index_range()) {
@@ -176,15 +176,15 @@ Array<float> Transformable::get_property(const PropertyType prop_type) const
 {
   switch (prop_type) {
     case PropertyType::LOCATION:
-      return copy_span_to_array(location_);
+      return array_from_span(location_);
 
     case PropertyType::ROTATION: {
       const Array<float *> *rotation_array = get_rotation_array_from_mode(
           eRotationModes(*rotation_mode_));
-      return copy_span_to_array(*rotation_array);
+      return array_from_span(*rotation_array);
     }
     case PropertyType::SCALE:
-      return copy_span_to_array(scale_);
+      return array_from_span(scale_);
   }
 
   BLI_assert_unreachable();
@@ -238,9 +238,9 @@ void Transformable::blend_property_to(const PropertyType prop_type,
       }
       Rotation rotation;
       /* Note: We assume the rotation mode here which may not be correct. It is the responsibility
-       * of the caller to ensure this is right. */
+       * of the caller to ensure this is right or use `blend_rotation_to`. */
       rotation.mode = eRotationModes(*rotation_mode_);
-      rotation.values = copy_span_to_array(*rotation_array);
+      rotation.values = array_from_span(values);
       blend_rotation_to(rotation, factor, axis_flag);
       break;
     }
@@ -303,7 +303,7 @@ Transformable::Transformable(Object &obj)
 
 Array<float> Transformable::get_location() const
 {
-  return copy_span_to_array(location_);
+  return array_from_span(location_);
 }
 
 void Transformable::set_location(const Span<float> value)
@@ -319,7 +319,7 @@ void Transformable::set_location(const float3 value)
 
 Array<float> Transformable::get_scale() const
 {
-  return copy_span_to_array(scale_);
+  return array_from_span(scale_);
 }
 
 void Transformable::set_scale(const Span<float> value)
@@ -357,7 +357,7 @@ Rotation Transformable::get_rotation() const
   rotation.mode = eRotationModes(*rotation_mode_);
   const Array<float *> *rotations_array = get_rotation_array_from_mode(rotation.mode);
   BLI_assert(rotations_array != nullptr);
-  rotation.values = copy_span_to_array(*rotations_array);
+  rotation.values = array_from_span(*rotations_array);
   return rotation;
 }
 
@@ -378,6 +378,11 @@ void Transformable::set_rotation(const Rotation &rotation)
   for (int i : rotations_array->index_range()) {
     *(*rotations_array)[i] = rot_in_correct_mode.values[i];
   }
+}
+
+eRotationModes Transformable::get_rotation_mode() const
+{
+  return eRotationModes(*rotation_mode_);
 }
 
 void Transformable::blend_location_to(const float target,

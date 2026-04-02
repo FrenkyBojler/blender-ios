@@ -346,13 +346,16 @@ static Vector<FCurve *> fcurves_filtered_by_path(const Span<FCurve *> input_fcur
   return fcurves;
 }
 
-static void pose_slide_apply_linear(tPoseSlideOp &pso, tPChanFCurveLink &pfl, const StringRef path)
+/* Apply linear blending to the values of the given `prop_type`. */
+static void pose_slide_apply_linear(tPoseSlideOp &pso,
+                                    tPChanFCurveLink &pfl,
+                                    const StringRef path,
+                                    const animrig::Transformable::PropertyType prop_type)
 {
 
   const float factor = ED_slider_factor_get(pso.slider);
   const Vector<FCurve *> fcurves = fcurves_filtered_by_path(pfl.fcurves, path);
   animrig::Transformable *transformable = pfl.transformable;
-  animrig::Transformable::PropertyType prop_type = animrig::Transformable::PropertyType::LOCATION;
   Array<float> prev_values = transformable->get_property(prop_type);
   Array<float> next_values = prev_values;
 
@@ -484,37 +487,6 @@ static void pose_slide_apply_val(tPoseSlideOp *pso, const FCurve *fcu, ID *id, f
     /* Those are handled in pose_slide_rest_pose_apply. */
     case POSESLIDE_BLEND_REST: {
       break;
-    }
-  }
-}
-
-/**
- * Helper for apply() - perform sliding for some 3-element vector.
- */
-static void pose_slide_apply_vec3(tPoseSlideOp *pso,
-                                  tPChanFCurveLink *pfl,
-                                  float vec[3],
-                                  const char propName[])
-{
-  /* Get the path to use. */
-  std::string path = fmt::format("{}.{}", pfl->transformable->rna_path(), propName);
-
-  /* Using this path, find each matching F-Curve for the variables we're interested in. */
-  for (FCurve *fcu : pfl->fcurves) {
-    if (StringRefNull(fcu->rna_path) != path) {
-      continue;
-    }
-    const int idx = fcu->array_index;
-    const int lock = pso->axislock;
-
-    /* Check if this F-Curve is ok given the current axis locks. */
-    BLI_assert(fcu->array_index < 3);
-
-    if ((lock == 0) || ((lock & PS_LOCK_X) && (idx == 0)) || ((lock & PS_LOCK_Y) && (idx == 1)) ||
-        ((lock & PS_LOCK_Z) && (idx == 2)))
-    {
-      /* Just work on these channels one by one... there's no interaction between values. */
-      pose_slide_apply_val(pso, fcu, pfl->transformable->owner_id(), &vec[fcu->array_index]);
     }
   }
 }
@@ -797,26 +769,27 @@ static void pose_slide_apply(bContext *C, tPoseSlideOp *pso)
      *   for quaternions instead...
      */
     animrig::Transformable *transformable = pfl.transformable;
-    bPoseChannel *pchan = static_cast<bPoseChannel *>(transformable->data());
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_LOC) && (pfl.transform_flag & ACT_TRANS_LOC)) {
       /* Calculate these for the 'location' vector, and use location curves. */
       std::string path = fmt::format("{}.{}", pfl.transformable->rna_path(), "location");
-      pose_slide_apply_linear(*pso, pfl, path);
+      pose_slide_apply_linear(*pso, pfl, path, animrig::Transformable::PropertyType::LOCATION);
     }
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_SCALE) && (pfl.transform_flag & ACT_TRANS_SCALE)) {
       /* Calculate these for the 'scale' vector, and use scale curves. */
-      pose_slide_apply_vec3(pso, &pfl, pchan->scale, "scale");
+      std::string path = fmt::format("{}.{}", pfl.transformable->rna_path(), "scale");
+      pose_slide_apply_linear(*pso, pfl, path, animrig::Transformable::PropertyType::SCALE);
     }
 
     if (ELEM(pso->channels, PS_TFM_ALL, PS_TFM_ROT) && (pfl.transform_flag & ACT_TRANS_ROT)) {
       /* Everything depends on the rotation mode. */
-      if (pchan->rotmode > 0) {
-        /* Eulers - so calculate these for the 'eul' vector, and use euler_rotation curves. */
-        pose_slide_apply_vec3(pso, &pfl, pchan->eul, "rotation_euler");
+      const eRotationModes rot_mode = transformable->get_rotation_mode();
+      if (rot_mode > 0) {
+        std::string path = fmt::format("{}.{}", pfl.transformable->rna_path(), "rotation_euler");
+        pose_slide_apply_linear(*pso, pfl, path, animrig::Transformable::PropertyType::ROTATION);
       }
-      else if (pchan->rotmode == ROT_MODE_AXISANGLE) {
+      else if (rot_mode == ROT_MODE_AXISANGLE) {
         /* TODO: need to figure out how to do this! */
       }
       else {
