@@ -295,6 +295,13 @@
       return label;
     }
 
+    function chart_on_click_callback(e, elements, chart) {
+      console.log(elements);
+      // hide all infos 
+      // create id for the correct set.
+      // show detailed info
+    }
+
     /* Convert byte values into human-readable strings (MB, GB, etc.). */
     function format_memory(bytes) {
       if (bytes === 0) return '0 B';
@@ -498,7 +505,8 @@
                   label: (context) => chart_tooltip_label_callback(context, is_memory)
                 }
               }
-            }
+            },
+            onClick: (e, elements, chart) => chart_on_click_callback(e, elements, chart)
           }
         });
 
